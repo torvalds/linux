@@ -630,6 +630,9 @@ struct cxl_context {
 	struct list_head extra_irq_contexts;
 
 	struct mm_struct *mm;
+
+	u16 tidr;
+	bool assign_tidr;
 };
 
 struct cxl_irq_info;
@@ -1081,7 +1084,7 @@ int afu_open(struct inode *inode, struct file *file);
 int afu_release(struct inode *inode, struct file *file);
 long afu_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 int afu_mmap(struct file *file, struct vm_area_struct *vm);
-unsigned int afu_poll(struct file *file, struct poll_table_struct *poll);
+__poll_t afu_poll(struct file *file, struct poll_table_struct *poll);
 ssize_t afu_read(struct file *file, char __user *buf, size_t count, loff_t *off);
 extern const struct file_operations afu_fops;
 

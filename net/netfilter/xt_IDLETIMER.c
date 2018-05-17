@@ -146,10 +146,10 @@ static int idletimer_tg_create(struct idletimer_tg_info *info)
 	timer_setup(&info->timer->timer, idletimer_tg_expired, 0);
 	info->timer->refcnt = 1;
 
+	INIT_WORK(&info->timer->work, idletimer_tg_work);
+
 	mod_timer(&info->timer->timer,
 		  msecs_to_jiffies(info->timeout * 1000) + jiffies);
-
-	INIT_WORK(&info->timer->work, idletimer_tg_work);
 
 	return 0;
 
@@ -191,7 +191,10 @@ static int idletimer_tg_checkentry(const struct xt_tgchk_param *par)
 		pr_debug("timeout value is zero\n");
 		return -EINVAL;
 	}
-
+	if (info->timeout >= INT_MAX / 1000) {
+		pr_debug("timeout value is too big\n");
+		return -EINVAL;
+	}
 	if (info->label[0] == '\0' ||
 	    strnlen(info->label,
 		    MAX_IDLETIMER_LABEL_SIZE) == MAX_IDLETIMER_LABEL_SIZE) {
@@ -252,6 +255,7 @@ static struct xt_target idletimer_tg __read_mostly = {
 	.family		= NFPROTO_UNSPEC,
 	.target		= idletimer_tg_target,
 	.targetsize     = sizeof(struct idletimer_tg_info),
+	.usersize	= offsetof(struct idletimer_tg_info, timer),
 	.checkentry	= idletimer_tg_checkentry,
 	.destroy        = idletimer_tg_destroy,
 	.me		= THIS_MODULE,

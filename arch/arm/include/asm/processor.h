@@ -45,6 +45,16 @@ struct thread_struct {
 	struct debug_info	debug;
 };
 
+/*
+ * Everything usercopied to/from thread_struct is statically-sized, so
+ * no hardened usercopy whitelist is needed.
+ */
+static inline void arch_thread_struct_whitelist(unsigned long *offset,
+						unsigned long *size)
+{
+	*offset = *size = 0;
+}
+
 #define INIT_THREAD  {	}
 
 #define start_thread(regs,pc,sp)					\

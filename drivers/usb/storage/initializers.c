@@ -18,9 +18,6 @@
  *
  * Also, for certain devices, the interrupt endpoint is used to convey
  * status of a command.
- *
- * Please see http://www.one-eyed-alien.net/~mdharm/linux-usb for more
- * information about this driver.
  */
 
 #include <linux/errno.h>

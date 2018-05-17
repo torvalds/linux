@@ -1929,15 +1929,15 @@ static int dm_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static unsigned dm_poll(struct file *filp, poll_table *wait)
+static __poll_t dm_poll(struct file *filp, poll_table *wait)
 {
 	struct dm_file *priv = filp->private_data;
-	unsigned mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(filp, &dm_global_eventq, wait);
 
 	if ((int)(atomic_read(&dm_global_event_nr) - priv->global_event_nr) > 0)
-		mask |= POLLIN;
+		mask |= EPOLLIN;
 
 	return mask;
 }

@@ -92,7 +92,7 @@
  * some basic allocator dumpers for debugging.
  *
  * Note that this range allocator is not thread-safe, drivers need to protect
- * modifications with their on locking. The idea behind this is that for a full
+ * modifications with their own locking. The idea behind this is that for a full
  * memory manager additional data needs to be protected anyway, hence internal
  * locking would be fully redundant.
  */
@@ -836,9 +836,24 @@ struct drm_mm_node *drm_mm_scan_color_evict(struct drm_mm_scan *scan)
 	if (!mm->color_adjust)
 		return NULL;
 
-	hole = list_first_entry(&mm->hole_stack, typeof(*hole), hole_stack);
-	hole_start = __drm_mm_hole_node_start(hole);
-	hole_end = hole_start + hole->hole_size;
+	/*
+	 * The hole found during scanning should ideally be the first element
+	 * in the hole_stack list, but due to side-effects in the driver it
+	 * may not be.
+	 */
+	list_for_each_entry(hole, &mm->hole_stack, hole_stack) {
+		hole_start = __drm_mm_hole_node_start(hole);
+		hole_end = hole_start + hole->hole_size;
+
+		if (hole_start <= scan->hit_start &&
+		    hole_end >= scan->hit_end)
+			break;
+	}
+
+	/* We should only be called after we found the hole previously */
+	DRM_MM_BUG_ON(&hole->hole_stack == &mm->hole_stack);
+	if (unlikely(&hole->hole_stack == &mm->hole_stack))
+		return NULL;
 
 	DRM_MM_BUG_ON(hole_start > scan->hit_start);
 	DRM_MM_BUG_ON(hole_end < scan->hit_end);

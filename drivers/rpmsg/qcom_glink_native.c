@@ -221,6 +221,7 @@ static struct glink_channel *qcom_glink_alloc_channel(struct qcom_glink *glink,
 	/* Setup glink internal glink_channel data */
 	spin_lock_init(&channel->recv_lock);
 	spin_lock_init(&channel->intent_lock);
+	mutex_init(&channel->intent_req_lock);
 
 	channel->glink = glink;
 	channel->name = kstrdup(name, GFP_KERNEL);

@@ -39,7 +39,10 @@
  */
 static struct pci_dev *get_pci_dev(struct device_node *dn)
 {
-	return PCI_DN(dn)->pcidev;
+	struct pci_dn *pdn = PCI_DN(dn);
+
+	return pci_get_domain_bus_and_slot(pci_domain_nr(pdn->phb->bus),
+					   pdn->busno, pdn->devfn);
 }
 
 /* Given a NPU device get the associated PCI device. */
@@ -277,7 +280,7 @@ static int pnv_npu_dma_set_bypass(struct pnv_ioda_pe *npe)
 	int64_t rc = 0;
 	phys_addr_t top = memblock_end_of_DRAM();
 
-	if (phb->type != PNV_PHB_NPU || !npe->pdev)
+	if (phb->type != PNV_PHB_NPU_NVLINK || !npe->pdev)
 		return -EINVAL;
 
 	rc = pnv_npu_unset_window(npe, 0);

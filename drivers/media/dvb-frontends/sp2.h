@@ -17,7 +17,7 @@
 #ifndef SP2_H
 #define SP2_H
 
-#include "dvb_ca_en50221.h"
+#include <media/dvb_ca_en50221.h>
 
 /*
  * I2C address

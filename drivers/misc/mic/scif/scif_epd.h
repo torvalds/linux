@@ -203,7 +203,7 @@ void scif_clientrcvd(struct scif_dev *scifdev, struct scifmsg *msg);
 int __scif_connect(scif_epd_t epd, struct scif_port_id *dst, bool non_block);
 int __scif_flush(scif_epd_t epd);
 int scif_mmap(struct vm_area_struct *vma, scif_epd_t epd);
-unsigned int __scif_pollfd(struct file *f, poll_table *wait,
+__poll_t __scif_pollfd(struct file *f, poll_table *wait,
 			   struct scif_endpt *ep);
 int __scif_pin_pages(void *addr, size_t len, int *out_prot,
 		     int map_flags, scif_pinned_pages_t *pages);

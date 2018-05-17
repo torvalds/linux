@@ -45,6 +45,9 @@ obj-$(CONFIG_NFT_REDIR_IPV6) += nft_redir_ipv6.o
 obj-$(CONFIG_NFT_DUP_IPV6) += nft_dup_ipv6.o
 obj-$(CONFIG_NFT_FIB_IPV6) += nft_fib_ipv6.o
 
+# flow table support
+obj-$(CONFIG_NF_FLOW_TABLE_IPV6) += nf_flow_table_ipv6.o
+
 # matches
 obj-$(CONFIG_IP6_NF_MATCH_AH) += ip6t_ah.o
 obj-$(CONFIG_IP6_NF_MATCH_EUI64) += ip6t_eui64.o
@@ -54,6 +57,7 @@ obj-$(CONFIG_IP6_NF_MATCH_MH) += ip6t_mh.o
 obj-$(CONFIG_IP6_NF_MATCH_OPTS) += ip6t_hbh.o
 obj-$(CONFIG_IP6_NF_MATCH_RPFILTER) += ip6t_rpfilter.o
 obj-$(CONFIG_IP6_NF_MATCH_RT) += ip6t_rt.o
+obj-$(CONFIG_IP6_NF_MATCH_SRH) += ip6t_srh.o
 
 # targets
 obj-$(CONFIG_IP6_NF_TARGET_MASQUERADE) += ip6t_MASQUERADE.o

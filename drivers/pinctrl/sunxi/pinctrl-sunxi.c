@@ -12,6 +12,7 @@
 
 #include <linux/io.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/gpio/driver.h>
 #include <linux/irqdomain.h>
 #include <linux/irqchip/chained_irq.h>
@@ -83,7 +84,9 @@ sunxi_pinctrl_desc_find_function_by_name(struct sunxi_pinctrl *pctl,
 			struct sunxi_desc_function *func = pin->functions;
 
 			while (func->name) {
-				if (!strcmp(func->name, func_name))
+				if (!strcmp(func->name, func_name) &&
+					(!func->variant ||
+					func->variant & pctl->variant))
 					return func;
 
 				func++;
@@ -1185,7 +1188,7 @@ static int sunxi_pinctrl_setup_debounce(struct sunxi_pinctrl *pctl,
 	int i, ret;
 
 	/* Deal with old DTs that didn't have the oscillators */
-	if (of_count_phandle_with_args(node, "clocks", "#clock-cells") != 3)
+	if (of_clk_get_parent_count(node) != 3)
 		return 0;
 
 	/* If we don't have any setup, bail out */

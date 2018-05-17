@@ -79,7 +79,7 @@ void __init prom_init_memory(void)
 					(u64)loongson_memmap->map[i].mem_size << 20,
 					BOOT_MEM_RAM);
 				break;
-			case MEM_RESERVED:
+			case SYSTEM_RAM_RESERVED:
 				add_memory_region(loongson_memmap->map[i].mem_start,
 					(u64)loongson_memmap->map[i].mem_size << 20,
 					BOOT_MEM_RESERVED);

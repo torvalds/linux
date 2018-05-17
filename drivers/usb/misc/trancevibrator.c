@@ -30,7 +30,7 @@ struct trancevibrator {
 	unsigned int speed;
 };
 
-static ssize_t show_speed(struct device *dev, struct device_attribute *attr,
+static ssize_t speed_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
 	struct usb_interface *intf = to_usb_interface(dev);
@@ -39,7 +39,7 @@ static ssize_t show_speed(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", tv->speed);
 }
 
-static ssize_t set_speed(struct device *dev, struct device_attribute *attr,
+static ssize_t speed_store(struct device *dev, struct device_attribute *attr,
 			 const char *buf, size_t count)
 {
 	struct usb_interface *intf = to_usb_interface(dev);
@@ -70,7 +70,7 @@ static ssize_t set_speed(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(speed, S_IRUGO | S_IWUSR, show_speed, set_speed);
+static DEVICE_ATTR_RW(speed);
 
 static int tv_probe(struct usb_interface *interface,
 		    const struct usb_device_id *id)

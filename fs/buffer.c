@@ -53,13 +53,6 @@ static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
 
 #define BH_ENTRY(list) list_entry((list), struct buffer_head, b_assoc_buffers)
 
-void init_buffer(struct buffer_head *bh, bh_end_io_t *handler, void *private)
-{
-	bh->b_end_io = handler;
-	bh->b_private = private;
-}
-EXPORT_SYMBOL(init_buffer);
-
 inline void touch_buffer(struct buffer_head *bh)
 {
 	trace_block_touch_buffer(bh);
@@ -922,7 +915,8 @@ init_page_buffers(struct page *page, struct block_device *bdev,
 
 	do {
 		if (!buffer_mapped(bh)) {
-			init_buffer(bh, NULL, NULL);
+			bh->b_end_io = NULL;
+			bh->b_private = NULL;
 			bh->b_bdev = bdev;
 			bh->b_blocknr = block;
 			if (uptodate)
@@ -3014,7 +3008,7 @@ static void end_bio_bh_io_sync(struct bio *bio)
 void guard_bio_eod(int op, struct bio *bio)
 {
 	sector_t maxsector;
-	struct bio_vec *bvec = &bio->bi_io_vec[bio->bi_vcnt - 1];
+	struct bio_vec *bvec = bio_last_bvec_all(bio);
 	unsigned truncated_bytes;
 	struct hd_struct *part;
 

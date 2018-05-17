@@ -1697,8 +1697,8 @@ static int iommu_init_pci(struct amd_iommu *iommu)
 	u32 range, misc, low, high;
 	int ret;
 
-	iommu->dev = pci_get_bus_and_slot(PCI_BUS_NUM(iommu->devid),
-					  iommu->devid & 0xff);
+	iommu->dev = pci_get_domain_bus_and_slot(0, PCI_BUS_NUM(iommu->devid),
+						 iommu->devid & 0xff);
 	if (!iommu->dev)
 		return -ENODEV;
 
@@ -1764,8 +1764,9 @@ static int iommu_init_pci(struct amd_iommu *iommu)
 	if (is_rd890_iommu(iommu->dev)) {
 		int i, j;
 
-		iommu->root_pdev = pci_get_bus_and_slot(iommu->dev->bus->number,
-				PCI_DEVFN(0, 0));
+		iommu->root_pdev =
+			pci_get_domain_bus_and_slot(0, iommu->dev->bus->number,
+						    PCI_DEVFN(0, 0));
 
 		/*
 		 * Some rd890 systems may not be fully reconfigured by the

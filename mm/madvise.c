@@ -661,7 +661,7 @@ static int madvise_inject_error(int behavior,
 		pr_info("Injecting memory failure for pfn %#lx at process virtual address %#lx\n",
 						page_to_pfn(page), start);
 
-		ret = memory_failure(page_to_pfn(page), 0, MF_COUNT_INCREASED);
+		ret = memory_failure(page_to_pfn(page), MF_COUNT_INCREASED);
 		if (ret)
 			return ret;
 	}

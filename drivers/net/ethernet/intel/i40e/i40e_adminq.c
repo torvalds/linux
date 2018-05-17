@@ -907,10 +907,15 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 	/* update the error if time out occurred */
 	if ((!cmd_completed) &&
 	    (!details->async && !details->postpone)) {
-		i40e_debug(hw,
-			   I40E_DEBUG_AQ_MESSAGE,
-			   "AQTX: Writeback timeout.\n");
-		status = I40E_ERR_ADMIN_QUEUE_TIMEOUT;
+		if (rd32(hw, hw->aq.asq.len) & I40E_GL_ATQLEN_ATQCRIT_MASK) {
+			i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
+				   "AQTX: AQ Critical error.\n");
+			status = I40E_ERR_ADMIN_QUEUE_CRITICAL_ERROR;
+		} else {
+			i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
+				   "AQTX: Writeback timeout.\n");
+			status = I40E_ERR_ADMIN_QUEUE_TIMEOUT;
+		}
 	}
 
 asq_send_command_error:
@@ -971,7 +976,7 @@ i40e_status i40e_clean_arq_element(struct i40e_hw *hw,
 	}
 
 	/* set next_to_use to head */
-	ntu = (rd32(hw, hw->aq.arq.head) & I40E_PF_ARQH_ARQH_MASK);
+	ntu = rd32(hw, hw->aq.arq.head) & I40E_PF_ARQH_ARQH_MASK;
 	if (ntu == ntc) {
 		/* nothing to do - shouldn't need to update ring's values */
 		ret_code = I40E_ERR_ADMIN_QUEUE_NO_WORK;
@@ -1027,7 +1032,7 @@ i40e_status i40e_clean_arq_element(struct i40e_hw *hw,
 	hw->aq.arq.next_to_clean = ntc;
 	hw->aq.arq.next_to_use = ntu;
 
-	i40e_nvmupd_check_wait_event(hw, le16_to_cpu(e->desc.opcode));
+	i40e_nvmupd_check_wait_event(hw, le16_to_cpu(e->desc.opcode), &e->desc);
 clean_arq_element_out:
 	/* Set pending if needed, unlock and return */
 	if (pending)

@@ -922,8 +922,8 @@ static int tg3_ape_send_event(struct tg3 *tp, u32 event)
 	if (!(apedata & APE_FW_STATUS_READY))
 		return -EAGAIN;
 
-	/* Wait for up to 1 millisecond for APE to service previous event. */
-	err = tg3_ape_event_lock(tp, 1000);
+	/* Wait for up to 20 millisecond for APE to service previous event. */
+	err = tg3_ape_event_lock(tp, 20000);
 	if (err)
 		return err;
 
@@ -946,6 +946,7 @@ static void tg3_ape_driver_state_change(struct tg3 *tp, int kind)
 
 	switch (kind) {
 	case RESET_KIND_INIT:
+		tg3_ape_write32(tp, TG3_APE_HOST_HEARTBEAT_COUNT, tp->ape_hb++);
 		tg3_ape_write32(tp, TG3_APE_HOST_SEG_SIG,
 				APE_HOST_SEG_SIG_MAGIC);
 		tg3_ape_write32(tp, TG3_APE_HOST_SEG_LEN,
@@ -962,13 +963,6 @@ static void tg3_ape_driver_state_change(struct tg3 *tp, int kind)
 		event = APE_EVENT_STATUS_STATE_START;
 		break;
 	case RESET_KIND_SHUTDOWN:
-		/* With the interface we are currently using,
-		 * APE does not track driver state.  Wiping
-		 * out the HOST SEGMENT SIGNATURE forces
-		 * the APE to assume OS absent status.
-		 */
-		tg3_ape_write32(tp, TG3_APE_HOST_SEG_SIG, 0x0);
-
 		if (device_may_wakeup(&tp->pdev->dev) &&
 		    tg3_flag(tp, WOL_ENABLE)) {
 			tg3_ape_write32(tp, TG3_APE_HOST_WOL_SPEED,
@@ -988,6 +982,18 @@ static void tg3_ape_driver_state_change(struct tg3 *tp, int kind)
 	event |= APE_EVENT_STATUS_DRIVER_EVNT | APE_EVENT_STATUS_STATE_CHNGE;
 
 	tg3_ape_send_event(tp, event);
+}
+
+static void tg3_send_ape_heartbeat(struct tg3 *tp,
+				   unsigned long interval)
+{
+	/* Check if hb interval has exceeded */
+	if (!tg3_flag(tp, ENABLE_APE) ||
+	    time_before(jiffies, tp->ape_hb_jiffies + interval))
+		return;
+
+	tg3_ape_write32(tp, TG3_APE_HOST_HEARTBEAT_COUNT, tp->ape_hb++);
+	tp->ape_hb_jiffies = jiffies;
 }
 
 static void tg3_disable_ints(struct tg3 *tp)
@@ -3227,7 +3233,7 @@ static int tg3_nvram_read_using_eeprom(struct tg3 *tp,
 	return 0;
 }
 
-#define NVRAM_CMD_TIMEOUT 5000
+#define NVRAM_CMD_TIMEOUT 10000
 
 static int tg3_nvram_exec_cmd(struct tg3 *tp, u32 nvram_cmd)
 {
@@ -7262,6 +7268,7 @@ static int tg3_poll_msix(struct napi_struct *napi, int budget)
 		}
 	}
 
+	tg3_send_ape_heartbeat(tp, TG3_APE_HB_INTERVAL << 1);
 	return work_done;
 
 tx_recovery:
@@ -7344,6 +7351,7 @@ static int tg3_poll(struct napi_struct *napi, int budget)
 		}
 	}
 
+	tg3_send_ape_heartbeat(tp, TG3_APE_HB_INTERVAL << 1);
 	return work_done;
 
 tx_recovery:
@@ -10732,7 +10740,7 @@ static int tg3_reset_hw(struct tg3 *tp, bool reset_phy)
 	if (tg3_flag(tp, ENABLE_APE))
 		/* Write our heartbeat update interval to APE. */
 		tg3_ape_write32(tp, TG3_APE_HOST_HEARTBEAT_INT_MS,
-				APE_HOST_HEARTBEAT_INT_DISABLE);
+				APE_HOST_HEARTBEAT_INT_5SEC);
 
 	tg3_write_sig_post_reset(tp, RESET_KIND_INIT);
 
@@ -11076,6 +11084,9 @@ static void tg3_timer(struct timer_list *t)
 		}
 		tp->asf_counter = tp->asf_multiplier;
 	}
+
+	/* Update the APE heartbeat every 5 seconds.*/
+	tg3_send_ape_heartbeat(tp, TG3_APE_HB_INTERVAL);
 
 	spin_unlock(&tp->lock);
 
@@ -14789,7 +14800,7 @@ static void tg3_get_5717_nvram_info(struct tg3 *tp)
 
 static void tg3_get_5720_nvram_info(struct tg3 *tp)
 {
-	u32 nvcfg1, nvmpinstrp;
+	u32 nvcfg1, nvmpinstrp, nv_status;
 
 	nvcfg1 = tr32(NVRAM_CFG1);
 	nvmpinstrp = nvcfg1 & NVRAM_CFG1_5752VENDOR_MASK;
@@ -14801,6 +14812,23 @@ static void tg3_get_5720_nvram_info(struct tg3 *tp)
 		}
 
 		switch (nvmpinstrp) {
+		case FLASH_5762_MX25L_100:
+		case FLASH_5762_MX25L_200:
+		case FLASH_5762_MX25L_400:
+		case FLASH_5762_MX25L_800:
+		case FLASH_5762_MX25L_160_320:
+			tp->nvram_pagesize = 4096;
+			tp->nvram_jedecnum = JEDEC_MACRONIX;
+			tg3_flag_set(tp, NVRAM_BUFFERED);
+			tg3_flag_set(tp, NO_NVRAM_ADDR_TRANS);
+			tg3_flag_set(tp, FLASH);
+			nv_status = tr32(NVRAM_AUTOSENSE_STATUS);
+			tp->nvram_size =
+				(1 << (nv_status >> AUTOSENSE_DEVID &
+						AUTOSENSE_DEVID_MASK)
+					<< AUTOSENSE_SIZE_IN_MB);
+			return;
+
 		case FLASH_5762_EEPROM_HD:
 			nvmpinstrp = FLASH_5720_EEPROM_HD;
 			break;
@@ -16636,6 +16664,8 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 				       pci_state_reg);
 
 		tg3_ape_lock_init(tp);
+		tp->ape_hb_interval =
+			msecs_to_jiffies(APE_HOST_HEARTBEAT_INT_5SEC);
 	}
 
 	/* Set up tp->grc_local_ctrl before calling

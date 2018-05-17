@@ -32,6 +32,7 @@
 #define dsb(opt)	asm volatile("dsb " #opt : : : "memory")
 
 #define psb_csync()	asm volatile("hint #17" : : : "memory")
+#define csdb()		asm volatile("hint #20" : : : "memory")
 
 #define mb()		dsb(sy)
 #define rmb()		dsb(ld)
@@ -39,6 +40,27 @@
 
 #define dma_rmb()	dmb(oshld)
 #define dma_wmb()	dmb(oshst)
+
+/*
+ * Generate a mask for array_index__nospec() that is ~0UL when 0 <= idx < sz
+ * and 0 otherwise.
+ */
+#define array_index_mask_nospec array_index_mask_nospec
+static inline unsigned long array_index_mask_nospec(unsigned long idx,
+						    unsigned long sz)
+{
+	unsigned long mask;
+
+	asm volatile(
+	"	cmp	%1, %2\n"
+	"	sbc	%0, xzr, xzr\n"
+	: "=r" (mask)
+	: "r" (idx), "Ir" (sz)
+	: "cc");
+
+	csdb();
+	return mask;
+}
 
 #define __smp_mb()	dmb(ish)
 #define __smp_rmb()	dmb(ishld)

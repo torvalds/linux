@@ -299,7 +299,7 @@ static void bau_process_message(struct msg_desc *mdp, struct bau_control *bcp,
 		local_flush_tlb();
 		stat->d_alltlb++;
 	} else {
-		__flush_tlb_single(msg->address);
+		__flush_tlb_one_user(msg->address);
 		stat->d_onetlb++;
 	}
 	stat->d_requestee++;
@@ -1751,7 +1751,8 @@ static void activation_descriptor_init(int node, int pnode, int base_pnode)
 		uv1 = 1;
 
 	/* the 14-bit pnode */
-	write_mmr_descriptor_base(pnode, (n << UV_DESC_PSHIFT | m));
+	write_mmr_descriptor_base(pnode,
+		(n << UVH_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_SHFT | m));
 	/*
 	 * Initializing all 8 (ITEMS_PER_DESC) descriptors for each
 	 * cpu even though we only use the first one; one descriptor can
@@ -2253,8 +2254,6 @@ static int __init uv_bau_init(void)
 		if (uv_blade_nr_possible_cpus(uvhub))
 			init_uvhub(uvhub, vector, uv_base_pnode);
 	}
-
-	alloc_intr_gate(vector, uv_bau_message_intr1);
 
 	for_each_possible_blade(uvhub) {
 		if (uv_blade_nr_possible_cpus(uvhub)) {

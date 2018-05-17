@@ -30,7 +30,7 @@
 
    Note: these ioctls that internal to the kernel and are never called
    from userspace. */
-#define BT819_FIFO_RESET_LOW 	_IO('b', 0)
-#define BT819_FIFO_RESET_HIGH 	_IO('b', 1)
+#define BT819_FIFO_RESET_LOW	_IO('b', 0)
+#define BT819_FIFO_RESET_HIGH	_IO('b', 1)
 
 #endif

@@ -22,7 +22,7 @@
 #include <linux/power_supply.h>
 #include <linux/usb/gpio_vbus.h>
 #include <linux/regulator/max1586.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

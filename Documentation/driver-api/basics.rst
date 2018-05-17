@@ -13,12 +13,6 @@ Driver device table
 .. kernel-doc:: include/linux/mod_devicetable.h
    :internal:
 
-Atomic and pointer manipulation
--------------------------------
-
-.. kernel-doc:: arch/x86/include/asm/atomic.h
-   :internal:
-
 Delaying, scheduling, and timer routines
 ----------------------------------------
 
@@ -84,6 +78,21 @@ Internal Functions
 
 .. kernel-doc:: kernel/kthread.c
    :export:
+
+Reference counting
+------------------
+
+.. kernel-doc:: include/linux/refcount.h
+   :internal:
+
+.. kernel-doc:: lib/refcount.c
+   :export:
+
+Atomics
+-------
+
+.. kernel-doc:: arch/x86/include/asm/atomic.h
+   :internal:
 
 Kernel objects manipulation
 ---------------------------

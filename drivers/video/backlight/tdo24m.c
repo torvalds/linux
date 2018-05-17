@@ -369,7 +369,7 @@ static int tdo24m_probe(struct spi_device *spi)
 
 	spi_message_init(m);
 
-	x->cs_change = 1;
+	x->cs_change = 0;
 	x->tx_buf = &lcd->buf[0];
 	spi_message_add_tail(x, m);
 

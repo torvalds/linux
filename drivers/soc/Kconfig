@@ -16,6 +16,7 @@ source "drivers/soc/tegra/Kconfig"
 source "drivers/soc/ti/Kconfig"
 source "drivers/soc/ux500/Kconfig"
 source "drivers/soc/versatile/Kconfig"
+source "drivers/soc/xilinx/Kconfig"
 source "drivers/soc/zte/Kconfig"
 
 endmenu

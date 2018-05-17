@@ -223,8 +223,8 @@ static long ali_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (ali_settimer(new_timeout))
 			return -EINVAL;
 		ali_keepalive();
-		/* Fall */
 	}
+		/* fall through */
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout, p);
 	default:

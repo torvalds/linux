@@ -90,7 +90,7 @@ int ptp_open(struct posix_clock *pc, fmode_t fmode);
 ssize_t ptp_read(struct posix_clock *pc,
 		 uint flags, char __user *buf, size_t cnt);
 
-uint ptp_poll(struct posix_clock *pc,
+__poll_t ptp_poll(struct posix_clock *pc,
 	      struct file *fp, poll_table *wait);
 
 /*

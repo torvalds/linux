@@ -198,8 +198,10 @@ static int jcore_spi_probe(struct platform_device *pdev)
 
 	/* Register our spi controller */
 	err = devm_spi_register_master(&pdev->dev, master);
-	if (err)
+	if (err) {
+		clk_disable(clk);
 		goto exit;
+	}
 
 	return 0;
 

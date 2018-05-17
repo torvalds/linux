@@ -310,16 +310,14 @@ static __net_init int nat_init_net(struct net *net)
 	return tc_action_net_init(tn, &act_nat_ops);
 }
 
-static void __net_exit nat_exit_net(struct net *net)
+static void __net_exit nat_exit_net(struct list_head *net_list)
 {
-	struct tc_action_net *tn = net_generic(net, nat_net_id);
-
-	tc_action_net_exit(tn);
+	tc_action_net_exit(net_list, nat_net_id);
 }
 
 static struct pernet_operations nat_net_ops = {
 	.init = nat_init_net,
-	.exit = nat_exit_net,
+	.exit_batch = nat_exit_net,
 	.id   = &nat_net_id,
 	.size = sizeof(struct tc_action_net),
 };

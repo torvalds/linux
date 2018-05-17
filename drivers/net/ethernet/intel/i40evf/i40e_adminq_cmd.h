@@ -198,13 +198,14 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_add_mirror_rule	= 0x0260,
 	i40e_aqc_opc_delete_mirror_rule	= 0x0261,
 
-	/* Pipeline Personalization Profile */
+	/* Dynamic Device Personalization */
 	i40e_aqc_opc_write_personalization_profile	= 0x0270,
 	i40e_aqc_opc_get_personalization_profile_list	= 0x0271,
 
 	/* DCB commands */
 	i40e_aqc_opc_dcb_ignore_pfc	= 0x0301,
 	i40e_aqc_opc_dcb_updated	= 0x0302,
+	i40e_aqc_opc_set_dcb_parameters = 0x0303,
 
 	/* TX scheduler */
 	i40e_aqc_opc_configure_vsi_bw_limit		= 0x0400,
@@ -1562,7 +1563,7 @@ struct i40e_aqc_add_delete_mirror_rule_completion {
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_add_delete_mirror_rule_completion);
 
-/* Pipeline Personalization Profile */
+/* Dynamic Device Personalization */
 struct i40e_aqc_write_personalization_profile {
 	u8      flags;
 	u8      reserved[3];
@@ -1573,7 +1574,7 @@ struct i40e_aqc_write_personalization_profile {
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_write_personalization_profile);
 
-struct i40e_aqc_write_ppp_resp {
+struct i40e_aqc_write_ddp_resp {
 	__le32 error_offset;
 	__le32 error_info;
 	__le32 addr_high;
@@ -1582,8 +1583,8 @@ struct i40e_aqc_write_ppp_resp {
 
 struct i40e_aqc_get_applied_profiles {
 	u8      flags;
-#define I40E_AQC_GET_PPP_GET_CONF	0x1
-#define I40E_AQC_GET_PPP_GET_RDPU_CONF	0x2
+#define I40E_AQC_GET_DDP_GET_CONF	0x1
+#define I40E_AQC_GET_DDP_GET_RDPU_CONF	0x2
 	u8      rsv[3];
 	__le32  reserved;
 	__le32  addr_high;
@@ -2196,8 +2197,12 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_phy_register_access);
  */
 struct i40e_aqc_nvm_update {
 	u8	command_flags;
-#define I40E_AQ_NVM_LAST_CMD	0x01
-#define I40E_AQ_NVM_FLASH_ONLY	0x80
+#define I40E_AQ_NVM_LAST_CMD			0x01
+#define I40E_AQ_NVM_FLASH_ONLY			0x80
+#define I40E_AQ_NVM_PRESERVATION_FLAGS_SHIFT	1
+#define I40E_AQ_NVM_PRESERVATION_FLAGS_MASK	0x03
+#define I40E_AQ_NVM_PRESERVATION_FLAGS_SELECTED	0x03
+#define I40E_AQ_NVM_PRESERVATION_FLAGS_ALL	0x01
 	u8	module_pointer;
 	__le16	length;
 	__le32	offset;
@@ -2456,6 +2461,17 @@ struct i40e_aqc_lldp_start {
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_lldp_start);
+
+/* Set DCB (direct 0x0303) */
+struct i40e_aqc_set_dcb_parameters {
+	u8 command;
+#define I40E_AQ_DCB_SET_AGENT	0x1
+#define I40E_DCB_VALID		0x1
+	u8 valid_flags;
+	u8 reserved[14];
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aqc_set_dcb_parameters);
 
 /* Apply MIB changes (0x0A07)
  * uses the generic struc as it contains no data

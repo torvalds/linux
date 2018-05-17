@@ -12,6 +12,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/iversion.h>
 
 #include <linux/nfs4.h>
 #include <linux/nfs_fs.h>
@@ -347,7 +348,7 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct 
 	nfs4_stateid_copy(&delegation->stateid, &res->delegation);
 	delegation->type = res->delegation_type;
 	delegation->pagemod_limit = res->pagemod_limit;
-	delegation->change_attr = inode->i_version;
+	delegation->change_attr = inode_peek_iversion_raw(inode);
 	delegation->cred = get_rpccred(cred);
 	delegation->inode = inode;
 	delegation->flags = 1<<NFS_DELEGATION_REFERENCED;

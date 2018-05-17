@@ -96,7 +96,6 @@ static const struct iio_chan_spec ccs811_channels[] = {
 		.channel2 = IIO_MOD_CO2,
 		.modified = 1,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
-				      BIT(IIO_CHAN_INFO_OFFSET) |
 				      BIT(IIO_CHAN_INFO_SCALE),
 		.scan_index = 0,
 		.scan_type = {
@@ -133,6 +132,9 @@ static int ccs811_start_sensor_application(struct i2c_client *client)
 	ret = i2c_smbus_read_byte_data(client, CCS811_STATUS);
 	if (ret < 0)
 		return ret;
+
+	if ((ret & CCS811_STATUS_FW_MODE_APPLICATION))
+		return 0;
 
 	if ((ret & CCS811_STATUS_APP_VALID_MASK) !=
 	    CCS811_STATUS_APP_VALID_LOADED)
@@ -255,24 +257,18 @@ static int ccs811_read_raw(struct iio_dev *indio_dev,
 			switch (chan->channel2) {
 			case IIO_MOD_CO2:
 				*val = 0;
-				*val2 = 12834;
+				*val2 = 100;
 				return IIO_VAL_INT_PLUS_MICRO;
 			case IIO_MOD_VOC:
 				*val = 0;
-				*val2 = 84246;
-				return IIO_VAL_INT_PLUS_MICRO;
+				*val2 = 100;
+				return IIO_VAL_INT_PLUS_NANO;
 			default:
 				return -EINVAL;
 			}
 		default:
 			return -EINVAL;
 		}
-	case IIO_CHAN_INFO_OFFSET:
-		if (!(chan->type == IIO_CONCENTRATION &&
-		      chan->channel2 == IIO_MOD_CO2))
-			return -EINVAL;
-		*val = -400;
-		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
 	}

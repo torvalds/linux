@@ -29,6 +29,18 @@ static struct tcp_ulp_ops *tcp_ulp_find(const char *name)
 	return NULL;
 }
 
+static struct tcp_ulp_ops *tcp_ulp_find_id(const int ulp)
+{
+	struct tcp_ulp_ops *e;
+
+	list_for_each_entry_rcu(e, &tcp_ulp_list, list) {
+		if (e->uid == ulp)
+			return e;
+	}
+
+	return NULL;
+}
+
 static const struct tcp_ulp_ops *__tcp_ulp_find_autoload(const char *name)
 {
 	const struct tcp_ulp_ops *ulp = NULL;
@@ -51,6 +63,18 @@ static const struct tcp_ulp_ops *__tcp_ulp_find_autoload(const char *name)
 	return ulp;
 }
 
+static const struct tcp_ulp_ops *__tcp_ulp_lookup(const int uid)
+{
+	const struct tcp_ulp_ops *ulp;
+
+	rcu_read_lock();
+	ulp = tcp_ulp_find_id(uid);
+	if (!ulp || !try_module_get(ulp->owner))
+		ulp = NULL;
+	rcu_read_unlock();
+	return ulp;
+}
+
 /* Attach new upper layer protocol to the list
  * of available protocols.
  */
@@ -59,13 +83,10 @@ int tcp_register_ulp(struct tcp_ulp_ops *ulp)
 	int ret = 0;
 
 	spin_lock(&tcp_ulp_list_lock);
-	if (tcp_ulp_find(ulp->name)) {
-		pr_notice("%s already registered or non-unique name\n",
-			  ulp->name);
+	if (tcp_ulp_find(ulp->name))
 		ret = -EEXIST;
-	} else {
+	else
 		list_add_tail_rcu(&ulp->list, &tcp_ulp_list);
-	}
 	spin_unlock(&tcp_ulp_list_lock);
 
 	return ret;
@@ -121,6 +142,34 @@ int tcp_set_ulp(struct sock *sk, const char *name)
 		return -EEXIST;
 
 	ulp_ops = __tcp_ulp_find_autoload(name);
+	if (!ulp_ops)
+		return -ENOENT;
+
+	if (!ulp_ops->user_visible) {
+		module_put(ulp_ops->owner);
+		return -ENOENT;
+	}
+
+	err = ulp_ops->init(sk);
+	if (err) {
+		module_put(ulp_ops->owner);
+		return err;
+	}
+
+	icsk->icsk_ulp_ops = ulp_ops;
+	return 0;
+}
+
+int tcp_set_ulp_id(struct sock *sk, int ulp)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+	const struct tcp_ulp_ops *ulp_ops;
+	int err;
+
+	if (icsk->icsk_ulp_ops)
+		return -EEXIST;
+
+	ulp_ops = __tcp_ulp_lookup(ulp);
 	if (!ulp_ops)
 		return -ENOENT;
 

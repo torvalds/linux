@@ -110,7 +110,7 @@ int __init ima_init(void)
 	int rc;
 
 	ima_used_chip = 0;
-	rc = tpm_pcr_read(TPM_ANY_NUM, 0, pcr_i);
+	rc = tpm_pcr_read(NULL, 0, pcr_i);
 	if (rc == 0)
 		ima_used_chip = 1;
 

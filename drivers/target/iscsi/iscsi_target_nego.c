@@ -432,6 +432,9 @@ static void iscsi_target_sk_data_ready(struct sock *sk)
 	if (test_and_set_bit(LOGIN_FLAGS_READ_ACTIVE, &conn->login_flags)) {
 		write_unlock_bh(&sk->sk_callback_lock);
 		pr_debug("Got LOGIN_FLAGS_READ_ACTIVE=1, conn: %p >>>>\n", conn);
+		if (iscsi_target_sk_data_ready == conn->orig_data_ready)
+			return;
+		conn->orig_data_ready(sk);
 		return;
 	}
 

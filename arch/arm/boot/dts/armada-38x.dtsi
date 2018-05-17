@@ -279,6 +279,11 @@
 					marvell,function = "dev";
 				};
 
+				nand_rb: nand-rb {
+					marvell,pins = "mpp41";
+					marvell,function = "nand";
+				};
+
 				uart0_pins: uart-pins-0 {
 					marvell,pins = "mpp0", "mpp1";
 					marvell,function = "ua0";

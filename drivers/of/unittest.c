@@ -5,6 +5,7 @@
 
 #define pr_fmt(fmt) "### dt-test ### " fmt
 
+#include <linux/bootmem.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/errno.h>
@@ -2053,6 +2054,11 @@ static struct overlay_info overlays[] = {
 
 static struct device_node *overlay_base_root;
 
+static void * __init dt_alloc_memory(u64 size, u64 align)
+{
+	return memblock_virt_alloc(size, align);
+}
+
 /*
  * Create base device tree for the overlay unittest.
  *
@@ -2092,8 +2098,7 @@ void __init unittest_unflatten_overlay_base(void)
 		return;
 	}
 
-	info->data = early_init_dt_alloc_memory_arch(size,
-					     roundup_pow_of_two(FDT_V17_SIZE));
+	info->data = dt_alloc_memory(size, roundup_pow_of_two(FDT_V17_SIZE));
 	if (!info->data) {
 		pr_err("alloc for dtb 'overlay_base' failed");
 		return;
@@ -2102,7 +2107,7 @@ void __init unittest_unflatten_overlay_base(void)
 	memcpy(info->data, info->dtb_begin, size);
 
 	__unflatten_device_tree(info->data, NULL, &info->np_overlay,
-				early_init_dt_alloc_memory_arch, true);
+				dt_alloc_memory, true);
 	overlay_base_root = info->np_overlay;
 }
 

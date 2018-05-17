@@ -73,7 +73,8 @@ static int
 nvkm_bar_fini(struct nvkm_subdev *subdev, bool suspend)
 {
 	struct nvkm_bar *bar = nvkm_bar(subdev);
-	bar->func->bar1.fini(bar);
+	if (bar->func->bar1.fini)
+		bar->func->bar1.fini(bar);
 	return 0;
 }
 

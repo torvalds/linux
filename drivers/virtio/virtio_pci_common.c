@@ -513,7 +513,7 @@ static void virtio_pci_release_dev(struct device *_d)
 static int virtio_pci_probe(struct pci_dev *pci_dev,
 			    const struct pci_device_id *id)
 {
-	struct virtio_pci_device *vp_dev;
+	struct virtio_pci_device *vp_dev, *reg_dev = NULL;
 	int rc;
 
 	/* allocate our structure and fill it out */
@@ -551,6 +551,7 @@ static int virtio_pci_probe(struct pci_dev *pci_dev,
 	pci_set_master(pci_dev);
 
 	rc = register_virtio_device(&vp_dev->vdev);
+	reg_dev = vp_dev;
 	if (rc)
 		goto err_register;
 
@@ -564,7 +565,10 @@ err_register:
 err_probe:
 	pci_disable_device(pci_dev);
 err_enable_device:
-	kfree(vp_dev);
+	if (reg_dev)
+		put_device(&vp_dev->vdev.dev);
+	else
+		kfree(vp_dev);
 	return rc;
 }
 

@@ -17,7 +17,7 @@
  */
 
 #include <linux/kernel.h>	/* __setup			*/
-#include <linux/module.h>	/* Modules 			*/
+#include <linux/module.h>	/* Modules			*/
 #include <linux/init.h>		/* Initdata			*/
 #include <linux/ioport.h>	/* request_region		*/
 #include <linux/delay.h>	/* udelay			*/
@@ -110,7 +110,7 @@ static inline int fmi_getsigstr(struct fmi *fmi)
 	val = fmi->mute ? 0x00 : 0x08;	/* mute/unmute */
 	outb(val, fmi->io);
 	outb(val | 0x10, fmi->io);
-	msleep(143); 		/* was schedule_timeout(HZ/7) */
+	msleep(143);		/* was schedule_timeout(HZ/7) */
 	res = (int)inb(fmi->io + 1);
 	outb(val, fmi->io);
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * c8sectpfe-core.c - C8SECTPFE STi DVB driver
  *
@@ -6,10 +7,6 @@
  *   Author:Peter Bennett <peter.bennett@st.com>
  *	    Peter Griffin <peter.griffin@linaro.org>
  *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation; either version 2 of
- *	the License, or (at your option) any later version.
  */
 #include <linux/atomic.h>
 #include <linux/clk.h>
@@ -38,10 +35,10 @@
 #include "c8sectpfe-core.h"
 #include "c8sectpfe-common.h"
 #include "c8sectpfe-debugfs.h"
-#include "dmxdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dvb_net.h"
+#include <media/dmxdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dvb_net.h>
 
 #define FIRMWARE_MEMDMA "pti_memdma_h407.elf"
 MODULE_FIRMWARE(FIRMWARE_MEMDMA);
@@ -83,13 +80,15 @@ static void c8sectpfe_timer_interrupt(struct timer_list *t)
 static void channel_swdemux_tsklet(unsigned long data)
 {
 	struct channel_info *channel = (struct channel_info *)data;
-	struct c8sectpfei *fei = channel->fei;
+	struct c8sectpfei *fei;
 	unsigned long wp, rp;
 	int pos, num_packets, n, size;
 	u8 *buf;
 
 	if (unlikely(!channel || !channel->irec))
 		return;
+
+	fei = channel->fei;
 
 	wp = readl(channel->irec + DMA_PRDS_BUSWP_TP(0));
 	rp = readl(channel->irec + DMA_PRDS_BUSRP_TP(0));
@@ -691,7 +690,7 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 	if (IS_ERR(fei->sram))
 		return PTR_ERR(fei->sram);
 
-	fei->sram_size = res->end - res->start;
+	fei->sram_size = resource_size(res);
 
 	fei->idle_irq = platform_get_irq_byname(pdev, "c8sectpfe-idle-irq");
 	if (fei->idle_irq < 0) {

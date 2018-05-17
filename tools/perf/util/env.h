@@ -65,4 +65,6 @@ int perf_env__set_cmdline(struct perf_env *env, int argc, const char *argv[]);
 int perf_env__read_cpu_topology_map(struct perf_env *env);
 
 void cpu_cache_level__free(struct cpu_cache_level *cache);
+
+const char *perf_env__arch(struct perf_env *env);
 #endif /* __PERF_ENV_H */

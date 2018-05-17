@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/regmap.h>
+#include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -75,7 +76,7 @@ EXPORT_SYMBOL_GPL(btintel_check_bdaddr);
 
 int btintel_enter_mfg(struct hci_dev *hdev)
 {
-	const u8 param[] = { 0x01, 0x00 };
+	static const u8 param[] = { 0x01, 0x00 };
 	struct sk_buff *skb;
 
 	skb = __hci_cmd_sync(hdev, 0xfc11, 2, param, HCI_CMD_TIMEOUT);
@@ -568,6 +569,160 @@ struct regmap *btintel_regmap_init(struct hci_dev *hdev, u16 opcode_read,
 	return regmap_init(&hdev->dev, &regmap_ibt, ctx, &regmap_ibt_cfg);
 }
 EXPORT_SYMBOL_GPL(btintel_regmap_init);
+
+int btintel_send_intel_reset(struct hci_dev *hdev, u32 boot_param)
+{
+	struct intel_reset params = { 0x00, 0x01, 0x00, 0x01, 0x00000000 };
+	struct sk_buff *skb;
+
+	params.boot_param = cpu_to_le32(boot_param);
+
+	skb = __hci_cmd_sync(hdev, 0xfc01, sizeof(params), &params,
+			     HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		bt_dev_err(hdev, "Failed to send Intel Reset command");
+		return PTR_ERR(skb);
+	}
+
+	kfree_skb(skb);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(btintel_send_intel_reset);
+
+int btintel_read_boot_params(struct hci_dev *hdev,
+			     struct intel_boot_params *params)
+{
+	struct sk_buff *skb;
+
+	skb = __hci_cmd_sync(hdev, 0xfc0d, 0, NULL, HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		bt_dev_err(hdev, "Reading Intel boot parameters failed (%ld)",
+			   PTR_ERR(skb));
+		return PTR_ERR(skb);
+	}
+
+	if (skb->len != sizeof(*params)) {
+		bt_dev_err(hdev, "Intel boot parameters size mismatch");
+		kfree_skb(skb);
+		return -EILSEQ;
+	}
+
+	memcpy(params, skb->data, sizeof(*params));
+
+	kfree_skb(skb);
+
+	if (params->status) {
+		bt_dev_err(hdev, "Intel boot parameters command failed (%02x)",
+			   params->status);
+		return -bt_to_errno(params->status);
+	}
+
+	bt_dev_info(hdev, "Device revision is %u",
+		    le16_to_cpu(params->dev_revid));
+
+	bt_dev_info(hdev, "Secure boot is %s",
+		    params->secure_boot ? "enabled" : "disabled");
+
+	bt_dev_info(hdev, "OTP lock is %s",
+		    params->otp_lock ? "enabled" : "disabled");
+
+	bt_dev_info(hdev, "API lock is %s",
+		    params->api_lock ? "enabled" : "disabled");
+
+	bt_dev_info(hdev, "Debug lock is %s",
+		    params->debug_lock ? "enabled" : "disabled");
+
+	bt_dev_info(hdev, "Minimum firmware build %u week %u %u",
+		    params->min_fw_build_nn, params->min_fw_build_cw,
+		    2000 + params->min_fw_build_yy);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(btintel_read_boot_params);
+
+int btintel_download_firmware(struct hci_dev *hdev, const struct firmware *fw,
+			      u32 *boot_param)
+{
+	int err;
+	const u8 *fw_ptr;
+	u32 frag_len;
+
+	/* Start the firmware download transaction with the Init fragment
+	 * represented by the 128 bytes of CSS header.
+	 */
+	err = btintel_secure_send(hdev, 0x00, 128, fw->data);
+	if (err < 0) {
+		bt_dev_err(hdev, "Failed to send firmware header (%d)", err);
+		goto done;
+	}
+
+	/* Send the 256 bytes of public key information from the firmware
+	 * as the PKey fragment.
+	 */
+	err = btintel_secure_send(hdev, 0x03, 256, fw->data + 128);
+	if (err < 0) {
+		bt_dev_err(hdev, "Failed to send firmware pkey (%d)", err);
+		goto done;
+	}
+
+	/* Send the 256 bytes of signature information from the firmware
+	 * as the Sign fragment.
+	 */
+	err = btintel_secure_send(hdev, 0x02, 256, fw->data + 388);
+	if (err < 0) {
+		bt_dev_err(hdev, "Failed to send firmware signature (%d)", err);
+		goto done;
+	}
+
+	fw_ptr = fw->data + 644;
+	frag_len = 0;
+
+	while (fw_ptr - fw->data < fw->size) {
+		struct hci_command_hdr *cmd = (void *)(fw_ptr + frag_len);
+
+		/* Each SKU has a different reset parameter to use in the
+		 * HCI_Intel_Reset command and it is embedded in the firmware
+		 * data. So, instead of using static value per SKU, check
+		 * the firmware data and save it for later use.
+		 */
+		if (le16_to_cpu(cmd->opcode) == 0xfc0e) {
+			/* The boot parameter is the first 32-bit value
+			 * and rest of 3 octets are reserved.
+			 */
+			*boot_param = get_unaligned_le32(fw_ptr + sizeof(*cmd));
+
+			bt_dev_dbg(hdev, "boot_param=0x%x", *boot_param);
+		}
+
+		frag_len += sizeof(*cmd) + cmd->plen;
+
+		/* The parameter length of the secure send command requires
+		 * a 4 byte alignment. It happens so that the firmware file
+		 * contains proper Intel_NOP commands to align the fragments
+		 * as needed.
+		 *
+		 * Send set of commands with 4 byte alignment from the
+		 * firmware data buffer as a single Data fragement.
+		 */
+		if (!(frag_len % 4)) {
+			err = btintel_secure_send(hdev, 0x01, frag_len, fw_ptr);
+			if (err < 0) {
+				bt_dev_err(hdev,
+					   "Failed to send firmware data (%d)",
+					   err);
+				goto done;
+			}
+
+			fw_ptr += frag_len;
+			frag_len = 0;
+		}
+	}
+
+done:
+	return err;
+}
+EXPORT_SYMBOL_GPL(btintel_download_firmware);
 
 MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth support for Intel devices ver " VERSION);

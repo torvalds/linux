@@ -1168,7 +1168,7 @@ static u32 mt2063_set_dnc_output_enable(struct mt2063_state *state,
 
 /*
  * MT2063_SetReceiverMode() - Set the MT2063 receiver mode, according with
- * 			      the selected enum mt2063_delivery_sys type.
+ *			      the selected enum mt2063_delivery_sys type.
  *
  *  (DNC1GC & DNC2GC are the values, which are used, when the specific
  *   DNC Output is selected, the other is always off)
@@ -1544,7 +1544,7 @@ static u32 MT2063_Tune(struct mt2063_state *state, u32 f_in)
 	 * Save original LO1 and LO2 register values
 	 */
 	ofLO1 = state->AS_Data.f_LO1;
-	ofLO2 = state->AS_Data.f_LO2; 
+	ofLO2 = state->AS_Data.f_LO2;
 
 	/*
 	 * Find and set RF Band setting

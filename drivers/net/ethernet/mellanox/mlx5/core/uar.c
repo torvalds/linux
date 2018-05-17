@@ -168,18 +168,16 @@ struct mlx5_uars_page *mlx5_get_uars_page(struct mlx5_core_dev *mdev)
 	struct mlx5_uars_page *ret;
 
 	mutex_lock(&mdev->priv.bfregs.reg_head.lock);
-	if (list_empty(&mdev->priv.bfregs.reg_head.list)) {
-		ret = alloc_uars_page(mdev, false);
-		if (IS_ERR(ret)) {
-			ret = NULL;
-			goto out;
-		}
-		list_add(&ret->list, &mdev->priv.bfregs.reg_head.list);
-	} else {
+	if (!list_empty(&mdev->priv.bfregs.reg_head.list)) {
 		ret = list_first_entry(&mdev->priv.bfregs.reg_head.list,
 				       struct mlx5_uars_page, list);
 		kref_get(&ret->ref_count);
+		goto out;
 	}
+	ret = alloc_uars_page(mdev, false);
+	if (IS_ERR(ret))
+		goto out;
+	list_add(&ret->list, &mdev->priv.bfregs.reg_head.list);
 out:
 	mutex_unlock(&mdev->priv.bfregs.reg_head.lock);
 

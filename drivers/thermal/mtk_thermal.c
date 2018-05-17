@@ -32,15 +32,10 @@
 #include <linux/types.h>
 
 /* AUXADC Registers */
-#define AUXADC_CON0_V		0x000
-#define AUXADC_CON1_V		0x004
 #define AUXADC_CON1_SET_V	0x008
 #define AUXADC_CON1_CLR_V	0x00c
 #define AUXADC_CON2_V		0x010
 #define AUXADC_DATA(channel)	(0x14 + (channel) * 4)
-#define AUXADC_MISC_V		0x094
-
-#define AUXADC_CON1_CHANNEL(x)	BIT(x)
 
 #define APMIXED_SYS_TS_CON1	0x604
 
@@ -157,8 +152,6 @@
 
 /* The number of sensing points per bank */
 #define MT2712_NUM_SENSORS_PER_ZONE	4
-
-#define THERMAL_NAME    "mtk-thermal"
 
 struct mtk_thermal;
 
@@ -765,7 +758,7 @@ static struct platform_driver mtk_thermal_driver = {
 	.probe = mtk_thermal_probe,
 	.remove = mtk_thermal_remove,
 	.driver = {
-		.name = THERMAL_NAME,
+		.name = "mtk-thermal",
 		.of_match_table = mtk_thermal_of_match,
 	},
 };

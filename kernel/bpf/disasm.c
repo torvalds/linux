@@ -21,10 +21,39 @@ static const char * const func_id_str[] = {
 };
 #undef __BPF_FUNC_STR_FN
 
-const char *func_id_name(int id)
+static const char *__func_get_name(const struct bpf_insn_cbs *cbs,
+				   const struct bpf_insn *insn,
+				   char *buff, size_t len)
 {
 	BUILD_BUG_ON(ARRAY_SIZE(func_id_str) != __BPF_FUNC_MAX_ID);
 
+	if (insn->src_reg != BPF_PSEUDO_CALL &&
+	    insn->imm >= 0 && insn->imm < __BPF_FUNC_MAX_ID &&
+	    func_id_str[insn->imm])
+		return func_id_str[insn->imm];
+
+	if (cbs && cbs->cb_call)
+		return cbs->cb_call(cbs->private_data, insn);
+
+	if (insn->src_reg == BPF_PSEUDO_CALL)
+		snprintf(buff, len, "%+d", insn->imm);
+
+	return buff;
+}
+
+static const char *__func_imm_name(const struct bpf_insn_cbs *cbs,
+				   const struct bpf_insn *insn,
+				   u64 full_imm, char *buff, size_t len)
+{
+	if (cbs && cbs->cb_imm)
+		return cbs->cb_imm(cbs->private_data, insn, full_imm);
+
+	snprintf(buff, len, "0x%llx", (unsigned long long)full_imm);
+	return buff;
+}
+
+const char *func_id_name(int id)
+{
 	if (id >= 0 && id < __BPF_FUNC_MAX_ID && func_id_str[id])
 		return func_id_str[id];
 	else
@@ -83,7 +112,7 @@ static const char *const bpf_jmp_string[16] = {
 	[BPF_EXIT >> 4] = "exit",
 };
 
-static void print_bpf_end_insn(bpf_insn_print_cb verbose,
+static void print_bpf_end_insn(bpf_insn_print_t verbose,
 			       struct bpf_verifier_env *env,
 			       const struct bpf_insn *insn)
 {
@@ -92,9 +121,12 @@ static void print_bpf_end_insn(bpf_insn_print_cb verbose,
 		insn->imm, insn->dst_reg);
 }
 
-void print_bpf_insn(bpf_insn_print_cb verbose, struct bpf_verifier_env *env,
-		    const struct bpf_insn *insn, bool allow_ptr_leaks)
+void print_bpf_insn(const struct bpf_insn_cbs *cbs,
+		    struct bpf_verifier_env *env,
+		    const struct bpf_insn *insn,
+		    bool allow_ptr_leaks)
 {
+	const bpf_insn_print_t verbose = cbs->cb_print;
 	u8 class = BPF_CLASS(insn->code);
 
 	if (class == BPF_ALU || class == BPF_ALU64) {
@@ -175,12 +207,15 @@ void print_bpf_insn(bpf_insn_print_cb verbose, struct bpf_verifier_env *env,
 			 */
 			u64 imm = ((u64)(insn + 1)->imm << 32) | (u32)insn->imm;
 			bool map_ptr = insn->src_reg == BPF_PSEUDO_MAP_FD;
+			char tmp[64];
 
 			if (map_ptr && !allow_ptr_leaks)
 				imm = 0;
 
-			verbose(env, "(%02x) r%d = 0x%llx\n", insn->code,
-				insn->dst_reg, (unsigned long long)imm);
+			verbose(env, "(%02x) r%d = %s\n",
+				insn->code, insn->dst_reg,
+				__func_imm_name(cbs, insn, imm,
+						tmp, sizeof(tmp)));
 		} else {
 			verbose(env, "BUG_ld_%02x\n", insn->code);
 			return;
@@ -189,8 +224,20 @@ void print_bpf_insn(bpf_insn_print_cb verbose, struct bpf_verifier_env *env,
 		u8 opcode = BPF_OP(insn->code);
 
 		if (opcode == BPF_CALL) {
-			verbose(env, "(%02x) call %s#%d\n", insn->code,
-				func_id_name(insn->imm), insn->imm);
+			char tmp[64];
+
+			if (insn->src_reg == BPF_PSEUDO_CALL) {
+				verbose(env, "(%02x) call pc%s\n",
+					insn->code,
+					__func_get_name(cbs, insn,
+							tmp, sizeof(tmp)));
+			} else {
+				strcpy(tmp, "unknown");
+				verbose(env, "(%02x) call %s#%d\n", insn->code,
+					__func_get_name(cbs, insn,
+							tmp, sizeof(tmp)),
+					insn->imm);
+			}
 		} else if (insn->code == (BPF_JMP | BPF_JA)) {
 			verbose(env, "(%02x) goto pc%+d\n",
 				insn->code, insn->off);

@@ -42,10 +42,11 @@ export PLATFORM
 
 # temporarily until string.h is fixed
 KBUILD_CFLAGS += -ffreestanding -D__linux__
-
-KBUILD_CFLAGS += -pipe -mlongcalls
-
+KBUILD_CFLAGS += -pipe -mlongcalls -mtext-section-literals
 KBUILD_CFLAGS += $(call cc-option,-mforce-no-pic,)
+KBUILD_CFLAGS += $(call cc-option,-mno-serialize-volatile,)
+
+KBUILD_AFLAGS += -mlongcalls -mtext-section-literals
 
 ifneq ($(CONFIG_LD_NO_RELAX),)
 LDFLAGS := --no-relax

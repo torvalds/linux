@@ -110,12 +110,17 @@ void intel_uc_fw_init(struct intel_uc_fw *uc_fw, enum intel_uc_fw_type type)
 	uc_fw->type = type;
 }
 
+static inline bool intel_uc_fw_is_selected(struct intel_uc_fw *uc_fw)
+{
+	return uc_fw->path != NULL;
+}
+
 void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 		       struct intel_uc_fw *uc_fw);
 int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
 		       int (*xfer)(struct intel_uc_fw *uc_fw,
 				   struct i915_vma *vma));
 void intel_uc_fw_fini(struct intel_uc_fw *uc_fw);
-void intel_uc_fw_dump(struct intel_uc_fw *uc_fw, struct drm_printer *p);
+void intel_uc_fw_dump(const struct intel_uc_fw *uc_fw, struct drm_printer *p);
 
 #endif

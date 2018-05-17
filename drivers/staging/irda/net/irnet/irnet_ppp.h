@@ -70,7 +70,7 @@ static ssize_t
 		       char __user *,
 		       size_t,
 		       loff_t *);
-static unsigned int
+static __poll_t
 	dev_irnet_poll(struct file *,
 		       poll_table *);
 static long

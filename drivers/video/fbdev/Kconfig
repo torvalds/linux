@@ -772,6 +772,7 @@ config FB_VESA
 config FB_EFI
 	bool "EFI-based Framebuffer Support"
 	depends on (FB = y) && !IA64 && EFI
+	select DRM_PANEL_ORIENTATION_QUIRKS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -1155,7 +1156,6 @@ config FB_I810_I2C
 	bool "Enable DDC Support"
 	depends on FB_I810 && FB_I810_GTF
 	select FB_DDC
-	help
 
 config FB_LE80578
 	tristate "Intel LE80578 (Vermilion) support"
@@ -1187,7 +1187,7 @@ config FB_INTEL
           830M/845G/852GM/855GM/865G/915G/915GM/945G/945GM/965G/965GM chipsets.
           Say Y if you have and plan to use such a board.
 
-	  To make FB_INTELFB=Y work you need to say AGP_INTEL=y too.
+	  To make FB_INTEL=Y work you need to say AGP_INTEL=y too.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called intelfb.

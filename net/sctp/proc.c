@@ -95,7 +95,6 @@ static int sctp_snmp_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations sctp_snmp_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open	 = sctp_snmp_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
@@ -288,12 +287,8 @@ struct sctp_ht_iter {
 static void *sctp_transport_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct sctp_ht_iter *iter = seq->private;
-	int err = sctp_transport_walk_start(&iter->hti);
 
-	if (err) {
-		iter->start_fail = 1;
-		return ERR_PTR(err);
-	}
+	sctp_transport_walk_start(&iter->hti);
 
 	iter->start_fail = 0;
 	return sctp_transport_get_idx(seq_file_net(seq), &iter->hti, *pos);

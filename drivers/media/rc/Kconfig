@@ -16,34 +16,21 @@ menuconfig RC_CORE
 if RC_CORE
 source "drivers/media/rc/keymaps/Kconfig"
 
+config LIRC
+	bool "LIRC user interface"
+	depends on RC_CORE
+	---help---
+	   Enable this option to enable the Linux Infrared Remote
+	   Control user interface (e.g. /dev/lirc*). This interface
+	   passes raw IR to and from userspace, which is needed for
+	   IR transmitting (aka "blasting") and for the lirc daemon.
+
 menuconfig RC_DECODERS
-        bool "Remote controller decoders"
+	bool "Remote controller decoders"
 	depends on RC_CORE
 	default y
 
 if RC_DECODERS
-config LIRC
-	tristate "LIRC interface driver"
-	depends on RC_CORE
-
-	---help---
-	   Enable this option to build the Linux Infrared Remote
-	   Control (LIRC) core device interface driver. The LIRC
-	   interface passes raw IR to and from userspace, where the
-	   LIRC daemon handles protocol decoding for IR reception and
-	   encoding for IR transmitting (aka "blasting").
-
-config IR_LIRC_CODEC
-	tristate "Enable IR to LIRC bridge"
-	depends on RC_CORE
-	depends on LIRC
-	default y
-
-	---help---
-	   Enable this option to pass raw IR to and from userspace via
-	   the LIRC interface.
-
-
 config IR_NEC_DECODER
 	tristate "Enable IR raw decoder for the NEC protocol"
 	depends on RC_CORE
@@ -465,9 +452,9 @@ config IR_SERIAL_TRANSMITTER
 	   Serial Port Transmitter support
 
 config IR_SIR
-        tristate "Built-in SIR IrDA port"
-        depends on RC_CORE
-        ---help---
+	tristate "Built-in SIR IrDA port"
+	depends on RC_CORE
+	---help---
 	   Say Y if you want to use a IrDA SIR port Transceivers.
 
 	   To compile this driver as a module, choose M here: the module will

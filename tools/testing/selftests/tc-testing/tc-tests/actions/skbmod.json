@@ -315,7 +315,7 @@
         "cmdUnderTest": "$TC actions ls action skbmod",
         "expExitCode": "0",
         "verifyCmd": "$TC actions get action skbmod index 4",
-        "matchPattern": "action order [0-9]*: skbmod pipe set etype 0x0031",
+        "matchPattern": "action order [0-9]*: skbmod pipe set etype 0x31",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action skbmod"

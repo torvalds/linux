@@ -14,12 +14,6 @@
 
 #include "aq_common.h"
 
-#define AQ_DIMOF(_ARY_)  ARRAY_SIZE(_ARY_)
-
-struct aq_obj_s {
-	atomic_t flags;
-};
-
 static inline void aq_utils_obj_set(atomic_t *flags, u32 mask)
 {
 	unsigned long flags_old, flags_new;

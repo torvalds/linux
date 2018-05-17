@@ -36,6 +36,7 @@
 
 #include <linux/types.h>
 #include <asm/byteorder.h>
+#include <linux/crypto.h>
 #include <linux/socket.h>
 #include <linux/tcp.h>
 #include <net/tcp.h>
@@ -57,6 +58,7 @@
 
 struct tls_sw_context {
 	struct crypto_aead *aead_send;
+	struct crypto_wait async_wait;
 
 	/* Sending context */
 	char aad_space[TLS_AAD_SPACE_SIZE];
@@ -170,7 +172,7 @@ static inline bool tls_is_pending_open_record(struct tls_context *tls_ctx)
 
 static inline void tls_err_abort(struct sock *sk)
 {
-	sk->sk_err = -EBADMSG;
+	sk->sk_err = EBADMSG;
 	sk->sk_error_report(sk);
 }
 

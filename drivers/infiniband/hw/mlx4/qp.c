@@ -734,10 +734,24 @@ static int set_qp_rss(struct mlx4_ib_dev *dev, struct mlx4_ib_rss *rss_ctx,
 		return (-EOPNOTSUPP);
 	}
 
+	if (ucmd->rx_hash_fields_mask & MLX4_IB_RX_HASH_INNER) {
+		if (dev->dev->caps.tunnel_offload_mode ==
+		    MLX4_TUNNEL_OFFLOAD_MODE_VXLAN) {
+			/*
+			 * Hash according to inner headers if exist, otherwise
+			 * according to outer headers.
+			 */
+			rss_ctx->flags |= MLX4_RSS_BY_INNER_HEADERS_IPONLY;
+		} else {
+			pr_debug("RSS Hash for inner headers isn't supported\n");
+			return (-EOPNOTSUPP);
+		}
+	}
+
 	return 0;
 }
 
-static int create_qp_rss(struct mlx4_ib_dev *dev, struct ib_pd *ibpd,
+static int create_qp_rss(struct mlx4_ib_dev *dev,
 			 struct ib_qp_init_attr *init_attr,
 			 struct mlx4_ib_create_qp_rss *ucmd,
 			 struct mlx4_ib_qp *qp)
@@ -860,7 +874,7 @@ static struct ib_qp *_mlx4_ib_create_qp_rss(struct ib_pd *pd,
 	qp->pri.vid = 0xFFFF;
 	qp->alt.vid = 0xFFFF;
 
-	err = create_qp_rss(to_mdev(pd->device), pd, init_attr, &ucmd, qp);
+	err = create_qp_rss(to_mdev(pd->device), init_attr, &ucmd, qp);
 	if (err) {
 		kfree(qp);
 		return ERR_PTR(err);
@@ -1836,6 +1850,8 @@ static int _mlx4_set_path(struct mlx4_ib_dev *dev,
 			mlx4_ib_gid_index_to_real_index(dev, port,
 							grh->sgid_index);
 
+		if (real_sgid_index < 0)
+			return real_sgid_index;
 		if (real_sgid_index >= dev->dev->caps.gid_table_len[port]) {
 			pr_err("sgid_index (%u) too large. max is %d\n",
 			       real_sgid_index, dev->dev->caps.gid_table_len[port] - 1);

@@ -2039,10 +2039,10 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 
 	INIT_LIST_HEAD(&isc->subdev_entities);
 
-	for (; ;) {
+	while (1) {
 		epn = of_graph_get_next_endpoint(np, epn);
 		if (!epn)
-			break;
+			return 0;
 
 		rem = of_graph_get_remote_port_parent(epn);
 		if (!rem) {
@@ -2088,7 +2088,7 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 			subdev_entity->pfe_cfg0 |= ISC_PFE_CFG0_PPOL_LOW;
 
 		subdev_entity->asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
-		subdev_entity->asd->match.fwnode.fwnode =
+		subdev_entity->asd->match.fwnode =
 			of_fwnode_handle(rem);
 		list_add_tail(&subdev_entity->list, &isc->subdev_entities);
 	}

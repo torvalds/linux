@@ -1,0 +1,58 @@
+What:		/sys/block/*/device/sw_activity
+Date:		Jun, 2008
+KernelVersion:	v2.6.27
+Contact:	linux-ide@vger.kernel.org
+Description:
+		(RW) Used by drivers which support software controlled activity
+		LEDs.
+
+		It has the following valid values:
+
+		0	OFF - the LED is not activated on activity
+		1	BLINK_ON - the LED blinks on every 10ms when activity is
+			detected.
+		2	BLINK_OFF - the LED is on when idle, and blinks off
+			every 10ms when activity is detected.
+
+		Note that the user must turn sw_activity OFF it they wish to
+		control the activity LED via the em_message file.
+
+
+What:		/sys/block/*/device/unload_heads
+Date:		Sep, 2008
+KernelVersion:	v2.6.28
+Contact:	linux-ide@vger.kernel.org
+Description:
+		(RW) Hard disk shock protection
+
+		Writing an integer value to this file will take the heads of the
+		respective drive off the platter and block all I/O operations
+		for the specified number of milliseconds.
+
+		- If the device does not support the unload heads feature,
+		  access is denied with -EOPNOTSUPP.
+		- The maximal value accepted for a timeout is 30000
+		  milliseconds.
+		- A previously set timeout can be cancelled and disk can resume
+		  normal operation immediately by specifying a timeout of 0.
+		- Some hard drives only comply with an earlier version of the
+		  ATA standard, but support the unload feature nonetheless.
+		  There is no safe way Linux can detect these devices, so this
+		  is not enabled by default. If it is known that your device
+		  does support the unload feature, then you can tell the kernel
+		  to enable it by writing -1. It can be disabled again by
+		  writing -2.
+		- Values below -2 are rejected with -EINVAL
+
+		For more information, see
+		Documentation/laptops/disk-shock-protection.txt
+
+
+What:		/sys/block/*/device/ncq_prio_enable
+Date:		Oct, 2016
+KernelVersion:	v4.10
+Contact:	linux-ide@vger.kernel.org
+Description:
+		(RW) Write to the file to turn on or off the SATA ncq (native
+		command queueing) support. By default this feature is turned
+		off.

@@ -95,7 +95,6 @@ out_shortreply:
 out_notfound:
 	dprintk("svcrdma: unrecognized bc reply: xprt=%p, xid=%08x\n",
 		xprt, be32_to_cpu(xid));
-
 	goto out_unlock;
 }
 
@@ -127,10 +126,6 @@ static int svc_rdma_bc_sendto(struct svcxprt_rdma *rdma,
 	ret = svc_rdma_map_reply_hdr(rdma, ctxt, rqst->rq_buffer,
 				     rqst->rq_snd_buf.len);
 	if (ret < 0)
-		goto out_err;
-
-	ret = svc_rdma_repost_recv(rdma, GFP_NOIO);
-	if (ret)
 		goto out_err;
 
 	/* Bump page refcnt so Send completion doesn't release

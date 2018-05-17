@@ -835,6 +835,13 @@ void bfq_bfqq_served(struct bfq_queue *bfqq, int served)
 	struct bfq_entity *entity = &bfqq->entity;
 	struct bfq_service_tree *st;
 
+	if (!bfqq->service_from_backlogged)
+		bfqq->first_IO_time = jiffies;
+
+	if (bfqq->wr_coeff > 1)
+		bfqq->service_from_wr += served;
+
+	bfqq->service_from_backlogged += served;
 	for_each_entity(entity) {
 		st = bfq_entity_service_tree(entity);
 

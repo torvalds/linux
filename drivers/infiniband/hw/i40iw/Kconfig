@@ -5,4 +5,3 @@ config INFINIBAND_I40IW
 	select GENERIC_ALLOCATOR
 	---help---
 	Intel(R) Ethernet X722 iWARP Driver
-	INET && I40IW && INFINIBAND && I40E

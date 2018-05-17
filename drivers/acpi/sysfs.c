@@ -816,14 +816,8 @@ end:
  * interface:
  *   echo unmask > /sys/firmware/acpi/interrupts/gpe00
  */
-
-/*
- * Currently, the GPE flooding prevention only supports to mask the GPEs
- * numbered from 00 to 7f.
- */
-#define ACPI_MASKABLE_GPE_MAX	0x80
-
-static u64 __initdata acpi_masked_gpes;
+#define ACPI_MASKABLE_GPE_MAX	0xFF
+static DECLARE_BITMAP(acpi_masked_gpes_map, ACPI_MASKABLE_GPE_MAX) __initdata;
 
 static int __init acpi_gpe_set_masked_gpes(char *val)
 {
@@ -831,7 +825,7 @@ static int __init acpi_gpe_set_masked_gpes(char *val)
 
 	if (kstrtou8(val, 0, &gpe) || gpe > ACPI_MASKABLE_GPE_MAX)
 		return -EINVAL;
-	acpi_masked_gpes |= ((u64)1<<gpe);
+	set_bit(gpe, acpi_masked_gpes_map);
 
 	return 1;
 }
@@ -843,15 +837,11 @@ void __init acpi_gpe_apply_masked_gpes(void)
 	acpi_status status;
 	u8 gpe;
 
-	for (gpe = 0;
-	     gpe < min_t(u8, ACPI_MASKABLE_GPE_MAX, acpi_current_gpe_count);
-	     gpe++) {
-		if (acpi_masked_gpes & ((u64)1<<gpe)) {
-			status = acpi_get_gpe_device(gpe, &handle);
-			if (ACPI_SUCCESS(status)) {
-				pr_info("Masking GPE 0x%x.\n", gpe);
-				(void)acpi_mask_gpe(handle, gpe, TRUE);
-			}
+	for_each_set_bit(gpe, acpi_masked_gpes_map, ACPI_MASKABLE_GPE_MAX) {
+		status = acpi_get_gpe_device(gpe, &handle);
+		if (ACPI_SUCCESS(status)) {
+			pr_info("Masking GPE 0x%x.\n", gpe);
+			(void)acpi_mask_gpe(handle, gpe, TRUE);
 		}
 	}
 }

@@ -25,7 +25,7 @@
 #define TC90522_H
 
 #include <linux/i2c.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 /* I2C device types */
 #define TC90522_I2C_DEV_SAT "tc90522sat"

@@ -743,8 +743,8 @@ static int nx842_open_percpu_txwins(void)
 		}
 
 		if (!per_cpu(cpu_txwin, i)) {
-			/* shoudn't happen, Each chip will have NX engine */
-			pr_err("NX engine is not availavle for CPU %d\n", i);
+			/* shouldn't happen, Each chip will have NX engine */
+			pr_err("NX engine is not available for CPU %d\n", i);
 			return -EINVAL;
 		}
 	}

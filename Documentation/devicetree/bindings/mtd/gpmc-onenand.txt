@@ -9,13 +9,14 @@ Documentation/devicetree/bindings/memory-controllers/omap-gpmc.txt
 
 Required properties:
 
+ - compatible:		"ti,omap2-onenand"
  - reg:			The CS line the peripheral is connected to
- - gpmc,device-width	Width of the ONENAND device connected to the GPMC
+ - gpmc,device-width:	Width of the ONENAND device connected to the GPMC
 			in bytes. Must be 1 or 2.
 
 Optional properties:
 
- - dma-channel:		DMA Channel index
+ - int-gpios:		GPIO specifier for the INT pin.
 
 For inline partition table parsing (optional):
 
@@ -35,6 +36,7 @@ Example for an OMAP3430 board:
 		#size-cells = <1>;
 
 		onenand@0 {
+			compatible = "ti,omap2-onenand";
 			reg = <0 0 0>; /* CS0, offset 0 */
 			gpmc,device-width = <2>;
 

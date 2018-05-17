@@ -84,7 +84,7 @@ static ssize_t show_status(struct device *d,
 
 	return sprintf(buf, "%02x\n", ret);
 }
-static DEVICE_ATTR(status, S_IRUGO, show_status, NULL);
+static DEVICE_ATTR(status, 0444, show_status, NULL);
 
 static void mcu_power_off(void)
 {

@@ -1227,9 +1227,9 @@ static u8 get_src_path_mask(struct ib_device *device, u8 port_num)
 	return src_path_mask;
 }
 
-int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
-			 struct sa_path_rec *rec,
-			 struct rdma_ah_attr *ah_attr)
+int ib_init_ah_attr_from_path(struct ib_device *device, u8 port_num,
+			      struct sa_path_rec *rec,
+			      struct rdma_ah_attr *ah_attr)
 {
 	int ret;
 	u16 gid_index;
@@ -1291,10 +1291,9 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 
 		resolved_dev = dev_get_by_index(dev_addr.net,
 						dev_addr.bound_dev_if);
-		if (resolved_dev->flags & IFF_LOOPBACK) {
-			dev_put(resolved_dev);
-			resolved_dev = idev;
-			dev_hold(resolved_dev);
+		if (!resolved_dev) {
+			dev_put(idev);
+			return -ENODEV;
 		}
 		ndev = ib_get_ndev_from_path(rec);
 		rcu_read_lock();
@@ -1341,10 +1340,11 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 
 	return 0;
 }
-EXPORT_SYMBOL(ib_init_ah_from_path);
+EXPORT_SYMBOL(ib_init_ah_attr_from_path);
 
 static int alloc_mad(struct ib_sa_query *query, gfp_t gfp_mask)
 {
+	struct rdma_ah_attr ah_attr;
 	unsigned long flags;
 
 	spin_lock_irqsave(&query->port->ah_lock, flags);
@@ -1356,6 +1356,15 @@ static int alloc_mad(struct ib_sa_query *query, gfp_t gfp_mask)
 	query->sm_ah = query->port->sm_ah;
 	spin_unlock_irqrestore(&query->port->ah_lock, flags);
 
+	/*
+	 * Always check if sm_ah has valid dlid assigned,
+	 * before querying for class port info
+	 */
+	if ((rdma_query_ah(query->sm_ah->ah, &ah_attr) < 0) ||
+	    !rdma_is_valid_unicast_lid(&ah_attr)) {
+		kref_put(&query->sm_ah->ref, free_sm_ah);
+		return -EAGAIN;
+	}
 	query->mad_buf = ib_create_send_mad(query->port->agent, 1,
 					    query->sm_ah->pkey_index,
 					    0, IB_MGMT_SA_HDR, IB_MGMT_SA_DATA,

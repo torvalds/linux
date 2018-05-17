@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * DesignWare application register space functions for Keystone PCI controller
  *
@@ -5,11 +6,6 @@
  *		http://www.ti.com
  *
  * Author: Murali Karicheri <m-karicheri2@ti.com>
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/irq.h>

@@ -16,6 +16,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/mm.h>
+#include <linux/pkeys.h>
 #include <linux/spinlock.h>
 #include <linux/idr.h>
 #include <linux/export.h>
@@ -118,6 +119,7 @@ static int hash__init_new_context(struct mm_struct *mm)
 
 	subpage_prot_init_new_context(mm);
 
+	pkey_mm_init(mm);
 	return index;
 }
 
@@ -171,6 +173,7 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	mm_iommu_init(mm);
 #endif
 	atomic_set(&mm->context.active_cpus, 0);
+	atomic_set(&mm->context.copros, 0);
 
 	return 0;
 }

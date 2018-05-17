@@ -98,9 +98,17 @@ static void qede_configure_arfs_fltr(struct qede_dev *edev,
 				     u16 rxq_id, bool add_fltr)
 {
 	const struct qed_eth_ops *op = edev->ops;
+	struct qed_ntuple_filter_params params;
 
 	if (n->used)
 		return;
+
+	memset(&params, 0, sizeof(params));
+
+	params.addr = n->mapping;
+	params.length = n->buf_len;
+	params.qid = rxq_id;
+	params.b_is_add = add_fltr;
 
 	DP_VERBOSE(edev, NETIF_MSG_RX_STATUS,
 		   "%s arfs filter flow_id=%d, sw_id=%d, src_port=%d, dst_port=%d, rxq=%d\n",
@@ -110,8 +118,7 @@ static void qede_configure_arfs_fltr(struct qede_dev *edev,
 
 	n->used = true;
 	n->filter_op = add_fltr;
-	op->ntuple_filter_config(edev->cdev, n, n->mapping, n->buf_len, 0,
-				 rxq_id, add_fltr);
+	op->ntuple_filter_config(edev->cdev, n, &params);
 }
 
 static void
@@ -141,7 +148,10 @@ qede_enqueue_fltr_and_config_searcher(struct qede_dev *edev,
 	edev->arfs->filter_count++;
 
 	if (edev->arfs->filter_count == 1 && !edev->arfs->enable) {
-		edev->ops->configure_arfs_searcher(edev->cdev, true);
+		enum qed_filter_config_mode mode;
+
+		mode = QED_FILTER_CONFIG_MODE_5_TUPLE;
+		edev->ops->configure_arfs_searcher(edev->cdev, mode);
 		edev->arfs->enable = true;
 	}
 
@@ -160,8 +170,11 @@ qede_dequeue_fltr_and_config_searcher(struct qede_dev *edev,
 	edev->arfs->filter_count--;
 
 	if (!edev->arfs->filter_count && edev->arfs->enable) {
+		enum qed_filter_config_mode mode;
+
+		mode = QED_FILTER_CONFIG_MODE_DISABLE;
 		edev->arfs->enable = false;
-		edev->ops->configure_arfs_searcher(edev->cdev, false);
+		edev->ops->configure_arfs_searcher(edev->cdev, mode);
 	}
 }
 
@@ -255,8 +268,11 @@ void qede_process_arfs_filters(struct qede_dev *edev, bool free_fltr)
 
 	if (!edev->arfs->filter_count) {
 		if (edev->arfs->enable) {
+			enum qed_filter_config_mode mode;
+
+			mode = QED_FILTER_CONFIG_MODE_DISABLE;
 			edev->arfs->enable = false;
-			edev->ops->configure_arfs_searcher(edev->cdev, false);
+			edev->ops->configure_arfs_searcher(edev->cdev, mode);
 		}
 #ifdef CONFIG_RFS_ACCEL
 	} else {
@@ -895,19 +911,26 @@ static void qede_set_features_reload(struct qede_dev *edev,
 	edev->ndev->features = args->u.features;
 }
 
+netdev_features_t qede_fix_features(struct net_device *dev,
+				    netdev_features_t features)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	if (edev->xdp_prog || edev->ndev->mtu > PAGE_SIZE ||
+	    !(features & NETIF_F_GRO))
+		features &= ~NETIF_F_GRO_HW;
+
+	return features;
+}
+
 int qede_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct qede_dev *edev = netdev_priv(dev);
 	netdev_features_t changes = features ^ dev->features;
 	bool need_reload = false;
 
-	/* No action needed if hardware GRO is disabled during driver load */
-	if (changes & NETIF_F_GRO) {
-		if (dev->features & NETIF_F_GRO)
-			need_reload = !edev->gro_disable;
-		else
-			need_reload = edev->gro_disable;
-	}
+	if (changes & NETIF_F_GRO_HW)
+		need_reload = true;
 
 	if (need_reload) {
 		struct qede_reload_args args;

@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "cpumap.h"
 #include "env.h"
+#include "sane_ctype.h"
 #include "util.h"
 #include <errno.h>
+#include <sys/utsname.h>
 
 struct perf_env perf_env;
 
@@ -92,4 +94,49 @@ void cpu_cache_level__free(struct cpu_cache_level *cache)
 	free(cache->type);
 	free(cache->map);
 	free(cache->size);
+}
+
+/*
+ * Return architecture name in a normalized form.
+ * The conversion logic comes from the Makefile.
+ */
+static const char *normalize_arch(char *arch)
+{
+	if (!strcmp(arch, "x86_64"))
+		return "x86";
+	if (arch[0] == 'i' && arch[2] == '8' && arch[3] == '6')
+		return "x86";
+	if (!strcmp(arch, "sun4u") || !strncmp(arch, "sparc", 5))
+		return "sparc";
+	if (!strcmp(arch, "aarch64") || !strcmp(arch, "arm64"))
+		return "arm64";
+	if (!strncmp(arch, "arm", 3) || !strcmp(arch, "sa110"))
+		return "arm";
+	if (!strncmp(arch, "s390", 4))
+		return "s390";
+	if (!strncmp(arch, "parisc", 6))
+		return "parisc";
+	if (!strncmp(arch, "powerpc", 7) || !strncmp(arch, "ppc", 3))
+		return "powerpc";
+	if (!strncmp(arch, "mips", 4))
+		return "mips";
+	if (!strncmp(arch, "sh", 2) && isdigit(arch[2]))
+		return "sh";
+
+	return arch;
+}
+
+const char *perf_env__arch(struct perf_env *env)
+{
+	struct utsname uts;
+	char *arch_name;
+
+	if (!env) { /* Assume local operation */
+		if (uname(&uts) < 0)
+			return NULL;
+		arch_name = uts.machine;
+	} else
+		arch_name = env->arch;
+
+	return normalize_arch(arch_name);
 }

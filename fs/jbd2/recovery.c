@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * linux/fs/jbd2/recovery.c
  *
  * Written by Stephen C. Tweedie <sct@redhat.com>, 1999
  *
  * Copyright 1999-2000 Red Hat Software --- All Rights Reserved
- *
- * This file is part of the Linux kernel and is made available under
- * the terms of the GNU General Public License, version 2, or at your
- * option, any later version, incorporated herein by reference.
  *
  * Journal recovery routines for the generic filesystem journaling code;
  * part of the ext2fs journaling system.

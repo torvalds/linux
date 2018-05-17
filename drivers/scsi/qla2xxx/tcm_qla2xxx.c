@@ -1635,16 +1635,13 @@ static int tcm_qla2xxx_init_lport(struct tcm_qla2xxx_lport *lport)
 		return rc;
 	}
 
-	lport->lport_loopid_map = vmalloc(sizeof(struct tcm_qla2xxx_fc_loopid) *
-				65536);
+	lport->lport_loopid_map = vzalloc(sizeof(struct tcm_qla2xxx_fc_loopid) * 65536);
 	if (!lport->lport_loopid_map) {
 		pr_err("Unable to allocate lport->lport_loopid_map of %zu bytes\n",
 		    sizeof(struct tcm_qla2xxx_fc_loopid) * 65536);
 		btree_destroy32(&lport->lport_fcport_map);
 		return -ENOMEM;
 	}
-	memset(lport->lport_loopid_map, 0, sizeof(struct tcm_qla2xxx_fc_loopid)
-	       * 65536);
 	pr_debug("qla2xxx: Allocated lport_loopid_map of %zu bytes\n",
 	       sizeof(struct tcm_qla2xxx_fc_loopid) * 65536);
 	return 0;

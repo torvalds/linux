@@ -94,6 +94,37 @@ static noinline void __init kmalloc_pagealloc_oob_right(void)
 	ptr[size] = 0;
 	kfree(ptr);
 }
+
+static noinline void __init kmalloc_pagealloc_uaf(void)
+{
+	char *ptr;
+	size_t size = KMALLOC_MAX_CACHE_SIZE + 10;
+
+	pr_info("kmalloc pagealloc allocation: use-after-free\n");
+	ptr = kmalloc(size, GFP_KERNEL);
+	if (!ptr) {
+		pr_err("Allocation failed\n");
+		return;
+	}
+
+	kfree(ptr);
+	ptr[0] = 0;
+}
+
+static noinline void __init kmalloc_pagealloc_invalid_free(void)
+{
+	char *ptr;
+	size_t size = KMALLOC_MAX_CACHE_SIZE + 10;
+
+	pr_info("kmalloc pagealloc allocation: invalid-free\n");
+	ptr = kmalloc(size, GFP_KERNEL);
+	if (!ptr) {
+		pr_err("Allocation failed\n");
+		return;
+	}
+
+	kfree(ptr + 1);
+}
 #endif
 
 static noinline void __init kmalloc_large_oob_right(void)
@@ -388,7 +419,7 @@ static noinline void __init kasan_stack_oob(void)
 static noinline void __init ksize_unpoisons_memory(void)
 {
 	char *ptr;
-	size_t size = 123, real_size = size;
+	size_t size = 123, real_size;
 
 	pr_info("ksize() unpoisons the whole allocated chunk\n");
 	ptr = kmalloc(size, GFP_KERNEL);
@@ -472,6 +503,74 @@ static noinline void __init use_after_scope_test(void)
 	p[1023] = 1;
 }
 
+static noinline void __init kasan_alloca_oob_left(void)
+{
+	volatile int i = 10;
+	char alloca_array[i];
+	char *p = alloca_array - 1;
+
+	pr_info("out-of-bounds to left on alloca\n");
+	*(volatile char *)p;
+}
+
+static noinline void __init kasan_alloca_oob_right(void)
+{
+	volatile int i = 10;
+	char alloca_array[i];
+	char *p = alloca_array + i;
+
+	pr_info("out-of-bounds to right on alloca\n");
+	*(volatile char *)p;
+}
+
+static noinline void __init kmem_cache_double_free(void)
+{
+	char *p;
+	size_t size = 200;
+	struct kmem_cache *cache;
+
+	cache = kmem_cache_create("test_cache", size, 0, 0, NULL);
+	if (!cache) {
+		pr_err("Cache allocation failed\n");
+		return;
+	}
+	pr_info("double-free on heap object\n");
+	p = kmem_cache_alloc(cache, GFP_KERNEL);
+	if (!p) {
+		pr_err("Allocation failed\n");
+		kmem_cache_destroy(cache);
+		return;
+	}
+
+	kmem_cache_free(cache, p);
+	kmem_cache_free(cache, p);
+	kmem_cache_destroy(cache);
+}
+
+static noinline void __init kmem_cache_invalid_free(void)
+{
+	char *p;
+	size_t size = 200;
+	struct kmem_cache *cache;
+
+	cache = kmem_cache_create("test_cache", size, 0, SLAB_TYPESAFE_BY_RCU,
+				  NULL);
+	if (!cache) {
+		pr_err("Cache allocation failed\n");
+		return;
+	}
+	pr_info("invalid-free of heap object\n");
+	p = kmem_cache_alloc(cache, GFP_KERNEL);
+	if (!p) {
+		pr_err("Allocation failed\n");
+		kmem_cache_destroy(cache);
+		return;
+	}
+
+	kmem_cache_free(cache, p + 1);
+	kmem_cache_destroy(cache);
+}
+
 static int __init kmalloc_tests_init(void)
 {
 	/*
@@ -485,6 +584,8 @@ static int __init kmalloc_tests_init(void)
 	kmalloc_node_oob_right();
 #ifdef CONFIG_SLUB
 	kmalloc_pagealloc_oob_right();
+	kmalloc_pagealloc_uaf();
+	kmalloc_pagealloc_invalid_free();
 #endif
 	kmalloc_large_oob_right();
 	kmalloc_oob_krealloc_more();
@@ -502,9 +603,13 @@ static int __init kmalloc_tests_init(void)
 	memcg_accounted_kmem_cache();
 	kasan_stack_oob();
 	kasan_global_oob();
+	kasan_alloca_oob_left();
+	kasan_alloca_oob_right();
 	ksize_unpoisons_memory();
 	copy_user_test();
 	use_after_scope_test();
+	kmem_cache_double_free();
+	kmem_cache_invalid_free();
 
 	kasan_restore_multi_shot(multishot);
 

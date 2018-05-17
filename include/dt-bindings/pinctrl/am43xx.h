@@ -25,7 +25,8 @@
 #define DS0_FORCE_OFF_MODE	(1 << 24)
 #define DS0_INPUT		(1 << 25)
 #define DS0_FORCE_OUT_HIGH	(1 << 26)
-#define DS0_PULL_UP_DOWN_EN	(1 << 27)
+#define DS0_PULL_UP_DOWN_EN	(0 << 27)
+#define DS0_PULL_UP_DOWN_DIS	(1 << 27)
 #define DS0_PULL_UP_SEL		(1 << 28)
 #define WAKEUP_ENABLE		(1 << 29)
 

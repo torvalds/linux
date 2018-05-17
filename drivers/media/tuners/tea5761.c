@@ -1,11 +1,8 @@
-/*
- * For Philips TEA5761 FM Chip
- * I2C address is allways 0x20 (0x10 at 7-bit mode).
- *
- * Copyright (c) 2005-2007 Mauro Carvalho Chehab (mchehab@infradead.org)
- * This code is placed under the terms of the GNUv2 General Public License
- *
- */
+// SPDX-License-Identifier: GPL-2.0
+// For Philips TEA5761 FM Chip
+// I2C address is always 0x20 (0x10 at 7-bit mode).
+//
+// Copyright (c) 2005-2007 Mauro Carvalho Chehab (mchehab@infradead.org)
 
 #include <linux/i2c.h>
 #include <linux/slab.h>
@@ -341,4 +338,4 @@ EXPORT_SYMBOL_GPL(tea5761_autodetection);
 
 MODULE_DESCRIPTION("Philips TEA5761 FM tuner driver");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

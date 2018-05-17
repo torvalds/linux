@@ -39,7 +39,7 @@
 #include <media/drv-intf/msp3400.h>
 #include <media/tuner.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "cx231xx-vbi.h"
 
@@ -1756,6 +1756,8 @@ static int cx231xx_v4l2_open(struct file *filp)
 	case VFL_TYPE_RADIO:
 		radio = 1;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	cx231xx_videodbg("open dev=%s type=%s users=%d\n",
@@ -2006,29 +2008,29 @@ cx231xx_v4l2_read(struct file *filp, char __user *buf, size_t count,
  * cx231xx_v4l2_poll()
  * will allocate buffers when called for the first time
  */
-static unsigned int cx231xx_v4l2_poll(struct file *filp, poll_table *wait)
+static __poll_t cx231xx_v4l2_poll(struct file *filp, poll_table *wait)
 {
-	unsigned long req_events = poll_requested_events(wait);
+	__poll_t req_events = poll_requested_events(wait);
 	struct cx231xx_fh *fh = filp->private_data;
 	struct cx231xx *dev = fh->dev;
-	unsigned res = 0;
+	__poll_t res = 0;
 	int rc;
 
 	rc = check_dev(dev);
 	if (rc < 0)
-		return POLLERR;
+		return EPOLLERR;
 
 	rc = res_get(fh);
 
 	if (unlikely(rc < 0))
-		return POLLERR;
+		return EPOLLERR;
 
 	if (v4l2_event_pending(&fh->fh))
-		res |= POLLPRI;
+		res |= EPOLLPRI;
 	else
 		poll_wait(filp, &fh->fh.wait, wait);
 
-	if (!(req_events & (POLLIN | POLLRDNORM)))
+	if (!(req_events & (EPOLLIN | EPOLLRDNORM)))
 		return res;
 
 	if ((V4L2_BUF_TYPE_VIDEO_CAPTURE == fh->type) ||
@@ -2038,7 +2040,7 @@ static unsigned int cx231xx_v4l2_poll(struct file *filp, poll_table *wait)
 		mutex_unlock(&dev->lock);
 		return res;
 	}
-	return res | POLLERR;
+	return res | EPOLLERR;
 }
 
 /*

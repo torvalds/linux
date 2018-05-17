@@ -399,9 +399,18 @@ void rsnd_parse_connect_common(struct rsnd_dai *rdai,
 		struct device_node *playback,
 		struct device_node *capture);
 
-int rsnd_runtime_channel_original(struct rsnd_dai_stream *io);
-int rsnd_runtime_channel_after_ctu(struct rsnd_dai_stream *io);
-int rsnd_runtime_channel_for_ssi(struct rsnd_dai_stream *io);
+#define rsnd_runtime_channel_original(io) \
+	rsnd_runtime_channel_original_with_params(io, NULL)
+int rsnd_runtime_channel_original_with_params(struct rsnd_dai_stream *io,
+				struct snd_pcm_hw_params *params);
+#define rsnd_runtime_channel_after_ctu(io)			\
+	rsnd_runtime_channel_after_ctu_with_params(io, NULL)
+int rsnd_runtime_channel_after_ctu_with_params(struct rsnd_dai_stream *io,
+				struct snd_pcm_hw_params *params);
+#define rsnd_runtime_channel_for_ssi(io) \
+	rsnd_runtime_channel_for_ssi_with_params(io, NULL)
+int rsnd_runtime_channel_for_ssi_with_params(struct rsnd_dai_stream *io,
+				 struct snd_pcm_hw_params *params);
 int rsnd_runtime_is_ssi_multi(struct rsnd_dai_stream *io);
 int rsnd_runtime_is_ssi_tdm(struct rsnd_dai_stream *io);
 

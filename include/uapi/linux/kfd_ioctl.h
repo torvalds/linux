@@ -58,7 +58,8 @@ struct kfd_ioctl_create_queue_args {
 	__u64 eop_buffer_address;	/* to KFD */
 	__u64 eop_buffer_size;	/* to KFD */
 	__u64 ctx_save_restore_address; /* to KFD */
-	__u64 ctx_save_restore_size;	/* to KFD */
+	__u32 ctx_save_restore_size;	/* to KFD */
+	__u32 ctl_stack_size;		/* to KFD */
 };
 
 struct kfd_ioctl_destroy_queue_args {
@@ -261,6 +262,13 @@ struct kfd_ioctl_get_tile_config_args {
 	 */
 };
 
+struct kfd_ioctl_set_trap_handler_args {
+	uint64_t tba_addr;		/* to KFD */
+	uint64_t tma_addr;		/* to KFD */
+	uint32_t gpu_id;		/* to KFD */
+	uint32_t pad;
+};
+
 #define AMDKFD_IOCTL_BASE 'K'
 #define AMDKFD_IO(nr)			_IO(AMDKFD_IOCTL_BASE, nr)
 #define AMDKFD_IOR(nr, type)		_IOR(AMDKFD_IOCTL_BASE, nr, type)
@@ -321,7 +329,10 @@ struct kfd_ioctl_get_tile_config_args {
 #define AMDKFD_IOC_GET_TILE_CONFIG                                      \
 		AMDKFD_IOWR(0x12, struct kfd_ioctl_get_tile_config_args)
 
+#define AMDKFD_IOC_SET_TRAP_HANDLER		\
+		AMDKFD_IOW(0x13, struct kfd_ioctl_set_trap_handler_args)
+
 #define AMDKFD_COMMAND_START		0x01
-#define AMDKFD_COMMAND_END		0x13
+#define AMDKFD_COMMAND_END		0x14
 
 #endif

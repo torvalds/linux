@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * attribute_container.c - implementation of a simple container for classes
  *
  * Copyright (c) 2005 - James Bottomley <James.Bottomley@steeleye.com>
- *
- * This file is licensed under GPLv2
  *
  * The basic idea here is to enable a device to be attached to an
  * aritrary numer of classes without having to allocate storage for them.

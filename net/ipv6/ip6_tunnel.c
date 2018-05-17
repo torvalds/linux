@@ -642,8 +642,7 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (rel_info > dst_mtu(skb_dst(skb2)))
 			goto out;
 
-		skb_dst(skb2)->ops->update_pmtu(skb_dst(skb2), NULL, skb2,
-						rel_info);
+		skb_dst_update_pmtu(skb2, rel_info);
 	}
 
 	icmp_send(skb2, rel_type, rel_code, htonl(rel_info));
@@ -861,7 +860,7 @@ int ip6_tnl_rcv(struct ip6_tnl *t, struct sk_buff *skb,
 		struct metadata_dst *tun_dst,
 		bool log_ecn_err)
 {
-	return __ip6_tnl_rcv(t, skb, tpi, NULL, ip6ip6_dscp_ecn_decapsulate,
+	return __ip6_tnl_rcv(t, skb, tpi, tun_dst, ip6ip6_dscp_ecn_decapsulate,
 			     log_ecn_err);
 }
 EXPORT_SYMBOL(ip6_tnl_rcv);
@@ -978,6 +977,9 @@ int ip6_tnl_xmit_ctl(struct ip6_tnl *t,
 	struct __ip6_tnl_parm *p = &t->parms;
 	int ret = 0;
 	struct net *net = t->net;
+
+	if (t->parms.collect_md)
+		return 1;
 
 	if ((p->flags & IP6_TNL_F_CAP_XMIT) ||
 	    ((p->flags & IP6_TNL_F_CAP_PER_PACKET) &&
@@ -1131,8 +1133,7 @@ route_lookup:
 		mtu = 576;
 	}
 
-	if (skb_dst(skb) && !t->parms.collect_md)
-		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), NULL, skb, mtu);
+	skb_dst_update_pmtu(skb, mtu);
 	if (skb->len - t->tun_hlen - eth_hlen > mtu && !skb_is_gso(skb)) {
 		*pmtu = mtu;
 		err = -EMSGSIZE;
@@ -1981,14 +1982,14 @@ static int ip6_tnl_newlink(struct net *src_net, struct net_device *dev,
 {
 	struct net *net = dev_net(dev);
 	struct ip6_tnl_net *ip6n = net_generic(net, ip6_tnl_net_id);
-	struct ip6_tnl *nt, *t;
 	struct ip_tunnel_encap ipencap;
+	struct ip6_tnl *nt, *t;
+	int err;
 
 	nt = netdev_priv(dev);
 
 	if (ip6_tnl_netlink_encap_parms(data, &ipencap)) {
-		int err = ip6_tnl_encap_setup(nt, &ipencap);
-
+		err = ip6_tnl_encap_setup(nt, &ipencap);
 		if (err < 0)
 			return err;
 	}
@@ -2004,7 +2005,11 @@ static int ip6_tnl_newlink(struct net *src_net, struct net_device *dev,
 			return -EEXIST;
 	}
 
-	return ip6_tnl_create2(dev);
+	err = ip6_tnl_create2(dev);
+	if (!err && tb[IFLA_MTU])
+		ip6_tnl_change_mtu(dev, nla_get_u32(tb[IFLA_MTU]));
+
+	return err;
 }
 
 static int ip6_tnl_changelink(struct net_device *dev, struct nlattr *tb[],

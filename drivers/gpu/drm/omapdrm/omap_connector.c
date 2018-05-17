@@ -1,7 +1,5 @@
 /*
- * drivers/gpu/drm/omapdrm/omap_connector.c
- *
- * Copyright (C) 2011 Texas Instruments
+ * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Rob Clark <rob@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -148,6 +146,12 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 		mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
 		drm_mode_set_name(mode);
 		drm_mode_probed_add(connector, mode);
+
+		if (dssdrv->get_size) {
+			dssdrv->get_size(dssdev,
+					 &connector->display_info.width_mm,
+					 &connector->display_info.height_mm);
+		}
 
 		n = 1;
 	}

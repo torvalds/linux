@@ -4505,7 +4505,7 @@ static struct kobject *floppy_find(dev_t dev, int *part, void *data)
 	if (((*part >> 2) & 0x1f) >= ARRAY_SIZE(floppy_type))
 		return NULL;
 	*part = 0;
-	return get_disk(disks[drive]);
+	return get_disk_and_module(disks[drive]);
 }
 
 static int __init do_floppy_init(void)

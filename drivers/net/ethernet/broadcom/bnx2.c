@@ -5818,8 +5818,8 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 	struct l2_fhdr *rx_hdr;
 	int ret = -ENODEV;
 	struct bnx2_napi *bnapi = &bp->bnx2_napi[0], *tx_napi;
-	struct bnx2_tx_ring_info *txr = &bnapi->tx_ring;
-	struct bnx2_rx_ring_info *rxr = &bnapi->rx_ring;
+	struct bnx2_tx_ring_info *txr;
+	struct bnx2_rx_ring_info *rxr;
 
 	tx_napi = bnapi;
 

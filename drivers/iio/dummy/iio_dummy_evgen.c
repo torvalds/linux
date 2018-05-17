@@ -56,7 +56,7 @@ static int iio_dummy_evgen_create(void)
 		return -ENOMEM;
 
 	ret = irq_sim_init(&iio_evgen->irq_sim, IIO_EVENTGEN_NO);
-	if (ret) {
+	if (ret < 0) {
 		kfree(iio_evgen);
 		return ret;
 	}

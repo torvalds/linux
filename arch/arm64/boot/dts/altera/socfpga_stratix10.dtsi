@@ -66,6 +66,7 @@
 				     <&cpu1>,
 				     <&cpu2>,
 				     <&cpu3>;
+		interrupt-parent = <&intc>;
 	};
 
 	psci {
@@ -248,7 +249,9 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0xffda4000 0x1000>;
-			interrupts = <0 101 4>;
+			interrupts = <0 99 4>;
+			resets = <&rst SPIM0_RESET>;
+			reg-io-width = <4>;
 			num-chipselect = <4>;
 			bus-num = <0>;
 			status = "disabled";
@@ -259,7 +262,9 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0xffda5000 0x1000>;
-			interrupts = <0 102 4>;
+			interrupts = <0 100 4>;
+			resets = <&rst SPIM1_RESET>;
+			reg-io-width = <4>;
 			num-chipselect = <4>;
 			bus-num = <0>;
 			status = "disabled";
@@ -335,8 +340,8 @@
 			interrupts = <0 93 4>;
 			phys = <&usbphy0>;
 			phy-names = "usb2-phy";
-			resets = <&rst USB0_RESET>;
-			reset-names = "dwc2";
+			resets = <&rst USB0_RESET>, <&rst USB0_OCP_RESET>;
+			reset-names = "dwc2", "dwc2-ecc";
 			status = "disabled";
 		};
 
@@ -346,8 +351,8 @@
 			interrupts = <0 94 4>;
 			phys = <&usbphy0>;
 			phy-names = "usb2-phy";
-			resets = <&rst USB1_RESET>;
-			reset-names = "dwc2";
+			resets = <&rst USB1_RESET>, <&rst USB1_OCP_RESET>;
+			reset-names = "dwc2", "dwc2-ecc";
 			status = "disabled";
 		};
 

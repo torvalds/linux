@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright 2009 Andy Green <andy@warmcat.com>
  *
  * S3C64XX SROM definitions
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 #ifndef __MACH_S3C64XX_REGS_SROM_H
 #define __MACH_S3C64XX_REGS_SROM_H __FILE__

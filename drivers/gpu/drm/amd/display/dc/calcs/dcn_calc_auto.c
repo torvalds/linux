@@ -27,6 +27,15 @@
 #include "dcn_calc_auto.h"
 #include "dcn_calc_math.h"
 
+/*
+ * NOTE:
+ *   This file is gcc-parseable HW gospel, coming straight from HW engineers.
+ *
+ * It doesn't adhere to Linux kernel style and sometimes will do things in odd
+ * ways. Unless there is something clearly wrong with it the code should
+ * remain as-is as it provides us with a guarantee from HW that it is correct.
+ */
+
 /*REVISION#250*/
 void scaler_settings_calculation(struct dcn_bw_internal_vars *v)
 {
@@ -773,11 +782,11 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 					v->dst_y_after_scaler = 0.0;
 				}
 				v->time_calc = 24.0 / v->projected_dcfclk_deep_sleep;
-				v->v_update_offset[k] =dcn_bw_ceil2(v->htotal[k] / 4.0, 1.0);
+				v->v_update_offset[k][j] = dcn_bw_ceil2(v->htotal[k] / 4.0, 1.0);
 				v->total_repeater_delay = v->max_inter_dcn_tile_repeaters * (2.0 / (v->required_dispclk[i][j] / (j + 1)) + 3.0 / v->required_dispclk[i][j]);
-				v->v_update_width[k] = (14.0 / v->projected_dcfclk_deep_sleep + 12.0 / (v->required_dispclk[i][j] / (j + 1)) + v->total_repeater_delay) * v->pixel_clock[k];
-				v->v_ready_offset[k] =dcn_bw_max2(150.0 / (v->required_dispclk[i][j] / (j + 1)), v->total_repeater_delay + 20.0 / v->projected_dcfclk_deep_sleep + 10.0 / (v->required_dispclk[i][j] / (j + 1))) * v->pixel_clock[k];
-				v->time_setup = (v->v_update_offset[k] + v->v_update_width[k] + v->v_ready_offset[k]) / v->pixel_clock[k];
+				v->v_update_width[k][j] = (14.0 / v->projected_dcfclk_deep_sleep + 12.0 / (v->required_dispclk[i][j] / (j + 1)) + v->total_repeater_delay) * v->pixel_clock[k];
+				v->v_ready_offset[k][j] = dcn_bw_max2(150.0 / (v->required_dispclk[i][j] / (j + 1)), v->total_repeater_delay + 20.0 / v->projected_dcfclk_deep_sleep + 10.0 / (v->required_dispclk[i][j] / (j + 1))) * v->pixel_clock[k];
+				v->time_setup = (v->v_update_offset[k][j] + v->v_update_width[k][j] + v->v_ready_offset[k][j]) / v->pixel_clock[k];
 				v->extra_latency = v->urgent_round_trip_and_out_of_order_latency_per_state[i] + (v->total_number_of_active_dpp[i][j] * v->pixel_chunk_size_in_kbyte + v->total_number_of_dcc_active_dpp[i][j] * v->meta_chunk_size) * 1024.0 / v->return_bw_per_state[i];
 				if (v->pte_enable == dcn_bw_yes) {
 					v->extra_latency = v->extra_latency + v->total_number_of_active_dpp[i][j] * v->pte_chunk_size * 1024.0 / v->return_bw_per_state[i];

@@ -81,7 +81,7 @@ lnet_md_unlink(struct lnet_libmd *md)
 
 	LASSERT(!list_empty(&md->md_list));
 	list_del_init(&md->md_list);
-	lnet_md_free(md);
+	kfree(md);
 }
 
 static int
@@ -173,7 +173,7 @@ lnet_md_link(struct lnet_libmd *md, struct lnet_handle_eq eq_handle, int cpt)
 	/*
 	 * NB we are passed an allocated, but inactive md.
 	 * if we return success, caller may lnet_md_unlink() it.
-	 * otherwise caller may only lnet_md_free() it.
+	 * otherwise caller may only kfree() it.
 	 */
 	/*
 	 * This implementation doesn't know how to create START events or
@@ -329,7 +329,7 @@ LNetMDAttach(struct lnet_handle_me meh, struct lnet_md umd,
 out_unlock:
 	lnet_res_unlock(cpt);
 out_free:
-	lnet_md_free(md);
+	kfree(md);
 	return rc;
 }
 EXPORT_SYMBOL(LNetMDAttach);
@@ -390,7 +390,7 @@ LNetMDBind(struct lnet_md umd, enum lnet_unlink unlink,
 out_unlock:
 	lnet_res_unlock(cpt);
 out_free:
-	lnet_md_free(md);
+	kfree(md);
 
 	return rc;
 }

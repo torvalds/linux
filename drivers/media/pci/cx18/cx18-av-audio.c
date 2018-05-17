@@ -31,7 +31,7 @@ static int set_audclk_freq(struct cx18 *cx, u32 freq)
 	 * would ideally be:
 	 *
 	 * NTSC Color subcarrier freq * 8 =
-	 * 	4.5 MHz/286 * 455/2 * 8 = 28.63636363... MHz
+	 *	4.5 MHz/286 * 455/2 * 8 = 28.63636363... MHz
 	 *
 	 * The accidents of history and rationale that explain from where this
 	 * combination of magic numbers originate can be found in:

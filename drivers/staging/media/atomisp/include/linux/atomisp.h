@@ -68,7 +68,9 @@
 #define V4L2_MBUS_FMT_CUSTOM_RGB32	0x800a
 
 /* Custom media bus format for M10MO RAW capture */
+#if 0
 #define V4L2_MBUS_FMT_CUSTOM_M10MO_RAW	0x800b
+#endif
 
 /* Configuration used by Bayer noise reduction and YCC noise reduction */
 struct atomisp_nr_config {

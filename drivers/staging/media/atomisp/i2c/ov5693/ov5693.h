@@ -221,7 +221,7 @@ struct ov5693_device {
 	struct v4l2_ctrl_handler ctrl_handler;
 
 	struct camera_sensor_platform_data *platform_data;
-	struct timespec timestamp_t_focus_abs;
+	ktime_t timestamp_t_focus_abs;
 	int vt_pix_clk_freq_mhz;
 	int fmt_idx;
 	int run_mode;

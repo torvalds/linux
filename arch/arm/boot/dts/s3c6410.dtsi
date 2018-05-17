@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Samsung's S3C6410 SoC device tree source
  *
@@ -10,11 +11,7 @@
  * Note: This file does not include device nodes for all the controllers in
  * S3C6410 SoC. As device tree coverage for S3C6410 increases, additional
  * nodes can be added to this file.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 #include "s3c64xx.dtsi"
 

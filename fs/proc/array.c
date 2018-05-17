@@ -430,8 +430,11 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 		 * safe because the task has stopped executing permanently.
 		 */
 		if (permitted && (task->flags & PF_DUMPCORE)) {
-			eip = KSTK_EIP(task);
-			esp = KSTK_ESP(task);
+			if (try_get_task_stack(task)) {
+				eip = KSTK_EIP(task);
+				esp = KSTK_ESP(task);
+				put_task_stack(task);
+			}
 		}
 	}
 
@@ -733,16 +736,10 @@ static int children_seq_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-int children_seq_release(struct inode *inode, struct file *file)
-{
-	seq_release(inode, file);
-	return 0;
-}
-
 const struct file_operations proc_tid_children_operations = {
 	.open    = children_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
-	.release = children_seq_release,
+	.release = seq_release,
 };
 #endif /* CONFIG_PROC_CHILDREN */

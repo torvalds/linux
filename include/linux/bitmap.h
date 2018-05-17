@@ -64,9 +64,14 @@
  *  bitmap_find_free_region(bitmap, bits, order)  Find and allocate bit region
  *  bitmap_release_region(bitmap, pos, order)   Free specified bit region
  *  bitmap_allocate_region(bitmap, pos, order)  Allocate specified bit region
- *  bitmap_from_u32array(dst, nbits, buf, nwords)  *dst = *buf (nwords 32b words)
- *  bitmap_to_u32array(buf, nwords, src, nbits) *buf = *dst (nwords 32b words)
+ *  bitmap_from_arr32(dst, buf, nbits)          Copy nbits from u32[] buf to dst
+ *  bitmap_to_arr32(buf, src, nbits)            Copy nbits from buf to u32[] dst
  *
+ * Note, bitmap_zero() and bitmap_fill() operate over the region of
+ * unsigned longs, that is, bits behind bitmap till the unsigned long
+ * boundary will be zeroed or filled as well. Consider to use
+ * bitmap_clear() or bitmap_set() to make explicit zeroing or filling
+ * respectively.
  */
 
 /**
@@ -83,8 +88,12 @@
  *  test_and_change_bit(bit, addr)      Change bit and return old value
  *  find_first_zero_bit(addr, nbits)    Position first zero bit in *addr
  *  find_first_bit(addr, nbits)         Position first set bit in *addr
- *  find_next_zero_bit(addr, nbits, bit)  Position next zero bit in *addr >= bit
+ *  find_next_zero_bit(addr, nbits, bit)
+ *                                      Position next zero bit in *addr >= bit
  *  find_next_bit(addr, nbits, bit)     Position next set bit in *addr >= bit
+ *  find_next_and_bit(addr1, addr2, nbits, bit)
+ *                                      Same as find_next_bit, but in
+ *                                      (*addr1 & *addr2)
  *
  */
 
@@ -174,14 +183,7 @@ extern void bitmap_fold(unsigned long *dst, const unsigned long *orig,
 extern int bitmap_find_free_region(unsigned long *bitmap, unsigned int bits, int order);
 extern void bitmap_release_region(unsigned long *bitmap, unsigned int pos, int order);
 extern int bitmap_allocate_region(unsigned long *bitmap, unsigned int pos, int order);
-extern unsigned int bitmap_from_u32array(unsigned long *bitmap,
-					 unsigned int nbits,
-					 const u32 *buf,
-					 unsigned int nwords);
-extern unsigned int bitmap_to_u32array(u32 *buf,
-				       unsigned int nwords,
-				       const unsigned long *bitmap,
-				       unsigned int nbits);
+
 #ifdef __BIG_ENDIAN
 extern void bitmap_copy_le(unsigned long *dst, const unsigned long *src, unsigned int nbits);
 #else
@@ -209,12 +211,12 @@ static inline void bitmap_zero(unsigned long *dst, unsigned int nbits)
 
 static inline void bitmap_fill(unsigned long *dst, unsigned int nbits)
 {
-	unsigned int nlongs = BITS_TO_LONGS(nbits);
-	if (!small_const_nbits(nbits)) {
-		unsigned int len = (nlongs - 1) * sizeof(unsigned long);
-		memset(dst, 0xff,  len);
+	if (small_const_nbits(nbits))
+		*dst = ~0UL;
+	else {
+		unsigned int len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
+		memset(dst, 0xff, len);
 	}
-	dst[nlongs - 1] = BITMAP_LAST_WORD_MASK(nbits);
 }
 
 static inline void bitmap_copy(unsigned long *dst, const unsigned long *src,
@@ -227,6 +229,35 @@ static inline void bitmap_copy(unsigned long *dst, const unsigned long *src,
 		memcpy(dst, src, len);
 	}
 }
+
+/*
+ * Copy bitmap and clear tail bits in last word.
+ */
+static inline void bitmap_copy_clear_tail(unsigned long *dst,
+		const unsigned long *src, unsigned int nbits)
+{
+	bitmap_copy(dst, src, nbits);
+	if (nbits % BITS_PER_LONG)
+		dst[nbits / BITS_PER_LONG] &= BITMAP_LAST_WORD_MASK(nbits);
+}
+
+/*
+ * On 32-bit systems bitmaps are represented as u32 arrays internally, and
+ * therefore conversion is not needed when copying data from/to arrays of u32.
+ */
+#if BITS_PER_LONG == 64
+extern void bitmap_from_arr32(unsigned long *bitmap, const u32 *buf,
+							unsigned int nbits);
+extern void bitmap_to_arr32(u32 *buf, const unsigned long *bitmap,
+							unsigned int nbits);
+#else
+#define bitmap_from_arr32(bitmap, buf, nbits)			\
+	bitmap_copy_clear_tail((unsigned long *) (bitmap),	\
+			(const unsigned long *) (buf), (nbits))
+#define bitmap_to_arr32(buf, bitmap, nbits)			\
+	bitmap_copy_clear_tail((unsigned long *) (buf),		\
+			(const unsigned long *) (bitmap), (nbits))
+#endif
 
 static inline int bitmap_and(unsigned long *dst, const unsigned long *src1,
 			const unsigned long *src2, unsigned int nbits)

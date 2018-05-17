@@ -419,7 +419,7 @@ int map__fprintf_srcline(struct map *map, u64 addr, const char *prefix,
 	if (map && map->dso) {
 		srcline = get_srcline(map->dso,
 				      map__rip_2objdump(map, addr), NULL,
-				      true, true);
+				      true, true, addr);
 		if (srcline != SRCLINE_UNKNOWN)
 			ret = fprintf(fp, "%s%s", prefix, srcline);
 		free_srcline(srcline);

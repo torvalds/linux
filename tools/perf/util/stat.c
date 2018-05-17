@@ -278,9 +278,16 @@ process_counter_values(struct perf_stat_config *config, struct perf_evsel *evsel
 			perf_evsel__compute_deltas(evsel, cpu, thread, count);
 		perf_counts_values__scale(count, config->scale, NULL);
 		if (config->aggr_mode == AGGR_NONE)
-			perf_stat__update_shadow_stats(evsel, count->val, cpu);
-		if (config->aggr_mode == AGGR_THREAD)
-			perf_stat__update_shadow_stats(evsel, count->val, 0);
+			perf_stat__update_shadow_stats(evsel, count->val, cpu,
+						       &rt_stat);
+		if (config->aggr_mode == AGGR_THREAD) {
+			if (config->stats)
+				perf_stat__update_shadow_stats(evsel,
+					count->val, 0, &config->stats[thread]);
+			else
+				perf_stat__update_shadow_stats(evsel,
+					count->val, 0, &rt_stat);
+		}
 		break;
 	case AGGR_GLOBAL:
 		aggr->val += count->val;
@@ -362,7 +369,7 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 	/*
 	 * Save the full runtime - to allow normalization during printout:
 	 */
-	perf_stat__update_shadow_stats(counter, *count, 0);
+	perf_stat__update_shadow_stats(counter, *count, 0, &rt_stat);
 
 	return 0;
 }

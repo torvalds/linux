@@ -102,10 +102,8 @@ static int ncm_do_config(struct usb_configuration *c)
 	}
 
 	f_ncm = usb_get_function(f_ncm_inst);
-	if (IS_ERR(f_ncm)) {
-		status = PTR_ERR(f_ncm);
-		return status;
-	}
+	if (IS_ERR(f_ncm))
+		return PTR_ERR(f_ncm);
 
 	status = usb_add_function(c, f_ncm);
 	if (status < 0) {

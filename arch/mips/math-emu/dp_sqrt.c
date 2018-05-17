@@ -91,7 +91,8 @@ union ieee754dp ieee754dp_sqrt(union ieee754dp x)
 		scalx -= 256;
 	}
 
-	y = x = builddp(0, xe + DP_EBIAS, xm & ~DP_HIDDEN_BIT);
+	x = builddp(0, xe + DP_EBIAS, xm & ~DP_HIDDEN_BIT);
+	y = x;
 
 	/* magic initial approximation to almost 8 sig. bits */
 	yh = y.bits >> 32;
@@ -108,7 +109,8 @@ union ieee754dp ieee754dp_sqrt(union ieee754dp x)
 
 	/* triple to almost 56 sig. bits: y ~= sqrt(x) to within 1 ulp */
 	/* t=y*y; z=t;	pt[n0]+=0x00100000; t+=z; z=(x-z)*y; */
-	z = t = ieee754dp_mul(y, y);
+	t = ieee754dp_mul(y, y);
+	z = t;
 	t.bexp += 0x001;
 	t = ieee754dp_add(t, z);
 	z = ieee754dp_mul(ieee754dp_sub(x, z), y);
@@ -140,7 +142,7 @@ union ieee754dp ieee754dp_sqrt(union ieee754dp x)
 		switch (oldcsr.rm) {
 		case FPU_CSR_RU:
 			y.bits += 1;
-			/* drop through */
+			/* fall through */
 		case FPU_CSR_RN:
 			t.bits += 1;
 			break;

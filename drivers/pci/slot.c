@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/pci/slot.c
  * Copyright (C) 2006 Matthew Wilcox <matthew@wil.cx>

@@ -87,7 +87,6 @@ struct rtc_class_ops {
 	int (*set_offset)(struct device *, long offset);
 };
 
-#define RTC_DEVICE_NAME_SIZE 20
 typedef struct rtc_task {
 	void (*func)(void *private_data);
 	void *private_data;

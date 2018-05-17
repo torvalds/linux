@@ -70,6 +70,8 @@
 #define CAPTURE_END_DMA_DESCR_CH15 7
 
 #define mmACP_I2S_16BIT_RESOLUTION_EN       0x5209
+#define ACP_I2S_MIC_16BIT_RESOLUTION_EN 0x01
+#define ACP_I2S_SP_16BIT_RESOLUTION_EN	0x02
 enum acp_dma_priority_level {
 	/* 0x0 Specifies the DMA channel is given normal priority */
 	ACP_DMA_PRIORITY_LEVEL_NORMAL = 0x0,

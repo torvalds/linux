@@ -3,10 +3,7 @@ config SSB_POSSIBLE
 	depends on HAS_IOMEM && HAS_DMA
 	default y
 
-menu "Sonics Silicon Backplane"
-	depends on SSB_POSSIBLE
-
-config SSB
+menuconfig SSB
 	tristate "Sonics Silicon Backplane support"
 	depends on SSB_POSSIBLE
 	help
@@ -21,6 +18,8 @@ config SSB
 
 	  If unsure, say N.
 
+if SSB
+
 # Common SPROM support routines
 config SSB_SPROM
 	bool
@@ -32,7 +31,7 @@ config SSB_BLOCKIO
 
 config SSB_PCIHOST_POSSIBLE
 	bool
-	depends on SSB && (PCI = y || PCI = SSB)
+	depends on SSB && (PCI = y || PCI = SSB) && (PCI_DRIVERS_LEGACY || !MIPS)
 	default y
 
 config SSB_PCIHOST
@@ -185,4 +184,4 @@ config SSB_DRIVER_GPIO
 
 	  If unsure, say N
 
-endmenu
+endif # SSB

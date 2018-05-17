@@ -95,6 +95,9 @@ struct nvkm_vmm_desc {
 	const struct nvkm_vmm_desc_func *func;
 };
 
+extern const struct nvkm_vmm_desc nv50_vmm_desc_12[];
+extern const struct nvkm_vmm_desc nv50_vmm_desc_16[];
+
 extern const struct nvkm_vmm_desc gk104_vmm_desc_16_12[];
 extern const struct nvkm_vmm_desc gk104_vmm_desc_16_16[];
 extern const struct nvkm_vmm_desc gk104_vmm_desc_17_12[];
@@ -169,6 +172,11 @@ int nv04_vmm_new_(const struct nvkm_vmm_func *, struct nvkm_mmu *, u32,
 		  const char *, struct nvkm_vmm **);
 int nv04_vmm_valid(struct nvkm_vmm *, void *, u32, struct nvkm_vmm_map *);
 
+int nv50_vmm_join(struct nvkm_vmm *, struct nvkm_memory *);
+void nv50_vmm_part(struct nvkm_vmm *, struct nvkm_memory *);
+int nv50_vmm_valid(struct nvkm_vmm *, void *, u32, struct nvkm_vmm_map *);
+void nv50_vmm_flush(struct nvkm_vmm *, int);
+
 int gf100_vmm_new_(const struct nvkm_vmm_func *, const struct nvkm_vmm_func *,
 		   struct nvkm_mmu *, u64, u64, void *, u32,
 		   struct lock_class_key *, const char *, struct nvkm_vmm **);
@@ -200,6 +208,8 @@ int nv44_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 		 struct lock_class_key *, const char *, struct nvkm_vmm **);
 int nv50_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 		 struct lock_class_key *, const char *, struct nvkm_vmm **);
+int mcp77_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
+		  struct lock_class_key *, const char *, struct nvkm_vmm **);
 int g84_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,
 		struct lock_class_key *, const char *, struct nvkm_vmm **);
 int gf100_vmm_new(struct nvkm_mmu *, u64, u64, void *, u32,

@@ -361,7 +361,7 @@ void prepare_ftrace_return(unsigned long *parent_ra_addr, unsigned long self_ra,
 	 * If fails when getting the stack address of the non-leaf function's
 	 * ra, stop function graph tracer and return
 	 */
-	if (parent_ra_addr == 0)
+	if (parent_ra_addr == NULL)
 		goto out;
 #endif
 	/* *parent_ra_addr = return_hooker; */

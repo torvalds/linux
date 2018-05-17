@@ -121,6 +121,7 @@ int nv41_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
 int nv44_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
 int nv50_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
 int g84_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
+int mcp77_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
 int gf100_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
 int gk104_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);
 int gk20a_mmu_new(struct nvkm_device *, int, struct nvkm_mmu **);

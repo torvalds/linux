@@ -170,7 +170,7 @@ next_chunk:
 
 		chunk = list_entry(entry, struct sctp_chunk, list);
 
-		if ((skb_shinfo(chunk->skb)->gso_type & SKB_GSO_SCTP) == SKB_GSO_SCTP) {
+		if (skb_is_gso(chunk->skb) && skb_is_gso_sctp(chunk->skb)) {
 			/* GSO-marked skbs but without frags, handle
 			 * them normally
 			 */

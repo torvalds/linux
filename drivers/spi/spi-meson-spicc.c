@@ -599,6 +599,7 @@ static int meson_spicc_remove(struct platform_device *pdev)
 
 static const struct of_device_id meson_spicc_of_match[] = {
 	{ .compatible = "amlogic,meson-gx-spicc", },
+	{ .compatible = "amlogic,meson-axg-spicc", },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, meson_spicc_of_match);

@@ -489,6 +489,34 @@ static inline uint32_t mtd_mod_by_eb(uint64_t sz, struct mtd_info *mtd)
 	return do_div(sz, mtd->erasesize);
 }
 
+/**
+ * mtd_align_erase_req - Adjust an erase request to align things on eraseblock
+ *			 boundaries.
+ * @mtd: the MTD device this erase request applies on
+ * @req: the erase request to adjust
+ *
+ * This function will adjust @req->addr and @req->len to align them on
+ * @mtd->erasesize. Of course we expect @mtd->erasesize to be != 0.
+ */
+static inline void mtd_align_erase_req(struct mtd_info *mtd,
+				       struct erase_info *req)
+{
+	u32 mod;
+
+	if (WARN_ON(!mtd->erasesize))
+		return;
+
+	mod = mtd_mod_by_eb(req->addr, mtd);
+	if (mod) {
+		req->addr -= mod;
+		req->len += mod;
+	}
+
+	mod = mtd_mod_by_eb(req->addr + req->len, mtd);
+	if (mod)
+		req->len += mtd->erasesize - mod;
+}
+
 static inline uint32_t mtd_div_by_ws(uint64_t sz, struct mtd_info *mtd)
 {
 	if (mtd->writesize_shift)

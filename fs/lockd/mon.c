@@ -191,7 +191,7 @@ void nsm_unmonitor(const struct nlm_host *host)
 	struct nsm_res	res;
 	int status;
 
-	if (atomic_read(&nsm->sm_count) == 1
+	if (refcount_read(&nsm->sm_count) == 1
 	 && nsm->sm_monitored && !nsm->sm_sticky) {
 		dprintk("lockd: nsm_unmonitor(%s)\n", nsm->sm_name);
 
@@ -279,7 +279,7 @@ static struct nsm_handle *nsm_create_handle(const struct sockaddr *sap,
 	if (unlikely(new == NULL))
 		return NULL;
 
-	atomic_set(&new->sm_count, 1);
+	refcount_set(&new->sm_count, 1);
 	new->sm_name = (char *)(new + 1);
 	memcpy(nsm_addr(new), sap, salen);
 	new->sm_addrlen = salen;
@@ -337,13 +337,13 @@ retry:
 		cached = nsm_lookup_addr(&ln->nsm_handles, sap);
 
 	if (cached != NULL) {
-		atomic_inc(&cached->sm_count);
+		refcount_inc(&cached->sm_count);
 		spin_unlock(&nsm_lock);
 		kfree(new);
 		dprintk("lockd: found nsm_handle for %s (%s), "
 				"cnt %d\n", cached->sm_name,
 				cached->sm_addrbuf,
-				atomic_read(&cached->sm_count));
+				refcount_read(&cached->sm_count));
 		return cached;
 	}
 
@@ -388,12 +388,12 @@ struct nsm_handle *nsm_reboot_lookup(const struct net *net,
 		return cached;
 	}
 
-	atomic_inc(&cached->sm_count);
+	refcount_inc(&cached->sm_count);
 	spin_unlock(&nsm_lock);
 
 	dprintk("lockd: host %s (%s) rebooted, cnt %d\n",
 			cached->sm_name, cached->sm_addrbuf,
-			atomic_read(&cached->sm_count));
+			refcount_read(&cached->sm_count));
 	return cached;
 }
 
@@ -404,7 +404,7 @@ struct nsm_handle *nsm_reboot_lookup(const struct net *net,
  */
 void nsm_release(struct nsm_handle *nsm)
 {
-	if (atomic_dec_and_lock(&nsm->sm_count, &nsm_lock)) {
+	if (refcount_dec_and_lock(&nsm->sm_count, &nsm_lock)) {
 		list_del(&nsm->sm_link);
 		spin_unlock(&nsm_lock);
 		dprintk("lockd: destroyed nsm_handle for %s (%s)\n",

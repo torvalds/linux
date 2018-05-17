@@ -219,13 +219,9 @@ static struct isi_port  isi_ports[PORT_COUNT];
 static int WaitTillCardIsFree(unsigned long base)
 {
 	unsigned int count = 0;
-	unsigned int a = in_atomic(); /* do we run under spinlock? */
 
 	while (!(inw(base + 0xe) & 0x1) && count++ < 100)
-		if (a)
-			mdelay(1);
-		else
-			msleep(1);
+		mdelay(1);
 
 	return !(inw(base + 0xe) & 0x1);
 }

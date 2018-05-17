@@ -20,8 +20,8 @@
 	"3:	.subsection 2\n"				\
 	"4:	br	1b\n"					\
 	"	.previous\n"					\
-	EXC(1b,3b,%1,$31)					\
-	EXC(2b,3b,%1,$31)					\
+	EXC(1b,3b,$31,%1)					\
+	EXC(2b,3b,$31,%1)					\
 	:	"=&r" (oldval), "=&r"(ret)			\
 	:	"r" (uaddr), "r"(oparg)				\
 	:	"memory")
@@ -82,8 +82,8 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 	"3:	.subsection 2\n"
 	"4:	br	1b\n"
 	"	.previous\n"
-	EXC(1b,3b,%0,$31)
-	EXC(2b,3b,%0,$31)
+	EXC(1b,3b,$31,%0)
+	EXC(2b,3b,$31,%0)
 	:	"+r"(ret), "=&r"(prev), "=&r"(cmp)
 	:	"r"(uaddr), "r"((long)(int)oldval), "r"(newval)
 	:	"memory");

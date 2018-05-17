@@ -40,7 +40,7 @@ struct smu_table_entry {
 	uint32_t table_addr_high;
 	uint32_t table_addr_low;
 	uint8_t *table;
-	uint32_t handle;
+	unsigned long handle;
 };
 
 struct smu_table_array {

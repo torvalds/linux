@@ -57,8 +57,6 @@
 
 MODULE_LICENSE("GPL");
 
-static char __initdata version[] = "0.93";
-
 static int ctnetlink_dump_tuples_proto(struct sk_buff *skb,
 				const struct nf_conntrack_tuple *tuple,
 				const struct nf_conntrack_l4proto *l4proto)
@@ -544,7 +542,7 @@ static size_t ctnetlink_proto_size(const struct nf_conn *ct)
 	len *= 3u; /* ORIG, REPLY, MASTER */
 
 	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
-	len += l4proto->nla_size;
+	len += l4proto->nlattr_size;
 	if (l4proto->nlattr_tuple_size) {
 		len4 = l4proto->nlattr_tuple_size();
 		len4 *= 3u; /* ORIG, REPLY, MASTER */
@@ -1110,6 +1108,14 @@ static const struct nla_policy ct_nla_policy[CTA_MAX+1] = {
 				    .len = NF_CT_LABELS_MAX_SIZE },
 };
 
+static int ctnetlink_flush_iterate(struct nf_conn *ct, void *data)
+{
+	if (test_bit(IPS_OFFLOAD_BIT, &ct->status))
+		return 0;
+
+	return ctnetlink_filter_match(ct, data);
+}
+
 static int ctnetlink_flush_conntrack(struct net *net,
 				     const struct nlattr * const cda[],
 				     u32 portid, int report)
@@ -1122,7 +1128,7 @@ static int ctnetlink_flush_conntrack(struct net *net,
 			return PTR_ERR(filter);
 	}
 
-	nf_ct_iterate_cleanup_net(net, ctnetlink_filter_match, filter,
+	nf_ct_iterate_cleanup_net(net, ctnetlink_flush_iterate, filter,
 				  portid, report);
 	kfree(filter);
 
@@ -1167,6 +1173,11 @@ static int ctnetlink_del_conntrack(struct net *net, struct sock *ctnl,
 		return -ENOENT;
 
 	ct = nf_ct_tuplehash_to_ctrack(h);
+
+	if (test_bit(IPS_OFFLOAD_BIT, &ct->status)) {
+		nf_ct_put(ct);
+		return -EBUSY;
+	}
 
 	if (cda[CTA_ID]) {
 		u_int32_t id = ntohl(nla_get_be32(cda[CTA_ID]));
@@ -3412,7 +3423,6 @@ static int __init ctnetlink_init(void)
 {
 	int ret;
 
-	pr_info("ctnetlink v%s: registering with nfnetlink.\n", version);
 	ret = nfnetlink_subsys_register(&ctnl_subsys);
 	if (ret < 0) {
 		pr_err("ctnetlink_init: cannot register with nfnetlink.\n");
@@ -3446,8 +3456,6 @@ err_out:
 
 static void __exit ctnetlink_exit(void)
 {
-	pr_info("ctnetlink: unregistering from nfnetlink.\n");
-
 	unregister_pernet_subsys(&ctnetlink_net_ops);
 	nfnetlink_subsys_unregister(&ctnl_exp_subsys);
 	nfnetlink_subsys_unregister(&ctnl_subsys);

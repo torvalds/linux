@@ -2080,7 +2080,7 @@ int s5p_mfc_enc_ctrls_setup(struct s5p_mfc_ctx *ctx)
 
 			if (cfg.type == V4L2_CTRL_TYPE_MENU) {
 				cfg.step = 0;
-				cfg.menu_skip_mask = cfg.menu_skip_mask;
+				cfg.menu_skip_mask = controls[i].menu_skip_mask;
 				cfg.qmenu = mfc51_get_menu(cfg.id);
 			} else {
 				cfg.step = controls[i].step;

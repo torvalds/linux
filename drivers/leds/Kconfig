@@ -137,6 +137,13 @@ config LEDS_LM3642
 	  converter plus 1.5A constant current driver for a high-current
 	  white LED.
 
+config LEDS_LM3692X
+	tristate "LED support for LM3692x Chips"
+	depends on LEDS_CLASS && I2C && OF
+	select REGMAP_I2C
+	help
+	  This option enables support for the TI LM3692x family
+	  of white LED string drivers used for backlighting.
 
 config LEDS_LOCOMO
 	tristate "LED Support for Locomo device"
@@ -347,7 +354,7 @@ config LEDS_LP8788
 
 config LEDS_LP8860
 	tristate "LED support for the TI LP8860 4 channel LED driver"
-	depends on LEDS_CLASS && I2C
+	depends on LEDS_CLASS && I2C && OF
 	select REGMAP_I2C
 	help
 	  If you say yes here you get support for the TI LP8860 4 channel

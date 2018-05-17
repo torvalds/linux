@@ -1,6 +1,4 @@
 /*
- * linux/drivers/video/omap2/dss/dispc.c
- *
  * Copyright (C) 2009 Nokia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
  *
@@ -4325,6 +4323,17 @@ static void dispc_free_irq(void *dev_id)
 	dispc.user_data = NULL;
 }
 
+static u32 dispc_get_memory_bandwidth_limit(void)
+{
+	u32 limit = 0;
+
+	/* Optional maximum memory bandwidth */
+	of_property_read_u32(dispc.pdev->dev.of_node, "max-memory-bandwidth",
+			     &limit);
+
+	return limit;
+}
+
 /*
  * Workaround for errata i734 in DSS dispc
  *  - LCD1 Gamma Correction Is Not Working When GFX Pipe Is Disabled
@@ -4496,6 +4505,8 @@ static const struct dispc_ops dispc_ops = {
 
 	.get_num_ovls = dispc_get_num_ovls,
 	.get_num_mgrs = dispc_get_num_mgrs,
+
+	.get_memory_bandwidth_limit = dispc_get_memory_bandwidth_limit,
 
 	.mgr_enable = dispc_mgr_enable,
 	.mgr_is_enabled = dispc_mgr_is_enabled,
@@ -4685,7 +4696,7 @@ static const struct dev_pm_ops dispc_pm_ops = {
 	.runtime_resume = dispc_runtime_resume,
 };
 
-static struct platform_driver omap_dispchw_driver = {
+struct platform_driver omap_dispchw_driver = {
 	.probe		= dispc_probe,
 	.remove         = dispc_remove,
 	.driver         = {
@@ -4695,13 +4706,3 @@ static struct platform_driver omap_dispchw_driver = {
 		.suppress_bind_attrs = true,
 	},
 };
-
-int __init dispc_init_platform_driver(void)
-{
-	return platform_driver_register(&omap_dispchw_driver);
-}
-
-void dispc_uninit_platform_driver(void)
-{
-	platform_driver_unregister(&omap_dispchw_driver);
-}

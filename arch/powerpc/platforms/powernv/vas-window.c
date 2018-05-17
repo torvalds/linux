@@ -1063,15 +1063,15 @@ struct vas_window *vas_tx_win_open(int vasid, enum vas_cop_type cop,
 			rc = PTR_ERR(txwin->paste_kaddr);
 			goto free_window;
 		}
+	} else {
+		/*
+		 * A user mapping must ensure that context switch issues
+		 * CP_ABORT for this thread.
+		 */
+		rc = set_thread_uses_vas();
+		if (rc)
+			goto free_window;
 	}
-
-	/*
-	 * Now that we have a send window, ensure context switch issues
-	 * CP_ABORT for this thread.
-	 */
-	rc = -EINVAL;
-	if (set_thread_uses_vas() < 0)
-		goto free_window;
 
 	set_vinst_win(vinst, txwin);
 

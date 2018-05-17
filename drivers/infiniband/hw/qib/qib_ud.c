@@ -252,7 +252,6 @@ int qib_make_ud_req(struct rvt_qp *qp, unsigned long *flags)
 		if (!(ib_rvt_state_ops[qp->state] & RVT_FLUSH_SEND))
 			goto bail;
 		/* We are in the error state, flush the work request. */
-		smp_read_barrier_depends(); /* see post_one_send */
 		if (qp->s_last == READ_ONCE(qp->s_head))
 			goto bail;
 		/* If DMAs are in progress, we can't flush immediately. */
@@ -266,7 +265,6 @@ int qib_make_ud_req(struct rvt_qp *qp, unsigned long *flags)
 	}
 
 	/* see post_one_send() */
-	smp_read_barrier_depends();
 	if (qp->s_cur == READ_ONCE(qp->s_head))
 		goto bail;
 
@@ -581,8 +579,7 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct ib_header *hdr,
 	wc.port_num = qp->port_num;
 	/* Signal completion event if the solicited bit is set. */
 	rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc,
-		     (ohdr->bth[0] &
-			cpu_to_be32(IB_BTH_SOLICITED)) != 0);
+		     ib_bth_is_solicited(ohdr));
 	return;
 
 drop:

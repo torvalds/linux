@@ -758,7 +758,7 @@ static void qed_init_qm_info(struct qed_hwfn *p_hwfn)
 /* This function reconfigures the QM pf on the fly.
  * For this purpose we:
  * 1. reconfigure the QM database
- * 2. set new values to runtime arrat
+ * 2. set new values to runtime array
  * 3. send an sdm_qm_cmd through the rbc interface to stop the QM
  * 4. activate init tool in QM_PF stage
  * 5. send an sdm_qm_cmd through rbc interface to release the QM
@@ -784,7 +784,7 @@ int qed_qm_reconf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	qed_init_clear_rt_data(p_hwfn);
 
 	/* prepare QM portion of runtime array */
-	qed_qm_init_pf(p_hwfn, p_ptt);
+	qed_qm_init_pf(p_hwfn, p_ptt, false);
 
 	/* activate init tool on runtime array */
 	rc = qed_init_run(p_hwfn, p_ptt, PHASE_QM_PF, p_hwfn->rel_pf_id,
@@ -1515,7 +1515,7 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 			     NIG_REG_LLH_FUNC_TAGMAC_CLS_TYPE_RT_OFFSET, 1);
 	}
 
-	/* Protocl Configuration  */
+	/* Protocol Configuration */
 	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_TCP_RT_OFFSET,
 		     (p_hwfn->hw_info.personality == QED_PCI_ISCSI) ? 1 : 0);
 	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_FCOE_RT_OFFSET,
@@ -1524,6 +1524,11 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 
 	/* Cleanup chip from previous driver if such remains exist */
 	rc = qed_final_cleanup(p_hwfn, p_ptt, rel_pf_id, false);
+	if (rc)
+		return rc;
+
+	/* Sanity check before the PF init sequence that uses DMAE */
+	rc = qed_dmae_sanity(p_hwfn, p_ptt, "pf_phase");
 	if (rc)
 		return rc;
 
@@ -2192,7 +2197,7 @@ qed_hw_set_soft_resc_size(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 			/* No need for a case for QED_CMDQS_CQS since
 			 * CNQ/CMDQS are the same resource.
 			 */
-			resc_max_val = NUM_OF_CMDQS_CQS;
+			resc_max_val = NUM_OF_GLOBAL_QUEUES;
 			break;
 		case QED_RDMA_STATS_QUEUE:
 			resc_max_val = b_ah ? RDMA_NUM_STATISTIC_COUNTERS_K2
@@ -2267,7 +2272,7 @@ int qed_hw_get_dflt_resc(struct qed_hwfn *p_hwfn,
 	case QED_RDMA_CNQ_RAM:
 	case QED_CMDQS_CQS:
 		/* CNQ/CMDQS are the same resource */
-		*p_resc_num = NUM_OF_CMDQS_CQS / num_funcs;
+		*p_resc_num = NUM_OF_GLOBAL_QUEUES / num_funcs;
 		break;
 	case QED_RDMA_STATS_QUEUE:
 		*p_resc_num = (b_ah ? RDMA_NUM_STATISTIC_COUNTERS_K2 :

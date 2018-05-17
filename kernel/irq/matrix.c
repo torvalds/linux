@@ -16,6 +16,7 @@ struct cpumap {
 	unsigned int		available;
 	unsigned int		allocated;
 	unsigned int		managed;
+	bool			initialized;
 	bool			online;
 	unsigned long		alloc_map[IRQ_MATRIX_SIZE];
 	unsigned long		managed_map[IRQ_MATRIX_SIZE];
@@ -81,9 +82,11 @@ void irq_matrix_online(struct irq_matrix *m)
 
 	BUG_ON(cm->online);
 
-	bitmap_zero(cm->alloc_map, m->matrix_bits);
-	cm->available = m->alloc_size - (cm->managed + m->systembits_inalloc);
-	cm->allocated = 0;
+	if (!cm->initialized) {
+		cm->available = m->alloc_size;
+		cm->available -= cm->managed + m->systembits_inalloc;
+		cm->initialized = true;
+	}
 	m->global_available += cm->available;
 	cm->online = true;
 	m->online_maps++;
@@ -321,15 +324,23 @@ void irq_matrix_remove_reserved(struct irq_matrix *m)
 int irq_matrix_alloc(struct irq_matrix *m, const struct cpumask *msk,
 		     bool reserved, unsigned int *mapped_cpu)
 {
-	unsigned int cpu;
+	unsigned int cpu, best_cpu, maxavl = 0;
+	struct cpumap *cm;
+	unsigned int bit;
 
+	best_cpu = UINT_MAX;
 	for_each_cpu(cpu, msk) {
-		struct cpumap *cm = per_cpu_ptr(m->maps, cpu);
-		unsigned int bit;
+		cm = per_cpu_ptr(m->maps, cpu);
 
-		if (!cm->online)
+		if (!cm->online || cm->available <= maxavl)
 			continue;
 
+		best_cpu = cpu;
+		maxavl = cm->available;
+	}
+
+	if (maxavl) {
+		cm = per_cpu_ptr(m->maps, best_cpu);
 		bit = matrix_alloc_area(m, cm, 1, false);
 		if (bit < m->alloc_end) {
 			cm->allocated++;
@@ -338,8 +349,8 @@ int irq_matrix_alloc(struct irq_matrix *m, const struct cpumask *msk,
 			m->global_available--;
 			if (reserved)
 				m->global_reserved--;
-			*mapped_cpu = cpu;
-			trace_irq_matrix_alloc(bit, cpu, m, cm);
+			*mapped_cpu = best_cpu;
+			trace_irq_matrix_alloc(bit, best_cpu, m, cm);
 			return bit;
 		}
 	}
@@ -362,14 +373,16 @@ void irq_matrix_free(struct irq_matrix *m, unsigned int cpu,
 	if (WARN_ON_ONCE(bit < m->alloc_start || bit >= m->alloc_end))
 		return;
 
-	if (cm->online) {
-		clear_bit(bit, cm->alloc_map);
-		cm->allocated--;
+	clear_bit(bit, cm->alloc_map);
+	cm->allocated--;
+
+	if (cm->online)
 		m->total_allocated--;
-		if (!managed) {
-			cm->available++;
+
+	if (!managed) {
+		cm->available++;
+		if (cm->online)
 			m->global_available++;
-		}
 	}
 	trace_irq_matrix_free(bit, cpu, m, cm);
 }

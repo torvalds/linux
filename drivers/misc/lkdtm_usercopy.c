@@ -20,7 +20,7 @@
  */
 static volatile size_t unconst = 0;
 static volatile size_t cache_size = 1024;
-static struct kmem_cache *bad_cache;
+static struct kmem_cache *whitelist_cache;
 
 static const unsigned char test_text[] = "This is a test.\n";
 
@@ -115,10 +115,16 @@ free_user:
 	vm_munmap(user_addr, PAGE_SIZE);
 }
 
+/*
+ * This checks for whole-object size validation with hardened usercopy,
+ * with or without usercopy whitelisting.
+ */
 static void do_usercopy_heap_size(bool to_user)
 {
 	unsigned long user_addr;
 	unsigned char *one, *two;
+	void __user *test_user_addr;
+	void *test_kern_addr;
 	size_t size = unconst + 1024;
 
 	one = kmalloc(size, GFP_KERNEL);
@@ -139,27 +145,30 @@ static void do_usercopy_heap_size(bool to_user)
 	memset(one, 'A', size);
 	memset(two, 'B', size);
 
+	test_user_addr = (void __user *)(user_addr + 16);
+	test_kern_addr = one + 16;
+
 	if (to_user) {
 		pr_info("attempting good copy_to_user of correct size\n");
-		if (copy_to_user((void __user *)user_addr, one, size)) {
+		if (copy_to_user(test_user_addr, test_kern_addr, size / 2)) {
 			pr_warn("copy_to_user failed unexpectedly?!\n");
 			goto free_user;
 		}
 
 		pr_info("attempting bad copy_to_user of too large size\n");
-		if (copy_to_user((void __user *)user_addr, one, 2 * size)) {
+		if (copy_to_user(test_user_addr, test_kern_addr, size)) {
 			pr_warn("copy_to_user failed, but lacked Oops\n");
 			goto free_user;
 		}
 	} else {
 		pr_info("attempting good copy_from_user of correct size\n");
-		if (copy_from_user(one, (void __user *)user_addr, size)) {
+		if (copy_from_user(test_kern_addr, test_user_addr, size / 2)) {
 			pr_warn("copy_from_user failed unexpectedly?!\n");
 			goto free_user;
 		}
 
 		pr_info("attempting bad copy_from_user of too large size\n");
-		if (copy_from_user(one, (void __user *)user_addr, 2 * size)) {
+		if (copy_from_user(test_kern_addr, test_user_addr, size)) {
 			pr_warn("copy_from_user failed, but lacked Oops\n");
 			goto free_user;
 		}
@@ -172,77 +181,79 @@ free_kernel:
 	kfree(two);
 }
 
-static void do_usercopy_heap_flag(bool to_user)
+/*
+ * This checks for the specific whitelist window within an object. If this
+ * test passes, then do_usercopy_heap_size() tests will pass too.
+ */
+static void do_usercopy_heap_whitelist(bool to_user)
 {
-	unsigned long user_addr;
-	unsigned char *good_buf = NULL;
-	unsigned char *bad_buf = NULL;
+	unsigned long user_alloc;
+	unsigned char *buf = NULL;
+	unsigned char __user *user_addr;
+	size_t offset, size;
 
 	/* Make sure cache was prepared. */
-	if (!bad_cache) {
+	if (!whitelist_cache) {
 		pr_warn("Failed to allocate kernel cache\n");
 		return;
 	}
 
 	/*
-	 * Allocate one buffer from each cache (kmalloc will have the
-	 * SLAB_USERCOPY flag already, but "bad_cache" won't).
+	 * Allocate a buffer with a whitelisted window in the buffer.
 	 */
-	good_buf = kmalloc(cache_size, GFP_KERNEL);
-	bad_buf = kmem_cache_alloc(bad_cache, GFP_KERNEL);
-	if (!good_buf || !bad_buf) {
-		pr_warn("Failed to allocate buffers from caches\n");
+	buf = kmem_cache_alloc(whitelist_cache, GFP_KERNEL);
+	if (!buf) {
+		pr_warn("Failed to allocate buffer from whitelist cache\n");
 		goto free_alloc;
 	}
 
 	/* Allocate user memory we'll poke at. */
-	user_addr = vm_mmap(NULL, 0, PAGE_SIZE,
+	user_alloc = vm_mmap(NULL, 0, PAGE_SIZE,
 			    PROT_READ | PROT_WRITE | PROT_EXEC,
 			    MAP_ANONYMOUS | MAP_PRIVATE, 0);
-	if (user_addr >= TASK_SIZE) {
+	if (user_alloc >= TASK_SIZE) {
 		pr_warn("Failed to allocate user memory\n");
 		goto free_alloc;
 	}
+	user_addr = (void __user *)user_alloc;
 
-	memset(good_buf, 'A', cache_size);
-	memset(bad_buf, 'B', cache_size);
+	memset(buf, 'B', cache_size);
+
+	/* Whitelisted window in buffer, from kmem_cache_create_usercopy. */
+	offset = (cache_size / 4) + unconst;
+	size = (cache_size / 16) + unconst;
 
 	if (to_user) {
-		pr_info("attempting good copy_to_user with SLAB_USERCOPY\n");
-		if (copy_to_user((void __user *)user_addr, good_buf,
-				 cache_size)) {
+		pr_info("attempting good copy_to_user inside whitelist\n");
+		if (copy_to_user(user_addr, buf + offset, size)) {
 			pr_warn("copy_to_user failed unexpectedly?!\n");
 			goto free_user;
 		}
 
-		pr_info("attempting bad copy_to_user w/o SLAB_USERCOPY\n");
-		if (copy_to_user((void __user *)user_addr, bad_buf,
-				 cache_size)) {
+		pr_info("attempting bad copy_to_user outside whitelist\n");
+		if (copy_to_user(user_addr, buf + offset - 1, size)) {
 			pr_warn("copy_to_user failed, but lacked Oops\n");
 			goto free_user;
 		}
 	} else {
-		pr_info("attempting good copy_from_user with SLAB_USERCOPY\n");
-		if (copy_from_user(good_buf, (void __user *)user_addr,
-				   cache_size)) {
+		pr_info("attempting good copy_from_user inside whitelist\n");
+		if (copy_from_user(buf + offset, user_addr, size)) {
 			pr_warn("copy_from_user failed unexpectedly?!\n");
 			goto free_user;
 		}
 
-		pr_info("attempting bad copy_from_user w/o SLAB_USERCOPY\n");
-		if (copy_from_user(bad_buf, (void __user *)user_addr,
-				   cache_size)) {
+		pr_info("attempting bad copy_from_user outside whitelist\n");
+		if (copy_from_user(buf + offset - 1, user_addr, size)) {
 			pr_warn("copy_from_user failed, but lacked Oops\n");
 			goto free_user;
 		}
 	}
 
 free_user:
-	vm_munmap(user_addr, PAGE_SIZE);
+	vm_munmap(user_alloc, PAGE_SIZE);
 free_alloc:
-	if (bad_buf)
-		kmem_cache_free(bad_cache, bad_buf);
-	kfree(good_buf);
+	if (buf)
+		kmem_cache_free(whitelist_cache, buf);
 }
 
 /* Callable tests. */
@@ -256,14 +267,14 @@ void lkdtm_USERCOPY_HEAP_SIZE_FROM(void)
 	do_usercopy_heap_size(false);
 }
 
-void lkdtm_USERCOPY_HEAP_FLAG_TO(void)
+void lkdtm_USERCOPY_HEAP_WHITELIST_TO(void)
 {
-	do_usercopy_heap_flag(true);
+	do_usercopy_heap_whitelist(true);
 }
 
-void lkdtm_USERCOPY_HEAP_FLAG_FROM(void)
+void lkdtm_USERCOPY_HEAP_WHITELIST_FROM(void)
 {
-	do_usercopy_heap_flag(false);
+	do_usercopy_heap_whitelist(false);
 }
 
 void lkdtm_USERCOPY_STACK_FRAME_TO(void)
@@ -314,11 +325,15 @@ free_user:
 void __init lkdtm_usercopy_init(void)
 {
 	/* Prepare cache that lacks SLAB_USERCOPY flag. */
-	bad_cache = kmem_cache_create("lkdtm-no-usercopy", cache_size, 0,
-				      0, NULL);
+	whitelist_cache =
+		kmem_cache_create_usercopy("lkdtm-usercopy", cache_size,
+					   0, 0,
+					   cache_size / 4,
+					   cache_size / 16,
+					   NULL);
 }
 
 void __exit lkdtm_usercopy_exit(void)
 {
-	kmem_cache_destroy(bad_cache);
+	kmem_cache_destroy(whitelist_cache);
 }

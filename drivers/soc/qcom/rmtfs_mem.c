@@ -267,3 +267,7 @@ static void qcom_rmtfs_mem_exit(void)
 	unregister_chrdev_region(qcom_rmtfs_mem_major, QCOM_RMTFS_MEM_DEV_MAX);
 }
 module_exit(qcom_rmtfs_mem_exit);
+
+MODULE_AUTHOR("Linaro Ltd");
+MODULE_DESCRIPTION("Qualcomm Remote Filesystem memory driver");
+MODULE_LICENSE("GPL v2");

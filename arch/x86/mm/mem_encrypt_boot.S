@@ -15,6 +15,7 @@
 #include <asm/page.h>
 #include <asm/processor-flags.h>
 #include <asm/msr-index.h>
+#include <asm/nospec-branch.h>
 
 	.text
 	.code64
@@ -22,9 +23,9 @@ ENTRY(sme_encrypt_execute)
 
 	/*
 	 * Entry parameters:
-	 *   RDI - virtual address for the encrypted kernel mapping
-	 *   RSI - virtual address for the decrypted kernel mapping
-	 *   RDX - length of kernel
+	 *   RDI - virtual address for the encrypted mapping
+	 *   RSI - virtual address for the decrypted mapping
+	 *   RDX - length to encrypt
 	 *   RCX - virtual address of the encryption workarea, including:
 	 *     - stack page (PAGE_SIZE)
 	 *     - encryption routine page (PAGE_SIZE)
@@ -41,9 +42,9 @@ ENTRY(sme_encrypt_execute)
 	addq	$PAGE_SIZE, %rax	/* Workarea encryption routine */
 
 	push	%r12
-	movq	%rdi, %r10		/* Encrypted kernel */
-	movq	%rsi, %r11		/* Decrypted kernel */
-	movq	%rdx, %r12		/* Kernel length */
+	movq	%rdi, %r10		/* Encrypted area */
+	movq	%rsi, %r11		/* Decrypted area */
+	movq	%rdx, %r12		/* Area length */
 
 	/* Copy encryption routine into the workarea */
 	movq	%rax, %rdi				/* Workarea encryption routine */
@@ -52,13 +53,14 @@ ENTRY(sme_encrypt_execute)
 	rep	movsb
 
 	/* Setup registers for call */
-	movq	%r10, %rdi		/* Encrypted kernel */
-	movq	%r11, %rsi		/* Decrypted kernel */
+	movq	%r10, %rdi		/* Encrypted area */
+	movq	%r11, %rsi		/* Decrypted area */
 	movq	%r8, %rdx		/* Pagetables used for encryption */
-	movq	%r12, %rcx		/* Kernel length */
+	movq	%r12, %rcx		/* Area length */
 	movq	%rax, %r8		/* Workarea encryption routine */
 	addq	$PAGE_SIZE, %r8		/* Workarea intermediate copy buffer */
 
+	ANNOTATE_RETPOLINE_SAFE
 	call	*%rax			/* Call the encryption routine */
 
 	pop	%r12
@@ -71,7 +73,7 @@ ENDPROC(sme_encrypt_execute)
 
 ENTRY(__enc_copy)
 /*
- * Routine used to encrypt kernel.
+ * Routine used to encrypt memory in place.
  *   This routine must be run outside of the kernel proper since
  *   the kernel will be encrypted during the process. So this
  *   routine is defined here and then copied to an area outside
@@ -79,19 +81,19 @@ ENTRY(__enc_copy)
  *   during execution.
  *
  *   On entry the registers must be:
- *     RDI - virtual address for the encrypted kernel mapping
- *     RSI - virtual address for the decrypted kernel mapping
+ *     RDI - virtual address for the encrypted mapping
+ *     RSI - virtual address for the decrypted mapping
  *     RDX - address of the pagetables to use for encryption
- *     RCX - length of kernel
+ *     RCX - length of area
  *      R8 - intermediate copy buffer
  *
  *     RAX - points to this routine
  *
- * The kernel will be encrypted by copying from the non-encrypted
- * kernel space to an intermediate buffer and then copying from the
- * intermediate buffer back to the encrypted kernel space. The physical
- * addresses of the two kernel space mappings are the same which
- * results in the kernel being encrypted "in place".
+ * The area will be encrypted by copying from the non-encrypted
+ * memory space to an intermediate buffer and then copying from the
+ * intermediate buffer back to the encrypted memory space. The physical
+ * addresses of the two mappings are the same which results in the area
+ * being encrypted "in place".
  */
 	/* Enable the new page tables */
 	mov	%rdx, %cr3
@@ -103,46 +105,54 @@ ENTRY(__enc_copy)
 	orq	$X86_CR4_PGE, %rdx
 	mov	%rdx, %cr4
 
+	push	%r15
+	push	%r12
+
+	movq	%rcx, %r9		/* Save area length */
+	movq	%rdi, %r10		/* Save encrypted area address */
+	movq	%rsi, %r11		/* Save decrypted area address */
+
 	/* Set the PAT register PA5 entry to write-protect */
-	push	%rcx
 	movl	$MSR_IA32_CR_PAT, %ecx
 	rdmsr
-	push	%rdx			/* Save original PAT value */
+	mov	%rdx, %r15		/* Save original PAT value */
 	andl	$0xffff00ff, %edx	/* Clear PA5 */
 	orl	$0x00000500, %edx	/* Set PA5 to WP */
 	wrmsr
-	pop	%rdx			/* RDX contains original PAT value */
-	pop	%rcx
-
-	movq	%rcx, %r9		/* Save kernel length */
-	movq	%rdi, %r10		/* Save encrypted kernel address */
-	movq	%rsi, %r11		/* Save decrypted kernel address */
 
 	wbinvd				/* Invalidate any cache entries */
 
-	/* Copy/encrypt 2MB at a time */
+	/* Copy/encrypt up to 2MB at a time */
+	movq	$PMD_PAGE_SIZE, %r12
 1:
-	movq	%r11, %rsi		/* Source - decrypted kernel */
+	cmpq	%r12, %r9
+	jnb	2f
+	movq	%r9, %r12
+
+2:
+	movq	%r11, %rsi		/* Source - decrypted area */
 	movq	%r8, %rdi		/* Dest   - intermediate copy buffer */
-	movq	$PMD_PAGE_SIZE, %rcx	/* 2MB length */
+	movq	%r12, %rcx
 	rep	movsb
 
 	movq	%r8, %rsi		/* Source - intermediate copy buffer */
-	movq	%r10, %rdi		/* Dest   - encrypted kernel */
-	movq	$PMD_PAGE_SIZE, %rcx	/* 2MB length */
+	movq	%r10, %rdi		/* Dest   - encrypted area */
+	movq	%r12, %rcx
 	rep	movsb
 
-	addq	$PMD_PAGE_SIZE, %r11
-	addq	$PMD_PAGE_SIZE, %r10
-	subq	$PMD_PAGE_SIZE, %r9	/* Kernel length decrement */
+	addq	%r12, %r11
+	addq	%r12, %r10
+	subq	%r12, %r9		/* Kernel length decrement */
 	jnz	1b			/* Kernel length not zero? */
 
 	/* Restore PAT register */
-	push	%rdx			/* Save original PAT value */
 	movl	$MSR_IA32_CR_PAT, %ecx
 	rdmsr
-	pop	%rdx			/* Restore original PAT value */
+	mov	%r15, %rdx		/* Restore original PAT value */
 	wrmsr
+
+	pop	%r12
+	pop	%r15
 
 	ret
 .L__enc_copy_end:

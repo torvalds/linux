@@ -43,7 +43,8 @@ MODULE_PARM_DESC(pinnacle_remote, "Specify Pinnacle PCTV remote: 0=coloured, 1=g
 	} while (0)
 #define ir_dbg(ir, fmt, arg...) do { \
 	if (ir_debug) \
-		printk(KERN_DEBUG pr_fmt("ir %s: " fmt), ir->name, ## arg); \
+		printk(KERN_DEBUG pr_fmt("ir %s: " fmt), ir->rc->device_name, \
+		       ## arg); \
 	} while (0)
 
 /* Helper function for raw decoding at GPIO16 or GPIO18 */

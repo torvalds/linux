@@ -17,6 +17,7 @@
 #include <linux/bitrev.h>
 #include <linux/io.h>
 #include <linux/err.h>
+#include <linux/sizes.h>
 #include "ipu-prv.h"
 
 /* IC Register Offsets */

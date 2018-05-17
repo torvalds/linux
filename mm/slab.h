@@ -22,6 +22,8 @@ struct kmem_cache {
 	unsigned int size;	/* The aligned/padded/added on size  */
 	unsigned int align;	/* Alignment as calculated */
 	slab_flags_t flags;	/* Active flags on the slab */
+	size_t useroffset;	/* Usercopy region offset */
+	size_t usersize;	/* Usercopy region size */
 	const char *name;	/* Slab name for sysfs */
 	int refcount;		/* Use counter */
 	void (*ctor)(void *);	/* Called on object slot creation */
@@ -78,9 +80,6 @@ extern const struct kmalloc_info_struct {
 	unsigned long size;
 } kmalloc_info[];
 
-unsigned long calculate_alignment(slab_flags_t flags,
-		unsigned long align, unsigned long size);
-
 #ifndef CONFIG_SLOB
 /* Kmalloc array related functions */
 void setup_kmalloc_cache_index_table(void);
@@ -95,9 +94,11 @@ struct kmem_cache *kmalloc_slab(size_t, gfp_t);
 int __kmem_cache_create(struct kmem_cache *, slab_flags_t flags);
 
 extern struct kmem_cache *create_kmalloc_cache(const char *name, size_t size,
-			slab_flags_t flags);
+			slab_flags_t flags, size_t useroffset,
+			size_t usersize);
 extern void create_boot_cache(struct kmem_cache *, const char *name,
-			size_t size, slab_flags_t flags);
+			size_t size, slab_flags_t flags, size_t useroffset,
+			size_t usersize);
 
 int slab_unmergeable(struct kmem_cache *s);
 struct kmem_cache *find_mergeable(size_t size, size_t align,

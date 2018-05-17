@@ -216,6 +216,12 @@ cflags-$(toolchain-msa)			+= -DTOOLCHAIN_SUPPORTS_MSA
 endif
 toolchain-virt				:= $(call cc-option-yn,$(mips-cflags) -mvirt)
 cflags-$(toolchain-virt)		+= -DTOOLCHAIN_SUPPORTS_VIRT
+# For -mmicromips, use -Wa,-fatal-warnings to catch unsupported -mxpa which
+# only warns
+xpa-cflags-y				:= $(mips-cflags)
+xpa-cflags-$(micromips-ase)		+= -mmicromips -Wa$(comma)-fatal-warnings
+toolchain-xpa				:= $(call cc-option-yn,$(xpa-cflags-y) -mxpa)
+cflags-$(toolchain-xpa)			+= -DTOOLCHAIN_SUPPORTS_XPA
 
 #
 # Firmware support
@@ -228,7 +234,7 @@ libs-y				+= arch/mips/fw/lib/
 #
 # Kernel compression
 #
-ifdef SYS_SUPPORTS_ZBOOT
+ifdef CONFIG_SYS_SUPPORTS_ZBOOT
 COMPRESSION_FNAME		= vmlinuz
 else
 COMPRESSION_FNAME		= vmlinux

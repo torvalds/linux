@@ -55,6 +55,43 @@ static int ibm_get_config_addr_info;
 static int ibm_get_config_addr_info2;
 static int ibm_configure_pe;
 
+#ifdef CONFIG_PCI_IOV
+void pseries_pcibios_bus_add_device(struct pci_dev *pdev)
+{
+	struct pci_dn *pdn = pci_get_pdn(pdev);
+	struct pci_dn *physfn_pdn;
+	struct eeh_dev *edev;
+
+	if (!pdev->is_virtfn)
+		return;
+
+	pdn->device_id  =  pdev->device;
+	pdn->vendor_id  =  pdev->vendor;
+	pdn->class_code =  pdev->class;
+	/*
+	 * Last allow unfreeze return code used for retrieval
+	 * by user space in eeh-sysfs to show the last command
+	 * completion from platform.
+	 */
+	pdn->last_allow_rc =  0;
+	physfn_pdn      =  pci_get_pdn(pdev->physfn);
+	pdn->pe_number  =  physfn_pdn->pe_num_map[pdn->vf_index];
+	edev = pdn_to_eeh_dev(pdn);
+
+	/*
+	 * The following operations will fail if VF's sysfs files
+	 * aren't created or its resources aren't finalized.
+	 */
+	eeh_add_device_early(pdn);
+	eeh_add_device_late(pdev);
+	edev->pe_config_addr =  (pdn->busno << 16) | (pdn->devfn << 8);
+	eeh_rmv_from_parent_pe(edev); /* Remove as it is adding to bus pe */
+	eeh_add_to_parent_pe(edev);   /* Add as VF PE type */
+	eeh_sysfs_add_device(pdev);
+
+}
+#endif
+
 /*
  * Buffer for reporting slot-error-detail rtas calls. Its here
  * in BSS, and not dynamically alloced, so that it ends up in
@@ -119,6 +156,11 @@ static int pseries_eeh_init(void)
 
 	/* Set EEH probe mode */
 	eeh_add_flag(EEH_PROBE_MODE_DEVTREE | EEH_ENABLE_IO_FOR_LOG);
+
+#ifdef CONFIG_PCI_IOV
+	/* Set EEH machine dependent code */
+	ppc_md.pcibios_bus_add_device = pseries_pcibios_bus_add_device;
+#endif
 
 	return 0;
 }
@@ -684,6 +726,121 @@ static int pseries_eeh_write_config(struct pci_dn *pdn, int where, int size, u32
 	return rtas_write_config(pdn, where, size, val);
 }
 
+static int pseries_eeh_restore_config(struct pci_dn *pdn)
+{
+	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
+	s64 ret = 0;
+
+	if (!edev)
+		return -EEXIST;
+
+	/*
+	 * FIXME: The MPS, error routing rules, timeout setting are worthy
+	 * to be exported by firmware in extendible way.
+	 */
+	if (edev->physfn)
+		ret = eeh_restore_vf_config(pdn);
+
+	if (ret) {
+		pr_warn("%s: Can't reinit PCI dev 0x%x (%lld)\n",
+			__func__, edev->pe_config_addr, ret);
+		return -EIO;
+	}
+
+	return ret;
+}
+
+#ifdef CONFIG_PCI_IOV
+int pseries_send_allow_unfreeze(struct pci_dn *pdn,
+				u16 *vf_pe_array, int cur_vfs)
+{
+	int rc;
+	int ibm_allow_unfreeze = rtas_token("ibm,open-sriov-allow-unfreeze");
+	unsigned long buid, addr;
+
+	addr = rtas_config_addr(pdn->busno, pdn->devfn, 0);
+	buid = pdn->phb->buid;
+	spin_lock(&rtas_data_buf_lock);
+	memcpy(rtas_data_buf, vf_pe_array, RTAS_DATA_BUF_SIZE);
+	rc = rtas_call(ibm_allow_unfreeze, 5, 1, NULL,
+		       addr,
+		       BUID_HI(buid),
+		       BUID_LO(buid),
+		       rtas_data_buf, cur_vfs * sizeof(u16));
+	spin_unlock(&rtas_data_buf_lock);
+	if (rc)
+		pr_warn("%s: Failed to allow unfreeze for PHB#%x-PE#%lx, rc=%x\n",
+			__func__,
+			pdn->phb->global_number, addr, rc);
+	return rc;
+}
+
+static int pseries_call_allow_unfreeze(struct eeh_dev *edev)
+{
+	struct pci_dn *pdn, *tmp, *parent, *physfn_pdn;
+	int cur_vfs = 0, rc = 0, vf_index, bus, devfn;
+	u16 *vf_pe_array;
+
+	vf_pe_array = kzalloc(RTAS_DATA_BUF_SIZE, GFP_KERNEL);
+	if (!vf_pe_array)
+		return -ENOMEM;
+	if (pci_num_vf(edev->physfn ? edev->physfn : edev->pdev)) {
+		if (edev->pdev->is_physfn) {
+			cur_vfs = pci_num_vf(edev->pdev);
+			pdn = eeh_dev_to_pdn(edev);
+			parent = pdn->parent;
+			for (vf_index = 0; vf_index < cur_vfs; vf_index++)
+				vf_pe_array[vf_index] =
+					cpu_to_be16(pdn->pe_num_map[vf_index]);
+			rc = pseries_send_allow_unfreeze(pdn, vf_pe_array,
+							 cur_vfs);
+			pdn->last_allow_rc = rc;
+			for (vf_index = 0; vf_index < cur_vfs; vf_index++) {
+				list_for_each_entry_safe(pdn, tmp,
+							 &parent->child_list,
+							 list) {
+					bus = pci_iov_virtfn_bus(edev->pdev,
+								 vf_index);
+					devfn = pci_iov_virtfn_devfn(edev->pdev,
+								     vf_index);
+					if (pdn->busno != bus ||
+					    pdn->devfn != devfn)
+						continue;
+					pdn->last_allow_rc = rc;
+				}
+			}
+		} else {
+			pdn = pci_get_pdn(edev->pdev);
+			vf_pe_array[0] = cpu_to_be16(pdn->pe_number);
+			physfn_pdn = pci_get_pdn(edev->physfn);
+			rc = pseries_send_allow_unfreeze(physfn_pdn,
+							 vf_pe_array, 1);
+			pdn->last_allow_rc = rc;
+		}
+	}
+
+	kfree(vf_pe_array);
+	return rc;
+}
+
+static int pseries_notify_resume(struct pci_dn *pdn)
+{
+	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
+
+	if (!edev)
+		return -EEXIST;
+
+	if (rtas_token("ibm,open-sriov-allow-unfreeze")
+	    == RTAS_UNKNOWN_SERVICE)
+		return -EINVAL;
+
+	if (edev->pdev->is_physfn || edev->pdev->is_virtfn)
+		return pseries_call_allow_unfreeze(edev);
+
+	return 0;
+}
+#endif
+
 static struct eeh_ops pseries_eeh_ops = {
 	.name			= "pseries",
 	.init			= pseries_eeh_init,
@@ -699,7 +856,10 @@ static struct eeh_ops pseries_eeh_ops = {
 	.read_config		= pseries_eeh_read_config,
 	.write_config		= pseries_eeh_write_config,
 	.next_error		= NULL,
-	.restore_config		= NULL
+	.restore_config		= pseries_eeh_restore_config,
+#ifdef CONFIG_PCI_IOV
+	.notify_resume		= pseries_notify_resume
+#endif
 };
 
 /**

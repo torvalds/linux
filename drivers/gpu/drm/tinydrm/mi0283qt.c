@@ -9,6 +9,8 @@
  * (at your option) any later version.
  */
 
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_modeset_helper.h>
 #include <drm/tinydrm/ili9341.h>
 #include <drm/tinydrm/mipi-dbi.h>
 #include <drm/tinydrm/tinydrm-helpers.h>
@@ -139,7 +141,7 @@ static struct drm_driver mi0283qt_driver = {
 				  DRIVER_ATOMIC,
 	.fops			= &mi0283qt_fops,
 	TINYDRM_GEM_DRIVER_OPS,
-	.lastclose		= tinydrm_lastclose,
+	.lastclose		= drm_fb_helper_lastclose,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "mi0283qt",
 	.desc			= "Multi-Inno MI0283QT",
@@ -231,7 +233,7 @@ static int __maybe_unused mi0283qt_pm_suspend(struct device *dev)
 	struct mipi_dbi *mipi = dev_get_drvdata(dev);
 	int ret;
 
-	ret = tinydrm_suspend(&mipi->tinydrm);
+	ret = drm_mode_config_helper_suspend(mipi->tinydrm.drm);
 	if (ret)
 		return ret;
 
@@ -249,7 +251,9 @@ static int __maybe_unused mi0283qt_pm_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	return tinydrm_resume(&mipi->tinydrm);
+	drm_mode_config_helper_resume(mipi->tinydrm.drm);
+
+	return 0;
 }
 
 static const struct dev_pm_ops mi0283qt_pm_ops = {

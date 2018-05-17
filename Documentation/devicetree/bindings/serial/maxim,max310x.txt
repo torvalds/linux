@@ -24,13 +24,27 @@ Optional properties:
     1 = active low.
 
 Example:
+
+/ {
+	clocks {
+		spi_uart_clk: osc_max14830 {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <3686400>;
+		};
+
+	};
+};
+
+&spi0 {
 	max14830: max14830@0 {
 		compatible = "maxim,max14830";
 		reg = <0>;
-		clocks = <&clk20m>;
+		clocks = <&spi_uart_clk>;
 		clock-names = "osc";
 		interrupt-parent = <&gpio3>;
-		interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
+		interrupts = <7 IRQ_TYPE_LEVEL_LOW>;
 		gpio-controller;
 		#gpio-cells = <2>;
 	};
+};

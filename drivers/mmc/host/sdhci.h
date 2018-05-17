@@ -440,6 +440,9 @@ struct sdhci_host {
 
 	int irq;		/* Device IRQ */
 	void __iomem *ioaddr;	/* Mapped address */
+	char *bounce_buffer;	/* For packing SDMA reads/writes */
+	dma_addr_t bounce_addr;
+	unsigned int bounce_buffer_size;
 
 	const struct sdhci_ops *ops;	/* Low level hw interface */
 
@@ -484,6 +487,7 @@ struct sdhci_host {
 	bool bus_on;		/* Bus power prevents runtime suspend */
 	bool preset_enabled;	/* Preset is enabled */
 	bool pending_reset;	/* Cmd/data reset is pending */
+	bool irq_wake_enabled;	/* IRQ wakeup is enabled */
 
 	struct mmc_request *mrqs_done[SDHCI_MAX_MRQS];	/* Requests done */
 	struct mmc_command *cmd;	/* Current command */
@@ -718,7 +722,6 @@ void sdhci_enable_sdio_irq(struct mmc_host *mmc, int enable);
 #ifdef CONFIG_PM
 int sdhci_suspend_host(struct sdhci_host *host);
 int sdhci_resume_host(struct sdhci_host *host);
-void sdhci_enable_irq_wakeups(struct sdhci_host *host);
 int sdhci_runtime_suspend_host(struct sdhci_host *host);
 int sdhci_runtime_resume_host(struct sdhci_host *host);
 #endif

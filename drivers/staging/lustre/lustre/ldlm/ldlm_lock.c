@@ -886,17 +886,15 @@ static void search_granted_lock(struct list_head *queue,
 				struct ldlm_lock *req,
 				struct sl_insert_point *prev)
 {
-	struct list_head *tmp;
 	struct ldlm_lock *lock, *mode_end, *policy_end;
 
-	list_for_each(tmp, queue) {
-		lock = list_entry(tmp, struct ldlm_lock, l_res_link);
+	list_for_each_entry(lock, queue, l_res_link) {
 
 		mode_end = list_prev_entry(lock, l_sl_mode);
 
 		if (lock->l_req_mode != req->l_req_mode) {
 			/* jump to last lock of mode group */
-			tmp = &mode_end->l_res_link;
+			lock = mode_end;
 			continue;
 		}
 
@@ -933,9 +931,7 @@ static void search_granted_lock(struct list_head *queue,
 					break;
 
 				/* go to next policy group within mode group */
-				tmp = policy_end->l_res_link.next;
-				lock = list_entry(tmp, struct ldlm_lock,
-						  l_res_link);
+				lock = list_next_entry(policy_end, l_res_link);
 			}  /* loop over policy groups within the mode group */
 
 			/* insert point is last lock of the mode group,
@@ -1687,7 +1683,7 @@ ldlm_work_bl_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 	if (list_empty(arg->list))
 		return -ENOENT;
 
-	lock = list_entry(arg->list->next, struct ldlm_lock, l_bl_ast);
+	lock = list_first_entry(arg->list, struct ldlm_lock, l_bl_ast);
 
 	/* nobody should touch l_bl_ast */
 	lock_res_and_lock(lock);
@@ -1723,7 +1719,7 @@ ldlm_work_cp_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 	if (list_empty(arg->list))
 		return -ENOENT;
 
-	lock = list_entry(arg->list->next, struct ldlm_lock, l_cp_ast);
+	lock = list_first_entry(arg->list, struct ldlm_lock, l_cp_ast);
 
 	/* It's possible to receive a completion AST before we've set
 	 * the l_completion_ast pointer: either because the AST arrived
@@ -1769,7 +1765,7 @@ ldlm_work_revoke_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 	if (list_empty(arg->list))
 		return -ENOENT;
 
-	lock = list_entry(arg->list->next, struct ldlm_lock, l_rk_ast);
+	lock = list_first_entry(arg->list, struct ldlm_lock, l_rk_ast);
 	list_del_init(&lock->l_rk_ast);
 
 	/* the desc just pretend to exclusive */
@@ -1796,7 +1792,7 @@ static int ldlm_work_gl_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 	if (list_empty(arg->list))
 		return -ENOENT;
 
-	gl_work = list_entry(arg->list->next, struct ldlm_glimpse_work,
+	gl_work = list_first_entry(arg->list, struct ldlm_glimpse_work,
 			     gl_list);
 	list_del_init(&gl_work->gl_list);
 

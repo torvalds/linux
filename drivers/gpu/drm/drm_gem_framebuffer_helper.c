@@ -272,7 +272,8 @@ EXPORT_SYMBOL_GPL(drm_gem_fb_prepare_fb);
  * @sizes: fbdev size description
  * @pitch_align: Optional pitch alignment
  * @obj: GEM object backing the framebuffer
- * @funcs: vtable to be used for the new framebuffer object
+ * @funcs: Optional vtable to be used for the new framebuffer object when the
+ *         dirty callback is needed.
  *
  * This function creates a framebuffer from a &drm_fb_helper_surface_size
  * description for use in the &drm_fb_helper_funcs.fb_probe callback.
@@ -299,6 +300,9 @@ drm_gem_fbdev_fb_create(struct drm_device *dev,
 							sizes->surface_depth);
 	if (obj->size < mode_cmd.pitches[0] * mode_cmd.height)
 		return ERR_PTR(-EINVAL);
+
+	if (!funcs)
+		funcs = &drm_gem_fb_funcs;
 
 	return drm_gem_fb_alloc(dev, &mode_cmd, &obj, 1, funcs);
 }

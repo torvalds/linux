@@ -91,7 +91,6 @@ config IWLWIFI_BCAST_FILTERING
 config IWLWIFI_PCIE_RTPM
        bool "Enable runtime power management mode for PCIe devices"
        depends on IWLMVM && PM && EXPERT
-       default false
        help
          Say Y here to enable runtime power management for PCIe
          devices.  If enabled, the device will go into low power mode

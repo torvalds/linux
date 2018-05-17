@@ -929,6 +929,7 @@ struct dwc2_hsotg {
 	int     irq;
 	struct clk *clk;
 	struct reset_control *reset;
+	struct reset_control *reset_ecc;
 
 	unsigned int queuing_high_bandwidth:1;
 	unsigned int srp_success:1;
@@ -971,6 +972,7 @@ struct dwc2_hsotg {
 	} flags;
 
 	struct list_head non_periodic_sched_inactive;
+	struct list_head non_periodic_sched_waiting;
 	struct list_head non_periodic_sched_active;
 	struct list_head *non_periodic_qh_ptr;
 	struct list_head periodic_sched_inactive;

@@ -174,7 +174,6 @@ enum page_cache_mode {
 #define __PAGE_KERNEL_RO		(__PAGE_KERNEL & ~_PAGE_RW)
 #define __PAGE_KERNEL_RX		(__PAGE_KERNEL_EXEC & ~_PAGE_RW)
 #define __PAGE_KERNEL_NOCACHE		(__PAGE_KERNEL | _PAGE_NOCACHE)
-#define __PAGE_KERNEL_VSYSCALL		(__PAGE_KERNEL_RX | _PAGE_USER)
 #define __PAGE_KERNEL_VVAR		(__PAGE_KERNEL_RO | _PAGE_USER)
 #define __PAGE_KERNEL_LARGE		(__PAGE_KERNEL | _PAGE_PSE)
 #define __PAGE_KERNEL_LARGE_EXEC	(__PAGE_KERNEL_EXEC | _PAGE_PSE)
@@ -206,7 +205,6 @@ enum page_cache_mode {
 #define PAGE_KERNEL_NOCACHE	__pgprot(__PAGE_KERNEL_NOCACHE | _PAGE_ENC)
 #define PAGE_KERNEL_LARGE	__pgprot(__PAGE_KERNEL_LARGE | _PAGE_ENC)
 #define PAGE_KERNEL_LARGE_EXEC	__pgprot(__PAGE_KERNEL_LARGE_EXEC | _PAGE_ENC)
-#define PAGE_KERNEL_VSYSCALL	__pgprot(__PAGE_KERNEL_VSYSCALL | _PAGE_ENC)
 #define PAGE_KERNEL_VVAR	__pgprot(__PAGE_KERNEL_VVAR | _PAGE_ENC)
 
 #define PAGE_KERNEL_IO		__pgprot(__PAGE_KERNEL_IO)
@@ -323,6 +321,11 @@ static inline pudval_t native_pud_val(pud_t pud)
 #else
 #include <asm-generic/pgtable-nopud.h>
 
+static inline pud_t native_make_pud(pudval_t val)
+{
+	return (pud_t) { .p4d.pgd = native_make_pgd(val) };
+}
+
 static inline pudval_t native_pud_val(pud_t pud)
 {
 	return native_pgd_val(pud.p4d.pgd);
@@ -343,6 +346,11 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
 }
 #else
 #include <asm-generic/pgtable-nopmd.h>
+
+static inline pmd_t native_make_pmd(pmdval_t val)
+{
+	return (pmd_t) { .pud.p4d.pgd = native_make_pgd(val) };
+}
 
 static inline pmdval_t native_pmd_val(pmd_t pmd)
 {

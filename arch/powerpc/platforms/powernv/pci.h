@@ -12,9 +12,10 @@ struct pci_dn;
 #define NV_NMMU_ATSD_REGS 8
 
 enum pnv_phb_type {
-	PNV_PHB_IODA1	= 0,
-	PNV_PHB_IODA2	= 1,
-	PNV_PHB_NPU	= 2,
+	PNV_PHB_IODA1		= 0,
+	PNV_PHB_IODA2		= 1,
+	PNV_PHB_NPU_NVLINK	= 2,
+	PNV_PHB_NPU_OCAPI	= 3,
 };
 
 /* Precise PHB model for error management */
@@ -227,6 +228,7 @@ extern void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
 extern void pnv_pci_init_ioda_hub(struct device_node *np);
 extern void pnv_pci_init_ioda2_phb(struct device_node *np);
 extern void pnv_pci_init_npu_phb(struct device_node *np);
+extern void pnv_pci_init_npu2_opencapi_phb(struct device_node *np);
 extern void pnv_pci_reset_secondary_bus(struct pci_dev *dev);
 extern int pnv_eeh_phb_reset(struct pci_controller *hose, int option);
 

@@ -1397,7 +1397,7 @@ static char *cgroup_file_name(struct cgroup *cgrp, const struct cftype *cft,
 			 cgroup_on_dfl(cgrp) ? ss->name : ss->legacy_name,
 			 cft->name);
 	else
-		strlcpy(buf, cft->name, CGROUP_FILE_NAME_MAX);
+		strscpy(buf, cft->name, CGROUP_FILE_NAME_MAX);
 	return buf;
 }
 
@@ -1864,9 +1864,9 @@ void init_cgroup_root(struct cgroup_root *root, struct cgroup_sb_opts *opts)
 
 	root->flags = opts->flags;
 	if (opts->release_agent)
-		strlcpy(root->release_agent_path, opts->release_agent, PATH_MAX);
+		strscpy(root->release_agent_path, opts->release_agent, PATH_MAX);
 	if (opts->name)
-		strlcpy(root->name, opts->name, MAX_CGROUP_ROOT_NAMELEN);
+		strscpy(root->name, opts->name, MAX_CGROUP_ROOT_NAMELEN);
 	if (opts->cpuset_clone_children)
 		set_bit(CGRP_CPUSET_CLONE_CHILDREN, &root->cgrp.flags);
 }
@@ -3183,6 +3183,16 @@ static int cgroup_enable_threaded(struct cgroup *cgrp)
 	if (cgroup_is_threaded(cgrp))
 		return 0;
 
+	/*
+	 * If @cgroup is populated or has domain controllers enabled, it
+	 * can't be switched.  While the below cgroup_can_be_thread_root()
+	 * test can catch the same conditions, that's only when @parent is
+	 * not mixable, so let's check it explicitly.
+	 */
+	if (cgroup_is_populated(cgrp) ||
+	    cgrp->subtree_control & ~cgrp_dfl_threaded_ss_mask)
+		return -EOPNOTSUPP;
+
 	/* we're joining the parent's domain, ensure its validity */
 	if (!cgroup_is_valid_domain(dom_cgrp) ||
 	    !cgroup_can_be_thread_root(dom_cgrp))
@@ -4447,6 +4457,7 @@ static struct cftype cgroup_base_files[] = {
 	},
 	{
 		.name = "cgroup.threads",
+		.flags = CFTYPE_NS_DELEGATABLE,
 		.release = cgroup_procs_release,
 		.seq_start = cgroup_threads_start,
 		.seq_next = cgroup_procs_next,

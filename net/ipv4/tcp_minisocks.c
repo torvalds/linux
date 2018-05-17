@@ -316,9 +316,10 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		 */
 		local_bh_disable();
 		inet_twsk_schedule(tw, timeo);
-		/* Linkage updates. */
-		__inet_twsk_hashdance(tw, sk, &tcp_hashinfo);
-		inet_twsk_put(tw);
+		/* Linkage updates.
+		 * Note that access to tw after this point is illegal.
+		 */
+		inet_twsk_hashdance(tw, sk, &tcp_hashinfo);
 		local_bh_enable();
 	} else {
 		/* Sorry, if we're out of memory, just CLOSE this

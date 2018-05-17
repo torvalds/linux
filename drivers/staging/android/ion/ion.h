@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/staging/android/ion/ion.h
  *
  * Copyright (C) 2011 Google, Inc.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #ifndef _ION_H
@@ -189,7 +180,8 @@ struct ion_heap {
 	wait_queue_head_t waitqueue;
 	struct task_struct *task;
 
-	int (*debug_show)(struct ion_heap *heap, struct seq_file *, void *);
+	int (*debug_show)(struct ion_heap *heap, struct seq_file *s,
+			  void *unused);
 };
 
 /**
@@ -238,7 +230,7 @@ int ion_alloc(size_t len,
  * this function will be called to setup a shrinker to shrink the freelists
  * and call the heap's shrink op.
  */
-void ion_heap_init_shrinker(struct ion_heap *heap);
+int ion_heap_init_shrinker(struct ion_heap *heap);
 
 /**
  * ion_heap_init_deferred_free -- initialize deferred free functionality

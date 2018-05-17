@@ -349,12 +349,12 @@ static int get_key_pv951(struct IR_i2c *ir, enum rc_proto *protocol,
 	 * NOTE:
 	 * lirc_i2c maps the pv951 code as:
 	 *	addr = 0x61D6
-	 * 	cmd = bit_reverse (b)
+	 *	cmd = bit_reverse (b)
 	 * So, it seems that this device uses NEC extended
 	 * I decided to not fix the table, due to two reasons:
-	 * 	1) Without the actual device, this is only a guess;
-	 * 	2) As the addr is not reported via I2C, nor can be changed,
-	 * 	   the device is bound to the vendor-provided RC.
+	 *	1) Without the actual device, this is only a guess;
+	 *	2) As the addr is not reported via I2C, nor can be changed,
+	 *	   the device is bound to the vendor-provided RC.
 	 */
 
 	*protocol = RC_PROTO_UNKNOWN;

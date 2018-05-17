@@ -1071,7 +1071,7 @@ static int
 jme_process_receive(struct jme_adapter *jme, int limit)
 {
 	struct jme_ring *rxring = &(jme->rxring[0]);
-	struct rxdesc *rxdesc = rxring->desc;
+	struct rxdesc *rxdesc;
 	int i, j, ccnt, desccnt, mask = jme->rx_ring_mask;
 
 	if (unlikely(!atomic_dec_and_test(&jme->rx_cleaning)))

@@ -41,7 +41,6 @@
 #include <linux/timer.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-#include <linux/hardirq.h>
 #include <linux/jiffies.h>
 #include <linux/workqueue.h>
 

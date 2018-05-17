@@ -353,7 +353,7 @@ int fm10k_iov_resume(struct pci_dev *pdev)
 		struct fm10k_vf_info *vf_info = &iov_data->vf_info[i];
 
 		/* allocate all but the last GLORT to the VFs */
-		if (i == ((~hw->mac.dglort_map) >> FM10K_DGLORTMAP_MASK_SHIFT))
+		if (i == (~hw->mac.dglort_map >> FM10K_DGLORTMAP_MASK_SHIFT))
 			break;
 
 		/* assign GLORT to VF, and restrict it to multicast */
@@ -511,7 +511,7 @@ int fm10k_iov_configure(struct pci_dev *pdev, int num_vfs)
 		return err;
 
 	/* allocate VFs if not already allocated */
-	if (num_vfs && (num_vfs != current_vfs)) {
+	if (num_vfs && num_vfs != current_vfs) {
 		/* Disable completer abort error reporting as
 		 * the VFs can trigger this any time they read a queue
 		 * that they don't own.

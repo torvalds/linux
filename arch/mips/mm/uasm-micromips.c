@@ -40,7 +40,7 @@
 
 #include "uasm.c"
 
-static const struct insn const insn_table_MM[insn_invalid] = {
+static const struct insn insn_table_MM[insn_invalid] = {
 	[insn_addu]	= {M(mm_pool32a_op, 0, 0, 0, 0, mm_addu32_op), RT | RS | RD},
 	[insn_addiu]	= {M(mm_addiu32_op, 0, 0, 0, 0, 0), RT | RS | SIMM},
 	[insn_and]	= {M(mm_pool32a_op, 0, 0, 0, 0, mm_and_op), RT | RS | RD},

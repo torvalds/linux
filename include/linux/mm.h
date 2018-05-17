@@ -1312,8 +1312,6 @@ void free_pgd_range(struct mmu_gather *tlb, unsigned long addr,
 		unsigned long end, unsigned long floor, unsigned long ceiling);
 int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
 			struct vm_area_struct *vma);
-void unmap_mapping_range(struct address_space *mapping,
-		loff_t const holebegin, loff_t const holelen, int even_cows);
 int follow_pte_pmd(struct mm_struct *mm, unsigned long address,
 			     unsigned long *start, unsigned long *end,
 			     pte_t **ptepp, pmd_t **pmdpp, spinlock_t **ptlp);
@@ -1323,12 +1321,6 @@ int follow_phys(struct vm_area_struct *vma, unsigned long address,
 		unsigned int flags, unsigned long *prot, resource_size_t *phys);
 int generic_access_phys(struct vm_area_struct *vma, unsigned long addr,
 			void *buf, int len, int write);
-
-static inline void unmap_shared_mapping_range(struct address_space *mapping,
-		loff_t const holebegin, loff_t const holelen)
-{
-	unmap_mapping_range(mapping, holebegin, holelen, 0);
-}
 
 extern void truncate_pagecache(struct inode *inode, loff_t new);
 extern void truncate_setsize(struct inode *inode, loff_t newsize);
@@ -1344,6 +1336,10 @@ extern int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 extern int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
 			    unsigned long address, unsigned int fault_flags,
 			    bool *unlocked);
+void unmap_mapping_pages(struct address_space *mapping,
+		pgoff_t start, pgoff_t nr, bool even_cows);
+void unmap_mapping_range(struct address_space *mapping,
+		loff_t const holebegin, loff_t const holelen, int even_cows);
 #else
 static inline int handle_mm_fault(struct vm_area_struct *vma,
 		unsigned long address, unsigned int flags)
@@ -1360,10 +1356,20 @@ static inline int fixup_user_fault(struct task_struct *tsk,
 	BUG();
 	return -EFAULT;
 }
+static inline void unmap_mapping_pages(struct address_space *mapping,
+		pgoff_t start, pgoff_t nr, bool even_cows) { }
+static inline void unmap_mapping_range(struct address_space *mapping,
+		loff_t const holebegin, loff_t const holelen, int even_cows) { }
 #endif
 
-extern int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, int len,
-		unsigned int gup_flags);
+static inline void unmap_shared_mapping_range(struct address_space *mapping,
+		loff_t const holebegin, loff_t const holelen)
+{
+	unmap_mapping_range(mapping, holebegin, holelen, 0);
+}
+
+extern int access_process_vm(struct task_struct *tsk, unsigned long addr,
+		void *buf, int len, unsigned int gup_flags);
 extern int access_remote_vm(struct mm_struct *mm, unsigned long addr,
 		void *buf, int len, unsigned int gup_flags);
 extern int __access_remote_vm(struct task_struct *tsk, struct mm_struct *mm,
@@ -2069,8 +2075,8 @@ static inline void zero_resv_unavail(void) {}
 #endif
 
 extern void set_dma_reserve(unsigned long new_dma_reserve);
-extern void memmap_init_zone(unsigned long, int, unsigned long,
-				unsigned long, enum memmap_context);
+extern void memmap_init_zone(unsigned long, int, unsigned long, unsigned long,
+		enum memmap_context, struct vmem_altmap *);
 extern void setup_per_zone_wmarks(void);
 extern int __meminit init_per_zone_wmark_min(void);
 extern void mem_init(void);
@@ -2538,7 +2544,8 @@ void sparse_mem_maps_populate_node(struct page **map_map,
 				   unsigned long map_count,
 				   int nodeid);
 
-struct page *sparse_mem_map_populate(unsigned long pnum, int nid);
+struct page *sparse_mem_map_populate(unsigned long pnum, int nid,
+		struct vmem_altmap *altmap);
 pgd_t *vmemmap_pgd_populate(unsigned long addr, int node);
 p4d_t *vmemmap_p4d_populate(pgd_t *pgd, unsigned long addr, int node);
 pud_t *vmemmap_pud_populate(p4d_t *p4d, unsigned long addr, int node);
@@ -2546,20 +2553,17 @@ pmd_t *vmemmap_pmd_populate(pud_t *pud, unsigned long addr, int node);
 pte_t *vmemmap_pte_populate(pmd_t *pmd, unsigned long addr, int node);
 void *vmemmap_alloc_block(unsigned long size, int node);
 struct vmem_altmap;
-void *__vmemmap_alloc_block_buf(unsigned long size, int node,
-		struct vmem_altmap *altmap);
-static inline void *vmemmap_alloc_block_buf(unsigned long size, int node)
-{
-	return __vmemmap_alloc_block_buf(size, node, NULL);
-}
-
+void *vmemmap_alloc_block_buf(unsigned long size, int node);
+void *altmap_alloc_block_buf(unsigned long size, struct vmem_altmap *altmap);
 void vmemmap_verify(pte_t *, int, unsigned long, unsigned long);
 int vmemmap_populate_basepages(unsigned long start, unsigned long end,
 			       int node);
-int vmemmap_populate(unsigned long start, unsigned long end, int node);
+int vmemmap_populate(unsigned long start, unsigned long end, int node,
+		struct vmem_altmap *altmap);
 void vmemmap_populate_print_last(void);
 #ifdef CONFIG_MEMORY_HOTPLUG
-void vmemmap_free(unsigned long start, unsigned long end);
+void vmemmap_free(unsigned long start, unsigned long end,
+		struct vmem_altmap *altmap);
 #endif
 void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
 				  unsigned long nr_pages);
@@ -2570,8 +2574,8 @@ enum mf_flags {
 	MF_MUST_KILL = 1 << 2,
 	MF_SOFT_OFFLINE = 1 << 3,
 };
-extern int memory_failure(unsigned long pfn, int trapno, int flags);
-extern void memory_failure_queue(unsigned long pfn, int trapno, int flags);
+extern int memory_failure(unsigned long pfn, int flags);
+extern void memory_failure_queue(unsigned long pfn, int flags);
 extern int unpoison_memory(unsigned long pfn);
 extern int get_hwpoison_page(struct page *page);
 #define put_hwpoison_page(page)	put_page(page)

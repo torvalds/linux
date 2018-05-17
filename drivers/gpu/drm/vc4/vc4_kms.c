@@ -19,16 +19,10 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include "vc4_drv.h"
-
-static void vc4_output_poll_changed(struct drm_device *dev)
-{
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-
-	drm_fbdev_cma_hotplug_event(vc4->fbdev);
-}
 
 static void
 vc4_atomic_complete_commit(struct drm_atomic_state *state)
@@ -194,7 +188,7 @@ static struct drm_framebuffer *vc4_fb_create(struct drm_device *dev,
 }
 
 static const struct drm_mode_config_funcs vc4_mode_funcs = {
-	.output_poll_changed = vc4_output_poll_changed,
+	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = vc4_atomic_commit,
 	.fb_create = vc4_fb_create,
@@ -224,12 +218,8 @@ int vc4_kms_load(struct drm_device *dev)
 
 	drm_mode_config_reset(dev);
 
-	if (dev->mode_config.num_connector) {
-		vc4->fbdev = drm_fbdev_cma_init(dev, 32,
-						dev->mode_config.num_connector);
-		if (IS_ERR(vc4->fbdev))
-			vc4->fbdev = NULL;
-	}
+	if (dev->mode_config.num_connector)
+		drm_fb_cma_fbdev_init(dev, 32, 0);
 
 	drm_kms_helper_poll_init(dev);
 

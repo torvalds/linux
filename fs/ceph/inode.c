@@ -494,7 +494,7 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	ci->i_wrbuffer_ref = 0;
 	ci->i_wrbuffer_ref_head = 0;
 	atomic_set(&ci->i_filelock_ref, 0);
-	ci->i_shared_gen = 0;
+	atomic_set(&ci->i_shared_gen, 0);
 	ci->i_rdcache_gen = 0;
 	ci->i_rdcache_revoking = 0;
 
@@ -1041,7 +1041,7 @@ static void update_dentry_lease(struct dentry *dentry,
 	if (ceph_snap(dir) != CEPH_NOSNAP)
 		goto out_unlock;
 
-	di->lease_shared_gen = ceph_inode(dir)->i_shared_gen;
+	di->lease_shared_gen = atomic_read(&ceph_inode(dir)->i_shared_gen);
 
 	if (duration == 0)
 		goto out_unlock;
@@ -1079,6 +1079,27 @@ static struct dentry *splice_dentry(struct dentry *dn, struct inode *in)
 	struct dentry *realdn;
 
 	BUG_ON(d_inode(dn));
+
+	if (S_ISDIR(in->i_mode)) {
+		/* If inode is directory, d_splice_alias() below will remove
+		 * 'realdn' from its origin parent. We need to ensure that
+		 * origin parent's readdir cache will not reference 'realdn'
+		 */
+		realdn = d_find_any_alias(in);
+		if (realdn) {
+			struct ceph_dentry_info *di = ceph_dentry(realdn);
+			spin_lock(&realdn->d_lock);
+
+			realdn->d_op->d_prune(realdn);
+
+			di->time = jiffies;
+			di->lease_shared_gen = 0;
+			di->offset = 0;
+
+			spin_unlock(&realdn->d_lock);
+			dput(realdn);
+		}
+	}
 
 	/* dn must be unhashed */
 	if (!d_unhashed(dn))
@@ -1295,8 +1316,8 @@ retry_lookup:
 		if (!rinfo->head->is_target) {
 			dout("fill_trace null dentry\n");
 			if (d_really_is_positive(dn)) {
-				ceph_dir_clear_ordered(dir);
 				dout("d_delete %p\n", dn);
+				ceph_dir_clear_ordered(dir);
 				d_delete(dn);
 			} else if (have_lease) {
 				if (d_unhashed(dn))
@@ -1323,7 +1344,6 @@ retry_lookup:
 			dout(" %p links to %p %llx.%llx, not %llx.%llx\n",
 			     dn, d_inode(dn), ceph_vinop(d_inode(dn)),
 			     ceph_vinop(in));
-			ceph_dir_clear_ordered(dir);
 			d_invalidate(dn);
 			have_lease = false;
 		}
@@ -1573,9 +1593,19 @@ retry_lookup:
 		} else if (d_really_is_positive(dn) &&
 			   (ceph_ino(d_inode(dn)) != tvino.ino ||
 			    ceph_snap(d_inode(dn)) != tvino.snap)) {
+			struct ceph_dentry_info *di = ceph_dentry(dn);
 			dout(" dn %p points to wrong inode %p\n",
 			     dn, d_inode(dn));
-			__ceph_dir_clear_ordered(ci);
+
+			spin_lock(&dn->d_lock);
+			if (di->offset > 0 &&
+			    di->lease_shared_gen ==
+			    atomic_read(&ci->i_shared_gen)) {
+				__ceph_dir_clear_ordered(ci);
+				di->offset = 0;
+			}
+			spin_unlock(&dn->d_lock);
+
 			d_delete(dn);
 			dput(dn);
 			goto retry_lookup;
@@ -1600,9 +1630,7 @@ retry_lookup:
 				 &req->r_caps_reservation);
 		if (ret < 0) {
 			pr_err("fill_inode badness on %p\n", in);
-			if (d_really_is_positive(dn))
-				__ceph_dir_clear_ordered(ci);
-			else
+			if (d_really_is_negative(dn))
 				iput(in);
 			d_drop(dn);
 			err = ret;
@@ -2000,8 +2028,8 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 			ceph_encode_timespec(&req->r_args.setattr.atime,
 					     &attr->ia_atime);
 			mask |= CEPH_SETATTR_ATIME;
-			release |= CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_RD |
-				CEPH_CAP_FILE_WR;
+			release |= CEPH_CAP_FILE_SHARED |
+				   CEPH_CAP_FILE_RD | CEPH_CAP_FILE_WR;
 		}
 	}
 	if (ia_valid & ATTR_MTIME) {
@@ -2022,8 +2050,8 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 			ceph_encode_timespec(&req->r_args.setattr.mtime,
 					     &attr->ia_mtime);
 			mask |= CEPH_SETATTR_MTIME;
-			release |= CEPH_CAP_FILE_SHARED | CEPH_CAP_FILE_RD |
-				CEPH_CAP_FILE_WR;
+			release |= CEPH_CAP_FILE_SHARED |
+				   CEPH_CAP_FILE_RD | CEPH_CAP_FILE_WR;
 		}
 	}
 	if (ia_valid & ATTR_SIZE) {
@@ -2041,8 +2069,8 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 			req->r_args.setattr.old_size =
 				cpu_to_le64(inode->i_size);
 			mask |= CEPH_SETATTR_SIZE;
-			release |= CEPH_CAP_FILE_SHARED | CEPH_CAP_FILE_RD |
-				CEPH_CAP_FILE_WR;
+			release |= CEPH_CAP_FILE_SHARED | CEPH_CAP_FILE_EXCL |
+				   CEPH_CAP_FILE_RD | CEPH_CAP_FILE_WR;
 		}
 	}
 

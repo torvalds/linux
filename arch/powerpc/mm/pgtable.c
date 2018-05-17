@@ -54,7 +54,8 @@ static inline int pte_looks_normal(pte_t pte)
 	return 0;
 #else
 	return (pte_val(pte) &
-		(_PAGE_PRESENT | _PAGE_SPECIAL | _PAGE_NO_CACHE | _PAGE_USER)) ==
+		(_PAGE_PRESENT | _PAGE_SPECIAL | _PAGE_NO_CACHE | _PAGE_USER |
+		 _PAGE_PRIVILEGED)) ==
 		(_PAGE_PRESENT | _PAGE_USER);
 #endif
 }

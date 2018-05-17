@@ -42,4 +42,8 @@ extern void wait_for_tb_resync(void);
 static inline void wait_for_subcore_guest_exit(void) { }
 static inline void wait_for_tb_resync(void) { }
 #endif
+
+struct pt_regs;
+extern long hmi_handle_debugtrig(struct pt_regs *regs);
+
 #endif /* __ASM_PPC64_HMI_H__ */

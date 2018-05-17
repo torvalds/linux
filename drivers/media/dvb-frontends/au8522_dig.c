@@ -24,7 +24,7 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/delay.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "au8522.h"
 #include "au8522_priv.h"
 

@@ -225,10 +225,16 @@
 	mac-address = [000000000000]; /* placeholder; will be overwritten by bootloader */
 	status = "okay";
 
-	phy0: ethernet-phy@0 {
-		interrupt-parent = <&gpio2>;
-		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
-		device_type = "ethernet-phy";
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy0: ethernet-phy@0 {
+			reg = <0>;
+			interrupt-parent = <&gpio2>;
+			interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
+			device_type = "ethernet-phy";
+		};
 	};
 };
 

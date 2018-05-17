@@ -22,6 +22,7 @@
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
+#include <linux/input/touchscreen.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
@@ -43,11 +44,7 @@ struct goodix_ts_data {
 	struct i2c_client *client;
 	struct input_dev *input_dev;
 	const struct goodix_chip_data *chip;
-	int abs_x_max;
-	int abs_y_max;
-	bool swapped_x_y;
-	bool inverted_x;
-	bool inverted_y;
+	struct touchscreen_properties prop;
 	unsigned int max_touch_num;
 	unsigned int int_trigger_type;
 	struct gpio_desc *gpiod_int;
@@ -160,7 +157,7 @@ static int goodix_i2c_read(struct i2c_client *client,
 			   u16 reg, u8 *buf, int len)
 {
 	struct i2c_msg msgs[2];
-	u16 wbuf = cpu_to_be16(reg);
+	__be16 wbuf = cpu_to_be16(reg);
 	int ret;
 
 	msgs[0].flags = 0;
@@ -295,18 +292,10 @@ static void goodix_ts_report_touch(struct goodix_ts_data *ts, u8 *coor_data)
 	int input_y = get_unaligned_le16(&coor_data[3]);
 	int input_w = get_unaligned_le16(&coor_data[5]);
 
-	/* Inversions have to happen before axis swapping */
-	if (ts->inverted_x)
-		input_x = ts->abs_x_max - input_x;
-	if (ts->inverted_y)
-		input_y = ts->abs_y_max - input_y;
-	if (ts->swapped_x_y)
-		swap(input_x, input_y);
-
 	input_mt_slot(ts->input_dev, id);
 	input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
-	input_report_abs(ts->input_dev, ABS_MT_POSITION_X, input_x);
-	input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, input_y);
+	touchscreen_report_pos(ts->input_dev, &ts->prop,
+			       input_x, input_y, true);
 	input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, input_w);
 	input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, input_w);
 }
@@ -579,44 +568,27 @@ static int goodix_get_gpio_config(struct goodix_ts_data *ts)
 static void goodix_read_config(struct goodix_ts_data *ts)
 {
 	u8 config[GOODIX_CONFIG_MAX_LENGTH];
+	int x_max, y_max;
 	int error;
 
 	error = goodix_i2c_read(ts->client, ts->chip->config_addr,
 				config, ts->chip->config_len);
 	if (error) {
-		dev_warn(&ts->client->dev,
-			 "Error reading config (%d), using defaults\n",
+		dev_warn(&ts->client->dev, "Error reading config: %d\n",
 			 error);
-		ts->abs_x_max = GOODIX_MAX_WIDTH;
-		ts->abs_y_max = GOODIX_MAX_HEIGHT;
-		if (ts->swapped_x_y)
-			swap(ts->abs_x_max, ts->abs_y_max);
 		ts->int_trigger_type = GOODIX_INT_TRIGGER;
 		ts->max_touch_num = GOODIX_MAX_CONTACTS;
 		return;
 	}
 
-	ts->abs_x_max = get_unaligned_le16(&config[RESOLUTION_LOC]);
-	ts->abs_y_max = get_unaligned_le16(&config[RESOLUTION_LOC + 2]);
-	if (ts->swapped_x_y)
-		swap(ts->abs_x_max, ts->abs_y_max);
 	ts->int_trigger_type = config[TRIGGER_LOC] & 0x03;
 	ts->max_touch_num = config[MAX_CONTACTS_LOC] & 0x0f;
-	if (!ts->abs_x_max || !ts->abs_y_max || !ts->max_touch_num) {
-		dev_err(&ts->client->dev,
-			"Invalid config, using defaults\n");
-		ts->abs_x_max = GOODIX_MAX_WIDTH;
-		ts->abs_y_max = GOODIX_MAX_HEIGHT;
-		if (ts->swapped_x_y)
-			swap(ts->abs_x_max, ts->abs_y_max);
-		ts->max_touch_num = GOODIX_MAX_CONTACTS;
-	}
 
-	if (dmi_check_system(rotated_screen)) {
-		ts->inverted_x = true;
-		ts->inverted_y = true;
-		dev_dbg(&ts->client->dev,
-			 "Applying '180 degrees rotated screen' quirk\n");
+	x_max = get_unaligned_le16(&config[RESOLUTION_LOC]);
+	y_max = get_unaligned_le16(&config[RESOLUTION_LOC + 2]);
+	if (x_max && y_max) {
+		input_abs_set_max(ts->input_dev, ABS_MT_POSITION_X, x_max - 1);
+		input_abs_set_max(ts->input_dev, ABS_MT_POSITION_Y, y_max - 1);
 	}
 }
 
@@ -676,53 +648,6 @@ static int goodix_i2c_test(struct i2c_client *client)
 }
 
 /**
- * goodix_request_input_dev - Allocate, populate and register the input device
- *
- * @ts: our goodix_ts_data pointer
- *
- * Must be called during probe
- */
-static int goodix_request_input_dev(struct goodix_ts_data *ts)
-{
-	int error;
-
-	ts->input_dev = devm_input_allocate_device(&ts->client->dev);
-	if (!ts->input_dev) {
-		dev_err(&ts->client->dev, "Failed to allocate input device.");
-		return -ENOMEM;
-	}
-
-	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X,
-			     0, ts->abs_x_max, 0, 0);
-	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y,
-			     0, ts->abs_y_max, 0, 0);
-	input_set_abs_params(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
-	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
-
-	input_mt_init_slots(ts->input_dev, ts->max_touch_num,
-			    INPUT_MT_DIRECT | INPUT_MT_DROP_UNUSED);
-
-	ts->input_dev->name = "Goodix Capacitive TouchScreen";
-	ts->input_dev->phys = "input/ts";
-	ts->input_dev->id.bustype = BUS_I2C;
-	ts->input_dev->id.vendor = 0x0416;
-	ts->input_dev->id.product = ts->id;
-	ts->input_dev->id.version = ts->version;
-
-	/* Capacitive Windows/Home button on some devices */
-	input_set_capability(ts->input_dev, EV_KEY, KEY_LEFTMETA);
-
-	error = input_register_device(ts->input_dev);
-	if (error) {
-		dev_err(&ts->client->dev,
-			"Failed to register input device: %d", error);
-		return error;
-	}
-
-	return 0;
-}
-
-/**
  * goodix_configure_dev - Finish device initialization
  *
  * @ts: our goodix_ts_data pointer
@@ -736,18 +661,68 @@ static int goodix_configure_dev(struct goodix_ts_data *ts)
 {
 	int error;
 
-	ts->swapped_x_y = device_property_read_bool(&ts->client->dev,
-						    "touchscreen-swapped-x-y");
-	ts->inverted_x = device_property_read_bool(&ts->client->dev,
-						   "touchscreen-inverted-x");
-	ts->inverted_y = device_property_read_bool(&ts->client->dev,
-						   "touchscreen-inverted-y");
+	ts->int_trigger_type = GOODIX_INT_TRIGGER;
+	ts->max_touch_num = GOODIX_MAX_CONTACTS;
 
+	ts->input_dev = devm_input_allocate_device(&ts->client->dev);
+	if (!ts->input_dev) {
+		dev_err(&ts->client->dev, "Failed to allocate input device.");
+		return -ENOMEM;
+	}
+
+	ts->input_dev->name = "Goodix Capacitive TouchScreen";
+	ts->input_dev->phys = "input/ts";
+	ts->input_dev->id.bustype = BUS_I2C;
+	ts->input_dev->id.vendor = 0x0416;
+	ts->input_dev->id.product = ts->id;
+	ts->input_dev->id.version = ts->version;
+
+	/* Capacitive Windows/Home button on some devices */
+	input_set_capability(ts->input_dev, EV_KEY, KEY_LEFTMETA);
+
+	input_set_capability(ts->input_dev, EV_ABS, ABS_MT_POSITION_X);
+	input_set_capability(ts->input_dev, EV_ABS, ABS_MT_POSITION_Y);
+	input_set_abs_params(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
+	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
+
+	/* Read configuration and apply touchscreen parameters */
 	goodix_read_config(ts);
 
-	error = goodix_request_input_dev(ts);
-	if (error)
+	/* Try overriding touchscreen parameters via device properties */
+	touchscreen_parse_properties(ts->input_dev, true, &ts->prop);
+
+	if (!ts->prop.max_x || !ts->prop.max_y || !ts->max_touch_num) {
+		dev_err(&ts->client->dev, "Invalid config, using defaults\n");
+		ts->prop.max_x = GOODIX_MAX_WIDTH - 1;
+		ts->prop.max_y = GOODIX_MAX_HEIGHT - 1;
+		ts->max_touch_num = GOODIX_MAX_CONTACTS;
+		input_abs_set_max(ts->input_dev,
+				  ABS_MT_POSITION_X, ts->prop.max_x);
+		input_abs_set_max(ts->input_dev,
+				  ABS_MT_POSITION_Y, ts->prop.max_y);
+	}
+
+	if (dmi_check_system(rotated_screen)) {
+		ts->prop.invert_x = true;
+		ts->prop.invert_y = true;
+		dev_dbg(&ts->client->dev,
+			"Applying '180 degrees rotated screen' quirk\n");
+	}
+
+	error = input_mt_init_slots(ts->input_dev, ts->max_touch_num,
+				    INPUT_MT_DIRECT | INPUT_MT_DROP_UNUSED);
+	if (error) {
+		dev_err(&ts->client->dev,
+			"Failed to initialize MT slots: %d", error);
 		return error;
+	}
+
+	error = input_register_device(ts->input_dev);
+	if (error) {
+		dev_err(&ts->client->dev,
+			"Failed to register input device: %d", error);
+		return error;
+	}
 
 	ts->irq_flags = goodix_irq_flags[ts->int_trigger_type] | IRQF_ONESHOT;
 	error = goodix_request_irq(ts);
@@ -878,8 +853,10 @@ static int __maybe_unused goodix_suspend(struct device *dev)
 	int error;
 
 	/* We need gpio pins to suspend/resume */
-	if (!ts->gpiod_int || !ts->gpiod_rst)
+	if (!ts->gpiod_int || !ts->gpiod_rst) {
+		disable_irq(client->irq);
 		return 0;
+	}
 
 	wait_for_completion(&ts->firmware_loading_complete);
 
@@ -919,8 +896,10 @@ static int __maybe_unused goodix_resume(struct device *dev)
 	struct goodix_ts_data *ts = i2c_get_clientdata(client);
 	int error;
 
-	if (!ts->gpiod_int || !ts->gpiod_rst)
+	if (!ts->gpiod_int || !ts->gpiod_rst) {
+		enable_irq(client->irq);
 		return 0;
+	}
 
 	/*
 	 * Exit sleep mode by outputting HIGH level to INT pin

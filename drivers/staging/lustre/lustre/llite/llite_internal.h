@@ -792,7 +792,7 @@ int ll_revalidate_it_finish(struct ptlrpc_request *request,
 extern struct super_operations lustre_super_operations;
 
 void ll_lli_init(struct ll_inode_info *lli);
-int ll_fill_super(struct super_block *sb, struct vfsmount *mnt);
+int ll_fill_super(struct super_block *sb);
 void ll_put_super(struct super_block *sb);
 void ll_kill_super(struct super_block *sb);
 struct inode *ll_inode_from_resource_lock(struct ldlm_lock *lock);
@@ -1296,15 +1296,7 @@ static inline void d_lustre_invalidate(struct dentry *dentry, int nested)
 	spin_lock_nested(&dentry->d_lock,
 			 nested ? DENTRY_D_LOCK_NESTED : DENTRY_D_LOCK_NORMAL);
 	ll_d2d(dentry)->lld_invalid = 1;
-	/*
-	 * We should be careful about dentries created by d_obtain_alias().
-	 * These dentries are not put in the dentry tree, instead they are
-	 * linked to sb->s_anon through dentry->d_hash.
-	 * shrink_dcache_for_umount() shrinks the tree and sb->s_anon list.
-	 * If we unhashed such a dentry, unmount would not be able to find
-	 * it and busy inodes would be reported.
-	 */
-	if (d_count(dentry) == 0 && !(dentry->d_flags & DCACHE_DISCONNECTED))
+	if (d_count(dentry) == 0)
 		__d_drop(dentry);
 	spin_unlock(&dentry->d_lock);
 }

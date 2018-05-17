@@ -1123,13 +1123,22 @@ static __init int register_trigger_snapshot_cmd(void) { return 0; }
 #endif /* CONFIG_TRACER_SNAPSHOT */
 
 #ifdef CONFIG_STACKTRACE
-/*
- * Skip 3:
- *   stacktrace_trigger()
+#ifdef CONFIG_UNWINDER_ORC
+/* Skip 2:
  *   event_triggers_post_call()
  *   trace_event_raw_event_xxx()
  */
-#define STACK_SKIP 3
+# define STACK_SKIP 2
+#else
+/*
+ * Skip 4:
+ *   stacktrace_trigger()
+ *   event_triggers_post_call()
+ *   trace_event_buffer_commit()
+ *   trace_event_raw_event_xxx()
+ */
+#define STACK_SKIP 4
+#endif
 
 static void
 stacktrace_trigger(struct event_trigger_data *data, void *rec)

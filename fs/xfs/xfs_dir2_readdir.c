@@ -152,7 +152,6 @@ xfs_dir2_block_getdents(
 	struct xfs_inode	*dp = args->dp;	/* incore directory inode */
 	xfs_dir2_data_hdr_t	*hdr;		/* block header */
 	struct xfs_buf		*bp;		/* buffer for block */
-	xfs_dir2_block_tail_t	*btp;		/* block tail */
 	xfs_dir2_data_entry_t	*dep;		/* block data entry */
 	xfs_dir2_data_unused_t	*dup;		/* block unused entry */
 	char			*endptr;	/* end of the data entries */
@@ -185,9 +184,8 @@ xfs_dir2_block_getdents(
 	/*
 	 * Set up values for the loop.
 	 */
-	btp = xfs_dir2_block_tail_p(geo, hdr);
 	ptr = (char *)dp->d_ops->data_entry_p(hdr);
-	endptr = (char *)xfs_dir2_block_leaf_p(btp);
+	endptr = xfs_dir3_data_endp(geo, hdr);
 
 	/*
 	 * Loop over the data portion of the block.

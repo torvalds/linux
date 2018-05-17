@@ -458,7 +458,7 @@ static const struct piix_map_db *piix_map_db_table[] = {
 	[ich8_2port_sata_byt]	= &ich8_2port_map_db,
 };
 
-static struct pci_bits piix_enable_bits[] = {
+static const struct pci_bits piix_enable_bits[] = {
 	{ 0x41U, 1U, 0x80UL, 0x80UL },	/* port 0 */
 	{ 0x43U, 1U, 0x80UL, 0x80UL },	/* port 1 */
 };

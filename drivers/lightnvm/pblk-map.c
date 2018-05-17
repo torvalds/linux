@@ -146,7 +146,7 @@ void pblk_map_erase_rq(struct pblk *pblk, struct nvm_rq *rqd,
 		return;
 
 	/* Erase blocks that are bad in this line but might not be in next */
-	if (unlikely(ppa_empty(*erase_ppa)) &&
+	if (unlikely(pblk_ppa_empty(*erase_ppa)) &&
 			bitmap_weight(d_line->blk_bitmap, lm->blk_per_line)) {
 		int bit = -1;
 

@@ -833,6 +833,7 @@ static struct elevator_type kyber_sched = {
 		.limit_depth = kyber_limit_depth,
 		.prepare_request = kyber_prepare_request,
 		.finish_request = kyber_finish_request,
+		.requeue_request = kyber_finish_request,
 		.completed_request = kyber_completed_request,
 		.dispatch_request = kyber_dispatch_request,
 		.has_work = kyber_has_work,

@@ -1467,7 +1467,7 @@ struct ieee802_11_elems {
 	const struct ieee80211_timeout_interval_ie *timeout_int;
 	const u8 *opmode_notif;
 	const struct ieee80211_sec_chan_offs_ie *sec_chan_offs;
-	const struct ieee80211_mesh_chansw_params_ie *mesh_chansw_params_ie;
+	struct ieee80211_mesh_chansw_params_ie *mesh_chansw_params_ie;
 	const struct ieee80211_bss_max_idle_period_ie *max_idle_period_ie;
 
 	/* length of them, respectively */
@@ -1757,10 +1757,6 @@ void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 				     u16 initiator, u16 reason, bool stop);
 void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 				    u16 initiator, u16 reason, bool stop);
-void __ieee80211_start_rx_ba_session(struct sta_info *sta,
-				     u8 dialog_token, u16 timeout,
-				     u16 start_seq_num, u16 ba_policy, u16 tid,
-				     u16 buf_size, bool tx, bool auto_seq);
 void ___ieee80211_start_rx_ba_session(struct sta_info *sta,
 				      u8 dialog_token, u16 timeout,
 				      u16 start_seq_num, u16 ba_policy, u16 tid,

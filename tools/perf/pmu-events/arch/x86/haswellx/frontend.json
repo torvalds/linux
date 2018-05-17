@@ -22,57 +22,6 @@
     },
     {
         "EventCode": "0x79",
-        "UMask": "0x8",
-        "BriefDescription": "Uops delivered to Instruction Decode Queue (IDQ) from the Decode Stream Buffer (DSB) path",
-        "Counter": "0,1,2,3",
-        "EventName": "IDQ.DSB_UOPS",
-        "PublicDescription": "Increment each cycle. # of uops delivered to IDQ from DSB path. Set Cmask = 1 to count cycles.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x79",
-        "UMask": "0x10",
-        "BriefDescription": "Uops initiated by Decode Stream Buffer (DSB) that are being delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
-        "Counter": "0,1,2,3",
-        "EventName": "IDQ.MS_DSB_UOPS",
-        "PublicDescription": "Increment each cycle # of uops delivered to IDQ when MS_busy by DSB. Set Cmask = 1 to count cycles. Add Edge=1 to count # of delivery.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x79",
-        "UMask": "0x20",
-        "BriefDescription": "Uops initiated by MITE and delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
-        "Counter": "0,1,2,3",
-        "EventName": "IDQ.MS_MITE_UOPS",
-        "PublicDescription": "Increment each cycle # of uops delivered to IDQ when MS_busy by MITE. Set Cmask = 1 to count cycles.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x79",
-        "UMask": "0x30",
-        "BriefDescription": "Uops delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
-        "Counter": "0,1,2,3",
-        "EventName": "IDQ.MS_UOPS",
-        "PublicDescription": "This event counts uops delivered by the Front-end with the assistance of the microcode sequencer.  Microcode assists are used for complex instructions or scenarios that can't be handled by the standard decoder.  Using other instructions, if possible, will usually improve performance.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x79",
-        "UMask": "0x30",
-        "BriefDescription": "Cycles when uops are being delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
-        "Counter": "0,1,2,3",
-        "EventName": "IDQ.MS_CYCLES",
-        "CounterMask": "1",
-        "PublicDescription": "This event counts cycles during which the microcode sequencer assisted the Front-end in delivering uops.  Microcode assists are used for complex instructions or scenarios that can't be handled by the standard decoder.  Using other instructions, if possible, will usually improve performance.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x79",
         "UMask": "0x4",
         "BriefDescription": "Cycles when uops are being delivered to Instruction Decode Queue (IDQ) from MITE path.",
         "Counter": "0,1,2,3",
@@ -84,10 +33,30 @@
     {
         "EventCode": "0x79",
         "UMask": "0x8",
+        "BriefDescription": "Uops delivered to Instruction Decode Queue (IDQ) from the Decode Stream Buffer (DSB) path",
+        "Counter": "0,1,2,3",
+        "EventName": "IDQ.DSB_UOPS",
+        "PublicDescription": "Increment each cycle. # of uops delivered to IDQ from DSB path. Set Cmask = 1 to count cycles.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x79",
+        "UMask": "0x8",
         "BriefDescription": "Cycles when uops are being delivered to Instruction Decode Queue (IDQ) from Decode Stream Buffer (DSB) path.",
         "Counter": "0,1,2,3",
         "EventName": "IDQ.DSB_CYCLES",
         "CounterMask": "1",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x79",
+        "UMask": "0x10",
+        "BriefDescription": "Uops initiated by Decode Stream Buffer (DSB) that are being delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
+        "Counter": "0,1,2,3",
+        "EventName": "IDQ.MS_DSB_UOPS",
+        "PublicDescription": "Increment each cycle # of uops delivered to IDQ when MS_busy by DSB. Set Cmask = 1 to count cycles. Add Edge=1 to count # of delivery.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -136,6 +105,16 @@
     },
     {
         "EventCode": "0x79",
+        "UMask": "0x20",
+        "BriefDescription": "Uops initiated by MITE and delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
+        "Counter": "0,1,2,3",
+        "EventName": "IDQ.MS_MITE_UOPS",
+        "PublicDescription": "Increment each cycle # of uops delivered to IDQ when MS_busy by MITE. Set Cmask = 1 to count cycles.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x79",
         "UMask": "0x24",
         "BriefDescription": "Cycles MITE is delivering 4 Uops",
         "Counter": "0,1,2,3",
@@ -153,6 +132,38 @@
         "EventName": "IDQ.ALL_MITE_CYCLES_ANY_UOPS",
         "CounterMask": "1",
         "PublicDescription": "Counts cycles MITE is delivered at least one uop. Set Cmask = 1.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x79",
+        "UMask": "0x30",
+        "BriefDescription": "Uops delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
+        "Counter": "0,1,2,3",
+        "EventName": "IDQ.MS_UOPS",
+        "PublicDescription": "This event counts uops delivered by the Front-end with the assistance of the microcode sequencer.  Microcode assists are used for complex instructions or scenarios that can't be handled by the standard decoder.  Using other instructions, if possible, will usually improve performance.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x79",
+        "UMask": "0x30",
+        "BriefDescription": "Cycles when uops are being delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
+        "Counter": "0,1,2,3",
+        "EventName": "IDQ.MS_CYCLES",
+        "CounterMask": "1",
+        "PublicDescription": "This event counts cycles during which the microcode sequencer assisted the Front-end in delivering uops.  Microcode assists are used for complex instructions or scenarios that can't be handled by the standard decoder.  Using other instructions, if possible, will usually improve performance.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EdgeDetect": "1",
+        "EventCode": "0x79",
+        "UMask": "0x30",
+        "BriefDescription": "Number of switches from DSB (Decode Stream Buffer) or MITE (legacy decode pipeline) to the Microcode Sequencer.",
+        "Counter": "0,1,2,3",
+        "EventName": "IDQ.MS_SWITCHES",
+        "CounterMask": "1",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -191,6 +202,15 @@
         "BriefDescription": "Cycles where a code fetch is stalled due to L1 instruction-cache miss.",
         "Counter": "0,1,2,3",
         "EventName": "ICACHE.IFETCH_STALL",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x80",
+        "UMask": "0x4",
+        "BriefDescription": "Cycles where a code fetch is stalled due to L1 instruction-cache miss.",
+        "Counter": "0,1,2,3",
+        "EventName": "ICACHE.IFDATA_STALL",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -268,26 +288,6 @@
         "BriefDescription": "Decode Stream Buffer (DSB)-to-MITE switch true penalty cycles.",
         "Counter": "0,1,2,3",
         "EventName": "DSB2MITE_SWITCHES.PENALTY_CYCLES",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EdgeDetect": "1",
-        "EventCode": "0x79",
-        "UMask": "0x30",
-        "BriefDescription": "Number of switches from DSB (Decode Stream Buffer) or MITE (legacy decode pipeline) to the Microcode Sequencer.",
-        "Counter": "0,1,2,3",
-        "EventName": "IDQ.MS_SWITCHES",
-        "CounterMask": "1",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x80",
-        "UMask": "0x4",
-        "BriefDescription": "Cycles where a code fetch is stalled due to L1 instruction-cache miss.",
-        "Counter": "0,1,2,3",
-        "EventName": "ICACHE.IFDATA_STALL",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     }

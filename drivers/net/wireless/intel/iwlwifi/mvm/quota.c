@@ -202,6 +202,10 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_DYNAMIC_QUOTA))
+		return 0;
+
 	/* update all upon completion */
 	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
 		return 0;

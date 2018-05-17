@@ -340,6 +340,8 @@ ssize_t ib_uverbs_alloc_pd(struct ib_uverbs_file *file,
 	uobj->object = pd;
 	memset(&resp, 0, sizeof resp);
 	resp.pd_handle = uobj->id;
+	pd->res.type = RDMA_RESTRACK_PD;
+	rdma_restrack_add(&pd->res);
 
 	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp)) {
 		ret = -EFAULT;
@@ -560,9 +562,10 @@ ssize_t ib_uverbs_open_xrcd(struct ib_uverbs_file *file,
 	if (f.file)
 		fdput(f);
 
+	mutex_unlock(&file->device->xrcd_tree_mutex);
+
 	uobj_alloc_commit(&obj->uobject);
 
-	mutex_unlock(&file->device->xrcd_tree_mutex);
 	return in_len;
 
 err_copy:
@@ -601,10 +604,8 @@ ssize_t ib_uverbs_close_xrcd(struct ib_uverbs_file *file,
 
 	uobj  = uobj_get_write(uobj_get_type(xrcd), cmd.xrcd_handle,
 			       file->ucontext);
-	if (IS_ERR(uobj)) {
-		mutex_unlock(&file->device->xrcd_tree_mutex);
+	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
-	}
 
 	ret = uobj_remove_commit(uobj);
 	return ret ?: in_len;
@@ -977,6 +978,9 @@ static struct ib_ucq_object *create_cq(struct ib_uverbs_file *file,
 	struct ib_uverbs_ex_create_cq_resp resp;
 	struct ib_cq_init_attr attr = {};
 
+	if (!ib_dev->create_cq)
+		return ERR_PTR(-EOPNOTSUPP);
+
 	if (cmd->comp_vector >= file->device->num_comp_vectors)
 		return ERR_PTR(-EINVAL);
 
@@ -1028,12 +1032,14 @@ static struct ib_ucq_object *create_cq(struct ib_uverbs_file *file,
 	resp.response_length = offsetof(typeof(resp), response_length) +
 		sizeof(resp.response_length);
 
+	cq->res.type = RDMA_RESTRACK_CQ;
+	rdma_restrack_add(&cq->res);
+
 	ret = cb(file, obj, &resp, ucore, context);
 	if (ret)
 		goto err_cb;
 
 	uobj_alloc_commit(&obj->uobject);
-
 	return obj;
 
 err_cb:
@@ -1145,10 +1151,7 @@ int ib_uverbs_ex_create_cq(struct ib_uverbs_file *file,
 			min(ucore->inlen, sizeof(cmd)),
 			ib_uverbs_ex_create_cq_cb, NULL);
 
-	if (IS_ERR(obj))
-		return PTR_ERR(obj);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(obj);
 }
 
 ssize_t ib_uverbs_resize_cq(struct ib_uverbs_file *file,
@@ -1199,7 +1202,7 @@ static int copy_wc_to_user(struct ib_device *ib_dev, void __user *dest,
 	tmp.opcode		= wc->opcode;
 	tmp.vendor_err		= wc->vendor_err;
 	tmp.byte_len		= wc->byte_len;
-	tmp.ex.imm_data		= (__u32 __force) wc->ex.imm_data;
+	tmp.ex.imm_data		= wc->ex.imm_data;
 	tmp.qp_num		= wc->qp->qp_num;
 	tmp.src_qp		= wc->src_qp;
 	tmp.wc_flags		= wc->wc_flags;
@@ -1517,7 +1520,8 @@ static int create_qp(struct ib_uverbs_file *file,
 	if (cmd->qp_type == IB_QPT_XRC_TGT)
 		qp = ib_create_qp(pd, &attr);
 	else
-		qp = device->create_qp(pd, &attr, uhw);
+		qp = _ib_create_qp(device, pd, &attr, uhw,
+				   &obj->uevent.uobject);
 
 	if (IS_ERR(qp)) {
 		ret = PTR_ERR(qp);
@@ -1530,7 +1534,6 @@ static int create_qp(struct ib_uverbs_file *file,
 			goto err_cb;
 
 		qp->real_qp	  = qp;
-		qp->device	  = device;
 		qp->pd		  = pd;
 		qp->send_cq	  = attr.send_cq;
 		qp->recv_cq	  = attr.recv_cq;
@@ -1550,8 +1553,10 @@ static int create_qp(struct ib_uverbs_file *file,
 			atomic_inc(&attr.srq->usecnt);
 		if (ind_tbl)
 			atomic_inc(&ind_tbl->usecnt);
+	} else {
+		/* It is done in _ib_create_qp for other QP types */
+		qp->uobject = &obj->uevent.uobject;
 	}
-	qp->uobject = &obj->uevent.uobject;
 
 	obj->uevent.uobject.object = qp;
 
@@ -1971,8 +1976,15 @@ static int modify_qp(struct ib_uverbs_file *file,
 		goto release_qp;
 	}
 
+	if ((cmd->base.attr_mask & IB_QP_AV) &&
+	    !rdma_is_port_valid(qp->device, cmd->base.dest.port_num)) {
+		ret = -EINVAL;
+		goto release_qp;
+	}
+
 	if ((cmd->base.attr_mask & IB_QP_ALT_PATH) &&
-	    !rdma_is_port_valid(qp->device, cmd->base.alt_port_num)) {
+	    (!rdma_is_port_valid(qp->device, cmd->base.alt_port_num) ||
+	    !rdma_is_port_valid(qp->device, cmd->base.alt_dest.port_num))) {
 		ret = -EINVAL;
 		goto release_qp;
 	}
@@ -2941,6 +2953,11 @@ int ib_uverbs_ex_create_wq(struct ib_uverbs_file *file,
 		wq_init_attr.create_flags = cmd.create_flags;
 	obj->uevent.events_reported = 0;
 	INIT_LIST_HEAD(&obj->uevent.event_list);
+
+	if (!pd->device->create_wq) {
+		err = -EOPNOTSUPP;
+		goto err_put_cq;
+	}
 	wq = pd->device->create_wq(pd, &wq_init_attr, uhw);
 	if (IS_ERR(wq)) {
 		err = PTR_ERR(wq);
@@ -3084,7 +3101,12 @@ int ib_uverbs_ex_modify_wq(struct ib_uverbs_file *file,
 		wq_attr.flags = cmd.flags;
 		wq_attr.flags_mask = cmd.flags_mask;
 	}
+	if (!wq->device->modify_wq) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
 	ret = wq->device->modify_wq(wq, &wq_attr, cmd.attr_mask, uhw);
+out:
 	uobj_put_obj_read(wq);
 	return ret;
 }
@@ -3181,6 +3203,11 @@ int ib_uverbs_ex_create_rwq_ind_table(struct ib_uverbs_file *file,
 
 	init_attr.log_ind_tbl_size = cmd.log_ind_tbl_size;
 	init_attr.ind_tbl = wqs;
+
+	if (!ib_dev->create_rwq_ind_table) {
+		err = -EOPNOTSUPP;
+		goto err_uobj;
+	}
 	rwq_ind_tbl = ib_dev->create_rwq_ind_table(ib_dev, &init_attr, uhw);
 
 	if (IS_ERR(rwq_ind_tbl)) {
@@ -3769,6 +3796,9 @@ int ib_uverbs_ex_query_device(struct ib_uverbs_file *file,
 	struct ib_uverbs_ex_query_device  cmd;
 	struct ib_device_attr attr = {0};
 	int err;
+
+	if (!ib_dev->query_device)
+		return -EOPNOTSUPP;
 
 	if (ucore->inlen < sizeof(cmd))
 		return -EINVAL;

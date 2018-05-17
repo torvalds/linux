@@ -14,10 +14,8 @@
 #include <linux/module.h>
 
 #define DRIVER_DESC    "ATI/Philips USB RF remote driver"
-#define DRIVER_VERSION "0.3"
 
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_AUTHOR("Ville Syrjala <syrjala@sci.fi>");
 MODULE_LICENSE("GPL");
 

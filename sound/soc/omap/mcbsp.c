@@ -854,7 +854,7 @@ unlock:
 	return size;
 }
 
-static DEVICE_ATTR(dma_op_mode, 0644, dma_op_mode_show, dma_op_mode_store);
+static DEVICE_ATTR_RW(dma_op_mode);
 
 static const struct attribute *additional_attrs[] = {
 	&dev_attr_max_tx_thres.attr,
@@ -923,7 +923,7 @@ out:
 	return size;
 }
 
-static DEVICE_ATTR(st_taps, 0644, st_taps_show, st_taps_store);
+static DEVICE_ATTR_RW(st_taps);
 
 static const struct attribute *sidetone_attrs[] = {
 	&dev_attr_st_taps.attr,

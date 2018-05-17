@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * NewportMedia WiFi chipset driver test tools - wilc-debug
  * Copyright (c) 2012 NewportMedia Inc.

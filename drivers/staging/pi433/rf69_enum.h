@@ -18,184 +18,126 @@
 #ifndef RF69_ENUM_H
 #define RF69_ENUM_H
 
-enum optionOnOff
-{
-    optionOff,
-    optionOn
+enum mode {
+	mode_sleep,
+	standby,
+	synthesizer,
+	transmit,
+	receive
 };
 
-enum mode
-{
-    mode_sleep,
-    standby,
-    synthesizer,
-    transmit,
-    receive
+enum modulation {
+	OOK,
+	FSK,
+	UNDEF
 };
 
-enum dataMode
-{
-    packet,
-    continuous,
-    continuousNoSync
+enum mod_shaping {
+	SHAPING_OFF,
+	SHAPING_1_0,
+	SHAPING_0_5,
+	SHAPING_0_3,
+	SHAPING_BR,
+	SHAPING_2BR
 };
 
-enum modulation
-{
-    OOK,
-    FSK
+enum paRamp {
+	ramp3400,
+	ramp2000,
+	ramp1000,
+	ramp500,
+	ramp250,
+	ramp125,
+	ramp100,
+	ramp62,
+	ramp50,
+	ramp40,
+	ramp31,
+	ramp25,
+	ramp20,
+	ramp15,
+	ramp12,
+	ramp10
 };
 
-enum modShaping
-{
-    shapingOff,
-    shaping1_0,
-    shaping0_5,
-    shaping0_3,
-    shapingBR,
-    shaping2BR
+enum antennaImpedance {
+	fiftyOhm,
+	twohundretOhm
 };
 
-enum paRamp
-{
-    ramp3400,
-    ramp2000,
-    ramp1000,
-    ramp500,
-    ramp250,
-    ramp125,
-    ramp100,
-    ramp62,
-    ramp50,
-    ramp40,
-    ramp31,
-    ramp25,
-    ramp20,
-    ramp15,
-    ramp12,
-    ramp10
+enum lnaGain {
+	automatic,
+	max,
+	max_minus_6,
+	max_minus_12,
+	max_minus_24,
+	max_minus_36,
+	max_minus_48,
+	undefined
 };
 
-enum antennaImpedance
-{
-    fiftyOhm,
-    twohundretOhm
+enum mantisse {
+	mantisse16,
+	mantisse20,
+	mantisse24
 };
 
-enum lnaGain
-{
-    automatic,
-    max,
-    maxMinus6,
-    maxMinus12,
-    maxMinus24,
-    maxMinus36,
-    maxMinus48,
-    undefined
+enum thresholdDecrement {
+	dec_every8th,
+	dec_every4th,
+	dec_every2nd,
+	dec_once,
+	dec_twice,
+	dec_4times,
+	dec_8times,
+	dec_16times
 };
 
-enum dccPercent
-{
-    dcc16Percent,
-    dcc8Percent,
-    dcc4Percent,
-    dcc2Percent,
-    dcc1Percent,
-    dcc0_5Percent,
-    dcc0_25Percent,
-    dcc0_125Percent
+enum flag {
+	modeSwitchCompleted,
+	readyToReceive,
+	readyToSend,
+	pllLocked,
+	rssiExceededThreshold,
+	timeout,
+	automode,
+	syncAddressMatch,
+	fifo_full,
+//	fifo_not_empty, collision with next enum; replaced by following enum...
+	fifo_empty,
+	fifo_level_below_threshold,
+	fifo_overrun,
+	packetSent,
+	payload_ready,
+	crcOk,
+	batteryLow
 };
 
-enum mantisse
-{
-    mantisse16,
-    mantisse20,
-    mantisse24
+enum fifo_fill_condition {
+	afterSyncInterrupt,
+	always
 };
 
-enum thresholdType
-{
-    fixed,
-    peak,
-    average
+enum packetFormat {
+	packetLengthFix,
+	packetLengthVar
 };
 
-enum thresholdStep
-{
-    step_0_5db,
-    step_1_0db,
-    step_1_5db,
-    step_2_0db,
-    step_3_0db,
-    step_4_0db,
-    step_5_0db,
-    step_6_0db
+enum txStartCondition {
+	fifo_level,
+	fifo_not_empty
 };
 
-enum thresholdDecrement
-{
-    dec_every8th,
-    dec_every4th,
-    dec_every2nd,
-    dec_once,
-    dec_twice,
-    dec_4times,
-    dec_8times,
-    dec_16times
+enum addressFiltering {
+	filteringOff,
+	nodeAddress,
+	nodeOrBroadcastAddress
 };
 
-enum flag
-{
-    modeSwitchCompleted,
-    readyToReceive,
-    readyToSend,
-    pllLocked,
-    rssiExceededThreshold,
-    timeout,
-    automode,
-    syncAddressMatch,
-    fifoFull,
-//    fifoNotEmpty, collision with next enum; replaced by following enum...
-    fifoEmpty,
-    fifoLevelBelowThreshold,
-    fifoOverrun,
-    packetSent,
-    payloadReady,
-    crcOk,
-    batteryLow
+enum dagc {
+	normalMode,
+	improve,
+	improve4LowModulationIndex
 };
-
-enum fifoFillCondition
-{
-    afterSyncInterrupt,
-    always
-};
-
-enum packetFormat
-{
-    packetLengthFix,
-    packetLengthVar
-};
-
-enum txStartCondition
-{
-    fifoLevel,
-    fifoNotEmpty
-};
-
-enum addressFiltering
-{
-    filteringOff,
-    nodeAddress,
-    nodeOrBroadcastAddress
-};
-
-enum dagc
-{
-    normalMode,
-    improve,
-    improve4LowModulationIndex
-};
-
 
 #endif

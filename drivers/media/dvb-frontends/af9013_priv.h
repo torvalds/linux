@@ -21,7 +21,7 @@
 #ifndef AF9013_PRIV_H
 #define AF9013_PRIV_H
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "af9013.h"
 #include <linux/firmware.h>
 #include <linux/math64.h>

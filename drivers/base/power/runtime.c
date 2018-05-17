@@ -1613,22 +1613,34 @@ void pm_runtime_drop_link(struct device *dev)
 	spin_unlock_irq(&dev->power.lock);
 }
 
+static bool pm_runtime_need_not_resume(struct device *dev)
+{
+	return atomic_read(&dev->power.usage_count) <= 1 &&
+		(atomic_read(&dev->power.child_count) == 0 ||
+		 dev->power.ignore_children);
+}
+
 /**
  * pm_runtime_force_suspend - Force a device into suspend state if needed.
  * @dev: Device to suspend.
  *
  * Disable runtime PM so we safely can check the device's runtime PM status and
- * if it is active, invoke it's .runtime_suspend callback to bring it into
- * suspend state. Keep runtime PM disabled to preserve the state unless we
- * encounter errors.
+ * if it is active, invoke its ->runtime_suspend callback to suspend it and
+ * change its runtime PM status field to RPM_SUSPENDED.  Also, if the device's
+ * usage and children counters don't indicate that the device was in use before
+ * the system-wide transition under way, decrement its parent's children counter
+ * (if there is a parent).  Keep runtime PM disabled to preserve the state
+ * unless we encounter errors.
  *
  * Typically this function may be invoked from a system suspend callback to make
- * sure the device is put into low power state.
+ * sure the device is put into low power state and it should only be used during
+ * system-wide PM transitions to sleep states.  It assumes that the analogous
+ * pm_runtime_force_resume() will be used to resume the device.
  */
 int pm_runtime_force_suspend(struct device *dev)
 {
 	int (*callback)(struct device *);
-	int ret = 0;
+	int ret;
 
 	pm_runtime_disable(dev);
 	if (pm_runtime_status_suspended(dev))
@@ -1636,27 +1648,23 @@ int pm_runtime_force_suspend(struct device *dev)
 
 	callback = RPM_GET_CALLBACK(dev, runtime_suspend);
 
-	if (!callback) {
-		ret = -ENOSYS;
-		goto err;
-	}
-
-	ret = callback(dev);
+	ret = callback ? callback(dev) : 0;
 	if (ret)
 		goto err;
 
 	/*
-	 * Increase the runtime PM usage count for the device's parent, in case
-	 * when we find the device being used when system suspend was invoked.
-	 * This informs pm_runtime_force_resume() to resume the parent
-	 * immediately, which is needed to be able to resume its children,
-	 * when not deferring the resume to be managed via runtime PM.
+	 * If the device can stay in suspend after the system-wide transition
+	 * to the working state that will follow, drop the children counter of
+	 * its parent, but set its status to RPM_SUSPENDED anyway in case this
+	 * function will be called again for it in the meantime.
 	 */
-	if (dev->parent && atomic_read(&dev->power.usage_count) > 1)
-		pm_runtime_get_noresume(dev->parent);
+	if (pm_runtime_need_not_resume(dev))
+		pm_runtime_set_suspended(dev);
+	else
+		__update_runtime_status(dev, RPM_SUSPENDED);
 
-	pm_runtime_set_suspended(dev);
 	return 0;
+
 err:
 	pm_runtime_enable(dev);
 	return ret;
@@ -1669,13 +1677,9 @@ EXPORT_SYMBOL_GPL(pm_runtime_force_suspend);
  *
  * Prior invoking this function we expect the user to have brought the device
  * into low power state by a call to pm_runtime_force_suspend(). Here we reverse
- * those actions and brings the device into full power, if it is expected to be
- * used on system resume. To distinguish that, we check whether the runtime PM
- * usage count is greater than 1 (the PM core increases the usage count in the
- * system PM prepare phase), as that indicates a real user (such as a subsystem,
- * driver, userspace, etc.) is using it. If that is the case, the device is
- * expected to be used on system resume as well, so then we resume it. In the
- * other case, we defer the resume to be managed via runtime PM.
+ * those actions and bring the device into full power, if it is expected to be
+ * used on system resume.  In the other case, we defer the resume to be managed
+ * via runtime PM.
  *
  * Typically this function may be invoked from a system resume callback.
  */
@@ -1684,32 +1688,18 @@ int pm_runtime_force_resume(struct device *dev)
 	int (*callback)(struct device *);
 	int ret = 0;
 
-	callback = RPM_GET_CALLBACK(dev, runtime_resume);
-
-	if (!callback) {
-		ret = -ENOSYS;
-		goto out;
-	}
-
-	if (!pm_runtime_status_suspended(dev))
+	if (!pm_runtime_status_suspended(dev) || pm_runtime_need_not_resume(dev))
 		goto out;
 
 	/*
-	 * Decrease the parent's runtime PM usage count, if we increased it
-	 * during system suspend in pm_runtime_force_suspend().
-	*/
-	if (atomic_read(&dev->power.usage_count) > 1) {
-		if (dev->parent)
-			pm_runtime_put_noidle(dev->parent);
-	} else {
-		goto out;
-	}
+	 * The value of the parent's children counter is correct already, so
+	 * just update the status of the device.
+	 */
+	__update_runtime_status(dev, RPM_ACTIVE);
 
-	ret = pm_runtime_set_active(dev);
-	if (ret)
-		goto out;
+	callback = RPM_GET_CALLBACK(dev, runtime_resume);
 
-	ret = callback(dev);
+	ret = callback ? callback(dev) : 0;
 	if (ret) {
 		pm_runtime_set_suspended(dev);
 		goto out;

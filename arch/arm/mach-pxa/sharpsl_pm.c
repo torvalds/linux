@@ -802,8 +802,8 @@ static ssize_t battery_voltage_show(struct device *dev, struct device_attribute 
 	return sprintf(buf, "%d\n", sharpsl_pm.battstat.mainbat_voltage);
 }
 
-static DEVICE_ATTR(battery_percentage, 0444, battery_percentage_show, NULL);
-static DEVICE_ATTR(battery_voltage, 0444, battery_voltage_show, NULL);
+static DEVICE_ATTR_RO(battery_percentage);
+static DEVICE_ATTR_RO(battery_voltage);
 
 extern void (*apm_get_power_status)(struct apm_power_info *);
 

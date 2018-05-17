@@ -4,9 +4,6 @@
  * Usual Tables File for usb-storage and libusual
  *
  * Copyright (C) 2009 Alan Stern (stern@rowland.harvard.edu)
- *
- * Please see http://www.one-eyed-alien.net/~mdharm/linux-usb for more
- * information about this driver.
  */
 
 #include <linux/kernel.h>

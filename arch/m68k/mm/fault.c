@@ -21,8 +21,9 @@ extern void die_if_kernel(char *, struct pt_regs *, long);
 
 int send_fault_sig(struct pt_regs *regs)
 {
-	siginfo_t siginfo = { 0, 0, 0, };
+	siginfo_t siginfo;
 
+	clear_siginfo(&siginfo);
 	siginfo.si_signo = current->thread.signo;
 	siginfo.si_code = current->thread.code;
 	siginfo.si_addr = (void *)current->thread.faddr;

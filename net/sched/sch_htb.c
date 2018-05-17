@@ -1017,7 +1017,8 @@ static void htb_work_func(struct work_struct *work)
 	rcu_read_unlock();
 }
 
-static int htb_init(struct Qdisc *sch, struct nlattr *opt)
+static int htb_init(struct Qdisc *sch, struct nlattr *opt,
+		    struct netlink_ext_ack *extack)
 {
 	struct htb_sched *q = qdisc_priv(sch);
 	struct nlattr *tb[TCA_HTB_MAX + 1];
@@ -1031,7 +1032,7 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt)
 	if (!opt)
 		return -EINVAL;
 
-	err = tcf_block_get(&q->block, &q->filter_list, sch);
+	err = tcf_block_get(&q->block, &q->filter_list, sch, extack);
 	if (err)
 		return err;
 
@@ -1171,7 +1172,7 @@ htb_dump_class_stats(struct Qdisc *sch, unsigned long arg, struct gnet_dump *d)
 }
 
 static int htb_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
-		     struct Qdisc **old)
+		     struct Qdisc **old, struct netlink_ext_ack *extack)
 {
 	struct htb_class *cl = (struct htb_class *)arg;
 
@@ -1179,7 +1180,7 @@ static int htb_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 		return -EINVAL;
 	if (new == NULL &&
 	    (new = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
-				     cl->common.classid)) == NULL)
+				     cl->common.classid, extack)) == NULL)
 		return -ENOBUFS;
 
 	*old = qdisc_replace(sch, new, &cl->un.leaf.q);
@@ -1289,7 +1290,8 @@ static int htb_delete(struct Qdisc *sch, unsigned long arg)
 
 	if (!cl->level && htb_parent_last_child(cl)) {
 		new_q = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
-					  cl->parent->common.classid);
+					  cl->parent->common.classid,
+					  NULL);
 		last_child = 1;
 	}
 
@@ -1326,7 +1328,7 @@ static int htb_delete(struct Qdisc *sch, unsigned long arg)
 
 static int htb_change_class(struct Qdisc *sch, u32 classid,
 			    u32 parentid, struct nlattr **tca,
-			    unsigned long *arg)
+			    unsigned long *arg, struct netlink_ext_ack *extack)
 {
 	int err = -EINVAL;
 	struct htb_sched *q = qdisc_priv(sch);
@@ -1356,10 +1358,12 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 
 	/* Keeping backward compatible with rate_table based iproute2 tc */
 	if (hopt->rate.linklayer == TC_LINKLAYER_UNAWARE)
-		qdisc_put_rtab(qdisc_get_rtab(&hopt->rate, tb[TCA_HTB_RTAB]));
+		qdisc_put_rtab(qdisc_get_rtab(&hopt->rate, tb[TCA_HTB_RTAB],
+					      NULL));
 
 	if (hopt->ceil.linklayer == TC_LINKLAYER_UNAWARE)
-		qdisc_put_rtab(qdisc_get_rtab(&hopt->ceil, tb[TCA_HTB_CTAB]));
+		qdisc_put_rtab(qdisc_get_rtab(&hopt->ceil, tb[TCA_HTB_CTAB],
+					      NULL));
 
 	if (!cl) {		/* new class */
 		struct Qdisc *new_q;
@@ -1394,7 +1398,7 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		if (!cl)
 			goto failure;
 
-		err = tcf_block_get(&cl->block, &cl->filter_list, sch);
+		err = tcf_block_get(&cl->block, &cl->filter_list, sch, extack);
 		if (err) {
 			kfree(cl);
 			goto failure;
@@ -1423,8 +1427,8 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		 * so that can't be used inside of sch_tree_lock
 		 * -- thanks to Karlis Peisenieks
 		 */
-		new_q = qdisc_create_dflt(sch->dev_queue,
-					  &pfifo_qdisc_ops, classid);
+		new_q = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
+					  classid, NULL);
 		sch_tree_lock(sch);
 		if (parent && !parent->level) {
 			unsigned int qlen = parent->un.leaf.q->q.qlen;
@@ -1524,7 +1528,8 @@ failure:
 	return err;
 }
 
-static struct tcf_block *htb_tcf_block(struct Qdisc *sch, unsigned long arg)
+static struct tcf_block *htb_tcf_block(struct Qdisc *sch, unsigned long arg,
+				       struct netlink_ext_ack *extack)
 {
 	struct htb_sched *q = qdisc_priv(sch);
 	struct htb_class *cl = (struct htb_class *)arg;

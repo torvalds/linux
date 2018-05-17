@@ -39,7 +39,7 @@
 #define IBMVNIC_RX_WEIGHT		16
 /* when changing this, update IBMVNIC_IO_ENTITLEMENT_DEFAULT */
 #define IBMVNIC_BUFFS_PER_POOL	100
-#define IBMVNIC_MAX_TX_QUEUES	5
+#define IBMVNIC_MAX_QUEUES	10
 
 #define IBMVNIC_TSO_BUF_SZ	65536
 #define IBMVNIC_TSO_BUFS	64
@@ -1091,6 +1091,8 @@ struct ibmvnic_adapter {
 	u64 opt_rxba_entries_per_subcrq;
 	__be64 tx_rx_desc_req;
 	u8 map_id;
+	u64 num_active_rx_pools;
+	u64 num_active_tx_pools;
 
 	struct tasklet_struct tasklet;
 	enum vnic_state state;

@@ -28,20 +28,6 @@ struct gpcv2_irqchip_data {
 
 static struct gpcv2_irqchip_data *imx_gpcv2_instance;
 
-/*
- * Interface for the low level wakeup code.
- */
-u32 imx_gpcv2_get_wakeup_source(u32 **sources)
-{
-	if (!imx_gpcv2_instance)
-		return 0;
-
-	if (sources)
-		*sources = imx_gpcv2_instance->wakeup_sources;
-
-	return IMR_NUM;
-}
-
 static int gpcv2_wakeup_source_save(void)
 {
 	struct gpcv2_irqchip_data *cd;

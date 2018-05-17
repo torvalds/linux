@@ -68,7 +68,7 @@ struct posix_clock_operations {
 
 	int     (*open)    (struct posix_clock *pc, fmode_t f_mode);
 
-	uint    (*poll)    (struct posix_clock *pc,
+	__poll_t (*poll)   (struct posix_clock *pc,
 			    struct file *file, poll_table *wait);
 
 	int     (*release) (struct posix_clock *pc);

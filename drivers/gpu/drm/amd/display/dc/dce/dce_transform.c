@@ -1177,207 +1177,160 @@ void dce110_opp_set_csc_default(
 		default_adjust->out_color_space);
 }
 
-static void program_pwl(
-	struct dce_transform *xfm_dce,
-	const struct pwl_params *params)
+static void program_pwl(struct dce_transform *xfm_dce,
+			const struct pwl_params *params)
 {
-	uint32_t value;
 	int retval;
+	uint8_t max_tries = 10;
+	uint8_t counter = 0;
+	uint32_t i = 0;
+	const struct pwl_result_data *rgb = params->rgb_resulted;
 
-	{
-		uint8_t max_tries = 10;
-		uint8_t counter = 0;
+	/* Power on LUT memory */
+	if (REG(DCFE_MEM_PWR_CTRL))
+		REG_UPDATE(DCFE_MEM_PWR_CTRL,
+			   DCP_REGAMMA_MEM_PWR_DIS, 1);
+	else
+		REG_UPDATE(DCFE_MEM_LIGHT_SLEEP_CNTL,
+			   REGAMMA_LUT_LIGHT_SLEEP_DIS, 1);
 
-		/* Power on LUT memory */
-		if (REG(DCFE_MEM_PWR_CTRL))
-			REG_UPDATE(DCFE_MEM_PWR_CTRL,
-				DCP_REGAMMA_MEM_PWR_DIS, 1);
-		else
-			REG_UPDATE(DCFE_MEM_LIGHT_SLEEP_CNTL,
-				REGAMMA_LUT_LIGHT_SLEEP_DIS, 1);
+	while (counter < max_tries) {
+		if (REG(DCFE_MEM_PWR_STATUS)) {
+			REG_GET(DCFE_MEM_PWR_STATUS,
+				DCP_REGAMMA_MEM_PWR_STATE,
+				&retval);
 
-		while (counter < max_tries) {
-			if (REG(DCFE_MEM_PWR_STATUS)) {
-				value = REG_READ(DCFE_MEM_PWR_STATUS);
-				REG_GET(DCFE_MEM_PWR_STATUS,
-						DCP_REGAMMA_MEM_PWR_STATE,
-						&retval);
+			if (retval == 0)
+				break;
+			++counter;
+		} else {
+			REG_GET(DCFE_MEM_LIGHT_SLEEP_CNTL,
+				REGAMMA_LUT_MEM_PWR_STATE,
+				&retval);
 
-				if (retval == 0)
-						break;
-				++counter;
-			} else {
-				value = REG_READ(DCFE_MEM_LIGHT_SLEEP_CNTL);
-				REG_GET(DCFE_MEM_LIGHT_SLEEP_CNTL,
-						REGAMMA_LUT_MEM_PWR_STATE,
-						&retval);
-
-				if (retval == 0)
-						break;
-				++counter;
-			}
+			if (retval == 0)
+				break;
+			++counter;
 		}
+	}
 
-		if (counter == max_tries) {
-			dm_logger_write(xfm_dce->base.ctx->logger, LOG_WARNING,
+	if (counter == max_tries) {
+		dm_logger_write(xfm_dce->base.ctx->logger, LOG_WARNING,
 				"%s: regamma lut was not powered on "
 				"in a timely manner,"
 				" programming still proceeds\n",
 				__func__);
-		}
 	}
 
 	REG_UPDATE(REGAMMA_LUT_WRITE_EN_MASK,
-			REGAMMA_LUT_WRITE_EN_MASK, 7);
+		   REGAMMA_LUT_WRITE_EN_MASK, 7);
 
 	REG_WRITE(REGAMMA_LUT_INDEX, 0);
 
 	/* Program REGAMMA_LUT_DATA */
-	{
-		uint32_t i = 0;
-		const struct pwl_result_data *rgb = params->rgb_resulted;
+	while (i != params->hw_points_num) {
 
-		while (i != params->hw_points_num) {
+		REG_WRITE(REGAMMA_LUT_DATA, rgb->red_reg);
+		REG_WRITE(REGAMMA_LUT_DATA, rgb->green_reg);
+		REG_WRITE(REGAMMA_LUT_DATA, rgb->blue_reg);
+		REG_WRITE(REGAMMA_LUT_DATA, rgb->delta_red_reg);
+		REG_WRITE(REGAMMA_LUT_DATA, rgb->delta_green_reg);
+		REG_WRITE(REGAMMA_LUT_DATA, rgb->delta_blue_reg);
 
-			REG_WRITE(REGAMMA_LUT_DATA, rgb->red_reg);
-			REG_WRITE(REGAMMA_LUT_DATA, rgb->green_reg);
-			REG_WRITE(REGAMMA_LUT_DATA, rgb->blue_reg);
-			REG_WRITE(REGAMMA_LUT_DATA, rgb->delta_red_reg);
-			REG_WRITE(REGAMMA_LUT_DATA, rgb->delta_green_reg);
-			REG_WRITE(REGAMMA_LUT_DATA, rgb->delta_blue_reg);
-
-			++rgb;
-			++i;
-		}
+		++rgb;
+		++i;
 	}
 
 	/*  we are done with DCP LUT memory; re-enable low power mode */
 	if (REG(DCFE_MEM_PWR_CTRL))
 		REG_UPDATE(DCFE_MEM_PWR_CTRL,
-			DCP_REGAMMA_MEM_PWR_DIS, 0);
+			   DCP_REGAMMA_MEM_PWR_DIS, 0);
 	else
 		REG_UPDATE(DCFE_MEM_LIGHT_SLEEP_CNTL,
-			REGAMMA_LUT_LIGHT_SLEEP_DIS, 0);
+			   REGAMMA_LUT_LIGHT_SLEEP_DIS, 0);
 }
 
-static void regamma_config_regions_and_segments(
-	struct dce_transform *xfm_dce,
-	const struct pwl_params *params)
+static void regamma_config_regions_and_segments(struct dce_transform *xfm_dce,
+						const struct pwl_params *params)
 {
 	const struct gamma_curve *curve;
 
-	{
-		REG_SET_2(REGAMMA_CNTLA_START_CNTL, 0,
-			REGAMMA_CNTLA_EXP_REGION_START, params->arr_points[0].custom_float_x,
-			REGAMMA_CNTLA_EXP_REGION_START_SEGMENT, 0);
-	}
-	{
-		REG_SET(REGAMMA_CNTLA_SLOPE_CNTL, 0,
-			REGAMMA_CNTLA_EXP_REGION_LINEAR_SLOPE, params->arr_points[0].custom_float_slope);
+	REG_SET_2(REGAMMA_CNTLA_START_CNTL, 0,
+		  REGAMMA_CNTLA_EXP_REGION_START, params->arr_points[0].custom_float_x,
+		  REGAMMA_CNTLA_EXP_REGION_START_SEGMENT, 0);
 
-	}
-	{
-		REG_SET(REGAMMA_CNTLA_END_CNTL1, 0,
-			REGAMMA_CNTLA_EXP_REGION_END, params->arr_points[1].custom_float_x);
-	}
-	{
-		REG_SET_2(REGAMMA_CNTLA_END_CNTL2, 0,
-			REGAMMA_CNTLA_EXP_REGION_END_BASE, params->arr_points[1].custom_float_y,
-			REGAMMA_CNTLA_EXP_REGION_END_SLOPE, params->arr_points[2].custom_float_slope);
-	}
+	REG_SET(REGAMMA_CNTLA_SLOPE_CNTL, 0,
+		REGAMMA_CNTLA_EXP_REGION_LINEAR_SLOPE, params->arr_points[0].custom_float_slope);
+
+	REG_SET(REGAMMA_CNTLA_END_CNTL1, 0,
+		REGAMMA_CNTLA_EXP_REGION_END, params->arr_points[1].custom_float_x);
+
+	REG_SET_2(REGAMMA_CNTLA_END_CNTL2, 0,
+		  REGAMMA_CNTLA_EXP_REGION_END_BASE, params->arr_points[1].custom_float_y,
+		  REGAMMA_CNTLA_EXP_REGION_END_SLOPE, params->arr_points[1].custom_float_slope);
 
 	curve = params->arr_curve_points;
 
-	{
-		REG_SET_4(REGAMMA_CNTLA_REGION_0_1, 0,
-			REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
-			REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
-			REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
-			REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
-	}
-
+	REG_SET_4(REGAMMA_CNTLA_REGION_0_1, 0,
+		  REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
+		  REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
+		  REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
+		  REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
 	curve += 2;
 
-	{
-		REG_SET_4(REGAMMA_CNTLA_REGION_2_3, 0,
-			REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
-			REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
-			REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
-			REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
-
-	}
-
+	REG_SET_4(REGAMMA_CNTLA_REGION_2_3, 0,
+		  REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
+		  REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
+		  REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
+		  REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
 	curve += 2;
 
-	{
-		REG_SET_4(REGAMMA_CNTLA_REGION_4_5, 0,
-			REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
-			REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
-			REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
-			REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
-
-	}
-
+	REG_SET_4(REGAMMA_CNTLA_REGION_4_5, 0,
+		  REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
+		  REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
+		  REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
+		  REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
 	curve += 2;
 
-	{
-		REG_SET_4(REGAMMA_CNTLA_REGION_6_7, 0,
-			REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
-			REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
-			REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
-			REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
-
-	}
-
+	REG_SET_4(REGAMMA_CNTLA_REGION_6_7, 0,
+		  REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
+		  REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
+		  REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
+		  REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
 	curve += 2;
 
-	{
-		REG_SET_4(REGAMMA_CNTLA_REGION_8_9, 0,
-			REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
-			REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
-			REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
-			REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
-
-	}
-
+	REG_SET_4(REGAMMA_CNTLA_REGION_8_9, 0,
+		  REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
+		  REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
+		  REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
+		  REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
 	curve += 2;
 
-	{
-		REG_SET_4(REGAMMA_CNTLA_REGION_10_11, 0,
-			REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
-			REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
-			REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
-			REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
-
-	}
-
+	REG_SET_4(REGAMMA_CNTLA_REGION_10_11, 0,
+		  REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
+		  REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
+		  REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
+		  REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
 	curve += 2;
 
-	{
-		REG_SET_4(REGAMMA_CNTLA_REGION_12_13, 0,
-			REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
-			REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
-			REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
-			REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
-
-	}
-
+	REG_SET_4(REGAMMA_CNTLA_REGION_12_13, 0,
+		  REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
+		  REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
+		  REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
+		  REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
 	curve += 2;
 
-	{
-		REG_SET_4(REGAMMA_CNTLA_REGION_14_15, 0,
-			REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
-			REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
-			REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
-			REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
-	}
+	REG_SET_4(REGAMMA_CNTLA_REGION_14_15, 0,
+		  REGAMMA_CNTLA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
+		  REGAMMA_CNTLA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
+		  REGAMMA_CNTLA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
+		  REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
 }
 
 
 
-void dce110_opp_program_regamma_pwl(
-	struct transform *xfm,
-	const struct pwl_params *params)
+void dce110_opp_program_regamma_pwl(struct transform *xfm,
+				    const struct pwl_params *params)
 {
 	struct dce_transform *xfm_dce = TO_DCE_TRANSFORM(xfm);
 
@@ -1388,47 +1341,42 @@ void dce110_opp_program_regamma_pwl(
 	program_pwl(xfm_dce, params);
 }
 
-void dce110_opp_power_on_regamma_lut(
-	struct transform *xfm,
-	bool power_on)
+void dce110_opp_power_on_regamma_lut(struct transform *xfm,
+				     bool power_on)
 {
 	struct dce_transform *xfm_dce = TO_DCE_TRANSFORM(xfm);
 
 	if (REG(DCFE_MEM_PWR_CTRL))
 		REG_UPDATE_2(DCFE_MEM_PWR_CTRL,
-			DCP_REGAMMA_MEM_PWR_DIS, power_on,
-			DCP_LUT_MEM_PWR_DIS, power_on);
+			     DCP_REGAMMA_MEM_PWR_DIS, power_on,
+			     DCP_LUT_MEM_PWR_DIS, power_on);
 	else
 		REG_UPDATE_2(DCFE_MEM_LIGHT_SLEEP_CNTL,
-			REGAMMA_LUT_LIGHT_SLEEP_DIS, power_on,
-			DCP_LUT_LIGHT_SLEEP_DIS, power_on);
+			    REGAMMA_LUT_LIGHT_SLEEP_DIS, power_on,
+			    DCP_LUT_LIGHT_SLEEP_DIS, power_on);
 
 }
 
 void dce110_opp_set_regamma_mode(struct transform *xfm,
-		enum opp_regamma mode)
+				 enum opp_regamma mode)
 {
 	struct dce_transform *xfm_dce = TO_DCE_TRANSFORM(xfm);
 
 	REG_SET(REGAMMA_CONTROL, 0,
-			GRPH_REGAMMA_MODE, mode);
+		GRPH_REGAMMA_MODE, mode);
 }
 
 static const struct transform_funcs dce_transform_funcs = {
 	.transform_reset = dce_transform_reset,
-	.transform_set_scaler =
-		dce_transform_set_scaler,
-	.transform_set_gamut_remap =
-		dce_transform_set_gamut_remap,
+	.transform_set_scaler = dce_transform_set_scaler,
+	.transform_set_gamut_remap = dce_transform_set_gamut_remap,
 	.opp_set_csc_adjustment = dce110_opp_set_csc_adjustment,
 	.opp_set_csc_default = dce110_opp_set_csc_default,
 	.opp_power_on_regamma_lut = dce110_opp_power_on_regamma_lut,
 	.opp_program_regamma_pwl = dce110_opp_program_regamma_pwl,
 	.opp_set_regamma_mode = dce110_opp_set_regamma_mode,
-	.transform_set_pixel_storage_depth =
-		dce_transform_set_pixel_storage_depth,
-	.transform_get_optimal_number_of_taps =
-		dce_transform_get_optimal_number_of_taps
+	.transform_set_pixel_storage_depth = dce_transform_set_pixel_storage_depth,
+	.transform_get_optimal_number_of_taps = dce_transform_get_optimal_number_of_taps
 };
 
 /*****************************************/

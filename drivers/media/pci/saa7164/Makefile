@@ -5,9 +5,5 @@ saa7164-objs	:= saa7164-cards.o saa7164-core.o saa7164-i2c.o saa7164-dvb.o \
 
 obj-$(CONFIG_VIDEO_SAA7164) += saa7164.o
 
-ccflags-y += -I$(srctree)/drivers/media/i2c
 ccflags-y += -I$(srctree)/drivers/media/tuners
-ccflags-y += -I$(srctree)/drivers/media/dvb-core
 ccflags-y += -I$(srctree)/drivers/media/dvb-frontends
-
-ccflags-y += $(extra-cflags-y) $(extra-cflags-m)

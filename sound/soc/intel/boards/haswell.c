@@ -76,7 +76,7 @@ static int haswell_rt5640_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* set correct codec filter for DAI format and clock config */
-	snd_soc_update_bits(rtd->codec, 0x83, 0xffff, 0x8000);
+	snd_soc_component_update_bits(codec_dai->component, 0x83, 0xffff, 0x8000);
 
 	return ret;
 }

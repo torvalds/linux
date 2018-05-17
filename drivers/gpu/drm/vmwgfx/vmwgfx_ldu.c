@@ -266,8 +266,8 @@ static const struct drm_connector_funcs vmw_legacy_connector_funcs = {
 	.set_property = vmw_du_connector_set_property,
 	.destroy = vmw_ldu_connector_destroy,
 	.reset = vmw_du_connector_reset,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.atomic_duplicate_state = vmw_du_connector_duplicate_state,
+	.atomic_destroy_state = vmw_du_connector_destroy_state,
 	.atomic_set_property = vmw_du_connector_atomic_set_property,
 	.atomic_get_property = vmw_du_connector_atomic_get_property,
 };

@@ -639,7 +639,7 @@ static void __exit dcdbas_exit(void)
 	platform_driver_unregister(&dcdbas_driver);
 }
 
-module_init(dcdbas_init);
+subsys_initcall_sync(dcdbas_init);
 module_exit(dcdbas_exit);
 
 MODULE_DESCRIPTION(DRIVER_DESCRIPTION " (version " DRIVER_VERSION ")");
