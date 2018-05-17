@@ -1823,7 +1823,6 @@ static int __sock_map_ctx_update_elem(struct bpf_map *map,
 	write_unlock_bh(&sock->sk_callback_lock);
 	return err;
 out_free:
-	kfree(e);
 	smap_release_sock(psock, sock);
 out_progs:
 	if (verdict)
