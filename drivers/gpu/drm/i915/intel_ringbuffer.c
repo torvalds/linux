@@ -1195,12 +1195,6 @@ static void intel_ring_context_destroy(struct intel_context *ce)
 
 static void intel_ring_context_unpin(struct intel_context *ce)
 {
-	lockdep_assert_held(&ce->gem_context->i915->drm.struct_mutex);
-	GEM_BUG_ON(ce->pin_count == 0);
-
-	if (--ce->pin_count)
-		return;
-
 	if (ce->state) {
 		ce->state->obj->pin_global--;
 		i915_vma_unpin(ce->state);

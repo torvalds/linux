@@ -74,9 +74,6 @@ static void hw_delay_complete(struct timer_list *t)
 
 static void mock_context_unpin(struct intel_context *ce)
 {
-	if (--ce->pin_count)
-		return;
-
 	i915_gem_context_put(ce->gem_context);
 }
 

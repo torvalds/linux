@@ -1343,7 +1343,7 @@ static void execlists_context_destroy(struct intel_context *ce)
 	__i915_gem_object_release_unless_active(ce->state->obj);
 }
 
-static void __execlists_context_unpin(struct intel_context *ce)
+static void execlists_context_unpin(struct intel_context *ce)
 {
 	intel_ring_unpin(ce->ring);
 
@@ -1352,17 +1352,6 @@ static void __execlists_context_unpin(struct intel_context *ce)
 	i915_vma_unpin(ce->state);
 
 	i915_gem_context_put(ce->gem_context);
-}
-
-static void execlists_context_unpin(struct intel_context *ce)
-{
-	lockdep_assert_held(&ce->gem_context->i915->drm.struct_mutex);
-	GEM_BUG_ON(ce->pin_count == 0);
-
-	if (--ce->pin_count)
-		return;
-
-	__execlists_context_unpin(ce);
 }
 
 static int __context_pin(struct i915_gem_context *ctx, struct i915_vma *vma)

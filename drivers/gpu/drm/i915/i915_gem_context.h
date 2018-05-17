@@ -285,6 +285,10 @@ static inline void __intel_context_pin(struct intel_context *ce)
 
 static inline void intel_context_unpin(struct intel_context *ce)
 {
+	GEM_BUG_ON(!ce->pin_count);
+	if (--ce->pin_count)
+		return;
+
 	GEM_BUG_ON(!ce->ops);
 	ce->ops->unpin(ce);
 }
