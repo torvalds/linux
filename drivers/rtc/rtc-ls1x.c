@@ -148,15 +148,13 @@ static int ls1x_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtcdev;
 	unsigned long v;
-	int ret;
 
 	v = readl(SYS_COUNTER_CNTRL);
 	if (!(v & RTC_CNTR_OK)) {
 		dev_err(&pdev->dev, "rtc counters not working\n");
-		ret = -ENODEV;
-		goto err;
+		return -ENODEV;
 	}
-	ret = -ETIMEDOUT;
+
 	/* set to 1 HZ if needed */
 	if (readl(SYS_TOYTRIM) != 32767) {
 		v = 0x100000;
@@ -165,7 +163,7 @@ static int ls1x_rtc_probe(struct platform_device *pdev)
 
 		if (!v) {
 			dev_err(&pdev->dev, "time out\n");
-			goto err;
+			return -ETIMEDOUT;
 		}
 		writel(32767, SYS_TOYTRIM);
 	}
@@ -181,9 +179,6 @@ static int ls1x_rtc_probe(struct platform_device *pdev)
 	rtcdev->ops = &ls1x_rtc_ops;
 
 	return rtc_register_device(rtcdev);
-
-err:
-	return ret;
 }
 
 static struct platform_driver  ls1x_rtc_driver = {
