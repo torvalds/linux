@@ -112,4 +112,5 @@ static inline bool pcie_pme_no_msi(void) { return false; }
 static inline void pcie_pme_interrupt_enable(struct pci_dev *dev, bool en) {}
 #endif /* !CONFIG_PCIE_PME */
 
+struct pcie_port_service_driver *find_aer_service(struct pci_dev *dev);
 #endif /* _PORTDRV_H_ */
