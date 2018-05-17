@@ -300,6 +300,8 @@ static int rtc_probe(struct platform_device *pdev)
 
 	rtc->ops = &vr41xx_rtc_ops;
 
+	/* 48-bit counter at 32.768 kHz */
+	rtc->range_max = (1ULL << 33) - 1;
 	rtc->max_user_freq = MAX_PERIODIC_RATE;
 
 	spin_lock_irq(&rtc_lock);
