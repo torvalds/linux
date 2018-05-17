@@ -762,6 +762,7 @@ int rockchip_pm_register_notify_to_dmc(struct devfreq *devfreq)
 
 	dmc_pmu->devfreq = devfreq;
 	dmc_pmu->dmc_nb.notifier_call = dmc_notify;
+	dmc_pmu->dmc_nb.priority = -100; /* notified after vop */
 	devfreq_register_notifier(dmc_pmu->devfreq, &dmc_pmu->dmc_nb,
 				  DEVFREQ_TRANSITION_NOTIFIER);
 	return 0;
