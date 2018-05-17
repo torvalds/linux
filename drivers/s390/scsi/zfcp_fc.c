@@ -111,11 +111,10 @@ void zfcp_fc_post_event(struct work_struct *work)
 
 	list_for_each_entry_safe(event, tmp, &tmp_lh, list) {
 		fc_host_post_event(adapter->scsi_host, fc_get_event_number(),
-				event->code, event->data);
+				   event->code, event->data);
 		list_del(&event->list);
 		kfree(event);
 	}
-
 }
 
 /**
@@ -126,7 +125,7 @@ void zfcp_fc_post_event(struct work_struct *work)
  * @event_data: The event data (e.g. n_port page in case of els)
  */
 void zfcp_fc_enqueue_event(struct zfcp_adapter *adapter,
-			enum fc_host_event_code event_code, u32 event_data)
+			   enum fc_host_event_code event_code, u32 event_data)
 {
 	struct zfcp_fc_event *event;
 
