@@ -52,6 +52,8 @@ extern void zfcp_dbf_san_res(char *, struct zfcp_fsf_req *);
 extern void zfcp_dbf_san_in_els(char *, struct zfcp_fsf_req *);
 extern void zfcp_dbf_scsi(char *, int, struct scsi_cmnd *,
 			  struct zfcp_fsf_req *);
+extern void zfcp_dbf_scsi_eh(char *tag, struct zfcp_adapter *adapter,
+			     unsigned int scsi_id, int ret);
 
 /* zfcp_erp.c */
 extern void zfcp_erp_set_adapter_status(struct zfcp_adapter *, u32);
