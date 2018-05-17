@@ -3220,12 +3220,12 @@ uint8_t
 intel_dp_voltage_max(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
-	enum port port = dp_to_dig_port(intel_dp)->base.port;
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	enum port port = encoder->port;
 
-	if (INTEL_GEN(dev_priv) >= 9) {
-		struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	if (HAS_DDI(dev_priv))
 		return intel_ddi_dp_voltage_max(encoder);
-	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 	else if (IS_GEN7(dev_priv) && port == PORT_A)
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
