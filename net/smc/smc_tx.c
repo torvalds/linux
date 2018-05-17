@@ -450,7 +450,7 @@ out_unlock:
 /* Wakeup sndbuf consumers from process context
  * since there is more data to transmit
  */
-static void smc_tx_work(struct work_struct *work)
+void smc_tx_work(struct work_struct *work)
 {
 	struct smc_connection *conn = container_of(to_delayed_work(work),
 						   struct smc_connection,
@@ -512,6 +512,4 @@ void smc_tx_consumer_update(struct smc_connection *conn)
 void smc_tx_init(struct smc_sock *smc)
 {
 	smc->sk.sk_write_space = smc_tx_write_space;
-	INIT_DELAYED_WORK(&smc->conn.tx_work, smc_tx_work);
-	spin_lock_init(&smc->conn.send_lock);
 }
