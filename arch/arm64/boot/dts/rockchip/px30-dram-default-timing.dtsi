@@ -13,11 +13,11 @@
 		ddr2_speed_bin = <DDR2_DEFAULT>;
 		ddr3_speed_bin = <DDR3_DEFAULT>;
 		ddr4_speed_bin = <DDR4_DEFAULT>;
-		pd_idle = <0>;
-		sr_idle = <0>;
+		pd_idle = <13>;
+		sr_idle = <93>;
 		sr_mc_gate_idle = <0>;
 		srpd_lite_idle	= <0>;
-		standby_idle = <0>;
+		standby_idle = <4000>;
 
 		auto_pd_dis_freq = <1066>;
 		auto_sr_dis_freq = <800>;
