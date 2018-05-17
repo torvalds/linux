@@ -730,6 +730,9 @@ void zfcp_scsi_rport_work(struct work_struct *work)
 	struct zfcp_port *port = container_of(work, struct zfcp_port,
 					      rport_work);
 
+	set_worker_desc("zrp%c-%16llx",
+			(port->rport_task == RPORT_ADD) ? 'a' : 'd',
+			port->wwpn); /* < WORKER_DESC_LEN=24 */
 	while (port->rport_task) {
 		if (port->rport_task == RPORT_ADD) {
 			port->rport_task = RPORT_NONE;

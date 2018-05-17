@@ -4350,6 +4350,7 @@ void set_worker_desc(const char *fmt, ...)
 		worker->desc_valid = true;
 	}
 }
+EXPORT_SYMBOL_GPL(set_worker_desc);
 
 /**
  * print_worker_info - print out worker information and description
