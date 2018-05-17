@@ -659,7 +659,6 @@ int rxe_completer(void *arg)
 			    qp->qp_timeout_jiffies)
 				mod_timer(&qp->retrans_timer,
 					  jiffies + qp->qp_timeout_jiffies);
-			WARN_ON_ONCE(skb);
 			goto exit;
 
 		case COMPST_ERROR_RETRY:
@@ -673,7 +672,6 @@ int rxe_completer(void *arg)
 
 			/* there is nothing to retry in this case */
 			if (!wqe || (wqe->state == wqe_state_posted)) {
-				WARN_ON_ONCE(skb);
 				goto exit;
 			}
 
@@ -702,7 +700,6 @@ int rxe_completer(void *arg)
 					skb = NULL;
 				}
 
-				WARN_ON_ONCE(skb);
 				goto exit;
 
 			} else {
@@ -746,7 +743,6 @@ int rxe_completer(void *arg)
 				skb = NULL;
 			}
 
-			WARN_ON_ONCE(skb);
 			goto exit;
 		}
 	}
