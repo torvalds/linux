@@ -288,14 +288,14 @@ static void vcn_v1_0_mc_resume(struct amdgpu_device *adev)
  *
  * Disable clock gating for VCN block
  */
-static void vcn_v1_0_disable_clock_gating(struct amdgpu_device *adev, bool sw)
+static void vcn_v1_0_disable_clock_gating(struct amdgpu_device *adev)
 {
 	uint32_t data;
 
 	/* JPEG disable CGC */
 	data = RREG32_SOC15(VCN, 0, mmJPEG_CGC_CTRL);
 
-	if (sw)
+	if (adev->cg_flags & AMD_CG_SUPPORT_VCN_MGCG)
 		data |= 1 << JPEG_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
 	else
 		data &= ~JPEG_CGC_CTRL__DYN_CLOCK_MODE_MASK;
@@ -310,7 +310,7 @@ static void vcn_v1_0_disable_clock_gating(struct amdgpu_device *adev, bool sw)
 
 	/* UVD disable CGC */
 	data = RREG32_SOC15(VCN, 0, mmUVD_CGC_CTRL);
-	if (sw)
+	if (adev->cg_flags & AMD_CG_SUPPORT_VCN_MGCG)
 		data |= 1 << UVD_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
 	else
 		data &= ~ UVD_CGC_CTRL__DYN_CLOCK_MODE_MASK;
@@ -415,13 +415,13 @@ static void vcn_v1_0_disable_clock_gating(struct amdgpu_device *adev, bool sw)
  *
  * Enable clock gating for VCN block
  */
-static void vcn_v1_0_enable_clock_gating(struct amdgpu_device *adev, bool sw)
+static void vcn_v1_0_enable_clock_gating(struct amdgpu_device *adev)
 {
 	uint32_t data = 0;
 
 	/* enable JPEG CGC */
 	data = RREG32_SOC15(VCN, 0, mmJPEG_CGC_CTRL);
-	if (sw)
+	if (adev->cg_flags & AMD_CG_SUPPORT_VCN_MGCG)
 		data |= 1 << JPEG_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
 	else
 		data |= 0 << JPEG_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
@@ -435,7 +435,7 @@ static void vcn_v1_0_enable_clock_gating(struct amdgpu_device *adev, bool sw)
 
 	/* enable UVD CGC */
 	data = RREG32_SOC15(VCN, 0, mmUVD_CGC_CTRL);
-	if (sw)
+	if (adev->cg_flags & AMD_CG_SUPPORT_VCN_MGCG)
 		data |= 1 << UVD_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
 	else
 		data |= 0 << UVD_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
@@ -500,7 +500,7 @@ static int vcn_v1_0_start(struct amdgpu_device *adev)
 	vcn_v1_0_mc_resume(adev);
 
 	/* disable clock gating */
-	vcn_v1_0_disable_clock_gating(adev, true);
+	vcn_v1_0_disable_clock_gating(adev);
 
 	/* disable interupt */
 	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_MASTINT_EN), 0,
@@ -681,15 +681,43 @@ static int vcn_v1_0_stop(struct amdgpu_device *adev)
 			~UVD_LMI_CTRL2__STALL_ARB_UMC_MASK);
 
 	/* enable clock gating */
-	vcn_v1_0_enable_clock_gating(adev, true);
+	vcn_v1_0_enable_clock_gating(adev);
 
 	return 0;
+}
+
+bool vcn_v1_0_is_idle(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	return (RREG32_SOC15(VCN, 0, mmUVD_STATUS) == 0x2);
+}
+
+int vcn_v1_0_wait_for_idle(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int ret = 0;
+
+	SOC15_WAIT_ON_RREG(VCN, 0, mmUVD_STATUS, 0x2, 0x2, ret);
+
+	return ret;
 }
 
 static int vcn_v1_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
-	/* needed for driver unload*/
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
+
+	if (enable) {
+		/* wait for STATUS to clear */
+		if (vcn_v1_0_is_idle(handle))
+			return -EBUSY;
+		vcn_v1_0_enable_clock_gating(adev);
+	} else {
+		/* disable HW gating and enable Sw gating */
+		vcn_v1_0_disable_clock_gating(adev);
+	}
 	return 0;
 }
 
@@ -1072,8 +1100,8 @@ static const struct amd_ip_funcs vcn_v1_0_ip_funcs = {
 	.hw_fini = vcn_v1_0_hw_fini,
 	.suspend = vcn_v1_0_suspend,
 	.resume = vcn_v1_0_resume,
-	.is_idle = NULL /* vcn_v1_0_is_idle */,
-	.wait_for_idle = NULL /* vcn_v1_0_wait_for_idle */,
+	.is_idle = vcn_v1_0_is_idle,
+	.wait_for_idle = vcn_v1_0_wait_for_idle,
 	.check_soft_reset = NULL /* vcn_v1_0_check_soft_reset */,
 	.pre_soft_reset = NULL /* vcn_v1_0_pre_soft_reset */,
 	.soft_reset = NULL /* vcn_v1_0_soft_reset */,
