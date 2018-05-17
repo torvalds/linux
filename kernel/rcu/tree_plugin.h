@@ -294,13 +294,17 @@ static void rcu_preempt_ctxt_queue(struct rcu_node *rnp, struct rcu_data *rdp)
 }
 
 /*
- * Record a preemptible-RCU quiescent state for the specified CPU.  Note
- * that this just means that the task currently running on the CPU is
- * not in a quiescent state.  There might be any number of tasks blocked
- * while in an RCU read-side critical section.
+ * Record a preemptible-RCU quiescent state for the specified CPU.
+ * Note that this does not necessarily mean that the task currently running
+ * on the CPU is in a quiescent state:  Instead, it means that the current
+ * grace period need not wait on any RCU read-side critical section that
+ * starts later on this CPU.  It also means that if the current task is
+ * in an RCU read-side critical section, it has already added itself to
+ * some leaf rcu_node structure's ->blkd_tasks list.  In addition to the
+ * current task, there might be any number of other tasks blocked while
+ * in an RCU read-side critical section.
  *
- * As with the other rcu_*_qs() functions, callers to this function
- * must disable preemption.
+ * Callers to this function must disable preemption.
  */
 static void rcu_preempt_qs(void)
 {
