@@ -98,13 +98,13 @@ static void rtc_next_alarm_time(struct rtc_time *next, struct rtc_time *now,
 	next->tm_min = alrm->tm_min;
 	next->tm_sec = alrm->tm_sec;
 
-	rtc_tm_to_time(now, &now_time);
-	rtc_tm_to_time(next, &next_time);
+	now_time = rtc_tm_to_time64(now);
+	next_time = rtc_tm_to_time64(next);
 
 	if (next_time < now_time) {
 		/* Advance one day */
 		next_time += 60 * 60 * 24;
-		rtc_time_to_tm(next_time, next);
+		rtc_time64_to_tm(next_time, next);
 	}
 }
 
@@ -123,7 +123,7 @@ static int pm80x_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	ticks = base + data;
 	dev_dbg(info->dev, "get base:0x%lx, RO count:0x%lx, ticks:0x%lx\n",
 		base, data, ticks);
-	rtc_time_to_tm(ticks, tm);
+	rtc_time64_to_tm(ticks, tm);
 	return 0;
 }
 
@@ -133,7 +133,7 @@ static int pm80x_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	unsigned char buf[4];
 	unsigned long ticks, base, data;
 
-	rtc_tm_to_time(tm, &ticks);
+	ticks = rtc_tm_to_time64(tm);
 
 	/* load 32-bit read-only counter */
 	regmap_raw_read(info->map, PM800_RTC_COUNTER1, buf, 4);
@@ -167,7 +167,7 @@ static int pm80x_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	dev_dbg(info->dev, "get base:0x%lx, RO count:0x%lx, ticks:0x%lx\n",
 		base, data, ticks);
 
-	rtc_time_to_tm(ticks, &alrm->time);
+	rtc_time64_to_tm(ticks, &alrm->time);
 	regmap_read(info->map, PM800_RTC_CONTROL, &ret);
 	alrm->enabled = (ret & PM800_ALARM1_EN) ? 1 : 0;
 	alrm->pending = (ret & (PM800_ALARM | PM800_ALARM_WAKEUP)) ? 1 : 0;
@@ -195,11 +195,11 @@ static int pm80x_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	dev_dbg(info->dev, "get base:0x%lx, RO count:0x%lx, ticks:0x%lx\n",
 		base, data, ticks);
 
-	rtc_time_to_tm(ticks, &now_tm);
+	rtc_time64_to_tm(ticks, &now_tm);
 	dev_dbg(info->dev, "%s, now time : %lu\n", __func__, ticks);
 	rtc_next_alarm_time(&alarm_tm, &now_tm, &alrm->time);
 	/* get new ticks for alarm in 24 hours */
-	rtc_tm_to_time(&alarm_tm, &ticks);
+	ticks = rtc_tm_to_time64(&alarm_tm);
 	dev_dbg(info->dev, "%s, alarm time: %lu\n", __func__, ticks);
 	data = ticks - base;
 
