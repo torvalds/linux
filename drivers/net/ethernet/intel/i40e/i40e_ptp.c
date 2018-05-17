@@ -799,9 +799,11 @@ void i40e_ptp_stop(struct i40e_pf *pf)
 	pf->ptp_rx = false;
 
 	if (pf->ptp_tx_skb) {
-		dev_kfree_skb_any(pf->ptp_tx_skb);
+		struct sk_buff *skb = pf->ptp_tx_skb;
+
 		pf->ptp_tx_skb = NULL;
 		clear_bit_unlock(__I40E_PTP_TX_IN_PROGRESS, pf->state);
+		dev_kfree_skb_any(skb);
 	}
 
 	if (pf->ptp_clock) {
