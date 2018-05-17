@@ -430,15 +430,24 @@ static int lzo_decompress(struct list_head *ws, unsigned char *data_in,
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	size_t in_len;
 	size_t out_len;
+	size_t max_segment_len = lzo1x_worst_compress(PAGE_SIZE);
 	int ret = 0;
 	char *kaddr;
 	unsigned long bytes;
 
-	BUG_ON(srclen < LZO_LEN);
+	if (srclen < LZO_LEN || srclen > max_segment_len + LZO_LEN * 2)
+		return -EUCLEAN;
 
+	in_len = read_compress_length(data_in);
+	if (in_len != srclen)
+		return -EUCLEAN;
 	data_in += LZO_LEN;
 
 	in_len = read_compress_length(data_in);
+	if (in_len != srclen - LZO_LEN * 2) {
+		ret = -EUCLEAN;
+		goto out;
+	}
 	data_in += LZO_LEN;
 
 	out_len = PAGE_SIZE;
