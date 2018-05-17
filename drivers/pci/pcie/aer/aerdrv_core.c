@@ -254,7 +254,7 @@ static void handle_error_source(struct pcie_device *aerdev,
 	} else if (info->severity == AER_NONFATAL)
 		pcie_do_nonfatal_recovery(dev);
 	else if (info->severity == AER_FATAL)
-		pcie_do_fatal_recovery(dev);
+		pcie_do_fatal_recovery(dev, PCIE_PORT_SERVICE_AER);
 }
 
 #ifdef CONFIG_ACPI_APEI_PCIEAER
@@ -321,7 +321,7 @@ static void aer_recover_work_func(struct work_struct *work)
 		if (entry.severity == AER_NONFATAL)
 			pcie_do_nonfatal_recovery(pdev);
 		else if (entry.severity == AER_FATAL)
-			pcie_do_fatal_recovery(pdev);
+			pcie_do_fatal_recovery(pdev, PCIE_PORT_SERVICE_AER);
 		pci_dev_put(pdev);
 	}
 }

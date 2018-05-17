@@ -180,7 +180,7 @@ static pci_ers_result_t default_reset_link(struct pci_dev *dev)
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
-static pci_ers_result_t reset_link(struct pci_dev *dev)
+static pci_ers_result_t reset_link(struct pci_dev *dev, u32 service)
 {
 	struct pci_dev *udev;
 	pci_ers_result_t status;
@@ -195,7 +195,7 @@ static pci_ers_result_t reset_link(struct pci_dev *dev)
 	}
 
 	/* Use the aer driver of the component firstly */
-	driver = pcie_port_find_service(udev, PCIE_PORT_SERVICE_AER);
+	driver = pcie_port_find_service(udev, service);
 
 	if (driver && driver->reset_link) {
 		status = driver->reset_link(udev);
@@ -281,7 +281,7 @@ static pci_ers_result_t broadcast_error_message(struct pci_dev *dev,
  * beneath this AER agent, followed by reset link e.g. secondary bus reset
  * followed by re-enumeration of devices.
  */
-void pcie_do_fatal_recovery(struct pci_dev *dev)
+void pcie_do_fatal_recovery(struct pci_dev *dev, u32 service)
 {
 	struct pci_dev *udev;
 	struct pci_bus *parent;
@@ -306,9 +306,10 @@ void pcie_do_fatal_recovery(struct pci_dev *dev)
 		pci_dev_put(pdev);
 	}
 
-	result = reset_link(udev);
+	result = reset_link(udev, service);
 
-	if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
+	if ((service == PCIE_PORT_SERVICE_AER) &&
+	    (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE)) {
 		/*
 		 * If the error is reported by a bridge, we think this error
 		 * is related to the downstream link of the bridge, so we
