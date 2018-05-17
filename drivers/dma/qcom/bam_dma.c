@@ -665,7 +665,7 @@ static struct dma_async_tx_descriptor *bam_prep_slave_sg(struct dma_chan *chan,
 				remainder = 0;
 			}
 
-			async_desc->length += desc->size;
+			async_desc->length += le16_to_cpu(desc->size);
 			desc++;
 		} while (remainder > 0);
 	}
@@ -910,7 +910,8 @@ static enum dma_status bam_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 				continue;
 
 			for (i = 0; i < async_desc->num_desc; i++)
-				residue += async_desc->curr_desc[i].size;
+				residue += le16_to_cpu(
+						async_desc->curr_desc[i].size);
 		}
 	}
 
