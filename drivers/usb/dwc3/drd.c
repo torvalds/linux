@@ -440,7 +440,7 @@ static int dwc3_drd_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-struct extcon_dev *dwc3_get_extcon(struct dwc3 *dwc)
+static struct extcon_dev *dwc3_get_extcon(struct dwc3 *dwc)
 {
 	struct device *dev = dwc->dev;
 	struct device_node *np_phy, *np_conn;
