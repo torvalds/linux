@@ -844,6 +844,10 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	 */
 	num_subframes = (max_amsdu_len + pad) / (subf_len + pad);
 
+	if (sta->max_amsdu_subframes &&
+	    num_subframes > sta->max_amsdu_subframes)
+		num_subframes = sta->max_amsdu_subframes;
+
 	tcp_payload_len = skb_tail_pointer(skb) - skb_transport_header(skb) -
 		tcp_hdrlen(skb) + skb->data_len;
 
