@@ -1908,6 +1908,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	cmpwi	cr2, r0, 0
 	beq	cr2, 4f
 
+	/*
+	 * Radix: do eieio; tlbsync; ptesync sequence in case we
+	 * interrupted the guest between a tlbie and a ptesync.
+	 */
+	eieio
+	tlbsync
+	ptesync
+
 	/* Radix: Handle the case where the guest used an illegal PID */
 	LOAD_REG_ADDR(r4, mmu_base_pid)
 	lwz	r3, VCPU_GUEST_PID(r9)
