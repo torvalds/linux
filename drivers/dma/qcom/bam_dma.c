@@ -451,6 +451,7 @@ static void bam_reset_channel(struct bam_chan *bchan)
 /**
  * bam_chan_init_hw - Initialize channel hardware
  * @bchan: bam channel
+ * @dir: DMA transfer direction
  *
  * This function resets and initializes the BAM channel
  */
@@ -679,7 +680,7 @@ err_out:
 
 /**
  * bam_dma_terminate_all - terminate all transactions on a channel
- * @bchan: bam dma channel
+ * @chan: bam dma channel
  *
  * Dequeues and frees all transactions
  * No callbacks are done
@@ -951,7 +952,7 @@ static void bam_apply_new_config(struct bam_chan *bchan,
 
 /**
  * bam_start_dma - start next transaction
- * @bchan - bam dma channel
+ * @bchan: bam dma channel
  */
 static void bam_start_dma(struct bam_chan *bchan)
 {
