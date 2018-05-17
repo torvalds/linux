@@ -1163,7 +1163,7 @@ void iwl_fw_error_dump_wk(struct work_struct *work)
 		goto out;
 	}
 
-	iwl_fw_dbg_stop_recording(fwrt->trans, &params);
+	iwl_fw_dbg_stop_recording(fwrt, &params);
 
 	iwl_fw_error_dump(fwrt);
 
@@ -1172,7 +1172,7 @@ void iwl_fw_error_dump_wk(struct work_struct *work)
 	    fwrt->fw->dbg_dest_tlv) {
 		/* wait before we collect the data till the DBGC stop */
 		udelay(500);
-		iwl_fw_dbg_restart_recording(fwrt->trans, &params);
+		iwl_fw_dbg_restart_recording(fwrt, &params);
 	}
 out:
 	if (fwrt->ops && fwrt->ops->dump_end)
