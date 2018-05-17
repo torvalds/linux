@@ -153,10 +153,7 @@ static int rx8581_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	tm->tm_wday = ilog2(date[RX8581_REG_DW] & 0x7F);
 	tm->tm_mday = bcd2bin(date[RX8581_REG_DM] & 0x3F);
 	tm->tm_mon = bcd2bin(date[RX8581_REG_MO] & 0x1F) - 1; /* rtc mn 1-12 */
-	tm->tm_year = bcd2bin(date[RX8581_REG_YR]);
-	if (tm->tm_year < 70)
-		tm->tm_year += 100;	/* assume we are in 1970...2069 */
-
+	tm->tm_year = bcd2bin(date[RX8581_REG_YR]) + 100;
 
 	dev_dbg(&client->dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
 		"mday=%d, mon=%d, year=%d, wday=%d\n",
@@ -190,7 +187,7 @@ static int rx8581_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 	buf[RX8581_REG_MO] = bin2bcd(tm->tm_mon + 1);
 
 	/* year and century */
-	buf[RX8581_REG_YR] = bin2bcd(tm->tm_year % 100);
+	buf[RX8581_REG_YR] = bin2bcd(tm->tm_year - 100);
 	buf[RX8581_REG_DW] = (0x1 << tm->tm_wday);
 
 	/* Stop the clock */
@@ -293,6 +290,8 @@ static int rx8581_probe(struct i2c_client *client,
 	rx8581->rtc->ops = &rx8581_rtc_ops;
 	rx8581->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	rx8581->rtc->range_max = RTC_TIMESTAMP_END_2099;
+	rx8581->rtc->start_secs = 0;
+	rx8581->rtc->set_start_time = true;
 
 	return rtc_register_device(rx8581->rtc);
 }
