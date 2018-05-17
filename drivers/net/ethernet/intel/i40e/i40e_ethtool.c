@@ -1792,8 +1792,8 @@ static void i40e_get_stat_strings(struct net_device *netdev, u8 *data)
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
-	char *p = (char *)data;
 	unsigned int i;
+	u8 *p = data;
 
 	for (i = 0; i < I40E_NETDEV_STATS_LEN; i++) {
 		snprintf(p, ETH_GSTRING_LEN, "%s",
@@ -1864,7 +1864,9 @@ static void i40e_get_stat_strings(struct net_device *netdev, u8 *data)
 			 "port.rx_priority_%u_xon_2_xoff", i);
 		p += ETH_GSTRING_LEN;
 	}
-	/* BUG_ON(p - data != I40E_STATS_LEN * ETH_GSTRING_LEN); */
+
+	WARN_ONCE(p - data != i40e_get_stats_count(netdev) * ETH_GSTRING_LEN,
+		  "stat strings count mismatch!");
 }
 
 static void i40e_get_priv_flag_strings(struct net_device *netdev, u8 *data)
