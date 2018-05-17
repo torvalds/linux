@@ -455,28 +455,13 @@ static const struct iwl_prph_range iwl_prph_dump_addr_9000[] = {
 	{ .start = 0x00a02400, .end = 0x00a02758 },
 };
 
-static void _iwl_read_prph_block(struct iwl_trans *trans, u32 start,
-				 u32 len_bytes, __le32 *data)
+static void iwl_read_prph_block(struct iwl_trans *trans, u32 start,
+				u32 len_bytes, __le32 *data)
 {
 	u32 i;
 
 	for (i = 0; i < len_bytes; i += 4)
 		*data++ = cpu_to_le32(iwl_read_prph_no_grab(trans, start + i));
-}
-
-static bool iwl_read_prph_block(struct iwl_trans *trans, u32 start,
-				u32 len_bytes, __le32 *data)
-{
-	unsigned long flags;
-	bool success = false;
-
-	if (iwl_trans_grab_nic_access(trans, &flags)) {
-		success = true;
-		_iwl_read_prph_block(trans, start, len_bytes, data);
-		iwl_trans_release_nic_access(trans, &flags);
-	}
-
-	return success;
 }
 
 static void iwl_dump_prph(struct iwl_trans *trans,
@@ -504,11 +489,11 @@ static void iwl_dump_prph(struct iwl_trans *trans,
 		prph = (void *)(*data)->data;
 		prph->prph_start = cpu_to_le32(iwl_prph_dump_addr[i].start);
 
-		_iwl_read_prph_block(trans, iwl_prph_dump_addr[i].start,
-				     /* our range is inclusive, hence + 4 */
-				     iwl_prph_dump_addr[i].end -
-				     iwl_prph_dump_addr[i].start + 4,
-				     (void *)prph->data);
+		iwl_read_prph_block(trans, iwl_prph_dump_addr[i].start,
+				    /* our range is inclusive, hence + 4 */
+				    iwl_prph_dump_addr[i].end -
+				    iwl_prph_dump_addr[i].start + 4,
+				    (void *)prph->data);
 
 		*data = iwl_fw_error_next_data(*data);
 	}
@@ -883,7 +868,6 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 	for (i = 0; i < fwrt->fw->n_dbg_mem_tlv; i++) {
 		u32 len = le32_to_cpu(fw_dbg_mem[i].len);
 		u32 ofs = le32_to_cpu(fw_dbg_mem[i].ofs);
-		bool success;
 
 		if (!(fwrt->fw->dbg_dump_mask & BIT(IWL_FW_ERROR_DUMP_MEM)))
 			break;
@@ -897,28 +881,11 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 		IWL_DEBUG_INFO(fwrt, "WRT memory dump. Type=%u\n",
 			       dump_mem->type);
 
-		switch (dump_mem->type & cpu_to_le32(FW_DBG_MEM_TYPE_MASK)) {
-		case cpu_to_le32(FW_DBG_MEM_TYPE_REGULAR):
-			iwl_trans_read_mem_bytes(fwrt->trans, ofs,
-						 dump_mem->data,
-						 len);
-			success = true;
-			break;
-		case cpu_to_le32(FW_DBG_MEM_TYPE_PRPH):
-			success = iwl_read_prph_block(fwrt->trans, ofs, len,
-						      (void *)dump_mem->data);
-			break;
-		default:
-			/*
-			 * shouldn't get here, we ignored this kind
-			 * of TLV earlier during the TLV parsing?!
-			 */
-			WARN_ON(1);
-			success = false;
-		}
+		iwl_trans_read_mem_bytes(fwrt->trans, ofs,
+					 dump_mem->data,
+					 len);
 
-		if (success)
-			dump_data = iwl_fw_error_next_data(dump_data);
+		dump_data = iwl_fw_error_next_data(dump_data);
 	}
 
 	if (smem_len && fwrt->fw->dbg_dump_mask & BIT(IWL_FW_ERROR_DUMP_MEM)) {
