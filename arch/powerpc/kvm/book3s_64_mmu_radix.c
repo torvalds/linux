@@ -156,7 +156,7 @@ static void kvmppc_radix_flush_pwc(struct kvm *kvm)
 	radix__flush_pwc_lpid(kvm->arch.lpid);
 }
 
-unsigned long kvmppc_radix_update_pte(struct kvm *kvm, pte_t *ptep,
+static unsigned long kvmppc_radix_update_pte(struct kvm *kvm, pte_t *ptep,
 				      unsigned long clr, unsigned long set,
 				      unsigned long addr, unsigned int shift)
 {
@@ -360,6 +360,15 @@ static void kvmppc_unmap_free_pud_entry_table(struct kvm *kvm, pud_t *pud,
 	kvmppc_unmap_free_pmd(kvm, pmd, false);
 }
 
+/*
+ * There are a number of bits which may differ between different faults to
+ * the same partition scope entry. RC bits, in the course of cleaning and
+ * aging. And the write bit can change, either the access could have been
+ * upgraded, or a read fault could happen concurrently with a write fault
+ * that sets those bits first.
+ */
+#define PTE_BITS_MUST_MATCH (~(_PAGE_WRITE | _PAGE_DIRTY | _PAGE_ACCESSED))
+
 static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 			     unsigned int level, unsigned long mmu_seq)
 {
@@ -404,17 +413,26 @@ static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 	if (pud_huge(*pud)) {
 		unsigned long hgpa = gpa & PUD_MASK;
 
+		/* Check if we raced and someone else has set the same thing */
+		if (level == 2) {
+			if (pud_raw(*pud) == pte_raw(pte)) {
+				ret = 0;
+				goto out_unlock;
+			}
+			/* Valid 1GB page here already, add our extra bits */
+			WARN_ON_ONCE((pud_val(*pud) ^ pte_val(pte)) &
+							PTE_BITS_MUST_MATCH);
+			kvmppc_radix_update_pte(kvm, (pte_t *)pud,
+					      0, pte_val(pte), hgpa, PUD_SHIFT);
+			ret = 0;
+			goto out_unlock;
+		}
 		/*
 		 * If we raced with another CPU which has just put
 		 * a 1GB pte in after we saw a pmd page, try again.
 		 */
-		if (level <= 1 && !new_pmd) {
+		if (!new_pmd) {
 			ret = -EAGAIN;
-			goto out_unlock;
-		}
-		/* Check if we raced and someone else has set the same thing */
-		if (level == 2 && pud_raw(*pud) == pte_raw(pte)) {
-			ret = 0;
 			goto out_unlock;
 		}
 		/* Valid 1GB page here already, remove it */
@@ -443,17 +461,27 @@ static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 	if (pmd_is_leaf(*pmd)) {
 		unsigned long lgpa = gpa & PMD_MASK;
 
+		/* Check if we raced and someone else has set the same thing */
+		if (level == 1) {
+			if (pmd_raw(*pmd) == pte_raw(pte)) {
+				ret = 0;
+				goto out_unlock;
+			}
+			/* Valid 2MB page here already, add our extra bits */
+			WARN_ON_ONCE((pmd_val(*pmd) ^ pte_val(pte)) &
+							PTE_BITS_MUST_MATCH);
+			kvmppc_radix_update_pte(kvm, pmdp_ptep(pmd),
+					      0, pte_val(pte), lgpa, PMD_SHIFT);
+			ret = 0;
+			goto out_unlock;
+		}
+
 		/*
 		 * If we raced with another CPU which has just put
 		 * a 2MB pte in after we saw a pte page, try again.
 		 */
-		if (level == 0 && !new_ptep) {
+		if (!new_ptep) {
 			ret = -EAGAIN;
-			goto out_unlock;
-		}
-		/* Check if we raced and someone else has set the same thing */
-		if (level == 1 && pmd_raw(*pmd) == pte_raw(pte)) {
-			ret = 0;
 			goto out_unlock;
 		}
 		/* Valid 2MB page here already, remove it */
@@ -480,19 +508,17 @@ static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 	}
 	ptep = pte_offset_kernel(pmd, gpa);
 	if (pte_present(*ptep)) {
-		unsigned long old;
-
 		/* Check if someone else set the same thing */
 		if (pte_raw(*ptep) == pte_raw(pte)) {
 			ret = 0;
 			goto out_unlock;
 		}
-		/* PTE was previously valid, so invalidate it */
-		old = kvmppc_radix_update_pte(kvm, ptep, _PAGE_PRESENT,
-					      0, gpa, 0);
-		kvmppc_radix_tlbie_page(kvm, gpa, 0);
-		if (old & _PAGE_DIRTY)
-			mark_page_dirty(kvm, gpa >> PAGE_SHIFT);
+		/* Valid page here already, add our extra bits */
+		WARN_ON_ONCE((pte_val(*ptep) ^ pte_val(pte)) &
+							PTE_BITS_MUST_MATCH);
+		kvmppc_radix_update_pte(kvm, ptep, 0, pte_val(pte), gpa, 0);
+		ret = 0;
+		goto out_unlock;
 	}
 	kvmppc_radix_set_pte_at(kvm, gpa, ptep, pte);
 	ret = 0;
