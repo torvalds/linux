@@ -1046,6 +1046,48 @@
 					gpio-ranges = <&pinctrl_aobus 0 0 15>;
 				};
 
+				i2c_ao_sck_4_pins: i2c_ao_sck_4 {
+					mux {
+						groups = "i2c_ao_sck_4";
+						function = "i2c_ao";
+					};
+				};
+
+				i2c_ao_sck_8_pins: i2c_ao_sck_8 {
+					mux {
+						groups = "i2c_ao_sck_8";
+						function = "i2c_ao";
+					};
+				};
+
+				i2c_ao_sck_10_pins: i2c_ao_sck_10 {
+					mux {
+						groups = "i2c_ao_sck_10";
+						function = "i2c_ao";
+					};
+				};
+
+				i2c_ao_sda_5_pins: i2c_ao_sda_5 {
+					mux {
+						groups = "i2c_ao_sda_5";
+						function = "i2c_ao";
+					};
+				};
+
+				i2c_ao_sda_9_pins: i2c_ao_sda_9 {
+					mux {
+						groups = "i2c_ao_sda_9";
+						function = "i2c_ao";
+					};
+				};
+
+				i2c_ao_sda_11_pins: i2c_ao_sda_11 {
+					mux {
+						groups = "i2c_ao_sda_11";
+						function = "i2c_ao";
+					};
+				};
+
 				remote_input_ao_pins: remote_input_ao {
 					mux {
 						groups = "remote_input_ao";
