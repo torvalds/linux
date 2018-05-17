@@ -291,6 +291,8 @@ static int rx8581_probe(struct i2c_client *client,
 		return PTR_ERR(rx8581->rtc);
 
 	rx8581->rtc->ops = &rx8581_rtc_ops;
+	rx8581->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	rx8581->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
 	return rtc_register_device(rx8581->rtc);
 }
