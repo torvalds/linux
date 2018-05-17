@@ -56,6 +56,10 @@
 #define PCAL6524_DEBOUNCE	0x2d
 
 #define PCA_GPIO_MASK		0x00FF
+
+#define PCAL_GPIO_MASK		0x1f
+#define PCAL_PINCTRL_MASK	0xe0
+
 #define PCA_INT			0x0100
 #define PCA_PCAL		0x0200
 #define PCA_LATCH_INT (PCA_PCAL | PCA_INT)
