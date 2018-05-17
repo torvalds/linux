@@ -563,6 +563,30 @@ struct active_engine {
 #define TEST_SELF	BIT(2)
 #define TEST_PRIORITY	BIT(3)
 
+static int active_request_put(struct i915_request *rq)
+{
+	int err = 0;
+
+	if (!rq)
+		return 0;
+
+	if (i915_request_wait(rq, 0, 5 * HZ) < 0) {
+		GEM_TRACE("%s timed out waiting for completion of fence %llx:%d, seqno %d.\n",
+			  rq->engine->name,
+			  rq->fence.context,
+			  rq->fence.seqno,
+			  i915_request_global_seqno(rq));
+		GEM_TRACE_DUMP();
+
+		i915_gem_set_wedged(rq->i915);
+		err = -EIO;
+	}
+
+	i915_request_put(rq);
+
+	return err;
+}
+
 static int active_engine(void *data)
 {
 	I915_RND_STATE(prng);
@@ -611,24 +635,20 @@ static int active_engine(void *data)
 		i915_request_add(new);
 		mutex_unlock(&engine->i915->drm.struct_mutex);
 
-		if (old) {
-			if (i915_request_wait(old, 0, HZ) < 0) {
-				GEM_TRACE("%s timed out.\n", engine->name);
-				GEM_TRACE_DUMP();
-
-				i915_gem_set_wedged(engine->i915);
-				i915_request_put(old);
-				err = -EIO;
-				break;
-			}
-			i915_request_put(old);
-		}
+		err = active_request_put(old);
+		if (err)
+			break;
 
 		cond_resched();
 	}
 
-	for (count = 0; count < ARRAY_SIZE(rq); count++)
-		i915_request_put(rq[count]);
+	for (count = 0; count < ARRAY_SIZE(rq); count++) {
+		int err__ = active_request_put(rq[count]);
+
+		/* Keep the first error */
+		if (!err)
+			err = err__;
+	}
 
 err_file:
 	mock_file_free(engine->i915, file);
