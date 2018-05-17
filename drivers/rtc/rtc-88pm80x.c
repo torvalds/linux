@@ -52,10 +52,8 @@ struct pm80x_rtc_info {
 	struct regmap *map;
 	struct rtc_device *rtc_dev;
 	struct device *dev;
-	struct delayed_work calib_work;
 
 	int irq;
-	int vrtc;
 };
 
 static irqreturn_t rtc_update_handler(int irq, void *data)
