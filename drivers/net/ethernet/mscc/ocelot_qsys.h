@@ -1,7 +1,7 @@
+/* SPDX-License-Identifier: (GPL-2.0 OR MIT) */
 /*
  * Microsemi Ocelot Switch driver
  *
- * License: Dual MIT/GPL
  * Copyright (c) 2017 Microsemi Corporation
  */
 
