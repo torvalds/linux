@@ -29,8 +29,10 @@
 #include <linux/usb/composite.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#define SAMPLE_RATE 44100
-#define FRAMES_PER_MSEC (SAMPLE_RATE / 1000)
+#define DEFAULT_SAMPLE_RATE 44100
+#define MAX_SAMPLE_RATE		96000
+#define MIN_SAMPLE_RATE		8000
+#define DEFAULT_FRAMES_PER_MSEC (DEFAULT_SAMPLE_RATE / 1000)
 
 #define IN_EP_MAX_PACKET_SIZE 256
 
@@ -41,6 +43,12 @@
 #define AUDIO_AS_INTERFACE	1
 #define AUDIO_NUM_INTERFACES	2
 #define MAX_INST_NAME_LEN     40
+
+static u32 sample_rate_table[] = {
+8000, 11025, 16000, 22050, 24000,
+32000, 40000, 44100, 48000, 56000,
+64000, 72000, 80000, 88200, 96000,
+};
 
 /* B.3.1  Standard AC Interface Descriptor */
 static struct usb_interface_descriptor ac_interface_desc = {
@@ -135,16 +143,16 @@ static struct uac1_as_header_descriptor as_header_desc = {
 	.wFormatTag =		UAC_FORMAT_TYPE_I_PCM,
 };
 
-DECLARE_UAC_FORMAT_TYPE_I_DISCRETE_DESC(1);
+DECLARE_UAC_FORMAT_TYPE_I_DISCRETE_DESC(15);
 
-static struct uac_format_type_i_discrete_descriptor_1 as_type_i_desc = {
-	.bLength =		UAC_FORMAT_TYPE_I_DISCRETE_DESC_SIZE(1),
+static struct uac_format_type_i_discrete_descriptor_15 as_type_i_desc = {
+	.bLength =		UAC_FORMAT_TYPE_I_DISCRETE_DESC_SIZE(15),
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubtype =	UAC_FORMAT_TYPE,
 	.bFormatType =		UAC_FORMAT_TYPE_I,
 	.bSubframeSize =	2,
 	.bBitResolution =	16,
-	.bSamFreqType =		1,
+	.bSamFreqType =		ARRAY_SIZE(sample_rate_table),
 };
 
 /* Standard ISO IN Endpoint Descriptor for highspeed */
@@ -227,8 +235,8 @@ static struct snd_pcm_hardware audio_hw_info = {
 	.formats		= SNDRV_PCM_FMTBIT_S16_LE,
 	.channels_min		= 2,
 	.channels_max		= 2,
-	.rate_min		= SAMPLE_RATE,
-	.rate_max		= SAMPLE_RATE,
+	.rate_min		= MIN_SAMPLE_RATE,
+	.rate_max		= MAX_SAMPLE_RATE,
 
 	.buffer_bytes_max =	1024 * 1024,
 	.period_bytes_min =	64,
@@ -238,6 +246,9 @@ static struct snd_pcm_hardware audio_hw_info = {
 };
 
 /*-------------------------------------------------------------------------*/
+
+static u16 g_w_value;
+static u8 g_bRequest;
 
 struct audio_source_config {
 	int	card;
@@ -275,6 +286,13 @@ struct audio_dev {
 	ktime_t				start_time;
 	/* number of frames sent since start_time */
 	s64				frames_sent;
+
+	/* number of frames sent per millisecond */
+	s64				frames_per_msec;
+
+	/* current sample rate */
+	s64				sample_rate;
+
 	struct audio_source_config	*config;
 	/* for creating and issuing QoS requests */
 	struct pm_qos_request pm_qos;
@@ -468,20 +486,20 @@ static void audio_send(struct audio_dev *audio)
 	now = ktime_get();
 	msecs = div_s64((ktime_to_ns(now) - ktime_to_ns(audio->start_time)),
 			1000000);
-	frames = div_s64((msecs * SAMPLE_RATE), 1000);
+	frames = div_s64((msecs * audio->sample_rate), 1000);
 
 	/* Readjust our frames_sent if we fall too far behind.
 	 * If we get too far behind it is better to drop some frames than
 	 * to keep sending data too fast in an attempt to catch up.
 	 */
-	if (frames - audio->frames_sent > 10 * FRAMES_PER_MSEC)
-		audio->frames_sent = frames - FRAMES_PER_MSEC;
+	if (frames - audio->frames_sent > 10 * audio->frames_per_msec)
+		audio->frames_sent = frames - audio->frames_per_msec;
 
 	frames -= audio->frames_sent;
 
 	/* We need to send something to keep the pipeline going */
 	if (frames <= 0)
-		frames = FRAMES_PER_MSEC;
+		frames = audio->frames_per_msec;
 
 	while (frames > 0) {
 		req = audio_req_get(audio);
@@ -526,7 +544,40 @@ static void audio_send(struct audio_dev *audio)
 
 static void audio_control_complete(struct usb_ep *ep, struct usb_request *req)
 {
-	/* nothing to do here */
+	struct audio_dev *audio = ep->driver_data;
+	u8 *buf = req->buf;
+
+	pr_debug("audio_control_complete req->status %d req->actual %d\n",
+		 req->status, req->actual);
+
+	if (req->status)
+		return;
+
+	if (g_w_value == UAC_EP_CS_ATTR_SAMPLE_RATE << 8) {
+		switch (g_bRequest) {
+		case UAC_SET_CUR:
+			g_w_value = 0;
+			g_bRequest = 0;
+
+			audio->sample_rate = (s64)buf[0];
+			audio->sample_rate += ((s64)buf[1]) << 8;
+			audio->sample_rate += ((s64)buf[2]) << 16;
+			audio->frames_per_msec = audio->sample_rate;
+			do_div(audio->frames_per_msec, 1000);
+			pr_info("audio source set sample rate to %lld\n",
+				audio->sample_rate);
+			break;
+		case UAC_SET_MIN:
+			/* fallthrough */
+		case UAC_SET_MAX:
+			/* fallthrough */
+		case UAC_SET_RES:
+			/* fallthrough */
+			break;
+		default:
+			break;
+		}
+	}
 }
 
 static void audio_data_complete(struct usb_ep *ep, struct usb_request *req)
@@ -562,8 +613,15 @@ static int audio_set_endpoint_req(struct usb_function *f,
 
 	switch (ctrl->bRequest) {
 	case UAC_SET_CUR:
+		if (w_value == UAC_EP_CS_ATTR_SAMPLE_RATE << 8) {
+			g_w_value = w_value;
+			g_bRequest = ctrl->bRequest;
+		}
+		/* fallthrough */
 	case UAC_SET_MIN:
+		/* fallthrough */
 	case UAC_SET_MAX:
+		/* fallthrough */
 	case UAC_SET_RES:
 		value = len;
 		break;
@@ -577,6 +635,7 @@ static int audio_set_endpoint_req(struct usb_function *f,
 static int audio_get_endpoint_req(struct usb_function *f,
 		const struct usb_ctrlrequest *ctrl)
 {
+	struct audio_dev *audio = func_to_audio(f);
 	struct usb_composite_dev *cdev = f->config->cdev;
 	int value = -EOPNOTSUPP;
 	u8 ep = ((le16_to_cpu(ctrl->wIndex) >> 8) & 0xFF);
@@ -590,13 +649,31 @@ static int audio_get_endpoint_req(struct usb_function *f,
 	if (w_value == UAC_EP_CS_ATTR_SAMPLE_RATE << 8) {
 		switch (ctrl->bRequest) {
 		case UAC_GET_CUR:
+			buf[0] = (u8)audio->sample_rate;
+			buf[1] = (u8)(audio->sample_rate >> 8);
+			buf[2] = (u8)(audio->sample_rate >> 16);
+			value = 3;
+			break;
+
 		case UAC_GET_MIN:
+			buf[0] = (u8)MIN_SAMPLE_RATE;
+			buf[1] = (u8)(MIN_SAMPLE_RATE >> 8);
+			buf[2] = (u8)(MIN_SAMPLE_RATE >> 16);
+			value = 3;
+			break;
+
 		case UAC_GET_MAX:
+			buf[0] = (u8)MAX_SAMPLE_RATE;
+			buf[1] = (u8)(MAX_SAMPLE_RATE >> 8);
+			buf[2] = (u8)(MAX_SAMPLE_RATE >> 16);
+			value = 3;
+			break;
+
 		case UAC_GET_RES:
 			/* return our sample rate */
-			buf[0] = (u8)SAMPLE_RATE;
-			buf[1] = (u8)(SAMPLE_RATE >> 8);
-			buf[2] = (u8)(SAMPLE_RATE >> 16);
+			buf[0] = (u8)MAX_SAMPLE_RATE;
+			buf[1] = (u8)(MAX_SAMPLE_RATE >> 8);
+			buf[2] = (u8)(MAX_SAMPLE_RATE >> 16);
 			value = 3;
 			break;
 		default:
@@ -686,16 +763,18 @@ static void audio_free_func(struct usb_function *f)
 static void audio_build_desc(struct audio_dev *audio)
 {
 	u8 *sam_freq;
-	int rate;
+	u32 rate, i;
 
 	/* Set channel numbers */
 	input_terminal_desc.bNrChannels = 2;
 	as_type_i_desc.bNrChannels = 2;
 
 	/* Set sample rates */
-	rate = SAMPLE_RATE;
-	sam_freq = as_type_i_desc.tSamFreq[0];
-	memcpy(sam_freq, &rate, 3);
+	for (i = 0; i < ARRAY_SIZE(sample_rate_table); i++) {
+		rate = sample_rate_table[i];
+		sam_freq = as_type_i_desc.tSamFreq[i];
+		memcpy(sam_freq, &rate, 3);
+	}
 }
 
 
@@ -722,6 +801,10 @@ audio_bind(struct usb_configuration *c, struct usb_function *f)
 				to_fi_audio_source(f->fi);
 		struct audio_source_config *config =
 				fi_audio->config;
+
+		audio->alt = 0;
+		audio->sample_rate = DEFAULT_SAMPLE_RATE;
+		audio->frames_per_msec = DEFAULT_FRAMES_PER_MSEC;
 
 		err = snd_card_setup(c, config);
 		if (err)
@@ -874,7 +957,7 @@ static int audio_pcm_hw_params(struct snd_pcm_substream *substream,
 	unsigned int channels = params_channels(params);
 	unsigned int rate = params_rate(params);
 
-	if (rate != SAMPLE_RATE)
+	if (rate > MAX_SAMPLE_RATE || rate < MIN_SAMPLE_RATE)
 		return -EINVAL;
 	if (channels != 2)
 		return -EINVAL;
@@ -972,6 +1055,10 @@ int audio_source_bind_config(struct usb_configuration *c,
 	config->device = -1;
 
 	audio = &_audio_dev;
+
+	audio->alt = 0;
+	audio->sample_rate = DEFAULT_SAMPLE_RATE;
+	audio->frames_per_msec = DEFAULT_FRAMES_PER_MSEC;
 
 	err = snd_card_setup(c, config);
 	if (err)
