@@ -674,9 +674,13 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			unsigned long mask = (1ul << shift) - PAGE_SIZE;
 			pte = __pte(pte_val(pte) | (hva & mask));
 		}
-		if (!(writing || upgrade_write))
-			pte = __pte(pte_val(pte) & ~ _PAGE_WRITE);
-		pte = __pte(pte_val(pte) | _PAGE_EXEC);
+		pte = __pte(pte_val(pte) | _PAGE_EXEC | _PAGE_ACCESSED);
+		if (writing || upgrade_write) {
+			if (pte_val(pte) & _PAGE_WRITE)
+				pte = __pte(pte_val(pte) | _PAGE_DIRTY);
+		} else {
+			pte = __pte(pte_val(pte) & ~(_PAGE_WRITE | _PAGE_DIRTY));
+		}
 	}
 
 	/* Allocate space in the tree and write the PTE */
