@@ -984,13 +984,9 @@ static irqreturn_t xcan_interrupt(int irq, void *dev_id)
 static void xcan_chip_stop(struct net_device *ndev)
 {
 	struct xcan_priv *priv = netdev_priv(ndev);
-	u32 ier;
 
 	/* Disable interrupts and leave the can in configuration mode */
-	ier = priv->read_reg(priv, XCAN_IER_OFFSET);
-	ier &= ~XCAN_INTR_ALL;
-	priv->write_reg(priv, XCAN_IER_OFFSET, ier);
-	priv->write_reg(priv, XCAN_SRR_OFFSET, XCAN_SRR_RESET_MASK);
+	set_reset_mode(ndev);
 	priv->can.state = CAN_STATE_STOPPED;
 }
 
@@ -1123,10 +1119,15 @@ static const struct net_device_ops xcan_netdev_ops = {
  */
 static int __maybe_unused xcan_suspend(struct device *dev)
 {
-	if (!device_may_wakeup(dev))
-		return pm_runtime_force_suspend(dev);
+	struct net_device *ndev = dev_get_drvdata(dev);
 
-	return 0;
+	if (netif_running(ndev)) {
+		netif_stop_queue(ndev);
+		netif_device_detach(ndev);
+		xcan_chip_stop(ndev);
+	}
+
+	return pm_runtime_force_suspend(dev);
 }
 
 /**
@@ -1138,11 +1139,27 @@ static int __maybe_unused xcan_suspend(struct device *dev)
  */
 static int __maybe_unused xcan_resume(struct device *dev)
 {
-	if (!device_may_wakeup(dev))
-		return pm_runtime_force_resume(dev);
+	struct net_device *ndev = dev_get_drvdata(dev);
+	int ret;
+
+	ret = pm_runtime_force_resume(dev);
+	if (ret) {
+		dev_err(dev, "pm_runtime_force_resume failed on resume\n");
+		return ret;
+	}
+
+	if (netif_running(ndev)) {
+		ret = xcan_chip_start(ndev);
+		if (ret) {
+			dev_err(dev, "xcan_chip_start failed on resume\n");
+			return ret;
+		}
+
+		netif_device_attach(ndev);
+		netif_start_queue(ndev);
+	}
 
 	return 0;
-
 }
 
 /**
@@ -1156,14 +1173,6 @@ static int __maybe_unused xcan_runtime_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct xcan_priv *priv = netdev_priv(ndev);
-
-	if (netif_running(ndev)) {
-		netif_stop_queue(ndev);
-		netif_device_detach(ndev);
-	}
-
-	priv->write_reg(priv, XCAN_MSR_OFFSET, XCAN_MSR_SLEEP_MASK);
-	priv->can.state = CAN_STATE_SLEEPING;
 
 	clk_disable_unprepare(priv->bus_clk);
 	clk_disable_unprepare(priv->can_clk);
@@ -1183,7 +1192,6 @@ static int __maybe_unused xcan_runtime_resume(struct device *dev)
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct xcan_priv *priv = netdev_priv(ndev);
 	int ret;
-	u32 isr, status;
 
 	ret = clk_prepare_enable(priv->bus_clk);
 	if (ret) {
@@ -1195,27 +1203,6 @@ static int __maybe_unused xcan_runtime_resume(struct device *dev)
 		dev_err(dev, "Cannot enable clock.\n");
 		clk_disable_unprepare(priv->bus_clk);
 		return ret;
-	}
-
-	priv->write_reg(priv, XCAN_SRR_OFFSET, XCAN_SRR_RESET_MASK);
-	isr = priv->read_reg(priv, XCAN_ISR_OFFSET);
-	status = priv->read_reg(priv, XCAN_SR_OFFSET);
-
-	if (netif_running(ndev)) {
-		if (isr & XCAN_IXR_BSOFF_MASK) {
-			priv->can.state = CAN_STATE_BUS_OFF;
-			priv->write_reg(priv, XCAN_SRR_OFFSET,
-					XCAN_SRR_RESET_MASK);
-		} else if ((status & XCAN_SR_ESTAT_MASK) ==
-					XCAN_SR_ESTAT_MASK) {
-			priv->can.state = CAN_STATE_ERROR_PASSIVE;
-		} else if (status & XCAN_SR_ERRWRN_MASK) {
-			priv->can.state = CAN_STATE_ERROR_WARNING;
-		} else {
-			priv->can.state = CAN_STATE_ERROR_ACTIVE;
-		}
-		netif_device_attach(ndev);
-		netif_start_queue(ndev);
 	}
 
 	return 0;
