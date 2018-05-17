@@ -173,15 +173,15 @@ static int ls1x_rtc_probe(struct platform_device *pdev)
 	while (readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_TTS)
 		usleep_range(1000, 3000);
 
-	rtcdev = devm_rtc_device_register(&pdev->dev, "ls1x-rtc",
-					&ls1x_rtc_ops , THIS_MODULE);
-	if (IS_ERR(rtcdev)) {
-		ret = PTR_ERR(rtcdev);
-		goto err;
-	}
+	rtcdev = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(rtcdev))
+		return PTR_ERR(rtcdev);
 
 	platform_set_drvdata(pdev, rtcdev);
-	return 0;
+	rtcdev->ops = &ls1x_rtc_ops;
+
+	return rtc_register_device(rtcdev);
+
 err:
 	return ret;
 }
