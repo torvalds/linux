@@ -695,6 +695,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 		"O             Bump offset level (jump targets -> +call -> all -> cycle thru)\n"
 		"s             Toggle source code view\n"
 		"t             Circulate percent, total period, samples view\n"
+		"c             Show min/max cycle\n"
 		"/             Search string\n"
 		"k             Toggle line numbers\n"
 		"P             Print to [symbol_name].annotation file.\n"
@@ -789,6 +790,13 @@ show_sup_ins:
 				notes->options->show_nr_samples = false;
 			else
 				notes->options->show_total_period = true;
+			annotation__update_column_widths(notes);
+			continue;
+		case 'c':
+			if (notes->options->show_minmax_cycle)
+				notes->options->show_minmax_cycle = false;
+			else
+				notes->options->show_minmax_cycle = true;
 			annotation__update_column_widths(notes);
 			continue;
 		case K_LEFT:
