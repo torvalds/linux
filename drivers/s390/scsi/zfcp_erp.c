@@ -41,9 +41,13 @@ enum zfcp_erp_steps {
  * @ZFCP_ERP_ACTION_REOPEN_PORT_FORCED: Forced port recovery.
  * @ZFCP_ERP_ACTION_REOPEN_ADAPTER: Adapter recovery.
  * @ZFCP_ERP_ACTION_NONE: Eyecatcher pseudo flag to bitwise or-combine with
- *			  either of the other enum values.
+ *			  either of the first four enum values.
  *			  Used to indicate that an ERP action could not be
  *			  set up despite a detected need for some recovery.
+ * @ZFCP_ERP_ACTION_FAILED: Eyecatcher pseudo flag to bitwise or-combine with
+ *			    either of the first four enum values.
+ *			    Used to indicate that ERP not needed because
+ *			    the object has ZFCP_STATUS_COMMON_ERP_FAILED.
  */
 enum zfcp_erp_act_type {
 	ZFCP_ERP_ACTION_REOPEN_LUN         = 1,
@@ -51,6 +55,7 @@ enum zfcp_erp_act_type {
 	ZFCP_ERP_ACTION_REOPEN_PORT_FORCED = 3,
 	ZFCP_ERP_ACTION_REOPEN_ADAPTER     = 4,
 	ZFCP_ERP_ACTION_NONE		   = 0xc0,
+	ZFCP_ERP_ACTION_FAILED		   = 0xe0,
 };
 
 enum zfcp_erp_act_state {
@@ -378,8 +383,12 @@ static void _zfcp_erp_port_forced_reopen(struct zfcp_port *port, int clear,
 	zfcp_erp_port_block(port, clear);
 	zfcp_scsi_schedule_rport_block(port);
 
-	if (atomic_read(&port->status) & ZFCP_STATUS_COMMON_ERP_FAILED)
+	if (atomic_read(&port->status) & ZFCP_STATUS_COMMON_ERP_FAILED) {
+		zfcp_dbf_rec_trig(id, port->adapter, port, NULL,
+				  ZFCP_ERP_ACTION_REOPEN_PORT_FORCED,
+				  ZFCP_ERP_ACTION_FAILED);
 		return;
+	}
 
 	zfcp_erp_action_enqueue(ZFCP_ERP_ACTION_REOPEN_PORT_FORCED,
 				port->adapter, port, NULL, id, 0);
