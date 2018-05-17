@@ -603,6 +603,11 @@ static void zfcp_scsi_terminate_rport_io(struct fc_rport *rport)
 	if (port) {
 		zfcp_erp_port_forced_reopen(port, 0, "sctrpi1");
 		put_device(&port->dev);
+	} else {
+		zfcp_erp_port_forced_no_port_dbf(
+			"sctrpin", adapter,
+			rport->port_name /* zfcp_scsi_rport_register */,
+			rport->port_id /* zfcp_scsi_rport_register */);
 	}
 }
 

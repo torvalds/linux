@@ -282,6 +282,26 @@ static int zfcp_erp_action_enqueue(int want, struct zfcp_adapter *adapter,
 	return retval;
 }
 
+void zfcp_erp_port_forced_no_port_dbf(char *id, struct zfcp_adapter *adapter,
+				      u64 port_name, u32 port_id)
+{
+	unsigned long flags;
+	static /* don't waste stack */ struct zfcp_port tmpport;
+
+	write_lock_irqsave(&adapter->erp_lock, flags);
+	/* Stand-in zfcp port with fields just good enough for
+	 * zfcp_dbf_rec_trig() and zfcp_dbf_set_common().
+	 * Under lock because tmpport is static.
+	 */
+	atomic_set(&tmpport.status, -1); /* unknown */
+	tmpport.wwpn = port_name;
+	tmpport.d_id = port_id;
+	zfcp_dbf_rec_trig(id, adapter, &tmpport, NULL,
+			  ZFCP_ERP_ACTION_REOPEN_PORT_FORCED,
+			  ZFCP_ERP_ACTION_NONE);
+	write_unlock_irqrestore(&adapter->erp_lock, flags);
+}
+
 static int _zfcp_erp_adapter_reopen(struct zfcp_adapter *adapter,
 				    int clear_mask, char *id)
 {
