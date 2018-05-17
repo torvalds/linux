@@ -612,8 +612,6 @@ static bool __execlists_dequeue(struct intel_engine_cs *engine)
 		GEM_BUG_ON(!execlists_is_active(execlists,
 						EXECLISTS_ACTIVE_USER));
 		GEM_BUG_ON(!port_count(&port[0]));
-		if (port_count(&port[0]) > 1)
-			return false;
 
 		/*
 		 * If we write to ELSP a second time before the HW has had
