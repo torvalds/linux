@@ -290,6 +290,10 @@ static int pm80x_rtc_probe(struct platform_device *pdev)
 	info->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, info);
 
+	info->rtc_dev = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(info->rtc_dev))
+		return PTR_ERR(info->rtc_dev);
+
 	ret = pm80x_request_irq(chip, info->irq, rtc_update_handler,
 				IRQF_ONESHOT, "rtc", info);
 	if (ret < 0) {
@@ -298,10 +302,10 @@ static int pm80x_rtc_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	info->rtc_dev = devm_rtc_device_register(&pdev->dev, "88pm80x-rtc",
-					    &pm80x_rtc_ops, THIS_MODULE);
-	if (IS_ERR(info->rtc_dev)) {
-		ret = PTR_ERR(info->rtc_dev);
+	info->rtc_dev->ops = &pm80x_rtc_ops;
+
+	ret = rtc_register_device(info->rtc_dev);
+	if (ret) {
 		dev_err(&pdev->dev, "Failed to register RTC device: %d\n", ret);
 		goto out_rtc;
 	}
