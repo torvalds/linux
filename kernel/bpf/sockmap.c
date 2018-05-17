@@ -1713,7 +1713,7 @@ static int __sock_map_ctx_update_elem(struct bpf_map *map,
 	struct smap_psock_map_entry *e = NULL;
 	struct smap_psock *psock;
 	bool new = false;
-	int err;
+	int err = 0;
 
 	/* 1. If sock map has BPF programs those will be inherited by the
 	 * sock being added. If the sock is already attached to BPF programs
