@@ -5487,11 +5487,10 @@ static int mvpp2_aggr_desc_num_check(struct mvpp2 *priv,
 					     MVPP2_AGGR_TXQ_STATUS_REG(cpu));
 
 		aggr_txq->count = val & MVPP2_AGGR_TXQ_PENDING_MASK;
+
+		if ((aggr_txq->count + num) > MVPP2_AGGR_TXQ_SIZE)
+			return -ENOMEM;
 	}
-
-	if ((aggr_txq->count + num) > MVPP2_AGGR_TXQ_SIZE)
-		return -ENOMEM;
-
 	return 0;
 }
 
@@ -6382,21 +6381,23 @@ static void mvpp2_rx_error(struct mvpp2_port *port,
 {
 	u32 status = mvpp2_rxdesc_status_get(port, rx_desc);
 	size_t sz = mvpp2_rxdesc_size_get(port, rx_desc);
+	char *err_str = NULL;
 
 	switch (status & MVPP2_RXD_ERR_CODE_MASK) {
 	case MVPP2_RXD_ERR_CRC:
-		netdev_err(port->dev, "bad rx status %08x (crc error), size=%zu\n",
-			   status, sz);
+		err_str = "crc";
 		break;
 	case MVPP2_RXD_ERR_OVERRUN:
-		netdev_err(port->dev, "bad rx status %08x (overrun error), size=%zu\n",
-			   status, sz);
+		err_str = "overrun";
 		break;
 	case MVPP2_RXD_ERR_RESOURCE:
-		netdev_err(port->dev, "bad rx status %08x (resource error), size=%zu\n",
-			   status, sz);
+		err_str = "resource";
 		break;
 	}
+	if (err_str && net_ratelimit())
+		netdev_err(port->dev,
+			   "bad rx status %08x (%s error), size=%zu\n",
+			   status, err_str, sz);
 }
 
 /* Handle RX checksum offload */
@@ -7358,42 +7359,18 @@ static void mvpp2_set_rx_mode(struct net_device *dev)
 
 static int mvpp2_set_mac_address(struct net_device *dev, void *p)
 {
-	struct mvpp2_port *port = netdev_priv(dev);
 	const struct sockaddr *addr = p;
 	int err;
 
-	if (!is_valid_ether_addr(addr->sa_data)) {
-		err = -EADDRNOTAVAIL;
-		goto log_error;
-	}
-
-	if (!netif_running(dev)) {
-		err = mvpp2_prs_update_mac_da(dev, addr->sa_data);
-		if (!err)
-			return 0;
-		/* Reconfigure parser to accept the original MAC address */
-		err = mvpp2_prs_update_mac_da(dev, dev->dev_addr);
-		if (err)
-			goto log_error;
-	}
-
-	mvpp2_stop_dev(port);
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EADDRNOTAVAIL;
 
 	err = mvpp2_prs_update_mac_da(dev, addr->sa_data);
-	if (!err)
-		goto out_start;
-
-	/* Reconfigure parser accept the original MAC address */
-	err = mvpp2_prs_update_mac_da(dev, dev->dev_addr);
-	if (err)
-		goto log_error;
-out_start:
-	mvpp2_start_dev(port);
-	mvpp2_egress_enable(port);
-	mvpp2_ingress_enable(port);
-	return 0;
-log_error:
-	netdev_err(dev, "failed to change MAC address\n");
+	if (err) {
+		/* Reconfigure parser accept the original MAC address */
+		mvpp2_prs_update_mac_da(dev, dev->dev_addr);
+		netdev_err(dev, "failed to change MAC address\n");
+	}
 	return err;
 }
 
