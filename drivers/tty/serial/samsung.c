@@ -856,6 +856,8 @@ static void s3c24xx_serial_break_ctl(struct uart_port *port, int break_state)
 static int s3c24xx_serial_request_dma(struct s3c24xx_uart_port *p)
 {
 	struct s3c24xx_uart_dma	*dma = p->dma;
+	struct dma_slave_caps dma_caps;
+	const char *reason = NULL;
 	int ret;
 
 	/* Default slave configuration parameters */
@@ -871,15 +873,35 @@ static int s3c24xx_serial_request_dma(struct s3c24xx_uart_port *p)
 
 	dma->rx_chan = dma_request_chan(p->port.dev, "rx");
 
-	if (IS_ERR(dma->rx_chan))
-		return PTR_ERR(dma->rx_chan);
+	if (IS_ERR(dma->rx_chan)) {
+		reason = "DMA RX channel request failed";
+		ret = PTR_ERR(dma->rx_chan);
+		goto err_warn;
+	}
+
+	ret = dma_get_slave_caps(dma->rx_chan, &dma_caps);
+	if (ret < 0 ||
+	    dma_caps.residue_granularity < DMA_RESIDUE_GRANULARITY_BURST) {
+		reason = "insufficient DMA RX engine capabilities";
+		ret = -EOPNOTSUPP;
+		goto err_release_rx;
+	}
 
 	dmaengine_slave_config(dma->rx_chan, &dma->rx_conf);
 
 	dma->tx_chan = dma_request_chan(p->port.dev, "tx");
 	if (IS_ERR(dma->tx_chan)) {
+		reason = "DMA TX channel request failed";
 		ret = PTR_ERR(dma->tx_chan);
 		goto err_release_rx;
+	}
+
+	ret = dma_get_slave_caps(dma->tx_chan, &dma_caps);
+	if (ret < 0 ||
+	    dma_caps.residue_granularity < DMA_RESIDUE_GRANULARITY_BURST) {
+		reason = "insufficient DMA TX engine capabilities";
+		ret = -EOPNOTSUPP;
+		goto err_release_tx;
 	}
 
 	dmaengine_slave_config(dma->tx_chan, &dma->tx_conf);
@@ -896,6 +918,7 @@ static int s3c24xx_serial_request_dma(struct s3c24xx_uart_port *p)
 	dma->rx_addr = dma_map_single(p->port.dev, dma->rx_buf,
 				dma->rx_size, DMA_FROM_DEVICE);
 	if (dma_mapping_error(p->port.dev, dma->rx_addr)) {
+		reason = "DMA mapping error for RX buffer";
 		ret = -EIO;
 		goto err_free_rx;
 	}
@@ -904,6 +927,7 @@ static int s3c24xx_serial_request_dma(struct s3c24xx_uart_port *p)
 	dma->tx_addr = dma_map_single(p->port.dev, p->port.state->xmit.buf,
 				UART_XMIT_SIZE, DMA_TO_DEVICE);
 	if (dma_mapping_error(p->port.dev, dma->tx_addr)) {
+		reason = "DMA mapping error for TX buffer";
 		ret = -EIO;
 		goto err_unmap_rx;
 	}
@@ -919,6 +943,9 @@ err_release_tx:
 	dma_release_channel(dma->tx_chan);
 err_release_rx:
 	dma_release_channel(dma->rx_chan);
+err_warn:
+	if (reason)
+		dev_warn(p->port.dev, "%s, DMA will not be used\n", reason);
 	return ret;
 }
 
@@ -1037,8 +1064,6 @@ static int s3c64xx_serial_startup(struct uart_port *port)
 	if (ourport->dma) {
 		ret = s3c24xx_serial_request_dma(ourport);
 		if (ret < 0) {
-			dev_warn(port->dev,
-				 "DMA request failed, DMA will not be used\n");
 			devm_kfree(port->dev, ourport->dma);
 			ourport->dma = NULL;
 		}
