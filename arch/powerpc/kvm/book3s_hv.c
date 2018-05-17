@@ -2958,6 +2958,32 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	for (sub = 0; sub < core_info.n_subcores; ++sub)
 		spin_unlock(&core_info.vc[sub]->lock);
 
+	if (kvm_is_radix(vc->kvm)) {
+		int tmp = pcpu;
+
+		/*
+		 * Do we need to flush the process scoped TLB for the LPAR?
+		 *
+		 * On POWER9, individual threads can come in here, but the
+		 * TLB is shared between the 4 threads in a core, hence
+		 * invalidating on one thread invalidates for all.
+		 * Thus we make all 4 threads use the same bit here.
+		 *
+		 * Hash must be flushed in realmode in order to use tlbiel.
+		 */
+		mtspr(SPRN_LPID, vc->kvm->arch.lpid);
+		isync();
+
+		if (cpu_has_feature(CPU_FTR_ARCH_300))
+			tmp &= ~0x3UL;
+
+		if (cpumask_test_cpu(tmp, &vc->kvm->arch.need_tlb_flush)) {
+			radix__local_flush_tlb_lpid_guest(vc->kvm->arch.lpid);
+			/* Clear the bit after the TLB flush */
+			cpumask_clear_cpu(tmp, &vc->kvm->arch.need_tlb_flush);
+		}
+	}
+
 	/*
 	 * Interrupts will be enabled once we get into the guest,
 	 * so tell lockdep that we're about to enable interrupts.
