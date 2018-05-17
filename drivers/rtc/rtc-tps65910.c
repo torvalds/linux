@@ -436,17 +436,6 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-/*
- * Disable tps65910 RTC interrupts.
- * Sets status flag to free.
- */
-static int tps65910_rtc_remove(struct platform_device *pdev)
-{
-	tps65910_rtc_alarm_irq_enable(&pdev->dev, 0);
-
-	return 0;
-}
-
 #ifdef CONFIG_PM_SLEEP
 static int tps65910_rtc_suspend(struct device *dev)
 {
@@ -472,7 +461,6 @@ static SIMPLE_DEV_PM_OPS(tps65910_rtc_pm_ops, tps65910_rtc_suspend,
 
 static struct platform_driver tps65910_rtc_driver = {
 	.probe		= tps65910_rtc_probe,
-	.remove		= tps65910_rtc_remove,
 	.driver		= {
 		.name	= "tps65910-rtc",
 		.pm	= &tps65910_rtc_pm_ops,
