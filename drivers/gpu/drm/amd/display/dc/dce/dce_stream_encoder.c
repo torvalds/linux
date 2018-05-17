@@ -720,7 +720,8 @@ static void dce110_stream_encoder_update_hdmi_info_packets(
 			const uint32_t *content =
 				(const uint32_t *) &info_frame->avi.sb[0];
 			/*we need turn on clock before programming AFMT block*/
-			REG_UPDATE(AFMT_CNTL, AFMT_AUDIO_CLOCK_EN, 1);
+			if (REG(AFMT_CNTL))
+				REG_UPDATE(AFMT_CNTL, AFMT_AUDIO_CLOCK_EN, 1);
 
 			REG_WRITE(AFMT_AVI_INFO0, content[0]);
 
