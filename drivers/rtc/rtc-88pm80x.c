@@ -254,8 +254,6 @@ static int pm80x_rtc_probe(struct platform_device *pdev)
 	struct pm80x_rtc_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct pm80x_rtc_info *info;
 	struct device_node *node = pdev->dev.of_node;
-	struct rtc_time tm;
-	unsigned long ticks = 0;
 	int ret;
 
 	if (!pdata && !node) {
@@ -301,26 +299,6 @@ static int pm80x_rtc_probe(struct platform_device *pdev)
 			info->irq, ret);
 		goto out;
 	}
-
-	ret = pm80x_rtc_read_time(&pdev->dev, &tm);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to read initial time.\n");
-		goto out_rtc;
-	}
-	if ((tm.tm_year < 70) || (tm.tm_year > 138)) {
-		tm.tm_year = 70;
-		tm.tm_mon = 0;
-		tm.tm_mday = 1;
-		tm.tm_hour = 0;
-		tm.tm_min = 0;
-		tm.tm_sec = 0;
-		ret = pm80x_rtc_set_time(&pdev->dev, &tm);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "Failed to set initial time.\n");
-			goto out_rtc;
-		}
-	}
-	rtc_tm_to_time(&tm, &ticks);
 
 	info->rtc_dev = devm_rtc_device_register(&pdev->dev, "88pm80x-rtc",
 					    &pm80x_rtc_ops, THIS_MODULE);
