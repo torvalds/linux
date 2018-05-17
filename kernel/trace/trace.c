@@ -4395,8 +4395,7 @@ static int trace_set_options(struct trace_array *tr, char *option)
 {
 	char *cmp;
 	int neg = 0;
-	int ret = -ENODEV;
-	int i;
+	int ret;
 	size_t orig_len = strlen(option);
 
 	cmp = strstrip(option);
@@ -4408,16 +4407,12 @@ static int trace_set_options(struct trace_array *tr, char *option)
 
 	mutex_lock(&trace_types_lock);
 
-	for (i = 0; trace_options[i]; i++) {
-		if (strcmp(cmp, trace_options[i]) == 0) {
-			ret = set_tracer_flag(tr, 1 << i, !neg);
-			break;
-		}
-	}
-
+	ret = match_string(trace_options, -1, cmp);
 	/* If no option could be set, test the specific tracer options */
-	if (!trace_options[i])
+	if (ret < 0)
 		ret = set_tracer_option(tr, cmp, neg);
+	else
+		ret = set_tracer_flag(tr, 1 << ret, !neg);
 
 	mutex_unlock(&trace_types_lock);
 
