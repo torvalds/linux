@@ -3626,7 +3626,7 @@ s32 ixgbe_hic_unlocked(struct ixgbe_hw *hw, u32 *buffer, u32 length,
 	 */
 	for (i = 0; i < dword_len; i++)
 		IXGBE_WRITE_REG_ARRAY(hw, IXGBE_FLEX_MNG,
-				      i, cpu_to_le32(buffer[i]));
+				      i, (__force u32)cpu_to_le32(buffer[i]));
 
 	/* Setting this bit tells the ARC that a new command is pending. */
 	IXGBE_WRITE_REG(hw, IXGBE_HICR, hicr | IXGBE_HICR_C);

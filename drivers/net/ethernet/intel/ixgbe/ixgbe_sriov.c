@@ -854,14 +854,11 @@ static int ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 
 	/* reply to reset with ack and vf mac address */
 	msgbuf[0] = IXGBE_VF_RESET;
-	if (!is_zero_ether_addr(vf_mac)) {
+	if (!is_zero_ether_addr(vf_mac) && adapter->vfinfo[vf].pf_set_mac) {
 		msgbuf[0] |= IXGBE_VT_MSGTYPE_ACK;
 		memcpy(addr, vf_mac, ETH_ALEN);
 	} else {
 		msgbuf[0] |= IXGBE_VT_MSGTYPE_NACK;
-		dev_warn(&adapter->pdev->dev,
-			 "VF %d has no MAC address assigned, you may have to assign one manually\n",
-			 vf);
 	}
 
 	/*

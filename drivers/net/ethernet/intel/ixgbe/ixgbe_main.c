@@ -727,8 +727,8 @@ static void ixgbe_dump(struct ixgbe_adapter *adapter)
 					ring_desc = "";
 				pr_info("T [0x%03X]    %016llX %016llX %016llX %08X %p %016llX %p%s",
 					i,
-					le64_to_cpu(u0->a),
-					le64_to_cpu(u0->b),
+					le64_to_cpu((__force __le64)u0->a),
+					le64_to_cpu((__force __le64)u0->b),
 					(u64)dma_unmap_addr(tx_buffer, dma),
 					dma_unmap_len(tx_buffer, len),
 					tx_buffer->next_to_watch,
@@ -839,15 +839,15 @@ rx_ring_summary:
 				/* Descriptor Done */
 				pr_info("RWB[0x%03X]     %016llX %016llX ---------------- %p%s\n",
 					i,
-					le64_to_cpu(u0->a),
-					le64_to_cpu(u0->b),
+					le64_to_cpu((__force __le64)u0->a),
+					le64_to_cpu((__force __le64)u0->b),
 					rx_buffer_info->skb,
 					ring_desc);
 			} else {
 				pr_info("R  [0x%03X]     %016llX %016llX %016llX %p%s\n",
 					i,
-					le64_to_cpu(u0->a),
-					le64_to_cpu(u0->b),
+					le64_to_cpu((__force __le64)u0->a),
+					le64_to_cpu((__force __le64)u0->b),
 					(u64)rx_buffer_info->dma,
 					rx_buffer_info->skb,
 					ring_desc);
@@ -6698,8 +6698,15 @@ static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 	rtnl_lock();
 	netif_device_detach(netdev);
 
-	if (netif_running(netdev))
+	if (netif_running(netdev)) {
+		/* Suspend takes a long time, device_shutdown may be
+		 * parallelized this function, so drop lock for the
+		 * duration of this call.
+		 */
+		rtnl_unlock();
 		ixgbe_close_suspend(adapter);
+		rtnl_lock();
+	}
 
 	ixgbe_clear_interrupt_scheme(adapter);
 	rtnl_unlock();
@@ -7751,7 +7758,7 @@ static int ixgbe_tso(struct ixgbe_ring *tx_ring,
 
 	/* remove payload length from inner checksum */
 	paylen = skb->len - l4_offset;
-	csum_replace_by_diff(&l4.tcp->check, htonl(paylen));
+	csum_replace_by_diff(&l4.tcp->check, (__force __wsum)htonl(paylen));
 
 	/* update gso size and bytecount with header size */
 	first->gso_segs = skb_shinfo(skb)->gso_segs;
@@ -9104,7 +9111,8 @@ static int ixgbe_clsu32_build_input(struct ixgbe_fdir_filter *input,
 
 		for (j = 0; field_ptr[j].val; j++) {
 			if (field_ptr[j].off == off) {
-				field_ptr[j].val(input, mask, val, m);
+				field_ptr[j].val(input, mask, (__force u32)val,
+						 (__force u32)m);
 				input->filter.formatted.flow_type |=
 					field_ptr[j].type;
 				found_entry = true;
@@ -9113,8 +9121,10 @@ static int ixgbe_clsu32_build_input(struct ixgbe_fdir_filter *input,
 		}
 		if (nexthdr) {
 			if (nexthdr->off == cls->knode.sel->keys[i].off &&
-			    nexthdr->val == cls->knode.sel->keys[i].val &&
-			    nexthdr->mask == cls->knode.sel->keys[i].mask)
+			    nexthdr->val ==
+			    (__force u32)cls->knode.sel->keys[i].val &&
+			    nexthdr->mask ==
+			    (__force u32)cls->knode.sel->keys[i].mask)
 				found_jump_field = true;
 			else
 				continue;
@@ -9218,7 +9228,8 @@ static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
 		for (i = 0; nexthdr[i].jump; i++) {
 			if (nexthdr[i].o != cls->knode.sel->offoff ||
 			    nexthdr[i].s != cls->knode.sel->offshift ||
-			    nexthdr[i].m != cls->knode.sel->offmask)
+			    nexthdr[i].m !=
+			    (__force u32)cls->knode.sel->offmask)
 				return err;
 
 			jump = kzalloc(sizeof(*jump), GFP_KERNEL);
@@ -9991,7 +10002,8 @@ static int ixgbe_xdp_setup(struct net_device *dev, struct bpf_prog *prog)
 		}
 	} else {
 		for (i = 0; i < adapter->num_rx_queues; i++)
-			xchg(&adapter->rx_ring[i]->xdp_prog, adapter->xdp_prog);
+			(void)xchg(&adapter->rx_ring[i]->xdp_prog,
+			    adapter->xdp_prog);
 	}
 
 	if (old_prog)
@@ -10930,13 +10942,13 @@ skip_bad_vf_detection:
 	rtnl_lock();
 	netif_device_detach(netdev);
 
+	if (netif_running(netdev))
+		ixgbe_close_suspend(adapter);
+
 	if (state == pci_channel_io_perm_failure) {
 		rtnl_unlock();
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
-
-	if (netif_running(netdev))
-		ixgbe_close_suspend(adapter);
 
 	if (!test_and_set_bit(__IXGBE_DISABLED, &adapter->state))
 		pci_disable_device(pdev);

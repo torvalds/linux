@@ -878,8 +878,9 @@ static s32 ixgbe_read_ee_hostif_buffer_X550(struct ixgbe_hw *hw,
 		buffer.hdr.req.checksum = FW_DEFAULT_CHECKSUM;
 
 		/* convert offset from words to bytes */
-		buffer.address = cpu_to_be32((offset + current_word) * 2);
-		buffer.length = cpu_to_be16(words_to_read * 2);
+		buffer.address = (__force u32)cpu_to_be32((offset +
+							   current_word) * 2);
+		buffer.length = (__force u16)cpu_to_be16(words_to_read * 2);
 		buffer.pad2 = 0;
 		buffer.pad3 = 0;
 
@@ -1089,9 +1090,9 @@ static s32 ixgbe_read_ee_hostif_X550(struct ixgbe_hw *hw, u16 offset, u16 *data)
 	buffer.hdr.req.checksum = FW_DEFAULT_CHECKSUM;
 
 	/* convert offset from words to bytes */
-	buffer.address = cpu_to_be32(offset * 2);
+	buffer.address = (__force u32)cpu_to_be32(offset * 2);
 	/* one word */
-	buffer.length = cpu_to_be16(sizeof(u16));
+	buffer.length = (__force u16)cpu_to_be16(sizeof(u16));
 
 	status = hw->mac.ops.acquire_swfw_sync(hw, mask);
 	if (status)

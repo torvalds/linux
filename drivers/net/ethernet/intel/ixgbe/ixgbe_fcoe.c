@@ -440,7 +440,7 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 	case cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_FCPRSP):
 		dma_unmap_sg(&adapter->pdev->dev, ddp->sgl,
 			     ddp->sgc, DMA_FROM_DEVICE);
-		ddp->err = ddp_err;
+		ddp->err = (__force u32)ddp_err;
 		ddp->sgl = NULL;
 		ddp->sgc = 0;
 		/* fall through */
