@@ -1660,6 +1660,20 @@ done:
 	return err;
 }
 
+/**
+ * i40e_get_stats_count - return the stats count for a device
+ * @netdev: the netdev to return the count for
+ *
+ * Returns the total number of statistics for this netdev. Note that even
+ * though this is a function, it is required that the count for a specific
+ * netdev must never change. Basing the count on static values such as the
+ * maximum number of queues or the device type is ok. However, the API for
+ * obtaining stats is *not* safe against changes based on non-static
+ * values such as the *current* number of queues, or runtime flags.
+ *
+ * If a statistic is not always enabled, return it as part of the count
+ * anyways, always return its string, and report its value as zero.
+ **/
 static int i40e_get_stats_count(struct net_device *netdev)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
@@ -1691,6 +1705,20 @@ static int i40e_get_sset_count(struct net_device *netdev, int sset)
 	}
 }
 
+/**
+ * i40e_get_ethtool_stats - copy stat values into supplied buffer
+ * @netdev: the netdev to collect stats for
+ * @stats: ethtool stats command structure
+ * @data: ethtool supplied buffer
+ *
+ * Copy the stats values for this netdev into the buffer. Expects data to be
+ * pre-allocated to the size returned by i40e_get_stats_count.. Note that all
+ * statistics must be copied in a static order, and the count must not change
+ * for a given netdev. See i40e_get_stats_count for more details.
+ *
+ * If a statistic is not currently valid (such as a disabled queue), this
+ * function reports its value as zero.
+ **/
 static void i40e_get_ethtool_stats(struct net_device *netdev,
 				   struct ethtool_stats *stats, u64 *data)
 {
@@ -1787,6 +1815,16 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 		*(data++) = pf->stats.priority_xon_2_xoff[j];
 }
 
+/**
+ * i40e_get_stat_strings - copy stat strings into supplied buffer
+ * @netdev: the netdev to collect strings for
+ * @data: supplied buffer to copy strings into
+ *
+ * Copy the strings related to stats for this netdev. Expects data to be
+ * pre-allocated with the size reported by i40e_get_stats_count. Note that the
+ * strings must be copied in a static order and the total count must not
+ * change for a given netdev. See i40e_get_stats_count for more details.
+ **/
 static void i40e_get_stat_strings(struct net_device *netdev, u8 *data)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
