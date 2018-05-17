@@ -2239,11 +2239,13 @@ again:
 		   (ceph_osdmap_flag(osdc, CEPH_OSDMAP_FULL) ||
 		    pool_full(osdc, req->r_t.base_oloc.pool))) {
 		dout("req %p full/pool_full\n", req);
-		pr_warn_ratelimited("FULL or reached pool quota\n");
-		req->r_t.paused = true;
-		maybe_request_map(osdc);
-		if (req->r_abort_on_full)
+		if (req->r_abort_on_full) {
 			err = -ENOSPC;
+		} else {
+			pr_warn_ratelimited("FULL or reached pool quota\n");
+			req->r_t.paused = true;
+			maybe_request_map(osdc);
+		}
 	} else if (!osd_homeless(osd)) {
 		need_send = true;
 	} else {
