@@ -228,6 +228,25 @@ static void kvmppc_pmd_free(pmd_t *pmdp)
 	kmem_cache_free(kvm_pmd_cache, pmdp);
 }
 
+static void kvmppc_unmap_pte(struct kvm *kvm, pte_t *pte,
+			     unsigned long gpa, unsigned int shift)
+
+{
+	unsigned long page_size = 1ul << shift;
+	unsigned long old;
+
+	old = kvmppc_radix_update_pte(kvm, pte, ~0UL, 0, gpa, shift);
+	kvmppc_radix_tlbie_page(kvm, gpa, shift);
+	if (old & _PAGE_DIRTY) {
+		unsigned long gfn = gpa >> PAGE_SHIFT;
+		struct kvm_memory_slot *memslot;
+
+		memslot = gfn_to_memslot(kvm, gfn);
+		if (memslot && memslot->dirty_bitmap)
+			kvmppc_update_dirty_map(memslot, gfn, page_size);
+	}
+}
+
 static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 			     unsigned int level, unsigned long mmu_seq)
 {
@@ -235,7 +254,6 @@ static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 	pud_t *pud, *new_pud = NULL;
 	pmd_t *pmd, *new_pmd = NULL;
 	pte_t *ptep, *new_ptep = NULL;
-	unsigned long old;
 	int ret;
 
 	/* Traverse the guest's 2nd-level tree, allocate new levels needed */
@@ -287,17 +305,7 @@ static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 			goto out_unlock;
 		}
 		/* Valid 1GB page here already, remove it */
-		old = kvmppc_radix_update_pte(kvm, (pte_t *)pud,
-					      ~0UL, 0, hgpa, PUD_SHIFT);
-		kvmppc_radix_tlbie_page(kvm, hgpa, PUD_SHIFT);
-		if (old & _PAGE_DIRTY) {
-			unsigned long gfn = hgpa >> PAGE_SHIFT;
-			struct kvm_memory_slot *memslot;
-			memslot = gfn_to_memslot(kvm, gfn);
-			if (memslot && memslot->dirty_bitmap)
-				kvmppc_update_dirty_map(memslot,
-							gfn, PUD_SIZE);
-		}
+		kvmppc_unmap_pte(kvm, (pte_t *)pud, hgpa, PUD_SHIFT);
 	}
 	if (level == 2) {
 		if (!pud_none(*pud)) {
@@ -338,17 +346,7 @@ static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 			goto out_unlock;
 		}
 		/* Valid 2MB page here already, remove it */
-		old = kvmppc_radix_update_pte(kvm, pmdp_ptep(pmd),
-					      ~0UL, 0, lgpa, PMD_SHIFT);
-		kvmppc_radix_tlbie_page(kvm, lgpa, PMD_SHIFT);
-		if (old & _PAGE_DIRTY) {
-			unsigned long gfn = lgpa >> PAGE_SHIFT;
-			struct kvm_memory_slot *memslot;
-			memslot = gfn_to_memslot(kvm, gfn);
-			if (memslot && memslot->dirty_bitmap)
-				kvmppc_update_dirty_map(memslot,
-							gfn, PMD_SIZE);
-		}
+		kvmppc_unmap_pte(kvm, pmdp_ptep(pmd), lgpa, PMD_SHIFT);
 	}
 	if (level == 1) {
 		if (!pmd_none(*pmd)) {
@@ -373,6 +371,8 @@ static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 	}
 	ptep = pte_offset_kernel(pmd, gpa);
 	if (pte_present(*ptep)) {
+		unsigned long old;
+
 		/* Check if someone else set the same thing */
 		if (pte_raw(*ptep) == pte_raw(pte)) {
 			ret = 0;
