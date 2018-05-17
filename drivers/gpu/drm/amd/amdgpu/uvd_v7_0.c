@@ -1325,12 +1325,15 @@ static void uvd_v7_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 
 static void uvd_v7_0_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
 {
-	int i;
 	struct amdgpu_device *adev = ring->adev;
+	int i;
 
-	for (i = 0; i < count; i++)
+	WARN_ON(ring->wptr % 2 || count % 2);
+
+	for (i = 0; i < count / 2; i++) {
 		amdgpu_ring_write(ring, PACKET0(SOC15_REG_OFFSET(UVD, ring->me, mmUVD_NO_OP), 0));
-
+		amdgpu_ring_write(ring, 0);
+	}
 }
 
 static void uvd_v7_0_enc_ring_insert_end(struct amdgpu_ring *ring)
@@ -1710,7 +1713,6 @@ const struct amd_ip_funcs uvd_v7_0_ip_funcs = {
 static const struct amdgpu_ring_funcs uvd_v7_0_ring_vm_funcs = {
 	.type = AMDGPU_RING_TYPE_UVD,
 	.align_mask = 0xf,
-	.nop = PACKET0(0x81ff, 0),
 	.support_64bit_ptrs = false,
 	.vmhub = AMDGPU_MMHUB,
 	.get_rptr = uvd_v7_0_ring_get_rptr,
