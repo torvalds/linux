@@ -609,17 +609,13 @@ int mt76x2_get_temp_comp(struct mt76x2_dev *dev, struct mt76x2_temp_comp *t)
 
 	memset(t, 0, sizeof(*t));
 
-	val = mt76x2_eeprom_get(dev, MT_EE_NIC_CONF_1);
-	if (!(val & MT_EE_NIC_CONF_1_TEMP_TX_ALC))
+	if (!mt76x2_temp_tx_alc_enabled(dev))
 		return -EINVAL;
 
 	if (!mt76x2_ext_pa_enabled(dev, band))
 		return -EINVAL;
 
 	val = mt76x2_eeprom_get(dev, MT_EE_TX_POWER_EXT_PA_5G) >> 8;
-	if (!(val & BIT(7)))
-		return -EINVAL;
-
 	t->temp_25_ref = val & 0x7f;
 	if (band == NL80211_BAND_5GHZ) {
 		slope = mt76x2_eeprom_get(dev, MT_EE_RF_TEMP_COMP_SLOPE_5G);

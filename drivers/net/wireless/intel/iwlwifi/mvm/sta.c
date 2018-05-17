@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2015 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -35,6 +36,7 @@
  * Copyright(c) 2012 - 2015 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -2466,6 +2468,15 @@ int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	lockdep_assert_held(&mvm->mutex);
 
+	if (mvmsta->tid_data[tid].txq_id == IWL_MVM_INVALID_QUEUE &&
+	    iwl_mvm_has_new_tx_api(mvm)) {
+		u8 ac = tid_to_mac80211_ac[tid];
+
+		ret = iwl_mvm_sta_alloc_queue_tvqm(mvm, sta, ac, tid);
+		if (ret)
+			return ret;
+	}
+
 	spin_lock_bh(&mvmsta->lock);
 
 	/* possible race condition - we entered D0i3 while starting agg */
@@ -2887,7 +2898,7 @@ static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 				u32 sta_id,
 				struct ieee80211_key_conf *key, bool mcast,
 				u32 tkip_iv32, u16 *tkip_p1k, u32 cmd_flags,
-				u8 key_offset)
+				u8 key_offset, bool mfp)
 {
 	union {
 		struct iwl_mvm_add_sta_key_cmd_v1 cmd_v1;
@@ -2960,6 +2971,8 @@ static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 
 	if (mcast)
 		key_flags |= cpu_to_le16(STA_KEY_MULTICAST);
+	if (mfp)
+		key_flags |= cpu_to_le16(STA_KEY_MFP);
 
 	u.cmd.common.key_offset = key_offset;
 	u.cmd.common.key_flags = key_flags;
@@ -3101,11 +3114,13 @@ static int __iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 	struct ieee80211_key_seq seq;
 	u16 p1k[5];
 	u32 sta_id;
+	bool mfp = false;
 
 	if (sta) {
 		struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 
 		sta_id = mvm_sta->sta_id;
+		mfp = sta->mfp;
 	} else if (vif->type == NL80211_IFTYPE_AP &&
 		   !(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE)) {
 		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -3127,7 +3142,8 @@ static int __iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 		ieee80211_get_key_rx_seq(keyconf, 0, &seq);
 		ieee80211_get_tkip_rx_p1k(keyconf, addr, seq.tkip.iv32, p1k);
 		ret = iwl_mvm_send_sta_key(mvm, sta_id, keyconf, mcast,
-					   seq.tkip.iv32, p1k, 0, key_offset);
+					   seq.tkip.iv32, p1k, 0, key_offset,
+					   mfp);
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_WEP40:
@@ -3135,11 +3151,11 @@ static int __iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
 		ret = iwl_mvm_send_sta_key(mvm, sta_id, keyconf, mcast,
-					   0, NULL, 0, key_offset);
+					   0, NULL, 0, key_offset, mfp);
 		break;
 	default:
 		ret = iwl_mvm_send_sta_key(mvm, sta_id, keyconf, mcast,
-					   0, NULL, 0, key_offset);
+					   0, NULL, 0, key_offset, mfp);
 	}
 
 	return ret;
@@ -3366,6 +3382,7 @@ void iwl_mvm_update_tkip_key(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_sta *mvm_sta;
 	bool mcast = !(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE);
+	bool mfp = sta ? sta->mfp : false;
 
 	rcu_read_lock();
 
@@ -3373,7 +3390,8 @@ void iwl_mvm_update_tkip_key(struct iwl_mvm *mvm,
 	if (WARN_ON_ONCE(!mvm_sta))
 		goto unlock;
 	iwl_mvm_send_sta_key(mvm, mvm_sta->sta_id, keyconf, mcast,
-			     iv32, phase1key, CMD_ASYNC, keyconf->hw_key_idx);
+			     iv32, phase1key, CMD_ASYNC, keyconf->hw_key_idx,
+			     mfp);
 
  unlock:
 	rcu_read_unlock();

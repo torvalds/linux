@@ -190,22 +190,36 @@ struct iwl_nvm_get_info_general {
 } __packed; /* GRP_REGULATORY_NVM_GET_INFO_GENERAL_S_VER_1 */
 
 /**
+ * enum iwl_nvm_mac_sku_flags - flags in &iwl_nvm_get_info_sku
+ * @NVM_MAC_SKU_FLAGS_BAND_2_4_ENABLED: true if 2.4 band enabled
+ * @NVM_MAC_SKU_FLAGS_BAND_5_2_ENABLED: true if 5.2 band enabled
+ * @NVM_MAC_SKU_FLAGS_802_11N_ENABLED: true if 11n enabled
+ * @NVM_MAC_SKU_FLAGS_802_11AC_ENABLED: true if 11ac enabled
+ * @NVM_MAC_SKU_FLAGS_802_11AX_ENABLED: true if 11ax enabled
+ * @NVM_MAC_SKU_FLAGS_MIMO_DISABLED: true if MIMO disabled
+ * @NVM_MAC_SKU_FLAGS_WAPI_ENABLED: true if WAPI enabled
+ * @NVM_MAC_SKU_FLAGS_REG_CHECK_ENABLED: true if regulatory checker enabled
+ * @NVM_MAC_SKU_FLAGS_API_LOCK_ENABLED: true if API lock enabled
+ */
+enum iwl_nvm_mac_sku_flags {
+	NVM_MAC_SKU_FLAGS_BAND_2_4_ENABLED	= BIT(0),
+	NVM_MAC_SKU_FLAGS_BAND_5_2_ENABLED	= BIT(1),
+	NVM_MAC_SKU_FLAGS_802_11N_ENABLED	= BIT(2),
+	NVM_MAC_SKU_FLAGS_802_11AC_ENABLED	= BIT(3),
+	NVM_MAC_SKU_FLAGS_802_11AX_ENABLED	= BIT(4),
+	NVM_MAC_SKU_FLAGS_MIMO_DISABLED		= BIT(5),
+	NVM_MAC_SKU_FLAGS_WAPI_ENABLED		= BIT(8),
+	NVM_MAC_SKU_FLAGS_REG_CHECK_ENABLED	= BIT(14),
+	NVM_MAC_SKU_FLAGS_API_LOCK_ENABLED	= BIT(15),
+};
+
+/**
  * struct iwl_nvm_get_info_sku - mac information
- * @enable_24g: band 2.4G enabled
- * @enable_5g: band 5G enabled
- * @enable_11n: 11n enabled
- * @enable_11ac: 11ac enabled
- * @mimo_disable: MIMO enabled
- * @ext_crypto: Extended crypto enabled
+ * @mac_sku_flags: flags for SKU, see &enum iwl_nvm_mac_sku_flags
  */
 struct iwl_nvm_get_info_sku {
-	__le32 enable_24g;
-	__le32 enable_5g;
-	__le32 enable_11n;
-	__le32 enable_11ac;
-	__le32 mimo_disable;
-	__le32 ext_crypto;
-} __packed; /* GRP_REGULATORY_NVM_GET_INFO_MAC_SKU_SECTION_S_VER_1 */
+	__le32 mac_sku_flags;
+} __packed; /* REGULATORY_NVM_GET_INFO_MAC_SKU_SECTION_S_VER_2 */
 
 /**
  * struct iwl_nvm_get_info_phy - phy information
@@ -243,7 +257,7 @@ struct iwl_nvm_get_info_rsp {
 	struct iwl_nvm_get_info_sku mac_sku;
 	struct iwl_nvm_get_info_phy phy_sku;
 	struct iwl_nvm_get_info_regulatory regulatory;
-} __packed; /* GRP_REGULATORY_NVM_GET_INFO_CMD_RSP_S_VER_1 */
+} __packed; /* GRP_REGULATORY_NVM_GET_INFO_CMD_RSP_S_VER_2 */
 
 /**
  * struct iwl_nvm_access_complete_cmd - NVM_ACCESS commands are completed

@@ -410,7 +410,6 @@ mt76x2_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate,
 		break;
 	default:
 		return -EINVAL;
-		break;
 	}
 
 	if (rate & MT_RXWI_RATE_SGI)

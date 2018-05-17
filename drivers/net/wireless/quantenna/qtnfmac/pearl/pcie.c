@@ -1185,6 +1185,10 @@ static void qtnf_fw_work_handler(struct work_struct *work)
 	if (qtnf_poll_state(&priv->bda->bda_ep_state, QTN_EP_FW_LOADRDY,
 			    QTN_FW_DL_TIMEOUT_MS)) {
 		pr_err("card is not ready\n");
+
+		if (!flashboot)
+			release_firmware(fw);
+
 		goto fw_load_fail;
 	}
 

@@ -22,10 +22,10 @@ ath10k_core-$(CONFIG_THERMAL) += thermal.o
 ath10k_core-$(CONFIG_MAC80211_DEBUGFS) += debugfs_sta.o
 ath10k_core-$(CONFIG_PM) += wow.o
 ath10k_core-$(CONFIG_DEV_COREDUMP) += coredump.o
+ath10k_core-$(CONFIG_ATH10K_CE) += ce.o
 
 obj-$(CONFIG_ATH10K_PCI) += ath10k_pci.o
-ath10k_pci-y += pci.o \
-		ce.o
+ath10k_pci-y += pci.o
 
 ath10k_pci-$(CONFIG_ATH10K_AHB) += ahb.o
 
@@ -34,6 +34,9 @@ ath10k_sdio-y += sdio.o
 
 obj-$(CONFIG_ATH10K_USB) += ath10k_usb.o
 ath10k_usb-y += usb.o
+
+obj-$(CONFIG_ATH10K_SNOC) += ath10k_snoc.o
+ath10k_snoc-y += snoc.o
 
 # for tracing framework to find trace.h
 CFLAGS_trace.o := -I$(src)

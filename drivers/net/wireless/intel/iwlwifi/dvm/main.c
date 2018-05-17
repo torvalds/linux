@@ -1200,16 +1200,16 @@ static int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 		return -EINVAL;
 	}
 
-	if (!data->sku_cap_11n_enable && !data->sku_cap_band_24GHz_enable &&
-	    !data->sku_cap_band_52GHz_enable) {
+	if (!data->sku_cap_11n_enable && !data->sku_cap_band_24ghz_enable &&
+	    !data->sku_cap_band_52ghz_enable) {
 		IWL_ERR(priv, "Invalid device sku\n");
 		return -EINVAL;
 	}
 
 	IWL_DEBUG_INFO(priv,
 		       "Device SKU: 24GHz %s %s, 52GHz %s %s, 11.n %s %s\n",
-		       data->sku_cap_band_24GHz_enable ? "" : "NOT", "enabled",
-		       data->sku_cap_band_52GHz_enable ? "" : "NOT", "enabled",
+		       data->sku_cap_band_24ghz_enable ? "" : "NOT", "enabled",
+		       data->sku_cap_band_52ghz_enable ? "" : "NOT", "enabled",
 		       data->sku_cap_11n_enable ? "" : "NOT", "enabled");
 
 	priv->hw_params.tx_chains_num =
