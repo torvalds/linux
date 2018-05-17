@@ -118,7 +118,7 @@ config MDIO_I2C
 
 config MDIO_MOXART
 	tristate "MOXA ART MDIO interface support"
-	depends on ARCH_MOXART
+	depends on ARCH_MOXART || COMPILE_TEST
 	help
 	  This driver supports the MDIO interface found in the network
 	  interface units of the MOXA ART SoC
@@ -142,7 +142,7 @@ config MDIO_OCTEON
 
 config MDIO_SUN4I
 	tristate "Allwinner sun4i MDIO interface support"
-	depends on ARCH_SUNXI
+	depends on ARCH_SUNXI || COMPILE_TEST
 	help
 	  This driver supports the MDIO interface found in the network
 	  interface units of the Allwinner SoC that have an EMAC (A10,
