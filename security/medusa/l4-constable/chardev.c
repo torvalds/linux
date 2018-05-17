@@ -134,34 +134,19 @@ static struct medusa_authserver_s chardev_medusa = {
 	l4_decide		/* decide */
 };
 
-int am_i_constable(void) {
-	struct task_struct* task;
-	struct list_head *i;
-	int ret = 0;
-
+static inline int am_i_constable(void) {
 	if (!constable)
 		return 0;
 
-	if (constable == current)
-		return 1;
-
+	/* each thread has its own PID, but accross the process they share TGID;
+	   TGID is also shared via system call 'fork', so an authorisation server
+	   can run in many processes */
 	rcu_read_lock();
-	if (current->parent == constable || current->real_parent == constable) {
-		ret = 1;
-		goto out;
-	}
-
-	list_for_each(i, &current->real_parent->children) {
-		task = list_entry(i, struct task_struct, sibling);
-		if (task == constable) {
-			ret = 1;
-			goto out;
-		}
-	}
-	
-out:
+	if (task_tgid(current) == task_tgid(constable))
+		return 1;
 	rcu_read_unlock();
-	return ret;
+
+	return 0;
 }
 
 static void l4_close_wake(void)
