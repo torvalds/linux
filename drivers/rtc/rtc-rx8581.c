@@ -109,6 +109,12 @@ static int rx8581_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		return -EIO;
 	}
 
+	if (data & RX8581_FLAG_VLF) {
+		dev_warn(dev,
+			 "low voltage detected, date/time is not reliable.\n");
+		return -EINVAL;
+	}
+
 	do {
 		/* If update flag set, clear it */
 		if (data & RX8581_FLAG_UF) {
@@ -135,10 +141,6 @@ static int rx8581_rtc_read_time(struct device *dev, struct rtc_time *tm)
 			return -EIO;
 		}
 	} while (data & RX8581_FLAG_UF);
-
-	if (data & RX8581_FLAG_VLF)
-		dev_info(dev,
-			"low voltage detected, date/time is not reliable.\n");
 
 	dev_dbg(dev, "%s: raw data is sec=%02x, min=%02x, hr=%02x, "
 		"wday=%02x, mday=%02x, mon=%02x, year=%02x\n",
