@@ -29,6 +29,8 @@
 
 #define DRV_NAME "rockchip-i2s-tdm"
 
+#define DEFAULT_MCLK_FS				256
+
 struct rk_i2s_soc_data {
 	u32 softrst_offset;
 	int tx_reset_id;
@@ -40,6 +42,20 @@ struct rk_i2s_tdm_dev {
 	struct clk *hclk;
 	struct clk *mclk_tx;
 	struct clk *mclk_rx;
+	/* The mclk_tx_src is parent of mclk_tx */
+	struct clk *mclk_tx_src;
+	/* The mclk_rx_src is parent of mclk_rx */
+	struct clk *mclk_rx_src;
+	/*
+	 * The mclk_root0 and mclk_root1 are root parent and supplies for
+	 * the different FS.
+	 *
+	 * e.g:
+	 * mclk_root0 is VPLL0, used for FS=48000Hz
+	 * mclk_root0 is VPLL1, used for FS=44100Hz
+	 */
+	struct clk *mclk_root0;
+	struct clk *mclk_root1;
 	struct regmap *regmap;
 	struct snd_dmaengine_dai_dma_data capture_dma_data;
 	struct snd_dmaengine_dai_dma_data playback_dma_data;
@@ -48,6 +64,7 @@ struct rk_i2s_tdm_dev {
 	struct rk_i2s_soc_data *soc_data;
 	void __iomem *cru_base;
 	bool is_master_mode;
+	bool mclk_calibrate;
 	unsigned int mclk_rx_freq;
 	unsigned int mclk_tx_freq;
 	unsigned int bclk_fs;
@@ -524,6 +541,69 @@ static void rockchip_i2s_tdm_xfer_resume(struct snd_pcm_substream *substream,
 			   I2S_XFER_RXS_START);
 }
 
+static int rockchip_i2s_tdm_calibrate_mclk(struct rk_i2s_tdm_dev *i2s_tdm,
+					   struct snd_pcm_substream *substream,
+					   unsigned int lrck_freq)
+{
+	struct clk *mclk_root;
+	struct clk *mclk_parent;
+	/* It's 256 times higher than a high sample rate */
+	unsigned int mclk_parent_freq;
+	int ret;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		mclk_parent = i2s_tdm->mclk_tx_src;
+	else
+		mclk_parent = i2s_tdm->mclk_rx_src;
+
+	switch (lrck_freq) {
+	case 8000:
+	case 16000:
+	case 24000:
+	case 32000:
+	case 48000:
+	case 64000:
+	case 96000:
+	case 192000:
+		mclk_root = i2s_tdm->mclk_root0;
+		mclk_parent_freq = DEFAULT_MCLK_FS * 192000;
+		break;
+	case 11025:
+	case 22050:
+	case 44100:
+	case 88200:
+	case 176400:
+		mclk_root = i2s_tdm->mclk_root1;
+		mclk_parent_freq = DEFAULT_MCLK_FS * 176400;
+		break;
+	default:
+		dev_err(i2s_tdm->dev, "Invalid LRCK freq: %u Hz\n",
+			lrck_freq);
+		return -EINVAL;
+	}
+
+	ret = clk_set_parent(mclk_parent, mclk_root);
+	if (ret < 0) {
+		dev_err(i2s_tdm->dev, "parent: %s set root: %s failed: %d\n",
+			__clk_get_name(mclk_parent),
+			__clk_get_name(mclk_root),
+			ret);
+		goto out;
+	}
+
+	ret = clk_set_rate(mclk_parent, mclk_parent_freq);
+	if (ret < 0) {
+		dev_err(i2s_tdm->dev, "parent: %s set freq: %d failed: %d\n",
+			__clk_get_name(mclk_parent),
+			mclk_parent_freq,
+			ret);
+		goto out;
+	}
+
+out:
+	return ret;
+}
+
 static int rockchip_i2s_tdm_set_mclk(struct rk_i2s_tdm_dev *i2s_tdm,
 				     struct snd_pcm_substream *substream,
 				     struct clk **mclk)
@@ -594,6 +674,10 @@ static int rockchip_i2s_tdm_hw_params(struct snd_pcm_substream *substream,
 	int ret = 0;
 	unsigned int val = 0;
 	unsigned int mclk_rate, bclk_rate, div_bclk, div_lrck;
+
+	if (i2s_tdm->mclk_calibrate)
+		rockchip_i2s_tdm_calibrate_mclk(i2s_tdm, substream,
+						params_rate(params));
 
 	ret = rockchip_i2s_tdm_set_mclk(i2s_tdm, substream, &mclk);
 	if (ret)
@@ -1023,6 +1107,26 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 	i2s_tdm->mclk_rx = devm_clk_get(&pdev->dev, "mclk_rx");
 	if (IS_ERR(i2s_tdm->mclk_rx))
 		return PTR_ERR(i2s_tdm->mclk_rx);
+
+	i2s_tdm->mclk_calibrate =
+		of_property_read_bool(node, "rockchip,mclk-calibrate");
+	if (i2s_tdm->mclk_calibrate) {
+		i2s_tdm->mclk_tx_src = devm_clk_get(&pdev->dev, "mclk_tx_src");
+		if (IS_ERR(i2s_tdm->mclk_tx_src))
+			return PTR_ERR(i2s_tdm->mclk_tx_src);
+
+		i2s_tdm->mclk_rx_src = devm_clk_get(&pdev->dev, "mclk_rx_src");
+		if (IS_ERR(i2s_tdm->mclk_rx_src))
+			return PTR_ERR(i2s_tdm->mclk_rx_src);
+
+		i2s_tdm->mclk_root0 = devm_clk_get(&pdev->dev, "mclk_root0");
+		if (IS_ERR(i2s_tdm->mclk_root0))
+			return PTR_ERR(i2s_tdm->mclk_root0);
+
+		i2s_tdm->mclk_root1 = devm_clk_get(&pdev->dev, "mclk_root1");
+		if (IS_ERR(i2s_tdm->mclk_root1))
+			return PTR_ERR(i2s_tdm->mclk_root1);
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(&pdev->dev, res);
