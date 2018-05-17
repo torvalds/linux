@@ -290,15 +290,12 @@ struct qede_agg_info {
 	 * aggregation.
 	 */
 	struct sw_rx_data buffer;
-	dma_addr_t buffer_mapping;
-
 	struct sk_buff *skb;
 
 	/* We need some structs from the start cookie until termination */
 	u16 vlan_tag;
-	u16 start_cqe_bd_len;
-	u8 start_cqe_placement_offset;
 
+	bool tpa_start_fail;
 	u8 state;
 	u8 frag_id;
 

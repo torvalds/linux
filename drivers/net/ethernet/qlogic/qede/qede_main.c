@@ -1197,30 +1197,8 @@ static void qede_free_rx_buffers(struct qede_dev *edev,
 	}
 }
 
-static void qede_free_sge_mem(struct qede_dev *edev, struct qede_rx_queue *rxq)
-{
-	int i;
-
-	if (edev->gro_disable)
-		return;
-
-	for (i = 0; i < ETH_TPA_MAX_AGGS_NUM; i++) {
-		struct qede_agg_info *tpa_info = &rxq->tpa_info[i];
-		struct sw_rx_data *replace_buf = &tpa_info->buffer;
-
-		if (replace_buf->data) {
-			dma_unmap_page(&edev->pdev->dev,
-				       replace_buf->mapping,
-				       PAGE_SIZE, DMA_FROM_DEVICE);
-			__free_page(replace_buf->data);
-		}
-	}
-}
-
 static void qede_free_mem_rxq(struct qede_dev *edev, struct qede_rx_queue *rxq)
 {
-	qede_free_sge_mem(edev, rxq);
-
 	/* Free rx buffers */
 	qede_free_rx_buffers(edev, rxq);
 
@@ -1232,45 +1210,15 @@ static void qede_free_mem_rxq(struct qede_dev *edev, struct qede_rx_queue *rxq)
 	edev->ops->common->chain_free(edev->cdev, &rxq->rx_comp_ring);
 }
 
-static int qede_alloc_sge_mem(struct qede_dev *edev, struct qede_rx_queue *rxq)
+static void qede_set_tpa_param(struct qede_rx_queue *rxq)
 {
-	dma_addr_t mapping;
 	int i;
-
-	if (edev->gro_disable)
-		return 0;
 
 	for (i = 0; i < ETH_TPA_MAX_AGGS_NUM; i++) {
 		struct qede_agg_info *tpa_info = &rxq->tpa_info[i];
-		struct sw_rx_data *replace_buf = &tpa_info->buffer;
 
-		replace_buf->data = alloc_pages(GFP_ATOMIC, 0);
-		if (unlikely(!replace_buf->data)) {
-			DP_NOTICE(edev,
-				  "Failed to allocate TPA skb pool [replacement buffer]\n");
-			goto err;
-		}
-
-		mapping = dma_map_page(&edev->pdev->dev, replace_buf->data, 0,
-				       PAGE_SIZE, DMA_FROM_DEVICE);
-		if (unlikely(dma_mapping_error(&edev->pdev->dev, mapping))) {
-			DP_NOTICE(edev,
-				  "Failed to map TPA replacement buffer\n");
-			goto err;
-		}
-
-		replace_buf->mapping = mapping;
-		tpa_info->buffer.page_offset = 0;
-		tpa_info->buffer_mapping = mapping;
 		tpa_info->state = QEDE_AGG_STATE_NONE;
 	}
-
-	return 0;
-err:
-	qede_free_sge_mem(edev, rxq);
-	edev->gro_disable = 1;
-	edev->ndev->features &= ~NETIF_F_GRO_HW;
-	return -ENOMEM;
 }
 
 /* This function allocates all memory needed per Rx queue */
@@ -1281,19 +1229,24 @@ static int qede_alloc_mem_rxq(struct qede_dev *edev, struct qede_rx_queue *rxq)
 	rxq->num_rx_buffers = edev->q_num_rx_buffers;
 
 	rxq->rx_buf_size = NET_IP_ALIGN + ETH_OVERHEAD + edev->ndev->mtu;
-	rxq->rx_headroom = edev->xdp_prog ? XDP_PACKET_HEADROOM : 0;
+
+	rxq->rx_headroom = edev->xdp_prog ? XDP_PACKET_HEADROOM : NET_SKB_PAD;
+	size = rxq->rx_headroom +
+	       SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
 	/* Make sure that the headroom and  payload fit in a single page */
-	if (rxq->rx_buf_size + rxq->rx_headroom > PAGE_SIZE)
-		rxq->rx_buf_size = PAGE_SIZE - rxq->rx_headroom;
+	if (rxq->rx_buf_size + size > PAGE_SIZE)
+		rxq->rx_buf_size = PAGE_SIZE - size;
 
-	/* Segment size to spilt a page in multiple equal parts,
+	/* Segment size to spilt a page in multiple equal parts ,
 	 * unless XDP is used in which case we'd use the entire page.
 	 */
-	if (!edev->xdp_prog)
-		rxq->rx_buf_seg_size = roundup_pow_of_two(rxq->rx_buf_size);
-	else
+	if (!edev->xdp_prog) {
+		size = size + rxq->rx_buf_size;
+		rxq->rx_buf_seg_size = roundup_pow_of_two(size);
+	} else {
 		rxq->rx_buf_seg_size = PAGE_SIZE;
+	}
 
 	/* Allocate the parallel driver ring for Rx buffers */
 	size = sizeof(*rxq->sw_rx_ring) * RX_RING_SIZE;
@@ -1337,7 +1290,8 @@ static int qede_alloc_mem_rxq(struct qede_dev *edev, struct qede_rx_queue *rxq)
 		}
 	}
 
-	rc = qede_alloc_sge_mem(edev, rxq);
+	if (!edev->gro_disable)
+		qede_set_tpa_param(rxq);
 err:
 	return rc;
 }
