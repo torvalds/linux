@@ -1691,3 +1691,14 @@ void zfcp_erp_clear_lun_status(struct scsi_device *sdev, u32 mask)
 		atomic_set(&zfcp_sdev->erp_counter, 0);
 }
 
+/**
+ * zfcp_erp_adapter_reset_sync() - Really reopen adapter and wait.
+ * @adapter: Pointer to zfcp_adapter to reopen.
+ * @id: Trace tag string of length %ZFCP_DBF_TAG_LEN.
+ */
+void zfcp_erp_adapter_reset_sync(struct zfcp_adapter *adapter, char *id)
+{
+	zfcp_erp_set_adapter_status(adapter, ZFCP_STATUS_COMMON_RUNNING);
+	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED, id);
+	zfcp_erp_wait(adapter);
+}

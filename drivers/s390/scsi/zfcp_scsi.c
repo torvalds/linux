@@ -372,6 +372,31 @@ static int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
 	return ret;
 }
 
+/**
+ * zfcp_scsi_sysfs_host_reset() - Support scsi_host sysfs attribute host_reset.
+ * @shost: Pointer to Scsi_Host to perform action on.
+ * @reset_type: We support %SCSI_ADAPTER_RESET but not %SCSI_FIRMWARE_RESET.
+ *
+ * Return: 0 on %SCSI_ADAPTER_RESET, -%EOPNOTSUPP otherwise.
+ *
+ * This is similar to zfcp_sysfs_adapter_failed_store().
+ */
+static int zfcp_scsi_sysfs_host_reset(struct Scsi_Host *shost, int reset_type)
+{
+	struct zfcp_adapter *adapter =
+		(struct zfcp_adapter *)shost->hostdata[0];
+	int ret = 0;
+
+	if (reset_type != SCSI_ADAPTER_RESET) {
+		ret = -EOPNOTSUPP;
+		zfcp_dbf_scsi_eh("scshr_n", adapter, ~0, ret);
+		return ret;
+	}
+
+	zfcp_erp_adapter_reset_sync(adapter, "scshr_y");
+	return ret;
+}
+
 struct scsi_transport_template *zfcp_scsi_transport_template;
 
 static struct scsi_host_template zfcp_scsi_host_template = {
@@ -387,6 +412,7 @@ static struct scsi_host_template zfcp_scsi_host_template = {
 	.slave_configure	 = zfcp_scsi_slave_configure,
 	.slave_destroy		 = zfcp_scsi_slave_destroy,
 	.change_queue_depth	 = scsi_change_queue_depth,
+	.host_reset		 = zfcp_scsi_sysfs_host_reset,
 	.proc_name		 = "zfcp",
 	.can_queue		 = 4096,
 	.this_id		 = -1,
