@@ -582,6 +582,14 @@
 		watchdog {
 			compatible = "zii,rave-sp-watchdog";
 		};
+
+		backlight {
+			compatible = "zii,rave-sp-backlight";
+		};
+
+		pwrbutton {
+			compatible = "zii,rave-sp-pwrbutton";
+		};
 	};
 };
 
