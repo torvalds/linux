@@ -314,8 +314,11 @@ static int zfcp_erp_action_enqueue(int want, struct zfcp_adapter *adapter,
 		goto out;
 	}
 
-	if (!adapter->erp_thread)
-		return -EIO;
+	if (!adapter->erp_thread) {
+		need = ZFCP_ERP_ACTION_NONE; /* marker for trace */
+		retval = -EIO;
+		goto out;
+	}
 
 	need = zfcp_erp_required_act(want, adapter, port, sdev);
 	if (!need)
