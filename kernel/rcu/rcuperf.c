@@ -536,7 +536,7 @@ retry:
 	return 0;
 }
 
-static inline void
+static void
 rcu_perf_print_module_parms(struct rcu_perf_ops *cur_ops, const char *tag)
 {
 	pr_alert("%s" PERF_FLAG
