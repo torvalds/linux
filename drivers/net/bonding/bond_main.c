@@ -2137,6 +2137,24 @@ static int bond_miimon_inspect(struct bonding *bond)
 	return commit;
 }
 
+static void bond_miimon_link_change(struct bonding *bond,
+				    struct slave *slave,
+				    char link)
+{
+	switch (BOND_MODE(bond)) {
+	case BOND_MODE_8023AD:
+		bond_3ad_handle_link_change(slave, link);
+		break;
+	case BOND_MODE_TLB:
+	case BOND_MODE_ALB:
+		bond_alb_handle_link_change(bond, slave, link);
+		break;
+	case BOND_MODE_XOR:
+		bond_update_slave_arr(bond, NULL);
+		break;
+	}
+}
+
 static void bond_miimon_commit(struct bonding *bond)
 {
 	struct list_head *iter;
@@ -2178,16 +2196,7 @@ static void bond_miimon_commit(struct bonding *bond)
 				    slave->speed == SPEED_UNKNOWN ? 0 : slave->speed,
 				    slave->duplex ? "full" : "half");
 
-			/* notify ad that the link status has changed */
-			if (BOND_MODE(bond) == BOND_MODE_8023AD)
-				bond_3ad_handle_link_change(slave, BOND_LINK_UP);
-
-			if (bond_is_lb(bond))
-				bond_alb_handle_link_change(bond, slave,
-							    BOND_LINK_UP);
-
-			if (BOND_MODE(bond) == BOND_MODE_XOR)
-				bond_update_slave_arr(bond, NULL);
+			bond_miimon_link_change(bond, slave, BOND_LINK_UP);
 
 			if (!bond->curr_active_slave || slave == primary)
 				goto do_failover;
@@ -2209,16 +2218,7 @@ static void bond_miimon_commit(struct bonding *bond)
 			netdev_info(bond->dev, "link status definitely down for interface %s, disabling it\n",
 				    slave->dev->name);
 
-			if (BOND_MODE(bond) == BOND_MODE_8023AD)
-				bond_3ad_handle_link_change(slave,
-							    BOND_LINK_DOWN);
-
-			if (bond_is_lb(bond))
-				bond_alb_handle_link_change(bond, slave,
-							    BOND_LINK_DOWN);
-
-			if (BOND_MODE(bond) == BOND_MODE_XOR)
-				bond_update_slave_arr(bond, NULL);
+			bond_miimon_link_change(bond, slave, BOND_LINK_DOWN);
 
 			if (slave == rcu_access_pointer(bond->curr_active_slave))
 				goto do_failover;
