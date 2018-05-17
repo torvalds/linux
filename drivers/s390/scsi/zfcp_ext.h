@@ -58,6 +58,9 @@ extern void zfcp_dbf_scsi_eh(char *tag, struct zfcp_adapter *adapter,
 /* zfcp_erp.c */
 extern void zfcp_erp_set_adapter_status(struct zfcp_adapter *, u32);
 extern void zfcp_erp_clear_adapter_status(struct zfcp_adapter *, u32);
+extern void zfcp_erp_port_forced_no_port_dbf(char *id,
+					     struct zfcp_adapter *adapter,
+					     u64 port_name, u32 port_id);
 extern void zfcp_erp_adapter_reopen(struct zfcp_adapter *, int, char *);
 extern void zfcp_erp_adapter_shutdown(struct zfcp_adapter *, int, char *);
 extern void zfcp_erp_set_port_status(struct zfcp_port *, u32);
