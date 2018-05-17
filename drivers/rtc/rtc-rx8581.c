@@ -93,8 +93,9 @@ static int rx8581_write_block_data(const struct i2c_client *client, u8 command,
  * In the routines that deal directly with the rx8581 hardware, we use
  * rtc_time -- month 0-11, hour 0-23, yr = calendar year-epoch.
  */
-static int rx8581_get_datetime(struct i2c_client *client, struct rtc_time *tm)
+static int rx8581_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	unsigned char date[7];
 	int data, err;
 	struct rx8581 *rx8581 = i2c_get_clientdata(client);
@@ -164,8 +165,9 @@ static int rx8581_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	return 0;
 }
 
-static int rx8581_set_datetime(struct i2c_client *client, struct rtc_time *tm)
+static int rx8581_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	int data, err;
 	unsigned char buf[7];
 	struct rx8581 *rx8581 = i2c_get_clientdata(client);
@@ -240,16 +242,6 @@ static int rx8581_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 	}
 
 	return 0;
-}
-
-static int rx8581_rtc_read_time(struct device *dev, struct rtc_time *tm)
-{
-	return rx8581_get_datetime(to_i2c_client(dev), tm);
-}
-
-static int rx8581_rtc_set_time(struct device *dev, struct rtc_time *tm)
-{
-	return rx8581_set_datetime(to_i2c_client(dev), tm);
 }
 
 static const struct rtc_class_ops rx8581_rtc_ops = {
