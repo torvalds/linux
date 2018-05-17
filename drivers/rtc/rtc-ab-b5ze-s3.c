@@ -925,6 +925,14 @@ static int abb5zes3_probe(struct i2c_client *client,
 	if (ret)
 		goto err;
 
+	data->rtc = devm_rtc_allocate_device(dev);
+	ret = PTR_ERR_OR_ZERO(data->rtc);
+	if (ret) {
+		dev_err(dev, "%s: unable to allocate RTC device (%d)\n",
+			__func__, ret);
+		goto err;
+	}
+
 	if (client->irq > 0) {
 		ret = devm_request_threaded_irq(dev, client->irq, NULL,
 						_abb5zes3_rtc_interrupt,
@@ -942,14 +950,7 @@ static int abb5zes3_probe(struct i2c_client *client,
 		}
 	}
 
-	data->rtc = devm_rtc_device_register(dev, DRV_NAME, &rtc_ops,
-					     THIS_MODULE);
-	ret = PTR_ERR_OR_ZERO(data->rtc);
-	if (ret) {
-		dev_err(dev, "%s: unable to register RTC device (%d)\n",
-			__func__, ret);
-		goto err;
-	}
+	data->rtc->ops = &rtc_ops;
 
 	/* Enable battery low detection interrupt if battery not already low */
 	if (!data->battery_low && data->irq) {
@@ -960,6 +961,8 @@ static int abb5zes3_probe(struct i2c_client *client,
 			goto err;
 		}
 	}
+
+	ret = rtc_register_device(data->rtc);
 
 err:
 	if (ret && data && data->irq)
