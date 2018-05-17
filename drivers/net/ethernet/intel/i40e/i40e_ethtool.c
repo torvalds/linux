@@ -140,8 +140,12 @@ static const struct i40e_stats i40e_gstrings_stats[] = {
 	I40E_PF_STAT("rx_lpi_count", stats.rx_lpi_count),
 };
 
-#define I40E_QUEUE_STATS_LEN(n) \
-	(((struct i40e_netdev_priv *)netdev_priv((n)))->vsi->num_queue_pairs \
+/* We use num_tx_queues here as a proxy for the maximum number of queues
+ * available because we always allocate queues symmetrically.
+ */
+#define I40E_MAX_NUM_QUEUES(n) ((n)->num_tx_queues)
+#define I40E_QUEUE_STATS_LEN(n)                                              \
+	   (I40E_MAX_NUM_QUEUES(n)                                           \
 	    * 2 /* Tx and Rx together */                                     \
 	    * (sizeof(struct i40e_queue_stats) / sizeof(u64)))
 #define I40E_GLOBAL_STATS_LEN	ARRAY_SIZE(i40e_gstrings_stats)
@@ -1712,11 +1716,19 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 			    sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
 	rcu_read_lock();
-	for (j = 0; j < vsi->num_queue_pairs; j++) {
+	for (j = 0; j < I40E_MAX_NUM_QUEUES(netdev) ; j++) {
 		tx_ring = READ_ONCE(vsi->tx_rings[j]);
 
-		if (!tx_ring)
+		if (!tx_ring) {
+			/* Bump the stat counter to skip these stats, and make
+			 * sure the memory is zero'd
+			 */
+			data[i++] = 0;
+			data[i++] = 0;
+			data[i++] = 0;
+			data[i++] = 0;
 			continue;
+		}
 
 		/* process Tx ring statistics */
 		do {
@@ -1800,7 +1812,7 @@ static void i40e_get_strings(struct net_device *netdev, u32 stringset,
 				 i40e_gstrings_misc_stats[i].stat_string);
 			p += ETH_GSTRING_LEN;
 		}
-		for (i = 0; i < vsi->num_queue_pairs; i++) {
+		for (i = 0; i < I40E_MAX_NUM_QUEUES(netdev); i++) {
 			snprintf(p, ETH_GSTRING_LEN, "tx-%d.tx_packets", i);
 			p += ETH_GSTRING_LEN;
 			snprintf(p, ETH_GSTRING_LEN, "tx-%d.tx_bytes", i);
