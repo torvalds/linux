@@ -23,6 +23,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <asm/amd_nb.h>
 #include <asm/processor.h>
 
 MODULE_DESCRIPTION("AMD Family 10h+ CPU core temperature monitor");
@@ -40,8 +41,8 @@ static DEFINE_MUTEX(nb_smu_ind_mutex);
 #define PCI_DEVICE_ID_AMD_17H_DF_F3	0x1463
 #endif
 
-#ifndef PCI_DEVICE_ID_AMD_17H_RR_NB
-#define PCI_DEVICE_ID_AMD_17H_RR_NB	0x15d0
+#ifndef PCI_DEVICE_ID_AMD_17H_M10H_DF_F3
+#define PCI_DEVICE_ID_AMD_17H_M10H_DF_F3	0x15eb
 #endif
 
 /* CPUID function 0x80000001, ebx */
@@ -63,10 +64,12 @@ static DEFINE_MUTEX(nb_smu_ind_mutex);
 #define  NB_CAP_HTC			0x00000400
 
 /*
- * For F15h M60h, functionality of REG_REPORTED_TEMPERATURE
- * has been moved to D0F0xBC_xD820_0CA4 [Reported Temperature
- * Control]
+ * For F15h M60h and M70h, REG_HARDWARE_THERMAL_CONTROL
+ * and REG_REPORTED_TEMPERATURE have been moved to
+ * D0F0xBC_xD820_0C64 [Hardware Temperature Control]
+ * D0F0xBC_xD820_0CA4 [Reported Temperature Control]
  */
+#define F15H_M60H_HARDWARE_TEMP_CTRL_OFFSET	0xd8200c64
 #define F15H_M60H_REPORTED_TEMP_CTRL_OFFSET	0xd8200ca4
 
 /* F17h M01h Access througn SMN */
@@ -74,6 +77,7 @@ static DEFINE_MUTEX(nb_smu_ind_mutex);
 
 struct k10temp_data {
 	struct pci_dev *pdev;
+	void (*read_htcreg)(struct pci_dev *pdev, u32 *regval);
 	void (*read_tempreg)(struct pci_dev *pdev, u32 *regval);
 	int temp_offset;
 	u32 temp_adjust_mask;
@@ -98,6 +102,11 @@ static const struct tctl_offset tctl_offset_table[] = {
 	{ 0x17, "AMD Ryzen Threadripper 1910", 10000 },
 };
 
+static void read_htcreg_pci(struct pci_dev *pdev, u32 *regval)
+{
+	pci_read_config_dword(pdev, REG_HARDWARE_THERMAL_CONTROL, regval);
+}
+
 static void read_tempreg_pci(struct pci_dev *pdev, u32 *regval)
 {
 	pci_read_config_dword(pdev, REG_REPORTED_TEMPERATURE, regval);
@@ -114,6 +123,12 @@ static void amd_nb_index_read(struct pci_dev *pdev, unsigned int devfn,
 	mutex_unlock(&nb_smu_ind_mutex);
 }
 
+static void read_htcreg_nb_f15(struct pci_dev *pdev, u32 *regval)
+{
+	amd_nb_index_read(pdev, PCI_DEVFN(0, 0), 0xb8,
+			  F15H_M60H_HARDWARE_TEMP_CTRL_OFFSET, regval);
+}
+
 static void read_tempreg_nb_f15(struct pci_dev *pdev, u32 *regval)
 {
 	amd_nb_index_read(pdev, PCI_DEVFN(0, 0), 0xb8,
@@ -122,8 +137,8 @@ static void read_tempreg_nb_f15(struct pci_dev *pdev, u32 *regval)
 
 static void read_tempreg_nb_f17(struct pci_dev *pdev, u32 *regval)
 {
-	amd_nb_index_read(pdev, PCI_DEVFN(0, 0), 0x60,
-			  F17H_M01H_REPORTED_TEMP_CTRL_OFFSET, regval);
+	amd_smn_read(amd_pci_dev_to_node_id(pdev),
+		     F17H_M01H_REPORTED_TEMP_CTRL_OFFSET, regval);
 }
 
 static ssize_t temp1_input_show(struct device *dev,
@@ -160,8 +175,7 @@ static ssize_t show_temp_crit(struct device *dev,
 	u32 regval;
 	int value;
 
-	pci_read_config_dword(data->pdev,
-			      REG_HARDWARE_THERMAL_CONTROL, &regval);
+	data->read_htcreg(data->pdev, &regval);
 	value = ((regval >> 16) & 0x7f) * 500 + 52000;
 	if (show_hyst)
 		value -= ((regval >> 24) & 0xf) * 500;
@@ -181,13 +195,18 @@ static umode_t k10temp_is_visible(struct kobject *kobj,
 	struct pci_dev *pdev = data->pdev;
 
 	if (index >= 2) {
-		u32 reg_caps, reg_htc;
+		u32 reg;
+
+		if (!data->read_htcreg)
+			return 0;
 
 		pci_read_config_dword(pdev, REG_NORTHBRIDGE_CAPABILITIES,
-				      &reg_caps);
-		pci_read_config_dword(pdev, REG_HARDWARE_THERMAL_CONTROL,
-				      &reg_htc);
-		if (!(reg_caps & NB_CAP_HTC) || !(reg_htc & HTC_ENABLE))
+				      &reg);
+		if (!(reg & NB_CAP_HTC))
+			return 0;
+
+		data->read_htcreg(data->pdev, &reg);
+		if (!(reg & HTC_ENABLE))
 			return 0;
 	}
 	return attr->mode;
@@ -268,11 +287,13 @@ static int k10temp_probe(struct pci_dev *pdev,
 
 	if (boot_cpu_data.x86 == 0x15 && (boot_cpu_data.x86_model == 0x60 ||
 					  boot_cpu_data.x86_model == 0x70)) {
+		data->read_htcreg = read_htcreg_nb_f15;
 		data->read_tempreg = read_tempreg_nb_f15;
 	} else if (boot_cpu_data.x86 == 0x17) {
 		data->temp_adjust_mask = 0x80000;
 		data->read_tempreg = read_tempreg_nb_f17;
 	} else {
+		data->read_htcreg = read_htcreg_pci;
 		data->read_tempreg = read_tempreg_pci;
 	}
 
@@ -302,7 +323,7 @@ static const struct pci_device_id k10temp_id_table[] = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_16H_NB_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_16H_M30H_NB_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_17H_DF_F3) },
-	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_17H_RR_NB) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_17H_M10H_DF_F3) },
 	{}
 };
 MODULE_DEVICE_TABLE(pci, k10temp_id_table);
