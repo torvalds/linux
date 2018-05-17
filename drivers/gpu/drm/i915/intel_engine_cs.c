@@ -1096,6 +1096,29 @@ void intel_engines_unpark(struct drm_i915_private *i915)
 	}
 }
 
+/**
+ * intel_engine_lost_context: called when the GPU is reset into unknown state
+ * @engine: the engine
+ *
+ * We have either reset the GPU or otherwise about to lose state tracking of
+ * the current GPU logical state (e.g. suspend). On next use, it is therefore
+ * imperative that we make no presumptions about the current state and load
+ * from scratch.
+ */
+void intel_engine_lost_context(struct intel_engine_cs *engine)
+{
+	struct i915_gem_context *ctx;
+
+	lockdep_assert_held(&engine->i915->drm.struct_mutex);
+
+	engine->legacy_active_context = NULL;
+	engine->legacy_active_ppgtt = NULL;
+
+	ctx = fetch_and_zero(&engine->last_retired_context);
+	if (ctx)
+		intel_context_unpin(ctx, engine);
+}
+
 bool intel_engine_can_store_dword(struct intel_engine_cs *engine)
 {
 	switch (INTEL_GEN(engine->i915)) {

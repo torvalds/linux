@@ -514,16 +514,8 @@ void i915_gem_contexts_lost(struct drm_i915_private *dev_priv)
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
-	for_each_engine(engine, dev_priv, id) {
-		engine->legacy_active_context = NULL;
-		engine->legacy_active_ppgtt = NULL;
-
-		if (!engine->last_retired_context)
-			continue;
-
-		intel_context_unpin(engine->last_retired_context, engine);
-		engine->last_retired_context = NULL;
-	}
+	for_each_engine(engine, dev_priv, id)
+		intel_engine_lost_context(engine);
 }
 
 void i915_gem_contexts_fini(struct drm_i915_private *i915)
