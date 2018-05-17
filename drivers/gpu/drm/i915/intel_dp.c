@@ -56,7 +56,7 @@ struct dp_link_dpll {
 	struct dpll dpll;
 };
 
-static const struct dp_link_dpll gen4_dpll[] = {
+static const struct dp_link_dpll g4x_dpll[] = {
 	{ 162000,
 		{ .p1 = 2, .p2 = 10, .n = 2, .m1 = 23, .m2 = 8 } },
 	{ 270000,
@@ -1550,8 +1550,8 @@ intel_dp_set_clock(struct intel_encoder *encoder,
 	int i, count = 0;
 
 	if (IS_G4X(dev_priv)) {
-		divisor = gen4_dpll;
-		count = ARRAY_SIZE(gen4_dpll);
+		divisor = g4x_dpll;
+		count = ARRAY_SIZE(g4x_dpll);
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		divisor = pch_dpll;
 		count = ARRAY_SIZE(pch_dpll);
@@ -3451,7 +3451,7 @@ static uint32_t chv_signal_levels(struct intel_dp *intel_dp)
 }
 
 static uint32_t
-gen4_signal_levels(uint8_t train_set)
+g4x_signal_levels(uint8_t train_set)
 {
 	uint32_t	signal_levels = 0;
 
@@ -3572,7 +3572,7 @@ intel_dp_set_signal_levels(struct intel_dp *intel_dp)
 		signal_levels = snb_cpu_edp_signal_levels(train_set);
 		mask = EDP_LINK_TRAIN_VOL_EMP_MASK_SNB;
 	} else {
-		signal_levels = gen4_signal_levels(train_set);
+		signal_levels = g4x_signal_levels(train_set);
 		mask = DP_VOLTAGE_MASK | DP_PRE_EMPHASIS_MASK;
 	}
 
