@@ -517,7 +517,7 @@ static int audit_filter_rules(struct task_struct *tsk,
 			result = audit_gid_comparator(cred->fsgid, f->op, f->gid);
 			break;
 		case AUDIT_SESSIONID:
-			sessionid = audit_get_sessionid(current);
+			sessionid = audit_get_sessionid(tsk);
 			result = audit_comparator(sessionid, f->op, f->val);
 			break;
 		case AUDIT_PERS:
