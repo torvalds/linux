@@ -180,6 +180,7 @@ static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 		if (abrt_req)
 			break;
 
+		zfcp_dbf_scsi_abort("abrt_wt", scpnt, NULL);
 		zfcp_erp_wait(adapter);
 		ret = fc_block_scsi_eh(scpnt);
 		if (ret) {
@@ -276,6 +277,7 @@ static int zfcp_task_mgmt_function(struct scsi_cmnd *scpnt, u8 tm_flags)
 		if (fsf_req)
 			break;
 
+		zfcp_dbf_scsi_devreset("wait", scpnt, tm_flags, NULL);
 		zfcp_erp_wait(adapter);
 		ret = fc_block_scsi_eh(scpnt);
 		if (ret) {
