@@ -474,13 +474,6 @@ struct storvsc_device {
 	 * Mask of CPUs bound to subchannels.
 	 */
 	struct cpumask alloced_cpus;
-	/*
-	 * Pre-allocated struct cpumask for each hardware queue.
-	 * struct cpumask is used by selecting out-going channels. It is a
-	 * big structure, default to 1024k bytes when CONFIG_MAXSMP=y.
-	 * Pre-allocate it to avoid allocation on the kernel stack.
-	 */
-	struct cpumask *cpumask_chns;
 	/* Used for vsc/vsp channel reset process */
 	struct storvsc_cmd_request init_request;
 	struct storvsc_cmd_request reset_request;
@@ -885,13 +878,6 @@ static int storvsc_channel_init(struct hv_device *device, bool is_fc)
 	if (stor_device->stor_chns == NULL)
 		return -ENOMEM;
 
-	stor_device->cpumask_chns = kcalloc(num_possible_cpus(),
-			sizeof(struct cpumask), GFP_KERNEL);
-	if (stor_device->cpumask_chns == NULL) {
-		kfree(stor_device->stor_chns);
-		return -ENOMEM;
-	}
-
 	stor_device->stor_chns[device->channel->target_cpu] = device->channel;
 	cpumask_set_cpu(device->channel->target_cpu,
 			&stor_device->alloced_cpus);
@@ -1252,7 +1238,6 @@ static int storvsc_dev_remove(struct hv_device *device)
 	vmbus_close(device->channel);
 
 	kfree(stor_device->stor_chns);
-	kfree(stor_device->cpumask_chns);
 	kfree(stor_device);
 	return 0;
 }
@@ -1262,7 +1247,7 @@ static struct vmbus_channel *get_og_chn(struct storvsc_device *stor_device,
 {
 	u16 slot = 0;
 	u16 hash_qnum;
-	struct cpumask *alloced_mask = &stor_device->cpumask_chns[q_num];
+	const struct cpumask *node_mask;
 	int num_channels, tgt_cpu;
 
 	if (stor_device->num_sc == 0)
@@ -1278,10 +1263,13 @@ static struct vmbus_channel *get_og_chn(struct storvsc_device *stor_device,
 	 * III. Mapping is persistent.
 	 */
 
-	cpumask_and(alloced_mask, &stor_device->alloced_cpus,
-		    cpumask_of_node(cpu_to_node(q_num)));
+	node_mask = cpumask_of_node(cpu_to_node(q_num));
 
-	num_channels = cpumask_weight(alloced_mask);
+	num_channels = 0;
+	for_each_cpu(tgt_cpu, &stor_device->alloced_cpus) {
+		if (cpumask_test_cpu(tgt_cpu, node_mask))
+			num_channels++;
+	}
 	if (num_channels == 0)
 		return stor_device->device->channel;
 
@@ -1289,7 +1277,9 @@ static struct vmbus_channel *get_og_chn(struct storvsc_device *stor_device,
 	while (hash_qnum >= num_channels)
 		hash_qnum -= num_channels;
 
-	for_each_cpu(tgt_cpu, alloced_mask) {
+	for_each_cpu(tgt_cpu, &stor_device->alloced_cpus) {
+		if (!cpumask_test_cpu(tgt_cpu, node_mask))
+			continue;
 		if (slot == hash_qnum)
 			break;
 		slot++;
@@ -1308,7 +1298,7 @@ static int storvsc_do_io(struct hv_device *device,
 	struct vstor_packet *vstor_packet;
 	struct vmbus_channel *outgoing_channel, *channel;
 	int ret = 0;
-	struct cpumask *alloced_mask;
+	const struct cpumask *node_mask;
 	int tgt_cpu;
 
 	vstor_packet = &request->vstor_packet;
@@ -1329,11 +1319,11 @@ static int storvsc_do_io(struct hv_device *device,
 			 * Ideally, we want to pick a different channel if
 			 * available on the same NUMA node.
 			 */
-			alloced_mask = &stor_device->cpumask_chns[q_num];
-			cpumask_and(alloced_mask, &stor_device->alloced_cpus,
-				    cpumask_of_node(cpu_to_node(q_num)));
-
-			for_each_cpu_wrap(tgt_cpu, alloced_mask, q_num + 1) {
+			node_mask = cpumask_of_node(cpu_to_node(q_num));
+			for_each_cpu_wrap(tgt_cpu,
+				 &stor_device->alloced_cpus, q_num + 1) {
+				if (!cpumask_test_cpu(tgt_cpu, node_mask))
+					continue;
 				if (tgt_cpu == q_num)
 					continue;
 				channel = stor_device->stor_chns[tgt_cpu];
@@ -1359,10 +1349,9 @@ static int storvsc_do_io(struct hv_device *device,
 			 * NUMA node are busy. Try to find a channel in
 			 * other NUMA nodes
 			 */
-			cpumask_andnot(alloced_mask, &stor_device->alloced_cpus,
-					cpumask_of_node(cpu_to_node(q_num)));
-
-			for_each_cpu(tgt_cpu, alloced_mask) {
+			for_each_cpu(tgt_cpu, &stor_device->alloced_cpus) {
+				if (cpumask_test_cpu(tgt_cpu, node_mask))
+					continue;
 				channel = stor_device->stor_chns[tgt_cpu];
 				if (hv_get_avail_to_write_percent(
 							&channel->outbound)
@@ -1911,7 +1900,6 @@ err_out2:
 
 err_out1:
 	kfree(stor_device->stor_chns);
-	kfree(stor_device->cpumask_chns);
 	kfree(stor_device);
 
 err_out0:
