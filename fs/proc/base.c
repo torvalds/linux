@@ -205,11 +205,9 @@ static int proc_root_link(struct dentry *dentry, struct path *path)
 	return result;
 }
 
-static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
-				     size_t _count, loff_t *pos)
+static ssize_t get_mm_cmdline(struct mm_struct *mm, char __user *buf,
+			      size_t _count, loff_t *pos)
 {
-	struct task_struct *tsk;
-	struct mm_struct *mm;
 	char *page;
 	unsigned long count = _count;
 	unsigned long arg_start, arg_end, env_start, env_end;
@@ -218,26 +216,13 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
 	char c;
 	ssize_t rv;
 
-	BUG_ON(*pos < 0);
-
-	tsk = get_proc_task(file_inode(file));
-	if (!tsk)
-		return -ESRCH;
-	mm = get_task_mm(tsk);
-	put_task_struct(tsk);
-	if (!mm)
-		return 0;
 	/* Check if process spawned far enough to have cmdline. */
-	if (!mm->env_end) {
-		rv = 0;
-		goto out_mmput;
-	}
+	if (!mm->env_end)
+		return 0;
 
 	page = (char *)__get_free_page(GFP_KERNEL);
-	if (!page) {
-		rv = -ENOMEM;
-		goto out_mmput;
-	}
+	if (!page)
+		return -ENOMEM;
 
 	down_read(&mm->mmap_sem);
 	arg_start = mm->arg_start;
@@ -365,11 +350,40 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
 
 out_free_page:
 	free_page((unsigned long)page);
-out_mmput:
-	mmput(mm);
-	if (rv > 0)
-		*pos += rv;
 	return rv;
+}
+
+static ssize_t get_task_cmdline(struct task_struct *tsk, char __user *buf,
+				size_t count, loff_t *pos)
+{
+	struct mm_struct *mm;
+	ssize_t ret;
+
+	mm = get_task_mm(tsk);
+	if (!mm)
+		return 0;
+
+	ret = get_mm_cmdline(mm, buf, count, pos);
+	mmput(mm);
+	return ret;
+}
+
+static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
+				     size_t count, loff_t *pos)
+{
+	struct task_struct *tsk;
+	ssize_t ret;
+
+	BUG_ON(*pos < 0);
+
+	tsk = get_proc_task(file_inode(file));
+	if (!tsk)
+		return -ESRCH;
+	ret = get_task_cmdline(tsk, buf, count, pos);
+	put_task_struct(tsk);
+	if (ret > 0)
+		*pos += ret;
+	return ret;
 }
 
 static const struct file_operations proc_pid_cmdline_ops = {
