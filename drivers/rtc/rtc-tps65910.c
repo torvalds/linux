@@ -380,6 +380,10 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 	if (!tps_rtc)
 		return -ENOMEM;
 
+	tps_rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(tps_rtc->rtc))
+		return PTR_ERR(tps_rtc->rtc);
+
 	/* Clear pending interrupts */
 	ret = regmap_read(tps65910->regmap, TPS65910_RTC_STATUS, &rtc_reg);
 	if (ret < 0)
@@ -421,10 +425,10 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 	tps_rtc->irq = irq;
 	device_set_wakeup_capable(&pdev->dev, 1);
 
-	tps_rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-		&tps65910_rtc_ops, THIS_MODULE);
-	if (IS_ERR(tps_rtc->rtc)) {
-		ret = PTR_ERR(tps_rtc->rtc);
+	tps_rtc->rtc->ops = &tps65910_rtc_ops;
+
+	ret = rtc_register_device(tps_rtc->rtc);
+	if (ret) {
 		dev_err(&pdev->dev, "RTC device register: err %d\n", ret);
 		return ret;
 	}
