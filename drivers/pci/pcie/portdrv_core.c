@@ -19,6 +19,11 @@
 #include "../pci.h"
 #include "portdrv.h"
 
+struct portdrv_service_data {
+	struct pcie_port_service_driver *drv;
+	u32 service;
+};
+
 /**
  * release_pcie_device - free PCI Express port service device structure
  * @dev: Port service device to release
@@ -396,6 +401,47 @@ static int remove_iter(struct device *dev, void *data)
 	if (dev->bus == &pcie_port_bus_type)
 		device_unregister(dev);
 	return 0;
+}
+
+static int find_service_iter(struct device *device, void *data)
+{
+	struct pcie_port_service_driver *service_driver;
+	struct portdrv_service_data *pdrvs;
+	u32 service;
+
+	pdrvs = (struct portdrv_service_data *) data;
+	service = pdrvs->service;
+
+	if (device->bus == &pcie_port_bus_type && device->driver) {
+		service_driver = to_service_driver(device->driver);
+		if (service_driver->service == service) {
+			pdrvs->drv = service_driver;
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * pcie_port_find_service - find the service driver
+ * @dev: PCI Express port the service is associated with
+ * @service: Service to find
+ *
+ * Find PCI Express port service driver associated with given service
+ */
+struct pcie_port_service_driver *pcie_port_find_service(struct pci_dev *dev,
+							u32 service)
+{
+	struct pcie_port_service_driver *drv;
+	struct portdrv_service_data pdrvs;
+
+	pdrvs.drv = NULL;
+	pdrvs.service = service;
+	device_for_each_child(&dev->dev, &pdrvs, find_service_iter);
+
+	drv = pdrvs.drv;
+	return drv;
 }
 
 /**

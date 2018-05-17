@@ -194,10 +194,8 @@ static pci_ers_result_t reset_link(struct pci_dev *dev)
 		udev = dev->bus->self;
 	}
 
-#if IS_ENABLED(CONFIG_PCIEAER)
 	/* Use the aer driver of the component firstly */
-	driver = find_aer_service(udev);
-#endif
+	driver = pcie_port_find_service(udev, PCIE_PORT_SERVICE_AER);
 
 	if (driver && driver->reset_link) {
 		status = driver->reset_link(udev);
