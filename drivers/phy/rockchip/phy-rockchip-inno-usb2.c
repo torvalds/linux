@@ -1825,9 +1825,10 @@ disable_clks:
 	return ret;
 }
 
-static int rockchip_usb2phy_low_power_enable(struct rockchip_usb2phy *rphy,
-					struct rockchip_usb2phy_port *rport,
-					bool value)
+static int __maybe_unused
+rockchip_usb2phy_low_power_enable(struct rockchip_usb2phy *rphy,
+				  struct rockchip_usb2phy_port *rport,
+				  bool value)
 {
 	int ret = 0;
 
