@@ -1264,7 +1264,7 @@ int cmd_top(int argc, const char **argv)
 			.proc_map_timeout    = 500,
 			.overwrite	= 1,
 		},
-		.max_stack	     = sysctl_perf_event_max_stack,
+		.max_stack	     = sysctl__max_stack(),
 		.sym_pcnt_filter     = 5,
 		.nr_threads_synthesize = UINT_MAX,
 	};
