@@ -872,6 +872,13 @@ static blk_status_t nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct nvme_command cmnd;
 	blk_status_t ret;
 
+	/*
+	 * We should not need to do this, but we're still using this to
+	 * ensure we can drain requests on a dying queue.
+	 */
+	if (unlikely(nvmeq->cq_vector < 0))
+		return BLK_STS_IOERR;
+
 	ret = nvme_setup_cmd(ns, req, &cmnd);
 	if (ret)
 		return ret;
@@ -889,11 +896,6 @@ static blk_status_t nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 	blk_mq_start_request(req);
 
 	spin_lock_irq(&nvmeq->q_lock);
-	if (unlikely(nvmeq->cq_vector < 0)) {
-		ret = BLK_STS_IOERR;
-		spin_unlock_irq(&nvmeq->q_lock);
-		goto out_cleanup_iod;
-	}
 	__nvme_submit_cmd(nvmeq, &cmnd);
 	spin_unlock_irq(&nvmeq->q_lock);
 	return BLK_STS_OK;
@@ -1320,6 +1322,12 @@ static int nvme_suspend_queue(struct nvme_queue *nvmeq)
 	nvmeq->dev->online_queues--;
 	nvmeq->cq_vector = -1;
 	spin_unlock_irq(&nvmeq->q_lock);
+
+	/*
+	 * Ensure that nvme_queue_rq() sees it ->cq_vector == -1 without
+	 * having to grab the lock.
+	 */
+	mb();
 
 	if (!nvmeq->qid && nvmeq->dev->ctrl.admin_q)
 		blk_mq_quiesce_queue(nvmeq->dev->ctrl.admin_q);
