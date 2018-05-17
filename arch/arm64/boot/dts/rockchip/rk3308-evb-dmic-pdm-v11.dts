@@ -26,6 +26,7 @@
 	vad-sound {
 		status = "disabled";
 		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip,rk3308-vad";
 		rockchip,cpu = <&pdm_8ch>;
 		rockchip,codec = <&dummy_codec>, <&vad>;
 	};
