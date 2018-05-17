@@ -2314,17 +2314,17 @@ static void zfcp_fsf_fcp_task_mgmt_handler(struct zfcp_fsf_req *req)
 }
 
 /**
- * zfcp_fsf_fcp_task_mgmt - send SCSI task management command
- * @scmnd: SCSI command to send the task management command for
- * @tm_flags: unsigned byte for task management flags
- * Returns: on success pointer to struct fsf_req, NULL otherwise
+ * zfcp_fsf_fcp_task_mgmt() - Send SCSI task management command (TMF).
+ * @sdev: Pointer to SCSI device to send the task management command to.
+ * @tm_flags: Unsigned byte for task management flags.
+ *
+ * Return: On success pointer to struct zfcp_fsf_req, %NULL otherwise.
  */
-struct zfcp_fsf_req *zfcp_fsf_fcp_task_mgmt(struct scsi_cmnd *scmnd,
+struct zfcp_fsf_req *zfcp_fsf_fcp_task_mgmt(struct scsi_device *sdev,
 					    u8 tm_flags)
 {
 	struct zfcp_fsf_req *req = NULL;
 	struct fcp_cmnd *fcp_cmnd;
-	struct scsi_device *sdev = scmnd->device;
 	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
 	struct zfcp_qdio *qdio = zfcp_sdev->port->adapter->qdio;
 
