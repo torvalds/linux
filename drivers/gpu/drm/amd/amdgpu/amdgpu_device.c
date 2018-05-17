@@ -3176,7 +3176,6 @@ error:
 int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 			      struct amdgpu_job *job, bool force)
 {
-	struct drm_atomic_state *state = NULL;
 	int i, r, resched;
 
 	if (!force && !amdgpu_device_ip_check_soft_reset(adev)) {
@@ -3198,10 +3197,6 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 
 	/* block TTM */
 	resched = ttm_bo_lock_delayed_workqueue(&adev->mman.bdev);
-
-	/* store modesetting */
-	if (amdgpu_device_has_dc_support(adev))
-		state = drm_atomic_helper_suspend(adev->ddev);
 
 	/* block all schedulers and reset given job's ring */
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
@@ -3242,10 +3237,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 		kthread_unpark(ring->sched.thread);
 	}
 
-	if (amdgpu_device_has_dc_support(adev)) {
-		if (drm_atomic_helper_resume(adev->ddev, state))
-			dev_info(adev->dev, "drm resume failed:%d\n", r);
-	} else {
+	if (!amdgpu_device_has_dc_support(adev)) {
 		drm_helper_resume_force_mode(adev->ddev);
 	}
 
