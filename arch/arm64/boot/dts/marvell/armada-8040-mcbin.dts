@@ -64,6 +64,30 @@
 		compatible = "usb-nop-xceiv";
 		vcc-supply = <&v_5v0_usb3_hst_vbus>;
 	};
+
+	sfp_eth0: sfp-eth0 {
+		/* CON15,16 - CPM lane 4 */
+		compatible = "sff,sfp";
+		i2c-bus = <&sfpp0_i2c>;
+		los-gpio = <&cp1_gpio1 28 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpio = <&cp1_gpio1 27 GPIO_ACTIVE_LOW>;
+		tx-disable-gpio = <&cp1_gpio1 29 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpio  = <&cp1_gpio1 26 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cp1_sfpp0_pins>;
+	};
+
+	sfp_eth1: sfp-eth1 {
+		/* CON17,18 - CPS lane 4 */
+		compatible = "sff,sfp";
+		i2c-bus = <&sfpp1_i2c>;
+		los-gpio = <&cp1_gpio1 8 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpio = <&cp1_gpio1 11 GPIO_ACTIVE_LOW>;
+		tx-disable-gpio = <&cp1_gpio1 10 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpio = <&cp0_gpio2 30 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cp1_sfpp1_pins &cp0_sfpp1_pins>;
+	};
 };
 
 &uart0 {
@@ -180,6 +204,10 @@
 			       "mpp60", "mpp61";
 		marvell,function = "sdio";
 	};
+	cp0_sfpp1_pins: sfpp1-pins {
+		marvell,pins = "mpp62";
+		marvell,function = "gpio";
+	};
 };
 
 &cp0_xmdio {
@@ -188,11 +216,13 @@
 	phy0: ethernet-phy@0 {
 		compatible = "ethernet-phy-ieee802.3-c45";
 		reg = <0>;
+		sfp = <&sfp_eth0>;
 	};
 
 	phy8: ethernet-phy@8 {
 		compatible = "ethernet-phy-ieee802.3-c45";
 		reg = <8>;
+		sfp = <&sfp_eth1>;
 	};
 };
 
@@ -258,6 +288,10 @@
 };
 
 &cp1_pinctrl {
+	cp1_sfpp1_pins: sfpp1-pins {
+		marvell,pins = "mpp8", "mpp10", "mpp11";
+		marvell,function = "gpio";
+	};
 	cp1_spi1_pins: spi1-pins {
 		marvell,pins = "mpp12", "mpp13", "mpp14", "mpp15", "mpp16";
 		marvell,function = "spi1";
@@ -265,6 +299,10 @@
 	cp1_uart0_pins: uart0-pins {
 		marvell,pins = "mpp6", "mpp7";
 		marvell,function = "uart0";
+	};
+	cp1_sfpp0_pins: sfpp0-pins {
+		marvell,pins = "mpp26", "mpp27", "mpp28", "mpp29";
+		marvell,function = "gpio";
 	};
 };
 
