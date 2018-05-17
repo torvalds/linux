@@ -162,6 +162,13 @@ static void tcp_event_data_sent(struct tcp_sock *tp,
 /* Account for an ACK we sent. */
 static inline void tcp_event_ack_sent(struct sock *sk, unsigned int pkts)
 {
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if (unlikely(tp->compressed_ack)) {
+		tp->compressed_ack = 0;
+		if (hrtimer_try_to_cancel(&tp->compressed_ack_timer) == 1)
+			__sock_put(sk);
+	}
 	tcp_dec_quickack_mode(sk, pkts);
 	inet_csk_clear_xmit_timer(sk, ICSK_TIME_DACK);
 }

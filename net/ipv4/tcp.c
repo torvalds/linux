@@ -2595,6 +2595,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 	dst_release(sk->sk_rx_dst);
 	sk->sk_rx_dst = NULL;
 	tcp_saved_syn_free(tp);
+	tp->compressed_ack = 0;
 
 	/* Clean up fastopen related fields */
 	tcp_free_fastopen_req(tp);
