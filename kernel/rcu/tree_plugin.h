@@ -2646,23 +2646,6 @@ static bool init_nocb_callback_list(struct rcu_data *rdp)
 #endif /* #else #ifdef CONFIG_RCU_NOCB_CPU */
 
 /*
- * An adaptive-ticks CPU can potentially execute in kernel mode for an
- * arbitrarily long period of time with the scheduling-clock tick turned
- * off.  RCU will be paying attention to this CPU because it is in the
- * kernel, but the CPU cannot be guaranteed to be executing the RCU state
- * machine because the scheduling-clock tick has been disabled.  Therefore,
- * if an adaptive-ticks CPU is failing to respond to the current grace
- * period and has not be idle from an RCU perspective, kick it.
- */
-static void __maybe_unused rcu_kick_nohz_cpu(int cpu)
-{
-#ifdef CONFIG_NO_HZ_FULL
-	if (tick_nohz_full_cpu(cpu))
-		smp_send_reschedule(cpu);
-#endif /* #ifdef CONFIG_NO_HZ_FULL */
-}
-
-/*
  * Is this CPU a NO_HZ_FULL CPU that should ignore RCU so that the
  * grace-period kthread will do force_quiescent_state() processing?
  * The idea is to avoid waking up RCU core processing on such a
