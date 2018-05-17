@@ -156,13 +156,12 @@ struct event_symbol event_symbols_sw[PERF_COUNT_SW_MAX] = {
 		    (strcmp(sys_dirent->d_name, ".")) &&	\
 		    (strcmp(sys_dirent->d_name, "..")))
 
-static int tp_event_has_id(struct dirent *sys_dir, struct dirent *evt_dir)
+static int tp_event_has_id(const char *dir_path, struct dirent *evt_dir)
 {
 	char evt_path[MAXPATHLEN];
 	int fd;
 
-	snprintf(evt_path, MAXPATHLEN, "%s/%s/%s/id", tracing_events_path,
-			sys_dir->d_name, evt_dir->d_name);
+	snprintf(evt_path, MAXPATHLEN, "%s/%s/id", dir_path, evt_dir->d_name);
 	fd = open(evt_path, O_RDONLY);
 	if (fd < 0)
 		return -EINVAL;
@@ -171,12 +170,12 @@ static int tp_event_has_id(struct dirent *sys_dir, struct dirent *evt_dir)
 	return 0;
 }
 
-#define for_each_event(sys_dirent, evt_dir, evt_dirent)		\
+#define for_each_event(dir_path, evt_dir, evt_dirent)		\
 	while ((evt_dirent = readdir(evt_dir)) != NULL)		\
 		if (evt_dirent->d_type == DT_DIR &&		\
 		    (strcmp(evt_dirent->d_name, ".")) &&	\
 		    (strcmp(evt_dirent->d_name, "..")) &&	\
-		    (!tp_event_has_id(sys_dirent, evt_dirent)))
+		    (!tp_event_has_id(dir_path, evt_dirent)))
 
 #define MAX_EVENT_LENGTH 512
 
@@ -204,7 +203,7 @@ struct tracepoint_path *tracepoint_id_to_path(u64 config)
 		if (!evt_dir)
 			continue;
 
-		for_each_event(sys_dirent, evt_dir, evt_dirent) {
+		for_each_event(dir_path, evt_dir, evt_dirent) {
 
 			scnprintf(evt_path, MAXPATHLEN, "%s/%s/id", dir_path,
 				  evt_dirent->d_name);
@@ -2119,7 +2118,7 @@ restart:
 		if (!evt_dir)
 			continue;
 
-		for_each_event(sys_dirent, evt_dir, evt_dirent) {
+		for_each_event(dir_path, evt_dir, evt_dirent) {
 			if (event_glob != NULL &&
 			    !strglobmatch(evt_dirent->d_name, event_glob))
 				continue;
@@ -2199,7 +2198,7 @@ int is_valid_tracepoint(const char *event_string)
 		if (!evt_dir)
 			continue;
 
-		for_each_event(sys_dirent, evt_dir, evt_dirent) {
+		for_each_event(dir_path, evt_dir, evt_dirent) {
 			snprintf(evt_path, MAXPATHLEN, "%s:%s",
 				 sys_dirent->d_name, evt_dirent->d_name);
 			if (!strcmp(evt_path, event_string)) {
