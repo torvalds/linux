@@ -524,6 +524,18 @@ static void uvd_v4_2_ring_emit_ib(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, ib->length_dw);
 }
 
+static void uvd_v4_2_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
+{
+	int i;
+
+	WARN_ON(ring->wptr % 2 || count % 2);
+
+	for (i = 0; i < count / 2; i++) {
+		amdgpu_ring_write(ring, PACKET0(mmUVD_NO_OP, 0));
+		amdgpu_ring_write(ring, 0);
+	}
+}
+
 /**
  * uvd_v4_2_mc_resume - memory controller programming
  *
@@ -733,7 +745,6 @@ static const struct amd_ip_funcs uvd_v4_2_ip_funcs = {
 static const struct amdgpu_ring_funcs uvd_v4_2_ring_funcs = {
 	.type = AMDGPU_RING_TYPE_UVD,
 	.align_mask = 0xf,
-	.nop = PACKET0(mmUVD_NO_OP, 0),
 	.support_64bit_ptrs = false,
 	.get_rptr = uvd_v4_2_ring_get_rptr,
 	.get_wptr = uvd_v4_2_ring_get_wptr,
@@ -746,7 +757,7 @@ static const struct amdgpu_ring_funcs uvd_v4_2_ring_funcs = {
 	.emit_fence = uvd_v4_2_ring_emit_fence,
 	.test_ring = uvd_v4_2_ring_test_ring,
 	.test_ib = amdgpu_uvd_ring_test_ib,
-	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_nop = uvd_v4_2_ring_insert_nop,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_uvd_ring_begin_use,
 	.end_use = amdgpu_uvd_ring_end_use,
