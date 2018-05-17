@@ -1018,7 +1018,7 @@ static int smu7_enable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
 	/* enable SCLK dpm */
-	if (!data->sclk_dpm_key_disabled)
+	if (!data->sclk_dpm_key_disabled) {
 		if (hwmgr->chip_id == CHIP_VEGAM)
 			smu7_disable_sclk_vce_handshake(hwmgr);
 
@@ -1026,6 +1026,7 @@ static int smu7_enable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 		(0 == smum_send_msg_to_smc(hwmgr, PPSMC_MSG_DPM_Enable)),
 		"Failed to enable SCLK DPM during DPM Start Function!",
 		return -EINVAL);
+	}
 
 	/* enable MCLK dpm */
 	if (0 == data->mclk_dpm_key_disabled) {
