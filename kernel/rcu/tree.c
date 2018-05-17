@@ -1342,7 +1342,7 @@ static void rcu_stall_kick_kthreads(struct rcu_state *rsp)
 	}
 }
 
-static inline void panic_on_rcu_stall(void)
+static void panic_on_rcu_stall(void)
 {
 	if (sysctl_panic_on_rcu_stall)
 		panic("RCU Stall\n");
@@ -3080,7 +3080,7 @@ EXPORT_SYMBOL_GPL(kfree_call_rcu);
  * when there was in fact only one the whole time, as this just adds
  * some overhead: RCU still operates correctly.
  */
-static inline int rcu_blocking_is_gp(void)
+static int rcu_blocking_is_gp(void)
 {
 	int ret;
 
