@@ -1622,20 +1622,28 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 
 	if (!need_valid_mask) {
 		irq_base = devm_irq_alloc_descs(pctrl->dev, -1, 0,
-						chip->ngpio, NUMA_NO_NODE);
+						community->npins, NUMA_NO_NODE);
 		if (irq_base < 0) {
 			dev_err(pctrl->dev, "Failed to allocate IRQ numbers\n");
 			return irq_base;
 		}
-	} else {
-		irq_base = 0;
 	}
 
-	ret = gpiochip_irqchip_add(chip, &chv_gpio_irqchip, irq_base,
+	ret = gpiochip_irqchip_add(chip, &chv_gpio_irqchip, 0,
 				   handle_bad_irq, IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(pctrl->dev, "failed to add IRQ chip\n");
 		return ret;
+	}
+
+	if (!need_valid_mask) {
+		for (i = 0; i < community->ngpio_ranges; i++) {
+			range = &community->gpio_ranges[i];
+
+			irq_domain_associate_many(chip->irq.domain, irq_base,
+						  range->base, range->npins);
+			irq_base += range->npins;
+		}
 	}
 
 	gpiochip_set_chained_irqchip(chip, &chv_gpio_irqchip, irq,

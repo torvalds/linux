@@ -35,7 +35,7 @@
 #include <linux/sched.h>
 #include <linux/gpio.h>
 #include <linux/jiffies.h>
-#include <linux/i2c-gpio.h>
+#include <linux/platform_data/i2c-gpio.h>
 #include <linux/gpio/machine.h>
 #include <linux/platform_data/i2c-pxa.h>
 #include <linux/serial_8250.h>
