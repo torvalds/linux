@@ -418,9 +418,10 @@ execlists_update_context_pdps(struct i915_hw_ppgtt *ppgtt, u32 *reg_state)
 
 static u64 execlists_update_context(struct i915_request *rq)
 {
-	struct intel_context *ce = to_intel_context(rq->ctx, rq->engine);
+	struct intel_context *ce =
+		to_intel_context(rq->gem_context, rq->engine);
 	struct i915_hw_ppgtt *ppgtt =
-		rq->ctx->ppgtt ?: rq->i915->mm.aliasing_ppgtt;
+		rq->gem_context->ppgtt ?: rq->i915->mm.aliasing_ppgtt;
 	u32 *reg_state = ce->lrc_reg_state;
 
 	reg_state[CTX_RING_TAIL+1] = intel_ring_set_tail(rq->ring, rq->tail);
@@ -679,7 +680,8 @@ static bool __execlists_dequeue(struct intel_engine_cs *engine)
 			 * second request, and so we never need to tell the
 			 * hardware about the first.
 			 */
-			if (last && !can_merge_ctx(rq->ctx, last->ctx)) {
+			if (last && !can_merge_ctx(rq->gem_context,
+						   last->gem_context)) {
 				/*
 				 * If we are on the second port and cannot
 				 * combine this request with the last, then we
@@ -698,14 +700,14 @@ static bool __execlists_dequeue(struct intel_engine_cs *engine)
 				 * the same context (even though a different
 				 * request) to the second port.
 				 */
-				if (ctx_single_port_submission(last->ctx) ||
-				    ctx_single_port_submission(rq->ctx)) {
+				if (ctx_single_port_submission(last->gem_context) ||
+				    ctx_single_port_submission(rq->gem_context)) {
 					__list_del_many(&p->requests,
 							&rq->sched.link);
 					goto done;
 				}
 
-				GEM_BUG_ON(last->ctx == rq->ctx);
+				GEM_BUG_ON(last->gem_context == rq->gem_context);
 
 				if (submit)
 					port_assign(port, last);
@@ -1437,7 +1439,7 @@ static void execlists_context_unpin(struct intel_engine_cs *engine,
 static int execlists_request_alloc(struct i915_request *request)
 {
 	struct intel_context *ce =
-		to_intel_context(request->ctx, request->engine);
+		to_intel_context(request->gem_context, request->engine);
 	int ret;
 
 	GEM_BUG_ON(!ce->pin_count);
@@ -1954,7 +1956,7 @@ static void execlists_reset(struct intel_engine_cs *engine,
 	 * future request will be after userspace has had the opportunity
 	 * to recreate its own state.
 	 */
-	regs = to_intel_context(request->ctx, engine)->lrc_reg_state;
+	regs = to_intel_context(request->gem_context, engine)->lrc_reg_state;
 	if (engine->default_state) {
 		void *defaults;
 
@@ -1967,7 +1969,8 @@ static void execlists_reset(struct intel_engine_cs *engine,
 			i915_gem_object_unpin_map(engine->default_state);
 		}
 	}
-	execlists_init_reg_state(regs, request->ctx, engine, request->ring);
+	execlists_init_reg_state(regs,
+				 request->gem_context, engine, request->ring);
 
 	/* Move the RING_HEAD onto the breadcrumb, past the hanging batch */
 	regs[CTX_RING_BUFFER_START + 1] = i915_ggtt_offset(request->ring->vma);
@@ -1989,7 +1992,7 @@ static void execlists_reset_finish(struct intel_engine_cs *engine)
 
 static int intel_logical_ring_emit_pdps(struct i915_request *rq)
 {
-	struct i915_hw_ppgtt *ppgtt = rq->ctx->ppgtt;
+	struct i915_hw_ppgtt *ppgtt = rq->gem_context->ppgtt;
 	struct intel_engine_cs *engine = rq->engine;
 	const int num_lri_cmds = GEN8_3LVL_PDPES * 2;
 	u32 *cs;
@@ -2028,15 +2031,15 @@ static int gen8_emit_bb_start(struct i915_request *rq,
 	 * it is unsafe in case of lite-restore (because the ctx is
 	 * not idle). PML4 is allocated during ppgtt init so this is
 	 * not needed in 48-bit.*/
-	if (rq->ctx->ppgtt &&
-	    (intel_engine_flag(rq->engine) & rq->ctx->ppgtt->pd_dirty_rings) &&
-	    !i915_vm_is_48bit(&rq->ctx->ppgtt->base) &&
+	if (rq->gem_context->ppgtt &&
+	    (intel_engine_flag(rq->engine) & rq->gem_context->ppgtt->pd_dirty_rings) &&
+	    !i915_vm_is_48bit(&rq->gem_context->ppgtt->base) &&
 	    !intel_vgpu_active(rq->i915)) {
 		ret = intel_logical_ring_emit_pdps(rq);
 		if (ret)
 			return ret;
 
-		rq->ctx->ppgtt->pd_dirty_rings &= ~intel_engine_flag(rq->engine);
+		rq->gem_context->ppgtt->pd_dirty_rings &= ~intel_engine_flag(rq->engine);
 	}
 
 	cs = intel_ring_begin(rq, 6);

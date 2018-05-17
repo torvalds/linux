@@ -205,7 +205,7 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 
 static inline bool is_gvt_request(struct i915_request *req)
 {
-	return i915_gem_context_force_single_submission(req->ctx);
+	return i915_gem_context_force_single_submission(req->gem_context);
 }
 
 static void save_ring_hw_state(struct intel_vgpu *vgpu, int ring_id)
@@ -305,7 +305,7 @@ static int copy_workload_to_ring_buffer(struct intel_vgpu_workload *workload)
 	struct i915_request *req = workload->req;
 
 	if (IS_KABYLAKE(req->i915) &&
-	    is_inhibit_context(req->ctx, req->engine->id))
+	    is_inhibit_context(req->gem_context, req->engine->id))
 		intel_vgpu_restore_inhibit_context(vgpu, req);
 
 	/* allocate shadow ring buffer */

@@ -1287,9 +1287,11 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 static void record_request(struct i915_request *request,
 			   struct drm_i915_error_request *erq)
 {
-	erq->context = request->ctx->hw_id;
+	struct i915_gem_context *ctx = request->gem_context;
+
+	erq->context = ctx->hw_id;
 	erq->sched_attr = request->sched.attr;
-	erq->ban_score = atomic_read(&request->ctx->ban_score);
+	erq->ban_score = atomic_read(&ctx->ban_score);
 	erq->seqno = request->global_seqno;
 	erq->jiffies = request->emitted_jiffies;
 	erq->start = i915_ggtt_offset(request->ring->vma);
@@ -1297,7 +1299,7 @@ static void record_request(struct i915_request *request,
 	erq->tail = request->tail;
 
 	rcu_read_lock();
-	erq->pid = request->ctx->pid ? pid_nr(request->ctx->pid) : 0;
+	erq->pid = ctx->pid ? pid_nr(ctx->pid) : 0;
 	rcu_read_unlock();
 }
 
@@ -1461,12 +1463,12 @@ static void gem_record_rings(struct i915_gpu_state *error)
 
 		request = i915_gem_find_active_request(engine);
 		if (request) {
+			struct i915_gem_context *ctx = request->gem_context;
 			struct intel_ring *ring;
 
-			ee->vm = request->ctx->ppgtt ?
-				&request->ctx->ppgtt->base : &ggtt->base;
+			ee->vm = ctx->ppgtt ? &ctx->ppgtt->base : &ggtt->base;
 
-			record_context(&ee->context, request->ctx);
+			record_context(&ee->context, ctx);
 
 			/* We need to copy these to an anonymous buffer
 			 * as the simplest method to avoid being overwritten
@@ -1483,11 +1485,11 @@ static void gem_record_rings(struct i915_gpu_state *error)
 
 			ee->ctx =
 				i915_error_object_create(i915,
-							 to_intel_context(request->ctx,
+							 to_intel_context(ctx,
 									  engine)->state);
 
 			error->simulated |=
-				i915_gem_context_no_error_capture(request->ctx);
+				i915_gem_context_no_error_capture(ctx);
 
 			ee->rq_head = request->head;
 			ee->rq_post = request->postfix;

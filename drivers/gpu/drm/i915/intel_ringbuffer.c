@@ -571,8 +571,8 @@ static void reset_ring(struct intel_engine_cs *engine,
 	 */
 	if (request) {
 		struct drm_i915_private *dev_priv = request->i915;
-		struct intel_context *ce = to_intel_context(request->ctx,
-							    engine);
+		struct intel_context *ce =
+			to_intel_context(request->gem_context, engine);
 		struct i915_hw_ppgtt *ppgtt;
 
 		if (ce->state) {
@@ -584,7 +584,7 @@ static void reset_ring(struct intel_engine_cs *engine,
 				   CCID_EN);
 		}
 
-		ppgtt = request->ctx->ppgtt ?: engine->i915->mm.aliasing_ppgtt;
+		ppgtt = request->gem_context->ppgtt ?: engine->i915->mm.aliasing_ppgtt;
 		if (ppgtt) {
 			u32 pd_offset = ppgtt->pd.base.ggtt_offset << 10;
 
@@ -1458,7 +1458,7 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 
 	*cs++ = MI_NOOP;
 	*cs++ = MI_SET_CONTEXT;
-	*cs++ = i915_ggtt_offset(to_intel_context(rq->ctx, engine)->state) | flags;
+	*cs++ = i915_ggtt_offset(to_intel_context(rq->gem_context, engine)->state) | flags;
 	/*
 	 * w/a: MI_SET_CONTEXT must always be followed by MI_NOOP
 	 * WaMiSetContext_Hang:snb,ivb,vlv
@@ -1526,7 +1526,7 @@ static int remap_l3(struct i915_request *rq, int slice)
 static int switch_context(struct i915_request *rq)
 {
 	struct intel_engine_cs *engine = rq->engine;
-	struct i915_gem_context *to_ctx = rq->ctx;
+	struct i915_gem_context *to_ctx = rq->gem_context;
 	struct i915_hw_ppgtt *to_mm =
 		to_ctx->ppgtt ?: rq->i915->mm.aliasing_ppgtt;
 	struct i915_gem_context *from_ctx = engine->legacy_active_context;
@@ -1597,7 +1597,7 @@ static int ring_request_alloc(struct i915_request *request)
 {
 	int ret;
 
-	GEM_BUG_ON(!to_intel_context(request->ctx, request->engine)->pin_count);
+	GEM_BUG_ON(!to_intel_context(request->gem_context, request->engine)->pin_count);
 
 	/* Flush enough space to reduce the likelihood of waiting after
 	 * we start building the request - in which case we will just

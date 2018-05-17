@@ -1020,7 +1020,7 @@ bool intel_engine_has_kernel_context(const struct intel_engine_cs *engine)
 	 */
 	rq = __i915_gem_active_peek(&engine->timeline.last_request);
 	if (rq)
-		return rq->ctx == kernel_context;
+		return rq->gem_context == kernel_context;
 	else
 		return engine->last_retired_context == kernel_context;
 }

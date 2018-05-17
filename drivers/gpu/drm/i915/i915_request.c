@@ -384,7 +384,7 @@ static void __retire_engine_request(struct intel_engine_cs *engine,
 	 */
 	if (engine->last_retired_context)
 		intel_context_unpin(engine->last_retired_context, engine);
-	engine->last_retired_context = rq->ctx;
+	engine->last_retired_context = rq->gem_context;
 }
 
 static void __retire_engine_upto(struct intel_engine_cs *engine,
@@ -455,8 +455,8 @@ static void i915_request_retire(struct i915_request *request)
 	i915_request_remove_from_client(request);
 
 	/* Retirement decays the ban score as it is a sign of ctx progress */
-	atomic_dec_if_positive(&request->ctx->ban_score);
-	intel_context_unpin(request->ctx, request->engine);
+	atomic_dec_if_positive(&request->gem_context->ban_score);
+	intel_context_unpin(request->gem_context, request->engine);
 
 	__retire_engine_upto(request->engine, request);
 
@@ -760,7 +760,7 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	INIT_LIST_HEAD(&rq->active_list);
 	rq->i915 = i915;
 	rq->engine = engine;
-	rq->ctx = ctx;
+	rq->gem_context = ctx;
 	rq->ring = ring;
 	rq->timeline = ring->timeline;
 	GEM_BUG_ON(rq->timeline == &engine->timeline);
@@ -814,7 +814,7 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 		goto err_unwind;
 
 	/* Keep a second pin for the dual retirement along engine and ring */
-	__intel_context_pin(rq->ctx, engine);
+	__intel_context_pin(rq->gem_context, engine);
 
 	/* Check that we didn't interrupt ourselves with a new request */
 	GEM_BUG_ON(rq->timeline->seqno != rq->fence.seqno);
@@ -1113,7 +1113,7 @@ void __i915_request_add(struct i915_request *request, bool flush_caches)
 	local_bh_disable();
 	rcu_read_lock(); /* RCU serialisation for set-wedged protection */
 	if (engine->schedule)
-		engine->schedule(request, &request->ctx->sched);
+		engine->schedule(request, &request->gem_context->sched);
 	rcu_read_unlock();
 	i915_sw_fence_commit(&request->submit);
 	local_bh_enable(); /* Kick the execlists tasklet if just scheduled */

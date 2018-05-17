@@ -542,8 +542,8 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 						   struct i915_request,
 						   client_link);
 		rcu_read_lock();
-		task = pid_task(request && request->ctx->pid ?
-				request->ctx->pid : file->pid,
+		task = pid_task(request && request->gem_context->pid ?
+				request->gem_context->pid : file->pid,
 				PIDTYPE_PID);
 		print_file_stats(m, task ? task->comm : "<unknown>", stats);
 		rcu_read_unlock();

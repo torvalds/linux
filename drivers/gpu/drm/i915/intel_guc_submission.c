@@ -513,8 +513,9 @@ static void guc_add_request(struct intel_guc *guc, struct i915_request *rq)
 {
 	struct intel_guc_client *client = guc->execbuf_client;
 	struct intel_engine_cs *engine = rq->engine;
-	u32 ctx_desc = lower_32_bits(intel_lr_context_descriptor(rq->ctx,
-								 engine));
+	u32 ctx_desc =
+		lower_32_bits(intel_lr_context_descriptor(rq->gem_context,
+							  engine));
 	u32 ring_tail = intel_ring_set_tail(rq->ring, rq->tail) / sizeof(u64);
 
 	spin_lock(&client->wq_lock);
@@ -725,7 +726,7 @@ static bool __guc_dequeue(struct intel_engine_cs *engine)
 		struct i915_request *rq, *rn;
 
 		list_for_each_entry_safe(rq, rn, &p->requests, sched.link) {
-			if (last && rq->ctx != last->ctx) {
+			if (last && rq->gem_context != last->gem_context) {
 				if (port == last_port) {
 					__list_del_many(&p->requests,
 							&rq->sched.link);

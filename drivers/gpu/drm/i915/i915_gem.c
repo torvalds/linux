@@ -3067,7 +3067,7 @@ static void skip_request(struct i915_request *request)
 static void engine_skip_context(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
-	struct i915_gem_context *hung_ctx = request->ctx;
+	struct i915_gem_context *hung_ctx = request->gem_context;
 	struct i915_timeline *timeline = request->timeline;
 	unsigned long flags;
 
@@ -3077,7 +3077,7 @@ static void engine_skip_context(struct i915_request *request)
 	spin_lock_nested(&timeline->lock, SINGLE_DEPTH_NESTING);
 
 	list_for_each_entry_continue(request, &engine->timeline.requests, link)
-		if (request->ctx == hung_ctx)
+		if (request->gem_context == hung_ctx)
 			skip_request(request);
 
 	list_for_each_entry(request, &timeline->requests, link)
@@ -3123,11 +3123,11 @@ i915_gem_reset_request(struct intel_engine_cs *engine,
 	}
 
 	if (stalled) {
-		i915_gem_context_mark_guilty(request->ctx);
+		i915_gem_context_mark_guilty(request->gem_context);
 		skip_request(request);
 
 		/* If this context is now banned, skip all pending requests. */
-		if (i915_gem_context_is_banned(request->ctx))
+		if (i915_gem_context_is_banned(request->gem_context))
 			engine_skip_context(request);
 	} else {
 		/*
@@ -3137,7 +3137,7 @@ i915_gem_reset_request(struct intel_engine_cs *engine,
 		 */
 		request = i915_gem_find_active_request(engine);
 		if (request) {
-			i915_gem_context_mark_innocent(request->ctx);
+			i915_gem_context_mark_innocent(request->gem_context);
 			dma_fence_set_error(&request->fence, -EAGAIN);
 
 			/* Rewind the engine to replay the incomplete rq */
