@@ -2260,7 +2260,7 @@ int zfcp_fsf_fcp_cmnd(struct scsi_cmnd *scsi_cmnd)
 
 	BUILD_BUG_ON(sizeof(struct fcp_cmnd) > FSF_FCP_CMND_SIZE);
 	fcp_cmnd = &req->qtcb->bottom.io.fcp_cmnd.iu;
-	zfcp_fc_scsi_to_fcp(fcp_cmnd, scsi_cmnd, 0);
+	zfcp_fc_scsi_to_fcp(fcp_cmnd, scsi_cmnd);
 
 	if ((scsi_get_prot_op(scsi_cmnd) != SCSI_PROT_NORMAL) &&
 	    scsi_prot_sg_count(scsi_cmnd)) {
@@ -2355,7 +2355,7 @@ struct zfcp_fsf_req *zfcp_fsf_fcp_task_mgmt(struct scsi_cmnd *scmnd,
 	zfcp_qdio_set_sbale_last(qdio, &req->qdio_req);
 
 	fcp_cmnd = &req->qtcb->bottom.io.fcp_cmnd.iu;
-	zfcp_fc_scsi_to_fcp(fcp_cmnd, scmnd, tm_flags);
+	zfcp_fc_fcp_tm(fcp_cmnd, scmnd->device, tm_flags);
 
 	zfcp_fsf_start_timer(req, ZFCP_SCSI_ER_TIMEOUT);
 	if (!zfcp_fsf_req_send(req))
