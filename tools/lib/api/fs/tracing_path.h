@@ -5,8 +5,6 @@
 #include <linux/types.h>
 #include <dirent.h>
 
-extern char tracing_events_path[];
-
 DIR *tracing_events__opendir(void);
 
 void tracing_path_set(const char *mountpoint);
