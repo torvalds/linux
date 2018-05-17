@@ -286,16 +286,13 @@ static int rx8581_probe(struct i2c_client *client,
 		rx8581->write_block_data = rx8581_write_block_data;
 	}
 
-	rx8581->rtc = devm_rtc_device_register(&client->dev,
-		rx8581_driver.driver.name, &rx8581_rtc_ops, THIS_MODULE);
-
-	if (IS_ERR(rx8581->rtc)) {
-		dev_err(&client->dev,
-			"unable to register the class device\n");
+	rx8581->rtc = devm_rtc_allocate_device(&client->dev);
+	if (IS_ERR(rx8581->rtc))
 		return PTR_ERR(rx8581->rtc);
-	}
 
-	return 0;
+	rx8581->rtc->ops = &rx8581_rtc_ops;
+
+	return rtc_register_device(rx8581->rtc);
 }
 
 static const struct i2c_device_id rx8581_id[] = {
