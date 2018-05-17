@@ -83,6 +83,16 @@ struct iwl_fw_dump_desc {
 	struct iwl_fw_error_dump_trigger_desc trig_desc;
 };
 
+/**
+ * struct iwl_fw_dbg_params - register values to restore
+ * @in_sample: DBGC_IN_SAMPLE value
+ * @out_ctrl: DBGC_OUT_CTRL value
+ */
+struct iwl_fw_dbg_params {
+	u32 in_sample;
+	u32 out_ctrl;
+};
+
 extern const struct iwl_fw_dump_desc iwl_dump_desc_assert;
 
 static inline void iwl_fw_free_dump_desc(struct iwl_fw_runtime *fwrt)
@@ -196,14 +206,40 @@ _iwl_fw_dbg_trigger_simple_stop(struct iwl_fw_runtime *fwrt,
 					iwl_fw_dbg_get_trigger((fwrt)->fw,\
 							       (trig)))
 
-static inline void iwl_fw_dbg_stop_recording(struct iwl_trans *trans)
+static inline void
+iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
+			  struct iwl_fw_dbg_params *params)
 {
 	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
 		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
+		return;
+	}
+
+	if (params) {
+		params->in_sample = iwl_read_prph(trans, DBGC_IN_SAMPLE);
+		params->out_ctrl = iwl_read_prph(trans, DBGC_OUT_CTRL);
+	}
+
+	iwl_write_prph(trans, DBGC_IN_SAMPLE, 0);
+	udelay(100);
+	iwl_write_prph(trans, DBGC_OUT_CTRL, 0);
+}
+
+static inline void
+iwl_fw_dbg_restart_recording(struct iwl_trans *trans,
+			     struct iwl_fw_dbg_params *params)
+{
+	if (WARN_ON(!params))
+		return;
+
+	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
+		iwl_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
+		iwl_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
+		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
 	} else {
-		iwl_write_prph(trans, DBGC_IN_SAMPLE, 0);
+		iwl_write_prph(trans, DBGC_IN_SAMPLE, params->in_sample);
 		udelay(100);
-		iwl_write_prph(trans, DBGC_OUT_CTRL, 0);
+		iwl_write_prph(trans, DBGC_OUT_CTRL, params->out_ctrl);
 	}
 }
 
