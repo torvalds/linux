@@ -1112,8 +1112,8 @@ static void ip6gre_tnl_link_config(struct ip6_tnl *t, int set_mtu)
 	ip6gre_tnl_link_config_route(t, set_mtu, ip6gre_calc_hlen(t));
 }
 
-static int ip6gre_tnl_change(struct ip6_tnl *t,
-	const struct __ip6_tnl_parm *p, int set_mtu)
+static void ip6gre_tnl_copy_tnl_parm(struct ip6_tnl *t,
+				     const struct __ip6_tnl_parm *p)
 {
 	t->parms.laddr = p->laddr;
 	t->parms.raddr = p->raddr;
@@ -1129,6 +1129,12 @@ static int ip6gre_tnl_change(struct ip6_tnl *t,
 	t->parms.o_flags = p->o_flags;
 	t->parms.fwmark = p->fwmark;
 	dst_cache_reset(&t->dst_cache);
+}
+
+static int ip6gre_tnl_change(struct ip6_tnl *t, const struct __ip6_tnl_parm *p,
+			     int set_mtu)
+{
+	ip6gre_tnl_copy_tnl_parm(t, p);
 	ip6gre_tnl_link_config(t, set_mtu);
 	return 0;
 }
