@@ -979,11 +979,14 @@ static netdev_tx_t ip6erspan_tunnel_xmit(struct sk_buff *skb,
 			erspan_build_header(skb, ntohl(t->parms.o_key),
 					    t->parms.index,
 					    truncate, false);
-		else
+		else if (t->parms.erspan_ver == 2)
 			erspan_build_header_v2(skb, ntohl(t->parms.o_key),
 					       t->parms.dir,
 					       t->parms.hwid,
 					       truncate, false);
+		else
+			goto tx_err;
+
 		fl6.daddr = t->parms.raddr;
 	}
 
