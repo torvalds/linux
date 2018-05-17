@@ -269,7 +269,6 @@ struct kvm_arch {
 	unsigned long host_lpcr;
 	unsigned long sdr1;
 	unsigned long host_sdr1;
-	int tlbie_lock;
 	unsigned long lpcr;
 	unsigned long vrma_slb_v;
 	int mmu_ready;

@@ -272,6 +272,9 @@ int kvmppc_mmu_hv_init(void)
 	if (!cpu_has_feature(CPU_FTR_HVMODE))
 		return -EINVAL;
 
+	if (!mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE))
+		return -EINVAL;
+
 	/* POWER7 has 10-bit LPIDs (12-bit in POWER8) */
 	host_lpid = mfspr(SPRN_LPID);
 	rsvd_lpid = LPID_RSVD;
