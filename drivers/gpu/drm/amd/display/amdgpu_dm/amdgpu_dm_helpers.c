@@ -497,6 +497,34 @@ enum dc_edid_status dm_helpers_read_local_edid(
 		DRM_ERROR("EDID err: %d, on connector: %s",
 				edid_status,
 				aconnector->base.name);
+	if (link->aux_mode) {
+		union test_request test_request = {0};
+		union test_response test_response = {0};
+
+		dm_helpers_dp_read_dpcd(ctx,
+					link,
+					DP_TEST_REQUEST,
+					&test_request.raw,
+					sizeof(union test_request));
+
+		if (!test_request.bits.EDID_READ)
+			return edid_status;
+
+		test_response.bits.EDID_CHECKSUM_WRITE = 1;
+
+		dm_helpers_dp_write_dpcd(ctx,
+					link,
+					DP_TEST_EDID_CHECKSUM,
+					&sink->dc_edid.raw_edid[sink->dc_edid.length-1],
+					1);
+
+		dm_helpers_dp_write_dpcd(ctx,
+					link,
+					DP_TEST_RESPONSE,
+					&test_response.raw,
+					sizeof(test_response));
+
+	}
 
 	return edid_status;
 }
