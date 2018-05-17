@@ -4344,7 +4344,7 @@ static void describe_relocation(struct btrfs_fs_info *fs_info,
 		DESCRIBE_FLAG(RAID5,    "raid5");
 		DESCRIBE_FLAG(RAID6,    "raid6");
 		if (flags)
-			snprintf(buf, buf - bp + sizeof(buf), "|0x%llx", flags);
+			snprintf(bp, buf - bp + sizeof(buf), "|0x%llx", flags);
 #undef DESCRIBE_FLAG
 	}
 
