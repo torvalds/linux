@@ -165,7 +165,7 @@ static void kvmppc_radix_tlbie_page(struct kvm *kvm, unsigned long addr,
 	asm volatile("eieio ; tlbsync ; ptesync": : :"memory");
 }
 
-static void kvmppc_radix_flush_pwc(struct kvm *kvm, unsigned long addr)
+static void kvmppc_radix_flush_pwc(struct kvm *kvm)
 {
 	unsigned long rb = 0x2 << PPC_BITLSHIFT(53); /* IS = 2 */
 
@@ -247,6 +247,139 @@ static void kvmppc_unmap_pte(struct kvm *kvm, pte_t *pte,
 	}
 }
 
+/*
+ * kvmppc_free_p?d are used to free existing page tables, and recursively
+ * descend and clear and free children.
+ * Callers are responsible for flushing the PWC.
+ *
+ * When page tables are being unmapped/freed as part of page fault path
+ * (full == false), ptes are not expected. There is code to unmap them
+ * and emit a warning if encountered, but there may already be data
+ * corruption due to the unexpected mappings.
+ */
+static void kvmppc_unmap_free_pte(struct kvm *kvm, pte_t *pte, bool full)
+{
+	if (full) {
+		memset(pte, 0, sizeof(long) << PTE_INDEX_SIZE);
+	} else {
+		pte_t *p = pte;
+		unsigned long it;
+
+		for (it = 0; it < PTRS_PER_PTE; ++it, ++p) {
+			if (pte_val(*p) == 0)
+				continue;
+			WARN_ON_ONCE(1);
+			kvmppc_unmap_pte(kvm, p,
+					 pte_pfn(*p) << PAGE_SHIFT,
+					 PAGE_SHIFT);
+		}
+	}
+
+	kvmppc_pte_free(pte);
+}
+
+static void kvmppc_unmap_free_pmd(struct kvm *kvm, pmd_t *pmd, bool full)
+{
+	unsigned long im;
+	pmd_t *p = pmd;
+
+	for (im = 0; im < PTRS_PER_PMD; ++im, ++p) {
+		if (!pmd_present(*p))
+			continue;
+		if (pmd_is_leaf(*p)) {
+			if (full) {
+				pmd_clear(p);
+			} else {
+				WARN_ON_ONCE(1);
+				kvmppc_unmap_pte(kvm, (pte_t *)p,
+					 pte_pfn(*(pte_t *)p) << PAGE_SHIFT,
+					 PMD_SHIFT);
+			}
+		} else {
+			pte_t *pte;
+
+			pte = pte_offset_map(p, 0);
+			kvmppc_unmap_free_pte(kvm, pte, full);
+			pmd_clear(p);
+		}
+	}
+	kvmppc_pmd_free(pmd);
+}
+
+static void kvmppc_unmap_free_pud(struct kvm *kvm, pud_t *pud)
+{
+	unsigned long iu;
+	pud_t *p = pud;
+
+	for (iu = 0; iu < PTRS_PER_PUD; ++iu, ++p) {
+		if (!pud_present(*p))
+			continue;
+		if (pud_huge(*p)) {
+			pud_clear(p);
+		} else {
+			pmd_t *pmd;
+
+			pmd = pmd_offset(p, 0);
+			kvmppc_unmap_free_pmd(kvm, pmd, true);
+			pud_clear(p);
+		}
+	}
+	pud_free(kvm->mm, pud);
+}
+
+void kvmppc_free_radix(struct kvm *kvm)
+{
+	unsigned long ig;
+	pgd_t *pgd;
+
+	if (!kvm->arch.pgtable)
+		return;
+	pgd = kvm->arch.pgtable;
+	for (ig = 0; ig < PTRS_PER_PGD; ++ig, ++pgd) {
+		pud_t *pud;
+
+		if (!pgd_present(*pgd))
+			continue;
+		pud = pud_offset(pgd, 0);
+		kvmppc_unmap_free_pud(kvm, pud);
+		pgd_clear(pgd);
+	}
+	pgd_free(kvm->mm, kvm->arch.pgtable);
+	kvm->arch.pgtable = NULL;
+}
+
+static void kvmppc_unmap_free_pmd_entry_table(struct kvm *kvm, pmd_t *pmd,
+					      unsigned long gpa)
+{
+	pte_t *pte = pte_offset_kernel(pmd, 0);
+
+	/*
+	 * Clearing the pmd entry then flushing the PWC ensures that the pte
+	 * page no longer be cached by the MMU, so can be freed without
+	 * flushing the PWC again.
+	 */
+	pmd_clear(pmd);
+	kvmppc_radix_flush_pwc(kvm);
+
+	kvmppc_unmap_free_pte(kvm, pte, false);
+}
+
+static void kvmppc_unmap_free_pud_entry_table(struct kvm *kvm, pud_t *pud,
+					unsigned long gpa)
+{
+	pmd_t *pmd = pmd_offset(pud, 0);
+
+	/*
+	 * Clearing the pud entry then flushing the PWC ensures that the pmd
+	 * page and any children pte pages will no longer be cached by the MMU,
+	 * so can be freed without flushing the PWC again.
+	 */
+	pud_clear(pud);
+	kvmppc_radix_flush_pwc(kvm);
+
+	kvmppc_unmap_free_pmd(kvm, pmd, false);
+}
+
 static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 			     unsigned int level, unsigned long mmu_seq)
 {
@@ -312,11 +445,9 @@ static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 			/*
 			 * There's a page table page here, but we wanted to
 			 * install a large page, so remove and free the page
-			 * table page.  new_pmd will be NULL since level == 2.
+			 * table page.
 			 */
-			new_pmd = pmd_offset(pud, 0);
-			pud_clear(pud);
-			kvmppc_radix_flush_pwc(kvm, gpa);
+			kvmppc_unmap_free_pud_entry_table(kvm, pud, gpa);
 		}
 		kvmppc_radix_set_pte_at(kvm, gpa, (pte_t *)pud, pte);
 		ret = 0;
@@ -353,11 +484,9 @@ static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 			/*
 			 * There's a page table page here, but we wanted to
 			 * install a large page, so remove and free the page
-			 * table page.  new_ptep will be NULL since level == 1.
+			 * table page.
 			 */
-			new_ptep = pte_offset_kernel(pmd, 0);
-			pmd_clear(pmd);
-			kvmppc_radix_flush_pwc(kvm, gpa);
+			kvmppc_unmap_free_pmd_entry_table(kvm, pmd, gpa);
 		}
 		kvmppc_radix_set_pte_at(kvm, gpa, pmdp_ptep(pmd), pte);
 		ret = 0;
@@ -732,51 +861,6 @@ int kvmppc_init_vm_radix(struct kvm *kvm)
 	if (!kvm->arch.pgtable)
 		return -ENOMEM;
 	return 0;
-}
-
-void kvmppc_free_radix(struct kvm *kvm)
-{
-	unsigned long ig, iu, im;
-	pte_t *pte;
-	pmd_t *pmd;
-	pud_t *pud;
-	pgd_t *pgd;
-
-	if (!kvm->arch.pgtable)
-		return;
-	pgd = kvm->arch.pgtable;
-	for (ig = 0; ig < PTRS_PER_PGD; ++ig, ++pgd) {
-		if (!pgd_present(*pgd))
-			continue;
-		pud = pud_offset(pgd, 0);
-		for (iu = 0; iu < PTRS_PER_PUD; ++iu, ++pud) {
-			if (!pud_present(*pud))
-				continue;
-			if (pud_huge(*pud)) {
-				pud_clear(pud);
-				continue;
-			}
-			pmd = pmd_offset(pud, 0);
-			for (im = 0; im < PTRS_PER_PMD; ++im, ++pmd) {
-				if (pmd_is_leaf(*pmd)) {
-					pmd_clear(pmd);
-					continue;
-				}
-				if (!pmd_present(*pmd))
-					continue;
-				pte = pte_offset_map(pmd, 0);
-				memset(pte, 0, sizeof(long) << PTE_INDEX_SIZE);
-				kvmppc_pte_free(pte);
-				pmd_clear(pmd);
-			}
-			kvmppc_pmd_free(pmd_offset(pud, 0));
-			pud_clear(pud);
-		}
-		pud_free(kvm->mm, pud_offset(pgd, 0));
-		pgd_clear(pgd);
-	}
-	pgd_free(kvm->mm, kvm->arch.pgtable);
-	kvm->arch.pgtable = NULL;
 }
 
 static void pte_ctor(void *addr)
