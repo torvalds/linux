@@ -3344,7 +3344,7 @@ static void nvme_fw_act_work(struct work_struct *work)
 }
 
 void nvme_complete_async_event(struct nvme_ctrl *ctrl, __le16 status,
-		union nvme_result *res)
+		volatile union nvme_result *res)
 {
 	u32 result = le32_to_cpu(res->u32);
 
