@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* cassini.c: Sun Microsystems Cassini(+) ethernet driver.
  *
  * Copyright (C) 2004 Sun Microsystems Inc.

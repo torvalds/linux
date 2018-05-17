@@ -674,9 +674,6 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 		svc_rdma_xdr_encode_reply_chunk(rdma_resp, rp_ch, ret);
 	}
 
-	ret = svc_rdma_post_recv(rdma, GFP_KERNEL);
-	if (ret)
-		goto err1;
 	ret = svc_rdma_send_reply_msg(rdma, rdma_argp, rdma_resp, rqstp,
 				      wr_lst, rp_ch);
 	if (ret < 0)
@@ -687,9 +684,6 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	if (ret != -E2BIG && ret != -EINVAL)
 		goto err1;
 
-	ret = svc_rdma_post_recv(rdma, GFP_KERNEL);
-	if (ret)
-		goto err1;
 	ret = svc_rdma_send_error_msg(rdma, rdma_resp, rqstp);
 	if (ret < 0)
 		goto err0;

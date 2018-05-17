@@ -71,15 +71,6 @@ enum mxc_cpu_pwr_mode {
 	STOP_POWER_OFF,		/* STOP + SRPG */
 };
 
-enum mx3_cpu_pwr_mode {
-	MX3_RUN,
-	MX3_WAIT,
-	MX3_DOZE,
-	MX3_SLEEP,
-};
-
-void mx3_cpu_lp_set(enum mx3_cpu_pwr_mode mode);
-
 void imx_enable_cpu(int cpu, bool enable);
 void imx_set_cpu_jump(int cpu, void *jump_addr);
 u32 imx_get_cpu_arg(int cpu);

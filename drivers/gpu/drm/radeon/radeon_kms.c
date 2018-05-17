@@ -26,6 +26,7 @@
  *          Jerome Glisse
  */
 #include <drm/drmP.h>
+#include <drm/drm_fb_helper.h>
 #include "radeon.h"
 #include <drm/radeon_drm.h>
 #include "radeon_asic.h"
@@ -629,9 +630,7 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
  */
 void radeon_driver_lastclose_kms(struct drm_device *dev)
 {
-	struct radeon_device *rdev = dev->dev_private;
-
-	radeon_fbdev_restore_mode(rdev);
+	drm_fb_helper_lastclose(dev);
 	vga_switcheroo_process_delayed_switch();
 }
 

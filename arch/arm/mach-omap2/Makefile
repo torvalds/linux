@@ -232,6 +232,3 @@ obj-y					+= $(omap-hsmmc-m) $(omap-hsmmc-y)
 obj-y					+= omap_phy_internal.o
 
 obj-$(CONFIG_MACH_OMAP2_TUSB6010)	+= usb-tusb6010.o
-
-onenand-$(CONFIG_MTD_ONENAND_OMAP2)	:= gpmc-onenand.o
-obj-y					+= $(onenand-m) $(onenand-y)

@@ -530,8 +530,6 @@ int trace_pid_write(struct trace_pid_list *filtered_pids,
 		ubuf += ret;
 		cnt -= ret;
 
-		parser.buffer[parser.idx] = 0;
-
 		ret = -EINVAL;
 		if (kstrtoul(parser.buffer, 0, &val))
 			break;
@@ -1236,18 +1234,18 @@ int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 			cnt--;
 		}
 
+		parser->idx = 0;
+
 		/* only spaces were written */
-		if (isspace(ch)) {
+		if (isspace(ch) || !ch) {
 			*ppos += read;
 			ret = read;
 			goto out;
 		}
-
-		parser->idx = 0;
 	}
 
 	/* read the non-space input */
-	while (cnt && !isspace(ch)) {
+	while (cnt && !isspace(ch) && ch) {
 		if (parser->idx < parser->size - 1)
 			parser->buffer[parser->idx++] = ch;
 		else {
@@ -1262,12 +1260,14 @@ int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 	}
 
 	/* We either got finished input or we have to wait for another call. */
-	if (isspace(ch)) {
+	if (isspace(ch) || !ch) {
 		parser->buffer[parser->idx] = 0;
 		parser->cont = false;
 	} else if (parser->idx < parser->size - 1) {
 		parser->cont = true;
 		parser->buffer[parser->idx++] = ch;
+		/* Make sure the parsed string always terminates with '\0'. */
+		parser->buffer[parser->idx] = 0;
 	} else {
 		ret = -EINVAL;
 		goto out;
@@ -2687,17 +2687,6 @@ void __trace_stack(struct trace_array *tr, unsigned long flags, int skip,
 	 * not be called from NMI.
 	 */
 	if (unlikely(in_nmi()))
-		return;
-
-	/*
-	 * It is possible that a function is being traced in a
-	 * location that RCU is not watching. A call to
-	 * rcu_irq_enter() will make sure that it is, but there's
-	 * a few internal rcu functions that could be traced
-	 * where that wont work either. In those cases, we just
-	 * do nothing.
-	 */
-	if (unlikely(rcu_irq_enter_disabled()))
 		return;
 
 	rcu_irq_enter_irqson();
@@ -5627,26 +5616,26 @@ static int tracing_release_pipe(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static unsigned int
+static __poll_t
 trace_poll(struct trace_iterator *iter, struct file *filp, poll_table *poll_table)
 {
 	struct trace_array *tr = iter->tr;
 
 	/* Iterators are static, they should be filled or empty */
 	if (trace_buffer_iter(iter, iter->cpu_file))
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 
 	if (tr->trace_flags & TRACE_ITER_BLOCK)
 		/*
 		 * Always select as readable when in blocking mode
 		 */
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	else
 		return ring_buffer_poll_wait(iter->trace_buffer->buffer, iter->cpu_file,
 					     filp, poll_table);
 }
 
-static unsigned int
+static __poll_t
 tracing_poll_pipe(struct file *filp, poll_table *poll_table)
 {
 	struct trace_iterator *iter = filp->private_data;
@@ -6600,7 +6589,7 @@ static int tracing_buffers_open(struct inode *inode, struct file *filp)
 	return ret;
 }
 
-static unsigned int
+static __poll_t
 tracing_buffers_poll(struct file *filp, poll_table *poll_table)
 {
 	struct ftrace_buffer_info *info = filp->private_data;

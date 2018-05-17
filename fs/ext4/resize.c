@@ -1477,7 +1477,7 @@ static int ext4_flex_group_add(struct super_block *sb,
 		goto exit_journal;
 
 	group = flex_gd->groups[0].group;
-	BUG_ON(group != EXT4_SB(sb)->s_groups_count);
+	BUG_ON(group != sbi->s_groups_count);
 	err = ext4_add_new_descs(handle, sb, group,
 				resize_inode, flex_gd->count);
 	if (err)

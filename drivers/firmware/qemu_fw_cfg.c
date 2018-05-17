@@ -694,10 +694,8 @@ static int fw_cfg_cmdline_set(const char *arg, const struct kernel_param *kp)
 	 */
 	fw_cfg_cmdline_dev = platform_device_register_simple("fw_cfg",
 					PLATFORM_DEVID_NONE, res, processed);
-	if (IS_ERR(fw_cfg_cmdline_dev))
-		return PTR_ERR(fw_cfg_cmdline_dev);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(fw_cfg_cmdline_dev);
 }
 
 static int fw_cfg_cmdline_get(char *buf, const struct kernel_param *kp)

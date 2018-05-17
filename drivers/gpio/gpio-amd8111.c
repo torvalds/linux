@@ -28,7 +28,7 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 

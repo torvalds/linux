@@ -10,7 +10,7 @@
  *
  * @adr:		I2C address of the DRX-K
  * @parallel_ts:	True means that the device uses parallel TS,
- * 			Serial otherwise.
+ *			Serial otherwise.
  * @dynamic_clk:	True means that the clock will be dynamically
  *			adjusted. Static clock otherwise.
  * @enable_merr_cfg:	Enable SIO_PDR_PERR_CFG/SIO_PDR_MVAL_CFG.
@@ -67,8 +67,8 @@ extern struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 static inline struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 					struct i2c_adapter *i2c)
 {
-        printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
-        return NULL;
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	return NULL;
 }
 #endif
 

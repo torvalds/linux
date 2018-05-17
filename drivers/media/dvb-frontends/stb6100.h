@@ -23,7 +23,7 @@
 #define __STB_6100_REG_H
 
 #include <linux/dvb/frontend.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #define STB6100_LD			0x00
 #define STB6100_LD_LOCK			(1 << 0)

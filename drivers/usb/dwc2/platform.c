@@ -221,6 +221,15 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 
 	reset_control_deassert(hsotg->reset);
 
+	hsotg->reset_ecc = devm_reset_control_get_optional(hsotg->dev, "dwc2-ecc");
+	if (IS_ERR(hsotg->reset_ecc)) {
+		ret = PTR_ERR(hsotg->reset_ecc);
+		dev_err(hsotg->dev, "error getting reset control for ecc %d\n", ret);
+		return ret;
+	}
+
+	reset_control_deassert(hsotg->reset_ecc);
+
 	/* Set default UTMI width */
 	hsotg->phyif = GUSBCFG_PHYIF16;
 
@@ -319,6 +328,7 @@ static int dwc2_driver_remove(struct platform_device *dev)
 		dwc2_lowlevel_hw_disable(hsotg);
 
 	reset_control_assert(hsotg->reset);
+	reset_control_assert(hsotg->reset_ecc);
 
 	return 0;
 }

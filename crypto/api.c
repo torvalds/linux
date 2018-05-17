@@ -137,7 +137,7 @@ static struct crypto_alg *crypto_larval_add(const char *name, u32 type,
 	if (IS_ERR(larval))
 		return ERR_CAST(larval);
 
-	atomic_set(&larval->alg.cra_refcnt, 2);
+	refcount_set(&larval->alg.cra_refcnt, 2);
 
 	down_write(&crypto_alg_sem);
 	alg = __crypto_alg_lookup(name, type, mask);
@@ -205,7 +205,8 @@ struct crypto_alg *crypto_alg_lookup(const char *name, u32 type, u32 mask)
 }
 EXPORT_SYMBOL_GPL(crypto_alg_lookup);
 
-struct crypto_alg *crypto_larval_lookup(const char *name, u32 type, u32 mask)
+static struct crypto_alg *crypto_larval_lookup(const char *name, u32 type,
+					       u32 mask)
 {
 	struct crypto_alg *alg;
 
@@ -231,7 +232,6 @@ struct crypto_alg *crypto_larval_lookup(const char *name, u32 type, u32 mask)
 
 	return crypto_larval_add(name, type, mask);
 }
-EXPORT_SYMBOL_GPL(crypto_larval_lookup);
 
 int crypto_probing_notify(unsigned long val, void *v)
 {

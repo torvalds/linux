@@ -924,7 +924,7 @@ static int chrdev_tx_done(struct channel_data *chan, int size)
 	return 1;
 }
 
-static unsigned int cosa_poll(struct file *file, poll_table *poll)
+static __poll_t cosa_poll(struct file *file, poll_table *poll)
 {
 	pr_info("cosa_poll is here\n");
 	return 0;

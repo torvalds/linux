@@ -5,20 +5,16 @@
 #include <linux/netfilter_ipv6/ip6_tables.h>
 #include <net/ipv6.h>
 
-static inline void
-nft_set_pktinfo_ipv6(struct nft_pktinfo *pkt,
-		     struct sk_buff *skb,
-		     const struct nf_hook_state *state)
+static inline void nft_set_pktinfo_ipv6(struct nft_pktinfo *pkt,
+					struct sk_buff *skb)
 {
 	unsigned int flags = IP6_FH_F_AUTH;
 	int protohdr, thoff = 0;
 	unsigned short frag_off;
 
-	nft_set_pktinfo(pkt, skb, state);
-
 	protohdr = ipv6_find_hdr(pkt->skb, &thoff, -1, &frag_off, &flags);
 	if (protohdr < 0) {
-		nft_set_pktinfo_proto_unspec(pkt, skb);
+		nft_set_pktinfo_unspec(pkt, skb);
 		return;
 	}
 
@@ -28,10 +24,8 @@ nft_set_pktinfo_ipv6(struct nft_pktinfo *pkt,
 	pkt->xt.fragoff = frag_off;
 }
 
-static inline int
-__nft_set_pktinfo_ipv6_validate(struct nft_pktinfo *pkt,
-				struct sk_buff *skb,
-				const struct nf_hook_state *state)
+static inline int __nft_set_pktinfo_ipv6_validate(struct nft_pktinfo *pkt,
+						  struct sk_buff *skb)
 {
 #if IS_ENABLED(CONFIG_IPV6)
 	unsigned int flags = IP6_FH_F_AUTH;
@@ -68,16 +62,11 @@ __nft_set_pktinfo_ipv6_validate(struct nft_pktinfo *pkt,
 #endif
 }
 
-static inline void
-nft_set_pktinfo_ipv6_validate(struct nft_pktinfo *pkt,
-			      struct sk_buff *skb,
-			      const struct nf_hook_state *state)
+static inline void nft_set_pktinfo_ipv6_validate(struct nft_pktinfo *pkt,
+						 struct sk_buff *skb)
 {
-	nft_set_pktinfo(pkt, skb, state);
-	if (__nft_set_pktinfo_ipv6_validate(pkt, skb, state) < 0)
-		nft_set_pktinfo_proto_unspec(pkt, skb);
+	if (__nft_set_pktinfo_ipv6_validate(pkt, skb) < 0)
+		nft_set_pktinfo_unspec(pkt, skb);
 }
-
-extern struct nft_af_info nft_af_ipv6;
 
 #endif

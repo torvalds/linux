@@ -40,7 +40,6 @@
 #include <linux/slab.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
-#include <linux/clk.h>
 #include <linux/sh_eth.h>
 #include <linux/of_mdio.h>
 
@@ -438,6 +437,17 @@ static void sh_eth_modify(struct net_device *ndev, int enum_index, u32 clear,
 {
 	sh_eth_write(ndev, (sh_eth_read(ndev, enum_index) & ~clear) | set,
 		     enum_index);
+}
+
+static void sh_eth_tsu_write(struct sh_eth_private *mdp, u32 data,
+			     int enum_index)
+{
+	iowrite32(data, mdp->tsu_addr + mdp->reg_offset[enum_index]);
+}
+
+static u32 sh_eth_tsu_read(struct sh_eth_private *mdp, int enum_index)
+{
+	return ioread32(mdp->tsu_addr + mdp->reg_offset[enum_index]);
 }
 
 static bool sh_eth_is_gether(struct sh_eth_private *mdp)
@@ -2304,7 +2314,7 @@ static void sh_eth_get_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 	wol->supported = 0;
 	wol->wolopts = 0;
 
-	if (mdp->cd->magic && mdp->clk) {
+	if (mdp->cd->magic) {
 		wol->supported = WAKE_MAGIC;
 		wol->wolopts = mdp->wol_enabled ? WAKE_MAGIC : 0;
 	}
@@ -2314,7 +2324,7 @@ static int sh_eth_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
-	if (!mdp->cd->magic || !mdp->clk || wol->wolopts & ~WAKE_MAGIC)
+	if (!mdp->cd->magic || wol->wolopts & ~WAKE_MAGIC)
 		return -EOPNOTSUPP;
 
 	mdp->wol_enabled = !!(wol->wolopts & WAKE_MAGIC);
@@ -3125,7 +3135,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	const struct platform_device_id *id = platform_get_device_id(pdev);
 	struct sh_eth_private *mdp;
 	struct net_device *ndev;
-	int ret, devno;
+	int ret;
 
 	/* get base addr */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -3136,10 +3146,6 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
-
-	devno = pdev->id;
-	if (devno < 0)
-		devno = 0;
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
@@ -3156,11 +3162,6 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 		ret = PTR_ERR(mdp->addr);
 		goto out_release;
 	}
-
-	/* Get clock, if not found that's OK but Wake-On-Lan is unavailable */
-	mdp->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(mdp->clk))
-		mdp->clk = NULL;
 
 	ndev->base_addr = res->start;
 
@@ -3222,8 +3223,8 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 		eth_hw_addr_random(ndev);
 	}
 
-	/* ioremap the TSU registers */
 	if (mdp->cd->tsu) {
+		int port = pdev->id < 0 ? 0 : pdev->id % 2;
 		struct resource *rtsu;
 
 		rtsu = platform_get_resource(pdev, IORESOURCE_MEM, 1);
@@ -3235,7 +3236,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 		/* We can only request the  TSU region  for the first port
 		 * of the two  sharing this TSU for the probe to succeed...
 		 */
-		if (devno % 2 == 0 &&
+		if (port == 0 &&
 		    !devm_request_mem_region(&pdev->dev, rtsu->start,
 					     resource_size(rtsu),
 					     dev_name(&pdev->dev))) {
@@ -3243,6 +3244,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 			ret = -EBUSY;
 			goto out_release;
 		}
+		/* ioremap the TSU registers */
 		mdp->tsu_addr = devm_ioremap(&pdev->dev, rtsu->start,
 					     resource_size(rtsu));
 		if (!mdp->tsu_addr) {
@@ -3250,16 +3252,14 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 			ret = -ENOMEM;
 			goto out_release;
 		}
-		mdp->port = devno % 2;
+		mdp->port = port;
 		ndev->features = NETIF_F_HW_VLAN_CTAG_FILTER;
-	}
 
-	/* Need to init only the first port of the two sharing a TSU */
-	if (devno % 2 == 0) {
-		if (mdp->cd->chip_reset)
-			mdp->cd->chip_reset(ndev);
+		/* Need to init only the first port of the two sharing a TSU */
+		if (port == 0) {
+			if (mdp->cd->chip_reset)
+				mdp->cd->chip_reset(ndev);
 
-		if (mdp->cd->tsu) {
 			/* TSU init (Init only)*/
 			sh_eth_tsu_init(mdp);
 		}
@@ -3283,7 +3283,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_napi_del;
 
-	if (mdp->cd->magic && mdp->clk)
+	if (mdp->cd->magic)
 		device_set_wakeup_capable(&pdev->dev, 1);
 
 	/* print device information */
@@ -3301,8 +3301,7 @@ out_napi_del:
 
 out_release:
 	/* net_dev free */
-	if (ndev)
-		free_netdev(ndev);
+	free_netdev(ndev);
 
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
@@ -3337,9 +3336,6 @@ static int sh_eth_wol_setup(struct net_device *ndev)
 	/* Enable MagicPacket */
 	sh_eth_modify(ndev, ECMR, ECMR_MPDE, ECMR_MPDE);
 
-	/* Increased clock usage so device won't be suspended */
-	clk_enable(mdp->clk);
-
 	return enable_irq_wake(ndev->irq);
 }
 
@@ -3364,9 +3360,6 @@ static int sh_eth_wol_restore(struct net_device *ndev)
 	ret = sh_eth_open(ndev);
 	if (ret < 0)
 		return ret;
-
-	/* Restore clock usage count */
-	clk_disable(mdp->clk);
 
 	return disable_irq_wake(ndev->irq);
 }

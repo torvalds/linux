@@ -23,7 +23,7 @@
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
 i="$1"
-if test -d $i
+if test -d "$i" -a -r "$i"
 then
 	:
 else

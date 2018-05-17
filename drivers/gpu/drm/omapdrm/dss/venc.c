@@ -1,6 +1,4 @@
 /*
- * linux/drivers/video/omap2/dss/venc.c
- *
  * Copyright (C) 2009 Nokia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
  *
@@ -857,10 +855,10 @@ static int venc_probe_of(struct platform_device *pdev)
 	of_node_put(ep);
 
 	return 0;
+
 err:
 	of_node_put(ep);
-
-	return 0;
+	return r;
 }
 
 /* VENC HW IP initialisation */
@@ -986,7 +984,7 @@ static const struct of_device_id venc_of_match[] = {
 	{},
 };
 
-static struct platform_driver omap_venchw_driver = {
+struct platform_driver omap_venchw_driver = {
 	.probe		= venc_probe,
 	.remove		= venc_remove,
 	.driver         = {
@@ -996,13 +994,3 @@ static struct platform_driver omap_venchw_driver = {
 		.suppress_bind_attrs = true,
 	},
 };
-
-int __init venc_init_platform_driver(void)
-{
-	return platform_driver_register(&omap_venchw_driver);
-}
-
-void venc_uninit_platform_driver(void)
-{
-	platform_driver_unregister(&omap_venchw_driver);
-}

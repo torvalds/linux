@@ -823,6 +823,8 @@ static int msm_iommu_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
+	bus_set_iommu(&platform_bus_type, &msm_iommu_ops);
+
 	pr_info("device mapped at %p, irq %d with %d ctx banks\n",
 		iommu->base, iommu->irq, iommu->ncb);
 
@@ -875,19 +877,7 @@ static void __exit msm_iommu_driver_exit(void)
 subsys_initcall(msm_iommu_driver_init);
 module_exit(msm_iommu_driver_exit);
 
-static int __init msm_iommu_init(void)
-{
-	bus_set_iommu(&platform_bus_type, &msm_iommu_ops);
-	return 0;
-}
-
-static int __init msm_iommu_of_setup(struct device_node *np)
-{
-	msm_iommu_init();
-	return 0;
-}
-
-IOMMU_OF_DECLARE(msm_iommu_of, "qcom,apq8064-iommu", msm_iommu_of_setup);
+IOMMU_OF_DECLARE(msm_iommu_of, "qcom,apq8064-iommu");
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Stepan Moskovchenko <stepanm@codeaurora.org>");

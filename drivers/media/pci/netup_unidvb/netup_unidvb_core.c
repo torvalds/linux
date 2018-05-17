@@ -862,7 +862,7 @@ static int netup_unidvb_initdev(struct pci_dev *pci_dev,
 		PCI_EXP_DEVCTL_NOSNOOP_EN, 0);
 	/* Adjust PCIe completion timeout. */
 	pcie_capability_clear_and_set_word(pci_dev,
-		PCI_EXP_DEVCTL2, 0xf, 0x2);
+		PCI_EXP_DEVCTL2, PCI_EXP_DEVCTL2_COMP_TIMEOUT, 0x2);
 
 	if (netup_unidvb_request_mmio(pci_dev)) {
 		dev_err(&pci_dev->dev,

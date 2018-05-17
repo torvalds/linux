@@ -152,9 +152,10 @@ static const struct clk_ops dpll_x2_ck_ops = {
  * clk-bypass is missing), the clock is added to retry list and
  * the initialization is retried on later stage.
  */
-static void __init _register_dpll(struct clk_hw *hw,
+static void __init _register_dpll(void *user,
 				  struct device_node *node)
 {
+	struct clk_hw *hw = user;
 	struct clk_hw_omap *clk_hw = to_clk_hw_omap(hw);
 	struct dpll_data *dd = clk_hw->dpll_data;
 	struct clk *clk;
@@ -201,96 +202,6 @@ cleanup:
 	kfree(clk_hw->hw.init);
 	kfree(clk_hw);
 }
-
-#if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_ATAGS)
-void _get_reg(u8 module, u16 offset, struct clk_omap_reg *reg)
-{
-	reg->index = module;
-	reg->offset = offset;
-}
-
-struct clk *ti_clk_register_dpll(struct ti_clk *setup)
-{
-	struct clk_hw_omap *clk_hw;
-	struct clk_init_data init = { NULL };
-	struct dpll_data *dd;
-	struct clk *clk;
-	struct ti_clk_dpll *dpll;
-	const struct clk_ops *ops = &omap3_dpll_ck_ops;
-	struct clk *clk_ref;
-	struct clk *clk_bypass;
-
-	dpll = setup->data;
-
-	if (dpll->num_parents < 2)
-		return ERR_PTR(-EINVAL);
-
-	clk_ref = clk_get_sys(NULL, dpll->parents[0]);
-	clk_bypass = clk_get_sys(NULL, dpll->parents[1]);
-
-	if (IS_ERR_OR_NULL(clk_ref) || IS_ERR_OR_NULL(clk_bypass))
-		return ERR_PTR(-EAGAIN);
-
-	dd = kzalloc(sizeof(*dd), GFP_KERNEL);
-	clk_hw = kzalloc(sizeof(*clk_hw), GFP_KERNEL);
-	if (!dd || !clk_hw) {
-		clk = ERR_PTR(-ENOMEM);
-		goto cleanup;
-	}
-
-	clk_hw->dpll_data = dd;
-	clk_hw->ops = &clkhwops_omap3_dpll;
-	clk_hw->hw.init = &init;
-
-	init.name = setup->name;
-	init.ops = ops;
-
-	init.num_parents = dpll->num_parents;
-	init.parent_names = dpll->parents;
-
-	_get_reg(dpll->module, dpll->control_reg, &dd->control_reg);
-	_get_reg(dpll->module, dpll->idlest_reg, &dd->idlest_reg);
-	_get_reg(dpll->module, dpll->mult_div1_reg, &dd->mult_div1_reg);
-	_get_reg(dpll->module, dpll->autoidle_reg, &dd->autoidle_reg);
-
-	dd->modes = dpll->modes;
-	dd->div1_mask = dpll->div1_mask;
-	dd->idlest_mask = dpll->idlest_mask;
-	dd->mult_mask = dpll->mult_mask;
-	dd->autoidle_mask = dpll->autoidle_mask;
-	dd->enable_mask = dpll->enable_mask;
-	dd->sddiv_mask = dpll->sddiv_mask;
-	dd->dco_mask = dpll->dco_mask;
-	dd->max_divider = dpll->max_divider;
-	dd->min_divider = dpll->min_divider;
-	dd->max_multiplier = dpll->max_multiplier;
-	dd->auto_recal_bit = dpll->auto_recal_bit;
-	dd->recal_en_bit = dpll->recal_en_bit;
-	dd->recal_st_bit = dpll->recal_st_bit;
-
-	dd->clk_ref = __clk_get_hw(clk_ref);
-	dd->clk_bypass = __clk_get_hw(clk_bypass);
-
-	if (dpll->flags & CLKF_CORE)
-		ops = &omap3_dpll_core_ck_ops;
-
-	if (dpll->flags & CLKF_PER)
-		ops = &omap3_dpll_per_ck_ops;
-
-	if (dpll->flags & CLKF_J_TYPE)
-		dd->flags |= DPLL_J_TYPE;
-
-	clk = ti_clk_register(NULL, &clk_hw->hw, setup->name);
-
-	if (!IS_ERR(clk))
-		return clk;
-
-cleanup:
-	kfree(dd);
-	kfree(clk_hw);
-	return clk;
-}
-#endif
 
 #if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5) || \
 	defined(CONFIG_SOC_DRA7XX) || defined(CONFIG_SOC_AM33XX) || \

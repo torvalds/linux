@@ -299,4 +299,8 @@ union qed_qm_pq_params {
 
 int qed_init_fw_data(struct qed_dev *cdev,
 		     const u8 *fw_data);
+
+int qed_dmae_sanity(struct qed_hwfn *p_hwfn,
+		    struct qed_ptt *p_ptt, const char *phase);
+
 #endif

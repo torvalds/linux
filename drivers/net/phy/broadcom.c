@@ -540,6 +540,37 @@ static int brcm_fet_config_intr(struct phy_device *phydev)
 	return err;
 }
 
+struct bcm53xx_phy_priv {
+	u64	*stats;
+};
+
+static int bcm53xx_phy_probe(struct phy_device *phydev)
+{
+	struct bcm53xx_phy_priv *priv;
+
+	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	phydev->priv = priv;
+
+	priv->stats = devm_kcalloc(&phydev->mdio.dev,
+				   bcm_phy_get_sset_count(phydev), sizeof(u64),
+				   GFP_KERNEL);
+	if (!priv->stats)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void bcm53xx_phy_get_stats(struct phy_device *phydev,
+				  struct ethtool_stats *stats, u64 *data)
+{
+	struct bcm53xx_phy_priv *priv = phydev->priv;
+
+	bcm_phy_get_stats(phydev, priv->stats, stats, data);
+}
+
 static struct phy_driver broadcom_drivers[] = {
 {
 	.phy_id		= PHY_ID_BCM5411,
@@ -548,8 +579,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.features	= PHY_GBIT_FEATURES,
 	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= bcm54xx_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
 	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 }, {
@@ -559,8 +588,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.features	= PHY_GBIT_FEATURES,
 	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= bcm54xx_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
 	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 }, {
@@ -570,8 +597,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.features	= PHY_GBIT_FEATURES,
 	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= bcm54xx_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
 	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 }, {
@@ -581,8 +606,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.features	= PHY_GBIT_FEATURES,
 	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= bcm54xx_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
 	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 }, {
@@ -592,8 +615,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.features	= PHY_GBIT_FEATURES,
 	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= bcm54xx_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
 	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 }, {
@@ -603,8 +624,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.features	= PHY_GBIT_FEATURES,
 	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= bcm54xx_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
 	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 }, {
@@ -614,8 +633,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.features	= PHY_GBIT_FEATURES,
 	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= bcm54xx_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
 	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 }, {
@@ -626,7 +643,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= bcm54xx_config_init,
 	.config_aneg	= bcm5481_config_aneg,
-	.read_status	= genphy_read_status,
 	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 }, {
@@ -637,7 +653,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.flags          = PHY_HAS_INTERRUPT,
 	.config_init    = bcm54xx_config_init,
 	.config_aneg    = bcm5481_config_aneg,
-	.read_status    = genphy_read_status,
 	.ack_interrupt  = bcm_phy_ack_intr,
 	.config_intr    = bcm_phy_config_intr,
 }, {
@@ -647,7 +662,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.features	= PHY_GBIT_FEATURES,
 	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= bcm5482_config_init,
-	.config_aneg	= genphy_config_aneg,
 	.read_status	= bcm5482_read_status,
 	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
@@ -658,8 +672,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.features	= PHY_GBIT_FEATURES,
 	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= bcm54xx_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
 	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 }, {
@@ -669,8 +681,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.features	= PHY_GBIT_FEATURES,
 	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= bcm54xx_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
 	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 }, {
@@ -680,8 +690,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.features	= PHY_GBIT_FEATURES,
 	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= bcm54xx_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
 	.ack_interrupt	= bcm_phy_ack_intr,
 	.config_intr	= bcm_phy_config_intr,
 }, {
@@ -691,8 +699,6 @@ static struct phy_driver broadcom_drivers[] = {
 	.features	= PHY_BASIC_FEATURES,
 	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= brcm_fet_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
 	.ack_interrupt	= brcm_fet_ack_interrupt,
 	.config_intr	= brcm_fet_config_intr,
 }, {
@@ -702,10 +708,18 @@ static struct phy_driver broadcom_drivers[] = {
 	.features	= PHY_BASIC_FEATURES,
 	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= brcm_fet_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
 	.ack_interrupt	= brcm_fet_ack_interrupt,
 	.config_intr	= brcm_fet_config_intr,
+}, {
+	.phy_id		= PHY_ID_BCM5395,
+	.phy_id_mask	= 0xfffffff0,
+	.name		= "Broadcom BCM5395",
+	.flags		= PHY_IS_INTERNAL,
+	.features	= PHY_GBIT_FEATURES,
+	.get_sset_count	= bcm_phy_get_sset_count,
+	.get_strings	= bcm_phy_get_strings,
+	.get_stats	= bcm53xx_phy_get_stats,
+	.probe		= bcm53xx_phy_probe,
 } };
 
 module_phy_driver(broadcom_drivers);
@@ -726,6 +740,7 @@ static struct mdio_device_id __maybe_unused broadcom_tbl[] = {
 	{ PHY_ID_BCM57780, 0xfffffff0 },
 	{ PHY_ID_BCMAC131, 0xfffffff0 },
 	{ PHY_ID_BCM5241, 0xfffffff0 },
+	{ PHY_ID_BCM5395, 0xfffffff0 },
 	{ }
 };
 

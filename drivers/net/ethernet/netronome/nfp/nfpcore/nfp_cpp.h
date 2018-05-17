@@ -242,6 +242,7 @@ int nfp_cpp_area_read(struct nfp_cpp_area *area, unsigned long offset,
 		      void *buffer, size_t length);
 int nfp_cpp_area_write(struct nfp_cpp_area *area, unsigned long offset,
 		       const void *buffer, size_t length);
+size_t nfp_cpp_area_size(struct nfp_cpp_area *area);
 const char *nfp_cpp_area_name(struct nfp_cpp_area *cpp_area);
 void *nfp_cpp_area_priv(struct nfp_cpp_area *cpp_area);
 struct nfp_cpp *nfp_cpp_area_cpp(struct nfp_cpp_area *cpp_area);

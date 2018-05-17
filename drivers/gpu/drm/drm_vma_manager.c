@@ -203,21 +203,16 @@ EXPORT_SYMBOL(drm_vma_offset_lookup_locked);
 int drm_vma_offset_add(struct drm_vma_offset_manager *mgr,
 		       struct drm_vma_offset_node *node, unsigned long pages)
 {
-	int ret;
+	int ret = 0;
 
 	write_lock(&mgr->vm_lock);
 
-	if (drm_mm_node_allocated(&node->vm_node)) {
-		ret = 0;
-		goto out_unlock;
-	}
+	if (!drm_mm_node_allocated(&node->vm_node))
+		ret = drm_mm_insert_node(&mgr->vm_addr_space_mm,
+					 &node->vm_node, pages);
 
-	ret = drm_mm_insert_node(&mgr->vm_addr_space_mm, &node->vm_node, pages);
-	if (ret)
-		goto out_unlock;
-
-out_unlock:
 	write_unlock(&mgr->vm_lock);
+
 	return ret;
 }
 EXPORT_SYMBOL(drm_vma_offset_add);

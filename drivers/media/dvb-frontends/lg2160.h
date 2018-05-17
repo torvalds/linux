@@ -19,7 +19,7 @@
 #define _LG2160_H_
 
 #include <linux/i2c.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 enum lg_chip_type {
 	LG2160 = 0,

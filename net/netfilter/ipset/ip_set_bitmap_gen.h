@@ -127,14 +127,7 @@ mtype_test(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 
 	if (ret <= 0)
 		return ret;
-	if (SET_WITH_TIMEOUT(set) &&
-	    ip_set_timeout_expired(ext_timeout(x, set)))
-		return 0;
-	if (SET_WITH_COUNTER(set))
-		ip_set_update_counter(ext_counter(x, set), ext, mext, flags);
-	if (SET_WITH_SKBINFO(set))
-		ip_set_get_skbinfo(ext_skbinfo(x, set), ext, mext, flags);
-	return 1;
+	return ip_set_match_extensions(set, ext, mext, flags, x);
 }
 
 static int
@@ -227,6 +220,7 @@ mtype_list(const struct ip_set *set,
 	rcu_read_lock();
 	for (; cb->args[IPSET_CB_ARG0] < map->elements;
 	     cb->args[IPSET_CB_ARG0]++) {
+		cond_resched_rcu();
 		id = cb->args[IPSET_CB_ARG0];
 		x = get_ext(set, map, id);
 		if (!test_bit(id, map->members) ||

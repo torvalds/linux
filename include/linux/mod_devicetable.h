@@ -229,6 +229,12 @@ struct hda_device_id {
 	unsigned long driver_data;
 };
 
+struct sdw_device_id {
+	__u16 mfg_id;
+	__u16 part_id;
+	kernel_ulong_t driver_data;
+};
+
 /*
  * Struct used for matching a device
  */
@@ -450,6 +456,19 @@ struct pci_epf_device_id {
 struct spi_device_id {
 	char name[SPI_NAME_SIZE];
 	kernel_ulong_t driver_data;	/* Data private to the driver */
+};
+
+/* SLIMbus */
+
+#define SLIMBUS_NAME_SIZE	32
+#define SLIMBUS_MODULE_PREFIX	"slim:"
+
+struct slim_device_id {
+	__u16 manf_id, prod_code;
+	__u16 dev_index, instance;
+
+	/* Data private to the driver */
+	kernel_ulong_t driver_data;
 };
 
 #define SPMI_NAME_SIZE	32

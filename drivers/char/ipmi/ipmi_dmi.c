@@ -106,7 +106,10 @@ static void __init dmi_add_platform_ipmi(unsigned long base_addr,
 		pr_err("ipmi:dmi: Error allocation IPMI platform device\n");
 		return;
 	}
-	pdev->driver_override = override;
+	pdev->driver_override = kasprintf(GFP_KERNEL, "%s",
+					  override);
+	if (!pdev->driver_override)
+		goto err;
 
 	if (type == IPMI_DMI_TYPE_SSIF) {
 		set_prop_entry(p[pidx++], "i2c-addr", u16, base_addr);

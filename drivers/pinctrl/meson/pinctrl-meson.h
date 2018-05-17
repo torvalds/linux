@@ -108,6 +108,7 @@ struct meson_pinctrl_data {
 	struct meson_bank *banks;
 	unsigned int num_banks;
 	const struct pinmux_ops *pmx_ops;
+	void *pmx_data;
 };
 
 struct meson_pinctrl {

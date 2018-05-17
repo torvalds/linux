@@ -47,6 +47,12 @@ struct btrfs_pending_bios {
 #define btrfs_device_data_ordered_init(device) do { } while (0)
 #endif
 
+#define BTRFS_DEV_STATE_WRITEABLE	(0)
+#define BTRFS_DEV_STATE_IN_FS_METADATA	(1)
+#define BTRFS_DEV_STATE_MISSING		(2)
+#define BTRFS_DEV_STATE_REPLACE_TGT	(3)
+#define BTRFS_DEV_STATE_FLUSH_SENT	(4)
+
 struct btrfs_device {
 	struct list_head dev_list;
 	struct list_head dev_alloc_list;
@@ -69,11 +75,7 @@ struct btrfs_device {
 	/* the mode sent to blkdev_get */
 	fmode_t mode;
 
-	int writeable;
-	int in_fs_metadata;
-	int missing;
-	int can_discard;
-	int is_tgtdev_for_dev_replace;
+	unsigned long dev_state;
 	blk_status_t last_flush_error;
 	int flush_bio_sent;
 
@@ -129,14 +131,12 @@ struct btrfs_device {
 	struct completion flush_wait;
 
 	/* per-device scrub information */
-	struct scrub_ctx *scrub_device;
+	struct scrub_ctx *scrub_ctx;
 
 	struct btrfs_work work;
 	struct rcu_head rcu;
-	struct work_struct rcu_work;
 
 	/* readahead state */
-	spinlock_t reada_lock;
 	atomic_t reada_in_flight;
 	u64 reada_next;
 	struct reada_zone *reada_curr_zone;
@@ -489,15 +489,16 @@ int btrfs_finish_chunk_alloc(struct btrfs_trans_handle *trans,
 int btrfs_remove_chunk(struct btrfs_trans_handle *trans,
 		       struct btrfs_fs_info *fs_info, u64 chunk_offset);
 
-static inline int btrfs_dev_stats_dirty(struct btrfs_device *dev)
-{
-	return atomic_read(&dev->dev_stats_ccnt);
-}
-
 static inline void btrfs_dev_stat_inc(struct btrfs_device *dev,
 				      int index)
 {
 	atomic_inc(dev->dev_stat_values + index);
+	/*
+	 * This memory barrier orders stores updating statistics before stores
+	 * updating dev_stats_ccnt.
+	 *
+	 * It pairs with smp_rmb() in btrfs_run_dev_stats().
+	 */
 	smp_mb__before_atomic();
 	atomic_inc(&dev->dev_stats_ccnt);
 }
@@ -514,7 +515,13 @@ static inline int btrfs_dev_stat_read_and_reset(struct btrfs_device *dev,
 	int ret;
 
 	ret = atomic_xchg(dev->dev_stat_values + index, 0);
-	smp_mb__before_atomic();
+	/*
+	 * atomic_xchg implies a full memory barriers as per atomic_t.txt:
+	 * - RMW operations that have a return value are fully ordered;
+	 *
+	 * This implicit memory barriers is paired with the smp_rmb in
+	 * btrfs_run_dev_stats
+	 */
 	atomic_inc(&dev->dev_stats_ccnt);
 	return ret;
 }
@@ -523,6 +530,12 @@ static inline void btrfs_dev_stat_set(struct btrfs_device *dev,
 				      int index, unsigned long val)
 {
 	atomic_set(dev->dev_stat_values + index, val);
+	/*
+	 * This memory barrier orders stores updating statistics before stores
+	 * updating dev_stats_ccnt.
+	 *
+	 * It pairs with smp_rmb() in btrfs_run_dev_stats().
+	 */
 	smp_mb__before_atomic();
 	atomic_inc(&dev->dev_stats_ccnt);
 }
@@ -540,7 +553,7 @@ void btrfs_update_commit_device_bytes_used(struct btrfs_fs_info *fs_info,
 struct list_head *btrfs_get_fs_uuids(void);
 void btrfs_set_fs_info_ptr(struct btrfs_fs_info *fs_info);
 void btrfs_reset_fs_info_ptr(struct btrfs_fs_info *fs_info);
-
-bool btrfs_check_rw_degradable(struct btrfs_fs_info *fs_info);
+bool btrfs_check_rw_degradable(struct btrfs_fs_info *fs_info,
+					struct btrfs_device *failing_dev);
 
 #endif

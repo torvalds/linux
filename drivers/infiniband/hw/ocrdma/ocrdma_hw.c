@@ -380,11 +380,10 @@ static int ocrdma_alloc_q(struct ocrdma_dev *dev,
 	q->len = len;
 	q->entry_size = entry_size;
 	q->size = len * entry_size;
-	q->va = dma_alloc_coherent(&dev->nic_info.pdev->dev, q->size,
-				   &q->dma, GFP_KERNEL);
+	q->va = dma_zalloc_coherent(&dev->nic_info.pdev->dev, q->size,
+				    &q->dma, GFP_KERNEL);
 	if (!q->va)
 		return -ENOMEM;
-	memset(q->va, 0, q->size);
 	return 0;
 }
 
@@ -1819,12 +1818,11 @@ int ocrdma_mbx_create_cq(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
 		return -ENOMEM;
 	ocrdma_init_mch(&cmd->cmd.req, OCRDMA_CMD_CREATE_CQ,
 			OCRDMA_SUBSYS_COMMON, sizeof(*cmd));
-	cq->va = dma_alloc_coherent(&pdev->dev, cq->len, &cq->pa, GFP_KERNEL);
+	cq->va = dma_zalloc_coherent(&pdev->dev, cq->len, &cq->pa, GFP_KERNEL);
 	if (!cq->va) {
 		status = -ENOMEM;
 		goto mem_err;
 	}
-	memset(cq->va, 0, cq->len);
 	page_size = cq->len / hw_pages;
 	cmd->cmd.pgsz_pgcnt = (page_size / OCRDMA_MIN_Q_PAGE_SIZE) <<
 					OCRDMA_CREATE_CQ_PAGE_SIZE_SHIFT;
@@ -2212,10 +2210,9 @@ static int ocrdma_set_create_qp_sq_cmd(struct ocrdma_create_qp_req *cmd,
 	qp->sq.max_cnt = max_wqe_allocated;
 	len = (hw_pages * hw_page_size);
 
-	qp->sq.va = dma_alloc_coherent(&pdev->dev, len, &pa, GFP_KERNEL);
+	qp->sq.va = dma_zalloc_coherent(&pdev->dev, len, &pa, GFP_KERNEL);
 	if (!qp->sq.va)
 		return -EINVAL;
-	memset(qp->sq.va, 0, len);
 	qp->sq.len = len;
 	qp->sq.pa = pa;
 	qp->sq.entry_size = dev->attr.wqe_size;
@@ -2263,10 +2260,9 @@ static int ocrdma_set_create_qp_rq_cmd(struct ocrdma_create_qp_req *cmd,
 	qp->rq.max_cnt = max_rqe_allocated;
 	len = (hw_pages * hw_page_size);
 
-	qp->rq.va = dma_alloc_coherent(&pdev->dev, len, &pa, GFP_KERNEL);
+	qp->rq.va = dma_zalloc_coherent(&pdev->dev, len, &pa, GFP_KERNEL);
 	if (!qp->rq.va)
 		return -ENOMEM;
-	memset(qp->rq.va, 0, len);
 	qp->rq.pa = pa;
 	qp->rq.len = len;
 	qp->rq.entry_size = dev->attr.rqe_size;
@@ -2320,11 +2316,10 @@ static int ocrdma_set_create_qp_ird_cmd(struct ocrdma_create_qp_req *cmd,
 	if (dev->attr.ird == 0)
 		return 0;
 
-	qp->ird_q_va = dma_alloc_coherent(&pdev->dev, ird_q_len,
-					&pa, GFP_KERNEL);
+	qp->ird_q_va = dma_zalloc_coherent(&pdev->dev, ird_q_len, &pa,
+					   GFP_KERNEL);
 	if (!qp->ird_q_va)
 		return -ENOMEM;
-	memset(qp->ird_q_va, 0, ird_q_len);
 	ocrdma_build_q_pages(&cmd->ird_addr[0], dev->attr.num_ird_pages,
 			     pa, ird_page_size);
 	for (; i < ird_q_len / dev->attr.rqe_size; i++) {

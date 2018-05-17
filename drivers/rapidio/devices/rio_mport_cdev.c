@@ -2319,13 +2319,13 @@ static int mport_cdev_mmap(struct file *filp, struct vm_area_struct *vma)
 	return ret;
 }
 
-static unsigned int mport_cdev_poll(struct file *filp, poll_table *wait)
+static __poll_t mport_cdev_poll(struct file *filp, poll_table *wait)
 {
 	struct mport_cdev_priv *priv = filp->private_data;
 
 	poll_wait(filp, &priv->event_rx_wait, wait);
 	if (kfifo_len(&priv->event_fifo))
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 
 	return 0;
 }

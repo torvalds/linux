@@ -38,7 +38,7 @@ static ssize_t chip_width_show(struct device *dev,
 {
 	return sprintf(page, "%u\n", smp_width);
 }
-static DEVICE_ATTR(chip_width, 0444, chip_width_show, NULL);
+static DEVICE_ATTR_RO(chip_width);
 
 static ssize_t chip_height_show(struct device *dev,
 				struct device_attribute *attr,
@@ -46,7 +46,7 @@ static ssize_t chip_height_show(struct device *dev,
 {
 	return sprintf(page, "%u\n", smp_height);
 }
-static DEVICE_ATTR(chip_height, 0444, chip_height_show, NULL);
+static DEVICE_ATTR_RO(chip_height);
 
 static ssize_t chip_serial_show(struct device *dev,
 				struct device_attribute *attr,
@@ -54,7 +54,7 @@ static ssize_t chip_serial_show(struct device *dev,
 {
 	return get_hv_confstr(page, HV_CONFSTR_CHIP_SERIAL_NUM);
 }
-static DEVICE_ATTR(chip_serial, 0444, chip_serial_show, NULL);
+static DEVICE_ATTR_RO(chip_serial);
 
 static ssize_t chip_revision_show(struct device *dev,
 				  struct device_attribute *attr,
@@ -62,7 +62,7 @@ static ssize_t chip_revision_show(struct device *dev,
 {
 	return get_hv_confstr(page, HV_CONFSTR_CHIP_REV);
 }
-static DEVICE_ATTR(chip_revision, 0444, chip_revision_show, NULL);
+static DEVICE_ATTR_RO(chip_revision);
 
 
 static ssize_t type_show(struct device *dev,
@@ -71,7 +71,7 @@ static ssize_t type_show(struct device *dev,
 {
 	return sprintf(page, "tilera\n");
 }
-static DEVICE_ATTR(type, 0444, type_show, NULL);
+static DEVICE_ATTR_RO(type);
 
 #define HV_CONF_ATTR(name, conf)					\
 	static ssize_t name ## _show(struct device *dev,		\
@@ -184,7 +184,7 @@ static ssize_t hv_stats_store(struct device *dev,
 	return n < 0 ? n : count;
 }
 
-static DEVICE_ATTR(hv_stats, 0644, hv_stats_show, hv_stats_store);
+static DEVICE_ATTR_RW(hv_stats);
 
 static int hv_stats_device_add(struct device *dev, struct subsys_interface *sif)
 {

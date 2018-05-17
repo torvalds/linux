@@ -37,7 +37,7 @@ static ssize_t mv64x60_hs_reg_read(struct file *filp, struct kobject *kobj,
 	if (count < MV64X60_VAL_LEN_MAX)
 		return -EINVAL;
 
-	phb = pci_get_bus_and_slot(0, PCI_DEVFN(0, 0));
+	phb = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(0, 0));
 	if (!phb)
 		return -ENODEV;
 	pci_read_config_dword(phb, MV64X60_PCICFG_CPCI_HOTSWAP, &v);
@@ -61,7 +61,7 @@ static ssize_t mv64x60_hs_reg_write(struct file *filp, struct kobject *kobj,
 	if (sscanf(buf, "%i", &v) != 1)
 		return -EINVAL;
 
-	phb = pci_get_bus_and_slot(0, PCI_DEVFN(0, 0));
+	phb = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(0, 0));
 	if (!phb)
 		return -ENODEV;
 	pci_write_config_dword(phb, MV64X60_PCICFG_CPCI_HOTSWAP, v);
@@ -73,7 +73,7 @@ static ssize_t mv64x60_hs_reg_write(struct file *filp, struct kobject *kobj,
 static const struct bin_attribute mv64x60_hs_reg_attr = { /* Hotswap register */
 	.attr = {
 		.name = "hs_reg",
-		.mode = S_IRUGO | S_IWUSR,
+		.mode = 0644,
 	},
 	.size  = MV64X60_VAL_LEN_MAX,
 	.read  = mv64x60_hs_reg_read,

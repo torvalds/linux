@@ -476,7 +476,8 @@ struct nau8825 {
 	int xtalk_event_mask;
 	bool xtalk_protect;
 	int imp_rms[NAU8825_XTALK_IMM];
-	int xtalk_bypass;
+	int xtalk_enable;
+	bool xtalk_baktab_initialized; /* True if initialized. */
 };
 
 int nau8825_enable_jack_detect(struct snd_soc_codec *codec,

@@ -860,7 +860,7 @@ int ip6_tnl_rcv(struct ip6_tnl *t, struct sk_buff *skb,
 		struct metadata_dst *tun_dst,
 		bool log_ecn_err)
 {
-	return __ip6_tnl_rcv(t, skb, tpi, NULL, ip6ip6_dscp_ecn_decapsulate,
+	return __ip6_tnl_rcv(t, skb, tpi, tun_dst, ip6ip6_dscp_ecn_decapsulate,
 			     log_ecn_err);
 }
 EXPORT_SYMBOL(ip6_tnl_rcv);
@@ -977,6 +977,9 @@ int ip6_tnl_xmit_ctl(struct ip6_tnl *t,
 	struct __ip6_tnl_parm *p = &t->parms;
 	int ret = 0;
 	struct net *net = t->net;
+
+	if (t->parms.collect_md)
+		return 1;
 
 	if ((p->flags & IP6_TNL_F_CAP_XMIT) ||
 	    ((p->flags & IP6_TNL_F_CAP_PER_PACKET) &&
@@ -1979,14 +1982,14 @@ static int ip6_tnl_newlink(struct net *src_net, struct net_device *dev,
 {
 	struct net *net = dev_net(dev);
 	struct ip6_tnl_net *ip6n = net_generic(net, ip6_tnl_net_id);
-	struct ip6_tnl *nt, *t;
 	struct ip_tunnel_encap ipencap;
+	struct ip6_tnl *nt, *t;
+	int err;
 
 	nt = netdev_priv(dev);
 
 	if (ip6_tnl_netlink_encap_parms(data, &ipencap)) {
-		int err = ip6_tnl_encap_setup(nt, &ipencap);
-
+		err = ip6_tnl_encap_setup(nt, &ipencap);
 		if (err < 0)
 			return err;
 	}
@@ -2002,7 +2005,11 @@ static int ip6_tnl_newlink(struct net *src_net, struct net_device *dev,
 			return -EEXIST;
 	}
 
-	return ip6_tnl_create2(dev);
+	err = ip6_tnl_create2(dev);
+	if (!err && tb[IFLA_MTU])
+		ip6_tnl_change_mtu(dev, nla_get_u32(tb[IFLA_MTU]));
+
+	return err;
 }
 
 static int ip6_tnl_changelink(struct net_device *dev, struct nlattr *tb[],

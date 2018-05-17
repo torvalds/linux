@@ -12,6 +12,7 @@
 #include <linux/writeback.h>
 #include <linux/workqueue.h>
 #include <linux/llist.h>
+#include <linux/iversion.h>
 
 #include <cluster/masklog.h>
 
@@ -289,7 +290,7 @@ out:
 		mlog_errno(err);
 		return err;
 	}
-	gqinode->i_version++;
+	inode_inc_iversion(gqinode);
 	ocfs2_mark_inode_dirty(handle, gqinode, oinfo->dqi_gqi_bh);
 	return len;
 }

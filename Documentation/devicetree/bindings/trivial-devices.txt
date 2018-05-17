@@ -63,6 +63,7 @@ fsl,sgtl5000		SGTL5000: Ultra Low-Power Audio Codec
 gmt,g751		G751: Digital Temperature Sensor and Thermal Watchdog with Two-Wire Interface
 infineon,slb9635tt	Infineon SLB9635 (Soft-) I2C TPM (old protocol, max 100khz)
 infineon,slb9645tt	Infineon SLB9645 I2C TPM (new protocol, max 400khz)
+infineon,tlv493d-a1b6	Infineon TLV493D-A1B6 I2C 3D Magnetic Sensor
 isil,isl1208		Intersil ISL1208 Low Power RTC with Battery Backed SRAM
 isil,isl1218		Intersil ISL1218 Low Power RTC with Battery Backed SRAM
 isil,isl12022		Intersil ISL12022 Real-time Clock
@@ -151,6 +152,7 @@ national,lm85		Temperature sensor with integrated fan control
 national,lm92		±0.33°C Accurate, 12-Bit + Sign Temperature Sensor and Thermal Window Comparator with Two-Wire Interface
 nuvoton,npct501		i2c trusted platform module (TPM)
 nuvoton,npct601		i2c trusted platform module (TPM2)
+nuvoton,w83773g		Nuvoton Temperature Sensor
 nxp,pca9556		Octal SMBus and I2C registered interface
 nxp,pca9557		8-bit I2C-bus and SMBus I/O port with reset
 nxp,pcf2127		Real-time clock

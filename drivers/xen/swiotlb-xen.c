@@ -36,7 +36,7 @@
 #define pr_fmt(fmt) "xen:" KBUILD_MODNAME ": " fmt
 
 #include <linux/bootmem.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-direct.h>
 #include <linux/export.h>
 #include <xen/swiotlb-xen.h>
 #include <xen/page.h>

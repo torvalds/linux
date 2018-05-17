@@ -158,7 +158,6 @@ static inline pte_t native_ptep_get_and_clear(pte_t *ptep)
 #define native_ptep_get_and_clear(xp) native_local_ptep_get_and_clear(xp)
 #endif
 
-#ifdef CONFIG_SMP
 union split_pmd {
 	struct {
 		u32 pmd_low;
@@ -166,6 +165,8 @@ union split_pmd {
 	};
 	pmd_t pmd;
 };
+
+#ifdef CONFIG_SMP
 static inline pmd_t native_pmdp_get_and_clear(pmd_t *pmdp)
 {
 	union split_pmd res, *orig = (union split_pmd *)pmdp;
@@ -179,6 +180,40 @@ static inline pmd_t native_pmdp_get_and_clear(pmd_t *pmdp)
 }
 #else
 #define native_pmdp_get_and_clear(xp) native_local_pmdp_get_and_clear(xp)
+#endif
+
+#ifndef pmdp_establish
+#define pmdp_establish pmdp_establish
+static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
+		unsigned long address, pmd_t *pmdp, pmd_t pmd)
+{
+	pmd_t old;
+
+	/*
+	 * If pmd has present bit cleared we can get away without expensive
+	 * cmpxchg64: we can update pmdp half-by-half without racing with
+	 * anybody.
+	 */
+	if (!(pmd_val(pmd) & _PAGE_PRESENT)) {
+		union split_pmd old, new, *ptr;
+
+		ptr = (union split_pmd *)pmdp;
+
+		new.pmd = pmd;
+
+		/* xchg acts as a barrier before setting of the high bits */
+		old.pmd_low = xchg(&ptr->pmd_low, new.pmd_low);
+		old.pmd_high = ptr->pmd_high;
+		ptr->pmd_high = new.pmd_high;
+		return old.pmd;
+	}
+
+	do {
+		old = *pmdp;
+	} while (cmpxchg64(&pmdp->pmd, old.pmd, pmd.pmd) != old.pmd);
+
+	return old;
+}
 #endif
 
 #ifdef CONFIG_SMP

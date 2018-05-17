@@ -251,7 +251,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	else
 		return map_vdso(&vdso_image_32_builtin, &vdso_mapping32);
 #else
-		return map_vdso(&vdso_image_64_builtin, &vdso_mapping64);
+	return map_vdso(&vdso_image_64_builtin, &vdso_mapping64);
 #endif
 
 }

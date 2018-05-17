@@ -36,7 +36,21 @@ Required properties:
 
 Optional properties:
 - clocks               : Must contain a reference to the functional clock.
-- num-cs               : Total number of chip-selects (default is 1)
+- num-cs               : Total number of chip selects (default is 1).
+			 Up to 3 native chip selects are supported:
+			   0: MSIOF_SYNC
+			   1: MSIOF_SS1
+			   2: MSIOF_SS2
+			 Hardware limitations related to chip selects:
+			   - Native chip selects are always deasserted in
+			     between transfers that are part of the same
+			     message.  Use cs-gpios to work around this.
+			   - All slaves using native chip selects must use the
+			     same spi-cs-high configuration.  Use cs-gpios to
+			     work around this.
+			   - When using GPIO chip selects, at least one native
+			     chip select must be left unused, as it will be
+			     driven anyway.
 - dmas                 : Must contain a list of two references to DMA
 			 specifiers, one for transmission, and one for
 			 reception.

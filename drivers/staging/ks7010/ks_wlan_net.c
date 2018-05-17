@@ -2990,7 +2990,7 @@ int ks_wlan_net_stop(struct net_device *dev)
 /**
  * is_connect_status() - return true if status is 'connected'
  * @status: high bit is used as FORCE_DISCONNECT, low bits used for
- * 	connect status.
+ *	connect status.
  */
 bool is_connect_status(u32 status)
 {
@@ -3000,7 +3000,7 @@ bool is_connect_status(u32 status)
 /**
  * is_disconnect_status() - return true if status is 'disconnected'
  * @status: high bit is used as FORCE_DISCONNECT, low bits used for
- * 	disconnect status.
+ *	disconnect status.
  */
 bool is_disconnect_status(u32 status)
 {

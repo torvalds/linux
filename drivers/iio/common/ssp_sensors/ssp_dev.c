@@ -486,7 +486,7 @@ static struct ssp_data *ssp_parse_dt(struct device *dev)
 	if (!match)
 		goto err_mcu_reset_gpio;
 
-	data->sensorhub_info = (struct ssp_sensorhub_info *)match->data;
+	data->sensorhub_info = match->data;
 
 	dev_set_drvdata(dev, data);
 

@@ -108,25 +108,77 @@ void __init ti_dt_clocks_register(struct ti_dt_clk oclks[])
 	struct device_node *node;
 	struct clk *clk;
 	struct of_phandle_args clkspec;
+	char buf[64];
+	char *ptr;
+	char *tags[2];
+	int i;
+	int num_args;
+	int ret;
+	static bool clkctrl_nodes_missing;
+	static bool has_clkctrl_data;
 
 	for (c = oclks; c->node_name != NULL; c++) {
-		node = of_find_node_by_name(NULL, c->node_name);
+		strcpy(buf, c->node_name);
+		ptr = buf;
+		for (i = 0; i < 2; i++)
+			tags[i] = NULL;
+		num_args = 0;
+		while (*ptr) {
+			if (*ptr == ':') {
+				if (num_args >= 2) {
+					pr_warn("Bad number of tags on %s\n",
+						c->node_name);
+					return;
+				}
+				tags[num_args++] = ptr + 1;
+				*ptr = 0;
+			}
+			ptr++;
+		}
+
+		if (num_args && clkctrl_nodes_missing)
+			continue;
+
+		node = of_find_node_by_name(NULL, buf);
+		if (num_args)
+			node = of_find_node_by_name(node, "clk");
 		clkspec.np = node;
+		clkspec.args_count = num_args;
+		for (i = 0; i < num_args; i++) {
+			ret = kstrtoint(tags[i], i ? 10 : 16, clkspec.args + i);
+			if (ret) {
+				pr_warn("Bad tag in %s at %d: %s\n",
+					c->node_name, i, tags[i]);
+				return;
+			}
+		}
 		clk = of_clk_get_from_provider(&clkspec);
 
 		if (!IS_ERR(clk)) {
 			c->lk.clk = clk;
 			clkdev_add(&c->lk);
 		} else {
-			pr_warn("failed to lookup clock node %s\n",
-				c->node_name);
+			if (num_args && !has_clkctrl_data) {
+				if (of_find_compatible_node(NULL, NULL,
+							    "ti,clkctrl")) {
+					has_clkctrl_data = true;
+				} else {
+					clkctrl_nodes_missing = true;
+
+					pr_warn("missing clkctrl nodes, please update your dts.\n");
+					continue;
+				}
+			}
+
+			pr_warn("failed to lookup clock node %s, ret=%ld\n",
+				c->node_name, PTR_ERR(clk));
 		}
 	}
 }
 
 struct clk_init_item {
 	struct device_node *node;
-	struct clk_hw *hw;
+	void *user;
 	ti_of_clk_init_cb_t func;
 	struct list_head link;
 };
@@ -136,14 +188,14 @@ static LIST_HEAD(retry_list);
 /**
  * ti_clk_retry_init - retries a failed clock init at later phase
  * @node: device not for the clock
- * @hw: partially initialized clk_hw struct for the clock
+ * @user: user data pointer
  * @func: init function to be called for the clock
  *
  * Adds a failed clock init to the retry list. The retry list is parsed
  * once all the other clocks have been initialized.
  */
-int __init ti_clk_retry_init(struct device_node *node, struct clk_hw *hw,
-			      ti_of_clk_init_cb_t func)
+int __init ti_clk_retry_init(struct device_node *node, void *user,
+			     ti_of_clk_init_cb_t func)
 {
 	struct clk_init_item *retry;
 
@@ -154,7 +206,7 @@ int __init ti_clk_retry_init(struct device_node *node, struct clk_hw *hw,
 
 	retry->node = node;
 	retry->func = func;
-	retry->hw = hw;
+	retry->user = user;
 	list_add(&retry->link, &retry_list);
 
 	return 0;
@@ -276,148 +328,13 @@ void ti_dt_clk_init_retry_clks(void)
 	while (!list_empty(&retry_list) && retries) {
 		list_for_each_entry_safe(retry, tmp, &retry_list, link) {
 			pr_debug("retry-init: %s\n", retry->node->name);
-			retry->func(retry->hw, retry->node);
+			retry->func(retry->user, retry->node);
 			list_del(&retry->link);
 			kfree(retry);
 		}
 		retries--;
 	}
 }
-
-#if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_ATAGS)
-void __init ti_clk_patch_legacy_clks(struct ti_clk **patch)
-{
-	while (*patch) {
-		memcpy((*patch)->patch, *patch, sizeof(**patch));
-		patch++;
-	}
-}
-
-struct clk __init *ti_clk_register_clk(struct ti_clk *setup)
-{
-	struct clk *clk;
-	struct ti_clk_fixed *fixed;
-	struct ti_clk_fixed_factor *fixed_factor;
-	struct clk_hw *clk_hw;
-	int ret;
-
-	if (setup->clk)
-		return setup->clk;
-
-	switch (setup->type) {
-	case TI_CLK_FIXED:
-		fixed = setup->data;
-
-		clk = clk_register_fixed_rate(NULL, setup->name, NULL, 0,
-					      fixed->frequency);
-		if (!IS_ERR(clk)) {
-			ret = ti_clk_add_alias(NULL, clk, setup->name);
-			if (ret) {
-				clk_unregister(clk);
-				clk = ERR_PTR(ret);
-			}
-		}
-		break;
-	case TI_CLK_MUX:
-		clk = ti_clk_register_mux(setup);
-		break;
-	case TI_CLK_DIVIDER:
-		clk = ti_clk_register_divider(setup);
-		break;
-	case TI_CLK_COMPOSITE:
-		clk = ti_clk_register_composite(setup);
-		break;
-	case TI_CLK_FIXED_FACTOR:
-		fixed_factor = setup->data;
-
-		clk = clk_register_fixed_factor(NULL, setup->name,
-						fixed_factor->parent,
-						0, fixed_factor->mult,
-						fixed_factor->div);
-		if (!IS_ERR(clk)) {
-			ret = ti_clk_add_alias(NULL, clk, setup->name);
-			if (ret) {
-				clk_unregister(clk);
-				clk = ERR_PTR(ret);
-			}
-		}
-		break;
-	case TI_CLK_GATE:
-		clk = ti_clk_register_gate(setup);
-		break;
-	case TI_CLK_DPLL:
-		clk = ti_clk_register_dpll(setup);
-		break;
-	default:
-		pr_err("bad type for %s!\n", setup->name);
-		clk = ERR_PTR(-EINVAL);
-	}
-
-	if (!IS_ERR(clk)) {
-		setup->clk = clk;
-		if (setup->clkdm_name) {
-			clk_hw = __clk_get_hw(clk);
-			if (clk_hw_get_flags(clk_hw) & CLK_IS_BASIC) {
-				pr_warn("can't setup clkdm for basic clk %s\n",
-					setup->name);
-			} else {
-				to_clk_hw_omap(clk_hw)->clkdm_name =
-					setup->clkdm_name;
-				omap2_init_clk_clkdm(clk_hw);
-			}
-		}
-	}
-
-	return clk;
-}
-
-int __init ti_clk_register_legacy_clks(struct ti_clk_alias *clks)
-{
-	struct clk *clk;
-	bool retry;
-	struct ti_clk_alias *retry_clk;
-	struct ti_clk_alias *tmp;
-
-	while (clks->clk) {
-		clk = ti_clk_register_clk(clks->clk);
-		if (IS_ERR(clk)) {
-			if (PTR_ERR(clk) == -EAGAIN) {
-				list_add(&clks->link, &retry_list);
-			} else {
-				pr_err("register for %s failed: %ld\n",
-				       clks->clk->name, PTR_ERR(clk));
-				return PTR_ERR(clk);
-			}
-		}
-		clks++;
-	}
-
-	retry = true;
-
-	while (!list_empty(&retry_list) && retry) {
-		retry = false;
-		list_for_each_entry_safe(retry_clk, tmp, &retry_list, link) {
-			pr_debug("retry-init: %s\n", retry_clk->clk->name);
-			clk = ti_clk_register_clk(retry_clk->clk);
-			if (IS_ERR(clk)) {
-				if (PTR_ERR(clk) == -EAGAIN) {
-					continue;
-				} else {
-					pr_err("register for %s failed: %ld\n",
-					       retry_clk->clk->name,
-					       PTR_ERR(clk));
-					return PTR_ERR(clk);
-				}
-			} else {
-				retry = true;
-				list_del(&retry_clk->link);
-			}
-		}
-	}
-
-	return 0;
-}
-#endif
 
 static const struct of_device_id simple_clk_match_table[] __initconst = {
 	{ .compatible = "fixed-clock" },

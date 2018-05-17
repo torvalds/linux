@@ -286,6 +286,11 @@
 	clock-names = "stmmaceth";
 };
 
+&gpio_intc {
+	compatible = "amlogic,meson8-gpio-intc", "amlogic,meson-gpio-intc";
+	status = "okay";
+};
+
 &hwrng {
 	compatible = "amlogic,meson8-rng", "amlogic,meson-rng";
 	clocks = <&clkc CLKID_RNG0>;
@@ -308,6 +313,9 @@
 	arm,data-latency = <3 3 3>;
 	arm,tag-latency = <2 2 2>;
 	arm,filter-ranges = <0x100000 0xc0000000>;
+	prefetch-data = <1>;
+	prefetch-instr = <1>;
+	arm,shared-override;
 };
 
 &pwm_ab {
@@ -321,9 +329,8 @@
 &saradc {
 	compatible = "amlogic,meson8-saradc", "amlogic,meson-saradc";
 	clocks = <&clkc CLKID_XTAL>,
-		<&clkc CLKID_SAR_ADC>,
-		<&clkc CLKID_SANA>;
-	clock-names = "clkin", "core", "sana";
+		<&clkc CLKID_SAR_ADC>;
+	clock-names = "clkin", "core";
 };
 
 &sdio {
@@ -337,19 +344,27 @@
 };
 
 &uart_AO {
-	clocks = <&clkc CLKID_CLK81>;
+	compatible = "amlogic,meson8-uart", "amlogic,meson-uart";
+	clocks = <&clkc CLKID_CLK81>, <&clkc CLKID_XTAL>, <&clkc CLKID_CLK81>;
+	clock-names = "baud", "xtal", "pclk";
 };
 
 &uart_A {
-	clocks = <&clkc CLKID_CLK81>;
+	compatible = "amlogic,meson8-uart", "amlogic,meson-uart";
+	clocks = <&clkc CLKID_CLK81>, <&clkc CLKID_XTAL>, <&clkc CLKID_UART0>;
+	clock-names = "baud", "xtal", "pclk";
 };
 
 &uart_B {
-	clocks = <&clkc CLKID_CLK81>;
+	compatible = "amlogic,meson8-uart", "amlogic,meson-uart";
+	clocks = <&clkc CLKID_CLK81>, <&clkc CLKID_XTAL>, <&clkc CLKID_UART1>;
+	clock-names = "baud", "xtal", "pclk";
 };
 
 &uart_C {
-	clocks = <&clkc CLKID_CLK81>;
+	compatible = "amlogic,meson8-uart", "amlogic,meson-uart";
+	clocks = <&clkc CLKID_CLK81>, <&clkc CLKID_XTAL>, <&clkc CLKID_UART2>;
+	clock-names = "baud", "xtal", "pclk";
 };
 
 &usb0 {

@@ -332,7 +332,7 @@ static void __init pti_clone_user_shared(void)
 }
 
 /*
- * Clone the ESPFIX P4D into the user space visinble page table
+ * Clone the ESPFIX P4D into the user space visible page table
  */
 static void __init pti_setup_espfix64(void)
 {

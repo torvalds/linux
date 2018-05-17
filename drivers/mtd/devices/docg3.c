@@ -904,9 +904,6 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 	if (ooblen % DOC_LAYOUT_OOB_SIZE)
 		return -EINVAL;
 
-	if (from + len > mtd->size)
-		return -EINVAL;
-
 	ops->oobretlen = 0;
 	ops->retlen = 0;
 	ret = 0;
@@ -988,36 +985,6 @@ out:
 err_in_read:
 	doc_read_page_finish(docg3);
 	goto out;
-}
-
-/**
- * doc_read - Read bytes from flash
- * @mtd: the device
- * @from: the offset from first block and first page, in bytes, aligned on page
- *        size
- * @len: the number of bytes to read (must be a multiple of 4)
- * @retlen: the number of bytes actually read
- * @buf: the filled in buffer
- *
- * Reads flash memory pages. This function does not read the OOB chunk, but only
- * the page data.
- *
- * Returns 0 if read successful, of -EIO, -EINVAL if an error occurred
- */
-static int doc_read(struct mtd_info *mtd, loff_t from, size_t len,
-	     size_t *retlen, u_char *buf)
-{
-	struct mtd_oob_ops ops;
-	size_t ret;
-
-	memset(&ops, 0, sizeof(ops));
-	ops.datbuf = buf;
-	ops.len = len;
-	ops.mode = MTD_OPS_AUTO_OOB;
-
-	ret = doc_read_oob(mtd, from, &ops);
-	*retlen = ops.retlen;
-	return ret;
 }
 
 static int doc_reload_bbt(struct docg3 *docg3)
@@ -1471,8 +1438,6 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
 	if (len && ooblen &&
 	    (len / DOC_LAYOUT_PAGE_SIZE) != (ooblen / oobdelta))
 		return -EINVAL;
-	if (ofs + len > mtd->size)
-		return -EINVAL;
 
 	ops->oobretlen = 0;
 	ops->retlen = 0;
@@ -1510,39 +1475,6 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
 
 	doc_set_device_id(docg3, 0);
 	mutex_unlock(&docg3->cascade->lock);
-	return ret;
-}
-
-/**
- * doc_write - Write a buffer to the chip
- * @mtd: the device
- * @to: the offset from first block and first page, in bytes, aligned on page
- *      size
- * @len: the number of bytes to write (must be a full page size, ie. 512)
- * @retlen: the number of bytes actually written (0 or 512)
- * @buf: the buffer to get bytes from
- *
- * Writes data to the chip.
- *
- * Returns 0 if write successful, -EIO if write error
- */
-static int doc_write(struct mtd_info *mtd, loff_t to, size_t len,
-		     size_t *retlen, const u_char *buf)
-{
-	struct docg3 *docg3 = mtd->priv;
-	int ret;
-	struct mtd_oob_ops ops;
-
-	doc_dbg("doc_write(to=%lld, len=%zu)\n", to, len);
-	ops.datbuf = (char *)buf;
-	ops.len = len;
-	ops.mode = MTD_OPS_PLACE_OOB;
-	ops.oobbuf = NULL;
-	ops.ooblen = 0;
-	ops.ooboffs = 0;
-
-	ret = doc_write_oob(mtd, to, &ops);
-	*retlen = ops.retlen;
 	return ret;
 }
 
@@ -1866,8 +1798,6 @@ static int __init doc_set_driver_info(int chip_id, struct mtd_info *mtd)
 	mtd->writebufsize = mtd->writesize = DOC_LAYOUT_PAGE_SIZE;
 	mtd->oobsize = DOC_LAYOUT_OOB_SIZE;
 	mtd->_erase = doc_erase;
-	mtd->_read = doc_read;
-	mtd->_write = doc_write;
 	mtd->_read_oob = doc_read_oob;
 	mtd->_write_oob = doc_write_oob;
 	mtd->_block_isbad = doc_block_isbad;

@@ -67,8 +67,6 @@ static void sctp_mark_missing(struct sctp_outq *q,
 			      __u32 highest_new_tsn,
 			      int count_of_newacks);
 
-static void sctp_generate_fwdtsn(struct sctp_outq *q, __u32 sack_ctsn);
-
 static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp);
 
 /* Add data to the front of the queue. */
@@ -591,7 +589,7 @@ void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 	 * following the procedures outlined in C1 - C5.
 	 */
 	if (reason == SCTP_RTXR_T3_RTX)
-		sctp_generate_fwdtsn(q, q->asoc->ctsn_ack_point);
+		q->asoc->stream.si->generate_ftsn(q, q->asoc->ctsn_ack_point);
 
 	/* Flush the queues only on timeout, since fast_rtx is only
 	 * triggered during sack processing and the queue
@@ -942,6 +940,7 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 		case SCTP_CID_ECN_ECNE:
 		case SCTP_CID_ASCONF:
 		case SCTP_CID_FWD_TSN:
+		case SCTP_CID_I_FWD_TSN:
 		case SCTP_CID_RECONF:
 			status = sctp_packet_transmit_chunk(packet, chunk,
 							    one_packet, gfp);
@@ -956,7 +955,8 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 			 * sender MUST assure that at least one T3-rtx
 			 * timer is running.
 			 */
-			if (chunk->chunk_hdr->type == SCTP_CID_FWD_TSN) {
+			if (chunk->chunk_hdr->type == SCTP_CID_FWD_TSN ||
+			    chunk->chunk_hdr->type == SCTP_CID_I_FWD_TSN) {
 				sctp_transport_reset_t3_rtx(transport);
 				transport->last_time_sent = jiffies;
 			}
@@ -1372,7 +1372,7 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_chunk *chunk)
 
 	asoc->peer.rwnd = sack_a_rwnd;
 
-	sctp_generate_fwdtsn(q, sack_ctsn);
+	asoc->stream.si->generate_ftsn(q, sack_ctsn);
 
 	pr_debug("%s: sack cumulative tsn ack:0x%x\n", __func__, sack_ctsn);
 	pr_debug("%s: cumulative tsn ack of assoc:%p is 0x%x, "
@@ -1795,7 +1795,7 @@ static inline int sctp_get_skip_pos(struct sctp_fwdtsn_skip *skiplist,
 }
 
 /* Create and add a fwdtsn chunk to the outq's control queue if needed. */
-static void sctp_generate_fwdtsn(struct sctp_outq *q, __u32 ctsn)
+void sctp_generate_fwdtsn(struct sctp_outq *q, __u32 ctsn)
 {
 	struct sctp_association *asoc = q->asoc;
 	struct sctp_chunk *ftsn_chunk = NULL;

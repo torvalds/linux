@@ -3,17 +3,17 @@
  * Copyright (C) 2003 Anton Blanchard <anton@au.ibm.com>, IBM
  *
  * pSeries specific routines for PCI.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- *    
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
@@ -54,8 +54,172 @@ void pcibios_name_device(struct pci_dev *dev)
 			}
 		}
 	}
-}   
+}
 DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pcibios_name_device);
+#endif
+
+#ifdef CONFIG_PCI_IOV
+#define MAX_VFS_FOR_MAP_PE 256
+struct pe_map_bar_entry {
+	__be64     bar;       /* Input:  Virtual Function BAR */
+	__be16     rid;       /* Input:  Virtual Function Router ID */
+	__be16     pe_num;    /* Output: Virtual Function PE Number */
+	__be32     reserved;  /* Reserved Space */
+};
+
+int pseries_send_map_pe(struct pci_dev *pdev,
+			u16 num_vfs,
+			struct pe_map_bar_entry *vf_pe_array)
+{
+	struct pci_dn *pdn;
+	int rc;
+	unsigned long buid, addr;
+	int ibm_map_pes = rtas_token("ibm,open-sriov-map-pe-number");
+
+	if (ibm_map_pes == RTAS_UNKNOWN_SERVICE)
+		return -EINVAL;
+
+	pdn = pci_get_pdn(pdev);
+	addr = rtas_config_addr(pdn->busno, pdn->devfn, 0);
+	buid = pdn->phb->buid;
+	spin_lock(&rtas_data_buf_lock);
+	memcpy(rtas_data_buf, vf_pe_array,
+	       RTAS_DATA_BUF_SIZE);
+	rc = rtas_call(ibm_map_pes, 5, 1, NULL, addr,
+		       BUID_HI(buid), BUID_LO(buid),
+		       rtas_data_buf,
+		       num_vfs * sizeof(struct pe_map_bar_entry));
+	memcpy(vf_pe_array, rtas_data_buf, RTAS_DATA_BUF_SIZE);
+	spin_unlock(&rtas_data_buf_lock);
+
+	if (rc)
+		dev_err(&pdev->dev,
+			"%s: Failed to associate pes PE#%lx, rc=%x\n",
+			__func__,  addr, rc);
+
+	return rc;
+}
+
+void pseries_set_pe_num(struct pci_dev *pdev, u16 vf_index, __be16 pe_num)
+{
+	struct pci_dn *pdn;
+
+	pdn = pci_get_pdn(pdev);
+	pdn->pe_num_map[vf_index] = be16_to_cpu(pe_num);
+	dev_dbg(&pdev->dev, "VF %04x:%02x:%02x.%x associated with PE#%x\n",
+		pci_domain_nr(pdev->bus),
+		pdev->bus->number,
+		PCI_SLOT(pci_iov_virtfn_devfn(pdev, vf_index)),
+		PCI_FUNC(pci_iov_virtfn_devfn(pdev, vf_index)),
+		pdn->pe_num_map[vf_index]);
+}
+
+int pseries_associate_pes(struct pci_dev *pdev, u16 num_vfs)
+{
+	struct pci_dn *pdn;
+	int i, rc, vf_index;
+	struct pe_map_bar_entry *vf_pe_array;
+	struct resource *res;
+	u64 size;
+
+	vf_pe_array = kzalloc(RTAS_DATA_BUF_SIZE, GFP_KERNEL);
+	if (!vf_pe_array)
+		return -ENOMEM;
+
+	pdn = pci_get_pdn(pdev);
+	/* create firmware structure to associate pes */
+	for (vf_index = 0; vf_index < num_vfs; vf_index++) {
+		pdn->pe_num_map[vf_index] = IODA_INVALID_PE;
+		for (i = 0; i < PCI_SRIOV_NUM_BARS; i++) {
+			res = &pdev->resource[i + PCI_IOV_RESOURCES];
+			if (!res->parent)
+				continue;
+			size = pcibios_iov_resource_alignment(pdev, i +
+					PCI_IOV_RESOURCES);
+			vf_pe_array[vf_index].bar =
+				cpu_to_be64(res->start + size * vf_index);
+			vf_pe_array[vf_index].rid =
+				cpu_to_be16((pci_iov_virtfn_bus(pdev, vf_index)
+					    << 8) | pci_iov_virtfn_devfn(pdev,
+					    vf_index));
+			vf_pe_array[vf_index].pe_num =
+				cpu_to_be16(IODA_INVALID_PE);
+		}
+	}
+
+	rc = pseries_send_map_pe(pdev, num_vfs, vf_pe_array);
+	/* Only zero is success */
+	if (!rc)
+		for (vf_index = 0; vf_index < num_vfs; vf_index++)
+			pseries_set_pe_num(pdev, vf_index,
+					   vf_pe_array[vf_index].pe_num);
+
+	kfree(vf_pe_array);
+	return rc;
+}
+
+int pseries_pci_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
+{
+	struct pci_dn         *pdn;
+	int                    rc;
+	const int *max_vfs;
+	int max_config_vfs;
+	struct device_node *dn = pci_device_to_OF_node(pdev);
+
+	max_vfs = of_get_property(dn, "ibm,number-of-configurable-vfs", NULL);
+
+	if (!max_vfs)
+		return -EINVAL;
+
+	/* First integer stores max config */
+	max_config_vfs = of_read_number(&max_vfs[0], 1);
+	if (max_config_vfs < num_vfs && num_vfs > MAX_VFS_FOR_MAP_PE) {
+		dev_err(&pdev->dev,
+			"Num VFs %x > %x Configurable VFs\n",
+			num_vfs, (num_vfs > MAX_VFS_FOR_MAP_PE) ?
+			MAX_VFS_FOR_MAP_PE : max_config_vfs);
+		return -EINVAL;
+	}
+
+	pdn = pci_get_pdn(pdev);
+	pdn->pe_num_map = kmalloc_array(num_vfs,
+					sizeof(*pdn->pe_num_map),
+					GFP_KERNEL);
+	if (!pdn->pe_num_map)
+		return -ENOMEM;
+
+	rc = pseries_associate_pes(pdev, num_vfs);
+
+	/* Anything other than zero is failure */
+	if (rc) {
+		dev_err(&pdev->dev, "Failure to enable sriov: %x\n", rc);
+		kfree(pdn->pe_num_map);
+	} else {
+		pci_vf_drivers_autoprobe(pdev, false);
+	}
+
+	return rc;
+}
+
+int pseries_pcibios_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
+{
+	/* Allocate PCI data */
+	add_dev_pci_data(pdev);
+	return pseries_pci_sriov_enable(pdev, num_vfs);
+}
+
+int pseries_pcibios_sriov_disable(struct pci_dev *pdev)
+{
+	struct pci_dn         *pdn;
+
+	pdn = pci_get_pdn(pdev);
+	/* Releasing pe_num_map */
+	kfree(pdn->pe_num_map);
+	/* Release PCI data */
+	remove_dev_pci_data(pdev);
+	pci_vf_drivers_autoprobe(pdev, true);
+	return 0;
+}
 #endif
 
 static void __init pSeries_request_regions(void)
@@ -76,6 +240,11 @@ void __init pSeries_final_fixup(void)
 	pSeries_request_regions();
 
 	eeh_addr_cache_build();
+
+#ifdef CONFIG_PCI_IOV
+	ppc_md.pcibios_sriov_enable = pseries_pcibios_sriov_enable;
+	ppc_md.pcibios_sriov_disable = pseries_pcibios_sriov_disable;
+#endif
 }
 
 /*

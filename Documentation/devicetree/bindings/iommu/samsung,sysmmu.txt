@@ -56,7 +56,7 @@ Examples:
 		iommus = <&sysmmu_gsc0>;
 	};
 
-	sysmmu_gsc0: sysmmu@13E80000 {
+	sysmmu_gsc0: sysmmu@13e80000 {
 		compatible = "samsung,exynos-sysmmu";
 		reg = <0x13E80000 0x1000>;
 		interrupt-parent = <&combiner>;

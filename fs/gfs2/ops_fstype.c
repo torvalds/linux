@@ -1382,7 +1382,7 @@ static void gfs2_kill_sb(struct super_block *sb)
 		return;
 	}
 
-	gfs2_log_flush(sdp, NULL, SYNC_FLUSH);
+	gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_SYNC | GFS2_LFC_KILL_SB);
 	dput(sdp->sd_root_dir);
 	dput(sdp->sd_master_dir);
 	sdp->sd_root_dir = NULL;

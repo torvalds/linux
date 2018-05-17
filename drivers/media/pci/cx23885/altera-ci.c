@@ -51,10 +51,10 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <dvb_demux.h>
-#include <dvb_frontend.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
 #include "altera-ci.h"
-#include "dvb_ca_en50221.h"
+#include <media/dvb_ca_en50221.h>
 
 /* FPGA regs */
 #define NETUP_CI_INT_CTRL	0x00

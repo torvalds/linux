@@ -138,6 +138,16 @@ $pgt_fill_loop:
 	std		%dp,0x18(%r10)
 #endif
 
+#ifdef CONFIG_64BIT
+	/* Get PDCE_PROC for monarch CPU. */
+#define MEM_PDC_LO 0x388
+#define MEM_PDC_HI 0x35C
+	ldw             MEM_PDC_LO(%r0),%r3
+	ldw             MEM_PDC_HI(%r0),%r10
+	depd            %r10, 31, 32, %r3        /* move to upper word */
+#endif
+
+
 #ifdef CONFIG_SMP
 	/* Set the smp rendezvous address into page zero.
 	** It would be safer to do this in init_smp_config() but
@@ -196,12 +206,6 @@ common_stext:
         ** Someday, palo might not do this for the Monarch either.
         */
 2:
-#define MEM_PDC_LO 0x388
-#define MEM_PDC_HI 0x35C
-	ldw             MEM_PDC_LO(%r0),%r3
-	ldw             MEM_PDC_HI(%r0),%r6
-	depd            %r6, 31, 32, %r3        /* move to upper word */
-
 	mfctl		%cr30,%r6		/* PCX-W2 firmware bug */
 
 	ldo             PDC_PSW(%r0),%arg0              /* 21 */
@@ -267,6 +271,8 @@ $install_iva:
 	.align 128
 aligned_rfi:
 	pcxt_ssm_bug
+
+	copy		%r3, %arg0	/* PDCE_PROC for smp_callin() */
 
 	rsm		PSW_SM_QUIET,%r0	/* off troublesome PSW bits */
 	/* Don't need NOPs, have 8 compliant insn before rfi */

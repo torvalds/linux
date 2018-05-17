@@ -58,7 +58,7 @@
 &gpio {
 	xirq2 {
 		gpio-hog;
-		gpios = <122 0>;
+		gpios = <UNIPHIER_GPIO_IRQ(2) 0>;
 		input;
 	};
 };

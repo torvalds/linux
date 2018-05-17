@@ -44,7 +44,7 @@ extern void lockref_mark_dead(struct lockref *);
 extern int lockref_get_not_dead(struct lockref *);
 
 /* Must be called under spinlock for reliable results */
-static inline int __lockref_is_dead(const struct lockref *l)
+static inline bool __lockref_is_dead(const struct lockref *l)
 {
 	return ((int)l->count < 0);
 }

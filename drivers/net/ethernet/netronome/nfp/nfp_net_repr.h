@@ -35,6 +35,7 @@
 #define NFP_NET_REPR_H
 
 struct metadata_dst;
+struct nfp_app;
 struct nfp_net;
 struct nfp_port;
 
@@ -47,7 +48,7 @@ struct nfp_port;
  */
 struct nfp_reprs {
 	unsigned int num_reprs;
-	struct net_device *reprs[0];
+	struct net_device __rcu *reprs[0];
 };
 
 /**
@@ -89,6 +90,7 @@ struct nfp_repr {
  * @NFP_REPR_TYPE_PHYS_PORT:	external NIC port
  * @NFP_REPR_TYPE_PF:		physical function
  * @NFP_REPR_TYPE_VF:		virtual function
+ * @__NFP_REPR_TYPE_MAX:	number of representor types
  */
 enum nfp_repr_type {
 	NFP_REPR_TYPE_PHYS_PORT,
@@ -113,16 +115,18 @@ static inline int nfp_repr_get_port_id(struct net_device *netdev)
 	return priv->dst->u.port_info.port_id;
 }
 
+struct net_device *
+nfp_repr_get_locked(struct nfp_app *app, struct nfp_reprs *set,
+		    unsigned int id);
+
 void nfp_repr_inc_rx_stats(struct net_device *netdev, unsigned int len);
 int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 		  u32 cmsg_port_id, struct nfp_port *port,
 		  struct net_device *pf_netdev);
 struct net_device *nfp_repr_alloc(struct nfp_app *app);
-void
-nfp_reprs_clean_and_free(struct nfp_reprs *reprs);
-void
-nfp_reprs_clean_and_free_by_type(struct nfp_app *app,
-				 enum nfp_repr_type type);
+void nfp_reprs_clean_and_free(struct nfp_app *app, struct nfp_reprs *reprs);
+void nfp_reprs_clean_and_free_by_type(struct nfp_app *app,
+				      enum nfp_repr_type type);
 struct nfp_reprs *nfp_reprs_alloc(unsigned int num_reprs);
 int nfp_reprs_resync_phys_ports(struct nfp_app *app);
 

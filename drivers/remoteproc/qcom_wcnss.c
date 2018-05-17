@@ -156,11 +156,6 @@ static int wcnss_load(struct rproc *rproc, const struct firmware *fw)
 			     wcnss->mem_region, wcnss->mem_phys, wcnss->mem_size);
 }
 
-static const struct rproc_fw_ops wcnss_fw_ops = {
-	.find_rsc_table = qcom_mdt_find_rsc_table,
-	.load = wcnss_load,
-};
-
 static void wcnss_indicate_nv_download(struct qcom_wcnss *wcnss)
 {
 	u32 val;
@@ -313,6 +308,7 @@ static const struct rproc_ops wcnss_ops = {
 	.start = wcnss_start,
 	.stop = wcnss_stop,
 	.da_to_va = wcnss_da_to_va,
+	.load = wcnss_load,
 };
 
 static irqreturn_t wcnss_wdog_interrupt(int irq, void *dev)
@@ -491,8 +487,6 @@ static int wcnss_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "unable to allocate remoteproc\n");
 		return -ENOMEM;
 	}
-
-	rproc->fw_ops = &wcnss_fw_ops;
 
 	wcnss = (struct qcom_wcnss *)rproc->priv;
 	wcnss->dev = &pdev->dev;

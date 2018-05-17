@@ -208,8 +208,8 @@ bool tipc_msg_validate(struct sk_buff **_skb)
 	int msz, hsz;
 
 	/* Ensure that flow control ratio condition is satisfied */
-	if (unlikely(skb->truesize / buf_roundup_len(skb) > 4)) {
-		skb = skb_copy(skb, GFP_ATOMIC);
+	if (unlikely(skb->truesize / buf_roundup_len(skb) >= 4)) {
+		skb = skb_copy_expand(skb, BUF_HEADROOM, 0, GFP_ATOMIC);
 		if (!skb)
 			return false;
 		kfree_skb(*_skb);
@@ -251,20 +251,23 @@ bool tipc_msg_validate(struct sk_buff **_skb)
  * @pktmax: Max packet size that can be used
  * @list: Buffer or chain of buffers to be returned to caller
  *
+ * Note that the recursive call we are making here is safe, since it can
+ * logically go only one further level down.
+ *
  * Returns message data size or errno: -ENOMEM, -EFAULT
  */
-int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
-		   int offset, int dsz, int pktmax, struct sk_buff_head *list)
+int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m, int offset,
+		   int dsz, int pktmax, struct sk_buff_head *list)
 {
 	int mhsz = msg_hdr_sz(mhdr);
-	int msz = mhsz + dsz;
-	int pktno = 1;
-	int pktsz;
-	int pktrem = pktmax;
-	int drem = dsz;
 	struct tipc_msg pkthdr;
+	int msz = mhsz + dsz;
+	int pktrem = pktmax;
 	struct sk_buff *skb;
+	int drem = dsz;
+	int pktno = 1;
 	char *pktpos;
+	int pktsz;
 	int rc;
 
 	msg_set_size(mhdr, msz);
@@ -272,8 +275,18 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 	/* No fragmentation needed? */
 	if (likely(msz <= pktmax)) {
 		skb = tipc_buf_acquire(msz, GFP_KERNEL);
-		if (unlikely(!skb))
+
+		/* Fall back to smaller MTU if node local message */
+		if (unlikely(!skb)) {
+			if (pktmax != MAX_MSG_SIZE)
+				return -ENOMEM;
+			rc = tipc_msg_build(mhdr, m, offset, dsz, FB_MTU, list);
+			if (rc != dsz)
+				return rc;
+			if (tipc_msg_assemble(list))
+				return dsz;
 			return -ENOMEM;
+		}
 		skb_orphan(skb);
 		__skb_queue_tail(list, skb);
 		skb_copy_to_linear_data(skb, mhdr, mhsz);
@@ -587,6 +600,30 @@ bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err)
 		return false;
 
 	return true;
+}
+
+/* tipc_msg_assemble() - assemble chain of fragments into one message
+ */
+bool tipc_msg_assemble(struct sk_buff_head *list)
+{
+	struct sk_buff *skb, *tmp = NULL;
+
+	if (skb_queue_len(list) == 1)
+		return true;
+
+	while ((skb = __skb_dequeue(list))) {
+		skb->next = NULL;
+		if (tipc_buf_append(&tmp, &skb)) {
+			__skb_queue_tail(list, skb);
+			return true;
+		}
+		if (!tmp)
+			break;
+	}
+	__skb_queue_purge(list);
+	__skb_queue_head_init(list);
+	pr_warn("Failed do assemble buffer\n");
+	return false;
 }
 
 /* tipc_msg_reassemble() - clone a buffer chain of fragments and

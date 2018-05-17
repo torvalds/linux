@@ -53,6 +53,7 @@
 			vcc-supply = <&sw3_reg>;
 			clocks = <&clks IMX27_CLK_DUMMY>;
 			clock-names = "main_clk";
+			#phy-cells = <0>;
 		};
 	};
 };

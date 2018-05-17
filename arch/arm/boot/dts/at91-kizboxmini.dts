@@ -34,6 +34,18 @@
 
 	ahb {
 		apb {
+			tcb0: timer@f8008000 {
+				timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>;
+				};
+
+				timer@1 {
+					compatible = "atmel,tcb-timer";
+					reg = <1>;
+				};
+			};
+
 			usart0: serial@f801c000 {
 				status = "okay";
 			};

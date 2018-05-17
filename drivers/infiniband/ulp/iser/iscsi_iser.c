@@ -874,7 +874,7 @@ iscsi_iser_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
 	iser_info("iser conn %p rc = %d\n", iser_conn, rc);
 
 	if (rc > 0)
-		return 1; /* success, this is the equivalent of POLLOUT */
+		return 1; /* success, this is the equivalent of EPOLLOUT */
 	else if (!rc)
 		return 0; /* timeout */
 	else

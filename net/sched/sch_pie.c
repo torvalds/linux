@@ -181,7 +181,8 @@ static const struct nla_policy pie_policy[TCA_PIE_MAX + 1] = {
 	[TCA_PIE_BYTEMODE] = {.type = NLA_U32},
 };
 
-static int pie_change(struct Qdisc *sch, struct nlattr *opt)
+static int pie_change(struct Qdisc *sch, struct nlattr *opt,
+		      struct netlink_ext_ack *extack)
 {
 	struct pie_sched_data *q = qdisc_priv(sch);
 	struct nlattr *tb[TCA_PIE_MAX + 1];
@@ -439,7 +440,8 @@ static void pie_timer(struct timer_list *t)
 
 }
 
-static int pie_init(struct Qdisc *sch, struct nlattr *opt)
+static int pie_init(struct Qdisc *sch, struct nlattr *opt,
+		    struct netlink_ext_ack *extack)
 {
 	struct pie_sched_data *q = qdisc_priv(sch);
 
@@ -451,7 +453,7 @@ static int pie_init(struct Qdisc *sch, struct nlattr *opt)
 	timer_setup(&q->adapt_timer, pie_timer, 0);
 
 	if (opt) {
-		int err = pie_change(sch, opt);
+		int err = pie_change(sch, opt, extack);
 
 		if (err)
 			return err;

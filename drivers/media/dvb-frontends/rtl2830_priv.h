@@ -18,8 +18,8 @@
 #ifndef RTL2830_PRIV_H
 #define RTL2830_PRIV_H
 
-#include "dvb_frontend.h"
-#include "dvb_math.h"
+#include <media/dvb_frontend.h>
+#include <media/dvb_math.h>
 #include "rtl2830.h"
 #include <linux/i2c-mux.h>
 #include <linux/math64.h>

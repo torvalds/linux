@@ -15,8 +15,7 @@ void dump_stack(void)
 	while (((long)stack & (THREAD_SIZE - 1)) != 0) {
 		addr = *stack;
 		if (__kernel_text_address(addr)) {
-			pr_info("%p:  [<%08lx>]", stack, addr);
-			print_symbol(KERN_CONT " %s", addr);
+			pr_info("%p:  [<%08lx>] %pS", stack, addr, addr);
 			pr_cont("\n");
 		}
 		stack++;

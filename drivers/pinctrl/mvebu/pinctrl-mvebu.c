@@ -636,10 +636,9 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 	 */
 	size = pctl->num_groups * sizeof(*pctl->groups) + noname * 8;
 	p = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
-	if (!p) {
-		dev_err(&pdev->dev, "failed to alloc group data\n");
+	if (!p)
 		return -ENOMEM;
-	}
+
 	pctl->groups = p;
 	noname_buf = p + pctl->num_groups * sizeof(*pctl->groups);
 

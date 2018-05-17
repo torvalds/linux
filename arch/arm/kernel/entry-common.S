@@ -37,6 +37,7 @@ saved_pc	.req	lr
 #define TRACE(x...)
 #endif
 
+	.section .entry.text,"ax",%progbits
 	.align	5
 #if !(IS_ENABLED(CONFIG_TRACE_IRQFLAGS) || IS_ENABLED(CONFIG_CONTEXT_TRACKING))
 /*

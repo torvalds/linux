@@ -1223,8 +1223,9 @@ static int mtdswap_show(struct seq_file *s, void *data)
 	unsigned int max[MTDSWAP_TREE_CNT];
 	unsigned int i, cw = 0, cwp = 0, cwecount = 0, bb_cnt, mapped, pages;
 	uint64_t use_size;
-	char *name[] = {"clean", "used", "low", "high", "dirty", "bitflip",
-			"failing"};
+	static const char * const name[] = {
+		"clean", "used", "low", "high", "dirty", "bitflip", "failing"
+	};
 
 	mutex_lock(&d->mbd_dev->lock);
 

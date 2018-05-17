@@ -396,8 +396,8 @@ static int kcm_read_sock_done(struct strparser *strp, int err)
 
 static void psock_state_change(struct sock *sk)
 {
-	/* TCP only does a POLLIN for a half close. Do a POLLHUP here
-	 * since application will normally not poll with POLLIN
+	/* TCP only does a EPOLLIN for a half close. Do a EPOLLHUP here
+	 * since application will normally not poll with EPOLLIN
 	 * on the TCP sockets.
 	 */
 
@@ -1338,7 +1338,7 @@ static void init_kcm_sock(struct kcm_sock *kcm, struct kcm_mux *mux)
 
 	/* For SOCK_SEQPACKET sock type, datagram_poll checks the sk_state, so
 	 * we set sk_state, otherwise epoll_wait always returns right away with
-	 * POLLHUP
+	 * EPOLLHUP
 	 */
 	kcm->sk.sk_state = TCP_ESTABLISHED;
 
@@ -1381,24 +1381,32 @@ static int kcm_attach(struct socket *sock, struct socket *csock,
 		.parse_msg = kcm_parse_func_strparser,
 		.read_sock_done = kcm_read_sock_done,
 	};
-	int err;
+	int err = 0;
 
 	csk = csock->sk;
 	if (!csk)
 		return -EINVAL;
 
+	lock_sock(csk);
+
 	/* Only allow TCP sockets to be attached for now */
 	if ((csk->sk_family != AF_INET && csk->sk_family != AF_INET6) ||
-	    csk->sk_protocol != IPPROTO_TCP)
-		return -EOPNOTSUPP;
+	    csk->sk_protocol != IPPROTO_TCP) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
 
 	/* Don't allow listeners or closed sockets */
-	if (csk->sk_state == TCP_LISTEN || csk->sk_state == TCP_CLOSE)
-		return -EOPNOTSUPP;
+	if (csk->sk_state == TCP_LISTEN || csk->sk_state == TCP_CLOSE) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
 
 	psock = kmem_cache_zalloc(kcm_psockp, GFP_KERNEL);
-	if (!psock)
-		return -ENOMEM;
+	if (!psock) {
+		err = -ENOMEM;
+		goto out;
+	}
 
 	psock->mux = mux;
 	psock->sk = csk;
@@ -1407,7 +1415,7 @@ static int kcm_attach(struct socket *sock, struct socket *csock,
 	err = strp_init(&psock->strp, csk, &cb);
 	if (err) {
 		kmem_cache_free(kcm_psockp, psock);
-		return err;
+		goto out;
 	}
 
 	write_lock_bh(&csk->sk_callback_lock);
@@ -1419,7 +1427,8 @@ static int kcm_attach(struct socket *sock, struct socket *csock,
 		write_unlock_bh(&csk->sk_callback_lock);
 		strp_done(&psock->strp);
 		kmem_cache_free(kcm_psockp, psock);
-		return -EALREADY;
+		err = -EALREADY;
+		goto out;
 	}
 
 	psock->save_data_ready = csk->sk_data_ready;
@@ -1455,7 +1464,10 @@ static int kcm_attach(struct socket *sock, struct socket *csock,
 	/* Schedule RX work in case there are already bytes queued */
 	strp_check_rcv(&psock->strp);
 
-	return 0;
+out:
+	release_sock(csk);
+
+	return err;
 }
 
 static int kcm_attach_ioctl(struct socket *sock, struct kcm_attach *info)
@@ -1507,6 +1519,7 @@ static void kcm_unattach(struct kcm_psock *psock)
 
 	if (WARN_ON(psock->rx_kcm)) {
 		write_unlock_bh(&csk->sk_callback_lock);
+		release_sock(csk);
 		return;
 	}
 

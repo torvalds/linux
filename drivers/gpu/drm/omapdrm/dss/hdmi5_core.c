@@ -1,8 +1,7 @@
 /*
  * OMAP5 HDMI CORE IP driver library
  *
- * Copyright (C) 2014 Texas Instruments Incorporated
- *
+ * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
  * Authors:
  *	Yong Zhi
  *	Mythri pk

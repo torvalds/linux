@@ -918,7 +918,7 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 
 	/* Retrieve number of streams to configure */
 	token = strsep(&buf, ";");
-	if (token == NULL)
+	if (!token)
 		return -EINVAL;
 
 	ret = kstrtouint(token, 10, &nstreams);
@@ -929,7 +929,7 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 		return -EINVAL;
 
 	token = strsep(&buf, ";");
-	if (token == NULL)
+	if (!token)
 		return -EINVAL;
 
 	ret = kstrtouint(token, 10, &flags);
@@ -946,7 +946,7 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 
 		/* width */
 		token = strsep(&buf, ";");
-		if (token == NULL) {
+		if (!token) {
 			ret = -EINVAL;
 			goto done;
 		}
@@ -956,7 +956,7 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 
 		/* height */
 		token = strsep(&buf, ";");
-		if (token == NULL)
+		if (!token)
 			goto done;
 
 		ret = kstrtouint(token, 10, &stream->height);
@@ -965,7 +965,7 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 
 		/* Image format code */
 		token = strsep(&buf, ";");
-		if (token == NULL)
+		if (!token)
 			goto done;
 
 		ret = kstrtouint(token, 16, &stream->format);
@@ -1009,7 +1009,7 @@ static ssize_t gb_camera_debugfs_capture(struct gb_camera *gcam,
 
 	/* Request id */
 	token = strsep(&buf, ";");
-	if (token == NULL)
+	if (!token)
 		return -EINVAL;
 	ret = kstrtouint(token, 10, &request_id);
 	if (ret < 0)
@@ -1017,7 +1017,7 @@ static ssize_t gb_camera_debugfs_capture(struct gb_camera *gcam,
 
 	/* Stream mask */
 	token = strsep(&buf, ";");
-	if (token == NULL)
+	if (!token)
 		return -EINVAL;
 	ret = kstrtouint(token, 16, &streams_mask);
 	if (ret < 0)
@@ -1025,7 +1025,7 @@ static ssize_t gb_camera_debugfs_capture(struct gb_camera *gcam,
 
 	/* number of frames */
 	token = strsep(&buf, ";");
-	if (token == NULL)
+	if (!token)
 		return -EINVAL;
 	ret = kstrtouint(token, 10, &num_frames);
 	if (ret < 0)

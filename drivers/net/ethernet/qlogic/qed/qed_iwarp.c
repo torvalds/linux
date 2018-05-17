@@ -64,13 +64,20 @@ struct mpa_v2_hdr {
 
 #define QED_IWARP_INVALID_TCP_CID	0xffffffff
 #define QED_IWARP_RCV_WND_SIZE_DEF	(256 * 1024)
-#define QED_IWARP_RCV_WND_SIZE_MIN	(64 * 1024)
+#define QED_IWARP_RCV_WND_SIZE_MIN	(0xffff)
 #define TIMESTAMP_HEADER_SIZE		(12)
+#define QED_IWARP_MAX_FIN_RT_DEFAULT	(2)
 
 #define QED_IWARP_TS_EN			BIT(0)
 #define QED_IWARP_DA_EN			BIT(1)
 #define QED_IWARP_PARAM_CRC_NEEDED	(1)
 #define QED_IWARP_PARAM_P2P		(1)
+
+#define QED_IWARP_DEF_MAX_RT_TIME	(0)
+#define QED_IWARP_DEF_CWND_FACTOR	(4)
+#define QED_IWARP_DEF_KA_MAX_PROBE_CNT	(5)
+#define QED_IWARP_DEF_KA_TIMEOUT	(1200000)	/* 20 min */
+#define QED_IWARP_DEF_KA_INTERVAL	(1000)		/* 1 sec */
 
 static int qed_iwarp_async_event(struct qed_hwfn *p_hwfn,
 				 u8 fw_event_code, u16 echo,
@@ -120,11 +127,17 @@ static void qed_iwarp_cid_cleaned(struct qed_hwfn *p_hwfn, u32 cid)
 	spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
 }
 
-void qed_iwarp_init_fw_ramrod(struct qed_hwfn *p_hwfn,
-			      struct iwarp_init_func_params *p_ramrod)
+void
+qed_iwarp_init_fw_ramrod(struct qed_hwfn *p_hwfn,
+			 struct iwarp_init_func_ramrod_data *p_ramrod)
 {
-	p_ramrod->ll2_ooo_q_index = RESC_START(p_hwfn, QED_LL2_QUEUE) +
-				    p_hwfn->p_rdma_info->iwarp.ll2_ooo_handle;
+	p_ramrod->iwarp.ll2_ooo_q_index =
+		RESC_START(p_hwfn, QED_LL2_QUEUE) +
+		p_hwfn->p_rdma_info->iwarp.ll2_ooo_handle;
+
+	p_ramrod->tcp.max_fin_rt = QED_IWARP_MAX_FIN_RT_DEFAULT;
+
+	return;
 }
 
 static int qed_iwarp_alloc_cid(struct qed_hwfn *p_hwfn, u32 *cid)
@@ -699,6 +712,12 @@ qed_iwarp_tcp_offload(struct qed_hwfn *p_hwfn, struct qed_iwarp_ep *ep)
 	tcp->ttl = 0x40;
 	tcp->tos_or_tc = 0;
 
+	tcp->max_rt_time = QED_IWARP_DEF_MAX_RT_TIME;
+	tcp->cwnd = QED_IWARP_DEF_CWND_FACTOR *  tcp->mss;
+	tcp->ka_max_probe_cnt = QED_IWARP_DEF_KA_MAX_PROBE_CNT;
+	tcp->ka_timeout = QED_IWARP_DEF_KA_TIMEOUT;
+	tcp->ka_interval = QED_IWARP_DEF_KA_INTERVAL;
+
 	tcp->rcv_wnd_scale = (u8)p_hwfn->p_rdma_info->iwarp.rcv_wnd_scale;
 	tcp->connect_mode = ep->connect_mode;
 
@@ -807,6 +826,7 @@ static int
 qed_iwarp_mpa_offload(struct qed_hwfn *p_hwfn, struct qed_iwarp_ep *ep)
 {
 	struct iwarp_mpa_offload_ramrod_data *p_mpa_ramrod;
+	struct qed_iwarp_info *iwarp_info;
 	struct qed_sp_init_data init_data;
 	dma_addr_t async_output_phys;
 	struct qed_spq_entry *p_ent;
@@ -874,6 +894,8 @@ qed_iwarp_mpa_offload(struct qed_hwfn *p_hwfn, struct qed_iwarp_ep *ep)
 		p_mpa_ramrod->common.reject = 1;
 	}
 
+	iwarp_info = &p_hwfn->p_rdma_info->iwarp;
+	p_mpa_ramrod->rcv_wnd = iwarp_info->rcv_wnd_size;
 	p_mpa_ramrod->mode = ep->mpa_rev;
 	SET_FIELD(p_mpa_ramrod->rtr_pref,
 		  IWARP_MPA_OFFLOAD_RAMROD_DATA_RTR_SUPPORTED, ep->rtr_type);
@@ -1681,6 +1703,13 @@ qed_iwarp_parse_rx_pkt(struct qed_hwfn *p_hwfn,
 	iph = (struct iphdr *)((u8 *)(ethh) + eth_hlen);
 
 	if (eth_type == ETH_P_IP) {
+		if (iph->protocol != IPPROTO_TCP) {
+			DP_NOTICE(p_hwfn,
+				  "Unexpected ip protocol on ll2 %x\n",
+				  iph->protocol);
+			return -EINVAL;
+		}
+
 		cm_info->local_ip[0] = ntohl(iph->daddr);
 		cm_info->remote_ip[0] = ntohl(iph->saddr);
 		cm_info->ip_version = TCP_IPV4;
@@ -1689,6 +1718,14 @@ qed_iwarp_parse_rx_pkt(struct qed_hwfn *p_hwfn,
 		*payload_len = ntohs(iph->tot_len) - ip_hlen;
 	} else if (eth_type == ETH_P_IPV6) {
 		ip6h = (struct ipv6hdr *)iph;
+
+		if (ip6h->nexthdr != IPPROTO_TCP) {
+			DP_NOTICE(p_hwfn,
+				  "Unexpected ip protocol on ll2 %x\n",
+				  iph->protocol);
+			return -EINVAL;
+		}
+
 		for (i = 0; i < 4; i++) {
 			cm_info->local_ip[i] =
 			    ntohl(ip6h->daddr.in6_u.u6_addr32[i]);
@@ -1906,8 +1943,8 @@ qed_iwarp_update_fpdu_length(struct qed_hwfn *p_hwfn,
 		/* Missing lower byte is now available */
 		mpa_len = fpdu->fpdu_length | *mpa_data;
 		fpdu->fpdu_length = QED_IWARP_FPDU_LEN_WITH_PAD(mpa_len);
-		fpdu->mpa_frag_len = fpdu->fpdu_length;
 		/* one byte of hdr */
+		fpdu->mpa_frag_len = 1;
 		fpdu->incomplete_bytes = fpdu->fpdu_length - 1;
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_RDMA,
@@ -2745,6 +2782,7 @@ int qed_iwarp_setup(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 	/* value 0 is used for ilog2(QED_IWARP_RCV_WND_SIZE_MIN) */
 	iwarp_info->rcv_wnd_scale = ilog2(rcv_wnd_size) -
 	    ilog2(QED_IWARP_RCV_WND_SIZE_MIN);
+	iwarp_info->rcv_wnd_size = rcv_wnd_size >> iwarp_info->rcv_wnd_scale;
 	iwarp_info->crc_needed = QED_IWARP_PARAM_CRC_NEEDED;
 	iwarp_info->mpa_rev = MPA_NEGOTIATION_TYPE_ENHANCED;
 

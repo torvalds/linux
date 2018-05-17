@@ -17,6 +17,7 @@ Required properties:
       + rockchip,rk3066-mali
       + rockchip,rk3188-mali
       + rockchip,rk3228-mali
+      + rockchip,rk3328-mali
       + stericsson,db8500-mali
 
   - reg: Physical base address and length of the GPU registers

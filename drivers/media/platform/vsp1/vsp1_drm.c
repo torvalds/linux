@@ -84,8 +84,12 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 	struct vsp1_drm_pipeline *drm_pipe;
 	struct vsp1_pipeline *pipe;
 	struct vsp1_bru *bru;
+	struct vsp1_entity *entity;
+	struct vsp1_entity *next;
+	struct vsp1_dl_list *dl;
 	struct v4l2_subdev_format format;
 	const char *bru_name;
+	unsigned long flags;
 	unsigned int i;
 	int ret;
 
@@ -249,6 +253,29 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 	/* Disable the display interrupts. */
 	vsp1_write(vsp1, VI6_DISP_IRQ_STA, 0);
 	vsp1_write(vsp1, VI6_DISP_IRQ_ENB, 0);
+
+	/* Configure all entities in the pipeline. */
+	dl = vsp1_dl_list_get(pipe->output->dlm);
+
+	list_for_each_entry_safe(entity, next, &pipe->entities, list_pipe) {
+		vsp1_entity_route_setup(entity, pipe, dl);
+
+		if (entity->ops->configure) {
+			entity->ops->configure(entity, pipe, dl,
+					       VSP1_ENTITY_PARAMS_INIT);
+			entity->ops->configure(entity, pipe, dl,
+					       VSP1_ENTITY_PARAMS_RUNTIME);
+			entity->ops->configure(entity, pipe, dl,
+					       VSP1_ENTITY_PARAMS_PARTITION);
+		}
+	}
+
+	vsp1_dl_list_commit(dl);
+
+	/* Start the pipeline. */
+	spin_lock_irqsave(&pipe->irqlock, flags);
+	vsp1_pipeline_run(pipe);
+	spin_unlock_irqrestore(&pipe->irqlock, flags);
 
 	dev_dbg(vsp1->dev, "%s: pipeline enabled\n", __func__);
 
@@ -488,7 +515,6 @@ void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index)
 	struct vsp1_entity *next;
 	struct vsp1_dl_list *dl;
 	const char *bru_name;
-	unsigned long flags;
 	unsigned int i;
 	int ret;
 
@@ -570,15 +596,6 @@ void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index)
 	}
 
 	vsp1_dl_list_commit(dl);
-
-	/* Start or stop the pipeline if needed. */
-	if (!drm_pipe->enabled && pipe->num_inputs) {
-		spin_lock_irqsave(&pipe->irqlock, flags);
-		vsp1_pipeline_run(pipe);
-		spin_unlock_irqrestore(&pipe->irqlock, flags);
-	} else if (drm_pipe->enabled && !pipe->num_inputs) {
-		vsp1_pipeline_stop(pipe);
-	}
 }
 EXPORT_SYMBOL_GPL(vsp1_du_atomic_flush);
 

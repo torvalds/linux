@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: LGPL-2.1 */
+
 /*
  * common eBPF ELF operations.
  *
@@ -40,7 +42,7 @@ int bpf_create_map_in_map(enum bpf_map_type map_type, const char *name,
 			  __u32 map_flags);
 
 /* Recommend log buffer size */
-#define BPF_LOG_BUF_SIZE 65536
+#define BPF_LOG_BUF_SIZE (256 * 1024)
 int bpf_load_program_name(enum bpf_prog_type type, const char *name,
 			  const struct bpf_insn *insns,
 			  size_t insns_cnt, const char *license,

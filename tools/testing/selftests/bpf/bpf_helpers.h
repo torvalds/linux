@@ -71,6 +71,8 @@ static int (*bpf_setsockopt)(void *ctx, int level, int optname, void *optval,
 static int (*bpf_getsockopt)(void *ctx, int level, int optname, void *optval,
 			     int optlen) =
 	(void *) BPF_FUNC_getsockopt;
+static int (*bpf_sock_ops_cb_flags_set)(void *ctx, int flags) =
+	(void *) BPF_FUNC_sock_ops_cb_flags_set;
 static int (*bpf_sk_redirect_map)(void *ctx, void *map, int key, int flags) =
 	(void *) BPF_FUNC_sk_redirect_map;
 static int (*bpf_sock_map_update)(void *map, void *key, void *value,
@@ -82,7 +84,8 @@ static int (*bpf_perf_event_read_value)(void *map, unsigned long long flags,
 static int (*bpf_perf_prog_read_value)(void *ctx, void *buf,
 				       unsigned int buf_size) =
 	(void *) BPF_FUNC_perf_prog_read_value;
-
+static int (*bpf_override_return)(void *ctx, unsigned long rc) =
+	(void *) BPF_FUNC_override_return;
 
 /* llvm builtin functions that eBPF C program may use to
  * emit BPF_LD_ABS and BPF_LD_IND instructions

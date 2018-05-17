@@ -436,6 +436,9 @@ int gpiochip_irqchip_add_key(struct gpio_chip *gpiochip,
 			     struct lock_class_key *lock_key,
 			     struct lock_class_key *request_key);
 
+bool gpiochip_irqchip_irq_valid(const struct gpio_chip *gpiochip,
+				unsigned int offset);
+
 #ifdef CONFIG_LOCKDEP
 
 /*

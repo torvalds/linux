@@ -18,7 +18,8 @@
 
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/driver.h>
+#include <linux/of_gpio.h> /* For of_mm_gpio_chip */
 #include <linux/platform_device.h>
 
 #define ALTERA_GPIO_MAX_NGPIO		32

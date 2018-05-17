@@ -38,7 +38,6 @@
 	oppn10->base.ctx
 
 
-
 /************* FORMATTER ************/
 
 /**
@@ -47,7 +46,7 @@
  *	2) enable truncation
  *	3) HW remove 12bit FMT support for DCE11 power saving reason.
  */
-static void set_truncation(
+static void opp1_set_truncation(
 		struct dcn10_opp *oppn10,
 		const struct bit_depth_reduction_params *params)
 {
@@ -57,7 +56,7 @@ static void set_truncation(
 		FMT_TRUNCATE_MODE, params->flags.TRUNCATE_MODE);
 }
 
-static void set_spatial_dither(
+static void opp1_set_spatial_dither(
 	struct dcn10_opp *oppn10,
 	const struct bit_depth_reduction_params *params)
 {
@@ -136,14 +135,14 @@ static void set_spatial_dither(
 			FMT_RGB_RANDOM_ENABLE, params->flags.RGB_RANDOM);
 }
 
-static void oppn10_program_bit_depth_reduction(
+void opp1_program_bit_depth_reduction(
 	struct output_pixel_processor *opp,
 	const struct bit_depth_reduction_params *params)
 {
 	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
 
-	set_truncation(oppn10, params);
-	set_spatial_dither(oppn10, params);
+	opp1_set_truncation(oppn10, params);
+	opp1_set_spatial_dither(oppn10, params);
 	/* TODO
 	 * set_temporal_dither(oppn10, params);
 	 */
@@ -156,7 +155,7 @@ static void oppn10_program_bit_depth_reduction(
  *		0: RGB 4:4:4 or YCbCr 4:4:4 or YOnly
  *		1: YCbCr 4:2:2
  */
-static void set_pixel_encoding(
+static void opp1_set_pixel_encoding(
 	struct dcn10_opp *oppn10,
 	const struct clamping_and_pixel_encoding_params *params)
 {
@@ -186,7 +185,7 @@ static void set_pixel_encoding(
  *		7 for programable
  *	2) Enable clamp if Limited range requested
  */
-static void opp_set_clamping(
+static void opp1_set_clamping(
 	struct dcn10_opp *oppn10,
 	const struct clamping_and_pixel_encoding_params *params)
 {
@@ -224,7 +223,7 @@ static void opp_set_clamping(
 
 }
 
-static void oppn10_set_dyn_expansion(
+void opp1_set_dyn_expansion(
 	struct output_pixel_processor *opp,
 	enum dc_color_space color_sp,
 	enum dc_color_depth color_dpth,
@@ -264,17 +263,17 @@ static void oppn10_set_dyn_expansion(
 	}
 }
 
-static void opp_program_clamping_and_pixel_encoding(
+static void opp1_program_clamping_and_pixel_encoding(
 	struct output_pixel_processor *opp,
 	const struct clamping_and_pixel_encoding_params *params)
 {
 	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
 
-	opp_set_clamping(oppn10, params);
-	set_pixel_encoding(oppn10, params);
+	opp1_set_clamping(oppn10, params);
+	opp1_set_pixel_encoding(oppn10, params);
 }
 
-static void oppn10_program_fmt(
+void opp1_program_fmt(
 	struct output_pixel_processor *opp,
 	struct bit_depth_reduction_params *fmt_bit_depth,
 	struct clamping_and_pixel_encoding_params *clamping)
@@ -286,44 +285,104 @@ static void oppn10_program_fmt(
 
 	/* dithering is affected by <CrtcSourceSelect>, hence should be
 	 * programmed afterwards */
-	oppn10_program_bit_depth_reduction(
+	opp1_program_bit_depth_reduction(
 		opp,
 		fmt_bit_depth);
 
-	opp_program_clamping_and_pixel_encoding(
+	opp1_program_clamping_and_pixel_encoding(
 		opp,
 		clamping);
 
 	return;
 }
 
-
-
-static void oppn10_set_stereo_polarity(
-		struct output_pixel_processor *opp,
-		bool enable, bool rightEyePolarity)
+void opp1_program_stereo(
+	struct output_pixel_processor *opp,
+	bool enable,
+	const struct dc_crtc_timing *timing)
 {
 	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
 
-	REG_UPDATE(FMT_CONTROL, FMT_STEREOSYNC_OVERRIDE, enable);
+	uint32_t active_width = timing->h_addressable - timing->h_border_right - timing->h_border_right;
+	uint32_t space1_size = timing->v_total - timing->v_addressable;
+	/* TODO: confirm computation of space2_size */
+	uint32_t space2_size = timing->v_total - timing->v_addressable;
+
+	if (!enable) {
+		active_width = 0;
+		space1_size = 0;
+		space2_size = 0;
+	}
+
+	/* TODO: for which cases should FMT_STEREOSYNC_OVERRIDE be set? */
+	REG_UPDATE(FMT_CONTROL, FMT_STEREOSYNC_OVERRIDE, 0);
+
+	REG_UPDATE(OPPBUF_CONTROL, OPPBUF_ACTIVE_WIDTH, active_width);
+
+	/* Program OPPBUF_3D_VACT_SPACE1_SIZE and OPPBUF_VACT_SPACE2_SIZE registers
+	 * In 3D progressive frames, Vactive space happens only in between the 2 frames,
+	 * so only need to program OPPBUF_3D_VACT_SPACE1_SIZE
+	 * In 3D alternative frames, left and right frames, top and bottom field.
+	 */
+	if (timing->timing_3d_format == TIMING_3D_FORMAT_FRAME_ALTERNATE)
+		REG_UPDATE(OPPBUF_3D_PARAMETERS_0, OPPBUF_3D_VACT_SPACE2_SIZE, space2_size);
+	else
+		REG_UPDATE(OPPBUF_3D_PARAMETERS_0, OPPBUF_3D_VACT_SPACE1_SIZE, space1_size);
+
+	/* TODO: Is programming of OPPBUF_DUMMY_DATA_R/G/B needed? */
+	/*
+	REG_UPDATE(OPPBUF_3D_PARAMETERS_0,
+			OPPBUF_DUMMY_DATA_R, data_r);
+	REG_UPDATE(OPPBUF_3D_PARAMETERS_1,
+			OPPBUF_DUMMY_DATA_G, data_g);
+	REG_UPDATE(OPPBUF_3D_PARAMETERS_1,
+			OPPBUF_DUMMY_DATA_B, _data_b);
+	*/
+}
+
+void opp1_program_oppbuf(
+	struct output_pixel_processor *opp,
+	struct oppbuf_params *oppbuf)
+{
+	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
+
+	/* Program the oppbuf active width to be the frame width from mpc */
+	REG_UPDATE(OPPBUF_CONTROL, OPPBUF_ACTIVE_WIDTH, oppbuf->active_width);
+
+	/* Specifies the number of segments in multi-segment mode (DP-MSO operation)
+	 * description  "In 1/2/4 segment mode, specifies the horizontal active width in pixels of the display panel.
+	 * In 4 segment split left/right mode, specifies the horizontal 1/2 active width in pixels of the display panel.
+	 * Used to determine segment boundaries in multi-segment mode. Used to determine the width of the vertical active space in 3D frame packed modes.
+	 * OPPBUF_ACTIVE_WIDTH must be integer divisible by the total number of segments."
+	 */
+	REG_UPDATE(OPPBUF_CONTROL, OPPBUF_DISPLAY_SEGMENTATION, oppbuf->mso_segmentation);
+
+	/* description  "Specifies the number of overlap pixels (1-8 overlapping pixels supported), used in multi-segment mode (DP-MSO operation)" */
+	REG_UPDATE(OPPBUF_CONTROL, OPPBUF_OVERLAP_PIXEL_NUM, oppbuf->mso_overlap_pixel_num);
+
+	/* description  "Specifies the number of times a pixel is replicated (0-15 pixel replications supported).
+	 * A value of 0 disables replication. The total number of times a pixel is output is OPPBUF_PIXEL_REPETITION + 1."
+	 */
+	REG_UPDATE(OPPBUF_CONTROL, OPPBUF_PIXEL_REPETITION, oppbuf->pixel_repetition);
+
 }
 
 /*****************************************/
 /* Constructor, Destructor               */
 /*****************************************/
 
-static void dcn10_opp_destroy(struct output_pixel_processor **opp)
+void opp1_destroy(struct output_pixel_processor **opp)
 {
 	kfree(TO_DCN10_OPP(*opp));
 	*opp = NULL;
 }
 
 static struct opp_funcs dcn10_opp_funcs = {
-		.opp_set_dyn_expansion = oppn10_set_dyn_expansion,
-		.opp_program_fmt = oppn10_program_fmt,
-		.opp_program_bit_depth_reduction = oppn10_program_bit_depth_reduction,
-		.opp_set_stereo_polarity = oppn10_set_stereo_polarity,
-		.opp_destroy = dcn10_opp_destroy
+		.opp_set_dyn_expansion = opp1_set_dyn_expansion,
+		.opp_program_fmt = opp1_program_fmt,
+		.opp_program_bit_depth_reduction = opp1_program_bit_depth_reduction,
+		.opp_program_stereo = opp1_program_stereo,
+		.opp_destroy = opp1_destroy
 };
 
 void dcn10_opp_construct(struct dcn10_opp *oppn10,
@@ -333,19 +392,12 @@ void dcn10_opp_construct(struct dcn10_opp *oppn10,
 	const struct dcn10_opp_shift *opp_shift,
 	const struct dcn10_opp_mask *opp_mask)
 {
-	int i;
+
 	oppn10->base.ctx = ctx;
 	oppn10->base.inst = inst;
 	oppn10->base.funcs = &dcn10_opp_funcs;
-
-	oppn10->base.mpc_tree.dpp[0] = inst;
-	oppn10->base.mpc_tree.mpcc[0] = inst;
-	oppn10->base.mpc_tree.num_pipes = 1;
-	for (i = 0; i < MAX_PIPES; i++)
-		oppn10->base.mpcc_disconnect_pending[i] = false;
 
 	oppn10->regs = regs;
 	oppn10->opp_shift = opp_shift;
 	oppn10->opp_mask = opp_mask;
 }
-

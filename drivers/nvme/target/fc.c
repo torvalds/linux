@@ -1697,30 +1697,11 @@ static int
 nvmet_fc_alloc_tgt_pgs(struct nvmet_fc_fcp_iod *fod)
 {
 	struct scatterlist *sg;
-	struct page *page;
 	unsigned int nent;
-	u32 page_len, length;
-	int i = 0;
 
-	length = fod->req.transfer_len;
-	nent = DIV_ROUND_UP(length, PAGE_SIZE);
-	sg = kmalloc_array(nent, sizeof(struct scatterlist), GFP_KERNEL);
+	sg = sgl_alloc(fod->req.transfer_len, GFP_KERNEL, &nent);
 	if (!sg)
 		goto out;
-
-	sg_init_table(sg, nent);
-
-	while (length) {
-		page_len = min_t(u32, length, PAGE_SIZE);
-
-		page = alloc_page(GFP_KERNEL);
-		if (!page)
-			goto out_free_pages;
-
-		sg_set_page(&sg[i], page, page_len, 0);
-		length -= page_len;
-		i++;
-	}
 
 	fod->data_sg = sg;
 	fod->data_sg_cnt = nent;
@@ -1731,14 +1712,6 @@ nvmet_fc_alloc_tgt_pgs(struct nvmet_fc_fcp_iod *fod)
 
 	return 0;
 
-out_free_pages:
-	while (i > 0) {
-		i--;
-		__free_page(sg_page(&sg[i]));
-	}
-	kfree(sg);
-	fod->data_sg = NULL;
-	fod->data_sg_cnt = 0;
 out:
 	return NVME_SC_INTERNAL;
 }
@@ -1746,18 +1719,13 @@ out:
 static void
 nvmet_fc_free_tgt_pgs(struct nvmet_fc_fcp_iod *fod)
 {
-	struct scatterlist *sg;
-	int count;
-
 	if (!fod->data_sg || !fod->data_sg_cnt)
 		return;
 
 	fc_dma_unmap_sg(fod->tgtport->dev, fod->data_sg, fod->data_sg_cnt,
 				((fod->io_dir == NVMET_FCP_WRITE) ?
 					DMA_FROM_DEVICE : DMA_TO_DEVICE));
-	for_each_sg(fod->data_sg, sg, fod->data_sg_cnt, count)
-		__free_page(sg_page(sg));
-	kfree(fod->data_sg);
+	sgl_free(fod->data_sg);
 	fod->data_sg = NULL;
 	fod->data_sg_cnt = 0;
 }
@@ -2522,14 +2490,8 @@ nvmet_fc_add_port(struct nvmet_port *port)
 	list_for_each_entry(tgtport, &nvmet_fc_target_list, tgt_list) {
 		if ((tgtport->fc_target_port.node_name == traddr.nn) &&
 		    (tgtport->fc_target_port.port_name == traddr.pn)) {
-			/* a FC port can only be 1 nvmet port id */
-			if (!tgtport->port) {
-				tgtport->port = port;
-				port->priv = tgtport;
-				nvmet_fc_tgtport_get(tgtport);
-				ret = 0;
-			} else
-				ret = -EALREADY;
+			tgtport->port = port;
+			ret = 0;
 			break;
 		}
 	}
@@ -2540,19 +2502,7 @@ nvmet_fc_add_port(struct nvmet_port *port)
 static void
 nvmet_fc_remove_port(struct nvmet_port *port)
 {
-	struct nvmet_fc_tgtport *tgtport = port->priv;
-	unsigned long flags;
-	bool matched = false;
-
-	spin_lock_irqsave(&nvmet_fc_tgtlock, flags);
-	if (tgtport->port == port) {
-		matched = true;
-		tgtport->port = NULL;
-	}
-	spin_unlock_irqrestore(&nvmet_fc_tgtlock, flags);
-
-	if (matched)
-		nvmet_fc_tgtport_put(tgtport);
+	/* nothing to do */
 }
 
 static struct nvmet_fabrics_ops nvmet_fc_tgt_fcp_ops = {

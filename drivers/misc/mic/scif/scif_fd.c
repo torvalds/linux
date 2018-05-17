@@ -41,7 +41,7 @@ static int scif_fdmmap(struct file *f, struct vm_area_struct *vma)
 	return scif_mmap(vma, priv);
 }
 
-static unsigned int scif_fdpoll(struct file *f, poll_table *wait)
+static __poll_t scif_fdpoll(struct file *f, poll_table *wait)
 {
 	struct scif_endpt *priv = f->private_data;
 

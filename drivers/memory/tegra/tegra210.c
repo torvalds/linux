@@ -1059,11 +1059,26 @@ static const struct tegra_smmu_swgroup tegra210_swgroups[] = {
 	{ .name = "tsecb",     .swgroup = TEGRA_SWGROUP_TSECB,     .reg = 0xad4 },
 };
 
+static const unsigned int tegra210_group_display[] = {
+	TEGRA_SWGROUP_DC,
+	TEGRA_SWGROUP_DCB,
+};
+
+static const struct tegra_smmu_group_soc tegra210_groups[] = {
+	{
+		.name = "display",
+		.swgroups = tegra210_group_display,
+		.num_swgroups = ARRAY_SIZE(tegra210_group_display),
+	},
+};
+
 static const struct tegra_smmu_soc tegra210_smmu_soc = {
 	.clients = tegra210_mc_clients,
 	.num_clients = ARRAY_SIZE(tegra210_mc_clients),
 	.swgroups = tegra210_swgroups,
 	.num_swgroups = ARRAY_SIZE(tegra210_swgroups),
+	.groups = tegra210_groups,
+	.num_groups = ARRAY_SIZE(tegra210_groups),
 	.supports_round_robin_arbitration = true,
 	.supports_request_limit = true,
 	.num_tlb_lines = 32,

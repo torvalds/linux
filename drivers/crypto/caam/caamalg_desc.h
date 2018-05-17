@@ -43,28 +43,28 @@
 					 15 * CAAM_CMD_SZ)
 
 void cnstr_shdsc_aead_null_encap(u32 * const desc, struct alginfo *adata,
-				 unsigned int icvsize);
+				 unsigned int icvsize, int era);
 
 void cnstr_shdsc_aead_null_decap(u32 * const desc, struct alginfo *adata,
-				 unsigned int icvsize);
+				 unsigned int icvsize, int era);
 
 void cnstr_shdsc_aead_encap(u32 * const desc, struct alginfo *cdata,
 			    struct alginfo *adata, unsigned int ivsize,
 			    unsigned int icvsize, const bool is_rfc3686,
 			    u32 *nonce, const u32 ctx1_iv_off,
-			    const bool is_qi);
+			    const bool is_qi, int era);
 
 void cnstr_shdsc_aead_decap(u32 * const desc, struct alginfo *cdata,
 			    struct alginfo *adata, unsigned int ivsize,
 			    unsigned int icvsize, const bool geniv,
 			    const bool is_rfc3686, u32 *nonce,
-			    const u32 ctx1_iv_off, const bool is_qi);
+			    const u32 ctx1_iv_off, const bool is_qi, int era);
 
 void cnstr_shdsc_aead_givencap(u32 * const desc, struct alginfo *cdata,
 			       struct alginfo *adata, unsigned int ivsize,
 			       unsigned int icvsize, const bool is_rfc3686,
 			       u32 *nonce, const u32 ctx1_iv_off,
-			       const bool is_qi);
+			       const bool is_qi, int era);
 
 void cnstr_shdsc_gcm_encap(u32 * const desc, struct alginfo *cdata,
 			   unsigned int icvsize);

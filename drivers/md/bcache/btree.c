@@ -419,7 +419,7 @@ static void do_btree_node_write(struct btree *b)
 	SET_PTR_OFFSET(&k.key, 0, PTR_OFFSET(&k.key, 0) +
 		       bset_sector_offset(&b->keys, i));
 
-	if (!bio_alloc_pages(b->bio, __GFP_NOWARN|GFP_NOWAIT)) {
+	if (!bch_bio_alloc_pages(b->bio, __GFP_NOWARN|GFP_NOWAIT)) {
 		int j;
 		struct bio_vec *bv;
 		void *base = (void *) ((unsigned long) i & ~(PAGE_SIZE - 1));
@@ -432,6 +432,7 @@ static void do_btree_node_write(struct btree *b)
 
 		continue_at(cl, btree_node_write_done, NULL);
 	} else {
+		/* No problem for multipage bvec since the bio is just allocated */
 		b->bio->bi_vcnt = 0;
 		bch_bio_map(b->bio, i);
 
@@ -1678,7 +1679,7 @@ static void bch_btree_gc_finish(struct cache_set *c)
 
 	/* don't reclaim buckets to which writeback keys point */
 	rcu_read_lock();
-	for (i = 0; i < c->nr_uuids; i++) {
+	for (i = 0; i < c->devices_max_used; i++) {
 		struct bcache_device *d = c->devices[i];
 		struct cached_dev *dc;
 		struct keybuf_key *w, *n;
@@ -1803,10 +1804,7 @@ static int bch_gc_thread(void *arg)
 int bch_gc_thread_start(struct cache_set *c)
 {
 	c->gc_thread = kthread_run(bch_gc_thread, c, "bcache_gc");
-	if (IS_ERR(c->gc_thread))
-		return PTR_ERR(c->gc_thread);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(c->gc_thread);
 }
 
 /* Initial partial gc */
@@ -1871,14 +1869,17 @@ void bch_initial_gc_finish(struct cache_set *c)
 	 */
 	for_each_cache(ca, c, i) {
 		for_each_bucket(b, ca) {
-			if (fifo_full(&ca->free[RESERVE_PRIO]))
+			if (fifo_full(&ca->free[RESERVE_PRIO]) &&
+			    fifo_full(&ca->free[RESERVE_BTREE]))
 				break;
 
 			if (bch_can_invalidate_bucket(ca, b) &&
 			    !GC_MARK(b)) {
 				__bch_invalidate_one_bucket(ca, b);
-				fifo_push(&ca->free[RESERVE_PRIO],
-					  b - ca->buckets);
+				if (!fifo_push(&ca->free[RESERVE_PRIO],
+				   b - ca->buckets))
+					fifo_push(&ca->free[RESERVE_BTREE],
+						  b - ca->buckets);
 			}
 		}
 	}

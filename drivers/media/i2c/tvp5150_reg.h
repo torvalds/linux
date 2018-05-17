@@ -1,8 +1,9 @@
 /*
+ * SPDX-License-Identifier: GPL-2.0
+ *
  * tvp5150 - Texas Instruments TVP5150A/AM1 video decoder registers
  *
- * Copyright (c) 2005,2006 Mauro Carvalho Chehab (mchehab@infradead.org)
- * This code is placed under the terms of the GNU General Public License v2
+ * Copyright (c) 2005,2006 Mauro Carvalho Chehab <mchehab@infradead.org>
  */
 
 #define TVP5150_VD_IN_SRC_SEL_1      0x00 /* Video input source selection #1 */
@@ -66,10 +67,10 @@
 
 #define VIDEO_STD_NTSC_MJ_BIT_AS                 0x01
 #define VIDEO_STD_PAL_BDGHIN_BIT_AS              0x03
-#define VIDEO_STD_PAL_M_BIT_AS		         0x05
+#define VIDEO_STD_PAL_M_BIT_AS			 0x05
 #define VIDEO_STD_PAL_COMBINATION_N_BIT_AS	 0x07
 #define VIDEO_STD_NTSC_4_43_BIT_AS		 0x09
-#define VIDEO_STD_SECAM_BIT_AS		         0x0b
+#define VIDEO_STD_SECAM_BIT_AS			 0x0b
 
 /* Reserved 29h-2bh */
 

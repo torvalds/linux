@@ -24,6 +24,7 @@ extern int icache_44x_need_flush;
 #define PGD_INDEX_SIZE	(32 - PGDIR_SHIFT)
 
 #define PMD_CACHE_INDEX	PMD_INDEX_SIZE
+#define PUD_CACHE_INDEX	PUD_INDEX_SIZE
 
 #ifndef __ASSEMBLY__
 #define PTE_TABLE_SIZE	(sizeof(pte_t) << PTE_INDEX_SIZE)
@@ -282,7 +283,7 @@ static inline void __ptep_set_access_flags(struct mm_struct *mm,
 {
 	unsigned long set = pte_val(entry) &
 		(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW | _PAGE_EXEC);
-	unsigned long clr = ~pte_val(entry) & _PAGE_RO;
+	unsigned long clr = ~pte_val(entry) & (_PAGE_RO | _PAGE_NA);
 
 	pte_update(ptep, clr, set);
 }

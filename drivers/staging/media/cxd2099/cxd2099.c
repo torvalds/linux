@@ -3,23 +3,14 @@
  *
  * Copyright (C) 2010-2013 Digital Devices GmbH
  *
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * version 2 only, as published by the Free Software Foundation.
- *
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/slab.h>
@@ -35,7 +26,7 @@
 
 static int buffermode;
 module_param(buffermode, int, 0444);
-MODULE_PARM_DESC(buffermode, "Enable use of the CXD2099AR buffer mode (default: disabled)");
+MODULE_PARM_DESC(buffermode, "Enable CXD2099AR buffer mode (default: disabled)");
 
 static int read_data(struct dvb_ca_en50221 *ca, int slot, u8 *ebuf, int ecount);
 
@@ -59,7 +50,7 @@ struct cxd {
 	int    amem_read;
 
 	int    cammode;
-	struct mutex lock;
+	struct mutex lock; /* device access lock */
 
 	u8     rbuf[1028];
 	u8     wbuf[1028];
@@ -101,7 +92,7 @@ static int i2c_read_reg(struct i2c_adapter *adapter, u8 adr,
 				   .buf = val, .len = 1} };
 
 	if (i2c_transfer(adapter, msgs, 2) != 2) {
-		dev_err(&adapter->dev, "error in i2c_read_reg\n");
+		dev_err(&adapter->dev, "error in %s()\n", __func__);
 		return -1;
 	}
 	return 0;
@@ -116,7 +107,7 @@ static int i2c_read(struct i2c_adapter *adapter, u8 adr,
 				   .buf = data, .len = n} };
 
 	if (i2c_transfer(adapter, msgs, 2) != 2) {
-		dev_err(&adapter->dev, "error in i2c_read\n");
+		dev_err(&adapter->dev, "error in %s()\n", __func__);
 		return -1;
 	}
 	return 0;
@@ -134,7 +125,7 @@ static int read_block(struct cxd *ci, u8 adr, u8 *data, u16 n)
 		while (n) {
 			int len = n;
 
-			if (ci->cfg.max_i2c && (len > ci->cfg.max_i2c))
+			if (ci->cfg.max_i2c && len > ci->cfg.max_i2c)
 				len = ci->cfg.max_i2c;
 			status = i2c_read(ci->i2c, ci->cfg.adr, 1, data, len);
 			if (status)
@@ -527,7 +518,7 @@ static int slot_shutdown(struct dvb_ca_en50221 *ca, int slot)
 {
 	struct cxd *ci = ca->data;
 
-	dev_info(&ci->i2c->dev, "%s\n", __func__);
+	dev_dbg(&ci->i2c->dev, "%s\n", __func__);
 	if (ci->cammode)
 		read_data(ca, slot, ci->rbuf, 0);
 	mutex_lock(&ci->lock);
@@ -591,7 +582,7 @@ static int campoll(struct cxd *ci)
 			}
 		}
 		if ((istat & 8) &&
-		    (ci->slot_stat == DVB_CA_EN50221_POLL_CAM_PRESENT)) {
+		    ci->slot_stat == DVB_CA_EN50221_POLL_CAM_PRESENT) {
 			ci->ready = 1;
 			ci->slot_stat |= DVB_CA_EN50221_POLL_CAM_READY;
 		}
@@ -677,7 +668,8 @@ struct dvb_ca_en50221 *cxd2099_attach(struct cxd2099_cfg *cfg,
 	u8 val;
 
 	if (i2c_read_reg(i2c, cfg->adr, 0, &val) < 0) {
-		dev_info(&i2c->dev, "No CXD2099 detected at %02x\n", cfg->adr);
+		dev_info(&i2c->dev, "No CXD2099AR detected at 0x%02x\n",
+			 cfg->adr);
 		return NULL;
 	}
 
@@ -695,7 +687,7 @@ struct dvb_ca_en50221 *cxd2099_attach(struct cxd2099_cfg *cfg,
 	ci->en = en_templ;
 	ci->en.data = ci;
 	init(ci);
-	dev_info(&i2c->dev, "Attached CXD2099AR at %02x\n", ci->cfg.adr);
+	dev_info(&i2c->dev, "Attached CXD2099AR at 0x%02x\n", ci->cfg.adr);
 
 	if (!buffermode) {
 		ci->en.read_data = NULL;
@@ -708,6 +700,6 @@ struct dvb_ca_en50221 *cxd2099_attach(struct cxd2099_cfg *cfg,
 }
 EXPORT_SYMBOL(cxd2099_attach);
 
-MODULE_DESCRIPTION("cxd2099");
+MODULE_DESCRIPTION("CXD2099AR Common Interface controller driver");
 MODULE_AUTHOR("Ralph Metzler");
 MODULE_LICENSE("GPL");

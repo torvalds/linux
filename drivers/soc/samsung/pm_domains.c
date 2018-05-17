@@ -1,17 +1,13 @@
-/*
- * Exynos Generic power domain support.
- *
- * Copyright (c) 2012 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com
- *
- * Implementation of Exynos specific power domain control which is used in
- * conjunction with runtime-pm. Support for both device-tree and non-device-tree
- * based power domain support is included.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Exynos Generic power domain support.
+//
+// Copyright (c) 2012 Samsung Electronics Co., Ltd.
+//		http://www.samsung.com
+//
+// Implementation of Exynos specific power domain control which is used in
+// conjunction with runtime-pm. Support for both device-tree and non-device-tree
+// based power domain support is included.
 
 #include <linux/io.h>
 #include <linux/err.h>

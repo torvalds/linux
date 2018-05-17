@@ -4,6 +4,9 @@
 #include <dirent.h>
 #include <errno.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <sys/param.h>
 #include "term.h"
 #include "../perf.h"

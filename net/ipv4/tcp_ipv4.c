@@ -705,7 +705,8 @@ static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb)
 	 */
 	if (sk) {
 		arg.bound_dev_if = sk->sk_bound_dev_if;
-		trace_tcp_send_reset(sk, skb);
+		if (sk_fullsock(sk))
+			trace_tcp_send_reset(sk, skb);
 	}
 
 	BUILD_BUG_ON(offsetof(struct sock, sk_bound_dev_if) !=
@@ -1911,7 +1912,7 @@ void tcp_v4_destroy_sock(struct sock *sk)
 	/* Clean up the MD5 key list, if any */
 	if (tp->md5sig_info) {
 		tcp_clear_md5_list(sk);
-		kfree_rcu(tp->md5sig_info, rcu);
+		kfree_rcu(rcu_dereference_protected(tp->md5sig_info, 1), rcu);
 		tp->md5sig_info = NULL;
 	}
 #endif
@@ -2281,7 +2282,7 @@ static void get_tcp4_sock(struct sock *sk, struct seq_file *f, int i)
 		timer_expires = jiffies;
 	}
 
-	state = sk_state_load(sk);
+	state = inet_sk_state_load(sk);
 	if (state == TCP_LISTEN)
 		rx_queue = sk->sk_ack_backlog;
 	else
@@ -2358,7 +2359,6 @@ out:
 }
 
 static const struct file_operations tcp_afinfo_seq_fops = {
-	.owner   = THIS_MODULE,
 	.open    = tcp_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,

@@ -764,7 +764,7 @@ out_unlock:
 }
 
 
-static unsigned int viacam_poll(struct file *filp, struct poll_table_struct *pt)
+static __poll_t viacam_poll(struct file *filp, struct poll_table_struct *pt)
 {
 	struct via_camera *cam = video_drvdata(filp);
 

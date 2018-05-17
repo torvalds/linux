@@ -95,12 +95,7 @@ int intel_gvt_init(struct drm_i915_private *dev_priv)
 		return 0;
 	}
 
-	if (!i915_modparams.enable_execlists) {
-		DRM_ERROR("i915 GVT-g loading failed due to disabled execlists mode\n");
-		return -EIO;
-	}
-
-	if (i915_modparams.enable_guc_submission) {
+	if (USES_GUC_SUBMISSION(dev_priv)) {
 		DRM_ERROR("i915 GVT-g loading failed due to Graphics virtualization is not yet supported with GuC submission\n");
 		return -EIO;
 	}

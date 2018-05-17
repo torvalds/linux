@@ -26,6 +26,7 @@
 #include <media/tuner.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/kernel.h>
 
 #include "cxusb.h"
 
@@ -56,7 +57,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 #define deb_i2c(args...)    dprintk(dvb_usb_cxusb_debug, 0x02, args)
 
 static int cxusb_ctrl_msg(struct dvb_usb_device *d,
-			  u8 cmd, u8 *wbuf, int wlen, u8 *rbuf, int rlen)
+			  u8 cmd, const u8 *wbuf, int wlen, u8 *rbuf, int rlen)
 {
 	struct cxusb_state *st = d->priv;
 	int ret;
@@ -290,7 +291,8 @@ static int cxusb_aver_power_ctrl(struct dvb_usb_device *d, int onoff)
 		/* FIXME: We don't know why, but we need to configure the
 		 * lgdt3303 with the register settings below on resume */
 		int i;
-		u8 buf, bufs[] = {
+		u8 buf;
+		static const u8 bufs[] = {
 			0x0e, 0x2, 0x00, 0x7f,
 			0x0e, 0x2, 0x02, 0xfe,
 			0x0e, 0x2, 0x02, 0x01,
@@ -303,7 +305,7 @@ static int cxusb_aver_power_ctrl(struct dvb_usb_device *d, int onoff)
 			0x0e, 0x2, 0x47, 0x88,
 		};
 		msleep(20);
-		for (i = 0; i < sizeof(bufs)/sizeof(u8); i += 4/sizeof(u8)) {
+		for (i = 0; i < ARRAY_SIZE(bufs); i += 4 / sizeof(u8)) {
 			ret = cxusb_ctrl_msg(d, CMD_I2C_WRITE,
 					     bufs+i, 4, &buf, 1);
 			if (ret)
@@ -676,6 +678,8 @@ static int dvico_bluebird_xc2028_callback(void *ptr, int component,
 		break;
 	case XC2028_RESET_CLK:
 		deb_info("%s: XC2028_RESET_CLK %d\n", __func__, arg);
+		break;
+	case XC2028_I2C_FLUSH:
 		break;
 	default:
 		deb_info("%s: unknown command %d, arg %d\n", __func__,

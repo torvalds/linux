@@ -1931,7 +1931,6 @@ static int ax25_info_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations ax25_info_fops = {
-	.owner = THIS_MODULE,
 	.open = ax25_info_open,
 	.read = seq_read,
 	.llseek = seq_lseek,

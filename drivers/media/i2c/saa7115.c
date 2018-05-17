@@ -1,37 +1,27 @@
-/* saa711x - Philips SAA711x video decoder driver
- * This driver can work with saa7111, saa7111a, saa7113, saa7114,
- *			     saa7115 and saa7118.
- *
- * Based on saa7114 driver by Maxim Yevtyushkin, which is based on
- * the saa7111 driver by Dave Perks.
- *
- * Copyright (C) 1998 Dave Perks <dperks@ibm.net>
- * Copyright (C) 2002 Maxim Yevtyushkin <max@linuxmedialabs.com>
- *
- * Slight changes for video timing and attachment output by
- * Wolfgang Scherr <scherr@net4you.net>
- *
- * Moved over to the linux >= 2.4.x i2c protocol (1/1/2003)
- * by Ronald Bultje <rbultje@ronald.bitfreak.net>
- *
- * Added saa7115 support by Kevin Thayer <nufan_wfk at yahoo.com>
- * (2/17/2003)
- *
- * VBI support (2004) and cleanups (2005) by Hans Verkuil <hverkuil@xs4all.nl>
- *
- * Copyright (c) 2005-2006 Mauro Carvalho Chehab <mchehab@infradead.org>
- *	SAA7111, SAA7113 and SAA7118 support
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// saa711x - Philips SAA711x video decoder driver
+// This driver can work with saa7111, saa7111a, saa7113, saa7114,
+//			     saa7115 and saa7118.
+//
+// Based on saa7114 driver by Maxim Yevtyushkin, which is based on
+// the saa7111 driver by Dave Perks.
+//
+// Copyright (C) 1998 Dave Perks <dperks@ibm.net>
+// Copyright (C) 2002 Maxim Yevtyushkin <max@linuxmedialabs.com>
+//
+// Slight changes for video timing and attachment output by
+// Wolfgang Scherr <scherr@net4you.net>
+//
+// Moved over to the linux >= 2.4.x i2c protocol (1/1/2003)
+// by Ronald Bultje <rbultje@ronald.bitfreak.net>
+//
+// Added saa7115 support by Kevin Thayer <nufan_wfk at yahoo.com>
+// (2/17/2003)
+//
+// VBI support (2004) and cleanups (2005) by Hans Verkuil <hverkuil@xs4all.nl>
+//
+// Copyright (c) 2005-2006 Mauro Carvalho Chehab <mchehab@infradead.org>
+//	SAA7111, SAA7113 and SAA7118 support
 
 #include "saa711x_regs.h"
 
@@ -758,7 +748,7 @@ static int saa711x_s_clock_freq(struct v4l2_subdev *sd, u32 freq)
 	u32 acni;
 	u32 hz;
 	u64 f;
-	u8 acc = 0; 	/* reg 0x3a, audio clock control */
+	u8 acc = 0;	/* reg 0x3a, audio clock control */
 
 	/* Checks for chips that don't have audio clock (saa7111, saa7113) */
 	if (!saa711x_has_reg(state->ident, R_30_AUD_MAST_CLK_CYCLES_PER_FIELD))

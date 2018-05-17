@@ -73,7 +73,7 @@ struct pwl_result_data {
 
 struct pwl_params {
 	struct gamma_curve arr_curve_points[34];
-	struct curve_points arr_points[3];
+	struct curve_points arr_points[2];
 	struct pwl_result_data rgb_resulted[256 + 3];
 	uint32_t hw_points_num;
 };
@@ -126,16 +126,69 @@ struct default_adjustment {
 	bool force_hw_default;
 };
 
+
 struct out_csc_color_matrix {
 	enum dc_color_space color_space;
 	uint16_t regval[12];
 };
+
 
 enum opp_regamma {
 	OPP_REGAMMA_BYPASS = 0,
 	OPP_REGAMMA_SRGB,
 	OPP_REGAMMA_3_6,
 	OPP_REGAMMA_USER
+};
+
+struct csc_transform {
+	uint16_t matrix[12];
+	bool enable_adjustment;
+};
+
+struct dc_bias_and_scale {
+	uint16_t scale_red;
+	uint16_t bias_red;
+	uint16_t scale_green;
+	uint16_t bias_green;
+	uint16_t scale_blue;
+	uint16_t bias_blue;
+};
+
+enum test_pattern_dyn_range {
+	TEST_PATTERN_DYN_RANGE_VESA = 0,
+	TEST_PATTERN_DYN_RANGE_CEA
+};
+
+enum test_pattern_mode {
+	TEST_PATTERN_MODE_COLORSQUARES_RGB = 0,
+	TEST_PATTERN_MODE_COLORSQUARES_YCBCR601,
+	TEST_PATTERN_MODE_COLORSQUARES_YCBCR709,
+	TEST_PATTERN_MODE_VERTICALBARS,
+	TEST_PATTERN_MODE_HORIZONTALBARS,
+	TEST_PATTERN_MODE_SINGLERAMP_RGB,
+	TEST_PATTERN_MODE_DUALRAMP_RGB
+};
+
+enum test_pattern_color_format {
+	TEST_PATTERN_COLOR_FORMAT_BPC_6 = 0,
+	TEST_PATTERN_COLOR_FORMAT_BPC_8,
+	TEST_PATTERN_COLOR_FORMAT_BPC_10,
+	TEST_PATTERN_COLOR_FORMAT_BPC_12
+};
+
+enum controller_dp_test_pattern {
+	CONTROLLER_DP_TEST_PATTERN_D102 = 0,
+	CONTROLLER_DP_TEST_PATTERN_SYMBOLERROR,
+	CONTROLLER_DP_TEST_PATTERN_PRBS7,
+	CONTROLLER_DP_TEST_PATTERN_COLORSQUARES,
+	CONTROLLER_DP_TEST_PATTERN_VERTICALBARS,
+	CONTROLLER_DP_TEST_PATTERN_HORIZONTALBARS,
+	CONTROLLER_DP_TEST_PATTERN_COLORRAMP,
+	CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
+	CONTROLLER_DP_TEST_PATTERN_RESERVED_8,
+	CONTROLLER_DP_TEST_PATTERN_RESERVED_9,
+	CONTROLLER_DP_TEST_PATTERN_RESERVED_A,
+	CONTROLLER_DP_TEST_PATTERN_COLORSQUARES_CEA
 };
 
 #endif /* __DAL_HW_SHARED_H__ */

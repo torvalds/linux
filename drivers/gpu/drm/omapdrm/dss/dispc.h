@@ -1,9 +1,6 @@
 /*
- * linux/drivers/video/omap2/dss/dispc.h
- *
- * Copyright (C) 2011 Texas Instruments
+ * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Archit Taneja <archit@ti.com>
- *
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published by

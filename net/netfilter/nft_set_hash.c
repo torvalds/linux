@@ -251,11 +251,7 @@ static void nft_rhash_walk(const struct nft_ctx *ctx, struct nft_set *set,
 	if (err)
 		return;
 
-	err = rhashtable_walk_start(&hti);
-	if (err && err != -EAGAIN) {
-		iter->err = err;
-		goto out;
-	}
+	rhashtable_walk_start(&hti);
 
 	while ((he = rhashtable_walk_next(&hti))) {
 		if (IS_ERR(he)) {
@@ -306,9 +302,7 @@ static void nft_rhash_gc(struct work_struct *work)
 	if (err)
 		goto schedule;
 
-	err = rhashtable_walk_start(&hti);
-	if (err && err != -EAGAIN)
-		goto out;
+	rhashtable_walk_start(&hti);
 
 	while ((he = rhashtable_walk_next(&hti))) {
 		if (IS_ERR(he)) {
@@ -680,7 +674,7 @@ static const struct nft_set_ops *
 nft_hash_select_ops(const struct nft_ctx *ctx, const struct nft_set_desc *desc,
 		    u32 flags)
 {
-	if (desc->size) {
+	if (desc->size && !(flags & (NFT_SET_EVAL | NFT_SET_TIMEOUT))) {
 		switch (desc->klen) {
 		case 4:
 			return &nft_hash_fast_ops;

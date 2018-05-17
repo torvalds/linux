@@ -244,16 +244,11 @@ struct qed_fcoe_pf_params {
 /* Most of the the parameters below are described in the FW iSCSI / TCP HSI */
 struct qed_iscsi_pf_params {
 	u64 glbl_q_params_addr;
-	u64 bdq_pbl_base_addr[2];
-	u32 max_cwnd;
+	u64 bdq_pbl_base_addr[3];
 	u16 cq_num_entries;
 	u16 cmdq_num_entries;
 	u32 two_msl_timer;
-	u16 dup_ack_threshold;
 	u16 tx_sws_timer;
-	u16 min_rto;
-	u16 min_rto_rt;
-	u16 max_rto;
 
 	/* The following parameters are used during HW-init
 	 * and these parameters need to be passed as arguments
@@ -264,8 +259,8 @@ struct qed_iscsi_pf_params {
 
 	/* The following parameters are used during protocol-init */
 	u16 half_way_close_timeout;
-	u16 bdq_xoff_threshold[2];
-	u16 bdq_xon_threshold[2];
+	u16 bdq_xoff_threshold[3];
+	u16 bdq_xon_threshold[3];
 	u16 cmdq_xoff_threshold;
 	u16 cmdq_xon_threshold;
 	u16 rq_buffer_size;
@@ -281,10 +276,11 @@ struct qed_iscsi_pf_params {
 	u8 gl_cmd_pi;
 	u8 debug_mode;
 	u8 ll2_ooo_queue_id;
-	u8 ooo_enable;
 
 	u8 is_target;
-	u8 bdq_pbl_num_entries[2];
+	u8 is_soc_en;
+	u8 soc_num_of_blocks_log;
+	u8 bdq_pbl_num_entries[3];
 };
 
 struct qed_rdma_pf_params {
@@ -316,16 +312,16 @@ enum qed_int_mode {
 };
 
 struct qed_sb_info {
-	struct status_block	*sb_virt;
-	dma_addr_t		sb_phys;
-	u32			sb_ack; /* Last given ack */
-	u16			igu_sb_id;
-	void __iomem		*igu_addr;
-	u8			flags;
-#define QED_SB_INFO_INIT        0x1
-#define QED_SB_INFO_SETUP       0x2
+	struct status_block_e4 *sb_virt;
+	dma_addr_t sb_phys;
+	u32 sb_ack; /* Last given ack */
+	u16 igu_sb_id;
+	void __iomem *igu_addr;
+	u8 flags;
+#define QED_SB_INFO_INIT	0x1
+#define QED_SB_INFO_SETUP	0x2
 
-	struct qed_dev		*cdev;
+	struct qed_dev *cdev;
 };
 
 enum qed_dev_type {
@@ -939,7 +935,7 @@ static inline u16 qed_sb_update_sb_idx(struct qed_sb_info *sb_info)
 	u16 rc = 0;
 
 	prod = le32_to_cpu(sb_info->sb_virt->prod_index) &
-	       STATUS_BLOCK_PROD_INDEX_MASK;
+	       STATUS_BLOCK_E4_PROD_INDEX_MASK;
 	if (sb_info->sb_ack != prod) {
 		sb_info->sb_ack = prod;
 		rc |= QED_SB_IDX;

@@ -79,7 +79,6 @@ int hfi1_make_uc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		if (!(ib_rvt_state_ops[qp->state] & RVT_FLUSH_SEND))
 			goto bail;
 		/* We are in the error state, flush the work request. */
-		smp_read_barrier_depends(); /* see post_one_send() */
 		if (qp->s_last == READ_ONCE(qp->s_head))
 			goto bail;
 		/* If DMAs are in progress, we can't flush immediately. */
@@ -119,7 +118,6 @@ int hfi1_make_uc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		    RVT_PROCESS_NEXT_SEND_OK))
 			goto bail;
 		/* Check if send work queue is empty. */
-		smp_read_barrier_depends(); /* see post_one_send() */
 		if (qp->s_cur == READ_ONCE(qp->s_head)) {
 			clear_ahg(qp);
 			goto bail;
@@ -146,7 +144,6 @@ int hfi1_make_uc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 							: IB_WC_SUCCESS);
 			if (local_ops)
 				atomic_dec(&qp->local_ops_pending);
-			qp->s_hdrwords = 0;
 			goto done_free_tx;
 		}
 		/*
@@ -269,14 +266,12 @@ int hfi1_make_uc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		break;
 	}
 	qp->s_len -= len;
-	qp->s_hdrwords = hwords;
+	ps->s_txreq->hdr_dwords = hwords;
 	ps->s_txreq->sde = priv->s_sde;
 	ps->s_txreq->ss = &qp->s_sge;
 	ps->s_txreq->s_cur_size = len;
 	hfi1_make_ruc_header(qp, ohdr, bth0 | (qp->s_state << 24),
 			     mask_psn(qp->s_psn++), middle, ps);
-	/* pbc */
-	ps->s_txreq->hdr_dwords = qp->s_hdrwords + 2;
 	return 1;
 
 done_free_tx:
@@ -290,7 +285,6 @@ bail:
 bail_no_tx:
 	ps->s_txreq = NULL;
 	qp->s_flags &= ~RVT_S_BUSY;
-	qp->s_hdrwords = 0;
 	return 0;
 }
 
@@ -482,8 +476,7 @@ last_imm:
 		wc.port_num = 0;
 		/* Signal completion event if the solicited bit is set. */
 		rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc,
-			     (ohdr->bth[0] &
-			      cpu_to_be32(IB_BTH_SOLICITED)) != 0);
+			     ib_bth_is_solicited(ohdr));
 		break;
 
 	case OP(RDMA_WRITE_FIRST):

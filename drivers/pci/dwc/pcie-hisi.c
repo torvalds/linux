@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * PCIe host controller driver for HiSilicon SoCs
  *
@@ -6,10 +7,6 @@
  * Authors: Zhou Wang <wangzhou1@hisilicon.com>
  *          Dacai Zhu <zhudacai@hisilicon.com>
  *          Gabriele Paoloni <gabriele.paoloni@huawei.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/interrupt.h>
 #include <linux/init.h>

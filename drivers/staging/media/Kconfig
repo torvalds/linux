@@ -1,19 +1,19 @@
 menuconfig STAGING_MEDIA
-        bool "Media staging drivers"
-        default n
-        ---help---
-          This option allows you to select a number of media drivers that
+	bool "Media staging drivers"
+	default n
+	---help---
+	  This option allows you to select a number of media drivers that
 	  don't have the "normal" Linux kernel quality level.
 	  Most of them don't follow properly the V4L, DVB and/or RC API's,
 	  so, they won't likely work fine with the existing applications.
 	  That also means that, once fixed, their API's will change to match
 	  the existing ones.
 
-          If you wish to work on these drivers, to help improve them, or
-          to report problems you have with them, please use the
+	  If you wish to work on these drivers, to help improve them, or
+	  to report problems you have with them, please use the
 	  linux-media@vger.kernel.org mailing list.
 
-          If in doubt, say N here.
+	  If in doubt, say N here.
 
 
 if STAGING_MEDIA && MEDIA_SUPPORT
@@ -31,7 +31,6 @@ source "drivers/staging/media/imx/Kconfig"
 
 source "drivers/staging/media/omap4iss/Kconfig"
 
-# Keep LIRC at the end, as it has sub-menus
-source "drivers/staging/media/lirc/Kconfig"
+source "drivers/staging/media/tegra-vde/Kconfig"
 
 endif

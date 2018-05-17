@@ -38,6 +38,7 @@
 #include <linux/module.h>
 #include <linux/exportfs.h>
 #include <linux/slab.h>
+#include <linux/iversion.h>
 
 #include "exofs.h"
 
@@ -159,7 +160,7 @@ static struct inode *exofs_alloc_inode(struct super_block *sb)
 	if (!oi)
 		return NULL;
 
-	oi->vfs_inode.i_version = 1;
+	inode_set_iversion(&oi->vfs_inode, 1);
 	return &oi->vfs_inode;
 }
 
@@ -192,10 +193,13 @@ static void exofs_init_once(void *foo)
  */
 static int init_inodecache(void)
 {
-	exofs_inode_cachep = kmem_cache_create("exofs_inode_cache",
+	exofs_inode_cachep = kmem_cache_create_usercopy("exofs_inode_cache",
 				sizeof(struct exofs_i_info), 0,
 				SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD |
-				SLAB_ACCOUNT, exofs_init_once);
+				SLAB_ACCOUNT,
+				offsetof(struct exofs_i_info, i_data),
+				sizeof_field(struct exofs_i_info, i_data),
+				exofs_init_once);
 	if (exofs_inode_cachep == NULL)
 		return -ENOMEM;
 	return 0;

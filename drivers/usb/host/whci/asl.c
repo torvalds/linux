@@ -90,9 +90,7 @@ static uint32_t process_qset(struct whc *whc, struct whc_qset *qset)
 
 	while (qset->ntds) {
 		struct whc_qtd *td;
-		int t;
 
-		t = qset->td_start;
 		td = &qset->qtd[qset->td_start];
 		status = le32_to_cpu(td->status);
 

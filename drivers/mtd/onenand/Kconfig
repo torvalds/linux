@@ -4,8 +4,7 @@ menuconfig MTD_ONENAND
 	depends on HAS_IOMEM
 	help
 	  This enables support for accessing all type of OneNAND flash
-	  devices. For further information see
-	  <http://www.samsung.com/Products/Semiconductor/OneNAND/index.htm>
+	  devices.
 
 if MTD_ONENAND
 
@@ -26,9 +25,11 @@ config MTD_ONENAND_GENERIC
 config MTD_ONENAND_OMAP2
 	tristate "OneNAND on OMAP2/OMAP3 support"
 	depends on ARCH_OMAP2 || ARCH_OMAP3
+	depends on OF || COMPILE_TEST
 	help
-	  Support for a OneNAND flash device connected to an OMAP2/OMAP3 CPU
+	  Support for a OneNAND flash device connected to an OMAP2/OMAP3 SoC
 	  via the GPMC memory controller.
+	  Enable dmaengine and gpiolib for better performance.
 
 config MTD_ONENAND_SAMSUNG
         tristate "OneNAND on Samsung SOC controller support"

@@ -58,7 +58,7 @@
 &gpio {
 	xirq4 {
 		gpio-hog;
-		gpios = <124 0>;
+		gpios = <UNIPHIER_GPIO_IRQ(4) 0>;
 		input;
 	};
 };

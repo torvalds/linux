@@ -105,6 +105,7 @@ config ARCH_MESON
 	select PINCTRL_MESON
 	select COMMON_CLK_AMLOGIC
 	select COMMON_CLK_GXBB
+	select COMMON_CLK_AXG
 	select MESON_IRQ_GPIO
 	help
 	  This enables support for the Amlogic S905 SoCs.

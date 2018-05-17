@@ -27,12 +27,29 @@
 
 #include "dm_services_types.h"
 
+enum dmcu_state {
+	DMCU_NOT_INITIALIZED = 0,
+	DMCU_RUNNING = 1
+};
+
+struct dmcu_version {
+	unsigned int day;
+	unsigned int month;
+	unsigned int year;
+	unsigned int interface_version;
+};
+
 struct dmcu {
 	struct dc_context *ctx;
 	const struct dmcu_funcs *funcs;
+
+	enum dmcu_state dmcu_state;
+	struct dmcu_version dmcu_version;
+	unsigned int cached_wait_loop_number;
 };
 
 struct dmcu_funcs {
+	bool (*dmcu_init)(struct dmcu *dmcu);
 	bool (*load_iram)(struct dmcu *dmcu,
 			unsigned int start_offset,
 			const char *src,
@@ -44,7 +61,9 @@ struct dmcu_funcs {
 	void (*get_psr_state)(struct dmcu *dmcu, uint32_t *psr_state);
 	void (*set_psr_wait_loop)(struct dmcu *dmcu,
 			unsigned int wait_loop_number);
-	void (*get_psr_wait_loop)(unsigned int *psr_wait_loop_number);
+	void (*get_psr_wait_loop)(struct dmcu *dmcu,
+			unsigned int *psr_wait_loop_number);
+	bool (*is_dmcu_initialized)(struct dmcu *dmcu);
 };
 
 #endif

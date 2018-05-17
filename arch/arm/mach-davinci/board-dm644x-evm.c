@@ -13,6 +13,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/i2c.h>
 #include <linux/platform_data/pcf857x.h>
 #include <linux/platform_data/at24.h>
@@ -595,18 +596,28 @@ static struct i2c_board_info __initdata i2c_info[] =  {
 	},
 };
 
+static struct gpiod_lookup_table i2c_recovery_gpiod_table = {
+	.dev_id = "i2c_davinci",
+	.table = {
+		GPIO_LOOKUP("davinci_gpio", 44, "sda",
+			    GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+		GPIO_LOOKUP("davinci_gpio", 43, "scl",
+			    GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+	},
+};
+
 /* The msp430 uses a slow bitbanged I2C implementation (ergo 20 KHz),
  * which requires 100 usec of idle bus after i2c writes sent to it.
  */
 static struct davinci_i2c_platform_data i2c_pdata = {
 	.bus_freq	= 20 /* kHz */,
 	.bus_delay	= 100 /* usec */,
-	.sda_pin        = 44,
-	.scl_pin        = 43,
+	.gpio_recovery	= true,
 };
 
 static void __init evm_init_i2c(void)
 {
+	gpiod_add_lookup_table(&i2c_recovery_gpiod_table);
 	davinci_init_i2c(&i2c_pdata);
 	i2c_add_driver(&dm6446evm_msp_driver);
 	i2c_register_board_info(1, i2c_info, ARRAY_SIZE(i2c_info));

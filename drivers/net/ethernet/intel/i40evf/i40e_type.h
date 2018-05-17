@@ -361,6 +361,7 @@ enum i40e_nvmupd_cmd {
 	I40E_NVMUPD_STATUS,
 	I40E_NVMUPD_EXEC_AQ,
 	I40E_NVMUPD_GET_AQ_RESULT,
+	I40E_NVMUPD_GET_AQ_EVENT,
 };
 
 enum i40e_nvmupd_state {
@@ -380,15 +381,21 @@ enum i40e_nvmupd_state {
 
 #define I40E_NVM_MOD_PNT_MASK 0xFF
 
-#define I40E_NVM_TRANS_SHIFT	8
-#define I40E_NVM_TRANS_MASK	(0xf << I40E_NVM_TRANS_SHIFT)
-#define I40E_NVM_CON		0x0
-#define I40E_NVM_SNT		0x1
-#define I40E_NVM_LCB		0x2
-#define I40E_NVM_SA		(I40E_NVM_SNT | I40E_NVM_LCB)
-#define I40E_NVM_ERA		0x4
-#define I40E_NVM_CSUM		0x8
-#define I40E_NVM_EXEC		0xf
+#define I40E_NVM_TRANS_SHIFT			8
+#define I40E_NVM_TRANS_MASK			(0xf << I40E_NVM_TRANS_SHIFT)
+#define I40E_NVM_PRESERVATION_FLAGS_SHIFT	12
+#define I40E_NVM_PRESERVATION_FLAGS_MASK \
+				(0x3 << I40E_NVM_PRESERVATION_FLAGS_SHIFT)
+#define I40E_NVM_PRESERVATION_FLAGS_SELECTED	0x01
+#define I40E_NVM_PRESERVATION_FLAGS_ALL		0x02
+#define I40E_NVM_CON				0x0
+#define I40E_NVM_SNT				0x1
+#define I40E_NVM_LCB				0x2
+#define I40E_NVM_SA				(I40E_NVM_SNT | I40E_NVM_LCB)
+#define I40E_NVM_ERA				0x4
+#define I40E_NVM_CSUM				0x8
+#define I40E_NVM_AQE				0xe
+#define I40E_NVM_EXEC				0xf
 
 #define I40E_NVM_ADAPT_SHIFT	16
 #define I40E_NVM_ADAPT_MASK	(0xffff << I40E_NVM_ADAPT_SHIFT)
@@ -561,6 +568,7 @@ struct i40e_hw {
 	/* state of nvm update process */
 	enum i40e_nvmupd_state nvmupd_state;
 	struct i40e_aq_desc nvm_wb_desc;
+	struct i40e_aq_desc nvm_aq_event_desc;
 	struct i40e_virt_mem nvm_buff;
 	bool nvm_release_on_done;
 	u16 nvm_wait_opcode;
@@ -1422,19 +1430,19 @@ enum i40e_reset_type {
 #define I40E_FD_INSET_FLEX_WORD57_MASK		(0x1ULL << \
 					I40E_FD_INSET_FLEX_WORD57_SHIFT)
 
-/* Version format for PPP */
-struct i40e_ppp_version {
+/* Version format for Dynamic Device Personalization(DDP) */
+struct i40e_ddp_version {
 	u8 major;
 	u8 minor;
 	u8 update;
 	u8 draft;
 };
 
-#define I40E_PPP_NAME_SIZE	32
+#define I40E_DDP_NAME_SIZE	32
 
 /* Package header */
 struct i40e_package_header {
-	struct i40e_ppp_version version;
+	struct i40e_ddp_version version;
 	u32 segment_count;
 	u32 segment_offset[1];
 };
@@ -1446,16 +1454,16 @@ struct i40e_generic_seg_header {
 #define SEGMENT_TYPE_I40E	0x00000011
 #define SEGMENT_TYPE_X722	0x00000012
 	u32 type;
-	struct i40e_ppp_version version;
+	struct i40e_ddp_version version;
 	u32 size;
-	char name[I40E_PPP_NAME_SIZE];
+	char name[I40E_DDP_NAME_SIZE];
 };
 
 struct i40e_metadata_segment {
 	struct i40e_generic_seg_header header;
-	struct i40e_ppp_version version;
+	struct i40e_ddp_version version;
 	u32 track_id;
-	char name[I40E_PPP_NAME_SIZE];
+	char name[I40E_DDP_NAME_SIZE];
 };
 
 struct i40e_device_id_entry {
@@ -1465,8 +1473,8 @@ struct i40e_device_id_entry {
 
 struct i40e_profile_segment {
 	struct i40e_generic_seg_header header;
-	struct i40e_ppp_version version;
-	char name[I40E_PPP_NAME_SIZE];
+	struct i40e_ddp_version version;
+	char name[I40E_DDP_NAME_SIZE];
 	u32 device_table_count;
 	struct i40e_device_id_entry device_table[1];
 };
@@ -1493,11 +1501,11 @@ struct i40e_profile_section_header {
 
 struct i40e_profile_info {
 	u32 track_id;
-	struct i40e_ppp_version version;
+	struct i40e_ddp_version version;
 	u8 op;
-#define I40E_PPP_ADD_TRACKID		0x01
-#define I40E_PPP_REMOVE_TRACKID	0x02
+#define I40E_DDP_ADD_TRACKID		0x01
+#define I40E_DDP_REMOVE_TRACKID	0x02
 	u8 reserved[7];
-	u8 name[I40E_PPP_NAME_SIZE];
+	u8 name[I40E_DDP_NAME_SIZE];
 };
 #endif /* _I40E_TYPE_H_ */

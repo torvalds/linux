@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
- * Copyright (c) 2011-2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -29,6 +29,7 @@
 #include "p2p.h"
 #include "hw.h"
 #include "hif.h"
+#include "txrx.h"
 
 #define ATH10K_WMI_BARRIER_ECHO_ID 0xBA991E9
 #define ATH10K_WMI_BARRIER_TIMEOUT_HZ (3 * HZ)
@@ -4456,6 +4457,74 @@ void ath10k_wmi_event_pdev_tpc_config(struct ath10k *ar, struct sk_buff *skb)
 		   __le32_to_cpu(ev->rate_max));
 }
 
+static void
+ath10k_wmi_handle_tdls_peer_event(struct ath10k *ar, struct sk_buff *skb)
+{
+	struct wmi_tdls_peer_event *ev;
+	struct ath10k_peer *peer;
+	struct ath10k_vif *arvif;
+	int vdev_id;
+	int peer_status;
+	int peer_reason;
+	u8 reason;
+
+	if (skb->len < sizeof(*ev)) {
+		ath10k_err(ar, "received tdls peer event with invalid size (%d bytes)\n",
+			   skb->len);
+		return;
+	}
+
+	ev = (struct wmi_tdls_peer_event *)skb->data;
+	vdev_id = __le32_to_cpu(ev->vdev_id);
+	peer_status = __le32_to_cpu(ev->peer_status);
+	peer_reason = __le32_to_cpu(ev->peer_reason);
+
+	spin_lock_bh(&ar->data_lock);
+	peer = ath10k_peer_find(ar, vdev_id, ev->peer_macaddr.addr);
+	spin_unlock_bh(&ar->data_lock);
+
+	if (!peer) {
+		ath10k_warn(ar, "failed to find peer entry for %pM\n",
+			    ev->peer_macaddr.addr);
+		return;
+	}
+
+	switch (peer_status) {
+	case WMI_TDLS_SHOULD_TEARDOWN:
+		switch (peer_reason) {
+		case WMI_TDLS_TEARDOWN_REASON_PTR_TIMEOUT:
+		case WMI_TDLS_TEARDOWN_REASON_NO_RESPONSE:
+		case WMI_TDLS_TEARDOWN_REASON_RSSI:
+			reason = WLAN_REASON_TDLS_TEARDOWN_UNREACHABLE;
+			break;
+		default:
+			reason = WLAN_REASON_TDLS_TEARDOWN_UNSPECIFIED;
+			break;
+		}
+
+		arvif = ath10k_get_arvif(ar, vdev_id);
+		if (!arvif) {
+			ath10k_warn(ar, "received tdls peer event for invalid vdev id %u\n",
+				    vdev_id);
+			return;
+		}
+
+		ieee80211_tdls_oper_request(arvif->vif, ev->peer_macaddr.addr,
+					    NL80211_TDLS_TEARDOWN, reason,
+					    GFP_ATOMIC);
+
+		ath10k_dbg(ar, ATH10K_DBG_WMI,
+			   "received tdls teardown event for peer %pM reason %u\n",
+			   ev->peer_macaddr.addr, peer_reason);
+		break;
+	default:
+		ath10k_dbg(ar, ATH10K_DBG_WMI,
+			   "received unknown tdls peer event %u\n",
+			   peer_status);
+		break;
+	}
+}
+
 void ath10k_wmi_event_pdev_ftm_intg(struct ath10k *ar, struct sk_buff *skb)
 {
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "WMI_PDEV_FTM_INTG_EVENTID\n");
@@ -5476,6 +5545,9 @@ static void ath10k_wmi_10_4_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_10_4_PDEV_TPC_CONFIG_EVENTID:
 		ath10k_wmi_event_pdev_tpc_config(ar, skb);
+		break;
+	case WMI_10_4_TDLS_PEER_EVENTID:
+		ath10k_wmi_handle_tdls_peer_event(ar, skb);
 		break;
 	default:
 		ath10k_warn(ar, "Unknown eventid: %d\n", id);

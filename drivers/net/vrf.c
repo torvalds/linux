@@ -578,12 +578,13 @@ static int vrf_finish_output(struct net *net, struct sock *sk, struct sk_buff *s
 	if (!IS_ERR(neigh)) {
 		sock_confirm_neigh(skb, neigh);
 		ret = neigh_output(neigh, skb);
+		rcu_read_unlock_bh();
+		return ret;
 	}
 
 	rcu_read_unlock_bh();
 err:
-	if (unlikely(ret < 0))
-		vrf_tx_error(skb->dev, skb);
+	vrf_tx_error(skb->dev, skb);
 	return ret;
 }
 

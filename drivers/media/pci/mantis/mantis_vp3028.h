@@ -21,7 +21,7 @@
 #ifndef __MANTIS_VP3028_H
 #define __MANTIS_VP3028_H
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "mantis_common.h"
 #include "zl10353.h"
 

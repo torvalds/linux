@@ -338,8 +338,8 @@ static int svc_recvfrom(struct svc_rqst *rqstp, struct kvec *iov, int nr,
 	rqstp->rq_xprt_hlen = 0;
 
 	clear_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
-	len = kernel_recvmsg(svsk->sk_sock, &msg, iov, nr, buflen,
-				msg.msg_flags);
+	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, iov, nr, buflen);
+	len = sock_recvmsg(svsk->sk_sock, &msg, msg.msg_flags);
 	/* If we read a full record, then assume there may be more
 	 * data to read (stream based sockets only!)
 	 */
@@ -384,25 +384,11 @@ static int svc_partial_recvfrom(struct svc_rqst *rqstp,
 static void svc_sock_setbufsize(struct socket *sock, unsigned int snd,
 				unsigned int rcv)
 {
-#if 0
-	mm_segment_t	oldfs;
-	oldfs = get_fs(); set_fs(KERNEL_DS);
-	sock_setsockopt(sock, SOL_SOCKET, SO_SNDBUF,
-			(char*)&snd, sizeof(snd));
-	sock_setsockopt(sock, SOL_SOCKET, SO_RCVBUF,
-			(char*)&rcv, sizeof(rcv));
-#else
-	/* sock_setsockopt limits use to sysctl_?mem_max,
-	 * which isn't acceptable.  Until that is made conditional
-	 * on not having CAP_SYS_RESOURCE or similar, we go direct...
-	 * DaveM said I could!
-	 */
 	lock_sock(sock->sk);
 	sock->sk->sk_sndbuf = snd * 2;
 	sock->sk->sk_rcvbuf = rcv * 2;
 	sock->sk->sk_write_space(sock->sk);
 	release_sock(sock->sk);
-#endif
 }
 
 static int svc_sock_secure_port(struct svc_rqst *rqstp)

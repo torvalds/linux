@@ -86,8 +86,7 @@ MODULE_ALIAS_FS("lustre");
 static int __init lustre_init(void)
 {
 	struct lnet_process_id lnet_id;
-	struct timespec64 ts;
-	int i, rc, seed[2];
+	int i, rc;
 
 	BUILD_BUG_ON(sizeof(LUSTRE_VOLATILE_HDR) !=
 		     LUSTRE_VOLATILE_HDR_LEN + 1);
@@ -126,21 +125,19 @@ static int __init lustre_init(void)
 		goto out_debugfs;
 	}
 
-	cfs_get_random_bytes(seed, sizeof(seed));
-
 	/* Nodes with small feet have little entropy. The NID for this
 	 * node gives the most entropy in the low bits
 	 */
 	for (i = 0;; i++) {
+		u32 seed;
+
 		if (LNetGetId(i, &lnet_id) == -ENOENT)
 			break;
-
-		if (LNET_NETTYP(LNET_NIDNET(lnet_id.nid)) != LOLND)
-			seed[0] ^= LNET_NIDADDR(lnet_id.nid);
+		if (LNET_NETTYP(LNET_NIDNET(lnet_id.nid)) != LOLND) {
+			 seed = LNET_NIDADDR(lnet_id.nid);
+			 add_device_randomness(&seed, sizeof(seed));
+		}
 	}
-
-	ktime_get_ts64(&ts);
-	cfs_srand(ts.tv_sec ^ seed[0], ts.tv_nsec ^ seed[1]);
 
 	rc = vvp_global_init();
 	if (rc != 0)
@@ -159,8 +156,7 @@ static int __init lustre_init(void)
 	if (rc != 0)
 		goto out_inode_fini_env;
 
-	lustre_register_client_fill_super(ll_fill_super);
-	lustre_register_kill_super_cb(ll_kill_super);
+	lustre_register_super_ops(THIS_MODULE, ll_fill_super, ll_kill_super);
 	lustre_register_client_process_config(ll_process_config);
 
 	return 0;
@@ -181,8 +177,7 @@ out_cache:
 
 static void __exit lustre_exit(void)
 {
-	lustre_register_client_fill_super(NULL);
-	lustre_register_kill_super_cb(NULL);
+	lustre_register_super_ops(NULL, NULL, NULL);
 	lustre_register_client_process_config(NULL);
 
 	debugfs_remove(llite_root);

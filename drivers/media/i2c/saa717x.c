@@ -82,13 +82,13 @@ static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
 /* ----------------------------------------------------------------------- */
 
 /* for audio mode */
-#define TUNER_AUDIO_MONO   	0  /* LL */
-#define TUNER_AUDIO_STEREO 	1  /* LR */
-#define TUNER_AUDIO_LANG1  	2  /* LL */
-#define TUNER_AUDIO_LANG2  	3  /* RR */
+#define TUNER_AUDIO_MONO	0  /* LL */
+#define TUNER_AUDIO_STEREO	1  /* LR */
+#define TUNER_AUDIO_LANG1	2  /* LL */
+#define TUNER_AUDIO_LANG2	3  /* RR */
 
-#define SAA717X_NTSC_WIDTH   	(704)
-#define SAA717X_NTSC_HEIGHT  	(480)
+#define SAA717X_NTSC_WIDTH	(704)
+#define SAA717X_NTSC_HEIGHT	(480)
 
 /* ----------------------------------------------------------------------- */
 

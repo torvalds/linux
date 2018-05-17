@@ -284,6 +284,7 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	struct net *net = sock_net(sk);
 	__be32 v4addr = 0;
 	unsigned short snum;
+	bool saved_ipv6only;
 	int addr_type = 0;
 	int err = 0;
 
@@ -389,19 +390,21 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (!(addr_type & IPV6_ADDR_MULTICAST))
 		np->saddr = addr->sin6_addr;
 
+	saved_ipv6only = sk->sk_ipv6only;
+	if (addr_type != IPV6_ADDR_ANY && addr_type != IPV6_ADDR_MAPPED)
+		sk->sk_ipv6only = 1;
+
 	/* Make sure we are allowed to bind here. */
 	if ((snum || !inet->bind_address_no_port) &&
 	    sk->sk_prot->get_port(sk, snum)) {
+		sk->sk_ipv6only = saved_ipv6only;
 		inet_reset_saddr(sk);
 		err = -EADDRINUSE;
 		goto out;
 	}
 
-	if (addr_type != IPV6_ADDR_ANY) {
+	if (addr_type != IPV6_ADDR_ANY)
 		sk->sk_userlocks |= SOCK_BINDADDR_LOCK;
-		if (addr_type != IPV6_ADDR_MAPPED)
-			sk->sk_ipv6only = 1;
-	}
 	if (snum)
 		sk->sk_userlocks |= SOCK_BINDPORT_LOCK;
 	inet->inet_sport = htons(inet->inet_num);

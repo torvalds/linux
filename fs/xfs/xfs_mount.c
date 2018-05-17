@@ -162,6 +162,7 @@ xfs_free_perag(
 		ASSERT(pag);
 		ASSERT(atomic_read(&pag->pag_ref) == 0);
 		xfs_buf_hash_destroy(pag);
+		mutex_destroy(&pag->pag_ici_reclaim_lock);
 		call_rcu(&pag->rcu_head, __xfs_free_perag);
 	}
 }
@@ -248,6 +249,7 @@ xfs_initialize_perag(
 out_hash_destroy:
 	xfs_buf_hash_destroy(pag);
 out_free_pag:
+	mutex_destroy(&pag->pag_ici_reclaim_lock);
 	kmem_free(pag);
 out_unwind_new_pags:
 	/* unwind any prior newly initialized pags */
@@ -256,6 +258,7 @@ out_unwind_new_pags:
 		if (!pag)
 			break;
 		xfs_buf_hash_destroy(pag);
+		mutex_destroy(&pag->pag_ici_reclaim_lock);
 		kmem_free(pag);
 	}
 	return error;

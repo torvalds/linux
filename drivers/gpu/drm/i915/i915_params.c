@@ -22,6 +22,8 @@
  * IN THE SOFTWARE.
  */
 
+#include <drm/drm_print.h>
+
 #include "i915_params.h"
 #include "i915_drv.h"
 
@@ -45,17 +47,6 @@ i915_param_named(modeset, int, 0400,
 i915_param_named_unsafe(panel_ignore_lid, int, 0600,
 	"Override lid status (0=autodetect, 1=autodetect disabled [default], "
 	"-1=force lid closed, -2=force lid open)");
-
-i915_param_named_unsafe(semaphores, int, 0400,
-	"Use semaphores for inter-ring sync "
-	"(default: -1 (use per-chip defaults))");
-
-i915_param_named_unsafe(enable_rc6, int, 0400,
-	"Enable power-saving render C-state 6. "
-	"Different stages can be selected via bitmask values "
-	"(0 = disable; 1 = enable rc6; 2 = enable deep rc6; 4 = enable deepest rc6). "
-	"For example, 3 would enable rc6 and deep rc6, and 7 would enable everything. "
-	"default: -1 (use per-chip default)");
 
 i915_param_named_unsafe(enable_dc, int, 0400,
 	"Enable power-saving display C-states. "
@@ -98,10 +89,6 @@ i915_param_named_unsafe(enable_hangcheck, bool, 0644,
 i915_param_named_unsafe(enable_ppgtt, int, 0400,
 	"Override PPGTT usage. "
 	"(-1=auto [default], 0=disabled, 1=aliasing, 2=full, 3=full with extended address space)");
-
-i915_param_named_unsafe(enable_execlists, int, 0400,
-	"Override execlists usage. "
-	"(-1=auto [default], 0=disabled, 1=enabled)");
 
 i915_param_named_unsafe(enable_psr, int, 0600,
 	"Enable PSR "
@@ -162,13 +149,10 @@ i915_param_named_unsafe(edp_vswing, int, 0400,
 	"(0=use value from vbt [default], 1=low power swing(200mV),"
 	"2=default swing(400mV))");
 
-i915_param_named_unsafe(enable_guc_loading, int, 0400,
-	"Enable GuC firmware loading "
-	"(-1=auto, 0=never [default], 1=if available, 2=required)");
-
-i915_param_named_unsafe(enable_guc_submission, int, 0400,
-	"Enable GuC submission "
-	"(-1=auto, 0=never [default], 1=if available, 2=required)");
+i915_param_named_unsafe(enable_guc, int, 0400,
+	"Enable GuC load for GuC submission and/or HuC load. "
+	"Required functionality can be selected using bitmask values. "
+	"(-1=auto, 0=disable [default], 1=GuC submission, 2=HuC load)");
 
 i915_param_named(guc_log_level, int, 0400,
 	"GuC firmware logging level (-1:disabled (default), 0-3:enabled)");
@@ -190,3 +174,34 @@ i915_param_named(enable_dpcd_backlight, bool, 0600,
 
 i915_param_named(enable_gvt, bool, 0400,
 	"Enable support for Intel GVT-g graphics virtualization host support(default:false)");
+
+static __always_inline void _print_param(struct drm_printer *p,
+					 const char *name,
+					 const char *type,
+					 const void *x)
+{
+	if (!__builtin_strcmp(type, "bool"))
+		drm_printf(p, "i915.%s=%s\n", name, yesno(*(const bool *)x));
+	else if (!__builtin_strcmp(type, "int"))
+		drm_printf(p, "i915.%s=%d\n", name, *(const int *)x);
+	else if (!__builtin_strcmp(type, "unsigned int"))
+		drm_printf(p, "i915.%s=%u\n", name, *(const unsigned int *)x);
+	else if (!__builtin_strcmp(type, "char *"))
+		drm_printf(p, "i915.%s=%s\n", name, *(const char **)x);
+	else
+		BUILD_BUG();
+}
+
+/**
+ * i915_params_dump - dump i915 modparams
+ * @params: i915 modparams
+ * @p: the &drm_printer
+ *
+ * Pretty printer for i915 modparams.
+ */
+void i915_params_dump(const struct i915_params *params, struct drm_printer *p)
+{
+#define PRINT(T, x, ...) _print_param(p, #x, #T, &params->x);
+	I915_PARAMS_FOR_EACH(PRINT);
+#undef PRINT
+}

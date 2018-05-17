@@ -455,8 +455,8 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 	}
 
 	label->len = 0;
-#ifdef CONFIG_NFSD_V4_SECURITY_LABEL
-	if (bmval[2] & FATTR4_WORD2_SECURITY_LABEL) {
+	if (IS_ENABLED(CONFIG_NFSD_V4_SECURITY_LABEL) &&
+	    bmval[2] & FATTR4_WORD2_SECURITY_LABEL) {
 		READ_BUF(4);
 		len += 4;
 		dummy32 = be32_to_cpup(p++); /* lfs: we don't use it */
@@ -476,7 +476,6 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 		if (!label->data)
 			return nfserr_jukebox;
 	}
-#endif
 	if (bmval[2] & FATTR4_WORD2_MODE_UMASK) {
 		if (!umask)
 			goto xdr_error;
@@ -1918,8 +1917,13 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 
 	if (argp->taglen > NFSD4_MAX_TAGLEN)
 		goto xdr_error;
-	if (argp->opcnt > 100)
-		goto xdr_error;
+	/*
+	 * NFS4ERR_RESOURCE is a more helpful error than GARBAGE_ARGS
+	 * here, so we return success at the xdr level so that
+	 * nfsd4_proc can handle this is an NFS-level error.
+	 */
+	if (argp->opcnt > NFSD_MAX_OPS_PER_COMPOUND)
+		return 0;
 
 	if (argp->opcnt > ARRAY_SIZE(argp->iops)) {
 		argp->ops = kzalloc(argp->opcnt * sizeof(*argp->ops), GFP_KERNEL);
@@ -1991,7 +1995,7 @@ static __be32 *encode_change(__be32 *p, struct kstat *stat, struct inode *inode,
 		*p++ = cpu_to_be32(convert_to_wallclock(exp->cd->flush_time));
 		*p++ = 0;
 	} else if (IS_I_VERSION(inode)) {
-		p = xdr_encode_hyper(p, nfsd4_change_attribute(inode));
+		p = xdr_encode_hyper(p, nfsd4_change_attribute(stat, inode));
 	} else {
 		*p++ = cpu_to_be32(stat->ctime.tv_sec);
 		*p++ = cpu_to_be32(stat->ctime.tv_nsec);

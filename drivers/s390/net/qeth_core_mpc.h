@@ -10,6 +10,7 @@
 #define __QETH_CORE_MPC_H__
 
 #include <asm/qeth.h>
+#include <uapi/linux/if_ether.h>
 
 #define IPA_PDU_HEADER_SIZE	0x40
 #define QETH_IPA_PDU_LEN_TOTAL(buffer) (buffer + 0x0e)
@@ -25,7 +26,6 @@ extern unsigned char IPA_PDU_HEADER[];
 #define QETH_SEQ_NO_LENGTH	4
 #define QETH_MPC_TOKEN_LENGTH	4
 #define QETH_MCL_LENGTH		4
-#define OSA_ADDR_LEN		6
 
 #define QETH_TIMEOUT		(10 * HZ)
 #define QETH_IPA_TIMEOUT	(45 * HZ)
@@ -416,12 +416,11 @@ struct qeth_query_cmds_supp {
 } __attribute__ ((packed));
 
 struct qeth_change_addr {
-	__u32 cmd;
-	__u32 addr_size;
-	__u32 no_macs;
-	__u8 addr[OSA_ADDR_LEN];
-} __attribute__ ((packed));
-
+	u32 cmd;
+	u32 addr_size;
+	u32 no_macs;
+	u8 addr[ETH_ALEN];
+};
 
 struct qeth_snmp_cmd {
 	__u8  token[16];

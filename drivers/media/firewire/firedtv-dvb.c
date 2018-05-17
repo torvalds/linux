@@ -18,10 +18,10 @@
 #include <linux/mutex.h>
 #include <linux/types.h>
 
-#include <dmxdev.h>
-#include <dvb_demux.h>
-#include <dvbdev.h>
-#include <dvb_frontend.h>
+#include <media/dmxdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvbdev.h>
+#include <media/dvb_frontend.h>
 
 #include "firedtv.h"
 

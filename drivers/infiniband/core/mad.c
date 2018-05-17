@@ -49,7 +49,6 @@
 #include "smi.h"
 #include "opa_smi.h"
 #include "agent.h"
-#include "core_priv.h"
 
 static int mad_sendq_size = IB_MAD_QP_SEND_SIZE;
 static int mad_recvq_size = IB_MAD_QP_RECV_SIZE;

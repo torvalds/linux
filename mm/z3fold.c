@@ -769,7 +769,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
 /**
  * z3fold_reclaim_page() - evicts allocations from a pool page and frees it
  * @pool:	pool from which a page will attempt to be evicted
- * @retires:	number of pages on the LRU list for which eviction will
+ * @retries:	number of pages on the LRU list for which eviction will
  *		be attempted before failing
  *
  * z3fold reclaim is different from normal system reclaim in that it is done
@@ -779,7 +779,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
  * z3fold and the user, however.
  *
  * To avoid these, this is how z3fold_reclaim_page() should be called:
-
+ *
  * The user detects a page should be reclaimed and calls z3fold_reclaim_page().
  * z3fold_reclaim_page() will remove a z3fold page from the pool LRU list and
  * call the user-defined eviction handler with the pool and handle as

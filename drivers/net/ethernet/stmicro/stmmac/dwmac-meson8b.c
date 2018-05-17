@@ -40,9 +40,7 @@
 #define PRG_ETH0_CLK_M250_DIV_SHIFT	7
 #define PRG_ETH0_CLK_M250_DIV_WIDTH	3
 
-/* divides the result of m25_sel by either 5 (bit unset) or 10 (bit set) */
-#define PRG_ETH0_CLK_M25_DIV_SHIFT	10
-#define PRG_ETH0_CLK_M25_DIV_WIDTH	1
+#define PRG_ETH0_RGMII_TX_CLK_EN	10
 
 #define PRG_ETH0_INVERTED_RMII_CLK	BIT(11)
 #define PRG_ETH0_TX_AND_PHY_REF_CLK	BIT(12)
@@ -63,8 +61,11 @@ struct meson8b_dwmac {
 	struct clk_divider	m250_div;
 	struct clk		*m250_div_clk;
 
-	struct clk_divider	m25_div;
-	struct clk		*m25_div_clk;
+	struct clk_fixed_factor	fixed_div2;
+	struct clk		*fixed_div2_clk;
+
+	struct clk_gate		rgmii_tx_en;
+	struct clk		*rgmii_tx_en_clk;
 
 	u32			tx_delay_ns;
 };
@@ -81,7 +82,7 @@ static void meson8b_dwmac_mask_bits(struct meson8b_dwmac *dwmac, u32 reg,
 	writel(data, dwmac->regs + reg);
 }
 
-static int meson8b_init_clk(struct meson8b_dwmac *dwmac)
+static int meson8b_init_rgmii_tx_clk(struct meson8b_dwmac *dwmac)
 {
 	struct clk_init_data init;
 	int i, ret;
@@ -89,11 +90,6 @@ static int meson8b_init_clk(struct meson8b_dwmac *dwmac)
 	char clk_name[32];
 	const char *clk_div_parents[1];
 	const char *mux_parent_names[MUX_CLK_NUM_PARENTS];
-	static const struct clk_div_table clk_25m_div_table[] = {
-		{ .val = 0, .div = 5 },
-		{ .val = 1, .div = 10 },
-		{ /* sentinel */ },
-	};
 
 	/* get the mux parents from DT */
 	for (i = 0; i < MUX_CLK_NUM_PARENTS; i++) {
@@ -116,7 +112,7 @@ static int meson8b_init_clk(struct meson8b_dwmac *dwmac)
 	snprintf(clk_name, sizeof(clk_name), "%s#m250_sel", dev_name(dev));
 	init.name = clk_name;
 	init.ops = &clk_mux_ops;
-	init.flags = 0;
+	init.flags = CLK_SET_RATE_PARENT;
 	init.parent_names = mux_parent_names;
 	init.num_parents = MUX_CLK_NUM_PARENTS;
 
@@ -144,31 +140,48 @@ static int meson8b_init_clk(struct meson8b_dwmac *dwmac)
 	dwmac->m250_div.shift = PRG_ETH0_CLK_M250_DIV_SHIFT;
 	dwmac->m250_div.width = PRG_ETH0_CLK_M250_DIV_WIDTH;
 	dwmac->m250_div.hw.init = &init;
-	dwmac->m250_div.flags = CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ALLOW_ZERO;
+	dwmac->m250_div.flags = CLK_DIVIDER_ONE_BASED |
+				CLK_DIVIDER_ALLOW_ZERO |
+				CLK_DIVIDER_ROUND_CLOSEST;
 
 	dwmac->m250_div_clk = devm_clk_register(dev, &dwmac->m250_div.hw);
 	if (WARN_ON(IS_ERR(dwmac->m250_div_clk)))
 		return PTR_ERR(dwmac->m250_div_clk);
 
-	/* create the m25_div */
-	snprintf(clk_name, sizeof(clk_name), "%s#m25_div", dev_name(dev));
+	/* create the fixed_div2 */
+	snprintf(clk_name, sizeof(clk_name), "%s#fixed_div2", dev_name(dev));
 	init.name = devm_kstrdup(dev, clk_name, GFP_KERNEL);
-	init.ops = &clk_divider_ops;
-	init.flags = CLK_IS_BASIC | CLK_SET_RATE_PARENT;
+	init.ops = &clk_fixed_factor_ops;
+	init.flags = CLK_SET_RATE_PARENT;
 	clk_div_parents[0] = __clk_get_name(dwmac->m250_div_clk);
 	init.parent_names = clk_div_parents;
 	init.num_parents = ARRAY_SIZE(clk_div_parents);
 
-	dwmac->m25_div.reg = dwmac->regs + PRG_ETH0;
-	dwmac->m25_div.shift = PRG_ETH0_CLK_M25_DIV_SHIFT;
-	dwmac->m25_div.width = PRG_ETH0_CLK_M25_DIV_WIDTH;
-	dwmac->m25_div.table = clk_25m_div_table;
-	dwmac->m25_div.hw.init = &init;
-	dwmac->m25_div.flags = CLK_DIVIDER_ALLOW_ZERO;
+	dwmac->fixed_div2.mult = 1;
+	dwmac->fixed_div2.div = 2;
+	dwmac->fixed_div2.hw.init = &init;
 
-	dwmac->m25_div_clk = devm_clk_register(dev, &dwmac->m25_div.hw);
-	if (WARN_ON(IS_ERR(dwmac->m25_div_clk)))
-		return PTR_ERR(dwmac->m25_div_clk);
+	dwmac->fixed_div2_clk = devm_clk_register(dev, &dwmac->fixed_div2.hw);
+	if (WARN_ON(IS_ERR(dwmac->fixed_div2_clk)))
+		return PTR_ERR(dwmac->fixed_div2_clk);
+
+	/* create the rgmii_tx_en */
+	init.name = devm_kasprintf(dev, GFP_KERNEL, "%s#rgmii_tx_en",
+				   dev_name(dev));
+	init.ops = &clk_gate_ops;
+	init.flags = CLK_SET_RATE_PARENT;
+	clk_div_parents[0] = __clk_get_name(dwmac->fixed_div2_clk);
+	init.parent_names = clk_div_parents;
+	init.num_parents = ARRAY_SIZE(clk_div_parents);
+
+	dwmac->rgmii_tx_en.reg = dwmac->regs + PRG_ETH0;
+	dwmac->rgmii_tx_en.bit_idx = PRG_ETH0_RGMII_TX_CLK_EN;
+	dwmac->rgmii_tx_en.hw.init = &init;
+
+	dwmac->rgmii_tx_en_clk = devm_clk_register(dev,
+						   &dwmac->rgmii_tx_en.hw);
+	if (WARN_ON(IS_ERR(dwmac->rgmii_tx_en_clk)))
+		return PTR_ERR(dwmac->rgmii_tx_en_clk);
 
 	return 0;
 }
@@ -176,7 +189,6 @@ static int meson8b_init_clk(struct meson8b_dwmac *dwmac)
 static int meson8b_init_prg_eth(struct meson8b_dwmac *dwmac)
 {
 	int ret;
-	unsigned long clk_rate;
 	u8 tx_dly_val = 0;
 
 	switch (dwmac->phy_mode) {
@@ -191,9 +203,6 @@ static int meson8b_init_prg_eth(struct meson8b_dwmac *dwmac)
 
 	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII_TXID:
-		/* Generate a 25MHz clock for the PHY */
-		clk_rate = 25 * 1000 * 1000;
-
 		/* enable RGMII mode */
 		meson8b_dwmac_mask_bits(dwmac, PRG_ETH0, PRG_ETH0_RGMII_MODE,
 					PRG_ETH0_RGMII_MODE);
@@ -204,12 +213,28 @@ static int meson8b_init_prg_eth(struct meson8b_dwmac *dwmac)
 
 		meson8b_dwmac_mask_bits(dwmac, PRG_ETH0, PRG_ETH0_TXDLY_MASK,
 					tx_dly_val << PRG_ETH0_TXDLY_SHIFT);
+
+		/* Configure the 125MHz RGMII TX clock, the IP block changes
+		 * the output automatically (= without us having to configure
+		 * a register) based on the line-speed (125MHz for Gbit speeds,
+		 * 25MHz for 100Mbit/s and 2.5MHz for 10Mbit/s).
+		 */
+		ret = clk_set_rate(dwmac->rgmii_tx_en_clk, 125 * 1000 * 1000);
+		if (ret) {
+			dev_err(&dwmac->pdev->dev,
+				"failed to set RGMII TX clock\n");
+			return ret;
+		}
+
+		ret = clk_prepare_enable(dwmac->rgmii_tx_en_clk);
+		if (ret) {
+			dev_err(&dwmac->pdev->dev,
+				"failed to enable the RGMII TX clock\n");
+			return ret;
+		}
 		break;
 
 	case PHY_INTERFACE_MODE_RMII:
-		/* Use the rate of the mux clock for the internal RMII PHY */
-		clk_rate = clk_get_rate(dwmac->m250_mux_clk);
-
 		/* disable RGMII mode -> enables RMII mode */
 		meson8b_dwmac_mask_bits(dwmac, PRG_ETH0, PRG_ETH0_RGMII_MODE,
 					0);
@@ -229,20 +254,6 @@ static int meson8b_init_prg_eth(struct meson8b_dwmac *dwmac)
 		dev_err(&dwmac->pdev->dev, "unsupported phy-mode %s\n",
 			phy_modes(dwmac->phy_mode));
 		return -EINVAL;
-	}
-
-	ret = clk_prepare_enable(dwmac->m25_div_clk);
-	if (ret) {
-		dev_err(&dwmac->pdev->dev, "failed to enable the PHY clock\n");
-		return ret;
-	}
-
-	ret = clk_set_rate(dwmac->m25_div_clk, clk_rate);
-	if (ret) {
-		clk_disable_unprepare(dwmac->m25_div_clk);
-
-		dev_err(&dwmac->pdev->dev, "failed to set PHY clock\n");
-		return ret;
 	}
 
 	/* enable TX_CLK and PHY_REF_CLK generator */
@@ -294,7 +305,7 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 				 &dwmac->tx_delay_ns))
 		dwmac->tx_delay_ns = 2;
 
-	ret = meson8b_init_clk(dwmac);
+	ret = meson8b_init_rgmii_tx_clk(dwmac);
 	if (ret)
 		goto err_remove_config_dt;
 
@@ -311,7 +322,8 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 	return 0;
 
 err_clk_disable:
-	clk_disable_unprepare(dwmac->m25_div_clk);
+	if (phy_interface_mode_is_rgmii(dwmac->phy_mode))
+		clk_disable_unprepare(dwmac->rgmii_tx_en_clk);
 err_remove_config_dt:
 	stmmac_remove_config_dt(pdev, plat_dat);
 
@@ -322,7 +334,8 @@ static int meson8b_dwmac_remove(struct platform_device *pdev)
 {
 	struct meson8b_dwmac *dwmac = get_stmmac_bsp_priv(&pdev->dev);
 
-	clk_disable_unprepare(dwmac->m25_div_clk);
+	if (phy_interface_mode_is_rgmii(dwmac->phy_mode))
+		clk_disable_unprepare(dwmac->rgmii_tx_en_clk);
 
 	return stmmac_pltfr_remove(pdev);
 }

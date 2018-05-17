@@ -5,6 +5,19 @@
 #define CUTOFF_WRITEBACK	40
 #define CUTOFF_WRITEBACK_SYNC	70
 
+#define MAX_WRITEBACKS_IN_PASS  5
+#define MAX_WRITESIZE_IN_PASS   5000	/* *512b */
+
+#define WRITEBACK_RATE_UPDATE_SECS_MAX		60
+#define WRITEBACK_RATE_UPDATE_SECS_DEFAULT	5
+
+/*
+ * 14 (16384ths) is chosen here as something that each backing device
+ * should be a reasonable fraction of the share, and not to blow up
+ * until individual backing devices are a petabyte.
+ */
+#define WRITEBACK_SHARE_SHIFT   14
+
 static inline uint64_t bcache_dev_sectors_dirty(struct bcache_device *d)
 {
 	uint64_t i, ret = 0;
@@ -21,7 +34,7 @@ static inline uint64_t  bcache_flash_devs_sectors_dirty(struct cache_set *c)
 
 	mutex_lock(&bch_register_lock);
 
-	for (i = 0; i < c->nr_uuids; i++) {
+	for (i = 0; i < c->devices_max_used; i++) {
 		struct bcache_device *d = c->devices[i];
 
 		if (!d || !UUID_FLASH_ONLY(&c->uuids[i]))

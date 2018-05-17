@@ -1142,9 +1142,6 @@ int __init nvdimm_bus_init(void)
 {
 	int rc;
 
-	BUILD_BUG_ON(sizeof(struct nd_smart_payload) != 128);
-	BUILD_BUG_ON(sizeof(struct nd_smart_threshold_payload) != 8);
-
 	rc = bus_register(&nvdimm_bus_type);
 	if (rc)
 		return rc;

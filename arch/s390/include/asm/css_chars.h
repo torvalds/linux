@@ -20,7 +20,9 @@ struct css_general_char {
 	u32 aif_tdd : 1; /* bit 56 */
 	u32 : 1;
 	u32 qebsm : 1;	 /* bit 58 */
-	u32 : 8;
+	u32 : 2;
+	u32 aiv : 1;     /* bit 61 */
+	u32 : 5;
 	u32 aif_osa : 1; /* bit 67 */
 	u32 : 12;
 	u32 eadm_rf : 1; /* bit 80 */

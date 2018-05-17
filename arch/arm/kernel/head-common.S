@@ -105,8 +105,9 @@ __mmap_switched:
    ARM(	ldmia	r4!, {r0, r1, sp} )
  THUMB(	ldmia	r4!, {r0, r1, r3} )
  THUMB(	mov	sp, r3 )
-	sub	r1, r1, r0
-	bl	__memzero			@ clear .bss
+	sub	r2, r1, r0
+	mov	r1, #0
+	bl	memset				@ clear .bss
 
 	ldmia	r4, {r0, r1, r2, r3}
 	str	r9, [r0]			@ Save processor ID

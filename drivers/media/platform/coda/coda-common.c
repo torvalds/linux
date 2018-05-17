@@ -486,8 +486,8 @@ static int coda_try_fmt_vdoa(struct coda_ctx *ctx, struct v4l2_format *f,
 		return 0;
 	}
 
-	err = vdoa_context_configure(NULL, f->fmt.pix.width, f->fmt.pix.height,
-				     f->fmt.pix.pixelformat);
+	err = vdoa_context_configure(NULL, round_up(f->fmt.pix.width, 16),
+				     f->fmt.pix.height, f->fmt.pix.pixelformat);
 	if (err) {
 		*use_vdoa = false;
 		return 0;
@@ -730,7 +730,8 @@ static int coda_s_fmt(struct coda_ctx *ctx, struct v4l2_format *f,
 	if (ctx->tiled_map_type == GDI_TILED_FRAME_MB_RASTER_MAP &&
 	    !coda_try_fmt_vdoa(ctx, f, &ctx->use_vdoa) &&
 	    ctx->use_vdoa)
-		vdoa_context_configure(ctx->vdoa, f->fmt.pix.width,
+		vdoa_context_configure(ctx->vdoa,
+				       round_up(f->fmt.pix.width, 16),
 				       f->fmt.pix.height,
 				       f->fmt.pix.pixelformat);
 	else
@@ -1884,6 +1885,12 @@ static int coda_queue_init(struct coda_ctx *ctx, struct vb2_queue *vq)
 	 * that videobuf2 will keep the value of bytesused intact.
 	 */
 	vq->allow_zero_bytesused = 1;
+	/*
+	 * We might be fine with no buffers on some of the queues, but that
+	 * would need to be reflected in job_ready(). Currently we expect all
+	 * queues to have at least one buffer queued.
+	 */
+	vq->min_buffers_needed = 1;
 	vq->dev = &ctx->dev->plat_dev->dev;
 
 	return vb2_queue_init(vq);

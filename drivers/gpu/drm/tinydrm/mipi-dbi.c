@@ -154,8 +154,18 @@ int mipi_dbi_command_buf(struct mipi_dbi *mipi, u8 cmd, u8 *data, size_t len)
 }
 EXPORT_SYMBOL(mipi_dbi_command_buf);
 
-static int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
-				struct drm_clip_rect *clip, bool swap)
+/**
+ * mipi_dbi_buf_copy - Copy a framebuffer, transforming it if necessary
+ * @dst: The destination buffer
+ * @fb: The source framebuffer
+ * @clip: Clipping rectangle of the area to be copied
+ * @swap: When true, swap MSB/LSB of 16-bit values
+ *
+ * Returns:
+ * Zero on success, negative error code on failure.
+ */
+int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
+		      struct drm_clip_rect *clip, bool swap)
 {
 	struct drm_gem_cma_object *cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
 	struct dma_buf_attachment *import_attach = cma_obj->base.import_attach;
@@ -192,6 +202,7 @@ static int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
 					     DMA_FROM_DEVICE);
 	return ret;
 }
+EXPORT_SYMBOL(mipi_dbi_buf_copy);
 
 static int mipi_dbi_fb_dirty(struct drm_framebuffer *fb,
 			     struct drm_file *file_priv,
@@ -444,18 +455,23 @@ EXPORT_SYMBOL(mipi_dbi_display_is_on);
 
 #if IS_ENABLED(CONFIG_SPI)
 
-/*
+/**
+ * mipi_dbi_spi_cmd_max_speed - get the maximum SPI bus speed
+ * @spi: SPI device
+ * @len: The transfer buffer length.
+ *
  * Many controllers have a max speed of 10MHz, but can be pushed way beyond
  * that. Increase reliability by running pixel data at max speed and the rest
  * at 10MHz, preventing transfer glitches from messing up the init settings.
  */
-static u32 mipi_dbi_spi_cmd_max_speed(struct spi_device *spi, size_t len)
+u32 mipi_dbi_spi_cmd_max_speed(struct spi_device *spi, size_t len)
 {
 	if (len > 64)
 		return 0; /* use default */
 
 	return min_t(u32, 10000000, spi->max_speed_hz);
 }
+EXPORT_SYMBOL(mipi_dbi_spi_cmd_max_speed);
 
 /*
  * MIPI DBI Type C Option 1
@@ -961,10 +977,6 @@ static const struct file_operations mipi_dbi_debugfs_command_fops = {
 	.write = mipi_dbi_debugfs_command_write,
 };
 
-static const struct drm_info_list mipi_dbi_debugfs_list[] = {
-	{ "fb",   drm_fb_cma_debugfs_show, 0 },
-};
-
 /**
  * mipi_dbi_debugfs_init - Create debugfs entries
  * @minor: DRM minor
@@ -987,9 +999,7 @@ int mipi_dbi_debugfs_init(struct drm_minor *minor)
 	debugfs_create_file("command", mode, minor->debugfs_root, mipi,
 			    &mipi_dbi_debugfs_command_fops);
 
-	return drm_debugfs_create_files(mipi_dbi_debugfs_list,
-					ARRAY_SIZE(mipi_dbi_debugfs_list),
-					minor->debugfs_root, minor);
+	return 0;
 }
 EXPORT_SYMBOL(mipi_dbi_debugfs_init);
 

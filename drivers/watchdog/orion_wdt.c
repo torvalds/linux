@@ -576,7 +576,7 @@ static int orion_wdt_probe(struct platform_device *pdev)
 	/*
 	 * Let's make sure the watchdog is fully stopped, unless it's
 	 * explicitly enabled. This may be the case if the module was
-	 * removed and re-insterted, or if the bootloader explicitly
+	 * removed and re-inserted, or if the bootloader explicitly
 	 * set a running watchdog before booting the kernel.
 	 */
 	if (!orion_wdt_enabled(&dev->wdt))

@@ -16,6 +16,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
 
 #include <linux/component.h>
 
@@ -28,7 +29,6 @@
 #include "exynos_drm_plane.h"
 #include "exynos_drm_vidi.h"
 #include "exynos_drm_g2d.h"
-#include "exynos_drm_ipp.h"
 #include "exynos_drm_iommu.h"
 
 #define DRIVER_NAME	"exynos"
@@ -87,11 +87,6 @@ static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
 	file->driver_priv = NULL;
 }
 
-static void exynos_drm_lastclose(struct drm_device *dev)
-{
-	exynos_drm_fbdev_restore_mode(dev);
-}
-
 static const struct vm_operations_struct exynos_drm_gem_vm_ops = {
 	.fault = exynos_drm_gem_fault,
 	.open = drm_gem_vm_open,
@@ -113,14 +108,6 @@ static const struct drm_ioctl_desc exynos_ioctls[] = {
 			DRM_AUTH | DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_EXEC, exynos_g2d_exec_ioctl,
 			DRM_AUTH | DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_GET_PROPERTY, exynos_drm_ipp_get_property,
-			DRM_AUTH | DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_SET_PROPERTY, exynos_drm_ipp_set_property,
-			DRM_AUTH | DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_QUEUE_BUF, exynos_drm_ipp_queue_buf,
-			DRM_AUTH | DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_CMD_CTRL, exynos_drm_ipp_cmd_ctrl,
-			DRM_AUTH | DRM_RENDER_ALLOW),
 };
 
 static const struct file_operations exynos_drm_driver_fops = {
@@ -138,7 +125,7 @@ static struct drm_driver exynos_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME
 				  | DRIVER_ATOMIC | DRIVER_RENDER,
 	.open			= exynos_drm_open,
-	.lastclose		= exynos_drm_lastclose,
+	.lastclose		= drm_fb_helper_lastclose,
 	.postclose		= exynos_drm_postclose,
 	.gem_free_object_unlocked = exynos_drm_gem_free_object,
 	.gem_vm_ops		= &exynos_drm_gem_vm_ops,
@@ -260,9 +247,6 @@ static struct exynos_drm_driver_info exynos_drm_drivers[] = {
 		DRV_PTR(rotator_driver, CONFIG_DRM_EXYNOS_ROTATOR),
 	}, {
 		DRV_PTR(gsc_driver, CONFIG_DRM_EXYNOS_GSC),
-	}, {
-		DRV_PTR(ipp_driver, CONFIG_DRM_EXYNOS_IPP),
-		DRM_VIRTUAL_DEVICE
 	}, {
 		&exynos_drm_platform_driver,
 		DRM_VIRTUAL_DEVICE

@@ -65,7 +65,7 @@
 #define CMD_EXIT_MODE		5
 #define CMD_ATTENTION		6
 
-#define VDO_CMD_VENDOR(x)    (((10 + (x)) & 0x1f))
+#define VDO_CMD_VENDOR(x)    (((0x10 + (x)) & 0x1f))
 
 /* ChromeOS specific commands */
 #define VDO_CMD_VERSION		VDO_CMD_VENDOR(0)

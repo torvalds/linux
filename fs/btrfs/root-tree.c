@@ -387,13 +387,6 @@ again:
 		WARN_ON(btrfs_root_ref_dirid(leaf, ref) != dirid);
 		WARN_ON(btrfs_root_ref_name_len(leaf, ref) != name_len);
 		ptr = (unsigned long)(ref + 1);
-		ret = btrfs_is_name_len_valid(leaf, path->slots[0], ptr,
-					      name_len);
-		if (!ret) {
-			err = -EIO;
-			goto out;
-		}
-
 		WARN_ON(memcmp_extent_buffer(leaf, name, ptr, name_len));
 		*sequence = btrfs_root_ref_sequence(leaf, ref);
 

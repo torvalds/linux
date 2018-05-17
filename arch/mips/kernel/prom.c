@@ -44,11 +44,6 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 	return add_memory_region(base, size, BOOT_MEM_RAM);
 }
 
-void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
-{
-	return __alloc_bootmem(size, align, __pa(MAX_DMA_ADDRESS));
-}
-
 int __init early_init_dt_reserve_memory_arch(phys_addr_t base,
 					phys_addr_t size, bool nomap)
 {

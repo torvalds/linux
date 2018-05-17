@@ -1,15 +1,10 @@
-/*
- * Copyright (c) 2003-2008 Simtec Electronics
- *   Ben Dooks <ben@simtec.co.uk>
- *
- * Machine support for Thorcom VR1000 board. Designed for Thorcom by
- * Simtec Electronics, http://www.simtec.co.uk/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2003-2008 Simtec Electronics
+//   Ben Dooks <ben@simtec.co.uk>
+//
+// Machine support for Thorcom VR1000 board. Designed for Thorcom by
+// Simtec Electronics, http://www.simtec.co.uk/
 
 #include <linux/kernel.h>
 #include <linux/types.h>

@@ -214,6 +214,7 @@ struct eeh_ops {
 	int (*write_config)(struct pci_dn *pdn, int where, int size, u32 val);
 	int (*next_error)(struct eeh_pe **pe);
 	int (*restore_config)(struct pci_dn *pdn);
+	int (*notify_resume)(struct pci_dn *pdn);
 };
 
 extern int eeh_subsystem_flags;
@@ -297,6 +298,7 @@ int eeh_pe_reset(struct eeh_pe *pe, int option);
 int eeh_pe_configure(struct eeh_pe *pe);
 int eeh_pe_inject_err(struct eeh_pe *pe, int type, int func,
 		      unsigned long addr, unsigned long mask);
+int eeh_restore_vf_config(struct pci_dn *pdn);
 
 /**
  * EEH_POSSIBLE_ERROR() -- test for possible MMIO failure.

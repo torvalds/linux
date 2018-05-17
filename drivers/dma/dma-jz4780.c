@@ -511,7 +511,7 @@ static int jz4780_dma_terminate_all(struct dma_chan *chan)
 	/* Clear the DMA status and stop the transfer. */
 	jz4780_dma_writel(jzdma, JZ_DMA_REG_DCS(jzchan->id), 0);
 	if (jzchan->desc) {
-		jz4780_dma_desc_free(&jzchan->desc->vdesc);
+		vchan_terminate_vdesc(&jzchan->desc->vdesc);
 		jzchan->desc = NULL;
 	}
 
@@ -521,6 +521,13 @@ static int jz4780_dma_terminate_all(struct dma_chan *chan)
 
 	vchan_dma_desc_free_list(&jzchan->vchan, &head);
 	return 0;
+}
+
+static void jz4780_dma_synchronize(struct dma_chan *chan)
+{
+	struct jz4780_dma_chan *jzchan = to_jz4780_dma_chan(chan);
+
+	vchan_synchronize(&jzchan->vchan);
 }
 
 static int jz4780_dma_config(struct dma_chan *chan,
@@ -813,6 +820,7 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 	dd->device_prep_dma_memcpy = jz4780_dma_prep_dma_memcpy;
 	dd->device_config = jz4780_dma_config;
 	dd->device_terminate_all = jz4780_dma_terminate_all;
+	dd->device_synchronize = jz4780_dma_synchronize;
 	dd->device_tx_status = jz4780_dma_tx_status;
 	dd->device_issue_pending = jz4780_dma_issue_pending;
 	dd->src_addr_widths = JZ_DMA_BUSWIDTHS;

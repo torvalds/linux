@@ -537,7 +537,7 @@ static int skl_link_hw_params(struct snd_pcm_substream *substream,
 
 	snd_soc_dai_set_dma_data(dai, substream, (void *)link_dev);
 
-	link = snd_hdac_ext_bus_get_link(ebus, rtd->codec->component.name);
+	link = snd_hdac_ext_bus_get_link(ebus, codec_dai->component->name);
 	if (!link)
 		return -EINVAL;
 
@@ -620,7 +620,7 @@ static int skl_link_hw_free(struct snd_pcm_substream *substream,
 
 	link_dev->link_prepared = 0;
 
-	link = snd_hdac_ext_bus_get_link(ebus, rtd->codec->component.name);
+	link = snd_hdac_ext_bus_get_link(ebus, rtd->codec_dai->component->name);
 	if (!link)
 		return -EINVAL;
 
@@ -1343,7 +1343,11 @@ static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 			return -EIO;
 		}
 
+		/* disable dynamic clock gating during fw and lib download */
+		skl->skl_sst->enable_miscbdcge(platform->dev, false);
+
 		ret = ops->init_fw(platform->dev, skl->skl_sst);
+		skl->skl_sst->enable_miscbdcge(platform->dev, true);
 		if (ret < 0) {
 			dev_err(platform->dev, "Failed to boot first fw: %d\n", ret);
 			return ret;
@@ -1351,6 +1355,12 @@ static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 		skl_populate_modules(skl);
 		skl->skl_sst->update_d0i3c = skl_update_d0i3c;
 		skl_dsp_enable_notification(skl->skl_sst, false);
+
+		if (skl->cfg.astate_cfg != NULL) {
+			skl_dsp_set_astate_cfg(skl->skl_sst,
+					skl->cfg.astate_cfg->count,
+					skl->cfg.astate_cfg);
+		}
 	}
 	pm_runtime_mark_last_busy(platform->dev);
 	pm_runtime_put_autosuspend(platform->dev);

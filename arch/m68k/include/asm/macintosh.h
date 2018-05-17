@@ -33,7 +33,7 @@ struct mac_model
 	char ide_type;
 	char scc_type;
 	char ether_type;
-	char nubus_type;
+	char expansion_type;
 	char floppy_type;
 };
 
@@ -73,8 +73,11 @@ struct mac_model
 #define MAC_ETHER_SONIC		1
 #define MAC_ETHER_MACE		2
 
-#define MAC_NO_NUBUS		0
-#define MAC_NUBUS		1
+#define MAC_EXP_NONE		0
+#define MAC_EXP_PDS		1 /* Accepts only a PDS card */
+#define MAC_EXP_NUBUS		2 /* Accepts only NuBus card(s) */
+#define MAC_EXP_PDS_NUBUS	3 /* Accepts PDS card and/or NuBus card(s) */
+#define MAC_EXP_PDS_COMM	4 /* Accepts PDS card or Comm Slot card */
 
 #define MAC_FLOPPY_IWM		0
 #define MAC_FLOPPY_SWIM_ADDR1	1

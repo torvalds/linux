@@ -982,25 +982,25 @@ error_out:
 	return ret;
 }
 
-static unsigned int port_fops_poll(struct file *filp, poll_table *wait)
+static __poll_t port_fops_poll(struct file *filp, poll_table *wait)
 {
 	struct port *port;
-	unsigned int ret;
+	__poll_t ret;
 
 	port = filp->private_data;
 	poll_wait(filp, &port->waitqueue, wait);
 
 	if (!port->guest_connected) {
 		/* Port got unplugged */
-		return POLLHUP;
+		return EPOLLHUP;
 	}
 	ret = 0;
 	if (!will_read_block(port))
-		ret |= POLLIN | POLLRDNORM;
+		ret |= EPOLLIN | EPOLLRDNORM;
 	if (!will_write_block(port))
-		ret |= POLLOUT;
+		ret |= EPOLLOUT;
 	if (!port->host_connected)
-		ret |= POLLHUP;
+		ret |= EPOLLHUP;
 
 	return ret;
 }

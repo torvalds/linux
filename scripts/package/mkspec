@@ -98,7 +98,7 @@ $M	make %{?_smp_mflags} INSTALL_MOD_PATH=%{buildroot} KBUILD_SRC= modules_instal
 $S$M	rm -f %{buildroot}/lib/modules/$KERNELRELEASE/build
 $S$M	rm -f %{buildroot}/lib/modules/$KERNELRELEASE/source
 $S$M	mkdir -p %{buildroot}/usr/src/kernels/$KERNELRELEASE
-$S$M	tar cf - . $EXCLUDES | tar xf - -C %{buildroot}/usr/src/kernels/$KERNELRELEASE
+$S$M	tar cf - $EXCLUDES . | tar xf - -C %{buildroot}/usr/src/kernels/$KERNELRELEASE
 $S$M	cd %{buildroot}/lib/modules/$KERNELRELEASE
 $S$M	ln -sf /usr/src/kernels/$KERNELRELEASE build
 $S$M	ln -sf /usr/src/kernels/$KERNELRELEASE source

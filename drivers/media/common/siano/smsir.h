@@ -1,28 +1,15 @@
-/****************************************************************
-
-Siano Mobile Silicon, Inc.
-MDTV receiver kernel modules.
-Copyright (C) 2006-2009, Uri Shkolnik
-
- Copyright (c) 2010 - Mauro Carvalho Chehab
-	- Ported the driver to use rc-core
-	- IR raw event decoding is now done at rc-core
-	- Code almost re-written
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
- This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-****************************************************************/
+/*
+ * SPDX-License-Identifier: GPL-2.0+
+ *
+ * Siano Mobile Silicon, Inc.
+ * MDTV receiver kernel modules.
+ * Copyright (C) 2006-2009, Uri Shkolnik
+ *
+ * Copyright (c) 2010 - Mauro Carvalho Chehab
+ *	- Ported the driver to use rc-core
+ *	- IR raw event decoding is now done at rc-core
+ *	- Code almost re-written
+ */
 
 #ifndef __SMS_IR_H__
 #define __SMS_IR_H__

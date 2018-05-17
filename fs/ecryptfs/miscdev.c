@@ -38,11 +38,11 @@ static atomic_t ecryptfs_num_miscdev_opens;
  *
  * Returns the poll mask
  */
-static unsigned int
+static __poll_t
 ecryptfs_miscdev_poll(struct file *file, poll_table *pt)
 {
 	struct ecryptfs_daemon *daemon = file->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	mutex_lock(&daemon->mux);
 	if (daemon->flags & ECRYPTFS_DAEMON_ZOMBIE) {
@@ -59,7 +59,7 @@ ecryptfs_miscdev_poll(struct file *file, poll_table *pt)
 	poll_wait(file, &daemon->wait, pt);
 	mutex_lock(&daemon->mux);
 	if (!list_empty(&daemon->msg_ctx_out_queue))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 out_unlock_daemon:
 	daemon->flags &= ~ECRYPTFS_DAEMON_IN_POLL;
 	mutex_unlock(&daemon->mux);

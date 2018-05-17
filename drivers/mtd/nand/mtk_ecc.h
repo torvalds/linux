@@ -14,8 +14,6 @@
 
 #include <linux/types.h>
 
-#define ECC_PARITY_BITS		(14)
-
 enum mtk_ecc_mode {ECC_DMA_MODE = 0, ECC_NFI_MODE = 1};
 enum mtk_ecc_operation {ECC_ENCODE, ECC_DECODE};
 
@@ -43,6 +41,7 @@ int mtk_ecc_wait_done(struct mtk_ecc *, enum mtk_ecc_operation);
 int mtk_ecc_enable(struct mtk_ecc *, struct mtk_ecc_config *);
 void mtk_ecc_disable(struct mtk_ecc *);
 void mtk_ecc_adjust_strength(struct mtk_ecc *ecc, u32 *p);
+unsigned int mtk_ecc_get_parity_bits(struct mtk_ecc *ecc);
 
 struct mtk_ecc *of_mtk_ecc_get(struct device_node *);
 void mtk_ecc_release(struct mtk_ecc *);

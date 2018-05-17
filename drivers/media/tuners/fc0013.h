@@ -18,7 +18,7 @@
 #ifndef _FC0013_H_
 #define _FC0013_H_
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "fc001x-common.h"
 
 #if IS_REACHABLE(CONFIG_MEDIA_TUNER_FC0013)

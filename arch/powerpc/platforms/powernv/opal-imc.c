@@ -21,6 +21,78 @@
 #include <asm/io.h>
 #include <asm/imc-pmu.h>
 #include <asm/cputhreads.h>
+#include <asm/debugfs.h>
+
+static struct dentry *imc_debugfs_parent;
+
+/* Helpers to export imc command and mode via debugfs */
+static int imc_mem_get(void *data, u64 *val)
+{
+	*val = cpu_to_be64(*(u64 *)data);
+	return 0;
+}
+
+static int imc_mem_set(void *data, u64 val)
+{
+	*(u64 *)data = cpu_to_be64(val);
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(fops_imc_x64, imc_mem_get, imc_mem_set, "0x%016llx\n");
+
+static struct dentry *imc_debugfs_create_x64(const char *name, umode_t mode,
+					     struct dentry *parent, u64  *value)
+{
+	return debugfs_create_file_unsafe(name, mode, parent,
+					  value, &fops_imc_x64);
+}
+
+/*
+ * export_imc_mode_and_cmd: Create a debugfs interface
+ *                     for imc_cmd and imc_mode
+ *                     for each node in the system.
+ *  imc_mode and imc_cmd can be changed by echo into
+ *  this interface.
+ */
+static void export_imc_mode_and_cmd(struct device_node *node,
+				    struct imc_pmu *pmu_ptr)
+{
+	static u64 loc, *imc_mode_addr, *imc_cmd_addr;
+	int chip = 0, nid;
+	char mode[16], cmd[16];
+	u32 cb_offset;
+
+	imc_debugfs_parent = debugfs_create_dir("imc", powerpc_debugfs_root);
+
+	/*
+	 * Return here, either because 'imc' directory already exists,
+	 * Or failed to create a new one.
+	 */
+	if (!imc_debugfs_parent)
+		return;
+
+	if (of_property_read_u32(node, "cb_offset", &cb_offset))
+		cb_offset = IMC_CNTL_BLK_OFFSET;
+
+	for_each_node(nid) {
+		loc = (u64)(pmu_ptr->mem_info[chip].vbase) + cb_offset;
+		imc_mode_addr = (u64 *)(loc + IMC_CNTL_BLK_MODE_OFFSET);
+		sprintf(mode, "imc_mode_%d", nid);
+		if (!imc_debugfs_create_x64(mode, 0600, imc_debugfs_parent,
+					    imc_mode_addr))
+			goto err;
+
+		imc_cmd_addr = (u64 *)(loc + IMC_CNTL_BLK_CMD_OFFSET);
+		sprintf(cmd, "imc_cmd_%d", nid);
+		if (!imc_debugfs_create_x64(cmd, 0600, imc_debugfs_parent,
+					    imc_cmd_addr))
+			goto err;
+		chip++;
+	}
+	return;
+
+err:
+	debugfs_remove_recursive(imc_debugfs_parent);
+}
 
 /*
  * imc_get_mem_addr_nest: Function to get nest counter memory region
@@ -65,6 +137,7 @@ static int imc_get_mem_addr_nest(struct device_node *node,
 	}
 
 	pmu_ptr->imc_counter_mmaped = true;
+	export_imc_mode_and_cmd(node, pmu_ptr);
 	kfree(base_addr_arr);
 	kfree(chipid_arr);
 	return 0;
@@ -126,9 +199,11 @@ static void disable_nest_pmu_counters(void)
 	const struct cpumask *l_cpumask;
 
 	get_online_cpus();
-	for_each_online_node(nid) {
+	for_each_node_with_cpus(nid) {
 		l_cpumask = cpumask_of_node(nid);
-		cpu = cpumask_first(l_cpumask);
+		cpu = cpumask_first_and(l_cpumask, cpu_online_mask);
+		if (cpu >= nr_cpu_ids)
+			continue;
 		opal_imc_counters_stop(OPAL_IMC_COUNTERS_NEST,
 				       get_hard_smp_processor_id(cpu));
 	}
@@ -212,6 +287,10 @@ static int opal_imc_counters_probe(struct platform_device *pdev)
 				pmu_count++;
 		}
 	}
+
+	/* If none of the nest units are registered, remove debugfs interface */
+	if (pmu_count == 0)
+		debugfs_remove_recursive(imc_debugfs_parent);
 
 	return 0;
 }

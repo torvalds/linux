@@ -18,6 +18,7 @@
 #define __ETNAVIV_GEM_H__
 
 #include <linux/reservation.h>
+#include "etnaviv_cmdbuf.h"
 #include "etnaviv_drv.h"
 
 struct dma_fence;
@@ -26,8 +27,7 @@ struct etnaviv_gem_object;
 
 struct etnaviv_gem_userptr {
 	uintptr_t ptr;
-	struct task_struct *task;
-	struct work_struct *work;
+	struct mm_struct *mm;
 	bool ro;
 };
 
@@ -98,26 +98,32 @@ struct etnaviv_gem_submit_bo {
 
 /* Created per submit-ioctl, to track bo's and cmdstream bufs, etc,
  * associated with the cmdstream submission for synchronization (and
- * make it easier to unwind when things go wrong, etc).  This only
- * lasts for the duration of the submit-ioctl.
+ * make it easier to unwind when things go wrong, etc).
  */
 struct etnaviv_gem_submit {
-	struct drm_device *dev;
+	struct kref refcount;
 	struct etnaviv_gpu *gpu;
-	struct ww_acquire_ctx ticket;
-	struct dma_fence *fence;
+	struct dma_fence *out_fence, *in_fence;
+	struct list_head node; /* GPU active submit list */
+	struct etnaviv_cmdbuf cmdbuf;
+	bool runtime_resumed;
+	u32 exec_state;
 	u32 flags;
+	unsigned int nr_pmrs;
+	struct etnaviv_perfmon_request *pmrs;
 	unsigned int nr_bos;
 	struct etnaviv_gem_submit_bo bos[0];
 	/* No new members here, the previous one is variable-length! */
 };
+
+void etnaviv_submit_put(struct etnaviv_gem_submit * submit);
 
 int etnaviv_gem_wait_bo(struct etnaviv_gpu *gpu, struct drm_gem_object *obj,
 	struct timespec *timeout);
 int etnaviv_gem_new_private(struct drm_device *dev, size_t size, u32 flags,
 	struct reservation_object *robj, const struct etnaviv_gem_ops *ops,
 	struct etnaviv_gem_object **res);
-int etnaviv_gem_obj_add(struct drm_device *dev, struct drm_gem_object *obj);
+void etnaviv_gem_obj_add(struct drm_device *dev, struct drm_gem_object *obj);
 struct page **etnaviv_gem_get_pages(struct etnaviv_gem_object *obj);
 void etnaviv_gem_put_pages(struct etnaviv_gem_object *obj);
 

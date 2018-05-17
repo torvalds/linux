@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Device tree based initialization code for reserved memory.
  *
@@ -6,11 +7,6 @@
  *		http://www.samsung.com
  * Author: Marek Szyprowski <m.szyprowski@samsung.com>
  * Author: Josh Cartwright <joshc@codeaurora.org>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License or (at your optional) any later version of the license.
  */
 
 #define pr_fmt(fmt)	"OF: reserved mem: " fmt

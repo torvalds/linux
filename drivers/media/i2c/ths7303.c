@@ -319,7 +319,7 @@ static const struct v4l2_subdev_core_ops ths7303_core_ops = {
 
 static const struct v4l2_subdev_ops ths7303_ops = {
 	.core	= &ths7303_core_ops,
-	.video 	= &ths7303_video_ops,
+	.video	= &ths7303_video_ops,
 };
 
 static int ths7303_probe(struct i2c_client *client,

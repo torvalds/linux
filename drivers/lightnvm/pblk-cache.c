@@ -19,11 +19,15 @@
 
 int pblk_write_to_cache(struct pblk *pblk, struct bio *bio, unsigned long flags)
 {
+	struct request_queue *q = pblk->dev->q;
 	struct pblk_w_ctx w_ctx;
 	sector_t lba = pblk_get_lba(bio);
+	unsigned long start_time = jiffies;
 	unsigned int bpos, pos;
 	int nr_entries = pblk_get_secs(bio);
 	int i, ret;
+
+	generic_start_io_acct(q, WRITE, bio_sectors(bio), &pblk->disk->part0);
 
 	/* Update the write buffer head (mem) with the entries that we can
 	 * write. The write in itself cannot fail, so there is no need to
@@ -67,6 +71,7 @@ retry:
 	pblk_rl_inserted(&pblk->rl, nr_entries);
 
 out:
+	generic_end_io_acct(q, WRITE, &pblk->disk->part0, start_time);
 	pblk_write_should_kick(pblk);
 	return ret;
 }

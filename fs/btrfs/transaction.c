@@ -495,8 +495,8 @@ start_transaction(struct btrfs_root *root, unsigned int num_items,
 	if (current->journal_info) {
 		WARN_ON(type & TRANS_EXTWRITERS);
 		h = current->journal_info;
-		h->use_count++;
-		WARN_ON(h->use_count > 2);
+		refcount_inc(&h->use_count);
+		WARN_ON(refcount_read(&h->use_count) > 2);
 		h->orig_rsv = h->block_rsv;
 		h->block_rsv = NULL;
 		goto got_it;
@@ -567,7 +567,7 @@ again:
 	h->transid = cur_trans->transid;
 	h->transaction = cur_trans;
 	h->root = root;
-	h->use_count = 1;
+	refcount_set(&h->use_count, 1);
 	h->fs_info = root->fs_info;
 
 	h->type = type;
@@ -837,8 +837,8 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	int err = 0;
 	int must_run_delayed_refs = 0;
 
-	if (trans->use_count > 1) {
-		trans->use_count--;
+	if (refcount_read(&trans->use_count) > 1) {
+		refcount_dec(&trans->use_count);
 		trans->block_rsv = trans->orig_rsv;
 		return 0;
 	}
@@ -1016,8 +1016,7 @@ static int __btrfs_wait_marked_extents(struct btrfs_fs_info *fs_info,
 		 * it's safe to do it (through clear_btree_io_tree()).
 		 */
 		err = clear_extent_bit(dirty_pages, start, end,
-				       EXTENT_NEED_WAIT,
-				       0, 0, &cached_state, GFP_NOFS);
+				       EXTENT_NEED_WAIT, 0, 0, &cached_state);
 		if (err == -ENOMEM)
 			err = 0;
 		if (!err)
@@ -1869,7 +1868,7 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans,
 	struct btrfs_transaction *cur_trans = trans->transaction;
 	DEFINE_WAIT(wait);
 
-	WARN_ON(trans->use_count > 1);
+	WARN_ON(refcount_read(&trans->use_count) > 1);
 
 	btrfs_abort_transaction(trans, err);
 
@@ -2266,16 +2265,13 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	}
 
 	ret = write_all_supers(fs_info, 0);
-	if (ret) {
-		mutex_unlock(&fs_info->tree_log_mutex);
-		goto scrub_continue;
-	}
-
 	/*
 	 * the super is written, we can safely allow the tree-loggers
 	 * to go about their business
 	 */
 	mutex_unlock(&fs_info->tree_log_mutex);
+	if (ret)
+		goto scrub_continue;
 
 	btrfs_finish_extent_commit(trans, fs_info);
 

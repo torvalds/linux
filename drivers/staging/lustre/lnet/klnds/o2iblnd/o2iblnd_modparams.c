@@ -181,8 +181,8 @@ int kiblnd_tunables_setup(struct lnet_ni *ni)
 	 * defaulted
 	 */
 	if (!ni->ni_lnd_tunables) {
-		LIBCFS_ALLOC(ni->ni_lnd_tunables,
-			     sizeof(*ni->ni_lnd_tunables));
+		ni->ni_lnd_tunables = kzalloc(sizeof(*ni->ni_lnd_tunables),
+					      GFP_NOFS);
 		if (!ni->ni_lnd_tunables)
 			return -ENOMEM;
 

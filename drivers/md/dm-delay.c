@@ -229,6 +229,8 @@ static void delay_dtr(struct dm_target *ti)
 	if (dc->dev_write)
 		dm_put_device(ti, dc->dev_write);
 
+	mutex_destroy(&dc->timer_lock);
+
 	kfree(dc);
 }
 

@@ -28,7 +28,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/types.h>
 #include <linux/platform_data/pcf857x.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 #include <linux/mtd/rawnand.h>
 #include <linux/mtd/physmap.h>
 #include <linux/regulator/max1586.h>

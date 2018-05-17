@@ -288,10 +288,6 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_msg("Expected a hole, got %llu\n", em->block_start);
 		goto out;
 	}
-	if (!test_bit(EXTENT_FLAG_VACANCY, &em->flags)) {
-		test_msg("Vacancy flag wasn't set properly\n");
-		goto out;
-	}
 	free_extent_map(em);
 	btrfs_drop_extent_cache(BTRFS_I(inode), 0, (u64)-1, 0);
 
@@ -1001,8 +997,7 @@ static int test_extent_accounting(u32 sectorsize, u32 nodesize)
 			       BTRFS_MAX_EXTENT_SIZE >> 1,
 			       (BTRFS_MAX_EXTENT_SIZE >> 1) + sectorsize - 1,
 			       EXTENT_DELALLOC | EXTENT_DIRTY |
-			       EXTENT_UPTODATE, 0, 0,
-			       NULL, GFP_KERNEL);
+			       EXTENT_UPTODATE, 0, 0, NULL);
 	if (ret) {
 		test_msg("clear_extent_bit returned %d\n", ret);
 		goto out;
@@ -1070,8 +1065,7 @@ static int test_extent_accounting(u32 sectorsize, u32 nodesize)
 			       BTRFS_MAX_EXTENT_SIZE + sectorsize,
 			       BTRFS_MAX_EXTENT_SIZE + 2 * sectorsize - 1,
 			       EXTENT_DIRTY | EXTENT_DELALLOC |
-			       EXTENT_UPTODATE, 0, 0,
-			       NULL, GFP_KERNEL);
+			       EXTENT_UPTODATE, 0, 0, NULL);
 	if (ret) {
 		test_msg("clear_extent_bit returned %d\n", ret);
 		goto out;
@@ -1104,8 +1098,7 @@ static int test_extent_accounting(u32 sectorsize, u32 nodesize)
 	/* Empty */
 	ret = clear_extent_bit(&BTRFS_I(inode)->io_tree, 0, (u64)-1,
 			       EXTENT_DIRTY | EXTENT_DELALLOC |
-			       EXTENT_UPTODATE, 0, 0,
-			       NULL, GFP_KERNEL);
+			       EXTENT_UPTODATE, 0, 0, NULL);
 	if (ret) {
 		test_msg("clear_extent_bit returned %d\n", ret);
 		goto out;
@@ -1121,8 +1114,7 @@ out:
 	if (ret)
 		clear_extent_bit(&BTRFS_I(inode)->io_tree, 0, (u64)-1,
 				 EXTENT_DIRTY | EXTENT_DELALLOC |
-				 EXTENT_UPTODATE, 0, 0,
-				 NULL, GFP_KERNEL);
+				 EXTENT_UPTODATE, 0, 0, NULL);
 	iput(inode);
 	btrfs_free_dummy_root(root);
 	btrfs_free_dummy_fs_info(fs_info);
@@ -1134,7 +1126,6 @@ int btrfs_test_inodes(u32 sectorsize, u32 nodesize)
 	int ret;
 
 	set_bit(EXTENT_FLAG_COMPRESSED, &compressed_only);
-	set_bit(EXTENT_FLAG_VACANCY, &vacancy_only);
 	set_bit(EXTENT_FLAG_PREALLOC, &prealloc_only);
 
 	test_msg("Running btrfs_get_extent tests\n");

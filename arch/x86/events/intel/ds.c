@@ -935,7 +935,7 @@ void intel_pmu_pebs_add(struct perf_event *event)
 	bool needed_cb = pebs_needs_sched_cb(cpuc);
 
 	cpuc->n_pebs++;
-	if (hwc->flags & PERF_X86_EVENT_FREERUNNING)
+	if (hwc->flags & PERF_X86_EVENT_LARGE_PEBS)
 		cpuc->n_large_pebs++;
 
 	pebs_update_state(needed_cb, cpuc, event->ctx->pmu);
@@ -975,7 +975,7 @@ void intel_pmu_pebs_del(struct perf_event *event)
 	bool needed_cb = pebs_needs_sched_cb(cpuc);
 
 	cpuc->n_pebs--;
-	if (hwc->flags & PERF_X86_EVENT_FREERUNNING)
+	if (hwc->flags & PERF_X86_EVENT_LARGE_PEBS)
 		cpuc->n_large_pebs--;
 
 	pebs_update_state(needed_cb, cpuc, event->ctx->pmu);
@@ -1153,6 +1153,7 @@ static void setup_pebs_sample_data(struct perf_event *event,
 	if (pebs == NULL)
 		return;
 
+	regs->flags &= ~PERF_EFLAGS_EXACT;
 	sample_type = event->attr.sample_type;
 	dsrc = sample_type & PERF_SAMPLE_DATA_SRC;
 
@@ -1197,7 +1198,6 @@ static void setup_pebs_sample_data(struct perf_event *event,
 	 */
 	*regs = *iregs;
 	regs->flags = pebs->flags;
-	set_linear_ip(regs, pebs->ip);
 
 	if (sample_type & PERF_SAMPLE_REGS_INTR) {
 		regs->ax = pebs->ax;
@@ -1233,13 +1233,22 @@ static void setup_pebs_sample_data(struct perf_event *event,
 #endif
 	}
 
-	if (event->attr.precise_ip > 1 && x86_pmu.intel_cap.pebs_format >= 2) {
-		regs->ip = pebs->real_ip;
-		regs->flags |= PERF_EFLAGS_EXACT;
-	} else if (event->attr.precise_ip > 1 && intel_pmu_pebs_fixup_ip(regs))
-		regs->flags |= PERF_EFLAGS_EXACT;
-	else
-		regs->flags &= ~PERF_EFLAGS_EXACT;
+	if (event->attr.precise_ip > 1) {
+		/* Haswell and later have the eventing IP, so use it: */
+		if (x86_pmu.intel_cap.pebs_format >= 2) {
+			set_linear_ip(regs, pebs->real_ip);
+			regs->flags |= PERF_EFLAGS_EXACT;
+		} else {
+			/* Otherwise use PEBS off-by-1 IP: */
+			set_linear_ip(regs, pebs->ip);
+
+			/* ... and try to fix it up using the LBR entries: */
+			if (intel_pmu_pebs_fixup_ip(regs))
+				regs->flags |= PERF_EFLAGS_EXACT;
+		}
+	} else
+		set_linear_ip(regs, pebs->ip);
+
 
 	if ((sample_type & (PERF_SAMPLE_ADDR | PERF_SAMPLE_PHYS_ADDR)) &&
 	    x86_pmu.intel_cap.pebs_format >= 1)
@@ -1530,7 +1539,7 @@ void __init intel_ds_init(void)
 			x86_pmu.pebs_record_size =
 						sizeof(struct pebs_record_skl);
 			x86_pmu.drain_pebs = intel_pmu_drain_pebs_nhm;
-			x86_pmu.free_running_flags |= PERF_SAMPLE_TIME;
+			x86_pmu.large_pebs_flags |= PERF_SAMPLE_TIME;
 			break;
 
 		default:

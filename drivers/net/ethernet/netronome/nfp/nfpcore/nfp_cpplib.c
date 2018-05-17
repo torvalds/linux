@@ -64,18 +64,20 @@
  * @address:	Address for operation
  * @value:	Pointer to read buffer
  *
- * Return: length of the io, or -ERRNO
+ * Return: 0 on success, or -ERRNO
  */
 int nfp_cpp_readl(struct nfp_cpp *cpp, u32 cpp_id,
 		  unsigned long long address, u32 *value)
 {
 	u8 tmp[4];
-	int err;
+	int n;
 
-	err = nfp_cpp_read(cpp, cpp_id, address, tmp, sizeof(tmp));
+	n = nfp_cpp_read(cpp, cpp_id, address, tmp, sizeof(tmp));
+	if (n != sizeof(tmp))
+		return n < 0 ? n : -EIO;
+
 	*value = get_unaligned_le32(tmp);
-
-	return err;
+	return 0;
 }
 
 /**
@@ -85,15 +87,18 @@ int nfp_cpp_readl(struct nfp_cpp *cpp, u32 cpp_id,
  * @address:	Address for operation
  * @value:	Value to write
  *
- * Return: length of the io, or -ERRNO
+ * Return: 0 on success, or -ERRNO
  */
 int nfp_cpp_writel(struct nfp_cpp *cpp, u32 cpp_id,
 		   unsigned long long address, u32 value)
 {
 	u8 tmp[4];
+	int n;
 
 	put_unaligned_le32(value, tmp);
-	return nfp_cpp_write(cpp, cpp_id, address, tmp, sizeof(tmp));
+	n = nfp_cpp_write(cpp, cpp_id, address, tmp, sizeof(tmp));
+
+	return n == sizeof(tmp) ? 0 : n < 0 ? n : -EIO;
 }
 
 /**
@@ -103,18 +108,20 @@ int nfp_cpp_writel(struct nfp_cpp *cpp, u32 cpp_id,
  * @address:	Address for operation
  * @value:	Pointer to read buffer
  *
- * Return: length of the io, or -ERRNO
+ * Return: 0 on success, or -ERRNO
  */
 int nfp_cpp_readq(struct nfp_cpp *cpp, u32 cpp_id,
 		  unsigned long long address, u64 *value)
 {
 	u8 tmp[8];
-	int err;
+	int n;
 
-	err = nfp_cpp_read(cpp, cpp_id, address, tmp, sizeof(tmp));
+	n = nfp_cpp_read(cpp, cpp_id, address, tmp, sizeof(tmp));
+	if (n != sizeof(tmp))
+		return n < 0 ? n : -EIO;
+
 	*value = get_unaligned_le64(tmp);
-
-	return err;
+	return 0;
 }
 
 /**
@@ -124,15 +131,18 @@ int nfp_cpp_readq(struct nfp_cpp *cpp, u32 cpp_id,
  * @address:	Address for operation
  * @value:	Value to write
  *
- * Return: length of the io, or -ERRNO
+ * Return: 0 on success, or -ERRNO
  */
 int nfp_cpp_writeq(struct nfp_cpp *cpp, u32 cpp_id,
 		   unsigned long long address, u64 value)
 {
 	u8 tmp[8];
+	int n;
 
 	put_unaligned_le64(value, tmp);
-	return nfp_cpp_write(cpp, cpp_id, address, tmp, sizeof(tmp));
+	n = nfp_cpp_write(cpp, cpp_id, address, tmp, sizeof(tmp));
+
+	return n == sizeof(tmp) ? 0 : n < 0 ? n : -EIO;
 }
 
 /* NOTE: This code should not use nfp_xpb_* functions,

@@ -112,16 +112,17 @@ Example kernel-doc function comment::
 
   /**
    * foobar() - Brief description of foobar.
-   * @arg: Description of argument of foobar.
+   * @argument1: Description of parameter argument1 of foobar.
+   * @argument2: Description of parameter argument2 of foobar.
    *
    * Longer description of foobar.
    *
    * Return: Description of return value of foobar.
    */
-  int foobar(int arg)
+  int foobar(int argument1, char *argument2)
 
 The format is similar for documentation for structures, enums, paragraphs,
-etc. See the sections below for details.
+etc. See the sections below for specific details of each type.
 
 The kernel-doc structure is extracted from the comments, and proper `Sphinx C
 Domain`_ function and type descriptions with anchors are generated for them. The
@@ -129,6 +130,226 @@ descriptions are filtered for special kernel-doc highlights and
 cross-references. See below for details.
 
 .. _Sphinx C Domain: http://www.sphinx-doc.org/en/stable/domains.html
+
+
+Parameters and member arguments
+-------------------------------
+
+The kernel-doc function comments describe each parameter to the function and
+function typedefs or each member of struct/union, in order, with the
+``@argument:`` descriptions. For each non-private member argument, one
+``@argument`` definition is needed.
+
+The ``@argument:`` descriptions begin on the very next line following
+the opening brief function description line, with no intervening blank
+comment lines.
+
+The ``@argument:`` descriptions may span multiple lines.
+
+.. note::
+
+   If the ``@argument`` description has multiple lines, the continuation
+   of the description should be starting exactly at the same column as
+   the previous line, e. g.::
+
+      * @argument: some long description
+      *       that continues on next lines
+
+   or::
+
+      * @argument:
+      *		some long description
+      *		that continues on next lines
+
+If a function or typedef parameter argument is ``...`` (e. g. a variable
+number of arguments), its description should be listed in kernel-doc
+notation as::
+
+      * @...: description
+
+Private members
+~~~~~~~~~~~~~~~
+
+Inside a struct or union description, you can use the ``private:`` and
+``public:`` comment tags. Structure fields that are inside a ``private:``
+area are not listed in the generated output documentation.
+
+The ``private:`` and ``public:`` tags must begin immediately following a
+``/*`` comment marker.  They may optionally include comments between the
+``:`` and the ending ``*/`` marker.
+
+Example::
+
+  /**
+   * struct my_struct - short description
+   * @a: first member
+   * @b: second member
+   * @d: fourth member
+   *
+   * Longer description
+   */
+  struct my_struct {
+      int a;
+      int b;
+  /* private: internal use only */
+      int c;
+  /* public: the next one is public */
+      int d;
+  };
+
+Function documentation
+----------------------
+
+The general format of a function and function-like macro kernel-doc comment is::
+
+  /**
+   * function_name() - Brief description of function.
+   * @arg1: Describe the first argument.
+   * @arg2: Describe the second argument.
+   *        One can provide multiple line descriptions
+   *        for arguments.
+   *
+   * A longer description, with more discussion of the function function_name()
+   * that might be useful to those using or modifying it. Begins with an
+   * empty comment line, and may include additional embedded empty
+   * comment lines.
+   *
+   * The longer description may have multiple paragraphs.
+   *
+   * Return: Describe the return value of foobar.
+   *
+   * The return value description can also have multiple paragraphs, and should
+   * be placed at the end of the comment block.
+   */
+
+The brief description following the function name may span multiple lines, and
+ends with an argument description, a blank comment line, or the end of the
+comment block.
+
+Return values
+~~~~~~~~~~~~~
+
+The return value, if any, should be described in a dedicated section
+named ``Return``.
+
+.. note::
+
+  #) The multi-line descriptive text you provide does *not* recognize
+     line breaks, so if you try to format some text nicely, as in::
+
+	* Return:
+	* 0 - OK
+	* -EINVAL - invalid argument
+	* -ENOMEM - out of memory
+
+     this will all run together and produce::
+
+	Return: 0 - OK -EINVAL - invalid argument -ENOMEM - out of memory
+
+     So, in order to produce the desired line breaks, you need to use a
+     ReST list, e. g.::
+
+      * Return:
+      * * 0		- OK to runtime suspend the device
+      * * -EBUSY	- Device should not be runtime suspended
+
+  #) If the descriptive text you provide has lines that begin with
+     some phrase followed by a colon, each of those phrases will be taken
+     as a new section heading, with probably won't produce the desired
+     effect.
+
+Structure, union, and enumeration documentation
+-----------------------------------------------
+
+The general format of a struct, union, and enum kernel-doc comment is::
+
+  /**
+   * struct struct_name - Brief description.
+   * @argument: Description of member member_name.
+   *
+   * Description of the structure.
+   */
+
+On the above, ``struct`` is used to mean structs. You can also use ``union``
+and ``enum``  to describe unions and enums. ``argument`` is used
+to mean struct and union member names as well as enumerations in an enum.
+
+The brief description following the structure name may span multiple lines, and
+ends with a member description, a blank comment line, or the end of the
+comment block.
+
+The kernel-doc data structure comments describe each member of the structure,
+in order, with the member descriptions.
+
+Nested structs/unions
+~~~~~~~~~~~~~~~~~~~~~
+
+It is possible to document nested structs unions, like::
+
+      /**
+       * struct nested_foobar - a struct with nested unions and structs
+       * @arg1: - first argument of anonymous union/anonymous struct
+       * @arg2: - second argument of anonymous union/anonymous struct
+       * @arg3: - third argument of anonymous union/anonymous struct
+       * @arg4: - fourth argument of anonymous union/anonymous struct
+       * @bar.st1.arg1 - first argument of struct st1 on union bar
+       * @bar.st1.arg2 - second argument of struct st1 on union bar
+       * @bar.st2.arg1 - first argument of struct st2 on union bar
+       * @bar.st2.arg2 - second argument of struct st2 on union bar
+      struct nested_foobar {
+        /* Anonymous union/struct*/
+        union {
+          struct {
+            int arg1;
+            int arg2;
+	  }
+          struct {
+            void *arg3;
+            int arg4;
+	  }
+	}
+	union {
+          struct {
+            int arg1;
+            int arg2;
+	  } st1;
+          struct {
+            void *arg1;
+            int arg2;
+	  } st2;
+	} bar;
+      };
+
+.. note::
+
+   #) When documenting nested structs or unions, if the struct/union ``foo``
+      is named, the argument ``bar`` inside it should be documented as
+      ``@foo.bar:``
+   #) When the nested struct/union is anonymous, the argument ``bar`` on it
+      should be documented as ``@bar:``
+
+Typedef documentation
+---------------------
+
+The general format of a typedef kernel-doc comment is::
+
+  /**
+   * typedef type_name - Brief description.
+   *
+   * Description of the type.
+   */
+
+Typedefs with function prototypes can also be documented::
+
+  /**
+   * typedef type_name - Brief description.
+   * @arg1: description of arg1
+   * @arg2: description of arg2
+   *
+   * Description of the type.
+   */
+   typedef void (*type_name)(struct v4l2_ctrl *arg1, void *arg2);
+
 
 Highlights and cross-references
 -------------------------------
@@ -201,70 +422,7 @@ cross-references.
 
 For further details, please refer to the `Sphinx C Domain`_ documentation.
 
-Function documentation
-----------------------
 
-The general format of a function and function-like macro kernel-doc comment is::
-
-  /**
-   * function_name() - Brief description of function.
-   * @arg1: Describe the first argument.
-   * @arg2: Describe the second argument.
-   *        One can provide multiple line descriptions
-   *        for arguments.
-   *
-   * A longer description, with more discussion of the function function_name()
-   * that might be useful to those using or modifying it. Begins with an
-   * empty comment line, and may include additional embedded empty
-   * comment lines.
-   *
-   * The longer description may have multiple paragraphs.
-   *
-   * Return: Describe the return value of foobar.
-   *
-   * The return value description can also have multiple paragraphs, and should
-   * be placed at the end of the comment block.
-   */
-
-The brief description following the function name may span multiple lines, and
-ends with an ``@argument:`` description, a blank comment line, or the end of the
-comment block.
-
-The kernel-doc function comments describe each parameter to the function, in
-order, with the ``@argument:`` descriptions. The ``@argument:`` descriptions
-must begin on the very next line following the opening brief function
-description line, with no intervening blank comment lines. The ``@argument:``
-descriptions may span multiple lines. The continuation lines may contain
-indentation. If a function parameter is ``...`` (varargs), it should be listed
-in kernel-doc notation as: ``@...:``.
-
-The return value, if any, should be described in a dedicated section at the end
-of the comment starting with "Return:".
-
-Structure, union, and enumeration documentation
------------------------------------------------
-
-The general format of a struct, union, and enum kernel-doc comment is::
-
-  /**
-   * struct struct_name - Brief description.
-   * @member_name: Description of member member_name.
-   *
-   * Description of the structure.
-   */
-
-Below, "struct" is used to mean structs, unions and enums, and "member" is used
-to mean struct and union members as well as enumerations in an enum.
-
-The brief description following the structure name may span multiple lines, and
-ends with a ``@member:`` description, a blank comment line, or the end of the
-comment block.
-
-The kernel-doc data structure comments describe each member of the structure, in
-order, with the ``@member:`` descriptions. The ``@member:`` descriptions must
-begin on the very next line following the opening brief function description
-line, with no intervening blank comment lines. The ``@member:`` descriptions may
-span multiple lines. The continuation lines may contain indentation.
 
 In-line member documentation comments
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -294,42 +452,6 @@ on a line of their own, like all other kernel-doc comments::
         int foobar;
   }
 
-Private members
-~~~~~~~~~~~~~~~
-
-Inside a struct description, you can use the "private:" and "public:" comment
-tags. Structure fields that are inside a "private:" area are not listed in the
-generated output documentation.  The "private:" and "public:" tags must begin
-immediately following a ``/*`` comment marker.  They may optionally include
-comments between the ``:`` and the ending ``*/`` marker.
-
-Example::
-
-  /**
-   * struct my_struct - short description
-   * @a: first member
-   * @b: second member
-   *
-   * Longer description
-   */
-  struct my_struct {
-      int a;
-      int b;
-  /* private: internal use only */
-      int c;
-  };
-
-
-Typedef documentation
----------------------
-
-The general format of a typedef kernel-doc comment is::
-
-  /**
-   * typedef type_name - Brief description.
-   *
-   * Description of the type.
-   */
 
 Overview documentation comments
 -------------------------------
@@ -376,3 +498,37 @@ file.
 
 Data structures visible in kernel include files should also be documented using
 kernel-doc formatted comments.
+
+How to use kernel-doc to generate man pages
+-------------------------------------------
+
+If you just want to use kernel-doc to generate man pages you can do this
+from the Kernel git tree::
+
+  $ scripts/kernel-doc -man $(git grep -l '/\*\*' |grep -v Documentation/) | ./split-man.pl /tmp/man
+
+Using the small ``split-man.pl`` script below::
+
+
+  #!/usr/bin/perl
+
+  if ($#ARGV < 0) {
+     die "where do I put the results?\n";
+  }
+
+  mkdir $ARGV[0],0777;
+  $state = 0;
+  while (<STDIN>) {
+      if (/^\.TH \"[^\"]*\" 9 \"([^\"]*)\"/) {
+	if ($state == 1) { close OUT }
+	$state = 1;
+	$fn = "$ARGV[0]/$1.9";
+	print STDERR "Creating $fn\n";
+	open OUT, ">$fn" or die "can't open $fn: $!\n";
+	print OUT $_;
+      } elsif ($state != 0) {
+	print OUT $_;
+      }
+  }
+
+  close OUT;

@@ -70,6 +70,13 @@ enum devlink_command {
 	DEVLINK_CMD_DPIPE_ENTRIES_GET,
 	DEVLINK_CMD_DPIPE_HEADERS_GET,
 	DEVLINK_CMD_DPIPE_TABLE_COUNTERS_SET,
+	DEVLINK_CMD_RESOURCE_SET,
+	DEVLINK_CMD_RESOURCE_DUMP,
+
+	/* Hot driver reload, makes configuration changes take place. The
+	 * devlink instance is not released during the process.
+	 */
+	DEVLINK_CMD_RELOAD,
 
 	/* add new commands above here */
 	__DEVLINK_CMD_MAX,
@@ -202,6 +209,20 @@ enum devlink_attr {
 	DEVLINK_ATTR_PAD,
 
 	DEVLINK_ATTR_ESWITCH_ENCAP_MODE,	/* u8 */
+	DEVLINK_ATTR_RESOURCE_LIST,		/* nested */
+	DEVLINK_ATTR_RESOURCE,			/* nested */
+	DEVLINK_ATTR_RESOURCE_NAME,		/* string */
+	DEVLINK_ATTR_RESOURCE_ID,		/* u64 */
+	DEVLINK_ATTR_RESOURCE_SIZE,		/* u64 */
+	DEVLINK_ATTR_RESOURCE_SIZE_NEW,		/* u64 */
+	DEVLINK_ATTR_RESOURCE_SIZE_VALID,	/* u8 */
+	DEVLINK_ATTR_RESOURCE_SIZE_MIN,		/* u64 */
+	DEVLINK_ATTR_RESOURCE_SIZE_MAX,		/* u64 */
+	DEVLINK_ATTR_RESOURCE_SIZE_GRAN,        /* u64 */
+	DEVLINK_ATTR_RESOURCE_UNIT,		/* u8 */
+	DEVLINK_ATTR_RESOURCE_OCC,		/* u64 */
+	DEVLINK_ATTR_DPIPE_TABLE_RESOURCE_ID,	/* u64 */
+	DEVLINK_ATTR_DPIPE_TABLE_RESOURCE_UNITS,/* u64 */
 
 	/* add new attributes above here, update the policy in devlink.c */
 
@@ -243,6 +264,10 @@ enum devlink_dpipe_header_id {
 	DEVLINK_DPIPE_HEADER_ETHERNET,
 	DEVLINK_DPIPE_HEADER_IPV4,
 	DEVLINK_DPIPE_HEADER_IPV6,
+};
+
+enum devlink_resource_unit {
+	DEVLINK_RESOURCE_UNIT_ENTRY,
 };
 
 #endif /* _UAPI_LINUX_DEVLINK_H_ */

@@ -18,19 +18,6 @@ static const struct pci_device_id xgifb_pci_table[] = {
 
 MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 
-/* To be included in fb.h */
-#define XGISR			  (xgifb_info->dev_info.P3c4)
-#define XGICR			  (xgifb_info->dev_info.P3d4)
-#define XGIDACA			  (xgifb_info->dev_info.P3c8)
-#define XGIDACD			  (xgifb_info->dev_info.P3c9)
-#define XGIPART1		  (xgifb_info->dev_info.Part1Port)
-#define XGIPART2		  (xgifb_info->dev_info.Part2Port)
-#define XGIPART3		  (xgifb_info->dev_info.Part3Port)
-#define XGIPART4		  (xgifb_info->dev_info.Part4Port)
-#define XGIPART5		  (xgifb_info->dev_info.Part5Port)
-#define XGIDAC2A                  XGIPART5
-#define XGIDAC2D                  (XGIPART5 + 1)
-
 #define IND_XGI_SCRATCH_REG_CR30  0x30  /* CRs */
 #define IND_XGI_SCRATCH_REG_CR31  0x31
 #define IND_XGI_SCRATCH_REG_CR32  0x32

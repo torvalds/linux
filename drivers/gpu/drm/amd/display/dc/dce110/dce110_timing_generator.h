@@ -174,6 +174,12 @@ void dce110_timing_generator_setup_global_swap_lock(
 void dce110_timing_generator_tear_down_global_swap_lock(
 	struct timing_generator *tg);
 
+/* Reset crtc position on master VSync */
+void dce110_timing_generator_enable_crtc_reset(
+	struct timing_generator *tg,
+	int source,
+	struct crtc_trigger_info *crtc_tp);
+
 /* Reset slave controllers on master VSync */
 void dce110_timing_generator_enable_reset_trigger(
 	struct timing_generator *tg,

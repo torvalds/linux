@@ -951,7 +951,7 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 		   unsigned int flags);
 long fuse_ioctl_common(struct file *file, unsigned int cmd,
 		       unsigned long arg, unsigned int flags);
-unsigned fuse_file_poll(struct file *file, poll_table *wait);
+__poll_t fuse_file_poll(struct file *file, poll_table *wait);
 int fuse_dev_release(struct inode *inode, struct file *file);
 
 bool fuse_write_update_size(struct inode *inode, loff_t pos);

@@ -18,7 +18,7 @@
 #define DVB_ZL10036_H
 
 #include <linux/i2c.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 struct zl10036_config {
 	u8 tuner_address;

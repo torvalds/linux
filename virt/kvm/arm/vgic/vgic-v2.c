@@ -37,6 +37,13 @@ void vgic_v2_init_lrs(void)
 		vgic_v2_write_lr(i, 0);
 }
 
+void vgic_v2_set_npie(struct kvm_vcpu *vcpu)
+{
+	struct vgic_v2_cpu_if *cpuif = &vcpu->arch.vgic_cpu.vgic_v2;
+
+	cpuif->vgic_hcr |= GICH_HCR_NPIE;
+}
+
 void vgic_v2_set_underflow(struct kvm_vcpu *vcpu)
 {
 	struct vgic_v2_cpu_if *cpuif = &vcpu->arch.vgic_cpu.vgic_v2;
@@ -64,7 +71,7 @@ void vgic_v2_fold_lr_state(struct kvm_vcpu *vcpu)
 	int lr;
 	unsigned long flags;
 
-	cpuif->vgic_hcr &= ~GICH_HCR_UIE;
+	cpuif->vgic_hcr &= ~(GICH_HCR_UIE | GICH_HCR_NPIE);
 
 	for (lr = 0; lr < vgic_cpu->used_lrs; lr++) {
 		u32 val = cpuif->vgic_lr[lr];
@@ -103,6 +110,26 @@ void vgic_v2_fold_lr_state(struct kvm_vcpu *vcpu)
 		if (irq->config == VGIC_CONFIG_LEVEL) {
 			if (!(val & GICH_LR_PENDING_BIT))
 				irq->pending_latch = false;
+		}
+
+		/*
+		 * Level-triggered mapped IRQs are special because we only
+		 * observe rising edges as input to the VGIC.
+		 *
+		 * If the guest never acked the interrupt we have to sample
+		 * the physical line and set the line level, because the
+		 * device state could have changed or we simply need to
+		 * process the still pending interrupt later.
+		 *
+		 * If this causes us to lower the level, we have to also clear
+		 * the physical active state, since we will otherwise never be
+		 * told when the interrupt becomes asserted again.
+		 */
+		if (vgic_irq_is_mapped_level(irq) && (val & GICH_LR_PENDING_BIT)) {
+			irq->line_level = vgic_get_phys_line_level(irq);
+
+			if (!irq->line_level)
+				vgic_irq_set_phys_active(irq, false);
 		}
 
 		spin_unlock_irqrestore(&irq->irq_lock, flags);
@@ -161,6 +188,15 @@ void vgic_v2_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr)
 		if (irq->config == VGIC_CONFIG_LEVEL)
 			val |= GICH_LR_EOI;
 	}
+
+	/*
+	 * Level-triggered mapped IRQs are special because we only observe
+	 * rising edges as input to the VGIC.  We therefore lower the line
+	 * level here, so that we can take new virtual IRQs.  See
+	 * vgic_v2_fold_lr_state for more info.
+	 */
+	if (vgic_irq_is_mapped_level(irq) && (val & GICH_LR_PENDING_BIT))
+		irq->line_level = false;
 
 	/* The GICv2 LR only holds five bits of priority. */
 	val |= (irq->priority >> 3) << GICH_LR_PRIORITY_SHIFT;
@@ -381,7 +417,7 @@ int vgic_v2_probe(const struct gic_kvm_info *info)
 	kvm_vgic_global_state.type = VGIC_V2;
 	kvm_vgic_global_state.max_gic_vcpus = VGIC_V2_MAX_CPUS;
 
-	kvm_info("vgic-v2@%llx\n", info->vctrl.start);
+	kvm_debug("vgic-v2@%llx\n", info->vctrl.start);
 
 	return 0;
 out:

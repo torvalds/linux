@@ -1376,22 +1376,6 @@ rpc_setbufsize(struct rpc_clnt *clnt, unsigned int sndsize, unsigned int rcvsize
 EXPORT_SYMBOL_GPL(rpc_setbufsize);
 
 /**
- * rpc_protocol - Get transport protocol number for an RPC client
- * @clnt: RPC client to query
- *
- */
-int rpc_protocol(struct rpc_clnt *clnt)
-{
-	int protocol;
-
-	rcu_read_lock();
-	protocol = rcu_dereference(clnt->cl_xprt)->prot;
-	rcu_read_unlock();
-	return protocol;
-}
-EXPORT_SYMBOL_GPL(rpc_protocol);
-
-/**
  * rpc_net_ns - Get the network namespace for this RPC client
  * @clnt: RPC client to query
  *

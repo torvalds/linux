@@ -17,11 +17,14 @@ struct ovl_config {
 	bool redirect_follow;
 	const char *redirect_mode;
 	bool index;
+	bool nfs_export;
 };
 
 struct ovl_layer {
 	struct vfsmount *mnt;
 	dev_t pseudo_dev;
+	/* Index of this layer in fs root (upper == 0) */
+	int idx;
 };
 
 struct ovl_path {
@@ -58,8 +61,7 @@ struct ovl_fs {
 struct ovl_entry {
 	union {
 		struct {
-			unsigned long has_upper;
-			bool opaque;
+			unsigned long flags;
 		};
 		struct rcu_head rcu;
 	};
@@ -68,6 +70,11 @@ struct ovl_entry {
 };
 
 struct ovl_entry *ovl_alloc_entry(unsigned int numlower);
+
+static inline struct ovl_entry *OVL_E(struct dentry *dentry)
+{
+	return (struct ovl_entry *) dentry->d_fsdata;
+}
 
 struct ovl_inode {
 	struct ovl_dir_cache *cache;
