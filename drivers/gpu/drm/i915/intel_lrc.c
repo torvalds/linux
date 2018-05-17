@@ -164,7 +164,8 @@
 #define WA_TAIL_BYTES (sizeof(u32) * WA_TAIL_DWORDS)
 
 static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
-					    struct intel_engine_cs *engine);
+					    struct intel_engine_cs *engine,
+					    struct intel_context *ce);
 static void execlists_init_reg_state(u32 *reg_state,
 				     struct i915_gem_context *ctx,
 				     struct intel_engine_cs *engine,
@@ -189,12 +190,7 @@ static inline bool need_preempt(const struct intel_engine_cs *engine,
 		!i915_request_completed(last));
 }
 
-/**
- * intel_lr_context_descriptor_update() - calculate & cache the descriptor
- * 					  descriptor for a pinned context
- * @ctx: Context to work on
- * @engine: Engine the descriptor will be used with
- *
+/*
  * The context descriptor encodes various attributes of a context,
  * including its GTT address and some flags. Because it's fairly
  * expensive to calculate, we'll just do it once and cache the result,
@@ -222,9 +218,9 @@ static inline bool need_preempt(const struct intel_engine_cs *engine,
  */
 static void
 intel_lr_context_descriptor_update(struct i915_gem_context *ctx,
-				   struct intel_engine_cs *engine)
+				   struct intel_engine_cs *engine,
+				   struct intel_context *ce)
 {
-	struct intel_context *ce = to_intel_context(ctx, engine);
 	u64 desc;
 
 	BUILD_BUG_ON(MAX_CONTEXT_HW_ID > (BIT(GEN8_CTX_ID_WIDTH)));
@@ -418,8 +414,7 @@ execlists_update_context_pdps(struct i915_hw_ppgtt *ppgtt, u32 *reg_state)
 
 static u64 execlists_update_context(struct i915_request *rq)
 {
-	struct intel_context *ce =
-		to_intel_context(rq->gem_context, rq->engine);
+	struct intel_context *ce = rq->hw_context;
 	struct i915_hw_ppgtt *ppgtt =
 		rq->gem_context->ppgtt ?: rq->i915->mm.aliasing_ppgtt;
 	u32 *reg_state = ce->lrc_reg_state;
@@ -496,14 +491,14 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 	execlists_clear_active(execlists, EXECLISTS_ACTIVE_HWACK);
 }
 
-static bool ctx_single_port_submission(const struct i915_gem_context *ctx)
+static bool ctx_single_port_submission(const struct intel_context *ce)
 {
 	return (IS_ENABLED(CONFIG_DRM_I915_GVT) &&
-		i915_gem_context_force_single_submission(ctx));
+		i915_gem_context_force_single_submission(ce->gem_context));
 }
 
-static bool can_merge_ctx(const struct i915_gem_context *prev,
-			  const struct i915_gem_context *next)
+static bool can_merge_ctx(const struct intel_context *prev,
+			  const struct intel_context *next)
 {
 	if (prev != next)
 		return false;
@@ -680,8 +675,8 @@ static bool __execlists_dequeue(struct intel_engine_cs *engine)
 			 * second request, and so we never need to tell the
 			 * hardware about the first.
 			 */
-			if (last && !can_merge_ctx(rq->gem_context,
-						   last->gem_context)) {
+			if (last &&
+			    !can_merge_ctx(rq->hw_context, last->hw_context)) {
 				/*
 				 * If we are on the second port and cannot
 				 * combine this request with the last, then we
@@ -700,14 +695,14 @@ static bool __execlists_dequeue(struct intel_engine_cs *engine)
 				 * the same context (even though a different
 				 * request) to the second port.
 				 */
-				if (ctx_single_port_submission(last->gem_context) ||
-				    ctx_single_port_submission(rq->gem_context)) {
+				if (ctx_single_port_submission(last->hw_context) ||
+				    ctx_single_port_submission(rq->hw_context)) {
 					__list_del_many(&p->requests,
 							&rq->sched.link);
 					goto done;
 				}
 
-				GEM_BUG_ON(last->gem_context == rq->gem_context);
+				GEM_BUG_ON(last->hw_context == rq->hw_context);
 
 				if (submit)
 					port_assign(port, last);
@@ -1339,6 +1334,37 @@ static void execlists_schedule(struct i915_request *request,
 	spin_unlock_irq(&engine->timeline.lock);
 }
 
+static void execlists_context_destroy(struct intel_context *ce)
+{
+	GEM_BUG_ON(!ce->state);
+	GEM_BUG_ON(ce->pin_count);
+
+	intel_ring_free(ce->ring);
+	__i915_gem_object_release_unless_active(ce->state->obj);
+}
+
+static void __execlists_context_unpin(struct intel_context *ce)
+{
+	intel_ring_unpin(ce->ring);
+
+	ce->state->obj->pin_global--;
+	i915_gem_object_unpin_map(ce->state->obj);
+	i915_vma_unpin(ce->state);
+
+	i915_gem_context_put(ce->gem_context);
+}
+
+static void execlists_context_unpin(struct intel_context *ce)
+{
+	lockdep_assert_held(&ce->gem_context->i915->drm.struct_mutex);
+	GEM_BUG_ON(ce->pin_count == 0);
+
+	if (--ce->pin_count)
+		return;
+
+	__execlists_context_unpin(ce);
+}
+
 static int __context_pin(struct i915_gem_context *ctx, struct i915_vma *vma)
 {
 	unsigned int flags;
@@ -1362,21 +1388,15 @@ static int __context_pin(struct i915_gem_context *ctx, struct i915_vma *vma)
 	return i915_vma_pin(vma, 0, GEN8_LR_CONTEXT_ALIGN, flags);
 }
 
-static struct intel_ring *
-execlists_context_pin(struct intel_engine_cs *engine,
-		      struct i915_gem_context *ctx)
+static struct intel_context *
+__execlists_context_pin(struct intel_engine_cs *engine,
+			struct i915_gem_context *ctx,
+			struct intel_context *ce)
 {
-	struct intel_context *ce = to_intel_context(ctx, engine);
 	void *vaddr;
 	int ret;
 
-	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
-
-	if (likely(ce->pin_count++))
-		goto out;
-	GEM_BUG_ON(!ce->pin_count); /* no overflow please! */
-
-	ret = execlists_context_deferred_alloc(ctx, engine);
+	ret = execlists_context_deferred_alloc(ctx, engine, ce);
 	if (ret)
 		goto err;
 	GEM_BUG_ON(!ce->state);
@@ -1395,7 +1415,7 @@ execlists_context_pin(struct intel_engine_cs *engine,
 	if (ret)
 		goto unpin_map;
 
-	intel_lr_context_descriptor_update(ctx, engine);
+	intel_lr_context_descriptor_update(ctx, engine, ce);
 
 	ce->lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
 	ce->lrc_reg_state[CTX_RING_BUFFER_START+1] =
@@ -1404,8 +1424,7 @@ execlists_context_pin(struct intel_engine_cs *engine,
 
 	ce->state->obj->pin_global++;
 	i915_gem_context_get(ctx);
-out:
-	return ce->ring;
+	return ce;
 
 unpin_map:
 	i915_gem_object_unpin_map(ce->state->obj);
@@ -1416,33 +1435,33 @@ err:
 	return ERR_PTR(ret);
 }
 
-static void execlists_context_unpin(struct intel_engine_cs *engine,
-				    struct i915_gem_context *ctx)
+static const struct intel_context_ops execlists_context_ops = {
+	.unpin = execlists_context_unpin,
+	.destroy = execlists_context_destroy,
+};
+
+static struct intel_context *
+execlists_context_pin(struct intel_engine_cs *engine,
+		      struct i915_gem_context *ctx)
 {
 	struct intel_context *ce = to_intel_context(ctx, engine);
 
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
-	GEM_BUG_ON(ce->pin_count == 0);
 
-	if (--ce->pin_count)
-		return;
+	if (likely(ce->pin_count++))
+		return ce;
+	GEM_BUG_ON(!ce->pin_count); /* no overflow please! */
 
-	intel_ring_unpin(ce->ring);
+	ce->ops = &execlists_context_ops;
 
-	ce->state->obj->pin_global--;
-	i915_gem_object_unpin_map(ce->state->obj);
-	i915_vma_unpin(ce->state);
-
-	i915_gem_context_put(ctx);
+	return __execlists_context_pin(engine, ctx, ce);
 }
 
 static int execlists_request_alloc(struct i915_request *request)
 {
-	struct intel_context *ce =
-		to_intel_context(request->gem_context, request->engine);
 	int ret;
 
-	GEM_BUG_ON(!ce->pin_count);
+	GEM_BUG_ON(!request->hw_context->pin_count);
 
 	/* Flush enough space to reduce the likelihood of waiting after
 	 * we start building the request - in which case we will just
@@ -1956,7 +1975,7 @@ static void execlists_reset(struct intel_engine_cs *engine,
 	 * future request will be after userspace has had the opportunity
 	 * to recreate its own state.
 	 */
-	regs = to_intel_context(request->gem_context, engine)->lrc_reg_state;
+	regs = request->hw_context->lrc_reg_state;
 	if (engine->default_state) {
 		void *defaults;
 
@@ -2327,8 +2346,6 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 	engine->reset.finish = execlists_reset_finish;
 
 	engine->context_pin = execlists_context_pin;
-	engine->context_unpin = execlists_context_unpin;
-
 	engine->request_alloc = execlists_request_alloc;
 
 	engine->emit_flush = gen8_emit_flush;
@@ -2563,7 +2580,7 @@ static void execlists_init_reg_state(u32 *regs,
 	struct drm_i915_private *dev_priv = engine->i915;
 	struct i915_hw_ppgtt *ppgtt = ctx->ppgtt ?: dev_priv->mm.aliasing_ppgtt;
 	u32 base = engine->mmio_base;
-	bool rcs = engine->id == RCS;
+	bool rcs = engine->class == RENDER_CLASS;
 
 	/* A context is actually a big batch buffer with several
 	 * MI_LOAD_REGISTER_IMM commands followed by (reg, value) pairs. The
@@ -2710,10 +2727,10 @@ err_unpin_ctx:
 }
 
 static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
-					    struct intel_engine_cs *engine)
+					    struct intel_engine_cs *engine,
+					    struct intel_context *ce)
 {
 	struct drm_i915_gem_object *ctx_obj;
-	struct intel_context *ce = to_intel_context(ctx, engine);
 	struct i915_vma *vma;
 	uint32_t context_size;
 	struct intel_ring *ring;

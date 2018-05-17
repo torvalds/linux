@@ -383,8 +383,8 @@ static void __retire_engine_request(struct intel_engine_cs *engine,
 	 * the subsequent request.
 	 */
 	if (engine->last_retired_context)
-		intel_context_unpin(engine->last_retired_context, engine);
-	engine->last_retired_context = rq->gem_context;
+		intel_context_unpin(engine->last_retired_context);
+	engine->last_retired_context = rq->hw_context;
 }
 
 static void __retire_engine_upto(struct intel_engine_cs *engine,
@@ -456,7 +456,7 @@ static void i915_request_retire(struct i915_request *request)
 
 	/* Retirement decays the ban score as it is a sign of ctx progress */
 	atomic_dec_if_positive(&request->gem_context->ban_score);
-	intel_context_unpin(request->gem_context, request->engine);
+	intel_context_unpin(request->hw_context);
 
 	__retire_engine_upto(request->engine, request);
 
@@ -657,7 +657,7 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 {
 	struct drm_i915_private *i915 = engine->i915;
 	struct i915_request *rq;
-	struct intel_ring *ring;
+	struct intel_context *ce;
 	int ret;
 
 	lockdep_assert_held(&i915->drm.struct_mutex);
@@ -681,22 +681,21 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	 * GGTT space, so do this first before we reserve a seqno for
 	 * ourselves.
 	 */
-	ring = intel_context_pin(ctx, engine);
-	if (IS_ERR(ring))
-		return ERR_CAST(ring);
-	GEM_BUG_ON(!ring);
+	ce = intel_context_pin(ctx, engine);
+	if (IS_ERR(ce))
+		return ERR_CAST(ce);
 
 	ret = reserve_gt(i915);
 	if (ret)
 		goto err_unpin;
 
-	ret = intel_ring_wait_for_space(ring, MIN_SPACE_FOR_ADD_REQUEST);
+	ret = intel_ring_wait_for_space(ce->ring, MIN_SPACE_FOR_ADD_REQUEST);
 	if (ret)
 		goto err_unreserve;
 
 	/* Move our oldest request to the slab-cache (if not in use!) */
-	rq = list_first_entry(&ring->request_list, typeof(*rq), ring_link);
-	if (!list_is_last(&rq->ring_link, &ring->request_list) &&
+	rq = list_first_entry(&ce->ring->request_list, typeof(*rq), ring_link);
+	if (!list_is_last(&rq->ring_link, &ce->ring->request_list) &&
 	    i915_request_completed(rq))
 		i915_request_retire(rq);
 
@@ -761,8 +760,9 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	rq->i915 = i915;
 	rq->engine = engine;
 	rq->gem_context = ctx;
-	rq->ring = ring;
-	rq->timeline = ring->timeline;
+	rq->hw_context = ce;
+	rq->ring = ce->ring;
+	rq->timeline = ce->ring->timeline;
 	GEM_BUG_ON(rq->timeline == &engine->timeline);
 
 	spin_lock_init(&rq->lock);
@@ -814,14 +814,14 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 		goto err_unwind;
 
 	/* Keep a second pin for the dual retirement along engine and ring */
-	__intel_context_pin(rq->gem_context, engine);
+	__intel_context_pin(ce);
 
 	/* Check that we didn't interrupt ourselves with a new request */
 	GEM_BUG_ON(rq->timeline->seqno != rq->fence.seqno);
 	return rq;
 
 err_unwind:
-	rq->ring->emit = rq->head;
+	ce->ring->emit = rq->head;
 
 	/* Make sure we didn't add ourselves to external state before freeing */
 	GEM_BUG_ON(!list_empty(&rq->active_list));
@@ -832,7 +832,7 @@ err_unwind:
 err_unreserve:
 	unreserve_gt(i915);
 err_unpin:
-	intel_context_unpin(ctx, engine);
+	intel_context_unpin(ce);
 	return ERR_PTR(ret);
 }
 
@@ -1018,8 +1018,8 @@ i915_request_await_object(struct i915_request *to,
 void __i915_request_add(struct i915_request *request, bool flush_caches)
 {
 	struct intel_engine_cs *engine = request->engine;
-	struct intel_ring *ring = request->ring;
 	struct i915_timeline *timeline = request->timeline;
+	struct intel_ring *ring = request->ring;
 	struct i915_request *prev;
 	u32 *cs;
 	int err;

@@ -436,10 +436,9 @@ struct intel_engine_cs {
 
 	void		(*set_default_submission)(struct intel_engine_cs *engine);
 
-	struct intel_ring *(*context_pin)(struct intel_engine_cs *engine,
-					  struct i915_gem_context *ctx);
-	void		(*context_unpin)(struct intel_engine_cs *engine,
-					 struct i915_gem_context *ctx);
+	struct intel_context *(*context_pin)(struct intel_engine_cs *engine,
+					     struct i915_gem_context *ctx);
+
 	int		(*request_alloc)(struct i915_request *rq);
 	int		(*init_context)(struct i915_request *rq);
 
@@ -555,7 +554,7 @@ struct intel_engine_cs {
 	 * to the kernel context and trash it as the save may not happen
 	 * before the hardware is powered down.
 	 */
-	struct i915_gem_context *last_retired_context;
+	struct intel_context *last_retired_context;
 
 	/* We track the current MI_SET_CONTEXT in order to eliminate
 	 * redudant context switches. This presumes that requests are not

@@ -1221,7 +1221,7 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 		dev_priv->perf.oa.specific_ctx_id = stream->ctx->hw_id;
 	} else {
 		struct intel_engine_cs *engine = dev_priv->engine[RCS];
-		struct intel_ring *ring;
+		struct intel_context *ce;
 		int ret;
 
 		ret = i915_mutex_lock_interruptible(&dev_priv->drm);
@@ -1234,19 +1234,19 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 		 *
 		 * NB: implied RCS engine...
 		 */
-		ring = intel_context_pin(stream->ctx, engine);
+		ce = intel_context_pin(stream->ctx, engine);
 		mutex_unlock(&dev_priv->drm.struct_mutex);
-		if (IS_ERR(ring))
-			return PTR_ERR(ring);
+		if (IS_ERR(ce))
+			return PTR_ERR(ce);
 
+		dev_priv->perf.oa.pinned_ctx = ce;
 
 		/*
 		 * Explicitly track the ID (instead of calling
 		 * i915_ggtt_offset() on the fly) considering the difference
 		 * with gen8+ and execlists
 		 */
-		dev_priv->perf.oa.specific_ctx_id =
-			i915_ggtt_offset(to_intel_context(stream->ctx, engine)->state);
+		dev_priv->perf.oa.specific_ctx_id = i915_ggtt_offset(ce->state);
 	}
 
 	return 0;
@@ -1262,17 +1262,14 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 static void oa_put_render_ctx_id(struct i915_perf_stream *stream)
 {
 	struct drm_i915_private *dev_priv = stream->dev_priv;
+	struct intel_context *ce;
 
-	if (HAS_LOGICAL_RING_CONTEXTS(dev_priv)) {
-		dev_priv->perf.oa.specific_ctx_id = INVALID_CTX_ID;
-	} else {
-		struct intel_engine_cs *engine = dev_priv->engine[RCS];
+	dev_priv->perf.oa.specific_ctx_id = INVALID_CTX_ID;
 
+	ce = fetch_and_zero(&dev_priv->perf.oa.pinned_ctx);
+	if (ce) {
 		mutex_lock(&dev_priv->drm.struct_mutex);
-
-		dev_priv->perf.oa.specific_ctx_id = INVALID_CTX_ID;
-		intel_context_unpin(stream->ctx, engine);
-
+		intel_context_unpin(ce);
 		mutex_unlock(&dev_priv->drm.struct_mutex);
 	}
 }

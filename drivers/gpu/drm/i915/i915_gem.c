@@ -3181,14 +3181,14 @@ void i915_gem_reset(struct drm_i915_private *dev_priv,
 	i915_retire_requests(dev_priv);
 
 	for_each_engine(engine, dev_priv, id) {
-		struct i915_gem_context *ctx;
+		struct intel_context *ce;
 
 		i915_gem_reset_engine(engine,
 				      engine->hangcheck.active_request,
 				      stalled_mask & ENGINE_MASK(id));
-		ctx = fetch_and_zero(&engine->last_retired_context);
-		if (ctx)
-			intel_context_unpin(ctx, engine);
+		ce = fetch_and_zero(&engine->last_retired_context);
+		if (ce)
+			intel_context_unpin(ce);
 
 		/*
 		 * Ostensibily, we always want a context loaded for powersaving,
@@ -4897,13 +4897,13 @@ void __i915_gem_object_release_unless_active(struct drm_i915_gem_object *obj)
 
 static void assert_kernel_context_is_current(struct drm_i915_private *i915)
 {
-	struct i915_gem_context *kernel_context = i915->kernel_context;
+	struct i915_gem_context *kctx = i915->kernel_context;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
 	for_each_engine(engine, i915, id) {
 		GEM_BUG_ON(__i915_gem_active_peek(&engine->timeline.last_request));
-		GEM_BUG_ON(engine->last_retired_context != kernel_context);
+		GEM_BUG_ON(engine->last_retired_context->gem_context != kctx);
 	}
 }
 

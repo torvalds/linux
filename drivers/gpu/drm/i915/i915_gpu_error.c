@@ -1485,8 +1485,7 @@ static void gem_record_rings(struct i915_gpu_state *error)
 
 			ee->ctx =
 				i915_error_object_create(i915,
-							 to_intel_context(ctx,
-									  engine)->state);
+							 request->hw_context->state);
 
 			error->simulated |=
 				i915_gem_context_no_error_capture(ctx);

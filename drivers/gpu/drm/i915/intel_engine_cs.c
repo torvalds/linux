@@ -645,6 +645,12 @@ static int init_phys_status_page(struct intel_engine_cs *engine)
 	return 0;
 }
 
+static void __intel_context_unpin(struct i915_gem_context *ctx,
+				  struct intel_engine_cs *engine)
+{
+	intel_context_unpin(to_intel_context(ctx, engine));
+}
+
 /**
  * intel_engines_init_common - initialize cengine state which might require hw access
  * @engine: Engine to initialize.
@@ -658,7 +664,8 @@ static int init_phys_status_page(struct intel_engine_cs *engine)
  */
 int intel_engine_init_common(struct intel_engine_cs *engine)
 {
-	struct intel_ring *ring;
+	struct drm_i915_private *i915 = engine->i915;
+	struct intel_context *ce;
 	int ret;
 
 	engine->set_default_submission(engine);
@@ -670,18 +677,18 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	 * be available. To avoid this we always pin the default
 	 * context.
 	 */
-	ring = intel_context_pin(engine->i915->kernel_context, engine);
-	if (IS_ERR(ring))
-		return PTR_ERR(ring);
+	ce = intel_context_pin(i915->kernel_context, engine);
+	if (IS_ERR(ce))
+		return PTR_ERR(ce);
 
 	/*
 	 * Similarly the preempt context must always be available so that
 	 * we can interrupt the engine at any time.
 	 */
-	if (engine->i915->preempt_context) {
-		ring = intel_context_pin(engine->i915->preempt_context, engine);
-		if (IS_ERR(ring)) {
-			ret = PTR_ERR(ring);
+	if (i915->preempt_context) {
+		ce = intel_context_pin(i915->preempt_context, engine);
+		if (IS_ERR(ce)) {
+			ret = PTR_ERR(ce);
 			goto err_unpin_kernel;
 		}
 	}
@@ -690,7 +697,7 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	if (ret)
 		goto err_unpin_preempt;
 
-	if (HWS_NEEDS_PHYSICAL(engine->i915))
+	if (HWS_NEEDS_PHYSICAL(i915))
 		ret = init_phys_status_page(engine);
 	else
 		ret = init_status_page(engine);
@@ -702,10 +709,11 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 err_breadcrumbs:
 	intel_engine_fini_breadcrumbs(engine);
 err_unpin_preempt:
-	if (engine->i915->preempt_context)
-		intel_context_unpin(engine->i915->preempt_context, engine);
+	if (i915->preempt_context)
+		__intel_context_unpin(i915->preempt_context, engine);
+
 err_unpin_kernel:
-	intel_context_unpin(engine->i915->kernel_context, engine);
+	__intel_context_unpin(i915->kernel_context, engine);
 	return ret;
 }
 
@@ -718,6 +726,8 @@ err_unpin_kernel:
  */
 void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 {
+	struct drm_i915_private *i915 = engine->i915;
+
 	intel_engine_cleanup_scratch(engine);
 
 	if (HWS_NEEDS_PHYSICAL(engine->i915))
@@ -732,9 +742,9 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	if (engine->default_state)
 		i915_gem_object_put(engine->default_state);
 
-	if (engine->i915->preempt_context)
-		intel_context_unpin(engine->i915->preempt_context, engine);
-	intel_context_unpin(engine->i915->kernel_context, engine);
+	if (i915->preempt_context)
+		__intel_context_unpin(i915->preempt_context, engine);
+	__intel_context_unpin(i915->kernel_context, engine);
 
 	i915_timeline_fini(&engine->timeline);
 }
@@ -1007,8 +1017,8 @@ bool intel_engines_are_idle(struct drm_i915_private *dev_priv)
  */
 bool intel_engine_has_kernel_context(const struct intel_engine_cs *engine)
 {
-	const struct i915_gem_context * const kernel_context =
-		engine->i915->kernel_context;
+	const struct intel_context *kernel_context =
+		to_intel_context(engine->i915->kernel_context, engine);
 	struct i915_request *rq;
 
 	lockdep_assert_held(&engine->i915->drm.struct_mutex);
@@ -1020,7 +1030,7 @@ bool intel_engine_has_kernel_context(const struct intel_engine_cs *engine)
 	 */
 	rq = __i915_gem_active_peek(&engine->timeline.last_request);
 	if (rq)
-		return rq->gem_context == kernel_context;
+		return rq->hw_context == kernel_context;
 	else
 		return engine->last_retired_context == kernel_context;
 }
@@ -1107,16 +1117,16 @@ void intel_engines_unpark(struct drm_i915_private *i915)
  */
 void intel_engine_lost_context(struct intel_engine_cs *engine)
 {
-	struct i915_gem_context *ctx;
+	struct intel_context *ce;
 
 	lockdep_assert_held(&engine->i915->drm.struct_mutex);
 
 	engine->legacy_active_context = NULL;
 	engine->legacy_active_ppgtt = NULL;
 
-	ctx = fetch_and_zero(&engine->last_retired_context);
-	if (ctx)
-		intel_context_unpin(ctx, engine);
+	ce = fetch_and_zero(&engine->last_retired_context);
+	if (ce)
+		intel_context_unpin(ce);
 }
 
 bool intel_engine_can_store_dword(struct intel_engine_cs *engine)

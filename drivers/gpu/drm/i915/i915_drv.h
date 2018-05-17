@@ -1950,6 +1950,7 @@ struct drm_i915_private {
 			 */
 			struct i915_perf_stream *exclusive_stream;
 
+			struct intel_context *pinned_ctx;
 			u32 specific_ctx_id;
 
 			struct hrtimer poll_check_timer;

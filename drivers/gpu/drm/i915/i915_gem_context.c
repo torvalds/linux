@@ -127,14 +127,8 @@ static void i915_gem_context_free(struct i915_gem_context *ctx)
 	for (n = 0; n < ARRAY_SIZE(ctx->__engine); n++) {
 		struct intel_context *ce = &ctx->__engine[n];
 
-		if (!ce->state)
-			continue;
-
-		WARN_ON(ce->pin_count);
-		if (ce->ring)
-			intel_ring_free(ce->ring);
-
-		__i915_gem_object_release_unless_active(ce->state->obj);
+		if (ce->ops)
+			ce->ops->destroy(ce);
 	}
 
 	kfree(ctx->name);
@@ -266,6 +260,7 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 		    struct drm_i915_file_private *file_priv)
 {
 	struct i915_gem_context *ctx;
+	unsigned int n;
 	int ret;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
@@ -282,6 +277,12 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	list_add_tail(&ctx->link, &dev_priv->contexts.list);
 	ctx->i915 = dev_priv;
 	ctx->sched.priority = I915_PRIORITY_NORMAL;
+
+	for (n = 0; n < ARRAY_SIZE(ctx->__engine); n++) {
+		struct intel_context *ce = &ctx->__engine[n];
+
+		ce->gem_context = ctx;
+	}
 
 	INIT_RADIX_TREE(&ctx->handles_vma, GFP_KERNEL);
 	INIT_LIST_HEAD(&ctx->handles_list);
