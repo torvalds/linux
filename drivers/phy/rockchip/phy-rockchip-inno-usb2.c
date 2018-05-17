@@ -832,7 +832,7 @@ static ssize_t otg_mode_show(struct device *device,
 {
 	struct rockchip_usb2phy *rphy = dev_get_drvdata(device);
 	struct rockchip_usb2phy_port *rport = NULL;
-	int index;
+	unsigned int index;
 
 	for (index = 0; index < rphy->phy_cfg->num_ports; index++) {
 		rport = &rphy->ports[index];
@@ -869,7 +869,8 @@ static ssize_t otg_mode_store(struct device *device,
 	struct rockchip_usb2phy *rphy = dev_get_drvdata(device);
 	struct rockchip_usb2phy_port *rport = NULL;
 	enum usb_dr_mode new_dr_mode;
-	int index, rc = count;
+	unsigned int index;
+	int rc = count;
 
 	for (index = 0; index < rphy->phy_cfg->num_ports; index++) {
 		rport = &rphy->ports[index];
@@ -1687,7 +1688,8 @@ static int rockchip_usb2phy_probe(struct platform_device *pdev)
 	const struct rockchip_usb2phy_cfg *phy_cfgs;
 	const struct of_device_id *match;
 	unsigned int reg;
-	int index, ret;
+	unsigned int index;
+	int ret;
 
 	rphy = devm_kzalloc(dev, sizeof(*rphy), GFP_KERNEL);
 	if (!rphy)
@@ -2028,7 +2030,7 @@ static int rockchip_usb2phy_pm_suspend(struct device *dev)
 {
 	struct rockchip_usb2phy *rphy = dev_get_drvdata(dev);
 	struct rockchip_usb2phy_port *rport;
-	int index;
+	unsigned int index;
 	int ret = 0;
 
 	for (index = 0; index < rphy->phy_cfg->num_ports; index++) {
@@ -2069,7 +2071,7 @@ static int rockchip_usb2phy_pm_resume(struct device *dev)
 {
 	struct rockchip_usb2phy *rphy = dev_get_drvdata(dev);
 	struct rockchip_usb2phy_port *rport;
-	int index;
+	unsigned int index;
 	int ret = 0;
 
 	if (rphy->phy_cfg->phy_tuning)
