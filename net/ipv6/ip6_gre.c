@@ -81,6 +81,7 @@ static int ip6gre_tunnel_init(struct net_device *dev);
 static void ip6gre_tunnel_setup(struct net_device *dev);
 static void ip6gre_tunnel_link(struct ip6gre_net *ign, struct ip6_tnl *t);
 static void ip6gre_tnl_link_config(struct ip6_tnl *t, int set_mtu);
+static void ip6erspan_tnl_link_config(struct ip6_tnl *t, int set_mtu);
 
 /* Tunnel hash table */
 
@@ -1754,6 +1755,19 @@ static const struct net_device_ops ip6gre_tap_netdev_ops = {
 	.ndo_get_iflink = ip6_tnl_get_iflink,
 };
 
+static int ip6erspan_calc_hlen(struct ip6_tnl *tunnel)
+{
+	int t_hlen;
+
+	tunnel->tun_hlen = 8;
+	tunnel->hlen = tunnel->tun_hlen + tunnel->encap_hlen +
+		       erspan_hdr_len(tunnel->parms.erspan_ver);
+
+	t_hlen = tunnel->hlen + sizeof(struct ipv6hdr);
+	tunnel->dev->hard_header_len = LL_MAX_HEADER + t_hlen;
+	return t_hlen;
+}
+
 static int ip6erspan_tap_init(struct net_device *dev)
 {
 	struct ip6_tnl *tunnel;
@@ -1777,12 +1791,7 @@ static int ip6erspan_tap_init(struct net_device *dev)
 		return ret;
 	}
 
-	tunnel->tun_hlen = 8;
-	tunnel->hlen = tunnel->tun_hlen + tunnel->encap_hlen +
-		       erspan_hdr_len(tunnel->parms.erspan_ver);
-	t_hlen = tunnel->hlen + sizeof(struct ipv6hdr);
-
-	dev->hard_header_len = LL_MAX_HEADER + t_hlen;
+	t_hlen = ip6erspan_calc_hlen(tunnel);
 	dev->mtu = ETH_DATA_LEN - t_hlen;
 	if (dev->type == ARPHRD_ETHER)
 		dev->mtu -= ETH_HLEN;
@@ -1790,7 +1799,7 @@ static int ip6erspan_tap_init(struct net_device *dev)
 		dev->mtu -= 8;
 
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
-	ip6gre_tnl_link_config(tunnel, 1);
+	ip6erspan_tnl_link_config(tunnel, 1);
 
 	return 0;
 }
@@ -2121,6 +2130,53 @@ static void ip6erspan_tap_setup(struct net_device *dev)
 	netif_keep_dst(dev);
 }
 
+static int ip6erspan_newlink(struct net *src_net, struct net_device *dev,
+			     struct nlattr *tb[], struct nlattr *data[],
+			     struct netlink_ext_ack *extack)
+{
+	int err = ip6gre_newlink_common(src_net, dev, tb, data, extack);
+	struct ip6_tnl *nt = netdev_priv(dev);
+	struct net *net = dev_net(dev);
+
+	if (!err) {
+		ip6erspan_tnl_link_config(nt, !tb[IFLA_MTU]);
+		ip6gre_tunnel_link(net_generic(net, ip6gre_net_id), nt);
+	}
+	return err;
+}
+
+static void ip6erspan_tnl_link_config(struct ip6_tnl *t, int set_mtu)
+{
+	ip6gre_tnl_link_config_common(t);
+	ip6gre_tnl_link_config_route(t, set_mtu, ip6erspan_calc_hlen(t));
+}
+
+static int ip6erspan_tnl_change(struct ip6_tnl *t,
+				const struct __ip6_tnl_parm *p, int set_mtu)
+{
+	ip6gre_tnl_copy_tnl_parm(t, p);
+	ip6erspan_tnl_link_config(t, set_mtu);
+	return 0;
+}
+
+static int ip6erspan_changelink(struct net_device *dev, struct nlattr *tb[],
+				struct nlattr *data[],
+				struct netlink_ext_ack *extack)
+{
+	struct ip6gre_net *ign = net_generic(dev_net(dev), ip6gre_net_id);
+	struct __ip6_tnl_parm p;
+	struct ip6_tnl *t;
+
+	t = ip6gre_changelink_common(dev, tb, data, &p, extack);
+	if (IS_ERR(t))
+		return PTR_ERR(t);
+
+	ip6gre_tunnel_unlink(ign, t);
+	ip6erspan_tnl_change(t, &p, !tb[IFLA_MTU]);
+	ip6gre_tunnel_link(ign, t);
+	return 0;
+}
+
 static struct rtnl_link_ops ip6gre_link_ops __read_mostly = {
 	.kind		= "ip6gre",
 	.maxtype	= IFLA_GRE_MAX,
@@ -2157,8 +2213,8 @@ static struct rtnl_link_ops ip6erspan_tap_ops __read_mostly = {
 	.priv_size	= sizeof(struct ip6_tnl),
 	.setup		= ip6erspan_tap_setup,
 	.validate	= ip6erspan_tap_validate,
-	.newlink	= ip6gre_newlink,
-	.changelink	= ip6gre_changelink,
+	.newlink	= ip6erspan_newlink,
+	.changelink	= ip6erspan_changelink,
 	.get_size	= ip6gre_get_size,
 	.fill_info	= ip6gre_fill_info,
 	.get_link_net	= ip6_tnl_get_link_net,
