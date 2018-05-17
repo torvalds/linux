@@ -662,7 +662,7 @@ static struct zfcp_fsf_req *zfcp_fsf_alloc(mempool_t *pool)
 	return req;
 }
 
-static struct fsf_qtcb *zfcp_qtcb_alloc(mempool_t *pool)
+static struct fsf_qtcb *zfcp_fsf_qtcb_alloc(mempool_t *pool)
 {
 	struct fsf_qtcb *qtcb;
 
@@ -701,9 +701,10 @@ static struct zfcp_fsf_req *zfcp_fsf_req_create(struct zfcp_qdio *qdio,
 
 	if (likely(fsf_cmd != FSF_QTCB_UNSOLICITED_STATUS)) {
 		if (likely(pool))
-			req->qtcb = zfcp_qtcb_alloc(adapter->pool.qtcb_pool);
+			req->qtcb = zfcp_fsf_qtcb_alloc(
+				adapter->pool.qtcb_pool);
 		else
-			req->qtcb = zfcp_qtcb_alloc(NULL);
+			req->qtcb = zfcp_fsf_qtcb_alloc(NULL);
 
 		if (unlikely(!req->qtcb)) {
 			zfcp_fsf_req_free(req);

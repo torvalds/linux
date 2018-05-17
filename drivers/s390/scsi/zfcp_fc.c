@@ -598,7 +598,7 @@ void zfcp_fc_test_link(struct zfcp_port *port)
 		put_device(&port->dev);
 }
 
-static struct zfcp_fc_req *zfcp_alloc_sg_env(int buf_num)
+static struct zfcp_fc_req *zfcp_fc_alloc_sg_env(int buf_num)
 {
 	struct zfcp_fc_req *fc_req;
 
@@ -750,7 +750,7 @@ void zfcp_fc_scan_ports(struct work_struct *work)
 	if (zfcp_fc_wka_port_get(&adapter->gs->ds))
 		return;
 
-	fc_req = zfcp_alloc_sg_env(buf_num);
+	fc_req = zfcp_fc_alloc_sg_env(buf_num);
 	if (!fc_req)
 		goto out;
 

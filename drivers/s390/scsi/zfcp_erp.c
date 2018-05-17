@@ -551,21 +551,23 @@ void zfcp_erp_lun_shutdown_wait(struct scsi_device *sdev, char *id)
 	zfcp_erp_wait(adapter);
 }
 
-static int status_change_set(unsigned long mask, atomic_t *status)
+static int zfcp_erp_status_change_set(unsigned long mask, atomic_t *status)
 {
 	return (atomic_read(status) ^ mask) & mask;
 }
 
 static void zfcp_erp_adapter_unblock(struct zfcp_adapter *adapter)
 {
-	if (status_change_set(ZFCP_STATUS_COMMON_UNBLOCKED, &adapter->status))
+	if (zfcp_erp_status_change_set(ZFCP_STATUS_COMMON_UNBLOCKED,
+				       &adapter->status))
 		zfcp_dbf_rec_run("eraubl1", &adapter->erp_action);
 	atomic_or(ZFCP_STATUS_COMMON_UNBLOCKED, &adapter->status);
 }
 
 static void zfcp_erp_port_unblock(struct zfcp_port *port)
 {
-	if (status_change_set(ZFCP_STATUS_COMMON_UNBLOCKED, &port->status))
+	if (zfcp_erp_status_change_set(ZFCP_STATUS_COMMON_UNBLOCKED,
+				       &port->status))
 		zfcp_dbf_rec_run("erpubl1", &port->erp_action);
 	atomic_or(ZFCP_STATUS_COMMON_UNBLOCKED, &port->status);
 }
@@ -574,7 +576,8 @@ static void zfcp_erp_lun_unblock(struct scsi_device *sdev)
 {
 	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
 
-	if (status_change_set(ZFCP_STATUS_COMMON_UNBLOCKED, &zfcp_sdev->status))
+	if (zfcp_erp_status_change_set(ZFCP_STATUS_COMMON_UNBLOCKED,
+				       &zfcp_sdev->status))
 		zfcp_dbf_rec_run("erlubl1", &sdev_to_zfcp(sdev)->erp_action);
 	atomic_or(ZFCP_STATUS_COMMON_UNBLOCKED, &zfcp_sdev->status);
 }
