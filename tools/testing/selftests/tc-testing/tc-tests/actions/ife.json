@@ -20,7 +20,7 @@
         "matchPattern": "action order [0-9]*: ife encode action pass.*type 0xED3E.*allow mark.*index 2",
         "matchCount": "1",
         "teardown": [
-            "$TC actions flush action skbedit"
+            "$TC actions flush action ife"
         ]
     },
     {
@@ -44,7 +44,7 @@
         "matchPattern": "action order [0-9]*: ife encode action pipe.*type 0xED3E.*use mark.*index 2",
         "matchCount": "1",
         "teardown": [
-            "$TC actions flush action skbedit"
+            "$TC actions flush action ife"
         ]
     },
     {
@@ -68,7 +68,7 @@
         "matchPattern": "action order [0-9]*: ife encode action continue.*type 0xED3E.*allow mark.*index 2",
         "matchCount": "1",
         "teardown": [
-            "$TC actions flush action skbedit"
+            "$TC actions flush action ife"
         ]
     },
     {
@@ -92,7 +92,7 @@
         "matchPattern": "action order [0-9]*: ife encode action drop.*type 0xED3E.*use mark 789.*index 2",
         "matchCount": "1",
         "teardown": [
-            "$TC actions flush action skbedit"
+            "$TC actions flush action ife"
         ]
     },
     {
@@ -116,7 +116,7 @@
         "matchPattern": "action order [0-9]*: ife encode action reclassify.*type 0xED3E.*use mark 656768.*index 2",
         "matchCount": "1",
         "teardown": [
-            "$TC actions flush action skbedit"
+            "$TC actions flush action ife"
         ]
     },
     {
@@ -140,7 +140,7 @@
         "matchPattern": "action order [0-9]*: ife encode action jump 1.*type 0xED3E.*use mark 65.*index 2",
         "matchCount": "1",
         "teardown": [
-            "$TC actions flush action skbedit"
+            "$TC actions flush action ife"
         ]
     },
     {
@@ -164,7 +164,7 @@
         "matchPattern": "action order [0-9]*: ife encode action reclassify.*type 0xED3E.*use mark 4294967295.*index 90",
         "matchCount": "1",
         "teardown": [
-            "$TC actions flush action skbedit"
+            "$TC actions flush action ife"
         ]
     },
     {
@@ -210,7 +210,7 @@
         "matchPattern": "action order [0-9]*: ife encode action pass.*type 0xED3E.*allow prio.*index 9",
         "matchCount": "1",
         "teardown": [
-            "$TC actions flush action skbedit"
+            "$TC actions flush action ife"
         ]
     },
     {
@@ -234,7 +234,7 @@
         "matchPattern": "action order [0-9]*: ife encode action pipe.*type 0xED3E.*use prio 7.*index 9",
         "matchCount": "1",
         "teardown": [
-            "$TC actions flush action skbedit"
+            "$TC actions flush action ife"
         ]
     },
     {
@@ -258,7 +258,7 @@
         "matchPattern": "action order [0-9]*: ife encode action continue.*type 0xED3E.*use prio 3.*index 9",
         "matchCount": "1",
         "teardown": [
-            "$TC actions flush action skbedit"
+            "$TC actions flush action ife"
         ]
     },
     {
@@ -282,7 +282,7 @@
         "matchPattern": "action order [0-9]*: ife encode action drop.*type 0xED3E.*allow prio.*index 9",
         "matchCount": "1",
         "teardown": [
-            "$TC actions flush action skbedit"
+            "$TC actions flush action ife"
         ]
     },
     {
@@ -306,7 +306,7 @@
         "matchPattern": "action order [0-9]*: ife encode action reclassify.*type 0xED3E.*use prio 998877.*index 9",
         "matchCount": "1",
         "teardown": [
-            "$TC actions flush action skbedit"
+            "$TC actions flush action ife"
         ]
     },
     {
@@ -330,7 +330,7 @@
         "matchPattern": "action order [0-9]*: ife encode action jump 10.*type 0xED3E.*use prio 998877.*index 9",
         "matchCount": "1",
         "teardown": [
-            "$TC actions flush action skbedit"
+            "$TC actions flush action ife"
         ]
     },
     {
@@ -354,7 +354,7 @@
         "matchPattern": "action order [0-9]*: ife encode action reclassify.*type 0xED3E.*use prio 4294967295.*index 99",
         "matchCount": "1",
         "teardown": [
-            "$TC actions flush action skbedit"
+            "$TC actions flush action ife"
         ]
     },
     {
