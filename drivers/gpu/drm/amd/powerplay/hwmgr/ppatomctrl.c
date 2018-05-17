@@ -320,7 +320,7 @@ int atomctrl_get_memory_pll_dividers_ai(struct pp_hwmgr *hwmgr,
 					pp_atomctrl_memory_clock_param_ai *mpll_param)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
-	COMPUTE_MEMORY_CLOCK_PARAM_PARAMETERS_V2_3 mpll_parameters = {0};
+	COMPUTE_MEMORY_CLOCK_PARAM_PARAMETERS_V2_3 mpll_parameters = {{0}, 0, 0};
 	int result;
 
 	mpll_parameters.ulClock.ulClock = cpu_to_le32(clock_value);
