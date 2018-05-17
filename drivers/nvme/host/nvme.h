@@ -22,6 +22,7 @@
 #include <linux/lightnvm.h>
 #include <linux/sed-opal.h>
 #include <linux/fault-inject.h>
+#include <linux/rcupdate.h>
 
 extern unsigned int nvme_io_timeout;
 #define NVME_IO_TIMEOUT	(nvme_io_timeout * HZ)
@@ -449,7 +450,7 @@ static inline void nvme_mpath_clear_current_path(struct nvme_ns *ns)
 {
 	struct nvme_ns_head *head = ns->head;
 
-	if (head && ns == srcu_dereference(head->current_path, &head->srcu))
+	if (head && ns == rcu_access_pointer(head->current_path))
 		rcu_assign_pointer(head->current_path, NULL);
 }
 struct nvme_ns *nvme_find_path(struct nvme_ns_head *head);
