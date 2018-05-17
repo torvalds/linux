@@ -425,6 +425,10 @@
 	};
 };
 
+&i2c3 {
+	status = "okay";
+};
+
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
