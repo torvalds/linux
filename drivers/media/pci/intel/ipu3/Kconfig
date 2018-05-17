@@ -4,7 +4,6 @@ config VIDEO_IPU3_CIO2
 	depends on VIDEO_V4L2_SUBDEV_API
 	depends on (X86 && ACPI) || COMPILE_TEST
 	depends on MEDIA_CONTROLLER
-	depends on HAS_DMA
 	select V4L2_FWNODE
 	select VIDEOBUF2_DMA_SG
 
