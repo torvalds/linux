@@ -2115,6 +2115,26 @@ u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder)
 		DP_TRAIN_VOLTAGE_SWING_MASK;
 }
 
+/*
+ * We assume that the full set of pre-emphasis values can be
+ * used on all DDI platforms. Should that change we need to
+ * rethink this code.
+ */
+u8 intel_ddi_dp_pre_emphasis_max(struct intel_encoder *encoder, u8 voltage_swing)
+{
+	switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
+		return DP_TRAIN_PRE_EMPH_LEVEL_3;
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_1:
+		return DP_TRAIN_PRE_EMPH_LEVEL_2;
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
+		return DP_TRAIN_PRE_EMPH_LEVEL_1;
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_3:
+	default:
+		return DP_TRAIN_PRE_EMPH_LEVEL_0;
+	}
+}
+
 static void cnl_ddi_vswing_program(struct intel_encoder *encoder,
 				   int level, enum intel_output_type type)
 {

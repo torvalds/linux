@@ -3239,33 +3239,11 @@ uint8_t
 intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, uint8_t voltage_swing)
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
-	enum port port = dp_to_dig_port(intel_dp)->base.port;
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	enum port port = encoder->port;
 
-	if (INTEL_GEN(dev_priv) >= 9) {
-		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
-		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
-			return DP_TRAIN_PRE_EMPH_LEVEL_3;
-		case DP_TRAIN_VOLTAGE_SWING_LEVEL_1:
-			return DP_TRAIN_PRE_EMPH_LEVEL_2;
-		case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
-			return DP_TRAIN_PRE_EMPH_LEVEL_1;
-		case DP_TRAIN_VOLTAGE_SWING_LEVEL_3:
-			return DP_TRAIN_PRE_EMPH_LEVEL_0;
-		default:
-			return DP_TRAIN_PRE_EMPH_LEVEL_0;
-		}
-	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
-		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
-		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
-			return DP_TRAIN_PRE_EMPH_LEVEL_3;
-		case DP_TRAIN_VOLTAGE_SWING_LEVEL_1:
-			return DP_TRAIN_PRE_EMPH_LEVEL_2;
-		case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
-			return DP_TRAIN_PRE_EMPH_LEVEL_1;
-		case DP_TRAIN_VOLTAGE_SWING_LEVEL_3:
-		default:
-			return DP_TRAIN_PRE_EMPH_LEVEL_0;
-		}
+	if (HAS_DDI(dev_priv)) {
+		return intel_ddi_dp_pre_emphasis_max(encoder, voltage_swing);
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
 		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
