@@ -139,41 +139,21 @@ int kvmppc_mmu_radix_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	return 0;
 }
 
-#ifdef CONFIG_PPC_64K_PAGES
-#define MMU_BASE_PSIZE	MMU_PAGE_64K
-#else
-#define MMU_BASE_PSIZE	MMU_PAGE_4K
-#endif
-
 static void kvmppc_radix_tlbie_page(struct kvm *kvm, unsigned long addr,
 				    unsigned int pshift)
 {
-	int psize = MMU_BASE_PSIZE;
+	unsigned long psize = PAGE_SIZE;
 
-	if (pshift >= PUD_SHIFT)
-		psize = MMU_PAGE_1G;
-	else if (pshift >= PMD_SHIFT)
-		psize = MMU_PAGE_2M;
-	addr &= ~0xfffUL;
-	addr |= mmu_psize_defs[psize].ap << 5;
-	asm volatile("ptesync": : :"memory");
-	asm volatile(PPC_TLBIE_5(%0, %1, 0, 0, 1)
-		     : : "r" (addr), "r" (kvm->arch.lpid) : "memory");
-	if (cpu_has_feature(CPU_FTR_P9_TLBIE_BUG))
-		asm volatile(PPC_TLBIE_5(%0, %1, 0, 0, 1)
-			     : : "r" (addr), "r" (kvm->arch.lpid) : "memory");
-	asm volatile("eieio ; tlbsync ; ptesync": : :"memory");
+	if (pshift)
+		psize = 1UL << pshift;
+
+	addr &= ~(psize - 1);
+	radix__flush_tlb_lpid_page(kvm->arch.lpid, addr, psize);
 }
 
 static void kvmppc_radix_flush_pwc(struct kvm *kvm)
 {
-	unsigned long rb = 0x2 << PPC_BITLSHIFT(53); /* IS = 2 */
-
-	asm volatile("ptesync": : :"memory");
-	/* RIC=1 PRS=0 R=1 IS=2 */
-	asm volatile(PPC_TLBIE_5(%0, %1, 1, 0, 1)
-		     : : "r" (rb), "r" (kvm->arch.lpid) : "memory");
-	asm volatile("eieio ; tlbsync ; ptesync": : :"memory");
+	radix__flush_pwc_lpid(kvm->arch.lpid);
 }
 
 unsigned long kvmppc_radix_update_pte(struct kvm *kvm, pte_t *ptep,
