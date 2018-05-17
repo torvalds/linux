@@ -641,7 +641,7 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 
 	/*
 	 * After a system reset, RTC_ISR.INITS flag can be read to check if
-	 * the calendar has been initalized or not. INITS flag is reset by a
+	 * the calendar has been initialized or not. INITS flag is reset by a
 	 * power-on reset (no vbat, no power-supply). It is not reset if
 	 * rtc_ck parent clock has changed (so RTC prescalers need to be
 	 * changed). That's why we cannot rely on this flag to know if RTC
@@ -666,7 +666,7 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 			 "alarm won't be able to wake up the system");
 
 	rtc->rtc_dev = devm_rtc_device_register(&pdev->dev, pdev->name,
-			&stm32_rtc_ops, THIS_MODULE);
+						&stm32_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc->rtc_dev)) {
 		ret = PTR_ERR(rtc->rtc_dev);
 		dev_err(&pdev->dev, "rtc device registration failed, err=%d\n",
