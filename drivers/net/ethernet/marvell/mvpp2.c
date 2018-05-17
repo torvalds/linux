@@ -6381,21 +6381,23 @@ static void mvpp2_rx_error(struct mvpp2_port *port,
 {
 	u32 status = mvpp2_rxdesc_status_get(port, rx_desc);
 	size_t sz = mvpp2_rxdesc_size_get(port, rx_desc);
+	char *err_str = NULL;
 
 	switch (status & MVPP2_RXD_ERR_CODE_MASK) {
 	case MVPP2_RXD_ERR_CRC:
-		netdev_err(port->dev, "bad rx status %08x (crc error), size=%zu\n",
-			   status, sz);
+		err_str = "crc";
 		break;
 	case MVPP2_RXD_ERR_OVERRUN:
-		netdev_err(port->dev, "bad rx status %08x (overrun error), size=%zu\n",
-			   status, sz);
+		err_str = "overrun";
 		break;
 	case MVPP2_RXD_ERR_RESOURCE:
-		netdev_err(port->dev, "bad rx status %08x (resource error), size=%zu\n",
-			   status, sz);
+		err_str = "resource";
 		break;
 	}
+	if (err_str && net_ratelimit())
+		netdev_err(port->dev,
+			   "bad rx status %08x (%s error), size=%zu\n",
+			   status, err_str, sz);
 }
 
 /* Handle RX checksum offload */
