@@ -73,6 +73,8 @@
 #include "iwl-op-mode.h"
 #include "fw/api/cmdhdr.h"
 #include "fw/api/txq.h"
+#include "fw/api/dbg-tlv.h"
+#include "iwl-dbg-tlv.h"
 
 /**
  * DOC: Transport layer - what is it ?
@@ -772,6 +774,8 @@ struct iwl_trans {
 #ifdef CONFIG_LOCKDEP
 	struct lockdep_map sync_cmd_lockdep_map;
 #endif
+
+	struct iwl_apply_point_data apply_points[IWL_FW_INI_APPLY_NUM];
 
 	const struct iwl_fw_dbg_dest_tlv_v1 *dbg_dest_tlv;
 	const struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_CONF_MAX];
