@@ -1359,7 +1359,7 @@ rcu_torture_stats(void *arg)
 	return 0;
 }
 
-static inline void
+static void
 rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, const char *tag)
 {
 	pr_alert("%s" TORTURE_FLAG
