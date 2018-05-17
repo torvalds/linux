@@ -3,8 +3,11 @@
 #define __API_FS_TRACING_PATH_H
 
 #include <linux/types.h>
+#include <dirent.h>
 
 extern char tracing_events_path[];
+
+DIR *tracing_events__opendir(void);
 
 void tracing_path_set(const char *mountpoint);
 const char *tracing_path_mount(void);

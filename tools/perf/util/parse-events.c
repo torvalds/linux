@@ -191,7 +191,7 @@ struct tracepoint_path *tracepoint_id_to_path(u64 config)
 	char evt_path[MAXPATHLEN];
 	char *dir_path;
 
-	sys_dir = opendir(tracing_events_path);
+	sys_dir = tracing_events__opendir();
 	if (!sys_dir)
 		return NULL;
 
@@ -578,7 +578,7 @@ static int add_tracepoint_multi_sys(struct list_head *list, int *idx,
 	DIR *events_dir;
 	int ret = 0;
 
-	events_dir = opendir(tracing_events_path);
+	events_dir = tracing_events__opendir();
 	if (!events_dir) {
 		tracepoint_error(err, errno, sys_name, evt_name);
 		return -1;
@@ -2106,7 +2106,7 @@ void print_tracepoint_events(const char *subsys_glob, const char *event_glob,
 	bool evt_num_known = false;
 
 restart:
-	sys_dir = opendir(tracing_events_path);
+	sys_dir = tracing_events__opendir();
 	if (!sys_dir)
 		return;
 
@@ -2200,7 +2200,7 @@ int is_valid_tracepoint(const char *event_string)
 	char evt_path[MAXPATHLEN];
 	char *dir_path;
 
-	sys_dir = opendir(tracing_events_path);
+	sys_dir = tracing_events__opendir();
 	if (!sys_dir)
 		return 0;
 

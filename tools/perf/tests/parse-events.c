@@ -1323,7 +1323,7 @@ static int count_tracepoints(void)
 	DIR *events_dir;
 	int cnt = 0;
 
-	events_dir = opendir(tracing_events_path);
+	events_dir = tracing_events__opendir();
 
 	TEST_ASSERT_VAL("Can't open events dir", events_dir);
 

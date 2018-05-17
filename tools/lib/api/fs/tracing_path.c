@@ -101,6 +101,19 @@ void put_events_file(char *file)
 	free(file);
 }
 
+DIR *tracing_events__opendir(void)
+{
+	DIR *dir = NULL;
+	char *path = get_tracing_file("events");
+
+	if (path) {
+		dir = opendir(path);
+		put_events_file(path);
+	}
+
+	return dir;
+}
+
 int tracing_path__strerror_open_tp(int err, char *buf, size_t size,
 				   const char *sys, const char *name)
 {
