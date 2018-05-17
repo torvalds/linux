@@ -2506,7 +2506,8 @@ static void set_hdr_static_info_packet(
 {
 	/* HDR Static Metadata info packet for HDR10 */
 
-	if (!stream->hdr_static_metadata.valid)
+	if (!stream->hdr_static_metadata.valid ||
+			stream->use_dynamic_meta)
 		return;
 
 	*info_packet = stream->hdr_static_metadata;

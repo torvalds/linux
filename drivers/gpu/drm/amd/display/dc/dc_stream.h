@@ -60,6 +60,7 @@ struct dc_stream_state {
 
 	struct dc_info_packet hdr_static_metadata;
 	PHYSICAL_ADDRESS_LOC dmdata_address;
+	bool   use_dynamic_meta;
 
 	struct dc_transfer_func *out_transfer_func;
 	struct colorspace_transform gamut_remap_matrix;
