@@ -2753,6 +2753,7 @@ static void
 rcu_check_gp_start_stall(struct rcu_state *rsp, struct rcu_node *rnp,
 			 struct rcu_data *rdp)
 {
+	const unsigned long gpssdelay = rcu_jiffies_till_stall_check() * HZ;
 	unsigned long flags;
 	unsigned long j;
 	struct rcu_node *rnp_root = rcu_get_root(rsp);
@@ -2762,8 +2763,8 @@ rcu_check_gp_start_stall(struct rcu_state *rsp, struct rcu_node *rnp,
 	    ULONG_CMP_GE(rnp_root->gp_seq, rnp_root->gp_seq_needed))
 		return;
 	j = jiffies; /* Expensive access, and in common case don't get here. */
-	if (time_before(j, READ_ONCE(rsp->gp_req_activity) + HZ) ||
-	    time_before(j, READ_ONCE(rsp->gp_activity) + HZ) ||
+	if (time_before(j, READ_ONCE(rsp->gp_req_activity) + gpssdelay) ||
+	    time_before(j, READ_ONCE(rsp->gp_activity) + gpssdelay) ||
 	    atomic_read(&warned))
 		return;
 
@@ -2771,8 +2772,8 @@ rcu_check_gp_start_stall(struct rcu_state *rsp, struct rcu_node *rnp,
 	j = jiffies;
 	if (rcu_gp_in_progress(rsp) ||
 	    ULONG_CMP_GE(rnp_root->gp_seq, rnp_root->gp_seq_needed) ||
-	    time_before(j, READ_ONCE(rsp->gp_req_activity) + HZ) ||
-	    time_before(j, READ_ONCE(rsp->gp_activity) + HZ) ||
+	    time_before(j, READ_ONCE(rsp->gp_req_activity) + gpssdelay) ||
+	    time_before(j, READ_ONCE(rsp->gp_activity) + gpssdelay) ||
 	    atomic_read(&warned)) {
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 		return;
@@ -2784,18 +2785,18 @@ rcu_check_gp_start_stall(struct rcu_state *rsp, struct rcu_node *rnp,
 	j = jiffies;
 	if (rcu_gp_in_progress(rsp) ||
 	    ULONG_CMP_GE(rnp_root->gp_seq, rnp_root->gp_seq_needed) ||
-	    time_before(j, rsp->gp_req_activity + HZ) ||
-	    time_before(j, rsp->gp_activity + HZ) ||
+	    time_before(j, rsp->gp_req_activity + gpssdelay) ||
+	    time_before(j, rsp->gp_activity + gpssdelay) ||
 	    atomic_xchg(&warned, 1)) {
 		raw_spin_unlock_rcu_node(rnp_root); /* irqs remain disabled. */
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 		return;
 	}
-	pr_alert("%s: g%ld->%ld gar:%lu ga:%lu f%#x %s->state:%#lx\n",
+	pr_alert("%s: g%ld->%ld gar:%lu ga:%lu f%#x gs:%d %s->state:%#lx\n",
 		 __func__, (long)READ_ONCE(rsp->gp_seq),
 		 (long)READ_ONCE(rnp_root->gp_seq_needed),
 		 j - rsp->gp_req_activity, j - rsp->gp_activity,
-		 rsp->gp_flags, rsp->name,
+		 rsp->gp_flags, rsp->gp_state, rsp->name,
 		 rsp->gp_kthread ? rsp->gp_kthread->state : 0x1ffffL);
 	WARN_ON(1);
 	if (rnp_root != rnp)
