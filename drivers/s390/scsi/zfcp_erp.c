@@ -57,10 +57,6 @@ enum zfcp_erp_act_type {
 	ZFCP_ERP_ACTION_FAILED		   = 0xe0,
 };
 
-enum zfcp_erp_act_state {
-	ZFCP_ERP_ACTION_RUNNING = 1,
-};
-
 enum zfcp_erp_act_result {
 	ZFCP_ERP_SUCCEEDED = 0,
 	ZFCP_ERP_FAILED    = 1,
@@ -76,14 +72,14 @@ static void zfcp_erp_adapter_block(struct zfcp_adapter *adapter, int mask)
 				       ZFCP_STATUS_COMMON_UNBLOCKED | mask);
 }
 
-static int zfcp_erp_action_exists(struct zfcp_erp_action *act)
+static bool zfcp_erp_action_is_running(struct zfcp_erp_action *act)
 {
 	struct zfcp_erp_action *curr_act;
 
 	list_for_each_entry(curr_act, &act->adapter->erp_running_head, list)
 		if (act == curr_act)
-			return ZFCP_ERP_ACTION_RUNNING;
-	return 0;
+			return true;
+	return false;
 }
 
 static void zfcp_erp_action_ready(struct zfcp_erp_action *act)
@@ -99,7 +95,7 @@ static void zfcp_erp_action_ready(struct zfcp_erp_action *act)
 static void zfcp_erp_action_dismiss(struct zfcp_erp_action *act)
 {
 	act->status |= ZFCP_STATUS_ERP_DISMISSED;
-	if (zfcp_erp_action_exists(act) == ZFCP_ERP_ACTION_RUNNING)
+	if (zfcp_erp_action_is_running(act))
 		zfcp_erp_action_ready(act);
 }
 
@@ -622,7 +618,7 @@ void zfcp_erp_notify(struct zfcp_erp_action *erp_action, unsigned long set_mask)
 	unsigned long flags;
 
 	write_lock_irqsave(&adapter->erp_lock, flags);
-	if (zfcp_erp_action_exists(erp_action) == ZFCP_ERP_ACTION_RUNNING) {
+	if (zfcp_erp_action_is_running(erp_action)) {
 		erp_action->status |= set_mask;
 		zfcp_erp_action_ready(erp_action);
 	}
