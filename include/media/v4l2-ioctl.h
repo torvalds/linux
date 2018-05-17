@@ -621,7 +621,7 @@ const char *v4l2_norm_to_name(v4l2_std_id id);
  * v4l2_video_std_frame_period - Ancillary routine that fills a
  *	struct &v4l2_fract pointer with the default framerate fraction.
  *
- * @id: analog TV sdandard ID.
+ * @id: analog TV standard ID.
  * @frameperiod: struct &v4l2_fract pointer to be filled
  *
  */
@@ -632,7 +632,7 @@ void v4l2_video_std_frame_period(int id, struct v4l2_fract *frameperiod);
  *	a &v4l2_standard structure according to the @id parameter.
  *
  * @vs: struct &v4l2_standard pointer to be filled
- * @id: analog TV sdandard ID.
+ * @id: analog TV standard ID.
  * @name: name of the standard to be used
  *
  * .. note::
@@ -641,6 +641,17 @@ void v4l2_video_std_frame_period(int id, struct v4l2_fract *frameperiod);
  */
 int v4l2_video_std_construct(struct v4l2_standard *vs,
 				    int id, const char *name);
+
+/**
+ * v4l_video_std_enumstd - Ancillary routine that fills in the fields of
+ *	a &v4l2_standard structure according to the @id and @vs->index
+ *	parameters.
+ *
+ * @vs: struct &v4l2_standard pointer to be filled.
+ * @id: analog TV standard ID.
+ *
+ */
+int v4l_video_std_enumstd(struct v4l2_standard *vs, v4l2_std_id id);
 
 /**
  * v4l_printk_ioctl - Ancillary routine that prints the ioctl in a
