@@ -265,9 +265,14 @@ static void zfcp_scsi_forget_cmnds(struct zfcp_scsi_dev *zsdev, u8 tm_flags)
 	write_unlock_irqrestore(&adapter->abort_lock, flags);
 }
 
-static int zfcp_task_mgmt_function(struct scsi_cmnd *scpnt, u8 tm_flags)
+/**
+ * zfcp_task_mgmt_function() - Synchronously send a task management function.
+ * @sdev: Pointer to SCSI device to send the task management command to.
+ * @tm_flags: Task management flags,
+ *	      here we only handle %FCP_TMF_TGT_RESET or %FCP_TMF_LUN_RESET.
+ */
+static int zfcp_task_mgmt_function(struct scsi_device *sdev, u8 tm_flags)
 {
-	struct scsi_device *sdev = scpnt->device;
 	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
 	struct zfcp_adapter *adapter = zfcp_sdev->port->adapter;
 	struct fc_rport *rport = starget_to_rport(scsi_target(sdev));
@@ -315,12 +320,40 @@ static int zfcp_task_mgmt_function(struct scsi_cmnd *scpnt, u8 tm_flags)
 
 static int zfcp_scsi_eh_device_reset_handler(struct scsi_cmnd *scpnt)
 {
-	return zfcp_task_mgmt_function(scpnt, FCP_TMF_LUN_RESET);
+	struct scsi_device *sdev = scpnt->device;
+
+	return zfcp_task_mgmt_function(sdev, FCP_TMF_LUN_RESET);
 }
 
 static int zfcp_scsi_eh_target_reset_handler(struct scsi_cmnd *scpnt)
 {
-	return zfcp_task_mgmt_function(scpnt, FCP_TMF_TGT_RESET);
+	struct scsi_target *starget = scsi_target(scpnt->device);
+	struct fc_rport *rport = starget_to_rport(starget);
+	struct Scsi_Host *shost = rport_to_shost(rport);
+	struct scsi_device *sdev = NULL, *tmp_sdev;
+	struct zfcp_adapter *adapter =
+		(struct zfcp_adapter *)shost->hostdata[0];
+	int ret;
+
+	shost_for_each_device(tmp_sdev, shost) {
+		if (tmp_sdev->id == starget->id) {
+			sdev = tmp_sdev;
+			break;
+		}
+	}
+	if (!sdev) {
+		ret = FAILED;
+		zfcp_dbf_scsi_eh("tr_nosd", adapter, starget->id, ret);
+		return ret;
+	}
+
+	ret = zfcp_task_mgmt_function(sdev, FCP_TMF_TGT_RESET);
+
+	/* release reference from above shost_for_each_device */
+	if (sdev)
+		scsi_device_put(tmp_sdev);
+
+	return ret;
 }
 
 static int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
