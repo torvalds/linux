@@ -1661,15 +1661,10 @@ static int i40e_get_stats_count(struct net_device *netdev)
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
 
-	if (vsi == pf->vsi[pf->lan_vsi] && pf->hw.partition_id == 1) {
-		if (pf->lan_veb != I40E_NO_VEB &&
-		    pf->flags & I40E_FLAG_VEB_STATS_ENABLED)
-			return I40E_PF_STATS_LEN(netdev) + I40E_VEB_STATS_TOTAL;
-		else
-			return I40E_PF_STATS_LEN(netdev);
-	} else {
+	if (vsi == pf->vsi[pf->lan_vsi] && pf->hw.partition_id == 1)
+		return I40E_PF_STATS_LEN(netdev) + I40E_VEB_STATS_TOTAL;
+	else
 		return I40E_VSI_STATS_LEN(netdev);
-	}
 }
 
 static int i40e_get_sset_count(struct net_device *netdev, int sset)
@@ -1760,6 +1755,8 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 			data[i++] = veb->tc_stats.tc_rx_packets[j];
 			data[i++] = veb->tc_stats.tc_rx_bytes[j];
 		}
+	} else {
+		i += I40E_VEB_STATS_TOTAL;
 	}
 	for (j = 0; j < I40E_GLOBAL_STATS_LEN; j++) {
 		p = (char *)pf + i40e_gstrings_stats[j].stat_offset;
@@ -1816,27 +1813,24 @@ static void i40e_get_strings(struct net_device *netdev, u32 stringset,
 		if (vsi != pf->vsi[pf->lan_vsi] || pf->hw.partition_id != 1)
 			return;
 
-		if ((pf->lan_veb != I40E_NO_VEB) &&
-		    (pf->flags & I40E_FLAG_VEB_STATS_ENABLED)) {
-			for (i = 0; i < I40E_VEB_STATS_LEN; i++) {
-				snprintf(p, ETH_GSTRING_LEN, "veb.%s",
-					i40e_gstrings_veb_stats[i].stat_string);
-				p += ETH_GSTRING_LEN;
-			}
-			for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
-				snprintf(p, ETH_GSTRING_LEN,
-					 "veb.tc_%d_tx_packets", i);
-				p += ETH_GSTRING_LEN;
-				snprintf(p, ETH_GSTRING_LEN,
-					 "veb.tc_%d_tx_bytes", i);
-				p += ETH_GSTRING_LEN;
-				snprintf(p, ETH_GSTRING_LEN,
-					 "veb.tc_%d_rx_packets", i);
-				p += ETH_GSTRING_LEN;
-				snprintf(p, ETH_GSTRING_LEN,
-					 "veb.tc_%d_rx_bytes", i);
-				p += ETH_GSTRING_LEN;
-			}
+		for (i = 0; i < I40E_VEB_STATS_LEN; i++) {
+			snprintf(p, ETH_GSTRING_LEN, "veb.%s",
+				 i40e_gstrings_veb_stats[i].stat_string);
+			p += ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
+			snprintf(p, ETH_GSTRING_LEN,
+				 "veb.tc_%u_tx_packets", i);
+			p += ETH_GSTRING_LEN;
+			snprintf(p, ETH_GSTRING_LEN,
+				 "veb.tc_%u_tx_bytes", i);
+			p += ETH_GSTRING_LEN;
+			snprintf(p, ETH_GSTRING_LEN,
+				 "veb.tc_%u_rx_packets", i);
+			p += ETH_GSTRING_LEN;
+			snprintf(p, ETH_GSTRING_LEN,
+				 "veb.tc_%u_rx_bytes", i);
+			p += ETH_GSTRING_LEN;
 		}
 		for (i = 0; i < I40E_GLOBAL_STATS_LEN; i++) {
 			snprintf(p, ETH_GSTRING_LEN, "port.%s",
