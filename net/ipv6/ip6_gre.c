@@ -1861,9 +1861,9 @@ static bool ip6gre_netlink_encap_parms(struct nlattr *data[],
 	return ret;
 }
 
-static int ip6gre_newlink(struct net *src_net, struct net_device *dev,
-			  struct nlattr *tb[], struct nlattr *data[],
-			  struct netlink_ext_ack *extack)
+static int ip6gre_newlink_common(struct net *src_net, struct net_device *dev,
+				 struct nlattr *tb[], struct nlattr *data[],
+				 struct netlink_ext_ack *extack)
 {
 	struct ip6_tnl *nt;
 	struct net *net = dev_net(dev);
@@ -1900,15 +1900,27 @@ static int ip6gre_newlink(struct net *src_net, struct net_device *dev,
 	if (err)
 		goto out;
 
-	ip6gre_tnl_link_config(nt, !tb[IFLA_MTU]);
-
 	if (tb[IFLA_MTU])
 		ip6_tnl_change_mtu(dev, nla_get_u32(tb[IFLA_MTU]));
 
 	dev_hold(dev);
-	ip6gre_tunnel_link(ign, nt);
 
 out:
+	return err;
+}
+
+static int ip6gre_newlink(struct net *src_net, struct net_device *dev,
+			  struct nlattr *tb[], struct nlattr *data[],
+			  struct netlink_ext_ack *extack)
+{
+	int err = ip6gre_newlink_common(src_net, dev, tb, data, extack);
+	struct ip6_tnl *nt = netdev_priv(dev);
+	struct net *net = dev_net(dev);
+
+	if (!err) {
+		ip6gre_tnl_link_config(nt, !tb[IFLA_MTU]);
+		ip6gre_tunnel_link(net_generic(net, ip6gre_net_id), nt);
+	}
 	return err;
 }
 
