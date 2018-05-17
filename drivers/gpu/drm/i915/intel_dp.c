@@ -1989,7 +1989,7 @@ static void intel_dp_prepare(struct intel_encoder *encoder,
 
 	/* Split out the IBX/CPU vs CPT settings */
 
-	if (IS_GEN7(dev_priv) && port == PORT_A) {
+	if (IS_IVYBRIDGE(dev_priv) && port == PORT_A) {
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 			intel_dp->DP |= DP_SYNC_HS_HIGH;
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
@@ -2669,7 +2669,7 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 	if (!(tmp & DP_PORT_EN))
 		goto out;
 
-	if (IS_GEN7(dev_priv) && port == PORT_A) {
+	if (IS_IVYBRIDGE(dev_priv) && port == PORT_A) {
 		*pipe = PORT_TO_PIPE_CPT(tmp);
 	} else if (HAS_PCH_CPT(dev_priv) && port != PORT_A) {
 		enum pipe p;
@@ -2908,7 +2908,7 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 		}
 		I915_WRITE(DP_TP_CTL(port), temp);
 
-	} else if ((IS_GEN7(dev_priv) && port == PORT_A) ||
+	} else if ((IS_IVYBRIDGE(dev_priv) && port == PORT_A) ||
 		   (HAS_PCH_CPT(dev_priv) && port != PORT_A)) {
 		*DP &= ~DP_LINK_TRAIN_MASK_CPT;
 
@@ -3227,7 +3227,7 @@ intel_dp_voltage_max(struct intel_dp *intel_dp)
 		return intel_ddi_dp_voltage_max(encoder);
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
-	else if (IS_GEN7(dev_priv) && port == PORT_A)
+	else if (IS_IVYBRIDGE(dev_priv) && port == PORT_A)
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
 	else if (HAS_PCH_CPT(dev_priv) && port != PORT_A)
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
@@ -3256,7 +3256,7 @@ intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, uint8_t voltage_swing)
 		default:
 			return DP_TRAIN_PRE_EMPH_LEVEL_0;
 		}
-	} else if (IS_GEN7(dev_priv) && port == PORT_A) {
+	} else if (IS_IVYBRIDGE(dev_priv) && port == PORT_A) {
 		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
 		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
 			return DP_TRAIN_PRE_EMPH_LEVEL_2;
@@ -3565,7 +3565,7 @@ intel_dp_set_signal_levels(struct intel_dp *intel_dp)
 		signal_levels = chv_signal_levels(intel_dp);
 	} else if (IS_VALLEYVIEW(dev_priv)) {
 		signal_levels = vlv_signal_levels(intel_dp);
-	} else if (IS_GEN7(dev_priv) && port == PORT_A) {
+	} else if (IS_IVYBRIDGE(dev_priv) && port == PORT_A) {
 		signal_levels = gen7_edp_signal_levels(train_set);
 		mask = EDP_LINK_TRAIN_VOL_EMP_MASK_IVB;
 	} else if (IS_GEN6(dev_priv) && port == PORT_A) {
@@ -3655,7 +3655,7 @@ intel_dp_link_down(struct intel_encoder *encoder,
 
 	DRM_DEBUG_KMS("\n");
 
-	if ((IS_GEN7(dev_priv) && port == PORT_A) ||
+	if ((IS_IVYBRIDGE(dev_priv) && port == PORT_A) ||
 	    (HAS_PCH_CPT(dev_priv) && port != PORT_A)) {
 		DP &= ~DP_LINK_TRAIN_MASK_CPT;
 		DP |= DP_LINK_TRAIN_PAT_IDLE_CPT;
