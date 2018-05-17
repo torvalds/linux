@@ -401,6 +401,7 @@ static struct scsi_host_template zfcp_scsi_host_template = {
 	.shost_attrs		 = zfcp_sysfs_shost_attrs,
 	.sdev_attrs		 = zfcp_sysfs_sdev_attrs,
 	.track_queue_depth	 = 1,
+	.supported_mode		 = MODE_INITIATOR,
 };
 
 /**
