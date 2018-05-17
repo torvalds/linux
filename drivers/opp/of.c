@@ -287,7 +287,7 @@ static int _opp_add_static_v2(struct opp_table *opp_table, struct device *dev,
 			      struct device_node *np)
 {
 	struct dev_pm_opp *new_opp;
-	u64 rate;
+	u64 rate = 0;
 	u32 val;
 	int ret;
 	bool rate_not_available = false;
