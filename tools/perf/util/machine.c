@@ -1764,7 +1764,7 @@ static int add_callchain_ip(struct thread *thread,
 	}
 
 	srcline = callchain_srcline(al.map, al.sym, al.addr);
-	return callchain_cursor_append(cursor, al.addr, al.map, al.sym,
+	return callchain_cursor_append(cursor, ip, al.map, al.sym,
 				       branch, flags, nr_loop_iter,
 				       iter_cycles, branch_from, srcline);
 }
