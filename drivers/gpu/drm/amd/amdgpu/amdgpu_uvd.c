@@ -1146,7 +1146,11 @@ static void amdgpu_uvd_idle_work_handler(struct work_struct *work)
 {
 	struct amdgpu_device *adev =
 		container_of(work, struct amdgpu_device, uvd.inst->idle_work.work);
-	unsigned fences = amdgpu_fence_count_emitted(&adev->uvd.inst->ring);
+	unsigned fences = 0, i;
+
+	for (i = 0; i < adev->uvd.num_uvd_inst; ++i) {
+		fences += amdgpu_fence_count_emitted(&adev->uvd.inst[i].ring);
+	}
 
 	if (fences == 0) {
 		if (adev->pm.dpm_enabled) {
