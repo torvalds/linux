@@ -287,10 +287,9 @@ static int aspeed_gpio_dir_out(struct gpio_chip *gc,
 
 	spin_lock_irqsave(&gpio->lock, flags);
 
+	__aspeed_gpio_set(gc, offset, val);
 	reg = ioread32(bank_val_reg(gpio, bank, GPIO_DIR));
 	iowrite32(reg | GPIO_BIT(offset), bank_val_reg(gpio, bank, GPIO_DIR));
-
-	__aspeed_gpio_set(gc, offset, val);
 
 	spin_unlock_irqrestore(&gpio->lock, flags);
 
