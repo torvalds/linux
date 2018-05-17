@@ -2582,7 +2582,7 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 		if (sort__mode != SORT_MODE__MEMORY)
 			return -EINVAL;
 
-		if (sd->entry == &sort_mem_dcacheline && cacheline_size == 0)
+		if (sd->entry == &sort_mem_dcacheline && cacheline_size() == 0)
 			return -EINVAL;
 
 		if (sd->entry == &sort_mem_daddr_sym)
@@ -2628,7 +2628,7 @@ static int setup_sort_list(struct perf_hpp_list *list, char *str,
 		if (*tok) {
 			ret = sort_dimension__add(list, tok, evlist, level);
 			if (ret == -EINVAL) {
-				if (!cacheline_size && !strncasecmp(tok, "dcacheline", strlen(tok)))
+				if (!cacheline_size() && !strncasecmp(tok, "dcacheline", strlen(tok)))
 					pr_err("The \"dcacheline\" --sort key needs to know the cacheline size and it couldn't be determined on this system");
 				else
 					pr_err("Invalid --sort key: `%s'", tok);
