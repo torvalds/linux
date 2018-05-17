@@ -1370,6 +1370,13 @@ next_slot:
 			    btrfs_file_extent_encryption(leaf, fi) ||
 			    btrfs_file_extent_other_encoding(leaf, fi))
 				goto out_check;
+			/*
+			 * Do the same check as in btrfs_cross_ref_exist but
+			 * without the unnecessary search.
+			 */
+			if (btrfs_file_extent_generation(leaf, fi) <=
+			    btrfs_root_last_snapshot(&root->root_item))
+				goto out_check;
 			if (extent_type == BTRFS_FILE_EXTENT_REG && !force)
 				goto out_check;
 			if (btrfs_extent_readonly(fs_info, disk_bytenr))
@@ -7320,6 +7327,14 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 	if (btrfs_file_extent_compression(leaf, fi) ||
 	    btrfs_file_extent_encryption(leaf, fi) ||
 	    btrfs_file_extent_other_encoding(leaf, fi))
+		goto out;
+
+	/*
+	 * Do the same check as in btrfs_cross_ref_exist but without the
+	 * unnecessary search.
+	 */
+	if (btrfs_file_extent_generation(leaf, fi) <=
+	    btrfs_root_last_snapshot(&root->root_item))
 		goto out;
 
 	backref_offset = btrfs_file_extent_offset(leaf, fi);
