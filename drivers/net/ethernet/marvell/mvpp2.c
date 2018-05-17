@@ -7357,42 +7357,18 @@ static void mvpp2_set_rx_mode(struct net_device *dev)
 
 static int mvpp2_set_mac_address(struct net_device *dev, void *p)
 {
-	struct mvpp2_port *port = netdev_priv(dev);
 	const struct sockaddr *addr = p;
 	int err;
 
-	if (!is_valid_ether_addr(addr->sa_data)) {
-		err = -EADDRNOTAVAIL;
-		goto log_error;
-	}
-
-	if (!netif_running(dev)) {
-		err = mvpp2_prs_update_mac_da(dev, addr->sa_data);
-		if (!err)
-			return 0;
-		/* Reconfigure parser to accept the original MAC address */
-		err = mvpp2_prs_update_mac_da(dev, dev->dev_addr);
-		if (err)
-			goto log_error;
-	}
-
-	mvpp2_stop_dev(port);
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EADDRNOTAVAIL;
 
 	err = mvpp2_prs_update_mac_da(dev, addr->sa_data);
-	if (!err)
-		goto out_start;
-
-	/* Reconfigure parser accept the original MAC address */
-	err = mvpp2_prs_update_mac_da(dev, dev->dev_addr);
-	if (err)
-		goto log_error;
-out_start:
-	mvpp2_start_dev(port);
-	mvpp2_egress_enable(port);
-	mvpp2_ingress_enable(port);
-	return 0;
-log_error:
-	netdev_err(dev, "failed to change MAC address\n");
+	if (err) {
+		/* Reconfigure parser accept the original MAC address */
+		mvpp2_prs_update_mac_da(dev, dev->dev_addr);
+		netdev_err(dev, "failed to change MAC address\n");
+	}
 	return err;
 }
 
