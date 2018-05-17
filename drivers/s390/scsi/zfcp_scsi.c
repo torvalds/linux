@@ -267,7 +267,8 @@ static void zfcp_scsi_forget_cmnds(struct zfcp_scsi_dev *zsdev, u8 tm_flags)
 
 static int zfcp_task_mgmt_function(struct scsi_cmnd *scpnt, u8 tm_flags)
 {
-	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(scpnt->device);
+	struct scsi_device *sdev = scpnt->device;
+	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
 	struct zfcp_adapter *adapter = zfcp_sdev->port->adapter;
 	struct zfcp_fsf_req *fsf_req = NULL;
 	int retval = SUCCESS, ret;
@@ -278,32 +279,32 @@ static int zfcp_task_mgmt_function(struct scsi_cmnd *scpnt, u8 tm_flags)
 		if (fsf_req)
 			break;
 
-		zfcp_dbf_scsi_devreset("wait", scpnt, tm_flags, NULL);
+		zfcp_dbf_scsi_devreset("wait", sdev, tm_flags, NULL);
 		zfcp_erp_wait(adapter);
 		ret = fc_block_scsi_eh(scpnt);
 		if (ret) {
-			zfcp_dbf_scsi_devreset("fiof", scpnt, tm_flags, NULL);
+			zfcp_dbf_scsi_devreset("fiof", sdev, tm_flags, NULL);
 			return ret;
 		}
 
 		if (!(atomic_read(&adapter->status) &
 		      ZFCP_STATUS_COMMON_RUNNING)) {
-			zfcp_dbf_scsi_devreset("nres", scpnt, tm_flags, NULL);
+			zfcp_dbf_scsi_devreset("nres", sdev, tm_flags, NULL);
 			return SUCCESS;
 		}
 	}
 	if (!fsf_req) {
-		zfcp_dbf_scsi_devreset("reqf", scpnt, tm_flags, NULL);
+		zfcp_dbf_scsi_devreset("reqf", sdev, tm_flags, NULL);
 		return FAILED;
 	}
 
 	wait_for_completion(&fsf_req->completion);
 
 	if (fsf_req->status & ZFCP_STATUS_FSFREQ_TMFUNCFAILED) {
-		zfcp_dbf_scsi_devreset("fail", scpnt, tm_flags, fsf_req);
+		zfcp_dbf_scsi_devreset("fail", sdev, tm_flags, fsf_req);
 		retval = FAILED;
 	} else {
-		zfcp_dbf_scsi_devreset("okay", scpnt, tm_flags, fsf_req);
+		zfcp_dbf_scsi_devreset("okay", sdev, tm_flags, fsf_req);
 		zfcp_scsi_forget_cmnds(zfcp_sdev, tm_flags);
 	}
 
