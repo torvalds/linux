@@ -177,6 +177,8 @@ static int ls1x_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rtcdev);
 	rtcdev->ops = &ls1x_rtc_ops;
+	rtcdev->range_min = RTC_TIMESTAMP_BEGIN_1900;
+	rtcdev->range_max = RTC_TIMESTAMP_END_2099;
 
 	return rtc_register_device(rtcdev);
 }
