@@ -47,7 +47,8 @@ static void running_handler(int a);
 #define S1_PORT 10000
 #define S2_PORT 10001
 
-#define BPF_FILENAME "test_sockmap_kern.o"
+#define BPF_SOCKMAP_FILENAME "test_sockmap_kern.o"
+#define BPF_SOCKHASH_FILENAME "test_sockhash_kern.o"
 #define CG_PATH "/sockmap"
 
 /* global sockets */
@@ -1260,9 +1261,8 @@ int prog_type[] = {
 	BPF_PROG_TYPE_SK_MSG,
 };
 
-static int populate_progs(void)
+static int populate_progs(char *bpf_file)
 {
-	char *bpf_file = BPF_FILENAME;
 	struct bpf_program *prog;
 	struct bpf_object *obj;
 	int i = 0;
@@ -1306,11 +1306,11 @@ static int populate_progs(void)
 	return 0;
 }
 
-static int test_suite(void)
+static int __test_suite(char *bpf_file)
 {
 	int cg_fd, err;
 
-	err = populate_progs();
+	err = populate_progs(bpf_file);
 	if (err < 0) {
 		fprintf(stderr, "ERROR: (%i) load bpf failed\n", err);
 		return err;
@@ -1347,7 +1347,20 @@ static int test_suite(void)
 
 out:
 	printf("Summary: %i PASSED %i FAILED\n", passed, failed);
+	cleanup_cgroup_environment();
 	close(cg_fd);
+	return err;
+}
+
+static int test_suite(void)
+{
+	int err;
+
+	err = __test_suite(BPF_SOCKMAP_FILENAME);
+	if (err)
+		goto out;
+	err = __test_suite(BPF_SOCKHASH_FILENAME);
+out:
 	return err;
 }
 
@@ -1357,7 +1370,7 @@ int main(int argc, char **argv)
 	int iov_count = 1, length = 1024, rate = 1;
 	struct sockmap_options options = {0};
 	int opt, longindex, err, cg_fd = 0;
-	char *bpf_file = BPF_FILENAME;
+	char *bpf_file = BPF_SOCKMAP_FILENAME;
 	int test = PING_PONG;
 
 	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
@@ -1438,7 +1451,7 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	err = populate_progs();
+	err = populate_progs(bpf_file);
 	if (err) {
 		fprintf(stderr, "populate program: (%s) %s\n",
 			bpf_file, strerror(errno));

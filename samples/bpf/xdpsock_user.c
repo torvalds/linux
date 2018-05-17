@@ -38,7 +38,7 @@
 
 #include "bpf_load.h"
 #include "bpf_util.h"
-#include "libbpf.h"
+#include <bpf/bpf.h>
 
 #include "xdpsock.h"
 

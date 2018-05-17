@@ -96,6 +96,7 @@ enum bpf_cmd {
 	BPF_PROG_QUERY,
 	BPF_RAW_TRACEPOINT_OPEN,
 	BPF_BTF_LOAD,
+	BPF_BTF_GET_FD_BY_ID,
 };
 
 enum bpf_map_type {
@@ -116,6 +117,8 @@ enum bpf_map_type {
 	BPF_MAP_TYPE_DEVMAP,
 	BPF_MAP_TYPE_SOCKMAP,
 	BPF_MAP_TYPE_CPUMAP,
+	BPF_MAP_TYPE_XSKMAP,
+	BPF_MAP_TYPE_SOCKHASH,
 };
 
 enum bpf_prog_type {
@@ -343,6 +346,7 @@ union bpf_attr {
 			__u32		start_id;
 			__u32		prog_id;
 			__u32		map_id;
+			__u32		btf_id;
 		};
 		__u32		next_id;
 		__u32		open_flags;
@@ -1825,6 +1829,79 @@ union bpf_attr {
  * 	Return
  * 		0 on success, or a negative error in case of failure.
  *
+ * int bpf_fib_lookup(void *ctx, struct bpf_fib_lookup *params, int plen, u32 flags)
+ *	Description
+ *		Do FIB lookup in kernel tables using parameters in *params*.
+ *		If lookup is successful and result shows packet is to be
+ *		forwarded, the neighbor tables are searched for the nexthop.
+ *		If successful (ie., FIB lookup shows forwarding and nexthop
+ *		is resolved), the nexthop address is returned in ipv4_dst,
+ *		ipv6_dst or mpls_out based on family, smac is set to mac
+ *		address of egress device, dmac is set to nexthop mac address,
+ *		rt_metric is set to metric from route.
+ *
+ *             *plen* argument is the size of the passed in struct.
+ *             *flags* argument can be one or more BPF_FIB_LOOKUP_ flags:
+ *
+ *             **BPF_FIB_LOOKUP_DIRECT** means do a direct table lookup vs
+ *             full lookup using FIB rules
+ *             **BPF_FIB_LOOKUP_OUTPUT** means do lookup from an egress
+ *             perspective (default is ingress)
+ *
+ *             *ctx* is either **struct xdp_md** for XDP programs or
+ *             **struct sk_buff** tc cls_act programs.
+ *
+ *     Return
+ *             Egress device index on success, 0 if packet needs to continue
+ *             up the stack for further processing or a negative error in case
+ *             of failure.
+ *
+ * int bpf_sock_hash_update(struct bpf_sock_ops_kern *skops, struct bpf_map *map, void *key, u64 flags)
+ *	Description
+ *		Add an entry to, or update a sockhash *map* referencing sockets.
+ *		The *skops* is used as a new value for the entry associated to
+ *		*key*. *flags* is one of:
+ *
+ *		**BPF_NOEXIST**
+ *			The entry for *key* must not exist in the map.
+ *		**BPF_EXIST**
+ *			The entry for *key* must already exist in the map.
+ *		**BPF_ANY**
+ *			No condition on the existence of the entry for *key*.
+ *
+ *		If the *map* has eBPF programs (parser and verdict), those will
+ *		be inherited by the socket being added. If the socket is
+ *		already attached to eBPF programs, this results in an error.
+ *	Return
+ *		0 on success, or a negative error in case of failure.
+ *
+ * int bpf_msg_redirect_hash(struct sk_msg_buff *msg, struct bpf_map *map, void *key, u64 flags)
+ *	Description
+ *		This helper is used in programs implementing policies at the
+ *		socket level. If the message *msg* is allowed to pass (i.e. if
+ *		the verdict eBPF program returns **SK_PASS**), redirect it to
+ *		the socket referenced by *map* (of type
+ *		**BPF_MAP_TYPE_SOCKHASH**) using hash *key*. Both ingress and
+ *		egress interfaces can be used for redirection. The
+ *		**BPF_F_INGRESS** value in *flags* is used to make the
+ *		distinction (ingress path is selected if the flag is present,
+ *		egress path otherwise). This is the only flag supported for now.
+ *	Return
+ *		**SK_PASS** on success, or **SK_DROP** on error.
+ *
+ * int bpf_sk_redirect_hash(struct sk_buff *skb, struct bpf_map *map, void *key, u64 flags)
+ *	Description
+ *		This helper is used in programs implementing policies at the
+ *		skb socket level. If the sk_buff *skb* is allowed to pass (i.e.
+ *		if the verdeict eBPF program returns **SK_PASS**), redirect it
+ *		to the socket referenced by *map* (of type
+ *		**BPF_MAP_TYPE_SOCKHASH**) using hash *key*. Both ingress and
+ *		egress interfaces can be used for redirection. The
+ *		**BPF_F_INGRESS** value in *flags* is used to make the
+ *		distinction (ingress path is selected if the flag is present,
+ *		egress otherwise). This is the only flag supported for now.
+ *	Return
+ *		**SK_PASS** on success, or **SK_DROP** on error.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -1895,7 +1972,11 @@ union bpf_attr {
 	FN(xdp_adjust_tail),		\
 	FN(skb_get_xfrm_state),		\
 	FN(get_stack),			\
-	FN(skb_load_bytes_relative),
+	FN(skb_load_bytes_relative),	\
+	FN(fib_lookup),			\
+	FN(sock_hash_update),		\
+	FN(msg_redirect_hash),		\
+	FN(sk_redirect_hash),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
@@ -2129,6 +2210,15 @@ struct bpf_map_info {
 	__u32 ifindex;
 	__u64 netns_dev;
 	__u64 netns_ino;
+	__u32 btf_id;
+	__u32 btf_key_id;
+	__u32 btf_value_id;
+} __attribute__((aligned(8)));
+
+struct bpf_btf_info {
+	__aligned_u64 btf;
+	__u32 btf_size;
+	__u32 id;
 } __attribute__((aligned(8)));
 
 /* User bpf_sock_addr struct to access socket fields and sockaddr struct passed
@@ -2307,6 +2397,57 @@ struct bpf_cgroup_dev_ctx {
 
 struct bpf_raw_tracepoint_args {
 	__u64 args[0];
+};
+
+/* DIRECT:  Skip the FIB rules and go to FIB table associated with device
+ * OUTPUT:  Do lookup from egress perspective; default is ingress
+ */
+#define BPF_FIB_LOOKUP_DIRECT  BIT(0)
+#define BPF_FIB_LOOKUP_OUTPUT  BIT(1)
+
+struct bpf_fib_lookup {
+	/* input */
+	__u8	family;   /* network family, AF_INET, AF_INET6, AF_MPLS */
+
+	/* set if lookup is to consider L4 data - e.g., FIB rules */
+	__u8	l4_protocol;
+	__be16	sport;
+	__be16	dport;
+
+	/* total length of packet from network header - used for MTU check */
+	__u16	tot_len;
+	__u32	ifindex;  /* L3 device index for lookup */
+
+	union {
+		/* inputs to lookup */
+		__u8	tos;		/* AF_INET  */
+		__be32	flowlabel;	/* AF_INET6 */
+
+		/* output: metric of fib result */
+		__u32 rt_metric;
+	};
+
+	union {
+		__be32		mpls_in;
+		__be32		ipv4_src;
+		__u32		ipv6_src[4];  /* in6_addr; network order */
+	};
+
+	/* input to bpf_fib_lookup, *dst is destination address.
+	 * output: bpf_fib_lookup sets to gateway address
+	 */
+	union {
+		/* return for MPLS lookups */
+		__be32		mpls_out[4];  /* support up to 4 labels */
+		__be32		ipv4_dst;
+		__u32		ipv6_dst[4];  /* in6_addr; network order */
+	};
+
+	/* output */
+	__be16	h_vlan_proto;
+	__be16	h_vlan_TCI;
+	__u8	smac[6];     /* ETH_ALEN */
+	__u8	dmac[6];     /* ETH_ALEN */
 };
 
 #endif /* _UAPI__LINUX_BPF_H__ */

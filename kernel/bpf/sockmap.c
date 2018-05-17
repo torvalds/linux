@@ -48,12 +48,38 @@
 #define SOCK_CREATE_FLAG_MASK \
 	(BPF_F_NUMA_NODE | BPF_F_RDONLY | BPF_F_WRONLY)
 
-struct bpf_stab {
-	struct bpf_map map;
-	struct sock **sock_map;
+struct bpf_sock_progs {
 	struct bpf_prog *bpf_tx_msg;
 	struct bpf_prog *bpf_parse;
 	struct bpf_prog *bpf_verdict;
+};
+
+struct bpf_stab {
+	struct bpf_map map;
+	struct sock **sock_map;
+	struct bpf_sock_progs progs;
+};
+
+struct bucket {
+	struct hlist_head head;
+	raw_spinlock_t lock;
+};
+
+struct bpf_htab {
+	struct bpf_map map;
+	struct bucket *buckets;
+	atomic_t count;
+	u32 n_buckets;
+	u32 elem_size;
+	struct bpf_sock_progs progs;
+};
+
+struct htab_elem {
+	struct rcu_head rcu;
+	struct hlist_node hash_node;
+	u32 hash;
+	struct sock *sk;
+	char key[0];
 };
 
 enum smap_psock_state {
@@ -63,6 +89,8 @@ enum smap_psock_state {
 struct smap_psock_map_entry {
 	struct list_head list;
 	struct sock **entry;
+	struct htab_elem *hash_link;
+	struct bpf_htab *htab;
 };
 
 struct smap_psock {
@@ -191,6 +219,12 @@ out:
 	rcu_read_unlock();
 }
 
+static void free_htab_elem(struct bpf_htab *htab, struct htab_elem *l)
+{
+	atomic_dec(&htab->count);
+	kfree_rcu(l, rcu);
+}
+
 static void bpf_tcp_close(struct sock *sk, long timeout)
 {
 	void (*close_fun)(struct sock *sk, long timeout);
@@ -227,10 +261,16 @@ static void bpf_tcp_close(struct sock *sk, long timeout)
 	}
 
 	list_for_each_entry_safe(e, tmp, &psock->maps, list) {
-		osk = cmpxchg(e->entry, sk, NULL);
-		if (osk == sk) {
-			list_del(&e->list);
-			smap_release_sock(psock, sk);
+		if (e->entry) {
+			osk = cmpxchg(e->entry, sk, NULL);
+			if (osk == sk) {
+				list_del(&e->list);
+				smap_release_sock(psock, sk);
+			}
+		} else {
+			hlist_del_rcu(&e->hash_link->hash_node);
+			smap_release_sock(psock, e->hash_link->sk);
+			free_htab_elem(e->htab, e->hash_link);
 		}
 	}
 	write_unlock_bh(&sk->sk_callback_lock);
@@ -461,7 +501,7 @@ static int free_curr_sg(struct sock *sk, struct sk_msg_buff *md)
 static int bpf_map_msg_verdict(int _rc, struct sk_msg_buff *md)
 {
 	return ((_rc == SK_PASS) ?
-	       (md->map ? __SK_REDIRECT : __SK_PASS) :
+	       (md->sk_redir ? __SK_REDIRECT : __SK_PASS) :
 	       __SK_DROP);
 }
 
@@ -1092,7 +1132,7 @@ static int smap_verdict_func(struct smap_psock *psock, struct sk_buff *skb)
 	 * when we orphan the skb so that we don't have the possibility
 	 * to reference a stale map.
 	 */
-	TCP_SKB_CB(skb)->bpf.map = NULL;
+	TCP_SKB_CB(skb)->bpf.sk_redir = NULL;
 	skb->sk = psock->sock;
 	bpf_compute_data_pointers(skb);
 	preempt_disable();
@@ -1102,7 +1142,7 @@ static int smap_verdict_func(struct smap_psock *psock, struct sk_buff *skb)
 
 	/* Moving return codes from UAPI namespace into internal namespace */
 	return rc == SK_PASS ?
-		(TCP_SKB_CB(skb)->bpf.map ? __SK_REDIRECT : __SK_PASS) :
+		(TCP_SKB_CB(skb)->bpf.sk_redir ? __SK_REDIRECT : __SK_PASS) :
 		__SK_DROP;
 }
 
@@ -1372,7 +1412,6 @@ static int smap_init_sock(struct smap_psock *psock,
 }
 
 static void smap_init_progs(struct smap_psock *psock,
-			    struct bpf_stab *stab,
 			    struct bpf_prog *verdict,
 			    struct bpf_prog *parse)
 {
@@ -1450,14 +1489,13 @@ static void smap_gc_work(struct work_struct *w)
 	kfree(psock);
 }
 
-static struct smap_psock *smap_init_psock(struct sock *sock,
-					  struct bpf_stab *stab)
+static struct smap_psock *smap_init_psock(struct sock *sock, int node)
 {
 	struct smap_psock *psock;
 
 	psock = kzalloc_node(sizeof(struct smap_psock),
 			     GFP_ATOMIC | __GFP_NOWARN,
-			     stab->map.numa_node);
+			     node);
 	if (!psock)
 		return ERR_PTR(-ENOMEM);
 
@@ -1525,12 +1563,14 @@ free_stab:
 	return ERR_PTR(err);
 }
 
-static void smap_list_remove(struct smap_psock *psock, struct sock **entry)
+static void smap_list_remove(struct smap_psock *psock,
+			     struct sock **entry,
+			     struct htab_elem *hash_link)
 {
 	struct smap_psock_map_entry *e, *tmp;
 
 	list_for_each_entry_safe(e, tmp, &psock->maps, list) {
-		if (e->entry == entry) {
+		if (e->entry == entry || e->hash_link == hash_link) {
 			list_del(&e->list);
 			break;
 		}
@@ -1568,7 +1608,7 @@ static void sock_map_free(struct bpf_map *map)
 		 * to be null and queued for garbage collection.
 		 */
 		if (likely(psock)) {
-			smap_list_remove(psock, &stab->sock_map[i]);
+			smap_list_remove(psock, &stab->sock_map[i], NULL);
 			smap_release_sock(psock, sock);
 		}
 		write_unlock_bh(&sock->sk_callback_lock);
@@ -1627,7 +1667,7 @@ static int sock_map_delete_elem(struct bpf_map *map, void *key)
 
 	if (psock->bpf_parse)
 		smap_stop_sock(psock, sock);
-	smap_list_remove(psock, &stab->sock_map[k]);
+	smap_list_remove(psock, &stab->sock_map[k], NULL);
 	smap_release_sock(psock, sock);
 out:
 	write_unlock_bh(&sock->sk_callback_lock);
@@ -1662,40 +1702,26 @@ out:
  *  - sock_map must use READ_ONCE and (cmp)xchg operations
  *  - BPF verdict/parse programs must use READ_ONCE and xchg operations
  */
-static int sock_map_ctx_update_elem(struct bpf_sock_ops_kern *skops,
-				    struct bpf_map *map,
-				    void *key, u64 flags)
+
+static int __sock_map_ctx_update_elem(struct bpf_map *map,
+				      struct bpf_sock_progs *progs,
+				      struct sock *sock,
+				      struct sock **map_link,
+				      void *key)
 {
-	struct bpf_stab *stab = container_of(map, struct bpf_stab, map);
-	struct smap_psock_map_entry *e = NULL;
 	struct bpf_prog *verdict, *parse, *tx_msg;
-	struct sock *osock, *sock;
+	struct smap_psock_map_entry *e = NULL;
 	struct smap_psock *psock;
-	u32 i = *(u32 *)key;
 	bool new = false;
 	int err;
-
-	if (unlikely(flags > BPF_EXIST))
-		return -EINVAL;
-
-	if (unlikely(i >= stab->map.max_entries))
-		return -E2BIG;
-
-	sock = READ_ONCE(stab->sock_map[i]);
-	if (flags == BPF_EXIST && !sock)
-		return -ENOENT;
-	else if (flags == BPF_NOEXIST && sock)
-		return -EEXIST;
-
-	sock = skops->sk;
 
 	/* 1. If sock map has BPF programs those will be inherited by the
 	 * sock being added. If the sock is already attached to BPF programs
 	 * this results in an error.
 	 */
-	verdict = READ_ONCE(stab->bpf_verdict);
-	parse = READ_ONCE(stab->bpf_parse);
-	tx_msg = READ_ONCE(stab->bpf_tx_msg);
+	verdict = READ_ONCE(progs->bpf_verdict);
+	parse = READ_ONCE(progs->bpf_parse);
+	tx_msg = READ_ONCE(progs->bpf_tx_msg);
 
 	if (parse && verdict) {
 		/* bpf prog refcnt may be zero if a concurrent attach operation
@@ -1703,11 +1729,11 @@ static int sock_map_ctx_update_elem(struct bpf_sock_ops_kern *skops,
 		 * we increment the refcnt. If this is the case abort with an
 		 * error.
 		 */
-		verdict = bpf_prog_inc_not_zero(stab->bpf_verdict);
+		verdict = bpf_prog_inc_not_zero(progs->bpf_verdict);
 		if (IS_ERR(verdict))
 			return PTR_ERR(verdict);
 
-		parse = bpf_prog_inc_not_zero(stab->bpf_parse);
+		parse = bpf_prog_inc_not_zero(progs->bpf_parse);
 		if (IS_ERR(parse)) {
 			bpf_prog_put(verdict);
 			return PTR_ERR(parse);
@@ -1715,7 +1741,7 @@ static int sock_map_ctx_update_elem(struct bpf_sock_ops_kern *skops,
 	}
 
 	if (tx_msg) {
-		tx_msg = bpf_prog_inc_not_zero(stab->bpf_tx_msg);
+		tx_msg = bpf_prog_inc_not_zero(progs->bpf_tx_msg);
 		if (IS_ERR(tx_msg)) {
 			if (verdict)
 				bpf_prog_put(verdict);
@@ -1748,7 +1774,7 @@ static int sock_map_ctx_update_elem(struct bpf_sock_ops_kern *skops,
 			goto out_progs;
 		}
 	} else {
-		psock = smap_init_psock(sock, stab);
+		psock = smap_init_psock(sock, map->numa_node);
 		if (IS_ERR(psock)) {
 			err = PTR_ERR(psock);
 			goto out_progs;
@@ -1758,12 +1784,13 @@ static int sock_map_ctx_update_elem(struct bpf_sock_ops_kern *skops,
 		new = true;
 	}
 
-	e = kzalloc(sizeof(*e), GFP_ATOMIC | __GFP_NOWARN);
-	if (!e) {
-		err = -ENOMEM;
-		goto out_progs;
+	if (map_link) {
+		e = kzalloc(sizeof(*e), GFP_ATOMIC | __GFP_NOWARN);
+		if (!e) {
+			err = -ENOMEM;
+			goto out_progs;
+		}
 	}
-	e->entry = &stab->sock_map[i];
 
 	/* 3. At this point we have a reference to a valid psock that is
 	 * running. Attach any BPF programs needed.
@@ -1780,7 +1807,7 @@ static int sock_map_ctx_update_elem(struct bpf_sock_ops_kern *skops,
 		err = smap_init_sock(psock, sock);
 		if (err)
 			goto out_free;
-		smap_init_progs(psock, stab, verdict, parse);
+		smap_init_progs(psock, verdict, parse);
 		smap_start_sock(psock, sock);
 	}
 
@@ -1789,20 +1816,14 @@ static int sock_map_ctx_update_elem(struct bpf_sock_ops_kern *skops,
 	 * it with. Because we can only have a single set of programs if
 	 * old_sock has a strp we can stop it.
 	 */
-	list_add_tail(&e->list, &psock->maps);
-	write_unlock_bh(&sock->sk_callback_lock);
-
-	osock = xchg(&stab->sock_map[i], sock);
-	if (osock) {
-		struct smap_psock *opsock = smap_psock_sk(osock);
-
-		write_lock_bh(&osock->sk_callback_lock);
-		smap_list_remove(opsock, &stab->sock_map[i]);
-		smap_release_sock(opsock, osock);
-		write_unlock_bh(&osock->sk_callback_lock);
+	if (map_link) {
+		e->entry = map_link;
+		list_add_tail(&e->list, &psock->maps);
 	}
-	return 0;
+	write_unlock_bh(&sock->sk_callback_lock);
+	return err;
 out_free:
+	kfree(e);
 	smap_release_sock(psock, sock);
 out_progs:
 	if (verdict)
@@ -1816,23 +1837,73 @@ out_progs:
 	return err;
 }
 
-int sock_map_prog(struct bpf_map *map, struct bpf_prog *prog, u32 type)
+static int sock_map_ctx_update_elem(struct bpf_sock_ops_kern *skops,
+				    struct bpf_map *map,
+				    void *key, u64 flags)
 {
 	struct bpf_stab *stab = container_of(map, struct bpf_stab, map);
+	struct bpf_sock_progs *progs = &stab->progs;
+	struct sock *osock, *sock;
+	u32 i = *(u32 *)key;
+	int err;
+
+	if (unlikely(flags > BPF_EXIST))
+		return -EINVAL;
+
+	if (unlikely(i >= stab->map.max_entries))
+		return -E2BIG;
+
+	sock = READ_ONCE(stab->sock_map[i]);
+	if (flags == BPF_EXIST && !sock)
+		return -ENOENT;
+	else if (flags == BPF_NOEXIST && sock)
+		return -EEXIST;
+
+	sock = skops->sk;
+	err = __sock_map_ctx_update_elem(map, progs, sock, &stab->sock_map[i],
+					 key);
+	if (err)
+		goto out;
+
+	osock = xchg(&stab->sock_map[i], sock);
+	if (osock) {
+		struct smap_psock *opsock = smap_psock_sk(osock);
+
+		write_lock_bh(&osock->sk_callback_lock);
+		smap_list_remove(opsock, &stab->sock_map[i], NULL);
+		smap_release_sock(opsock, osock);
+		write_unlock_bh(&osock->sk_callback_lock);
+	}
+out:
+	return err;
+}
+
+int sock_map_prog(struct bpf_map *map, struct bpf_prog *prog, u32 type)
+{
+	struct bpf_sock_progs *progs;
 	struct bpf_prog *orig;
 
-	if (unlikely(map->map_type != BPF_MAP_TYPE_SOCKMAP))
+	if (map->map_type == BPF_MAP_TYPE_SOCKMAP) {
+		struct bpf_stab *stab = container_of(map, struct bpf_stab, map);
+
+		progs = &stab->progs;
+	} else if (map->map_type == BPF_MAP_TYPE_SOCKHASH) {
+		struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
+
+		progs = &htab->progs;
+	} else {
 		return -EINVAL;
+	}
 
 	switch (type) {
 	case BPF_SK_MSG_VERDICT:
-		orig = xchg(&stab->bpf_tx_msg, prog);
+		orig = xchg(&progs->bpf_tx_msg, prog);
 		break;
 	case BPF_SK_SKB_STREAM_PARSER:
-		orig = xchg(&stab->bpf_parse, prog);
+		orig = xchg(&progs->bpf_parse, prog);
 		break;
 	case BPF_SK_SKB_STREAM_VERDICT:
-		orig = xchg(&stab->bpf_verdict, prog);
+		orig = xchg(&progs->bpf_verdict, prog);
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -1880,19 +1951,419 @@ static int sock_map_update_elem(struct bpf_map *map,
 
 static void sock_map_release(struct bpf_map *map)
 {
-	struct bpf_stab *stab = container_of(map, struct bpf_stab, map);
+	struct bpf_sock_progs *progs;
 	struct bpf_prog *orig;
 
-	orig = xchg(&stab->bpf_parse, NULL);
+	if (map->map_type == BPF_MAP_TYPE_SOCKMAP) {
+		struct bpf_stab *stab = container_of(map, struct bpf_stab, map);
+
+		progs = &stab->progs;
+	} else {
+		struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
+
+		progs = &htab->progs;
+	}
+
+	orig = xchg(&progs->bpf_parse, NULL);
 	if (orig)
 		bpf_prog_put(orig);
-	orig = xchg(&stab->bpf_verdict, NULL);
+	orig = xchg(&progs->bpf_verdict, NULL);
 	if (orig)
 		bpf_prog_put(orig);
 
-	orig = xchg(&stab->bpf_tx_msg, NULL);
+	orig = xchg(&progs->bpf_tx_msg, NULL);
 	if (orig)
 		bpf_prog_put(orig);
+}
+
+static struct bpf_map *sock_hash_alloc(union bpf_attr *attr)
+{
+	struct bpf_htab *htab;
+	int i, err;
+	u64 cost;
+
+	if (!capable(CAP_NET_ADMIN))
+		return ERR_PTR(-EPERM);
+
+	/* check sanity of attributes */
+	if (attr->max_entries == 0 || attr->value_size != 4 ||
+	    attr->map_flags & ~SOCK_CREATE_FLAG_MASK)
+		return ERR_PTR(-EINVAL);
+
+	if (attr->key_size > MAX_BPF_STACK)
+		/* eBPF programs initialize keys on stack, so they cannot be
+		 * larger than max stack size
+		 */
+		return ERR_PTR(-E2BIG);
+
+	err = bpf_tcp_ulp_register();
+	if (err && err != -EEXIST)
+		return ERR_PTR(err);
+
+	htab = kzalloc(sizeof(*htab), GFP_USER);
+	if (!htab)
+		return ERR_PTR(-ENOMEM);
+
+	bpf_map_init_from_attr(&htab->map, attr);
+
+	htab->n_buckets = roundup_pow_of_two(htab->map.max_entries);
+	htab->elem_size = sizeof(struct htab_elem) +
+			  round_up(htab->map.key_size, 8);
+	err = -EINVAL;
+	if (htab->n_buckets == 0 ||
+	    htab->n_buckets > U32_MAX / sizeof(struct bucket))
+		goto free_htab;
+
+	cost = (u64) htab->n_buckets * sizeof(struct bucket) +
+	       (u64) htab->elem_size * htab->map.max_entries;
+
+	if (cost >= U32_MAX - PAGE_SIZE)
+		goto free_htab;
+
+	htab->map.pages = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
+	err = bpf_map_precharge_memlock(htab->map.pages);
+	if (err)
+		goto free_htab;
+
+	err = -ENOMEM;
+	htab->buckets = bpf_map_area_alloc(
+				htab->n_buckets * sizeof(struct bucket),
+				htab->map.numa_node);
+	if (!htab->buckets)
+		goto free_htab;
+
+	for (i = 0; i < htab->n_buckets; i++) {
+		INIT_HLIST_HEAD(&htab->buckets[i].head);
+		raw_spin_lock_init(&htab->buckets[i].lock);
+	}
+
+	return &htab->map;
+free_htab:
+	kfree(htab);
+	return ERR_PTR(err);
+}
+
+static inline struct bucket *__select_bucket(struct bpf_htab *htab, u32 hash)
+{
+	return &htab->buckets[hash & (htab->n_buckets - 1)];
+}
+
+static inline struct hlist_head *select_bucket(struct bpf_htab *htab, u32 hash)
+{
+	return &__select_bucket(htab, hash)->head;
+}
+
+static void sock_hash_free(struct bpf_map *map)
+{
+	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
+	int i;
+
+	synchronize_rcu();
+
+	/* At this point no update, lookup or delete operations can happen.
+	 * However, be aware we can still get a socket state event updates,
+	 * and data ready callabacks that reference the psock from sk_user_data
+	 * Also psock worker threads are still in-flight. So smap_release_sock
+	 * will only free the psock after cancel_sync on the worker threads
+	 * and a grace period expire to ensure psock is really safe to remove.
+	 */
+	rcu_read_lock();
+	for (i = 0; i < htab->n_buckets; i++) {
+		struct hlist_head *head = select_bucket(htab, i);
+		struct hlist_node *n;
+		struct htab_elem *l;
+
+		hlist_for_each_entry_safe(l, n, head, hash_node) {
+			struct sock *sock = l->sk;
+			struct smap_psock *psock;
+
+			hlist_del_rcu(&l->hash_node);
+			write_lock_bh(&sock->sk_callback_lock);
+			psock = smap_psock_sk(sock);
+			/* This check handles a racing sock event that can get
+			 * the sk_callback_lock before this case but after xchg
+			 * causing the refcnt to hit zero and sock user data
+			 * (psock) to be null and queued for garbage collection.
+			 */
+			if (likely(psock)) {
+				smap_list_remove(psock, NULL, l);
+				smap_release_sock(psock, sock);
+			}
+			write_unlock_bh(&sock->sk_callback_lock);
+			kfree(l);
+		}
+	}
+	rcu_read_unlock();
+	bpf_map_area_free(htab->buckets);
+	kfree(htab);
+}
+
+static struct htab_elem *alloc_sock_hash_elem(struct bpf_htab *htab,
+					      void *key, u32 key_size, u32 hash,
+					      struct sock *sk,
+					      struct htab_elem *old_elem)
+{
+	struct htab_elem *l_new;
+
+	if (atomic_inc_return(&htab->count) > htab->map.max_entries) {
+		if (!old_elem) {
+			atomic_dec(&htab->count);
+			return ERR_PTR(-E2BIG);
+		}
+	}
+	l_new = kmalloc_node(htab->elem_size, GFP_ATOMIC | __GFP_NOWARN,
+			     htab->map.numa_node);
+	if (!l_new)
+		return ERR_PTR(-ENOMEM);
+
+	memcpy(l_new->key, key, key_size);
+	l_new->sk = sk;
+	l_new->hash = hash;
+	return l_new;
+}
+
+static struct htab_elem *lookup_elem_raw(struct hlist_head *head,
+					 u32 hash, void *key, u32 key_size)
+{
+	struct htab_elem *l;
+
+	hlist_for_each_entry_rcu(l, head, hash_node) {
+		if (l->hash == hash && !memcmp(&l->key, key, key_size))
+			return l;
+	}
+
+	return NULL;
+}
+
+static inline u32 htab_map_hash(const void *key, u32 key_len)
+{
+	return jhash(key, key_len, 0);
+}
+
+static int sock_hash_get_next_key(struct bpf_map *map,
+				  void *key, void *next_key)
+{
+	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
+	struct htab_elem *l, *next_l;
+	struct hlist_head *h;
+	u32 hash, key_size;
+	int i = 0;
+
+	WARN_ON_ONCE(!rcu_read_lock_held());
+
+	key_size = map->key_size;
+	if (!key)
+		goto find_first_elem;
+	hash = htab_map_hash(key, key_size);
+	h = select_bucket(htab, hash);
+
+	l = lookup_elem_raw(h, hash, key, key_size);
+	if (!l)
+		goto find_first_elem;
+	next_l = hlist_entry_safe(
+		     rcu_dereference_raw(hlist_next_rcu(&l->hash_node)),
+		     struct htab_elem, hash_node);
+	if (next_l) {
+		memcpy(next_key, next_l->key, key_size);
+		return 0;
+	}
+
+	/* no more elements in this hash list, go to the next bucket */
+	i = hash & (htab->n_buckets - 1);
+	i++;
+
+find_first_elem:
+	/* iterate over buckets */
+	for (; i < htab->n_buckets; i++) {
+		h = select_bucket(htab, i);
+
+		/* pick first element in the bucket */
+		next_l = hlist_entry_safe(
+				rcu_dereference_raw(hlist_first_rcu(h)),
+				struct htab_elem, hash_node);
+		if (next_l) {
+			/* if it's not empty, just return it */
+			memcpy(next_key, next_l->key, key_size);
+			return 0;
+		}
+	}
+
+	/* iterated over all buckets and all elements */
+	return -ENOENT;
+}
+
+static int sock_hash_ctx_update_elem(struct bpf_sock_ops_kern *skops,
+				     struct bpf_map *map,
+				     void *key, u64 map_flags)
+{
+	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
+	struct bpf_sock_progs *progs = &htab->progs;
+	struct htab_elem *l_new = NULL, *l_old;
+	struct smap_psock_map_entry *e = NULL;
+	struct hlist_head *head;
+	struct smap_psock *psock;
+	u32 key_size, hash;
+	struct sock *sock;
+	struct bucket *b;
+	int err;
+
+	sock = skops->sk;
+
+	if (sock->sk_type != SOCK_STREAM ||
+	    sock->sk_protocol != IPPROTO_TCP)
+		return -EOPNOTSUPP;
+
+	if (unlikely(map_flags > BPF_EXIST))
+		return -EINVAL;
+
+	e = kzalloc(sizeof(*e), GFP_ATOMIC | __GFP_NOWARN);
+	if (!e)
+		return -ENOMEM;
+
+	WARN_ON_ONCE(!rcu_read_lock_held());
+	key_size = map->key_size;
+	hash = htab_map_hash(key, key_size);
+	b = __select_bucket(htab, hash);
+	head = &b->head;
+
+	err = __sock_map_ctx_update_elem(map, progs, sock, NULL, key);
+	if (err)
+		goto err;
+
+	/* bpf_map_update_elem() can be called in_irq() */
+	raw_spin_lock_bh(&b->lock);
+	l_old = lookup_elem_raw(head, hash, key, key_size);
+	if (l_old && map_flags == BPF_NOEXIST) {
+		err = -EEXIST;
+		goto bucket_err;
+	}
+	if (!l_old && map_flags == BPF_EXIST) {
+		err = -ENOENT;
+		goto bucket_err;
+	}
+
+	l_new = alloc_sock_hash_elem(htab, key, key_size, hash, sock, l_old);
+	if (IS_ERR(l_new)) {
+		err = PTR_ERR(l_new);
+		goto bucket_err;
+	}
+
+	psock = smap_psock_sk(sock);
+	if (unlikely(!psock)) {
+		err = -EINVAL;
+		goto bucket_err;
+	}
+
+	e->hash_link = l_new;
+	e->htab = container_of(map, struct bpf_htab, map);
+	list_add_tail(&e->list, &psock->maps);
+
+	/* add new element to the head of the list, so that
+	 * concurrent search will find it before old elem
+	 */
+	hlist_add_head_rcu(&l_new->hash_node, head);
+	if (l_old) {
+		psock = smap_psock_sk(l_old->sk);
+
+		hlist_del_rcu(&l_old->hash_node);
+		smap_list_remove(psock, NULL, l_old);
+		smap_release_sock(psock, l_old->sk);
+		free_htab_elem(htab, l_old);
+	}
+	raw_spin_unlock_bh(&b->lock);
+	return 0;
+bucket_err:
+	raw_spin_unlock_bh(&b->lock);
+err:
+	kfree(e);
+	psock = smap_psock_sk(sock);
+	if (psock)
+		smap_release_sock(psock, sock);
+	return err;
+}
+
+static int sock_hash_update_elem(struct bpf_map *map,
+				void *key, void *value, u64 flags)
+{
+	struct bpf_sock_ops_kern skops;
+	u32 fd = *(u32 *)value;
+	struct socket *socket;
+	int err;
+
+	socket = sockfd_lookup(fd, &err);
+	if (!socket)
+		return err;
+
+	skops.sk = socket->sk;
+	if (!skops.sk) {
+		fput(socket->file);
+		return -EINVAL;
+	}
+
+	err = sock_hash_ctx_update_elem(&skops, map, key, flags);
+	fput(socket->file);
+	return err;
+}
+
+static int sock_hash_delete_elem(struct bpf_map *map, void *key)
+{
+	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
+	struct hlist_head *head;
+	struct bucket *b;
+	struct htab_elem *l;
+	u32 hash, key_size;
+	int ret = -ENOENT;
+
+	key_size = map->key_size;
+	hash = htab_map_hash(key, key_size);
+	b = __select_bucket(htab, hash);
+	head = &b->head;
+
+	raw_spin_lock_bh(&b->lock);
+	l = lookup_elem_raw(head, hash, key, key_size);
+	if (l) {
+		struct sock *sock = l->sk;
+		struct smap_psock *psock;
+
+		hlist_del_rcu(&l->hash_node);
+		write_lock_bh(&sock->sk_callback_lock);
+		psock = smap_psock_sk(sock);
+		/* This check handles a racing sock event that can get the
+		 * sk_callback_lock before this case but after xchg happens
+		 * causing the refcnt to hit zero and sock user data (psock)
+		 * to be null and queued for garbage collection.
+		 */
+		if (likely(psock)) {
+			smap_list_remove(psock, NULL, l);
+			smap_release_sock(psock, sock);
+		}
+		write_unlock_bh(&sock->sk_callback_lock);
+		free_htab_elem(htab, l);
+		ret = 0;
+	}
+	raw_spin_unlock_bh(&b->lock);
+	return ret;
+}
+
+struct sock  *__sock_hash_lookup_elem(struct bpf_map *map, void *key)
+{
+	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
+	struct hlist_head *head;
+	struct htab_elem *l;
+	u32 key_size, hash;
+	struct bucket *b;
+	struct sock *sk;
+
+	key_size = map->key_size;
+	hash = htab_map_hash(key, key_size);
+	b = __select_bucket(htab, hash);
+	head = &b->head;
+
+	raw_spin_lock_bh(&b->lock);
+	l = lookup_elem_raw(head, hash, key, key_size);
+	sk = l ? l->sk : NULL;
+	raw_spin_unlock_bh(&b->lock);
+	return sk;
 }
 
 const struct bpf_map_ops sock_map_ops = {
@@ -1905,6 +2376,15 @@ const struct bpf_map_ops sock_map_ops = {
 	.map_release_uref = sock_map_release,
 };
 
+const struct bpf_map_ops sock_hash_ops = {
+	.map_alloc = sock_hash_alloc,
+	.map_free = sock_hash_free,
+	.map_lookup_elem = sock_map_lookup,
+	.map_get_next_key = sock_hash_get_next_key,
+	.map_update_elem = sock_hash_update_elem,
+	.map_delete_elem = sock_hash_delete_elem,
+};
+
 BPF_CALL_4(bpf_sock_map_update, struct bpf_sock_ops_kern *, bpf_sock,
 	   struct bpf_map *, map, void *, key, u64, flags)
 {
@@ -1914,6 +2394,24 @@ BPF_CALL_4(bpf_sock_map_update, struct bpf_sock_ops_kern *, bpf_sock,
 
 const struct bpf_func_proto bpf_sock_map_update_proto = {
 	.func		= bpf_sock_map_update,
+	.gpl_only	= false,
+	.pkt_access	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_CONST_MAP_PTR,
+	.arg3_type	= ARG_PTR_TO_MAP_KEY,
+	.arg4_type	= ARG_ANYTHING,
+};
+
+BPF_CALL_4(bpf_sock_hash_update, struct bpf_sock_ops_kern *, bpf_sock,
+	   struct bpf_map *, map, void *, key, u64, flags)
+{
+	WARN_ON_ONCE(!rcu_read_lock_held());
+	return sock_hash_ctx_update_elem(bpf_sock, map, key, flags);
+}
+
+const struct bpf_func_proto bpf_sock_hash_update_proto = {
+	.func		= bpf_sock_hash_update,
 	.gpl_only	= false,
 	.pkt_access	= true,
 	.ret_type	= RET_INTEGER,

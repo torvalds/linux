@@ -82,10 +82,16 @@ enum static_regs {
 enum pkt_vec {
 	PKT_VEC_PKT_LEN		= 0,
 	PKT_VEC_PKT_PTR		= 2,
+	PKT_VEC_QSEL_SET	= 4,
+	PKT_VEC_QSEL_VAL	= 6,
 };
+
+#define PKT_VEL_QSEL_SET_BIT	4
 
 #define pv_len(np)	reg_lm(1, PKT_VEC_PKT_LEN)
 #define pv_ctm_ptr(np)	reg_lm(1, PKT_VEC_PKT_PTR)
+#define pv_qsel_set(np)	reg_lm(1, PKT_VEC_QSEL_SET)
+#define pv_qsel_val(np)	reg_lm(1, PKT_VEC_QSEL_VAL)
 
 #define stack_reg(np)	reg_a(STATIC_REG_STACK)
 #define stack_imm(np)	imm_b(np)
@@ -139,6 +145,7 @@ enum pkt_vec {
  * @helpers.perf_event_output:	output perf event to a ring buffer
  *
  * @pseudo_random:	FW initialized the pseudo-random machinery (CSRs)
+ * @queue_select:	BPF can set the RX queue ID in packet vector
  */
 struct nfp_app_bpf {
 	struct nfp_app *app;
@@ -181,6 +188,7 @@ struct nfp_app_bpf {
 	} helpers;
 
 	bool pseudo_random;
+	bool queue_select;
 };
 
 enum nfp_bpf_map_use {

@@ -419,11 +419,11 @@ static bool rt6_check_expired(const struct rt6_info *rt)
 	return false;
 }
 
-static struct fib6_info *rt6_multipath_select(const struct net *net,
-					      struct fib6_info *match,
-					     struct flowi6 *fl6, int oif,
-					     const struct sk_buff *skb,
-					     int strict)
+struct fib6_info *fib6_multipath_select(const struct net *net,
+					struct fib6_info *match,
+					struct flowi6 *fl6, int oif,
+					const struct sk_buff *skb,
+					int strict)
 {
 	struct fib6_info *sibling, *next_sibling;
 
@@ -1006,7 +1006,7 @@ static struct fib6_node* fib6_backtrack(struct fib6_node *fn,
 		pn = rcu_dereference(fn->parent);
 		sn = FIB6_SUBTREE(pn);
 		if (sn && sn != fn)
-			fn = fib6_lookup(sn, NULL, saddr);
+			fn = fib6_node_lookup(sn, NULL, saddr);
 		else
 			fn = pn;
 		if (fn->fn_flags & RTN_RTINFO)
@@ -1059,7 +1059,7 @@ static struct rt6_info *ip6_pol_route_lookup(struct net *net,
 		flags &= ~RT6_LOOKUP_F_IFACE;
 
 	rcu_read_lock();
-	fn = fib6_lookup(&table->tb6_root, &fl6->daddr, &fl6->saddr);
+	fn = fib6_node_lookup(&table->tb6_root, &fl6->daddr, &fl6->saddr);
 restart:
 	f6i = rcu_dereference(fn->leaf);
 	if (!f6i) {
@@ -1068,14 +1068,17 @@ restart:
 		f6i = rt6_device_match(net, f6i, &fl6->saddr,
 				      fl6->flowi6_oif, flags);
 		if (f6i->fib6_nsiblings && fl6->flowi6_oif == 0)
-			f6i = rt6_multipath_select(net, f6i, fl6,
-						   fl6->flowi6_oif, skb, flags);
+			f6i = fib6_multipath_select(net, f6i, fl6,
+						    fl6->flowi6_oif, skb,
+						    flags);
 	}
 	if (f6i == net->ipv6.fib6_null_entry) {
 		fn = fib6_backtrack(fn, &fl6->saddr);
 		if (fn)
 			goto restart;
 	}
+
+	trace_fib6_table_lookup(net, f6i, table, fl6);
 
 	/* Search through exception table */
 	rt = rt6_find_cached_rt(f6i, &fl6->daddr, &fl6->saddr);
@@ -1094,8 +1097,6 @@ restart:
 	}
 
 	rcu_read_unlock();
-
-	trace_fib6_table_lookup(net, rt, table, fl6);
 
 	return rt;
 }
@@ -1799,23 +1800,14 @@ void rt6_age_exceptions(struct fib6_info *rt,
 	rcu_read_unlock_bh();
 }
 
-struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
-			       int oif, struct flowi6 *fl6,
-			       const struct sk_buff *skb, int flags)
+/* must be called with rcu lock held */
+struct fib6_info *fib6_table_lookup(struct net *net, struct fib6_table *table,
+				    int oif, struct flowi6 *fl6, int strict)
 {
 	struct fib6_node *fn, *saved_fn;
 	struct fib6_info *f6i;
-	struct rt6_info *rt;
-	int strict = 0;
 
-	strict |= flags & RT6_LOOKUP_F_IFACE;
-	strict |= flags & RT6_LOOKUP_F_IGNORE_LINKSTATE;
-	if (net->ipv6.devconf_all->forwarding == 0)
-		strict |= RT6_LOOKUP_F_REACHABLE;
-
-	rcu_read_lock();
-
-	fn = fib6_lookup(&table->tb6_root, &fl6->daddr, &fl6->saddr);
+	fn = fib6_node_lookup(&table->tb6_root, &fl6->daddr, &fl6->saddr);
 	saved_fn = fn;
 
 	if (fl6->flowi6_flags & FLOWI_FLAG_SKIP_NH_OIF)
@@ -1823,8 +1815,6 @@ struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 
 redo_rt6_select:
 	f6i = rt6_select(net, fn, oif, strict);
-	if (f6i->fib6_nsiblings)
-		f6i = rt6_multipath_select(net, f6i, fl6, oif, skb, strict);
 	if (f6i == net->ipv6.fib6_null_entry) {
 		fn = fib6_backtrack(fn, &fl6->saddr);
 		if (fn)
@@ -1837,11 +1827,34 @@ redo_rt6_select:
 		}
 	}
 
+	trace_fib6_table_lookup(net, f6i, table, fl6);
+
+	return f6i;
+}
+
+struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
+			       int oif, struct flowi6 *fl6,
+			       const struct sk_buff *skb, int flags)
+{
+	struct fib6_info *f6i;
+	struct rt6_info *rt;
+	int strict = 0;
+
+	strict |= flags & RT6_LOOKUP_F_IFACE;
+	strict |= flags & RT6_LOOKUP_F_IGNORE_LINKSTATE;
+	if (net->ipv6.devconf_all->forwarding == 0)
+		strict |= RT6_LOOKUP_F_REACHABLE;
+
+	rcu_read_lock();
+
+	f6i = fib6_table_lookup(net, table, oif, fl6, strict);
+	if (f6i->fib6_nsiblings)
+		f6i = fib6_multipath_select(net, f6i, fl6, oif, skb, strict);
+
 	if (f6i == net->ipv6.fib6_null_entry) {
 		rt = net->ipv6.ip6_null_entry;
 		rcu_read_unlock();
 		dst_hold(&rt->dst);
-		trace_fib6_table_lookup(net, rt, table, fl6);
 		return rt;
 	}
 
@@ -1852,7 +1865,6 @@ redo_rt6_select:
 			dst_use_noref(&rt->dst, jiffies);
 
 		rcu_read_unlock();
-		trace_fib6_table_lookup(net, rt, table, fl6);
 		return rt;
 	} else if (unlikely((fl6->flowi6_flags & FLOWI_FLAG_KNOWN_NH) &&
 			    !(f6i->fib6_flags & RTF_GATEWAY))) {
@@ -1878,9 +1890,7 @@ redo_rt6_select:
 			dst_hold(&uncached_rt->dst);
 		}
 
-		trace_fib6_table_lookup(net, uncached_rt, table, fl6);
 		return uncached_rt;
-
 	} else {
 		/* Get a percpu copy */
 
@@ -1894,7 +1904,7 @@ redo_rt6_select:
 
 		local_bh_enable();
 		rcu_read_unlock();
-		trace_fib6_table_lookup(net, pcpu_rt, table, fl6);
+
 		return pcpu_rt;
 	}
 }
@@ -2425,7 +2435,7 @@ static struct rt6_info *__ip6_route_redirect(struct net *net,
 	 */
 
 	rcu_read_lock();
-	fn = fib6_lookup(&table->tb6_root, &fl6->daddr, &fl6->saddr);
+	fn = fib6_node_lookup(&table->tb6_root, &fl6->daddr, &fl6->saddr);
 restart:
 	for_each_fib6_node_rt_rcu(fn) {
 		if (rt->fib6_nh.nh_flags & RTNH_F_DEAD)
@@ -2479,7 +2489,7 @@ out:
 
 	rcu_read_unlock();
 
-	trace_fib6_table_lookup(net, ret, table, fl6);
+	trace_fib6_table_lookup(net, rt, table, fl6);
 	return ret;
 };
 

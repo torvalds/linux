@@ -13,7 +13,7 @@
 #include <linux/bpf.h>
 #include <sys/resource.h>
 
-#include "libbpf.h"
+#include <bpf/bpf.h>
 #include "bpf_load.h"
 #include "bpf_util.h"
 

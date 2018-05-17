@@ -11,6 +11,7 @@
 #include <linux/perf_event.h>
 #include <linux/elf.h>
 #include <linux/pagemap.h>
+#include <linux/irq_work.h>
 #include "percpu_freelist.h"
 
 #define STACK_CREATE_FLAG_MASK					\
@@ -31,6 +32,23 @@ struct bpf_stack_map {
 	u32 n_buckets;
 	struct stack_map_bucket *buckets[];
 };
+
+/* irq_work to run up_read() for build_id lookup in nmi context */
+struct stack_map_irq_work {
+	struct irq_work irq_work;
+	struct rw_semaphore *sem;
+};
+
+static void do_up_read(struct irq_work *entry)
+{
+	struct stack_map_irq_work *work;
+
+	work = container_of(entry, struct stack_map_irq_work, irq_work);
+	up_read(work->sem);
+	work->sem = NULL;
+}
+
+static DEFINE_PER_CPU(struct stack_map_irq_work, up_read_work);
 
 static inline bool stack_map_use_build_id(struct bpf_map *map)
 {
@@ -267,17 +285,27 @@ static void stack_map_get_build_id_offset(struct bpf_stack_build_id *id_offs,
 {
 	int i;
 	struct vm_area_struct *vma;
+	bool in_nmi_ctx = in_nmi();
+	bool irq_work_busy = false;
+	struct stack_map_irq_work *work;
+
+	if (in_nmi_ctx) {
+		work = this_cpu_ptr(&up_read_work);
+		if (work->irq_work.flags & IRQ_WORK_BUSY)
+			/* cannot queue more up_read, fallback */
+			irq_work_busy = true;
+	}
 
 	/*
-	 * We cannot do up_read() in nmi context, so build_id lookup is
-	 * only supported for non-nmi events. If at some point, it is
-	 * possible to run find_vma() without taking the semaphore, we
-	 * would like to allow build_id lookup in nmi context.
+	 * We cannot do up_read() in nmi context. To do build_id lookup
+	 * in nmi context, we need to run up_read() in irq_work. We use
+	 * a percpu variable to do the irq_work. If the irq_work is
+	 * already used by another lookup, we fall back to report ips.
 	 *
 	 * Same fallback is used for kernel stack (!user) on a stackmap
 	 * with build_id.
 	 */
-	if (!user || !current || !current->mm || in_nmi() ||
+	if (!user || !current || !current->mm || irq_work_busy ||
 	    down_read_trylock(&current->mm->mmap_sem) == 0) {
 		/* cannot access current->mm, fall back to ips */
 		for (i = 0; i < trace_nr; i++) {
@@ -299,7 +327,13 @@ static void stack_map_get_build_id_offset(struct bpf_stack_build_id *id_offs,
 			- vma->vm_start;
 		id_offs[i].status = BPF_STACK_BUILD_ID_VALID;
 	}
-	up_read(&current->mm->mmap_sem);
+
+	if (!in_nmi_ctx) {
+		up_read(&current->mm->mmap_sem);
+	} else {
+		work->sem = &current->mm->mmap_sem;
+		irq_work_queue(&work->irq_work);
+	}
 }
 
 BPF_CALL_3(bpf_get_stackid, struct pt_regs *, regs, struct bpf_map *, map,
@@ -575,3 +609,16 @@ const struct bpf_map_ops stack_map_ops = {
 	.map_update_elem = stack_map_update_elem,
 	.map_delete_elem = stack_map_delete_elem,
 };
+
+static int __init stack_map_init(void)
+{
+	int cpu;
+	struct stack_map_irq_work *work;
+
+	for_each_possible_cpu(cpu) {
+		work = per_cpu_ptr(&up_read_work, cpu);
+		init_irq_work(&work->irq_work, do_up_read);
+	}
+	return 0;
+}
+subsys_initcall(stack_map_init);

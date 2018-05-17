@@ -10,7 +10,7 @@ ifneq ($(wildcard $(GENHDR)),)
   GENFLAGS := -DHAVE_GENHDR
 endif
 
-CFLAGS += -Wall -O2 -I$(APIDIR) -I$(LIBDIR) -I$(GENDIR) $(GENFLAGS) -I../../../include
+CFLAGS += -Wall -O2 -I$(APIDIR) -I$(LIBDIR) -I$(BPFDIR) -I$(GENDIR) $(GENFLAGS) -I../../../include
 LDLIBS += -lcap -lelf -lrt -lpthread
 
 TEST_CUSTOM_PROGS = $(OUTPUT)/urandom_read
@@ -19,7 +19,7 @@ all: $(TEST_CUSTOM_PROGS)
 $(TEST_CUSTOM_PROGS): urandom_read
 
 urandom_read: urandom_read.c
-	$(CC) -o $(TEST_CUSTOM_PROGS) -static $<
+	$(CC) -o $(TEST_CUSTOM_PROGS) -static $< -Wl,--build-id
 
 # Order correspond to 'make run_tests' order
 TEST_GEN_PROGS = test_verifier test_tag test_maps test_lru_map test_lpm_map test_progs \
@@ -33,7 +33,7 @@ TEST_GEN_FILES = test_pkt_access.o test_xdp.o test_l4lb.o test_tcp_estats.o test
 	sample_map_ret0.o test_tcpbpf_kern.o test_stacktrace_build_id.o \
 	sockmap_tcp_msg_prog.o connect4_prog.o connect6_prog.o test_adjust_tail.o \
 	test_btf_haskv.o test_btf_nokv.o test_sockmap_kern.o test_tunnel_kern.o \
-	test_get_stack_rawtp.o
+	test_get_stack_rawtp.o test_sockmap_kern.o test_sockhash_kern.o
 
 # Order correspond to 'make run_tests' order
 TEST_PROGS := test_kmod.sh \
@@ -90,9 +90,9 @@ CLANG_FLAGS = -I. -I./include/uapi -I../../../include/uapi \
 $(OUTPUT)/test_l4lb_noinline.o: CLANG_FLAGS += -fno-inline
 $(OUTPUT)/test_xdp_noinline.o: CLANG_FLAGS += -fno-inline
 
-BTF_LLC_PROBE := $(shell $(LLC) -march=bpf -mattr=help |& grep dwarfris)
-BTF_PAHOLE_PROBE := $(shell $(BTF_PAHOLE) --help |& grep BTF)
-BTF_OBJCOPY_PROBE := $(shell $(LLVM_OBJCOPY) --version |& grep LLVM)
+BTF_LLC_PROBE := $(shell $(LLC) -march=bpf -mattr=help 2>&1 | grep dwarfris)
+BTF_PAHOLE_PROBE := $(shell $(BTF_PAHOLE) --help 2>&1 | grep BTF)
+BTF_OBJCOPY_PROBE := $(shell $(LLVM_OBJCOPY) --version 2>&1 | grep LLVM)
 
 ifneq ($(BTF_LLC_PROBE),)
 ifneq ($(BTF_PAHOLE_PROBE),)

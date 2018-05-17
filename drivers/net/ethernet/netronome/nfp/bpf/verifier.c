@@ -468,6 +468,30 @@ nfp_bpf_check_ptr(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 }
 
 static int
+nfp_bpf_check_store(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+		    struct bpf_verifier_env *env)
+{
+	const struct bpf_reg_state *reg = cur_regs(env) + meta->insn.dst_reg;
+
+	if (reg->type == PTR_TO_CTX) {
+		if (nfp_prog->type == BPF_PROG_TYPE_XDP) {
+			/* XDP ctx accesses must be 4B in size */
+			switch (meta->insn.off) {
+			case offsetof(struct xdp_md, rx_queue_index):
+				if (nfp_prog->bpf->queue_select)
+					goto exit_check_ptr;
+				pr_vlog(env, "queue selection not supported by FW\n");
+				return -EOPNOTSUPP;
+			}
+		}
+		pr_vlog(env, "unsupported store to context field\n");
+		return -EOPNOTSUPP;
+	}
+exit_check_ptr:
+	return nfp_bpf_check_ptr(nfp_prog, meta, env, meta->insn.dst_reg);
+}
+
+static int
 nfp_bpf_check_xadd(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 		   struct bpf_verifier_env *env)
 {
@@ -522,8 +546,8 @@ nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn_idx)
 		return nfp_bpf_check_ptr(nfp_prog, meta, env,
 					 meta->insn.src_reg);
 	if (is_mbpf_store(meta))
-		return nfp_bpf_check_ptr(nfp_prog, meta, env,
-					 meta->insn.dst_reg);
+		return nfp_bpf_check_store(nfp_prog, meta, env);
+
 	if (is_mbpf_xadd(meta))
 		return nfp_bpf_check_xadd(nfp_prog, meta, env);
 

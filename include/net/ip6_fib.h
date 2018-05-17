@@ -376,9 +376,24 @@ struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi6 *fl6,
 				   const struct sk_buff *skb,
 				   int flags, pol_lookup_t lookup);
 
-struct fib6_node *fib6_lookup(struct fib6_node *root,
-			      const struct in6_addr *daddr,
-			      const struct in6_addr *saddr);
+/* called with rcu lock held; can return error pointer
+ * caller needs to select path
+ */
+struct fib6_info *fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
+			      int flags);
+
+/* called with rcu lock held; caller needs to select path */
+struct fib6_info *fib6_table_lookup(struct net *net, struct fib6_table *table,
+				    int oif, struct flowi6 *fl6, int strict);
+
+struct fib6_info *fib6_multipath_select(const struct net *net,
+					struct fib6_info *match,
+					struct flowi6 *fl6, int oif,
+					const struct sk_buff *skb, int strict);
+
+struct fib6_node *fib6_node_lookup(struct fib6_node *root,
+				   const struct in6_addr *daddr,
+				   const struct in6_addr *saddr);
 
 struct fib6_node *fib6_locate(struct fib6_node *root,
 			      const struct in6_addr *daddr, int dst_len,

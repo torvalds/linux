@@ -627,7 +627,7 @@ bool bpf_offload_dev_match(struct bpf_prog *prog, struct bpf_map *map);
 #if defined(CONFIG_NET) && defined(CONFIG_BPF_SYSCALL)
 int bpf_prog_offload_init(struct bpf_prog *prog, union bpf_attr *attr);
 
-static inline bool bpf_prog_is_dev_bound(struct bpf_prog_aux *aux)
+static inline bool bpf_prog_is_dev_bound(const struct bpf_prog_aux *aux)
 {
 	return aux->offload_requested;
 }
@@ -668,9 +668,16 @@ static inline void bpf_map_offload_map_free(struct bpf_map *map)
 
 #if defined(CONFIG_STREAM_PARSER) && defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_INET)
 struct sock  *__sock_map_lookup_elem(struct bpf_map *map, u32 key);
+struct sock  *__sock_hash_lookup_elem(struct bpf_map *map, void *key);
 int sock_map_prog(struct bpf_map *map, struct bpf_prog *prog, u32 type);
 #else
 static inline struct sock  *__sock_map_lookup_elem(struct bpf_map *map, u32 key)
+{
+	return NULL;
+}
+
+static inline struct sock  *__sock_hash_lookup_elem(struct bpf_map *map,
+						    void *key)
 {
 	return NULL;
 }
@@ -724,6 +731,7 @@ extern const struct bpf_func_proto bpf_get_current_comm_proto;
 extern const struct bpf_func_proto bpf_get_stackid_proto;
 extern const struct bpf_func_proto bpf_get_stack_proto;
 extern const struct bpf_func_proto bpf_sock_map_update_proto;
+extern const struct bpf_func_proto bpf_sock_hash_update_proto;
 
 /* Shared helpers among cBPF and eBPF. */
 void bpf_user_rnd_init_once(void);

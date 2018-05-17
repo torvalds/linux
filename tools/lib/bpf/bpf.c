@@ -91,6 +91,7 @@ int bpf_create_map_xattr(const struct bpf_create_map_attr *create_attr)
 	attr.btf_fd = create_attr->btf_fd;
 	attr.btf_key_id = create_attr->btf_key_id;
 	attr.btf_value_id = create_attr->btf_value_id;
+	attr.map_ifindex = create_attr->map_ifindex;
 
 	return sys_bpf(BPF_MAP_CREATE, &attr, sizeof(attr));
 }
@@ -201,6 +202,7 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 	attr.log_size = 0;
 	attr.log_level = 0;
 	attr.kern_version = load_attr->kern_version;
+	attr.prog_ifindex = load_attr->prog_ifindex;
 	memcpy(attr.prog_name, load_attr->name,
 	       min(name_len, BPF_OBJ_NAME_LEN - 1));
 
@@ -456,6 +458,16 @@ int bpf_map_get_fd_by_id(__u32 id)
 	attr.map_id = id;
 
 	return sys_bpf(BPF_MAP_GET_FD_BY_ID, &attr, sizeof(attr));
+}
+
+int bpf_btf_get_fd_by_id(__u32 id)
+{
+	union bpf_attr attr;
+
+	bzero(&attr, sizeof(attr));
+	attr.btf_id = id;
+
+	return sys_bpf(BPF_BTF_GET_FD_BY_ID, &attr, sizeof(attr));
 }
 
 int bpf_obj_get_info_by_fd(int prog_fd, void *info, __u32 *info_len)

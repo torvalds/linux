@@ -95,7 +95,6 @@ enum reg_val_type {
  * struct jit_ctx - JIT context
  * @skf:		The sk_filter
  * @stack_size:		eBPF stack size
- * @tmp_offset:		eBPF $sp offset to 8-byte temporary memory
  * @idx:		Instruction index
  * @flags:		JIT flags
  * @offsets:		Instruction offsets
@@ -105,7 +104,6 @@ enum reg_val_type {
 struct jit_ctx {
 	const struct bpf_prog *skf;
 	int stack_size;
-	int tmp_offset;
 	u32 idx;
 	u32 flags;
 	u32 *offsets;
@@ -293,7 +291,6 @@ static int gen_int_prologue(struct jit_ctx *ctx)
 	locals_size = (ctx->flags & EBPF_SEEN_FP) ? MAX_BPF_STACK : 0;
 
 	stack_adjust += locals_size;
-	ctx->tmp_offset = locals_size;
 
 	ctx->stack_size = stack_adjust;
 
@@ -399,7 +396,6 @@ static void gen_imm_to_reg(const struct bpf_insn *insn, int reg,
 		emit_instr(ctx, lui, reg, upper >> 16);
 		emit_instr(ctx, addiu, reg, reg, lower);
 	}
-
 }
 
 static int gen_imm_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
@@ -544,28 +540,6 @@ static int gen_imm_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 		}
 	}
 
-	return 0;
-}
-
-static void * __must_check
-ool_skb_header_pointer(const struct sk_buff *skb, int offset,
-		       int len, void *buffer)
-{
-	return skb_header_pointer(skb, offset, len, buffer);
-}
-
-static int size_to_len(const struct bpf_insn *insn)
-{
-	switch (BPF_SIZE(insn->code)) {
-	case BPF_B:
-		return 1;
-	case BPF_H:
-		return 2;
-	case BPF_W:
-		return 4;
-	case BPF_DW:
-		return 8;
-	}
 	return 0;
 }
 

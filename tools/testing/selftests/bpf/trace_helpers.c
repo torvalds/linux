@@ -74,7 +74,7 @@ struct ksym *ksym_search(long key)
 
 static int page_size;
 static int page_cnt = 8;
-static volatile struct perf_event_mmap_page *header;
+static struct perf_event_mmap_page *header;
 
 int perf_event_mmap(int fd)
 {
@@ -107,74 +107,47 @@ struct perf_event_sample {
 	char data[];
 };
 
-static int perf_event_read(perf_event_print_fn fn)
+static enum bpf_perf_event_ret bpf_perf_event_print(void *event, void *priv)
 {
-	__u64 data_tail = header->data_tail;
-	__u64 data_head = header->data_head;
-	__u64 buffer_size = page_cnt * page_size;
-	void *base, *begin, *end;
-	char buf[256];
+	struct perf_event_sample *e = event;
+	perf_event_print_fn fn = priv;
 	int ret;
 
-	asm volatile("" ::: "memory"); /* in real code it should be smp_rmb() */
-	if (data_head == data_tail)
-		return PERF_EVENT_CONT;
-
-	base = ((char *)header) + page_size;
-
-	begin = base + data_tail % buffer_size;
-	end = base + data_head % buffer_size;
-
-	while (begin != end) {
-		struct perf_event_sample *e;
-
-		e = begin;
-		if (begin + e->header.size > base + buffer_size) {
-			long len = base + buffer_size - begin;
-
-			assert(len < e->header.size);
-			memcpy(buf, begin, len);
-			memcpy(buf + len, base, e->header.size - len);
-			e = (void *) buf;
-			begin = base + e->header.size - len;
-		} else if (begin + e->header.size == base + buffer_size) {
-			begin = base;
-		} else {
-			begin += e->header.size;
-		}
-
-		if (e->header.type == PERF_RECORD_SAMPLE) {
-			ret = fn(e->data, e->size);
-			if (ret != PERF_EVENT_CONT)
-				return ret;
-		} else if (e->header.type == PERF_RECORD_LOST) {
-			struct {
-				struct perf_event_header header;
-				__u64 id;
-				__u64 lost;
-			} *lost = (void *) e;
-			printf("lost %lld events\n", lost->lost);
-		} else {
-			printf("unknown event type=%d size=%d\n",
-			       e->header.type, e->header.size);
-		}
+	if (e->header.type == PERF_RECORD_SAMPLE) {
+		ret = fn(e->data, e->size);
+		if (ret != LIBBPF_PERF_EVENT_CONT)
+			return ret;
+	} else if (e->header.type == PERF_RECORD_LOST) {
+		struct {
+			struct perf_event_header header;
+			__u64 id;
+			__u64 lost;
+		} *lost = (void *) e;
+		printf("lost %lld events\n", lost->lost);
+	} else {
+		printf("unknown event type=%d size=%d\n",
+		       e->header.type, e->header.size);
 	}
 
-	__sync_synchronize(); /* smp_mb() */
-	header->data_tail = data_head;
-	return PERF_EVENT_CONT;
+	return LIBBPF_PERF_EVENT_CONT;
 }
 
 int perf_event_poller(int fd, perf_event_print_fn output_fn)
 {
-	int ret;
+	enum bpf_perf_event_ret ret;
+	void *buf = NULL;
+	size_t len = 0;
 
 	for (;;) {
 		perf_event_poll(fd);
-		ret = perf_event_read(output_fn);
-		if (ret != PERF_EVENT_CONT)
-			return ret;
+		ret = bpf_perf_event_read_simple(header, page_cnt * page_size,
+						 page_size, &buf, &len,
+						 bpf_perf_event_print,
+						 output_fn);
+		if (ret != LIBBPF_PERF_EVENT_CONT)
+			break;
 	}
+	free(buf);
 
-	return PERF_EVENT_DONE;
+	return ret;
 }
