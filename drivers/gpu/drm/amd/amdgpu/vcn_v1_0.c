@@ -1048,14 +1048,17 @@ static int vcn_v1_0_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
-static void vcn_v1_0_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
+static void vcn_v1_0_dec_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
 {
-	int i;
 	struct amdgpu_device *adev = ring->adev;
+	int i;
 
-	for (i = 0; i < count; i++)
+	WARN_ON(ring->wptr % 2 || count % 2);
+
+	for (i = 0; i < count / 2; i++) {
 		amdgpu_ring_write(ring, PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_NO_OP), 0));
-
+		amdgpu_ring_write(ring, 0);
+	}
 }
 
 
@@ -1082,7 +1085,6 @@ static const struct amd_ip_funcs vcn_v1_0_ip_funcs = {
 static const struct amdgpu_ring_funcs vcn_v1_0_dec_ring_vm_funcs = {
 	.type = AMDGPU_RING_TYPE_VCN_DEC,
 	.align_mask = 0xf,
-	.nop = PACKET0(0x81ff, 0),
 	.support_64bit_ptrs = false,
 	.vmhub = AMDGPU_MMHUB,
 	.get_rptr = vcn_v1_0_dec_ring_get_rptr,
@@ -1101,7 +1103,7 @@ static const struct amdgpu_ring_funcs vcn_v1_0_dec_ring_vm_funcs = {
 	.emit_vm_flush = vcn_v1_0_dec_ring_emit_vm_flush,
 	.test_ring = amdgpu_vcn_dec_ring_test_ring,
 	.test_ib = amdgpu_vcn_dec_ring_test_ib,
-	.insert_nop = vcn_v1_0_ring_insert_nop,
+	.insert_nop = vcn_v1_0_dec_ring_insert_nop,
 	.insert_start = vcn_v1_0_dec_ring_insert_start,
 	.insert_end = vcn_v1_0_dec_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
