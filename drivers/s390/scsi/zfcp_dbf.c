@@ -285,6 +285,8 @@ void zfcp_dbf_rec_trig(char *tag, struct zfcp_adapter *adapter,
 	struct list_head *entry;
 	unsigned long flags;
 
+	lockdep_assert_held(&adapter->erp_lock);
+
 	if (unlikely(!debug_level_enabled(dbf->rec, level)))
 		return;
 
