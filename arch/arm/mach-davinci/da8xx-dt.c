@@ -67,6 +67,8 @@ static void __init da850_init_machine(void)
 
 	int ret;
 
+	da850_register_clocks();
+
 	ret = da8xx_register_usb20_phy_clk(false);
 	if (ret)
 		pr_warn("%s: registering USB 2.0 PHY clock failed: %d",

@@ -503,6 +503,8 @@ static void __init mityomapl138_init(void)
 {
 	int ret;
 
+	da850_register_clocks();
+
 	/* for now, no special EDMA channels are reserved */
 	ret = da850_register_edma(NULL);
 	if (ret)

@@ -93,6 +93,7 @@ void da830_register_clocks(void);
 
 void da850_init(void);
 void da850_init_time(void);
+void da850_register_clocks(void);
 
 int da830_register_edma(struct edma_rsv_info *rsv);
 int da850_register_edma(struct edma_rsv_info *rsv[2]);
