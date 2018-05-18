@@ -260,11 +260,6 @@ static const struct gpio latch_gpios[] __initconst = {
 		.label	= "scard_cmdvcc",
 	},
 	{
-		.gpio	= AMS_DELTA_GPIO_PIN_MODEM_CODEC,
-		.flags	= GPIOF_OUT_INIT_LOW,
-		.label	= "modem_codec",
-	},
-	{
 		.gpio	= AMS_DELTA_LATCH2_GPIO_BASE + 14,
 		.flags	= GPIOF_OUT_INIT_LOW,
 		.label	= "hookflash1",
