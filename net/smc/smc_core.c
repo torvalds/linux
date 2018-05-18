@@ -30,7 +30,11 @@
 #define SMC_LGR_FREE_DELAY_SERV		(600 * HZ)
 #define SMC_LGR_FREE_DELAY_CLNT		(SMC_LGR_FREE_DELAY_SERV + 10)
 
-static u32 smc_lgr_num;			/* unique link group number */
+static struct smc_lgr_list smc_lgr_list = {	/* established link groups */
+	.lock = __SPIN_LOCK_UNLOCKED(smc_lgr_list.lock),
+	.list = LIST_HEAD_INIT(smc_lgr_list.list),
+	.num = 0,
+};
 
 static void smc_buf_free(struct smc_buf_desc *buf_desc, struct smc_link *lnk,
 			 bool is_rmb);
@@ -181,8 +185,8 @@ static int smc_lgr_create(struct smc_sock *smc,
 		INIT_LIST_HEAD(&lgr->sndbufs[i]);
 		INIT_LIST_HEAD(&lgr->rmbs[i]);
 	}
-	smc_lgr_num += SMC_LGR_NUM_INCR;
-	memcpy(&lgr->id, (u8 *)&smc_lgr_num, SMC_LGR_ID_SIZE);
+	smc_lgr_list.num += SMC_LGR_NUM_INCR;
+	memcpy(&lgr->id, (u8 *)&smc_lgr_list.num, SMC_LGR_ID_SIZE);
 	INIT_DELAYED_WORK(&lgr->free_work, smc_lgr_free_work);
 	lgr->conns_all = RB_ROOT;
 
@@ -372,6 +376,18 @@ void smc_lgr_terminate(struct smc_link_group *lgr)
 	write_unlock_bh(&lgr->conns_lock);
 	wake_up(&lgr->lnk[SMC_SINGLE_LINK].wr_reg_wait);
 	smc_lgr_schedule_free_work(lgr);
+}
+
+/* Called when IB port is terminated */
+void smc_port_terminate(struct smc_ib_device *smcibdev, u8 ibport)
+{
+	struct smc_link_group *lgr, *l;
+
+	list_for_each_entry_safe(lgr, l, &smc_lgr_list.list, list) {
+		if (lgr->lnk[SMC_SINGLE_LINK].smcibdev == smcibdev &&
+		    lgr->lnk[SMC_SINGLE_LINK].ibport == ibport)
+			smc_lgr_terminate(lgr);
+	}
 }
 
 /* Determine vlan of internal TCP socket.
@@ -801,4 +817,22 @@ int smc_rmb_rtoken_handling(struct smc_connection *conn,
 	if (conn->rtoken_idx < 0)
 		return conn->rtoken_idx;
 	return 0;
+}
+
+/* Called (from smc_exit) when module is removed */
+void smc_core_exit(void)
+{
+	struct smc_link_group *lgr, *lg;
+	LIST_HEAD(lgr_freeing_list);
+
+	spin_lock_bh(&smc_lgr_list.lock);
+	if (!list_empty(&smc_lgr_list.list))
+		list_splice_init(&smc_lgr_list.list, &lgr_freeing_list);
+	spin_unlock_bh(&smc_lgr_list.lock);
+	list_for_each_entry_safe(lgr, lg, &lgr_freeing_list, list) {
+		list_del_init(&lgr->list);
+		smc_llc_link_inactive(&lgr->lnk[SMC_SINGLE_LINK]);
+		cancel_delayed_work_sync(&lgr->free_work);
+		smc_lgr_free(lgr); /* free link group */
+	}
 }

@@ -46,11 +46,6 @@ static DEFINE_MUTEX(smc_create_lgr_pending);	/* serialize link group
 						 * creation
 						 */
 
-struct smc_lgr_list smc_lgr_list = {		/* established link groups */
-	.lock = __SPIN_LOCK_UNLOCKED(smc_lgr_list.lock),
-	.list = LIST_HEAD_INIT(smc_lgr_list.list),
-};
-
 static void smc_tcp_listen_work(struct work_struct *);
 
 static void smc_set_keepalive(struct sock *sk, int val)
@@ -1637,19 +1632,7 @@ out_pnet:
 
 static void __exit smc_exit(void)
 {
-	struct smc_link_group *lgr, *lg;
-	LIST_HEAD(lgr_freeing_list);
-
-	spin_lock_bh(&smc_lgr_list.lock);
-	if (!list_empty(&smc_lgr_list.list))
-		list_splice_init(&smc_lgr_list.list, &lgr_freeing_list);
-	spin_unlock_bh(&smc_lgr_list.lock);
-	list_for_each_entry_safe(lgr, lg, &lgr_freeing_list, list) {
-		list_del_init(&lgr->list);
-		smc_llc_link_inactive(&lgr->lnk[SMC_SINGLE_LINK]);
-		cancel_delayed_work_sync(&lgr->free_work);
-		smc_lgr_free(lgr); /* free link group */
-	}
+	smc_core_exit();
 	static_branch_disable(&tcp_have_smc);
 	smc_ib_unregister_client();
 	sock_unregister(PF_SMC);

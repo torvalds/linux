@@ -23,9 +23,8 @@
 struct smc_lgr_list {			/* list of link group definition */
 	struct list_head	list;
 	spinlock_t		lock;	/* protects list of link groups */
+	u32			num;	/* unique link group number */
 };
-
-extern struct smc_lgr_list	smc_lgr_list; /* list of link groups */
 
 enum smc_lgr_role {		/* possible roles of a link group */
 	SMC_CLNT,	/* client */
@@ -210,6 +209,7 @@ struct smc_clc_msg_accept_confirm;
 void smc_lgr_free(struct smc_link_group *lgr);
 void smc_lgr_forget(struct smc_link_group *lgr);
 void smc_lgr_terminate(struct smc_link_group *lgr);
+void smc_port_terminate(struct smc_ib_device *smcibdev, u8 ibport);
 int smc_buf_create(struct smc_sock *smc);
 int smc_rmb_rtoken_handling(struct smc_connection *conn,
 			    struct smc_clc_msg_accept_confirm *clc);
@@ -219,4 +219,5 @@ void smc_sndbuf_sync_sg_for_cpu(struct smc_connection *conn);
 void smc_sndbuf_sync_sg_for_device(struct smc_connection *conn);
 void smc_rmb_sync_sg_for_cpu(struct smc_connection *conn);
 void smc_rmb_sync_sg_for_device(struct smc_connection *conn);
+void smc_core_exit(void);
 #endif
