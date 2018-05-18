@@ -14,7 +14,7 @@
 
 #include <dt-bindings/clock/aspeed-clock.h>
 
-#define ASPEED_NUM_CLKS		35
+#define ASPEED_NUM_CLKS		36
 
 #define ASPEED_RESET_CTRL	0x04
 #define ASPEED_CLK_SELECTION	0x08
@@ -473,6 +473,13 @@ static int aspeed_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	aspeed_clk_data->hws[ASPEED_CLK_BCLK] = hw;
+
+	/* Fixed 24MHz clock */
+	hw = clk_hw_register_fixed_rate(NULL, "fixed-24m", "clkin",
+					0, 24000000);
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
+	aspeed_clk_data->hws[ASPEED_CLK_24M] = hw;
 
 	/*
 	 * TODO: There are a number of clocks that not included in this driver

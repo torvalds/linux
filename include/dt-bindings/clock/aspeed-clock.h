@@ -38,6 +38,7 @@
 #define ASPEED_CLK_MAC			32
 #define ASPEED_CLK_BCLK			33
 #define ASPEED_CLK_MPLL			34
+#define ASPEED_CLK_24M			35
 
 #define ASPEED_RESET_XDMA		0
 #define ASPEED_RESET_MCTP		1
