@@ -6,6 +6,7 @@
 
 #include "common.h"
 #include "stmmac.h"
+#include "stmmac_ptp.h"
 
 static u32 stmmac_get_id(struct stmmac_priv *priv, u32 id_reg)
 {
@@ -72,6 +73,7 @@ static const struct stmmac_hwif_entry {
 	bool gmac;
 	bool gmac4;
 	u32 min_id;
+	const struct stmmac_regs_off regs;
 	const void *desc;
 	const void *dma;
 	const void *mac;
@@ -86,6 +88,10 @@ static const struct stmmac_hwif_entry {
 		.gmac = false,
 		.gmac4 = false,
 		.min_id = 0,
+		.regs = {
+			.ptp_off = PTP_GMAC3_X_OFFSET,
+			.mmc_off = MMC_GMAC3_X_OFFSET,
+		},
 		.desc = NULL,
 		.dma = &dwmac100_dma_ops,
 		.mac = &dwmac100_ops,
@@ -98,6 +104,10 @@ static const struct stmmac_hwif_entry {
 		.gmac = true,
 		.gmac4 = false,
 		.min_id = 0,
+		.regs = {
+			.ptp_off = PTP_GMAC3_X_OFFSET,
+			.mmc_off = MMC_GMAC3_X_OFFSET,
+		},
 		.desc = NULL,
 		.dma = &dwmac1000_dma_ops,
 		.mac = &dwmac1000_ops,
@@ -110,6 +120,10 @@ static const struct stmmac_hwif_entry {
 		.gmac = false,
 		.gmac4 = true,
 		.min_id = 0,
+		.regs = {
+			.ptp_off = PTP_GMAC4_OFFSET,
+			.mmc_off = MMC_GMAC4_OFFSET,
+		},
 		.desc = &dwmac4_desc_ops,
 		.dma = &dwmac4_dma_ops,
 		.mac = &dwmac4_ops,
@@ -122,6 +136,10 @@ static const struct stmmac_hwif_entry {
 		.gmac = false,
 		.gmac4 = true,
 		.min_id = DWMAC_CORE_4_00,
+		.regs = {
+			.ptp_off = PTP_GMAC4_OFFSET,
+			.mmc_off = MMC_GMAC4_OFFSET,
+		},
 		.desc = &dwmac4_desc_ops,
 		.dma = &dwmac4_dma_ops,
 		.mac = &dwmac410_ops,
@@ -134,6 +152,10 @@ static const struct stmmac_hwif_entry {
 		.gmac = false,
 		.gmac4 = true,
 		.min_id = DWMAC_CORE_4_10,
+		.regs = {
+			.ptp_off = PTP_GMAC4_OFFSET,
+			.mmc_off = MMC_GMAC4_OFFSET,
+		},
 		.desc = &dwmac4_desc_ops,
 		.dma = &dwmac410_dma_ops,
 		.mac = &dwmac410_ops,
@@ -146,6 +168,10 @@ static const struct stmmac_hwif_entry {
 		.gmac = false,
 		.gmac4 = true,
 		.min_id = DWMAC_CORE_5_10,
+		.regs = {
+			.ptp_off = PTP_GMAC4_OFFSET,
+			.mmc_off = MMC_GMAC4_OFFSET,
+		},
 		.desc = &dwmac4_desc_ops,
 		.dma = &dwmac410_dma_ops,
 		.mac = &dwmac510_ops,
@@ -174,6 +200,12 @@ int stmmac_hwif_init(struct stmmac_priv *priv)
 
 	/* Save ID for later use */
 	priv->synopsys_id = id;
+
+	/* Lets assume some safe values first */
+	priv->ptpaddr = priv->ioaddr +
+		(needs_gmac4 ? PTP_GMAC4_OFFSET : PTP_GMAC3_X_OFFSET);
+	priv->mmcaddr = priv->ioaddr +
+		(needs_gmac4 ? MMC_GMAC4_OFFSET : MMC_GMAC3_X_OFFSET);
 
 	/* Check for HW specific setup first */
 	if (priv->plat->setup) {
@@ -206,6 +238,8 @@ int stmmac_hwif_init(struct stmmac_priv *priv)
 		mac->tc = entry->tc;
 
 		priv->hw = mac;
+		priv->ptpaddr = priv->ioaddr + entry->regs.ptp_off;
+		priv->mmcaddr = priv->ioaddr + entry->regs.mmc_off;
 
 		/* Entry found */
 		ret = entry->setup(priv);

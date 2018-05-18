@@ -442,6 +442,11 @@ struct stmmac_tc_ops {
 #define stmmac_tc_setup_cls_u32(__priv, __args...) \
 	stmmac_do_callback(__priv, tc, setup_cls_u32, __args)
 
+struct stmmac_regs_off {
+	u32 ptp_off;
+	u32 mmc_off;
+};
+
 extern const struct stmmac_ops dwmac100_ops;
 extern const struct stmmac_dma_ops dwmac100_dma_ops;
 extern const struct stmmac_ops dwmac1000_ops;

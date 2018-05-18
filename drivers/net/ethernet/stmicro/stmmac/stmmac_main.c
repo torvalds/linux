@@ -2085,14 +2085,6 @@ static void stmmac_mmc_setup(struct stmmac_priv *priv)
 	unsigned int mode = MMC_CNTRL_RESET_ON_READ | MMC_CNTRL_COUNTER_RESET |
 			    MMC_CNTRL_PRESET | MMC_CNTRL_FULL_HALF_PRESET;
 
-	if (priv->synopsys_id >= DWMAC_CORE_4_00) {
-		priv->ptpaddr = priv->ioaddr + PTP_GMAC4_OFFSET;
-		priv->mmcaddr = priv->ioaddr + MMC_GMAC4_OFFSET;
-	} else {
-		priv->ptpaddr = priv->ioaddr + PTP_GMAC3_X_OFFSET;
-		priv->mmcaddr = priv->ioaddr + MMC_GMAC3_X_OFFSET;
-	}
-
 	dwmac_mmc_intr_all_mask(priv->mmcaddr);
 
 	if (priv->dma_cap.rmon) {
