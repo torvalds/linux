@@ -674,8 +674,43 @@ static void cfl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 
 static void wa_init_mcr(struct drm_i915_private *dev_priv)
 {
+	const struct sseu_dev_info *sseu = &(INTEL_INFO(dev_priv)->sseu);
 	u32 mcr;
 	u32 mcr_slice_subslice_mask;
+
+	/*
+	 * WaProgramMgsrForL3BankSpecificMmioReads: cnl,icl
+	 * L3Banks could be fused off in single slice scenario. If that is
+	 * the case, we might need to program MCR select to a valid L3Bank
+	 * by default, to make sure we correctly read certain registers
+	 * later on (in the range 0xB100 - 0xB3FF).
+	 * This might be incompatible with
+	 * WaProgramMgsrForCorrectSliceSpecificMmioReads.
+	 * Fortunately, this should not happen in production hardware, so
+	 * we only assert that this is the case (instead of implementing
+	 * something more complex that requires checking the range of every
+	 * MMIO read).
+	 */
+	if (INTEL_GEN(dev_priv) >= 10 &&
+	    is_power_of_2(sseu->slice_mask)) {
+		/*
+		 * read FUSE3 for enabled L3 Bank IDs, if L3 Bank matches
+		 * enabled subslice, no need to redirect MCR packet
+		 */
+		u32 slice = fls(sseu->slice_mask);
+		u32 fuse3 = I915_READ(GEN10_MIRROR_FUSE3);
+		u8 ss_mask = sseu->subslice_mask[slice];
+
+		u8 enabled_mask = (ss_mask | ss_mask >>
+				   GEN10_L3BANK_PAIR_COUNT) & GEN10_L3BANK_MASK;
+		u8 disabled_mask = fuse3 & GEN10_L3BANK_MASK;
+
+		/*
+		 * Production silicon should have matched L3Bank and
+		 * subslice enabled
+		 */
+		WARN_ON((enabled_mask & disabled_mask) != enabled_mask);
+	}
 
 	mcr = I915_READ(GEN8_MCR_SELECTOR);
 

@@ -2709,6 +2709,10 @@ enum i915_power_well_id {
 #define   GEN10_F2_SS_DIS_SHIFT		18
 #define   GEN10_F2_SS_DIS_MASK		(0xf << GEN10_F2_SS_DIS_SHIFT)
 
+#define	GEN10_MIRROR_FUSE3		_MMIO(0x9118)
+#define GEN10_L3BANK_PAIR_COUNT     4
+#define GEN10_L3BANK_MASK   0x0F
+
 #define GEN8_EU_DISABLE0		_MMIO(0x9134)
 #define   GEN8_EU_DIS0_S0_MASK		0xffffff
 #define   GEN8_EU_DIS0_S1_SHIFT		24
