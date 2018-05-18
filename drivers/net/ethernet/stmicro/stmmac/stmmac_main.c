@@ -3158,13 +3158,16 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * element in case of no SG.
 	 */
 	priv->tx_count_frames += nfrags + 1;
-	if (likely(priv->tx_coal_frames > priv->tx_count_frames)) {
+	if (likely(priv->tx_coal_frames > priv->tx_count_frames) &&
+	    !priv->tx_timer_armed) {
 		mod_timer(&priv->txtimer,
 			  STMMAC_COAL_TIMER(priv->tx_coal_timer));
+		priv->tx_timer_armed = true;
 	} else {
 		priv->tx_count_frames = 0;
 		stmmac_set_tx_ic(priv, desc);
 		priv->xstats.tx_set_ic_bit++;
+		priv->tx_timer_armed = false;
 	}
 
 	skb_tx_timestamp(skb);
