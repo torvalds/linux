@@ -460,6 +460,8 @@ static int devlink_nl_port_attrs_put(struct sk_buff *msg,
 
 	if (!attrs->set)
 		return 0;
+	if (nla_put_u16(msg, DEVLINK_ATTR_PORT_FLAVOUR, attrs->flavour))
+		return -EMSGSIZE;
 	if (nla_put_u32(msg, DEVLINK_ATTR_PORT_NUMBER, attrs->port_number))
 		return -EMSGSIZE;
 	if (!attrs->split)
@@ -2991,6 +2993,7 @@ EXPORT_SYMBOL_GPL(devlink_port_type_clear);
  *	devlink_port_attrs_set - Set port attributes
  *
  *	@devlink_port: devlink port
+ *	@flavour: flavour of the port
  *	@port_number: number of the port that is facing user, for example
  *	              the front panel port number
  *	@split: indicates if this is split port
@@ -2998,12 +3001,14 @@ EXPORT_SYMBOL_GPL(devlink_port_type_clear);
  *	                       of subport.
  */
 void devlink_port_attrs_set(struct devlink_port *devlink_port,
+			    enum devlink_port_flavour flavour,
 			    u32 port_number, bool split,
 			    u32 split_subport_number)
 {
 	struct devlink_port_attrs *attrs = &devlink_port->attrs;
 
 	attrs->set = true;
+	attrs->flavour = flavour;
 	attrs->port_number = port_number;
 	attrs->split = split;
 	attrs->split_subport_number = split_subport_number;

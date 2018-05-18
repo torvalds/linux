@@ -37,6 +37,7 @@ struct devlink {
 
 struct devlink_port_attrs {
 	bool set;
+	enum devlink_port_flavour flavour;
 	u32 port_number; /* same value as "split group" */
 	bool split;
 	u32 split_subport_number;
@@ -374,6 +375,7 @@ void devlink_port_type_ib_set(struct devlink_port *devlink_port,
 			      struct ib_device *ibdev);
 void devlink_port_type_clear(struct devlink_port *devlink_port);
 void devlink_port_attrs_set(struct devlink_port *devlink_port,
+			    enum devlink_port_flavour flavour,
 			    u32 port_number, bool split,
 			    u32 split_subport_number);
 int devlink_sb_register(struct devlink *devlink, unsigned int sb_index,
@@ -474,6 +476,7 @@ static inline void devlink_port_type_clear(struct devlink_port *devlink_port)
 }
 
 static inline void devlink_port_attrs_set(struct devlink_port *devlink_port,
+					  enum devlink_port_flavour flavour,
 					  u32 port_number, bool split,
 					  u32 split_subport_number)
 {
