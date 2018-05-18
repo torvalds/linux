@@ -860,7 +860,8 @@ static void smu7_setup_voltage_range_from_vbios(struct pp_hwmgr *hwmgr)
 	struct phm_ppt_v1_clock_voltage_dependency_table *dep_sclk_table;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
-	uint32_t min_vddc, max_vddc;
+	uint32_t min_vddc = 0;
+	uint32_t max_vddc = 0;
 
 	if (!table_info)
 		return;

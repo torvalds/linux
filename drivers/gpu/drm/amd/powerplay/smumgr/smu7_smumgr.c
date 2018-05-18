@@ -283,11 +283,9 @@ int smu7_read_smc_sram_dword(struct pp_hwmgr *hwmgr, uint32_t smc_addr, uint32_t
 
 	result = smu7_set_smc_sram_address(hwmgr, smc_addr, limit);
 
-	if (result)
-		return result;
+	*value = result ? 0 : cgs_read_register(hwmgr->device, mmSMC_IND_DATA_11);
 
-	*value = cgs_read_register(hwmgr->device, mmSMC_IND_DATA_11);
-	return 0;
+	return result;
 }
 
 int smu7_write_smc_sram_dword(struct pp_hwmgr *hwmgr, uint32_t smc_addr, uint32_t value, uint32_t limit)
