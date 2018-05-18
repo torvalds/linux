@@ -27,8 +27,6 @@
 #ifndef __ASM_ARCH_PSC_H
 #define __ASM_ARCH_PSC_H
 
-#define	DAVINCI_PWR_SLEEP_CNTRL_BASE	0x01C41000
-
 /* Power and Sleep Controller (PSC) Domains */
 #define DAVINCI_GPSC_ARMDOMAIN		0
 #define DAVINCI_GPSC_DSPDOMAIN		1

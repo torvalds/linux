@@ -35,6 +35,10 @@
 #include <media/davinci/vpbe.h>
 #include <media/davinci/vpbe_osd.h>
 
+#define DAVINCI_PLL1_BASE		0x01c40800
+#define DAVINCI_PLL2_BASE		0x01c40c00
+#define DAVINCI_PWR_SLEEP_CNTRL_BASE	0x01c41000
+
 #define DAVINCI_SYSTEM_MODULE_BASE	0x01c40000
 #define SYSMOD_VDAC_CONFIG		0x2c
 #define SYSMOD_VIDCLKCTL		0x38
