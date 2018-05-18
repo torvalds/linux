@@ -3166,11 +3166,8 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	netdev_tx_sent_queue(netdev_get_tx_queue(dev, queue), skb->len);
 
-	if (priv->synopsys_id < DWMAC_CORE_4_00)
-		stmmac_enable_dma_transmission(priv, priv->ioaddr);
-	else
-		stmmac_set_tx_tail_ptr(priv, priv->ioaddr, tx_q->tx_tail_addr,
-				queue);
+	stmmac_enable_dma_transmission(priv, priv->ioaddr);
+	stmmac_set_tx_tail_ptr(priv, priv->ioaddr, tx_q->tx_tail_addr, queue);
 
 	return NETDEV_TX_OK;
 
