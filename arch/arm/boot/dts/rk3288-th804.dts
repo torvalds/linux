@@ -32,6 +32,13 @@
 		vin-supply = <&vcc_sys>;
 	};
 
+	xin32k: xin32k {
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		clock-output-names = "xin32k";
+		#clock-cells = <0>;
+	};
+
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		clocks = <&rk818 1>;
@@ -134,7 +141,7 @@
 		reg = <0x1c>;
 		status = "okay";
 
-		clock-output-names = "xin32k", "wifibt_32kin";
+		clock-output-names = "rk818-clkout1", "wifibt_32kin";
 		interrupt-parent = <&gpio0>;
 		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";

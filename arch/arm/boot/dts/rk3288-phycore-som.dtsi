@@ -108,6 +108,13 @@
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 	};
+
+	xin32k: xin32k {
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		clock-output-names = "xin32k";
+		#clock-cells = <0>;
+	};
 };
 
 &cpu0 {
@@ -213,7 +220,7 @@
 	rk818: pmic@1c {
 		compatible = "rockchip,rk818";
 		reg = <0x1c>;
-		clock-output-names = "xin32k";
+		clock-output-names = "rk818-clkout1";
 		interrupt-parent = <&gpio0>;
 		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
