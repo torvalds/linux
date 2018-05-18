@@ -69,21 +69,11 @@ static void __init da850_init_machine(void)
 
 	da850_register_clocks();
 
-#ifdef CONFIG_COMMON_CLK
 	ret = da8xx_register_usb_phy_clocks();
 	if (ret)
 		pr_warn("%s: USB PHY CLK registration failed: %d\n",
 			__func__, ret);
-#else
-	ret = da8xx_register_usb20_phy_clk(false);
-	if (ret)
-		pr_warn("%s: registering USB 2.0 PHY clock failed: %d",
-			__func__, ret);
-	ret = da8xx_register_usb11_phy_clk(false);
-	if (ret)
-		pr_warn("%s: registering USB 1.1 PHY clock failed: %d",
-			__func__, ret);
-#endif
+
 	ret = da850_register_sata_refclk(sata_refclkpn);
 	if (ret)
 		pr_warn("%s: registering SATA REFCLK failed: %d",
