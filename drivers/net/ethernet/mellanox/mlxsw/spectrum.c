@@ -2927,8 +2927,8 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	}
 
 	mlxsw_core_port_eth_set(mlxsw_sp->core, mlxsw_sp_port->local_port,
-				mlxsw_sp_port, dev, mlxsw_sp_port->split,
-				module);
+				mlxsw_sp_port, dev, module + 1,
+				mlxsw_sp_port->split, lane / width);
 	mlxsw_core_schedule_dw(&mlxsw_sp_port->periodic_hw_stats.update_dw, 0);
 	return 0;
 

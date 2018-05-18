@@ -1149,7 +1149,7 @@ static int __mlxsw_sx_port_eth_create(struct mlxsw_sx *mlxsw_sx, u8 local_port,
 	}
 
 	mlxsw_core_port_eth_set(mlxsw_sx->core, mlxsw_sx_port->local_port,
-				mlxsw_sx_port, dev, false, 0);
+				mlxsw_sx_port, dev, module + 1, false, 0);
 	mlxsw_sx->ports[local_port] = mlxsw_sx_port;
 	return 0;
 
