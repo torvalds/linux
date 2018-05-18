@@ -3644,6 +3644,7 @@ static irqreturn_t stmmac_interrupt(int irq, void *dev_id)
 	/* To handle GMAC own interrupts */
 	if ((priv->plat->has_gmac) || (priv->plat->has_gmac4)) {
 		int status = stmmac_host_irq_status(priv, priv->hw, &priv->xstats);
+		int mtl_status;
 
 		if (unlikely(status)) {
 			/* For LPI we need to save the tx status */
@@ -3653,20 +3654,18 @@ static irqreturn_t stmmac_interrupt(int irq, void *dev_id)
 				priv->tx_path_in_lpi_mode = false;
 		}
 
-		if (priv->synopsys_id >= DWMAC_CORE_4_00) {
-			for (queue = 0; queue < queues_count; queue++) {
-				struct stmmac_rx_queue *rx_q =
-				&priv->rx_queue[queue];
+		for (queue = 0; queue < queues_count; queue++) {
+			struct stmmac_rx_queue *rx_q = &priv->rx_queue[queue];
 
-				status |= stmmac_host_mtl_irq_status(priv,
-						priv->hw, queue);
+			mtl_status = stmmac_host_mtl_irq_status(priv, priv->hw,
+								queue);
+			if (mtl_status != -EINVAL)
+				status |= mtl_status;
 
-				if (status & CORE_IRQ_MTL_RX_OVERFLOW)
-					stmmac_set_rx_tail_ptr(priv,
-							priv->ioaddr,
-							rx_q->rx_tail_addr,
-							queue);
-			}
+			if (status & CORE_IRQ_MTL_RX_OVERFLOW)
+				stmmac_set_rx_tail_ptr(priv, priv->ioaddr,
+						       rx_q->rx_tail_addr,
+						       queue);
 		}
 
 		/* PCS link status */
