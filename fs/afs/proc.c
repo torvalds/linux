@@ -27,72 +27,8 @@ static inline struct afs_net *afs_seq2net(struct seq_file *m)
 	return &__afs_net; // TODO: use seq_file_net(m)
 }
 
-static void *afs_proc_cells_start(struct seq_file *p, loff_t *pos);
-static void *afs_proc_cells_next(struct seq_file *p, void *v, loff_t *pos);
-static void afs_proc_cells_stop(struct seq_file *p, void *v);
-static int afs_proc_cells_show(struct seq_file *m, void *v);
-
-static const struct seq_operations afs_proc_cells_ops = {
-	.start	= afs_proc_cells_start,
-	.next	= afs_proc_cells_next,
-	.stop	= afs_proc_cells_stop,
-	.show	= afs_proc_cells_show,
-};
-
-static void *afs_proc_cell_volumes_start(struct seq_file *p, loff_t *pos);
-static void *afs_proc_cell_volumes_next(struct seq_file *p, void *v,
-					loff_t *pos);
-static void afs_proc_cell_volumes_stop(struct seq_file *p, void *v);
-static int afs_proc_cell_volumes_show(struct seq_file *m, void *v);
-
-static const struct seq_operations afs_proc_cell_volumes_ops = {
-	.start	= afs_proc_cell_volumes_start,
-	.next	= afs_proc_cell_volumes_next,
-	.stop	= afs_proc_cell_volumes_stop,
-	.show	= afs_proc_cell_volumes_show,
-};
-
-static void *afs_proc_cell_vlservers_start(struct seq_file *p, loff_t *pos);
-static void *afs_proc_cell_vlservers_next(struct seq_file *p, void *v,
-					  loff_t *pos);
-static void afs_proc_cell_vlservers_stop(struct seq_file *p, void *v);
-static int afs_proc_cell_vlservers_show(struct seq_file *m, void *v);
-
-static const struct seq_operations afs_proc_cell_vlservers_ops = {
-	.start	= afs_proc_cell_vlservers_start,
-	.next	= afs_proc_cell_vlservers_next,
-	.stop	= afs_proc_cell_vlservers_stop,
-	.show	= afs_proc_cell_vlservers_show,
-};
-
-static void *afs_proc_servers_start(struct seq_file *p, loff_t *pos);
-static void *afs_proc_servers_next(struct seq_file *p, void *v,
-					loff_t *pos);
-static void afs_proc_servers_stop(struct seq_file *p, void *v);
-static int afs_proc_servers_show(struct seq_file *m, void *v);
-
-static const struct seq_operations afs_proc_servers_ops = {
-	.start	= afs_proc_servers_start,
-	.next	= afs_proc_servers_next,
-	.stop	= afs_proc_servers_stop,
-	.show	= afs_proc_servers_show,
-};
-
-static void *afs_proc_sysname_start(struct seq_file *p, loff_t *pos);
-static void *afs_proc_sysname_next(struct seq_file *p, void *v,
-					loff_t *pos);
-static void afs_proc_sysname_stop(struct seq_file *p, void *v);
-static int afs_proc_sysname_show(struct seq_file *m, void *v);
-
-static const struct seq_operations afs_proc_sysname_ops = {
-	.start	= afs_proc_sysname_start,
-	.next	= afs_proc_sysname_next,
-	.stop	= afs_proc_sysname_stop,
-	.show	= afs_proc_sysname_show,
-};
-
 /*
- * display a header line followed by a load of cell lines
+ * Display the list of cells known to the namespace.
  */
 static int afs_proc_cells_show(struct seq_file *m, void *v)
 {
@@ -110,37 +46,30 @@ static int afs_proc_cells_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-/*
- * set up the iterator to start reading from the cells list and return the
- * first item
- */
 static void *afs_proc_cells_start(struct seq_file *m, loff_t *_pos)
 	__acquires(rcu)
 {
-	struct afs_net *net = afs_seq2net(m);
-
 	rcu_read_lock();
-	return seq_list_start_head(&net->proc_cells, *_pos);
+	return seq_list_start_head(&afs_seq2net(m)->proc_cells, *_pos);
 }
 
-/*
- * move to next cell in cells list
- */
 static void *afs_proc_cells_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct afs_net *net = afs_seq2net(m);
-
-	return seq_list_next(v, &net->proc_cells, pos);
+	return seq_list_next(v, &afs_seq2net(m)->proc_cells, pos);
 }
 
-/*
- * clean up after reading from the cells list
- */
 static void afs_proc_cells_stop(struct seq_file *m, void *v)
 	__releases(rcu)
 {
 	rcu_read_unlock();
 }
+
+static const struct seq_operations afs_proc_cells_ops = {
+	.start	= afs_proc_cells_start,
+	.next	= afs_proc_cells_next,
+	.stop	= afs_proc_cells_stop,
+	.show	= afs_proc_cells_show,
+};
 
 /*
  * handle writes to /proc/fs/afs/cells
@@ -230,6 +159,9 @@ static const struct file_operations afs_proc_cells_fops = {
 	.release	= seq_release,
 };
 
+/*
+ * Read the name of the current workstation cell.
+ */
 static ssize_t afs_proc_rootcell_read(struct file *file, char __user *buf,
 				      size_t size, loff_t *_pos)
 {
@@ -270,8 +202,10 @@ static ssize_t afs_proc_rootcell_read(struct file *file, char __user *buf,
 }
 
 /*
- * handle writes to /proc/fs/afs/rootcell
- * - to initialize rootcell: echo "cell.name:192.168.231.14"
+ * Set the current workstation cell and optionally supply its list of volume
+ * location servers.
+ *
+ *	echo "cell.name:192.168.231.14" >/proc/fs/afs/rootcell
  */
 static ssize_t afs_proc_rootcell_write(struct file *file,
 				       const char __user *buf,
@@ -326,7 +260,7 @@ static const char afs_vol_types[3][3] = {
 };
 
 /*
- * display a header line followed by a load of volume lines
+ * Display the list of volumes known to a cell.
  */
 static int afs_proc_cell_volumes_show(struct seq_file *m, void *v)
 {
@@ -346,36 +280,23 @@ static int afs_proc_cell_volumes_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-/*
- * set up the iterator to start reading from the cells list and return the
- * first item
- */
 static void *afs_proc_cell_volumes_start(struct seq_file *m, loff_t *_pos)
 	__acquires(cell->proc_lock)
 {
 	struct afs_cell *cell = PDE_DATA(file_inode(m->file));
 
-	_enter("cell=%p pos=%Ld", cell, *_pos);
-
 	read_lock(&cell->proc_lock);
 	return seq_list_start_head(&cell->proc_volumes, *_pos);
 }
 
-/*
- * move to next cell in cells list
- */
 static void *afs_proc_cell_volumes_next(struct seq_file *p, void *v,
 					loff_t *_pos)
 {
 	struct afs_cell *cell = PDE_DATA(file_inode(p->file));
 
-	_enter("cell=%p pos=%Ld", cell, *_pos);
 	return seq_list_next(v, &cell->proc_volumes, _pos);
 }
 
-/*
- * clean up after reading from the cells list
- */
 static void afs_proc_cell_volumes_stop(struct seq_file *p, void *v)
 	__releases(cell->proc_lock)
 {
@@ -384,8 +305,15 @@ static void afs_proc_cell_volumes_stop(struct seq_file *p, void *v)
 	read_unlock(&cell->proc_lock);
 }
 
+static const struct seq_operations afs_proc_cell_volumes_ops = {
+	.start	= afs_proc_cell_volumes_start,
+	.next	= afs_proc_cell_volumes_next,
+	.stop	= afs_proc_cell_volumes_stop,
+	.show	= afs_proc_cell_volumes_show,
+};
+
 /*
- * display a header line followed by a load of volume lines
+ * Display the list of Volume Location servers we're using for a cell.
  */
 static int afs_proc_cell_vlservers_show(struct seq_file *m, void *v)
 {
@@ -402,10 +330,6 @@ static int afs_proc_cell_vlservers_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-/*
- * set up the iterator to start reading from the cells list and return the
- * first item
- */
 static void *afs_proc_cell_vlservers_start(struct seq_file *m, loff_t *_pos)
 	__acquires(rcu)
 {
@@ -428,9 +352,6 @@ static void *afs_proc_cell_vlservers_start(struct seq_file *m, loff_t *_pos)
 	return alist->addrs + pos;
 }
 
-/*
- * move to next cell in cells list
- */
 static void *afs_proc_cell_vlservers_next(struct seq_file *p, void *v,
 					  loff_t *_pos)
 {
@@ -448,17 +369,48 @@ static void *afs_proc_cell_vlservers_next(struct seq_file *p, void *v,
 	return alist->addrs + pos;
 }
 
-/*
- * clean up after reading from the cells list
- */
 static void afs_proc_cell_vlservers_stop(struct seq_file *p, void *v)
 	__releases(rcu)
 {
 	rcu_read_unlock();
 }
 
+static const struct seq_operations afs_proc_cell_vlservers_ops = {
+	.start	= afs_proc_cell_vlservers_start,
+	.next	= afs_proc_cell_vlservers_next,
+	.stop	= afs_proc_cell_vlservers_stop,
+	.show	= afs_proc_cell_vlservers_show,
+};
+
+static int afs_proc_cell_vlservers_open(struct inode *inode, struct file *file)
+{
+	struct afs_cell *cell;
+	struct seq_file *m;
+	int ret;
+
+	cell = PDE_DATA(inode);
+	if (!cell)
+		return -ENOENT;
+
+	ret = seq_open(file, &afs_proc_cell_vlservers_ops);
+	if (ret<0)
+		return ret;
+
+	m = file->private_data;
+	m->private = cell;
+
+	return 0;
+}
+
+static const struct file_operations afs_proc_cell_vlservers_fops = {
+	.open		= afs_proc_cell_vlservers_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
 /*
- * display a header line followed by a load of volume lines
+ * Display the list of fileservers we're using within a namespace.
  */
 static int afs_proc_servers_show(struct seq_file *m, void *v)
 {
@@ -479,82 +431,99 @@ static int afs_proc_servers_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-/*
- * Set up the iterator to start reading from the server list and return the
- * first item.
- */
 static void *afs_proc_servers_start(struct seq_file *m, loff_t *_pos)
 	__acquires(rcu)
 {
-	struct afs_net *net = afs_seq2net(m);
-
 	rcu_read_lock();
-	return seq_hlist_start_head_rcu(&net->fs_proc, *_pos);
+	return seq_hlist_start_head_rcu(&afs_seq2net(m)->fs_proc, *_pos);
 }
 
-/*
- * move to next cell in cells list
- */
 static void *afs_proc_servers_next(struct seq_file *m, void *v, loff_t *_pos)
 {
-	struct afs_net *net = afs_seq2net(m);
-
-	return seq_hlist_next_rcu(v, &net->fs_proc, _pos);
+	return seq_hlist_next_rcu(v, &afs_seq2net(m)->fs_proc, _pos);
 }
 
-/*
- * clean up after reading from the cells list
- */
 static void afs_proc_servers_stop(struct seq_file *p, void *v)
 	__releases(rcu)
 {
 	rcu_read_unlock();
 }
 
-void afs_put_sysnames(struct afs_sysnames *sysnames)
-{
-	int i;
+static const struct seq_operations afs_proc_servers_ops = {
+	.start	= afs_proc_servers_start,
+	.next	= afs_proc_servers_next,
+	.stop	= afs_proc_servers_stop,
+	.show	= afs_proc_servers_show,
+};
 
-	if (sysnames && refcount_dec_and_test(&sysnames->usage)) {
-		for (i = 0; i < sysnames->nr; i++)
-			if (sysnames->subs[i] != afs_init_sysname &&
-			    sysnames->subs[i] != sysnames->blank)
-				kfree(sysnames->subs[i]);
-	}
+static int afs_proc_servers_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &afs_proc_servers_ops);
 }
 
+static const struct file_operations afs_proc_servers_fops = {
+	.open		= afs_proc_servers_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
 /*
- * Handle opening of /proc/fs/afs/sysname.  If it is opened for writing, we
- * assume the caller wants to change the substitution list and we allocate a
- * buffer to hold the list.
+ * Display the list of strings that may be substituted for the @sys pathname
+ * macro.
  */
-static int afs_proc_sysname_open(struct inode *inode, struct file *file)
+static int afs_proc_sysname_show(struct seq_file *m, void *v)
 {
-	struct afs_sysnames *sysnames;
-	struct seq_file *m;
-	int ret;
+	struct afs_net *net = afs_seq2net(m);
+	struct afs_sysnames *sysnames = net->sysnames;
+	unsigned int i = (unsigned long)v - 1;
 
-	ret = seq_open(file, &afs_proc_sysname_ops);
-	if (ret < 0)
-		return ret;
-
-	if (file->f_mode & FMODE_WRITE) {
-		sysnames = kzalloc(sizeof(*sysnames), GFP_KERNEL);
-		if (!sysnames) {
-			seq_release(inode, file);
-			return -ENOMEM;
-		}
-
-		refcount_set(&sysnames->usage, 1);
-		m = file->private_data;
-		m->private = sysnames;
-	}
-
+	if (i < sysnames->nr)
+		seq_printf(m, "%s\n", sysnames->subs[i]);
 	return 0;
 }
 
+static void *afs_proc_sysname_start(struct seq_file *m, loff_t *pos)
+	__acquires(&net->sysnames_lock)
+{
+	struct afs_net *net = afs_seq2net(m);
+	struct afs_sysnames *names = net->sysnames;
+
+	read_lock(&net->sysnames_lock);
+
+	if (*pos >= names->nr)
+		return NULL;
+	return (void *)(unsigned long)(*pos + 1);
+}
+
+static void *afs_proc_sysname_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	struct afs_net *net = afs_seq2net(m);
+	struct afs_sysnames *names = net->sysnames;
+
+	*pos += 1;
+	if (*pos >= names->nr)
+		return NULL;
+	return (void *)(unsigned long)(*pos + 1);
+}
+
+static void afs_proc_sysname_stop(struct seq_file *m, void *v)
+	__releases(&net->sysnames_lock)
+{
+	struct afs_net *net = afs_seq2net(m);
+
+	read_unlock(&net->sysnames_lock);
+}
+
+static const struct seq_operations afs_proc_sysname_ops = {
+	.start	= afs_proc_sysname_start,
+	.next	= afs_proc_sysname_next,
+	.stop	= afs_proc_sysname_stop,
+	.show	= afs_proc_sysname_show,
+};
+
 /*
- * Handle writes to /proc/fs/afs/sysname to set the @sys substitution.
+ * Allow the @sys substitution to be configured.
  */
 static ssize_t afs_proc_sysname_write(struct file *file,
 				      const char __user *buf,
@@ -638,6 +607,18 @@ error:
 	goto out;
 }
 
+void afs_put_sysnames(struct afs_sysnames *sysnames)
+{
+	int i;
+
+	if (sysnames && refcount_dec_and_test(&sysnames->usage)) {
+		for (i = 0; i < sysnames->nr; i++)
+			if (sysnames->subs[i] != afs_init_sysname &&
+			    sysnames->subs[i] != sysnames->blank)
+				kfree(sysnames->subs[i]);
+	}
+}
+
 static int afs_proc_sysname_release(struct inode *inode, struct file *file)
 {
 	struct afs_sysnames *sysnames, *kill = NULL;
@@ -663,47 +644,34 @@ static int afs_proc_sysname_release(struct inode *inode, struct file *file)
 	return seq_release(inode, file);
 }
 
-static int afs_proc_sysname_show(struct seq_file *m, void *v)
+/*
+ * Handle opening of /proc/fs/afs/sysname.  If it is opened for writing, we
+ * assume the caller wants to change the substitution list and we allocate a
+ * buffer to hold the list.
+ */
+static int afs_proc_sysname_open(struct inode *inode, struct file *file)
 {
-	struct afs_net *net = afs_seq2net(m);
-	struct afs_sysnames *sysnames = net->sysnames;
-	unsigned int i = (unsigned long)v - 1;
+	struct afs_sysnames *sysnames;
+	struct seq_file *m;
+	int ret;
 
-	if (i < sysnames->nr)
-		seq_printf(m, "%s\n", sysnames->subs[i]);
+	ret = seq_open(file, &afs_proc_sysname_ops);
+	if (ret < 0)
+		return ret;
+
+	if (file->f_mode & FMODE_WRITE) {
+		sysnames = kzalloc(sizeof(*sysnames), GFP_KERNEL);
+		if (!sysnames) {
+			seq_release(inode, file);
+			return -ENOMEM;
+		}
+
+		refcount_set(&sysnames->usage, 1);
+		m = file->private_data;
+		m->private = sysnames;
+	}
+
 	return 0;
-}
-
-static void *afs_proc_sysname_start(struct seq_file *m, loff_t *pos)
-	__acquires(&net->sysnames_lock)
-{
-	struct afs_net *net = afs_seq2net(m);
-	struct afs_sysnames *names = net->sysnames;
-
-	read_lock(&net->sysnames_lock);
-
-	if (*pos >= names->nr)
-		return NULL;
-	return (void *)(unsigned long)(*pos + 1);
-}
-
-static void *afs_proc_sysname_next(struct seq_file *m, void *v, loff_t *pos)
-{
-	struct afs_net *net = afs_seq2net(m);
-	struct afs_sysnames *names = net->sysnames;
-
-	*pos += 1;
-	if (*pos >= names->nr)
-		return NULL;
-	return (void *)(unsigned long)(*pos + 1);
-}
-
-static void afs_proc_sysname_stop(struct seq_file *m, void *v)
-	__releases(&net->sysnames_lock)
-{
-	struct afs_net *net = afs_seq2net(m);
-
-	read_unlock(&net->sysnames_lock);
 }
 
 static const struct file_operations afs_proc_sysname_fops = {
