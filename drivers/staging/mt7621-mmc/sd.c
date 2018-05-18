@@ -2032,7 +2032,7 @@ static void msdc_enable_cd_irq(struct msdc_host *host, int enable)
 		return;
 	}
 
-	N_MSG(CFG, "CD IRQ Eanable(%d)", enable);
+	N_MSG(CFG, "CD IRQ Enable(%d)", enable);
 
 	if (enable) {
 		/* card detection circuit relies on the core power so that the core power
