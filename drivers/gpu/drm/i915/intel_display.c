@@ -1360,9 +1360,9 @@ static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
 {
 	enum pipe port_pipe;
 
-	assert_pch_dp_disabled(dev_priv, pipe, PCH_DP_B, TRANS_DP_PORT_SEL_B);
-	assert_pch_dp_disabled(dev_priv, pipe, PCH_DP_C, TRANS_DP_PORT_SEL_C);
-	assert_pch_dp_disabled(dev_priv, pipe, PCH_DP_D, TRANS_DP_PORT_SEL_D);
+	assert_pch_dp_disabled(dev_priv, pipe, PCH_DP_B, TRANS_DP_PORT_SEL(PORT_B));
+	assert_pch_dp_disabled(dev_priv, pipe, PCH_DP_C, TRANS_DP_PORT_SEL(PORT_C));
+	assert_pch_dp_disabled(dev_priv, pipe, PCH_DP_D, TRANS_DP_PORT_SEL(PORT_D));
 
 	I915_STATE_WARN(intel_crt_port_enabled(dev_priv, PCH_ADPA, &port_pipe) &&
 			port_pipe == pipe,
@@ -4702,6 +4702,8 @@ static void ironlake_pch_enable(const struct intel_crtc_state *crtc_state)
 			&crtc_state->base.adjusted_mode;
 		u32 bpc = (I915_READ(PIPECONF(pipe)) & PIPECONF_BPC_MASK) >> 5;
 		i915_reg_t reg = TRANS_DP_CTL(pipe);
+		enum port port;
+
 		temp = I915_READ(reg);
 		temp &= ~(TRANS_DP_PORT_SEL_MASK |
 			  TRANS_DP_SYNC_MASK |
@@ -4714,19 +4716,9 @@ static void ironlake_pch_enable(const struct intel_crtc_state *crtc_state)
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 			temp |= TRANS_DP_VSYNC_ACTIVE_HIGH;
 
-		switch (intel_trans_dp_port_sel(crtc)) {
-		case PORT_B:
-			temp |= TRANS_DP_PORT_SEL_B;
-			break;
-		case PORT_C:
-			temp |= TRANS_DP_PORT_SEL_C;
-			break;
-		case PORT_D:
-			temp |= TRANS_DP_PORT_SEL_D;
-			break;
-		default:
-			BUG();
-		}
+		port = intel_trans_dp_port_sel(crtc);
+		WARN_ON(port < PORT_B || port > PORT_D);
+		temp |= TRANS_DP_PORT_SEL(port);
 
 		I915_WRITE(reg, temp);
 	}
