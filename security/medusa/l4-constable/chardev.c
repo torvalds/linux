@@ -140,10 +140,20 @@ static inline int am_i_constable(void) {
 	if (!constable)
 		return ret;
 
-	/* each thread has its own PID, but accross the process they share TGID;
-	   TGID is also shared via system call 'fork', so an authorisation server
-	   can run in many processes */
+	/* 
+	   each thread has its own PID, but accross the process they share TGID;
+	   if we want an authorisation server to be run in multiple processes,
+	   we need use 'task_pgrp()' call instead
+	   (and the authorisation server should set the same pgrp for its processes
+	   by setpgrp() system call)
+
+	   don't use direct access to pid/tgid/pgrp/sid via task_struct!
+	   we use local namespaces to allow run multiple instancies of
+	   authorisation server(s) on the same kernel (in different namespaces)
+	*/
 	rcu_read_lock();
+	/* use task_pgrp() if an authorisation server runs in multiple processes */
+	/* TODO: set as a choice in .config? */
 	if (task_tgid(current) == task_tgid(constable))
 		ret = 1;
 	rcu_read_unlock();
