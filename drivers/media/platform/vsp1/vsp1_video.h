@@ -51,6 +51,9 @@ static inline struct vsp1_video *to_vsp1_video(struct video_device *vdev)
 	return container_of(vdev, struct vsp1_video, video);
 }
 
+void vsp1_video_suspend(struct vsp1_device *vsp1);
+void vsp1_video_resume(struct vsp1_device *vsp1);
+
 struct vsp1_video *vsp1_video_create(struct vsp1_device *vsp1,
 				     struct vsp1_rwpf *rwpf);
 void vsp1_video_cleanup(struct vsp1_video *video);

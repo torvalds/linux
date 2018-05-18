@@ -164,9 +164,6 @@ void vsp1_pipeline_propagate_partition(struct vsp1_pipeline *pipe,
 				       unsigned int index,
 				       struct vsp1_partition_window *window);
 
-void vsp1_pipelines_suspend(struct vsp1_device *vsp1);
-void vsp1_pipelines_resume(struct vsp1_device *vsp1);
-
 const struct vsp1_format_info *vsp1_get_format_info(struct vsp1_device *vsp1,
 						    u32 fourcc);
 

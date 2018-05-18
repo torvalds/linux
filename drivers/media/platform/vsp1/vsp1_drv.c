@@ -589,7 +589,7 @@ static int __maybe_unused vsp1_pm_suspend(struct device *dev)
 	 * restarted explicitly by the DU.
 	 */
 	if (!vsp1->drm)
-		vsp1_pipelines_suspend(vsp1);
+		vsp1_video_suspend(vsp1);
 
 	pm_runtime_force_suspend(vsp1->dev);
 
@@ -607,7 +607,7 @@ static int __maybe_unused vsp1_pm_resume(struct device *dev)
 	 * restarted explicitly by the DU.
 	 */
 	if (!vsp1->drm)
-		vsp1_pipelines_resume(vsp1);
+		vsp1_video_resume(vsp1);
 
 	return 0;
 }

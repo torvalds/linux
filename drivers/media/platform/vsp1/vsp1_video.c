@@ -1171,6 +1171,81 @@ static const struct v4l2_file_operations vsp1_video_fops = {
 };
 
 /* -----------------------------------------------------------------------------
+ * Suspend and Resume
+ */
+
+void vsp1_video_suspend(struct vsp1_device *vsp1)
+{
+	unsigned long flags;
+	unsigned int i;
+	int ret;
+
+	/*
+	 * To avoid increasing the system suspend time needlessly, loop over the
+	 * pipelines twice, first to set them all to the stopping state, and
+	 * then to wait for the stop to complete.
+	 */
+	for (i = 0; i < vsp1->info->wpf_count; ++i) {
+		struct vsp1_rwpf *wpf = vsp1->wpf[i];
+		struct vsp1_pipeline *pipe;
+
+		if (wpf == NULL)
+			continue;
+
+		pipe = wpf->entity.pipe;
+		if (pipe == NULL)
+			continue;
+
+		spin_lock_irqsave(&pipe->irqlock, flags);
+		if (pipe->state == VSP1_PIPELINE_RUNNING)
+			pipe->state = VSP1_PIPELINE_STOPPING;
+		spin_unlock_irqrestore(&pipe->irqlock, flags);
+	}
+
+	for (i = 0; i < vsp1->info->wpf_count; ++i) {
+		struct vsp1_rwpf *wpf = vsp1->wpf[i];
+		struct vsp1_pipeline *pipe;
+
+		if (wpf == NULL)
+			continue;
+
+		pipe = wpf->entity.pipe;
+		if (pipe == NULL)
+			continue;
+
+		ret = wait_event_timeout(pipe->wq, vsp1_pipeline_stopped(pipe),
+					 msecs_to_jiffies(500));
+		if (ret == 0)
+			dev_warn(vsp1->dev, "pipeline %u stop timeout\n",
+				 wpf->entity.index);
+	}
+}
+
+void vsp1_video_resume(struct vsp1_device *vsp1)
+{
+	unsigned long flags;
+	unsigned int i;
+
+	/* Resume all running pipelines. */
+	for (i = 0; i < vsp1->info->wpf_count; ++i) {
+		struct vsp1_rwpf *wpf = vsp1->wpf[i];
+		struct vsp1_pipeline *pipe;
+
+		if (wpf == NULL)
+			continue;
+
+		pipe = wpf->entity.pipe;
+		if (pipe == NULL)
+			continue;
+
+		spin_lock_irqsave(&pipe->irqlock, flags);
+		if (vsp1_pipeline_ready(pipe))
+			vsp1_video_pipeline_run(pipe);
+		spin_unlock_irqrestore(&pipe->irqlock, flags);
+	}
+}
+
+/* -----------------------------------------------------------------------------
  * Initialization and Cleanup
  */
 
