@@ -114,6 +114,13 @@
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
 	};
+
+	xin32k: xin32k {
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		clock-output-names = "xin32k";
+		#clock-cells = <0>;
+	};
 };
 
 &cpu0 {
@@ -165,7 +172,7 @@
 		compatible = "rockchip,rk818";
 		status = "okay";
 		reg = <0x1c>;
-		clock-output-names = "xin32k", "wifibt_32kin";
+		clock-output-names = "rk818-clkout1", "wifibt_32kin";
 		interrupt-parent = <&gpio3>;
 		interrupts = <22 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";

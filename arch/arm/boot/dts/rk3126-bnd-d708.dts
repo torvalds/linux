@@ -170,6 +170,13 @@
 		regulator-always-on;
 	};
 
+	xin32k: xin32k {
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		clock-output-names = "xin32k";
+		#clock-cells = <0>;
+	};
+
 	wireless-bluetooth {
 		compatible = "bluetooth-platdata";
 		/* wifi-bt-power-toggle; */
@@ -325,7 +332,7 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		#clock-cells = <1>;
-		clock-output-names = "xin32k", "rk816-clkout2";
+		clock-output-names = "rk816-clkout1", "rk816-clkout2";
 		extcon = <&u2phy>;
 
 		vcc1-supply = <&vcc_sys>;
