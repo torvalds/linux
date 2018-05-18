@@ -353,7 +353,7 @@ config SND_SOC_INTEL_GLK_RT5682_MAX98357A_MACH
 
 endif ## SND_SOC_INTEL_SKYLAKE || SND_SOC_SOF_GEMINILAKE
 
-if SND_SOC_INTEL_SKYLAKE
+if SND_SOC_INTEL_SKYLAKE || SND_SOC_SOF_CANNONLAKE
 
 config SND_SOC_INTEL_CNL_RT274_MACH
 	tristate "Cannonlake with RT274 I2S mode"
@@ -367,6 +367,6 @@ config SND_SOC_INTEL_CNL_RT274_MACH
 	   Say Y or m if you have such a device. This is a recommended option.
 	   If unsure select "N".
 
-endif ## SND_SOC_INTEL_SKYLAKE
+endif ## SND_SOC_INTEL_SKYLAKE || SND_SOC_SOF_CANNONLAKE
 
 endif ## SND_SOC_INTEL_MACH
