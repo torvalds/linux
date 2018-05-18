@@ -29,6 +29,7 @@ struct vsp1_lut {
 
 	spinlock_t lock;
 	struct vsp1_dl_body *lut;
+	struct vsp1_dl_body_pool *pool;
 };
 
 static inline struct vsp1_lut *to_lut(struct v4l2_subdev *subdev)
