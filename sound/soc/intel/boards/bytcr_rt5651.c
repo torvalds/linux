@@ -706,6 +706,7 @@ static struct snd_soc_card byt_rt5651_card = {
 static char byt_rt5651_codec_name[SND_ACPI_I2C_ID_LEN];
 static char byt_rt5651_codec_aif_name[12]; /*  = "rt5651-aif[1|2]" */
 static char byt_rt5651_cpu_dai_name[10]; /*  = "ssp[0|2]-port" */
+static char byt_rt5651_long_name[40]; /* = "bytcr-rt5651-*-spk-*-mic" */
 
 static bool is_valleyview(void)
 {
@@ -726,6 +727,10 @@ struct acpi_chan_package {   /* ACPICA seems to require 64 bit integers */
 
 static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 {
+	const char * const intmic_name[] =
+		{ "dmic", "in1", "in2", "in12", "in1", "in2" };
+	const char * const hsmic_name[] =
+		{  "in2", "in2", "in1",  "in3", "in3", "in3" };
 	struct byt_rt5651_private *priv;
 	struct snd_soc_acpi_mach *mach;
 	const char *i2c_name = NULL;
@@ -869,6 +874,12 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 			byt_rt5651_quirk &= ~BYT_RT5651_MCLK_EN;
 		}
 	}
+
+	snprintf(byt_rt5651_long_name, sizeof(byt_rt5651_long_name),
+		 "bytcr-rt5651-%s-intmic-%s-hsmic",
+		 intmic_name[BYT_RT5651_MAP(byt_rt5651_quirk)],
+		 hsmic_name[BYT_RT5651_MAP(byt_rt5651_quirk)]);
+	byt_rt5651_card.long_name = byt_rt5651_long_name;
 
 	ret_val = devm_snd_soc_register_card(&pdev->dev, &byt_rt5651_card);
 
