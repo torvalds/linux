@@ -19,7 +19,8 @@
 #include <linux/of.h>
 #include <linux/tpm_eventlog.h>
 
-#include "tpm.h"
+#include "../tpm.h"
+#include "common.h"
 
 int tpm_read_log_of(struct tpm_chip *chip)
 {
@@ -56,8 +57,8 @@ int tpm_read_log_of(struct tpm_chip *chip)
 	 * but physical tpm needs the conversion.
 	 */
 	if (of_property_match_string(np, "compatible", "IBM,vtpm") < 0) {
-		size = be32_to_cpup(sizep);
-		base = be64_to_cpup(basep);
+		size = be32_to_cpup((__force __be32 *)sizep);
+		base = be64_to_cpup((__force __be64 *)basep);
 	} else {
 		size = *sizep;
 		base = *basep;
@@ -68,13 +69,11 @@ int tpm_read_log_of(struct tpm_chip *chip)
 		return -EIO;
 	}
 
-	log->bios_event_log = kmalloc(size, GFP_KERNEL);
+	log->bios_event_log = kmemdup(__va(base), size, GFP_KERNEL);
 	if (!log->bios_event_log)
 		return -ENOMEM;
 
 	log->bios_event_log_end = log->bios_event_log + size;
-
-	memcpy(log->bios_event_log, __va(base), size);
 
 	if (chip->flags & TPM_CHIP_FLAG_TPM2)
 		return EFI_TCG2_EVENT_LOG_FORMAT_TCG_2;
