@@ -753,6 +753,49 @@ static struct sh_eth_cpu_data rcar_gen2_data = {
 	.rmiimode	= 1,
 	.magic		= 1,
 };
+
+/* R8A77980 */
+static struct sh_eth_cpu_data r8a77980_data = {
+	.soft_reset	= sh_eth_soft_reset_gether,
+
+	.set_duplex	= sh_eth_set_duplex,
+	.set_rate	= sh_eth_set_rate_gether,
+
+	.register_type  = SH_ETH_REG_GIGABIT,
+
+	.edtrr_trns	= EDTRR_TRNS_GETHER,
+	.ecsr_value	= ECSR_PSRTO | ECSR_LCHNG | ECSR_ICD | ECSR_MPD,
+	.ecsipr_value	= ECSIPR_PSRTOIP | ECSIPR_LCHNGIP | ECSIPR_ICDIP |
+			  ECSIPR_MPDIP,
+	.eesipr_value	= EESIPR_RFCOFIP | EESIPR_ECIIP |
+			  EESIPR_FTCIP | EESIPR_TDEIP | EESIPR_TFUFIP |
+			  EESIPR_FRIP | EESIPR_RDEIP | EESIPR_RFOFIP |
+			  EESIPR_RMAFIP | EESIPR_RRFIP |
+			  EESIPR_RTLFIP | EESIPR_RTSFIP |
+			  EESIPR_PREIP | EESIPR_CERFIP,
+
+	.tx_check       = EESR_FTC | EESR_CD | EESR_RTO,
+	.eesr_err_check = EESR_TWB1 | EESR_TWB | EESR_TABT | EESR_RABT |
+			  EESR_RFE | EESR_RDE | EESR_RFRMER |
+			  EESR_TFE | EESR_TDE | EESR_ECI,
+	.fdr_value	= 0x0000070f,
+
+	.apr		= 1,
+	.mpr		= 1,
+	.tpauser	= 1,
+	.bculr		= 1,
+	.hw_swap	= 1,
+	.nbst		= 1,
+	.rpadir		= 1,
+	.rpadir_value   = 2 << 16,
+	.no_trimd	= 1,
+	.no_ade		= 1,
+	.xdfar_rw	= 1,
+	.hw_checksum	= 1,
+	.select_mii	= 1,
+	.magic		= 1,
+	.cexcr		= 1,
+};
 #endif /* CONFIG_OF */
 
 static void sh_eth_set_rate_sh7724(struct net_device *ndev)
@@ -3134,6 +3177,7 @@ static const struct of_device_id sh_eth_match_table[] = {
 	{ .compatible = "renesas,ether-r8a7791", .data = &rcar_gen2_data },
 	{ .compatible = "renesas,ether-r8a7793", .data = &rcar_gen2_data },
 	{ .compatible = "renesas,ether-r8a7794", .data = &rcar_gen2_data },
+	{ .compatible = "renesas,gether-r8a77980", .data = &r8a77980_data },
 	{ .compatible = "renesas,ether-r7s72100", .data = &r7s72100_data },
 	{ .compatible = "renesas,rcar-gen1-ether", .data = &rcar_gen1_data },
 	{ .compatible = "renesas,rcar-gen2-ether", .data = &rcar_gen2_data },
