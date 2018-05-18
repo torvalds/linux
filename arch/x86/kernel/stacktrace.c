@@ -106,7 +106,8 @@ __save_stack_trace_reliable(struct stack_trace *trace,
 			 * unreliable.
 			 */
 
-			return -EINVAL;
+			if (IS_ENABLED(CONFIG_FRAME_POINTER))
+				return -EINVAL;
 		}
 
 		addr = unwind_get_return_address(&state);
