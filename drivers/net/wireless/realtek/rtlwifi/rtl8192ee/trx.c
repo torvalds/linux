@@ -1072,27 +1072,3 @@ bool rtl92ee_is_tx_desc_closed(struct ieee80211_hw *hw, u8 hw_queue, u16 index)
 void rtl92ee_tx_polling(struct ieee80211_hw *hw, u8 hw_queue)
 {
 }
-
-u32 rtl92ee_rx_command_packet(struct ieee80211_hw *hw,
-			      const struct rtl_stats *status,
-			      struct sk_buff *skb)
-{
-	u32 result = 0;
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	switch (status->packet_report_type) {
-	case NORMAL_RX:
-		result = 0;
-		break;
-	case C2H_PACKET:
-		rtl_c2h_packet_handler(hw, skb->data, (u8)skb->len);
-		result = 1;
-		break;
-	default:
-		RT_TRACE(rtlpriv, COMP_RECV, DBG_TRACE,
-			 "Unknown packet type %d\n", status->packet_report_type);
-		break;
-	}
-
-	return result;
-}
