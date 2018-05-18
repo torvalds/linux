@@ -2128,6 +2128,9 @@ static void mvpp2_prs_dsa_tag_set(struct mvpp2 *priv, int port, bool add,
 				mvpp2_prs_sram_ai_update(&pe, 0,
 							MVPP2_PRS_SRAM_AI_MASK);
 
+			/* Set result info bits to 'single vlan' */
+			mvpp2_prs_sram_ri_update(&pe, MVPP2_PRS_RI_VLAN_SINGLE,
+						 MVPP2_PRS_RI_VLAN_MASK);
 			/* If packet is tagged continue check vid filtering */
 			mvpp2_prs_sram_next_lu_set(&pe, MVPP2_PRS_LU_VID);
 		} else {
