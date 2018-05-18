@@ -1091,6 +1091,11 @@ void intel_engines_park(struct drm_i915_private *i915)
 		if (engine->park)
 			engine->park(engine);
 
+		if (engine->pinned_default_state) {
+			i915_gem_object_unpin_map(engine->default_state);
+			engine->pinned_default_state = NULL;
+		}
+
 		i915_gem_batch_pool_fini(&engine->batch_pool);
 		engine->execlists.no_priolist = false;
 	}
@@ -1108,6 +1113,16 @@ void intel_engines_unpark(struct drm_i915_private *i915)
 	enum intel_engine_id id;
 
 	for_each_engine(engine, i915, id) {
+		void *map;
+
+		/* Pin the default state for fast resets from atomic context. */
+		map = NULL;
+		if (engine->default_state)
+			map = i915_gem_object_pin_map(engine->default_state,
+						      I915_MAP_WB);
+		if (!IS_ERR_OR_NULL(map))
+			engine->pinned_default_state = map;
+
 		if (engine->unpark)
 			engine->unpark(engine);
 

@@ -1965,17 +1965,10 @@ static void execlists_reset(struct intel_engine_cs *engine,
 	 * to recreate its own state.
 	 */
 	regs = request->hw_context->lrc_reg_state;
-	if (engine->default_state) {
-		void *defaults;
-
-		defaults = i915_gem_object_pin_map(engine->default_state,
-						   I915_MAP_WB);
-		if (!IS_ERR(defaults)) {
-			memcpy(regs, /* skip restoring the vanilla PPHWSP */
-			       defaults + LRC_STATE_PN * PAGE_SIZE,
-			       engine->context_size - PAGE_SIZE);
-			i915_gem_object_unpin_map(engine->default_state);
-		}
+	if (engine->pinned_default_state) {
+		memcpy(regs, /* skip restoring the vanilla PPHWSP */
+		       engine->pinned_default_state + LRC_STATE_PN * PAGE_SIZE,
+		       engine->context_size - PAGE_SIZE);
 	}
 	execlists_init_reg_state(regs,
 				 request->gem_context, engine, request->ring);

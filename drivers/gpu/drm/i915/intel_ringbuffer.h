@@ -342,6 +342,7 @@ struct intel_engine_cs {
 	struct i915_timeline timeline;
 
 	struct drm_i915_gem_object *default_state;
+	void *pinned_default_state;
 
 	atomic_t irq_count;
 	unsigned long irq_posted;
