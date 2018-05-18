@@ -24,6 +24,10 @@
 #define VMD_MEMBAR1	2
 #define VMD_MEMBAR2	4
 
+#define PCI_REG_VMCAP		0x40
+#define BUS_RESTRICT_CAP(vmcap)	(vmcap & 0x1)
+#define PCI_REG_VMCONFIG	0x44
+#define BUS_RESTRICT_CFG(vmcfg)	((vmcfg >> 8) & 0x3)
 #define PCI_REG_VMLOCK		0x70
 #define MB2_SHADOW_EN(vmlock)	(vmlock & 0x2)
 
@@ -34,6 +38,12 @@ enum vmd_features {
 	 * resource assignment to enable guest virtualization
 	 */
 	VMD_FEAT_HAS_MEMBAR_SHADOW	= (1 << 0),
+
+	/*
+	 * Device may provide root port configuration information which limits
+	 * bus numbering
+	 */
+	VMD_FEAT_HAS_BUS_RESTRICTIONS	= (1 << 1),
 };
 
 /*
@@ -567,7 +577,7 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 	unsigned long flags;
 	LIST_HEAD(resources);
 	resource_size_t offset[2] = {0};
-	resource_size_t membar2_offset = 0x2000;
+	resource_size_t membar2_offset = 0x2000, busn_start = 0;
 
 	/*
 	 * Shadow registers may exist in certain VMD device ids which allow
@@ -598,11 +608,25 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 		}
 	}
 
+	/*
+	 * Certain VMD devices may have a root port configuration option which
+	 * limits the bus range to between 0-127 or 128-255
+	 */
+	if (features & VMD_FEAT_HAS_BUS_RESTRICTIONS) {
+		u32 vmcap, vmconfig;
+
+		pci_read_config_dword(vmd->dev, PCI_REG_VMCAP, &vmcap);
+		pci_read_config_dword(vmd->dev, PCI_REG_VMCONFIG, &vmconfig);
+		if (BUS_RESTRICT_CAP(vmcap) &&
+		    (BUS_RESTRICT_CFG(vmconfig) == 0x1))
+			busn_start = 128;
+	}
+
 	res = &vmd->dev->resource[VMD_CFGBAR];
 	vmd->resources[0] = (struct resource) {
 		.name  = "VMD CFGBAR",
-		.start = 0,
-		.end   = (resource_size(res) >> 20) - 1,
+		.start = busn_start,
+		.end   = busn_start + (resource_size(res) >> 20) - 1,
 		.flags = IORESOURCE_BUS | IORESOURCE_PCI_FIXED,
 	};
 
@@ -670,8 +694,8 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 	pci_add_resource_offset(&resources, &vmd->resources[1], offset[0]);
 	pci_add_resource_offset(&resources, &vmd->resources[2], offset[1]);
 
-	vmd->bus = pci_create_root_bus(&vmd->dev->dev, 0, &vmd_ops, sd,
-				       &resources);
+	vmd->bus = pci_create_root_bus(&vmd->dev->dev, busn_start, &vmd_ops,
+				       sd, &resources);
 	if (!vmd->bus) {
 		pci_free_resource_list(&resources);
 		irq_domain_remove(vmd->irq_domain);
