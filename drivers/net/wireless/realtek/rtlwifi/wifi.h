@@ -1010,6 +1010,21 @@ enum dm_info_query {
 	DM_INFO_SIZE,
 };
 
+struct rtlwifi_tx_info {
+	int sn;
+	unsigned long send_time;
+};
+
+static inline struct rtlwifi_tx_info *rtl_tx_skb_cb_info(struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+
+	BUILD_BUG_ON(sizeof(struct rtlwifi_tx_info) >
+		     sizeof(info->status.status_driver_data));
+
+	return (struct rtlwifi_tx_info *)(info->status.status_driver_data);
+}
+
 struct octet_string {
 	u8 *octet;
 	u16 length;
@@ -1967,6 +1982,7 @@ struct rtl_tx_report {
 	u16 last_sent_sn;
 	unsigned long last_sent_time;
 	u16 last_recv_sn;
+	struct sk_buff_head queue;
 };
 
 struct rtl_ps_ctl {

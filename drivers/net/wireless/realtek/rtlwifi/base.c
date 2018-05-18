@@ -574,6 +574,7 @@ int rtl_init_core(struct ieee80211_hw *hw)
 	INIT_LIST_HEAD(&rtlpriv->entry_list);
 	INIT_LIST_HEAD(&rtlpriv->c2hcmd_list);
 	INIT_LIST_HEAD(&rtlpriv->scan_list.list);
+	skb_queue_head_init(&rtlpriv->tx_report.queue);
 
 	rtlmac->link_state = MAC80211_NOLINK;
 
@@ -585,11 +586,14 @@ int rtl_init_core(struct ieee80211_hw *hw)
 EXPORT_SYMBOL_GPL(rtl_init_core);
 
 static void rtl_free_entries_from_scan_list(struct ieee80211_hw *hw);
+static void rtl_free_entries_from_ack_queue(struct ieee80211_hw *hw,
+					    bool timeout);
 
 void rtl_deinit_core(struct ieee80211_hw *hw)
 {
 	rtl_c2hcmd_launcher(hw, 0);
 	rtl_free_entries_from_scan_list(hw);
+	rtl_free_entries_from_ack_queue(hw, false);
 }
 EXPORT_SYMBOL_GPL(rtl_deinit_core);
 
@@ -1575,22 +1579,52 @@ end:
 }
 EXPORT_SYMBOL_GPL(rtl_is_special_data);
 
+void rtl_tx_ackqueue(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_tx_report *tx_report = &rtlpriv->tx_report;
+
+	__skb_queue_tail(&tx_report->queue, skb);
+}
+EXPORT_SYMBOL_GPL(rtl_tx_ackqueue);
+
+static void rtl_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
+			  bool ack)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct ieee80211_tx_info *info;
+
+	info = IEEE80211_SKB_CB(skb);
+	ieee80211_tx_info_clear_status(info);
+	if (ack) {
+		RT_TRACE(rtlpriv, COMP_TX_REPORT, DBG_LOUD,
+			 "tx report: ack\n");
+		info->flags |= IEEE80211_TX_STAT_ACK;
+	} else {
+		RT_TRACE(rtlpriv, COMP_TX_REPORT, DBG_LOUD,
+			 "tx report: not ack\n");
+		info->flags &= ~IEEE80211_TX_STAT_ACK;
+	}
+	ieee80211_tx_status_irqsafe(hw, skb);
+}
+
 bool rtl_is_tx_report_skb(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	u16 ether_type;
 	const u8 *ether_type_ptr;
+	__le16 fc = rtl_get_fc(skb);
 
 	ether_type_ptr = rtl_skb_ether_type_ptr(hw, skb, true);
 	ether_type = be16_to_cpup((__be16 *)ether_type_ptr);
 
-	/* EAPOL */
-	if (ether_type == ETH_P_PAE)
+	if (ether_type == ETH_P_PAE || ieee80211_is_nullfunc(fc))
 		return true;
 
 	return false;
 }
 
-static u16 rtl_get_tx_report_sn(struct ieee80211_hw *hw)
+static u16 rtl_get_tx_report_sn(struct ieee80211_hw *hw,
+				struct rtlwifi_tx_info *tx_info)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_tx_report *tx_report = &rtlpriv->tx_report;
@@ -1604,29 +1638,33 @@ static u16 rtl_get_tx_report_sn(struct ieee80211_hw *hw)
 
 	tx_report->last_sent_sn = sn;
 	tx_report->last_sent_time = jiffies;
-
+	tx_info->sn = sn;
+	tx_info->send_time = tx_report->last_sent_time;
 	RT_TRACE(rtlpriv, COMP_TX_REPORT, DBG_DMESG,
 		 "Send TX-Report sn=0x%X\n", sn);
 
 	return sn;
 }
 
-void rtl_get_tx_report(struct rtl_tcb_desc *ptcb_desc, u8 *pdesc,
-		       struct ieee80211_hw *hw)
+void rtl_set_tx_report(struct rtl_tcb_desc *ptcb_desc, u8 *pdesc,
+		       struct ieee80211_hw *hw, struct rtlwifi_tx_info *tx_info)
 {
 	if (ptcb_desc->use_spe_rpt) {
-		u16 sn = rtl_get_tx_report_sn(hw);
+		u16 sn = rtl_get_tx_report_sn(hw, tx_info);
 
 		SET_TX_DESC_SPE_RPT(pdesc, 1);
 		SET_TX_DESC_SW_DEFINE(pdesc, sn);
 	}
 }
-EXPORT_SYMBOL_GPL(rtl_get_tx_report);
+EXPORT_SYMBOL_GPL(rtl_set_tx_report);
 
 void rtl_tx_report_handler(struct ieee80211_hw *hw, u8 *tmp_buf, u8 c2h_cmd_len)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_tx_report *tx_report = &rtlpriv->tx_report;
+	struct rtlwifi_tx_info *tx_info;
+	struct sk_buff_head *queue = &tx_report->queue;
+	struct sk_buff *skb;
 	u16 sn;
 	u8 st, retry;
 
@@ -1642,6 +1680,14 @@ void rtl_tx_report_handler(struct ieee80211_hw *hw, u8 *tmp_buf, u8 c2h_cmd_len)
 
 	tx_report->last_recv_sn = sn;
 
+	skb_queue_walk(queue, skb) {
+		tx_info = rtl_tx_skb_cb_info(skb);
+		if (tx_info->sn == sn) {
+			skb_unlink(skb, queue);
+			rtl_tx_status(hw, skb, st == 0);
+			break;
+		}
+	}
 	RT_TRACE(rtlpriv, COMP_TX_REPORT, DBG_DMESG,
 		 "Recv TX-Report st=0x%02X sn=0x%X retry=0x%X\n",
 		 st, sn, retry);
@@ -1909,6 +1955,25 @@ static void rtl_free_entries_from_scan_list(struct ieee80211_hw *hw)
 	}
 }
 
+static void rtl_free_entries_from_ack_queue(struct ieee80211_hw *hw,
+					    bool chk_timeout)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_tx_report *tx_report = &rtlpriv->tx_report;
+	struct sk_buff_head *queue = &tx_report->queue;
+	struct sk_buff *skb, *tmp;
+	struct rtlwifi_tx_info *tx_info;
+
+	skb_queue_walk_safe(queue, skb, tmp) {
+		tx_info = rtl_tx_skb_cb_info(skb);
+		if (chk_timeout &&
+		    time_after(tx_info->send_time + HZ, jiffies))
+			continue;
+		skb_unlink(skb, queue);
+		rtl_tx_status(hw, skb, false);
+	}
+}
+
 void rtl_scan_list_expire(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -2173,6 +2238,9 @@ label_lps_done:
 
 	/* <6> scan list */
 	rtl_scan_list_expire(hw);
+
+	/* <7> check ack queue */
+	rtl_free_entries_from_ack_queue(hw, true);
 }
 
 void rtl_watch_dog_timer_callback(struct timer_list *t)
