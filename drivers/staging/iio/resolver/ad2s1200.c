@@ -25,9 +25,6 @@
 
 #define DRV_NAME "ad2s1200"
 
-/* input pin sample and rdvel is controlled by driver */
-#define AD2S1200_PN	2
-
 /* input clock on serial interface */
 #define AD2S1200_HZ	8192000
 /* clock period in nano second */
@@ -111,20 +108,9 @@ static const struct iio_info ad2s1200_info = {
 
 static int ad2s1200_probe(struct spi_device *spi)
 {
-	unsigned short *pins = spi->dev.platform_data;
 	struct ad2s1200_state *st;
 	struct iio_dev *indio_dev;
-	int pn, ret;
-
-	for (pn = 0; pn < AD2S1200_PN; pn++) {
-		ret = devm_gpio_request_one(&spi->dev, pins[pn], GPIOF_DIR_OUT,
-					    DRV_NAME);
-		if (ret) {
-			dev_err(&spi->dev, "request gpio pin %d failed\n",
-				pins[pn]);
-			return ret;
-		}
-	}
+	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
@@ -134,8 +120,20 @@ static int ad2s1200_probe(struct spi_device *spi)
 	st = iio_priv(indio_dev);
 	mutex_init(&st->lock);
 	st->sdev = spi;
-	st->sample = gpio_to_desc(pins[0]);
-	st->rdvel = gpio_to_desc(pins[1]);
+
+	st->sample = devm_gpiod_get(&spi->dev, "adi,sample", GPIOD_OUT_LOW);
+	if (IS_ERR(st->sample)) {
+		dev_err(&spi->dev, "Failed to claim SAMPLE gpio: err=%ld\n",
+			PTR_ERR(st->sample));
+		return PTR_ERR(st->sample);
+	}
+
+	st->rdvel = devm_gpiod_get(&spi->dev, "adi,rdvel", GPIOD_OUT_LOW);
+	if (IS_ERR(st->rdvel)) {
+		dev_err(&spi->dev, "Failed to claim RDVEL gpio: err=%ld\n",
+			PTR_ERR(st->rdvel));
+		return PTR_ERR(st->rdvel);
+	}
 
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &ad2s1200_info;
