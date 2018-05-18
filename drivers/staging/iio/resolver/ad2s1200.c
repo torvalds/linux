@@ -55,37 +55,55 @@ static int ad2s1200_read_raw(struct iio_dev *indio_dev,
 	struct ad2s1200_state *st = iio_priv(indio_dev);
 	int ret;
 
-	mutex_lock(&st->lock);
-	gpiod_set_value(st->sample, 0);
+	switch (m) {
+	case IIO_CHAN_INFO_SCALE:
+		switch (chan->type) {
+		case IIO_ANGL_VEL:
+			/* 2 * Pi ~= 6.283185 */
+			*val = 6;
+			*val2 = 283185;
+			return IIO_VAL_INT_PLUS_MICRO;
+		default:
+			return -EINVAL;
+		}
+		break;
+	case IIO_CHAN_INFO_RAW:
+		mutex_lock(&st->lock);
+		gpiod_set_value(st->sample, 0);
 
-	/* delay (6 * AD2S1200_TSCLK + 20) nano seconds */
-	udelay(1);
-	gpiod_set_value(st->sample, 1);
-	gpiod_set_value(st->rdvel, !!(chan->type == IIO_ANGL));
+		/* delay (6 * AD2S1200_TSCLK + 20) nano seconds */
+		udelay(1);
+		gpiod_set_value(st->sample, 1);
+		gpiod_set_value(st->rdvel, !!(chan->type == IIO_ANGL));
 
-	ret = spi_read(st->sdev, &st->rx, 2);
-	if (ret < 0) {
+		ret = spi_read(st->sdev, &st->rx, 2);
+		if (ret < 0) {
+			mutex_unlock(&st->lock);
+			return ret;
+		}
+
+		switch (chan->type) {
+		case IIO_ANGL:
+			*val = be16_to_cpup(&st->rx) >> 4;
+			break;
+		case IIO_ANGL_VEL:
+			*val = sign_extend32(be16_to_cpup(&st->rx) >> 4, 11);
+			break;
+		default:
+			mutex_unlock(&st->lock);
+			return -EINVAL;
+		}
+
+		/* delay (2 * AD2S1200_TSCLK + 20) ns for sample pulse */
+		udelay(1);
 		mutex_unlock(&st->lock);
-		return ret;
-	}
 
-	switch (chan->type) {
-	case IIO_ANGL:
-		*val = be16_to_cpup(&st->rx) >> 4;
-		break;
-	case IIO_ANGL_VEL:
-		*val = sign_extend32(be16_to_cpup(&st->rx) >> 4, 11);
-		break;
+		return IIO_VAL_INT;
 	default:
-		mutex_unlock(&st->lock);
-		return -EINVAL;
+		break;
 	}
 
-	/* delay (2 * AD2S1200_TSCLK + 20) ns for sample pulse */
-	udelay(1);
-	mutex_unlock(&st->lock);
-
-	return IIO_VAL_INT;
+	return -EINVAL;
 }
 
 static const struct iio_chan_spec ad2s1200_channels[] = {
@@ -99,6 +117,7 @@ static const struct iio_chan_spec ad2s1200_channels[] = {
 		.indexed = 1,
 		.channel = 0,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
 	}
 };
 
