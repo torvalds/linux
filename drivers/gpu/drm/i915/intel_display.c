@@ -1236,7 +1236,12 @@ void assert_panel_unlocked(struct drm_i915_private *dev_priv, enum pipe pipe)
 		pp_reg = PP_CONTROL(pipe);
 		panel_pipe = pipe;
 	} else {
+		u32 port_sel;
+
 		pp_reg = PP_CONTROL(0);
+		port_sel = I915_READ(PP_ON_DELAYS(0)) & PANEL_PORT_SELECT_MASK;
+
+		WARN_ON(port_sel != PANEL_PORT_SELECT_LVDS);
 		intel_lvds_port_enabled(dev_priv, LVDS, &panel_pipe);
 	}
 
