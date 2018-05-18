@@ -423,7 +423,7 @@ static void stk1160_disconnect(struct usb_interface *interface)
 
 	/*
 	 * This calls stk1160_release if it's the last reference.
-	 * therwise, release is posponed until there are no users left.
+	 * Otherwise, release is posponed until there are no users left.
 	 */
 	v4l2_device_put(&dev->v4l2_dev);
 }
