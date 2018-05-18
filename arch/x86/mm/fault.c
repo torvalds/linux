@@ -439,7 +439,7 @@ static noinline int vmalloc_fault(unsigned long address)
 	if (pgd_none(*pgd_k))
 		return -1;
 
-	if (pgtable_l5_enabled) {
+	if (pgtable_l5_enabled()) {
 		if (pgd_none(*pgd)) {
 			set_pgd(pgd, *pgd_k);
 			arch_flush_lazy_mmu_mode();
@@ -454,7 +454,7 @@ static noinline int vmalloc_fault(unsigned long address)
 	if (p4d_none(*p4d_k))
 		return -1;
 
-	if (p4d_none(*p4d) && !pgtable_l5_enabled) {
+	if (p4d_none(*p4d) && !pgtable_l5_enabled()) {
 		set_p4d(p4d, *p4d_k);
 		arch_flush_lazy_mmu_mode();
 	} else {

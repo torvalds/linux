@@ -28,12 +28,16 @@ extern unsigned int __pgtable_l5_enabled;
  * cpu_feature_enabled() is not available in early boot code.
  * Use variable instead.
  */
-#define pgtable_l5_enabled __pgtable_l5_enabled
+static inline bool pgtable_l5_enabled(void)
+{
+	return __pgtable_l5_enabled;
+}
 #else
-#define pgtable_l5_enabled cpu_feature_enabled(X86_FEATURE_LA57)
+#define pgtable_l5_enabled() cpu_feature_enabled(X86_FEATURE_LA57)
 #endif /* USE_EARLY_PGTABLE_L5 */
+
 #else
-#define pgtable_l5_enabled 0
+#define pgtable_l5_enabled() 0
 #endif /* CONFIG_X86_5LEVEL */
 
 extern unsigned int pgdir_shift;
@@ -109,7 +113,7 @@ extern unsigned int ptrs_per_p4d;
 
 #define LDT_PGD_ENTRY_L4	-3UL
 #define LDT_PGD_ENTRY_L5	-112UL
-#define LDT_PGD_ENTRY		(pgtable_l5_enabled ? LDT_PGD_ENTRY_L5 : LDT_PGD_ENTRY_L4)
+#define LDT_PGD_ENTRY		(pgtable_l5_enabled() ? LDT_PGD_ENTRY_L5 : LDT_PGD_ENTRY_L4)
 #define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
 
 #define __VMALLOC_BASE_L4	0xffffc90000000000UL
@@ -123,7 +127,7 @@ extern unsigned int ptrs_per_p4d;
 
 #ifdef CONFIG_DYNAMIC_MEMORY_LAYOUT
 # define VMALLOC_START		vmalloc_base
-# define VMALLOC_SIZE_TB	(pgtable_l5_enabled ? VMALLOC_SIZE_TB_L5 : VMALLOC_SIZE_TB_L4)
+# define VMALLOC_SIZE_TB	(pgtable_l5_enabled() ? VMALLOC_SIZE_TB_L5 : VMALLOC_SIZE_TB_L4)
 # define VMEMMAP_START		vmemmap_base
 #else
 # define VMALLOC_START		__VMALLOC_BASE_L4

@@ -65,7 +65,7 @@ extern pmdval_t early_pmd_flags;
 
 #ifndef __PAGETABLE_P4D_FOLDED
 #define set_pgd(pgdp, pgd)		native_set_pgd(pgdp, pgd)
-#define pgd_clear(pgd)			(pgtable_l5_enabled ? native_pgd_clear(pgd) : 0)
+#define pgd_clear(pgd)			(pgtable_l5_enabled() ? native_pgd_clear(pgd) : 0)
 #endif
 
 #ifndef set_p4d
@@ -881,7 +881,7 @@ static inline unsigned long p4d_index(unsigned long address)
 #if CONFIG_PGTABLE_LEVELS > 4
 static inline int pgd_present(pgd_t pgd)
 {
-	if (!pgtable_l5_enabled)
+	if (!pgtable_l5_enabled())
 		return 1;
 	return pgd_flags(pgd) & _PAGE_PRESENT;
 }
@@ -900,7 +900,7 @@ static inline unsigned long pgd_page_vaddr(pgd_t pgd)
 /* to find an entry in a page-table-directory. */
 static inline p4d_t *p4d_offset(pgd_t *pgd, unsigned long address)
 {
-	if (!pgtable_l5_enabled)
+	if (!pgtable_l5_enabled())
 		return (p4d_t *)pgd;
 	return (p4d_t *)pgd_page_vaddr(*pgd) + p4d_index(address);
 }
@@ -909,7 +909,7 @@ static inline int pgd_bad(pgd_t pgd)
 {
 	unsigned long ignore_flags = _PAGE_USER;
 
-	if (!pgtable_l5_enabled)
+	if (!pgtable_l5_enabled())
 		return 0;
 
 	if (IS_ENABLED(CONFIG_PAGE_TABLE_ISOLATION))
@@ -920,7 +920,7 @@ static inline int pgd_bad(pgd_t pgd)
 
 static inline int pgd_none(pgd_t pgd)
 {
-	if (!pgtable_l5_enabled)
+	if (!pgtable_l5_enabled())
 		return 0;
 	/*
 	 * There is no need to do a workaround for the KNL stray
