@@ -2342,12 +2342,8 @@ no_c_cflag_changes:
 	} else {
 		/*
 		 * Xon/Xoff code
-		 *
-		 * Check the IXOFF status in the iflag component of the
-		 * termios structure. If IXOFF is not set, the pre-xon/xoff
-		 * code is executed.
 		 */
-		if (iflag & IXOFF) {
+		if (iflag & IXON) {
 			dev_dbg(ddev, "%s  request to enable xonxoff iflag=%04x\n",
 				__func__, iflag);
 			/* Try to enable the XON/XOFF on the ftdi_sio
@@ -2372,7 +2368,7 @@ no_c_cflag_changes:
 			}
 		} else {
 			/* else clause to only run if cflag ! CRTSCTS and iflag
-			 * ! XOFF. CHECKME Assuming XON/XOFF handled by tty
+			 * ! XON. CHECKME Assuming XON/XOFF handled by tty
 			 * stack - not by device */
 			dev_dbg(ddev, "%s Turning off hardware flow control\n", __func__);
 			if (usb_control_msg(dev,
