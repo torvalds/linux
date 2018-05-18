@@ -86,7 +86,7 @@ static int tegra_target(struct cpufreq_policy *policy, unsigned int index)
 {
 	unsigned long rate = freq_table[index].frequency;
 	unsigned int ifreq = clk_get_rate(pll_p_clk) / 1000;
-	int ret = 0;
+	int ret;
 
 	/*
 	 * target freq == pll_p, don't need to take extra reference to pll_x_clk
