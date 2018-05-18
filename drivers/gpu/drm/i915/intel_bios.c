@@ -516,9 +516,31 @@ parse_driver_features(struct drm_i915_private *dev_priv,
 	if (!driver)
 		return;
 
-	if (INTEL_GEN(dev_priv) >= 5 &&
-	    driver->lvds_config == BDB_DRIVER_FEATURE_EDP)
-		dev_priv->vbt.int_lvds_support = 0;
+	if (INTEL_GEN(dev_priv) >= 5) {
+		/*
+		 * Note that we consider BDB_DRIVER_FEATURE_INT_SDVO_LVDS
+		 * to mean "eDP". The VBT spec doesn't agree with that
+		 * interpretation, but real world VBTs seem to.
+		 */
+		if (driver->lvds_config != BDB_DRIVER_FEATURE_INT_LVDS)
+			dev_priv->vbt.int_lvds_support = 0;
+	} else {
+		/*
+		 * FIXME it's not clear which BDB version has the LVDS config
+		 * bits defined. Revision history in the VBT spec says:
+		 * "0.92 | Add two definitions for VBT value of LVDS Active
+		 *  Config (00b and 11b values defined) | 06/13/2005"
+		 * but does not the specify the BDB version.
+		 *
+		 * So far version 134 (on i945gm) is the oldest VBT observed
+		 * in the wild with the bits correctly populated. Version
+		 * 108 (on i85x) does not have the bits correctly populated.
+		 */
+		if (bdb->version >= 134 &&
+		    driver->lvds_config != BDB_DRIVER_FEATURE_INT_LVDS &&
+		    driver->lvds_config != BDB_DRIVER_FEATURE_INT_SDVO_LVDS)
+			dev_priv->vbt.int_lvds_support = 0;
+	}
 
 	DRM_DEBUG_KMS("DRRS State Enabled:%d\n", driver->drrs_enabled);
 	/*

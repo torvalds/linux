@@ -635,7 +635,7 @@ struct bdb_sdvo_lvds_options {
 #define BDB_DRIVER_FEATURE_NO_LVDS		0
 #define BDB_DRIVER_FEATURE_INT_LVDS		1
 #define BDB_DRIVER_FEATURE_SDVO_LVDS		2
-#define BDB_DRIVER_FEATURE_EDP			3
+#define BDB_DRIVER_FEATURE_INT_SDVO_LVDS	3
 
 struct bdb_driver_features {
 	u8 boot_dev_algorithm:1;
