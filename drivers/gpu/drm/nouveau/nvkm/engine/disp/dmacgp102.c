@@ -21,22 +21,17 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include "dmacnv50.h"
-#include "rootnv50.h"
+#include "channv50.h"
 
 #include <subdev/timer.h>
 
 static int
-gp102_disp_dmac_init(struct nv50_disp_dmac *chan)
+gp102_disp_dmac_init(struct nv50_disp_chan *chan)
 {
-	struct nv50_disp *disp = chan->base.root->disp;
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &chan->disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	int ctrl = chan->base.chid.ctrl;
-	int user = chan->base.chid.user;
-
-	/* enable error reporting */
-	nvkm_mask(device, 0x6100a0, 0x00000001 << user, 0x00000001 << user);
+	int ctrl = chan->chid.ctrl;
+	int user = chan->chid.user;
 
 	/* initialise channel for dma command submission */
 	nvkm_wr32(device, 0x611494 + (ctrl * 0x0010), chan->push);
@@ -59,9 +54,11 @@ gp102_disp_dmac_init(struct nv50_disp_dmac *chan)
 	return 0;
 }
 
-const struct nv50_disp_dmac_func
+const struct nv50_disp_chan_func
 gp102_disp_dmac_func = {
 	.init = gp102_disp_dmac_init,
 	.fini = gf119_disp_dmac_fini,
+	.intr = gf119_disp_chan_intr,
+	.user = nv50_disp_chan_user,
 	.bind = gf119_disp_dmac_bind,
 };

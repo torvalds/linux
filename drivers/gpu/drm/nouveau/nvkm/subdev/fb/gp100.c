@@ -26,7 +26,7 @@
 
 #include <core/memory.h>
 
-static void
+void
 gp100_fb_init_unkn(struct nvkm_fb *base)
 {
 	struct nvkm_device *device = gf100_fb(base)->base.subdev.device;
@@ -48,7 +48,7 @@ gp100_fb_init(struct nvkm_fb *base)
 	nvkm_wr32(device, 0x100cc8, nvkm_memory_addr(fb->base.mmu_wr) >> 8);
 	nvkm_wr32(device, 0x100ccc, nvkm_memory_addr(fb->base.mmu_rd) >> 8);
 	nvkm_mask(device, 0x100cc4, 0x00060000,
-		  max(nvkm_memory_size(fb->base.mmu_rd) >> 16, (u64)2) << 17);
+		  min(nvkm_memory_size(fb->base.mmu_rd) >> 16, (u64)2) << 17);
 }
 
 static const struct nvkm_fb_func

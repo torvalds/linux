@@ -24,7 +24,11 @@
 #include "nv50.h"
 #include "head.h"
 #include "ior.h"
+#include "channv50.h"
 #include "rootnv50.h"
+
+#include <core/ramht.h>
+#include <subdev/timer.h>
 
 void
 gf119_disp_super(struct work_struct *work)
@@ -164,28 +168,99 @@ gf119_disp_intr(struct nv50_disp *disp)
 	}
 }
 
-int
-gf119_disp_new_(const struct nv50_disp_func *func, struct nvkm_device *device,
-		int index, struct nvkm_disp **pdisp)
+void
+gf119_disp_fini(struct nv50_disp *disp)
 {
-	u32 heads = nvkm_rd32(device, 0x022448);
-	return nv50_disp_new_(func, device, index, heads, pdisp);
+	struct nvkm_device *device = disp->base.engine.subdev.device;
+	/* disable all interrupts */
+	nvkm_wr32(device, 0x6100b0, 0x00000000);
+}
+
+int
+gf119_disp_init(struct nv50_disp *disp)
+{
+	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_head *head;
+	u32 tmp;
+	int i;
+
+	/* The below segments of code copying values from one register to
+	 * another appear to inform EVO of the display capabilities or
+	 * something similar.
+	 */
+
+	/* ... CRTC caps */
+	list_for_each_entry(head, &disp->base.head, head) {
+		const u32 hoff = head->id * 0x800;
+		tmp = nvkm_rd32(device, 0x616104 + hoff);
+		nvkm_wr32(device, 0x6101b4 + hoff, tmp);
+		tmp = nvkm_rd32(device, 0x616108 + hoff);
+		nvkm_wr32(device, 0x6101b8 + hoff, tmp);
+		tmp = nvkm_rd32(device, 0x61610c + hoff);
+		nvkm_wr32(device, 0x6101bc + hoff, tmp);
+	}
+
+	/* ... DAC caps */
+	for (i = 0; i < disp->dac.nr; i++) {
+		tmp = nvkm_rd32(device, 0x61a000 + (i * 0x800));
+		nvkm_wr32(device, 0x6101c0 + (i * 0x800), tmp);
+	}
+
+	/* ... SOR caps */
+	for (i = 0; i < disp->sor.nr; i++) {
+		tmp = nvkm_rd32(device, 0x61c000 + (i * 0x800));
+		nvkm_wr32(device, 0x6301c4 + (i * 0x800), tmp);
+	}
+
+	/* steal display away from vbios, or something like that */
+	if (nvkm_rd32(device, 0x6100ac) & 0x00000100) {
+		nvkm_wr32(device, 0x6100ac, 0x00000100);
+		nvkm_mask(device, 0x6194e8, 0x00000001, 0x00000000);
+		if (nvkm_msec(device, 2000,
+			if (!(nvkm_rd32(device, 0x6194e8) & 0x00000002))
+				break;
+		) < 0)
+			return -EBUSY;
+	}
+
+	/* point at display engine memory area (hash table, objects) */
+	nvkm_wr32(device, 0x610010, (disp->inst->addr >> 8) | 9);
+
+	/* enable supervisor interrupts, disable everything else */
+	nvkm_wr32(device, 0x610090, 0x00000000);
+	nvkm_wr32(device, 0x6100a0, 0x00000000);
+	nvkm_wr32(device, 0x6100b0, 0x00000307);
+
+	/* disable underflow reporting, preventing an intermittent issue
+	 * on some gk104 boards where the production vbios left this
+	 * setting enabled by default.
+	 *
+	 * ftp://download.nvidia.com/open-gpu-doc/gk104-disable-underflow-reporting/1/gk104-disable-underflow-reporting.txt
+	 */
+	list_for_each_entry(head, &disp->base.head, head) {
+		const u32 hoff = head->id * 0x800;
+		nvkm_mask(device, 0x616308 + hoff, 0x00000111, 0x00000010);
+	}
+
+	return 0;
 }
 
 static const struct nv50_disp_func
 gf119_disp = {
+	.init = gf119_disp_init,
+	.fini = gf119_disp_fini,
 	.intr = gf119_disp_intr,
 	.intr_error = gf119_disp_intr_error,
 	.uevent = &gf119_disp_chan_uevent,
 	.super = gf119_disp_super,
 	.root = &gf119_disp_root_oclass,
-	.head.new = gf119_head_new,
-	.dac = { .nr = 3, .new = gf119_dac_new },
-	.sor = { .nr = 4, .new = gf119_sor_new },
+	.head = { .cnt = gf119_head_cnt, .new = gf119_head_new },
+	.dac = { .cnt = gf119_dac_cnt, .new = gf119_dac_new },
+	.sor = { .cnt = gf119_sor_cnt, .new = gf119_sor_new },
 };
 
 int
 gf119_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
 {
-	return gf119_disp_new_(&gf119_disp, device, index, pdisp);
+	return nv50_disp_new_(&gf119_disp, device, index, pdisp);
 }

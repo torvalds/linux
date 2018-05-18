@@ -25,7 +25,7 @@
 #include <subdev/bios/bit.h>
 #include <subdev/bios/dp.h>
 
-static u16
+u16
 nvbios_dp_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	struct bit_entry d;

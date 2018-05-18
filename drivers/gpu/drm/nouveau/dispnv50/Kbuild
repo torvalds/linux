@@ -1,0 +1,51 @@
+nouveau-y += dispnv50/disp.o
+nouveau-y += dispnv50/lut.o
+
+nouveau-y += dispnv50/core.o
+nouveau-y += dispnv50/core507d.o
+nouveau-y += dispnv50/core827d.o
+nouveau-y += dispnv50/core907d.o
+nouveau-y += dispnv50/core917d.o
+nouveau-y += dispnv50/corec37d.o
+
+nouveau-y += dispnv50/dac507d.o
+nouveau-y += dispnv50/dac907d.o
+
+nouveau-y += dispnv50/pior507d.o
+
+nouveau-y += dispnv50/sor507d.o
+nouveau-y += dispnv50/sor907d.o
+nouveau-y += dispnv50/sorc37d.o
+
+nouveau-y += dispnv50/head.o
+nouveau-y += dispnv50/head507d.o
+nouveau-y += dispnv50/head827d.o
+nouveau-y += dispnv50/head907d.o
+nouveau-y += dispnv50/head917d.o
+nouveau-y += dispnv50/headc37d.o
+
+nouveau-y += dispnv50/wimm.o
+nouveau-y += dispnv50/wimmc37b.o
+
+nouveau-y += dispnv50/wndw.o
+nouveau-y += dispnv50/wndwc37e.o
+
+nouveau-y += dispnv50/base.o
+nouveau-y += dispnv50/base507c.o
+nouveau-y += dispnv50/base827c.o
+nouveau-y += dispnv50/base907c.o
+nouveau-y += dispnv50/base917c.o
+
+nouveau-y += dispnv50/curs.o
+nouveau-y += dispnv50/curs507a.o
+nouveau-y += dispnv50/curs907a.o
+nouveau-y += dispnv50/cursc37a.o
+
+nouveau-y += dispnv50/oimm.o
+nouveau-y += dispnv50/oimm507b.o
+
+nouveau-y += dispnv50/ovly.o
+nouveau-y += dispnv50/ovly507e.o
+nouveau-y += dispnv50/ovly827e.o
+nouveau-y += dispnv50/ovly907e.o
+nouveau-y += dispnv50/ovly917e.o
