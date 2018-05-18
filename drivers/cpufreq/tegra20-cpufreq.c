@@ -50,7 +50,7 @@ static unsigned int tegra_get_intermediate(struct cpufreq_policy *policy,
 	 * - we are already at it, i.e. policy->cur == ifreq
 	 * - index corresponds to ifreq
 	 */
-	if ((freq_table[index].frequency == ifreq) || (policy->cur == ifreq))
+	if (freq_table[index].frequency == ifreq || policy->cur == ifreq)
 		return 0;
 
 	return ifreq;
