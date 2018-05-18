@@ -135,18 +135,20 @@ static struct medusa_authserver_s chardev_medusa = {
 };
 
 static inline int am_i_constable(void) {
+	int ret = 0;
+
 	if (!constable)
-		return 0;
+		return ret;
 
 	/* each thread has its own PID, but accross the process they share TGID;
 	   TGID is also shared via system call 'fork', so an authorisation server
 	   can run in many processes */
 	rcu_read_lock();
 	if (task_tgid(current) == task_tgid(constable))
-		return 1;
+		ret = 1;
 	rcu_read_unlock();
 
-	return 0;
+	return ret;
 }
 
 static void l4_close_wake(void)
