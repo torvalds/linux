@@ -62,16 +62,21 @@ struct mlx5_nic_flow_attr {
 	struct mlx5_flow_table	*hairpin_ft;
 };
 
+#define MLX5E_TC_FLOW_BASE (MLX5E_TC_LAST_EXPORTED_BIT + 1)
+
 enum {
-	MLX5E_TC_FLOW_ESWITCH	= BIT(0),
-	MLX5E_TC_FLOW_NIC	= BIT(1),
-	MLX5E_TC_FLOW_OFFLOADED	= BIT(2),
-	MLX5E_TC_FLOW_HAIRPIN	= BIT(3),
-	MLX5E_TC_FLOW_HAIRPIN_RSS = BIT(4),
+	MLX5E_TC_FLOW_INGRESS	= MLX5E_TC_INGRESS,
+	MLX5E_TC_FLOW_EGRESS	= MLX5E_TC_EGRESS,
+	MLX5E_TC_FLOW_ESWITCH	= BIT(MLX5E_TC_FLOW_BASE),
+	MLX5E_TC_FLOW_NIC	= BIT(MLX5E_TC_FLOW_BASE + 1),
+	MLX5E_TC_FLOW_OFFLOADED	= BIT(MLX5E_TC_FLOW_BASE + 2),
+	MLX5E_TC_FLOW_HAIRPIN	= BIT(MLX5E_TC_FLOW_BASE + 3),
+	MLX5E_TC_FLOW_HAIRPIN_RSS = BIT(MLX5E_TC_FLOW_BASE + 4),
 };
 
 struct mlx5e_tc_flow {
 	struct rhash_head	node;
+	struct mlx5e_priv	*priv;
 	u64			cookie;
 	u8			flags;
 	struct mlx5_flow_handle *rule;
@@ -2077,6 +2082,20 @@ static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 	return 0;
 }
 
+static bool is_merged_eswitch_dev(struct mlx5e_priv *priv,
+				  struct net_device *peer_netdev)
+{
+	struct mlx5e_priv *peer_priv;
+
+	peer_priv = netdev_priv(peer_netdev);
+
+	return (MLX5_CAP_ESW(priv->mdev, merged_eswitch) &&
+		(priv->netdev->netdev_ops == peer_netdev->netdev_ops) &&
+		same_hw_devs(priv, peer_priv) &&
+		MLX5_VPORT_MANAGER(peer_priv->mdev) &&
+		(peer_priv->mdev->priv.eswitch->mode == SRIOV_OFFLOADS));
+}
+
 static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
 				   struct net_device *mirred_dev,
 				   struct net_device **out_dev,
@@ -2535,7 +2554,8 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 			out_dev = tcf_mirred_dev(a);
 
 			if (switchdev_port_same_parent_id(priv->netdev,
-							  out_dev)) {
+							  out_dev) ||
+			    is_merged_eswitch_dev(priv, out_dev)) {
 				action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
 					  MLX5_FLOW_CONTEXT_ACTION_COUNT;
 				out_priv = netdev_priv(out_dev);
@@ -2603,21 +2623,60 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 	return 0;
 }
 
+static void get_flags(int flags, u8 *flow_flags)
+{
+	u8 __flow_flags = 0;
+
+	if (flags & MLX5E_TC_INGRESS)
+		__flow_flags |= MLX5E_TC_FLOW_INGRESS;
+	if (flags & MLX5E_TC_EGRESS)
+		__flow_flags |= MLX5E_TC_FLOW_EGRESS;
+
+	*flow_flags = __flow_flags;
+}
+
+static const struct rhashtable_params tc_ht_params = {
+	.head_offset = offsetof(struct mlx5e_tc_flow, node),
+	.key_offset = offsetof(struct mlx5e_tc_flow, cookie),
+	.key_len = sizeof(((struct mlx5e_tc_flow *)0)->cookie),
+	.automatic_shrinking = true,
+};
+
+static struct rhashtable *get_tc_ht(struct mlx5e_priv *priv)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct mlx5e_rep_priv *uplink_rpriv;
+
+	if (MLX5_VPORT_MANAGER(priv->mdev) && esw->mode == SRIOV_OFFLOADS) {
+		uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
+		return &uplink_rpriv->tc_ht;
+	} else
+		return &priv->fs.tc.ht;
+}
+
 int mlx5e_configure_flower(struct mlx5e_priv *priv,
-			   struct tc_cls_flower_offload *f)
+			   struct tc_cls_flower_offload *f, int flags)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
-	struct mlx5e_tc_table *tc = &priv->fs.tc;
+	struct rhashtable *tc_ht = get_tc_ht(priv);
 	struct mlx5e_tc_flow *flow;
 	int attr_size, err = 0;
 	u8 flow_flags = 0;
 
+	get_flags(flags, &flow_flags);
+
+	flow = rhashtable_lookup_fast(tc_ht, &f->cookie, tc_ht_params);
+	if (flow) {
+		netdev_warn_once(priv->netdev, "flow cookie %lx already exists, ignoring\n", f->cookie);
+		return 0;
+	}
+
 	if (esw && esw->mode == SRIOV_OFFLOADS) {
-		flow_flags = MLX5E_TC_FLOW_ESWITCH;
+		flow_flags |= MLX5E_TC_FLOW_ESWITCH;
 		attr_size  = sizeof(struct mlx5_esw_flow_attr);
 	} else {
-		flow_flags = MLX5E_TC_FLOW_NIC;
+		flow_flags |= MLX5E_TC_FLOW_NIC;
 		attr_size  = sizeof(struct mlx5_nic_flow_attr);
 	}
 
@@ -2630,6 +2689,7 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv,
 
 	flow->cookie = f->cookie;
 	flow->flags = flow_flags;
+	flow->priv = priv;
 
 	err = parse_cls_flower(priv, flow, &parse_attr->spec, f);
 	if (err < 0)
@@ -2660,8 +2720,7 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv,
 	    !(flow->esw_attr->action & MLX5_FLOW_CONTEXT_ACTION_ENCAP))
 		kvfree(parse_attr);
 
-	err = rhashtable_insert_fast(&tc->ht, &flow->node,
-				     tc->ht_params);
+	err = rhashtable_insert_fast(tc_ht, &flow->node, tc_ht_params);
 	if (err) {
 		mlx5e_tc_del_flow(priv, flow);
 		kfree(flow);
@@ -2675,18 +2734,28 @@ err_free:
 	return err;
 }
 
-int mlx5e_delete_flower(struct mlx5e_priv *priv,
-			struct tc_cls_flower_offload *f)
-{
-	struct mlx5e_tc_flow *flow;
-	struct mlx5e_tc_table *tc = &priv->fs.tc;
+#define DIRECTION_MASK (MLX5E_TC_INGRESS | MLX5E_TC_EGRESS)
+#define FLOW_DIRECTION_MASK (MLX5E_TC_FLOW_INGRESS | MLX5E_TC_FLOW_EGRESS)
 
-	flow = rhashtable_lookup_fast(&tc->ht, &f->cookie,
-				      tc->ht_params);
-	if (!flow)
+static bool same_flow_direction(struct mlx5e_tc_flow *flow, int flags)
+{
+	if ((flow->flags & FLOW_DIRECTION_MASK) == (flags & DIRECTION_MASK))
+		return true;
+
+	return false;
+}
+
+int mlx5e_delete_flower(struct mlx5e_priv *priv,
+			struct tc_cls_flower_offload *f, int flags)
+{
+	struct rhashtable *tc_ht = get_tc_ht(priv);
+	struct mlx5e_tc_flow *flow;
+
+	flow = rhashtable_lookup_fast(tc_ht, &f->cookie, tc_ht_params);
+	if (!flow || !same_flow_direction(flow, flags))
 		return -EINVAL;
 
-	rhashtable_remove_fast(&tc->ht, &flow->node, tc->ht_params);
+	rhashtable_remove_fast(tc_ht, &flow->node, tc_ht_params);
 
 	mlx5e_tc_del_flow(priv, flow);
 
@@ -2696,18 +2765,17 @@ int mlx5e_delete_flower(struct mlx5e_priv *priv,
 }
 
 int mlx5e_stats_flower(struct mlx5e_priv *priv,
-		       struct tc_cls_flower_offload *f)
+		       struct tc_cls_flower_offload *f, int flags)
 {
-	struct mlx5e_tc_table *tc = &priv->fs.tc;
+	struct rhashtable *tc_ht = get_tc_ht(priv);
 	struct mlx5e_tc_flow *flow;
 	struct mlx5_fc *counter;
 	u64 bytes;
 	u64 packets;
 	u64 lastuse;
 
-	flow = rhashtable_lookup_fast(&tc->ht, &f->cookie,
-				      tc->ht_params);
-	if (!flow)
+	flow = rhashtable_lookup_fast(tc_ht, &f->cookie, tc_ht_params);
+	if (!flow || !same_flow_direction(flow, flags))
 		return -EINVAL;
 
 	if (!(flow->flags & MLX5E_TC_FLOW_OFFLOADED))
@@ -2724,41 +2792,43 @@ int mlx5e_stats_flower(struct mlx5e_priv *priv,
 	return 0;
 }
 
-static const struct rhashtable_params mlx5e_tc_flow_ht_params = {
-	.head_offset = offsetof(struct mlx5e_tc_flow, node),
-	.key_offset = offsetof(struct mlx5e_tc_flow, cookie),
-	.key_len = sizeof(((struct mlx5e_tc_flow *)0)->cookie),
-	.automatic_shrinking = true,
-};
-
-int mlx5e_tc_init(struct mlx5e_priv *priv)
+int mlx5e_tc_nic_init(struct mlx5e_priv *priv)
 {
 	struct mlx5e_tc_table *tc = &priv->fs.tc;
 
 	hash_init(tc->mod_hdr_tbl);
 	hash_init(tc->hairpin_tbl);
 
-	tc->ht_params = mlx5e_tc_flow_ht_params;
-	return rhashtable_init(&tc->ht, &tc->ht_params);
+	return rhashtable_init(&tc->ht, &tc_ht_params);
 }
 
 static void _mlx5e_tc_del_flow(void *ptr, void *arg)
 {
 	struct mlx5e_tc_flow *flow = ptr;
-	struct mlx5e_priv *priv = arg;
+	struct mlx5e_priv *priv = flow->priv;
 
 	mlx5e_tc_del_flow(priv, flow);
 	kfree(flow);
 }
 
-void mlx5e_tc_cleanup(struct mlx5e_priv *priv)
+void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv)
 {
 	struct mlx5e_tc_table *tc = &priv->fs.tc;
 
-	rhashtable_free_and_destroy(&tc->ht, _mlx5e_tc_del_flow, priv);
+	rhashtable_free_and_destroy(&tc->ht, _mlx5e_tc_del_flow, NULL);
 
 	if (!IS_ERR_OR_NULL(tc->t)) {
 		mlx5_destroy_flow_table(tc->t);
 		tc->t = NULL;
 	}
+}
+
+int mlx5e_tc_esw_init(struct rhashtable *tc_ht)
+{
+	return rhashtable_init(tc_ht, &tc_ht_params);
+}
+
+void mlx5e_tc_esw_cleanup(struct rhashtable *tc_ht)
+{
+	rhashtable_free_and_destroy(tc_ht, _mlx5e_tc_del_flow, NULL);
 }
