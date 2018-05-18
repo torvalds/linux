@@ -392,42 +392,51 @@ static void vsp1_video_pipeline_run(struct vsp1_pipeline *pipe)
 	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
 	struct vsp1_entity *entity;
 	struct vsp1_dl_body *dlb;
+	struct vsp1_dl_list *dl;
 	unsigned int partition;
 
-	if (!pipe->dl)
-		pipe->dl = vsp1_dl_list_get(pipe->output->dlm);
+	dl = vsp1_dl_list_get(pipe->output->dlm);
 
-	dlb = vsp1_dl_list_get_body0(pipe->dl);
+	/*
+	 * If the VSP hardware isn't configured yet (which occurs either when
+	 * processing the first frame or after a system suspend/resume), add the
+	 * cached stream configuration to the display list to perform a full
+	 * initialisation.
+	 */
+	if (!pipe->configured)
+		vsp1_dl_list_add_body(dl, pipe->stream_config);
+
+	dlb = vsp1_dl_list_get_body0(dl);
 
 	list_for_each_entry(entity, &pipe->entities, list_pipe)
-		vsp1_entity_configure_frame(entity, pipe, pipe->dl, dlb);
+		vsp1_entity_configure_frame(entity, pipe, dl, dlb);
 
 	/* Run the first partition. */
-	vsp1_video_pipeline_run_partition(pipe, pipe->dl, 0);
+	vsp1_video_pipeline_run_partition(pipe, dl, 0);
 
 	/* Process consecutive partitions as necessary. */
 	for (partition = 1; partition < pipe->partitions; ++partition) {
-		struct vsp1_dl_list *dl;
+		struct vsp1_dl_list *dl_next;
 
-		dl = vsp1_dl_list_get(pipe->output->dlm);
+		dl_next = vsp1_dl_list_get(pipe->output->dlm);
 
 		/*
 		 * An incomplete chain will still function, but output only
 		 * the partitions that had a dl available. The frame end
 		 * interrupt will be marked on the last dl in the chain.
 		 */
-		if (!dl) {
+		if (!dl_next) {
 			dev_err(vsp1->dev, "Failed to obtain a dl list. Frame will be incomplete\n");
 			break;
 		}
 
-		vsp1_video_pipeline_run_partition(pipe, dl, partition);
-		vsp1_dl_list_add_chain(pipe->dl, dl);
+		vsp1_video_pipeline_run_partition(pipe, dl_next, partition);
+		vsp1_dl_list_add_chain(dl, dl_next);
 	}
 
 	/* Complete, and commit the head display list. */
-	vsp1_dl_list_commit(pipe->dl, false);
-	pipe->dl = NULL;
+	vsp1_dl_list_commit(dl, false);
+	pipe->configured = true;
 
 	vsp1_pipeline_run(pipe);
 }
@@ -791,21 +800,12 @@ static void vsp1_video_buffer_queue(struct vb2_buffer *vb)
 static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 {
 	struct vsp1_entity *entity;
-	struct vsp1_dl_body *dlb;
 	int ret;
 
 	/* Determine this pipelines sizes for image partitioning support. */
 	ret = vsp1_video_pipeline_setup_partitions(pipe);
 	if (ret < 0)
 		return ret;
-
-	/* Prepare the display list. */
-	pipe->dl = vsp1_dl_list_get(pipe->output->dlm);
-	if (!pipe->dl)
-		return -ENOMEM;
-
-	/* Retrieve the default DLB from the list. */
-	dlb = vsp1_dl_list_get_body0(pipe->dl);
 
 	if (pipe->uds) {
 		struct vsp1_uds *uds = to_uds(&pipe->uds->subdev);
@@ -828,9 +828,18 @@ static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 		}
 	}
 
+	/*
+	 * Compute and cache the stream configuration into a body. The cached
+	 * body will be added to the display list by vsp1_video_pipeline_run()
+	 * whenever the pipeline needs to be fully reconfigured.
+	 */
+	pipe->stream_config = vsp1_dlm_dl_body_get(pipe->output->dlm);
+	if (!pipe->stream_config)
+		return -ENOMEM;
+
 	list_for_each_entry(entity, &pipe->entities, list_pipe) {
-		vsp1_entity_route_setup(entity, pipe, dlb);
-		vsp1_entity_configure_stream(entity, pipe, dlb);
+		vsp1_entity_route_setup(entity, pipe, pipe->stream_config);
+		vsp1_entity_configure_stream(entity, pipe, pipe->stream_config);
 	}
 
 	return 0;
@@ -853,12 +862,14 @@ static void vsp1_video_cleanup_pipeline(struct vsp1_pipeline *pipe)
 {
 	lockdep_assert_held(&pipe->lock);
 
+	/* Release any cached configuration from our output video. */
+	vsp1_dl_body_put(pipe->stream_config);
+	pipe->stream_config = NULL;
+	pipe->configured = false;
+
 	/* Release our partition table allocation */
 	kfree(pipe->part_table);
 	pipe->part_table = NULL;
-
-	vsp1_dl_list_put(pipe->dl);
-	pipe->dl = NULL;
 }
 
 static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)
@@ -1231,6 +1242,12 @@ void vsp1_video_resume(struct vsp1_device *vsp1)
 		pipe = wpf->entity.pipe;
 		if (pipe == NULL)
 			continue;
+
+		/*
+		 * The hardware may have been reset during a suspend and will
+		 * need a full reconfiguration.
+		 */
+		pipe->configured = false;
 
 		spin_lock_irqsave(&pipe->irqlock, flags);
 		if (vsp1_pipeline_ready(pipe))

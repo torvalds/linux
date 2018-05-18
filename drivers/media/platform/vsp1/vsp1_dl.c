@@ -813,6 +813,11 @@ void vsp1_dlm_reset(struct vsp1_dl_manager *dlm)
 	dlm->pending = NULL;
 }
 
+struct vsp1_dl_body *vsp1_dlm_dl_body_get(struct vsp1_dl_manager *dlm)
+{
+	return vsp1_dl_body_get(dlm->pool);
+}
+
 struct vsp1_dl_manager *vsp1_dlm_create(struct vsp1_device *vsp1,
 					unsigned int index,
 					unsigned int prealloc)
@@ -838,13 +843,14 @@ struct vsp1_dl_manager *vsp1_dlm_create(struct vsp1_device *vsp1,
 	 * Initialize the display list body and allocate DMA memory for the body
 	 * and the optional header. Both are allocated together to avoid memory
 	 * fragmentation, with the header located right after the body in
-	 * memory.
+	 * memory. An extra body is allocated on top of the prealloc to account
+	 * for the cached body used by the vsp1_pipeline object.
 	 */
 	header_size = dlm->mode == VSP1_DL_MODE_HEADER
 		    ? ALIGN(sizeof(struct vsp1_dl_header), 8)
 		    : 0;
 
-	dlm->pool = vsp1_dl_body_pool_create(vsp1, prealloc,
+	dlm->pool = vsp1_dl_body_pool_create(vsp1, prealloc + 1,
 					     VSP1_DL_NUM_ENTRIES, header_size);
 	if (!dlm->pool)
 		return NULL;

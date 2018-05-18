@@ -102,7 +102,8 @@ struct vsp1_partition {
  * @uds: UDS entity, if present
  * @uds_input: entity at the input of the UDS, if the UDS is present
  * @entities: list of entities in the pipeline
- * @dl: display list associated with the pipeline
+ * @stream_config: cached stream configuration for video pipelines
+ * @configured: when false the @stream_config shall be written to the hardware
  * @partitions: The number of partitions used to process one frame
  * @partition: The current partition for configuration to process
  * @part_table: The pre-calculated partitions used by the pipeline
@@ -139,7 +140,8 @@ struct vsp1_pipeline {
 	 */
 	struct list_head entities;
 
-	struct vsp1_dl_list *dl;
+	struct vsp1_dl_body *stream_config;
+	bool configured;
 
 	unsigned int partitions;
 	struct vsp1_partition *partition;
