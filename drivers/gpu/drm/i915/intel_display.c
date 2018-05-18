@@ -2474,6 +2474,7 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 {
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 	struct intel_rotation_info *rot_info = &intel_fb->rot_info;
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	u32 gtt_offset_rotated = 0;
 	unsigned int max_size = 0;
 	int i, num_planes = fb->format->num_planes;
@@ -2538,7 +2539,7 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 		 * fb layout agrees with the fence layout. We already check that the
 		 * fb stride matches the fence stride elsewhere.
 		 */
-		if (i == 0 && i915_gem_object_is_tiled(intel_fb->obj) &&
+		if (i == 0 && i915_gem_object_is_tiled(obj) &&
 		    (x + width) * cpp > fb->pitches[i]) {
 			DRM_DEBUG_KMS("bad fb plane %d offset: 0x%x\n",
 				      i, fb->offsets[i]);
@@ -2623,9 +2624,9 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 		max_size = max(max_size, offset + size);
 	}
 
-	if (max_size * tile_size > intel_fb->obj->base.size) {
+	if (max_size * tile_size > obj->base.size) {
 		DRM_DEBUG_KMS("fb too big for bo (need %u bytes, have %zu bytes)\n",
-			      max_size * tile_size, intel_fb->obj->base.size);
+			      max_size * tile_size, obj->base.size);
 		return -EINVAL;
 	}
 
@@ -14082,14 +14083,15 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 static void intel_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 
 	drm_framebuffer_cleanup(fb);
 
-	i915_gem_object_lock(intel_fb->obj);
-	WARN_ON(!intel_fb->obj->framebuffer_references--);
-	i915_gem_object_unlock(intel_fb->obj);
+	i915_gem_object_lock(obj);
+	WARN_ON(!obj->framebuffer_references--);
+	i915_gem_object_unlock(obj);
 
-	i915_gem_object_put(intel_fb->obj);
+	i915_gem_object_put(obj);
 
 	kfree(intel_fb);
 }
@@ -14098,8 +14100,7 @@ static int intel_user_framebuffer_create_handle(struct drm_framebuffer *fb,
 						struct drm_file *file,
 						unsigned int *handle)
 {
-	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
-	struct drm_i915_gem_object *obj = intel_fb->obj;
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 
 	if (obj->userptr.mm) {
 		DRM_DEBUG("attempting to use a userptr for a framebuffer, denied\n");
