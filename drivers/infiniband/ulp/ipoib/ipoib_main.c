@@ -697,7 +697,8 @@ void ipoib_mark_paths_invalid(struct net_device *dev)
 		ipoib_dbg(priv, "mark path LID 0x%08x GID %pI6 invalid\n",
 			  be32_to_cpu(sa_path_get_dlid(&path->pathrec)),
 			  path->pathrec.dgid.raw);
-		path->valid =  0;
+		if (path->ah)
+			path->ah->valid = 0;
 	}
 
 	spin_unlock_irq(&priv->lock);
@@ -833,7 +834,7 @@ static void path_rec_completion(int status,
 			while ((skb = __skb_dequeue(&neigh->queue)))
 				__skb_queue_tail(&skqueue, skb);
 		}
-		path->valid = 1;
+		path->ah->valid = 1;
 	}
 
 	path->query = NULL;
@@ -926,6 +927,24 @@ static int path_rec_start(struct net_device *dev,
 	return 0;
 }
 
+static void neigh_refresh_path(struct ipoib_neigh *neigh, u8 *daddr,
+			       struct net_device *dev)
+{
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
+	struct ipoib_path *path;
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	path = __path_find(dev, daddr + 4);
+	if (!path)
+		goto out;
+	if (!path->query)
+		path_rec_start(dev, path);
+out:
+	spin_unlock_irqrestore(&priv->lock, flags);
+}
+
 static struct ipoib_neigh *neigh_add_path(struct sk_buff *skb, u8 *daddr,
 					  struct net_device *dev)
 {
@@ -963,7 +982,7 @@ static struct ipoib_neigh *neigh_add_path(struct sk_buff *skb, u8 *daddr,
 
 	list_add_tail(&neigh->list, &path->neigh_list);
 
-	if (path->ah) {
+	if (path->ah && path->ah->valid) {
 		kref_get(&path->ah->ref);
 		neigh->ah = path->ah;
 
@@ -1034,7 +1053,7 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 		goto drop_and_unlock;
 
 	path = __path_find(dev, phdr->hwaddr + 4);
-	if (!path || !path->valid) {
+	if (!path || !path->ah || !path->ah->valid) {
 		int new_path = 0;
 
 		if (!path) {
@@ -1069,7 +1088,7 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 		return;
 	}
 
-	if (path->ah) {
+	if (path->ah && path->ah->valid) {
 		ipoib_dbg(priv, "Send unicast ARP to %08x\n",
 			  be32_to_cpu(sa_path_get_dlid(&path->pathrec)));
 
@@ -1161,10 +1180,12 @@ send_using_neigh:
 			ipoib_cm_send(dev, skb, ipoib_cm_get(neigh));
 			goto unref;
 		}
-	} else if (neigh->ah) {
+	} else if (neigh->ah && neigh->ah->valid) {
 		neigh->ah->last_send = rn->send(dev, skb, neigh->ah->ah,
 						IPOIB_QPN(phdr->hwaddr));
 		goto unref;
+	} else if (neigh->ah) {
+		neigh_refresh_path(neigh, phdr->hwaddr, dev);
 	}
 
 	if (skb_queue_len(&neigh->queue) < IPOIB_MAX_PATH_REC_QUEUE) {
