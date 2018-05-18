@@ -5081,7 +5081,6 @@ out:
 
 void ceph_osdc_stop(struct ceph_osd_client *osdc)
 {
-	flush_workqueue(osdc->notify_wq);
 	destroy_workqueue(osdc->notify_wq);
 	cancel_delayed_work_sync(&osdc->timeout_work);
 	cancel_delayed_work_sync(&osdc->osds_timeout_work);
