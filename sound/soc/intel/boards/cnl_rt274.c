@@ -100,10 +100,11 @@ static const struct snd_soc_dapm_widget cnl_rt274_widgets[] = {
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 	SND_SOC_DAPM_MIC("SoC DMIC", NULL),
 	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
-			cnl_rt274_clock_control, SND_SOC_DAPM_PRE_PMU |
-			SND_SOC_DAPM_POST_PMD),
+			    cnl_rt274_clock_control, SND_SOC_DAPM_PRE_PMU |
+			    SND_SOC_DAPM_POST_PMD),
 };
 
+#if !IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL)
 static int cnl_dmic_fixup(struct snd_soc_pcm_runtime *rtd,
 				struct snd_pcm_hw_params *params)
 {
@@ -113,6 +114,7 @@ static int cnl_dmic_fixup(struct snd_soc_pcm_runtime *rtd,
 
 	return 0;
 }
+#endif
 
 static const struct snd_soc_dapm_route cnl_map[] = {
 	{"Headphone Jack", NULL, "HPO Pin"},
@@ -151,8 +153,9 @@ static int cnl_rt274_init(struct snd_soc_pcm_runtime *runtime)
 	struct snd_soc_dai *codec_dai = runtime->codec_dai;
 
 	ret = snd_soc_card_jack_new(runtime->card, "Headset",
-		SND_JACK_HEADSET, &cnl_headset,
-		cnl_headset_pins, ARRAY_SIZE(cnl_headset_pins));
+				    SND_JACK_HEADSET, &cnl_headset,
+				    cnl_headset_pins,
+				    ARRAY_SIZE(cnl_headset_pins));
 
 	if (ret)
 		return ret;
@@ -172,15 +175,17 @@ static int cnl_rt274_init(struct snd_soc_pcm_runtime *runtime)
 }
 
 static int cnl_be_fixup(struct snd_soc_pcm_runtime *rtd,
-			    struct snd_pcm_hw_params *params)
+			struct snd_pcm_hw_params *params)
 {
 	struct snd_interval *rate = hw_param_interval(params,
 			SNDRV_PCM_HW_PARAM_RATE);
 	struct snd_interval *channels = hw_param_interval(params,
 						SNDRV_PCM_HW_PARAM_CHANNELS);
 
-	rate->min = rate->max = CNL_BE_FIXUP_RATE;
-	channels->min = channels->max = 2;
+	rate->min = CNL_BE_FIXUP_RATE;
+	rate->max = CNL_BE_FIXUP_RATE;
+	channels->min = 2;
+	channels->max = 2;
 	snd_mask_none(hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT));
 	snd_mask_set(hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT),
 			(unsigned int __force)SNDRV_PCM_FORMAT_S24_LE);
@@ -197,6 +202,7 @@ static const char cname[] = "i2c-INT34C2:00";
 #endif
 
 static struct snd_soc_dai_link cnl_rt274_msic_dailink[] = {
+#if !IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL)
 	/* Trace Buffer DAI links */
 	{
 		.name = "CNL Trace Buffer0",
@@ -261,6 +267,7 @@ static struct snd_soc_dai_link cnl_rt274_msic_dailink[] = {
 		.ignore_suspend = 1,
 		.nonatomic = 1,
 	},
+#endif
 	/* back ends */
 	{
 		.name = "SSP0-Codec",
@@ -268,7 +275,6 @@ static struct snd_soc_dai_link cnl_rt274_msic_dailink[] = {
 		.cpu_dai_name = "SSP0 Pin",
 		.codec_name = cname,
 		.codec_dai_name = "rt274-aif1",
-		.platform_name = pname,
 		.be_hw_params_fixup = cnl_be_fixup,
 		.ignore_suspend = 1,
 		.no_pcm = 1,
@@ -278,18 +284,19 @@ static struct snd_soc_dai_link cnl_rt274_msic_dailink[] = {
 		.dpcm_capture = 1,
 		.init = cnl_rt274_init,
 	},
+#if !IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL)
 	{
 		.name = "dmic01",
 		.id = 2,
 		.cpu_dai_name = "DMIC01 Pin",
 		.codec_name = "dmic-codec",
 		.codec_dai_name = "dmic-hifi",
-		.platform_name = pname,
 		.ignore_suspend = 1,
 		.no_pcm = 1,
 		.dpcm_capture = 1,
 		.be_hw_params_fixup = cnl_dmic_fixup,
 	},
+#endif
 };
 
 static int
@@ -313,6 +320,7 @@ static struct snd_soc_card snd_soc_card_cnl = {
 	.controls = cnl_controls,
 	.num_controls = ARRAY_SIZE(cnl_controls),
 	.add_dai_link = cnl_add_dai_link,
+	.fully_routed = true,
 };
 
 static int snd_cnl_rt274_mc_probe(struct platform_device *pdev)
