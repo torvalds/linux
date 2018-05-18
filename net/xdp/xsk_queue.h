@@ -1,15 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0
- * XDP user-space ring structure
+/* SPDX-License-Identifier: GPL-2.0 */
+/* XDP user-space ring structure
  * Copyright(c) 2018 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef _LINUX_XSK_QUEUE_H
@@ -232,12 +223,12 @@ static inline void xskq_produce_flush_desc(struct xsk_queue *q)
 
 static inline bool xskq_full_desc(struct xsk_queue *q)
 {
-	return (xskq_nb_avail(q, q->nentries) == q->nentries);
+	return xskq_nb_avail(q, q->nentries) == q->nentries;
 }
 
 static inline bool xskq_empty_desc(struct xsk_queue *q)
 {
-	return (xskq_nb_free(q, q->prod_tail, 1) == q->nentries);
+	return xskq_nb_free(q, q->prod_tail, 1) == q->nentries;
 }
 
 void xskq_set_umem(struct xsk_queue *q, struct xdp_umem_props *umem_props);

@@ -5,15 +5,6 @@
  * applications.
  * Copyright(c) 2018 Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  * Author(s): Björn Töpel <bjorn.topel@intel.com>
  *	      Magnus Karlsson <magnus.karlsson@intel.com>
  */
@@ -554,24 +545,24 @@ static struct proto xsk_proto = {
 };
 
 static const struct proto_ops xsk_proto_ops = {
-	.family =	PF_XDP,
-	.owner =	THIS_MODULE,
-	.release =	xsk_release,
-	.bind =		xsk_bind,
-	.connect =	sock_no_connect,
-	.socketpair =	sock_no_socketpair,
-	.accept =	sock_no_accept,
-	.getname =	sock_no_getname,
-	.poll =		xsk_poll,
-	.ioctl =	sock_no_ioctl,
-	.listen =	sock_no_listen,
-	.shutdown =	sock_no_shutdown,
-	.setsockopt =	xsk_setsockopt,
-	.getsockopt =	xsk_getsockopt,
-	.sendmsg =	xsk_sendmsg,
-	.recvmsg =	sock_no_recvmsg,
-	.mmap =		xsk_mmap,
-	.sendpage =	sock_no_sendpage,
+	.family		= PF_XDP,
+	.owner		= THIS_MODULE,
+	.release	= xsk_release,
+	.bind		= xsk_bind,
+	.connect	= sock_no_connect,
+	.socketpair	= sock_no_socketpair,
+	.accept		= sock_no_accept,
+	.getname	= sock_no_getname,
+	.poll		= xsk_poll,
+	.ioctl		= sock_no_ioctl,
+	.listen		= sock_no_listen,
+	.shutdown	= sock_no_shutdown,
+	.setsockopt	= xsk_setsockopt,
+	.getsockopt	= xsk_getsockopt,
+	.sendmsg	= xsk_sendmsg,
+	.recvmsg	= sock_no_recvmsg,
+	.mmap		= xsk_mmap,
+	.sendpage	= sock_no_sendpage,
 };
 
 static void xsk_destruct(struct sock *sk)

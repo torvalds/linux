@@ -1,15 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /* XDP user-space packet buffer
  * Copyright(c) 2018 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/init.h>
@@ -29,7 +20,7 @@ int xdp_umem_create(struct xdp_umem **umem)
 {
 	*umem = kzalloc(sizeof(**umem), GFP_KERNEL);
 
-	if (!(*umem))
+	if (!*umem)
 		return -ENOMEM;
 
 	return 0;
@@ -256,5 +247,5 @@ out:
 
 bool xdp_umem_validate_queues(struct xdp_umem *umem)
 {
-	return (umem->fq && umem->cq);
+	return umem->fq && umem->cq;
 }
