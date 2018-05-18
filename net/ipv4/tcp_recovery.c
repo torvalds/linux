@@ -21,7 +21,7 @@ static bool tcp_rack_sent_after(u64 t1, u64 t2, u32 seq1, u32 seq2)
 	return t1 > t2 || (t1 == t2 && after(seq1, seq2));
 }
 
-u32 tcp_rack_reo_wnd(const struct sock *sk)
+static u32 tcp_rack_reo_wnd(const struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
