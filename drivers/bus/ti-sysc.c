@@ -128,7 +128,7 @@ static int sysc_get_one_clock(struct sysc *ddata, const char *name)
 
 	if (index < 0) {
 		for (i = SYSC_OPTFCK0; i < SYSC_MAX_CLOCKS; i++) {
-			if (!clock_names[i]) {
+			if (!ddata->clocks[i]) {
 				index = i;
 				break;
 			}
