@@ -1907,7 +1907,7 @@ void rtl8821ae_set_p2p_ps_offload_cmd(struct ieee80211_hw *hw, u8 p2p_ps_state)
 			H2C_8821AE_P2P_PS_OFFLOAD, 1, (u8 *)p2p_ps_offload);
 }
 
-static void rtl8821ae_c2h_ra_report_handler(struct ieee80211_hw *hw,
+void rtl8821ae_c2h_ra_report_handler(struct ieee80211_hw *hw,
 				     u8 *cmd_buf, u8 cmd_len)
 {
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
@@ -1923,6 +1923,7 @@ void rtl8821ae_c2h_content_parsing(struct ieee80211_hw *hw,
 				   u8 *tmp_buf)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_hal_ops *hal_ops = rtlpriv->cfg->ops;
 	struct rtl_btc_ops *btc_ops = rtlpriv->btcoexist.btc_ops;
 
 	switch (c2h_cmd_id) {
@@ -1933,7 +1934,7 @@ void rtl8821ae_c2h_content_parsing(struct ieee80211_hw *hw,
 		rtl_tx_report_handler(hw, tmp_buf, c2h_cmd_len);
 		break;
 	case C2H_RA_RPT:
-		rtl8821ae_c2h_ra_report_handler(hw, tmp_buf, c2h_cmd_len);
+		hal_ops->c2h_ra_report_handler(hw, tmp_buf, c2h_cmd_len);
 		break;
 	case C2H_BT_INFO:
 		RT_TRACE(rtlpriv, COMP_FW, DBG_LOUD,

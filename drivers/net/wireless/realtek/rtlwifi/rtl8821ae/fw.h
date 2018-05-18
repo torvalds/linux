@@ -322,4 +322,6 @@ void rtl8821ae_c2h_packet_handler(struct ieee80211_hw *hw,
 void rtl8821ae_c2h_content_parsing(struct ieee80211_hw *hw,
 				   u8 c2h_cmd_id, u8 c2h_cmd_len,
 				   u8 *tmp_buf);
+void rtl8821ae_c2h_ra_report_handler(struct ieee80211_hw *hw,
+				     u8 *cmd_buf, u8 cmd_len);
 #endif

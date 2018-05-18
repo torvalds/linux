@@ -876,8 +876,8 @@ void rtl92ee_set_p2p_ps_offload_cmd(struct ieee80211_hw *hw, u8 p2p_ps_state)
 			     (u8 *)p2p_ps_offload);
 }
 
-static void _rtl92ee_c2h_ra_report_handler(struct ieee80211_hw *hw,
-					   u8 *cmd_buf, u8 cmd_len)
+void rtl92ee_c2h_ra_report_handler(struct ieee80211_hw *hw,
+				   u8 *cmd_buf, u8 cmd_len)
 {
 	u8 rate = cmd_buf[0] & 0x3F;
 	bool collision_state = cmd_buf[3] & BIT(0);
@@ -889,6 +889,7 @@ void rtl92ee_c2h_content_parsing(struct ieee80211_hw *hw, u8 c2h_cmd_id,
 				 u8 c2h_cmd_len, u8 *tmp_buf)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_hal_ops *hal_ops = rtlpriv->cfg->ops;
 	struct rtl_btc_ops *btc_ops = rtlpriv->btcoexist.btc_ops;
 
 	switch (c2h_cmd_id) {
@@ -920,7 +921,7 @@ void rtl92ee_c2h_content_parsing(struct ieee80211_hw *hw, u8 c2h_cmd_id,
 						     c2h_cmd_len);
 		break;
 	case C2H_RA_RPT:
-		_rtl92ee_c2h_ra_report_handler(hw, tmp_buf, c2h_cmd_len);
+		hal_ops->c2h_ra_report_handler(hw, tmp_buf, c2h_cmd_len);
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
