@@ -3350,11 +3350,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 			int frame_len;
 			unsigned int des;
 
-			if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00))
-				des = le32_to_cpu(p->des0);
-			else
-				des = le32_to_cpu(p->des2);
-
+			stmmac_get_desc_addr(priv, p, &des);
 			frame_len = stmmac_get_rx_frame_len(priv, p, coe);
 
 			/*  If frame length is greater than skb buffer size
