@@ -80,10 +80,11 @@ static unsigned int __head *fixup_int(void *ptr, unsigned long physaddr)
 
 static bool __head check_la57_support(unsigned long physaddr)
 {
-	if (native_cpuid_eax(0) < 7)
-		return false;
-
-	if (!(native_cpuid_ecx(7) & (1 << (X86_FEATURE_LA57 & 31))))
+	/*
+	 * 5-level paging is detected and enabled at kernel decomression
+	 * stage. Only check if it has been enabled there.
+	 */
+	if (!(native_read_cr4() & X86_CR4_LA57))
 		return false;
 
 	*fixup_int(&__pgtable_l5_enabled, physaddr) = 1;
