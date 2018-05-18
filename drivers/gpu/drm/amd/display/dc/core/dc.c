@@ -1350,6 +1350,13 @@ static void commit_planes_do_stream_update(struct dc *dc,
 					stream_update->adjust->v_total_min,
 					stream_update->adjust->v_total_max);
 
+			if (stream_update->periodic_fn_vsync_delta &&
+					pipe_ctx->stream_res.tg &&
+					pipe_ctx->stream_res.tg->funcs->program_vline_interrupt)
+				pipe_ctx->stream_res.tg->funcs->program_vline_interrupt(
+					pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing,
+					pipe_ctx->stream->periodic_fn_vsync_delta);
+
 			/* Full fe update*/
 			if (update_type == UPDATE_TYPE_FAST)
 				continue;
@@ -1376,12 +1383,6 @@ static void commit_planes_do_stream_update(struct dc *dc,
 					pipe_ctx->stream_res.abm->funcs->set_abm_level(
 						pipe_ctx->stream_res.abm, stream->abm_level);
 			}
-
-			if (stream_update->periodic_fn_vsync_delta &&
-				pipe_ctx->stream_res.tg->funcs->program_vline_interrupt)
-					pipe_ctx->stream_res.tg->funcs->program_vline_interrupt(
-						pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing,
-						pipe_ctx->stream->periodic_fn_vsync_delta);
 
 			if (stream_update->hdr_static_metadata ||
 				stream_update->vrr_infopacket) {
