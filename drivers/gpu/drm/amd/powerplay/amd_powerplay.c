@@ -191,7 +191,8 @@ static int pp_late_init(void *handle)
 	if (adev->pm.smu_prv_buffer_size != 0)
 		pp_reserve_vram_for_smu(adev);
 
-	if (hwmgr->hwmgr_func->gfx_off_control &&
+	if (hwmgr && hwmgr->hwmgr_func &&
+	    hwmgr->hwmgr_func->gfx_off_control &&
 	    (hwmgr->feature_mask & PP_GFXOFF_MASK)) {
 		ret = hwmgr->hwmgr_func->gfx_off_control(hwmgr, true);
 		if (ret)
