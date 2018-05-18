@@ -49,6 +49,7 @@
 #include "cifspdu.h"
 #include "cifs_spnego.h"
 #include "smbdirect.h"
+#include "trace.h"
 
 /*
  *  The following table defines the expected "StructureSize" of SMB2 requests
@@ -2090,6 +2091,10 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	cifs_small_buf_release(req);
 	rsp = (struct smb2_ioctl_rsp *)rsp_iov.iov_base;
 
+	if (rc != 0)
+		trace_smb3_fsctl_err(xid, persistent_fid, tcon->tid,
+				ses->Suid, 0, opcode, rc);
+
 	if ((rc != 0) && (rc != -EINVAL)) {
 		cifs_stats_fail_inc(tcon, SMB2_IOCTL_HE);
 		goto ioctl_exit;
@@ -2200,6 +2205,8 @@ SMB2_close_flags(const unsigned int xid, struct cifs_tcon *tcon,
 
 	if (rc != 0) {
 		cifs_stats_fail_inc(tcon, SMB2_CLOSE_HE);
+		trace_smb3_close_err(xid, persistent_fid, tcon->tid, ses->Suid,
+				     rc);
 		goto close_exit;
 	}
 
@@ -2326,6 +2333,8 @@ query_info(const unsigned int xid, struct cifs_tcon *tcon,
 
 	if (rc) {
 		cifs_stats_fail_inc(tcon, SMB2_QUERY_INFO_HE);
+		trace_smb3_query_info_err(xid, persistent_fid, tcon->tid,
+				ses->Suid, info_class, (__u32)info_type, rc);
 		goto qinf_exit;
 	}
 
@@ -2556,8 +2565,11 @@ SMB2_flush(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	rc = smb2_send_recv(xid, ses, iov, 1, &resp_buftype, flags, &rsp_iov);
 	cifs_small_buf_release(req);
 
-	if (rc != 0)
+	if (rc != 0) {
 		cifs_stats_fail_inc(tcon, SMB2_FLUSH_HE);
+		trace_smb3_flush_err(xid, persistent_fid, tcon->tid, ses->Suid,
+				     rc);
+	}
 
 	free_rsp_buf(resp_buftype, rsp_iov.iov_base);
 	return rc;
@@ -2799,7 +2811,13 @@ smb2_async_readv(struct cifs_readdata *rdata)
 	if (rc) {
 		kref_put(&rdata->refcount, cifs_readdata_release);
 		cifs_stats_fail_inc(io_parms.tcon, SMB2_READ_HE);
-	}
+		trace_smb3_read_err(rc, 0 /* xid */, io_parms.persistent_fid,
+				   io_parms.tcon->tid, io_parms.tcon->ses->Suid,
+				   io_parms.offset, io_parms.length);
+	} else
+		trace_smb3_read_done(0 /* xid */, io_parms.persistent_fid,
+				   io_parms.tcon->tid, io_parms.tcon->ses->Suid,
+				   io_parms.offset, io_parms.length);
 
 	cifs_small_buf_release(buf);
 	return rc;
@@ -2840,9 +2858,15 @@ SMB2_read(const unsigned int xid, struct cifs_io_parms *io_parms,
 			cifs_stats_fail_inc(io_parms->tcon, SMB2_READ_HE);
 			cifs_dbg(VFS, "Send error in read = %d\n", rc);
 		}
+		trace_smb3_read_err(rc, xid, req->PersistentFileId,
+				    io_parms->tcon->tid, ses->Suid,
+				    io_parms->offset, io_parms->length);
 		free_rsp_buf(resp_buftype, rsp_iov.iov_base);
 		return rc == -ENODATA ? 0 : rc;
-	}
+	} else
+		trace_smb3_read_done(xid, req->PersistentFileId,
+				    io_parms->tcon->tid, ses->Suid,
+				    io_parms->offset, io_parms->length);
 
 	*nbytes = le32_to_cpu(rsp->DataLength);
 	if ((*nbytes > CIFS_MAX_MSGSIZE) ||
@@ -3058,9 +3082,15 @@ smb2_async_writev(struct cifs_writedata *wdata,
 			     wdata, flags);
 
 	if (rc) {
+		trace_smb3_write_err(0 /* no xid */, req->PersistentFileId,
+				     tcon->tid, tcon->ses->Suid, wdata->offset,
+				     wdata->bytes, rc);
 		kref_put(&wdata->refcount, release);
 		cifs_stats_fail_inc(tcon, SMB2_WRITE_HE);
-	}
+	} else
+		trace_smb3_write_done(0 /* no xid */, req->PersistentFileId,
+				     tcon->tid, tcon->ses->Suid, wdata->offset,
+				     wdata->bytes);
 
 async_writev_out:
 	cifs_small_buf_release(req);
@@ -3124,10 +3154,19 @@ SMB2_write(const unsigned int xid, struct cifs_io_parms *io_parms,
 	rsp = (struct smb2_write_rsp *)rsp_iov.iov_base;
 
 	if (rc) {
+		trace_smb3_write_err(xid, req->PersistentFileId,
+				     io_parms->tcon->tid,
+				     io_parms->tcon->ses->Suid,
+				     io_parms->offset, io_parms->length, rc);
 		cifs_stats_fail_inc(io_parms->tcon, SMB2_WRITE_HE);
 		cifs_dbg(VFS, "Send error in write = %d\n", rc);
-	} else
+	} else {
 		*nbytes = le32_to_cpu(rsp->DataLength);
+		trace_smb3_write_done(xid, req->PersistentFileId,
+				     io_parms->tcon->tid,
+				     io_parms->tcon->ses->Suid,
+				     io_parms->offset, *nbytes);
+	}
 
 	free_rsp_buf(resp_buftype, rsp);
 	return rc;
@@ -3374,8 +3413,11 @@ send_set_info(const unsigned int xid, struct cifs_tcon *tcon,
 	cifs_small_buf_release(req);
 	rsp = (struct smb2_set_info_rsp *)rsp_iov.iov_base;
 
-	if (rc != 0)
+	if (rc != 0) {
 		cifs_stats_fail_inc(tcon, SMB2_SET_INFO_HE);
+		trace_smb3_set_info_err(xid, persistent_fid, tcon->tid,
+				ses->Suid, info_class, (__u32)info_type, rc);
+	}
 
 	free_rsp_buf(resp_buftype, rsp);
 	kfree(iov);
@@ -3766,6 +3808,8 @@ smb2_lockv(const unsigned int xid, struct cifs_tcon *tcon,
 	if (rc) {
 		cifs_dbg(FYI, "Send error in smb2_lockv = %d\n", rc);
 		cifs_stats_fail_inc(tcon, SMB2_LOCK_HE);
+		trace_smb3_lock_err(xid, persist_fid, tcon->tid,
+				    tcon->ses->Suid, rc);
 	}
 
 	return rc;
