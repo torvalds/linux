@@ -57,6 +57,13 @@ static struct omap_prcm_irq_setup omap4_prcm_irq_setup = {
 	.reconfigure_io_chain	= &omap44xx_prm_reconfigure_io_chain,
 };
 
+struct omap_prm_irq_context {
+	unsigned long irq_enable;
+	unsigned long pm_ctrl;
+};
+
+static struct omap_prm_irq_context omap_prm_context;
+
 /*
  * omap44xx_prm_reset_src_map - map from bits in the PRM_RSTST
  *   hardware register (which are specific to OMAP44xx SoCs) to reset
@@ -738,6 +745,28 @@ struct pwrdm_ops omap4_pwrdm_operations = {
 };
 
 static int omap44xx_prm_late_init(void);
+
+void prm_save_context(void)
+{
+	omap_prm_context.irq_enable =
+			omap4_prm_read_inst_reg(AM43XX_PRM_OCP_SOCKET_INST,
+						omap4_prcm_irq_setup.mask);
+
+	omap_prm_context.pm_ctrl =
+			omap4_prm_read_inst_reg(AM43XX_PRM_DEVICE_INST,
+						omap4_prcm_irq_setup.pm_ctrl);
+}
+
+void prm_restore_context(void)
+{
+	omap4_prm_write_inst_reg(omap_prm_context.irq_enable,
+				 OMAP4430_PRM_OCP_SOCKET_INST,
+				 omap4_prcm_irq_setup.mask);
+
+	omap4_prm_write_inst_reg(omap_prm_context.pm_ctrl,
+				 AM43XX_PRM_DEVICE_INST,
+				 omap4_prcm_irq_setup.pm_ctrl);
+}
 
 /*
  * XXX document
