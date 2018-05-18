@@ -35,8 +35,6 @@ static struct cpufreq_frequency_table freq_table[] = {
 	{ .frequency = CPUFREQ_TABLE_END },
 };
 
-#define NUM_CPUS	2
-
 static struct clk *cpu_clk;
 static struct clk *pll_x_clk;
 static struct clk *pll_p_clk;
@@ -121,9 +119,6 @@ static int tegra_target(struct cpufreq_policy *policy, unsigned int index)
 static int tegra_cpu_init(struct cpufreq_policy *policy)
 {
 	int ret;
-
-	if (policy->cpu >= NUM_CPUS)
-		return -EINVAL;
 
 	clk_prepare_enable(cpu_clk);
 
