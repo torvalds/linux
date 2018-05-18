@@ -50,12 +50,16 @@ config SND_SOC_QDSP6_CORE
 config SND_SOC_QDSP6_AFE
 	tristate
 
+config SND_SOC_QDSP6_ADM
+	tristate
+
 config SND_SOC_QDSP6
 	tristate "SoC ALSA audio driver for QDSP6"
 	depends on QCOM_APR && HAS_DMA
 	select SND_SOC_QDSP6_COMMON
 	select SND_SOC_QDSP6_CORE
 	select SND_SOC_QDSP6_AFE
+	select SND_SOC_QDSP6_ADM
 	help
 	 To add support for MSM QDSP6 Soc Audio.
 	 This will enable sound soc platform specific
