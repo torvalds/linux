@@ -1787,22 +1787,18 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 	}
 
 	/* configure all channels */
-	if (priv->synopsys_id >= DWMAC_CORE_4_00) {
-		for (chan = 0; chan < rx_channels_count; chan++) {
-			qmode = priv->plat->rx_queues_cfg[chan].mode_to_use;
+	for (chan = 0; chan < rx_channels_count; chan++) {
+		qmode = priv->plat->rx_queues_cfg[chan].mode_to_use;
 
-			stmmac_dma_rx_mode(priv, priv->ioaddr, rxmode, chan,
-					rxfifosz, qmode);
-		}
+		stmmac_dma_rx_mode(priv, priv->ioaddr, rxmode, chan,
+				rxfifosz, qmode);
+	}
 
-		for (chan = 0; chan < tx_channels_count; chan++) {
-			qmode = priv->plat->tx_queues_cfg[chan].mode_to_use;
+	for (chan = 0; chan < tx_channels_count; chan++) {
+		qmode = priv->plat->tx_queues_cfg[chan].mode_to_use;
 
-			stmmac_dma_tx_mode(priv, priv->ioaddr, txmode, chan,
-					txfifosz, qmode);
-		}
-	} else {
-		stmmac_dma_mode(priv, priv->ioaddr, txmode, rxmode, rxfifosz);
+		stmmac_dma_tx_mode(priv, priv->ioaddr, txmode, chan,
+				txfifosz, qmode);
 	}
 }
 
@@ -1971,14 +1967,8 @@ static void stmmac_set_dma_operation_mode(struct stmmac_priv *priv, u32 txmode,
 	rxfifosz /= rx_channels_count;
 	txfifosz /= tx_channels_count;
 
-	if (priv->synopsys_id >= DWMAC_CORE_4_00) {
-		stmmac_dma_rx_mode(priv, priv->ioaddr, rxmode, chan, rxfifosz,
-				rxqmode);
-		stmmac_dma_tx_mode(priv, priv->ioaddr, txmode, chan, txfifosz,
-				txqmode);
-	} else {
-		stmmac_dma_mode(priv, priv->ioaddr, txmode, rxmode, rxfifosz);
-	}
+	stmmac_dma_rx_mode(priv, priv->ioaddr, rxmode, chan, rxfifosz, rxqmode);
+	stmmac_dma_tx_mode(priv, priv->ioaddr, txmode, chan, txfifosz, txqmode);
 }
 
 static bool stmmac_safety_feat_interrupt(struct stmmac_priv *priv)

@@ -437,13 +437,36 @@ static int sun8i_dwmac_dma_interrupt(void __iomem *ioaddr,
 	return ret;
 }
 
-static void sun8i_dwmac_dma_operation_mode(void __iomem *ioaddr, int txmode,
-					   int rxmode, int rxfifosz)
+static void sun8i_dwmac_dma_operation_mode_rx(void __iomem *ioaddr, int mode,
+					      u32 channel, int fifosz, u8 qmode)
+{
+	u32 v;
+
+	v = readl(ioaddr + EMAC_RX_CTL1);
+	if (mode == SF_DMA_MODE) {
+		v |= EMAC_RX_MD;
+	} else {
+		v &= ~EMAC_RX_MD;
+		v &= ~EMAC_RX_TH_MASK;
+		if (mode < 32)
+			v |= EMAC_RX_TH_32;
+		else if (mode < 64)
+			v |= EMAC_RX_TH_64;
+		else if (mode < 96)
+			v |= EMAC_RX_TH_96;
+		else if (mode < 128)
+			v |= EMAC_RX_TH_128;
+	}
+	writel(v, ioaddr + EMAC_RX_CTL1);
+}
+
+static void sun8i_dwmac_dma_operation_mode_tx(void __iomem *ioaddr, int mode,
+					      u32 channel, int fifosz, u8 qmode)
 {
 	u32 v;
 
 	v = readl(ioaddr + EMAC_TX_CTL1);
-	if (txmode == SF_DMA_MODE) {
+	if (mode == SF_DMA_MODE) {
 		v |= EMAC_TX_MD;
 		/* Undocumented bit (called TX_NEXT_FRM in BSP), the original
 		 * comment is
@@ -454,40 +477,24 @@ static void sun8i_dwmac_dma_operation_mode(void __iomem *ioaddr, int txmode,
 	} else {
 		v &= ~EMAC_TX_MD;
 		v &= ~EMAC_TX_TH_MASK;
-		if (txmode < 64)
+		if (mode < 64)
 			v |= EMAC_TX_TH_64;
-		else if (txmode < 128)
+		else if (mode < 128)
 			v |= EMAC_TX_TH_128;
-		else if (txmode < 192)
+		else if (mode < 192)
 			v |= EMAC_TX_TH_192;
-		else if (txmode < 256)
+		else if (mode < 256)
 			v |= EMAC_TX_TH_256;
 	}
 	writel(v, ioaddr + EMAC_TX_CTL1);
-
-	v = readl(ioaddr + EMAC_RX_CTL1);
-	if (rxmode == SF_DMA_MODE) {
-		v |= EMAC_RX_MD;
-	} else {
-		v &= ~EMAC_RX_MD;
-		v &= ~EMAC_RX_TH_MASK;
-		if (rxmode < 32)
-			v |= EMAC_RX_TH_32;
-		else if (rxmode < 64)
-			v |= EMAC_RX_TH_64;
-		else if (rxmode < 96)
-			v |= EMAC_RX_TH_96;
-		else if (rxmode < 128)
-			v |= EMAC_RX_TH_128;
-	}
-	writel(v, ioaddr + EMAC_RX_CTL1);
 }
 
 static const struct stmmac_dma_ops sun8i_dwmac_dma_ops = {
 	.reset = sun8i_dwmac_dma_reset,
 	.init = sun8i_dwmac_dma_init,
 	.dump_regs = sun8i_dwmac_dump_regs,
-	.dma_mode = sun8i_dwmac_dma_operation_mode,
+	.dma_rx_mode = sun8i_dwmac_dma_operation_mode_rx,
+	.dma_tx_mode = sun8i_dwmac_dma_operation_mode_tx,
 	.enable_dma_transmission = sun8i_dwmac_enable_dma_transmission,
 	.enable_dma_irq = sun8i_dwmac_enable_dma_irq,
 	.disable_dma_irq = sun8i_dwmac_disable_dma_irq,

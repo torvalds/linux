@@ -153,10 +153,6 @@ struct stmmac_dma_ops {
 	void (*axi)(void __iomem *ioaddr, struct stmmac_axi *axi);
 	/* Dump DMA registers */
 	void (*dump_regs)(void __iomem *ioaddr, u32 *reg_space);
-	/* Set tx/rx threshold in the csr6 register
-	 * An invalid value enables the store-and-forward mode */
-	void (*dma_mode)(void __iomem *ioaddr, int txmode, int rxmode,
-			 int rxfifosz);
 	void (*dma_rx_mode)(void __iomem *ioaddr, int mode, u32 channel,
 			    int fifosz, u8 qmode);
 	void (*dma_tx_mode)(void __iomem *ioaddr, int mode, u32 channel,
@@ -199,8 +195,6 @@ struct stmmac_dma_ops {
 	stmmac_do_void_callback(__priv, dma, axi, __args)
 #define stmmac_dump_dma_regs(__priv, __args...) \
 	stmmac_do_void_callback(__priv, dma, dump_regs, __args)
-#define stmmac_dma_mode(__priv, __args...) \
-	stmmac_do_void_callback(__priv, dma, dma_mode, __args)
 #define stmmac_dma_rx_mode(__priv, __args...) \
 	stmmac_do_void_callback(__priv, dma, dma_rx_mode, __args)
 #define stmmac_dma_tx_mode(__priv, __args...) \
