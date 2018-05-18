@@ -70,6 +70,8 @@ static ssize_t ad5686_write_dac_powerdown(struct iio_dev *indio_dev,
 	bool readin;
 	int ret;
 	struct ad5686_state *st = iio_priv(indio_dev);
+	unsigned int val, ref_bit_msk;
+	u8 shift;
 
 	ret = strtobool(buf, &readin);
 	if (ret)
@@ -80,9 +82,24 @@ static ssize_t ad5686_write_dac_powerdown(struct iio_dev *indio_dev,
 	else
 		st->pwr_down_mask &= ~(0x3 << (chan->channel * 2));
 
-	ret = st->write(st, AD5686_CMD_POWERDOWN_DAC, 0,
-			st->pwr_down_mask & st->pwr_down_mode);
+	switch (st->chip_info->regmap_type) {
+	case AD5686_REGMAP:
+		shift = 0;
+		ref_bit_msk = 0;
+		break;
+	case AD5693_REGMAP:
+		shift = 13;
+		ref_bit_msk = AD5693_REF_BIT_MSK;
+		break;
+	default:
+		return -EINVAL;
+	}
 
+	val = ((st->pwr_down_mask & st->pwr_down_mode) << shift);
+	if (!st->use_internal_vref)
+		val |= ref_bit_msk;
+
+	ret = st->write(st, AD5686_CMD_POWERDOWN_DAC, 0, val);
 
 	return ret ? ret : len;
 }
@@ -175,6 +192,11 @@ static const struct iio_chan_spec_ext_info ad5686_ext_info[] = {
 		.ext_info = ad5686_ext_info,			\
 }
 
+#define DECLARE_AD5693_CHANNELS(name, bits, _shift)		\
+static struct iio_chan_spec name[] = {				\
+		AD5868_CHANNEL(0, 0, bits, _shift),		\
+}
+
 #define DECLARE_AD5686_CHANNELS(name, bits, _shift)		\
 static struct iio_chan_spec name[] = {				\
 		AD5868_CHANNEL(0, 1, bits, _shift),		\
@@ -200,72 +222,112 @@ DECLARE_AD5676_CHANNELS(ad5676_channels, 16, 0);
 DECLARE_AD5686_CHANNELS(ad5684_channels, 12, 4);
 DECLARE_AD5686_CHANNELS(ad5685r_channels, 14, 2);
 DECLARE_AD5686_CHANNELS(ad5686_channels, 16, 0);
+DECLARE_AD5693_CHANNELS(ad5693_channels, 16, 0);
+DECLARE_AD5693_CHANNELS(ad5692r_channels, 14, 2);
+DECLARE_AD5693_CHANNELS(ad5691r_channels, 12, 4);
 
 static const struct ad5686_chip_info ad5686_chip_info_tbl[] = {
 	[ID_AD5671R] = {
 		.channels = ad5672_channels,
 		.int_vref_mv = 2500,
 		.num_channels = 8,
+		.regmap_type = AD5686_REGMAP,
 	},
 	[ID_AD5672R] = {
 		.channels = ad5672_channels,
 		.int_vref_mv = 2500,
 		.num_channels = 8,
+		.regmap_type = AD5686_REGMAP,
 	},
 	[ID_AD5675R] = {
 		.channels = ad5676_channels,
 		.int_vref_mv = 2500,
 		.num_channels = 8,
+		.regmap_type = AD5686_REGMAP,
 	},
 	[ID_AD5676] = {
 		.channels = ad5676_channels,
 		.num_channels = 8,
+		.regmap_type = AD5686_REGMAP,
 	},
 	[ID_AD5676R] = {
 		.channels = ad5676_channels,
 		.int_vref_mv = 2500,
 		.num_channels = 8,
+		.regmap_type = AD5686_REGMAP,
 	},
 	[ID_AD5684] = {
 		.channels = ad5684_channels,
 		.num_channels = 4,
+		.regmap_type = AD5686_REGMAP,
 	},
 	[ID_AD5684R] = {
 		.channels = ad5684_channels,
 		.int_vref_mv = 2500,
 		.num_channels = 4,
+		.regmap_type = AD5686_REGMAP,
 	},
 	[ID_AD5685R] = {
 		.channels = ad5685r_channels,
 		.int_vref_mv = 2500,
 		.num_channels = 4,
+		.regmap_type = AD5686_REGMAP,
 	},
 	[ID_AD5686] = {
 		.channels = ad5686_channels,
 		.num_channels = 4,
+		.regmap_type = AD5686_REGMAP,
 	},
 	[ID_AD5686R] = {
 		.channels = ad5686_channels,
 		.int_vref_mv = 2500,
 		.num_channels = 4,
+		.regmap_type = AD5686_REGMAP,
+	},
+	[ID_AD5691R] = {
+		.channels = ad5691r_channels,
+		.int_vref_mv = 2500,
+		.num_channels = 1,
+		.regmap_type = AD5693_REGMAP,
+	},
+	[ID_AD5692R] = {
+		.channels = ad5692r_channels,
+		.int_vref_mv = 2500,
+		.num_channels = 1,
+		.regmap_type = AD5693_REGMAP,
+	},
+	[ID_AD5693] = {
+		.channels = ad5693_channels,
+		.num_channels = 1,
+		.regmap_type = AD5693_REGMAP,
+	},
+	[ID_AD5693R] = {
+		.channels = ad5693_channels,
+		.int_vref_mv = 2500,
+		.num_channels = 1,
+		.regmap_type = AD5693_REGMAP,
 	},
 	[ID_AD5694] = {
 		.channels = ad5684_channels,
 		.num_channels = 4,
+		.regmap_type = AD5686_REGMAP,
 	},
 	[ID_AD5694R] = {
 		.channels = ad5684_channels,
 		.int_vref_mv = 2500,
 		.num_channels = 4,
+		.regmap_type = AD5686_REGMAP,
 	},
 	[ID_AD5696] = {
 		.channels = ad5686_channels,
 		.num_channels = 4,
+		.regmap_type = AD5686_REGMAP,
 	},
 	[ID_AD5696R] = {
 		.channels = ad5686_channels,
 		.int_vref_mv = 2500,
 		.num_channels = 4,
+		.regmap_type = AD5686_REGMAP,
 	},
 };
 
@@ -276,7 +338,9 @@ int ad5686_probe(struct device *dev,
 {
 	struct ad5686_state *st;
 	struct iio_dev *indio_dev;
-	int ret, voltage_uv = 0;
+	unsigned int val, ref_bit_msk;
+	u8 cmd;
+	int ret, i, voltage_uv = 0;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (indio_dev == NULL)
@@ -310,7 +374,8 @@ int ad5686_probe(struct device *dev,
 		st->vref_mv = st->chip_info->int_vref_mv;
 
 	/* Set all the power down mode for all channels to 1K pulldown */
-	st->pwr_down_mode = 0x55;
+	for (i = 0; i < st->chip_info->num_channels; i++)
+		st->pwr_down_mode |= (0x01 << (i * 2));
 
 	indio_dev->dev.parent = dev;
 	indio_dev->name = name;
@@ -319,8 +384,24 @@ int ad5686_probe(struct device *dev,
 	indio_dev->channels = st->chip_info->channels;
 	indio_dev->num_channels = st->chip_info->num_channels;
 
-	ret = st->write(st, AD5686_CMD_INTERNAL_REFER_SETUP,
-			0, !!voltage_uv);
+	switch (st->chip_info->regmap_type) {
+	case AD5686_REGMAP:
+		cmd = AD5686_CMD_INTERNAL_REFER_SETUP;
+		ref_bit_msk = 0;
+		break;
+	case AD5693_REGMAP:
+		cmd = AD5686_CMD_CONTROL_REG;
+		ref_bit_msk = AD5693_REF_BIT_MSK;
+		st->use_internal_vref = !voltage_uv;
+		break;
+	default:
+		ret = -EINVAL;
+		goto error_disable_reg;
+	}
+
+	val = (voltage_uv | ref_bit_msk);
+
+	ret = st->write(st, cmd, 0, !!val);
 	if (ret)
 		goto error_disable_reg;
 

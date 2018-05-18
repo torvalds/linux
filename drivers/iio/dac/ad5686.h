@@ -35,6 +35,9 @@
 #define AD5686_LDAC_PWRDN_100K			0x2
 #define AD5686_LDAC_PWRDN_3STATE		0x3
 
+#define AD5686_CMD_CONTROL_REG			0x4
+#define AD5693_REF_BIT_MSK			BIT(12)
+
 /**
  * ad5686_supported_device_ids:
  */
@@ -49,11 +52,20 @@ enum ad5686_supported_device_ids {
 	ID_AD5685R,
 	ID_AD5686,
 	ID_AD5686R,
+	ID_AD5691R,
+	ID_AD5692R,
+	ID_AD5693,
+	ID_AD5693R,
 	ID_AD5694,
 	ID_AD5694R,
 	ID_AD5695R,
 	ID_AD5696,
 	ID_AD5696R,
+};
+
+enum ad5686_regmap_type {
+	AD5686_REGMAP,
+	AD5693_REGMAP
 };
 
 struct ad5686_state;
@@ -68,12 +80,14 @@ typedef int (*ad5686_read_func)(struct ad5686_state *st, u8 addr);
  * @int_vref_mv:	AD5620/40/60: the internal reference voltage
  * @num_channels:	number of channels
  * @channel:		channel specification
+ * @regmap_type:	register map layout variant
  */
 
 struct ad5686_chip_info {
 	u16				int_vref_mv;
 	unsigned int			num_channels;
 	struct iio_chan_spec		*channels;
+	enum ad5686_regmap_type		regmap_type;
 };
 
 /**
@@ -84,6 +98,7 @@ struct ad5686_chip_info {
  * @vref_mv:		actual reference voltage used
  * @pwr_down_mask:	power down mask
  * @pwr_down_mode:	current power down mode
+ * @use_internal_vref:	set to true if the internal reference voltage is used
  * @data:		spi transfer buffers
  */
 
@@ -96,6 +111,7 @@ struct ad5686_state {
 	unsigned int			pwr_down_mode;
 	ad5686_write_func		write;
 	ad5686_read_func		read;
+	bool				use_internal_vref;
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
