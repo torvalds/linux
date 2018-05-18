@@ -2288,10 +2288,10 @@ static void rtl_c2h_content_parsing(struct ieee80211_hw *hw,
 	u8 cmd_id, cmd_seq, cmd_len;
 	u8 *cmd_buf = NULL;
 
-	cmd_id = skb->data[0];
-	cmd_seq = skb->data[1];
-	cmd_len = skb->len - 2;
-	cmd_buf = skb->data + 2;
+	cmd_id = GET_C2H_CMD_ID(skb->data);
+	cmd_seq = GET_C2H_SEQ(skb->data);
+	cmd_len = skb->len - C2H_DATA_OFFSET;
+	cmd_buf = GET_C2H_DATA_PTR(skb->data);
 
 	switch (cmd_id) {
 	case C2H_DBG:

@@ -177,6 +177,11 @@ enum rtl_c2h_evt_v2 {
 	C2H_V2_CCX_RPT = 0x0F,
 };
 
+#define GET_C2H_CMD_ID(c2h)	({u8 *__c2h = c2h; __c2h[0]; })
+#define GET_C2H_SEQ(c2h)	({u8 *__c2h = c2h; __c2h[1]; })
+#define C2H_DATA_OFFSET		2
+#define GET_C2H_DATA_PTR(c2h)	({u8 *__c2h = c2h; &__c2h[C2H_DATA_OFFSET]; })
+
 #define GET_TX_REPORT_SN_V1(c2h)	(c2h[6])
 #define GET_TX_REPORT_ST_V1(c2h)	(c2h[0] & 0xC0)
 #define GET_TX_REPORT_RETRY_V1(c2h)	(c2h[2] & 0x3F)
