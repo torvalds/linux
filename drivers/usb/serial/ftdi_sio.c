@@ -2191,12 +2191,8 @@ static void ftdi_set_termios(struct tty_struct *tty,
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	struct ktermios *termios = &tty->termios;
 	unsigned int cflag = termios->c_cflag;
-	u16 value;
-
-	/* Added for xon/xoff support */
-	unsigned int iflag = termios->c_iflag;
-	unsigned char vstop;
-	unsigned char vstart;
+	u16 value, index;
+	int ret;
 
 	/* Force baud rate if this device requires it, unless it is set to
 	   B0. */
@@ -2325,61 +2321,30 @@ no_data_parity_stop_changes:
 			set_mctrl(port, TIOCM_DTR | TIOCM_RTS);
 	}
 
-	/* Set flow control */
-	/* Note device also supports DTR/CD (ugh) and Xon/Xoff in hardware */
 no_c_cflag_changes:
-	if (cflag & CRTSCTS) {
-		dev_dbg(ddev, "%s Setting to CRTSCTS flow control\n", __func__);
-		if (usb_control_msg(dev,
-				    usb_sndctrlpipe(dev, 0),
-				    FTDI_SIO_SET_FLOW_CTRL_REQUEST,
-				    FTDI_SIO_SET_FLOW_CTRL_REQUEST_TYPE,
-				    0 , (FTDI_SIO_RTS_CTS_HS | priv->interface),
-				    NULL, 0, WDR_TIMEOUT) < 0) {
-			dev_err(ddev, "urb failed to set to rts/cts flow control\n");
-		}
-	} else {
-		/*
-		 * Xon/Xoff code
-		 */
-		if (iflag & IXON) {
-			dev_dbg(ddev, "%s  request to enable xonxoff iflag=%04x\n",
-				__func__, iflag);
-			/* Try to enable the XON/XOFF on the ftdi_sio
-			 * Set the vstart and vstop -- could have been done up
-			 * above where a lot of other dereferencing is done but
-			 * that would be very inefficient as vstart and vstop
-			 * are not always needed.
-			 */
-			vstart = termios->c_cc[VSTART];
-			vstop = termios->c_cc[VSTOP];
-			value = (vstop << 8) | (vstart);
+	/* Set hardware-assisted flow control */
+	value = 0;
 
-			if (usb_control_msg(dev,
-					    usb_sndctrlpipe(dev, 0),
-					    FTDI_SIO_SET_FLOW_CTRL_REQUEST,
-					    FTDI_SIO_SET_FLOW_CTRL_REQUEST_TYPE,
-					    value , (FTDI_SIO_XON_XOFF_HS
-							 | priv->interface),
-					    NULL, 0, WDR_TIMEOUT) < 0) {
-				dev_err(&port->dev, "urb failed to set to "
-					"xon/xoff flow control\n");
-			}
-		} else {
-			/* else clause to only run if cflag ! CRTSCTS and iflag
-			 * ! XON. CHECKME Assuming XON/XOFF handled by tty
-			 * stack - not by device */
-			dev_dbg(ddev, "%s Turning off hardware flow control\n", __func__);
-			if (usb_control_msg(dev,
-					    usb_sndctrlpipe(dev, 0),
-					    FTDI_SIO_SET_FLOW_CTRL_REQUEST,
-					    FTDI_SIO_SET_FLOW_CTRL_REQUEST_TYPE,
-					    0, priv->interface,
-					    NULL, 0, WDR_TIMEOUT) < 0) {
-				dev_err(ddev, "urb failed to clear flow control\n");
-			}
-		}
+	if (C_CRTSCTS(tty)) {
+		dev_dbg(&port->dev, "enabling rts/cts flow control\n");
+		index = FTDI_SIO_RTS_CTS_HS;
+	} else if (I_IXON(tty)) {
+		dev_dbg(&port->dev, "enabling xon/xoff flow control\n");
+		index = FTDI_SIO_XON_XOFF_HS;
+		value = STOP_CHAR(tty) << 8 | START_CHAR(tty);
+	} else {
+		dev_dbg(&port->dev, "disabling flow control\n");
+		index = FTDI_SIO_DISABLE_FLOW_CTRL;
 	}
+
+	index |= priv->interface;
+
+	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
+			FTDI_SIO_SET_FLOW_CTRL_REQUEST,
+			FTDI_SIO_SET_FLOW_CTRL_REQUEST_TYPE,
+			value, index, NULL, 0, WDR_TIMEOUT);
+	if (ret < 0)
+		dev_err(&port->dev, "failed to set flow control: %d\n", ret);
 }
 
 /*
