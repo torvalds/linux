@@ -1367,6 +1367,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	const struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct i915_gpu_error * const error = &engine->i915->gpu_error;
 	struct i915_request *rq, *last;
+	unsigned long flags;
 	struct rb_node *rb;
 	int count;
 
@@ -1433,7 +1434,8 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 		drm_printf(m, "\tDevice is asleep; skipping register dump\n");
 	}
 
-	spin_lock_irq(&engine->timeline.lock);
+	local_irq_save(flags);
+	spin_lock(&engine->timeline.lock);
 
 	last = NULL;
 	count = 0;
@@ -1475,16 +1477,17 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 		print_request(m, last, "\t\tQ ");
 	}
 
-	spin_unlock_irq(&engine->timeline.lock);
+	spin_unlock(&engine->timeline.lock);
 
-	spin_lock_irq(&b->rb_lock);
+	spin_lock(&b->rb_lock);
 	for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
 		struct intel_wait *w = rb_entry(rb, typeof(*w), node);
 
 		drm_printf(m, "\t%s [%d] waiting for %x\n",
 			   w->tsk->comm, w->tsk->pid, w->seqno);
 	}
-	spin_unlock_irq(&b->rb_lock);
+	spin_unlock(&b->rb_lock);
+	local_irq_restore(flags);
 
 	drm_printf(m, "IRQ? 0x%lx (breadcrumbs? %s) (execlists? %s)\n",
 		   engine->irq_posted,
