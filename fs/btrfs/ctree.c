@@ -2330,7 +2330,7 @@ static noinline void unlock_up(struct btrfs_path *path, int level,
 			no_skips = 1;
 
 		t = path->nodes[i];
-		if (i >= lowest_unlock && i > skip_level && path->locks[i]) {
+		if (i >= lowest_unlock && i > skip_level) {
 			btrfs_tree_unlock_rw(t, path->locks[i]);
 			path->locks[i] = 0;
 			if (write_lock_level &&
