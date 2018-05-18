@@ -1756,7 +1756,6 @@ static void mvpp2_prs_tcam_ai_update(struct mvpp2_prs_entry *pe,
 	int i, ai_idx = MVPP2_PRS_TCAM_AI_BYTE;
 
 	for (i = 0; i < MVPP2_PRS_AI_BITS; i++) {
-
 		if (!(enable & BIT(i)))
 			continue;
 
@@ -1840,7 +1839,6 @@ static void mvpp2_prs_sram_ai_update(struct mvpp2_prs_entry *pe,
 	int ai_off = MVPP2_PRS_SRAM_AI_OFFS;
 
 	for (i = 0; i < MVPP2_PRS_SRAM_AI_CTRL_BITS; i++) {
-
 		if (!(mask & BIT(i)))
 			continue;
 
@@ -4936,7 +4934,7 @@ static void mvpp22_gop_mask_irq(struct mvpp2_port *port)
 	if (port->gop_id == 0) {
 		val = readl(port->base + MVPP22_XLG_EXT_INT_MASK);
 		val &= ~(MVPP22_XLG_EXT_INT_MASK_XLG |
-		         MVPP22_XLG_EXT_INT_MASK_GIG);
+			 MVPP22_XLG_EXT_INT_MASK_GIG);
 		writel(val, port->base + MVPP22_XLG_EXT_INT_MASK);
 	}
 
@@ -5470,7 +5468,6 @@ static void mvpp2_aggr_txq_pend_desc_add(struct mvpp2_port *port, int pending)
 			   MVPP2_AGGR_TXQ_UPDATE_REG, pending);
 }
 
-
 /* Check if there are enough free descriptors in aggregated txq.
  * If not, update the number of occupied descriptors and repeat the check.
  *
@@ -5550,7 +5547,7 @@ static int mvpp2_txq_reserved_desc_num_proc(struct mvpp2 *priv,
 
 	txq_pcpu->reserved_num += mvpp2_txq_alloc_reserved_desc(priv, txq, req);
 
-	/* OK, the descriptor cound has been updated: check again. */
+	/* OK, the descriptor could have been updated: check again. */
 	if (txq_pcpu->reserved_num < num)
 		return -ENOMEM;
 	return 0;
@@ -6032,7 +6029,7 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 	/* Calculate base address in prefetch buffer. We reserve 16 descriptors
 	 * for each existing TXQ.
 	 * TCONTS for PON port must be continuous from 0 to MVPP2_MAX_TCONT
-	 * GBE ports assumed to be continious from 0 to MVPP2_MAX_PORTS
+	 * GBE ports assumed to be continuous from 0 to MVPP2_MAX_PORTS
 	 */
 	desc_per_txq = 16;
 	desc = (port->id * MVPP2_MAX_TXQ * desc_per_txq) +
@@ -6602,8 +6599,7 @@ static int mvpp2_tx_frag_process(struct mvpp2_port *port, struct sk_buff *skb,
 		mvpp2_txdesc_size_set(port, tx_desc, frag->size);
 
 		buf_dma_addr = dma_map_single(port->dev->dev.parent, addr,
-					       frag->size,
-					       DMA_TO_DEVICE);
+					      frag->size, DMA_TO_DEVICE);
 		if (dma_mapping_error(port->dev->dev.parent, buf_dma_addr)) {
 			mvpp2_txq_desc_put(txq);
 			goto cleanup;
