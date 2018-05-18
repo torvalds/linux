@@ -36,6 +36,8 @@
 #define IS_DSI0(dsi)	((dsi)->id == 0)
 #define IS_DSI1(dsi)	((dsi)->id == 1)
 
+#define UPDATE(v, h, l)	(((v) << (l)) & GENMASK((h), (l)))
+
 #define DSI_VERSION			0x00
 #define DSI_PWR_UP			0x04
 #define RESET				0
@@ -203,16 +205,12 @@
 
 #define DSI_PHY_TST_CTRL0		0xb4
 #define PHY_TESTCLK			BIT(1)
-#define PHY_UNTESTCLK			0
 #define PHY_TESTCLR			BIT(0)
-#define PHY_UNTESTCLR			0
-
 #define DSI_PHY_TST_CTRL1		0xb8
 #define PHY_TESTEN			BIT(16)
-#define PHY_UNTESTEN			0
-#define PHY_TESTDOUT(n)			(((n) & 0xff) << 8)
-#define PHY_TESTDIN(n)			(((n) & 0xff) << 0)
-
+#define PHY_TESTDOUT_SHIFT		8
+#define PHY_TESTDIN_MASK		GENMASK(7, 0)
+#define PHY_TESTDIN(v)			UPDATE(v, 7, 0)
 #define DSI_INT_ST0			0xbc
 #define DSI_INT_ST1			0xc0
 #define DSI_INT_MSK0			0xc4
@@ -321,6 +319,7 @@ struct dw_mipi_dsi_plat_data {
 
 struct mipi_dphy {
 	/* SNPS PHY */
+	struct regmap *regmap;
 	struct clk *cfg_clk;
 	struct clk *ref_clk;
 	u16 input_div;
@@ -481,24 +480,102 @@ static int genif_wait_write_fifo_empty(struct dw_mipi_dsi *dsi)
 	return 0;
 }
 
-static void dw_mipi_dsi_phy_write(struct dw_mipi_dsi *dsi, u8 test_code,
-				 u8 test_data)
+static inline void testif_testclk_assert(struct dw_mipi_dsi *dsi)
 {
-	/*
-	 * With the falling edge on TESTCLK, the TESTDIN[7:0] signal content
-	 * is latched internally as the current test code. Test data is
-	 * programmed internally by rising edge on TESTCLK.
-	 */
-	regmap_write(dsi->regmap, DSI_PHY_TST_CTRL0,
-		     PHY_TESTCLK | PHY_UNTESTCLR);
-	regmap_write(dsi->regmap, DSI_PHY_TST_CTRL1,
-		     PHY_TESTEN | PHY_TESTDOUT(0) | PHY_TESTDIN(test_code));
-	regmap_write(dsi->regmap, DSI_PHY_TST_CTRL0,
-		     PHY_UNTESTCLK | PHY_UNTESTCLR);
-	regmap_write(dsi->regmap, DSI_PHY_TST_CTRL1,
-		     PHY_UNTESTEN | PHY_TESTDOUT(0) | PHY_TESTDIN(test_data));
-	regmap_write(dsi->regmap, DSI_PHY_TST_CTRL0,
-		     PHY_TESTCLK | PHY_UNTESTCLR);
+	regmap_update_bits(dsi->regmap, DSI_PHY_TST_CTRL0,
+			   PHY_TESTCLK, PHY_TESTCLK);
+	udelay(1);
+}
+
+static inline void testif_testclk_deassert(struct dw_mipi_dsi *dsi)
+{
+	regmap_update_bits(dsi->regmap, DSI_PHY_TST_CTRL0, PHY_TESTCLK, 0);
+	udelay(1);
+}
+
+static inline void testif_testclr_assert(struct dw_mipi_dsi *dsi)
+{
+	regmap_update_bits(dsi->regmap, DSI_PHY_TST_CTRL0,
+			   PHY_TESTCLR, PHY_TESTCLR);
+	udelay(1);
+}
+
+static inline void testif_testclr_deassert(struct dw_mipi_dsi *dsi)
+{
+	regmap_update_bits(dsi->regmap, DSI_PHY_TST_CTRL0, PHY_TESTCLR, 0);
+	udelay(1);
+}
+
+static inline void testif_testen_assert(struct dw_mipi_dsi *dsi)
+{
+	regmap_update_bits(dsi->regmap, DSI_PHY_TST_CTRL1,
+			   PHY_TESTEN, PHY_TESTEN);
+	udelay(1);
+}
+
+static inline void testif_testen_deassert(struct dw_mipi_dsi *dsi)
+{
+	regmap_update_bits(dsi->regmap, DSI_PHY_TST_CTRL1, PHY_TESTEN, 0);
+	udelay(1);
+}
+
+static inline void testif_set_data(struct dw_mipi_dsi *dsi, u8 data)
+{
+	regmap_update_bits(dsi->regmap, DSI_PHY_TST_CTRL1,
+			   PHY_TESTDIN_MASK, PHY_TESTDIN(data));
+	udelay(1);
+}
+
+static inline u8 testif_get_data(struct dw_mipi_dsi *dsi)
+{
+	u32 data = 0;
+
+	regmap_read(dsi->regmap, DSI_PHY_TST_CTRL1, &data);
+
+	return data >> PHY_TESTDOUT_SHIFT;
+}
+
+static void testif_test_code_write(struct dw_mipi_dsi *dsi, u8 test_code)
+{
+	testif_testclk_assert(dsi);
+	testif_set_data(dsi, test_code);
+	testif_testen_assert(dsi);
+	testif_testclk_deassert(dsi);
+	testif_testen_deassert(dsi);
+}
+
+static void testif_test_data_write(struct dw_mipi_dsi *dsi, u8 test_data)
+{
+	testif_testclk_deassert(dsi);
+	testif_set_data(dsi, test_data);
+	testif_testclk_assert(dsi);
+}
+
+static int testif_write(void *context, unsigned int reg, unsigned int value)
+{
+	struct dw_mipi_dsi *dsi = context;
+
+	testif_testclr_deassert(dsi);
+	testif_test_code_write(dsi, reg);
+	testif_test_data_write(dsi, value);
+
+	dev_dbg(dsi->dev,
+		"test_code=0x%02x, test_data=0x%02x, monitor_data=0x%02x\n",
+		reg, value, testif_get_data(dsi));
+
+	return 0;
+}
+
+static int testif_read(void *context, unsigned int reg, unsigned int *value)
+{
+	struct dw_mipi_dsi *dsi = context;
+
+	testif_testclr_deassert(dsi);
+	testif_test_code_write(dsi, reg);
+	*value = testif_get_data(dsi);
+	testif_test_data_write(dsi, *value);
+
+	return 0;
 }
 
 static int mipi_dphy_power_on(struct dw_mipi_dsi *dsi)
@@ -554,19 +631,20 @@ static void dw_mipi_dsi_host_power_off(struct dw_mipi_dsi *dsi)
 
 static void dw_mipi_dsi_phy_pll_init(struct dw_mipi_dsi *dsi)
 {
-	dw_mipi_dsi_phy_write(dsi, 0x17, INPUT_DIVIDER(dsi->dphy.input_div));
-	dw_mipi_dsi_phy_write(dsi, 0x18,
-			      LOOP_DIV_LOW_SEL(dsi->dphy.feedback_div) |
-			      LOW_PROGRAM_EN);
-	dw_mipi_dsi_phy_write(dsi, 0x19, PLL_LOOP_DIV_EN | PLL_INPUT_DIV_EN);
-	dw_mipi_dsi_phy_write(dsi, 0x18,
-			      LOOP_DIV_HIGH_SEL(dsi->dphy.feedback_div) |
-			      HIGH_PROGRAM_EN);
-	dw_mipi_dsi_phy_write(dsi, 0x19, PLL_LOOP_DIV_EN | PLL_INPUT_DIV_EN);
+	struct mipi_dphy *dphy = &dsi->dphy;
+
+	regmap_write(dphy->regmap, 0x17, INPUT_DIVIDER(dphy->input_div));
+	regmap_write(dphy->regmap, 0x18,
+		     LOOP_DIV_LOW_SEL(dphy->feedback_div) | LOW_PROGRAM_EN);
+	regmap_write(dphy->regmap, 0x19, PLL_LOOP_DIV_EN | PLL_INPUT_DIV_EN);
+	regmap_write(dphy->regmap, 0x18,
+		     LOOP_DIV_HIGH_SEL(dphy->feedback_div) | HIGH_PROGRAM_EN);
+	regmap_write(dphy->regmap, 0x19, PLL_LOOP_DIV_EN | PLL_INPUT_DIV_EN);
 }
 
 static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 {
+	struct mipi_dphy *dphy = &dsi->dphy;
 	int testdin, vco;
 
 	vco = (dsi->lane_mbps < 200) ? 0 : (dsi->lane_mbps + 100) / 200;
@@ -579,37 +657,34 @@ static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 		return testdin;
 	}
 
-	dw_mipi_dsi_phy_write(dsi, 0x10, BYPASS_VCO_RANGE |
-					 VCO_RANGE_CON_SEL(vco) |
-					 VCO_IN_CAP_CON_LOW |
-					 REF_BIAS_CUR_SEL);
+	regmap_write(dphy->regmap, 0x10,
+		     BYPASS_VCO_RANGE | VCO_RANGE_CON_SEL(vco) |
+		     VCO_IN_CAP_CON_LOW | REF_BIAS_CUR_SEL);
+	regmap_write(dphy->regmap, 0x11, CP_CURRENT_3MA);
+	regmap_write(dphy->regmap, 0x12,
+		     CP_PROGRAM_EN | LPF_PROGRAM_EN | LPF_RESISTORS_20_KOHM);
 
-	dw_mipi_dsi_phy_write(dsi, 0x11, CP_CURRENT_3MA);
-	dw_mipi_dsi_phy_write(dsi, 0x12, CP_PROGRAM_EN | LPF_PROGRAM_EN |
-					 LPF_RESISTORS_20_KOHM);
-
-	dw_mipi_dsi_phy_write(dsi, 0x44, HSFREQRANGE_SEL(testdin));
+	regmap_write(dphy->regmap, 0x44, HSFREQRANGE_SEL(testdin));
 
 	if (IS_DSI0(dsi))
 		dw_mipi_dsi_phy_pll_init(dsi);
 
-	dw_mipi_dsi_phy_write(dsi, 0x20, POWER_CONTROL | INTERNAL_REG_CURRENT |
-					 BIAS_BLOCK_ON | BANDGAP_ON);
-
-	dw_mipi_dsi_phy_write(dsi, 0x21, TER_RESISTOR_LOW | TER_CAL_DONE |
-					 SETRD_MAX | TER_RESISTORS_ON);
-	dw_mipi_dsi_phy_write(dsi, 0x21, TER_RESISTOR_HIGH | LEVEL_SHIFTERS_ON |
-					 SETRD_MAX | POWER_MANAGE |
-					 TER_RESISTORS_ON);
-
-	dw_mipi_dsi_phy_write(dsi, 0x22, LOW_PROGRAM_EN |
-					 BIASEXTR_SEL(BIASEXTR_127_7));
-	dw_mipi_dsi_phy_write(dsi, 0x22, HIGH_PROGRAM_EN |
-					 BANDGAP_SEL(BANDGAP_96_10));
-
-	dw_mipi_dsi_phy_write(dsi, 0x70, TLP_PROGRAM_EN | 0xf);
-	dw_mipi_dsi_phy_write(dsi, 0x71, THS_PRE_PROGRAM_EN | 0x2d);
-	dw_mipi_dsi_phy_write(dsi, 0x72, THS_ZERO_PROGRAM_EN | 0xa);
+	regmap_write(dphy->regmap, 0x20,
+		     POWER_CONTROL | INTERNAL_REG_CURRENT |
+		     BIAS_BLOCK_ON | BANDGAP_ON);
+	regmap_write(dphy->regmap, 0x21,
+		     TER_RESISTOR_LOW | TER_CAL_DONE | SETRD_MAX |
+		     TER_RESISTORS_ON);
+	regmap_write(dphy->regmap, 0x21,
+		     TER_RESISTOR_HIGH | LEVEL_SHIFTERS_ON |
+		     SETRD_MAX | POWER_MANAGE | TER_RESISTORS_ON);
+	regmap_write(dphy->regmap, 0x22,
+		     LOW_PROGRAM_EN | BIASEXTR_SEL(BIASEXTR_127_7));
+	regmap_write(dphy->regmap, 0x22,
+		     HIGH_PROGRAM_EN | BANDGAP_SEL(BANDGAP_96_10));
+	regmap_write(dphy->regmap, 0x70, TLP_PROGRAM_EN | 0xf);
+	regmap_write(dphy->regmap, 0x71, THS_PRE_PROGRAM_EN | 0x2d);
+	regmap_write(dphy->regmap, 0x72, THS_ZERO_PROGRAM_EN | 0xa);
 
 	return 0;
 }
@@ -1497,41 +1572,59 @@ static const struct component_ops dw_mipi_dsi_ops = {
 	.unbind	= dw_mipi_dsi_unbind,
 };
 
+static const struct regmap_config testif_regmap_config = {
+	.name = "phy",
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = 0x97,
+	.fast_io = true,
+	.reg_write = testif_write,
+	.reg_read = testif_read,
+};
+
 static int mipi_dphy_attach(struct dw_mipi_dsi *dsi)
 {
 	struct device *dev = dsi->dev;
+	struct mipi_dphy *dphy = &dsi->dphy;
 	int ret;
 
-	dsi->dphy.phy = devm_phy_optional_get(dev, "mipi_dphy");
-	if (IS_ERR(dsi->dphy.phy)) {
-		ret = PTR_ERR(dsi->dphy.phy);
+	dphy->phy = devm_phy_optional_get(dev, "mipi_dphy");
+	if (IS_ERR(dphy->phy)) {
+		ret = PTR_ERR(dphy->phy);
 		dev_err(dev, "failed to get mipi dphy: %d\n", ret);
 		return ret;
 	}
 
-	if (dsi->dphy.phy) {
+	if (dphy->phy) {
 		dev_dbg(dev, "Use Non-SNPS PHY\n");
 
-		dsi->dphy.hs_clk = devm_clk_get(dev, "hs_clk");
-		if (IS_ERR(dsi->dphy.hs_clk)) {
+		dphy->hs_clk = devm_clk_get(dev, "hs_clk");
+		if (IS_ERR(dphy->hs_clk)) {
 			dev_err(dev, "failed to get PHY high-speed clock\n");
-			return PTR_ERR(dsi->dphy.hs_clk);
+			return PTR_ERR(dphy->hs_clk);
 		}
 	} else {
 		dev_dbg(dev, "Use SNPS PHY\n");
 
-		dsi->dphy.ref_clk = devm_clk_get(dev, "ref");
-		if (IS_ERR(dsi->dphy.ref_clk)) {
+		dphy->ref_clk = devm_clk_get(dev, "ref");
+		if (IS_ERR(dphy->ref_clk)) {
 			dev_err(dev, "failed to get PHY reference clock\n");
-			return PTR_ERR(dsi->dphy.ref_clk);
+			return PTR_ERR(dphy->ref_clk);
 		}
 
 		if (dsi->pdata->soc_type != RK3288) {
-			dsi->dphy.cfg_clk = devm_clk_get(dev, "phy_cfg");
-			if (IS_ERR(dsi->dphy.cfg_clk)) {
+			dphy->cfg_clk = devm_clk_get(dev, "phy_cfg");
+			if (IS_ERR(dphy->cfg_clk)) {
 				dev_err(dev, "failed to get PHY config clk\n");
-				return PTR_ERR(dsi->dphy.cfg_clk);
+				return PTR_ERR(dphy->cfg_clk);
 			}
+		}
+
+		dphy->regmap = devm_regmap_init(dev, NULL, dsi,
+						&testif_regmap_config);
+		if (IS_ERR(dphy->regmap)) {
+			dev_err(dev, "failed to create mipi dphy regmap\n");
+			return PTR_ERR(dphy->regmap);
 		}
 	}
 
@@ -1561,6 +1654,7 @@ static int dw_mipi_dsi_parse_dt(struct dw_mipi_dsi *dsi)
 }
 
 static const struct regmap_config dw_mipi_dsi_regmap_config = {
+	.name = "host",
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
