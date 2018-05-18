@@ -34,6 +34,9 @@
 
 #define AFE_PARAM_ID_CDC_SLIMBUS_SLAVE_CFG 0x00010235
 
+#define AFE_PARAM_ID_LPAIF_CLK_CONFIG	0x00010238
+#define AFE_PARAM_ID_INT_DIGITAL_CDC_CLK_CONFIG	0x00010239
+
 #define AFE_PARAM_ID_SLIMBUS_CONFIG    0x00010212
 #define AFE_PARAM_ID_I2S_CONFIG	0x0001020D
 
@@ -67,6 +70,11 @@
 #define AFE_PORT_ID_MULTICHAN_HDMI_RX	0x100E
 
 #define AFE_API_VERSION_SLIMBUS_CONFIG 0x1
+/* Clock set API version */
+#define AFE_API_VERSION_CLOCK_SET 1
+#define Q6AFE_LPASS_CLK_CONFIG_API_VERSION	0x1
+#define AFE_MODULE_CLOCK_SET		0x0001028F
+#define AFE_PARAM_ID_CLOCK_SET		0x00010290
 
 /* SLIMbus Rx port on channel 0. */
 #define AFE_PORT_ID_SLIMBUS_MULTI_CHAN_0_RX      0x4000
@@ -142,6 +150,13 @@ struct afe_port_param_data_v2 {
 	u16 reserved;
 } __packed;
 
+struct afe_svc_cmd_set_param {
+	uint32_t payload_size;
+	uint32_t payload_address_lsw;
+	uint32_t payload_address_msw;
+	uint32_t mem_map_handle;
+} __packed;
+
 struct afe_port_cmd_set_param_v2 {
 	u16 port_id;
 	u16 payload_size;
@@ -202,6 +217,23 @@ struct afe_param_id_slimbus_cfg {
  */
 } __packed;
 
+struct afe_clk_cfg {
+	u32                  i2s_cfg_minor_version;
+	u32                  clk_val1;
+	u32                  clk_val2;
+	u16                  clk_src;
+	u16                  clk_root;
+	u16                  clk_set_mode;
+	u16                  reserved;
+} __packed;
+
+struct afe_digital_clk_cfg {
+	u32                  i2s_cfg_minor_version;
+	u32                  clk_val;
+	u16                  clk_root;
+	u16                  reserved;
+} __packed;
+
 struct afe_param_id_i2s_cfg {
 	u32	i2s_cfg_minor_version;
 	u16	bit_width;
@@ -218,6 +250,16 @@ union afe_port_config {
 	struct afe_param_id_slimbus_cfg           slim_cfg;
 	struct afe_param_id_i2s_cfg	i2s_cfg;
 } __packed;
+
+
+struct afe_clk_set {
+	uint32_t clk_set_minor_version;
+	uint32_t clk_id;
+	uint32_t clk_freq_in_hz;
+	uint16_t clk_attri;
+	uint16_t clk_root;
+	uint32_t enable;
+};
 
 struct q6afe_port {
 	wait_queue_head_t wait;
@@ -404,6 +446,54 @@ err:
 	return ret;
 }
 
+static int q6afe_port_set_param(struct q6afe_port *port, void *data,
+				int param_id, int module_id, int psize)
+{
+	struct afe_svc_cmd_set_param *param;
+	struct afe_port_param_data_v2 *pdata;
+	struct q6afe *afe = port->afe;
+	struct apr_pkt *pkt;
+	u16 port_id = port->id;
+	int ret, pkt_size;
+	void *p, *pl;
+
+	pkt_size = APR_HDR_SIZE + sizeof(*param) + sizeof(*pdata) + psize;
+	p = kzalloc(pkt_size, GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+
+	pkt = p;
+	param = p + APR_HDR_SIZE;
+	pdata = p + APR_HDR_SIZE + sizeof(*param);
+	pl = p + APR_HDR_SIZE + sizeof(*param) + sizeof(*pdata);
+	memcpy(pl, data, psize);
+
+	pkt->hdr.hdr_field = APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD,
+					   APR_HDR_LEN(APR_HDR_SIZE),
+					   APR_PKT_VER);
+	pkt->hdr.pkt_size = pkt_size;
+	pkt->hdr.src_port = 0;
+	pkt->hdr.dest_port = 0;
+	pkt->hdr.token = port->token;
+	pkt->hdr.opcode = AFE_SVC_CMD_SET_PARAM;
+
+	param->payload_size = sizeof(*pdata) + psize;
+	param->payload_address_lsw = 0x00;
+	param->payload_address_msw = 0x00;
+	param->mem_map_handle = 0x00;
+	pdata->module_id = module_id;
+	pdata->param_id = param_id;
+	pdata->param_size = psize;
+
+	ret = afe_apr_send_pkt(afe, pkt, port);
+	if (ret)
+		dev_err(afe->dev, "AFE enable for port 0x%x failed %d\n",
+		       port_id, ret);
+
+	kfree(pkt);
+	return ret;
+}
+
 static int q6afe_port_set_param_v2(struct q6afe_port *port, void *data,
 				   int param_id, int module_id, int psize)
 {
@@ -452,6 +542,82 @@ static int q6afe_port_set_param_v2(struct q6afe_port *port, void *data,
 	kfree(pkt);
 	return ret;
 }
+
+static int q6afe_set_lpass_clock(struct q6afe_port *port,
+				 struct afe_clk_cfg *cfg)
+{
+	return q6afe_port_set_param_v2(port, cfg,
+				       AFE_PARAM_ID_LPAIF_CLK_CONFIG,
+				       AFE_MODULE_AUDIO_DEV_INTERFACE,
+				       sizeof(*cfg));
+}
+
+static int q6afe_set_lpass_clock_v2(struct q6afe_port *port,
+				 struct afe_clk_set *cfg)
+{
+	return q6afe_port_set_param(port, cfg, AFE_PARAM_ID_CLOCK_SET,
+				    AFE_MODULE_CLOCK_SET, sizeof(*cfg));
+}
+
+static int q6afe_set_digital_codec_core_clock(struct q6afe_port *port,
+					      struct afe_digital_clk_cfg *cfg)
+{
+	return q6afe_port_set_param_v2(port, cfg,
+				       AFE_PARAM_ID_INT_DIGITAL_CDC_CLK_CONFIG,
+				       AFE_MODULE_AUDIO_DEV_INTERFACE,
+				       sizeof(*cfg));
+}
+
+int q6afe_port_set_sysclk(struct q6afe_port *port, int clk_id,
+			  int clk_src, int clk_root,
+			  unsigned int freq, int dir)
+{
+	struct afe_clk_cfg ccfg = {0,};
+	struct afe_clk_set cset = {0,};
+	struct afe_digital_clk_cfg dcfg = {0,};
+	int ret;
+
+	switch (clk_id) {
+	case LPAIF_DIG_CLK:
+		dcfg.i2s_cfg_minor_version = AFE_API_VERSION_I2S_CONFIG;
+		dcfg.clk_val = freq;
+		dcfg.clk_root = clk_root;
+		ret = q6afe_set_digital_codec_core_clock(port, &dcfg);
+		break;
+	case LPAIF_BIT_CLK:
+		ccfg.i2s_cfg_minor_version = AFE_API_VERSION_I2S_CONFIG;
+		ccfg.clk_val1 = freq;
+		ccfg.clk_src = clk_src;
+		ccfg.clk_root = clk_root;
+		ccfg.clk_set_mode = Q6AFE_LPASS_MODE_CLK1_VALID;
+		ret = q6afe_set_lpass_clock(port, &ccfg);
+		break;
+
+	case LPAIF_OSR_CLK:
+		ccfg.i2s_cfg_minor_version = AFE_API_VERSION_I2S_CONFIG;
+		ccfg.clk_val2 = freq;
+		ccfg.clk_src = clk_src;
+		ccfg.clk_root = clk_root;
+		ccfg.clk_set_mode = Q6AFE_LPASS_MODE_CLK2_VALID;
+		ret = q6afe_set_lpass_clock(port, &ccfg);
+		break;
+	case Q6AFE_LPASS_CLK_ID_PRI_MI2S_IBIT ... Q6AFE_LPASS_CLK_ID_INT_MCLK_1:
+		cset.clk_set_minor_version = AFE_API_VERSION_CLOCK_SET;
+		cset.clk_id = clk_id;
+		cset.clk_freq_in_hz = freq;
+		cset.clk_attri = clk_src;
+		cset.clk_root = clk_root;
+		cset.enable = !!freq;
+		ret = q6afe_set_lpass_clock_v2(port, &cset);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(q6afe_port_set_sysclk);
 
 /**
  * q6afe_port_stop() - Stop a afe port
