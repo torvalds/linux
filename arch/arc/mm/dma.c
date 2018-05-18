@@ -153,6 +153,18 @@ static void _dma_cache_sync(phys_addr_t paddr, size_t size,
 	}
 }
 
+static void arc_dma_sync_single_for_device(struct device *dev,
+		dma_addr_t dma_handle, size_t size, enum dma_data_direction dir)
+{
+	dma_cache_wback(dma_handle, size);
+}
+
+static void arc_dma_sync_single_for_cpu(struct device *dev,
+		dma_addr_t dma_handle, size_t size, enum dma_data_direction dir)
+{
+	dma_cache_inv(dma_handle, size);
+}
+
 /*
  * arc_dma_map_page - map a portion of a page for streaming DMA
  *
@@ -219,18 +231,6 @@ static void arc_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
 	for_each_sg(sg, s, nents, i)
 		arc_dma_unmap_page(dev, sg_dma_address(s), sg_dma_len(s), dir,
 				   attrs);
-}
-
-static void arc_dma_sync_single_for_cpu(struct device *dev,
-		dma_addr_t dma_handle, size_t size, enum dma_data_direction dir)
-{
-	_dma_cache_sync(dma_handle, size, DMA_FROM_DEVICE);
-}
-
-static void arc_dma_sync_single_for_device(struct device *dev,
-		dma_addr_t dma_handle, size_t size, enum dma_data_direction dir)
-{
-	_dma_cache_sync(dma_handle, size, DMA_TO_DEVICE);
 }
 
 static void arc_dma_sync_sg_for_cpu(struct device *dev,
