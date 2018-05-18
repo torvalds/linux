@@ -1115,6 +1115,8 @@ static enum power_supply_property bq25700_power_supply_props[] = {
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX,
 	POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT_MAX,
 	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
+	POWER_SUPPLY_PROP_VOLTAGE_MAX,
+	POWER_SUPPLY_PROP_CURRENT_MAX,
 };
 
 static int bq25700_power_supply_get_property(struct power_supply *psy,
@@ -1193,6 +1195,16 @@ static int bq25700_power_supply_get_property(struct power_supply *psy,
 
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
 		val->intval = bq25700_tables[TBL_INPUTCUR].rt.max;
+		break;
+
+	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
+		ret = bq25700_field_read(bq, MAX_CHARGE_VOLTAGE);
+		val->intval = ret * 16;
+		break;
+
+	case POWER_SUPPLY_PROP_CURRENT_MAX:
+		ret = bq25700_field_read(bq, CHARGE_CURRENT);
+		val->intval = ret * 64;
 		break;
 
 	default:
