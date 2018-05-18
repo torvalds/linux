@@ -474,10 +474,10 @@ int smc_conn_create(struct smc_sock *smc,
 		    struct smc_clc_msg_local *lcl, int srv_first_contact)
 {
 	struct smc_connection *conn = &smc->conn;
+	int local_contact = SMC_FIRST_CONTACT;
 	struct smc_link_group *lgr;
 	unsigned short vlan_id;
 	enum smc_lgr_role role;
-	int local_contact = SMC_FIRST_CONTACT;
 	int rc = 0;
 
 	role = smc->listen_smc ? SMC_SERV : SMC_CLNT;
@@ -573,11 +573,9 @@ int smc_uncompress_bufsize(u8 compressed)
 /* try to reuse a sndbuf or rmb description slot for a certain
  * buffer size; if not available, return NULL
  */
-static inline
-struct smc_buf_desc *smc_buf_get_slot(struct smc_link_group *lgr,
-				      int compressed_bufsize,
-				      rwlock_t *lock,
-				      struct list_head *buf_list)
+static struct smc_buf_desc *smc_buf_get_slot(int compressed_bufsize,
+					     rwlock_t *lock,
+					     struct list_head *buf_list)
 {
 	struct smc_buf_desc *buf_slot;
 
@@ -662,9 +660,9 @@ static struct smc_buf_desc *smc_new_buf_create(struct smc_link_group *lgr,
 
 static int __smc_buf_create(struct smc_sock *smc, bool is_rmb)
 {
+	struct smc_buf_desc *buf_desc = ERR_PTR(-ENOMEM);
 	struct smc_connection *conn = &smc->conn;
 	struct smc_link_group *lgr = conn->lgr;
-	struct smc_buf_desc *buf_desc = ERR_PTR(-ENOMEM);
 	struct list_head *buf_list;
 	int bufsize, bufsize_short;
 	int sk_buf_size;
@@ -692,7 +690,7 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_rmb)
 			continue;
 
 		/* check for reusable slot in the link group */
-		buf_desc = smc_buf_get_slot(lgr, bufsize_short, lock, buf_list);
+		buf_desc = smc_buf_get_slot(bufsize_short, lock, buf_list);
 		if (buf_desc) {
 			memset(buf_desc->cpu_addr, 0, bufsize);
 			break; /* found reusable slot */
