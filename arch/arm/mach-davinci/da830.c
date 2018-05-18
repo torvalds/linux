@@ -8,22 +8,26 @@
  * is licensed "as is" without any warranty of any kind, whether express
  * or implied.
  */
+#include <linux/clk-provider.h>
+#include <linux/clk/davinci.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
-#include <linux/clk.h>
 #include <linux/platform_data/gpio-davinci.h>
 
 #include <asm/mach/map.h>
 
-#include "psc.h"
-#include <mach/irqs.h>
-#include <mach/cputype.h>
 #include <mach/common.h>
-#include <mach/time.h>
+#include <mach/cputype.h>
 #include <mach/da8xx.h>
+#include <mach/irqs.h>
+#include <mach/time.h>
 
-#include "clock.h"
 #include "mux.h"
+
+#ifndef CONFIG_COMMON_CLK
+#include "clock.h"
+#include "psc.h"
+#endif
 
 /* Offsets of the 8 compare registers on the da830 */
 #define DA830_CMP12_0		0x60
@@ -37,6 +41,7 @@
 
 #define DA830_REF_FREQ		24000000
 
+#ifndef CONFIG_COMMON_CLK
 static struct pll_data pll0_data = {
 	.num		= 1,
 	.phys_base	= DA8XX_PLL0_BASE,
@@ -432,6 +437,7 @@ static struct clk_lookup da830_clks[] = {
 	CLK(NULL,		"rmii",		&rmii_clk),
 	CLK(NULL,		NULL,		NULL),
 };
+#endif
 
 /*
  * Device specific mux setup
@@ -1223,6 +1229,58 @@ void __init da830_init(void)
 
 void __init da830_init_time(void)
 {
+#ifdef CONFIG_COMMON_CLK
+	void __iomem *pll;
+	struct clk *clk;
+
+	clk_register_fixed_rate(NULL, "ref_clk", NULL, 0, DA830_REF_FREQ);
+
+	pll = ioremap(DA8XX_PLL0_BASE, SZ_4K);
+
+	da830_pll_init(NULL, pll, NULL);
+
+	clk = clk_get(NULL, "timer0");
+
+	davinci_timer_init(clk);
+#else
 	davinci_clk_init(da830_clks);
 	davinci_timer_init(&timerp64_0_clk);
+#endif
+}
+
+static struct resource da830_psc0_resources[] = {
+	{
+		.start	= DA8XX_PSC0_BASE,
+		.end	= DA8XX_PSC0_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device da830_psc0_device = {
+	.name		= "da830-psc0",
+	.id		= -1,
+	.resource	= da830_psc0_resources,
+	.num_resources	= ARRAY_SIZE(da830_psc0_resources),
+};
+
+static struct resource da830_psc1_resources[] = {
+	{
+		.start	= DA8XX_PSC1_BASE,
+		.end	= DA8XX_PSC1_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device da830_psc1_device = {
+	.name		= "da830-psc1",
+	.id		= -1,
+	.resource	= da830_psc1_resources,
+	.num_resources	= ARRAY_SIZE(da830_psc1_resources),
+};
+
+void __init da830_register_clocks(void)
+{
+	/* PLL is registered in da830_init_time() */
+	platform_device_register(&da830_psc0_device);
+	platform_device_register(&da830_psc1_device);
 }

@@ -89,6 +89,7 @@ extern unsigned int da850_max_speed;
 
 void da830_init(void);
 void da830_init_time(void);
+void da830_register_clocks(void);
 
 void da850_init(void);
 void da850_init_time(void);
