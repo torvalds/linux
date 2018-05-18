@@ -81,8 +81,7 @@ static void dwmac1000_dma_axi(void __iomem *ioaddr, struct stmmac_axi *axi)
 }
 
 static void dwmac1000_dma_init(void __iomem *ioaddr,
-			       struct stmmac_dma_cfg *dma_cfg,
-			       u32 dma_tx, u32 dma_rx, int atds)
+			       struct stmmac_dma_cfg *dma_cfg, int atds)
 {
 	u32 value = readl(ioaddr + DMA_BUS_MODE);
 	int txpbl = dma_cfg->txpbl ?: dma_cfg->pbl;
@@ -119,12 +118,22 @@ static void dwmac1000_dma_init(void __iomem *ioaddr,
 
 	/* Mask interrupts by writing to CSR7 */
 	writel(DMA_INTR_DEFAULT_MASK, ioaddr + DMA_INTR_ENA);
+}
 
-	/* RX/TX descriptor base address lists must be written into
-	 * DMA CSR3 and CSR4, respectively
-	 */
-	writel(dma_tx, ioaddr + DMA_TX_BASE_ADDR);
-	writel(dma_rx, ioaddr + DMA_RCV_BASE_ADDR);
+static void dwmac1000_dma_init_rx(void __iomem *ioaddr,
+				  struct stmmac_dma_cfg *dma_cfg,
+				  u32 dma_rx_phy, u32 chan)
+{
+	/* RX descriptor base address list must be written into DMA CSR3 */
+	writel(dma_rx_phy, ioaddr + DMA_RCV_BASE_ADDR);
+}
+
+static void dwmac1000_dma_init_tx(void __iomem *ioaddr,
+				  struct stmmac_dma_cfg *dma_cfg,
+				  u32 dma_tx_phy, u32 chan)
+{
+	/* TX descriptor base address list must be written into DMA CSR4 */
+	writel(dma_tx_phy, ioaddr + DMA_TX_BASE_ADDR);
 }
 
 static u32 dwmac1000_configure_fc(u32 csr6, int rxfifosz)
@@ -264,6 +273,8 @@ static void dwmac1000_rx_watchdog(void __iomem *ioaddr, u32 riwt,
 const struct stmmac_dma_ops dwmac1000_dma_ops = {
 	.reset = dwmac_dma_reset,
 	.init = dwmac1000_dma_init,
+	.init_rx_chan = dwmac1000_dma_init_rx,
+	.init_tx_chan = dwmac1000_dma_init_tx,
 	.axi = dwmac1000_dma_axi,
 	.dump_regs = dwmac1000_dump_dma_regs,
 	.dma_rx_mode = dwmac1000_dma_operation_mode_rx,

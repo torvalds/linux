@@ -2138,10 +2138,9 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 {
 	u32 rx_channels_count = priv->plat->rx_queues_to_use;
 	u32 tx_channels_count = priv->plat->tx_queues_to_use;
+	u32 dma_csr_ch = max(rx_channels_count, tx_channels_count);
 	struct stmmac_rx_queue *rx_q;
 	struct stmmac_tx_queue *tx_q;
-	u32 dummy_dma_rx_phy = 0;
-	u32 dummy_dma_tx_phy = 0;
 	u32 chan = 0;
 	int atds = 0;
 	int ret = 0;
@@ -2160,47 +2159,38 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 		return ret;
 	}
 
-	if (priv->synopsys_id >= DWMAC_CORE_4_00) {
-		/* DMA Configuration */
-		stmmac_dma_init(priv, priv->ioaddr, priv->plat->dma_cfg,
-				dummy_dma_tx_phy, dummy_dma_rx_phy, atds);
-
-		/* DMA RX Channel Configuration */
-		for (chan = 0; chan < rx_channels_count; chan++) {
-			rx_q = &priv->rx_queue[chan];
-
-			stmmac_init_rx_chan(priv, priv->ioaddr,
-					priv->plat->dma_cfg, rx_q->dma_rx_phy,
-					chan);
-
-			rx_q->rx_tail_addr = rx_q->dma_rx_phy +
-				    (DMA_RX_SIZE * sizeof(struct dma_desc));
-			stmmac_set_rx_tail_ptr(priv, priv->ioaddr,
-					rx_q->rx_tail_addr, chan);
-		}
-
-		/* DMA TX Channel Configuration */
-		for (chan = 0; chan < tx_channels_count; chan++) {
-			tx_q = &priv->tx_queue[chan];
-
-			stmmac_init_chan(priv, priv->ioaddr,
-					priv->plat->dma_cfg, chan);
-
-			stmmac_init_tx_chan(priv, priv->ioaddr,
-					priv->plat->dma_cfg, tx_q->dma_tx_phy,
-					chan);
-
-			tx_q->tx_tail_addr = tx_q->dma_tx_phy +
-				    (DMA_TX_SIZE * sizeof(struct dma_desc));
-			stmmac_set_tx_tail_ptr(priv, priv->ioaddr,
-					tx_q->tx_tail_addr, chan);
-		}
-	} else {
+	/* DMA RX Channel Configuration */
+	for (chan = 0; chan < rx_channels_count; chan++) {
 		rx_q = &priv->rx_queue[chan];
-		tx_q = &priv->tx_queue[chan];
-		stmmac_dma_init(priv, priv->ioaddr, priv->plat->dma_cfg,
-				tx_q->dma_tx_phy, rx_q->dma_rx_phy, atds);
+
+		stmmac_init_rx_chan(priv, priv->ioaddr, priv->plat->dma_cfg,
+				    rx_q->dma_rx_phy, chan);
+
+		rx_q->rx_tail_addr = rx_q->dma_rx_phy +
+			    (DMA_RX_SIZE * sizeof(struct dma_desc));
+		stmmac_set_rx_tail_ptr(priv, priv->ioaddr,
+				       rx_q->rx_tail_addr, chan);
 	}
+
+	/* DMA TX Channel Configuration */
+	for (chan = 0; chan < tx_channels_count; chan++) {
+		tx_q = &priv->tx_queue[chan];
+
+		stmmac_init_tx_chan(priv, priv->ioaddr, priv->plat->dma_cfg,
+				    tx_q->dma_tx_phy, chan);
+
+		tx_q->tx_tail_addr = tx_q->dma_tx_phy +
+			    (DMA_TX_SIZE * sizeof(struct dma_desc));
+		stmmac_set_tx_tail_ptr(priv, priv->ioaddr,
+				       tx_q->tx_tail_addr, chan);
+	}
+
+	/* DMA CSR Channel configuration */
+	for (chan = 0; chan < dma_csr_ch; chan++)
+		stmmac_init_chan(priv, priv->ioaddr, priv->plat->dma_cfg, chan);
+
+	/* DMA Configuration */
+	stmmac_dma_init(priv, priv->ioaddr, priv->plat->dma_cfg, atds);
 
 	if (priv->plat->axi)
 		stmmac_axi(priv, priv->ioaddr, priv->plat->axi);
