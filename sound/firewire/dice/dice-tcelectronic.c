@@ -75,13 +75,12 @@ int snd_dice_detect_tcelectronic_formats(struct snd_dice *dice)
 		}
 	}
 
-	entry = NULL;
 	for (i = 0; i < ARRAY_SIZE(entries); ++i) {
 		entry = entries + i;
 		if (entry->model_id == model_id)
 			break;
 	}
-	if (!entry)
+	if (i == ARRAY_SIZE(entries))
 		return -ENODEV;
 
 	memcpy(dice->tx_pcm_chs, entry->spec->tx_pcm_chs,
