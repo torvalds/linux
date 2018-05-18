@@ -47,7 +47,7 @@ static int ad2s1200_read_raw(struct iio_dev *indio_dev,
 			     long m)
 {
 	struct ad2s1200_state *st = iio_priv(indio_dev);
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&st->lock);
 	gpio_set_value(st->sample, 0);
@@ -105,7 +105,7 @@ static int ad2s1200_probe(struct spi_device *spi)
 	unsigned short *pins = spi->dev.platform_data;
 	struct ad2s1200_state *st;
 	struct iio_dev *indio_dev;
-	int pn, ret = 0;
+	int pn, ret;
 
 	for (pn = 0; pn < AD2S1200_PN; pn++) {
 		ret = devm_gpio_request_one(&spi->dev, pins[pn], GPIOF_DIR_OUT,
