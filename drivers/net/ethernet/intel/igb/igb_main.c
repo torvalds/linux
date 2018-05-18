@@ -4055,11 +4055,6 @@ void igb_configure_tx_ring(struct igb_adapter *adapter,
 	u64 tdba = ring->dma;
 	int reg_idx = ring->reg_idx;
 
-	/* disable the queue */
-	wr32(E1000_TXDCTL(reg_idx), 0);
-	wrfl();
-	mdelay(10);
-
 	wr32(E1000_TDLEN(reg_idx),
 	     ring->count * sizeof(union e1000_adv_tx_desc));
 	wr32(E1000_TDBAL(reg_idx),
@@ -4090,7 +4085,15 @@ void igb_configure_tx_ring(struct igb_adapter *adapter,
  **/
 static void igb_configure_tx(struct igb_adapter *adapter)
 {
+	struct e1000_hw *hw = &adapter->hw;
 	int i;
+
+	/* disable the queues */
+	for (i = 0; i < adapter->num_tx_queues; i++)
+		wr32(E1000_TXDCTL(adapter->tx_ring[i]->reg_idx), 0);
+
+	wrfl();
+	usleep_range(10000, 20000);
 
 	for (i = 0; i < adapter->num_tx_queues; i++)
 		igb_configure_tx_ring(adapter, adapter->tx_ring[i]);
