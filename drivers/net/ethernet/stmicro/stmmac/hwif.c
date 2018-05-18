@@ -189,13 +189,16 @@ int stmmac_hwif_init(struct stmmac_priv *priv)
 	bool needs_gmac = priv->plat->has_gmac;
 	const struct stmmac_hwif_entry *entry;
 	struct mac_device_info *mac;
+	bool needs_setup = true;
 	int i, ret;
 	u32 id;
 
 	if (needs_gmac) {
 		id = stmmac_get_id(priv, GMAC_VERSION);
-	} else {
+	} else if (needs_gmac4) {
 		id = stmmac_get_id(priv, GMAC4_VERSION);
+	} else {
+		id = 0;
 	}
 
 	/* Save ID for later use */
@@ -209,13 +212,12 @@ int stmmac_hwif_init(struct stmmac_priv *priv)
 
 	/* Check for HW specific setup first */
 	if (priv->plat->setup) {
-		priv->hw = priv->plat->setup(priv);
-		if (!priv->hw)
-			return -ENOMEM;
-		return 0;
+		mac = priv->plat->setup(priv);
+		needs_setup = false;
+	} else {
+		mac = devm_kzalloc(priv->device, sizeof(*mac), GFP_KERNEL);
 	}
 
-	mac = devm_kzalloc(priv->device, sizeof(*mac), GFP_KERNEL);
 	if (!mac)
 		return -ENOMEM;
 
@@ -227,24 +229,28 @@ int stmmac_hwif_init(struct stmmac_priv *priv)
 			continue;
 		if (needs_gmac4 ^ entry->gmac4)
 			continue;
-		if (id < entry->min_id)
+		/* Use synopsys_id var because some setups can override this */
+		if (priv->synopsys_id < entry->min_id)
 			continue;
 
-		mac->desc = entry->desc;
-		mac->dma = entry->dma;
-		mac->mac = entry->mac;
-		mac->ptp = entry->hwtimestamp;
-		mac->mode = entry->mode;
-		mac->tc = entry->tc;
+		/* Only use generic HW helpers if needed */
+		mac->desc = mac->desc ? : entry->desc;
+		mac->dma = mac->dma ? : entry->dma;
+		mac->mac = mac->mac ? : entry->mac;
+		mac->ptp = mac->ptp ? : entry->hwtimestamp;
+		mac->mode = mac->mode ? : entry->mode;
+		mac->tc = mac->tc ? : entry->tc;
 
 		priv->hw = mac;
 		priv->ptpaddr = priv->ioaddr + entry->regs.ptp_off;
 		priv->mmcaddr = priv->ioaddr + entry->regs.mmc_off;
 
 		/* Entry found */
-		ret = entry->setup(priv);
-		if (ret)
-			return ret;
+		if (needs_setup) {
+			ret = entry->setup(priv);
+			if (ret)
+				return ret;
+		}
 
 		/* Run quirks, if needed */
 		if (entry->quirks) {
