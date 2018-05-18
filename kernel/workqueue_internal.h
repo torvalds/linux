@@ -37,7 +37,7 @@ struct worker {
 	/* 64 bytes boundary on 64bit, 32 on 32bit */
 
 	struct task_struct	*task;		/* I: worker task */
-	struct worker_pool	*pool;		/* I: the associated pool */
+	struct worker_pool	*pool;		/* A: the associated pool */
 						/* L: for rescuers */
 	struct list_head	node;		/* A: anchored at pool->workers */
 						/* A: runs through worker->node */

@@ -1741,6 +1741,7 @@ static void worker_attach_to_pool(struct worker *worker,
 		worker->flags |= WORKER_UNBOUND;
 
 	list_add_tail(&worker->node, &pool->workers);
+	worker->pool = pool;
 
 	mutex_unlock(&wq_pool_attach_mutex);
 }
@@ -1748,19 +1749,21 @@ static void worker_attach_to_pool(struct worker *worker,
 /**
  * worker_detach_from_pool() - detach a worker from its pool
  * @worker: worker which is attached to its pool
- * @pool: the pool @worker is attached to
  *
  * Undo the attaching which had been done in worker_attach_to_pool().  The
  * caller worker shouldn't access to the pool after detached except it has
  * other reference to the pool.
  */
-static void worker_detach_from_pool(struct worker *worker,
-				    struct worker_pool *pool)
+static void worker_detach_from_pool(struct worker *worker)
 {
+	struct worker_pool *pool = worker->pool;
 	struct completion *detach_completion = NULL;
 
 	mutex_lock(&wq_pool_attach_mutex);
+
 	list_del(&worker->node);
+	worker->pool = NULL;
+
 	if (list_empty(&pool->workers))
 		detach_completion = pool->detach_completion;
 	mutex_unlock(&wq_pool_attach_mutex);
@@ -1799,7 +1802,6 @@ static struct worker *create_worker(struct worker_pool *pool)
 	if (!worker)
 		goto fail;
 
-	worker->pool = pool;
 	worker->id = id;
 
 	if (pool->cpu >= 0)
@@ -2236,7 +2238,7 @@ woke_up:
 
 		set_task_comm(worker->task, "kworker/dying");
 		ida_simple_remove(&pool->worker_ida, worker->id);
-		worker_detach_from_pool(worker, pool);
+		worker_detach_from_pool(worker);
 		kfree(worker);
 		return 0;
 	}
@@ -2367,7 +2369,6 @@ repeat:
 		worker_attach_to_pool(rescuer, pool);
 
 		spin_lock_irq(&pool->lock);
-		rescuer->pool = pool;
 
 		/*
 		 * Slurp in all works issued via this workqueue and
@@ -2417,10 +2418,9 @@ repeat:
 		if (need_more_worker(pool))
 			wake_up_worker(pool);
 
-		rescuer->pool = NULL;
 		spin_unlock_irq(&pool->lock);
 
-		worker_detach_from_pool(rescuer, pool);
+		worker_detach_from_pool(rescuer);
 
 		spin_lock_irq(&wq_mayday_lock);
 	}
