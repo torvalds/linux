@@ -124,8 +124,20 @@ struct stm32_timers {
 	struct stm32_timers_dma dma; /* Only to be used by the parent */
 };
 
+#if IS_REACHABLE(CONFIG_MFD_STM32_TIMERS)
 int stm32_timers_dma_burst_read(struct device *dev, u32 *buf,
 				enum stm32_timers_dmas id, u32 reg,
 				unsigned int num_reg, unsigned int bursts,
 				unsigned long tmo_ms);
+#else
+static inline int stm32_timers_dma_burst_read(struct device *dev, u32 *buf,
+					      enum stm32_timers_dmas id,
+					      u32 reg,
+					      unsigned int num_reg,
+					      unsigned int bursts,
+					      unsigned long tmo_ms)
+{
+	return -ENODEV;
+}
+#endif
 #endif
