@@ -40,19 +40,19 @@ static int lut_set_table(struct vsp1_lut *lut, struct v4l2_ctrl *ctrl)
 	struct vsp1_dl_body *dlb;
 	unsigned int i;
 
-	dlb = vsp1_dl_fragment_alloc(lut->entity.vsp1, 256);
+	dlb = vsp1_dl_body_alloc(lut->entity.vsp1, 256);
 	if (!dlb)
 		return -ENOMEM;
 
 	for (i = 0; i < 256; ++i)
-		vsp1_dl_fragment_write(dlb, VI6_LUT_TABLE + 4 * i,
+		vsp1_dl_body_write(dlb, VI6_LUT_TABLE + 4 * i,
 				       ctrl->p_new.p_u32[i]);
 
 	spin_lock_irq(&lut->lock);
 	swap(lut->lut, dlb);
 	spin_unlock_irq(&lut->lock);
 
-	vsp1_dl_fragment_free(dlb);
+	vsp1_dl_body_free(dlb);
 	return 0;
 }
 
@@ -167,7 +167,7 @@ static void lut_configure(struct vsp1_entity *entity,
 		spin_unlock_irqrestore(&lut->lock, flags);
 
 		if (dlb)
-			vsp1_dl_list_add_fragment(dl, dlb);
+			vsp1_dl_list_add_body(dl, dlb);
 		break;
 	}
 }

@@ -43,19 +43,19 @@ static int clu_set_table(struct vsp1_clu *clu, struct v4l2_ctrl *ctrl)
 	struct vsp1_dl_body *dlb;
 	unsigned int i;
 
-	dlb = vsp1_dl_fragment_alloc(clu->entity.vsp1, 1 + 17 * 17 * 17);
+	dlb = vsp1_dl_body_alloc(clu->entity.vsp1, 1 + 17 * 17 * 17);
 	if (!dlb)
 		return -ENOMEM;
 
-	vsp1_dl_fragment_write(dlb, VI6_CLU_ADDR, 0);
+	vsp1_dl_body_write(dlb, VI6_CLU_ADDR, 0);
 	for (i = 0; i < 17 * 17 * 17; ++i)
-		vsp1_dl_fragment_write(dlb, VI6_CLU_DATA, ctrl->p_new.p_u32[i]);
+		vsp1_dl_body_write(dlb, VI6_CLU_DATA, ctrl->p_new.p_u32[i]);
 
 	spin_lock_irq(&clu->lock);
 	swap(clu->clu, dlb);
 	spin_unlock_irq(&clu->lock);
 
-	vsp1_dl_fragment_free(dlb);
+	vsp1_dl_body_free(dlb);
 	return 0;
 }
 
@@ -211,7 +211,7 @@ static void clu_configure(struct vsp1_entity *entity,
 		spin_unlock_irqrestore(&clu->lock, flags);
 
 		if (dlb)
-			vsp1_dl_list_add_fragment(dl, dlb);
+			vsp1_dl_list_add_body(dl, dlb);
 		break;
 	}
 }
