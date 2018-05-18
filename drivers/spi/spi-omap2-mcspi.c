@@ -1467,20 +1467,6 @@ MODULE_ALIAS("platform:omap2_mcspi");
 #ifdef	CONFIG_SUSPEND
 static int omap2_mcspi_suspend_noirq(struct device *dev)
 {
-	int error;
-
-	/*
-	 * Make sure device gets idled if other drivers call SPI
-	 * functions between device_prepare() and device_complete()
-	 */
-	error = pm_runtime_force_suspend(dev);
-	if (error < 0) {
-		dev_err(dev, "%s: force suspend failed: %i\n",
-			__func__, error);
-
-		return error;
-	}
-
 	return pinctrl_pm_select_sleep_state(dev);
 }
 
@@ -1494,14 +1480,6 @@ static int omap2_mcspi_resume_noirq(struct device *dev)
 	if (error)
 		dev_warn(mcspi->dev, "%s: failed to set pins: %i\n",
 			 __func__, error);
-
-	error = pm_runtime_force_resume(mcspi->dev);
-	if (error < 0) {
-		dev_warn(mcspi->dev, "%s: force resume failed: %i\n",
-			 __func__, error);
-
-		return error;
-	}
 
 	return 0;
 }
