@@ -161,24 +161,45 @@ static struct cpufreq_driver tegra_cpufreq_driver = {
 
 static int __init tegra_cpufreq_init(void)
 {
+	int err;
+
 	cpu_clk = clk_get_sys(NULL, "cclk");
 	if (IS_ERR(cpu_clk))
 		return PTR_ERR(cpu_clk);
 
 	pll_x_clk = clk_get_sys(NULL, "pll_x");
-	if (IS_ERR(pll_x_clk))
-		return PTR_ERR(pll_x_clk);
+	if (IS_ERR(pll_x_clk)) {
+		err = PTR_ERR(pll_x_clk);
+		goto put_cpu;
+	}
 
 	pll_p_clk = clk_get_sys(NULL, "pll_p");
-	if (IS_ERR(pll_p_clk))
-		return PTR_ERR(pll_p_clk);
+	if (IS_ERR(pll_p_clk)) {
+		err = PTR_ERR(pll_p_clk);
+		goto put_pll_x;
+	}
 
-	return cpufreq_register_driver(&tegra_cpufreq_driver);
+	err = cpufreq_register_driver(&tegra_cpufreq_driver);
+	if (err)
+		goto put_pll_p;
+
+	return 0;
+
+put_pll_p:
+	clk_put(pll_p_clk);
+put_pll_x:
+	clk_put(pll_x_clk);
+put_cpu:
+	clk_put(cpu_clk);
+
+	return err;
 }
 
 static void __exit tegra_cpufreq_exit(void)
 {
 	cpufreq_unregister_driver(&tegra_cpufreq_driver);
+	clk_put(pll_p_clk);
+	clk_put(pll_x_clk);
 	clk_put(cpu_clk);
 }
 
