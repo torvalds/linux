@@ -396,165 +396,186 @@ static void smc_link_save_peer_info(struct smc_link *link,
 	link->peer_mtu = clc->qp_mtu;
 }
 
+/* fall back during connect */
+static int smc_connect_fallback(struct smc_sock *smc)
+{
+	smc->use_fallback = true;
+	smc_copy_sock_settings_to_clc(smc);
+	if (smc->sk.sk_state == SMC_INIT)
+		smc->sk.sk_state = SMC_ACTIVE;
+	return 0;
+}
+
+/* decline and fall back during connect */
+static int smc_connect_decline_fallback(struct smc_sock *smc, int reason_code)
+{
+	int rc;
+
+	if (reason_code < 0) /* error, fallback is not possible */
+		return reason_code;
+	if (reason_code != SMC_CLC_DECL_REPLY) {
+		rc = smc_clc_send_decline(smc, reason_code);
+		if (rc < 0)
+			return rc;
+	}
+	return smc_connect_fallback(smc);
+}
+
+/* abort connecting */
+static int smc_connect_abort(struct smc_sock *smc, int reason_code,
+			     int local_contact)
+{
+	if (local_contact == SMC_FIRST_CONTACT)
+		smc_lgr_forget(smc->conn.lgr);
+	mutex_unlock(&smc_create_lgr_pending);
+	smc_conn_free(&smc->conn);
+	if (reason_code < 0 && smc->sk.sk_state == SMC_INIT)
+		sock_put(&smc->sk); /* passive closing */
+	return reason_code;
+}
+
+/* check if there is a rdma device available for this connection. */
+/* called for connect and listen */
+static int smc_check_rdma(struct smc_sock *smc, struct smc_ib_device **ibdev,
+			  u8 *ibport)
+{
+	int reason_code = 0;
+
+	/* PNET table look up: search active ib_device and port
+	 * within same PNETID that also contains the ethernet device
+	 * used for the internal TCP socket
+	 */
+	smc_pnet_find_roce_resource(smc->clcsock->sk, ibdev, ibport);
+	if (!(*ibdev))
+		reason_code = SMC_CLC_DECL_CNFERR; /* configuration error */
+
+	return reason_code;
+}
+
+/* CLC handshake during connect */
+static int smc_connect_clc(struct smc_sock *smc,
+			   struct smc_clc_msg_accept_confirm *aclc,
+			   struct smc_ib_device *ibdev, u8 ibport)
+{
+	int rc = 0;
+
+	/* do inband token exchange */
+	rc = smc_clc_send_proposal(smc, ibdev, ibport);
+	if (rc)
+		return rc;
+	/* receive SMC Accept CLC message */
+	return smc_clc_wait_msg(smc, aclc, sizeof(*aclc), SMC_CLC_ACCEPT);
+}
+
 /* setup for RDMA connection of client */
-static int smc_connect_rdma(struct smc_sock *smc)
+static int smc_connect_rdma(struct smc_sock *smc,
+			    struct smc_clc_msg_accept_confirm *aclc,
+			    struct smc_ib_device *ibdev, u8 ibport)
+{
+	int local_contact = SMC_FIRST_CONTACT;
+	struct smc_link *link;
+	int reason_code = 0;
+
+	mutex_lock(&smc_create_lgr_pending);
+	local_contact = smc_conn_create(smc, ibdev, ibport, &aclc->lcl,
+					aclc->hdr.flag);
+	if (local_contact < 0) {
+		if (local_contact == -ENOMEM)
+			reason_code = SMC_CLC_DECL_MEM;/* insufficient memory*/
+		else if (local_contact == -ENOLINK)
+			reason_code = SMC_CLC_DECL_SYNCERR; /* synchr. error */
+		else
+			reason_code = SMC_CLC_DECL_INTERR; /* other error */
+		return smc_connect_abort(smc, reason_code, 0);
+	}
+	link = &smc->conn.lgr->lnk[SMC_SINGLE_LINK];
+
+	smc_conn_save_peer_info(smc, aclc);
+
+	/* create send buffer and rmb */
+	if (smc_buf_create(smc))
+		return smc_connect_abort(smc, SMC_CLC_DECL_MEM, local_contact);
+
+	if (local_contact == SMC_FIRST_CONTACT)
+		smc_link_save_peer_info(link, aclc);
+
+	if (smc_rmb_rtoken_handling(&smc->conn, aclc))
+		return smc_connect_abort(smc, SMC_CLC_DECL_INTERR,
+					 local_contact);
+
+	smc_close_init(smc);
+	smc_rx_init(smc);
+
+	if (local_contact == SMC_FIRST_CONTACT) {
+		if (smc_ib_ready_link(link))
+			return smc_connect_abort(smc, SMC_CLC_DECL_INTERR,
+						 local_contact);
+	} else {
+		if (!smc->conn.rmb_desc->reused &&
+		    smc_reg_rmb(link, smc->conn.rmb_desc, true))
+			return smc_connect_abort(smc, SMC_CLC_DECL_INTERR,
+						 local_contact);
+	}
+	smc_rmb_sync_sg_for_device(&smc->conn);
+
+	reason_code = smc_clc_send_confirm(smc);
+	if (reason_code)
+		return smc_connect_abort(smc, reason_code, local_contact);
+
+	smc_tx_init(smc);
+
+	if (local_contact == SMC_FIRST_CONTACT) {
+		/* QP confirmation over RoCE fabric */
+		reason_code = smc_clnt_conf_first_link(smc);
+		if (reason_code)
+			return smc_connect_abort(smc, reason_code,
+						 local_contact);
+	}
+	mutex_unlock(&smc_create_lgr_pending);
+
+	smc_copy_sock_settings_to_clc(smc);
+	if (smc->sk.sk_state == SMC_INIT)
+		smc->sk.sk_state = SMC_ACTIVE;
+
+	return 0;
+}
+
+/* perform steps before actually connecting */
+static int __smc_connect(struct smc_sock *smc)
 {
 	struct smc_clc_msg_accept_confirm aclc;
-	int local_contact = SMC_FIRST_CONTACT;
-	struct smc_ib_device *smcibdev;
-	struct smc_link *link;
-	u8 srv_first_contact;
-	int reason_code = 0;
+	struct smc_ib_device *ibdev;
 	int rc = 0;
 	u8 ibport;
 
 	sock_hold(&smc->sk); /* sock put in passive closing */
 
 	if (smc->use_fallback)
-		goto out_connected;
+		return smc_connect_fallback(smc);
 
-	if (!tcp_sk(smc->clcsock->sk)->syn_smc) {
-		/* peer has not signalled SMC-capability */
-		smc->use_fallback = true;
-		goto out_connected;
-	}
+	/* if peer has not signalled SMC-capability, fall back */
+	if (!tcp_sk(smc->clcsock->sk)->syn_smc)
+		return smc_connect_fallback(smc);
 
 	/* IPSec connections opt out of SMC-R optimizations */
-	if (using_ipsec(smc)) {
-		reason_code = SMC_CLC_DECL_IPSEC;
-		goto decline_rdma;
-	}
+	if (using_ipsec(smc))
+		return smc_connect_decline_fallback(smc, SMC_CLC_DECL_IPSEC);
 
-	/* PNET table look up: search active ib_device and port
-	 * within same PNETID that also contains the ethernet device
-	 * used for the internal TCP socket
-	 */
-	smc_pnet_find_roce_resource(smc->clcsock->sk, &smcibdev, &ibport);
-	if (!smcibdev) {
-		reason_code = SMC_CLC_DECL_CNFERR; /* configuration error */
-		goto decline_rdma;
-	}
+	/* check if a RDMA device is available; if not, fall back */
+	if (smc_check_rdma(smc, &ibdev, &ibport))
+		return smc_connect_decline_fallback(smc, SMC_CLC_DECL_CNFERR);
 
-	/* do inband token exchange */
-	reason_code = smc_clc_send_proposal(smc, smcibdev, ibport);
-	if (reason_code < 0) {
-		rc = reason_code;
-		goto out_err;
-	}
-	if (reason_code > 0) /* configuration error */
-		goto decline_rdma;
-	/* receive SMC Accept CLC message */
-	reason_code = smc_clc_wait_msg(smc, &aclc, sizeof(aclc),
-				       SMC_CLC_ACCEPT);
-	if (reason_code < 0) {
-		rc = reason_code;
-		goto out_err;
-	}
-	if (reason_code > 0)
-		goto decline_rdma;
-
-	srv_first_contact = aclc.hdr.flag;
-	mutex_lock(&smc_create_lgr_pending);
-	local_contact = smc_conn_create(smc, smcibdev, ibport, &aclc.lcl,
-					srv_first_contact);
-	if (local_contact < 0) {
-		rc = local_contact;
-		if (rc == -ENOMEM)
-			reason_code = SMC_CLC_DECL_MEM;/* insufficient memory*/
-		else if (rc == -ENOLINK)
-			reason_code = SMC_CLC_DECL_SYNCERR; /* synchr. error */
-		else
-			reason_code = SMC_CLC_DECL_INTERR; /* other error */
-		goto decline_rdma_unlock;
-	}
-	link = &smc->conn.lgr->lnk[SMC_SINGLE_LINK];
-
-	smc_conn_save_peer_info(smc, &aclc);
-
-	/* create send buffer and rmb */
-	rc = smc_buf_create(smc);
-	if (rc) {
-		reason_code = SMC_CLC_DECL_MEM;
-		goto decline_rdma_unlock;
-	}
-
-	if (local_contact == SMC_FIRST_CONTACT)
-		smc_link_save_peer_info(link, &aclc);
-
-	rc = smc_rmb_rtoken_handling(&smc->conn, &aclc);
-	if (rc) {
-		reason_code = SMC_CLC_DECL_INTERR;
-		goto decline_rdma_unlock;
-	}
-
-	smc_close_init(smc);
-	smc_rx_init(smc);
-
-	if (local_contact == SMC_FIRST_CONTACT) {
-		rc = smc_ib_ready_link(link);
-		if (rc) {
-			reason_code = SMC_CLC_DECL_INTERR;
-			goto decline_rdma_unlock;
-		}
-	} else {
-		if (!smc->conn.rmb_desc->reused) {
-			if (smc_reg_rmb(link, smc->conn.rmb_desc, true)) {
-				reason_code = SMC_CLC_DECL_INTERR;
-				goto decline_rdma_unlock;
-			}
-		}
-	}
-	smc_rmb_sync_sg_for_device(&smc->conn);
-
-	rc = smc_clc_send_confirm(smc);
+	/* perform CLC handshake */
+	rc = smc_connect_clc(smc, &aclc, ibdev, ibport);
 	if (rc)
-		goto out_err_unlock;
+		return smc_connect_decline_fallback(smc, rc);
 
-	if (local_contact == SMC_FIRST_CONTACT) {
-		/* QP confirmation over RoCE fabric */
-		reason_code = smc_clnt_conf_first_link(smc);
-		if (reason_code < 0) {
-			rc = reason_code;
-			goto out_err_unlock;
-		}
-		if (reason_code > 0)
-			goto decline_rdma_unlock;
-	}
+	/* connect using rdma */
+	rc = smc_connect_rdma(smc, &aclc, ibdev, ibport);
+	if (rc)
+		return smc_connect_decline_fallback(smc, rc);
 
-	mutex_unlock(&smc_create_lgr_pending);
-	smc_tx_init(smc);
-
-out_connected:
-	smc_copy_sock_settings_to_clc(smc);
-	if (smc->sk.sk_state == SMC_INIT)
-		smc->sk.sk_state = SMC_ACTIVE;
-
-	return rc ? rc : local_contact;
-
-decline_rdma_unlock:
-	if (local_contact == SMC_FIRST_CONTACT)
-		smc_lgr_forget(smc->conn.lgr);
-	mutex_unlock(&smc_create_lgr_pending);
-	smc_conn_free(&smc->conn);
-decline_rdma:
-	/* RDMA setup failed, switch back to TCP */
-	smc->use_fallback = true;
-	if (reason_code && (reason_code != SMC_CLC_DECL_REPLY)) {
-		rc = smc_clc_send_decline(smc, reason_code);
-		if (rc < 0)
-			goto out_err;
-	}
-	goto out_connected;
-
-out_err_unlock:
-	if (local_contact == SMC_FIRST_CONTACT)
-		smc_lgr_forget(smc->conn.lgr);
-	mutex_unlock(&smc_create_lgr_pending);
-	smc_conn_free(&smc->conn);
-out_err:
-	if (smc->sk.sk_state == SMC_INIT)
-		sock_put(&smc->sk); /* passive closing */
-	return rc;
+	return 0;
 }
 
 static int smc_connect(struct socket *sock, struct sockaddr *addr,
@@ -590,8 +611,7 @@ static int smc_connect(struct socket *sock, struct sockaddr *addr,
 	if (rc)
 		goto out;
 
-	/* setup RDMA connection */
-	rc = smc_connect_rdma(smc);
+	rc = __smc_connect(smc);
 	if (rc < 0)
 		goto out;
 	else
@@ -789,145 +809,12 @@ static int smc_serv_conf_first_link(struct smc_sock *smc)
 	return 0;
 }
 
-/* setup for RDMA connection of server */
-static void smc_listen_work(struct work_struct *work)
+/* listen worker: finish */
+static void smc_listen_out(struct smc_sock *new_smc)
 {
-	struct smc_sock *new_smc = container_of(work, struct smc_sock,
-						smc_listen_work);
-	struct smc_clc_msg_proposal_prefix *pclc_prfx;
-	struct socket *newclcsock = new_smc->clcsock;
 	struct smc_sock *lsmc = new_smc->listen_smc;
-	struct smc_clc_msg_accept_confirm cclc;
-	int local_contact = SMC_REUSE_CONTACT;
 	struct sock *newsmcsk = &new_smc->sk;
-	struct smc_clc_msg_proposal *pclc;
-	struct smc_ib_device *smcibdev;
-	u8 buf[SMC_CLC_MAX_LEN];
-	struct smc_link *link;
-	int reason_code = 0;
-	int rc = 0;
-	u8 ibport;
 
-	if (new_smc->use_fallback)
-		goto out_connected;
-
-	/* check if peer is smc capable */
-	if (!tcp_sk(newclcsock->sk)->syn_smc) {
-		new_smc->use_fallback = true;
-		goto out_connected;
-	}
-
-	/* do inband token exchange -
-	 *wait for and receive SMC Proposal CLC message
-	 */
-	reason_code = smc_clc_wait_msg(new_smc, &buf, sizeof(buf),
-				       SMC_CLC_PROPOSAL);
-	if (reason_code < 0)
-		goto out_err;
-	if (reason_code > 0)
-		goto decline_rdma;
-
-	/* IPSec connections opt out of SMC-R optimizations */
-	if (using_ipsec(new_smc)) {
-		reason_code = SMC_CLC_DECL_IPSEC;
-		goto decline_rdma;
-	}
-
-	/* PNET table look up: search active ib_device and port
-	 * within same PNETID that also contains the ethernet device
-	 * used for the internal TCP socket
-	 */
-	smc_pnet_find_roce_resource(newclcsock->sk, &smcibdev, &ibport);
-	if (!smcibdev) {
-		reason_code = SMC_CLC_DECL_CNFERR; /* configuration error */
-		goto decline_rdma;
-	}
-
-	pclc = (struct smc_clc_msg_proposal *)&buf;
-	pclc_prfx = smc_clc_proposal_get_prefix(pclc);
-
-	rc = smc_clc_prfx_match(newclcsock, pclc_prfx);
-	if (rc) {
-		reason_code = SMC_CLC_DECL_CNFERR; /* configuration error */
-		goto decline_rdma;
-	}
-
-	/* allocate connection / link group */
-	mutex_lock(&smc_create_lgr_pending);
-	local_contact = smc_conn_create(new_smc, smcibdev, ibport, &pclc->lcl,
-					0);
-	if (local_contact < 0) {
-		rc = local_contact;
-		if (rc == -ENOMEM)
-			reason_code = SMC_CLC_DECL_MEM;/* insufficient memory*/
-		goto decline_rdma_unlock;
-	}
-	link = &new_smc->conn.lgr->lnk[SMC_SINGLE_LINK];
-
-	/* create send buffer and rmb */
-	rc = smc_buf_create(new_smc);
-	if (rc) {
-		reason_code = SMC_CLC_DECL_MEM;
-		goto decline_rdma_unlock;
-	}
-
-	smc_close_init(new_smc);
-	smc_rx_init(new_smc);
-
-	if (local_contact != SMC_FIRST_CONTACT) {
-		if (!new_smc->conn.rmb_desc->reused) {
-			if (smc_reg_rmb(link, new_smc->conn.rmb_desc, true)) {
-				reason_code = SMC_CLC_DECL_INTERR;
-				goto decline_rdma_unlock;
-			}
-		}
-	}
-	smc_rmb_sync_sg_for_device(&new_smc->conn);
-
-	rc = smc_clc_send_accept(new_smc, local_contact);
-	if (rc)
-		goto out_err_unlock;
-
-	/* receive SMC Confirm CLC message */
-	reason_code = smc_clc_wait_msg(new_smc, &cclc, sizeof(cclc),
-				       SMC_CLC_CONFIRM);
-	if (reason_code < 0)
-		goto out_err_unlock;
-	if (reason_code > 0)
-		goto decline_rdma_unlock;
-	smc_conn_save_peer_info(new_smc, &cclc);
-	if (local_contact == SMC_FIRST_CONTACT)
-		smc_link_save_peer_info(link, &cclc);
-
-	rc = smc_rmb_rtoken_handling(&new_smc->conn, &cclc);
-	if (rc) {
-		reason_code = SMC_CLC_DECL_INTERR;
-		goto decline_rdma_unlock;
-	}
-
-	if (local_contact == SMC_FIRST_CONTACT) {
-		rc = smc_ib_ready_link(link);
-		if (rc) {
-			reason_code = SMC_CLC_DECL_INTERR;
-			goto decline_rdma_unlock;
-		}
-		/* QP confirmation over RoCE fabric */
-		reason_code = smc_serv_conf_first_link(new_smc);
-		if (reason_code < 0)
-			/* peer is not aware of a problem */
-			goto out_err_unlock;
-		if (reason_code > 0)
-			goto decline_rdma_unlock;
-	}
-
-	smc_tx_init(new_smc);
-	mutex_unlock(&smc_create_lgr_pending);
-
-out_connected:
-	sk_refcnt_debug_inc(newsmcsk);
-	if (newsmcsk->sk_state == SMC_INIT)
-		newsmcsk->sk_state = SMC_ACTIVE;
-enqueue:
 	lock_sock_nested(&lsmc->sk, SINGLE_DEPTH_NESTING);
 	if (lsmc->sk.sk_state == SMC_LISTEN) {
 		smc_accept_enqueue(&lsmc->sk, newsmcsk);
@@ -939,32 +826,222 @@ enqueue:
 	/* Wake up accept */
 	lsmc->sk.sk_data_ready(&lsmc->sk);
 	sock_put(&lsmc->sk); /* sock_hold in smc_tcp_listen_work */
-	return;
+}
 
-decline_rdma_unlock:
-	if (local_contact == SMC_FIRST_CONTACT)
-		smc_lgr_forget(new_smc->conn.lgr);
-	mutex_unlock(&smc_create_lgr_pending);
-decline_rdma:
-	/* RDMA setup failed, switch back to TCP */
-	smc_conn_free(&new_smc->conn);
-	new_smc->use_fallback = true;
-	if (reason_code && (reason_code != SMC_CLC_DECL_REPLY)) {
-		if (smc_clc_send_decline(new_smc, reason_code) < 0)
-			goto out_err;
-	}
-	goto out_connected;
+/* listen worker: finish in state connected */
+static void smc_listen_out_connected(struct smc_sock *new_smc)
+{
+	struct sock *newsmcsk = &new_smc->sk;
 
-out_err_unlock:
-	if (local_contact == SMC_FIRST_CONTACT)
-		smc_lgr_forget(new_smc->conn.lgr);
-	mutex_unlock(&smc_create_lgr_pending);
-out_err:
+	sk_refcnt_debug_inc(newsmcsk);
+	if (newsmcsk->sk_state == SMC_INIT)
+		newsmcsk->sk_state = SMC_ACTIVE;
+
+	smc_listen_out(new_smc);
+}
+
+/* listen worker: finish in error state */
+static void smc_listen_out_err(struct smc_sock *new_smc)
+{
+	struct sock *newsmcsk = &new_smc->sk;
+
 	if (newsmcsk->sk_state == SMC_INIT)
 		sock_put(&new_smc->sk); /* passive closing */
 	newsmcsk->sk_state = SMC_CLOSED;
 	smc_conn_free(&new_smc->conn);
-	goto enqueue; /* queue new sock with sk_err set */
+
+	smc_listen_out(new_smc);
+}
+
+/* listen worker: decline and fall back if possible */
+static void smc_listen_decline(struct smc_sock *new_smc, int reason_code,
+			       int local_contact)
+{
+	/* RDMA setup failed, switch back to TCP */
+	if (local_contact == SMC_FIRST_CONTACT)
+		smc_lgr_forget(new_smc->conn.lgr);
+	if (reason_code < 0) { /* error, no fallback possible */
+		smc_listen_out_err(new_smc);
+		return;
+	}
+	smc_conn_free(&new_smc->conn);
+	new_smc->use_fallback = true;
+	if (reason_code && reason_code != SMC_CLC_DECL_REPLY) {
+		if (smc_clc_send_decline(new_smc, reason_code) < 0) {
+			smc_listen_out_err(new_smc);
+			return;
+		}
+	}
+	smc_listen_out_connected(new_smc);
+}
+
+/* listen worker: check prefixes */
+static int smc_listen_rdma_check(struct smc_sock *new_smc,
+				 struct smc_clc_msg_proposal *pclc)
+{
+	struct smc_clc_msg_proposal_prefix *pclc_prfx;
+	struct socket *newclcsock = new_smc->clcsock;
+
+	pclc_prfx = smc_clc_proposal_get_prefix(pclc);
+	if (smc_clc_prfx_match(newclcsock, pclc_prfx))
+		return SMC_CLC_DECL_CNFERR;
+
+	return 0;
+}
+
+/* listen worker: initialize connection and buffers */
+static int smc_listen_rdma_init(struct smc_sock *new_smc,
+				struct smc_clc_msg_proposal *pclc,
+				struct smc_ib_device *ibdev, u8 ibport,
+				int *local_contact)
+{
+	/* allocate connection / link group */
+	*local_contact = smc_conn_create(new_smc, ibdev, ibport, &pclc->lcl, 0);
+	if (*local_contact < 0) {
+		if (*local_contact == -ENOMEM)
+			return SMC_CLC_DECL_MEM;/* insufficient memory*/
+		return SMC_CLC_DECL_INTERR; /* other error */
+	}
+
+	/* create send buffer and rmb */
+	if (smc_buf_create(new_smc))
+		return SMC_CLC_DECL_MEM;
+
+	return 0;
+}
+
+/* listen worker: register buffers */
+static int smc_listen_rdma_reg(struct smc_sock *new_smc, int local_contact)
+{
+	struct smc_link *link = &new_smc->conn.lgr->lnk[SMC_SINGLE_LINK];
+
+	if (local_contact != SMC_FIRST_CONTACT) {
+		if (!new_smc->conn.rmb_desc->reused) {
+			if (smc_reg_rmb(link, new_smc->conn.rmb_desc, true))
+				return SMC_CLC_DECL_INTERR;
+		}
+	}
+	smc_rmb_sync_sg_for_device(&new_smc->conn);
+
+	return 0;
+}
+
+/* listen worker: finish RDMA setup */
+static void smc_listen_rdma_finish(struct smc_sock *new_smc,
+				   struct smc_clc_msg_accept_confirm *cclc,
+				   int local_contact)
+{
+	struct smc_link *link = &new_smc->conn.lgr->lnk[SMC_SINGLE_LINK];
+	int reason_code = 0;
+
+	if (local_contact == SMC_FIRST_CONTACT)
+		smc_link_save_peer_info(link, cclc);
+
+	if (smc_rmb_rtoken_handling(&new_smc->conn, cclc)) {
+		reason_code = SMC_CLC_DECL_INTERR;
+		goto decline;
+	}
+
+	if (local_contact == SMC_FIRST_CONTACT) {
+		if (smc_ib_ready_link(link)) {
+			reason_code = SMC_CLC_DECL_INTERR;
+			goto decline;
+		}
+		/* QP confirmation over RoCE fabric */
+		reason_code = smc_serv_conf_first_link(new_smc);
+		if (reason_code)
+			goto decline;
+	}
+	return;
+
+decline:
+	mutex_unlock(&smc_create_lgr_pending);
+	smc_listen_decline(new_smc, reason_code, local_contact);
+}
+
+/* setup for RDMA connection of server */
+static void smc_listen_work(struct work_struct *work)
+{
+	struct smc_sock *new_smc = container_of(work, struct smc_sock,
+						smc_listen_work);
+	struct socket *newclcsock = new_smc->clcsock;
+	struct smc_clc_msg_accept_confirm cclc;
+	struct smc_clc_msg_proposal *pclc;
+	struct smc_ib_device *ibdev;
+	u8 buf[SMC_CLC_MAX_LEN];
+	int local_contact = 0;
+	int reason_code = 0;
+	int rc = 0;
+	u8 ibport;
+
+	if (new_smc->use_fallback) {
+		smc_listen_out_connected(new_smc);
+		return;
+	}
+
+	/* check if peer is smc capable */
+	if (!tcp_sk(newclcsock->sk)->syn_smc) {
+		new_smc->use_fallback = true;
+		smc_listen_out_connected(new_smc);
+		return;
+	}
+
+	/* do inband token exchange -
+	 * wait for and receive SMC Proposal CLC message
+	 */
+	pclc = (struct smc_clc_msg_proposal *)&buf;
+	reason_code = smc_clc_wait_msg(new_smc, pclc, SMC_CLC_MAX_LEN,
+				       SMC_CLC_PROPOSAL);
+	if (reason_code) {
+		smc_listen_decline(new_smc, reason_code, 0);
+		return;
+	}
+
+	/* IPSec connections opt out of SMC-R optimizations */
+	if (using_ipsec(new_smc)) {
+		smc_listen_decline(new_smc, SMC_CLC_DECL_IPSEC, 0);
+		return;
+	}
+
+	mutex_lock(&smc_create_lgr_pending);
+	smc_close_init(new_smc);
+	smc_rx_init(new_smc);
+	smc_tx_init(new_smc);
+
+	/* check if RDMA is available */
+	if (smc_check_rdma(new_smc, &ibdev, &ibport) ||
+	    smc_listen_rdma_check(new_smc, pclc) ||
+	    smc_listen_rdma_init(new_smc, pclc, ibdev, ibport,
+				 &local_contact) ||
+	    smc_listen_rdma_reg(new_smc, local_contact)) {
+		/* SMC not supported, decline */
+		mutex_unlock(&smc_create_lgr_pending);
+		smc_listen_decline(new_smc, SMC_CLC_DECL_CNFERR, local_contact);
+		return;
+	}
+
+	/* send SMC Accept CLC message */
+	rc = smc_clc_send_accept(new_smc, local_contact);
+	if (rc) {
+		mutex_unlock(&smc_create_lgr_pending);
+		smc_listen_decline(new_smc, rc, local_contact);
+		return;
+	}
+
+	/* receive SMC Confirm CLC message */
+	reason_code = smc_clc_wait_msg(new_smc, &cclc, sizeof(cclc),
+				       SMC_CLC_CONFIRM);
+	if (reason_code) {
+		mutex_unlock(&smc_create_lgr_pending);
+		smc_listen_decline(new_smc, reason_code, local_contact);
+		return;
+	}
+
+	/* finish worker */
+	smc_listen_rdma_finish(new_smc, &cclc, local_contact);
+	smc_conn_save_peer_info(new_smc, &cclc);
+	mutex_unlock(&smc_create_lgr_pending);
+	smc_listen_out_connected(new_smc);
 }
 
 static void smc_tcp_listen_work(struct work_struct *work)
@@ -1225,7 +1302,7 @@ static __poll_t smc_poll(struct file *file, struct socket *sock,
 			if (sk->sk_state == SMC_INIT &&
 			    mask & EPOLLOUT &&
 			    smc->clcsock->sk->sk_state != TCP_CLOSE) {
-				rc = smc_connect_rdma(smc);
+				rc = __smc_connect(smc);
 				if (rc < 0)
 					mask |= EPOLLERR;
 				/* success cases including fallback */
