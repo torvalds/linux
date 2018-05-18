@@ -127,45 +127,6 @@ static const struct file_operations afs_proc_sysname_fops = {
 	.write		= afs_proc_sysname_write,
 };
 
-static int afs_proc_stats_show(struct seq_file *m, void *v);
-
-/*
- * initialise the /proc/fs/afs/ directory
- */
-int afs_proc_init(struct afs_net *net)
-{
-	_enter("");
-
-	net->proc_afs = proc_mkdir("fs/afs", NULL);
-	if (!net->proc_afs)
-		goto error_dir;
-
-	if (!proc_create("cells", 0644, net->proc_afs, &afs_proc_cells_fops) ||
-	    !proc_create("rootcell", 0644, net->proc_afs, &afs_proc_rootcell_fops) ||
-	    !proc_create_seq("servers", 0644, net->proc_afs, &afs_proc_servers_ops) ||
-	    !proc_create_single("stats", 0644, net->proc_afs, afs_proc_stats_show) ||
-	    !proc_create("sysname", 0644, net->proc_afs, &afs_proc_sysname_fops))
-		goto error_tree;
-
-	_leave(" = 0");
-	return 0;
-
-error_tree:
-	proc_remove(net->proc_afs);
-error_dir:
-	_leave(" = -ENOMEM");
-	return -ENOMEM;
-}
-
-/*
- * clean up the /proc/fs/afs/ directory
- */
-void afs_proc_cleanup(struct afs_net *net)
-{
-	proc_remove(net->proc_afs);
-	net->proc_afs = NULL;
-}
-
 /*
  * open "/proc/fs/afs/cells" which provides a summary of extant cells
  */
@@ -381,48 +342,6 @@ out:
 	kfree(kbuf);
 	_leave(" = %d", ret);
 	return ret;
-}
-
-/*
- * initialise /proc/fs/afs/<cell>/
- */
-int afs_proc_cell_setup(struct afs_net *net, struct afs_cell *cell)
-{
-	struct proc_dir_entry *dir;
-
-	_enter("%p{%s},%p", cell, cell->name, net->proc_afs);
-
-	dir = proc_mkdir(cell->name, net->proc_afs);
-	if (!dir)
-		goto error_dir;
-
-	if (!proc_create_seq_data("vlservers", 0, dir,
-			&afs_proc_cell_vlservers_ops, cell))
-		goto error_tree;
-	if (!proc_create_seq_data("volumes", 0, dir, &afs_proc_cell_volumes_ops,
-			cell))
-		goto error_tree;
-
-	_leave(" = 0");
-	return 0;
-
-error_tree:
-	remove_proc_subtree(cell->name, net->proc_afs);
-error_dir:
-	_leave(" = -ENOMEM");
-	return -ENOMEM;
-}
-
-/*
- * remove /proc/fs/afs/<cell>/
- */
-void afs_proc_cell_remove(struct afs_net *net, struct afs_cell *cell)
-{
-	_enter("");
-
-	remove_proc_subtree(cell->name, net->proc_afs);
-
-	_leave("");
 }
 
 /*
@@ -841,4 +760,83 @@ static int afs_proc_stats_show(struct seq_file *m, void *v)
 		   atomic_read(&net->n_stores),
 		   atomic_long_read(&net->n_store_bytes));
 	return 0;
+}
+
+/*
+ * initialise /proc/fs/afs/<cell>/
+ */
+int afs_proc_cell_setup(struct afs_net *net, struct afs_cell *cell)
+{
+	struct proc_dir_entry *dir;
+
+	_enter("%p{%s},%p", cell, cell->name, net->proc_afs);
+
+	dir = proc_mkdir(cell->name, net->proc_afs);
+	if (!dir)
+		goto error_dir;
+
+	if (!proc_create_seq_data("vlservers", 0, dir,
+				  &afs_proc_cell_vlservers_ops, cell))
+		goto error_tree;
+	if (!proc_create_seq_data("volumes", 0, dir,
+				  &afs_proc_cell_volumes_ops, cell))
+		goto error_tree;
+
+	_leave(" = 0");
+	return 0;
+
+error_tree:
+	remove_proc_subtree(cell->name, net->proc_afs);
+error_dir:
+	_leave(" = -ENOMEM");
+	return -ENOMEM;
+}
+
+/*
+ * remove /proc/fs/afs/<cell>/
+ */
+void afs_proc_cell_remove(struct afs_net *net, struct afs_cell *cell)
+{
+	_enter("");
+
+	remove_proc_subtree(cell->name, net->proc_afs);
+
+	_leave("");
+}
+
+/*
+ * initialise the /proc/fs/afs/ directory
+ */
+int afs_proc_init(struct afs_net *net)
+{
+	_enter("");
+
+	net->proc_afs = proc_mkdir("fs/afs", NULL);
+	if (!net->proc_afs)
+		goto error_dir;
+
+	if (!proc_create("cells", 0644, net->proc_afs, &afs_proc_cells_fops) ||
+	    !proc_create("rootcell", 0644, net->proc_afs, &afs_proc_rootcell_fops) ||
+	    !proc_create_seq("servers", 0644, net->proc_afs, &afs_proc_servers_ops) ||
+	    !proc_create_single("stats", 0644, net->proc_afs, afs_proc_stats_show) ||
+	    !proc_create("sysname", 0644, net->proc_afs, &afs_proc_sysname_fops))
+		goto error_tree;
+
+	_leave(" = 0");
+	return 0;
+
+error_tree:
+	proc_remove(net->proc_afs);
+error_dir:
+	_leave(" = -ENOMEM");
+	return -ENOMEM;
+}
+
+/*
+ * clean up the /proc/fs/afs/ directory
+ */
+void afs_proc_cleanup(struct afs_net *net)
+{
+	proc_remove(net->proc_afs);
+	net->proc_afs = NULL;
 }
