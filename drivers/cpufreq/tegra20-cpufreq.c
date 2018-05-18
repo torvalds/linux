@@ -16,16 +16,12 @@
  *
  */
 
-#include <linux/kernel.h>
+#include <linux/clk.h>
+#include <linux/cpufreq.h>
+#include <linux/err.h>
+#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/sched.h>
-#include <linux/cpufreq.h>
-#include <linux/delay.h>
-#include <linux/init.h>
-#include <linux/err.h>
-#include <linux/clk.h>
-#include <linux/io.h>
 
 static struct cpufreq_frequency_table freq_table[] = {
 	{ .frequency = 216000 },
