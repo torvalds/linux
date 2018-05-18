@@ -261,7 +261,7 @@ static int smc_tx_rdma_write(struct smc_connection *conn, int peer_rmbe_offset,
 	rdma_wr.remote_addr =
 		lgr->rtokens[conn->rtoken_idx][SMC_SINGLE_LINK].dma_addr +
 		/* RMBE within RMB */
-		((conn->peer_rmbe_idx - 1) * conn->peer_rmbe_size) +
+		conn->tx_off +
 		/* offset within RMBE */
 		peer_rmbe_offset;
 	rdma_wr.rkey = lgr->rtokens[conn->rtoken_idx][SMC_SINGLE_LINK].rkey;

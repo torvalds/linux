@@ -151,6 +151,7 @@ struct smc_connection {
 	u16			tx_cdc_seq;	/* sequence # for CDC send */
 	spinlock_t		send_lock;	/* protect wr_sends */
 	struct delayed_work	tx_work;	/* retry of smc_cdc_msg_send */
+	u32			tx_off;		/* base offset in peer rmb */
 
 	struct smc_host_cdc_msg	local_rx_ctrl;	/* filled during event_handl.
 						 * .prod cf. TCP rcv_nxt
