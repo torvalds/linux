@@ -21,6 +21,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/types.h>
 
 static struct cpufreq_frequency_table freq_table[] = {
@@ -157,6 +158,9 @@ static struct cpufreq_driver tegra_cpufreq_driver = {
 static int __init tegra_cpufreq_init(void)
 {
 	int err;
+
+	if (!of_machine_is_compatible("nvidia,tegra20"))
+		return -ENODEV;
 
 	cpu_clk = clk_get_sys(NULL, "cclk");
 	if (IS_ERR(cpu_clk))
