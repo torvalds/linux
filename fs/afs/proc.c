@@ -17,14 +17,14 @@
 #include <linux/uaccess.h>
 #include "internal.h"
 
-static inline struct afs_net *afs_proc2net(struct file *f)
-{
-	return &__afs_net;
-}
-
 static inline struct afs_net *afs_seq2net(struct seq_file *m)
 {
-	return &__afs_net; // TODO: use seq_file_net(m)
+	return afs_net(seq_file_net(m));
+}
+
+static inline struct afs_net *afs_seq2net_single(struct seq_file *m)
+{
+	return afs_net(seq_file_single_net(m));
 }
 
 /*
@@ -75,28 +75,20 @@ static const struct seq_operations afs_proc_cells_ops = {
  * handle writes to /proc/fs/afs/cells
  * - to add cells: echo "add <cellname> <IP>[:<IP>][:<IP>]"
  */
-static ssize_t afs_proc_cells_write(struct file *file, const char __user *buf,
-				    size_t size, loff_t *_pos)
+static int afs_proc_cells_write(struct file *file, char *buf, size_t size)
 {
-	struct afs_net *net = afs_proc2net(file);
-	char *kbuf, *name, *args;
+	struct seq_file *m = file->private_data;
+	struct afs_net *net = afs_seq2net(m);
+	char *name, *args;
 	int ret;
 
-	/* start by dragging the command into memory */
-	if (size <= 1 || size >= PAGE_SIZE)
-		return -EINVAL;
-
-	kbuf = memdup_user_nul(buf, size);
-	if (IS_ERR(kbuf))
-		return PTR_ERR(kbuf);
-
 	/* trim to first NL */
-	name = memchr(kbuf, '\n', size);
+	name = memchr(buf, '\n', size);
 	if (name)
 		*name = 0;
 
 	/* split into command, name and argslist */
-	name = strchr(kbuf, ' ');
+	name = strchr(buf, ' ');
 	if (!name)
 		goto inval;
 	do {
@@ -115,9 +107,9 @@ static ssize_t afs_proc_cells_write(struct file *file, const char __user *buf,
 		goto inval;
 
 	/* determine command to perform */
-	_debug("cmd=%s name=%s args=%s", kbuf, name, args);
+	_debug("cmd=%s name=%s args=%s", buf, name, args);
 
-	if (strcmp(kbuf, "add") == 0) {
+	if (strcmp(buf, "add") == 0) {
 		struct afs_cell *cell;
 
 		cell = afs_lookup_cell(net, name, strlen(name), args, true);
@@ -133,10 +125,9 @@ static ssize_t afs_proc_cells_write(struct file *file, const char __user *buf,
 		goto inval;
 	}
 
-	ret = size;
+	ret = 0;
 
 done:
-	kfree(kbuf);
 	_leave(" = %d", ret);
 	return ret;
 
@@ -146,59 +137,23 @@ inval:
 	goto done;
 }
 
-static int afs_proc_cells_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &afs_proc_cells_ops);
-}
-
-static const struct file_operations afs_proc_cells_fops = {
-	.open		= afs_proc_cells_open,
-	.read		= seq_read,
-	.write		= afs_proc_cells_write,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 /*
- * Read the name of the current workstation cell.
+ * Display the name of the current workstation cell.
  */
-static ssize_t afs_proc_rootcell_read(struct file *file, char __user *buf,
-				      size_t size, loff_t *_pos)
+static int afs_proc_rootcell_show(struct seq_file *m, void *v)
 {
 	struct afs_cell *cell;
-	struct afs_net *net = afs_proc2net(file);
-	unsigned int seq = 0;
-	char name[AFS_MAXCELLNAME + 1];
-	int len;
+	struct afs_net *net;
 
-	if (*_pos > 0)
-		return 0;
-	if (!rcu_access_pointer(net->ws_cell))
-		return 0;
-
-	rcu_read_lock();
-	do {
-		read_seqbegin_or_lock(&net->cells_lock, &seq);
-		len = 0;
-		cell = rcu_dereference_raw(net->ws_cell);
-		if (cell) {
-			len = cell->name_len;
-			memcpy(name, cell->name, len);
-		}
-	} while (need_seqretry(&net->cells_lock, seq));
-	done_seqretry(&net->cells_lock, seq);
-	rcu_read_unlock();
-
-	if (!len)
-		return 0;
-
-	name[len++] = '\n';
-	if (len > size)
-		len = size;
-	if (copy_to_user(buf, name, len) != 0)
-		return -EFAULT;
-	*_pos = 1;
-	return len;
+	net = afs_seq2net_single(m);
+	if (rcu_access_pointer(net->ws_cell)) {
+		rcu_read_lock();
+		cell = rcu_dereference(net->ws_cell);
+		if (cell)
+			seq_printf(m, "%s\n", cell->name);
+		rcu_read_unlock();
+	}
+	return 0;
 }
 
 /*
@@ -207,51 +162,33 @@ static ssize_t afs_proc_rootcell_read(struct file *file, char __user *buf,
  *
  *	echo "cell.name:192.168.231.14" >/proc/fs/afs/rootcell
  */
-static ssize_t afs_proc_rootcell_write(struct file *file,
-				       const char __user *buf,
-				       size_t size, loff_t *_pos)
+static int afs_proc_rootcell_write(struct file *file, char *buf, size_t size)
 {
-	struct afs_net *net = afs_proc2net(file);
-	char *kbuf, *s;
+	struct seq_file *m = file->private_data;
+	struct afs_net *net = afs_seq2net_single(m);
+	char *s;
 	int ret;
 
-	/* start by dragging the command into memory */
-	if (size <= 1 || size >= PAGE_SIZE)
-		return -EINVAL;
-
-	kbuf = memdup_user_nul(buf, size);
-	if (IS_ERR(kbuf))
-		return PTR_ERR(kbuf);
-
 	ret = -EINVAL;
-	if (kbuf[0] == '.')
+	if (buf[0] == '.')
 		goto out;
-	if (memchr(kbuf, '/', size))
+	if (memchr(buf, '/', size))
 		goto out;
 
 	/* trim to first NL */
-	s = memchr(kbuf, '\n', size);
+	s = memchr(buf, '\n', size);
 	if (s)
 		*s = 0;
 
 	/* determine command to perform */
-	_debug("rootcell=%s", kbuf);
+	_debug("rootcell=%s", buf);
 
-	ret = afs_cell_init(net, kbuf);
-	if (ret >= 0)
-		ret = size;	/* consume everything, always */
+	ret = afs_cell_init(net, buf);
 
 out:
-	kfree(kbuf);
 	_leave(" = %d", ret);
 	return ret;
 }
-
-static const struct file_operations afs_proc_rootcell_fops = {
-	.read		= afs_proc_rootcell_read,
-	.write		= afs_proc_rootcell_write,
-	.llseek		= no_llseek,
-};
 
 static const char afs_vol_types[3][3] = {
 	[AFSVL_RWVOL]	= "RW",
@@ -289,18 +226,18 @@ static void *afs_proc_cell_volumes_start(struct seq_file *m, loff_t *_pos)
 	return seq_list_start_head(&cell->proc_volumes, *_pos);
 }
 
-static void *afs_proc_cell_volumes_next(struct seq_file *p, void *v,
+static void *afs_proc_cell_volumes_next(struct seq_file *m, void *v,
 					loff_t *_pos)
 {
-	struct afs_cell *cell = PDE_DATA(file_inode(p->file));
+	struct afs_cell *cell = PDE_DATA(file_inode(m->file));
 
 	return seq_list_next(v, &cell->proc_volumes, _pos);
 }
 
-static void afs_proc_cell_volumes_stop(struct seq_file *p, void *v)
+static void afs_proc_cell_volumes_stop(struct seq_file *m, void *v)
 	__releases(cell->proc_lock)
 {
-	struct afs_cell *cell = PDE_DATA(file_inode(p->file));
+	struct afs_cell *cell = PDE_DATA(file_inode(m->file));
 
 	read_unlock(&cell->proc_lock);
 }
@@ -352,11 +289,11 @@ static void *afs_proc_cell_vlservers_start(struct seq_file *m, loff_t *_pos)
 	return alist->addrs + pos;
 }
 
-static void *afs_proc_cell_vlservers_next(struct seq_file *p, void *v,
+static void *afs_proc_cell_vlservers_next(struct seq_file *m, void *v,
 					  loff_t *_pos)
 {
 	struct afs_addr_list *alist;
-	struct afs_cell *cell = PDE_DATA(file_inode(p->file));
+	struct afs_cell *cell = PDE_DATA(file_inode(m->file));
 	loff_t pos;
 
 	alist = rcu_dereference(cell->vl_addrs);
@@ -369,7 +306,7 @@ static void *afs_proc_cell_vlservers_next(struct seq_file *p, void *v,
 	return alist->addrs + pos;
 }
 
-static void afs_proc_cell_vlservers_stop(struct seq_file *p, void *v)
+static void afs_proc_cell_vlservers_stop(struct seq_file *m, void *v)
 	__releases(rcu)
 {
 	rcu_read_unlock();
@@ -380,33 +317,6 @@ static const struct seq_operations afs_proc_cell_vlservers_ops = {
 	.next	= afs_proc_cell_vlservers_next,
 	.stop	= afs_proc_cell_vlservers_stop,
 	.show	= afs_proc_cell_vlservers_show,
-};
-
-static int afs_proc_cell_vlservers_open(struct inode *inode, struct file *file)
-{
-	struct afs_cell *cell;
-	struct seq_file *m;
-	int ret;
-
-	cell = PDE_DATA(inode);
-	if (!cell)
-		return -ENOENT;
-
-	ret = seq_open(file, &afs_proc_cell_vlservers_ops);
-	if (ret<0)
-		return ret;
-
-	m = file->private_data;
-	m->private = cell;
-
-	return 0;
-}
-
-static const struct file_operations afs_proc_cell_vlservers_fops = {
-	.open		= afs_proc_cell_vlservers_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
 };
 
 /*
@@ -443,7 +353,7 @@ static void *afs_proc_servers_next(struct seq_file *m, void *v, loff_t *_pos)
 	return seq_hlist_next_rcu(v, &afs_seq2net(m)->fs_proc, _pos);
 }
 
-static void afs_proc_servers_stop(struct seq_file *p, void *v)
+static void afs_proc_servers_stop(struct seq_file *m, void *v)
 	__releases(rcu)
 {
 	rcu_read_unlock();
@@ -454,18 +364,6 @@ static const struct seq_operations afs_proc_servers_ops = {
 	.next	= afs_proc_servers_next,
 	.stop	= afs_proc_servers_stop,
 	.show	= afs_proc_servers_show,
-};
-
-static int afs_proc_servers_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &afs_proc_servers_ops);
-}
-
-static const struct file_operations afs_proc_servers_fops = {
-	.open		= afs_proc_servers_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
 };
 
 /*
@@ -487,10 +385,11 @@ static void *afs_proc_sysname_start(struct seq_file *m, loff_t *pos)
 	__acquires(&net->sysnames_lock)
 {
 	struct afs_net *net = afs_seq2net(m);
-	struct afs_sysnames *names = net->sysnames;
+	struct afs_sysnames *names;
 
 	read_lock(&net->sysnames_lock);
 
+	names = net->sysnames;
 	if (*pos >= names->nr)
 		return NULL;
 	return (void *)(unsigned long)(*pos + 1);
@@ -525,35 +424,21 @@ static const struct seq_operations afs_proc_sysname_ops = {
 /*
  * Allow the @sys substitution to be configured.
  */
-static ssize_t afs_proc_sysname_write(struct file *file,
-				      const char __user *buf,
-				      size_t size, loff_t *_pos)
+static int afs_proc_sysname_write(struct file *file, char *buf, size_t size)
 {
-	struct afs_sysnames *sysnames;
+	struct afs_sysnames *sysnames, *kill;
 	struct seq_file *m = file->private_data;
-	char *kbuf = NULL, *s, *p, *sub;
+	struct afs_net *net = afs_seq2net(m);
+	char *s, *p, *sub;
 	int ret, len;
 
-	sysnames = m->private;
+	sysnames = kzalloc(sizeof(*sysnames), GFP_KERNEL);
 	if (!sysnames)
-		return -EINVAL;
-	if (sysnames->error)
-		return sysnames->error;
+		return -ENOMEM;
+	refcount_set(&sysnames->usage, 1);
+	kill = sysnames;
 
-	if (size >= PAGE_SIZE - 1) {
-		sysnames->error = -EINVAL;
-		return -EINVAL;
-	}
-	if (size == 0)
-		return 0;
-
-	kbuf = memdup_user_nul(buf, size);
-	if (IS_ERR(kbuf))
-		return PTR_ERR(kbuf);
-
-	inode_lock(file_inode(file));
-
-	p = kbuf;
+	p = buf;
 	while ((s = strsep(&p, " \t\n"))) {
 		len = strlen(s);
 		if (len == 0)
@@ -594,16 +479,23 @@ static ssize_t afs_proc_sysname_write(struct file *file,
 		sysnames->nr++;
 	}
 
-	ret = size;	/* consume everything, always */
+	if (sysnames->nr == 0) {
+		sysnames->subs[0] = sysnames->blank;
+		sysnames->nr++;
+	}
+
+	write_lock(&net->sysnames_lock);
+	kill = net->sysnames;
+	net->sysnames = sysnames;
+	write_unlock(&net->sysnames_lock);
+	ret = 0;
 out:
-	inode_unlock(file_inode(file));
-	kfree(kbuf);
+	afs_put_sysnames(kill);
 	return ret;
 
 invalid:
 	ret = -EINVAL;
 error:
-	sysnames->error = ret;
 	goto out;
 }
 
@@ -619,75 +511,12 @@ void afs_put_sysnames(struct afs_sysnames *sysnames)
 	}
 }
 
-static int afs_proc_sysname_release(struct inode *inode, struct file *file)
-{
-	struct afs_sysnames *sysnames, *kill = NULL;
-	struct seq_file *m = file->private_data;
-	struct afs_net *net = afs_seq2net(m);
-
-	sysnames = m->private;
-	if (sysnames) {
-		if (!sysnames->error) {
-			kill = sysnames;
-			if (sysnames->nr == 0) {
-				sysnames->subs[0] = sysnames->blank;
-				sysnames->nr++;
-			}
-			write_lock(&net->sysnames_lock);
-			kill = net->sysnames;
-			net->sysnames = sysnames;
-			write_unlock(&net->sysnames_lock);
-		}
-		afs_put_sysnames(kill);
-	}
-
-	return seq_release(inode, file);
-}
-
-/*
- * Handle opening of /proc/fs/afs/sysname.  If it is opened for writing, we
- * assume the caller wants to change the substitution list and we allocate a
- * buffer to hold the list.
- */
-static int afs_proc_sysname_open(struct inode *inode, struct file *file)
-{
-	struct afs_sysnames *sysnames;
-	struct seq_file *m;
-	int ret;
-
-	ret = seq_open(file, &afs_proc_sysname_ops);
-	if (ret < 0)
-		return ret;
-
-	if (file->f_mode & FMODE_WRITE) {
-		sysnames = kzalloc(sizeof(*sysnames), GFP_KERNEL);
-		if (!sysnames) {
-			seq_release(inode, file);
-			return -ENOMEM;
-		}
-
-		refcount_set(&sysnames->usage, 1);
-		m = file->private_data;
-		m->private = sysnames;
-	}
-
-	return 0;
-}
-
-static const struct file_operations afs_proc_sysname_fops = {
-	.open		= afs_proc_sysname_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= afs_proc_sysname_release,
-	.write		= afs_proc_sysname_write,
-};
-
 /*
  * Display general per-net namespace statistics
  */
 static int afs_proc_stats_show(struct seq_file *m, void *v)
 {
-	struct afs_net *net = afs_seq2net(m);
+	struct afs_net *net = afs_seq2net_single(m);
 
 	seq_puts(m, "kAFS statistics\n");
 
@@ -716,21 +545,25 @@ static int afs_proc_stats_show(struct seq_file *m, void *v)
 /*
  * initialise /proc/fs/afs/<cell>/
  */
-int afs_proc_cell_setup(struct afs_net *net, struct afs_cell *cell)
+int afs_proc_cell_setup(struct afs_cell *cell)
 {
 	struct proc_dir_entry *dir;
+	struct afs_net *net = cell->net;
 
 	_enter("%p{%s},%p", cell, cell->name, net->proc_afs);
 
-	dir = proc_mkdir(cell->name, net->proc_afs);
+	dir = proc_net_mkdir(net->net, cell->name, net->proc_afs);
 	if (!dir)
 		goto error_dir;
 
-	if (!proc_create_seq_data("vlservers", 0, dir,
-				  &afs_proc_cell_vlservers_ops, cell))
-		goto error_tree;
-	if (!proc_create_seq_data("volumes", 0, dir,
-				  &afs_proc_cell_volumes_ops, cell))
+	if (!proc_create_net_data("vlservers", 0444, dir,
+				  &afs_proc_cell_vlservers_ops,
+				  sizeof(struct seq_net_private),
+				  cell) ||
+	    !proc_create_net_data("volumes", 0444, dir,
+				  &afs_proc_cell_volumes_ops,
+				  sizeof(struct seq_net_private),
+				  cell))
 		goto error_tree;
 
 	_leave(" = 0");
@@ -746,12 +579,12 @@ error_dir:
 /*
  * remove /proc/fs/afs/<cell>/
  */
-void afs_proc_cell_remove(struct afs_net *net, struct afs_cell *cell)
+void afs_proc_cell_remove(struct afs_cell *cell)
 {
+	struct afs_net *net = cell->net;
+
 	_enter("");
-
 	remove_proc_subtree(cell->name, net->proc_afs);
-
 	_leave("");
 }
 
@@ -760,24 +593,39 @@ void afs_proc_cell_remove(struct afs_net *net, struct afs_cell *cell)
  */
 int afs_proc_init(struct afs_net *net)
 {
+	struct proc_dir_entry *p;
+
 	_enter("");
 
-	net->proc_afs = proc_mkdir("fs/afs", NULL);
-	if (!net->proc_afs)
+	p = proc_net_mkdir(net->net, "afs", net->net->proc_net);
+	if (!p)
 		goto error_dir;
 
-	if (!proc_create("cells", 0644, net->proc_afs, &afs_proc_cells_fops) ||
-	    !proc_create("rootcell", 0644, net->proc_afs, &afs_proc_rootcell_fops) ||
-	    !proc_create_seq("servers", 0644, net->proc_afs, &afs_proc_servers_ops) ||
-	    !proc_create_single("stats", 0644, net->proc_afs, afs_proc_stats_show) ||
-	    !proc_create("sysname", 0644, net->proc_afs, &afs_proc_sysname_fops))
+	if (!proc_create_net_data_write("cells", 0644, p,
+					&afs_proc_cells_ops,
+					afs_proc_cells_write,
+					sizeof(struct seq_net_private),
+					NULL) ||
+	    !proc_create_net_single_write("rootcell", 0644, p,
+					  afs_proc_rootcell_show,
+					  afs_proc_rootcell_write,
+					  NULL) ||
+	    !proc_create_net("servers", 0444, p, &afs_proc_servers_ops,
+			     sizeof(struct seq_net_private)) ||
+	    !proc_create_net_single("stats", 0444, p, afs_proc_stats_show, NULL) ||
+	    !proc_create_net_data_write("sysname", 0644, p,
+					&afs_proc_sysname_ops,
+					afs_proc_sysname_write,
+					sizeof(struct seq_net_private),
+					NULL))
 		goto error_tree;
 
+	net->proc_afs = p;
 	_leave(" = 0");
 	return 0;
 
 error_tree:
-	proc_remove(net->proc_afs);
+	proc_remove(p);
 error_dir:
 	_leave(" = -ENOMEM");
 	return -ENOMEM;

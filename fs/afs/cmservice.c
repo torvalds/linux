@@ -550,7 +550,7 @@ static void SRXAFSCB_TellMeAboutYourself(struct work_struct *work)
 	nifs = 0;
 	ifs = kcalloc(32, sizeof(*ifs), GFP_KERNEL);
 	if (ifs) {
-		nifs = afs_get_ipv4_interfaces(ifs, 32, false);
+		nifs = afs_get_ipv4_interfaces(call->net, ifs, 32, false);
 		if (nifs < 0) {
 			kfree(ifs);
 			ifs = NULL;

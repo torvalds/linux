@@ -22,6 +22,8 @@
 #include <linux/backing-dev.h>
 #include <linux/uuid.h>
 #include <net/net_namespace.h>
+#include <net/netns/generic.h>
+#include <net/sock.h>
 #include <net/af_rxrpc.h>
 
 #include "afs.h"
@@ -40,7 +42,8 @@ struct afs_mount_params {
 	afs_voltype_t		type;		/* type of volume requested */
 	int			volnamesz;	/* size of volume name */
 	const char		*volname;	/* name of volume to mount */
-	struct afs_net		*net;		/* Network namespace in effect */
+	struct net		*net_ns;	/* Network namespace in effect */
+	struct afs_net		*net;		/* the AFS net namespace stuff */
 	struct afs_cell		*cell;		/* cell in which to find volume */
 	struct afs_volume	*volume;	/* volume record */
 	struct key		*key;		/* key to use for secure mounting */
@@ -189,7 +192,7 @@ struct afs_read {
  * - there's one superblock per volume
  */
 struct afs_super_info {
-	struct afs_net		*net;		/* Network namespace */
+	struct net		*net_ns;	/* Network namespace */
 	struct afs_cell		*cell;		/* The cell in which the volume resides */
 	struct afs_volume	*volume;	/* volume record */
 	bool			dyn_root;	/* True if dynamic root */
@@ -210,7 +213,6 @@ struct afs_sysnames {
 	char			*subs[AFS_NR_SYSNAME];
 	refcount_t		usage;
 	unsigned short		nr;
-	short			error;
 	char			blank[1];
 };
 
@@ -218,6 +220,7 @@ struct afs_sysnames {
  * AFS network namespace record.
  */
 struct afs_net {
+	struct net		*net;		/* Backpointer to the owning net namespace */
 	struct afs_uuid		uuid;
 	bool			live;		/* F if this namespace is being removed */
 
@@ -280,7 +283,6 @@ struct afs_net {
 };
 
 extern const char afs_init_sysname[];
-extern struct afs_net __afs_net;// Dummy AFS network namespace; TODO: replace with real netns
 
 enum afs_cell_state {
 	AFS_CELL_UNSET,
@@ -787,34 +789,36 @@ extern int afs_drop_inode(struct inode *);
  * main.c
  */
 extern struct workqueue_struct *afs_wq;
+extern int afs_net_id;
+
+static inline struct afs_net *afs_net(struct net *net)
+{
+	return net_generic(net, afs_net_id);
+}
+
+static inline struct afs_net *afs_sb2net(struct super_block *sb)
+{
+	return afs_net(AFS_FS_S(sb)->net_ns);
+}
 
 static inline struct afs_net *afs_d2net(struct dentry *dentry)
 {
-	return &__afs_net;
+	return afs_sb2net(dentry->d_sb);
 }
 
 static inline struct afs_net *afs_i2net(struct inode *inode)
 {
-	return &__afs_net;
+	return afs_sb2net(inode->i_sb);
 }
 
 static inline struct afs_net *afs_v2net(struct afs_vnode *vnode)
 {
-	return &__afs_net;
+	return afs_i2net(&vnode->vfs_inode);
 }
 
 static inline struct afs_net *afs_sock2net(struct sock *sk)
 {
-	return &__afs_net;
-}
-
-static inline struct afs_net *afs_get_net(struct afs_net *net)
-{
-	return net;
-}
-
-static inline void afs_put_net(struct afs_net *net)
-{
+	return net_generic(sock_net(sk), afs_net_id);
 }
 
 static inline void __afs_stat(atomic_t *s)
@@ -842,15 +846,16 @@ extern void afs_mntpt_kill_timer(void);
 /*
  * netdevices.c
  */
-extern int afs_get_ipv4_interfaces(struct afs_interface *, size_t, bool);
+extern int afs_get_ipv4_interfaces(struct afs_net *, struct afs_interface *,
+				   size_t, bool);
 
 /*
  * proc.c
  */
 extern int __net_init afs_proc_init(struct afs_net *);
 extern void __net_exit afs_proc_cleanup(struct afs_net *);
-extern int afs_proc_cell_setup(struct afs_net *, struct afs_cell *);
-extern void afs_proc_cell_remove(struct afs_net *, struct afs_cell *);
+extern int afs_proc_cell_setup(struct afs_cell *);
+extern void afs_proc_cell_remove(struct afs_cell *);
 extern void afs_put_sysnames(struct afs_sysnames *);
 
 /*
@@ -983,7 +988,7 @@ extern bool afs_annotate_server_list(struct afs_server_list *, struct afs_server
  * super.c
  */
 extern int __init afs_fs_init(void);
-extern void __exit afs_fs_exit(void);
+extern void afs_fs_exit(void);
 
 /*
  * vlclient.c

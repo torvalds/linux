@@ -528,7 +528,7 @@ static int afs_activate_cell(struct afs_net *net, struct afs_cell *cell)
 					     NULL, 0,
 					     cell, 0, true);
 #endif
-	ret = afs_proc_cell_setup(net, cell);
+	ret = afs_proc_cell_setup(cell);
 	if (ret < 0)
 		return ret;
 	spin_lock(&net->proc_cells_lock);
@@ -544,7 +544,7 @@ static void afs_deactivate_cell(struct afs_net *net, struct afs_cell *cell)
 {
 	_enter("%s", cell->name);
 
-	afs_proc_cell_remove(net, cell);
+	afs_proc_cell_remove(cell);
 
 	spin_lock(&net->proc_cells_lock);
 	list_del_init(&cell->proc_link);
