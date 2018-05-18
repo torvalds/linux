@@ -1197,8 +1197,17 @@ static const uint64_t skl_plane_format_modifiers_ccs[] = {
 	DRM_FORMAT_MOD_INVALID
 };
 
-static bool g4x_mod_supported(uint32_t format, uint64_t modifier)
+static bool g4x_sprite_format_mod_supported(struct drm_plane *_plane,
+					    u32 format, u64 modifier)
 {
+	switch (modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+	case I915_FORMAT_MOD_X_TILED:
+		break;
+	default:
+		return false;
+	}
+
 	switch (format) {
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_YUYV:
@@ -1214,8 +1223,17 @@ static bool g4x_mod_supported(uint32_t format, uint64_t modifier)
 	}
 }
 
-static bool snb_mod_supported(uint32_t format, uint64_t modifier)
+static bool snb_sprite_format_mod_supported(struct drm_plane *_plane,
+					    u32 format, u64 modifier)
 {
+	switch (modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+	case I915_FORMAT_MOD_X_TILED:
+		break;
+	default:
+		return false;
+	}
+
 	switch (format) {
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_XBGR8888:
@@ -1232,8 +1250,17 @@ static bool snb_mod_supported(uint32_t format, uint64_t modifier)
 	}
 }
 
-static bool vlv_mod_supported(uint32_t format, uint64_t modifier)
+static bool vlv_sprite_format_mod_supported(struct drm_plane *_plane,
+					    u32 format, u64 modifier)
 {
+	switch (modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+	case I915_FORMAT_MOD_X_TILED:
+		break;
+	default:
+		return false;
+	}
+
 	switch (format) {
 	case DRM_FORMAT_RGB565:
 	case DRM_FORMAT_ABGR8888:
@@ -1255,8 +1282,26 @@ static bool vlv_mod_supported(uint32_t format, uint64_t modifier)
 	}
 }
 
-static bool skl_mod_supported(uint32_t format, uint64_t modifier)
+static bool skl_plane_format_mod_supported(struct drm_plane *_plane,
+					   u32 format, u64 modifier)
 {
+	struct intel_plane *plane = to_intel_plane(_plane);
+
+	switch (modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+	case I915_FORMAT_MOD_X_TILED:
+	case I915_FORMAT_MOD_Y_TILED:
+	case I915_FORMAT_MOD_Yf_TILED:
+		break;
+	case I915_FORMAT_MOD_Y_TILED_CCS:
+	case I915_FORMAT_MOD_Yf_TILED_CCS:
+		if (!plane->has_ccs)
+			return false;
+		break;
+	default:
+		return false;
+	}
+
 	switch (format) {
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_XBGR8888:
@@ -1287,38 +1332,48 @@ static bool skl_mod_supported(uint32_t format, uint64_t modifier)
 	}
 }
 
-static bool intel_sprite_plane_format_mod_supported(struct drm_plane *plane,
-                                                    uint32_t format,
-                                                    uint64_t modifier)
-{
-	struct drm_i915_private *dev_priv = to_i915(plane->dev);
+static const struct drm_plane_funcs g4x_sprite_funcs = {
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = intel_plane_destroy,
+	.atomic_get_property = intel_plane_atomic_get_property,
+	.atomic_set_property = intel_plane_atomic_set_property,
+	.atomic_duplicate_state = intel_plane_duplicate_state,
+	.atomic_destroy_state = intel_plane_destroy_state,
+	.format_mod_supported = g4x_sprite_format_mod_supported,
+};
 
-	if (WARN_ON(modifier == DRM_FORMAT_MOD_INVALID))
-		return false;
+static const struct drm_plane_funcs snb_sprite_funcs = {
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = intel_plane_destroy,
+	.atomic_get_property = intel_plane_atomic_get_property,
+	.atomic_set_property = intel_plane_atomic_set_property,
+	.atomic_duplicate_state = intel_plane_duplicate_state,
+	.atomic_destroy_state = intel_plane_destroy_state,
+	.format_mod_supported = snb_sprite_format_mod_supported,
+};
 
-	if ((modifier >> 56) != DRM_FORMAT_MOD_VENDOR_INTEL &&
-	    modifier != DRM_FORMAT_MOD_LINEAR)
-		return false;
+static const struct drm_plane_funcs vlv_sprite_funcs = {
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = intel_plane_destroy,
+	.atomic_get_property = intel_plane_atomic_get_property,
+	.atomic_set_property = intel_plane_atomic_set_property,
+	.atomic_duplicate_state = intel_plane_duplicate_state,
+	.atomic_destroy_state = intel_plane_destroy_state,
+	.format_mod_supported = vlv_sprite_format_mod_supported,
+};
 
-	if (INTEL_GEN(dev_priv) >= 9)
-		return skl_mod_supported(format, modifier);
-	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		return vlv_mod_supported(format, modifier);
-	else if (INTEL_GEN(dev_priv) >= 6)
-		return snb_mod_supported(format, modifier);
-	else
-		return g4x_mod_supported(format, modifier);
-}
-
-static const struct drm_plane_funcs intel_sprite_plane_funcs = {
-        .update_plane = drm_atomic_helper_update_plane,
-        .disable_plane = drm_atomic_helper_disable_plane,
-        .destroy = intel_plane_destroy,
-        .atomic_get_property = intel_plane_atomic_get_property,
-        .atomic_set_property = intel_plane_atomic_set_property,
-        .atomic_duplicate_state = intel_plane_duplicate_state,
-        .atomic_destroy_state = intel_plane_destroy_state,
-        .format_mod_supported = intel_sprite_plane_format_mod_supported,
+static const struct drm_plane_funcs skl_plane_funcs = {
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = intel_plane_destroy,
+	.atomic_get_property = intel_plane_atomic_get_property,
+	.atomic_set_property = intel_plane_atomic_set_property,
+	.atomic_duplicate_state = intel_plane_duplicate_state,
+	.atomic_destroy_state = intel_plane_destroy_state,
+	.format_mod_supported = skl_plane_format_mod_supported,
 };
 
 bool skl_plane_has_ccs(struct drm_i915_private *dev_priv,
@@ -1344,6 +1399,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 {
 	struct intel_plane *intel_plane = NULL;
 	struct intel_plane_state *state = NULL;
+	const struct drm_plane_funcs *plane_funcs;
 	unsigned long possible_crtcs;
 	const uint32_t *plane_formats;
 	const uint64_t *modifiers;
@@ -1368,6 +1424,9 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		intel_plane->can_scale = true;
 		state->scaler_id = -1;
 
+		intel_plane->has_ccs = skl_plane_has_ccs(dev_priv, pipe,
+							 PLANE_SPRITE0 + plane);
+
 		intel_plane->update_plane = skl_update_plane;
 		intel_plane->disable_plane = skl_disable_plane;
 		intel_plane->get_hw_state = skl_plane_get_hw_state;
@@ -1375,10 +1434,12 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		plane_formats = skl_plane_formats;
 		num_plane_formats = ARRAY_SIZE(skl_plane_formats);
 
-		if (skl_plane_has_ccs(dev_priv, pipe, PLANE_SPRITE0 + plane))
+		if (intel_plane->has_ccs)
 			modifiers = skl_plane_format_modifiers_ccs;
 		else
 			modifiers = skl_plane_format_modifiers_noccs;
+
+		plane_funcs = &skl_plane_funcs;
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		intel_plane->can_scale = false;
 		intel_plane->max_downscale = 1;
@@ -1390,6 +1451,8 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		plane_formats = vlv_plane_formats;
 		num_plane_formats = ARRAY_SIZE(vlv_plane_formats);
 		modifiers = i9xx_plane_format_modifiers;
+
+		plane_funcs = &vlv_sprite_funcs;
 	} else if (INTEL_GEN(dev_priv) >= 7) {
 		if (IS_IVYBRIDGE(dev_priv)) {
 			intel_plane->can_scale = true;
@@ -1406,6 +1469,8 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		plane_formats = snb_plane_formats;
 		num_plane_formats = ARRAY_SIZE(snb_plane_formats);
 		modifiers = i9xx_plane_format_modifiers;
+
+		plane_funcs = &snb_sprite_funcs;
 	} else {
 		intel_plane->can_scale = true;
 		intel_plane->max_downscale = 16;
@@ -1418,9 +1483,13 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		if (IS_GEN6(dev_priv)) {
 			plane_formats = snb_plane_formats;
 			num_plane_formats = ARRAY_SIZE(snb_plane_formats);
+
+			plane_funcs = &snb_sprite_funcs;
 		} else {
 			plane_formats = g4x_plane_formats;
 			num_plane_formats = ARRAY_SIZE(g4x_plane_formats);
+
+			plane_funcs = &g4x_sprite_funcs;
 		}
 	}
 
@@ -1447,14 +1516,14 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 	if (INTEL_GEN(dev_priv) >= 9)
 		ret = drm_universal_plane_init(&dev_priv->drm, &intel_plane->base,
-					       possible_crtcs, &intel_sprite_plane_funcs,
+					       possible_crtcs, plane_funcs,
 					       plane_formats, num_plane_formats,
 					       modifiers,
 					       DRM_PLANE_TYPE_OVERLAY,
 					       "plane %d%c", plane + 2, pipe_name(pipe));
 	else
 		ret = drm_universal_plane_init(&dev_priv->drm, &intel_plane->base,
-					       possible_crtcs, &intel_sprite_plane_funcs,
+					       possible_crtcs, plane_funcs,
 					       plane_formats, num_plane_formats,
 					       modifiers,
 					       DRM_PLANE_TYPE_OVERLAY,
