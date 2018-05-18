@@ -9687,12 +9687,14 @@ static u32 i9xx_cursor_ctl(const struct intel_crtc_state *crtc_state,
 	struct drm_i915_private *dev_priv =
 		to_i915(plane_state->base.plane->dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
-	u32 cntl;
+	u32 cntl = 0;
 
-	cntl = MCURSOR_GAMMA_ENABLE;
+	if (INTEL_GEN(dev_priv) <= 10) {
+		cntl |= MCURSOR_GAMMA_ENABLE;
 
-	if (HAS_DDI(dev_priv))
-		cntl |= CURSOR_PIPE_CSC_ENABLE;
+		if (HAS_DDI(dev_priv))
+			cntl |= CURSOR_PIPE_CSC_ENABLE;
+	}
 
 	if (INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv))
 		cntl |= MCURSOR_PIPE_SELECT(crtc->pipe);
