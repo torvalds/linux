@@ -14370,9 +14370,9 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 				      i, fb->pitches[i], stride_alignment);
 			goto err;
 		}
-	}
 
-	intel_fb->obj = obj;
+		fb->obj[i] = &obj->base;
+	}
 
 	ret = intel_fill_fb_info(dev_priv, fb);
 	if (ret)
