@@ -29,8 +29,7 @@
 #include "dwmac_dma.h"
 
 static void dwmac100_dma_init(void __iomem *ioaddr,
-			      struct stmmac_dma_cfg *dma_cfg,
-			      u32 dma_tx, u32 dma_rx, int atds)
+			      struct stmmac_dma_cfg *dma_cfg, int atds)
 {
 	/* Enable Application Access by writing to DMA CSR0 */
 	writel(DMA_BUS_MODE_DEFAULT | (dma_cfg->pbl << DMA_BUS_MODE_PBL_SHIFT),
@@ -38,12 +37,22 @@ static void dwmac100_dma_init(void __iomem *ioaddr,
 
 	/* Mask interrupts by writing to CSR7 */
 	writel(DMA_INTR_DEFAULT_MASK, ioaddr + DMA_INTR_ENA);
+}
 
-	/* RX/TX descriptor base addr lists must be written into
-	 * DMA CSR3 and CSR4, respectively
-	 */
-	writel(dma_tx, ioaddr + DMA_TX_BASE_ADDR);
-	writel(dma_rx, ioaddr + DMA_RCV_BASE_ADDR);
+static void dwmac100_dma_init_rx(void __iomem *ioaddr,
+				 struct stmmac_dma_cfg *dma_cfg,
+				 u32 dma_rx_phy, u32 chan)
+{
+	/* RX descriptor base addr lists must be written into DMA CSR3 */
+	writel(dma_rx_phy, ioaddr + DMA_RCV_BASE_ADDR);
+}
+
+static void dwmac100_dma_init_tx(void __iomem *ioaddr,
+				 struct stmmac_dma_cfg *dma_cfg,
+				 u32 dma_tx_phy, u32 chan)
+{
+	/* TX descriptor base addr lists must be written into DMA CSR4 */
+	writel(dma_tx_phy, ioaddr + DMA_TX_BASE_ADDR);
 }
 
 /* Store and Forward capability is not used at all.
@@ -51,14 +60,14 @@ static void dwmac100_dma_init(void __iomem *ioaddr,
  * The transmit threshold can be programmed by setting the TTC bits in the DMA
  * control register.
  */
-static void dwmac100_dma_operation_mode(void __iomem *ioaddr, int txmode,
-					int rxmode, int rxfifosz)
+static void dwmac100_dma_operation_mode_tx(void __iomem *ioaddr, int mode,
+					   u32 channel, int fifosz, u8 qmode)
 {
 	u32 csr6 = readl(ioaddr + DMA_CONTROL);
 
-	if (txmode <= 32)
+	if (mode <= 32)
 		csr6 |= DMA_CONTROL_TTC_32;
-	else if (txmode <= 64)
+	else if (mode <= 64)
 		csr6 |= DMA_CONTROL_TTC_64;
 	else
 		csr6 |= DMA_CONTROL_TTC_128;
@@ -112,8 +121,10 @@ static void dwmac100_dma_diagnostic_fr(void *data, struct stmmac_extra_stats *x,
 const struct stmmac_dma_ops dwmac100_dma_ops = {
 	.reset = dwmac_dma_reset,
 	.init = dwmac100_dma_init,
+	.init_rx_chan = dwmac100_dma_init_rx,
+	.init_tx_chan = dwmac100_dma_init_tx,
 	.dump_regs = dwmac100_dump_dma_regs,
-	.dma_mode = dwmac100_dma_operation_mode,
+	.dma_tx_mode = dwmac100_dma_operation_mode_tx,
 	.dma_diagnostic_fr = dwmac100_dma_diagnostic_fr,
 	.enable_dma_transmission = dwmac_enable_dma_transmission,
 	.enable_dma_irq = dwmac_enable_dma_irq,

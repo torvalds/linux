@@ -59,7 +59,7 @@ struct stmmac_desc_ops {
 	/* Get the buffer size from the descriptor */
 	int (*get_tx_len)(struct dma_desc *p);
 	/* Handle extra events on specific interrupts hw dependent */
-	void (*set_rx_owner)(struct dma_desc *p);
+	void (*set_rx_owner)(struct dma_desc *p, int disable_rx_ic);
 	/* Get the receive frame size */
 	int (*get_rx_frame_len)(struct dma_desc *p, int rx_coe_type);
 	/* Return the reception status looking at the RDES1 */
@@ -79,6 +79,12 @@ struct stmmac_desc_ops {
 	void (*display_ring)(void *head, unsigned int size, bool rx);
 	/* set MSS via context descriptor */
 	void (*set_mss)(struct dma_desc *p, unsigned int mss);
+	/* get descriptor skbuff address */
+	void (*get_addr)(struct dma_desc *p, unsigned int *addr);
+	/* set descriptor skbuff address */
+	void (*set_addr)(struct dma_desc *p, dma_addr_t addr);
+	/* clear descriptor */
+	void (*clear)(struct dma_desc *p);
 };
 
 #define stmmac_init_rx_desc(__priv, __args...) \
@@ -123,6 +129,12 @@ struct stmmac_desc_ops {
 	stmmac_do_void_callback(__priv, desc, display_ring, __args)
 #define stmmac_set_mss(__priv, __args...) \
 	stmmac_do_void_callback(__priv, desc, set_mss, __args)
+#define stmmac_get_desc_addr(__priv, __args...) \
+	stmmac_do_void_callback(__priv, desc, get_addr, __args)
+#define stmmac_set_desc_addr(__priv, __args...) \
+	stmmac_do_void_callback(__priv, desc, set_addr, __args)
+#define stmmac_clear_desc(__priv, __args...) \
+	stmmac_do_void_callback(__priv, desc, clear, __args)
 
 struct stmmac_dma_cfg;
 struct dma_features;
@@ -132,7 +144,7 @@ struct stmmac_dma_ops {
 	/* DMA core initialization */
 	int (*reset)(void __iomem *ioaddr);
 	void (*init)(void __iomem *ioaddr, struct stmmac_dma_cfg *dma_cfg,
-		     u32 dma_tx, u32 dma_rx, int atds);
+		     int atds);
 	void (*init_chan)(void __iomem *ioaddr,
 			  struct stmmac_dma_cfg *dma_cfg, u32 chan);
 	void (*init_rx_chan)(void __iomem *ioaddr,
@@ -145,10 +157,6 @@ struct stmmac_dma_ops {
 	void (*axi)(void __iomem *ioaddr, struct stmmac_axi *axi);
 	/* Dump DMA registers */
 	void (*dump_regs)(void __iomem *ioaddr, u32 *reg_space);
-	/* Set tx/rx threshold in the csr6 register
-	 * An invalid value enables the store-and-forward mode */
-	void (*dma_mode)(void __iomem *ioaddr, int txmode, int rxmode,
-			 int rxfifosz);
 	void (*dma_rx_mode)(void __iomem *ioaddr, int mode, u32 channel,
 			    int fifosz, u8 qmode);
 	void (*dma_tx_mode)(void __iomem *ioaddr, int mode, u32 channel,
@@ -191,8 +199,6 @@ struct stmmac_dma_ops {
 	stmmac_do_void_callback(__priv, dma, axi, __args)
 #define stmmac_dump_dma_regs(__priv, __args...) \
 	stmmac_do_void_callback(__priv, dma, dump_regs, __args)
-#define stmmac_dma_mode(__priv, __args...) \
-	stmmac_do_void_callback(__priv, dma, dma_mode, __args)
 #define stmmac_dma_rx_mode(__priv, __args...) \
 	stmmac_do_void_callback(__priv, dma, dma_rx_mode, __args)
 #define stmmac_dma_tx_mode(__priv, __args...) \
@@ -439,6 +445,11 @@ struct stmmac_tc_ops {
 	stmmac_do_callback(__priv, tc, init, __args)
 #define stmmac_tc_setup_cls_u32(__priv, __args...) \
 	stmmac_do_callback(__priv, tc, setup_cls_u32, __args)
+
+struct stmmac_regs_off {
+	u32 ptp_off;
+	u32 mmc_off;
+};
 
 extern const struct stmmac_ops dwmac100_ops;
 extern const struct stmmac_dma_ops dwmac100_dma_ops;
