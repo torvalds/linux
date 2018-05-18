@@ -1735,9 +1735,16 @@ static void kvmppc_core_destroy_vm_pr(struct kvm *kvm)
 static int kvmppc_core_check_processor_compat_pr(void)
 {
 	/*
-	 * Disable KVM for Power9 untill the required bits merged.
+	 * PR KVM can work on POWER9 inside a guest partition
+	 * running in HPT mode.  It can't work if we are using
+	 * radix translation (because radix provides no way for
+	 * a process to have unique translations in quadrant 3)
+	 * or in a bare-metal HPT-mode host (because POWER9
+	 * uses a modified HPTE format which the PR KVM code
+	 * has not been adapted to use).
 	 */
-	if (cpu_has_feature(CPU_FTR_ARCH_300))
+	if (cpu_has_feature(CPU_FTR_ARCH_300) &&
+	    (radix_enabled() || cpu_has_feature(CPU_FTR_HVMODE)))
 		return -EIO;
 	return 0;
 }
