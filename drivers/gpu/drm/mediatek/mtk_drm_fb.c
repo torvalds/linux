@@ -15,6 +15,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <linux/dma-buf.h>
 #include <linux/reservation.h>
 
@@ -30,42 +31,13 @@
  */
 struct mtk_drm_fb {
 	struct drm_framebuffer	base;
-	/* For now we only support a single plane */
-	struct drm_gem_object	*gem_obj;
 };
 
 #define to_mtk_fb(x) container_of(x, struct mtk_drm_fb, base)
 
-struct drm_gem_object *mtk_fb_get_gem_obj(struct drm_framebuffer *fb)
-{
-	struct mtk_drm_fb *mtk_fb = to_mtk_fb(fb);
-
-	return mtk_fb->gem_obj;
-}
-
-static int mtk_drm_fb_create_handle(struct drm_framebuffer *fb,
-				    struct drm_file *file_priv,
-				    unsigned int *handle)
-{
-	struct mtk_drm_fb *mtk_fb = to_mtk_fb(fb);
-
-	return drm_gem_handle_create(file_priv, mtk_fb->gem_obj, handle);
-}
-
-static void mtk_drm_fb_destroy(struct drm_framebuffer *fb)
-{
-	struct mtk_drm_fb *mtk_fb = to_mtk_fb(fb);
-
-	drm_framebuffer_cleanup(fb);
-
-	drm_gem_object_put_unlocked(mtk_fb->gem_obj);
-
-	kfree(mtk_fb);
-}
-
 static const struct drm_framebuffer_funcs mtk_drm_fb_funcs = {
-	.create_handle = mtk_drm_fb_create_handle,
-	.destroy = mtk_drm_fb_destroy,
+	.create_handle = drm_gem_fb_create_handle,
+	.destroy = drm_gem_fb_destroy,
 };
 
 static struct mtk_drm_fb *mtk_drm_framebuffer_init(struct drm_device *dev,
@@ -84,7 +56,7 @@ static struct mtk_drm_fb *mtk_drm_framebuffer_init(struct drm_device *dev,
 
 	drm_helper_mode_fill_fb_struct(dev, &mtk_fb->base, mode);
 
-	mtk_fb->gem_obj = obj;
+	mtk_fb->base.obj[0] = obj;
 
 	ret = drm_framebuffer_init(dev, &mtk_fb->base, &mtk_drm_fb_funcs);
 	if (ret) {
@@ -110,7 +82,7 @@ int mtk_fb_wait(struct drm_framebuffer *fb)
 	if (!fb)
 		return 0;
 
-	gem = mtk_fb_get_gem_obj(fb);
+	gem = fb->obj[0];
 	if (!gem || !gem->dma_buf || !gem->dma_buf->resv)
 		return 0;
 
