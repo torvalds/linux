@@ -130,29 +130,6 @@ static int arc_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 	return ret;
 }
 
-/*
- * streaming DMA Mapping API...
- * CPU accesses page via normal paddr, thus needs to explicitly made
- * consistent before each use
- */
-static void _dma_cache_sync(phys_addr_t paddr, size_t size,
-		enum dma_data_direction dir)
-{
-	switch (dir) {
-	case DMA_FROM_DEVICE:
-		dma_cache_inv(paddr, size);
-		break;
-	case DMA_TO_DEVICE:
-		dma_cache_wback(paddr, size);
-		break;
-	case DMA_BIDIRECTIONAL:
-		dma_cache_wback_inv(paddr, size);
-		break;
-	default:
-		pr_err("Invalid DMA dir [%d] for OP @ %pa[p]\n", dir, &paddr);
-	}
-}
-
 static void arc_dma_sync_single_for_device(struct device *dev,
 		dma_addr_t dma_handle, size_t size, enum dma_data_direction dir)
 {
@@ -185,7 +162,7 @@ static dma_addr_t arc_dma_map_page(struct device *dev, struct page *page,
 	phys_addr_t paddr = page_to_phys(page) + offset;
 
 	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-		_dma_cache_sync(paddr, size, dir);
+		arc_dma_sync_single_for_device(dev, paddr, size, dir);
 
 	return paddr;
 }
@@ -205,7 +182,7 @@ static void arc_dma_unmap_page(struct device *dev, dma_addr_t handle,
 	phys_addr_t paddr = handle;
 
 	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-		_dma_cache_sync(paddr, size, dir);
+		arc_dma_sync_single_for_cpu(dev, paddr, size, dir);
 }
 
 static int arc_dma_map_sg(struct device *dev, struct scatterlist *sg,
