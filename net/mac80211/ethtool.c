@@ -108,7 +108,7 @@ static void ieee80211_get_stats(struct net_device *dev,
 			goto do_survey;
 
 		memset(&sinfo, 0, sizeof(sinfo));
-		sta_set_sinfo(sta, &sinfo);
+		sta_set_sinfo(sta, &sinfo, false);
 
 		i = 0;
 		ADD_STA_STATS(sta);
@@ -135,7 +135,7 @@ static void ieee80211_get_stats(struct net_device *dev,
 				continue;
 
 			memset(&sinfo, 0, sizeof(sinfo));
-			sta_set_sinfo(sta, &sinfo);
+			sta_set_sinfo(sta, &sinfo, false);
 			i = 0;
 			ADD_STA_STATS(sta);
 		}

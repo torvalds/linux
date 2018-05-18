@@ -744,7 +744,8 @@ static inline int sta_info_flush(struct ieee80211_sub_if_data *sdata)
 void sta_set_rate_info_tx(struct sta_info *sta,
 			  const struct ieee80211_tx_rate *rate,
 			  struct rate_info *rinfo);
-void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo);
+void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
+		   bool tidstats);
 
 u32 sta_get_expected_throughput(struct sta_info *sta);
 
