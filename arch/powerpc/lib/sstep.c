@@ -1065,9 +1065,10 @@ static nokprobe_inline void do_popcnt(const struct pt_regs *regs,
 {
 	unsigned long long out = v1;
 
-	out -= (out >> 1) & 0x5555555555555555;
-	out = (0x3333333333333333 & out) + (0x3333333333333333 & (out >> 2));
-	out = (out + (out >> 4)) & 0x0f0f0f0f0f0f0f0f;
+	out -= (out >> 1) & 0x5555555555555555ULL;
+	out = (0x3333333333333333ULL & out) +
+	      (0x3333333333333333ULL & (out >> 2));
+	out = (out + (out >> 4)) & 0x0f0f0f0f0f0f0f0fULL;
 
 	if (size == 8) {	/* popcntb */
 		op->val = out;
@@ -1076,7 +1077,7 @@ static nokprobe_inline void do_popcnt(const struct pt_regs *regs,
 	out += out >> 8;
 	out += out >> 16;
 	if (size == 32) {	/* popcntw */
-		op->val = out & 0x0000003f0000003f;
+		op->val = out & 0x0000003f0000003fULL;
 		return;
 	}
 
@@ -1114,7 +1115,7 @@ static nokprobe_inline void do_prty(const struct pt_regs *regs,
 
 	res ^= res >> 16;
 	if (size == 32) {		/* prtyw */
-		op->val = res & 0x0000000100000001;
+		op->val = res & 0x0000000100000001ULL;
 		return;
 	}
 
