@@ -40,7 +40,6 @@ static struct cpufreq_frequency_table freq_table[] = {
 static struct clk *cpu_clk;
 static struct clk *pll_x_clk;
 static struct clk *pll_p_clk;
-static struct clk *emc_clk;
 static bool pll_x_prepared;
 
 static unsigned int tegra_get_intermediate(struct cpufreq_policy *policy,
@@ -92,17 +91,6 @@ static int tegra_target(struct cpufreq_policy *policy, unsigned int index)
 	int ret = 0;
 
 	/*
-	 * Vote on memory bus frequency based on cpu frequency
-	 * This sets the minimum frequency, display or avp may request higher
-	 */
-	if (rate >= 816000)
-		clk_set_rate(emc_clk, 600000000); /* cpu 816 MHz, emc max */
-	else if (rate >= 456000)
-		clk_set_rate(emc_clk, 300000000); /* cpu 456 MHz, emc 150Mhz */
-	else
-		clk_set_rate(emc_clk, 100000000);  /* emc 50Mhz */
-
-	/*
 	 * target freq == pll_p, don't need to take extra reference to pll_x_clk
 	 * as it isn't used anymore.
 	 */
@@ -137,14 +125,12 @@ static int tegra_cpu_init(struct cpufreq_policy *policy)
 	if (policy->cpu >= NUM_CPUS)
 		return -EINVAL;
 
-	clk_prepare_enable(emc_clk);
 	clk_prepare_enable(cpu_clk);
 
 	/* FIXME: what's the actual transition time? */
 	ret = cpufreq_generic_init(policy, freq_table, 300 * 1000);
 	if (ret) {
 		clk_disable_unprepare(cpu_clk);
-		clk_disable_unprepare(emc_clk);
 		return ret;
 	}
 
@@ -156,7 +142,6 @@ static int tegra_cpu_init(struct cpufreq_policy *policy)
 static int tegra_cpu_exit(struct cpufreq_policy *policy)
 {
 	clk_disable_unprepare(cpu_clk);
-	clk_disable_unprepare(emc_clk);
 	return 0;
 }
 
@@ -188,19 +173,12 @@ static int __init tegra_cpufreq_init(void)
 	if (IS_ERR(pll_p_clk))
 		return PTR_ERR(pll_p_clk);
 
-	emc_clk = clk_get_sys("cpu", "emc");
-	if (IS_ERR(emc_clk)) {
-		clk_put(cpu_clk);
-		return PTR_ERR(emc_clk);
-	}
-
 	return cpufreq_register_driver(&tegra_cpufreq_driver);
 }
 
 static void __exit tegra_cpufreq_exit(void)
 {
 	cpufreq_unregister_driver(&tegra_cpufreq_driver);
-	clk_put(emc_clk);
 	clk_put(cpu_clk);
 }
 
