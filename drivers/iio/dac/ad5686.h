@@ -13,6 +13,7 @@
 #include <linux/mutex.h>
 #include <linux/kernel.h>
 
+#define AD5683_DATA(x)				((x) << 4)
 #define AD5686_ADDR(x)				((x) << 16)
 #define AD5686_CMD(x)				((x) << 20)
 
@@ -36,6 +37,8 @@
 #define AD5686_LDAC_PWRDN_3STATE		0x3
 
 #define AD5686_CMD_CONTROL_REG			0x4
+#define AD5686_CMD_READBACK_ENABLE_V2		0x5
+#define AD5683_REF_BIT_MSK			BIT(12)
 #define AD5693_REF_BIT_MSK			BIT(12)
 
 /**
@@ -47,6 +50,10 @@ enum ad5686_supported_device_ids {
 	ID_AD5675R,
 	ID_AD5676,
 	ID_AD5676R,
+	ID_AD5681R,
+	ID_AD5682R,
+	ID_AD5683,
+	ID_AD5683R,
 	ID_AD5684,
 	ID_AD5684R,
 	ID_AD5685R,
@@ -64,6 +71,7 @@ enum ad5686_supported_device_ids {
 };
 
 enum ad5686_regmap_type {
+	AD5683_REGMAP,
 	AD5686_REGMAP,
 	AD5693_REGMAP
 };
