@@ -523,6 +523,7 @@ static unsigned int smap_do_tx_msg(struct sock *sk,
 	}
 
 	bpf_compute_data_pointers_sg(md);
+	md->sk = sk;
 	rc = (*prog->bpf_func)(md, prog->insnsi);
 	psock->apply_bytes = md->apply_bytes;
 
