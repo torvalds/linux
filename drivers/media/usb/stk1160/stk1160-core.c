@@ -167,6 +167,8 @@ static void stk1160_release(struct v4l2_device *v4l2_dev)
 
 	v4l2_ctrl_handler_free(&dev->ctrl_handler);
 	v4l2_device_unregister(&dev->v4l2_dev);
+	mutex_destroy(&dev->v4l_lock);
+	mutex_destroy(&dev->vb_queue_lock);
 	kfree(dev->alt_max_pkt_size);
 	kfree(dev);
 }
