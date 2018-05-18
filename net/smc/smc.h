@@ -118,7 +118,7 @@ struct smc_connection {
 	struct rb_node		alert_node;
 	struct smc_link_group	*lgr;		/* link group of connection */
 	u32			alert_token_local; /* unique conn. id */
-	u8			peer_conn_idx;	/* from tcp handshake */
+	u8			peer_rmbe_idx;	/* from tcp handshake */
 	int			peer_rmbe_size;	/* size of peer rx buffer */
 	atomic_t		peer_rmbe_space;/* remaining free bytes in peer
 						 * rmbe

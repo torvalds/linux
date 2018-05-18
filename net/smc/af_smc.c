@@ -377,7 +377,7 @@ static int smc_clnt_conf_first_link(struct smc_sock *smc)
 static void smc_conn_save_peer_info(struct smc_sock *smc,
 				    struct smc_clc_msg_accept_confirm *clc)
 {
-	smc->conn.peer_conn_idx = clc->conn_idx;
+	smc->conn.peer_rmbe_idx = clc->rmbe_idx;
 	smc->conn.local_tx_ctrl.token = ntohl(clc->rmbe_alert_token);
 	smc->conn.peer_rmbe_size = smc_uncompress_bufsize(clc->rmbe_size);
 	atomic_set(&smc->conn.peer_rmbe_space, smc->conn.peer_rmbe_size);
