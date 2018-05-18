@@ -165,19 +165,12 @@ static inline bool smc_cdc_before(u16 seq1, u16 seq2)
 }
 
 static void smc_cdc_msg_recv_action(struct smc_sock *smc,
-				    struct smc_link *link,
 				    struct smc_cdc_msg *cdc)
 {
 	union smc_host_cursor cons_old, prod_old;
 	struct smc_connection *conn = &smc->conn;
 	int diff_cons, diff_prod;
 
-	if (!cdc->prod_flags.failover_validation) {
-		if (smc_cdc_before(ntohs(cdc->seqno),
-				   conn->local_rx_ctrl.seqno))
-			/* received seqno is old */
-			return;
-	}
 	smc_curs_write(&prod_old,
 		       smc_curs_read(&conn->local_rx_ctrl.prod, conn),
 		       conn);
@@ -236,26 +229,11 @@ static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 }
 
 /* called under tasklet context */
-static inline void smc_cdc_msg_recv(struct smc_cdc_msg *cdc,
-				    struct smc_link *link, u64 wr_id)
+static void smc_cdc_msg_recv(struct smc_sock *smc, struct smc_cdc_msg *cdc)
 {
-	struct smc_link_group *lgr = container_of(link, struct smc_link_group,
-						  lnk[SMC_SINGLE_LINK]);
-	struct smc_connection *connection;
-	struct smc_sock *smc;
-
-	/* lookup connection */
-	read_lock_bh(&lgr->conns_lock);
-	connection = smc_lgr_find_conn(ntohl(cdc->token), lgr);
-	if (!connection) {
-		read_unlock_bh(&lgr->conns_lock);
-		return;
-	}
-	smc = container_of(connection, struct smc_sock, conn);
 	sock_hold(&smc->sk);
-	read_unlock_bh(&lgr->conns_lock);
 	bh_lock_sock(&smc->sk);
-	smc_cdc_msg_recv_action(smc, link, cdc);
+	smc_cdc_msg_recv_action(smc, cdc);
 	bh_unlock_sock(&smc->sk);
 	sock_put(&smc->sk); /* no free sk in softirq-context */
 }
@@ -266,12 +244,31 @@ static void smc_cdc_rx_handler(struct ib_wc *wc, void *buf)
 {
 	struct smc_link *link = (struct smc_link *)wc->qp->qp_context;
 	struct smc_cdc_msg *cdc = buf;
+	struct smc_connection *conn;
+	struct smc_link_group *lgr;
+	struct smc_sock *smc;
 
 	if (wc->byte_len < offsetof(struct smc_cdc_msg, reserved))
 		return; /* short message */
 	if (cdc->len != SMC_WR_TX_SIZE)
 		return; /* invalid message */
-	smc_cdc_msg_recv(cdc, link, wc->wr_id);
+
+	/* lookup connection */
+	lgr = container_of(link, struct smc_link_group, lnk[SMC_SINGLE_LINK]);
+	read_lock_bh(&lgr->conns_lock);
+	conn = smc_lgr_find_conn(ntohl(cdc->token), lgr);
+	read_unlock_bh(&lgr->conns_lock);
+	if (!conn)
+		return;
+	smc = container_of(conn, struct smc_sock, conn);
+
+	if (!cdc->prod_flags.failover_validation) {
+		if (smc_cdc_before(ntohs(cdc->seqno),
+				   conn->local_rx_ctrl.seqno))
+			/* received seqno is old */
+			return;
+	}
+	smc_cdc_msg_recv(smc, cdc);
 }
 
 static struct smc_wr_rx_handler smc_cdc_rx_handlers[] = {
