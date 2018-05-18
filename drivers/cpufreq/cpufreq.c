@@ -300,8 +300,19 @@ static void adjust_jiffies(unsigned long val, struct cpufreq_freqs *ci)
 #endif
 }
 
-static void __cpufreq_notify_transition(struct cpufreq_policy *policy,
-		struct cpufreq_freqs *freqs, unsigned int state)
+/**
+ * cpufreq_notify_transition - Notify frequency transition and adjust_jiffies.
+ * @policy: cpufreq policy to enable fast frequency switching for.
+ * @freqs: contain details of the frequency update.
+ * @state: set to CPUFREQ_PRECHANGE or CPUFREQ_POSTCHANGE.
+ *
+ * This function calls the transition notifiers and the "adjust_jiffies"
+ * function. It is called twice on all CPU frequency changes that have
+ * external effects.
+ */
+static void cpufreq_notify_transition(struct cpufreq_policy *policy,
+				      struct cpufreq_freqs *freqs,
+				      unsigned int state)
 {
 	BUG_ON(irqs_disabled());
 
@@ -313,52 +324,42 @@ static void __cpufreq_notify_transition(struct cpufreq_policy *policy,
 		 state, freqs->new);
 
 	switch (state) {
-
 	case CPUFREQ_PRECHANGE:
-		/* detect if the driver reported a value as "old frequency"
+		/*
+		 * Detect if the driver reported a value as "old frequency"
 		 * which is not equal to what the cpufreq core thinks is
 		 * "old frequency".
 		 */
 		if (!(cpufreq_driver->flags & CPUFREQ_CONST_LOOPS)) {
-			if ((policy) && (policy->cpu == freqs->cpu) &&
-			    (policy->cur) && (policy->cur != freqs->old)) {
+			if (policy->cur && (policy->cur != freqs->old)) {
 				pr_debug("Warning: CPU frequency is %u, cpufreq assumed %u kHz\n",
 					 freqs->old, policy->cur);
 				freqs->old = policy->cur;
 			}
 		}
-		srcu_notifier_call_chain(&cpufreq_transition_notifier_list,
-				CPUFREQ_PRECHANGE, freqs);
+
+		for_each_cpu(freqs->cpu, policy->cpus) {
+			srcu_notifier_call_chain(&cpufreq_transition_notifier_list,
+						 CPUFREQ_PRECHANGE, freqs);
+		}
+
 		adjust_jiffies(CPUFREQ_PRECHANGE, freqs);
 		break;
 
 	case CPUFREQ_POSTCHANGE:
 		adjust_jiffies(CPUFREQ_POSTCHANGE, freqs);
-		pr_debug("FREQ: %lu - CPU: %lu\n",
-			 (unsigned long)freqs->new, (unsigned long)freqs->cpu);
-		trace_cpu_frequency(freqs->new, freqs->cpu);
-		cpufreq_stats_record_transition(policy, freqs->new);
-		srcu_notifier_call_chain(&cpufreq_transition_notifier_list,
-				CPUFREQ_POSTCHANGE, freqs);
-		if (likely(policy) && likely(policy->cpu == freqs->cpu))
-			policy->cur = freqs->new;
-		break;
-	}
-}
+		pr_debug("FREQ: %u - CPUs: %*pbl\n", freqs->new,
+			 cpumask_pr_args(policy->cpus));
 
-/**
- * cpufreq_notify_transition - call notifier chain and adjust_jiffies
- * on frequency transition.
- *
- * This function calls the transition notifiers and the "adjust_jiffies"
- * function. It is called twice on all CPU frequency changes that have
- * external effects.
- */
-static void cpufreq_notify_transition(struct cpufreq_policy *policy,
-		struct cpufreq_freqs *freqs, unsigned int state)
-{
-	for_each_cpu(freqs->cpu, policy->cpus)
-		__cpufreq_notify_transition(policy, freqs, state);
+		for_each_cpu(freqs->cpu, policy->cpus) {
+			trace_cpu_frequency(freqs->new, freqs->cpu);
+			srcu_notifier_call_chain(&cpufreq_transition_notifier_list,
+						 CPUFREQ_POSTCHANGE, freqs);
+		}
+
+		cpufreq_stats_record_transition(policy, freqs->new);
+		policy->cur = freqs->new;
+	}
 }
 
 /* Do post notifications when there are chances that transition has failed */
