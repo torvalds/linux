@@ -334,7 +334,10 @@ int main(int argc, char **argv)
 	unsigned long timedelay = 1000000;
 	unsigned long buf_len = 128;
 
-	int ret, c, i, j, toread;
+	ssize_t i;
+	unsigned long j;
+	unsigned long toread;
+	int ret, c;
 	int fp = -1;
 
 	int num_channels = 0;
