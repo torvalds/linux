@@ -1339,16 +1339,39 @@ int cudbg_collect_tp_indirect(struct cudbg_init *pdbg_init,
 	return cudbg_write_and_release_buff(pdbg_init, &temp_buff, dbg_buff);
 }
 
+static void cudbg_read_sge_qbase_indirect_reg(struct adapter *padap,
+					      struct sge_qbase_reg_field *qbase,
+					      u32 func, bool is_pf)
+{
+	u32 *buff, i;
+
+	if (is_pf) {
+		buff = qbase->pf_data_value[func];
+	} else {
+		buff = qbase->vf_data_value[func];
+		/* In SGE_QBASE_INDEX,
+		 * Entries 0->7 are PF0->7, Entries 8->263 are VFID0->256.
+		 */
+		func += 8;
+	}
+
+	t4_write_reg(padap, qbase->reg_addr, func);
+	for (i = 0; i < SGE_QBASE_DATA_REG_NUM; i++, buff++)
+		*buff = t4_read_reg(padap, qbase->reg_data[i]);
+}
+
 int cudbg_collect_sge_indirect(struct cudbg_init *pdbg_init,
 			       struct cudbg_buffer *dbg_buff,
 			       struct cudbg_error *cudbg_err)
 {
 	struct adapter *padap = pdbg_init->adap;
 	struct cudbg_buffer temp_buff = { 0 };
+	struct sge_qbase_reg_field *sge_qbase;
 	struct ireg_buf *ch_sge_dbg;
 	int i, rc;
 
-	rc = cudbg_get_buff(pdbg_init, dbg_buff, sizeof(*ch_sge_dbg) * 2,
+	rc = cudbg_get_buff(pdbg_init, dbg_buff,
+			    sizeof(*ch_sge_dbg) * 2 + sizeof(*sge_qbase),
 			    &temp_buff);
 	if (rc)
 		return rc;
@@ -1370,6 +1393,28 @@ int cudbg_collect_sge_indirect(struct cudbg_init *pdbg_init,
 				 sge_pio->ireg_local_offset);
 		ch_sge_dbg++;
 	}
+
+	if (CHELSIO_CHIP_VERSION(padap->params.chip) > CHELSIO_T5) {
+		sge_qbase = (struct sge_qbase_reg_field *)ch_sge_dbg;
+		/* 1 addr reg SGE_QBASE_INDEX and 4 data reg
+		 * SGE_QBASE_MAP[0-3]
+		 */
+		sge_qbase->reg_addr = t6_sge_qbase_index_array[0];
+		for (i = 0; i < SGE_QBASE_DATA_REG_NUM; i++)
+			sge_qbase->reg_data[i] =
+				t6_sge_qbase_index_array[i + 1];
+
+		for (i = 0; i <= PCIE_FW_MASTER_M; i++)
+			cudbg_read_sge_qbase_indirect_reg(padap, sge_qbase,
+							  i, true);
+
+		for (i = 0; i < padap->params.arch.vfcount; i++)
+			cudbg_read_sge_qbase_indirect_reg(padap, sge_qbase,
+							  i, false);
+
+		sge_qbase->vfcount = padap->params.arch.vfcount;
+	}
+
 	return cudbg_write_and_release_buff(pdbg_init, &temp_buff, dbg_buff);
 }
 

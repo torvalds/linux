@@ -214,7 +214,8 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 		len = sizeof(struct ireg_buf) * n;
 		break;
 	case CUDBG_SGE_INDIRECT:
-		len = sizeof(struct ireg_buf) * 2;
+		len = sizeof(struct ireg_buf) * 2 +
+		      sizeof(struct sge_qbase_reg_field);
 		break;
 	case CUDBG_ULPRX_LA:
 		len = sizeof(struct cudbg_ulprx_la);
