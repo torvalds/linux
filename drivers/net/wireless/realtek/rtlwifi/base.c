@@ -571,9 +571,9 @@ int rtl_init_core(struct ieee80211_hw *hw)
 	spin_lock_init(&rtlpriv->locks.iqk_lock);
 	/* <5> init list */
 	INIT_LIST_HEAD(&rtlpriv->entry_list);
-	INIT_LIST_HEAD(&rtlpriv->c2hcmd_list);
 	INIT_LIST_HEAD(&rtlpriv->scan_list.list);
 	skb_queue_head_init(&rtlpriv->tx_report.queue);
+	skb_queue_head_init(&rtlpriv->c2hcmd_queue);
 
 	rtlmac->link_state = MAC80211_NOLINK;
 
@@ -2262,56 +2262,36 @@ void rtl_fwevt_wq_callback(void *data)
 	rtlpriv->cfg->ops->c2h_command_handle(hw);
 }
 
-void rtl_c2hcmd_enqueue(struct ieee80211_hw *hw, u8 tag, u8 len, u8 *val)
+void rtl_c2hcmd_enqueue(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	unsigned long flags;
-	struct rtl_c2hcmd *c2hcmd;
-
-	c2hcmd = kmalloc(sizeof(*c2hcmd),
-			 in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
-
-	if (!c2hcmd)
-		goto label_err;
-
-	c2hcmd->val = kmalloc(len,
-			      in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
-
-	if (!c2hcmd->val)
-		goto label_err2;
-
-	/* fill data */
-	c2hcmd->tag = tag;
-	c2hcmd->len = len;
-	memcpy(c2hcmd->val, val, len);
 
 	/* enqueue */
 	spin_lock_irqsave(&rtlpriv->locks.c2hcmd_lock, flags);
 
-	list_add_tail(&c2hcmd->list, &rtlpriv->c2hcmd_list);
+	__skb_queue_tail(&rtlpriv->c2hcmd_queue, skb);
 
 	spin_unlock_irqrestore(&rtlpriv->locks.c2hcmd_lock, flags);
 
 	/* wake up wq */
 	queue_delayed_work(rtlpriv->works.rtl_wq, &rtlpriv->works.c2hcmd_wq, 0);
-
-	return;
-
-label_err2:
-	kfree(c2hcmd);
-
-label_err:
-	RT_TRACE(rtlpriv, COMP_CMD, DBG_WARNING,
-		 "C2H cmd enqueue fail.\n");
 }
 EXPORT_SYMBOL(rtl_c2hcmd_enqueue);
 
-void rtl_c2h_content_parsing(struct ieee80211_hw *hw, u8 cmd_id,
-			     u8 cmd_len, u8 *cmd_buf)
+static void rtl_c2h_content_parsing(struct ieee80211_hw *hw,
+				    struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal_ops *hal_ops = rtlpriv->cfg->ops;
 	const struct rtl_btc_ops *btc_ops = rtlpriv->btcoexist.btc_ops;
+	u8 cmd_id, cmd_seq, cmd_len;
+	u8 *cmd_buf = NULL;
+
+	cmd_id = skb->data[0];
+	cmd_seq = skb->data[1];
+	cmd_len = skb->len - 2;
+	cmd_buf = skb->data + 2;
 
 	switch (cmd_id) {
 	case C2H_DBG:
@@ -2347,67 +2327,35 @@ void rtl_c2h_content_parsing(struct ieee80211_hw *hw, u8 cmd_id,
 	}
 }
 
-void rtl_c2h_packet_handler(struct ieee80211_hw *hw, u8 *buffer, u8 len)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u8 c2h_cmd_id = 0, c2h_cmd_seq = 0, c2h_cmd_len = 0;
-	u8 *tmp_buf = NULL;
-
-	c2h_cmd_id = buffer[0];
-	c2h_cmd_seq = buffer[1];
-	c2h_cmd_len = len - 2;
-	tmp_buf = buffer + 2;
-
-	RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
-		 "[C2H packet], c2hCmdId=0x%x, c2hCmdSeq=0x%x, c2hCmdLen=%d\n",
-		 c2h_cmd_id, c2h_cmd_seq, c2h_cmd_len);
-
-	RT_PRINT_DATA(rtlpriv, COMP_FW, DBG_TRACE,
-		      "[C2H packet], Content Hex:\n", tmp_buf, c2h_cmd_len);
-
-	switch (c2h_cmd_id) {
-	case C2H_BT_INFO:
-	case C2H_BT_MP:
-		rtl_c2hcmd_enqueue(hw, c2h_cmd_id, c2h_cmd_len, tmp_buf);
-		break;
-	default:
-		rtl_c2h_content_parsing(hw, c2h_cmd_id, c2h_cmd_len, tmp_buf);
-		break;
-	}
-}
-EXPORT_SYMBOL_GPL(rtl_c2h_packet_handler);
-
 void rtl_c2hcmd_launcher(struct ieee80211_hw *hw, int exec)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct sk_buff *skb;
 	unsigned long flags;
-	struct rtl_c2hcmd *c2hcmd;
 	int i;
 
 	for (i = 0; i < 200; i++) {
 		/* dequeue a task */
 		spin_lock_irqsave(&rtlpriv->locks.c2hcmd_lock, flags);
 
-		c2hcmd = list_first_entry_or_null(&rtlpriv->c2hcmd_list,
-						  struct rtl_c2hcmd, list);
-
-		if (c2hcmd)
-			list_del(&c2hcmd->list);
+		skb = __skb_dequeue(&rtlpriv->c2hcmd_queue);
 
 		spin_unlock_irqrestore(&rtlpriv->locks.c2hcmd_lock, flags);
 
 		/* do it */
-		if (!c2hcmd)
+		if (!skb)
 			break;
 
+		RT_TRACE(rtlpriv, COMP_FW, DBG_DMESG, "C2H rx_desc_shift=%d\n",
+			 *((u8 *)skb->cb));
+		RT_PRINT_DATA(rtlpriv, COMP_FW, DBG_DMESG,
+			      "C2H data: ", skb->data, skb->len);
+
 		if (exec)
-			rtl_c2h_content_parsing(hw, c2hcmd->tag,
-						c2hcmd->len, c2hcmd->val);
+			rtl_c2h_content_parsing(hw, skb);
 
 		/* free */
-		kfree(c2hcmd->val);
-
-		kfree(c2hcmd);
+		dev_kfree_skb_any(skb);
 	}
 }
 

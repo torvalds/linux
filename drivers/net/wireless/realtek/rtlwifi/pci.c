@@ -831,8 +831,7 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 		}
 		/* handle command packet here */
 		if (stats.packet_report_type == C2H_PACKET) {
-			rtl_c2h_packet_handler(hw, skb->data, (u8)skb->len);
-			dev_kfree_skb_any(skb);
+			rtl_c2hcmd_enqueue(hw, skb);
 			goto new_trx_end;
 		}
 

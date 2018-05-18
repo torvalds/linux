@@ -2791,7 +2791,7 @@ struct rtl_priv {
 	struct list_head entry_list;
 
 	/* c2hcmd list for kthread level access */
-	struct list_head c2hcmd_list;
+	struct sk_buff_head c2hcmd_queue;
 
 	struct rtl_debug dbg;
 	int max_fw_size;
