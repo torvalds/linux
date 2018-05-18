@@ -23,49 +23,37 @@
 #include "mtk_drm_fb.h"
 #include "mtk_drm_gem.h"
 
-/*
- * mtk specific framebuffer structure.
- *
- * @fb: drm framebuffer object.
- * @gem_obj: array of gem objects.
- */
-struct mtk_drm_fb {
-	struct drm_framebuffer	base;
-};
-
-#define to_mtk_fb(x) container_of(x, struct mtk_drm_fb, base)
-
 static const struct drm_framebuffer_funcs mtk_drm_fb_funcs = {
 	.create_handle = drm_gem_fb_create_handle,
 	.destroy = drm_gem_fb_destroy,
 };
 
-static struct mtk_drm_fb *mtk_drm_framebuffer_init(struct drm_device *dev,
+static struct drm_framebuffer *mtk_drm_framebuffer_init(struct drm_device *dev,
 					const struct drm_mode_fb_cmd2 *mode,
 					struct drm_gem_object *obj)
 {
-	struct mtk_drm_fb *mtk_fb;
+	struct drm_framebuffer *fb;
 	int ret;
 
 	if (drm_format_num_planes(mode->pixel_format) != 1)
 		return ERR_PTR(-EINVAL);
 
-	mtk_fb = kzalloc(sizeof(*mtk_fb), GFP_KERNEL);
-	if (!mtk_fb)
+	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
+	if (!fb)
 		return ERR_PTR(-ENOMEM);
 
-	drm_helper_mode_fill_fb_struct(dev, &mtk_fb->base, mode);
+	drm_helper_mode_fill_fb_struct(dev, fb, mode);
 
-	mtk_fb->base.obj[0] = obj;
+	fb->obj[0] = obj;
 
-	ret = drm_framebuffer_init(dev, &mtk_fb->base, &mtk_drm_fb_funcs);
+	ret = drm_framebuffer_init(dev, fb, &mtk_drm_fb_funcs);
 	if (ret) {
 		DRM_ERROR("failed to initialize framebuffer\n");
-		kfree(mtk_fb);
+		kfree(fb);
 		return ERR_PTR(ret);
 	}
 
-	return mtk_fb;
+	return fb;
 }
 
 /*
@@ -100,7 +88,7 @@ struct drm_framebuffer *mtk_drm_mode_fb_create(struct drm_device *dev,
 					       struct drm_file *file,
 					       const struct drm_mode_fb_cmd2 *cmd)
 {
-	struct mtk_drm_fb *mtk_fb;
+	struct drm_framebuffer *fb;
 	struct drm_gem_object *gem;
 	unsigned int width = cmd->width;
 	unsigned int height = cmd->height;
@@ -123,13 +111,13 @@ struct drm_framebuffer *mtk_drm_mode_fb_create(struct drm_device *dev,
 		goto unreference;
 	}
 
-	mtk_fb = mtk_drm_framebuffer_init(dev, cmd, gem);
-	if (IS_ERR(mtk_fb)) {
-		ret = PTR_ERR(mtk_fb);
+	fb = mtk_drm_framebuffer_init(dev, cmd, gem);
+	if (IS_ERR(fb)) {
+		ret = PTR_ERR(fb);
 		goto unreference;
 	}
 
-	return &mtk_fb->base;
+	return fb;
 
 unreference:
 	drm_gem_object_put_unlocked(gem);
