@@ -4595,17 +4595,17 @@ static void ivybridge_update_fdi_bc_bifurcation(struct intel_crtc *intel_crtc)
  * used when we know that the CRTC isn't feeding multiple encoders!
  */
 static struct intel_encoder *
-intel_get_crtc_new_encoder(const struct intel_crtc_state *crtc_state)
+intel_get_crtc_new_encoder(const struct intel_atomic_state *state,
+			   const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
-	const struct drm_atomic_state *state = crtc_state->base.state;
 	const struct drm_connector_state *connector_state;
 	const struct drm_connector *connector;
 	struct intel_encoder *encoder = NULL;
 	int num_encoders = 0;
 	int i;
 
-	for_each_new_connector_in_state(state, connector, connector_state, i) {
+	for_each_new_connector_in_state(&state->base, connector, connector_state, i) {
 		if (connector_state->crtc != &crtc->base)
 			continue;
 
@@ -4619,22 +4619,6 @@ intel_get_crtc_new_encoder(const struct intel_crtc_state *crtc_state)
 	return encoder;
 }
 
-/* Return which DP Port should be selected for Transcoder DP control */
-static enum port
-intel_trans_dp_port_sel(struct intel_crtc *crtc)
-{
-	struct drm_device *dev = crtc->base.dev;
-	struct intel_encoder *encoder;
-
-	for_each_encoder_on_crtc(dev, &crtc->base, encoder) {
-		if (encoder->type == INTEL_OUTPUT_DP ||
-		    encoder->type == INTEL_OUTPUT_EDP)
-			return encoder->port;
-	}
-
-	return -1;
-}
-
 /*
  * Enable PCH resources required for PCH ports:
  *   - PCH PLLs
@@ -4643,7 +4627,8 @@ intel_trans_dp_port_sel(struct intel_crtc *crtc)
  *   - DP transcoding bits
  *   - transcoder
  */
-static void ironlake_pch_enable(const struct intel_crtc_state *crtc_state)
+static void ironlake_pch_enable(const struct intel_atomic_state *state,
+				const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_device *dev = crtc->base.dev;
@@ -4716,7 +4701,7 @@ static void ironlake_pch_enable(const struct intel_crtc_state *crtc_state)
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 			temp |= TRANS_DP_VSYNC_ACTIVE_HIGH;
 
-		port = intel_trans_dp_port_sel(crtc);
+		port = intel_get_crtc_new_encoder(state, crtc_state)->port;
 		WARN_ON(port < PORT_B || port > PORT_D);
 		temp |= TRANS_DP_PORT_SEL(port);
 
@@ -4726,7 +4711,8 @@ static void ironlake_pch_enable(const struct intel_crtc_state *crtc_state)
 	ironlake_enable_pch_transcoder(dev_priv, pipe);
 }
 
-static void lpt_pch_enable(const struct intel_crtc_state *crtc_state)
+static void lpt_pch_enable(const struct intel_atomic_state *state,
+			   const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -5529,7 +5515,7 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 	intel_enable_pipe(pipe_config);
 
 	if (intel_crtc->config->has_pch_encoder)
-		ironlake_pch_enable(pipe_config);
+		ironlake_pch_enable(old_intel_state, pipe_config);
 
 	assert_vblank_disabled(crtc);
 	drm_crtc_vblank_on(crtc);
@@ -5668,7 +5654,7 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 		intel_enable_pipe(pipe_config);
 
 	if (intel_crtc->config->has_pch_encoder)
-		lpt_pch_enable(pipe_config);
+		lpt_pch_enable(old_intel_state, pipe_config);
 
 	if (intel_crtc_has_type(intel_crtc->config, INTEL_OUTPUT_DP_MST))
 		intel_ddi_set_vc_payload_alloc(pipe_config, true);
@@ -9122,9 +9108,12 @@ void hsw_disable_pc8(struct drm_i915_private *dev_priv)
 static int haswell_crtc_compute_clock(struct intel_crtc *crtc,
 				      struct intel_crtc_state *crtc_state)
 {
+	struct intel_atomic_state *state =
+		to_intel_atomic_state(crtc_state->base.state);
+
 	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI)) {
 		struct intel_encoder *encoder =
-			intel_get_crtc_new_encoder(crtc_state);
+			intel_get_crtc_new_encoder(state, crtc_state);
 
 		if (!intel_get_shared_dpll(crtc, crtc_state, encoder)) {
 			DRM_DEBUG_DRIVER("failed to find PLL for pipe %c\n",
