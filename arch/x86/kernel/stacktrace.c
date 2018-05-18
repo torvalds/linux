@@ -113,15 +113,6 @@ __save_stack_trace_reliable(struct stack_trace *trace,
 			if (!user_mode(regs))
 				return -EINVAL;
 
-			/*
-			 * The last frame contains the user mode syscall
-			 * pt_regs.  Skip it and finish the unwind.
-			 */
-			unwind_next_frame(&state);
-			if (!unwind_done(&state)) {
-				STACKTRACE_DUMP_ONCE(task);
-				return -EINVAL;
-			}
 			break;
 		}
 
