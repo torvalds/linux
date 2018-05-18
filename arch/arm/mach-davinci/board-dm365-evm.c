@@ -742,6 +742,8 @@ static __init void dm365_evm_init(void)
 {
 	int ret;
 
+	dm365_register_clocks();
+
 	ret = dm365_gpio_register();
 	if (ret)
 		pr_warn("%s: GPIO init failed: %d\n", __func__, ret);

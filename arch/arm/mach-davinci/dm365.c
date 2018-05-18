@@ -12,32 +12,38 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#include <linux/init.h>
-#include <linux/clk.h>
-#include <linux/serial_8250.h>
-#include <linux/platform_device.h>
+
+#include <linux/clk-provider.h>
+#include <linux/clk/davinci.h>
+#include <linux/clkdev.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
-#include <linux/spi/spi.h>
+#include <linux/init.h>
 #include <linux/platform_data/edma.h>
 #include <linux/platform_data/gpio-davinci.h>
 #include <linux/platform_data/keyscan-davinci.h>
 #include <linux/platform_data/spi-davinci.h>
+#include <linux/platform_device.h>
+#include <linux/serial_8250.h>
+#include <linux/spi/spi.h>
 
 #include <asm/mach/map.h>
 
-#include <mach/cputype.h>
-#include "psc.h"
-#include <mach/mux.h>
-#include <mach/irqs.h>
-#include <mach/time.h>
-#include <mach/serial.h>
 #include <mach/common.h>
+#include <mach/cputype.h>
+#include <mach/irqs.h>
+#include <mach/mux.h>
+#include <mach/serial.h>
+#include <mach/time.h>
 
-#include "davinci.h"
-#include "clock.h"
-#include "mux.h"
 #include "asp.h"
+#include "davinci.h"
+#include "mux.h"
+
+#ifndef CONFIG_COMMON_CLK
+#include "clock.h"
+#include "psc.h"
+#endif
 
 #define DM365_REF_FREQ		24000000	/* 24 MHz on the DM365 EVM */
 #define DM365_RTC_BASE			0x01c69000
@@ -54,6 +60,7 @@
 #define DM365_EMAC_CNTRL_RAM_OFFSET	0x1000
 #define DM365_EMAC_CNTRL_RAM_SIZE	0x2000
 
+#ifndef CONFIG_COMMON_CLK
 static struct pll_data pll1_data = {
 	.num		= 1,
 	.phys_base	= DAVINCI_PLL1_BASE,
@@ -485,7 +492,7 @@ static struct clk_lookup dm365_clks[] = {
 	CLK(NULL, "mjcp", &mjcp_clk),
 	CLK(NULL, NULL, NULL),
 };
-
+#endif
 /*----------------------------------------------------------------------*/
 
 #define INTMUX		0x18
@@ -1171,8 +1178,33 @@ void __init dm365_init(void)
 
 void __init dm365_init_time(void)
 {
+#ifdef CONFIG_COMMON_CLK
+	void __iomem *pll1, *pll2, *psc;
+	struct clk *clk;
+
+	clk_register_fixed_rate(NULL, "ref_clk", NULL, 0, DM365_REF_FREQ);
+
+	pll1 = ioremap(DAVINCI_PLL1_BASE, SZ_1K);
+	dm365_pll1_init(NULL, pll1, NULL);
+
+	pll2 = ioremap(DAVINCI_PLL2_BASE, SZ_1K);
+	dm365_pll2_init(NULL, pll2, NULL);
+
+	psc = ioremap(DAVINCI_PWR_SLEEP_CNTRL_BASE, SZ_4K);
+	dm365_psc_init(NULL, psc);
+
+	clk = clk_get(NULL, "timer0");
+
+	davinci_timer_init(clk);
+#else
 	davinci_clk_init(dm365_clks);
 	davinci_timer_init(&timer0_clk);
+#endif
+}
+
+void __init dm365_register_clocks(void)
+{
+	/* all clocks are currently registered in dm365_init_time() */
 }
 
 static struct resource dm365_vpss_resources[] = {
