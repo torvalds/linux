@@ -170,7 +170,7 @@ static int stm32_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 	unsigned long long prd, div, dty;
 	unsigned long rate;
 	unsigned int psc = 0, icpsc, scale;
-	u32 raw_prd, raw_dty;
+	u32 raw_prd = 0, raw_dty = 0;
 	int ret = 0;
 
 	mutex_lock(&priv->lock);
