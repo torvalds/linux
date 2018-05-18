@@ -415,7 +415,7 @@ static int btrfs_check_super_csum(struct btrfs_fs_info *fs_info,
 
 static int verify_level_key(struct btrfs_fs_info *fs_info,
 			    struct extent_buffer *eb, int level,
-			    struct btrfs_key *first_key)
+			    struct btrfs_key *first_key, u64 parent_transid)
 {
 	int found_level;
 	struct btrfs_key found_key;
@@ -453,10 +453,11 @@ static int verify_level_key(struct btrfs_fs_info *fs_info,
 	if (ret) {
 		WARN_ON(1);
 		btrfs_err(fs_info,
-"tree first key mismatch detected, bytenr=%llu key expected=(%llu, %u, %llu) has=(%llu, %u, %llu)",
-			  eb->start, first_key->objectid, first_key->type,
-			  first_key->offset, found_key.objectid,
-			  found_key.type, found_key.offset);
+"tree first key mismatch detected, bytenr=%llu parent_transid=%llu key expected=(%llu,%u,%llu) has=(%llu,%u,%llu)",
+			  eb->start, parent_transid, first_key->objectid,
+			  first_key->type, first_key->offset,
+			  found_key.objectid, found_key.type,
+			  found_key.offset);
 	}
 #endif
 	return ret;
@@ -492,7 +493,7 @@ static int btree_read_extent_buffer_pages(struct btrfs_fs_info *fs_info,
 						   parent_transid, 0))
 				ret = -EIO;
 			else if (verify_level_key(fs_info, eb, level,
-						  first_key))
+						  first_key, parent_transid))
 				ret = -EUCLEAN;
 			else
 				break;
