@@ -54,10 +54,9 @@ struct ftdi_private {
 	int custom_divisor;	/* custom_divisor kludge, this is for
 				   baud_base (different from what goes to the
 				   chip!) */
-	u16 last_set_data_urb_value;
-				/* the last data state set - needed for doing
-				 * a break
-				 */
+	u16 last_set_data_value; /* the last data state set - needed for doing
+				  * a break
+				  */
 	int flags;		/* some ASYNC_xxxx flags are supported */
 	unsigned long last_dtr_rts;	/* saved modem control outputs */
 	char prev_status;        /* Used for TIOCMIWAIT */
@@ -1195,7 +1194,7 @@ static int update_mctrl(struct usb_serial_port *port, unsigned int set,
 {
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	struct device *dev = &port->dev;
-	unsigned urb_value;
+	unsigned value;
 	int rv;
 
 	if (((set | clear) & (TIOCM_DTR | TIOCM_RTS)) == 0) {
@@ -1204,20 +1203,20 @@ static int update_mctrl(struct usb_serial_port *port, unsigned int set,
 	}
 
 	clear &= ~set;	/* 'set' takes precedence over 'clear' */
-	urb_value = 0;
+	value = 0;
 	if (clear & TIOCM_DTR)
-		urb_value |= FTDI_SIO_SET_DTR_LOW;
+		value |= FTDI_SIO_SET_DTR_LOW;
 	if (clear & TIOCM_RTS)
-		urb_value |= FTDI_SIO_SET_RTS_LOW;
+		value |= FTDI_SIO_SET_RTS_LOW;
 	if (set & TIOCM_DTR)
-		urb_value |= FTDI_SIO_SET_DTR_HIGH;
+		value |= FTDI_SIO_SET_DTR_HIGH;
 	if (set & TIOCM_RTS)
-		urb_value |= FTDI_SIO_SET_RTS_HIGH;
+		value |= FTDI_SIO_SET_RTS_HIGH;
 	rv = usb_control_msg(port->serial->dev,
 			       usb_sndctrlpipe(port->serial->dev, 0),
 			       FTDI_SIO_SET_MODEM_CTRL_REQUEST,
 			       FTDI_SIO_SET_MODEM_CTRL_REQUEST_TYPE,
-			       urb_value, priv->interface,
+			       value, priv->interface,
 			       NULL, 0, WDR_TIMEOUT);
 	if (rv < 0) {
 		dev_dbg(dev, "%s Error from MODEM_CTRL urb: DTR %s, RTS %s\n",
@@ -1346,26 +1345,26 @@ static u32 get_ftdi_divisor(struct tty_struct *tty,
 static int change_speed(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	u16 urb_value;
-	u16 urb_index;
-	u32 urb_index_value;
+	u16 value;
+	u16 index;
+	u32 index_value;
 	int rv;
 
-	urb_index_value = get_ftdi_divisor(tty, port);
-	urb_value = (u16)urb_index_value;
-	urb_index = (u16)(urb_index_value >> 16);
+	index_value = get_ftdi_divisor(tty, port);
+	value = (u16)index_value;
+	index = (u16)(index_value >> 16);
 	if ((priv->chip_type == FT2232C) || (priv->chip_type == FT2232H) ||
 		(priv->chip_type == FT4232H) || (priv->chip_type == FT232H)) {
 		/* Probably the BM type needs the MSB of the encoded fractional
 		 * divider also moved like for the chips above. Any infos? */
-		urb_index = (u16)((urb_index << 8) | priv->interface);
+		index = (u16)((index << 8) | priv->interface);
 	}
 
 	rv = usb_control_msg(port->serial->dev,
 			    usb_sndctrlpipe(port->serial->dev, 0),
 			    FTDI_SIO_SET_BAUDRATE_REQUEST,
 			    FTDI_SIO_SET_BAUDRATE_REQUEST_TYPE,
-			    urb_value, urb_index,
+			    value, index,
 			    NULL, 0, WDR_SHORT_TIMEOUT);
 	return rv;
 }
@@ -2140,29 +2139,29 @@ static void ftdi_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	u16 urb_value;
+	u16 value;
 
 	/* break_state = -1 to turn on break, and 0 to turn off break */
 	/* see drivers/char/tty_io.c to see it used */
-	/* last_set_data_urb_value NEVER has the break bit set in it */
+	/* last_set_data_value NEVER has the break bit set in it */
 
 	if (break_state)
-		urb_value = priv->last_set_data_urb_value | FTDI_SIO_SET_BREAK;
+		value = priv->last_set_data_value | FTDI_SIO_SET_BREAK;
 	else
-		urb_value = priv->last_set_data_urb_value;
+		value = priv->last_set_data_value;
 
 	if (usb_control_msg(port->serial->dev,
 			usb_sndctrlpipe(port->serial->dev, 0),
 			FTDI_SIO_SET_DATA_REQUEST,
 			FTDI_SIO_SET_DATA_REQUEST_TYPE,
-			urb_value , priv->interface,
+			value , priv->interface,
 			NULL, 0, WDR_TIMEOUT) < 0) {
 		dev_err(&port->dev, "%s FAILED to enable/disable break state (state was %d)\n",
 			__func__, break_state);
 	}
 
 	dev_dbg(&port->dev, "%s break state is %d - urb is %d\n", __func__,
-		break_state, urb_value);
+		break_state, value);
 
 }
 
@@ -2192,7 +2191,7 @@ static void ftdi_set_termios(struct tty_struct *tty,
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	struct ktermios *termios = &tty->termios;
 	unsigned int cflag = termios->c_cflag;
-	u16 urb_value; /* will hold the new flags */
+	u16 value;
 
 	/* Added for xon/xoff support */
 	unsigned int iflag = termios->c_iflag;
@@ -2258,44 +2257,44 @@ static void ftdi_set_termios(struct tty_struct *tty,
 no_skip:
 	/* Set number of data bits, parity, stop bits */
 
-	urb_value = 0;
-	urb_value |= (cflag & CSTOPB ? FTDI_SIO_SET_DATA_STOP_BITS_2 :
-		      FTDI_SIO_SET_DATA_STOP_BITS_1);
+	value = 0;
+	value |= (cflag & CSTOPB ? FTDI_SIO_SET_DATA_STOP_BITS_2 :
+			FTDI_SIO_SET_DATA_STOP_BITS_1);
 	if (cflag & PARENB) {
 		if (cflag & CMSPAR)
-			urb_value |= cflag & PARODD ?
-				     FTDI_SIO_SET_DATA_PARITY_MARK :
-				     FTDI_SIO_SET_DATA_PARITY_SPACE;
+			value |= cflag & PARODD ?
+					FTDI_SIO_SET_DATA_PARITY_MARK :
+					FTDI_SIO_SET_DATA_PARITY_SPACE;
 		else
-			urb_value |= cflag & PARODD ?
-				     FTDI_SIO_SET_DATA_PARITY_ODD :
-				     FTDI_SIO_SET_DATA_PARITY_EVEN;
+			value |= cflag & PARODD ?
+					FTDI_SIO_SET_DATA_PARITY_ODD :
+					FTDI_SIO_SET_DATA_PARITY_EVEN;
 	} else {
-		urb_value |= FTDI_SIO_SET_DATA_PARITY_NONE;
+		value |= FTDI_SIO_SET_DATA_PARITY_NONE;
 	}
 	switch (cflag & CSIZE) {
 	case CS5:
 		dev_dbg(ddev, "Setting CS5 quirk\n");
 		break;
 	case CS7:
-		urb_value |= 7;
+		value |= 7;
 		dev_dbg(ddev, "Setting CS7\n");
 		break;
 	default:
 	case CS8:
-		urb_value |= 8;
+		value |= 8;
 		dev_dbg(ddev, "Setting CS8\n");
 		break;
 	}
 
 	/* This is needed by the break command since it uses the same command
 	   - but is or'ed with this value  */
-	priv->last_set_data_urb_value = urb_value;
+	priv->last_set_data_value = value;
 
 	if (usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			    FTDI_SIO_SET_DATA_REQUEST,
 			    FTDI_SIO_SET_DATA_REQUEST_TYPE,
-			    urb_value , priv->interface,
+			    value , priv->interface,
 			    NULL, 0, WDR_SHORT_TIMEOUT) < 0) {
 		dev_err(ddev, "%s FAILED to set databits/stopbits/parity\n",
 			__func__);
@@ -2354,13 +2353,13 @@ no_c_cflag_changes:
 			 */
 			vstart = termios->c_cc[VSTART];
 			vstop = termios->c_cc[VSTOP];
-			urb_value = (vstop << 8) | (vstart);
+			value = (vstop << 8) | (vstart);
 
 			if (usb_control_msg(dev,
 					    usb_sndctrlpipe(dev, 0),
 					    FTDI_SIO_SET_FLOW_CTRL_REQUEST,
 					    FTDI_SIO_SET_FLOW_CTRL_REQUEST_TYPE,
-					    urb_value , (FTDI_SIO_XON_XOFF_HS
+					    value , (FTDI_SIO_XON_XOFF_HS
 							 | priv->interface),
 					    NULL, 0, WDR_TIMEOUT) < 0) {
 				dev_err(&port->dev, "urb failed to set to "
