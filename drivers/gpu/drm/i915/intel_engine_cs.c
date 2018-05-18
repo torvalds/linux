@@ -829,6 +829,9 @@ u32 intel_calculate_mcr_s_ss_select(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) == 10)
 		mcr_s_ss_select = GEN8_MCR_SLICE(slice) |
 				  GEN8_MCR_SUBSLICE(subslice);
+	else if (INTEL_GEN(dev_priv) >= 11)
+		mcr_s_ss_select = GEN11_MCR_SLICE(slice) |
+				  GEN11_MCR_SUBSLICE(subslice);
 	else
 		mcr_s_ss_select = 0;
 

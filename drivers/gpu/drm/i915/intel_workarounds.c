@@ -679,10 +679,14 @@ static void wa_init_mcr(struct drm_i915_private *dev_priv)
 
 	mcr = I915_READ(GEN8_MCR_SELECTOR);
 
-	mcr_slice_subslice_mask = GEN8_MCR_SLICE_MASK |
-				  GEN8_MCR_SUBSLICE_MASK;
+	if (INTEL_GEN(dev_priv) >= 11)
+		mcr_slice_subslice_mask = GEN11_MCR_SLICE_MASK |
+					  GEN11_MCR_SUBSLICE_MASK;
+	else
+		mcr_slice_subslice_mask = GEN8_MCR_SLICE_MASK |
+					  GEN8_MCR_SUBSLICE_MASK;
 	/*
-	 * WaProgramMgsrForCorrectSliceSpecificMmioReads:cnl
+	 * WaProgramMgsrForCorrectSliceSpecificMmioReads:cnl,icl
 	 * Before any MMIO read into slice/subslice specific registers, MCR
 	 * packet control register needs to be programmed to point to any
 	 * enabled s/ss pair. Otherwise, incorrect values will be returned.
@@ -719,6 +723,8 @@ static void cnl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 
 static void icl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 {
+	wa_init_mcr(dev_priv);
+
 	/* This is not an Wa. Enable for better image quality */
 	I915_WRITE(_3D_CHICKEN3,
 		   _MASKED_BIT_ENABLE(_3D_CHICKEN3_AA_LINE_QUALITY_FIX_ENABLE));
