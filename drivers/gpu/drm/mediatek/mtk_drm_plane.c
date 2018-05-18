@@ -95,11 +95,6 @@ static int mtk_plane_atomic_check(struct drm_plane *plane,
 	if (!fb)
 		return 0;
 
-	if (!mtk_fb_get_gem_obj(fb)) {
-		DRM_DEBUG_KMS("buffer is null\n");
-		return -EFAULT;
-	}
-
 	if (!state->crtc)
 		return 0;
 
