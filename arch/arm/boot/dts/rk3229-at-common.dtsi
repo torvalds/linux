@@ -64,6 +64,13 @@
 		compatible = "arm,psci-1.0";
 		method = "smc";
 	};
+
+	xin32k: xin32k {
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		clock-output-names = "xin32k";
+		#clock-cells = <0>;
+	};
 };
 
 &cpu0 {
@@ -121,7 +128,7 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		#clock-cells = <1>;
-		clock-output-names = "xin32k", "rk805-clkout2";
+		clock-output-names = "rk805-clkout1", "rk805-clkout2";
 
 		rtc {
 			status = "okay";
