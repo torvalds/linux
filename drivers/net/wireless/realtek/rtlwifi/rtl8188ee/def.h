@@ -137,13 +137,6 @@ enum version_8188e {
 	VERSION_UNKNOWN = 0xFF,
 };
 
-enum rx_packet_type {
-	NORMAL_RX,
-	TX_REPORT1,
-	TX_REPORT2,
-	HIS_REPORT,
-};
-
 enum rtl819x_loopback_e {
 	RTL819X_NO_LOOPBACK = 0,
 	RTL819X_MAC_LOOPBACK = 1,

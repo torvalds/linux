@@ -1010,6 +1010,14 @@ enum dm_info_query {
 	DM_INFO_SIZE,
 };
 
+enum rx_packet_type {
+	NORMAL_RX,
+	TX_REPORT1,
+	TX_REPORT2,
+	HIS_REPORT,
+	C2H_PACKET,
+};
+
 struct rtlwifi_tx_info {
 	int sn;
 	unsigned long send_time;

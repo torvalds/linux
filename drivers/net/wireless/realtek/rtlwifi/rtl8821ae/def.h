@@ -332,14 +332,6 @@ enum rtl_desc_qsel {
 	QSLT_CMD = 0x13,
 };
 
-enum rx_packet_type {
-	NORMAL_RX,
-	TX_REPORT1,
-	TX_REPORT2,
-	HIS_REPORT,
-	C2H_PACKET,
-};
-
 struct phy_sts_cck_8821ae_t {
 	u8 adc_pwdb_X[4];
 	u8 sq_rpt;
