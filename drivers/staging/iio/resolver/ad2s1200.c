@@ -2,6 +2,7 @@
  * ad2s1200.c simple support for the ADI Resolver to Digital Converters:
  * AD2S1200/1205
  *
+ * Copyright (c) 2018-2018 David Veenstra <davidjulianveenstra@gmail.com>
  * Copyright (c) 2010-2010 Analog Devices Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -203,6 +204,7 @@ static struct spi_driver ad2s1200_driver = {
 };
 module_spi_driver(ad2s1200_driver);
 
+MODULE_AUTHOR("David Veenstra <davidjulianveenstra@gmail.com>");
 MODULE_AUTHOR("Graff Yang <graff.yang@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices AD2S1200/1205 Resolver to Digital SPI driver");
 MODULE_LICENSE("GPL v2");
