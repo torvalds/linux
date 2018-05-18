@@ -25,9 +25,10 @@
  */
 
 static inline void vsp1_rpf_write(struct vsp1_rwpf *rpf,
-				  struct vsp1_dl_list *dl, u32 reg, u32 data)
+				  struct vsp1_dl_body *dlb, u32 reg, u32 data)
 {
-	vsp1_dl_list_write(dl, reg + rpf->entity.index * VI6_RPF_OFFSET, data);
+	vsp1_dl_body_write(dlb, reg + rpf->entity.index * VI6_RPF_OFFSET,
+			       data);
 }
 
 /* -----------------------------------------------------------------------------
@@ -44,7 +45,7 @@ static const struct v4l2_subdev_ops rpf_ops = {
 
 static void rpf_configure_stream(struct vsp1_entity *entity,
 				 struct vsp1_pipeline *pipe,
-				 struct vsp1_dl_list *dl)
+				 struct vsp1_dl_body *dlb)
 {
 	struct vsp1_rwpf *rpf = to_rwpf(&entity->subdev);
 	const struct vsp1_format_info *fmtinfo = rpf->fmtinfo;
@@ -63,7 +64,7 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
 		pstride |= format->plane_fmt[1].bytesperline
 			<< VI6_RPF_SRCM_PSTRIDE_C_SHIFT;
 
-	vsp1_rpf_write(rpf, dl, VI6_RPF_SRCM_PSTRIDE, pstride);
+	vsp1_rpf_write(rpf, dlb, VI6_RPF_SRCM_PSTRIDE, pstride);
 
 	/* Format */
 	sink_format = vsp1_entity_get_pad_format(&rpf->entity,
@@ -84,8 +85,8 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
 	if (sink_format->code != source_format->code)
 		infmt |= VI6_RPF_INFMT_CSC;
 
-	vsp1_rpf_write(rpf, dl, VI6_RPF_INFMT, infmt);
-	vsp1_rpf_write(rpf, dl, VI6_RPF_DSWAP, fmtinfo->swap);
+	vsp1_rpf_write(rpf, dlb, VI6_RPF_INFMT, infmt);
+	vsp1_rpf_write(rpf, dlb, VI6_RPF_DSWAP, fmtinfo->swap);
 
 	/* Output location */
 	if (pipe->brx) {
@@ -99,7 +100,7 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
 		top = compose->top;
 	}
 
-	vsp1_rpf_write(rpf, dl, VI6_RPF_LOC,
+	vsp1_rpf_write(rpf, dlb, VI6_RPF_LOC,
 		       (left << VI6_RPF_LOC_HCOORD_SHIFT) |
 		       (top << VI6_RPF_LOC_VCOORD_SHIFT));
 
@@ -126,7 +127,7 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
 	 *
 	 * In all cases, disable color keying.
 	 */
-	vsp1_rpf_write(rpf, dl, VI6_RPF_ALPH_SEL, VI6_RPF_ALPH_SEL_AEXT_EXT |
+	vsp1_rpf_write(rpf, dlb, VI6_RPF_ALPH_SEL, VI6_RPF_ALPH_SEL_AEXT_EXT |
 		       (fmtinfo->alpha ? VI6_RPF_ALPH_SEL_ASEL_PACKED
 				       : VI6_RPF_ALPH_SEL_ASEL_FIXED));
 
@@ -163,28 +164,30 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
 		rpf->mult_alpha = mult;
 	}
 
-	vsp1_rpf_write(rpf, dl, VI6_RPF_MSK_CTRL, 0);
-	vsp1_rpf_write(rpf, dl, VI6_RPF_CKEY_CTRL, 0);
+	vsp1_rpf_write(rpf, dlb, VI6_RPF_MSK_CTRL, 0);
+	vsp1_rpf_write(rpf, dlb, VI6_RPF_CKEY_CTRL, 0);
 
 }
 
 static void rpf_configure_frame(struct vsp1_entity *entity,
 				struct vsp1_pipeline *pipe,
-				struct vsp1_dl_list *dl)
+				struct vsp1_dl_list *dl,
+				struct vsp1_dl_body *dlb)
 {
 	struct vsp1_rwpf *rpf = to_rwpf(&entity->subdev);
 
-	vsp1_rpf_write(rpf, dl, VI6_RPF_VRTCOL_SET,
+	vsp1_rpf_write(rpf, dlb, VI6_RPF_VRTCOL_SET,
 		       rpf->alpha << VI6_RPF_VRTCOL_SET_LAYA_SHIFT);
-	vsp1_rpf_write(rpf, dl, VI6_RPF_MULT_ALPHA, rpf->mult_alpha |
+	vsp1_rpf_write(rpf, dlb, VI6_RPF_MULT_ALPHA, rpf->mult_alpha |
 		       (rpf->alpha << VI6_RPF_MULT_ALPHA_RATIO_SHIFT));
 
-	vsp1_pipeline_propagate_alpha(pipe, dl, rpf->alpha);
+	vsp1_pipeline_propagate_alpha(pipe, dlb, rpf->alpha);
 }
 
 static void rpf_configure_partition(struct vsp1_entity *entity,
 				    struct vsp1_pipeline *pipe,
-				    struct vsp1_dl_list *dl)
+				    struct vsp1_dl_list *dl,
+				    struct vsp1_dl_body *dlb)
 {
 	struct vsp1_rwpf *rpf = to_rwpf(&entity->subdev);
 	struct vsp1_rwpf_memory mem = rpf->mem;
@@ -218,10 +221,10 @@ static void rpf_configure_partition(struct vsp1_entity *entity,
 		crop.left += pipe->partition->rpf.left;
 	}
 
-	vsp1_rpf_write(rpf, dl, VI6_RPF_SRC_BSIZE,
+	vsp1_rpf_write(rpf, dlb, VI6_RPF_SRC_BSIZE,
 		       (crop.width << VI6_RPF_SRC_BSIZE_BHSIZE_SHIFT) |
 		       (crop.height << VI6_RPF_SRC_BSIZE_BVSIZE_SHIFT));
-	vsp1_rpf_write(rpf, dl, VI6_RPF_SRC_ESIZE,
+	vsp1_rpf_write(rpf, dlb, VI6_RPF_SRC_ESIZE,
 		       (crop.width << VI6_RPF_SRC_ESIZE_EHSIZE_SHIFT) |
 		       (crop.height << VI6_RPF_SRC_ESIZE_EVSIZE_SHIFT));
 
@@ -246,9 +249,9 @@ static void rpf_configure_partition(struct vsp1_entity *entity,
 	    fmtinfo->swap_uv)
 		swap(mem.addr[1], mem.addr[2]);
 
-	vsp1_rpf_write(rpf, dl, VI6_RPF_SRCM_ADDR_Y, mem.addr[0]);
-	vsp1_rpf_write(rpf, dl, VI6_RPF_SRCM_ADDR_C0, mem.addr[1]);
-	vsp1_rpf_write(rpf, dl, VI6_RPF_SRCM_ADDR_C1, mem.addr[2]);
+	vsp1_rpf_write(rpf, dlb, VI6_RPF_SRCM_ADDR_Y, mem.addr[0]);
+	vsp1_rpf_write(rpf, dlb, VI6_RPF_SRCM_ADDR_C0, mem.addr[1]);
+	vsp1_rpf_write(rpf, dlb, VI6_RPF_SRCM_ADDR_C1, mem.addr[2]);
 }
 
 static void rpf_partition(struct vsp1_entity *entity,

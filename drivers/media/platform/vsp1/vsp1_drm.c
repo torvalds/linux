@@ -536,13 +536,15 @@ static void vsp1_du_pipeline_configure(struct vsp1_pipeline *pipe)
 	struct vsp1_entity *entity;
 	struct vsp1_entity *next;
 	struct vsp1_dl_list *dl;
+	struct vsp1_dl_body *dlb;
 
 	dl = vsp1_dl_list_get(pipe->output->dlm);
+	dlb = vsp1_dl_list_get_body0(dl);
 
 	list_for_each_entry_safe(entity, next, &pipe->entities, list_pipe) {
 		/* Disconnect unused entities from the pipeline. */
 		if (!entity->pipe) {
-			vsp1_dl_list_write(dl, entity->route->reg,
+			vsp1_dl_body_write(dlb, entity->route->reg,
 					   VI6_DPR_NODE_UNUSED);
 
 			entity->sink = NULL;
@@ -551,10 +553,10 @@ static void vsp1_du_pipeline_configure(struct vsp1_pipeline *pipe)
 			continue;
 		}
 
-		vsp1_entity_route_setup(entity, pipe, dl);
-		vsp1_entity_configure_stream(entity, pipe, dl);
-		vsp1_entity_configure_frame(entity, pipe, dl);
-		vsp1_entity_configure_partition(entity, pipe, dl);
+		vsp1_entity_route_setup(entity, pipe, dlb);
+		vsp1_entity_configure_stream(entity, pipe, dlb);
+		vsp1_entity_configure_frame(entity, pipe, dl, dlb);
+		vsp1_entity_configure_partition(entity, pipe, dl, dlb);
 	}
 
 	vsp1_dl_list_commit(dl, drm_pipe->force_brx_release);

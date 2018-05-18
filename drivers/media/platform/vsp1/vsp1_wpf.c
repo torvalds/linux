@@ -27,9 +27,9 @@
  */
 
 static inline void vsp1_wpf_write(struct vsp1_rwpf *wpf,
-				  struct vsp1_dl_list *dl, u32 reg, u32 data)
+				  struct vsp1_dl_body *dlb, u32 reg, u32 data)
 {
-	vsp1_dl_list_write(dl, reg + wpf->entity.index * VI6_WPF_OFFSET, data);
+	vsp1_dl_body_write(dlb, reg + wpf->entity.index * VI6_WPF_OFFSET, data);
 }
 
 /* -----------------------------------------------------------------------------
@@ -234,7 +234,7 @@ static void vsp1_wpf_destroy(struct vsp1_entity *entity)
 
 static void wpf_configure_stream(struct vsp1_entity *entity,
 				 struct vsp1_pipeline *pipe,
-				 struct vsp1_dl_list *dl)
+				 struct vsp1_dl_body *dlb)
 {
 	struct vsp1_rwpf *wpf = to_rwpf(&entity->subdev);
 	struct vsp1_device *vsp1 = wpf->entity.vsp1;
@@ -268,17 +268,17 @@ static void wpf_configure_stream(struct vsp1_entity *entity,
 			outfmt |= VI6_WPF_OUTFMT_SPUVS;
 
 		/* Destination stride and byte swapping. */
-		vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_STRIDE_Y,
+		vsp1_wpf_write(wpf, dlb, VI6_WPF_DSTM_STRIDE_Y,
 			       format->plane_fmt[0].bytesperline);
 		if (format->num_planes > 1)
-			vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_STRIDE_C,
+			vsp1_wpf_write(wpf, dlb, VI6_WPF_DSTM_STRIDE_C,
 				       format->plane_fmt[1].bytesperline);
 
-		vsp1_wpf_write(wpf, dl, VI6_WPF_DSWAP, fmtinfo->swap);
+		vsp1_wpf_write(wpf, dlb, VI6_WPF_DSWAP, fmtinfo->swap);
 
 		if (vsp1->info->features & VSP1_HAS_WPF_HFLIP &&
 		    wpf->entity.index == 0)
-			vsp1_wpf_write(wpf, dl, VI6_WPF_ROT_CTRL,
+			vsp1_wpf_write(wpf, dlb, VI6_WPF_ROT_CTRL,
 				       VI6_WPF_ROT_CTRL_LN16 |
 				       (256 << VI6_WPF_ROT_CTRL_LMEM_WD_SHIFT));
 	}
@@ -288,10 +288,10 @@ static void wpf_configure_stream(struct vsp1_entity *entity,
 
 	wpf->outfmt = outfmt;
 
-	vsp1_dl_list_write(dl, VI6_DPR_WPF_FPORCH(wpf->entity.index),
+	vsp1_dl_body_write(dlb, VI6_DPR_WPF_FPORCH(wpf->entity.index),
 			   VI6_DPR_WPF_FPORCH_FP_WPFN);
 
-	vsp1_dl_list_write(dl, VI6_WPF_WRBCK_CTRL, 0);
+	vsp1_dl_body_write(dlb, VI6_WPF_WRBCK_CTRL, 0);
 
 	/*
 	 * Sources. If the pipeline has a single input and BRx is not used,
@@ -315,17 +315,18 @@ static void wpf_configure_stream(struct vsp1_entity *entity,
 			? VI6_WPF_SRCRPF_VIRACT_MST
 			: VI6_WPF_SRCRPF_VIRACT2_MST;
 
-	vsp1_wpf_write(wpf, dl, VI6_WPF_SRCRPF, srcrpf);
+	vsp1_wpf_write(wpf, dlb, VI6_WPF_SRCRPF, srcrpf);
 
 	/* Enable interrupts */
-	vsp1_dl_list_write(dl, VI6_WPF_IRQ_STA(wpf->entity.index), 0);
-	vsp1_dl_list_write(dl, VI6_WPF_IRQ_ENB(wpf->entity.index),
+	vsp1_dl_body_write(dlb, VI6_WPF_IRQ_STA(wpf->entity.index), 0);
+	vsp1_dl_body_write(dlb, VI6_WPF_IRQ_ENB(wpf->entity.index),
 			   VI6_WFP_IRQ_ENB_DFEE);
 }
 
 static void wpf_configure_frame(struct vsp1_entity *entity,
 				struct vsp1_pipeline *pipe,
-				struct vsp1_dl_list *dl)
+				struct vsp1_dl_list *dl,
+				struct vsp1_dl_body *dlb)
 {
 	const unsigned int mask = BIT(WPF_CTRL_VFLIP)
 				| BIT(WPF_CTRL_HFLIP);
@@ -345,12 +346,13 @@ static void wpf_configure_frame(struct vsp1_entity *entity,
 	if (wpf->flip.active & BIT(WPF_CTRL_HFLIP))
 		outfmt |= VI6_WPF_OUTFMT_HFLP;
 
-	vsp1_wpf_write(wpf, dl, VI6_WPF_OUTFMT, outfmt);
+	vsp1_wpf_write(wpf, dlb, VI6_WPF_OUTFMT, outfmt);
 }
 
 static void wpf_configure_partition(struct vsp1_entity *entity,
 				    struct vsp1_pipeline *pipe,
-				    struct vsp1_dl_list *dl)
+				    struct vsp1_dl_list *dl,
+				    struct vsp1_dl_body *dlb)
 {
 	struct vsp1_rwpf *wpf = to_rwpf(&entity->subdev);
 	struct vsp1_device *vsp1 = wpf->entity.vsp1;
@@ -377,10 +379,10 @@ static void wpf_configure_partition(struct vsp1_entity *entity,
 	if (pipe->partitions > 1)
 		width = pipe->partition->wpf.width;
 
-	vsp1_wpf_write(wpf, dl, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
+	vsp1_wpf_write(wpf, dlb, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
 		       (0 << VI6_WPF_SZCLIP_OFST_SHIFT) |
 		       (width << VI6_WPF_SZCLIP_SIZE_SHIFT));
-	vsp1_wpf_write(wpf, dl, VI6_WPF_VSZCLIP, VI6_WPF_SZCLIP_EN |
+	vsp1_wpf_write(wpf, dlb, VI6_WPF_VSZCLIP, VI6_WPF_SZCLIP_EN |
 		       (0 << VI6_WPF_SZCLIP_OFST_SHIFT) |
 		       (height << VI6_WPF_SZCLIP_SIZE_SHIFT));
 
@@ -472,9 +474,9 @@ static void wpf_configure_partition(struct vsp1_entity *entity,
 	    fmtinfo->swap_uv)
 		swap(mem.addr[1], mem.addr[2]);
 
-	vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_ADDR_Y, mem.addr[0]);
-	vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_ADDR_C0, mem.addr[1]);
-	vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_ADDR_C1, mem.addr[2]);
+	vsp1_wpf_write(wpf, dlb, VI6_WPF_DSTM_ADDR_Y, mem.addr[0]);
+	vsp1_wpf_write(wpf, dlb, VI6_WPF_DSTM_ADDR_C0, mem.addr[1]);
+	vsp1_wpf_write(wpf, dlb, VI6_WPF_DSTM_ADDR_C1, mem.addr[2]);
 }
 
 static unsigned int wpf_max_width(struct vsp1_entity *entity,

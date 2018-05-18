@@ -447,17 +447,15 @@ void vsp1_dl_list_put(struct vsp1_dl_list *dl)
 }
 
 /**
- * vsp1_dl_list_write - Write a register to the display list
+ * vsp1_dl_list_get_body0 - Obtain the default body for the display list
  * @dl: The display list
- * @reg: The register address
- * @data: The register value
  *
- * Write the given register and value to the display list. Up to 256 registers
- * can be written per display list.
+ * Obtain a pointer to the internal display list body allowing this to be passed
+ * directly to configure operations.
  */
-void vsp1_dl_list_write(struct vsp1_dl_list *dl, u32 reg, u32 data)
+struct vsp1_dl_body *vsp1_dl_list_get_body0(struct vsp1_dl_list *dl)
 {
-	vsp1_dl_body_write(dl->body0, reg, data);
+	return dl->body0;
 }
 
 /**

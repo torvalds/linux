@@ -28,10 +28,10 @@ static inline u32 vsp1_hgo_read(struct vsp1_hgo *hgo, u32 reg)
 	return vsp1_read(hgo->histo.entity.vsp1, reg);
 }
 
-static inline void vsp1_hgo_write(struct vsp1_hgo *hgo, struct vsp1_dl_list *dl,
-				  u32 reg, u32 data)
+static inline void vsp1_hgo_write(struct vsp1_hgo *hgo,
+				  struct vsp1_dl_body *dlb, u32 reg, u32 data)
 {
-	vsp1_dl_list_write(dl, reg, data);
+	vsp1_dl_body_write(dlb, reg, data);
 }
 
 /* -----------------------------------------------------------------------------
@@ -131,7 +131,7 @@ static const struct v4l2_ctrl_config hgo_num_bins_control = {
 
 static void hgo_configure_stream(struct vsp1_entity *entity,
 				 struct vsp1_pipeline *pipe,
-				 struct vsp1_dl_list *dl)
+				 struct vsp1_dl_body *dlb)
 {
 	struct vsp1_hgo *hgo = to_hgo(&entity->subdev);
 	struct v4l2_rect *compose;
@@ -145,12 +145,12 @@ static void hgo_configure_stream(struct vsp1_entity *entity,
 						HISTO_PAD_SINK,
 						V4L2_SEL_TGT_COMPOSE);
 
-	vsp1_hgo_write(hgo, dl, VI6_HGO_REGRST, VI6_HGO_REGRST_RCLEA);
+	vsp1_hgo_write(hgo, dlb, VI6_HGO_REGRST, VI6_HGO_REGRST_RCLEA);
 
-	vsp1_hgo_write(hgo, dl, VI6_HGO_OFFSET,
+	vsp1_hgo_write(hgo, dlb, VI6_HGO_OFFSET,
 		       (crop->left << VI6_HGO_OFFSET_HOFFSET_SHIFT) |
 		       (crop->top << VI6_HGO_OFFSET_VOFFSET_SHIFT));
-	vsp1_hgo_write(hgo, dl, VI6_HGO_SIZE,
+	vsp1_hgo_write(hgo, dlb, VI6_HGO_SIZE,
 		       (crop->width << VI6_HGO_SIZE_HSIZE_SHIFT) |
 		       (crop->height << VI6_HGO_SIZE_VSIZE_SHIFT));
 
@@ -162,7 +162,7 @@ static void hgo_configure_stream(struct vsp1_entity *entity,
 
 	hratio = crop->width * 2 / compose->width / 3;
 	vratio = crop->height * 2 / compose->height / 3;
-	vsp1_hgo_write(hgo, dl, VI6_HGO_MODE,
+	vsp1_hgo_write(hgo, dlb, VI6_HGO_MODE,
 		       (hgo->num_bins == 256 ? VI6_HGO_MODE_STEP : 0) |
 		       (hgo->max_rgb ? VI6_HGO_MODE_MAXRGB : 0) |
 		       (hratio << VI6_HGO_MODE_HRATIO_SHIFT) |

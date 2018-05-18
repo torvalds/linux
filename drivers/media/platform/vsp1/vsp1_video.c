@@ -378,25 +378,29 @@ static void vsp1_video_pipeline_run_partition(struct vsp1_pipeline *pipe,
 					      struct vsp1_dl_list *dl,
 					      unsigned int partition)
 {
+	struct vsp1_dl_body *dlb = vsp1_dl_list_get_body0(dl);
 	struct vsp1_entity *entity;
 
 	pipe->partition = &pipe->part_table[partition];
 
 	list_for_each_entry(entity, &pipe->entities, list_pipe)
-		vsp1_entity_configure_partition(entity, pipe, dl);
+		vsp1_entity_configure_partition(entity, pipe, dl, dlb);
 }
 
 static void vsp1_video_pipeline_run(struct vsp1_pipeline *pipe)
 {
 	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
 	struct vsp1_entity *entity;
+	struct vsp1_dl_body *dlb;
 	unsigned int partition;
 
 	if (!pipe->dl)
 		pipe->dl = vsp1_dl_list_get(pipe->output->dlm);
 
+	dlb = vsp1_dl_list_get_body0(pipe->dl);
+
 	list_for_each_entry(entity, &pipe->entities, list_pipe)
-		vsp1_entity_configure_frame(entity, pipe, pipe->dl);
+		vsp1_entity_configure_frame(entity, pipe, pipe->dl, dlb);
 
 	/* Run the first partition. */
 	vsp1_video_pipeline_run_partition(pipe, pipe->dl, 0);
@@ -787,6 +791,7 @@ static void vsp1_video_buffer_queue(struct vb2_buffer *vb)
 static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 {
 	struct vsp1_entity *entity;
+	struct vsp1_dl_body *dlb;
 	int ret;
 
 	/* Determine this pipelines sizes for image partitioning support. */
@@ -798,6 +803,9 @@ static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 	pipe->dl = vsp1_dl_list_get(pipe->output->dlm);
 	if (!pipe->dl)
 		return -ENOMEM;
+
+	/* Retrieve the default DLB from the list. */
+	dlb = vsp1_dl_list_get_body0(pipe->dl);
 
 	if (pipe->uds) {
 		struct vsp1_uds *uds = to_uds(&pipe->uds->subdev);
@@ -821,8 +829,8 @@ static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 	}
 
 	list_for_each_entry(entity, &pipe->entities, list_pipe) {
-		vsp1_entity_route_setup(entity, pipe, pipe->dl);
-		vsp1_entity_configure_stream(entity, pipe, pipe->dl);
+		vsp1_entity_route_setup(entity, pipe, dlb);
+		vsp1_entity_configure_stream(entity, pipe, dlb);
 	}
 
 	return 0;

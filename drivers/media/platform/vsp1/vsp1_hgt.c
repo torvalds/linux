@@ -28,10 +28,10 @@ static inline u32 vsp1_hgt_read(struct vsp1_hgt *hgt, u32 reg)
 	return vsp1_read(hgt->histo.entity.vsp1, reg);
 }
 
-static inline void vsp1_hgt_write(struct vsp1_hgt *hgt, struct vsp1_dl_list *dl,
-				  u32 reg, u32 data)
+static inline void vsp1_hgt_write(struct vsp1_hgt *hgt,
+				  struct vsp1_dl_body *dlb, u32 reg, u32 data)
 {
-	vsp1_dl_list_write(dl, reg, data);
+	vsp1_dl_body_write(dlb, reg, data);
 }
 
 /* -----------------------------------------------------------------------------
@@ -127,7 +127,7 @@ static const struct v4l2_ctrl_config hgt_hue_areas = {
 
 static void hgt_configure_stream(struct vsp1_entity *entity,
 				 struct vsp1_pipeline *pipe,
-				 struct vsp1_dl_list *dl)
+				 struct vsp1_dl_body *dlb)
 {
 	struct vsp1_hgt *hgt = to_hgt(&entity->subdev);
 	struct v4l2_rect *compose;
@@ -144,12 +144,12 @@ static void hgt_configure_stream(struct vsp1_entity *entity,
 						HISTO_PAD_SINK,
 						V4L2_SEL_TGT_COMPOSE);
 
-	vsp1_hgt_write(hgt, dl, VI6_HGT_REGRST, VI6_HGT_REGRST_RCLEA);
+	vsp1_hgt_write(hgt, dlb, VI6_HGT_REGRST, VI6_HGT_REGRST_RCLEA);
 
-	vsp1_hgt_write(hgt, dl, VI6_HGT_OFFSET,
+	vsp1_hgt_write(hgt, dlb, VI6_HGT_OFFSET,
 		       (crop->left << VI6_HGT_OFFSET_HOFFSET_SHIFT) |
 		       (crop->top << VI6_HGT_OFFSET_VOFFSET_SHIFT));
-	vsp1_hgt_write(hgt, dl, VI6_HGT_SIZE,
+	vsp1_hgt_write(hgt, dlb, VI6_HGT_SIZE,
 		       (crop->width << VI6_HGT_SIZE_HSIZE_SHIFT) |
 		       (crop->height << VI6_HGT_SIZE_VSIZE_SHIFT));
 
@@ -157,7 +157,7 @@ static void hgt_configure_stream(struct vsp1_entity *entity,
 	for (i = 0; i < HGT_NUM_HUE_AREAS; ++i) {
 		lower = hgt->hue_areas[i*2 + 0];
 		upper = hgt->hue_areas[i*2 + 1];
-		vsp1_hgt_write(hgt, dl, VI6_HGT_HUE_AREA(i),
+		vsp1_hgt_write(hgt, dlb, VI6_HGT_HUE_AREA(i),
 			       (lower << VI6_HGT_HUE_AREA_LOWER_SHIFT) |
 			       (upper << VI6_HGT_HUE_AREA_UPPER_SHIFT));
 	}
@@ -165,7 +165,7 @@ static void hgt_configure_stream(struct vsp1_entity *entity,
 
 	hratio = crop->width * 2 / compose->width / 3;
 	vratio = crop->height * 2 / compose->height / 3;
-	vsp1_hgt_write(hgt, dl, VI6_HGT_MODE,
+	vsp1_hgt_write(hgt, dlb, VI6_HGT_MODE,
 		       (hratio << VI6_HGT_MODE_HRATIO_SHIFT) |
 		       (vratio << VI6_HGT_MODE_VRATIO_SHIFT));
 }

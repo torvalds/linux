@@ -15,6 +15,7 @@
 #include <media/v4l2-subdev.h>
 
 struct vsp1_device;
+struct vsp1_dl_body;
 struct vsp1_dl_list;
 struct vsp1_pipeline;
 struct vsp1_partition;
@@ -77,12 +78,13 @@ struct vsp1_route {
 struct vsp1_entity_operations {
 	void (*destroy)(struct vsp1_entity *);
 	void (*configure_stream)(struct vsp1_entity *, struct vsp1_pipeline *,
-				 struct vsp1_dl_list *);
+				 struct vsp1_dl_body *);
 	void (*configure_frame)(struct vsp1_entity *, struct vsp1_pipeline *,
-					struct vsp1_dl_list *);
+				struct vsp1_dl_list *, struct vsp1_dl_body *);
 	void (*configure_partition)(struct vsp1_entity *,
 				    struct vsp1_pipeline *,
-				    struct vsp1_dl_list *);
+				    struct vsp1_dl_list *,
+				    struct vsp1_dl_body *);
 	unsigned int (*max_width)(struct vsp1_entity *, struct vsp1_pipeline *);
 	void (*partition)(struct vsp1_entity *, struct vsp1_pipeline *,
 			  struct vsp1_partition *, unsigned int,
@@ -149,19 +151,21 @@ int vsp1_entity_init_cfg(struct v4l2_subdev *subdev,
 
 void vsp1_entity_route_setup(struct vsp1_entity *entity,
 			     struct vsp1_pipeline *pipe,
-			     struct vsp1_dl_list *dl);
+			     struct vsp1_dl_body *dlb);
 
 void vsp1_entity_configure_stream(struct vsp1_entity *entity,
 				  struct vsp1_pipeline *pipe,
-				  struct vsp1_dl_list *dl);
+				  struct vsp1_dl_body *dlb);
 
 void vsp1_entity_configure_frame(struct vsp1_entity *entity,
 				 struct vsp1_pipeline *pipe,
-				 struct vsp1_dl_list *dl);
+				 struct vsp1_dl_list *dl,
+				 struct vsp1_dl_body *dlb);
 
 void vsp1_entity_configure_partition(struct vsp1_entity *entity,
 				     struct vsp1_pipeline *pipe,
-				     struct vsp1_dl_list *dl);
+				     struct vsp1_dl_list *dl,
+				     struct vsp1_dl_body *dlb);
 
 struct media_pad *vsp1_entity_remote_pad(struct media_pad *pad);
 

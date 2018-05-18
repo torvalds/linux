@@ -31,7 +31,7 @@ unsigned int vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm);
 
 struct vsp1_dl_list *vsp1_dl_list_get(struct vsp1_dl_manager *dlm);
 void vsp1_dl_list_put(struct vsp1_dl_list *dl);
-void vsp1_dl_list_write(struct vsp1_dl_list *dl, u32 reg, u32 data);
+struct vsp1_dl_body *vsp1_dl_list_get_body0(struct vsp1_dl_list *dl);
 void vsp1_dl_list_commit(struct vsp1_dl_list *dl, bool internal);
 
 struct vsp1_dl_body_pool *

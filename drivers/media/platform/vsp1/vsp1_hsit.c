@@ -24,9 +24,9 @@
  */
 
 static inline void vsp1_hsit_write(struct vsp1_hsit *hsit,
-				   struct vsp1_dl_list *dl, u32 reg, u32 data)
+				   struct vsp1_dl_body *dlb, u32 reg, u32 data)
 {
-	vsp1_dl_list_write(dl, reg, data);
+	vsp1_dl_body_write(dlb, reg, data);
 }
 
 /* -----------------------------------------------------------------------------
@@ -129,14 +129,14 @@ static const struct v4l2_subdev_ops hsit_ops = {
 
 static void hsit_configure_stream(struct vsp1_entity *entity,
 				  struct vsp1_pipeline *pipe,
-				  struct vsp1_dl_list *dl)
+				  struct vsp1_dl_body *dlb)
 {
 	struct vsp1_hsit *hsit = to_hsit(&entity->subdev);
 
 	if (hsit->inverse)
-		vsp1_hsit_write(hsit, dl, VI6_HSI_CTRL, VI6_HSI_CTRL_EN);
+		vsp1_hsit_write(hsit, dlb, VI6_HSI_CTRL, VI6_HSI_CTRL_EN);
 	else
-		vsp1_hsit_write(hsit, dl, VI6_HST_CTRL, VI6_HST_CTRL_EN);
+		vsp1_hsit_write(hsit, dlb, VI6_HST_CTRL, VI6_HST_CTRL_EN);
 }
 
 static const struct vsp1_entity_operations hsit_entity_ops = {

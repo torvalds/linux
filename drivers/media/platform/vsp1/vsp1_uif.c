@@ -31,10 +31,11 @@ static inline u32 vsp1_uif_read(struct vsp1_uif *uif, u32 reg)
 	return vsp1_read(uif->entity.vsp1,
 			 uif->entity.index * VI6_UIF_OFFSET + reg);
 }
-static inline void vsp1_uif_write(struct vsp1_uif *uif, struct vsp1_dl_list *dl,
-				  u32 reg, u32 data)
+
+static inline void vsp1_uif_write(struct vsp1_uif *uif,
+				  struct vsp1_dl_body *dlb, u32 reg, u32 data)
 {
-	vsp1_dl_list_write(dl, reg + uif->entity.index * VI6_UIF_OFFSET, data);
+	vsp1_dl_body_write(dlb, reg + uif->entity.index * VI6_UIF_OFFSET, data);
 }
 
 u32 vsp1_uif_get_crc(struct vsp1_uif *uif)
@@ -191,14 +192,14 @@ static const struct v4l2_subdev_ops uif_ops = {
 
 static void uif_configure_stream(struct vsp1_entity *entity,
 				 struct vsp1_pipeline *pipe,
-				 struct vsp1_dl_list *dl)
+				 struct vsp1_dl_body *dlb)
 {
 	struct vsp1_uif *uif = to_uif(&entity->subdev);
 	const struct v4l2_rect *crop;
 	unsigned int left;
 	unsigned int width;
 
-	vsp1_uif_write(uif, dl, VI6_UIF_DISCOM_DOCMPMR,
+	vsp1_uif_write(uif, dlb, VI6_UIF_DISCOM_DOCMPMR,
 		       VI6_UIF_DISCOM_DOCMPMR_SEL(9));
 
 	crop = vsp1_entity_get_pad_selection(entity, entity->config,
@@ -213,12 +214,12 @@ static void uif_configure_stream(struct vsp1_entity *entity,
 		width /= 2;
 	}
 
-	vsp1_uif_write(uif, dl, VI6_UIF_DISCOM_DOCMSPXR, left);
-	vsp1_uif_write(uif, dl, VI6_UIF_DISCOM_DOCMSPYR, crop->top);
-	vsp1_uif_write(uif, dl, VI6_UIF_DISCOM_DOCMSZXR, width);
-	vsp1_uif_write(uif, dl, VI6_UIF_DISCOM_DOCMSZYR, crop->height);
+	vsp1_uif_write(uif, dlb, VI6_UIF_DISCOM_DOCMSPXR, left);
+	vsp1_uif_write(uif, dlb, VI6_UIF_DISCOM_DOCMSPYR, crop->top);
+	vsp1_uif_write(uif, dlb, VI6_UIF_DISCOM_DOCMSZXR, width);
+	vsp1_uif_write(uif, dlb, VI6_UIF_DISCOM_DOCMSZYR, crop->height);
 
-	vsp1_uif_write(uif, dl, VI6_UIF_DISCOM_DOCMCR,
+	vsp1_uif_write(uif, dlb, VI6_UIF_DISCOM_DOCMCR,
 		       VI6_UIF_DISCOM_DOCMCR_CMPR);
 }
 
