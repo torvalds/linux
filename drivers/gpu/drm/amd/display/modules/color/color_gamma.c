@@ -1451,7 +1451,7 @@ bool calculate_user_regamma_ramp(struct dc_transfer_func *output_tf,
 
 	kfree(rgb_regamma);
 rgb_regamma_alloc_fail:
-	kfree(rgb_user);
+	kvfree(rgb_user);
 rgb_user_alloc_fail:
 	return ret;
 }

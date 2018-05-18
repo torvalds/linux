@@ -212,6 +212,7 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 		return -ENOMEM;
 
 	filp->private_data = priv;
+	filp->f_mode |= FMODE_UNSIGNED_OFFSET;
 	priv->filp = filp;
 	priv->pid = get_pid(task_pid(current));
 	priv->minor = minor;
