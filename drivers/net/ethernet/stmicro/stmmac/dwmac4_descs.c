@@ -430,6 +430,14 @@ static void dwmac4_set_addr(struct dma_desc *p, dma_addr_t addr)
 	p->des1 = 0;
 }
 
+static void dwmac4_clear(struct dma_desc *p)
+{
+	p->des0 = 0;
+	p->des1 = 0;
+	p->des2 = 0;
+	p->des3 = 0;
+}
+
 const struct stmmac_desc_ops dwmac4_desc_ops = {
 	.tx_status = dwmac4_wrback_get_tx_status,
 	.rx_status = dwmac4_wrback_get_rx_status,
@@ -452,6 +460,7 @@ const struct stmmac_desc_ops dwmac4_desc_ops = {
 	.display_ring = dwmac4_display_ring,
 	.set_mss = dwmac4_set_mss_ctxt,
 	.set_addr = dwmac4_set_addr,
+	.clear = dwmac4_clear,
 };
 
 const struct stmmac_mode_ops dwmac4_ring_mode_ops = { };

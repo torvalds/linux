@@ -1341,14 +1341,7 @@ static int init_dma_tx_desc_rings(struct net_device *dev)
 			else
 				p = tx_q->dma_tx + i;
 
-			if (priv->synopsys_id >= DWMAC_CORE_4_00) {
-				p->des0 = 0;
-				p->des1 = 0;
-				p->des2 = 0;
-				p->des3 = 0;
-			} else {
-				p->des2 = 0;
-			}
+			stmmac_clear_desc(priv, p);
 
 			tx_q->tx_skbuff_dma[i].buf = 0;
 			tx_q->tx_skbuff_dma[i].map_as_page = false;

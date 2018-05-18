@@ -81,6 +81,8 @@ struct stmmac_desc_ops {
 	void (*set_mss)(struct dma_desc *p, unsigned int mss);
 	/* set descriptor skbuff address */
 	void (*set_addr)(struct dma_desc *p, dma_addr_t addr);
+	/* clear descriptor */
+	void (*clear)(struct dma_desc *p);
 };
 
 #define stmmac_init_rx_desc(__priv, __args...) \
@@ -127,6 +129,8 @@ struct stmmac_desc_ops {
 	stmmac_do_void_callback(__priv, desc, set_mss, __args)
 #define stmmac_set_desc_addr(__priv, __args...) \
 	stmmac_do_void_callback(__priv, desc, set_addr, __args)
+#define stmmac_clear_desc(__priv, __args...) \
+	stmmac_do_void_callback(__priv, desc, clear, __args)
 
 struct stmmac_dma_cfg;
 struct dma_features;

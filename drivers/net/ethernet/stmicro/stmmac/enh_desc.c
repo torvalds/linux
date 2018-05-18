@@ -442,6 +442,11 @@ static void enh_desc_set_addr(struct dma_desc *p, dma_addr_t addr)
 	p->des2 = cpu_to_le32(addr);
 }
 
+static void enh_desc_clear(struct dma_desc *p)
+{
+	p->des2 = 0;
+}
+
 const struct stmmac_desc_ops enh_desc_ops = {
 	.tx_status = enh_desc_get_tx_status,
 	.rx_status = enh_desc_get_rx_status,
@@ -463,4 +468,5 @@ const struct stmmac_desc_ops enh_desc_ops = {
 	.get_rx_timestamp_status = enh_desc_get_rx_timestamp_status,
 	.display_ring = enh_desc_display_ring,
 	.set_addr = enh_desc_set_addr,
+	.clear = enh_desc_clear,
 };

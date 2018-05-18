@@ -302,6 +302,11 @@ static void ndesc_set_addr(struct dma_desc *p, dma_addr_t addr)
 	p->des2 = cpu_to_le32(addr);
 }
 
+static void ndesc_clear(struct dma_desc *p)
+{
+	p->des2 = 0;
+}
+
 const struct stmmac_desc_ops ndesc_ops = {
 	.tx_status = ndesc_get_tx_status,
 	.rx_status = ndesc_get_rx_status,
@@ -322,4 +327,5 @@ const struct stmmac_desc_ops ndesc_ops = {
 	.get_rx_timestamp_status = ndesc_get_rx_timestamp_status,
 	.display_ring = ndesc_display_ring,
 	.set_addr = ndesc_set_addr,
+	.clear = ndesc_clear,
 };
