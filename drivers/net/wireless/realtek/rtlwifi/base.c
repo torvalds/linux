@@ -2306,6 +2306,78 @@ label_err:
 }
 EXPORT_SYMBOL(rtl_c2hcmd_enqueue);
 
+void rtl_c2h_content_parsing(struct ieee80211_hw *hw, u8 cmd_id,
+			     u8 cmd_len, u8 *cmd_buf)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_hal_ops *hal_ops = rtlpriv->cfg->ops;
+	const struct rtl_btc_ops *btc_ops = rtlpriv->btcoexist.btc_ops;
+
+	switch (cmd_id) {
+	case C2H_DBG:
+		RT_TRACE(rtlpriv, COMP_FW, DBG_LOUD, "[C2H], C2H_DBG!!\n");
+		break;
+	case C2H_TXBF:
+		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
+			 "[C2H], C2H_TXBF!!\n");
+		break;
+	case C2H_TX_REPORT:
+		rtl_tx_report_handler(hw, cmd_buf, cmd_len);
+		break;
+	case C2H_RA_RPT:
+		if (hal_ops->c2h_ra_report_handler)
+			hal_ops->c2h_ra_report_handler(hw, cmd_buf, cmd_len);
+		break;
+	case C2H_BT_INFO:
+		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
+			 "[C2H], C2H_BT_INFO!!\n");
+		if (rtlpriv->cfg->ops->get_btc_status())
+			btc_ops->btc_btinfo_notify(rtlpriv, cmd_buf, cmd_len);
+		break;
+	case C2H_BT_MP:
+		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
+			 "[C2H], C2H_BT_MP!!\n");
+		if (rtlpriv->cfg->ops->get_btc_status())
+			btc_ops->btc_btmpinfo_notify(rtlpriv, cmd_buf, cmd_len);
+		break;
+	default:
+		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
+			 "[C2H], Unknown packet!! cmd_id(%#X)!\n", cmd_id);
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(rtl_c2h_content_parsing);
+
+void rtl_c2h_packet_handler(struct ieee80211_hw *hw, u8 *buffer, u8 len)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	u8 c2h_cmd_id = 0, c2h_cmd_seq = 0, c2h_cmd_len = 0;
+	u8 *tmp_buf = NULL;
+
+	c2h_cmd_id = buffer[0];
+	c2h_cmd_seq = buffer[1];
+	c2h_cmd_len = len - 2;
+	tmp_buf = buffer + 2;
+
+	RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
+		 "[C2H packet], c2hCmdId=0x%x, c2hCmdSeq=0x%x, c2hCmdLen=%d\n",
+		 c2h_cmd_id, c2h_cmd_seq, c2h_cmd_len);
+
+	RT_PRINT_DATA(rtlpriv, COMP_FW, DBG_TRACE,
+		      "[C2H packet], Content Hex:\n", tmp_buf, c2h_cmd_len);
+
+	switch (c2h_cmd_id) {
+	case C2H_BT_INFO:
+	case C2H_BT_MP:
+		rtl_c2hcmd_enqueue(hw, c2h_cmd_id, c2h_cmd_len, tmp_buf);
+		break;
+	default:
+		rtl_c2h_content_parsing(hw, c2h_cmd_id, c2h_cmd_len, tmp_buf);
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(rtl_c2h_packet_handler);
+
 void rtl_c2hcmd_launcher(struct ieee80211_hw *hw, int exec)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);

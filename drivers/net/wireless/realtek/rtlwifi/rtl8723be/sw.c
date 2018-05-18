@@ -263,7 +263,7 @@ static struct rtl_hal_ops rtl8723be_hal_ops = {
 	.get_btc_status = rtl8723be_get_btc_status,
 	.rx_command_packet = rtl8723be_rx_command_packet,
 	.is_fw_header = is_fw_header,
-	.c2h_content_parsing = rtl8723be_c2h_content_parsing,
+	.c2h_content_parsing = rtl_c2h_content_parsing,
 };
 
 static struct rtl_mod_params rtl8723be_mod_params = {

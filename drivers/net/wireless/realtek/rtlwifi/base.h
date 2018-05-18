@@ -162,6 +162,9 @@ void rtl_fwevt_wq_callback(void *data);
 void rtl_c2hcmd_wq_callback(void *data);
 void rtl_c2hcmd_launcher(struct ieee80211_hw *hw, int exec);
 void rtl_c2hcmd_enqueue(struct ieee80211_hw *hw, u8 tag, u8 len, u8 *val);
+void rtl_c2h_content_parsing(struct ieee80211_hw *hw, u8 c2h_cmd_id,
+			     u8 c2h_cmd_len, u8 *tmp_buf);
+void rtl_c2h_packet_handler(struct ieee80211_hw *hw, u8 *buffer, u8 len);
 
 u8 rtl_mrate_idx_to_arfr_id(struct ieee80211_hw *hw, u8 rate_index,
 			    enum wireless_mode wirelessmode);

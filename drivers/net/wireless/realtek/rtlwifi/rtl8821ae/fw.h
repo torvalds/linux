@@ -317,11 +317,6 @@ void rtl8821ae_set_fw_keep_alive_cmd(struct ieee80211_hw *hw, bool func_en);
 void rtl8821ae_set_fw_disconnect_decision_ctrl_cmd(struct ieee80211_hw *hw,
 						   bool enabled);
 void rtl8821ae_set_fw_global_info_cmd(struct ieee80211_hw *hw);
-void rtl8821ae_c2h_packet_handler(struct ieee80211_hw *hw,
-				  u8 *buffer, u8 length);
-void rtl8821ae_c2h_content_parsing(struct ieee80211_hw *hw,
-				   u8 c2h_cmd_id, u8 c2h_cmd_len,
-				   u8 *tmp_buf);
 void rtl8821ae_c2h_ra_report_handler(struct ieee80211_hw *hw,
 				     u8 *cmd_buf, u8 cmd_len);
 #endif

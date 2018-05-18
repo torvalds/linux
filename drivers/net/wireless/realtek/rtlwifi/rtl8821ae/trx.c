@@ -1018,7 +1018,7 @@ u32 rtl8821ae_rx_command_packet(struct ieee80211_hw *hw,
 		result = 0;
 		break;
 	case C2H_PACKET:
-		rtl8821ae_c2h_packet_handler(hw, skb->data, (u8)skb->len);
+		rtl_c2h_packet_handler(hw, skb->data, (u8)skb->len);
 		result = 1;
 		RT_TRACE(rtlpriv, COMP_RECV, DBG_LOUD,
 			 "skb->len=%d\n\n", skb->len);

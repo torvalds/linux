@@ -774,8 +774,7 @@ u32 rtl8723be_rx_command_packet(struct ieee80211_hw *hw,
 			result = 0;
 			break;
 	case C2H_PACKET:
-			rtl8723be_c2h_packet_handler(hw, skb->data,
-						     (u8)skb->len);
+			rtl_c2h_packet_handler(hw, skb->data, (u8)skb->len);
 			result = 1;
 			break;
 	default:
