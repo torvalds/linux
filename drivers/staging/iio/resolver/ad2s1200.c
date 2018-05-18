@@ -58,6 +58,11 @@ static int ad2s1200_read_raw(struct iio_dev *indio_dev,
 	switch (m) {
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
+		case IIO_ANGL:
+			/* 2 * Pi / (2^12 - 1) ~= 0.001534355 */
+			*val = 0;
+			*val2 = 1534355;
+			return IIO_VAL_INT_PLUS_NANO;
 		case IIO_ANGL_VEL:
 			/* 2 * Pi ~= 6.283185 */
 			*val = 6;
@@ -112,6 +117,7 @@ static const struct iio_chan_spec ad2s1200_channels[] = {
 		.indexed = 1,
 		.channel = 0,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
 	}, {
 		.type = IIO_ANGL_VEL,
 		.indexed = 1,
