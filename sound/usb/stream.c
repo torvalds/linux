@@ -982,13 +982,16 @@ snd_usb_get_audioformat_uac3(struct snd_usb_audio *chip,
 
 	dev_err(&dev->dev, "%u:%d : bogus bTerminalLink %d\n",
 			iface_no, altno, as->bTerminalLink);
+	kfree(chmap);
 	return NULL;
 
 found_clock:
 	fp = audio_format_alloc_init(chip, alts, UAC_VERSION_3, iface_no,
 				     altset_idx, altno, num_channels, clock);
-	if (!fp)
+	if (!fp) {
+		kfree(chmap);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	fp->chmap = chmap;
 
@@ -1009,6 +1012,7 @@ found_clock:
 							       iface_no);
 		/* ok, let's parse further... */
 		if (snd_usb_parse_audio_format_v3(chip, fp, as, stream) < 0) {
+			kfree(fp->chmap);
 			kfree(fp->rate_table);
 			kfree(fp);
 			return NULL;
