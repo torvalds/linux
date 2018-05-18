@@ -1156,10 +1156,7 @@ static int stmmac_init_rx_buffers(struct stmmac_priv *priv, struct dma_desc *p,
 		return -EINVAL;
 	}
 
-	if (priv->synopsys_id >= DWMAC_CORE_4_00)
-		p->des0 = cpu_to_le32(rx_q->rx_skbuff_dma[i]);
-	else
-		p->des2 = cpu_to_le32(rx_q->rx_skbuff_dma[i]);
+	stmmac_set_desc_addr(priv, p, rx_q->rx_skbuff_dma[i]);
 
 	if (priv->dma_buf_sz == BUF_SIZE_16KiB)
 		stmmac_init_desc3(priv, p);
@@ -3100,10 +3097,8 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 			goto dma_map_err; /* should reuse desc w/o issues */
 
 		tx_q->tx_skbuff_dma[entry].buf = des;
-		if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00))
-			desc->des0 = cpu_to_le32(des);
-		else
-			desc->des2 = cpu_to_le32(des);
+
+		stmmac_set_desc_addr(priv, desc, des);
 
 		tx_q->tx_skbuff_dma[entry].map_as_page = true;
 		tx_q->tx_skbuff_dma[entry].len = len;
@@ -3185,10 +3180,8 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 			goto dma_map_err;
 
 		tx_q->tx_skbuff_dma[first_entry].buf = des;
-		if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00))
-			first->des0 = cpu_to_le32(des);
-		else
-			first->des2 = cpu_to_le32(des);
+
+		stmmac_set_desc_addr(priv, first, des);
 
 		tx_q->tx_skbuff_dma[first_entry].len = nopaged_len;
 		tx_q->tx_skbuff_dma[first_entry].last_segment = last_segment;
@@ -3302,13 +3295,7 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv, u32 queue)
 				break;
 			}
 
-			if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00)) {
-				p->des0 = cpu_to_le32(rx_q->rx_skbuff_dma[entry]);
-				p->des1 = 0;
-			} else {
-				p->des2 = cpu_to_le32(rx_q->rx_skbuff_dma[entry]);
-			}
-
+			stmmac_set_desc_addr(priv, p, rx_q->rx_skbuff_dma[entry]);
 			stmmac_refill_desc3(priv, rx_q, p);
 
 			if (rx_q->rx_zeroc_thresh > 0)

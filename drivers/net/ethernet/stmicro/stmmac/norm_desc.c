@@ -297,6 +297,11 @@ static void ndesc_display_ring(void *head, unsigned int size, bool rx)
 	pr_info("\n");
 }
 
+static void ndesc_set_addr(struct dma_desc *p, dma_addr_t addr)
+{
+	p->des2 = cpu_to_le32(addr);
+}
+
 const struct stmmac_desc_ops ndesc_ops = {
 	.tx_status = ndesc_get_tx_status,
 	.rx_status = ndesc_get_rx_status,
@@ -316,4 +321,5 @@ const struct stmmac_desc_ops ndesc_ops = {
 	.get_timestamp = ndesc_get_timestamp,
 	.get_rx_timestamp_status = ndesc_get_rx_timestamp_status,
 	.display_ring = ndesc_display_ring,
+	.set_addr = ndesc_set_addr,
 };

@@ -424,6 +424,12 @@ static void dwmac4_set_mss_ctxt(struct dma_desc *p, unsigned int mss)
 	p->des3 = cpu_to_le32(TDES3_CONTEXT_TYPE | TDES3_CTXT_TCMSSV);
 }
 
+static void dwmac4_set_addr(struct dma_desc *p, dma_addr_t addr)
+{
+	p->des0 = cpu_to_le32(addr);
+	p->des1 = 0;
+}
+
 const struct stmmac_desc_ops dwmac4_desc_ops = {
 	.tx_status = dwmac4_wrback_get_tx_status,
 	.rx_status = dwmac4_wrback_get_rx_status,
@@ -445,6 +451,7 @@ const struct stmmac_desc_ops dwmac4_desc_ops = {
 	.init_tx_desc = dwmac4_rd_init_tx_desc,
 	.display_ring = dwmac4_display_ring,
 	.set_mss = dwmac4_set_mss_ctxt,
+	.set_addr = dwmac4_set_addr,
 };
 
 const struct stmmac_mode_ops dwmac4_ring_mode_ops = { };
