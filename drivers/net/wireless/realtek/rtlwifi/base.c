@@ -2346,7 +2346,6 @@ void rtl_c2h_content_parsing(struct ieee80211_hw *hw, u8 cmd_id,
 		break;
 	}
 }
-EXPORT_SYMBOL_GPL(rtl_c2h_content_parsing);
 
 void rtl_c2h_packet_handler(struct ieee80211_hw *hw, u8 *buffer, u8 len)
 {
@@ -2401,9 +2400,9 @@ void rtl_c2hcmd_launcher(struct ieee80211_hw *hw, int exec)
 		if (!c2hcmd)
 			break;
 
-		if (rtlpriv->cfg->ops->c2h_content_parsing && exec)
-			rtlpriv->cfg->ops->c2h_content_parsing(hw,
-					c2hcmd->tag, c2hcmd->len, c2hcmd->val);
+		if (exec)
+			rtl_c2h_content_parsing(hw, c2hcmd->tag,
+						c2hcmd->len, c2hcmd->val);
 
 		/* free */
 		kfree(c2hcmd->val);

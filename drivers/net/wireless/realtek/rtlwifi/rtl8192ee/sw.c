@@ -250,7 +250,6 @@ static struct rtl_hal_ops rtl8192ee_hal_ops = {
 	.set_rfreg = rtl92ee_phy_set_rf_reg,
 	.fill_h2c_cmd = rtl92ee_fill_h2c_cmd,
 	.get_btc_status = rtl92ee_get_btc_status,
-	.c2h_content_parsing = rtl_c2h_content_parsing,
 	.c2h_ra_report_handler = rtl92ee_c2h_ra_report_handler,
 };
 

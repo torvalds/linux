@@ -2344,8 +2344,6 @@ struct rtl_hal_ops {
 				   struct rtl_wow_pattern *rtl_pattern,
 				   u8 index);
 	u16 (*get_available_desc)(struct ieee80211_hw *hw, u8 q_idx);
-	void (*c2h_content_parsing)(struct ieee80211_hw *hw, u8 tag, u8 len,
-				    u8 *val);
 	void (*c2h_ra_report_handler)(struct ieee80211_hw *hw,
 				      u8 *cmd_buf, u8 cmd_len);
 };
