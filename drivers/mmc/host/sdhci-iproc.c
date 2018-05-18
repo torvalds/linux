@@ -186,7 +186,7 @@ static const struct sdhci_ops sdhci_iproc_32only_ops = {
 
 static const struct sdhci_pltfm_data sdhci_iproc_cygnus_pltfm_data = {
 	.quirks = SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK,
-	.quirks2 = SDHCI_QUIRK2_ACMD23_BROKEN,
+	.quirks2 = SDHCI_QUIRK2_ACMD23_BROKEN | SDHCI_QUIRK2_HOST_OFF_CARD_ON,
 	.ops = &sdhci_iproc_32only_ops,
 };
 
