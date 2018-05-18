@@ -230,7 +230,7 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 			res->flags |= IORESOURCE_ROM_ENABLE;
 		l64 = l & PCI_ROM_ADDRESS_MASK;
 		sz64 = sz & PCI_ROM_ADDRESS_MASK;
-		mask64 = (u32)PCI_ROM_ADDRESS_MASK;
+		mask64 = PCI_ROM_ADDRESS_MASK;
 	}
 
 	if (res->flags & IORESOURCE_MEM_64) {

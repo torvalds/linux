@@ -244,11 +244,13 @@ static struct ip_tunnel *ipip6_tunnel_locate(struct net *net,
 	if (!create)
 		goto failed;
 
-	if (parms->name[0])
+	if (parms->name[0]) {
+		if (!dev_valid_name(parms->name))
+			goto failed;
 		strlcpy(name, parms->name, IFNAMSIZ);
-	else
+	} else {
 		strcpy(name, "sit%d");
-
+	}
 	dev = alloc_netdev(sizeof(*t), name, NET_NAME_UNKNOWN,
 			   ipip6_tunnel_setup);
 	if (!dev)
@@ -690,6 +692,7 @@ static int ipip6_rcv(struct sk_buff *skb)
 
 		if (iptunnel_pull_header(skb, 0, htons(ETH_P_IPV6)))
 			goto out;
+		iph = ip_hdr(skb);
 
 		err = IP_ECN_decapsulate(iph, skb);
 		if (unlikely(err)) {

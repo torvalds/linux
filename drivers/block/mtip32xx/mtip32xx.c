@@ -169,25 +169,6 @@ static bool mtip_check_surprise_removal(struct pci_dev *pdev)
 	return false; /* device present */
 }
 
-/* we have to use runtime tag to setup command header */
-static void mtip_init_cmd_header(struct request *rq)
-{
-	struct driver_data *dd = rq->q->queuedata;
-	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(rq);
-	u32 host_cap_64 = readl(dd->mmio + HOST_CAP) & HOST_CAP_64;
-
-	/* Point the command headers at the command tables. */
-	cmd->command_header = dd->port->command_list +
-				(sizeof(struct mtip_cmd_hdr) * rq->tag);
-	cmd->command_header_dma = dd->port->command_list_dma +
-				(sizeof(struct mtip_cmd_hdr) * rq->tag);
-
-	if (host_cap_64)
-		cmd->command_header->ctbau = __force_bit2int cpu_to_le32((cmd->command_dma >> 16) >> 16);
-
-	cmd->command_header->ctba = __force_bit2int cpu_to_le32(cmd->command_dma & 0xFFFFFFFF);
-}
-
 static struct mtip_cmd *mtip_get_int_command(struct driver_data *dd)
 {
 	struct request *rq;
@@ -198,9 +179,6 @@ static struct mtip_cmd *mtip_get_int_command(struct driver_data *dd)
 	rq = blk_mq_alloc_request(dd->queue, 0, __GFP_RECLAIM, true);
 	if (IS_ERR(rq))
 		return NULL;
-
-	/* Internal cmd isn't submitted via .queue_rq */
-	mtip_init_cmd_header(rq);
 
 	return blk_mq_rq_to_pdu(rq);
 }
@@ -3840,8 +3818,6 @@ static int mtip_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct request *rq = bd->rq;
 	int ret;
 
-	mtip_init_cmd_header(rq);
-
 	if (unlikely(mtip_check_unal_depth(hctx, rq)))
 		return BLK_MQ_RQ_QUEUE_BUSY;
 
@@ -3873,6 +3849,7 @@ static int mtip_init_cmd(void *data, struct request *rq, unsigned int hctx_idx,
 {
 	struct driver_data *dd = data;
 	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(rq);
+	u32 host_cap_64 = readl(dd->mmio + HOST_CAP) & HOST_CAP_64;
 
 	/*
 	 * For flush requests, request_idx starts at the end of the
@@ -3888,6 +3865,17 @@ static int mtip_init_cmd(void *data, struct request *rq, unsigned int hctx_idx,
 		return -ENOMEM;
 
 	memset(cmd->command, 0, CMD_DMA_ALLOC_SZ);
+
+	/* Point the command headers at the command tables. */
+	cmd->command_header = dd->port->command_list +
+				(sizeof(struct mtip_cmd_hdr) * request_idx);
+	cmd->command_header_dma = dd->port->command_list_dma +
+				(sizeof(struct mtip_cmd_hdr) * request_idx);
+
+	if (host_cap_64)
+		cmd->command_header->ctbau = __force_bit2int cpu_to_le32((cmd->command_dma >> 16) >> 16);
+
+	cmd->command_header->ctba = __force_bit2int cpu_to_le32(cmd->command_dma & 0xFFFFFFFF);
 
 	sg_init_table(cmd->sg, MTIP_MAX_SG);
 	return 0;

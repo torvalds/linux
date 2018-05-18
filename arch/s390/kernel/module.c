@@ -31,6 +31,9 @@
 #include <linux/kernel.h>
 #include <linux/moduleloader.h>
 #include <linux/bug.h>
+#include <asm/alternative.h>
+#include <asm/nospec-branch.h>
+#include <asm/facility.h>
 
 #if 0
 #define DEBUGP printk
@@ -163,7 +166,11 @@ int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 	me->arch.got_offset = me->core_size;
 	me->core_size += me->arch.got_size;
 	me->arch.plt_offset = me->core_size;
-	me->core_size += me->arch.plt_size;
+	if (me->arch.plt_size) {
+		if (IS_ENABLED(CONFIG_EXPOLINE) && !nospec_disable)
+			me->arch.plt_size += PLT_ENTRY_SIZE;
+		me->core_size += me->arch.plt_size;
+	}
 	return 0;
 }
 
@@ -317,9 +324,20 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 			unsigned int *ip;
 			ip = me->module_core + me->arch.plt_offset +
 				info->plt_offset;
-			ip[0] = 0x0d10e310; /* basr 1,0; lg 1,10(1); br 1 */
-			ip[1] = 0x100a0004;
-			ip[2] = 0x07f10000;
+			ip[0] = 0x0d10e310;	/* basr 1,0  */
+			ip[1] = 0x100a0004;	/* lg	1,10(1) */
+			if (IS_ENABLED(CONFIG_EXPOLINE) && !nospec_disable) {
+				unsigned int *ij;
+				ij = me->module_core +
+					me->arch.plt_offset +
+					me->arch.plt_size - PLT_ENTRY_SIZE;
+				ip[2] = 0xa7f40000 +	/* j __jump_r1 */
+					(unsigned int)(u16)
+					(((unsigned long) ij - 8 -
+					  (unsigned long) ip) / 2);
+			} else {
+				ip[2] = 0x07f10000;	/* br %r1 */
+			}
 			ip[3] = (unsigned int) (val >> 32);
 			ip[4] = (unsigned int) val;
 			info->plt_initialized = 1;
@@ -424,6 +442,45 @@ int module_finalize(const Elf_Ehdr *hdr,
 		    const Elf_Shdr *sechdrs,
 		    struct module *me)
 {
+	const Elf_Shdr *s;
+	char *secstrings, *secname;
+	void *aseg;
+
+	if (IS_ENABLED(CONFIG_EXPOLINE) &&
+	    !nospec_disable && me->arch.plt_size) {
+		unsigned int *ij;
+
+		ij = me->module_core + me->arch.plt_offset +
+			me->arch.plt_size - PLT_ENTRY_SIZE;
+		if (test_facility(35)) {
+			ij[0] = 0xc6000000;	/* exrl	%r0,.+10	*/
+			ij[1] = 0x0005a7f4;	/* j	.		*/
+			ij[2] = 0x000007f1;	/* br	%r1		*/
+		} else {
+			ij[0] = 0x44000000 | (unsigned int)
+				offsetof(struct _lowcore, br_r1_trampoline);
+			ij[1] = 0xa7f40000;	/* j	.		*/
+		}
+	}
+
+	secstrings = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
+	for (s = sechdrs; s < sechdrs + hdr->e_shnum; s++) {
+		aseg = (void *) s->sh_addr;
+		secname = secstrings + s->sh_name;
+
+		if (!strcmp(".altinstructions", secname))
+			/* patch .altinstructions */
+			apply_alternatives(aseg, aseg + s->sh_size);
+
+		if (IS_ENABLED(CONFIG_EXPOLINE) &&
+		    (!strncmp(".s390_indirect", secname, 14)))
+			nospec_revert(aseg, aseg + s->sh_size);
+
+		if (IS_ENABLED(CONFIG_EXPOLINE) &&
+		    (!strncmp(".s390_return", secname, 12)))
+			nospec_revert(aseg, aseg + s->sh_size);
+	}
+
 	jump_label_apply_nops(me);
 	vfree(me->arch.syminfo);
 	me->arch.syminfo = NULL;

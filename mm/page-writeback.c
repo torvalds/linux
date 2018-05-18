@@ -2520,13 +2520,13 @@ void account_page_redirty(struct page *page)
 	if (mapping && mapping_cap_account_dirty(mapping)) {
 		struct inode *inode = mapping->host;
 		struct bdi_writeback *wb;
-		bool locked;
+		struct wb_lock_cookie cookie = {};
 
-		wb = unlocked_inode_to_wb_begin(inode, &locked);
+		wb = unlocked_inode_to_wb_begin(inode, &cookie);
 		current->nr_dirtied--;
 		dec_zone_page_state(page, NR_DIRTIED);
 		dec_wb_stat(wb, WB_DIRTIED);
-		unlocked_inode_to_wb_end(inode, locked);
+		unlocked_inode_to_wb_end(inode, &cookie);
 	}
 }
 EXPORT_SYMBOL(account_page_redirty);
@@ -2632,15 +2632,15 @@ void cancel_dirty_page(struct page *page)
 		struct inode *inode = mapping->host;
 		struct bdi_writeback *wb;
 		struct mem_cgroup *memcg;
-		bool locked;
+		struct wb_lock_cookie cookie = {};
 
 		memcg = mem_cgroup_begin_page_stat(page);
-		wb = unlocked_inode_to_wb_begin(inode, &locked);
+		wb = unlocked_inode_to_wb_begin(inode, &cookie);
 
 		if (TestClearPageDirty(page))
 			account_page_cleaned(page, mapping, memcg, wb);
 
-		unlocked_inode_to_wb_end(inode, locked);
+		unlocked_inode_to_wb_end(inode, &cookie);
 		mem_cgroup_end_page_stat(memcg);
 	} else {
 		ClearPageDirty(page);
@@ -2673,7 +2673,7 @@ int clear_page_dirty_for_io(struct page *page)
 		struct inode *inode = mapping->host;
 		struct bdi_writeback *wb;
 		struct mem_cgroup *memcg;
-		bool locked;
+		struct wb_lock_cookie cookie = {};
 
 		/*
 		 * Yes, Virginia, this is indeed insane.
@@ -2711,14 +2711,14 @@ int clear_page_dirty_for_io(struct page *page)
 		 * exclusion.
 		 */
 		memcg = mem_cgroup_begin_page_stat(page);
-		wb = unlocked_inode_to_wb_begin(inode, &locked);
+		wb = unlocked_inode_to_wb_begin(inode, &cookie);
 		if (TestClearPageDirty(page)) {
 			mem_cgroup_dec_page_stat(memcg, MEM_CGROUP_STAT_DIRTY);
 			dec_zone_page_state(page, NR_FILE_DIRTY);
 			dec_wb_stat(wb, WB_RECLAIMABLE);
 			ret = 1;
 		}
-		unlocked_inode_to_wb_end(inode, locked);
+		unlocked_inode_to_wb_end(inode, &cookie);
 		mem_cgroup_end_page_stat(memcg);
 		return ret;
 	}

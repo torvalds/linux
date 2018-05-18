@@ -44,7 +44,8 @@
 
 static const struct nla_policy tipc_nl_net_policy[TIPC_NLA_NET_MAX + 1] = {
 	[TIPC_NLA_NET_UNSPEC]	= { .type = NLA_UNSPEC },
-	[TIPC_NLA_NET_ID]	= { .type = NLA_U32 }
+	[TIPC_NLA_NET_ID]	= { .type = NLA_U32 },
+	[TIPC_NLA_NET_ADDR]	= { .type = NLA_U32 },
 };
 
 /*

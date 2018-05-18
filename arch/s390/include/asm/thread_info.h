@@ -78,6 +78,8 @@ void arch_release_task_struct(struct task_struct *tsk);
 #define TIF_SECCOMP		5	/* secure computing */
 #define TIF_SYSCALL_TRACEPOINT	6	/* syscall tracepoint instrumentation */
 #define TIF_UPROBE		7	/* breakpointed or single-stepping */
+#define TIF_ISOLATE_BP		8	/* Run process with isolated BP */
+#define TIF_ISOLATE_BP_GUEST	9	/* Run KVM guests with isolated BP */
 #define TIF_31BIT		16	/* 32bit process */
 #define TIF_MEMDIE		17	/* is terminating due to OOM killer */
 #define TIF_RESTORE_SIGMASK	18	/* restore signal mask in do_signal() */
@@ -93,6 +95,8 @@ void arch_release_task_struct(struct task_struct *tsk);
 #define _TIF_SECCOMP		_BITUL(TIF_SECCOMP)
 #define _TIF_SYSCALL_TRACEPOINT	_BITUL(TIF_SYSCALL_TRACEPOINT)
 #define _TIF_UPROBE		_BITUL(TIF_UPROBE)
+#define _TIF_ISOLATE_BP		_BITUL(TIF_ISOLATE_BP)
+#define _TIF_ISOLATE_BP_GUEST	_BITUL(TIF_ISOLATE_BP_GUEST)
 #define _TIF_31BIT		_BITUL(TIF_31BIT)
 #define _TIF_SINGLE_STEP	_BITUL(TIF_SINGLE_STEP)
 
