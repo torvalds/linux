@@ -12,11 +12,12 @@
 #ifndef __ARCH_ARM_MACH_DAVINCI_COMMON_H
 #define __ARCH_ARM_MACH_DAVINCI_COMMON_H
 
+#include <linux/clk.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/reboot.h>
 
-extern void davinci_timer_init(void);
+void davinci_timer_init(struct clk *clk);
 
 extern void davinci_irq_init(void);
 extern void __iomem *davinci_intc_base;

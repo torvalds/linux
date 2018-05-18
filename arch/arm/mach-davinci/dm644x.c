@@ -935,7 +935,7 @@ void __init dm644x_init(void)
 void __init dm644x_init_time(void)
 {
 	davinci_clk_init(dm644x_clks);
-	davinci_timer_init();
+	davinci_timer_init(&timer0_clk);
 }
 
 int __init dm644x_init_video(struct vpfe_config *vpfe_cfg,

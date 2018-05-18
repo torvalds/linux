@@ -1396,5 +1396,5 @@ void __init da850_init(void)
 void __init da850_init_time(void)
 {
 	davinci_clk_init(da850_clks);
-	davinci_timer_init();
+	davinci_timer_init(&timerp64_0_clk);
 }

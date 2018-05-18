@@ -1172,7 +1172,7 @@ void __init dm365_init(void)
 void __init dm365_init_time(void)
 {
 	davinci_clk_init(dm365_clks);
-	davinci_timer_init();
+	davinci_timer_init(&timer0_clk);
 }
 
 static struct resource dm365_vpss_resources[] = {

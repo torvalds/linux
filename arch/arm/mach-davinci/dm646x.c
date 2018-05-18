@@ -957,7 +957,7 @@ void __init dm646x_init_time(unsigned long ref_clk_rate,
 	ref_clk.rate = ref_clk_rate;
 	aux_clkin.rate = aux_clkin_rate;
 	davinci_clk_init(dm646x_clks);
-	davinci_timer_init();
+	davinci_timer_init(&timer0_clk);
 }
 
 static int __init dm646x_init_devices(void)
