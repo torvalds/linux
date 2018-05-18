@@ -4249,6 +4249,8 @@ static void tcp_sack_new_ofo_skb(struct sock *sk, u32 seq, u32 end_seq)
 	 * If the sack array is full, forget about the last one.
 	 */
 	if (this_sack >= TCP_NUM_SACKS) {
+		if (tp->compressed_ack)
+			tcp_send_ack(sk);
 		this_sack--;
 		tp->rx_opt.num_sacks--;
 		sp--;
@@ -4715,8 +4717,6 @@ drop:
 	if (!before(TCP_SKB_CB(skb)->seq, tp->rcv_nxt + tcp_receive_window(tp)))
 		goto out_of_window;
 
-	tcp_enter_quickack_mode(sk);
-
 	if (before(TCP_SKB_CB(skb)->seq, tp->rcv_nxt)) {
 		/* Partial packet, seq < rcv_next < end_seq */
 		SOCK_DEBUG(sk, "partial packet: rcv_next %X seq %X - %X\n",
@@ -5083,6 +5083,7 @@ static inline void tcp_data_snd_check(struct sock *sk)
 static void __tcp_ack_snd_check(struct sock *sk, int ofo_possible)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	unsigned long rtt, delay;
 
 	    /* More than one full frame received... */
 	if (((tp->rcv_nxt - tp->rcv_wup) > inet_csk(sk)->icsk_ack.rcv_mss &&
@@ -5094,15 +5095,36 @@ static void __tcp_ack_snd_check(struct sock *sk, int ofo_possible)
 	    (tp->rcv_nxt - tp->copied_seq < sk->sk_rcvlowat ||
 	     __tcp_select_window(sk) >= tp->rcv_wnd)) ||
 	    /* We ACK each frame or... */
-	    tcp_in_quickack_mode(sk) ||
-	    /* We have out of order data. */
-	    (ofo_possible && !RB_EMPTY_ROOT(&tp->out_of_order_queue))) {
-		/* Then ack it now */
+	    tcp_in_quickack_mode(sk)) {
+send_now:
 		tcp_send_ack(sk);
-	} else {
-		/* Else, send delayed ack. */
-		tcp_send_delayed_ack(sk);
+		return;
 	}
+
+	if (!ofo_possible || RB_EMPTY_ROOT(&tp->out_of_order_queue)) {
+		tcp_send_delayed_ack(sk);
+		return;
+	}
+
+	if (!tcp_is_sack(tp) ||
+	    tp->compressed_ack >= sock_net(sk)->ipv4.sysctl_tcp_comp_sack_nr)
+		goto send_now;
+	tp->compressed_ack++;
+
+	if (hrtimer_is_queued(&tp->compressed_ack_timer))
+		return;
+
+	/* compress ack timer : 5 % of rtt, but no more than tcp_comp_sack_delay_ns */
+
+	rtt = tp->rcv_rtt_est.rtt_us;
+	if (tp->srtt_us && tp->srtt_us < rtt)
+		rtt = tp->srtt_us;
+
+	delay = min_t(unsigned long, sock_net(sk)->ipv4.sysctl_tcp_comp_sack_delay_ns,
+		      rtt * (NSEC_PER_USEC >> 3)/20);
+	sock_hold(sk);
+	hrtimer_start(&tp->compressed_ack_timer, ns_to_ktime(delay),
+		      HRTIMER_MODE_REL_PINNED_SOFT);
 }
 
 static inline void tcp_ack_snd_check(struct sock *sk)
