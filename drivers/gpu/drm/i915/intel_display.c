@@ -4590,6 +4590,35 @@ static void ivybridge_update_fdi_bc_bifurcation(struct intel_crtc *intel_crtc)
 	}
 }
 
+/*
+ * Finds the encoder associated with the given CRTC. This can only be
+ * used when we know that the CRTC isn't feeding multiple encoders!
+ */
+static struct intel_encoder *
+intel_get_crtc_new_encoder(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	const struct drm_atomic_state *state = crtc_state->base.state;
+	const struct drm_connector_state *connector_state;
+	const struct drm_connector *connector;
+	struct intel_encoder *encoder = NULL;
+	int num_encoders = 0;
+	int i;
+
+	for_each_new_connector_in_state(state, connector, connector_state, i) {
+		if (connector_state->crtc != &crtc->base)
+			continue;
+
+		encoder = to_intel_encoder(connector_state->best_encoder);
+		num_encoders++;
+	}
+
+	WARN(num_encoders != 1, "%d encoders for pipe %c\n",
+	     num_encoders, pipe_name(crtc->pipe));
+
+	return encoder;
+}
+
 /* Return which DP Port should be selected for Transcoder DP control */
 static enum port
 intel_trans_dp_port_sel(struct intel_crtc *crtc)
@@ -9103,7 +9132,7 @@ static int haswell_crtc_compute_clock(struct intel_crtc *crtc,
 {
 	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI)) {
 		struct intel_encoder *encoder =
-			intel_ddi_get_crtc_new_encoder(crtc_state);
+			intel_get_crtc_new_encoder(crtc_state);
 
 		if (!intel_get_shared_dpll(crtc, crtc_state, encoder)) {
 			DRM_DEBUG_DRIVER("failed to find PLL for pipe %c\n",
