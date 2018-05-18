@@ -206,7 +206,6 @@ static const struct sdhci_iproc_data iproc_data = {
 	.caps1 = SDHCI_DRIVER_TYPE_C |
 		 SDHCI_DRIVER_TYPE_D |
 		 SDHCI_SUPPORT_DDR50,
-	.mmc_caps = MMC_CAP_1_8V_DDR,
 };
 
 static const struct sdhci_pltfm_data sdhci_bcm2835_pltfm_data = {
