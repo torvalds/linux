@@ -24,7 +24,7 @@ static inline int smc_tx_prepared_sends(struct smc_connection *conn)
 
 	smc_curs_write(&sent, smc_curs_read(&conn->tx_curs_sent, conn), conn);
 	smc_curs_write(&prep, smc_curs_read(&conn->tx_curs_prep, conn), conn);
-	return smc_curs_diff(conn->sndbuf_size, &sent, &prep);
+	return smc_curs_diff(conn->sndbuf_desc->len, &sent, &prep);
 }
 
 void smc_tx_work(struct work_struct *work);
