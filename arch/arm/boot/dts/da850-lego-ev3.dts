@@ -191,6 +191,10 @@
 	};
 };
 
+&ref_clk {
+	clock-frequency = <24000000>;
+};
+
 &pmx_core {
 	status = "okay";
 
