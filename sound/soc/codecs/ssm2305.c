@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * Analog Devices SSM2305 Amplifier Driver
- *
- * Copyright (C) 2018 Pengutronix, Marco Felsch <kernel@pengutronix.de>
- */
+//
+// Analog Devices SSM2305 Amplifier Driver
+//
+// Copyright (C) 2018 Pengutronix, Marco Felsch <kernel@pengutronix.de>
+//
 
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
