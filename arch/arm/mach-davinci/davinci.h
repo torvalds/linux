@@ -108,6 +108,7 @@ int dm365_gpio_register(void);
 void dm644x_init(void);
 void dm644x_init_devices(void);
 void dm644x_init_time(void);
+void dm644x_register_clocks(void);
 void dm644x_init_asp(void);
 int dm644x_init_video(struct vpfe_config *, struct vpbe_config *);
 int dm644x_gpio_register(void);

@@ -134,6 +134,8 @@ static __init void davinci_sffsdr_init(void)
 {
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 
+	dm644x_register_clocks();
+
 	dm644x_init_devices();
 
 	platform_add_devices(davinci_sffsdr_devices,
