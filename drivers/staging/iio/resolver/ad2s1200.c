@@ -32,6 +32,14 @@
 /* clock period in nano second */
 #define AD2S1200_TSCLK	(1000000000 / AD2S1200_HZ)
 
+/**
+ * struct ad2s1200_state - driver instance specific data.
+ * @lock:	protects both the GPIO pins and the rx buffer.
+ * @sdev:	spi device.
+ * @sample:	GPIO pin SAMPLE.
+ * @rdvel:	GPIO pin RDVEL.
+ * @rx:		buffer for spi transfers.
+ */
 struct ad2s1200_state {
 	struct mutex lock;
 	struct spi_device *sdev;
