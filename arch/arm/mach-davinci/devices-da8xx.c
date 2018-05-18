@@ -30,11 +30,6 @@
 #include "cpuidle.h"
 #include "sram.h"
 
-#ifndef CONFIG_COMMON_CLK
-#include <mach/clock.h>
-#include "clock.h"
-#endif
-
 #define DA8XX_TPCC_BASE			0x01c00000
 #define DA8XX_TPTC0_BASE		0x01c08000
 #define DA8XX_TPTC1_BASE		0x01c08400
@@ -1045,29 +1040,6 @@ int __init da8xx_register_spi_bus(int instance, unsigned num_chipselect)
 }
 
 #ifdef CONFIG_ARCH_DAVINCI_DA850
-#ifndef CONFIG_COMMON_CLK
-static struct clk sata_refclk = {
-	.name		= "sata_refclk",
-	.set_rate	= davinci_simple_set_rate,
-};
-
-static struct clk_lookup sata_refclk_lookup =
-		CLK("ahci_da850", "refclk", &sata_refclk);
-
-int __init da850_register_sata_refclk(int rate)
-{
-	int ret;
-
-	sata_refclk.rate = rate;
-	ret = clk_register(&sata_refclk);
-	if (ret)
-		return ret;
-
-	clkdev_add(&sata_refclk_lookup);
-
-	return 0;
-}
-#else
 int __init da850_register_sata_refclk(int rate)
 {
 	struct clk *clk;
@@ -1078,7 +1050,6 @@ int __init da850_register_sata_refclk(int rate)
 
 	return clk_register_clkdev(clk, "refclk", "ahci_da850");
 }
-#endif
 
 static struct resource da850_sata_resources[] = {
 	{
