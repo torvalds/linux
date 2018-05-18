@@ -141,6 +141,12 @@ struct smc_rtoken {				/* address/key of remote RMB */
 };
 
 #define SMC_LGR_ID_SIZE		4
+#define SMC_BUF_MIN_SIZE	16384	/* minimum size of an RMB */
+#define SMC_RMBE_SIZES		16	/* number of distinct RMBE sizes */
+/* theoretically, the RFC states that largest size would be 512K,
+ * i.e. compressed 5 and thus 6 sizes (0..5), despite
+ * struct smc_clc_msg_accept_confirm.rmbe_size being a 4 bit value (0..15)
+ */
 
 struct smc_link_group {
 	struct list_head	list;
@@ -205,12 +211,14 @@ static inline struct smc_connection *smc_lgr_find_conn(
 
 struct smc_sock;
 struct smc_clc_msg_accept_confirm;
+struct smc_clc_msg_local;
 
 void smc_lgr_free(struct smc_link_group *lgr);
 void smc_lgr_forget(struct smc_link_group *lgr);
 void smc_lgr_terminate(struct smc_link_group *lgr);
 void smc_port_terminate(struct smc_ib_device *smcibdev, u8 ibport);
 int smc_buf_create(struct smc_sock *smc);
+int smc_uncompress_bufsize(u8 compressed);
 int smc_rmb_rtoken_handling(struct smc_connection *conn,
 			    struct smc_clc_msg_accept_confirm *clc);
 int smc_rtoken_add(struct smc_link_group *lgr, __be64 nw_vaddr, __be32 nw_rkey);
@@ -219,5 +227,9 @@ void smc_sndbuf_sync_sg_for_cpu(struct smc_connection *conn);
 void smc_sndbuf_sync_sg_for_device(struct smc_connection *conn);
 void smc_rmb_sync_sg_for_cpu(struct smc_connection *conn);
 void smc_rmb_sync_sg_for_device(struct smc_connection *conn);
+void smc_conn_free(struct smc_connection *conn);
+int smc_conn_create(struct smc_sock *smc,
+		    struct smc_ib_device *smcibdev, u8 ibport,
+		    struct smc_clc_msg_local *lcl, int srv_first_contact);
 void smc_core_exit(void);
 #endif

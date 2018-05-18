@@ -543,6 +543,33 @@ out:
 	return rc ? rc : local_contact;
 }
 
+/* convert the RMB size into the compressed notation - minimum 16K.
+ * In contrast to plain ilog2, this rounds towards the next power of 2,
+ * so the socket application gets at least its desired sndbuf / rcvbuf size.
+ */
+static u8 smc_compress_bufsize(int size)
+{
+	u8 compressed;
+
+	if (size <= SMC_BUF_MIN_SIZE)
+		return 0;
+
+	size = (size - 1) >> 14;
+	compressed = ilog2(size) + 1;
+	if (compressed >= SMC_RMBE_SIZES)
+		compressed = SMC_RMBE_SIZES - 1;
+	return compressed;
+}
+
+/* convert the RMB size from compressed notation into integer */
+int smc_uncompress_bufsize(u8 compressed)
+{
+	u32 size;
+
+	size = 0x00000001 << (((int)compressed) + 14);
+	return (int)size;
+}
+
 /* try to reuse a sndbuf or rmb description slot for a certain
  * buffer size; if not available, return NULL
  */

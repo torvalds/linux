@@ -220,41 +220,6 @@ static inline u32 ntoh24(u8 *net)
 	return be32_to_cpu(t);
 }
 
-#define SMC_BUF_MIN_SIZE 16384		/* minimum size of an RMB */
-
-#define SMC_RMBE_SIZES	16	/* number of distinct sizes for an RMBE */
-/* theoretically, the RFC states that largest size would be 512K,
- * i.e. compressed 5 and thus 6 sizes (0..5), despite
- * struct smc_clc_msg_accept_confirm.rmbe_size being a 4 bit value (0..15)
- */
-
-/* convert the RMB size into the compressed notation - minimum 16K.
- * In contrast to plain ilog2, this rounds towards the next power of 2,
- * so the socket application gets at least its desired sndbuf / rcvbuf size.
- */
-static inline u8 smc_compress_bufsize(int size)
-{
-	u8 compressed;
-
-	if (size <= SMC_BUF_MIN_SIZE)
-		return 0;
-
-	size = (size - 1) >> 14;
-	compressed = ilog2(size) + 1;
-	if (compressed >= SMC_RMBE_SIZES)
-		compressed = SMC_RMBE_SIZES - 1;
-	return compressed;
-}
-
-/* convert the RMB size from compressed notation into integer */
-static inline int smc_uncompress_bufsize(u8 compressed)
-{
-	u32 size;
-
-	size = 0x00000001 << (((int)compressed) + 14);
-	return (int)size;
-}
-
 #ifdef CONFIG_XFRM
 static inline bool using_ipsec(struct smc_sock *smc)
 {
@@ -268,12 +233,6 @@ static inline bool using_ipsec(struct smc_sock *smc)
 }
 #endif
 
-struct smc_clc_msg_local;
-
-void smc_conn_free(struct smc_connection *conn);
-int smc_conn_create(struct smc_sock *smc,
-		    struct smc_ib_device *smcibdev, u8 ibport,
-		    struct smc_clc_msg_local *lcl, int srv_first_contact);
 struct sock *smc_accept_dequeue(struct sock *parent, struct socket *new_sock);
 void smc_close_non_accepted(struct sock *sk);
 
