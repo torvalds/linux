@@ -1782,12 +1782,28 @@ static void enable_execlists(struct intel_engine_cs *engine)
 		I915_WRITE(RING_MODE_GEN7(engine),
 			   _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE));
 
+	I915_WRITE(RING_MI_MODE(engine->mmio_base),
+		   _MASKED_BIT_DISABLE(STOP_RING));
+
 	I915_WRITE(RING_HWS_PGA(engine->mmio_base),
 		   engine->status_page.ggtt_offset);
 	POSTING_READ(RING_HWS_PGA(engine->mmio_base));
 
 	/* Following the reset, we need to reload the CSB read/write pointers */
 	engine->execlists.csb_head = -1;
+}
+
+static bool unexpected_starting_state(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+	bool unexpected = false;
+
+	if (I915_READ(RING_MI_MODE(engine->mmio_base)) & STOP_RING) {
+		DRM_DEBUG_DRIVER("STOP_RING still set in RING_MI_MODE\n");
+		unexpected = true;
+	}
+
+	return unexpected;
 }
 
 static int gen8_init_common_ring(struct intel_engine_cs *engine)
@@ -1801,6 +1817,12 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 
 	intel_engine_reset_breadcrumbs(engine);
 	intel_engine_init_hangcheck(engine);
+
+	if (GEM_SHOW_DEBUG() && unexpected_starting_state(engine)) {
+		struct drm_printer p = drm_debug_printer(__func__);
+
+		intel_engine_dump(engine, &p, NULL);
+	}
 
 	enable_execlists(engine);
 
