@@ -490,9 +490,13 @@ static int do_chtls_setsockopt(struct sock *sk, int optname,
 
 	switch (tmp_crypto_info.cipher_type) {
 	case TLS_CIPHER_AES_GCM_128: {
-		rc = copy_from_user(crypto_info, optval,
-				    sizeof(struct
-					   tls12_crypto_info_aes_gcm_128));
+		/* Obtain version and type from previous copy */
+		crypto_info[0] = tmp_crypto_info;
+		/* Now copy the following data */
+		rc = copy_from_user((char *)crypto_info + sizeof(*crypto_info),
+				optval + sizeof(*crypto_info),
+				sizeof(struct tls12_crypto_info_aes_gcm_128)
+				- sizeof(*crypto_info));
 
 		if (rc) {
 			rc = -EFAULT;
