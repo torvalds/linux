@@ -508,8 +508,6 @@
 &dsi0 {
 	status = "okay";
 	rockchip,dual-channel = <&dsi1>;
-	rockchip,lane-rate = <900>;
-	rockchip,mipi_dsi_num = <2>;
 
 	panel: panel@0 {
 		compatible = "simple-panel-dsi";
