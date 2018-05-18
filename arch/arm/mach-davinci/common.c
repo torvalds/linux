@@ -20,8 +20,6 @@
 #include <mach/common.h>
 #include <mach/cputype.h>
 
-#include "clock.h"
-
 struct davinci_soc_info davinci_soc_info;
 EXPORT_SYMBOL(davinci_soc_info);
 

@@ -27,8 +27,6 @@
 #include <mach/hardware.h>
 #include <mach/time.h>
 
-#include "clock.h"
-
 static struct clock_event_device clockevent_davinci;
 static unsigned int davinci_clock_tick_rate;
 
