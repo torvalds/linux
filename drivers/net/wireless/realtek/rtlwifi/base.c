@@ -2262,10 +2262,32 @@ void rtl_fwevt_wq_callback(void *data)
 	rtlpriv->cfg->ops->c2h_command_handle(hw);
 }
 
+static void rtl_c2h_content_parsing(struct ieee80211_hw *hw,
+				    struct sk_buff *skb);
+
+static bool rtl_c2h_fast_cmd(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	u8 cmd_id = GET_C2H_CMD_ID(skb->data);
+
+	switch (cmd_id) {
+	case C2H_BT_MP:
+		return true;
+	default:
+		break;
+	}
+
+	return false;
+}
+
 void rtl_c2hcmd_enqueue(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	unsigned long flags;
+
+	if (rtl_c2h_fast_cmd(hw, skb)) {
+		rtl_c2h_content_parsing(hw, skb);
+		return;
+	}
 
 	/* enqueue */
 	spin_lock_irqsave(&rtlpriv->locks.c2hcmd_lock, flags);
