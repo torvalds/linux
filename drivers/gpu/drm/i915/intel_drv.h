@@ -1645,6 +1645,9 @@ void intel_csr_ucode_suspend(struct drm_i915_private *);
 void intel_csr_ucode_resume(struct drm_i915_private *);
 
 /* intel_dp.c */
+bool intel_dp_port_enabled(struct drm_i915_private *dev_priv,
+			   i915_reg_t dp_reg, enum port port,
+			   enum pipe *pipe);
 bool intel_dp_init(struct drm_i915_private *dev_priv, i915_reg_t output_reg,
 		   enum port port);
 bool intel_dp_init_connector(struct intel_digital_port *intel_dig_port,

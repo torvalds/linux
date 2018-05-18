@@ -5182,10 +5182,15 @@ enum {
 #define CHV_DP_D		_MMIO(VLV_DISPLAY_BASE + 0x64300)
 
 #define   DP_PORT_EN			(1 << 31)
-#define   DP_PIPEB_SELECT		(1 << 30)
-#define   DP_PIPE_MASK			(1 << 30)
-#define   DP_PIPE_SELECT_CHV(pipe)	((pipe) << 16)
-#define   DP_PIPE_MASK_CHV		(3 << 16)
+#define   DP_PIPE_SEL_SHIFT		30
+#define   DP_PIPE_SEL_MASK		(1 << 30)
+#define   DP_PIPE_SEL(pipe)		((pipe) << 30)
+#define   DP_PIPE_SEL_SHIFT_IVB		29
+#define   DP_PIPE_SEL_MASK_IVB		(3 << 29)
+#define   DP_PIPE_SEL_IVB(pipe)		((pipe) << 29)
+#define   DP_PIPE_SEL_SHIFT_CHV		16
+#define   DP_PIPE_SEL_MASK_CHV		(3 << 16)
+#define   DP_PIPE_SEL_CHV(pipe)		((pipe) << 16)
 
 /* Link training mode - select a suitable mode for each stage */
 #define   DP_LINK_TRAIN_PAT_1		(0 << 28)
@@ -7872,16 +7877,6 @@ enum {
 #define PCH_DP_AUX_CH_DATA(aux_ch, i)	_MMIO(_PORT((aux_ch) - AUX_CH_B, _PCH_DPB_AUX_CH_DATA1, _PCH_DPC_AUX_CH_DATA1) + (i) * 4) /* 5 registers */
 
 /* CPT */
-#define  PORT_TRANS_A_SEL_CPT	0
-#define  PORT_TRANS_B_SEL_CPT	(1<<29)
-#define  PORT_TRANS_C_SEL_CPT	(2<<29)
-#define  PORT_TRANS_SEL_MASK	(3<<29)
-#define  PORT_TRANS_SEL_CPT(pipe)	((pipe) << 29)
-#define  PORT_TO_PIPE(val)	(((val) & (1<<30)) >> 30)
-#define  PORT_TO_PIPE_CPT(val)	(((val) & PORT_TRANS_SEL_MASK) >> 29)
-#define  SDVO_PORT_TO_PIPE_CHV(val)	(((val) & (3<<24)) >> 24)
-#define  DP_PORT_TO_PIPE_CHV(val)	(((val) & (3<<16)) >> 16)
-
 #define _TRANS_DP_CTL_A		0xe0300
 #define _TRANS_DP_CTL_B		0xe1300
 #define _TRANS_DP_CTL_C		0xe2300
@@ -7890,7 +7885,6 @@ enum {
 #define  TRANS_DP_PORT_SEL_MASK		(3 << 29)
 #define  TRANS_DP_PORT_SEL_NONE		(3 << 29)
 #define  TRANS_DP_PORT_SEL(port)	(((port) - PORT_B) << 29)
-#define  TRANS_DP_PIPE_TO_PORT(val)	((((val) & TRANS_DP_PORT_SEL_MASK) >> 29) + PORT_B)
 #define  TRANS_DP_AUDIO_ONLY	(1<<26)
 #define  TRANS_DP_ENH_FRAMING	(1<<18)
 #define  TRANS_DP_8BPC		(0<<9)

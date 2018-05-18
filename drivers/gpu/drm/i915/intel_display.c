@@ -1303,38 +1303,22 @@ void assert_pch_transcoder_disabled(struct drm_i915_private *dev_priv,
 	     pipe_name(pipe));
 }
 
-static bool dp_pipe_enabled(struct drm_i915_private *dev_priv,
-			    enum pipe pipe, u32 port_sel, u32 val)
-{
-	if ((val & DP_PORT_EN) == 0)
-		return false;
-
-	if (HAS_PCH_CPT(dev_priv)) {
-		u32 trans_dp_ctl = I915_READ(TRANS_DP_CTL(pipe));
-		if ((trans_dp_ctl & TRANS_DP_PORT_SEL_MASK) != port_sel)
-			return false;
-	} else if (IS_CHERRYVIEW(dev_priv)) {
-		if ((val & DP_PIPE_MASK_CHV) != DP_PIPE_SELECT_CHV(pipe))
-			return false;
-	} else {
-		if ((val & DP_PIPE_MASK) != (pipe << 30))
-			return false;
-	}
-	return true;
-}
-
 static void assert_pch_dp_disabled(struct drm_i915_private *dev_priv,
-				   enum pipe pipe, i915_reg_t reg,
-				   u32 port_sel)
+				   enum pipe pipe, enum port port,
+				   i915_reg_t dp_reg)
 {
-	u32 val = I915_READ(reg);
-	I915_STATE_WARN(dp_pipe_enabled(dev_priv, pipe, port_sel, val),
-	     "PCH DP (0x%08x) enabled on transcoder %c, should be disabled\n",
-	     i915_mmio_reg_offset(reg), pipe_name(pipe));
+	enum pipe port_pipe;
+	bool state;
 
-	I915_STATE_WARN(HAS_PCH_IBX(dev_priv) && (val & DP_PORT_EN) == 0
-	     && (val & DP_PIPEB_SELECT),
-	     "IBX PCH dp port still using transcoder B\n");
+	state = intel_dp_port_enabled(dev_priv, dp_reg, port, &port_pipe);
+
+	I915_STATE_WARN(state && port_pipe == pipe,
+			"PCH DP %c enabled on transcoder %c, should be disabled\n",
+			port_name(port), pipe_name(pipe));
+
+	I915_STATE_WARN(HAS_PCH_IBX(dev_priv) && !state && port_pipe == PIPE_B,
+			"IBX PCH DP %c still using transcoder B\n",
+			port_name(port));
 }
 
 static void assert_pch_hdmi_disabled(struct drm_i915_private *dev_priv,
@@ -1360,9 +1344,9 @@ static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
 {
 	enum pipe port_pipe;
 
-	assert_pch_dp_disabled(dev_priv, pipe, PCH_DP_B, TRANS_DP_PORT_SEL(PORT_B));
-	assert_pch_dp_disabled(dev_priv, pipe, PCH_DP_C, TRANS_DP_PORT_SEL(PORT_C));
-	assert_pch_dp_disabled(dev_priv, pipe, PCH_DP_D, TRANS_DP_PORT_SEL(PORT_D));
+	assert_pch_dp_disabled(dev_priv, pipe, PORT_B, PCH_DP_B);
+	assert_pch_dp_disabled(dev_priv, pipe, PORT_C, PCH_DP_C);
+	assert_pch_dp_disabled(dev_priv, pipe, PORT_D, PCH_DP_D);
 
 	I915_STATE_WARN(intel_crt_port_enabled(dev_priv, PCH_ADPA, &port_pipe) &&
 			port_pipe == pipe,

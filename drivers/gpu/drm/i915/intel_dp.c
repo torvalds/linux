@@ -529,9 +529,9 @@ vlv_power_sequencer_kick(struct intel_dp *intel_dp)
 	DP |= DP_LINK_TRAIN_PAT_1;
 
 	if (IS_CHERRYVIEW(dev_priv))
-		DP |= DP_PIPE_SELECT_CHV(pipe);
-	else if (pipe == PIPE_B)
-		DP |= DP_PIPEB_SELECT;
+		DP |= DP_PIPE_SEL_CHV(pipe);
+	else
+		DP |= DP_PIPE_SEL(pipe);
 
 	pll_enabled = I915_READ(DPLL(pipe)) & DPLL_VCO_ENABLE;
 
@@ -1974,7 +1974,7 @@ static void intel_dp_prepare(struct intel_encoder *encoder,
 		if (drm_dp_enhanced_frame_cap(intel_dp->dpcd))
 			intel_dp->DP |= DP_ENHANCED_FRAMING;
 
-		intel_dp->DP |= crtc->pipe << 29;
+		intel_dp->DP |= DP_PIPE_SEL_IVB(crtc->pipe);
 	} else if (HAS_PCH_CPT(dev_priv) && port != PORT_A) {
 		u32 trans_dp;
 
@@ -2000,9 +2000,9 @@ static void intel_dp_prepare(struct intel_encoder *encoder,
 			intel_dp->DP |= DP_ENHANCED_FRAMING;
 
 		if (IS_CHERRYVIEW(dev_priv))
-			intel_dp->DP |= DP_PIPE_SELECT_CHV(crtc->pipe);
-		else if (crtc->pipe == PIPE_B)
-			intel_dp->DP |= DP_PIPEB_SELECT;
+			intel_dp->DP |= DP_PIPE_SEL_CHV(crtc->pipe);
+		else
+			intel_dp->DP |= DP_PIPE_SEL(crtc->pipe);
 	}
 }
 
@@ -2624,52 +2624,66 @@ void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode)
 			      mode == DRM_MODE_DPMS_ON ? "enable" : "disable");
 }
 
+static bool cpt_dp_port_selected(struct drm_i915_private *dev_priv,
+				 enum port port, enum pipe *pipe)
+{
+	enum pipe p;
+
+	for_each_pipe(dev_priv, p) {
+		u32 val = I915_READ(TRANS_DP_CTL(p));
+
+		if ((val & TRANS_DP_PORT_SEL_MASK) == TRANS_DP_PORT_SEL(port)) {
+			*pipe = p;
+			return true;
+		}
+	}
+
+	DRM_DEBUG_KMS("No pipe for DP port %c found\n", port_name(port));
+
+	/* must initialize pipe to something for the asserts */
+	*pipe = PIPE_A;
+
+	return false;
+}
+
+bool intel_dp_port_enabled(struct drm_i915_private *dev_priv,
+			   i915_reg_t dp_reg, enum port port,
+			   enum pipe *pipe)
+{
+	bool ret;
+	u32 val;
+
+	val = I915_READ(dp_reg);
+
+	ret = val & DP_PORT_EN;
+
+	/* asserts want to know the pipe even if the port is disabled */
+	if (IS_IVYBRIDGE(dev_priv) && port == PORT_A)
+		*pipe = (val & DP_PIPE_SEL_MASK_IVB) >> DP_PIPE_SEL_SHIFT_IVB;
+	else if (HAS_PCH_CPT(dev_priv) && port != PORT_A)
+		ret &= cpt_dp_port_selected(dev_priv, port, pipe);
+	else if (IS_CHERRYVIEW(dev_priv))
+		*pipe = (val & DP_PIPE_SEL_MASK_CHV) >> DP_PIPE_SEL_SHIFT_CHV;
+	else
+		*pipe = (val & DP_PIPE_SEL_MASK) >> DP_PIPE_SEL_SHIFT;
+
+	return ret;
+}
+
 static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 				  enum pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-	enum port port = encoder->port;
-	u32 tmp;
 	bool ret;
 
 	if (!intel_display_power_get_if_enabled(dev_priv,
 						encoder->power_domain))
 		return false;
 
-	ret = false;
+	ret = intel_dp_port_enabled(dev_priv, intel_dp->output_reg,
+				    encoder->port, pipe);
 
-	tmp = I915_READ(intel_dp->output_reg);
-
-	if (!(tmp & DP_PORT_EN))
-		goto out;
-
-	if (IS_IVYBRIDGE(dev_priv) && port == PORT_A) {
-		*pipe = PORT_TO_PIPE_CPT(tmp);
-	} else if (HAS_PCH_CPT(dev_priv) && port != PORT_A) {
-		enum pipe p;
-
-		for_each_pipe(dev_priv, p) {
-			u32 trans_dp = I915_READ(TRANS_DP_CTL(p));
-			if (TRANS_DP_PIPE_TO_PORT(trans_dp) == port) {
-				*pipe = p;
-				ret = true;
-
-				goto out;
-			}
-		}
-
-		DRM_DEBUG_KMS("No pipe for dp port 0x%x found\n",
-			      i915_mmio_reg_offset(intel_dp->output_reg));
-	} else if (IS_CHERRYVIEW(dev_priv)) {
-		*pipe = DP_PORT_TO_PIPE_CHV(tmp);
-	} else {
-		*pipe = PORT_TO_PIPE(tmp);
-	}
-
-	ret = true;
-
-out:
 	intel_display_power_put(dev_priv, encoder->power_domain);
 
 	return ret;
@@ -3659,8 +3673,9 @@ intel_dp_link_down(struct intel_encoder *encoder,
 		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
 
 		/* always enable with pattern 1 (as per spec) */
-		DP &= ~(DP_PIPEB_SELECT | DP_LINK_TRAIN_MASK);
-		DP |= DP_PORT_EN | DP_LINK_TRAIN_PAT_1;
+		DP &= ~(DP_PIPE_SEL_MASK | DP_LINK_TRAIN_MASK);
+		DP |= DP_PORT_EN | DP_PIPE_SEL(PIPE_A) |
+			DP_LINK_TRAIN_PAT_1;
 		I915_WRITE(intel_dp->output_reg, DP);
 		POSTING_READ(intel_dp->output_reg);
 
@@ -5295,14 +5310,14 @@ static void intel_edp_panel_vdd_sanitize(struct intel_dp *intel_dp)
 static enum pipe vlv_active_pipe(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	enum pipe pipe;
 
-	if ((intel_dp->DP & DP_PORT_EN) == 0)
-		return INVALID_PIPE;
+	if (intel_dp_port_enabled(dev_priv, intel_dp->output_reg,
+				  encoder->port, &pipe))
+		return pipe;
 
-	if (IS_CHERRYVIEW(dev_priv))
-		return DP_PORT_TO_PIPE_CHV(intel_dp->DP);
-	else
-		return PORT_TO_PIPE(intel_dp->DP);
+	return INVALID_PIPE;
 }
 
 void intel_dp_encoder_reset(struct drm_encoder *encoder)
