@@ -255,10 +255,9 @@ static const struct v4l2_subdev_ops uds_ops = {
  * VSP1 Entity Operations
  */
 
-static void uds_configure(struct vsp1_entity *entity,
-			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl,
-			  enum vsp1_entity_params params)
+static void uds_configure_stream(struct vsp1_entity *entity,
+				 struct vsp1_pipeline *pipe,
+				 struct vsp1_dl_list *dl)
 {
 	struct vsp1_uds *uds = to_uds(&entity->subdev);
 	const struct v4l2_mbus_framefmt *output;
@@ -271,27 +270,6 @@ static void uds_configure(struct vsp1_entity *entity,
 					   UDS_PAD_SINK);
 	output = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
 					    UDS_PAD_SOURCE);
-
-	if (params == VSP1_ENTITY_PARAMS_PARTITION) {
-		struct vsp1_partition *partition = pipe->partition;
-
-		/* Input size clipping */
-		vsp1_uds_write(uds, dl, VI6_UDS_HSZCLIP, VI6_UDS_HSZCLIP_HCEN |
-			       (0 << VI6_UDS_HSZCLIP_HCL_OFST_SHIFT) |
-			       (partition->uds_sink.width
-					<< VI6_UDS_HSZCLIP_HCL_SIZE_SHIFT));
-
-		/* Output size clipping */
-		vsp1_uds_write(uds, dl, VI6_UDS_CLIP_SIZE,
-			       (partition->uds_source.width
-					<< VI6_UDS_CLIP_SIZE_HSIZE_SHIFT) |
-			       (output->height
-					<< VI6_UDS_CLIP_SIZE_VSIZE_SHIFT));
-		return;
-	}
-
-	if (params != VSP1_ENTITY_PARAMS_INIT)
-		return;
 
 	hscale = uds_compute_ratio(input->width, output->width);
 	vscale = uds_compute_ratio(input->height, output->height);
@@ -322,6 +300,31 @@ static void uds_configure(struct vsp1_entity *entity,
 	vsp1_uds_write(uds, dl, VI6_UDS_SCALE,
 		       (hscale << VI6_UDS_SCALE_HFRAC_SHIFT) |
 		       (vscale << VI6_UDS_SCALE_VFRAC_SHIFT));
+}
+
+static void uds_configure_partition(struct vsp1_entity *entity,
+				    struct vsp1_pipeline *pipe,
+				    struct vsp1_dl_list *dl)
+{
+	struct vsp1_uds *uds = to_uds(&entity->subdev);
+	struct vsp1_partition *partition = pipe->partition;
+	const struct v4l2_mbus_framefmt *output;
+
+	output = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
+					    UDS_PAD_SOURCE);
+
+	/* Input size clipping */
+	vsp1_uds_write(uds, dl, VI6_UDS_HSZCLIP, VI6_UDS_HSZCLIP_HCEN |
+		       (0 << VI6_UDS_HSZCLIP_HCL_OFST_SHIFT) |
+		       (partition->uds_sink.width
+				<< VI6_UDS_HSZCLIP_HCL_SIZE_SHIFT));
+
+	/* Output size clipping */
+	vsp1_uds_write(uds, dl, VI6_UDS_CLIP_SIZE,
+		       (partition->uds_source.width
+				<< VI6_UDS_CLIP_SIZE_HSIZE_SHIFT) |
+		       (output->height
+				<< VI6_UDS_CLIP_SIZE_VSIZE_SHIFT));
 }
 
 static unsigned int uds_max_width(struct vsp1_entity *entity,
@@ -380,7 +383,8 @@ static void uds_partition(struct vsp1_entity *entity,
 }
 
 static const struct vsp1_entity_operations uds_entity_ops = {
-	.configure = uds_configure,
+	.configure_stream = uds_configure_stream,
+	.configure_partition = uds_configure_partition,
 	.max_width = uds_max_width,
 	.partition = uds_partition,
 };

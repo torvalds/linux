@@ -81,19 +81,15 @@ static const struct v4l2_subdev_ops lif_ops = {
  * VSP1 Entity Operations
  */
 
-static void lif_configure(struct vsp1_entity *entity,
-			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl,
-			  enum vsp1_entity_params params)
+static void lif_configure_stream(struct vsp1_entity *entity,
+				 struct vsp1_pipeline *pipe,
+				 struct vsp1_dl_list *dl)
 {
 	const struct v4l2_mbus_framefmt *format;
 	struct vsp1_lif *lif = to_lif(&entity->subdev);
 	unsigned int hbth = 1300;
 	unsigned int obth = 400;
 	unsigned int lbth = 200;
-
-	if (params != VSP1_ENTITY_PARAMS_INIT)
-		return;
 
 	format = vsp1_entity_get_pad_format(&lif->entity, lif->entity.config,
 					    LIF_PAD_SOURCE);
@@ -123,7 +119,7 @@ static void lif_configure(struct vsp1_entity *entity,
 }
 
 static const struct vsp1_entity_operations lif_entity_ops = {
-	.configure = lif_configure,
+	.configure_stream = lif_configure_stream,
 };
 
 /* -----------------------------------------------------------------------------

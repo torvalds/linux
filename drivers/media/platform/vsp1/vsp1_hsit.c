@@ -127,15 +127,11 @@ static const struct v4l2_subdev_ops hsit_ops = {
  * VSP1 Entity Operations
  */
 
-static void hsit_configure(struct vsp1_entity *entity,
-			   struct vsp1_pipeline *pipe,
-			   struct vsp1_dl_list *dl,
-			   enum vsp1_entity_params params)
+static void hsit_configure_stream(struct vsp1_entity *entity,
+				  struct vsp1_pipeline *pipe,
+				  struct vsp1_dl_list *dl)
 {
 	struct vsp1_hsit *hsit = to_hsit(&entity->subdev);
-
-	if (params != VSP1_ENTITY_PARAMS_INIT)
-		return;
 
 	if (hsit->inverse)
 		vsp1_hsit_write(hsit, dl, VI6_HSI_CTRL, VI6_HSI_CTRL_EN);
@@ -144,7 +140,7 @@ static void hsit_configure(struct vsp1_entity *entity,
 }
 
 static const struct vsp1_entity_operations hsit_entity_ops = {
-	.configure = hsit_configure,
+	.configure_stream = hsit_configure_stream,
 };
 
 /* -----------------------------------------------------------------------------

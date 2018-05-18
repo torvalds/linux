@@ -281,18 +281,14 @@ static const struct v4l2_subdev_ops brx_ops = {
  * VSP1 Entity Operations
  */
 
-static void brx_configure(struct vsp1_entity *entity,
-			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl,
-			  enum vsp1_entity_params params)
+static void brx_configure_stream(struct vsp1_entity *entity,
+				 struct vsp1_pipeline *pipe,
+				 struct vsp1_dl_list *dl)
 {
 	struct vsp1_brx *brx = to_brx(&entity->subdev);
 	struct v4l2_mbus_framefmt *format;
 	unsigned int flags;
 	unsigned int i;
-
-	if (params != VSP1_ENTITY_PARAMS_INIT)
-		return;
 
 	format = vsp1_entity_get_pad_format(&brx->entity, brx->entity.config,
 					    brx->entity.source_pad);
@@ -400,7 +396,7 @@ static void brx_configure(struct vsp1_entity *entity,
 }
 
 static const struct vsp1_entity_operations brx_entity_ops = {
-	.configure = brx_configure,
+	.configure_stream = brx_configure_stream,
 };
 
 /* -----------------------------------------------------------------------------

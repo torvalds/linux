@@ -382,11 +382,8 @@ static void vsp1_video_pipeline_run_partition(struct vsp1_pipeline *pipe,
 
 	pipe->partition = &pipe->part_table[partition];
 
-	list_for_each_entry(entity, &pipe->entities, list_pipe) {
-		if (entity->ops->configure)
-			entity->ops->configure(entity, pipe, dl,
-					       VSP1_ENTITY_PARAMS_PARTITION);
-	}
+	list_for_each_entry(entity, &pipe->entities, list_pipe)
+		vsp1_entity_configure_partition(entity, pipe, dl);
 }
 
 static void vsp1_video_pipeline_run(struct vsp1_pipeline *pipe)
@@ -398,21 +395,13 @@ static void vsp1_video_pipeline_run(struct vsp1_pipeline *pipe)
 	if (!pipe->dl)
 		pipe->dl = vsp1_dl_list_get(pipe->output->dlm);
 
-	/*
-	 * Start with the runtime parameters as the configure operation can
-	 * compute/cache information needed when configuring partitions. This
-	 * is the case with flipping in the WPF.
-	 */
-	list_for_each_entry(entity, &pipe->entities, list_pipe) {
-		if (entity->ops->configure)
-			entity->ops->configure(entity, pipe, pipe->dl,
-					       VSP1_ENTITY_PARAMS_RUNTIME);
-	}
+	list_for_each_entry(entity, &pipe->entities, list_pipe)
+		vsp1_entity_configure_frame(entity, pipe, pipe->dl);
 
-	/* Run the first partition */
+	/* Run the first partition. */
 	vsp1_video_pipeline_run_partition(pipe, pipe->dl, 0);
 
-	/* Process consecutive partitions as necessary */
+	/* Process consecutive partitions as necessary. */
 	for (partition = 1; partition < pipe->partitions; ++partition) {
 		struct vsp1_dl_list *dl;
 
@@ -833,10 +822,7 @@ static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 
 	list_for_each_entry(entity, &pipe->entities, list_pipe) {
 		vsp1_entity_route_setup(entity, pipe, pipe->dl);
-
-		if (entity->ops->configure)
-			entity->ops->configure(entity, pipe, pipe->dl,
-					       VSP1_ENTITY_PARAMS_INIT);
+		vsp1_entity_configure_stream(entity, pipe, pipe->dl);
 	}
 
 	return 0;

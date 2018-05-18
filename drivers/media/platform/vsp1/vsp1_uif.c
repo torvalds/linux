@@ -189,22 +189,14 @@ static const struct v4l2_subdev_ops uif_ops = {
  * VSP1 Entity Operations
  */
 
-static void uif_configure(struct vsp1_entity *entity,
-			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl,
-			  enum vsp1_entity_params params)
+static void uif_configure_stream(struct vsp1_entity *entity,
+				 struct vsp1_pipeline *pipe,
+				 struct vsp1_dl_list *dl)
 {
 	struct vsp1_uif *uif = to_uif(&entity->subdev);
 	const struct v4l2_rect *crop;
 	unsigned int left;
 	unsigned int width;
-
-	/*
-	 * Per-partition configuration isn't needed as the DISCOM is used in
-	 * display pipelines only.
-	 */
-	if (params != VSP1_ENTITY_PARAMS_INIT)
-		return;
 
 	vsp1_uif_write(uif, dl, VI6_UIF_DISCOM_DOCMPMR,
 		       VI6_UIF_DISCOM_DOCMPMR_SEL(9));
@@ -231,7 +223,7 @@ static void uif_configure(struct vsp1_entity *entity,
 }
 
 static const struct vsp1_entity_operations uif_entity_ops = {
-	.configure = uif_configure,
+	.configure_stream = uif_configure_stream,
 };
 
 /* -----------------------------------------------------------------------------

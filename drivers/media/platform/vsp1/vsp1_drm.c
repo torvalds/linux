@@ -552,15 +552,9 @@ static void vsp1_du_pipeline_configure(struct vsp1_pipeline *pipe)
 		}
 
 		vsp1_entity_route_setup(entity, pipe, dl);
-
-		if (entity->ops->configure) {
-			entity->ops->configure(entity, pipe, dl,
-					       VSP1_ENTITY_PARAMS_INIT);
-			entity->ops->configure(entity, pipe, dl,
-					       VSP1_ENTITY_PARAMS_RUNTIME);
-			entity->ops->configure(entity, pipe, dl,
-					       VSP1_ENTITY_PARAMS_PARTITION);
-		}
+		vsp1_entity_configure_stream(entity, pipe, dl);
+		vsp1_entity_configure_frame(entity, pipe, dl);
+		vsp1_entity_configure_partition(entity, pipe, dl);
 	}
 
 	vsp1_dl_list_commit(dl, drm_pipe->force_brx_release);

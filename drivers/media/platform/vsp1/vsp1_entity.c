@@ -69,6 +69,30 @@ void vsp1_entity_route_setup(struct vsp1_entity *entity,
 	vsp1_dl_list_write(dl, source->route->reg, route);
 }
 
+void vsp1_entity_configure_stream(struct vsp1_entity *entity,
+				  struct vsp1_pipeline *pipe,
+				  struct vsp1_dl_list *dl)
+{
+	if (entity->ops->configure_stream)
+		entity->ops->configure_stream(entity, pipe, dl);
+}
+
+void vsp1_entity_configure_frame(struct vsp1_entity *entity,
+				 struct vsp1_pipeline *pipe,
+				 struct vsp1_dl_list *dl)
+{
+	if (entity->ops->configure_frame)
+		entity->ops->configure_frame(entity, pipe, dl);
+}
+
+void vsp1_entity_configure_partition(struct vsp1_entity *entity,
+				     struct vsp1_pipeline *pipe,
+				     struct vsp1_dl_list *dl)
+{
+	if (entity->ops->configure_partition)
+		entity->ops->configure_partition(entity, pipe, dl);
+}
+
 /* -----------------------------------------------------------------------------
  * V4L2 Subdevice Operations
  */

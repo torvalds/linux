@@ -37,18 +37,6 @@ enum vsp1_entity_type {
 	VSP1_ENTITY_WPF,
 };
 
-/**
- * enum vsp1_entity_params - Entity configuration parameters class
- * @VSP1_ENTITY_PARAMS_INIT - Initial parameters
- * @VSP1_ENTITY_PARAMS_PARTITION - Per-image partition parameters
- * @VSP1_ENTITY_PARAMS_RUNTIME - Runtime-configurable parameters
- */
-enum vsp1_entity_params {
-	VSP1_ENTITY_PARAMS_INIT,
-	VSP1_ENTITY_PARAMS_PARTITION,
-	VSP1_ENTITY_PARAMS_RUNTIME,
-};
-
 #define VSP1_ENTITY_MAX_INPUTS		5	/* For the BRU */
 
 /*
@@ -77,8 +65,10 @@ struct vsp1_route {
 /**
  * struct vsp1_entity_operations - Entity operations
  * @destroy:	Destroy the entity.
- * @configure:	Setup the hardware based on the entity state (pipeline, formats,
- *		selection rectangles, ...)
+ * @configure_stream:	Setup the hardware parameters for the stream which do
+ *			not vary between frames (pipeline, formats).
+ * @configure_frame:	Configure the runtime parameters for each frame.
+ * @configure_partition: Configure partition specific parameters.
  * @max_width:	Return the max supported width of data that the entity can
  *		process in a single operation.
  * @partition:	Process the partition construction based on this entity's
@@ -86,8 +76,13 @@ struct vsp1_route {
  */
 struct vsp1_entity_operations {
 	void (*destroy)(struct vsp1_entity *);
-	void (*configure)(struct vsp1_entity *, struct vsp1_pipeline *,
-			  struct vsp1_dl_list *, enum vsp1_entity_params);
+	void (*configure_stream)(struct vsp1_entity *, struct vsp1_pipeline *,
+				 struct vsp1_dl_list *);
+	void (*configure_frame)(struct vsp1_entity *, struct vsp1_pipeline *,
+					struct vsp1_dl_list *);
+	void (*configure_partition)(struct vsp1_entity *,
+				    struct vsp1_pipeline *,
+				    struct vsp1_dl_list *);
 	unsigned int (*max_width)(struct vsp1_entity *, struct vsp1_pipeline *);
 	void (*partition)(struct vsp1_entity *, struct vsp1_pipeline *,
 			  struct vsp1_partition *, unsigned int,
@@ -155,6 +150,18 @@ int vsp1_entity_init_cfg(struct v4l2_subdev *subdev,
 void vsp1_entity_route_setup(struct vsp1_entity *entity,
 			     struct vsp1_pipeline *pipe,
 			     struct vsp1_dl_list *dl);
+
+void vsp1_entity_configure_stream(struct vsp1_entity *entity,
+				  struct vsp1_pipeline *pipe,
+				  struct vsp1_dl_list *dl);
+
+void vsp1_entity_configure_frame(struct vsp1_entity *entity,
+				 struct vsp1_pipeline *pipe,
+				 struct vsp1_dl_list *dl);
+
+void vsp1_entity_configure_partition(struct vsp1_entity *entity,
+				     struct vsp1_pipeline *pipe,
+				     struct vsp1_dl_list *dl);
 
 struct media_pad *vsp1_entity_remote_pad(struct media_pad *pad);
 
