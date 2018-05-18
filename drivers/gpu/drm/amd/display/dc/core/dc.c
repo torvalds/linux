@@ -481,6 +481,7 @@ static bool construct(struct dc *dc,
 	dc_ctx->driver_context = init_params->driver;
 	dc_ctx->dc = dc;
 	dc_ctx->asic_id = init_params->asic_id;
+	dc_ctx->dc_sink_id_count = 0;
 	dc->ctx = dc_ctx;
 
 	dc->current_state = dc_create_state();

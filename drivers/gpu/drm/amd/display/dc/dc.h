@@ -666,9 +666,13 @@ struct dc_sink {
 	struct dc_link *link;
 	struct dc_context *ctx;
 
-	/* private to dc_sink.c */
-	struct kref refcount;
+	uint32_t sink_id;
 
+	/* private to dc_sink.c */
+	// refcount must be the last member in dc_sink, since we want the
+	// sink structure to be logically cloneable up to (but not including)
+	// refcount
+	struct kref refcount;
 };
 
 void dc_sink_retain(struct dc_sink *sink);
