@@ -223,12 +223,12 @@ static inline void xskq_produce_flush_desc(struct xsk_queue *q)
 
 static inline bool xskq_full_desc(struct xsk_queue *q)
 {
-	return (xskq_nb_avail(q, q->nentries) == q->nentries);
+	return xskq_nb_avail(q, q->nentries) == q->nentries;
 }
 
 static inline bool xskq_empty_desc(struct xsk_queue *q)
 {
-	return (xskq_nb_free(q, q->prod_tail, 1) == q->nentries);
+	return xskq_nb_free(q, q->prod_tail, 1) == q->nentries;
 }
 
 void xskq_set_umem(struct xsk_queue *q, struct xdp_umem_props *umem_props);

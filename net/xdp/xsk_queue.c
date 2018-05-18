@@ -22,8 +22,7 @@ static u32 xskq_umem_get_ring_size(struct xsk_queue *q)
 
 static u32 xskq_rxtx_get_ring_size(struct xsk_queue *q)
 {
-	return (sizeof(struct xdp_ring) +
-		q->nentries * sizeof(struct xdp_desc));
+	return sizeof(struct xdp_ring) + q->nentries * sizeof(struct xdp_desc);
 }
 
 struct xsk_queue *xskq_create(u32 nentries, bool umem_queue)

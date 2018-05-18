@@ -20,7 +20,7 @@ int xdp_umem_create(struct xdp_umem **umem)
 {
 	*umem = kzalloc(sizeof(**umem), GFP_KERNEL);
 
-	if (!(*umem))
+	if (!*umem)
 		return -ENOMEM;
 
 	return 0;
@@ -247,5 +247,5 @@ out:
 
 bool xdp_umem_validate_queues(struct xdp_umem *umem)
 {
-	return (umem->fq && umem->cq);
+	return umem->fq && umem->cq;
 }
