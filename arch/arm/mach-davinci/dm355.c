@@ -8,31 +8,37 @@
  * is licensed "as is" without any warranty of any kind, whether express
  * or implied.
  */
-#include <linux/init.h>
-#include <linux/clk.h>
-#include <linux/serial_8250.h>
-#include <linux/platform_device.h>
+
+#include <linux/clk-provider.h>
+#include <linux/clk/davinci.h>
+#include <linux/clkdev.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
-#include <linux/spi/spi.h>
+#include <linux/init.h>
 #include <linux/platform_data/edma.h>
 #include <linux/platform_data/gpio-davinci.h>
 #include <linux/platform_data/spi-davinci.h>
+#include <linux/platform_device.h>
+#include <linux/serial_8250.h>
+#include <linux/spi/spi.h>
 
 #include <asm/mach/map.h>
 
-#include <mach/cputype.h>
-#include "psc.h"
-#include <mach/mux.h>
-#include <mach/irqs.h>
-#include <mach/time.h>
-#include <mach/serial.h>
 #include <mach/common.h>
+#include <mach/cputype.h>
+#include <mach/irqs.h>
+#include <mach/mux.h>
+#include <mach/serial.h>
+#include <mach/time.h>
 
-#include "davinci.h"
-#include "clock.h"
-#include "mux.h"
 #include "asp.h"
+#include "davinci.h"
+#include "mux.h"
+
+#ifndef CONFIG_COMMON_CLK
+#include "clock.h"
+#include "psc.h"
+#endif
 
 #define DM355_UART2_BASE	(IO_PHYS + 0x206000)
 #define DM355_OSD_BASE		(IO_PHYS + 0x70200)
@@ -43,6 +49,7 @@
  */
 #define DM355_REF_FREQ		24000000	/* 24 or 36 MHz */
 
+#ifndef CONFIG_COMMON_CLK
 static struct pll_data pll1_data = {
 	.num       = 1,
 	.phys_base = DAVINCI_PLL1_BASE,
@@ -382,7 +389,7 @@ static struct clk_lookup dm355_clks[] = {
 	CLK(NULL, "usb", &usb_clk),
 	CLK(NULL, NULL, NULL),
 };
-
+#endif
 /*----------------------------------------------------------------------*/
 
 static u64 dm355_spi0_dma_mask = DMA_BIT_MASK(32);
@@ -1046,8 +1053,46 @@ void __init dm355_init(void)
 
 void __init dm355_init_time(void)
 {
+#ifdef CONFIG_COMMON_CLK
+	void __iomem *pll1, *psc;
+	struct clk *clk;
+
+	clk_register_fixed_rate(NULL, "ref_clk", NULL, 0, DM355_REF_FREQ);
+
+	pll1 = ioremap(DAVINCI_PLL1_BASE, SZ_1K);
+	dm355_pll1_init(NULL, pll1, NULL);
+
+	psc = ioremap(DAVINCI_PWR_SLEEP_CNTRL_BASE, SZ_4K);
+	dm355_psc_init(NULL, psc);
+
+	clk = clk_get(NULL, "timer0");
+
+	davinci_timer_init(clk);
+#else
 	davinci_clk_init(dm355_clks);
 	davinci_timer_init(&timer0_clk);
+#endif
+}
+
+static struct resource dm355_pll2_resources[] = {
+	{
+		.start	= DAVINCI_PLL2_BASE,
+		.end	= DAVINCI_PLL2_BASE + SZ_1K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device dm355_pll2_device = {
+	.name		= "dm355-pll2",
+	.id		= -1,
+	.resource	= dm355_pll2_resources,
+	.num_resources	= ARRAY_SIZE(dm355_pll2_resources),
+};
+
+void __init dm355_register_clocks(void)
+{
+	/* PLL1 and PSC are registered in dm355_init_time() */
+	platform_device_register(&dm355_pll2_device);
 }
 
 int __init dm355_init_video(struct vpfe_config *vpfe_cfg,
