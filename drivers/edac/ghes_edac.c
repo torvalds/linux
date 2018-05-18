@@ -440,12 +440,16 @@ int ghes_edac_register(struct ghes *ghes, struct device *dev)
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer layers[1];
 	struct ghes_edac_dimm_fill dimm_fill;
-	int idx;
+	int idx = -1;
 
-	/* Check if safe to enable on this system */
-	idx = acpi_match_platform_list(plat_list);
-	if (!force_load && idx < 0)
-		return -ENODEV;
+	if (IS_ENABLED(CONFIG_X86)) {
+		/* Check if safe to enable on this system */
+		idx = acpi_match_platform_list(plat_list);
+		if (!force_load && idx < 0)
+			return -ENODEV;
+	} else {
+		idx = 0;
+	}
 
 	/*
 	 * We have only one logical memory controller to which all DIMMs belong.
