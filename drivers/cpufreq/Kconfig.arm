@@ -264,7 +264,7 @@ config ARM_TANGO_CPUFREQ
 	default y
 
 config ARM_TEGRA20_CPUFREQ
-	bool "Tegra20 CPUFreq support"
+	tristate "Tegra20 CPUFreq support"
 	depends on ARCH_TEGRA
 	default y
 	help
