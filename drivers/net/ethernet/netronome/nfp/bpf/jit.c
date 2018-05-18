@@ -1916,6 +1916,39 @@ static int shr_reg64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	return 0;
 }
 
+/* Code logic is the same as __shr_imm64 except ashr requires signedness bit
+ * told through PREV_ALU result.
+ */
+static int ashr_imm64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	const struct bpf_insn *insn = &meta->insn;
+	u8 dst = insn->dst_reg * 2;
+
+	if (insn->imm < 32) {
+		emit_shf(nfp_prog, reg_both(dst), reg_a(dst + 1), SHF_OP_NONE,
+			 reg_b(dst), SHF_SC_R_DSHF, insn->imm);
+		/* Set signedness bit. */
+		emit_alu(nfp_prog, reg_none(), reg_a(dst + 1), ALU_OP_OR,
+			 reg_imm(0));
+		emit_shf(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_ASHR,
+			 reg_b(dst + 1), SHF_SC_R_SHF, insn->imm);
+	} else if (insn->imm == 32) {
+		/* NOTE: this also helps setting signedness bit. */
+		wrp_reg_mov(nfp_prog, dst, dst + 1);
+		emit_shf(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_ASHR,
+			 reg_b(dst + 1), SHF_SC_R_SHF, 31);
+	} else if (insn->imm > 32) {
+		emit_alu(nfp_prog, reg_none(), reg_a(dst + 1), ALU_OP_OR,
+			 reg_imm(0));
+		emit_shf(nfp_prog, reg_both(dst), reg_none(), SHF_OP_ASHR,
+			 reg_b(dst + 1), SHF_SC_R_SHF, insn->imm - 32);
+		emit_shf(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_ASHR,
+			 reg_b(dst + 1), SHF_SC_R_SHF, 31);
+	}
+
+	return 0;
+}
+
 static int mov_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
@@ -2742,6 +2775,7 @@ static const instr_cb_t instr_cb[256] = {
 	[BPF_ALU64 | BPF_LSH | BPF_K] =	shl_imm64,
 	[BPF_ALU64 | BPF_RSH | BPF_X] =	shr_reg64,
 	[BPF_ALU64 | BPF_RSH | BPF_K] =	shr_imm64,
+	[BPF_ALU64 | BPF_ARSH | BPF_K] = ashr_imm64,
 	[BPF_ALU | BPF_MOV | BPF_X] =	mov_reg,
 	[BPF_ALU | BPF_MOV | BPF_K] =	mov_imm,
 	[BPF_ALU | BPF_XOR | BPF_X] =	xor_reg,

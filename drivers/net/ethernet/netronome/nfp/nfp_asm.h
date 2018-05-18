@@ -174,6 +174,7 @@ enum shf_op {
 	SHF_OP_NONE = 0,
 	SHF_OP_AND = 2,
 	SHF_OP_OR = 5,
+	SHF_OP_ASHR = 6,
 };
 
 enum shf_sc {
