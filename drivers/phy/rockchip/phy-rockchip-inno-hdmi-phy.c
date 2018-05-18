@@ -1046,11 +1046,12 @@ inno_hdmi_rk3328_phy_pll_recalc_rate(struct inno_hdmi_phy *inno,
 			do_div(vco, nd * no_a * no_d * 2);
 	}
 
-	inno->pixclock = vco;
+	frac = vco;
+	inno->pixclock = DIV_ROUND_CLOSEST(frac, 1000) * 1000;
 
 	dev_dbg(inno->dev, "%s rate %lu\n", __func__, inno->pixclock);
 
-	return inno->pixclock;
+	return frac;
 }
 
 static unsigned long
