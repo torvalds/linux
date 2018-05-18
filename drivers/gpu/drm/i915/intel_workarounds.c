@@ -672,8 +672,35 @@ static void cfl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 		   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
 }
 
+static void wa_init_mcr(struct drm_i915_private *dev_priv)
+{
+	u32 mcr;
+	u32 mcr_slice_subslice_mask;
+
+	mcr = I915_READ(GEN8_MCR_SELECTOR);
+
+	mcr_slice_subslice_mask = GEN8_MCR_SLICE_MASK |
+				  GEN8_MCR_SUBSLICE_MASK;
+	/*
+	 * WaProgramMgsrForCorrectSliceSpecificMmioReads:cnl
+	 * Before any MMIO read into slice/subslice specific registers, MCR
+	 * packet control register needs to be programmed to point to any
+	 * enabled s/ss pair. Otherwise, incorrect values will be returned.
+	 * This means each subsequent MMIO read will be forwarded to an
+	 * specific s/ss combination, but this is OK since these registers
+	 * are consistent across s/ss in almost all cases. In the rare
+	 * occasions, such as INSTDONE, where this value is dependent
+	 * on s/ss combo, the read should be done with read_subslice_reg.
+	 */
+	mcr &= ~mcr_slice_subslice_mask;
+	mcr |= intel_calculate_mcr_s_ss_select(dev_priv);
+	I915_WRITE(GEN8_MCR_SELECTOR, mcr);
+}
+
 static void cnl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 {
+	wa_init_mcr(dev_priv);
+
 	/* WaDisableI2mCycleOnWRPort:cnl (pre-prod) */
 	if (IS_CNL_REVID(dev_priv, CNL_REVID_B0, CNL_REVID_B0))
 		I915_WRITE(GAMT_CHKN_BIT_REG,

@@ -819,12 +819,29 @@ const char *i915_cache_level_str(struct drm_i915_private *i915, int type)
 	}
 }
 
+u32 intel_calculate_mcr_s_ss_select(struct drm_i915_private *dev_priv)
+{
+	const struct sseu_dev_info *sseu = &(INTEL_INFO(dev_priv)->sseu);
+	u32 mcr_s_ss_select;
+	u32 slice = fls(sseu->slice_mask);
+	u32 subslice = fls(sseu->subslice_mask[slice]);
+
+	if (INTEL_GEN(dev_priv) == 10)
+		mcr_s_ss_select = GEN8_MCR_SLICE(slice) |
+				  GEN8_MCR_SUBSLICE(subslice);
+	else
+		mcr_s_ss_select = 0;
+
+	return mcr_s_ss_select;
+}
+
 static inline uint32_t
 read_subslice_reg(struct drm_i915_private *dev_priv, int slice,
 		  int subslice, i915_reg_t reg)
 {
 	uint32_t mcr_slice_subslice_mask;
 	uint32_t mcr_slice_subslice_select;
+	uint32_t default_mcr_s_ss_select;
 	uint32_t mcr;
 	uint32_t ret;
 	enum forcewake_domains fw_domains;
@@ -841,6 +858,8 @@ read_subslice_reg(struct drm_i915_private *dev_priv, int slice,
 					    GEN8_MCR_SUBSLICE(subslice);
 	}
 
+	default_mcr_s_ss_select = intel_calculate_mcr_s_ss_select(dev_priv);
+
 	fw_domains = intel_uncore_forcewake_for_reg(dev_priv, reg,
 						    FW_REG_READ);
 	fw_domains |= intel_uncore_forcewake_for_reg(dev_priv,
@@ -851,11 +870,10 @@ read_subslice_reg(struct drm_i915_private *dev_priv, int slice,
 	intel_uncore_forcewake_get__locked(dev_priv, fw_domains);
 
 	mcr = I915_READ_FW(GEN8_MCR_SELECTOR);
-	/*
-	 * The HW expects the slice and sublice selectors to be reset to 0
-	 * after reading out the registers.
-	 */
-	WARN_ON_ONCE(mcr & mcr_slice_subslice_mask);
+
+	WARN_ON_ONCE((mcr & mcr_slice_subslice_mask) !=
+		     default_mcr_s_ss_select);
+
 	mcr &= ~mcr_slice_subslice_mask;
 	mcr |= mcr_slice_subslice_select;
 	I915_WRITE_FW(GEN8_MCR_SELECTOR, mcr);
@@ -863,6 +881,8 @@ read_subslice_reg(struct drm_i915_private *dev_priv, int slice,
 	ret = I915_READ_FW(reg);
 
 	mcr &= ~mcr_slice_subslice_mask;
+	mcr |= default_mcr_s_ss_select;
+
 	I915_WRITE_FW(GEN8_MCR_SELECTOR, mcr);
 
 	intel_uncore_forcewake_put__locked(dev_priv, fw_domains);
