@@ -1973,11 +1973,8 @@ static void stmmac_set_dma_operation_mode(struct stmmac_priv *priv, u32 txmode,
 
 static bool stmmac_safety_feat_interrupt(struct stmmac_priv *priv)
 {
-	int ret = false;
+	int ret;
 
-	/* Safety features are only available in cores >= 5.10 */
-	if (priv->synopsys_id < DWMAC_CORE_5_10)
-		return ret;
 	ret = stmmac_safety_feat_irq_status(priv, priv->dev,
 			priv->ioaddr, priv->dma_cap.asp, &priv->sstats);
 	if (ret && (ret != -EINVAL)) {
@@ -2495,12 +2492,10 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 	stmmac_core_init(priv, priv->hw, dev);
 
 	/* Initialize MTL*/
-	if (priv->synopsys_id >= DWMAC_CORE_4_00)
-		stmmac_mtl_configuration(priv);
+	stmmac_mtl_configuration(priv);
 
 	/* Initialize Safety Features */
-	if (priv->synopsys_id >= DWMAC_CORE_5_10)
-		stmmac_safety_feat_configuration(priv);
+	stmmac_safety_feat_configuration(priv);
 
 	ret = stmmac_rx_ipc(priv, priv->hw);
 	if (!ret) {
@@ -3054,10 +3049,9 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (enh_desc)
 		is_jumbo = stmmac_is_jumbo_frm(priv, skb->len, enh_desc);
 
-	if (unlikely(is_jumbo) && likely(priv->synopsys_id <
-					 DWMAC_CORE_4_00)) {
+	if (unlikely(is_jumbo)) {
 		entry = stmmac_jumbo_frm(priv, tx_q, skb, csum_insertion);
-		if (unlikely(entry < 0))
+		if (unlikely(entry < 0) && (entry != -EINVAL))
 			goto dma_map_err;
 	}
 
