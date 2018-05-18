@@ -674,6 +674,13 @@ fail:
 	return ERR_PTR(err);
 }
 
+static void flush_fs_workqueues(struct ceph_fs_client *fsc)
+{
+	flush_workqueue(fsc->wb_wq);
+	flush_workqueue(fsc->pg_inv_wq);
+	flush_workqueue(fsc->trunc_wq);
+}
+
 static void destroy_fs_client(struct ceph_fs_client *fsc)
 {
 	dout("destroy_fs_client %p\n", fsc);
@@ -1089,6 +1096,8 @@ static void ceph_kill_sb(struct super_block *s)
 	dout("kill_sb %p\n", s);
 
 	ceph_mdsc_pre_umount(fsc->mdsc);
+	flush_fs_workqueues(fsc);
+
 	generic_shutdown_super(s);
 
 	fsc->client->extra_mon_dispatch = NULL;
