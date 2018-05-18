@@ -23,6 +23,8 @@
 #include <unistd.h>
 #include <numa.h>
 
+#include "../kselftest.h"
+
 static const int PORT = 8888;
 
 static void build_rcv_group(int *rcv_fd, size_t len, int family, int proto)
@@ -229,7 +231,7 @@ int main(void)
 	int *rcv_fd, nodes;
 
 	if (numa_available() < 0)
-		error(1, errno, "no numa api support");
+		ksft_exit_skip("no numa api support\n");
 
 	nodes = numa_max_node() + 1;
 
