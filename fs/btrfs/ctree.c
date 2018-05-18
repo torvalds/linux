@@ -2432,7 +2432,6 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 	btrfs_unlock_up_safe(p, level + 1);
 	btrfs_set_path_blocking(p);
 
-	free_extent_buffer(tmp);
 	if (p->reada != READA_NONE)
 		reada_for_search(fs_info, p, level, slot, key->objectid);
 
