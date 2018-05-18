@@ -292,7 +292,7 @@ static void enh_desc_set_tx_owner(struct dma_desc *p)
 	p->des0 |= cpu_to_le32(ETDES0_OWN);
 }
 
-static void enh_desc_set_rx_owner(struct dma_desc *p)
+static void enh_desc_set_rx_owner(struct dma_desc *p, int disable_rx_ic)
 {
 	p->des0 |= cpu_to_le32(RDES0_OWN);
 }

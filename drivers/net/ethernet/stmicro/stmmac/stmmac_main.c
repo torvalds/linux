@@ -3262,10 +3262,7 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv, u32 queue)
 		}
 		dma_wmb();
 
-		if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00))
-			stmmac_init_rx_desc(priv, p, priv->use_riwt, 0, 0);
-		else
-			stmmac_set_rx_owner(priv, p);
+		stmmac_set_rx_owner(priv, p, priv->use_riwt);
 
 		dma_wmb();
 

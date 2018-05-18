@@ -189,9 +189,12 @@ static void dwmac4_set_tx_owner(struct dma_desc *p)
 	p->des3 |= cpu_to_le32(TDES3_OWN);
 }
 
-static void dwmac4_set_rx_owner(struct dma_desc *p)
+static void dwmac4_set_rx_owner(struct dma_desc *p, int disable_rx_ic)
 {
-	p->des3 |= cpu_to_le32(RDES3_OWN);
+	p->des3 = cpu_to_le32(RDES3_OWN | RDES3_BUFFER1_VALID_ADDR);
+
+	if (!disable_rx_ic)
+		p->des3 |= cpu_to_le32(RDES3_INT_ON_COMPLETION_EN);
 }
 
 static int dwmac4_get_tx_ls(struct dma_desc *p)
@@ -292,10 +295,7 @@ exit:
 static void dwmac4_rd_init_rx_desc(struct dma_desc *p, int disable_rx_ic,
 				   int mode, int end)
 {
-	p->des3 = cpu_to_le32(RDES3_OWN | RDES3_BUFFER1_VALID_ADDR);
-
-	if (!disable_rx_ic)
-		p->des3 |= cpu_to_le32(RDES3_INT_ON_COMPLETION_EN);
+	dwmac4_set_rx_owner(p, disable_rx_ic);
 }
 
 static void dwmac4_rd_init_tx_desc(struct dma_desc *p, int mode, int end)
