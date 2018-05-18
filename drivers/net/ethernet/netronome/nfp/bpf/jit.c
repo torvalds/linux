@@ -1919,31 +1919,109 @@ static int shr_reg64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 /* Code logic is the same as __shr_imm64 except ashr requires signedness bit
  * told through PREV_ALU result.
  */
+static int __ashr_imm64(struct nfp_prog *nfp_prog, u8 dst, u8 shift_amt)
+{
+	if (shift_amt < 32) {
+		emit_shf(nfp_prog, reg_both(dst), reg_a(dst + 1), SHF_OP_NONE,
+			 reg_b(dst), SHF_SC_R_DSHF, shift_amt);
+		/* Set signedness bit. */
+		emit_alu(nfp_prog, reg_none(), reg_a(dst + 1), ALU_OP_OR,
+			 reg_imm(0));
+		emit_shf(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_ASHR,
+			 reg_b(dst + 1), SHF_SC_R_SHF, shift_amt);
+	} else if (shift_amt == 32) {
+		/* NOTE: this also helps setting signedness bit. */
+		wrp_reg_mov(nfp_prog, dst, dst + 1);
+		emit_shf(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_ASHR,
+			 reg_b(dst + 1), SHF_SC_R_SHF, 31);
+	} else if (shift_amt > 32) {
+		emit_alu(nfp_prog, reg_none(), reg_a(dst + 1), ALU_OP_OR,
+			 reg_imm(0));
+		emit_shf(nfp_prog, reg_both(dst), reg_none(), SHF_OP_ASHR,
+			 reg_b(dst + 1), SHF_SC_R_SHF, shift_amt - 32);
+		emit_shf(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_ASHR,
+			 reg_b(dst + 1), SHF_SC_R_SHF, 31);
+	}
+
+	return 0;
+}
+
 static int ashr_imm64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
 	u8 dst = insn->dst_reg * 2;
 
-	if (insn->imm < 32) {
-		emit_shf(nfp_prog, reg_both(dst), reg_a(dst + 1), SHF_OP_NONE,
-			 reg_b(dst), SHF_SC_R_DSHF, insn->imm);
-		/* Set signedness bit. */
-		emit_alu(nfp_prog, reg_none(), reg_a(dst + 1), ALU_OP_OR,
-			 reg_imm(0));
-		emit_shf(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_ASHR,
-			 reg_b(dst + 1), SHF_SC_R_SHF, insn->imm);
-	} else if (insn->imm == 32) {
-		/* NOTE: this also helps setting signedness bit. */
-		wrp_reg_mov(nfp_prog, dst, dst + 1);
-		emit_shf(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_ASHR,
-			 reg_b(dst + 1), SHF_SC_R_SHF, 31);
-	} else if (insn->imm > 32) {
-		emit_alu(nfp_prog, reg_none(), reg_a(dst + 1), ALU_OP_OR,
-			 reg_imm(0));
-		emit_shf(nfp_prog, reg_both(dst), reg_none(), SHF_OP_ASHR,
-			 reg_b(dst + 1), SHF_SC_R_SHF, insn->imm - 32);
-		emit_shf(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_ASHR,
-			 reg_b(dst + 1), SHF_SC_R_SHF, 31);
+	return __ashr_imm64(nfp_prog, dst, insn->imm);
+}
+
+static void ashr_reg64_lt32_high(struct nfp_prog *nfp_prog, u8 dst, u8 src)
+{
+	/* NOTE: the first insn will set both indirect shift amount (source A)
+	 * and signedness bit (MSB of result).
+	 */
+	emit_alu(nfp_prog, reg_none(), reg_a(src), ALU_OP_OR, reg_b(dst + 1));
+	emit_shf_indir(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_ASHR,
+		       reg_b(dst + 1), SHF_SC_R_SHF);
+}
+
+static void ashr_reg64_lt32_low(struct nfp_prog *nfp_prog, u8 dst, u8 src)
+{
+	/* NOTE: it is the same as logic shift because we don't need to shift in
+	 * signedness bit when the shift amount is less than 32.
+	 */
+	return shr_reg64_lt32_low(nfp_prog, dst, src);
+}
+
+static void ashr_reg64_lt32(struct nfp_prog *nfp_prog, u8 dst, u8 src)
+{
+	ashr_reg64_lt32_low(nfp_prog, dst, src);
+	ashr_reg64_lt32_high(nfp_prog, dst, src);
+}
+
+static void ashr_reg64_ge32(struct nfp_prog *nfp_prog, u8 dst, u8 src)
+{
+	emit_alu(nfp_prog, reg_none(), reg_a(src), ALU_OP_OR, reg_b(dst + 1));
+	emit_shf_indir(nfp_prog, reg_both(dst), reg_none(), SHF_OP_ASHR,
+		       reg_b(dst + 1), SHF_SC_R_SHF);
+	emit_shf(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_ASHR,
+		 reg_b(dst + 1), SHF_SC_R_SHF, 31);
+}
+
+/* Like ashr_imm64, but need to use indirect shift. */
+static int ashr_reg64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	const struct bpf_insn *insn = &meta->insn;
+	u64 umin, umax;
+	u8 dst, src;
+
+	dst = insn->dst_reg * 2;
+	umin = meta->umin;
+	umax = meta->umax;
+	if (umin == umax)
+		return __ashr_imm64(nfp_prog, dst, umin);
+
+	src = insn->src_reg * 2;
+	if (umax < 32) {
+		ashr_reg64_lt32(nfp_prog, dst, src);
+	} else if (umin >= 32) {
+		ashr_reg64_ge32(nfp_prog, dst, src);
+	} else {
+		u16 label_ge32, label_end;
+
+		label_ge32 = nfp_prog_current_offset(nfp_prog) + 6;
+		emit_br_bset(nfp_prog, reg_a(src), 5, label_ge32, 0);
+		ashr_reg64_lt32_low(nfp_prog, dst, src);
+		label_end = nfp_prog_current_offset(nfp_prog) + 6;
+		emit_br(nfp_prog, BR_UNC, label_end, 2);
+		/* ashr_reg64_lt32_high packed in delay slot. */
+		ashr_reg64_lt32_high(nfp_prog, dst, src);
+
+		if (!nfp_prog_confirm_current_offset(nfp_prog, label_ge32))
+			return -EINVAL;
+		ashr_reg64_ge32(nfp_prog, dst, src);
+
+		if (!nfp_prog_confirm_current_offset(nfp_prog, label_end))
+			return -EINVAL;
 	}
 
 	return 0;
@@ -2775,6 +2853,7 @@ static const instr_cb_t instr_cb[256] = {
 	[BPF_ALU64 | BPF_LSH | BPF_K] =	shl_imm64,
 	[BPF_ALU64 | BPF_RSH | BPF_X] =	shr_reg64,
 	[BPF_ALU64 | BPF_RSH | BPF_K] =	shr_imm64,
+	[BPF_ALU64 | BPF_ARSH | BPF_X] = ashr_reg64,
 	[BPF_ALU64 | BPF_ARSH | BPF_K] = ashr_imm64,
 	[BPF_ALU | BPF_MOV | BPF_X] =	mov_reg,
 	[BPF_ALU | BPF_MOV | BPF_K] =	mov_imm,
