@@ -6698,15 +6698,8 @@ static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 	rtnl_lock();
 	netif_device_detach(netdev);
 
-	if (netif_running(netdev)) {
-		/* Suspend takes a long time, device_shutdown may be
-		 * parallelized this function, so drop lock for the
-		 * duration of this call.
-		 */
-		rtnl_unlock();
+	if (netif_running(netdev))
 		ixgbe_close_suspend(adapter);
-		rtnl_lock();
-	}
 
 	ixgbe_clear_interrupt_scheme(adapter);
 	rtnl_unlock();
