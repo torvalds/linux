@@ -378,6 +378,8 @@ void devlink_port_attrs_set(struct devlink_port *devlink_port,
 			    enum devlink_port_flavour flavour,
 			    u32 port_number, bool split,
 			    u32 split_subport_number);
+int devlink_port_get_phys_port_name(struct devlink_port *devlink_port,
+				    char *name, size_t len);
 int devlink_sb_register(struct devlink *devlink, unsigned int sb_index,
 			u32 size, u16 ingress_pools_count,
 			u16 egress_pools_count, u16 ingress_tc_count,
@@ -480,6 +482,13 @@ static inline void devlink_port_attrs_set(struct devlink_port *devlink_port,
 					  u32 port_number, bool split,
 					  u32 split_subport_number)
 {
+}
+
+static inline int
+devlink_port_get_phys_port_name(struct devlink_port *devlink_port,
+				char *name, size_t len)
+{
+	return -EOPNOTSUPP;
 }
 
 static inline int devlink_sb_register(struct devlink *devlink,

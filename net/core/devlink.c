@@ -3016,6 +3016,39 @@ void devlink_port_attrs_set(struct devlink_port *devlink_port,
 }
 EXPORT_SYMBOL_GPL(devlink_port_attrs_set);
 
+int devlink_port_get_phys_port_name(struct devlink_port *devlink_port,
+				    char *name, size_t len)
+{
+	struct devlink_port_attrs *attrs = &devlink_port->attrs;
+	int n = 0;
+
+	if (!attrs->set)
+		return -EOPNOTSUPP;
+
+	switch (attrs->flavour) {
+	case DEVLINK_PORT_FLAVOUR_PHYSICAL:
+		if (!attrs->split)
+			n = snprintf(name, len, "p%u", attrs->port_number);
+		else
+			n = snprintf(name, len, "p%us%u", attrs->port_number,
+				     attrs->split_subport_number);
+		break;
+	case DEVLINK_PORT_FLAVOUR_CPU:
+	case DEVLINK_PORT_FLAVOUR_DSA:
+		/* As CPU and DSA ports do not have a netdevice associated
+		 * case should not ever happen.
+		 */
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	if (n >= len)
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devlink_port_get_phys_port_name);
+
 int devlink_sb_register(struct devlink *devlink, unsigned int sb_index,
 			u32 size, u16 ingress_pools_count,
 			u16 egress_pools_count, u16 ingress_tc_count,
