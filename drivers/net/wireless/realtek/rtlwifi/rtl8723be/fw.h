@@ -100,16 +100,6 @@ enum rtl8723b_h2c_cmd {
 	MAX_8723B_H2CCMD
 };
 
-enum rtl8723b_c2h_evt {
-	C2H_8723B_DBG = 0,
-	C2H_8723B_LB = 1,
-	C2H_8723B_TXBF = 2,
-	C2H_8723B_TX_REPORT = 3,
-	C2H_8723B_BT_INFO = 9,
-	C2H_8723B_BT_MP = 11,
-	MAX_8723B_C2HEVENT
-};
-
 #define pagenum_128(_len) (u32)(((_len)>>7) + ((_len)&0x7F ? 1 : 0))
 
 

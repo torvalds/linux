@@ -128,17 +128,6 @@ enum rtl8192e_h2c_cmd {
 	MAX_92E_H2CCMD
 };
 
-enum rtl8192e_c2h_evt {
-	C2H_8192E_DBG = 0,
-	C2H_8192E_LB = 1,
-	C2H_8192E_TXBF = 2,
-	C2H_8192E_TX_REPORT = 3,
-	C2H_8192E_BT_INFO = 9,
-	C2H_8192E_BT_MP = 11,
-	C2H_8192E_RA_RPT = 12,
-	MAX_8192E_C2HEVENT
-};
-
 #define pagenum_128(_len)	\
 	(u32)(((_len) >> 7) + ((_len) & 0x7F ? 1 : 0))
 

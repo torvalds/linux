@@ -158,6 +158,25 @@ enum {
 	H2C_BT_PORT_ID = 0x71,
 };
 
+enum rtl_c2h_evt_v1 {
+	C2H_DBG = 0,
+	C2H_LB = 1,
+	C2H_TXBF = 2,
+	C2H_TX_REPORT = 3,
+	C2H_BT_INFO = 9,
+	C2H_BT_MP = 11,
+	C2H_RA_RPT = 12,
+
+	C2H_FW_SWCHNL = 0x10,
+	C2H_IQK_FINISH = 0x11,
+
+	C2H_EXT_V2 = 0xFF,
+};
+
+enum rtl_c2h_evt_v2 {
+	C2H_V2_CCX_RPT = 0x0F,
+};
+
 #define GET_TX_REPORT_SN_V1(c2h)	(c2h[6])
 #define GET_TX_REPORT_ST_V1(c2h)	(c2h[0] & 0xC0)
 #define GET_TX_REPORT_RETRY_V1(c2h)	(c2h[2] & 0x3F)

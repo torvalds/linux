@@ -712,23 +712,23 @@ void rtl8723be_c2h_content_parsing(struct ieee80211_hw *hw,
 	struct rtl_btc_ops *btc_ops = rtlpriv->btcoexist.btc_ops;
 
 	switch (c2h_cmd_id) {
-	case C2H_8723B_DBG:
+	case C2H_DBG:
 		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
 			 "[C2H], C2H_8723BE_DBG!!\n");
 		break;
-	case C2H_8723B_TX_REPORT:
+	case C2H_TX_REPORT:
 		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
 			 "[C2H], C2H_8723BE_TX_REPORT!\n");
 		rtl_tx_report_handler(hw, tmp_buf, c2h_cmd_len);
 		break;
-	case C2H_8723B_BT_INFO:
+	case C2H_BT_INFO:
 		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
 			 "[C2H], C2H_8723BE_BT_INFO!!\n");
 		if (rtlpriv->cfg->ops->get_btc_status())
 			btc_ops->btc_btinfo_notify(rtlpriv, tmp_buf,
 						   c2h_cmd_len);
 		break;
-	case C2H_8723B_BT_MP:
+	case C2H_BT_MP:
 		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
 			 "[C2H], C2H_8723BE_BT_MP!!\n");
 		if (rtlpriv->cfg->ops->get_btc_status())
@@ -761,8 +761,8 @@ void rtl8723be_c2h_packet_handler(struct ieee80211_hw *hw, u8 *buffer, u8 len)
 		      "[C2H packet], Content Hex:\n", tmp_buf, c2h_cmd_len);
 
 	switch (c2h_cmd_id) {
-	case C2H_8723B_BT_INFO:
-	case C2H_8723B_BT_MP:
+	case C2H_BT_INFO:
+	case C2H_BT_MP:
 		rtl_c2hcmd_enqueue(hw, c2h_cmd_id, c2h_cmd_len, tmp_buf);
 		break;
 
