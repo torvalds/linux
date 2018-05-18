@@ -5712,10 +5712,20 @@ intel_dp_init_panel_power_sequencer_registers(struct intel_dp *intel_dp,
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		port_sel = PANEL_PORT_SELECT_VLV(port);
 	} else if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv)) {
-		if (port == PORT_A)
+		switch (port) {
+		case PORT_A:
 			port_sel = PANEL_PORT_SELECT_DPA;
-		else
+			break;
+		case PORT_C:
+			port_sel = PANEL_PORT_SELECT_DPC;
+			break;
+		case PORT_D:
 			port_sel = PANEL_PORT_SELECT_DPD;
+			break;
+		default:
+			MISSING_CASE(port);
+			break;
+		}
 	}
 
 	pp_on |= port_sel;
