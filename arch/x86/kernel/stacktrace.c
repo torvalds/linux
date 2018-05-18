@@ -81,16 +81,6 @@ EXPORT_SYMBOL_GPL(save_stack_trace_tsk);
 
 #ifdef CONFIG_HAVE_RELIABLE_STACKTRACE
 
-#define STACKTRACE_DUMP_ONCE(task) ({				\
-	static bool __section(.data.unlikely) __dumped;		\
-								\
-	if (!__dumped) {					\
-		__dumped = true;				\
-		WARN_ON(1);					\
-		show_stack(task, NULL);				\
-	}							\
-})
-
 static int __always_inline
 __save_stack_trace_reliable(struct stack_trace *trace,
 			    struct task_struct *task)
@@ -123,20 +113,16 @@ __save_stack_trace_reliable(struct stack_trace *trace,
 		 * generated code which __kernel_text_address() doesn't know
 		 * about.
 		 */
-		if (!addr) {
-			STACKTRACE_DUMP_ONCE(task);
+		if (!addr)
 			return -EINVAL;
-		}
 
 		if (save_stack_address(trace, addr, false))
 			return -EINVAL;
 	}
 
 	/* Check for stack corruption */
-	if (unwind_error(&state)) {
-		STACKTRACE_DUMP_ONCE(task);
+	if (unwind_error(&state))
 		return -EINVAL;
-	}
 
 	if (trace->nr_entries < trace->max_entries)
 		trace->entries[trace->nr_entries++] = ULONG_MAX;
