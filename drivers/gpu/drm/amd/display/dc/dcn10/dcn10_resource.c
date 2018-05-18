@@ -417,6 +417,7 @@ static const struct dce110_clk_src_mask cs_mask = {
 
 static const struct resource_caps res_cap = {
 		.num_timing_generator = 4,
+		.num_opp = 4,
 		.num_video_plane = 4,
 		.num_audio = 4,
 		.num_stream_encoder = 4,
