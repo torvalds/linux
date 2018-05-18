@@ -1421,7 +1421,7 @@ static int smc_ioctl(struct socket *sock, unsigned int cmd,
 		/* output queue size (not send + not acked) */
 		if (smc->sk.sk_state == SMC_LISTEN)
 			return -EINVAL;
-		answ = smc->conn.sndbuf_size -
+		answ = smc->conn.sndbuf_desc->len -
 					atomic_read(&smc->conn.sndbuf_space);
 		break;
 	case SIOCOUTQNSD:

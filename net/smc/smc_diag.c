@@ -101,8 +101,9 @@ static int __smc_diag_dump(struct sock *sk, struct sk_buff *skb,
 		struct smc_connection *conn = &smc->conn;
 		struct smc_diag_conninfo cinfo = {
 			.token = conn->alert_token_local,
-			.sndbuf_size = conn->sndbuf_size,
-			.rmbe_size = conn->rmbe_size,
+			.sndbuf_size = conn->sndbuf_desc ?
+				conn->sndbuf_desc->len : 0,
+			.rmbe_size = conn->rmb_desc ? conn->rmb_desc->len : 0,
 			.peer_rmbe_size = conn->peer_rmbe_size,
 
 			.rx_prod.wrap = conn->local_rx_ctrl.prod.wrap,

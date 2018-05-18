@@ -51,7 +51,7 @@ static void smc_rx_wake_up(struct sock *sk)
 static void smc_rx_update_consumer(struct smc_connection *conn,
 				   union smc_host_cursor cons, size_t len)
 {
-	smc_curs_add(conn->rmbe_size, &cons, len);
+	smc_curs_add(conn->rmb_desc->len, &cons, len);
 	smc_curs_write(&conn->local_tx_ctrl.cons, smc_curs_read(&cons, conn),
 		       conn);
 	/* send consumer cursor update if required */
@@ -288,11 +288,11 @@ copy:
 			       conn);
 		/* subsequent splice() calls pick up where previous left */
 		if (splbytes)
-			smc_curs_add(conn->rmbe_size, &cons, splbytes);
+			smc_curs_add(conn->rmb_desc->len, &cons, splbytes);
 		/* determine chunks where to read from rcvbuf */
 		/* either unwrapped case, or 1st chunk of wrapped case */
-		chunk_len = min_t(size_t,
-				  copylen, conn->rmbe_size - cons.count);
+		chunk_len = min_t(size_t, copylen, conn->rmb_desc->len -
+				  cons.count);
 		chunk_len_sum = chunk_len;
 		chunk_off = cons.count;
 		smc_rmb_sync_sg_for_cpu(conn);
@@ -331,7 +331,7 @@ copy:
 			/* increased in recv tasklet smc_cdc_msg_rcv() */
 			smp_mb__before_atomic();
 			atomic_sub(copylen, &conn->bytes_to_rcv);
-			/* guarantee 0 <= bytes_to_rcv <= rmbe_size */
+			/* guarantee 0 <= bytes_to_rcv <= rmb_desc->len */
 			smp_mb__after_atomic();
 			if (msg)
 				smc_rx_update_consumer(conn, cons, copylen);

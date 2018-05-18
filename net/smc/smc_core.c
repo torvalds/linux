@@ -236,15 +236,12 @@ out:
 
 static void smc_buf_unuse(struct smc_connection *conn)
 {
-	if (conn->sndbuf_desc) {
+	if (conn->sndbuf_desc)
 		conn->sndbuf_desc->used = 0;
-		conn->sndbuf_size = 0;
-	}
 	if (conn->rmb_desc) {
 		if (!conn->rmb_desc->regerr) {
 			conn->rmb_desc->reused = 1;
 			conn->rmb_desc->used = 0;
-			conn->rmbe_size = 0;
 		} else {
 			/* buf registration failed, reuse not possible */
 			struct smc_link_group *lgr = conn->lgr;
@@ -616,6 +613,7 @@ static struct smc_buf_desc *smc_new_buf_create(struct smc_link_group *lgr,
 		}
 	}
 
+	buf_desc->len = bufsize;
 	return buf_desc;
 }
 
@@ -675,14 +673,12 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_rmb)
 
 	if (is_rmb) {
 		conn->rmb_desc = buf_desc;
-		conn->rmbe_size = bufsize;
 		conn->rmbe_size_short = bufsize_short;
 		smc->sk.sk_rcvbuf = bufsize * 2;
 		atomic_set(&conn->bytes_to_rcv, 0);
 		conn->rmbe_update_limit = smc_rmb_wnd_update_limit(bufsize);
 	} else {
 		conn->sndbuf_desc = buf_desc;
-		conn->sndbuf_size = bufsize;
 		smc->sk.sk_sndbuf = bufsize * 2;
 		atomic_set(&conn->sndbuf_space, bufsize);
 	}

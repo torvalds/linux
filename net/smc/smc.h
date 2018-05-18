@@ -126,9 +126,7 @@ struct smc_connection {
 	int			rtoken_idx;	/* idx to peer RMB rkey/addr */
 
 	struct smc_buf_desc	*sndbuf_desc;	/* send buffer descriptor */
-	int			sndbuf_size;	/* sndbuf size <== sock wmem */
 	struct smc_buf_desc	*rmb_desc;	/* RMBE descriptor */
-	int			rmbe_size;	/* RMBE size <== sock rmem */
 	int			rmbe_size_short;/* compressed notation */
 	int			rmbe_update_limit;
 						/* lower limit for consumer
