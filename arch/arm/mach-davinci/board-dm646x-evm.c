@@ -776,6 +776,8 @@ static __init void evm_init(void)
 	int ret;
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 
+	dm646x_register_clocks();
+
 	ret = dm646x_gpio_register();
 	if (ret)
 		pr_warn("%s: GPIO init failed: %d\n", __func__, ret);
