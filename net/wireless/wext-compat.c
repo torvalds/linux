@@ -1254,7 +1254,7 @@ static int cfg80211_wext_giwrate(struct net_device *dev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
-	struct station_info *sinfo;
+	struct station_info sinfo = {};
 	u8 addr[ETH_ALEN];
 	int err;
 
@@ -1274,23 +1274,16 @@ static int cfg80211_wext_giwrate(struct net_device *dev,
 	if (err)
 		return err;
 
-	sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
-	if (!sinfo)
-		return -ENOMEM;
-
-	err = rdev_get_station(rdev, dev, addr, sinfo);
+	err = rdev_get_station(rdev, dev, addr, &sinfo);
 	if (err)
-		goto out;
+		return err;
 
-	if (!(sinfo->filled & BIT(NL80211_STA_INFO_TX_BITRATE))) {
-		err = -EOPNOTSUPP;
-		goto out;
-	}
+	if (!(sinfo.filled & BIT(NL80211_STA_INFO_TX_BITRATE)))
+		return -EOPNOTSUPP;
 
-	rate->value = 100000 * cfg80211_calculate_bitrate(&sinfo->txrate);
-out:
-	kfree(sinfo);
-	return err;
+	rate->value = 100000 * cfg80211_calculate_bitrate(&sinfo.txrate);
+
+	return 0;
 }
 
 /* Get wireless statistics.  Called by /proc/net/wireless and by SIOCGIWSTATS */

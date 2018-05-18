@@ -4723,16 +4723,12 @@ static int nl80211_send_station(struct sk_buff *msg, u32 cmd, u32 portid,
 static int nl80211_dump_station(struct sk_buff *skb,
 				struct netlink_callback *cb)
 {
-	struct station_info *sinfo;
+	struct station_info sinfo;
 	struct cfg80211_registered_device *rdev;
 	struct wireless_dev *wdev;
 	u8 mac_addr[ETH_ALEN];
 	int sta_idx = cb->args[2];
 	int err;
-
-	sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
-	if (!sinfo)
-		return -ENOMEM;
 
 	rtnl_lock();
 	err = nl80211_prepare_wdev_dump(skb, cb, &rdev, &wdev);
@@ -4750,9 +4746,9 @@ static int nl80211_dump_station(struct sk_buff *skb,
 	}
 
 	while (1) {
-		memset(sinfo, 0, sizeof(*sinfo));
+		memset(&sinfo, 0, sizeof(sinfo));
 		err = rdev_dump_station(rdev, wdev->netdev, sta_idx,
-					mac_addr, sinfo);
+					mac_addr, &sinfo);
 		if (err == -ENOENT)
 			break;
 		if (err)
@@ -4762,7 +4758,7 @@ static int nl80211_dump_station(struct sk_buff *skb,
 				NETLINK_CB(cb->skb).portid,
 				cb->nlh->nlmsg_seq, NLM_F_MULTI,
 				rdev, wdev->netdev, mac_addr,
-				sinfo) < 0)
+				&sinfo) < 0)
 			goto out;
 
 		sta_idx++;
@@ -4773,7 +4769,6 @@ static int nl80211_dump_station(struct sk_buff *skb,
 	err = skb->len;
  out_err:
 	rtnl_unlock();
-	kfree(sinfo);
 
 	return err;
 }
@@ -4782,49 +4777,37 @@ static int nl80211_get_station(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
-	struct station_info *sinfo;
+	struct station_info sinfo;
 	struct sk_buff *msg;
 	u8 *mac_addr = NULL;
 	int err;
 
-	sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
-	if (!sinfo)
-		return -ENOMEM;
+	memset(&sinfo, 0, sizeof(sinfo));
 
-	if (!info->attrs[NL80211_ATTR_MAC]) {
-		err = -EINVAL;
-		goto out;
-	}
+	if (!info->attrs[NL80211_ATTR_MAC])
+		return -EINVAL;
 
 	mac_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
 
-	if (!rdev->ops->get_station) {
-		err = -EOPNOTSUPP;
-		goto out;
-	}
+	if (!rdev->ops->get_station)
+		return -EOPNOTSUPP;
 
-	err = rdev_get_station(rdev, dev, mac_addr, sinfo);
+	err = rdev_get_station(rdev, dev, mac_addr, &sinfo);
 	if (err)
-		goto out;
+		return err;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (!msg) {
-		err = -ENOMEM;
-		goto out;
-	}
+	if (!msg)
+		return -ENOMEM;
 
 	if (nl80211_send_station(msg, NL80211_CMD_NEW_STATION,
 				 info->snd_portid, info->snd_seq, 0,
-				 rdev, dev, mac_addr, sinfo) < 0) {
+				 rdev, dev, mac_addr, &sinfo) < 0) {
 		nlmsg_free(msg);
-		err = -ENOBUFS;
-		goto out;
+		return -ENOBUFS;
 	}
 
-	err = genlmsg_reply(msg, info);
-out:
-	kfree(sinfo);
-	return err;
+	return genlmsg_reply(msg, info);
 }
 
 int cfg80211_check_station_change(struct wiphy *wiphy,
@@ -10088,26 +10071,18 @@ static int cfg80211_cqm_rssi_update(struct cfg80211_registered_device *rdev,
 	 */
 	if (!wdev->cqm_config->last_rssi_event_value && wdev->current_bss &&
 	    rdev->ops->get_station) {
-		struct station_info *sinfo;
+		struct station_info sinfo = {};
 		u8 *mac_addr;
-
-		sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
-		if (!sinfo)
-			return -ENOMEM;
 
 		mac_addr = wdev->current_bss->pub.bssid;
 
-		err = rdev_get_station(rdev, dev, mac_addr, sinfo);
-		if (err) {
-			kfree(sinfo);
+		err = rdev_get_station(rdev, dev, mac_addr, &sinfo);
+		if (err)
 			return err;
-		}
 
-		if (sinfo->filled & BIT(NL80211_STA_INFO_BEACON_SIGNAL_AVG))
+		if (sinfo.filled & BIT(NL80211_STA_INFO_BEACON_SIGNAL_AVG))
 			wdev->cqm_config->last_rssi_event_value =
-				(s8)sinfo->rx_beacon_signal_avg;
-
-		kfree(sinfo);
+				(s8) sinfo.rx_beacon_signal_avg;
 	}
 
 	last = wdev->cqm_config->last_rssi_event_value;
@@ -14641,32 +14616,25 @@ void cfg80211_del_sta_sinfo(struct net_device *dev, const u8 *mac_addr,
 	struct wiphy *wiphy = dev->ieee80211_ptr->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	struct sk_buff *msg;
-	struct station_info *empty_sinfo = NULL;
+	struct station_info empty_sinfo = {};
 
-	if (!sinfo) {
-		empty_sinfo = kzalloc(sizeof(*empty_sinfo), GFP_KERNEL);
-		if (!empty_sinfo)
-			return;
-		sinfo = empty_sinfo;
-	}
+	if (!sinfo)
+		sinfo = &empty_sinfo;
 
 	trace_cfg80211_del_sta(dev, mac_addr);
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
 	if (!msg)
-		goto out;
+		return;
 
 	if (nl80211_send_station(msg, NL80211_CMD_DEL_STATION, 0, 0, 0,
 				 rdev, dev, mac_addr, sinfo) < 0) {
 		nlmsg_free(msg);
-		goto out;
+		return;
 	}
 
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
 				NL80211_MCGRP_MLME, gfp);
-
-out:
-	kfree(empty_sinfo);
 }
 EXPORT_SYMBOL(cfg80211_del_sta_sinfo);
 
