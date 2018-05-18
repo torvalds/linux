@@ -900,40 +900,19 @@ static struct rela *find_switch_table(struct objtool_file *file,
 	struct instruction *orig_insn = insn;
 	unsigned long table_offset;
 
-	/* case 1 & 2 */
-	text_rela = find_rela_by_dest_range(insn->sec, insn->offset, insn->len);
-	if (text_rela && text_rela->sym == file->rodata->sym &&
-	    !find_symbol_containing(file->rodata, text_rela->addend)) {
-
-		table_offset = text_rela->addend;
-		if (text_rela->type == R_X86_64_PC32) {
-			/* case 2 */
-			table_offset += 4;
-			file->ignore_unreachables = true;
-		}
-
-		rodata_rela = find_rela_by_dest(file->rodata, table_offset);
-		if (!rodata_rela)
-			return NULL;
-
-		return rodata_rela;
-	}
-
-	/* case 3 */
 	/*
 	 * Backward search using the @first_jump_src links, these help avoid
 	 * much of the 'in between' code. Which avoids us getting confused by
 	 * it.
 	 */
-	for (insn = list_prev_entry(insn, list);
-
+	for (;
 	     &insn->list != &file->insn_list &&
 	     insn->sec == func->sec &&
 	     insn->offset >= func->offset;
 
 	     insn = insn->first_jump_src ?: list_prev_entry(insn, list)) {
 
-		if (insn->type == INSN_JUMP_DYNAMIC)
+		if (insn != orig_insn && insn->type == INSN_JUMP_DYNAMIC)
 			break;
 
 		/* allow small jumps within the range */
@@ -960,10 +939,18 @@ static struct rela *find_switch_table(struct objtool_file *file,
 		if (find_symbol_containing(file->rodata, table_offset))
 			continue;
 
-		/* mov [rodata addr], %reg */
 		rodata_rela = find_rela_by_dest(file->rodata, table_offset);
-		if (rodata_rela)
+		if (rodata_rela) {
+			/*
+			 * Use of RIP-relative switch jumps is quite rare, and
+			 * indicates a rare GCC quirk/bug which can leave dead
+			 * code behind.
+			 */
+			if (text_rela->type == R_X86_64_PC32)
+				file->ignore_unreachables = true;
+
 			return rodata_rela;
+		}
 	}
 
 	return NULL;
