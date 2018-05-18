@@ -27,39 +27,16 @@ static inline struct afs_net *afs_seq2net(struct seq_file *m)
 	return &__afs_net; // TODO: use seq_file_net(m)
 }
 
-static int afs_proc_cells_open(struct inode *inode, struct file *file);
 static void *afs_proc_cells_start(struct seq_file *p, loff_t *pos);
 static void *afs_proc_cells_next(struct seq_file *p, void *v, loff_t *pos);
 static void afs_proc_cells_stop(struct seq_file *p, void *v);
 static int afs_proc_cells_show(struct seq_file *m, void *v);
-static ssize_t afs_proc_cells_write(struct file *file, const char __user *buf,
-				    size_t size, loff_t *_pos);
 
 static const struct seq_operations afs_proc_cells_ops = {
 	.start	= afs_proc_cells_start,
 	.next	= afs_proc_cells_next,
 	.stop	= afs_proc_cells_stop,
 	.show	= afs_proc_cells_show,
-};
-
-static const struct file_operations afs_proc_cells_fops = {
-	.open		= afs_proc_cells_open,
-	.read		= seq_read,
-	.write		= afs_proc_cells_write,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
-static ssize_t afs_proc_rootcell_read(struct file *file, char __user *buf,
-				      size_t size, loff_t *_pos);
-static ssize_t afs_proc_rootcell_write(struct file *file,
-				       const char __user *buf,
-				       size_t size, loff_t *_pos);
-
-static const struct file_operations afs_proc_rootcell_fops = {
-	.read		= afs_proc_rootcell_read,
-	.write		= afs_proc_rootcell_write,
-	.llseek		= no_llseek,
 };
 
 static void *afs_proc_cell_volumes_start(struct seq_file *p, loff_t *pos);
@@ -101,16 +78,11 @@ static const struct seq_operations afs_proc_servers_ops = {
 	.show	= afs_proc_servers_show,
 };
 
-static int afs_proc_sysname_open(struct inode *inode, struct file *file);
-static int afs_proc_sysname_release(struct inode *inode, struct file *file);
 static void *afs_proc_sysname_start(struct seq_file *p, loff_t *pos);
 static void *afs_proc_sysname_next(struct seq_file *p, void *v,
 					loff_t *pos);
 static void afs_proc_sysname_stop(struct seq_file *p, void *v);
 static int afs_proc_sysname_show(struct seq_file *m, void *v);
-static ssize_t afs_proc_sysname_write(struct file *file,
-				      const char __user *buf,
-				      size_t size, loff_t *_pos);
 
 static const struct seq_operations afs_proc_sysname_ops = {
 	.start	= afs_proc_sysname_start,
@@ -118,22 +90,6 @@ static const struct seq_operations afs_proc_sysname_ops = {
 	.stop	= afs_proc_sysname_stop,
 	.show	= afs_proc_sysname_show,
 };
-
-static const struct file_operations afs_proc_sysname_fops = {
-	.open		= afs_proc_sysname_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= afs_proc_sysname_release,
-	.write		= afs_proc_sysname_write,
-};
-
-/*
- * open "/proc/fs/afs/cells" which provides a summary of extant cells
- */
-static int afs_proc_cells_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &afs_proc_cells_ops);
-}
 
 /*
  * set up the iterator to start reading from the cells list and return the
@@ -261,6 +217,19 @@ inval:
 	goto done;
 }
 
+static int afs_proc_cells_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &afs_proc_cells_ops);
+}
+
+static const struct file_operations afs_proc_cells_fops = {
+	.open		= afs_proc_cells_open,
+	.read		= seq_read,
+	.write		= afs_proc_cells_write,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
 static ssize_t afs_proc_rootcell_read(struct file *file, char __user *buf,
 				      size_t size, loff_t *_pos)
 {
@@ -343,6 +312,12 @@ out:
 	_leave(" = %d", ret);
 	return ret;
 }
+
+static const struct file_operations afs_proc_rootcell_fops = {
+	.read		= afs_proc_rootcell_read,
+	.write		= afs_proc_rootcell_write,
+	.llseek		= no_llseek,
+};
 
 /*
  * set up the iterator to start reading from the cells list and return the
@@ -730,6 +705,14 @@ static int afs_proc_sysname_show(struct seq_file *m, void *v)
 		seq_printf(m, "%s\n", sysnames->subs[i]);
 	return 0;
 }
+
+static const struct file_operations afs_proc_sysname_fops = {
+	.open		= afs_proc_sysname_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= afs_proc_sysname_release,
+	.write		= afs_proc_sysname_write,
+};
 
 /*
  * Display general per-net namespace statistics
