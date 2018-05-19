@@ -1634,16 +1634,16 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 
 	hclgevf_state_init(hdev);
 
+	ret = hclgevf_cmd_init(hdev);
+	if (ret)
+		goto err_cmd_init;
+
 	ret = hclgevf_misc_irq_init(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed(%d) to init Misc IRQ(vector0)\n",
 			ret);
 		goto err_misc_irq_init;
 	}
-
-	ret = hclgevf_cmd_init(hdev);
-	if (ret)
-		goto err_cmd_init;
 
 	ret = hclgevf_configure(hdev);
 	if (ret) {
@@ -1692,10 +1692,10 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 	return 0;
 
 err_config:
-	hclgevf_cmd_uninit(hdev);
-err_cmd_init:
 	hclgevf_misc_irq_uninit(hdev);
 err_misc_irq_init:
+	hclgevf_cmd_uninit(hdev);
+err_cmd_init:
 	hclgevf_state_uninit(hdev);
 	hclgevf_uninit_msi(hdev);
 err_irq_init:
@@ -1705,9 +1705,9 @@ err_irq_init:
 
 static void hclgevf_uninit_hdev(struct hclgevf_dev *hdev)
 {
-	hclgevf_cmd_uninit(hdev);
-	hclgevf_misc_irq_uninit(hdev);
 	hclgevf_state_uninit(hdev);
+	hclgevf_misc_irq_uninit(hdev);
+	hclgevf_cmd_uninit(hdev);
 	hclgevf_uninit_msi(hdev);
 	hclgevf_pci_uninit(hdev);
 }
