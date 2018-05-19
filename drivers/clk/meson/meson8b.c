@@ -253,7 +253,7 @@ static struct clk_fixed_factor meson8b_fclk_div3_div = {
 	.mult = 1,
 	.div = 3,
 	.hw.init = &(struct clk_init_data){
-		.name = "fclk_div_div3",
+		.name = "fclk_div3_div",
 		.ops = &clk_fixed_factor_ops,
 		.parent_names = (const char *[]){ "fixed_pll" },
 		.num_parents = 1,
@@ -632,7 +632,8 @@ static struct clk_regmap meson8b_cpu_clk = {
 	.hw.init = &(struct clk_init_data){
 		.name = "cpu_clk",
 		.ops = &clk_regmap_mux_ro_ops,
-		.parent_names = (const char *[]){ "xtal", "cpu_out_sel" },
+		.parent_names = (const char *[]){ "xtal",
+						  "cpu_scale_out_sel" },
 		.num_parents = 2,
 		.flags = (CLK_SET_RATE_PARENT |
 			  CLK_SET_RATE_NO_REPARENT),

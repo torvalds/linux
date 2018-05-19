@@ -32,6 +32,9 @@
 
 static u32 smc_lgr_num;			/* unique link group number */
 
+static void smc_buf_free(struct smc_buf_desc *buf_desc, struct smc_link *lnk,
+			 bool is_rmb);
+
 static void smc_lgr_schedule_free_work(struct smc_link_group *lgr)
 {
 	/* client link group creation always follows the server link group
@@ -234,9 +237,22 @@ static void smc_buf_unuse(struct smc_connection *conn)
 		conn->sndbuf_size = 0;
 	}
 	if (conn->rmb_desc) {
-		conn->rmb_desc->reused = true;
-		conn->rmb_desc->used = 0;
-		conn->rmbe_size = 0;
+		if (!conn->rmb_desc->regerr) {
+			conn->rmb_desc->reused = 1;
+			conn->rmb_desc->used = 0;
+			conn->rmbe_size = 0;
+		} else {
+			/* buf registration failed, reuse not possible */
+			struct smc_link_group *lgr = conn->lgr;
+			struct smc_link *lnk;
+
+			write_lock_bh(&lgr->rmbs_lock);
+			list_del(&conn->rmb_desc->list);
+			write_unlock_bh(&lgr->rmbs_lock);
+
+			lnk = &lgr->lnk[SMC_SINGLE_LINK];
+			smc_buf_free(conn->rmb_desc, lnk, true);
+		}
 	}
 }
 

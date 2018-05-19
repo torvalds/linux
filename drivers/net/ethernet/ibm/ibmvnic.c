@@ -794,46 +794,61 @@ static int ibmvnic_login(struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	unsigned long timeout = msecs_to_jiffies(30000);
-	struct device *dev = &adapter->vdev->dev;
+	int retry_count = 0;
 	int rc;
 
 	do {
-		if (adapter->renegotiate) {
-			adapter->renegotiate = false;
+		if (retry_count > IBMVNIC_MAX_QUEUES) {
+			netdev_warn(netdev, "Login attempts exceeded\n");
+			return -1;
+		}
+
+		adapter->init_done_rc = 0;
+		reinit_completion(&adapter->init_done);
+		rc = send_login(adapter);
+		if (rc) {
+			netdev_warn(netdev, "Unable to login\n");
+			return rc;
+		}
+
+		if (!wait_for_completion_timeout(&adapter->init_done,
+						 timeout)) {
+			netdev_warn(netdev, "Login timed out\n");
+			return -1;
+		}
+
+		if (adapter->init_done_rc == PARTIALSUCCESS) {
+			retry_count++;
 			release_sub_crqs(adapter, 1);
 
+			adapter->init_done_rc = 0;
 			reinit_completion(&adapter->init_done);
 			send_cap_queries(adapter);
 			if (!wait_for_completion_timeout(&adapter->init_done,
 							 timeout)) {
-				dev_err(dev, "Capabilities query timeout\n");
+				netdev_warn(netdev,
+					    "Capabilities query timed out\n");
 				return -1;
 			}
+
 			rc = init_sub_crqs(adapter);
 			if (rc) {
-				dev_err(dev,
-					"Initialization of SCRQ's failed\n");
+				netdev_warn(netdev,
+					    "SCRQ initialization failed\n");
 				return -1;
 			}
+
 			rc = init_sub_crq_irqs(adapter);
 			if (rc) {
-				dev_err(dev,
-					"Initialization of SCRQ's irqs failed\n");
+				netdev_warn(netdev,
+					    "SCRQ irq initialization failed\n");
 				return -1;
 			}
-		}
-
-		reinit_completion(&adapter->init_done);
-		rc = send_login(adapter);
-		if (rc) {
-			dev_err(dev, "Unable to attempt device login\n");
-			return rc;
-		} else if (!wait_for_completion_timeout(&adapter->init_done,
-						 timeout)) {
-			dev_err(dev, "Login timeout\n");
+		} else if (adapter->init_done_rc) {
+			netdev_warn(netdev, "Adapter login failed\n");
 			return -1;
 		}
-	} while (adapter->renegotiate);
+	} while (adapter->init_done_rc == PARTIALSUCCESS);
 
 	/* handle pending MAC address changes after successful login */
 	if (adapter->mac_change_pending) {
@@ -1034,16 +1049,14 @@ static int __ibmvnic_open(struct net_device *netdev)
 		netdev_dbg(netdev, "Enabling rx_scrq[%d] irq\n", i);
 		if (prev_state == VNIC_CLOSED)
 			enable_irq(adapter->rx_scrq[i]->irq);
-		else
-			enable_scrq_irq(adapter, adapter->rx_scrq[i]);
+		enable_scrq_irq(adapter, adapter->rx_scrq[i]);
 	}
 
 	for (i = 0; i < adapter->req_tx_queues; i++) {
 		netdev_dbg(netdev, "Enabling tx_scrq[%d] irq\n", i);
 		if (prev_state == VNIC_CLOSED)
 			enable_irq(adapter->tx_scrq[i]->irq);
-		else
-			enable_scrq_irq(adapter, adapter->tx_scrq[i]);
+		enable_scrq_irq(adapter, adapter->tx_scrq[i]);
 	}
 
 	rc = set_link_state(adapter, IBMVNIC_LOGICAL_LNK_UP);
@@ -1115,7 +1128,7 @@ static void clean_rx_pools(struct ibmvnic_adapter *adapter)
 	if (!adapter->rx_pool)
 		return;
 
-	rx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_rxadd_subcrqs);
+	rx_scrqs = adapter->num_active_rx_pools;
 	rx_entries = adapter->req_rx_add_entries_per_subcrq;
 
 	/* Free any remaining skbs in the rx buffer pools */
@@ -1164,7 +1177,7 @@ static void clean_tx_pools(struct ibmvnic_adapter *adapter)
 	if (!adapter->tx_pool || !adapter->tso_pool)
 		return;
 
-	tx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
+	tx_scrqs = adapter->num_active_tx_pools;
 
 	/* Free any remaining skbs in the tx buffer pools */
 	for (i = 0; i < tx_scrqs; i++) {
@@ -1184,6 +1197,7 @@ static void ibmvnic_disable_irqs(struct ibmvnic_adapter *adapter)
 			if (adapter->tx_scrq[i]->irq) {
 				netdev_dbg(netdev,
 					   "Disabling tx_scrq[%d] irq\n", i);
+				disable_scrq_irq(adapter, adapter->tx_scrq[i]);
 				disable_irq(adapter->tx_scrq[i]->irq);
 			}
 	}
@@ -1193,6 +1207,7 @@ static void ibmvnic_disable_irqs(struct ibmvnic_adapter *adapter)
 			if (adapter->rx_scrq[i]->irq) {
 				netdev_dbg(netdev,
 					   "Disabling rx_scrq[%d] irq\n", i);
+				disable_scrq_irq(adapter, adapter->rx_scrq[i]);
 				disable_irq(adapter->rx_scrq[i]->irq);
 			}
 		}
@@ -1828,7 +1843,8 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 	for (i = 0; i < adapter->req_rx_queues; i++)
 		napi_schedule(&adapter->napi[i]);
 
-	if (adapter->reset_reason != VNIC_RESET_FAILOVER)
+	if (adapter->reset_reason != VNIC_RESET_FAILOVER &&
+	    adapter->reset_reason != VNIC_RESET_CHANGE_PARAM)
 		netdev_notify_peers(netdev);
 
 	netif_carrier_on(netdev);
@@ -2601,11 +2617,18 @@ static int enable_scrq_irq(struct ibmvnic_adapter *adapter,
 {
 	struct device *dev = &adapter->vdev->dev;
 	unsigned long rc;
+	u64 val;
 
 	if (scrq->hw_irq > 0x100000000ULL) {
 		dev_err(dev, "bad hw_irq = %lx\n", scrq->hw_irq);
 		return 1;
 	}
+
+	val = (0xff000000) | scrq->hw_irq;
+	rc = plpar_hcall_norets(H_EOI, val);
+	if (rc)
+		dev_err(dev, "H_EOI FAILED irq 0x%llx. rc=%ld\n",
+			val, rc);
 
 	rc = plpar_hcall_norets(H_VIOCTL, adapter->vdev->unit_address,
 				H_ENABLE_VIO_INTERRUPT, scrq->hw_irq, 0, 0);
@@ -3170,7 +3193,7 @@ static int send_version_xchg(struct ibmvnic_adapter *adapter)
 struct vnic_login_client_data {
 	u8	type;
 	__be16	len;
-	char	name;
+	char	name[];
 } __packed;
 
 static int vnic_client_data_len(struct ibmvnic_adapter *adapter)
@@ -3199,21 +3222,21 @@ static void vnic_add_client_data(struct ibmvnic_adapter *adapter,
 	vlcd->type = 1;
 	len = strlen(os_name) + 1;
 	vlcd->len = cpu_to_be16(len);
-	strncpy(&vlcd->name, os_name, len);
-	vlcd = (struct vnic_login_client_data *)((char *)&vlcd->name + len);
+	strncpy(vlcd->name, os_name, len);
+	vlcd = (struct vnic_login_client_data *)(vlcd->name + len);
 
 	/* Type 2 - LPAR name */
 	vlcd->type = 2;
 	len = strlen(utsname()->nodename) + 1;
 	vlcd->len = cpu_to_be16(len);
-	strncpy(&vlcd->name, utsname()->nodename, len);
-	vlcd = (struct vnic_login_client_data *)((char *)&vlcd->name + len);
+	strncpy(vlcd->name, utsname()->nodename, len);
+	vlcd = (struct vnic_login_client_data *)(vlcd->name + len);
 
 	/* Type 3 - device name */
 	vlcd->type = 3;
 	len = strlen(adapter->netdev->name) + 1;
 	vlcd->len = cpu_to_be16(len);
-	strncpy(&vlcd->name, adapter->netdev->name, len);
+	strncpy(vlcd->name, adapter->netdev->name, len);
 }
 
 static int send_login(struct ibmvnic_adapter *adapter)
@@ -3942,7 +3965,7 @@ static int handle_login_rsp(union ibmvnic_crq *login_rsp_crq,
 	 * to resend the login buffer with fewer queues requested.
 	 */
 	if (login_rsp_crq->generic.rc.code) {
-		adapter->renegotiate = true;
+		adapter->init_done_rc = login_rsp_crq->generic.rc.code;
 		complete(&adapter->init_done);
 		return 0;
 	}

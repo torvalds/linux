@@ -2823,6 +2823,11 @@ enum bt_ant_num {
 	ANT_X1 = 1,
 };
 
+enum bt_ant_path {
+	ANT_MAIN = 0,
+	ANT_AUX = 1,
+};
+
 enum bt_co_type {
 	BT_2WIRE = 0,
 	BT_ISSC_3WIRE = 1,

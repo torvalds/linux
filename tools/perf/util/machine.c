@@ -1019,13 +1019,6 @@ int machine__load_vmlinux_path(struct machine *machine, enum map_type type)
 	return ret;
 }
 
-static void map_groups__fixup_end(struct map_groups *mg)
-{
-	int i;
-	for (i = 0; i < MAP__NR_TYPES; ++i)
-		__map_groups__fixup_end(mg, i);
-}
-
 static char *get_kernel_version(const char *root_dir)
 {
 	char version[PATH_MAX];
@@ -1233,6 +1226,7 @@ int machine__create_kernel_maps(struct machine *machine)
 {
 	struct dso *kernel = machine__get_kernel(machine);
 	const char *name = NULL;
+	struct map *map;
 	u64 addr = 0;
 	int ret;
 
@@ -1259,13 +1253,25 @@ int machine__create_kernel_maps(struct machine *machine)
 			machine__destroy_kernel_maps(machine);
 			return -1;
 		}
-		machine__set_kernel_mmap(machine, addr, 0);
+
+		/* we have a real start address now, so re-order the kmaps */
+		map = machine__kernel_map(machine);
+
+		map__get(map);
+		map_groups__remove(&machine->kmaps, map);
+
+		/* assume it's the last in the kmaps */
+		machine__set_kernel_mmap(machine, addr, ~0ULL);
+
+		map_groups__insert(&machine->kmaps, map);
+		map__put(map);
 	}
 
-	/*
-	 * Now that we have all the maps created, just set the ->end of them:
-	 */
-	map_groups__fixup_end(&machine->kmaps);
+	/* update end address of the kernel map using adjacent module address */
+	map = map__next(machine__kernel_map(machine));
+	if (map)
+		machine__set_kernel_mmap(machine, addr, map->start);
+
 	return 0;
 }
 

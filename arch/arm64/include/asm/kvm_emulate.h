@@ -333,7 +333,7 @@ static inline void kvm_vcpu_set_be(struct kvm_vcpu *vcpu)
 	} else {
 		u64 sctlr = vcpu_read_sys_reg(vcpu, SCTLR_EL1);
 		sctlr |= (1 << 25);
-		vcpu_write_sys_reg(vcpu, SCTLR_EL1, sctlr);
+		vcpu_write_sys_reg(vcpu, sctlr, SCTLR_EL1);
 	}
 }
 

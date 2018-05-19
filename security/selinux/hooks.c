@@ -4576,6 +4576,7 @@ static int selinux_socket_post_create(struct socket *sock, int family,
 static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, int addrlen)
 {
 	struct sock *sk = sock->sk;
+	struct sk_security_struct *sksec = sk->sk_security;
 	u16 family;
 	int err;
 
@@ -4587,11 +4588,11 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 	family = sk->sk_family;
 	if (family == PF_INET || family == PF_INET6) {
 		char *addrp;
-		struct sk_security_struct *sksec = sk->sk_security;
 		struct common_audit_data ad;
 		struct lsm_network_audit net = {0,};
 		struct sockaddr_in *addr4 = NULL;
 		struct sockaddr_in6 *addr6 = NULL;
+		u16 family_sa = address->sa_family;
 		unsigned short snum;
 		u32 sid, node_perm;
 
@@ -4601,11 +4602,20 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 		 * need to check address->sa_family as it is possible to have
 		 * sk->sk_family = PF_INET6 with addr->sa_family = AF_INET.
 		 */
-		switch (address->sa_family) {
+		switch (family_sa) {
+		case AF_UNSPEC:
 		case AF_INET:
 			if (addrlen < sizeof(struct sockaddr_in))
 				return -EINVAL;
 			addr4 = (struct sockaddr_in *)address;
+			if (family_sa == AF_UNSPEC) {
+				/* see __inet_bind(), we only want to allow
+				 * AF_UNSPEC if the address is INADDR_ANY
+				 */
+				if (addr4->sin_addr.s_addr != htonl(INADDR_ANY))
+					goto err_af;
+				family_sa = AF_INET;
+			}
 			snum = ntohs(addr4->sin_port);
 			addrp = (char *)&addr4->sin_addr.s_addr;
 			break;
@@ -4617,14 +4627,13 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 			addrp = (char *)&addr6->sin6_addr.s6_addr;
 			break;
 		default:
-			/* Note that SCTP services expect -EINVAL, whereas
-			 * others expect -EAFNOSUPPORT.
-			 */
-			if (sksec->sclass == SECCLASS_SCTP_SOCKET)
-				return -EINVAL;
-			else
-				return -EAFNOSUPPORT;
+			goto err_af;
 		}
+
+		ad.type = LSM_AUDIT_DATA_NET;
+		ad.u.net = &net;
+		ad.u.net->sport = htons(snum);
+		ad.u.net->family = family_sa;
 
 		if (snum) {
 			int low, high;
@@ -4637,10 +4646,6 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 						      snum, &sid);
 				if (err)
 					goto out;
-				ad.type = LSM_AUDIT_DATA_NET;
-				ad.u.net = &net;
-				ad.u.net->sport = htons(snum);
-				ad.u.net->family = family;
 				err = avc_has_perm(&selinux_state,
 						   sksec->sid, sid,
 						   sksec->sclass,
@@ -4672,16 +4677,11 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 			break;
 		}
 
-		err = sel_netnode_sid(addrp, family, &sid);
+		err = sel_netnode_sid(addrp, family_sa, &sid);
 		if (err)
 			goto out;
 
-		ad.type = LSM_AUDIT_DATA_NET;
-		ad.u.net = &net;
-		ad.u.net->sport = htons(snum);
-		ad.u.net->family = family;
-
-		if (address->sa_family == AF_INET)
+		if (family_sa == AF_INET)
 			ad.u.net->v4info.saddr = addr4->sin_addr.s_addr;
 		else
 			ad.u.net->v6info.saddr = addr6->sin6_addr;
@@ -4694,6 +4694,11 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 	}
 out:
 	return err;
+err_af:
+	/* Note that SCTP services expect -EINVAL, others -EAFNOSUPPORT. */
+	if (sksec->sclass == SECCLASS_SCTP_SOCKET)
+		return -EINVAL;
+	return -EAFNOSUPPORT;
 }
 
 /* This supports connect(2) and SCTP connect services such as sctp_connectx(3)
@@ -4771,7 +4776,7 @@ static int selinux_socket_connect_helper(struct socket *sock,
 		ad.type = LSM_AUDIT_DATA_NET;
 		ad.u.net = &net;
 		ad.u.net->dport = htons(snum);
-		ad.u.net->family = sk->sk_family;
+		ad.u.net->family = address->sa_family;
 		err = avc_has_perm(&selinux_state,
 				   sksec->sid, sid, sksec->sclass, perm, &ad);
 		if (err)
@@ -5272,6 +5277,7 @@ static int selinux_sctp_bind_connect(struct sock *sk, int optname,
 	while (walk_size < addrlen) {
 		addr = addr_buf;
 		switch (addr->sa_family) {
+		case AF_UNSPEC:
 		case AF_INET:
 			len = sizeof(struct sockaddr_in);
 			break;
@@ -5279,7 +5285,7 @@ static int selinux_sctp_bind_connect(struct sock *sk, int optname,
 			len = sizeof(struct sockaddr_in6);
 			break;
 		default:
-			return -EAFNOSUPPORT;
+			return -EINVAL;
 		}
 
 		err = -EINVAL;

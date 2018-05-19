@@ -958,10 +958,11 @@ static int pci_pm_freeze(struct device *dev)
 	 * devices should not be touched during freeze/thaw transitions,
 	 * however.
 	 */
-	if (!dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND))
+	if (!dev_pm_smart_suspend_and_suspended(dev)) {
 		pm_runtime_resume(dev);
+		pci_dev->state_saved = false;
+	}
 
-	pci_dev->state_saved = false;
 	if (pm->freeze) {
 		int error;
 

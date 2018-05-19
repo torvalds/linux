@@ -123,7 +123,8 @@ struct smc_buf_desc {
 						 */
 	u32			order;		/* allocation order */
 	u32			used;		/* currently used / unused */
-	bool			reused;		/* new created / reused */
+	u8			reused	: 1;	/* new created / reused */
+	u8			regerr	: 1;	/* err during registration */
 };
 
 struct smc_rtoken {				/* address/key of remote RMB */

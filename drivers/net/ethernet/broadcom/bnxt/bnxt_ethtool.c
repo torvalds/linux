@@ -1927,22 +1927,39 @@ static char *bnxt_parse_pkglog(int desired_field, u8 *data, size_t datalen)
 	return retval;
 }
 
-static char *bnxt_get_pkgver(struct net_device *dev, char *buf, size_t buflen)
+static void bnxt_get_pkgver(struct net_device *dev)
 {
+	struct bnxt *bp = netdev_priv(dev);
 	u16 index = 0;
-	u32 datalen;
+	char *pkgver;
+	u32 pkglen;
+	u8 *pkgbuf;
+	int len;
 
 	if (bnxt_find_nvram_item(dev, BNX_DIR_TYPE_PKG_LOG,
 				 BNX_DIR_ORDINAL_FIRST, BNX_DIR_EXT_NONE,
-				 &index, NULL, &datalen) != 0)
-		return NULL;
+				 &index, NULL, &pkglen) != 0)
+		return;
 
-	memset(buf, 0, buflen);
-	if (bnxt_get_nvram_item(dev, index, 0, datalen, buf) != 0)
-		return NULL;
+	pkgbuf = kzalloc(pkglen, GFP_KERNEL);
+	if (!pkgbuf) {
+		dev_err(&bp->pdev->dev, "Unable to allocate memory for pkg version, length = %u\n",
+			pkglen);
+		return;
+	}
 
-	return bnxt_parse_pkglog(BNX_PKG_LOG_FIELD_IDX_PKG_VERSION, buf,
-		datalen);
+	if (bnxt_get_nvram_item(dev, index, 0, pkglen, pkgbuf))
+		goto err;
+
+	pkgver = bnxt_parse_pkglog(BNX_PKG_LOG_FIELD_IDX_PKG_VERSION, pkgbuf,
+				   pkglen);
+	if (pkgver && *pkgver != 0 && isdigit(*pkgver)) {
+		len = strlen(bp->fw_ver_str);
+		snprintf(bp->fw_ver_str + len, FW_VER_STR_LEN - len - 1,
+			 "/pkg %s", pkgver);
+	}
+err:
+	kfree(pkgbuf);
 }
 
 static int bnxt_get_eeprom(struct net_device *dev,
@@ -2615,22 +2632,10 @@ void bnxt_ethtool_init(struct bnxt *bp)
 	struct hwrm_selftest_qlist_input req = {0};
 	struct bnxt_test_info *test_info;
 	struct net_device *dev = bp->dev;
-	char *pkglog;
 	int i, rc;
 
-	pkglog = kzalloc(BNX_PKG_LOG_MAX_LENGTH, GFP_KERNEL);
-	if (pkglog) {
-		char *pkgver;
-		int len;
+	bnxt_get_pkgver(dev);
 
-		pkgver = bnxt_get_pkgver(dev, pkglog, BNX_PKG_LOG_MAX_LENGTH);
-		if (pkgver && *pkgver != 0 && isdigit(*pkgver)) {
-			len = strlen(bp->fw_ver_str);
-			snprintf(bp->fw_ver_str + len, FW_VER_STR_LEN - len - 1,
-				 "/pkg %s", pkgver);
-		}
-		kfree(pkglog);
-	}
 	if (bp->hwrm_spec_code < 0x10704 || !BNXT_SINGLE_PF(bp))
 		return;
 

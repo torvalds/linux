@@ -82,16 +82,15 @@ int tick_switch_to_oneshot(void (*handler)(struct clock_event_device *))
 	if (!dev || !(dev->features & CLOCK_EVT_FEAT_ONESHOT) ||
 		    !tick_device_is_functional(dev)) {
 
-		printk(KERN_INFO "Clockevents: "
-		       "could not switch to one-shot mode:");
+		pr_info("Clockevents: could not switch to one-shot mode:");
 		if (!dev) {
-			printk(" no tick device\n");
+			pr_cont(" no tick device\n");
 		} else {
 			if (!tick_device_is_functional(dev))
-				printk(" %s is not functional.\n", dev->name);
+				pr_cont(" %s is not functional.\n", dev->name);
 			else
-				printk(" %s does not support one-shot mode.\n",
-				       dev->name);
+				pr_cont(" %s does not support one-shot mode.\n",
+					dev->name);
 		}
 		return -EINVAL;
 	}

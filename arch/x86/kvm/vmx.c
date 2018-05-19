@@ -1494,6 +1494,12 @@ static inline bool cpu_has_vmx_vmfunc(void)
 		SECONDARY_EXEC_ENABLE_VMFUNC;
 }
 
+static bool vmx_umip_emulated(void)
+{
+	return vmcs_config.cpu_based_2nd_exec_ctrl &
+		SECONDARY_EXEC_DESC;
+}
+
 static inline bool report_flexpriority(void)
 {
 	return flexpriority_enabled;
@@ -4544,12 +4550,6 @@ static void vmx_flush_tlb(struct kvm_vcpu *vcpu, bool invalidate_gpa)
 	__vmx_flush_tlb(vcpu, to_vmx(vcpu)->vpid, invalidate_gpa);
 }
 
-static void vmx_flush_tlb_ept_only(struct kvm_vcpu *vcpu)
-{
-	if (enable_ept)
-		vmx_flush_tlb(vcpu, true);
-}
-
 static void vmx_decache_cr0_guest_bits(struct kvm_vcpu *vcpu)
 {
 	ulong cr0_guest_owned_bits = vcpu->arch.cr0_guest_owned_bits;
@@ -4767,14 +4767,16 @@ static int vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 	else
 		hw_cr4 |= KVM_PMODE_VM_CR4_ALWAYS_ON;
 
-	if ((cr4 & X86_CR4_UMIP) && !boot_cpu_has(X86_FEATURE_UMIP)) {
-		vmcs_set_bits(SECONDARY_VM_EXEC_CONTROL,
-			      SECONDARY_EXEC_DESC);
-		hw_cr4 &= ~X86_CR4_UMIP;
-	} else if (!is_guest_mode(vcpu) ||
-	           !nested_cpu_has2(get_vmcs12(vcpu), SECONDARY_EXEC_DESC))
-		vmcs_clear_bits(SECONDARY_VM_EXEC_CONTROL,
+	if (!boot_cpu_has(X86_FEATURE_UMIP) && vmx_umip_emulated()) {
+		if (cr4 & X86_CR4_UMIP) {
+			vmcs_set_bits(SECONDARY_VM_EXEC_CONTROL,
 				SECONDARY_EXEC_DESC);
+			hw_cr4 &= ~X86_CR4_UMIP;
+		} else if (!is_guest_mode(vcpu) ||
+			!nested_cpu_has2(get_vmcs12(vcpu), SECONDARY_EXEC_DESC))
+			vmcs_clear_bits(SECONDARY_VM_EXEC_CONTROL,
+					SECONDARY_EXEC_DESC);
+	}
 
 	if (cr4 & X86_CR4_VMXE) {
 		/*
@@ -9278,7 +9280,7 @@ static void vmx_set_virtual_x2apic_mode(struct kvm_vcpu *vcpu, bool set)
 	} else {
 		sec_exec_control &= ~SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE;
 		sec_exec_control |= SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
-		vmx_flush_tlb_ept_only(vcpu);
+		vmx_flush_tlb(vcpu, true);
 	}
 	vmcs_write32(SECONDARY_VM_EXEC_CONTROL, sec_exec_control);
 
@@ -9306,7 +9308,7 @@ static void vmx_set_apic_access_page_addr(struct kvm_vcpu *vcpu, hpa_t hpa)
 	    !nested_cpu_has2(get_vmcs12(&vmx->vcpu),
 			     SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES)) {
 		vmcs_write64(APIC_ACCESS_ADDR, hpa);
-		vmx_flush_tlb_ept_only(vcpu);
+		vmx_flush_tlb(vcpu, true);
 	}
 }
 
@@ -9501,12 +9503,6 @@ static bool vmx_xsaves_supported(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_XSAVES;
-}
-
-static bool vmx_umip_emulated(void)
-{
-	return vmcs_config.cpu_based_2nd_exec_ctrl &
-		SECONDARY_EXEC_DESC;
 }
 
 static void vmx_recover_nmi_blocking(struct vcpu_vmx *vmx)
@@ -11220,7 +11216,7 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 		}
 	} else if (nested_cpu_has2(vmcs12,
 				   SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES)) {
-		vmx_flush_tlb_ept_only(vcpu);
+		vmx_flush_tlb(vcpu, true);
 	}
 
 	/*
@@ -12073,7 +12069,7 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	} else if (!nested_cpu_has_ept(vmcs12) &&
 		   nested_cpu_has2(vmcs12,
 				   SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES)) {
-		vmx_flush_tlb_ept_only(vcpu);
+		vmx_flush_tlb(vcpu, true);
 	}
 
 	/* This is needed for same reason as it was needed in prepare_vmcs02 */

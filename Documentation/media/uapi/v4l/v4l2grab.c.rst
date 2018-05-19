@@ -6,7 +6,7 @@ file: media/v4l/v4l2grab.c
 .. code-block:: c
 
     /* V4L2 video picture grabber
-       Copyright (C) 2009 Mauro Carvalho Chehab <mchehab@infradead.org>
+       Copyright (C) 2009 Mauro Carvalho Chehab <mchehab@kernel.org>
 
        This program is free software; you can redistribute it and/or modify
        it under the terms of the GNU General Public License as published by

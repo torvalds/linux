@@ -1825,13 +1825,14 @@ static int compat_table_info(const struct ebt_table_info *info,
 {
 	unsigned int size = info->entries_size;
 	const void *entries = info->entries;
-	int ret;
 
 	newinfo->entries_size = size;
-
-	ret = xt_compat_init_offsets(NFPROTO_BRIDGE, info->nentries);
-	if (ret)
-		return ret;
+	if (info->nentries) {
+		int ret = xt_compat_init_offsets(NFPROTO_BRIDGE,
+						 info->nentries);
+		if (ret)
+			return ret;
+	}
 
 	return EBT_ENTRY_ITERATE(entries, size, compat_calc_entry, info,
 							entries, newinfo);

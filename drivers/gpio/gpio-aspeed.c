@@ -384,7 +384,7 @@ static void aspeed_gpio_irq_set_mask(struct irq_data *d, bool set)
 	if (set)
 		reg |= bit;
 	else
-		reg &= bit;
+		reg &= ~bit;
 	iowrite32(reg, addr);
 
 	spin_unlock_irqrestore(&gpio->lock, flags);

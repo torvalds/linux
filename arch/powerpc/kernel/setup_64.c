@@ -890,6 +890,17 @@ static void __ref init_fallback_flush(void)
 		return;
 
 	l1d_size = ppc64_caches.l1d.size;
+
+	/*
+	 * If there is no d-cache-size property in the device tree, l1d_size
+	 * could be zero. That leads to the loop in the asm wrapping around to
+	 * 2^64-1, and then walking off the end of the fallback area and
+	 * eventually causing a page fault which is fatal. Just default to
+	 * something vaguely sane.
+	 */
+	if (!l1d_size)
+		l1d_size = (64 * 1024);
+
 	limit = min(ppc64_bolted_size(), ppc64_rma_size);
 
 	/*

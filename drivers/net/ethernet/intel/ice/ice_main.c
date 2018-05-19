@@ -1722,9 +1722,6 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 	oicr = rd32(hw, PFINT_OICR);
 	ena_mask = rd32(hw, PFINT_OICR_ENA);
 
-	if (!(oicr & PFINT_OICR_INTEVENT_M))
-		goto ena_intr;
-
 	if (oicr & PFINT_OICR_GRST_M) {
 		u32 reset;
 		/* we have a reset warning */
@@ -1782,7 +1779,6 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 	}
 	ret = IRQ_HANDLED;
 
-ena_intr:
 	/* re-enable interrupt causes that are not handled during this pass */
 	wr32(hw, PFINT_OICR_ENA, ena_mask);
 	if (!test_bit(__ICE_DOWN, pf->state)) {

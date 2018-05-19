@@ -261,6 +261,17 @@ static void __team_option_inst_mark_removed_port(struct team *team,
 	}
 }
 
+static bool __team_option_inst_tmp_find(const struct list_head *opts,
+					const struct team_option_inst *needle)
+{
+	struct team_option_inst *opt_inst;
+
+	list_for_each_entry(opt_inst, opts, tmp_list)
+		if (opt_inst == needle)
+			return true;
+	return false;
+}
+
 static int __team_options_register(struct team *team,
 				   const struct team_option *option,
 				   size_t option_count)
@@ -1061,13 +1072,10 @@ static void team_port_leave(struct team *team, struct team_port *port)
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-static int team_port_enable_netpoll(struct team *team, struct team_port *port)
+static int __team_port_enable_netpoll(struct team_port *port)
 {
 	struct netpoll *np;
 	int err;
-
-	if (!team->dev->npinfo)
-		return 0;
 
 	np = kzalloc(sizeof(*np), GFP_KERNEL);
 	if (!np)
@@ -1080,6 +1088,14 @@ static int team_port_enable_netpoll(struct team *team, struct team_port *port)
 	}
 	port->np = np;
 	return err;
+}
+
+static int team_port_enable_netpoll(struct team_port *port)
+{
+	if (!port->team->dev->npinfo)
+		return 0;
+
+	return __team_port_enable_netpoll(port);
 }
 
 static void team_port_disable_netpoll(struct team_port *port)
@@ -1096,7 +1112,7 @@ static void team_port_disable_netpoll(struct team_port *port)
 	kfree(np);
 }
 #else
-static int team_port_enable_netpoll(struct team *team, struct team_port *port)
+static int team_port_enable_netpoll(struct team_port *port)
 {
 	return 0;
 }
@@ -1210,7 +1226,7 @@ static int team_port_add(struct team *team, struct net_device *port_dev,
 		goto err_vids_add;
 	}
 
-	err = team_port_enable_netpoll(team, port);
+	err = team_port_enable_netpoll(port);
 	if (err) {
 		netdev_err(dev, "Failed to enable netpoll on device %s\n",
 			   portname);
@@ -1907,7 +1923,7 @@ static int team_netpoll_setup(struct net_device *dev,
 
 	mutex_lock(&team->lock);
 	list_for_each_entry(port, &team->port_list, list) {
-		err = team_port_enable_netpoll(team, port);
+		err = __team_port_enable_netpoll(port);
 		if (err) {
 			__team_netpoll_cleanup(team);
 			break;
@@ -2568,6 +2584,14 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 			if (err)
 				goto team_put;
 			opt_inst->changed = true;
+
+			/* dumb/evil user-space can send us duplicate opt,
+			 * keep only the last one
+			 */
+			if (__team_option_inst_tmp_find(&opt_inst_list,
+							opt_inst))
+				continue;
+
 			list_add(&opt_inst->tmp_list, &opt_inst_list);
 		}
 		if (!opt_found) {

@@ -3462,7 +3462,7 @@ cifs_read(struct file *file, char *read_data, size_t read_size, loff_t *offset)
  * If the page is mmap'ed into a process' page tables, then we need to make
  * sure that it doesn't change while being written back.
  */
-static int
+static vm_fault_t
 cifs_page_mkwrite(struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;

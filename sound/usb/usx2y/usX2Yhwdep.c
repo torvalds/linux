@@ -31,7 +31,7 @@
 #include "usbusx2y.h"
 #include "usX2Yhwdep.h"
 
-static int snd_us428ctls_vm_fault(struct vm_fault *vmf)
+static vm_fault_t snd_us428ctls_vm_fault(struct vm_fault *vmf)
 {
 	unsigned long offset;
 	struct page * page;
