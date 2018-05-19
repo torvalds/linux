@@ -1238,21 +1238,10 @@ static int mlxsw_sp_port_get_phys_port_name(struct net_device *dev, char *name,
 					    size_t len)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
-	u8 module = mlxsw_sp_port->mapping.module;
-	u8 width = mlxsw_sp_port->mapping.width;
-	u8 lane = mlxsw_sp_port->mapping.lane;
-	int err;
 
-	if (!mlxsw_sp_port->split)
-		err = snprintf(name, len, "p%d", module + 1);
-	else
-		err = snprintf(name, len, "p%ds%d", module + 1,
-			       lane / width);
-
-	if (err >= len)
-		return -EINVAL;
-
-	return 0;
+	return mlxsw_core_port_get_phys_port_name(mlxsw_sp_port->mlxsw_sp->core,
+						  mlxsw_sp_port->local_port,
+						  name, len);
 }
 
 static struct mlxsw_sp_port_mall_tc_entry *
@@ -2927,8 +2916,8 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	}
 
 	mlxsw_core_port_eth_set(mlxsw_sp->core, mlxsw_sp_port->local_port,
-				mlxsw_sp_port, dev, mlxsw_sp_port->split,
-				module);
+				mlxsw_sp_port, dev, module + 1,
+				mlxsw_sp_port->split, lane / width);
 	mlxsw_core_schedule_dw(&mlxsw_sp_port->periodic_hw_stats.update_dw, 0);
 	return 0;
 

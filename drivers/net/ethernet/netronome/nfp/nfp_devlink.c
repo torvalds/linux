@@ -175,8 +175,9 @@ int nfp_devlink_port_register(struct nfp_app *app, struct nfp_port *port)
 		return ret;
 
 	devlink_port_type_eth_set(&port->dl_port, port->netdev);
-	if (eth_port.is_split)
-		devlink_port_split_set(&port->dl_port, eth_port.label_port);
+	devlink_port_attrs_set(&port->dl_port, DEVLINK_PORT_FLAVOUR_PHYSICAL,
+			       eth_port.label_port, eth_port.is_split,
+			       eth_port.label_subport);
 
 	devlink = priv_to_devlink(app->pf);
 
