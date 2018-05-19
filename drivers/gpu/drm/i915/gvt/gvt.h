@@ -177,6 +177,11 @@ struct intel_vgpu {
 	bool pv_notified;
 	bool failsafe;
 	unsigned int resetting_eng;
+
+	/* Both sched_data and sched_ctl can be seen a part of the global gvt
+	 * scheduler structure. So below 2 vgpu data are protected
+	 * by sched_lock, not vgpu_lock.
+	 */
 	void *sched_data;
 	struct vgpu_sched_ctl sched_ctl;
 
@@ -299,6 +304,9 @@ struct intel_gvt {
 	 * not yet protected by special locks(vgpu and scheduler lock).
 	 */
 	struct mutex lock;
+	/* scheduler scope lock, protect gvt and vgpu schedule related data */
+	struct mutex sched_lock;
+
 	struct drm_i915_private *dev_priv;
 	struct idr vgpu_idr;	/* vGPU IDR pool */
 

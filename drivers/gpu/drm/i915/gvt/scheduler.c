@@ -715,7 +715,7 @@ static struct intel_vgpu_workload *pick_next_workload(
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
 	struct intel_vgpu_workload *workload = NULL;
 
-	mutex_lock(&gvt->lock);
+	mutex_lock(&gvt->sched_lock);
 
 	/*
 	 * no current vgpu / will be scheduled out / no workload
@@ -761,7 +761,7 @@ static struct intel_vgpu_workload *pick_next_workload(
 
 	atomic_inc(&workload->vgpu->submission.running_workload_num);
 out:
-	mutex_unlock(&gvt->lock);
+	mutex_unlock(&gvt->sched_lock);
 	return workload;
 }
 
@@ -862,8 +862,8 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 	struct intel_vgpu_submission *s = &vgpu->submission;
 	int event;
 
-	mutex_lock(&gvt->lock);
 	mutex_lock(&vgpu->vgpu_lock);
+	mutex_lock(&gvt->sched_lock);
 
 	/* For the workload w/ request, needs to wait for the context
 	 * switch to make sure request is completed.
@@ -941,8 +941,8 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 	if (gvt->scheduler.need_reschedule)
 		intel_gvt_request_service(gvt, INTEL_GVT_REQUEST_EVENT_SCHED);
 
+	mutex_unlock(&gvt->sched_lock);
 	mutex_unlock(&vgpu->vgpu_lock);
-	mutex_unlock(&gvt->lock);
 }
 
 struct workload_thread_param {

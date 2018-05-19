@@ -376,6 +376,7 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	idr_init(&gvt->vgpu_idr);
 	spin_lock_init(&gvt->scheduler.mmio_context_lock);
 	mutex_init(&gvt->lock);
+	mutex_init(&gvt->sched_lock);
 	gvt->dev_priv = dev_priv;
 
 	init_device_info(gvt);
