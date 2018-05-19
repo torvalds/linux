@@ -1323,12 +1323,12 @@ static int count_tracepoints(void)
 	DIR *events_dir;
 	int cnt = 0;
 
-	events_dir = opendir(tracing_events_path);
+	events_dir = tracing_events__opendir();
 
 	TEST_ASSERT_VAL("Can't open events dir", events_dir);
 
 	while ((events_ent = readdir(events_dir))) {
-		char sys_path[PATH_MAX];
+		char *sys_path;
 		struct dirent *sys_ent;
 		DIR *sys_dir;
 
@@ -1339,8 +1339,8 @@ static int count_tracepoints(void)
 		    || !strcmp(events_ent->d_name, "header_page"))
 			continue;
 
-		scnprintf(sys_path, PATH_MAX, "%s/%s",
-			  tracing_events_path, events_ent->d_name);
+		sys_path = get_events_file(events_ent->d_name);
+		TEST_ASSERT_VAL("Can't get sys path", sys_path);
 
 		sys_dir = opendir(sys_path);
 		TEST_ASSERT_VAL("Can't open sys dir", sys_dir);
@@ -1356,6 +1356,7 @@ static int count_tracepoints(void)
 		}
 
 		closedir(sys_dir);
+		put_events_file(sys_path);
 	}
 
 	closedir(events_dir);

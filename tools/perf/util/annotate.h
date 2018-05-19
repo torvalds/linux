@@ -61,6 +61,7 @@ bool ins__is_fused(struct arch *arch, const char *ins1, const char *ins2);
 
 #define ANNOTATION__IPC_WIDTH 6
 #define ANNOTATION__CYCLES_WIDTH 6
+#define ANNOTATION__MINMAX_CYCLES_WIDTH 19
 
 struct annotation_options {
 	bool hide_src_code,
@@ -69,7 +70,8 @@ struct annotation_options {
 	     show_linenr,
 	     show_nr_jumps,
 	     show_nr_samples,
-	     show_total_period;
+	     show_total_period,
+	     show_minmax_cycle;
 	u8   offset_level;
 };
 
@@ -105,6 +107,8 @@ struct annotation_line {
 	int			 jump_sources;
 	float			 ipc;
 	u64			 cycles;
+	u64			 cycles_max;
+	u64			 cycles_min;
 	size_t			 privsize;
 	char			*path;
 	u32			 idx;
@@ -186,6 +190,8 @@ struct cyc_hist {
 	u64	start;
 	u64	cycles;
 	u64	cycles_aggr;
+	u64	cycles_max;
+	u64	cycles_min;
 	u32	num;
 	u32	num_aggr;
 	u8	have_start;
@@ -239,6 +245,9 @@ struct annotation {
 
 static inline int annotation__cycles_width(struct annotation *notes)
 {
+	if (notes->have_cycles && notes->options->show_minmax_cycle)
+		return ANNOTATION__IPC_WIDTH + ANNOTATION__MINMAX_CYCLES_WIDTH;
+
 	return notes->have_cycles ? ANNOTATION__IPC_WIDTH + ANNOTATION__CYCLES_WIDTH : 0;
 }
 
