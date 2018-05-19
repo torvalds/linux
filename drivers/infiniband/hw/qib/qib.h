@@ -1448,8 +1448,7 @@ u64 qib_sps_ints(void);
 /*
  * dma_addr wrappers - all 0's invalid for hw
  */
-dma_addr_t qib_map_page(struct pci_dev *, struct page *, unsigned long,
-			  size_t, int);
+int qib_map_page(struct pci_dev *d, struct page *p, dma_addr_t *daddr);
 const char *qib_get_unit_name(int unit);
 const char *qib_get_card_name(struct rvt_dev_info *rdi);
 struct pci_dev *qib_get_pci_dev(struct rvt_dev_info *rdi);
