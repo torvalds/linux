@@ -1481,8 +1481,9 @@ static int sh_eth_dev_init(struct net_device *ndev)
 	if (mdp->cd->nbst)
 		sh_eth_modify(ndev, EDMR, EDMR_NBST, EDMR_NBST);
 
+	/* Burst cycle count upper-limit */
 	if (mdp->cd->bculr)
-		sh_eth_write(ndev, 0x800, BCULR);	/* Burst sycle set */
+		sh_eth_write(ndev, 0x800, BCULR);
 
 	sh_eth_write(ndev, mdp->cd->fcftr_value, FCFTR);
 
