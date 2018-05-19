@@ -2340,6 +2340,15 @@ UNUSUAL_DEV(  0x4146, 0xba01, 0x0100, 0x0100,
 		"Micro Mini 1GB",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL, US_FL_NOT_LOCKABLE ),
 
+/* "G-DRIVE" external HDD hangs on write without these.
+ * Patch submitted by Alexander Kappner <agk@godking.net>
+ */
+UNUSUAL_DEV(0x4971, 0x8024, 0x0000, 0x9999,
+		"SimpleTech",
+		"External HDD",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_ALWAYS_SYNC),
+
 /*
  * Nick Bowler <nbowler@elliptictech.com>
  * SCSI stack spams (otherwise harmless) error messages.
