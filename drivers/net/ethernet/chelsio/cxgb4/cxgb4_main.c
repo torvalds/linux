@@ -3433,8 +3433,8 @@ static int adap_config_hma(struct adapter *adapter)
 	sgl = adapter->hma.sgt->sgl;
 	node = dev_to_node(adapter->pdev_dev);
 	for_each_sg(sgl, iter, sgt->orig_nents, i) {
-		newpage = alloc_pages_node(node, __GFP_NOWARN | GFP_KERNEL,
-					   page_order);
+		newpage = alloc_pages_node(node, __GFP_NOWARN | GFP_KERNEL |
+					   __GFP_ZERO, page_order);
 		if (!newpage) {
 			dev_err(adapter->pdev_dev,
 				"Not enough memory for HMA page allocation\n");
@@ -5474,6 +5474,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	spin_lock_init(&adapter->mbox_lock);
 	INIT_LIST_HEAD(&adapter->mlist.list);
+	adapter->mbox_log->size = T4_OS_LOG_MBOX_CMDS;
 	pci_set_drvdata(pdev, adapter);
 
 	if (func != ent->driver_data) {
@@ -5507,8 +5508,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = -ENOMEM;
 		goto out_free_adapter;
 	}
-
-	adapter->mbox_log->size = T4_OS_LOG_MBOX_CMDS;
 
 	/* PCI device has been enabled */
 	adapter->flags |= DEV_ENABLED;

@@ -26,6 +26,7 @@
 
 #include <linux/compiler.h>
 #include <linux/rbtree.h>
+#include <linux/rcupdate.h>
 
 /*
  * Please note - only struct rb_augment_callbacks and the prototypes for

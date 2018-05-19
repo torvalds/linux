@@ -423,7 +423,7 @@ static irqreturn_t vgic_maintenance_handler(int irq, void *data)
 	 * We cannot rely on the vgic maintenance interrupt to be
 	 * delivered synchronously. This means we can only use it to
 	 * exit the VM, and we perform the handling of EOIed
-	 * interrupts on the exit path (see vgic_process_maintenance).
+	 * interrupts on the exit path (see vgic_fold_lr_state).
 	 */
 	return IRQ_HANDLED;
 }

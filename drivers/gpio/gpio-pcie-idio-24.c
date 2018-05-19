@@ -206,10 +206,10 @@ static int idio_24_gpio_get_multiple(struct gpio_chip *chip,
 	unsigned long word_mask;
 	const unsigned long port_mask = GENMASK(gpio_reg_size - 1, 0);
 	unsigned long port_state;
-	u8 __iomem ports[] = {
-		idio24gpio->reg->out0_7, idio24gpio->reg->out8_15,
-		idio24gpio->reg->out16_23, idio24gpio->reg->in0_7,
-		idio24gpio->reg->in8_15, idio24gpio->reg->in16_23,
+	void __iomem *ports[] = {
+		&idio24gpio->reg->out0_7, &idio24gpio->reg->out8_15,
+		&idio24gpio->reg->out16_23, &idio24gpio->reg->in0_7,
+		&idio24gpio->reg->in8_15, &idio24gpio->reg->in16_23,
 	};
 	const unsigned long out_mode_mask = BIT(1);
 
@@ -217,7 +217,7 @@ static int idio_24_gpio_get_multiple(struct gpio_chip *chip,
 	bitmap_zero(bits, chip->ngpio);
 
 	/* get bits are evaluated a gpio port register at a time */
-	for (i = 0; i < ARRAY_SIZE(ports); i++) {
+	for (i = 0; i < ARRAY_SIZE(ports) + 1; i++) {
 		/* gpio offset in bits array */
 		bits_offset = i * gpio_reg_size;
 
@@ -236,7 +236,7 @@ static int idio_24_gpio_get_multiple(struct gpio_chip *chip,
 
 		/* read bits from current gpio port (port 6 is TTL GPIO) */
 		if (i < 6)
-			port_state = ioread8(ports + i);
+			port_state = ioread8(ports[i]);
 		else if (ioread8(&idio24gpio->reg->ctl) & out_mode_mask)
 			port_state = ioread8(&idio24gpio->reg->ttl_out0_7);
 		else
@@ -301,9 +301,9 @@ static void idio_24_gpio_set_multiple(struct gpio_chip *chip,
 	const unsigned long port_mask = GENMASK(gpio_reg_size, 0);
 	unsigned long flags;
 	unsigned int out_state;
-	u8 __iomem ports[] = {
-		idio24gpio->reg->out0_7, idio24gpio->reg->out8_15,
-		idio24gpio->reg->out16_23
+	void __iomem *ports[] = {
+		&idio24gpio->reg->out0_7, &idio24gpio->reg->out8_15,
+		&idio24gpio->reg->out16_23
 	};
 	const unsigned long out_mode_mask = BIT(1);
 	const unsigned int ttl_offset = 48;
@@ -327,9 +327,9 @@ static void idio_24_gpio_set_multiple(struct gpio_chip *chip,
 		raw_spin_lock_irqsave(&idio24gpio->lock, flags);
 
 		/* process output lines */
-		out_state = ioread8(ports + i) & ~gpio_mask;
+		out_state = ioread8(ports[i]) & ~gpio_mask;
 		out_state |= (*bits >> bits_offset) & gpio_mask;
-		iowrite8(out_state, ports + i);
+		iowrite8(out_state, ports[i]);
 
 		raw_spin_unlock_irqrestore(&idio24gpio->lock, flags);
 	}
