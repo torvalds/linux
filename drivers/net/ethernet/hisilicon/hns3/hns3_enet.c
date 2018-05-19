@@ -3538,3 +3538,4 @@ MODULE_DESCRIPTION("HNS3: Hisilicon Ethernet Driver");
 MODULE_AUTHOR("Huawei Tech. Co., Ltd.");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("pci:hns-nic");
+MODULE_VERSION(HNS3_MOD_VERSION);
