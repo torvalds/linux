@@ -12,6 +12,7 @@ struct dsa_mv88e6xxx_pdata {
 	const char *compatible;
 	unsigned int enabled_ports;
 	struct net_device *netdev;
+	u32 eeprom_len;
 };
 
 #endif

@@ -238,7 +238,7 @@ struct mv88e6xxx_chip {
 	struct gpio_desc *reset;
 
 	/* set to size of eeprom if supported by the switch */
-	int		eeprom_len;
+	u32 eeprom_len;
 
 	/* List of mdio busses */
 	struct list_head mdios;
