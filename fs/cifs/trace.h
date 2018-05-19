@@ -50,8 +50,8 @@ DECLARE_EVENT_CLASS(smb3_rw_err_class,
 		__entry->len = len;
 		__entry->rc = rc;
 	),
-	TP_printk("xid=%u fid=0x%llx tid=0x%x sid=0x%llx offset=0x%llx len=0x%x rc=%d",
-		__entry->xid, __entry->fid, __entry->tid, __entry->sesid,
+	TP_printk("\txid=%u sid=0x%llx tid=0x%x fid=0x%llx offset=0x%llx len=0x%x rc=%d",
+		__entry->xid, __entry->sesid, __entry->tid, __entry->fid,
 		__entry->offset, __entry->len, __entry->rc)
 )
 
@@ -95,8 +95,8 @@ DECLARE_EVENT_CLASS(smb3_rw_done_class,
 		__entry->offset = offset;
 		__entry->len = len;
 	),
-	TP_printk("xid=%u fid=0x%llx tid=0x%x sid=0x%llx offset=0x%llx len=0x%x",
-		__entry->xid, __entry->fid, __entry->tid, __entry->sesid,
+	TP_printk("xid=%u sid=0x%llx tid=0x%x fid=0x%llx offset=0x%llx len=0x%x",
+		__entry->xid, __entry->sesid, __entry->tid, __entry->fid,
 		__entry->offset, __entry->len)
 )
 
@@ -137,8 +137,8 @@ DECLARE_EVENT_CLASS(smb3_fd_err_class,
 		__entry->sesid = sesid;
 		__entry->rc = rc;
 	),
-	TP_printk("xid=%u fid=0x%llx tid=0x%x sid=0x%llx rc=%d",
-		__entry->xid, __entry->fid, __entry->tid, __entry->sesid,
+	TP_printk("\txid=%u sid=0x%llx tid=0x%x fid=0x%llx rc=%d",
+		__entry->xid, __entry->sesid, __entry->tid, __entry->fid,
 		__entry->rc)
 )
 
@@ -185,8 +185,8 @@ DECLARE_EVENT_CLASS(smb3_inf_err_class,
 		__entry->type = type;
 		__entry->rc = rc;
 	),
-	TP_printk("xid=%u fid=0x%llx tid=0x%x sid=0x%llx class=%u type=0x%x rc=%d",
-		__entry->xid, __entry->fid, __entry->tid, __entry->sesid,
+	TP_printk("xid=%u sid=0x%llx tid=0x%x fid=0x%llx class=%u type=0x%x rc=%d",
+		__entry->xid, __entry->sesid, __entry->tid, __entry->fid,
 		__entry->infclass, __entry->type, __entry->rc)
 )
 
@@ -209,16 +209,14 @@ DEFINE_SMB3_INF_ERR_EVENT(fsctl_err);
  * For logging SMB3 Status code and Command for responses which return errors
  */
 DECLARE_EVENT_CLASS(smb3_cmd_err_class,
-	TP_PROTO(__u32	pid,
-		__u32	tid,
+	TP_PROTO(__u32	tid,
 		__u64	sesid,
 		__u16	cmd,
 		__u64	mid,
 		__u32	status,
 		int	rc),
-	TP_ARGS(pid, tid, sesid, cmd, mid, status, rc),
+	TP_ARGS(tid, sesid, cmd, mid, status, rc),
 	TP_STRUCT__entry(
-		__field(__u32, pid)
 		__field(__u32, tid)
 		__field(__u64, sesid)
 		__field(__u16, cmd)
@@ -227,7 +225,6 @@ DECLARE_EVENT_CLASS(smb3_cmd_err_class,
 		__field(int, rc)
 	),
 	TP_fast_assign(
-		__entry->pid = pid;
 		__entry->tid = tid;
 		__entry->sesid = sesid;
 		__entry->cmd = cmd;
@@ -235,60 +232,108 @@ DECLARE_EVENT_CLASS(smb3_cmd_err_class,
 		__entry->status = status;
 		__entry->rc = rc;
 	),
-	TP_printk(" pid=%u tid=0x%x sid=0x%llx cmd=%u mid=%llu status=0x%x rc=%d",
-		__entry->pid, __entry->tid, __entry->sesid,
-		__entry->cmd, __entry->mid, __entry->status, __entry->rc)
+	TP_printk("\tsid=0x%llx tid=0x%x cmd=%u mid=%llu status=0x%x rc=%d",
+		__entry->sesid, __entry->tid, __entry->cmd, __entry->mid,
+		__entry->status, __entry->rc)
 )
 
 #define DEFINE_SMB3_CMD_ERR_EVENT(name)          \
 DEFINE_EVENT(smb3_cmd_err_class, smb3_##name,    \
-	TP_PROTO(unsigned int pid,		\
-		__u32	tid,			\
+	TP_PROTO(__u32	tid,			\
 		__u64	sesid,			\
 		__u16	cmd,			\
 		__u64	mid,			\
 		__u32	status,			\
 		int	rc),			\
-	TP_ARGS(pid, tid, sesid, cmd, mid, status, rc))
+	TP_ARGS(tid, sesid, cmd, mid, status, rc))
 
 DEFINE_SMB3_CMD_ERR_EVENT(cmd_err);
 
 DECLARE_EVENT_CLASS(smb3_cmd_done_class,
-	TP_PROTO(__u32	pid,
-		__u32	tid,
+	TP_PROTO(__u32	tid,
 		__u64	sesid,
 		__u16	cmd,
 		__u64	mid),
-	TP_ARGS(pid, tid, sesid, cmd, mid),
+	TP_ARGS(tid, sesid, cmd, mid),
 	TP_STRUCT__entry(
-		__field(__u32, pid)
 		__field(__u32, tid)
 		__field(__u64, sesid)
 		__field(__u16, cmd)
 		__field(__u64, mid)
 	),
 	TP_fast_assign(
-		__entry->pid = pid;
 		__entry->tid = tid;
 		__entry->sesid = sesid;
 		__entry->cmd = cmd;
 		__entry->mid = mid;
 	),
-	TP_printk("pid=%u tid=0x%x sid=0x%llx cmd=%u mid=%llu",
-		__entry->pid, __entry->tid, __entry->sesid,
+	TP_printk("\tsid=0x%llx tid=0x%x cmd=%u mid=%llu",
+		__entry->sesid, __entry->tid,
 		__entry->cmd, __entry->mid)
 )
 
 #define DEFINE_SMB3_CMD_DONE_EVENT(name)          \
 DEFINE_EVENT(smb3_cmd_done_class, smb3_##name,    \
-	TP_PROTO(unsigned int pid,		\
-		__u32	tid,			\
+	TP_PROTO(__u32	tid,			\
 		__u64	sesid,			\
 		__u16	cmd,			\
 		__u64	mid),			\
-	TP_ARGS(pid, tid, sesid, cmd, mid))
+	TP_ARGS(tid, sesid, cmd, mid))
 
 DEFINE_SMB3_CMD_DONE_EVENT(cmd_done);
+
+DECLARE_EVENT_CLASS(smb3_exit_err_class,
+	TP_PROTO(unsigned int xid,
+		const char *func_name,
+		int	rc),
+	TP_ARGS(xid, func_name, rc),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(const char *, func_name)
+		__field(int, rc)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->func_name = func_name;
+		__entry->rc = rc;
+	),
+	TP_printk("\t%s: xid=%u rc=%d",
+		__entry->func_name, __entry->xid, __entry->rc)
+)
+
+#define DEFINE_SMB3_EXIT_ERR_EVENT(name)          \
+DEFINE_EVENT(smb3_exit_err_class, smb3_##name,    \
+	TP_PROTO(unsigned int xid,		\
+		const char *func_name,		\
+		int	rc),			\
+	TP_ARGS(xid, func_name, rc))
+
+DEFINE_SMB3_EXIT_ERR_EVENT(exit_err);
+
+DECLARE_EVENT_CLASS(smb3_enter_exit_class,
+	TP_PROTO(unsigned int xid,
+		const char *func_name),
+	TP_ARGS(xid, func_name),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(const char *, func_name)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->func_name = func_name;
+	),
+	TP_printk("\t%s: xid=%u",
+		__entry->func_name, __entry->xid)
+)
+
+#define DEFINE_SMB3_ENTER_EXIT_EVENT(name)        \
+DEFINE_EVENT(smb3_enter_exit_class, smb3_##name,  \
+	TP_PROTO(unsigned int xid,		\
+		const char *func_name),		\
+	TP_ARGS(xid, func_name))
+
+DEFINE_SMB3_ENTER_EXIT_EVENT(enter);
+DEFINE_SMB3_ENTER_EXIT_EVENT(exit_done);
 
 #endif /* _CIFS_TRACE_H */
 

@@ -2457,9 +2457,8 @@ map_smb2_to_linux_error(char *buf, bool log_err)
 	__le32 smb2err = shdr->Status;
 
 	if (smb2err == 0) {
-		trace_smb3_cmd_done(le32_to_cpu(shdr->ProcessId), shdr->TreeId,
-			shdr->SessionId, le16_to_cpu(shdr->Command),
-			le64_to_cpu(shdr->MessageId));
+		trace_smb3_cmd_done(shdr->TreeId, shdr->SessionId,
+			le16_to_cpu(shdr->Command), le64_to_cpu(shdr->MessageId));
 		return 0;
 	}
 
@@ -2483,8 +2482,8 @@ map_smb2_to_linux_error(char *buf, bool log_err)
 	cifs_dbg(FYI, "Mapping SMB2 status code 0x%08x to POSIX err %d\n",
 		 __le32_to_cpu(smb2err), rc);
 
-	trace_smb3_cmd_err(le32_to_cpu(shdr->ProcessId), shdr->TreeId,
-			shdr->SessionId, le16_to_cpu(shdr->Command),
+	trace_smb3_cmd_err(shdr->TreeId, shdr->SessionId,
+			le16_to_cpu(shdr->Command),
 			le64_to_cpu(shdr->MessageId), le32_to_cpu(smb2err), rc);
 	return rc;
 }
