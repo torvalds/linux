@@ -1579,7 +1579,7 @@ static void hns3_remove(struct pci_dev *pdev)
  * Enable or change the number of VFs. Called when the user updates the number
  * of VFs in sysfs.
  **/
-int hns3_pci_sriov_configure(struct pci_dev *pdev, int num_vfs)
+static int hns3_pci_sriov_configure(struct pci_dev *pdev, int num_vfs)
 {
 	int ret;
 
@@ -1592,6 +1592,8 @@ int hns3_pci_sriov_configure(struct pci_dev *pdev, int num_vfs)
 		ret = pci_enable_sriov(pdev, num_vfs);
 		if (ret)
 			dev_err(&pdev->dev, "SRIOV enable failed %d\n", ret);
+		else
+			return num_vfs;
 	} else if (!pci_vfs_assigned(pdev)) {
 		pci_disable_sriov(pdev);
 	} else {
