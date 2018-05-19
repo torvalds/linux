@@ -751,13 +751,13 @@ ice_sched_add_nodes_to_layer(struct ice_port_info *pi,
 	u16 num_added = 0;
 	u32 temp;
 
+	*num_nodes_added = 0;
+
 	if (!num_nodes)
 		return status;
 
 	if (!parent || layer < hw->sw_entry_point_layer)
 		return ICE_ERR_PARAM;
-
-	*num_nodes_added = 0;
 
 	/* max children per node per layer */
 	max_child_nodes =

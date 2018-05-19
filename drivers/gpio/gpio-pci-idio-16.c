@@ -116,9 +116,9 @@ static int idio_16_gpio_get_multiple(struct gpio_chip *chip,
 	unsigned long word_mask;
 	const unsigned long port_mask = GENMASK(gpio_reg_size - 1, 0);
 	unsigned long port_state;
-	u8 __iomem ports[] = {
-		idio16gpio->reg->out0_7, idio16gpio->reg->out8_15,
-		idio16gpio->reg->in0_7, idio16gpio->reg->in8_15,
+	void __iomem *ports[] = {
+		&idio16gpio->reg->out0_7, &idio16gpio->reg->out8_15,
+		&idio16gpio->reg->in0_7, &idio16gpio->reg->in8_15,
 	};
 
 	/* clear bits array to a clean slate */
@@ -143,7 +143,7 @@ static int idio_16_gpio_get_multiple(struct gpio_chip *chip,
 		}
 
 		/* read bits from current gpio port */
-		port_state = ioread8(ports + i);
+		port_state = ioread8(ports[i]);
 
 		/* store acquired bits at respective bits array offset */
 		bits[word_index] |= port_state << word_offset;

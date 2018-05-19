@@ -153,7 +153,10 @@ struct tipc_subscription *tipc_sub_subscribe(struct net *net,
 	memcpy(&sub->evt.s, s, sizeof(*s));
 	spin_lock_init(&sub->lock);
 	kref_init(&sub->kref);
-	tipc_nametbl_subscribe(sub);
+	if (!tipc_nametbl_subscribe(sub)) {
+		kfree(sub);
+		return NULL;
+	}
 	timer_setup(&sub->timer, tipc_sub_timeout, 0);
 	timeout = tipc_sub_read(&sub->evt.s, timeout);
 	if (timeout != TIPC_WAIT_FOREVER)

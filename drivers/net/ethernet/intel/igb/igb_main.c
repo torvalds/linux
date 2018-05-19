@@ -1700,7 +1700,22 @@ static void igb_configure_cbs(struct igb_adapter *adapter, int queue,
 	WARN_ON(hw->mac.type != e1000_i210);
 	WARN_ON(queue < 0 || queue > 1);
 
-	if (enable) {
+	if (enable || queue == 0) {
+		/* i210 does not allow the queue 0 to be in the Strict
+		 * Priority mode while the Qav mode is enabled, so,
+		 * instead of disabling strict priority mode, we give
+		 * queue 0 the maximum of credits possible.
+		 *
+		 * See section 8.12.19 of the i210 datasheet, "Note:
+		 * Queue0 QueueMode must be set to 1b when
+		 * TransmitMode is set to Qav."
+		 */
+		if (queue == 0 && !enable) {
+			/* max "linkspeed" idleslope in kbps */
+			idleslope = 1000000;
+			hicredit = ETH_FRAME_LEN;
+		}
+
 		set_tx_desc_fetch_prio(hw, queue, TX_QUEUE_PRIO_HIGH);
 		set_queue_mode(hw, queue, QUEUE_MODE_STREAM_RESERVATION);
 

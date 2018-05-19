@@ -302,13 +302,6 @@ static inline u64 nsec_to_cycles(struct kvm_vcpu *vcpu, u64 nsec)
 	    __rem;						\
 	 })
 
-#define KVM_X86_DISABLE_EXITS_MWAIT          (1 << 0)
-#define KVM_X86_DISABLE_EXITS_HTL            (1 << 1)
-#define KVM_X86_DISABLE_EXITS_PAUSE          (1 << 2)
-#define KVM_X86_DISABLE_VALID_EXITS          (KVM_X86_DISABLE_EXITS_MWAIT | \
-                                              KVM_X86_DISABLE_EXITS_HTL | \
-                                              KVM_X86_DISABLE_EXITS_PAUSE)
-
 static inline bool kvm_mwait_in_guest(struct kvm *kvm)
 {
 	return kvm->arch.mwait_in_guest;

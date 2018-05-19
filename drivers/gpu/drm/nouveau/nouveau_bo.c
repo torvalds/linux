@@ -214,7 +214,6 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 	INIT_LIST_HEAD(&nvbo->entry);
 	INIT_LIST_HEAD(&nvbo->vma_list);
 	nvbo->bo.bdev = &drm->ttm.bdev;
-	nvbo->cli = cli;
 
 	/* This is confusing, and doesn't actually mean we want an uncached
 	 * mapping, but is what NOUVEAU_GEM_DOMAIN_COHERENT gets translated

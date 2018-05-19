@@ -586,7 +586,7 @@ struct ice_sw_rule_lg_act {
 #define ICE_LG_ACT_MIRROR_VSI_ID_S	3
 #define ICE_LG_ACT_MIRROR_VSI_ID_M	(0x3FF << ICE_LG_ACT_MIRROR_VSI_ID_S)
 
-	/* Action type = 5 - Large Action */
+	/* Action type = 5 - Generic Value */
 #define ICE_LG_ACT_GENERIC		0x5
 #define ICE_LG_ACT_GENERIC_VALUE_S	3
 #define ICE_LG_ACT_GENERIC_VALUE_M	(0xFFFF << ICE_LG_ACT_GENERIC_VALUE_S)

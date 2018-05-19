@@ -577,6 +577,8 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		 * know the next preemption status we see corresponds
 		 * to this ELSP update.
 		 */
+		GEM_BUG_ON(!execlists_is_active(execlists,
+						EXECLISTS_ACTIVE_USER));
 		GEM_BUG_ON(!port_count(&port[0]));
 		if (port_count(&port[0]) > 1)
 			goto unlock;
@@ -738,6 +740,8 @@ execlists_cancel_port_requests(struct intel_engine_execlists * const execlists)
 		memset(port, 0, sizeof(*port));
 		port++;
 	}
+
+	execlists_clear_active(execlists, EXECLISTS_ACTIVE_USER);
 }
 
 static void execlists_cancel_requests(struct intel_engine_cs *engine)
@@ -1001,6 +1005,11 @@ static void execlists_submission_tasklet(unsigned long data)
 
 	if (fw)
 		intel_uncore_forcewake_put(dev_priv, execlists->fw_domains);
+
+	/* If the engine is now idle, so should be the flag; and vice versa. */
+	GEM_BUG_ON(execlists_is_active(&engine->execlists,
+				       EXECLISTS_ACTIVE_USER) ==
+		   !port_isset(engine->execlists.port));
 }
 
 static void queue_request(struct intel_engine_cs *engine,

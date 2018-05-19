@@ -1028,7 +1028,7 @@ static int smbd_post_send(struct smbd_connection *info,
 	for (i = 0; i < request->num_sge; i++) {
 		log_rdma_send(INFO,
 			"rdma_request sge[%d] addr=%llu length=%u\n",
-			i, request->sge[0].addr, request->sge[0].length);
+			i, request->sge[i].addr, request->sge[i].length);
 		ib_dma_sync_single_for_device(
 			info->id->device,
 			request->sge[i].addr,
@@ -2086,7 +2086,7 @@ int smbd_send(struct smbd_connection *info, struct smb_rqst *rqst)
 	int start, i, j;
 	int max_iov_size =
 		info->max_send_size - sizeof(struct smbd_data_transfer);
-	struct kvec iov[SMBDIRECT_MAX_SGE];
+	struct kvec *iov;
 	int rc;
 
 	info->smbd_send_pending++;
@@ -2096,32 +2096,20 @@ int smbd_send(struct smbd_connection *info, struct smb_rqst *rqst)
 	}
 
 	/*
-	 * This usually means a configuration error
-	 * We use RDMA read/write for packet size > rdma_readwrite_threshold
-	 * as long as it's properly configured we should never get into this
-	 * situation
-	 */
-	if (rqst->rq_nvec + rqst->rq_npages > SMBDIRECT_MAX_SGE) {
-		log_write(ERR, "maximum send segment %x exceeding %x\n",
-			 rqst->rq_nvec + rqst->rq_npages, SMBDIRECT_MAX_SGE);
-		rc = -EINVAL;
-		goto done;
-	}
-
-	/*
-	 * Remove the RFC1002 length defined in MS-SMB2 section 2.1
-	 * It is used only for TCP transport
+	 * Skip the RFC1002 length defined in MS-SMB2 section 2.1
+	 * It is used only for TCP transport in the iov[0]
 	 * In future we may want to add a transport layer under protocol
 	 * layer so this will only be issued to TCP transport
 	 */
-	iov[0].iov_base = (char *)rqst->rq_iov[0].iov_base + 4;
-	iov[0].iov_len = rqst->rq_iov[0].iov_len - 4;
-	buflen += iov[0].iov_len;
+
+	if (rqst->rq_iov[0].iov_len != 4) {
+		log_write(ERR, "expected the pdu length in 1st iov, but got %zu\n", rqst->rq_iov[0].iov_len);
+		return -EINVAL;
+	}
+	iov = &rqst->rq_iov[1];
 
 	/* total up iov array first */
-	for (i = 1; i < rqst->rq_nvec; i++) {
-		iov[i].iov_base = rqst->rq_iov[i].iov_base;
-		iov[i].iov_len = rqst->rq_iov[i].iov_len;
+	for (i = 0; i < rqst->rq_nvec-1; i++) {
 		buflen += iov[i].iov_len;
 	}
 
@@ -2138,6 +2126,10 @@ int smbd_send(struct smbd_connection *info, struct smb_rqst *rqst)
 		rc = -EINVAL;
 		goto done;
 	}
+
+	cifs_dbg(FYI, "Sending smb (RDMA): smb_len=%u\n", buflen);
+	for (i = 0; i < rqst->rq_nvec-1; i++)
+		dump_smb(iov[i].iov_base, iov[i].iov_len);
 
 	remaining_data_length = buflen;
 
@@ -2194,12 +2186,14 @@ int smbd_send(struct smbd_connection *info, struct smb_rqst *rqst)
 						goto done;
 				}
 				i++;
+				if (i == rqst->rq_nvec-1)
+					break;
 			}
 			start = i;
 			buflen = 0;
 		} else {
 			i++;
-			if (i == rqst->rq_nvec) {
+			if (i == rqst->rq_nvec-1) {
 				/* send out all remaining vecs */
 				remaining_data_length -= buflen;
 				log_write(INFO,

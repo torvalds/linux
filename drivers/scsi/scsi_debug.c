@@ -234,11 +234,13 @@ static const char *sdebug_version_date = "20180128";
 #define F_INV_OP		0x200
 #define F_FAKE_RW		0x400
 #define F_M_ACCESS		0x800	/* media access */
-#define F_LONG_DELAY		0x1000
+#define F_SSU_DELAY		0x1000
+#define F_SYNC_DELAY		0x2000
 
 #define FF_RESPOND (F_RL_WLUN_OK | F_SKIP_UA | F_DELAY_OVERR)
 #define FF_MEDIA_IO (F_M_ACCESS | F_FAKE_RW)
 #define FF_SA (F_SA_HIGH | F_SA_LOW)
+#define F_LONG_DELAY		(F_SSU_DELAY | F_SYNC_DELAY)
 
 #define SDEBUG_MAX_PARTS 4
 
@@ -510,7 +512,7 @@ static const struct opcode_info_t release_iarr[] = {
 };
 
 static const struct opcode_info_t sync_cache_iarr[] = {
-	{0, 0x91, 0, F_LONG_DELAY | F_M_ACCESS, resp_sync_cache, NULL,
+	{0, 0x91, 0, F_SYNC_DELAY | F_M_ACCESS, resp_sync_cache, NULL,
 	    {16,  0x6, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	     0xff, 0xff, 0xff, 0xff, 0x3f, 0xc7} },	/* SYNC_CACHE (16) */
 };
@@ -553,7 +555,7 @@ static const struct opcode_info_t opcode_info_arr[SDEB_I_LAST_ELEMENT + 1] = {
 	    resp_write_dt0, write_iarr,			/* WRITE(16) */
 		{16,  0xfa, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		 0xff, 0xff, 0xff, 0xff, 0xff, 0xc7} },
-	{0, 0x1b, 0, F_LONG_DELAY, resp_start_stop, NULL,/* START STOP UNIT */
+	{0, 0x1b, 0, F_SSU_DELAY, resp_start_stop, NULL,/* START STOP UNIT */
 	    {6,  0x1, 0, 0xf, 0xf7, 0xc7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} },
 	{ARRAY_SIZE(sa_in_16_iarr), 0x9e, 0x10, F_SA_LOW | F_D_IN,
 	    resp_readcap16, sa_in_16_iarr, /* SA_IN(16), READ CAPACITY(16) */
@@ -606,7 +608,7 @@ static const struct opcode_info_t opcode_info_arr[SDEB_I_LAST_ELEMENT + 1] = {
 	    resp_write_same_10, write_same_iarr,	/* WRITE SAME(10) */
 		{10,  0xff, 0xff, 0xff, 0xff, 0xff, 0x3f, 0xff, 0xff, 0xc7, 0,
 		 0, 0, 0, 0, 0} },
-	{ARRAY_SIZE(sync_cache_iarr), 0x35, 0, F_LONG_DELAY | F_M_ACCESS,
+	{ARRAY_SIZE(sync_cache_iarr), 0x35, 0, F_SYNC_DELAY | F_M_ACCESS,
 	    resp_sync_cache, sync_cache_iarr,
 	    {10,  0x7, 0xff, 0xff, 0xff, 0xff, 0x3f, 0xff, 0xff, 0xc7, 0, 0,
 	     0, 0, 0, 0} },			/* SYNC_CACHE (10) */
@@ -667,6 +669,7 @@ static bool sdebug_strict = DEF_STRICT;
 static bool sdebug_any_injecting_opt;
 static bool sdebug_verbose;
 static bool have_dif_prot;
+static bool write_since_sync;
 static bool sdebug_statistics = DEF_STATISTICS;
 
 static unsigned int sdebug_store_sectors;
@@ -1607,6 +1610,7 @@ static int resp_start_stop(struct scsi_cmnd *scp,
 {
 	unsigned char *cmd = scp->cmnd;
 	int power_cond, stop;
+	bool changing;
 
 	power_cond = (cmd[4] & 0xf0) >> 4;
 	if (power_cond) {
@@ -1614,8 +1618,12 @@ static int resp_start_stop(struct scsi_cmnd *scp,
 		return check_condition_result;
 	}
 	stop = !(cmd[4] & 1);
+	changing = atomic_read(&devip->stopped) == !stop;
 	atomic_xchg(&devip->stopped, stop);
-	return (cmd[1] & 0x1) ? SDEG_RES_IMMED_MASK : 0; /* check IMMED bit */
+	if (!changing || cmd[1] & 0x1)  /* state unchanged or IMMED set */
+		return SDEG_RES_IMMED_MASK;
+	else
+		return 0;
 }
 
 static sector_t get_sdebug_capacity(void)
@@ -2473,6 +2481,7 @@ static int do_device_access(struct scsi_cmnd *scmd, u32 sg_skip, u64 lba,
 	if (do_write) {
 		sdb = scsi_out(scmd);
 		dir = DMA_TO_DEVICE;
+		write_since_sync = true;
 	} else {
 		sdb = scsi_in(scmd);
 		dir = DMA_FROM_DEVICE;
@@ -3583,6 +3592,7 @@ static int resp_get_lba_status(struct scsi_cmnd *scp,
 static int resp_sync_cache(struct scsi_cmnd *scp,
 			   struct sdebug_dev_info *devip)
 {
+	int res = 0;
 	u64 lba;
 	u32 num_blocks;
 	u8 *cmd = scp->cmnd;
@@ -3598,7 +3608,11 @@ static int resp_sync_cache(struct scsi_cmnd *scp,
 		mk_sense_buffer(scp, ILLEGAL_REQUEST, LBA_OUT_OF_RANGE, 0);
 		return check_condition_result;
 	}
-	return (cmd[1] & 0x2) ? SDEG_RES_IMMED_MASK : 0; /* check IMMED bit */
+	if (!write_since_sync || cmd[1] & 0x2)
+		res = SDEG_RES_IMMED_MASK;
+	else		/* delay if write_since_sync and IMMED clear */
+		write_since_sync = false;
+	return res;
 }
 
 #define RL_BUCKET_ELEMS 8
@@ -5777,13 +5791,14 @@ fini:
 		return schedule_resp(scp, devip, errsts, pfp, 0, 0);
 	else if ((sdebug_jdelay || sdebug_ndelay) && (flags & F_LONG_DELAY)) {
 		/*
-		 * If any delay is active, want F_LONG_DELAY to be at least 1
+		 * If any delay is active, for F_SSU_DELAY want at least 1
 		 * second and if sdebug_jdelay>0 want a long delay of that
-		 * many seconds.
+		 * many seconds; for F_SYNC_DELAY want 1/20 of that.
 		 */
 		int jdelay = (sdebug_jdelay < 2) ? 1 : sdebug_jdelay;
+		int denom = (flags & F_SYNC_DELAY) ? 20 : 1;
 
-		jdelay = mult_frac(USER_HZ * jdelay, HZ, USER_HZ);
+		jdelay = mult_frac(USER_HZ * jdelay, HZ, denom * USER_HZ);
 		return schedule_resp(scp, devip, errsts, pfp, jdelay, 0);
 	} else
 		return schedule_resp(scp, devip, errsts, pfp, sdebug_jdelay,

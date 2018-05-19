@@ -204,7 +204,7 @@ void __init kasan_init(void)
 	clear_pgds(KASAN_SHADOW_START, KASAN_SHADOW_END);
 
 	kasan_map_populate(kimg_shadow_start, kimg_shadow_end,
-			   pfn_to_nid(virt_to_pfn(lm_alias(_text))));
+			   early_pfn_to_nid(virt_to_pfn(lm_alias(_text))));
 
 	kasan_populate_zero_shadow((void *)KASAN_SHADOW_START,
 				   (void *)mod_shadow_start);
@@ -224,7 +224,7 @@ void __init kasan_init(void)
 
 		kasan_map_populate((unsigned long)kasan_mem_to_shadow(start),
 				   (unsigned long)kasan_mem_to_shadow(end),
-				   pfn_to_nid(virt_to_pfn(start)));
+				   early_pfn_to_nid(virt_to_pfn(start)));
 	}
 
 	/*

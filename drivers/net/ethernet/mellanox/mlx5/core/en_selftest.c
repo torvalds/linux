@@ -290,7 +290,7 @@ static int mlx5e_test_loopback(struct mlx5e_priv *priv)
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		netdev_err(priv->netdev,
-			   "\tCan't perform loobpack test while device is down\n");
+			   "\tCan't perform loopback test while device is down\n");
 		return -ENODEV;
 	}
 

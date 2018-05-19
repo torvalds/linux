@@ -71,16 +71,6 @@ config ARM_BRCMSTB_AVS_CPUFREQ
 
 	  Say Y, if you have a Broadcom SoC with AVS support for DFS or DVFS.
 
-config ARM_BRCMSTB_AVS_CPUFREQ_DEBUG
-	bool "Broadcom STB AVS CPUfreq driver sysfs debug capability"
-	depends on ARM_BRCMSTB_AVS_CPUFREQ
-	help
-	  Enabling this option turns on debug support via sysfs under
-	  /sys/kernel/debug/brcmstb-avs-cpufreq. It is possible to read all and
-	  write some AVS mailbox registers through sysfs entries.
-
-	  If in doubt, say N.
-
 config ARM_EXYNOS5440_CPUFREQ
 	tristate "SAMSUNG EXYNOS5440"
 	depends on SOC_EXYNOS5440

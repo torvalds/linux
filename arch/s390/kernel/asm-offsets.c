@@ -10,6 +10,7 @@
 #include <linux/kbuild.h>
 #include <linux/kvm_host.h>
 #include <linux/sched.h>
+#include <linux/purgatory.h>
 #include <asm/idle.h>
 #include <asm/vdso.h>
 #include <asm/pgtable.h>
@@ -204,5 +205,9 @@ int main(void)
 	OFFSET(__GMAP_ASCE, gmap, asce);
 	OFFSET(__SIE_PROG0C, kvm_s390_sie_block, prog0c);
 	OFFSET(__SIE_PROG20, kvm_s390_sie_block, prog20);
+	/* kexec_sha_region */
+	OFFSET(__KEXEC_SHA_REGION_START, kexec_sha_region, start);
+	OFFSET(__KEXEC_SHA_REGION_LEN, kexec_sha_region, len);
+	DEFINE(__KEXEC_SHA_REGION_SIZE, sizeof(struct kexec_sha_region));
 	return 0;
 }

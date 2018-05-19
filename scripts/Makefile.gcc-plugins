@@ -14,7 +14,7 @@ ifdef CONFIG_GCC_PLUGINS
   endif
 
   ifdef CONFIG_GCC_PLUGIN_SANCOV
-    ifeq ($(CFLAGS_KCOV),)
+    ifeq ($(strip $(CFLAGS_KCOV)),)
       # It is needed because of the gcc-plugin.sh and gcc version checks.
       gcc-plugin-$(CONFIG_GCC_PLUGIN_SANCOV)           += sancov_plugin.so
 

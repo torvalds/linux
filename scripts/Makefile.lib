@@ -196,7 +196,7 @@ $(obj)/%.tab.c: $(src)/%.y FORCE
 	$(call if_changed,bison)
 
 quiet_cmd_bison_h = YACC    $@
-      cmd_bison_h = bison -o/dev/null --defines=$@ -t -l $<
+      cmd_bison_h = $(YACC) -o/dev/null --defines=$@ -t -l $<
 
 $(obj)/%.tab.h: $(src)/%.y FORCE
 	$(call if_changed,bison_h)

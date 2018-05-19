@@ -628,7 +628,7 @@ int hfi1_lookup_pkey_idx(struct hfi1_ibport *ibp, u16 pkey)
 }
 
 void return_cnp_16B(struct hfi1_ibport *ibp, struct rvt_qp *qp,
-		    u32 remote_qpn, u32 pkey, u32 slid, u32 dlid,
+		    u32 remote_qpn, u16 pkey, u32 slid, u32 dlid,
 		    u8 sc5, const struct ib_grh *old_grh)
 {
 	u64 pbc, pbc_flags = 0;
@@ -687,7 +687,7 @@ void return_cnp_16B(struct hfi1_ibport *ibp, struct rvt_qp *qp,
 }
 
 void return_cnp(struct hfi1_ibport *ibp, struct rvt_qp *qp, u32 remote_qpn,
-		u32 pkey, u32 slid, u32 dlid, u8 sc5,
+		u16 pkey, u32 slid, u32 dlid, u8 sc5,
 		const struct ib_grh *old_grh)
 {
 	u64 pbc, pbc_flags = 0;

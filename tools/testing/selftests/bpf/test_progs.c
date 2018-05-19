@@ -1108,7 +1108,7 @@ static void test_stacktrace_build_id(void)
 
 	assert(system("dd if=/dev/urandom of=/dev/zero count=4 2> /dev/null")
 	       == 0);
-	assert(system("./urandom_read if=/dev/urandom of=/dev/zero count=4 2> /dev/null") == 0);
+	assert(system("./urandom_read") == 0);
 	/* disable stack trace collection */
 	key = 0;
 	val = 1;
@@ -1158,7 +1158,7 @@ static void test_stacktrace_build_id(void)
 	} while (bpf_map_get_next_key(stackmap_fd, &previous_key, &key) == 0);
 
 	CHECK(build_id_matches < 1, "build id match",
-	      "Didn't find expected build ID from the map");
+	      "Didn't find expected build ID from the map\n");
 
 disable_pmu:
 	ioctl(pmu_fd, PERF_EVENT_IOC_DISABLE);

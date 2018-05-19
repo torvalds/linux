@@ -1177,25 +1177,19 @@ int blkcg_init_queue(struct request_queue *q)
 
 	preloaded = !radix_tree_preload(GFP_KERNEL);
 
-	/*
-	 * Make sure the root blkg exists and count the existing blkgs.  As
-	 * @q is bypassing at this point, blkg_lookup_create() can't be
-	 * used.  Open code insertion.
-	 */
+	/* Make sure the root blkg exists. */
 	rcu_read_lock();
 	spin_lock_irq(q->queue_lock);
 	blkg = blkg_create(&blkcg_root, q, new_blkg);
+	if (IS_ERR(blkg))
+		goto err_unlock;
+	q->root_blkg = blkg;
+	q->root_rl.blkg = blkg;
 	spin_unlock_irq(q->queue_lock);
 	rcu_read_unlock();
 
 	if (preloaded)
 		radix_tree_preload_end();
-
-	if (IS_ERR(blkg))
-		return PTR_ERR(blkg);
-
-	q->root_blkg = blkg;
-	q->root_rl.blkg = blkg;
 
 	ret = blk_throtl_init(q);
 	if (ret) {
@@ -1204,6 +1198,13 @@ int blkcg_init_queue(struct request_queue *q)
 		spin_unlock_irq(q->queue_lock);
 	}
 	return ret;
+
+err_unlock:
+	spin_unlock_irq(q->queue_lock);
+	rcu_read_unlock();
+	if (preloaded)
+		radix_tree_preload_end();
+	return PTR_ERR(blkg);
 }
 
 /**
@@ -1410,9 +1411,6 @@ void blkcg_deactivate_policy(struct request_queue *q,
 	__clear_bit(pol->plid, q->blkcg_pols);
 
 	list_for_each_entry(blkg, &q->blkg_list, q_node) {
-		/* grab blkcg lock too while removing @pd from @blkg */
-		spin_lock(&blkg->blkcg->lock);
-
 		if (blkg->pd[pol->plid]) {
 			if (!blkg->pd[pol->plid]->offline &&
 			    pol->pd_offline_fn) {
@@ -1422,8 +1420,6 @@ void blkcg_deactivate_policy(struct request_queue *q,
 			pol->pd_free_fn(blkg->pd[pol->plid]);
 			blkg->pd[pol->plid] = NULL;
 		}
-
-		spin_unlock(&blkg->blkcg->lock);
 	}
 
 	spin_unlock_irq(q->queue_lock);

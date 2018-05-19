@@ -3420,7 +3420,7 @@ static int ixgbevf_setup_all_tx_resources(struct ixgbevf_adapter *adapter)
 		if (!err)
 			continue;
 		hw_dbg(&adapter->hw, "Allocation for XDP Queue %u failed\n", j);
-		break;
+		goto err_setup_tx;
 	}
 
 	return 0;
@@ -4137,7 +4137,7 @@ out_drop:
 	return NETDEV_TX_OK;
 }
 
-static int ixgbevf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t ixgbevf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbevf_ring *tx_ring;
