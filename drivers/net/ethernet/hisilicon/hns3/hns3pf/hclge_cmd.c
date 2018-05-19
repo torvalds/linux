@@ -385,9 +385,9 @@ int hclge_cmd_init(struct hclge_dev *hdev)
 
 static void hclge_destroy_queue(struct hclge_cmq_ring *ring)
 {
-	spin_lock_bh(&ring->lock);
+	spin_lock(&ring->lock);
 	hclge_free_cmd_desc(ring);
-	spin_unlock_bh(&ring->lock);
+	spin_unlock(&ring->lock);
 }
 
 void hclge_destroy_cmd_queue(struct hclge_hw *hw)
