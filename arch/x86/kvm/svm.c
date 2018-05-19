@@ -1762,7 +1762,10 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 	unsigned long npages, npinned, size;
 	unsigned long locked, lock_limit;
 	struct page **pages;
-	int first, last;
+	unsigned long first, last;
+
+	if (ulen == 0 || uaddr + ulen < uaddr)
+		return NULL;
 
 	/* Calculate number of pages. */
 	first = (uaddr & PAGE_MASK) >> PAGE_SHIFT;
@@ -6924,6 +6927,9 @@ static int svm_register_enc_region(struct kvm *kvm,
 
 	if (!sev_guest(kvm))
 		return -ENOTTY;
+
+	if (range->addr > ULONG_MAX || range->size > ULONG_MAX)
+		return -EINVAL;
 
 	region = kzalloc(sizeof(*region), GFP_KERNEL);
 	if (!region)
