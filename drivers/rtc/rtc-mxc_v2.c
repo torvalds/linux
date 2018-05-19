@@ -343,6 +343,12 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	pdata->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(pdata->rtc))
+		return PTR_ERR(pdata->rtc);
+
+	pdata->rtc->ops = &mxc_rtc_ops;
+
 	clk_disable(pdata->clk);
 	platform_set_drvdata(pdev, pdata);
 	ret =
@@ -354,15 +360,11 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	pdata->rtc =
-	    devm_rtc_device_register(&pdev->dev, pdev->name, &mxc_rtc_ops,
-				     THIS_MODULE);
-	if (IS_ERR(pdata->rtc)) {
+	ret = rtc_register_device(pdata->rtc);
+	if (ret < 0)
 		clk_unprepare(pdata->clk);
-		return PTR_ERR(pdata->rtc);
-	}
 
-	return 0;
+	return ret;
 }
 
 static int mxc_rtc_remove(struct platform_device *pdev)
