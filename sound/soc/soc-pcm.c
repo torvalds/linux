@@ -498,7 +498,7 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 		if (__ret < 0) {
 			dev_err(component->dev,
 				"ASoC: can't open component %s: %d\n",
-				component->name, ret);
+				component->name, __ret);
 			ret = __ret;
 		}
 	}
