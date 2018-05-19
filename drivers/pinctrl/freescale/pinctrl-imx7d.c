@@ -1,13 +1,9 @@
-/*
- * Freescale imx7d pinctrl driver
- *
- * Author: Anson Huang <Anson.Huang@freescale.com>
- * Copyright (C) 2014-2015 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Freescale imx7d pinctrl driver
+//
+// Author: Anson Huang <Anson.Huang@freescale.com>
+// Copyright (C) 2014-2015 Freescale Semiconductor, Inc.
 
 #include <linux/err.h>
 #include <linux/init.h>
