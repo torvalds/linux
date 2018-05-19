@@ -190,7 +190,11 @@ static int hclge_cmd_csq_done(struct hclge_hw *hw)
 
 static bool hclge_is_special_opcode(u16 opcode)
 {
-	u16 spec_opcode[3] = {0x0030, 0x0031, 0x0032};
+	/* these commands have several descriptors,
+	 * and use the first one to save opcode and return value
+	 */
+	u16 spec_opcode[3] = {HCLGE_OPC_STATS_64_BIT,
+		HCLGE_OPC_STATS_32_BIT, HCLGE_OPC_STATS_MAC};
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(spec_opcode); i++) {
