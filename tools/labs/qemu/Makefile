@@ -18,6 +18,7 @@ QEMU_OPTS = -kernel $(ZIMAGE) \
 	-chardev pty,id=virtiocon0 -device virtconsole,chardev=virtiocon0 \
 	-serial pipe:pipe1 -serial pipe:pipe2 \
 	-net nic,model=virtio,vlan=0 -net tap,ifname=tap0,vlan=0,script=no,downscript=no \
+	-net nic,model=i82559er,vlan=1 -net tap,ifname=tap1,vlan=1,script=no,downscript=no \
 	-drive file=$(YOCTO_IMAGE),if=virtio,format=raw \
 	-drive file=disk1.img,if=virtio,format=raw \
 	-drive file=disk2.img,if=virtio,format=raw \
@@ -53,6 +54,9 @@ gdb: $(ZIMAGE)
 $(YOCTO_IMAGE):
 	wget $(YOCTO_URL)/$(YOCTO_IMAGE)
 	sudo qemu/prepare-image.sh $(YOCTO_IMAGE)
+
+tap0:
+	qemu/create_net.sh $@
 
 tap0:
 	qemu/create_net.sh $@
