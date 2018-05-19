@@ -415,28 +415,6 @@ int radix_tree_maybe_preload(gfp_t gfp_mask)
 }
 EXPORT_SYMBOL(radix_tree_maybe_preload);
 
-#ifdef CONFIG_RADIX_TREE_MULTIORDER
-/*
- * Preload with enough objects to ensure that we can split a single entry
- * of order @old_order into many entries of size @new_order
- */
-int radix_tree_split_preload(unsigned int old_order, unsigned int new_order,
-							gfp_t gfp_mask)
-{
-	unsigned top = 1 << (old_order % RADIX_TREE_MAP_SHIFT);
-	unsigned layers = (old_order / RADIX_TREE_MAP_SHIFT) -
-				(new_order / RADIX_TREE_MAP_SHIFT);
-	unsigned nr = 0;
-
-	WARN_ON_ONCE(!gfpflags_allow_blocking(gfp_mask));
-	BUG_ON(new_order >= old_order);
-
-	while (layers--)
-		nr = nr * RADIX_TREE_MAP_SIZE + 1;
-	return __radix_tree_preload(gfp_mask, top * nr);
-}
-#endif
-
 /*
  * The same as function above, but preload number of nodes required to insert
  * (1 << order) continuous naturally-aligned elements.
@@ -1111,8 +1089,8 @@ EXPORT_SYMBOL(radix_tree_replace_slot);
  * @slot:	pointer to slot
  * @item:	new item to store in the slot.
  *
- * For use with radix_tree_split() and radix_tree_for_each_slot().
- * Caller must hold tree write locked across split and replacement.
+ * For use with radix_tree_for_each_slot().
+ * Caller must hold tree write locked.
  */
 void radix_tree_iter_replace(struct radix_tree_root *root,
 				const struct radix_tree_iter *iter,
@@ -1120,151 +1098,6 @@ void radix_tree_iter_replace(struct radix_tree_root *root,
 {
 	__radix_tree_replace(root, iter->node, slot, item);
 }
-
-#ifdef CONFIG_RADIX_TREE_MULTIORDER
-/**
- * radix_tree_join - replace multiple entries with one multiorder entry
- * @root: radix tree root
- * @index: an index inside the new entry
- * @order: order of the new entry
- * @item: new entry
- *
- * Call this function to replace several entries with one larger entry.
- * The existing entries are presumed to not need freeing as a result of
- * this call.
- *
- * The replacement entry will have all the tags set on it that were set
- * on any of the entries it is replacing.
- */
-int radix_tree_join(struct radix_tree_root *root, unsigned long index,
-			unsigned order, void *item)
-{
-	struct radix_tree_node *node;
-	void __rcu **slot;
-	int error;
-
-	BUG_ON(radix_tree_is_internal_node(item));
-
-	error = __radix_tree_create(root, index, order, &node, &slot);
-	if (!error)
-		error = insert_entries(node, slot, item, order, true);
-	if (error > 0)
-		error = 0;
-
-	return error;
-}
-
-/**
- * radix_tree_split - Split an entry into smaller entries
- * @root: radix tree root
- * @index: An index within the large entry
- * @order: Order of new entries
- *
- * Call this function as the first step in replacing a multiorder entry
- * with several entries of lower order.  After this function returns,
- * loop over the relevant portion of the tree using radix_tree_for_each_slot()
- * and call radix_tree_iter_replace() to set up each new entry.
- *
- * The tags from this entry are replicated to all the new entries.
- *
- * The radix tree should be locked against modification during the entire
- * replacement operation.  Lock-free lookups will see RADIX_TREE_RETRY which
- * should prompt RCU walkers to restart the lookup from the root.
- */
-int radix_tree_split(struct radix_tree_root *root, unsigned long index,
-				unsigned order)
-{
-	struct radix_tree_node *parent, *node, *child;
-	void __rcu **slot;
-	unsigned int offset, end;
-	unsigned n, tag, tags = 0;
-	gfp_t gfp = root_gfp_mask(root);
-
-	if (!__radix_tree_lookup(root, index, &parent, &slot))
-		return -ENOENT;
-	if (!parent)
-		return -ENOENT;
-
-	offset = get_slot_offset(parent, slot);
-
-	for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
-		if (tag_get(parent, tag, offset))
-			tags |= 1 << tag;
-
-	for (end = offset + 1; end < RADIX_TREE_MAP_SIZE; end++) {
-		if (!xa_is_sibling(rcu_dereference_raw(parent->slots[end])))
-			break;
-		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
-			if (tags & (1 << tag))
-				tag_set(parent, tag, end);
-		/* rcu_assign_pointer ensures tags are set before RETRY */
-		rcu_assign_pointer(parent->slots[end], RADIX_TREE_RETRY);
-	}
-	rcu_assign_pointer(parent->slots[offset], RADIX_TREE_RETRY);
-	parent->nr_values -= (end - offset);
-
-	if (order == parent->shift)
-		return 0;
-	if (order > parent->shift) {
-		while (offset < end)
-			offset += insert_entries(parent, &parent->slots[offset],
-					RADIX_TREE_RETRY, order, true);
-		return 0;
-	}
-
-	node = parent;
-
-	for (;;) {
-		if (node->shift > order) {
-			child = radix_tree_node_alloc(gfp, node, root,
-					node->shift - RADIX_TREE_MAP_SHIFT,
-					offset, 0, 0);
-			if (!child)
-				goto nomem;
-			if (node != parent) {
-				node->count++;
-				rcu_assign_pointer(node->slots[offset],
-							node_to_entry(child));
-				for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
-					if (tags & (1 << tag))
-						tag_set(node, tag, offset);
-			}
-
-			node = child;
-			offset = 0;
-			continue;
-		}
-
-		n = insert_entries(node, &node->slots[offset],
-					RADIX_TREE_RETRY, order, false);
-		BUG_ON(n > RADIX_TREE_MAP_SIZE);
-
-		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
-			if (tags & (1 << tag))
-				tag_set(node, tag, offset);
-		offset += n;
-
-		while (offset == RADIX_TREE_MAP_SIZE) {
-			if (node == parent)
-				break;
-			offset = node->offset;
-			child = node;
-			node = node->parent;
-			rcu_assign_pointer(node->slots[offset],
-						node_to_entry(child));
-			offset++;
-		}
-		if ((node == parent) && (offset == end))
-			return 0;
-	}
-
- nomem:
-	/* Shouldn't happen; did user forget to preload? */
-	/* TODO: free all the allocated nodes */
-	WARN_ON(1);
-	return -ENOMEM;
-}
-#endif
 
 static void node_tag_set(struct radix_tree_root *root,
 				struct radix_tree_node *node,

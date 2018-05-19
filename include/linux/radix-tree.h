@@ -284,12 +284,6 @@ static inline void radix_tree_preload_end(void)
 	preempt_enable();
 }
 
-int radix_tree_split_preload(unsigned old_order, unsigned new_order, gfp_t);
-int radix_tree_split(struct radix_tree_root *, unsigned long index,
-			unsigned new_order);
-int radix_tree_join(struct radix_tree_root *, unsigned long index,
-			unsigned new_order, void *);
-
 void __rcu **idr_get_free(struct radix_tree_root *root,
 			      struct radix_tree_iter *iter, gfp_t gfp,
 			      unsigned long max);
