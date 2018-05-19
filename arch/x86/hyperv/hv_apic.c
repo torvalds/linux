@@ -31,9 +31,6 @@
 #include <asm/mshyperv.h>
 #include <asm/apic.h>
 
-#ifdef CONFIG_X86_64
-#if IS_ENABLED(CONFIG_HYPERV)
-
 static struct apic orig_apic;
 
 static u64 hv_apic_icr_read(void)
@@ -257,6 +254,3 @@ void __init hv_apic_init(void)
 		apic->icr_read  = hv_apic_icr_read;
 	}
 }
-
-#endif /* CONFIG_HYPERV */
-#endif /* CONFIG_X86_64 */
