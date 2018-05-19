@@ -1,0 +1,59 @@
+#!/bin/sh
+
+DEV=ixeth0
+ADDR=172.30.0.2
+REM_ADDR=172.30.0.1
+NTTCP=./nttcp
+MODULE=./e100-ix.ko
+
+set -e
+
+# Uncomment this to show what commands are run.
+#set -x
+
+dmesg -c &> /dev/null
+
+echo
+echo "== 01.  insmod, rmmod =="
+insmod $MODULE
+dmesg -c
+rmmod $MODULE
+dmesg -c
+
+echo
+echo "== 02.  link up, set address =="
+insmod $MODULE
+dmesg -c
+ip link set up dev $DEV
+ip address add $ADDR/24 dev $DEV
+
+echo
+echo "== 03.  ping =="
+ping -c1 $REM_ADDR
+
+echo
+echo "== 04.  nttcp transmit =="
+$NTTCP -T -t -c $REM_ADDR
+
+echo
+echo "== 05.  nttcp receive =="
+$NTTCP -T -r -c $REM_ADDR
+
+echo
+echo "== 06.  rmmod, reinsert =="
+dmesg -c
+rmmod $MODULE
+dmesg -c
+insmod $MODULE
+dmesg -c
+
+echo
+echo "== 07.  one last test =="
+ip link set up dev $DEV
+ip address add $ADDR/24 dev $DEV
+ping -c1 $REM_ADDR
+$NTTCP -T -t -c $REM_ADDR
+rmmod $MODULE
+
+echo
+echo "Success!"
