@@ -29,6 +29,7 @@
 #include <linux/cpuhotplug.h>
 #include <asm/hypervisor.h>
 #include <asm/mshyperv.h>
+#include <asm/apic.h>
 
 #ifdef CONFIG_X86_64
 #if IS_ENABLED(CONFIG_HYPERV)
