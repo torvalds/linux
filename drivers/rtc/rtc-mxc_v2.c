@@ -193,7 +193,7 @@ static int mxc_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	if (ret)
 		return ret;
 
-	rtc_time_to_tm(readl(ioaddr + SRTC_LPSAR), &alrm->time);
+	rtc_time64_to_tm(readl(ioaddr + SRTC_LPSAR), &alrm->time);
 	alrm->pending = !!(readl(ioaddr + SRTC_LPSR) & SRTC_LPSR_ALP);
 	return mxc_rtc_unlock(pdata);
 }
