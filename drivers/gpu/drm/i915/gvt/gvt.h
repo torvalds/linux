@@ -170,6 +170,7 @@ struct intel_vgpu_submission {
 
 struct intel_vgpu {
 	struct intel_gvt *gvt;
+	struct mutex vgpu_lock;
 	int id;
 	unsigned long handle; /* vGPU handle used by hypervisor MPT modules */
 	bool active;
@@ -294,6 +295,9 @@ struct intel_vgpu_type {
 };
 
 struct intel_gvt {
+	/* GVT scope lock, protect GVT itself, and all resource currently
+	 * not yet protected by special locks(vgpu and scheduler lock).
+	 */
 	struct mutex lock;
 	struct drm_i915_private *dev_priv;
 	struct idr vgpu_idr;	/* vGPU IDR pool */
@@ -314,6 +318,10 @@ struct intel_gvt {
 
 	struct task_struct *service_thread;
 	wait_queue_head_t service_thread_wq;
+
+	/* service_request is always used in bit operation, we should always
+	 * use it with atomic bit ops so that no need to use gvt big lock.
+	 */
 	unsigned long service_request;
 
 	struct {

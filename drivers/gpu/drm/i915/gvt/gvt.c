@@ -271,11 +271,8 @@ static int gvt_service_thread(void *data)
 			continue;
 
 		if (test_and_clear_bit(INTEL_GVT_REQUEST_EMULATE_VBLANK,
-					(void *)&gvt->service_request)) {
-			mutex_lock(&gvt->lock);
+					(void *)&gvt->service_request))
 			intel_gvt_emulate_vblank(gvt);
-			mutex_unlock(&gvt->lock);
-		}
 
 		if (test_bit(INTEL_GVT_REQUEST_SCHED,
 				(void *)&gvt->service_request) ||

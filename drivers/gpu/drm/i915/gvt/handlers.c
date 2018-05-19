@@ -316,6 +316,7 @@ static int gdrst_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		}
 	}
 
+	/* vgpu_lock already hold by emulate mmio r/w */
 	intel_gvt_reset_vgpu_locked(vgpu, false, engine_mask);
 
 	/* sw will wait for the device to ack the reset request */
@@ -420,7 +421,10 @@ static int pipeconf_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		vgpu_vreg(vgpu, offset) |= I965_PIPECONF_ACTIVE;
 	else
 		vgpu_vreg(vgpu, offset) &= ~I965_PIPECONF_ACTIVE;
+	/* vgpu_lock already hold by emulate mmio r/w */
+	mutex_unlock(&vgpu->vgpu_lock);
 	intel_gvt_check_vblank_emulation(vgpu->gvt);
+	mutex_lock(&vgpu->vgpu_lock);
 	return 0;
 }
 
