@@ -499,21 +499,21 @@ struct sh_eth_cpu_data {
 
 	/* hardware features */
 	unsigned long irq_flags; /* IRQ configuration flags */
-	unsigned no_psr:1;	/* EtherC DO NOT have PSR */
-	unsigned apr:1;		/* EtherC have APR */
-	unsigned mpr:1;		/* EtherC have MPR */
-	unsigned tpauser:1;	/* EtherC have TPAUSER */
-	unsigned bculr:1;	/* EtherC have BCULR */
-	unsigned tsu:1;		/* EtherC have TSU */
-	unsigned hw_swap:1;	/* E-DMAC have DE bit in EDMR */
+	unsigned no_psr:1;	/* EtherC DOES NOT have PSR */
+	unsigned apr:1;		/* EtherC has APR */
+	unsigned mpr:1;		/* EtherC has MPR */
+	unsigned tpauser:1;	/* EtherC has TPAUSER */
+	unsigned bculr:1;	/* EtherC has BCULR */
+	unsigned tsu:1;		/* EtherC has TSU */
+	unsigned hw_swap:1;	/* E-DMAC has DE bit in EDMR */
 	unsigned nbst:1;	/* E-DMAC has NBST bit in EDMR */
-	unsigned rpadir:1;	/* E-DMAC have RPADIR */
-	unsigned no_trimd:1;	/* E-DMAC DO NOT have TRIMD */
-	unsigned no_ade:1;	/* E-DMAC DO NOT have ADE bit in EESR */
+	unsigned rpadir:1;	/* E-DMAC has RPADIR */
+	unsigned no_trimd:1;	/* E-DMAC DOES NOT have TRIMD */
+	unsigned no_ade:1;	/* E-DMAC DOES NOT have ADE bit in EESR */
 	unsigned no_xdfar:1;	/* E-DMAC DOES NOT have RDFAR/TDFAR */
 	unsigned xdfar_rw:1;	/* E-DMAC has writeable RDFAR/TDFAR */
 	unsigned hw_checksum:1;	/* E-DMAC has CSMR */
-	unsigned select_mii:1;	/* EtherC have RMII_MII (MII select register) */
+	unsigned select_mii:1;	/* EtherC has RMII_MII (MII select register) */
 	unsigned rmiimode:1;	/* EtherC has RMIIMODE register */
 	unsigned rtrate:1;	/* EtherC has RTRATE register */
 	unsigned magic:1;	/* EtherC has ECMR.MPDE and ECSR.MPD */
