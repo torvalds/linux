@@ -5064,25 +5064,6 @@ static void rtl_set_rx_tx_desc_registers(struct rtl8169_private *tp)
 	RTL_W32(tp, RxDescAddrLow, ((u64) tp->RxPhyAddr) & DMA_BIT_MASK(32));
 }
 
-static void rtl_hw_start(struct  rtl8169_private *tp)
-{
-	RTL_W8(tp, Cfg9346, Cfg9346_Unlock);
-
-	tp->hw_start(tp);
-
-	rtl_set_rx_max_size(tp);
-	rtl_set_rx_tx_desc_registers(tp);
-	rtl_set_rx_tx_config_registers(tp);
-	RTL_W8(tp, Cfg9346, Cfg9346_Lock);
-
-	/* Initially a 10 us delay. Turned it into a PCI commit. - FR */
-	RTL_R8(tp, IntrMask);
-	RTL_W8(tp, ChipCmd, CmdTxEnb | CmdRxEnb);
-	/* no early-rx interrupts */
-	RTL_W16(tp, MultiIntr, RTL_R16(tp, MultiIntr) & 0xf000);
-	rtl_irq_enable_all(tp);
-}
-
 static void rtl8169_set_magic_reg(struct rtl8169_private *tp, unsigned mac_version)
 {
 	static const struct rtl_cfg2_info {
@@ -5158,6 +5139,26 @@ static void rtl_set_rx_mode(struct net_device *dev)
 	RTL_W32(tp, MAR0 + 0, mc_filter[0]);
 
 	RTL_W32(tp, RxConfig, tmp);
+}
+
+static void rtl_hw_start(struct  rtl8169_private *tp)
+{
+	RTL_W8(tp, Cfg9346, Cfg9346_Unlock);
+
+	tp->hw_start(tp);
+
+	rtl_set_rx_max_size(tp);
+	rtl_set_rx_tx_desc_registers(tp);
+	rtl_set_rx_tx_config_registers(tp);
+	RTL_W8(tp, Cfg9346, Cfg9346_Lock);
+
+	/* Initially a 10 us delay. Turned it into a PCI commit. - FR */
+	RTL_R8(tp, IntrMask);
+	RTL_W8(tp, ChipCmd, CmdTxEnb | CmdRxEnb);
+	rtl_set_rx_mode(tp->dev);
+	/* no early-rx interrupts */
+	RTL_W16(tp, MultiIntr, RTL_R16(tp, MultiIntr) & 0xf000);
+	rtl_irq_enable_all(tp);
 }
 
 static void rtl_hw_start_8169(struct rtl8169_private *tp)
