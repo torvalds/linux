@@ -40,11 +40,6 @@
 #define CHKSUM_BLOCK_SIZE	1
 #define CHKSUM_DIGEST_SIZE	4
 
-static u32 __crc32_le(u32 crc, unsigned char const *p, size_t len)
-{
-	return crc32_le(crc, p, len);
-}
-
 /** No default init with ~0 */
 static int crc32_cra_init(struct crypto_tfm *tfm)
 {
@@ -54,7 +49,6 @@ static int crc32_cra_init(struct crypto_tfm *tfm)
 
 	return 0;
 }
-
 
 /*
  * Setting the seed allows arbitrary accumulators and flexible XOR policy
@@ -89,7 +83,7 @@ static int crc32_update(struct shash_desc *desc, const u8 *data,
 {
 	u32 *crcp = shash_desc_ctx(desc);
 
-	*crcp = __crc32_le(*crcp, data, len);
+	*crcp = crc32_le(*crcp, data, len);
 	return 0;
 }
 
@@ -97,7 +91,7 @@ static int crc32_update(struct shash_desc *desc, const u8 *data,
 static int __crc32_finup(u32 *crcp, const u8 *data, unsigned int len,
 			 u8 *out)
 {
-	put_unaligned_le32(__crc32_le(*crcp, data, len), out);
+	put_unaligned_le32(crc32_le(*crcp, data, len), out);
 	return 0;
 }
 
