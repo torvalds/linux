@@ -25,7 +25,7 @@ QEMU_OPTS = -kernel $(ZIMAGE) \
 	--append "root=/dev/vda console=hvc0" \
 	--display $(QEMU_DISPLAY) -s
 
-boot: .modinst tap0 pipe1.in pipe1.out pipe2.in pipe2.out disk1.img disk2.img
+boot: .modinst tap0 tap1 pipe1.in pipe1.out pipe2.in pipe2.out disk1.img disk2.img
 	ARCH=$(ARCH) qemu/qemu.sh $(QEMU_OPTS)
 
 TEMPDIR := $(shell mktemp -u)
@@ -58,7 +58,7 @@ $(YOCTO_IMAGE):
 tap0:
 	qemu/create_net.sh $@
 
-tap0:
+tap1:
 	qemu/create_net.sh $@
 
 pipe1.in:
@@ -81,5 +81,5 @@ disk2.img:
 clean::
 	rm -f .modinst disk1.img disk2.img
 
-.PHONY: clean tap0
+.PHONY: clean tap0 tap1
 
