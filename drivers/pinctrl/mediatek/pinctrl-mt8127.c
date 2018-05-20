@@ -301,7 +301,6 @@ static const struct mtk_pinctrl_devdata mt8127_pinctrl_data = {
 	.port_mask = 0xf,
 	.port_align = 4,
 	.eint_hw = {
-		.name = "mt8127_eint",
 		.port_mask = 7,
 		.ports     = 6,
 		.ap_num    = 143,

@@ -33,7 +33,6 @@ struct mtk_eint_regs {
 };
 
 struct mtk_eint_hw {
-	const char	*name;
 	u8		port_mask;
 	u8		ports;
 	unsigned int	ap_num;
