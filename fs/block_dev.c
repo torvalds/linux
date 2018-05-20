@@ -272,7 +272,7 @@ struct blkdev_dio {
 	struct bio		bio;
 };
 
-static struct bio_set *blkdev_dio_pool __read_mostly;
+static struct bio_set blkdev_dio_pool;
 
 static void blkdev_bio_end_io(struct bio *bio)
 {
@@ -334,7 +334,7 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 	    (bdev_logical_block_size(bdev) - 1))
 		return -EINVAL;
 
-	bio = bio_alloc_bioset(GFP_KERNEL, nr_pages, blkdev_dio_pool);
+	bio = bio_alloc_bioset(GFP_KERNEL, nr_pages, &blkdev_dio_pool);
 	bio_get(bio); /* extra ref for the completion handler */
 
 	dio = container_of(bio, struct blkdev_dio, bio);
@@ -432,10 +432,7 @@ blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 
 static __init int blkdev_init(void)
 {
-	blkdev_dio_pool = bioset_create(4, offsetof(struct blkdev_dio, bio), BIOSET_NEED_BVECS);
-	if (!blkdev_dio_pool)
-		return -ENOMEM;
-	return 0;
+	return bioset_init(&blkdev_dio_pool, 4, offsetof(struct blkdev_dio, bio), BIOSET_NEED_BVECS);
 }
 module_init(blkdev_init);
 
