@@ -4382,9 +4382,9 @@ static const void *pdata_device_get_match_data(struct device *dev)
 static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 {
 	struct dsa_mv88e6xxx_pdata *pdata = mdiodev->dev.platform_data;
+	const struct mv88e6xxx_info *compat_info = NULL;
 	struct device *dev = &mdiodev->dev;
 	struct device_node *np = dev->of_node;
-	const struct mv88e6xxx_info *compat_info;
 	struct mv88e6xxx_chip *chip;
 	int port;
 	int err;
