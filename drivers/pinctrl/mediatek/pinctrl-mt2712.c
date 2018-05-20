@@ -576,8 +576,14 @@ static const struct mtk_pinctrl_devdata mt2712_pinctrl_data = {
 	.port_shf = 4,
 	.port_mask = 0xf,
 	.port_align = 4,
-	.eint_offsets = {
+	.eint_hw = {
 		.name = "mt2712_eint",
+		.port_mask = 0xf,
+		.ports     = 8,
+		.ap_num    = 229,
+		.db_cnt    = 40,
+	},
+	.eint_regs = {
 		.stat      = 0x000,
 		.ack       = 0x040,
 		.mask      = 0x080,
@@ -596,11 +602,7 @@ static const struct mtk_pinctrl_devdata mt2712_pinctrl_data = {
 		.dbnc_ctrl = 0x500,
 		.dbnc_set  = 0x600,
 		.dbnc_clr  = 0x700,
-		.port_mask = 0xf,
-		.ports     = 8,
 	},
-	.ap_num = 229,
-	.db_cnt = 40,
 };
 
 static int mt2712_pinctrl_probe(struct platform_device *pdev)

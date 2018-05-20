@@ -313,8 +313,14 @@ static const struct mtk_pinctrl_devdata mt8135_pinctrl_data = {
 	.port_shf = 4,
 	.port_mask = 0xf,
 	.port_align = 4,
-	.eint_offsets = {
+	.eint_hw = {
 		.name = "mt8135_eint",
+		.port_mask = 7,
+		.ports     = 6,
+		.ap_num    = 192,
+		.db_cnt    = 16,
+	},
+	.eint_regs = {
 		.stat      = 0x000,
 		.ack       = 0x040,
 		.mask      = 0x080,
@@ -333,11 +339,7 @@ static const struct mtk_pinctrl_devdata mt8135_pinctrl_data = {
 		.dbnc_ctrl = 0x500,
 		.dbnc_set  = 0x600,
 		.dbnc_clr  = 0x700,
-		.port_mask = 7,
-		.ports     = 6,
 	},
-	.ap_num = 192,
-	.db_cnt = 16,
 };
 
 static int mt8135_pinctrl_probe(struct platform_device *pdev)
