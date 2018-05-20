@@ -30,6 +30,7 @@
 #ifdef CONFIG_IPV6_SEG6_HMAC
 #include <net/seg6_hmac.h>
 #endif
+#include <net/seg6_local.h>
 #include <linux/etherdevice.h>
 
 struct seg6_local_lwt;
@@ -140,8 +141,8 @@ static void advance_nextseg(struct ipv6_sr_hdr *srh, struct in6_addr *daddr)
 	*daddr = *addr;
 }
 
-static void lookup_nexthop(struct sk_buff *skb, struct in6_addr *nhaddr,
-			   u32 tbl_id)
+int seg6_lookup_nexthop(struct sk_buff *skb, struct in6_addr *nhaddr,
+			u32 tbl_id)
 {
 	struct net *net = dev_net(skb->dev);
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
@@ -187,6 +188,7 @@ out:
 
 	skb_dst_drop(skb);
 	skb_dst_set(skb, dst);
+	return dst->error;
 }
 
 /* regular endpoint function */
@@ -200,7 +202,7 @@ static int input_action_end(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 
 	advance_nextseg(srh, &ipv6_hdr(skb)->daddr);
 
-	lookup_nexthop(skb, NULL, 0);
+	seg6_lookup_nexthop(skb, NULL, 0);
 
 	return dst_input(skb);
 
@@ -220,7 +222,7 @@ static int input_action_end_x(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 
 	advance_nextseg(srh, &ipv6_hdr(skb)->daddr);
 
-	lookup_nexthop(skb, &slwt->nh6, 0);
+	seg6_lookup_nexthop(skb, &slwt->nh6, 0);
 
 	return dst_input(skb);
 
@@ -239,7 +241,7 @@ static int input_action_end_t(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 
 	advance_nextseg(srh, &ipv6_hdr(skb)->daddr);
 
-	lookup_nexthop(skb, NULL, slwt->table);
+	seg6_lookup_nexthop(skb, NULL, slwt->table);
 
 	return dst_input(skb);
 
@@ -331,7 +333,7 @@ static int input_action_end_dx6(struct sk_buff *skb,
 	if (!ipv6_addr_any(&slwt->nh6))
 		nhaddr = &slwt->nh6;
 
-	lookup_nexthop(skb, nhaddr, 0);
+	seg6_lookup_nexthop(skb, nhaddr, 0);
 
 	return dst_input(skb);
 drop:
@@ -380,7 +382,7 @@ static int input_action_end_dt6(struct sk_buff *skb,
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
 		goto drop;
 
-	lookup_nexthop(skb, NULL, slwt->table);
+	seg6_lookup_nexthop(skb, NULL, slwt->table);
 
 	return dst_input(skb);
 
@@ -406,7 +408,7 @@ static int input_action_end_b6(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 	ipv6_hdr(skb)->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
 	skb_set_transport_header(skb, sizeof(struct ipv6hdr));
 
-	lookup_nexthop(skb, NULL, 0);
+	seg6_lookup_nexthop(skb, NULL, 0);
 
 	return dst_input(skb);
 
@@ -438,7 +440,7 @@ static int input_action_end_b6_encap(struct sk_buff *skb,
 	ipv6_hdr(skb)->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
 	skb_set_transport_header(skb, sizeof(struct ipv6hdr));
 
-	lookup_nexthop(skb, NULL, 0);
+	seg6_lookup_nexthop(skb, NULL, 0);
 
 	return dst_input(skb);
 

@@ -67,5 +67,6 @@ extern bool seg6_validate_srh(struct ipv6_sr_hdr *srh, int len);
 extern int seg6_do_srh_encap(struct sk_buff *skb, struct ipv6_sr_hdr *osrh,
 			     int proto);
 extern int seg6_do_srh_inline(struct sk_buff *skb, struct ipv6_sr_hdr *osrh);
-
+extern int seg6_lookup_nexthop(struct sk_buff *skb, struct in6_addr *nhaddr,
+			       u32 tbl_id);
 #endif
