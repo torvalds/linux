@@ -232,6 +232,13 @@ static struct clk_regmap meson8b_fclk_div2 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_names = (const char *[]){ "fclk_div2_div" },
 		.num_parents = 1,
+		/*
+		 * FIXME: Ethernet with a RGMII PHYs is not working if
+		 * fclk_div2 is disabled. it is currently unclear why this
+		 * is. keep it enabled until the Ethernet driver knows how
+		 * to manage this clock.
+		 */
+		.flags = CLK_IS_CRITICAL,
 	},
 };
 
