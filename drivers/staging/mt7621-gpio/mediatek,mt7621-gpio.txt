@@ -4,12 +4,16 @@ The IP core used inside these SoCs has 3 banks of 32 GPIOs each.
 The registers of all the banks are interwoven inside one single IO range.
 We load one GPIO controller instance per bank. To make this possible
 we support 2 types of nodes. The parent node defines the memory I/O range and
-has 3 children each describing a single bank.
+has 3 children each describing a single bank. Also the GPIO controller can receive
+interrupts on any of the GPIOs, either edge or level. It then interrupts the CPU
+using GIC INT12.
 
 Required properties for the top level node:
 - compatible:
   - "mediatek,mt7621-gpio" for Mediatek controllers
 - reg : Physical base address and length of the controller's registers
+- interrupt-parent : phandle of the parent interrupt controller.
+- interrupts = Interrupt specifier for the controllers interrupt
 
 Required properties for the GPIO bank node:
 - compatible:
@@ -27,6 +31,9 @@ Example:
 
 		compatible = "mediatek,mt7621-gpio";
 		reg = <0x600 0x100>;
+
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SHARED 12 IRQ_TYPE_LEVEL_HIGH>;
 
 		gpio0: bank@0 {
 			reg = <0>;
