@@ -323,7 +323,7 @@ mediatek_gpio_probe(struct platform_device *pdev)
 	}
 
 	for_each_child_of_node(np, bank)
-		if (of_device_is_compatible(bank, "mtk,mt7621-gpio-bank"))
+		if (of_device_is_compatible(bank, "mediatek,mt7621-gpio-bank"))
 			mediatek_gpio_bank_probe(pdev, bank);
 
 	if (mediatek_gpio_irq_domain)
@@ -334,7 +334,7 @@ mediatek_gpio_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id mediatek_gpio_match[] = {
-	{ .compatible = "mtk,mt7621-gpio" },
+	{ .compatible = "mediatek,mt7621-gpio" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, mediatek_gpio_match);
