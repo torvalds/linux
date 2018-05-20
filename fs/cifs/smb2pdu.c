@@ -368,6 +368,7 @@ smb2_plain_req_init(__le16 smb2_command, struct cifs_tcon *tcon,
 
 #define SMB2_PREAUTH_INTEGRITY_CAPABILITIES	cpu_to_le16(1)
 #define SMB2_ENCRYPTION_CAPABILITIES		cpu_to_le16(2)
+#define SMB2_POSIX_EXTENSIONS_AVAILABLE		cpu_to_le16(0x100)
 
 static void
 build_preauth_ctxt(struct smb2_preauth_neg_context *pneg_ctxt)
@@ -391,21 +392,35 @@ build_encrypt_ctxt(struct smb2_encryption_neg_context *pneg_ctxt)
 }
 
 static void
+build_posix_ctxt(struct smb2_posix_neg_context *pneg_ctxt)
+{
+	pneg_ctxt->ContextType = SMB2_POSIX_EXTENSIONS_AVAILABLE;
+	pneg_ctxt->DataLength = cpu_to_le16(POSIX_CTXT_DATA_LEN);
+}
+
+static void
 assemble_neg_contexts(struct smb2_negotiate_req *req,
 		      unsigned int *total_len)
 {
 	char *pneg_ctxt = (char *)req + OFFSET_OF_NEG_CONTEXT;
+	unsigned int ctxt_len;
 
+	*total_len += 2; /* Add 2 due to round to 8 byte boundary for 1st ctxt */
 	build_preauth_ctxt((struct smb2_preauth_neg_context *)pneg_ctxt);
-	/* Add 2 to size to round to 8 byte boundary */
+	ctxt_len = DIV_ROUND_UP(sizeof(struct smb2_preauth_neg_context), 8) * 8;
+	*total_len += ctxt_len;
+	pneg_ctxt += ctxt_len;
 
-	pneg_ctxt += 2 + sizeof(struct smb2_preauth_neg_context);
 	build_encrypt_ctxt((struct smb2_encryption_neg_context *)pneg_ctxt);
-	req->NegotiateContextOffset = cpu_to_le32(OFFSET_OF_NEG_CONTEXT);
-	req->NegotiateContextCount = cpu_to_le16(2);
+	ctxt_len = DIV_ROUND_UP(sizeof(struct smb2_encryption_neg_context), 8) * 8;
+	*total_len += ctxt_len;
+	pneg_ctxt += ctxt_len;
 
-	*total_len += 4 + sizeof(struct smb2_preauth_neg_context)
-		+ sizeof(struct smb2_encryption_neg_context);
+	build_posix_ctxt((struct smb2_posix_neg_context *)pneg_ctxt);
+	*total_len += sizeof(struct smb2_posix_neg_context);
+
+	req->NegotiateContextOffset = cpu_to_le32(OFFSET_OF_NEG_CONTEXT);
+	req->NegotiateContextCount = cpu_to_le16(3);
 }
 
 static void decode_preauth_context(struct smb2_preauth_neg_context *ctxt)
@@ -488,6 +503,8 @@ static int smb311_decode_neg_context(struct smb2_negotiate_rsp *rsp,
 		else if (pctx->ContextType == SMB2_ENCRYPTION_CAPABILITIES)
 			rc = decode_encrypt_ctx(server,
 				(struct smb2_encryption_neg_context *)pctx);
+		else if (pctx->ContextType == SMB2_POSIX_EXTENSIONS_AVAILABLE)
+			server->posix_ext_supported = true;
 		else
 			cifs_dbg(VFS, "unknown negcontext of type %d ignored\n",
 				le16_to_cpu(pctx->ContextType));

@@ -300,6 +300,14 @@ struct smb2_encryption_neg_context {
 	__le16	Ciphers[1]; /* Ciphers[0] since only one used now */
 } __packed;
 
+#define POSIX_CTXT_DATA_LEN	8
+struct smb2_posix_neg_context {
+	__le16	ContextType; /* 0x100 */
+	__le16	DataLength;
+	__le32	Reserved;
+	__le64	Reserved1; /* In case needed for future (eg version or caps) */
+} __packed;
+
 struct smb2_negotiate_rsp {
 	struct smb2_hdr hdr;
 	__le16 StructureSize;	/* Must be 65 */

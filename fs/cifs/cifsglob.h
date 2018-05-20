@@ -683,6 +683,7 @@ struct TCP_Server_Info {
 	__le16	cipher_type;
 	 /* save initital negprot hash */
 	__u8	preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
+	bool	posix_ext_supported;
 #endif /* 3.1.1 */
 	struct delayed_work reconnect; /* reconnect workqueue job */
 	struct mutex reconnect_mutex; /* prevent simultaneous reconnects */
