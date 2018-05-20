@@ -145,9 +145,6 @@ static int brcmstb_waketmr_settime(struct device *dev,
 
 	sec = rtc_tm_to_time64(tm);
 
-	if (sec > U32_MAX || sec < 0)
-		return -EINVAL;
-
 	writel_relaxed(sec, timer->base + BRCMSTB_WKTMR_COUNTER);
 
 	return 0;
@@ -183,9 +180,6 @@ static int brcmstb_waketmr_setalarm(struct device *dev,
 		sec = rtc_tm_to_time64(&alarm->time);
 	else
 		sec = 0;
-
-	if (sec > U32_MAX || sec < 0)
-		return -EINVAL;
 
 	brcmstb_waketmr_set_alarm(timer, sec);
 
@@ -266,6 +260,7 @@ static int brcmstb_waketmr_probe(struct platform_device *pdev)
 	register_reboot_notifier(&timer->reboot_notifier);
 
 	timer->rtc->ops = &brcmstb_waketmr_ops;
+	timer->rtc->range_max = U32_MAX;
 
 	ret = rtc_register_device(timer->rtc);
 	if (ret) {
