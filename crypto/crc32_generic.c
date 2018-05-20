@@ -29,6 +29,7 @@
  * This is crypto api shash wrappers to crc32_le.
  */
 
+#include <asm/unaligned.h>
 #include <linux/crc32.h>
 #include <crypto/internal/hash.h>
 #include <linux/init.h>
@@ -69,7 +70,7 @@ static int crc32_setkey(struct crypto_shash *hash, const u8 *key,
 		crypto_shash_set_flags(hash, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
-	*mctx = le32_to_cpup((__le32 *)key);
+	*mctx = get_unaligned_le32(key);
 	return 0;
 }
 
@@ -96,7 +97,7 @@ static int crc32_update(struct shash_desc *desc, const u8 *data,
 static int __crc32_finup(u32 *crcp, const u8 *data, unsigned int len,
 			 u8 *out)
 {
-	*(__le32 *)out = cpu_to_le32(__crc32_le(*crcp, data, len));
+	put_unaligned_le32(__crc32_le(*crcp, data, len), out);
 	return 0;
 }
 
@@ -110,7 +111,7 @@ static int crc32_final(struct shash_desc *desc, u8 *out)
 {
 	u32 *crcp = shash_desc_ctx(desc);
 
-	*(__le32 *)out = cpu_to_le32p(crcp);
+	put_unaligned_le32(*crcp, out);
 	return 0;
 }
 
