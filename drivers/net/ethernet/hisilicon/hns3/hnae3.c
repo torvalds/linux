@@ -285,3 +285,4 @@ EXPORT_SYMBOL(hnae3_unregister_ae_dev);
 MODULE_AUTHOR("Huawei Tech. Co., Ltd.");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("HNAE3(Hisilicon Network Acceleration Engine) Framework");
+MODULE_VERSION(HNAE3_MOD_VERSION);

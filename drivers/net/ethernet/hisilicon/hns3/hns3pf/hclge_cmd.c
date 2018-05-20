@@ -190,7 +190,11 @@ static int hclge_cmd_csq_done(struct hclge_hw *hw)
 
 static bool hclge_is_special_opcode(u16 opcode)
 {
-	u16 spec_opcode[3] = {0x0030, 0x0031, 0x0032};
+	/* these commands have several descriptors,
+	 * and use the first one to save opcode and return value
+	 */
+	u16 spec_opcode[3] = {HCLGE_OPC_STATS_64_BIT,
+		HCLGE_OPC_STATS_32_BIT, HCLGE_OPC_STATS_MAC};
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(spec_opcode); i++) {
@@ -381,9 +385,9 @@ int hclge_cmd_init(struct hclge_dev *hdev)
 
 static void hclge_destroy_queue(struct hclge_cmq_ring *ring)
 {
-	spin_lock_bh(&ring->lock);
+	spin_lock(&ring->lock);
 	hclge_free_cmd_desc(ring);
-	spin_unlock_bh(&ring->lock);
+	spin_unlock(&ring->lock);
 }
 
 void hclge_destroy_cmd_queue(struct hclge_hw *hw)

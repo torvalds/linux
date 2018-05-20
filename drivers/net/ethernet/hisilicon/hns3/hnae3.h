@@ -36,6 +36,8 @@
 #include <linux/pci.h>
 #include <linux/types.h>
 
+#define HNAE3_MOD_VERSION "1.0"
+
 /* Device IDs */
 #define HNAE3_DEV_ID_GE				0xA220
 #define HNAE3_DEV_ID_25GE			0xA221

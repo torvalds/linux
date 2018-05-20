@@ -17,7 +17,7 @@
 #include "hclge_cmd.h"
 #include "hnae3.h"
 
-#define HCLGE_MOD_VERSION "v1.0"
+#define HCLGE_MOD_VERSION "1.0"
 #define HCLGE_DRIVER_NAME "hclge"
 
 #define HCLGE_INVALID_VPORT 0xffff
