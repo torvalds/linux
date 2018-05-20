@@ -594,7 +594,7 @@ xfs_alloc_ioend(
 	struct xfs_ioend	*ioend;
 	struct bio		*bio;
 
-	bio = bio_alloc_bioset(GFP_NOFS, BIO_MAX_PAGES, xfs_ioend_bioset);
+	bio = bio_alloc_bioset(GFP_NOFS, BIO_MAX_PAGES, &xfs_ioend_bioset);
 	xfs_init_bio_from_bh(bio, bh);
 
 	ioend = container_of(bio, struct xfs_ioend, io_inline_bio);

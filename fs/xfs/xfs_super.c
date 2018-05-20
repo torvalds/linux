@@ -63,7 +63,7 @@
 #include <linux/parser.h>
 
 static const struct super_operations xfs_super_operations;
-struct bio_set *xfs_ioend_bioset;
+struct bio_set xfs_ioend_bioset;
 
 static struct kset *xfs_kset;		/* top-level xfs sysfs dir */
 #ifdef DEBUG
@@ -1845,10 +1845,9 @@ MODULE_ALIAS_FS("xfs");
 STATIC int __init
 xfs_init_zones(void)
 {
-	xfs_ioend_bioset = bioset_create(4 * MAX_BUF_PER_PAGE,
+	if (bioset_init(&xfs_ioend_bioset, 4 * MAX_BUF_PER_PAGE,
 			offsetof(struct xfs_ioend, io_inline_bio),
-			BIOSET_NEED_BVECS);
-	if (!xfs_ioend_bioset)
+			BIOSET_NEED_BVECS))
 		goto out;
 
 	xfs_log_ticket_zone = kmem_zone_init(sizeof(xlog_ticket_t),
@@ -1997,7 +1996,7 @@ xfs_init_zones(void)
  out_destroy_log_ticket_zone:
 	kmem_zone_destroy(xfs_log_ticket_zone);
  out_free_ioend_bioset:
-	bioset_free(xfs_ioend_bioset);
+	bioset_exit(&xfs_ioend_bioset);
  out:
 	return -ENOMEM;
 }
@@ -2029,7 +2028,7 @@ xfs_destroy_zones(void)
 	kmem_zone_destroy(xfs_btree_cur_zone);
 	kmem_zone_destroy(xfs_bmap_free_item_zone);
 	kmem_zone_destroy(xfs_log_ticket_zone);
-	bioset_free(xfs_ioend_bioset);
+	bioset_exit(&xfs_ioend_bioset);
 }
 
 STATIC int __init
