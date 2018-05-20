@@ -268,6 +268,26 @@ mt76_check_sband(struct mt76_dev *dev, int band)
 	dev->hw->wiphy->bands[band] = NULL;
 }
 
+struct mt76_dev *
+mt76_alloc_device(unsigned int size, const struct ieee80211_ops *ops)
+{
+	struct ieee80211_hw *hw;
+	struct mt76_dev *dev;
+
+	hw = ieee80211_alloc_hw(size, ops);
+	if (!hw)
+		return NULL;
+
+	dev = hw->priv;
+	dev->hw = hw;
+	spin_lock_init(&dev->rx_lock);
+	spin_lock_init(&dev->lock);
+	spin_lock_init(&dev->cc_lock);
+
+	return dev;
+}
+EXPORT_SYMBOL_GPL(mt76_alloc_device);
+
 int mt76_register_device(struct mt76_dev *dev, bool vht,
 			 struct ieee80211_rate *rates, int n_rates)
 {
@@ -277,8 +297,6 @@ int mt76_register_device(struct mt76_dev *dev, bool vht,
 
 	dev_set_drvdata(dev->dev, dev);
 
-	spin_lock_init(&dev->lock);
-	spin_lock_init(&dev->cc_lock);
 	INIT_LIST_HEAD(&dev->txwi_cache);
 
 	SET_IEEE80211_DEV(hw, dev->dev);

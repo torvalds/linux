@@ -638,20 +638,18 @@ struct mt76x2_dev *mt76x2_alloc_device(struct device *pdev)
 		.rx_poll_complete = mt76x2_rx_poll_complete,
 		.sta_ps = mt76x2_sta_ps,
 	};
-	struct ieee80211_hw *hw;
 	struct mt76x2_dev *dev;
+	struct mt76_dev *mdev;
 
-	hw = ieee80211_alloc_hw(sizeof(*dev), &mt76x2_ops);
-	if (!hw)
+	mdev = mt76_alloc_device(sizeof(*dev), &mt76x2_ops);
+	if (!mdev)
 		return NULL;
 
-	dev = hw->priv;
-	dev->mt76.dev = pdev;
-	dev->mt76.hw = hw;
-	dev->mt76.drv = &drv_ops;
+	dev = container_of(mdev, struct mt76x2_dev, mt76);
+	mdev->dev = pdev;
+	mdev->drv = &drv_ops;
 	mutex_init(&dev->mutex);
 	spin_lock_init(&dev->irq_lock);
-	spin_lock_init(&dev->mt76.rx_lock);
 
 	return dev;
 }
