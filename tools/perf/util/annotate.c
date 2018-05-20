@@ -1263,6 +1263,9 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 				max_percent = sample->percent;
 		}
 
+		if (al->samples_nr > nr_percent)
+			nr_percent = al->samples_nr;
+
 		if (max_percent < min_pcnt)
 			return -1;
 
