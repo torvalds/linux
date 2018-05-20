@@ -269,7 +269,7 @@ enum drbd_req_state_bits {
 static inline void drbd_req_make_private_bio(struct drbd_request *req, struct bio *bio_src)
 {
 	struct bio *bio;
-	bio = bio_clone_fast(bio_src, GFP_NOIO, drbd_io_bio_set);
+	bio = bio_clone_fast(bio_src, GFP_NOIO, &drbd_io_bio_set);
 
 	req->private_bio = bio;
 
