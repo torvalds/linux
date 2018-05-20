@@ -34,7 +34,7 @@
 	};
 
 	gpio-keys {
-		compatible = "gpio-keys-polled";
+		compatible = "gpio-keys";
 		poll-interval = <100>;
 
 		factory {
