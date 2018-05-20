@@ -1,8 +1,8 @@
-KDIR=$(shell realpath $(PWD)/../..)
+KDIR = $(shell realpath $(PWD)/../..)
 
-LABS?=$(shell cd templates && find -mindepth 1 -maxdepth 1 -type d)
-MODS=$(shell cd templates && find $(LABS) -mindepth 1 -name Kbuild | xargs dirname)
-TODO?=0
+LABS ?= $(shell cd templates && find -mindepth 1 -maxdepth 1 -type d)
+MODS = $(shell cd templates && find $(LABS) -mindepth 1 -name Kbuild | xargs dirname)
+TODO ?= 0
 
 include qemu/Makefile
 
@@ -37,6 +37,7 @@ docs:
 	$(MAKE) -C $(KDIR) BUILDDIR=$(KDIR)/Documentation/output/slides DOCBOOKS= SPHINXDIRS="teaching" slides
 	for i in $(KDIR)/Documentation/output/slides/teaching/lectures/*.html; do name=$$(basename $$i .html); cp $$i $(KDIR)/Documentation/output/teaching/lectures/$$name-slides.html; done
 	cp -r $(KDIR)/Documentation/output/slides/teaching/_static $(KDIR)/Documentation/output/teaching/
+
 clean::
 	rm -rf skels
 
