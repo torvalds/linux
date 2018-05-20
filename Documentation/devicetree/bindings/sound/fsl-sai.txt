@@ -28,9 +28,6 @@ Required properties:
 			  pinctrl-names. See ../pinctrl/pinctrl-bindings.txt
 			  for details of the property values.
 
-  - big-endian		: Boolean property, required if all the FTM_PWM
-			  registers are big-endian rather than little-endian.
-
   - lsb-first		: Configures whether the LSB or the MSB is transmitted
 			  first for the fifo data. If this property is absent,
 			  the MSB is transmitted first as default, or the LSB
@@ -47,6 +44,11 @@ Required properties:
 			  means both transimitter and receiver will send and
 			  receive data by following their own bit clocks and
 			  frame sync clocks separately.
+
+Optional properties:
+
+  - big-endian		: Boolean property, required if all the SAI
+			  registers are big-endian rather than little-endian.
 
 Optional properties (for mx6ul):
 
