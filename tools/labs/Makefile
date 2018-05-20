@@ -39,6 +39,6 @@ docs:
 	cp -r $(KDIR)/Documentation/output/slides/teaching/_static $(KDIR)/Documentation/output/teaching/
 
 clean::
-	rm -rf skels
+	-rm -rf skels
 
 .PHONY: skels build copy docs clean
