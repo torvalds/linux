@@ -42,7 +42,6 @@
 
 /* bits within the OPCR register */
 #define OPCR_SPENDH		BIT(5)		/* UHC PHY suspend */
-#define OPCR_SPENDN		BIT(7)		/* OTG PHY suspend */
 
 /* bits within the USBPCR1 register */
 #define USBPCR1_UHC_POWER	BIT(5)		/* UHC PHY power down */
@@ -81,37 +80,6 @@ static const struct clk_ops jz4770_uhc_phy_ops = {
 	.enable = jz4770_uhc_phy_enable,
 	.disable = jz4770_uhc_phy_disable,
 	.is_enabled = jz4770_uhc_phy_is_enabled,
-};
-
-static int jz4770_otg_phy_enable(struct clk_hw *hw)
-{
-	void __iomem *reg_opcr		= cgu->base + CGU_REG_OPCR;
-
-	writel(readl(reg_opcr) | OPCR_SPENDN, reg_opcr);
-
-	/* Wait for the clock to be stable */
-	udelay(50);
-	return 0;
-}
-
-static void jz4770_otg_phy_disable(struct clk_hw *hw)
-{
-	void __iomem *reg_opcr		= cgu->base + CGU_REG_OPCR;
-
-	writel(readl(reg_opcr) & ~OPCR_SPENDN, reg_opcr);
-}
-
-static int jz4770_otg_phy_is_enabled(struct clk_hw *hw)
-{
-	void __iomem *reg_opcr		= cgu->base + CGU_REG_OPCR;
-
-	return !!(readl(reg_opcr) & OPCR_SPENDN);
-}
-
-static const struct clk_ops jz4770_otg_phy_ops = {
-	.enable = jz4770_otg_phy_enable,
-	.disable = jz4770_otg_phy_disable,
-	.is_enabled = jz4770_otg_phy_is_enabled,
 };
 
 static const s8 pll_od_encoding[8] = {
@@ -410,6 +378,11 @@ static const struct ingenic_cgu_clk_info jz4770_cgu_clocks[] = {
 		.parents = { JZ4770_CLK_MMC2_MUX, },
 		.gate = { CGU_REG_CLKGR0, 12 },
 	},
+	[JZ4770_CLK_OTG_PHY] = {
+		"usb_phy", CGU_CLK_GATE,
+		.parents = { JZ4770_CLK_OTG },
+		.gate = { CGU_REG_OPCR, 7, true, 50 },
+	},
 
 	/* Custom clocks */
 
@@ -417,11 +390,6 @@ static const struct ingenic_cgu_clk_info jz4770_cgu_clocks[] = {
 		"uhc_phy", CGU_CLK_CUSTOM,
 		.parents = { JZ4770_CLK_UHC, -1, -1, -1 },
 		.custom = { &jz4770_uhc_phy_ops },
-	},
-	[JZ4770_CLK_OTG_PHY] = {
-		"usb_phy", CGU_CLK_CUSTOM,
-		.parents = { JZ4770_CLK_OTG, -1, -1, -1 },
-		.custom = { &jz4770_otg_phy_ops },
 	},
 
 	[JZ4770_CLK_EXT512] = {
