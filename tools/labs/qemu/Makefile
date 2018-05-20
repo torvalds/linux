@@ -87,4 +87,4 @@ disk2.img:
 clean::
 	rm -f .modinst disk1.img disk2.img
 
-.PHONY: clean tap0 tap1
+.PHONY: boot gdb clean tap0 tap1

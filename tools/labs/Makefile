@@ -41,4 +41,4 @@ docs:
 clean::
 	rm -rf skels
 
-.PHONY: skels
+.PHONY: skels build copy docs clean
