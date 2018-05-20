@@ -559,10 +559,6 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 		dev->cur_i2c_bus = bus;
 	}
 
-	if (num <= 0) {
-		rt_mutex_unlock(&dev->i2c_bus_lock);
-		return 0;
-	}
 	for (i = 0; i < num; i++) {
 		addr = msgs[i].addr << 1;
 		if (!msgs[i].len) {
