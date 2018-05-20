@@ -67,6 +67,9 @@
 			compatible = "mediatek,mt7621-gpio";
 			reg = <0x600 0x100>;
 
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 12 IRQ_TYPE_LEVEL_HIGH>;
+
 			gpio0: bank@0 {
 				reg = <0>;
 				compatible = "mediatek,mt7621-gpio-bank";
