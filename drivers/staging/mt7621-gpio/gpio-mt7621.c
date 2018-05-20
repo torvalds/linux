@@ -156,16 +156,17 @@ mediatek_gpio_bank_probe(struct platform_device *pdev, struct device_node *bank)
 {
 	struct mtk_data *gpio_data = dev_get_drvdata(&pdev->dev);
 	const __be32 *id = of_get_property(bank, "reg", NULL);
-	struct mtk_gc *rg = devm_kzalloc(&pdev->dev,
-				sizeof(struct mtk_gc), GFP_KERNEL);
+	struct mtk_gc *rg;
 	int ret;
 
-	if (!rg || !id || be32_to_cpu(*id) > MTK_MAX_BANK)
+	if (!id || be32_to_cpu(*id) >= MTK_MAX_BANK)
+		return -EINVAL;
+
+	rg = devm_kzalloc(&pdev->dev, sizeof(struct mtk_gc), GFP_KERNEL);
+	if (!rg)
 		return -ENOMEM;
 
 	gpio_data->gc_map[be32_to_cpu(*id)] = rg;
-
-	memset(rg, 0, sizeof(struct mtk_gc));
 
 	spin_lock_init(&rg->lock);
 
