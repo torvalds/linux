@@ -13,7 +13,7 @@ case "$device" in
         subnet=172.213.0
         ;;
     "tap1")
-        subnet=172.30.0.1
+        subnet=172.30.0
         ;;
     *)
         echo "Unknown device" 1>&2
