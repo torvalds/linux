@@ -501,7 +501,7 @@ static int bcm_setup(struct hci_uart *hu)
 	hu->hdev->set_diag = bcm_set_diag;
 	hu->hdev->set_bdaddr = btbcm_set_bdaddr;
 
-	err = btbcm_initialize(hu->hdev, fw_name, sizeof(fw_name));
+	err = btbcm_initialize(hu->hdev, fw_name, sizeof(fw_name), false);
 	if (err)
 		return err;
 
@@ -794,19 +794,21 @@ static const struct acpi_gpio_mapping acpi_bcm_int_first_gpios[] = {
 	{ },
 };
 
-#ifdef CONFIG_ACPI
-/* IRQ polarity of some chipsets are not defined correctly in ACPI table. */
-static const struct dmi_system_id bcm_active_low_irq_dmi_table[] = {
-	{	/* Handle ThinkPad 8 tablets with BCM2E55 chipset ACPI ID */
-		.ident = "Lenovo ThinkPad 8",
+/* Some firmware reports an IRQ which does not work (wrong pin in fw table?) */
+static const struct dmi_system_id bcm_broken_irq_dmi_table[] = {
+	{
+		.ident = "Meegopad T08",
 		.matches = {
-			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "ThinkPad 8"),
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR,
+					"To be filled by OEM."),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "T3 MRD"),
+			DMI_EXACT_MATCH(DMI_BOARD_VERSION, "V1.1"),
 		},
 	},
 	{ }
 };
 
+#ifdef CONFIG_ACPI
 static int bcm_resource(struct acpi_resource *ares, void *data)
 {
 	struct bcm_device *dev = data;
@@ -904,6 +906,8 @@ static int bcm_gpio_set_shutdown(struct bcm_device *dev, bool powered)
 
 static int bcm_get_resources(struct bcm_device *dev)
 {
+	const struct dmi_system_id *dmi_id;
+
 	dev->name = dev_name(dev->dev);
 
 	if (x86_apple_machine && !bcm_apple_get_resources(dev))
@@ -936,6 +940,13 @@ static int bcm_get_resources(struct bcm_device *dev)
 		dev->irq = gpiod_to_irq(gpio);
 	}
 
+	dmi_id = dmi_first_match(bcm_broken_irq_dmi_table);
+	if (dmi_id) {
+		dev_info(dev->dev, "%s: Has a broken IRQ config, disabling IRQ support / runtime-pm\n",
+			 dmi_id->ident);
+		dev->irq = 0;
+	}
+
 	dev_dbg(dev->dev, "BCM irq: %d\n", dev->irq);
 	return 0;
 }
@@ -944,7 +955,6 @@ static int bcm_get_resources(struct bcm_device *dev)
 static int bcm_acpi_probe(struct bcm_device *dev)
 {
 	LIST_HEAD(resources);
-	const struct dmi_system_id *dmi_id;
 	const struct acpi_gpio_mapping *gpio_mapping = acpi_bcm_int_last_gpios;
 	struct resource_entry *entry;
 	int ret;
@@ -991,13 +1001,6 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 		dev->irq_active_low = irq_polarity;
 		dev_warn(dev->dev, "Overwriting IRQ polarity to active %s by module-param\n",
 			 dev->irq_active_low ? "low" : "high");
-	} else {
-		dmi_id = dmi_first_match(bcm_active_low_irq_dmi_table);
-		if (dmi_id) {
-			dev_warn(dev->dev, "%s: Overwriting IRQ polarity to active low",
-				 dmi_id->ident);
-			dev->irq_active_low = true;
-		}
 	}
 
 	return 0;
