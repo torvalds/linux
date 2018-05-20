@@ -1633,6 +1633,7 @@ static int aio_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 		void *key)
 {
 	struct poll_iocb *req = container_of(wait, struct poll_iocb, wait);
+	struct aio_kiocb *iocb = container_of(req, struct aio_kiocb, poll);
 	struct file *file = req->file;
 	__poll_t mask = key_to_poll(key);
 
@@ -1648,9 +1649,22 @@ static int aio_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 
 	__aio_poll_remove(req);
 
-	req->events = mask;
-	INIT_WORK(&req->work, aio_poll_work);
-	schedule_work(&req->work);
+	/*
+	 * Try completing without a context switch if we can acquire ctx_lock
+	 * without spinning.  Otherwise we need to defer to a workqueue to
+	 * avoid a deadlock due to the lock order.
+	 */
+	if (spin_trylock(&iocb->ki_ctx->ctx_lock)) {
+		list_del_init(&iocb->ki_list);
+		spin_unlock(&iocb->ki_ctx->ctx_lock);
+
+		__aio_poll_complete(req, mask);
+	} else {
+		req->events = mask;
+		INIT_WORK(&req->work, aio_poll_work);
+		schedule_work(&req->work);
+	}
+
 	return 1;
 }
 
