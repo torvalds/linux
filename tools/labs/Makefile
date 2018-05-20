@@ -17,7 +17,7 @@ skels/Kbuild:
 	for i in $(shell cd skels && find -mindepth 1 -name Kbuild | xargs dirname); do echo "obj-m += $$i/" >> $@; done
 
 build: $(KCONFIG) skels/Kbuild
-	$(MAKE) -C $(KDIR) M=$(PWD)/skels ARCH=$(ARCH) modules
+	$(MAKE) -C $(KDIR) M=$(KDIR)/tools/labs/skels ARCH=$(ARCH) modules
 	for i in $(shell find skels -name Makefile | xargs dirname); do $(MAKE) -C $$i; done
 
 TEMPDIR := $(shell mktemp -u)
