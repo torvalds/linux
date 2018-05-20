@@ -362,7 +362,7 @@ static const struct ingenic_cgu_clk_info jz4770_cgu_clocks[] = {
 	[JZ4770_CLK_VPU] = {
 		"vpu", CGU_CLK_GATE,
 		.parents = { JZ4770_CLK_H1CLK, },
-		.gate = { CGU_REG_LCR, 30 },
+		.gate = { CGU_REG_LCR, 30, false, 150 },
 	},
 	[JZ4770_CLK_MMC0] = {
 		"mmc0", CGU_CLK_GATE,
