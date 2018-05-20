@@ -1942,10 +1942,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		ret += tcrypt_test("vmac(aes)");
 		break;
 
-	case 110:
-		ret += tcrypt_test("hmac(crc32)");
-		break;
-
 	case 111:
 		ret += tcrypt_test("hmac(sha3-224)");
 		break;
