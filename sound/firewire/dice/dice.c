@@ -358,6 +358,14 @@ static const struct ieee1394_device_id dice_id_table[] = {
 		.model_id	= 0x000027,
 		.driver_data = (kernel_ulong_t)snd_dice_detect_tcelectronic_formats,
 	},
+	/* TC Electronic Digital Konnekt x32. */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_TCELECTRONIC,
+		.model_id	= 0x000030,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_tcelectronic_formats,
+	},
 	/* Alesis iO14/iO26. */
 	{
 		.match_flags	= IEEE1394_MATCH_VENDOR_ID |

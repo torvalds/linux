@@ -49,6 +49,12 @@ static const struct dice_tc_spec studio_konnekt_48 = {
 	.has_midi = true,
 };
 
+static const struct dice_tc_spec digital_konnekt_x32 = {
+	.tx_pcm_chs = {{16, 16, 4}, {0, 0, 0} },
+	.rx_pcm_chs = {{16, 16, 4}, {0, 0, 0} },
+	.has_midi = false,
+};
+
 int snd_dice_detect_tcelectronic_formats(struct snd_dice *dice)
 {
 	static const struct {
@@ -61,6 +67,7 @@ int snd_dice_detect_tcelectronic_formats(struct snd_dice *dice)
 		{0x00000023, &konnekt_live},
 		{0x00000024, &desktop_konnekt6},
 		{0x00000027, &impact_twin},
+		{0x00000030, &digital_konnekt_x32},
 	};
 	struct fw_csr_iterator it;
 	int key, val, model_id;
