@@ -283,6 +283,7 @@ mt76_alloc_device(unsigned int size, const struct ieee80211_ops *ops)
 	spin_lock_init(&dev->rx_lock);
 	spin_lock_init(&dev->lock);
 	spin_lock_init(&dev->cc_lock);
+	init_waitqueue_head(&dev->tx_wait);
 
 	return dev;
 }
@@ -377,17 +378,32 @@ void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(mt76_rx);
 
+static bool mt76_has_tx_pending(struct mt76_dev *dev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(dev->q_tx); i++) {
+		if (dev->q_tx[i].queued)
+			return true;
+	}
+
+	return false;
+}
+
 void mt76_set_channel(struct mt76_dev *dev)
 {
 	struct ieee80211_hw *hw = dev->hw;
 	struct cfg80211_chan_def *chandef = &hw->conf.chandef;
 	struct mt76_channel_state *state;
 	bool offchannel = hw->conf.flags & IEEE80211_CONF_OFFCHANNEL;
+	int timeout = HZ / 5;
 
 	if (offchannel)
 		set_bit(MT76_OFFCHANNEL, &dev->state);
 	else
 		clear_bit(MT76_OFFCHANNEL, &dev->state);
+
+	wait_event_timeout(dev->tx_wait, !mt76_has_tx_pending(dev), timeout);
 
 	if (dev->drv->update_survey)
 		dev->drv->update_survey(dev);
