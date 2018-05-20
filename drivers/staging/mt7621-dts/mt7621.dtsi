@@ -64,26 +64,26 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			compatible = "mtk,mt7621-gpio";
+			compatible = "mediatek,mt7621-gpio";
 			reg = <0x600 0x100>;
 
 			gpio0: bank@0 {
 				reg = <0>;
-				compatible = "mtk,mt7621-gpio-bank";
+				compatible = "mediatek,mt7621-gpio-bank";
 				gpio-controller;
 				#gpio-cells = <2>;
 			};
 
 			gpio1: bank@1 {
 				reg = <1>;
-				compatible = "mtk,mt7621-gpio-bank";
+				compatible = "mediatek,mt7621-gpio-bank";
 				gpio-controller;
 				#gpio-cells = <2>;
 			};
 
 			gpio2: bank@2 {
 				reg = <2>;
-				compatible = "mtk,mt7621-gpio-bank";
+				compatible = "mediatek,mt7621-gpio-bank";
 				gpio-controller;
 				#gpio-cells = <2>;
 			};
