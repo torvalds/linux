@@ -5,6 +5,7 @@ b = b
 endif
 ZIMAGE=$(KDIR)/arch/$(ARCH)/boot/$(b)zImage
 KCONFIG=$(KDIR)/.config
+NTTCP=$(KDIR)/tools/labs/templates/assignments/6-e100/nttcp
 
 YOCTO_URL=http://downloads.yoctoproject.org/releases/yocto/yocto-2.3/machines/qemu/qemu$(ARCH)/
 YOCTO_IMAGE=core-image-minimal-qemu$(ARCH).ext4
@@ -25,7 +26,7 @@ QEMU_OPTS = -kernel $(ZIMAGE) \
 	--append "root=/dev/vda console=hvc0" \
 	--display $(QEMU_DISPLAY) -s
 
-boot: .modinst tap0 tap1 pipe1.in pipe1.out pipe2.in pipe2.out disk1.img disk2.img
+boot: .modinst tap0 tap1 pipe1.in pipe1.out pipe2.in pipe2.out disk1.img disk2.img nttcp-run
 	ARCH=$(ARCH) qemu/qemu.sh $(QEMU_OPTS)
 
 TEMPDIR := $(shell mktemp -u)
@@ -60,6 +61,9 @@ tap0:
 
 tap1:
 	qemu/create_net.sh $@
+
+nttcp-run: $(NTTCP) tap1
+	$(NTTCP) -v -i &
 
 pipe1.in:
 	mkfifo $@
