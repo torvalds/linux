@@ -162,9 +162,10 @@ static const struct ingenic_cgu_clk_info jz4770_cgu_clocks[] = {
 		.div = { CGU_REG_CPCCR, 16, 1, 4, 22, -1, -1 },
 	},
 	[JZ4770_CLK_C1CLK] = {
-		"c1clk", CGU_CLK_DIV,
+		"c1clk", CGU_CLK_DIV | CGU_CLK_GATE,
 		.parents = { JZ4770_CLK_PLL0, },
 		.div = { CGU_REG_CPCCR, 12, 1, 4, 22, -1, -1 },
+		.gate = { CGU_REG_OPCR, 31, true }, // disable CCLK stop on idle
 	},
 	[JZ4770_CLK_PCLK] = {
 		"pclk", CGU_CLK_DIV,
