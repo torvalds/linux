@@ -449,6 +449,8 @@ drop:
 	return err;
 }
 
+DEFINE_PER_CPU(struct seg6_bpf_srh_state, seg6_bpf_srh_states);
+
 static struct seg6_action_desc seg6_action_table[] = {
 	{
 		.action		= SEG6_LOCAL_ACTION_END,
