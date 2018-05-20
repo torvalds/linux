@@ -261,7 +261,7 @@ struct mtk_pinctrl_devdata {
 	unsigned char  port_mask;
 	unsigned char  port_align;
 	struct mtk_eint_hw eint_hw;
-	struct mtk_eint_regs eint_regs;
+	struct mtk_eint_regs *eint_regs;
 };
 
 struct mtk_pinctrl {

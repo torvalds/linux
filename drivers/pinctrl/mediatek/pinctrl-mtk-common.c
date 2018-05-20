@@ -1014,7 +1014,11 @@ static int mtk_eint_init(struct mtk_pinctrl *pctl, struct platform_device *pdev)
 		return -EINVAL;
 
 	pctl->eint->dev = &pdev->dev;
-	pctl->eint->regs = &pctl->devdata->eint_regs;
+	/*
+	 * If pctl->eint->regs == NULL, it would fall back into using a generic
+	 * register map in mtk_eint_do_init calls.
+	 */
+	pctl->eint->regs = pctl->devdata->eint_regs;
 	pctl->eint->hw = &pctl->devdata->eint_hw;
 	pctl->eint->pctl = pctl;
 	pctl->eint->gpio_xlate = &mtk_eint_xt;
