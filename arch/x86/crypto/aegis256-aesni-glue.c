@@ -57,7 +57,7 @@ struct aegis_state {
 };
 
 struct aegis_ctx {
-	struct aegis_block key;
+	struct aegis_block key[AEGIS256_KEY_SIZE / AEGIS256_BLOCK_SIZE];
 };
 
 struct aegis_crypt_ops {
@@ -164,7 +164,7 @@ static int crypto_aegis256_aesni_setkey(struct crypto_aead *aead, const u8 *key,
 		return -EINVAL;
 	}
 
-	memcpy(ctx->key.bytes, key, AEGIS256_KEY_SIZE);
+	memcpy(ctx->key, key, AEGIS256_KEY_SIZE);
 
 	return 0;
 }
@@ -190,7 +190,7 @@ static void crypto_aegis256_aesni_crypt(struct aead_request *req,
 
 	kernel_fpu_begin();
 
-	crypto_aegis256_aesni_init(&state, ctx->key.bytes, req->iv);
+	crypto_aegis256_aesni_init(&state, ctx->key, req->iv);
 	crypto_aegis256_aesni_process_ad(&state, req->src, req->assoclen);
 	crypto_aegis256_aesni_process_crypt(&state, req, ops);
 	crypto_aegis256_aesni_final(&state, tag_xor, req->assoclen, cryptlen);
