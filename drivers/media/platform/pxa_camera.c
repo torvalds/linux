@@ -2040,6 +2040,9 @@ static int pxac_fops_camera_open(struct file *filp)
 	if (ret < 0)
 		goto out;
 
+	if (!v4l2_fh_is_singular_file(filp))
+		goto out;
+
 	ret = sensor_call(pcdev, core, s_power, 1);
 	if (ret)
 		v4l2_fh_release(filp);
@@ -2052,13 +2055,17 @@ static int pxac_fops_camera_release(struct file *filp)
 {
 	struct pxa_camera_dev *pcdev = video_drvdata(filp);
 	int ret;
-
-	ret = vb2_fop_release(filp);
-	if (ret < 0)
-		return ret;
+	bool fh_singular;
 
 	mutex_lock(&pcdev->mlock);
-	ret = sensor_call(pcdev, core, s_power, 0);
+
+	fh_singular = v4l2_fh_is_singular_file(filp);
+
+	ret = _vb2_fop_release(filp, NULL);
+
+	if (fh_singular)
+		ret = sensor_call(pcdev, core, s_power, 0);
+
 	mutex_unlock(&pcdev->mlock);
 
 	return ret;
