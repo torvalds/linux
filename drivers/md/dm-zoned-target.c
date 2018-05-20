@@ -57,7 +57,7 @@ struct dmz_target {
 	struct workqueue_struct *chunk_wq;
 
 	/* For cloned BIOs to zones */
-	struct bio_set		*bio_set;
+	struct bio_set		bio_set;
 
 	/* For flush */
 	spinlock_t		flush_lock;
@@ -121,7 +121,7 @@ static int dmz_submit_read_bio(struct dmz_target *dmz, struct dm_zone *zone,
 	}
 
 	/* Partial BIO: we need to clone the BIO */
-	clone = bio_clone_fast(bio, GFP_NOIO, dmz->bio_set);
+	clone = bio_clone_fast(bio, GFP_NOIO, &dmz->bio_set);
 	if (!clone)
 		return -ENOMEM;
 
@@ -779,10 +779,9 @@ static int dmz_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ti->len = (sector_t)dmz_nr_chunks(dmz->metadata) << dev->zone_nr_sectors_shift;
 
 	/* Zone BIO */
-	dmz->bio_set = bioset_create(DMZ_MIN_BIOS, 0, 0);
-	if (!dmz->bio_set) {
+	ret = bioset_init(&dmz->bio_set, DMZ_MIN_BIOS, 0, 0);
+	if (ret) {
 		ti->error = "Create BIO set failed";
-		ret = -ENOMEM;
 		goto err_meta;
 	}
 
@@ -828,7 +827,7 @@ err_cwq:
 	destroy_workqueue(dmz->chunk_wq);
 err_bio:
 	mutex_destroy(&dmz->chunk_lock);
-	bioset_free(dmz->bio_set);
+	bioset_exit(&dmz->bio_set);
 err_meta:
 	dmz_dtr_metadata(dmz->metadata);
 err_dev:
@@ -858,7 +857,7 @@ static void dmz_dtr(struct dm_target *ti)
 
 	dmz_dtr_metadata(dmz->metadata);
 
-	bioset_free(dmz->bio_set);
+	bioset_exit(&dmz->bio_set);
 
 	dmz_put_zoned_device(ti);
 

@@ -91,8 +91,8 @@ struct mapped_device {
 	/*
 	 * io objects are allocated from here.
 	 */
-	struct bio_set *io_bs;
-	struct bio_set *bs;
+	struct bio_set io_bs;
+	struct bio_set bs;
 
 	/*
 	 * freeze/thaw support require holding onto a super block
