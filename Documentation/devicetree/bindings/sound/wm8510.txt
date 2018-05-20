@@ -12,7 +12,7 @@ Required properties:
 
 Example:
 
-codec: wm8510@1a {
+wm8510: codec@1a {
 	compatible = "wlf,wm8510";
 	reg = <0x1a>;
 };

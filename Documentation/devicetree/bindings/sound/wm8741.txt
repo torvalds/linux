@@ -21,7 +21,7 @@ Optional properties:
 
 Example:
 
-codec: wm8741@1a {
+wm8741: codec@1a {
 	compatible = "wlf,wm8741";
 	reg = <0x1a>;
 
