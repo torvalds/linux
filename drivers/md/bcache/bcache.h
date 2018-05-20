@@ -269,7 +269,7 @@ struct bcache_device {
 	atomic_t		*stripe_sectors_dirty;
 	unsigned long		*full_dirty_stripes;
 
-	struct bio_set		*bio_split;
+	struct bio_set		bio_split;
 
 	unsigned		data_csum:1;
 
@@ -530,9 +530,9 @@ struct cache_set {
 	struct closure		sb_write;
 	struct semaphore	sb_write_mutex;
 
-	mempool_t		*search;
-	mempool_t		*bio_meta;
-	struct bio_set		*bio_split;
+	mempool_t		search;
+	mempool_t		bio_meta;
+	struct bio_set		bio_split;
 
 	/* For the btree cache */
 	struct shrinker		shrink;
@@ -657,7 +657,7 @@ struct cache_set {
 	 * A btree node on disk could have too many bsets for an iterator to fit
 	 * on the stack - have to dynamically allocate them
 	 */
-	mempool_t		*fill_iter;
+	mempool_t		fill_iter;
 
 	struct bset_sort_state	sort;
 

@@ -753,8 +753,7 @@ static void bcache_device_free(struct bcache_device *d)
 		put_disk(d->disk);
 	}
 
-	if (d->bio_split)
-		bioset_free(d->bio_split);
+	bioset_exit(&d->bio_split);
 	kvfree(d->full_dirty_stripes);
 	kvfree(d->stripe_sectors_dirty);
 
@@ -796,9 +795,8 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
 	if (idx < 0)
 		return idx;
 
-	if (!(d->bio_split = bioset_create(4, offsetof(struct bbio, bio),
-					   BIOSET_NEED_BVECS |
-					   BIOSET_NEED_RESCUER)) ||
+	if (bioset_init(&d->bio_split, 4, offsetof(struct bbio, bio),
+			BIOSET_NEED_BVECS|BIOSET_NEED_RESCUER) ||
 	    !(d->disk = alloc_disk(BCACHE_MINORS))) {
 		ida_simple_remove(&bcache_device_idx, idx);
 		return -ENOMEM;
@@ -1500,14 +1498,10 @@ static void cache_set_free(struct closure *cl)
 
 	if (c->moving_gc_wq)
 		destroy_workqueue(c->moving_gc_wq);
-	if (c->bio_split)
-		bioset_free(c->bio_split);
-	if (c->fill_iter)
-		mempool_destroy(c->fill_iter);
-	if (c->bio_meta)
-		mempool_destroy(c->bio_meta);
-	if (c->search)
-		mempool_destroy(c->search);
+	bioset_exit(&c->bio_split);
+	mempool_exit(&c->fill_iter);
+	mempool_exit(&c->bio_meta);
+	mempool_exit(&c->search);
 	kfree(c->devices);
 
 	mutex_lock(&bch_register_lock);
@@ -1718,21 +1712,17 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 	INIT_LIST_HEAD(&c->btree_cache_freed);
 	INIT_LIST_HEAD(&c->data_buckets);
 
-	c->search = mempool_create_slab_pool(32, bch_search_cache);
-	if (!c->search)
-		goto err;
-
 	iter_size = (sb->bucket_size / sb->block_size + 1) *
 		sizeof(struct btree_iter_set);
 
 	if (!(c->devices = kzalloc(c->nr_uuids * sizeof(void *), GFP_KERNEL)) ||
-	    !(c->bio_meta = mempool_create_kmalloc_pool(2,
-				sizeof(struct bbio) + sizeof(struct bio_vec) *
-				bucket_pages(c))) ||
-	    !(c->fill_iter = mempool_create_kmalloc_pool(1, iter_size)) ||
-	    !(c->bio_split = bioset_create(4, offsetof(struct bbio, bio),
-					   BIOSET_NEED_BVECS |
-					   BIOSET_NEED_RESCUER)) ||
+	    mempool_init_slab_pool(&c->search, 32, bch_search_cache) ||
+	    mempool_init_kmalloc_pool(&c->bio_meta, 2,
+				      sizeof(struct bbio) + sizeof(struct bio_vec) *
+				      bucket_pages(c)) ||
+	    mempool_init_kmalloc_pool(&c->fill_iter, 1, iter_size) ||
+	    bioset_init(&c->bio_split, 4, offsetof(struct bbio, bio),
+			BIOSET_NEED_BVECS|BIOSET_NEED_RESCUER) ||
 	    !(c->uuids = alloc_bucket_pages(GFP_KERNEL, c)) ||
 	    !(c->moving_gc_wq = alloc_workqueue("bcache_gc",
 						WQ_MEM_RECLAIM, 0)) ||
