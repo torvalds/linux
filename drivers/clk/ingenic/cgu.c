@@ -512,6 +512,9 @@ static int ingenic_clk_enable(struct clk_hw *hw)
 		spin_lock_irqsave(&cgu->lock, flags);
 		ingenic_cgu_gate_set(cgu, &clk_info->gate, false);
 		spin_unlock_irqrestore(&cgu->lock, flags);
+
+		if (clk_info->gate.delay_us)
+			udelay(clk_info->gate.delay_us);
 	}
 
 	return 0;

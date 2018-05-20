@@ -112,11 +112,13 @@ struct ingenic_cgu_fixdiv_info {
  * @reg: offset of the gate control register within the CGU
  * @bit: offset of the bit in the register that controls the gate
  * @clear_to_gate: if set, the clock is gated when the bit is cleared
+ * @delay_us: delay in microseconds after which the clock is considered stable
  */
 struct ingenic_cgu_gate_info {
 	unsigned reg;
 	u8 bit;
 	bool clear_to_gate;
+	u16 delay_us;
 };
 
 /**
