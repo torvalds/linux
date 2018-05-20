@@ -135,10 +135,7 @@ mediatek_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 	t = mtk_gpio_r32(rg, GPIO_REG_CTRL);
 	spin_unlock_irqrestore(&rg->lock, flags);
 
-	if (t & BIT(offset))
-		return 0;
-
-	return 1;
+	return (t & BIT(offset)) ? 0 : 1;
 }
 
 static int
