@@ -145,8 +145,6 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 	struct tm6000_core *dev = i2c_adap->algo_data;
 	int addr, rc, i, byte;
 
-	if (num <= 0)
-		return 0;
 	for (i = 0; i < num; i++) {
 		addr = (msgs[i].addr << 1) & 0xff;
 		i2c_dprintk(2, "%s %s addr=0x%x len=%d:",
