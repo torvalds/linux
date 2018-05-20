@@ -376,7 +376,7 @@ void mt76x2_mac_stop(struct mt76x2_dev *dev, bool force)
 		if ((mt76_rr(dev, MT_MAC_STATUS) &
 		     (MT_MAC_STATUS_RX | MT_MAC_STATUS_TX)) ||
 		    mt76_rr(dev, MT_BBP(IBI, 12))) {
-			usleep_range(10, 20);
+			udelay(1);
 			continue;
 		}
 
