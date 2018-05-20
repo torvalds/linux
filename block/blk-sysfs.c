@@ -824,8 +824,7 @@ static void __blk_release_queue(struct work_struct *work)
 	if (q->mq_ops)
 		blk_mq_debugfs_unregister(q);
 
-	if (q->bio_split)
-		bioset_free(q->bio_split);
+	bioset_exit(&q->bio_split);
 
 	ida_simple_remove(&blk_queue_ida, q->id);
 	call_rcu(&q->rcu_head, blk_free_queue_rcu);

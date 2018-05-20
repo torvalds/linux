@@ -188,16 +188,16 @@ void blk_queue_split(struct request_queue *q, struct bio **bio)
 	switch (bio_op(*bio)) {
 	case REQ_OP_DISCARD:
 	case REQ_OP_SECURE_ERASE:
-		split = blk_bio_discard_split(q, *bio, q->bio_split, &nsegs);
+		split = blk_bio_discard_split(q, *bio, &q->bio_split, &nsegs);
 		break;
 	case REQ_OP_WRITE_ZEROES:
-		split = blk_bio_write_zeroes_split(q, *bio, q->bio_split, &nsegs);
+		split = blk_bio_write_zeroes_split(q, *bio, &q->bio_split, &nsegs);
 		break;
 	case REQ_OP_WRITE_SAME:
-		split = blk_bio_write_same_split(q, *bio, q->bio_split, &nsegs);
+		split = blk_bio_write_same_split(q, *bio, &q->bio_split, &nsegs);
 		break;
 	default:
-		split = blk_bio_segment_split(q, *bio, q->bio_split, &nsegs);
+		split = blk_bio_segment_split(q, *bio, &q->bio_split, &nsegs);
 		break;
 	}
 

@@ -992,6 +992,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id,
 					   spinlock_t *lock)
 {
 	struct request_queue *q;
+	int ret;
 
 	q = kmem_cache_alloc_node(blk_requestq_cachep,
 				gfp_mask | __GFP_ZERO, node_id);
@@ -1002,8 +1003,8 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id,
 	if (q->id < 0)
 		goto fail_q;
 
-	q->bio_split = bioset_create(BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS);
-	if (!q->bio_split)
+	ret = bioset_init(&q->bio_split, BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS);
+	if (ret)
 		goto fail_id;
 
 	q->backing_dev_info = bdi_alloc_node(gfp_mask, node_id);
@@ -1075,7 +1076,7 @@ fail_bdi:
 fail_stats:
 	bdi_put(q->backing_dev_info);
 fail_split:
-	bioset_free(q->bio_split);
+	bioset_exit(&q->bio_split);
 fail_id:
 	ida_simple_remove(&blk_queue_ida, q->id);
 fail_q:

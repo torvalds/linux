@@ -760,6 +760,11 @@ struct biovec_slab {
 	struct kmem_cache *slab;
 };
 
+static inline bool bioset_initialized(struct bio_set *bs)
+{
+	return bs->bio_slab != NULL;
+}
+
 /*
  * a small number of entries is fine, not going to be performance critical.
  * basically we just need to survive

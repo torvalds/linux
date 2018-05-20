@@ -1582,7 +1582,7 @@ static blk_qc_t __split_and_process_bio(struct mapped_device *md,
 				 * won't be affected by this reassignment.
 				 */
 				struct bio *b = bio_clone_bioset(bio, GFP_NOIO,
-								 md->queue->bio_split);
+								 &md->queue->bio_split);
 				ci.io->orig_bio = b;
 				bio_advance(bio, (bio_sectors(bio) - ci.sector_count) << 9);
 				bio_chain(b, bio);
