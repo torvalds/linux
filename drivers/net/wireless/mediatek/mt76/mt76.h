@@ -189,6 +189,7 @@ enum {
 	MT76_STATE_RUNNING,
 	MT76_SCANNING,
 	MT76_RESET,
+	MT76_OFFCHANNEL,
 };
 
 struct mt76_hw_cap {

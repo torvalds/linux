@@ -366,6 +366,11 @@ void mt76_set_channel(struct mt76_dev *dev)
 	struct mt76_channel_state *state;
 	bool offchannel = hw->conf.flags & IEEE80211_CONF_OFFCHANNEL;
 
+	if (offchannel)
+		set_bit(MT76_OFFCHANNEL, &dev->state);
+	else
+		clear_bit(MT76_OFFCHANNEL, &dev->state);
+
 	if (dev->drv->update_survey)
 		dev->drv->update_survey(dev);
 
