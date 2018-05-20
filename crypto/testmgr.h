@@ -42293,6 +42293,15 @@ static const struct hash_testvec michael_mic_tv_template[] = {
  */
 static const struct hash_testvec crc32_tv_template[] = {
 	{
+		.psize = 0,
+		.digest = "\x00\x00\x00\x00",
+	},
+	{
+		.plaintext = "abcdefg",
+		.psize = 7,
+		.digest = "\xd8\xb5\x46\xac",
+	},
+	{
 		.key = "\x87\xa9\xcb\xed",
 		.ksize = 4,
 		.psize = 0,
@@ -42727,6 +42736,11 @@ static const struct hash_testvec crc32c_tv_template[] = {
 	{
 		.psize = 0,
 		.digest = "\x00\x00\x00\x00",
+	},
+	{
+		.plaintext = "abcdefg",
+		.psize = 7,
+		.digest = "\x41\xf4\x27\xe6",
 	},
 	{
 		.key = "\x87\xa9\xcb\xed",
