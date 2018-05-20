@@ -60,7 +60,7 @@ void pblk_submit_rec(struct work_struct *work)
 		goto err;
 	}
 
-	mempool_free(recovery, pblk->rec_pool);
+	mempool_free(recovery, &pblk->rec_pool);
 	return;
 
 err:

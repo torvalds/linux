@@ -40,7 +40,7 @@ static void pblk_line_mark_bb(struct work_struct *work)
 	}
 
 	kfree(ppa);
-	mempool_free(line_ws, pblk->gen_ws_pool);
+	mempool_free(line_ws, &pblk->gen_ws_pool);
 }
 
 static void pblk_mark_bb(struct pblk *pblk, struct pblk_line *line,
@@ -102,7 +102,7 @@ static void pblk_end_io_erase(struct nvm_rq *rqd)
 	struct pblk *pblk = rqd->private;
 
 	__pblk_end_io_erase(pblk, rqd);
-	mempool_free(rqd, pblk->e_rq_pool);
+	mempool_free(rqd, &pblk->e_rq_pool);
 }
 
 /*
@@ -237,15 +237,15 @@ struct nvm_rq *pblk_alloc_rqd(struct pblk *pblk, int type)
 	switch (type) {
 	case PBLK_WRITE:
 	case PBLK_WRITE_INT:
-		pool = pblk->w_rq_pool;
+		pool = &pblk->w_rq_pool;
 		rq_size = pblk_w_rq_size;
 		break;
 	case PBLK_READ:
-		pool = pblk->r_rq_pool;
+		pool = &pblk->r_rq_pool;
 		rq_size = pblk_g_rq_size;
 		break;
 	default:
-		pool = pblk->e_rq_pool;
+		pool = &pblk->e_rq_pool;
 		rq_size = pblk_g_rq_size;
 	}
 
@@ -265,13 +265,13 @@ void pblk_free_rqd(struct pblk *pblk, struct nvm_rq *rqd, int type)
 	case PBLK_WRITE:
 		kfree(((struct pblk_c_ctx *)nvm_rq_to_pdu(rqd))->lun_bitmap);
 	case PBLK_WRITE_INT:
-		pool = pblk->w_rq_pool;
+		pool = &pblk->w_rq_pool;
 		break;
 	case PBLK_READ:
-		pool = pblk->r_rq_pool;
+		pool = &pblk->r_rq_pool;
 		break;
 	case PBLK_ERASE:
-		pool = pblk->e_rq_pool;
+		pool = &pblk->e_rq_pool;
 		break;
 	default:
 		pr_err("pblk: trying to free unknown rqd type\n");
@@ -292,7 +292,7 @@ void pblk_bio_free_pages(struct pblk *pblk, struct bio *bio, int off,
 
 	for (i = off; i < nr_pages + off; i++) {
 		bv = bio->bi_io_vec[i];
-		mempool_free(bv.bv_page, pblk->page_bio_pool);
+		mempool_free(bv.bv_page, &pblk->page_bio_pool);
 	}
 }
 
@@ -304,12 +304,12 @@ int pblk_bio_add_pages(struct pblk *pblk, struct bio *bio, gfp_t flags,
 	int i, ret;
 
 	for (i = 0; i < nr_pages; i++) {
-		page = mempool_alloc(pblk->page_bio_pool, flags);
+		page = mempool_alloc(&pblk->page_bio_pool, flags);
 
 		ret = bio_add_pc_page(q, bio, page, PBLK_EXPOSED_PAGE_SIZE, 0);
 		if (ret != PBLK_EXPOSED_PAGE_SIZE) {
 			pr_err("pblk: could not add page to bio\n");
-			mempool_free(page, pblk->page_bio_pool);
+			mempool_free(page, &pblk->page_bio_pool);
 			goto err;
 		}
 	}
@@ -1593,7 +1593,7 @@ static void pblk_line_put_ws(struct work_struct *work)
 	struct pblk_line *line = line_put_ws->line;
 
 	__pblk_line_put(pblk, line);
-	mempool_free(line_put_ws, pblk->gen_ws_pool);
+	mempool_free(line_put_ws, &pblk->gen_ws_pool);
 }
 
 void pblk_line_put(struct kref *ref)
@@ -1610,7 +1610,7 @@ void pblk_line_put_wq(struct kref *ref)
 	struct pblk *pblk = line->pblk;
 	struct pblk_line_ws *line_put_ws;
 
-	line_put_ws = mempool_alloc(pblk->gen_ws_pool, GFP_ATOMIC);
+	line_put_ws = mempool_alloc(&pblk->gen_ws_pool, GFP_ATOMIC);
 	if (!line_put_ws)
 		return;
 
@@ -1752,7 +1752,7 @@ void pblk_line_close_ws(struct work_struct *work)
 	struct pblk_line *line = line_ws->line;
 
 	pblk_line_close(pblk, line);
-	mempool_free(line_ws, pblk->gen_ws_pool);
+	mempool_free(line_ws, &pblk->gen_ws_pool);
 }
 
 void pblk_gen_run_ws(struct pblk *pblk, struct pblk_line *line, void *priv,
@@ -1761,7 +1761,7 @@ void pblk_gen_run_ws(struct pblk *pblk, struct pblk_line *line, void *priv,
 {
 	struct pblk_line_ws *line_ws;
 
-	line_ws = mempool_alloc(pblk->gen_ws_pool, gfp_mask);
+	line_ws = mempool_alloc(&pblk->gen_ws_pool, gfp_mask);
 
 	line_ws->pblk = pblk;
 	line_ws->line = line;

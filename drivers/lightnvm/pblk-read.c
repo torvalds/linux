@@ -294,7 +294,7 @@ static int pblk_partial_read_bio(struct pblk *pblk, struct nvm_rq *rqd,
 		kunmap_atomic(src_p);
 		kunmap_atomic(dst_p);
 
-		mempool_free(src_bv.bv_page, pblk->page_bio_pool);
+		mempool_free(src_bv.bv_page, &pblk->page_bio_pool);
 
 		hole = find_next_zero_bit(read_bitmap, nr_secs, hole + 1);
 	} while (hole < nr_secs);
@@ -429,7 +429,7 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 		struct bio *int_bio = NULL;
 
 		/* Clone read bio to deal with read errors internally */
-		int_bio = bio_clone_fast(bio, GFP_KERNEL, pblk_bio_set);
+		int_bio = bio_clone_fast(bio, GFP_KERNEL, &pblk_bio_set);
 		if (!int_bio) {
 			pr_err("pblk: could not clone read bio\n");
 			goto fail_end_io;

@@ -664,12 +664,12 @@ struct pblk {
 
 	struct list_head compl_list;
 
-	mempool_t *page_bio_pool;
-	mempool_t *gen_ws_pool;
-	mempool_t *rec_pool;
-	mempool_t *r_rq_pool;
-	mempool_t *w_rq_pool;
-	mempool_t *e_rq_pool;
+	mempool_t page_bio_pool;
+	mempool_t gen_ws_pool;
+	mempool_t rec_pool;
+	mempool_t r_rq_pool;
+	mempool_t w_rq_pool;
+	mempool_t e_rq_pool;
 
 	struct workqueue_struct *close_wq;
 	struct workqueue_struct *bb_wq;
@@ -841,7 +841,7 @@ void pblk_write_should_kick(struct pblk *pblk);
 /*
  * pblk read path
  */
-extern struct bio_set *pblk_bio_set;
+extern struct bio_set pblk_bio_set;
 int pblk_submit_read(struct pblk *pblk, struct bio *bio);
 int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq);
 /*
