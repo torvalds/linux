@@ -190,6 +190,9 @@
 			compatible = "actions,s900-pinctrl";
 			reg = <0x0 0xe01b0000 0x0 0x1000>;
 			clocks = <&cmu CLK_GPIO>;
+			gpio-controller;
+			gpio-ranges = <&pinctrl 0 0 146>;
+			#gpio-cells = <2>;
 		};
 
 		timer: timer@e0228000 {
