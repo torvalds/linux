@@ -49,7 +49,11 @@ struct seg6_pernet_data {
 
 static inline struct seg6_pernet_data *seg6_pernet(struct net *net)
 {
+#if IS_ENABLED(CONFIG_IPV6)
 	return net->ipv6.seg6_data;
+#else
+	return NULL;
+#endif
 }
 
 extern int seg6_init(void);
