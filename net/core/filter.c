@@ -4921,6 +4921,21 @@ lwt_xmit_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	}
 }
 
+static const struct bpf_func_proto *
+lwt_seg6local_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
+{
+	switch (func_id) {
+	case BPF_FUNC_lwt_seg6_store_bytes:
+		return &bpf_lwt_seg6_store_bytes_proto;
+	case BPF_FUNC_lwt_seg6_action:
+		return &bpf_lwt_seg6_action_proto;
+	case BPF_FUNC_lwt_seg6_adjust_srh:
+		return &bpf_lwt_seg6_adjust_srh_proto;
+	default:
+		return lwt_out_func_proto(func_id, prog);
+	}
+}
+
 static bool bpf_skb_is_valid_access(int off, int size, enum bpf_access_type type,
 				    const struct bpf_prog *prog,
 				    struct bpf_insn_access_aux *info)
@@ -6626,6 +6641,16 @@ const struct bpf_verifier_ops lwt_xmit_verifier_ops = {
 };
 
 const struct bpf_prog_ops lwt_xmit_prog_ops = {
+	.test_run		= bpf_prog_test_run_skb,
+};
+
+const struct bpf_verifier_ops lwt_seg6local_verifier_ops = {
+	.get_func_proto		= lwt_seg6local_func_proto,
+	.is_valid_access	= lwt_is_valid_access,
+	.convert_ctx_access	= bpf_convert_ctx_access,
+};
+
+const struct bpf_prog_ops lwt_seg6local_prog_ops = {
 	.test_run		= bpf_prog_test_run_skb,
 };
 

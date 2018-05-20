@@ -1262,6 +1262,7 @@ static bool may_access_direct_pkt_data(struct bpf_verifier_env *env,
 	switch (env->prog->type) {
 	case BPF_PROG_TYPE_LWT_IN:
 	case BPF_PROG_TYPE_LWT_OUT:
+	case BPF_PROG_TYPE_LWT_SEG6LOCAL:
 		/* dst_input() and dst_output() can't write for now */
 		if (t == BPF_WRITE)
 			return false;
