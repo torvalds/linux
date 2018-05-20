@@ -4784,33 +4784,6 @@ xdp_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 }
 
 static const struct bpf_func_proto *
-lwt_inout_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
-{
-	switch (func_id) {
-	case BPF_FUNC_skb_load_bytes:
-		return &bpf_skb_load_bytes_proto;
-	case BPF_FUNC_skb_pull_data:
-		return &bpf_skb_pull_data_proto;
-	case BPF_FUNC_csum_diff:
-		return &bpf_csum_diff_proto;
-	case BPF_FUNC_get_cgroup_classid:
-		return &bpf_get_cgroup_classid_proto;
-	case BPF_FUNC_get_route_realm:
-		return &bpf_get_route_realm_proto;
-	case BPF_FUNC_get_hash_recalc:
-		return &bpf_get_hash_recalc_proto;
-	case BPF_FUNC_perf_event_output:
-		return &bpf_skb_event_output_proto;
-	case BPF_FUNC_get_smp_processor_id:
-		return &bpf_get_smp_processor_id_proto;
-	case BPF_FUNC_skb_under_cgroup:
-		return &bpf_skb_under_cgroup_proto;
-	default:
-		return bpf_base_func_proto(func_id);
-	}
-}
-
-static const struct bpf_func_proto *
 sock_ops_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
@@ -4876,6 +4849,44 @@ sk_skb_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 }
 
 static const struct bpf_func_proto *
+lwt_out_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
+{
+	switch (func_id) {
+	case BPF_FUNC_skb_load_bytes:
+		return &bpf_skb_load_bytes_proto;
+	case BPF_FUNC_skb_pull_data:
+		return &bpf_skb_pull_data_proto;
+	case BPF_FUNC_csum_diff:
+		return &bpf_csum_diff_proto;
+	case BPF_FUNC_get_cgroup_classid:
+		return &bpf_get_cgroup_classid_proto;
+	case BPF_FUNC_get_route_realm:
+		return &bpf_get_route_realm_proto;
+	case BPF_FUNC_get_hash_recalc:
+		return &bpf_get_hash_recalc_proto;
+	case BPF_FUNC_perf_event_output:
+		return &bpf_skb_event_output_proto;
+	case BPF_FUNC_get_smp_processor_id:
+		return &bpf_get_smp_processor_id_proto;
+	case BPF_FUNC_skb_under_cgroup:
+		return &bpf_skb_under_cgroup_proto;
+	default:
+		return bpf_base_func_proto(func_id);
+	}
+}
+
+static const struct bpf_func_proto *
+lwt_in_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
+{
+	switch (func_id) {
+	case BPF_FUNC_lwt_push_encap:
+		return &bpf_lwt_push_encap_proto;
+	default:
+		return lwt_out_func_proto(func_id, prog);
+	}
+}
+
+static const struct bpf_func_proto *
 lwt_xmit_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
@@ -4906,7 +4917,7 @@ lwt_xmit_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	case BPF_FUNC_set_hash_invalid:
 		return &bpf_set_hash_invalid_proto;
 	default:
-		return lwt_inout_func_proto(func_id, prog);
+		return lwt_out_func_proto(func_id, prog);
 	}
 }
 
@@ -6587,13 +6598,23 @@ const struct bpf_prog_ops cg_skb_prog_ops = {
 	.test_run		= bpf_prog_test_run_skb,
 };
 
-const struct bpf_verifier_ops lwt_inout_verifier_ops = {
-	.get_func_proto		= lwt_inout_func_proto,
+const struct bpf_verifier_ops lwt_in_verifier_ops = {
+	.get_func_proto		= lwt_in_func_proto,
 	.is_valid_access	= lwt_is_valid_access,
 	.convert_ctx_access	= bpf_convert_ctx_access,
 };
 
-const struct bpf_prog_ops lwt_inout_prog_ops = {
+const struct bpf_prog_ops lwt_in_prog_ops = {
+	.test_run		= bpf_prog_test_run_skb,
+};
+
+const struct bpf_verifier_ops lwt_out_verifier_ops = {
+	.get_func_proto		= lwt_out_func_proto,
+	.is_valid_access	= lwt_is_valid_access,
+	.convert_ctx_access	= bpf_convert_ctx_access,
+};
+
+const struct bpf_prog_ops lwt_out_prog_ops = {
 	.test_run		= bpf_prog_test_run_skb,
 };
 
