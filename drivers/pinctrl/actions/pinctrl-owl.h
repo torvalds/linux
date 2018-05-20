@@ -115,6 +115,22 @@ struct owl_pinmux_func {
 };
 
 /**
+ * struct owl_gpio_port - Actions GPIO port info
+ * @offset: offset of the GPIO port.
+ * @pins: number of pins belongs to the GPIO port.
+ * @outen: offset of the output enable register.
+ * @inen: offset of the input enable register.
+ * @dat: offset of the data register.
+ */
+struct owl_gpio_port {
+	unsigned int offset;
+	unsigned int pins;
+	unsigned int outen;
+	unsigned int inen;
+	unsigned int dat;
+};
+
+/**
  * struct owl_pinctrl_soc_data - Actions pin controller driver configuration
  * @pins: array describing all pins of the pin controller.
  * @npins: number of entries in @pins.
@@ -124,6 +140,8 @@ struct owl_pinmux_func {
  * @ngroups: number of entries in @groups.
  * @padinfo: array describing the pad info of this SoC.
  * @ngpios: number of pingroups the driver should expose as GPIOs.
+ * @port: array describing all GPIO ports of this SoC.
+ * @nports: number of GPIO ports in this SoC.
  */
 struct owl_pinctrl_soc_data {
 	const struct pinctrl_pin_desc *pins;
@@ -134,6 +152,8 @@ struct owl_pinctrl_soc_data {
 	unsigned int ngroups;
 	const struct owl_padinfo *padinfo;
 	unsigned int ngpios;
+	const struct owl_gpio_port *ports;
+	unsigned int nports;
 };
 
 int owl_pinctrl_probe(struct platform_device *pdev,

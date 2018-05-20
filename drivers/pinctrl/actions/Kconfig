@@ -4,6 +4,7 @@ config PINCTRL_OWL
 	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF
+	select GPIOLIB
 	help
 	  Say Y here to enable Actions Semi OWL pinctrl driver
 
