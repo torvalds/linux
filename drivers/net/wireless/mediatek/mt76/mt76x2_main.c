@@ -124,11 +124,14 @@ mt76x2_set_channel(struct mt76x2_dev *dev, struct cfg80211_chan_def *chandef)
 {
 	int ret;
 
+	cancel_delayed_work_sync(&dev->cal_work);
+
+	set_bit(MT76_RESET, &dev->mt76.state);
+
 	mt76_set_channel(&dev->mt76);
 
 	tasklet_disable(&dev->pre_tbtt_tasklet);
 	tasklet_disable(&dev->dfs_pd.dfs_tasklet);
-	cancel_delayed_work_sync(&dev->cal_work);
 
 	mt76x2_mac_stop(dev, true);
 	ret = mt76x2_phy_set_channel(dev, chandef);
@@ -142,6 +145,10 @@ mt76x2_set_channel(struct mt76x2_dev *dev, struct cfg80211_chan_def *chandef)
 	mt76x2_mac_resume(dev);
 	tasklet_enable(&dev->dfs_pd.dfs_tasklet);
 	tasklet_enable(&dev->pre_tbtt_tasklet);
+
+	clear_bit(MT76_RESET, &dev->mt76.state);
+
+	mt76_txq_schedule_all(&dev->mt76);
 
 	return ret;
 }
@@ -452,7 +459,6 @@ mt76x2_sw_scan_complete(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	clear_bit(MT76_SCANNING, &dev->mt76.state);
 	tasklet_enable(&dev->pre_tbtt_tasklet);
-	mt76_txq_schedule_all(&dev->mt76);
 }
 
 static void
