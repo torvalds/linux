@@ -748,9 +748,11 @@ smb2_dump_share_caps(struct seq_file *m, struct cifs_tcon *tcon)
 		seq_puts(m, " TRIM-support,");
 
 	seq_printf(m, "\tShare Flags: 0x%x", tcon->share_flags);
+	seq_printf(m, "\n\ttid: 0x%x", tcon->tid);
 	if (tcon->perf_sector_size)
 		seq_printf(m, "\tOptimal sector size: 0x%x",
 			   tcon->perf_sector_size);
+	seq_printf(m, "\tMaximal Access: 0x%x", tcon->maximal_access);
 }
 
 static void
