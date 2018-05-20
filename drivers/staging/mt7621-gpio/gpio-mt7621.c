@@ -227,7 +227,7 @@ mediatek_gpio_irq_unmask(struct irq_data *d)
 {
 	struct mtk_data *gpio_data = irq_data_get_irq_chip_data(d);
 	int pin = d->hwirq;
-	int bank = pin / 32;
+	int bank = pin / MTK_BANK_WIDTH;
 	struct mtk_gc *rg = gpio_data->gc_map[bank];
 	unsigned long flags;
 	u32 rise, fall;
@@ -249,7 +249,7 @@ mediatek_gpio_irq_mask(struct irq_data *d)
 {
 	struct mtk_data *gpio_data = irq_data_get_irq_chip_data(d);
 	int pin = d->hwirq;
-	int bank = pin / 32;
+	int bank = pin / MTK_BANK_WIDTH;
 	struct mtk_gc *rg = gpio_data->gc_map[bank];
 	unsigned long flags;
 	u32 rise, fall;
@@ -271,7 +271,7 @@ mediatek_gpio_irq_type(struct irq_data *d, unsigned int type)
 {
 	struct mtk_data *gpio_data = irq_data_get_irq_chip_data(d);
 	int pin = d->hwirq;
-	int bank = pin / 32;
+	int bank = pin / MTK_BANK_WIDTH;
 	struct mtk_gc *rg = gpio_data->gc_map[bank];
 	u32 mask = BIT(d->hwirq);
 
