@@ -53,12 +53,6 @@ struct musb_ep;
 #define is_peripheral_active(m)		(!(m)->is_host)
 #define is_host_active(m)		((m)->is_host)
 
-enum {
-	MUSB_PORT_MODE_HOST	= 1,
-	MUSB_PORT_MODE_GADGET,
-	MUSB_PORT_MODE_DUAL_ROLE,
-};
-
 /****************************** CONSTANTS ********************************/
 
 #ifndef MUSB_C_NUM_EPS
@@ -351,7 +345,7 @@ struct musb {
 
 	u8			min_power;	/* vbus for periph, in mA/2 */
 
-	int			port_mode;	/* MUSB_PORT_MODE_* */
+	enum musb_mode		port_mode;
 	bool			session;
 	unsigned long		quirk_retries;
 	bool			is_host;

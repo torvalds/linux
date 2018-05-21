@@ -1038,7 +1038,7 @@ void musb_start(struct musb *musb)
 	 * (b) vbus present/connect IRQ, peripheral mode;
 	 * (c) peripheral initiates, using SRP
 	 */
-	if (musb->port_mode != MUSB_PORT_MODE_HOST &&
+	if (musb->port_mode != MUSB_HOST &&
 			musb->xceiv->otg->state != OTG_STATE_A_WAIT_BCON &&
 			(devctl & MUSB_DEVCTL_VBUS) == MUSB_DEVCTL_VBUS) {
 		musb->is_active = 1;
@@ -2323,19 +2323,19 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	}
 
 	switch (musb->port_mode) {
-	case MUSB_PORT_MODE_HOST:
+	case MUSB_HOST:
 		status = musb_host_setup(musb, plat->power);
 		if (status < 0)
 			goto fail3;
 		status = musb_platform_set_mode(musb, MUSB_HOST);
 		break;
-	case MUSB_PORT_MODE_GADGET:
+	case MUSB_PERIPHERAL:
 		status = musb_gadget_setup(musb);
 		if (status < 0)
 			goto fail3;
 		status = musb_platform_set_mode(musb, MUSB_PERIPHERAL);
 		break;
-	case MUSB_PORT_MODE_DUAL_ROLE:
+	case MUSB_OTG:
 		status = musb_host_setup(musb, plat->power);
 		if (status < 0)
 			goto fail3;

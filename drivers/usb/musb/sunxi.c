@@ -347,7 +347,7 @@ static int sunxi_musb_set_mode(struct musb *musb, u8 mode)
 	if (glue->phy_mode == new_mode)
 		return 0;
 
-	if (musb->port_mode != MUSB_PORT_MODE_DUAL_ROLE) {
+	if (musb->port_mode != MUSB_OTG) {
 		dev_err(musb->controller->parent,
 			"Error changing modes is only supported in dual role mode\n");
 		return -EINVAL;
@@ -690,19 +690,19 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 	switch (usb_get_dr_mode(&pdev->dev)) {
 #if defined CONFIG_USB_MUSB_DUAL_ROLE || defined CONFIG_USB_MUSB_HOST
 	case USB_DR_MODE_HOST:
-		pdata.mode = MUSB_PORT_MODE_HOST;
+		pdata.mode = MUSB_HOST;
 		glue->phy_mode = PHY_MODE_USB_HOST;
 		break;
 #endif
 #if defined CONFIG_USB_MUSB_DUAL_ROLE || defined CONFIG_USB_MUSB_GADGET
 	case USB_DR_MODE_PERIPHERAL:
-		pdata.mode = MUSB_PORT_MODE_GADGET;
+		pdata.mode = MUSB_PERIPHERAL;
 		glue->phy_mode = PHY_MODE_USB_DEVICE;
 		break;
 #endif
 #ifdef CONFIG_USB_MUSB_DUAL_ROLE
 	case USB_DR_MODE_OTG:
-		pdata.mode = MUSB_PORT_MODE_DUAL_ROLE;
+		pdata.mode = MUSB_OTG;
 		glue->phy_mode = PHY_MODE_USB_OTG;
 		break;
 #endif

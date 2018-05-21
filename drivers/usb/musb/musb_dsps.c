@@ -183,7 +183,7 @@ static void dsps_musb_enable(struct musb *musb)
 	musb_writel(reg_base, wrp->coreintr_set, coremask);
 	/* start polling for ID change in dual-role idle mode */
 	if (musb->xceiv->otg->state == OTG_STATE_B_IDLE &&
-			musb->port_mode == MUSB_PORT_MODE_DUAL_ROLE)
+			musb->port_mode == MUSB_OTG)
 		dsps_mod_timer(glue, -1);
 }
 
@@ -231,7 +231,7 @@ static int dsps_check_status(struct musb *musb, void *unused)
 		break;
 	case OTG_STATE_A_WAIT_BCON:
 		/* keep VBUS on for host-only mode */
-		if (musb->port_mode == MUSB_PORT_MODE_HOST) {
+		if (musb->port_mode == MUSB_HOST) {
 			dsps_mod_timer_optional(glue);
 			break;
 		}
@@ -1028,7 +1028,7 @@ static int dsps_resume(struct device *dev)
 	musb_writel(mbase, wrp->tx_mode, glue->context.tx_mode);
 	musb_writel(mbase, wrp->rx_mode, glue->context.rx_mode);
 	if (musb->xceiv->otg->state == OTG_STATE_B_IDLE &&
-	    musb->port_mode == MUSB_PORT_MODE_DUAL_ROLE)
+	    musb->port_mode == MUSB_OTG)
 		dsps_mod_timer(glue, -1);
 
 	pm_runtime_put(dev);

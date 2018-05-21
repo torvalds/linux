@@ -1823,7 +1823,7 @@ err:
 
 void musb_gadget_cleanup(struct musb *musb)
 {
-	if (musb->port_mode == MUSB_PORT_MODE_HOST)
+	if (musb->port_mode == MUSB_HOST)
 		return;
 
 	cancel_delayed_work_sync(&musb->gadget_work);
