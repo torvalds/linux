@@ -333,6 +333,31 @@ static const struct file_operations xhci_context_fops = {
 	.release		= single_release,
 };
 
+
+
+static int xhci_portsc_show(struct seq_file *s, void *unused)
+{
+	struct xhci_port	*port = s->private;
+	u32			portsc;
+
+	portsc = readl(port->addr);
+	seq_printf(s, "%s\n", xhci_decode_portsc(portsc));
+
+	return 0;
+}
+
+static int xhci_port_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, xhci_portsc_show, inode->i_private);
+}
+
+static const struct file_operations port_fops = {
+	.open			= xhci_port_open,
+	.read			= seq_read,
+	.llseek			= seq_lseek,
+	.release		= single_release,
+};
+
 static void xhci_debugfs_create_files(struct xhci_hcd *xhci,
 				      struct xhci_file_map *files,
 				      size_t nentries, void *data,
@@ -449,6 +474,27 @@ void xhci_debugfs_remove_slot(struct xhci_hcd *xhci, int slot_id)
 	dev->debugfs_private = NULL;
 }
 
+static void xhci_debugfs_create_ports(struct xhci_hcd *xhci,
+				      struct dentry *parent)
+{
+	unsigned int		num_ports;
+	char			port_name[8];
+	struct xhci_port	*port;
+	struct dentry		*dir;
+
+	num_ports = HCS_MAX_PORTS(xhci->hcs_params1);
+
+	parent = debugfs_create_dir("ports", parent);
+
+	while (num_ports--) {
+		scnprintf(port_name, sizeof(port_name), "port%02d",
+			  num_ports + 1);
+		dir = debugfs_create_dir(port_name, parent);
+		port = &xhci->hw_ports[num_ports];
+		debugfs_create_file("portsc", 0444, dir, port, &port_fops);
+	}
+}
+
 void xhci_debugfs_init(struct xhci_hcd *xhci)
 {
 	struct device		*dev = xhci_to_hcd(xhci)->self.controller;
@@ -497,6 +543,8 @@ void xhci_debugfs_init(struct xhci_hcd *xhci)
 				     xhci->debugfs_root);
 
 	xhci->debugfs_slots = debugfs_create_dir("devices", xhci->debugfs_root);
+
+	xhci_debugfs_create_ports(xhci, xhci->debugfs_root);
 }
 
 void xhci_debugfs_exit(struct xhci_hcd *xhci)
