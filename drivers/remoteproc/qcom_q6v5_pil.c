@@ -1049,22 +1049,23 @@ static int q6v5_request_irq(struct q6v5 *qproc,
 			     const char *name,
 			     irq_handler_t thread_fn)
 {
+	int irq;
 	int ret;
 
-	ret = platform_get_irq_byname(pdev, name);
-	if (ret < 0) {
+	irq = platform_get_irq_byname(pdev, name);
+	if (irq < 0) {
 		dev_err(&pdev->dev, "no %s IRQ defined\n", name);
-		return ret;
+		return irq;
 	}
 
-	ret = devm_request_threaded_irq(&pdev->dev, ret,
+	ret = devm_request_threaded_irq(&pdev->dev, irq,
 					NULL, thread_fn,
 					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 					"q6v5", qproc);
 	if (ret)
 		dev_err(&pdev->dev, "request %s IRQ failed\n", name);
 
-	return ret;
+	return ret ? : irq;
 }
 
 static int q6v5_alloc_memory_region(struct q6v5 *qproc)
