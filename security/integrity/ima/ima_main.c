@@ -59,14 +59,11 @@ static int __init hash_setup(char *str)
 		goto out;
 	}
 
-	for (i = 0; i < HASH_ALGO__LAST; i++) {
-		if (strcmp(str, hash_algo_name[i]) == 0) {
-			ima_hash_algo = i;
-			break;
-		}
-	}
-	if (i == HASH_ALGO__LAST)
+	i = match_string(hash_algo_name, HASH_ALGO__LAST, str);
+	if (i < 0)
 		return 1;
+
+	ima_hash_algo = i;
 out:
 	hash_setup_done = 1;
 	return 1;
