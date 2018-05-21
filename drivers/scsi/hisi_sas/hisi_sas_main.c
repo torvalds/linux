@@ -266,10 +266,9 @@ static void hisi_sas_task_prep_smp(struct hisi_hba *hisi_hba,
 }
 
 static void hisi_sas_task_prep_ssp(struct hisi_hba *hisi_hba,
-				  struct hisi_sas_slot *slot, int is_tmf,
-				  struct hisi_sas_tmf_task *tmf)
+				  struct hisi_sas_slot *slot)
 {
-	hisi_hba->hw->prep_ssp(hisi_hba, slot, is_tmf, tmf);
+	hisi_hba->hw->prep_ssp(hisi_hba, slot);
 }
 
 static void hisi_sas_task_prep_ata(struct hisi_hba *hisi_hba,
@@ -322,7 +321,7 @@ out:
 
 static int hisi_sas_task_prep(struct sas_task *task,
 			      struct hisi_sas_dq **dq_pointer,
-			      int is_tmf, struct hisi_sas_tmf_task *tmf,
+			      bool is_tmf, struct hisi_sas_tmf_task *tmf,
 			      int *pass)
 {
 	struct domain_device *device = task->dev;
@@ -461,8 +460,8 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	slot->cmd_hdr = &cmd_hdr_base[dlvry_queue_slot];
 	slot->task = task;
 	slot->port = port;
-	if (is_tmf)
-		slot->is_internal = true;
+	slot->tmf = tmf;
+	slot->is_internal = is_tmf;
 	task->lldd_task = slot;
 	INIT_WORK(&slot->abort_slot, hisi_sas_slot_abort);
 
@@ -475,7 +474,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 		hisi_sas_task_prep_smp(hisi_hba, slot);
 		break;
 	case SAS_PROTOCOL_SSP:
-		hisi_sas_task_prep_ssp(hisi_hba, slot, is_tmf, tmf);
+		hisi_sas_task_prep_ssp(hisi_hba, slot);
 		break;
 	case SAS_PROTOCOL_SATA:
 	case SAS_PROTOCOL_STP:
@@ -527,7 +526,7 @@ prep_out:
 }
 
 static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
-			      int is_tmf, struct hisi_sas_tmf_task *tmf)
+			      bool is_tmf, struct hisi_sas_tmf_task *tmf)
 {
 	u32 rc;
 	u32 pass = 0;

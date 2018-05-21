@@ -179,6 +179,11 @@ struct hisi_sas_device {
 	u8 dev_status;
 };
 
+struct hisi_sas_tmf_task {
+	u8 tmf;
+	u16 tag_of_task_to_be_managed;
+};
+
 struct hisi_sas_slot {
 	struct list_head entry;
 	struct list_head delivery;
@@ -199,11 +204,7 @@ struct hisi_sas_slot {
 	struct work_struct abort_slot;
 	struct timer_list internal_abort_timer;
 	bool is_internal;
-};
-
-struct hisi_sas_tmf_task {
-	u8 tmf;
-	u16 tag_of_task_to_be_managed;
+	struct hisi_sas_tmf_task *tmf;
 };
 
 struct hisi_sas_hw {
@@ -217,8 +218,7 @@ struct hisi_sas_hw {
 	int (*get_free_slot)(struct hisi_hba *hisi_hba, struct hisi_sas_dq *dq);
 	void (*start_delivery)(struct hisi_sas_dq *dq);
 	void (*prep_ssp)(struct hisi_hba *hisi_hba,
-			struct hisi_sas_slot *slot, int is_tmf,
-			struct hisi_sas_tmf_task *tmf);
+			struct hisi_sas_slot *slot);
 	void (*prep_smp)(struct hisi_hba *hisi_hba,
 			struct hisi_sas_slot *slot);
 	void (*prep_stp)(struct hisi_hba *hisi_hba,

@@ -911,8 +911,7 @@ static void prep_prd_sge_v3_hw(struct hisi_hba *hisi_hba,
 }
 
 static void prep_ssp_v3_hw(struct hisi_hba *hisi_hba,
-			  struct hisi_sas_slot *slot, int is_tmf,
-			  struct hisi_sas_tmf_task *tmf)
+			  struct hisi_sas_slot *slot)
 {
 	struct sas_task *task = slot->task;
 	struct hisi_sas_cmd_hdr *hdr = slot->cmd_hdr;
@@ -921,7 +920,8 @@ static void prep_ssp_v3_hw(struct hisi_hba *hisi_hba,
 	struct hisi_sas_port *port = slot->port;
 	struct sas_ssp_task *ssp_task = &task->ssp_task;
 	struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
-	int has_data = 0, priority = is_tmf;
+	struct hisi_sas_tmf_task *tmf = slot->tmf;
+	int has_data = 0, priority = !!tmf;
 	u8 *buf_cmd;
 	u32 dw1 = 0, dw2 = 0;
 
@@ -932,7 +932,7 @@ static void prep_ssp_v3_hw(struct hisi_hba *hisi_hba,
 			       (1 << CMD_HDR_CMD_OFF)); /* ssp */
 
 	dw1 = 1 << CMD_HDR_VDTL_OFF;
-	if (is_tmf) {
+	if (tmf) {
 		dw1 |= 2 << CMD_HDR_FRAME_TYPE_OFF;
 		dw1 |= DIR_NO_DATA << CMD_HDR_DIR_OFF;
 	} else {
@@ -974,7 +974,7 @@ static void prep_ssp_v3_hw(struct hisi_hba *hisi_hba,
 		sizeof(struct ssp_frame_hdr);
 
 	memcpy(buf_cmd, &task->ssp_task.LUN, 8);
-	if (!is_tmf) {
+	if (!tmf) {
 		buf_cmd[9] = ssp_task->task_attr | (ssp_task->task_prio << 3);
 		memcpy(buf_cmd + 12, scsi_cmnd->cmnd, scsi_cmnd->cmd_len);
 	} else {
