@@ -92,6 +92,7 @@
 #define SAS_ECC_INTR			0x1e8
 #define SAS_ECC_INTR_MSK		0x1ec
 #define HGC_ERR_STAT_EN			0x238
+#define CQE_SEND_CNT			0x248
 #define DLVRY_Q_0_BASE_ADDR_LO		0x260
 #define DLVRY_Q_0_BASE_ADDR_HI		0x264
 #define DLVRY_Q_0_DEPTH			0x268
@@ -2015,6 +2016,24 @@ static int write_gpio_v3_hw(struct hisi_hba *hisi_hba, u8 reg_type,
 	return 0;
 }
 
+static void wait_cmds_complete_timeout_v3_hw(struct hisi_hba *hisi_hba,
+					     int delay_ms, int timeout_ms)
+{
+	struct device *dev = hisi_hba->dev;
+	int entries, entries_old = 0, time;
+
+	for (time = 0; time < timeout_ms; time += delay_ms) {
+		entries = hisi_sas_read32(hisi_hba, CQE_SEND_CNT);
+		if (entries == entries_old)
+			break;
+
+		entries_old = entries;
+		msleep(delay_ms);
+	}
+
+	dev_dbg(dev, "wait commands complete %dms\n", time);
+}
+
 static struct scsi_host_template sht_v3_hw = {
 	.name			= DRV_NAME,
 	.module			= THIS_MODULE,
@@ -2063,6 +2082,7 @@ static const struct hisi_sas_hw hisi_sas_v3_hw = {
 	.get_phys_state = get_phys_state_v3_hw,
 	.get_events = phy_get_events_v3_hw,
 	.write_gpio = write_gpio_v3_hw,
+	.wait_cmds_complete_timeout = wait_cmds_complete_timeout_v3_hw,
 };
 
 static struct Scsi_Host *

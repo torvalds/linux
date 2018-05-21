@@ -246,6 +246,8 @@ struct hisi_sas_hw {
 	u32 (*get_phys_state)(struct hisi_hba *hisi_hba);
 	int (*write_gpio)(struct hisi_hba *hisi_hba, u8 reg_type,
 				u8 reg_index, u8 reg_count, u8 *write_data);
+	void (*wait_cmds_complete_timeout)(struct hisi_hba *hisi_hba,
+					   int delay_ms, int timeout_ms);
 	int max_command_entries;
 	int complete_hdr_size;
 	struct scsi_host_template *sht;

@@ -1293,6 +1293,8 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	old_state = hisi_hba->hw->get_phys_state(hisi_hba);
 
 	scsi_block_requests(shost);
+	hisi_hba->hw->wait_cmds_complete_timeout(hisi_hba, 100, 5000);
+
 	if (timer_pending(&hisi_hba->timer))
 		del_timer_sync(&hisi_hba->timer);
 
