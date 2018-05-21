@@ -16,3 +16,9 @@ Function Reference
     media-ioc-enum-entities
     media-ioc-enum-links
     media-ioc-setup-link
+    media-ioc-request-alloc
+    request-func-close
+    request-func-ioctl
+    request-func-poll
+    media-request-ioc-queue
+    media-request-ioc-reinit

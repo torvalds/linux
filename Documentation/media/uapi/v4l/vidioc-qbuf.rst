@@ -65,7 +65,7 @@ To enqueue a :ref:`memory mapped <mmap>` buffer applications set the
 with a pointer to this structure the driver sets the
 ``V4L2_BUF_FLAG_MAPPED`` and ``V4L2_BUF_FLAG_QUEUED`` flags and clears
 the ``V4L2_BUF_FLAG_DONE`` flag in the ``flags`` field, or it returns an
-EINVAL error code.
+``EINVAL`` error code.
 
 To enqueue a :ref:`user pointer <userp>` buffer applications set the
 ``memory`` field to ``V4L2_MEMORY_USERPTR``, the ``m.userptr`` field to
@@ -97,6 +97,25 @@ buffer then the result is undefined. Buffers remain locked until
 dequeued, until the :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` or
 :ref:`VIDIOC_REQBUFS` ioctl is called, or until the
 device is closed.
+
+The ``request_fd`` field can be used with the ``VIDIOC_QBUF`` ioctl to specify
+the file descriptor of a :ref:`request <media-request-api>`, if requests are
+in use. Setting it means that the buffer will not be passed to the driver
+until the request itself is queued. Also, the driver will apply any
+settings associated with the request for this buffer. This field will
+be ignored unless the ``V4L2_BUF_FLAG_REQUEST_FD`` flag is set.
+If the device does not support requests, then ``EPERM`` will be returned.
+If requests are supported but an invalid request FD is given, then
+``ENOENT`` will be returned.
+
+.. caution::
+   It is not allowed to mix queuing requests with queuing buffers directly.
+   ``EPERM`` will be returned if the first buffer was queued directly and
+   then the application tries to queue a request, or vice versa.
+
+   For :ref:`memory-to-memory devices <codec>` you can specify the
+   ``request_fd`` only for output buffers, not for capture buffers. Attempting
+   to specify this for a capture buffer will result in an ``EPERM`` error.
 
 Applications call the ``VIDIOC_DQBUF`` ioctl to dequeue a filled
 (capturing) or displayed (output) buffer from the driver's outgoing
@@ -153,3 +172,14 @@ EPIPE
     ``VIDIOC_DQBUF`` returns this on an empty capture queue for mem2mem
     codecs if a buffer with the ``V4L2_BUF_FLAG_LAST`` was already
     dequeued and no new buffers are expected to become available.
+
+EPERM
+    The ``V4L2_BUF_FLAG_REQUEST_FD`` flag was set but the device does not
+    support requests. Or the first buffer was queued via a request, but
+    the application now tries to queue it directly, or vice versa (it is
+    not permitted to mix the two APIs). Or an attempt is made to queue a
+    CAPTURE buffer to a request for a :ref:`memory-to-memory device <codec>`.
+
+ENOENT
+    The ``V4L2_BUF_FLAG_REQUEST_FD`` flag was set but the the given
+    ``request_fd`` was invalid.

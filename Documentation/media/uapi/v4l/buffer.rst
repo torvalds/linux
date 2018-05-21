@@ -306,10 +306,15 @@ struct v4l2_buffer
       - A place holder for future extensions. Drivers and applications
 	must set this to 0.
     * - __u32
-      - ``reserved``
+      - ``request_fd``
       -
-      - A place holder for future extensions. Drivers and applications
-	must set this to 0.
+      - The file descriptor of the request to queue the buffer to. If specified
+        and flag ``V4L2_BUF_FLAG_REQUEST_FD`` is set, then the buffer will be
+	queued to that request. This is set by the user when calling
+	:ref:`ioctl VIDIOC_QBUF <VIDIOC_QBUF>` and ignored by other ioctls.
+	If the device does not support requests, then ``EPERM`` will be returned.
+	If requests are supported but an invalid request FD is given, then
+	``ENOENT`` will be returned.
 
 
 
@@ -514,6 +519,11 @@ Buffer Flags
 	streaming may continue as normal and the buffer may be reused
 	normally. Drivers set this flag when the ``VIDIOC_DQBUF`` ioctl is
 	called.
+    * .. _`V4L2-BUF-FLAG-IN-REQUEST`:
+
+      - ``V4L2_BUF_FLAG_IN_REQUEST``
+      - 0x00000080
+      - This buffer is part of a request that hasn't been queued yet.
     * .. _`V4L2-BUF-FLAG-KEYFRAME`:
 
       - ``V4L2_BUF_FLAG_KEYFRAME``
@@ -589,6 +599,11 @@ Buffer Flags
 	the format. Any Any subsequent call to the
 	:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl will not block anymore,
 	but return an ``EPIPE`` error code.
+    * .. _`V4L2-BUF-FLAG-REQUEST-FD`:
+
+      - ``V4L2_BUF_FLAG_REQUEST_FD``
+      - 0x00800000
+      - The ``request_fd`` field contains a valid file descriptor.
     * .. _`V4L2-BUF-FLAG-TIMESTAMP-MASK`:
 
       - ``V4L2_BUF_FLAG_TIMESTAMP_MASK``
