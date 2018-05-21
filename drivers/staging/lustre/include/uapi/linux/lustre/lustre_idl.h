@@ -1526,9 +1526,11 @@ struct mdt_rec_setattr {
 #define MDS_OPEN_HAS_OBJS    020000000000 /* Just set the EA the obj exist */
 #define MDS_OPEN_NORESTORE  0100000000000ULL /* Do not restore file at open */
 #define MDS_OPEN_NEWSTRIPE  0200000000000ULL /* New stripe needed (restripe or
-					      * hsm restore) */
+					      * hsm restore)
+					      */
 #define MDS_OPEN_VOLATILE   0400000000000ULL /* File is volatile = created
-						unlinked */
+					      * unlinked
+					      */
 #define MDS_OPEN_LEASE	   01000000000000ULL /* Open the file and grant lease
 					      * delegation, succeed if it's not
 					      * being opened with conflict mode.

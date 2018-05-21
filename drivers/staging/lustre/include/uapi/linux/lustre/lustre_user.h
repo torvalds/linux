@@ -405,7 +405,8 @@ static inline __u32 lov_user_md_size(__u16 stripes, __u32 lmm_magic)
 
 /* Compile with -D_LARGEFILE64_SOURCE or -D_GNU_SOURCE (or #define) to
  * use this.  It is unsafe to #define those values in this header as it
- * is possible the application has already #included <sys/stat.h>. */
+ * is possible the application has already #included <sys/stat.h>.
+ */
 #ifdef HAVE_LOV_USER_MDS_DATA
 #define lov_user_mds_data lov_user_mds_data_v1
 struct lov_user_mds_data_v1 {
@@ -468,7 +469,8 @@ struct ll_fid {
 	__u64 id;	 /* holds object id */
 	__u32 generation; /* holds object generation */
 	__u32 f_type;     /* holds object type or stripe idx when passing it to
-			   * OST for saving into EA. */
+			   * OST for saving into EA.
+			   */
 };
 
 #define UUID_MAX	40
