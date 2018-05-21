@@ -9,6 +9,7 @@ ret=0
 TESTS="unregister down carrier nexthop"
 VERBOSE=0
 PAUSE_ON_FAIL=no
+PAUSE=no
 IP="ip -netns testns"
 
 log_test()
@@ -30,6 +31,13 @@ log_test()
 			read a
 			[ "$a" = "q" ] && exit 1
 		fi
+	fi
+
+	if [ "${PAUSE}" = "yes" ]; then
+		echo
+		echo "hit enter to continue, 'q' to quit"
+		read a
+		[ "$a" = "q" ] && exit 1
 	fi
 }
 
@@ -576,6 +584,7 @@ usage: ${0##*/} OPTS
         -t <test>   Test(s) to run (default: all)
                     (options: $TESTS)
         -p          Pause on fail
+        -P          Pause after each test before cleanup
         -v          verbose mode (show commands and output)
 EOF
 }
@@ -588,6 +597,7 @@ do
 	case $o in
 		t) TESTS=$OPTARG;;
 		p) PAUSE_ON_FAIL=yes;;
+		P) PAUSE=yes;;
 		v) VERBOSE=$(($VERBOSE + 1));;
 		h) usage; exit 0;;
 		*) usage; exit 1;;
@@ -595,6 +605,9 @@ do
 done
 
 PEER_CMD="ip netns exec ${PEER_NS}"
+
+# make sure we don't pause twice
+[ "${PAUSE}" = "yes" ] && PAUSE_ON_FAIL=no
 
 if [ "$(id -u)" -ne 0 ];then
 	echo "SKIP: Need root privileges"
