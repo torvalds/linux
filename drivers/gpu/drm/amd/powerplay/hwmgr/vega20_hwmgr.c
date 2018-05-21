@@ -1485,28 +1485,69 @@ static int vega20_upload_dpm_min_level(struct pp_hwmgr *hwmgr)
 {
 	struct vega20_hwmgr *data =
 			(struct vega20_hwmgr *)(hwmgr->backend);
+	uint32_t min_freq;
 	int ret = 0;
 
-	if (data->smu_features[GNLD_DPM_GFXCLK].enabled)
+	if (data->smu_features[GNLD_DPM_GFXCLK].enabled) {
+		min_freq = data->dpm_table.gfx_table.dpm_state.soft_min_level;
 		PP_ASSERT_WITH_CODE(!(ret = smum_send_msg_to_smc_with_parameter(
 					hwmgr, PPSMC_MSG_SetSoftMinByFreq,
-					PPCLK_GFXCLK << 16 |
-					data->dpm_table.gfx_table.dpm_state.soft_min_level)),
+					(PPCLK_GFXCLK << 16) | (min_freq & 0xffff))),
 					"Failed to set soft min gfxclk !",
 					return ret);
+	}
 
 	if (data->smu_features[GNLD_DPM_UCLK].enabled) {
+		min_freq = data->dpm_table.mem_table.dpm_state.soft_min_level;
 		PP_ASSERT_WITH_CODE(!(ret = smum_send_msg_to_smc_with_parameter(
 					hwmgr, PPSMC_MSG_SetSoftMinByFreq,
-					PPCLK_UCLK << 16 |
-					data->dpm_table.mem_table.dpm_state.soft_min_level)),
+					(PPCLK_UCLK << 16) | (min_freq & 0xffff))),
 					"Failed to set soft min memclk !",
 					return ret);
+
+		min_freq = data->dpm_table.mem_table.dpm_state.hard_min_level;
 		PP_ASSERT_WITH_CODE(!(ret = smum_send_msg_to_smc_with_parameter(
 					hwmgr, PPSMC_MSG_SetHardMinByFreq,
-					PPCLK_UCLK << 16 |
-					data->dpm_table.mem_table.dpm_state.hard_min_level)),
+					(PPCLK_UCLK << 16) | (min_freq & 0xffff))),
 					"Failed to set hard min memclk !",
+					return ret);
+	}
+
+	if (data->smu_features[GNLD_DPM_UVD].enabled) {
+		min_freq = data->dpm_table.vclk_table.dpm_state.soft_min_level;
+
+		PP_ASSERT_WITH_CODE(!(ret = smum_send_msg_to_smc_with_parameter(
+					hwmgr, PPSMC_MSG_SetSoftMinByFreq,
+					(PPCLK_VCLK << 16) | (min_freq & 0xffff))),
+					"Failed to set soft min vclk!",
+					return ret);
+
+		min_freq = data->dpm_table.dclk_table.dpm_state.soft_min_level;
+
+		PP_ASSERT_WITH_CODE(!(ret = smum_send_msg_to_smc_with_parameter(
+					hwmgr, PPSMC_MSG_SetSoftMinByFreq,
+					(PPCLK_DCLK << 16) | (min_freq & 0xffff))),
+					"Failed to set soft min dclk!",
+					return ret);
+	}
+
+	if (data->smu_features[GNLD_DPM_VCE].enabled) {
+		min_freq = data->dpm_table.eclk_table.dpm_state.soft_min_level;
+
+		PP_ASSERT_WITH_CODE(!(ret = smum_send_msg_to_smc_with_parameter(
+					hwmgr, PPSMC_MSG_SetSoftMinByFreq,
+					(PPCLK_ECLK << 16) | (min_freq & 0xffff))),
+					"Failed to set soft min eclk!",
+					return ret);
+	}
+
+	if (data->smu_features[GNLD_DPM_SOCCLK].enabled) {
+		min_freq = data->dpm_table.soc_table.dpm_state.soft_min_level;
+
+		PP_ASSERT_WITH_CODE(!(ret = smum_send_msg_to_smc_with_parameter(
+					hwmgr, PPSMC_MSG_SetSoftMinByFreq,
+					(PPCLK_SOCCLK << 16) | (min_freq & 0xffff))),
+					"Failed to set soft min socclk!",
 					return ret);
 	}
 
@@ -1517,23 +1558,65 @@ static int vega20_upload_dpm_max_level(struct pp_hwmgr *hwmgr)
 {
 	struct vega20_hwmgr *data =
 			(struct vega20_hwmgr *)(hwmgr->backend);
+	uint32_t max_freq;
 	int ret = 0;
 
-	if (data->smu_features[GNLD_DPM_GFXCLK].enabled)
+	if (data->smu_features[GNLD_DPM_GFXCLK].enabled) {
+		max_freq = data->dpm_table.gfx_table.dpm_state.soft_max_level;
+
 		PP_ASSERT_WITH_CODE(!(ret = smum_send_msg_to_smc_with_parameter(
 					hwmgr, PPSMC_MSG_SetSoftMaxByFreq,
-					PPCLK_GFXCLK << 16 |
-					data->dpm_table.gfx_table.dpm_state.soft_max_level)),
+					(PPCLK_GFXCLK << 16) | (max_freq & 0xffff))),
 					"Failed to set soft max gfxclk!",
 					return ret);
+	}
 
-	if (data->smu_features[GNLD_DPM_UCLK].enabled)
+	if (data->smu_features[GNLD_DPM_UCLK].enabled) {
+		max_freq = data->dpm_table.mem_table.dpm_state.soft_max_level;
+
 		PP_ASSERT_WITH_CODE(!(ret = smum_send_msg_to_smc_with_parameter(
 					hwmgr, PPSMC_MSG_SetSoftMaxByFreq,
-					PPCLK_UCLK << 16 |
-					data->dpm_table.mem_table.dpm_state.soft_max_level)),
+					(PPCLK_UCLK << 16) | (max_freq & 0xffff))),
 					"Failed to set soft max memclk!",
 					return ret);
+	}
+
+	if (data->smu_features[GNLD_DPM_UVD].enabled) {
+		max_freq = data->dpm_table.vclk_table.dpm_state.soft_max_level;
+
+		PP_ASSERT_WITH_CODE(!(ret = smum_send_msg_to_smc_with_parameter(
+					hwmgr, PPSMC_MSG_SetSoftMaxByFreq,
+					(PPCLK_VCLK << 16) | (max_freq & 0xffff))),
+					"Failed to set soft max vclk!",
+					return ret);
+
+		max_freq = data->dpm_table.dclk_table.dpm_state.soft_max_level;
+		PP_ASSERT_WITH_CODE(!(ret = smum_send_msg_to_smc_with_parameter(
+					hwmgr, PPSMC_MSG_SetSoftMaxByFreq,
+					(PPCLK_DCLK << 16) | (max_freq & 0xffff))),
+					"Failed to set soft max dclk!",
+					return ret);
+	}
+
+	if (data->smu_features[GNLD_DPM_VCE].enabled) {
+		max_freq = data->dpm_table.eclk_table.dpm_state.soft_max_level;
+
+		PP_ASSERT_WITH_CODE(!(ret = smum_send_msg_to_smc_with_parameter(
+					hwmgr, PPSMC_MSG_SetSoftMaxByFreq,
+					(PPCLK_ECLK << 16) | (max_freq & 0xffff))),
+					"Failed to set soft max eclk!",
+					return ret);
+	}
+
+	if (data->smu_features[GNLD_DPM_SOCCLK].enabled) {
+		max_freq = data->dpm_table.soc_table.dpm_state.soft_max_level;
+
+		PP_ASSERT_WITH_CODE(!(ret = smum_send_msg_to_smc_with_parameter(
+					hwmgr, PPSMC_MSG_SetSoftMaxByFreq,
+					(PPCLK_SOCCLK << 16) | (max_freq & 0xffff))),
+					"Failed to set soft max socclk!",
+					return ret);
+	}
 
 	return ret;
 }
