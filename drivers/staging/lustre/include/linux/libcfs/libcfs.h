@@ -82,7 +82,6 @@
 #include <linux/libcfs/libcfs_debug.h>
 #include <linux/libcfs/libcfs_private.h>
 #include <linux/libcfs/libcfs_cpu.h>
-#include <linux/libcfs/libcfs_prim.h>
 #include <linux/libcfs/libcfs_string.h>
 #include <linux/libcfs/libcfs_hash.h>
 #include <linux/libcfs/libcfs_fail.h>
@@ -106,5 +105,16 @@ int lprocfs_call_handler(void *data, int write, loff_t *ppos,
 			 void __user *buffer, size_t *lenp,
 			 int (*handler)(void *data, int write, loff_t pos,
 					void __user *buffer, int len));
+
+/*
+ * Memory
+ */
+#if BITS_PER_LONG == 32
+/* limit to lowmem on 32-bit systems */
+#define NUM_CACHEPAGES \
+	min(totalram_pages, 1UL << (30 - PAGE_SHIFT) * 3 / 4)
+#else
+#define NUM_CACHEPAGES totalram_pages
+#endif
 
 #endif /* __LIBCFS_LIBCFS_H__ */
