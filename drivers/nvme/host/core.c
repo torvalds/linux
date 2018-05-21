@@ -99,6 +99,7 @@ static struct class *nvme_subsys_class;
 
 static void nvme_ns_remove(struct nvme_ns *ns);
 static int nvme_revalidate_disk(struct gendisk *disk);
+static void nvme_put_subsystem(struct nvme_subsystem *subsys);
 
 int nvme_reset_ctrl(struct nvme_ctrl *ctrl)
 {
@@ -117,7 +118,8 @@ int nvme_reset_ctrl_sync(struct nvme_ctrl *ctrl)
 	ret = nvme_reset_ctrl(ctrl);
 	if (!ret) {
 		flush_work(&ctrl->reset_work);
-		if (ctrl->state != NVME_CTRL_LIVE)
+		if (ctrl->state != NVME_CTRL_LIVE &&
+		    ctrl->state != NVME_CTRL_ADMIN_ONLY)
 			ret = -ENETRESET;
 	}
 
@@ -350,6 +352,7 @@ static void nvme_free_ns_head(struct kref *ref)
 	ida_simple_remove(&head->subsys->ns_ida, head->instance);
 	list_del_init(&head->entry);
 	cleanup_srcu_struct(&head->srcu);
+	nvme_put_subsystem(head->subsys);
 	kfree(head);
 }
 
@@ -2861,6 +2864,9 @@ static struct nvme_ns_head *nvme_alloc_ns_head(struct nvme_ctrl *ctrl,
 		goto out_cleanup_srcu;
 
 	list_add_tail(&head->entry, &ctrl->subsys->nsheads);
+
+	kref_get(&ctrl->subsys->ref);
+
 	return head;
 out_cleanup_srcu:
 	cleanup_srcu_struct(&head->srcu);

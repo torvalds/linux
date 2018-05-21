@@ -1612,11 +1612,9 @@ static void set_iter_tags(struct radix_tree_iter *iter,
 static void __rcu **skip_siblings(struct radix_tree_node **nodep,
 			void __rcu **slot, struct radix_tree_iter *iter)
 {
-	void *sib = node_to_entry(slot - 1);
-
 	while (iter->index < iter->next_index) {
 		*nodep = rcu_dereference_raw(*slot);
-		if (*nodep && *nodep != sib)
+		if (*nodep && !is_sibling_entry(iter->node, *nodep))
 			return slot;
 		slot++;
 		iter->index = __radix_tree_iter_add(iter, 1);
@@ -1631,7 +1629,7 @@ void __rcu **__radix_tree_next_slot(void __rcu **slot,
 				struct radix_tree_iter *iter, unsigned flags)
 {
 	unsigned tag = flags & RADIX_TREE_ITER_TAG_MASK;
-	struct radix_tree_node *node = rcu_dereference_raw(*slot);
+	struct radix_tree_node *node;
 
 	slot = skip_siblings(&node, slot, iter);
 

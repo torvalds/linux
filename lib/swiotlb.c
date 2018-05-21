@@ -714,7 +714,7 @@ swiotlb_alloc_buffer(struct device *dev, size_t size, dma_addr_t *dma_handle,
 
 	phys_addr = swiotlb_tbl_map_single(dev,
 			__phys_to_dma(dev, io_tlb_start),
-			0, size, DMA_FROM_DEVICE, 0);
+			0, size, DMA_FROM_DEVICE, attrs);
 	if (phys_addr == SWIOTLB_MAP_ERROR)
 		goto out_warn;
 
