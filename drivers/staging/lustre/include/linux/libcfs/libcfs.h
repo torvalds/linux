@@ -89,13 +89,6 @@
 
 #define LIBCFS_VERSION "0.7.0"
 
-/*
- * Lustre Error Checksum: calculates checksum
- * of Hex number by XORing each bit.
- */
-#define LERRCHKSUM(hexnum) (((hexnum) & 0xf) ^ ((hexnum) >> 4 & 0xf) ^ \
-			   ((hexnum) >> 8 & 0xf))
-
 /* need both kernel and user-land acceptor */
 #define LNET_ACCEPTOR_MIN_RESERVED_PORT    512
 #define LNET_ACCEPTOR_MAX_RESERVED_PORT    1023
