@@ -2346,12 +2346,12 @@ static void dump_one_paca(int cpu)
 
 	printf("paca for cpu 0x%x @ %px:\n", cpu, p);
 
-	printf(" %-*s = %s\n", 20, "possible", cpu_possible(cpu) ? "yes" : "no");
-	printf(" %-*s = %s\n", 20, "present", cpu_present(cpu) ? "yes" : "no");
-	printf(" %-*s = %s\n", 20, "online", cpu_online(cpu) ? "yes" : "no");
+	printf(" %-*s = %s\n", 25, "possible", cpu_possible(cpu) ? "yes" : "no");
+	printf(" %-*s = %s\n", 25, "present", cpu_present(cpu) ? "yes" : "no");
+	printf(" %-*s = %s\n", 25, "online", cpu_online(cpu) ? "yes" : "no");
 
 #define DUMP(paca, name, format)				\
-	printf(" %-*s = "format"\t(0x%lx)\n", 20, #name, 18, paca->name, \
+	printf(" %-*s = "format"\t(0x%lx)\n", 25, #name, 18, paca->name, \
 		offsetof(struct paca_struct, name));
 
 	DUMP(p, lock_token, "%#-*x");
@@ -2382,14 +2382,15 @@ static void dump_one_paca(int cpu)
 		vsid = be64_to_cpu(p->slb_shadow_ptr->save_area[i].vsid);
 
 		if (esid || vsid) {
-			printf(" slb_shadow[%d]:       = 0x%016llx 0x%016llx\n",
-				i, esid, vsid);
+			printf(" %-*s[%d] = 0x%016llx 0x%016llx\n",
+			       22, "slb_shadow", i, esid, vsid);
 		}
 	}
 	DUMP(p, vmalloc_sllp, "%#-*x");
 	DUMP(p, slb_cache_ptr, "%#-*x");
 	for (i = 0; i < SLB_CACHE_ENTRIES; i++)
-		printf(" slb_cache[%d]:        = 0x%016x\n", i, p->slb_cache[i]);
+		printf(" %-*s[%d] = 0x%016x\n",
+		       22, "slb_cache", i, p->slb_cache[i]);
 
 	DUMP(p, rfi_flush_fallback_area, "%-*px");
 #endif
@@ -2404,7 +2405,7 @@ static void dump_one_paca(int cpu)
 #endif
 	DUMP(p, __current, "%-*px");
 	DUMP(p, kstack, "%#-*llx");
-	printf(" kstack_base          = 0x%016llx\n", p->kstack & ~(THREAD_SIZE - 1));
+	printf(" %-*s = 0x%016llx\n", 25, "kstack_base", p->kstack & ~(THREAD_SIZE - 1));
 	DUMP(p, stab_rr, "%#-*llx");
 	DUMP(p, saved_r1, "%#-*llx");
 	DUMP(p, trap_save, "%#-*x");
