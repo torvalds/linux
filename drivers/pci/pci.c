@@ -2025,8 +2025,7 @@ static pci_power_t pci_target_state(struct pci_dev *dev, bool wakeup)
 
 	if (platform_pci_power_manageable(dev)) {
 		/*
-		 * Call the platform to choose the target state of the device
-		 * and enable wake-up from this state if supported.
+		 * Call the platform to find the target state for the device.
 		 */
 		pci_power_t state = platform_pci_choose_state(dev);
 
@@ -2059,8 +2058,7 @@ static pci_power_t pci_target_state(struct pci_dev *dev, bool wakeup)
 	if (wakeup) {
 		/*
 		 * Find the deepest state from which the device can generate
-		 * wake-up events, make it the target state and enable device
-		 * to generate PME#.
+		 * PME#.
 		 */
 		if (dev->pme_support) {
 			while (target_state
