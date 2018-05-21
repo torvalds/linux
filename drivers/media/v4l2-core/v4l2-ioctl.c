@@ -2780,6 +2780,7 @@ static long __video_do_ioctl(struct file *file,
 		unsigned int cmd, void *arg)
 {
 	struct video_device *vfd = video_devdata(file);
+	struct mutex *req_queue_lock = NULL;
 	struct mutex *lock; /* ioctl serialization mutex */
 	const struct v4l2_ioctl_ops *ops = vfd->ioctl_ops;
 	bool write_only = false;
@@ -2799,10 +2800,27 @@ static long __video_do_ioctl(struct file *file,
 	if (test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags))
 		vfh = file->private_data;
 
+	/*
+	 * We need to serialize streamon/off with queueing new requests.
+	 * These ioctls may trigger the cancellation of a streaming
+	 * operation, and that should not be mixed with queueing a new
+	 * request at the same time.
+	 */
+	if (v4l2_device_supports_requests(vfd->v4l2_dev) &&
+	    (cmd == VIDIOC_STREAMON || cmd == VIDIOC_STREAMOFF)) {
+		req_queue_lock = &vfd->v4l2_dev->mdev->req_queue_mutex;
+
+		if (mutex_lock_interruptible(req_queue_lock))
+			return -ERESTARTSYS;
+	}
+
 	lock = v4l2_ioctl_get_lock(vfd, vfh, cmd, arg);
 
-	if (lock && mutex_lock_interruptible(lock))
+	if (lock && mutex_lock_interruptible(lock)) {
+		if (req_queue_lock)
+			mutex_unlock(req_queue_lock);
 		return -ERESTARTSYS;
+	}
 
 	if (!video_is_registered(vfd)) {
 		ret = -ENODEV;
@@ -2861,6 +2879,8 @@ done:
 unlock:
 	if (lock)
 		mutex_unlock(lock);
+	if (req_queue_lock)
+		mutex_unlock(req_queue_lock);
 	return ret;
 }
 
