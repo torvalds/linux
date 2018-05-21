@@ -39,6 +39,7 @@
 #define DEBUG_SUBSYSTEM S_LDLM
 
 #include <linux/libcfs/libcfs.h>
+#include <linux/sched/mm.h>
 #include <lustre_dlm.h>
 #include <obd_class.h>
 #include <linux/list.h>
@@ -387,7 +388,7 @@ static inline void init_blwi(struct ldlm_bl_work_item *blwi,
 	init_completion(&blwi->blwi_comp);
 	INIT_LIST_HEAD(&blwi->blwi_head);
 
-	if (memory_pressure_get())
+	if (current->flags & PF_MEMALLOC)
 		blwi->blwi_mem_pressure = 1;
 
 	blwi->blwi_ns = ns;
@@ -776,12 +777,14 @@ static int ldlm_bl_thread_need_create(struct ldlm_bl_pool *blp,
 static int ldlm_bl_thread_blwi(struct ldlm_bl_pool *blp,
 			       struct ldlm_bl_work_item *blwi)
 {
+	unsigned int flags = 0;
+
 	if (!blwi->blwi_ns)
 		/* added by ldlm_cleanup() */
 		return LDLM_ITER_STOP;
 
 	if (blwi->blwi_mem_pressure)
-		memory_pressure_set();
+		flags = memalloc_noreclaim_save();
 
 	OBD_FAIL_TIMEOUT(OBD_FAIL_LDLM_PAUSE_CANCEL2, 4);
 
@@ -804,7 +807,7 @@ static int ldlm_bl_thread_blwi(struct ldlm_bl_pool *blp,
 					blwi->blwi_lock);
 	}
 	if (blwi->blwi_mem_pressure)
-		memory_pressure_clr();
+		memalloc_noreclaim_restore(flags);
 
 	if (blwi->blwi_flags & LCF_ASYNC)
 		kfree(blwi);

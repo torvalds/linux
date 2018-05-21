@@ -34,6 +34,7 @@
 #define DEBUG_SUBSYSTEM S_OSC
 
 #include <linux/libcfs/libcfs.h>
+#include <linux/sched/mm.h>
 
 #include <lustre_dlm.h>
 #include <lustre_net.h>
@@ -1654,7 +1655,7 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 	struct cl_req_attr *crattr = NULL;
 	u64 starting_offset = OBD_OBJECT_EOF;
 	u64 ending_offset = 0;
-	int mpflag = 0;
+	unsigned int mpflag = 0;
 	int mem_tight = 0;
 	int page_count = 0;
 	bool soft_sync = false;
@@ -1677,7 +1678,7 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 
 	soft_sync = osc_over_unstable_soft_limit(cli);
 	if (mem_tight)
-		mpflag = cfs_memory_pressure_get_and_set();
+		mpflag = memalloc_noreclaim_save();
 
 	pga = kcalloc(page_count, sizeof(*pga), GFP_NOFS);
 	if (!pga) {
@@ -1791,7 +1792,7 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 
 out:
 	if (mem_tight != 0)
-		cfs_memory_pressure_restore(mpflag);
+		memalloc_noreclaim_restore(mpflag);
 
 	if (rc != 0) {
 		LASSERT(!req);

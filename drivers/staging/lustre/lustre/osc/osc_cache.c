@@ -2622,7 +2622,7 @@ int osc_flush_async_page(const struct lu_env *env, struct cl_io *io,
 	oap->oap_async_flags |= ASYNC_READY | ASYNC_URGENT;
 	spin_unlock(&oap->oap_lock);
 
-	if (memory_pressure_get())
+	if (current->flags & PF_MEMALLOC)
 		ext->oe_memalloc = 1;
 
 	ext->oe_urgent = 1;

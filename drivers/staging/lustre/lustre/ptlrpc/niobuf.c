@@ -32,6 +32,7 @@
  */
 
 #define DEBUG_SUBSYSTEM S_RPC
+#include <linux/sched/mm.h>
 #include <obd_support.h>
 #include <lustre_net.h>
 #include <lustre_lib.h>
@@ -472,7 +473,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 {
 	int rc;
 	int rc2;
-	int mpflag = 0;
+	unsigned int mpflag = 0;
 	struct ptlrpc_connection *connection;
 	struct lnet_handle_me reply_me_h;
 	struct lnet_md reply_md;
@@ -558,7 +559,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 		lustre_msg_add_flags(request->rq_reqmsg, MSG_RESENT);
 
 	if (request->rq_memalloc)
-		mpflag = cfs_memory_pressure_get_and_set();
+		mpflag = memalloc_noreclaim_save();
 
 	rc = sptlrpc_cli_wrap_request(request);
 	if (rc) {
@@ -710,7 +711,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 	ptlrpc_unregister_bulk(request, 0);
  out:
 	if (request->rq_memalloc)
-		cfs_memory_pressure_restore(mpflag);
+		memalloc_noreclaim_restore(mpflag);
 	return rc;
 }
 EXPORT_SYMBOL(ptl_send_rpc);

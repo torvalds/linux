@@ -22,6 +22,7 @@
  *
  */
 
+#include <linux/sched/mm.h>
 #include "socklnd.h"
 
 struct ksock_tx *
@@ -876,7 +877,7 @@ ksocknal_launch_packet(struct lnet_ni *ni, struct ksock_tx *tx,
 int
 ksocknal_send(struct lnet_ni *ni, void *private, struct lnet_msg *lntmsg)
 {
-	int mpflag = 1;
+	unsigned int mpflag = 0;
 	int type = lntmsg->msg_type;
 	struct lnet_process_id target = lntmsg->msg_target;
 	unsigned int payload_niov = lntmsg->msg_niov;
@@ -909,13 +910,13 @@ ksocknal_send(struct lnet_ni *ni, void *private, struct lnet_msg *lntmsg)
 				     tx_frags.paged.kiov[payload_niov]);
 
 	if (lntmsg->msg_vmflush)
-		mpflag = cfs_memory_pressure_get_and_set();
+		mpflag = memalloc_noreclaim_save();
 	tx = ksocknal_alloc_tx(KSOCK_MSG_LNET, desc_size);
 	if (!tx) {
 		CERROR("Can't allocate tx desc type %d size %d\n",
 		       type, desc_size);
 		if (lntmsg->msg_vmflush)
-			cfs_memory_pressure_restore(mpflag);
+			memalloc_noreclaim_restore(mpflag);
 		return -ENOMEM;
 	}
 
@@ -949,8 +950,8 @@ ksocknal_send(struct lnet_ni *ni, void *private, struct lnet_msg *lntmsg)
 
 	/* The first fragment will be set later in pro_pack */
 	rc = ksocknal_launch_packet(ni, tx, target);
-	if (!mpflag)
-		cfs_memory_pressure_restore(mpflag);
+	if (mpflag)
+		memalloc_noreclaim_restore(mpflag);
 
 	if (!rc)
 		return 0;

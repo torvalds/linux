@@ -2014,7 +2014,7 @@ LNetPut(lnet_nid_t self, struct lnet_handle_md mdh, enum lnet_ack_req ack,
 		       libcfs_id2str(target));
 		return -ENOMEM;
 	}
-	msg->msg_vmflush = !!memory_pressure_get();
+	msg->msg_vmflush = !!(current->flags & PF_MEMALLOC);
 
 	cpt = lnet_cpt_of_cookie(mdh.cookie);
 	lnet_res_lock(cpt);
