@@ -5885,6 +5885,9 @@ static const struct cipher_testvec des_cbc_enc_tv_template[] = {
 		.ilen	= 8,
 		.result	= "\x68\x37\x88\x49\x9a\x7c\x05\xf6",
 		.rlen	= 8,
+		.np	= 2,
+		.tap	= { 4, 4 },
+		.also_non_np = 1,
 	}, { /* Copy of openssl vector for chunk testing */
 	     /* From OpenSSL */
 		.key	= "\x01\x23\x45\x67\x89\xab\xcd\xef",
