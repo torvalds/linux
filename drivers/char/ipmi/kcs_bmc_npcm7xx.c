@@ -39,6 +39,12 @@
 #define KCS3CTL		0x3C
 #define    KCS_CTL_IBFIE	BIT(0)
 
+#define KCS1IE		0x1C
+#define KCS2IE		0x2E
+#define KCS3IE		0x40
+#define    KCS_IE_IRQE          BIT(0)
+#define    KCS_IE_HIRQE         BIT(3)
+
 /*
  * 7.2.4 Core KCS Registers
  * Registers in this module are 8 bits. An 8-bit register must be accessed
@@ -48,12 +54,14 @@
  * dob: KCS Channel n Data Out Buffer Register (KCSnDO).
  * dib: KCS Channel n Data In Buffer Register (KCSnDI).
  * ctl: KCS Channel n Control Register (KCSnCTL).
+ * ie : KCS Channel n  Interrupt Enable Register (KCSnIE).
  */
 struct npcm7xx_kcs_reg {
 	u32 sts;
 	u32 dob;
 	u32 dib;
 	u32 ctl;
+	u32 ie;
 };
 
 struct npcm7xx_kcs_bmc {
@@ -63,9 +71,9 @@ struct npcm7xx_kcs_bmc {
 };
 
 static const struct npcm7xx_kcs_reg npcm7xx_kcs_reg_tbl[KCS_CHANNEL_MAX] = {
-	{ .sts = KCS1ST, .dob = KCS1DO, .dib = KCS1DI, .ctl = KCS1CTL },
-	{ .sts = KCS2ST, .dob = KCS2DO, .dib = KCS2DI, .ctl = KCS2CTL },
-	{ .sts = KCS3ST, .dob = KCS3DO, .dib = KCS3DI, .ctl = KCS3CTL },
+	{ .sts = KCS1ST, .dob = KCS1DO, .dib = KCS1DI, .ctl = KCS1CTL, .ie = KCS1IE },
+	{ .sts = KCS2ST, .dob = KCS2DO, .dib = KCS2DI, .ctl = KCS2CTL, .ie = KCS2IE },
+	{ .sts = KCS3ST, .dob = KCS3DO, .dib = KCS3DI, .ctl = KCS3CTL, .ie = KCS3IE },
 };
 
 static u8 npcm7xx_kcs_inb(struct kcs_bmc *kcs_bmc, u32 reg)
@@ -95,6 +103,9 @@ static void npcm7xx_kcs_enable_channel(struct kcs_bmc *kcs_bmc, bool enable)
 
 	regmap_update_bits(priv->map, priv->reg->ctl, KCS_CTL_IBFIE,
 			   enable ? KCS_CTL_IBFIE : 0);
+
+	regmap_update_bits(priv->map, priv->reg->ie, KCS_IE_IRQE | KCS_IE_HIRQE,
+			   enable ? KCS_IE_IRQE | KCS_IE_HIRQE : 0);
 }
 
 static irqreturn_t npcm7xx_kcs_irq(int irq, void *arg)
