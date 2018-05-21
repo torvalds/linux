@@ -348,6 +348,7 @@ int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	struct intel_engine_cs *engine = dev_priv->engine[workload->ring_id];
 	struct intel_context *ce;
+	struct i915_request *rq;
 	int ret;
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
@@ -386,46 +387,26 @@ int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
 			goto err_shadow;
 	}
 
+	rq = i915_request_alloc(engine, shadow_ctx);
+	if (IS_ERR(rq)) {
+		gvt_vgpu_err("fail to allocate gem request\n");
+		ret = PTR_ERR(rq);
+		goto err_shadow;
+	}
+	workload->req = i915_request_get(rq);
+
 	ret = populate_shadow_context(workload);
 	if (ret)
-		goto err_shadow;
+		goto err_req;
 
 	return 0;
-
+err_req:
+	rq = fetch_and_zero(&workload->req);
+	i915_request_put(rq);
 err_shadow:
 	release_shadow_wa_ctx(&workload->wa_ctx);
 err_unpin:
 	intel_context_unpin(ce);
-	return ret;
-}
-
-static int intel_gvt_generate_request(struct intel_vgpu_workload *workload)
-{
-	int ring_id = workload->ring_id;
-	struct drm_i915_private *dev_priv = workload->vgpu->gvt->dev_priv;
-	struct i915_request *rq;
-	struct intel_vgpu *vgpu = workload->vgpu;
-	struct intel_vgpu_submission *s = &vgpu->submission;
-	struct i915_gem_context *shadow_ctx = s->shadow_ctx;
-	int ret;
-
-	rq = i915_request_alloc(dev_priv->engine[ring_id], shadow_ctx);
-	if (IS_ERR(rq)) {
-		gvt_vgpu_err("fail to allocate gem request\n");
-		ret = PTR_ERR(rq);
-		goto err_unpin;
-	}
-
-	gvt_dbg_sched("ring id %d get i915 gem request %p\n", ring_id, rq);
-
-	workload->req = i915_request_get(rq);
-	ret = copy_workload_to_ring_buffer(workload);
-	if (ret)
-		goto err_unpin;
-	return 0;
-
-err_unpin:
-	release_shadow_wa_ctx(&workload->wa_ctx);
 	return ret;
 }
 
@@ -609,7 +590,7 @@ static int prepare_workload(struct intel_vgpu_workload *workload)
 		goto err_unpin_mm;
 	}
 
-	ret = intel_gvt_generate_request(workload);
+	ret = copy_workload_to_ring_buffer(workload);
 	if (ret) {
 		gvt_vgpu_err("fail to generate request\n");
 		goto err_unpin_mm;
@@ -823,7 +804,7 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 		scheduler->current_workload[ring_id];
 	struct intel_vgpu *vgpu = workload->vgpu;
 	struct intel_vgpu_submission *s = &vgpu->submission;
-	struct i915_request *rq;
+	struct i915_request *rq = workload->req;
 	int event;
 
 	mutex_lock(&gvt->lock);
@@ -832,7 +813,6 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 	 * switch to make sure request is completed.
 	 * For the workload w/o request, directly complete the workload.
 	 */
-	rq = fetch_and_zero(&workload->req);
 	if (rq) {
 		wait_event(workload->shadow_ctx_status_wq,
 			   !atomic_read(&workload->shadow_ctx_active));
@@ -863,7 +843,7 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 		intel_context_unpin(rq->hw_context);
 		mutex_unlock(&rq->i915->drm.struct_mutex);
 
-		i915_request_put(rq);
+		i915_request_put(fetch_and_zero(&workload->req));
 	}
 
 	gvt_dbg_sched("ring id %d complete workload %p status %d\n",
