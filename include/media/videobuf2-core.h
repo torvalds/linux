@@ -204,6 +204,7 @@ enum vb2_io_modes {
 /**
  * enum vb2_buffer_state - current video buffer state.
  * @VB2_BUF_STATE_DEQUEUED:	buffer under userspace control.
+ * @VB2_BUF_STATE_IN_REQUEST:	buffer is queued in media request.
  * @VB2_BUF_STATE_PREPARING:	buffer is being prepared in videobuf.
  * @VB2_BUF_STATE_QUEUED:	buffer queued in videobuf, but not in driver.
  * @VB2_BUF_STATE_REQUEUEING:	re-queue a buffer to the driver.
@@ -217,6 +218,7 @@ enum vb2_io_modes {
  */
 enum vb2_buffer_state {
 	VB2_BUF_STATE_DEQUEUED,
+	VB2_BUF_STATE_IN_REQUEST,
 	VB2_BUF_STATE_PREPARING,
 	VB2_BUF_STATE_QUEUED,
 	VB2_BUF_STATE_REQUEUEING,
@@ -297,6 +299,7 @@ struct vb2_buffer {
 	u32		cnt_buf_finish;
 	u32		cnt_buf_cleanup;
 	u32		cnt_buf_queue;
+	u32		cnt_buf_request_complete;
 
 	/* This counts the number of calls to vb2_buffer_done() */
 	u32		cnt_buf_done;
@@ -390,6 +393,11 @@ struct vb2_buffer {
  *			ioctl; might be called before @start_streaming callback
  *			if user pre-queued buffers before calling
  *			VIDIOC_STREAMON().
+ * @buf_request_complete: a buffer that was never queued to the driver but is
+ *			associated with a queued request was canceled.
+ *			The driver will have to mark associated objects in the
+ *			request as completed; required if requests are
+ *			supported.
  */
 struct vb2_ops {
 	int (*queue_setup)(struct vb2_queue *q,
@@ -408,6 +416,8 @@ struct vb2_ops {
 	void (*stop_streaming)(struct vb2_queue *q);
 
 	void (*buf_queue)(struct vb2_buffer *vb);
+
+	void (*buf_request_complete)(struct vb2_buffer *vb);
 };
 
 /**
@@ -765,12 +775,17 @@ int vb2_core_prepare_buf(struct vb2_queue *q, unsigned int index, void *pb);
  * @index:	id number of the buffer
  * @pb:		buffer structure passed from userspace to
  *		v4l2_ioctl_ops->vidioc_qbuf handler in driver
+ * @req:	pointer to &struct media_request, may be NULL.
  *
  * Videobuf2 core helper to implement VIDIOC_QBUF() operation. It is called
  * internally by VB2 by an API-specific handler, like ``videobuf2-v4l2.h``.
  *
  * This function:
  *
+ * #) If @req is non-NULL, then the buffer will be bound to this
+ *    media request and it returns. The buffer will be prepared and
+ *    queued to the driver (i.e. the next two steps) when the request
+ *    itself is queued.
  * #) if necessary, calls &vb2_ops->buf_prepare callback in the driver
  *    (if provided), in which driver-specific buffer initialization can
  *    be performed;
@@ -779,7 +794,8 @@ int vb2_core_prepare_buf(struct vb2_queue *q, unsigned int index, void *pb);
  *
  * Return: returns zero on success; an error code otherwise.
  */
-int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb);
+int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
+		  struct media_request *req);
 
 /**
  * vb2_core_dqbuf() - Dequeue a buffer to the userspace
