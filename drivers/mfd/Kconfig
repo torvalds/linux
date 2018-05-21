@@ -275,6 +275,13 @@ config MFD_CS47L85
 	help
 	  Support for Cirrus Logic CS47L85 Smart Codec
 
+config MFD_CS47L90
+	bool "Cirrus Logic CS47L90/91"
+	select PINCTRL_CS47L90
+	depends on MFD_MADERA
+	help
+	  Support for Cirrus Logic CS47L90 and CS47L91 Smart Codecs
+
 config MFD_ASIC3
 	bool "Compaq ASIC3"
 	depends on GPIOLIB && ARM
