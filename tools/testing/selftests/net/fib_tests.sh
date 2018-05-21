@@ -6,7 +6,7 @@
 
 ret=0
 
-TESTS="unregister down carrier nexthop ipv6_rt"
+TESTS="unregister down carrier nexthop ipv6_rt ipv4_rt"
 VERBOSE=0
 PAUSE_ON_FAIL=no
 PAUSE=no
@@ -702,6 +702,12 @@ route_setup()
 	$IP -6 addr add 2001:db8:103::2/64 dev veth4
 	$IP -6 addr add 2001:db8:104::1/64 dev dummy1
 
+	$IP addr add 172.16.101.1/24 dev veth1
+	$IP addr add 172.16.101.2/24 dev veth2
+	$IP addr add 172.16.103.1/24 dev veth3
+	$IP addr add 172.16.103.2/24 dev veth4
+	$IP addr add 172.16.104.1/24 dev dummy1
+
 	set +ex
 }
 
@@ -905,6 +911,276 @@ ipv6_route_test()
 	route_cleanup
 }
 
+# add route for a prefix, flushing any existing routes first
+# expected to be the first step of a test
+add_route()
+{
+	local pfx="$1"
+	local nh="$2"
+	local out
+
+	if [ "$VERBOSE" = "1" ]; then
+		echo
+		echo "    ##################################################"
+		echo
+	fi
+
+	run_cmd "$IP ro flush ${pfx}"
+	[ $? -ne 0 ] && exit 1
+
+	out=$($IP ro ls match ${pfx})
+	if [ -n "$out" ]; then
+		echo "Failed to flush routes for prefix used for tests."
+		exit 1
+	fi
+
+	run_cmd "$IP ro add ${pfx} ${nh}"
+	if [ $? -ne 0 ]; then
+		echo "Failed to add initial route for test."
+		exit 1
+	fi
+}
+
+# add initial route - used in replace route tests
+add_initial_route()
+{
+	add_route "172.16.104.0/24" "$1"
+}
+
+check_route()
+{
+	local pfx="172.16.104.0/24"
+	local expected="$1"
+	local out
+	local rc=0
+
+	out=$($IP ro ls match ${pfx})
+	if [ -z "${out}" ]; then
+		if [ "$VERBOSE" = "1" ]; then
+			printf "\nNo route entry found\n"
+			printf "Expected:\n"
+			printf "    ${expected}\n"
+		fi
+		return 1
+	fi
+
+	# tricky way to convert output to 1-line without ip's
+	# messy '\'; this drops all extra white space
+	out=$(echo ${out})
+	if [ "${out}" != "${expected}" ]; then
+		rc=1
+		if [ "${VERBOSE}" = "1" ]; then
+			printf "    Unexpected route entry. Have:\n"
+			printf "        ${out}\n"
+			printf "    Expected:\n"
+			printf "        ${expected}\n\n"
+		fi
+	fi
+
+	return $rc
+}
+
+# assumption is that basic add of a single path route works
+# otherwise just adding an address on an interface is broken
+ipv4_rt_add()
+{
+	local rc
+
+	echo
+	echo "IPv4 route add / append tests"
+
+	# route add same prefix - fails with EEXISTS b/c ip adds NLM_F_EXCL
+	add_route "172.16.104.0/24" "via 172.16.101.2"
+	run_cmd "$IP ro add 172.16.104.0/24 via 172.16.103.2"
+	log_test $? 2 "Attempt to add duplicate route - gw"
+
+	# route add same prefix - fails with EEXISTS b/c ip adds NLM_F_EXCL
+	add_route "172.16.104.0/24" "via 172.16.101.2"
+	run_cmd "$IP ro add 172.16.104.0/24 dev veth3"
+	log_test $? 2 "Attempt to add duplicate route - dev only"
+
+	# route add same prefix - fails with EEXISTS b/c ip adds NLM_F_EXCL
+	add_route "172.16.104.0/24" "via 172.16.101.2"
+	run_cmd "$IP ro add unreachable 172.16.104.0/24"
+	log_test $? 2 "Attempt to add duplicate route - reject route"
+
+	# iproute2 prepend only sets NLM_F_CREATE
+	# - adds a new route; does NOT convert existing route to ECMP
+	add_route "172.16.104.0/24" "via 172.16.101.2"
+	run_cmd "$IP ro prepend 172.16.104.0/24 via 172.16.103.2"
+	check_route "172.16.104.0/24 via 172.16.103.2 dev veth3 172.16.104.0/24 via 172.16.101.2 dev veth1"
+	log_test $? 0 "Add new nexthop for existing prefix"
+
+	# route append with same prefix adds a new route
+	# - iproute2 sets NLM_F_CREATE | NLM_F_APPEND
+	add_route "172.16.104.0/24" "via 172.16.101.2"
+	run_cmd "$IP ro append 172.16.104.0/24 via 172.16.103.2"
+	check_route "172.16.104.0/24 via 172.16.101.2 dev veth1 172.16.104.0/24 via 172.16.103.2 dev veth3"
+	log_test $? 0 "Append nexthop to existing route - gw"
+
+	add_route "172.16.104.0/24" "via 172.16.101.2"
+	run_cmd "$IP ro append 172.16.104.0/24 dev veth3"
+	check_route "172.16.104.0/24 via 172.16.101.2 dev veth1 172.16.104.0/24 dev veth3 scope link"
+	log_test $? 0 "Append nexthop to existing route - dev only"
+
+	add_route "172.16.104.0/24" "via 172.16.101.2"
+	run_cmd "$IP ro append unreachable 172.16.104.0/24"
+	check_route "172.16.104.0/24 via 172.16.101.2 dev veth1 unreachable 172.16.104.0/24"
+	log_test $? 0 "Append nexthop to existing route - reject route"
+
+	run_cmd "$IP ro flush 172.16.104.0/24"
+	run_cmd "$IP ro add unreachable 172.16.104.0/24"
+	run_cmd "$IP ro append 172.16.104.0/24 via 172.16.103.2"
+	check_route "unreachable 172.16.104.0/24 172.16.104.0/24 via 172.16.103.2 dev veth3"
+	log_test $? 0 "Append nexthop to existing reject route - gw"
+
+	run_cmd "$IP ro flush 172.16.104.0/24"
+	run_cmd "$IP ro add unreachable 172.16.104.0/24"
+	run_cmd "$IP ro append 172.16.104.0/24 dev veth3"
+	check_route "unreachable 172.16.104.0/24 172.16.104.0/24 dev veth3 scope link"
+	log_test $? 0 "Append nexthop to existing reject route - dev only"
+
+	# insert mpath directly
+	add_route "172.16.104.0/24" "nexthop via 172.16.101.2 nexthop via 172.16.103.2"
+	check_route  "172.16.104.0/24 nexthop via 172.16.101.2 dev veth1 weight 1 nexthop via 172.16.103.2 dev veth3 weight 1"
+	log_test $? 0 "add multipath route"
+
+	add_route "172.16.104.0/24" "nexthop via 172.16.101.2 nexthop via 172.16.103.2"
+	run_cmd "$IP ro add 172.16.104.0/24 nexthop via 172.16.101.2 nexthop via 172.16.103.2"
+	log_test $? 2 "Attempt to add duplicate multipath route"
+
+	# insert of a second route without append but different metric
+	add_route "172.16.104.0/24" "via 172.16.101.2"
+	run_cmd "$IP ro add 172.16.104.0/24 via 172.16.103.2 metric 512"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		run_cmd "$IP ro add 172.16.104.0/24 via 172.16.103.3 metric 256"
+		rc=$?
+	fi
+	log_test $rc 0 "Route add with different metrics"
+
+	run_cmd "$IP ro del 172.16.104.0/24 metric 512"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.104.0/24 via 172.16.101.2 dev veth1 172.16.104.0/24 via 172.16.103.3 dev veth3 metric 256"
+		rc=$?
+	fi
+	log_test $rc 0 "Route delete with metric"
+}
+
+ipv4_rt_replace_single()
+{
+	# single path with single path
+	#
+	add_initial_route "via 172.16.101.2"
+	run_cmd "$IP ro replace 172.16.104.0/24 via 172.16.103.2"
+	check_route "172.16.104.0/24 via 172.16.103.2 dev veth3"
+	log_test $? 0 "Single path with single path"
+
+	# single path with multipath
+	#
+	add_initial_route "nexthop via 172.16.101.2"
+	run_cmd "$IP ro replace 172.16.104.0/24 nexthop via 172.16.101.3 nexthop via 172.16.103.2"
+	check_route "172.16.104.0/24 nexthop via 172.16.101.3 dev veth1 weight 1 nexthop via 172.16.103.2 dev veth3 weight 1"
+	log_test $? 0 "Single path with multipath"
+
+	# single path with reject
+	#
+	add_initial_route "nexthop via 172.16.101.2"
+	run_cmd "$IP ro replace unreachable 172.16.104.0/24"
+	check_route "unreachable 172.16.104.0/24"
+	log_test $? 0 "Single path with reject route"
+
+	# single path with single path using MULTIPATH attribute
+	#
+	add_initial_route "via 172.16.101.2"
+	run_cmd "$IP ro replace 172.16.104.0/24 nexthop via 172.16.103.2"
+	check_route "172.16.104.0/24 via 172.16.103.2 dev veth3"
+	log_test $? 0 "Single path with single path via multipath attribute"
+
+	# route replace fails - invalid nexthop
+	add_initial_route "via 172.16.101.2"
+	run_cmd "$IP ro replace 172.16.104.0/24 via 2001:db8:104::2"
+	if [ $? -eq 0 ]; then
+		# previous command is expected to fail so if it returns 0
+		# that means the test failed.
+		log_test 0 1 "Invalid nexthop"
+	else
+		check_route "172.16.104.0/24 via 172.16.101.2 dev veth1"
+		log_test $? 0 "Invalid nexthop"
+	fi
+
+	# replace non-existent route
+	# - note use of change versus replace since ip adds NLM_F_CREATE
+	#   for replace
+	add_initial_route "via 172.16.101.2"
+	run_cmd "$IP ro change 172.16.105.0/24 via 172.16.101.2"
+	log_test $? 2 "Single path - replace of non-existent route"
+}
+
+ipv4_rt_replace_mpath()
+{
+	# multipath with multipath
+	add_initial_route "nexthop via 172.16.101.2 nexthop via 172.16.103.2"
+	run_cmd "$IP ro replace 172.16.104.0/24 nexthop via 172.16.101.3 nexthop via 172.16.103.3"
+	check_route  "172.16.104.0/24 nexthop via 172.16.101.3 dev veth1 weight 1 nexthop via 172.16.103.3 dev veth3 weight 1"
+	log_test $? 0 "Multipath with multipath"
+
+	# multipath with single
+	add_initial_route "nexthop via 172.16.101.2 nexthop via 172.16.103.2"
+	run_cmd "$IP ro replace 172.16.104.0/24 via 172.16.101.3"
+	check_route  "172.16.104.0/24 via 172.16.101.3 dev veth1"
+	log_test $? 0 "Multipath with single path"
+
+	# multipath with single
+	add_initial_route "nexthop via 172.16.101.2 nexthop via 172.16.103.2"
+	run_cmd "$IP ro replace 172.16.104.0/24 nexthop via 172.16.101.3"
+	check_route "172.16.104.0/24 via 172.16.101.3 dev veth1"
+	log_test $? 0 "Multipath with single path via multipath attribute"
+
+	# multipath with reject
+	add_initial_route "nexthop via 172.16.101.2 nexthop via 172.16.103.2"
+	run_cmd "$IP ro replace unreachable 172.16.104.0/24"
+	check_route "unreachable 172.16.104.0/24"
+	log_test $? 0 "Multipath with reject route"
+
+	# route replace fails - invalid nexthop 1
+	add_initial_route "nexthop via 172.16.101.2 nexthop via 172.16.103.2"
+	run_cmd "$IP ro replace 172.16.104.0/24 nexthop via 172.16.111.3 nexthop via 172.16.103.3"
+	check_route  "172.16.104.0/24 nexthop via 172.16.101.2 dev veth1 weight 1 nexthop via 172.16.103.2 dev veth3 weight 1"
+	log_test $? 0 "Multipath - invalid first nexthop"
+
+	# route replace fails - invalid nexthop 2
+	add_initial_route "nexthop via 172.16.101.2 nexthop via 172.16.103.2"
+	run_cmd "$IP ro replace 172.16.104.0/24 nexthop via 172.16.101.3 nexthop via 172.16.113.3"
+	check_route  "172.16.104.0/24 nexthop via 172.16.101.2 dev veth1 weight 1 nexthop via 172.16.103.2 dev veth3 weight 1"
+	log_test $? 0 "Multipath - invalid second nexthop"
+
+	# multipath non-existent route
+	add_initial_route "nexthop via 172.16.101.2 nexthop via 172.16.103.2"
+	run_cmd "$IP ro change 172.16.105.0/24 nexthop via 172.16.101.3 nexthop via 172.16.103.3"
+	log_test $? 2 "Multipath - replace of non-existent route"
+}
+
+ipv4_rt_replace()
+{
+	echo
+	echo "IPv4 route replace tests"
+
+	ipv4_rt_replace_single
+	ipv4_rt_replace_mpath
+}
+
+ipv4_route_test()
+{
+	route_setup
+
+	ipv4_rt_add
+	ipv4_rt_replace
+
+	route_cleanup
+}
+
 ################################################################################
 # usage
 
@@ -968,6 +1244,7 @@ do
 	fib_carrier_test|carrier)	fib_carrier_test;;
 	fib_nexthop_test|nexthop)	fib_nexthop_test;;
 	ipv6_route_test|ipv6_rt)	ipv6_route_test;;
+	ipv4_route_test|ipv4_rt)	ipv4_route_test;;
 
 	help) echo "Test names: $TESTS"; exit 0;;
 	esac
