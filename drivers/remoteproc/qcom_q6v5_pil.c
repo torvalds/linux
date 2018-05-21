@@ -143,6 +143,10 @@ struct q6v5 {
 	struct qcom_smem_state *state;
 	unsigned stop_bit;
 
+	int handover_irq;
+
+	bool proxy_unvoted;
+
 	struct clk *active_clks[8];
 	struct clk *proxy_clks[4];
 	int active_clk_count;
@@ -727,11 +731,15 @@ static int q6v5_start(struct rproc *rproc)
 	int xfermemop_ret;
 	int ret;
 
+	qproc->proxy_unvoted = false;
+
+	enable_irq(qproc->handover_irq);
+
 	ret = q6v5_regulator_enable(qproc, qproc->proxy_regs,
 				    qproc->proxy_reg_count);
 	if (ret) {
 		dev_err(qproc->dev, "failed to enable proxy supplies\n");
-		return ret;
+		goto disable_irqs;
 	}
 
 	ret = q6v5_clk_enable(qproc->dev, qproc->proxy_clks,
@@ -808,11 +816,6 @@ static int q6v5_start(struct rproc *rproc)
 			"Failed to reclaim mba buffer system may become unstable\n");
 	qproc->running = true;
 
-	q6v5_clk_disable(qproc->dev, qproc->proxy_clks,
-			 qproc->proxy_clk_count);
-	q6v5_regulator_disable(qproc, qproc->proxy_regs,
-			       qproc->proxy_reg_count);
-
 	return 0;
 
 reclaim_mpss:
@@ -850,6 +853,9 @@ disable_proxy_clk:
 disable_proxy_reg:
 	q6v5_regulator_disable(qproc, qproc->proxy_regs,
 			       qproc->proxy_reg_count);
+
+disable_irqs:
+	disable_irq(qproc->handover_irq);
 
 	return ret;
 }
@@ -891,6 +897,16 @@ static int q6v5_stop(struct rproc *rproc)
 	WARN_ON(ret);
 
 	reset_control_assert(qproc->mss_restart);
+
+	disable_irq(qproc->handover_irq);
+
+	if (!qproc->proxy_unvoted) {
+		q6v5_clk_disable(qproc->dev, qproc->proxy_clks,
+				 qproc->proxy_clk_count);
+		q6v5_regulator_disable(qproc, qproc->proxy_regs,
+				       qproc->proxy_reg_count);
+	}
+
 	q6v5_clk_disable(qproc->dev, qproc->active_clks,
 			 qproc->active_clk_count);
 	q6v5_regulator_disable(qproc, qproc->active_regs,
@@ -958,11 +974,25 @@ static irqreturn_t q6v5_fatal_interrupt(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t q6v5_handover_interrupt(int irq, void *dev)
+static irqreturn_t q6v5_ready_interrupt(int irq, void *dev)
 {
 	struct q6v5 *qproc = dev;
 
 	complete(&qproc->start_done);
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t q6v5_handover_interrupt(int irq, void *dev)
+{
+	struct q6v5 *qproc = dev;
+
+	q6v5_clk_disable(qproc->dev, qproc->proxy_clks,
+			 qproc->proxy_clk_count);
+	q6v5_regulator_disable(qproc, qproc->proxy_regs,
+			       qproc->proxy_reg_count);
+
+	qproc->proxy_unvoted = true;
+
 	return IRQ_HANDLED;
 }
 
@@ -1194,9 +1224,15 @@ static int q6v5_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto free_rproc;
 
+	ret = q6v5_request_irq(qproc, pdev, "ready", q6v5_ready_interrupt);
+	if (ret < 0)
+		goto free_rproc;
+
 	ret = q6v5_request_irq(qproc, pdev, "handover", q6v5_handover_interrupt);
 	if (ret < 0)
 		goto free_rproc;
+	qproc->handover_irq = ret;
+	disable_irq(qproc->handover_irq);
 
 	ret = q6v5_request_irq(qproc, pdev, "stop-ack", q6v5_stop_ack_interrupt);
 	if (ret < 0)
