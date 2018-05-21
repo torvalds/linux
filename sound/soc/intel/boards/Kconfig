@@ -261,6 +261,16 @@ config SND_SOC_INTEL_BXT_PCM512x_MACH
 	  Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
 
+config SND_SOC_INTEL_BXT_WM8804_MACH
+	tristate "Broxton with Wolfson/Cirrus WM8804 codec for Hifiberry Digi+"
+	depends on MFD_INTEL_LPSS && I2C && ACPI
+	select SND_SOC_WM8804_I2C
+	help
+	  This adds support for ASoC machine driver for Broxton platforms
+	  with Hifiberry Digiplus w/ Wolfson/Cirrus WM8804 I2S audio codec.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
+
 config SND_SOC_INTEL_BXT_TDF8532_MACH
 	tristate "ASoC Audio driver for BXT with TDF8532 in I2S mode"
 	depends on X86 && ACPI && I2C
