@@ -1101,6 +1101,166 @@ static int vega20_od8_initialize_default_settings(
 	return 0;
 }
 
+static int vega20_od8_set_settings(
+		struct pp_hwmgr *hwmgr,
+		uint32_t index,
+		uint32_t value)
+{
+	OverDriveTable_t od_table;
+	int ret = 0;
+
+	ret = vega20_copy_table_from_smc(hwmgr, (uint8_t *)(&od_table), TABLE_OVERDRIVE);
+	PP_ASSERT_WITH_CODE(!ret,
+			"Failed to export over drive table!",
+			return ret);
+
+	switch(index) {
+	case OD8_SETTING_GFXCLK_FMIN:
+		od_table.GfxclkFmin = (uint16_t)value;
+		break;
+	case OD8_SETTING_GFXCLK_FMAX:
+		od_table.GfxclkFmax = (uint16_t)value;
+		break;
+	case OD8_SETTING_GFXCLK_FREQ1:
+		od_table.GfxclkFreq1 = (uint16_t)value;
+		break;
+	case OD8_SETTING_GFXCLK_VOLTAGE1:
+		od_table.GfxclkOffsetVolt1 = (uint16_t)value;
+		break;
+	case OD8_SETTING_GFXCLK_FREQ2:
+		od_table.GfxclkFreq2 = (uint16_t)value;
+		break;
+	case OD8_SETTING_GFXCLK_VOLTAGE2:
+		od_table.GfxclkOffsetVolt2 = (uint16_t)value;
+		break;
+	case OD8_SETTING_GFXCLK_FREQ3:
+		od_table.GfxclkFreq3 = (uint16_t)value;
+		break;
+	case OD8_SETTING_GFXCLK_VOLTAGE3:
+		od_table.GfxclkOffsetVolt3 = (uint16_t)value;
+		break;
+	case OD8_SETTING_UCLK_FMAX:
+		od_table.UclkFmax = (uint16_t)value;
+		break;
+	case OD8_SETTING_POWER_PERCENTAGE:
+		od_table.OverDrivePct = (int16_t)value;
+		break;
+	case OD8_SETTING_FAN_ACOUSTIC_LIMIT:
+		od_table.FanMaximumRpm = (uint16_t)value;
+		break;
+	case OD8_SETTING_FAN_MIN_SPEED:
+		od_table.FanMinimumPwm = (uint16_t)value;
+		break;
+	case OD8_SETTING_FAN_TARGET_TEMP:
+		od_table.FanTargetTemperature = (uint16_t)value;
+		break;
+	case OD8_SETTING_OPERATING_TEMP_MAX:
+		od_table.MaxOpTemp = (uint16_t)value;
+		break;
+	}
+
+	ret = vega20_copy_table_to_smc(hwmgr, (uint8_t *)(&od_table), TABLE_OVERDRIVE);
+	PP_ASSERT_WITH_CODE(!ret,
+			"Failed to import over drive table!",
+			return ret);
+
+	return 0;
+}
+
+static int vega20_get_sclk_od(
+		struct pp_hwmgr *hwmgr)
+{
+	struct vega20_hwmgr *data = hwmgr->backend;
+	struct vega20_single_dpm_table *sclk_table =
+			&(data->dpm_table.gfx_table);
+	struct vega20_single_dpm_table *golden_sclk_table =
+			&(data->golden_dpm_table.gfx_table);
+	int value;
+
+	/* od percentage */
+	value = DIV_ROUND_UP((sclk_table->dpm_levels[sclk_table->count - 1].value -
+		golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value) * 100,
+		golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value);
+
+	return value;
+}
+
+static int vega20_set_sclk_od(
+		struct pp_hwmgr *hwmgr, uint32_t value)
+{
+	struct vega20_hwmgr *data = hwmgr->backend;
+	struct vega20_single_dpm_table *sclk_table =
+			&(data->dpm_table.gfx_table);
+	struct vega20_single_dpm_table *golden_sclk_table =
+			&(data->golden_dpm_table.gfx_table);
+	uint32_t od_sclk;
+	int ret = 0;
+
+	od_sclk = golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value * value;
+	do_div(od_sclk, 100);
+	od_sclk += golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value;
+
+	ret = vega20_od8_set_settings(hwmgr, OD8_SETTING_GFXCLK_FMAX, od_sclk);
+	PP_ASSERT_WITH_CODE(!ret,
+			"[SetSclkOD] failed to set od gfxclk!",
+			return ret);
+
+	/* refresh gfxclk table */
+	ret = vega20_setup_single_dpm_table(hwmgr, sclk_table, PPCLK_GFXCLK);
+	PP_ASSERT_WITH_CODE(!ret,
+			"[SetSclkOD] failed to refresh gfxclk table!",
+			return ret);
+
+	return 0;
+}
+
+static int vega20_get_mclk_od(
+		struct pp_hwmgr *hwmgr)
+{
+	struct vega20_hwmgr *data = hwmgr->backend;
+	struct vega20_single_dpm_table *mclk_table =
+			&(data->dpm_table.mem_table);
+	struct vega20_single_dpm_table *golden_mclk_table =
+			&(data->golden_dpm_table.mem_table);
+	int value;
+
+	/* od percentage */
+	value = DIV_ROUND_UP((mclk_table->dpm_levels[mclk_table->count - 1].value -
+		golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value) * 100,
+		golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value);
+
+	return value;
+}
+
+static int vega20_set_mclk_od(
+		struct pp_hwmgr *hwmgr, uint32_t value)
+{
+	struct vega20_hwmgr *data = hwmgr->backend;
+	struct vega20_single_dpm_table *mclk_table =
+			&(data->dpm_table.mem_table);
+	struct vega20_single_dpm_table *golden_mclk_table =
+			&(data->golden_dpm_table.mem_table);
+	uint32_t od_mclk;
+	int ret = 0;
+
+	od_mclk = golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value * value;
+	do_div(od_mclk, 100);
+	od_mclk += golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value;
+
+	ret = vega20_od8_set_settings(hwmgr, OD8_SETTING_UCLK_FMAX, od_mclk);
+	PP_ASSERT_WITH_CODE(!ret,
+			"[SetMclkOD] failed to set od memclk!",
+			return ret);
+
+	/* refresh memclk table */
+	ret = vega20_setup_single_dpm_table(hwmgr, mclk_table, PPCLK_UCLK);
+	PP_ASSERT_WITH_CODE(!ret,
+			"[SetMclkOD] failed to refresh memclk table!",
+			return ret);
+
+	return 0;
+}
+
 static int vega20_populate_umdpstate_clocks(
 		struct pp_hwmgr *hwmgr)
 {
@@ -2604,8 +2764,17 @@ static const struct pp_hwmgr_func vega20_hwmgr_funcs = {
 		vega20_get_power_profile_mode,
 	.set_power_profile_mode =
 		vega20_set_power_profile_mode,
+	/* od related */
 	.set_power_limit =
 		vega20_set_power_limit,
+	.get_sclk_od =
+		vega20_get_sclk_od,
+	.set_sclk_od =
+		vega20_set_sclk_od,
+	.get_mclk_od =
+		vega20_get_mclk_od,
+	.set_mclk_od =
+		vega20_set_mclk_od,
 	/* for sysfs to retrive/set gfxclk/memclk */
 	.force_clock_level =
 		vega20_force_clock_level,
