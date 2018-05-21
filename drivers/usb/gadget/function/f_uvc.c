@@ -31,6 +31,8 @@
 #include "uvc_video.h"
 
 unsigned int uvc_gadget_trace_param;
+module_param_named(trace, uvc_gadget_trace_param, uint, 0644);
+MODULE_PARM_DESC(trace, "Trace level bitmask");
 
 /* --------------------------------------------------------------------------
  * Function descriptors
