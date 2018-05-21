@@ -40,7 +40,6 @@
 
 #define DEBUG_SUBSYSTEM S_FID
 
-#include <linux/libcfs/libcfs_all.h>
 #include <linux/module.h>
 #include <lustre_fid.h>
 
