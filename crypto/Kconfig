@@ -341,7 +341,8 @@ config CRYPTO_MORUS640
 	  Support for the MORUS-640 dedicated AEAD algorithm.
 
 config CRYPTO_MORUS640_GLUE
-	tristate "MORUS-640 AEAD algorithm (glue for SIMD optimizations)"
+	tristate
+	depends on X86
 	select CRYPTO_AEAD
 	select CRYPTO_CRYPTD
 	help
@@ -363,7 +364,8 @@ config CRYPTO_MORUS1280
 	  Support for the MORUS-1280 dedicated AEAD algorithm.
 
 config CRYPTO_MORUS1280_GLUE
-	tristate "MORUS-1280 AEAD algorithm (glue for SIMD optimizations)"
+	tristate
+	depends on X86
 	select CRYPTO_AEAD
 	select CRYPTO_CRYPTD
 	help

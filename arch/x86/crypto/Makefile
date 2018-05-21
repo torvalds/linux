@@ -42,6 +42,9 @@ obj-$(CONFIG_CRYPTO_AEGIS128_AESNI_SSE2) += aegis128-aesni.o
 obj-$(CONFIG_CRYPTO_AEGIS128L_AESNI_SSE2) += aegis128l-aesni.o
 obj-$(CONFIG_CRYPTO_AEGIS256_AESNI_SSE2) += aegis256-aesni.o
 
+obj-$(CONFIG_CRYPTO_MORUS640_GLUE) += morus640_glue.o
+obj-$(CONFIG_CRYPTO_MORUS1280_GLUE) += morus1280_glue.o
+
 obj-$(CONFIG_CRYPTO_MORUS640_SSE2) += morus640-sse2.o
 obj-$(CONFIG_CRYPTO_MORUS1280_SSE2) += morus1280-sse2.o
 
