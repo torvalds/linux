@@ -1598,7 +1598,7 @@ lmv_locate_mds(struct lmv_obd *lmv, struct md_op_data *op_data,
 
 static int lmv_create(struct obd_export *exp, struct md_op_data *op_data,
 		      const void *data, size_t datalen, umode_t mode,
-		      uid_t uid, gid_t gid, cfs_cap_t cap_effective,
+		      uid_t uid, gid_t gid, kernel_cap_t cap_effective,
 		      __u64 rdev, struct ptlrpc_request **request)
 {
 	struct obd_device       *obd = exp->exp_obd;
@@ -1783,7 +1783,7 @@ static int lmv_link(struct obd_export *exp, struct md_op_data *op_data,
 
 	op_data->op_fsuid = from_kuid(&init_user_ns, current_fsuid());
 	op_data->op_fsgid = from_kgid(&init_user_ns, current_fsgid());
-	op_data->op_cap = cfs_curproc_cap_pack();
+	op_data->op_cap = current_cap();
 	if (op_data->op_mea2) {
 		struct lmv_stripe_md *lsm = op_data->op_mea2;
 		const struct lmv_oinfo *oinfo;
@@ -1835,7 +1835,7 @@ static int lmv_rename(struct obd_export *exp, struct md_op_data *op_data,
 
 	op_data->op_fsuid = from_kuid(&init_user_ns, current_fsuid());
 	op_data->op_fsgid = from_kgid(&init_user_ns, current_fsgid());
-	op_data->op_cap = cfs_curproc_cap_pack();
+	op_data->op_cap = current_cap();
 
 	if (op_data->op_cli_flags & CLI_MIGRATE) {
 		LASSERTF(fid_is_sane(&op_data->op_fid3), "invalid FID " DFID "\n",
@@ -2413,7 +2413,7 @@ try_next_stripe:
 
 	op_data->op_fsuid = from_kuid(&init_user_ns, current_fsuid());
 	op_data->op_fsgid = from_kgid(&init_user_ns, current_fsgid());
-	op_data->op_cap = cfs_curproc_cap_pack();
+	op_data->op_cap = current_cap();
 
 	/*
 	 * If child's fid is given, cancel unused locks for it if it is from

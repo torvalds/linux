@@ -885,7 +885,7 @@ again:
 	err = md_create(sbi->ll_md_exp, op_data, tgt, tgt_len, mode,
 			from_kuid(&init_user_ns, current_fsuid()),
 			from_kgid(&init_user_ns, current_fsgid()),
-			cfs_curproc_cap_pack(), rdev, &request);
+			current_cap(), rdev, &request);
 	ll_finish_md_op_data(op_data);
 	if (err < 0 && err != -EREMOTE)
 		goto err_exit;

@@ -1226,7 +1226,7 @@ static inline int md_close(struct obd_export *exp, struct md_op_data *op_data,
 
 static inline int md_create(struct obd_export *exp, struct md_op_data *op_data,
 			    const void *data, size_t datalen, umode_t mode,
-			    uid_t uid, gid_t gid, cfs_cap_t cap_effective,
+			    uid_t uid, gid_t gid, kernel_cap_t cap_effective,
 			    __u64 rdev, struct ptlrpc_request **request)
 {
 	int rc;

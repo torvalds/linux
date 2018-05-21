@@ -717,7 +717,7 @@ struct md_op_data {
 	__u32		   op_suppgids[2];
 	__u32		   op_fsuid;
 	__u32		   op_fsgid;
-	cfs_cap_t	       op_cap;
+	kernel_cap_t	       op_cap;
 	void		   *op_data;
 	size_t			op_data_size;
 
@@ -912,7 +912,7 @@ struct md_ops {
 		     struct md_open_data *, struct ptlrpc_request **);
 	int (*create)(struct obd_export *, struct md_op_data *,
 		      const void *, size_t, umode_t, uid_t, gid_t,
-		      cfs_cap_t, __u64, struct ptlrpc_request **);
+		      kernel_cap_t, __u64, struct ptlrpc_request **);
 	int (*enqueue)(struct obd_export *, struct ldlm_enqueue_info *,
 		       const union ldlm_policy_data *, struct md_op_data *,
 		       struct lustre_handle *, __u64);

@@ -86,7 +86,6 @@
 #include <linux/libcfs/libcfs_string.h>
 #include <linux/libcfs/libcfs_hash.h>
 #include <linux/libcfs/libcfs_fail.h>
-#include <linux/libcfs/curproc.h>
 
 #define LIBCFS_VERSION "0.7.0"
 

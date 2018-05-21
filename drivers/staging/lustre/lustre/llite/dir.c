@@ -445,7 +445,7 @@ static int ll_dir_setdirstripe(struct inode *parent, struct lmv_user_md *lump,
 	err = md_create(sbi->ll_md_exp, op_data, lump, sizeof(*lump), mode,
 			from_kuid(&init_user_ns, current_fsuid()),
 			from_kgid(&init_user_ns, current_fsgid()),
-			cfs_curproc_cap_pack(), 0, &request);
+			current_cap(), 0, &request);
 	ll_finish_md_op_data(op_data);
 
 	err = ll_prep_inode(&inode, request, parent->i_sb, NULL);
