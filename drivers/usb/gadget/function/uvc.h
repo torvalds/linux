@@ -9,15 +9,21 @@
 #ifndef _UVC_GADGET_H_
 #define _UVC_GADGET_H_
 
-#include <linux/usb.h>	/* For usb_endpoint_* */
+#include <linux/list.h>
+#include <linux/mutex.h>
+#include <linux/spinlock.h>
 #include <linux/usb/composite.h>
-#include <linux/usb/gadget.h>
-#include <linux/usb/g_uvc.h>
 #include <linux/videodev2.h>
-#include <media/v4l2-fh.h>
+
 #include <media/v4l2-device.h>
+#include <media/v4l2-dev.h>
+#include <media/v4l2-fh.h>
 
 #include "uvc_queue.h"
+
+struct usb_ep;
+struct usb_request;
+struct uvc_descriptor_header;
 
 /* ------------------------------------------------------------------------
  * Debugging, printing and logging

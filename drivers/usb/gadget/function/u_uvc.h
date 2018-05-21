@@ -13,6 +13,7 @@
 #ifndef U_UVC_H
 #define U_UVC_H
 
+#include <linux/mutex.h>
 #include <linux/usb/composite.h>
 #include <linux/usb/video.h>
 
