@@ -554,6 +554,15 @@ static int xhci_get_ports(struct usb_hcd *hcd, __le32 __iomem ***port_array)
 	return max_ports;
 }
 
+struct xhci_hub *xhci_get_rhub(struct usb_hcd *hcd)
+{
+	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+
+	if (hcd->speed >= HCD_USB3)
+		return &xhci->usb3_rhub;
+	return &xhci->usb2_rhub;
+}
+
 static __le32 __iomem *xhci_get_port_io_addr(struct usb_hcd *hcd, int index)
 {
 	__le32 __iomem **port_array;

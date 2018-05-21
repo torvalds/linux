@@ -2110,6 +2110,8 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, u16 wIndex,
 		char *buf, u16 wLength);
 int xhci_hub_status_data(struct usb_hcd *hcd, char *buf);
 int xhci_find_raw_port_number(struct usb_hcd *hcd, int port1);
+struct xhci_hub *xhci_get_rhub(struct usb_hcd *hcd);
+
 void xhci_hc_died(struct xhci_hcd *xhci);
 
 #ifdef CONFIG_PM
