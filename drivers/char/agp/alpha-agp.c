@@ -11,7 +11,7 @@
 
 #include "agp.h"
 
-static int alpha_core_agp_vm_fault(struct vm_fault *vmf)
+static vm_fault_t alpha_core_agp_vm_fault(struct vm_fault *vmf)
 {
 	alpha_agp_info *agp = agp_bridge->dev_private_data;
 	dma_addr_t dma_addr;
