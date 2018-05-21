@@ -2603,6 +2603,54 @@ out:
 	return mtu - lwtunnel_headroom(dst->lwtstate, mtu);
 }
 
+/* MTU selection:
+ * 1. mtu on route is locked - use it
+ * 2. mtu from nexthop exception
+ * 3. mtu from egress device
+ *
+ * based on ip6_dst_mtu_forward and exception logic of
+ * rt6_find_cached_rt; called with rcu_read_lock
+ */
+u32 ip6_mtu_from_fib6(struct fib6_info *f6i, struct in6_addr *daddr,
+		      struct in6_addr *saddr)
+{
+	struct rt6_exception_bucket *bucket;
+	struct rt6_exception *rt6_ex;
+	struct in6_addr *src_key;
+	struct inet6_dev *idev;
+	u32 mtu = 0;
+
+	if (unlikely(fib6_metric_locked(f6i, RTAX_MTU))) {
+		mtu = f6i->fib6_pmtu;
+		if (mtu)
+			goto out;
+	}
+
+	src_key = NULL;
+#ifdef CONFIG_IPV6_SUBTREES
+	if (f6i->fib6_src.plen)
+		src_key = saddr;
+#endif
+
+	bucket = rcu_dereference(f6i->rt6i_exception_bucket);
+	rt6_ex = __rt6_find_exception_rcu(&bucket, daddr, src_key);
+	if (rt6_ex && !rt6_check_expired(rt6_ex->rt6i))
+		mtu = dst_metric_raw(&rt6_ex->rt6i->dst, RTAX_MTU);
+
+	if (likely(!mtu)) {
+		struct net_device *dev = fib6_info_nh_dev(f6i);
+
+		mtu = IPV6_MIN_MTU;
+		idev = __in6_dev_get(dev);
+		if (idev && idev->cnf.mtu6 > mtu)
+			mtu = idev->cnf.mtu6;
+	}
+
+	mtu = min_t(unsigned int, mtu, IP6_MAX_MTU);
+out:
+	return mtu - lwtunnel_headroom(fib6_info_nh_lwt(f6i), mtu);
+}
+
 struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 				  struct flowi6 *fl6)
 {

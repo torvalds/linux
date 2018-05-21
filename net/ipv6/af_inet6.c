@@ -894,6 +894,7 @@ static const struct ipv6_stub ipv6_stub_impl = {
 	.fib6_table_lookup = fib6_table_lookup,
 	.fib6_lookup       = fib6_lookup,
 	.fib6_multipath_select = fib6_multipath_select,
+	.ip6_mtu_from_fib6 = ip6_mtu_from_fib6,
 	.udpv6_encap_enable = udpv6_encap_enable,
 	.ndisc_send_na = ndisc_send_na,
 	.nd_tbl	= &nd_tbl,
