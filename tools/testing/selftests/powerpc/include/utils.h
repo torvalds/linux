@@ -80,4 +80,12 @@ do {								\
 #define PPC_FEATURE2_ARCH_3_00 0x00800000
 #endif
 
+#if defined(__powerpc64__)
+#define UCONTEXT_NIA(UC)	(UC)->uc_mcontext.gp_regs[PT_NIP]
+#elif defined(__powerpc__)
+#define UCONTEXT_NIA(UC)	(UC)->uc_mcontext.uc_regs->gregs[PT_NIP]
+#else
+#error implement UCONTEXT_NIA
+#endif
+
 #endif /* _SELFTESTS_POWERPC_UTILS_H */
