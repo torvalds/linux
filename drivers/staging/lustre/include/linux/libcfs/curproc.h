@@ -50,16 +50,6 @@
 
 typedef u32 cfs_cap_t;
 
-#define CFS_CAP_FS_MASK (BIT(CAP_CHOWN) |		\
-			 BIT(CAP_DAC_OVERRIDE) |	\
-			 BIT(CAP_DAC_READ_SEARCH) |	\
-			 BIT(CAP_FOWNER) |		\
-			 BIT(CAP_FSETID) |		\
-			 BIT(CAP_LINUX_IMMUTABLE) | \
-			 BIT(CAP_SYS_ADMIN) |	\
-			 BIT(CAP_SYS_BOOT) |	\
-			 BIT(CAP_SYS_RESOURCE))
-
 static inline cfs_cap_t cfs_curproc_cap_pack(void)
 {
 	/* cfs_cap_t is only the first word of kernel_cap_t */
