@@ -40,6 +40,8 @@
 #ifndef __LIBCFS_STRING_H__
 #define __LIBCFS_STRING_H__
 
+#include <linux/mm.h>
+
 /* libcfs_string.c */
 /* Convert a text string to a bitmask */
 int cfs_str2mask(const char *str, const char *(*bit2str)(int bit),

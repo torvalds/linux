@@ -37,7 +37,6 @@
  * Author: Liang Zhen <liangzhen@clusterfs.com>
  */
 
-#include <linux/libcfs/libcfs_all.h>
 #include <linux/lnet/lib-lnet.h>
 #include <uapi/linux/lnet/lnetst.h>
 #include "console.h"

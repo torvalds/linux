@@ -37,7 +37,10 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include <linux/libcfs/libcfs_all.h>
+#include <linux/spinlock.h>
+#include <linux/slab.h>
+#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_string.h>
 #include <uapi/linux/lnet/nidstr.h>
 
 /* max value for numeric network address */
