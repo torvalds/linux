@@ -90,11 +90,6 @@
 #define LIBCFS_VERSION "0.7.0"
 
 /*
- * One jiffy
- */
-#define CFS_TICK		(1UL)
-
-/*
  * Lustre Error Checksum: calculates checksum
  * of Hex number by XORing each bit.
  */

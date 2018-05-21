@@ -180,7 +180,7 @@ static void ptlrpc_pinger_process_import(struct obd_import *imp,
 
 	imp->imp_force_verify = 0;
 
-	if (time_after_eq(imp->imp_next_ping - 5 * CFS_TICK, this_ping) &&
+	if (time_after_eq(imp->imp_next_ping - 5, this_ping) &&
 	    !force) {
 		spin_unlock(&imp->imp_lock);
 		return;
