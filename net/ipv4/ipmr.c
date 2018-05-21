@@ -323,6 +323,7 @@ static const struct rhashtable_params ipmr_rht_params = {
 static struct mr_table *ipmr_new_table(struct net *net, u32 id)
 {
 	struct mr_table *mrt;
+	int err;
 
 	/* "pimreg%u" should not exceed 16 bytes (IFNAMSIZ) */
 	if (id != RT_TABLE_DEFAULT && id >= 1000000000)
@@ -338,7 +339,11 @@ static struct mr_table *ipmr_new_table(struct net *net, u32 id)
 	write_pnet(&mrt->net, net);
 	mrt->id = id;
 
-	rhltable_init(&mrt->mfc_hash, &ipmr_rht_params);
+	err = rhltable_init(&mrt->mfc_hash, &ipmr_rht_params);
+	if (err) {
+		kfree(mrt);
+		return ERR_PTR(err);
+	}
 	INIT_LIST_HEAD(&mrt->mfc_cache_list);
 	INIT_LIST_HEAD(&mrt->mfc_unres_queue);
 
