@@ -1131,7 +1131,7 @@ config SND_SOC_WM8776
 	depends on SND_SOC_I2C_AND_SPI
 
 config SND_SOC_WM8782
-	tristate
+	tristate "Wolfson Microelectronics WM8782 ADC"
 
 config SND_SOC_WM8804
 	tristate
