@@ -175,7 +175,7 @@ ptlrpcd_select_pc(struct ptlrpc_request *req)
 	if (req && req->rq_send_state != LUSTRE_IMP_FULL)
 		return &ptlrpcd_rcv;
 
-	cpt = cfs_cpt_current(cfs_cpt_table, 1);
+	cpt = cfs_cpt_current(cfs_cpt_tab, 1);
 	if (!ptlrpcds_cpt_idx)
 		idx = cpt;
 	else
@@ -387,7 +387,7 @@ static int ptlrpcd(void *arg)
 	int exit = 0;
 
 	unshare_fs_struct();
-	if (cfs_cpt_bind(cfs_cpt_table, pc->pc_cpt) != 0)
+	if (cfs_cpt_bind(cfs_cpt_tab, pc->pc_cpt) != 0)
 		CWARN("Failed to bind %s on CPT %d\n", pc->pc_name, pc->pc_cpt);
 
 	/*
@@ -529,7 +529,7 @@ static int ptlrpcd_partners(struct ptlrpcd *pd, int index)
 
 	size = sizeof(struct ptlrpcd_ctl *) * pc->pc_npartners;
 	pc->pc_partners = kzalloc_node(size, GFP_NOFS,
-				       cfs_cpt_spread_node(cfs_cpt_table,
+				       cfs_cpt_spread_node(cfs_cpt_tab,
 							   pc->pc_cpt));
 	if (!pc->pc_partners) {
 		pc->pc_npartners = 0;
@@ -675,7 +675,7 @@ static int ptlrpcd_init(void)
 	/*
 	 * Determine the CPTs that ptlrpcd threads will run on.
 	 */
-	cptable = cfs_cpt_table;
+	cptable = cfs_cpt_tab;
 	ncpts = cfs_cpt_number(cptable);
 	if (ptlrpcd_cpts) {
 		struct cfs_expr_list *el;
@@ -829,7 +829,7 @@ static int ptlrpcd_init(void)
 
 		size = offsetof(struct ptlrpcd, pd_threads[nthreads]);
 		pd = kzalloc_node(size, GFP_NOFS,
-				  cfs_cpt_spread_node(cfs_cpt_table, cpt));
+				  cfs_cpt_spread_node(cfs_cpt_tab, cpt));
 		if (!pd) {
 			rc = -ENOMEM;
 			goto out;

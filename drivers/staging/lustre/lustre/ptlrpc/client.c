@@ -938,9 +938,9 @@ struct ptlrpc_request_set *ptlrpc_prep_set(void)
 	struct ptlrpc_request_set *set;
 	int cpt;
 
-	cpt = cfs_cpt_current(cfs_cpt_table, 0);
+	cpt = cfs_cpt_current(cfs_cpt_tab, 0);
 	set = kzalloc_node(sizeof(*set), GFP_NOFS,
-			   cfs_cpt_spread_node(cfs_cpt_table, cpt));
+			   cfs_cpt_spread_node(cfs_cpt_tab, cpt));
 	if (!set)
 		return NULL;
 	atomic_set(&set->set_refcount, 1);

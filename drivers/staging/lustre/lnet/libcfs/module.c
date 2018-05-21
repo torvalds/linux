@@ -461,14 +461,14 @@ static int __proc_cpt_table(void *data, int write,
 	if (write)
 		return -EPERM;
 
-	LASSERT(cfs_cpt_table);
+	LASSERT(cfs_cpt_tab);
 
 	while (1) {
 		buf = kzalloc(len, GFP_KERNEL);
 		if (!buf)
 			return -ENOMEM;
 
-		rc = cfs_cpt_table_print(cfs_cpt_table, buf, len);
+		rc = cfs_cpt_table_print(cfs_cpt_tab, buf, len);
 		if (rc >= 0)
 			break;
 

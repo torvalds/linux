@@ -205,7 +205,7 @@ struct ptlrpc_hr_partition {
 #define HRT_STOPPING 1
 
 struct ptlrpc_hr_service {
-	/* CPU partition table, it's just cfs_cpt_table for now */
+	/* CPU partition table, it's just cfs_cpt_tab for now */
 	struct cfs_cpt_table		*hr_cpt_table;
 	/** controller sleep waitq */
 	wait_queue_head_t			hr_waitq;
@@ -562,7 +562,7 @@ ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 
 	cptable = cconf->cc_cptable;
 	if (!cptable)
-		cptable = cfs_cpt_table;
+		cptable = cfs_cpt_tab;
 
 	if (!conf->psc_thr.tc_cpu_affinity) {
 		ncpts = 1;
@@ -2516,7 +2516,7 @@ int ptlrpc_hr_init(void)
 	int weight;
 
 	memset(&ptlrpc_hr, 0, sizeof(ptlrpc_hr));
-	ptlrpc_hr.hr_cpt_table = cfs_cpt_table;
+	ptlrpc_hr.hr_cpt_table = cfs_cpt_tab;
 
 	ptlrpc_hr.hr_partitions = cfs_percpt_alloc(ptlrpc_hr.hr_cpt_table,
 						   sizeof(*hrp));

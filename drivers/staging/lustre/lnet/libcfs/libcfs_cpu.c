@@ -34,8 +34,8 @@
 #include <linux/libcfs/libcfs.h>
 
 /** Global CPU partition table */
-struct cfs_cpt_table   *cfs_cpt_table __read_mostly;
-EXPORT_SYMBOL(cfs_cpt_table);
+struct cfs_cpt_table   *cfs_cpt_tab __read_mostly;
+EXPORT_SYMBOL(cfs_cpt_tab);
 #define DEBUG_SUBSYSTEM S_LNET
 
 #include <linux/cpu.h>
@@ -1037,8 +1037,8 @@ static int cfs_cpu_dead(unsigned int cpu)
 void
 cfs_cpu_fini(void)
 {
-	if (cfs_cpt_table)
-		cfs_cpt_table_free(cfs_cpt_table);
+	if (cfs_cpt_tab)
+		cfs_cpt_table_free(cfs_cpt_tab);
 
 #ifdef CONFIG_HOTPLUG_CPU
 	if (lustre_cpu_online > 0)
@@ -1053,7 +1053,7 @@ cfs_cpu_init(void)
 {
 	int ret = 0;
 
-	LASSERT(!cfs_cpt_table);
+	LASSERT(!cfs_cpt_tab);
 
 	memset(&cpt_data, 0, sizeof(cpt_data));
 
@@ -1088,17 +1088,17 @@ cfs_cpu_init(void)
 			goto failed;
 		}
 
-		cfs_cpt_table = cfs_cpt_table_create_pattern(cpu_pattern_dup);
+		cfs_cpt_tab = cfs_cpt_table_create_pattern(cpu_pattern_dup);
 		kfree(cpu_pattern_dup);
-		if (!cfs_cpt_table) {
+		if (!cfs_cpt_tab) {
 			CERROR("Failed to create cptab from pattern %s\n",
 			       cpu_pattern);
 			goto failed;
 		}
 
 	} else {
-		cfs_cpt_table = cfs_cpt_table_create(cpu_npartitions);
-		if (!cfs_cpt_table) {
+		cfs_cpt_tab = cfs_cpt_table_create(cpu_npartitions);
+		if (!cfs_cpt_tab) {
 			CERROR("Failed to create ptable with npartitions %d\n",
 			       cpu_npartitions);
 			goto failed;
@@ -1106,7 +1106,7 @@ cfs_cpu_init(void)
 	}
 
 	spin_lock(&cpt_data.cpt_lock);
-	if (cfs_cpt_table->ctb_version != cpt_data.cpt_version) {
+	if (cfs_cpt_tab->ctb_version != cpt_data.cpt_version) {
 		spin_unlock(&cpt_data.cpt_lock);
 		CERROR("CPU hotplug/unplug during setup\n");
 		goto failed;
@@ -1115,7 +1115,7 @@ cfs_cpu_init(void)
 
 	LCONSOLE(0, "HW nodes: %d, HW CPU cores: %d, npartitions: %d\n",
 		 num_online_nodes(), num_online_cpus(),
-		 cfs_cpt_number(cfs_cpt_table));
+		 cfs_cpt_number(cfs_cpt_tab));
 	return 0;
 
  failed:
@@ -1128,18 +1128,18 @@ cfs_cpu_init(void)
 void
 cfs_cpu_fini(void)
 {
-	if (cfs_cpt_table) {
-		cfs_cpt_table_free(cfs_cpt_table);
-		cfs_cpt_table = NULL;
+	if (cfs_cpt_tab) {
+		cfs_cpt_table_free(cfs_cpt_tab);
+		cfs_cpt_tab = NULL;
 	}
 }
 
 int
 cfs_cpu_init(void)
 {
-	cfs_cpt_table = cfs_cpt_table_alloc(1);
+	cfs_cpt_tab = cfs_cpt_table_alloc(1);
 
-	return cfs_cpt_table ? 0 : -1;
+	return cfs_cpt_tab ? 0 : -1;
 }
 
 #endif /* CONFIG_SMP */

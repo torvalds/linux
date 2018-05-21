@@ -1413,9 +1413,9 @@ int lnet_lib_init(void)
 
 	memset(&the_lnet, 0, sizeof(the_lnet));
 
-	/* refer to global cfs_cpt_table for now */
-	the_lnet.ln_cpt_table	= cfs_cpt_table;
-	the_lnet.ln_cpt_number	= cfs_cpt_number(cfs_cpt_table);
+	/* refer to global cfs_cpt_tab for now */
+	the_lnet.ln_cpt_table	= cfs_cpt_tab;
+	the_lnet.ln_cpt_number	= cfs_cpt_number(cfs_cpt_tab);
 
 	LASSERT(the_lnet.ln_cpt_number > 0);
 	if (the_lnet.ln_cpt_number > LNET_CPT_MAX) {
