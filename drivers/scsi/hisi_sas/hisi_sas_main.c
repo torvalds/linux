@@ -1259,6 +1259,23 @@ static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 old_state,
 	}
 }
 
+static void hisi_sas_reset_init_all_devices(struct hisi_hba *hisi_hba)
+{
+	struct hisi_sas_device *sas_dev;
+	struct domain_device *device;
+	int i;
+
+	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
+		sas_dev = &hisi_hba->devices[i];
+		device = sas_dev->sas_device;
+
+		if ((sas_dev->dev_type == SAS_PHY_UNUSED) || !device)
+			continue;
+
+		hisi_sas_init_device(device);
+	}
+}
+
 static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = hisi_hba->dev;
@@ -1287,7 +1304,6 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 		scsi_unblock_requests(shost);
 		goto out;
 	}
-	hisi_sas_release_tasks(hisi_hba);
 
 	clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
 
@@ -1295,6 +1311,7 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	hisi_hba->hw->phys_init(hisi_hba);
 	msleep(1000);
 	hisi_sas_refresh_port_id(hisi_hba);
+	hisi_sas_reset_init_all_devices(hisi_hba);
 	scsi_unblock_requests(shost);
 
 	state = hisi_hba->hw->get_phys_state(hisi_hba);
