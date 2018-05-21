@@ -3791,7 +3791,7 @@ static struct fib6_info *rt6_multipath_first_sibling(const struct fib6_info *rt)
 			lockdep_is_held(&rt->fib6_table->tb6_lock));
 	while (iter) {
 		if (iter->fib6_metric == rt->fib6_metric &&
-		    rt6_qualify_for_ecmp(iter))
+		    iter->fib6_nsiblings)
 			return iter;
 		iter = rcu_dereference_protected(iter->fib6_next,
 				lockdep_is_held(&rt->fib6_table->tb6_lock));
@@ -4381,6 +4381,7 @@ static int ip6_route_multipath_add(struct fib6_config *cfg,
 		 */
 		cfg->fc_nlinfo.nlh->nlmsg_flags &= ~(NLM_F_EXCL |
 						     NLM_F_REPLACE);
+		cfg->fc_nlinfo.nlh->nlmsg_flags |= NLM_F_APPEND;
 		nhn++;
 	}
 
