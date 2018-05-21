@@ -89,10 +89,6 @@
 
 #define LIBCFS_VERSION "0.7.0"
 
-/* need both kernel and user-land acceptor */
-#define LNET_ACCEPTOR_MIN_RESERVED_PORT    512
-#define LNET_ACCEPTOR_MAX_RESERVED_PORT    1023
-
 extern struct blocking_notifier_head libcfs_ioctl_list;
 static inline int notifier_from_ioctl_errno(int err)
 {
