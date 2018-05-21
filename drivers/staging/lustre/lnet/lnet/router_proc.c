@@ -900,7 +900,7 @@ static struct ctl_table lnet_table[] = {
 
 void lnet_router_debugfs_init(void)
 {
-	lustre_insert_debugfs(lnet_table, NULL);
+	lustre_insert_debugfs(lnet_table);
 }
 
 void lnet_router_debugfs_fini(void)

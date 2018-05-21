@@ -60,6 +60,11 @@
 #include <uapi/linux/lnet/lnet-dlc.h>
 #include "tracefile.h"
 
+struct lnet_debugfs_symlink_def {
+	char *name;
+	char *target;
+};
+
 static struct dentry *lnet_debugfs_root;
 
 BLOCKING_NOTIFIER_HEAD(libcfs_ioctl_list);
@@ -620,8 +625,7 @@ static const struct file_operations *lnet_debugfs_fops_select(umode_t mode)
 	return &lnet_debugfs_file_operations_rw;
 }
 
-void lustre_insert_debugfs(struct ctl_table *table,
-			   const struct lnet_debugfs_symlink_def *symlinks)
+void lustre_insert_debugfs(struct ctl_table *table)
 {
 	if (!lnet_debugfs_root)
 		lnet_debugfs_root = debugfs_create_dir("lnet", NULL);
@@ -630,19 +634,24 @@ void lustre_insert_debugfs(struct ctl_table *table,
 	if (IS_ERR_OR_NULL(lnet_debugfs_root))
 		return;
 
-	/* We don't save the dentry returned in next two calls, because
-	 * we don't call debugfs_remove() but rather remove_recursive()
+	/*
+	 * We don't save the dentry returned because we don't call
+	 * debugfs_remove() but rather remove_recursive()
 	 */
 	for (; table->procname; table++)
 		debugfs_create_file(table->procname, table->mode,
 				    lnet_debugfs_root, table,
 				    lnet_debugfs_fops_select(table->mode));
+}
+EXPORT_SYMBOL_GPL(lustre_insert_debugfs);
 
+static void lustre_insert_debugfs_links(
+	const struct lnet_debugfs_symlink_def *symlinks)
+{
 	for (; symlinks && symlinks->name; symlinks++)
 		debugfs_create_symlink(symlinks->name, lnet_debugfs_root,
 				       symlinks->target);
 }
-EXPORT_SYMBOL_GPL(lustre_insert_debugfs);
 
 static void lustre_remove_debugfs(void)
 {
@@ -688,7 +697,9 @@ int libcfs_setup(void)
 		goto err;
 	}
 
-	lustre_insert_debugfs(lnet_table, lnet_debugfs_symlinks);
+	lustre_insert_debugfs(lnet_table);
+	if (!IS_ERR_OR_NULL(lnet_debugfs_root))
+		lustre_insert_debugfs_links(lnet_debugfs_symlinks);
 
 	CDEBUG(D_OTHER, "portals setup OK\n");
 out:

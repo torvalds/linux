@@ -110,13 +110,7 @@ extern char lnet_debug_log_upcall[1024];
 
 extern struct workqueue_struct *cfs_rehash_wq;
 
-struct lnet_debugfs_symlink_def {
-	char *name;
-	char *target;
-};
-
-void lustre_insert_debugfs(struct ctl_table *table,
-			   const struct lnet_debugfs_symlink_def *symlinks);
+void lustre_insert_debugfs(struct ctl_table *table);
 int lprocfs_call_handler(void *data, int write, loff_t *ppos,
 			 void __user *buffer, size_t *lenp,
 			 int (*handler)(void *data, int write, loff_t pos,
