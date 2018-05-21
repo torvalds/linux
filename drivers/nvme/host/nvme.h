@@ -400,7 +400,7 @@ int nvme_sec_submit(void *data, u16 spsp, u8 secp, void *buffer, size_t len,
 		bool send);
 
 void nvme_complete_async_event(struct nvme_ctrl *ctrl, __le16 status,
-		union nvme_result *res);
+		volatile union nvme_result *res);
 
 void nvme_stop_queues(struct nvme_ctrl *ctrl);
 void nvme_start_queues(struct nvme_ctrl *ctrl);
