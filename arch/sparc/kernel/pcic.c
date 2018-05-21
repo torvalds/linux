@@ -602,8 +602,6 @@ pcic_fill_irq(struct linux_pcic *pcic, struct pci_dev *dev, int node)
 void pcibios_fixup_bus(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
-	int i, has_io, has_mem;
-	unsigned int cmd = 0;
 	struct linux_pcic *pcic;
 	/* struct linux_pbm_info* pbm = &pcic->pbm; */
 	int node;
@@ -624,39 +622,6 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 	}
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
-
-		/*
-		 * Comment from i386 branch:
-		 *     There are buggy BIOSes that forget to enable I/O and memory
-		 *     access to PCI devices. We try to fix this, but we need to
-		 *     be sure that the BIOS didn't forget to assign an address
-		 *     to the device. [mj]
-		 * OBP is a case of such BIOS :-)
-		 */
-		has_io = has_mem = 0;
-		for(i=0; i<6; i++) {
-			unsigned long f = dev->resource[i].flags;
-			if (f & IORESOURCE_IO) {
-				has_io = 1;
-			} else if (f & IORESOURCE_MEM)
-				has_mem = 1;
-		}
-		pcic_read_config(dev->bus, dev->devfn, PCI_COMMAND, 2, &cmd);
-		if (has_io && !(cmd & PCI_COMMAND_IO)) {
-			printk("PCIC: Enabling I/O for device %02x:%02x\n",
-				dev->bus->number, dev->devfn);
-			cmd |= PCI_COMMAND_IO;
-			pcic_write_config(dev->bus, dev->devfn,
-			    PCI_COMMAND, 2, cmd);
-		}
-		if (has_mem && !(cmd & PCI_COMMAND_MEMORY)) {
-			printk("PCIC: Enabling memory for device %02x:%02x\n",
-				dev->bus->number, dev->devfn);
-			cmd |= PCI_COMMAND_MEMORY;
-			pcic_write_config(dev->bus, dev->devfn,
-			    PCI_COMMAND, 2, cmd);
-		}
-
 		node = pdev_to_pnode(&pcic->pbm, dev);
 		if(node == 0)
 			node = -1;
@@ -673,6 +638,36 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 
 		pcic_fill_irq(pcic, dev, node);
 	}
+}
+
+int pcibios_enable_device(struct pci_dev *dev, int mask)
+{
+	u16 cmd, oldcmd;
+	int i;
+
+	pci_read_config_word(dev, PCI_COMMAND, &cmd);
+	oldcmd = cmd;
+
+	for (i = 0; i < PCI_NUM_RESOURCES; i++) {
+		struct resource *res = &dev->resource[i];
+
+		/* Only set up the requested stuff */
+		if (!(mask & (1<<i)))
+			continue;
+
+		if (res->flags & IORESOURCE_IO)
+			cmd |= PCI_COMMAND_IO;
+		if (res->flags & IORESOURCE_MEM)
+			cmd |= PCI_COMMAND_MEMORY;
+	}
+
+	if (cmd != oldcmd) {
+		printk(KERN_DEBUG "PCI: Enabling device: (%s), cmd %x\n",
+		       pci_name(dev), cmd);
+                /* Enable the appropriate bits in the PCI command register.  */
+		pci_write_config_word(dev, PCI_COMMAND, cmd);
+	}
+	return 0;
 }
 
 /* Makes compiler happy */
@@ -747,17 +742,11 @@ static void watchdog_reset() {
 }
 #endif
 
-int pcibios_enable_device(struct pci_dev *pdev, int mask)
-{
-	return 0;
-}
-
 /*
  * NMI
  */
 void pcic_nmi(unsigned int pend, struct pt_regs *regs)
 {
-
 	pend = swab32(pend);
 
 	if (!pcic_speculative || (pend & PCI_SYS_INT_PENDING_PIO) == 0) {
