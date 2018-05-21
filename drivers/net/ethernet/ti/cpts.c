@@ -294,7 +294,8 @@ static long cpts_overflow_check(struct ptp_clock_info *ptp)
 		delay = CPTS_SKB_TX_WORK_TIMEOUT;
 	spin_unlock_irqrestore(&cpts->lock, flags);
 
-	pr_debug("cpts overflow check at %lld.%09lu\n", ts.tv_sec, ts.tv_nsec);
+	pr_debug("cpts overflow check at %lld.%09ld\n",
+		 (long long)ts.tv_sec, ts.tv_nsec);
 	return (long)delay;
 }
 
