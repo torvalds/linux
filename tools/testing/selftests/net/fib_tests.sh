@@ -18,8 +18,10 @@ log_test()
 
 	if [ ${rc} -eq ${expected} ]; then
 		printf "    TEST: %-60s  [ OK ]\n" "${msg}"
+		nsuccess=$((nsuccess+1))
 	else
 		ret=1
+		nfail=$((nfail+1))
 		printf "    TEST: %-60s  [FAIL]\n" "${msg}"
 		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
 		echo
@@ -597,5 +599,10 @@ fi
 cleanup &> /dev/null
 
 fib_test
+
+if [ "$TESTS" != "none" ]; then
+	printf "\nTests passed: %3d\n" ${nsuccess}
+	printf "Tests failed: %3d\n"   ${nfail}
+fi
 
 exit $ret
