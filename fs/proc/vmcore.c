@@ -649,8 +649,8 @@ static struct vmcore* __init get_new_element(void)
 	return kzalloc(sizeof(struct vmcore), GFP_KERNEL);
 }
 
-static u64 __init get_vmcore_size(size_t elfsz, size_t elfnotesegsz,
-				  struct list_head *vc_list)
+static u64 get_vmcore_size(size_t elfsz, size_t elfnotesegsz,
+			   struct list_head *vc_list)
 {
 	u64 size;
 	struct vmcore *m;
