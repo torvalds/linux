@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <linux/auxvec.h>
+#include <linux/perf_event.h>
 #include "reg.h"
 
 /* Avoid headaches with PRI?64 - just use %ll? always */
@@ -30,6 +31,15 @@ void *find_auxv_entry(int type, char *auxv);
 void *get_auxv_entry(int type);
 
 int pick_online_cpu(void);
+
+int read_debugfs_file(char *debugfs_file, int *result);
+int write_debugfs_file(char *debugfs_file, int result);
+void set_dscr(unsigned long val);
+int perf_event_open_counter(unsigned int type,
+			    unsigned long config, int group_fd);
+int perf_event_enable(int fd);
+int perf_event_disable(int fd);
+int perf_event_reset(int fd);
 
 static inline bool have_hwcap(unsigned long ftr)
 {
