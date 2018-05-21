@@ -1054,8 +1054,7 @@ void xhci_copy_ep0_dequeue_into_input_ctx(struct xhci_hcd *xhci,
 
 /*
  * The xHCI roothub may have ports of differing speeds in any order in the port
- * status registers.  xhci->port_array provides an array of the port speed for
- * each offset into the port status registers.
+ * status registers.
  *
  * The xHCI hardware wants to know the roothub port number that the USB device
  * is attached to (or the roothub port its ancestor hub is attached to).  All we
@@ -1890,23 +1889,15 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 
 no_bw:
 	xhci->cmd_ring_reserved_trbs = 0;
-	xhci->num_usb2_ports = 0;
-	xhci->num_usb3_ports = 0;
 	xhci->usb2_rhub.num_ports = 0;
 	xhci->usb3_rhub.num_ports = 0;
 	xhci->num_active_eps = 0;
-	kfree(xhci->usb2_ports);
-	kfree(xhci->usb3_ports);
-	kfree(xhci->port_array);
 	kfree(xhci->usb2_rhub.ports);
 	kfree(xhci->usb3_rhub.ports);
 	kfree(xhci->hw_ports);
 	kfree(xhci->rh_bw);
 	kfree(xhci->ext_caps);
 
-	xhci->usb2_ports = NULL;
-	xhci->usb3_ports = NULL;
-	xhci->port_array = NULL;
 	xhci->usb2_rhub.ports = NULL;
 	xhci->usb3_rhub.ports = NULL;
 	xhci->hw_ports = NULL;
@@ -2196,25 +2187,15 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 	for (i = port_offset; i < (port_offset + port_count); i++) {
 		struct xhci_port *hw_port = &xhci->hw_ports[i];
 		/* Duplicate entry.  Ignore the port if the revisions differ. */
-		if (xhci->port_array[i] != 0 ||
-		    hw_port->rhub) {
+		if (hw_port->rhub) {
 			xhci_warn(xhci, "Duplicate port entry, Ext Cap %p,"
 					" port %u\n", addr, i);
 			xhci_warn(xhci, "Port was marked as USB %u, "
 					"duplicated as USB %u\n",
-					xhci->port_array[i], major_revision);
+					hw_port->rhub->maj_rev, major_revision);
 			/* Only adjust the roothub port counts if we haven't
 			 * found a similar duplicate.
 			 */
-			if (xhci->port_array[i] != major_revision &&
-				xhci->port_array[i] != DUPLICATE_ENTRY) {
-				if (xhci->port_array[i] == 0x03)
-					xhci->num_usb3_ports--;
-				else
-					xhci->num_usb2_ports--;
-				xhci->port_array[i] = DUPLICATE_ENTRY;
-			}
-			/* FIXME: Should we disable the port? */
 			if (hw_port->rhub != rhub &&
 				 hw_port->hcd_portnum != DUPLICATE_ENTRY) {
 				hw_port->rhub->num_ports--;
@@ -2222,13 +2203,8 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 			}
 			continue;
 		}
-		xhci->port_array[i] = major_revision;
 		hw_port->rhub = rhub;
 		rhub->num_ports++;
-		if (major_revision == 0x03)
-			xhci->num_usb3_ports++;
-		else
-			xhci->num_usb2_ports++;
 	}
 	/* FIXME: Should we disable ports not in the Extended Capabilities? */
 }
@@ -2266,14 +2242,13 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 	void __iomem *base;
 	u32 offset;
 	unsigned int num_ports;
-	int i, j, port_index;
+	int i, j;
 	int cap_count = 0;
 	u32 cap_start;
 
 	num_ports = HCS_MAX_PORTS(xhci->hcs_params1);
-	xhci->port_array = kzalloc(sizeof(*xhci->port_array)*num_ports, flags);
 	xhci->hw_ports = kcalloc(num_ports, sizeof(*xhci->hw_ports), flags);
-	if (!xhci->port_array)
+	if (!xhci->hw_ports)
 		return -ENOMEM;
 
 	for (i = 0; i < num_ports; i++) {
@@ -2317,41 +2292,34 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 
 	while (offset) {
 		xhci_add_in_port(xhci, num_ports, base + offset, cap_count);
-		if (xhci->num_usb2_ports + xhci->num_usb3_ports == num_ports)
-			break;
 		if (xhci->usb2_rhub.num_ports + xhci->usb3_rhub.num_ports ==
 		    num_ports)
 			break;
 		offset = xhci_find_next_ext_cap(base, offset,
 						XHCI_EXT_CAPS_PROTOCOL);
 	}
-
-	if (xhci->num_usb2_ports == 0 && xhci->num_usb3_ports == 0) {
-		xhci_warn(xhci, "No ports on the roothubs?\n");
-		return -ENODEV;
-	}
 	if (xhci->usb2_rhub.num_ports == 0 && xhci->usb3_rhub.num_ports == 0) {
 		xhci_warn(xhci, "No ports on the roothubs?\n");
 		return -ENODEV;
 	}
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
-			"Found %u USB 2.0 ports and %u USB 3.0 ports.",
-			xhci->num_usb2_ports, xhci->num_usb3_ports);
+		       "Found %u USB 2.0 ports and %u USB 3.0 ports.",
+		       xhci->usb2_rhub.num_ports, xhci->usb3_rhub.num_ports);
 
 	/* Place limits on the number of roothub ports so that the hub
 	 * descriptors aren't longer than the USB core will allocate.
 	 */
-	if (xhci->num_usb3_ports > USB_SS_MAXPORTS) {
+	if (xhci->usb3_rhub.num_ports > USB_SS_MAXPORTS) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 				"Limiting USB 3.0 roothub ports to %u.",
 				USB_SS_MAXPORTS);
-		xhci->num_usb3_ports = USB_SS_MAXPORTS;
+		xhci->usb3_rhub.num_ports = USB_SS_MAXPORTS;
 	}
-	if (xhci->num_usb2_ports > USB_MAXCHILDREN) {
+	if (xhci->usb2_rhub.num_ports > USB_MAXCHILDREN) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 				"Limiting USB 2.0 roothub ports to %u.",
 				USB_MAXCHILDREN);
-		xhci->num_usb2_ports = USB_MAXCHILDREN;
+		xhci->usb2_rhub.num_ports = USB_MAXCHILDREN;
 	}
 
 	/*
@@ -2362,52 +2330,6 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 	xhci_create_rhub_port_array(xhci, &xhci->usb2_rhub, flags);
 	xhci_create_rhub_port_array(xhci, &xhci->usb3_rhub, flags);
 
-	if (xhci->num_usb2_ports) {
-		xhci->usb2_ports = kmalloc(sizeof(*xhci->usb2_ports)*
-				xhci->num_usb2_ports, flags);
-		if (!xhci->usb2_ports)
-			return -ENOMEM;
-
-		port_index = 0;
-		for (i = 0; i < num_ports; i++) {
-			if (xhci->port_array[i] == 0x03 ||
-					xhci->port_array[i] == 0 ||
-					xhci->port_array[i] == DUPLICATE_ENTRY)
-				continue;
-
-			xhci->usb2_ports[port_index] =
-				&xhci->op_regs->port_status_base +
-				NUM_PORT_REGS*i;
-			xhci_dbg_trace(xhci, trace_xhci_dbg_init,
-					"USB 2.0 port at index %u, "
-					"addr = %p", i,
-					xhci->usb2_ports[port_index]);
-			port_index++;
-			if (port_index == xhci->num_usb2_ports)
-				break;
-		}
-	}
-	if (xhci->num_usb3_ports) {
-		xhci->usb3_ports = kmalloc(sizeof(*xhci->usb3_ports)*
-				xhci->num_usb3_ports, flags);
-		if (!xhci->usb3_ports)
-			return -ENOMEM;
-
-		port_index = 0;
-		for (i = 0; i < num_ports; i++)
-			if (xhci->port_array[i] == 0x03) {
-				xhci->usb3_ports[port_index] =
-					&xhci->op_regs->port_status_base +
-					NUM_PORT_REGS*i;
-				xhci_dbg_trace(xhci, trace_xhci_dbg_init,
-						"USB 3.0 port at index %u, "
-						"addr = %p", i,
-						xhci->usb3_ports[port_index]);
-				port_index++;
-				if (port_index == xhci->num_usb3_ports)
-					break;
-			}
-	}
 	return 0;
 }
 

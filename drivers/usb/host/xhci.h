@@ -1846,17 +1846,9 @@ struct xhci_hcd {
 	unsigned int		limit_active_eps;
 	/* There are two roothubs to keep track of bus suspend info for */
 	struct xhci_bus_state   bus_state[2];
-	/* Is each xHCI roothub port a USB 3.0, USB 2.0, or USB 1.1 port? */
-	u8			*port_array;
 	struct xhci_port	*hw_ports;
-	/* Array of pointers to USB 3.0 PORTSC registers */
-	__le32 __iomem		**usb3_ports;
-	unsigned int		num_usb3_ports;
-	/* Array of pointers to USB 2.0 PORTSC registers */
-	__le32 __iomem		**usb2_ports;
 	struct xhci_hub		usb2_rhub;
 	struct xhci_hub		usb3_rhub;
-	unsigned int		num_usb2_ports;
 	/* support xHCI 0.96 spec USB2 software LPM */
 	unsigned		sw_lpm_support:1;
 	/* support xHCI 1.0 spec USB2 hardware LPM */
