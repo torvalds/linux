@@ -1304,15 +1304,6 @@ static int __hw_perf_event_init(struct perf_event *event)
 	 */
 	hwc->config_base	    |= (unsigned long)mapping;
 
-	/*
-	 * Limit the sample_period to half of the counter width. That way, the
-	 * new counter value is far less likely to overtake the previous one
-	 * unless you have some serious IRQ latency issues.
-	 */
-	hwc->sample_period  = CCI_PMU_CNTR_MASK >> 1;
-	hwc->last_period    = hwc->sample_period;
-	local64_set(&hwc->period_left, hwc->sample_period);
-
 	if (event->group_leader != event) {
 		if (validate_group(event) != 0)
 			return -EINVAL;
