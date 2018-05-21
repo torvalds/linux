@@ -34,6 +34,8 @@
 #ifndef LUSTRE_INTENT_H
 #define LUSTRE_INTENT_H
 
+#include <linux/types.h>
+
 /* intent IT_XXX are defined in lustre/include/obd.h */
 
 struct lookup_intent {

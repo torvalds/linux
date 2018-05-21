@@ -37,8 +37,6 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include <linux/libcfs/libcfs_all.h>
-
 #include <obd.h>
 
 #include "llite_internal.h"
