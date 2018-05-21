@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2013 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 /*
  * Description:
  *	This file can be applied to following platforms:
@@ -51,7 +46,7 @@ extern void wifi_pm_power(int on);
 #ifdef CONFIG_GPIO_WAKEUP
 extern unsigned int oob_irq;
 #endif
-#endif // CONFIG_MMC
+#endif /* CONFIG_MMC */
 
 /*
  * Return:
@@ -63,58 +58,58 @@ int platform_wifi_power_on(void)
 	int ret = 0;
 
 #ifdef CONFIG_MMC
-{
-	script_item_u val;
-	script_item_value_type_e type;
+	{
+		script_item_u val;
+		script_item_value_type_e type;
 
 #ifdef CONFIG_PLATFORM_ARM_SUN8I_W5P1
-	unsigned int mod_sel = get_rf_mod_type();
+		unsigned int mod_sel = get_rf_mod_type();
 #else
-	unsigned int mod_sel = wifi_pm_get_mod_type();
+		unsigned int mod_sel = wifi_pm_get_mod_type();
 #endif
 
-	type = script_get_item("wifi_para", "wifi_sdc_id", &val);
-	if (SCIRPT_ITEM_VALUE_TYPE_INT!=type) {
-		DBG_871X("get wifi_sdc_id failed\n");
-		ret = -1;
-	} else {
-		sdc_id = val.val;
-		DBG_871X("----- %s sdc_id: %d, mod_sel: %d\n", __FUNCTION__, sdc_id, mod_sel);
+		type = script_get_item("wifi_para", "wifi_sdc_id", &val);
+		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
+			RTW_INFO("get wifi_sdc_id failed\n");
+			ret = -1;
+		} else {
+			sdc_id = val.val;
+			RTW_INFO("----- %s sdc_id: %d, mod_sel: %d\n", __FUNCTION__, sdc_id, mod_sel);
 
 #if defined(CONFIG_PLATFORM_ARM_SUN6I) || defined(CONFIG_PLATFORM_ARM_SUN7I)
-		sw_mci_rescan_card(sdc_id, 1);
+			sw_mci_rescan_card(sdc_id, 1);
 #elif defined(CONFIG_PLATFORM_ARM_SUN8I)
-		sunxi_mci_rescan_card(sdc_id, 1);
+			sunxi_mci_rescan_card(sdc_id, 1);
 #endif
-		mdelay(100);
-		wifi_pm_power(1);
+			mdelay(100);
+			wifi_pm_power(1);
 
-		DBG_871X("%s: power up, rescan card.\n", __FUNCTION__);
-	}
+			RTW_INFO("%s: power up, rescan card.\n", __FUNCTION__);
+		}
 
 #ifdef CONFIG_GPIO_WAKEUP
 #ifdef CONFIG_PLATFORM_ARM_SUN8I_W5P1
-	type = script_get_item("wifi_para", "wl_host_wake", &val);
+		type = script_get_item("wifi_para", "wl_host_wake", &val);
 #else
 #ifdef CONFIG_RTL8723B
-	type = script_get_item("wifi_para", "rtl8723bs_wl_host_wake", &val);
+		type = script_get_item("wifi_para", "rtl8723bs_wl_host_wake", &val);
 #endif
 #ifdef CONFIG_RTL8188E
-	type = script_get_item("wifi_para", "rtl8189es_host_wake", &val);
+		type = script_get_item("wifi_para", "rtl8189es_host_wake", &val);
 #endif
 #endif /* CONFIG_PLATFORM_ARM_SUN8I_W5P1 */
-	if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
-		DBG_871X("No definition of wake up host PIN\n");
-		ret = -1;
-	} else {
-		gpio_eint_wlan = val.gpio.gpio;
+		if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
+			RTW_INFO("No definition of wake up host PIN\n");
+			ret = -1;
+		} else {
+			gpio_eint_wlan = val.gpio.gpio;
 #ifdef CONFIG_PLATFORM_ARM_SUN8I
-		oob_irq = gpio_to_irq(gpio_eint_wlan);
+			oob_irq = gpio_to_irq(gpio_eint_wlan);
 #endif
+		}
+#endif /* CONFIG_GPIO_WAKEUP */
 	}
-#endif // CONFIG_GPIO_WAKEUP
-}
-#endif // CONFIG_MMC
+#endif /* CONFIG_MMC */
 
 	return ret;
 }
@@ -122,7 +117,7 @@ int platform_wifi_power_on(void)
 void platform_wifi_power_off(void)
 {
 #ifdef CONFIG_MMC
-#if defined(CONFIG_PLATFORM_ARM_SUN6I) ||defined(CONFIG_PLATFORM_ARM_SUN7I)
+#if defined(CONFIG_PLATFORM_ARM_SUN6I) || defined(CONFIG_PLATFORM_ARM_SUN7I)
 	sw_mci_rescan_card(sdc_id, 0);
 #elif defined(CONFIG_PLATFORM_ARM_SUN8I)
 	sunxi_mci_rescan_card(sdc_id, 0);
@@ -130,6 +125,6 @@ void platform_wifi_power_off(void)
 	mdelay(100);
 	wifi_pm_power(0);
 
-	DBG_871X("%s: remove card, power off.\n", __FUNCTION__);
-#endif // CONFIG_MMC
+	RTW_INFO("%s: remove card, power off.\n", __FUNCTION__);
+#endif /* CONFIG_MMC */
 }

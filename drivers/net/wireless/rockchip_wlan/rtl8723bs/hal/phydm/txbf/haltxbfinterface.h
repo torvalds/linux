@@ -1,159 +1,180 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+/******************************************************************************
+ *
+ * Copyright(c) 2016 - 2017 Realtek Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ *****************************************************************************/
 #ifndef __HAL_TXBF_INTERFACE_H__
 #define __HAL_TXBF_INTERFACE_H__
 
 #if (BEAMFORMING_SUPPORT == 1)
 #if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-VOID
-Beamforming_GidPAid(
-	PADAPTER	Adapter,
-	PRT_TCB		pTcb
-	);
 
-RT_STATUS
-Beamforming_GetReportFrame(
-	IN	PADAPTER		Adapter,
-	IN	PRT_RFD			pRfd,
-	IN	POCTET_STRING	pPduOS
-	);
+#define a_SifsTime					((IS_WIRELESS_MODE_5G(adapter)|| IS_WIRELESS_MODE_N_24G(adapter))? 16 : 10)
 
-VOID
-Beamforming_GetNDPAFrame(
-	IN	PVOID			pDM_VOID,
-	IN	OCTET_STRING	pduOS
-	);
+void
+beamforming_gid_paid(
+	struct _ADAPTER	*adapter,
+	PRT_TCB		p_tcb
+);
 
-BOOLEAN
-SendFWHTNDPAPacket(
-	IN	PVOID			pDM_VOID,
-	IN	pu1Byte			RA,
-	IN	CHANNEL_WIDTH	BW
-	);
+enum rt_status
+beamforming_get_report_frame(
+	struct _ADAPTER		*adapter,
+	PRT_RFD			p_rfd,
+	POCTET_STRING	p_pdu_os
+);
 
-BOOLEAN
-SendFWVHTNDPAPacket(
-	IN	PVOID			pDM_VOID,
-	IN	pu1Byte			RA,
-	IN	u2Byte			AID,
-	IN	CHANNEL_WIDTH	BW
-	);
+void
+beamforming_get_ndpa_frame(
+	void			*p_dm_void,
+	OCTET_STRING	pdu_os
+);
 
-BOOLEAN
-SendSWVHTNDPAPacket(
-	IN	PVOID			pDM_VOID,
-	IN	pu1Byte			RA,
-	IN	u2Byte			AID,
-	IN	CHANNEL_WIDTH	BW
-	);
+boolean
+send_fw_ht_ndpa_packet(
+	void			*p_dm_void,
+	u8			*RA,
+	enum channel_width	BW
+);
 
-BOOLEAN
-SendSWHTNDPAPacket(
-	IN	PVOID			pDM_VOID,
-	IN	pu1Byte			RA,
-	IN	CHANNEL_WIDTH	BW
-	);
+boolean
+send_fw_vht_ndpa_packet(
+	void			*p_dm_void,
+	u8			*RA,
+	u16			AID,
+	enum channel_width	BW
+);
 
-#ifdef SUPPORT_MU_BF
+boolean
+send_sw_vht_ndpa_packet(
+	void			*p_dm_void,
+	u8			*RA,
+	u16			AID,
+	enum channel_width	BW
+);
+
+boolean
+send_sw_ht_ndpa_packet(
+	void			*p_dm_void,
+	u8			*RA,
+	enum channel_width	BW
+);
+
 #if (SUPPORT_MU_BF == 1)
-RT_STATUS
-Beamforming_GetVHTGIDMgntFrame(
-	IN	PADAPTER		Adapter,
-	IN	PRT_RFD			pRfd,
-	IN	POCTET_STRING	pPduOS
-	);
+enum rt_status
+beamforming_get_vht_gid_mgnt_frame(
+	struct _ADAPTER		*adapter,
+	PRT_RFD			p_rfd,
+	POCTET_STRING	p_pdu_os
+);
 
-BOOLEAN
-SendSWVHTGIDMgntFrame(
-	IN	PVOID			pDM_VOID,
-	IN	pu1Byte			RA,
-	IN	u1Byte			Idx
-	);
+boolean
+send_sw_vht_gid_mgnt_frame(
+	void			*p_dm_void,
+	u8			*RA,
+	u8			idx
+);
 
-BOOLEAN
-SendSWVHTBFReportPoll(
-	IN	PVOID			pDM_VOID,
-	IN	pu1Byte			RA,
-	IN	BOOLEAN			bFinalPoll
-	);
+boolean
+send_sw_vht_bf_report_poll(
+	void			*p_dm_void,
+	u8			*RA,
+	boolean			is_final_poll
+);
 
-BOOLEAN
-SendSWVHTMUNDPAPacket(
-	IN	PVOID			pDM_VOID,
-	IN	CHANNEL_WIDTH	BW
-	);
+boolean
+send_sw_vht_mu_ndpa_packet(
+	void			*p_dm_void,
+	enum channel_width	BW
+);
 #else
-#define Beamforming_GetVHTGIDMgntFrame(Adapter, pRfd, pPduOS) RT_STATUS_FAILURE
-#define SendSWVHTGIDMgntFrame(pDM_VOID, RA)
-#define SendSWVHTBFReportPoll(pDM_VOID, RA, bFinalPoll)
-#define SendSWVHTMUNDPAPacket(pDM_VOID, BW)
-#endif
+#define beamforming_get_vht_gid_mgnt_frame(adapter, p_rfd, p_pdu_os) RT_STATUS_FAILURE
+#define send_sw_vht_gid_mgnt_frame(p_dm_void, RA)
+#define send_sw_vht_bf_report_poll(p_dm_void, RA, is_final_poll)
+#define send_sw_vht_mu_ndpa_packet(p_dm_void, BW)
 #endif
 
 
 #elif (DM_ODM_SUPPORT_TYPE == ODM_CE)
 
-u4Byte
-Beamforming_GetReportFrame(
-	IN	PVOID			pDM_VOID,
+u32
+beamforming_get_report_frame(
+	void			*p_dm_void,
 	union recv_frame *precv_frame
-	);
+);
 
-BOOLEAN
-SendFWHTNDPAPacket(
-	IN	PVOID			pDM_VOID,
-	IN	pu1Byte			RA,
-	IN	CHANNEL_WIDTH	BW
-	);
+boolean
+send_fw_ht_ndpa_packet(
+	void			*p_dm_void,
+	u8			*RA,
+	enum channel_width	BW
+);
 
-BOOLEAN
-SendSWHTNDPAPacket(
-	IN	PVOID			pDM_VOID,
-	IN	pu1Byte			RA,
-	IN	CHANNEL_WIDTH	BW
-	);
+boolean
+send_sw_ht_ndpa_packet(
+	void			*p_dm_void,
+	u8			*RA,
+	enum channel_width	BW
+);
 
-BOOLEAN
-SendFWVHTNDPAPacket(
-	IN	PVOID			pDM_VOID,
-	IN	pu1Byte			RA,
-	IN	u2Byte			AID,
-	IN	CHANNEL_WIDTH	BW
-	);
+boolean
+send_fw_vht_ndpa_packet(
+	void			*p_dm_void,
+	u8			*RA,
+	u16			AID,
+	enum channel_width	BW
+);
 
-BOOLEAN
-SendSWVHTNDPAPacket(
-	IN	PVOID			pDM_VOID,
-	IN	pu1Byte			RA,
-	IN	u2Byte			AID,
-	IN	CHANNEL_WIDTH	BW
-	);
+boolean
+send_sw_vht_ndpa_packet(
+	void			*p_dm_void,
+	u8			*RA,
+	u16			AID,
+	enum channel_width	BW
+);
 #endif
 
-VOID
-Beamforming_GetNDPAFrame(
-	IN	PVOID			pDM_VOID,
+void
+beamforming_get_ndpa_frame(
+	void			*p_dm_void,
 #if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-	IN	OCTET_STRING	pduOS
+	OCTET_STRING	pdu_os
 #elif (DM_ODM_SUPPORT_TYPE == ODM_CE)
 	union recv_frame *precv_frame
 #endif
 );
 
+boolean
+dbg_send_sw_vht_mundpa_packet(
+	void			*p_dm_void,
+	enum channel_width	BW
+);
+
 #else
-#define Beamforming_GetNDPAFrame(pDM_Odm, _PduOS)
+#define beamforming_get_ndpa_frame(p_dm, _pdu_os)
 #if (DM_ODM_SUPPORT_TYPE == ODM_CE)
-#define Beamforming_GetReportFrame(Adapter, precv_frame)		RT_STATUS_FAILURE
+	#define beamforming_get_report_frame(adapter, precv_frame)		RT_STATUS_FAILURE
 #elif (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-#define Beamforming_GetReportFrame(Adapter, pRfd, pPduOS)		RT_STATUS_FAILURE
-#define Beamforming_GetVHTGIDMgntFrame(Adapter, pRfd, pPduOS) RT_STATUS_FAILURE
+	#define beamforming_get_report_frame(adapter, p_rfd, p_pdu_os)		RT_STATUS_FAILURE
+	#define beamforming_get_vht_gid_mgnt_frame(adapter, p_rfd, p_pdu_os) RT_STATUS_FAILURE
 #endif
-#define SendFWHTNDPAPacket(pDM_VOID, RA, BW)
-#define SendSWHTNDPAPacket(pDM_VOID, RA, BW)
-#define SendFWVHTNDPAPacket(pDM_VOID, RA, AID, BW)
-#define SendSWVHTNDPAPacket(pDM_VOID, RA,	AID, BW)
-#define SendSWVHTGIDMgntFrame(pDM_VOID, RA, idx)
-#define SendSWVHTBFReportPoll(pDM_VOID, RA, bFinalPoll)
-#define SendSWVHTMUNDPAPacket(pDM_VOID, BW)
+#define send_fw_ht_ndpa_packet(p_dm_void, RA, BW)
+#define send_sw_ht_ndpa_packet(p_dm_void, RA, BW)
+#define send_fw_vht_ndpa_packet(p_dm_void, RA, AID, BW)
+#define send_sw_vht_ndpa_packet(p_dm_void, RA,	AID, BW)
+#define send_sw_vht_gid_mgnt_frame(p_dm_void, RA, idx)
+#define send_sw_vht_bf_report_poll(p_dm_void, RA, is_final_poll)
+#define send_sw_vht_mu_ndpa_packet(p_dm_void, BW)
 #endif
 
 #endif

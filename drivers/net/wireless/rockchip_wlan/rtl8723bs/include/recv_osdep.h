@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *                                        
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -11,34 +11,27 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __RECV_OSDEP_H_
 #define __RECV_OSDEP_H_
 
 
 extern sint _rtw_init_recv_priv(struct recv_priv *precvpriv, _adapter *padapter);
-extern void _rtw_free_recv_priv (struct recv_priv *precvpriv);
+extern void _rtw_free_recv_priv(struct recv_priv *precvpriv);
 
 
-extern s32  rtw_recv_entry(union recv_frame *precv_frame);	
+extern s32  rtw_recv_entry(union recv_frame *precv_frame);
 extern int rtw_recv_indicatepkt(_adapter *adapter, union recv_frame *precv_frame);
 extern void rtw_recv_returnpacket(IN _nic_hdl cnxt, IN _pkt *preturnedpkt);
 
 extern int rtw_recv_monitor(_adapter *padapter, union recv_frame *precv_frame);
 
+#ifdef CONFIG_HOSTAPD_MLME
 extern void rtw_hostapd_mlme_rx(_adapter *padapter, union recv_frame *precv_frame);
+#endif
 
 struct sta_info;
 extern void rtw_handle_tkip_mic_err(_adapter *padapter, struct sta_info *sta, u8 bgroup);
-		
-
-int	rtw_init_recv_priv(struct recv_priv *precvpriv, _adapter *padapter);
-void rtw_free_recv_priv (struct recv_priv *precvpriv);
 
 
 int rtw_os_recv_resource_init(struct recv_priv *precvpriv, _adapter *padapter);
@@ -47,6 +40,7 @@ void rtw_os_recv_resource_free(struct recv_priv *precvpriv);
 
 
 int rtw_os_alloc_recvframe(_adapter *padapter, union recv_frame *precvframe, u8 *pdata, _pkt *pskb);
+int rtw_os_recvframe_duplicate_skb(_adapter *padapter, union recv_frame *pcloneframe, _pkt *pskb);
 void rtw_os_free_recvframe(union recv_frame *precvframe);
 
 
@@ -58,8 +52,12 @@ void rtw_os_recv_indicate_pkt(_adapter *padapter, _pkt *pkt, struct rx_pkt_attri
 
 void rtw_os_read_port(_adapter *padapter, struct recv_buf *precvbuf);
 
-void rtw_init_recv_timer(struct recv_reorder_ctrl *preorder_ctrl);
+#ifdef PLATFORM_LINUX
+#ifdef CONFIG_RTW_NAPI
+#include <linux/netdevice.h>	/* struct napi_struct */
 
+int rtw_recv_napi_poll(struct napi_struct *, int budget);
+#endif /* CONFIG_RTW_NAPI */
+#endif /* PLATFORM_LINUX */
 
-#endif //
-
+#endif /*  */

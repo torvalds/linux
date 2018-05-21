@@ -1,58 +1,53 @@
-/****************************************************************************** 
-* 
-* Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved. 
-* 
-* This program is free software; you can redistribute it and/or modify it 
-* under the terms of version 2 of the GNU General Public License as 
-* published by the Free Software Foundation. 
-* 
-* This program is distributed in the hope that it will be useful, but WITHOUT 
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
-* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for 
-* more details. 
-* 
-* You should have received a copy of the GNU General Public License along with 
-* this program; if not, write to the Free Software Foundation, Inc., 
-* 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA 
-* 
-* 
+/******************************************************************************
+*
+* Copyright(c) 2007 - 2017 Realtek Corporation.
+*
+* This program is free software; you can redistribute it and/or modify it
+* under the terms of version 2 of the GNU General Public License as
+* published by the Free Software Foundation.
+*
+* This program is distributed in the hope that it will be useful, but WITHOUT
+* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+* more details.
+*
 ******************************************************************************/
 
-/*Image2HeaderVersion: 2.14*/
+/*Image2HeaderVersion: 3.5.1*/
 #if (RTL8723B_SUPPORT == 1)
 #ifndef __INC_MP_BB_HW_IMG_8723B_H
 #define __INC_MP_BB_HW_IMG_8723B_H
 
 
 /******************************************************************************
-*                           AGC_TAB.TXT
+*                           agc_tab.TXT
 ******************************************************************************/
 
 void
-ODM_ReadAndConfig_MP_8723B_AGC_TAB(/* TC: Test Chip, MP: MP Chip*/
-	IN   PDM_ODM_T  pDM_Odm
+odm_read_and_config_mp_8723b_agc_tab(/* tc: Test Chip, mp: mp Chip*/
+	struct	PHY_DM_STRUCT *p_dm
 );
-u4Byte ODM_GetVersion_MP_8723B_AGC_TAB(void);
+u32	odm_get_version_mp_8723b_agc_tab(void);
 
 /******************************************************************************
-*                           PHY_REG.TXT
+*                           phy_reg.TXT
 ******************************************************************************/
 
 void
-ODM_ReadAndConfig_MP_8723B_PHY_REG(/* TC: Test Chip, MP: MP Chip*/
-	IN   PDM_ODM_T  pDM_Odm
+odm_read_and_config_mp_8723b_phy_reg(/* tc: Test Chip, mp: mp Chip*/
+	struct	PHY_DM_STRUCT *p_dm
 );
-u4Byte ODM_GetVersion_MP_8723B_PHY_REG(void);
+u32	odm_get_version_mp_8723b_phy_reg(void);
 
 /******************************************************************************
-*                           PHY_REG_PG.TXT
+*                           phy_reg_pg.TXT
 ******************************************************************************/
 
 void
-ODM_ReadAndConfig_MP_8723B_PHY_REG_PG(/* TC: Test Chip, MP: MP Chip*/
-	IN   PDM_ODM_T  pDM_Odm
+odm_read_and_config_mp_8723b_phy_reg_pg(/* tc: Test Chip, mp: mp Chip*/
+	struct	PHY_DM_STRUCT *p_dm
 );
-u4Byte ODM_GetVersion_MP_8723B_PHY_REG_PG(void);
+u32	odm_get_version_mp_8723b_phy_reg_pg(void);
 
 #endif
 #endif /* end of HWIMG_SUPPORT*/

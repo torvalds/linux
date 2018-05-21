@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *                                        
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef _LINUX_BYTEORDER_SWABB_H
 #define _LINUX_BYTEORDER_SWABB_H
 
@@ -45,51 +40,51 @@
  */
 
 #define ___swahw32(x) \
-({ \
-	__u32 __x = (x); \
-	((__u32)( \
-		(((__u32)(__x) & (__u32)0x0000ffffUL) << 16) | \
-		(((__u32)(__x) & (__u32)0xffff0000UL) >> 16) )); \
-})
+	({ \
+		__u32 __x = (x); \
+		((__u32)(\
+			 (((__u32)(__x) & (__u32)0x0000ffffUL) << 16) | \
+			 (((__u32)(__x) & (__u32)0xffff0000UL) >> 16))); \
+	})
 #define ___swahb32(x) \
-({ \
-	__u32 __x = (x); \
-	((__u32)( \
-		(((__u32)(__x) & (__u32)0x00ff00ffUL) << 8) | \
-		(((__u32)(__x) & (__u32)0xff00ff00UL) >> 8) )); \
-})
+	({ \
+		__u32 __x = (x); \
+		((__u32)(\
+			 (((__u32)(__x) & (__u32)0x00ff00ffUL) << 8) | \
+			 (((__u32)(__x) & (__u32)0xff00ff00UL) >> 8))); \
+	})
 
 #define ___constant_swahw32(x) \
-	((__u32)( \
-		(((__u32)(x) & (__u32)0x0000ffffUL) << 16) | \
-		(((__u32)(x) & (__u32)0xffff0000UL) >> 16) ))
+	((__u32)(\
+		 (((__u32)(x) & (__u32)0x0000ffffUL) << 16) | \
+		 (((__u32)(x) & (__u32)0xffff0000UL) >> 16)))
 #define ___constant_swahb32(x) \
-	((__u32)( \
-		(((__u32)(x) & (__u32)0x00ff00ffUL) << 8) | \
-		(((__u32)(x) & (__u32)0xff00ff00UL) >> 8) ))
+	((__u32)(\
+		 (((__u32)(x) & (__u32)0x00ff00ffUL) << 8) | \
+		 (((__u32)(x) & (__u32)0xff00ff00UL) >> 8)))
 
 /*
  * provide defaults when no architecture-specific optimization is detected
  */
 #ifndef __arch__swahw32
-#  define __arch__swahw32(x) ___swahw32(x)
+	#define __arch__swahw32(x) ___swahw32(x)
 #endif
 #ifndef __arch__swahb32
-#  define __arch__swahb32(x) ___swahb32(x)
+	#define __arch__swahb32(x) ___swahb32(x)
 #endif
 
 #ifndef __arch__swahw32p
-#  define __arch__swahw32p(x) __swahw32(*(x))
+	#define __arch__swahw32p(x) __swahw32(*(x))
 #endif
 #ifndef __arch__swahb32p
-#  define __arch__swahb32p(x) __swahb32(*(x))
+	#define __arch__swahb32p(x) __swahb32(*(x))
 #endif
 
 #ifndef __arch__swahw32s
-#  define __arch__swahw32s(x) do { *(x) = __swahw32p((x)); } while (0)
+	#define __arch__swahw32s(x) do { *(x) = __swahw32p((x)); } while (0)
 #endif
 #ifndef __arch__swahb32s
-#  define __arch__swahb32s(x) do { *(x) = __swahb32p((x)); } while (0)
+	#define __arch__swahb32s(x) do { *(x) = __swahb32p((x)); } while (0)
 #endif
 
 
@@ -98,13 +93,13 @@
  */
 #if defined(__GNUC__) && (__GNUC__ >= 2) && defined(__OPTIMIZE__)
 #  define __swahw32(x) \
-(__builtin_constant_p((__u32)(x)) ? \
- ___swahw32((x)) : \
- __fswahw32((x)))
+	(__builtin_constant_p((__u32)(x)) ? \
+	 ___swahw32((x)) : \
+	 __fswahw32((x)))
 #  define __swahb32(x) \
-(__builtin_constant_p((__u32)(x)) ? \
- ___swahb32((x)) : \
- __fswahb32((x)))
+	(__builtin_constant_p((__u32)(x)) ? \
+	 ___swahb32((x)) : \
+	 __fswahb32((x)))
 #else
 #  define __swahw32(x) __fswahw32(x)
 #  define __swahb32(x) __fswahb32(x)
@@ -139,19 +134,18 @@ __inline static__ void __swahb32s(__u32 *addr)
 }
 
 #ifdef __BYTEORDER_HAS_U64__
-/*
- * Not supported yet
- */
+	/*
+	* Not supported yet
+	*/
 #endif /* __BYTEORDER_HAS_U64__ */
 
 #if defined(PLATFORM_LINUX)
-#define swahw32 __swahw32
-#define swahb32 __swahb32
-#define swahw32p __swahw32p
-#define swahb32p __swahb32p
-#define swahw32s __swahw32s
-#define swahb32s __swahb32s
+	#define swahw32 __swahw32
+	#define swahb32 __swahb32
+	#define swahw32p __swahw32p
+	#define swahb32p __swahb32p
+	#define swahw32s __swahw32s
+	#define swahb32s __swahb32s
 #endif
 
 #endif /* _LINUX_BYTEORDER_SWABB_H */
-

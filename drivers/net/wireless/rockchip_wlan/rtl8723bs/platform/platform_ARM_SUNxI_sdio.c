@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2013 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,25 +11,20 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #include <drv_types.h>
 
 #ifdef CONFIG_MMC_SUNXI_POWER_CONTROL
 #ifdef CONFIG_WITS_EVB_V13
-#define SDIOID	0
-#else // !CONFIG_WITS_EVB_V13
-#define SDIOID (CONFIG_CHIP_ID==1123 ? 3 : 1)
-#endif // !CONFIG_WITS_EVB_V13
+	#define SDIOID	0
+#else /* !CONFIG_WITS_EVB_V13 */
+	#define SDIOID (CONFIG_CHIP_ID == 1123 ? 3 : 1)
+#endif /* !CONFIG_WITS_EVB_V13 */
 
 #define SUNXI_SDIO_WIFI_NUM_RTL8189ES  10
 extern void sunximmc_rescan_card(unsigned id, unsigned insert);
 extern int mmc_pm_get_mod_type(void);
-extern int mmc_pm_gpio_ctrl(char* name, int level);
+extern int mmc_pm_gpio_ctrl(char *name, int level);
 /*
  *	rtl8189es_shdn	= port:PH09<1><default><default><0>
  *	rtl8189es_wakeup	= port:PH10<1><default><default><1>
@@ -54,7 +49,7 @@ int rtl8189es_sdio_poweroff(void)
 	mmc_pm_gpio_ctrl("rtl8189es_vdd_en", 0);
 	return 0;
 }
-#endif // CONFIG_MMC_SUNXI_POWER_CONTROL
+#endif /* CONFIG_MMC_SUNXI_POWER_CONTROL */
 
 /*
  * Return:
@@ -66,7 +61,7 @@ int platform_wifi_power_on(void)
 	int ret = 0;
 #ifdef CONFIG_MMC_SUNXI_POWER_CONTROL
 	unsigned int mod_sel = mmc_pm_get_mod_type();
-#endif // CONFIG_MMC_SUNXI_POWER_CONTROL
+#endif /* CONFIG_MMC_SUNXI_POWER_CONTROL */
 
 
 #ifdef CONFIG_MMC_SUNXI_POWER_CONTROL
@@ -78,7 +73,7 @@ int platform_wifi_power_on(void)
 		ret = -1;
 		printk("[rtl8189es] %s: mod_sel = %d is incorrect.\n", __FUNCTION__, mod_sel);
 	}
-#endif // CONFIG_MMC_SUNXI_POWER_CONTROL
+#endif /* CONFIG_MMC_SUNXI_POWER_CONTROL */
 
 	return ret;
 }
@@ -90,6 +85,6 @@ void platform_wifi_power_off(void)
 #ifdef CONFIG_RTL8188E
 	rtl8189es_sdio_poweroff();
 	printk("[rtl8189es] %s: remove card, power off.\n", __FUNCTION__);
-#endif // CONFIG_RTL8188E
-#endif // CONFIG_MMC_SUNXI_POWER_CONTROL
+#endif /* CONFIG_RTL8188E */
+#endif /* CONFIG_MMC_SUNXI_POWER_CONTROL */
 }

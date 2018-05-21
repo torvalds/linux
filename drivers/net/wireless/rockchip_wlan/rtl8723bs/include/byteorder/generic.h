@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *                                        
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef _LINUX_BYTEORDER_GENERIC_H
 #define _LINUX_BYTEORDER_GENERIC_H
 
@@ -99,46 +94,46 @@
 
 
 #if defined(PLATFORM_LINUX) || defined(PLATFORM_WINDOWS) || defined(PLATFORM_MPIXEL) || defined(PLATFORM_FREEBSD)
-/*
- * inside the kernel, we can use nicknames;
- * outside of it, we must avoid POSIX namespace pollution...
- */
-#define cpu_to_le64 __cpu_to_le64
-#define le64_to_cpu __le64_to_cpu
-#define cpu_to_le32 __cpu_to_le32
-#define le32_to_cpu __le32_to_cpu
-#define cpu_to_le16 __cpu_to_le16
-#define le16_to_cpu __le16_to_cpu
-#define cpu_to_be64 __cpu_to_be64
-#define be64_to_cpu __be64_to_cpu
-#define cpu_to_be32 __cpu_to_be32
-#define be32_to_cpu __be32_to_cpu
-#define cpu_to_be16 __cpu_to_be16
-#define be16_to_cpu __be16_to_cpu
-#define cpu_to_le64p __cpu_to_le64p
-#define le64_to_cpup __le64_to_cpup
-#define cpu_to_le32p __cpu_to_le32p
-#define le32_to_cpup __le32_to_cpup
-#define cpu_to_le16p __cpu_to_le16p
-#define le16_to_cpup __le16_to_cpup
-#define cpu_to_be64p __cpu_to_be64p
-#define be64_to_cpup __be64_to_cpup
-#define cpu_to_be32p __cpu_to_be32p
-#define be32_to_cpup __be32_to_cpup
-#define cpu_to_be16p __cpu_to_be16p
-#define be16_to_cpup __be16_to_cpup
-#define cpu_to_le64s __cpu_to_le64s
-#define le64_to_cpus __le64_to_cpus
-#define cpu_to_le32s __cpu_to_le32s
-#define le32_to_cpus __le32_to_cpus
-#define cpu_to_le16s __cpu_to_le16s
-#define le16_to_cpus __le16_to_cpus
-#define cpu_to_be64s __cpu_to_be64s
-#define be64_to_cpus __be64_to_cpus
-#define cpu_to_be32s __cpu_to_be32s
-#define be32_to_cpus __be32_to_cpus
-#define cpu_to_be16s __cpu_to_be16s
-#define be16_to_cpus __be16_to_cpus
+	/*
+	* inside the kernel, we can use nicknames;
+	* outside of it, we must avoid POSIX namespace pollution...
+	*/
+	#define cpu_to_le64 __cpu_to_le64
+	#define le64_to_cpu __le64_to_cpu
+	#define cpu_to_le32 __cpu_to_le32
+	#define le32_to_cpu __le32_to_cpu
+	#define cpu_to_le16 __cpu_to_le16
+	#define le16_to_cpu __le16_to_cpu
+	#define cpu_to_be64 __cpu_to_be64
+	#define be64_to_cpu __be64_to_cpu
+	#define cpu_to_be32 __cpu_to_be32
+	#define be32_to_cpu __be32_to_cpu
+	#define cpu_to_be16 __cpu_to_be16
+	#define be16_to_cpu __be16_to_cpu
+	#define cpu_to_le64p __cpu_to_le64p
+	#define le64_to_cpup __le64_to_cpup
+	#define cpu_to_le32p __cpu_to_le32p
+	#define le32_to_cpup __le32_to_cpup
+	#define cpu_to_le16p __cpu_to_le16p
+	#define le16_to_cpup __le16_to_cpup
+	#define cpu_to_be64p __cpu_to_be64p
+	#define be64_to_cpup __be64_to_cpup
+	#define cpu_to_be32p __cpu_to_be32p
+	#define be32_to_cpup __be32_to_cpup
+	#define cpu_to_be16p __cpu_to_be16p
+	#define be16_to_cpup __be16_to_cpup
+	#define cpu_to_le64s __cpu_to_le64s
+	#define le64_to_cpus __le64_to_cpus
+	#define cpu_to_le32s __cpu_to_le32s
+	#define le32_to_cpus __le32_to_cpus
+	#define cpu_to_le16s __cpu_to_le16s
+	#define le16_to_cpus __le16_to_cpus
+	#define cpu_to_be64s __cpu_to_be64s
+	#define be64_to_cpus __be64_to_cpus
+	#define cpu_to_be32s __cpu_to_be32s
+	#define be32_to_cpus __be32_to_cpus
+	#define cpu_to_be16s __cpu_to_be16s
+	#define be16_to_cpus __be16_to_cpus
 #endif
 
 
@@ -165,49 +160,48 @@
  * Do the prototypes. Somebody might want to take the
  * address or some such sick thing..
  */
-#if defined(PLATFORM_LINUX) || (defined (__GLIBC__) && __GLIBC__ >= 2)
-extern __u32			ntohl(__u32);
-extern __u32			htonl(__u32);
-#else //defined(PLATFORM_LINUX) || (defined (__GLIBC__) && __GLIBC__ >= 2)
+#if defined(PLATFORM_LINUX) || (defined(__GLIBC__) && __GLIBC__ >= 2)
+	extern __u32			ntohl(__u32);
+	extern __u32			htonl(__u32);
+#else /* defined(PLATFORM_LINUX) || (defined (__GLIBC__) && __GLIBC__ >= 2) */
+	#ifndef PLATFORM_FREEBSD
+		extern unsigned long int	ntohl(unsigned long int);
+		extern unsigned long int	htonl(unsigned long int);
+	#endif
+#endif
 #ifndef PLATFORM_FREEBSD
-extern unsigned long int	ntohl(unsigned long int);
-extern unsigned long int	htonl(unsigned long int);
-#endif
-#endif
-#ifndef PLATFORM_FREEBSD
-extern unsigned short int	ntohs(unsigned short int);
-extern unsigned short int	htons(unsigned short int);
+	extern unsigned short int	ntohs(unsigned short int);
+	extern unsigned short int	htons(unsigned short int);
 #endif
 
-#if defined(__GNUC__) && (__GNUC__ >= 2) && defined(__OPTIMIZE__) ||  defined(PLATFORM_MPIXEL)
+#if defined(__GNUC__) && (__GNUC__ >= 2) && defined(__OPTIMIZE__) || defined(PLATFORM_MPIXEL)
 
-#define ___htonl(x) __cpu_to_be32(x)
-#define ___htons(x) __cpu_to_be16(x)
-#define ___ntohl(x) __be32_to_cpu(x)
-#define ___ntohs(x) __be16_to_cpu(x)
+	#define ___htonl(x) __cpu_to_be32(x)
+	#define ___htons(x) __cpu_to_be16(x)
+	#define ___ntohl(x) __be32_to_cpu(x)
+	#define ___ntohs(x) __be16_to_cpu(x)
 
-#if defined(PLATFORM_LINUX) || (defined (__GLIBC__) && __GLIBC__ >= 2)
-#define htonl(x) ___htonl(x)
-#define ntohl(x) ___ntohl(x)
-#else
-#define htonl(x) ((unsigned long)___htonl(x))
-#define ntohl(x) ((unsigned long)___ntohl(x))
-#endif
-#define htons(x) ___htons(x)
-#define ntohs(x) ___ntohs(x)
+	#if defined(PLATFORM_LINUX) || (defined(__GLIBC__) && __GLIBC__ >= 2)
+		#define htonl(x) ___htonl(x)
+		#define ntohl(x) ___ntohl(x)
+	#else
+		#define htonl(x) ((unsigned long)___htonl(x))
+		#define ntohl(x) ((unsigned long)___ntohl(x))
+	#endif
+	#define htons(x) ___htons(x)
+	#define ntohs(x) ___ntohs(x)
 
 #endif /* OPTIMIZE */
 
 
-#if defined (PLATFORM_WINDOWS)
+#if defined(PLATFORM_WINDOWS)
 
-#define htonl(x) __cpu_to_be32(x)
-#define ntohl(x) __be32_to_cpu(x)
-#define htons(x) __cpu_to_be16(x)
-#define ntohs(x) __be16_to_cpu(x)
+	#define htonl(x) __cpu_to_be32(x)
+	#define ntohl(x) __be32_to_cpu(x)
+	#define htons(x) __cpu_to_be16(x)
+	#define ntohs(x) __be16_to_cpu(x)
 
 
 #endif
 
 #endif /* _LINUX_BYTEORDER_GENERIC_H */
-

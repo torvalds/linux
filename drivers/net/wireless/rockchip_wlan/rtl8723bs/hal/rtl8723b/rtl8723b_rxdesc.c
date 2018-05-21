@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #define _RTL8723B_REDESC_C_
 
 #include <rtl8723b_hal.h>
@@ -33,7 +28,7 @@ void rtl8723b_query_rx_desc_status(union recv_frame *precvframe, u8 *pdesc)
 	pattrib->pkt_rpt_type = GET_RX_STATUS_DESC_RPT_SEL_8723B(pdesc) ? C2H_PACKET : NORMAL_RX;
 
 	if (pattrib->pkt_rpt_type == NORMAL_RX) {
-		// Offset 0
+		/* Offset 0 */
 		pattrib->crc_err = (u8)GET_RX_STATUS_DESC_CRC32_8723B(pdesc);
 		pattrib->icv_err = (u8)GET_RX_STATUS_DESC_ICV_8723B(pdesc);
 		pattrib->drvinfo_sz = (u8)GET_RX_STATUS_DESC_DRVINFO_SIZE_8723B(pdesc) << 3;
@@ -43,17 +38,17 @@ void rtl8723b_query_rx_desc_status(union recv_frame *precvframe, u8 *pdesc)
 		pattrib->physt = (u8)GET_RX_STATUS_DESC_PHY_STATUS_8723B(pdesc);
 		pattrib->bdecrypted = (u8)GET_RX_STATUS_DESC_SWDEC_8723B(pdesc) ? 0 : 1;
 
-		// Offset 4
+		/* Offset 4 */
 		pattrib->priority = (u8)GET_RX_STATUS_DESC_TID_8723B(pdesc);
 		pattrib->amsdu = (u8)GET_RX_STATUS_DESC_AMSDU_8723B(pdesc);
 		pattrib->mdata = (u8)GET_RX_STATUS_DESC_MORE_DATA_8723B(pdesc);
 		pattrib->mfrag = (u8)GET_RX_STATUS_DESC_MORE_FRAG_8723B(pdesc);
 
-		// Offset 8
+		/* Offset 8 */
 		pattrib->seq_num = (u16)GET_RX_STATUS_DESC_SEQ_8723B(pdesc);
 		pattrib->frag_num = (u8)GET_RX_STATUS_DESC_FRAG_8723B(pdesc);
 
-		// Offset 12
+		/* Offset 12 */
 		pattrib->data_rate = (u8)GET_RX_STATUS_DESC_RX_RATE_8723B(pdesc);
 
 		/* Offset 16 */
@@ -66,4 +61,3 @@ void rtl8723b_query_rx_desc_status(union recv_frame *precvframe, u8 *pdesc)
 		/* pattrib->tsfl=(u8)GET_RX_STATUS_DESC_TSFL_8723B(pdesc); */
 	}
 }
-

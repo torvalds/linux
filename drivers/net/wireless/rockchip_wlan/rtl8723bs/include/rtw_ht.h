@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *                                        
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -11,36 +11,30 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef _RTW_HT_H_
 #define _RTW_HT_H_
 
 
-struct ht_priv
-{
+struct ht_priv {
 	u8	ht_option;
-	u8	ampdu_enable;//for enable Tx A-MPDU
-	u8	tx_amsdu_enable;//for enable Tx A-MSDU
-	u8	bss_coexist;//for 20/40 Bss coexist
+	u8	ampdu_enable;/* for enable Tx A-MPDU */
+	u8	tx_amsdu_enable;/* for enable Tx A-MSDU */
+	u8	bss_coexist;/* for 20/40 Bss coexist */
 
-	//u8	baddbareq_issued[16];
-	u32	tx_amsdu_maxlen; // 1: 8k, 0:4k ; default:8k, for tx
-	u32	rx_ampdu_maxlen; //for rx reordering ctrl win_sz, updated when join_callback.
-	
-	u8 	rx_ampdu_min_spacing;
-	
-	u8	ch_offset;//PRIME_CHNL_OFFSET
+	/* u8	baddbareq_issued[16]; */
+	u32	tx_amsdu_maxlen; /* 1: 8k, 0:4k ; default:8k, for tx */
+	u32	rx_ampdu_maxlen; /* for rx reordering ctrl win_sz, updated when join_callback. */
+
+	u8	rx_ampdu_min_spacing;
+
+	u8	ch_offset;/* PRIME_CHNL_OFFSET */
 	u8	sgi_20m;
 	u8	sgi_40m;
 
-	//for processing Tx A-MPDU
+	/* for processing Tx A-MPDU */
 	u8	agg_enable_bitmap;
-	//u8	ADDBA_retry_count;
+	/* u8	ADDBA_retry_count; */
 	u8	candidate_tid_bitmap;
 
 	u8	ldpc_cap;
@@ -49,10 +43,10 @@ struct ht_priv
 	u8	smps_cap; /*spatial multiplexing power save mode. 0:static SMPS, 1:dynamic SMPS, 3:SMPS disabled, 2:reserved*/
 
 	struct rtw_ieee80211_ht_cap ht_cap;
-	
+
 };
 
-typedef enum AGGRE_SIZE{
+typedef enum AGGRE_SIZE {
 	HT_AGG_SIZE_8K = 0,
 	HT_AGG_SIZE_16K = 1,
 	HT_AGG_SIZE_32K = 2,
@@ -61,24 +55,24 @@ typedef enum AGGRE_SIZE{
 	VHT_AGG_SIZE_256K = 5,
 	VHT_AGG_SIZE_512K = 6,
 	VHT_AGG_SIZE_1024K = 7,
-}AGGRE_SIZE_E, *PAGGRE_SIZE_E;
+} AGGRE_SIZE_E, *PAGGRE_SIZE_E;
 
-typedef enum _RT_HT_INF0_CAP{
+typedef enum _RT_HT_INF0_CAP {
 	RT_HT_CAP_USE_TURBO_AGGR = 0x01,
 	RT_HT_CAP_USE_LONG_PREAMBLE = 0x02,
 	RT_HT_CAP_USE_AMPDU = 0x04,
-	RT_HT_CAP_USE_WOW = 0x8,	
-	RT_HT_CAP_USE_SOFTAP = 0x10,	
+	RT_HT_CAP_USE_WOW = 0x8,
+	RT_HT_CAP_USE_SOFTAP = 0x10,
 	RT_HT_CAP_USE_92SE = 0x20,
 	RT_HT_CAP_USE_88C_92C = 0x40,
-	RT_HT_CAP_USE_AP_CLIENT_MODE = 0x80,	// AP team request to reserve this bit, by Emily
-}RT_HT_INF0_CAPBILITY, *PRT_HT_INF0_CAPBILITY;
+	RT_HT_CAP_USE_AP_CLIENT_MODE = 0x80,	/* AP team request to reserve this bit, by Emily */
+} RT_HT_INF0_CAPBILITY, *PRT_HT_INF0_CAPBILITY;
 
-typedef enum _RT_HT_INF1_CAP{
+typedef enum _RT_HT_INF1_CAP {
 	RT_HT_CAP_USE_VIDEO_CLIENT = 0x01,
 	RT_HT_CAP_USE_JAGUAR_BCUT = 0x02,
 	RT_HT_CAP_USE_JAGUAR_CCUT = 0x04,
-}RT_HT_INF1_CAPBILITY, *PRT_HT_INF1_CAPBILITY;
+} RT_HT_INF1_CAPBILITY, *PRT_HT_INF1_CAPBILITY;
 
 #define	LDPC_HT_ENABLE_RX			BIT0
 #define	LDPC_HT_ENABLE_TX			BIT1
@@ -90,20 +84,14 @@ typedef enum _RT_HT_INF1_CAP{
 #define	STBC_HT_TEST_TX_ENABLE		BIT2
 #define	STBC_HT_CAP_TX				BIT3
 
-#define	BEAMFORMING_HT_BEAMFORMER_ENABLE	BIT0	// Declare our NIC supports beamformer
-#define	BEAMFORMING_HT_BEAMFORMEE_ENABLE	BIT1	// Declare our NIC supports beamformee
-#define	BEAMFORMING_HT_BEAMFORMER_TEST		BIT2	// Transmiting Beamforming no matter the target supports it or not
-#define	BEAMFORMING_HT_BEAMFORMER_STEER_NUM		(BIT4|BIT5)
-#define	BEAMFORMING_HT_BEAMFORMEE_CHNL_EST_CAP	(BIT6|BIT7)
-
-//------------------------------------------------------------
-// The HT Control field
-//------------------------------------------------------------
+/* ------------------------------------------------------------
+ * The HT Control field
+ * ------------------------------------------------------------ */
 #define SET_HT_CTRL_CSI_STEERING(_pEleStart, _val)			SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart))+2, 6, 2, _val)
 #define SET_HT_CTRL_NDP_ANNOUNCEMENT(_pEleStart, _val)		SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart))+3, 0, 1, _val)
 #define GET_HT_CTRL_NDP_ANNOUNCEMENT(_pEleStart)			LE_BITS_TO_1BYTE(((u8 *)(_pEleStart))+3, 0, 1)
 
-// 20/40 BSS Coexist
+/* 20/40 BSS Coexist */
 #define SET_EXT_CAPABILITY_ELE_BSS_COEXIST(_pEleStart, _val)	SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)), 0, 1, _val)
 #define GET_EXT_CAPABILITY_ELE_BSS_COEXIST(_pEleStart)			LE_BITS_TO_1BYTE(((u8 *)(_pEleStart)), 0, 1)
 
@@ -146,9 +134,9 @@ typedef enum _RT_HT_INF1_CAP{
 	"MAX AMPDU len:%u bytes, MIN MPDU Start Spacing:%u"
 
 #define HT_AMPDU_PARA_ARG(x) \
-	*((u8*)(x)) \
-	, (1 << (13+GET_HT_CAP_ELE_MAX_AMPDU_LEN_EXP(((u8*)x)-2)))-1 \
-	, GET_HT_CAP_ELE_MIN_MPDU_S_SPACE(((u8*)x)-2)
+	*((u8 *)(x)) \
+	, (1 << (13+GET_HT_CAP_ELE_MAX_AMPDU_LEN_EXP(((u8 *)x)-2)))-1 \
+	, GET_HT_CAP_ELE_MIN_MPDU_S_SPACE(((u8 *)x)-2)
 
 /* Supported MCS Set field */
 #define HT_CAP_ELE_SUP_MCS_SET(_pEleStart)				(((u8 *)(_pEleStart))+3)
@@ -164,13 +152,13 @@ typedef enum _RT_HT_INF1_CAP{
 	" %uMbps %s%s%s"
 #define HT_SUP_MCS_SET_ARG(x) ((u8 *)(x))[0], ((u8 *)(x))[1], ((u8 *)(x))[2], ((u8 *)(x))[3], ((u8 *)(x))[4], ((u8 *)(x))[5], \
 	((u8 *)(x))[6], ((u8 *)(x))[7], ((u8 *)(x))[8], ((u8 *)(x))[9] \
-	/*,((u8 *)(x))[10],((u8 *)(x))[11], ((u8 *)(x))[12],((u8 *)(x))[13],((u8 *)(x))[14],((u8 *)(x))[15] */\
+	/*,((u8 *)(x))[10], ((u8 *)(x))[11], ((u8 *)(x))[12], ((u8 *)(x))[13], ((u8 *)(x))[14], ((u8 *)(x))[15] */\
 	, GET_HT_CAP_ELE_RX_HIGHEST_DATA_RATE(((u8 *)x)-3) \
 	, GET_HT_CAP_ELE_TX_MCS_DEF(((u8 *)x)-3) ? "TX_MCS_DEF " : "" \
 	, GET_HT_CAP_ELE_TRX_MCS_NEQ(((u8 *)x)-3) ? "TRX_MCS_NEQ " : "" \
 	, GET_HT_CAP_ELE_TX_UEQM(((u8 *)x)-3) ? "TX_UEQM " : ""
 
-//TXBF Capabilities
+/* TXBF Capabilities */
 #define SET_HT_CAP_TXBF_RECEIVE_NDP_CAP(_pEleStart, _val)				SET_BITS_TO_LE_4BYTE(((u8 *)(_pEleStart))+21, 3, 1, ((u8)_val))
 #define SET_HT_CAP_TXBF_TRANSMIT_NDP_CAP(_pEleStart, _val)				SET_BITS_TO_LE_4BYTE(((u8 *)(_pEleStart))+21, 4, 1, ((u8)_val))
 #define SET_HT_CAP_TXBF_EXPLICIT_COMP_STEERING_CAP(_pEleStart, _val)	SET_BITS_TO_LE_4BYTE(((u8 *)(_pEleStart))+21, 10, 1, ((u8)_val))
@@ -217,5 +205,4 @@ typedef enum _RT_HT_INF1_CAP{
 #define SET_HT_OP_ELE_PCO_ACTIVE(_pEleStart, _val)			SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)) + 5, 2, 1, _val)
 #define SET_HT_OP_ELE_PCO_PHASE(_pEleStart, _val)			SET_BITS_TO_LE_1BYTE(((u8 *)(_pEleStart)) + 5, 3, 1, _val)
 
-#endif	//_RTL871X_HT_H_
-
+#endif /* _RTL871X_HT_H_ */

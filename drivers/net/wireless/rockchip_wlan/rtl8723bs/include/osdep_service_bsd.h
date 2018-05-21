@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2013 Realtek Corporation. All rights reserved.
- *                                        
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __OSDEP_BSD_SERVICE_H_
 #define __OSDEP_BSD_SERVICE_H_
 
@@ -107,10 +102,6 @@
 	typedef void		thread_return;
 	typedef void*	thread_context;
 
-	//#define thread_exit() complete_and_exit(NULL, 0)
-
-	#define thread_exit() do{printf("%s", "RTKTHREAD_exit");}while(0)
-
 	typedef void timer_hdl_return;
 	typedef void* timer_hdl_context;
 	typedef struct work_struct _workitem;
@@ -139,16 +130,11 @@
  *
  */
 struct timer_list {
-
-        /* FreeBSD callout related fields */
-        struct callout callout;
-
- 	//timeout function
-        void (*function)(void*);
-	//argument
-	 void *arg;
-        
+	struct callout callout;
+	void (*function)(void *);
+	void *arg;
 };
+
 struct workqueue_struct;
 struct work_struct;
 typedef void (*work_func_t)(struct work_struct *work);
@@ -674,7 +660,31 @@ __inline static void rtw_list_delete(_list *plist)
 	INIT_LIST_HEAD(plist);
 }
 
-__inline static void _init_timer(_timer *ptimer,_nic_hdl padapter,void *pfunc,void* cntx)
+static inline void timer_hdl(void *ctx)
+{
+	_timer *timer = (_timer *)ctx;
+
+	rtw_mtx_lock(NULL);
+	if (callout_pending(&timer->callout)) {
+		/* callout was reset */
+		rtw_mtx_unlock(NULL);
+		return;
+	}
+
+	if (!callout_active(&timer->callout)) {
+		/* callout was stopped */
+		rtw_mtx_unlock(NULL);
+		return;
+	}
+
+	callout_deactivate(&timer->callout);
+
+	timer->function(timer->arg);
+
+	rtw_mtx_unlock(NULL);
+}
+
+static inline void _init_timer(_timer *ptimer, _nic_hdl padapter, void *pfunc, void *cntx)
 {
 	ptimer->function = pfunc;
 	ptimer->arg = cntx;
@@ -683,21 +693,19 @@ __inline static void _init_timer(_timer *ptimer,_nic_hdl padapter,void *pfunc,vo
 
 __inline static void _set_timer(_timer *ptimer,u32 delay_time)
 {	
-	//	mod_timer(ptimer , (jiffies+(delay_time*HZ/1000)));
-	if(ptimer->function && ptimer->arg){
+	if (ptimer->function && ptimer->arg) {
 		rtw_mtx_lock(NULL);
-		callout_reset(&ptimer->callout, delay_time,ptimer->function, ptimer->arg);
+		callout_reset(&ptimer->callout, delay_time, timer_hdl, ptimer);
 		rtw_mtx_unlock(NULL);
 	}
 }
 
 __inline static void _cancel_timer(_timer *ptimer,u8 *bcancelled)
 {
-	//	del_timer_sync(ptimer); 	
-	//	*bcancelled=  _TRUE;//TRUE ==1; FALSE==0	
 	rtw_mtx_lock(NULL);
 	callout_drain(&ptimer->callout);
 	rtw_mtx_unlock(NULL);
+	*bcancelled = 1; /* assume an pending timer to be canceled */
 }
 
 __inline static void _init_workitem(_workitem *pwork, void *pfunc, PVOID cntx)

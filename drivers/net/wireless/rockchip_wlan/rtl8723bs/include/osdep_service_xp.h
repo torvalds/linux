@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2013 Realtek Corporation. All rights reserved.
- *                                        
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __OSDEP_LINUX_SERVICE_H_
 #define __OSDEP_LINUX_SERVICE_H_
 
@@ -45,8 +40,11 @@
 	// USB_PIPE for WINCE , but handle can be use just integer under windows
 	typedef NDIS_HANDLE  _nic_hdl;
 
-
-	typedef NDIS_MINIPORT_TIMER    _timer;
+	struct timer_list {
+		NDIS_MINIPORT_TIMER ndis_timer;
+		void (*function)(void *);
+		void *arg;
+	};
 
 	struct	__queue	{
 		LIST_ENTRY	queue;	
@@ -63,7 +61,6 @@
 
 	typedef NDIS_WORK_ITEM _workitem;
 
-	#define thread_exit() PsTerminateSystemThread(STATUS_SUCCESS);
 
 	#define HZ			10000000
 	#define SEMA_UPBND	(0x7FFFFFFF)   //8192
@@ -131,21 +128,32 @@ __inline static void rtw_list_delete(_list *plist)
 	InitializeListHead(plist);	
 }
 
-#define RTW_TIMER_HDL_ARGS IN PVOID SystemSpecific1, IN PVOID FunctionContext, IN PVOID SystemSpecific2, IN PVOID SystemSpecific3
-
-__inline static void _init_timer(_timer *ptimer,_nic_hdl nic_hdl,void *pfunc,PVOID cntx)
+static inline void timer_hdl(
+	IN PVOID SystemSpecific1,
+	IN PVOID FunctionContext,
+	IN PVOID SystemSpecific2,
+	IN PVOID SystemSpecific3)
 {
-	NdisMInitializeTimer(ptimer, nic_hdl, pfunc, cntx);
+	_timer *timer = (_timer *)FunctionContext;
+
+	timer->function(timer->arg);
 }
 
-__inline static void _set_timer(_timer *ptimer,u32 delay_time)
-{	
- 	NdisMSetTimer(ptimer,delay_time);	
+static inline void _init_timer(_timer *ptimer, _nic_hdl nic_hdl, void *pfunc, void *cntx)
+{
+	ptimer->function = pfunc;
+	ptimer->arg = cntx;
+	NdisMInitializeTimer(&ptimer->ndis_timer, nic_hdl, timer_hdl, ptimer);
 }
 
-__inline static void _cancel_timer(_timer *ptimer,u8 *bcancelled)
+static inline void _set_timer(_timer *ptimer, u32 delay_time)
 {
-	NdisMCancelTimer(ptimer,bcancelled);
+	NdisMSetTimer(ptimer, delay_time);
+}
+
+static inline void _cancel_timer(_timer *ptimer, u8 *bcancelled)
+{
+	NdisMCancelTimer(ptimer, bcancelled);
 }
 
 __inline static void _init_workitem(_workitem *pwork, void *pfunc, PVOID cntx)

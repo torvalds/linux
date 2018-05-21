@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *                                        
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -11,119 +11,95 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
- 
+ *****************************************************************************/
+
 #ifndef	__PHYDMACS_H__
 #define    __PHYDMACS_H__
 
-#define ACS_VERSION	"1.0"
+#define ACS_VERSION	"1.1"	/*20150729 by YuChen*/
 #define CLM_VERSION "1.0"
 
 #define ODM_MAX_CHANNEL_2G			14
 #define ODM_MAX_CHANNEL_5G			24
 
-// For phydm_AutoChannelSelectSettingAP()
+/* For phydm_auto_channel_select_setting_ap() */
 #define STORE_DEFAULT_NHM_SETTING               0
 #define RESTORE_DEFAULT_NHM_SETTING             1
 #define ACS_NHM_SETTING                         2
 
-typedef struct _ACS_
-{
-	BOOLEAN		bForceACSResult;
-	u1Byte		CleanChannel_2G;
-	u1Byte		CleanChannel_5G;
-	u2Byte		Channel_Info_2G[2][ODM_MAX_CHANNEL_2G];		//Channel_Info[1]: Channel Score, Channel_Info[2]:Channel_Scan_Times
-	u2Byte		Channel_Info_5G[2][ODM_MAX_CHANNEL_5G];	
+struct _ACS_ {
+	boolean		is_force_acs_result;
+	u8		clean_channel_2g;
+	u8		clean_channel_5g;
+	u16		channel_info_2g[2][ODM_MAX_CHANNEL_2G];		/* Channel_Info[1]: channel score, Channel_Info[2]:Channel_Scan_Times */
+	u16		channel_info_5g[2][ODM_MAX_CHANNEL_5G];
 
-#if ( DM_ODM_SUPPORT_TYPE & ODM_AP )    
-    u1Byte              ACS_Step;
-    // NHM Count 0-11
-    u1Byte              NHM_Cnt[14][11];
+#if (DM_ODM_SUPPORT_TYPE & ODM_AP)
+	u8              acs_step;
+	/* NHM count 0-11 */
+	u8              nhm_cnt[14][11];
 
-    // AC-Series, for storing previous setting
-    u4Byte              Reg0x990; 
-    u4Byte              Reg0x994;
-    u4Byte              Reg0x998;
-    u4Byte              Reg0x99C;
-    u1Byte              Reg0x9A0;   // u1Byte
+	/* AC-Series, for storing previous setting */
+	u32              reg0x990;
+	u32              reg0x994;
+	u32              reg0x998;
+	u32              reg0x99c;
+	u8              reg0x9a0;   /* u8 */
 
-    // N-Series, for storing previous setting
-    u4Byte              Reg0x890; 
-    u4Byte              Reg0x894;
-    u4Byte              Reg0x898;
-    u4Byte              Reg0x89C;
-    u1Byte              Reg0xE28;   // u1Byte
+	/* N-Series, for storing previous setting */
+	u32              reg0x890;
+	u32              reg0x894;
+	u32              reg0x898;
+	u32              reg0x89c;
+	u8              reg0xe28;   /* u8 */
 #endif
 
-}ACS, *PACS;
+};
 
 
-VOID
-odm_AutoChannelSelectInit(
-	IN		PVOID			pDM_VOID
+void
+odm_auto_channel_select_init(
+	void			*p_dm_void
 );
 
-VOID
-odm_AutoChannelSelectReset(
-	IN		PVOID			pDM_VOID
+void
+odm_auto_channel_select_reset(
+	void			*p_dm_void
 );
 
-VOID
-odm_AutoChannelSelect(
-	IN		PVOID			pDM_VOID,
-	IN		u1Byte			Channel
+void
+odm_auto_channel_select(
+	void			*p_dm_void,
+	u8			channel
 );
 
-u1Byte
-ODM_GetAutoChannelSelectResult(
-	IN		PVOID			pDM_VOID,
-	IN		u1Byte			Band
+u8
+odm_get_auto_channel_select_result(
+	void			*p_dm_void,
+	u8			band
 );
 
-#if ( DM_ODM_SUPPORT_TYPE & ODM_AP )
-
-VOID
-phydm_AutoChannelSelectSettingAP(
-    IN  PVOID   pDM_VOID,
-    IN  u4Byte  Setting,             // 0: STORE_DEFAULT_NHM_SETTING; 1: RESTORE_DEFAULT_NHM_SETTING, 2: ACS_NHM_SETTING
-    IN  u4Byte  acs_step        
+boolean
+phydm_acs_check(
+	void	*p_dm_void
 );
 
-VOID
-phydm_GetNHMStatisticsAP(
-    IN  PVOID       pDM_VOID,
-    IN  u4Byte      idx,                // @ 2G, Real channel number = idx+1
-    IN  u4Byte      acs_step
+#if (DM_ODM_SUPPORT_TYPE & ODM_AP)
+
+void
+phydm_auto_channel_select_setting_ap(
+	void   *p_dm_void,
+	u32  setting,             /* 0: STORE_DEFAULT_NHM_SETTING; 1: RESTORE_DEFAULT_NHM_SETTING, 2: ACS_NHM_SETTING */
+	u32  acs_step
 );
 
-#endif  //#if ( DM_ODM_SUPPORT_TYPE & ODM_AP )
-
-
-VOID
-phydm_CLMInit(
-	IN		PVOID			pDM_VOID,
-	IN		u2Byte			sampleNum
+void
+phydm_get_nhm_statistics_ap(
+	void       *p_dm_void,
+	u32      idx,                /* @ 2G, Real channel number = idx+1 */
+	u32      acs_step
 );
 
-VOID
-phydm_CLMtrigger(
-	IN		PVOID			pDM_VOID
-);
+#endif  /* #if ( DM_ODM_SUPPORT_TYPE & ODM_AP ) */
 
-BOOLEAN
-phydm_checkCLMready(
-	IN		PVOID			pDM_VOID
-);
-
-u2Byte
-phydm_getCLMresult(
-	IN		PVOID			pDM_VOID
-);
-
-
-#endif  //#ifndef	__PHYDMACS_H__
+#endif  /* #ifndef	__PHYDMACS_H__ */

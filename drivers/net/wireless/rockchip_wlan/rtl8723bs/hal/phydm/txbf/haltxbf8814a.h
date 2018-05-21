@@ -1,71 +1,104 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+/******************************************************************************
+ *
+ * Copyright(c) 2016 - 2017 Realtek Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ *****************************************************************************/
 #ifndef __HAL_TXBF_8814A_H__
 #define __HAL_TXBF_8814A_H__
 
-#if (BEAMFORMING_SUPPORT == 1)
 #if (RTL8814A_SUPPORT == 1)
-VOID
-HalTxbf8814A_setNDPArate(
-	IN PVOID			pDM_VOID,
-	IN u1Byte	BW,
-	IN u1Byte	Rate
+#if (BEAMFORMING_SUPPORT == 1)
+
+boolean
+phydm_beamforming_set_iqgen_8814A(
+	void			*p_dm_void
 );
 
-u1Byte
-halTxbf8814A_GetNtx(
-	IN PVOID			pDM_VOID
-	);
+void
+hal_txbf_8814a_set_ndpa_rate(
+	void			*p_dm_void,
+	u8	BW,
+	u8	rate
+);
 
-VOID
-HalTxbf8814A_Enter(
-	IN PVOID			pDM_VOID,
-	IN u1Byte				Idx
-	);
+u8
+hal_txbf_8814a_get_ntx(
+	void			*p_dm_void
+);
 
-
-VOID
-HalTxbf8814A_Leave(
-	IN PVOID			pDM_VOID,
-	IN u1Byte				Idx
-	);
-
-
-VOID
-HalTxbf8814A_Status(
-	IN PVOID			pDM_VOID,
-	IN u1Byte				Idx
-	);
-
-VOID
-HalTxbf8814A_ResetTxPath(
-	IN PVOID			pDM_VOID,
-	IN u1Byte				Idx
-	);
+void
+hal_txbf_8814a_enter(
+	void			*p_dm_void,
+	u8				idx
+);
 
 
-VOID
-HalTxbf8814A_GetTxRate(
-	IN PVOID			pDM_VOID
-	);
+void
+hal_txbf_8814a_leave(
+	void			*p_dm_void,
+	u8				idx
+);
 
-VOID
-HalTxbf8814A_FwTxBF(
-	IN PVOID			pDM_VOID,
-	IN	u1Byte				Idx
-	);
+
+void
+hal_txbf_8814a_status(
+	void			*p_dm_void,
+	u8				idx
+);
+
+void
+hal_txbf_8814a_reset_tx_path(
+	void			*p_dm_void,
+	u8				idx
+);
+
+
+void
+hal_txbf_8814a_get_tx_rate(
+	void			*p_dm_void
+);
+
+void
+hal_txbf_8814a_fw_txbf(
+	void			*p_dm_void,
+	u8				idx
+);
+
 #else
 
-#define HalTxbf8814A_setNDPArate(pDM_VOID,	BW,	Rate)
-#define halTxbf8814A_GetNtx(pDM_VOID) 0
-#define HalTxbf8814A_Enter(pDM_VOID, Idx)
-#define HalTxbf8814A_Leave(pDM_VOID, Idx)
-#define HalTxbf8814A_Status(pDM_VOID, Idx)
-#define HalTxbf8814A_ResetTxPath(pDM_VOID,	Idx)
-#define HalTxbf8814A_GetTxRate(pDM_VOID)
-#define HalTxbf8814A_FwTxBF(pDM_VOID,	Idx)
-#endif
+#define hal_txbf_8814a_set_ndpa_rate(p_dm_void,	BW,	rate)
+#define hal_txbf_8814a_get_ntx(p_dm_void) 0
+#define hal_txbf_8814a_enter(p_dm_void, idx)
+#define hal_txbf_8814a_leave(p_dm_void, idx)
+#define hal_txbf_8814a_status(p_dm_void, idx)
+#define hal_txbf_8814a_reset_tx_path(p_dm_void,	idx)
+#define hal_txbf_8814a_get_tx_rate(p_dm_void)
+#define hal_txbf_8814a_fw_txbf(p_dm_void,	idx)
+#define phydm_beamforming_set_iqgen_8814A(p_dm_void)	0
 
 #endif
 
+#else
+
+#define hal_txbf_8814a_set_ndpa_rate(p_dm_void,	BW,	rate)
+#define hal_txbf_8814a_get_ntx(p_dm_void) 0
+#define hal_txbf_8814a_enter(p_dm_void, idx)
+#define hal_txbf_8814a_leave(p_dm_void, idx)
+#define hal_txbf_8814a_status(p_dm_void, idx)
+#define hal_txbf_8814a_reset_tx_path(p_dm_void,	idx)
+#define hal_txbf_8814a_get_tx_rate(p_dm_void)
+#define hal_txbf_8814a_fw_txbf(p_dm_void,	idx)
+#define phydm_beamforming_set_iqgen_8814A(p_dm_void)	0
 #endif
 
+#endif

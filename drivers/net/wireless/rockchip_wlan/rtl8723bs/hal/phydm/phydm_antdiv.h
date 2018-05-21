@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *                                        
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 
 #ifndef	__PHYDMANTDIV_H__
 #define    __PHYDMANTDIV_H__
@@ -26,42 +21,56 @@
 /*#define ANTDIV_VERSION	"2.2"  2015.01.16  Dino*/
 /*#define ANTDIV_VERSION	"3.1"  2015.07.29  YuChen, remove 92c 92d 8723a*/
 /*#define ANTDIV_VERSION	"3.2"  2015.08.11  Stanley, disable antenna diversity when BT is enable for 8723B*/
-/*#define ANTDIV_VERSION	"3.3"  2015.08.12  Stanley. 8723B does not need to check the antenna is control by BT, 
+/*#define ANTDIV_VERSION	"3.3"  2015.08.12  Stanley. 8723B does not need to check the antenna is control by BT,
 							because antenna diversity only works when BT is disable or radio off*/
-#define ANTDIV_VERSION	"3.4"  /*2015.08.28  Dino  1.Add 8821A Smart Antenna 2. Add 8188F SW S0S1 Antenna Diversity*/
+/*#define ANTDIV_VERSION	"3.4"  2015.08.28  Dino  1.Add 8821A Smart Antenna 2. Add 8188F SW S0S1 Antenna Diversity*/
+/*#define ANTDIV_VERSION	"3.5"  2015.10.07  Stanley  Always check antenna detection result from BT-coex. for 8723B, not from PHYDM*/
+/*#define ANTDIV_VERSION	"3.6"*/  /*2015.11.16  Stanley  */
+/*#define ANTDIV_VERSION	"3.7"*/  /*2015.11.20  Dino Add SmartAnt FAT Patch */
+/*#define ANTDIV_VERSION	"3.8"  2015.12.21  Dino, Add SmartAnt dynamic training packet num */
+/*#define ANTDIV_VERSION	"3.9"  2016.01.05  Dino, Add SmartAnt cmd for converting single & two smtant, and add cmd for adjust truth table */
+#define ANTDIV_VERSION	"4.0"  /*2017.05.25  Mark, Add SW antenna diversity for 8821c because HW transient issue */
 
-//1 ============================================================
-//1  Definition 
-//1 ============================================================
+/* 1 ============================================================
+ * 1  Definition
+ * 1 ============================================================ */
 
-#define	MAIN_ANT	1
-#define	AUX_ANT	2
+#define	ANTDIV_INIT		0xff
+#define	MAIN_ANT	1		/*ant A or ant Main   or S1*/
+#define	AUX_ANT		2		/*AntB or ant Aux   or S0*/
+#define	MAX_ANT		3		/* 3 for AP using*/
 
-#define ANT1_2G 0 // = ANT2_5G
-#define ANT2_2G 1 // = ANT1_5G
+#define ANT1_2G 0 /* = ANT2_5G	for 8723D  BTG S1 RX S0S1 diversity for 8723D, TX fixed at S1 */
+#define ANT2_2G 1 /* = ANT1_5G	for 8723D  BTG S0  RX S0S1 diversity for 8723D, TX fixed at S1 */
 /*smart antenna*/
 #define SUPPORT_RF_PATH_NUM 4
 #define SUPPORT_BEAM_PATTERN_NUM 4
+#define NUM_ANTENNA_8821A	2
 
+#define SUPPORT_BEAM_SET_PATTERN_NUM		16
 
-//Antenna Diversty Control Type
+#define	NO_FIX_TX_ANT		0
+#define	FIX_TX_AT_MAIN	1
+#define	FIX_AUX_AT_MAIN	2
+
+/* Antenna Diversty Control type */
 #define	ODM_AUTO_ANT		0
 #define	ODM_FIX_MAIN_ANT	1
 #define	ODM_FIX_AUX_ANT	2
 
-#define ODM_N_ANTDIV_SUPPORT		(ODM_RTL8188E|ODM_RTL8192E|ODM_RTL8723B|ODM_RTL8188F)
-#define ODM_AC_ANTDIV_SUPPORT	(ODM_RTL8821|ODM_RTL8881A|ODM_RTL8812)
-#define ODM_ANTDIV_SUPPORT		(ODM_N_ANTDIV_SUPPORT|ODM_AC_ANTDIV_SUPPORT)
-#define ODM_SMART_ANT_SUPPORT	(ODM_RTL8188E|ODM_RTL8192E)
-#define ODM_HL_SMART_ANT_TYPE1_SUPPORT		(ODM_RTL8821)
+#define ODM_N_ANTDIV_SUPPORT		(ODM_RTL8188E | ODM_RTL8192E | ODM_RTL8723B | ODM_RTL8188F | ODM_RTL8723D | ODM_RTL8195A)
+#define ODM_AC_ANTDIV_SUPPORT	(ODM_RTL8821 | ODM_RTL8881A | ODM_RTL8812 | ODM_RTL8821C | ODM_RTL8822B | ODM_RTL8814B)
+#define ODM_ANTDIV_SUPPORT		(ODM_N_ANTDIV_SUPPORT | ODM_AC_ANTDIV_SUPPORT)
+#define ODM_SMART_ANT_SUPPORT	(ODM_RTL8188E | ODM_RTL8192E)
+#define ODM_HL_SMART_ANT_TYPE1_SUPPORT		(ODM_RTL8821 | ODM_RTL8822B)
 
-#define ODM_ANTDIV_2G_SUPPORT_IC			(ODM_RTL8188E|ODM_RTL8192E|ODM_RTL8723B|ODM_RTL8881A|ODM_RTL8188F)
-#define ODM_ANTDIV_5G_SUPPORT_IC			(ODM_RTL8821|ODM_RTL8881A|ODM_RTL8812)
+#define ODM_ANTDIV_2G_SUPPORT_IC			(ODM_RTL8188E | ODM_RTL8192E | ODM_RTL8723B | ODM_RTL8881A | ODM_RTL8188F | ODM_RTL8723D)
+#define ODM_ANTDIV_5G_SUPPORT_IC			(ODM_RTL8821 | ODM_RTL8881A | ODM_RTL8812 | ODM_RTL8821C)
 
 #define ODM_EVM_ENHANCE_ANTDIV_SUPPORT_IC	(ODM_RTL8192E)
 
-#define ODM_ANTDIV_2G	BIT0
-#define ODM_ANTDIV_5G	BIT1
+#define ODM_ANTDIV_2G	BIT(0)
+#define ODM_ANTDIV_5G	BIT(1)
 
 #define ANTDIV_ON	1
 #define ANTDIV_OFF	0
@@ -72,9 +81,10 @@
 #define TX_BY_DESC	1
 #define TX_BY_REG	0
 
-#define RSSI_METHOD		0
+#define RSSI_METHOD	0
 #define EVM_METHOD		1
 #define CRC32_METHOD	2
+#define TP_METHOD		3
 
 #define INIT_ANTDIV_TIMMER		0
 #define CANCEL_ANTDIV_TIMMER	1
@@ -83,8 +93,8 @@
 #define CRC32_FAIL	1
 #define CRC32_OK	0
 
-#define Evm_RSSI_TH_High	25
-#define Evm_RSSI_TH_Low	20
+#define evm_rssi_th_high	25
+#define evm_rssi_th_low	20
 
 #define NORMAL_STATE_MIAN	1
 #define NORMAL_STATE_AUX	2
@@ -99,7 +109,7 @@
 #define DIVOFF_CSION 2
 
 #define BDC_DIV_TRAIN_STATE	0
-#define BDC_BFer_TRAIN_STATE	1
+#define bdc_bfer_train_state	1
 #define BDC_DECISION_STATE		2
 #define BDC_BF_HOLD_STATE		3
 #define BDC_DIV_HOLD_STATE		4
@@ -121,456 +131,476 @@
 /*Hong Lin Smart antenna*/
 #define HL_SMTANT_2WIRE_DATA_LEN 24
 
-//1 ============================================================
-//1  structure
-//1 ============================================================
+/* 1 ============================================================
+ * 1  structure
+ * 1 ============================================================ */
 
 
-typedef struct _SW_Antenna_Switch_
-{
-	u1Byte		Double_chk_flag;	/*If current antenna RSSI > "RSSI_CHECK_THRESHOLD", than check this antenna again*/
-	u1Byte		try_flag;
-	s4Byte		PreRSSI;
-	u1Byte		CurAntenna;
-	u1Byte		PreAntenna;
-	u1Byte		RSSI_Trying;
-	u1Byte 		reset_idx;
-	u1Byte		Train_time;
-	u1Byte		Train_time_flag; /*base on RSSI difference between two antennas*/
-	RT_TIMER	phydm_SwAntennaSwitchTimer;
-	u4Byte		PktCnt_SWAntDivByCtrlFrame;
-	BOOLEAN		bSWAntDivByCtrlFrame;
-	
-	#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)	
-	#if USE_WORKITEM
-	RT_WORK_ITEM	phydm_SwAntennaSwitchWorkitem;	
-	#endif
-	#endif	
+struct _sw_antenna_switch_ {
+	u8		double_chk_flag;	/*If current antenna RSSI > "RSSI_CHECK_THRESHOLD", than check this antenna again*/
+	u8		try_flag;
+	s32		pre_rssi;
+	u8		cur_antenna;
+	u8		pre_antenna;
+	u8		rssi_trying;
+	u8		reset_idx;
+	u8		train_time;
+	u8		train_time_flag; /*base on RSSI difference between two antennas*/
+	struct timer_list	phydm_sw_antenna_switch_timer;
+	u32		pkt_cnt_sw_ant_div_by_ctrl_frame;
+	boolean		is_sw_ant_div_by_ctrl_frame;
+
+#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
+#if USE_WORKITEM
+	RT_WORK_ITEM	phydm_sw_antenna_switch_workitem;
+#endif
+#endif
 
 	/* AntDect (Before link Antenna Switch check) need to be moved*/
-	u2Byte		Single_Ant_Counter;
-	u2Byte		Dual_Ant_Counter;
-	u2Byte		Aux_FailDetec_Counter;
-	u2Byte		Retry_Counter;	
-	u1Byte		SWAS_NoLink_State;
-	u4Byte		SWAS_NoLink_BK_Reg948;
-	BOOLEAN		ANTA_ON;	/*To indicate Ant A is or not*/
-	BOOLEAN		ANTB_ON;	/*To indicate Ant B is on or not*/
-	BOOLEAN		Pre_Aux_FailDetec;
-	BOOLEAN		RSSI_AntDect_bResult;	
-	u1Byte		Ant5G;
-	u1Byte		Ant2G;
+	u16		single_ant_counter;
+	u16		dual_ant_counter;
+	u16		aux_fail_detec_counter;
+	u16		retry_counter;
+	u8		swas_no_link_state;
+	u32		swas_no_link_bk_reg948;
+	boolean		ANTA_ON;	/*To indicate ant A is or not*/
+	boolean		ANTB_ON;	/*To indicate ant B is on or not*/
+	boolean		pre_aux_fail_detec;
+	boolean		rssi_ant_dect_result;
+	u8		ant_5g;
+	u8		ant_2g;
 
-	
-}SWAT_T, *pSWAT_T;
+
+};
 
 
 #if (DM_ODM_SUPPORT_TYPE & (ODM_AP))
 #if (defined(CONFIG_PHYDM_ANTENNA_DIVERSITY))
-typedef struct _BF_DIV_COEX_
-{
-	BOOLEAN w_BFer_Client[ODM_ASSOCIATE_ENTRY_NUM];
-	BOOLEAN w_BFee_Client[ODM_ASSOCIATE_ENTRY_NUM];
-	u4Byte	MA_rx_TP[ODM_ASSOCIATE_ENTRY_NUM];
-	u4Byte	MA_rx_TP_DIV[ODM_ASSOCIATE_ENTRY_NUM];
+struct _BF_DIV_COEX_ {
+	boolean w_bfer_client[ODM_ASSOCIATE_ENTRY_NUM];
+	boolean w_bfee_client[ODM_ASSOCIATE_ENTRY_NUM];
+	u32	MA_rx_TP[ODM_ASSOCIATE_ENTRY_NUM];
+	u32	MA_rx_TP_DIV[ODM_ASSOCIATE_ENTRY_NUM];
 
-	u1Byte  BDCcoexType_wBfer;
-	u1Byte num_Txbfee_Client;
-	u1Byte num_Txbfer_Client;
-	u1Byte BDC_Try_counter;
-	u1Byte BDC_Hold_counter;
-	u1Byte BDC_Mode;
-	u1Byte BDC_active_Mode;
-	u1Byte BDC_state;
-	u1Byte BDC_RxIdleUpdate_counter;
-	u1Byte num_Client;
-	u1Byte pre_num_Client;
-	u1Byte num_BfTar;
-	u1Byte num_DivTar;
-	
-	BOOLEAN bAll_DivSta_Idle;
-	BOOLEAN bAll_BFSta_Idle;
-	BOOLEAN BDC_Try_flag;
-	BOOLEAN BF_pass;
-	BOOLEAN DIV_pass;	
-}BDC_T,*pBDC_T;
+	u8  bd_ccoex_type_wbfer;
+	u8 num_txbfee_client;
+	u8 num_txbfer_client;
+	u8 bdc_try_counter;
+	u8 bdc_hold_counter;
+	u8 bdc_mode;
+	u8 bdc_active_mode;
+	u8 BDC_state;
+	u8 bdc_rx_idle_update_counter;
+	u8 num_client;
+	u8 pre_num_client;
+	u8 num_bf_tar;
+	u8 num_div_tar;
+
+	boolean is_all_div_sta_idle;
+	boolean is_all_bf_sta_idle;
+	boolean bdc_try_flag;
+	boolean BF_pass;
+	boolean DIV_pass;
+};
 #endif
 #endif
 
-#ifdef CONFIG_HL_SMART_ANTENNA_TYPE1
-typedef struct _SMART_ANTENNA_TRAINNING_ {
-	u4Byte	latch_time;
-	BOOLEAN	pkt_skip_statistic_en;
-	u4Byte	fix_beam_pattern_en;
-	u4Byte	fix_training_num_en;
-	u4Byte	fix_beam_pattern_codeword;
-	u4Byte	update_beam_codeword;
-	u4Byte	ant_num; /*number of smart beam antenna*/
-	u4Byte	beam_patten_num_each_ant;/*number of  beam can be switched in each antenna*/
-	u4Byte	data_codeword_bit_num;
-	u4Byte	per_beam_training_pkt_num;
-	u1Byte	decision_holding_period;
-	u4Byte	pkt_counter;
-	u4Byte	fast_training_beam_num;
-	u4Byte	pre_fast_training_beam_num;
-	u4Byte	pkt_rssi_pre[SUPPORT_RF_PATH_NUM][SUPPORT_BEAM_PATTERN_NUM];
-	u4Byte	pkt_rssi_sum[8][SUPPORT_BEAM_PATTERN_NUM];
-	u4Byte	pkt_rssi_cnt[8][SUPPORT_BEAM_PATTERN_NUM];
-	u4Byte	rx_idle_beam[SUPPORT_RF_PATH_NUM];
-	u4Byte	pre_codeword;
-	BOOLEAN	force_update_beam_en;
 
-	#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)	
-	RT_WORK_ITEM	hl_smart_antenna_workitem;
-	RT_WORK_ITEM	hl_smart_antenna_decision_workitem;	
-	#endif
+struct phydm_fat_struct {
+	u8	bssid[6];
+	u8	antsel_rx_keep_0;
+	u8	antsel_rx_keep_1;
+	u8	antsel_rx_keep_2;
+	u8	antsel_rx_keep_3;
+	u32	ant_sum_rssi[7];
+	u32	ant_rssi_cnt[7];
+	u32	ant_ave_rssi[7];
+	u8	fat_state;
+	u8	fat_state_cnt;
+	u32	train_idx;
+	u8	antsel_a[ODM_ASSOCIATE_ENTRY_NUM];
+	u8	antsel_b[ODM_ASSOCIATE_ENTRY_NUM];
+	u8	antsel_c[ODM_ASSOCIATE_ENTRY_NUM];
+	u16	main_ant_sum[ODM_ASSOCIATE_ENTRY_NUM];
+	u16	aux_ant_sum[ODM_ASSOCIATE_ENTRY_NUM];
+	u16	main_ant_cnt[ODM_ASSOCIATE_ENTRY_NUM];
+	u16	aux_ant_cnt[ODM_ASSOCIATE_ENTRY_NUM];
+	u16	main_ant_sum_cck[ODM_ASSOCIATE_ENTRY_NUM];
+	u16	aux_ant_sum_cck[ODM_ASSOCIATE_ENTRY_NUM];
+	u16	main_ant_cnt_cck[ODM_ASSOCIATE_ENTRY_NUM];
+	u16	aux_ant_cnt_cck[ODM_ASSOCIATE_ENTRY_NUM];
+	u8	rx_idle_ant;
+	u8	rvrt_val;
+	u8	ant_div_on_off;
+	boolean	is_become_linked;
+	u32	min_max_rssi;
+	u8	idx_ant_div_counter_2g;
+	u8	idx_ant_div_counter_5g;
+	u8	ant_div_2g_5g;
 
-} SAT_T, *pSAT_T;
+#ifdef ODM_EVM_ENHANCE_ANTDIV
+	/*For 1SS RX phy rate*/
+	u32	main_ant_evm_sum[ODM_ASSOCIATE_ENTRY_NUM];
+	u32	aux_ant_evm_sum[ODM_ASSOCIATE_ENTRY_NUM];
+	u32	main_ant_evm_cnt[ODM_ASSOCIATE_ENTRY_NUM];
+	u32	aux_ant_evm_cnt[ODM_ASSOCIATE_ENTRY_NUM];
+
+	/*For 2SS RX phy rate*/
+	u32	main_ant_evm_2ss_sum[ODM_ASSOCIATE_ENTRY_NUM][2];	/*2SS with A1+B*/
+	u32	aux_ant_evm_2ss_sum[ODM_ASSOCIATE_ENTRY_NUM][2];	/*2SS with A2+B*/
+	u32	main_ant_evm_2ss_cnt[ODM_ASSOCIATE_ENTRY_NUM];
+	u32	aux_ant_evm_2ss_cnt[ODM_ASSOCIATE_ENTRY_NUM];
+
+	boolean	EVM_method_enable;
+	u8	target_ant_evm;
+	u8	target_ant_crc32;
+	u8	target_ant_tp;
+	u8	target_ant_enhance;
+	u8	pre_target_ant_enhance;
+	u16	main_mpdu_ok_cnt;
+	u16	aux_mpdu_ok_cnt;
+
+	u32	crc32_ok_cnt;
+	u32	crc32_fail_cnt;
+	u32	main_crc32_ok_cnt;
+	u32	aux_crc32_ok_cnt;
+	u32	main_crc32_fail_cnt;
+	u32	aux_crc32_fail_cnt;
+
+	u32	antdiv_tp_main;
+	u32	antdiv_tp_aux;
+	u32	antdiv_tp_main_cnt;
+	u32	antdiv_tp_aux_cnt;
+
+	u8	pre_antdiv_rssi;
+	u8	pre_antdiv_tp;
 #endif
-
-typedef struct _FAST_ANTENNA_TRAINNING_
-{
-	u1Byte	Bssid[6];
-	u1Byte	antsel_rx_keep_0;
-	u1Byte	antsel_rx_keep_1;
-	u1Byte	antsel_rx_keep_2;
-	u1Byte	antsel_rx_keep_3;
-	u4Byte	antSumRSSI[7];
-	u4Byte	antRSSIcnt[7];
-	u4Byte	antAveRSSI[7];
-	u1Byte	FAT_State;
-	u4Byte	TrainIdx;
-	u1Byte	antsel_a[ODM_ASSOCIATE_ENTRY_NUM];
-	u1Byte	antsel_b[ODM_ASSOCIATE_ENTRY_NUM];
-	u1Byte	antsel_c[ODM_ASSOCIATE_ENTRY_NUM];
-	u4Byte	MainAnt_Sum[ODM_ASSOCIATE_ENTRY_NUM];
-	u4Byte	AuxAnt_Sum[ODM_ASSOCIATE_ENTRY_NUM];
-	u4Byte	MainAnt_Cnt[ODM_ASSOCIATE_ENTRY_NUM];
-	u4Byte	AuxAnt_Cnt[ODM_ASSOCIATE_ENTRY_NUM];
-	u1Byte	RxIdleAnt;
-	u1Byte	AntDiv_OnOff;
-	BOOLEAN	bBecomeLinked;
-	u4Byte	MinMaxRSSI;
-	u1Byte	idx_AntDiv_counter_2G;
-	u1Byte	idx_AntDiv_counter_5G;
-	u1Byte	AntDiv_2G_5G;
-	u4Byte    CCK_counter_main;
-	u4Byte    CCK_counter_aux;	
-	u4Byte    OFDM_counter_main;
-	u4Byte    OFDM_counter_aux;
-
-	#ifdef ODM_EVM_ENHANCE_ANTDIV
-	u4Byte	MainAntEVM_Sum[ODM_ASSOCIATE_ENTRY_NUM];
-	u4Byte	AuxAntEVM_Sum[ODM_ASSOCIATE_ENTRY_NUM];
-	u4Byte	MainAntEVM_Cnt[ODM_ASSOCIATE_ENTRY_NUM];
-	u4Byte	AuxAntEVM_Cnt[ODM_ASSOCIATE_ENTRY_NUM];
-	BOOLEAN	EVM_method_enable;
-	u1Byte	TargetAnt_EVM;
-	u1Byte	TargetAnt_CRC32;
-	u1Byte	TargetAnt_enhance;
-	u1Byte	pre_TargetAnt_enhance;
-	u2Byte	Main_MPDU_OK_cnt;
-	u2Byte	Aux_MPDU_OK_cnt;	
-
-	u4Byte	CRC32_Ok_Cnt;
-	u4Byte	CRC32_Fail_Cnt;
-	u4Byte	MainCRC32_Ok_Cnt;
-	u4Byte	AuxCRC32_Ok_Cnt;
-	u4Byte	MainCRC32_Fail_Cnt;
-	u4Byte	AuxCRC32_Fail_Cnt;
-	#endif	
-	#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN|ODM_CE))
-	u4Byte    CCK_CtrlFrame_Cnt_main;
-	u4Byte    CCK_CtrlFrame_Cnt_aux;
-	u4Byte    OFDM_CtrlFrame_Cnt_main;
-	u4Byte    OFDM_CtrlFrame_Cnt_aux;
-	u4Byte	MainAnt_CtrlFrame_Sum;
-	u4Byte	AuxAnt_CtrlFrame_Sum;
-	u4Byte	MainAnt_CtrlFrame_Cnt;
-	u4Byte	AuxAnt_CtrlFrame_Cnt;
-	#endif
-	BOOLEAN	fix_ant_bfee;
-	BOOLEAN	enable_ctrl_frame_antdiv;
-	BOOLEAN	use_ctrl_frame_antdiv;
-	u1Byte	hw_antsw_occur;
-}FAT_T,*pFAT_T;
+#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN | ODM_CE))
+	u32    cck_ctrl_frame_cnt_main;
+	u32    cck_ctrl_frame_cnt_aux;
+	u32    ofdm_ctrl_frame_cnt_main;
+	u32    ofdm_ctrl_frame_cnt_aux;
+	u32	main_ant_ctrl_frame_sum;
+	u32	aux_ant_ctrl_frame_sum;
+	u32	main_ant_ctrl_frame_cnt;
+	u32	aux_ant_ctrl_frame_cnt;
+#endif
+	u8	b_fix_tx_ant;
+	boolean	fix_ant_bfee;
+	boolean	enable_ctrl_frame_antdiv;
+	boolean	use_ctrl_frame_antdiv;
+	u8	hw_antsw_occur;
+	u8	*p_force_tx_ant_by_desc;
+	u8	force_tx_ant_by_desc; /*A temp value, will hook to driver team's outer parameter later*/
+	u8    *p_default_s0_s1;
+	u8    default_s0_s1;
+};
 
 
-//1 ============================================================
-//1  enumeration
-//1 ============================================================
+/* 1 ============================================================
+ * 1  enumeration
+ * 1 ============================================================ */
 
 
 
-typedef enum _FAT_STATE /*Fast antenna training*/
+enum fat_state_e /*Fast antenna training*/
 {
 	FAT_BEFORE_LINK_STATE	= 0,
 	FAT_PREPARE_STATE			= 1,
 	FAT_TRAINING_STATE		= 2,
 	FAT_DECISION_STATE		= 3
-}FAT_STATE_E, *PFAT_STATE_E;
+};
 
-typedef enum _ANT_DIV_TYPE
-{
+enum ant_div_type_e {
+	NO_ANTDIV			= 0xFF,
 	CG_TRX_HW_ANTDIV			= 0x01,
 	CGCS_RX_HW_ANTDIV		= 0x02,
-	CG_TRX_SMART_ANTDIV		= 0x03,
-	S0S1_SW_ANTDIV			= 0x04, /*8723B intrnal switch S0 S1*/
-	HL_SW_SMART_ANT_TYPE1	= 0x10 /*Hong-Lin Smart antenna use for 8821AE which is a 2 Ant. entitys, and each Ant. is equipped with 4 antenna patterns*/
-}ANT_DIV_TYPE_E, *PANT_DIV_TYPE_E;
+	FIXED_HW_ANTDIV		= 0x03,
+	CG_TRX_SMART_ANTDIV	= 0x04,
+	CGCS_RX_SW_ANTDIV	= 0x05,
+	S0S1_SW_ANTDIV          = 0x06, /*8723B intrnal switch S0 S1*/
+	S0S1_TRX_HW_ANTDIV     = 0x07, /*TRX S0S1 diversity for 8723D*/
+	HL_SW_SMART_ANT_TYPE1	= 0x10, /*Hong-Lin Smart antenna use for 8821AE which is a 2 ant. entitys, and each ant. is equipped with 4 antenna patterns*/
+	HL_SW_SMART_ANT_TYPE2	= 0x11 /*Hong-Bo Smart antenna use for 8822B which is a 2 ant. entitys*/
+};
 
 
-//1 ============================================================
-//1  function prototype
-//1 ============================================================
+/* 1 ============================================================
+ * 1  function prototype
+ * 1 ============================================================ */
 
 
-VOID
-ODM_StopAntennaSwitchDm(
-	IN	PVOID	pDM_VOID
-	);
-VOID
-ODM_SetAntConfig(
-	IN	PVOID	pDM_VOID,
-	IN	u1Byte		antSetting	// 0=A, 1=B, 2=C, ....
-	);
+void
+odm_stop_antenna_switch_dm(
+	void	*p_dm_void
+);
+
+void
+phydm_enable_antenna_diversity(
+	void			*p_dm_void
+);
+
+void
+odm_set_ant_config(
+	void	*p_dm_void,
+	u8		ant_setting	/* 0=A, 1=B, 2=C, .... */
+);
 
 
-#define SwAntDivRestAfterLink	ODM_SwAntDivRestAfterLink
+#define sw_ant_div_rest_after_link	odm_sw_ant_div_rest_after_link
 
-VOID ODM_SwAntDivRestAfterLink(	
-	IN	PVOID	pDM_VOID
-	);
+void odm_sw_ant_div_rest_after_link(
+	void	*p_dm_void
+);
+
+void
+odm_ant_div_on_off(
+	void		*p_dm_void,
+	u8		swch
+);
+
+void
+odm_tx_by_tx_desc_or_reg(
+	void		*p_dm_void,
+	u8		swch
+);
 
 #if (defined(CONFIG_PHYDM_ANTENNA_DIVERSITY))
 
-VOID
-ODM_UpdateRxIdleAnt(
-	IN		PVOID		pDM_VOID, 
-	IN		 u1Byte		Ant
+void
+phydm_antdiv_reset_statistic(
+	void	*p_dm_void,
+	u32	macid
+);
+
+void
+odm_update_rx_idle_ant(
+	void		*p_dm_void,
+	u8		ant
+);
+
+void
+phydm_set_antdiv_val(
+	void			*p_dm_void,
+	u32			*val_buf,
+	u8			val_len
 );
 
 #if (RTL8723B_SUPPORT == 1)
-VOID
-ODM_UpdateRxIdleAnt_8723B(
-	IN		PVOID			pDM_VOID,
-	IN		u1Byte			Ant,
-	IN		u4Byte			DefaultAnt, 
-	IN		u4Byte			OptionalAnt
+void
+odm_update_rx_idle_ant_8723b(
+	void			*p_dm_void,
+	u8			ant,
+	u32			default_ant,
+	u32			optional_ant
 );
 #endif
 
 #if (RTL8188F_SUPPORT == 1)
-VOID
+void
 phydm_update_rx_idle_antenna_8188F(
-	IN	PVOID	pDM_VOID,
-	IN	u4Byte	default_ant
+	void	*p_dm_void,
+	u32	default_ant
 );
 #endif
 
+#if (RTL8723D_SUPPORT == 1)
+
+void
+phydm_set_tx_ant_pwr_8723d(
+	void			*p_dm_void,
+	u8			ant
+);
+
+void
+odm_update_rx_idle_ant_8723d(
+	void			*p_dm_void,
+	u8			ant,
+	u32			default_ant,
+	u32			optional_ant
+);
+
+#endif
 
 #ifdef CONFIG_S0S1_SW_ANTENNA_DIVERSITY
 
 #if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-VOID
-ODM_SW_AntDiv_Callback(
-	IN 	PRT_TIMER		pTimer
-	);
+void
+odm_sw_antdiv_callback(
+	struct timer_list		*p_timer
+);
 
-VOID
-ODM_SW_AntDiv_WorkitemCallback(
-	IN	PVOID	pContext
-	);
+void
+odm_sw_antdiv_workitem_callback(
+	void	*p_context
+);
 
 
 #elif (DM_ODM_SUPPORT_TYPE == ODM_CE)
 
-VOID
-ODM_SW_AntDiv_WorkitemCallback(
-	IN PVOID	pContext
+void
+odm_sw_antdiv_workitem_callback(
+	void	*p_context
 );
 
-VOID
-ODM_SW_AntDiv_Callback(
-	void 		*FunctionContext
-	);
+void
+odm_sw_antdiv_callback(
+	void		*function_context
+);
 
 #endif
 
-VOID
-odm_S0S1_SwAntDivByCtrlFrame(
-	IN		PVOID			pDM_VOID,
-	IN		u1Byte			Step
+void
+odm_s0s1_sw_ant_div_by_ctrl_frame(
+	void			*p_dm_void,
+	u8			step
 );
 
-VOID
-odm_AntselStatisticsOfCtrlFrame(
-	IN		PVOID			pDM_VOID,
-	IN		u1Byte			antsel_tr_mux,
-	IN		u4Byte			RxPWDBAll
+void
+odm_antsel_statistics_of_ctrl_frame(
+	void			*p_dm_void,
+	u8			antsel_tr_mux,
+	u32			rx_pwdb_all
 );
 
-VOID
-odm_S0S1_SwAntDivByCtrlFrame_ProcessRSSI(
-	IN		PVOID				pDM_VOID,
-	IN		PVOID		p_phy_info_void,
-	IN		PVOID		p_pkt_info_void
+void
+odm_s0s1_sw_ant_div_by_ctrl_frame_process_rssi(
+	void				*p_dm_void,
+	void		*p_phy_info_void,
+	void		*p_pkt_info_void
 );
 
 #endif
 
 #ifdef ODM_EVM_ENHANCE_ANTDIV
 VOID
-odm_EVM_FastAntTrainingCallback(
-	IN		PVOID		pDM_VOID
+phydm_evm_sw_antdiv_init(
+	void		*p_dm_void
 );
-#endif
-
-VOID
-odm_HW_AntDiv(
-	IN		PVOID		pDM_VOID
-);
-
-#if( defined(CONFIG_5G_CG_SMART_ANT_DIVERSITY) ) ||( defined(CONFIG_2G_CG_SMART_ANT_DIVERSITY) )
-VOID
-odm_FastAntTraining(
-	IN		PVOID		pDM_VOID
-);
-
-VOID
-odm_FastAntTrainingCallback(
-	IN		PVOID		pDM_VOID
-);
-
-VOID
-odm_FastAntTrainingWorkItemCallback(
-	IN		PVOID		pDM_VOID
-);
-#endif
-
-
-#ifdef CONFIG_HL_SMART_ANTENNA_TYPE1
-
-#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-VOID
-phydm_beam_switch_workitem_callback(
-	IN	PVOID	pContext
-	);
-
-VOID
-phydm_beam_decision_workitem_callback(
-	IN	PVOID	pContext
-	);
-
-#endif
-
-VOID
-phydm_update_beam_pattern(
-	IN		PVOID		pDM_VOID,
-	IN		u4Byte		codeword,
-	IN		u4Byte		codeword_length
-	);
 
 void
-phydm_set_all_ant_same_beam_num(
-	IN		PVOID		pDM_VOID
-	);
+odm_evm_fast_ant_training_callback(
+	void		*p_dm_void
+);
+#endif
 
-VOID
-phydm_hl_smart_ant_cmd(
-	IN		PVOID		pDM_VOID,
-	IN		u4Byte		*const dm_value,
-	IN		u4Byte		*_used,
-	OUT		char			*output,
-	IN		u4Byte		*_out_len
+void
+odm_hw_ant_div(
+	void		*p_dm_void
 );
 
-#endif/*#ifdef CONFIG_HL_SMART_ANTENNA_TYPE1*/
-
-VOID
-ODM_AntDivInit(
-	IN		PVOID		pDM_VOID
+#if (defined(CONFIG_5G_CG_SMART_ANT_DIVERSITY)) || (defined(CONFIG_2G_CG_SMART_ANT_DIVERSITY))
+void
+odm_fast_ant_training(
+	void		*p_dm_void
 );
 
-VOID
-ODM_AntDiv(
-	IN		PVOID		pDM_VOID
+void
+odm_fast_ant_training_callback(
+	void		*p_dm_void
 );
 
-VOID
-odm_AntselStatistics(
-	IN		PVOID			pDM_VOID,
-	IN		u1Byte			antsel_tr_mux,
-	IN		u4Byte			MacId,
-	IN		u4Byte			utility,
-	IN		u1Byte			method
+void
+odm_fast_ant_training_work_item_callback(
+	void		*p_dm_void
+);
+#endif
+
+void
+odm_ant_div_init(
+	void		*p_dm_void
 );
 
-VOID
-ODM_Process_RSSIForAntDiv(	
-	IN OUT	PVOID		pDM_VOID,
-	IN		PVOID		p_phy_info_void,
-	IN		PVOID		p_pkt_info_void
+void
+odm_ant_div(
+	void		*p_dm_void
+);
+
+void
+odm_antsel_statistics(
+	void			*p_dm_void,
+	void			*p_phy_info_void,
+	u8			antsel_tr_mux,
+	u32			mac_id,
+	u32			utility,
+	u8			method,
+	u8			is_cck_rate
+);
+
+void
+odm_process_rssi_for_ant_div(
+	void		*p_dm_void,
+	void		*p_phy_info_void,
+	void		*p_pkt_info_void
 );
 
 
 
-#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN|ODM_CE))
-VOID
-ODM_SetTxAntByTxInfo(
-	IN		PVOID			pDM_VOID,
-	IN		pu1Byte			pDesc,
-	IN		u1Byte			macId	
+#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN | ODM_CE))
+void
+odm_set_tx_ant_by_tx_info(
+	void			*p_dm_void,
+	u8			*p_desc,
+	u8			mac_id
 );
 
-#elif(DM_ODM_SUPPORT_TYPE == ODM_AP)
+#elif (DM_ODM_SUPPORT_TYPE == ODM_AP)
 
-VOID
-ODM_SetTxAntByTxInfo(
+struct tx_desc; /*declared tx_desc here or compile error happened when enabled 8822B*/
+
+void
+odm_set_tx_ant_by_tx_info(
 	struct	rtl8192cd_priv		*priv,
-	struct 	tx_desc			*pdesc,
-	unsigned short			aid	
+	struct	tx_desc			*pdesc,
+	unsigned short			aid
 );
 
+#if 1/*def def CONFIG_WLAN_HAL*/
+void
+odm_set_tx_ant_by_tx_info_hal(
+	struct	rtl8192cd_priv		*priv,
+	void	*pdesc_data,
+	u16		aid
+);
+#endif	/*#ifdef CONFIG_WLAN_HAL*/
 #endif
 
 
-VOID
-ODM_AntDiv_Config(
-	IN		PVOID		pDM_VOID
+void
+odm_ant_div_config(
+	void		*p_dm_void
 );
 
-VOID
-ODM_AntDivTimers(
-	IN		PVOID		pDM_VOID,
-	IN 		u1Byte		state
+void
+odm_ant_div_timers(
+	void		*p_dm_void,
+	u8		state
 );
 
-VOID
+void
 phydm_antdiv_debug(
-	IN		PVOID		pDM_VOID,
-	IN		u4Byte		*const dm_value,
-	IN		u4Byte		*_used,
-	OUT		char			*output,
-	IN		u4Byte		*_out_len
+	void		*p_dm_void,
+	u32		*const dm_value,
+	u32		*_used,
+	char			*output,
+	u32		*_out_len
 );
 
 #endif /*#if (defined(CONFIG_PHYDM_ANTENNA_DIVERSITY))*/
 
-VOID
-ODM_AntDivReset(
-	IN		PVOID		pDM_VOID
+void
+odm_ant_div_reset(
+	void		*p_dm_void
 );
 
-VOID
-odm_AntennaDiversityInit(
-	IN		PVOID		pDM_VOID
+void
+odm_antenna_diversity_init(
+	void		*p_dm_void
 );
 
-VOID
-odm_AntennaDiversity(
-	IN		PVOID		pDM_VOID
+void
+odm_antenna_diversity(
+	void		*p_dm_void
 );
-
 
 #endif /*#ifndef	__ODMANTDIV_H__*/

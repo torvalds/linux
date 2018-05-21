@@ -1,53 +1,75 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+/******************************************************************************
+ *
+ * Copyright(c) 2016 - 2017 Realtek Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ *****************************************************************************/
 #ifndef __HAL_TXBF_8192E_H__
 #define __HAL_TXBF_8192E_H__
 
-#if (BEAMFORMING_SUPPORT == 1)
 #if (RTL8192E_SUPPORT == 1)
-VOID
-HalTxbf8192E_setNDPArate(
-	IN PVOID			pDM_VOID,
-	IN u1Byte	BW,
-	IN u1Byte	Rate
+#if (BEAMFORMING_SUPPORT == 1)
+
+void
+hal_txbf_8192e_set_ndpa_rate(
+	void			*p_dm_void,
+	u8	BW,
+	u8	rate
 );
 
-VOID
-HalTxbf8192E_Enter(
-	IN PVOID			pDM_VOID,
-	IN u1Byte				Idx
-	);
+void
+hal_txbf_8192e_enter(
+	void			*p_dm_void,
+	u8				idx
+);
 
 
-VOID
-HalTxbf8192E_Leave(
-	IN PVOID			pDM_VOID,
-	IN u1Byte				Idx
-	);
+void
+hal_txbf_8192e_leave(
+	void			*p_dm_void,
+	u8				idx
+);
 
 
-VOID
-HalTxbf8192E_Status(
-	IN PVOID			pDM_VOID,
-	IN u1Byte				Idx
-	);
+void
+hal_txbf_8192e_status(
+	void			*p_dm_void,
+	u8				idx
+);
 
 
-VOID
-HalTxbf8192E_FwTxBF(
-	IN PVOID			pDM_VOID,
-	IN	u1Byte				Idx
-	);
+void
+hal_txbf_8192e_fw_tx_bf(
+	void			*p_dm_void,
+	u8				idx
+);
 #else
 
-#define HalTxbf8192E_setNDPArate(pDM_VOID, BW, Rate)
-#define HalTxbf8192E_Enter(pDM_VOID, Idx)
-#define HalTxbf8192E_Leave(pDM_VOID, Idx)
-#define HalTxbf8192E_Status(pDM_VOID, Idx)
-#define HalTxbf8192E_FwTxBF(pDM_VOID, Idx)
+#define hal_txbf_8192e_set_ndpa_rate(p_dm_void, BW, rate)
+#define hal_txbf_8192e_enter(p_dm_void, idx)
+#define hal_txbf_8192e_leave(p_dm_void, idx)
+#define hal_txbf_8192e_status(p_dm_void, idx)
+#define hal_txbf_8192e_fw_tx_bf(p_dm_void, idx)
+
+#endif
+
+#else
+
+#define hal_txbf_8192e_set_ndpa_rate(p_dm_void, BW, rate)
+#define hal_txbf_8192e_enter(p_dm_void, idx)
+#define hal_txbf_8192e_leave(p_dm_void, idx)
+#define hal_txbf_8192e_status(p_dm_void, idx)
+#define hal_txbf_8192e_fw_tx_bf(p_dm_void, idx)
 
 #endif
 
 #endif
-
-#endif
-

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *                                        
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -11,86 +11,80 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __INC_ODM_REGCONFIG_H_8723B
 #define __INC_ODM_REGCONFIG_H_8723B
- 
+
 #if (RTL8723B_SUPPORT == 1)
 
 void
-odm_ConfigRFReg_8723B(
-	IN 	PDM_ODM_T 				pDM_Odm,
-	IN 	u4Byte 					Addr,
-	IN 	u4Byte 					Data,
-	IN  ODM_RF_RADIO_PATH_E     RF_PATH,
-	IN	u4Byte				    RegAddr
-	);
-
-void 
-odm_ConfigRF_RadioA_8723B(
-	IN 	PDM_ODM_T 				pDM_Odm,
-	IN 	u4Byte 					Addr,
-	IN 	u4Byte 					Data
-	);
-
-void 
-odm_ConfigRF_RadioB_8723B(
-	IN 	PDM_ODM_T 				pDM_Odm,
-	IN 	u4Byte 					Addr,
-	IN 	u4Byte 					Data
-	);
-
-void 
-odm_ConfigMAC_8723B(
- 	IN 	PDM_ODM_T 	pDM_Odm,
- 	IN 	u4Byte 		Addr,
- 	IN 	u1Byte 		Data
- 	);
-
-void 
-odm_ConfigBB_AGC_8723B(
-    IN 	PDM_ODM_T 	pDM_Odm,
-    IN 	u4Byte 		Addr,
-    IN 	u4Byte 		Bitmask,
-    IN 	u4Byte 		Data
-    );
+odm_config_rf_reg_8723b(
+	struct PHY_DM_STRUCT				*p_dm,
+	u32					addr,
+	u32					data,
+	enum rf_path     RF_PATH,
+	u32				    reg_addr
+);
 
 void
-odm_ConfigBB_PHY_REG_PG_8723B(
-	IN 	PDM_ODM_T 	pDM_Odm,
-	IN	u4Byte		Band,
-	IN	u4Byte		RfPath,
-	IN	u4Byte		TxNum,
-    IN 	u4Byte 		Addr,
-    IN 	u4Byte 		Bitmask,
-    IN 	u4Byte 		Data
-    );
-
-void 
-odm_ConfigBB_PHY_8723B(
-	IN 	PDM_ODM_T 	pDM_Odm,
-    IN 	u4Byte 		Addr,
-    IN 	u4Byte 		Bitmask,
-    IN 	u4Byte 		Data
-    );
+odm_config_rf_radio_a_8723b(
+	struct PHY_DM_STRUCT				*p_dm,
+	u32					addr,
+	u32					data
+);
 
 void
-odm_ConfigBB_TXPWR_LMT_8723B(
-	IN 	PDM_ODM_T 	pDM_Odm,
-	IN	pu1Byte		Regulation,
-	IN	pu1Byte		Band,
-	IN	pu1Byte		Bandwidth,
-	IN	pu1Byte		RateSection,
-	IN	pu1Byte		RfPath,
-	IN	pu1Byte 	Channel,
-	IN	pu1Byte		PowerLimit
-    );
+odm_config_rf_radio_b_8723b(
+	struct PHY_DM_STRUCT				*p_dm,
+	u32					addr,
+	u32					data
+);
+
+void
+odm_config_mac_8723b(
+	struct PHY_DM_STRUCT	*p_dm,
+	u32		addr,
+	u8		data
+);
+
+void
+odm_config_bb_agc_8723b(
+	struct PHY_DM_STRUCT	*p_dm,
+	u32		addr,
+	u32		bitmask,
+	u32		data
+);
+
+void
+odm_config_bb_phy_reg_pg_8723b(
+	struct PHY_DM_STRUCT	*p_dm,
+	u32		band,
+	u32		rf_path,
+	u32		tx_num,
+	u32		addr,
+	u32		bitmask,
+	u32		data
+);
+
+void
+odm_config_bb_phy_8723b(
+	struct PHY_DM_STRUCT	*p_dm,
+	u32		addr,
+	u32		bitmask,
+	u32		data
+);
+
+void
+odm_config_bb_txpwr_lmt_8723b(
+	struct PHY_DM_STRUCT	*p_dm,
+	u8		*regulation,
+	u8		*band,
+	u8		*bandwidth,
+	u8		*rate_section,
+	u8		*rf_path,
+	u8	*channel,
+	u8		*power_limit
+);
 
 #endif
-#endif // end of SUPPORT
-
+#endif /* end of SUPPORT */

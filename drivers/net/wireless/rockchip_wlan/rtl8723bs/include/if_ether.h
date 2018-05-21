@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *                                        
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -11,19 +11,14 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
- 
+ *****************************************************************************/
+
 #ifndef _LINUX_IF_ETHER_H
 #define _LINUX_IF_ETHER_H
 
 /*
  *	IEEE 802.3 Ethernet magic constants.  The frame sizes omit the preamble
- *	and FCS/CRC (frame check sequence). 
+ *	and FCS/CRC (frame check sequence).
  */
 
 #define ETH_ALEN	6		/* Octets in one ethernet addr	 */
@@ -45,21 +40,21 @@
 #define	ETH_P_BPQ	0x08FF		/* G8BPQ AX.25 Ethernet Packet	[ NOT AN OFFICIALLY REGISTERED ID ] */
 #define ETH_P_IEEEPUP	0x0a00		/* Xerox IEEE802.3 PUP packet */
 #define ETH_P_IEEEPUPAT	0x0a01		/* Xerox IEEE802.3 PUP Addr Trans packet */
-#define ETH_P_DEC       0x6000          /* DEC Assigned proto           */
-#define ETH_P_DNA_DL    0x6001          /* DEC DNA Dump/Load            */
-#define ETH_P_DNA_RC    0x6002          /* DEC DNA Remote Console       */
-#define ETH_P_DNA_RT    0x6003          /* DEC DNA Routing              */
-#define ETH_P_LAT       0x6004          /* DEC LAT                      */
-#define ETH_P_DIAG      0x6005          /* DEC Diagnostics              */
-#define ETH_P_CUST      0x6006          /* DEC Customer use             */
-#define ETH_P_SCA       0x6007          /* DEC Systems Comms Arch       */
+#define ETH_P_DEC       0x6000          /* DEC Assigned proto          */
+#define ETH_P_DNA_DL    0x6001          /* DEC DNA Dump/Load           */
+#define ETH_P_DNA_RC    0x6002          /* DEC DNA Remote Console      */
+#define ETH_P_DNA_RT    0x6003          /* DEC DNA Routing             */
+#define ETH_P_LAT       0x6004          /* DEC LAT                     */
+#define ETH_P_DIAG      0x6005          /* DEC Diagnostics             */
+#define ETH_P_CUST      0x6006          /* DEC Customer use            */
+#define ETH_P_SCA       0x6007          /* DEC Systems Comms Arch      */
 #define ETH_P_RARP      0x8035		/* Reverse Addr Res packet	*/
 #define ETH_P_ATALK	0x809B		/* Appletalk DDP		*/
 #define ETH_P_AARP	0x80F3		/* Appletalk AARP		*/
-#define ETH_P_8021Q	0x8100          /* 802.1Q VLAN Extended Header  */
+#define ETH_P_8021Q	0x8100          /* 802.1Q VLAN Extended Header */
 #define ETH_P_IPX	0x8137		/* IPX over DIX			*/
 #define ETH_P_IPV6	0x86DD		/* IPv6 over bluebook		*/
-#define ETH_P_PPP_DISC	0x8863		/* PPPoE discovery messages     */
+#define ETH_P_PPP_DISC	0x8863		/* PPPoE discovery messages    */
 #define ETH_P_PPP_SES	0x8864		/* PPPoE session messages	*/
 #define ETH_P_ATMMPOA	0x884c		/* MultiProtocol Over ATM	*/
 #define ETH_P_ATMFATE	0x8884		/* Frame-based ATM Transport
@@ -69,13 +64,13 @@
 /*
  *	Non DIX types. Won't clash for 1500 types.
  */
- 
-#define ETH_P_802_3	0x0001		/* Dummy type for 802.3 frames  */
-#define ETH_P_AX25	0x0002		/* Dummy protocol id for AX.25  */
+
+#define ETH_P_802_3	0x0001		/* Dummy type for 802.3 frames */
+#define ETH_P_AX25	0x0002		/* Dummy protocol id for AX.25 */
 #define ETH_P_ALL	0x0003		/* Every packet (be careful!!!) */
 #define ETH_P_802_2	0x0004		/* 802.2 frames 		*/
 #define ETH_P_SNAP	0x0005		/* Internal only		*/
-#define ETH_P_DDCMP     0x0006          /* DEC DDCMP: Internal only     */
+#define ETH_P_DDCMP     0x0006          /* DEC DDCMP: Internal only    */
 #define ETH_P_WAN_PPP   0x0007          /* Dummy type for WAN PPP frames*/
 #define ETH_P_PPP_MP    0x0008          /* Dummy type for PPP MP frames */
 #define ETH_P_LOCALTALK 0x0009		/* Localtalk pseudo type 	*/
@@ -89,25 +84,23 @@
 /*
  *	This is an Ethernet frame header.
  */
- 
-struct ethhdr 
-{
+
+struct ethhdr {
 	unsigned char	h_dest[ETH_ALEN];	/* destination eth addr	*/
 	unsigned char	h_source[ETH_ALEN];	/* source ether addr	*/
 	unsigned short	h_proto;		/* packet type ID field	*/
 };
 
 struct _vlan {
-   unsigned short       h_vlan_TCI;                // Encapsulates priority and VLAN ID
-   unsigned short       h_vlan_encapsulated_proto;
+	unsigned short       h_vlan_TCI;                /* Encapsulates priority and VLAN ID */
+	unsigned short       h_vlan_encapsulated_proto;
 };
 
 
 
-#define get_vlan_id(pvlan) ((ntohs((unsigned short )pvlan->h_vlan_TCI)) & 0xfff)
-#define get_vlan_priority(pvlan) ((ntohs((unsigned short )pvlan->h_vlan_TCI))>>13)
-#define get_vlan_encap_proto(pvlan) (ntohs((unsigned short )pvlan->h_vlan_encapsulated_proto))
+#define get_vlan_id(pvlan) ((ntohs((unsigned short)pvlan->h_vlan_TCI)) & 0xfff)
+#define get_vlan_priority(pvlan) ((ntohs((unsigned short)pvlan->h_vlan_TCI))>>13)
+#define get_vlan_encap_proto(pvlan) (ntohs((unsigned short)pvlan->h_vlan_encapsulated_proto))
 
 
 #endif	/* _LINUX_IF_ETHER_H */
-

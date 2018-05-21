@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *                                        
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -11,317 +11,340 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
- 
+ *****************************************************************************/
+
 #ifndef	__PHYDMDIG_H__
-#define    __PHYDMDIG_H__
+#define	__PHYDMDIG_H__
 
-#define DIG_VERSION	"1.8"	/*2015.07.01*/
+/*#define DIG_VERSION	"1.4"*/		/* 2017.04.18  YuChen. refine DIG code structure*/
+/*#define DIG_VERSION	"2.0"*/		/* 2017.05.09  Dino. Move CCKPD to new files*/
+/*#define DIG_VERSION	"2.1"*/		/* 2017.06.01  YuChen. Refine DFS condition*/
+#define DIG_VERSION	"2.2"		/* 2017.06.13  YuChen. Remove MP dig*/
 
-/* Pause DIG & CCKPD */
-#define		DM_DIG_MAX_PAUSE_TYPE		0x7
+#define DIG_HW		0
 
-typedef struct _Dynamic_Initial_Gain_Threshold_
-{
-	BOOLEAN		bStopDIG;		// for debug
-	BOOLEAN		bIgnoreDIG;
-	BOOLEAN		bPSDInProgress;
+/*--------------------Define ---------------------------------------*/
 
-	u1Byte		Dig_Enable_Flag;
-	u1Byte		Dig_Ext_Port_Stage;
-	
-	int		   	RssiLowThresh;
-	int		    	RssiHighThresh;
-
-	u4Byte		FALowThresh;
-	u4Byte		FAHighThresh;
-
-	u1Byte		CurSTAConnectState;
-	u1Byte		PreSTAConnectState;
-	u1Byte		CurMultiSTAConnectState;
-
-	u1Byte		PreIGValue;
-	u1Byte		CurIGValue;
-	u1Byte		BackupIGValue;		//MP DIG
-	u1Byte		BT30_CurIGI;
-	u1Byte		IGIBackup;
-
-	s1Byte		BackoffVal;
-	s1Byte		BackoffVal_range_max;
-	s1Byte		BackoffVal_range_min;
-	u1Byte		rx_gain_range_max;
-	u1Byte		rx_gain_range_min;
-	u1Byte		Rssi_val_min;
-
-	u1Byte		PreCCK_CCAThres;
-	u1Byte		CurCCK_CCAThres;
-	u1Byte		PreCCKPDState;
-	u1Byte		CurCCKPDState;
-	u1Byte		CCKPDBackup;
-	u1Byte		pause_cckpd_level;
-	u1Byte		pause_cckpd_value[DM_DIG_MAX_PAUSE_TYPE + 1];
-
-	u1Byte		LargeFAHit;
-	u1Byte		ForbiddenIGI;
-	u4Byte		Recover_cnt;
-
-	u1Byte		DIG_Dynamic_MIN_0;
-	u1Byte		DIG_Dynamic_MIN_1;
-	BOOLEAN		bMediaConnect_0;
-	BOOLEAN		bMediaConnect_1;
-
-	u4Byte		AntDiv_RSSI_max;
-	u4Byte		RSSI_max;
-
-	u1Byte		*bP2PInProcess;
-
-	u1Byte		pause_dig_level;
-	u1Byte		pause_dig_value[DM_DIG_MAX_PAUSE_TYPE + 1];
-
-#if(DM_ODM_SUPPORT_TYPE & (ODM_AP|ODM_ADSL))
-	BOOLEAN		bTpTarget;
-	BOOLEAN		bNoiseEst;
-	u4Byte		TpTrainTH_min;
-	u1Byte		IGIOffset_A;
-	u1Byte		IGIOffset_B;
-#endif
-}DIG_T,*pDIG_T;
-
-typedef struct _FALSE_ALARM_STATISTICS{
-	u4Byte	Cnt_Parity_Fail;
-	u4Byte	Cnt_Rate_Illegal;
-	u4Byte	Cnt_Crc8_fail;
-	u4Byte	Cnt_Mcs_fail;
-	u4Byte	Cnt_Ofdm_fail;
-	u4Byte	Cnt_Ofdm_fail_pre;	//For RTL8881A
-	u4Byte	Cnt_Cck_fail;
-	u4Byte	Cnt_all;
-	u4Byte	Cnt_Fast_Fsync;
-	u4Byte	Cnt_SB_Search_fail;
-	u4Byte	Cnt_OFDM_CCA;
-	u4Byte	Cnt_CCK_CCA;
-	u4Byte	Cnt_CCA_all;
-	u4Byte	Cnt_BW_USC;	//Gary
-	u4Byte	Cnt_BW_LSC;	//Gary
-}FALSE_ALARM_STATISTICS, *PFALSE_ALARM_STATISTICS;
-
-typedef enum tag_Dynamic_Init_Gain_Operation_Type_Definition
-{
-	DIG_TYPE_THRESH_HIGH	= 0,
-	DIG_TYPE_THRESH_LOW	= 1,
-	DIG_TYPE_BACKOFF		= 2,
-	DIG_TYPE_RX_GAIN_MIN	= 3,
-	DIG_TYPE_RX_GAIN_MAX	= 4,
-	DIG_TYPE_ENABLE 		= 5,
-	DIG_TYPE_DISABLE 		= 6,	
-	DIG_OP_TYPE_MAX
-}DM_DIG_OP_E;
-
-/*
-typedef enum tag_CCK_Packet_Detection_Threshold_Type_Definition
-{
-	CCK_PD_STAGE_LowRssi = 0,
-	CCK_PD_STAGE_HighRssi = 1,
-	CCK_PD_STAGE_MAX = 3,
-}DM_CCK_PDTH_E;
-
-typedef enum tag_DIG_EXT_PORT_ALGO_Definition
-{
-	DIG_EXT_PORT_STAGE_0 = 0,
-	DIG_EXT_PORT_STAGE_1 = 1,
-	DIG_EXT_PORT_STAGE_2 = 2,
-	DIG_EXT_PORT_STAGE_3 = 3,
-	DIG_EXT_PORT_STAGE_MAX = 4,
-}DM_DIG_EXT_PORT_ALG_E;
-
-typedef enum tag_DIG_Connect_Definition
-{
-	DIG_STA_DISCONNECT = 0,	
-	DIG_STA_CONNECT = 1,
-	DIG_STA_BEFORE_CONNECT = 2,
-	DIG_MultiSTA_DISCONNECT = 3,
-	DIG_MultiSTA_CONNECT = 4,
-	DIG_CONNECT_MAX
-}DM_DIG_CONNECT_E;
-
-
-#define DM_MultiSTA_InitGainChangeNotify(Event) {DM_DigTable.CurMultiSTAConnectState = Event;}
-
-#define DM_MultiSTA_InitGainChangeNotify_CONNECT(_ADAPTER)	\
-	DM_MultiSTA_InitGainChangeNotify(DIG_MultiSTA_CONNECT)
-
-#define DM_MultiSTA_InitGainChangeNotify_DISCONNECT(_ADAPTER)	\
-	DM_MultiSTA_InitGainChangeNotify(DIG_MultiSTA_DISCONNECT)
-*/
-
-typedef enum tag_PHYDM_Pause_Type {
-	PHYDM_PAUSE = BIT0,
-	PHYDM_RESUME = BIT1
-} PHYDM_PAUSE_TYPE;
-
-typedef enum tag_PHYDM_Pause_Level {
-/* number of pause level can't exceed DM_DIG_MAX_PAUSE_TYPE */
-	PHYDM_PAUSE_LEVEL_0 = 0,
-	PHYDM_PAUSE_LEVEL_1 = 1,
-	PHYDM_PAUSE_LEVEL_2 = 2,
-	PHYDM_PAUSE_LEVEL_3 = 3,
-	PHYDM_PAUSE_LEVEL_4 = 4,
-	PHYDM_PAUSE_LEVEL_5 = 5,
-	PHYDM_PAUSE_LEVEL_6 = 6,
-	PHYDM_PAUSE_LEVEL_7 = DM_DIG_MAX_PAUSE_TYPE		/* maximum level */
-} PHYDM_PAUSE_LEVEL;
-
-
-#define		DM_DIG_THRESH_HIGH			40
-#define		DM_DIG_THRESH_LOW			35
-
-#define		DM_FALSEALARM_THRESH_LOW	400
-#define		DM_FALSEALARM_THRESH_HIGH	1000
-
-#define		DM_DIG_MAX_NIC				0x3e
-#define		DM_DIG_MIN_NIC				0x1e //0x22//0x1c
-#define		DM_DIG_MAX_OF_MIN_NIC		0x3e
-
-#define		DM_DIG_MAX_AP					0x3e
-#define		DM_DIG_MIN_AP					0x1c
-#define		DM_DIG_MAX_OF_MIN			0x2A	//0x32
-#define		DM_DIG_MIN_AP_DFS				0x20
-
-#define		DM_DIG_MAX_NIC_HP			0x46
-#define		DM_DIG_MIN_NIC_HP				0x2e
-
-#define		DM_DIG_MAX_AP_HP				0x42
-#define		DM_DIG_MIN_AP_HP				0x30
-
-#if (DM_ODM_SUPPORT_TYPE & (ODM_AP|ODM_ADSL))
-#define		DM_DIG_MAX_AP_COVERAGR		0x26
-#define		DM_DIG_MIN_AP_COVERAGE		0x1c
-#define		DM_DIG_MAX_OF_MIN_COVERAGE	0x22
-
-#define		DM_DIG_TP_Target_TH0			500
-#define		DM_DIG_TP_Target_TH1			1000
-#define		DM_DIG_TP_Training_Period		10
-#endif
-
-//vivi 92c&92d has different definition, 20110504
-//this is for 92c
-#if (DM_ODM_SUPPORT_TYPE & ODM_CE)
-	#ifdef CONFIG_SPECIAL_SETTING_FOR_FUNAI_TV
-	#define		DM_DIG_FA_TH0				0x80//0x20
-	#else
-	#define		DM_DIG_FA_TH0				0x200//0x20
-	#endif
+/*=== [DIG Boundary] ========================================*/
+/*DIG coverage mode*/
+#define		DIG_MAX_COVERAGR				0x26
+#define		DIG_MIN_COVERAGE				0x1c
+#define		DIG_MAX_OF_MIN_COVERAGE		0x22
+/*DIG performance mode*/
+#if (DIG_HW == 1)
+#define		DIG_MAX_BALANCE_MODE		0x32
 #else
-	#define		DM_DIG_FA_TH0				0x200//0x20
+#define		DIG_MAX_BALANCE_MODE		0x3e
 #endif
+#define		DIG_MAX_OF_MIN_BALANCE_MODE		0x2a
 
-#define		DM_DIG_FA_TH1					0x300
-#define		DM_DIG_FA_TH2					0x400
-//this is for 92d
-#define		DM_DIG_FA_TH0_92D				0x100
-#define		DM_DIG_FA_TH1_92D				0x400
-#define		DM_DIG_FA_TH2_92D				0x600
+#define		DIG_MAX_PERFORMANCE_MODE		0x5a
+#define		DIG_MAX_OF_MIN_PERFORMANCE_MODE		0x2a	/*from 3E -> 2A, refine by YuChen 2017/04/18*/
 
-#define		DM_DIG_BACKOFF_MAX			12
-#define		DM_DIG_BACKOFF_MIN			-4
-#define		DM_DIG_BACKOFF_DEFAULT		10
+#define		DIG_MIN_PERFORMANCE			0x20
 
-#define 		DM_DIG_FA_TH0_LPS				4 //-> 4 in lps
-#define 		DM_DIG_FA_TH1_LPS				15 //-> 15 lps
-#define 		DM_DIG_FA_TH2_LPS				30 //-> 30 lps
-#define 		RSSI_OFFSET_DIG				0x05
+/*DIG DFS function*/
+#define		DIG_MAX_DFS					0x28
+#define		DIG_MIN_DFS					0x20
 
-VOID
-ODM_ChangeDynamicInitGainThresh(
-	IN		PVOID					pDM_VOID,
-	IN		u4Byte  					DM_Type,
-	IN		u4Byte 					DM_Value
-	);
+/*DIG LPS function*/
+#define		DIG_MAX_LPS					0x3e
+#define		DIG_MIN_LPS					0x20
 
-VOID
-ODM_Write_DIG(
-	IN		PVOID					pDM_VOID, 	
-	IN		u1Byte					CurrentIGI
-	);
+/*=== [DIG FA Threshold] ======================================*/
 
-VOID
-odm_PauseDIG(
-	IN		PVOID					pDM_VOID,
-	IN		PHYDM_PAUSE_TYPE		PauseType,
-	IN		PHYDM_PAUSE_LEVEL		pause_level,
-	IN		u1Byte					IGIValue
-	);
+/*Normal*/
+#define		DM_DIG_FA_TH0					500
+#define		DM_DIG_FA_TH1					750
 
-VOID
-odm_DIGInit(
-	IN		PVOID					pDM_VOID
-	);
+/*LPS*/
+#define		DM_DIG_FA_TH0_LPS			4	/* -> 4 lps */
+#define		DM_DIG_FA_TH1_LPS			15	/* -> 15 lps */
+#define		DM_DIG_FA_TH2_LPS			30	/* -> 30 lps */
 
-VOID	
-odm_DIG(
-	IN		PVOID					pDM_VOID
-	);
+#define		RSSI_OFFSET_DIG_LPS			5
 
-VOID
-odm_DIGbyRSSI_LPS(
-	IN		PVOID					pDM_VOID
-	);
+/*LNA saturation check*/
+#define OFDM_AGC_TAB_0			0
+#define	OFDM_AGC_TAB_2			2
+#define	DIFF_RSSI_TO_IGI		10
+#define	ONE_SEC_MS				1000
 
-VOID 
-odm_FalseAlarmCounterStatistics(
-	IN		PVOID					pDM_VOID
-	);
+/*--------------------Enum-----------------------------------*/
+enum dig_goupcheck_level {
+	DIG_GOUPCHECK_LEVEL_0,
+	DIG_GOUPCHECK_LEVEL_1,
+	DIG_GOUPCHECK_LEVEL_2
+};
 
-VOID
-odm_PauseCCKPacketDetection(
-	IN		PVOID					pDM_VOID,
-	IN		PHYDM_PAUSE_TYPE		PauseType,
-	IN		PHYDM_PAUSE_LEVEL		pause_level,
-	IN		u1Byte					CCKPDThreshold
-	);
+enum phydm_dig_mode {
+	PHYDM_DIG_PERFORAMNCE_MODE	= 0,
+	PHYDM_DIG_COVERAGE_MODE	= 1,
+};
 
-VOID 
-odm_CCKPacketDetectionThresh(
-	IN		PVOID					pDM_VOID
-	);
+enum lna_sat_timer_state {
+	INIT_LNA_SAT_CHK_TIMMER,
+	CANCEL_LNA_SAT_CHK_TIMMER,
+	RELEASE_LNA_SAT_CHK_TIMMER
+};
+/*--------------------Define Struct-----------------------------------*/
 
-VOID 
-ODM_Write_CCK_CCA_Thres(
-	IN		PVOID					pDM_VOID, 
-	IN		u1Byte					CurCCK_CCAThres
-	);
+struct phydm_dig_struct {
 
-#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-VOID
-odm_MPT_DIGCallback(
-	PRT_TIMER						pTimer
+	boolean	is_ignore_dig; /*for old pause function*/
+	boolean	is_dbg_fa_th;
+	u8		dig_mode_decision;
+	u8		cur_ig_value;
+	u8		rvrt_val;
+	u8		igi_backup;
+	u8		rx_gain_range_max;	/*dig_dynamic_max*/
+	u8		rx_gain_range_min;	/*dig_dynamic_min*/
+	u8		dm_dig_max;			/*Absolutly upper bound*/
+	u8		dm_dig_min;			/*Absolutly lower bound*/
+	u8		dig_max_of_min;		/*Absolutly max of min*/
+	boolean	is_media_connect;
+	u32		ant_div_rssi_max;
+	u8		*is_p2p_in_process;
+	u8		pause_lv_bitmap; /*bit-map of pause level*/
+	u8		pause_dig_value[PHYDM_PAUSE_MAX_NUM];
+	enum dig_goupcheck_level		dig_go_up_check_level;
+	u8		aaa_default;
+	u16		fa_th[3];
+#if (RTL8822B_SUPPORT == 1 || RTL8197F_SUPPORT == 1 || RTL8821C_SUPPORT == 1)
+	u8		rf_gain_idx;
+	u8		agc_table_idx;
+	u8		big_jump_lmt[16];
+	u8		enable_adjust_big_jump:1;
+	u8		big_jump_step1:3;
+	u8		big_jump_step2:2;
+	u8		big_jump_step3:2;
+#endif
+	u8		dig_upcheck_initial_value;
+	u8		dig_level0_ratio_reciprocal;
+	u8		dig_level1_ratio_reciprocal;
+#ifdef PHYDM_TDMA_DIG_SUPPORT
+	u8		cur_ig_value_tdma;
+	u8		low_ig_value;
+	u8		tdma_dig_state;	/*To distinguish which state is now.(L-sate or H-state)*/
+	u8		tdma_dig_cnt;	/*for phydm_tdma_dig_timer_check use*/
+	u8		pre_tdma_dig_cnt;
+	u8		sec_factor;
+	u32		cur_timestamp;
+	u32		pre_timestamp;
+	u32		fa_start_timestamp;
+	u32		fa_end_timestamp;
+	u32		fa_acc_1sec_timestamp;
+#endif	
+};
+
+struct phydm_fa_struct {
+	u32		cnt_parity_fail;
+	u32		cnt_rate_illegal;
+	u32		cnt_crc8_fail;
+	u32		cnt_mcs_fail;
+	u32		cnt_ofdm_fail;
+	u32		cnt_ofdm_fail_pre;	/* For RTL8881A */
+	u32		cnt_cck_fail;
+	u32		cnt_all;
+	u32		cnt_all_pre;
+	u32		cnt_fast_fsync;
+	u32		cnt_sb_search_fail;
+	u32		cnt_ofdm_cca;
+	u32		cnt_cck_cca;
+	u32		cnt_cca_all;
+	u32		cnt_bw_usc;
+	u32		cnt_bw_lsc;
+	u32		cnt_cck_crc32_error;
+	u32		cnt_cck_crc32_ok;
+	u32		cnt_ofdm_crc32_error;
+	u32		cnt_ofdm_crc32_ok;
+	u32		cnt_ht_crc32_error;
+	u32		cnt_ht_crc32_ok;
+	u32		cnt_ht_crc32_error_agg;
+	u32		cnt_ht_crc32_ok_agg;
+	u32		cnt_vht_crc32_error;
+	u32		cnt_vht_crc32_ok;
+	u32		cnt_crc32_error_all;
+	u32		cnt_crc32_ok_all;
+	boolean	cck_block_enable;
+	boolean	ofdm_block_enable;
+	u32		dbg_port0;
+	boolean	edcca_flag;
+};
+
+#ifdef PHYDM_TDMA_DIG_SUPPORT
+struct phydm_fa_acc_struct {
+	u32		cnt_parity_fail;
+	u32		cnt_rate_illegal;
+	u32		cnt_crc8_fail;
+	u32		cnt_mcs_fail;
+	u32		cnt_ofdm_fail;
+	u32		cnt_ofdm_fail_pre;	/*For RTL8881A*/
+	u32		cnt_cck_fail;
+	u32		cnt_all;
+	u32		cnt_all_pre;
+	u32		cnt_fast_fsync;
+	u32		cnt_sb_search_fail;
+	u32		cnt_ofdm_cca;
+	u32		cnt_cck_cca;
+	u32		cnt_cca_all;
+	u32		cnt_cck_crc32_error;
+	u32		cnt_cck_crc32_ok;
+	u32		cnt_ofdm_crc32_error;
+	u32		cnt_ofdm_crc32_ok;
+	u32		cnt_ht_crc32_error;
+	u32		cnt_ht_crc32_ok;
+	u32		cnt_vht_crc32_error;
+	u32		cnt_vht_crc32_ok;
+	u32		cnt_crc32_error_all;
+	u32		cnt_crc32_ok_all;
+	u32		cnt_all_1sec;
+	u32		cnt_cca_all_1sec;
+	u32		cnt_cck_fail_1sec;
+};
+
+#endif	/*#ifdef PHYDM_TDMA_DIG_SUPPORT*/
+
+struct phydm_lna_sat_info_struct {
+	u32			sat_cnt_acc_patha;
+	u32			sat_cnt_acc_pathb;
+	u32			check_time;
+	boolean		pre_sat_status;
+	boolean		cur_sat_status;
+	struct timer_list	phydm_lna_sat_chk_timer;
+	u32			cur_timer_check_cnt;
+	u32			pre_timer_check_cnt;
+};
+
+/*--------------------Function declaration-----------------------------*/
+void
+odm_write_dig(
+	void					*p_dm_void,
+	u8					current_igi
 );
 
-VOID
-odm_MPT_DIGWorkItemCallback(
-    IN 		PVOID            			pContext
-    );
-
-#endif
-
-#if (DM_ODM_SUPPORT_TYPE & (ODM_AP|ODM_ADSL))
-VOID
-odm_MPT_DIGCallback(
-	IN		PVOID					pDM_VOID
+void
+phydm_set_dig_val(
+	void			*p_dm_void,
+	u32			*val_buf,
+	u8			val_len
 );
-#endif
 
-#if (DM_ODM_SUPPORT_TYPE != ODM_CE)
-VOID
-ODM_MPT_DIG(
-	IN		PVOID					pDM_VOID
+void
+odm_pause_dig(
+	void					*p_dm_void,
+	enum phydm_pause_type		pause_type,
+	enum phydm_pause_level		pause_level,
+	u8					igi_value
 );
-#endif
 
+void
+phydm_dig_init(
+	void					*p_dm_void
+);
+
+void
+phydm_dig(
+	void					*p_dm_void
+);
+
+void
+phydm_dig_lps_32k(
+	void		*p_dm_void
+);
+
+void
+phydm_dig_by_rssi_lps(
+	void					*p_dm_void
+);
+
+void
+odm_false_alarm_counter_statistics(
+	void					*p_dm_void
+);
+
+#ifdef PHYDM_TDMA_DIG_SUPPORT
+void
+phydm_set_tdma_dig_timer(
+	void					*p_dm_void
+);
+
+void
+phydm_tdma_dig_timer_check(
+	void					*p_dm_void
+);
+
+void
+phydm_tdma_dig(
+	void		*p_dm_void
+);
+
+void
+phydm_tdma_false_alarm_counter_check(
+	void		*p_dm_void
+);
+
+void
+phydm_tdma_dig_add_interrupt_mask_handler(
+	void		*p_dm_void
+);
+
+void
+phydm_false_alarm_counter_reset(
+	void		*p_dm_void
+);
+
+void
+phydm_false_alarm_counter_acc(
+	void		*p_dm_void,
+	boolean		rssi_dump_en
+	);
+
+void
+phydm_false_alarm_counter_acc_reset(
+	void		*p_dm_void
+	);
+
+#endif	/*#ifdef PHYDM_TDMA_DIG_SUPPORT*/
+
+void
+phydm_set_ofdm_agc_tab(
+	void	*p_dm_void,
+	u8		tab_sel
+);
+
+#ifdef PHYDM_LNA_SAT_CHK_SUPPORT
+u8
+phydm_get_ofdm_agc_tab(
+	void	*p_dm_void
+);
+
+void
+phydm_lna_sat_chk(
+	void		*p_dm_void
+);
+
+void
+phydm_lna_sat_chk_timers(
+	void		*p_dm_void,
+	u8			state
+);
+
+void
+phydm_lna_sat_chk_watchdog(
+	void		*p_dm_void
+);
+
+#endif	/*#if (PHYDM_LNA_SAT_CHK_SUPPORT == 1)*/
+
+void
+phydm_dig_debug(
+	void		*p_dm_void,
+	char		input[][16],
+	u32		*_used,
+	char		*output,
+	u32		*_out_len,
+	u32		input_num
+);
 
 #endif
