@@ -151,8 +151,8 @@ static struct tcf_proto *tcf_proto_create(const char *kind, u32 protocol,
 		} else {
 			err = -ENOENT;
 		}
-		goto errout;
 #endif
+		goto errout;
 	}
 	tp->classify = tp->ops->classify;
 	tp->protocol = protocol;
