@@ -2661,6 +2661,7 @@ static int phy_up_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 	struct device *dev = hisi_hba->dev;
 	u32 *frame_rcvd = (u32 *)sas_phy->frame_rcvd;
 	struct sas_identify_frame *id = (struct sas_identify_frame *)frame_rcvd;
+	unsigned long flags;
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_PHY_ENA_MSK, 1);
 
@@ -2713,6 +2714,12 @@ static int phy_up_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 			set_link_timer_quirk(hisi_hba);
 	}
 	hisi_sas_notify_phy_event(phy, HISI_PHYE_PHY_UP);
+	spin_lock_irqsave(&phy->lock, flags);
+	if (phy->reset_completion) {
+		phy->in_reset = 0;
+		complete(phy->reset_completion);
+	}
+	spin_unlock_irqrestore(&phy->lock, flags);
 
 end:
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0,
@@ -3201,6 +3208,7 @@ static irqreturn_t sata_int_v2_hw(int irq_no, void *p)
 	u32 ent_tmp, ent_msk, ent_int, port_id, link_rate, hard_phy_linkrate;
 	irqreturn_t res = IRQ_HANDLED;
 	u8 attached_sas_addr[SAS_ADDR_SIZE] = {0};
+	unsigned long flags;
 	int phy_no, offset;
 
 	phy_no = sas_phy->id;
@@ -3275,6 +3283,12 @@ static irqreturn_t sata_int_v2_hw(int irq_no, void *p)
 	phy->identify.target_port_protocols = SAS_PROTOCOL_SATA;
 	hisi_sas_notify_phy_event(phy, HISI_PHYE_PHY_UP);
 
+	spin_lock_irqsave(&phy->lock, flags);
+	if (phy->reset_completion) {
+		phy->in_reset = 0;
+		complete(phy->reset_completion);
+	}
+	spin_unlock_irqrestore(&phy->lock, flags);
 end:
 	hisi_sas_write32(hisi_hba, ENT_INT_SRC1 + offset, ent_tmp);
 	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1 + offset, ent_msk);

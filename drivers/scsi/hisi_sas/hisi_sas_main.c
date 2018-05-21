@@ -1529,12 +1529,39 @@ static int hisi_sas_clear_aca(struct domain_device *device, u8 *lun)
 
 static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 {
-	struct sas_phy *phy = sas_get_local_phy(device);
+	struct sas_phy *local_phy = sas_get_local_phy(device);
 	int rc, reset_type = (device->dev_type == SAS_SATA_DEV ||
 			(device->tproto & SAS_PROTOCOL_STP)) ? 0 : 1;
-	rc = sas_phy_reset(phy, reset_type);
-	sas_put_local_phy(phy);
-	msleep(2000);
+	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
+	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
+	struct asd_sas_phy *sas_phy = sas_ha->sas_phy[local_phy->number];
+	struct hisi_sas_phy *phy = container_of(sas_phy,
+			struct hisi_sas_phy, sas_phy);
+	DECLARE_COMPLETION_ONSTACK(phyreset);
+
+	if (scsi_is_sas_phy_local(local_phy)) {
+		phy->in_reset = 1;
+		phy->reset_completion = &phyreset;
+	}
+
+	rc = sas_phy_reset(local_phy, reset_type);
+	sas_put_local_phy(local_phy);
+
+	if (scsi_is_sas_phy_local(local_phy)) {
+		int ret = wait_for_completion_timeout(&phyreset, 2 * HZ);
+		unsigned long flags;
+
+		spin_lock_irqsave(&phy->lock, flags);
+		phy->reset_completion = NULL;
+		phy->in_reset = 0;
+		spin_unlock_irqrestore(&phy->lock, flags);
+
+		/* report PHY down if timed out */
+		if (!ret)
+			hisi_sas_phy_down(hisi_hba, sas_phy->id, 0);
+	} else
+		msleep(2000);
+
 	return rc;
 }
 
@@ -1883,6 +1910,7 @@ void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy)
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
+	struct device *dev = hisi_hba->dev;
 
 	if (rdy) {
 		/* Phy down but ready */
@@ -1891,6 +1919,10 @@ void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy)
 	} else {
 		struct hisi_sas_port *port  = phy->port;
 
+		if (phy->in_reset) {
+			dev_info(dev, "ignore flutter phy%d down\n", phy_no);
+			return;
+		}
 		/* Phy down and not ready */
 		sas_ha->notify_phy_event(sas_phy, PHYE_LOSS_OF_SIGNAL);
 		sas_phy_disconnected(sas_phy);
