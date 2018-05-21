@@ -39,9 +39,15 @@
 MODULE_FIRMWARE("amdgpu/vega20_sos.bin");
 MODULE_FIRMWARE("amdgpu/vega20_asd.bin");
 MODULE_FIRMWARE("amdgpu/vega20_ta.bin");
+MODULE_FIRMWARE("amdgpu/navi10_sos.bin");
 
 /* address block */
 #define smnMP1_FIRMWARE_FLAGS		0x3010024
+/* navi10 reg offset define */
+#define mmRLC_GPM_UCODE_ADDR_NV10	0x5b61
+#define mmRLC_GPM_UCODE_DATA_NV10	0x5b62
+#define mmSDMA0_UCODE_ADDR_NV10		0x5880
+#define mmSDMA0_UCODE_DATA_NV10		0x5881
 
 static int psp_v11_0_init_microcode(struct psp_context *psp)
 {
@@ -58,6 +64,9 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
 		chip_name = "vega20";
+		break;
+	case CHIP_NAVI10:
+		chip_name = "navi10";
 		break;
 	default:
 		BUG();
@@ -499,14 +508,24 @@ psp_v11_0_sram_map(struct amdgpu_device *adev,
 
 	case AMDGPU_UCODE_ID_RLC_G:
 		*sram_offset = 0x2000;
-		*sram_addr_reg_offset = SOC15_REG_OFFSET(GC, 0, mmRLC_GPM_UCODE_ADDR);
-		*sram_data_reg_offset = SOC15_REG_OFFSET(GC, 0, mmRLC_GPM_UCODE_DATA);
+		if (adev->asic_type != CHIP_NAVI10) {
+			*sram_addr_reg_offset = SOC15_REG_OFFSET(GC, 0, mmRLC_GPM_UCODE_ADDR);
+			*sram_data_reg_offset = SOC15_REG_OFFSET(GC, 0, mmRLC_GPM_UCODE_DATA);
+		} else {
+			*sram_addr_reg_offset = adev->reg_offset[GC_HWIP][0][1] + mmRLC_GPM_UCODE_ADDR_NV10;
+			*sram_data_reg_offset = adev->reg_offset[GC_HWIP][0][1] + mmRLC_GPM_UCODE_DATA_NV10;
+		}
 		break;
 
 	case AMDGPU_UCODE_ID_SDMA0:
 		*sram_offset = 0x0;
-		*sram_addr_reg_offset = SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_UCODE_ADDR);
-		*sram_data_reg_offset = SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_UCODE_DATA);
+		if (adev->asic_type != CHIP_NAVI10) {
+			*sram_addr_reg_offset = SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_UCODE_ADDR);
+			*sram_data_reg_offset = SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_UCODE_DATA);
+		} else {
+			*sram_addr_reg_offset = adev->reg_offset[GC_HWIP][0][1] + mmSDMA0_UCODE_ADDR_NV10;
+			*sram_data_reg_offset = adev->reg_offset[GC_HWIP][0][1] + mmSDMA0_UCODE_DATA_NV10;
+		}
 		break;
 
 /* TODO: needs to confirm */

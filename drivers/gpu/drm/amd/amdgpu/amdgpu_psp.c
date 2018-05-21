@@ -51,6 +51,7 @@ static int psp_early_init(void *handle)
 		psp_v10_0_set_psp_funcs(psp);
 		break;
 	case CHIP_VEGA20:
+	case CHIP_NAVI10:
 		psp_v11_0_set_psp_funcs(psp);
 		break;
 	default:
