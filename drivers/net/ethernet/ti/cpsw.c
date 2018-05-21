@@ -1281,8 +1281,8 @@ static void cpsw_add_ch_strings(u8 **p, int ch_num, int rx_dir)
 	for (i = 0; i < ch_stats_len; i++) {
 		line = i % CPSW_STATS_CH_LEN;
 		snprintf(*p, ETH_GSTRING_LEN,
-			 "%s DMA chan %d: %s", rx_dir ? "Rx" : "Tx",
-			 i / CPSW_STATS_CH_LEN,
+			 "%s DMA chan %ld: %s", rx_dir ? "Rx" : "Tx",
+			 (long)(i / CPSW_STATS_CH_LEN),
 			 cpsw_gstrings_ch_stats[line].stat_string);
 		*p += ETH_GSTRING_LEN;
 	}
