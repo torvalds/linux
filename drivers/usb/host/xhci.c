@@ -400,13 +400,15 @@ static void compliance_mode_recovery(struct timer_list *t)
 {
 	struct xhci_hcd *xhci;
 	struct usb_hcd *hcd;
+	struct xhci_hub *rhub;
 	u32 temp;
 	int i;
 
 	xhci = from_timer(xhci, t, comp_mode_recovery_timer);
+	rhub = &xhci->usb3_rhub;
 
-	for (i = 0; i < xhci->num_usb3_ports; i++) {
-		temp = readl(xhci->usb3_ports[i]);
+	for (i = 0; i < rhub->num_ports; i++) {
+		temp = readl(rhub->ports[i]->addr);
 		if ((temp & PORT_PLS_MASK) == USB_SS_PORT_LS_COMP_MOD) {
 			/*
 			 * Compliance Mode Detected. Letting USB Core
@@ -426,7 +428,7 @@ static void compliance_mode_recovery(struct timer_list *t)
 		}
 	}
 
-	if (xhci->port_status_u0 != ((1 << xhci->num_usb3_ports)-1))
+	if (xhci->port_status_u0 != ((1 << rhub->num_ports) - 1))
 		mod_timer(&xhci->comp_mode_recovery_timer,
 			jiffies + msecs_to_jiffies(COMP_MODE_RCVRY_MSECS));
 }
@@ -483,7 +485,7 @@ static bool xhci_compliance_mode_recovery_timer_quirk_check(void)
 
 static int xhci_all_ports_seen_u0(struct xhci_hcd *xhci)
 {
-	return (xhci->port_status_u0 == ((1 << xhci->num_usb3_ports)-1));
+	return (xhci->port_status_u0 == ((1 << xhci->usb3_rhub.num_ports) - 1));
 }
 
 
@@ -812,33 +814,33 @@ static void xhci_clear_command_ring(struct xhci_hcd *xhci)
 
 static void xhci_disable_port_wake_on_bits(struct xhci_hcd *xhci)
 {
+	struct xhci_port **ports;
 	int port_index;
-	__le32 __iomem **port_array;
 	unsigned long flags;
 	u32 t1, t2;
 
 	spin_lock_irqsave(&xhci->lock, flags);
 
 	/* disable usb3 ports Wake bits */
-	port_index = xhci->num_usb3_ports;
-	port_array = xhci->usb3_ports;
+	port_index = xhci->usb3_rhub.num_ports;
+	ports = xhci->usb3_rhub.ports;
 	while (port_index--) {
-		t1 = readl(port_array[port_index]);
+		t1 = readl(ports[port_index]->addr);
 		t1 = xhci_port_state_to_neutral(t1);
 		t2 = t1 & ~PORT_WAKE_BITS;
 		if (t1 != t2)
-			writel(t2, port_array[port_index]);
+			writel(t2, ports[port_index]->addr);
 	}
 
 	/* disable usb2 ports Wake bits */
-	port_index = xhci->num_usb2_ports;
-	port_array = xhci->usb2_ports;
+	port_index = xhci->usb2_rhub.num_ports;
+	ports = xhci->usb2_rhub.ports;
 	while (port_index--) {
-		t1 = readl(port_array[port_index]);
+		t1 = readl(ports[port_index]->addr);
 		t1 = xhci_port_state_to_neutral(t1);
 		t2 = t1 & ~PORT_WAKE_BITS;
 		if (t1 != t2)
-			writel(t2, port_array[port_index]);
+			writel(t2, ports[port_index]->addr);
 	}
 
 	spin_unlock_irqrestore(&xhci->lock, flags);
@@ -3976,18 +3978,10 @@ static int xhci_enable_device(struct usb_hcd *hcd, struct usb_device *udev)
  */
 int xhci_find_raw_port_number(struct usb_hcd *hcd, int port1)
 {
-	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-	__le32 __iomem *base_addr = &xhci->op_regs->port_status_base;
-	__le32 __iomem *addr;
-	int raw_port;
+	struct xhci_hub *rhub;
 
-	if (hcd->speed < HCD_USB3)
-		addr = xhci->usb2_ports[port1 - 1];
-	else
-		addr = xhci->usb3_ports[port1 - 1];
-
-	raw_port = (addr - base_addr)/NUM_PORT_REGS + 1;
-	return raw_port;
+	rhub = xhci_get_rhub(hcd);
+	return rhub->ports[port1 - 1]->hw_portnum + 1;
 }
 
 /*
@@ -4120,7 +4114,7 @@ static int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
 			struct usb_device *udev, int enable)
 {
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
-	__le32 __iomem	**port_array;
+	struct xhci_port **ports;
 	__le32 __iomem	*pm_addr, *hlpm_addr;
 	u32		pm_val, hlpm_val, field;
 	unsigned int	port_num;
@@ -4141,11 +4135,11 @@ static int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
 
 	spin_lock_irqsave(&xhci->lock, flags);
 
-	port_array = xhci->usb2_ports;
+	ports = xhci->usb2_rhub.ports;
 	port_num = udev->portnum - 1;
-	pm_addr = port_array[port_num] + PORTPMSC;
+	pm_addr = ports[port_num]->addr + PORTPMSC;
 	pm_val = readl(pm_addr);
-	hlpm_addr = port_array[port_num] + PORTHLPMC;
+	hlpm_addr = ports[port_num]->addr + PORTHLPMC;
 	field = le32_to_cpu(udev->bos->ext_cap->bmAttributes);
 
 	xhci_dbg(xhci, "%s port %d USB2 hardware LPM\n",
