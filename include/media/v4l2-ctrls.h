@@ -250,6 +250,12 @@ struct v4l2_ctrl {
  *		``prepare_ext_ctrls`` function at ``v4l2-ctrl.c``.
  * @from_other_dev: If true, then @ctrl was defined in another
  *		device than the &struct v4l2_ctrl_handler.
+ * @req_done:	Internal flag: if the control handler containing this control
+ *		reference is bound to a media request, then this is set when
+ *		the control has been applied. This prevents applying controls
+ *		from a cluster with multiple controls twice (when the first
+ *		control of a cluster is applied, they all are).
+ * @req:	If set, this refers to another request that sets this control.
  * @p_req:	If the control handler containing this control reference
  *		is bound to a media request, then this points to the
  *		value of the control that should be applied when the request
@@ -266,6 +272,8 @@ struct v4l2_ctrl_ref {
 	struct v4l2_ctrl *ctrl;
 	struct v4l2_ctrl_helper *helper;
 	bool from_other_dev;
+	bool req_done;
+	struct v4l2_ctrl_ref *req;
 	union v4l2_ctrl_ptr p_req;
 };
 
@@ -290,6 +298,15 @@ struct v4l2_ctrl_ref {
  * @notify_priv: Passed as argument to the v4l2_ctrl notify callback.
  * @nr_of_buckets: Total number of buckets in the array.
  * @error:	The error code of the first failed control addition.
+ * @request_is_queued: True if the request was queued.
+ * @requests:	List to keep track of open control handler request objects.
+ *		For the parent control handler (@req_obj.req == NULL) this
+ *		is the list header. When the parent control handler is
+ *		removed, it has to unbind and put all these requests since
+ *		they refer to the parent.
+ * @requests_queued: List of the queued requests. This determines the order
+ *		in which these controls are applied. Once the request is
+ *		completed it is removed from this list.
  * @req_obj:	The &struct media_request_object, used to link into a
  *		&struct media_request. This request object has a refcount.
  */
@@ -304,6 +321,9 @@ struct v4l2_ctrl_handler {
 	void *notify_priv;
 	u16 nr_of_buckets;
 	int error;
+	bool request_is_queued;
+	struct list_head requests;
+	struct list_head requests_queued;
 	struct media_request_object req_obj;
 };
 
@@ -1061,6 +1081,37 @@ int v4l2_ctrl_subscribe_event(struct v4l2_fh *fh,
  * @wait: pointer to struct poll_table_struct
  */
 __poll_t v4l2_ctrl_poll(struct file *file, struct poll_table_struct *wait);
+
+/**
+ * v4l2_ctrl_request_setup - helper function to apply control values in a request
+ *
+ * @req: The request
+ * @parent: The parent control handler ('priv' in media_request_object_find())
+ *
+ * This is a helper function to call the control handler's s_ctrl callback with
+ * the control values contained in the request. Do note that this approach of
+ * applying control values in a request is only applicable to memory-to-memory
+ * devices.
+ */
+void v4l2_ctrl_request_setup(struct media_request *req,
+			     struct v4l2_ctrl_handler *parent);
+
+/**
+ * v4l2_ctrl_request_complete - Complete a control handler request object
+ *
+ * @req: The request
+ * @parent: The parent control handler ('priv' in media_request_object_find())
+ *
+ * This function is to be called on each control handler that may have had a
+ * request object associated with it, i.e. control handlers of a driver that
+ * supports requests.
+ *
+ * The function first obtains the values of any volatile controls in the control
+ * handler and attach them to the request. Then, the function completes the
+ * request object.
+ */
+void v4l2_ctrl_request_complete(struct media_request *req,
+				struct v4l2_ctrl_handler *hdl);
 
 /* Helpers for ioctl_ops */
 
