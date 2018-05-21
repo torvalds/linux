@@ -765,6 +765,7 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 	musb->dev.parent		= dev;
 	musb->dev.dma_mask		= &musb_dmamask;
 	musb->dev.coherent_dma_mask	= musb_dmamask;
+	device_set_of_node_from_dev(&musb->dev, &parent->dev);
 
 	glue->musb = musb;
 
