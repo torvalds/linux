@@ -37,7 +37,7 @@
 
 #define DEBUG_SUBSYSTEM S_SEC
 
-#include <linux/libcfs/libcfs_all.h>
+#include <linux/libcfs/libcfs.h>
 
 #include <obd.h>
 #include <obd_cksum.h>

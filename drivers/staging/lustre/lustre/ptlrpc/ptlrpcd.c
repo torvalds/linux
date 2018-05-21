@@ -52,8 +52,10 @@
 
 #define DEBUG_SUBSYSTEM S_RPC
 
-#include <linux/libcfs/libcfs_all.h>
-
+#include <linux/kthread.h>
+#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_cpu.h>
+#include <linux/libcfs/libcfs_string.h>
 #include <lustre_net.h>
 #include <lustre_lib.h>
 #include <lustre_ha.h>

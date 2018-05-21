@@ -39,8 +39,6 @@
 
 #define DEBUG_SUBSYSTEM S_LOG
 
-#include <linux/libcfs/libcfs_all.h>
-
 #include <obd_class.h>
 #include <lustre_log.h>
 #include <lustre_net.h>
