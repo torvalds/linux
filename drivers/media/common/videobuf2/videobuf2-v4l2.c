@@ -154,17 +154,11 @@ static void vb2_warn_zero_bytesused(struct vb2_buffer *vb)
 		pr_warn("use the actual size instead.\n");
 }
 
-/*
- * __fill_vb2_buffer() - fill a vb2_buffer with information provided in a
- * v4l2_buffer by the userspace. It also verifies that struct
- * v4l2_buffer has a valid number of planes.
- */
-static int __fill_vb2_buffer(struct vb2_buffer *vb,
-		const void *pb, struct vb2_plane *planes)
+static int vb2_fill_vb2_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b)
 {
 	struct vb2_queue *q = vb->vb2_queue;
-	const struct v4l2_buffer *b = pb;
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct vb2_plane *planes = vbuf->planes;
 	unsigned int plane;
 	int ret;
 
@@ -186,7 +180,6 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb,
 		dprintk(1, "the field is incorrectly set to ALTERNATE for an output buffer\n");
 		return -EINVAL;
 	}
-	vb->timestamp = 0;
 	vbuf->sequence = 0;
 
 	if (V4L2_TYPE_IS_MULTIPLANAR(b->type)) {
@@ -208,6 +201,12 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb,
 			}
 			break;
 		default:
+			for (plane = 0; plane < vb->num_planes; ++plane) {
+				planes[plane].m.offset =
+					vb->planes[plane].m.offset;
+				planes[plane].length =
+					vb->planes[plane].length;
+			}
 			break;
 		}
 
@@ -269,9 +268,12 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb,
 			planes[0].length = b->length;
 			break;
 		default:
+			planes[0].m.offset = vb->planes[0].m.offset;
+			planes[0].length = vb->planes[0].length;
 			break;
 		}
 
+		planes[0].data_offset = 0;
 		if (V4L2_TYPE_IS_OUTPUT(b->type)) {
 			if (b->bytesused == 0)
 				vb2_warn_zero_bytesused(vb);
@@ -286,7 +288,7 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb,
 
 	}
 
-	/* Zero flags that the vb2 core handles */
+	/* Zero flags that we handle */
 	vbuf->flags = b->flags & ~V4L2_BUFFER_MASK_FLAGS;
 	if (!vb->vb2_queue->copy_timestamp || !V4L2_TYPE_IS_OUTPUT(b->type)) {
 		/*
@@ -319,6 +321,10 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb,
 static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b,
 				    const char *opname)
 {
+	struct vb2_v4l2_buffer *vbuf;
+	struct vb2_buffer *vb;
+	int ret;
+
 	if (b->type != q->type) {
 		dprintk(1, "%s: invalid buffer type\n", opname);
 		return -EINVAL;
@@ -340,7 +346,15 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b,
 		return -EINVAL;
 	}
 
-	return __verify_planes_array(q->bufs[b->index], b);
+	vb = q->bufs[b->index];
+	vbuf = to_vb2_v4l2_buffer(vb);
+	ret = __verify_planes_array(vb, b);
+	if (ret)
+		return ret;
+
+	/* Copy relevant information provided by the userspace */
+	memset(vbuf->planes, 0, sizeof(vbuf->planes[0]) * vb->num_planes);
+	return vb2_fill_vb2_v4l2_buffer(vb, b);
 }
 
 /*
@@ -446,6 +460,30 @@ static void __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
 		b->flags & V4L2_BUF_FLAG_DONE &&
 		b->flags & V4L2_BUF_FLAG_LAST)
 		q->last_buffer_dequeued = true;
+}
+
+/*
+ * __fill_vb2_buffer() - fill a vb2_buffer with information provided in a
+ * v4l2_buffer by the userspace. It also verifies that struct
+ * v4l2_buffer has a valid number of planes.
+ */
+static int __fill_vb2_buffer(struct vb2_buffer *vb, struct vb2_plane *planes)
+{
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	unsigned int plane;
+
+	if (!vb->vb2_queue->is_output || !vb->vb2_queue->copy_timestamp)
+		vb->timestamp = 0;
+
+	for (plane = 0; plane < vb->num_planes; ++plane) {
+		if (vb->vb2_queue->memory != VB2_MEMORY_MMAP) {
+			planes[plane].m = vbuf->planes[plane].m;
+			planes[plane].length = vbuf->planes[plane].length;
+		}
+		planes[plane].bytesused = vbuf->planes[plane].bytesused;
+		planes[plane].data_offset = vbuf->planes[plane].data_offset;
+	}
+	return 0;
 }
 
 static const struct vb2_buf_ops v4l2_buf_ops = {

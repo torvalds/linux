@@ -967,20 +967,19 @@ EXPORT_SYMBOL_GPL(vb2_discard_done);
 /*
  * __prepare_mmap() - prepare an MMAP buffer
  */
-static int __prepare_mmap(struct vb2_buffer *vb, const void *pb)
+static int __prepare_mmap(struct vb2_buffer *vb)
 {
 	int ret = 0;
 
-	if (pb)
-		ret = call_bufop(vb->vb2_queue, fill_vb2_buffer,
-				 vb, pb, vb->planes);
+	ret = call_bufop(vb->vb2_queue, fill_vb2_buffer,
+			 vb, vb->planes);
 	return ret ? ret : call_vb_qop(vb, buf_prepare, vb);
 }
 
 /*
  * __prepare_userptr() - prepare a USERPTR buffer
  */
-static int __prepare_userptr(struct vb2_buffer *vb, const void *pb)
+static int __prepare_userptr(struct vb2_buffer *vb)
 {
 	struct vb2_plane planes[VB2_MAX_PLANES];
 	struct vb2_queue *q = vb->vb2_queue;
@@ -991,12 +990,10 @@ static int __prepare_userptr(struct vb2_buffer *vb, const void *pb)
 
 	memset(planes, 0, sizeof(planes[0]) * vb->num_planes);
 	/* Copy relevant information provided by the userspace */
-	if (pb) {
-		ret = call_bufop(vb->vb2_queue, fill_vb2_buffer,
-				 vb, pb, planes);
-		if (ret)
-			return ret;
-	}
+	ret = call_bufop(vb->vb2_queue, fill_vb2_buffer,
+			 vb, planes);
+	if (ret)
+		return ret;
 
 	for (plane = 0; plane < vb->num_planes; ++plane) {
 		/* Skip the plane if already verified */
@@ -1096,7 +1093,7 @@ err:
 /*
  * __prepare_dmabuf() - prepare a DMABUF buffer
  */
-static int __prepare_dmabuf(struct vb2_buffer *vb, const void *pb)
+static int __prepare_dmabuf(struct vb2_buffer *vb)
 {
 	struct vb2_plane planes[VB2_MAX_PLANES];
 	struct vb2_queue *q = vb->vb2_queue;
@@ -1107,12 +1104,10 @@ static int __prepare_dmabuf(struct vb2_buffer *vb, const void *pb)
 
 	memset(planes, 0, sizeof(planes[0]) * vb->num_planes);
 	/* Copy relevant information provided by the userspace */
-	if (pb) {
-		ret = call_bufop(vb->vb2_queue, fill_vb2_buffer,
-				 vb, pb, planes);
-		if (ret)
-			return ret;
-	}
+	ret = call_bufop(vb->vb2_queue, fill_vb2_buffer,
+			 vb, planes);
+	if (ret)
+		return ret;
 
 	for (plane = 0; plane < vb->num_planes; ++plane) {
 		struct dma_buf *dbuf = dma_buf_get(planes[plane].m.fd);
@@ -1241,7 +1236,7 @@ static void __enqueue_in_driver(struct vb2_buffer *vb)
 	call_void_vb_qop(vb, buf_queue, vb);
 }
 
-static int __buf_prepare(struct vb2_buffer *vb, const void *pb)
+static int __buf_prepare(struct vb2_buffer *vb)
 {
 	struct vb2_queue *q = vb->vb2_queue;
 	unsigned int plane;
@@ -1256,13 +1251,13 @@ static int __buf_prepare(struct vb2_buffer *vb, const void *pb)
 
 	switch (q->memory) {
 	case VB2_MEMORY_MMAP:
-		ret = __prepare_mmap(vb, pb);
+		ret = __prepare_mmap(vb);
 		break;
 	case VB2_MEMORY_USERPTR:
-		ret = __prepare_userptr(vb, pb);
+		ret = __prepare_userptr(vb);
 		break;
 	case VB2_MEMORY_DMABUF:
-		ret = __prepare_dmabuf(vb, pb);
+		ret = __prepare_dmabuf(vb);
 		break;
 	default:
 		WARN(1, "Invalid queue type\n");
@@ -1296,7 +1291,7 @@ int vb2_core_prepare_buf(struct vb2_queue *q, unsigned int index, void *pb)
 		return -EINVAL;
 	}
 
-	ret = __buf_prepare(vb, pb);
+	ret = __buf_prepare(vb);
 	if (ret)
 		return ret;
 
@@ -1386,7 +1381,7 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb)
 
 	switch (vb->state) {
 	case VB2_BUF_STATE_DEQUEUED:
-		ret = __buf_prepare(vb, pb);
+		ret = __buf_prepare(vb);
 		if (ret)
 			return ret;
 		break;

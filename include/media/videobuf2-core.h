@@ -417,8 +417,7 @@ struct vb2_ops {
 struct vb2_buf_ops {
 	int (*verify_planes_array)(struct vb2_buffer *vb, const void *pb);
 	void (*fill_user_buffer)(struct vb2_buffer *vb, void *pb);
-	int (*fill_vb2_buffer)(struct vb2_buffer *vb, const void *pb,
-				struct vb2_plane *planes);
+	int (*fill_vb2_buffer)(struct vb2_buffer *vb, struct vb2_plane *planes);
 	void (*copy_timestamp)(struct vb2_buffer *vb, const void *pb);
 };
 
