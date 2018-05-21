@@ -138,6 +138,26 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 
 			break;
 		}
+#ifdef CONFIG_PPC_FPU
+		case LOAD_FP:
+			if (kvmppc_check_fp_disabled(vcpu))
+				return EMULATE_DONE;
+
+			if (op.type & FPCONV)
+				vcpu->arch.mmio_sp64_extend = 1;
+
+			if (op.type & SIGNEXT)
+				emulated = kvmppc_handle_loads(run, vcpu,
+					     KVM_MMIO_REG_FPR|op.reg, size, 1);
+			else
+				emulated = kvmppc_handle_load(run, vcpu,
+					     KVM_MMIO_REG_FPR|op.reg, size, 1);
+
+			if ((op.type & UPDATE) && (emulated != EMULATE_FAIL))
+				kvmppc_set_gpr(vcpu, op.update_reg, op.ea);
+
+			break;
+#endif
 		case STORE:
 			/* if need byte reverse, op.val has been reversed by
 			 * analyse_instr().
@@ -149,6 +169,30 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 				kvmppc_set_gpr(vcpu, op.update_reg, op.ea);
 
 			break;
+#ifdef CONFIG_PPC_FPU
+		case STORE_FP:
+			if (kvmppc_check_fp_disabled(vcpu))
+				return EMULATE_DONE;
+
+			/* The FP registers need to be flushed so that
+			 * kvmppc_handle_store() can read actual FP vals
+			 * from vcpu->arch.
+			 */
+			if (vcpu->kvm->arch.kvm_ops->giveup_ext)
+				vcpu->kvm->arch.kvm_ops->giveup_ext(vcpu,
+						MSR_FP);
+
+			if (op.type & FPCONV)
+				vcpu->arch.mmio_sp64_extend = 1;
+
+			emulated = kvmppc_handle_store(run, vcpu,
+					VCPU_FPR(vcpu, op.reg), size, 1);
+
+			if ((op.type & UPDATE) && (emulated != EMULATE_FAIL))
+				kvmppc_set_gpr(vcpu, op.update_reg, op.ea);
+
+			break;
+#endif
 		case CACHEOP:
 			/* Do nothing. The guest is performing dcbi because
 			 * hardware DMA is not snooped by the dcache, but
@@ -170,93 +214,6 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 	switch (get_op(inst)) {
 	case 31:
 		switch (get_xop(inst)) {
-#ifdef CONFIG_PPC_FPU
-		case OP_31_XOP_LFSX:
-			if (kvmppc_check_fp_disabled(vcpu))
-				return EMULATE_DONE;
-			vcpu->arch.mmio_sp64_extend = 1;
-			emulated = kvmppc_handle_load(run, vcpu,
-				KVM_MMIO_REG_FPR|rt, 4, 1);
-			break;
-
-		case OP_31_XOP_LFSUX:
-			if (kvmppc_check_fp_disabled(vcpu))
-				return EMULATE_DONE;
-			vcpu->arch.mmio_sp64_extend = 1;
-			emulated = kvmppc_handle_load(run, vcpu,
-				KVM_MMIO_REG_FPR|rt, 4, 1);
-			kvmppc_set_gpr(vcpu, ra, vcpu->arch.vaddr_accessed);
-			break;
-
-		case OP_31_XOP_LFDX:
-			if (kvmppc_check_fp_disabled(vcpu))
-				return EMULATE_DONE;
-			emulated = kvmppc_handle_load(run, vcpu,
-				KVM_MMIO_REG_FPR|rt, 8, 1);
-			break;
-
-		case OP_31_XOP_LFDUX:
-			if (kvmppc_check_fp_disabled(vcpu))
-				return EMULATE_DONE;
-			emulated = kvmppc_handle_load(run, vcpu,
-				KVM_MMIO_REG_FPR|rt, 8, 1);
-			kvmppc_set_gpr(vcpu, ra, vcpu->arch.vaddr_accessed);
-			break;
-
-		case OP_31_XOP_LFIWAX:
-			if (kvmppc_check_fp_disabled(vcpu))
-				return EMULATE_DONE;
-			emulated = kvmppc_handle_loads(run, vcpu,
-				KVM_MMIO_REG_FPR|rt, 4, 1);
-			break;
-
-		case OP_31_XOP_LFIWZX:
-			if (kvmppc_check_fp_disabled(vcpu))
-				return EMULATE_DONE;
-			emulated = kvmppc_handle_load(run, vcpu,
-				KVM_MMIO_REG_FPR|rt, 4, 1);
-			break;
-
-		case OP_31_XOP_STFSX:
-			if (kvmppc_check_fp_disabled(vcpu))
-				return EMULATE_DONE;
-			vcpu->arch.mmio_sp64_extend = 1;
-			emulated = kvmppc_handle_store(run, vcpu,
-				VCPU_FPR(vcpu, rs), 4, 1);
-			break;
-
-		case OP_31_XOP_STFSUX:
-			if (kvmppc_check_fp_disabled(vcpu))
-				return EMULATE_DONE;
-			vcpu->arch.mmio_sp64_extend = 1;
-			emulated = kvmppc_handle_store(run, vcpu,
-				VCPU_FPR(vcpu, rs), 4, 1);
-			kvmppc_set_gpr(vcpu, ra, vcpu->arch.vaddr_accessed);
-			break;
-
-		case OP_31_XOP_STFDX:
-			if (kvmppc_check_fp_disabled(vcpu))
-				return EMULATE_DONE;
-			emulated = kvmppc_handle_store(run, vcpu,
-				VCPU_FPR(vcpu, rs), 8, 1);
-			break;
-
-		case OP_31_XOP_STFDUX:
-			if (kvmppc_check_fp_disabled(vcpu))
-				return EMULATE_DONE;
-			emulated = kvmppc_handle_store(run, vcpu,
-				VCPU_FPR(vcpu, rs), 8, 1);
-			kvmppc_set_gpr(vcpu, ra, vcpu->arch.vaddr_accessed);
-			break;
-
-		case OP_31_XOP_STFIWX:
-			if (kvmppc_check_fp_disabled(vcpu))
-				return EMULATE_DONE;
-			emulated = kvmppc_handle_store(run, vcpu,
-				VCPU_FPR(vcpu, rs), 4, 1);
-			break;
-#endif
-
 #ifdef CONFIG_VSX
 		case OP_31_XOP_LXSDX:
 			if (kvmppc_check_vsx_disabled(vcpu))
@@ -420,76 +377,6 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 			break;
 		}
 		break;
-
-#ifdef CONFIG_PPC_FPU
-	case OP_STFS:
-		if (kvmppc_check_fp_disabled(vcpu))
-			return EMULATE_DONE;
-		vcpu->arch.mmio_sp64_extend = 1;
-		emulated = kvmppc_handle_store(run, vcpu,
-			VCPU_FPR(vcpu, rs),
-			4, 1);
-		break;
-
-	case OP_STFSU:
-		if (kvmppc_check_fp_disabled(vcpu))
-			return EMULATE_DONE;
-		vcpu->arch.mmio_sp64_extend = 1;
-		emulated = kvmppc_handle_store(run, vcpu,
-			VCPU_FPR(vcpu, rs),
-			4, 1);
-		kvmppc_set_gpr(vcpu, ra, vcpu->arch.vaddr_accessed);
-		break;
-
-	case OP_STFD:
-		if (kvmppc_check_fp_disabled(vcpu))
-			return EMULATE_DONE;
-		emulated = kvmppc_handle_store(run, vcpu,
-			VCPU_FPR(vcpu, rs),
-	                               8, 1);
-		break;
-
-	case OP_STFDU:
-		if (kvmppc_check_fp_disabled(vcpu))
-			return EMULATE_DONE;
-		emulated = kvmppc_handle_store(run, vcpu,
-			VCPU_FPR(vcpu, rs),
-	                               8, 1);
-		kvmppc_set_gpr(vcpu, ra, vcpu->arch.vaddr_accessed);
-		break;
-
-	case OP_LFS:
-		if (kvmppc_check_fp_disabled(vcpu))
-			return EMULATE_DONE;
-		vcpu->arch.mmio_sp64_extend = 1;
-		emulated = kvmppc_handle_load(run, vcpu,
-			KVM_MMIO_REG_FPR|rt, 4, 1);
-		break;
-
-	case OP_LFSU:
-		if (kvmppc_check_fp_disabled(vcpu))
-			return EMULATE_DONE;
-		vcpu->arch.mmio_sp64_extend = 1;
-		emulated = kvmppc_handle_load(run, vcpu,
-			KVM_MMIO_REG_FPR|rt, 4, 1);
-		kvmppc_set_gpr(vcpu, ra, vcpu->arch.vaddr_accessed);
-		break;
-
-	case OP_LFD:
-		if (kvmppc_check_fp_disabled(vcpu))
-			return EMULATE_DONE;
-		emulated = kvmppc_handle_load(run, vcpu,
-			KVM_MMIO_REG_FPR|rt, 8, 1);
-		break;
-
-	case OP_LFDU:
-		if (kvmppc_check_fp_disabled(vcpu))
-			return EMULATE_DONE;
-		emulated = kvmppc_handle_load(run, vcpu,
-			KVM_MMIO_REG_FPR|rt, 8, 1);
-		kvmppc_set_gpr(vcpu, ra, vcpu->arch.vaddr_accessed);
-		break;
-#endif
 
 	default:
 		emulated = EMULATE_FAIL;
