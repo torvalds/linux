@@ -4,6 +4,8 @@
  * Copyright © 2018 Intel Corporation
  */
 
+#include <linux/nospec.h>
+
 #include "i915_drv.h"
 #include "i915_query.h"
 #include <uapi/drm/i915_drm.h>
@@ -111,10 +113,12 @@ int i915_query_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 		func_idx = item.query_id - 1;
 
-		if (func_idx < ARRAY_SIZE(i915_query_funcs))
+		ret = -EINVAL;
+		if (func_idx < ARRAY_SIZE(i915_query_funcs)) {
+			func_idx = array_index_nospec(func_idx,
+						      ARRAY_SIZE(i915_query_funcs));
 			ret = i915_query_funcs[func_idx](dev_priv, &item);
-		else
-			ret = -EINVAL;
+		}
 
 		/* Only write the length back to userspace if they differ. */
 		if (ret != item.length && put_user(ret, &user_item_ptr->length))
