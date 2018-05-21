@@ -1789,6 +1789,7 @@ static struct kvmppc_ops kvm_ops_pr = {
 #ifdef CONFIG_PPC_BOOK3S_64
 	.hcall_implemented = kvmppc_hcall_impl_pr,
 #endif
+	.giveup_ext = kvmppc_giveup_ext,
 };
 
 

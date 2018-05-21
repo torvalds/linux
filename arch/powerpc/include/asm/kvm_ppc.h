@@ -324,6 +324,7 @@ struct kvmppc_ops {
 	int (*get_rmmu_info)(struct kvm *kvm, struct kvm_ppc_rmmu_info *info);
 	int (*set_smt_mode)(struct kvm *kvm, unsigned long mode,
 			    unsigned long flags);
+	void (*giveup_ext)(struct kvm_vcpu *vcpu, ulong msr);
 };
 
 extern struct kvmppc_ops *kvmppc_hv_ops;
