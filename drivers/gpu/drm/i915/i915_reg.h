@@ -6789,6 +6789,10 @@ enum {
 #define _PS_VPHASE_1B       0x68988
 #define _PS_VPHASE_2B       0x68A88
 #define _PS_VPHASE_1C       0x69188
+#define  PS_Y_PHASE(x)		((x) << 16)
+#define  PS_UV_RGB_PHASE(x)	((x) << 0)
+#define   PS_PHASE_MASK	(0x7fff << 1) /* u2.13 */
+#define   PS_PHASE_TRIP	(1 << 0)
 
 #define _PS_HPHASE_1A       0x68194
 #define _PS_HPHASE_2A       0x68294
