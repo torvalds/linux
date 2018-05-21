@@ -583,6 +583,7 @@ struct phm_ppt_v3_information
 	uint32_t *power_saving_clock_max;
 	uint32_t *power_saving_clock_min;
 
+	uint8_t *od_feature_capabilities;
 	uint32_t *od_settings_max;
 	uint32_t *od_settings_min;
 

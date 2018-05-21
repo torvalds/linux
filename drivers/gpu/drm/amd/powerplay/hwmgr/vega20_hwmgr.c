@@ -103,7 +103,7 @@ static void vega20_set_default_registry_data(struct pp_hwmgr *hwmgr)
 	data->registry_data.quick_transition_support = 0;
 	data->registry_data.zrpm_start_temp = 0xffff;
 	data->registry_data.zrpm_stop_temp = 0xffff;
-	data->registry_data.odn_feature_enable = 1;
+	data->registry_data.od8_feature_enable = 1;
 	data->registry_data.disable_water_mark = 0;
 	data->registry_data.disable_pp_tuning = 0;
 	data->registry_data.disable_xlpp_tuning = 0;
@@ -150,15 +150,9 @@ static int vega20_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_UnTabledHardwareInterface);
 
-	if (data->registry_data.odn_feature_enable)
+	if (data->registry_data.od8_feature_enable)
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-				PHM_PlatformCaps_ODNinACSupport);
-	else {
-		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-				PHM_PlatformCaps_OD6inACSupport);
-		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-				PHM_PlatformCaps_OD6PlusinACSupport);
-	}
+				PHM_PlatformCaps_OD8inACSupport);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_ActivityReporting);
@@ -166,15 +160,9 @@ static int vega20_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 			PHM_PlatformCaps_FanSpeedInTableIsRPM);
 
 	if (data->registry_data.od_state_in_dc_support) {
-		if (data->registry_data.odn_feature_enable)
+		if (data->registry_data.od8_feature_enable)
 			phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-					PHM_PlatformCaps_ODNinDCSupport);
-		else {
-			phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-					PHM_PlatformCaps_OD6inDCSupport);
-			phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-					PHM_PlatformCaps_OD6PlusinDCSupport);
-		}
+					PHM_PlatformCaps_OD8inDCSupport);
 	}
 
 	if (data->registry_data.thermal_support &&
@@ -840,9 +828,276 @@ static int vega20_disable_all_smu_features(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int vega20_odn_initialize_default_settings(
+static int vega20_od8_set_feature_capabilities(
 		struct pp_hwmgr *hwmgr)
 {
+	struct phm_ppt_v3_information *pptable_information =
+		(struct phm_ppt_v3_information *)hwmgr->pptable;
+	struct vega20_hwmgr *data = (struct vega20_hwmgr *)(hwmgr->backend);
+	struct vega20_od8_settings *od_settings = &(data->od8_settings);
+
+	od_settings->overdrive8_capabilities = 0;
+
+	if (data->smu_features[GNLD_DPM_GFXCLK].enabled) {
+		if (pptable_information->od_settings_max[ATOM_VEGA20_ODSETTING_GFXCLKFMAX] > 0 &&
+		    pptable_information->od_settings_min[ATOM_VEGA20_ODSETTING_GFXCLKFMAX] > 0 &&
+		    pptable_information->od_settings_max[ATOM_VEGA20_ODSETTING_GFXCLKFMIN] > 0 &&
+		    pptable_information->od_settings_min[ATOM_VEGA20_ODSETTING_GFXCLKFMIN] > 0)
+			od_settings->overdrive8_capabilities |= OD8_GFXCLK_LIMITS;
+
+		if (pptable_information->od_settings_min[ATOM_VEGA20_ODSETTING_VDDGFXCURVEFREQ_P1] > 0 &&
+		    pptable_information->od_settings_min[ATOM_VEGA20_ODSETTING_VDDGFXCURVEFREQ_P2] > 0 &&
+		    pptable_information->od_settings_min[ATOM_VEGA20_ODSETTING_VDDGFXCURVEFREQ_P3] > 0 &&
+		    pptable_information->od_settings_max[ATOM_VEGA20_ODSETTING_VDDGFXCURVEFREQ_P1] > 0 &&
+		    pptable_information->od_settings_max[ATOM_VEGA20_ODSETTING_VDDGFXCURVEFREQ_P2] > 0 &&
+		    pptable_information->od_settings_max[ATOM_VEGA20_ODSETTING_VDDGFXCURVEFREQ_P3] > 0 &&
+		    pptable_information->od_settings_min[ATOM_VEGA20_ODSETTING_VDDGFXCURVEVOLTAGEOFFSET_P1] > 0 &&
+		    pptable_information->od_settings_min[ATOM_VEGA20_ODSETTING_VDDGFXCURVEVOLTAGEOFFSET_P2] > 0 &&
+		    pptable_information->od_settings_min[ATOM_VEGA20_ODSETTING_VDDGFXCURVEVOLTAGEOFFSET_P3] > 0 &&
+		    pptable_information->od_settings_max[ATOM_VEGA20_ODSETTING_VDDGFXCURVEVOLTAGEOFFSET_P1] > 0 &&
+		    pptable_information->od_settings_max[ATOM_VEGA20_ODSETTING_VDDGFXCURVEVOLTAGEOFFSET_P2] > 0 &&
+		    pptable_information->od_settings_max[ATOM_VEGA20_ODSETTING_VDDGFXCURVEVOLTAGEOFFSET_P3] > 0)
+			od_settings->overdrive8_capabilities |= OD8_GFXCLK_CURVE;
+	}
+
+	if (data->smu_features[GNLD_DPM_UCLK].enabled) {
+		if (pptable_information->od_settings_min[ATOM_VEGA20_ODSETTING_UCLKFMAX] > 0 &&
+		    pptable_information->od_settings_max[ATOM_VEGA20_ODSETTING_UCLKFMAX] > 0)
+			od_settings->overdrive8_capabilities |= OD8_UCLK_MAX;
+	}
+
+	if (pptable_information->od_settings_max[ATOM_VEGA20_ODSETTING_POWERPERCENTAGE] > 0 &&
+	    pptable_information->od_settings_max[ATOM_VEGA20_ODSETTING_POWERPERCENTAGE] <= 100)
+		od_settings->overdrive8_capabilities |= OD8_POWER_LIMIT;
+
+	if (data->smu_features[GNLD_FAN_CONTROL].enabled) {
+		if (pptable_information->od_settings_max[ATOM_VEGA20_ODSETTING_FANRPMMIN] > 0)
+			od_settings->overdrive8_capabilities |= OD8_FAN_SPEED_MIN;
+
+		if (pptable_information->od_settings_max[ATOM_VEGA20_ODSETTING_FANRPMACOUSTICLIMIT] > 0)
+			od_settings->overdrive8_capabilities |= OD8_ACOUSTIC_LIMIT_SCLK;
+	}
+
+	if (data->smu_features[GNLD_THERMAL].enabled) {
+		if (pptable_information->od_settings_max[ATOM_VEGA20_ODSETTING_FANTARGETTEMPERATURE] > 0)
+			od_settings->overdrive8_capabilities |= OD8_TEMPERATURE_FAN;
+
+		if (pptable_information->od_settings_max[ATOM_VEGA20_ODSETTING_OPERATINGTEMPMAX] > 0)
+			od_settings->overdrive8_capabilities |= OD8_TEMPERATURE_SYSTEM;
+	}
+
+	return 0;
+}
+
+static int vega20_od8_set_feature_id(
+		struct pp_hwmgr *hwmgr)
+{
+	struct vega20_hwmgr *data = (struct vega20_hwmgr *)(hwmgr->backend);
+	struct vega20_od8_settings *od_settings = &(data->od8_settings);
+
+	if (od_settings->overdrive8_capabilities & OD8_GFXCLK_LIMITS) {
+		od_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMIN].feature_id =
+			OD8_GFXCLK_LIMITS;
+		od_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMAX].feature_id =
+			OD8_GFXCLK_LIMITS;
+	} else {
+		od_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMIN].feature_id =
+			0;
+		od_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMAX].feature_id =
+			0;
+	}
+
+	if (od_settings->overdrive8_capabilities & OD8_GFXCLK_CURVE) {
+		od_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ1].feature_id =
+			OD8_GFXCLK_CURVE;
+		od_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE1].feature_id =
+			OD8_GFXCLK_CURVE;
+		od_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ2].feature_id =
+			OD8_GFXCLK_CURVE;
+		od_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE2].feature_id =
+			OD8_GFXCLK_CURVE;
+		od_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ3].feature_id =
+			OD8_GFXCLK_CURVE;
+		od_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE3].feature_id =
+			OD8_GFXCLK_CURVE;
+	} else {
+		od_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ1].feature_id =
+			0;
+		od_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE1].feature_id =
+			0;
+		od_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ2].feature_id =
+			0;
+		od_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE2].feature_id =
+			0;
+		od_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ3].feature_id =
+			0;
+		od_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE3].feature_id =
+			0;
+	}
+
+	if (od_settings->overdrive8_capabilities & OD8_UCLK_MAX)
+		od_settings->od8_settings_array[OD8_SETTING_UCLK_FMAX].feature_id = OD8_UCLK_MAX;
+	else
+		od_settings->od8_settings_array[OD8_SETTING_UCLK_FMAX].feature_id = 0;
+
+	if (od_settings->overdrive8_capabilities & OD8_POWER_LIMIT)
+		od_settings->od8_settings_array[OD8_SETTING_POWER_PERCENTAGE].feature_id = OD8_POWER_LIMIT;
+	else
+		od_settings->od8_settings_array[OD8_SETTING_POWER_PERCENTAGE].feature_id = 0;
+
+	if (od_settings->overdrive8_capabilities & OD8_ACOUSTIC_LIMIT_SCLK)
+		od_settings->od8_settings_array[OD8_SETTING_FAN_ACOUSTIC_LIMIT].feature_id =
+			OD8_ACOUSTIC_LIMIT_SCLK;
+	else
+		od_settings->od8_settings_array[OD8_SETTING_FAN_ACOUSTIC_LIMIT].feature_id =
+			0;
+
+	if (od_settings->overdrive8_capabilities & OD8_FAN_SPEED_MIN)
+		od_settings->od8_settings_array[OD8_SETTING_FAN_MIN_SPEED].feature_id =
+			OD8_FAN_SPEED_MIN;
+	else
+		od_settings->od8_settings_array[OD8_SETTING_FAN_MIN_SPEED].feature_id =
+			0;
+
+	if (od_settings->overdrive8_capabilities & OD8_TEMPERATURE_FAN)
+		od_settings->od8_settings_array[OD8_SETTING_FAN_TARGET_TEMP].feature_id =
+			OD8_TEMPERATURE_FAN;
+	else
+		od_settings->od8_settings_array[OD8_SETTING_FAN_TARGET_TEMP].feature_id =
+			0;
+
+	if (od_settings->overdrive8_capabilities & OD8_TEMPERATURE_SYSTEM)
+		od_settings->od8_settings_array[OD8_SETTING_OPERATING_TEMP_MAX].feature_id =
+			OD8_TEMPERATURE_SYSTEM;
+	else
+		od_settings->od8_settings_array[OD8_SETTING_OPERATING_TEMP_MAX].feature_id =
+			0;
+
+	return 0;
+}
+
+static int vega20_od8_initialize_default_settings(
+		struct pp_hwmgr *hwmgr)
+{
+	struct phm_ppt_v3_information *pptable_information =
+		(struct phm_ppt_v3_information *)hwmgr->pptable;
+	struct vega20_hwmgr *data = (struct vega20_hwmgr *)(hwmgr->backend);
+	struct vega20_od8_settings *od8_settings = &(data->od8_settings);
+	OverDriveTable_t *od_table = &(data->smc_state_table.overdrive_table);
+	int i, ret = 0;
+
+	/* Set Feature Capabilities */
+	vega20_od8_set_feature_capabilities(hwmgr);
+
+	/* Map FeatureID to individual settings */
+	vega20_od8_set_feature_id(hwmgr);
+
+	/* Set default values */
+	ret = vega20_copy_table_from_smc(hwmgr, (uint8_t *)od_table, TABLE_OVERDRIVE);
+	PP_ASSERT_WITH_CODE(!ret,
+			"Failed to export over drive table!",
+			return ret);
+
+	if (od8_settings->overdrive8_capabilities & OD8_GFXCLK_LIMITS) {
+		od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMIN].default_value =
+			od_table->GfxclkFmin;
+		od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMAX].default_value =
+			od_table->GfxclkFmax;
+	} else {
+		od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMIN].default_value =
+			0;
+		od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMAX].default_value =
+			0;
+	}
+
+	if (od8_settings->overdrive8_capabilities & OD8_GFXCLK_CURVE) {
+		od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ1].default_value =
+			od_table->GfxclkFreq1;
+		od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE1].default_value =
+			od_table->GfxclkOffsetVolt1;
+		od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ2].default_value =
+			od_table->GfxclkFreq2;
+		od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE2].default_value =
+			od_table->GfxclkOffsetVolt2;
+		od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ3].default_value =
+			od_table->GfxclkFreq3;
+		od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE3].default_value =
+			od_table->GfxclkOffsetVolt3;
+	} else {
+		od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ1].default_value =
+			0;
+		od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE1].default_value =
+			0;
+		od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ2].default_value =
+			0;
+		od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE2].default_value =
+			0;
+		od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ3].default_value =
+			0;
+		od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE3].default_value =
+			0;
+	}
+
+	if (od8_settings->overdrive8_capabilities & OD8_UCLK_MAX)
+		od8_settings->od8_settings_array[OD8_SETTING_UCLK_FMAX].default_value =
+			od_table->UclkFmax;
+	else
+		od8_settings->od8_settings_array[OD8_SETTING_UCLK_FMAX].default_value =
+			0;
+
+	if (od8_settings->overdrive8_capabilities & OD8_POWER_LIMIT)
+		od8_settings->od8_settings_array[OD8_SETTING_POWER_PERCENTAGE].default_value =
+			od_table->OverDrivePct;
+	else
+		od8_settings->od8_settings_array[OD8_SETTING_POWER_PERCENTAGE].default_value =
+			0;
+
+	if (od8_settings->overdrive8_capabilities & OD8_ACOUSTIC_LIMIT_SCLK)
+		od8_settings->od8_settings_array[OD8_SETTING_FAN_ACOUSTIC_LIMIT].default_value =
+			od_table->FanMaximumRpm;
+	else
+		od8_settings->od8_settings_array[OD8_SETTING_FAN_ACOUSTIC_LIMIT].default_value =
+			0;
+
+	if (od8_settings->overdrive8_capabilities & OD8_FAN_SPEED_MIN)
+		od8_settings->od8_settings_array[OD8_SETTING_FAN_MIN_SPEED].default_value =
+			od_table->FanMinimumPwm;
+	else
+		od8_settings->od8_settings_array[OD8_SETTING_FAN_MIN_SPEED].default_value =
+			0;
+
+	if (od8_settings->overdrive8_capabilities & OD8_TEMPERATURE_FAN)
+		od8_settings->od8_settings_array[OD8_SETTING_FAN_TARGET_TEMP].default_value =
+			od_table->FanTargetTemperature;
+	else
+		od8_settings->od8_settings_array[OD8_SETTING_FAN_TARGET_TEMP].default_value =
+			0;
+
+	if (od8_settings->overdrive8_capabilities & OD8_TEMPERATURE_SYSTEM)
+		od8_settings->od8_settings_array[OD8_SETTING_OPERATING_TEMP_MAX].default_value =
+			od_table->MaxOpTemp;
+	else
+		od8_settings->od8_settings_array[OD8_SETTING_OPERATING_TEMP_MAX].default_value =
+			0;
+
+	for (i = 0; i < OD8_SETTING_COUNT; i++) {
+		if (od8_settings->od8_settings_array[i].feature_id) {
+			od8_settings->od8_settings_array[i].min_value =
+				pptable_information->od_settings_min[i];
+			od8_settings->od8_settings_array[i].max_value =
+				pptable_information->od_settings_max[i];
+			od8_settings->od8_settings_array[i].current_value =
+				od8_settings->od8_settings_array[i].default_value;
+		} else {
+			od8_settings->od8_settings_array[i].min_value =
+				0;
+			od8_settings->od8_settings_array[i].max_value =
+				0;
+			od8_settings->od8_settings_array[i].current_value =
+				0;
+		}
+	}
+
 	return 0;
 }
 
@@ -1009,7 +1264,7 @@ static int vega20_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 			"[EnableDPMTasks] Failed to power control set level!",
 			return result);
 
-	result = vega20_odn_initialize_default_settings(hwmgr);
+	result = vega20_od8_initialize_default_settings(hwmgr);
 	PP_ASSERT_WITH_CODE(!result,
 			"[EnableDPMTasks] Failed to initialize odn settings!",
 			return result);

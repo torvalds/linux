@@ -664,18 +664,18 @@ static int set_platform_caps(struct pp_hwmgr *hwmgr, uint32_t powerplay_caps)
 static int copy_clock_limits_array(
 	struct pp_hwmgr *hwmgr,
 	uint32_t **pptable_info_array,
-	const uint32_t *pptable_array)
+	const uint32_t *pptable_array,
+	uint32_t power_saving_clock_count)
 {
 	uint32_t array_size, i;
 	uint32_t *table;
 
-	array_size = sizeof(uint32_t) * ATOM_VEGA20_PPCLOCK_COUNT;
-
+	array_size = sizeof(uint32_t) * power_saving_clock_count;
 	table = kzalloc(array_size, GFP_KERNEL);
 	if (NULL == table)
 		return -ENOMEM;
 
-	for (i = 0; i < ATOM_VEGA20_PPCLOCK_COUNT; i++)
+	for (i = 0; i < power_saving_clock_count; i++)
 		table[i] = pptable_array[i];
 
 	*pptable_info_array = table;
@@ -686,21 +686,51 @@ static int copy_clock_limits_array(
 static int copy_overdrive_settings_limits_array(
 		struct pp_hwmgr *hwmgr,
 		uint32_t **pptable_info_array,
-		const uint32_t *pptable_array)
+		const uint32_t *pptable_array,
+		uint32_t od_setting_count)
 {
 	uint32_t array_size, i;
 	uint32_t *table;
 
-	array_size = sizeof(uint32_t) * ATOM_VEGA20_ODSETTING_COUNT;
-
+	array_size = sizeof(uint32_t) * od_setting_count;
 	table = kzalloc(array_size, GFP_KERNEL);
 	if (NULL == table)
 		return -ENOMEM;
 
-	for (i = 0; i < ATOM_VEGA20_ODSETTING_COUNT; i++)
+	for (i = 0; i < od_setting_count; i++)
 		table[i] = pptable_array[i];
 
 	*pptable_info_array = table;
+
+	return 0;
+}
+
+static int copy_overdrive_feature_capabilities_array(
+		struct pp_hwmgr *hwmgr,
+		uint8_t **pptable_info_array,
+		const uint8_t *pptable_array,
+		uint8_t od_feature_count)
+{
+	uint32_t array_size, i;
+	uint8_t *table;
+	bool od_supported = false;
+
+	array_size = sizeof(uint8_t) * od_feature_count;
+	table = kzalloc(array_size, GFP_KERNEL);
+	if (NULL == table)
+		return -ENOMEM;
+
+	for (i = 0; i < od_feature_count; i++) {
+		table[i] = pptable_array[i];
+		if (table[i])
+			od_supported = true;
+	}
+
+	*pptable_info_array = table;
+
+	if (od_supported)
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+				PHM_PlatformCaps_ACOverdriveSupport);
 
 	return 0;
 }
@@ -799,6 +829,7 @@ static int init_powerplay_table_information(
 	struct phm_ppt_v3_information *pptable_information =
 		(struct phm_ppt_v3_information *)hwmgr->pptable;
 	uint32_t disable_power_control = 0;
+	uint32_t od_feature_count, od_setting_count, power_saving_clock_count;
 	int result;
 
 	hwmgr->thermal_controller.ucType = powerplay_table->ucThermalControllerType;
@@ -810,22 +841,25 @@ static int init_powerplay_table_information(
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_MicrocodeFanControl);
 
-	if (powerplay_table->OverDrive8Table.ODSettingsMax[ATOM_VEGA20_ODSETTING_GFXCLKFMAX] > VEGA20_ENGINECLOCK_HARDMAX)
-		hwmgr->platform_descriptor.overdriveLimit.engineClock = VEGA20_ENGINECLOCK_HARDMAX;
-	else
-		hwmgr->platform_descriptor.overdriveLimit.engineClock = powerplay_table->OverDrive8Table.ODSettingsMax[ATOM_VEGA20_ODSETTING_GFXCLKFMAX];
-	hwmgr->platform_descriptor.overdriveLimit.memoryClock = powerplay_table->OverDrive8Table.ODSettingsMax[ATOM_VEGA20_ODSETTING_UCLKFMAX];
+	if (powerplay_table->OverDrive8Table.ucODTableRevision == 1) {
+		od_feature_count = (powerplay_table->OverDrive8Table.ODFeatureCount > ATOM_VEGA20_ODFEATURE_COUNT) ?
+				ATOM_VEGA20_ODFEATURE_COUNT : powerplay_table->OverDrive8Table.ODFeatureCount;
+		od_setting_count = (powerplay_table->OverDrive8Table.ODSettingCount > ATOM_VEGA20_ODSETTING_COUNT) ?
+				ATOM_VEGA20_ODSETTING_COUNT : powerplay_table->OverDrive8Table.ODSettingCount;
 
-	copy_overdrive_settings_limits_array(hwmgr, &pptable_information->od_settings_max, powerplay_table->OverDrive8Table.ODSettingsMax);
-	copy_overdrive_settings_limits_array(hwmgr, &pptable_information->od_settings_min, powerplay_table->OverDrive8Table.ODSettingsMin);
-
-	/* hwmgr->platformDescriptor.minOverdriveVDDC = 0;
-	hwmgr->platformDescriptor.maxOverdriveVDDC = 0;
-	hwmgr->platformDescriptor.overdriveVDDCStep = 0; */
-
-	if (hwmgr->platform_descriptor.overdriveLimit.engineClock > 0
-		&& hwmgr->platform_descriptor.overdriveLimit.memoryClock > 0)
-		phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_ACOverdriveSupport);
+		copy_overdrive_feature_capabilities_array(hwmgr,
+				&pptable_information->od_feature_capabilities,
+				powerplay_table->OverDrive8Table.ODFeatureCapabilities,
+				od_feature_count);
+		copy_overdrive_settings_limits_array(hwmgr,
+				&pptable_information->od_settings_max,
+				powerplay_table->OverDrive8Table.ODSettingsMax,
+				od_setting_count);
+		copy_overdrive_settings_limits_array(hwmgr,
+				&pptable_information->od_settings_min,
+				powerplay_table->OverDrive8Table.ODSettingsMin,
+				od_setting_count);
+	}
 
 	pptable_information->us_small_power_limit1 = powerplay_table->usSmallPowerLimit1;
 	pptable_information->us_small_power_limit2 = powerplay_table->usSmallPowerLimit2;
@@ -838,14 +872,22 @@ static int init_powerplay_table_information(
 	hwmgr->platform_descriptor.TDPODLimit = (uint16_t)powerplay_table->OverDrive8Table.ODSettingsMax[ATOM_VEGA20_ODSETTING_POWERPERCENTAGE];
 
 	disable_power_control = 0;
-	if (!disable_power_control && hwmgr->platform_descriptor.TDPODLimit) {
+	if (!disable_power_control && hwmgr->platform_descriptor.TDPODLimit)
 		/* enable TDP overdrive (PowerControl) feature as well if supported */
-		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-				PHM_PlatformCaps_PowerControl);
-	}
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_PowerControl);
 
-	copy_clock_limits_array(hwmgr, &pptable_information->power_saving_clock_max, powerplay_table->PowerSavingClockTable.PowerSavingClockMax);
-	copy_clock_limits_array(hwmgr, &pptable_information->power_saving_clock_min, powerplay_table->PowerSavingClockTable.PowerSavingClockMin);
+	if (powerplay_table->PowerSavingClockTable.ucTableRevision == 1) {
+		power_saving_clock_count = (powerplay_table->PowerSavingClockTable.PowerSavingClockCount >= ATOM_VEGA20_PPCLOCK_COUNT) ?
+				ATOM_VEGA20_PPCLOCK_COUNT : powerplay_table->PowerSavingClockTable.PowerSavingClockCount;
+		copy_clock_limits_array(hwmgr,
+				&pptable_information->power_saving_clock_max,
+				powerplay_table->PowerSavingClockTable.PowerSavingClockMax,
+				power_saving_clock_count);
+		copy_clock_limits_array(hwmgr,
+				&pptable_information->power_saving_clock_min,
+				powerplay_table->PowerSavingClockTable.PowerSavingClockMin,
+				power_saving_clock_count);
+	}
 
 	pptable_information->smc_pptable = (PPTable_t *)kmalloc(sizeof(PPTable_t), GFP_KERNEL);
 	if (pptable_information->smc_pptable == NULL)
@@ -897,6 +939,9 @@ static int vega20_pp_tables_uninitialize(struct pp_hwmgr *hwmgr)
 
 	kfree(pp_table_info->power_saving_clock_min);
 	pp_table_info->power_saving_clock_min = NULL;
+
+	kfree(pp_table_info->od_feature_capabilities);
+	pp_table_info->od_feature_capabilities = NULL;
 
 	kfree(pp_table_info->od_settings_max);
 	pp_table_info->od_settings_max = NULL;

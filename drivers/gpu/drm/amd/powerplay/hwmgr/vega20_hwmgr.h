@@ -306,7 +306,7 @@ struct vega20_registry_data {
 	uint8_t   led_dpm_enabled;
 	uint8_t   fan_control_support;
 	uint8_t   ulv_support;
-	uint8_t   odn_feature_enable;
+	uint8_t   od8_feature_enable;
 	uint8_t   disable_water_mark;
 	uint8_t   disable_workload_policy;
 	uint32_t  force_workload_policy_mask;
@@ -375,6 +375,54 @@ struct vega20_odn_data {
 	struct vega20_odn_dpm_table	odn_dpm_table;
 	struct vega20_odn_fan_table	odn_fan_table;
 	struct vega20_odn_temp_table	odn_temp_table;
+};
+
+enum OD8_FEATURE_ID
+{
+	OD8_GFXCLK_LIMITS               = 1 << 0,
+	OD8_GFXCLK_CURVE                = 1 << 1,
+	OD8_UCLK_MAX                    = 1 << 2,
+	OD8_POWER_LIMIT                 = 1 << 3,
+	OD8_ACOUSTIC_LIMIT_SCLK         = 1 << 4,   //FanMaximumRpm
+	OD8_FAN_SPEED_MIN               = 1 << 5,   //FanMinimumPwm
+	OD8_TEMPERATURE_FAN             = 1 << 6,   //FanTargetTemperature
+	OD8_TEMPERATURE_SYSTEM          = 1 << 7,   //MaxOpTemp
+	OD8_MEMORY_TIMING_TUNE          = 1 << 8,
+	OD8_FAN_ZERO_RPM_CONTROL        = 1 << 9
+};
+
+enum OD8_SETTING_ID
+{
+	OD8_SETTING_GFXCLK_FMIN = 0,
+	OD8_SETTING_GFXCLK_FMAX,
+	OD8_SETTING_GFXCLK_FREQ1,
+	OD8_SETTING_GFXCLK_VOLTAGE1,
+	OD8_SETTING_GFXCLK_FREQ2,
+	OD8_SETTING_GFXCLK_VOLTAGE2,
+	OD8_SETTING_GFXCLK_FREQ3,
+	OD8_SETTING_GFXCLK_VOLTAGE3,
+	OD8_SETTING_UCLK_FMAX,
+	OD8_SETTING_POWER_PERCENTAGE,
+	OD8_SETTING_FAN_ACOUSTIC_LIMIT,
+	OD8_SETTING_FAN_MIN_SPEED,
+	OD8_SETTING_FAN_TARGET_TEMP,
+	OD8_SETTING_OPERATING_TEMP_MAX,
+	OD8_SETTING_AC_TIMING,
+	OD8_SETTING_FAN_ZERO_RPM_CONTROL,
+	OD8_SETTING_COUNT
+};
+
+struct vega20_od8_single_setting {
+	uint32_t	feature_id;
+	int32_t		min_value;
+	int32_t		max_value;
+	int32_t		current_value;
+	int32_t		default_value;
+};
+
+struct vega20_od8_settings {
+	uint32_t	overdrive8_capabilities;
+	struct vega20_od8_single_setting	od8_settings_array[OD8_SETTING_COUNT];
 };
 
 struct vega20_hwmgr {
@@ -451,6 +499,9 @@ struct vega20_hwmgr {
 
 	/* ---- Overdrive next setting ---- */
 	struct vega20_odn_data         odn_data;
+
+	/* ---- Overdrive8 Setting ---- */
+	struct vega20_od8_settings     od8_settings;
 
 	/* ---- Workload Mask ---- */
 	uint32_t                       workload_mask;
