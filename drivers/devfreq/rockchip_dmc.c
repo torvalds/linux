@@ -2936,7 +2936,7 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 #define MAX_PROP_NAME_LEN	3
 	char name[MAX_PROP_NAME_LEN];
 	bool is_events_available = false;
-	int lkg_volt_sel;
+	int lkg_volt_sel, pvtm_volt_sel, volt_sel;
 	int ret;
 
 	data = devm_kzalloc(dev, sizeof(struct rockchip_dmcfreq), GFP_KERNEL);
@@ -2988,8 +2988,11 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	 * with operating points.
 	 */
 	lkg_volt_sel = rockchip_of_get_lkg_volt_sel(dev, "ddr_leakage");
-	if (lkg_volt_sel >= 0) {
-		snprintf(name, MAX_PROP_NAME_LEN, "L%d", lkg_volt_sel);
+	pvtm_volt_sel = rockchip_of_get_pvtm_volt_sel(dev, NULL, "center");
+
+	volt_sel = max(lkg_volt_sel, pvtm_volt_sel);
+	if (volt_sel >= 0) {
+		snprintf(name, MAX_PROP_NAME_LEN, "L%d", volt_sel);
 		ret = dev_pm_opp_set_prop_name(dev, name);
 		if (ret)
 			dev_err(dev, "Failed to set prop name\n");
