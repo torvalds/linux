@@ -1240,25 +1240,25 @@ fifo_setup(struct musb *musb, struct musb_hw_ep  *hw_ep,
 	/* REVISIT error check:  be sure ep0 can both rx and tx ... */
 	switch (cfg->style) {
 	case FIFO_TX:
-		musb_write_txfifosz(mbase, c_size);
-		musb_write_txfifoadd(mbase, c_off);
+		musb_writeb(mbase, MUSB_TXFIFOSZ, c_size);
+		musb_writew(mbase, MUSB_TXFIFOADD, c_off);
 		hw_ep->tx_double_buffered = !!(c_size & MUSB_FIFOSZ_DPB);
 		hw_ep->max_packet_sz_tx = maxpacket;
 		break;
 	case FIFO_RX:
-		musb_write_rxfifosz(mbase, c_size);
-		musb_write_rxfifoadd(mbase, c_off);
+		musb_writeb(mbase, MUSB_RXFIFOSZ, c_size);
+		musb_writew(mbase, MUSB_RXFIFOADD, c_off);
 		hw_ep->rx_double_buffered = !!(c_size & MUSB_FIFOSZ_DPB);
 		hw_ep->max_packet_sz_rx = maxpacket;
 		break;
 	case FIFO_RXTX:
-		musb_write_txfifosz(mbase, c_size);
-		musb_write_txfifoadd(mbase, c_off);
+		musb_writeb(mbase, MUSB_TXFIFOSZ, c_size);
+		musb_writew(mbase, MUSB_TXFIFOADD, c_off);
 		hw_ep->rx_double_buffered = !!(c_size & MUSB_FIFOSZ_DPB);
 		hw_ep->max_packet_sz_rx = maxpacket;
 
-		musb_write_rxfifosz(mbase, c_size);
-		musb_write_rxfifoadd(mbase, c_off);
+		musb_writeb(mbase, MUSB_RXFIFOSZ, c_size);
+		musb_writew(mbase, MUSB_RXFIFOADD, c_off);
 		hw_ep->tx_double_buffered = hw_ep->rx_double_buffered;
 		hw_ep->max_packet_sz_tx = maxpacket;
 
@@ -1466,7 +1466,7 @@ static int musb_core_init(u16 musb_type, struct musb *musb)
 	}
 
 	/* log release info */
-	musb->hwvers = musb_read_hwvers(mbase);
+	musb->hwvers = musb_readw(mbase, MUSB_HWVERS);
 	pr_debug("%s: %sHDRC RTL version %d.%d%s\n",
 		 musb_driver_name, type, MUSB_HWVERS_MAJOR(musb->hwvers),
 		 MUSB_HWVERS_MINOR(musb->hwvers),
@@ -2311,9 +2311,9 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 
 	/* program PHY to use external vBus if required */
 	if (plat->extvbus) {
-		u8 busctl = musb_read_ulpi_buscontrol(musb->mregs);
+		u8 busctl = musb_readb(musb->mregs, MUSB_ULPI_BUSCONTROL);
 		busctl |= MUSB_ULPI_USE_EXTVBUS;
-		musb_write_ulpi_buscontrol(musb->mregs, busctl);
+		musb_writeb(musb->mregs, MUSB_ULPI_BUSCONTROL, busctl);
 	}
 
 	if (musb->xceiv->otg->default_a) {
@@ -2482,7 +2482,7 @@ static void musb_save_context(struct musb *musb)
 
 	musb->context.frame = musb_readw(musb_base, MUSB_FRAME);
 	musb->context.testmode = musb_readb(musb_base, MUSB_TESTMODE);
-	musb->context.busctl = musb_read_ulpi_buscontrol(musb->mregs);
+	musb->context.busctl = musb_readb(musb_base, MUSB_ULPI_BUSCONTROL);
 	musb->context.power = musb_readb(musb_base, MUSB_POWER);
 	musb->context.intrusbe = musb_readb(musb_base, MUSB_INTRUSBE);
 	musb->context.index = musb_readb(musb_base, MUSB_INDEX);
@@ -2511,13 +2511,13 @@ static void musb_save_context(struct musb *musb)
 
 		if (musb->dyn_fifo) {
 			musb->context.index_regs[i].txfifoadd =
-					musb_read_txfifoadd(musb_base);
+					musb_readw(musb_base, MUSB_TXFIFOADD);
 			musb->context.index_regs[i].rxfifoadd =
-					musb_read_rxfifoadd(musb_base);
+					musb_readw(musb_base, MUSB_RXFIFOADD);
 			musb->context.index_regs[i].txfifosz =
-					musb_read_txfifosz(musb_base);
+					musb_readb(musb_base, MUSB_TXFIFOSZ);
 			musb->context.index_regs[i].rxfifosz =
-					musb_read_rxfifosz(musb_base);
+					musb_readb(musb_base, MUSB_RXFIFOSZ);
 		}
 
 		musb->context.index_regs[i].txtype =
@@ -2554,7 +2554,7 @@ static void musb_restore_context(struct musb *musb)
 
 	musb_writew(musb_base, MUSB_FRAME, musb->context.frame);
 	musb_writeb(musb_base, MUSB_TESTMODE, musb->context.testmode);
-	musb_write_ulpi_buscontrol(musb->mregs, musb->context.busctl);
+	musb_writeb(musb_base, MUSB_ULPI_BUSCONTROL, musb->context.busctl);
 
 	/* Don't affect SUSPENDM/RESUME bits in POWER reg */
 	power = musb_readb(musb_base, MUSB_POWER);
@@ -2591,13 +2591,13 @@ static void musb_restore_context(struct musb *musb)
 			musb->context.index_regs[i].rxcsr);
 
 		if (musb->dyn_fifo) {
-			musb_write_txfifosz(musb_base,
+			musb_writeb(musb_base, MUSB_TXFIFOSZ,
 				musb->context.index_regs[i].txfifosz);
-			musb_write_rxfifosz(musb_base,
+			musb_writeb(musb_base, MUSB_RXFIFOSZ,
 				musb->context.index_regs[i].rxfifosz);
-			musb_write_txfifoadd(musb_base,
+			musb_writew(musb_base, MUSB_TXFIFOADD,
 				musb->context.index_regs[i].txfifoadd);
-			musb_write_rxfifoadd(musb_base,
+			musb_writew(musb_base, MUSB_RXFIFOADD,
 				musb->context.index_regs[i].rxfifoadd);
 		}
 
