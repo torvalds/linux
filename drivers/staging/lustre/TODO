@@ -12,7 +12,7 @@ addressed:
 * https://jira.hpdd.intel.com/browse/LU-9859
 *
 * Track all the cleanups and simplification of the libcfs module. Remove
-* functions the kernel provides. Possible intergrate some of the functionality
+* functions the kernel provides. Possibly integrate some of the functionality
 * into the kernel proper.
 *
 ******************************************************************************
