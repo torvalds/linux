@@ -627,6 +627,13 @@ static void vivid_dev_release(struct v4l2_device *v4l2_dev)
 	kfree(dev);
 }
 
+#ifdef CONFIG_MEDIA_CONTROLLER
+static const struct media_device_ops vivid_media_ops = {
+	.req_validate = vb2_request_validate,
+	.req_queue = vb2_request_queue,
+};
+#endif
+
 static int vivid_create_instance(struct platform_device *pdev, int inst)
 {
 	static const struct v4l2_dv_timings def_dv_timings =
@@ -664,6 +671,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	strlcpy(dev->mdev.model, VIVID_MODULE_NAME, sizeof(dev->mdev.model));
 	dev->mdev.dev = &pdev->dev;
 	media_device_init(&dev->mdev);
+	dev->mdev.ops = &vivid_media_ops;
 #endif
 
 	/* register v4l2_device */
