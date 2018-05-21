@@ -6,8 +6,9 @@
 
 ret=0
 
-VERBOSE=${VERBOSE:=0}
-PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
+TESTS="unregister down carrier nexthop"
+VERBOSE=0
+PAUSE_ON_FAIL=no
 IP="ip -netns testns"
 
 log_test()
@@ -565,19 +566,35 @@ fib_nexthop_test()
 }
 
 ################################################################################
-#
+# usage
 
-fib_test()
+usage()
 {
-	if [ -n "$TEST" ]; then
-		eval $TEST
-	else
-		fib_unreg_test
-		fib_down_test
-		fib_carrier_test
-		fib_nexthop_test
-	fi
+	cat <<EOF
+usage: ${0##*/} OPTS
+
+        -t <test>   Test(s) to run (default: all)
+                    (options: $TESTS)
+        -p          Pause on fail
+        -v          verbose mode (show commands and output)
+EOF
 }
+
+################################################################################
+# main
+
+while getopts :t:pPhv o
+do
+	case $o in
+		t) TESTS=$OPTARG;;
+		p) PAUSE_ON_FAIL=yes;;
+		v) VERBOSE=$(($VERBOSE + 1));;
+		h) usage; exit 0;;
+		*) usage; exit 1;;
+	esac
+done
+
+PEER_CMD="ip netns exec ${PEER_NS}"
 
 if [ "$(id -u)" -ne 0 ];then
 	echo "SKIP: Need root privileges"
@@ -598,7 +615,17 @@ fi
 # start clean
 cleanup &> /dev/null
 
-fib_test
+for t in $TESTS
+do
+	case $t in
+	fib_unreg_test|unregister)	fib_unreg_test;;
+	fib_down_test|down)		fib_down_test;;
+	fib_carrier_test|carrier)	fib_carrier_test;;
+	fib_nexthop_test|nexthop)	fib_nexthop_test;;
+
+	help) echo "Test names: $TESTS"; exit 0;;
+	esac
+done
 
 if [ "$TESTS" != "none" ]; then
 	printf "\nTests passed: %3d\n" ${nsuccess}
