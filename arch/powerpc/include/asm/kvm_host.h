@@ -453,6 +453,7 @@ struct mmio_hpte_cache {
 #define KVMPPC_VSX_COPY_WORD		1
 #define KVMPPC_VSX_COPY_DWORD		2
 #define KVMPPC_VSX_COPY_DWORD_LOAD_DUMP	3
+#define KVMPPC_VSX_COPY_WORD_LOAD_DUMP	4
 
 struct openpic;
 

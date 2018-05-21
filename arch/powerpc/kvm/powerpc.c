@@ -907,6 +907,26 @@ static inline void kvmppc_set_vsr_dword_dump(struct kvm_vcpu *vcpu,
 	}
 }
 
+static inline void kvmppc_set_vsr_word_dump(struct kvm_vcpu *vcpu,
+	u32 gpr)
+{
+	union kvmppc_one_reg val;
+	int index = vcpu->arch.io_gpr & KVM_MMIO_REG_MASK;
+
+	if (vcpu->arch.mmio_vsx_tx_sx_enabled) {
+		val.vsx32val[0] = gpr;
+		val.vsx32val[1] = gpr;
+		val.vsx32val[2] = gpr;
+		val.vsx32val[3] = gpr;
+		VCPU_VSX_VR(vcpu, index) = val.vval;
+	} else {
+		val.vsx32val[0] = gpr;
+		val.vsx32val[1] = gpr;
+		VCPU_VSX_FPR(vcpu, index, 0) = val.vsxval[0];
+		VCPU_VSX_FPR(vcpu, index, 1) = val.vsxval[0];
+	}
+}
+
 static inline void kvmppc_set_vsr_word(struct kvm_vcpu *vcpu,
 	u32 gpr32)
 {
@@ -1061,6 +1081,9 @@ static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu,
 		else if (vcpu->arch.mmio_vsx_copy_type ==
 				KVMPPC_VSX_COPY_DWORD_LOAD_DUMP)
 			kvmppc_set_vsr_dword_dump(vcpu, gpr);
+		else if (vcpu->arch.mmio_vsx_copy_type ==
+				KVMPPC_VSX_COPY_WORD_LOAD_DUMP)
+			kvmppc_set_vsr_word_dump(vcpu, gpr);
 		break;
 #endif
 #ifdef CONFIG_ALTIVEC
