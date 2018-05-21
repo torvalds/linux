@@ -158,6 +158,54 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 
 			break;
 #endif
+#ifdef CONFIG_VSX
+		case LOAD_VSX: {
+			int io_size_each;
+
+			if (op.vsx_flags & VSX_CHECK_VEC) {
+				if (kvmppc_check_altivec_disabled(vcpu))
+					return EMULATE_DONE;
+			} else {
+				if (kvmppc_check_vsx_disabled(vcpu))
+					return EMULATE_DONE;
+			}
+
+			if (op.vsx_flags & VSX_FPCONV)
+				vcpu->arch.mmio_sp64_extend = 1;
+
+			if (op.element_size == 8)  {
+				if (op.vsx_flags & VSX_SPLAT)
+					vcpu->arch.mmio_vsx_copy_type =
+						KVMPPC_VSX_COPY_DWORD_LOAD_DUMP;
+				else
+					vcpu->arch.mmio_vsx_copy_type =
+						KVMPPC_VSX_COPY_DWORD;
+			} else if (op.element_size == 4) {
+				if (op.vsx_flags & VSX_SPLAT)
+					vcpu->arch.mmio_vsx_copy_type =
+						KVMPPC_VSX_COPY_WORD_LOAD_DUMP;
+				else
+					vcpu->arch.mmio_vsx_copy_type =
+						KVMPPC_VSX_COPY_WORD;
+			} else
+				break;
+
+			if (size < op.element_size) {
+				/* precision convert case: lxsspx, etc */
+				vcpu->arch.mmio_vsx_copy_nums = 1;
+				io_size_each = size;
+			} else { /* lxvw4x, lxvd2x, etc */
+				vcpu->arch.mmio_vsx_copy_nums =
+					size/op.element_size;
+				io_size_each = op.element_size;
+			}
+
+			emulated = kvmppc_handle_vsx_load(run, vcpu,
+					KVM_MMIO_REG_VSX | (op.reg & 0x1f),
+					io_size_each, 1, op.type & SIGNEXT);
+			break;
+		}
+#endif
 		case STORE:
 			/* if need byte reverse, op.val has been reversed by
 			 * analyse_instr().
@@ -193,6 +241,49 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 
 			break;
 #endif
+#ifdef CONFIG_VSX
+		case STORE_VSX: {
+			int io_size_each;
+
+			if (op.vsx_flags & VSX_CHECK_VEC) {
+				if (kvmppc_check_altivec_disabled(vcpu))
+					return EMULATE_DONE;
+			} else {
+				if (kvmppc_check_vsx_disabled(vcpu))
+					return EMULATE_DONE;
+			}
+
+			if (vcpu->kvm->arch.kvm_ops->giveup_ext)
+				vcpu->kvm->arch.kvm_ops->giveup_ext(vcpu,
+						MSR_VSX);
+
+			if (op.vsx_flags & VSX_FPCONV)
+				vcpu->arch.mmio_sp64_extend = 1;
+
+			if (op.element_size == 8)
+				vcpu->arch.mmio_vsx_copy_type =
+						KVMPPC_VSX_COPY_DWORD;
+			else if (op.element_size == 4)
+				vcpu->arch.mmio_vsx_copy_type =
+						KVMPPC_VSX_COPY_WORD;
+			else
+				break;
+
+			if (size < op.element_size) {
+				/* precise conversion case, like stxsspx */
+				vcpu->arch.mmio_vsx_copy_nums = 1;
+				io_size_each = size;
+			} else { /* stxvw4x, stxvd2x, etc */
+				vcpu->arch.mmio_vsx_copy_nums =
+						size/op.element_size;
+				io_size_each = op.element_size;
+			}
+
+			emulated = kvmppc_handle_vsx_store(run, vcpu,
+					op.reg & 0x1f, io_size_each, 1);
+			break;
+		}
+#endif
 		case CACHEOP:
 			/* Do nothing. The guest is performing dcbi because
 			 * hardware DMA is not snooped by the dcache, but
@@ -214,142 +305,6 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 	switch (get_op(inst)) {
 	case 31:
 		switch (get_xop(inst)) {
-#ifdef CONFIG_VSX
-		case OP_31_XOP_LXSDX:
-			if (kvmppc_check_vsx_disabled(vcpu))
-				return EMULATE_DONE;
-			vcpu->arch.mmio_vsx_copy_nums = 1;
-			vcpu->arch.mmio_vsx_copy_type = KVMPPC_VSX_COPY_DWORD;
-			emulated = kvmppc_handle_vsx_load(run, vcpu,
-				KVM_MMIO_REG_VSX|rt, 8, 1, 0);
-			break;
-
-		case OP_31_XOP_LXSSPX:
-			if (kvmppc_check_vsx_disabled(vcpu))
-				return EMULATE_DONE;
-			vcpu->arch.mmio_vsx_copy_nums = 1;
-			vcpu->arch.mmio_vsx_copy_type = KVMPPC_VSX_COPY_DWORD;
-			vcpu->arch.mmio_sp64_extend = 1;
-			emulated = kvmppc_handle_vsx_load(run, vcpu,
-				KVM_MMIO_REG_VSX|rt, 4, 1, 0);
-			break;
-
-		case OP_31_XOP_LXSIWAX:
-			if (kvmppc_check_vsx_disabled(vcpu))
-				return EMULATE_DONE;
-			vcpu->arch.mmio_vsx_copy_nums = 1;
-			vcpu->arch.mmio_vsx_copy_type = KVMPPC_VSX_COPY_DWORD;
-			emulated = kvmppc_handle_vsx_load(run, vcpu,
-				KVM_MMIO_REG_VSX|rt, 4, 1, 1);
-			break;
-
-		case OP_31_XOP_LXSIWZX:
-			if (kvmppc_check_vsx_disabled(vcpu))
-				return EMULATE_DONE;
-			vcpu->arch.mmio_vsx_copy_nums = 1;
-			vcpu->arch.mmio_vsx_copy_type = KVMPPC_VSX_COPY_DWORD;
-			emulated = kvmppc_handle_vsx_load(run, vcpu,
-				KVM_MMIO_REG_VSX|rt, 4, 1, 0);
-			break;
-
-		case OP_31_XOP_LXVD2X:
-		/*
-		 * In this case, the official load/store process is like this:
-		 * Step1, exit from vm by page fault isr, then kvm save vsr.
-		 * Please see guest_exit_cont->store_fp_state->SAVE_32VSRS
-		 * as reference.
-		 *
-		 * Step2, copy data between memory and VCPU
-		 * Notice: for LXVD2X/STXVD2X/LXVW4X/STXVW4X, we use
-		 * 2copies*8bytes or 4copies*4bytes
-		 * to simulate one copy of 16bytes.
-		 * Also there is an endian issue here, we should notice the
-		 * layout of memory.
-		 * Please see MARCO of LXVD2X_ROT/STXVD2X_ROT as more reference.
-		 * If host is little-endian, kvm will call XXSWAPD for
-		 * LXVD2X_ROT/STXVD2X_ROT.
-		 * So, if host is little-endian,
-		 * the postion of memeory should be swapped.
-		 *
-		 * Step3, return to guest, kvm reset register.
-		 * Please see kvmppc_hv_entry->load_fp_state->REST_32VSRS
-		 * as reference.
-		 */
-			if (kvmppc_check_vsx_disabled(vcpu))
-				return EMULATE_DONE;
-			vcpu->arch.mmio_vsx_copy_nums = 2;
-			vcpu->arch.mmio_vsx_copy_type = KVMPPC_VSX_COPY_DWORD;
-			emulated = kvmppc_handle_vsx_load(run, vcpu,
-				KVM_MMIO_REG_VSX|rt, 8, 1, 0);
-			break;
-
-		case OP_31_XOP_LXVW4X:
-			if (kvmppc_check_vsx_disabled(vcpu))
-				return EMULATE_DONE;
-			vcpu->arch.mmio_vsx_copy_nums = 4;
-			vcpu->arch.mmio_vsx_copy_type = KVMPPC_VSX_COPY_WORD;
-			emulated = kvmppc_handle_vsx_load(run, vcpu,
-				KVM_MMIO_REG_VSX|rt, 4, 1, 0);
-			break;
-
-		case OP_31_XOP_LXVDSX:
-			if (kvmppc_check_vsx_disabled(vcpu))
-				return EMULATE_DONE;
-			vcpu->arch.mmio_vsx_copy_nums = 1;
-			vcpu->arch.mmio_vsx_copy_type =
-				 KVMPPC_VSX_COPY_DWORD_LOAD_DUMP;
-			emulated = kvmppc_handle_vsx_load(run, vcpu,
-				KVM_MMIO_REG_VSX|rt, 8, 1, 0);
-			break;
-
-		case OP_31_XOP_STXSDX:
-			if (kvmppc_check_vsx_disabled(vcpu))
-				return EMULATE_DONE;
-			vcpu->arch.mmio_vsx_copy_nums = 1;
-			vcpu->arch.mmio_vsx_copy_type = KVMPPC_VSX_COPY_DWORD;
-			emulated = kvmppc_handle_vsx_store(run, vcpu,
-						 rs, 8, 1);
-			break;
-
-		case OP_31_XOP_STXSSPX:
-			if (kvmppc_check_vsx_disabled(vcpu))
-				return EMULATE_DONE;
-			vcpu->arch.mmio_vsx_copy_nums = 1;
-			vcpu->arch.mmio_vsx_copy_type = KVMPPC_VSX_COPY_DWORD;
-			vcpu->arch.mmio_sp64_extend = 1;
-			emulated = kvmppc_handle_vsx_store(run, vcpu,
-						 rs, 4, 1);
-			break;
-
-		case OP_31_XOP_STXSIWX:
-			if (kvmppc_check_vsx_disabled(vcpu))
-				return EMULATE_DONE;
-			vcpu->arch.mmio_vsx_offset = 1;
-			vcpu->arch.mmio_vsx_copy_nums = 1;
-			vcpu->arch.mmio_vsx_copy_type = KVMPPC_VSX_COPY_WORD;
-			emulated = kvmppc_handle_vsx_store(run, vcpu,
-							 rs, 4, 1);
-			break;
-
-		case OP_31_XOP_STXVD2X:
-			if (kvmppc_check_vsx_disabled(vcpu))
-				return EMULATE_DONE;
-			vcpu->arch.mmio_vsx_copy_nums = 2;
-			vcpu->arch.mmio_vsx_copy_type = KVMPPC_VSX_COPY_DWORD;
-			emulated = kvmppc_handle_vsx_store(run, vcpu,
-							 rs, 8, 1);
-			break;
-
-		case OP_31_XOP_STXVW4X:
-			if (kvmppc_check_vsx_disabled(vcpu))
-				return EMULATE_DONE;
-			vcpu->arch.mmio_vsx_copy_nums = 4;
-			vcpu->arch.mmio_vsx_copy_type = KVMPPC_VSX_COPY_WORD;
-			emulated = kvmppc_handle_vsx_store(run, vcpu,
-							 rs, 4, 1);
-			break;
-#endif /* CONFIG_VSX */
-
 #ifdef CONFIG_ALTIVEC
 		case OP_31_XOP_LVX:
 			if (kvmppc_check_altivec_disabled(vcpu))
