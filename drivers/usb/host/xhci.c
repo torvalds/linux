@@ -4858,6 +4858,7 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 
 	if (usb_hcd_is_primary_hcd(hcd)) {
 		xhci->main_hcd = hcd;
+		xhci->usb2_rhub.hcd = hcd;
 		/* Mark the first roothub as being USB 2.0.
 		 * The xHCI driver will register the USB 3.0 roothub.
 		 */
@@ -4883,6 +4884,7 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 			  minor_rev,
 			  minor_rev ? "Enhanced" : "");
 
+		xhci->usb3_rhub.hcd = hcd;
 		/* xHCI private pointer was set in xhci_pci_probe for the second
 		 * registered roothub.
 		 */
