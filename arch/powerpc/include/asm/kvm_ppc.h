@@ -81,10 +81,10 @@ extern int kvmppc_handle_loads(struct kvm_run *run, struct kvm_vcpu *vcpu,
 extern int kvmppc_handle_vsx_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				unsigned int rt, unsigned int bytes,
 			int is_default_endian, int mmio_sign_extend);
-extern int kvmppc_handle_load128_by2x64(struct kvm_run *run,
-		struct kvm_vcpu *vcpu, unsigned int rt, int is_default_endian);
-extern int kvmppc_handle_store128_by2x64(struct kvm_run *run,
-		struct kvm_vcpu *vcpu, unsigned int rs, int is_default_endian);
+extern int kvmppc_handle_vmx_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
+		unsigned int rt, unsigned int bytes, int is_default_endian);
+extern int kvmppc_handle_vmx_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
+		unsigned int rs, unsigned int bytes, int is_default_endian);
 extern int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			       u64 val, unsigned int bytes,
 			       int is_default_endian);
@@ -265,6 +265,8 @@ union kvmppc_one_reg {
 	vector128 vval;
 	u64	vsxval[2];
 	u32	vsx32val[4];
+	u16	vsx16val[8];
+	u8	vsx8val[16];
 	struct {
 		u64	addr;
 		u64	length;

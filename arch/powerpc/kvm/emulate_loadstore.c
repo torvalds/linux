@@ -113,6 +113,7 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 	vcpu->arch.mmio_sp64_extend = 0;
 	vcpu->arch.mmio_sign_extend = 0;
 	vcpu->arch.mmio_vmx_copy_nums = 0;
+	vcpu->arch.mmio_vmx_offset = 0;
 	vcpu->arch.mmio_host_swabbed = 0;
 
 	emulated = EMULATE_FAIL;
@@ -156,6 +157,46 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 			if ((op.type & UPDATE) && (emulated != EMULATE_FAIL))
 				kvmppc_set_gpr(vcpu, op.update_reg, op.ea);
 
+			break;
+#endif
+#ifdef CONFIG_ALTIVEC
+		case LOAD_VMX:
+			if (kvmppc_check_altivec_disabled(vcpu))
+				return EMULATE_DONE;
+
+			/* Hardware enforces alignment of VMX accesses */
+			vcpu->arch.vaddr_accessed &= ~((unsigned long)size - 1);
+			vcpu->arch.paddr_accessed &= ~((unsigned long)size - 1);
+
+			if (size == 16) { /* lvx */
+				vcpu->arch.mmio_copy_type =
+						KVMPPC_VMX_COPY_DWORD;
+			} else if (size == 4) { /* lvewx  */
+				vcpu->arch.mmio_copy_type =
+						KVMPPC_VMX_COPY_WORD;
+			} else if (size == 2) { /* lvehx  */
+				vcpu->arch.mmio_copy_type =
+						KVMPPC_VMX_COPY_HWORD;
+			} else if (size == 1) { /* lvebx  */
+				vcpu->arch.mmio_copy_type =
+						KVMPPC_VMX_COPY_BYTE;
+			} else
+				break;
+
+			vcpu->arch.mmio_vmx_offset =
+				(vcpu->arch.vaddr_accessed & 0xf)/size;
+
+			if (size == 16) {
+				vcpu->arch.mmio_vmx_copy_nums = 2;
+				emulated = kvmppc_handle_vmx_load(run,
+						vcpu, KVM_MMIO_REG_VMX|op.reg,
+						8, 1);
+			} else {
+				vcpu->arch.mmio_vmx_copy_nums = 1;
+				emulated = kvmppc_handle_vmx_load(run, vcpu,
+						KVM_MMIO_REG_VMX|op.reg,
+						size, 1);
+			}
 			break;
 #endif
 #ifdef CONFIG_VSX
@@ -241,6 +282,48 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 
 			break;
 #endif
+#ifdef CONFIG_ALTIVEC
+		case STORE_VMX:
+			if (kvmppc_check_altivec_disabled(vcpu))
+				return EMULATE_DONE;
+
+			/* Hardware enforces alignment of VMX accesses. */
+			vcpu->arch.vaddr_accessed &= ~((unsigned long)size - 1);
+			vcpu->arch.paddr_accessed &= ~((unsigned long)size - 1);
+
+			if (vcpu->kvm->arch.kvm_ops->giveup_ext)
+				vcpu->kvm->arch.kvm_ops->giveup_ext(vcpu,
+						MSR_VEC);
+			if (size == 16) { /* stvx */
+				vcpu->arch.mmio_copy_type =
+						KVMPPC_VMX_COPY_DWORD;
+			} else if (size == 4) { /* stvewx  */
+				vcpu->arch.mmio_copy_type =
+						KVMPPC_VMX_COPY_WORD;
+			} else if (size == 2) { /* stvehx  */
+				vcpu->arch.mmio_copy_type =
+						KVMPPC_VMX_COPY_HWORD;
+			} else if (size == 1) { /* stvebx  */
+				vcpu->arch.mmio_copy_type =
+						KVMPPC_VMX_COPY_BYTE;
+			} else
+				break;
+
+			vcpu->arch.mmio_vmx_offset =
+				(vcpu->arch.vaddr_accessed & 0xf)/size;
+
+			if (size == 16) {
+				vcpu->arch.mmio_vmx_copy_nums = 2;
+				emulated = kvmppc_handle_vmx_store(run,
+						vcpu, op.reg, 8, 1);
+			} else {
+				vcpu->arch.mmio_vmx_copy_nums = 1;
+				emulated = kvmppc_handle_vmx_store(run,
+						vcpu, op.reg, size, 1);
+			}
+
+			break;
+#endif
 #ifdef CONFIG_VSX
 		case STORE_VSX: {
 			int io_size_each;
@@ -298,47 +381,6 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 		}
 	}
 
-
-	if ((emulated == EMULATE_DONE) || (emulated == EMULATE_DO_MMIO))
-		goto out;
-
-	switch (get_op(inst)) {
-	case 31:
-		switch (get_xop(inst)) {
-#ifdef CONFIG_ALTIVEC
-		case OP_31_XOP_LVX:
-			if (kvmppc_check_altivec_disabled(vcpu))
-				return EMULATE_DONE;
-			vcpu->arch.vaddr_accessed &= ~0xFULL;
-			vcpu->arch.paddr_accessed &= ~0xFULL;
-			vcpu->arch.mmio_vmx_copy_nums = 2;
-			emulated = kvmppc_handle_load128_by2x64(run, vcpu,
-					KVM_MMIO_REG_VMX|rt, 1);
-			break;
-
-		case OP_31_XOP_STVX:
-			if (kvmppc_check_altivec_disabled(vcpu))
-				return EMULATE_DONE;
-			vcpu->arch.vaddr_accessed &= ~0xFULL;
-			vcpu->arch.paddr_accessed &= ~0xFULL;
-			vcpu->arch.mmio_vmx_copy_nums = 2;
-			emulated = kvmppc_handle_store128_by2x64(run, vcpu,
-					rs, 1);
-			break;
-#endif /* CONFIG_ALTIVEC */
-
-		default:
-			emulated = EMULATE_FAIL;
-			break;
-		}
-		break;
-
-	default:
-		emulated = EMULATE_FAIL;
-		break;
-	}
-
-out:
 	if (emulated == EMULATE_FAIL) {
 		advance = 0;
 		kvmppc_core_queue_program(vcpu, 0);

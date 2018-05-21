@@ -691,6 +691,7 @@ struct kvm_vcpu_arch {
 	u8 mmio_vsx_offset;
 	u8 mmio_vsx_tx_sx_enabled;
 	u8 mmio_vmx_copy_nums;
+	u8 mmio_vmx_offset;
 	u8 mmio_copy_type;
 	u8 osi_needed;
 	u8 osi_enabled;
