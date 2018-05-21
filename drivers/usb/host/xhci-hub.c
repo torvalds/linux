@@ -541,22 +541,6 @@ static void xhci_clear_port_change_bit(struct xhci_hcd *xhci, u16 wValue,
 			port_change_bit, wIndex, port_status);
 }
 
-static int xhci_get_ports(struct usb_hcd *hcd, __le32 __iomem ***port_array)
-{
-	int max_ports;
-	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
-
-	if (hcd->speed >= HCD_USB3) {
-		max_ports = xhci->num_usb3_ports;
-		*port_array = xhci->usb3_ports;
-	} else {
-		max_ports = xhci->num_usb2_ports;
-		*port_array = xhci->usb2_ports;
-	}
-
-	return max_ports;
-}
-
 struct xhci_hub *xhci_get_rhub(struct usb_hcd *hcd)
 {
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
@@ -1032,7 +1016,6 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	unsigned long flags;
 	u32 temp, status;
 	int retval = 0;
-	__le32 __iomem **port_array;
 	int slot_id;
 	struct xhci_bus_state *bus_state;
 	u16 link_state = 0;
@@ -1044,7 +1027,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 	rhub = xhci_get_rhub(hcd);
 	ports = rhub->ports;
-	max_ports = xhci_get_ports(hcd, &port_array);
+	max_ports = rhub->num_ports;
 	bus_state = &xhci->bus_state[hcd_index(hcd)];
 
 	spin_lock_irqsave(&xhci->lock, flags);
@@ -1425,7 +1408,6 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	int i, retval;
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int max_ports;
-	__le32 __iomem **port_array;
 	struct xhci_bus_state *bus_state;
 	bool reset_change = false;
 	struct xhci_hub *rhub;
@@ -1433,7 +1415,7 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 
 	rhub = xhci_get_rhub(hcd);
 	ports = rhub->ports;
-	max_ports = xhci_get_ports(hcd, &port_array);
+	max_ports = rhub->num_ports;
 	bus_state = &xhci->bus_state[hcd_index(hcd)];
 
 	/* Initial status is no changes */
@@ -1483,7 +1465,6 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 {
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int max_ports, port_index;
-	__le32 __iomem **port_array;
 	struct xhci_bus_state *bus_state;
 	unsigned long flags;
 	struct xhci_hub *rhub;
@@ -1491,7 +1472,7 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 
 	rhub = xhci_get_rhub(hcd);
 	ports = rhub->ports;
-	max_ports = xhci_get_ports(hcd, &port_array);
+	max_ports = rhub->num_ports;
 	bus_state = &xhci->bus_state[hcd_index(hcd)];
 
 	spin_lock_irqsave(&xhci->lock, flags);
@@ -1592,7 +1573,6 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 {
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	struct xhci_bus_state *bus_state;
-	__le32 __iomem **port_array;
 	unsigned long flags;
 	int max_ports, port_index;
 	int slot_id;
@@ -1604,7 +1584,7 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 
 	rhub = xhci_get_rhub(hcd);
 	ports = rhub->ports;
-	max_ports = xhci_get_ports(hcd, &port_array);
+	max_ports = rhub->num_ports;
 	bus_state = &xhci->bus_state[hcd_index(hcd)];
 
 	if (time_before(jiffies, bus_state->next_statechange))
