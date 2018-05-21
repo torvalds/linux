@@ -39,6 +39,7 @@
 #define D_MGC D_CONFIG /*|D_WARNING*/
 
 #include <linux/module.h>
+#include <linux/random.h>
 
 #include <lprocfs_status.h>
 #include <lustre_dlm.h>

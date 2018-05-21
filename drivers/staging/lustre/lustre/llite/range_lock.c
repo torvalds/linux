@@ -36,6 +36,7 @@
  */
 #include "range_lock.h"
 #include <uapi/linux/lustre/lustre_idl.h>
+#include <linux/libcfs/libcfs.h>
 
 /**
  * Initialize a range lock tree

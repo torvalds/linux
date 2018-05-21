@@ -40,6 +40,9 @@
 #define __LIBCFS_HASH_H__
 
 #include <linux/hash.h>
+#include <linux/spinlock.h>
+#include <linux/workqueue.h>
+#include <linux/libcfs/libcfs.h>
 
 /*
  * Knuth recommends primes in approximately golden ratio to the maximum

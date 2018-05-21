@@ -43,8 +43,6 @@
 #ifndef OSC_CL_INTERNAL_H
 #define OSC_CL_INTERNAL_H
 
-#include <linux/libcfs/libcfs_all.h>
-
 #include <obd.h>
 /* osc_build_res_name() */
 #include <cl_object.h>

@@ -38,7 +38,6 @@
 #define __FID_INTERNAL_H
 
 #include <uapi/linux/lustre/lustre_idl.h>
-#include <linux/libcfs/libcfs_all.h>
 
 /* Functions used internally in module. */
 
