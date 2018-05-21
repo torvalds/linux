@@ -2503,6 +2503,23 @@ static int vega20_apply_clocks_adjust_rules(struct pp_hwmgr *hwmgr)
 	dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[0].value;
 	dpm_table->dpm_state.hard_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
 
+	if (PP_CAP(PHM_PlatformCaps_UMDPState)) {
+		if (VEGA20_UMD_PSTATE_GFXCLK_LEVEL < dpm_table->count) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[VEGA20_UMD_PSTATE_GFXCLK_LEVEL].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[VEGA20_UMD_PSTATE_GFXCLK_LEVEL].value;
+		}
+
+		if (hwmgr->dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[0].value;
+		}
+
+		if (hwmgr->dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+		}
+	}
+
 	/* memclk */
 	dpm_table = &(data->dpm_table.mem_table);
 	dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
@@ -2510,9 +2527,28 @@ static int vega20_apply_clocks_adjust_rules(struct pp_hwmgr *hwmgr)
 	dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[0].value;
 	dpm_table->dpm_state.hard_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
 
+	if (PP_CAP(PHM_PlatformCaps_UMDPState)) {
+		if (VEGA20_UMD_PSTATE_MCLK_LEVEL < dpm_table->count) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[VEGA20_UMD_PSTATE_MCLK_LEVEL].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[VEGA20_UMD_PSTATE_MCLK_LEVEL].value;
+		}
+
+		if (hwmgr->dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[0].value;
+		}
+
+		if (hwmgr->dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+		}
+	}
+
+	/* honour DAL's UCLK Hardmin */
 	if (dpm_table->dpm_state.hard_min_level < (hwmgr->display_config->min_mem_set_clock / 100))
 		dpm_table->dpm_state.hard_min_level = hwmgr->display_config->min_mem_set_clock / 100;
 
+	/* Hardmin is dependent on displayconfig */
 	if (disable_mclk_switching) {
 		dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
 		for (i = 0; i < data->mclk_latency_table.count - 1; i++) {
@@ -2527,6 +2563,82 @@ static int vega20_apply_clocks_adjust_rules(struct pp_hwmgr *hwmgr)
 
 	if (hwmgr->display_config->nb_pstate_switch_disable)
 		dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+
+	/* vclk */
+	dpm_table = &(data->dpm_table.vclk_table);
+	dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
+	dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[0].value;
+	dpm_table->dpm_state.hard_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+
+	if (PP_CAP(PHM_PlatformCaps_UMDPState)) {
+		if (VEGA20_UMD_PSTATE_UVDCLK_LEVEL < dpm_table->count) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[VEGA20_UMD_PSTATE_UVDCLK_LEVEL].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[VEGA20_UMD_PSTATE_UVDCLK_LEVEL].value;
+		}
+
+		if (hwmgr->dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+		}
+	}
+
+	/* dclk */
+	dpm_table = &(data->dpm_table.dclk_table);
+	dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
+	dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[0].value;
+	dpm_table->dpm_state.hard_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+
+	if (PP_CAP(PHM_PlatformCaps_UMDPState)) {
+		if (VEGA20_UMD_PSTATE_UVDCLK_LEVEL < dpm_table->count) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[VEGA20_UMD_PSTATE_UVDCLK_LEVEL].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[VEGA20_UMD_PSTATE_UVDCLK_LEVEL].value;
+		}
+
+		if (hwmgr->dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+		}
+	}
+
+	/* socclk */
+	dpm_table = &(data->dpm_table.soc_table);
+	dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
+	dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[0].value;
+	dpm_table->dpm_state.hard_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+
+	if (PP_CAP(PHM_PlatformCaps_UMDPState)) {
+		if (VEGA20_UMD_PSTATE_SOCCLK_LEVEL < dpm_table->count) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[VEGA20_UMD_PSTATE_SOCCLK_LEVEL].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[VEGA20_UMD_PSTATE_SOCCLK_LEVEL].value;
+		}
+
+		if (hwmgr->dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+		}
+	}
+
+	/* eclk */
+	dpm_table = &(data->dpm_table.eclk_table);
+	dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
+	dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[0].value;
+	dpm_table->dpm_state.hard_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+
+	if (PP_CAP(PHM_PlatformCaps_UMDPState)) {
+		if (VEGA20_UMD_PSTATE_VCEMCLK_LEVEL < dpm_table->count) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[VEGA20_UMD_PSTATE_VCEMCLK_LEVEL].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[VEGA20_UMD_PSTATE_VCEMCLK_LEVEL].value;
+		}
+
+		if (hwmgr->dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+		}
+	}
 
 	return 0;
 }
