@@ -719,7 +719,7 @@ err_out:
 	return rc;
 }
 
-static int hisi_sas_slave_configure(struct scsi_device *sdev)
+int hisi_sas_slave_configure(struct scsi_device *sdev)
 {
 	struct domain_device *dev = sdev_to_domain_dev(sdev);
 	int ret = sas_slave_configure(sdev);
@@ -731,15 +731,17 @@ static int hisi_sas_slave_configure(struct scsi_device *sdev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hisi_sas_slave_configure);
 
-static void hisi_sas_scan_start(struct Scsi_Host *shost)
+void hisi_sas_scan_start(struct Scsi_Host *shost)
 {
 	struct hisi_hba *hisi_hba = shost_priv(shost);
 
 	hisi_hba->hw->phys_init(hisi_hba);
 }
+EXPORT_SYMBOL_GPL(hisi_sas_scan_start);
 
-static int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time)
+int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time)
 {
 	struct hisi_hba *hisi_hba = shost_priv(shost);
 	struct sas_ha_struct *sha = &hisi_hba->sha;
@@ -751,6 +753,7 @@ static int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time)
 	sas_drain_work(sha);
 	return 1;
 }
+EXPORT_SYMBOL_GPL(hisi_sas_scan_finished);
 
 static void hisi_sas_phyup_work(struct work_struct *work)
 {
@@ -1824,34 +1827,11 @@ EXPORT_SYMBOL_GPL(hisi_sas_kill_tasklets);
 struct scsi_transport_template *hisi_sas_stt;
 EXPORT_SYMBOL_GPL(hisi_sas_stt);
 
-static struct device_attribute *host_attrs[] = {
+struct device_attribute *host_attrs[] = {
 	&dev_attr_phy_event_threshold,
 	NULL,
 };
-
-static struct scsi_host_template _hisi_sas_sht = {
-	.module			= THIS_MODULE,
-	.name			= DRV_NAME,
-	.queuecommand		= sas_queuecommand,
-	.target_alloc		= sas_target_alloc,
-	.slave_configure	= hisi_sas_slave_configure,
-	.scan_finished		= hisi_sas_scan_finished,
-	.scan_start		= hisi_sas_scan_start,
-	.change_queue_depth	= sas_change_queue_depth,
-	.bios_param		= sas_bios_param,
-	.can_queue		= 1,
-	.this_id		= -1,
-	.sg_tablesize		= SG_ALL,
-	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
-	.use_clustering		= ENABLE_CLUSTERING,
-	.eh_device_reset_handler = sas_eh_device_reset_handler,
-	.eh_target_reset_handler = sas_eh_target_reset_handler,
-	.target_destroy		= sas_target_destroy,
-	.ioctl			= sas_ioctl,
-	.shost_attrs		= host_attrs,
-};
-struct scsi_host_template *hisi_sas_sht = &_hisi_sas_sht;
-EXPORT_SYMBOL_GPL(hisi_sas_sht);
+EXPORT_SYMBOL_GPL(host_attrs);
 
 static struct sas_domain_function_template hisi_sas_transport_ops = {
 	.lldd_dev_found		= hisi_sas_dev_found,
@@ -2161,7 +2141,7 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 	struct hisi_hba *hisi_hba;
 	struct device *dev = &pdev->dev;
 
-	shost = scsi_host_alloc(hisi_sas_sht, sizeof(*hisi_hba));
+	shost = scsi_host_alloc(hw->sht, sizeof(*hisi_hba));
 	if (!shost) {
 		dev_err(dev, "scsi host alloc failed\n");
 		return NULL;
@@ -2211,7 +2191,7 @@ err_out:
 }
 
 int hisi_sas_probe(struct platform_device *pdev,
-			 const struct hisi_sas_hw *hw)
+		   const struct hisi_sas_hw *hw)
 {
 	struct Scsi_Host *shost;
 	struct hisi_hba *hisi_hba;

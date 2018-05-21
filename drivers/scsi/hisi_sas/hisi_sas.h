@@ -248,6 +248,7 @@ struct hisi_sas_hw {
 				u8 reg_index, u8 reg_count, u8 *write_data);
 	int max_command_entries;
 	int complete_hdr_size;
+	struct scsi_host_template *sht;
 };
 
 struct hisi_hba {
@@ -440,8 +441,6 @@ struct hisi_sas_slot_buf_table {
 };
 
 extern struct scsi_transport_template *hisi_sas_stt;
-extern struct scsi_host_template *hisi_sas_sht;
-
 extern void hisi_sas_stop_phys(struct hisi_hba *hisi_hba);
 extern int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost);
 extern void hisi_sas_free(struct hisi_hba *hisi_hba);
@@ -456,6 +455,11 @@ extern int hisi_sas_probe(struct platform_device *pdev,
 			  const struct hisi_sas_hw *ops);
 extern int hisi_sas_remove(struct platform_device *pdev);
 
+extern int hisi_sas_slave_configure(struct scsi_device *sdev);
+extern int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time);
+extern void hisi_sas_scan_start(struct Scsi_Host *shost);
+extern struct device_attribute *host_attrs[];
+extern int hisi_sas_host_reset(struct Scsi_Host *shost, int reset_type);
 extern void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy);
 extern void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba,
 				    struct sas_task *task,

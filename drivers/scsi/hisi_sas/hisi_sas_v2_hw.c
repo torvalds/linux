@@ -3501,6 +3501,29 @@ static int write_gpio_v2_hw(struct hisi_hba *hisi_hba, u8 reg_type,
 	return 0;
 }
 
+
+static struct scsi_host_template sht_v2_hw = {
+	.name			= DRV_NAME,
+	.module			= THIS_MODULE,
+	.queuecommand		= sas_queuecommand,
+	.target_alloc		= sas_target_alloc,
+	.slave_configure	= hisi_sas_slave_configure,
+	.scan_finished		= hisi_sas_scan_finished,
+	.scan_start		= hisi_sas_scan_start,
+	.change_queue_depth	= sas_change_queue_depth,
+	.bios_param		= sas_bios_param,
+	.can_queue		= 1,
+	.this_id		= -1,
+	.sg_tablesize		= SG_ALL,
+	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
+	.use_clustering		= ENABLE_CLUSTERING,
+	.eh_device_reset_handler = sas_eh_device_reset_handler,
+	.eh_target_reset_handler = sas_eh_target_reset_handler,
+	.target_destroy		= sas_target_destroy,
+	.ioctl			= sas_ioctl,
+	.shost_attrs		= host_attrs,
+};
+
 static const struct hisi_sas_hw hisi_sas_v2_hw = {
 	.hw_init = hisi_sas_v2_init,
 	.setup_itct = setup_itct_v2_hw,
@@ -3529,6 +3552,7 @@ static const struct hisi_sas_hw hisi_sas_v2_hw = {
 	.soft_reset = soft_reset_v2_hw,
 	.get_phys_state = get_phys_state_v2_hw,
 	.write_gpio = write_gpio_v2_hw,
+	.sht = &sht_v2_hw,
 };
 
 static int hisi_sas_v2_probe(struct platform_device *pdev)
