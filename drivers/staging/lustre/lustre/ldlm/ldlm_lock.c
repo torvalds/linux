@@ -1558,7 +1558,7 @@ struct ldlm_lock *ldlm_lock_create(struct ldlm_namespace *ns,
 
 	lock->l_req_mode = mode;
 	lock->l_ast_data = data;
-	lock->l_pid = current_pid();
+	lock->l_pid = current->pid;
 	if (cbs) {
 		lock->l_blocking_ast = cbs->lcs_blocking;
 		lock->l_completion_ast = cbs->lcs_completion;

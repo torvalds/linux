@@ -48,10 +48,6 @@
  * kernel_cap_t
  */
 
-/* check if task is running in compat mode.*/
-#define current_pid()		(current->pid)
-#define current_comm()		(current->comm)
-
 typedef u32 cfs_cap_t;
 
 #define CFS_CAP_FS_MASK (BIT(CAP_CHOWN) |		\

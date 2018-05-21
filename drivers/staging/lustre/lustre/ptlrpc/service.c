@@ -1679,7 +1679,7 @@ ptlrpc_server_handle_request(struct ptlrpc_service_part *svcpt,
 	}
 
 	CDEBUG(D_RPCTRACE, "Handling RPC pname:cluuid+ref:pid:xid:nid:opc %s:%s+%d:%d:x%llu:%s:%d\n",
-	       current_comm(),
+	       current->comm,
 	       (request->rq_export ?
 		(char *)request->rq_export->exp_client_uuid.uuid : "0"),
 	       (request->rq_export ?
@@ -1723,7 +1723,7 @@ put_conn:
 	arrived_usecs = arrived.tv_sec * USEC_PER_SEC +
 			 arrived.tv_nsec / NSEC_PER_USEC;
 	CDEBUG(D_RPCTRACE, "Handled RPC pname:cluuid+ref:pid:xid:nid:opc %s:%s+%d:%d:x%llu:%s:%d Request processed in %ldus (%ldus total) trans %llu rc %d/%d\n",
-	       current_comm(),
+	       current->comm,
 	       (request->rq_export ?
 		(char *)request->rq_export->exp_client_uuid.uuid : "0"),
 	       (request->rq_export ?
@@ -2018,7 +2018,7 @@ static int ptlrpc_main(void *arg)
 	struct lu_env *env;
 	int counter = 0, rc = 0;
 
-	thread->t_pid = current_pid();
+	thread->t_pid = current->pid;
 	unshare_fs_struct();
 
 	/* NB: we will call cfs_cpt_bind() for all threads, because we

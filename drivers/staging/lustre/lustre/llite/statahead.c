@@ -1075,7 +1075,7 @@ static int ll_statahead_thread(void *arg)
 			CDEBUG(D_READA, "Statahead for dir " DFID " hit ratio too low: hit/miss %llu/%llu, sent/replied %llu/%llu, stopping statahead thread: pid %d\n",
 			       PFID(&lli->lli_fid), sai->sai_hit,
 			       sai->sai_miss, sai->sai_sent,
-			       sai->sai_replied, current_pid());
+			       sai->sai_replied, current->pid);
 			break;
 		}
 	}
@@ -1147,7 +1147,7 @@ void ll_authorize_statahead(struct inode *dir, void *key)
 		 */
 		LASSERT(!lli->lli_opendir_pid);
 		lli->lli_opendir_key = key;
-		lli->lli_opendir_pid = current_pid();
+		lli->lli_opendir_pid = current->pid;
 		lli->lli_sa_enabled = 1;
 	}
 	spin_unlock(&lli->lli_sa_lock);
@@ -1506,7 +1506,7 @@ static int start_statahead_thread(struct inode *dir, struct dentry *dentry)
 	atomic_inc(&ll_i2sbi(parent->d_inode)->ll_sa_running);
 
 	CDEBUG(D_READA, "start statahead thread: [pid %d] [parent %pd]\n",
-	       current_pid(), parent);
+	       current->pid, parent);
 
 	task = kthread_create(ll_statahead_thread, parent, "ll_sa_%u",
 			      lli->lli_opendir_pid);

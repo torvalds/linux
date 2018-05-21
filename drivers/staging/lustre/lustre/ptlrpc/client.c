@@ -1552,7 +1552,7 @@ static int ptlrpc_send_new_req(struct ptlrpc_request *req)
 
 	lustre_msg_set_last_xid(req->rq_reqmsg, min_xid);
 
-	lustre_msg_set_status(req->rq_reqmsg, current_pid());
+	lustre_msg_set_status(req->rq_reqmsg, current->pid);
 
 	rc = sptlrpc_req_refresh_ctx(req, -1);
 	if (rc) {
@@ -1567,7 +1567,7 @@ static int ptlrpc_send_new_req(struct ptlrpc_request *req)
 	}
 
 	CDEBUG(D_RPCTRACE, "Sending RPC pname:cluuid:pid:xid:nid:opc %s:%s:%d:%llu:%s:%d\n",
-	       current_comm(),
+	       current->comm,
 	       imp->imp_obd->obd_uuid.uuid,
 	       lustre_msg_get_status(req->rq_reqmsg), req->rq_xid,
 	       libcfs_nid2str(imp->imp_connection->c_peer.nid),
@@ -1978,7 +1978,7 @@ interpret:
 
 		CDEBUG(req->rq_reqmsg ? D_RPCTRACE : 0,
 		       "Completed RPC pname:cluuid:pid:xid:nid:opc %s:%s:%d:%llu:%s:%d\n",
-		       current_comm(), imp->imp_obd->obd_uuid.uuid,
+		       current->comm, imp->imp_obd->obd_uuid.uuid,
 		       lustre_msg_get_status(req->rq_reqmsg), req->rq_xid,
 		       libcfs_nid2str(imp->imp_connection->c_peer.nid),
 		       lustre_msg_get_opc(req->rq_reqmsg));
@@ -2760,7 +2760,7 @@ int ptlrpc_queue_wait(struct ptlrpc_request *req)
 	}
 
 	/* for distributed debugging */
-	lustre_msg_set_status(req->rq_reqmsg, current_pid());
+	lustre_msg_set_status(req->rq_reqmsg, current->pid);
 
 	/* add a ref for the set (see comment in ptlrpc_set_add_req) */
 	ptlrpc_request_addref(req);

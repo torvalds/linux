@@ -56,7 +56,7 @@ int lov_merge_lvb_kms(struct lov_stripe_md *lsm,
 	int rc = 0;
 
 	assert_spin_locked(&lsm->lsm_lock);
-	LASSERT(lsm->lsm_lock_owner == current_pid());
+	LASSERT(lsm->lsm_lock_owner == current->pid);
 
 	CDEBUG(D_INODE, "MDT ID " DOSTID " initial value: s=%llu m=%llu a=%llu c=%llu b=%llu\n",
 	       POSTID(&lsm->lsm_oi), lvb->lvb_size, lvb->lvb_mtime,

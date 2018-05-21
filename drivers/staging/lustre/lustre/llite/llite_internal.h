@@ -1140,7 +1140,7 @@ dentry_may_statahead(struct inode *dir, struct dentry *dentry)
 		return false;
 
 	/* not the same process, don't statahead */
-	if (lli->lli_opendir_pid != current_pid())
+	if (lli->lli_opendir_pid != current->pid)
 		return false;
 
 	/*

@@ -373,7 +373,7 @@ void libcfs_debug_dumplog(void)
 	add_wait_queue(&debug_ctlwq, &wait);
 
 	dumper = kthread_run(libcfs_debug_dumplog_thread,
-			     (void *)(long)current_pid(),
+			     (void *)(long)current->pid,
 			     "libcfs_debug_dumper");
 	set_current_state(TASK_INTERRUPTIBLE);
 	if (IS_ERR(dumper))
