@@ -2379,6 +2379,5 @@ const struct pp_smumgr_func vegam_smu_funcs = {
 	.update_sclk_threshold = vegam_update_sclk_threshold,
 	.is_hw_avfs_present = vegam_is_hw_avfs_present,
 	.thermal_avfs_enable = vegam_thermal_avfs_enable,
-	.is_dpm_running = vegam_is_dpm_running,
 	.thermal_setup_fan_table = vegam_thermal_setup_fan_table,
 };
