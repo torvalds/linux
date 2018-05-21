@@ -393,11 +393,12 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 	return n_channels;
 }
 
-static void iwl_init_vht_hw_capab(const struct iwl_cfg *cfg,
+static void iwl_init_vht_hw_capab(struct iwl_trans *trans,
 				  struct iwl_nvm_data *data,
 				  struct ieee80211_sta_vht_cap *vht_cap,
 				  u8 tx_chains, u8 rx_chains)
 {
+	const struct iwl_cfg *cfg = trans->cfg;
 	int num_rx_ants = num_of_ant(rx_chains);
 	int num_tx_ants = num_of_ant(tx_chains);
 	unsigned int max_ampdu_exponent = (cfg->max_vht_ampdu_exponent ?:
@@ -669,11 +670,13 @@ static void iwl_init_he_hw_capab(struct ieee80211_supported_band *sband,
 	}
 }
 
-static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
+static void iwl_init_sbands(struct iwl_trans *trans,
 			    struct iwl_nvm_data *data,
 			    const void *nvm_ch_flags, u8 tx_chains,
 			    u8 rx_chains, u32 sbands_flags, bool v4)
 {
+	struct device *dev = trans->dev;
+	const struct iwl_cfg *cfg = trans->cfg;
 	int n_channels;
 	int n_used = 0;
 	struct ieee80211_supported_band *sband;
@@ -701,7 +704,7 @@ static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 	iwl_init_ht_hw_capab(cfg, data, &sband->ht_cap, NL80211_BAND_5GHZ,
 			     tx_chains, rx_chains);
 	if (data->sku_cap_11ac_enable && !iwlwifi_mod_params.disable_11ac)
-		iwl_init_vht_hw_capab(cfg, data, &sband->vht_cap,
+		iwl_init_vht_hw_capab(trans, data, &sband->vht_cap,
 				      tx_chains, rx_chains);
 
 	if (data->sku_cap_11ax_enable && !iwlwifi_mod_params.disable_11ax)
@@ -1019,7 +1022,7 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	if (iwl_nvm_no_wide_in_5ghz(dev, cfg, nvm_hw))
 		sbands_flags |= IWL_NVM_SBANDS_FLAGS_NO_WIDE_IN_5GHZ;
 
-	iwl_init_sbands(dev, cfg, data, ch_section, tx_chains, rx_chains,
+	iwl_init_sbands(trans, data, ch_section, tx_chains, rx_chains,
 			sbands_flags, false);
 	data->calib_version = 255;
 
@@ -1485,7 +1488,7 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 	channel_profile = v4 ? (void *)rsp->regulatory.channel_profile :
 			  (void *)rsp_v3->regulatory.channel_profile;
 
-	iwl_init_sbands(trans->dev, trans->cfg, nvm,
+	iwl_init_sbands(trans, nvm,
 			channel_profile,
 			nvm->valid_tx_ant & fw->valid_tx_ant,
 			nvm->valid_rx_ant & fw->valid_rx_ant,
