@@ -77,7 +77,7 @@ enum {
 	Opt_mapposix, Opt_nomapposix,
 	Opt_mapchars, Opt_nomapchars, Opt_sfu,
 	Opt_nosfu, Opt_nodfs, Opt_posixpaths,
-	Opt_noposixpaths, Opt_nounix,
+	Opt_noposixpaths, Opt_nounix, Opt_unix,
 	Opt_nocase,
 	Opt_brl, Opt_nobrl,
 	Opt_handlecache, Opt_nohandlecache,
@@ -146,6 +146,10 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_noposixpaths, "noposixpaths" },
 	{ Opt_nounix, "nounix" },
 	{ Opt_nounix, "nolinux" },
+	{ Opt_nounix, "noposix" },
+	{ Opt_unix, "unix" },
+	{ Opt_unix, "linux" },
+	{ Opt_unix, "posix" },
 	{ Opt_nocase, "nocase" },
 	{ Opt_nocase, "ignorecase" },
 	{ Opt_brl, "brl" },
@@ -1438,7 +1442,16 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			vol->posix_paths = 0;
 			break;
 		case Opt_nounix:
+			if (vol->linux_ext)
+				cifs_dbg(VFS,
+					"conflicting unix mount options\n");
 			vol->no_linux_ext = 1;
+			break;
+		case Opt_unix:
+			if (vol->no_linux_ext)
+				cifs_dbg(VFS,
+					"conflicting unix mount options\n");
+			vol->linux_ext = 1;
 			break;
 		case Opt_nocase:
 			vol->nocase = 1;
@@ -2985,6 +2998,13 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 		}
 	}
 
+#ifdef CONFIG_CIFS_SMB311
+	if ((volume_info->linux_ext) && (ses->server->posix_ext_supported)) {
+		if (ses->server->vals->protocol_id == SMB311_PROT_ID)
+			tcon->posix_extensions = true;
+	}
+#endif /* 311 */
+
 	/*
 	 * BB Do we need to wrap session_mutex around this TCon call and Unix
 	 * SetFS as we do on SessSetup and reconnect?
@@ -4406,6 +4426,7 @@ cifs_construct_tcon(struct cifs_sb_info *cifs_sb, kuid_t fsuid)
 
 	if (cap_unix(ses))
 		reset_cifs_unix_caps(0, tcon, NULL, vol_info);
+
 out:
 	kfree(vol_info->username);
 	kzfree(vol_info->password);

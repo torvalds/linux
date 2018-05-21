@@ -522,6 +522,7 @@ struct smb_vol {
 	bool sfu_remap:1;  /* remap seven reserved chars ala SFU */
 	bool posix_paths:1; /* unset to not ask for posix pathnames. */
 	bool no_linux_ext:1;
+	bool linux_ext:1;
 	bool sfu_emul:1;
 	bool nullauth:1;   /* attempt to authenticate with null user */
 	bool nocase:1;     /* request case insensitive filenames */
@@ -960,6 +961,9 @@ struct cifs_tcon {
 	bool seal:1;      /* transport encryption for this mounted share */
 	bool unix_ext:1;  /* if false disable Linux extensions to CIFS protocol
 				for this mount even if server would support */
+#ifdef CONFIG_CIFS_SMB311
+	bool posix_extensions; /* if true SMB3.11 posix extensions enabled */
+#endif /* CIFS_311 */
 	bool local_lease:1; /* check leases (only) on local system not remote */
 	bool broken_posix_open; /* e.g. Samba server versions < 3.3.2, 3.2.9 */
 	bool broken_sparse_sup; /* if server or share does not support sparse */
