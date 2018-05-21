@@ -173,14 +173,10 @@
 #define MAX_RD_TIME(lbcc)		((lbcc) & 0x7fff)
 
 #define DSI_PHY_RSTZ			0xa0
-#define PHY_DISFORCEPLL			0
 #define PHY_ENFORCEPLL			BIT(3)
-#define PHY_DISABLECLK			0
 #define PHY_ENABLECLK			BIT(2)
-#define PHY_RSTZ			0
-#define PHY_UNRSTZ			BIT(1)
-#define PHY_SHUTDOWNZ			0
-#define PHY_UNSHUTDOWNZ			BIT(0)
+#define PHY_RSTZ			BIT(1)
+#define PHY_SHUTDOWNZ			BIT(0)
 
 #define DSI_PHY_IF_CFG			0xa4
 #define N_LANES(n)			((((n) - 1) & 0x3) << 0)
@@ -480,6 +476,44 @@ static int genif_wait_write_fifo_empty(struct dw_mipi_dsi *dsi)
 	return 0;
 }
 
+static inline void mipi_dphy_enableclk_assert(struct dw_mipi_dsi *dsi)
+{
+	regmap_update_bits(dsi->regmap, DSI_PHY_RSTZ,
+			   PHY_ENABLECLK, PHY_ENABLECLK);
+	udelay(1);
+}
+
+static inline void mipi_dphy_enableclk_deassert(struct dw_mipi_dsi *dsi)
+{
+	regmap_update_bits(dsi->regmap, DSI_PHY_RSTZ, PHY_ENABLECLK, 0);
+	udelay(1);
+}
+
+static inline void mipi_dphy_shutdownz_assert(struct dw_mipi_dsi *dsi)
+{
+	regmap_update_bits(dsi->regmap, DSI_PHY_RSTZ, PHY_SHUTDOWNZ, 0);
+	udelay(1);
+}
+
+static inline void mipi_dphy_shutdownz_deassert(struct dw_mipi_dsi *dsi)
+{
+	regmap_update_bits(dsi->regmap, DSI_PHY_RSTZ,
+			   PHY_SHUTDOWNZ, PHY_SHUTDOWNZ);
+	udelay(1);
+}
+
+static inline void mipi_dphy_rstz_assert(struct dw_mipi_dsi *dsi)
+{
+	regmap_update_bits(dsi->regmap, DSI_PHY_RSTZ, PHY_RSTZ, 0);
+	udelay(1);
+}
+
+static inline void mipi_dphy_rstz_deassert(struct dw_mipi_dsi *dsi)
+{
+	regmap_update_bits(dsi->regmap, DSI_PHY_RSTZ, PHY_RSTZ, PHY_RSTZ);
+	udelay(1);
+}
+
 static inline void testif_testclk_assert(struct dw_mipi_dsi *dsi)
 {
 	regmap_update_bits(dsi->regmap, DSI_PHY_TST_CTRL0,
@@ -583,8 +617,8 @@ static int mipi_dphy_power_on(struct dw_mipi_dsi *dsi)
 	unsigned int val, mask;
 	int ret;
 
-	regmap_write(dsi->regmap, DSI_PHY_RSTZ, PHY_ENFORCEPLL |
-		     PHY_ENABLECLK | PHY_UNRSTZ | PHY_UNSHUTDOWNZ);
+	mipi_dphy_shutdownz_deassert(dsi);
+	mipi_dphy_rstz_deassert(dsi);
 	usleep_range(1500, 2000);
 
 	if (dsi->dphy.phy)
@@ -597,6 +631,8 @@ static int mipi_dphy_power_on(struct dw_mipi_dsi *dsi)
 		dev_err(dsi->dev, "PHY is not locked\n");
 		return ret;
 	}
+
+	usleep_range(100, 200);
 
 	mask = PHY_STOPSTATELANE;
 	ret = regmap_read_poll_timeout(dsi->regmap, DSI_PHY_STATUS,
@@ -1002,6 +1038,9 @@ static void mipi_dphy_init(struct dw_mipi_dsi *dsi)
 {
 	u32 map[] = {0x1, 0x3, 0x7, 0xf};
 
+	mipi_dphy_shutdownz_assert(dsi);
+	mipi_dphy_rstz_assert(dsi);
+
 	/* Configures DPHY to work as a Master */
 	grf_field_write(dsi, MASTERSLAVEZ, 1);
 
@@ -1023,6 +1062,8 @@ static void mipi_dphy_init(struct dw_mipi_dsi *dsi)
 
 	/* Enable Clock Lane Module */
 	grf_field_write(dsi, ENABLECLK, 1);
+
+	mipi_dphy_enableclk_assert(dsi);
 }
 
 static void dw_mipi_dsi_init(struct dw_mipi_dsi *dsi)
@@ -1030,8 +1071,6 @@ static void dw_mipi_dsi_init(struct dw_mipi_dsi *dsi)
 	u32 esc_clk_div;
 
 	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
-	regmap_write(dsi->regmap, DSI_PHY_RSTZ, PHY_DISFORCEPLL |
-		     PHY_DISABLECLK | PHY_RSTZ | PHY_SHUTDOWNZ);
 
 	/* The maximum value of the escape clock frequency is 20MHz */
 	esc_clk_div = DIV_ROUND_UP(dsi->lane_mbps >> 3, 20);
