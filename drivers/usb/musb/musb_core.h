@@ -127,8 +127,6 @@ struct musb_io;
  * @writeb:	write 8 bits
  * @readw:	read 16 bits
  * @writew:	write 16 bits
- * @readl:	read 32 bits
- * @writel:	write 32 bits
  * @read_fifo:	reads the fifo
  * @write_fifo:	writes to fifo
  * @dma_init:	platform specific dma init function
@@ -174,8 +172,6 @@ struct musb_platform_ops {
 	void	(*writeb)(void __iomem *addr, unsigned offset, u8 data);
 	u16	(*readw)(const void __iomem *addr, unsigned offset);
 	void	(*writew)(void __iomem *addr, unsigned offset, u16 data);
-	u32	(*readl)(const void __iomem *addr, unsigned offset);
-	void	(*writel)(void __iomem *addr, unsigned offset, u32 data);
 	void	(*read_fifo)(struct musb_hw_ep *hw_ep, u16 len, u8 *buf);
 	void	(*write_fifo)(struct musb_hw_ep *hw_ep, u16 len, const u8 *buf);
 	struct dma_controller *
