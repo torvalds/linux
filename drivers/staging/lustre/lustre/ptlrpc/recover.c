@@ -36,7 +36,7 @@
  */
 
 #define DEBUG_SUBSYSTEM S_RPC
-#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_all.h>
 
 #include <obd_support.h>
 #include <lustre_ha.h>

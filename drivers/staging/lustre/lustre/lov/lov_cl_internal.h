@@ -43,7 +43,7 @@
 #ifndef LOV_CL_INTERNAL_H
 #define LOV_CL_INTERNAL_H
 
-#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_all.h>
 
 #include <obd.h>
 #include <cl_object.h>

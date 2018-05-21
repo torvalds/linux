@@ -47,7 +47,7 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LDLM
-#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_all.h>
 #include <lustre_dlm.h>
 #include <obd_support.h>
 #include <obd.h>

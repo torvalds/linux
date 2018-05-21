@@ -41,7 +41,7 @@
 #include <obd_class.h>
 #include <lustre_net.h>
 #include <lprocfs_status.h>
-#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_all.h>
 #include "ptlrpc_internal.h"
 
 /**

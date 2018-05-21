@@ -38,7 +38,7 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_all.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/mm.h>

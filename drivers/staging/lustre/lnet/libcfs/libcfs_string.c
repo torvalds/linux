@@ -37,7 +37,7 @@
  * Author: Nathan Rutman <nathan.rutman@sun.com>
  */
 
-#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_all.h>
 
 /* Convert a text string to a bitmask */
 int cfs_str2mask(const char *str, const char *(*bit2str)(int bit),

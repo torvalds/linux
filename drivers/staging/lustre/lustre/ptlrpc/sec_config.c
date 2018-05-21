@@ -33,7 +33,7 @@
 
 #define DEBUG_SUBSYSTEM S_SEC
 
-#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_all.h>
 #include <linux/crypto.h>
 #include <linux/key.h>
 

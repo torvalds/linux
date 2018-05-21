@@ -38,7 +38,7 @@
 
 #define DEBUG_SUBSYSTEM S_OSC
 
-#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_all.h>
 /* fid_build_reg_res_name() */
 #include <lustre_fid.h>
 

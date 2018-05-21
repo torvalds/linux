@@ -37,7 +37,7 @@
  *   Author: Oleg Drokin <oleg.drokin@sun.com>
  */
 
-#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_all.h>
 #include <obd_class.h>
 #include <obd_support.h>
 #include <obd.h>

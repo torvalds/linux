@@ -41,7 +41,7 @@
 
 #define DEBUG_SUBSYSTEM S_RPC
 
-#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_all.h>
 
 #include <uapi/linux/lustre/lustre_fiemap.h>
 

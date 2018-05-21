@@ -37,7 +37,7 @@
 #ifndef _RANGE_LOCK_H
 #define _RANGE_LOCK_H
 
-#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_all.h>
 #include <interval_tree.h>
 
 struct range_lock {

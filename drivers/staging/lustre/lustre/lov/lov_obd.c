@@ -39,7 +39,7 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LOV
-#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_all.h>
 
 #include <uapi/linux/lustre/lustre_idl.h>
 #include <uapi/linux/lustre/lustre_ioctl.h>

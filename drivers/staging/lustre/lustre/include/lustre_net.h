@@ -52,7 +52,7 @@
  */
 
 #include <linux/uio.h>
-#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_all.h>
 #include <uapi/linux/lnet/nidstr.h>
 #include <linux/lnet/api.h>
 #include <uapi/linux/lustre/lustre_idl.h>

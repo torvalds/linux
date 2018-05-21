@@ -46,7 +46,7 @@
 #include <linux/sched/signal.h>
 #include <linux/signal.h>
 #include <linux/types.h>
-#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_all.h>
 #include <uapi/linux/lustre/lustre_idl.h>
 #include <uapi/linux/lustre/lustre_ver.h>
 #include <uapi/linux/lustre/lustre_cfg.h>

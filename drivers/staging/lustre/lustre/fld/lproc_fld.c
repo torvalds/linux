@@ -40,7 +40,7 @@
 
 #define DEBUG_SUBSYSTEM S_FLD
 
-#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_all.h>
 #include <linux/module.h>
 
 #include <obd.h>

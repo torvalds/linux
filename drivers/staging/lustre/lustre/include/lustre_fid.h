@@ -149,7 +149,7 @@
  *  Even so, the MDT and OST resources are also in different LDLM namespaces.
  */
 
-#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_all.h>
 #include <uapi/linux/lustre/lustre_fid.h>
 #include <uapi/linux/lustre/lustre_idl.h>
 #include <uapi/linux/lustre/lustre_ostid.h>

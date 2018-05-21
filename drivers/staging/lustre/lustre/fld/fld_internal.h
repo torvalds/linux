@@ -59,7 +59,7 @@
 
 #include <uapi/linux/lustre/lustre_idl.h>
 
-#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_all.h>
 #include <lustre_req_layout.h>
 #include <lustre_fld.h>
 

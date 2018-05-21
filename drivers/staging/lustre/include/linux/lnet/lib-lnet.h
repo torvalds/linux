@@ -36,7 +36,7 @@
 #ifndef __LNET_LIB_LNET_H__
 #define __LNET_LIB_LNET_H__
 
-#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_all.h>
 #include <linux/lnet/api.h>
 #include <linux/lnet/lib-types.h>
 #include <uapi/linux/lnet/lnet-dlc.h>

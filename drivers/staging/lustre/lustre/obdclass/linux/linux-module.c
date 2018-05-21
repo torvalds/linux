@@ -60,7 +60,7 @@
 #include <linux/seq_file.h>
 #include <linux/kobject.h>
 
-#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_all.h>
 #include <uapi/linux/lnet/lnetctl.h>
 #include <obd_support.h>
 #include <obd_class.h>

@@ -34,56 +34,12 @@
 #ifndef __LIBCFS_LIBCFS_H__
 #define __LIBCFS_LIBCFS_H__
 
-#include <linux/gfp.h>
-#include <linux/list.h>
-
-#include <uapi/linux/lnet/libcfs_ioctl.h>
-#include <linux/bitops.h>
-#include <linux/compiler.h>
-#include <linux/ctype.h>
-#include <linux/errno.h>
-#include <linux/file.h>
-#include <linux/fs.h>
-#include <linux/highmem.h>
-#include <linux/interrupt.h>
-#include <linux/kallsyms.h>
-#include <linux/kernel.h>
-#include <linux/kmod.h>
-#include <linux/kthread.h>
-#include <linux/mm.h>
-#include <linux/mm_inline.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/mutex.h>
 #include <linux/notifier.h>
-#include <linux/pagemap.h>
-#include <linux/random.h>
-#include <linux/rbtree.h>
-#include <linux/rwsem.h>
-#include <linux/scatterlist.h>
-#include <linux/sched.h>
-#include <linux/signal.h>
-#include <linux/slab.h>
-#include <linux/smp.h>
-#include <linux/stat.h>
-#include <linux/string.h>
-#include <linux/time.h>
-#include <linux/timer.h>
-#include <linux/types.h>
-#include <linux/unistd.h>
-#include <linux/vmalloc.h>
-#include <net/sock.h>
-#include <linux/atomic.h>
-#include <asm/div64.h>
-#include <linux/timex.h>
-#include <linux/uaccess.h>
-#include <stdarg.h>
+#include <linux/workqueue.h>
+#include <linux/sysctl.h>
 
 #include <linux/libcfs/libcfs_debug.h>
 #include <linux/libcfs/libcfs_private.h>
-#include <linux/libcfs/libcfs_cpu.h>
-#include <linux/libcfs/libcfs_string.h>
-#include <linux/libcfs/libcfs_hash.h>
 #include <linux/libcfs/libcfs_fail.h>
 
 #define LIBCFS_VERSION "0.7.0"

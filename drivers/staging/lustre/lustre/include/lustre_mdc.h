@@ -49,7 +49,7 @@
 #include <linux/dcache.h>
 #include <lustre_intent.h>
 #include <lustre_handles.h>
-#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_all.h>
 #include <obd_class.h>
 #include <lustre_lib.h>
 #include <lustre_dlm.h>

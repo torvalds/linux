@@ -33,7 +33,7 @@
 
 #define DEBUG_SUBSYSTEM S_RPC
 
-#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_all.h>
 # ifdef __mips64__
 #  include <linux/kernel.h>
 # endif
