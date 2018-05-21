@@ -40,7 +40,6 @@
 #ifndef __LST_CONSOLE_H__
 #define __LST_CONSOLE_H__
 
-#include <linux/libcfs/libcfs_all.h>
 #include <linux/lnet/lib-types.h>
 #include <uapi/linux/lnet/lnetst.h>
 #include "selftest.h"
