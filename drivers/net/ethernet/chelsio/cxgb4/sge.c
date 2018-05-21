@@ -1411,8 +1411,9 @@ out_free:	dev_kfree_skb_any(skb);
 	end = (u64 *)wr + flits;
 
 	len = immediate ? skb->len : 0;
+	len += sizeof(*cpl);
 	if (ssi->gso_size) {
-		struct cpl_tx_pkt_lso *lso = (void *)wr;
+		struct cpl_tx_pkt_lso_core *lso = (void *)(wr + 1);
 		bool v6 = (ssi->gso_type & SKB_GSO_TCPV6) != 0;
 		int l3hdr_len = skb_network_header_len(skb);
 		int eth_xtra_len = skb_network_offset(skb) - ETH_HLEN;
@@ -1442,20 +1443,19 @@ out_free:	dev_kfree_skb_any(skb);
 			if (skb->ip_summed == CHECKSUM_PARTIAL)
 				cntrl = hwcsum(adap->params.chip, skb);
 		} else {
-			lso->c.lso_ctrl = htonl(LSO_OPCODE_V(CPL_TX_PKT_LSO) |
-					  LSO_FIRST_SLICE_F | LSO_LAST_SLICE_F |
-					  LSO_IPV6_V(v6) |
-					  LSO_ETHHDR_LEN_V(eth_xtra_len / 4) |
-					  LSO_IPHDR_LEN_V(l3hdr_len / 4) |
-					  LSO_TCPHDR_LEN_V(tcp_hdr(skb)->doff));
-			lso->c.ipid_ofst = htons(0);
-			lso->c.mss = htons(ssi->gso_size);
-			lso->c.seqno_offset = htonl(0);
+			lso->lso_ctrl = htonl(LSO_OPCODE_V(CPL_TX_PKT_LSO) |
+					LSO_FIRST_SLICE_F | LSO_LAST_SLICE_F |
+					LSO_IPV6_V(v6) |
+					LSO_ETHHDR_LEN_V(eth_xtra_len / 4) |
+					LSO_IPHDR_LEN_V(l3hdr_len / 4) |
+					LSO_TCPHDR_LEN_V(tcp_hdr(skb)->doff));
+			lso->ipid_ofst = htons(0);
+			lso->mss = htons(ssi->gso_size);
+			lso->seqno_offset = htonl(0);
 			if (is_t4(adap->params.chip))
-				lso->c.len = htonl(skb->len);
+				lso->len = htonl(skb->len);
 			else
-				lso->c.len =
-					htonl(LSO_T5_XFER_SIZE_V(skb->len));
+				lso->len = htonl(LSO_T5_XFER_SIZE_V(skb->len));
 			cpl = (void *)(lso + 1);
 
 			if (CHELSIO_CHIP_VERSION(adap->params.chip)
@@ -1484,7 +1484,6 @@ out_free:	dev_kfree_skb_any(skb);
 		q->tso++;
 		q->tx_cso += ssi->gso_segs;
 	} else {
-		len += sizeof(*cpl);
 		if (ptp_enabled)
 			op = FW_PTP_TX_PKT_WR;
 		else
@@ -1538,7 +1537,7 @@ out_free:	dev_kfree_skb_any(skb);
 		if (last_desc >= q->q.size)
 			last_desc -= q->q.size;
 		q->q.sdesc[last_desc].skb = skb;
-		q->q.sdesc[last_desc].sgl = (struct ulptx_sgl *)(cpl + 1);
+		q->q.sdesc[last_desc].sgl = (struct ulptx_sgl *)sgl;
 	}
 
 	txq_advance(&q->q, ndesc);
