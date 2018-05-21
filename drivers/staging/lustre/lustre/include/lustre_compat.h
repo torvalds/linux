@@ -37,6 +37,7 @@
 #include <linux/fs_struct.h>
 #include <linux/namei.h>
 #include <linux/cred.h>
+#include <linux/module.h>
 
 #include <lustre_patchless_compat.h>
 

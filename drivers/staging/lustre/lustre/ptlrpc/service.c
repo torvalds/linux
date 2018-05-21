@@ -33,12 +33,15 @@
 
 #define DEBUG_SUBSYSTEM S_RPC
 
+#include <linux/kthread.h>
 #include <obd_support.h>
 #include <obd_class.h>
 #include <lustre_net.h>
 #include <lu_object.h>
 #include <uapi/linux/lnet/lnet-types.h>
 #include "ptlrpc_internal.h"
+#include <linux/libcfs/libcfs_cpu.h>
+#include <linux/libcfs/libcfs_string.h>
 
 /* The following are visible and mutable through /sys/module/ptlrpc */
 int test_req_buffer_pressure;

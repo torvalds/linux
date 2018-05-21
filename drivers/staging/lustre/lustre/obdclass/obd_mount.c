@@ -41,6 +41,7 @@
 #define D_MOUNT (D_SUPER | D_CONFIG/*|D_WARNING */)
 #define PRINT_CMD CDEBUG
 
+#include <linux/random.h>
 #include <obd.h>
 #include <lustre_compat.h>
 #include <obd_class.h>

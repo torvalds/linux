@@ -39,6 +39,7 @@
 #include <linux/list.h>
 #include <linux/mm.h>
 #include <linux/hash.h>
+#include <linux/pagemap.h>
 
 #define ll_delete_from_page_cache(page) delete_from_page_cache(page)
 

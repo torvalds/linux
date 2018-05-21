@@ -45,8 +45,6 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
-#include <linux/libcfs/libcfs_all.h>
-
 struct portals_handle_ops {
 	void (*hop_addref)(void *object);
 	void (*hop_free)(void *object, int size);

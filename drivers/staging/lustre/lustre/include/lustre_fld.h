@@ -40,7 +40,6 @@
  */
 
 #include <uapi/linux/lustre/lustre_idl.h>
-#include <linux/libcfs/libcfs_all.h>
 #include <seq_range.h>
 
 struct lu_client_fld;

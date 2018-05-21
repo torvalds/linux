@@ -39,6 +39,8 @@
 #define DEBUG_SUBSYSTEM S_CLASS
 #define D_KUC D_OTHER
 
+#include <linux/file.h>
+#include <linux/libcfs/libcfs.h>
 #include <obd_support.h>
 #include <lustre_kernelcomm.h>
 

@@ -31,7 +31,7 @@
 
 #ifndef __OBD_CKSUM
 #define __OBD_CKSUM
-#include <linux/libcfs/libcfs_all.h>
+#include <linux/libcfs/libcfs.h>
 #include <linux/libcfs/libcfs_crypto.h>
 #include <uapi/linux/lustre/lustre_idl.h>
 

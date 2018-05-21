@@ -62,6 +62,7 @@
 #include <lustre_dlm.h>
 #include <obd_class.h>
 #include <obd.h>
+#include <linux/libcfs/libcfs_hash.h>
 
 #include "ldlm_internal.h"
 

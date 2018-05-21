@@ -37,6 +37,7 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
+#include <linux/random.h>
 #include <obd_support.h>
 #include <lustre_handles.h>
 #include <lustre_lib.h>

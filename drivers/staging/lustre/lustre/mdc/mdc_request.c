@@ -38,6 +38,8 @@
 # include <linux/miscdevice.h>
 # include <linux/init.h>
 # include <linux/utsname.h>
+# include <linux/file.h>
+# include <linux/kthread.h>
 
 #include <lustre_errno.h>
 #include <cl_object.h>

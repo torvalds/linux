@@ -44,6 +44,7 @@
 
 #define DEBUG_SUBSYSTEM S_LOG
 
+#include <linux/kthread.h>
 #include <llog_swab.h>
 #include <lustre_log.h>
 #include <obd_class.h>

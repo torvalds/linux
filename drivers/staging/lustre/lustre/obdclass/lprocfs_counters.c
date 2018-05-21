@@ -41,6 +41,7 @@
 #include <linux/module.h>
 #include <lprocfs_status.h>
 #include <obd_support.h>
+#include <linux/libcfs/libcfs.h>
 
 void lprocfs_counter_add(struct lprocfs_stats *stats, int idx, long amount)
 {

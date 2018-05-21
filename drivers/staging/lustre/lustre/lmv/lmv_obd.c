@@ -37,11 +37,13 @@
 #include <linux/init.h>
 #include <linux/pagemap.h>
 #include <linux/mm.h>
+#include <linux/file.h>
 #include <asm/div64.h>
 #include <linux/seq_file.h>
 #include <linux/namei.h>
 #include <linux/uaccess.h>
 
+#include <linux/libcfs/libcfs.h>
 #include <obd_support.h>
 #include <lustre_net.h>
 #include <obd_class.h>

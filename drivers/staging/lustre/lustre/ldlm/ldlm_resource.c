@@ -41,6 +41,7 @@
 #include <lustre_fid.h>
 #include <obd_class.h>
 #include "ldlm_internal.h"
+#include <linux/libcfs/libcfs_hash.h>
 
 struct kmem_cache *ldlm_resource_slab, *ldlm_lock_slab;
 

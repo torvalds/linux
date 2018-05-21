@@ -43,8 +43,8 @@
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+#include <linux/device.h>
 
-#include <linux/libcfs/libcfs_all.h>
 #include <uapi/linux/lustre/lustre_cfg.h>
 #include <uapi/linux/lustre/lustre_idl.h>
 

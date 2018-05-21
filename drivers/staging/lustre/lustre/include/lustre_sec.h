@@ -34,6 +34,8 @@
 #ifndef _LUSTRE_SEC_H_
 #define _LUSTRE_SEC_H_
 
+#include <linux/module.h>
+
 /** \defgroup sptlrpc sptlrpc
  *
  * @{

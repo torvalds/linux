@@ -29,6 +29,9 @@
 #ifndef _LIBCFS_CRYPTO_H
 #define _LIBCFS_CRYPTO_H
 
+#include <linux/string.h>
+struct page;
+
 struct cfs_crypto_hash_type {
 	char		*cht_name;      /*< hash algorithm name, equal to
 					 * format name for crypto api

@@ -35,6 +35,7 @@
 
 #include <linux/atomic.h>
 #include <linux/miscdevice.h>
+#include <linux/libcfs/libcfs.h>
 
 #include <obd_support.h>
 #include <obd_class.h>
@@ -44,6 +45,7 @@
 #include <linux/list.h>
 #include <cl_object.h>
 #include <uapi/linux/lustre/lustre_ioctl.h>
+#include <uapi/linux/lnet/libcfs_ioctl.h>
 #include "llog_internal.h"
 
 struct obd_device *obd_devs[MAX_OBD_DEVICES];
