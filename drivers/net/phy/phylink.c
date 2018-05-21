@@ -561,7 +561,7 @@ void phylink_destroy(struct phylink *pl)
 {
 	if (pl->sfp_bus)
 		sfp_unregister_upstream(pl->sfp_bus);
-	if (!IS_ERR(pl->link_gpio))
+	if (!IS_ERR_OR_NULL(pl->link_gpio))
 		gpiod_put(pl->link_gpio);
 
 	cancel_work_sync(&pl->resolve);
