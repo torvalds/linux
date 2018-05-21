@@ -185,9 +185,6 @@ static void debug_putc(struct platform_device *pdev, unsigned int c)
 
 	while (!(rk_fiq_read(t, UART_USR) & UART_USR_TX_FIFO_NOT_FULL) && count--)
 		udelay(10);
-	/* If uart is always busy, maybe it is abnormal, reinit it */
-	if ((count == 0) && (rk_fiq_read(t, UART_USR) & UART_USR_BUSY))
-		debug_port_init(pdev);
 
 	rk_fiq_write(t, c, UART_TX);
 }
@@ -200,9 +197,6 @@ static void debug_flush(struct platform_device *pdev)
 
 	while (!(rk_fiq_read_lsr(t) & UART_LSR_TEMT) && count--)
 		udelay(10);
-	/* If uart is always busy, maybe it is abnormal, reinit it */
-	if ((count == 0) && (rk_fiq_read(t, UART_USR) & UART_USR_BUSY))
-		debug_port_init(pdev);
 }
 
 #ifdef CONFIG_RK_CONSOLE_THREAD
@@ -223,9 +217,6 @@ static void console_putc(struct platform_device *pdev, unsigned int c)
 	while (!(rk_fiq_read(t, UART_USR) & UART_USR_TX_FIFO_NOT_FULL) &&
 	       count--)
 		usleep_range(200, 210);
-	/* If uart is always busy, maybe it is abnormal, reinit it */
-	if ((count == 0) && (rk_fiq_read(t, UART_USR) & UART_USR_BUSY))
-		debug_port_init(pdev);
 
 	rk_fiq_write(t, c, UART_TX);
 }
@@ -239,9 +230,6 @@ static void console_flush(struct platform_device *pdev)
 
 	while (!(rk_fiq_read_lsr(t) & UART_LSR_TEMT) && count--)
 		usleep_range(200, 210);
-	/* If uart is always busy, maybe it is abnormal, reinit it */
-	if ((count == 0) && (rk_fiq_read(t, UART_USR) & UART_USR_BUSY))
-		debug_port_init(pdev);
 }
 
 static void console_put(struct platform_device *pdev,
