@@ -651,10 +651,8 @@ static const struct musb_hdrc_config sunxi_musb_hdrc_config = {
 	.fifo_cfg_size  = ARRAY_SIZE(sunxi_musb_mode_cfg),
 	.multipoint	= true,
 	.dyn_fifo	= true,
-	.soft_con       = true,
 	.num_eps	= SUNXI_MUSB_MAX_EP_NUM,
 	.ram_bits	= SUNXI_MUSB_RAM_BITS,
-	.dma		= 0,
 };
 
 static struct musb_hdrc_config sunxi_musb_hdrc_config_h3 = {
@@ -662,10 +660,8 @@ static struct musb_hdrc_config sunxi_musb_hdrc_config_h3 = {
 	.fifo_cfg_size  = ARRAY_SIZE(sunxi_musb_mode_cfg_h3),
 	.multipoint	= true,
 	.dyn_fifo	= true,
-	.soft_con       = true,
 	.num_eps	= SUNXI_MUSB_MAX_EP_NUM_H3,
 	.ram_bits	= SUNXI_MUSB_RAM_BITS,
-	.dma		= 0,
 };
 
 
