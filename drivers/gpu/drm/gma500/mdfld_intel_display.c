@@ -196,7 +196,7 @@ static int mdfld__intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	if (!gma_power_begin(dev, true))
 		return 0;
 
-	start = psbfb->gtt->offset;
+	start = to_gtt_range(fb->obj[0])->offset;
 	offset = y * fb->pitches[0] + x * fb->format->cpp[0];
 
 	REG_WRITE(map->stride, fb->pitches[0]);
