@@ -1591,8 +1591,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 			bus_state->port_remote_wakeup |= 1 << hcd_portnum;
 			xhci_test_and_clear_bit(xhci, port_array,
 					hcd_portnum, PORT_PLC);
-			xhci_set_link_state(xhci, port_array, hcd_portnum,
-						XDEV_U0);
+			xhci_set_link_state(xhci, port, XDEV_U0);
 			/* Need to wait until the next link state change
 			 * indicates the device is actually in U0.
 			 */
