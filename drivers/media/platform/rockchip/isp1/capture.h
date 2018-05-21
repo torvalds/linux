@@ -142,8 +142,6 @@ struct streams_ops {
 	void (*enable_mi)(struct rkisp1_stream *stream);
 	void (*disable_mi)(struct rkisp1_stream *stream);
 	void (*set_data_path)(void __iomem *base);
-	void (*clr_frame_end_int)(void __iomem *base);
-	bool (*is_frame_end_int_masked)(void __iomem *base);
 	bool (*is_stream_stopped)(void __iomem *base);
 };
 
@@ -163,7 +161,7 @@ struct streams_ops {
  * @next_buf: the buffer used for next frame
  */
 struct rkisp1_stream {
-	u32 id;
+	unsigned id:1;
 	struct rkisp1_device *ispdev;
 	struct rkisp1_vdev_node vnode;
 	struct capture_fmt out_isp_fmt;
@@ -187,7 +185,7 @@ struct rkisp1_stream {
 
 void rkisp1_unregister_stream_vdevs(struct rkisp1_device *dev);
 int rkisp1_register_stream_vdevs(struct rkisp1_device *dev);
-void rkisp1_mi_isr(struct rkisp1_stream *stream);
+void rkisp1_mi_isr(u32 mis_val, struct rkisp1_device *dev);
 void rkisp1_stream_init(struct rkisp1_device *dev, u32 id);
 
 #endif /* _RKISP1_PATH_VIDEO_H */

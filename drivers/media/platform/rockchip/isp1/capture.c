@@ -759,7 +759,7 @@ static int mp_config_mi(struct rkisp1_stream *stream)
 	mi_set_cb_size(stream, stream->out_fmt.plane_fmt[1].sizeimage);
 	mi_set_cr_size(stream, stream->out_fmt.plane_fmt[2].sizeimage);
 
-	mp_frame_end_int_enable(base);
+	mi_frame_end_int_enable(stream);
 	if (stream->out_isp_fmt.uv_swap)
 		mp_set_uv_swap(base);
 
@@ -800,7 +800,7 @@ static int sp_config_mi(struct rkisp1_stream *stream)
 	sp_set_y_height(base, stream->out_fmt.height);
 	sp_set_y_line_length(base, stream->u.sp.y_stride);
 
-	sp_frame_end_int_enable(base);
+	mi_frame_end_int_enable(stream);
 	if (output_isp_fmt->uv_swap)
 		sp_set_uv_swap(base);
 
@@ -876,21 +876,17 @@ static void update_mi(struct rkisp1_stream *stream)
 
 static void mp_stop_mi(struct rkisp1_stream *stream)
 {
-	void __iomem *base = stream->ispdev->base_addr;
-
 	if (!stream->streaming)
 		return;
-	stream->ops->clr_frame_end_int(base);
+	mi_frame_end_int_clear(stream);
 	stream->ops->disable_mi(stream);
 }
 
 static void sp_stop_mi(struct rkisp1_stream *stream)
 {
-	void __iomem *base = stream->ispdev->base_addr;
-
 	if (!stream->streaming)
 		return;
-	stream->ops->clr_frame_end_int(base);
+	mi_frame_end_int_clear(stream);
 	stream->ops->disable_mi(stream);
 }
 
@@ -900,8 +896,6 @@ static struct streams_ops rkisp1_mp_streams_ops = {
 	.disable_mi = mp_disable_mi,
 	.stop_mi = mp_stop_mi,
 	.set_data_path = mp_set_data_path,
-	.clr_frame_end_int = mp_clr_frame_end_int,
-	.is_frame_end_int_masked = mp_is_frame_end_int_masked,
 	.is_stream_stopped = mp_is_stream_stopped,
 };
 
@@ -911,8 +905,6 @@ static struct streams_ops rkisp1_sp_streams_ops = {
 	.disable_mi = sp_disable_mi,
 	.stop_mi = sp_stop_mi,
 	.set_data_path = sp_set_data_path,
-	.clr_frame_end_int = sp_clr_frame_end_int,
-	.is_frame_end_int_masked = sp_is_frame_end_int_masked,
 	.is_stream_stopped = sp_is_stream_stopped,
 };
 
@@ -1705,33 +1697,36 @@ err:
 
 /****************  Interrupter Handler ****************/
 
-void rkisp1_mi_isr(struct rkisp1_stream *stream)
+void rkisp1_mi_isr(u32 mis_val, struct rkisp1_device *dev)
 {
-	struct rkisp1_device *dev = stream->ispdev;
-	void __iomem *base = stream->ispdev->base_addr;
-	u32 val;
+	int i;
 
-	stream->ops->clr_frame_end_int(base);
-	if (stream->ops->is_frame_end_int_masked(base)) {
-		val = mi_get_masked_int_status(base);
-		v4l2_err(&dev->v4l2_dev, "icr err: 0x%x\n", val);
-	}
+	for (i = 0; i < ARRAY_SIZE(dev->stream); ++i) {
+		struct rkisp1_stream *stream = &dev->stream[i];
 
-	if (stream->stopping) {
-		/* Make sure stream is actually stopped, whose state
-		 * can be read from the shadow register, before wake_up()
-		 * thread which would immediately free all frame buffers.
-		 * stop_mi() takes effect at the next frame end
-		 * that sync the configurations to shadow regs.
-		 */
-		if (stream->ops->is_stream_stopped(dev->base_addr)) {
-			stream->stopping = false;
-			stream->streaming = false;
-			wake_up(&stream->done);
+		if (!(mis_val & CIF_MI_FRAME(stream)))
+			continue;
+
+		mi_frame_end_int_clear(stream);
+
+		if (stream->stopping) {
+			/*
+			 * Make sure stream is actually stopped, whose state
+			 * can be read from the shadow register, before
+			 * wake_up() thread which would immediately free all
+			 * frame buffers. stop_mi() takes effect at the next
+			 * frame end that sync the configurations to shadow
+			 * regs.
+			 */
+			if (stream->ops->is_stream_stopped(dev->base_addr)) {
+				stream->stopping = false;
+				stream->streaming = false;
+				wake_up(&stream->done);
+			} else {
+				stream->ops->stop_mi(stream);
+			}
 		} else {
-			stream->ops->stop_mi(stream);
+			mi_frame_end(stream);
 		}
-	} else {
-		mi_frame_end(stream);
 	}
 }

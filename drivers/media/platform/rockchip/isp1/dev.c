@@ -490,8 +490,7 @@ static irqreturn_t rkisp1_irq_handler(int irq, void *ctx)
 {
 	struct device *dev = ctx;
 	struct rkisp1_device *rkisp1_dev = dev_get_drvdata(dev);
-	void __iomem *base = rkisp1_dev->base_addr;
-	unsigned int mis_val, i;
+	unsigned int mis_val;
 
 	mis_val = readl(rkisp1_dev->base_addr + CIF_ISP_MIS);
 	if (mis_val)
@@ -501,12 +500,9 @@ static irqreturn_t rkisp1_irq_handler(int irq, void *ctx)
 	if (mis_val)
 		rkisp1_mipi_isr(mis_val, rkisp1_dev);
 
-	for (i = 0; i < RKISP1_MAX_STREAM; ++i) {
-		struct rkisp1_stream *stream = &rkisp1_dev->stream[i];
-
-		if (stream->ops->is_frame_end_int_masked(base))
-			rkisp1_mi_isr(stream);
-	}
+	mis_val = readl(rkisp1_dev->base_addr + CIF_MI_MIS);
+	if (mis_val)
+		rkisp1_mi_isr(mis_val, rkisp1_dev);
 
 	return IRQ_HANDLED;
 }

@@ -197,8 +197,7 @@
 #define CIF_RSZ_SCALER_FACTOR			BIT(16)
 
 /* MI_IMSC - MI_MIS - MI_RIS - MI_ICR - MI_ISR */
-#define CIF_MI_MP_FRAME				BIT(0)
-#define CIF_MI_SP_FRAME				BIT(1)
+#define CIF_MI_FRAME(stream)			BIT((stream)->id)
 #define CIF_MI_MBLK_LINE			BIT(2)
 #define CIF_MI_FILL_MP_Y			BIT(3)
 #define CIF_MI_WRAP_MP_Y			BIT(4)
@@ -1376,6 +1375,30 @@ static inline void mi_set_cr_offset(struct rkisp1_stream *stream, int val)
 	writel(val, base + stream->config->mi.cr_offs_cnt_init);
 }
 
+static inline void mi_frame_end_int_enable(struct rkisp1_stream *stream)
+{
+	void __iomem *base = stream->ispdev->base_addr;
+	void __iomem *addr = base + CIF_MI_IMSC;
+
+	writel(CIF_MI_FRAME(stream) | readl(addr), addr);
+}
+
+static inline void mi_frame_end_int_disable(struct rkisp1_stream *stream)
+{
+	void __iomem *base = stream->ispdev->base_addr;
+	void __iomem *addr = base + CIF_MI_IMSC;
+
+	writel(~CIF_MI_FRAME(stream) & readl(addr), addr);
+}
+
+static inline void mi_frame_end_int_clear(struct rkisp1_stream *stream)
+{
+	void __iomem *base = stream->ispdev->base_addr;
+	void __iomem *addr = base + CIF_MI_ICR;
+
+	writel(CIF_MI_FRAME(stream), addr);
+}
+
 static inline void mp_set_chain_mode(void __iomem *base)
 {
 	u32 dpcl = readl(base + CIF_VI_DPCL);
@@ -1406,49 +1429,6 @@ static inline void sp_set_data_path(void __iomem *base)
 
 	dpcl |= CIF_VI_DPCL_CHAN_MODE_SP;
 	writel(dpcl, base + CIF_VI_DPCL);
-}
-
-static inline void mp_frame_end_int_enable(void __iomem *base)
-{
-	void __iomem *addr = base + CIF_MI_IMSC;
-
-	writel(CIF_MI_MP_FRAME | readl(addr), addr);
-}
-
-static inline void sp_frame_end_int_enable(void __iomem *base)
-{
-	void __iomem *addr = base + CIF_MI_IMSC;
-
-	writel(CIF_MI_SP_FRAME | readl(addr), addr);
-}
-
-static inline void mp_frame_end_int_disable(void __iomem *base)
-{
-	void __iomem *addr = base + CIF_MI_IMSC;
-
-	writel(~CIF_MI_MP_FRAME & readl(addr), addr);
-}
-
-static inline void sp_frame_end_int_disable(void __iomem *base)
-{
-	void __iomem *addr = base + CIF_MI_IMSC;
-
-	writel(~CIF_MI_SP_FRAME & readl(addr), addr);
-}
-
-static inline void clr_mpsp_frame_end_int(void __iomem *base)
-{
-	writel(CIF_MI_SP_FRAME | CIF_MI_MP_FRAME, base + CIF_MI_ICR);
-}
-
-static inline void clr_mp_crop_rsz_int(void __iomem *base)
-{
-	writel(~CIF_MI_MP_FRAME, base + CIF_MI_ICR);
-}
-
-static inline void clr_sp_crop_rsz_int(void __iomem *base)
-{
-	writel(~CIF_MI_SP_FRAME, base + CIF_MI_ICR);
 }
 
 static inline void mp_set_uv_swap(void __iomem *base)
@@ -1570,11 +1550,6 @@ static inline void sp_mi_ctrl_autoupdate_en(void __iomem *base)
 static inline void force_cfg_update(void __iomem *base)
 {
 	writel(CIF_MI_INIT_SOFT_UPD, base + CIF_MI_INIT);
-}
-
-static inline u32 mi_get_masked_int_status(void __iomem *base)
-{
-	return readl(base + CIF_MI_MIS);
 }
 
 #endif /* _RKISP1_REGS_H */

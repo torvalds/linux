@@ -232,26 +232,6 @@ void config_mi_ctrl(struct rkisp1_stream *stream)
 	writel(reg | CIF_MI_CTRL_INIT_OFFSET_EN, addr);
 }
 
-void mp_clr_frame_end_int(void __iomem *base)
-{
-	writel(CIF_MI_MP_FRAME, base + CIF_MI_ICR);
-}
-
-void sp_clr_frame_end_int(void __iomem *base)
-{
-	writel(CIF_MI_SP_FRAME, base + CIF_MI_ICR);
-}
-
-bool mp_is_frame_end_int_masked(void __iomem *base)
-{
-	return (mi_get_masked_int_status(base) & CIF_MI_MP_FRAME);
-}
-
-bool sp_is_frame_end_int_masked(void __iomem *base)
-{
-	return (mi_get_masked_int_status(base) & CIF_MI_SP_FRAME);
-}
-
 bool mp_is_stream_stopped(void __iomem *base)
 {
 	int en;
