@@ -103,15 +103,16 @@ TRACE_EVENT(rcu_grace_period,
  */
 TRACE_EVENT(rcu_future_grace_period,
 
-	TP_PROTO(const char *rcuname, unsigned long gp_seq, unsigned long c,
-		 u8 level, int grplo, int grphi, const char *gpevent),
+	TP_PROTO(const char *rcuname, unsigned long gp_seq,
+		 unsigned long gp_seq_req, u8 level, int grplo, int grphi,
+		 const char *gpevent),
 
-	TP_ARGS(rcuname, gp_seq, c, level, grplo, grphi, gpevent),
+	TP_ARGS(rcuname, gp_seq, gp_seq_req, level, grplo, grphi, gpevent),
 
 	TP_STRUCT__entry(
 		__field(const char *, rcuname)
 		__field(unsigned long, gp_seq)
-		__field(unsigned long, c)
+		__field(unsigned long, gp_seq_req)
 		__field(u8, level)
 		__field(int, grplo)
 		__field(int, grphi)
@@ -121,7 +122,7 @@ TRACE_EVENT(rcu_future_grace_period,
 	TP_fast_assign(
 		__entry->rcuname = rcuname;
 		__entry->gp_seq = gp_seq;
-		__entry->c = c;
+		__entry->gp_seq_req = gp_seq_req;
 		__entry->level = level;
 		__entry->grplo = grplo;
 		__entry->grphi = grphi;
@@ -129,7 +130,7 @@ TRACE_EVENT(rcu_future_grace_period,
 	),
 
 	TP_printk("%s %lu %lu %u %d %d %s",
-		  __entry->rcuname, __entry->gp_seq, __entry->c, __entry->level,
+		  __entry->rcuname, __entry->gp_seq, __entry->gp_seq_req, __entry->level,
 		  __entry->grplo, __entry->grphi, __entry->gpevent)
 );
 
@@ -751,7 +752,7 @@ TRACE_EVENT(rcu_barrier,
 #else /* #ifdef CONFIG_RCU_TRACE */
 
 #define trace_rcu_grace_period(rcuname, gp_seq, gpevent) do { } while (0)
-#define trace_rcu_future_grace_period(rcuname, gp_seq, c, \
+#define trace_rcu_future_grace_period(rcuname, gp_seq, gp_seq_req, \
 				      level, grplo, grphi, event) \
 				      do { } while (0)
 #define trace_rcu_grace_period_init(rcuname, gp_seq, level, grplo, grphi, \
