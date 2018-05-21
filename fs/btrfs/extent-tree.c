@@ -8143,16 +8143,10 @@ static int alloc_reserved_tree_block(struct btrfs_trans_handle *trans,
 	struct btrfs_delayed_tree_ref *ref;
 	u32 size = sizeof(*extent_item) + sizeof(*iref);
 	u64 num_bytes;
-	u64 parent;
 	u64 flags = extent_op->flags_to_set;
 	bool skinny_metadata = btrfs_fs_incompat(fs_info, SKINNY_METADATA);
 
 	ref = btrfs_delayed_node_to_tree_ref(node);
-
-	if (node->type == BTRFS_SHARED_BLOCK_REF_KEY)
-		parent = ref->parent;
-	else
-		parent = 0;
 
 	extent_key.objectid = node->bytenr;
 	if (skinny_metadata) {
@@ -8202,11 +8196,11 @@ static int alloc_reserved_tree_block(struct btrfs_trans_handle *trans,
 		iref = (struct btrfs_extent_inline_ref *)(block_info + 1);
 	}
 
-	if (parent > 0) {
+	if (node->type == BTRFS_SHARED_BLOCK_REF_KEY) {
 		BUG_ON(!(flags & BTRFS_BLOCK_FLAG_FULL_BACKREF));
 		btrfs_set_extent_inline_ref_type(leaf, iref,
 						 BTRFS_SHARED_BLOCK_REF_KEY);
-		btrfs_set_extent_inline_ref_offset(leaf, iref, parent);
+		btrfs_set_extent_inline_ref_offset(leaf, iref, ref->parent);
 	} else {
 		btrfs_set_extent_inline_ref_type(leaf, iref,
 						 BTRFS_TREE_BLOCK_REF_KEY);
