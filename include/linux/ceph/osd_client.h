@@ -170,6 +170,7 @@ struct ceph_osd_request {
 	u64             r_tid;              /* unique for this client */
 	struct rb_node  r_node;
 	struct rb_node  r_mc_node;          /* map check */
+	struct work_struct r_complete_work;
 	struct ceph_osd *r_osd;
 
 	struct ceph_osd_request_target r_t;
@@ -360,6 +361,7 @@ struct ceph_osd_client {
 	struct ceph_msgpool	msgpool_op_reply;
 
 	struct workqueue_struct	*notify_wq;
+	struct workqueue_struct	*completion_wq;
 };
 
 static inline bool ceph_osdmap_flag(struct ceph_osd_client *osdc, int flag)

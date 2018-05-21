@@ -2329,6 +2329,14 @@ static void __complete_request(struct ceph_osd_request *req)
 	ceph_osdc_put_request(req);
 }
 
+static void complete_request_workfn(struct work_struct *work)
+{
+	struct ceph_osd_request *req =
+	    container_of(work, struct ceph_osd_request, r_complete_work);
+
+	__complete_request(req);
+}
+
 /*
  * This is open-coded in handle_reply().
  */
@@ -2338,7 +2346,9 @@ static void complete_request(struct ceph_osd_request *req, int err)
 
 	req->r_result = err;
 	finish_request(req);
-	__complete_request(req);
+
+	INIT_WORK(&req->r_complete_work, complete_request_workfn);
+	queue_work(req->r_osdc->completion_wq, &req->r_complete_work);
 }
 
 static void cancel_map_check(struct ceph_osd_request *req)
@@ -5058,6 +5068,10 @@ int ceph_osdc_init(struct ceph_osd_client *osdc, struct ceph_client *client)
 	if (!osdc->notify_wq)
 		goto out_msgpool_reply;
 
+	osdc->completion_wq = create_singlethread_workqueue("ceph-completion");
+	if (!osdc->completion_wq)
+		goto out_notify_wq;
+
 	schedule_delayed_work(&osdc->timeout_work,
 			      osdc->client->options->osd_keepalive_timeout);
 	schedule_delayed_work(&osdc->osds_timeout_work,
@@ -5065,6 +5079,8 @@ int ceph_osdc_init(struct ceph_osd_client *osdc, struct ceph_client *client)
 
 	return 0;
 
+out_notify_wq:
+	destroy_workqueue(osdc->notify_wq);
 out_msgpool_reply:
 	ceph_msgpool_destroy(&osdc->msgpool_op_reply);
 out_msgpool:
@@ -5079,6 +5095,7 @@ out:
 
 void ceph_osdc_stop(struct ceph_osd_client *osdc)
 {
+	destroy_workqueue(osdc->completion_wq);
 	destroy_workqueue(osdc->notify_wq);
 	cancel_delayed_work_sync(&osdc->timeout_work);
 	cancel_delayed_work_sync(&osdc->osds_timeout_work);
