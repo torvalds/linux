@@ -691,11 +691,11 @@ void xhci_set_link_state(struct xhci_hcd *xhci, __le32 __iomem **port_array,
 }
 
 static void xhci_set_remote_wake_mask(struct xhci_hcd *xhci,
-		__le32 __iomem **port_array, int port_id, u16 wake_mask)
+				      struct xhci_port *port, u16 wake_mask)
 {
 	u32 temp;
 
-	temp = readl(port_array[port_id]);
+	temp = readl(port->addr);
 	temp = xhci_port_state_to_neutral(temp);
 
 	if (wake_mask & USB_PORT_FEAT_REMOTE_WAKE_CONNECT)
@@ -713,7 +713,7 @@ static void xhci_set_remote_wake_mask(struct xhci_hcd *xhci,
 	else
 		temp &= ~PORT_WKOC_E;
 
-	writel(temp, port_array[port_id]);
+	writel(temp, port->addr);
 }
 
 /* Test and clear port RWC bit */
@@ -1290,8 +1290,8 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			xhci_dbg(xhci, "set port reset, actual port %d status  = 0x%x\n", wIndex, temp);
 			break;
 		case USB_PORT_FEAT_REMOTE_WAKE_MASK:
-			xhci_set_remote_wake_mask(xhci, port_array,
-					wIndex, wake_mask);
+			xhci_set_remote_wake_mask(xhci, ports[wIndex],
+						  wake_mask);
 			temp = readl(ports[wIndex]->addr);
 			xhci_dbg(xhci, "set port remote wake mask, "
 					"actual port %d status  = 0x%x\n",
@@ -1568,12 +1568,11 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
  * warm reset a USB3 device stuck in polling or compliance mode after resume.
  * See Intel 100/c230 series PCH specification update Doc #332692-006 Errata #8
  */
-static bool xhci_port_missing_cas_quirk(int port_index,
-					     __le32 __iomem **port_array)
+static bool xhci_port_missing_cas_quirk(struct xhci_port *port)
 {
 	u32 portsc;
 
-	portsc = readl(port_array[port_index]);
+	portsc = readl(port->addr);
 
 	/* if any of these are set we are not stuck */
 	if (portsc & (PORT_CONNECT | PORT_CAS))
@@ -1586,9 +1585,9 @@ static bool xhci_port_missing_cas_quirk(int port_index,
 	/* clear wakeup/change bits, and do a warm port reset */
 	portsc &= ~(PORT_RWC_BITS | PORT_CEC | PORT_WAKE_BITS);
 	portsc |= PORT_WR;
-	writel(portsc, port_array[port_index]);
+	writel(portsc, port->addr);
 	/* flush write */
-	readl(port_array[port_index]);
+	readl(port->addr);
 	return true;
 }
 
@@ -1638,7 +1637,7 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 		/* warm reset CAS limited ports stuck in polling/compliance */
 		if ((xhci->quirks & XHCI_MISSING_CAS) &&
 		    (hcd->speed >= HCD_USB3) &&
-		    xhci_port_missing_cas_quirk(port_index, port_array)) {
+		    xhci_port_missing_cas_quirk(ports[port_index])) {
 			xhci_dbg(xhci, "reset stuck port %d\n", port_index);
 			clear_bit(port_index, &bus_state->bus_suspended);
 			continue;
