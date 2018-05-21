@@ -2352,13 +2352,8 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 		musb_writeb(musb->mregs, MUSB_ULPI_BUSCONTROL, busctl);
 	}
 
-	if (musb->xceiv->otg->default_a) {
-		MUSB_HST_MODE(musb);
-		musb->xceiv->otg->state = OTG_STATE_A_IDLE;
-	} else {
-		MUSB_DEV_MODE(musb);
-		musb->xceiv->otg->state = OTG_STATE_B_IDLE;
-	}
+	MUSB_DEV_MODE(musb);
+	musb->xceiv->otg->state = OTG_STATE_B_IDLE;
 
 	switch (musb->port_mode) {
 	case MUSB_HOST:

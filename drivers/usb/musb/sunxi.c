@@ -105,13 +105,11 @@ static void sunxi_musb_work(struct work_struct *work)
 		devctl = readb(musb->mregs + SUNXI_MUSB_DEVCTL);
 		if (test_bit(SUNXI_MUSB_FL_HOSTMODE, &glue->flags)) {
 			set_bit(SUNXI_MUSB_FL_VBUS_ON, &glue->flags);
-			musb->xceiv->otg->default_a = 1;
 			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 			MUSB_HST_MODE(musb);
 			devctl |= MUSB_DEVCTL_SESSION;
 		} else {
 			clear_bit(SUNXI_MUSB_FL_VBUS_ON, &glue->flags);
-			musb->xceiv->otg->default_a = 0;
 			musb->xceiv->otg->state = OTG_STATE_B_IDLE;
 			MUSB_DEV_MODE(musb);
 			devctl &= ~MUSB_DEVCTL_SESSION;

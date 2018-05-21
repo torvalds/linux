@@ -2752,7 +2752,6 @@ int musb_host_setup(struct musb *musb, int power_budget)
 
 	if (musb->port_mode == MUSB_HOST) {
 		MUSB_HST_MODE(musb);
-		musb->xceiv->otg->default_a = 1;
 		musb->xceiv->otg->state = OTG_STATE_A_IDLE;
 	}
 	otg_set_host(musb->xceiv->otg, &hcd->self);

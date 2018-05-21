@@ -360,13 +360,11 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 			WARNING("VBUS error workaround (delay coming)\n");
 		} else if (drvvbus) {
 			MUSB_HST_MODE(musb);
-			musb->xceiv->otg->default_a = 1;
 			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 			dsps_mod_timer_optional(glue);
 		} else {
 			musb->is_active = 0;
 			MUSB_DEV_MODE(musb);
-			musb->xceiv->otg->default_a = 0;
 			musb->xceiv->otg->state = OTG_STATE_B_IDLE;
 		}
 

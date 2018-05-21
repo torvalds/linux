@@ -77,7 +77,6 @@ static void omap2430_musb_set_vbus(struct musb *musb, int is_on)
 			otg_set_vbus(otg, 1);
 		} else {
 			musb->is_active = 1;
-			otg->default_a = 1;
 			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 			devctl |= MUSB_DEVCTL_SESSION;
 			MUSB_HST_MODE(musb);
@@ -89,7 +88,6 @@ static void omap2430_musb_set_vbus(struct musb *musb, int is_on)
 		 * jumping right to B_IDLE...
 		 */
 
-		otg->default_a = 0;
 		musb->xceiv->otg->state = OTG_STATE_B_IDLE;
 		devctl &= ~MUSB_DEVCTL_SESSION;
 
@@ -148,14 +146,12 @@ static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 	struct musb_hdrc_platform_data *pdata =
 		dev_get_platdata(musb->controller);
 	struct omap_musb_board_data *data = pdata->board_data;
-	struct usb_otg *otg = musb->xceiv->otg;
 
 	pm_runtime_get_sync(musb->controller);
 	switch (glue->status) {
 	case MUSB_ID_GROUND:
 		dev_dbg(musb->controller, "ID GND\n");
 
-		otg->default_a = true;
 		musb->xceiv->otg->state = OTG_STATE_A_IDLE;
 		musb->xceiv->last_event = USB_EVENT_ID;
 		if (musb->gadget_driver) {
@@ -168,7 +164,6 @@ static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 	case MUSB_VBUS_VALID:
 		dev_dbg(musb->controller, "VBUS Connect\n");
 
-		otg->default_a = false;
 		musb->xceiv->otg->state = OTG_STATE_B_IDLE;
 		musb->xceiv->last_event = USB_EVENT_VBUS;
 		omap_control_usb_set_mode(glue->control_otghs, USB_MODE_DEVICE);
