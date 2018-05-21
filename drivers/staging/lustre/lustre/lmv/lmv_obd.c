@@ -3108,8 +3108,13 @@ static struct md_ops lmv_md_ops = {
 static int __init lmv_init(void)
 {
 	struct lprocfs_static_vars lvars;
+	int rc;
 
 	lprocfs_lmv_init_vars(&lvars);
+
+	rc = libcfs_setup();
+	if (rc)
+		return rc;
 
 	return class_register_type(&lmv_obd_ops, &lmv_md_ops,
 				 LUSTRE_LMV_NAME, NULL);

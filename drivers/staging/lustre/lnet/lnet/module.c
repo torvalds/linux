@@ -184,6 +184,10 @@ static int __init lnet_init(void)
 
 	mutex_init(&lnet_config_mutex);
 
+	rc = libcfs_setup();
+	if (rc)
+		return rc;
+
 	rc = lnet_lib_init();
 	if (rc) {
 		CERROR("lnet_lib_init: error %d\n", rc);

@@ -449,6 +449,11 @@ static int __init obdclass_init(void)
 	LCONSOLE_INFO("Lustre: Build Version: " LUSTRE_VERSION_STRING "\n");
 
 	spin_lock_init(&obd_types_lock);
+
+	err = libcfs_setup();
+	if (err)
+		return err;
+
 	obd_zombie_impexp_init();
 
 	err = obd_init_checks();

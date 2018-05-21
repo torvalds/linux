@@ -2928,6 +2928,8 @@ static void __exit ko2iblnd_exit(void)
 
 static int __init ko2iblnd_init(void)
 {
+	int rc;
+
 	BUILD_BUG_ON(sizeof(struct kib_msg) > IBLND_MSG_SIZE);
 	BUILD_BUG_ON(offsetof(struct kib_msg,
 			  ibm_u.get.ibgm_rd.rd_frags[IBLND_MAX_RDMA_FRAGS])
@@ -2937,6 +2939,10 @@ static int __init ko2iblnd_init(void)
 			  > IBLND_MSG_SIZE);
 
 	kiblnd_tunables_init();
+
+	rc = libcfs_setup();
+	if (rc)
+		return rc;
 
 	lnet_register_lnd(&the_o2iblnd);
 

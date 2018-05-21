@@ -2733,6 +2733,11 @@ static struct md_ops mdc_md_ops = {
 static int __init mdc_init(void)
 {
 	struct lprocfs_static_vars lvars = { NULL };
+	int rc;
+
+	rc = libcfs_setup();
+	if (rc)
+		return rc;
 
 	lprocfs_mdc_init_vars(&lvars);
 

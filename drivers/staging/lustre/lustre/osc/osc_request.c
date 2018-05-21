@@ -2831,6 +2831,10 @@ static int __init osc_init(void)
 	 */
 	CDEBUG(D_INFO, "Lustre OSC module (%p).\n", &osc_caches);
 
+	rc = libcfs_setup();
+	if (rc)
+		return rc;
+
 	rc = lu_kmem_init(osc_caches);
 	if (rc)
 		return rc;

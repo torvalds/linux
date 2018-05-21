@@ -1701,9 +1701,15 @@ static void echo_client_exit(void)
 
 static int __init obdecho_init(void)
 {
+	int rc;
+
 	LCONSOLE_INFO("Echo OBD driver; http://www.lustre.org/\n");
 
 	LASSERT(PAGE_SIZE % OBD_ECHO_BLOCK_SIZE == 0);
+
+	rc = libcfs_setup();
+	if (rc)
+		return rc;
 
 	return echo_client_init();
 }

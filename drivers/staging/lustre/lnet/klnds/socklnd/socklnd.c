@@ -2903,6 +2903,10 @@ static int __init ksocklnd_init(void)
 	if (rc)
 		return rc;
 
+	rc = libcfs_setup();
+	if (rc)
+		return rc;
+
 	lnet_register_lnd(&the_ksocklnd);
 
 	return 0;

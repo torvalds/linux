@@ -90,6 +90,10 @@ static int __init lustre_init(void)
 	BUILD_BUG_ON(sizeof(LUSTRE_VOLATILE_HDR) !=
 		     LUSTRE_VOLATILE_HDR_LEN + 1);
 
+	rc = libcfs_setup();
+	if (rc)
+		return rc;
+
 	/* print an address of _any_ initialized kernel symbol from this
 	 * module, to allow debugging with gdb that doesn't support data
 	 * symbols from modules.

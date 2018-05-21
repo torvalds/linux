@@ -1403,6 +1403,10 @@ static int __init lov_init(void)
 	 */
 	CDEBUG(D_INFO, "Lustre LOV module (%p).\n", &lov_caches);
 
+	rc = libcfs_setup();
+	if (rc)
+		return rc;
+
 	rc = lu_kmem_init(lov_caches);
 	if (rc)
 		return rc;

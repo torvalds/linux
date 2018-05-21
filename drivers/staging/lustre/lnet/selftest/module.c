@@ -89,8 +89,12 @@ static int
 lnet_selftest_init(void)
 {
 	int nscheds;
-	int rc = -ENOMEM;
+	int rc;
 	int i;
+
+	rc = libcfs_setup();
+	if (rc)
+		return rc;
 
 	lst_serial_wq = alloc_ordered_workqueue("lst_s", 0);
 	if (!lst_serial_wq) {

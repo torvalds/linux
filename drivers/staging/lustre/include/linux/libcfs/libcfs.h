@@ -137,6 +137,7 @@ struct libcfs_ioctl_handler {
 
 int libcfs_register_ioctl(struct libcfs_ioctl_handler *hand);
 int libcfs_deregister_ioctl(struct libcfs_ioctl_handler *hand);
+int libcfs_setup(void);
 
 #define _LIBCFS_H
 

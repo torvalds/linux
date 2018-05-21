@@ -94,6 +94,10 @@ static int __init ptlrpc_init(void)
 	mutex_init(&ptlrpcd_mutex);
 	ptlrpc_init_xid();
 
+	rc = libcfs_setup();
+	if (rc)
+		return rc;
+
 	rc = req_layout_init();
 	if (rc)
 		return rc;

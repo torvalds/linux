@@ -426,7 +426,8 @@ int cfs_crypto_register(void)
 {
 	request_module("crc32c");
 
-	adler32 = cfs_crypto_adler32_register();
+	if (cfs_crypto_adler32_register() == 0)
+		adler32 = 1;
 
 	/* check all algorithms and do performance test */
 	cfs_crypto_test_hashes();
@@ -438,6 +439,7 @@ int cfs_crypto_register(void)
  */
 void cfs_crypto_unregister(void)
 {
-	if (!adler32)
+	if (adler32)
 		cfs_crypto_adler32_unregister();
+	adler32 = 0;
 }

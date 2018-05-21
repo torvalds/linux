@@ -320,6 +320,8 @@ static struct miscdevice libcfs_dev = {
 	.fops = &libcfs_fops,
 };
 
+static int libcfs_dev_registered;
+
 int lprocfs_call_handler(void *data, int write, loff_t *ppos,
 			 void __user *buffer, size_t *lenp,
 			 int (*handler)(void *data, int write, loff_t pos,
@@ -687,49 +689,70 @@ static void lustre_remove_debugfs(void)
 	lnet_debugfs_root = NULL;
 }
 
-static int libcfs_init(void)
+static DEFINE_MUTEX(libcfs_startup);
+static int libcfs_active;
+
+int libcfs_setup(void)
 {
-	int rc;
+	int rc = -EINVAL;
+
+	mutex_lock(&libcfs_startup);
+	if (libcfs_active)
+		goto out;
+
+	if (!libcfs_dev_registered)
+		goto err;
 
 	rc = libcfs_debug_init(5 * 1024 * 1024);
 	if (rc < 0) {
 		pr_err("LustreError: libcfs_debug_init: %d\n", rc);
-		return rc;
+		goto err;
 	}
 
 	rc = cfs_cpu_init();
 	if (rc)
-		goto cleanup_debug;
-
-	rc = misc_register(&libcfs_dev);
-	if (rc) {
-		CERROR("misc_register: error %d\n", rc);
-		goto cleanup_cpu;
-	}
+		goto err;
 
 	cfs_rehash_wq = alloc_workqueue("cfs_rh", WQ_SYSFS, 4);
 	if (!cfs_rehash_wq) {
 		CERROR("Failed to start rehash workqueue.\n");
 		rc = -ENOMEM;
-		goto cleanup_deregister;
+		goto err;
 	}
 
 	rc = cfs_crypto_register();
 	if (rc) {
 		CERROR("cfs_crypto_register: error %d\n", rc);
-		goto cleanup_deregister;
+		goto err;
 	}
 
 	lustre_insert_debugfs(lnet_table, lnet_debugfs_symlinks);
 
 	CDEBUG(D_OTHER, "portals setup OK\n");
+out:
+	libcfs_active = 1;
+	mutex_unlock(&libcfs_startup);
 	return 0;
- cleanup_deregister:
-	misc_deregister(&libcfs_dev);
-cleanup_cpu:
+err:
+	cfs_crypto_unregister();
+	if (cfs_rehash_wq)
+		destroy_workqueue(cfs_rehash_wq);
 	cfs_cpu_fini();
- cleanup_debug:
 	libcfs_debug_cleanup();
+	mutex_unlock(&libcfs_startup);
+	return rc;
+}
+EXPORT_SYMBOL(libcfs_setup);
+
+static int libcfs_init(void)
+{
+	int rc;
+
+	rc = misc_register(&libcfs_dev);
+	if (rc)
+		CERROR("misc_register: error %d\n", rc);
+	else
+		libcfs_dev_registered = 1;
 	return rc;
 }
 
@@ -739,14 +762,13 @@ static void libcfs_exit(void)
 
 	lustre_remove_debugfs();
 
-	if (cfs_rehash_wq) {
+	if (cfs_rehash_wq)
 		destroy_workqueue(cfs_rehash_wq);
-		cfs_rehash_wq = NULL;
-	}
 
 	cfs_crypto_unregister();
 
-	misc_deregister(&libcfs_dev);
+	if (libcfs_dev_registered)
+		misc_deregister(&libcfs_dev);
 
 	cfs_cpu_fini();
 
