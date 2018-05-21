@@ -1275,6 +1275,81 @@ static void hisi_sas_reset_init_all_devices(struct hisi_hba *hisi_hba)
 	}
 }
 
+static void hisi_sas_send_ata_reset_each_phy(struct hisi_hba *hisi_hba,
+					     struct asd_sas_port *sas_port,
+					     struct domain_device *device)
+{
+	struct hisi_sas_tmf_task tmf_task = { .force_phy = 1 };
+	struct ata_port *ap = device->sata_dev.ap;
+	struct device *dev = hisi_hba->dev;
+	int s = sizeof(struct host_to_dev_fis);
+	int rc = TMF_RESP_FUNC_FAILED;
+	struct asd_sas_phy *sas_phy;
+	struct ata_link *link;
+	u8 fis[20] = {0};
+	u32 state;
+
+	state = hisi_hba->hw->get_phys_state(hisi_hba);
+	list_for_each_entry(sas_phy, &sas_port->phy_list, port_phy_el) {
+		if (!(state & BIT(sas_phy->id)))
+			continue;
+
+		ata_for_each_link(link, ap, EDGE) {
+			int pmp = sata_srst_pmp(link);
+
+			tmf_task.phy_id = sas_phy->id;
+			hisi_sas_fill_ata_reset_cmd(link->device, 1, pmp, fis);
+			rc = hisi_sas_exec_internal_tmf_task(device, fis, s,
+							     &tmf_task);
+			if (rc != TMF_RESP_FUNC_COMPLETE) {
+				dev_err(dev, "phy%d ata reset failed rc=%d\n",
+					sas_phy->id, rc);
+				break;
+			}
+		}
+	}
+}
+
+static void hisi_sas_terminate_stp_reject(struct hisi_hba *hisi_hba)
+{
+	struct device *dev = hisi_hba->dev;
+	int port_no, rc, i;
+
+	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
+		struct hisi_sas_device *sas_dev = &hisi_hba->devices[i];
+		struct domain_device *device = sas_dev->sas_device;
+
+		if ((sas_dev->dev_type == SAS_PHY_UNUSED) || !device)
+			continue;
+
+		rc = hisi_sas_internal_task_abort(hisi_hba, device,
+						  HISI_SAS_INT_ABT_DEV, 0);
+		if (rc < 0)
+			dev_err(dev, "STP reject: abort dev failed %d\n", rc);
+	}
+
+	for (port_no = 0; port_no < hisi_hba->n_phy; port_no++) {
+		struct hisi_sas_port *port = &hisi_hba->port[port_no];
+		struct asd_sas_port *sas_port = &port->sas_port;
+		struct domain_device *port_dev = sas_port->port_dev;
+		struct domain_device *device;
+
+		if (!port_dev || !DEV_IS_EXPANDER(port_dev->dev_type))
+			continue;
+
+		/* Try to find a SATA device */
+		list_for_each_entry(device, &sas_port->dev_list,
+				    dev_list_node) {
+			if (dev_is_sata(device)) {
+				hisi_sas_send_ata_reset_each_phy(hisi_hba,
+								 sas_port,
+								 device);
+				break;
+			}
+		}
+	}
+}
+
 static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = hisi_hba->dev;
@@ -1312,6 +1387,9 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	hisi_hba->hw->phys_init(hisi_hba);
 	msleep(1000);
 	hisi_sas_refresh_port_id(hisi_hba);
+
+	if (hisi_hba->reject_stp_links_msk)
+		hisi_sas_terminate_stp_reject(hisi_hba);
 	hisi_sas_reset_init_all_devices(hisi_hba);
 	scsi_unblock_requests(shost);
 
