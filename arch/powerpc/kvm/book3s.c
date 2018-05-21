@@ -450,8 +450,8 @@ int kvmppc_xlate(struct kvm_vcpu *vcpu, ulong eaddr, enum xlate_instdata xlid,
 	return r;
 }
 
-int kvmppc_load_last_inst(struct kvm_vcpu *vcpu, enum instruction_type type,
-					 u32 *inst)
+int kvmppc_load_last_inst(struct kvm_vcpu *vcpu,
+		enum instruction_fetch_type type, u32 *inst)
 {
 	ulong pc = kvmppc_get_pc(vcpu);
 	int r;
