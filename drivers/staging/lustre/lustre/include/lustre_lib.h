@@ -94,31 +94,34 @@ static inline int l_fatal_signal_pending(struct task_struct *p)
  */
 #define l_wait_event_abortable(wq, condition)				\
 ({									\
-	sigset_t __old_blocked;						\
+	sigset_t __new_blocked, __old_blocked;				\
 	int __ret = 0;							\
-	cfs_block_sigsinv(LUSTRE_FATAL_SIGS, &__old_blocked);		\
+	siginitset(&__new_blocked, LUSTRE_FATAL_SIGS);			\
+	sigprocmask(SIG_BLOCK, &__new_blocked, &__old_blocked);		\
 	__ret = wait_event_interruptible(wq, condition);		\
-	cfs_restore_sigs(&__old_blocked);				\
+	sigprocmask(SIG_SETMASK, &__old_blocked, NULL);			\
 	__ret;								\
 })
 
 #define l_wait_event_abortable_timeout(wq, condition, timeout)		\
 ({									\
-	sigset_t __old_blocked;						\
+	sigset_t __new_blocked, __old_blocked;				\
 	int __ret = 0;							\
-	cfs_block_sigsinv(LUSTRE_FATAL_SIGS, &__old_blocked);		\
+	siginitset(&__new_blocked, LUSTRE_FATAL_SIGS);			\
+	sigprocmask(SIG_BLOCK, &__new_blocked, &__old_blocked);		\
 	__ret = wait_event_interruptible_timeout(wq, condition, timeout);\
-	cfs_restore_sigs(&__old_blocked);				\
+	sigprocmask(SIG_SETMASK, &__old_blocked, NULL);			\
 	__ret;								\
 })
 
 #define l_wait_event_abortable_exclusive(wq, condition)			\
 ({									\
-	sigset_t __old_blocked;						\
+	sigset_t __new_blocked, __old_blocked;				\
 	int __ret = 0;							\
-	cfs_block_sigsinv(LUSTRE_FATAL_SIGS, &__old_blocked);		\
+	siginitset(&__new_blocked, LUSTRE_FATAL_SIGS);			\
+	sigprocmask(SIG_BLOCK, &__new_blocked, &__old_blocked);		\
 	__ret = wait_event_interruptible_exclusive(wq, condition);	\
-	cfs_restore_sigs(&__old_blocked);				\
+	sigprocmask(SIG_SETMASK, &__old_blocked, NULL);			\
 	__ret;								\
 })
 #endif /* _LUSTRE_LIB_H */
