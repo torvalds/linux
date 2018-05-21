@@ -31,16 +31,19 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include <linux/libcfs/libcfs_all.h>
+#include <linux/cpu.h>
+#include <linux/sched.h>
+#include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/cache.h>
+
+#include <linux/libcfs/libcfs_cpu.h>
+#include <linux/libcfs/libcfs_string.h>
+#include <linux/libcfs/libcfs.h>
 
 /** Global CPU partition table */
 struct cfs_cpt_table   *cfs_cpt_tab __read_mostly;
 EXPORT_SYMBOL(cfs_cpt_tab);
-#define DEBUG_SUBSYSTEM S_LNET
-
-#include <linux/cpu.h>
-#include <linux/sched.h>
-#include <linux/libcfs/libcfs_all.h>
 
 /**
  * modparam for setting number of partitions

@@ -30,7 +30,11 @@
  * Lustre is a trademark of Oracle Corporation, Inc.
  */
 
-#include <linux/libcfs/libcfs_all.h>
+#include <linux/types.h>
+#include <linux/slab.h>
+#include <linux/module.h>
+#include <linux/libcfs/libcfs.h>
+#include <linux/random.h>
 
 unsigned long cfs_fail_loc;
 EXPORT_SYMBOL(cfs_fail_loc);

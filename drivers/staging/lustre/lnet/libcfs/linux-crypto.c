@@ -30,8 +30,10 @@
 
 #include <crypto/hash.h>
 #include <linux/scatterlist.h>
-#include <linux/libcfs/libcfs_all.h>
+#include <linux/highmem.h>
+#include <linux/module.h>
 #include <linux/libcfs/libcfs_crypto.h>
+#include <linux/libcfs/libcfs.h>
 #include "linux-crypto.h"
 
 /**

@@ -39,9 +39,15 @@
 #define DEBUG_SUBSYSTEM S_LNET
 #define LUSTRE_TRACEFILE_PRIVATE
 #define pr_fmt(fmt) "Lustre: " fmt
-#include "tracefile.h"
 
-#include <linux/libcfs/libcfs_all.h>
+#include <linux/ratelimit.h>
+#include <linux/highmem.h>
+#include <linux/ctype.h>
+#include <linux/kthread.h>
+#include <linux/mm.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
+#include "tracefile.h"
 
 /* XXX move things up to the top, comment */
 union cfs_trace_data_union (*cfs_trace_data[TCD_MAX_TYPES])[NR_CPUS] __cacheline_aligned;

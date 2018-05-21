@@ -51,8 +51,6 @@
 
 # define DEBUG_SUBSYSTEM S_LNET
 
-#include <linux/libcfs/libcfs_all.h>
-
 #include "tracefile.h"
 
 #include <linux/kallsyms.h>

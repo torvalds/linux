@@ -105,8 +105,9 @@
  */
 #include <linux/seq_file.h>
 #include <linux/log2.h>
-
-#include <linux/libcfs/libcfs_all.h>
+#include <linux/slab.h>
+#include <linux/mm.h>
+#include <linux/libcfs/libcfs_hash.h>
 
 #if CFS_HASH_DEBUG_LEVEL >= CFS_HASH_DEBUG_1
 static unsigned int warn_on_depth = 8;

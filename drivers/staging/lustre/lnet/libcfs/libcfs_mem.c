@@ -29,7 +29,11 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include <linux/libcfs/libcfs_all.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/libcfs/libcfs_cpu.h>
+#include <linux/slab.h>
+#include <linux/mm.h>
 
 struct cfs_var_array {
 	unsigned int		va_count;	/* # of buffers */
