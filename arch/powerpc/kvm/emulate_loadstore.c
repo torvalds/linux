@@ -109,7 +109,7 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 	vcpu->arch.mmio_vsx_tx_sx_enabled = get_tx_or_sx(inst);
 	vcpu->arch.mmio_vsx_copy_nums = 0;
 	vcpu->arch.mmio_vsx_offset = 0;
-	vcpu->arch.mmio_vsx_copy_type = KVMPPC_VSX_COPY_NONE;
+	vcpu->arch.mmio_copy_type = KVMPPC_VSX_COPY_NONE;
 	vcpu->arch.mmio_sp64_extend = 0;
 	vcpu->arch.mmio_sign_extend = 0;
 	vcpu->arch.mmio_vmx_copy_nums = 0;
@@ -175,17 +175,17 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 
 			if (op.element_size == 8)  {
 				if (op.vsx_flags & VSX_SPLAT)
-					vcpu->arch.mmio_vsx_copy_type =
+					vcpu->arch.mmio_copy_type =
 						KVMPPC_VSX_COPY_DWORD_LOAD_DUMP;
 				else
-					vcpu->arch.mmio_vsx_copy_type =
+					vcpu->arch.mmio_copy_type =
 						KVMPPC_VSX_COPY_DWORD;
 			} else if (op.element_size == 4) {
 				if (op.vsx_flags & VSX_SPLAT)
-					vcpu->arch.mmio_vsx_copy_type =
+					vcpu->arch.mmio_copy_type =
 						KVMPPC_VSX_COPY_WORD_LOAD_DUMP;
 				else
-					vcpu->arch.mmio_vsx_copy_type =
+					vcpu->arch.mmio_copy_type =
 						KVMPPC_VSX_COPY_WORD;
 			} else
 				break;
@@ -261,10 +261,10 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 				vcpu->arch.mmio_sp64_extend = 1;
 
 			if (op.element_size == 8)
-				vcpu->arch.mmio_vsx_copy_type =
+				vcpu->arch.mmio_copy_type =
 						KVMPPC_VSX_COPY_DWORD;
 			else if (op.element_size == 4)
-				vcpu->arch.mmio_vsx_copy_type =
+				vcpu->arch.mmio_copy_type =
 						KVMPPC_VSX_COPY_WORD;
 			else
 				break;

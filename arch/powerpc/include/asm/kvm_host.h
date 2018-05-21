@@ -455,6 +455,11 @@ struct mmio_hpte_cache {
 #define KVMPPC_VSX_COPY_DWORD_LOAD_DUMP	3
 #define KVMPPC_VSX_COPY_WORD_LOAD_DUMP	4
 
+#define KVMPPC_VMX_COPY_BYTE		8
+#define KVMPPC_VMX_COPY_HWORD		9
+#define KVMPPC_VMX_COPY_WORD		10
+#define KVMPPC_VMX_COPY_DWORD		11
+
 struct openpic;
 
 /* W0 and W1 of a XIVE thread management context */
@@ -677,16 +682,16 @@ struct kvm_vcpu_arch {
 	 * Number of simulations for vsx.
 	 * If we use 2*8bytes to simulate 1*16bytes,
 	 * then the number should be 2 and
-	 * mmio_vsx_copy_type=KVMPPC_VSX_COPY_DWORD.
+	 * mmio_copy_type=KVMPPC_VSX_COPY_DWORD.
 	 * If we use 4*4bytes to simulate 1*16bytes,
 	 * the number should be 4 and
 	 * mmio_vsx_copy_type=KVMPPC_VSX_COPY_WORD.
 	 */
 	u8 mmio_vsx_copy_nums;
 	u8 mmio_vsx_offset;
-	u8 mmio_vsx_copy_type;
 	u8 mmio_vsx_tx_sx_enabled;
 	u8 mmio_vmx_copy_nums;
+	u8 mmio_copy_type;
 	u8 osi_needed;
 	u8 osi_enabled;
 	u8 papr_enabled;

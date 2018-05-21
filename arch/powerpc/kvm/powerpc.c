@@ -1080,14 +1080,14 @@ static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu,
 		if (vcpu->kvm->arch.kvm_ops->giveup_ext)
 			vcpu->kvm->arch.kvm_ops->giveup_ext(vcpu, MSR_VSX);
 
-		if (vcpu->arch.mmio_vsx_copy_type == KVMPPC_VSX_COPY_DWORD)
+		if (vcpu->arch.mmio_copy_type == KVMPPC_VSX_COPY_DWORD)
 			kvmppc_set_vsr_dword(vcpu, gpr);
-		else if (vcpu->arch.mmio_vsx_copy_type == KVMPPC_VSX_COPY_WORD)
+		else if (vcpu->arch.mmio_copy_type == KVMPPC_VSX_COPY_WORD)
 			kvmppc_set_vsr_word(vcpu, gpr);
-		else if (vcpu->arch.mmio_vsx_copy_type ==
+		else if (vcpu->arch.mmio_copy_type ==
 				KVMPPC_VSX_COPY_DWORD_LOAD_DUMP)
 			kvmppc_set_vsr_dword_dump(vcpu, gpr);
-		else if (vcpu->arch.mmio_vsx_copy_type ==
+		else if (vcpu->arch.mmio_copy_type ==
 				KVMPPC_VSX_COPY_WORD_LOAD_DUMP)
 			kvmppc_set_vsr_word_dump(vcpu, gpr);
 		break;
@@ -1260,7 +1260,7 @@ static inline int kvmppc_get_vsr_data(struct kvm_vcpu *vcpu, int rs, u64 *val)
 	u32 dword_offset, word_offset;
 	union kvmppc_one_reg reg;
 	int vsx_offset = 0;
-	int copy_type = vcpu->arch.mmio_vsx_copy_type;
+	int copy_type = vcpu->arch.mmio_copy_type;
 	int result = 0;
 
 	switch (copy_type) {
