@@ -31,6 +31,7 @@
  * Lustre is a trademark of Sun Microsystems, Inc.
  */
 
+#include <linux/highmem.h>
 #include "socklnd.h"
 
 int

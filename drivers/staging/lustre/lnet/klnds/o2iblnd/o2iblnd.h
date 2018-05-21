@@ -64,7 +64,6 @@
 
 #define DEBUG_SUBSYSTEM S_LND
 
-#include <linux/libcfs/libcfs_all.h>
 #include <linux/lnet/lib-lnet.h>
 
 #define IBLND_PEER_HASH_SIZE		101	/* # peer lists */

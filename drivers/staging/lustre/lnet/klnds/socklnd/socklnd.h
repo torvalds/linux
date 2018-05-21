@@ -47,7 +47,6 @@
 #include <net/sock.h>
 #include <net/tcp.h>
 
-#include <linux/libcfs/libcfs_all.h>
 #include <linux/lnet/lib-lnet.h>
 #include <linux/lnet/socklnd.h>
 
