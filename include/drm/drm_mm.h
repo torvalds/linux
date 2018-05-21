@@ -173,7 +173,7 @@ struct drm_mm {
 	struct drm_mm_node head_node;
 	/* Keep an interval_tree for fast lookup of drm_mm_nodes by address. */
 	struct rb_root_cached interval_tree;
-	struct rb_root holes_size;
+	struct rb_root_cached holes_size;
 	struct rb_root holes_addr;
 
 	unsigned long scan_active;
