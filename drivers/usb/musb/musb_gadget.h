@@ -96,10 +96,7 @@ struct musb_ep {
 	u8				hb_mult;
 };
 
-static inline struct musb_ep *to_musb_ep(struct usb_ep *ep)
-{
-	return ep ? container_of(ep, struct musb_ep, end_point) : NULL;
-}
+#define to_musb_ep(ep)	container_of((ep), struct musb_ep, end_point)
 
 static inline struct musb_request *next_request(struct musb_ep *ep)
 {
