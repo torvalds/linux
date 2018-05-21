@@ -443,6 +443,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	wr_q_index = hisi_hba->hw->get_free_slot(hisi_hba, dq);
 	if (wr_q_index < 0) {
 		spin_unlock_irqrestore(&dq->lock, flags_dq);
+		rc = -EAGAIN;
 		goto err_out_buf;
 	}
 
@@ -1708,6 +1709,7 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 	wr_q_index = hisi_hba->hw->get_free_slot(hisi_hba, dq);
 	if (wr_q_index < 0) {
 		spin_unlock_irqrestore(&dq->lock, flags_dq);
+		rc = -EAGAIN;
 		goto err_out_buf;
 	}
 	list_add_tail(&slot->delivery, &dq->list);
