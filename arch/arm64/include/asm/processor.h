@@ -156,7 +156,9 @@ static inline void arch_thread_struct_whitelist(unsigned long *offset,
 /* Sync TPIDR_EL0 back to thread_struct for current */
 void tls_preserve_current_state(void);
 
-#define INIT_THREAD  {	}
+#define INIT_THREAD {				\
+	.fpsimd_cpu = NR_CPUS,			\
+}
 
 static inline void start_thread_common(struct pt_regs *regs, unsigned long pc)
 {
