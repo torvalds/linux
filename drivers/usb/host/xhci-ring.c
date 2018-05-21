@@ -1525,7 +1525,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	u32 portsc, cmd_reg;
 	int max_ports;
 	int slot_id;
-	unsigned int faked_port_index;
+	unsigned int hcd_portnum;
 	struct xhci_bus_state *bus_state;
 	__le32 __iomem **port_array;
 	bool bogus_port_status = false;
@@ -1560,10 +1560,10 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	else
 		port_array = xhci->usb2_ports;
 
-	faked_port_index = port->hcd_portnum;
+	hcd_portnum = port->hcd_portnum;
 	portsc = readl(port->addr);
 
-	trace_xhci_handle_port_status(faked_port_index, portsc);
+	trace_xhci_handle_port_status(hcd_portnum, portsc);
 
 	if (hcd->state == HC_STATE_SUSPENDED) {
 		xhci_dbg(xhci, "resume root hub\n");
@@ -1571,7 +1571,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	}
 
 	if (hcd->speed >= HCD_USB3 && (portsc & PORT_PLS_MASK) == XDEV_INACTIVE)
-		bus_state->port_remote_wakeup &= ~(1 << faked_port_index);
+		bus_state->port_remote_wakeup &= ~(1 << hcd_portnum);
 
 	if ((portsc & PORT_PLC) && (portsc & PORT_PLS_MASK) == XDEV_RESUME) {
 		xhci_dbg(xhci, "port resume event for port %d\n", port_id);
@@ -1588,29 +1588,28 @@ static void handle_port_status(struct xhci_hcd *xhci,
 			 * so we can tell the difference between the end of
 			 * device and host initiated resume.
 			 */
-			bus_state->port_remote_wakeup |= 1 << faked_port_index;
+			bus_state->port_remote_wakeup |= 1 << hcd_portnum;
 			xhci_test_and_clear_bit(xhci, port_array,
-					faked_port_index, PORT_PLC);
-			xhci_set_link_state(xhci, port_array, faked_port_index,
+					hcd_portnum, PORT_PLC);
+			xhci_set_link_state(xhci, port_array, hcd_portnum,
 						XDEV_U0);
 			/* Need to wait until the next link state change
 			 * indicates the device is actually in U0.
 			 */
 			bogus_port_status = true;
 			goto cleanup;
-		} else if (!test_bit(faked_port_index,
-				     &bus_state->resuming_ports)) {
+		} else if (!test_bit(hcd_portnum, &bus_state->resuming_ports)) {
 			xhci_dbg(xhci, "resume HS port %d\n", port_id);
-			bus_state->resume_done[faked_port_index] = jiffies +
+			bus_state->resume_done[hcd_portnum] = jiffies +
 				msecs_to_jiffies(USB_RESUME_TIMEOUT);
-			set_bit(faked_port_index, &bus_state->resuming_ports);
+			set_bit(hcd_portnum, &bus_state->resuming_ports);
 			/* Do the rest in GetPortStatus after resume time delay.
 			 * Avoid polling roothub status before that so that a
 			 * usb device auto-resume latency around ~40ms.
 			 */
 			set_bit(HCD_FLAG_POLL_RH, &hcd->flags);
 			mod_timer(&hcd->rh_timer,
-				  bus_state->resume_done[faked_port_index]);
+				  bus_state->resume_done[hcd_portnum]);
 			bogus_port_status = true;
 		}
 	}
@@ -1625,17 +1624,15 @@ static void handle_port_status(struct xhci_hcd *xhci,
 		 * so the roothub behavior is consistent with external
 		 * USB 3.0 hub behavior.
 		 */
-		slot_id = xhci_find_slot_id_by_port(hcd, xhci,
-				faked_port_index + 1);
+		slot_id = xhci_find_slot_id_by_port(hcd, xhci, hcd_portnum + 1);
 		if (slot_id && xhci->devs[slot_id])
 			xhci_ring_device(xhci, slot_id);
-		if (bus_state->port_remote_wakeup & (1 << faked_port_index)) {
-			bus_state->port_remote_wakeup &=
-				~(1 << faked_port_index);
+		if (bus_state->port_remote_wakeup & (1 << hcd_portnum)) {
+			bus_state->port_remote_wakeup &= ~(1 << hcd_portnum);
 			xhci_test_and_clear_bit(xhci, port_array,
-					faked_port_index, PORT_PLC);
+					hcd_portnum, PORT_PLC);
 			usb_wakeup_notification(hcd->self.root_hub,
-					faked_port_index + 1);
+					hcd_portnum + 1);
 			bogus_port_status = true;
 			goto cleanup;
 		}
@@ -1647,15 +1644,15 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	 * out of the RExit state.
 	 */
 	if (!DEV_SUPERSPEED_ANY(portsc) &&
-			test_and_clear_bit(faked_port_index,
+			test_and_clear_bit(hcd_portnum,
 				&bus_state->rexit_ports)) {
-		complete(&bus_state->rexit_done[faked_port_index]);
+		complete(&bus_state->rexit_done[hcd_portnum]);
 		bogus_port_status = true;
 		goto cleanup;
 	}
 
 	if (hcd->speed < HCD_USB3)
-		xhci_test_and_clear_bit(xhci, port_array, faked_port_index,
+		xhci_test_and_clear_bit(xhci, port_array, hcd_portnum,
 					PORT_PLC);
 
 cleanup:
