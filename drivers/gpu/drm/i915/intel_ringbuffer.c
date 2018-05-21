@@ -1034,6 +1034,8 @@ int intel_ring_pin(struct intel_ring *ring,
 		flags |= PIN_OFFSET_BIAS | offset_bias;
 	if (vma->obj->stolen)
 		flags |= PIN_MAPPABLE;
+	else
+		flags |= PIN_HIGH;
 
 	if (!(vma->flags & I915_VMA_GLOBAL_BIND)) {
 		if (flags & PIN_MAPPABLE || map == I915_MAP_WC)
