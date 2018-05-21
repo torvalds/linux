@@ -1493,7 +1493,7 @@ static int musb_core_init(u16 musb_type, struct musb *musb)
 
 		hw_ep->fifo = musb->io.fifo_offset(i) + mbase;
 #if IS_ENABLED(CONFIG_USB_MUSB_TUSB6010)
-		if (musb->io.quirks & MUSB_IN_TUSB) {
+		if (musb->ops->quirks & MUSB_IN_TUSB) {
 			hw_ep->fifo_async = musb->async + 0x400 +
 				musb->io.fifo_offset(i);
 			hw_ep->fifo_sync = musb->sync + 0x400 +
@@ -2176,11 +2176,9 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 		goto fail2;
 	}
 
-	if (musb->ops->quirks)
-		musb->io.quirks = musb->ops->quirks;
 
 	/* Most devices use indexed offset or flat offset */
-	if (musb->io.quirks & MUSB_INDEXED_EP) {
+	if (musb->ops->quirks & MUSB_INDEXED_EP) {
 		musb->io.ep_offset = musb_indexed_ep_offset;
 		musb->io.ep_select = musb_indexed_ep_select;
 	} else {
@@ -2188,7 +2186,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 		musb->io.ep_select = musb_flat_ep_select;
 	}
 
-	if (musb->io.quirks & MUSB_G_NO_SKB_RESERVE)
+	if (musb->ops->quirks & MUSB_G_NO_SKB_RESERVE)
 		musb->g.quirk_avoids_skb_reserve = 1;
 
 	/* At least tusb6010 has its own offsets */
@@ -2647,7 +2645,7 @@ static int musb_suspend(struct device *dev)
 		;
 	musb->flush_irq_work = false;
 
-	if (!(musb->io.quirks & MUSB_PRESERVE_SESSION))
+	if (!(musb->ops->quirks & MUSB_PRESERVE_SESSION))
 		musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 
 	WARN_ON(!list_empty(&musb->pending_list));
