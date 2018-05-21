@@ -1729,11 +1729,11 @@ static int __sock_map_ctx_update_elem(struct bpf_map *map,
 		 * we increment the refcnt. If this is the case abort with an
 		 * error.
 		 */
-		verdict = bpf_prog_inc_not_zero(progs->bpf_verdict);
+		verdict = bpf_prog_inc_not_zero(verdict);
 		if (IS_ERR(verdict))
 			return PTR_ERR(verdict);
 
-		parse = bpf_prog_inc_not_zero(progs->bpf_parse);
+		parse = bpf_prog_inc_not_zero(parse);
 		if (IS_ERR(parse)) {
 			bpf_prog_put(verdict);
 			return PTR_ERR(parse);
@@ -1741,12 +1741,12 @@ static int __sock_map_ctx_update_elem(struct bpf_map *map,
 	}
 
 	if (tx_msg) {
-		tx_msg = bpf_prog_inc_not_zero(progs->bpf_tx_msg);
+		tx_msg = bpf_prog_inc_not_zero(tx_msg);
 		if (IS_ERR(tx_msg)) {
-			if (verdict)
-				bpf_prog_put(verdict);
-			if (parse)
+			if (parse && verdict) {
 				bpf_prog_put(parse);
+				bpf_prog_put(verdict);
+			}
 			return PTR_ERR(tx_msg);
 		}
 	}
@@ -1826,10 +1826,10 @@ out_free:
 	kfree(e);
 	smap_release_sock(psock, sock);
 out_progs:
-	if (verdict)
-		bpf_prog_put(verdict);
-	if (parse)
+	if (parse && verdict) {
 		bpf_prog_put(parse);
+		bpf_prog_put(verdict);
+	}
 	if (tx_msg)
 		bpf_prog_put(tx_msg);
 	write_unlock_bh(&sock->sk_callback_lock);

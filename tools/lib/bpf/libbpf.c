@@ -2205,7 +2205,7 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 
 	obj = __bpf_object__open(attr->file, NULL, 0,
 				 bpf_prog_type__needs_kver(attr->prog_type));
-	if (IS_ERR(obj))
+	if (IS_ERR_OR_NULL(obj))
 		return -ENOENT;
 
 	bpf_object__for_each_program(prog, obj) {
