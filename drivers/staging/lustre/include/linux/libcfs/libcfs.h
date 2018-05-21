@@ -103,8 +103,6 @@ static inline int notifier_from_ioctl_errno(int err)
 
 int libcfs_setup(void);
 
-#define _LIBCFS_H
-
 /**
  * The path of debug log dump upcall script.
  */
@@ -124,4 +122,4 @@ int lprocfs_call_handler(void *data, int write, loff_t *ppos,
 			 int (*handler)(void *data, int write, loff_t pos,
 					void __user *buffer, int len));
 
-#endif /* _LIBCFS_H */
+#endif /* __LIBCFS_LIBCFS_H__ */
