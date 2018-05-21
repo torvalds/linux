@@ -217,10 +217,9 @@ static int pxa_ssp_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 {
 	struct ssp_priv *priv = snd_soc_dai_get_drvdata(cpu_dai);
 	struct ssp_device *ssp = priv->ssp;
-	int val;
 
 	u32 sscr0 = pxa_ssp_read_reg(ssp, SSCR0) &
-		~(SSCR0_ECS |  SSCR0_NCS | SSCR0_MOD | SSCR0_ACS);
+		~(SSCR0_ECS | SSCR0_NCS | SSCR0_MOD | SSCR0_ACS);
 
 	dev_dbg(&ssp->pdev->dev,
 		"pxa_ssp_set_dai_sysclk id: %d, clk_id %d, freq %u\n",
@@ -258,8 +257,7 @@ static int pxa_ssp_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 	 * on PXA2xx.  On PXA3xx it must be enabled when doing so. */
 	if (ssp->type != PXA3xx_SSP)
 		clk_disable_unprepare(ssp->clk);
-	val = pxa_ssp_read_reg(ssp, SSCR0) | sscr0;
-	pxa_ssp_write_reg(ssp, SSCR0, val);
+	pxa_ssp_write_reg(ssp, SSCR0, sscr0);
 	if (ssp->type != PXA3xx_SSP)
 		clk_prepare_enable(ssp->clk);
 
