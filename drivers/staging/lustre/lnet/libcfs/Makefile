@@ -4,14 +4,13 @@ subdir-ccflags-y += -I$(srctree)/drivers/staging/lustre/lustre/include
 
 obj-$(CONFIG_LNET) += libcfs.o
 
-libcfs-linux-objs := linux-tracefile.o linux-debug.o
-libcfs-linux-objs += linux-crypto.o
-libcfs-linux-objs += linux-crypto-adler.o
+libcfs-obj-y += linux-tracefile.o linux-debug.o
+libcfs-obj-y += linux-crypto.o
+libcfs-obj-y += linux-crypto-adler.o
 
-libcfs-linux-objs := $(addprefix linux/,$(libcfs-linux-objs))
+libcfs-obj-y += debug.o fail.o module.o tracefile.o
+libcfs-obj-y += libcfs_string.o hash.o
+libcfs-obj-y += libcfs_cpu.o
+libcfs-obj-y += libcfs_mem.o libcfs_lock.o
 
-libcfs-all-objs := debug.o fail.o module.o tracefile.o \
-		   libcfs_string.o hash.o \
-		   libcfs_cpu.o libcfs_mem.o libcfs_lock.o
-
-libcfs-objs := $(libcfs-linux-objs) $(libcfs-all-objs)
+libcfs-objs := $(libcfs-obj-y)

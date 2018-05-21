@@ -53,7 +53,7 @@
 
 #include <linux/libcfs/libcfs.h>
 
-#include "../tracefile.h"
+#include "tracefile.h"
 
 #include <linux/kallsyms.h>
 
