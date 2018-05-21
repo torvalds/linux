@@ -1683,13 +1683,23 @@ static inline unsigned int hcd_index(struct usb_hcd *hcd)
 	else
 		return 1;
 }
+struct xhci_port {
+	__le32 __iomem		*addr;
+	int			hw_portnum;
+	int			hcd_portnum;
+	struct xhci_hub		*rhub;
+};
 
 struct xhci_hub {
-	u8	maj_rev;
-	u8	min_rev;
-	u32	*psi;		/* array of protocol speed ID entries */
-	u8	psi_count;
-	u8	psi_uid_count;
+	struct xhci_port	**ports;
+	unsigned int		num_ports;
+	struct usb_hcd		*hcd;
+	/* supported prococol extended capabiliy values */
+	u8			maj_rev;
+	u8			min_rev;
+	u32			*psi;	/* array of protocol speed ID entries */
+	u8			psi_count;
+	u8			psi_uid_count;
 };
 
 /* There is one xhci_hcd structure per controller */
@@ -1838,6 +1848,7 @@ struct xhci_hcd {
 	struct xhci_bus_state   bus_state[2];
 	/* Is each xHCI roothub port a USB 3.0, USB 2.0, or USB 1.1 port? */
 	u8			*port_array;
+	struct xhci_port	*hw_ports;
 	/* Array of pointers to USB 3.0 PORTSC registers */
 	__le32 __iomem		**usb3_ports;
 	unsigned int		num_usb3_ports;
