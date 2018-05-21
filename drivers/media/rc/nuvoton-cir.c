@@ -922,6 +922,9 @@ static int nvt_open(struct rc_dev *dev)
 	struct nvt_dev *nvt = dev->priv;
 	unsigned long flags;
 
+	/* enable the CIR logical device */
+	nvt_enable_logical_dev(nvt, LOGICAL_DEV_CIR);
+
 	spin_lock_irqsave(&nvt->lock, flags);
 
 	/* set function enable flags */
@@ -936,9 +939,6 @@ static int nvt_open(struct rc_dev *dev)
 	nvt_set_cir_iren(nvt);
 
 	spin_unlock_irqrestore(&nvt->lock, flags);
-
-	/* enable the CIR logical device */
-	nvt_enable_logical_dev(nvt, LOGICAL_DEV_CIR);
 
 	return 0;
 }
