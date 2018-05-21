@@ -1527,7 +1527,6 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	int slot_id;
 	unsigned int hcd_portnum;
 	struct xhci_bus_state *bus_state;
-	__le32 __iomem **port_array;
 	bool bogus_port_status = false;
 	struct xhci_port *port;
 
@@ -1555,11 +1554,6 @@ static void handle_port_status(struct xhci_hcd *xhci,
 
 	hcd = port->rhub->hcd;
 	bus_state = &xhci->bus_state[hcd_index(hcd)];
-	if (hcd->speed >= HCD_USB3)
-		port_array = xhci->usb3_ports;
-	else
-		port_array = xhci->usb2_ports;
-
 	hcd_portnum = port->hcd_portnum;
 	portsc = readl(port->addr);
 
@@ -1589,8 +1583,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 			 * device and host initiated resume.
 			 */
 			bus_state->port_remote_wakeup |= 1 << hcd_portnum;
-			xhci_test_and_clear_bit(xhci, port_array,
-					hcd_portnum, PORT_PLC);
+			xhci_test_and_clear_bit(xhci, port, PORT_PLC);
 			xhci_set_link_state(xhci, port, XDEV_U0);
 			/* Need to wait until the next link state change
 			 * indicates the device is actually in U0.
@@ -1628,8 +1621,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 			xhci_ring_device(xhci, slot_id);
 		if (bus_state->port_remote_wakeup & (1 << hcd_portnum)) {
 			bus_state->port_remote_wakeup &= ~(1 << hcd_portnum);
-			xhci_test_and_clear_bit(xhci, port_array,
-					hcd_portnum, PORT_PLC);
+			xhci_test_and_clear_bit(xhci, port, PORT_PLC);
 			usb_wakeup_notification(hcd->self.root_hub,
 					hcd_portnum + 1);
 			bogus_port_status = true;
@@ -1651,8 +1643,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	}
 
 	if (hcd->speed < HCD_USB3)
-		xhci_test_and_clear_bit(xhci, port_array, hcd_portnum,
-					PORT_PLC);
+		xhci_test_and_clear_bit(xhci, port, PORT_PLC);
 
 cleanup:
 	/* Update event ring dequeue pointer before dropping the lock */
