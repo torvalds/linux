@@ -52,6 +52,13 @@ config USB_XHCI_PLATFORM
 
 	  If unsure, say N.
 
+config USB_XHCI_HISTB
+	tristate "xHCI support for HiSilicon STB SoCs"
+	depends on USB_XHCI_PLATFORM && (ARCH_HISI || COMPILE_TEST)
+	help
+	  Say 'Y' to enable the support for the xHCI host controller
+	  found in HiSilicon STB SoCs.
+
 config USB_XHCI_MTK
 	tristate "xHCI support for MediaTek SoCs"
 	select MFD_SYSCON
