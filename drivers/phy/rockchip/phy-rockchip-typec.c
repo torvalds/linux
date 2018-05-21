@@ -63,6 +63,7 @@
 
 #include <linux/mfd/syscon.h>
 #include <linux/phy/phy.h>
+#include <soc/rockchip/rockchip_phy_typec.h>
 
 #define CMN_SSM_BANDGAP			(0x21 << 2)
 #define CMN_SSM_BIAS			(0x22 << 2)
@@ -350,40 +351,6 @@
 #define MODE_DFP_DP			BIT(2)
 
 #define POWER_ON_TRIES			5
-
-struct usb3phy_reg {
-	u32 offset;
-	u32 enable_bit;
-	u32 write_enable;
-};
-
-struct rockchip_usb3phy_port_cfg {
-	struct usb3phy_reg typec_conn_dir;
-	struct usb3phy_reg usb3tousb2_en;
-	struct usb3phy_reg usb3host_disable;
-	struct usb3phy_reg usb3host_port;
-	struct usb3phy_reg external_psm;
-	struct usb3phy_reg pipe_status;
-	struct usb3phy_reg uphy_dp_sel;
-};
-
-struct rockchip_typec_phy {
-	struct device *dev;
-	void __iomem *base;
-	struct extcon_dev *extcon;
-	struct regmap *grf_regs;
-	struct clk *clk_core;
-	struct clk *clk_ref;
-	struct reset_control *uphy_rst;
-	struct reset_control *pipe_rst;
-	struct reset_control *tcphy_rst;
-	struct rockchip_usb3phy_port_cfg port_cfgs;
-	/* mutex to protect access to individual PHYs */
-	struct mutex lock;
-
-	bool flip;
-	u8 mode;
-};
 
 struct phy_reg {
 	u16 value;
