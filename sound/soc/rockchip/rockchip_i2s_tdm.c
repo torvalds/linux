@@ -65,6 +65,7 @@ struct rk_i2s_tdm_dev {
 	void __iomem *cru_base;
 	bool is_master_mode;
 	bool mclk_calibrate;
+	bool tdm_mode;
 	unsigned int mclk_rx_freq;
 	unsigned int mclk_tx_freq;
 	unsigned int bclk_fs;
@@ -387,8 +388,9 @@ static int rockchip_i2s_tdm_set_fmt(struct snd_soc_dai *cpu_dai,
 				    unsigned int fmt)
 {
 	struct rk_i2s_tdm_dev *i2s_tdm = to_info(cpu_dai);
-	unsigned int mask = 0, val = 0;
+	unsigned int mask = 0, val = 0, tdm_val = 0;
 	int ret = 0;
+	bool is_tdm = i2s_tdm->tdm_mode;
 
 	pm_runtime_get_sync(cpu_dai->dev);
 	mask = I2S_CKR_MSS_MASK;
@@ -471,6 +473,48 @@ static int rockchip_i2s_tdm_set_fmt(struct snd_soc_dai *cpu_dai,
 	}
 
 	regmap_update_bits(i2s_tdm->regmap, I2S_RXCR, mask, val);
+
+	if (is_tdm) {
+		switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+		case SND_SOC_DAIFMT_RIGHT_J:
+			val = I2S_TXCR_TFS_TDM_I2S;
+			tdm_val = TDM_SHIFT_CTRL(2);
+			break;
+		case SND_SOC_DAIFMT_LEFT_J:
+			val = I2S_TXCR_TFS_TDM_I2S;
+			tdm_val = TDM_SHIFT_CTRL(1);
+			break;
+		case SND_SOC_DAIFMT_I2S:
+			val = I2S_TXCR_TFS_TDM_I2S;
+			tdm_val = TDM_SHIFT_CTRL(0);
+			break;
+		case SND_SOC_DAIFMT_DSP_A:
+			val = I2S_TXCR_TFS_TDM_PCM;
+			tdm_val = TDM_SHIFT_CTRL(0);
+			break;
+		case SND_SOC_DAIFMT_DSP_B:
+			val = I2S_TXCR_TFS_TDM_PCM;
+			tdm_val = TDM_SHIFT_CTRL(2);
+			break;
+		default:
+			ret = -EINVAL;
+			goto err_pm_put;
+		}
+
+		tdm_val |= TDM_FSYNC_WIDTH_SEL1(1);
+		tdm_val |= TDM_FSYNC_WIDTH_ONE_FRAME;
+
+		mask = I2S_TXCR_TFS_MASK;
+		regmap_update_bits(i2s_tdm->regmap, I2S_TXCR, mask, val);
+		regmap_update_bits(i2s_tdm->regmap, I2S_RXCR, mask, val);
+
+		mask = TDM_FSYNC_WIDTH_SEL1_MSK | TDM_FSYNC_WIDTH_SEL0_MSK |
+		       TDM_SHIFT_CTRL_MSK;
+		regmap_update_bits(i2s_tdm->regmap, I2S_TDM_TXCR,
+				   mask, tdm_val);
+		regmap_update_bits(i2s_tdm->regmap, I2S_TDM_RXCR,
+				   mask, tdm_val);
+	}
 
 err_pm_put:
 	pm_runtime_put(cpu_dai->dev);
@@ -858,10 +902,31 @@ static int rockchip_i2s_tdm_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static int rockchip_dai_tdm_slot(struct snd_soc_dai *dai,
+				 unsigned int tx_mask, unsigned int rx_mask,
+				 int slots, int slot_width)
+{
+	struct rk_i2s_tdm_dev *i2s_tdm = snd_soc_dai_get_drvdata(dai);
+	unsigned int mask, val;
+
+	i2s_tdm->tdm_mode = true;
+	i2s_tdm->bclk_fs = slots * slot_width;
+	mask = TDM_SLOT_BIT_WIDTH_MSK | TDM_FRAME_WIDTH_MSK;
+	val = TDM_SLOT_BIT_WIDTH(slot_width) |
+	      TDM_FRAME_WIDTH(slots * slot_width);
+	regmap_update_bits(i2s_tdm->regmap, I2S_TDM_TXCR,
+			   mask, val);
+	regmap_update_bits(i2s_tdm->regmap, I2S_TDM_RXCR,
+			   mask, val);
+
+	return 0;
+}
+
 static const struct snd_soc_dai_ops rockchip_i2s_tdm_dai_ops = {
 	.hw_params = rockchip_i2s_tdm_hw_params,
 	.set_sysclk = rockchip_i2s_tdm_set_sysclk,
 	.set_fmt = rockchip_i2s_tdm_set_fmt,
+	.set_tdm_slot = rockchip_dai_tdm_slot,
 	.trigger = rockchip_i2s_tdm_trigger,
 };
 
