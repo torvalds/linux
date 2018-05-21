@@ -2213,6 +2213,16 @@ static void process_scheduled_works(struct worker *worker)
 	}
 }
 
+static void set_pf_worker(bool val)
+{
+	mutex_lock(&wq_pool_attach_mutex);
+	if (val)
+		current->flags |= PF_WQ_WORKER;
+	else
+		current->flags &= ~PF_WQ_WORKER;
+	mutex_unlock(&wq_pool_attach_mutex);
+}
+
 /**
  * worker_thread - the worker thread function
  * @__worker: self
@@ -2231,7 +2241,7 @@ static int worker_thread(void *__worker)
 	struct worker_pool *pool = worker->pool;
 
 	/* tell the scheduler that this is a workqueue worker */
-	worker->task->flags |= PF_WQ_WORKER;
+	set_pf_worker(true);
 woke_up:
 	spin_lock_irq(&pool->lock);
 
@@ -2239,7 +2249,7 @@ woke_up:
 	if (unlikely(worker->flags & WORKER_DIE)) {
 		spin_unlock_irq(&pool->lock);
 		WARN_ON_ONCE(!list_empty(&worker->entry));
-		worker->task->flags &= ~PF_WQ_WORKER;
+		set_pf_worker(false);
 
 		set_task_comm(worker->task, "kworker/dying");
 		ida_simple_remove(&pool->worker_ida, worker->id);
@@ -2342,7 +2352,7 @@ static int rescuer_thread(void *__rescuer)
 	 * Mark rescuer as worker too.  As WORKER_PREP is never cleared, it
 	 * doesn't participate in concurrency management.
 	 */
-	rescuer->task->flags |= PF_WQ_WORKER;
+	set_pf_worker(true);
 repeat:
 	set_current_state(TASK_IDLE);
 
@@ -2434,7 +2444,7 @@ repeat:
 
 	if (should_stop) {
 		__set_current_state(TASK_RUNNING);
-		rescuer->task->flags &= ~PF_WQ_WORKER;
+		set_pf_worker(false);
 		return 0;
 	}
 
@@ -4580,8 +4590,6 @@ void show_workqueue_state(void)
 /* used to show worker information through /proc/PID/{comm,stat,status} */
 void wq_worker_comm(char *buf, size_t size, struct task_struct *task)
 {
-	struct worker *worker;
-	struct worker_pool *pool;
 	int off;
 
 	/* always show the actual comm */
@@ -4589,28 +4597,30 @@ void wq_worker_comm(char *buf, size_t size, struct task_struct *task)
 	if (off < 0)
 		return;
 
-	/* stabilize worker pool association */
+	/* stabilize PF_WQ_WORKER and worker pool association */
 	mutex_lock(&wq_pool_attach_mutex);
 
-	worker = kthread_data(task);
-	pool = worker->pool;
+	if (task->flags & PF_WQ_WORKER) {
+		struct worker *worker = kthread_data(task);
+		struct worker_pool *pool = worker->pool;
 
-	if (pool) {
-		spin_lock_irq(&pool->lock);
-		/*
-		 * ->desc tracks information (wq name or set_worker_desc())
-		 * for the latest execution.  If current, prepend '+',
-		 * otherwise '-'.
-		 */
-		if (worker->desc[0] != '\0') {
-			if (worker->current_work)
-				scnprintf(buf + off, size - off, "+%s",
-					  worker->desc);
-			else
-				scnprintf(buf + off, size - off, "-%s",
-					  worker->desc);
+		if (pool) {
+			spin_lock_irq(&pool->lock);
+			/*
+			 * ->desc tracks information (wq name or
+			 * set_worker_desc()) for the latest execution.  If
+			 * current, prepend '+', otherwise '-'.
+			 */
+			if (worker->desc[0] != '\0') {
+				if (worker->current_work)
+					scnprintf(buf + off, size - off, "+%s",
+						  worker->desc);
+				else
+					scnprintf(buf + off, size - off, "-%s",
+						  worker->desc);
+			}
+			spin_unlock_irq(&pool->lock);
 		}
-		spin_unlock_irq(&pool->lock);
 	}
 
 	mutex_unlock(&wq_pool_attach_mutex);
