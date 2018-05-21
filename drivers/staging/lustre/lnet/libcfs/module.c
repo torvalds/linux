@@ -62,38 +62,8 @@
 
 static struct dentry *lnet_debugfs_root;
 
-static DECLARE_RWSEM(ioctl_list_sem);
-static LIST_HEAD(ioctl_list);
-
-int libcfs_register_ioctl(struct libcfs_ioctl_handler *hand)
-{
-	int rc = 0;
-
-	down_write(&ioctl_list_sem);
-	if (!list_empty(&hand->item))
-		rc = -EBUSY;
-	else
-		list_add_tail(&hand->item, &ioctl_list);
-	up_write(&ioctl_list_sem);
-
-	return rc;
-}
-EXPORT_SYMBOL(libcfs_register_ioctl);
-
-int libcfs_deregister_ioctl(struct libcfs_ioctl_handler *hand)
-{
-	int rc = 0;
-
-	down_write(&ioctl_list_sem);
-	if (list_empty(&hand->item))
-		rc = -ENOENT;
-	else
-		list_del_init(&hand->item);
-	up_write(&ioctl_list_sem);
-
-	return rc;
-}
-EXPORT_SYMBOL(libcfs_deregister_ioctl);
+BLOCKING_NOTIFIER_HEAD(libcfs_ioctl_list);
+EXPORT_SYMBOL(libcfs_ioctl_list);
 
 static inline size_t libcfs_ioctl_packlen(struct libcfs_ioctl_data *data)
 {
@@ -268,24 +238,18 @@ static int libcfs_ioctl(unsigned long cmd, void __user *uparam)
 		libcfs_debug_mark_buffer(data->ioc_inlbuf1);
 		break;
 
-	default: {
-		struct libcfs_ioctl_handler *hand;
-
-		err = -EINVAL;
-		down_read(&ioctl_list_sem);
-		list_for_each_entry(hand, &ioctl_list, item) {
-			err = hand->handle_ioctl(cmd, hdr);
-			if (err == -EINVAL)
-				continue;
-
-			if (!err) {
-				if (copy_to_user(uparam, hdr, hdr->ioc_len))
-					err = -EFAULT;
-			}
-			break;
-		}
-		up_read(&ioctl_list_sem);
-		break; }
+	default:
+		err = blocking_notifier_call_chain(&libcfs_ioctl_list,
+						   cmd, hdr);
+		if (!(err & NOTIFY_STOP_MASK))
+			/* No-one claimed the ioctl */
+			err = -EINVAL;
+		else
+			err = notifier_to_errno(err);
+		if (!err)
+			if (copy_to_user(uparam, hdr, hdr->ioc_len))
+				err = -EFAULT;
+		break;
 	}
 out:
 	kvfree(hdr);

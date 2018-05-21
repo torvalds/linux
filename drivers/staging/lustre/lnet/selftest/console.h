@@ -187,7 +187,8 @@ lstcon_id2hash(struct lnet_process_id id, struct list_head *hash)
 	return &hash[idx];
 }
 
-int lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_hdr *hdr);
+int lstcon_ioctl_entry(struct notifier_block *nb,
+		       unsigned long cmd, void *vdata);
 int lstcon_console_init(void);
 int lstcon_console_fini(void);
 int lstcon_session_match(struct lst_sid sid);

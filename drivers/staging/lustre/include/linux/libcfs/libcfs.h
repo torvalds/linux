@@ -93,19 +93,14 @@
 #define LNET_ACCEPTOR_MIN_RESERVED_PORT    512
 #define LNET_ACCEPTOR_MAX_RESERVED_PORT    1023
 
-struct libcfs_ioctl_handler {
-	struct list_head item;
-	int (*handle_ioctl)(unsigned int cmd, struct libcfs_ioctl_hdr *hdr);
-};
+extern struct blocking_notifier_head libcfs_ioctl_list;
+static inline int notifier_from_ioctl_errno(int err)
+{
+	if (err == -EINVAL)
+		return NOTIFY_OK;
+	return notifier_from_errno(err) | NOTIFY_STOP_MASK;
+}
 
-#define DECLARE_IOCTL_HANDLER(ident, func)			\
-	struct libcfs_ioctl_handler ident = {			\
-		.item		= LIST_HEAD_INIT(ident.item),	\
-		.handle_ioctl	= func				\
-	}
-
-int libcfs_register_ioctl(struct libcfs_ioctl_handler *hand);
-int libcfs_deregister_ioctl(struct libcfs_ioctl_handler *hand);
 int libcfs_setup(void);
 
 #define _LIBCFS_H
