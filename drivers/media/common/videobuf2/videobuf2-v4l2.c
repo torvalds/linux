@@ -1100,6 +1100,57 @@ void vb2_ops_wait_finish(struct vb2_queue *vq)
 }
 EXPORT_SYMBOL_GPL(vb2_ops_wait_finish);
 
+/*
+ * Note that this function is called during validation time and
+ * thus the req_queue_mutex is held to ensure no request objects
+ * can be added or deleted while validating. So there is no need
+ * to protect the objects list.
+ */
+int vb2_request_validate(struct media_request *req)
+{
+	struct media_request_object *obj;
+	int ret = 0;
+
+	if (!vb2_request_has_buffers(req))
+		return -ENOENT;
+
+	list_for_each_entry(obj, &req->objects, list) {
+		if (!obj->ops->prepare)
+			continue;
+
+		ret = obj->ops->prepare(obj);
+		if (ret)
+			break;
+	}
+
+	if (ret) {
+		list_for_each_entry_continue_reverse(obj, &req->objects, list)
+			if (obj->ops->unprepare)
+				obj->ops->unprepare(obj);
+		return ret;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(vb2_request_validate);
+
+void vb2_request_queue(struct media_request *req)
+{
+	struct media_request_object *obj, *obj_safe;
+
+	/*
+	 * Queue all objects. Note that buffer objects are at the end of the
+	 * objects list, after all other object types. Once buffer objects
+	 * are queued, the driver might delete them immediately (if the driver
+	 * processes the buffer at once), so we have to use
+	 * list_for_each_entry_safe() to handle the case where the object we
+	 * queue is deleted.
+	 */
+	list_for_each_entry_safe(obj, obj_safe, &req->objects, list)
+		if (obj->ops->queue)
+			obj->ops->queue(obj);
+}
+EXPORT_SYMBOL_GPL(vb2_request_queue);
+
 MODULE_DESCRIPTION("Driver helper framework for Video for Linux 2");
 MODULE_AUTHOR("Pawel Osciak <pawel@osciak.com>, Marek Szyprowski");
 MODULE_LICENSE("GPL");
