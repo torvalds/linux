@@ -274,6 +274,7 @@ struct hisi_hba {
 	struct workqueue_struct *wq;
 
 	int slot_index_count;
+	int last_slot_index;
 	unsigned long *slot_index_tags;
 	unsigned long reject_stp_links_msk;
 

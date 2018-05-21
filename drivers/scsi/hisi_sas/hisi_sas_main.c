@@ -195,11 +195,18 @@ static int hisi_sas_slot_index_alloc(struct hisi_hba *hisi_hba, int *slot_idx)
 	unsigned int index;
 	void *bitmap = hisi_hba->slot_index_tags;
 
-	index = find_first_zero_bit(bitmap, hisi_hba->slot_index_count);
-	if (index >= hisi_hba->slot_index_count)
-		return -SAS_QUEUE_FULL;
+	index = find_next_zero_bit(bitmap, hisi_hba->slot_index_count,
+			hisi_hba->last_slot_index + 1);
+	if (index >= hisi_hba->slot_index_count) {
+		index = find_next_zero_bit(bitmap, hisi_hba->slot_index_count,
+					   0);
+		if (index >= hisi_hba->slot_index_count)
+			return -SAS_QUEUE_FULL;
+	}
 	hisi_sas_slot_index_set(hisi_hba, index);
 	*slot_idx = index;
+	hisi_hba->last_slot_index = index;
+
 	return 0;
 }
 
