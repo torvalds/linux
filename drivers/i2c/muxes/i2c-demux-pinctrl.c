@@ -106,7 +106,7 @@ static int i2c_demux_activate_master(struct i2c_demux_pinctrl_priv *priv, u32 ne
 	priv->cur_adap.owner = THIS_MODULE;
 	priv->cur_adap.algo = &priv->algo;
 	priv->cur_adap.algo_data = priv;
-	priv->cur_adap.dev.parent = priv->dev;
+	priv->cur_adap.dev.parent = &adap->dev;
 	priv->cur_adap.class = adap->class;
 	priv->cur_adap.retries = adap->retries;
 	priv->cur_adap.timeout = adap->timeout;
