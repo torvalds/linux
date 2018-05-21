@@ -1879,29 +1879,12 @@ static int hisi_sas_v3_init(struct hisi_hba *hisi_hba)
 static void phy_set_linkrate_v3_hw(struct hisi_hba *hisi_hba, int phy_no,
 		struct sas_phy_linkrates *r)
 {
-	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
-	struct asd_sas_phy *sas_phy = &phy->sas_phy;
-	enum sas_linkrate min, max;
+	enum sas_linkrate max = r->maximum_linkrate;
 	u32 prog_phy_link_rate = 0x800;
 
-	if (r->maximum_linkrate == SAS_LINK_RATE_UNKNOWN) {
-		max = sas_phy->phy->maximum_linkrate;
-		min = r->minimum_linkrate;
-	} else if (r->minimum_linkrate == SAS_LINK_RATE_UNKNOWN) {
-		max = r->maximum_linkrate;
-		min = sas_phy->phy->minimum_linkrate;
-	} else
-		return;
-
-	sas_phy->phy->maximum_linkrate = max;
-	sas_phy->phy->minimum_linkrate = min;
 	prog_phy_link_rate |= hisi_sas_get_prog_phy_linkrate_mask(max);
-
-	disable_phy_v3_hw(hisi_hba, phy_no);
-	msleep(100);
 	hisi_sas_phy_write32(hisi_hba, phy_no, PROG_PHY_LINK_RATE,
-			prog_phy_link_rate);
-	start_phy_v3_hw(hisi_hba, phy_no);
+			     prog_phy_link_rate);
 }
 
 static void interrupt_disable_v3_hw(struct hisi_hba *hisi_hba)
