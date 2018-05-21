@@ -596,10 +596,12 @@ static struct hisi_sas_device *hisi_sas_alloc_dev(struct domain_device *device)
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct hisi_sas_device *sas_dev = NULL;
 	unsigned long flags;
+	int last = hisi_hba->last_dev_id;
+	int first = (hisi_hba->last_dev_id + 1) % HISI_SAS_MAX_DEVICES;
 	int i;
 
 	spin_lock_irqsave(&hisi_hba->lock, flags);
-	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
+	for (i = first; i != last; i %= HISI_SAS_MAX_DEVICES) {
 		if (hisi_hba->devices[i].dev_type == SAS_PHY_UNUSED) {
 			int queue = i % hisi_hba->queue_count;
 			struct hisi_sas_dq *dq = &hisi_hba->dq[queue];
@@ -614,7 +616,9 @@ static struct hisi_sas_device *hisi_sas_alloc_dev(struct domain_device *device)
 			INIT_LIST_HEAD(&hisi_hba->devices[i].list);
 			break;
 		}
+		i++;
 	}
+	hisi_hba->last_dev_id = i;
 	spin_unlock_irqrestore(&hisi_hba->lock, flags);
 
 	return sas_dev;
