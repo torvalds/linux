@@ -89,8 +89,6 @@
 
 #define LIBCFS_VERSION "0.7.0"
 
-#define LOWEST_BIT_SET(x)       ((x) & ~((x) - 1))
-
 /*
  * One jiffy
  */

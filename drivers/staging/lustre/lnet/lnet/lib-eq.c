@@ -225,7 +225,7 @@ lnet_eq_enqueue_event(struct lnet_eq *eq, struct lnet_event *ev)
 	lnet_eq_wait_lock();
 	ev->sequence = eq->eq_enq_seq++;
 
-	LASSERT(eq->eq_size == LOWEST_BIT_SET(eq->eq_size));
+	LASSERT(is_power_of_2(eq->eq_size));
 	index = ev->sequence & (eq->eq_size - 1);
 
 	eq->eq_events[index] = *ev;
