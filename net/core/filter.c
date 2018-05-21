@@ -4089,7 +4089,7 @@ static int bpf_fib_set_fwd_params(struct bpf_fib_lookup *params,
 
 #if IS_ENABLED(CONFIG_INET)
 static int bpf_ipv4_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
-			       u32 flags)
+			       u32 flags, bool check_mtu)
 {
 	struct in_device *in_dev;
 	struct neighbour *neigh;
@@ -4098,6 +4098,7 @@ static int bpf_ipv4_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 	struct fib_nh *nh;
 	struct flowi4 fl4;
 	int err;
+	u32 mtu;
 
 	dev = dev_get_by_index_rcu(net, params->ifindex);
 	if (unlikely(!dev))
@@ -4149,6 +4150,12 @@ static int bpf_ipv4_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 	if (res.fi->fib_nhs > 1)
 		fib_select_path(net, &res, &fl4, NULL);
 
+	if (check_mtu) {
+		mtu = ip_mtu_from_fib_result(&res, params->ipv4_dst);
+		if (params->tot_len > mtu)
+			return 0;
+	}
+
 	nh = &res.fi->fib_nh[res.nh_sel];
 
 	/* do not handle lwt encaps right now */
@@ -4177,7 +4184,7 @@ static int bpf_ipv4_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 
 #if IS_ENABLED(CONFIG_IPV6)
 static int bpf_ipv6_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
-			       u32 flags)
+			       u32 flags, bool check_mtu)
 {
 	struct in6_addr *src = (struct in6_addr *) params->ipv6_src;
 	struct in6_addr *dst = (struct in6_addr *) params->ipv6_dst;
@@ -4188,6 +4195,7 @@ static int bpf_ipv6_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 	struct flowi6 fl6;
 	int strict = 0;
 	int oif;
+	u32 mtu;
 
 	/* link local addresses are never forwarded */
 	if (rt6_need_strict(dst) || rt6_need_strict(src))
@@ -4250,6 +4258,12 @@ static int bpf_ipv6_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 						       fl6.flowi6_oif, NULL,
 						       strict);
 
+	if (check_mtu) {
+		mtu = ipv6_stub->ip6_mtu_from_fib6(f6i, dst, src);
+		if (params->tot_len > mtu)
+			return 0;
+	}
+
 	if (f6i->fib6_nh.nh_lwtstate)
 		return 0;
 
@@ -4282,12 +4296,12 @@ BPF_CALL_4(bpf_xdp_fib_lookup, struct xdp_buff *, ctx,
 #if IS_ENABLED(CONFIG_INET)
 	case AF_INET:
 		return bpf_ipv4_fib_lookup(dev_net(ctx->rxq->dev), params,
-					   flags);
+					   flags, true);
 #endif
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		return bpf_ipv6_fib_lookup(dev_net(ctx->rxq->dev), params,
-					   flags);
+					   flags, true);
 #endif
 	}
 	return 0;
@@ -4306,20 +4320,34 @@ static const struct bpf_func_proto bpf_xdp_fib_lookup_proto = {
 BPF_CALL_4(bpf_skb_fib_lookup, struct sk_buff *, skb,
 	   struct bpf_fib_lookup *, params, int, plen, u32, flags)
 {
+	struct net *net = dev_net(skb->dev);
+	int index = 0;
+
 	if (plen < sizeof(*params))
 		return -EINVAL;
 
 	switch (params->family) {
 #if IS_ENABLED(CONFIG_INET)
 	case AF_INET:
-		return bpf_ipv4_fib_lookup(dev_net(skb->dev), params, flags);
+		index = bpf_ipv4_fib_lookup(net, params, flags, false);
+		break;
 #endif
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
-		return bpf_ipv6_fib_lookup(dev_net(skb->dev), params, flags);
+		index = bpf_ipv6_fib_lookup(net, params, flags, false);
+		break;
 #endif
 	}
-	return -ENOTSUPP;
+
+	if (index > 0) {
+		struct net_device *dev;
+
+		dev = dev_get_by_index_rcu(net, index);
+		if (!is_skb_forwardable(dev, skb))
+			index = 0;
+	}
+
+	return index;
 }
 
 static const struct bpf_func_proto bpf_skb_fib_lookup_proto = {
