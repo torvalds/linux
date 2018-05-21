@@ -33,6 +33,9 @@
 #ifndef _LIBCFS_FAIL_H
 #define _LIBCFS_FAIL_H
 
+#include <linux/sched.h>
+#include <linux/wait.h>
+
 extern unsigned long cfs_fail_loc;
 extern unsigned int cfs_fail_val;
 extern int cfs_fail_err;
