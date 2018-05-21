@@ -1067,6 +1067,7 @@ void fpsimd_flush_task_state(struct task_struct *t)
 static inline void fpsimd_flush_cpu_state(void)
 {
 	__this_cpu_write(fpsimd_last_state.st, NULL);
+	set_thread_flag(TIF_FOREIGN_FPSTATE);
 }
 
 /*
@@ -1121,10 +1122,8 @@ void kernel_neon_begin(void)
 	__this_cpu_write(kernel_neon_busy, true);
 
 	/* Save unsaved task fpsimd state, if any: */
-	if (current->mm) {
+	if (current->mm)
 		task_fpsimd_save();
-		set_thread_flag(TIF_FOREIGN_FPSTATE);
-	}
 
 	/* Invalidate any task state remaining in the fpsimd regs: */
 	fpsimd_flush_cpu_state();
@@ -1251,8 +1250,6 @@ static int fpsimd_cpu_pm_notifier(struct notifier_block *self,
 		fpsimd_flush_cpu_state();
 		break;
 	case CPU_PM_EXIT:
-		if (current->mm)
-			set_thread_flag(TIF_FOREIGN_FPSTATE);
 		break;
 	case CPU_PM_ENTER_FAILED:
 	default:
