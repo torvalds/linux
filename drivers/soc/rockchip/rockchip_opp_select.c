@@ -38,6 +38,10 @@ struct pvtm_config {
 	struct thermal_zone_device *tz;
 };
 
+#define PVTM_CH_MAX	8
+#define PVTM_SUB_CH_MAX	8
+static int pvtm_value[PVTM_CH_MAX][PVTM_SUB_CH_MAX];
+
 static int rockchip_get_efuse_value(struct device_node *np, char *porp_name,
 				    int *value)
 {
@@ -143,6 +147,8 @@ static int rockchip_parse_pvtm_config(struct device_node *np,
 		return -EINVAL;
 	if (of_property_read_u32_array(np, "rockchip,pvtm-ch", pvtm->ch, 2))
 		return -EINVAL;
+	if (pvtm->ch[0] > PVTM_CH_MAX || pvtm->ch[1] > PVTM_SUB_CH_MAX)
+		return -EINVAL;
 	if (of_property_read_u32(np, "rockchip,pvtm-sample-time",
 				 &pvtm->sample_time))
 		return -EINVAL;
@@ -175,11 +181,22 @@ static int rockchip_get_pvtm_specific_value(struct device *dev,
 {
 	struct pvtm_config *pvtm;
 	unsigned long old_freq;
-	unsigned int old_volt;
+	unsigned int old_volt, ch[2];
 	int cur_temp, diff_temp;
 	int cur_value, total_value, avg_value, diff_value;
 	int min_value, max_value;
 	int ret = 0, i = 0, retry = 2;
+
+	if (of_property_read_u32_array(np, "rockchip,pvtm-ch", ch, 2))
+		return -EINVAL;
+
+	if (ch[0] > PVTM_CH_MAX || ch[1] > PVTM_SUB_CH_MAX)
+		return -EINVAL;
+
+	if (pvtm_value[ch[0]][ch[1]]) {
+		*target_value = pvtm_value[ch[0]][ch[1]];
+		return 0;
+	}
 
 	pvtm = kzalloc(sizeof(*pvtm), GFP_KERNEL);
 	if (!pvtm)
@@ -240,6 +257,8 @@ static int rockchip_get_pvtm_specific_value(struct device *dev,
 	diff_value = diff_temp *
 		(diff_temp < 0 ? pvtm->temp_prop[0] : pvtm->temp_prop[1]);
 	*target_value = avg_value + diff_value;
+
+	pvtm_value[pvtm->ch[0]][pvtm->ch[1]] = *target_value;
 
 	dev_info(dev, "temp=%d, pvtm=%d (%d + %d)\n",
 		 cur_temp, *target_value, avg_value, diff_value);
