@@ -729,25 +729,6 @@ static int get_int_prop(struct device_node *dn, const char *s)
 	return val;
 }
 
-static int get_musb_port_mode(struct device *dev)
-{
-	enum usb_dr_mode mode;
-
-	mode = usb_get_dr_mode(dev);
-	switch (mode) {
-	case USB_DR_MODE_HOST:
-		return MUSB_PORT_MODE_HOST;
-
-	case USB_DR_MODE_PERIPHERAL:
-		return MUSB_PORT_MODE_GADGET;
-
-	case USB_DR_MODE_UNKNOWN:
-	case USB_DR_MODE_OTG:
-	default:
-		return MUSB_PORT_MODE_DUAL_ROLE;
-	}
-}
-
 static int dsps_create_musb_pdev(struct dsps_glue *glue,
 		struct platform_device *parent)
 {
@@ -807,7 +788,7 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 	config->num_eps = get_int_prop(dn, "mentor,num-eps");
 	config->ram_bits = get_int_prop(dn, "mentor,ram-bits");
 	config->host_port_deassert_reset_at_resume = 1;
-	pdata.mode = get_musb_port_mode(dev);
+	pdata.mode = musb_get_mode(dev);
 	/* DT keeps this entry in mA, musb expects it as per USB spec */
 	pdata.power = get_int_prop(dn, "mentor,power") / 2;
 
