@@ -160,6 +160,7 @@ struct nvme_queue {
 	s16 cq_vector;
 	u16 sq_tail;
 	u16 cq_head;
+	u16 last_cq_head;
 	u16 qid;
 	u8 cq_phase;
 	u32 *dbbuf_sq_db;
@@ -999,16 +1000,22 @@ static inline bool nvme_process_cq(struct nvme_queue *nvmeq, u16 *start,
 static irqreturn_t nvme_irq(int irq, void *data)
 {
 	struct nvme_queue *nvmeq = data;
+	irqreturn_t ret = IRQ_NONE;
 	u16 start, end;
 
 	spin_lock(&nvmeq->cq_lock);
+	if (nvmeq->cq_head != nvmeq->last_cq_head)
+		ret = IRQ_HANDLED;
 	nvme_process_cq(nvmeq, &start, &end, -1);
+	nvmeq->last_cq_head = nvmeq->cq_head;
 	spin_unlock(&nvmeq->cq_lock);
 
-	if (start == end)
-		return IRQ_NONE;
-	nvme_complete_cqes(nvmeq, start, end);
-	return IRQ_HANDLED;
+	if (start != end) {
+		nvme_complete_cqes(nvmeq, start, end);
+		return IRQ_HANDLED;
+	}
+
+	return ret;
 }
 
 static irqreturn_t nvme_irq_check(int irq, void *data)
