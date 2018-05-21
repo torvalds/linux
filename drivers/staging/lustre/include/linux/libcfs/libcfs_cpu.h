@@ -109,6 +109,8 @@ struct cfs_cpt_table {
 	nodemask_t			*ctb_nodemask;
 };
 
+extern struct cfs_cpt_table	*cfs_cpt_tab;
+
 /**
  * return cpumask of CPU partition \a cpt
  */
@@ -202,17 +204,12 @@ int cfs_cpt_spread_node(struct cfs_cpt_table *cptab, int cpt);
  */
 int cfs_cpu_ht_nsiblings(int cpu);
 
+int  cfs_cpu_init(void);
+void cfs_cpu_fini(void);
+
 #else /* !CONFIG_SMP */
-struct cfs_cpt_table {
-	/* # of CPU partitions */
-	int			ctb_nparts;
-	/* cpu mask */
-	cpumask_t		ctb_mask;
-	/* node mask */
-	nodemask_t		ctb_nodemask;
-	/* version */
-	u64			ctb_version;
-};
+struct cfs_cpt_table;
+#define cfs_cpt_tab ((struct cfs_cpt_table *)NULL)
 
 static inline cpumask_var_t *
 cfs_cpt_cpumask(struct cfs_cpt_table *cptab, int cpt)
@@ -246,7 +243,7 @@ cfs_cpt_online(struct cfs_cpt_table *cptab, int cpt)
 static inline nodemask_t *
 cfs_cpt_nodemask(struct cfs_cpt_table *cptab, int cpt)
 {
-	return &cptab->ctb_nodemask;
+	return NULL;
 }
 
 static inline int
@@ -327,9 +324,18 @@ cfs_cpt_bind(struct cfs_cpt_table *cptab, int cpt)
 {
 	return 0;
 }
-#endif /* CONFIG_SMP */
 
-extern struct cfs_cpt_table	*cfs_cpt_tab;
+static inline int
+cfs_cpu_init(void)
+{
+	return 0;
+}
+
+static inline void cfs_cpu_fini(void)
+{
+}
+
+#endif /* CONFIG_SMP */
 
 /**
  * destroy a CPU partition table
@@ -424,8 +430,5 @@ void cfs_percpt_unlock(struct cfs_percpt_lock *pcl, int index);
  */
 #define cfs_cpt_for_each(i, cptab)	\
 	for (i = 0; i < cfs_cpt_number(cptab); i++)
-
-int  cfs_cpu_init(void);
-void cfs_cpu_fini(void);
 
 #endif /* __LIBCFS_CPU_H__ */

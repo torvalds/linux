@@ -42,7 +42,6 @@ EXPORT_SYMBOL(cfs_cpt_tab);
 #include <linux/sched.h>
 #include <linux/libcfs/libcfs.h>
 
-#ifdef CONFIG_SMP
 /**
  * modparam for setting number of partitions
  *
@@ -81,11 +80,9 @@ static struct cfs_cpt_data {
 	/* scratch buffer for set/unset_node */
 	cpumask_var_t		cpt_cpumask;
 } cpt_data;
-#endif
 
 #define CFS_CPU_VERSION_MAGIC	   0xbabecafe
 
-#ifdef CONFIG_SMP
 struct cfs_cpt_table *
 cfs_cpt_table_alloc(unsigned int ncpt)
 {
@@ -139,30 +136,8 @@ cfs_cpt_table_alloc(unsigned int ncpt)
 	cfs_cpt_table_free(cptab);
 	return NULL;
 }
-#else /* ! CONFIG_SMP */
-struct cfs_cpt_table *
-cfs_cpt_table_alloc(unsigned int ncpt)
-{
-	struct cfs_cpt_table *cptab;
-
-	if (ncpt != 1) {
-		CERROR("Can't support cpu partition number %d\n", ncpt);
-		return NULL;
-	}
-
-	cptab = kzalloc(sizeof(*cptab), GFP_NOFS);
-	if (cptab) {
-		cptab->ctb_version = CFS_CPU_VERSION_MAGIC;
-		node_set(0, cptab->ctb_nodemask);
-		cptab->ctb_nparts  = ncpt;
-	}
-
-	return cptab;
-}
-#endif /* CONFIG_SMP */
 EXPORT_SYMBOL(cfs_cpt_table_alloc);
 
-#ifdef CONFIG_SMP
 void
 cfs_cpt_table_free(struct cfs_cpt_table *cptab)
 {
@@ -184,18 +159,8 @@ cfs_cpt_table_free(struct cfs_cpt_table *cptab)
 
 	kfree(cptab);
 }
-#else /* ! CONFIG_SMP */
-void
-cfs_cpt_table_free(struct cfs_cpt_table *cptab)
-{
-	LASSERT(cptab->ctb_version == CFS_CPU_VERSION_MAGIC);
-
-	kfree(cptab);
-}
-#endif /* CONFIG_SMP */
 EXPORT_SYMBOL(cfs_cpt_table_free);
 
-#ifdef CONFIG_SMP
 int
 cfs_cpt_table_print(struct cfs_cpt_table *cptab, char *buf, int len)
 {
@@ -238,9 +203,7 @@ cfs_cpt_table_print(struct cfs_cpt_table *cptab, char *buf, int len)
 	return tmp - buf;
 }
 EXPORT_SYMBOL(cfs_cpt_table_print);
-#endif /* CONFIG_SMP */
 
-#ifdef CONFIG_SMP
 static void
 cfs_node_to_cpumask(int node, cpumask_t *mask)
 {
@@ -623,10 +586,6 @@ cfs_cpt_bind(struct cfs_cpt_table *cptab, int cpt)
 	return 0;
 }
 EXPORT_SYMBOL(cfs_cpt_bind);
-
-#endif
-
-#ifdef CONFIG_SMP
 
 /**
  * Choose max to \a number CPUs from \a node and set them in \a cpt.
@@ -1122,24 +1081,3 @@ cfs_cpu_init(void)
 	cfs_cpu_fini();
 	return ret;
 }
-
-#else /* ! CONFIG_SMP */
-
-void
-cfs_cpu_fini(void)
-{
-	if (cfs_cpt_tab) {
-		cfs_cpt_table_free(cfs_cpt_tab);
-		cfs_cpt_tab = NULL;
-	}
-}
-
-int
-cfs_cpu_init(void)
-{
-	cfs_cpt_tab = cfs_cpt_table_alloc(1);
-
-	return cfs_cpt_tab ? 0 : -1;
-}
-
-#endif /* CONFIG_SMP */
