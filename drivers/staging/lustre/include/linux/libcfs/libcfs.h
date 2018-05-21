@@ -103,11 +103,6 @@ static inline int notifier_from_ioctl_errno(int err)
 
 int libcfs_setup(void);
 
-/**
- * The path of debug log dump upcall script.
- */
-extern char lnet_debug_log_upcall[1024];
-
 extern struct workqueue_struct *cfs_rehash_wq;
 
 void lustre_insert_debugfs(struct ctl_table *table);
