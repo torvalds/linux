@@ -256,6 +256,7 @@ struct dw_mipi_dsi {
 	struct mipi_dphy dphy;
 	struct regmap *regmap;
 	struct reset_control *rst;
+	int irq;
 	int id;
 
 	/* dual-channel */
@@ -1016,6 +1017,8 @@ static void dw_mipi_dsi_disable(struct dw_mipi_dsi *dsi)
 
 static void dw_mipi_dsi_post_disable(struct dw_mipi_dsi *dsi)
 {
+	regmap_write(dsi->regmap, DSI_INT_MSK0, 0);
+	regmap_write(dsi->regmap, DSI_INT_MSK1, 0);
 	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
 	mipi_dphy_power_off(dsi);
 	clk_disable_unprepare(dsi->pclk);
@@ -1185,6 +1188,9 @@ static void dw_mipi_dsi_pre_enable(struct dw_mipi_dsi *dsi)
 	mipi_dphy_power_on(dsi);
 
 	regmap_write(dsi->regmap, DSI_PWR_UP, POWER_UP);
+
+	regmap_write(dsi->regmap, DSI_INT_MSK0, 0x1fffff);
+	regmap_write(dsi->regmap, DSI_INT_MSK1, 0x1f7f);
 
 	if (dsi->slave)
 		dw_mipi_dsi_pre_enable(dsi->slave);
@@ -1440,6 +1446,73 @@ static const struct component_ops dw_mipi_dsi_ops = {
 	.unbind	= dw_mipi_dsi_unbind,
 };
 
+static const char * const dphy_error[] = {
+	"ErrEsc escape entry error from Lane 0",
+	"ErrSyncEsc low-power data transmission synchronization error from Lane 0",
+	"the ErrControl error from Lane 0",
+	"LP0 contention error ErrContentionLP0 from Lane 0",
+	"LP1 contention error ErrContentionLP1 from Lane 0",
+};
+
+static const char * const ack_with_err[] = {
+	"the SoT error from the Acknowledge error report",
+	"the SoT Sync error from the Acknowledge error report",
+	"the EoT Sync error from the Acknowledge error report",
+	"the Escape Mode Entry Command error from the Acknowledge error report",
+	"the LP Transmit Sync error from the Acknowledge error report",
+	"the Peripheral Timeout error from the Acknowledge Error report",
+	"the False Control error from the Acknowledge error report",
+	"the reserved (specific to device) from the Acknowledge error report",
+	"the ECC error, single-bit (detected and corrected) from the Acknowledge error report",
+	"the ECC error, multi-bit (detected, not corrected) from the Acknowledge error report",
+	"the checksum error (long packet only) from the Acknowledge error report",
+	"the not recognized DSI data type from the Acknowledge error report",
+	"the DSI VC ID Invalid from the Acknowledge error report",
+	"the invalid transmission length from the Acknowledge error report",
+	"the reserved (specific to device) from the Acknowledge error report",
+	"the DSI protocol violation from the Acknowledge error report",
+};
+
+static const char * const error_report[] = {
+	"Host reports that the configured timeout counter for the high-speed transmission has expired",
+	"Host reports that the configured timeout counter for the low-power reception has expired",
+	"Host reports that a received packet contains a single bit error",
+	"Host reports that a received packet contains multiple ECC errors",
+	"Host reports that a received long packet has a CRC error in its payload",
+	"Host receives a transmission that does not end in the expected by boundaries",
+	"Host receives a transmission that does not end with an End of Transmission packet",
+	"An overflow occurs in the DPI pixel payload FIFO",
+	"An overflow occurs in the Generic command FIFO",
+	"An overflow occurs in the Generic write payload FIFO",
+	"An underflow occurs in the Generic write payload FIFO",
+	"An underflow occurs in the Generic read FIFO",
+	"An overflow occurs in the Generic read FIFO",
+};
+
+static irqreturn_t dw_mipi_dsi_irq_handler(int irq, void *dev_id)
+{
+	struct dw_mipi_dsi *dsi = dev_id;
+	u32 int_st0, int_st1;
+	unsigned int i;
+
+	regmap_read(dsi->regmap, DSI_INT_ST0, &int_st0);
+	regmap_read(dsi->regmap, DSI_INT_ST1, &int_st1);
+
+	for (i = 0; i < ARRAY_SIZE(ack_with_err); i++)
+		if (int_st0 & BIT(i))
+			DRM_DEV_DEBUG(dsi->dev, "%s\n", ack_with_err[i]);
+
+	for (i = 0; i < ARRAY_SIZE(dphy_error); i++)
+		if (int_st0 & BIT(16 + i))
+			DRM_DEV_DEBUG(dsi->dev, "%s\n", dphy_error[i]);
+
+	for (i = 0; i < ARRAY_SIZE(error_report); i++)
+		if (int_st1 & BIT(i))
+			DRM_DEV_DEBUG(dsi->dev, "%s\n", error_report[i]);
+
+	return IRQ_HANDLED;
+}
+
 static const struct regmap_config dw_mipi_dsi_regmap_config = {
 	.name = "host",
 	.reg_bits = 32,
@@ -1476,6 +1549,10 @@ static int dw_mipi_dsi_probe(struct platform_device *pdev)
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
+	dsi->irq = platform_get_irq(pdev, 0);
+	if (dsi->irq < 0)
+		return dsi->irq;
+
 	dsi->pclk = devm_clk_get(dev, "pclk");
 	if (IS_ERR(dsi->pclk)) {
 		ret = PTR_ERR(dsi->pclk);
@@ -1510,6 +1587,13 @@ static int dw_mipi_dsi_probe(struct platform_device *pdev)
 	ret = mipi_dphy_attach(dsi);
 	if (ret)
 		return ret;
+
+	ret = devm_request_irq(dev, dsi->irq, dw_mipi_dsi_irq_handler,
+			       IRQF_SHARED, dev_name(dev), dsi);
+	if (ret) {
+		DRM_DEV_ERROR(dev, "failed to request irq: %d\n", ret);
+		return ret;
+	}
 
 	dsi->host.ops = &dw_mipi_dsi_host_ops;
 	dsi->host.dev = dev;
