@@ -144,6 +144,24 @@ static inline void media_request_get(struct media_request *req)
 void media_request_put(struct media_request *req);
 
 /**
+ * media_request_get_by_fd - Get a media request by fd
+ *
+ * @mdev: Media device this request belongs to
+ * @request_fd: The file descriptor of the request
+ *
+ * Get the request represented by @request_fd that is owned
+ * by the media device.
+ *
+ * Return a -EPERM error pointer if requests are not supported
+ * by this driver. Return -ENOENT if the request was not found.
+ * Return the pointer to the request if found: the caller will
+ * have to call @media_request_put when it finished using the
+ * request.
+ */
+struct media_request *
+media_request_get_by_fd(struct media_device *mdev, int request_fd);
+
+/**
  * media_request_alloc - Allocate the media request
  *
  * @mdev: Media device this request belongs to
@@ -162,6 +180,12 @@ static inline void media_request_get(struct media_request *req)
 
 static inline void media_request_put(struct media_request *req)
 {
+}
+
+static inline struct media_request *
+media_request_get_by_fd(struct media_device *mdev, int request_fd)
+{
+	return ERR_PTR(-EPERM);
 }
 
 #endif
