@@ -3479,6 +3479,16 @@ M:	Dave Goodell <dgoodell@cisco.com>
 S:	Supported
 F:	drivers/infiniband/hw/usnic/
 
+CIRRUS LOGIC MADERA CODEC DRIVERS
+M:	Charles Keepax <ckeepax@opensource.cirrus.com>
+M:	Richard Fitzgerald <rf@opensource.cirrus.com>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	patches@opensource.cirrus.com
+T:	git https://github.com/CirrusLogic/linux-drivers.git
+W:	https://github.com/CirrusLogic/linux-drivers/wiki
+S:	Supported
+F:	include/linux/mfd/madera/*
+
 CLEANCACHE API
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 L:	linux-kernel@vger.kernel.org
