@@ -275,15 +275,6 @@ static const struct spi_device_id ltc2632_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, ltc2632_id);
 
-static struct spi_driver ltc2632_driver = {
-	.driver		= {
-		.name	= "ltc2632",
-	},
-	.probe		= ltc2632_probe,
-	.id_table	= ltc2632_id,
-};
-module_spi_driver(ltc2632_driver);
-
 static const struct of_device_id ltc2632_of_match[] = {
 	{
 		.compatible = "lltc,ltc2632-l12",
@@ -307,6 +298,16 @@ static const struct of_device_id ltc2632_of_match[] = {
 	{}
 };
 MODULE_DEVICE_TABLE(of, ltc2632_of_match);
+
+static struct spi_driver ltc2632_driver = {
+	.driver		= {
+		.name	= "ltc2632",
+		.of_match_table = of_match_ptr(ltc2632_of_match),
+	},
+	.probe		= ltc2632_probe,
+	.id_table	= ltc2632_id,
+};
+module_spi_driver(ltc2632_driver);
 
 MODULE_AUTHOR("Maxime Roussin-Belanger <maxime.roussinbelanger@gmail.com>");
 MODULE_DESCRIPTION("LTC2632 DAC SPI driver");
