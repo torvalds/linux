@@ -736,7 +736,7 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 	ccn = pmu_to_arm_ccn(event->pmu);
 
 	if (hw->sample_period) {
-		dev_warn(ccn->dev, "Sampling not supported!\n");
+		dev_dbg(ccn->dev, "Sampling not supported!\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -744,12 +744,12 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 			event->attr.exclude_kernel || event->attr.exclude_hv ||
 			event->attr.exclude_idle || event->attr.exclude_host ||
 			event->attr.exclude_guest) {
-		dev_warn(ccn->dev, "Can't exclude execution levels!\n");
+		dev_dbg(ccn->dev, "Can't exclude execution levels!\n");
 		return -EINVAL;
 	}
 
 	if (event->cpu < 0) {
-		dev_warn(ccn->dev, "Can't provide per-task data!\n");
+		dev_dbg(ccn->dev, "Can't provide per-task data!\n");
 		return -EOPNOTSUPP;
 	}
 	/*
@@ -771,13 +771,13 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 	switch (type) {
 	case CCN_TYPE_MN:
 		if (node_xp != ccn->mn_id) {
-			dev_warn(ccn->dev, "Invalid MN ID %d!\n", node_xp);
+			dev_dbg(ccn->dev, "Invalid MN ID %d!\n", node_xp);
 			return -EINVAL;
 		}
 		break;
 	case CCN_TYPE_XP:
 		if (node_xp >= ccn->num_xps) {
-			dev_warn(ccn->dev, "Invalid XP ID %d!\n", node_xp);
+			dev_dbg(ccn->dev, "Invalid XP ID %d!\n", node_xp);
 			return -EINVAL;
 		}
 		break;
@@ -785,11 +785,11 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 		break;
 	default:
 		if (node_xp >= ccn->num_nodes) {
-			dev_warn(ccn->dev, "Invalid node ID %d!\n", node_xp);
+			dev_dbg(ccn->dev, "Invalid node ID %d!\n", node_xp);
 			return -EINVAL;
 		}
 		if (!arm_ccn_pmu_type_eq(type, ccn->node[node_xp].type)) {
-			dev_warn(ccn->dev, "Invalid type 0x%x for node %d!\n",
+			dev_dbg(ccn->dev, "Invalid type 0x%x for node %d!\n",
 					type, node_xp);
 			return -EINVAL;
 		}
@@ -808,19 +808,19 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 		if (event_id != e->event)
 			continue;
 		if (e->num_ports && port >= e->num_ports) {
-			dev_warn(ccn->dev, "Invalid port %d for node/XP %d!\n",
+			dev_dbg(ccn->dev, "Invalid port %d for node/XP %d!\n",
 					port, node_xp);
 			return -EINVAL;
 		}
 		if (e->num_vcs && vc >= e->num_vcs) {
-			dev_warn(ccn->dev, "Invalid vc %d for node/XP %d!\n",
+			dev_dbg(ccn->dev, "Invalid vc %d for node/XP %d!\n",
 					vc, node_xp);
 			return -EINVAL;
 		}
 		valid = 1;
 	}
 	if (!valid) {
-		dev_warn(ccn->dev, "Invalid event 0x%x for node/XP %d!\n",
+		dev_dbg(ccn->dev, "Invalid event 0x%x for node/XP %d!\n",
 				event_id, node_xp);
 		return -EINVAL;
 	}
