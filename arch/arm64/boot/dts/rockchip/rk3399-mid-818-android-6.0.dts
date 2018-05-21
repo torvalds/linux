@@ -100,6 +100,13 @@
 		regulator-boot-on;
 	};
 
+	xin32k: xin32k {
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		clock-output-names = "xin32k";
+		#clock-cells = <0>;
+	};
+
 	backlight: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&vop0_pwm 0 25000 PWM_POLARITY_INVERTED>;
@@ -418,7 +425,7 @@
 		compatible = "rockchip,rk818";
 		status = "okay";
 		reg = <0x1c>;
-		clock-output-names = "xin32k", "wifibt_32kin";
+		clock-output-names = "rk818-clkout1", "wifibt_32kin";
 		interrupt-parent = <&gpio1>;
 		interrupts = <21 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
