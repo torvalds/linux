@@ -31,7 +31,7 @@
 /* *************************** Data Structures/Defines ****************** */
 
 
-#define NVMET_LS_CTX_COUNT		4
+#define NVMET_LS_CTX_COUNT		256
 
 /* for this implementation, assume small single frame rqst/rsp */
 #define NVME_FC_MAX_LS_BUFFER_SIZE		2048
