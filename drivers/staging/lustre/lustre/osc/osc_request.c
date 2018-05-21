@@ -2837,19 +2837,14 @@ static int __init osc_init(void)
 
 	lprocfs_osc_init_vars(&lvars);
 
-	rc = class_register_type(&osc_obd_ops, NULL,
-				 LUSTRE_OSC_NAME, &osc_device_type);
-	if (rc)
-		goto out_kmem;
-
 	rc = register_shrinker(&osc_cache_shrinker);
 	if (rc)
-		goto out_type;
+		goto err;
 
 	/* This is obviously too much memory, only prevent overflow here */
 	if (osc_reqpool_mem_max >= 1 << 12 || osc_reqpool_mem_max == 0) {
 		rc = -EINVAL;
-		goto out_type;
+		goto err;
 	}
 
 	reqpool_size = osc_reqpool_mem_max << 20;
@@ -2870,14 +2865,22 @@ static int __init osc_init(void)
 	osc_rq_pool = ptlrpc_init_rq_pool(0, OST_MAXREQSIZE,
 					  ptlrpc_add_rqs_to_pool);
 
-	if (osc_rq_pool)
-		return 0;
-
 	rc = -ENOMEM;
 
-out_type:
-	class_unregister_type(LUSTRE_OSC_NAME);
-out_kmem:
+	if (!osc_rq_pool)
+		goto err;
+
+	rc = class_register_type(&osc_obd_ops, NULL,
+				 LUSTRE_OSC_NAME, &osc_device_type);
+	if (rc)
+		goto err;
+
+	return rc;
+
+err:
+	if (osc_rq_pool)
+		ptlrpc_free_rq_pool(osc_rq_pool);
+	unregister_shrinker(&osc_cache_shrinker);
 	lu_kmem_fini(osc_caches);
 	return rc;
 }
