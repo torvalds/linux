@@ -480,6 +480,7 @@ int drm_mm_insert_node_in_range(struct drm_mm * const mm,
 {
 	struct drm_mm_node *hole;
 	u64 remainder_mask;
+	bool once;
 
 	DRM_MM_BUG_ON(range_start >= range_end);
 
@@ -492,9 +493,13 @@ int drm_mm_insert_node_in_range(struct drm_mm * const mm,
 	if (alignment <= 1)
 		alignment = 0;
 
+	once = mode & DRM_MM_INSERT_ONCE;
+	mode &= ~DRM_MM_INSERT_ONCE;
+
 	remainder_mask = is_power_of_2(alignment) ? alignment - 1 : 0;
-	for (hole = first_hole(mm, range_start, range_end, size, mode); hole;
-	     hole = next_hole(mm, hole, mode)) {
+	for (hole = first_hole(mm, range_start, range_end, size, mode);
+	     hole;
+	     hole = once ? NULL : next_hole(mm, hole, mode)) {
 		u64 hole_start = __drm_mm_hole_node_start(hole);
 		u64 hole_end = hole_start + hole->hole_size;
 		u64 adj_start, adj_end;
