@@ -2008,7 +2008,16 @@ static void execlists_reset(struct intel_engine_cs *engine,
 
 static void execlists_reset_finish(struct intel_engine_cs *engine)
 {
-	tasklet_enable(&engine->execlists.tasklet);
+	/*
+	 * Flush the tasklet while we still have the forcewake to be sure
+	 * that it is not allowed to sleep before we restart and reload a
+	 * context.
+	 *
+	 * As before (with execlists_reset_prepare) we rely on the caller
+	 * serialising multiple attempts to reset so that we know that we
+	 * are the only one manipulating tasklet state.
+	 */
+	__tasklet_enable_sync_once(&engine->execlists.tasklet);
 
 	GEM_TRACE("%s\n", engine->name);
 }
