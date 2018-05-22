@@ -412,6 +412,42 @@ struct qed_mfw_tlv_fcoe {
 	struct qed_mfw_tlv_time scsi_chk_tstamp[5];
 };
 
+struct qed_mfw_tlv_iscsi {
+	u8 target_llmnr;
+	bool target_llmnr_set;
+	u8 header_digest;
+	bool header_digest_set;
+	u8 data_digest;
+	bool data_digest_set;
+	u8 auth_method;
+#define QED_MFW_TLV_AUTH_METHOD_NONE            (1)
+#define QED_MFW_TLV_AUTH_METHOD_CHAP            (2)
+#define QED_MFW_TLV_AUTH_METHOD_MUTUAL_CHAP     (3)
+	bool auth_method_set;
+	u16 boot_taget_portal;
+	bool boot_taget_portal_set;
+	u16 frame_size;
+	bool frame_size_set;
+	u16 tx_desc_size;
+	bool tx_desc_size_set;
+	u16 rx_desc_size;
+	bool rx_desc_size_set;
+	u8 boot_progress;
+	bool boot_progress_set;
+	u16 tx_desc_qdepth;
+	bool tx_desc_qdepth_set;
+	u16 rx_desc_qdepth;
+	bool rx_desc_qdepth_set;
+	u64 rx_frames;
+	bool rx_frames_set;
+	u64 rx_bytes;
+	bool rx_bytes_set;
+	u64 tx_frames;
+	bool tx_frames_set;
+	u64 tx_bytes;
+	bool tx_bytes_set;
+};
+
 #define DIRECT_REG_WR(reg_addr, val) writel((u32)val, \
 					    (void __iomem *)(reg_addr))
 

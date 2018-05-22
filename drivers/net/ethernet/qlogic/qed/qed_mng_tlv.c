@@ -215,6 +215,23 @@ static int qed_mfw_get_tlv_group(u8 tlv_type, u8 *tlv_group)
 	case DRV_TLV_SCSI_CHECK_5_TIMESTAMP:
 		*tlv_group = QED_MFW_TLV_FCOE;
 		break;
+	case DRV_TLV_TARGET_LLMNR_ENABLED:
+	case DRV_TLV_HEADER_DIGEST_FLAG_ENABLED:
+	case DRV_TLV_DATA_DIGEST_FLAG_ENABLED:
+	case DRV_TLV_AUTHENTICATION_METHOD:
+	case DRV_TLV_ISCSI_BOOT_TARGET_PORTAL:
+	case DRV_TLV_MAX_FRAME_SIZE:
+	case DRV_TLV_PDU_TX_DESCRIPTORS_QUEUE_SIZE:
+	case DRV_TLV_PDU_RX_DESCRIPTORS_QUEUE_SIZE:
+	case DRV_TLV_ISCSI_BOOT_PROGRESS:
+	case DRV_TLV_PDU_TX_DESCRIPTOR_QUEUE_AVG_DEPTH:
+	case DRV_TLV_PDU_RX_DESCRIPTORS_QUEUE_AVG_DEPTH:
+	case DRV_TLV_ISCSI_PDU_RX_FRAMES_RECEIVED:
+	case DRV_TLV_ISCSI_PDU_RX_BYTES_RECEIVED:
+	case DRV_TLV_ISCSI_PDU_TX_FRAMES_SENT:
+	case DRV_TLV_ISCSI_PDU_TX_BYTES_SENT:
+		*tlv_group |= QED_MFW_TLV_ISCSI;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1054,6 +1071,109 @@ qed_mfw_get_fcoe_tlv_value(struct qed_drv_tlv_hdr *p_tlv,
 	return -1;
 }
 
+static int
+qed_mfw_get_iscsi_tlv_value(struct qed_drv_tlv_hdr *p_tlv,
+			    struct qed_mfw_tlv_iscsi *p_drv_buf,
+			    struct qed_tlv_parsed_buf *p_buf)
+{
+	switch (p_tlv->tlv_type) {
+	case DRV_TLV_TARGET_LLMNR_ENABLED:
+		if (p_drv_buf->target_llmnr_set) {
+			p_buf->p_val = &p_drv_buf->target_llmnr;
+			return sizeof(p_drv_buf->target_llmnr);
+		}
+		break;
+	case DRV_TLV_HEADER_DIGEST_FLAG_ENABLED:
+		if (p_drv_buf->header_digest_set) {
+			p_buf->p_val = &p_drv_buf->header_digest;
+			return sizeof(p_drv_buf->header_digest);
+		}
+		break;
+	case DRV_TLV_DATA_DIGEST_FLAG_ENABLED:
+		if (p_drv_buf->data_digest_set) {
+			p_buf->p_val = &p_drv_buf->data_digest;
+			return sizeof(p_drv_buf->data_digest);
+		}
+		break;
+	case DRV_TLV_AUTHENTICATION_METHOD:
+		if (p_drv_buf->auth_method_set) {
+			p_buf->p_val = &p_drv_buf->auth_method;
+			return sizeof(p_drv_buf->auth_method);
+		}
+		break;
+	case DRV_TLV_ISCSI_BOOT_TARGET_PORTAL:
+		if (p_drv_buf->boot_taget_portal_set) {
+			p_buf->p_val = &p_drv_buf->boot_taget_portal;
+			return sizeof(p_drv_buf->boot_taget_portal);
+		}
+		break;
+	case DRV_TLV_MAX_FRAME_SIZE:
+		if (p_drv_buf->frame_size_set) {
+			p_buf->p_val = &p_drv_buf->frame_size;
+			return sizeof(p_drv_buf->frame_size);
+		}
+		break;
+	case DRV_TLV_PDU_TX_DESCRIPTORS_QUEUE_SIZE:
+		if (p_drv_buf->tx_desc_size_set) {
+			p_buf->p_val = &p_drv_buf->tx_desc_size;
+			return sizeof(p_drv_buf->tx_desc_size);
+		}
+		break;
+	case DRV_TLV_PDU_RX_DESCRIPTORS_QUEUE_SIZE:
+		if (p_drv_buf->rx_desc_size_set) {
+			p_buf->p_val = &p_drv_buf->rx_desc_size;
+			return sizeof(p_drv_buf->rx_desc_size);
+		}
+		break;
+	case DRV_TLV_ISCSI_BOOT_PROGRESS:
+		if (p_drv_buf->boot_progress_set) {
+			p_buf->p_val = &p_drv_buf->boot_progress;
+			return sizeof(p_drv_buf->boot_progress);
+		}
+		break;
+	case DRV_TLV_PDU_TX_DESCRIPTOR_QUEUE_AVG_DEPTH:
+		if (p_drv_buf->tx_desc_qdepth_set) {
+			p_buf->p_val = &p_drv_buf->tx_desc_qdepth;
+			return sizeof(p_drv_buf->tx_desc_qdepth);
+		}
+		break;
+	case DRV_TLV_PDU_RX_DESCRIPTORS_QUEUE_AVG_DEPTH:
+		if (p_drv_buf->rx_desc_qdepth_set) {
+			p_buf->p_val = &p_drv_buf->rx_desc_qdepth;
+			return sizeof(p_drv_buf->rx_desc_qdepth);
+		}
+		break;
+	case DRV_TLV_ISCSI_PDU_RX_FRAMES_RECEIVED:
+		if (p_drv_buf->rx_frames_set) {
+			p_buf->p_val = &p_drv_buf->rx_frames;
+			return sizeof(p_drv_buf->rx_frames);
+		}
+		break;
+	case DRV_TLV_ISCSI_PDU_RX_BYTES_RECEIVED:
+		if (p_drv_buf->rx_bytes_set) {
+			p_buf->p_val = &p_drv_buf->rx_bytes;
+			return sizeof(p_drv_buf->rx_bytes);
+		}
+		break;
+	case DRV_TLV_ISCSI_PDU_TX_FRAMES_SENT:
+		if (p_drv_buf->tx_frames_set) {
+			p_buf->p_val = &p_drv_buf->tx_frames;
+			return sizeof(p_drv_buf->tx_frames);
+		}
+		break;
+	case DRV_TLV_ISCSI_PDU_TX_BYTES_SENT:
+		if (p_drv_buf->tx_bytes_set) {
+			p_buf->p_val = &p_drv_buf->tx_bytes;
+			return sizeof(p_drv_buf->tx_bytes);
+		}
+		break;
+	default:
+		break;
+	}
+
+	return -1;
+}
+
 static int qed_mfw_update_tlvs(struct qed_hwfn *p_hwfn,
 			       u8 tlv_group, u8 *p_mfw_buf, u32 size)
 {
@@ -1097,6 +1217,10 @@ static int qed_mfw_update_tlvs(struct qed_hwfn *p_hwfn,
 			len = qed_mfw_get_fcoe_tlv_value(&tlv,
 							 &p_tlv_data->fcoe,
 							 &buffer);
+		else
+			len = qed_mfw_get_iscsi_tlv_value(&tlv,
+							  &p_tlv_data->iscsi,
+							  &buffer);
 
 		if (len > 0) {
 			WARN(len > 4 * tlv.tlv_length,
@@ -1177,6 +1301,13 @@ int qed_mfw_process_tlv_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		DP_VERBOSE(p_hwfn, QED_MSG_SP,
 			   "Skipping FCoE TLVs for non-FCoE function\n");
 		tlv_group &= ~QED_MFW_TLV_FCOE;
+	}
+
+	if ((tlv_group & QED_MFW_TLV_ISCSI) &&
+	    p_hwfn->hw_info.personality != QED_PCI_ISCSI) {
+		DP_VERBOSE(p_hwfn, QED_MSG_SP,
+			   "Skipping iSCSI TLVs for non-iSCSI function\n");
+		tlv_group &= ~QED_MFW_TLV_ISCSI;
 	}
 
 	/* Update the TLV values in the local buffer */
