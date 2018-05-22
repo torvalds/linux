@@ -3321,26 +3321,9 @@ static void nvme_fw_act_work(struct work_struct *work)
 	nvme_get_fw_slot_info(ctrl);
 }
 
-void nvme_complete_async_event(struct nvme_ctrl *ctrl, __le16 status,
-		volatile union nvme_result *res)
+static void nvme_handle_aen_notice(struct nvme_ctrl *ctrl, u32 result)
 {
-	u32 result = le32_to_cpu(res->u32);
-
-	if (le16_to_cpu(status) >> 1 != NVME_SC_SUCCESS)
-		return;
-
-	switch (result & 0x7) {
-	case NVME_AER_ERROR:
-	case NVME_AER_SMART:
-	case NVME_AER_CSS:
-	case NVME_AER_VS:
-		ctrl->aen_result = result;
-		break;
-	default:
-		break;
-	}
-
-	switch (result & 0xff07) {
+	switch ((result & 0xff00) >> 8) {
 	case NVME_AER_NOTICE_NS_CHANGED:
 		dev_info(ctrl->device, "rescanning\n");
 		nvme_queue_scan(ctrl);
@@ -3350,6 +3333,29 @@ void nvme_complete_async_event(struct nvme_ctrl *ctrl, __le16 status,
 		break;
 	default:
 		dev_warn(ctrl->device, "async event result %08x\n", result);
+	}
+}
+
+void nvme_complete_async_event(struct nvme_ctrl *ctrl, __le16 status,
+		volatile union nvme_result *res)
+{
+	u32 result = le32_to_cpu(res->u32);
+
+	if (le16_to_cpu(status) >> 1 != NVME_SC_SUCCESS)
+		return;
+
+	switch (result & 0x7) {
+	case NVME_AER_NOTICE:
+		nvme_handle_aen_notice(ctrl, result);
+		break;
+	case NVME_AER_ERROR:
+	case NVME_AER_SMART:
+	case NVME_AER_CSS:
+	case NVME_AER_VS:
+		ctrl->aen_result = result;
+		break;
+	default:
+		break;
 	}
 	queue_work(nvme_wq, &ctrl->async_event_work);
 }
