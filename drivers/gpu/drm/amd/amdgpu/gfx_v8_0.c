@@ -2061,6 +2061,14 @@ static int gfx_v8_0_sw_init(void *handle)
 	if (r)
 		return r;
 
+	/* SQ interrupts. */
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 239,
+			      &adev->gfx.sq_irq);
+	if (r) {
+		DRM_ERROR("amdgpu_irq_add() for SQ failed: %d\n", r);
+		return r;
+	}
+
 	adev->gfx.gfx_current_status = AMDGPU_GFX_NORMAL_MODE;
 
 	gfx_v8_0_scratch_init(adev);
@@ -5126,6 +5134,8 @@ static int gfx_v8_0_hw_fini(void *handle)
 
 	amdgpu_irq_put(adev, &adev->gfx.cp_ecc_error_irq, 0);
 
+	amdgpu_irq_put(adev, &adev->gfx.sq_irq, 0);
+
 	/* disable KCQ to avoid CPC touch memory not valid anymore */
 	for (i = 0; i < adev->gfx.num_compute_rings; i++)
 		gfx_v8_0_kcq_disable(&adev->gfx.kiq.ring, &adev->gfx.compute_ring[i]);
@@ -5560,6 +5570,14 @@ static int gfx_v8_0_late_init(void *handle)
 	r = amdgpu_irq_get(adev, &adev->gfx.cp_ecc_error_irq, 0);
 	if (r) {
 		DRM_ERROR("amdgpu_irq_get() failed to get IRQ for EDC, r: %d.\n", r);
+		return r;
+	}
+
+	r = amdgpu_irq_get(adev, &adev->gfx.sq_irq, 0);
+	if (r) {
+		DRM_ERROR(
+			"amdgpu_irq_get() failed to get IRQ for SQ, r: %d.\n",
+			r);
 		return r;
 	}
 
@@ -6853,6 +6871,32 @@ static int gfx_v8_0_set_cp_ecc_int_state(struct amdgpu_device *adev,
 	return 0;
 }
 
+static int gfx_v8_0_set_sq_int_state(struct amdgpu_device *adev,
+				     struct amdgpu_irq_src *source,
+				     unsigned int type,
+				     enum amdgpu_interrupt_state state)
+{
+	int enable_flag;
+
+	switch (state) {
+	case AMDGPU_IRQ_STATE_DISABLE:
+		enable_flag = 1;
+		break;
+
+	case AMDGPU_IRQ_STATE_ENABLE:
+		enable_flag = 0;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	WREG32_FIELD(SQ_INTERRUPT_MSG_CTRL, STALL,
+		     enable_flag);
+
+	return 0;
+}
+
 static int gfx_v8_0_eop_irq(struct amdgpu_device *adev,
 			    struct amdgpu_irq_src *source,
 			    struct amdgpu_iv_entry *entry)
@@ -6907,7 +6951,62 @@ static int gfx_v8_0_cp_ecc_error_irq(struct amdgpu_device *adev,
 				     struct amdgpu_irq_src *source,
 				     struct amdgpu_iv_entry *entry)
 {
-	DRM_ERROR("ECC error detected.");
+	DRM_ERROR("CP EDC/ECC error detected.");
+	return 0;
+}
+
+static int gfx_v8_0_sq_irq(struct amdgpu_device *adev,
+			   struct amdgpu_irq_src *source,
+			   struct amdgpu_iv_entry *entry)
+{
+	u8 enc, se_id;
+	char type[20];
+
+	/* Parse all fields according to SQ_INTERRUPT* registers */
+	enc = (entry->src_data[0] >> 26) & 0x3;
+	se_id = (entry->src_data[0] >> 24) & 0x3;
+
+	switch (enc) {
+		case 0:
+			DRM_INFO("SQ general purpose intr detected:"
+					"se_id %d, immed_overflow %d, host_reg_overflow %d,"
+					"host_cmd_overflow %d, cmd_timestamp %d,"
+					"reg_timestamp %d, thread_trace_buff_full %d,"
+					"wlt %d, thread_trace %d.\n",
+					se_id,
+					(entry->src_data[0] >> 7) & 0x1,
+					(entry->src_data[0] >> 6) & 0x1,
+					(entry->src_data[0] >> 5) & 0x1,
+					(entry->src_data[0] >> 4) & 0x1,
+					(entry->src_data[0] >> 3) & 0x1,
+					(entry->src_data[0] >> 2) & 0x1,
+					(entry->src_data[0] >> 1) & 0x1,
+					entry->src_data[0] & 0x1
+					);
+			break;
+		case 1:
+		case 2:
+
+			if (enc == 1)
+				sprintf(type, "instruction intr");
+			else
+				sprintf(type, "EDC/ECC error");
+
+			DRM_INFO(
+				"SQ %s detected: "
+					"se_id %d, cu_id %d, simd_id %d, wave_id %d, vm_id %d\n",
+					type, se_id,
+					(entry->src_data[0] >> 20) & 0xf,
+					(entry->src_data[0] >> 18) & 0x3,
+					(entry->src_data[0] >> 14) & 0xf,
+					(entry->src_data[0] >> 10) & 0xf
+					);
+			break;
+		default:
+			DRM_ERROR("SQ invalid encoding type\n.");
+			return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -7116,6 +7215,11 @@ static const struct amdgpu_irq_src_funcs gfx_v8_0_cp_ecc_error_irq_funcs = {
 	.process = gfx_v8_0_cp_ecc_error_irq,
 };
 
+static const struct amdgpu_irq_src_funcs gfx_v8_0_sq_irq_funcs = {
+	.set = gfx_v8_0_set_sq_int_state,
+	.process = gfx_v8_0_sq_irq,
+};
+
 static void gfx_v8_0_set_irq_funcs(struct amdgpu_device *adev)
 {
 	adev->gfx.eop_irq.num_types = AMDGPU_CP_IRQ_LAST;
@@ -7132,6 +7236,9 @@ static void gfx_v8_0_set_irq_funcs(struct amdgpu_device *adev)
 
 	adev->gfx.cp_ecc_error_irq.num_types = 1;
 	adev->gfx.cp_ecc_error_irq.funcs = &gfx_v8_0_cp_ecc_error_irq_funcs;
+
+	adev->gfx.sq_irq.num_types = 1;
+	adev->gfx.sq_irq.funcs = &gfx_v8_0_sq_irq_funcs;
 }
 
 static void gfx_v8_0_set_rlc_funcs(struct amdgpu_device *adev)
