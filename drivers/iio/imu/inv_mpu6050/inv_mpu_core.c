@@ -82,7 +82,7 @@ static const struct inv_mpu6050_reg_map reg_set_6050 = {
 static const struct inv_mpu6050_chip_config chip_config_6050 = {
 	.fsr = INV_MPU6050_FSR_2000DPS,
 	.lpf = INV_MPU6050_FILTER_20HZ,
-	.fifo_rate = INV_MPU6050_INIT_FIFO_RATE,
+	.divider = INV_MPU6050_FIFO_RATE_TO_DIVIDER(INV_MPU6050_INIT_FIFO_RATE),
 	.gyro_fifo_enable = false,
 	.accl_fifo_enable = false,
 	.accl_fs = INV_MPU6050_FS_02G,
@@ -278,7 +278,7 @@ static int inv_mpu6050_init_config(struct iio_dev *indio_dev)
 	if (result)
 		goto error_power_off;
 
-	d = INV_MPU6050_ONE_K_HZ / INV_MPU6050_INIT_FIFO_RATE - 1;
+	d = INV_MPU6050_FIFO_RATE_TO_DIVIDER(INV_MPU6050_INIT_FIFO_RATE);
 	result = regmap_write(st->map, st->reg->sample_rate_div, d);
 	if (result)
 		goto error_power_off;
@@ -628,7 +628,7 @@ static ssize_t
 inv_mpu6050_fifo_rate_store(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
-	s32 fifo_rate;
+	int fifo_rate;
 	u8 d;
 	int result;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -644,8 +644,13 @@ inv_mpu6050_fifo_rate_store(struct device *dev, struct device_attribute *attr,
 	if (result)
 		return result;
 
+	/* compute the chip sample rate divider */
+	d = INV_MPU6050_FIFO_RATE_TO_DIVIDER(fifo_rate);
+	/* compute back the fifo rate to handle truncation cases */
+	fifo_rate = INV_MPU6050_DIVIDER_TO_FIFO_RATE(d);
+
 	mutex_lock(&st->lock);
-	if (fifo_rate == st->chip_config.fifo_rate) {
+	if (d == st->chip_config.divider) {
 		result = 0;
 		goto fifo_rate_fail_unlock;
 	}
@@ -653,11 +658,10 @@ inv_mpu6050_fifo_rate_store(struct device *dev, struct device_attribute *attr,
 	if (result)
 		goto fifo_rate_fail_unlock;
 
-	d = INV_MPU6050_ONE_K_HZ / fifo_rate - 1;
 	result = regmap_write(st->map, st->reg->sample_rate_div, d);
 	if (result)
 		goto fifo_rate_fail_power_off;
-	st->chip_config.fifo_rate = fifo_rate;
+	st->chip_config.divider = d;
 
 	result = inv_mpu6050_set_lpf(st, fifo_rate);
 	if (result)
@@ -685,7 +689,7 @@ inv_fifo_rate_show(struct device *dev, struct device_attribute *attr,
 	unsigned fifo_rate;
 
 	mutex_lock(&st->lock);
-	fifo_rate = st->chip_config.fifo_rate;
+	fifo_rate = INV_MPU6050_DIVIDER_TO_FIFO_RATE(st->chip_config.divider);
 	mutex_unlock(&st->lock);
 
 	return scnprintf(buf, PAGE_SIZE, "%u\n", fifo_rate);

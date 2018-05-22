@@ -86,7 +86,7 @@ enum inv_devices {
  *  @accl_fs:		accel full scale range.
  *  @accl_fifo_enable:	enable accel data output
  *  @gyro_fifo_enable:	enable gyro data output
- *  @fifo_rate:		FIFO update rate.
+ *  @divider:		chip sample rate divider (sample rate divider - 1)
  */
 struct inv_mpu6050_chip_config {
 	unsigned int fsr:2;
@@ -94,7 +94,7 @@ struct inv_mpu6050_chip_config {
 	unsigned int accl_fs:2;
 	unsigned int accl_fifo_enable:1;
 	unsigned int gyro_fifo_enable:1;
-	u16 fifo_rate;
+	u8 divider;
 	u8 user_ctrl;
 };
 
@@ -228,7 +228,17 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_INIT_FIFO_RATE           50
 #define INV_MPU6050_MAX_FIFO_RATE            1000
 #define INV_MPU6050_MIN_FIFO_RATE            4
-#define INV_MPU6050_ONE_K_HZ                 1000
+
+/* chip internal frequency: 1KHz */
+#define INV_MPU6050_INTERNAL_FREQ_HZ		1000
+/* return the frequency divider (chip sample rate divider + 1) */
+#define INV_MPU6050_FREQ_DIVIDER(st)					\
+	((st)->chip_config.divider + 1)
+/* chip sample rate divider to fifo rate */
+#define INV_MPU6050_FIFO_RATE_TO_DIVIDER(fifo_rate)			\
+	((INV_MPU6050_INTERNAL_FREQ_HZ / (fifo_rate)) - 1)
+#define INV_MPU6050_DIVIDER_TO_FIFO_RATE(divider)			\
+	(INV_MPU6050_INTERNAL_FREQ_HZ / ((divider) + 1))
 
 #define INV_MPU6050_REG_WHOAMI			117
 
