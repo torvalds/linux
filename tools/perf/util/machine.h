@@ -56,6 +56,7 @@ struct machine {
 		void	  *priv;
 		u64	  db_id;
 	};
+	bool		  trampolines_mapped;
 };
 
 static inline struct threads *machine__threads(struct machine *machine, pid_t tid)
@@ -267,6 +268,24 @@ int machine__set_current_tid(struct machine *machine, int cpu, pid_t pid,
  * For use with libtraceevent's pevent_set_function_resolver()
  */
 char *machine__resolve_kernel_addr(void *vmachine, unsigned long long *addrp, char **modp);
+
+void machine__get_kallsyms_filename(struct machine *machine, char *buf,
+				    size_t bufsz);
+
+int machine__create_extra_kernel_maps(struct machine *machine,
+				      struct dso *kernel);
+
+/* Kernel-space maps for symbols that are outside the main kernel map and module maps */
+struct extra_kernel_map {
+	u64 start;
+	u64 end;
+	u64 pgoff;
+	char name[KMAP_NAME_LEN];
+};
+
+int machine__create_extra_kernel_map(struct machine *machine,
+				     struct dso *kernel,
+				     struct extra_kernel_map *xm);
 
 int machine__map_x86_64_entry_trampolines(struct machine *machine,
 					  struct dso *kernel);
