@@ -115,8 +115,10 @@ static int imc_get_mem_addr_nest(struct device_node *node,
 		return -ENOMEM;
 
 	chipid_arr = kcalloc(nr_chips, sizeof(*chipid_arr), GFP_KERNEL);
-	if (!chipid_arr)
+	if (!chipid_arr) {
+		kfree(base_addr_arr);
 		return -ENOMEM;
+	}
 
 	if (of_property_read_u32_array(node, "chip-id", chipid_arr, nr_chips))
 		goto error;
@@ -143,7 +145,6 @@ static int imc_get_mem_addr_nest(struct device_node *node,
 	return 0;
 
 error:
-	kfree(pmu_ptr->mem_info);
 	kfree(base_addr_arr);
 	kfree(chipid_arr);
 	return -1;
@@ -183,8 +184,14 @@ static int imc_pmu_create(struct device_node *parent, int pmu_index, int domain)
 
 	/* Function to register IMC pmu */
 	ret = init_imc_pmu(parent, pmu_ptr, pmu_index);
-	if (ret)
+	if (ret) {
 		pr_err("IMC PMU %s Register failed\n", pmu_ptr->pmu.name);
+		kfree(pmu_ptr->pmu.name);
+		if (pmu_ptr->domain == IMC_DOMAIN_NEST)
+			kfree(pmu_ptr->mem_info);
+		kfree(pmu_ptr);
+		return ret;
+	}
 
 	return 0;
 

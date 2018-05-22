@@ -1153,7 +1153,7 @@ static void cleanup_all_core_imc_memory(void)
 	/* mem_info will never be NULL */
 	for (i = 0; i < nr_cores; i++) {
 		if (ptr[i].vbase)
-			free_pages((u64)ptr->vbase, get_order(size));
+			free_pages((u64)ptr[i].vbase, get_order(size));
 	}
 
 	kfree(ptr);
@@ -1191,7 +1191,6 @@ static void imc_common_mem_free(struct imc_pmu *pmu_ptr)
 	if (pmu_ptr->attr_groups[IMC_EVENT_ATTR])
 		kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]->attrs);
 	kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]);
-	kfree(pmu_ptr);
 }
 
 /*
@@ -1208,6 +1207,7 @@ static void imc_common_cpuhp_mem_free(struct imc_pmu *pmu_ptr)
 			cpuhp_remove_state(CPUHP_AP_PERF_POWERPC_NEST_IMC_ONLINE);
 			kfree(nest_imc_refc);
 			kfree(per_nest_pmu_arr);
+			per_nest_pmu_arr = NULL;
 		}
 
 		if (nest_pmus > 0)
@@ -1319,10 +1319,8 @@ int init_imc_pmu(struct device_node *parent, struct imc_pmu *pmu_ptr, int pmu_id
 	int ret;
 
 	ret = imc_mem_init(pmu_ptr, parent, pmu_idx);
-	if (ret) {
-		imc_common_mem_free(pmu_ptr);
-		return ret;
-	}
+	if (ret)
+		goto err_free_mem;
 
 	switch (pmu_ptr->domain) {
 	case IMC_DOMAIN_NEST:
@@ -1337,7 +1335,9 @@ int init_imc_pmu(struct device_node *parent, struct imc_pmu *pmu_ptr, int pmu_id
 			ret = init_nest_pmu_ref();
 			if (ret) {
 				mutex_unlock(&nest_init_lock);
-				goto err_free;
+				kfree(per_nest_pmu_arr);
+				per_nest_pmu_arr = NULL;
+				goto err_free_mem;
 			}
 			/* Register for cpu hotplug notification. */
 			ret = nest_pmu_cpumask_init();
@@ -1345,7 +1345,8 @@ int init_imc_pmu(struct device_node *parent, struct imc_pmu *pmu_ptr, int pmu_id
 				mutex_unlock(&nest_init_lock);
 				kfree(nest_imc_refc);
 				kfree(per_nest_pmu_arr);
-				goto err_free;
+				per_nest_pmu_arr = NULL;
+				goto err_free_mem;
 			}
 		}
 		nest_pmus++;
@@ -1355,7 +1356,7 @@ int init_imc_pmu(struct device_node *parent, struct imc_pmu *pmu_ptr, int pmu_id
 		ret = core_imc_pmu_cpumask_init();
 		if (ret) {
 			cleanup_all_core_imc_memory();
-			return ret;
+			goto err_free_mem;
 		}
 
 		break;
@@ -1363,7 +1364,7 @@ int init_imc_pmu(struct device_node *parent, struct imc_pmu *pmu_ptr, int pmu_id
 		ret = thread_imc_cpu_init();
 		if (ret) {
 			cleanup_all_thread_imc_memory();
-			return ret;
+			goto err_free_mem;
 		}
 
 		break;
@@ -1373,23 +1374,24 @@ int init_imc_pmu(struct device_node *parent, struct imc_pmu *pmu_ptr, int pmu_id
 
 	ret = update_events_in_group(parent, pmu_ptr);
 	if (ret)
-		goto err_free;
+		goto err_free_cpuhp_mem;
 
 	ret = update_pmu_ops(pmu_ptr);
 	if (ret)
-		goto err_free;
+		goto err_free_cpuhp_mem;
 
 	ret = perf_pmu_register(&pmu_ptr->pmu, pmu_ptr->pmu.name, -1);
 	if (ret)
-		goto err_free;
+		goto err_free_cpuhp_mem;
 
 	pr_info("%s performance monitor hardware support registered\n",
 							pmu_ptr->pmu.name);
 
 	return 0;
 
-err_free:
-	imc_common_mem_free(pmu_ptr);
+err_free_cpuhp_mem:
 	imc_common_cpuhp_mem_free(pmu_ptr);
+err_free_mem:
+	imc_common_mem_free(pmu_ptr);
 	return ret;
 }
