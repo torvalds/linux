@@ -365,16 +365,14 @@ struct mlx5e_txqsq {
 
 	struct mlx5e_cq            cq;
 
-	/* write@xmit, read@completion */
-	struct {
-		struct mlx5e_sq_dma       *dma_fifo;
-		struct mlx5e_tx_wqe_info  *wqe_info;
-	} db;
-
 	/* read only */
 	struct mlx5_wq_cyc         wq;
 	u32                        dma_fifo_mask;
 	struct mlx5e_sq_stats     *stats;
+	struct {
+		struct mlx5e_sq_dma       *dma_fifo;
+		struct mlx5e_tx_wqe_info  *wqe_info;
+	} db;
 	void __iomem              *uar_map;
 	struct netdev_queue       *txq;
 	u32                        sqn;
