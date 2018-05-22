@@ -946,6 +946,68 @@ static void qed_update_pf_params(struct qed_dev *cdev,
 	}
 }
 
+static void qed_slowpath_wq_stop(struct qed_dev *cdev)
+{
+	int i;
+
+	if (IS_VF(cdev))
+		return;
+
+	for_each_hwfn(cdev, i) {
+		if (!cdev->hwfns[i].slowpath_wq)
+			continue;
+
+		flush_workqueue(cdev->hwfns[i].slowpath_wq);
+		destroy_workqueue(cdev->hwfns[i].slowpath_wq);
+	}
+}
+
+static void qed_slowpath_task(struct work_struct *work)
+{
+	struct qed_hwfn *hwfn = container_of(work, struct qed_hwfn,
+					     slowpath_task.work);
+	struct qed_ptt *ptt = qed_ptt_acquire(hwfn);
+
+	if (!ptt) {
+		queue_delayed_work(hwfn->slowpath_wq, &hwfn->slowpath_task, 0);
+		return;
+	}
+
+	if (test_and_clear_bit(QED_SLOWPATH_MFW_TLV_REQ,
+			       &hwfn->slowpath_task_flags))
+		qed_mfw_process_tlv_req(hwfn, ptt);
+
+	qed_ptt_release(hwfn, ptt);
+}
+
+static int qed_slowpath_wq_start(struct qed_dev *cdev)
+{
+	struct qed_hwfn *hwfn;
+	char name[NAME_SIZE];
+	int i;
+
+	if (IS_VF(cdev))
+		return 0;
+
+	for_each_hwfn(cdev, i) {
+		hwfn = &cdev->hwfns[i];
+
+		snprintf(name, NAME_SIZE, "slowpath-%02x:%02x.%02x",
+			 cdev->pdev->bus->number,
+			 PCI_SLOT(cdev->pdev->devfn), hwfn->abs_pf_id);
+
+		hwfn->slowpath_wq = alloc_workqueue(name, 0, 0);
+		if (!hwfn->slowpath_wq) {
+			DP_NOTICE(hwfn, "Cannot create slowpath workqueue\n");
+			return -ENOMEM;
+		}
+
+		INIT_DELAYED_WORK(&hwfn->slowpath_task, qed_slowpath_task);
+	}
+
+	return 0;
+}
+
 static int qed_slowpath_start(struct qed_dev *cdev,
 			      struct qed_slowpath_params *params)
 {
@@ -959,6 +1021,9 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 	int rc = -EINVAL;
 
 	if (qed_iov_wq_start(cdev))
+		goto err;
+
+	if (qed_slowpath_wq_start(cdev))
 		goto err;
 
 	if (IS_PF(cdev)) {
@@ -1095,6 +1160,8 @@ err:
 
 	qed_iov_wq_stop(cdev, false);
 
+	qed_slowpath_wq_stop(cdev);
+
 	return rc;
 }
 
@@ -1102,6 +1169,8 @@ static int qed_slowpath_stop(struct qed_dev *cdev)
 {
 	if (!cdev)
 		return -ENODEV;
+
+	qed_slowpath_wq_stop(cdev);
 
 	qed_ll2_dealloc_if(cdev);
 
@@ -2089,8 +2158,88 @@ void qed_get_protocol_stats(struct qed_dev *cdev,
 	}
 }
 
+int qed_mfw_tlv_req(struct qed_hwfn *hwfn)
+{
+	DP_VERBOSE(hwfn->cdev, NETIF_MSG_DRV,
+		   "Scheduling slowpath task [Flag: %d]\n",
+		   QED_SLOWPATH_MFW_TLV_REQ);
+	smp_mb__before_atomic();
+	set_bit(QED_SLOWPATH_MFW_TLV_REQ, &hwfn->slowpath_task_flags);
+	smp_mb__after_atomic();
+	queue_delayed_work(hwfn->slowpath_wq, &hwfn->slowpath_task, 0);
+
+	return 0;
+}
+
+static void
+qed_fill_generic_tlv_data(struct qed_dev *cdev, struct qed_mfw_tlv_generic *tlv)
+{
+	struct qed_common_cb_ops *op = cdev->protocol_ops.common;
+	struct qed_eth_stats_common *p_common;
+	struct qed_generic_tlvs gen_tlvs;
+	struct qed_eth_stats stats;
+	int i;
+
+	memset(&gen_tlvs, 0, sizeof(gen_tlvs));
+	op->get_generic_tlv_data(cdev->ops_cookie, &gen_tlvs);
+
+	if (gen_tlvs.feat_flags & QED_TLV_IP_CSUM)
+		tlv->flags.ipv4_csum_offload = true;
+	if (gen_tlvs.feat_flags & QED_TLV_LSO)
+		tlv->flags.lso_supported = true;
+	tlv->flags.b_set = true;
+
+	for (i = 0; i < QED_TLV_MAC_COUNT; i++) {
+		if (is_valid_ether_addr(gen_tlvs.mac[i])) {
+			ether_addr_copy(tlv->mac[i], gen_tlvs.mac[i]);
+			tlv->mac_set[i] = true;
+		}
+	}
+
+	qed_get_vport_stats(cdev, &stats);
+	p_common = &stats.common;
+	tlv->rx_frames = p_common->rx_ucast_pkts + p_common->rx_mcast_pkts +
+			 p_common->rx_bcast_pkts;
+	tlv->rx_frames_set = true;
+	tlv->rx_bytes = p_common->rx_ucast_bytes + p_common->rx_mcast_bytes +
+			p_common->rx_bcast_bytes;
+	tlv->rx_bytes_set = true;
+	tlv->tx_frames = p_common->tx_ucast_pkts + p_common->tx_mcast_pkts +
+			 p_common->tx_bcast_pkts;
+	tlv->tx_frames_set = true;
+	tlv->tx_bytes = p_common->tx_ucast_bytes + p_common->tx_mcast_bytes +
+			p_common->tx_bcast_bytes;
+	tlv->rx_bytes_set = true;
+}
+
 int qed_mfw_fill_tlv_data(struct qed_hwfn *hwfn, enum qed_mfw_tlv_type type,
 			  union qed_mfw_tlv_data *tlv_buf)
 {
-	return -EINVAL;
+	struct qed_dev *cdev = hwfn->cdev;
+	struct qed_common_cb_ops *ops;
+
+	ops = cdev->protocol_ops.common;
+	if (!ops || !ops->get_protocol_tlv_data || !ops->get_generic_tlv_data) {
+		DP_NOTICE(hwfn, "Can't collect TLV management info\n");
+		return -EINVAL;
+	}
+
+	switch (type) {
+	case QED_MFW_TLV_GENERIC:
+		qed_fill_generic_tlv_data(hwfn->cdev, &tlv_buf->generic);
+		break;
+	case QED_MFW_TLV_ETH:
+		ops->get_protocol_tlv_data(cdev->ops_cookie, &tlv_buf->eth);
+		break;
+	case QED_MFW_TLV_FCOE:
+		ops->get_protocol_tlv_data(cdev->ops_cookie, &tlv_buf->fcoe);
+		break;
+	case QED_MFW_TLV_ISCSI:
+		ops->get_protocol_tlv_data(cdev->ops_cookie, &tlv_buf->iscsi);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
 }

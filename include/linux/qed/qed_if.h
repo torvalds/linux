@@ -751,6 +751,14 @@ struct qed_int_info {
 	u8			used_cnt;
 };
 
+struct qed_generic_tlvs {
+#define QED_TLV_IP_CSUM         BIT(0)
+#define QED_TLV_LSO             BIT(1)
+	u16 feat_flags;
+#define QED_TLV_MAC_COUNT	3
+	u8 mac[QED_TLV_MAC_COUNT][ETH_ALEN];
+};
+
 #define QED_NVM_SIGNATURE 0x12435687
 
 enum qed_nvm_flash_cmd {
@@ -765,6 +773,8 @@ struct qed_common_cb_ops {
 	void	(*link_update)(void			*dev,
 			       struct qed_link_output	*link);
 	void	(*dcbx_aen)(void *dev, struct qed_dcbx_get *get, u32 mib_type);
+	void (*get_generic_tlv_data)(void *dev, struct qed_generic_tlvs *data);
+	void (*get_protocol_tlv_data)(void *dev, void *data);
 };
 
 struct qed_selftest_ops {
