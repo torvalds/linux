@@ -178,6 +178,7 @@ static void rfkill_led_trigger_unregister(struct rfkill *rfkill)
 }
 
 static struct led_trigger rfkill_any_led_trigger;
+static struct led_trigger rfkill_none_led_trigger;
 static struct work_struct rfkill_global_led_trigger_work;
 
 static void rfkill_global_led_trigger_worker(struct work_struct *work)
@@ -195,6 +196,8 @@ static void rfkill_global_led_trigger_worker(struct work_struct *work)
 	mutex_unlock(&rfkill_global_mutex);
 
 	led_trigger_event(&rfkill_any_led_trigger, brightness);
+	led_trigger_event(&rfkill_none_led_trigger,
+			  brightness == LED_OFF ? LED_FULL : LED_OFF);
 }
 
 static void rfkill_global_led_trigger_event(void)
@@ -202,22 +205,32 @@ static void rfkill_global_led_trigger_event(void)
 	schedule_work(&rfkill_global_led_trigger_work);
 }
 
-static void rfkill_global_led_trigger_activate(struct led_classdev *led_cdev)
-{
-	rfkill_global_led_trigger_event();
-}
-
 static int rfkill_global_led_trigger_register(void)
 {
+	int ret;
+
 	INIT_WORK(&rfkill_global_led_trigger_work,
 			rfkill_global_led_trigger_worker);
+
 	rfkill_any_led_trigger.name = "rfkill-any";
-	rfkill_any_led_trigger.activate = rfkill_global_led_trigger_activate;
-	return led_trigger_register(&rfkill_any_led_trigger);
+	ret = led_trigger_register(&rfkill_any_led_trigger);
+	if (ret)
+		return ret;
+
+	rfkill_none_led_trigger.name = "rfkill-none";
+	ret = led_trigger_register(&rfkill_none_led_trigger);
+	if (ret)
+		led_trigger_unregister(&rfkill_any_led_trigger);
+	else
+		/* Delay activation until all global triggers are registered */
+		rfkill_global_led_trigger_event();
+
+	return ret;
 }
 
 static void rfkill_global_led_trigger_unregister(void)
 {
+	led_trigger_unregister(&rfkill_none_led_trigger);
 	led_trigger_unregister(&rfkill_any_led_trigger);
 	cancel_work_sync(&rfkill_global_led_trigger_work);
 }
