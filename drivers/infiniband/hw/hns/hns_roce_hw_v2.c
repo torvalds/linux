@@ -480,8 +480,8 @@ out:
 			       V2_DB_BYTE_4_TAG_S, qp->doorbell_qpn);
 		roce_set_field(sq_db.byte_4, V2_DB_BYTE_4_CMD_M,
 			       V2_DB_BYTE_4_CMD_S, HNS_ROCE_V2_SQ_DB);
-		roce_set_field(sq_db.parameter, V2_DB_PARAMETER_CONS_IDX_M,
-			       V2_DB_PARAMETER_CONS_IDX_S,
+		roce_set_field(sq_db.parameter, V2_DB_PARAMETER_IDX_M,
+			       V2_DB_PARAMETER_IDX_S,
 			       qp->sq.head & ((qp->sq.wqe_cnt << 1) - 1));
 		roce_set_field(sq_db.parameter, V2_DB_PARAMETER_SL_M,
 			       V2_DB_PARAMETER_SL_S, qp->sl);
