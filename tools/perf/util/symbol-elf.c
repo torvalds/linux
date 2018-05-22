@@ -1386,6 +1386,7 @@ static off_t kcore__write(struct kcore *kcore)
 
 struct phdr_data {
 	off_t offset;
+	off_t rel;
 	u64 addr;
 	u64 len;
 	struct list_head node;
@@ -1403,6 +1404,9 @@ struct kcore_copy_info {
 	struct phdr_data modules_map;
 	struct list_head phdrs;
 };
+
+#define kcore_copy__for_each_phdr(k, p) \
+	list_for_each_entry((p), &(k)->phdrs, node)
 
 static int kcore_copy__process_kallsyms(void *arg, const char *name, char type,
 					u64 start)
@@ -1518,9 +1522,19 @@ static int kcore_copy__read_maps(struct kcore_copy_info *kci, Elf *elf)
 	if (kci->modules_map.len)
 		list_add_tail(&kci->modules_map.node, &kci->phdrs);
 
-	kci->phnum = !!kci->kernel_map.len + !!kci->modules_map.len;
-
 	return 0;
+}
+
+static void kcore_copy__layout(struct kcore_copy_info *kci)
+{
+	struct phdr_data *p;
+	off_t rel = 0;
+
+	kcore_copy__for_each_phdr(kci, p) {
+		p->rel = rel;
+		rel += p->len;
+		kci->phnum += 1;
+	}
 }
 
 static int kcore_copy__calc_maps(struct kcore_copy_info *kci, const char *dir,
@@ -1558,7 +1572,12 @@ static int kcore_copy__calc_maps(struct kcore_copy_info *kci, const char *dir,
 	if (kci->first_module && !kci->last_module_symbol)
 		return -1;
 
-	return kcore_copy__read_maps(kci, elf);
+	if (kcore_copy__read_maps(kci, elf))
+		return -1;
+
+	kcore_copy__layout(kci);
+
+	return 0;
 }
 
 static int kcore_copy__copy_file(const char *from_dir, const char *to_dir,
