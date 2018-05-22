@@ -167,8 +167,11 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 	kvm->arch.vgic.vgic_model = type;
 
 	kvm->arch.vgic.vgic_dist_base = VGIC_ADDR_UNDEF;
-	kvm->arch.vgic.vgic_cpu_base = VGIC_ADDR_UNDEF;
-	kvm->arch.vgic.vgic_redist_base = VGIC_ADDR_UNDEF;
+
+	if (type == KVM_DEV_TYPE_ARM_VGIC_V2)
+		kvm->arch.vgic.vgic_cpu_base = VGIC_ADDR_UNDEF;
+	else
+		INIT_LIST_HEAD(&kvm->arch.vgic.rd_regions);
 
 out_unlock:
 	for (; vcpu_lock_idx >= 0; vcpu_lock_idx--) {
@@ -303,6 +306,7 @@ out:
 static void kvm_vgic_dist_destroy(struct kvm *kvm)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
+	struct vgic_redist_region *rdreg, *next;
 
 	dist->ready = false;
 	dist->initialized = false;
@@ -310,6 +314,14 @@ static void kvm_vgic_dist_destroy(struct kvm *kvm)
 	kfree(dist->spis);
 	dist->spis = NULL;
 	dist->nr_spis = 0;
+
+	if (kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3) {
+		list_for_each_entry_safe(rdreg, next, &dist->rd_regions, list) {
+			list_del(&rdreg->list);
+			kfree(rdreg);
+		}
+		INIT_LIST_HEAD(&dist->rd_regions);
+	}
 
 	if (vgic_supports_direct_msis(kvm))
 		vgic_v4_teardown(kvm);

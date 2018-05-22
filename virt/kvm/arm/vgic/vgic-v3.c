@@ -427,6 +427,9 @@ bool vgic_v3_check_base(struct kvm *kvm)
 {
 	struct vgic_dist *d = &kvm->arch.vgic;
 	gpa_t redist_size = KVM_VGIC_V3_REDIST_SIZE;
+	struct vgic_redist_region *rdreg =
+		list_first_entry(&d->rd_regions,
+				 struct vgic_redist_region, list);
 
 	redist_size *= atomic_read(&kvm->online_vcpus);
 
@@ -434,18 +437,17 @@ bool vgic_v3_check_base(struct kvm *kvm)
 	    d->vgic_dist_base + KVM_VGIC_V3_DIST_SIZE < d->vgic_dist_base)
 		return false;
 
-	if (!IS_VGIC_ADDR_UNDEF(d->vgic_redist_base) &&
-	    d->vgic_redist_base + redist_size < d->vgic_redist_base)
+	if (rdreg && (rdreg->base + redist_size < rdreg->base))
 		return false;
 
 	/* Both base addresses must be set to check if they overlap */
-	if (IS_VGIC_ADDR_UNDEF(d->vgic_dist_base) ||
-	    IS_VGIC_ADDR_UNDEF(d->vgic_redist_base))
+	if (IS_VGIC_ADDR_UNDEF(d->vgic_dist_base) || !rdreg)
 		return true;
 
-	if (d->vgic_dist_base + KVM_VGIC_V3_DIST_SIZE <= d->vgic_redist_base)
+	if (d->vgic_dist_base + KVM_VGIC_V3_DIST_SIZE <= rdreg->base)
 		return true;
-	if (d->vgic_redist_base + redist_size <= d->vgic_dist_base)
+
+	if (rdreg->base + redist_size <= d->vgic_dist_base)
 		return true;
 
 	return false;
@@ -455,12 +457,14 @@ int vgic_v3_map_resources(struct kvm *kvm)
 {
 	int ret = 0;
 	struct vgic_dist *dist = &kvm->arch.vgic;
+	struct vgic_redist_region *rdreg =
+		list_first_entry(&dist->rd_regions,
+				 struct vgic_redist_region, list);
 
 	if (vgic_ready(kvm))
 		goto out;
 
-	if (IS_VGIC_ADDR_UNDEF(dist->vgic_dist_base) ||
-	    IS_VGIC_ADDR_UNDEF(dist->vgic_redist_base)) {
+	if (IS_VGIC_ADDR_UNDEF(dist->vgic_dist_base) || !rdreg) {
 		kvm_err("Need to set vgic distributor addresses first\n");
 		ret = -ENXIO;
 		goto out;

@@ -66,6 +66,7 @@ int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write)
 	int r = 0;
 	struct vgic_dist *vgic = &kvm->arch.vgic;
 	phys_addr_t *addr_ptr, alignment;
+	u64 undef_value = VGIC_ADDR_UNDEF;
 
 	mutex_lock(&kvm->lock);
 	switch (type) {
@@ -84,7 +85,9 @@ int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write)
 		addr_ptr = &vgic->vgic_dist_base;
 		alignment = SZ_64K;
 		break;
-	case KVM_VGIC_V3_ADDR_TYPE_REDIST:
+	case KVM_VGIC_V3_ADDR_TYPE_REDIST: {
+		struct vgic_redist_region *rdreg;
+
 		r = vgic_check_type(kvm, KVM_DEV_TYPE_ARM_VGIC_V3);
 		if (r)
 			break;
@@ -92,8 +95,14 @@ int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write)
 			r = vgic_v3_set_redist_base(kvm, *addr);
 			goto out;
 		}
-		addr_ptr = &vgic->vgic_redist_base;
+		rdreg = list_first_entry(&vgic->rd_regions,
+					 struct vgic_redist_region, list);
+		if (!rdreg)
+			addr_ptr = &undef_value;
+		else
+			addr_ptr = &rdreg->base;
 		break;
+	}
 	default:
 		r = -ENODEV;
 	}

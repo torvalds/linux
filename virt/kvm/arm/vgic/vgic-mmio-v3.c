@@ -580,8 +580,10 @@ int vgic_register_redist_iodev(struct kvm_vcpu *vcpu)
 {
 	struct kvm *kvm = vcpu->kvm;
 	struct vgic_dist *vgic = &kvm->arch.vgic;
+	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 	struct vgic_io_device *rd_dev = &vcpu->arch.vgic_cpu.rd_iodev;
 	struct vgic_io_device *sgi_dev = &vcpu->arch.vgic_cpu.sgi_iodev;
+	struct vgic_redist_region *rdreg;
 	gpa_t rd_base, sgi_base;
 	int ret;
 
@@ -591,13 +593,17 @@ int vgic_register_redist_iodev(struct kvm_vcpu *vcpu)
 	 * function for all VCPUs when the base address is set.  Just return
 	 * without doing any work for now.
 	 */
-	if (IS_VGIC_ADDR_UNDEF(vgic->vgic_redist_base))
+	rdreg = list_first_entry(&vgic->rd_regions,
+				 struct vgic_redist_region, list);
+	if (!rdreg)
 		return 0;
 
 	if (!vgic_v3_check_base(kvm))
 		return -EINVAL;
 
-	rd_base = vgic->vgic_redist_base + vgic->vgic_redist_free_offset;
+	vgic_cpu->rdreg = rdreg;
+
+	rd_base = rdreg->base + rdreg->free_index * KVM_VGIC_V3_REDIST_SIZE;
 	sgi_base = rd_base + SZ_64K;
 
 	kvm_iodevice_init(&rd_dev->dev, &kvm_io_gic_ops);
@@ -631,7 +637,7 @@ int vgic_register_redist_iodev(struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
-	vgic->vgic_redist_free_offset += 2 * SZ_64K;
+	rdreg->free_index++;
 out:
 	mutex_unlock(&kvm->slots_lock);
 	return ret;
@@ -673,18 +679,30 @@ static int vgic_register_all_redist_iodevs(struct kvm *kvm)
 int vgic_v3_set_redist_base(struct kvm *kvm, u64 addr)
 {
 	struct vgic_dist *vgic = &kvm->arch.vgic;
+	struct vgic_redist_region *rdreg;
 	int ret;
 
 	/* vgic_check_ioaddr makes sure we don't do this twice */
-	ret = vgic_check_ioaddr(kvm, &vgic->vgic_redist_base, addr, SZ_64K);
-	if (ret)
-		return ret;
-
-	vgic->vgic_redist_base = addr;
-	if (!vgic_v3_check_base(kvm)) {
-		vgic->vgic_redist_base = VGIC_ADDR_UNDEF;
+	if (!list_empty(&vgic->rd_regions))
 		return -EINVAL;
+
+	rdreg = kzalloc(sizeof(*rdreg), GFP_KERNEL);
+	if (!rdreg)
+		return -ENOMEM;
+
+	rdreg->base = VGIC_ADDR_UNDEF;
+
+	ret = vgic_check_ioaddr(kvm, &rdreg->base, addr, SZ_64K);
+	if (ret)
+		goto out;
+
+	rdreg->base = addr;
+	if (!vgic_v3_check_base(kvm)) {
+		ret = -EINVAL;
+		goto out;
 	}
+
+	list_add(&rdreg->list, &vgic->rd_regions);
 
 	/*
 	 * Register iodevs for each existing VCPU.  Adding more VCPUs
@@ -695,6 +713,10 @@ int vgic_v3_set_redist_base(struct kvm *kvm, u64 addr)
 		return ret;
 
 	return 0;
+
+out:
+	kfree(rdreg);
+	return ret;
 }
 
 int vgic_v3_has_attr_regs(struct kvm_device *dev, struct kvm_device_attr *attr)
