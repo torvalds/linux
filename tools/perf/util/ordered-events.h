@@ -45,7 +45,7 @@ struct ordered_events {
 };
 
 int ordered_events__queue(struct ordered_events *oe, union perf_event *event,
-			  struct perf_sample *sample, u64 file_offset);
+			  u64 timestamp, u64 file_offset);
 void ordered_events__delete(struct ordered_events *oe, struct ordered_event *event);
 int ordered_events__flush(struct ordered_events *oe, enum oe_flush how);
 void ordered_events__init(struct ordered_events *oe, ordered_events__deliver_t deliver);

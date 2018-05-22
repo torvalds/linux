@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Texas Instruments Ltd
+ * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Archit Taneja <archit@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify it

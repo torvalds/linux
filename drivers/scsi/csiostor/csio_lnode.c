@@ -114,7 +114,7 @@ static enum csio_ln_ev fwevt_to_lnevt[] = {
 static struct csio_lnode *
 csio_ln_lookup_by_portid(struct csio_hw *hw, uint8_t portid)
 {
-	struct csio_lnode *ln = hw->rln;
+	struct csio_lnode *ln;
 	struct list_head *tmp;
 
 	/* Match siblings lnode with portid */

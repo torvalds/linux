@@ -172,7 +172,7 @@
 		};
 	};
 
-	i2cmux@2 {
+	i2c2mux {
 		compatible = "i2c-mux-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c2mux>;
@@ -183,20 +183,20 @@
 		i2c-parent = <&i2c2>;
 		idle-state = <0>;
 
-		i2c2@1 {
+		i2c2mux@1 {
 			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
 
-		i2c2@2 {
+		i2c2mux@2 {
 			reg = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
 	};
 
-	i2cmux@3 {
+	i2c3mux {
 		compatible = "i2c-mux-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c3mux>;
@@ -206,7 +206,7 @@
 		i2c-parent = <&i2c3>;
 		idle-state = <0>;
 
-		i2c3@1 {
+		i2c3mux@1 {
 			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;

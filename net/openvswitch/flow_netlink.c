@@ -330,12 +330,12 @@ size_t ovs_tun_key_attr_size(void)
 		+ nla_total_size(0)    /* OVS_TUNNEL_KEY_ATTR_CSUM */
 		+ nla_total_size(0)    /* OVS_TUNNEL_KEY_ATTR_OAM */
 		+ nla_total_size(256)  /* OVS_TUNNEL_KEY_ATTR_GENEVE_OPTS */
-		/* OVS_TUNNEL_KEY_ATTR_VXLAN_OPTS is mutually exclusive with
+		/* OVS_TUNNEL_KEY_ATTR_VXLAN_OPTS and
+		 * OVS_TUNNEL_KEY_ATTR_ERSPAN_OPTS is mutually exclusive with
 		 * OVS_TUNNEL_KEY_ATTR_GENEVE_OPTS and covered by it.
 		 */
 		+ nla_total_size(2)    /* OVS_TUNNEL_KEY_ATTR_TP_SRC */
-		+ nla_total_size(2)    /* OVS_TUNNEL_KEY_ATTR_TP_DST */
-		+ nla_total_size(4);   /* OVS_TUNNEL_KEY_ATTR_ERSPAN_OPTS */
+		+ nla_total_size(2);   /* OVS_TUNNEL_KEY_ATTR_TP_DST */
 }
 
 static size_t ovs_nsh_key_attr_size(void)
@@ -402,7 +402,7 @@ static const struct ovs_len_tbl ovs_tunnel_key_lens[OVS_TUNNEL_KEY_ATTR_MAX + 1]
 						.next = ovs_vxlan_ext_key_lens },
 	[OVS_TUNNEL_KEY_ATTR_IPV6_SRC]      = { .len = sizeof(struct in6_addr) },
 	[OVS_TUNNEL_KEY_ATTR_IPV6_DST]      = { .len = sizeof(struct in6_addr) },
-	[OVS_TUNNEL_KEY_ATTR_ERSPAN_OPTS]   = { .len = sizeof(u32) },
+	[OVS_TUNNEL_KEY_ATTR_ERSPAN_OPTS]   = { .len = OVS_ATTR_VARIABLE },
 };
 
 static const struct ovs_len_tbl
@@ -634,30 +634,30 @@ static int vxlan_tun_opt_from_nlattr(const struct nlattr *attr,
 	return 0;
 }
 
-static int erspan_tun_opt_from_nlattr(const struct nlattr *attr,
+static int erspan_tun_opt_from_nlattr(const struct nlattr *a,
 				      struct sw_flow_match *match, bool is_mask,
 				      bool log)
 {
 	unsigned long opt_key_offset;
-	struct erspan_metadata opts;
 
-	BUILD_BUG_ON(sizeof(opts) > sizeof(match->key->tun_opts));
+	BUILD_BUG_ON(sizeof(struct erspan_metadata) >
+		     sizeof(match->key->tun_opts));
 
-	memset(&opts, 0, sizeof(opts));
-	opts.index = nla_get_be32(attr);
-
-	/* Index has only 20-bit */
-	if (ntohl(opts.index) & ~INDEX_MASK) {
-		OVS_NLERR(log, "ERSPAN index number %x too large.",
-			  ntohl(opts.index));
+	if (nla_len(a) > sizeof(match->key->tun_opts)) {
+		OVS_NLERR(log, "ERSPAN option length err (len %d, max %zu).",
+			  nla_len(a), sizeof(match->key->tun_opts));
 		return -EINVAL;
 	}
 
-	SW_FLOW_KEY_PUT(match, tun_opts_len, sizeof(opts), is_mask);
-	opt_key_offset = TUN_METADATA_OFFSET(sizeof(opts));
-	SW_FLOW_KEY_MEMCPY_OFFSET(match, opt_key_offset, &opts, sizeof(opts),
-				  is_mask);
+	if (!is_mask)
+		SW_FLOW_KEY_PUT(match, tun_opts_len,
+				sizeof(struct erspan_metadata), false);
+	else
+		SW_FLOW_KEY_PUT(match, tun_opts_len, 0xff, true);
 
+	opt_key_offset = TUN_METADATA_OFFSET(nla_len(a));
+	SW_FLOW_KEY_MEMCPY_OFFSET(match, opt_key_offset, nla_data(a),
+				  nla_len(a), is_mask);
 	return 0;
 }
 
@@ -774,7 +774,8 @@ static int ip_tun_from_nlattr(const struct nlattr *attr,
 				return -EINVAL;
 			}
 
-			err = erspan_tun_opt_from_nlattr(a, match, is_mask, log);
+			err = erspan_tun_opt_from_nlattr(a, match, is_mask,
+							 log);
 			if (err)
 				return err;
 
@@ -906,8 +907,8 @@ static int __ip_tun_to_nlattr(struct sk_buff *skb,
 			 vxlan_opt_to_nlattr(skb, tun_opts, swkey_tun_opts_len))
 			return -EMSGSIZE;
 		else if (output->tun_flags & TUNNEL_ERSPAN_OPT &&
-			 nla_put_be32(skb, OVS_TUNNEL_KEY_ATTR_ERSPAN_OPTS,
-				      ((struct erspan_metadata *)tun_opts)->index))
+			 nla_put(skb, OVS_TUNNEL_KEY_ATTR_ERSPAN_OPTS,
+				 swkey_tun_opts_len, tun_opts))
 			return -EMSGSIZE;
 	}
 
@@ -2501,7 +2502,7 @@ static int validate_geneve_opts(struct sw_flow_key *key)
 
 		option = (struct geneve_opt *)((u8 *)option + len);
 		opts_len -= len;
-	};
+	}
 
 	key->tun_key.tun_flags |= crit_opt ? TUNNEL_CRIT_OPT : 0;
 
@@ -2536,7 +2537,7 @@ static int validate_and_copy_set_tun(const struct nlattr *attr,
 		case OVS_TUNNEL_KEY_ATTR_ERSPAN_OPTS:
 			break;
 		}
-	};
+	}
 
 	start = add_nested_action_start(sfa, OVS_ACTION_ATTR_SET, log);
 	if (start < 0)

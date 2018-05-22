@@ -547,7 +547,7 @@ static int exact_lock(dev_t devt, void *data)
 {
 	struct gendisk *p = data;
 
-	if (!get_disk(p))
+	if (!get_disk_and_module(p))
 		return -1;
 	return 0;
 }
@@ -629,16 +629,18 @@ exit:
 }
 
 /**
- * device_add_disk - add partitioning information to kernel list
+ * __device_add_disk - add disk information to kernel list
  * @parent: parent device for the disk
  * @disk: per-device partitioning information
+ * @register_queue: register the queue if set to true
  *
  * This function registers the partitioning information in @disk
  * with the kernel.
  *
  * FIXME: error handling
  */
-void device_add_disk(struct device *parent, struct gendisk *disk)
+static void __device_add_disk(struct device *parent, struct gendisk *disk,
+			      bool register_queue)
 {
 	dev_t devt;
 	int retval;
@@ -682,7 +684,8 @@ void device_add_disk(struct device *parent, struct gendisk *disk)
 				    exact_match, exact_lock, disk);
 	}
 	register_disk(parent, disk);
-	blk_register_queue(disk);
+	if (register_queue)
+		blk_register_queue(disk);
 
 	/*
 	 * Take an extra ref on queue which will be put on disk_release()
@@ -693,7 +696,18 @@ void device_add_disk(struct device *parent, struct gendisk *disk)
 	disk_add_events(disk);
 	blk_integrity_add(disk);
 }
+
+void device_add_disk(struct device *parent, struct gendisk *disk)
+{
+	__device_add_disk(parent, disk, true);
+}
 EXPORT_SYMBOL(device_add_disk);
+
+void device_add_disk_no_queue_reg(struct device *parent, struct gendisk *disk)
+{
+	__device_add_disk(parent, disk, false);
+}
+EXPORT_SYMBOL(device_add_disk_no_queue_reg);
 
 void del_gendisk(struct gendisk *disk)
 {
@@ -703,6 +717,11 @@ void del_gendisk(struct gendisk *disk)
 	blk_integrity_del(disk);
 	disk_del_events(disk);
 
+	/*
+	 * Block lookups of the disk until all bdevs are unhashed and the
+	 * disk is marked as dead (GENHD_FL_UP cleared).
+	 */
+	down_write(&disk->lookup_sem);
 	/* invalidate stuff */
 	disk_part_iter_init(&piter, disk,
 			     DISK_PITER_INCL_EMPTY | DISK_PITER_REVERSE);
@@ -717,6 +736,7 @@ void del_gendisk(struct gendisk *disk)
 	bdev_unhash_inode(disk_devt(disk));
 	set_capacity(disk, 0);
 	disk->flags &= ~GENHD_FL_UP;
+	up_write(&disk->lookup_sem);
 
 	if (!(disk->flags & GENHD_FL_HIDDEN))
 		sysfs_remove_link(&disk_to_dev(disk)->kobj, "bdi");
@@ -725,7 +745,8 @@ void del_gendisk(struct gendisk *disk)
 		 * Unregister bdi before releasing device numbers (as they can
 		 * get reused and we'd get clashes in sysfs).
 		 */
-		bdi_unregister(disk->queue->backing_dev_info);
+		if (!(disk->flags & GENHD_FL_HIDDEN))
+			bdi_unregister(disk->queue->backing_dev_info);
 		blk_unregister_queue(disk);
 	} else {
 		WARN_ON(1);
@@ -794,16 +815,28 @@ struct gendisk *get_gendisk(dev_t devt, int *partno)
 
 		spin_lock_bh(&ext_devt_lock);
 		part = idr_find(&ext_devt_idr, blk_mangle_minor(MINOR(devt)));
-		if (part && get_disk(part_to_disk(part))) {
+		if (part && get_disk_and_module(part_to_disk(part))) {
 			*partno = part->partno;
 			disk = part_to_disk(part);
 		}
 		spin_unlock_bh(&ext_devt_lock);
 	}
 
-	if (disk && unlikely(disk->flags & GENHD_FL_HIDDEN)) {
-		put_disk(disk);
+	if (!disk)
+		return NULL;
+
+	/*
+	 * Synchronize with del_gendisk() to not return disk that is being
+	 * destroyed.
+	 */
+	down_read(&disk->lookup_sem);
+	if (unlikely((disk->flags & GENHD_FL_HIDDEN) ||
+		     !(disk->flags & GENHD_FL_UP))) {
+		up_read(&disk->lookup_sem);
+		put_disk_and_module(disk);
 		disk = NULL;
+	} else {
+		up_read(&disk->lookup_sem);
 	}
 	return disk;
 }
@@ -1403,6 +1436,7 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
 			kfree(disk);
 			return NULL;
 		}
+		init_rwsem(&disk->lookup_sem);
 		disk->node_id = node_id;
 		if (disk_expand_part_tbl(disk, 0)) {
 			free_part_stats(&disk->part0);
@@ -1438,7 +1472,7 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
 }
 EXPORT_SYMBOL(__alloc_disk_node);
 
-struct kobject *get_disk(struct gendisk *disk)
+struct kobject *get_disk_and_module(struct gendisk *disk)
 {
 	struct module *owner;
 	struct kobject *kobj;
@@ -1456,16 +1490,29 @@ struct kobject *get_disk(struct gendisk *disk)
 	return kobj;
 
 }
-
-EXPORT_SYMBOL(get_disk);
+EXPORT_SYMBOL(get_disk_and_module);
 
 void put_disk(struct gendisk *disk)
 {
 	if (disk)
 		kobject_put(&disk_to_dev(disk)->kobj);
 }
-
 EXPORT_SYMBOL(put_disk);
+
+/*
+ * This is a counterpart of get_disk_and_module() and thus also of
+ * get_gendisk().
+ */
+void put_disk_and_module(struct gendisk *disk)
+{
+	if (disk) {
+		struct module *owner = disk->fops->owner;
+
+		put_disk(disk);
+		module_put(owner);
+	}
+}
+EXPORT_SYMBOL(put_disk_and_module);
 
 static void set_disk_ro_uevent(struct gendisk *gd, int ro)
 {

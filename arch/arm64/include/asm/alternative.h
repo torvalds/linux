@@ -12,6 +12,8 @@
 #include <linux/stddef.h>
 #include <linux/stringify.h>
 
+extern int alternatives_applied;
+
 struct alt_instr {
 	s32 orig_offset;	/* offset to original instruction */
 	s32 alt_offset;		/* offset to replacement instruction */

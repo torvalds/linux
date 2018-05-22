@@ -259,6 +259,10 @@ static struct ocfs2_lock_res_ops ocfs2_nfs_sync_lops = {
 	.flags		= 0,
 };
 
+static struct ocfs2_lock_res_ops ocfs2_trim_fs_lops = {
+	.flags		= LOCK_TYPE_REQUIRES_REFRESH|LOCK_TYPE_USES_LVB,
+};
+
 static struct ocfs2_lock_res_ops ocfs2_orphan_scan_lops = {
 	.flags		= LOCK_TYPE_REQUIRES_REFRESH|LOCK_TYPE_USES_LVB,
 };
@@ -674,6 +678,24 @@ static void ocfs2_nfs_sync_lock_res_init(struct ocfs2_lock_res *res,
 	ocfs2_build_lock_name(OCFS2_LOCK_TYPE_NFS_SYNC, 0, 0, res->l_name);
 	ocfs2_lock_res_init_common(osb, res, OCFS2_LOCK_TYPE_NFS_SYNC,
 				   &ocfs2_nfs_sync_lops, osb);
+}
+
+void ocfs2_trim_fs_lock_res_init(struct ocfs2_super *osb)
+{
+	struct ocfs2_lock_res *lockres = &osb->osb_trim_fs_lockres;
+
+	ocfs2_lock_res_init_once(lockres);
+	ocfs2_build_lock_name(OCFS2_LOCK_TYPE_TRIM_FS, 0, 0, lockres->l_name);
+	ocfs2_lock_res_init_common(osb, lockres, OCFS2_LOCK_TYPE_TRIM_FS,
+				   &ocfs2_trim_fs_lops, osb);
+}
+
+void ocfs2_trim_fs_lock_res_uninit(struct ocfs2_super *osb)
+{
+	struct ocfs2_lock_res *lockres = &osb->osb_trim_fs_lockres;
+
+	ocfs2_simple_drop_lockres(osb, lockres);
+	ocfs2_lock_res_free(lockres);
 }
 
 static void ocfs2_orphan_scan_lock_res_init(struct ocfs2_lock_res *res,
@@ -1742,6 +1764,27 @@ int ocfs2_rw_lock(struct inode *inode, int write)
 	return status;
 }
 
+int ocfs2_try_rw_lock(struct inode *inode, int write)
+{
+	int status, level;
+	struct ocfs2_lock_res *lockres;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+
+	mlog(0, "inode %llu try to take %s RW lock\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
+	     write ? "EXMODE" : "PRMODE");
+
+	if (ocfs2_mount_local(osb))
+		return 0;
+
+	lockres = &OCFS2_I(inode)->ip_rw_lockres;
+
+	level = write ? DLM_LOCK_EX : DLM_LOCK_PR;
+
+	status = ocfs2_cluster_lock(osb, lockres, level, DLM_LKF_NOQUEUE, 0);
+	return status;
+}
+
 void ocfs2_rw_unlock(struct inode *inode, int write)
 {
 	int level = write ? DLM_LOCK_EX : DLM_LOCK_PR;
@@ -2486,6 +2529,15 @@ int ocfs2_inode_lock_with_page(struct inode *inode,
 	ret = ocfs2_inode_lock_full(inode, ret_bh, ex, OCFS2_LOCK_NONBLOCK);
 	if (ret == -EAGAIN) {
 		unlock_page(page);
+		/*
+		 * If we can't get inode lock immediately, we should not return
+		 * directly here, since this will lead to a softlockup problem.
+		 * The method is to get a blocking lock and immediately unlock
+		 * before returning, this can avoid CPU resource waste due to
+		 * lots of retries, and benefits fairness in getting lock.
+		 */
+		if (ocfs2_inode_lock(inode, ret_bh, ex) == 0)
+			ocfs2_inode_unlock(inode, ex);
 		ret = AOP_TRUNCATED_PAGE;
 	}
 
@@ -2494,13 +2546,18 @@ int ocfs2_inode_lock_with_page(struct inode *inode,
 
 int ocfs2_inode_lock_atime(struct inode *inode,
 			  struct vfsmount *vfsmnt,
-			  int *level)
+			  int *level, int wait)
 {
 	int ret;
 
-	ret = ocfs2_inode_lock(inode, NULL, 0);
+	if (wait)
+		ret = ocfs2_inode_lock(inode, NULL, 0);
+	else
+		ret = ocfs2_try_inode_lock(inode, NULL, 0);
+
 	if (ret < 0) {
-		mlog_errno(ret);
+		if (ret != -EAGAIN)
+			mlog_errno(ret);
 		return ret;
 	}
 
@@ -2512,9 +2569,14 @@ int ocfs2_inode_lock_atime(struct inode *inode,
 		struct buffer_head *bh = NULL;
 
 		ocfs2_inode_unlock(inode, 0);
-		ret = ocfs2_inode_lock(inode, &bh, 1);
+		if (wait)
+			ret = ocfs2_inode_lock(inode, &bh, 1);
+		else
+			ret = ocfs2_try_inode_lock(inode, &bh, 1);
+
 		if (ret < 0) {
-			mlog_errno(ret);
+			if (ret != -EAGAIN)
+				mlog_errno(ret);
 			return ret;
 		}
 		*level = 1;
@@ -2743,6 +2805,70 @@ void ocfs2_nfs_sync_unlock(struct ocfs2_super *osb, int ex)
 	if (!ocfs2_mount_local(osb))
 		ocfs2_cluster_unlock(osb, lockres,
 				     ex ? LKM_EXMODE : LKM_PRMODE);
+}
+
+int ocfs2_trim_fs_lock(struct ocfs2_super *osb,
+		       struct ocfs2_trim_fs_info *info, int trylock)
+{
+	int status;
+	struct ocfs2_trim_fs_lvb *lvb;
+	struct ocfs2_lock_res *lockres = &osb->osb_trim_fs_lockres;
+
+	if (info)
+		info->tf_valid = 0;
+
+	if (ocfs2_is_hard_readonly(osb))
+		return -EROFS;
+
+	if (ocfs2_mount_local(osb))
+		return 0;
+
+	status = ocfs2_cluster_lock(osb, lockres, DLM_LOCK_EX,
+				    trylock ? DLM_LKF_NOQUEUE : 0, 0);
+	if (status < 0) {
+		if (status != -EAGAIN)
+			mlog_errno(status);
+		return status;
+	}
+
+	if (info) {
+		lvb = ocfs2_dlm_lvb(&lockres->l_lksb);
+		if (ocfs2_dlm_lvb_valid(&lockres->l_lksb) &&
+		    lvb->lvb_version == OCFS2_TRIMFS_LVB_VERSION) {
+			info->tf_valid = 1;
+			info->tf_success = lvb->lvb_success;
+			info->tf_nodenum = be32_to_cpu(lvb->lvb_nodenum);
+			info->tf_start = be64_to_cpu(lvb->lvb_start);
+			info->tf_len = be64_to_cpu(lvb->lvb_len);
+			info->tf_minlen = be64_to_cpu(lvb->lvb_minlen);
+			info->tf_trimlen = be64_to_cpu(lvb->lvb_trimlen);
+		}
+	}
+
+	return status;
+}
+
+void ocfs2_trim_fs_unlock(struct ocfs2_super *osb,
+			  struct ocfs2_trim_fs_info *info)
+{
+	struct ocfs2_trim_fs_lvb *lvb;
+	struct ocfs2_lock_res *lockres = &osb->osb_trim_fs_lockres;
+
+	if (ocfs2_mount_local(osb))
+		return;
+
+	if (info) {
+		lvb = ocfs2_dlm_lvb(&lockres->l_lksb);
+		lvb->lvb_version = OCFS2_TRIMFS_LVB_VERSION;
+		lvb->lvb_success = info->tf_success;
+		lvb->lvb_nodenum = cpu_to_be32(info->tf_nodenum);
+		lvb->lvb_start = cpu_to_be64(info->tf_start);
+		lvb->lvb_len = cpu_to_be64(info->tf_len);
+		lvb->lvb_minlen = cpu_to_be64(info->tf_minlen);
+		lvb->lvb_trimlen = cpu_to_be64(info->tf_trimlen);
+	}
+
+	ocfs2_cluster_unlock(osb, lockres, DLM_LOCK_EX);
 }
 
 int ocfs2_dentry_lock(struct dentry *dentry, int ex)

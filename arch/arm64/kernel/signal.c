@@ -178,7 +178,8 @@ static void __user *apply_user_offset(
 
 static int preserve_fpsimd_context(struct fpsimd_context __user *ctx)
 {
-	struct fpsimd_state *fpsimd = &current->thread.fpsimd_state;
+	struct user_fpsimd_state const *fpsimd =
+		&current->thread.fpsimd_state.user_fpsimd;
 	int err;
 
 	/* copy the FP and status/control registers */
@@ -195,7 +196,7 @@ static int preserve_fpsimd_context(struct fpsimd_context __user *ctx)
 
 static int restore_fpsimd_context(struct fpsimd_context __user *ctx)
 {
-	struct fpsimd_state fpsimd;
+	struct user_fpsimd_state fpsimd;
 	__u32 magic, size;
 	int err = 0;
 
@@ -266,7 +267,7 @@ static int restore_sve_fpsimd_context(struct user_ctxs *user)
 {
 	int err;
 	unsigned int vq;
-	struct fpsimd_state fpsimd;
+	struct user_fpsimd_state fpsimd;
 	struct sve_context sve;
 
 	if (__copy_from_user(&sve, user->sve, sizeof(sve)))

@@ -12,16 +12,6 @@
 #include "util.h"
 #include "debug.h"
 
-#ifndef O_CLOEXEC
-#ifdef __sparc__
-#define O_CLOEXEC	0x400000
-#elif defined(__alpha__) || defined(__hppa__)
-#define O_CLOEXEC	010000000
-#else
-#define O_CLOEXEC	02000000
-#endif
-#endif
-
 static bool check_pipe(struct perf_data *data)
 {
 	struct stat st;

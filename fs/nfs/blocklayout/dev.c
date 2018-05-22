@@ -533,14 +533,11 @@ bl_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
 		goto out_free_volumes;
 
 	ret = bl_parse_deviceid(server, top, volumes, nr_volumes - 1, gfp_mask);
-	if (ret) {
-		bl_free_device(top);
-		kfree(top);
-		goto out_free_volumes;
-	}
 
 	node = &top->node;
 	nfs4_init_deviceid_node(node, server, &pdev->dev_id);
+	if (ret)
+		nfs4_mark_deviceid_unavailable(node);
 
 out_free_volumes:
 	kfree(volumes);

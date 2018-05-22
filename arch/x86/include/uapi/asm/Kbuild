@@ -5,3 +5,4 @@ generic-y += bpf_perf_event.h
 generated-y += unistd_32.h
 generated-y += unistd_64.h
 generated-y += unistd_x32.h
+generic-y += poll.h

@@ -177,12 +177,7 @@ static const struct drm_connector_funcs dm_dp_mst_connector_funcs = {
 static int dm_connector_update_modes(struct drm_connector *connector,
 				struct edid *edid)
 {
-	int ret;
-
-	ret = drm_add_edid_modes(connector, edid);
-	drm_edid_to_eld(connector, edid);
-
-	return ret;
+	return drm_add_edid_modes(connector, edid);
 }
 
 void dm_dp_mst_dc_sink_create(struct drm_connector *connector)
@@ -193,6 +188,12 @@ void dm_dp_mst_dc_sink_create(struct drm_connector *connector)
 	struct dc_sink_init_data init_params = {
 			.link = aconnector->dc_link,
 			.sink_signal = SIGNAL_TYPE_DISPLAY_PORT_MST };
+
+	/*
+	 * TODO: Need to further figure out why ddc.algo is NULL while MST port exists
+	 */
+	if (!aconnector->port || !aconnector->port->aux.ddc.algo)
+		return;
 
 	edid = drm_dp_mst_get_edid(connector, &aconnector->mst_port->mst_mgr, aconnector->port);
 

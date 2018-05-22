@@ -1393,10 +1393,6 @@ int dasd_term_IO(struct dasd_ccw_req *cqr)
 			DBF_DEV_EVENT(DBF_ERR, device, "%s",
 				      "device gone, retry");
 			break;
-		case -EIO:
-			DBF_DEV_EVENT(DBF_ERR, device, "%s",
-				      "I/O error, retry");
-			break;
 		case -EINVAL:
 			/*
 			 * device not valid so no I/O could be running
@@ -1411,10 +1407,6 @@ int dasd_term_IO(struct dasd_ccw_req *cqr)
 				      "EINVAL, handle as terminated");
 			/* fake rc to success */
 			rc = 0;
-			break;
-		case -EBUSY:
-			DBF_DEV_EVENT(DBF_ERR, device, "%s",
-				      "device busy, retry later");
 			break;
 		default:
 			/* internal error 10 - unknown rc*/
@@ -1488,10 +1480,6 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 	case -EBUSY:
 		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			      "start_IO: device busy, retry later");
-		break;
-	case -ETIMEDOUT:
-		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
-			      "start_IO: request timeout, retry later");
 		break;
 	case -EACCES:
 		/* -EACCES indicates that the request used only a subset of the
@@ -2593,8 +2581,6 @@ int dasd_cancel_req(struct dasd_ccw_req *cqr)
 	case DASD_CQR_QUEUED:
 		/* request was not started - just set to cleared */
 		cqr->status = DASD_CQR_CLEARED;
-		if (cqr->callback_data == DASD_SLEEPON_START_TAG)
-			cqr->callback_data = DASD_SLEEPON_END_TAG;
 		break;
 	case DASD_CQR_IN_IO:
 		/* request in IO - terminate IO and release again */
@@ -3914,9 +3900,12 @@ static int dasd_generic_requeue_all_requests(struct dasd_device *device)
 		wait_event(dasd_flush_wq,
 			   (cqr->status != DASD_CQR_CLEAR_PENDING));
 
-		/* mark sleepon requests as ended */
-		if (cqr->callback_data == DASD_SLEEPON_START_TAG)
-			cqr->callback_data = DASD_SLEEPON_END_TAG;
+		/*
+		 * requeue requests to blocklayer will only work
+		 * for block device requests
+		 */
+		if (_dasd_requeue_request(cqr))
+			continue;
 
 		/* remove requests from device and block queue */
 		list_del_init(&cqr->devlist);
@@ -3928,13 +3917,6 @@ static int dasd_generic_requeue_all_requests(struct dasd_device *device)
 			dasd_free_erp_request(cqr, cqr->memdev);
 			cqr = refers;
 		}
-
-		/*
-		 * requeue requests to blocklayer will only work
-		 * for block device requests
-		 */
-		if (_dasd_requeue_request(cqr))
-			continue;
 
 		if (cqr->block)
 			list_del_init(&cqr->blocklist);
@@ -3952,8 +3934,7 @@ static int dasd_generic_requeue_all_requests(struct dasd_device *device)
 		list_splice_tail(&requeue_queue, &device->ccw_queue);
 		spin_unlock_irq(get_ccwdev_lock(device->cdev));
 	}
-	/* wake up generic waitqueue for eventually ended sleepon requests */
-	wake_up(&generic_waitq);
+	dasd_schedule_device_bh(device);
 	return rc;
 }
 

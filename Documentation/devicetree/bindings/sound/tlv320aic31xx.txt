@@ -22,13 +22,17 @@ Required properties:
 
 Optional properties:
 
-- gpio-reset - gpio pin number used for codec reset
+- reset-gpios - GPIO specification for the active low RESET input.
 - ai31xx-micbias-vg - MicBias Voltage setting
         1 or MICBIAS_2_0V - MICBIAS output is powered to 2.0V
         2 or MICBIAS_2_5V - MICBIAS output is powered to 2.5V
         3 or MICBIAS_AVDD - MICBIAS output is connected to AVDD
 	If this node is not mentioned or if the value is unknown, then
 	micbias	is set to 2.0V.
+
+Deprecated properties:
+
+- gpio-reset - gpio pin number used for codec reset
 
 CODEC output pins:
   * HPL
@@ -48,6 +52,7 @@ CODEC input pins:
 The pins can be used in referring sound node's audio-routing property.
 
 Example:
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/sound/tlv320aic31xx-micbias.h>
 
 tlv320aic31xx: tlv320aic31xx@18 {
@@ -55,6 +60,8 @@ tlv320aic31xx: tlv320aic31xx@18 {
 	reg = <0x18>;
 
 	ai31xx-micbias-vg = <MICBIAS_OFF>;
+
+	reset-gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
 
 	HPVDD-supply = <&regulator>;
 	SPRVDD-supply = <&regulator>;

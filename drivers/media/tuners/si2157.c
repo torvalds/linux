@@ -532,7 +532,7 @@ MODULE_DEVICE_TABLE(i2c, si2157_id_table);
 
 static struct i2c_driver si2157_driver = {
 	.driver = {
-		.name	             = "si2157",
+		.name		     = "si2157",
 		.suppress_bind_attrs = true,
 	},
 	.probe		= si2157_probe,

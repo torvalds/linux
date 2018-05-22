@@ -23,6 +23,8 @@ Optional properties:
 - touchscreen-inverted-y  : See touchscreen.txt
 - touchscreen-swapped-x-y : See touchscreen.txt
 - silead,max-fingers	  : maximum number of fingers the touchscreen can detect
+- silead,home-button	  : Boolean, set to true on devices which have a
+			    capacitive home-button build into the touchscreen
 - vddio-supply		  : regulator phandle for controller VDDIO
 - avdd-supply		  : regulator phandle for controller AVDD
 

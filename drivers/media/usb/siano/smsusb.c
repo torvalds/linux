@@ -61,7 +61,7 @@ struct smsusb_device_t {
 	struct usb_device *udev;
 	struct smscore_device_t *coredev;
 
-	struct smsusb_urb_t 	surbs[MAX_URBS];
+	struct smsusb_urb_t	surbs[MAX_URBS];
 
 	int		response_alignment;
 	int		buffer_size;

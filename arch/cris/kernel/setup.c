@@ -24,6 +24,7 @@
 #include <linux/of_fdt.h>
 #include <asm/setup.h>
 #include <arch/system.h>
+#include <asm/sections.h>
 
 /*
  * Setup options
@@ -31,7 +32,6 @@
 struct screen_info screen_info;
 
 extern int root_mountflags;
-extern char _etext, _edata, _end;
 
 char __initdata cris_command_line[COMMAND_LINE_SIZE] = { 0, };
 

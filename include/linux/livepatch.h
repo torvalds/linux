@@ -40,7 +40,6 @@
  * @new_func:	pointer to the patched function code
  * @old_sympos: a hint indicating which symbol position the old function
  *		can be found (optional)
- * @immediate:  patch the func immediately, bypassing safety mechanisms
  * @old_addr:	the address of the function being patched
  * @kobj:	kobject for sysfs resources
  * @stack_node:	list node for klp_ops func_stack list
@@ -76,7 +75,6 @@ struct klp_func {
 	 * in kallsyms for the given object is used.
 	 */
 	unsigned long old_sympos;
-	bool immediate;
 
 	/* internal */
 	unsigned long old_addr;
@@ -137,7 +135,6 @@ struct klp_object {
  * struct klp_patch - patch structure for live patching
  * @mod:	reference to the live patch module
  * @objs:	object entries for kernel objects to be patched
- * @immediate:  patch all funcs immediately, bypassing safety mechanisms
  * @list:	list node for global list of registered patches
  * @kobj:	kobject for sysfs resources
  * @enabled:	the patch is enabled (but operation may be incomplete)
@@ -147,7 +144,6 @@ struct klp_patch {
 	/* external */
 	struct module *mod;
 	struct klp_object *objs;
-	bool immediate;
 
 	/* internal */
 	struct list_head list;

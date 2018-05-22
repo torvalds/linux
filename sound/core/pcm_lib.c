@@ -560,7 +560,6 @@ static inline unsigned int muldiv32(unsigned int a, unsigned int b,
 {
 	u_int64_t n = (u_int64_t) a * b;
 	if (c == 0) {
-		snd_BUG_ON(!n);
 		*r = 0;
 		return UINT_MAX;
 	}
@@ -1603,7 +1602,7 @@ static int _snd_pcm_hw_param_first(struct snd_pcm_hw_params *params,
 		changed = snd_interval_refine_first(hw_param_interval(params, var));
 	else
 		return -EINVAL;
-	if (changed) {
+	if (changed > 0) {
 		params->cmask |= 1 << var;
 		params->rmask |= 1 << var;
 	}
@@ -1649,7 +1648,7 @@ static int _snd_pcm_hw_param_last(struct snd_pcm_hw_params *params,
 		changed = snd_interval_refine_last(hw_param_interval(params, var));
 	else
 		return -EINVAL;
-	if (changed) {
+	if (changed > 0) {
 		params->cmask |= 1 << var;
 		params->rmask |= 1 << var;
 	}

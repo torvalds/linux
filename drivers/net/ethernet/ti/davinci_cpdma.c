@@ -893,7 +893,7 @@ struct cpdma_chan *cpdma_chan_create(struct cpdma_ctlr *ctlr, int chan_num,
 	chan_num = rx_type ? rx_chan_num(chan_num) : tx_chan_num(chan_num);
 
 	if (__chan_linear(chan_num) >= ctlr->num_chan)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	chan = devm_kzalloc(ctlr->dev, sizeof(*chan), GFP_KERNEL);
 	if (!chan)

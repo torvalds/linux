@@ -38,6 +38,8 @@ enum {
 	BYT_RT5651_DMIC_MAP,
 	BYT_RT5651_IN1_MAP,
 	BYT_RT5651_IN2_MAP,
+	BYT_RT5651_IN1_IN2_MAP,
+	BYT_RT5651_IN3_MAP,
 };
 
 #define BYT_RT5651_MAP(quirk)	((quirk) & GENMASK(7, 0))
@@ -62,6 +64,8 @@ static void log_quirks(struct device *dev)
 		dev_info(dev, "quirk IN1_MAP enabled");
 	if (BYT_RT5651_MAP(byt_rt5651_quirk) == BYT_RT5651_IN2_MAP)
 		dev_info(dev, "quirk IN2_MAP enabled");
+	if (BYT_RT5651_MAP(byt_rt5651_quirk) == BYT_RT5651_IN3_MAP)
+		dev_info(dev, "quirk IN3_MAP enabled");
 	if (byt_rt5651_quirk & BYT_RT5651_DMIC_EN)
 		dev_info(dev, "quirk DMIC enabled");
 	if (byt_rt5651_quirk & BYT_RT5651_MCLK_EN)
@@ -127,6 +131,7 @@ static const struct snd_soc_dapm_widget byt_rt5651_widgets[] = {
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("Internal Mic", NULL),
 	SND_SOC_DAPM_SPK("Speaker", NULL),
+	SND_SOC_DAPM_LINE("Line In", NULL),
 	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
 			    platform_clock_control, SND_SOC_DAPM_PRE_PMU |
 			    SND_SOC_DAPM_POST_PMD),
@@ -138,6 +143,7 @@ static const struct snd_soc_dapm_route byt_rt5651_audio_map[] = {
 	{"Headset Mic", NULL, "Platform Clock"},
 	{"Internal Mic", NULL, "Platform Clock"},
 	{"Speaker", NULL, "Platform Clock"},
+	{"Line In", NULL, "Platform Clock"},
 
 	{"AIF1 Playback", NULL, "ssp2 Tx"},
 	{"ssp2 Tx", NULL, "codec_out0"},
@@ -151,6 +157,9 @@ static const struct snd_soc_dapm_route byt_rt5651_audio_map[] = {
 	{"Headphone", NULL, "HPOR"},
 	{"Speaker", NULL, "LOUTL"},
 	{"Speaker", NULL, "LOUTR"},
+	{"IN2P", NULL, "Line In"},
+	{"IN2N", NULL, "Line In"},
+
 };
 
 static const struct snd_soc_dapm_route byt_rt5651_intmic_dmic_map[] = {
@@ -171,11 +180,25 @@ static const struct snd_soc_dapm_route byt_rt5651_intmic_in2_map[] = {
 	{"IN2P", NULL, "Internal Mic"},
 };
 
+static const struct snd_soc_dapm_route byt_rt5651_intmic_in1_in2_map[] = {
+	{"Internal Mic", NULL, "micbias1"},
+	{"IN1P", NULL, "Internal Mic"},
+	{"IN2P", NULL, "Internal Mic"},
+	{"IN3P", NULL, "Headset Mic"},
+};
+
+static const struct snd_soc_dapm_route byt_rt5651_intmic_in3_map[] = {
+	{"Internal Mic", NULL, "micbias1"},
+	{"IN3P", NULL, "Headset Mic"},
+	{"IN1P", NULL, "Internal Mic"},
+};
+
 static const struct snd_kcontrol_new byt_rt5651_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
 	SOC_DAPM_PIN_SWITCH("Internal Mic"),
 	SOC_DAPM_PIN_SWITCH("Speaker"),
+	SOC_DAPM_PIN_SWITCH("Line In"),
 };
 
 static struct snd_soc_jack_pin bytcr_jack_pins[] = {
@@ -247,8 +270,16 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Circuitco"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Minnowboard Max B3 PLATFORM"),
 		},
-		.driver_data = (void *)(BYT_RT5651_DMIC_MAP |
-					BYT_RT5651_DMIC_EN),
+		.driver_data = (void *)(BYT_RT5651_IN3_MAP),
+	},
+	{
+		.callback = byt_rt5651_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ADI"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Minnowboard Turbot"),
+		},
+		.driver_data = (void *)(BYT_RT5651_MCLK_EN |
+					BYT_RT5651_IN3_MAP),
 	},
 	{
 		.callback = byt_rt5651_quirk_cb,
@@ -256,7 +287,8 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "KIANO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "KIANO SlimNote 14.2"),
 		},
-		.driver_data = (void *)(BYT_RT5651_IN2_MAP),
+		.driver_data = (void *)(BYT_RT5651_MCLK_EN |
+					BYT_RT5651_IN1_IN2_MAP),
 	},
 	{}
 };
@@ -280,6 +312,14 @@ static int byt_rt5651_init(struct snd_soc_pcm_runtime *runtime)
 	case BYT_RT5651_IN2_MAP:
 		custom_map = byt_rt5651_intmic_in2_map;
 		num_routes = ARRAY_SIZE(byt_rt5651_intmic_in2_map);
+		break;
+	case BYT_RT5651_IN1_IN2_MAP:
+		custom_map = byt_rt5651_intmic_in1_in2_map;
+		num_routes = ARRAY_SIZE(byt_rt5651_intmic_in1_in2_map);
+		break;
+	case BYT_RT5651_IN3_MAP:
+		custom_map = byt_rt5651_intmic_in3_map;
+		num_routes = ARRAY_SIZE(byt_rt5651_intmic_in3_map);
 		break;
 	default:
 		custom_map = byt_rt5651_intmic_dmic_map;
@@ -469,7 +509,7 @@ static struct snd_soc_card byt_rt5651_card = {
 	.fully_routed = true,
 };
 
-static char byt_rt5651_codec_name[16]; /* i2c-<HID>:00 with HID being 8 chars */
+static char byt_rt5651_codec_name[SND_ACPI_I2C_ID_LEN];
 
 static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 {
@@ -499,7 +539,7 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 	}
 
 	/* fixup codec name based on HID */
-	i2c_name = snd_soc_acpi_find_name_from_hid(mach->id);
+	i2c_name = acpi_dev_get_first_match_name(mach->id, NULL, -1);
 	if (i2c_name) {
 		snprintf(byt_rt5651_codec_name, sizeof(byt_rt5651_codec_name),
 			"%s%s", "i2c-", i2c_name);

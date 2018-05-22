@@ -68,7 +68,7 @@ struct shdwc_config {
 };
 
 struct shdwc {
-	struct shdwc_config *cfg;
+	const struct shdwc_config *cfg;
 	void __iomem *at91_shdwc_base;
 };
 
@@ -260,7 +260,7 @@ static int __init at91_shdwc_probe(struct platform_device *pdev)
 	}
 
 	match = of_match_node(at91_shdwc_of_match, pdev->dev.of_node);
-	at91_shdwc->cfg = (struct shdwc_config *)(match->data);
+	at91_shdwc->cfg = match->data;
 
 	sclk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(sclk))

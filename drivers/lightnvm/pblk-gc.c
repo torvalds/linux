@@ -169,7 +169,14 @@ static void pblk_gc_line_prepare_ws(struct work_struct *work)
 	 * the line untouched. TODO: Implement a recovery routine that scans and
 	 * moves all sectors on the line.
 	 */
-	lba_list = pblk_recov_get_lba_list(pblk, emeta_buf);
+
+	ret = pblk_recov_check_emeta(pblk, emeta_buf);
+	if (ret) {
+		pr_err("pblk: inconsistent emeta (line %d)\n", line->id);
+		goto fail_free_emeta;
+	}
+
+	lba_list = emeta_to_lbas(pblk, emeta_buf);
 	if (!lba_list) {
 		pr_err("pblk: could not interpret emeta (line %d)\n", line->id);
 		goto fail_free_emeta;
@@ -519,22 +526,12 @@ void pblk_gc_should_start(struct pblk *pblk)
 	}
 }
 
-/*
- * If flush_wq == 1 then no lock should be held by the caller since
- * flush_workqueue can sleep
- */
-static void pblk_gc_stop(struct pblk *pblk, int flush_wq)
-{
-	pblk->gc.gc_active = 0;
-	pr_debug("pblk: gc stop\n");
-}
-
 void pblk_gc_should_stop(struct pblk *pblk)
 {
 	struct pblk_gc *gc = &pblk->gc;
 
 	if (gc->gc_active && !gc->gc_forced)
-		pblk_gc_stop(pblk, 0);
+		gc->gc_active = 0;
 }
 
 void pblk_gc_should_kick(struct pblk *pblk)
@@ -660,7 +657,7 @@ void pblk_gc_exit(struct pblk *pblk)
 
 	gc->gc_enabled = 0;
 	del_timer_sync(&gc->gc_timer);
-	pblk_gc_stop(pblk, 1);
+	gc->gc_active = 0;
 
 	if (gc->gc_ts)
 		kthread_stop(gc->gc_ts);

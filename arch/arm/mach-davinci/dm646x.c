@@ -882,7 +882,7 @@ struct platform_device dm646x_serial_device[] = {
 	}
 };
 
-static struct davinci_soc_info davinci_soc_info_dm646x = {
+static const struct davinci_soc_info davinci_soc_info_dm646x = {
 	.io_desc		= dm646x_io_desc,
 	.io_desc_num		= ARRAY_SIZE(dm646x_io_desc),
 	.jtag_id_reg		= 0x01c40028,
@@ -949,7 +949,7 @@ int __init dm646x_init_edma(struct edma_rsv_info *rsv)
 	dm646x_edma_pdata.rsv = rsv;
 
 	edma_pdev = platform_device_register_full(&dm646x_edma_device);
-	return IS_ERR(edma_pdev) ? PTR_ERR(edma_pdev) : 0;
+	return PTR_ERR_OR_ZERO(edma_pdev);
 }
 
 void __init dm646x_init(void)

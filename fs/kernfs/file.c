@@ -275,7 +275,7 @@ static ssize_t kernfs_fop_write(struct file *file, const char __user *user_buf,
 {
 	struct kernfs_open_file *of = kernfs_of(file);
 	const struct kernfs_ops *ops;
-	size_t len;
+	ssize_t len;
 	char *buf;
 
 	if (of->atomic_write_len) {
@@ -823,7 +823,7 @@ void kernfs_drain_open_files(struct kernfs_node *kn)
  * the content and then you use 'poll' or 'select' to wait for
  * the content to change.  When the content changes (assuming the
  * manager for the kobject supports notification), poll will
- * return POLLERR|POLLPRI, and select will return the fd whether
+ * return EPOLLERR|EPOLLPRI, and select will return the fd whether
  * it is waiting for read, write, or exceptions.
  * Once poll/select indicates that the value has changed, you
  * need to close and re-open the file, or seek to 0 and read again.
@@ -832,7 +832,7 @@ void kernfs_drain_open_files(struct kernfs_node *kn)
  * to see if it supports poll (Neither 'poll' nor 'select' return
  * an appropriate error code).  When in doubt, set a suitable timeout value.
  */
-static unsigned int kernfs_fop_poll(struct file *filp, poll_table *wait)
+static __poll_t kernfs_fop_poll(struct file *filp, poll_table *wait)
 {
 	struct kernfs_open_file *of = kernfs_of(filp);
 	struct kernfs_node *kn = kernfs_dentry_node(filp->f_path.dentry);
@@ -851,7 +851,7 @@ static unsigned int kernfs_fop_poll(struct file *filp, poll_table *wait)
 	return DEFAULT_POLLMASK;
 
  trigger:
-	return DEFAULT_POLLMASK|POLLERR|POLLPRI;
+	return DEFAULT_POLLMASK|EPOLLERR|EPOLLPRI;
 }
 
 static void kernfs_notify_workfn(struct work_struct *work)

@@ -11,18 +11,13 @@
 #include <linux/export.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
-#include <linux/mmzone.h>
-#include <linux/time.h>
 #include <linux/sched/signal.h>
 #include <linux/slab.h>
-#include <linux/vmalloc.h>
 #include <linux/file.h>
 #include <linux/fdtable.h>
 #include <linux/bitops.h>
-#include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/rcupdate.h>
-#include <linux/workqueue.h>
 
 unsigned int sysctl_nr_open __read_mostly = 1024*1024;
 unsigned int sysctl_nr_open_min = BITS_PER_LONG;
@@ -391,7 +386,7 @@ static struct fdtable *close_files(struct files_struct * files)
 				struct file * file = xchg(&fdt->fd[i], NULL);
 				if (file) {
 					filp_close(file, files);
-					cond_resched_rcu_qs();
+					cond_resched();
 				}
 			}
 			i++;

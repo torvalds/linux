@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2013-2014 Texas Instruments, Inc.
- *
  * Keystone 2 Kepler/Hawking soc specific device tree
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2013-2017 Texas Instruments Incorporated - http://www.ti.com/
  */
 
 #include <dt-bindings/reset/ti-syscon.h>
@@ -55,8 +52,9 @@
 		rproc6 = &dsp6;
 		rproc7 = &dsp7;
 	};
+};
 
-	soc {
+&soc0 {
 		/include/ "keystone-k2hk-clocks.dtsi"
 
 		msm_ram: msmram@c000000 {
@@ -284,5 +282,4 @@
 			bus_freq	= <2500000>;
 		};
 		/include/ "keystone-k2hk-netcp.dtsi"
-	};
 };

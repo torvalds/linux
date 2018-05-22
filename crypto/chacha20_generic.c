@@ -9,44 +9,38 @@
  * (at your option) any later version.
  */
 
+#include <asm/unaligned.h>
 #include <crypto/algapi.h>
 #include <crypto/chacha20.h>
 #include <crypto/internal/skcipher.h>
 #include <linux/module.h>
 
-static inline u32 le32_to_cpuvp(const void *p)
-{
-	return le32_to_cpup(p);
-}
-
 static void chacha20_docrypt(u32 *state, u8 *dst, const u8 *src,
 			     unsigned int bytes)
 {
-	u8 stream[CHACHA20_BLOCK_SIZE];
+	u32 stream[CHACHA20_BLOCK_WORDS];
 
 	if (dst != src)
 		memcpy(dst, src, bytes);
 
 	while (bytes >= CHACHA20_BLOCK_SIZE) {
 		chacha20_block(state, stream);
-		crypto_xor(dst, stream, CHACHA20_BLOCK_SIZE);
+		crypto_xor(dst, (const u8 *)stream, CHACHA20_BLOCK_SIZE);
 		bytes -= CHACHA20_BLOCK_SIZE;
 		dst += CHACHA20_BLOCK_SIZE;
 	}
 	if (bytes) {
 		chacha20_block(state, stream);
-		crypto_xor(dst, stream, bytes);
+		crypto_xor(dst, (const u8 *)stream, bytes);
 	}
 }
 
 void crypto_chacha20_init(u32 *state, struct chacha20_ctx *ctx, u8 *iv)
 {
-	static const char constant[16] = "expand 32-byte k";
-
-	state[0]  = le32_to_cpuvp(constant +  0);
-	state[1]  = le32_to_cpuvp(constant +  4);
-	state[2]  = le32_to_cpuvp(constant +  8);
-	state[3]  = le32_to_cpuvp(constant + 12);
+	state[0]  = 0x61707865; /* "expa" */
+	state[1]  = 0x3320646e; /* "nd 3" */
+	state[2]  = 0x79622d32; /* "2-by" */
+	state[3]  = 0x6b206574; /* "te k" */
 	state[4]  = ctx->key[0];
 	state[5]  = ctx->key[1];
 	state[6]  = ctx->key[2];
@@ -55,10 +49,10 @@ void crypto_chacha20_init(u32 *state, struct chacha20_ctx *ctx, u8 *iv)
 	state[9]  = ctx->key[5];
 	state[10] = ctx->key[6];
 	state[11] = ctx->key[7];
-	state[12] = le32_to_cpuvp(iv +  0);
-	state[13] = le32_to_cpuvp(iv +  4);
-	state[14] = le32_to_cpuvp(iv +  8);
-	state[15] = le32_to_cpuvp(iv + 12);
+	state[12] = get_unaligned_le32(iv +  0);
+	state[13] = get_unaligned_le32(iv +  4);
+	state[14] = get_unaligned_le32(iv +  8);
+	state[15] = get_unaligned_le32(iv + 12);
 }
 EXPORT_SYMBOL_GPL(crypto_chacha20_init);
 
@@ -72,7 +66,7 @@ int crypto_chacha20_setkey(struct crypto_skcipher *tfm, const u8 *key,
 		return -EINVAL;
 
 	for (i = 0; i < ARRAY_SIZE(ctx->key); i++)
-		ctx->key[i] = le32_to_cpuvp(key + i * sizeof(u32));
+		ctx->key[i] = get_unaligned_le32(key + i * sizeof(u32));
 
 	return 0;
 }
@@ -111,7 +105,6 @@ static struct skcipher_alg alg = {
 	.base.cra_priority	= 100,
 	.base.cra_blocksize	= 1,
 	.base.cra_ctxsize	= sizeof(struct chacha20_ctx),
-	.base.cra_alignmask	= sizeof(u32) - 1,
 	.base.cra_module	= THIS_MODULE,
 
 	.min_keysize		= CHACHA20_KEY_SIZE,

@@ -184,7 +184,7 @@ static blk_status_t nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 		return BLK_STS_OK;
 	}
 
-	if (blk_rq_bytes(req)) {
+	if (blk_rq_payload_bytes(req)) {
 		iod->sg_table.sgl = iod->first_sgl;
 		if (sg_alloc_table_chained(&iod->sg_table,
 				blk_rq_nr_phys_segments(req),
@@ -193,7 +193,7 @@ static blk_status_t nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 		iod->req.sg = iod->sg_table.sgl;
 		iod->req.sg_cnt = blk_rq_map_sg(req->q, req, iod->sg_table.sgl);
-		iod->req.transfer_len = blk_rq_bytes(req);
+		iod->req.transfer_len = blk_rq_payload_bytes(req);
 	}
 
 	blk_mq_start_request(req);
@@ -686,6 +686,7 @@ static struct nvmet_fabrics_ops nvme_loop_ops = {
 
 static struct nvmf_transport_ops nvme_loop_transport = {
 	.name		= "loop",
+	.module		= THIS_MODULE,
 	.create_ctrl	= nvme_loop_create_ctrl,
 };
 
@@ -716,7 +717,7 @@ static void __exit nvme_loop_cleanup_module(void)
 		nvme_delete_ctrl(&ctrl->ctrl);
 	mutex_unlock(&nvme_loop_ctrl_mutex);
 
-	flush_workqueue(nvme_wq);
+	flush_workqueue(nvme_delete_wq);
 }
 
 module_init(nvme_loop_init_module);

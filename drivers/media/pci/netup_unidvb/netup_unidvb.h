@@ -24,7 +24,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
 #include <media/videobuf2-dvb.h>
-#include <dvb_ca_en50221.h>
+#include <media/dvb_ca_en50221.h>
 
 #define NETUP_UNIDVB_NAME	"netup_unidvb"
 #define NETUP_UNIDVB_VERSION	"0.0.1"

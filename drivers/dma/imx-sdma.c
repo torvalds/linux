@@ -1939,4 +1939,10 @@ module_platform_driver(sdma_driver);
 
 MODULE_AUTHOR("Sascha Hauer, Pengutronix <s.hauer@pengutronix.de>");
 MODULE_DESCRIPTION("i.MX SDMA driver");
+#if IS_ENABLED(CONFIG_SOC_IMX6Q)
+MODULE_FIRMWARE("imx/sdma/sdma-imx6q.bin");
+#endif
+#if IS_ENABLED(CONFIG_SOC_IMX7D)
+MODULE_FIRMWARE("imx/sdma/sdma-imx7d.bin");
+#endif
 MODULE_LICENSE("GPL");

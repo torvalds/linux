@@ -18,6 +18,7 @@
 #include <linux/fs.h>
 #include <linux/xattr.h>
 #include <linux/evm.h>
+#include <linux/iversion.h>
 
 #include "ima.h"
 
@@ -174,7 +175,7 @@ err_out:
  */
 int ima_get_action(struct inode *inode, int mask, enum ima_hooks func, int *pcr)
 {
-	int flags = IMA_MEASURE | IMA_AUDIT | IMA_APPRAISE;
+	int flags = IMA_MEASURE | IMA_AUDIT | IMA_APPRAISE | IMA_HASH;
 
 	flags &= ima_policy_flag;
 
@@ -215,7 +216,7 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 	 * which do not support i_version, support is limited to an initial
 	 * measurement/appraisal/audit.
 	 */
-	i_version = file_inode(file)->i_version;
+	i_version = inode_query_iversion(inode);
 	hash.hdr.algo = algo;
 
 	/* Initialize hash digest to 0's in case of failure */

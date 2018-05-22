@@ -82,6 +82,7 @@ static int ad5823_i2c_write(struct i2c_client *client, u8 reg, u8 val)
 {
 	struct i2c_msg msg;
 	u8 buf[2];
+
 	buf[0] = reg;
 	buf[1] = val;
 	msg.addr = AD5823_VCM_ADDR;
@@ -98,6 +99,7 @@ static int ad5823_i2c_read(struct i2c_client *client, u8 reg, u8 *val)
 {
 	struct i2c_msg msg[2];
 	u8 buf[2];
+
 	buf[0] = reg;
 	buf[1] = 0;
 
@@ -211,7 +213,8 @@ static int vcm_dw_i2c_write(struct i2c_client *client, u16 data)
 	return ret == num_msg ? 0 : -EIO;
 }
 
-/* Theory: per datasheet, the two VCMs both allow for a 2-byte read.
+/*
+ * Theory: per datasheet, the two VCMs both allow for a 2-byte read.
  * The DW9714 doesn't actually specify what this does (it has a
  * two-byte write-only protocol, but specifies the read sequence as
  * legal), but it returns the same data (zeroes) always, after an
@@ -222,12 +225,14 @@ static int vcm_dw_i2c_write(struct i2c_client *client, u16 data)
  * these) in AD5823 are not pairwise repetitions of the same 16 bit
  * word.  So all we have to do is sequentially read two bytes at a
  * time and see if we detect a difference in any of the first four
- * pairs.  */
+ * pairs.
+ */
 static int vcm_detect(struct i2c_client *client)
 {
 	int i, ret;
 	struct i2c_msg msg;
 	u16 data0 = 0, data;
+
 	for (i = 0; i < 4; i++) {
 		msg.addr = VCM_ADDR;
 		msg.flags = I2C_M_RD;
@@ -235,8 +240,10 @@ static int vcm_detect(struct i2c_client *client)
 		msg.buf = (u8 *)&data;
 		ret = i2c_transfer(client->adapter, &msg, 1);
 
-		/* DW9714 always fails the first read and returns
-		 * zeroes for subsequent ones */
+		/*
+		 * DW9714 always fails the first read and returns
+		 * zeroes for subsequent ones
+		 */
 		if (i == 0 && ret == -EREMOTEIO) {
 			data0 = 0;
 			continue;
@@ -530,9 +537,11 @@ static long __ov5693_set_exposure(struct v4l2_subdev *sd, int coarse_itg,
 
 	hts = ov5693_res[dev->fmt_idx].pixels_per_line;
 	vts = ov5693_res[dev->fmt_idx].lines_per_frame;
-	/*If coarse_itg is larger than 1<<15, can not write to reg directly.
-	  The way is to write coarse_itg/2 to the reg, meanwhile write 2*hts
-	  to the reg. */
+	/*
+	 * If coarse_itg is larger than 1<<15, can not write to reg directly.
+	 * The way is to write coarse_itg/2 to the reg, meanwhile write 2*hts
+	 * to the reg.
+	 */
 	if (coarse_itg > (1 << 15)) {
 		hts = hts * 2;
 		coarse_itg = (int)coarse_itg / 2;
@@ -690,6 +699,7 @@ static long ov5693_s_exposure(struct v4l2_subdev *sd,
 	/* we should not accept the invalid value below */
 	if (analog_gain == 0) {
 		struct i2c_client *client = v4l2_get_subdevdata(sd);
+
 		v4l2_err(client, "%s: invalid value\n", __func__);
 		return -EINVAL;
 	}
@@ -722,6 +732,7 @@ static int __ov5693_otp_read(struct v4l2_subdev *sd, u8 *buf)
 	int ret;
 	int i;
 	u8 *b = buf;
+
 	dev->otp_size = 0;
 	for (i = 1; i < OV5693_OTP_BANK_MAX; i++) {
 		/*set bank NO and OTP read mode. */
@@ -753,7 +764,7 @@ static int __ov5693_otp_read(struct v4l2_subdev *sd, u8 *buf)
 		//pr_debug("BANK[%2d] %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n", i, *b, *(b+1), *(b+2), *(b+3), *(b+4), *(b+5), *(b+6), *(b+7), *(b+8), *(b+9), *(b+10), *(b+11), *(b+12), *(b+13), *(b+14), *(b+15));
 
 		//Intel OTP map, try to read 320byts first.
-		if (21 == i) {
+		if (i == 21) {
 			if ((*b) == 0) {
 				dev->otp_size = 320;
 				break;
@@ -761,15 +772,15 @@ static int __ov5693_otp_read(struct v4l2_subdev *sd, u8 *buf)
 				b = buf;
 				continue;
 			}
-		} else if (24 == i) {		//if the first 320bytes data doesn't not exist, try to read the next 32bytes data.
+		} else if (i == 24) {		//if the first 320bytes data doesn't not exist, try to read the next 32bytes data.
 			if ((*b) == 0) {
 				dev->otp_size = 32;
 				break;
-		} else {
+			} else {
 				b = buf;
 				continue;
 			}
-		} else if (27 == i) {		//if the prvious 32bytes data doesn't exist, try to read the next 32bytes data again.
+		} else if (i == 27) {		//if the prvious 32bytes data doesn't exist, try to read the next 32bytes data again.
 			if ((*b) == 0) {
 				dev->otp_size = 32;
 				break;
@@ -875,8 +886,10 @@ static long ov5693_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	return 0;
 }
 
-/* This returns the exposure time being used. This should only be used
-   for filling in EXIF data, not for actual image processing. */
+/*
+ * This returns the exposure time being used. This should only be used
+ * for filling in EXIF data, not for actual image processing.
+ */
 static int ov5693_q_exposure(struct v4l2_subdev *sd, s32 *value)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -973,7 +986,7 @@ static int ov5693_t_focus_abs(struct v4l2_subdev *sd, s32 value)
 	if (ret == 0) {
 		dev->number_of_steps = value - dev->focus;
 		dev->focus = value;
-		getnstimeofday(&(dev->timestamp_t_focus_abs));
+		dev->timestamp_t_focus_abs = ktime_get();
 	} else
 		dev_err(&client->dev,
 			"%s: i2c failed. ret %d\n", __func__, ret);
@@ -984,6 +997,7 @@ static int ov5693_t_focus_abs(struct v4l2_subdev *sd, s32 value)
 static int ov5693_t_focus_rel(struct v4l2_subdev *sd, s32 value)
 {
 	struct ov5693_device *dev = to_ov5693_sensor(sd);
+
 	return ov5693_t_focus_abs(sd, dev->focus + value);
 }
 
@@ -993,16 +1007,13 @@ static int ov5693_q_focus_status(struct v4l2_subdev *sd, s32 *value)
 {
 	u32 status = 0;
 	struct ov5693_device *dev = to_ov5693_sensor(sd);
-	struct timespec temptime;
-	const struct timespec timedelay = {
-		0,
-		min((u32)abs(dev->number_of_steps) * DELAY_PER_STEP_NS,
-		(u32)DELAY_MAX_PER_STEP_NS),
-	};
+	ktime_t temptime;
+	ktime_t timedelay = ns_to_ktime(min_t(u32,
+			abs(dev->number_of_steps) * DELAY_PER_STEP_NS,
+			DELAY_MAX_PER_STEP_NS));
 
-	getnstimeofday(&temptime);
-	temptime = timespec_sub(temptime, (dev->timestamp_t_focus_abs));
-	if (timespec_compare(&temptime, &timedelay) <= 0) {
+	temptime = ktime_sub(ktime_get(), (dev->timestamp_t_focus_abs));
+	if (ktime_compare(temptime, timedelay) <= 0) {
 		status |= ATOMISP_FOCUS_STATUS_MOVING;
 		status |= ATOMISP_FOCUS_HP_IN_PROGRESS;
 	} else {
@@ -1033,6 +1044,7 @@ static int ov5693_q_focus_abs(struct v4l2_subdev *sd, s32 *value)
 static int ov5693_t_vcm_slew(struct v4l2_subdev *sd, s32 value)
 {
 	struct ov5693_device *dev = to_ov5693_sensor(sd);
+
 	dev->number_of_steps = value;
 	dev->vcm_update = true;
 	return 0;
@@ -1041,6 +1053,7 @@ static int ov5693_t_vcm_slew(struct v4l2_subdev *sd, s32 value)
 static int ov5693_t_vcm_timing(struct v4l2_subdev *sd, s32 value)
 {
 	struct ov5693_device *dev = to_ov5693_sensor(sd);
+
 	dev->number_of_steps = value;
 	dev->vcm_update = true;
 	return 0;
@@ -1293,11 +1306,13 @@ static int power_ctrl(struct v4l2_subdev *sd, bool flag)
 	if (!dev || !dev->platform_data)
 		return -ENODEV;
 
-	/* This driver assumes "internal DVDD, PWDNB tied to DOVDD".
+	/*
+	 * This driver assumes "internal DVDD, PWDNB tied to DOVDD".
 	 * In this set up only gpio0 (XSHUTDN) should be available
 	 * but in some products (for example ECS) gpio1 (PWDNB) is
 	 * also available. If gpio1 is available we emulate it being
-	 * tied to DOVDD here. */
+	 * tied to DOVDD here.
+	 */
 	if (flag) {
 		ret = dev->platform_data->v2p8_ctrl(sd, 1);
 		dev->platform_data->gpio1_ctrl(sd, 1);
@@ -1333,7 +1348,7 @@ static int __power_up(struct v4l2_subdev *sd)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
 
-	if (NULL == dev->platform_data) {
+	if (!dev->platform_data) {
 		dev_err(&client->dev,
 			"no camera_sensor_platform_data");
 		return -ENODEV;
@@ -1381,7 +1396,7 @@ static int power_down(struct v4l2_subdev *sd)
 	int ret = 0;
 
 	dev->focus = OV5693_INVALID_CONFIG;
-	if (NULL == dev->platform_data) {
+	if (!dev->platform_data) {
 		dev_err(&client->dev,
 			"no camera_sensor_platform_data");
 		return -ENODEV;
@@ -1563,6 +1578,7 @@ static int ov5693_set_fmt(struct v4l2_subdev *sd,
 	struct camera_mipi_info *ov5693_info = NULL;
 	int ret = 0;
 	int idx;
+
 	if (format->pad)
 		return -EINVAL;
 	if (!fmt)
@@ -1599,6 +1615,7 @@ static int ov5693_set_fmt(struct v4l2_subdev *sd,
 	ret = startup(sd);
 	if (ret) {
 		int i = 0;
+
 		dev_err(&client->dev, "ov5693 startup err, retry to power up\n");
 		for (i = 0; i < OV5693_POWER_UP_RETRY_NUM; i++) {
 			dev_err(&client->dev,
@@ -1655,6 +1672,7 @@ static int ov5693_get_fmt(struct v4l2_subdev *sd,
 {
 	struct v4l2_mbus_framefmt *fmt = &format->format;
 	struct ov5693_device *dev = to_ov5693_sensor(sd);
+
 	if (format->pad)
 		return -EINVAL;
 
@@ -1818,6 +1836,7 @@ static int ov5693_s_parm(struct v4l2_subdev *sd,
 			struct v4l2_streamparm *param)
 {
 	struct ov5693_device *dev = to_ov5693_sensor(sd);
+
 	dev->run_mode = param->parm.capture.capturemode;
 
 	mutex_lock(&dev->input_lock);
@@ -1907,6 +1926,7 @@ static int ov5693_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov5693_device *dev = to_ov5693_sensor(sd);
+
 	dev_dbg(&client->dev, "ov5693_remove...\n");
 
 	dev->platform_data->csi_cfg(sd, 0);
@@ -1928,13 +1948,14 @@ static int ov5693_probe(struct i2c_client *client)
 	int i2c;
 	int ret = 0;
 	void *pdata = client->dev.platform_data;
-	struct acpi_device *adev;
 	unsigned int i;
 
-	/* Firmware workaround: Some modules use a "secondary default"
+	/*
+	 * Firmware workaround: Some modules use a "secondary default"
 	 * address of 0x10 which doesn't appear on schematics, and
 	 * some BIOS versions haven't gotten the memo.  Work around
-	 * via config. */
+	 * via config.
+	 */
 	i2c = gmin_get_var_int(&client->dev, "I2CAddr", -1);
 	if (i2c != -1) {
 		dev_info(&client->dev,
@@ -1952,14 +1973,9 @@ static int ov5693_probe(struct i2c_client *client)
 	dev->fmt_idx = 0;
 	v4l2_i2c_subdev_init(&(dev->sd), client, &ov5693_ops);
 
-	adev = ACPI_COMPANION(&client->dev);
-	if (adev) {
-		adev->power.flags.power_resources = 0;
-		pdata = gmin_camera_platform_data(&dev->sd,
-						  ATOMISP_INPUT_FORMAT_RAW_10,
-						  atomisp_bayer_order_bggr);
-	}
-
+	pdata = gmin_camera_platform_data(&dev->sd,
+					  ATOMISP_INPUT_FORMAT_RAW_10,
+					  atomisp_bayer_order_bggr);
 	if (!pdata)
 		goto out_free;
 

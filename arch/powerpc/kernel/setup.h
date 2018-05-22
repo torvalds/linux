@@ -51,6 +51,10 @@ void record_spr_defaults(void);
 static inline void record_spr_defaults(void) { };
 #endif
 
+#ifdef CONFIG_PPC64
+u64 ppc64_bolted_size(void);
+#endif
+
 /*
  * Having this in kvm_ppc.h makes include dependencies too
  * tricky to solve for setup-common.c so have it here.

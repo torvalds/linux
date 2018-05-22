@@ -107,8 +107,16 @@
 #define CRYPTO_ALG_INTERNAL		0x00002000
 
 /*
+ * Set if the algorithm has a ->setkey() method but can be used without
+ * calling it first, i.e. there is a default key.
+ */
+#define CRYPTO_ALG_OPTIONAL_KEY		0x00004000
+
+/*
  * Transform masks and values (for crt_flags).
  */
+#define CRYPTO_TFM_NEED_KEY		0x00000001
+
 #define CRYPTO_TFM_REQ_MASK		0x000fff00
 #define CRYPTO_TFM_RES_MASK		0xfff00000
 
@@ -447,7 +455,7 @@ struct crypto_alg {
 	unsigned int cra_alignmask;
 
 	int cra_priority;
-	atomic_t cra_refcnt;
+	refcount_t cra_refcnt;
 
 	char cra_name[CRYPTO_MAX_ALG_NAME];
 	char cra_driver_name[CRYPTO_MAX_ALG_NAME];

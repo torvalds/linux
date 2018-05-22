@@ -60,6 +60,6 @@
  * oscillator so this one is let enabled.
  */
 
-&cpm_rtc {
+&cp0_rtc {
 	status = "disabled";
 };

@@ -137,7 +137,7 @@ inline u32 i40iw_rd32(struct i40iw_hw *hw, u32 reg)
 }
 
 /**
- * i40iw_inetaddr_event - system notifier for netdev events
+ * i40iw_inetaddr_event - system notifier for ipv4 addr events
  * @notfier: not used
  * @event: event for notifier
  * @ptr: if address
@@ -200,7 +200,7 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 }
 
 /**
- * i40iw_inet6addr_event - system notifier for ipv6 netdev events
+ * i40iw_inet6addr_event - system notifier for ipv6 addr events
  * @notfier: not used
  * @event: event for notifier
  * @ptr: if address
@@ -252,7 +252,7 @@ int i40iw_inet6addr_event(struct notifier_block *notifier,
 }
 
 /**
- * i40iw_net_event - system notifier for net events
+ * i40iw_net_event - system notifier for netevents
  * @notfier: not used
  * @event: event for notifier
  * @ptr: neighbor
@@ -289,6 +289,50 @@ int i40iw_net_event(struct notifier_block *notifier, unsigned long event, void *
 					       false,
 					       I40IW_ARP_DELETE);
 		}
+		break;
+	default:
+		break;
+	}
+	return NOTIFY_DONE;
+}
+
+/**
+ * i40iw_netdevice_event - system notifier for netdev events
+ * @notfier: not used
+ * @event: event for notifier
+ * @ptr: netdev
+ */
+int i40iw_netdevice_event(struct notifier_block *notifier,
+			  unsigned long event,
+			  void *ptr)
+{
+	struct net_device *event_netdev;
+	struct net_device *netdev;
+	struct i40iw_device *iwdev;
+	struct i40iw_handler *hdl;
+
+	event_netdev = netdev_notifier_info_to_dev(ptr);
+
+	hdl = i40iw_find_netdev(event_netdev);
+	if (!hdl)
+		return NOTIFY_DONE;
+
+	iwdev = &hdl->device;
+	if (iwdev->init_state < RDMA_DEV_REGISTERED || iwdev->closing)
+		return NOTIFY_DONE;
+
+	netdev = iwdev->ldev->netdev;
+	if (netdev != event_netdev)
+		return NOTIFY_DONE;
+
+	iwdev->iw_status = 1;
+
+	switch (event) {
+	case NETDEV_DOWN:
+		iwdev->iw_status = 0;
+		/* Fall through */
+	case NETDEV_UP:
+		i40iw_port_ibevent(iwdev);
 		break;
 	default:
 		break;

@@ -263,6 +263,9 @@ static void ieee80211_restart_work(struct work_struct *work)
 	flush_delayed_work(&local->roc_work);
 	flush_work(&local->hw_roc_done);
 
+	/* wait for all packet processing to be done */
+	synchronize_net();
+
 	ieee80211_reconfig(local);
 	rtnl_unlock();
 }

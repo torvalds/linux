@@ -444,7 +444,6 @@ static int nvmem_setup_compat(struct nvmem_device *nvmem,
 struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 {
 	struct nvmem_device *nvmem;
-	struct device_node *np;
 	int rval;
 
 	if (!config->dev)
@@ -464,8 +463,8 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	nvmem->owner = config->owner;
 	if (!nvmem->owner && config->dev->driver)
 		nvmem->owner = config->dev->driver->owner;
-	nvmem->stride = config->stride;
-	nvmem->word_size = config->word_size;
+	nvmem->stride = config->stride ?: 1;
+	nvmem->word_size = config->word_size ?: 1;
 	nvmem->size = config->size;
 	nvmem->dev.type = &nvmem_provider_type;
 	nvmem->dev.bus = &nvmem_bus_type;
@@ -473,13 +472,12 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	nvmem->priv = config->priv;
 	nvmem->reg_read = config->reg_read;
 	nvmem->reg_write = config->reg_write;
-	np = config->dev->of_node;
-	nvmem->dev.of_node = np;
+	nvmem->dev.of_node = config->dev->of_node;
 	dev_set_name(&nvmem->dev, "%s%d",
 		     config->name ? : "nvmem",
 		     config->name ? config->id : nvmem->id);
 
-	nvmem->read_only = of_property_read_bool(np, "read-only") |
+	nvmem->read_only = device_property_present(config->dev, "read-only") |
 			   config->read_only;
 
 	if (config->root_only)
@@ -600,16 +598,11 @@ static void __nvmem_device_put(struct nvmem_device *nvmem)
 	mutex_unlock(&nvmem_mutex);
 }
 
-static int nvmem_match(struct device *dev, void *data)
-{
-	return !strcmp(dev_name(dev), data);
-}
-
 static struct nvmem_device *nvmem_find(const char *name)
 {
 	struct device *d;
 
-	d = bus_find_device(&nvmem_bus_type, NULL, (void *)name, nvmem_match);
+	d = bus_find_device_by_name(&nvmem_bus_type, NULL, name);
 
 	if (!d)
 		return NULL;

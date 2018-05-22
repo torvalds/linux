@@ -29,10 +29,10 @@
 #include <linux/hardirq.h>
 #include <asm/div64.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "drxk.h"
 #include "drxk_hard.h"
-#include "dvb_math.h"
+#include <media/dvb_math.h>
 
 static int power_down_dvbt(struct drxk_state *state, bool set_power_mode);
 static int power_down_qam(struct drxk_state *state);
@@ -6062,7 +6062,7 @@ static int init_drxk(struct drxk_state *state)
 	u16 driver_version;
 
 	dprintk(1, "\n");
-	if ((state->m_drxk_state == DRXK_UNINITIALIZED)) {
+	if (state->m_drxk_state == DRXK_UNINITIALIZED) {
 		drxk_i2c_lock(state);
 		status = power_up_device(state);
 		if (status < 0)

@@ -306,19 +306,19 @@
 			label = "xloader";
 			reg = <0 0x80000>;
 		};
-		partition@0x80000 {
+		partition@80000 {
 			label = "uboot";
 			reg = <0x80000 0x1e0000>;
 		};
-		partition@0x260000 {
+		partition@260000 {
 			label = "uboot environment";
 			reg = <0x260000 0x40000>;
 		};
-		partition@0x2a0000 {
+		partition@2a0000 {
 			label = "linux";
 			reg = <0x2a0000 0x400000>;
 		};
-		partition@0x6a0000 {
+		partition@6a0000 {
 			label = "rootfs";
 			reg = <0x6a0000 0x1f880000>;
 		};

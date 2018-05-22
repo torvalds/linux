@@ -462,7 +462,7 @@ static void sbq_wake_up(struct sbitmap_queue *sbq)
 		 */
 		atomic_cmpxchg(&ws->wait_cnt, wait_cnt, wait_cnt + wake_batch);
 		sbq_index_atomic_inc(&sbq->wake_index);
-		wake_up(&ws->wait);
+		wake_up_nr(&ws->wait, wake_batch);
 	}
 }
 

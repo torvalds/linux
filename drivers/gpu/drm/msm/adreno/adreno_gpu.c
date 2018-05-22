@@ -17,10 +17,10 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/pm_opp.h>
 #include "adreno_gpu.h"
 #include "msm_gem.h"
 #include "msm_mmu.h"
-
 
 int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value)
 {
@@ -461,8 +461,78 @@ void adreno_wait_ring(struct msm_ringbuffer *ring, uint32_t ndwords)
 {
 	if (spin_until(ring_freewords(ring) >= ndwords))
 		DRM_DEV_ERROR(ring->gpu->dev->dev,
-			"timeout waiting for space in ringubffer %d\n",
+			"timeout waiting for space in ringbuffer %d\n",
 			ring->id);
+}
+
+/* Get legacy powerlevels from qcom,gpu-pwrlevels and populate the opp table */
+static int adreno_get_legacy_pwrlevels(struct device *dev)
+{
+	struct device_node *child, *node;
+	int ret;
+
+	node = of_find_compatible_node(dev->of_node, NULL,
+		"qcom,gpu-pwrlevels");
+	if (!node) {
+		dev_err(dev, "Could not find the GPU powerlevels\n");
+		return -ENXIO;
+	}
+
+	for_each_child_of_node(node, child) {
+		unsigned int val;
+
+		ret = of_property_read_u32(child, "qcom,gpu-freq", &val);
+		if (ret)
+			continue;
+
+		/*
+		 * Skip the intentionally bogus clock value found at the bottom
+		 * of most legacy frequency tables
+		 */
+		if (val != 27000000)
+			dev_pm_opp_add(dev, val, 0);
+	}
+
+	return 0;
+}
+
+static int adreno_get_pwrlevels(struct device *dev,
+		struct msm_gpu *gpu)
+{
+	unsigned long freq = ULONG_MAX;
+	struct dev_pm_opp *opp;
+	int ret;
+
+	gpu->fast_rate = 0;
+
+	/* You down with OPP? */
+	if (!of_find_property(dev->of_node, "operating-points-v2", NULL))
+		ret = adreno_get_legacy_pwrlevels(dev);
+	else {
+		ret = dev_pm_opp_of_add_table(dev);
+		if (ret)
+			dev_err(dev, "Unable to set the OPP table\n");
+	}
+
+	if (!ret) {
+		/* Find the fastest defined rate */
+		opp = dev_pm_opp_find_freq_floor(dev, &freq);
+		if (!IS_ERR(opp)) {
+			gpu->fast_rate = freq;
+			dev_pm_opp_put(opp);
+		}
+	}
+
+	if (!gpu->fast_rate) {
+		dev_warn(dev,
+			"Could not find a clock rate. Using a reasonable default\n");
+		/* Pick a suitably safe clock speed for any target */
+		gpu->fast_rate = 200000000;
+	}
+
+	DBG("fast_rate=%u, slow_rate=27000000", gpu->fast_rate);
+
+	return 0;
 }
 
 int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
@@ -479,15 +549,6 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	adreno_gpu->revn = adreno_gpu->info->revn;
 	adreno_gpu->rev = config->rev;
 
-	gpu->fast_rate = config->fast_rate;
-	gpu->bus_freq  = config->bus_freq;
-#ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
-	gpu->bus_scale_table = config->bus_scale_table;
-#endif
-
-	DBG("fast_rate=%u, slow_rate=27000000, bus_freq=%u",
-			gpu->fast_rate, gpu->bus_freq);
-
 	adreno_gpu_config.ioname = "kgsl_3d0_reg_memory";
 	adreno_gpu_config.irqname = "kgsl_3d0_irq";
 
@@ -495,6 +556,8 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	adreno_gpu_config.va_end = 0xffffffff;
 
 	adreno_gpu_config.nr_rings = nr_rings;
+
+	adreno_get_pwrlevels(&pdev->dev, gpu);
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, DRM_MSM_INACTIVE_PERIOD);
 	pm_runtime_use_autosuspend(&pdev->dev);

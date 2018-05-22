@@ -72,8 +72,7 @@
  * struct cros_ec_spi - information about a SPI-connected EC
  *
  * @spi: SPI device we are connected to
- * @last_transfer_ns: time that we last finished a transfer, or 0 if there
- *	if no record
+ * @last_transfer_ns: time that we last finished a transfer.
  * @start_of_msg_delay: used to set the delay_usecs on the spi_transfer that
  *      is sent when we want to turn on CS at the start of a transaction.
  * @end_of_msg_delay: used to set the delay_usecs on the spi_transfer that
@@ -379,18 +378,15 @@ static int cros_ec_pkt_xfer_spi(struct cros_ec_device *ec_dev,
 	u8 sum;
 	u8 rx_byte;
 	int ret = 0, final_ret;
+	unsigned long delay;
 
 	len = cros_ec_prepare_tx(ec_dev, ec_msg);
 	dev_dbg(ec_dev->dev, "prepared, len=%d\n", len);
 
 	/* If it's too soon to do another transaction, wait */
-	if (ec_spi->last_transfer_ns) {
-		unsigned long delay;	/* The delay completed so far */
-
-		delay = ktime_get_ns() - ec_spi->last_transfer_ns;
-		if (delay < EC_SPI_RECOVERY_TIME_NS)
-			ndelay(EC_SPI_RECOVERY_TIME_NS - delay);
-	}
+	delay = ktime_get_ns() - ec_spi->last_transfer_ns;
+	if (delay < EC_SPI_RECOVERY_TIME_NS)
+		ndelay(EC_SPI_RECOVERY_TIME_NS - delay);
 
 	rx_buf = kzalloc(len, GFP_KERNEL);
 	if (!rx_buf)
@@ -509,18 +505,15 @@ static int cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
 	u8 rx_byte;
 	int sum;
 	int ret = 0, final_ret;
+	unsigned long delay;
 
 	len = cros_ec_prepare_tx(ec_dev, ec_msg);
 	dev_dbg(ec_dev->dev, "prepared, len=%d\n", len);
 
 	/* If it's too soon to do another transaction, wait */
-	if (ec_spi->last_transfer_ns) {
-		unsigned long delay;	/* The delay completed so far */
-
-		delay = ktime_get_ns() - ec_spi->last_transfer_ns;
-		if (delay < EC_SPI_RECOVERY_TIME_NS)
-			ndelay(EC_SPI_RECOVERY_TIME_NS - delay);
-	}
+	delay = ktime_get_ns() - ec_spi->last_transfer_ns;
+	if (delay < EC_SPI_RECOVERY_TIME_NS)
+		ndelay(EC_SPI_RECOVERY_TIME_NS - delay);
 
 	rx_buf = kzalloc(len, GFP_KERNEL);
 	if (!rx_buf)

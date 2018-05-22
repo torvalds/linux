@@ -31,7 +31,7 @@
 #include <media/v4l2-common.h>
 
 #include <media/drv-intf/cx25840.h>
-#include "dvb-usb-ids.h"
+#include <media/dvb-usb-ids.h>
 #include "xc5000.h"
 #include "tda18271.h"
 
@@ -896,6 +896,32 @@ struct cx231xx_board cx231xx_boards[] = {
 			},
 		},
 	},
+	[CX231XX_BOARD_THE_IMAGING_SOURCE_DFG_USB2_PRO] = {
+		.name = "The Imaging Source DFG/USB2pro",
+		.tuner_type = TUNER_ABSENT,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x0c,
+		.gpio_pin_status_mask = 0x4001000,
+		.norm = V4L2_STD_PAL,
+		.no_alt_vanc = 1,
+		.external_av = 1,
+		.input = {{
+			.type = CX231XX_VMUX_COMPOSITE1,
+			.vmux = CX231XX_VIN_1_1,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_SVIDEO,
+			.vmux = CX231XX_VIN_2_1 |
+				(CX231XX_VIN_2_2 << 8) |
+				CX25840_SVIDEO_ON,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		} },
+	},
 };
 const unsigned int cx231xx_bcount = ARRAY_SIZE(cx231xx_boards);
 
@@ -967,6 +993,8 @@ struct usb_device_id cx231xx_id_table[] = {
 	.driver_info = CX231XX_BOARD_EVROMEDIA_FULL_HYBRID_FULLHD},
 	{USB_DEVICE(0x15f4, 0x0135),
 	.driver_info = CX231XX_BOARD_ASTROMETA_T2HYBRID},
+	{USB_DEVICE(0x199e, 0x8002),
+	 .driver_info = CX231XX_BOARD_THE_IMAGING_SOURCE_DFG_USB2_PRO},
 	{},
 };
 

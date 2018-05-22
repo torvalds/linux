@@ -53,6 +53,8 @@
 #include <rdma/ib_user_cm.h>
 #include <rdma/ib_marshall.h>
 
+#include "core_priv.h"
+
 MODULE_AUTHOR("Libor Michalek");
 MODULE_DESCRIPTION("InfiniBand userspace Connection Manager access");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -104,10 +106,13 @@ struct ib_ucm_event {
 enum {
 	IB_UCM_MAJOR = 231,
 	IB_UCM_BASE_MINOR = 224,
-	IB_UCM_MAX_DEVICES = 32
+	IB_UCM_MAX_DEVICES = RDMA_MAX_PORTS,
+	IB_UCM_NUM_FIXED_MINOR = 32,
+	IB_UCM_NUM_DYNAMIC_MINOR = IB_UCM_MAX_DEVICES - IB_UCM_NUM_FIXED_MINOR,
 };
 
 #define IB_UCM_BASE_DEV MKDEV(IB_UCM_MAJOR, IB_UCM_BASE_MINOR)
+static dev_t dynamic_ucm_dev;
 
 static void ib_ucm_add_one(struct ib_device *device);
 static void ib_ucm_remove_one(struct ib_device *device, void *client_data);
@@ -1130,16 +1135,16 @@ static ssize_t ib_ucm_write(struct file *filp, const char __user *buf,
 	return result;
 }
 
-static unsigned int ib_ucm_poll(struct file *filp,
+static __poll_t ib_ucm_poll(struct file *filp,
 				struct poll_table_struct *wait)
 {
 	struct ib_ucm_file *file = filp->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(filp, &file->poll_wait, wait);
 
 	if (!list_empty(&file->events))
-		mask = POLLIN | POLLRDNORM;
+		mask = EPOLLIN | EPOLLRDNORM;
 
 	return mask;
 }
@@ -1199,7 +1204,6 @@ static int ib_ucm_close(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static DECLARE_BITMAP(overflow_map, IB_UCM_MAX_DEVICES);
 static void ib_ucm_release_dev(struct device *dev)
 {
 	struct ib_ucm_device *ucm_dev;
@@ -1210,10 +1214,7 @@ static void ib_ucm_release_dev(struct device *dev)
 
 static void ib_ucm_free_dev(struct ib_ucm_device *ucm_dev)
 {
-	if (ucm_dev->devnum < IB_UCM_MAX_DEVICES)
-		clear_bit(ucm_dev->devnum, dev_map);
-	else
-		clear_bit(ucm_dev->devnum - IB_UCM_MAX_DEVICES, overflow_map);
+	clear_bit(ucm_dev->devnum, dev_map);
 }
 
 static const struct file_operations ucm_fops = {
@@ -1235,27 +1236,6 @@ static ssize_t show_ibdev(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR(ibdev, S_IRUGO, show_ibdev, NULL);
 
-static dev_t overflow_maj;
-static int find_overflow_devnum(void)
-{
-	int ret;
-
-	if (!overflow_maj) {
-		ret = alloc_chrdev_region(&overflow_maj, 0, IB_UCM_MAX_DEVICES,
-					  "infiniband_cm");
-		if (ret) {
-			pr_err("ucm: couldn't register dynamic device number\n");
-			return ret;
-		}
-	}
-
-	ret = find_first_zero_bit(overflow_map, IB_UCM_MAX_DEVICES);
-	if (ret >= IB_UCM_MAX_DEVICES)
-		return -1;
-
-	return ret;
-}
-
 static void ib_ucm_add_one(struct ib_device *device)
 {
 	int devnum;
@@ -1274,19 +1254,14 @@ static void ib_ucm_add_one(struct ib_device *device)
 	ucm_dev->dev.release = ib_ucm_release_dev;
 
 	devnum = find_first_zero_bit(dev_map, IB_UCM_MAX_DEVICES);
-	if (devnum >= IB_UCM_MAX_DEVICES) {
-		devnum = find_overflow_devnum();
-		if (devnum < 0)
-			goto err;
-
-		ucm_dev->devnum = devnum + IB_UCM_MAX_DEVICES;
-		base = devnum + overflow_maj;
-		set_bit(devnum, overflow_map);
-	} else {
-		ucm_dev->devnum = devnum;
-		base = devnum + IB_UCM_BASE_DEV;
-		set_bit(devnum, dev_map);
-	}
+	if (devnum >= IB_UCM_MAX_DEVICES)
+		goto err;
+	ucm_dev->devnum = devnum;
+	set_bit(devnum, dev_map);
+	if (devnum >= IB_UCM_NUM_FIXED_MINOR)
+		base = dynamic_ucm_dev + devnum - IB_UCM_NUM_FIXED_MINOR;
+	else
+		base = IB_UCM_BASE_DEV + devnum;
 
 	cdev_init(&ucm_dev->cdev, &ucm_fops);
 	ucm_dev->cdev.owner = THIS_MODULE;
@@ -1334,11 +1309,18 @@ static int __init ib_ucm_init(void)
 {
 	int ret;
 
-	ret = register_chrdev_region(IB_UCM_BASE_DEV, IB_UCM_MAX_DEVICES,
+	ret = register_chrdev_region(IB_UCM_BASE_DEV, IB_UCM_NUM_FIXED_MINOR,
 				     "infiniband_cm");
 	if (ret) {
 		pr_err("ucm: couldn't register device number\n");
 		goto error1;
+	}
+
+	ret = alloc_chrdev_region(&dynamic_ucm_dev, 0, IB_UCM_NUM_DYNAMIC_MINOR,
+				  "infiniband_cm");
+	if (ret) {
+		pr_err("ucm: couldn't register dynamic device number\n");
+		goto err_alloc;
 	}
 
 	ret = class_create_file(&cm_class, &class_attr_abi_version.attr);
@@ -1357,7 +1339,9 @@ static int __init ib_ucm_init(void)
 error3:
 	class_remove_file(&cm_class, &class_attr_abi_version.attr);
 error2:
-	unregister_chrdev_region(IB_UCM_BASE_DEV, IB_UCM_MAX_DEVICES);
+	unregister_chrdev_region(dynamic_ucm_dev, IB_UCM_NUM_DYNAMIC_MINOR);
+err_alloc:
+	unregister_chrdev_region(IB_UCM_BASE_DEV, IB_UCM_NUM_FIXED_MINOR);
 error1:
 	return ret;
 }
@@ -1366,9 +1350,8 @@ static void __exit ib_ucm_cleanup(void)
 {
 	ib_unregister_client(&ucm_client);
 	class_remove_file(&cm_class, &class_attr_abi_version.attr);
-	unregister_chrdev_region(IB_UCM_BASE_DEV, IB_UCM_MAX_DEVICES);
-	if (overflow_maj)
-		unregister_chrdev_region(overflow_maj, IB_UCM_MAX_DEVICES);
+	unregister_chrdev_region(IB_UCM_BASE_DEV, IB_UCM_NUM_FIXED_MINOR);
+	unregister_chrdev_region(dynamic_ucm_dev, IB_UCM_NUM_DYNAMIC_MINOR);
 	idr_destroy(&ctx_id_table);
 }
 

@@ -10,10 +10,7 @@ extern unsigned long pcibios_min_io;
 extern unsigned long pcibios_min_mem;
 #define PCIBIOS_MIN_MEM pcibios_min_mem
 
-static inline int pcibios_assign_all_busses(void)
-{
-	return pci_has_flag(PCI_REASSIGN_ALL_RSRC);
-}
+#define pcibios_assign_all_busses()	pci_has_flag(PCI_REASSIGN_ALL_BUS)
 
 #ifdef CONFIG_PCI_DOMAINS
 static inline int pci_proc_domain(struct pci_bus *bus)

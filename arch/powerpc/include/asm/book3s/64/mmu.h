@@ -87,6 +87,9 @@ typedef struct {
 	/* Number of bits in the mm_cpumask */
 	atomic_t active_cpus;
 
+	/* Number of users of the external (Nest) MMU */
+	atomic_t copros;
+
 	/* NPU NMMU context */
 	struct npu_context *npu_context;
 
@@ -107,6 +110,16 @@ typedef struct {
 #endif
 #ifdef CONFIG_SPAPR_TCE_IOMMU
 	struct list_head iommu_group_mem_list;
+#endif
+
+#ifdef CONFIG_PPC_MEM_KEYS
+	/*
+	 * Each bit represents one protection key.
+	 * bit set   -> key allocated
+	 * bit unset -> key available for allocation
+	 */
+	u32 pkey_allocation_map;
+	s16 execute_only_pkey; /* key holding execute-only protection */
 #endif
 } mm_context_t;
 

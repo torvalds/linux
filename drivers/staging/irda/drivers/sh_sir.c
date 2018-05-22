@@ -226,7 +226,7 @@ static u32 sh_sir_find_sclk(struct clk *irda_clk)
 	clk_put(pclk);
 
 	/* IrDA can not set over peripheral_clk */
-	cpufreq_for_each_valid_entry(pos, freq_table) {
+	cpufreq_for_each_valid_entry_idx(pos, freq_table, index) {
 		u32 freq = pos->frequency;
 
 		/* IrDA should not over peripheral_clk */
@@ -236,7 +236,7 @@ static u32 sh_sir_find_sclk(struct clk *irda_clk)
 		tmp = freq % SCLK_BASE;
 		if (tmp < min) {
 			min = tmp;
-			index = pos - freq_table;
+			break;
 		}
 	}
 

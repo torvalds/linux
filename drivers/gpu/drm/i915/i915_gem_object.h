@@ -53,8 +53,9 @@ struct i915_lut_handle {
 
 struct drm_i915_gem_object_ops {
 	unsigned int flags;
-#define I915_GEM_OBJECT_HAS_STRUCT_PAGE BIT(0)
-#define I915_GEM_OBJECT_IS_SHRINKABLE   BIT(1)
+#define I915_GEM_OBJECT_HAS_STRUCT_PAGE	BIT(0)
+#define I915_GEM_OBJECT_IS_SHRINKABLE	BIT(1)
+#define I915_GEM_OBJECT_IS_PROXY	BIT(2)
 
 	/* Interface between the GEM object and its backing storage.
 	 * get_pages() is called once prior to the use of the associated set
@@ -260,6 +261,8 @@ struct drm_i915_gem_object {
 		} userptr;
 
 		unsigned long scratch;
+
+		void *gvt_info;
 	};
 
 	/** for phys allocated objects */
@@ -359,6 +362,12 @@ static inline bool
 i915_gem_object_is_shrinkable(const struct drm_i915_gem_object *obj)
 {
 	return obj->ops->flags & I915_GEM_OBJECT_IS_SHRINKABLE;
+}
+
+static inline bool
+i915_gem_object_is_proxy(const struct drm_i915_gem_object *obj)
+{
+	return obj->ops->flags & I915_GEM_OBJECT_IS_PROXY;
 }
 
 static inline bool

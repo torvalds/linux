@@ -1732,8 +1732,7 @@ static int ci_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 
 	if (0 != result) {
 		smu_data->smc_state_table.GraphicsBootLevel = 0;
-		pr_err("VBIOS did not find boot engine clock value \
-			in dependency table. Using Graphics DPM level 0!");
+		pr_err("VBIOS did not find boot engine clock value in dependency table. Using Graphics DPM level 0!\n");
 		result = 0;
 	}
 
@@ -1743,8 +1742,7 @@ static int ci_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 
 	if (0 != result) {
 		smu_data->smc_state_table.MemoryBootLevel = 0;
-		pr_err("VBIOS did not find boot engine clock value \
-			in dependency table. Using Memory DPM level 0!");
+		pr_err("VBIOS did not find boot engine clock value in dependency table. Using Memory DPM level 0!\n");
 		result = 0;
 	}
 
@@ -2220,10 +2218,7 @@ static int ci_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SclkThrottleLowNotification)
-		&& (hwmgr->gfx_arbiter.sclk_threshold !=
-				data->low_sclk_interrupt_threshold)) {
-		data->low_sclk_interrupt_threshold =
-				hwmgr->gfx_arbiter.sclk_threshold;
+		&& (data->low_sclk_interrupt_threshold != 0)) {
 		low_sclk_interrupt_threshold =
 				data->low_sclk_interrupt_threshold;
 
@@ -2321,6 +2316,7 @@ static int ci_load_smc_ucode(struct pp_hwmgr *hwmgr)
 	cgs_get_firmware_info(hwmgr->device, CGS_UCODE_ID_SMU, &info);
 
 	hwmgr->is_kicker = info.is_kicker;
+	hwmgr->smu_version = info.version;
 	byte_count = info.image_size;
 	src = (uint8_t *)info.kptr;
 	start_addr = info.ucode_start_address;
@@ -2602,9 +2598,9 @@ static int ci_set_mc_special_registers(struct pp_hwmgr *hwmgr,
 					((table->mc_reg_table_entry[k].mc_data[i] & 0xffff0000) >> 16);
 			}
 			j++;
+
 			PP_ASSERT_WITH_CODE((j < SMU7_DISCRETE_MC_REGISTER_ARRAY_SIZE),
 				"Invalid VramInfo table.", return -EINVAL);
-
 			temp_reg = cgs_read_register(hwmgr->device, mmMC_PMG_CMD_MRS);
 			table->mc_reg_address[j].s1 = mmMC_PMG_CMD_MRS;
 			table->mc_reg_address[j].s0 = mmMC_SEQ_PMG_CMD_MRS_LP;
@@ -2617,10 +2613,10 @@ static int ci_set_mc_special_registers(struct pp_hwmgr *hwmgr,
 					table->mc_reg_table_entry[k].mc_data[j] |= 0x100;
 			}
 			j++;
-			PP_ASSERT_WITH_CODE((j <= SMU7_DISCRETE_MC_REGISTER_ARRAY_SIZE),
-				"Invalid VramInfo table.", return -EINVAL);
 
-			if (!data->is_memory_gddr5 && j < SMU7_DISCRETE_MC_REGISTER_ARRAY_SIZE) {
+			if (!data->is_memory_gddr5) {
+				PP_ASSERT_WITH_CODE((j < SMU7_DISCRETE_MC_REGISTER_ARRAY_SIZE),
+					"Invalid VramInfo table.", return -EINVAL);
 				table->mc_reg_address[j].s1 = mmMC_PMG_AUTO_CMD;
 				table->mc_reg_address[j].s0 = mmMC_PMG_AUTO_CMD;
 				for (k = 0; k < table->num_entries; k++) {
@@ -2628,8 +2624,6 @@ static int ci_set_mc_special_registers(struct pp_hwmgr *hwmgr,
 						(table->mc_reg_table_entry[k].mc_data[i] & 0xffff0000) >> 16;
 				}
 				j++;
-				PP_ASSERT_WITH_CODE((j <= SMU7_DISCRETE_MC_REGISTER_ARRAY_SIZE),
-					"Invalid VramInfo table.", return -EINVAL);
 			}
 
 			break;
@@ -2644,8 +2638,6 @@ static int ci_set_mc_special_registers(struct pp_hwmgr *hwmgr,
 					(table->mc_reg_table_entry[k].mc_data[i] & 0x0000ffff);
 			}
 			j++;
-			PP_ASSERT_WITH_CODE((j <= SMU7_DISCRETE_MC_REGISTER_ARRAY_SIZE),
-				"Invalid VramInfo table.", return -EINVAL);
 			break;
 
 		default:

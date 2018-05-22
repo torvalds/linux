@@ -388,11 +388,11 @@ out:
 	return error;
 }
 
-static unsigned int rtas_log_poll(struct file *file, poll_table * wait)
+static __poll_t rtas_log_poll(struct file *file, poll_table * wait)
 {
 	poll_wait(file, &rtas_log_wait, wait);
 	if (rtas_log_size)
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	return 0;
 }
 
@@ -581,7 +581,7 @@ static int __init rtas_init(void)
 	if (!rtas_log_buf)
 		return -ENODEV;
 
-	entry = proc_create("powerpc/rtas/error_log", S_IRUSR, NULL,
+	entry = proc_create("powerpc/rtas/error_log", 0400, NULL,
 			    &proc_rtas_log_operations);
 	if (!entry)
 		printk(KERN_ERR "Failed to create error_log proc entry\n");

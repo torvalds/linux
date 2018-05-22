@@ -293,6 +293,7 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id, void *rsp)
 	phy->phy->minimum_linkrate = dr->pmin_linkrate;
 	phy->phy->maximum_linkrate = dr->pmax_linkrate;
 	phy->phy->negotiated_linkrate = phy->linkrate;
+	phy->phy->enabled = (phy->linkrate != SAS_PHY_DISABLED);
 
  skip:
 	if (new_phy)
@@ -686,7 +687,7 @@ int sas_smp_get_phy_events(struct sas_phy *phy)
 	res = smp_execute_task(dev, req, RPEL_REQ_SIZE,
 			            resp, RPEL_RESP_SIZE);
 
-	if (!res)
+	if (res)
 		goto out;
 
 	phy->invalid_dword_count = scsi_to_u32(&resp[12]);
@@ -695,6 +696,7 @@ int sas_smp_get_phy_events(struct sas_phy *phy)
 	phy->phy_reset_problem_count = scsi_to_u32(&resp[24]);
 
  out:
+	kfree(req);
 	kfree(resp);
 	return res;
 
@@ -1914,7 +1916,8 @@ static void sas_unregister_devs_sas_addr(struct domain_device *parent,
 		sas_port_delete_phy(phy->port, phy->phy);
 		sas_device_set_phy(found, phy->port);
 		if (phy->port->num_phys == 0)
-			sas_port_delete(phy->port);
+			list_add_tail(&phy->port->del_list,
+				&parent->port->sas_port_del_list);
 		phy->port = NULL;
 	}
 }
@@ -2122,7 +2125,7 @@ int sas_ex_revalidate_domain(struct domain_device *port_dev)
 	struct domain_device *dev = NULL;
 
 	res = sas_find_bcast_dev(port_dev, &dev);
-	while (res == 0 && dev) {
+	if (res == 0 && dev) {
 		struct expander_device *ex = &dev->ex_dev;
 		int i = 0, phy_id;
 
@@ -2134,9 +2137,6 @@ int sas_ex_revalidate_domain(struct domain_device *port_dev)
 			res = sas_rediscover(dev, phy_id);
 			i = phy_id + 1;
 		} while (i < ex->num_phys);
-
-		dev = NULL;
-		res = sas_find_bcast_dev(port_dev, &dev);
 	}
 	return res;
 }

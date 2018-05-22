@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,10 +52,9 @@ static acpi_status
 acpi_ut_insert_digit(u64 *accumulated_value, u32 base, int ascii_digit);
 
 static acpi_status
-acpi_ut_strtoul_multiply64(u64 multiplicand, u64 multiplier, u64 *out_product);
+acpi_ut_strtoul_multiply64(u64 multiplicand, u32 base, u64 *out_product);
 
-static acpi_status
-acpi_ut_strtoul_add64(u64 addend1, u64 addend2, u64 *out_sum);
+static acpi_status acpi_ut_strtoul_add64(u64 addend1, u32 digit, u64 *out_sum);
 
 /*******************************************************************************
  *
@@ -357,7 +356,7 @@ acpi_ut_insert_digit(u64 *accumulated_value, u32 base, int ascii_digit)
  * FUNCTION:    acpi_ut_strtoul_multiply64
  *
  * PARAMETERS:  multiplicand            - Current accumulated converted integer
- *              multiplier              - Base/Radix
+ *              base                    - Base/Radix
  *              out_product             - Where the product is returned
  *
  * RETURN:      Status and 64-bit product
@@ -369,33 +368,40 @@ acpi_ut_insert_digit(u64 *accumulated_value, u32 base, int ascii_digit)
  ******************************************************************************/
 
 static acpi_status
-acpi_ut_strtoul_multiply64(u64 multiplicand, u64 multiplier, u64 *out_product)
+acpi_ut_strtoul_multiply64(u64 multiplicand, u32 base, u64 *out_product)
 {
-	u64 val;
+	u64 product;
+	u64 quotient;
 
 	/* Exit if either operand is zero */
 
 	*out_product = 0;
-	if (!multiplicand || !multiplier) {
+	if (!multiplicand || !base) {
 		return (AE_OK);
 	}
 
-	/* Check for 64-bit overflow before the actual multiplication */
-
-	acpi_ut_short_divide(ACPI_UINT64_MAX, (u32)multiplier, &val, NULL);
-	if (multiplicand > val) {
+	/*
+	 * Check for 64-bit overflow before the actual multiplication.
+	 *
+	 * Notes: 64-bit division is often not supported on 32-bit platforms
+	 * (it requires a library function), Therefore ACPICA has a local
+	 * 64-bit divide function. Also, Multiplier is currently only used
+	 * as the radix (8/10/16), to the 64/32 divide will always work.
+	 */
+	acpi_ut_short_divide(ACPI_UINT64_MAX, base, &quotient, NULL);
+	if (multiplicand > quotient) {
 		return (AE_NUMERIC_OVERFLOW);
 	}
 
-	val = multiplicand * multiplier;
+	product = multiplicand * base;
 
 	/* Check for 32-bit overflow if necessary */
 
-	if ((acpi_gbl_integer_bit_width == 32) && (val > ACPI_UINT32_MAX)) {
+	if ((acpi_gbl_integer_bit_width == 32) && (product > ACPI_UINT32_MAX)) {
 		return (AE_NUMERIC_OVERFLOW);
 	}
 
-	*out_product = val;
+	*out_product = product;
 	return (AE_OK);
 }
 
@@ -404,7 +410,7 @@ acpi_ut_strtoul_multiply64(u64 multiplicand, u64 multiplier, u64 *out_product)
  * FUNCTION:    acpi_ut_strtoul_add64
  *
  * PARAMETERS:  addend1                 - Current accumulated converted integer
- *              addend2                 - New hex value/char
+ *              digit                   - New hex value/char
  *              out_sum                 - Where sum is returned (Accumulator)
  *
  * RETURN:      Status and 64-bit sum
@@ -415,17 +421,17 @@ acpi_ut_strtoul_multiply64(u64 multiplicand, u64 multiplier, u64 *out_product)
  *
  ******************************************************************************/
 
-static acpi_status acpi_ut_strtoul_add64(u64 addend1, u64 addend2, u64 *out_sum)
+static acpi_status acpi_ut_strtoul_add64(u64 addend1, u32 digit, u64 *out_sum)
 {
 	u64 sum;
 
 	/* Check for 64-bit overflow before the actual addition */
 
-	if ((addend1 > 0) && (addend2 > (ACPI_UINT64_MAX - addend1))) {
+	if ((addend1 > 0) && (digit > (ACPI_UINT64_MAX - addend1))) {
 		return (AE_NUMERIC_OVERFLOW);
 	}
 
-	sum = addend1 + addend2;
+	sum = addend1 + digit;
 
 	/* Check for 32-bit overflow if necessary */
 

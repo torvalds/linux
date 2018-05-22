@@ -19,7 +19,6 @@
 #include <linux/irqdomain.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/interrupt.h>
-#include <linux/bitops.h>
 
 enum gio_reg_index {
 	GIO_REG_ODEN = 0,

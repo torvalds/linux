@@ -64,6 +64,13 @@ static void wakeup_timer_fn(struct timer_list *t)
 		adapter->if_ops.card_reset(adapter);
 }
 
+static void fw_dump_timer_fn(struct timer_list *t)
+{
+	struct mwifiex_adapter *adapter = from_timer(adapter, t, devdump_timer);
+
+	mwifiex_upload_device_dump(adapter);
+}
+
 /*
  * This function initializes the private structure and sets default
  * values to the members.
@@ -314,6 +321,8 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	adapter->iface_limit.p2p_intf = MWIFIEX_MAX_P2P_NUM;
 	adapter->active_scan_triggered = false;
 	timer_setup(&adapter->wakeup_timer, wakeup_timer_fn, 0);
+	adapter->devdump_len = 0;
+	timer_setup(&adapter->devdump_timer, fw_dump_timer_fn, 0);
 }
 
 /*
@@ -396,6 +405,7 @@ static void
 mwifiex_adapter_cleanup(struct mwifiex_adapter *adapter)
 {
 	del_timer(&adapter->wakeup_timer);
+	del_timer_sync(&adapter->devdump_timer);
 	mwifiex_cancel_all_pending_cmd(adapter);
 	wake_up_interruptible(&adapter->cmd_wait_q.wait);
 	wake_up_interruptible(&adapter->hs_activate_wait_q);

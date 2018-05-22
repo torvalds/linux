@@ -364,32 +364,41 @@ static u8 count_vectors(void *bitmap)
 	return count;
 }
 
-int __kvm_apic_update_irr(u32 *pir, void *regs)
+bool __kvm_apic_update_irr(u32 *pir, void *regs, int *max_irr)
 {
 	u32 i, vec;
-	u32 pir_val, irr_val;
-	int max_irr = -1;
+	u32 pir_val, irr_val, prev_irr_val;
+	int max_updated_irr;
+
+	max_updated_irr = -1;
+	*max_irr = -1;
 
 	for (i = vec = 0; i <= 7; i++, vec += 32) {
 		pir_val = READ_ONCE(pir[i]);
 		irr_val = *((u32 *)(regs + APIC_IRR + i * 0x10));
 		if (pir_val) {
+			prev_irr_val = irr_val;
 			irr_val |= xchg(&pir[i], 0);
 			*((u32 *)(regs + APIC_IRR + i * 0x10)) = irr_val;
+			if (prev_irr_val != irr_val) {
+				max_updated_irr =
+					__fls(irr_val ^ prev_irr_val) + vec;
+			}
 		}
 		if (irr_val)
-			max_irr = __fls(irr_val) + vec;
+			*max_irr = __fls(irr_val) + vec;
 	}
 
-	return max_irr;
+	return ((max_updated_irr != -1) &&
+		(max_updated_irr == *max_irr));
 }
 EXPORT_SYMBOL_GPL(__kvm_apic_update_irr);
 
-int kvm_apic_update_irr(struct kvm_vcpu *vcpu, u32 *pir)
+bool kvm_apic_update_irr(struct kvm_vcpu *vcpu, u32 *pir, int *max_irr)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
 
-	return __kvm_apic_update_irr(pir, apic->regs);
+	return __kvm_apic_update_irr(pir, apic->regs, max_irr);
 }
 EXPORT_SYMBOL_GPL(kvm_apic_update_irr);
 
@@ -581,7 +590,7 @@ static void pv_eoi_clr_pending(struct kvm_vcpu *vcpu)
 static int apic_has_interrupt_for_ppr(struct kvm_lapic *apic, u32 ppr)
 {
 	int highest_irr;
-	if (kvm_x86_ops->sync_pir_to_irr && apic->vcpu->arch.apicv_active)
+	if (apic->vcpu->arch.apicv_active)
 		highest_irr = kvm_x86_ops->sync_pir_to_irr(apic->vcpu);
 	else
 		highest_irr = apic_find_highest_irr(apic);
@@ -1993,14 +2002,13 @@ void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value)
 
 void kvm_lapic_reset(struct kvm_vcpu *vcpu, bool init_event)
 {
-	struct kvm_lapic *apic;
+	struct kvm_lapic *apic = vcpu->arch.apic;
 	int i;
 
-	apic_debug("%s\n", __func__);
+	if (!apic)
+		return;
 
-	ASSERT(vcpu);
-	apic = vcpu->arch.apic;
-	ASSERT(apic != NULL);
+	apic_debug("%s\n", __func__);
 
 	/* Stop the timer in case it's a reset to an active apic */
 	hrtimer_cancel(&apic->lapic_timer.timer);
@@ -2156,7 +2164,6 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu)
 	 */
 	vcpu->arch.apic_base = MSR_IA32_APICBASE_ENABLE;
 	static_key_slow_inc(&apic_sw_disabled.key); /* sw disabled at reset */
-	kvm_lapic_reset(vcpu, false);
 	kvm_iodevice_init(&apic->dev, &apic_mmio_ops);
 
 	return 0;
@@ -2560,7 +2567,6 @@ void kvm_apic_accept_events(struct kvm_vcpu *vcpu)
 
 	pe = xchg(&apic->pending_events, 0);
 	if (test_bit(KVM_APIC_INIT, &pe)) {
-		kvm_lapic_reset(vcpu, true);
 		kvm_vcpu_reset(vcpu, true);
 		if (kvm_vcpu_is_bsp(apic->vcpu))
 			vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;

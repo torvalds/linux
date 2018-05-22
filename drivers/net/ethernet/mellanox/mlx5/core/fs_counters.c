@@ -312,6 +312,12 @@ void mlx5_cleanup_fc_stats(struct mlx5_core_dev *dev)
 	}
 }
 
+int mlx5_fc_query(struct mlx5_core_dev *dev, u16 id,
+		  u64 *packets, u64 *bytes)
+{
+	return mlx5_cmd_fc_query(dev, id, packets, bytes);
+}
+
 void mlx5_fc_query_cached(struct mlx5_fc *counter,
 			  u64 *bytes, u64 *packets, u64 *lastuse)
 {

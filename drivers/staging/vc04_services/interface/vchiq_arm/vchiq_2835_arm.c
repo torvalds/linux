@@ -224,8 +224,7 @@ vchiq_platform_get_arm_state(VCHIQ_STATE_T *state)
 
 	platform_state   = (struct vchiq_2835_state *)state->platform_state;
 
-	if (!platform_state->inited)
-		BUG();
+	WARN_ON_ONCE(!platform_state->inited);
 
 	return &platform_state->arm_state;
 }
@@ -485,8 +484,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type)
 				       __func__, actual_pages, num_pages);
 
 			/* This is probably due to the process being killed */
-			while (actual_pages > 0)
-			{
+			while (actual_pages > 0) {
 				actual_pages--;
 				put_page(pages[actual_pages]);
 			}

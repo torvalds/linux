@@ -3513,6 +3513,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 		tmp = r6xx_remap_render_backend(rdev, tmp, rdev->config.evergreen.max_backends,
 						EVERGREEN_MAX_BACKENDS, disabled_rb_mask);
 	}
+	rdev->config.evergreen.backend_map = tmp;
 	WREG32(GB_BACKEND_MAP, tmp);
 
 	WREG32(CGTS_SYS_TCC_DISABLE, 0);

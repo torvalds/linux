@@ -864,7 +864,7 @@ static PyObject *pyrf_evlist__mmap(struct pyrf_evlist *pevlist,
 					 &pages, &overwrite))
 		return NULL;
 
-	if (perf_evlist__mmap(evlist, pages, overwrite) < 0) {
+	if (perf_evlist__mmap(evlist, pages) < 0) {
 		PyErr_SetFromErrno(PyExc_OSError);
 		return NULL;
 	}

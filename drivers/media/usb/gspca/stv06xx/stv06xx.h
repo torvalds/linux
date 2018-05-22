@@ -59,7 +59,7 @@
 
 /* Refers to the CIF 352x288 and QCIF 176x144 */
 /* 1: 288 lines, 2: 144 lines */
-#define STV_Y_CTRL		        0x15c3
+#define STV_Y_CTRL			0x15c3
 
 #define STV_RESET                       0x1620
 

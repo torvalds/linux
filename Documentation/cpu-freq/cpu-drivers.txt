@@ -291,3 +291,7 @@ For example:
 		/* Do something with pos */
 		pos->frequency = ...
 	}
+
+If you need to work with the position of pos within driver_freq_table,
+do not subtract the pointers, as it is quite costly. Instead, use the
+macros cpufreq_for_each_entry_idx() and cpufreq_for_each_valid_entry_idx().

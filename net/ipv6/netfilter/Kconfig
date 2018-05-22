@@ -71,6 +71,14 @@ config NFT_FIB_IPV6
 endif # NF_TABLES_IPV6
 endif # NF_TABLES
 
+config NF_FLOW_TABLE_IPV6
+	tristate "Netfilter flow table IPv6 module"
+	depends on NF_FLOW_TABLE
+	help
+	  This option adds the flow table IPv6 support.
+
+	  To compile it as a module, choose M here.
+
 config NF_DUP_IPV6
 	tristate "Netfilter IPv6 packet duplication to alternate destination"
 	depends on !NF_CONNTRACK || NF_CONNTRACK
@@ -231,6 +239,15 @@ config IP6_NF_MATCH_RT
 	  header of the packet.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
+
+config IP6_NF_MATCH_SRH
+        tristate '"srh" Segment Routing header match support'
+        depends on NETFILTER_ADVANCED
+        help
+          srh matching allows you to match packets based on the segment
+	  routing header of the packet.
+
+          To compile it as a module, choose M here.  If unsure, say N.
 
 # The targets
 config IP6_NF_TARGET_HL

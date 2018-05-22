@@ -82,8 +82,8 @@ TRACE_EVENT(amdgpu_iv,
 			     __field(unsigned, client_id)
 			     __field(unsigned, src_id)
 			     __field(unsigned, ring_id)
-			     __field(unsigned, vm_id)
-			     __field(unsigned, vm_id_src)
+			     __field(unsigned, vmid)
+			     __field(unsigned, vmid_src)
 			     __field(uint64_t, timestamp)
 			     __field(unsigned, timestamp_src)
 			     __field(unsigned, pas_id)
@@ -93,8 +93,8 @@ TRACE_EVENT(amdgpu_iv,
 			   __entry->client_id = iv->client_id;
 			   __entry->src_id = iv->src_id;
 			   __entry->ring_id = iv->ring_id;
-			   __entry->vm_id = iv->vm_id;
-			   __entry->vm_id_src = iv->vm_id_src;
+			   __entry->vmid = iv->vmid;
+			   __entry->vmid_src = iv->vmid_src;
 			   __entry->timestamp = iv->timestamp;
 			   __entry->timestamp_src = iv->timestamp_src;
 			   __entry->pas_id = iv->pas_id;
@@ -103,9 +103,9 @@ TRACE_EVENT(amdgpu_iv,
 			   __entry->src_data[2] = iv->src_data[2];
 			   __entry->src_data[3] = iv->src_data[3];
 			   ),
-	    TP_printk("client_id:%u src_id:%u ring:%u vm_id:%u timestamp: %llu pas_id:%u src_data: %08x %08x %08x %08x\n",
+	    TP_printk("client_id:%u src_id:%u ring:%u vmid:%u timestamp: %llu pas_id:%u src_data: %08x %08x %08x %08x\n",
 		      __entry->client_id, __entry->src_id,
-		      __entry->ring_id, __entry->vm_id,
+		      __entry->ring_id, __entry->vmid,
 		      __entry->timestamp, __entry->pas_id,
 		      __entry->src_data[0], __entry->src_data[1],
 		      __entry->src_data[2], __entry->src_data[3])
@@ -219,7 +219,7 @@ TRACE_EVENT(amdgpu_vm_grab_id,
 	    TP_STRUCT__entry(
 			     __field(struct amdgpu_vm *, vm)
 			     __field(u32, ring)
-			     __field(u32, vm_id)
+			     __field(u32, vmid)
 			     __field(u32, vm_hub)
 			     __field(u64, pd_addr)
 			     __field(u32, needs_flush)
@@ -228,13 +228,13 @@ TRACE_EVENT(amdgpu_vm_grab_id,
 	    TP_fast_assign(
 			   __entry->vm = vm;
 			   __entry->ring = ring->idx;
-			   __entry->vm_id = job->vm_id;
+			   __entry->vmid = job->vmid;
 			   __entry->vm_hub = ring->funcs->vmhub,
 			   __entry->pd_addr = job->vm_pd_addr;
 			   __entry->needs_flush = job->vm_needs_flush;
 			   ),
 	    TP_printk("vm=%p, ring=%u, id=%u, hub=%u, pd_addr=%010Lx needs_flush=%u",
-		      __entry->vm, __entry->ring, __entry->vm_id,
+		      __entry->vm, __entry->ring, __entry->vmid,
 		      __entry->vm_hub, __entry->pd_addr, __entry->needs_flush)
 );
 
@@ -357,24 +357,24 @@ TRACE_EVENT(amdgpu_vm_copy_ptes,
 );
 
 TRACE_EVENT(amdgpu_vm_flush,
-	    TP_PROTO(struct amdgpu_ring *ring, unsigned vm_id,
+	    TP_PROTO(struct amdgpu_ring *ring, unsigned vmid,
 		     uint64_t pd_addr),
-	    TP_ARGS(ring, vm_id, pd_addr),
+	    TP_ARGS(ring, vmid, pd_addr),
 	    TP_STRUCT__entry(
 			     __field(u32, ring)
-			     __field(u32, vm_id)
+			     __field(u32, vmid)
 			     __field(u32, vm_hub)
 			     __field(u64, pd_addr)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->ring = ring->idx;
-			   __entry->vm_id = vm_id;
+			   __entry->vmid = vmid;
 			   __entry->vm_hub = ring->funcs->vmhub;
 			   __entry->pd_addr = pd_addr;
 			   ),
 	    TP_printk("ring=%u, id=%u, hub=%u, pd_addr=%010Lx",
-		      __entry->ring, __entry->vm_id,
+		      __entry->ring, __entry->vmid,
 		      __entry->vm_hub,__entry->pd_addr)
 );
 

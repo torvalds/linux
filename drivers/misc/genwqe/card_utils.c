@@ -524,22 +524,16 @@ int genwqe_free_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl)
 }
 
 /**
- * free_user_pages() - Give pinned pages back
+ * genwqe_free_user_pages() - Give pinned pages back
  *
- * Documentation of get_user_pages is in mm/memory.c:
+ * Documentation of get_user_pages is in mm/gup.c:
  *
  * If the page is written to, set_page_dirty (or set_page_dirty_lock,
  * as appropriate) must be called after the page is finished with, and
  * before put_page is called.
- *
- * FIXME Could be of use to others and might belong in the generic
- * code, if others agree. E.g.
- *    ll_free_user_pages in drivers/staging/lustre/lustre/llite/rw26.c
- *    ceph_put_page_vector in net/ceph/pagevec.c
- *    maybe more?
  */
-static int free_user_pages(struct page **page_list, unsigned int nr_pages,
-			   int dirty)
+static int genwqe_free_user_pages(struct page **page_list,
+			unsigned int nr_pages, int dirty)
 {
 	unsigned int i;
 
@@ -577,7 +571,7 @@ static int free_user_pages(struct page **page_list, unsigned int nr_pages,
  * Return: 0 if success
  */
 int genwqe_user_vmap(struct genwqe_dev *cd, struct dma_mapping *m, void *uaddr,
-		     unsigned long size, struct ddcb_requ *req)
+		     unsigned long size)
 {
 	int rc = -EINVAL;
 	unsigned long data, offs;
@@ -617,7 +611,7 @@ int genwqe_user_vmap(struct genwqe_dev *cd, struct dma_mapping *m, void *uaddr,
 
 	/* assumption: get_user_pages can be killed by signals. */
 	if (rc < m->nr_pages) {
-		free_user_pages(m->page_list, rc, m->write);
+		genwqe_free_user_pages(m->page_list, rc, m->write);
 		rc = -EFAULT;
 		goto fail_get_user_pages;
 	}
@@ -629,7 +623,7 @@ int genwqe_user_vmap(struct genwqe_dev *cd, struct dma_mapping *m, void *uaddr,
 	return 0;
 
  fail_free_user_pages:
-	free_user_pages(m->page_list, m->nr_pages, m->write);
+	genwqe_free_user_pages(m->page_list, m->nr_pages, m->write);
 
  fail_get_user_pages:
 	kfree(m->page_list);
@@ -647,8 +641,7 @@ int genwqe_user_vmap(struct genwqe_dev *cd, struct dma_mapping *m, void *uaddr,
  * @cd:         pointer to genwqe device
  * @m:          mapping params
  */
-int genwqe_user_vunmap(struct genwqe_dev *cd, struct dma_mapping *m,
-		       struct ddcb_requ *req)
+int genwqe_user_vunmap(struct genwqe_dev *cd, struct dma_mapping *m)
 {
 	struct pci_dev *pci_dev = cd->pci_dev;
 
@@ -662,7 +655,7 @@ int genwqe_user_vunmap(struct genwqe_dev *cd, struct dma_mapping *m,
 		genwqe_unmap_pages(cd, m->dma_list, m->nr_pages);
 
 	if (m->page_list) {
-		free_user_pages(m->page_list, m->nr_pages, m->write);
+		genwqe_free_user_pages(m->page_list, m->nr_pages, m->write);
 
 		kfree(m->page_list);
 		m->page_list = NULL;

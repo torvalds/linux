@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/cache.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/pid_namespace.h>
@@ -18,11 +19,10 @@ static const char *proc_thread_self_get_link(struct dentry *dentry,
 
 	if (!pid)
 		return ERR_PTR(-ENOENT);
-	name = kmalloc(PROC_NUMBUF + 6 + PROC_NUMBUF,
-				dentry ? GFP_KERNEL : GFP_ATOMIC);
+	name = kmalloc(10 + 6 + 10 + 1, dentry ? GFP_KERNEL : GFP_ATOMIC);
 	if (unlikely(!name))
 		return dentry ? ERR_PTR(-ENOMEM) : ERR_PTR(-ECHILD);
-	sprintf(name, "%d/task/%d", tgid, pid);
+	sprintf(name, "%u/task/%u", tgid, pid);
 	set_delayed_call(done, kfree_link, name);
 	return name;
 }
@@ -31,7 +31,7 @@ static const struct inode_operations proc_thread_self_inode_operations = {
 	.get_link	= proc_thread_self_get_link,
 };
 
-static unsigned thread_self_inum;
+static unsigned thread_self_inum __ro_after_init;
 
 int proc_setup_thread_self(struct super_block *s)
 {

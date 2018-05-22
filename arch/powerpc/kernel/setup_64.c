@@ -10,8 +10,6 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#define DEBUG
-
 #include <linux/export.h>
 #include <linux/string.h>
 #include <linux/sched.h>
@@ -38,6 +36,7 @@
 #include <linux/memory.h>
 #include <linux/nmi.h>
 
+#include <asm/debugfs.h>
 #include <asm/io.h>
 #include <asm/kdump.h>
 #include <asm/prom.h>
@@ -68,6 +67,7 @@
 #include <asm/livepatch.h>
 #include <asm/opal.h>
 #include <asm/cputhreads.h>
+#include <asm/hw_irq.h>
 
 #include "setup.h"
 
@@ -189,6 +189,8 @@ static void __init fixup_boot_paca(void)
 	get_paca()->cpu_start = 1;
 	/* Allow percpu accesses to work until we setup percpu data */
 	get_paca()->data_offset = 0;
+	/* Mark interrupts disabled in PACA */
+	irq_soft_mask_set(IRQS_DISABLED);
 }
 
 static void __init configure_exceptions(void)
@@ -351,7 +353,7 @@ void __init early_setup(unsigned long dt_ptr)
 void early_setup_secondary(void)
 {
 	/* Mark interrupts disabled in PACA */
-	get_paca()->soft_enabled = 0;
+	irq_soft_mask_set(IRQS_DISABLED);
 
 	/* Initialize the hash table or TLB handling */
 	early_init_mmu_secondary();
@@ -567,25 +569,31 @@ void __init initialize_cache_info(void)
 	DBG(" <- initialize_cache_info()\n");
 }
 
-/* This returns the limit below which memory accesses to the linear
- * mapping are guarnateed not to cause a TLB or SLB miss. This is
- * used to allocate interrupt or emergency stacks for which our
- * exception entry path doesn't deal with being interrupted.
+/*
+ * This returns the limit below which memory accesses to the linear
+ * mapping are guarnateed not to cause an architectural exception (e.g.,
+ * TLB or SLB miss fault).
+ *
+ * This is used to allocate PACAs and various interrupt stacks that
+ * that are accessed early in interrupt handlers that must not cause
+ * re-entrant interrupts.
  */
-static __init u64 safe_stack_limit(void)
+__init u64 ppc64_bolted_size(void)
 {
 #ifdef CONFIG_PPC_BOOK3E
 	/* Freescale BookE bolts the entire linear mapping */
-	if (mmu_has_feature(MMU_FTR_TYPE_FSL_E))
+	/* XXX: BookE ppc64_rma_limit setup seems to disagree? */
+	if (early_mmu_has_feature(MMU_FTR_TYPE_FSL_E))
 		return linear_map_top;
 	/* Other BookE, we assume the first GB is bolted */
 	return 1ul << 30;
 #else
+	/* BookS radix, does not take faults on linear mapping */
 	if (early_radix_enabled())
 		return ULONG_MAX;
 
-	/* BookS, the first segment is bolted */
-	if (mmu_has_feature(MMU_FTR_1T_SEGMENT))
+	/* BookS hash, the first segment is bolted */
+	if (early_mmu_has_feature(MMU_FTR_1T_SEGMENT))
 		return 1UL << SID_SHIFT_1T;
 	return 1UL << SID_SHIFT;
 #endif
@@ -593,7 +601,7 @@ static __init u64 safe_stack_limit(void)
 
 void __init irqstack_early_init(void)
 {
-	u64 limit = safe_stack_limit();
+	u64 limit = ppc64_bolted_size();
 	unsigned int i;
 
 	/*
@@ -678,7 +686,7 @@ void __init emergency_stack_init(void)
 	 * initialized in kernel/irq.c. These are initialized here in order
 	 * to have emergency stacks available as early as possible.
 	 */
-	limit = min(safe_stack_limit(), ppc64_rma_size);
+	limit = min(ppc64_bolted_size(), ppc64_rma_size);
 
 	for_each_possible_cpu(i) {
 		struct thread_info *ti;
@@ -856,7 +864,7 @@ static void init_fallback_flush(void)
 	int cpu;
 
 	l1d_size = ppc64_caches.l1d.size;
-	limit = min(safe_stack_limit(), ppc64_rma_size);
+	limit = min(ppc64_bolted_size(), ppc64_rma_size);
 
 	/*
 	 * Align to L1d size, and size it at 2x L1d size, to catch possible
@@ -867,19 +875,8 @@ static void init_fallback_flush(void)
 	memset(l1d_flush_fallback_area, 0, l1d_size * 2);
 
 	for_each_possible_cpu(cpu) {
-		/*
-		 * The fallback flush is currently coded for 8-way
-		 * associativity. Different associativity is possible, but it
-		 * will be treated as 8-way and may not evict the lines as
-		 * effectively.
-		 *
-		 * 128 byte lines are mandatory.
-		 */
-		u64 c = l1d_size / 8;
-
 		paca[cpu].rfi_flush_fallback_area = l1d_flush_fallback_area;
-		paca[cpu].l1d_flush_congruence = c;
-		paca[cpu].l1d_flush_sets = c / 128;
+		paca[cpu].l1d_flush_size = l1d_size;
 	}
 }
 
@@ -900,5 +897,42 @@ void __init setup_rfi_flush(enum l1d_flush_type types, bool enable)
 
 	if (!no_rfi_flush)
 		rfi_flush_enable(enable);
+}
+
+#ifdef CONFIG_DEBUG_FS
+static int rfi_flush_set(void *data, u64 val)
+{
+	if (val == 1)
+		rfi_flush_enable(true);
+	else if (val == 0)
+		rfi_flush_enable(false);
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static int rfi_flush_get(void *data, u64 *val)
+{
+	*val = rfi_flush ? 1 : 0;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(fops_rfi_flush, rfi_flush_get, rfi_flush_set, "%llu\n");
+
+static __init int rfi_flush_debugfs_init(void)
+{
+	debugfs_create_file("rfi_flush", 0600, powerpc_debugfs_root, NULL, &fops_rfi_flush);
+	return 0;
+}
+device_initcall(rfi_flush_debugfs_init);
+#endif
+
+ssize_t cpu_show_meltdown(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	if (rfi_flush)
+		return sprintf(buf, "Mitigation: RFI Flush\n");
+
+	return sprintf(buf, "Vulnerable\n");
 }
 #endif /* CONFIG_PPC_BOOK3S_64 */

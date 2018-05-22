@@ -104,8 +104,6 @@ struct intel_pt {
 	u64 pwrx_id;
 	u64 cbr_id;
 
-	bool synth_needs_swap;
-
 	u64 tsc_bit;
 	u64 mtc_bit;
 	u64 mtc_freq_bits;
@@ -1101,11 +1099,10 @@ static void intel_pt_prep_b_sample(struct intel_pt *pt,
 }
 
 static int intel_pt_inject_event(union perf_event *event,
-				 struct perf_sample *sample, u64 type,
-				 bool swapped)
+				 struct perf_sample *sample, u64 type)
 {
 	event->header.size = perf_event__sample_event_size(sample, type, 0);
-	return perf_event__synthesize_sample(event, type, 0, sample, swapped);
+	return perf_event__synthesize_sample(event, type, 0, sample);
 }
 
 static inline int intel_pt_opt_inject(struct intel_pt *pt,
@@ -1115,7 +1112,7 @@ static inline int intel_pt_opt_inject(struct intel_pt *pt,
 	if (!pt->synth_opts.inject)
 		return 0;
 
-	return intel_pt_inject_event(event, sample, type, pt->synth_needs_swap);
+	return intel_pt_inject_event(event, sample, type);
 }
 
 static int intel_pt_deliver_synth_b_event(struct intel_pt *pt,
@@ -2328,8 +2325,6 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 		intel_pt_set_event_name(evlist, id, "pwrx");
 		id += 1;
 	}
-
-	pt->synth_needs_swap = evsel->needs_swap;
 
 	return 0;
 }

@@ -84,6 +84,11 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 				if (!page || PageKsm(page))
 					continue;
 
+				/* Also skip shared copy-on-write pages */
+				if (is_cow_mapping(vma->vm_flags) &&
+				    page_mapcount(page) != 1)
+					continue;
+
 				/* Avoid TLB flush if possible */
 				if (pte_protnone(oldpte))
 					continue;

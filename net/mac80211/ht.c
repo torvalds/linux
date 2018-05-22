@@ -492,6 +492,7 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 	case IEEE80211_SMPS_AUTOMATIC:
 	case IEEE80211_SMPS_NUM_MODES:
 		WARN_ON(1);
+		/* fall through */
 	case IEEE80211_SMPS_OFF:
 		action_frame->u.action.u.ht_smps.smps_control =
 				WLAN_HT_SMPS_CONTROL_DISABLED;

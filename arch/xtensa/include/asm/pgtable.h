@@ -12,9 +12,9 @@
 #define _XTENSA_PGTABLE_H
 
 #define __ARCH_USE_5LEVEL_HACK
-#include <asm-generic/pgtable-nopmd.h>
 #include <asm/page.h>
 #include <asm/kmem_layout.h>
+#include <asm-generic/pgtable-nopmd.h>
 
 /*
  * We only use two ring levels, user and kernel space.
@@ -170,6 +170,7 @@
 #define PAGE_SHARED_EXEC \
 	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_WRITABLE | _PAGE_HW_EXEC)
 #define PAGE_KERNEL	   __pgprot(_PAGE_PRESENT | _PAGE_HW_WRITE)
+#define PAGE_KERNEL_RO	   __pgprot(_PAGE_PRESENT)
 #define PAGE_KERNEL_EXEC   __pgprot(_PAGE_PRESENT|_PAGE_HW_WRITE|_PAGE_HW_EXEC)
 
 #if (DCACHE_WAY_SIZE > PAGE_SIZE)

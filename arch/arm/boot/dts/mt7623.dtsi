@@ -641,7 +641,7 @@
 
 	mmc0: mmc@11230000 {
 		compatible = "mediatek,mt7623-mmc",
-			     "mediatek,mt8135-mmc";
+			     "mediatek,mt2701-mmc";
 		reg = <0 0x11230000 0 0x1000>;
 		interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&pericfg CLK_PERI_MSDC30_0>,
@@ -652,7 +652,7 @@
 
 	mmc1: mmc@11240000 {
 		compatible = "mediatek,mt7623-mmc",
-			     "mediatek,mt8135-mmc";
+			     "mediatek,mt2701-mmc";
 		reg = <0 0x11240000 0 0x1000>;
 		interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&pericfg CLK_PERI_MSDC30_1>,
@@ -758,6 +758,7 @@
 			     "syscon";
 		reg = <0 0x1b000000 0 0x1000>;
 		#clock-cells = <1>;
+		#reset-cells = <1>;
 	};
 
 	eth: ethernet@1b100000 {

@@ -185,7 +185,7 @@ int __init rs_init(void)
 
 	serial_driver = alloc_tty_driver(SERIAL_MAX_NUM_LINES);
 
-	printk ("%s %s\n", serial_name, serial_version);
+	pr_info("%s %s\n", serial_name, serial_version);
 
 	/* Initialize the tty_driver structure */
 
@@ -214,7 +214,7 @@ static __exit void rs_exit(void)
 	int error;
 
 	if ((error = tty_unregister_driver(serial_driver)))
-		printk("ISS_SERIAL: failed to unregister serial driver (%d)\n",
+		pr_err("ISS_SERIAL: failed to unregister serial driver (%d)\n",
 		       error);
 	put_tty_driver(serial_driver);
 	tty_port_destroy(&serial_port);

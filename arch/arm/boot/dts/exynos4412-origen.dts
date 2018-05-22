@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Insignal's Exynos4412 based Origen board device tree source
  *
@@ -6,11 +7,7 @@
  *
  * Device tree source file for Insignal's Origen board which is based on
  * Samsung's Exynos4412 SoC.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 /dts-v1/;
 #include "exynos4412.dtsi"

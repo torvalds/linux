@@ -30,13 +30,18 @@
 #include "intel_guc_fwif.h"
 #include "intel_guc_ct.h"
 #include "intel_guc_log.h"
+#include "intel_guc_reg.h"
 #include "intel_uc_fw.h"
-#include "i915_guc_reg.h"
 #include "i915_vma.h"
+
+struct guc_preempt_work {
+	struct work_struct work;
+	struct intel_engine_cs *engine;
+};
 
 /*
  * Top level structure of GuC. It handles firmware loading and manages client
- * pool and doorbells. intel_guc owns a i915_guc_client to replace the legacy
+ * pool and doorbells. intel_guc owns a intel_guc_client to replace the legacy
  * ExecList submission.
  */
 struct intel_guc {
@@ -54,8 +59,14 @@ struct intel_guc {
 	struct i915_vma *stage_desc_pool;
 	void *stage_desc_pool_vaddr;
 	struct ida stage_ids;
+	struct i915_vma *shared_data;
+	void *shared_data_vaddr;
 
-	struct i915_guc_client *execbuf_client;
+	struct intel_guc_client *execbuf_client;
+	struct intel_guc_client *preempt_client;
+
+	struct guc_preempt_work preempt_work[I915_NUM_ENGINES];
+	struct workqueue_struct *preempt_wq;
 
 	DECLARE_BITMAP(doorbell_bitmap, GUC_NUM_DOORBELLS);
 	/* Cyclic counter mod pagesize	*/
@@ -108,6 +119,10 @@ static inline u32 guc_ggtt_offset(struct i915_vma *vma)
 void intel_guc_init_early(struct intel_guc *guc);
 void intel_guc_init_send_regs(struct intel_guc *guc);
 void intel_guc_init_params(struct intel_guc *guc);
+int intel_guc_init_wq(struct intel_guc *guc);
+void intel_guc_fini_wq(struct intel_guc *guc);
+int intel_guc_init(struct intel_guc *guc);
+void intel_guc_fini(struct intel_guc *guc);
 int intel_guc_send_nop(struct intel_guc *guc, const u32 *action, u32 len);
 int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len);
 int intel_guc_sample_forcewake(struct intel_guc *guc);

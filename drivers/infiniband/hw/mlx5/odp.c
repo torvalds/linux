@@ -1207,10 +1207,6 @@ int mlx5_ib_odp_init_one(struct mlx5_ib_dev *dev)
 {
 	int ret;
 
-	ret = init_srcu_struct(&dev->mr_srcu);
-	if (ret)
-		return ret;
-
 	if (dev->odp_caps.general_caps & IB_ODP_SUPPORT_IMPLICIT) {
 		ret = mlx5_cmd_null_mkey(dev->mdev, &dev->null_mkey);
 		if (ret) {
@@ -1220,11 +1216,6 @@ int mlx5_ib_odp_init_one(struct mlx5_ib_dev *dev)
 	}
 
 	return 0;
-}
-
-void mlx5_ib_odp_remove_one(struct mlx5_ib_dev *dev)
-{
-	cleanup_srcu_struct(&dev->mr_srcu);
 }
 
 int mlx5_ib_odp_init(void)

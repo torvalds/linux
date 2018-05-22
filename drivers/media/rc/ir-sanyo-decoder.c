@@ -1,25 +1,16 @@
-/* ir-sanyo-decoder.c - handle SANYO IR Pulse/Space protocol
- *
- * Copyright (C) 2011 by Mauro Carvalho Chehab
- *
- * This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- * This protocol uses the NEC protocol timings. However, data is formatted as:
- *	13 bits Custom Code
- *	13 bits NOT(Custom Code)
- *	8 bits Key data
- *	8 bits NOT(Key data)
- *
- * According with LIRC, this protocol is used on Sanyo, Aiwa and Chinon
- * Information for this protocol is available at the Sanyo LC7461 datasheet.
- */
+// SPDX-License-Identifier: GPL-2.0
+// ir-sanyo-decoder.c - handle SANYO IR Pulse/Space protocol
+//
+// Copyright (C) 2011 by Mauro Carvalho Chehab
+//
+// This protocol uses the NEC protocol timings. However, data is formatted as:
+//	13 bits Custom Code
+//	13 bits NOT(Custom Code)
+//	8 bits Key data
+//	8 bits NOT(Key data)
+//
+// According with LIRC, this protocol is used on Sanyo, Aiwa and Chinon
+// Information for this protocol is available at the Sanyo LC7461 datasheet.
 
 #include <linux/module.h>
 #include <linux/bitrev.h>
@@ -218,6 +209,7 @@ static struct ir_raw_handler sanyo_handler = {
 	.protocols	= RC_PROTO_BIT_SANYO,
 	.decode		= ir_sanyo_decode,
 	.encode		= ir_sanyo_encode,
+	.carrier	= 38000,
 };
 
 static int __init ir_sanyo_decode_init(void)
@@ -236,7 +228,7 @@ static void __exit ir_sanyo_decode_exit(void)
 module_init(ir_sanyo_decode_init);
 module_exit(ir_sanyo_decode_exit);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_AUTHOR("Red Hat Inc. (http://www.redhat.com)");
 MODULE_DESCRIPTION("SANYO IR protocol decoder");

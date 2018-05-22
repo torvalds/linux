@@ -373,6 +373,13 @@ bool dm_dmcu_set_pipe(struct dc_context *ctx, unsigned int controller_id);
 unsigned long long dm_get_timestamp(struct dc_context *ctx);
 
 /*
+ * performance tracing
+ */
+void dm_perf_trace_timestamp(const char *func_name, unsigned int line);
+#define PERF_TRACE()	dm_perf_trace_timestamp(__func__, __LINE__)
+
+
+/*
  * Debug and verification hooks
  */
 bool dm_helpers_dc_conn_log(

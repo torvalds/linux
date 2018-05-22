@@ -29,6 +29,7 @@
 #include "hw_shared.h"
 #include "dc_hw_types.h"
 #include "transform.h"
+#include "mpc.h"
 
 struct fixed31_32;
 
@@ -204,7 +205,7 @@ struct output_pixel_processor {
 	struct dc_context *ctx;
 	uint32_t inst;
 	struct pwl_params regamma_params;
-	struct mpc_tree_cfg mpc_tree;
+	struct mpc_tree mpc_tree_params;
 	bool mpcc_disconnect_pending[MAX_PIPES];
 	const struct opp_funcs *funcs;
 };
@@ -248,6 +249,21 @@ enum ovl_csc_adjust_item {
 	OVERLAY_COLOR_TEMPERATURE
 };
 
+enum oppbuf_display_segmentation {
+	OPPBUF_DISPLAY_SEGMENTATION_1_SEGMENT = 0,
+	OPPBUF_DISPLAY_SEGMENTATION_2_SEGMENT = 1,
+	OPPBUF_DISPLAY_SEGMENTATION_4_SEGMENT = 2,
+	OPPBUF_DISPLAY_SEGMENTATION_4_SEGMENT_SPLIT_LEFT = 3,
+	OPPBUF_DISPLAY_SEGMENTATION_4_SEGMENT_SPLIT_RIGHT = 4
+};
+
+struct oppbuf_params {
+	uint32_t active_width;
+	enum oppbuf_display_segmentation mso_segmentation;
+	uint32_t mso_overlap_pixel_num;
+	uint32_t pixel_repetition;
+};
+
 struct opp_funcs {
 
 
@@ -276,14 +292,11 @@ struct opp_funcs {
 
 	void (*opp_destroy)(struct output_pixel_processor **opp);
 
-	void (*opp_set_stereo_polarity)(
-			struct output_pixel_processor *opp,
-			bool enable,
-			bool rightEyePolarity);
+	void (*opp_program_stereo)(
+		struct output_pixel_processor *opp,
+		bool enable,
+		const struct dc_crtc_timing *timing);
 
-	void (*opp_set_test_pattern)(
-			struct output_pixel_processor *opp,
-			bool enable);
 };
 
 #endif

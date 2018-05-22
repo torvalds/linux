@@ -276,10 +276,7 @@ struct uverbs_object_tree_def {
  */
 
 struct uverbs_ptr_attr {
-	union {
-		u64		data;
-		void	__user *ptr;
-	};
+	u64		data;
 	u16		len;
 	/* Combination of bits from enum UVERBS_ATTR_F_XXXX */
 	u16		flags;
@@ -351,38 +348,60 @@ static inline const struct uverbs_attr *uverbs_attr_get(const struct uverbs_attr
 }
 
 static inline int uverbs_copy_to(const struct uverbs_attr_bundle *attrs_bundle,
-				 size_t idx, const void *from)
+				 size_t idx, const void *from, size_t size)
 {
 	const struct uverbs_attr *attr = uverbs_attr_get(attrs_bundle, idx);
 	u16 flags;
+	size_t min_size;
 
 	if (IS_ERR(attr))
 		return PTR_ERR(attr);
 
+	min_size = min_t(size_t, attr->ptr_attr.len, size);
+	if (copy_to_user(u64_to_user_ptr(attr->ptr_attr.data), from, min_size))
+		return -EFAULT;
+
 	flags = attr->ptr_attr.flags | UVERBS_ATTR_F_VALID_OUTPUT;
-	return (!copy_to_user(attr->ptr_attr.ptr, from, attr->ptr_attr.len) &&
-		!put_user(flags, &attr->uattr->flags)) ? 0 : -EFAULT;
+	if (put_user(flags, &attr->uattr->flags))
+		return -EFAULT;
+
+	return 0;
 }
 
-static inline int _uverbs_copy_from(void *to, size_t to_size,
+static inline bool uverbs_attr_ptr_is_inline(const struct uverbs_attr *attr)
+{
+	return attr->ptr_attr.len <= sizeof(attr->ptr_attr.data);
+}
+
+static inline int _uverbs_copy_from(void *to,
 				    const struct uverbs_attr_bundle *attrs_bundle,
-				    size_t idx)
+				    size_t idx,
+				    size_t size)
 {
 	const struct uverbs_attr *attr = uverbs_attr_get(attrs_bundle, idx);
 
 	if (IS_ERR(attr))
 		return PTR_ERR(attr);
 
-	if (to_size <= sizeof(((struct ib_uverbs_attr *)0)->data))
+	/*
+	 * Validation ensures attr->ptr_attr.len >= size. If the caller is
+	 * using UVERBS_ATTR_SPEC_F_MIN_SZ then it must call copy_from with
+	 * the right size.
+	 */
+	if (unlikely(size < attr->ptr_attr.len))
+		return -EINVAL;
+
+	if (uverbs_attr_ptr_is_inline(attr))
 		memcpy(to, &attr->ptr_attr.data, attr->ptr_attr.len);
-	else if (copy_from_user(to, attr->ptr_attr.ptr, attr->ptr_attr.len))
+	else if (copy_from_user(to, u64_to_user_ptr(attr->ptr_attr.data),
+				attr->ptr_attr.len))
 		return -EFAULT;
 
 	return 0;
 }
 
 #define uverbs_copy_from(to, attrs_bundle, idx)				      \
-	_uverbs_copy_from(to, sizeof(*(to)), attrs_bundle, idx)
+	_uverbs_copy_from(to, attrs_bundle, idx, sizeof(*to))
 
 /* =================================================
  *	 Definitions -> Specs infrastructure

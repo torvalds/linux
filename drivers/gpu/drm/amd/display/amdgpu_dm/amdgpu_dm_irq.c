@@ -683,13 +683,14 @@ static const struct amdgpu_irq_src_funcs dm_hpd_irq_funcs = {
 
 void amdgpu_dm_set_irq_funcs(struct amdgpu_device *adev)
 {
-	adev->crtc_irq.num_types = AMDGPU_CRTC_IRQ_LAST;
+
+	adev->crtc_irq.num_types = adev->mode_info.num_crtc;
 	adev->crtc_irq.funcs = &dm_crtc_irq_funcs;
 
-	adev->pageflip_irq.num_types = AMDGPU_PAGEFLIP_IRQ_LAST;
+	adev->pageflip_irq.num_types = adev->mode_info.num_crtc;
 	adev->pageflip_irq.funcs = &dm_pageflip_irq_funcs;
 
-	adev->hpd_irq.num_types = AMDGPU_HPD_LAST;
+	adev->hpd_irq.num_types = adev->mode_info.num_hpd;
 	adev->hpd_irq.funcs = &dm_hpd_irq_funcs;
 }
 

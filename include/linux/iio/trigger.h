@@ -43,12 +43,13 @@ struct iio_trigger_ops {
 /**
  * struct iio_trigger - industrial I/O trigger device
  * @ops:		[DRIVER] operations structure
+ * @owner:		[INTERN] owner of this driver module
  * @id:			[INTERN] unique id number
  * @name:		[DRIVER] unique name
  * @dev:		[DRIVER] associated device (if relevant)
  * @list:		[INTERN] used in maintenance of global trigger list
  * @alloc_list:		[DRIVER] used for driver specific trigger list
- * @use_count:		use count for the trigger
+ * @use_count:		[INTERN] use count for the trigger.
  * @subirq_chip:	[INTERN] associate 'virtual' irq chip.
  * @subirq_base:	[INTERN] base number for irqs provided by trigger.
  * @subirqs:		[INTERN] information about the 'child' irqs.

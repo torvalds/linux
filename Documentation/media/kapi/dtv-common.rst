@@ -7,7 +7,7 @@ Math functions
 Provide some commonly-used math functions, usually required in order to
 estimate signal strength and signal to noise measurements in dB.
 
-.. kernel-doc:: drivers/media/dvb-core/dvb_math.h
+.. kernel-doc:: include/media/dvb_math.h
 
 
 DVB devices
@@ -15,7 +15,7 @@ DVB devices
 
 Those functions are responsible for handling the DVB device nodes.
 
-.. kernel-doc:: drivers/media/dvb-core/dvbdev.h
+.. kernel-doc:: include/media/dvbdev.h
 
 Digital TV Ring buffer
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -52,4 +52,9 @@ copy it from/to userspace.
      Resetting the buffer counts as a read and write operation.
      Two or more writers must be locked against each other.
 
-.. kernel-doc:: drivers/media/dvb-core/dvb_ringbuffer.h
+.. kernel-doc:: include/media/dvb_ringbuffer.h
+
+Digital TV VB2 handler
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: include/media/dvb_vb2.h

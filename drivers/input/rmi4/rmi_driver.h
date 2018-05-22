@@ -16,8 +16,6 @@
 #include <linux/input.h>
 #include "rmi_bus.h"
 
-#define RMI_DRIVER_VERSION "2.0"
-
 #define SYNAPTICS_INPUT_DEVICE_NAME "Synaptics RMI4 Touch Sensor"
 #define SYNAPTICS_VENDOR_ID 0x06cb
 

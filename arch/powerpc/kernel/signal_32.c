@@ -111,12 +111,20 @@ static inline int save_general_regs(struct pt_regs *regs,
 {
 	elf_greg_t64 *gregs = (elf_greg_t64 *)regs;
 	int i;
+	/* Force usr to alway see softe as 1 (interrupts enabled) */
+	elf_greg_t64 softe = 0x1;
 
 	WARN_ON(!FULL_REGS(regs));
 
 	for (i = 0; i <= PT_RESULT; i ++) {
 		if (i == 14 && !FULL_REGS(regs))
 			i = 32;
+		if ( i == PT_SOFTE) {
+			if(__put_user((unsigned int)softe, &frame->mc_gregs[i]))
+				return -EFAULT;
+			else
+				continue;
+		}
 		if (__put_user((unsigned int)gregs[i], &frame->mc_gregs[i]))
 			return -EFAULT;
 	}
@@ -873,75 +881,9 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 #endif
 
 #ifdef CONFIG_PPC64
-int copy_siginfo_to_user32(struct compat_siginfo __user *d, const siginfo_t *s)
-{
-	int err;
-
-	if (!access_ok (VERIFY_WRITE, d, sizeof(*d)))
-		return -EFAULT;
-
-	/* If you change siginfo_t structure, please be sure
-	 * this code is fixed accordingly.
-	 * It should never copy any pad contained in the structure
-	 * to avoid security leaks, but must copy the generic
-	 * 3 ints plus the relevant union member.
-	 * This routine must convert siginfo from 64bit to 32bit as well
-	 * at the same time.
-	 */
-	err = __put_user(s->si_signo, &d->si_signo);
-	err |= __put_user(s->si_errno, &d->si_errno);
-	err |= __put_user(s->si_code, &d->si_code);
-	if (s->si_code < 0)
-		err |= __copy_to_user(&d->_sifields._pad, &s->_sifields._pad,
-				      SI_PAD_SIZE32);
-	else switch(siginfo_layout(s->si_signo, s->si_code)) {
-	case SIL_CHLD:
-		err |= __put_user(s->si_pid, &d->si_pid);
-		err |= __put_user(s->si_uid, &d->si_uid);
-		err |= __put_user(s->si_utime, &d->si_utime);
-		err |= __put_user(s->si_stime, &d->si_stime);
-		err |= __put_user(s->si_status, &d->si_status);
-		break;
-	case SIL_FAULT:
-		err |= __put_user((unsigned int)(unsigned long)s->si_addr,
-				  &d->si_addr);
-		break;
-	case SIL_POLL:
-		err |= __put_user(s->si_band, &d->si_band);
-		err |= __put_user(s->si_fd, &d->si_fd);
-		break;
-	case SIL_TIMER:
-		err |= __put_user(s->si_tid, &d->si_tid);
-		err |= __put_user(s->si_overrun, &d->si_overrun);
-		err |= __put_user(s->si_int, &d->si_int);
-		break;
-	case SIL_SYS:
-		err |= __put_user(ptr_to_compat(s->si_call_addr), &d->si_call_addr);
-		err |= __put_user(s->si_syscall, &d->si_syscall);
-		err |= __put_user(s->si_arch, &d->si_arch);
-		break;
-	case SIL_RT:
-		err |= __put_user(s->si_int, &d->si_int);
-		/* fallthrough */
-	case SIL_KILL:
-		err |= __put_user(s->si_pid, &d->si_pid);
-		err |= __put_user(s->si_uid, &d->si_uid);
-		break;
-	}
-	return err;
-}
 
 #define copy_siginfo_to_user	copy_siginfo_to_user32
 
-int copy_siginfo_from_user32(siginfo_t *to, struct compat_siginfo __user *from)
-{
-	if (copy_from_user(to, from, 3*sizeof(int)) ||
-	    copy_from_user(to->_sifields._pad,
-			   from->_sifields._pad, SI_PAD_SIZE32))
-		return -EFAULT;
-
-	return 0;
-}
 #endif /* CONFIG_PPC64 */
 
 /*

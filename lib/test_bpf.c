@@ -24,10 +24,11 @@
 #include <linux/if_vlan.h>
 #include <linux/random.h>
 #include <linux/highmem.h>
+#include <linux/sched.h>
 
 /* General test specific settings */
 #define MAX_SUBTESTS	3
-#define MAX_TESTRUNS	10000
+#define MAX_TESTRUNS	1000
 #define MAX_DATA	128
 #define MAX_INSNS	512
 #define MAX_K		0xffffFFFF
@@ -83,6 +84,7 @@ struct bpf_test {
 		__u32 result;
 	} test[MAX_SUBTESTS];
 	int (*fill_helper)(struct bpf_test *self);
+	int expected_errcode; /* used when FLAG_EXPECTED_FAIL is set in the aux */
 	__u8 frag_data[MAX_DATA];
 	int stack_depth; /* for eBPF only, since tests don't call verifier */
 };
@@ -2003,10 +2005,14 @@ static struct bpf_test tests[] = {
 		{ { 4, 0 }, { 5, 10 } }
 	},
 	{
-		"INT: DIV by zero",
+		/* This one doesn't go through verifier, but is just raw insn
+		 * as opposed to cBPF tests from here. Thus div by 0 tests are
+		 * done in test_verifier in BPF kselftests.
+		 */
+		"INT: DIV by -1",
 		.u.insns_int = {
 			BPF_ALU64_REG(BPF_MOV, R6, R1),
-			BPF_ALU64_IMM(BPF_MOV, R7, 0),
+			BPF_ALU64_IMM(BPF_MOV, R7, -1),
 			BPF_LD_ABS(BPF_B, 3),
 			BPF_ALU32_REG(BPF_DIV, R0, R7),
 			BPF_EXIT_INSN(),
@@ -2022,7 +2028,9 @@ static struct bpf_test tests[] = {
 		},
 		CLASSIC | FLAG_NO_DATA | FLAG_EXPECTED_FAIL,
 		{ },
-		{ }
+		{ },
+		.fill_helper = NULL,
+		.expected_errcode = -EINVAL,
 	},
 	{
 		"check: div_k_0",
@@ -2032,7 +2040,9 @@ static struct bpf_test tests[] = {
 		},
 		CLASSIC | FLAG_NO_DATA | FLAG_EXPECTED_FAIL,
 		{ },
-		{ }
+		{ },
+		.fill_helper = NULL,
+		.expected_errcode = -EINVAL,
 	},
 	{
 		"check: unknown insn",
@@ -2043,7 +2053,9 @@ static struct bpf_test tests[] = {
 		},
 		CLASSIC | FLAG_EXPECTED_FAIL,
 		{ },
-		{ }
+		{ },
+		.fill_helper = NULL,
+		.expected_errcode = -EINVAL,
 	},
 	{
 		"check: out of range spill/fill",
@@ -2053,7 +2065,9 @@ static struct bpf_test tests[] = {
 		},
 		CLASSIC | FLAG_NO_DATA | FLAG_EXPECTED_FAIL,
 		{ },
-		{ }
+		{ },
+		.fill_helper = NULL,
+		.expected_errcode = -EINVAL,
 	},
 	{
 		"JUMPS + HOLES",
@@ -2145,6 +2159,8 @@ static struct bpf_test tests[] = {
 		CLASSIC | FLAG_NO_DATA | FLAG_EXPECTED_FAIL,
 		{ },
 		{ },
+		.fill_helper = NULL,
+		.expected_errcode = -EINVAL,
 	},
 	{
 		"check: LDX + RET X",
@@ -2155,6 +2171,8 @@ static struct bpf_test tests[] = {
 		CLASSIC | FLAG_NO_DATA | FLAG_EXPECTED_FAIL,
 		{ },
 		{ },
+		.fill_helper = NULL,
+		.expected_errcode = -EINVAL,
 	},
 	{	/* Mainly checking JIT here. */
 		"M[]: alt STX + LDX",
@@ -2329,6 +2347,8 @@ static struct bpf_test tests[] = {
 		CLASSIC | FLAG_NO_DATA | FLAG_EXPECTED_FAIL,
 		{ },
 		{ },
+		.fill_helper = NULL,
+		.expected_errcode = -EINVAL,
 	},
 	{	/* Passes checker but fails during runtime. */
 		"LD [SKF_AD_OFF-1]",
@@ -5391,6 +5411,7 @@ static struct bpf_test tests[] = {
 		{ },
 		{ },
 		.fill_helper = bpf_fill_maxinsns4,
+		.expected_errcode = -EINVAL,
 	},
 	{	/* Mainly checking JIT here. */
 		"BPF_MAXINSNS: Very long jump",
@@ -5446,10 +5467,15 @@ static struct bpf_test tests[] = {
 	{
 		"BPF_MAXINSNS: Jump, gap, jump, ...",
 		{ },
+#if defined(CONFIG_BPF_JIT_ALWAYS_ON) && defined(CONFIG_X86)
+		CLASSIC | FLAG_NO_DATA | FLAG_EXPECTED_FAIL,
+#else
 		CLASSIC | FLAG_NO_DATA,
+#endif
 		{ },
 		{ { 0, 0xababcbac } },
 		.fill_helper = bpf_fill_maxinsns11,
+		.expected_errcode = -ENOTSUPP,
 	},
 	{
 		"BPF_MAXINSNS: ld_abs+get_processor_id",
@@ -6109,6 +6135,110 @@ static struct bpf_test tests[] = {
 		{ { ETH_HLEN, 42 } },
 		.fill_helper = bpf_fill_ld_abs_vlan_push_pop2,
 	},
+	/* Checking interpreter vs JIT wrt signed extended imms. */
+	{
+		"JNE signed compare, test 1",
+		.u.insns_int = {
+			BPF_ALU32_IMM(BPF_MOV, R1, 0xfefbbc12),
+			BPF_ALU32_IMM(BPF_MOV, R3, 0xffff0000),
+			BPF_MOV64_REG(R2, R1),
+			BPF_ALU64_REG(BPF_AND, R2, R3),
+			BPF_ALU32_IMM(BPF_MOV, R0, 1),
+			BPF_JMP_IMM(BPF_JNE, R2, -17104896, 1),
+			BPF_ALU32_IMM(BPF_MOV, R0, 2),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL,
+		{ },
+		{ { 0, 1 } },
+	},
+	{
+		"JNE signed compare, test 2",
+		.u.insns_int = {
+			BPF_ALU32_IMM(BPF_MOV, R1, 0xfefbbc12),
+			BPF_ALU32_IMM(BPF_MOV, R3, 0xffff0000),
+			BPF_MOV64_REG(R2, R1),
+			BPF_ALU64_REG(BPF_AND, R2, R3),
+			BPF_ALU32_IMM(BPF_MOV, R0, 1),
+			BPF_JMP_IMM(BPF_JNE, R2, 0xfefb0000, 1),
+			BPF_ALU32_IMM(BPF_MOV, R0, 2),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL,
+		{ },
+		{ { 0, 1 } },
+	},
+	{
+		"JNE signed compare, test 3",
+		.u.insns_int = {
+			BPF_ALU32_IMM(BPF_MOV, R1, 0xfefbbc12),
+			BPF_ALU32_IMM(BPF_MOV, R3, 0xffff0000),
+			BPF_ALU32_IMM(BPF_MOV, R4, 0xfefb0000),
+			BPF_MOV64_REG(R2, R1),
+			BPF_ALU64_REG(BPF_AND, R2, R3),
+			BPF_ALU32_IMM(BPF_MOV, R0, 1),
+			BPF_JMP_REG(BPF_JNE, R2, R4, 1),
+			BPF_ALU32_IMM(BPF_MOV, R0, 2),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL,
+		{ },
+		{ { 0, 2 } },
+	},
+	{
+		"JNE signed compare, test 4",
+		.u.insns_int = {
+			BPF_LD_IMM64(R1, -17104896),
+			BPF_ALU32_IMM(BPF_MOV, R0, 1),
+			BPF_JMP_IMM(BPF_JNE, R1, -17104896, 1),
+			BPF_ALU32_IMM(BPF_MOV, R0, 2),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL,
+		{ },
+		{ { 0, 2 } },
+	},
+	{
+		"JNE signed compare, test 5",
+		.u.insns_int = {
+			BPF_LD_IMM64(R1, 0xfefb0000),
+			BPF_ALU32_IMM(BPF_MOV, R0, 1),
+			BPF_JMP_IMM(BPF_JNE, R1, 0xfefb0000, 1),
+			BPF_ALU32_IMM(BPF_MOV, R0, 2),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL,
+		{ },
+		{ { 0, 1 } },
+	},
+	{
+		"JNE signed compare, test 6",
+		.u.insns_int = {
+			BPF_LD_IMM64(R1, 0x7efb0000),
+			BPF_ALU32_IMM(BPF_MOV, R0, 1),
+			BPF_JMP_IMM(BPF_JNE, R1, 0x7efb0000, 1),
+			BPF_ALU32_IMM(BPF_MOV, R0, 2),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL,
+		{ },
+		{ { 0, 2 } },
+	},
+	{
+		"JNE signed compare, test 7",
+		.u.insns = {
+			BPF_STMT(BPF_LD | BPF_IMM, 0xffff0000),
+			BPF_STMT(BPF_MISC | BPF_TAX, 0),
+			BPF_STMT(BPF_LD | BPF_IMM, 0xfefbbc12),
+			BPF_STMT(BPF_ALU | BPF_AND | BPF_X, 0),
+			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0xfefb0000, 1, 0),
+			BPF_STMT(BPF_RET | BPF_K, 1),
+			BPF_STMT(BPF_RET | BPF_K, 2),
+		},
+		CLASSIC | FLAG_NO_DATA,
+		{},
+		{ { 0, 2 } },
+	},
 };
 
 static struct net_device dev;
@@ -6236,7 +6366,7 @@ static struct bpf_prog *generate_filter(int which, int *err)
 
 		*err = bpf_prog_create(&fp, &fprog);
 		if (tests[which].aux & FLAG_EXPECTED_FAIL) {
-			if (*err == -EINVAL) {
+			if (*err == tests[which].expected_errcode) {
 				pr_cont("PASS\n");
 				/* Verifier rejected filter as expected. */
 				*err = 0;
@@ -6453,6 +6583,7 @@ static __init int test_bpf(void)
 		struct bpf_prog *fp;
 		int err;
 
+		cond_resched();
 		if (exclude_test(i))
 			continue;
 

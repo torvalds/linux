@@ -1,25 +1,12 @@
-/*
- * Copyright (C) 2012-2017 ARM Limited or its affiliates.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
- */
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright (C) 2012-2018 ARM Limited or its affiliates. */
 
 #ifndef __CC_HW_QUEUE_DEFS_H__
 #define __CC_HW_QUEUE_DEFS_H__
 
 #include <linux/types.h>
 
-#include "dx_crys_kernel.h"
+#include "cc_kernel_regs.h"
 #include <linux/bitfield.h>
 
 /******************************************************************************
@@ -30,14 +17,12 @@
 /* Define max. available slots in HW queue */
 #define HW_QUEUE_SLOTS_MAX              15
 
-#define CC_REG_NAME(word, name) DX_DSCRPTR_QUEUE_WORD ## word ## _ ## name
-
 #define CC_REG_LOW(word, name)  \
-	(DX_DSCRPTR_QUEUE_WORD ## word ## _ ## name ## _BIT_SHIFT)
+	(CC_DSCRPTR_QUEUE_WORD ## word ## _ ## name ## _BIT_SHIFT)
 
 #define CC_REG_HIGH(word, name) \
 	(CC_REG_LOW(word, name) + \
-	 DX_DSCRPTR_QUEUE_WORD ## word ## _ ## name ## _BIT_SIZE - 1)
+	 CC_DSCRPTR_QUEUE_WORD ## word ## _ ## name ## _BIT_SIZE - 1)
 
 #define CC_GENMASK(word, name) \
 	GENMASK(CC_REG_HIGH(word, name), CC_REG_LOW(word, name))
@@ -122,7 +107,6 @@ enum cc_flow_mode {
 	AES_to_AES_to_HASH_and_DOUT	= 13,
 	AES_to_AES_to_HASH	= 14,
 	AES_to_HASH_and_AES	= 15,
-	DIN_MULTI2_DOUT		= 16,
 	DIN_AES_AESMAC		= 17,
 	HASH_to_DOUT		= 18,
 	/* setup flows */
@@ -130,7 +114,6 @@ enum cc_flow_mode {
 	S_DIN_to_AES2		= 33,
 	S_DIN_to_DES		= 34,
 	S_DIN_to_RC4		= 35,
-	S_DIN_to_MULTI2		= 36,
 	S_DIN_to_HASH		= 37,
 	S_AES_to_DOUT		= 38,
 	S_AES2_to_DOUT		= 39,
@@ -201,6 +184,19 @@ enum cc_hw_des_key_size {
 	DES_TWO_KEYS = 1,
 	DES_THREE_KEYS = 2,
 	END_OF_DES_KEYS = S32_MAX,
+};
+
+enum cc_hash_conf_pad {
+	HASH_PADDING_DISABLED = 0,
+	HASH_PADDING_ENABLED = 1,
+	HASH_DIGEST_RESULT_LITTLE_ENDIAN = 2,
+	HASH_CONFIG1_PADDING_RESERVE32 = S32_MAX,
+};
+
+enum cc_hash_cipher_pad {
+	DO_NOT_PAD = 0,
+	DO_PAD = 1,
+	HASH_CIPHER_DO_PADDING_RESERVE32 = S32_MAX,
 };
 
 /*****************************/

@@ -21,7 +21,7 @@ file.
 
 Examples:
 
-	mdio: davinci_mdio@4A101000 {
+	mdio: davinci_mdio@4a101000 {
 		compatible = "ti,davinci_mdio";
 		reg = <0x4A101000 0x1000>;
 		bus_freq = <1000000>;
@@ -29,7 +29,7 @@ Examples:
 
 (or)
 
-	mdio: davinci_mdio@4A101000 {
+	mdio: davinci_mdio@4a101000 {
 		compatible = "ti,davinci_mdio";
 		ti,hwmods = "davinci_mdio";
 		bus_freq = <1000000>;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /*
  * This is our library for the Adafruit  ILI9341 Breakout and Shield
  * ----> http://www.adafruit.com/products/1651

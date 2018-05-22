@@ -45,7 +45,7 @@ config MEMSTICK_R592
 
 config MEMSTICK_REALTEK_PCI
 	tristate "Realtek PCI-E Memstick Card Interface Driver"
-	depends on MFD_RTSX_PCI
+	depends on MISC_RTSX_PCI
 	help
 	  Say Y here to include driver code to support Memstick card interface
 	  of Realtek PCI-E card reader
@@ -55,7 +55,7 @@ config MEMSTICK_REALTEK_PCI
 
 config MEMSTICK_REALTEK_USB
 	tristate "Realtek USB Memstick Card Interface Driver"
-	depends on MFD_RTSX_USB
+	depends on MISC_RTSX_USB
 	help
 	  Say Y here to include driver code to support Memstick card interface
 	  of Realtek RTS5129/39 series USB card reader

@@ -372,10 +372,9 @@ static int alloc_pebs_buffer(int cpu)
 static void release_pebs_buffer(int cpu)
 {
 	struct cpu_hw_events *hwev = per_cpu_ptr(&cpu_hw_events, cpu);
-	struct debug_store *ds = hwev->ds;
 	void *cea;
 
-	if (!ds || !x86_pmu.pebs)
+	if (!x86_pmu.pebs)
 		return;
 
 	kfree(per_cpu(insn_buffer, cpu));
@@ -384,7 +383,6 @@ static void release_pebs_buffer(int cpu)
 	/* Clear the fixmap */
 	cea = &get_cpu_entry_area(cpu)->cpu_debug_buffers.pebs_buffer;
 	ds_clear_cea(cea, x86_pmu.pebs_buffer_size);
-	ds->pebs_buffer_base = 0;
 	dsfree_pages(hwev->ds_pebs_vaddr, x86_pmu.pebs_buffer_size);
 	hwev->ds_pebs_vaddr = NULL;
 }
@@ -419,16 +417,14 @@ static int alloc_bts_buffer(int cpu)
 static void release_bts_buffer(int cpu)
 {
 	struct cpu_hw_events *hwev = per_cpu_ptr(&cpu_hw_events, cpu);
-	struct debug_store *ds = hwev->ds;
 	void *cea;
 
-	if (!ds || !x86_pmu.bts)
+	if (!x86_pmu.bts)
 		return;
 
 	/* Clear the fixmap */
 	cea = &get_cpu_entry_area(cpu)->cpu_debug_buffers.bts_buffer;
 	ds_clear_cea(cea, BTS_BUFFER_SIZE);
-	ds->bts_buffer_base = 0;
 	dsfree_pages(hwev->ds_bts_vaddr, BTS_BUFFER_SIZE);
 	hwev->ds_bts_vaddr = NULL;
 }
@@ -454,16 +450,22 @@ void release_ds_buffers(void)
 	if (!x86_pmu.bts && !x86_pmu.pebs)
 		return;
 
-	get_online_cpus();
-	for_each_online_cpu(cpu)
+	for_each_possible_cpu(cpu)
+		release_ds_buffer(cpu);
+
+	for_each_possible_cpu(cpu) {
+		/*
+		 * Again, ignore errors from offline CPUs, they will no longer
+		 * observe cpu_hw_events.ds and not program the DS_AREA when
+		 * they come up.
+		 */
 		fini_debug_store_on_cpu(cpu);
+	}
 
 	for_each_possible_cpu(cpu) {
 		release_pebs_buffer(cpu);
 		release_bts_buffer(cpu);
-		release_ds_buffer(cpu);
 	}
-	put_online_cpus();
 }
 
 void reserve_ds_buffers(void)
@@ -482,8 +484,6 @@ void reserve_ds_buffers(void)
 
 	if (!x86_pmu.pebs)
 		pebs_err = 1;
-
-	get_online_cpus();
 
 	for_each_possible_cpu(cpu) {
 		if (alloc_ds_buffer(cpu)) {
@@ -521,11 +521,14 @@ void reserve_ds_buffers(void)
 		if (x86_pmu.pebs && !pebs_err)
 			x86_pmu.pebs_active = 1;
 
-		for_each_online_cpu(cpu)
+		for_each_possible_cpu(cpu) {
+			/*
+			 * Ignores wrmsr_on_cpu() errors for offline CPUs they
+			 * will get this call through intel_pmu_cpu_starting().
+			 */
 			init_debug_store_on_cpu(cpu);
+		}
 	}
-
-	put_online_cpus();
 }
 
 /*
@@ -932,7 +935,7 @@ void intel_pmu_pebs_add(struct perf_event *event)
 	bool needed_cb = pebs_needs_sched_cb(cpuc);
 
 	cpuc->n_pebs++;
-	if (hwc->flags & PERF_X86_EVENT_FREERUNNING)
+	if (hwc->flags & PERF_X86_EVENT_LARGE_PEBS)
 		cpuc->n_large_pebs++;
 
 	pebs_update_state(needed_cb, cpuc, event->ctx->pmu);
@@ -972,7 +975,7 @@ void intel_pmu_pebs_del(struct perf_event *event)
 	bool needed_cb = pebs_needs_sched_cb(cpuc);
 
 	cpuc->n_pebs--;
-	if (hwc->flags & PERF_X86_EVENT_FREERUNNING)
+	if (hwc->flags & PERF_X86_EVENT_LARGE_PEBS)
 		cpuc->n_large_pebs--;
 
 	pebs_update_state(needed_cb, cpuc, event->ctx->pmu);
@@ -1150,6 +1153,7 @@ static void setup_pebs_sample_data(struct perf_event *event,
 	if (pebs == NULL)
 		return;
 
+	regs->flags &= ~PERF_EFLAGS_EXACT;
 	sample_type = event->attr.sample_type;
 	dsrc = sample_type & PERF_SAMPLE_DATA_SRC;
 
@@ -1194,7 +1198,6 @@ static void setup_pebs_sample_data(struct perf_event *event,
 	 */
 	*regs = *iregs;
 	regs->flags = pebs->flags;
-	set_linear_ip(regs, pebs->ip);
 
 	if (sample_type & PERF_SAMPLE_REGS_INTR) {
 		regs->ax = pebs->ax;
@@ -1230,13 +1233,22 @@ static void setup_pebs_sample_data(struct perf_event *event,
 #endif
 	}
 
-	if (event->attr.precise_ip > 1 && x86_pmu.intel_cap.pebs_format >= 2) {
-		regs->ip = pebs->real_ip;
-		regs->flags |= PERF_EFLAGS_EXACT;
-	} else if (event->attr.precise_ip > 1 && intel_pmu_pebs_fixup_ip(regs))
-		regs->flags |= PERF_EFLAGS_EXACT;
-	else
-		regs->flags &= ~PERF_EFLAGS_EXACT;
+	if (event->attr.precise_ip > 1) {
+		/* Haswell and later have the eventing IP, so use it: */
+		if (x86_pmu.intel_cap.pebs_format >= 2) {
+			set_linear_ip(regs, pebs->real_ip);
+			regs->flags |= PERF_EFLAGS_EXACT;
+		} else {
+			/* Otherwise use PEBS off-by-1 IP: */
+			set_linear_ip(regs, pebs->ip);
+
+			/* ... and try to fix it up using the LBR entries: */
+			if (intel_pmu_pebs_fixup_ip(regs))
+				regs->flags |= PERF_EFLAGS_EXACT;
+		}
+	} else
+		set_linear_ip(regs, pebs->ip);
+
 
 	if ((sample_type & (PERF_SAMPLE_ADDR | PERF_SAMPLE_PHYS_ADDR)) &&
 	    x86_pmu.intel_cap.pebs_format >= 1)
@@ -1527,7 +1539,7 @@ void __init intel_ds_init(void)
 			x86_pmu.pebs_record_size =
 						sizeof(struct pebs_record_skl);
 			x86_pmu.drain_pebs = intel_pmu_drain_pebs_nhm;
-			x86_pmu.free_running_flags |= PERF_SAMPLE_TIME;
+			x86_pmu.large_pebs_flags |= PERF_SAMPLE_TIME;
 			break;
 
 		default:

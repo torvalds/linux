@@ -44,6 +44,7 @@
 #define MLX5E_DECLARE_STAT(type, fld) #fld, offsetof(type, fld)
 #define MLX5E_DECLARE_RX_STAT(type, fld) "rx%d_"#fld, offsetof(type, fld)
 #define MLX5E_DECLARE_TX_STAT(type, fld) "tx%d_"#fld, offsetof(type, fld)
+#define MLX5E_DECLARE_CH_STAT(type, fld) "ch%d_"#fld, offsetof(type, fld)
 
 struct counter_desc {
 	char		format[ETH_GSTRING_LEN];
@@ -88,6 +89,7 @@ struct mlx5e_sw_stats {
 	u64 rx_cache_empty;
 	u64 rx_cache_busy;
 	u64 rx_cache_waive;
+	u64 ch_eq_rearm;
 
 	/* Special handling counters */
 	u64 link_down_events_phy;
@@ -192,6 +194,10 @@ struct mlx5e_sq_stats {
 	u64 dropped;
 };
 
+struct mlx5e_ch_stats {
+	u64 eq_rearm;
+};
+
 struct mlx5e_stats {
 	struct mlx5e_sw_stats sw;
 	struct mlx5e_qcounter_stats qcnt;
@@ -201,11 +207,17 @@ struct mlx5e_stats {
 	struct mlx5e_pcie_stats pcie;
 };
 
+enum {
+	MLX5E_NDO_UPDATE_STATS = BIT(0x1),
+};
+
 struct mlx5e_priv;
 struct mlx5e_stats_grp {
+	u16 update_stats_mask;
 	int (*get_num_stats)(struct mlx5e_priv *priv);
 	int (*fill_strings)(struct mlx5e_priv *priv, u8 *data, int idx);
 	int (*fill_stats)(struct mlx5e_priv *priv, u64 *data, int idx);
+	void (*update_stats)(struct mlx5e_priv *priv);
 };
 
 extern const struct mlx5e_stats_grp mlx5e_stats_grps[];

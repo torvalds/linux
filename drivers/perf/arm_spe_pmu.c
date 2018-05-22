@@ -1164,6 +1164,15 @@ static int arm_spe_pmu_device_dt_probe(struct platform_device *pdev)
 	struct arm_spe_pmu *spe_pmu;
 	struct device *dev = &pdev->dev;
 
+	/*
+	 * If kernelspace is unmapped when running at EL0, then the SPE
+	 * buffer will fault and prematurely terminate the AUX session.
+	 */
+	if (arm64_kernel_unmapped_at_el0()) {
+		dev_warn_once(dev, "profiling buffer inaccessible. Try passing \"kpti=off\" on the kernel command line\n");
+		return -EPERM;
+	}
+
 	spe_pmu = devm_kzalloc(dev, sizeof(*spe_pmu), GFP_KERNEL);
 	if (!spe_pmu) {
 		dev_err(dev, "failed to allocate spe_pmu\n");

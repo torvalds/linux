@@ -33,18 +33,6 @@
 	};
 };
 
-&extal_clk {
-	clock-frequency = <16666666>;
-};
-
-&extalr_clk {
-	clock-frequency = <32768>;
-};
-
-&scif0 {
-	status = "okay";
-};
-
 &avb {
 	renesas,no-ether-link;
 	phy-handle = <&phy0>;
@@ -54,4 +42,21 @@
 		rxc-skew-ps = <1500>;
 		reg = <0>;
 	};
+};
+
+&extal_clk {
+	clock-frequency = <16666666>;
+};
+
+&extalr_clk {
+	clock-frequency = <32768>;
+};
+
+&rwdt {
+	timeout-sec = <60>;
+	status = "okay";
+};
+
+&scif0 {
+	status = "okay";
 };

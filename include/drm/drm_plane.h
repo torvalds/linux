@@ -474,8 +474,8 @@ enum drm_plane_type {
  * @format_types: array of formats supported by this plane
  * @format_count: number of formats supported
  * @format_default: driver hasn't supplied supported formats for the plane
- * @crtc: currently bound CRTC
- * @fb: currently bound fb
+ * @modifiers: array of modifiers supported by this plane
+ * @modifier_count: number of modifiers supported
  * @old_fb: Temporary tracking of the old fb while a modeset is ongoing. Used by
  * 	drm_mode_set_config_internal() to implement correct refcounting.
  * @funcs: helper functions
@@ -512,7 +512,17 @@ struct drm_plane {
 	uint64_t *modifiers;
 	unsigned int modifier_count;
 
+	/**
+	 * @crtc: Currently bound CRTC, only really meaningful for non-atomic
+	 * drivers.  Atomic drivers should instead check &drm_plane_state.crtc.
+	 */
 	struct drm_crtc *crtc;
+
+	/**
+	 * @fb: Currently bound framebuffer, only really meaningful for
+	 * non-atomic drivers.  Atomic drivers should instead check
+	 * &drm_plane_state.fb.
+	 */
 	struct drm_framebuffer *fb;
 
 	struct drm_framebuffer *old_fb;

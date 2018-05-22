@@ -8,6 +8,7 @@
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -942,7 +944,6 @@ dump_trans_data:
 
 out:
 	iwl_fw_free_dump_desc(fwrt);
-	fwrt->dump.trig = NULL;
 	clear_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status);
 	IWL_DEBUG_INFO(fwrt, "WRT dump done\n");
 }
@@ -964,7 +965,20 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 	if (trigger)
 		delay = msecs_to_jiffies(le32_to_cpu(trigger->stop_delay));
 
-	if (WARN(fwrt->trans->state == IWL_TRANS_NO_FW,
+	/*
+	 * If the loading of the FW completed successfully, the next step is to
+	 * get the SMEM config data. Thus, if fwrt->smem_cfg.num_lmacs is non
+	 * zero, the FW was already loaded successully. If the state is "NO_FW"
+	 * in such a case - WARN and exit, since FW may be dead. Otherwise, we
+	 * can try to collect the data, since FW might just not be fully
+	 * loaded (no "ALIVE" yet), and the debug data is accessible.
+	 *
+	 * Corner case: got the FW alive but crashed before getting the SMEM
+	 *	config. In such a case, due to HW access problems, we might
+	 *	collect garbage.
+	 */
+	if (WARN((fwrt->trans->state == IWL_TRANS_NO_FW) &&
+		 fwrt->smem_cfg.num_lmacs,
 		 "Can't collect dbg data when FW isn't alive\n"))
 		return -EIO;
 
@@ -1099,6 +1113,14 @@ void iwl_fw_error_dump_wk(struct work_struct *work)
 	    fwrt->ops->dump_start(fwrt->ops_ctx))
 		return;
 
+	if (fwrt->ops && fwrt->ops->fw_running &&
+	    !fwrt->ops->fw_running(fwrt->ops_ctx)) {
+		IWL_ERR(fwrt, "Firmware not running - cannot dump error\n");
+		iwl_fw_free_dump_desc(fwrt);
+		clear_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status);
+		goto out;
+	}
+
 	if (fwrt->trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
 		/* stop recording */
 		iwl_fw_dbg_stop_recording(fwrt);
@@ -1132,7 +1154,7 @@ void iwl_fw_error_dump_wk(struct work_struct *work)
 			iwl_write_prph(fwrt->trans, DBGC_OUT_CTRL, out_ctrl);
 		}
 	}
-
+out:
 	if (fwrt->ops && fwrt->ops->dump_end)
 		fwrt->ops->dump_end(fwrt->ops_ctx);
 }

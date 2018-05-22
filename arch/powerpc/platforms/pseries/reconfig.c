@@ -405,7 +405,7 @@ static int proc_ppc64_create_ofdt(void)
 {
 	struct proc_dir_entry *ent;
 
-	ent = proc_create("powerpc/ofdt", S_IWUSR, NULL, &ofdt_fops);
+	ent = proc_create("powerpc/ofdt", 0200, NULL, &ofdt_fops);
 	if (ent)
 		proc_set_size(ent, 0);
 

@@ -25,7 +25,7 @@
 #include <linux/workqueue.h>
 #include <linux/memstick.h>
 #include <linux/kthread.h>
-#include <linux/mfd/rtsx_usb.h>
+#include <linux/rtsx_usb.h>
 #include <linux/pm_runtime.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>

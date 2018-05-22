@@ -21,13 +21,14 @@
  */
 
 #include <linux/seq_file.h>
+#include <linux/efi.h>
 #include <linux/fs.h>
 #include <linux/security.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/tpm_eventlog.h>
 
 #include "tpm.h"
-#include "tpm_eventlog.h"
 
 
 static const char* tcpa_event_type_strings[] = {
@@ -371,6 +372,10 @@ static int tpm_read_log(struct tpm_chip *chip)
 	if (rc != -ENODEV)
 		return rc;
 
+	rc = tpm_read_log_efi(chip);
+	if (rc != -ENODEV)
+		return rc;
+
 	return tpm_read_log_of(chip);
 }
 
@@ -388,11 +393,13 @@ int tpm_bios_log_setup(struct tpm_chip *chip)
 {
 	const char *name = dev_name(&chip->dev);
 	unsigned int cnt;
+	int log_version;
 	int rc = 0;
 
 	rc = tpm_read_log(chip);
-	if (rc)
+	if (rc < 0)
 		return rc;
+	log_version = rc;
 
 	cnt = 0;
 	chip->bios_dir[cnt] = securityfs_create_dir(name, NULL);
@@ -404,7 +411,7 @@ int tpm_bios_log_setup(struct tpm_chip *chip)
 	cnt++;
 
 	chip->bin_log_seqops.chip = chip;
-	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+	if (log_version == EFI_TCG2_EVENT_LOG_FORMAT_TCG_2)
 		chip->bin_log_seqops.seqops =
 			&tpm2_binary_b_measurements_seqops;
 	else

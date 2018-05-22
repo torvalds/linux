@@ -51,7 +51,7 @@ struct net {
 	refcount_t		passive;	/* To decided when the network
 						 * namespace should be freed.
 						 */
-	atomic_t		count;		/* To decided when the network
+	refcount_t		count;		/* To decided when the network
 						 *  namespace should be shut down.
 						 */
 	spinlock_t		rules_mod_lock;
@@ -195,7 +195,7 @@ void __put_net(struct net *net);
 
 static inline struct net *get_net(struct net *net)
 {
-	atomic_inc(&net->count);
+	refcount_inc(&net->count);
 	return net;
 }
 
@@ -206,14 +206,14 @@ static inline struct net *maybe_get_net(struct net *net)
 	 * exists.  If the reference count is zero this
 	 * function fails and returns NULL.
 	 */
-	if (!atomic_inc_not_zero(&net->count))
+	if (!refcount_inc_not_zero(&net->count))
 		net = NULL;
 	return net;
 }
 
 static inline void put_net(struct net *net)
 {
-	if (atomic_dec_and_test(&net->count))
+	if (refcount_dec_and_test(&net->count))
 		__put_net(net);
 }
 
@@ -221,6 +221,11 @@ static inline
 int net_eq(const struct net *net1, const struct net *net2)
 {
 	return net1 == net2;
+}
+
+static inline int check_net(const struct net *net)
+{
+	return refcount_read(&net->count) != 0;
 }
 
 void net_drop_ns(void *);
@@ -243,6 +248,11 @@ static inline struct net *maybe_get_net(struct net *net)
 
 static inline
 int net_eq(const struct net *net1, const struct net *net2)
+{
+	return 1;
+}
+
+static inline int check_net(const struct net *net)
 {
 	return 1;
 }

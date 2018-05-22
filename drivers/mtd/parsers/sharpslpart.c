@@ -192,7 +192,7 @@ static int sharpsl_nand_init_ftl(struct mtd_info *mtd, struct sharpsl_ftl *ftl)
 
 	/* create physical-logical table */
 	for (block_num = 0; block_num < phymax; block_num++) {
-		block_adr = block_num * mtd->erasesize;
+		block_adr = (loff_t)block_num * mtd->erasesize;
 
 		if (mtd_block_isbad(mtd, block_adr))
 			continue;
@@ -219,7 +219,7 @@ exit:
 	return ret;
 }
 
-void sharpsl_nand_cleanup_ftl(struct sharpsl_ftl *ftl)
+static void sharpsl_nand_cleanup_ftl(struct sharpsl_ftl *ftl)
 {
 	kfree(ftl->log2phy);
 }
@@ -244,7 +244,7 @@ static int sharpsl_nand_read_laddr(struct mtd_info *mtd,
 		return -EINVAL;
 
 	block_num = ftl->log2phy[log_num];
-	block_adr = block_num * mtd->erasesize;
+	block_adr = (loff_t)block_num * mtd->erasesize;
 	block_ofs = mtd_mod_by_eb((u32)from, mtd);
 
 	err = mtd_read(mtd, block_adr + block_ofs, len, &retlen, buf);

@@ -84,8 +84,6 @@ void start_thread(struct pt_regs *regs, unsigned long nip, unsigned long sp);
 void release_thread(struct task_struct *);
 unsigned long get_wchan(struct task_struct *p);
 
-#define init_stack      (init_thread_union.stack)
-
 #define cpu_relax()     barrier()
 
 #endif /* __ASSEMBLY__ */

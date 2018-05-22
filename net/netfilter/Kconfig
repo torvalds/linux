@@ -12,6 +12,12 @@ config NETFILTER_INGRESS
 config NETFILTER_NETLINK
 	tristate
 
+config NETFILTER_FAMILY_BRIDGE
+	bool
+
+config NETFILTER_FAMILY_ARP
+	bool
+
 config NETFILTER_NETLINK_ACCT
 tristate "Netfilter NFACCT over NFNETLINK interface"
 	depends on NETFILTER_ADVANCED
@@ -62,6 +68,8 @@ config NF_LOG_NETDEV
 	select NF_LOG_COMMON
 
 if NF_CONNTRACK
+config NETFILTER_CONNCOUNT
+	tristate
 
 config NF_CONNTRACK_MARK
 	bool  'Connection mark tracking support'
@@ -497,6 +505,13 @@ config NFT_CT
 	  This option adds the "ct" expression that you can use to match
 	  connection tracking information such as the flow state.
 
+config NFT_FLOW_OFFLOAD
+	depends on NF_CONNTRACK && NF_FLOW_TABLE
+	tristate "Netfilter nf_tables hardware flow offload module"
+	help
+	  This option adds the "flow_offload" expression that you can use to
+	  choose what flows are placed into the hardware.
+
 config NFT_SET_RBTREE
 	tristate "Netfilter nf_tables rbtree set module"
 	help
@@ -648,6 +663,25 @@ config NFT_FIB_NETDEV
 endif # NF_TABLES_NETDEV
 
 endif # NF_TABLES
+
+config NF_FLOW_TABLE_INET
+	tristate "Netfilter flow table mixed IPv4/IPv6 module"
+	depends on NF_FLOW_TABLE_IPV4
+	depends on NF_FLOW_TABLE_IPV6
+	help
+          This option adds the flow table mixed IPv4/IPv6 support.
+
+	  To compile it as a module, choose M here.
+
+config NF_FLOW_TABLE
+	tristate "Netfilter flow table module"
+	depends on NETFILTER_INGRESS
+	depends on NF_CONNTRACK
+	depends on NF_TABLES
+	help
+	  This option adds the flow table core infrastructure.
+
+	  To compile it as a module, choose M here.
 
 config NETFILTER_XTABLES
 	tristate "Netfilter Xtables support (required for ip_tables)"
@@ -1120,6 +1154,7 @@ config NETFILTER_XT_MATCH_CONNLIMIT
 	tristate '"connlimit" match support'
 	depends on NF_CONNTRACK
 	depends on NETFILTER_ADVANCED
+	select NETFILTER_CONNCOUNT
 	---help---
 	  This match allows you to match against the number of parallel
 	  connections to a server per client IP address (or address block).

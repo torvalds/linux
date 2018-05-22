@@ -130,6 +130,18 @@
 				status = "okay";
 			};
 
+			tcb2: timer@fc024000 {
+				timer0: timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>;
+				};
+
+				timer1: timer@1 {
+					compatible = "atmel,tcb-timer";
+					reg = <1>;
+				};
+			};
+
 			adc0: adc@fc034000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <

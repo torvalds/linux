@@ -2072,9 +2072,9 @@ static ssize_t snd_timer_user_read(struct file *file, char __user *buffer,
 	return result > 0 ? result : err;
 }
 
-static unsigned int snd_timer_user_poll(struct file *file, poll_table * wait)
+static __poll_t snd_timer_user_poll(struct file *file, poll_table * wait)
 {
-        unsigned int mask;
+        __poll_t mask;
         struct snd_timer_user *tu;
 
         tu = file->private_data;
@@ -2084,9 +2084,9 @@ static unsigned int snd_timer_user_poll(struct file *file, poll_table * wait)
 	mask = 0;
 	spin_lock_irq(&tu->qlock);
 	if (tu->qused)
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	if (tu->disconnected)
-		mask |= POLLERR;
+		mask |= EPOLLERR;
 	spin_unlock_irq(&tu->qlock);
 
 	return mask;

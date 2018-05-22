@@ -815,6 +815,17 @@ static void flush_pending_writes(struct r1conf *conf)
 		bio = bio_list_get(&conf->pending_bio_list);
 		conf->pending_count = 0;
 		spin_unlock_irq(&conf->device_lock);
+
+		/*
+		 * As this is called in a wait_event() loop (see freeze_array),
+		 * current->state might be TASK_UNINTERRUPTIBLE which will
+		 * cause a warning when we prepare to wait again.  As it is
+		 * rare that this path is taken, it is perfectly safe to force
+		 * us to go around the wait_event() loop again, so the warning
+		 * is a false-positive.  Silence the warning by resetting
+		 * thread state
+		 */
+		__set_current_state(TASK_RUNNING);
 		blk_start_plug(&plug);
 		flush_bio_list(conf, bio);
 		blk_finish_plug(&plug);
@@ -1097,7 +1108,7 @@ static void alloc_behind_master_bio(struct r1bio *r1_bio,
 
 	bio_copy_data(behind_bio, bio);
 skip_copy:
-	r1_bio->behind_master_bio = behind_bio;;
+	r1_bio->behind_master_bio = behind_bio;
 	set_bit(R1BIO_BehindIO, &r1_bio->state);
 
 	return;
@@ -1798,6 +1809,17 @@ static int raid1_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 			struct md_rdev *repl =
 				conf->mirrors[conf->raid_disks + number].rdev;
 			freeze_array(conf, 0);
+			if (atomic_read(&repl->nr_pending)) {
+				/* It means that some queued IO of retry_list
+				 * hold repl. Thus, we cannot set replacement
+				 * as NULL, avoiding rdev NULL pointer
+				 * dereference in sync_request_write and
+				 * handle_write_finished.
+				 */
+				err = -EBUSY;
+				unfreeze_array(conf);
+				goto abort;
+			}
 			clear_bit(Replacement, &repl->flags);
 			p->rdev = repl;
 			conf->mirrors[conf->raid_disks + number].rdev = NULL;

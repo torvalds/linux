@@ -537,7 +537,7 @@ EXPORT_SYMBOL_GPL(nfs_pgio_header_free);
  * @cinfo: Commit information for the call (writes only)
  */
 static void nfs_pgio_rpcsetup(struct nfs_pgio_header *hdr,
-			      unsigned int count, unsigned int offset,
+			      unsigned int count,
 			      int how, struct nfs_commit_info *cinfo)
 {
 	struct nfs_page *req = hdr->req;
@@ -546,10 +546,10 @@ static void nfs_pgio_rpcsetup(struct nfs_pgio_header *hdr,
 	 * NB: take care not to mess about with hdr->commit et al. */
 
 	hdr->args.fh     = NFS_FH(hdr->inode);
-	hdr->args.offset = req_offset(req) + offset;
+	hdr->args.offset = req_offset(req);
 	/* pnfs_set_layoutcommit needs this */
 	hdr->mds_offset = hdr->args.offset;
-	hdr->args.pgbase = req->wb_pgbase + offset;
+	hdr->args.pgbase = req->wb_pgbase;
 	hdr->args.pages  = hdr->page_array.pagevec;
 	hdr->args.count  = count;
 	hdr->args.context = get_nfs_open_context(req->wb_context);
@@ -789,7 +789,7 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 		desc->pg_ioflags &= ~FLUSH_COND_STABLE;
 
 	/* Set up the argument struct */
-	nfs_pgio_rpcsetup(hdr, mirror->pg_count, 0, desc->pg_ioflags, &cinfo);
+	nfs_pgio_rpcsetup(hdr, mirror->pg_count, desc->pg_ioflags, &cinfo);
 	desc->pg_rpc_callops = &nfs_pgio_common_ops;
 	return 0;
 }

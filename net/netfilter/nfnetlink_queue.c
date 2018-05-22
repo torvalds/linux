@@ -941,23 +941,18 @@ static struct notifier_block nfqnl_dev_notifier = {
 	.notifier_call	= nfqnl_rcv_dev_event,
 };
 
-static unsigned int nfqnl_nf_hook_drop(struct net *net)
+static void nfqnl_nf_hook_drop(struct net *net)
 {
 	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
-	unsigned int instances = 0;
 	int i;
 
 	for (i = 0; i < INSTANCE_BUCKETS; i++) {
 		struct nfqnl_instance *inst;
 		struct hlist_head *head = &q->instance_table[i];
 
-		hlist_for_each_entry_rcu(inst, head, hlist) {
+		hlist_for_each_entry_rcu(inst, head, hlist)
 			nfqnl_flush(inst, NULL, 0);
-			instances++;
-		}
 	}
-
-	return instances;
 }
 
 static int
@@ -1482,7 +1477,6 @@ static int nfqnl_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations nfqnl_file_ops = {
-	.owner	 = THIS_MODULE,
 	.open	 = nfqnl_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,

@@ -59,10 +59,10 @@ struct qed_pi_info {
 };
 
 struct qed_sb_sp_info {
-	struct qed_sb_info	sb_info;
+	struct qed_sb_info sb_info;
 
 	/* per protocol index data */
-	struct qed_pi_info	pi_info_arr[PIS_PER_SB];
+	struct qed_pi_info pi_info_arr[PIS_PER_SB_E4];
 };
 
 enum qed_attention_type {
@@ -82,7 +82,7 @@ struct aeu_invert_reg_bit {
 #define ATTENTION_LENGTH_SHIFT          (4)
 #define ATTENTION_LENGTH(flags)         (((flags) & ATTENTION_LENGTH_MASK) >> \
 					 ATTENTION_LENGTH_SHIFT)
-#define ATTENTION_SINGLE                (1 << ATTENTION_LENGTH_SHIFT)
+#define ATTENTION_SINGLE                BIT(ATTENTION_LENGTH_SHIFT)
 #define ATTENTION_PAR                   (ATTENTION_SINGLE | ATTENTION_PARITY)
 #define ATTENTION_PAR_INT               ((2 << ATTENTION_LENGTH_SHIFT) | \
 					 ATTENTION_PARITY)
@@ -1313,7 +1313,7 @@ static void qed_int_cau_conf_pi(struct qed_hwfn *p_hwfn,
 	if (IS_VF(p_hwfn->cdev))
 		return;
 
-	sb_offset = igu_sb_id * PIS_PER_SB;
+	sb_offset = igu_sb_id * PIS_PER_SB_E4;
 	memset(&pi_entry, 0, sizeof(struct cau_pi_entry));
 
 	SET_FIELD(pi_entry.prod, CAU_PI_ENTRY_PI_TIMESET, timeset);

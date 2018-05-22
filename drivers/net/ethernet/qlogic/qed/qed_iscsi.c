@@ -62,22 +62,6 @@
 #include "qed_sriov.h"
 #include "qed_reg_addr.h"
 
-static int
-qed_iscsi_async_event(struct qed_hwfn *p_hwfn,
-		      u8 fw_event_code,
-		      u16 echo, union event_ring_data *data, u8 fw_return_code)
-{
-	if (p_hwfn->p_iscsi_info->event_cb) {
-		struct qed_iscsi_info *p_iscsi = p_hwfn->p_iscsi_info;
-
-		return p_iscsi->event_cb(p_iscsi->event_context,
-					 fw_event_code, data);
-	} else {
-		DP_NOTICE(p_hwfn, "iSCSI async completion is not set\n");
-		return -EINVAL;
-	}
-}
-
 struct qed_iscsi_conn {
 	struct list_head list_entry;
 	bool free_on_delete;
@@ -105,7 +89,7 @@ struct qed_iscsi_conn {
 	u8 local_mac[6];
 	u8 remote_mac[6];
 	u16 vlan_id;
-	u8 tcp_flags;
+	u16 tcp_flags;
 	u8 ip_version;
 	u32 remote_ip[4];
 	u32 local_ip[4];
@@ -122,7 +106,6 @@ struct qed_iscsi_conn {
 	u32 ss_thresh;
 	u16 srtt;
 	u16 rtt_var;
-	u32 ts_time;
 	u32 ts_recent;
 	u32 ts_recent_age;
 	u32 total_rt;
@@ -144,7 +127,6 @@ struct qed_iscsi_conn {
 	u16 mss;
 	u8 snd_wnd_scale;
 	u8 rcv_wnd_scale;
-	u32 ts_ticks_per_second;
 	u16 da_timeout_value;
 	u8 ack_frequency;
 
@@ -160,6 +142,22 @@ struct qed_iscsi_conn {
 	u16 physical_q1;
 	u8 abortive_dsconnect;
 };
+
+static int
+qed_iscsi_async_event(struct qed_hwfn *p_hwfn,
+		      u8 fw_event_code,
+		      u16 echo, union event_ring_data *data, u8 fw_return_code)
+{
+	if (p_hwfn->p_iscsi_info->event_cb) {
+		struct qed_iscsi_info *p_iscsi = p_hwfn->p_iscsi_info;
+
+		return p_iscsi->event_cb(p_iscsi->event_context,
+					 fw_event_code, data);
+	} else {
+		DP_NOTICE(p_hwfn, "iSCSI async completion is not set\n");
+		return -EINVAL;
+	}
+}
 
 static int
 qed_sp_iscsi_func_start(struct qed_hwfn *p_hwfn,
@@ -214,9 +212,9 @@ qed_sp_iscsi_func_start(struct qed_hwfn *p_hwfn,
 	p_init->num_sq_pages_in_ring = p_params->num_sq_pages_in_ring;
 	p_init->num_r2tq_pages_in_ring = p_params->num_r2tq_pages_in_ring;
 	p_init->num_uhq_pages_in_ring = p_params->num_uhq_pages_in_ring;
-	p_init->ooo_enable = p_params->ooo_enable;
 	p_init->ll2_rx_queue_id = p_hwfn->hw_info.resc_start[QED_LL2_QUEUE] +
 				  p_params->ll2_ooo_queue_id;
+
 	p_init->func_params.log_page_size = p_params->log_page_size;
 	val = p_params->num_tasks;
 	p_init->func_params.num_tasks = cpu_to_le16(val);
@@ -276,7 +274,7 @@ qed_sp_iscsi_func_start(struct qed_hwfn *p_hwfn,
 	p_ramrod->tcp_init.two_msl_timer = cpu_to_le32(p_params->two_msl_timer);
 	val = p_params->tx_sws_timer;
 	p_ramrod->tcp_init.tx_sws_timer = cpu_to_le16(val);
-	p_ramrod->tcp_init.maxfinrt = p_params->max_fin_rt;
+	p_ramrod->tcp_init.max_fin_rt = p_params->max_fin_rt;
 
 	p_hwfn->p_iscsi_info->event_context = event_context;
 	p_hwfn->p_iscsi_info->event_cb = async_event_cb;
@@ -304,8 +302,8 @@ static int qed_sp_iscsi_conn_offload(struct qed_hwfn *p_hwfn,
 	int rc = 0;
 	u32 dval;
 	u16 wval;
-	u8 i;
 	u16 *p;
+	u8 i;
 
 	/* Get SPQ entry */
 	memset(&init_data, 0, sizeof(init_data));
@@ -371,7 +369,7 @@ static int qed_sp_iscsi_conn_offload(struct qed_hwfn *p_hwfn,
 
 		p_tcp->vlan_id = cpu_to_le16(p_conn->vlan_id);
 
-		p_tcp->flags = p_conn->tcp_flags;
+		p_tcp->flags = cpu_to_le16(p_conn->tcp_flags);
 		p_tcp->ip_version = p_conn->ip_version;
 		for (i = 0; i < 4; i++) {
 			dval = p_conn->remote_ip[i];
@@ -436,7 +434,7 @@ static int qed_sp_iscsi_conn_offload(struct qed_hwfn *p_hwfn,
 		p_tcp2->remote_mac_addr_lo = swab16(get_unaligned(p + 2));
 
 		p_tcp2->vlan_id = cpu_to_le16(p_conn->vlan_id);
-		p_tcp2->flags = p_conn->tcp_flags;
+		p_tcp2->flags = cpu_to_le16(p_conn->tcp_flags);
 
 		p_tcp2->ip_version = p_conn->ip_version;
 		for (i = 0; i < 4; i++) {
@@ -458,6 +456,11 @@ static int qed_sp_iscsi_conn_offload(struct qed_hwfn *p_hwfn,
 		p_tcp2->syn_ip_payload_length = cpu_to_le16(wval);
 		p_tcp2->syn_phy_addr_lo = DMA_LO_LE(p_conn->syn_phy_addr);
 		p_tcp2->syn_phy_addr_hi = DMA_HI_LE(p_conn->syn_phy_addr);
+		p_tcp2->cwnd = cpu_to_le32(p_conn->cwnd);
+		p_tcp2->ka_max_probe_cnt = p_conn->ka_probe_cnt;
+		p_tcp2->ka_timeout = cpu_to_le32(p_conn->ka_timeout);
+		p_tcp2->max_rt_time = cpu_to_le32(p_conn->max_rt_time);
+		p_tcp2->ka_interval = cpu_to_le32(p_conn->ka_interval);
 	}
 
 	return qed_spq_post(p_hwfn, p_ent, NULL);
@@ -692,8 +695,7 @@ static void __iomem *qed_iscsi_get_secondary_bdq_prod(struct qed_hwfn *p_hwfn,
 	}
 }
 
-static int qed_iscsi_setup_connection(struct qed_hwfn *p_hwfn,
-				      struct qed_iscsi_conn *p_conn)
+static int qed_iscsi_setup_connection(struct qed_iscsi_conn *p_conn)
 {
 	if (!p_conn->queue_cnts_virt_addr)
 		goto nomem;
@@ -844,7 +846,7 @@ static int qed_iscsi_acquire_connection(struct qed_hwfn *p_hwfn,
 		rc = qed_iscsi_allocate_connection(p_hwfn, &p_conn);
 
 	if (!rc)
-		rc = qed_iscsi_setup_connection(p_hwfn, p_conn);
+		rc = qed_iscsi_setup_connection(p_conn);
 
 	if (rc) {
 		spin_lock_bh(&p_hwfn->p_iscsi_info->lock);
@@ -1294,7 +1296,6 @@ static int qed_iscsi_offload_conn(struct qed_dev *cdev,
 	con->ss_thresh = conn_info->ss_thresh;
 	con->srtt = conn_info->srtt;
 	con->rtt_var = conn_info->rtt_var;
-	con->ts_time = conn_info->ts_time;
 	con->ts_recent = conn_info->ts_recent;
 	con->ts_recent_age = conn_info->ts_recent_age;
 	con->total_rt = conn_info->total_rt;
@@ -1316,7 +1317,6 @@ static int qed_iscsi_offload_conn(struct qed_dev *cdev,
 	con->mss = conn_info->mss;
 	con->snd_wnd_scale = conn_info->snd_wnd_scale;
 	con->rcv_wnd_scale = conn_info->rcv_wnd_scale;
-	con->ts_ticks_per_second = conn_info->ts_ticks_per_second;
 	con->da_timeout_value = conn_info->da_timeout_value;
 	con->ack_frequency = conn_info->ack_frequency;
 

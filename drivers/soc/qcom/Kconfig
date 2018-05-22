@@ -35,6 +35,15 @@ config QCOM_PM
 	  modes. It interface with various system drivers to put the cores in
 	  low power modes.
 
+config QCOM_QMI_HELPERS
+	tristate
+	depends on ARCH_QCOM
+	help
+	  Helper library for handling QMI encoded messages.  QMI encoded
+	  messages are used in communication between the majority of QRTR
+	  clients and this helpers provide the common functionality needed for
+	  doing this from a kernel driver.
+
 config QCOM_RMTFS_MEM
 	tristate "Qualcomm Remote Filesystem memory driver"
 	depends on ARCH_QCOM
@@ -75,6 +84,7 @@ config QCOM_SMEM_STATE
 
 config QCOM_SMP2P
 	tristate "Qualcomm Shared Memory Point to Point support"
+	depends on MAILBOX
 	depends on QCOM_SMEM
 	select QCOM_SMEM_STATE
 	help

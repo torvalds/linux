@@ -26,10 +26,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <linux/init.h>
 #include <asm/div64.h>
 
-#include "dmxdev.h"
-#include "dvbdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
+#include <media/dmxdev.h>
+#include <media/dvbdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
 
 #include "sms-cards.h"
 
@@ -271,7 +271,7 @@ static void smsdvb_update_per_slices(struct smsdvb_client_t *client,
 	c->post_bit_count.stat[0].uvalue += p->ber_bit_count;
 
 	/* Legacy PER/BER */
-	tmp = p->ets_packets * 65535;
+	tmp = p->ets_packets * 65535ULL;
 	if (p->ts_packets + p->ets_packets)
 		do_div(tmp, p->ts_packets + p->ets_packets);
 	client->legacy_per = tmp;

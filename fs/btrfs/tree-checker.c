@@ -30,6 +30,7 @@
 #include "tree-checker.h"
 #include "disk-io.h"
 #include "compression.h"
+#include "hash.h"
 
 /*
  * Error message should follow the following format:
@@ -223,6 +224,142 @@ static int check_csum_item(struct btrfs_root *root, struct extent_buffer *leaf,
 }
 
 /*
+ * Customized reported for dir_item, only important new info is key->objectid,
+ * which represents inode number
+ */
+__printf(4, 5)
+static void dir_item_err(const struct btrfs_root *root,
+			 const struct extent_buffer *eb, int slot,
+			 const char *fmt, ...)
+{
+	struct btrfs_key key;
+	struct va_format vaf;
+	va_list args;
+
+	btrfs_item_key_to_cpu(eb, &key, slot);
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	btrfs_crit(root->fs_info,
+	"corrupt %s: root=%llu block=%llu slot=%d ino=%llu, %pV",
+		btrfs_header_level(eb) == 0 ? "leaf" : "node", root->objectid,
+		btrfs_header_bytenr(eb), slot, key.objectid, &vaf);
+	va_end(args);
+}
+
+static int check_dir_item(struct btrfs_root *root,
+			  struct extent_buffer *leaf,
+			  struct btrfs_key *key, int slot)
+{
+	struct btrfs_dir_item *di;
+	u32 item_size = btrfs_item_size_nr(leaf, slot);
+	u32 cur = 0;
+
+	di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);
+	while (cur < item_size) {
+		u32 name_len;
+		u32 data_len;
+		u32 max_name_len;
+		u32 total_size;
+		u32 name_hash;
+		u8 dir_type;
+
+		/* header itself should not cross item boundary */
+		if (cur + sizeof(*di) > item_size) {
+			dir_item_err(root, leaf, slot,
+		"dir item header crosses item boundary, have %zu boundary %u",
+				cur + sizeof(*di), item_size);
+			return -EUCLEAN;
+		}
+
+		/* dir type check */
+		dir_type = btrfs_dir_type(leaf, di);
+		if (dir_type >= BTRFS_FT_MAX) {
+			dir_item_err(root, leaf, slot,
+			"invalid dir item type, have %u expect [0, %u)",
+				dir_type, BTRFS_FT_MAX);
+			return -EUCLEAN;
+		}
+
+		if (key->type == BTRFS_XATTR_ITEM_KEY &&
+		    dir_type != BTRFS_FT_XATTR) {
+			dir_item_err(root, leaf, slot,
+		"invalid dir item type for XATTR key, have %u expect %u",
+				dir_type, BTRFS_FT_XATTR);
+			return -EUCLEAN;
+		}
+		if (dir_type == BTRFS_FT_XATTR &&
+		    key->type != BTRFS_XATTR_ITEM_KEY) {
+			dir_item_err(root, leaf, slot,
+			"xattr dir type found for non-XATTR key");
+			return -EUCLEAN;
+		}
+		if (dir_type == BTRFS_FT_XATTR)
+			max_name_len = XATTR_NAME_MAX;
+		else
+			max_name_len = BTRFS_NAME_LEN;
+
+		/* Name/data length check */
+		name_len = btrfs_dir_name_len(leaf, di);
+		data_len = btrfs_dir_data_len(leaf, di);
+		if (name_len > max_name_len) {
+			dir_item_err(root, leaf, slot,
+			"dir item name len too long, have %u max %u",
+				name_len, max_name_len);
+			return -EUCLEAN;
+		}
+		if (name_len + data_len > BTRFS_MAX_XATTR_SIZE(root->fs_info)) {
+			dir_item_err(root, leaf, slot,
+			"dir item name and data len too long, have %u max %u",
+				name_len + data_len,
+				BTRFS_MAX_XATTR_SIZE(root->fs_info));
+			return -EUCLEAN;
+		}
+
+		if (data_len && dir_type != BTRFS_FT_XATTR) {
+			dir_item_err(root, leaf, slot,
+			"dir item with invalid data len, have %u expect 0",
+				data_len);
+			return -EUCLEAN;
+		}
+
+		total_size = sizeof(*di) + name_len + data_len;
+
+		/* header and name/data should not cross item boundary */
+		if (cur + total_size > item_size) {
+			dir_item_err(root, leaf, slot,
+		"dir item data crosses item boundary, have %u boundary %u",
+				cur + total_size, item_size);
+			return -EUCLEAN;
+		}
+
+		/*
+		 * Special check for XATTR/DIR_ITEM, as key->offset is name
+		 * hash, should match its name
+		 */
+		if (key->type == BTRFS_DIR_ITEM_KEY ||
+		    key->type == BTRFS_XATTR_ITEM_KEY) {
+			char namebuf[max(BTRFS_NAME_LEN, XATTR_NAME_MAX)];
+
+			read_extent_buffer(leaf, namebuf,
+					(unsigned long)(di + 1), name_len);
+			name_hash = btrfs_name_hash(namebuf, name_len);
+			if (key->offset != name_hash) {
+				dir_item_err(root, leaf, slot,
+		"name hash mismatch with key, have 0x%016x expect 0x%016llx",
+					name_hash, key->offset);
+				return -EUCLEAN;
+			}
+		}
+		cur += total_size;
+		di = (struct btrfs_dir_item *)((void *)di + total_size);
+	}
+	return 0;
+}
+
+/*
  * Common point to switch the item-specific validation.
  */
 static int check_leaf_item(struct btrfs_root *root,
@@ -237,6 +374,11 @@ static int check_leaf_item(struct btrfs_root *root,
 		break;
 	case BTRFS_EXTENT_CSUM_KEY:
 		ret = check_csum_item(root, leaf, key, slot);
+		break;
+	case BTRFS_DIR_ITEM_KEY:
+	case BTRFS_DIR_INDEX_KEY:
+	case BTRFS_XATTR_ITEM_KEY:
+		ret = check_dir_item(root, leaf, key, slot);
 		break;
 	}
 	return ret;

@@ -112,23 +112,26 @@ int phm_force_dpm_levels(struct pp_hwmgr *hwmgr, enum amd_dpm_forced_level level
 
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (hwmgr->hwmgr_func->force_dpm_level != NULL) {
+	if (hwmgr->hwmgr_func->force_dpm_level != NULL)
 		ret = hwmgr->hwmgr_func->force_dpm_level(hwmgr, level);
-		if (ret)
-			return ret;
 
-		if (hwmgr->hwmgr_func->set_power_profile_state) {
-			if (hwmgr->current_power_profile == AMD_PP_GFX_PROFILE)
-				ret = hwmgr->hwmgr_func->set_power_profile_state(
-						hwmgr,
-						&hwmgr->gfx_power_profile);
-			else if (hwmgr->current_power_profile == AMD_PP_COMPUTE_PROFILE)
-				ret = hwmgr->hwmgr_func->set_power_profile_state(
-						hwmgr,
-						&hwmgr->compute_power_profile);
-		}
+	return ret;
+}
+
+int phm_reset_power_profile_state(struct pp_hwmgr *hwmgr)
+{
+	int ret = 0;
+
+	if (hwmgr->hwmgr_func->set_power_profile_state) {
+		if (hwmgr->current_power_profile == AMD_PP_GFX_PROFILE)
+			ret = hwmgr->hwmgr_func->set_power_profile_state(
+					hwmgr,
+					&hwmgr->gfx_power_profile);
+		else if (hwmgr->current_power_profile == AMD_PP_COMPUTE_PROFILE)
+			ret = hwmgr->hwmgr_func->set_power_profile_state(
+					hwmgr,
+					&hwmgr->compute_power_profile);
 	}
-
 	return ret;
 }
 

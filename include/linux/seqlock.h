@@ -278,9 +278,8 @@ static inline void raw_write_seqcount_barrier(seqcount_t *s)
 
 static inline int raw_read_seqcount_latch(seqcount_t *s)
 {
-	int seq = READ_ONCE(s->sequence);
 	/* Pairs with the first smp_wmb() in raw_write_seqcount_latch() */
-	smp_read_barrier_depends();
+	int seq = READ_ONCE(s->sequence); /* ^^^ */
 	return seq;
 }
 

@@ -49,7 +49,7 @@
 /** virtual processing unit */
 struct cfs_cpu_partition {
 	/* CPUs mask for this partition */
-	cpumask_t			*cpt_cpumask;
+	cpumask_var_t			cpt_cpumask;
 	/* nodes mask for this partition */
 	nodemask_t			*cpt_nodemask;
 	/* spread rotor for NUMA allocator */
@@ -69,7 +69,7 @@ struct cfs_cpt_table {
 	/* shadow HW CPU to CPU partition ID */
 	int				*ctb_cpu2cpt;
 	/* all cpus in this partition table */
-	cpumask_t			*ctb_cpumask;
+	cpumask_var_t			ctb_cpumask;
 	/* all nodes in this partition table */
 	nodemask_t			*ctb_nodemask;
 };

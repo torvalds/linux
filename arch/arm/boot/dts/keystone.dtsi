@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2013 Texas Instruments, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2013-2017 Texas Instruments Incorporated - http://www.ti.com/
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/gpio/gpio.h>
-
-#include "skeleton.dtsi"
 
 / {
 	compatible = "ti,keystone";
@@ -25,11 +20,14 @@
 		spi2 = &spi2;
 	};
 
-	memory {
+	chosen { };
+
+	memory: memory@80000000 {
+		device_type = "memory";
 		reg = <0x00000000 0x80000000 0x00000000 0x40000000>;
 	};
 
-	gic: interrupt-controller {
+	gic: interrupt-controller@2561000 {
 		compatible = "arm,gic-400", "arm,cortex-a15-gic";
 		#interrupt-cells = <3>;
 		interrupt-controller;
@@ -70,7 +68,7 @@
 		cpu_on		= <0x84000003>;
 	};
 
-	soc {
+	soc0: soc@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "ti,keystone","simple-bus";

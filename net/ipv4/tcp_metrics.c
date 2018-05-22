@@ -546,8 +546,7 @@ bool tcp_peer_is_proven(struct request_sock *req, struct dst_entry *dst)
 static DEFINE_SEQLOCK(fastopen_seqlock);
 
 void tcp_fastopen_cache_get(struct sock *sk, u16 *mss,
-			    struct tcp_fastopen_cookie *cookie,
-			    int *syn_loss, unsigned long *last_syn_loss)
+			    struct tcp_fastopen_cookie *cookie)
 {
 	struct tcp_metrics_block *tm;
 
@@ -564,8 +563,6 @@ void tcp_fastopen_cache_get(struct sock *sk, u16 *mss,
 			*cookie = tfom->cookie;
 			if (cookie->len <= 0 && tfom->try_exp == 1)
 				cookie->exp = true;
-			*syn_loss = tfom->syn_loss;
-			*last_syn_loss = *syn_loss ? tfom->last_syn_loss : 0;
 		} while (read_seqretry(&fastopen_seqlock, seq));
 	}
 	rcu_read_unlock();
@@ -895,7 +892,7 @@ static void tcp_metrics_flush_all(struct net *net)
 		pp = &hb->chain;
 		for (tm = deref_locked(*pp); tm; tm = deref_locked(*pp)) {
 			match = net ? net_eq(tm_net(tm), net) :
-				!atomic_read(&tm_net(tm)->count);
+				!refcount_read(&tm_net(tm)->count);
 			if (match) {
 				*pp = tm->tcpm_next;
 				kfree_rcu(tm, rcu_head);

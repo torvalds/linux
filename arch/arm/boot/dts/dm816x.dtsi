@@ -67,8 +67,11 @@
 		ranges;
 
 		prcm: prcm@48180000 {
-			compatible = "ti,dm816-prcm";
+			compatible = "ti,dm816-prcm", "simple-bus";
 			reg = <0x48180000 0x4000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x48180000 0x4000>;
 
 			prcm_clocks: clocks {
 				#address-cells = <1>;
@@ -331,6 +334,8 @@
 			interrupts = <67>;
 			ti,hwmods = "timer1";
 			ti,timer-alwon;
+			clocks = <&timer1_fck>;
+			clock-names = "fck";
 		};
 
 		timer2: timer@48040000 {
@@ -338,6 +343,8 @@
 			reg = <0x48040000 0x2000>;
 			interrupts = <68>;
 			ti,hwmods = "timer2";
+			clocks = <&timer2_fck>;
+			clock-names = "fck";
 		};
 
 		timer3: timer@48042000 {

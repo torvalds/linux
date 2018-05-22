@@ -336,7 +336,7 @@ char *hist_entry__get_srcline(struct hist_entry *he)
 		return SRCLINE_UNKNOWN;
 
 	return get_srcline(map->dso, map__rip_2objdump(map, he->ip),
-			   he->ms.sym, true, true);
+			   he->ms.sym, true, true, he->ip);
 }
 
 static int64_t
@@ -380,7 +380,8 @@ sort__srcline_from_cmp(struct hist_entry *left, struct hist_entry *right)
 					   map__rip_2objdump(map,
 							     left->branch_info->from.al_addr),
 							 left->branch_info->from.sym,
-							 true, true);
+							 true, true,
+							 left->branch_info->from.al_addr);
 	}
 	if (!right->branch_info->srcline_from) {
 		struct map *map = right->branch_info->from.map;
@@ -391,7 +392,8 @@ sort__srcline_from_cmp(struct hist_entry *left, struct hist_entry *right)
 					     map__rip_2objdump(map,
 							       right->branch_info->from.al_addr),
 						     right->branch_info->from.sym,
-						     true, true);
+						     true, true,
+						     right->branch_info->from.al_addr);
 	}
 	return strcmp(right->branch_info->srcline_from, left->branch_info->srcline_from);
 }
@@ -423,7 +425,8 @@ sort__srcline_to_cmp(struct hist_entry *left, struct hist_entry *right)
 					   map__rip_2objdump(map,
 							     left->branch_info->to.al_addr),
 							 left->branch_info->from.sym,
-							 true, true);
+							 true, true,
+							 left->branch_info->to.al_addr);
 	}
 	if (!right->branch_info->srcline_to) {
 		struct map *map = right->branch_info->to.map;
@@ -434,7 +437,8 @@ sort__srcline_to_cmp(struct hist_entry *left, struct hist_entry *right)
 					     map__rip_2objdump(map,
 							       right->branch_info->to.al_addr),
 						     right->branch_info->to.sym,
-						     true, true);
+						     true, true,
+						     right->branch_info->to.al_addr);
 	}
 	return strcmp(right->branch_info->srcline_to, left->branch_info->srcline_to);
 }
@@ -465,7 +469,7 @@ static char *hist_entry__get_srcfile(struct hist_entry *e)
 		return no_srcfile;
 
 	sf = __get_srcline(map->dso, map__rip_2objdump(map, e->ip),
-			 e->ms.sym, false, true, true);
+			 e->ms.sym, false, true, true, e->ip);
 	if (!strcmp(sf, SRCLINE_UNKNOWN))
 		return no_srcfile;
 	p = strchr(sf, ':');
@@ -2883,10 +2887,10 @@ static int setup_output_list(struct perf_hpp_list *list, char *str)
 			tok; tok = strtok_r(NULL, ", ", &tmp)) {
 		ret = output_field_add(list, tok);
 		if (ret == -EINVAL) {
-			pr_err("Invalid --fields key: `%s'", tok);
+			ui__error("Invalid --fields key: `%s'", tok);
 			break;
 		} else if (ret == -ESRCH) {
-			pr_err("Unknown --fields key: `%s'", tok);
+			ui__error("Unknown --fields key: `%s'", tok);
 			break;
 		}
 	}

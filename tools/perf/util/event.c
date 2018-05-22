@@ -1435,6 +1435,11 @@ size_t perf_event__fprintf_switch(union perf_event *event, FILE *fp)
 		       event->context_switch.next_prev_tid);
 }
 
+static size_t perf_event__fprintf_lost(union perf_event *event, FILE *fp)
+{
+	return fprintf(fp, " lost %" PRIu64 "\n", event->lost.lost);
+}
+
 size_t perf_event__fprintf(union perf_event *event, FILE *fp)
 {
 	size_t ret = fprintf(fp, "PERF_RECORD_%s",
@@ -1466,6 +1471,9 @@ size_t perf_event__fprintf(union perf_event *event, FILE *fp)
 	case PERF_RECORD_SWITCH:
 	case PERF_RECORD_SWITCH_CPU_WIDE:
 		ret += perf_event__fprintf_switch(event, fp);
+		break;
+	case PERF_RECORD_LOST:
+		ret += perf_event__fprintf_lost(event, fp);
 		break;
 	default:
 		ret += fprintf(fp, "\n");

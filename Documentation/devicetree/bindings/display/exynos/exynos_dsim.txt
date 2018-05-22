@@ -54,7 +54,7 @@ Video interfaces:
 
 Example:
 
-	dsi@11C80000 {
+	dsi@11c80000 {
 		compatible = "samsung,exynos4210-mipi-dsi";
 		reg = <0x11C80000 0x10000>;
 		interrupts = <0 79 0>;

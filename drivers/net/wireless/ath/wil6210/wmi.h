@@ -71,6 +71,8 @@ enum wmi_fw_capability {
 	WMI_FW_CAPABILITY_RSSI_REPORTING		= 12,
 	WMI_FW_CAPABILITY_SET_SILENT_RSSI_TABLE		= 13,
 	WMI_FW_CAPABILITY_LO_POWER_CALIB_FROM_OTP	= 14,
+	WMI_FW_CAPABILITY_PNO				= 15,
+	WMI_FW_CAPABILITY_REF_CLOCK_CONTROL		= 18,
 	WMI_FW_CAPABILITY_MAX,
 };
 
@@ -87,6 +89,8 @@ enum wmi_command_id {
 	WMI_CONNECT_CMDID				= 0x01,
 	WMI_DISCONNECT_CMDID				= 0x03,
 	WMI_DISCONNECT_STA_CMDID			= 0x04,
+	WMI_START_SCHED_SCAN_CMDID			= 0x05,
+	WMI_STOP_SCHED_SCAN_CMDID			= 0x06,
 	WMI_START_SCAN_CMDID				= 0x07,
 	WMI_SET_BSS_FILTER_CMDID			= 0x09,
 	WMI_SET_PROBED_SSID_CMDID			= 0x0A,
@@ -383,6 +387,38 @@ struct wmi_start_scan_cmd {
 		u8 channel;
 		u8 reserved;
 	} channel_list[0];
+} __packed;
+
+#define WMI_MAX_PNO_SSID_NUM	(16)
+#define WMI_MAX_CHANNEL_NUM	(6)
+#define WMI_MAX_PLANS_NUM	(2)
+
+/* WMI_START_SCHED_SCAN_CMDID */
+struct wmi_sched_scan_ssid_match {
+	u8 ssid_len;
+	u8 ssid[WMI_MAX_SSID_LEN];
+	s8 rssi_threshold;
+	/* boolean */
+	u8 add_ssid_to_probe;
+	u8 reserved;
+} __packed;
+
+/* WMI_START_SCHED_SCAN_CMDID */
+struct wmi_sched_scan_plan {
+	__le16 interval_sec;
+	__le16 num_of_iterations;
+} __packed;
+
+/* WMI_START_SCHED_SCAN_CMDID */
+struct wmi_start_sched_scan_cmd {
+	struct wmi_sched_scan_ssid_match ssid_for_match[WMI_MAX_PNO_SSID_NUM];
+	u8 num_of_ssids;
+	s8 min_rssi_threshold;
+	u8 channel_list[WMI_MAX_CHANNEL_NUM];
+	u8 num_of_channels;
+	u8 reserved;
+	__le16 initial_delay_sec;
+	struct wmi_sched_scan_plan scan_plans[WMI_MAX_PLANS_NUM];
 } __packed;
 
 /* WMI_SET_PROBED_SSID_CMDID */
@@ -1238,6 +1274,9 @@ enum wmi_event_id {
 	WMI_READY_EVENTID				= 0x1001,
 	WMI_CONNECT_EVENTID				= 0x1002,
 	WMI_DISCONNECT_EVENTID				= 0x1003,
+	WMI_START_SCHED_SCAN_EVENTID			= 0x1005,
+	WMI_STOP_SCHED_SCAN_EVENTID			= 0x1006,
+	WMI_SCHED_SCAN_RESULT_EVENTID			= 0x1007,
 	WMI_SCAN_COMPLETE_EVENTID			= 0x100A,
 	WMI_REPORT_STATISTICS_EVENTID			= 0x100B,
 	WMI_RD_MEM_RSP_EVENTID				= 0x1800,
@@ -1600,6 +1639,49 @@ struct wmi_scan_complete_event {
 	__le32 status;
 } __packed;
 
+/* wmi_rx_mgmt_info */
+struct wmi_rx_mgmt_info {
+	u8 mcs;
+	s8 rssi;
+	u8 range;
+	u8 sqi;
+	__le16 stype;
+	__le16 status;
+	__le32 len;
+	/* Not resolved when == 0xFFFFFFFF == > Broadcast to all MIDS */
+	u8 qid;
+	/* Not resolved when == 0xFFFFFFFF == > Broadcast to all MIDS */
+	u8 mid;
+	u8 cid;
+	/* From Radio MNGR */
+	u8 channel;
+} __packed;
+
+/* WMI_START_SCHED_SCAN_EVENTID */
+enum wmi_pno_result {
+	WMI_PNO_SUCCESS			= 0x00,
+	WMI_PNO_REJECT			= 0x01,
+	WMI_PNO_INVALID_PARAMETERS	= 0x02,
+	WMI_PNO_NOT_ENABLED		= 0x03,
+};
+
+struct wmi_start_sched_scan_event {
+	/* pno_result */
+	u8 result;
+	u8 reserved[3];
+} __packed;
+
+struct wmi_stop_sched_scan_event {
+	/* pno_result */
+	u8 result;
+	u8 reserved[3];
+} __packed;
+
+struct wmi_sched_scan_result_event {
+	struct wmi_rx_mgmt_info info;
+	u8 payload[0];
+} __packed;
+
 /* WMI_ACS_PASSIVE_SCAN_COMPLETE_EVENT */
 enum wmi_acs_info_bitmask {
 	WMI_ACS_INFO_BITMASK_BEACON_FOUND	= 0x01,
@@ -1812,24 +1894,6 @@ struct wmi_read_rssi_event {
 struct wmi_get_ssid_event {
 	__le32 ssid_len;
 	u8 ssid[WMI_MAX_SSID_LEN];
-} __packed;
-
-/* wmi_rx_mgmt_info */
-struct wmi_rx_mgmt_info {
-	u8 mcs;
-	s8 rssi;
-	u8 range;
-	u8 sqi;
-	__le16 stype;
-	__le16 status;
-	__le32 len;
-	/* Not resolved when == 0xFFFFFFFF == > Broadcast to all MIDS */
-	u8 qid;
-	/* Not resolved when == 0xFFFFFFFF == > Broadcast to all MIDS */
-	u8 mid;
-	u8 cid;
-	/* From Radio MNGR */
-	u8 channel;
 } __packed;
 
 /* EVENT: WMI_RF_XPM_READ_RESULT_EVENTID */
@@ -2267,8 +2331,8 @@ struct wmi_link_maintain_cfg_read_done_event {
 } __packed;
 
 enum wmi_traffic_suspend_status {
-	WMI_TRAFFIC_SUSPEND_APPROVED	= 0x0,
-	WMI_TRAFFIC_SUSPEND_REJECTED	= 0x1,
+	WMI_TRAFFIC_SUSPEND_APPROVED			= 0x0,
+	WMI_TRAFFIC_SUSPEND_REJECTED_LINK_NOT_IDLE	= 0x1,
 };
 
 /* WMI_TRAFFIC_SUSPEND_EVENTID */
@@ -2282,10 +2346,21 @@ enum wmi_traffic_resume_status {
 	WMI_TRAFFIC_RESUME_FAILED	= 0x1,
 };
 
+enum wmi_resume_trigger {
+	WMI_RESUME_TRIGGER_UNKNOWN	= 0x0,
+	WMI_RESUME_TRIGGER_HOST		= 0x1,
+	WMI_RESUME_TRIGGER_UCAST_RX	= 0x2,
+	WMI_RESUME_TRIGGER_BCAST_RX	= 0x4,
+	WMI_RESUME_TRIGGER_WMI_EVT	= 0x8,
+};
+
 /* WMI_TRAFFIC_RESUME_EVENTID */
 struct wmi_traffic_resume_event {
-	/* enum wmi_traffic_resume_status_e */
+	/* enum wmi_traffic_resume_status */
 	u8 status;
+	u8 reserved[3];
+	/* enum wmi_resume_trigger bitmap */
+	__le32 resume_triggers;
 } __packed;
 
 /* Power Save command completion status codes */

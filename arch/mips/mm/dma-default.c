@@ -93,9 +93,6 @@ static gfp_t massage_gfp_flags(const struct device *dev, gfp_t gfp)
 {
 	gfp_t dma_flag;
 
-	/* ignore region specifiers */
-	gfp &= ~(__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM);
-
 #ifdef CONFIG_ISA
 	if (dev == NULL)
 		dma_flag = __GFP_DMA;
@@ -373,11 +370,6 @@ static void mips_dma_sync_sg_for_device(struct device *dev,
 	}
 }
 
-static int mips_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
-{
-	return 0;
-}
-
 static int mips_dma_supported(struct device *dev, u64 mask)
 {
 	return plat_dma_supported(dev, mask);
@@ -404,7 +396,6 @@ static const struct dma_map_ops mips_default_dma_map_ops = {
 	.sync_single_for_device = mips_dma_sync_single_for_device,
 	.sync_sg_for_cpu = mips_dma_sync_sg_for_cpu,
 	.sync_sg_for_device = mips_dma_sync_sg_for_device,
-	.mapping_error = mips_dma_mapping_error,
 	.dma_supported = mips_dma_supported,
 	.cache_sync = mips_dma_cache_sync,
 };

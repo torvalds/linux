@@ -409,10 +409,8 @@ int __init pci_xen_init(void)
 	pcibios_enable_irq = xen_pcifront_enable_irq;
 	pcibios_disable_irq = NULL;
 
-#ifdef CONFIG_ACPI
 	/* Keep ACPI out of the picture */
-	acpi_noirq = 1;
-#endif
+	acpi_noirq_set();
 
 #ifdef CONFIG_PCI_MSI
 	x86_msi.setup_msi_irqs = xen_setup_msi_irqs;

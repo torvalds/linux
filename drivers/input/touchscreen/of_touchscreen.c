@@ -13,6 +13,7 @@
 #include <linux/input.h>
 #include <linux/input/mt.h>
 #include <linux/input/touchscreen.h>
+#include <linux/module.h>
 
 static bool touchscreen_get_prop_u32(struct device *dev,
 				     const char *property,
@@ -185,3 +186,6 @@ void touchscreen_report_pos(struct input_dev *input,
 	input_report_abs(input, multitouch ? ABS_MT_POSITION_Y : ABS_Y, y);
 }
 EXPORT_SYMBOL(touchscreen_report_pos);
+
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("Device-tree helpers functions for touchscreen devices");

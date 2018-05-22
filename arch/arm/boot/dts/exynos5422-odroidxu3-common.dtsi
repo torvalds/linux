@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Hardkernel Odroid XU3 board device tree source
  *
@@ -6,11 +7,7 @@
  * Copyright (c) 2014 Collabora Ltd.
  * Copyright (c) 2015 Lukasz Majewski <l.majewski@samsung.com>
  *                    Anand Moon <linux.amoon@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 #include <dt-bindings/input/input.h>
 #include "exynos5422-odroid-core.dtsi"

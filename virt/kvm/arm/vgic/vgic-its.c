@@ -1034,10 +1034,8 @@ static int vgic_its_cmd_handle_mapd(struct kvm *kvm, struct vgic_its *its,
 
 	device = vgic_its_alloc_device(its, device_id, itt_addr,
 				       num_eventid_bits);
-	if (IS_ERR(device))
-		return PTR_ERR(device);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(device);
 }
 
 /*

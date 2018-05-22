@@ -51,7 +51,7 @@
 		#size-cells = <2>;
 		ranges;
 
-		ramoops@0x21f00000 {
+		ramoops@21f00000 {
 			compatible = "ramoops";
 			reg = <0x0 0x21f00000 0x0 0x00100000>;
 			record-size	= <0x00020000>;
@@ -359,6 +359,7 @@
 		user_led1 {
 			label = "user_led1";
 			gpios = <&gpio4 3 0>; /* <&gpio_user_led_4>; */
+			panic-indicator;
 			linux,default-trigger = "cpu0";
 		};
 

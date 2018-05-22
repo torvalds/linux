@@ -1257,21 +1257,21 @@ static int usbtmc_fasync(int fd, struct file *file, int on)
 	return fasync_helper(fd, file, on, &data->fasync);
 }
 
-static unsigned int usbtmc_poll(struct file *file, poll_table *wait)
+static __poll_t usbtmc_poll(struct file *file, poll_table *wait)
 {
 	struct usbtmc_device_data *data = file->private_data;
-	unsigned int mask;
+	__poll_t mask;
 
 	mutex_lock(&data->io_mutex);
 
 	if (data->zombie) {
-		mask = POLLHUP | POLLERR;
+		mask = EPOLLHUP | EPOLLERR;
 		goto no_poll;
 	}
 
 	poll_wait(file, &data->waitq, wait);
 
-	mask = (atomic_read(&data->srq_asserted)) ? POLLIN | POLLRDNORM : 0;
+	mask = (atomic_read(&data->srq_asserted)) ? EPOLLIN | EPOLLRDNORM : 0;
 
 no_poll:
 	mutex_unlock(&data->io_mutex);

@@ -1917,7 +1917,7 @@ static struct kobject *floppy_find(dev_t dev, int *part, void *data)
 	if (drive >= FD_MAX_UNITS || type > NUM_DISK_MINORS)
 		return NULL;
 	*part = 0;
-	return get_disk(unit[drive].disk);
+	return get_disk_and_module(unit[drive].disk);
 }
 
 static int __init atari_floppy_init (void)

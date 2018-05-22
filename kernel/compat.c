@@ -355,7 +355,7 @@ COMPAT_SYSCALL_DEFINE3(sched_getaffinity, compat_pid_t,  pid, unsigned int, len,
 
 	ret = sched_getaffinity(pid, mask);
 	if (ret == 0) {
-		size_t retlen = min_t(size_t, len, cpumask_size());
+		unsigned int retlen = min(len, cpumask_size());
 
 		if (compat_put_bitmap(user_mask_ptr, cpumask_bits(mask), retlen * 8))
 			ret = -EFAULT;
@@ -487,25 +487,6 @@ get_compat_sigset(sigset_t *set, const compat_sigset_t __user *compat)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(get_compat_sigset);
-
-int
-put_compat_sigset(compat_sigset_t __user *compat, const sigset_t *set,
-		  unsigned int size)
-{
-	/* size <= sizeof(compat_sigset_t) <= sizeof(sigset_t) */
-#ifdef __BIG_ENDIAN
-	compat_sigset_t v;
-	switch (_NSIG_WORDS) {
-	case 4: v.sig[7] = (set->sig[3] >> 32); v.sig[6] = set->sig[3];
-	case 3: v.sig[5] = (set->sig[2] >> 32); v.sig[4] = set->sig[2];
-	case 2: v.sig[3] = (set->sig[1] >> 32); v.sig[2] = set->sig[1];
-	case 1: v.sig[1] = (set->sig[0] >> 32); v.sig[0] = set->sig[0];
-	}
-	return copy_to_user(compat, &v, size) ? -EFAULT : 0;
-#else
-	return copy_to_user(compat, set, size) ? -EFAULT : 0;
-#endif
-}
 
 #ifdef CONFIG_NUMA
 COMPAT_SYSCALL_DEFINE6(move_pages, pid_t, pid, compat_ulong_t, nr_pages,

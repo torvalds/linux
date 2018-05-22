@@ -666,7 +666,7 @@ typedef struct TAG_TW_Device_Extension {
 	unsigned char		event_queue_wrapped;
 	unsigned int            error_sequence_id;
 	int                     ioctl_sem_lock;
-	u32                     ioctl_msec;
+	ktime_t                 ioctl_time;
 	int			chrdev_request_id;
 	wait_queue_head_t	ioctl_wqueue;
 	struct mutex		ioctl_lock;

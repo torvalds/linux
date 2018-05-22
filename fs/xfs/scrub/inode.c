@@ -36,9 +36,13 @@
 #include "xfs_ialloc.h"
 #include "xfs_da_format.h"
 #include "xfs_reflink.h"
+#include "xfs_rmap.h"
+#include "xfs_bmap.h"
+#include "xfs_bmap_util.h"
 #include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
+#include "scrub/btree.h"
 #include "scrub/trace.h"
 
 /*
@@ -64,7 +68,7 @@ xfs_scrub_setup_inode(
 		break;
 	case -EFSCORRUPTED:
 	case -EFSBADCRC:
-		return 0;
+		return xfs_scrub_trans_alloc(sc->sm, mp, &sc->tp);
 	default:
 		return error;
 	}
@@ -392,6 +396,14 @@ xfs_scrub_dinode(
 		break;
 	}
 
+	/* di_[amc]time.nsec */
+	if (be32_to_cpu(dip->di_atime.t_nsec) >= NSEC_PER_SEC)
+		xfs_scrub_ino_set_corrupt(sc, ino, bp);
+	if (be32_to_cpu(dip->di_mtime.t_nsec) >= NSEC_PER_SEC)
+		xfs_scrub_ino_set_corrupt(sc, ino, bp);
+	if (be32_to_cpu(dip->di_ctime.t_nsec) >= NSEC_PER_SEC)
+		xfs_scrub_ino_set_corrupt(sc, ino, bp);
+
 	/*
 	 * di_size.  xfs_dinode_verify checks for things that screw up
 	 * the VFS such as the upper bit being set and zero-length
@@ -495,6 +507,8 @@ xfs_scrub_dinode(
 	}
 
 	if (dip->di_version >= 3) {
+		if (be32_to_cpu(dip->di_crtime.t_nsec) >= NSEC_PER_SEC)
+			xfs_scrub_ino_set_corrupt(sc, ino, bp);
 		xfs_scrub_inode_flags2(sc, bp, dip, ino, mode, flags, flags2);
 		xfs_scrub_inode_cowextsize(sc, bp, dip, ino, mode, flags,
 				flags2);
@@ -546,7 +560,7 @@ xfs_scrub_inode_map_raw(
 	 */
 	bp->b_ops = &xfs_inode_buf_ops;
 	dip = xfs_buf_offset(bp, imap.im_boffset);
-	if (!xfs_dinode_verify(mp, ino, dip) ||
+	if (xfs_dinode_verify(mp, ino, dip) != NULL ||
 	    !xfs_dinode_good_version(mp, dip->di_version)) {
 		xfs_scrub_ino_set_corrupt(sc, ino, bp);
 		goto out_buf;
@@ -567,18 +581,155 @@ out_buf:
 	return error;
 }
 
+/*
+ * Make sure the finobt doesn't think this inode is free.
+ * We don't have to check the inobt ourselves because we got the inode via
+ * IGET_UNTRUSTED, which checks the inobt for us.
+ */
+static void
+xfs_scrub_inode_xref_finobt(
+	struct xfs_scrub_context	*sc,
+	xfs_ino_t			ino)
+{
+	struct xfs_inobt_rec_incore	rec;
+	xfs_agino_t			agino;
+	int				has_record;
+	int				error;
+
+	if (!sc->sa.fino_cur)
+		return;
+
+	agino = XFS_INO_TO_AGINO(sc->mp, ino);
+
+	/*
+	 * Try to get the finobt record.  If we can't get it, then we're
+	 * in good shape.
+	 */
+	error = xfs_inobt_lookup(sc->sa.fino_cur, agino, XFS_LOOKUP_LE,
+			&has_record);
+	if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.fino_cur) ||
+	    !has_record)
+		return;
+
+	error = xfs_inobt_get_rec(sc->sa.fino_cur, &rec, &has_record);
+	if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.fino_cur) ||
+	    !has_record)
+		return;
+
+	/*
+	 * Otherwise, make sure this record either doesn't cover this inode,
+	 * or that it does but it's marked present.
+	 */
+	if (rec.ir_startino > agino ||
+	    rec.ir_startino + XFS_INODES_PER_CHUNK <= agino)
+		return;
+
+	if (rec.ir_free & XFS_INOBT_MASK(agino - rec.ir_startino))
+		xfs_scrub_btree_xref_set_corrupt(sc, sc->sa.fino_cur, 0);
+}
+
+/* Cross reference the inode fields with the forks. */
+STATIC void
+xfs_scrub_inode_xref_bmap(
+	struct xfs_scrub_context	*sc,
+	struct xfs_dinode		*dip)
+{
+	xfs_extnum_t			nextents;
+	xfs_filblks_t			count;
+	xfs_filblks_t			acount;
+	int				error;
+
+	/* Walk all the extents to check nextents/naextents/nblocks. */
+	error = xfs_bmap_count_blocks(sc->tp, sc->ip, XFS_DATA_FORK,
+			&nextents, &count);
+	if (!xfs_scrub_should_check_xref(sc, &error, NULL))
+		return;
+	if (nextents < be32_to_cpu(dip->di_nextents))
+		xfs_scrub_ino_xref_set_corrupt(sc, sc->ip->i_ino, NULL);
+
+	error = xfs_bmap_count_blocks(sc->tp, sc->ip, XFS_ATTR_FORK,
+			&nextents, &acount);
+	if (!xfs_scrub_should_check_xref(sc, &error, NULL))
+		return;
+	if (nextents != be16_to_cpu(dip->di_anextents))
+		xfs_scrub_ino_xref_set_corrupt(sc, sc->ip->i_ino, NULL);
+
+	/* Check nblocks against the inode. */
+	if (count + acount != be64_to_cpu(dip->di_nblocks))
+		xfs_scrub_ino_xref_set_corrupt(sc, sc->ip->i_ino, NULL);
+}
+
+/* Cross-reference with the other btrees. */
+STATIC void
+xfs_scrub_inode_xref(
+	struct xfs_scrub_context	*sc,
+	xfs_ino_t			ino,
+	struct xfs_dinode		*dip)
+{
+	struct xfs_owner_info		oinfo;
+	xfs_agnumber_t			agno;
+	xfs_agblock_t			agbno;
+	int				error;
+
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return;
+
+	agno = XFS_INO_TO_AGNO(sc->mp, ino);
+	agbno = XFS_INO_TO_AGBNO(sc->mp, ino);
+
+	error = xfs_scrub_ag_init(sc, agno, &sc->sa);
+	if (!xfs_scrub_xref_process_error(sc, agno, agbno, &error))
+		return;
+
+	xfs_scrub_xref_is_used_space(sc, agbno, 1);
+	xfs_scrub_inode_xref_finobt(sc, ino);
+	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_INODES);
+	xfs_scrub_xref_is_owned_by(sc, agbno, 1, &oinfo);
+	xfs_scrub_xref_is_not_shared(sc, agbno, 1);
+	xfs_scrub_inode_xref_bmap(sc, dip);
+
+	xfs_scrub_ag_free(sc, &sc->sa);
+}
+
+/*
+ * If the reflink iflag disagrees with a scan for shared data fork extents,
+ * either flag an error (shared extents w/ no flag) or a preen (flag set w/o
+ * any shared extents).  We already checked for reflink iflag set on a non
+ * reflink filesystem.
+ */
+static void
+xfs_scrub_inode_check_reflink_iflag(
+	struct xfs_scrub_context	*sc,
+	xfs_ino_t			ino,
+	struct xfs_buf			*bp)
+{
+	struct xfs_mount		*mp = sc->mp;
+	bool				has_shared;
+	int				error;
+
+	if (!xfs_sb_version_hasreflink(&mp->m_sb))
+		return;
+
+	error = xfs_reflink_inode_has_shared_extents(sc->tp, sc->ip,
+			&has_shared);
+	if (!xfs_scrub_xref_process_error(sc, XFS_INO_TO_AGNO(mp, ino),
+			XFS_INO_TO_AGBNO(mp, ino), &error))
+		return;
+	if (xfs_is_reflink_inode(sc->ip) && !has_shared)
+		xfs_scrub_ino_set_preen(sc, ino, bp);
+	else if (!xfs_is_reflink_inode(sc->ip) && has_shared)
+		xfs_scrub_ino_set_corrupt(sc, ino, bp);
+}
+
 /* Scrub an inode. */
 int
 xfs_scrub_inode(
 	struct xfs_scrub_context	*sc)
 {
 	struct xfs_dinode		di;
-	struct xfs_mount		*mp = sc->mp;
 	struct xfs_buf			*bp = NULL;
 	struct xfs_dinode		*dip;
 	xfs_ino_t			ino;
-
-	bool				has_shared;
 	int				error = 0;
 
 	/* Did we get the in-core inode, or are we doing this manually? */
@@ -603,19 +754,14 @@ xfs_scrub_inode(
 		goto out;
 
 	/*
-	 * Does this inode have the reflink flag set but no shared extents?
-	 * Set the preening flag if this is the case.
+	 * Look for discrepancies between file's data blocks and the reflink
+	 * iflag.  We already checked the iflag against the file mode when
+	 * we scrubbed the dinode.
 	 */
-	if (xfs_is_reflink_inode(sc->ip)) {
-		error = xfs_reflink_inode_has_shared_extents(sc->tp, sc->ip,
-				&has_shared);
-		if (!xfs_scrub_process_error(sc, XFS_INO_TO_AGNO(mp, ino),
-				XFS_INO_TO_AGBNO(mp, ino), &error))
-			goto out;
-		if (!has_shared)
-			xfs_scrub_ino_set_preen(sc, ino, bp);
-	}
+	if (S_ISREG(VFS_I(sc->ip)->i_mode))
+		xfs_scrub_inode_check_reflink_iflag(sc, ino, bp);
 
+	xfs_scrub_inode_xref(sc, ino, dip);
 out:
 	if (bp)
 		xfs_trans_brelse(sc->tp, bp);

@@ -7,11 +7,12 @@
 #include <linux/sched.h>
 #include <linux/mm_types.h>
 #include <linux/gfp.h>
+#include <linux/sync_core.h>
 
 /*
  * Routines for handling mm_structs
  */
-extern struct mm_struct * mm_alloc(void);
+extern struct mm_struct *mm_alloc(void);
 
 /**
  * mmgrab() - Pin a &struct mm_struct.
@@ -35,26 +36,17 @@ static inline void mmgrab(struct mm_struct *mm)
 	atomic_inc(&mm->mm_count);
 }
 
-/* mmdrop drops the mm and the page tables */
-extern void __mmdrop(struct mm_struct *);
+extern void __mmdrop(struct mm_struct *mm);
+
 static inline void mmdrop(struct mm_struct *mm)
 {
+	/*
+	 * The implicit full barrier implied by atomic_dec_and_test() is
+	 * required by the membarrier system call before returning to
+	 * user-space, after storing to rq->curr.
+	 */
 	if (unlikely(atomic_dec_and_test(&mm->mm_count)))
 		__mmdrop(mm);
-}
-
-static inline void mmdrop_async_fn(struct work_struct *work)
-{
-	struct mm_struct *mm = container_of(work, struct mm_struct, async_put_work);
-	__mmdrop(mm);
-}
-
-static inline void mmdrop_async(struct mm_struct *mm)
-{
-	if (unlikely(atomic_dec_and_test(&mm->mm_count))) {
-		INIT_WORK(&mm->async_put_work, mmdrop_async_fn);
-		schedule_work(&mm->async_put_work);
-	}
 }
 
 /**
@@ -214,16 +206,46 @@ static inline void memalloc_noreclaim_restore(unsigned int flags)
 
 #ifdef CONFIG_MEMBARRIER
 enum {
-	MEMBARRIER_STATE_PRIVATE_EXPEDITED_READY	= (1U << 0),
-	MEMBARRIER_STATE_SWITCH_MM			= (1U << 1),
+	MEMBARRIER_STATE_PRIVATE_EXPEDITED_READY		= (1U << 0),
+	MEMBARRIER_STATE_PRIVATE_EXPEDITED			= (1U << 1),
+	MEMBARRIER_STATE_GLOBAL_EXPEDITED_READY			= (1U << 2),
+	MEMBARRIER_STATE_GLOBAL_EXPEDITED			= (1U << 3),
+	MEMBARRIER_STATE_PRIVATE_EXPEDITED_SYNC_CORE_READY	= (1U << 4),
+	MEMBARRIER_STATE_PRIVATE_EXPEDITED_SYNC_CORE		= (1U << 5),
 };
+
+enum {
+	MEMBARRIER_FLAG_SYNC_CORE	= (1U << 0),
+};
+
+#ifdef CONFIG_ARCH_HAS_MEMBARRIER_CALLBACKS
+#include <asm/membarrier.h>
+#endif
+
+static inline void membarrier_mm_sync_core_before_usermode(struct mm_struct *mm)
+{
+	if (likely(!(atomic_read(&mm->membarrier_state) &
+		     MEMBARRIER_STATE_PRIVATE_EXPEDITED_SYNC_CORE)))
+		return;
+	sync_core_before_usermode();
+}
 
 static inline void membarrier_execve(struct task_struct *t)
 {
 	atomic_set(&t->mm->membarrier_state, 0);
 }
 #else
+#ifdef CONFIG_ARCH_HAS_MEMBARRIER_CALLBACKS
+static inline void membarrier_arch_switch_mm(struct mm_struct *prev,
+					     struct mm_struct *next,
+					     struct task_struct *tsk)
+{
+}
+#endif
 static inline void membarrier_execve(struct task_struct *t)
+{
+}
+static inline void membarrier_mm_sync_core_before_usermode(struct mm_struct *mm)
 {
 }
 #endif

@@ -33,7 +33,12 @@ struct btrfs_ioctl_vol_args {
 	char name[BTRFS_PATH_NAME_MAX + 1];
 };
 
-#define BTRFS_DEVICE_PATH_NAME_MAX 1024
+#define BTRFS_DEVICE_PATH_NAME_MAX	1024
+#define BTRFS_SUBVOL_NAME_MAX 		4039
+
+#define BTRFS_SUBVOL_CREATE_ASYNC	(1ULL << 0)
+#define BTRFS_SUBVOL_RDONLY		(1ULL << 1)
+#define BTRFS_SUBVOL_QGROUP_INHERIT	(1ULL << 2)
 
 #define BTRFS_DEVICE_SPEC_BY_ID		(1ULL << 3)
 
@@ -101,11 +106,7 @@ struct btrfs_ioctl_qgroup_limit_args {
  * - BTRFS_IOC_SUBVOL_GETFLAGS
  * - BTRFS_IOC_SUBVOL_SETFLAGS
  */
-#define BTRFS_SUBVOL_CREATE_ASYNC	(1ULL << 0)
-#define BTRFS_SUBVOL_RDONLY		(1ULL << 1)
-#define BTRFS_SUBVOL_QGROUP_INHERIT	(1ULL << 2)
 
-#define BTRFS_SUBVOL_NAME_MAX 4039
 struct btrfs_ioctl_vol_args_v2 {
 	__s64 fd;
 	__u64 transid;

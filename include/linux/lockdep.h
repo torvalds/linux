@@ -337,9 +337,9 @@ extern void lock_release(struct lockdep_map *lock, int nested,
 /*
  * Same "read" as for lock_acquire(), except -1 means any.
  */
-extern int lock_is_held_type(struct lockdep_map *lock, int read);
+extern int lock_is_held_type(const struct lockdep_map *lock, int read);
 
-static inline int lock_is_held(struct lockdep_map *lock)
+static inline int lock_is_held(const struct lockdep_map *lock)
 {
 	return lock_is_held_type(lock, -1);
 }
@@ -366,8 +366,6 @@ struct pin_cookie { unsigned int val; };
 extern struct pin_cookie lock_pin_lock(struct lockdep_map *lock);
 extern void lock_repin_lock(struct lockdep_map *lock, struct pin_cookie);
 extern void lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie);
-
-# define INIT_LOCKDEP				.lockdep_recursion = 0,
 
 #define lockdep_depth(tsk)	(debug_locks ? (tsk)->lockdep_depth : 0)
 
@@ -426,7 +424,6 @@ static inline void lockdep_on(void)
  * #ifdef the call himself.
  */
 
-# define INIT_LOCKDEP
 # define lockdep_reset()		do { debug_locks = 1; } while (0)
 # define lockdep_free_key_range(start, size)	do { } while (0)
 # define lockdep_sys_exit() 			do { } while (0)

@@ -56,7 +56,6 @@ static void __init fixedrange_init(void)
 
 void __init paging_init(void)
 {
-	memset(swapper_pg_dir, 0, PAGE_SIZE);
 #ifdef CONFIG_HIGHMEM
 	fixedrange_init();
 	pkmap_page_table = init_pmd(PKMAP_BASE, LAST_PKMAP);
@@ -82,6 +81,23 @@ void init_mmu(void)
 	set_itlbcfg_register(0);
 	set_dtlbcfg_register(0);
 #endif
+	init_kio();
+	local_flush_tlb_all();
+
+	/* Set rasid register to a known value. */
+
+	set_rasid_register(ASID_INSERT(ASID_USER_FIRST));
+
+	/* Set PTEVADDR special register to the start of the page
+	 * table, which is in kernel mappable space (ie. not
+	 * statically mapped).  This register's value is undefined on
+	 * reset.
+	 */
+	set_ptevaddr_register(XCHAL_PAGE_TABLE_VADDR);
+}
+
+void init_kio(void)
+{
 #if XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY && defined(CONFIG_OF)
 	/*
 	 * Update the IO area mapping in case xtensa_kio_paddr has changed
@@ -95,17 +111,4 @@ void init_mmu(void)
 	write_itlb_entry(__pte(xtensa_kio_paddr + CA_BYPASS),
 			XCHAL_KIO_BYPASS_VADDR + 6);
 #endif
-
-	local_flush_tlb_all();
-
-	/* Set rasid register to a known value. */
-
-	set_rasid_register(ASID_INSERT(ASID_USER_FIRST));
-
-	/* Set PTEVADDR special register to the start of the page
-	 * table, which is in kernel mappable space (ie. not
-	 * statically mapped).  This register's value is undefined on
-	 * reset.
-	 */
-	set_ptevaddr_register(PGTABLE_START);
 }

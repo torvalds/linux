@@ -125,11 +125,6 @@
     "BriefDescription": "Finish stall because the NTF instruction was a larx waiting to be satisfied"
   },
   {,
-    "EventCode": "0x3006C",
-    "EventName": "PM_RUN_CYC_SMT2_MODE",
-    "BriefDescription": "Cycles in which this thread's run latch is set and the core is in SMT2 mode"
-  },
-  {,
     "EventCode": "0x1C058",
     "EventName": "PM_DTLB_MISS_16G",
     "BriefDescription": "Data TLB Miss page size 16G"

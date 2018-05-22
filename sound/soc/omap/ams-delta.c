@@ -105,7 +105,7 @@ static int ams_delta_set_audio_mode(struct snd_kcontrol *kcontrol,
 	int pin, changed = 0;
 
 	/* Refuse any mode changes if we are not able to control the codec. */
-	if (!cx20442_codec->hw_write)
+	if (!cx20442_codec->component.card->pop_time)
 		return -EUNATCH;
 
 	if (ucontrol->value.enumerated.item[0] >= control->items)
@@ -345,7 +345,7 @@ static void cx81801_receive(struct tty_struct *tty,
 	if (!codec)
 		return;
 
-	if (!codec->hw_write) {
+	if (!codec->component.card->pop_time) {
 		/* First modem response, complete setup procedure */
 
 		/* Initialize timer used for config pulse generation */

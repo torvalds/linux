@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2011 - 2015 UNISYS CORPORATION
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
  */
 
 /*
@@ -25,8 +16,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/uuid.h>
+#include <linux/visorbus.h>
 
-#include "visorbus.h"
 #include "ultrainputreport.h"
 
 /* Keyboard channel {c73416d0-b0b8-44af-b304-9d2ae99f1b3d} */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * pcl816.c
  * Comedi driver for Advantech PCL-816 cards

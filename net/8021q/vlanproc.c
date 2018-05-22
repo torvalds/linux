@@ -80,7 +80,6 @@ static int vlan_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations vlan_fops = {
-	.owner	 = THIS_MODULE,
 	.open    = vlan_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
@@ -97,7 +96,6 @@ static int vlandev_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations vlandev_fops = {
-	.owner = THIS_MODULE,
 	.open    = vlandev_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,

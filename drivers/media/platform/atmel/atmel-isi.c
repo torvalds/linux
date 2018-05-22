@@ -1128,7 +1128,7 @@ static int isi_graph_parse(struct atmel_isi *isi, struct device_node *node)
 		/* Remote node to connect */
 		isi->entity.node = remote;
 		isi->entity.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-		isi->entity.asd.match.fwnode.fwnode = of_fwnode_handle(remote);
+		isi->entity.asd.match.fwnode = of_fwnode_handle(remote);
 		return 0;
 	}
 }

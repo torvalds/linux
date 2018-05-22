@@ -64,6 +64,19 @@
 		};
 	};
 
+	mdio0: ethernet-phy {
+		compatible = "virtual,mdio-gpio";
+		gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>, /* MDC */
+			<&gpio0 21 GPIO_ACTIVE_HIGH>; /* MDIO */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy0: ethernet-phy@1 {
+			reg = <1>;
+			device_type = "ethernet-phy";
+		};
+	};
+
 	soc {
 		flash@30000000 {
 			status = "okay";
@@ -116,6 +129,50 @@
 						groups = "gpio1dgrp";
 					};
 				};
+				pinctrl-gmii {
+					mux {
+						function = "gmii";
+						groups = "gmii_gmac0_grp";
+					};
+					/* Settings come from OpenWRT */
+					conf0 {
+						pins = "R8 GMAC0 RXDV", "U11 GMAC1 RXDV";
+						skew-delay = <0>;
+					};
+					conf1 {
+						pins = "T8 GMAC0 RXC", "T11 GMAC1 RXC";
+						skew-delay = <15>;
+					};
+					conf2 {
+						pins = "P8 GMAC0 TXEN", "V11 GMAC1 TXEN";
+						skew-delay = <7>;
+					};
+					conf3 {
+						pins = "V7 GMAC0 TXC";
+						skew-delay = <11>;
+					};
+					conf4 {
+						pins = "P10 GMAC1 TXC";
+						skew-delay = <10>;
+					};
+					conf5 {
+						/* The data lines all have default skew */
+						pins = "U8 GMAC0 RXD0", "V8 GMAC0 RXD1",
+						       "P9 GMAC0 RXD2", "R9 GMAC0 RXD3",
+						       "U7 GMAC0 TXD0", "T7 GMAC0 TXD1",
+						       "R7 GMAC0 TXD2", "P7 GMAC0 TXD3",
+						       "R11 GMAC1 RXD0", "P11 GMAC1 RXD1",
+						       "V12 GMAC1 RXD2", "U12 GMAC1 RXD3",
+						       "R10 GMAC1 TXD0", "T10 GMAC1 TXD1",
+						       "U10 GMAC1 TXD2", "V10 GMAC1 TXD3";
+						skew-delay = <7>;
+					};
+					/* Set up drive strength on GMAC0 to 16 mA */
+					conf6 {
+						groups = "gmii_gmac0_grp";
+						drive-strength = <16>;
+					};
+				};
 			};
 		};
 
@@ -128,6 +185,18 @@
 		gpio1: gpio@4e000000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&gpio1_default_pins>;
+		};
+
+		ethernet@60000000 {
+			status = "okay";
+
+			ethernet-port@0 {
+				phy-mode = "rgmii";
+				phy-handle = <&phy0>;
+			};
+			ethernet-port@1 {
+				/* Not used in this platform */
+			};
 		};
 
 		ata@63000000 {

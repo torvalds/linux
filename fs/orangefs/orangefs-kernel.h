@@ -56,11 +56,7 @@
 
 #include "orangefs-dev-proto.h"
 
-#ifdef ORANGEFS_KERNEL_DEBUG
-#define ORANGEFS_DEFAULT_OP_TIMEOUT_SECS       10
-#else
 #define ORANGEFS_DEFAULT_OP_TIMEOUT_SECS       20
-#endif
 
 #define ORANGEFS_BUFMAP_WAIT_TIMEOUT_SECS   30
 
@@ -104,11 +100,11 @@ enum orangefs_vfs_op_states {
  * orangefs kernel memory related flags
  */
 
-#if ((defined ORANGEFS_KERNEL_DEBUG) && (defined CONFIG_DEBUG_SLAB))
+#if (defined CONFIG_DEBUG_SLAB)
 #define ORANGEFS_CACHE_CREATE_FLAGS SLAB_RED_ZONE
 #else
 #define ORANGEFS_CACHE_CREATE_FLAGS 0
-#endif /* ((defined ORANGEFS_KERNEL_DEBUG) && (defined CONFIG_DEBUG_SLAB)) */
+#endif
 
 extern int orangefs_init_acl(struct inode *inode, struct inode *dir);
 extern const struct xattr_handler *orangefs_xattr_handlers[];
@@ -471,8 +467,6 @@ int orangefs_inode_check_changed(struct inode *inode);
 
 int orangefs_inode_setattr(struct inode *inode, struct iattr *iattr);
 
-void orangefs_make_bad_inode(struct inode *inode);
-
 int orangefs_unmount_sb(struct super_block *sb);
 
 bool orangefs_cancel_op_in_progress(struct orangefs_kernel_op_s *op);
@@ -532,17 +526,6 @@ do {									\
 	sys_attr.ctime = 0;						\
 	sys_attr.mask = ORANGEFS_ATTR_SYS_ALL_SETABLE;			\
 } while (0)
-
-static inline void orangefs_i_size_write(struct inode *inode, loff_t i_size)
-{
-#if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
-	inode_lock(inode);
-#endif
-	i_size_write(inode, i_size);
-#if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
-	inode_unlock(inode);
-#endif
-}
 
 static inline void orangefs_set_timeout(struct dentry *dentry)
 {

@@ -838,6 +838,7 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
 	u8 *start;
 	u8 *fault;
 	u8 *end;
+	u8 *pad;
 	int length;
 	int remainder;
 
@@ -851,8 +852,9 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
 	if (!remainder)
 		return 1;
 
+	pad = end - remainder;
 	metadata_access_enable();
-	fault = memchr_inv(end - remainder, POISON_INUSE, remainder);
+	fault = memchr_inv(pad, POISON_INUSE, remainder);
 	metadata_access_disable();
 	if (!fault)
 		return 1;
@@ -860,9 +862,9 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
 		end--;
 
 	slab_err(s, page, "Padding overwritten. 0x%p-0x%p", fault, end - 1);
-	print_section(KERN_ERR, "Padding ", end - remainder, remainder);
+	print_section(KERN_ERR, "Padding ", pad, remainder);
 
-	restore_bytes(s, "slab padding", POISON_INUSE, end - remainder, end);
+	restore_bytes(s, "slab padding", POISON_INUSE, fault, end);
 	return 0;
 }
 
@@ -1354,13 +1356,13 @@ static inline void kmalloc_large_node_hook(void *ptr, size_t size, gfp_t flags)
 	kasan_kmalloc_large(ptr, size, flags);
 }
 
-static inline void kfree_hook(const void *x)
+static __always_inline void kfree_hook(void *x)
 {
 	kmemleak_free(x);
-	kasan_kfree_large(x);
+	kasan_kfree_large(x, _RET_IP_);
 }
 
-static inline void *slab_free_hook(struct kmem_cache *s, void *x)
+static __always_inline void *slab_free_hook(struct kmem_cache *s, void *x)
 {
 	void *freeptr;
 
@@ -1388,7 +1390,7 @@ static inline void *slab_free_hook(struct kmem_cache *s, void *x)
 	 * kasan_slab_free() may put x into memory quarantine, delaying its
 	 * reuse. In this case the object's freelist pointer is changed.
 	 */
-	kasan_slab_free(s, x);
+	kasan_slab_free(s, x, _RET_IP_);
 	return freeptr;
 }
 
@@ -2220,9 +2222,7 @@ static void unfreeze_partials(struct kmem_cache *s,
 
 /*
  * Put a page that was just frozen (in __slab_free) into a partial page
- * slot if available. This is done without interrupts disabled and without
- * preemption disabled. The cmpxchg is racy and may put the partial page
- * onto a random cpus partial slot.
+ * slot if available.
  *
  * If we did not find a slot then simply move all the partials to the
  * per node partial list.
@@ -3813,13 +3813,15 @@ EXPORT_SYMBOL(__kmalloc_node);
 
 #ifdef CONFIG_HARDENED_USERCOPY
 /*
- * Rejects objects that are incorrectly sized.
+ * Rejects incorrectly sized objects and objects that are to be copied
+ * to/from userspace but do not fall entirely within the containing slab
+ * cache's usercopy region.
  *
  * Returns NULL if check passes, otherwise const char * to name of cache
  * to indicate an error.
  */
-const char *__check_heap_object(const void *ptr, unsigned long n,
-				struct page *page)
+void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
+			 bool to_user)
 {
 	struct kmem_cache *s;
 	unsigned long offset;
@@ -3827,11 +3829,11 @@ const char *__check_heap_object(const void *ptr, unsigned long n,
 
 	/* Find object and usable object size. */
 	s = page->slab_cache;
-	object_size = slab_ksize(s);
 
 	/* Reject impossible pointers. */
 	if (ptr < page_address(page))
-		return s->name;
+		usercopy_abort("SLUB object not in SLUB page?!", NULL,
+			       to_user, 0, n);
 
 	/* Find offset within object. */
 	offset = (ptr - page_address(page)) % s->size;
@@ -3839,15 +3841,31 @@ const char *__check_heap_object(const void *ptr, unsigned long n,
 	/* Adjust for redzone and reject if within the redzone. */
 	if (kmem_cache_debug(s) && s->flags & SLAB_RED_ZONE) {
 		if (offset < s->red_left_pad)
-			return s->name;
+			usercopy_abort("SLUB object in left red zone",
+				       s->name, to_user, offset, n);
 		offset -= s->red_left_pad;
 	}
 
-	/* Allow address range falling entirely within object size. */
-	if (offset <= object_size && n <= object_size - offset)
-		return NULL;
+	/* Allow address range falling entirely within usercopy region. */
+	if (offset >= s->useroffset &&
+	    offset - s->useroffset <= s->usersize &&
+	    n <= s->useroffset - offset + s->usersize)
+		return;
 
-	return s->name;
+	/*
+	 * If the copy is still within the allocated object, produce
+	 * a warning instead of rejecting the copy. This is intended
+	 * to be a temporary method to find any missing usercopy
+	 * whitelists.
+	 */
+	object_size = slab_ksize(s);
+	if (usercopy_fallback &&
+	    offset <= object_size && n <= object_size - offset) {
+		usercopy_warn("SLUB object", s->name, to_user, offset, n);
+		return;
+	}
+
+	usercopy_abort("SLUB object", s->name, to_user, offset, n);
 }
 #endif /* CONFIG_HARDENED_USERCOPY */
 
@@ -3892,7 +3910,7 @@ void kfree(const void *x)
 	page = virt_to_head_page(x);
 	if (unlikely(!PageSlab(page))) {
 		BUG_ON(!PageCompound(page));
-		kfree_hook(x);
+		kfree_hook(object);
 		__free_pages(page, compound_order(page));
 		return;
 	}
@@ -4181,7 +4199,7 @@ void __init kmem_cache_init(void)
 	kmem_cache = &boot_kmem_cache;
 
 	create_boot_cache(kmem_cache_node, "kmem_cache_node",
-		sizeof(struct kmem_cache_node), SLAB_HWCACHE_ALIGN);
+		sizeof(struct kmem_cache_node), SLAB_HWCACHE_ALIGN, 0, 0);
 
 	register_hotmemory_notifier(&slab_memory_callback_nb);
 
@@ -4191,7 +4209,7 @@ void __init kmem_cache_init(void)
 	create_boot_cache(kmem_cache, "kmem_cache",
 			offsetof(struct kmem_cache, node) +
 				nr_node_ids * sizeof(struct kmem_cache_node *),
-		       SLAB_HWCACHE_ALIGN);
+		       SLAB_HWCACHE_ALIGN, 0, 0);
 
 	kmem_cache = bootstrap(&boot_kmem_cache);
 
@@ -5061,6 +5079,12 @@ static ssize_t cache_dma_show(struct kmem_cache *s, char *buf)
 SLAB_ATTR_RO(cache_dma);
 #endif
 
+static ssize_t usersize_show(struct kmem_cache *s, char *buf)
+{
+	return sprintf(buf, "%zu\n", s->usersize);
+}
+SLAB_ATTR_RO(usersize);
+
 static ssize_t destroy_by_rcu_show(struct kmem_cache *s, char *buf)
 {
 	return sprintf(buf, "%d\n", !!(s->flags & SLAB_TYPESAFE_BY_RCU));
@@ -5435,6 +5459,7 @@ static struct attribute *slab_attrs[] = {
 #ifdef CONFIG_FAILSLAB
 	&failslab_attr.attr,
 #endif
+	&usersize_attr.attr,
 
 	NULL
 };

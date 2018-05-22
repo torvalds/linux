@@ -682,8 +682,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			if (user_service->close_pending &&
 				down_interruptible(&user_service->close_event))
 				status = VCHIQ_RETRY;
-		}
-		else
+		} else
 			ret = -EINVAL;
 	} break;
 
@@ -708,8 +707,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			if (user_service->close_pending &&
 				down_interruptible(&user_service->close_event))
 				status = VCHIQ_RETRY;
-		}
-		else
+		} else
 			ret = -EINVAL;
 	} break;
 
@@ -1171,8 +1169,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			USER_SERVICE_T *user_service =
 				(USER_SERVICE_T *)service->base.userdata;
 			close_delivered(user_service);
-		}
-		else
+		} else
 			ret = -EINVAL;
 	} break;
 
@@ -1810,8 +1807,7 @@ vchiq_release(struct inode *inode, struct file *file)
 				instance->completion_remove &
 				(MAX_COMPLETIONS - 1)];
 			service = completion->service_userdata;
-			if (completion->reason == VCHIQ_SERVICE_CLOSED)
-			{
+			if (completion->reason == VCHIQ_SERVICE_CLOSED) {
 				USER_SERVICE_T *user_service =
 					service->base.userdata;
 

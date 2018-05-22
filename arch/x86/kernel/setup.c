@@ -114,7 +114,6 @@
 #include <asm/alternative.h>
 #include <asm/prom.h>
 #include <asm/microcode.h>
-#include <asm/mmu_context.h>
 #include <asm/kaslr.h>
 #include <asm/unwind.h>
 
@@ -363,16 +362,6 @@ static void __init reserve_initrd(void)
 	if (!boot_params.hdr.type_of_loader ||
 	    !ramdisk_image || !ramdisk_size)
 		return;		/* No initrd provided by bootloader */
-
-	/*
-	 * If SME is active, this memory will be marked encrypted by the
-	 * kernel when it is accessed (including relocation). However, the
-	 * ramdisk image was loaded decrypted by the bootloader, so make
-	 * sure that it is encrypted before accessing it. For SEV the
-	 * ramdisk will already be encrypted, so only do this for SME.
-	 */
-	if (sme_active())
-		sme_early_encrypt(ramdisk_image, ramdisk_end - ramdisk_image);
 
 	initrd_start = 0;
 
@@ -1215,20 +1204,13 @@ void __init setup_arch(char **cmdline_p)
 
 	kasan_init();
 
-#ifdef CONFIG_X86_32
-	/* sync back kernel address range */
-	clone_pgd_range(initial_page_table + KERNEL_PGD_BOUNDARY,
-			swapper_pg_dir     + KERNEL_PGD_BOUNDARY,
-			KERNEL_PGD_PTRS);
-
 	/*
-	 * sync back low identity map too.  It is used for example
-	 * in the 32-bit EFI stub.
+	 * Sync back kernel address range.
+	 *
+	 * FIXME: Can the later sync in setup_cpu_entry_areas() replace
+	 * this call?
 	 */
-	clone_pgd_range(initial_page_table,
-			swapper_pg_dir     + KERNEL_PGD_BOUNDARY,
-			min(KERNEL_PGD_PTRS, KERNEL_PGD_BOUNDARY));
-#endif
+	sync_initial_page_table();
 
 	tboot_probe();
 

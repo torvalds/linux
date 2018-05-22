@@ -35,7 +35,7 @@
 
 struct cht_mc_private {
 	struct snd_soc_jack headset;
-	char codec_name[16];
+	char codec_name[SND_ACPI_I2C_ID_LEN];
 	struct clk *mclk;
 };
 
@@ -396,7 +396,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 
 	/* fixup codec name based on HID */
 	if (mach) {
-		i2c_name = snd_soc_acpi_find_name_from_hid(mach->id);
+		i2c_name = acpi_dev_get_first_match_name(mach->id, NULL, -1);
 		if (i2c_name) {
 			snprintf(drv->codec_name, sizeof(drv->codec_name),
 				 "i2c-%s", i2c_name);

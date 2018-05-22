@@ -1059,7 +1059,7 @@ EXPORT_SYMBOL_GPL(cio_tm_start_key);
 
 /**
  * cio_tm_intrg - perform interrogate function
- * @sch - subchannel on which to perform the interrogate function
+ * @sch: subchannel on which to perform the interrogate function
  *
  * If the specified subchannel is running in transport-mode, perform the
  * interrogate function. Return zero on success, non-zero otherwie.

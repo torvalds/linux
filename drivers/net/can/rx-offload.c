@@ -256,7 +256,7 @@ int can_rx_offload_add_timestamp(struct net_device *dev, struct can_rx_offload *
 		weight = offload->mb_first - offload->mb_last;
 	}
 
-	return can_rx_offload_init_queue(dev, offload, weight);;
+	return can_rx_offload_init_queue(dev, offload, weight);
 }
 EXPORT_SYMBOL_GPL(can_rx_offload_add_timestamp);
 

@@ -20,6 +20,13 @@ Mandatory properties
   is in hardware standby mode when the signal is in the low state.
 
 
+Optional properties
+-------------------
+
+- flash-leds: See ../video-interfaces.txt
+- lens-focus: See ../video-interfaces.txt
+
+
 Endpoint node mandatory properties
 ----------------------------------
 

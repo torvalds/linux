@@ -133,10 +133,9 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 	 * of irq tracing is used, we additionally check that condition
 	 * is correct
 	 */
-#if defined(CONFIG_TRACE_IRQFLAGS) && defined(CONFIG_BUG)
-	lbz	r10,PACASOFTIRQEN(r13)
-	xori	r10,r10,1
-1:	tdnei	r10,0
+#if defined(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG) && defined(CONFIG_BUG)
+	lbz	r10,PACAIRQSOFTMASK(r13)
+1:	tdnei	r10,IRQS_ENABLED
 	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,BUGFLAG_WARNING
 #endif
 
@@ -152,7 +151,7 @@ system_call:			/* label this so stack traces look sane */
 	/* We do need to set SOFTE in the stack frame or the return
 	 * from interrupt will be painful
 	 */
-	li	r10,1
+	li	r10,IRQS_ENABLED
 	std	r10,SOFTE(r1)
 
 	CURRENT_THREAD_INFO(r11, r1)
@@ -755,10 +754,10 @@ resume_kernel:
 	beq+	restore
 	/* Check that preempt_count() == 0 and interrupts are enabled */
 	lwz	r8,TI_PREEMPT(r9)
-	cmpwi	cr1,r8,0
+	cmpwi	cr0,r8,0
+	bne	restore
 	ld	r0,SOFTE(r1)
-	cmpdi	r0,0
-	crandc	eq,cr1*4+eq,eq
+	andi.	r0,r0,IRQS_DISABLED
 	bne	restore
 
 	/*
@@ -796,12 +795,12 @@ restore:
 	 * are about to re-enable interrupts
 	 */
 	ld	r5,SOFTE(r1)
-	lbz	r6,PACASOFTIRQEN(r13)
-	cmpwi	cr0,r5,0
-	beq	.Lrestore_irq_off
+	lbz	r6,PACAIRQSOFTMASK(r13)
+	andi.	r5,r5,IRQS_DISABLED
+	bne	.Lrestore_irq_off
 
 	/* We are enabling, were we already enabled ? Yes, just return */
-	cmpwi	cr0,r6,1
+	andi.	r6,r6,IRQS_DISABLED
 	beq	cr0,.Ldo_restore
 
 	/*
@@ -820,8 +819,8 @@ restore:
 	 */
 .Lrestore_no_replay:
 	TRACE_ENABLE_INTS
-	li	r0,1
-	stb	r0,PACASOFTIRQEN(r13);
+	li	r0,IRQS_ENABLED
+	stb	r0,PACAIRQSOFTMASK(r13);
 
 	/*
 	 * Final return path. BookE is handled in a different file
@@ -939,9 +938,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	beq	1f
 	rlwinm	r7,r7,0,~PACA_IRQ_HARD_DIS
 	stb	r7,PACAIRQHAPPENED(r13)
-1:	li	r0,0
-	stb	r0,PACASOFTIRQEN(r13);
-	TRACE_DISABLE_INTS
+1:
+#if defined(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG) && defined(CONFIG_BUG)
+	/* The interrupt should not have soft enabled. */
+	lbz	r7,PACAIRQSOFTMASK(r13)
+1:	tdeqi	r7,IRQS_ENABLED
+	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,BUGFLAG_WARNING
+#endif
 	b	.Ldo_restore
 
 	/*
@@ -978,6 +981,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	bne	1f
 	addi	r3,r1,STACK_FRAME_OVERHEAD;
  	bl	do_IRQ
+	b	ret_from_except
+1:	cmpwi	cr0,r3,0xf00
+	bne	1f
+	addi	r3,r1,STACK_FRAME_OVERHEAD;
+	bl	performance_monitor_exception
 	b	ret_from_except
 1:	cmpwi	cr0,r3,0xe60
 	bne	1f
@@ -1055,15 +1063,15 @@ _GLOBAL(enter_rtas)
 	li	r0,0
 	mtcr	r0
 
-#ifdef CONFIG_BUG	
+#ifdef CONFIG_BUG
 	/* There is no way it is acceptable to get here with interrupts enabled,
 	 * check it with the asm equivalent of WARN_ON
 	 */
-	lbz	r0,PACASOFTIRQEN(r13)
-1:	tdnei	r0,0
+	lbz	r0,PACAIRQSOFTMASK(r13)
+1:	tdeqi	r0,IRQS_ENABLED
 	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,BUGFLAG_WARNING
 #endif
-	
+
 	/* Hard-disable interrupts */
 	mfmsr	r6
 	rldicl	r7,r6,48,1
@@ -1107,6 +1115,17 @@ __enter_rtas:
 rtas_return_loc:
 	FIXUP_ENDIAN
 
+	/*
+	 * Clear RI and set SF before anything.
+	 */
+	mfmsr   r6
+	li	r0,MSR_RI
+	andc	r6,r6,r0
+	sldi	r0,r0,(MSR_SF_LG - MSR_RI_LG)
+	or	r6,r6,r0
+	sync
+	mtmsrd  r6
+
 	/* relocation is off at this point */
 	GET_PACA(r4)
 	clrldi	r4,r4,2			/* convert to realmode address */
@@ -1115,12 +1134,6 @@ rtas_return_loc:
 0:	mflr	r3
 	ld	r3,(1f-0b)(r3)		/* get &rtas_restore_regs */
 
-	mfmsr   r6
-	li	r0,MSR_RI
-	andc	r6,r6,r0
-	sync	
-	mtmsrd  r6
-        
         ld	r1,PACAR1(r4)           /* Restore our SP */
         ld	r4,PACASAVEDMSR(r4)     /* Restore our MSR */
 

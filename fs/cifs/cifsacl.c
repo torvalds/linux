@@ -1125,7 +1125,7 @@ out:
 	return rc;
 }
 
-/* Translate the CIFS ACL (simlar to NTFS ACL) for a file into mode bits */
+/* Translate the CIFS ACL (similar to NTFS ACL) for a file into mode bits */
 int
 cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,
 		  struct inode *inode, const char *path,

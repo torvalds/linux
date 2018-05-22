@@ -680,7 +680,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	} else {
 		dev_info(&pdev->dev,
 			 "no iommu, fallback to phys contig buffers for scanout\n");
-		aspace = NULL;;
+		aspace = NULL;
 	}
 
 	pm_runtime_put_sync(&pdev->dev);

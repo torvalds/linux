@@ -67,7 +67,6 @@ struct intel_bts {
 	u64				branches_sample_type;
 	u64				branches_id;
 	size_t				branches_event_size;
-	bool				synth_needs_swap;
 	unsigned long			num_events;
 };
 
@@ -303,8 +302,7 @@ static int intel_bts_synth_branch_sample(struct intel_bts_queue *btsq,
 		event.sample.header.size = bts->branches_event_size;
 		ret = perf_event__synthesize_sample(&event,
 						    bts->branches_sample_type,
-						    0, &sample,
-						    bts->synth_needs_swap);
+						    0, &sample);
 		if (ret)
 			return ret;
 	}
@@ -840,8 +838,6 @@ static int intel_bts_synth_events(struct intel_bts *bts,
 		bts->branches_event_size = sizeof(struct sample_event) +
 				__perf_evsel__sample_size(attr.sample_type);
 	}
-
-	bts->synth_needs_swap = evsel->needs_swap;
 
 	return 0;
 }

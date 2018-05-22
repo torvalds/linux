@@ -19,7 +19,8 @@
 #include "cudbg_if.h"
 #include "cudbg_lib_common.h"
 
-int cudbg_get_buff(struct cudbg_buffer *pdbg_buff, u32 size,
+int cudbg_get_buff(struct cudbg_init *pdbg_init,
+		   struct cudbg_buffer *pdbg_buff, u32 size,
 		   struct cudbg_buffer *pin_buff)
 {
 	u32 offset;
@@ -28,17 +29,30 @@ int cudbg_get_buff(struct cudbg_buffer *pdbg_buff, u32 size,
 	if (offset + size > pdbg_buff->size)
 		return CUDBG_STATUS_NO_MEM;
 
+	if (pdbg_init->compress_type != CUDBG_COMPRESSION_NONE) {
+		if (size > pdbg_init->compress_buff_size)
+			return CUDBG_STATUS_NO_MEM;
+
+		pin_buff->data = (char *)pdbg_init->compress_buff;
+		pin_buff->offset = 0;
+		pin_buff->size = size;
+		return 0;
+	}
+
 	pin_buff->data = (char *)pdbg_buff->data + offset;
 	pin_buff->offset = offset;
 	pin_buff->size = size;
-	pdbg_buff->size -= size;
 	return 0;
 }
 
-void cudbg_put_buff(struct cudbg_buffer *pin_buff,
-		    struct cudbg_buffer *pdbg_buff)
+void cudbg_put_buff(struct cudbg_init *pdbg_init,
+		    struct cudbg_buffer *pin_buff)
 {
-	pdbg_buff->size += pin_buff->size;
+	/* Clear compression buffer for re-use */
+	if (pdbg_init->compress_type != CUDBG_COMPRESSION_NONE)
+		memset(pdbg_init->compress_buff, 0,
+		       pdbg_init->compress_buff_size);
+
 	pin_buff->data = NULL;
 	pin_buff->offset = 0;
 	pin_buff->size = 0;

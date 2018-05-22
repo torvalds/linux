@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdio.h>
-#include <sys/utsname.h>
 #include "common.h"
+#include "../util/env.h"
 #include "../util/util.h"
 #include "../util/debug.h"
-
-#include "sane_ctype.h"
 
 const char *const arm_triplets[] = {
 	"arm-eabi-",
@@ -120,55 +118,19 @@ static int lookup_triplets(const char *const *triplets, const char *name)
 	return -1;
 }
 
-/*
- * Return architecture name in a normalized form.
- * The conversion logic comes from the Makefile.
- */
-const char *normalize_arch(char *arch)
-{
-	if (!strcmp(arch, "x86_64"))
-		return "x86";
-	if (arch[0] == 'i' && arch[2] == '8' && arch[3] == '6')
-		return "x86";
-	if (!strcmp(arch, "sun4u") || !strncmp(arch, "sparc", 5))
-		return "sparc";
-	if (!strcmp(arch, "aarch64") || !strcmp(arch, "arm64"))
-		return "arm64";
-	if (!strncmp(arch, "arm", 3) || !strcmp(arch, "sa110"))
-		return "arm";
-	if (!strncmp(arch, "s390", 4))
-		return "s390";
-	if (!strncmp(arch, "parisc", 6))
-		return "parisc";
-	if (!strncmp(arch, "powerpc", 7) || !strncmp(arch, "ppc", 3))
-		return "powerpc";
-	if (!strncmp(arch, "mips", 4))
-		return "mips";
-	if (!strncmp(arch, "sh", 2) && isdigit(arch[2]))
-		return "sh";
-
-	return arch;
-}
-
 static int perf_env__lookup_binutils_path(struct perf_env *env,
 					  const char *name, const char **path)
 {
 	int idx;
-	const char *arch, *cross_env;
-	struct utsname uts;
+	const char *arch = perf_env__arch(env), *cross_env;
 	const char *const *path_list;
 	char *buf = NULL;
-
-	arch = normalize_arch(env->arch);
-
-	if (uname(&uts) < 0)
-		goto out;
 
 	/*
 	 * We don't need to try to find objdump path for native system.
 	 * Just use default binutils path (e.g.: "objdump").
 	 */
-	if (!strcmp(normalize_arch(uts.machine), arch))
+	if (!strcmp(perf_env__arch(NULL), arch))
 		goto out;
 
 	cross_env = getenv("CROSS_COMPILE");

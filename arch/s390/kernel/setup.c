@@ -68,6 +68,7 @@
 #include <asm/sysinfo.h>
 #include <asm/numa.h>
 #include <asm/alternative.h>
+#include <asm/nospec-branch.h>
 #include "entry.h"
 
 /*
@@ -340,7 +341,9 @@ static void __init setup_lowcore(void)
 	lc->preempt_count = S390_lowcore.preempt_count;
 	lc->stfl_fac_list = S390_lowcore.stfl_fac_list;
 	memcpy(lc->stfle_fac_list, S390_lowcore.stfle_fac_list,
-	       MAX_FACILITY_BIT/8);
+	       sizeof(lc->stfle_fac_list));
+	memcpy(lc->alt_stfle_fac_list, S390_lowcore.alt_stfle_fac_list,
+	       sizeof(lc->alt_stfle_fac_list));
 	nmi_alloc_boot_cpu(lc);
 	vdso_alloc_boot_cpu(lc);
 	lc->sync_enter_timer = S390_lowcore.sync_enter_timer;
@@ -377,6 +380,7 @@ static void __init setup_lowcore(void)
 	lc->spinlock_index = 0;
 	arch_spin_lock_setup(0);
 #endif
+	lc->br_r1_trampoline = 0x07f1;	/* br %r1 */
 
 	set_prefix((u32)(unsigned long) lc);
 	lowcore_ptr[0] = lc;
@@ -952,6 +956,8 @@ void __init setup_arch(char **cmdline_p)
 	set_preferred_console();
 
 	apply_alternative_instructions();
+	if (IS_ENABLED(CONFIG_EXPOLINE))
+		nospec_init_branches();
 
 	/* Setup zfcpdump support */
 	setup_zfcpdump();

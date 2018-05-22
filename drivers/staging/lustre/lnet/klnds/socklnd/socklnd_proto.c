@@ -467,7 +467,7 @@ ksocknal_send_hello_v1(struct ksock_conn *conn, struct ksock_hello_msg *hello)
 
 	BUILD_BUG_ON(sizeof(struct lnet_magicversion) != offsetof(struct lnet_hdr, src_nid));
 
-	LIBCFS_ALLOC(hdr, sizeof(*hdr));
+	hdr = kzalloc(sizeof(*hdr), GFP_NOFS);
 	if (!hdr) {
 		CERROR("Can't allocate struct lnet_hdr\n");
 		return -ENOMEM;
@@ -526,7 +526,7 @@ ksocknal_send_hello_v1(struct ksock_conn *conn, struct ksock_hello_msg *hello)
 			&conn->ksnc_ipaddr, conn->ksnc_port);
 	}
 out:
-	LIBCFS_FREE(hdr, sizeof(*hdr));
+	kfree(hdr);
 
 	return rc;
 }
@@ -582,7 +582,7 @@ ksocknal_recv_hello_v1(struct ksock_conn *conn, struct ksock_hello_msg *hello,
 	int rc;
 	int i;
 
-	LIBCFS_ALLOC(hdr, sizeof(*hdr));
+	hdr = kzalloc(sizeof(*hdr), GFP_NOFS);
 	if (!hdr) {
 		CERROR("Can't allocate struct lnet_hdr\n");
 		return -ENOMEM;
@@ -644,7 +644,7 @@ ksocknal_recv_hello_v1(struct ksock_conn *conn, struct ksock_hello_msg *hello,
 		}
 	}
 out:
-	LIBCFS_FREE(hdr, sizeof(*hdr));
+	kfree(hdr);
 
 	return rc;
 }

@@ -225,7 +225,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
 	if (s->s_user_ns != &init_user_ns)
 		s->s_iflags |= SB_I_NODEV;
 	INIT_HLIST_NODE(&s->s_instances);
-	INIT_HLIST_BL_HEAD(&s->s_anon);
+	INIT_HLIST_BL_HEAD(&s->s_roots);
 	mutex_init(&s->s_sync_lock);
 	INIT_LIST_HEAD(&s->s_inodes);
 	spin_lock_init(&s->s_inode_list_lock);

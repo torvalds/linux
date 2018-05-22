@@ -795,21 +795,6 @@ config TOUCHSCREEN_WM9713
 	  Say Y here to enable support for the Wolfson Microelectronics
 	  WM9713 touchscreen controller.
 
-config TOUCHSCREEN_WM97XX_ATMEL
-	tristate "WM97xx Atmel accelerated touch"
-	depends on TOUCHSCREEN_WM97XX && AVR32
-	help
-	  Say Y here for support for streaming mode with WM97xx touchscreens
-	  on Atmel AT91 or AVR32 systems with an AC97C module.
-
-	  Be aware that this will use channel B in the controller for
-	  streaming data, this must not conflict with other AC97C drivers.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called atmel-wm97xx.
-
 config TOUCHSCREEN_WM97XX_MAINSTONE
 	tristate "WM97xx Mainstone/Palm accelerated touch"
 	depends on TOUCHSCREEN_WM97XX && ARCH_PXA

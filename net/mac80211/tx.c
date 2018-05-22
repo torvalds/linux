@@ -2922,7 +2922,9 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 
 		gen_iv = build.key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV;
 		iv_spc = build.key->conf.flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE;
-		mmic = build.key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC;
+		mmic = build.key->conf.flags &
+			(IEEE80211_KEY_FLAG_GENERATE_MMIC |
+			 IEEE80211_KEY_FLAG_PUT_MIC_SPACE);
 
 		/* don't handle software crypto */
 		if (!(build.key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE))
@@ -3571,6 +3573,14 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 
 	if (!IS_ERR_OR_NULL(sta)) {
 		struct ieee80211_fast_tx *fast_tx;
+
+		/* We need a bit of data queued to build aggregates properly, so
+		 * instruct the TCP stack to allow more than a single ms of data
+		 * to be queued in the stack. The value is a bit-shift of 1
+		 * second, so 8 is ~4ms of queued data. Only affects local TCP
+		 * sockets.
+		 */
+		sk_pacing_shift_update(skb->sk, 8);
 
 		fast_tx = rcu_dereference(sta->fast_tx);
 

@@ -2697,7 +2697,7 @@ out:
 }
 
 #ifdef CONFIG_PROC_FS
-static unsigned swaps_poll(struct file *file, poll_table *wait)
+static __poll_t swaps_poll(struct file *file, poll_table *wait)
 {
 	struct seq_file *seq = file->private_data;
 
@@ -2705,10 +2705,10 @@ static unsigned swaps_poll(struct file *file, poll_table *wait)
 
 	if (seq->poll_event != atomic_read(&proc_poll_event)) {
 		seq->poll_event = atomic_read(&proc_poll_event);
-		return POLLIN | POLLRDNORM | POLLERR | POLLPRI;
+		return EPOLLIN | EPOLLRDNORM | EPOLLERR | EPOLLPRI;
 	}
 
-	return POLLIN | POLLRDNORM;
+	return EPOLLIN | EPOLLRDNORM;
 }
 
 /* iterator */

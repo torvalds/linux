@@ -329,7 +329,7 @@ uvc_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 	return uvcg_queue_mmap(&uvc->video.queue, vma);
 }
 
-static unsigned int
+static __poll_t
 uvc_v4l2_poll(struct file *file, poll_table *wait)
 {
 	struct video_device *vdev = video_devdata(file);

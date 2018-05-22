@@ -85,11 +85,6 @@ static int adsp_load(struct rproc *rproc, const struct firmware *fw)
 			     adsp->mem_region, adsp->mem_phys, adsp->mem_size);
 }
 
-static const struct rproc_fw_ops adsp_fw_ops = {
-	.find_rsc_table = qcom_mdt_find_rsc_table,
-	.load = adsp_load,
-};
-
 static int adsp_start(struct rproc *rproc)
 {
 	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
@@ -182,6 +177,7 @@ static const struct rproc_ops adsp_ops = {
 	.start = adsp_start,
 	.stop = adsp_stop,
 	.da_to_va = adsp_da_to_va,
+	.load = adsp_load,
 };
 
 static irqreturn_t adsp_wdog_interrupt(int irq, void *dev)
@@ -343,8 +339,6 @@ static int adsp_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "unable to allocate remoteproc\n");
 		return -ENOMEM;
 	}
-
-	rproc->fw_ops = &adsp_fw_ops;
 
 	adsp = (struct qcom_adsp *)rproc->priv;
 	adsp->dev = &pdev->dev;

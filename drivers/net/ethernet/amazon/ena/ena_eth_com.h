@@ -88,6 +88,8 @@ int ena_com_add_single_rx_desc(struct ena_com_io_sq *io_sq,
 
 int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq, u16 *req_id);
 
+bool ena_com_cq_empty(struct ena_com_io_cq *io_cq);
+
 static inline void ena_com_unmask_intr(struct ena_com_io_cq *io_cq,
 				       struct ena_eth_io_intr_reg *intr_reg)
 {

@@ -124,7 +124,7 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	struct ti_tscadc_dev	*tscadc;
 	struct resource		*res;
 	struct clk		*clk;
-	struct device_node	*node = pdev->dev.of_node;
+	struct device_node	*node;
 	struct mfd_cell		*cell;
 	struct property         *prop;
 	const __be32            *cur;

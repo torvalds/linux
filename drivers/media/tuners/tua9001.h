@@ -17,7 +17,7 @@
 #ifndef TUA9001_H
 #define TUA9001_H
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 /*
  * I2C address

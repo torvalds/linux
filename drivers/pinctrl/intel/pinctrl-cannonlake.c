@@ -23,12 +23,15 @@
 #define CNL_HOSTSW_OWN	0x0b0
 #define CNL_GPI_IE	0x120
 
-#define CNL_GPP(r, s, e)				\
+#define CNL_GPP(r, s, e, g)				\
 	{						\
 		.reg_num = (r),				\
 		.base = (s),				\
 		.size = ((e) - (s) + 1),		\
+		.gpio_base = (g),			\
 	}
+
+#define CNL_NO_GPIO	-1
 
 #define CNL_COMMUNITY(b, s, e, g)			\
 	{						\
@@ -363,32 +366,32 @@ static const struct pinctrl_pin_desc cnlh_pins[] = {
 };
 
 static const struct intel_padgroup cnlh_community0_gpps[] = {
-	CNL_GPP(0, 0, 24),	/* GPP_A */
-	CNL_GPP(1, 25, 50),	/* GPP_B */
+	CNL_GPP(0, 0, 24, 0),			/* GPP_A */
+	CNL_GPP(1, 25, 50, 32),			/* GPP_B */
 };
 
 static const struct intel_padgroup cnlh_community1_gpps[] = {
-	CNL_GPP(0, 51, 74),	/* GPP_C */
-	CNL_GPP(1, 75, 98),	/* GPP_D */
-	CNL_GPP(2, 99, 106),	/* GPP_G */
-	CNL_GPP(3, 107, 114),	/* AZA */
-	CNL_GPP(4, 115, 146),	/* vGPIO_0 */
-	CNL_GPP(5, 147, 154),	/* vGPIO_1 */
+	CNL_GPP(0, 51, 74, 64),			/* GPP_C */
+	CNL_GPP(1, 75, 98, 96),			/* GPP_D */
+	CNL_GPP(2, 99, 106, 128),		/* GPP_G */
+	CNL_GPP(3, 107, 114, CNL_NO_GPIO),	/* AZA */
+	CNL_GPP(4, 115, 146, 160),		/* vGPIO_0 */
+	CNL_GPP(5, 147, 154, CNL_NO_GPIO),	/* vGPIO_1 */
 };
 
 static const struct intel_padgroup cnlh_community3_gpps[] = {
-	CNL_GPP(0, 155, 178),	/* GPP_K */
-	CNL_GPP(1, 179, 202),	/* GPP_H */
-	CNL_GPP(2, 203, 215),	/* GPP_E */
-	CNL_GPP(3, 216, 239),	/* GPP_F */
-	CNL_GPP(4, 240, 248),	/* SPI */
+	CNL_GPP(0, 155, 178, 192),		/* GPP_K */
+	CNL_GPP(1, 179, 202, 224),		/* GPP_H */
+	CNL_GPP(2, 203, 215, 258),		/* GPP_E */
+	CNL_GPP(3, 216, 239, 288),		/* GPP_F */
+	CNL_GPP(4, 240, 248, CNL_NO_GPIO),	/* SPI */
 };
 
 static const struct intel_padgroup cnlh_community4_gpps[] = {
-	CNL_GPP(0, 249, 259),	/* CPU */
-	CNL_GPP(1, 260, 268),	/* JTAG */
-	CNL_GPP(2, 269, 286),	/* GPP_I */
-	CNL_GPP(3, 287, 298),	/* GPP_J */
+	CNL_GPP(0, 249, 259, CNL_NO_GPIO),	/* CPU */
+	CNL_GPP(1, 260, 268, CNL_NO_GPIO),	/* JTAG */
+	CNL_GPP(2, 269, 286, 320),		/* GPP_I */
+	CNL_GPP(3, 287, 298, 352),		/* GPP_J */
 };
 
 static const unsigned int cnlh_spi0_pins[] = { 40, 41, 42, 43 };
@@ -785,25 +788,25 @@ static const struct intel_function cnllp_functions[] = {
 };
 
 static const struct intel_padgroup cnllp_community0_gpps[] = {
-	CNL_GPP(0, 0, 24),	/* GPP_A */
-	CNL_GPP(1, 25, 50),	/* GPP_B */
-	CNL_GPP(2, 51, 58),	/* GPP_G */
-	CNL_GPP(3, 59, 67),	/* SPI */
+	CNL_GPP(0, 0, 24, 0),			/* GPP_A */
+	CNL_GPP(1, 25, 50, 32),			/* GPP_B */
+	CNL_GPP(2, 51, 58, 64),			/* GPP_G */
+	CNL_GPP(3, 59, 67, CNL_NO_GPIO),	/* SPI */
 };
 
 static const struct intel_padgroup cnllp_community1_gpps[] = {
-	CNL_GPP(0, 68, 92),	/* GPP_D */
-	CNL_GPP(1, 93, 116),	/* GPP_F */
-	CNL_GPP(2, 117, 140),	/* GPP_H */
-	CNL_GPP(3, 141, 172),	/* vGPIO */
-	CNL_GPP(4, 173, 180),	/* vGPIO */
+	CNL_GPP(0, 68, 92, 96),			/* GPP_D */
+	CNL_GPP(1, 93, 116, 128),		/* GPP_F */
+	CNL_GPP(2, 117, 140, 160),		/* GPP_H */
+	CNL_GPP(3, 141, 172, 192),		/* vGPIO */
+	CNL_GPP(4, 173, 180, 224),		/* vGPIO */
 };
 
 static const struct intel_padgroup cnllp_community4_gpps[] = {
-	CNL_GPP(0, 181, 204),	/* GPP_C */
-	CNL_GPP(1, 205, 228),	/* GPP_E */
-	CNL_GPP(2, 229, 237),	/* JTAG */
-	CNL_GPP(3, 238, 243),	/* HVCMOS */
+	CNL_GPP(0, 181, 204, 256),		/* GPP_C */
+	CNL_GPP(1, 205, 228, 288),		/* GPP_E */
+	CNL_GPP(2, 229, 237, CNL_NO_GPIO),	/* JTAG */
+	CNL_GPP(3, 238, 243, CNL_NO_GPIO),	/* HVCMOS */
 };
 
 static const struct intel_community cnllp_communities[] = {

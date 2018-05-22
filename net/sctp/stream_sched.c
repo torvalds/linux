@@ -242,7 +242,8 @@ int sctp_sched_get_value(struct sctp_association *asoc, __u16 sid,
 
 void sctp_sched_dequeue_done(struct sctp_outq *q, struct sctp_chunk *ch)
 {
-	if (!list_is_last(&ch->frag_list, &ch->msg->chunks)) {
+	if (!list_is_last(&ch->frag_list, &ch->msg->chunks) &&
+	    !q->asoc->intl_enable) {
 		struct sctp_stream_out *sout;
 		__u16 sid;
 

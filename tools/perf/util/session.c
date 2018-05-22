@@ -27,7 +27,6 @@
 
 static int perf_session__deliver_event(struct perf_session *session,
 				       union perf_event *event,
-				       struct perf_sample *sample,
 				       struct perf_tool *tool,
 				       u64 file_offset);
 
@@ -107,17 +106,10 @@ static void perf_session__set_comm_exec(struct perf_session *session)
 static int ordered_events__deliver_event(struct ordered_events *oe,
 					 struct ordered_event *event)
 {
-	struct perf_sample sample;
 	struct perf_session *session = container_of(oe, struct perf_session,
 						    ordered_events);
-	int ret = perf_evlist__parse_sample(session->evlist, event->event, &sample);
 
-	if (ret) {
-		pr_err("Can't parse sample, err = %d\n", ret);
-		return ret;
-	}
-
-	return perf_session__deliver_event(session, event->event, &sample,
+	return perf_session__deliver_event(session, event->event,
 					   session->tool, event->file_offset);
 }
 
@@ -873,9 +865,9 @@ static int process_finished_round(struct perf_tool *tool __maybe_unused,
 }
 
 int perf_session__queue_event(struct perf_session *s, union perf_event *event,
-			      struct perf_sample *sample, u64 file_offset)
+			      u64 timestamp, u64 file_offset)
 {
-	return ordered_events__queue(&s->ordered_events, event, sample, file_offset);
+	return ordered_events__queue(&s->ordered_events, event, timestamp, file_offset);
 }
 
 static void callchain__lbr_callstack_printf(struct perf_sample *sample)
@@ -1328,20 +1320,26 @@ static int machines__deliver_event(struct machines *machines,
 
 static int perf_session__deliver_event(struct perf_session *session,
 				       union perf_event *event,
-				       struct perf_sample *sample,
 				       struct perf_tool *tool,
 				       u64 file_offset)
 {
+	struct perf_sample sample;
 	int ret;
 
-	ret = auxtrace__process_event(session, event, sample, tool);
+	ret = perf_evlist__parse_sample(session->evlist, event, &sample);
+	if (ret) {
+		pr_err("Can't parse sample, err = %d\n", ret);
+		return ret;
+	}
+
+	ret = auxtrace__process_event(session, event, &sample, tool);
 	if (ret < 0)
 		return ret;
 	if (ret > 0)
 		return 0;
 
 	return machines__deliver_event(&session->machines, session->evlist,
-				       event, sample, tool, file_offset);
+				       event, &sample, tool, file_offset);
 }
 
 static s64 perf_session__process_user_event(struct perf_session *session,
@@ -1350,10 +1348,11 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 {
 	struct ordered_events *oe = &session->ordered_events;
 	struct perf_tool *tool = session->tool;
+	struct perf_sample sample = { .time = 0, };
 	int fd = perf_data__fd(session->data);
 	int err;
 
-	dump_event(session->evlist, event, file_offset, NULL);
+	dump_event(session->evlist, event, file_offset, &sample);
 
 	/* These events are processed right away */
 	switch (event->header.type) {
@@ -1495,7 +1494,6 @@ static s64 perf_session__process_event(struct perf_session *session,
 {
 	struct perf_evlist *evlist = session->evlist;
 	struct perf_tool *tool = session->tool;
-	struct perf_sample sample;
 	int ret;
 
 	if (session->header.needs_swap)
@@ -1509,21 +1507,19 @@ static s64 perf_session__process_event(struct perf_session *session,
 	if (event->header.type >= PERF_RECORD_USER_TYPE_START)
 		return perf_session__process_user_event(session, event, file_offset);
 
-	/*
-	 * For all kernel events we get the sample data
-	 */
-	ret = perf_evlist__parse_sample(evlist, event, &sample);
-	if (ret)
-		return ret;
-
 	if (tool->ordered_events) {
-		ret = perf_session__queue_event(session, event, &sample, file_offset);
+		u64 timestamp = -1ULL;
+
+		ret = perf_evlist__parse_sample_timestamp(evlist, event, &timestamp);
+		if (ret && ret != -1)
+			return ret;
+
+		ret = perf_session__queue_event(session, event, timestamp, file_offset);
 		if (ret != -ETIME)
 			return ret;
 	}
 
-	return perf_session__deliver_event(session, event, &sample, tool,
-					   file_offset);
+	return perf_session__deliver_event(session, event, tool, file_offset);
 }
 
 void perf_event_header__bswap(struct perf_event_header *hdr)
@@ -1777,7 +1773,8 @@ done:
 	err = perf_session__flush_thread_stacks(session);
 out_err:
 	free(buf);
-	perf_session__warn_about_errors(session);
+	if (!tool->no_warn)
+		perf_session__warn_about_errors(session);
 	ordered_events__free(&session->ordered_events);
 	auxtrace__free_events(session);
 	return err;
@@ -1933,7 +1930,8 @@ out:
 	err = perf_session__flush_thread_stacks(session);
 out_err:
 	ui_progress__finish();
-	perf_session__warn_about_errors(session);
+	if (!tool->no_warn)
+		perf_session__warn_about_errors(session);
 	/*
 	 * We may switching perf.data output, make ordered_events
 	 * reusable.

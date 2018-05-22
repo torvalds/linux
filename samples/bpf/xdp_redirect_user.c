@@ -33,9 +33,9 @@ static __u32 xdp_flags;
 
 static void int_exit(int sig)
 {
-	set_link_xdp_fd(ifindex_in, -1, xdp_flags);
+	bpf_set_link_xdp_fd(ifindex_in, -1, xdp_flags);
 	if (ifindex_out_xdp_dummy_attached)
-		set_link_xdp_fd(ifindex_out, -1, xdp_flags);
+		bpf_set_link_xdp_fd(ifindex_out, -1, xdp_flags);
 	exit(0);
 }
 
@@ -114,13 +114,13 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	if (set_link_xdp_fd(ifindex_in, prog_fd[0], xdp_flags) < 0) {
+	if (bpf_set_link_xdp_fd(ifindex_in, prog_fd[0], xdp_flags) < 0) {
 		printf("ERROR: link set xdp fd failed on %d\n", ifindex_in);
 		return 1;
 	}
 
 	/* Loading dummy XDP prog on out-device */
-	if (set_link_xdp_fd(ifindex_out, prog_fd[1],
+	if (bpf_set_link_xdp_fd(ifindex_out, prog_fd[1],
 			    (xdp_flags | XDP_FLAGS_UPDATE_IF_NOEXIST)) < 0) {
 		printf("WARN: link set xdp fd failed on %d\n", ifindex_out);
 		ifindex_out_xdp_dummy_attached = false;

@@ -35,6 +35,27 @@
 kmem_zone_t	*xfs_trans_zone;
 kmem_zone_t	*xfs_log_item_desc_zone;
 
+#if defined(CONFIG_TRACEPOINTS)
+static void
+xfs_trans_trace_reservations(
+	struct xfs_mount	*mp)
+{
+	struct xfs_trans_res	resv;
+	struct xfs_trans_res	*res;
+	struct xfs_trans_res	*end_res;
+	int			i;
+
+	res = (struct xfs_trans_res *)M_RES(mp);
+	end_res = (struct xfs_trans_res *)(M_RES(mp) + 1);
+	for (i = 0; res < end_res; i++, res++)
+		trace_xfs_trans_resv_calc(mp, i, res);
+	xfs_log_get_max_trans_res(mp, &resv);
+	trace_xfs_trans_resv_calc(mp, -1, &resv);
+}
+#else
+# define xfs_trans_trace_reservations(mp)
+#endif
+
 /*
  * Initialize the precomputed transaction reservation values
  * in the mount structure.
@@ -44,6 +65,7 @@ xfs_trans_init(
 	struct xfs_mount	*mp)
 {
 	xfs_trans_resv_calc(mp, M_RES(mp));
+	xfs_trans_trace_reservations(mp);
 }
 
 /*

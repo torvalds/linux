@@ -371,4 +371,13 @@ static inline void iowait_starve_find_max(struct iowait *w, u8 *max,
 	}
 }
 
+/**
+ * iowait_packet_queued() - determine if a packet is already built
+ * @wait: the wait structure
+ */
+static inline bool iowait_packet_queued(struct iowait *wait)
+{
+	return !list_empty(&wait->tx_head);
+}
+
 #endif

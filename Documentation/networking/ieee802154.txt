@@ -97,6 +97,46 @@ The include/net/mac802154.h defines following functions:
  - void ieee802154_unregister_hw(struct ieee802154_hw *hw):
    freeing registered PHY
 
+ - void ieee802154_rx_irqsafe(struct ieee802154_hw *hw, struct sk_buff *skb,
+                              u8 lqi):
+   telling 802.15.4 module there is a new received frame in the skb with
+   the RF Link Quality Indicator (LQI) from the hardware device
+
+ - void ieee802154_xmit_complete(struct ieee802154_hw *hw, struct sk_buff *skb,
+                                 bool ifs_handling):
+   telling 802.15.4 module the frame in the skb is or going to be
+   transmitted through the hardware device
+
+The device driver must implement the following callbacks in the IEEE 802.15.4
+operations structure at least:
+struct ieee802154_ops {
+	...
+	int	(*start)(struct ieee802154_hw *hw);
+	void	(*stop)(struct ieee802154_hw *hw);
+	...
+	int	(*xmit_async)(struct ieee802154_hw *hw, struct sk_buff *skb);
+	int	(*ed)(struct ieee802154_hw *hw, u8 *level);
+	int	(*set_channel)(struct ieee802154_hw *hw, u8 page, u8 channel);
+	...
+};
+
+ - int start(struct ieee802154_hw *hw):
+   handler that 802.15.4 module calls for the hardware device initialization.
+
+ - void stop(struct ieee802154_hw *hw):
+   handler that 802.15.4 module calls for the hardware device cleanup.
+
+ - int xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb):
+   handler that 802.15.4 module calls for each frame in the skb going to be
+   transmitted through the hardware device.
+
+ - int ed(struct ieee802154_hw *hw, u8 *level):
+   handler that 802.15.4 module calls for Energy Detection from the hardware
+   device.
+
+ - int set_channel(struct ieee802154_hw *hw, u8 page, u8 channel):
+   set radio for listening on specific channel of the hardware device.
+
 Moreover IEEE 802.15.4 device operations structure should be filled.
 
 Fake drivers

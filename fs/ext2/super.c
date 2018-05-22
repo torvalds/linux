@@ -33,6 +33,7 @@
 #include <linux/quotaops.h>
 #include <linux/uaccess.h>
 #include <linux/dax.h>
+#include <linux/iversion.h>
 #include "ext2.h"
 #include "xattr.h"
 #include "acl.h"
@@ -184,7 +185,7 @@ static struct inode *ext2_alloc_inode(struct super_block *sb)
 	if (!ei)
 		return NULL;
 	ei->i_block_alloc_info = NULL;
-	ei->vfs_inode.i_version = 1;
+	inode_set_iversion(&ei->vfs_inode, 1);
 #ifdef CONFIG_QUOTA
 	memset(&ei->i_dquot, 0, sizeof(ei->i_dquot));
 #endif
@@ -220,11 +221,13 @@ static void init_once(void *foo)
 
 static int __init init_inodecache(void)
 {
-	ext2_inode_cachep = kmem_cache_create("ext2_inode_cache",
-					     sizeof(struct ext2_inode_info),
-					     0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
-					     init_once);
+	ext2_inode_cachep = kmem_cache_create_usercopy("ext2_inode_cache",
+				sizeof(struct ext2_inode_info), 0,
+				(SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
+					SLAB_ACCOUNT),
+				offsetof(struct ext2_inode_info, i_data),
+				sizeof_field(struct ext2_inode_info, i_data),
+				init_once);
 	if (ext2_inode_cachep == NULL)
 		return -ENOMEM;
 	return 0;
@@ -959,8 +962,11 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 
 	if (sbi->s_mount_opt & EXT2_MOUNT_DAX) {
 		err = bdev_dax_supported(sb, blocksize);
-		if (err)
-			goto failed_mount;
+		if (err) {
+			ext2_msg(sb, KERN_ERR,
+				"DAX unsupported by block device. Turning off DAX.");
+			sbi->s_mount_opt &= ~EXT2_MOUNT_DAX;
+		}
 	}
 
 	/* If the blocksize doesn't match, re-read the thing.. */
@@ -1225,7 +1231,7 @@ static void ext2_clear_super_error(struct super_block *sb)
 		 * write and hope for the best.
 		 */
 		ext2_msg(sb, KERN_ERR,
-		       "previous I/O error to superblock detected\n");
+		       "previous I/O error to superblock detected");
 		clear_buffer_write_io_error(sbh);
 		set_buffer_uptodate(sbh);
 	}
@@ -1569,7 +1575,7 @@ out:
 		return err;
 	if (inode->i_size < off+len-towrite)
 		i_size_write(inode, off+len-towrite);
-	inode->i_version++;
+	inode_inc_iversion(inode);
 	inode->i_mtime = inode->i_ctime = current_time(inode);
 	mark_inode_dirty(inode);
 	return len - towrite;

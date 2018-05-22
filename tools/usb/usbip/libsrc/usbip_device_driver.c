@@ -77,7 +77,7 @@ int read_usb_vudc_device(struct udev_device *sdev, struct usbip_usb_device *dev)
 	const char *path, *name;
 	char filepath[SYSFS_PATH_MAX];
 	struct usb_device_descriptor descr;
-	unsigned i;
+	unsigned int i;
 	FILE *fd = NULL;
 	struct udev_device *plat;
 	const char *speed;
@@ -92,7 +92,7 @@ int read_usb_vudc_device(struct udev_device *sdev, struct usbip_usb_device *dev)
 		return -1;
 	ret = fread((char *) &descr, sizeof(descr), 1, fd);
 	if (ret < 0)
-		return -1;
+		goto err;
 	fclose(fd);
 
 	copy_descr_attr(dev, &descr, bDeviceClass);
@@ -124,6 +124,9 @@ int read_usb_vudc_device(struct udev_device *sdev, struct usbip_usb_device *dev)
 	name = udev_device_get_sysname(plat);
 	strncpy(dev->busid, name, SYSFS_BUS_ID_SIZE);
 	return 0;
+err:
+	fclose(fd);
+	return -1;
 }
 
 static int is_my_device(struct udev_device *dev)

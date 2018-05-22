@@ -711,8 +711,8 @@ void __init mtrr_bp_init(void)
 			if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL &&
 			    boot_cpu_data.x86 == 0xF &&
 			    boot_cpu_data.x86_model == 0x3 &&
-			    (boot_cpu_data.x86_mask == 0x3 ||
-			     boot_cpu_data.x86_mask == 0x4))
+			    (boot_cpu_data.x86_stepping == 0x3 ||
+			     boot_cpu_data.x86_stepping == 0x4))
 				phys_addr = 36;
 
 			size_or_mask = SIZE_OR_MASK_BITS(phys_addr);

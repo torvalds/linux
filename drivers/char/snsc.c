@@ -321,10 +321,10 @@ scdrv_write(struct file *file, const char __user *buf,
 	return status;
 }
 
-static unsigned int
+static __poll_t
 scdrv_poll(struct file *file, struct poll_table_struct *wait)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	int status = 0;
 	struct subch_data_s *sd = (struct subch_data_s *) file->private_data;
 	unsigned long flags;
@@ -340,10 +340,10 @@ scdrv_poll(struct file *file, struct poll_table_struct *wait)
 
 	if (status > 0) {
 		if (status & SAL_IROUTER_INTR_RECV) {
-			mask |= POLLIN | POLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDNORM;
 		}
 		if (status & SAL_IROUTER_INTR_XMIT) {
-			mask |= POLLOUT | POLLWRNORM;
+			mask |= EPOLLOUT | EPOLLWRNORM;
 		}
 	}
 

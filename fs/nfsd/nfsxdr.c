@@ -188,6 +188,7 @@ encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp,
 	*p++ = htonl((u32) stat->ino);
 	*p++ = htonl((u32) stat->atime.tv_sec);
 	*p++ = htonl(stat->atime.tv_nsec ? stat->atime.tv_nsec / 1000 : 0);
+	time = stat->mtime;
 	lease_get_mtime(d_inode(dentry), &time); 
 	*p++ = htonl((u32) time.tv_sec);
 	*p++ = htonl(time.tv_nsec ? time.tv_nsec / 1000 : 0); 

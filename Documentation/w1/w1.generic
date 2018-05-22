@@ -76,7 +76,7 @@ See struct w1_bus_master definition in w1.h for details.
 
 w1 master sysfs interface
 ------------------------------------------------------------------
-<xx-xxxxxxxxxxxxx> - A directory for a found device. The format is family-serial
+<xx-xxxxxxxxxxxx>  - A directory for a found device. The format is family-serial
 bus                - (standard) symlink to the w1 bus
 driver             - (standard) symlink to the w1 driver
 w1_master_add      - (rw) manually register a slave device

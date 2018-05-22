@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * PCIe host controller driver for Tegra SoCs
  *
@@ -10,20 +11,6 @@
  * Bits taken from arch/arm/mach-dove/pcie.c
  *
  * Author: Thierry Reding <treding@nvidia.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #include <linux/clk.h>
@@ -269,11 +256,10 @@ struct tegra_pcie {
 
 	void __iomem *pads;
 	void __iomem *afi;
+	void __iomem *cfg;
 	int irq;
 
-	struct list_head buses;
-	struct resource *cs;
-
+	struct resource cs;
 	struct resource io;
 	struct resource pio;
 	struct resource mem;
@@ -322,7 +308,6 @@ struct tegra_pcie_port {
 };
 
 struct tegra_pcie_bus {
-	struct vm_struct *area;
 	struct list_head list;
 	unsigned int nr;
 };
@@ -362,109 +347,26 @@ static inline u32 pads_readl(struct tegra_pcie *pcie, unsigned long offset)
  *
  * Mapping the whole extended configuration space would require 256 MiB of
  * virtual address space, only a small part of which will actually be used.
- * To work around this, a 1 MiB of virtual addresses are allocated per bus
- * when the bus is first accessed. When the physical range is mapped, the
- * the bus number bits are hidden so that the extended register number bits
- * appear as bits [19:16]. Therefore the virtual mapping looks like this:
  *
- *    [19:16] extended register number
- *    [15:11] device number
- *    [10: 8] function number
- *    [ 7: 0] register number
- *
- * This is achieved by stitching together 16 chunks of 64 KiB of physical
- * address space via the MMU.
+ * To work around this, a 4 KiB region is used to generate the required
+ * configuration transaction with relevant B:D:F and register offset values.
+ * This is achieved by dynamically programming base address and size of
+ * AFI_AXI_BAR used for end point config space mapping to make sure that the
+ * address (access to which generates correct config transaction) falls in
+ * this 4 KiB region.
  */
-static unsigned long tegra_pcie_conf_offset(unsigned int devfn, int where)
+static unsigned int tegra_pcie_conf_offset(u8 bus, unsigned int devfn,
+					   unsigned int where)
 {
-	return ((where & 0xf00) << 8) | (PCI_SLOT(devfn) << 11) |
-	       (PCI_FUNC(devfn) << 8) | (where & 0xfc);
-}
-
-static struct tegra_pcie_bus *tegra_pcie_bus_alloc(struct tegra_pcie *pcie,
-						   unsigned int busnr)
-{
-	struct device *dev = pcie->dev;
-	pgprot_t prot = pgprot_noncached(PAGE_KERNEL);
-	phys_addr_t cs = pcie->cs->start;
-	struct tegra_pcie_bus *bus;
-	unsigned int i;
-	int err;
-
-	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
-	if (!bus)
-		return ERR_PTR(-ENOMEM);
-
-	INIT_LIST_HEAD(&bus->list);
-	bus->nr = busnr;
-
-	/* allocate 1 MiB of virtual addresses */
-	bus->area = get_vm_area(SZ_1M, VM_IOREMAP);
-	if (!bus->area) {
-		err = -ENOMEM;
-		goto free;
-	}
-
-	/* map each of the 16 chunks of 64 KiB each */
-	for (i = 0; i < 16; i++) {
-		unsigned long virt = (unsigned long)bus->area->addr +
-				     i * SZ_64K;
-		phys_addr_t phys = cs + i * SZ_16M + busnr * SZ_64K;
-
-		err = ioremap_page_range(virt, virt + SZ_64K, phys, prot);
-		if (err < 0) {
-			dev_err(dev, "ioremap_page_range() failed: %d\n", err);
-			goto unmap;
-		}
-	}
-
-	return bus;
-
-unmap:
-	vunmap(bus->area->addr);
-free:
-	kfree(bus);
-	return ERR_PTR(err);
-}
-
-static int tegra_pcie_add_bus(struct pci_bus *bus)
-{
-	struct pci_host_bridge *host = pci_find_host_bridge(bus);
-	struct tegra_pcie *pcie = pci_host_bridge_priv(host);
-	struct tegra_pcie_bus *b;
-
-	b = tegra_pcie_bus_alloc(pcie, bus->number);
-	if (IS_ERR(b))
-		return PTR_ERR(b);
-
-	list_add_tail(&b->list, &pcie->buses);
-
-	return 0;
-}
-
-static void tegra_pcie_remove_bus(struct pci_bus *child)
-{
-	struct pci_host_bridge *host = pci_find_host_bridge(child);
-	struct tegra_pcie *pcie = pci_host_bridge_priv(host);
-	struct tegra_pcie_bus *bus, *tmp;
-
-	list_for_each_entry_safe(bus, tmp, &pcie->buses, list) {
-		if (bus->nr == child->number) {
-			vunmap(bus->area->addr);
-			list_del(&bus->list);
-			kfree(bus);
-			break;
-		}
-	}
+	return ((where & 0xf00) << 16) | (bus << 16) | (PCI_SLOT(devfn) << 11) |
+	       (PCI_FUNC(devfn) << 8) | (where & 0xff);
 }
 
 static void __iomem *tegra_pcie_map_bus(struct pci_bus *bus,
 					unsigned int devfn,
 					int where)
 {
-	struct pci_host_bridge *host = pci_find_host_bridge(bus);
-	struct tegra_pcie *pcie = pci_host_bridge_priv(host);
-	struct device *dev = pcie->dev;
+	struct tegra_pcie *pcie = bus->sysdata;
 	void __iomem *addr = NULL;
 
 	if (bus->number == 0) {
@@ -478,19 +380,17 @@ static void __iomem *tegra_pcie_map_bus(struct pci_bus *bus,
 			}
 		}
 	} else {
-		struct tegra_pcie_bus *b;
+		unsigned int offset;
+		u32 base;
 
-		list_for_each_entry(b, &pcie->buses, list)
-			if (b->nr == bus->number)
-				addr = (void __iomem *)b->area->addr;
+		offset = tegra_pcie_conf_offset(bus->number, devfn, where);
 
-		if (!addr) {
-			dev_err(dev, "failed to map cfg. space for bus %u\n",
-				bus->number);
-			return NULL;
-		}
+		/* move 4 KiB window to offset within the FPCI region */
+		base = 0xfe100000 + ((offset & ~(SZ_4K - 1)) >> 8);
+		afi_writel(pcie, base, AFI_FPCI_BAR0);
 
-		addr += tegra_pcie_conf_offset(devfn, where);
+		/* move to correct offset within the 4 KiB page */
+		addr = pcie->cfg + (offset & (SZ_4K - 1));
 	}
 
 	return addr;
@@ -517,8 +417,6 @@ static int tegra_pcie_config_write(struct pci_bus *bus, unsigned int devfn,
 }
 
 static struct pci_ops tegra_pcie_ops = {
-	.add_bus = tegra_pcie_add_bus,
-	.remove_bus = tegra_pcie_remove_bus,
 	.map_bus = tegra_pcie_map_bus,
 	.read = tegra_pcie_config_read,
 	.write = tegra_pcie_config_write,
@@ -661,8 +559,7 @@ static int tegra_pcie_request_resources(struct tegra_pcie *pcie)
 
 static int tegra_pcie_map_irq(const struct pci_dev *pdev, u8 slot, u8 pin)
 {
-	struct pci_host_bridge *host = pci_find_host_bridge(pdev->bus);
-	struct tegra_pcie *pcie = pci_host_bridge_priv(host);
+	struct tegra_pcie *pcie = pdev->bus->sysdata;
 	int irq;
 
 	tegra_cpuidle_pcie_irqs_in_use();
@@ -743,12 +640,9 @@ static void tegra_pcie_setup_translations(struct tegra_pcie *pcie)
 	u32 fpci_bar, size, axi_address;
 
 	/* Bar 0: type 1 extended configuration space */
-	fpci_bar = 0xfe100000;
-	size = resource_size(pcie->cs);
-	axi_address = pcie->cs->start;
-	afi_writel(pcie, axi_address, AFI_AXI_BAR0_START);
+	size = resource_size(&pcie->cs);
+	afi_writel(pcie, pcie->cs.start, AFI_AXI_BAR0_START);
 	afi_writel(pcie, size >> 12, AFI_AXI_BAR0_SZ);
-	afi_writel(pcie, fpci_bar, AFI_FPCI_BAR0);
 
 	/* Bar 1: downstream IO bar */
 	fpci_bar = 0xfdfc0000;
@@ -1353,10 +1247,14 @@ static int tegra_pcie_get_resources(struct tegra_pcie *pcie)
 		goto poweroff;
 	}
 
-	pcie->cs = devm_request_mem_region(dev, res->start,
-					   resource_size(res), res->name);
-	if (!pcie->cs) {
-		err = -EADDRNOTAVAIL;
+	pcie->cs = *res;
+
+	/* constrain configuration space to 4 KiB */
+	pcie->cs.end = pcie->cs.start + SZ_4K - 1;
+
+	pcie->cfg = devm_ioremap_resource(dev, &pcie->cs);
+	if (IS_ERR(pcie->cfg)) {
+		err = PTR_ERR(pcie->cfg);
 		goto poweroff;
 	}
 
@@ -2345,9 +2243,9 @@ static int tegra_pcie_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	pcie = pci_host_bridge_priv(host);
+	host->sysdata = pcie;
 
 	pcie->soc = of_device_get_match_data(dev);
-	INIT_LIST_HEAD(&pcie->buses);
 	INIT_LIST_HEAD(&pcie->ports);
 	pcie->dev = dev;
 
@@ -2382,7 +2280,6 @@ static int tegra_pcie_probe(struct platform_device *pdev)
 
 	tegra_pcie_enable_ports(pcie);
 
-	pci_add_flags(PCI_REASSIGN_ALL_RSRC | PCI_REASSIGN_ALL_BUS);
 	host->busnr = pcie->busn.start;
 	host->dev.parent = &pdev->dev;
 	host->ops = &tegra_pcie_ops;

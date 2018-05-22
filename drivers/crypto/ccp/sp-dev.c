@@ -198,6 +198,8 @@ int sp_init(struct sp_device *sp)
 	if (sp->dev_vdata->ccp_vdata)
 		ccp_dev_init(sp);
 
+	if (sp->dev_vdata->psp_vdata)
+		psp_dev_init(sp);
 	return 0;
 }
 
@@ -205,6 +207,9 @@ void sp_destroy(struct sp_device *sp)
 {
 	if (sp->dev_vdata->ccp_vdata)
 		ccp_dev_destroy(sp);
+
+	if (sp->dev_vdata->psp_vdata)
+		psp_dev_destroy(sp);
 
 	sp_del_device(sp);
 }
@@ -237,6 +242,27 @@ int sp_resume(struct sp_device *sp)
 }
 #endif
 
+struct sp_device *sp_get_psp_master_device(void)
+{
+	struct sp_device *i, *ret = NULL;
+	unsigned long flags;
+
+	write_lock_irqsave(&sp_unit_lock, flags);
+	if (list_empty(&sp_units))
+		goto unlock;
+
+	list_for_each_entry(i, &sp_units, entry) {
+		if (i->psp_data)
+			break;
+	}
+
+	if (i->get_psp_master_device)
+		ret = i->get_psp_master_device();
+unlock:
+	write_unlock_irqrestore(&sp_unit_lock, flags);
+	return ret;
+}
+
 static int __init sp_mod_init(void)
 {
 #ifdef CONFIG_X86
@@ -245,6 +271,10 @@ static int __init sp_mod_init(void)
 	ret = sp_pci_init();
 	if (ret)
 		return ret;
+
+#ifdef CONFIG_CRYPTO_DEV_SP_PSP
+	psp_pci_init();
+#endif
 
 	return 0;
 #endif
@@ -265,6 +295,11 @@ static int __init sp_mod_init(void)
 static void __exit sp_mod_exit(void)
 {
 #ifdef CONFIG_X86
+
+#ifdef CONFIG_CRYPTO_DEV_SP_PSP
+	psp_pci_exit();
+#endif
+
 	sp_pci_exit();
 #endif
 

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -810,6 +810,7 @@ struct acpi_iort_smmu_v3 {
 	u8 pxm;
 	u8 reserved1;
 	u16 reserved2;
+	u32 id_mapping_index;
 };
 
 /* Values for Model field above */
@@ -1246,6 +1247,8 @@ enum acpi_spmi_interface_types {
  * TCPA - Trusted Computing Platform Alliance table
  *        Version 2
  *
+ * TCG Hardware Interface Table for TPM 1.2 Clients and Servers
+ *
  * Conforms to "TCG ACPI Specification, Family 1.2 and 2.0",
  * Version 1.2, Revision 8
  * February 27, 2017
@@ -1310,6 +1313,8 @@ struct acpi_table_tcpa_server {
  * TPM2 - Trusted Platform Module (TPM) 2.0 Hardware Interface Table
  *        Version 4
  *
+ * TCG Hardware Interface Table for TPM 2.0 Clients and Servers
+ *
  * Conforms to "TCG ACPI Specification, Family 1.2 and 2.0",
  * Version 1.2, Revision 8
  * February 27, 2017
@@ -1329,15 +1334,23 @@ struct acpi_table_tpm2 {
 /* Values for start_method above */
 
 #define ACPI_TPM2_NOT_ALLOWED                       0
+#define ACPI_TPM2_RESERVED1                         1
 #define ACPI_TPM2_START_METHOD                      2
+#define ACPI_TPM2_RESERVED3                         3
+#define ACPI_TPM2_RESERVED4                         4
+#define ACPI_TPM2_RESERVED5                         5
 #define ACPI_TPM2_MEMORY_MAPPED                     6
 #define ACPI_TPM2_COMMAND_BUFFER                    7
 #define ACPI_TPM2_COMMAND_BUFFER_WITH_START_METHOD  8
+#define ACPI_TPM2_RESERVED9                         9
+#define ACPI_TPM2_RESERVED10                        10
 #define ACPI_TPM2_COMMAND_BUFFER_WITH_ARM_SMC       11	/* V1.2 Rev 8 */
+#define ACPI_TPM2_RESERVED                          12
 
-/* Trailer appears after any start_method subtables */
+/* Optional trailer appears after any start_method subtables */
 
 struct acpi_tpm2_trailer {
+	u8 method_parameters[12];
 	u32 minimum_log_length;	/* Minimum length for the event log area */
 	u64 log_address;	/* Address of the event log area */
 };

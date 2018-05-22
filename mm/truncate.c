@@ -179,12 +179,8 @@ static void
 truncate_cleanup_page(struct address_space *mapping, struct page *page)
 {
 	if (page_mapped(page)) {
-		loff_t holelen;
-
-		holelen = PageTransHuge(page) ? HPAGE_PMD_SIZE : PAGE_SIZE;
-		unmap_mapping_range(mapping,
-				   (loff_t)page->index << PAGE_SHIFT,
-				   holelen, 0);
+		pgoff_t nr = PageTransHuge(page) ? HPAGE_PMD_NR : 1;
+		unmap_mapping_pages(mapping, page->index, nr, false);
 	}
 
 	if (page_has_private(page))
@@ -715,19 +711,15 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 					/*
 					 * Zap the rest of the file in one hit.
 					 */
-					unmap_mapping_range(mapping,
-					   (loff_t)index << PAGE_SHIFT,
-					   (loff_t)(1 + end - index)
-							 << PAGE_SHIFT,
-							 0);
+					unmap_mapping_pages(mapping, index,
+						(1 + end - index), false);
 					did_range_unmap = 1;
 				} else {
 					/*
 					 * Just zap this page
 					 */
-					unmap_mapping_range(mapping,
-					   (loff_t)index << PAGE_SHIFT,
-					   PAGE_SIZE, 0);
+					unmap_mapping_pages(mapping, index,
+								1, false);
 				}
 			}
 			BUG_ON(page_mapped(page));
@@ -753,8 +745,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 	 * get remapped later.
 	 */
 	if (dax_mapping(mapping)) {
-		unmap_mapping_range(mapping, (loff_t)start << PAGE_SHIFT,
-				    (loff_t)(end - start + 1) << PAGE_SHIFT, 0);
+		unmap_mapping_pages(mapping, start, end - start + 1, false);
 	}
 out:
 	cleancache_invalidate_inode(mapping);

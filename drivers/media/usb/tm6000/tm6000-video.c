@@ -1,20 +1,10 @@
-/*
- *   tm6000-video.c - driver for TM5600/TM6000/TM6010 USB video capture devices
- *
- *  Copyright (C) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
- *
- *  Copyright (C) 2007 Michel Ludwig <michel.ludwig@gmail.com>
- *	- Fixed module load/unload
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation version 2
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0
+// tm6000-video.c - driver for TM5600/TM6000/TM6010 USB video capture devices
+//
+// Copyright (c) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
+//
+// Copyright (c) 2007 Michel Ludwig <michel.ludwig@gmail.com>
+//	- Fixed module load/unload
 
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -1323,6 +1313,8 @@ static int __tm6000_open(struct file *file)
 	case VFL_TYPE_RADIO:
 		radio = 1;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	/* If more than one user, mutex should be added */
@@ -1423,45 +1415,45 @@ tm6000_read(struct file *file, char __user *data, size_t count, loff_t *pos)
 	return 0;
 }
 
-static unsigned int
+static __poll_t
 __tm6000_poll(struct file *file, struct poll_table_struct *wait)
 {
-	unsigned long req_events = poll_requested_events(wait);
+	__poll_t req_events = poll_requested_events(wait);
 	struct tm6000_fh        *fh = file->private_data;
 	struct tm6000_buffer    *buf;
-	int res = 0;
+	__poll_t res = 0;
 
 	if (v4l2_event_pending(&fh->fh))
-		res = POLLPRI;
-	else if (req_events & POLLPRI)
+		res = EPOLLPRI;
+	else if (req_events & EPOLLPRI)
 		poll_wait(file, &fh->fh.wait, wait);
 	if (V4L2_BUF_TYPE_VIDEO_CAPTURE != fh->type)
-		return res | POLLERR;
+		return res | EPOLLERR;
 
 	if (!!is_res_streaming(fh->dev, fh))
-		return res | POLLERR;
+		return res | EPOLLERR;
 
 	if (!is_res_read(fh->dev, fh)) {
 		/* streaming capture */
 		if (list_empty(&fh->vb_vidq.stream))
-			return res | POLLERR;
+			return res | EPOLLERR;
 		buf = list_entry(fh->vb_vidq.stream.next, struct tm6000_buffer, vb.stream);
 		poll_wait(file, &buf->vb.done, wait);
 		if (buf->vb.state == VIDEOBUF_DONE ||
 		    buf->vb.state == VIDEOBUF_ERROR)
-			return res | POLLIN | POLLRDNORM;
-	} else if (req_events & (POLLIN | POLLRDNORM)) {
+			return res | EPOLLIN | EPOLLRDNORM;
+	} else if (req_events & (EPOLLIN | EPOLLRDNORM)) {
 		/* read() capture */
 		return res | videobuf_poll_stream(file, &fh->vb_vidq, wait);
 	}
 	return res;
 }
 
-static unsigned int tm6000_poll(struct file *file, struct poll_table_struct *wait)
+static __poll_t tm6000_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct tm6000_fh *fh = file->private_data;
 	struct tm6000_core *dev = fh->dev;
-	unsigned int res;
+	__poll_t res;
 
 	mutex_lock(&dev->lock);
 	res = __tm6000_poll(file, wait);

@@ -26,6 +26,12 @@ struct xfrm_trans_tasklet {
 };
 
 struct xfrm_trans_cb {
+	union {
+		struct inet_skb_parm	h4;
+#if IS_ENABLED(CONFIG_IPV6)
+		struct inet6_skb_parm	h6;
+#endif
+	} header;
 	int (*finish)(struct net *net, struct sock *sk, struct sk_buff *skb);
 };
 
@@ -257,7 +263,6 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 
 		if (xo && (xo->flags & CRYPTO_DONE)) {
 			crypto_done = true;
-			x = xfrm_input_state(skb);
 			family = XFRM_SPI_SKB_CB(skb)->family;
 
 			if (!(xo->status & CRYPTO_SUCCESS)) {
@@ -518,7 +523,7 @@ int xfrm_trans_queue(struct sk_buff *skb,
 		return -ENOBUFS;
 
 	XFRM_TRANS_SKB_CB(skb)->finish = finish;
-	skb_queue_tail(&trans->queue, skb);
+	__skb_queue_tail(&trans->queue, skb);
 	tasklet_schedule(&trans->tasklet);
 	return 0;
 }

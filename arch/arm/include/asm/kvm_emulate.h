@@ -131,7 +131,7 @@ static inline bool mode_has_spsr(struct kvm_vcpu *vcpu)
 static inline bool vcpu_mode_priv(struct kvm_vcpu *vcpu)
 {
 	unsigned long cpsr_mode = vcpu->arch.ctxt.gp_regs.usr_regs.ARM_cpsr & MODE_MASK;
-	return cpsr_mode > USR_MODE;;
+	return cpsr_mode > USR_MODE;
 }
 
 static inline u32 kvm_vcpu_get_hsr(const struct kvm_vcpu *vcpu)

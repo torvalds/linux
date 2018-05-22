@@ -395,13 +395,6 @@ struct ORANGEFS_dev_map_desc {
 
 /* gossip.h *****************************************************************/
 
-#ifdef GOSSIP_DISABLE_DEBUG
-#define gossip_debug(mask, fmt, ...)					\
-do {									\
-	if (0)								\
-		printk(KERN_DEBUG fmt, ##__VA_ARGS__);			\
-} while (0)
-#else
 extern __u64 orangefs_gossip_debug_mask;
 
 /* try to avoid function call overhead by checking masks in macro */
@@ -410,13 +403,5 @@ do {									\
 	if (orangefs_gossip_debug_mask & (mask))			\
 		printk(KERN_DEBUG fmt, ##__VA_ARGS__);			\
 } while (0)
-#endif /* GOSSIP_DISABLE_DEBUG */
-
-/* do file and line number printouts w/ the GNU preprocessor */
-#define gossip_ldebug(mask, fmt, ...)					\
-	gossip_debug(mask, "%s: " fmt, __func__, ##__VA_ARGS__)
 
 #define gossip_err pr_err
-#define gossip_lerr(fmt, ...)						\
-	gossip_err("%s line %d: " fmt,					\
-		   __FILE__, __LINE__, ##__VA_ARGS__)

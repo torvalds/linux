@@ -467,6 +467,7 @@ trace_trigger_soft_disabled(struct trace_event_file *file)
 unsigned int trace_call_bpf(struct trace_event_call *call, void *ctx);
 int perf_event_attach_bpf_prog(struct perf_event *event, struct bpf_prog *prog);
 void perf_event_detach_bpf_prog(struct perf_event *event);
+int perf_event_query_prog_array(struct perf_event *event, void __user *info);
 #else
 static inline unsigned int trace_call_bpf(struct trace_event_call *call, void *ctx)
 {
@@ -481,6 +482,11 @@ perf_event_attach_bpf_prog(struct perf_event *event, struct bpf_prog *prog)
 
 static inline void perf_event_detach_bpf_prog(struct perf_event *event) { }
 
+static inline int
+perf_event_query_prog_array(struct perf_event *event, void __user *info)
+{
+	return -EOPNOTSUPP;
+}
 #endif
 
 enum {
@@ -528,6 +534,7 @@ do {									\
 struct perf_event;
 
 DECLARE_PER_CPU(struct pt_regs, perf_trace_regs);
+DECLARE_PER_CPU(int, bpf_kprobe_override);
 
 extern int  perf_trace_init(struct perf_event *event);
 extern void perf_trace_destroy(struct perf_event *event);

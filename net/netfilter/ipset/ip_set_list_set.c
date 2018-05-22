@@ -55,8 +55,9 @@ list_set_ktest(struct ip_set *set, const struct sk_buff *skb,
 	       struct ip_set_adt_opt *opt, const struct ip_set_ext *ext)
 {
 	struct list_set *map = set->data;
+	struct ip_set_ext *mext = &opt->ext;
 	struct set_elem *e;
-	u32 cmdflags = opt->cmdflags;
+	u32 flags = opt->cmdflags;
 	int ret;
 
 	/* Don't lookup sub-counters at all */
@@ -64,21 +65,11 @@ list_set_ktest(struct ip_set *set, const struct sk_buff *skb,
 	if (opt->cmdflags & IPSET_FLAG_SKIP_SUBCOUNTER_UPDATE)
 		opt->cmdflags &= ~IPSET_FLAG_SKIP_COUNTER_UPDATE;
 	list_for_each_entry_rcu(e, &map->members, list) {
-		if (SET_WITH_TIMEOUT(set) &&
-		    ip_set_timeout_expired(ext_timeout(e, set)))
-			continue;
 		ret = ip_set_test(e->id, skb, par, opt);
-		if (ret > 0) {
-			if (SET_WITH_COUNTER(set))
-				ip_set_update_counter(ext_counter(e, set),
-						      ext, &opt->ext,
-						      cmdflags);
-			if (SET_WITH_SKBINFO(set))
-				ip_set_get_skbinfo(ext_skbinfo(e, set),
-						   ext, &opt->ext,
-						   cmdflags);
-			return ret;
-		}
+		if (ret <= 0)
+			continue;
+		if (ip_set_match_extensions(set, ext, mext, flags, e))
+			return 1;
 	}
 	return 0;
 }

@@ -24,7 +24,7 @@
 #include <linux/dvb/frontend.h>
 #include <linux/types.h>
 #include "horus3a.h"
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #define MAX_WRITE_REGSIZE      5
 
@@ -89,7 +89,9 @@ static int horus3a_write_regs(struct horus3a_priv *priv,
 
 static int horus3a_write_reg(struct horus3a_priv *priv, u8 reg, u8 val)
 {
-	return horus3a_write_regs(priv, reg, &val, 1);
+	u8 tmp = val; /* see gcc.gnu.org/bugzilla/show_bug.cgi?id=81715 */
+
+	return horus3a_write_regs(priv, reg, &tmp, 1);
 }
 
 static int horus3a_enter_power_save(struct horus3a_priv *priv)

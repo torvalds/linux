@@ -1016,7 +1016,7 @@ static int sh_veu_release(struct file *file)
 	return 0;
 }
 
-static unsigned int sh_veu_poll(struct file *file,
+static __poll_t sh_veu_poll(struct file *file,
 				struct poll_table_struct *wait)
 {
 	struct sh_veu_file *veu_file = file->private_data;

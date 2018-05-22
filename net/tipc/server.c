@@ -132,10 +132,11 @@ static struct tipc_conn *tipc_conn_lookup(struct tipc_server *s, int conid)
 
 	spin_lock_bh(&s->idr_lock);
 	con = idr_find(&s->conn_idr, conid);
-	if (con && test_bit(CF_CONNECTED, &con->flags))
-		conn_get(con);
-	else
-		con = NULL;
+	if (con) {
+		if (!test_bit(CF_CONNECTED, &con->flags) ||
+		    !kref_get_unless_zero(&con->kref))
+			con = NULL;
+	}
 	spin_unlock_bh(&s->idr_lock);
 	return con;
 }
@@ -183,35 +184,28 @@ static void tipc_register_callbacks(struct socket *sock, struct tipc_conn *con)
 	write_unlock_bh(&sk->sk_callback_lock);
 }
 
-static void tipc_unregister_callbacks(struct tipc_conn *con)
-{
-	struct sock *sk = con->sock->sk;
-
-	write_lock_bh(&sk->sk_callback_lock);
-	sk->sk_user_data = NULL;
-	write_unlock_bh(&sk->sk_callback_lock);
-}
-
 static void tipc_close_conn(struct tipc_conn *con)
 {
 	struct tipc_server *s = con->server;
+	struct sock *sk = con->sock->sk;
+	bool disconnect = false;
 
-	if (test_and_clear_bit(CF_CONNECTED, &con->flags)) {
-		if (con->sock)
-			tipc_unregister_callbacks(con);
-
+	write_lock_bh(&sk->sk_callback_lock);
+	disconnect = test_and_clear_bit(CF_CONNECTED, &con->flags);
+	if (disconnect) {
+		sk->sk_user_data = NULL;
 		if (con->conid)
 			s->tipc_conn_release(con->conid, con->usr_data);
-
-		/* We shouldn't flush pending works as we may be in the
-		 * thread. In fact the races with pending rx/tx work structs
-		 * are harmless for us here as we have already deleted this
-		 * connection from server connection list.
-		 */
-		if (con->sock)
-			kernel_sock_shutdown(con->sock, SHUT_RDWR);
-		conn_put(con);
 	}
+	write_unlock_bh(&sk->sk_callback_lock);
+
+	/* Handle concurrent calls from sending and receiving threads */
+	if (!disconnect)
+		return;
+
+	/* Don't flush pending works, -just let them expire */
+	kernel_sock_shutdown(con->sock, SHUT_RDWR);
+	conn_put(con);
 }
 
 static struct tipc_conn *tipc_alloc_conn(struct tipc_server *s)
@@ -248,9 +242,10 @@ static struct tipc_conn *tipc_alloc_conn(struct tipc_server *s)
 
 static int tipc_receive_from_sock(struct tipc_conn *con)
 {
-	struct msghdr msg = {};
 	struct tipc_server *s = con->server;
+	struct sock *sk = con->sock->sk;
 	struct sockaddr_tipc addr;
+	struct msghdr msg = {};
 	struct kvec iov;
 	void *buf;
 	int ret;
@@ -264,19 +259,22 @@ static int tipc_receive_from_sock(struct tipc_conn *con)
 	iov.iov_base = buf;
 	iov.iov_len = s->max_rcvbuf_size;
 	msg.msg_name = &addr;
-	ret = kernel_recvmsg(con->sock, &msg, &iov, 1, iov.iov_len,
-			     MSG_DONTWAIT);
+	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, &iov, 1, iov.iov_len);
+	ret = sock_recvmsg(con->sock, &msg, MSG_DONTWAIT);
 	if (ret <= 0) {
 		kmem_cache_free(s->rcvbuf_cache, buf);
 		goto out_close;
 	}
 
-	s->tipc_conn_recvmsg(sock_net(con->sock->sk), con->conid, &addr,
-			     con->usr_data, buf, ret);
-
+	read_lock_bh(&sk->sk_callback_lock);
+	if (test_bit(CF_CONNECTED, &con->flags))
+		ret = s->tipc_conn_recvmsg(sock_net(con->sock->sk), con->conid,
+					   &addr, con->usr_data, buf, ret);
+	read_unlock_bh(&sk->sk_callback_lock);
 	kmem_cache_free(s->rcvbuf_cache, buf);
-
-	return 0;
+	if (ret < 0)
+		tipc_conn_terminate(s, con->conid);
+	return ret;
 
 out_close:
 	if (ret != -EWOULDBLOCK)
@@ -489,8 +487,8 @@ void tipc_conn_terminate(struct tipc_server *s, int conid)
 	}
 }
 
-bool tipc_topsrv_kern_subscr(struct net *net, u32 port, u32 type,
-			     u32 lower, u32 upper, int *conid)
+bool tipc_topsrv_kern_subscr(struct net *net, u32 port, u32 type, u32 lower,
+			     u32 upper, u32 filter, int *conid)
 {
 	struct tipc_subscriber *scbr;
 	struct tipc_subscr sub;
@@ -501,7 +499,7 @@ bool tipc_topsrv_kern_subscr(struct net *net, u32 port, u32 type,
 	sub.seq.lower = lower;
 	sub.seq.upper = upper;
 	sub.timeout = TIPC_WAIT_FOREVER;
-	sub.filter = TIPC_SUB_PORTS;
+	sub.filter = filter;
 	*(u32 *)&sub.usr_handle = port;
 
 	con = tipc_alloc_conn(tipc_topsrv(net));
@@ -525,11 +523,17 @@ bool tipc_topsrv_kern_subscr(struct net *net, u32 port, u32 type,
 void tipc_topsrv_kern_unsubscr(struct net *net, int conid)
 {
 	struct tipc_conn *con;
+	struct tipc_server *srv;
 
 	con = tipc_conn_lookup(tipc_topsrv(net), conid);
 	if (!con)
 		return;
-	tipc_close_conn(con);
+
+	test_and_clear_bit(CF_CONNECTED, &con->flags);
+	srv = con->server;
+	if (con->conid)
+		srv->tipc_conn_release(con->conid, con->usr_data);
+	conn_put(con);
 	conn_put(con);
 }
 

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -118,9 +118,6 @@ extern const char *acpi_gbl_ptyp_decode[];
 #ifndef ACPI_MSG_ERROR
 #define ACPI_MSG_ERROR          "ACPI Error: "
 #endif
-#ifndef ACPI_MSG_EXCEPTION
-#define ACPI_MSG_EXCEPTION      "ACPI Exception: "
-#endif
 #ifndef ACPI_MSG_WARNING
 #define ACPI_MSG_WARNING        "ACPI Warning: "
 #endif
@@ -129,10 +126,10 @@ extern const char *acpi_gbl_ptyp_decode[];
 #endif
 
 #ifndef ACPI_MSG_BIOS_ERROR
-#define ACPI_MSG_BIOS_ERROR     "ACPI BIOS Error (bug): "
+#define ACPI_MSG_BIOS_ERROR     "Firmware Error (ACPI): "
 #endif
 #ifndef ACPI_MSG_BIOS_WARNING
-#define ACPI_MSG_BIOS_WARNING   "ACPI BIOS Warning (bug): "
+#define ACPI_MSG_BIOS_WARNING   "Firmware Warning (ACPI): "
 #endif
 
 /*
@@ -233,9 +230,9 @@ u64 acpi_ut_implicit_strtoul64(char *string);
  */
 acpi_status acpi_ut_init_globals(void);
 
-#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
-
 const char *acpi_ut_get_mutex_name(u32 mutex_id);
+
+#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 
 const char *acpi_ut_get_notify_name(u32 notify_value, acpi_object_type type);
 #endif
@@ -641,8 +638,10 @@ void ut_convert_backslashes(char *pathname);
 
 void acpi_ut_repair_name(char *name);
 
-#if defined (ACPI_DEBUGGER) || defined (ACPI_APPLICATION)
+#if defined (ACPI_DEBUGGER) || defined (ACPI_APPLICATION) || defined (ACPI_DEBUG_OUTPUT)
 u8 acpi_ut_safe_strcpy(char *dest, acpi_size dest_size, char *source);
+
+void acpi_ut_safe_strncpy(char *dest, char *source, acpi_size dest_size);
 
 u8 acpi_ut_safe_strcat(char *dest, acpi_size dest_size, char *source);
 
@@ -737,9 +736,11 @@ acpi_ut_predefined_bios_error(const char *module_name,
 			      u8 node_flags, const char *format, ...);
 
 void
-acpi_ut_namespace_error(const char *module_name,
-			u32 line_number,
-			const char *internal_name, acpi_status lookup_status);
+acpi_ut_prefixed_namespace_error(const char *module_name,
+				 u32 line_number,
+				 union acpi_generic_state *prefix_scope,
+				 const char *internal_name,
+				 acpi_status lookup_status);
 
 void
 acpi_ut_method_error(const char *module_name,

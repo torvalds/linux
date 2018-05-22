@@ -562,10 +562,10 @@ static const struct v4l2_ctrl_config lm3554_controls[] = {
 	{
 	 .ops = &ctrl_ops,
 	 .id = V4L2_CID_FLASH_STATUS,
-	 .type = V4L2_CTRL_TYPE_BOOLEAN,
+	 .type = V4L2_CTRL_TYPE_INTEGER,
 	 .name = "Flash Status",
-	 .min = 0,
-	 .max = 100,
+	 .min = ATOMISP_FLASH_STATUS_OK,
+	 .max = ATOMISP_FLASH_STATUS_TIMEOUT,
 	 .step = 1,
 	 .def = ATOMISP_FLASH_STATUS_OK,
 	 .flags = 0,
@@ -574,10 +574,10 @@ static const struct v4l2_ctrl_config lm3554_controls[] = {
 	{
 	 .ops = &ctrl_ops,
 	 .id = V4L2_CID_FLASH_STATUS_REGISTER,
-	 .type = V4L2_CTRL_TYPE_BOOLEAN,
+	 .type = V4L2_CTRL_TYPE_INTEGER,
 	 .name = "Flash Status Register",
 	 .min = 0,
-	 .max = 100,
+	 .max = 255,
 	 .step = 1,
 	 .def = 0,
 	 .flags = 0,
@@ -824,22 +824,15 @@ static void *lm3554_platform_data_func(struct i2c_client *client)
 {
 	static struct lm3554_platform_data platform_data;
 
-	if (ACPI_COMPANION(&client->dev)) {
-		platform_data.gpio_reset =
-		    desc_to_gpio(gpiod_get_index(&(client->dev),
+	platform_data.gpio_reset =
+		    desc_to_gpio(gpiod_get_index(&client->dev,
 						 NULL, 2, GPIOD_OUT_LOW));
-		platform_data.gpio_strobe =
-		    desc_to_gpio(gpiod_get_index(&(client->dev),
+	platform_data.gpio_strobe =
+		    desc_to_gpio(gpiod_get_index(&client->dev,
 						 NULL, 0, GPIOD_OUT_LOW));
-		platform_data.gpio_torch =
-		    desc_to_gpio(gpiod_get_index(&(client->dev),
+	platform_data.gpio_torch =
+		    desc_to_gpio(gpiod_get_index(&client->dev,
 						 NULL, 1, GPIOD_OUT_LOW));
-	} else {
-		platform_data.gpio_reset = -1;
-		platform_data.gpio_strobe = -1;
-		platform_data.gpio_torch = -1;
-	}
-
 	dev_info(&client->dev, "camera pdata: lm3554: reset: %d strobe %d torch %d\n",
 		platform_data.gpio_reset, platform_data.gpio_strobe,
 		platform_data.gpio_torch);
@@ -868,10 +861,7 @@ static int lm3554_probe(struct i2c_client *client)
 	if (!flash)
 		return -ENOMEM;
 
-	flash->pdata = client->dev.platform_data;
-
-	if (!flash->pdata || ACPI_COMPANION(&client->dev))
-		flash->pdata = lm3554_platform_data_func(client);
+	flash->pdata = lm3554_platform_data_func(client);
 
 	v4l2_i2c_subdev_init(&flash->sd, client, &lm3554_ops);
 	flash->sd.internal_ops = &lm3554_internal_ops;
@@ -914,9 +904,7 @@ static int lm3554_probe(struct i2c_client *client)
 		dev_err(&client->dev, "gpio request/direction_output fail");
 		goto fail2;
 	}
-	if (ACPI_HANDLE(&client->dev))
-		err = atomisp_register_i2c_module(&flash->sd, NULL, LED_FLASH);
-	return 0;
+	return atomisp_register_i2c_module(&flash->sd, NULL, LED_FLASH);
 fail2:
 	media_entity_cleanup(&flash->sd.entity);
 	v4l2_ctrl_handler_free(&flash->ctrl_handler);

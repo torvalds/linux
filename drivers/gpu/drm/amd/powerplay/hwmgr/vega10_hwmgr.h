@@ -387,7 +387,6 @@ struct vega10_hwmgr {
 	struct vega10_smc_state_table  smc_state_table;
 
 	uint32_t                       config_telemetry;
-	uint32_t                       smu_version;
 	uint32_t                       acg_loop_state;
 	uint32_t                       mem_channels;
 };

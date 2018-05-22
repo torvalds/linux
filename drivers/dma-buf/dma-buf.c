@@ -135,10 +135,10 @@ static loff_t dma_buf_llseek(struct file *file, loff_t offset, int whence)
  * Userspace can query the state of these implicitly tracked fences using poll()
  * and related system calls:
  *
- * - Checking for POLLIN, i.e. read access, can be use to query the state of the
+ * - Checking for EPOLLIN, i.e. read access, can be use to query the state of the
  *   most recent write or exclusive fence.
  *
- * - Checking for POLLOUT, i.e. write access, can be used to query the state of
+ * - Checking for EPOLLOUT, i.e. write access, can be used to query the state of
  *   all attached fences, shared and exclusive ones.
  *
  * Note that this only signals the completion of the respective fences, i.e. the
@@ -157,24 +157,24 @@ static void dma_buf_poll_cb(struct dma_fence *fence, struct dma_fence_cb *cb)
 	spin_unlock_irqrestore(&dcb->poll->lock, flags);
 }
 
-static unsigned int dma_buf_poll(struct file *file, poll_table *poll)
+static __poll_t dma_buf_poll(struct file *file, poll_table *poll)
 {
 	struct dma_buf *dmabuf;
 	struct reservation_object *resv;
 	struct reservation_object_list *fobj;
 	struct dma_fence *fence_excl;
-	unsigned long events;
+	__poll_t events;
 	unsigned shared_count, seq;
 
 	dmabuf = file->private_data;
 	if (!dmabuf || !dmabuf->resv)
-		return POLLERR;
+		return EPOLLERR;
 
 	resv = dmabuf->resv;
 
 	poll_wait(file, &dmabuf->poll, poll);
 
-	events = poll_requested_events(poll) & (POLLIN | POLLOUT);
+	events = poll_requested_events(poll) & (EPOLLIN | EPOLLOUT);
 	if (!events)
 		return 0;
 
@@ -193,12 +193,12 @@ retry:
 		goto retry;
 	}
 
-	if (fence_excl && (!(events & POLLOUT) || shared_count == 0)) {
+	if (fence_excl && (!(events & EPOLLOUT) || shared_count == 0)) {
 		struct dma_buf_poll_cb_t *dcb = &dmabuf->cb_excl;
-		unsigned long pevents = POLLIN;
+		__poll_t pevents = EPOLLIN;
 
 		if (shared_count == 0)
-			pevents |= POLLOUT;
+			pevents |= EPOLLOUT;
 
 		spin_lock_irq(&dmabuf->poll.lock);
 		if (dcb->active) {
@@ -228,19 +228,19 @@ retry:
 		}
 	}
 
-	if ((events & POLLOUT) && shared_count > 0) {
+	if ((events & EPOLLOUT) && shared_count > 0) {
 		struct dma_buf_poll_cb_t *dcb = &dmabuf->cb_shared;
 		int i;
 
 		/* Only queue a new callback if no event has fired yet */
 		spin_lock_irq(&dmabuf->poll.lock);
 		if (dcb->active)
-			events &= ~POLLOUT;
+			events &= ~EPOLLOUT;
 		else
-			dcb->active = POLLOUT;
+			dcb->active = EPOLLOUT;
 		spin_unlock_irq(&dmabuf->poll.lock);
 
-		if (!(events & POLLOUT))
+		if (!(events & EPOLLOUT))
 			goto out;
 
 		for (i = 0; i < shared_count; ++i) {
@@ -253,14 +253,14 @@ retry:
 				 *
 				 * call dma_buf_poll_cb and force a recheck!
 				 */
-				events &= ~POLLOUT;
+				events &= ~EPOLLOUT;
 				dma_buf_poll_cb(NULL, &dcb->cb);
 				break;
 			}
 			if (!dma_fence_add_callback(fence, &dcb->cb,
 						    dma_buf_poll_cb)) {
 				dma_fence_put(fence);
-				events &= ~POLLOUT;
+				events &= ~EPOLLOUT;
 				break;
 			}
 			dma_fence_put(fence);
@@ -351,13 +351,13 @@ static inline int is_dma_buf_file(struct file *file)
  *
  * 2. Userspace passes this file-descriptors to all drivers it wants this buffer
  *    to share with: First the filedescriptor is converted to a &dma_buf using
- *    dma_buf_get(). The the buffer is attached to the device using
+ *    dma_buf_get(). Then the buffer is attached to the device using
  *    dma_buf_attach().
  *
  *    Up to this stage the exporter is still free to migrate or reallocate the
  *    backing storage.
  *
- * 3. Once the buffer is attached to all devices userspace can inniate DMA
+ * 3. Once the buffer is attached to all devices userspace can initiate DMA
  *    access to the shared buffer. In the kernel this is done by calling
  *    dma_buf_map_attachment() and dma_buf_unmap_attachment().
  *
@@ -617,7 +617,7 @@ EXPORT_SYMBOL_GPL(dma_buf_detach);
  * Returns sg_table containing the scatterlist to be returned; returns ERR_PTR
  * on error. May return -EINTR if it is interrupted by a signal.
  *
- * A mapping must be unmapped again using dma_buf_map_attachment(). Note that
+ * A mapping must be unmapped by using dma_buf_unmap_attachment(). Note that
  * the underlying backing storage is pinned for as long as a mapping exists,
  * therefore users/importers should not hold onto a mapping for undue amounts of
  * time.
@@ -1179,8 +1179,7 @@ static int dma_buf_init_debugfs(void)
 
 static void dma_buf_uninit_debugfs(void)
 {
-	if (dma_buf_debugfs_dir)
-		debugfs_remove_recursive(dma_buf_debugfs_dir);
+	debugfs_remove_recursive(dma_buf_debugfs_dir);
 }
 #else
 static inline int dma_buf_init_debugfs(void)

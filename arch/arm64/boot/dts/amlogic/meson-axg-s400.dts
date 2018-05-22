@@ -17,6 +17,19 @@
 	};
 };
 
+&ethmac {
+	status = "okay";
+	phy-mode = "rgmii";
+	pinctrl-0 = <&eth_rgmii_y_pins>;
+	pinctrl-names = "default";
+};
+
 &uart_AO {
 	status = "okay";
+};
+
+&ir {
+	status = "okay";
+	pinctrl-0 = <&remote_input_ao_pins>;
+	pinctrl-names = "default";
 };

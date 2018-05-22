@@ -133,7 +133,7 @@ struct dax_region *alloc_dax_region(struct device *parent, int region_id,
 	dax_region->base = addr;
 	if (sysfs_create_groups(&parent->kobj, dax_region_attribute_groups)) {
 		kfree(dax_region);
-		return NULL;;
+		return NULL;
 	}
 
 	kref_get(&dax_region->kref);

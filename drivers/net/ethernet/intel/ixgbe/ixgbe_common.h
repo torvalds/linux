@@ -139,6 +139,12 @@ extern const u32 ixgbe_mvals_8259X[IXGBE_MVALS_IDX_LIMIT];
 
 s32 ixgbe_get_thermal_sensor_data_generic(struct ixgbe_hw *hw);
 s32 ixgbe_init_thermal_sensor_thresh_generic(struct ixgbe_hw *hw);
+void ixgbe_get_etk_id(struct ixgbe_hw *hw,
+		      struct ixgbe_nvm_version *nvm_ver);
+void ixgbe_get_oem_prod_version(struct ixgbe_hw *hw,
+				struct ixgbe_nvm_version *nvm_ver);
+void ixgbe_get_orom_version(struct ixgbe_hw *hw,
+			    struct ixgbe_nvm_version *nvm_ver);
 void ixgbe_disable_rx_generic(struct ixgbe_hw *hw);
 void ixgbe_enable_rx_generic(struct ixgbe_hw *hw);
 s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,

@@ -56,6 +56,7 @@ static int virtio_gpu_map_ioctl(struct drm_device *dev, void *data,
 static int virtio_gpu_object_list_validate(struct ww_acquire_ctx *ticket,
 					   struct list_head *head)
 {
+	struct ttm_operation_ctx ctx = { false, false };
 	struct ttm_validate_buffer *buf;
 	struct ttm_buffer_object *bo;
 	struct virtio_gpu_object *qobj;
@@ -68,7 +69,7 @@ static int virtio_gpu_object_list_validate(struct ww_acquire_ctx *ticket,
 	list_for_each_entry(buf, head, head) {
 		bo = buf->bo;
 		qobj = container_of(bo, struct virtio_gpu_object, tbo);
-		ret = ttm_bo_validate(bo, &qobj->placement, false, false);
+		ret = ttm_bo_validate(bo, &qobj->placement, &ctx);
 		if (ret) {
 			ttm_eu_backoff_reservation(ticket, head);
 			return ret;
@@ -196,6 +197,9 @@ static int virtio_gpu_getparam_ioctl(struct drm_device *dev, void *data,
 	case VIRTGPU_PARAM_3D_FEATURES:
 		value = vgdev->has_virgl_3d == true ? 1 : 0;
 		break;
+	case VIRTGPU_PARAM_CAPSET_QUERY_FIX:
+		value = 1;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -261,7 +265,7 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 		ret = virtio_gpu_object_attach(vgdev, qobj, res_id, NULL);
 	} else {
 		/* use a gem reference since unref list undoes them */
-		drm_gem_object_reference(&qobj->gem_base);
+		drm_gem_object_get(&qobj->gem_base);
 		mainbuf.bo = &qobj->tbo;
 		list_add(&mainbuf.head, &validate_list);
 
@@ -352,6 +356,7 @@ static int virtio_gpu_transfer_from_host_ioctl(struct drm_device *dev,
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct virtio_gpu_fpriv *vfpriv = file->driver_priv;
 	struct drm_virtgpu_3d_transfer_from_host *args = data;
+	struct ttm_operation_ctx ctx = { true, false };
 	struct drm_gem_object *gobj = NULL;
 	struct virtio_gpu_object *qobj = NULL;
 	struct virtio_gpu_fence *fence;
@@ -372,8 +377,7 @@ static int virtio_gpu_transfer_from_host_ioctl(struct drm_device *dev,
 	if (ret)
 		goto out;
 
-	ret = ttm_bo_validate(&qobj->tbo, &qobj->placement,
-			      true, false);
+	ret = ttm_bo_validate(&qobj->tbo, &qobj->placement, &ctx);
 	if (unlikely(ret))
 		goto out_unres;
 
@@ -399,6 +403,7 @@ static int virtio_gpu_transfer_to_host_ioctl(struct drm_device *dev, void *data,
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct virtio_gpu_fpriv *vfpriv = file->driver_priv;
 	struct drm_virtgpu_3d_transfer_to_host *args = data;
+	struct ttm_operation_ctx ctx = { true, false };
 	struct drm_gem_object *gobj = NULL;
 	struct virtio_gpu_object *qobj = NULL;
 	struct virtio_gpu_fence *fence;
@@ -416,8 +421,7 @@ static int virtio_gpu_transfer_to_host_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto out;
 
-	ret = ttm_bo_validate(&qobj->tbo, &qobj->placement,
-			      true, false);
+	ret = ttm_bo_validate(&qobj->tbo, &qobj->placement, &ctx);
 	if (unlikely(ret))
 		goto out_unres;
 
@@ -471,7 +475,7 @@ static int virtio_gpu_get_caps_ioctl(struct drm_device *dev,
 {
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct drm_virtgpu_get_caps *args = data;
-	int size;
+	unsigned size, host_caps_size;
 	int i;
 	int found_valid = -1;
 	int ret;
@@ -479,6 +483,10 @@ static int virtio_gpu_get_caps_ioctl(struct drm_device *dev,
 	void *ptr;
 	if (vgdev->num_capsets == 0)
 		return -ENOSYS;
+
+	/* don't allow userspace to pass 0 */
+	if (args->size == 0)
+		return -EINVAL;
 
 	spin_lock(&vgdev->display_info_lock);
 	for (i = 0; i < vgdev->num_capsets; i++) {
@@ -495,11 +503,9 @@ static int virtio_gpu_get_caps_ioctl(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	size = vgdev->capsets[found_valid].max_size;
-	if (args->size > size) {
-		spin_unlock(&vgdev->display_info_lock);
-		return -EINVAL;
-	}
+	host_caps_size = vgdev->capsets[found_valid].max_size;
+	/* only copy to user the minimum of the host caps size or the guest caps size */
+	size = min(args->size, host_caps_size);
 
 	list_for_each_entry(cache_ent, &vgdev->cap_cache, head) {
 		if (cache_ent->id == args->cap_set_id &&

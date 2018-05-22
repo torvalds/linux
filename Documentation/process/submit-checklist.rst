@@ -37,7 +37,9 @@ and elsewhere regarding submitting Linux kernel patches.
    You should be able to justify all violations that remain in
    your patch.
 
-6) Any new or modified ``CONFIG`` options don't muck up the config menu.
+6) Any new or modified ``CONFIG`` options do not muck up the config menu and
+   default to off unless they meet the exception criteria documented in
+   ``Documentation/kbuild/kconfig-language.txt`` Menu attributes: default value.
 
 7) All new ``Kconfig`` options have help text.
 

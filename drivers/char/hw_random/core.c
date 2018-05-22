@@ -306,6 +306,10 @@ static int enable_best_rng(void)
 		ret = ((new_rng == current_rng) ? 0 : set_current_rng(new_rng));
 		if (!ret)
 			cur_rng_set_by_user = 0;
+	} else {
+		drop_current_rng();
+		cur_rng_set_by_user = 0;
+		ret = 0;
 	}
 
 	return ret;

@@ -1101,34 +1101,6 @@ void __init_memblock __next_mem_pfn_range(int *idx, int nid,
 		*out_nid = r->nid;
 }
 
-unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn,
-						      unsigned long max_pfn)
-{
-	struct memblock_type *type = &memblock.memory;
-	unsigned int right = type->cnt;
-	unsigned int mid, left = 0;
-	phys_addr_t addr = PFN_PHYS(pfn + 1);
-
-	do {
-		mid = (right + left) / 2;
-
-		if (addr < type->regions[mid].base)
-			right = mid;
-		else if (addr >= (type->regions[mid].base +
-				  type->regions[mid].size))
-			left = mid + 1;
-		else {
-			/* addr is within the region, so pfn + 1 is valid */
-			return min(pfn + 1, max_pfn);
-		}
-	} while (left < right);
-
-	if (right == type->cnt)
-		return max_pfn;
-	else
-		return min(PHYS_PFN(type->regions[right].base), max_pfn);
-}
-
 /**
  * memblock_set_node - set node ID on memblock regions
  * @base: base of area to set node ID for
@@ -1654,7 +1626,7 @@ bool __init_memblock memblock_is_memory(phys_addr_t addr)
 	return memblock_search(&memblock.memory, addr) != -1;
 }
 
-int __init_memblock memblock_is_map_memory(phys_addr_t addr)
+bool __init_memblock memblock_is_map_memory(phys_addr_t addr)
 {
 	int i = memblock_search(&memblock.memory, addr);
 
@@ -1690,13 +1662,13 @@ int __init_memblock memblock_search_pfn_nid(unsigned long pfn,
  * RETURNS:
  * 0 if false, non-zero if true
  */
-int __init_memblock memblock_is_region_memory(phys_addr_t base, phys_addr_t size)
+bool __init_memblock memblock_is_region_memory(phys_addr_t base, phys_addr_t size)
 {
 	int idx = memblock_search(&memblock.memory, base);
 	phys_addr_t end = base + memblock_cap_size(base, &size);
 
 	if (idx == -1)
-		return 0;
+		return false;
 	return (memblock.memory.regions[idx].base +
 		 memblock.memory.regions[idx].size) >= end;
 }

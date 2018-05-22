@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -402,8 +402,8 @@ acpi_ut_track_allocation(struct acpi_debug_mem_block *allocation,
 	allocation->component = component;
 	allocation->line = line;
 
-	strncpy(allocation->module, module, ACPI_MAX_MODULE_NAME);
-	allocation->module[ACPI_MAX_MODULE_NAME - 1] = 0;
+	acpi_ut_safe_strncpy(allocation->module, (char *)module,
+			     ACPI_MAX_MODULE_NAME);
 
 	if (!element) {
 
@@ -717,7 +717,7 @@ exit:
 	if (!num_outstanding) {
 		ACPI_INFO(("No outstanding allocations"));
 	} else {
-		ACPI_ERROR((AE_INFO, "%u(0x%X) Outstanding allocations",
+		ACPI_ERROR((AE_INFO, "%u (0x%X) Outstanding cache allocations",
 			    num_outstanding, num_outstanding));
 	}
 

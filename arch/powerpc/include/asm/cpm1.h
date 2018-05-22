@@ -605,5 +605,7 @@ enum cpm_clk {
 };
 
 int cpm1_clk_setup(enum cpm_clk_target target, int clock, int mode);
+int cpm1_gpiochip_add16(struct device *dev);
+int cpm1_gpiochip_add32(struct device *dev);
 
 #endif /* __CPM1__ */

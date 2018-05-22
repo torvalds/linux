@@ -633,7 +633,7 @@ static void abx500_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 	for (i = 0; i < chip->ngpio; i++, gpio++) {
 		/* On AB8500, there is no GPIO0, the first is the GPIO 1 */
 		abx500_gpio_dbg_show_one(s, pctldev, chip, i + 1, gpio);
-		seq_printf(s, "\n");
+		seq_putc(s, '\n');
 	}
 }
 
@@ -1155,13 +1155,9 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	pct = devm_kzalloc(&pdev->dev, sizeof(struct abx500_pinctrl),
-				   GFP_KERNEL);
-	if (pct == NULL) {
-		dev_err(&pdev->dev,
-			"failed to allocate memory for pct\n");
+	pct = devm_kzalloc(&pdev->dev, sizeof(*pct), GFP_KERNEL);
+	if (!pct)
 		return -ENOMEM;
-	}
 
 	pct->dev = &pdev->dev;
 	pct->parent = dev_get_drvdata(pdev->dev.parent);

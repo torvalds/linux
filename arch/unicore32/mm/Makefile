@@ -6,8 +6,6 @@
 obj-y				:= extable.o fault.o init.o pgd.o mmu.o
 obj-y				+= flush.o ioremap.o
 
-obj-$(CONFIG_SWIOTLB)		+= dma-swiotlb.o
-
 obj-$(CONFIG_MODULES)		+= proc-syms.o
 
 obj-$(CONFIG_ALIGNMENT_TRAP)	+= alignment.o

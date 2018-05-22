@@ -105,7 +105,7 @@ int test__thread_map_remove(struct test *test __maybe_unused, int subtest __mayb
 	TEST_ASSERT_VAL("failed to allocate map string",
 			asprintf(&str, "%d,%d", getpid(), getppid()) >= 0);
 
-	threads = thread_map__new_str(str, NULL, 0);
+	threads = thread_map__new_str(str, NULL, 0, false);
 
 	TEST_ASSERT_VAL("failed to allocate thread_map",
 			threads);

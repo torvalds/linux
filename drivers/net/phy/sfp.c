@@ -98,12 +98,18 @@ static const enum gpiod_flags gpio_flags[] = {
 
 static DEFINE_MUTEX(sfp_mutex);
 
+struct sff_data {
+	unsigned int gpios;
+	bool (*module_supported)(const struct sfp_eeprom_id *id);
+};
+
 struct sfp {
 	struct device *dev;
 	struct i2c_adapter *i2c;
 	struct mii_bus *i2c_mii;
 	struct sfp_bus *sfp_bus;
 	struct phy_device *mod_phy;
+	const struct sff_data *type;
 
 	unsigned int (*get_state)(struct sfp *);
 	void (*set_state)(struct sfp *, unsigned int);
@@ -123,6 +129,36 @@ struct sfp {
 	struct sfp_eeprom_id id;
 };
 
+static bool sff_module_supported(const struct sfp_eeprom_id *id)
+{
+	return id->base.phys_id == SFP_PHYS_ID_SFF &&
+	       id->base.phys_ext_id == SFP_PHYS_EXT_ID_SFP;
+}
+
+static const struct sff_data sff_data = {
+	.gpios = SFP_F_LOS | SFP_F_TX_FAULT | SFP_F_TX_DISABLE,
+	.module_supported = sff_module_supported,
+};
+
+static bool sfp_module_supported(const struct sfp_eeprom_id *id)
+{
+	return id->base.phys_id == SFP_PHYS_ID_SFP &&
+	       id->base.phys_ext_id == SFP_PHYS_EXT_ID_SFP;
+}
+
+static const struct sff_data sfp_data = {
+	.gpios = SFP_F_PRESENT | SFP_F_LOS | SFP_F_TX_FAULT |
+		 SFP_F_TX_DISABLE | SFP_F_RATE_SELECT,
+	.module_supported = sfp_module_supported,
+};
+
+static const struct of_device_id sfp_of_match[] = {
+	{ .compatible = "sff,sff", .data = &sff_data, },
+	{ .compatible = "sff,sfp", .data = &sfp_data, },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, sfp_of_match);
+
 static unsigned long poll_jiffies;
 
 static unsigned int sfp_gpio_get_state(struct sfp *sfp)
@@ -139,6 +175,11 @@ static unsigned int sfp_gpio_get_state(struct sfp *sfp)
 	}
 
 	return state;
+}
+
+static unsigned int sff_gpio_get_state(struct sfp *sfp)
+{
+	return sfp_gpio_get_state(sfp) | SFP_F_PRESENT;
 }
 
 static void sfp_gpio_set_state(struct sfp *sfp, unsigned int state)
@@ -315,12 +356,12 @@ static void sfp_sm_probe_phy(struct sfp *sfp)
 	msleep(T_PHY_RESET_MS);
 
 	phy = mdiobus_scan(sfp->i2c_mii, SFP_PHY_ADDR);
-	if (IS_ERR(phy)) {
-		dev_err(sfp->dev, "mdiobus scan returned %ld\n", PTR_ERR(phy));
+	if (phy == ERR_PTR(-ENODEV)) {
+		dev_info(sfp->dev, "no PHY detected\n");
 		return;
 	}
-	if (!phy) {
-		dev_info(sfp->dev, "no PHY detected\n");
+	if (IS_ERR(phy)) {
+		dev_err(sfp->dev, "mdiobus scan returned %ld\n", PTR_ERR(phy));
 		return;
 	}
 
@@ -425,11 +466,6 @@ static int sfp_sm_mod_probe(struct sfp *sfp)
 {
 	/* SFP module inserted - read I2C data */
 	struct sfp_eeprom_id id;
-	char vendor[17];
-	char part[17];
-	char sn[17];
-	char date[9];
-	char rev[5];
 	u8 check;
 	int err;
 
@@ -465,24 +501,17 @@ static int sfp_sm_mod_probe(struct sfp *sfp)
 
 	sfp->id = id;
 
-	memcpy(vendor, sfp->id.base.vendor_name, 16);
-	vendor[16] = '\0';
-	memcpy(part, sfp->id.base.vendor_pn, 16);
-	part[16] = '\0';
-	memcpy(rev, sfp->id.base.vendor_rev, 4);
-	rev[4] = '\0';
-	memcpy(sn, sfp->id.ext.vendor_sn, 16);
-	sn[16] = '\0';
-	memcpy(date, sfp->id.ext.datecode, 8);
-	date[8] = '\0';
+	dev_info(sfp->dev, "module %.*s %.*s rev %.*s sn %.*s dc %.*s\n",
+		 (int)sizeof(id.base.vendor_name), id.base.vendor_name,
+		 (int)sizeof(id.base.vendor_pn), id.base.vendor_pn,
+		 (int)sizeof(id.base.vendor_rev), id.base.vendor_rev,
+		 (int)sizeof(id.ext.vendor_sn), id.ext.vendor_sn,
+		 (int)sizeof(id.ext.datecode), id.ext.datecode);
 
-	dev_info(sfp->dev, "module %s %s rev %s sn %s dc %s\n",
-		 vendor, part, rev, sn, date);
-
-	/* We only support SFP modules, not the legacy GBIC modules. */
-	if (sfp->id.base.phys_id != SFP_PHYS_ID_SFP ||
-	    sfp->id.base.phys_ext_id != SFP_PHYS_EXT_ID_SFP) {
-		dev_err(sfp->dev, "module is not SFP - phys id 0x%02x 0x%02x\n",
+	/* Check whether we support this module */
+	if (!sfp->type->module_supported(&sfp->id)) {
+		dev_err(sfp->dev,
+			"module is not supported - phys id 0x%02x 0x%02x\n",
 			sfp->id.base.phys_id, sfp->id.base.phys_ext_id);
 		return -EINVAL;
 	}
@@ -683,20 +712,19 @@ static int sfp_module_eeprom(struct sfp *sfp, struct ethtool_eeprom *ee,
 		len = min_t(unsigned int, last, ETH_MODULE_SFF_8079_LEN);
 		len -= first;
 
-		ret = sfp->read(sfp, false, first, data, len);
+		ret = sfp_read(sfp, false, first, data, len);
 		if (ret < 0)
 			return ret;
 
 		first += len;
 		data += len;
 	}
-	if (first >= ETH_MODULE_SFF_8079_LEN &&
-	    first < ETH_MODULE_SFF_8472_LEN) {
+	if (first < ETH_MODULE_SFF_8472_LEN && last > ETH_MODULE_SFF_8079_LEN) {
 		len = min_t(unsigned int, last, ETH_MODULE_SFF_8472_LEN);
 		len -= first;
 		first -= ETH_MODULE_SFF_8079_LEN;
 
-		ret = sfp->read(sfp, true, first, data, len);
+		ret = sfp_read(sfp, true, first, data, len);
 		if (ret < 0)
 			return ret;
 	}
@@ -801,6 +829,7 @@ static void sfp_cleanup(void *data)
 
 static int sfp_probe(struct platform_device *pdev)
 {
+	const struct sff_data *sff;
 	struct sfp *sfp;
 	bool poll = false;
 	int irq, err, i;
@@ -815,9 +844,18 @@ static int sfp_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
+	sff = sfp->type = &sfp_data;
+
 	if (pdev->dev.of_node) {
 		struct device_node *node = pdev->dev.of_node;
+		const struct of_device_id *id;
 		struct device_node *np;
+
+		id = of_match_node(sfp_of_match, node);
+		if (WARN_ON(!id))
+			return -EINVAL;
+
+		sff = sfp->type = id->data;
 
 		np = of_parse_phandle(node, "i2c-bus", 0);
 		if (np) {
@@ -834,17 +872,22 @@ static int sfp_probe(struct platform_device *pdev)
 				return err;
 			}
 		}
+	}
 
-		for (i = 0; i < GPIO_MAX; i++) {
+	for (i = 0; i < GPIO_MAX; i++)
+		if (sff->gpios & BIT(i)) {
 			sfp->gpio[i] = devm_gpiod_get_optional(sfp->dev,
 					   gpio_of_names[i], gpio_flags[i]);
 			if (IS_ERR(sfp->gpio[i]))
 				return PTR_ERR(sfp->gpio[i]);
 		}
 
-		sfp->get_state = sfp_gpio_get_state;
-		sfp->set_state = sfp_gpio_set_state;
-	}
+	sfp->get_state = sfp_gpio_get_state;
+	sfp->set_state = sfp_gpio_set_state;
+
+	/* Modules that have no detect signal are always present */
+	if (!(sfp->gpio[GPIO_MODDEF0]))
+		sfp->get_state = sff_gpio_get_state;
 
 	sfp->sfp_bus = sfp_register_socket(sfp->dev, sfp, &sfp_module_ops);
 	if (!sfp->sfp_bus)
@@ -898,12 +941,6 @@ static int sfp_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id sfp_of_match[] = {
-	{ .compatible = "sff,sfp", },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, sfp_of_match);
 
 static struct platform_driver sfp_driver = {
 	.probe = sfp_probe,

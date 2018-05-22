@@ -60,7 +60,7 @@ Memory usage:
 The mq policy used a lot of memory; 88 bytes per cache block on a 64
 bit machine.
 
-smq uses 28bit indexes to implement it's data structures rather than
+smq uses 28bit indexes to implement its data structures rather than
 pointers.  It avoids storing an explicit hit count for each block.  It
 has a 'hotspot' queue, rather than a pre-cache, which uses a quarter of
 the entries (each hotspot block covers a larger area than a single
@@ -84,7 +84,7 @@ resulting in better promotion/demotion decisions.
 
 Adaptability:
 The mq policy maintained a hit count for each cache block.  For a
-different block to get promoted to the cache it's hit count has to
+different block to get promoted to the cache its hit count has to
 exceed the lowest currently in the cache.  This meant it could take a
 long time for the cache to adapt between varying IO patterns.
 

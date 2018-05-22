@@ -353,10 +353,10 @@ config VIDEO_STI_HVA_DEBUGFS
 	depends on DEBUG_FS
 	help
 	  Select this to see information about the internal state and the last
-          operation of STMicroelectronics HVA multi-format video encoder in
-          debugfs.
+	  operation of STMicroelectronics HVA multi-format video encoder in
+	  debugfs.
 
-          Choose N unless you know you need this.
+	  Choose N unless you know you need this.
 
 config VIDEO_STI_DELTA
 	tristate "STMicroelectronics DELTA multi-format video decoder V4L2 driver"
@@ -586,10 +586,10 @@ config VIDEO_SAMSUNG_S5P_CEC
        select CEC_CORE
        select CEC_NOTIFIER
        ---help---
-         This is a driver for Samsung S5P HDMI CEC interface. It uses the
-         generic CEC framework interface.
-         CEC bus is present in the HDMI connector and enables communication
-         between compatible devices.
+	 This is a driver for Samsung S5P HDMI CEC interface. It uses the
+	 generic CEC framework interface.
+	 CEC bus is present in the HDMI connector and enables communication
+	 between compatible devices.
 
 config VIDEO_STI_HDMI_CEC
        tristate "STMicroelectronics STiH4xx HDMI CEC driver"
@@ -597,10 +597,10 @@ config VIDEO_STI_HDMI_CEC
        select CEC_CORE
        select CEC_NOTIFIER
        ---help---
-         This is a driver for STIH4xx HDMI CEC interface. It uses the
-         generic CEC framework interface.
-         CEC bus is present in the HDMI connector and enables communication
-         between compatible devices.
+	 This is a driver for STIH4xx HDMI CEC interface. It uses the
+	 generic CEC framework interface.
+	 CEC bus is present in the HDMI connector and enables communication
+	 between compatible devices.
 
 config VIDEO_STM32_HDMI_CEC
        tristate "STMicroelectronics STM32 HDMI CEC driver"
@@ -609,10 +609,10 @@ config VIDEO_STM32_HDMI_CEC
        select REGMAP_MMIO
        select CEC_CORE
        ---help---
-         This is a driver for STM32 interface. It uses the
-         generic CEC framework interface.
-         CEC bus is present in the HDMI connector and enables communication
-         between compatible devices.
+	 This is a driver for STM32 interface. It uses the
+	 generic CEC framework interface.
+	 CEC bus is present in the HDMI connector and enables communication
+	 between compatible devices.
 
 config VIDEO_TEGRA_HDMI_CEC
        tristate "Tegra HDMI CEC driver"
@@ -620,10 +620,10 @@ config VIDEO_TEGRA_HDMI_CEC
        select CEC_CORE
        select CEC_NOTIFIER
        ---help---
-         This is a driver for the Tegra HDMI CEC interface. It uses the
-         generic CEC framework interface.
-         The CEC bus is present in the HDMI connector and enables communication
-         between compatible devices.
+	 This is a driver for the Tegra HDMI CEC interface. It uses the
+	 generic CEC framework interface.
+	 The CEC bus is present in the HDMI connector and enables communication
+	 between compatible devices.
 
 endif #CEC_PLATFORM_DRIVERS
 

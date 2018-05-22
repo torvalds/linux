@@ -37,7 +37,7 @@
 #include <linux/jiffies.h>
 #include <linux/i2c-gpio.h>
 #include <linux/gpio/machine.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 #include <linux/serial_8250.h>
 #include <linux/smc91x.h>
 #include <linux/pwm.h>

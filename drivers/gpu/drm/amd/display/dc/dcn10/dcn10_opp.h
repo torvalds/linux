@@ -41,10 +41,27 @@
 	SRI(FMT_DITHER_RAND_B_SEED, FMT, id), \
 	SRI(FMT_CLAMP_CNTL, FMT, id), \
 	SRI(FMT_DYNAMIC_EXP_CNTL, FMT, id), \
-	SRI(FMT_MAP420_MEMORY_CONTROL, FMT, id)
+	SRI(FMT_MAP420_MEMORY_CONTROL, FMT, id), \
+	SRI(OPPBUF_CONTROL, OPPBUF, id),\
+	SRI(OPPBUF_3D_PARAMETERS_0, OPPBUF, id), \
+	SRI(OPPBUF_3D_PARAMETERS_1, OPPBUF, id)
 
 #define OPP_REG_LIST_DCN10(id) \
 	OPP_REG_LIST_DCN(id)
+
+#define OPP_COMMON_REG_VARIABLE_LIST \
+	uint32_t FMT_BIT_DEPTH_CONTROL; \
+	uint32_t FMT_CONTROL; \
+	uint32_t FMT_DITHER_RAND_R_SEED; \
+	uint32_t FMT_DITHER_RAND_G_SEED; \
+	uint32_t FMT_DITHER_RAND_B_SEED; \
+	uint32_t FMT_CLAMP_CNTL; \
+	uint32_t FMT_DYNAMIC_EXP_CNTL; \
+	uint32_t FMT_MAP420_MEMORY_CONTROL; \
+	uint32_t OPPBUF_CONTROL; \
+	uint32_t OPPBUF_CONTROL1; \
+	uint32_t OPPBUF_3D_PARAMETERS_0; \
+	uint32_t OPPBUF_3D_PARAMETERS_1
 
 #define OPP_MASK_SH_LIST_DCN(mask_sh) \
 	OPP_SF(FMT0_FMT_BIT_DEPTH_CONTROL, FMT_TRUNCATE_EN, mask_sh), \
@@ -68,46 +85,18 @@
 	OPP_SF(FMT0_FMT_CLAMP_CNTL, FMT_CLAMP_COLOR_FORMAT, mask_sh), \
 	OPP_SF(FMT0_FMT_DYNAMIC_EXP_CNTL, FMT_DYNAMIC_EXP_EN, mask_sh), \
 	OPP_SF(FMT0_FMT_DYNAMIC_EXP_CNTL, FMT_DYNAMIC_EXP_MODE, mask_sh), \
-	OPP_SF(FMT0_FMT_MAP420_MEMORY_CONTROL, FMT_MAP420MEM_PWR_FORCE, mask_sh)
+	OPP_SF(FMT0_FMT_MAP420_MEMORY_CONTROL, FMT_MAP420MEM_PWR_FORCE, mask_sh), \
+	OPP_SF(OPPBUF0_OPPBUF_CONTROL, OPPBUF_ACTIVE_WIDTH, mask_sh),\
+	OPP_SF(OPPBUF0_OPPBUF_CONTROL, OPPBUF_PIXEL_REPETITION, mask_sh),\
+	OPP_SF(OPPBUF0_OPPBUF_3D_PARAMETERS_0, OPPBUF_3D_VACT_SPACE1_SIZE, mask_sh), \
+	OPP_SF(OPPBUF0_OPPBUF_3D_PARAMETERS_0, OPPBUF_3D_VACT_SPACE2_SIZE, mask_sh)
 
 #define OPP_MASK_SH_LIST_DCN10(mask_sh) \
-	OPP_MASK_SH_LIST_DCN(mask_sh)
+	OPP_MASK_SH_LIST_DCN(mask_sh), \
+	OPP_SF(OPPBUF0_OPPBUF_CONTROL, OPPBUF_DISPLAY_SEGMENTATION, mask_sh),\
+	OPP_SF(OPPBUF0_OPPBUF_CONTROL, OPPBUF_OVERLAP_PIXEL_NUM, mask_sh)
 
 #define OPP_DCN10_REG_FIELD_LIST(type) \
-	type DPG_EN; \
-	type DPG_MODE; \
-	type DPG_VRES; \
-	type DPG_HRES; \
-	type DPG_COLOUR0_R_CR; \
-	type DPG_COLOUR1_R_CR; \
-	type DPG_COLOUR0_B_CB; \
-	type DPG_COLOUR1_B_CB; \
-	type DPG_COLOUR0_G_Y; \
-	type DPG_COLOUR1_G_Y; \
-	type CM_OCSC_C11; \
-	type CM_OCSC_C12; \
-	type CM_OCSC_C13; \
-	type CM_OCSC_C14; \
-	type CM_OCSC_C21; \
-	type CM_OCSC_C22; \
-	type CM_OCSC_C23; \
-	type CM_OCSC_C24; \
-	type CM_OCSC_C31; \
-	type CM_OCSC_C32; \
-	type CM_OCSC_C33; \
-	type CM_OCSC_C34; \
-	type CM_COMB_C11; \
-	type CM_COMB_C12; \
-	type CM_COMB_C13; \
-	type CM_COMB_C14; \
-	type CM_COMB_C21; \
-	type CM_COMB_C22; \
-	type CM_COMB_C23; \
-	type CM_COMB_C24; \
-	type CM_COMB_C31; \
-	type CM_COMB_C32; \
-	type CM_COMB_C33; \
-	type CM_COMB_C34; \
 	type FMT_TRUNCATE_EN; \
 	type FMT_TRUNCATE_DEPTH; \
 	type FMT_TRUNCATE_MODE; \
@@ -129,7 +118,18 @@
 	type FMT_DYNAMIC_EXP_EN; \
 	type FMT_DYNAMIC_EXP_MODE; \
 	type FMT_MAP420MEM_PWR_FORCE; \
-	type FMT_STEREOSYNC_OVERRIDE
+	type FMT_STEREOSYNC_OVERRIDE; \
+	type OPPBUF_ACTIVE_WIDTH;\
+	type OPPBUF_PIXEL_REPETITION;\
+	type OPPBUF_DISPLAY_SEGMENTATION;\
+	type OPPBUF_OVERLAP_PIXEL_NUM;\
+	type OPPBUF_NUM_SEGMENT_PADDED_PIXELS; \
+	type OPPBUF_3D_VACT_SPACE1_SIZE; \
+	type OPPBUF_3D_VACT_SPACE2_SIZE
+
+struct dcn10_opp_registers {
+	OPP_COMMON_REG_VARIABLE_LIST;
+};
 
 struct dcn10_opp_shift {
 	OPP_DCN10_REG_FIELD_LIST(uint8_t);
@@ -137,33 +137,6 @@ struct dcn10_opp_shift {
 
 struct dcn10_opp_mask {
 	OPP_DCN10_REG_FIELD_LIST(uint32_t);
-};
-
-struct dcn10_opp_registers {
-	uint32_t DPG_CONTROL;
-	uint32_t DPG_COLOUR_B_CB;
-	uint32_t DPG_COLOUR_G_Y;
-	uint32_t DPG_COLOUR_R_CR;
-	uint32_t CM_OCSC_C11_C12;
-	uint32_t CM_OCSC_C13_C14;
-	uint32_t CM_OCSC_C21_C22;
-	uint32_t CM_OCSC_C23_C24;
-	uint32_t CM_OCSC_C31_C32;
-	uint32_t CM_OCSC_C33_C34;
-	uint32_t CM_COMB_C11_C12;
-	uint32_t CM_COMB_C13_C14;
-	uint32_t CM_COMB_C21_C22;
-	uint32_t CM_COMB_C23_C24;
-	uint32_t CM_COMB_C31_C32;
-	uint32_t CM_COMB_C33_C34;
-	uint32_t FMT_BIT_DEPTH_CONTROL;
-	uint32_t FMT_CONTROL;
-	uint32_t FMT_DITHER_RAND_R_SEED;
-	uint32_t FMT_DITHER_RAND_G_SEED;
-	uint32_t FMT_DITHER_RAND_B_SEED;
-	uint32_t FMT_CLAMP_CNTL;
-	uint32_t FMT_DYNAMIC_EXP_CNTL;
-	uint32_t FMT_MAP420_MEMORY_CONTROL;
 };
 
 struct dcn10_opp {
@@ -182,5 +155,27 @@ void dcn10_opp_construct(struct dcn10_opp *oppn10,
 	const struct dcn10_opp_registers *regs,
 	const struct dcn10_opp_shift *opp_shift,
 	const struct dcn10_opp_mask *opp_mask);
+
+void opp1_set_dyn_expansion(
+	struct output_pixel_processor *opp,
+	enum dc_color_space color_sp,
+	enum dc_color_depth color_dpth,
+	enum signal_type signal);
+
+void opp1_program_fmt(
+	struct output_pixel_processor *opp,
+	struct bit_depth_reduction_params *fmt_bit_depth,
+	struct clamping_and_pixel_encoding_params *clamping);
+
+void opp1_program_bit_depth_reduction(
+	struct output_pixel_processor *opp,
+	const struct bit_depth_reduction_params *params);
+
+void opp1_program_stereo(
+	struct output_pixel_processor *opp,
+	bool enable,
+	const struct dc_crtc_timing *timing);
+
+void opp1_destroy(struct output_pixel_processor **opp);
 
 #endif

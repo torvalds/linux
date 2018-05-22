@@ -1237,13 +1237,11 @@ static int acpi_battery_add(struct acpi_device *device)
 
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	result = acpi_battery_add_fs(device);
-#endif
 	if (result) {
-#ifdef CONFIG_ACPI_PROCFS_POWER
 		acpi_battery_remove_fs(device);
-#endif
 		goto fail;
 	}
+#endif
 
 	printk(KERN_INFO PREFIX "%s Slot [%s] (battery %s)\n",
 		ACPI_BATTERY_DEVICE_NAME, acpi_device_bid(device),

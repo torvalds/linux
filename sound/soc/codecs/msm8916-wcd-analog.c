@@ -712,6 +712,8 @@ static int pm8916_wcd_analog_probe(struct snd_soc_codec *codec)
 		return err;
 	}
 
+	snd_soc_codec_init_regmap(codec,
+				  dev_get_regmap(codec->dev->parent, NULL));
 	snd_soc_codec_set_drvdata(codec, priv);
 	priv->pmic_rev = snd_soc_read(codec, CDC_D_REVISION1);
 	priv->codec_version = snd_soc_read(codec, CDC_D_PERPH_SUBTYPE);
@@ -943,11 +945,6 @@ static int pm8916_wcd_analog_set_jack(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static struct regmap *pm8916_get_regmap(struct device *dev)
-{
-	return dev_get_regmap(dev->parent, NULL);
-}
-
 static irqreturn_t mbhc_btn_release_irq_handler(int irq, void *arg)
 {
 	struct pm8916_wcd_analog_priv *priv = arg;
@@ -1082,7 +1079,6 @@ static const struct snd_soc_codec_driver pm8916_wcd_analog = {
 	.probe = pm8916_wcd_analog_probe,
 	.remove = pm8916_wcd_analog_remove,
 	.set_jack = pm8916_wcd_analog_set_jack,
-	.get_regmap = pm8916_get_regmap,
 	.component_driver = {
 		.controls = pm8916_wcd_analog_snd_controls,
 		.num_controls = ARRAY_SIZE(pm8916_wcd_analog_snd_controls),

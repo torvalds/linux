@@ -134,33 +134,30 @@ static struct medusa_authserver_s chardev_medusa = {
 	l4_decide		/* decide */
 };
 
-int am_i_constable(void) {
-	struct task_struct* task;
-	struct list_head *i;
+static inline int am_i_constable(void) {
 	int ret = 0;
 
 	if (!constable)
-		return 0;
+		return ret;
 
-	if (constable == current)
-		return 1;
+	/* 
+	   each thread has its own PID, but accross the process they share TGID;
+	   if we want an authorisation server to be run in multiple processes,
+	   we need use 'task_pgrp()' call instead
+	   (and the authorisation server should set the same pgrp for its processes
+	   by setpgrp() system call)
 
+	   don't use direct access to pid/tgid/pgrp/sid via task_struct!
+	   we use local namespaces to allow run multiple instancies of
+	   authorisation server(s) on the same kernel (in different namespaces)
+	*/
 	rcu_read_lock();
-	if (current->parent == constable || current->real_parent == constable) {
+	/* use task_pgrp() if an authorisation server runs in multiple processes */
+	/* TODO: set as a choice in .config? */
+	if (task_tgid(current) == task_tgid(constable))
 		ret = 1;
-		goto out;
-	}
-
-	list_for_each(i, &current->real_parent->children) {
-		task = list_entry(i, struct task_struct, sibling);
-		if (task == constable) {
-			ret = 1;
-			goto out;
-		}
-	}
-	
-out:
 	rcu_read_unlock();
+
 	return ret;
 }
 

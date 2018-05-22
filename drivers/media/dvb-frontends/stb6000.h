@@ -24,7 +24,7 @@
 #define __DVB_STB6000_H__
 
 #include <linux/i2c.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #if IS_REACHABLE(CONFIG_DVB_STB6000)
 /**

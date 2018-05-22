@@ -82,13 +82,6 @@
 #define DCE110_DIG_FE_SOURCE_SELECT_DIGF 0x20
 #define DCE110_DIG_FE_SOURCE_SELECT_DIGG 0x40
 
-/* Minimum pixel clock, in KHz. For TMDS signal is 25.00 MHz */
-#define TMDS_MIN_PIXEL_CLOCK 25000
-/* Maximum pixel clock, in KHz. For TMDS signal is 165.00 MHz */
-#define TMDS_MAX_PIXEL_CLOCK 165000
-/* For current ASICs pixel clock - 600MHz */
-#define MAX_ENCODER_CLOCK 600000
-
 enum {
 	DP_MST_UPDATE_MAX_RETRY = 50
 };
@@ -683,6 +676,7 @@ void dce110_link_encoder_construct(
 {
 	struct bp_encoder_cap_info bp_cap_info = {0};
 	const struct dc_vbios_funcs *bp_funcs = init_data->ctx->dc_bios->funcs;
+	enum bp_result result = BP_RESULT_OK;
 
 	enc110->base.funcs = &dce110_lnk_enc_funcs;
 	enc110->base.ctx = init_data->ctx;
@@ -757,15 +751,24 @@ void dce110_link_encoder_construct(
 		enc110->base.preferred_engine = ENGINE_ID_UNKNOWN;
 	}
 
+	/* default to one to mirror Windows behavior */
+	enc110->base.features.flags.bits.HDMI_6GB_EN = 1;
+
+	result = bp_funcs->get_encoder_cap_info(enc110->base.ctx->dc_bios,
+						enc110->base.id, &bp_cap_info);
+
 	/* Override features with DCE-specific values */
-	if (BP_RESULT_OK == bp_funcs->get_encoder_cap_info(
-			enc110->base.ctx->dc_bios, enc110->base.id,
-			&bp_cap_info)) {
+	if (BP_RESULT_OK == result) {
 		enc110->base.features.flags.bits.IS_HBR2_CAPABLE =
 				bp_cap_info.DP_HBR2_EN;
 		enc110->base.features.flags.bits.IS_HBR3_CAPABLE =
 				bp_cap_info.DP_HBR3_EN;
 		enc110->base.features.flags.bits.HDMI_6GB_EN = bp_cap_info.HDMI_6GB_EN;
+	} else {
+		dm_logger_write(enc110->base.ctx->logger, LOG_WARNING,
+				"%s: Failed to get encoder_cap_info from VBIOS with error code %d!\n",
+				__func__,
+				result);
 	}
 }
 
@@ -845,8 +848,6 @@ void dce110_link_encoder_hw_init(
 
 		ASSERT(result == BP_RESULT_OK);
 
-	} else if (enc110->base.connector.id == CONNECTOR_ID_EDP) {
-		ctx->dc->hwss.edp_power_control(enc, true);
 	}
 	aux_initialize(enc110);
 
@@ -906,8 +907,7 @@ void dce110_link_encoder_enable_tmds_output(
 	struct link_encoder *enc,
 	enum clock_source_id clock_source,
 	enum dc_color_depth color_depth,
-	bool hdmi,
-	bool dual_link,
+	enum signal_type signal,
 	uint32_t pixel_clock)
 {
 	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
@@ -921,16 +921,12 @@ void dce110_link_encoder_enable_tmds_output(
 	cntl.engine_id = enc->preferred_engine;
 	cntl.transmitter = enc110->base.transmitter;
 	cntl.pll_id = clock_source;
-	if (hdmi) {
-		cntl.signal = SIGNAL_TYPE_HDMI_TYPE_A;
-		cntl.lanes_number = 4;
-	} else if (dual_link) {
-		cntl.signal = SIGNAL_TYPE_DVI_DUAL_LINK;
+	cntl.signal = signal;
+	if (cntl.signal == SIGNAL_TYPE_DVI_DUAL_LINK)
 		cntl.lanes_number = 8;
-	} else {
-		cntl.signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
+	else
 		cntl.lanes_number = 4;
-	}
+
 	cntl.hpd_sel = enc110->base.hpd_source;
 
 	cntl.pixel_clock = pixel_clock;
@@ -1033,8 +1029,7 @@ void dce110_link_encoder_enable_dp_mst_output(
  */
 void dce110_link_encoder_disable_output(
 	struct link_encoder *enc,
-	enum signal_type signal,
-	struct dc_link *link)
+	enum signal_type signal)
 {
 	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
 	struct dc_context *ctx = enc110->base.ctx;
@@ -1045,8 +1040,6 @@ void dce110_link_encoder_disable_output(
 		/* OF_SKIP_POWER_DOWN_INACTIVE_ENCODER */
 		return;
 	}
-	if (enc110->base.connector.id == CONNECTOR_ID_EDP)
-		ctx->dc->hwss.edp_backlight_control(link, false);
 	/* Power-down RX and disable GPU PHY should be paired.
 	 * Disabling PHY without powering down RX may cause
 	 * symbol lock loss, on which we will get DP Sink interrupt. */
@@ -1077,20 +1070,6 @@ void dce110_link_encoder_disable_output(
 	/* disable encoder */
 	if (dc_is_dp_signal(signal))
 		link_encoder_disable(enc110);
-
-	if (enc110->base.connector.id == CONNECTOR_ID_EDP) {
-		/* power down eDP panel */
-		/* TODO: Power control cause regression, we should implement
-		 * it properly, for now just comment it.
-		 *
-		 * link_encoder_edp_wait_for_hpd_ready(
-			link_enc,
-			link_enc->connector,
-			false);
-
-		 * link_encoder_edp_power_control(
-				link_enc, false); */
-	}
 }
 
 void dce110_link_encoder_dp_set_lane_settings(

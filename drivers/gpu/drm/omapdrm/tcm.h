@@ -1,6 +1,4 @@
 /*
- * tcm.h
- *
  * TILER container manager specification and support functions for TI
  * TILER driver.
  *

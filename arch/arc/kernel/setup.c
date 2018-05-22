@@ -51,7 +51,7 @@ static const struct id_to_str arc_cpu_rel[] = {
 	{ 0x51, "R2.0" },
 	{ 0x52, "R2.1" },
 	{ 0x53, "R3.0" },
-	{ 0x54, "R4.0" },
+	{ 0x54, "R3.10a" },
 #endif
 	{ 0x00, NULL   }
 };
@@ -373,7 +373,7 @@ static void arc_chk_core_config(void)
 {
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
 	int saved = 0, present = 0;
-	char *opt_nm = NULL;;
+	char *opt_nm = NULL;
 
 	if (!cpu->extn.timer0)
 		panic("Timer0 is not present!\n");

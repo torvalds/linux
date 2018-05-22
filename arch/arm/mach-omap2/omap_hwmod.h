@@ -37,9 +37,15 @@
 
 struct omap_device;
 
-extern struct omap_hwmod_sysc_fields omap_hwmod_sysc_type1;
-extern struct omap_hwmod_sysc_fields omap_hwmod_sysc_type2;
-extern struct omap_hwmod_sysc_fields omap_hwmod_sysc_type3;
+extern struct sysc_regbits omap_hwmod_sysc_type1;
+extern struct sysc_regbits omap_hwmod_sysc_type2;
+extern struct sysc_regbits omap_hwmod_sysc_type3;
+extern struct sysc_regbits omap34xx_sr_sysc_fields;
+extern struct sysc_regbits omap36xx_sr_sysc_fields;
+extern struct sysc_regbits omap3_sham_sysc_fields;
+extern struct sysc_regbits omap3xxx_aes_sysc_fields;
+extern struct sysc_regbits omap_hwmod_sysc_type_mcasp;
+extern struct sysc_regbits omap_hwmod_sysc_type_usb_host_fs;
 
 /*
  * OCP SYSCONFIG bit shifts/masks TYPE1. These are for IPs compliant
@@ -285,26 +291,6 @@ struct omap_hwmod_ocp_if {
 #define CLOCKACT_TEST_NONE	0x3
 
 /**
- * struct omap_hwmod_sysc_fields - hwmod OCP_SYSCONFIG register field offsets.
- * @midle_shift: Offset of the midle bit
- * @clkact_shift: Offset of the clockactivity bit
- * @sidle_shift: Offset of the sidle bit
- * @enwkup_shift: Offset of the enawakeup bit
- * @srst_shift: Offset of the softreset bit
- * @autoidle_shift: Offset of the autoidle bit
- * @dmadisable_shift: Offset of the dmadisable bit
- */
-struct omap_hwmod_sysc_fields {
-	u8 midle_shift;
-	u8 clkact_shift;
-	u8 sidle_shift;
-	u8 enwkup_shift;
-	u8 srst_shift;
-	u8 autoidle_shift;
-	u8 dmadisable_shift;
-};
-
-/**
  * struct omap_hwmod_class_sysconfig - hwmod class OCP_SYS* data
  * @rev_offs: IP block revision register offset (from module base addr)
  * @sysc_offs: OCP_SYSCONFIG register offset (from module base addr)
@@ -335,7 +321,7 @@ struct omap_hwmod_class_sysconfig {
 	u32 sysc_offs;
 	u32 syss_offs;
 	u16 sysc_flags;
-	struct omap_hwmod_sysc_fields *sysc_fields;
+	struct sysc_regbits *sysc_fields;
 	u8 srst_udelay;
 	u8 idlemodes;
 };
@@ -343,11 +329,8 @@ struct omap_hwmod_class_sysconfig {
 /**
  * struct omap_hwmod_omap2_prcm - OMAP2/3-specific PRCM data
  * @module_offs: PRCM submodule offset from the start of the PRM/CM
- * @prcm_reg_id: PRCM register ID (e.g., 3 for CM_AUTOIDLE3)
- * @module_bit: register bit shift for AUTOIDLE, WKST, WKEN, GRPSEL regs
  * @idlest_reg_id: IDLEST register ID (e.g., 3 for CM_IDLEST3)
  * @idlest_idle_bit: register bit shift for CM_IDLEST slave idle bit
- * @idlest_stdby_bit: register bit shift for CM_IDLEST master standby bit
  *
  * @prcm_reg_id and @module_bit are specific to the AUTOIDLE, WKST,
  * WKEN, GRPSEL registers.  In an ideal world, no extra information
@@ -357,11 +340,8 @@ struct omap_hwmod_class_sysconfig {
  */
 struct omap_hwmod_omap2_prcm {
 	s16 module_offs;
-	u8 prcm_reg_id;
-	u8 module_bit;
 	u8 idlest_reg_id;
 	u8 idlest_idle_bit;
-	u8 idlest_stdby_bit;
 };
 
 /*

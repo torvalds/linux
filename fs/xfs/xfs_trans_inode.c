@@ -28,6 +28,8 @@
 #include "xfs_inode_item.h"
 #include "xfs_trace.h"
 
+#include <linux/iversion.h>
+
 /*
  * Add a locked inode to the transaction.
  *
@@ -110,15 +112,17 @@ xfs_trans_log_inode(
 
 	/*
 	 * First time we log the inode in a transaction, bump the inode change
-	 * counter if it is configured for this to occur. We don't use
-	 * inode_inc_version() because there is no need for extra locking around
-	 * i_version as we already hold the inode locked exclusively for
-	 * metadata modification.
+	 * counter if it is configured for this to occur. While we have the
+	 * inode locked exclusively for metadata modification, we can usually
+	 * avoid setting XFS_ILOG_CORE if no one has queried the value since
+	 * the last time it was incremented. If we have XFS_ILOG_CORE already
+	 * set however, then go ahead and bump the i_version counter
+	 * unconditionally.
 	 */
 	if (!(ip->i_itemp->ili_item.li_desc->lid_flags & XFS_LID_DIRTY) &&
 	    IS_I_VERSION(VFS_I(ip))) {
-		VFS_I(ip)->i_version++;
-		flags |= XFS_ILOG_CORE;
+		if (inode_maybe_inc_iversion(VFS_I(ip), flags & XFS_ILOG_CORE))
+			flags |= XFS_ILOG_CORE;
 	}
 
 	tp->t_flags |= XFS_TRANS_DIRTY;

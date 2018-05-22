@@ -15,6 +15,7 @@
  */
 
 #define _GNU_SOURCE
+#include <error.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -33,6 +34,11 @@
 #define VSX_UNA_EXCEPTION	2
 
 #define NUM_EXCEPTIONS		3
+#define err_at_line(status, errnum, format, ...) \
+	error_at_line(status, errnum,  __FILE__, __LINE__, format ##__VA_ARGS__)
+
+#define pr_warn(code, format, ...) err_at_line(0, code, format, ##__VA_ARGS__)
+#define pr_err(code, format, ...) err_at_line(1, code, format, ##__VA_ARGS__)
 
 struct Flags {
 	int touch_fp;
@@ -303,10 +309,19 @@ void test_fp_vec(int fp, int vec, pthread_attr_t *attr)
 	 * checking if the failure cause is the one we expect.
 	 */
 	do {
+		int rc;
+
 		/* Bind 'ping' to CPU 0, as specified in 'attr'. */
-		pthread_create(&t0, attr, ping, (void *) &flags);
-		pthread_setname_np(t0, "ping");
-		pthread_join(t0, &ret_value);
+		rc = pthread_create(&t0, attr, ping, (void *) &flags);
+		if (rc)
+			pr_err(rc, "pthread_create()");
+		rc = pthread_setname_np(t0, "ping");
+		if (rc)
+			pr_warn(rc, "pthread_setname_np");
+		rc = pthread_join(t0, &ret_value);
+		if (rc)
+			pr_err(rc, "pthread_join");
+
 		retries--;
 	} while (ret_value != NULL && retries);
 
@@ -320,7 +335,7 @@ void test_fp_vec(int fp, int vec, pthread_attr_t *attr)
 
 int main(int argc, char **argv)
 {
-	int exception; /* FP = 0, VEC = 1, VSX = 2 */
+	int rc, exception; /* FP = 0, VEC = 1, VSX = 2 */
 	pthread_t t1;
 	pthread_attr_t attr;
 	cpu_set_t cpuset;
@@ -330,13 +345,23 @@ int main(int argc, char **argv)
 	CPU_SET(0, &cpuset);
 
 	/* Init pthread attribute. */
-	pthread_attr_init(&attr);
+	rc = pthread_attr_init(&attr);
+	if (rc)
+		pr_err(rc, "pthread_attr_init()");
 
 	/* Set CPU 0 mask into the pthread attribute. */
-	pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpuset);
+	rc = pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpuset);
+	if (rc)
+		pr_err(rc, "pthread_attr_setaffinity_np()");
 
-	pthread_create(&t1, &attr /* Bind 'pong' to CPU 0 */, pong, NULL);
-	pthread_setname_np(t1, "pong"); /* Name it for systemtap convenience */
+	rc = pthread_create(&t1, &attr /* Bind 'pong' to CPU 0 */, pong, NULL);
+	if (rc)
+		pr_err(rc, "pthread_create()");
+
+	/* Name it for systemtap convenience */
+	rc = pthread_setname_np(t1, "pong");
+	if (rc)
+		pr_warn(rc, "pthread_create()");
 
 	flags.result = 0;
 

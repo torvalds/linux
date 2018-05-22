@@ -1213,10 +1213,20 @@ static int semctl_stat(struct ipc_namespace *ns, int semid,
 	if (err)
 		goto out_unlock;
 
+	ipc_lock_object(&sma->sem_perm);
+
+	if (!ipc_valid_object(&sma->sem_perm)) {
+		ipc_unlock_object(&sma->sem_perm);
+		err = -EIDRM;
+		goto out_unlock;
+	}
+
 	kernel_to_ipc64_perm(&sma->sem_perm, &semid64->sem_perm);
 	semid64->sem_otime = get_semotime(sma);
 	semid64->sem_ctime = sma->sem_ctime;
 	semid64->sem_nsems = sma->sem_nsems;
+
+	ipc_unlock_object(&sma->sem_perm);
 	rcu_read_unlock();
 	return id;
 

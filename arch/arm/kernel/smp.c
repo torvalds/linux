@@ -379,6 +379,9 @@ asmlinkage void secondary_start_kernel(void)
 
 	cpu_init();
 
+#ifndef CONFIG_MMU
+	setup_vectors_base();
+#endif
 	pr_debug("CPU%u: Booted secondary processor\n", cpu);
 
 	preempt_disable();

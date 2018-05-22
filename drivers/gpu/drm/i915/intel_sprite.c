@@ -263,13 +263,9 @@ skl_update_plane(struct intel_plane *plane,
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
-	if (IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		I915_WRITE_FW(PLANE_COLOR_CTL(pipe, plane_id),
-			      PLANE_COLOR_PIPE_GAMMA_ENABLE |
-			      PLANE_COLOR_PIPE_CSC_ENABLE |
-			      PLANE_COLOR_PLANE_GAMMA_DISABLE);
-	}
-
+			      plane_state->color_ctl);
 	if (key->flags) {
 		I915_WRITE_FW(PLANE_KEYVAL(pipe, plane_id), key->min_value);
 		I915_WRITE_FW(PLANE_KEYMAX(pipe, plane_id), key->max_value);
@@ -327,6 +323,26 @@ skl_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 	POSTING_READ_FW(PLANE_SURF(pipe, plane_id));
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+}
+
+bool
+skl_plane_get_hw_state(struct intel_plane *plane)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum intel_display_power_domain power_domain;
+	enum plane_id plane_id = plane->id;
+	enum pipe pipe = plane->pipe;
+	bool ret;
+
+	power_domain = POWER_DOMAIN_PIPE(pipe);
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+		return false;
+
+	ret = I915_READ(PLANE_CTL(pipe, plane_id)) & PLANE_CTL_ENABLE;
+
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
 }
 
 static void
@@ -506,6 +522,26 @@ vlv_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
+static bool
+vlv_plane_get_hw_state(struct intel_plane *plane)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum intel_display_power_domain power_domain;
+	enum plane_id plane_id = plane->id;
+	enum pipe pipe = plane->pipe;
+	bool ret;
+
+	power_domain = POWER_DOMAIN_PIPE(pipe);
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+		return false;
+
+	ret = I915_READ(SPCNTR(pipe, plane_id)) & SP_ENABLE;
+
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
+}
+
 static u32 ivb_sprite_ctl(const struct intel_crtc_state *crtc_state,
 			  const struct intel_plane_state *plane_state)
 {
@@ -646,6 +682,25 @@ ivb_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
+static bool
+ivb_plane_get_hw_state(struct intel_plane *plane)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum intel_display_power_domain power_domain;
+	enum pipe pipe = plane->pipe;
+	bool ret;
+
+	power_domain = POWER_DOMAIN_PIPE(pipe);
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+		return false;
+
+	ret =  I915_READ(SPRCTL(pipe)) & SPRITE_ENABLE;
+
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
+}
+
 static u32 g4x_sprite_ctl(const struct intel_crtc_state *crtc_state,
 			  const struct intel_plane_state *plane_state)
 {
@@ -775,6 +830,25 @@ g4x_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 	POSTING_READ_FW(DVSSURF(pipe));
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+}
+
+static bool
+g4x_plane_get_hw_state(struct intel_plane *plane)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum intel_display_power_domain power_domain;
+	enum pipe pipe = plane->pipe;
+	bool ret;
+
+	power_domain = POWER_DOMAIN_PIPE(pipe);
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+		return false;
+
+	ret = I915_READ(DVSCNTR(pipe)) & DVS_ENABLE;
+
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
 }
 
 static int
@@ -977,6 +1051,9 @@ intel_check_sprite_plane(struct intel_plane *plane,
 
 		state->ctl = g4x_sprite_ctl(crtc_state, state);
 	}
+
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+		state->color_ctl = glk_plane_color_ctl(crtc_state, state);
 
 	return 0;
 }
@@ -1232,6 +1309,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		intel_plane->update_plane = skl_update_plane;
 		intel_plane->disable_plane = skl_disable_plane;
+		intel_plane->get_hw_state = skl_plane_get_hw_state;
 
 		plane_formats = skl_plane_formats;
 		num_plane_formats = ARRAY_SIZE(skl_plane_formats);
@@ -1242,6 +1320,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		intel_plane->update_plane = skl_update_plane;
 		intel_plane->disable_plane = skl_disable_plane;
+		intel_plane->get_hw_state = skl_plane_get_hw_state;
 
 		plane_formats = skl_plane_formats;
 		num_plane_formats = ARRAY_SIZE(skl_plane_formats);
@@ -1252,6 +1331,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		intel_plane->update_plane = vlv_update_plane;
 		intel_plane->disable_plane = vlv_disable_plane;
+		intel_plane->get_hw_state = vlv_plane_get_hw_state;
 
 		plane_formats = vlv_plane_formats;
 		num_plane_formats = ARRAY_SIZE(vlv_plane_formats);
@@ -1267,6 +1347,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		intel_plane->update_plane = ivb_update_plane;
 		intel_plane->disable_plane = ivb_disable_plane;
+		intel_plane->get_hw_state = ivb_plane_get_hw_state;
 
 		plane_formats = snb_plane_formats;
 		num_plane_formats = ARRAY_SIZE(snb_plane_formats);
@@ -1277,6 +1358,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		intel_plane->update_plane = g4x_update_plane;
 		intel_plane->disable_plane = g4x_disable_plane;
+		intel_plane->get_hw_state = g4x_plane_get_hw_state;
 
 		modifiers = i9xx_plane_format_modifiers;
 		if (IS_GEN6(dev_priv)) {
@@ -1302,7 +1384,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 	}
 
 	intel_plane->pipe = pipe;
-	intel_plane->plane = plane;
+	intel_plane->i9xx_plane = plane;
 	intel_plane->id = PLANE_SPRITE0 + plane;
 	intel_plane->frontbuffer_bit = INTEL_FRONTBUFFER_SPRITE(pipe, plane);
 	intel_plane->check_plane = intel_check_sprite_plane;

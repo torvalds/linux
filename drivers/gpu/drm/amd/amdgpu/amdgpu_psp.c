@@ -264,7 +264,7 @@ static int psp_hw_start(struct psp_context *psp)
 	struct amdgpu_device *adev = psp->adev;
 	int ret;
 
-	if (!amdgpu_sriov_vf(adev) || !adev->in_sriov_reset) {
+	if (!amdgpu_sriov_vf(adev) || !adev->in_gpu_reset) {
 		ret = psp_bootloader_load_sysdrv(psp);
 		if (ret)
 			return ret;
@@ -334,23 +334,26 @@ static int psp_load_fw(struct amdgpu_device *adev)
 	int ret;
 	struct psp_context *psp = &adev->psp;
 
+	if (amdgpu_sriov_vf(adev) && adev->in_gpu_reset != 0)
+		goto skip_memalloc;
+
 	psp->cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
 	if (!psp->cmd)
 		return -ENOMEM;
 
 	ret = amdgpu_bo_create_kernel(adev, PSP_1_MEG, PSP_1_MEG,
-				      AMDGPU_GEM_DOMAIN_GTT,
-				      &psp->fw_pri_bo,
-				      &psp->fw_pri_mc_addr,
-				      &psp->fw_pri_buf);
+					AMDGPU_GEM_DOMAIN_GTT,
+					&psp->fw_pri_bo,
+					&psp->fw_pri_mc_addr,
+					&psp->fw_pri_buf);
 	if (ret)
 		goto failed;
 
 	ret = amdgpu_bo_create_kernel(adev, PSP_FENCE_BUFFER_SIZE, PAGE_SIZE,
-				      AMDGPU_GEM_DOMAIN_VRAM,
-				      &psp->fence_buf_bo,
-				      &psp->fence_buf_mc_addr,
-				      &psp->fence_buf);
+					AMDGPU_GEM_DOMAIN_VRAM,
+					&psp->fence_buf_bo,
+					&psp->fence_buf_mc_addr,
+					&psp->fence_buf);
 	if (ret)
 		goto failed_mem2;
 
@@ -375,6 +378,7 @@ static int psp_load_fw(struct amdgpu_device *adev)
 	if (ret)
 		goto failed_mem;
 
+skip_memalloc:
 	ret = psp_hw_start(psp);
 	if (ret)
 		goto failed_mem;

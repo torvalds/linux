@@ -27,13 +27,10 @@
 #include "sort.h"
 #include "tool.h"
 #include "data.h"
-#include "sort.h"
 #include "event.h"
 #include "evlist.h"
 #include "evsel.h"
-#include <asm/bug.h>
 #include "ui/browsers/hists.h"
-#include "evlist.h"
 #include "thread.h"
 
 struct c2c_hists {
@@ -2224,9 +2221,9 @@ static int perf_c2c__browse_cacheline(struct hist_entry *he)
 	struct hist_browser *browser;
 	int key = -1;
 	const char help[] =
-	" ENTER         Togle callchains (if present) \n"
-	" n             Togle Node details info \n"
-	" s             Togle full lenght of symbol and source line columns \n"
+	" ENTER         Toggle callchains (if present) \n"
+	" n             Toggle Node details info \n"
+	" s             Toggle full length of symbol and source line columns \n"
 	" q             Return back to cacheline list \n";
 
 	/* Display compact version first. */
@@ -2248,7 +2245,7 @@ static int perf_c2c__browse_cacheline(struct hist_entry *he)
 	c2c_browser__update_nr_entries(browser);
 
 	while (1) {
-		key = hist_browser__run(browser, "? - help");
+		key = hist_browser__run(browser, "? - help", true);
 
 		switch (key) {
 		case 's':
@@ -2303,7 +2300,7 @@ static int perf_c2c__hists_browse(struct hists *hists)
 	int key = -1;
 	const char help[] =
 	" d             Display cacheline details \n"
-	" ENTER         Togle callchains (if present) \n"
+	" ENTER         Toggle callchains (if present) \n"
 	" q             Quit \n";
 
 	browser = perf_c2c_browser__new(hists);
@@ -2317,7 +2314,7 @@ static int perf_c2c__hists_browse(struct hists *hists)
 	c2c_browser__update_nr_entries(browser);
 
 	while (1) {
-		key = hist_browser__run(browser, "? - help");
+		key = hist_browser__run(browser, "? - help", true);
 
 		switch (key) {
 		case 'q':
@@ -2393,9 +2390,10 @@ static int setup_callchain(struct perf_evlist *evlist)
 	enum perf_call_graph_mode mode = CALLCHAIN_NONE;
 
 	if ((sample_type & PERF_SAMPLE_REGS_USER) &&
-	    (sample_type & PERF_SAMPLE_STACK_USER))
+	    (sample_type & PERF_SAMPLE_STACK_USER)) {
 		mode = CALLCHAIN_DWARF;
-	else if (sample_type & PERF_SAMPLE_BRANCH_STACK)
+		dwarf_callchain_users = true;
+	} else if (sample_type & PERF_SAMPLE_BRANCH_STACK)
 		mode = CALLCHAIN_LBR;
 	else if (sample_type & PERF_SAMPLE_CALLCHAIN)
 		mode = CALLCHAIN_FP;

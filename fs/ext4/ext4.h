@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  ext4.h
  *
@@ -611,10 +611,10 @@ enum {
 /*
  * Flags used by ext4_free_blocks
  */
-#define EXT4_FREE_BLOCKS_METADATA	0x0001
-#define EXT4_FREE_BLOCKS_FORGET		0x0002
-#define EXT4_FREE_BLOCKS_VALIDATED	0x0004
-#define EXT4_FREE_BLOCKS_NO_QUOT_UPDATE	0x0008
+#define EXT4_FREE_BLOCKS_METADATA		0x0001
+#define EXT4_FREE_BLOCKS_FORGET			0x0002
+#define EXT4_FREE_BLOCKS_VALIDATED		0x0004
+#define EXT4_FREE_BLOCKS_NO_QUOT_UPDATE		0x0008
 #define EXT4_FREE_BLOCKS_NOFREE_FIRST_CLUSTER	0x0010
 #define EXT4_FREE_BLOCKS_NOFREE_LAST_CLUSTER	0x0020
 
@@ -1986,10 +1986,10 @@ static inline __le16 ext4_rec_len_to_disk(unsigned len, unsigned blocksize)
 
 /* Legal values for the dx_root hash_version field: */
 
-#define DX_HASH_LEGACY		0
-#define DX_HASH_HALF_MD4	1
-#define DX_HASH_TEA		2
-#define DX_HASH_LEGACY_UNSIGNED	3
+#define DX_HASH_LEGACY			0
+#define DX_HASH_HALF_MD4		1
+#define DX_HASH_TEA			2
+#define DX_HASH_LEGACY_UNSIGNED		3
 #define DX_HASH_HALF_MD4_UNSIGNED	4
 #define DX_HASH_TEA_UNSIGNED		5
 
@@ -2000,7 +2000,6 @@ static inline u32 ext4_chksum(struct ext4_sb_info *sbi, u32 crc,
 		struct shash_desc shash;
 		char ctx[4];
 	} desc;
-	int err;
 
 	BUG_ON(crypto_shash_descsize(sbi->s_chksum_driver)!=sizeof(desc.ctx));
 
@@ -2008,8 +2007,7 @@ static inline u32 ext4_chksum(struct ext4_sb_info *sbi, u32 crc,
 	desc.shash.flags = 0;
 	*(u32 *)desc.ctx = crc;
 
-	err = crypto_shash_update(&desc.shash, address, length);
-	BUG_ON(err);
+	BUG_ON(crypto_shash_update(&desc.shash, address, length));
 
 	return *(u32 *)desc.ctx;
 }

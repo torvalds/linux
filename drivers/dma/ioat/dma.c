@@ -597,7 +597,6 @@ static void __cleanup(struct ioatdma_chan *ioat_chan, dma_addr_t phys_complete)
 	for (i = 0; i < active && !seen_current; i++) {
 		struct dma_async_tx_descriptor *tx;
 
-		smp_read_barrier_depends();
 		prefetch(ioat_get_ring_ent(ioat_chan, idx + i + 1));
 		desc = ioat_get_ring_ent(ioat_chan, idx + i);
 		dump_desc_dbg(ioat_chan, desc);
@@ -715,7 +714,6 @@ static void ioat_abort_descs(struct ioatdma_chan *ioat_chan)
 	for (i = 1; i < active; i++) {
 		struct dma_async_tx_descriptor *tx;
 
-		smp_read_barrier_depends();
 		prefetch(ioat_get_ring_ent(ioat_chan, idx + i + 1));
 		desc = ioat_get_ring_ent(ioat_chan, idx + i);
 

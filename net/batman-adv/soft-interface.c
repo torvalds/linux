@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Copyright (C) 2007-2017  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
@@ -26,7 +27,7 @@
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
-#include <linux/fs.h>
+#include <linux/gfp.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <linux/jiffies.h>
@@ -48,6 +49,7 @@
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <uapi/linux/batadv_packet.h>
 
 #include "bat_algo.h"
 #include "bridge_loop_avoidance.h"
@@ -59,11 +61,17 @@
 #include "multicast.h"
 #include "network-coding.h"
 #include "originator.h"
-#include "packet.h"
 #include "send.h"
 #include "sysfs.h"
 #include "translation-table.h"
 
+/**
+ * batadv_skb_head_push() - Increase header size and move (push) head pointer
+ * @skb: packet buffer which should be modified
+ * @len: number of bytes to add
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 int batadv_skb_head_push(struct sk_buff *skb, unsigned int len)
 {
 	int result;
@@ -96,7 +104,7 @@ static int batadv_interface_release(struct net_device *dev)
 }
 
 /**
- * batadv_sum_counter - Sum the cpu-local counters for index 'idx'
+ * batadv_sum_counter() - Sum the cpu-local counters for index 'idx'
  * @bat_priv: the bat priv with all the soft interface information
  * @idx: index of counter to sum up
  *
@@ -169,7 +177,7 @@ static int batadv_interface_change_mtu(struct net_device *dev, int new_mtu)
 }
 
 /**
- * batadv_interface_set_rx_mode - set the rx mode of a device
+ * batadv_interface_set_rx_mode() - set the rx mode of a device
  * @dev: registered network device to modify
  *
  * We do not actually need to set any rx filters for the virtual batman
@@ -389,7 +397,7 @@ end:
 }
 
 /**
- * batadv_interface_rx - receive ethernet frame on local batman-adv interface
+ * batadv_interface_rx() - receive ethernet frame on local batman-adv interface
  * @soft_iface: local interface which will receive the ethernet frame
  * @skb: ethernet frame for @soft_iface
  * @hdr_size: size of already parsed batman-adv header
@@ -451,13 +459,7 @@ void batadv_interface_rx(struct net_device *soft_iface,
 
 	/* skb->dev & skb->pkt_type are set here */
 	skb->protocol = eth_type_trans(skb, soft_iface);
-
-	/* should not be necessary anymore as we use skb_pull_rcsum()
-	 * TODO: please verify this and remove this TODO
-	 * -- Dec 21st 2009, Simon Wunderlich
-	 */
-
-	/* skb->ip_summed = CHECKSUM_UNNECESSARY; */
+	skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
 
 	batadv_inc_counter(bat_priv, BATADV_CNT_RX);
 	batadv_add_counter(bat_priv, BATADV_CNT_RX_BYTES,
@@ -501,8 +503,8 @@ out:
 }
 
 /**
- * batadv_softif_vlan_release - release vlan from lists and queue for free after
- *  rcu grace period
+ * batadv_softif_vlan_release() - release vlan from lists and queue for free
+ *  after rcu grace period
  * @ref: kref pointer of the vlan object
  */
 static void batadv_softif_vlan_release(struct kref *ref)
@@ -519,7 +521,7 @@ static void batadv_softif_vlan_release(struct kref *ref)
 }
 
 /**
- * batadv_softif_vlan_put - decrease the vlan object refcounter and
+ * batadv_softif_vlan_put() - decrease the vlan object refcounter and
  *  possibly release it
  * @vlan: the vlan object to release
  */
@@ -532,7 +534,7 @@ void batadv_softif_vlan_put(struct batadv_softif_vlan *vlan)
 }
 
 /**
- * batadv_softif_vlan_get - get the vlan object for a specific vid
+ * batadv_softif_vlan_get() - get the vlan object for a specific vid
  * @bat_priv: the bat priv with all the soft interface information
  * @vid: the identifier of the vlan object to retrieve
  *
@@ -561,7 +563,7 @@ struct batadv_softif_vlan *batadv_softif_vlan_get(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_softif_create_vlan - allocate the needed resources for a new vlan
+ * batadv_softif_create_vlan() - allocate the needed resources for a new vlan
  * @bat_priv: the bat priv with all the soft interface information
  * @vid: the VLAN identifier
  *
@@ -613,7 +615,7 @@ int batadv_softif_create_vlan(struct batadv_priv *bat_priv, unsigned short vid)
 }
 
 /**
- * batadv_softif_destroy_vlan - remove and destroy a softif_vlan object
+ * batadv_softif_destroy_vlan() - remove and destroy a softif_vlan object
  * @bat_priv: the bat priv with all the soft interface information
  * @vlan: the object to remove
  */
@@ -631,7 +633,7 @@ static void batadv_softif_destroy_vlan(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_interface_add_vid - ndo_add_vid API implementation
+ * batadv_interface_add_vid() - ndo_add_vid API implementation
  * @dev: the netdev of the mesh interface
  * @proto: protocol of the the vlan id
  * @vid: identifier of the new vlan
@@ -689,7 +691,7 @@ static int batadv_interface_add_vid(struct net_device *dev, __be16 proto,
 }
 
 /**
- * batadv_interface_kill_vid - ndo_kill_vid API implementation
+ * batadv_interface_kill_vid() - ndo_kill_vid API implementation
  * @dev: the netdev of the mesh interface
  * @proto: protocol of the the vlan id
  * @vid: identifier of the deleted vlan
@@ -732,7 +734,7 @@ static struct lock_class_key batadv_netdev_xmit_lock_key;
 static struct lock_class_key batadv_netdev_addr_lock_key;
 
 /**
- * batadv_set_lockdep_class_one - Set lockdep class for a single tx queue
+ * batadv_set_lockdep_class_one() - Set lockdep class for a single tx queue
  * @dev: device which owns the tx queue
  * @txq: tx queue to modify
  * @_unused: always NULL
@@ -745,7 +747,7 @@ static void batadv_set_lockdep_class_one(struct net_device *dev,
 }
 
 /**
- * batadv_set_lockdep_class - Set txq and addr_list lockdep class
+ * batadv_set_lockdep_class() - Set txq and addr_list lockdep class
  * @dev: network device to modify
  */
 static void batadv_set_lockdep_class(struct net_device *dev)
@@ -755,7 +757,7 @@ static void batadv_set_lockdep_class(struct net_device *dev)
 }
 
 /**
- * batadv_softif_init_late - late stage initialization of soft interface
+ * batadv_softif_init_late() - late stage initialization of soft interface
  * @dev: registered network device to modify
  *
  * Return: error code on failures
@@ -860,7 +862,7 @@ free_bat_counters:
 }
 
 /**
- * batadv_softif_slave_add - Add a slave interface to a batadv_soft_interface
+ * batadv_softif_slave_add() - Add a slave interface to a batadv_soft_interface
  * @dev: batadv_soft_interface used as master interface
  * @slave_dev: net_device which should become the slave interface
  * @extack: extended ACK report struct
@@ -888,7 +890,7 @@ out:
 }
 
 /**
- * batadv_softif_slave_del - Delete a slave iface from a batadv_soft_interface
+ * batadv_softif_slave_del() - Delete a slave iface from a batadv_soft_interface
  * @dev: batadv_soft_interface used as master interface
  * @slave_dev: net_device which should be removed from the master interface
  *
@@ -1023,7 +1025,7 @@ static const struct ethtool_ops batadv_ethtool_ops = {
 };
 
 /**
- * batadv_softif_free - Deconstructor of batadv_soft_interface
+ * batadv_softif_free() - Deconstructor of batadv_soft_interface
  * @dev: Device to cleanup and remove
  */
 static void batadv_softif_free(struct net_device *dev)
@@ -1039,7 +1041,7 @@ static void batadv_softif_free(struct net_device *dev)
 }
 
 /**
- * batadv_softif_init_early - early stage initialization of soft interface
+ * batadv_softif_init_early() - early stage initialization of soft interface
  * @dev: registered network device to modify
  */
 static void batadv_softif_init_early(struct net_device *dev)
@@ -1063,6 +1065,13 @@ static void batadv_softif_init_early(struct net_device *dev)
 	dev->ethtool_ops = &batadv_ethtool_ops;
 }
 
+/**
+ * batadv_softif_create() - Create and register soft interface
+ * @net: the applicable net namespace
+ * @name: name of the new soft interface
+ *
+ * Return: newly allocated soft_interface, NULL on errors
+ */
 struct net_device *batadv_softif_create(struct net *net, const char *name)
 {
 	struct net_device *soft_iface;
@@ -1089,7 +1098,7 @@ struct net_device *batadv_softif_create(struct net *net, const char *name)
 }
 
 /**
- * batadv_softif_destroy_sysfs - deletion of batadv_soft_interface via sysfs
+ * batadv_softif_destroy_sysfs() - deletion of batadv_soft_interface via sysfs
  * @soft_iface: the to-be-removed batman-adv interface
  */
 void batadv_softif_destroy_sysfs(struct net_device *soft_iface)
@@ -1111,7 +1120,8 @@ void batadv_softif_destroy_sysfs(struct net_device *soft_iface)
 }
 
 /**
- * batadv_softif_destroy_netlink - deletion of batadv_soft_interface via netlink
+ * batadv_softif_destroy_netlink() - deletion of batadv_soft_interface via
+ *  netlink
  * @soft_iface: the to-be-removed batman-adv interface
  * @head: list pointer
  */
@@ -1139,6 +1149,12 @@ static void batadv_softif_destroy_netlink(struct net_device *soft_iface,
 	unregister_netdevice_queue(soft_iface, head);
 }
 
+/**
+ * batadv_softif_is_valid() - Check whether device is a batadv soft interface
+ * @net_dev: device which should be checked
+ *
+ * Return: true when net_dev is a batman-adv interface, false otherwise
+ */
 bool batadv_softif_is_valid(const struct net_device *net_dev)
 {
 	if (net_dev->netdev_ops->ndo_start_xmit == batadv_interface_tx)

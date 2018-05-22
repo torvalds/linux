@@ -357,7 +357,7 @@ struct cx23885_audio_dev {
 
 struct cx23885_dev {
 	atomic_t                   refcount;
-	struct v4l2_device 	   v4l2_dev;
+	struct v4l2_device	   v4l2_dev;
 	struct v4l2_ctrl_handler   ctrl_handler;
 
 	/* pci stuff */
@@ -407,7 +407,7 @@ struct cx23885_dev {
 	unsigned int               tuner_bus;
 	unsigned int               radio_type;
 	unsigned char              radio_addr;
-	struct v4l2_subdev 	   *sd_cx25840;
+	struct v4l2_subdev	   *sd_cx25840;
 	struct work_struct	   cx25840_work;
 
 	/* Infrared */

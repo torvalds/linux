@@ -1169,8 +1169,18 @@ static void sii8620_set_infoframes(struct sii8620 *ctx)
 	sii8620_write_buf(ctx, REG_TPI_INFO_B0, buf, ret);
 }
 
-static void sii8620_start_hdmi(struct sii8620 *ctx)
+static void sii8620_start_video(struct sii8620 *ctx)
 {
+	if (!sii8620_is_mhl3(ctx))
+		sii8620_stop_video(ctx);
+
+	if (ctx->sink_type == SINK_DVI && !sii8620_is_mhl3(ctx)) {
+		sii8620_write(ctx, REG_RX_HDMI_CTRL2,
+			      VAL_RX_HDMI_CTRL2_DEFVAL);
+		sii8620_write(ctx, REG_TPI_SC, 0);
+		return;
+	}
+
 	sii8620_write_seq_static(ctx,
 		REG_RX_HDMI_CTRL2, VAL_RX_HDMI_CTRL2_DEFVAL
 			| BIT_RX_HDMI_CTRL2_USE_AV_MUTE,
@@ -1227,21 +1237,6 @@ static void sii8620_start_hdmi(struct sii8620 *ctx)
 	}
 
 	sii8620_set_infoframes(ctx);
-}
-
-static void sii8620_start_video(struct sii8620 *ctx)
-{
-	if (!sii8620_is_mhl3(ctx))
-		sii8620_stop_video(ctx);
-
-	switch (ctx->sink_type) {
-	case SINK_HDMI:
-		sii8620_start_hdmi(ctx);
-		break;
-	case SINK_DVI:
-	default:
-		break;
-	}
 }
 
 static void sii8620_disable_hpd(struct sii8620 *ctx)
@@ -1945,8 +1940,13 @@ static void sii8620_irq_scdt(struct sii8620 *ctx)
 	if (stat & BIT_INTR_SCDT_CHANGE) {
 		u8 cstat = sii8620_readb(ctx, REG_TMDS_CSTAT_P3);
 
-		if (cstat & BIT_TMDS_CSTAT_P3_SCDT)
-			sii8620_scdt_high(ctx);
+		if (cstat & BIT_TMDS_CSTAT_P3_SCDT) {
+			if (ctx->sink_type == SINK_HDMI)
+				/* enable infoframe interrupt */
+				sii8620_scdt_high(ctx);
+			else
+				sii8620_start_video(ctx);
+		}
 	}
 
 	sii8620_write(ctx, REG_INTR5, stat);
@@ -2191,6 +2191,19 @@ static void sii8620_detach(struct drm_bridge *bridge)
 	rc_unregister_device(ctx->rc_dev);
 }
 
+static enum drm_mode_status sii8620_mode_valid(struct drm_bridge *bridge,
+					 const struct drm_display_mode *mode)
+{
+	struct sii8620 *ctx = bridge_to_sii8620(bridge);
+	bool can_pack = ctx->devcap[MHL_DCAP_VID_LINK_MODE] &
+			MHL_DCAP_VID_LINK_PPIXEL;
+	unsigned int max_pclk = sii8620_is_mhl3(ctx) ? MHL3_MAX_LCLK :
+						       MHL1_MAX_LCLK;
+	max_pclk /= can_pack ? 2 : 3;
+
+	return (mode->clock > max_pclk) ? MODE_CLOCK_HIGH : MODE_OK;
+}
+
 static bool sii8620_mode_fixup(struct drm_bridge *bridge,
 			       const struct drm_display_mode *mode,
 			       struct drm_display_mode *adjusted_mode)
@@ -2220,8 +2233,9 @@ end:
 			union hdmi_infoframe frm;
 			u8 mhl_vic[] = { 0, 95, 94, 93, 98 };
 
+			/* FIXME: We need the connector here */
 			drm_hdmi_vendor_infoframe_from_display_mode(
-				&frm.vendor.hdmi, adjusted_mode);
+				&frm.vendor.hdmi, NULL, adjusted_mode);
 			vic = frm.vendor.hdmi.vic;
 			if (vic >= ARRAY_SIZE(mhl_vic))
 				vic = 0;
@@ -2238,6 +2252,7 @@ static const struct drm_bridge_funcs sii8620_bridge_funcs = {
 	.attach = sii8620_attach,
 	.detach = sii8620_detach,
 	.mode_fixup = sii8620_mode_fixup,
+	.mode_valid = sii8620_mode_valid,
 };
 
 static int sii8620_probe(struct i2c_client *client,

@@ -16,7 +16,7 @@
 
 
 /* 128 bits shift right logical with rounding. */
-void srl128(u64 *hptr, u64 *lptr, int count)
+static void srl128(u64 *hptr, u64 *lptr, int count)
 {
 	u64 low;
 
@@ -157,6 +157,7 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_DNORM):
 		DPDNORMX;
+		/* fall through */
 
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_DNORM):
 		if (zc == IEEE754_CLASS_INF)
@@ -173,7 +174,7 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_NORM):
 		if (zc == IEEE754_CLASS_INF)
 			return ieee754dp_inf(zs);
-		/* fall through to real computations */
+		/* continue to real computations */
 	}
 
 	/* Finally get to do some computation */
@@ -200,9 +201,6 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 	/*
 	 * Multiply 64 bits xm and ym to give 128 bits result in hrm:lrm.
 	 */
-
-	/* 32 * 32 => 64 */
-#define DPXMULT(x, y)	((u64)(x) * (u64)y)
 
 	lxm = xm;
 	hxm = xm >> 32;

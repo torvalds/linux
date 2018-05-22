@@ -727,12 +727,16 @@ static int svc_rdma_build_normal_read_chunk(struct svc_rqst *rqstp,
 		head->arg.head[0].iov_len - info->ri_position;
 	head->arg.head[0].iov_len = info->ri_position;
 
-	/* Read chunk may need XDR roundup (see RFC 5666, s. 3.7).
+	/* Read chunk may need XDR roundup (see RFC 8166, s. 3.4.5.2).
 	 *
-	 * NFSv2/3 write decoders need the length of the tail to
-	 * contain the size of the roundup padding.
+	 * If the client already rounded up the chunk length, the
+	 * length does not change. Otherwise, the length of the page
+	 * list is increased to include XDR round-up.
+	 *
+	 * Currently these chunks always start at page offset 0,
+	 * thus the rounded-up length never crosses a page boundary.
 	 */
-	head->arg.tail[0].iov_len += 4 - (info->ri_chunklen & 3);
+	info->ri_chunklen = XDR_QUADLEN(info->ri_chunklen) << 2;
 
 	head->arg.page_len = info->ri_chunklen;
 	head->arg.len += info->ri_chunklen;

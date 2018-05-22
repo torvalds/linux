@@ -713,7 +713,7 @@ extern int vmw_present_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 extern int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 				      struct drm_file *file_priv);
-extern unsigned int vmw_fops_poll(struct file *filp,
+extern __poll_t vmw_fops_poll(struct file *filp,
 				  struct poll_table_struct *wait);
 extern ssize_t vmw_fops_read(struct file *filp, char __user *buffer,
 			     size_t count, loff_t *offset);
@@ -938,6 +938,7 @@ int vmw_kms_present(struct vmw_private *dev_priv,
 int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 void vmw_kms_legacy_hotspot_clear(struct vmw_private *dev_priv);
+void vmw_kms_lost_device(struct drm_device *dev);
 
 int vmw_dumb_create(struct drm_file *file_priv,
 		    struct drm_device *dev,

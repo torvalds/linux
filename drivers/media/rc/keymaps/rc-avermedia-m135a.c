@@ -1,13 +1,8 @@
-/* avermedia-m135a.c - Keytable for Avermedia M135A Remote Controllers
- *
- * Copyright (c) 2010 by Mauro Carvalho Chehab
- * Copyright (c) 2010 by Herton Ronaldo Krzesinski <herton@mandriva.com.br>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// avermedia-m135a.c - Keytable for Avermedia M135A Remote Controllers
+//
+// Copyright (c) 2010 by Mauro Carvalho Chehab
+// Copyright (c) 2010 by Herton Ronaldo Krzesinski <herton@mandriva.com.br>
 
 #include <media/rc-map.h>
 #include <linux/module.h>

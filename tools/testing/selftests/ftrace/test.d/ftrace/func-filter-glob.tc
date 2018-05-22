@@ -29,6 +29,12 @@ ftrace_filter_check '*schedule*' '^.*schedule.*$'
 # filter by *, end match
 ftrace_filter_check 'schedule*' '^schedule.*$'
 
+# filter by *mid*end
+ftrace_filter_check '*aw*lock' '.*aw.*lock$'
+
+# filter by start*mid*
+ftrace_filter_check 'mutex*try*' '^mutex.*try.*'
+
 # Advanced full-glob matching feature is recently supported.
 # Skip the tests if we are sure the kernel does not support it.
 if grep -q 'accepts: .* glob-matching-pattern' README ; then

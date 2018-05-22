@@ -182,6 +182,7 @@ config BRIDGE_NETFILTER
 	depends on BRIDGE
 	depends on NETFILTER && INET
 	depends on NETFILTER_ADVANCED
+	select NETFILTER_FAMILY_BRIDGE
 	default m
 	---help---
 	  Enabling this option will let arptables resp. iptables see bridged
@@ -212,7 +213,6 @@ source "net/dsa/Kconfig"
 source "net/8021q/Kconfig"
 source "net/decnet/Kconfig"
 source "net/llc/Kconfig"
-source "net/ipx/Kconfig"
 source "drivers/net/appletalk/Kconfig"
 source "net/x25/Kconfig"
 source "net/lapb/Kconfig"
@@ -335,23 +335,6 @@ config NET_PKTGEN
 
 	  To compile this code as a module, choose M here: the
 	  module will be called pktgen.
-
-config NET_TCPPROBE
-	tristate "TCP connection probing"
-	depends on INET && PROC_FS && KPROBES
-	---help---
-	This module allows for capturing the changes to TCP connection
-	state in response to incoming packets. It is used for debugging
-	TCP congestion avoidance modules. If you don't understand
-	what was just said, you don't need it: say N.
-
-	Documentation on how to use TCP connection probing can be found
-	at:
-	
-	  http://www.linuxfoundation.org/collaborate/workgroups/networking/tcpprobe
-
-	To compile this code as a module, choose M here: the
-	module will be called tcp_probe.
 
 config NET_DROP_MONITOR
 	tristate "Network packet drop alerting service"

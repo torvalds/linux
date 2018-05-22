@@ -27,7 +27,7 @@ Optional properties:
 
 Example:
 
-gpio1: stp@E100BB0 {
+gpio1: stp@e100bb0 {
 	compatible = "lantiq,gpio-stp-xway";
 	reg = <0xE100BB0 0x40>;
 	#gpio-cells = <2>;

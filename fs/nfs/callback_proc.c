@@ -572,7 +572,7 @@ out:
 }
 
 static bool
-validate_bitmap_values(unsigned long mask)
+validate_bitmap_values(unsigned int mask)
 {
 	return (mask & ~RCA4_TYPE_MASK_ALL) == 0;
 }
@@ -596,17 +596,15 @@ __be32 nfs4_callback_recallany(void *argp, void *resp,
 		goto out;
 
 	status = cpu_to_be32(NFS4_OK);
-	if (test_bit(RCA4_TYPE_MASK_RDATA_DLG, (const unsigned long *)
-		     &args->craa_type_mask))
+	if (args->craa_type_mask & BIT(RCA4_TYPE_MASK_RDATA_DLG))
 		flags = FMODE_READ;
-	if (test_bit(RCA4_TYPE_MASK_WDATA_DLG, (const unsigned long *)
-		     &args->craa_type_mask))
+	if (args->craa_type_mask & BIT(RCA4_TYPE_MASK_WDATA_DLG))
 		flags |= FMODE_WRITE;
-	if (test_bit(RCA4_TYPE_MASK_FILE_LAYOUT, (const unsigned long *)
-		     &args->craa_type_mask))
-		pnfs_recall_all_layouts(cps->clp);
 	if (flags)
 		nfs_expire_unused_delegation_types(cps->clp, flags);
+
+	if (args->craa_type_mask & BIT(RCA4_TYPE_MASK_FILE_LAYOUT))
+		pnfs_recall_all_layouts(cps->clp);
 out:
 	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
 	return status;

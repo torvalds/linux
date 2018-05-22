@@ -79,6 +79,10 @@
 #define HCLGE_PHY_MDIX_STATUS_B	(6)
 #define HCLGE_PHY_SPEED_DUP_RESOLVE_B	(11)
 
+/* Factor used to calculate offset and bitmap of VF num */
+#define HCLGE_VF_NUM_PER_CMD           64
+#define HCLGE_VF_NUM_PER_BYTE          8
+
 /* Reset related Registers */
 #define HCLGE_MISC_RESET_STS_REG	0x20700
 #define HCLGE_GLOBAL_RESET_REG		0x20A00
@@ -92,6 +96,16 @@
 #define HCLGE_VECTOR0_CORERESET_INT_B	6
 #define HCLGE_VECTOR0_IMPRESET_INT_B	7
 
+/* Vector0 interrupt CMDQ event source register(RW) */
+#define HCLGE_VECTOR0_CMDQ_SRC_REG	0x27100
+/* CMDQ register bits for RX event(=MBX event) */
+#define HCLGE_VECTOR0_RX_CMDQ_INT_B	1
+
+#define HCLGE_MAC_DEFAULT_FRAME \
+	(ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN + ETH_DATA_LEN)
+#define HCLGE_MAC_MIN_FRAME		64
+#define HCLGE_MAC_MAX_FRAME		9728
+
 enum HCLGE_DEV_STATE {
 	HCLGE_STATE_REINITING,
 	HCLGE_STATE_DOWN,
@@ -99,10 +113,18 @@ enum HCLGE_DEV_STATE {
 	HCLGE_STATE_REMOVING,
 	HCLGE_STATE_SERVICE_INITED,
 	HCLGE_STATE_SERVICE_SCHED,
+	HCLGE_STATE_RST_SERVICE_SCHED,
+	HCLGE_STATE_RST_HANDLING,
+	HCLGE_STATE_MBX_SERVICE_SCHED,
 	HCLGE_STATE_MBX_HANDLING,
-	HCLGE_STATE_MBX_IRQ,
-	HCLGE_STATE_RESET_INT,
+	HCLGE_STATE_STATISTICS_UPDATING,
 	HCLGE_STATE_MAX
+};
+
+enum hclge_evt_cause {
+	HCLGE_VECTOR0_EVENT_RST,
+	HCLGE_VECTOR0_EVENT_MBX,
+	HCLGE_VECTOR0_EVENT_OTHER,
 };
 
 #define HCLGE_MPF_ENBALE 1
@@ -208,6 +230,7 @@ struct hclge_cfg {
 	u8 tc_num;
 	u16 tqp_desc_num;
 	u16 rx_buf_len;
+	u16 rss_size_max;
 	u8 phy_addr;
 	u8 media_type;
 	u8 mac_addr[ETH_ALEN];
@@ -364,14 +387,23 @@ struct hclge_mac_stats {
 	u64 mac_tx_multi_pkt_num;
 	u64 mac_tx_broad_pkt_num;
 	u64 mac_tx_undersize_pkt_num;
-	u64 mac_tx_overrsize_pkt_num;
+	u64 mac_tx_oversize_pkt_num;
 	u64 mac_tx_64_oct_pkt_num;
 	u64 mac_tx_65_127_oct_pkt_num;
 	u64 mac_tx_128_255_oct_pkt_num;
 	u64 mac_tx_256_511_oct_pkt_num;
 	u64 mac_tx_512_1023_oct_pkt_num;
 	u64 mac_tx_1024_1518_oct_pkt_num;
-	u64 mac_tx_1519_max_oct_pkt_num;
+	u64 mac_tx_1519_2047_oct_pkt_num;
+	u64 mac_tx_2048_4095_oct_pkt_num;
+	u64 mac_tx_4096_8191_oct_pkt_num;
+	u64 mac_tx_8192_12287_oct_pkt_num; /* valid for GE MAC only */
+	u64 mac_tx_8192_9216_oct_pkt_num; /* valid for LGE & CGE MAC only */
+	u64 mac_tx_9217_12287_oct_pkt_num; /* valid for LGE & CGE MAC */
+	u64 mac_tx_12288_16383_oct_pkt_num;
+	u64 mac_tx_1519_max_good_oct_pkt_num;
+	u64 mac_tx_1519_max_bad_oct_pkt_num;
+
 	u64 mac_rx_total_pkt_num;
 	u64 mac_rx_total_oct_num;
 	u64 mac_rx_good_pkt_num;
@@ -382,33 +414,52 @@ struct hclge_mac_stats {
 	u64 mac_rx_multi_pkt_num;
 	u64 mac_rx_broad_pkt_num;
 	u64 mac_rx_undersize_pkt_num;
-	u64 mac_rx_overrsize_pkt_num;
+	u64 mac_rx_oversize_pkt_num;
 	u64 mac_rx_64_oct_pkt_num;
 	u64 mac_rx_65_127_oct_pkt_num;
 	u64 mac_rx_128_255_oct_pkt_num;
 	u64 mac_rx_256_511_oct_pkt_num;
 	u64 mac_rx_512_1023_oct_pkt_num;
 	u64 mac_rx_1024_1518_oct_pkt_num;
-	u64 mac_rx_1519_max_oct_pkt_num;
+	u64 mac_rx_1519_2047_oct_pkt_num;
+	u64 mac_rx_2048_4095_oct_pkt_num;
+	u64 mac_rx_4096_8191_oct_pkt_num;
+	u64 mac_rx_8192_12287_oct_pkt_num;/* valid for GE MAC only */
+	u64 mac_rx_8192_9216_oct_pkt_num; /* valid for LGE & CGE MAC only */
+	u64 mac_rx_9217_12287_oct_pkt_num; /* valid for LGE & CGE MAC only */
+	u64 mac_rx_12288_16383_oct_pkt_num;
+	u64 mac_rx_1519_max_good_oct_pkt_num;
+	u64 mac_rx_1519_max_bad_oct_pkt_num;
 
-	u64 mac_trans_fragment_pkt_num;
-	u64 mac_trans_undermin_pkt_num;
-	u64 mac_trans_jabber_pkt_num;
-	u64 mac_trans_err_all_pkt_num;
-	u64 mac_trans_from_app_good_pkt_num;
-	u64 mac_trans_from_app_bad_pkt_num;
-	u64 mac_rcv_fragment_pkt_num;
-	u64 mac_rcv_undermin_pkt_num;
-	u64 mac_rcv_jabber_pkt_num;
-	u64 mac_rcv_fcs_err_pkt_num;
-	u64 mac_rcv_send_app_good_pkt_num;
-	u64 mac_rcv_send_app_bad_pkt_num;
+	u64 mac_tx_fragment_pkt_num;
+	u64 mac_tx_undermin_pkt_num;
+	u64 mac_tx_jabber_pkt_num;
+	u64 mac_tx_err_all_pkt_num;
+	u64 mac_tx_from_app_good_pkt_num;
+	u64 mac_tx_from_app_bad_pkt_num;
+	u64 mac_rx_fragment_pkt_num;
+	u64 mac_rx_undermin_pkt_num;
+	u64 mac_rx_jabber_pkt_num;
+	u64 mac_rx_fcs_err_pkt_num;
+	u64 mac_rx_send_app_good_pkt_num;
+	u64 mac_rx_send_app_bad_pkt_num;
 };
 
+#define HCLGE_STATS_TIMER_INTERVAL	(60 * 5)
 struct hclge_hw_stats {
 	struct hclge_mac_stats      mac_stats;
 	struct hclge_64_bit_stats   all_64_bit_stats;
 	struct hclge_32_bit_stats   all_32_bit_stats;
+	u32 stats_timer;
+};
+
+struct hclge_vlan_type_cfg {
+	u16 rx_ot_fst_vlan_type;
+	u16 rx_ot_sec_vlan_type;
+	u16 rx_in_fst_vlan_type;
+	u16 rx_in_sec_vlan_type;
+	u16 tx_ot_vlan_type;
+	u16 tx_in_vlan_type;
 };
 
 struct hclge_dev {
@@ -420,6 +471,8 @@ struct hclge_dev {
 	unsigned long state;
 
 	enum hnae3_reset_type reset_type;
+	unsigned long reset_request;	/* reset has been requested */
+	unsigned long reset_pending;	/* client rst is pending to be served */
 	u32 fw_version;
 	u16 num_vmdq_vport;		/* Num vmdq vport this PF has set up */
 	u16 num_tqps;			/* Num task queue pairs of this PF */
@@ -469,6 +522,8 @@ struct hclge_dev {
 	unsigned long service_timer_previous;
 	struct timer_list service_timer;
 	struct work_struct service_task;
+	struct work_struct rst_service_task;
+	struct work_struct mbx_service_task;
 
 	bool cur_promisc;
 	int num_alloc_vfs;	/* Actual number of VFs allocated */
@@ -493,6 +548,29 @@ struct hclge_dev {
 	enum hclge_mta_dmac_sel_type mta_mac_sel_type;
 	bool enable_mta; /* Mutilcast filter enable */
 	bool accept_mta_mc; /* Whether accept mta filter multicast */
+
+	struct hclge_vlan_type_cfg vlan_type_cfg;
+
+	u64 rx_pkts_for_led;
+	u64 tx_pkts_for_led;
+};
+
+/* VPort level vlan tag configuration for TX direction */
+struct hclge_tx_vtag_cfg {
+	bool accept_tag;	/* Whether accept tagged packet from host */
+	bool accept_untag;	/* Whether accept untagged packet from host */
+	bool insert_tag1_en;	/* Whether insert inner vlan tag */
+	bool insert_tag2_en;	/* Whether insert outer vlan tag */
+	u16  default_tag1;	/* The default inner vlan tag to insert */
+	u16  default_tag2;	/* The default outer vlan tag to insert */
+};
+
+/* VPort level vlan tag configuration for RX direction */
+struct hclge_rx_vtag_cfg {
+	bool strip_tag1_en;	/* Whether strip inner vlan tag */
+	bool strip_tag2_en;	/* Whether strip outer vlan tag */
+	bool vlan1_vlan_prionly;/* Inner VLAN Tag up to descriptor Enable */
+	bool vlan2_vlan_prionly;/* Outer VLAN Tag up to descriptor Enable */
 };
 
 struct hclge_vport {
@@ -506,6 +584,9 @@ struct hclge_vport {
 	u16 qs_offset;
 	u16 bw_limit;		/* VSI BW Limit (0 = disabled) */
 	u8  dwrr;
+
+	struct hclge_tx_vtag_cfg  txvlan_cfg;
+	struct hclge_rx_vtag_cfg  rxvlan_cfg;
 
 	int vport_id;
 	struct hclge_dev *back;  /* Back reference to associated dev */
@@ -529,8 +610,10 @@ int hclge_cfg_func_mta_filter(struct hclge_dev *hdev,
 			      u8 func_id,
 			      bool enable);
 struct hclge_vport *hclge_get_vport(struct hnae3_handle *handle);
-int hclge_map_vport_ring_to_vector(struct hclge_vport *vport, int vector,
-				   struct hnae3_ring_chain_node *ring_chain);
+int hclge_bind_ring_with_vector(struct hclge_vport *vport,
+				int vector_id, bool en,
+				struct hnae3_ring_chain_node *ring_chain);
+
 static inline int hclge_get_queue_id(struct hnae3_queue *queue)
 {
 	struct hclge_tqp *tqp = container_of(queue, struct hclge_tqp, q);
@@ -544,4 +627,8 @@ int hclge_set_vf_vlan_common(struct hclge_dev *vport, int vfid,
 
 int hclge_buffer_alloc(struct hclge_dev *hdev);
 int hclge_rss_init_hw(struct hclge_dev *hdev);
+
+void hclge_mbx_handler(struct hclge_dev *hdev);
+void hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id);
+int hclge_cfg_flowctrl(struct hclge_dev *hdev);
 #endif

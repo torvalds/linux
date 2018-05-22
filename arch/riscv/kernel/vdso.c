@@ -74,7 +74,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 
 	down_write(&mm->mmap_sem);
 	vdso_base = get_unmapped_area(NULL, 0, vdso_len, 0, 0);
-	if (unlikely(IS_ERR_VALUE(vdso_base))) {
+	if (IS_ERR_VALUE(vdso_base)) {
 		ret = vdso_base;
 		goto end;
 	}

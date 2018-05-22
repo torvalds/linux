@@ -252,6 +252,8 @@ struct symbol_cache;
 unsigned long update_symbol_cache(struct symbol_cache *sc);
 void free_symbol_cache(struct symbol_cache *sc);
 struct symbol_cache *alloc_symbol_cache(const char *sym, long offset);
+bool trace_kprobe_on_func_entry(struct trace_event_call *call);
+bool trace_kprobe_error_injectable(struct trace_event_call *call);
 #else
 /* uprobes do not support symbol fetch methods */
 #define fetch_symbol_u8			NULL
@@ -276,6 +278,16 @@ static inline struct symbol_cache * __used
 alloc_symbol_cache(const char *sym, long offset)
 {
 	return NULL;
+}
+
+static inline bool trace_kprobe_on_func_entry(struct trace_event_call *call)
+{
+	return false;
+}
+
+static inline bool trace_kprobe_error_injectable(struct trace_event_call *call)
+{
+	return false;
 }
 #endif /* CONFIG_KPROBE_EVENTS */
 
@@ -353,7 +365,7 @@ extern int traceprobe_conflict_field_name(const char *name,
 extern void traceprobe_update_arg(struct probe_arg *arg);
 extern void traceprobe_free_probe_arg(struct probe_arg *arg);
 
-extern int traceprobe_split_symbol_offset(char *symbol, unsigned long *offset);
+extern int traceprobe_split_symbol_offset(char *symbol, long *offset);
 
 /* Sum up total data length for dynamic arraies (strings) */
 static nokprobe_inline int

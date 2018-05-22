@@ -9,10 +9,13 @@ sun4i-drm-hdmi-y		+= sun4i_hdmi_enc.o
 sun4i-drm-hdmi-y		+= sun4i_hdmi_i2c.o
 sun4i-drm-hdmi-y		+= sun4i_hdmi_tmds_clk.o
 
-sun8i-mixer-y			+= sun8i_mixer.o sun8i_layer.o
+sun8i-mixer-y			+= sun8i_mixer.o sun8i_ui_layer.o \
+				   sun8i_vi_layer.o sun8i_ui_scaler.o \
+				   sun8i_vi_scaler.o sun8i_csc.o
 
 sun4i-tcon-y			+= sun4i_crtc.o
 sun4i-tcon-y			+= sun4i_dotclock.o
+sun4i-tcon-y			+= sun4i_lvds.o
 sun4i-tcon-y			+= sun4i_tcon.o
 sun4i-tcon-y			+= sun4i_rgb.o
 

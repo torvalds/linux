@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -495,7 +495,8 @@ acpi_ns_convert_to_reference(struct acpi_namespace_node *scope,
 
 		/* Check if we are resolving a named reference within a package */
 
-		ACPI_ERROR_NAMESPACE(original_object->string.pointer, status);
+		ACPI_ERROR_NAMESPACE(&scope_info,
+				     original_object->string.pointer, status);
 		goto error_exit;
 	}
 

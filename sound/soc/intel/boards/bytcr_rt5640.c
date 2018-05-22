@@ -713,7 +713,7 @@ static struct snd_soc_card byt_rt5640_card = {
 	.fully_routed = true,
 };
 
-static char byt_rt5640_codec_name[16]; /* i2c-<HID>:00 with HID being 8 chars */
+static char byt_rt5640_codec_name[SND_ACPI_I2C_ID_LEN];
 static char byt_rt5640_codec_aif_name[12]; /*  = "rt5640-aif[1|2]" */
 static char byt_rt5640_cpu_dai_name[10]; /*  = "ssp[0|2]-port" */
 
@@ -762,7 +762,7 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 	}
 
 	/* fixup codec name based on HID */
-	i2c_name = snd_soc_acpi_find_name_from_hid(mach->id);
+	i2c_name = acpi_dev_get_first_match_name(mach->id, NULL, -1);
 	if (i2c_name) {
 		snprintf(byt_rt5640_codec_name, sizeof(byt_rt5640_codec_name),
 			"%s%s", "i2c-", i2c_name);

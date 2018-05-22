@@ -3147,7 +3147,7 @@ static int ia_proc_read(struct atm_dev *dev,loff_t *pos,char *page)
                            "  Size of Tx Buffer  :  %u\n"
                            "  Number of Rx Buffer:  %u\n"
                            "  Size of Rx Buffer  :  %u\n"
-                           "  Packets Receiverd  :  %u\n"
+                           "  Packets Received   :  %u\n"
                            "  Packets Transmitted:  %u\n"
                            "  Cells Received     :  %u\n"
                            "  Cells Transmitted  :  %u\n"

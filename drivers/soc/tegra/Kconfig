@@ -95,7 +95,7 @@ config ARCH_TEGRA_186_SOC
 	select TEGRA_BPMP
 	select TEGRA_HSP_MBOX
 	select TEGRA_IVC
-	select SOC_TEGRA_PMC_TEGRA186
+	select SOC_TEGRA_PMC
 	help
 	  Enable support for the NVIDIA Tegar186 SoC. The Tegra186 features a
 	  combination of Denver and Cortex-A57 CPU cores and a GPU based on
@@ -116,9 +116,6 @@ config SOC_TEGRA_FLOWCTRL
 	bool
 
 config SOC_TEGRA_PMC
-	bool
-
-config SOC_TEGRA_PMC_TEGRA186
 	bool
 
 config SOC_TEGRA_POWERGATE_BPMP

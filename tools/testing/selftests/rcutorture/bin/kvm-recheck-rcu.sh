@@ -23,14 +23,14 @@
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
 i="$1"
-if test -d $i
+if test -d "$i" -a -r "$i"
 then
 	:
 else
 	echo Unreadable results directory: $i
 	exit 1
 fi
-. tools/testing/selftests/rcutorture/bin/functions.sh
+. functions.sh
 
 configfile=`echo $i | sed -e 's/^.*\///'`
 ngps=`grep ver: $i/console.log 2> /dev/null | tail -1 | sed -e 's/^.* ver: //' -e 's/ .*$//'`

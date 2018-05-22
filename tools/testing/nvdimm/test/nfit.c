@@ -27,6 +27,7 @@
 #include <nfit.h>
 #include <nd.h>
 #include "nfit_test.h"
+#include "../watermark.h"
 
 /*
  * Generate an NFIT table to describe the following topology:
@@ -137,6 +138,14 @@ static u32 handle[] = {
 
 static unsigned long dimm_fail_cmd_flags[NUM_DCR];
 
+struct nfit_test_fw {
+	enum intel_fw_update_state state;
+	u32 context;
+	u64 version;
+	u32 size_received;
+	u64 end_time;
+};
+
 struct nfit_test {
 	struct acpi_nfit_desc acpi_desc;
 	struct platform_device pdev;
@@ -168,8 +177,11 @@ struct nfit_test {
 		spinlock_t lock;
 	} ars_state;
 	struct device *dimm_dev[NUM_DCR];
+	struct nd_intel_smart *smart;
+	struct nd_intel_smart_threshold *smart_threshold;
 	struct badrange badrange;
 	struct work_struct work;
+	struct nfit_test_fw *fw;
 };
 
 static struct workqueue_struct *nfit_wq;
@@ -179,6 +191,226 @@ static struct nfit_test *to_nfit_test(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 
 	return container_of(pdev, struct nfit_test, pdev);
+}
+
+static int nd_intel_test_get_fw_info(struct nfit_test *t,
+		struct nd_intel_fw_info *nd_cmd, unsigned int buf_len,
+		int idx)
+{
+	struct device *dev = &t->pdev.dev;
+	struct nfit_test_fw *fw = &t->fw[idx];
+
+	dev_dbg(dev, "%s(nfit_test: %p nd_cmd: %p, buf_len: %u, idx: %d\n",
+			__func__, t, nd_cmd, buf_len, idx);
+
+	if (buf_len < sizeof(*nd_cmd))
+		return -EINVAL;
+
+	nd_cmd->status = 0;
+	nd_cmd->storage_size = INTEL_FW_STORAGE_SIZE;
+	nd_cmd->max_send_len = INTEL_FW_MAX_SEND_LEN;
+	nd_cmd->query_interval = INTEL_FW_QUERY_INTERVAL;
+	nd_cmd->max_query_time = INTEL_FW_QUERY_MAX_TIME;
+	nd_cmd->update_cap = 0;
+	nd_cmd->fis_version = INTEL_FW_FIS_VERSION;
+	nd_cmd->run_version = 0;
+	nd_cmd->updated_version = fw->version;
+
+	return 0;
+}
+
+static int nd_intel_test_start_update(struct nfit_test *t,
+		struct nd_intel_fw_start *nd_cmd, unsigned int buf_len,
+		int idx)
+{
+	struct device *dev = &t->pdev.dev;
+	struct nfit_test_fw *fw = &t->fw[idx];
+
+	dev_dbg(dev, "%s(nfit_test: %p nd_cmd: %p buf_len: %u idx: %d)\n",
+			__func__, t, nd_cmd, buf_len, idx);
+
+	if (buf_len < sizeof(*nd_cmd))
+		return -EINVAL;
+
+	if (fw->state != FW_STATE_NEW) {
+		/* extended status, FW update in progress */
+		nd_cmd->status = 0x10007;
+		return 0;
+	}
+
+	fw->state = FW_STATE_IN_PROGRESS;
+	fw->context++;
+	fw->size_received = 0;
+	nd_cmd->status = 0;
+	nd_cmd->context = fw->context;
+
+	dev_dbg(dev, "%s: context issued: %#x\n", __func__, nd_cmd->context);
+
+	return 0;
+}
+
+static int nd_intel_test_send_data(struct nfit_test *t,
+		struct nd_intel_fw_send_data *nd_cmd, unsigned int buf_len,
+		int idx)
+{
+	struct device *dev = &t->pdev.dev;
+	struct nfit_test_fw *fw = &t->fw[idx];
+	u32 *status = (u32 *)&nd_cmd->data[nd_cmd->length];
+
+	dev_dbg(dev, "%s(nfit_test: %p nd_cmd: %p buf_len: %u idx: %d)\n",
+			__func__, t, nd_cmd, buf_len, idx);
+
+	if (buf_len < sizeof(*nd_cmd))
+		return -EINVAL;
+
+
+	dev_dbg(dev, "%s: cmd->status: %#x\n", __func__, *status);
+	dev_dbg(dev, "%s: cmd->data[0]: %#x\n", __func__, nd_cmd->data[0]);
+	dev_dbg(dev, "%s: cmd->data[%u]: %#x\n", __func__, nd_cmd->length-1,
+			nd_cmd->data[nd_cmd->length-1]);
+
+	if (fw->state != FW_STATE_IN_PROGRESS) {
+		dev_dbg(dev, "%s: not in IN_PROGRESS state\n", __func__);
+		*status = 0x5;
+		return 0;
+	}
+
+	if (nd_cmd->context != fw->context) {
+		dev_dbg(dev, "%s: incorrect context: in: %#x correct: %#x\n",
+				__func__, nd_cmd->context, fw->context);
+		*status = 0x10007;
+		return 0;
+	}
+
+	/*
+	 * check offset + len > size of fw storage
+	 * check length is > max send length
+	 */
+	if (nd_cmd->offset + nd_cmd->length > INTEL_FW_STORAGE_SIZE ||
+			nd_cmd->length > INTEL_FW_MAX_SEND_LEN) {
+		*status = 0x3;
+		dev_dbg(dev, "%s: buffer boundary violation\n", __func__);
+		return 0;
+	}
+
+	fw->size_received += nd_cmd->length;
+	dev_dbg(dev, "%s: copying %u bytes, %u bytes so far\n",
+			__func__, nd_cmd->length, fw->size_received);
+	*status = 0;
+	return 0;
+}
+
+static int nd_intel_test_finish_fw(struct nfit_test *t,
+		struct nd_intel_fw_finish_update *nd_cmd,
+		unsigned int buf_len, int idx)
+{
+	struct device *dev = &t->pdev.dev;
+	struct nfit_test_fw *fw = &t->fw[idx];
+
+	dev_dbg(dev, "%s(nfit_test: %p nd_cmd: %p buf_len: %u idx: %d)\n",
+			__func__, t, nd_cmd, buf_len, idx);
+
+	if (fw->state == FW_STATE_UPDATED) {
+		/* update already done, need cold boot */
+		nd_cmd->status = 0x20007;
+		return 0;
+	}
+
+	dev_dbg(dev, "%s: context: %#x  ctrl_flags: %#x\n",
+			__func__, nd_cmd->context, nd_cmd->ctrl_flags);
+
+	switch (nd_cmd->ctrl_flags) {
+	case 0: /* finish */
+		if (nd_cmd->context != fw->context) {
+			dev_dbg(dev, "%s: incorrect context: in: %#x correct: %#x\n",
+					__func__, nd_cmd->context,
+					fw->context);
+			nd_cmd->status = 0x10007;
+			return 0;
+		}
+		nd_cmd->status = 0;
+		fw->state = FW_STATE_VERIFY;
+		/* set 1 second of time for firmware "update" */
+		fw->end_time = jiffies + HZ;
+		break;
+
+	case 1: /* abort */
+		fw->size_received = 0;
+		/* successfully aborted status */
+		nd_cmd->status = 0x40007;
+		fw->state = FW_STATE_NEW;
+		dev_dbg(dev, "%s: abort successful\n", __func__);
+		break;
+
+	default: /* bad control flag */
+		dev_warn(dev, "%s: unknown control flag: %#x\n",
+				__func__, nd_cmd->ctrl_flags);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int nd_intel_test_finish_query(struct nfit_test *t,
+		struct nd_intel_fw_finish_query *nd_cmd,
+		unsigned int buf_len, int idx)
+{
+	struct device *dev = &t->pdev.dev;
+	struct nfit_test_fw *fw = &t->fw[idx];
+
+	dev_dbg(dev, "%s(nfit_test: %p nd_cmd: %p buf_len: %u idx: %d)\n",
+			__func__, t, nd_cmd, buf_len, idx);
+
+	if (buf_len < sizeof(*nd_cmd))
+		return -EINVAL;
+
+	if (nd_cmd->context != fw->context) {
+		dev_dbg(dev, "%s: incorrect context: in: %#x correct: %#x\n",
+				__func__, nd_cmd->context, fw->context);
+		nd_cmd->status = 0x10007;
+		return 0;
+	}
+
+	dev_dbg(dev, "%s context: %#x\n", __func__, nd_cmd->context);
+
+	switch (fw->state) {
+	case FW_STATE_NEW:
+		nd_cmd->updated_fw_rev = 0;
+		nd_cmd->status = 0;
+		dev_dbg(dev, "%s: new state\n", __func__);
+		break;
+
+	case FW_STATE_IN_PROGRESS:
+		/* sequencing error */
+		nd_cmd->status = 0x40007;
+		nd_cmd->updated_fw_rev = 0;
+		dev_dbg(dev, "%s: sequence error\n", __func__);
+		break;
+
+	case FW_STATE_VERIFY:
+		if (time_is_after_jiffies64(fw->end_time)) {
+			nd_cmd->updated_fw_rev = 0;
+			nd_cmd->status = 0x20007;
+			dev_dbg(dev, "%s: still verifying\n", __func__);
+			break;
+		}
+
+		dev_dbg(dev, "%s: transition out verify\n", __func__);
+		fw->state = FW_STATE_UPDATED;
+		/* we are going to fall through if it's "done" */
+	case FW_STATE_UPDATED:
+		nd_cmd->status = 0;
+		/* bogus test version */
+		fw->version = nd_cmd->updated_fw_rev =
+			INTEL_FW_FAKE_VERSION;
+		dev_dbg(dev, "%s: updated\n", __func__);
+		break;
+
+	default: /* we should never get here */
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int nfit_test_cmd_get_config_size(struct nd_cmd_get_config_size *nd_cmd,
@@ -440,39 +672,66 @@ static int nfit_test_cmd_translate_spa(struct nvdimm_bus *bus,
 	return 0;
 }
 
-static int nfit_test_cmd_smart(struct nd_cmd_smart *smart, unsigned int buf_len)
+static int nfit_test_cmd_smart(struct nd_intel_smart *smart, unsigned int buf_len,
+		struct nd_intel_smart *smart_data)
 {
-	static const struct nd_smart_payload smart_data = {
-		.flags = ND_SMART_HEALTH_VALID | ND_SMART_TEMP_VALID
-			| ND_SMART_SPARES_VALID | ND_SMART_ALARM_VALID
-			| ND_SMART_USED_VALID | ND_SMART_SHUTDOWN_VALID,
-		.health = ND_SMART_NON_CRITICAL_HEALTH,
-		.temperature = 23 * 16,
-		.spares = 75,
-		.alarm_flags = ND_SMART_SPARE_TRIP | ND_SMART_TEMP_TRIP,
-		.life_used = 5,
-		.shutdown_state = 0,
-		.vendor_size = 0,
-	};
-
 	if (buf_len < sizeof(*smart))
 		return -EINVAL;
-	memcpy(smart->data, &smart_data, sizeof(smart_data));
+	memcpy(smart, smart_data, sizeof(*smart));
 	return 0;
 }
 
-static int nfit_test_cmd_smart_threshold(struct nd_cmd_smart_threshold *smart_t,
-		unsigned int buf_len)
+static int nfit_test_cmd_smart_threshold(
+		struct nd_intel_smart_threshold *out,
+		unsigned int buf_len,
+		struct nd_intel_smart_threshold *smart_t)
 {
-	static const struct nd_smart_threshold_payload smart_t_data = {
-		.alarm_control = ND_SMART_SPARE_TRIP | ND_SMART_TEMP_TRIP,
-		.temperature = 40 * 16,
-		.spares = 5,
-	};
-
 	if (buf_len < sizeof(*smart_t))
 		return -EINVAL;
-	memcpy(smart_t->data, &smart_t_data, sizeof(smart_t_data));
+	memcpy(out, smart_t, sizeof(*smart_t));
+	return 0;
+}
+
+static void smart_notify(struct device *bus_dev,
+		struct device *dimm_dev, struct nd_intel_smart *smart,
+		struct nd_intel_smart_threshold *thresh)
+{
+	dev_dbg(dimm_dev, "%s: alarm: %#x spares: %d (%d) mtemp: %d (%d) ctemp: %d (%d)\n",
+			__func__, thresh->alarm_control, thresh->spares,
+			smart->spares, thresh->media_temperature,
+			smart->media_temperature, thresh->ctrl_temperature,
+			smart->ctrl_temperature);
+	if (((thresh->alarm_control & ND_INTEL_SMART_SPARE_TRIP)
+				&& smart->spares
+				<= thresh->spares)
+			|| ((thresh->alarm_control & ND_INTEL_SMART_TEMP_TRIP)
+				&& smart->media_temperature
+				>= thresh->media_temperature)
+			|| ((thresh->alarm_control & ND_INTEL_SMART_CTEMP_TRIP)
+				&& smart->ctrl_temperature
+				>= thresh->ctrl_temperature)) {
+		device_lock(bus_dev);
+		__acpi_nvdimm_notify(dimm_dev, 0x81);
+		device_unlock(bus_dev);
+	}
+}
+
+static int nfit_test_cmd_smart_set_threshold(
+		struct nd_intel_smart_set_threshold *in,
+		unsigned int buf_len,
+		struct nd_intel_smart_threshold *thresh,
+		struct nd_intel_smart *smart,
+		struct device *bus_dev, struct device *dimm_dev)
+{
+	unsigned int size;
+
+	size = sizeof(*in) - 4;
+	if (buf_len < size)
+		return -EINVAL;
+	memcpy(thresh->data, in, size);
+	in->status = 0;
+	smart_notify(bus_dev, dimm_dev, smart, thresh);
+
 	return 0;
 }
 
@@ -563,6 +822,52 @@ static int nfit_test_cmd_ars_inject_status(struct nfit_test *t,
 	return 0;
 }
 
+static int nd_intel_test_cmd_set_lss_status(struct nfit_test *t,
+		struct nd_intel_lss *nd_cmd, unsigned int buf_len)
+{
+	struct device *dev = &t->pdev.dev;
+
+	if (buf_len < sizeof(*nd_cmd))
+		return -EINVAL;
+
+	switch (nd_cmd->enable) {
+	case 0:
+		nd_cmd->status = 0;
+		dev_dbg(dev, "%s: Latch System Shutdown Status disabled\n",
+				__func__);
+		break;
+	case 1:
+		nd_cmd->status = 0;
+		dev_dbg(dev, "%s: Latch System Shutdown Status enabled\n",
+				__func__);
+		break;
+	default:
+		dev_warn(dev, "Unknown enable value: %#x\n", nd_cmd->enable);
+		nd_cmd->status = 0x3;
+		break;
+	}
+
+
+	return 0;
+}
+
+static int get_dimm(struct nfit_mem *nfit_mem, unsigned int func)
+{
+	int i;
+
+	/* lookup per-dimm data */
+	for (i = 0; i < ARRAY_SIZE(handle); i++)
+		if (__to_nfit_memdev(nfit_mem)->device_handle == handle[i])
+			break;
+	if (i >= ARRAY_SIZE(handle))
+		return -ENXIO;
+
+	if ((1 << func) & dimm_fail_cmd_flags[i])
+		return -EIO;
+
+	return i;
+}
+
 static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 		struct nvdimm *nvdimm, unsigned int cmd, void *buf,
 		unsigned int buf_len, int *cmd_rc)
@@ -591,22 +896,57 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 			func = call_pkg->nd_command;
 			if (call_pkg->nd_family != nfit_mem->family)
 				return -ENOTTY;
+
+			i = get_dimm(nfit_mem, func);
+			if (i < 0)
+				return i;
+
+			switch (func) {
+			case ND_INTEL_ENABLE_LSS_STATUS:
+				return nd_intel_test_cmd_set_lss_status(t,
+						buf, buf_len);
+			case ND_INTEL_FW_GET_INFO:
+				return nd_intel_test_get_fw_info(t, buf,
+						buf_len, i - t->dcr_idx);
+			case ND_INTEL_FW_START_UPDATE:
+				return nd_intel_test_start_update(t, buf,
+						buf_len, i - t->dcr_idx);
+			case ND_INTEL_FW_SEND_DATA:
+				return nd_intel_test_send_data(t, buf,
+						buf_len, i - t->dcr_idx);
+			case ND_INTEL_FW_FINISH_UPDATE:
+				return nd_intel_test_finish_fw(t, buf,
+						buf_len, i - t->dcr_idx);
+			case ND_INTEL_FW_FINISH_QUERY:
+				return nd_intel_test_finish_query(t, buf,
+						buf_len, i - t->dcr_idx);
+			case ND_INTEL_SMART:
+				return nfit_test_cmd_smart(buf, buf_len,
+						&t->smart[i - t->dcr_idx]);
+			case ND_INTEL_SMART_THRESHOLD:
+				return nfit_test_cmd_smart_threshold(buf,
+						buf_len,
+						&t->smart_threshold[i -
+							t->dcr_idx]);
+			case ND_INTEL_SMART_SET_THRESHOLD:
+				return nfit_test_cmd_smart_set_threshold(buf,
+						buf_len,
+						&t->smart_threshold[i -
+							t->dcr_idx],
+						&t->smart[i - t->dcr_idx],
+						&t->pdev.dev, t->dimm_dev[i]);
+			default:
+				return -ENOTTY;
+			}
 		}
 
 		if (!test_bit(cmd, &cmd_mask)
 				|| !test_bit(func, &nfit_mem->dsm_mask))
 			return -ENOTTY;
 
-		/* lookup label space for the given dimm */
-		for (i = 0; i < ARRAY_SIZE(handle); i++)
-			if (__to_nfit_memdev(nfit_mem)->device_handle ==
-					handle[i])
-				break;
-		if (i >= ARRAY_SIZE(handle))
-			return -ENXIO;
-
-		if ((1 << func) & dimm_fail_cmd_flags[i])
-			return -EIO;
+		i = get_dimm(nfit_mem, func);
+		if (i < 0)
+			return i;
 
 		switch (func) {
 		case ND_CMD_GET_CONFIG_SIZE:
@@ -619,15 +959,6 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 		case ND_CMD_SET_CONFIG_DATA:
 			rc = nfit_test_cmd_set_config_data(buf, buf_len,
 				t->label[i - t->dcr_idx]);
-			break;
-		case ND_CMD_SMART:
-			rc = nfit_test_cmd_smart(buf, buf_len);
-			break;
-		case ND_CMD_SMART_THRESHOLD:
-			rc = nfit_test_cmd_smart_threshold(buf, buf_len);
-			device_lock(&t->pdev.dev);
-			__acpi_nvdimm_notify(t->dimm_dev[i], 0x81);
-			device_unlock(&t->pdev.dev);
 			break;
 		default:
 			return -ENOTTY;
@@ -872,6 +1203,44 @@ static const struct attribute_group *nfit_test_dimm_attribute_groups[] = {
 	NULL,
 };
 
+static void smart_init(struct nfit_test *t)
+{
+	int i;
+	const struct nd_intel_smart_threshold smart_t_data = {
+		.alarm_control = ND_INTEL_SMART_SPARE_TRIP
+			| ND_INTEL_SMART_TEMP_TRIP,
+		.media_temperature = 40 * 16,
+		.ctrl_temperature = 30 * 16,
+		.spares = 5,
+	};
+	const struct nd_intel_smart smart_data = {
+		.flags = ND_INTEL_SMART_HEALTH_VALID
+			| ND_INTEL_SMART_SPARES_VALID
+			| ND_INTEL_SMART_ALARM_VALID
+			| ND_INTEL_SMART_USED_VALID
+			| ND_INTEL_SMART_SHUTDOWN_VALID
+			| ND_INTEL_SMART_MTEMP_VALID,
+		.health = ND_INTEL_SMART_NON_CRITICAL_HEALTH,
+		.media_temperature = 23 * 16,
+		.ctrl_temperature = 30 * 16,
+		.pmic_temperature = 40 * 16,
+		.spares = 75,
+		.alarm_flags = ND_INTEL_SMART_SPARE_TRIP
+			| ND_INTEL_SMART_TEMP_TRIP,
+		.ait_status = 1,
+		.life_used = 5,
+		.shutdown_state = 0,
+		.vendor_size = 0,
+		.shutdown_count = 100,
+	};
+
+	for (i = 0; i < t->num_dcr; i++) {
+		memcpy(&t->smart[i], &smart_data, sizeof(smart_data));
+		memcpy(&t->smart_threshold[i], &smart_t_data,
+				sizeof(smart_t_data));
+	}
+}
+
 static int nfit_test0_alloc(struct nfit_test *t)
 {
 	size_t nfit_size = sizeof(struct acpi_nfit_system_address) * NUM_SPA
@@ -881,7 +1250,8 @@ static int nfit_test0_alloc(struct nfit_test *t)
 					window_size) * NUM_DCR
 			+ sizeof(struct acpi_nfit_data_region) * NUM_BDW
 			+ (sizeof(struct acpi_nfit_flush_address)
-					+ sizeof(u64) * NUM_HINTS) * NUM_DCR;
+					+ sizeof(u64) * NUM_HINTS) * NUM_DCR
+			+ sizeof(struct acpi_nfit_capabilities);
 	int i;
 
 	t->nfit_buf = test_alloc(t, nfit_size, &t->nfit_dma);
@@ -939,6 +1309,7 @@ static int nfit_test0_alloc(struct nfit_test *t)
 			return -ENOMEM;
 	}
 
+	smart_init(t);
 	return ars_state_init(&t->pdev.dev, &t->ars_state);
 }
 
@@ -969,6 +1340,7 @@ static int nfit_test1_alloc(struct nfit_test *t)
 	if (!t->spa_set[1])
 		return -ENOMEM;
 
+	smart_init(t);
 	return ars_state_init(&t->pdev.dev, &t->ars_state);
 }
 
@@ -993,6 +1365,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	struct acpi_nfit_control_region *dcr;
 	struct acpi_nfit_data_region *bdw;
 	struct acpi_nfit_flush_address *flush;
+	struct acpi_nfit_capabilities *pcap;
 	unsigned int offset, i;
 
 	/*
@@ -1500,8 +1873,16 @@ static void nfit_test0_setup(struct nfit_test *t)
 	for (i = 0; i < NUM_HINTS; i++)
 		flush->hint_address[i] = t->flush_dma[3] + i * sizeof(u64);
 
+	/* platform capabilities */
+	pcap = nfit_buf + offset + flush_hint_size * 4;
+	pcap->header.type = ACPI_NFIT_TYPE_CAPABILITIES;
+	pcap->header.length = sizeof(*pcap);
+	pcap->highest_capability = 1;
+	pcap->capabilities = ACPI_NFIT_CAPABILITY_CACHE_FLUSH |
+		ACPI_NFIT_CAPABILITY_MEM_FLUSH;
+
 	if (t->setup_hotplug) {
-		offset = offset + flush_hint_size * 4;
+		offset = offset + flush_hint_size * 4 + sizeof(*pcap);
 		/* dcr-descriptor4: blk */
 		dcr = nfit_buf + offset;
 		dcr->header.type = ACPI_NFIT_TYPE_CONTROL_REGION;
@@ -1642,17 +2023,24 @@ static void nfit_test0_setup(struct nfit_test *t)
 	set_bit(ND_CMD_GET_CONFIG_SIZE, &acpi_desc->dimm_cmd_force_en);
 	set_bit(ND_CMD_GET_CONFIG_DATA, &acpi_desc->dimm_cmd_force_en);
 	set_bit(ND_CMD_SET_CONFIG_DATA, &acpi_desc->dimm_cmd_force_en);
-	set_bit(ND_CMD_SMART, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_INTEL_SMART, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_INTEL_SMART_THRESHOLD, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_INTEL_SMART_SET_THRESHOLD, &acpi_desc->dimm_cmd_force_en);
 	set_bit(ND_CMD_ARS_CAP, &acpi_desc->bus_cmd_force_en);
 	set_bit(ND_CMD_ARS_START, &acpi_desc->bus_cmd_force_en);
 	set_bit(ND_CMD_ARS_STATUS, &acpi_desc->bus_cmd_force_en);
 	set_bit(ND_CMD_CLEAR_ERROR, &acpi_desc->bus_cmd_force_en);
 	set_bit(ND_CMD_CALL, &acpi_desc->bus_cmd_force_en);
-	set_bit(ND_CMD_SMART_THRESHOLD, &acpi_desc->dimm_cmd_force_en);
 	set_bit(NFIT_CMD_TRANSLATE_SPA, &acpi_desc->bus_nfit_cmd_force_en);
 	set_bit(NFIT_CMD_ARS_INJECT_SET, &acpi_desc->bus_nfit_cmd_force_en);
 	set_bit(NFIT_CMD_ARS_INJECT_CLEAR, &acpi_desc->bus_nfit_cmd_force_en);
 	set_bit(NFIT_CMD_ARS_INJECT_GET, &acpi_desc->bus_nfit_cmd_force_en);
+	set_bit(ND_INTEL_FW_GET_INFO, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_INTEL_FW_START_UPDATE, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_INTEL_FW_SEND_DATA, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_INTEL_FW_FINISH_UPDATE, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_INTEL_FW_FINISH_QUERY, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_INTEL_ENABLE_LSS_STATUS, &acpi_desc->dimm_cmd_force_en);
 }
 
 static void nfit_test1_setup(struct nfit_test *t)
@@ -1750,6 +2138,7 @@ static void nfit_test1_setup(struct nfit_test *t)
 	set_bit(ND_CMD_ARS_START, &acpi_desc->bus_cmd_force_en);
 	set_bit(ND_CMD_ARS_STATUS, &acpi_desc->bus_cmd_force_en);
 	set_bit(ND_CMD_CLEAR_ERROR, &acpi_desc->bus_cmd_force_en);
+	set_bit(ND_INTEL_ENABLE_LSS_STATUS, &acpi_desc->dimm_cmd_force_en);
 }
 
 static int nfit_test_blk_do_io(struct nd_blk_region *ndbr, resource_size_t dpa,
@@ -2054,10 +2443,18 @@ static int nfit_test_probe(struct platform_device *pdev)
 				sizeof(struct nfit_test_dcr *), GFP_KERNEL);
 		nfit_test->dcr_dma = devm_kcalloc(dev, num,
 				sizeof(dma_addr_t), GFP_KERNEL);
+		nfit_test->smart = devm_kcalloc(dev, num,
+				sizeof(struct nd_intel_smart), GFP_KERNEL);
+		nfit_test->smart_threshold = devm_kcalloc(dev, num,
+				sizeof(struct nd_intel_smart_threshold),
+				GFP_KERNEL);
+		nfit_test->fw = devm_kcalloc(dev, num,
+				sizeof(struct nfit_test_fw), GFP_KERNEL);
 		if (nfit_test->dimm && nfit_test->dimm_dma && nfit_test->label
 				&& nfit_test->label_dma && nfit_test->dcr
 				&& nfit_test->dcr_dma && nfit_test->flush
-				&& nfit_test->flush_dma)
+				&& nfit_test->flush_dma
+				&& nfit_test->fw)
 			/* pass */;
 		else
 			return -ENOMEM;
@@ -2158,6 +2555,11 @@ static struct platform_driver nfit_test_driver = {
 static __init int nfit_test_init(void)
 {
 	int rc, i;
+
+	pmem_test();
+	libnvdimm_test();
+	acpi_nfit_test();
+	device_dax_test();
 
 	nfit_test_setup(nfit_test_lookup, nfit_test_evaluate_dsm);
 

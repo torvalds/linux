@@ -243,7 +243,8 @@ mlxsw_sp_mr_tcam_afa_block_create(struct mlxsw_sp *mlxsw_sp,
 	if (!afa_block)
 		return ERR_PTR(-ENOMEM);
 
-	err = mlxsw_afa_block_append_counter(afa_block, counter_index);
+	err = mlxsw_afa_block_append_allocated_counter(afa_block,
+						       counter_index);
 	if (err)
 		goto err;
 

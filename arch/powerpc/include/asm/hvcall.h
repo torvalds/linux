@@ -353,6 +353,7 @@
 #define PROC_TABLE_GTSE		0x01
 
 #ifndef __ASSEMBLY__
+#include <linux/types.h>
 
 /**
  * plpar_hcall_norets: - Make a pseries hypervisor call with no return arguments

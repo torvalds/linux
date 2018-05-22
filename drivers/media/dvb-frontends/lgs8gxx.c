@@ -22,7 +22,7 @@
 #include <asm/div64.h>
 #include <linux/firmware.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "lgs8gxx.h"
 #include "lgs8gxx_priv.h"

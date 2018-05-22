@@ -933,7 +933,7 @@ static int wmi_dev_probe(struct device *dev)
 			goto probe_failure;
 		}
 
-		buf = kmalloc(strlen(wdriver->driver.name) + 4, GFP_KERNEL);
+		buf = kmalloc(strlen(wdriver->driver.name) + 5, GFP_KERNEL);
 		if (!buf) {
 			ret = -ENOMEM;
 			goto probe_string_failure;
@@ -945,7 +945,7 @@ static int wmi_dev_probe(struct device *dev)
 		wblock->char_dev.mode = 0444;
 		ret = misc_register(&wblock->char_dev);
 		if (ret) {
-			dev_warn(dev, "failed to register char dev: %d", ret);
+			dev_warn(dev, "failed to register char dev: %d\n", ret);
 			ret = -ENOMEM;
 			goto probe_misc_failure;
 		}
@@ -1048,7 +1048,7 @@ static int wmi_create_device(struct device *wmi_bus_dev,
 
 	if (result) {
 		dev_warn(wmi_bus_dev,
-			 "%s data block query control method not found",
+			 "%s data block query control method not found\n",
 			 method);
 		return result;
 	}
@@ -1198,7 +1198,7 @@ static int parse_wdg(struct device *wmi_bus_dev, struct acpi_device *device)
 
 		retval = device_add(&wblock->dev.dev);
 		if (retval) {
-			dev_err(wmi_bus_dev, "failed to register %pULL\n",
+			dev_err(wmi_bus_dev, "failed to register %pUL\n",
 				wblock->gblock.guid);
 			if (debug_event)
 				wmi_method_enable(wblock, 0);

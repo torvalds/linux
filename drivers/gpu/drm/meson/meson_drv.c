@@ -151,6 +151,14 @@ static struct regmap_config meson_regmap_config = {
 	.max_register   = 0x1000,
 };
 
+static void meson_vpu_init(struct meson_drm *priv)
+{
+	writel_relaxed(0x210000, priv->io_base + _REG(VPU_RDARB_MODE_L1C1));
+	writel_relaxed(0x10000, priv->io_base + _REG(VPU_RDARB_MODE_L1C2));
+	writel_relaxed(0x900000, priv->io_base + _REG(VPU_RDARB_MODE_L2C1));
+	writel_relaxed(0x20000, priv->io_base + _REG(VPU_WRARB_MODE_L2C1));
+}
+
 static int meson_drv_bind_master(struct device *dev, bool has_components)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -222,6 +230,7 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 
 	/* Hardware Initialization */
 
+	meson_vpu_init(priv);
 	meson_venc_init(priv);
 	meson_vpp_init(priv);
 	meson_viu_init(priv);

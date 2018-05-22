@@ -47,7 +47,7 @@ static int tcf_simp(struct sk_buff *skb, const struct tc_action *a,
 	return d->tcf_action;
 }
 
-static void tcf_simp_release(struct tc_action *a, int bind)
+static void tcf_simp_release(struct tc_action *a)
 {
 	struct tcf_defact *d = to_defact(a);
 	kfree(d->tcfd_defdata);
@@ -121,7 +121,7 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 		d = to_defact(*a);
 		ret = alloc_defdata(d, defdata);
 		if (ret < 0) {
-			tcf_idr_cleanup(*a, est);
+			tcf_idr_release(*a, bind);
 			return ret;
 		}
 		d->tcf_action = parm->action;
@@ -204,16 +204,14 @@ static __net_init int simp_init_net(struct net *net)
 	return tc_action_net_init(tn, &act_simp_ops);
 }
 
-static void __net_exit simp_exit_net(struct net *net)
+static void __net_exit simp_exit_net(struct list_head *net_list)
 {
-	struct tc_action_net *tn = net_generic(net, simp_net_id);
-
-	tc_action_net_exit(tn);
+	tc_action_net_exit(net_list, simp_net_id);
 }
 
 static struct pernet_operations simp_net_ops = {
 	.init = simp_init_net,
-	.exit = simp_exit_net,
+	.exit_batch = simp_exit_net,
 	.id   = &simp_net_id,
 	.size = sizeof(struct tc_action_net),
 };

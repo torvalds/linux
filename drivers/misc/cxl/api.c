@@ -427,7 +427,7 @@ int cxl_fd_mmap(struct file *file, struct vm_area_struct *vm)
 	return afu_mmap(file, vm);
 }
 EXPORT_SYMBOL_GPL(cxl_fd_mmap);
-unsigned int cxl_fd_poll(struct file *file, struct poll_table_struct *poll)
+__poll_t cxl_fd_poll(struct file *file, struct poll_table_struct *poll)
 {
 	return afu_poll(file, poll);
 }

@@ -106,6 +106,10 @@ static void early_init_centaur(struct cpuinfo_x86 *c)
 #ifdef CONFIG_X86_64
 	set_cpu_cap(c, X86_FEATURE_SYSENTER32);
 #endif
+	if (c->x86_power & (1 << 8)) {
+		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
+		set_cpu_cap(c, X86_FEATURE_NONSTOP_TSC);
+	}
 }
 
 static void init_centaur(struct cpuinfo_x86 *c)
@@ -136,7 +140,7 @@ static void init_centaur(struct cpuinfo_x86 *c)
 			clear_cpu_cap(c, X86_FEATURE_TSC);
 			break;
 		case 8:
-			switch (c->x86_mask) {
+			switch (c->x86_stepping) {
 			default:
 			name = "2";
 				break;
@@ -211,7 +215,7 @@ centaur_size_cache(struct cpuinfo_x86 *c, unsigned int size)
 	 *  - Note, it seems this may only be in engineering samples.
 	 */
 	if ((c->x86 == 6) && (c->x86_model == 9) &&
-				(c->x86_mask == 1) && (size == 65))
+				(c->x86_stepping == 1) && (size == 65))
 		size -= 1;
 	return size;
 }

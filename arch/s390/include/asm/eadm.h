@@ -4,7 +4,7 @@
 
 #include <linux/types.h>
 #include <linux/device.h>
-#include <linux/blkdev.h>
+#include <linux/blk_types.h>
 
 struct arqb {
 	u64 data;

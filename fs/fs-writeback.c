@@ -126,7 +126,7 @@ static void wb_io_lists_depopulated(struct bdi_writeback *wb)
  * inode_io_list_move_locked - move an inode onto a bdi_writeback IO list
  * @inode: inode to be moved
  * @wb: target bdi_writeback
- * @head: one of @wb->b_{dirty|io|more_io}
+ * @head: one of @wb->b_{dirty|io|more_io|dirty_time}
  *
  * Move @inode->i_io_list to @list of @wb and set %WB_has_dirty_io.
  * Returns %true if @inode is the first occupant of the !dirty_time IO

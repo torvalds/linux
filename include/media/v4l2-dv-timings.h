@@ -203,13 +203,15 @@ struct v4l2_fract v4l2_calc_aspect_ratio(u8 hor_landscape, u8 vert_portrait);
  */
 struct v4l2_fract v4l2_dv_timings_aspect_ratio(const struct v4l2_dv_timings *t);
 
-/*
- * reduce_fps - check if conditions for reduced fps are true.
- * bt - v4l2 timing structure
- * For different timings reduced fps is allowed if following conditions
- * are met -
- * For CVT timings: if reduced blanking v2 (vsync == 8) is true.
- * For CEA861 timings: if V4L2_DV_FL_CAN_REDUCE_FPS flag is true.
+/**
+ * can_reduce_fps - check if conditions for reduced fps are true.
+ * @bt: v4l2 timing structure
+ *
+ * For different timings reduced fps is allowed if the following conditions
+ * are met:
+ *
+ *   - For CVT timings: if reduced blanking v2 (vsync == 8) is true.
+ *   - For CEA861 timings: if %V4L2_DV_FL_CAN_REDUCE_FPS flag is true.
  */
 static inline  bool can_reduce_fps(struct v4l2_bt_timings *bt)
 {

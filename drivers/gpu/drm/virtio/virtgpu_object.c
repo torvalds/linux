@@ -124,13 +124,17 @@ int virtio_gpu_object_get_sg_table(struct virtio_gpu_device *qdev,
 	int ret;
 	struct page **pages = bo->tbo.ttm->pages;
 	int nr_pages = bo->tbo.num_pages;
+	struct ttm_operation_ctx ctx = {
+		.interruptible = false,
+		.no_wait_gpu = false
+	};
 
 	/* wtf swapping */
 	if (bo->pages)
 		return 0;
 
 	if (bo->tbo.ttm->state == tt_unpopulated)
-		bo->tbo.ttm->bdev->driver->ttm_tt_populate(bo->tbo.ttm);
+		bo->tbo.ttm->bdev->driver->ttm_tt_populate(bo->tbo.ttm, &ctx);
 	bo->pages = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
 	if (!bo->pages)
 		goto out;

@@ -64,6 +64,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_bridge.h>
@@ -137,8 +138,7 @@ static int pl111_modeset_init(struct drm_device *dev)
 
 	drm_mode_config_reset(dev);
 
-	priv->fbdev = drm_fbdev_cma_init(dev, 32,
-					 dev->mode_config.num_connector);
+	drm_fb_cma_fbdev_init(dev, 32, 0);
 
 	drm_kms_helper_poll_init(dev);
 
@@ -155,17 +155,10 @@ finish:
 
 DEFINE_DRM_GEM_CMA_FOPS(drm_fops);
 
-static void pl111_lastclose(struct drm_device *dev)
-{
-	struct pl111_drm_dev_private *priv = dev->dev_private;
-
-	drm_fbdev_cma_restore_mode(priv->fbdev);
-}
-
 static struct drm_driver pl111_drm_driver = {
 	.driver_features =
 		DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME | DRIVER_ATOMIC,
-	.lastclose = pl111_lastclose,
+	.lastclose = drm_fb_helper_lastclose,
 	.ioctls = NULL,
 	.fops = &drm_fops,
 	.name = "pl111",
@@ -281,8 +274,7 @@ static int pl111_amba_remove(struct amba_device *amba_dev)
 	struct pl111_drm_dev_private *priv = drm->dev_private;
 
 	drm_dev_unregister(drm);
-	if (priv->fbdev)
-		drm_fbdev_cma_fini(priv->fbdev);
+	drm_fb_cma_fbdev_fini(drm);
 	if (priv->panel)
 		drm_panel_bridge_remove(priv->bridge);
 	drm_mode_config_cleanup(drm);

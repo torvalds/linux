@@ -26,12 +26,14 @@
 #include <linux/ip.h>
 #include <linux/in.h>
 #include <linux/skbuff.h>
+#include <linux/jhash.h>
 
 #include <net/inet_sock.h>
 #include <net/route.h>
 #include <net/snmp.h>
 #include <net/flow.h>
 #include <net/flow_dissector.h>
+#include <net/netns/hash.h>
 
 #define IPV4_MAX_PMTU		65535U		/* RFC 2675, Section 5.1 */
 #define IPV4_MIN_MTU		68			/* RFC 791 */
@@ -326,6 +328,13 @@ int ip_decrease_ttl(struct iphdr *iph)
 	return --iph->ttl;
 }
 
+static inline int ip_mtu_locked(const struct dst_entry *dst)
+{
+	const struct rtable *rt = (const struct rtable *)dst;
+
+	return rt->rt_mtu_locked || dst_metric_locked(dst, RTAX_MTU);
+}
+
 static inline
 int ip_dont_fragment(const struct sock *sk, const struct dst_entry *dst)
 {
@@ -333,7 +342,7 @@ int ip_dont_fragment(const struct sock *sk, const struct dst_entry *dst)
 
 	return  pmtudisc == IP_PMTUDISC_DO ||
 		(pmtudisc == IP_PMTUDISC_WANT &&
-		 !(dst_metric_locked(dst, RTAX_MTU)));
+		 !ip_mtu_locked(dst));
 }
 
 static inline bool ip_sk_accept_pmtu(const struct sock *sk)
@@ -359,7 +368,7 @@ static inline unsigned int ip_dst_mtu_maybe_forward(const struct dst_entry *dst,
 	struct net *net = dev_net(dst->dev);
 
 	if (net->ipv4.sysctl_ip_fwd_use_pmtu ||
-	    dst_metric_locked(dst, RTAX_MTU) ||
+	    ip_mtu_locked(dst) ||
 	    !forwarding)
 		return dst_mtu(dst);
 
@@ -520,6 +529,13 @@ static __inline__ void inet_reset_saddr(struct sock *sk)
 static inline unsigned int ipv4_addr_hash(__be32 ip)
 {
 	return (__force unsigned int) ip;
+}
+
+static inline u32 ipv4_portaddr_hash(const struct net *net,
+				     __be32 saddr,
+				     unsigned int port)
+{
+	return jhash_1word((__force u32)saddr, net_hash_mix(net)) ^ port;
 }
 
 bool ip_call_ra_chain(struct sk_buff *skb);

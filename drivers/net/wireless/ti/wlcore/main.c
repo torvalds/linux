@@ -42,6 +42,7 @@
 #include "sysfs.h"
 
 #define WL1271_BOOT_RETRIES 3
+#define WL1271_SUSPEND_SLEEP 100
 
 static char *fwlog_param;
 static int fwlog_mem_blocks = -1;
@@ -388,7 +389,6 @@ static void wl12xx_irq_update_links_status(struct wl1271 *wl,
 static int wlcore_fw_status(struct wl1271 *wl, struct wl_fw_status *status)
 {
 	struct wl12xx_vif *wlvif;
-	struct timespec ts;
 	u32 old_tx_blk_count = wl->tx_blocks_available;
 	int avail, freed_blocks;
 	int i;
@@ -485,8 +485,7 @@ static int wlcore_fw_status(struct wl1271 *wl, struct wl_fw_status *status)
 	}
 
 	/* update the host-chipset time offset */
-	getnstimeofday(&ts);
-	wl->time_offset = (timespec_to_ns(&ts) >> 10) -
+	wl->time_offset = (ktime_get_boot_ns() >> 10) -
 		(s64)(status->fw_localtime);
 
 	wl->fw_fast_lnk_map = status->link_fast_bitmap;
@@ -979,6 +978,24 @@ static int wlcore_fw_wakeup(struct wl1271 *wl)
 	return wlcore_raw_write32(wl, HW_ACCESS_ELP_CTRL_REG, ELPCTRL_WAKE_UP);
 }
 
+static int wlcore_fw_sleep(struct wl1271 *wl)
+{
+	int ret;
+
+	mutex_lock(&wl->mutex);
+	ret = wlcore_raw_write32(wl, HW_ACCESS_ELP_CTRL_REG, ELPCTRL_SLEEP);
+	if (ret < 0) {
+		wl12xx_queue_recovery_work(wl);
+		goto out;
+	}
+	set_bit(WL1271_FLAG_IN_ELP, &wl->flags);
+out:
+	mutex_unlock(&wl->mutex);
+	mdelay(WL1271_SUSPEND_SLEEP);
+
+	return 0;
+}
+
 static int wl1271_setup(struct wl1271 *wl)
 {
 	wl->raw_fw_status = kzalloc(wl->fw_status_len, GFP_KERNEL);
@@ -1326,7 +1343,6 @@ static struct sk_buff *wl12xx_alloc_dummy_packet(struct wl1271 *wl)
 }
 
 
-#ifdef CONFIG_PM
 static int
 wl1271_validate_wowlan_pattern(struct cfg80211_pkt_pattern *p)
 {
@@ -1698,8 +1714,8 @@ static void wl1271_configure_resume(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	}
 }
 
-static int wl1271_op_suspend(struct ieee80211_hw *hw,
-			    struct cfg80211_wowlan *wow)
+static int __maybe_unused wl1271_op_suspend(struct ieee80211_hw *hw,
+					    struct cfg80211_wowlan *wow)
 {
 	struct wl1271 *wl = hw->priv;
 	struct wl12xx_vif *wlvif;
@@ -1749,7 +1765,6 @@ static int wl1271_op_suspend(struct ieee80211_hw *hw,
 		goto out_sleep;
 
 out_sleep:
-	wl1271_ps_elp_sleep(wl);
 	mutex_unlock(&wl->mutex);
 
 	if (ret < 0) {
@@ -1782,10 +1797,19 @@ out_sleep:
 	 */
 	cancel_delayed_work(&wl->tx_watchdog_work);
 
+	/*
+	 * Use an immediate call for allowing the firmware to go into power
+	 * save during suspend.
+	 * Using a workque for this last write was only hapenning on resume
+	 * leaving the firmware with power save disabled during suspend,
+	 * while consuming full power during wowlan suspend.
+	 */
+	wlcore_fw_sleep(wl);
+
 	return 0;
 }
 
-static int wl1271_op_resume(struct ieee80211_hw *hw)
+static int __maybe_unused wl1271_op_resume(struct ieee80211_hw *hw)
 {
 	struct wl1271 *wl = hw->priv;
 	struct wl12xx_vif *wlvif;
@@ -1869,7 +1893,6 @@ out:
 
 	return 0;
 }
-#endif
 
 static int wl1271_op_start(struct ieee80211_hw *hw)
 {

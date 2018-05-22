@@ -122,13 +122,13 @@ static inline int kvmppc_hpte_page_shifts(unsigned long h, unsigned long l)
 	lphi = (l >> 16) & 0xf;
 	switch ((l >> 12) & 0xf) {
 	case 0:
-		return !lphi ? 24 : -1;		/* 16MB */
+		return !lphi ? 24 : 0;		/* 16MB */
 		break;
 	case 1:
 		return 16;			/* 64kB */
 		break;
 	case 3:
-		return !lphi ? 34 : -1;		/* 16GB */
+		return !lphi ? 34 : 0;		/* 16GB */
 		break;
 	case 7:
 		return (16 << 8) + 12;		/* 64kB in 4kB */
@@ -140,7 +140,7 @@ static inline int kvmppc_hpte_page_shifts(unsigned long h, unsigned long l)
 			return (24 << 8) + 12;	/* 16MB in 4kB */
 		break;
 	}
-	return -1;
+	return 0;
 }
 
 static inline int kvmppc_hpte_base_page_shift(unsigned long h, unsigned long l)
@@ -159,7 +159,11 @@ static inline int kvmppc_hpte_actual_page_shift(unsigned long h, unsigned long l
 
 static inline unsigned long kvmppc_actual_pgsz(unsigned long v, unsigned long r)
 {
-	return 1ul << kvmppc_hpte_actual_page_shift(v, r);
+	int shift = kvmppc_hpte_actual_page_shift(v, r);
+
+	if (shift)
+		return 1ul << shift;
+	return 0;
 }
 
 static inline int kvmppc_pgsize_lp_encoding(int base_shift, int actual_shift)
@@ -232,7 +236,7 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 		va_low ^= v >> (SID_SHIFT_1T - 16);
 	va_low &= 0x7ff;
 
-	if (b_pgshift == 12) {
+	if (b_pgshift <= 12) {
 		if (a_pgshift > 12) {
 			sllp = (a_pgshift == 16) ? 5 : 4;
 			rb |= sllp << 5;	/*  AP field */

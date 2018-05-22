@@ -143,7 +143,7 @@ sfw_register_test(struct srpc_service *service,
 		return -EEXIST;
 	}
 
-	LIBCFS_ALLOC(tsc, sizeof(struct sfw_test_case));
+	tsc = kzalloc(sizeof(struct sfw_test_case), GFP_NOFS);
 	if (!tsc)
 		return -ENOMEM;
 
@@ -344,7 +344,7 @@ sfw_bid2batch(struct lst_bid bid)
 	if (bat)
 		return bat;
 
-	LIBCFS_ALLOC(bat, sizeof(struct sfw_batch));
+	bat = kzalloc(sizeof(struct sfw_batch), GFP_NOFS);
 	if (!bat)
 		return NULL;
 
@@ -447,7 +447,7 @@ sfw_make_session(struct srpc_mksn_reqst *request, struct srpc_mksn_reply *reply)
 	}
 
 	/* brand new or create by force */
-	LIBCFS_ALLOC(sn, sizeof(struct sfw_session));
+	sn = kzalloc(sizeof(struct sfw_session), GFP_NOFS);
 	if (!sn) {
 		CERROR("dropping RPC mksn under memory pressure\n");
 		return -ENOMEM;
@@ -632,19 +632,19 @@ sfw_destroy_test_instance(struct sfw_test_instance *tsi)
 		tsu = list_entry(tsi->tsi_units.next,
 				 struct sfw_test_unit, tsu_list);
 		list_del(&tsu->tsu_list);
-		LIBCFS_FREE(tsu, sizeof(*tsu));
+		kfree(tsu);
 	}
 
 	while (!list_empty(&tsi->tsi_free_rpcs)) {
 		rpc = list_entry(tsi->tsi_free_rpcs.next,
 				 struct srpc_client_rpc, crpc_list);
 		list_del(&rpc->crpc_list);
-		LIBCFS_FREE(rpc, srpc_client_rpc_size(rpc));
+		kfree(rpc);
 	}
 
 clean:
 	sfw_unload_test(tsi);
-	LIBCFS_FREE(tsi, sizeof(*tsi));
+	kfree(tsi);
 }
 
 static void
@@ -662,7 +662,7 @@ sfw_destroy_batch(struct sfw_batch *tsb)
 		sfw_destroy_test_instance(tsi);
 	}
 
-	LIBCFS_FREE(tsb, sizeof(struct sfw_batch));
+	kfree(tsb);
 }
 
 void
@@ -680,7 +680,7 @@ sfw_destroy_session(struct sfw_session *sn)
 		sfw_destroy_batch(batch);
 	}
 
-	LIBCFS_FREE(sn, sizeof(*sn));
+	kfree(sn);
 	atomic_dec(&sfw_data.fw_nzombies);
 }
 
@@ -740,7 +740,7 @@ sfw_add_test_instance(struct sfw_batch *tsb, struct srpc_server_rpc *rpc)
 	int i;
 	int rc;
 
-	LIBCFS_ALLOC(tsi, sizeof(*tsi));
+	tsi = kzalloc(sizeof(*tsi), GFP_NOFS);
 	if (!tsi) {
 		CERROR("Can't allocate test instance for batch: %llu\n",
 		       tsb->bat_id.bat_id);
@@ -763,7 +763,7 @@ sfw_add_test_instance(struct sfw_batch *tsb, struct srpc_server_rpc *rpc)
 
 	rc = sfw_load_test(tsi);
 	if (rc) {
-		LIBCFS_FREE(tsi, sizeof(*tsi));
+		kfree(tsi);
 		return rc;
 	}
 
@@ -795,7 +795,7 @@ sfw_add_test_instance(struct sfw_batch *tsb, struct srpc_server_rpc *rpc)
 			sfw_unpack_id(id);
 
 		for (j = 0; j < tsi->tsi_concur; j++) {
-			LIBCFS_ALLOC(tsu, sizeof(struct sfw_test_unit));
+			tsu = kzalloc(sizeof(struct sfw_test_unit), GFP_NOFS);
 			if (!tsu) {
 				rc = -ENOMEM;
 				CERROR("Can't allocate tsu for %d\n",
@@ -941,14 +941,12 @@ sfw_create_test_rpc(struct sfw_test_unit *tsu, struct lnet_process_id peer,
 	return 0;
 }
 
-static int
+static void
 sfw_run_test(struct swi_workitem *wi)
 {
-	struct sfw_test_unit *tsu = wi->swi_workitem.wi_data;
+	struct sfw_test_unit *tsu = container_of(wi, struct sfw_test_unit, tsu_worker);
 	struct sfw_test_instance *tsi = tsu->tsu_instance;
 	struct srpc_client_rpc *rpc = NULL;
-
-	LASSERT(wi == &tsu->tsu_worker);
 
 	if (tsi->tsi_ops->tso_prep_rpc(tsu, tsu->tsu_dest, &rpc)) {
 		LASSERT(!rpc);
@@ -975,7 +973,7 @@ sfw_run_test(struct swi_workitem *wi)
 	rpc->crpc_timeout = rpc_timeout;
 	srpc_post_rpc(rpc);
 	spin_unlock(&rpc->crpc_lock);
-	return 0;
+	return;
 
 test_done:
 	/*
@@ -985,9 +983,7 @@ test_done:
 	 * - my batch is still active; no one can run it again now.
 	 * Cancel pending schedules and prevent future schedule attempts:
 	 */
-	swi_exit_workitem(wi);
 	sfw_test_unit_done(tsu);
-	return 1;
 }
 
 static int
@@ -1016,8 +1012,8 @@ sfw_run_batch(struct sfw_batch *tsb)
 			atomic_inc(&tsi->tsi_nactive);
 			tsu->tsu_loop = tsi->tsi_loop;
 			wi = &tsu->tsu_worker;
-			swi_init_workitem(wi, tsu, sfw_run_test,
-					  lst_sched_test[lnet_cpt_of_nid(tsu->tsu_dest.nid)]);
+			swi_init_workitem(wi, sfw_run_test,
+					  lst_test_wq[lnet_cpt_of_nid(tsu->tsu_dest.nid)]);
 			swi_schedule_workitem(wi);
 		}
 	}
@@ -1767,7 +1763,7 @@ sfw_shutdown(void)
 				 struct srpc_client_rpc, crpc_list);
 		list_del(&rpc->crpc_list);
 
-		LIBCFS_FREE(rpc, srpc_client_rpc_size(rpc));
+		kfree(rpc);
 	}
 
 	for (i = 0; ; i++) {
@@ -1785,6 +1781,6 @@ sfw_shutdown(void)
 		srpc_wait_service_shutdown(tsc->tsc_srv_service);
 
 		list_del(&tsc->tsc_list);
-		LIBCFS_FREE(tsc, sizeof(*tsc));
+		kfree(tsc);
 	}
 }

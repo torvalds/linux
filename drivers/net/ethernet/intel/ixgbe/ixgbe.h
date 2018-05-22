@@ -52,7 +52,9 @@
 #ifdef CONFIG_IXGBE_DCA
 #include <linux/dca.h>
 #endif
+#include "ixgbe_ipsec.h"
 
+#include <net/xdp.h>
 #include <net/busy_poll.h>
 
 /* common prefix used by pr_<> macros */
@@ -170,10 +172,11 @@ enum ixgbe_tx_flags {
 	IXGBE_TX_FLAGS_CC	= 0x08,
 	IXGBE_TX_FLAGS_IPV4	= 0x10,
 	IXGBE_TX_FLAGS_CSUM	= 0x20,
+	IXGBE_TX_FLAGS_IPSEC	= 0x40,
 
 	/* software defined flags */
-	IXGBE_TX_FLAGS_SW_VLAN	= 0x40,
-	IXGBE_TX_FLAGS_FCOE	= 0x80,
+	IXGBE_TX_FLAGS_SW_VLAN	= 0x80,
+	IXGBE_TX_FLAGS_FCOE	= 0x100,
 };
 
 /* VLAN info */
@@ -332,7 +335,6 @@ struct ixgbe_ring {
 	struct net_device *netdev;	/* netdev ring belongs to */
 	struct bpf_prog *xdp_prog;
 	struct device *dev;		/* device for DMA mapping */
-	struct ixgbe_fwd_adapter *l2_accel_priv;
 	void *desc;			/* descriptor ring memory */
 	union {
 		struct ixgbe_tx_buffer *tx_buffer_info;
@@ -371,6 +373,7 @@ struct ixgbe_ring {
 		struct ixgbe_tx_queue_stats tx_stats;
 		struct ixgbe_rx_queue_stats rx_stats;
 	};
+	struct xdp_rxq_info xdp_rxq;
 } ____cacheline_internodealigned_in_smp;
 
 enum ixgbe_ring_f_enum {
@@ -395,8 +398,7 @@ enum ixgbe_ring_f_enum {
 #define MAX_XDP_QUEUES			(IXGBE_MAX_FDIR_INDICES + 1)
 #define IXGBE_MAX_L2A_QUEUES		4
 #define IXGBE_BAD_L2A_QUEUE		3
-#define IXGBE_MAX_MACVLANS		31
-#define IXGBE_MAX_DCBMACVLANS		8
+#define IXGBE_MAX_MACVLANS		63
 
 struct ixgbe_ring_feature {
 	u16 limit;	/* upper limit on feature indices */
@@ -629,15 +631,18 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG2_EEE_CAPABLE			BIT(14)
 #define IXGBE_FLAG2_EEE_ENABLED			BIT(15)
 #define IXGBE_FLAG2_RX_LEGACY			BIT(16)
+#define IXGBE_FLAG2_IPSEC_ENABLED		BIT(17)
 
 	/* Tx fast path data */
 	int num_tx_queues;
 	u16 tx_itr_setting;
 	u16 tx_work_limit;
+	u64 tx_ipsec;
 
 	/* Rx fast path data */
 	int num_rx_queues;
 	u16 rx_itr_setting;
+	u64 rx_ipsec;
 
 	/* Port number used to identify VXLAN traffic */
 	__be16 vxlan_port;
@@ -674,6 +679,7 @@ struct ixgbe_adapter {
 	struct ieee_ets *ixgbe_ieee_ets;
 	struct ixgbe_dcb_config dcb_cfg;
 	struct ixgbe_dcb_config temp_dcb_cfg;
+	u8 hw_tcs;
 	u8 dcb_set_bitmap;
 	u8 dcbx_cap;
 	enum ixgbe_fc_mode last_lfc_mode;
@@ -721,8 +727,7 @@ struct ixgbe_adapter {
 
 	u16 bridge_mode;
 
-	u16 eeprom_verh;
-	u16 eeprom_verl;
+	char eeprom_id[NVM_VER_SIZE];
 	u16 eeprom_cap;
 
 	u32 interrupt_event;
@@ -766,7 +771,8 @@ struct ixgbe_adapter {
 #endif /*CONFIG_DEBUG_FS*/
 
 	u8 default_up;
-	unsigned long fwd_bitmask; /* Bitmask indicating in use pools */
+	/* Bitmask indicating in use pools */
+	DECLARE_BITMAP(fwd_bitmask, IXGBE_MAX_MACVLANS + 1);
 
 #define IXGBE_MAX_LINK_HANDLE 10
 	struct ixgbe_jump_table *jump_tables[IXGBE_MAX_LINK_HANDLE];
@@ -780,6 +786,10 @@ struct ixgbe_adapter {
 
 #define IXGBE_RSS_KEY_SIZE     40  /* size of RSS Hash Key in bytes */
 	u32 *rss_key;
+
+#ifdef CONFIG_XFRM
+	struct ixgbe_ipsec *ipsec;
+#endif /* CONFIG_XFRM */
 };
 
 static inline u8 ixgbe_max_rss_indices(struct ixgbe_adapter *adapter)
@@ -1010,4 +1020,24 @@ void ixgbe_store_key(struct ixgbe_adapter *adapter);
 void ixgbe_store_reta(struct ixgbe_adapter *adapter);
 s32 ixgbe_negotiate_fc(struct ixgbe_hw *hw, u32 adv_reg, u32 lp_reg,
 		       u32 adv_sym, u32 adv_asm, u32 lp_sym, u32 lp_asm);
+#ifdef CONFIG_XFRM_OFFLOAD
+void ixgbe_init_ipsec_offload(struct ixgbe_adapter *adapter);
+void ixgbe_stop_ipsec_offload(struct ixgbe_adapter *adapter);
+void ixgbe_ipsec_restore(struct ixgbe_adapter *adapter);
+void ixgbe_ipsec_rx(struct ixgbe_ring *rx_ring,
+		    union ixgbe_adv_rx_desc *rx_desc,
+		    struct sk_buff *skb);
+int ixgbe_ipsec_tx(struct ixgbe_ring *tx_ring, struct ixgbe_tx_buffer *first,
+		   struct ixgbe_ipsec_tx_data *itd);
+#else
+static inline void ixgbe_init_ipsec_offload(struct ixgbe_adapter *adapter) { };
+static inline void ixgbe_stop_ipsec_offload(struct ixgbe_adapter *adapter) { };
+static inline void ixgbe_ipsec_restore(struct ixgbe_adapter *adapter) { };
+static inline void ixgbe_ipsec_rx(struct ixgbe_ring *rx_ring,
+				  union ixgbe_adv_rx_desc *rx_desc,
+				  struct sk_buff *skb) { };
+static inline int ixgbe_ipsec_tx(struct ixgbe_ring *tx_ring,
+				 struct ixgbe_tx_buffer *first,
+				 struct ixgbe_ipsec_tx_data *itd) { return 0; };
+#endif /* CONFIG_XFRM_OFFLOAD */
 #endif /* _IXGBE_H_ */

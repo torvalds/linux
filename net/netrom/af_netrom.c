@@ -1344,7 +1344,6 @@ static int nr_info_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations nr_info_fops = {
-	.owner = THIS_MODULE,
 	.open = nr_info_open,
 	.read = seq_read,
 	.llseek = seq_lseek,

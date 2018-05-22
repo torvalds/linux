@@ -34,4 +34,7 @@ void drm_helper_mode_fill_fb_struct(struct drm_device *dev,
 int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 		  const struct drm_crtc_funcs *funcs);
 
+int drm_mode_config_helper_suspend(struct drm_device *dev);
+int drm_mode_config_helper_resume(struct drm_device *dev);
+
 #endif

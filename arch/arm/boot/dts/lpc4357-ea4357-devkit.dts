@@ -490,7 +490,7 @@
 	};
 
 	eeprom@57 {
-		compatible = "microchip,24c64";
+		compatible = "microchip,24c64", "atmel,24c64";
 		reg = <0x57>;
 	};
 };

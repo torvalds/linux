@@ -121,7 +121,7 @@ enum iwl_tx_flags {
 }; /* TX_FLAGS_BITS_API_S_VER_1 */
 
 /**
- * enum iwl_tx_cmd_flags - bitmasks for tx_flags in TX command for a000
+ * enum iwl_tx_cmd_flags - bitmasks for tx_flags in TX command for 22000
  * @IWL_TX_FLAGS_CMD_RATE: use rate from the TX command
  * @IWL_TX_FLAGS_ENCRYPT_DIS: frame should not be encrypted, even if it belongs
  *	to a secured STA
@@ -301,7 +301,7 @@ struct iwl_dram_sec_info {
 } __packed; /* DRAM_SEC_INFO_API_S_VER_1 */
 
 /**
- * struct iwl_tx_cmd_gen2 - TX command struct to FW for a000 devices
+ * struct iwl_tx_cmd_gen2 - TX command struct to FW for 22000 devices
  * ( TX_CMD = 0x1c )
  * @len: in bytes of the payload, see below for details
  * @offload_assist: TX offload configuration

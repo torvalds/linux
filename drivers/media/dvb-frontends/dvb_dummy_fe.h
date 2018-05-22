@@ -19,7 +19,7 @@
 #define DVB_DUMMY_FE_H
 
 #include <linux/dvb/frontend.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #if IS_REACHABLE(CONFIG_DVB_DUMMY_FE)
 extern struct dvb_frontend* dvb_dummy_fe_ofdm_attach(void);

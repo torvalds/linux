@@ -1108,9 +1108,7 @@ static int gc2235_probe(struct i2c_client *client)
 	dev->fmt_idx = 0;
 	v4l2_i2c_subdev_init(&(dev->sd), client, &gc2235_ops);
 
-	gcpdev = client->dev.platform_data;
-	if (ACPI_COMPANION(&client->dev))
-		gcpdev = gmin_camera_platform_data(&dev->sd,
+	gcpdev = gmin_camera_platform_data(&dev->sd,
 				   ATOMISP_INPUT_FORMAT_RAW_10,
 				   atomisp_bayer_order_grbg);
 
@@ -1147,10 +1145,8 @@ static int gc2235_probe(struct i2c_client *client)
 	if (ret)
 		gc2235_remove(client);
 
-	if (ACPI_HANDLE(&client->dev))
-		ret = atomisp_register_i2c_module(&dev->sd, gcpdev, RAW_CAMERA);
+	return atomisp_register_i2c_module(&dev->sd, gcpdev, RAW_CAMERA);
 
-	return ret;
 out_free:
 	v4l2_device_unregister_subdev(&dev->sd);
 	kfree(dev);

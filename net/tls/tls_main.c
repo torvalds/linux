@@ -46,16 +46,26 @@ MODULE_DESCRIPTION("Transport Layer Security Support");
 MODULE_LICENSE("Dual BSD/GPL");
 
 enum {
+	TLSV4,
+	TLSV6,
+	TLS_NUM_PROTS,
+};
+
+enum {
 	TLS_BASE_TX,
 	TLS_SW_TX,
 	TLS_NUM_CONFIG,
 };
 
-static struct proto tls_prots[TLS_NUM_CONFIG];
+static struct proto *saved_tcpv6_prot;
+static DEFINE_MUTEX(tcpv6_prot_mutex);
+static struct proto tls_prots[TLS_NUM_PROTS][TLS_NUM_CONFIG];
 
 static inline void update_sk_prot(struct sock *sk, struct tls_context *ctx)
 {
-	sk->sk_prot = &tls_prots[ctx->tx_conf];
+	int ip_ver = sk->sk_family == AF_INET6 ? TLSV6 : TLSV4;
+
+	sk->sk_prot = &tls_prots[ip_ver][ctx->tx_conf];
 }
 
 int wait_on_pending_writer(struct sock *sk, long *timeo)
@@ -308,8 +318,11 @@ static int do_tls_getsockopt_tx(struct sock *sk, char __user *optval,
 			goto out;
 		}
 		lock_sock(sk);
-		memcpy(crypto_info_aes_gcm_128->iv, ctx->iv,
+		memcpy(crypto_info_aes_gcm_128->iv,
+		       ctx->iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE,
 		       TLS_CIPHER_AES_GCM_128_IV_SIZE);
+		memcpy(crypto_info_aes_gcm_128->rec_seq, ctx->rec_seq,
+		       TLS_CIPHER_AES_GCM_128_REC_SEQ_SIZE);
 		release_sock(sk);
 		if (copy_to_user(optval,
 				 crypto_info_aes_gcm_128,
@@ -367,13 +380,15 @@ static int do_tls_setsockopt_tx(struct sock *sk, char __user *optval,
 
 	crypto_info = &ctx->crypto_send;
 	/* Currently we don't support set crypto info more than one time */
-	if (TLS_CRYPTO_INFO_READY(crypto_info))
+	if (TLS_CRYPTO_INFO_READY(crypto_info)) {
+		rc = -EBUSY;
 		goto out;
+	}
 
 	rc = copy_from_user(crypto_info, optval, sizeof(*crypto_info));
 	if (rc) {
 		rc = -EFAULT;
-		goto out;
+		goto err_crypto_info;
 	}
 
 	/* check version */
@@ -386,7 +401,7 @@ static int do_tls_setsockopt_tx(struct sock *sk, char __user *optval,
 	case TLS_CIPHER_AES_GCM_128: {
 		if (optlen != sizeof(struct tls12_crypto_info_aes_gcm_128)) {
 			rc = -EINVAL;
-			goto out;
+			goto err_crypto_info;
 		}
 		rc = copy_from_user(crypto_info + 1, optval + sizeof(*crypto_info),
 				    optlen - sizeof(*crypto_info));
@@ -398,7 +413,7 @@ static int do_tls_setsockopt_tx(struct sock *sk, char __user *optval,
 	}
 	default:
 		rc = -EINVAL;
-		goto out;
+		goto err_crypto_info;
 	}
 
 	/* currently SW is default, we will have ethtool in future */
@@ -448,35 +463,6 @@ static int tls_setsockopt(struct sock *sk, int level, int optname,
 	return do_tls_setsockopt(sk, optname, optval, optlen);
 }
 
-static int tls_init(struct sock *sk)
-{
-	struct inet_connection_sock *icsk = inet_csk(sk);
-	struct tls_context *ctx;
-	int rc = 0;
-
-	/* allocate tls context */
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (!ctx) {
-		rc = -ENOMEM;
-		goto out;
-	}
-	icsk->icsk_ulp_data = ctx;
-	ctx->setsockopt = sk->sk_prot->setsockopt;
-	ctx->getsockopt = sk->sk_prot->getsockopt;
-	ctx->sk_proto_close = sk->sk_prot->close;
-
-	ctx->tx_conf = TLS_BASE_TX;
-	update_sk_prot(sk, ctx);
-out:
-	return rc;
-}
-
-static struct tcp_ulp_ops tcp_tls_ulp_ops __read_mostly = {
-	.name			= "tls",
-	.owner			= THIS_MODULE,
-	.init			= tls_init,
-};
-
 static void build_protos(struct proto *prot, struct proto *base)
 {
 	prot[TLS_BASE_TX] = *base;
@@ -489,9 +475,61 @@ static void build_protos(struct proto *prot, struct proto *base)
 	prot[TLS_SW_TX].sendpage	= tls_sw_sendpage;
 }
 
+static int tls_init(struct sock *sk)
+{
+	int ip_ver = sk->sk_family == AF_INET6 ? TLSV6 : TLSV4;
+	struct inet_connection_sock *icsk = inet_csk(sk);
+	struct tls_context *ctx;
+	int rc = 0;
+
+	/* The TLS ulp is currently supported only for TCP sockets
+	 * in ESTABLISHED state.
+	 * Supporting sockets in LISTEN state will require us
+	 * to modify the accept implementation to clone rather then
+	 * share the ulp context.
+	 */
+	if (sk->sk_state != TCP_ESTABLISHED)
+		return -ENOTSUPP;
+
+	/* allocate tls context */
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx) {
+		rc = -ENOMEM;
+		goto out;
+	}
+	icsk->icsk_ulp_data = ctx;
+	ctx->setsockopt = sk->sk_prot->setsockopt;
+	ctx->getsockopt = sk->sk_prot->getsockopt;
+	ctx->sk_proto_close = sk->sk_prot->close;
+
+	/* Build IPv6 TLS whenever the address of tcpv6_prot changes */
+	if (ip_ver == TLSV6 &&
+	    unlikely(sk->sk_prot != smp_load_acquire(&saved_tcpv6_prot))) {
+		mutex_lock(&tcpv6_prot_mutex);
+		if (likely(sk->sk_prot != saved_tcpv6_prot)) {
+			build_protos(tls_prots[TLSV6], sk->sk_prot);
+			smp_store_release(&saved_tcpv6_prot, sk->sk_prot);
+		}
+		mutex_unlock(&tcpv6_prot_mutex);
+	}
+
+	ctx->tx_conf = TLS_BASE_TX;
+	update_sk_prot(sk, ctx);
+out:
+	return rc;
+}
+
+static struct tcp_ulp_ops tcp_tls_ulp_ops __read_mostly = {
+	.name			= "tls",
+	.uid			= TCP_ULP_TLS,
+	.user_visible		= true,
+	.owner			= THIS_MODULE,
+	.init			= tls_init,
+};
+
 static int __init tls_register(void)
 {
-	build_protos(tls_prots, &tcp_prot);
+	build_protos(tls_prots[TLSV4], &tcp_prot);
 
 	tcp_register_ulp(&tcp_tls_ulp_ops);
 

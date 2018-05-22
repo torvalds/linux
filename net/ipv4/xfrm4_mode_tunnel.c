@@ -62,7 +62,7 @@ static int xfrm4_mode_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 	top_iph->frag_off = (flags & XFRM_STATE_NOPMTUDISC) ?
 		0 : (XFRM_MODE_SKB_CB(skb)->frag_off & htons(IP_DF));
 
-	top_iph->ttl = ip4_dst_hoplimit(dst->child);
+	top_iph->ttl = ip4_dst_hoplimit(xfrm_dst_child(dst));
 
 	top_iph->saddr = x->props.saddr.a4;
 	top_iph->daddr = x->id.daddr.a4;
@@ -92,6 +92,8 @@ static int xfrm4_mode_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb_reset_network_header(skb);
 	skb_mac_header_rebuild(skb);
+	if (skb->mac_len)
+		eth_hdr(skb)->h_proto = skb->protocol;
 
 	err = 0;
 
@@ -105,18 +107,15 @@ static struct sk_buff *xfrm4_mode_tunnel_gso_segment(struct xfrm_state *x,
 {
 	__skb_push(skb, skb->mac_len);
 	return skb_mac_gso_segment(skb, features);
-
 }
 
 static void xfrm4_mode_tunnel_xmit(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct xfrm_offload *xo = xfrm_offload(skb);
 
-	if (xo->flags & XFRM_GSO_SEGMENT) {
-		skb->network_header = skb->network_header - x->props.header_len;
+	if (xo->flags & XFRM_GSO_SEGMENT)
 		skb->transport_header = skb->network_header +
 					sizeof(struct iphdr);
-	}
 
 	skb_reset_mac_len(skb);
 	pskb_pull(skb, skb->mac_len + x->props.header_len);

@@ -75,6 +75,10 @@ static int brcmf_roamoff;
 module_param_named(roamoff, brcmf_roamoff, int, S_IRUSR);
 MODULE_PARM_DESC(roamoff, "Do not use internal roaming engine");
 
+static int brcmf_iapp_enable;
+module_param_named(iapp, brcmf_iapp_enable, int, 0);
+MODULE_PARM_DESC(iapp, "Enable partial support for the obsoleted Inter-Access Point Protocol");
+
 #ifdef DEBUG
 /* always succeed brcmf_bus_started() */
 static int brcmf_ignore_probe_fail;
@@ -182,12 +186,9 @@ static int brcmf_c_process_clm_blob(struct brcmf_if *ifp)
 
 	err = request_firmware(&clm, clm_name, dev);
 	if (err) {
-		if (err == -ENOENT) {
-			brcmf_dbg(INFO, "continue with CLM data currently present in firmware\n");
-			return 0;
-		}
-		brcmf_err("request CLM blob file failed (%d)\n", err);
-		return err;
+		brcmf_info("no clm_blob available(err=%d), device may have limited channels available\n",
+			   err);
+		return 0;
 	}
 
 	chunk_buf = kzalloc(sizeof(*chunk_buf) + MAX_CHUNK_LEN - 1, GFP_KERNEL);
@@ -444,6 +445,7 @@ struct brcmf_mp_device *brcmf_get_module_param(struct device *dev,
 	settings->feature_disable = brcmf_feature_disable;
 	settings->fcmode = brcmf_fcmode;
 	settings->roamoff = !!brcmf_roamoff;
+	settings->iapp = !!brcmf_iapp_enable;
 #ifdef DEBUG
 	settings->ignore_probe_fail = !!brcmf_ignore_probe_fail;
 #endif

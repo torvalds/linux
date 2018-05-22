@@ -805,14 +805,14 @@ static int soc_camera_mmap(struct file *file, struct vm_area_struct *vma)
 	return err;
 }
 
-static unsigned int soc_camera_poll(struct file *file, poll_table *pt)
+static __poll_t soc_camera_poll(struct file *file, poll_table *pt)
 {
 	struct soc_camera_device *icd = file->private_data;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
-	unsigned res = POLLERR;
+	__poll_t res = EPOLLERR;
 
 	if (icd->streamer != file)
-		return POLLERR;
+		return EPOLLERR;
 
 	mutex_lock(&ici->host_lock);
 	res = ici->ops->poll(file, pt);
@@ -1517,7 +1517,7 @@ static int soc_of_bind(struct soc_camera_host *ici,
 	if (!info)
 		return -ENOMEM;
 
-	info->sasd.asd.match.fwnode.fwnode = of_fwnode_handle(remote);
+	info->sasd.asd.match.fwnode = of_fwnode_handle(remote);
 	info->sasd.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
 	info->subdev = &info->sasd.asd;
 

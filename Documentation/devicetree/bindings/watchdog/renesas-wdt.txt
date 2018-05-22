@@ -4,10 +4,11 @@ Required properties:
 - compatible : Should be "renesas,<soctype>-wdt", and
 	       "renesas,rcar-gen3-wdt" or "renesas,rza-wdt" as fallback.
 	       Examples with soctypes are:
+	         - "renesas,r7s72100-wdt" (RZ/A1)
 	         - "renesas,r8a7795-wdt" (R-Car H3)
 	         - "renesas,r8a7796-wdt" (R-Car M3-W)
+	         - "renesas,r8a77970-wdt" (R-Car V3M)
 	         - "renesas,r8a77995-wdt" (R-Car D3)
-	         - "renesas,r7s72100-wdt" (RZ/A1)
 
   When compatible with the generic version, nodes must list the SoC-specific
   version corresponding to the platform first, followed by the generic

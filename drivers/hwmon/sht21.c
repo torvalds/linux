@@ -41,7 +41,7 @@
 
 /**
  * struct sht21 - SHT21 device specific data
- * @hwmon_dev: device registered with hwmon
+ * @client: I2C client device
  * @lock: mutex to protect measurement values
  * @last_update: time of last update (jiffies)
  * @temperature: cached temperature measurement value

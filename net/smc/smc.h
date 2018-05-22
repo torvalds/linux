@@ -178,7 +178,6 @@ struct smc_sock {				/* smc sock container */
 	struct work_struct	smc_listen_work;/* prepare new accept socket */
 	struct list_head	accept_q;	/* sockets to be accepted */
 	spinlock_t		accept_q_lock;	/* protects accept_q */
-	struct delayed_work	sock_put_work;	/* final socket freeing */
 	bool			use_fallback;	/* fallback to tcp */
 	u8			wait_close_tx_prepared : 1;
 						/* shutdown wr or close
@@ -253,12 +252,12 @@ static inline int smc_uncompress_bufsize(u8 compressed)
 static inline bool using_ipsec(struct smc_sock *smc)
 {
 	return (smc->clcsock->sk->sk_policy[0] ||
-		smc->clcsock->sk->sk_policy[1]) ? 1 : 0;
+		smc->clcsock->sk->sk_policy[1]) ? true : false;
 }
 #else
 static inline bool using_ipsec(struct smc_sock *smc)
 {
-	return 0;
+	return false;
 }
 #endif
 

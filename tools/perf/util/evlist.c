@@ -25,6 +25,7 @@
 #include "parse-events.h"
 #include <subcmd/parse-options.h>
 
+#include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
@@ -125,7 +126,7 @@ static void perf_evlist__purge(struct perf_evlist *evlist)
 void perf_evlist__exit(struct perf_evlist *evlist)
 {
 	zfree(&evlist->mmap);
-	zfree(&evlist->backward_mmap);
+	zfree(&evlist->overwrite_mmap);
 	fdarray__exit(&evlist->pollfd);
 }
 
@@ -675,11 +676,11 @@ static int perf_evlist__set_paused(struct perf_evlist *evlist, bool value)
 {
 	int i;
 
-	if (!evlist->backward_mmap)
+	if (!evlist->overwrite_mmap)
 		return 0;
 
 	for (i = 0; i < evlist->nr_mmaps; i++) {
-		int fd = evlist->backward_mmap[i].fd;
+		int fd = evlist->overwrite_mmap[i].fd;
 		int err;
 
 		if (fd < 0)
@@ -711,19 +712,7 @@ union perf_event *perf_evlist__mmap_read_forward(struct perf_evlist *evlist, int
 	 * No need for read-write ring buffer: kernel stop outputting when
 	 * it hit md->prev (perf_mmap__consume()).
 	 */
-	return perf_mmap__read_forward(md, evlist->overwrite);
-}
-
-union perf_event *perf_evlist__mmap_read_backward(struct perf_evlist *evlist, int idx)
-{
-	struct perf_mmap *md = &evlist->mmap[idx];
-
-	/*
-	 * No need to check messup for backward ring buffer:
-	 * We can always read arbitrary long data from a backward
-	 * ring buffer unless we forget to pause it before reading.
-	 */
-	return perf_mmap__read_backward(md);
+	return perf_mmap__read_forward(md);
 }
 
 union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
@@ -731,14 +720,9 @@ union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
 	return perf_evlist__mmap_read_forward(evlist, idx);
 }
 
-void perf_evlist__mmap_read_catchup(struct perf_evlist *evlist, int idx)
-{
-	perf_mmap__read_catchup(&evlist->mmap[idx]);
-}
-
 void perf_evlist__mmap_consume(struct perf_evlist *evlist, int idx)
 {
-	perf_mmap__consume(&evlist->mmap[idx], evlist->overwrite);
+	perf_mmap__consume(&evlist->mmap[idx], false);
 }
 
 static void perf_evlist__munmap_nofree(struct perf_evlist *evlist)
@@ -749,16 +733,16 @@ static void perf_evlist__munmap_nofree(struct perf_evlist *evlist)
 		for (i = 0; i < evlist->nr_mmaps; i++)
 			perf_mmap__munmap(&evlist->mmap[i]);
 
-	if (evlist->backward_mmap)
+	if (evlist->overwrite_mmap)
 		for (i = 0; i < evlist->nr_mmaps; i++)
-			perf_mmap__munmap(&evlist->backward_mmap[i]);
+			perf_mmap__munmap(&evlist->overwrite_mmap[i]);
 }
 
 void perf_evlist__munmap(struct perf_evlist *evlist)
 {
 	perf_evlist__munmap_nofree(evlist);
 	zfree(&evlist->mmap);
-	zfree(&evlist->backward_mmap);
+	zfree(&evlist->overwrite_mmap);
 }
 
 static struct perf_mmap *perf_evlist__alloc_mmap(struct perf_evlist *evlist)
@@ -800,7 +784,7 @@ perf_evlist__should_poll(struct perf_evlist *evlist __maybe_unused,
 
 static int perf_evlist__mmap_per_evsel(struct perf_evlist *evlist, int idx,
 				       struct mmap_params *mp, int cpu_idx,
-				       int thread, int *_output, int *_output_backward)
+				       int thread, int *_output, int *_output_overwrite)
 {
 	struct perf_evsel *evsel;
 	int revent;
@@ -812,18 +796,20 @@ static int perf_evlist__mmap_per_evsel(struct perf_evlist *evlist, int idx,
 		int fd;
 		int cpu;
 
+		mp->prot = PROT_READ | PROT_WRITE;
 		if (evsel->attr.write_backward) {
-			output = _output_backward;
-			maps = evlist->backward_mmap;
+			output = _output_overwrite;
+			maps = evlist->overwrite_mmap;
 
 			if (!maps) {
 				maps = perf_evlist__alloc_mmap(evlist);
 				if (!maps)
 					return -1;
-				evlist->backward_mmap = maps;
+				evlist->overwrite_mmap = maps;
 				if (evlist->bkw_mmap_state == BKW_MMAP_NOTREADY)
 					perf_evlist__toggle_bkw_mmap(evlist, BKW_MMAP_RUNNING);
 			}
+			mp->prot &= ~PROT_WRITE;
 		}
 
 		if (evsel->system_wide && thread)
@@ -884,14 +870,14 @@ static int perf_evlist__mmap_per_cpu(struct perf_evlist *evlist,
 	pr_debug2("perf event ring buffer mmapped per cpu\n");
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
 		int output = -1;
-		int output_backward = -1;
+		int output_overwrite = -1;
 
 		auxtrace_mmap_params__set_idx(&mp->auxtrace_mp, evlist, cpu,
 					      true);
 
 		for (thread = 0; thread < nr_threads; thread++) {
 			if (perf_evlist__mmap_per_evsel(evlist, cpu, mp, cpu,
-							thread, &output, &output_backward))
+							thread, &output, &output_overwrite))
 				goto out_unmap;
 		}
 	}
@@ -912,13 +898,13 @@ static int perf_evlist__mmap_per_thread(struct perf_evlist *evlist,
 	pr_debug2("perf event ring buffer mmapped per thread\n");
 	for (thread = 0; thread < nr_threads; thread++) {
 		int output = -1;
-		int output_backward = -1;
+		int output_overwrite = -1;
 
 		auxtrace_mmap_params__set_idx(&mp->auxtrace_mp, evlist, thread,
 					      false);
 
 		if (perf_evlist__mmap_per_evsel(evlist, thread, mp, 0, thread,
-						&output, &output_backward))
+						&output, &output_overwrite))
 			goto out_unmap;
 	}
 
@@ -1052,15 +1038,18 @@ int perf_evlist__parse_mmap_pages(const struct option *opt, const char *str,
  * Return: %0 on success, negative error code otherwise.
  */
 int perf_evlist__mmap_ex(struct perf_evlist *evlist, unsigned int pages,
-			 bool overwrite, unsigned int auxtrace_pages,
+			 unsigned int auxtrace_pages,
 			 bool auxtrace_overwrite)
 {
 	struct perf_evsel *evsel;
 	const struct cpu_map *cpus = evlist->cpus;
 	const struct thread_map *threads = evlist->threads;
-	struct mmap_params mp = {
-		.prot = PROT_READ | (overwrite ? 0 : PROT_WRITE),
-	};
+	/*
+	 * Delay setting mp.prot: set it before calling perf_mmap__mmap.
+	 * Its value is decided by evsel's write_backward.
+	 * So &mp should not be passed through const pointer.
+	 */
+	struct mmap_params mp;
 
 	if (!evlist->mmap)
 		evlist->mmap = perf_evlist__alloc_mmap(evlist);
@@ -1070,7 +1059,6 @@ int perf_evlist__mmap_ex(struct perf_evlist *evlist, unsigned int pages,
 	if (evlist->pollfd.entries == NULL && perf_evlist__alloc_pollfd(evlist) < 0)
 		return -ENOMEM;
 
-	evlist->overwrite = overwrite;
 	evlist->mmap_len = perf_evlist__mmap_size(pages);
 	pr_debug("mmap size %zuB\n", evlist->mmap_len);
 	mp.mask = evlist->mmap_len - page_size - 1;
@@ -1091,10 +1079,9 @@ int perf_evlist__mmap_ex(struct perf_evlist *evlist, unsigned int pages,
 	return perf_evlist__mmap_per_cpu(evlist, &mp);
 }
 
-int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
-		      bool overwrite)
+int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages)
 {
-	return perf_evlist__mmap_ex(evlist, pages, overwrite, 0, false);
+	return perf_evlist__mmap_ex(evlist, pages, 0, false);
 }
 
 int perf_evlist__create_maps(struct perf_evlist *evlist, struct target *target)
@@ -1102,7 +1089,8 @@ int perf_evlist__create_maps(struct perf_evlist *evlist, struct target *target)
 	struct cpu_map *cpus;
 	struct thread_map *threads;
 
-	threads = thread_map__new_str(target->pid, target->tid, target->uid);
+	threads = thread_map__new_str(target->pid, target->tid, target->uid,
+				      target->per_thread);
 
 	if (!threads)
 		return -1;
@@ -1582,6 +1570,17 @@ int perf_evlist__parse_sample(struct perf_evlist *evlist, union perf_event *even
 	return perf_evsel__parse_sample(evsel, event, sample);
 }
 
+int perf_evlist__parse_sample_timestamp(struct perf_evlist *evlist,
+					union perf_event *event,
+					u64 *timestamp)
+{
+	struct perf_evsel *evsel = perf_evlist__event2evsel(evlist, event);
+
+	if (!evsel)
+		return -EFAULT;
+	return perf_evsel__parse_sample_timestamp(evsel, event, timestamp);
+}
+
 size_t perf_evlist__fprintf(struct perf_evlist *evlist, FILE *fp)
 {
 	struct perf_evsel *evsel;
@@ -1739,13 +1738,13 @@ void perf_evlist__toggle_bkw_mmap(struct perf_evlist *evlist,
 		RESUME,
 	} action = NONE;
 
-	if (!evlist->backward_mmap)
+	if (!evlist->overwrite_mmap)
 		return;
 
 	switch (old_state) {
 	case BKW_MMAP_NOTREADY: {
 		if (state != BKW_MMAP_RUNNING)
-			goto state_err;;
+			goto state_err;
 		break;
 	}
 	case BKW_MMAP_RUNNING: {

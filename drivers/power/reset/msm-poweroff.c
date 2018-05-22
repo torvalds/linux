@@ -23,7 +23,7 @@
 #include <linux/pm.h>
 
 static void __iomem *msm_ps_hold;
-static int do_msm_restart(struct notifier_block *nb, unsigned long action,
+static int deassert_pshold(struct notifier_block *nb, unsigned long action,
 			   void *data)
 {
 	writel(0, msm_ps_hold);
@@ -33,14 +33,13 @@ static int do_msm_restart(struct notifier_block *nb, unsigned long action,
 }
 
 static struct notifier_block restart_nb = {
-	.notifier_call = do_msm_restart,
+	.notifier_call = deassert_pshold,
 	.priority = 128,
 };
 
 static void do_msm_poweroff(void)
 {
-	/* TODO: Add poweroff capability */
-	do_msm_restart(&restart_nb, 0, NULL);
+	deassert_pshold(&restart_nb, 0, NULL);
 }
 
 static int msm_restart_probe(struct platform_device *pdev)

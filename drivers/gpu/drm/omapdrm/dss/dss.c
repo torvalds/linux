@@ -1,6 +1,4 @@
 /*
- * linux/drivers/video/omap2/dss/dss.c
- *
  * Copyright (C) 2009 Nokia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
  *
@@ -23,6 +21,7 @@
 #define DSS_SUBSYS_NAME "DSS"
 
 #include <linux/debugfs.h>
+#include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/io.h>
@@ -367,7 +366,8 @@ const char *dss_get_clk_source_name(enum dss_clk_source clk_src)
 	return dss_generic_clk_source_names[clk_src];
 }
 
-void dss_dump_clocks(struct seq_file *s)
+#if defined(CONFIG_OMAP2_DSS_DEBUGFS)
+static void dss_dump_clocks(struct seq_file *s)
 {
 	const char *fclk_name;
 	unsigned long fclk_rate;
@@ -386,6 +386,7 @@ void dss_dump_clocks(struct seq_file *s)
 
 	dss_runtime_put();
 }
+#endif
 
 static void dss_dump_regs(struct seq_file *s)
 {
@@ -1441,6 +1442,12 @@ static int dss_probe(struct platform_device *pdev)
 
 	dss.pdev = pdev;
 
+	r = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+	if (r) {
+		dev_err(&pdev->dev, "Failed to set the DMA mask\n");
+		return r;
+	}
+
 	/*
 	 * The various OMAP3-based SoCs can't be told apart using the compatible
 	 * string, use SoC device matching.
@@ -1527,7 +1534,7 @@ static const struct dev_pm_ops dss_pm_ops = {
 	.runtime_resume = dss_runtime_resume,
 };
 
-static struct platform_driver omap_dsshw_driver = {
+struct platform_driver omap_dsshw_driver = {
 	.probe		= dss_probe,
 	.remove		= dss_remove,
 	.shutdown	= dss_shutdown,
@@ -1538,13 +1545,3 @@ static struct platform_driver omap_dsshw_driver = {
 		.suppress_bind_attrs = true,
 	},
 };
-
-int __init dss_init_platform_driver(void)
-{
-	return platform_driver_register(&omap_dsshw_driver);
-}
-
-void dss_uninit_platform_driver(void)
-{
-	platform_driver_unregister(&omap_dsshw_driver);
-}

@@ -43,7 +43,7 @@ struct posix_acl *get_cached_acl(struct inode *inode, int type)
 		rcu_read_lock();
 		acl = rcu_dereference(*p);
 		if (!acl || is_uncached_acl(acl) ||
-		    atomic_inc_not_zero(&acl->a_refcount))
+		    refcount_inc_not_zero(&acl->a_refcount))
 			break;
 		rcu_read_unlock();
 		cpu_relax();
@@ -164,7 +164,7 @@ EXPORT_SYMBOL(get_acl);
 void
 posix_acl_init(struct posix_acl *acl, int count)
 {
-	atomic_set(&acl->a_refcount, 1);
+	refcount_set(&acl->a_refcount, 1);
 	acl->a_count = count;
 }
 EXPORT_SYMBOL(posix_acl_init);
@@ -197,7 +197,7 @@ posix_acl_clone(const struct posix_acl *acl, gfp_t flags)
 		           sizeof(struct posix_acl_entry);
 		clone = kmemdup(acl, size, flags);
 		if (clone)
-			atomic_set(&clone->a_refcount, 1);
+			refcount_set(&clone->a_refcount, 1);
 	}
 	return clone;
 }

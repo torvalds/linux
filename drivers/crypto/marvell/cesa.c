@@ -15,6 +15,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/genalloc.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -24,6 +25,7 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/dma-direct.h> /* XXX: drivers shall never use this directly! */
 #include <linux/clk.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -409,8 +411,11 @@ static int mv_cesa_get_sram(struct platform_device *pdev, int idx)
 	if (IS_ERR(engine->sram))
 		return PTR_ERR(engine->sram);
 
-	engine->sram_dma = phys_to_dma(cesa->dev,
-				       (phys_addr_t)res->start);
+	engine->sram_dma = dma_map_resource(cesa->dev, res->start,
+					    cesa->sram_size,
+					    DMA_BIDIRECTIONAL, 0);
+	if (dma_mapping_error(cesa->dev, engine->sram_dma))
+		return -ENOMEM;
 
 	return 0;
 }
@@ -420,11 +425,12 @@ static void mv_cesa_put_sram(struct platform_device *pdev, int idx)
 	struct mv_cesa_dev *cesa = platform_get_drvdata(pdev);
 	struct mv_cesa_engine *engine = &cesa->engines[idx];
 
-	if (!engine->pool)
-		return;
-
-	gen_pool_free(engine->pool, (unsigned long)engine->sram,
-		      cesa->sram_size);
+	if (engine->pool)
+		gen_pool_free(engine->pool, (unsigned long)engine->sram,
+			      cesa->sram_size);
+	else
+		dma_unmap_resource(cesa->dev, engine->sram_dma,
+				   cesa->sram_size, DMA_BIDIRECTIONAL, 0);
 }
 
 static int mv_cesa_probe(struct platform_device *pdev)

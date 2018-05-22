@@ -1344,6 +1344,12 @@ union desc_value {
 	} u;
 };
 
+enum CMD_RET_VALUES {
+	REFIRE_CMD = 1,
+	COMPLETE_CMD = 2,
+	RETURN_CMD = 3,
+};
+
 void megasas_free_cmds_fusion(struct megasas_instance *instance);
 int megasas_ioc_init_fusion(struct megasas_instance *instance);
 u8 megasas_get_map_info(struct megasas_instance *instance);

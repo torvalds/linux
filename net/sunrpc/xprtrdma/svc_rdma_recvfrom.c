@@ -400,10 +400,6 @@ static void svc_rdma_send_error(struct svcxprt_rdma *xprt,
 	struct page *page;
 	int ret;
 
-	ret = svc_rdma_repost_recv(xprt, GFP_KERNEL);
-	if (ret)
-		return;
-
 	page = alloc_page(GFP_KERNEL);
 	if (!page)
 		return;
@@ -554,8 +550,6 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 		ret = svc_rdma_handle_bc_reply(xprt->xpt_bc_xprt, p,
 					       &rqstp->rq_arg);
 		svc_rdma_put_context(ctxt, 0);
-		if (ret)
-			goto repost;
 		return ret;
 	}
 
@@ -590,6 +584,5 @@ out_postfail:
 
 out_drop:
 	svc_rdma_put_context(ctxt, 1);
-repost:
-	return svc_rdma_repost_recv(rdma_xprt, GFP_KERNEL);
+	return 0;
 }

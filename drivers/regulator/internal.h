@@ -16,10 +16,25 @@
 #ifndef __REGULATOR_INTERNAL_H
 #define __REGULATOR_INTERNAL_H
 
+#include <linux/suspend.h>
+
+#define REGULATOR_STATES_NUM	(PM_SUSPEND_MAX + 1)
+
+struct regulator_voltage {
+	int min_uV;
+	int max_uV;
+};
+
 /*
  * struct regulator
  *
  * One for each consumer device.
+ * @voltage - a voltage array for each state of runtime, i.e.:
+ *            PM_SUSPEND_ON
+ *            PM_SUSPEND_TO_IDLE
+ *            PM_SUSPEND_STANDBY
+ *            PM_SUSPEND_MEM
+ *            PM_SUSPEND_MAX
  */
 struct regulator {
 	struct device *dev;
@@ -27,13 +42,21 @@ struct regulator {
 	unsigned int always_on:1;
 	unsigned int bypass:1;
 	int uA_load;
-	int min_uV;
-	int max_uV;
+	struct regulator_voltage voltage[REGULATOR_STATES_NUM];
 	const char *supply_name;
 	struct device_attribute dev_attr;
 	struct regulator_dev *rdev;
 	struct dentry *debugfs;
 };
+
+extern struct class regulator_class;
+
+static inline struct regulator_dev *dev_to_rdev(struct device *dev)
+{
+	return container_of(dev, struct regulator_dev, dev);
+}
+
+struct regulator_dev *of_find_regulator_by_node(struct device_node *np);
 
 #ifdef CONFIG_OF
 struct regulator_init_data *regulator_of_get_init_data(struct device *dev,

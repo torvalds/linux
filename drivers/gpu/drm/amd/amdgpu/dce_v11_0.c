@@ -154,28 +154,28 @@ static void dce_v11_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_CARRIZO:
-		amdgpu_program_register_sequence(adev,
-						 cz_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(cz_mgcg_cgcg_init));
-		amdgpu_program_register_sequence(adev,
-						 cz_golden_settings_a11,
-						 (const u32)ARRAY_SIZE(cz_golden_settings_a11));
+		amdgpu_device_program_register_sequence(adev,
+							cz_mgcg_cgcg_init,
+							ARRAY_SIZE(cz_mgcg_cgcg_init));
+		amdgpu_device_program_register_sequence(adev,
+							cz_golden_settings_a11,
+							ARRAY_SIZE(cz_golden_settings_a11));
 		break;
 	case CHIP_STONEY:
-		amdgpu_program_register_sequence(adev,
-						 stoney_golden_settings_a11,
-						 (const u32)ARRAY_SIZE(stoney_golden_settings_a11));
+		amdgpu_device_program_register_sequence(adev,
+							stoney_golden_settings_a11,
+							ARRAY_SIZE(stoney_golden_settings_a11));
 		break;
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
-		amdgpu_program_register_sequence(adev,
-						 polaris11_golden_settings_a11,
-						 (const u32)ARRAY_SIZE(polaris11_golden_settings_a11));
+		amdgpu_device_program_register_sequence(adev,
+							polaris11_golden_settings_a11,
+							ARRAY_SIZE(polaris11_golden_settings_a11));
 		break;
 	case CHIP_POLARIS10:
-		amdgpu_program_register_sequence(adev,
-						 polaris10_golden_settings_a11,
-						 (const u32)ARRAY_SIZE(polaris10_golden_settings_a11));
+		amdgpu_device_program_register_sequence(adev,
+							polaris10_golden_settings_a11,
+							ARRAY_SIZE(polaris10_golden_settings_a11));
 		break;
 	default:
 		break;
@@ -2876,7 +2876,6 @@ static int dce_v11_0_early_init(void *handle)
 	adev->audio_endpt_wreg = &dce_v11_0_audio_endpt_wreg;
 
 	dce_v11_0_set_display_funcs(adev);
-	dce_v11_0_set_irq_funcs(adev);
 
 	adev->mode_info.num_crtc = dce_v11_0_get_num_crtc(adev);
 
@@ -2902,6 +2901,8 @@ static int dce_v11_0_early_init(void *handle)
 		/* FIXME: not supported yet */
 		return -EINVAL;
 	}
+
+	dce_v11_0_set_irq_funcs(adev);
 
 	return 0;
 }
@@ -3046,6 +3047,11 @@ static int dce_v11_0_hw_fini(void *handle)
 
 static int dce_v11_0_suspend(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	adev->mode_info.bl_level =
+		amdgpu_atombios_encoder_get_backlight_level_from_reg(adev);
+
 	return dce_v11_0_hw_fini(handle);
 }
 
@@ -3053,6 +3059,9 @@ static int dce_v11_0_resume(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int ret;
+
+	amdgpu_atombios_encoder_set_backlight_level_to_reg(adev,
+							   adev->mode_info.bl_level);
 
 	ret = dce_v11_0_hw_init(handle);
 
@@ -3759,13 +3768,16 @@ static const struct amdgpu_irq_src_funcs dce_v11_0_hpd_irq_funcs = {
 
 static void dce_v11_0_set_irq_funcs(struct amdgpu_device *adev)
 {
-	adev->crtc_irq.num_types = AMDGPU_CRTC_IRQ_LAST;
+	if (adev->mode_info.num_crtc > 0)
+		adev->crtc_irq.num_types = AMDGPU_CRTC_IRQ_VLINE1 + adev->mode_info.num_crtc;
+	else
+		adev->crtc_irq.num_types = 0;
 	adev->crtc_irq.funcs = &dce_v11_0_crtc_irq_funcs;
 
-	adev->pageflip_irq.num_types = AMDGPU_PAGEFLIP_IRQ_LAST;
+	adev->pageflip_irq.num_types = adev->mode_info.num_crtc;
 	adev->pageflip_irq.funcs = &dce_v11_0_pageflip_irq_funcs;
 
-	adev->hpd_irq.num_types = AMDGPU_HPD_LAST;
+	adev->hpd_irq.num_types = adev->mode_info.num_hpd;
 	adev->hpd_irq.funcs = &dce_v11_0_hpd_irq_funcs;
 }
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * fs/sysfs/file.c - sysfs regular (text) file implementation
  *
@@ -5,14 +6,11 @@
  * Copyright (c) 2007 SUSE Linux Products GmbH
  * Copyright (c) 2007 Tejun Heo <teheo@suse.de>
  *
- * This file is released under the GPLv2.
- *
  * Please see Documentation/filesystems/sysfs.txt for more information.
  */
 
 #include <linux/module.h>
 #include <linux/kobject.h>
-#include <linux/kallsyms.h>
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -70,8 +68,8 @@ static int sysfs_kf_seq_show(struct seq_file *sf, void *v)
 	 * indicate truncated result or overflow in normal use cases.
 	 */
 	if (count >= (ssize_t)PAGE_SIZE) {
-		print_symbol("fill_read_buffer: %s returned bad count\n",
-			(unsigned long)ops->show);
+		printk("fill_read_buffer: %pS returned bad count\n",
+				ops->show);
 		/* Try to struggle along */
 		count = PAGE_SIZE - 1;
 	}

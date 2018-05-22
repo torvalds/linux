@@ -762,7 +762,7 @@ static const struct pinctrl_pin_desc imx51_pinctrl_pads[] = {
 	IMX_PINCTRL_PIN(MX51_PAD_CSI1_MCLK),
 };
 
-static struct imx_pinctrl_soc_info imx51_pinctrl_info = {
+static const struct imx_pinctrl_soc_info imx51_pinctrl_info = {
 	.pins = imx51_pinctrl_pads,
 	.npins = ARRAY_SIZE(imx51_pinctrl_pads),
 };

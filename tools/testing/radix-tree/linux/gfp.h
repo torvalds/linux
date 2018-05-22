@@ -11,6 +11,7 @@
 #define __GFP_IO		0x40u
 #define __GFP_FS		0x80u
 #define __GFP_NOWARN		0x200u
+#define __GFP_ZERO		0x8000u
 #define __GFP_ATOMIC		0x80000u
 #define __GFP_ACCOUNT		0x100000u
 #define __GFP_DIRECT_RECLAIM	0x400000u

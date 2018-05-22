@@ -1255,6 +1255,16 @@ config RTC_DRV_ZYNQMP
 	  If you say yes here you get support for the RTC controller found on
 	  Xilinx Zynq Ultrascale+ MPSoC.
 
+config RTC_DRV_CROS_EC
+	tristate "Chrome OS EC RTC driver"
+	depends on MFD_CROS_EC
+	help
+	  If you say yes here you will get support for the
+	  Chrome OS Embedded Controller's RTC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-cros-ec.
+
 comment "on-CPU RTC drivers"
 
 config RTC_DRV_ASM9260
@@ -1391,13 +1401,6 @@ config RTC_DRV_PL031
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtc-pl031.
-
-config RTC_DRV_AT32AP700X
-	tristate "AT32AP700X series RTC"
-	depends on PLATFORM_AT32AP || COMPILE_TEST
-	help
-	  Driver for the internal RTC (Realtime Clock) on Atmel AVR32
-	  AT32AP700x family processors.
 
 config RTC_DRV_AT91RM9200
 	tristate "AT91RM9200 or some AT91SAM9 RTC"
@@ -1688,6 +1691,16 @@ config RTC_DRV_MXC
 
 	   This driver can also be built as a module, if so, the module
 	   will be called "rtc-mxc".
+
+config RTC_DRV_MXC_V2
+	tristate "Freescale MXC Real Time Clock for i.MX53"
+	depends on ARCH_MXC
+	help
+	   If you say yes here you get support for the Freescale MXC
+	   SRTC module in i.MX53 processor.
+
+	   This driver can also be built as a module, if so, the module
+	   will be called "rtc-mxc_v2".
 
 config RTC_DRV_SNVS
 	tristate "Freescale SNVS RTC support"

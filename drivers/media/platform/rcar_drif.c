@@ -1107,7 +1107,7 @@ static int rcar_drif_notify_bound(struct v4l2_async_notifier *notifier,
 	struct rcar_drif_sdr *sdr =
 		container_of(notifier, struct rcar_drif_sdr, notifier);
 
-	if (sdr->ep.asd.match.fwnode.fwnode !=
+	if (sdr->ep.asd.match.fwnode !=
 	    of_fwnode_handle(subdev->dev->of_node)) {
 		rdrif_err(sdr, "subdev %s cannot bind\n", subdev->name);
 		return -EINVAL;
@@ -1235,7 +1235,7 @@ static int rcar_drif_parse_subdevs(struct rcar_drif_sdr *sdr)
 		return -EINVAL;
 	}
 
-	sdr->ep.asd.match.fwnode.fwnode = fwnode;
+	sdr->ep.asd.match.fwnode = fwnode;
 	sdr->ep.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
 	notifier->num_subdevs++;
 

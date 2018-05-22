@@ -22,8 +22,9 @@ Required properties for pwm-tacho node:
 - compatible : should be "aspeed,ast2400-pwm-tacho" for AST2400 and
 	       "aspeed,ast2500-pwm-tacho" for AST2500.
 
-- clocks : a fixed clock providing input clock frequency(PWM
-	   and Fan Tach clock)
+- clocks : phandle to clock provider with the clock number in the second cell
+
+- resets : phandle to reset controller with the reset number in the second cell
 
 fan subnode format:
 ===================
@@ -48,19 +49,14 @@ Required properties for each child node:
 
 Examples:
 
-pwm_tacho_fixed_clk: fixedclk {
-	compatible = "fixed-clock";
-	#clock-cells = <0>;
-	clock-frequency = <24000000>;
-};
-
 pwm_tacho: pwmtachocontroller@1e786000 {
 	#address-cells = <1>;
 	#size-cells = <1>;
 	#cooling-cells = <2>;
 	reg = <0x1E786000 0x1000>;
 	compatible = "aspeed,ast2500-pwm-tacho";
-	clocks = <&pwm_tacho_fixed_clk>;
+	clocks = <&syscon ASPEED_CLK_APB>;
+	resets = <&syscon ASPEED_RESET_PWM>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm0_default &pinctrl_pwm1_default>;
 

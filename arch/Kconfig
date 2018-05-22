@@ -196,6 +196,9 @@ config HAVE_OPTPROBES
 config HAVE_KPROBES_ON_FTRACE
 	bool
 
+config HAVE_FUNCTION_ERROR_INJECTION
+	bool
+
 config HAVE_NMI
 	bool
 
@@ -234,13 +237,24 @@ config ARCH_HAS_FORTIFY_SOURCE
 config ARCH_HAS_SET_MEMORY
 	bool
 
-# Select if arch init_task initializer is different to init/init_task.c
-config ARCH_INIT_TASK
+# Select if arch init_task must go in the __init_task_data section
+config ARCH_TASK_STRUCT_ON_STACK
        bool
 
 # Select if arch has its private alloc_task_struct() function
 config ARCH_TASK_STRUCT_ALLOCATOR
 	bool
+
+config HAVE_ARCH_THREAD_STRUCT_WHITELIST
+	bool
+	depends on !ARCH_TASK_STRUCT_ALLOCATOR
+	help
+	  An architecture should select this to provide hardened usercopy
+	  knowledge about what region of the thread_struct should be
+	  whitelisted for copying to userspace. Normally this is only the
+	  FPU registers. Specifically, arch_thread_struct_whitelist()
+	  should be implemented. Without this, the entire thread_struct
+	  field in task_struct will be left whitelisted.
 
 # Select if arch has its private alloc_thread_stack() function
 config ARCH_THREAD_STACK_ALLOCATOR
@@ -524,16 +538,10 @@ config HAVE_CC_STACKPROTECTOR
 	  - its compiler supports the -fstack-protector option
 	  - it has implemented a stack canary (e.g. __stack_chk_guard)
 
-config CC_STACKPROTECTOR
-	def_bool n
-	help
-	  Set when a stack-protector mode is enabled, so that the build
-	  can enable kernel-side support for the GCC feature.
-
 choice
 	prompt "Stack Protector buffer overflow detection"
 	depends on HAVE_CC_STACKPROTECTOR
-	default CC_STACKPROTECTOR_NONE
+	default CC_STACKPROTECTOR_AUTO
 	help
 	  This option turns on the "stack-protector" GCC feature. This
 	  feature puts, at the beginning of functions, a canary value on
@@ -550,7 +558,6 @@ config CC_STACKPROTECTOR_NONE
 
 config CC_STACKPROTECTOR_REGULAR
 	bool "Regular"
-	select CC_STACKPROTECTOR
 	help
 	  Functions will have the stack-protector canary logic added if they
 	  have an 8-byte or larger character array on the stack.
@@ -564,7 +571,6 @@ config CC_STACKPROTECTOR_REGULAR
 
 config CC_STACKPROTECTOR_STRONG
 	bool "Strong"
-	select CC_STACKPROTECTOR
 	help
 	  Functions will have the stack-protector canary logic added in any
 	  of the following conditions:
@@ -581,6 +587,12 @@ config CC_STACKPROTECTOR_STRONG
 	  On an x86 "defconfig" build, this feature adds canary checks to
 	  about 20% of all kernel functions, which increases the kernel code
 	  size by about 2%.
+
+config CC_STACKPROTECTOR_AUTO
+	bool "Automatic"
+	help
+	  If the compiler supports it, the best available stack-protector
+	  option will be chosen.
 
 endchoice
 
@@ -937,6 +949,10 @@ config STRICT_MODULE_RWX
 	  If this is set, module text and rodata memory will be made read-only,
 	  and non-text memory will be made non-executable. This provides
 	  protection against certain security exploits (e.g. writing to text)
+
+# select if the architecture provides an asm/dma-direct.h header
+config ARCH_HAS_PHYS_TO_DMA
+	bool
 
 config ARCH_HAS_REFCOUNT
 	bool

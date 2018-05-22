@@ -33,7 +33,8 @@ static unsigned int nf_route_table_hook(void *priv,
 	u32 mark, flowlabel;
 	int err;
 
-	nft_set_pktinfo_ipv6(&pkt, skb, state);
+	nft_set_pktinfo(&pkt, skb, state);
+	nft_set_pktinfo_ipv6(&pkt, skb);
 
 	/* save source/dest address, mark, hoplimit, flowlabel, priority */
 	memcpy(&saddr, &ipv6_hdr(skb)->saddr, sizeof(saddr));

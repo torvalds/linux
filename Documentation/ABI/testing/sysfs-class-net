@@ -259,3 +259,27 @@ Contact:	netdev@vger.kernel.org
 Description:
 		Symbolic link to the PHY device this network device is attached
 		to.
+
+What:		/sys/class/net/<iface>/carrier_changes
+Date:		Mar 2014
+KernelVersion:	3.15
+Contact:	netdev@vger.kernel.org
+Description:
+		32-bit unsigned integer counting the number of times the link has
+		seen a change from UP to DOWN and vice versa
+
+What:		/sys/class/net/<iface>/carrier_up_count
+Date:		Jan 2018
+KernelVersion:	4.16
+Contact:	netdev@vger.kernel.org
+Description:
+		32-bit unsigned integer counting the number of times the link has
+		been up
+
+What:		/sys/class/net/<iface>/carrier_down_count
+Date:		Jan 2018
+KernelVersion:	4.16
+Contact:	netdev@vger.kernel.org
+Description:
+		32-bit unsigned integer counting the number of times the link has
+		been down

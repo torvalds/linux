@@ -270,10 +270,8 @@ static int vexpress_syscfg_probe(struct platform_device *pdev)
 	/* Must use dev.parent (MFD), as that's where DT phandle points at... */
 	bridge = vexpress_config_bridge_register(pdev->dev.parent,
 			&vexpress_syscfg_bridge_ops, syscfg);
-	if (IS_ERR(bridge))
-		return PTR_ERR(bridge);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(bridge);
 }
 
 static const struct platform_device_id vexpress_syscfg_id_table[] = {

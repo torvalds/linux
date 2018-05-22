@@ -620,6 +620,7 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 	cmd->parent = afu;
 	cmd->hwq_index = hwq_index;
 
+	cmd->sa.ioasc = 0;
 	cmd->rcb.ctx_id = hwq->ctx_hndl;
 	cmd->rcb.msi = SISL_MSI_RRQ_UPDATED;
 	cmd->rcb.port_sel = CHAN2PORTMASK(scp->device->channel);
@@ -710,7 +711,7 @@ static void stop_afu(struct cxlflash_cfg *cfg)
 		}
 
 		if (likely(afu->afu_map)) {
-			cxl_psa_unmap((void __iomem *)afu->afu_map);
+			cfg->ops->psa_unmap(afu->afu_map);
 			afu->afu_map = NULL;
 		}
 	}
@@ -738,7 +739,7 @@ static void term_intr(struct cxlflash_cfg *cfg, enum undo_level level,
 
 	hwq = get_hwq(afu, index);
 
-	if (!hwq->ctx) {
+	if (!hwq->ctx_cookie) {
 		dev_err(dev, "%s: returning with NULL MC\n", __func__);
 		return;
 	}
@@ -747,13 +748,13 @@ static void term_intr(struct cxlflash_cfg *cfg, enum undo_level level,
 	case UNMAP_THREE:
 		/* SISL_MSI_ASYNC_ERROR is setup only for the primary HWQ */
 		if (index == PRIMARY_HWQ)
-			cxl_unmap_afu_irq(hwq->ctx, 3, hwq);
+			cfg->ops->unmap_afu_irq(hwq->ctx_cookie, 3, hwq);
 	case UNMAP_TWO:
-		cxl_unmap_afu_irq(hwq->ctx, 2, hwq);
+		cfg->ops->unmap_afu_irq(hwq->ctx_cookie, 2, hwq);
 	case UNMAP_ONE:
-		cxl_unmap_afu_irq(hwq->ctx, 1, hwq);
+		cfg->ops->unmap_afu_irq(hwq->ctx_cookie, 1, hwq);
 	case FREE_IRQ:
-		cxl_free_afu_irqs(hwq->ctx);
+		cfg->ops->free_afu_irqs(hwq->ctx_cookie);
 		/* fall through */
 	case UNDO_NOOP:
 		/* No action required */
@@ -782,15 +783,15 @@ static void term_mc(struct cxlflash_cfg *cfg, u32 index)
 
 	hwq = get_hwq(afu, index);
 
-	if (!hwq->ctx) {
+	if (!hwq->ctx_cookie) {
 		dev_err(dev, "%s: returning with NULL MC\n", __func__);
 		return;
 	}
 
-	WARN_ON(cxl_stop_context(hwq->ctx));
+	WARN_ON(cfg->ops->stop_context(hwq->ctx_cookie));
 	if (index != PRIMARY_HWQ)
-		WARN_ON(cxl_release_context(hwq->ctx));
-	hwq->ctx = NULL;
+		WARN_ON(cfg->ops->release_context(hwq->ctx_cookie));
+	hwq->ctx_cookie = NULL;
 
 	spin_lock_irqsave(&hwq->hsq_slock, lock_flags);
 	flush_pending_cmds(hwq);
@@ -1598,27 +1599,6 @@ out:
 }
 
 /**
- * start_context() - starts the master context
- * @cfg:	Internal structure associated with the host.
- * @index:	Index of the hardware queue.
- *
- * Return: A success or failure value from CXL services.
- */
-static int start_context(struct cxlflash_cfg *cfg, u32 index)
-{
-	struct device *dev = &cfg->dev->dev;
-	struct hwq *hwq = get_hwq(cfg->afu, index);
-	int rc = 0;
-
-	rc = cxl_start_context(hwq->ctx,
-			       hwq->work.work_element_descriptor,
-			       NULL);
-
-	dev_dbg(dev, "%s: returning rc=%d\n", __func__, rc);
-	return rc;
-}
-
-/**
  * read_vpd() - obtains the WWPNs from VPD
  * @cfg:	Internal structure associated with the host.
  * @wwpn:	Array of size MAX_FC_PORTS to pass back WWPNs
@@ -1640,7 +1620,7 @@ static int read_vpd(struct cxlflash_cfg *cfg, u64 wwpn[])
 	const char *wwpn_vpd_tags[MAX_FC_PORTS] = { "V5", "V6", "V7", "V8" };
 
 	/* Get the VPD data from the device */
-	vpd_size = cxl_read_adapter_vpd(pdev, vpd_data, sizeof(vpd_data));
+	vpd_size = cfg->ops->read_adapter_vpd(pdev, vpd_data, sizeof(vpd_data));
 	if (unlikely(vpd_size <= 0)) {
 		dev_err(dev, "%s: Unable to read VPD (size = %ld)\n",
 			__func__, vpd_size);
@@ -1732,6 +1712,7 @@ static void init_pcr(struct cxlflash_cfg *cfg)
 	struct afu *afu = cfg->afu;
 	struct sisl_ctrl_map __iomem *ctrl_map;
 	struct hwq *hwq;
+	void *cookie;
 	int i;
 
 	for (i = 0; i < MAX_CONTEXT; i++) {
@@ -1746,8 +1727,9 @@ static void init_pcr(struct cxlflash_cfg *cfg)
 	/* Copy frequently used fields into hwq */
 	for (i = 0; i < afu->num_hwqs; i++) {
 		hwq = get_hwq(afu, i);
+		cookie = hwq->ctx_cookie;
 
-		hwq->ctx_hndl = (u16) cxl_process_element(hwq->ctx);
+		hwq->ctx_hndl = (u16) cfg->ops->process_element(cookie);
 		hwq->host_map = &afu->afu_map->hosts[hwq->ctx_hndl].host;
 		hwq->ctrl_map = &afu->afu_map->ctrls[hwq->ctx_hndl].ctrl;
 
@@ -1925,13 +1907,13 @@ static enum undo_level init_intr(struct cxlflash_cfg *cfg,
 				 struct hwq *hwq)
 {
 	struct device *dev = &cfg->dev->dev;
-	struct cxl_context *ctx = hwq->ctx;
+	void *ctx = hwq->ctx_cookie;
 	int rc = 0;
 	enum undo_level level = UNDO_NOOP;
 	bool is_primary_hwq = (hwq->index == PRIMARY_HWQ);
 	int num_irqs = is_primary_hwq ? 3 : 2;
 
-	rc = cxl_allocate_afu_irqs(ctx, num_irqs);
+	rc = cfg->ops->allocate_afu_irqs(ctx, num_irqs);
 	if (unlikely(rc)) {
 		dev_err(dev, "%s: allocate_afu_irqs failed rc=%d\n",
 			__func__, rc);
@@ -1939,16 +1921,16 @@ static enum undo_level init_intr(struct cxlflash_cfg *cfg,
 		goto out;
 	}
 
-	rc = cxl_map_afu_irq(ctx, 1, cxlflash_sync_err_irq, hwq,
-			     "SISL_MSI_SYNC_ERROR");
+	rc = cfg->ops->map_afu_irq(ctx, 1, cxlflash_sync_err_irq, hwq,
+				   "SISL_MSI_SYNC_ERROR");
 	if (unlikely(rc <= 0)) {
 		dev_err(dev, "%s: SISL_MSI_SYNC_ERROR map failed\n", __func__);
 		level = FREE_IRQ;
 		goto out;
 	}
 
-	rc = cxl_map_afu_irq(ctx, 2, cxlflash_rrq_irq, hwq,
-			     "SISL_MSI_RRQ_UPDATED");
+	rc = cfg->ops->map_afu_irq(ctx, 2, cxlflash_rrq_irq, hwq,
+				   "SISL_MSI_RRQ_UPDATED");
 	if (unlikely(rc <= 0)) {
 		dev_err(dev, "%s: SISL_MSI_RRQ_UPDATED map failed\n", __func__);
 		level = UNMAP_ONE;
@@ -1959,8 +1941,8 @@ static enum undo_level init_intr(struct cxlflash_cfg *cfg,
 	if (!is_primary_hwq)
 		goto out;
 
-	rc = cxl_map_afu_irq(ctx, 3, cxlflash_async_err_irq, hwq,
-			     "SISL_MSI_ASYNC_ERROR");
+	rc = cfg->ops->map_afu_irq(ctx, 3, cxlflash_async_err_irq, hwq,
+				   "SISL_MSI_ASYNC_ERROR");
 	if (unlikely(rc <= 0)) {
 		dev_err(dev, "%s: SISL_MSI_ASYNC_ERROR map failed\n", __func__);
 		level = UNMAP_TWO;
@@ -1979,7 +1961,7 @@ out:
  */
 static int init_mc(struct cxlflash_cfg *cfg, u32 index)
 {
-	struct cxl_context *ctx;
+	void *ctx;
 	struct device *dev = &cfg->dev->dev;
 	struct hwq *hwq = get_hwq(cfg->afu, index);
 	int rc = 0;
@@ -1990,23 +1972,23 @@ static int init_mc(struct cxlflash_cfg *cfg, u32 index)
 	INIT_LIST_HEAD(&hwq->pending_cmds);
 
 	if (index == PRIMARY_HWQ)
-		ctx = cxl_get_context(cfg->dev);
+		ctx = cfg->ops->get_context(cfg->dev, cfg->afu_cookie);
 	else
-		ctx = cxl_dev_context_init(cfg->dev);
-	if (unlikely(!ctx)) {
+		ctx = cfg->ops->dev_context_init(cfg->dev, cfg->afu_cookie);
+	if (IS_ERR_OR_NULL(ctx)) {
 		rc = -ENOMEM;
 		goto err1;
 	}
 
-	WARN_ON(hwq->ctx);
-	hwq->ctx = ctx;
+	WARN_ON(hwq->ctx_cookie);
+	hwq->ctx_cookie = ctx;
 
 	/* Set it up as a master with the CXL */
-	cxl_set_master(ctx);
+	cfg->ops->set_master(ctx);
 
 	/* Reset AFU when initializing primary context */
 	if (index == PRIMARY_HWQ) {
-		rc = cxl_afu_reset(ctx);
+		rc = cfg->ops->afu_reset(ctx);
 		if (unlikely(rc)) {
 			dev_err(dev, "%s: AFU reset failed rc=%d\n",
 				      __func__, rc);
@@ -2020,11 +2002,8 @@ static int init_mc(struct cxlflash_cfg *cfg, u32 index)
 		goto err2;
 	}
 
-	/* This performs the equivalent of the CXL_IOCTL_START_WORK.
-	 * The CXL_IOCTL_GET_PROCESS_ELEMENT is implicit in the process
-	 * element (pe) that is embedded in the context (ctx)
-	 */
-	rc = start_context(cfg, index);
+	/* Finally, activate the context by starting it */
+	rc = cfg->ops->start_context(hwq->ctx_cookie);
 	if (unlikely(rc)) {
 		dev_err(dev, "%s: start context failed rc=%d\n", __func__, rc);
 		level = UNMAP_THREE;
@@ -2037,9 +2016,9 @@ out:
 err2:
 	term_intr(cfg, level, index);
 	if (index != PRIMARY_HWQ)
-		cxl_release_context(ctx);
+		cfg->ops->release_context(ctx);
 err1:
-	hwq->ctx = NULL;
+	hwq->ctx_cookie = NULL;
 	goto out;
 }
 
@@ -2094,7 +2073,7 @@ static int init_afu(struct cxlflash_cfg *cfg)
 	struct hwq *hwq;
 	int i;
 
-	cxl_perst_reloads_same_image(cfg->cxl_afu, true);
+	cfg->ops->perst_reloads_same_image(cfg->afu_cookie, true);
 
 	afu->num_hwqs = afu->desired_hwqs;
 	for (i = 0; i < afu->num_hwqs; i++) {
@@ -2108,9 +2087,9 @@ static int init_afu(struct cxlflash_cfg *cfg)
 
 	/* Map the entire MMIO space of the AFU using the first context */
 	hwq = get_hwq(afu, PRIMARY_HWQ);
-	afu->afu_map = cxl_psa_map(hwq->ctx);
+	afu->afu_map = cfg->ops->psa_map(hwq->ctx_cookie);
 	if (!afu->afu_map) {
-		dev_err(dev, "%s: cxl_psa_map failed\n", __func__);
+		dev_err(dev, "%s: psa_map failed\n", __func__);
 		rc = -ENOMEM;
 		goto err1;
 	}
@@ -3670,6 +3649,7 @@ static int cxlflash_probe(struct pci_dev *pdev,
 
 	cfg->init_state = INIT_STATE_NONE;
 	cfg->dev = pdev;
+	cfg->ops = &cxlflash_cxl_ops;
 	cfg->cxl_fops = cxlflash_cxl_fops;
 
 	/*
@@ -3701,7 +3681,7 @@ static int cxlflash_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, cfg);
 
-	cfg->cxl_afu = cxl_pci_to_afu(pdev);
+	cfg->afu_cookie = cfg->ops->create_afu(pdev);
 
 	rc = init_pci(cfg);
 	if (rc) {

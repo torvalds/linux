@@ -35,6 +35,9 @@
 #define DRV_NAME "cros_ec_lpcs"
 #define ACPI_DRV_NAME "GOOG0004"
 
+/* True if ACPI device is present */
+static bool cros_ec_lpc_acpi_device_found;
+
 static int ec_response_timed_out(void)
 {
 	unsigned long one_second = jiffies + HZ;
@@ -54,7 +57,6 @@ static int ec_response_timed_out(void)
 static int cros_ec_pkt_xfer_lpc(struct cros_ec_device *ec,
 				struct cros_ec_command *msg)
 {
-	struct ec_host_request *request;
 	struct ec_host_response response;
 	u8 sum;
 	int ret = 0;
@@ -64,8 +66,6 @@ static int cros_ec_pkt_xfer_lpc(struct cros_ec_device *ec,
 
 	/* Write buffer */
 	cros_ec_lpc_write_bytes(EC_LPC_ADDR_HOST_PACKET, ret, ec->dout);
-
-	request = (struct ec_host_request *)ec->dout;
 
 	/* Here we go */
 	sum = EC_COMMAND_PROTOCOL_3;
@@ -362,6 +362,13 @@ static const struct dmi_system_id cros_ec_lpc_dmi_table[] __initconst = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Peppy"),
 		},
 	},
+	{
+		/* x86-glimmer, the Lenovo Thinkpad Yoga 11e. */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Glimmer"),
+		},
+	},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(dmi, cros_ec_lpc_dmi_table);
@@ -396,9 +403,21 @@ static struct platform_driver cros_ec_lpc_driver = {
 	.remove = cros_ec_lpc_remove,
 };
 
+static struct platform_device cros_ec_lpc_device = {
+	.name = DRV_NAME
+};
+
+static acpi_status cros_ec_lpc_parse_device(acpi_handle handle, u32 level,
+					    void *context, void **retval)
+{
+	*(bool *)context = true;
+	return AE_CTRL_TERMINATE;
+}
+
 static int __init cros_ec_lpc_init(void)
 {
 	int ret;
+	acpi_status status;
 
 	if (!dmi_check_system(cros_ec_lpc_dmi_table)) {
 		pr_err(DRV_NAME ": unsupported system.\n");
@@ -415,11 +434,28 @@ static int __init cros_ec_lpc_init(void)
 		return ret;
 	}
 
-	return 0;
+	status = acpi_get_devices(ACPI_DRV_NAME, cros_ec_lpc_parse_device,
+				  &cros_ec_lpc_acpi_device_found, NULL);
+	if (ACPI_FAILURE(status))
+		pr_warn(DRV_NAME ": Looking for %s failed\n", ACPI_DRV_NAME);
+
+	if (!cros_ec_lpc_acpi_device_found) {
+		/* Register the device, and it'll get hooked up automatically */
+		ret = platform_device_register(&cros_ec_lpc_device);
+		if (ret) {
+			pr_err(DRV_NAME ": can't register device: %d\n", ret);
+			platform_driver_unregister(&cros_ec_lpc_driver);
+			cros_ec_lpc_reg_destroy();
+		}
+	}
+
+	return ret;
 }
 
 static void __exit cros_ec_lpc_exit(void)
 {
+	if (!cros_ec_lpc_acpi_device_found)
+		platform_device_unregister(&cros_ec_lpc_device);
 	platform_driver_unregister(&cros_ec_lpc_driver);
 	cros_ec_lpc_reg_destroy();
 }

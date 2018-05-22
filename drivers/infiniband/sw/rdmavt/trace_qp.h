@@ -85,6 +85,48 @@ DEFINE_EVENT(rvt_qphash_template, rvt_qpremove,
 	TP_PROTO(struct rvt_qp *qp, u32 bucket),
 	TP_ARGS(qp, bucket));
 
+DECLARE_EVENT_CLASS(
+	rvt_rnrnak_template,
+	TP_PROTO(struct rvt_qp *qp, u32 to),
+	TP_ARGS(qp, to),
+	TP_STRUCT__entry(
+		RDI_DEV_ENTRY(ib_to_rvt(qp->ibqp.device))
+		__field(u32, qpn)
+		__field(void *, hrtimer)
+		__field(u32, s_flags)
+		__field(u32, to)
+	),
+	TP_fast_assign(
+		RDI_DEV_ASSIGN(ib_to_rvt(qp->ibqp.device))
+		__entry->qpn = qp->ibqp.qp_num;
+		__entry->hrtimer = &qp->s_rnr_timer;
+		__entry->s_flags = qp->s_flags;
+		__entry->to = to;
+	),
+	TP_printk(
+		"[%s] qpn 0x%x hrtimer 0x%p s_flags 0x%x timeout %u us",
+		__get_str(dev),
+		__entry->qpn,
+		__entry->hrtimer,
+		__entry->s_flags,
+		__entry->to
+	)
+);
+
+DEFINE_EVENT(
+	rvt_rnrnak_template, rvt_rnrnak_add,
+	TP_PROTO(struct rvt_qp *qp, u32 to),
+	TP_ARGS(qp, to));
+
+DEFINE_EVENT(
+	rvt_rnrnak_template, rvt_rnrnak_timeout,
+	TP_PROTO(struct rvt_qp *qp, u32 to),
+	TP_ARGS(qp, to));
+
+DEFINE_EVENT(
+	rvt_rnrnak_template, rvt_rnrnak_stop,
+	TP_PROTO(struct rvt_qp *qp, u32 to),
+	TP_ARGS(qp, to));
 
 #endif /* __RVT_TRACE_QP_H */
 

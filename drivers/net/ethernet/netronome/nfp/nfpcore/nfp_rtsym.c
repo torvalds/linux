@@ -277,10 +277,6 @@ u64 nfp_rtsym_read_le(struct nfp_rtsym_table *rtbl, const char *name,
 		break;
 	}
 
-	if (err == sym->size)
-		err = 0;
-	else if (err >= 0)
-		err = -EIO;
 exit:
 	if (error)
 		*error = err;

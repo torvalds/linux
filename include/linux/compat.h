@@ -17,6 +17,7 @@
 #include <linux/if.h>
 #include <linux/fs.h>
 #include <linux/aio_abi.h>	/* for aio_context_t */
+#include <linux/uaccess.h>
 #include <linux/unistd.h>
 
 #include <asm/compat.h>
@@ -156,6 +157,104 @@ struct compat_sigaction {
 #endif
 	compat_sigset_t			sa_mask __packed;
 };
+
+typedef union compat_sigval {
+	compat_int_t	sival_int;
+	compat_uptr_t	sival_ptr;
+} compat_sigval_t;
+
+typedef struct compat_siginfo {
+	int si_signo;
+#ifndef __ARCH_HAS_SWAPPED_SIGINFO
+	int si_errno;
+	int si_code;
+#else
+	int si_code;
+	int si_errno;
+#endif
+
+	union {
+		int _pad[128/sizeof(int) - 3];
+
+		/* kill() */
+		struct {
+			compat_pid_t _pid;	/* sender's pid */
+			__compat_uid32_t _uid;	/* sender's uid */
+		} _kill;
+
+		/* POSIX.1b timers */
+		struct {
+			compat_timer_t _tid;	/* timer id */
+			int _overrun;		/* overrun count */
+			compat_sigval_t _sigval;	/* same as below */
+		} _timer;
+
+		/* POSIX.1b signals */
+		struct {
+			compat_pid_t _pid;	/* sender's pid */
+			__compat_uid32_t _uid;	/* sender's uid */
+			compat_sigval_t _sigval;
+		} _rt;
+
+		/* SIGCHLD */
+		struct {
+			compat_pid_t _pid;	/* which child */
+			__compat_uid32_t _uid;	/* sender's uid */
+			int _status;		/* exit code */
+			compat_clock_t _utime;
+			compat_clock_t _stime;
+		} _sigchld;
+
+#ifdef CONFIG_X86_X32_ABI
+		/* SIGCHLD (x32 version) */
+		struct {
+			compat_pid_t _pid;	/* which child */
+			__compat_uid32_t _uid;	/* sender's uid */
+			int _status;		/* exit code */
+			compat_s64 _utime;
+			compat_s64 _stime;
+		} _sigchld_x32;
+#endif
+
+		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS, SIGTRAP, SIGEMT */
+		struct {
+			compat_uptr_t _addr;	/* faulting insn/memory ref. */
+#ifdef __ARCH_SI_TRAPNO
+			int _trapno;	/* TRAP # which caused the signal */
+#endif
+			union {
+				/*
+				 * used when si_code=BUS_MCEERR_AR or
+				 * used when si_code=BUS_MCEERR_AO
+				 */
+				short int _addr_lsb;	/* Valid LSB of the reported address. */
+				/* used when si_code=SEGV_BNDERR */
+				struct {
+					compat_uptr_t _dummy_bnd;
+					compat_uptr_t _lower;
+					compat_uptr_t _upper;
+				} _addr_bnd;
+				/* used when si_code=SEGV_PKUERR */
+				struct {
+					compat_uptr_t _dummy_pkey;
+					u32 _pkey;
+				} _addr_pkey;
+			};
+		} _sigfault;
+
+		/* SIGPOLL */
+		struct {
+			compat_long_t _band;	/* POLL_IN, POLL_OUT, POLL_MSG */
+			int _fd;
+		} _sigpoll;
+
+		struct {
+			compat_uptr_t _call_addr; /* calling user insn */
+			int _syscall;	/* triggering system call number */
+			unsigned int _arch;	/* AUDIT_ARCH_* of syscall */
+		} _sigsys;
+	} _sifields;
+} compat_siginfo_t;
 
 /*
  * These functions operate on 32- or 64-bit specs depending on
@@ -412,7 +511,7 @@ long compat_get_bitmap(unsigned long *mask, const compat_ulong_t __user *umask,
 		       unsigned long bitmap_size);
 long compat_put_bitmap(compat_ulong_t __user *umask, unsigned long *mask,
 		       unsigned long bitmap_size);
-int copy_siginfo_from_user32(siginfo_t *to, struct compat_siginfo __user *from);
+int copy_siginfo_from_user32(siginfo_t *to, const struct compat_siginfo __user *from);
 int copy_siginfo_to_user32(struct compat_siginfo __user *to, const siginfo_t *from);
 int get_compat_sigevent(struct sigevent *event,
 		const struct compat_sigevent __user *u_event);
@@ -452,8 +551,29 @@ asmlinkage long compat_sys_settimeofday(struct compat_timeval __user *tv,
 asmlinkage long compat_sys_adjtimex(struct compat_timex __user *utp);
 
 extern int get_compat_sigset(sigset_t *set, const compat_sigset_t __user *compat);
-extern int put_compat_sigset(compat_sigset_t __user *compat,
-			     const sigset_t *set, unsigned int size);
+
+/*
+ * Defined inline such that size can be compile time constant, which avoids
+ * CONFIG_HARDENED_USERCOPY complaining about copies from task_struct
+ */
+static inline int
+put_compat_sigset(compat_sigset_t __user *compat, const sigset_t *set,
+		  unsigned int size)
+{
+	/* size <= sizeof(compat_sigset_t) <= sizeof(sigset_t) */
+#ifdef __BIG_ENDIAN
+	compat_sigset_t v;
+	switch (_NSIG_WORDS) {
+	case 4: v.sig[7] = (set->sig[3] >> 32); v.sig[6] = set->sig[3];
+	case 3: v.sig[5] = (set->sig[2] >> 32); v.sig[4] = set->sig[2];
+	case 2: v.sig[3] = (set->sig[1] >> 32); v.sig[2] = set->sig[1];
+	case 1: v.sig[1] = (set->sig[0] >> 32); v.sig[0] = set->sig[0];
+	}
+	return copy_to_user(compat, &v, size) ? -EFAULT : 0;
+#else
+	return copy_to_user(compat, set, size) ? -EFAULT : 0;
+#endif
+}
 
 asmlinkage long compat_sys_migrate_pages(compat_pid_t pid,
 		compat_ulong_t maxnode, const compat_ulong_t __user *old_nodes,

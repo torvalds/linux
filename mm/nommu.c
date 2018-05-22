@@ -1788,13 +1788,6 @@ unsigned long arch_get_unmapped_area(struct file *file, unsigned long addr,
 	return -ENOMEM;
 }
 
-void unmap_mapping_range(struct address_space *mapping,
-			 loff_t const holebegin, loff_t const holelen,
-			 int even_cows)
-{
-}
-EXPORT_SYMBOL(unmap_mapping_range);
-
 int filemap_fault(struct vm_fault *vmf)
 {
 	BUG();
@@ -1843,7 +1836,7 @@ int __access_remote_vm(struct task_struct *tsk, struct mm_struct *mm,
 }
 
 /**
- * @access_remote_vm - access another process' address space
+ * access_remote_vm - access another process' address space
  * @mm:		the mm_struct of the target address space
  * @addr:	start address to access
  * @buf:	source or destination buffer

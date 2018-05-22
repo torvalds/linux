@@ -116,54 +116,10 @@ static inline struct clk_hw *_get_hw(struct clk_hw_omap_comp *clk, int idx)
 
 #define to_clk_hw_comp(_hw) container_of(_hw, struct clk_hw_omap_comp, hw)
 
-#if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_ATAGS)
-struct clk *ti_clk_register_composite(struct ti_clk *setup)
-{
-	struct ti_clk_composite *comp;
-	struct clk_hw *gate;
-	struct clk_hw *mux;
-	struct clk_hw *div;
-	int num_parents = 1;
-	const char * const *parent_names = NULL;
-	struct clk *clk;
-	int ret;
-
-	comp = setup->data;
-
-	div = ti_clk_build_component_div(comp->divider);
-	gate = ti_clk_build_component_gate(comp->gate);
-	mux = ti_clk_build_component_mux(comp->mux);
-
-	if (div)
-		parent_names = &comp->divider->parent;
-
-	if (gate)
-		parent_names = &comp->gate->parent;
-
-	if (mux) {
-		num_parents = comp->mux->num_parents;
-		parent_names = comp->mux->parents;
-	}
-
-	clk = clk_register_composite(NULL, setup->name,
-				     parent_names, num_parents, mux,
-				     &ti_clk_mux_ops, div,
-				     &ti_composite_divider_ops, gate,
-				     &ti_composite_gate_ops, 0);
-
-	ret = ti_clk_add_alias(NULL, clk, setup->name);
-	if (ret) {
-		clk_unregister(clk);
-		return ERR_PTR(ret);
-	}
-
-	return clk;
-}
-#endif
-
-static void __init _register_composite(struct clk_hw *hw,
+static void __init _register_composite(void *user,
 				       struct device_node *node)
 {
+	struct clk_hw *hw = user;
 	struct clk *clk;
 	struct clk_hw_omap_comp *cclk = to_clk_hw_comp(hw);
 	struct component_clk *comp;

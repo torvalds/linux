@@ -143,10 +143,9 @@ int cpufreq_table_index_unsorted(struct cpufreq_policy *policy,
 		break;
 	}
 
-	cpufreq_for_each_valid_entry(pos, table) {
+	cpufreq_for_each_valid_entry_idx(pos, table, i) {
 		freq = pos->frequency;
 
-		i = pos - table;
 		if ((freq < policy->min) || (freq > policy->max))
 			continue;
 		if (freq == target_freq) {
@@ -211,15 +210,16 @@ int cpufreq_frequency_table_get_index(struct cpufreq_policy *policy,
 		unsigned int freq)
 {
 	struct cpufreq_frequency_table *pos, *table = policy->freq_table;
+	int idx;
 
 	if (unlikely(!table)) {
 		pr_debug("%s: Unable to find frequency table\n", __func__);
 		return -ENOENT;
 	}
 
-	cpufreq_for_each_valid_entry(pos, table)
+	cpufreq_for_each_valid_entry_idx(pos, table, idx)
 		if (pos->frequency == freq)
-			return pos - table;
+			return idx;
 
 	return -EINVAL;
 }

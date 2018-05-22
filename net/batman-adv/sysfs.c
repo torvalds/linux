@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Copyright (C) 2010-2017  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
@@ -22,10 +23,11 @@
 #include <linux/compiler.h>
 #include <linux/device.h>
 #include <linux/errno.h>
-#include <linux/fs.h>
+#include <linux/gfp.h>
 #include <linux/if.h>
 #include <linux/if_vlan.h>
 #include <linux/kernel.h>
+#include <linux/kobject.h>
 #include <linux/kref.h>
 #include <linux/netdevice.h>
 #include <linux/printk.h>
@@ -37,6 +39,7 @@
 #include <linux/string.h>
 #include <linux/stringify.h>
 #include <linux/workqueue.h>
+#include <uapi/linux/batadv_packet.h>
 
 #include "bridge_loop_avoidance.h"
 #include "distributed-arp-table.h"
@@ -45,7 +48,6 @@
 #include "hard-interface.h"
 #include "log.h"
 #include "network-coding.h"
-#include "packet.h"
 #include "soft-interface.h"
 
 static struct net_device *batadv_kobj_to_netdev(struct kobject *obj)
@@ -63,7 +65,7 @@ static struct batadv_priv *batadv_kobj_to_batpriv(struct kobject *obj)
 }
 
 /**
- * batadv_vlan_kobj_to_batpriv - convert a vlan kobj in the associated batpriv
+ * batadv_vlan_kobj_to_batpriv() - convert a vlan kobj in the associated batpriv
  * @obj: kobject to covert
  *
  * Return: the associated batadv_priv struct.
@@ -83,7 +85,7 @@ static struct batadv_priv *batadv_vlan_kobj_to_batpriv(struct kobject *obj)
 }
 
 /**
- * batadv_kobj_to_vlan - convert a kobj in the associated softif_vlan struct
+ * batadv_kobj_to_vlan() - convert a kobj in the associated softif_vlan struct
  * @bat_priv: the bat priv with all the soft interface information
  * @obj: kobject to covert
  *
@@ -598,7 +600,7 @@ static ssize_t batadv_store_gw_bwidth(struct kobject *kobj,
 }
 
 /**
- * batadv_show_isolation_mark - print the current isolation mark/mask
+ * batadv_show_isolation_mark() - print the current isolation mark/mask
  * @kobj: kobject representing the private mesh sysfs directory
  * @attr: the batman-adv attribute the user is interacting with
  * @buff: the buffer that will contain the data to send back to the user
@@ -616,8 +618,8 @@ static ssize_t batadv_show_isolation_mark(struct kobject *kobj,
 }
 
 /**
- * batadv_store_isolation_mark - parse and store the isolation mark/mask entered
- *  by the user
+ * batadv_store_isolation_mark() - parse and store the isolation mark/mask
+ *  entered by the user
  * @kobj: kobject representing the private mesh sysfs directory
  * @attr: the batman-adv attribute the user is interacting with
  * @buff: the buffer containing the user data
@@ -733,6 +735,12 @@ static struct batadv_attribute *batadv_vlan_attrs[] = {
 	NULL,
 };
 
+/**
+ * batadv_sysfs_add_meshif() - Add soft interface specific sysfs entries
+ * @dev: netdev struct of the soft interface
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 int batadv_sysfs_add_meshif(struct net_device *dev)
 {
 	struct kobject *batif_kobject = &dev->dev.kobj;
@@ -773,6 +781,10 @@ out:
 	return -ENOMEM;
 }
 
+/**
+ * batadv_sysfs_del_meshif() - Remove soft interface specific sysfs entries
+ * @dev: netdev struct of the soft interface
+ */
 void batadv_sysfs_del_meshif(struct net_device *dev)
 {
 	struct batadv_priv *bat_priv = netdev_priv(dev);
@@ -788,7 +800,7 @@ void batadv_sysfs_del_meshif(struct net_device *dev)
 }
 
 /**
- * batadv_sysfs_add_vlan - add all the needed sysfs objects for the new vlan
+ * batadv_sysfs_add_vlan() - add all the needed sysfs objects for the new vlan
  * @dev: netdev of the mesh interface
  * @vlan: private data of the newly added VLAN interface
  *
@@ -849,7 +861,7 @@ out:
 }
 
 /**
- * batadv_sysfs_del_vlan - remove all the sysfs objects for a given VLAN
+ * batadv_sysfs_del_vlan() - remove all the sysfs objects for a given VLAN
  * @bat_priv: the bat priv with all the soft interface information
  * @vlan: the private data of the VLAN to destroy
  */
@@ -894,7 +906,7 @@ static ssize_t batadv_show_mesh_iface(struct kobject *kobj,
 }
 
 /**
- * batadv_store_mesh_iface_finish - store new hardif mesh_iface state
+ * batadv_store_mesh_iface_finish() - store new hardif mesh_iface state
  * @net_dev: netdevice to add/remove to/from batman-adv soft-interface
  * @ifname: name of soft-interface to modify
  *
@@ -947,7 +959,7 @@ out:
 }
 
 /**
- * batadv_store_mesh_iface_work - store new hardif mesh_iface state
+ * batadv_store_mesh_iface_work() - store new hardif mesh_iface state
  * @work: work queue item
  *
  * Changes the parts of the hard+soft interface which can not be modified under
@@ -1043,7 +1055,7 @@ static ssize_t batadv_show_iface_status(struct kobject *kobj,
 #ifdef CONFIG_BATMAN_ADV_BATMAN_V
 
 /**
- * batadv_store_throughput_override - parse and store throughput override
+ * batadv_store_throughput_override() - parse and store throughput override
  *  entered by the user
  * @kobj: kobject representing the private mesh sysfs directory
  * @attr: the batman-adv attribute the user is interacting with
@@ -1130,6 +1142,13 @@ static struct batadv_attribute *batadv_batman_attrs[] = {
 	NULL,
 };
 
+/**
+ * batadv_sysfs_add_hardif() - Add hard interface specific sysfs entries
+ * @hardif_obj: address where to store the pointer to new sysfs folder
+ * @dev: netdev struct of the hard interface
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 int batadv_sysfs_add_hardif(struct kobject **hardif_obj, struct net_device *dev)
 {
 	struct kobject *hardif_kobject = &dev->dev.kobj;
@@ -1164,6 +1183,11 @@ out:
 	return -ENOMEM;
 }
 
+/**
+ * batadv_sysfs_del_hardif() - Remove hard interface specific sysfs entries
+ * @hardif_obj: address to the pointer to which stores batman-adv sysfs folder
+ *  of the hard interface
+ */
 void batadv_sysfs_del_hardif(struct kobject **hardif_obj)
 {
 	kobject_uevent(*hardif_obj, KOBJ_REMOVE);
@@ -1172,6 +1196,16 @@ void batadv_sysfs_del_hardif(struct kobject **hardif_obj)
 	*hardif_obj = NULL;
 }
 
+/**
+ * batadv_throw_uevent() - Send an uevent with batman-adv specific env data
+ * @bat_priv: the bat priv with all the soft interface information
+ * @type: subsystem type of event. Stored in uevent's BATTYPE
+ * @action: action type of event. Stored in uevent's BATACTION
+ * @data: string with additional information to the event (ignored for
+ *  BATADV_UEV_DEL). Stored in uevent's BATDATA
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 int batadv_throw_uevent(struct batadv_priv *bat_priv, enum batadv_uev_type type,
 			enum batadv_uev_action action, const char *data)
 {

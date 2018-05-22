@@ -590,10 +590,22 @@ void usbhs_pipe_clear(struct usbhs_pipe *pipe)
 	}
 }
 
-void usbhs_pipe_config_change_bfre(struct usbhs_pipe *pipe, int enable)
+/* Should call usbhsp_pipe_select() before */
+void usbhs_pipe_clear_without_sequence(struct usbhs_pipe *pipe,
+				       int needs_bfre, int bfre_enable)
 {
 	int sequence;
 
+	usbhsp_pipe_select(pipe);
+	sequence = usbhs_pipe_get_data_sequence(pipe);
+	if (needs_bfre)
+		usbhsp_pipe_cfg_set(pipe, BFRE, bfre_enable ? BFRE : 0);
+	usbhs_pipe_clear(pipe);
+	usbhs_pipe_data_sequence(pipe, sequence);
+}
+
+void usbhs_pipe_config_change_bfre(struct usbhs_pipe *pipe, int enable)
+{
 	if (usbhs_pipe_is_dcp(pipe))
 		return;
 
@@ -602,10 +614,7 @@ void usbhs_pipe_config_change_bfre(struct usbhs_pipe *pipe, int enable)
 	if (!(enable ^ !!(usbhsp_pipe_cfg_get(pipe) & BFRE)))
 		return;
 
-	sequence = usbhs_pipe_get_data_sequence(pipe);
-	usbhsp_pipe_cfg_set(pipe, BFRE, enable ? BFRE : 0);
-	usbhs_pipe_clear(pipe);
-	usbhs_pipe_data_sequence(pipe, sequence);
+	usbhs_pipe_clear_without_sequence(pipe, 1, enable);
 }
 
 static struct usbhs_pipe *usbhsp_get_pipe(struct usbhs_priv *priv, u32 type)

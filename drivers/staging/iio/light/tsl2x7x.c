@@ -1441,7 +1441,8 @@ static irqreturn_t tsl2x7x_event_handler(int irq, void *private)
 
 static struct attribute *tsl2x7x_ALS_device_attrs[] = {
 	&dev_attr_in_illuminance0_calibscale_available.attr,
-	&iio_const_attr_in_illuminance0_integration_time_available.dev_attr.attr,
+	&iio_const_attr_in_illuminance0_integration_time_available
+		.dev_attr.attr,
 	&dev_attr_in_illuminance0_target_input.attr,
 	&dev_attr_in_illuminance0_calibrate.attr,
 	&dev_attr_in_illuminance0_lux_table.attr,
@@ -1455,7 +1456,8 @@ static struct attribute *tsl2x7x_PRX_device_attrs[] = {
 
 static struct attribute *tsl2x7x_ALSPRX_device_attrs[] = {
 	&dev_attr_in_illuminance0_calibscale_available.attr,
-	&iio_const_attr_in_illuminance0_integration_time_available.dev_attr.attr,
+	&iio_const_attr_in_illuminance0_integration_time_available
+		.dev_attr.attr,
 	&dev_attr_in_illuminance0_target_input.attr,
 	&dev_attr_in_illuminance0_calibrate.attr,
 	&dev_attr_in_illuminance0_lux_table.attr,
@@ -1471,7 +1473,8 @@ static struct attribute *tsl2x7x_PRX2_device_attrs[] = {
 
 static struct attribute *tsl2x7x_ALSPRX2_device_attrs[] = {
 	&dev_attr_in_illuminance0_calibscale_available.attr,
-	&iio_const_attr_in_illuminance0_integration_time_available.dev_attr.attr,
+	&iio_const_attr_in_illuminance0_integration_time_available
+		.dev_attr.attr,
 	&dev_attr_in_illuminance0_target_input.attr,
 	&dev_attr_in_illuminance0_calibrate.attr,
 	&dev_attr_in_illuminance0_lux_table.attr,

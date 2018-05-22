@@ -29,8 +29,6 @@
 #include <linux/workqueue.h>
 #include <linux/list.h>
 
-#include <linux/delay.h>
-#include <linux/rpmsg.h>
 #include <linux/rpmsg/qcom_glink.h>
 
 #include "qcom_glink_native.h"
@@ -184,6 +182,9 @@ static void glink_smem_tx_write(struct qcom_glink_pipe *glink_pipe,
 	head = ALIGN(head, 8);
 	if (head >= pipe->native.length)
 		head -= pipe->native.length;
+
+	/* Ensure ordering of fifo and head update */
+	wmb();
 
 	*pipe->head = cpu_to_le32(head);
 }

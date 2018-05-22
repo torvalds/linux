@@ -24,6 +24,7 @@
 #include "xfs_errortag.h"
 #include "xfs_error.h"
 #include "xfs_sysfs.h"
+#include "xfs_inode.h"
 
 #ifdef DEBUG
 
@@ -314,12 +315,12 @@ xfs_error_report(
 	struct xfs_mount	*mp,
 	const char		*filename,
 	int			linenum,
-	void			*ra)
+	xfs_failaddr_t		failaddr)
 {
 	if (level <= xfs_error_level) {
 		xfs_alert_tag(mp, XFS_PTAG_ERROR_REPORT,
 		"Internal error %s at line %d of file %s.  Caller %pS",
-			    tag, linenum, filename, ra);
+			    tag, linenum, filename, failaddr);
 
 		xfs_stack_trace();
 	}
@@ -333,11 +334,11 @@ xfs_corruption_error(
 	void			*p,
 	const char		*filename,
 	int			linenum,
-	void			*ra)
+	xfs_failaddr_t		failaddr)
 {
 	if (level <= xfs_error_level)
-		xfs_hex_dump(p, 64);
-	xfs_error_report(tag, level, mp, filename, linenum, ra);
+		xfs_hex_dump(p, XFS_CORRUPTION_DUMP_LEN);
+	xfs_error_report(tag, level, mp, filename, linenum, failaddr);
 	xfs_alert(mp, "Corruption detected. Unmount and run xfs_repair");
 }
 
@@ -347,19 +348,62 @@ xfs_corruption_error(
  */
 void
 xfs_verifier_error(
-	struct xfs_buf		*bp)
+	struct xfs_buf		*bp,
+	int			error,
+	xfs_failaddr_t		failaddr)
 {
-	struct xfs_mount *mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	xfs_failaddr_t		fa;
+
+	fa = failaddr ? failaddr : __return_address;
+	__xfs_buf_ioerror(bp, error, fa);
 
 	xfs_alert(mp, "Metadata %s detected at %pS, %s block 0x%llx",
 		  bp->b_error == -EFSBADCRC ? "CRC error" : "corruption",
-		  __return_address, bp->b_ops->name, bp->b_bn);
+		  fa, bp->b_ops->name, bp->b_bn);
 
 	xfs_alert(mp, "Unmount and run xfs_repair");
 
 	if (xfs_error_level >= XFS_ERRLEVEL_LOW) {
-		xfs_alert(mp, "First 64 bytes of corrupted metadata buffer:");
-		xfs_hex_dump(xfs_buf_offset(bp, 0), 64);
+		xfs_alert(mp, "First %d bytes of corrupted metadata buffer:",
+				XFS_CORRUPTION_DUMP_LEN);
+		xfs_hex_dump(xfs_buf_offset(bp, 0), XFS_CORRUPTION_DUMP_LEN);
+	}
+
+	if (xfs_error_level >= XFS_ERRLEVEL_HIGH)
+		xfs_stack_trace();
+}
+
+/*
+ * Warnings for inode corruption problems.  Don't bother with the stack
+ * trace unless the error level is turned up high.
+ */
+void
+xfs_inode_verifier_error(
+	struct xfs_inode	*ip,
+	int			error,
+	const char		*name,
+	void			*buf,
+	size_t			bufsz,
+	xfs_failaddr_t		failaddr)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+	xfs_failaddr_t		fa;
+	int			sz;
+
+	fa = failaddr ? failaddr : __return_address;
+
+	xfs_alert(mp, "Metadata %s detected at %pS, inode 0x%llx %s",
+		  error == -EFSBADCRC ? "CRC error" : "corruption",
+		  fa, ip->i_ino, name);
+
+	xfs_alert(mp, "Unmount and run xfs_repair");
+
+	if (buf && xfs_error_level >= XFS_ERRLEVEL_LOW) {
+		sz = min_t(size_t, XFS_CORRUPTION_DUMP_LEN, bufsz);
+		xfs_alert(mp, "First %d bytes of corrupted metadata buffer:",
+				sz);
+		xfs_hex_dump(buf, sz);
 	}
 
 	if (xfs_error_level >= XFS_ERRLEVEL_HIGH)

@@ -34,6 +34,12 @@ int64_t opal_npu_init_context(uint64_t phb_id, int pasid, uint64_t msr,
 			uint64_t bdf);
 int64_t opal_npu_map_lpar(uint64_t phb_id, uint64_t bdf, uint64_t lparid,
 			uint64_t lpcr);
+int64_t opal_npu_spa_setup(uint64_t phb_id, uint32_t bdfn,
+			uint64_t addr, uint64_t PE_mask);
+int64_t opal_npu_spa_clear_cache(uint64_t phb_id, uint32_t bdfn,
+				uint64_t PE_handle);
+int64_t opal_npu_tl_set(uint64_t phb_id, uint32_t bdfn, long cap,
+			uint64_t rate_phys, uint32_t size);
 int64_t opal_console_write(int64_t term_number, __be64 *length,
 			   const uint8_t *buffer);
 int64_t opal_console_read(int64_t term_number, __be64 *length,

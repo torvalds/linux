@@ -311,7 +311,7 @@ static int mac_onboard_sonic_probe(struct net_device *dev)
 {
 	struct sonic_local* lp = netdev_priv(dev);
 	int sr;
-	int commslot = 0;
+	bool commslot = macintosh_config->expansion_type == MAC_EXP_PDS_COMM;
 
 	if (!MACH_IS_MAC)
 		return -ENODEV;
@@ -322,10 +322,7 @@ static int mac_onboard_sonic_probe(struct net_device *dev)
 	   Ethernet (BTW, the Ethernet *is* always at the same
 	   address, and nothing else lives there, at least if Apple's
 	   documentation is to be believed) */
-	if (macintosh_config->ident == MAC_MODEL_Q630 ||
-	    macintosh_config->ident == MAC_MODEL_P588 ||
-	    macintosh_config->ident == MAC_MODEL_P575 ||
-	    macintosh_config->ident == MAC_MODEL_C610) {
+	if (commslot || macintosh_config->ident == MAC_MODEL_C610) {
 		int card_present;
 
 		card_present = hwreg_present((void*)ONBOARD_SONIC_REGISTERS);
@@ -333,7 +330,6 @@ static int mac_onboard_sonic_probe(struct net_device *dev)
 			printk("none.\n");
 			return -ENODEV;
 		}
-		commslot = 1;
 	}
 
 	printk("yes\n");
@@ -428,26 +424,26 @@ static int mac_nubus_sonic_ethernet_addr(struct net_device *dev,
 	return 0;
 }
 
-static int macsonic_ident(struct nubus_dev *ndev)
+static int macsonic_ident(struct nubus_rsrc *fres)
 {
-	if (ndev->dr_hw == NUBUS_DRHW_ASANTE_LC &&
-	    ndev->dr_sw == NUBUS_DRSW_SONIC_LC)
+	if (fres->dr_hw == NUBUS_DRHW_ASANTE_LC &&
+	    fres->dr_sw == NUBUS_DRSW_SONIC_LC)
 		return MACSONIC_DAYNALINK;
-	if (ndev->dr_hw == NUBUS_DRHW_SONIC &&
-	    ndev->dr_sw == NUBUS_DRSW_APPLE) {
+	if (fres->dr_hw == NUBUS_DRHW_SONIC &&
+	    fres->dr_sw == NUBUS_DRSW_APPLE) {
 		/* There has to be a better way to do this... */
-		if (strstr(ndev->board->name, "DuoDock"))
+		if (strstr(fres->board->name, "DuoDock"))
 			return MACSONIC_DUODOCK;
 		else
 			return MACSONIC_APPLE;
 	}
 
-	if (ndev->dr_hw == NUBUS_DRHW_SMC9194 &&
-	    ndev->dr_sw == NUBUS_DRSW_DAYNA)
+	if (fres->dr_hw == NUBUS_DRHW_SMC9194 &&
+	    fres->dr_sw == NUBUS_DRSW_DAYNA)
 		return MACSONIC_DAYNA;
 
-	if (ndev->dr_hw == NUBUS_DRHW_APPLE_SONIC_LC &&
-	    ndev->dr_sw == 0) { /* huh? */
+	if (fres->dr_hw == NUBUS_DRHW_APPLE_SONIC_LC &&
+	    fres->dr_sw == 0) { /* huh? */
 		return MACSONIC_APPLE16;
 	}
 	return -1;
@@ -456,7 +452,7 @@ static int macsonic_ident(struct nubus_dev *ndev)
 static int mac_nubus_sonic_probe(struct net_device *dev)
 {
 	static int slots;
-	struct nubus_dev* ndev = NULL;
+	struct nubus_rsrc *ndev = NULL;
 	struct sonic_local* lp = netdev_priv(dev);
 	unsigned long base_addr, prom_addr;
 	u16 sonic_dcr;
@@ -464,9 +460,11 @@ static int mac_nubus_sonic_probe(struct net_device *dev)
 	int reg_offset, dma_bitmode;
 
 	/* Find the first SONIC that hasn't been initialized already */
-	while ((ndev = nubus_find_type(NUBUS_CAT_NETWORK,
-				       NUBUS_TYPE_ETHERNET, ndev)) != NULL)
-	{
+	for_each_func_rsrc(ndev) {
+		if (ndev->category != NUBUS_CAT_NETWORK ||
+		    ndev->type != NUBUS_TYPE_ETHERNET)
+			continue;
+
 		/* Have we seen it already? */
 		if (slots & (1<<ndev->board->slot))
 			continue;

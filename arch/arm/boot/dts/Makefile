@@ -1,6 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-ifeq ($(CONFIG_OF),y)
-
 dtb-$(CONFIG_ARCH_ALPINE) += \
 	alpine-db.dtb
 dtb-$(CONFIG_MACH_ARTPEC6) += \
@@ -47,7 +45,9 @@ dtb-$(CONFIG_SOC_AT91SAM9) += \
 	at91sam9x35ek.dtb
 dtb-$(CONFIG_SOC_SAM_V7) += \
 	at91-kizbox2.dtb \
+	at91-nattis-2-natte-2.dtb \
 	at91-sama5d27_som1_ek.dtb \
+	at91-sama5d2_ptc_ek.dtb \
 	at91-sama5d2_xplained.dtb \
 	at91-sama5d3_xplained.dtb \
 	at91-tse850-3.dtb \
@@ -192,6 +192,7 @@ dtb-$(CONFIG_ARCH_EXYNOS5) += \
 	exynos5800-peach-pi.dtb
 dtb-$(CONFIG_ARCH_GEMINI) += \
 	gemini-dlink-dir-685.dtb \
+	gemini-dlink-dns-313.dtb \
 	gemini-nas4220b.dtb \
 	gemini-rut1xx.dtb \
 	gemini-sq201.dtb \
@@ -372,6 +373,8 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-aristainetos2_7.dtb \
 	imx6dl-colibri-eval-v3.dtb \
 	imx6dl-cubox-i.dtb \
+	imx6dl-cubox-i-emmc-som-v15.dtb \
+	imx6dl-cubox-i-som-v15.dtb \
 	imx6dl-dfi-fs700-m60.dtb \
 	imx6dl-gw51xx.dtb \
 	imx6dl-gw52xx.dtb \
@@ -384,6 +387,11 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-gw5903.dtb \
 	imx6dl-gw5904.dtb \
 	imx6dl-hummingboard.dtb \
+	imx6dl-hummingboard-emmc-som-v15.dtb \
+	imx6dl-hummingboard-som-v15.dtb \
+	imx6dl-hummingboard2.dtb \
+	imx6dl-hummingboard2-emmc-som-v15.dtb \
+	imx6dl-hummingboard2-som-v15.dtb \
 	imx6dl-icore.dtb \
 	imx6dl-icore-rqs.dtb \
 	imx6dl-nit6xlite.dtb \
@@ -396,6 +404,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-sabresd.dtb \
 	imx6dl-savageboard.dtb \
 	imx6dl-ts4900.dtb \
+	imx6dl-ts7970.dtb \
 	imx6dl-tx6dl-comtft.dtb \
 	imx6dl-tx6s-8034.dtb \
 	imx6dl-tx6s-8034-mb7.dtb \
@@ -421,6 +430,8 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-b850v3.dtb \
 	imx6q-cm-fx6.dtb \
 	imx6q-cubox-i.dtb \
+	imx6q-cubox-i-emmc-som-v15.dtb \
+	imx6q-cubox-i-som-v15.dtb \
 	imx6q-dfi-fs700-m60.dtb \
 	imx6q-display5-tianma-tm070-1280x768.dtb \
 	imx6q-dmo-edmqmx6.dtb \
@@ -439,6 +450,11 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-gw5904.dtb \
 	imx6q-h100.dtb \
 	imx6q-hummingboard.dtb \
+	imx6q-hummingboard-emmc-som-v15.dtb \
+	imx6q-hummingboard-som-v15.dtb \
+	imx6q-hummingboard2.dtb \
+	imx6q-hummingboard2-emmc-som-v15.dtb \
+	imx6q-hummingboard2-som-v15.dtb \
 	imx6q-icore.dtb \
 	imx6q-icore-ofcap10.dtb \
 	imx6q-icore-ofcap12.dtb \
@@ -459,6 +475,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-sbc6x.dtb \
 	imx6q-tbs2910.dtb \
 	imx6q-ts4900.dtb \
+	imx6q-ts7970.dtb \
 	imx6q-tx6q-1010.dtb \
 	imx6q-tx6q-1010-comtft.dtb \
 	imx6q-tx6q-1020.dtb \
@@ -470,6 +487,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-tx6q-11x0-mb7.dtb \
 	imx6q-udoo.dtb \
 	imx6q-utilite-pro.dtb \
+	imx6q-var-dt6customboard.dtb \
 	imx6q-wandboard.dtb \
 	imx6q-wandboard-revb1.dtb \
 	imx6q-wandboard-revd1.dtb \
@@ -511,15 +529,17 @@ dtb-$(CONFIG_SOC_IMX6UL) += \
 	imx6ull-14x14-evk.dtb
 dtb-$(CONFIG_SOC_IMX7D) += \
 	imx7d-cl-som-imx7.dtb \
+	imx7d-colibri-emmc-eval-v3.dtb \
 	imx7d-colibri-eval-v3.dtb \
 	imx7d-nitrogen7.dtb \
-	imx7d-pico.dtb \
+	imx7d-pico-pi.dtb \
 	imx7d-sbc-imx7.dtb \
 	imx7d-sdb.dtb \
 	imx7d-sdb-sht11.dtb \
 	imx7s-colibri-eval-v3.dtb \
 	imx7s-warp.dtb
 dtb-$(CONFIG_SOC_LS1021A) += \
+	ls1021a-moxa-uc-8410a.dtb \
 	ls1021a-qds.dtb \
 	ls1021a-twr.dtb
 dtb-$(CONFIG_SOC_VF610) += \
@@ -558,6 +578,7 @@ dtb-$(CONFIG_ARCH_MXS) += \
 	imx28-m28cu3.dtb \
 	imx28-m28evk.dtb \
 	imx28-sps1.dtb \
+	imx28-ts4600.dtb \
 	imx28-tx28.dtb
 dtb-$(CONFIG_ARCH_NOMADIK) += \
 	ste-nomadik-s8815.dtb \
@@ -689,6 +710,7 @@ dtb-$(CONFIG_SOC_DRA7XX) += \
 	am57xx-sbc-am57x.dtb \
 	am572x-idk.dtb \
 	am571x-idk.dtb \
+	am574x-idk.dtb \
 	dra7-evm.dtb \
 	dra72-evm.dtb \
 	dra72-evm-revc.dtb \
@@ -707,12 +729,13 @@ dtb-$(CONFIG_ARCH_ORION5X) += \
 	orion5x-rd88f5182-nas.dtb
 dtb-$(CONFIG_ARCH_ACTIONS) += \
 	owl-s500-cubieboard6.dtb \
-	owl-s500-guitar-bb-rev-b.dtb
+	owl-s500-guitar-bb-rev-b.dtb \
+	owl-s500-sparky.dtb
 dtb-$(CONFIG_ARCH_PRIMA2) += \
 	prima2-evb.dtb
 dtb-$(CONFIG_ARCH_OXNAS) += \
-	wd-mbwe.dtb \
-	cloudengines-pogoplug-series-3.dtb
+	ox810se-wd-mbwe.dtb \
+	ox820-cloudengines-pogoplug-series-3.dtb
 dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-apq8060-dragonboard.dtb \
 	qcom-apq8064-arrow-sd-600eval.dtb \
@@ -756,6 +779,7 @@ dtb-$(CONFIG_ARCH_RENESAS) += \
 	r8a7743-iwg20d-q7-dbcm-ca.dtb \
 	r8a7743-sk-rzg1m.dtb \
 	r8a7745-iwg22d-sodimm.dtb \
+	r8a7745-iwg22d-sodimm-dbhd-ca.dtb \
 	r8a7745-sk-rzg1e.dtb \
 	r8a7778-bockw.dtb \
 	r8a7779-marzen.dtb \
@@ -949,9 +973,11 @@ dtb-$(CONFIG_MACH_SUN8I) += \
 	sun8i-a83t-bananapi-m3.dtb \
 	sun8i-a83t-cubietruck-plus.dtb \
 	sun8i-a83t-tbs-a711.dtb \
+	sun8i-h2-plus-orangepi-r1.dtb \
 	sun8i-h2-plus-orangepi-zero.dtb \
 	sun8i-h3-bananapi-m2-plus.dtb \
 	sun8i-h3-beelink-x2.dtb \
+	sun8i-h3-libretech-all-h3-cc.dtb \
 	sun8i-h3-nanopi-m1.dtb	\
 	sun8i-h3-nanopi-m1-plus.dtb \
 	sun8i-h3-nanopi-neo.dtb \
@@ -1101,7 +1127,10 @@ dtb-$(CONFIG_ARCH_MEDIATEK) += \
 	mt8127-moose.dtb \
 	mt8135-evbp1.dtb
 dtb-$(CONFIG_ARCH_ZX) += zx296702-ad1.dtb
-dtb-$(CONFIG_ARCH_ASPEED) += aspeed-bmc-opp-palmetto.dtb \
+dtb-$(CONFIG_ARCH_ASPEED) += \
+	aspeed-ast2500-evb.dtb \
+	aspeed-bmc-opp-palmetto.dtb \
 	aspeed-bmc-opp-romulus.dtb \
-	aspeed-ast2500-evb.dtb
-endif
+	aspeed-bmc-opp-witherspoon.dtb \
+	aspeed-bmc-opp-zaius.dtb \
+	aspeed-bmc-quanta-q71l.dtb

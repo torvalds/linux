@@ -1423,14 +1423,14 @@ static long vidioc_default(struct file *file, void *fh, bool valid_prio,
 
 }
 
-static unsigned int meye_poll(struct file *file, poll_table *wait)
+static __poll_t meye_poll(struct file *file, poll_table *wait)
 {
-	unsigned int res = v4l2_ctrl_poll(file, wait);
+	__poll_t res = v4l2_ctrl_poll(file, wait);
 
 	mutex_lock(&meye.lock);
 	poll_wait(file, &meye.proc_list, wait);
 	if (kfifo_len(&meye.doneq))
-		res |= POLLIN | POLLRDNORM;
+		res |= EPOLLIN | EPOLLRDNORM;
 	mutex_unlock(&meye.lock);
 	return res;
 }
@@ -1536,7 +1536,7 @@ static const struct v4l2_ioctl_ops meye_ioctl_ops = {
 static const struct video_device meye_template = {
 	.name		= "meye",
 	.fops		= &meye_fops,
-	.ioctl_ops 	= &meye_ioctl_ops,
+	.ioctl_ops	= &meye_ioctl_ops,
 	.release	= video_device_release_empty,
 };
 

@@ -57,7 +57,7 @@ static ssize_t ap_functions_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "0x%08X\n", ac->functions);
 }
 
-static DEVICE_ATTR(ap_functions, 0444, ap_functions_show, NULL);
+static DEVICE_ATTR_RO(ap_functions);
 
 static ssize_t ap_req_count_show(struct device *dev,
 				 struct device_attribute *attr,

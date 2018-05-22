@@ -84,8 +84,7 @@ struct device_process_node {
 struct device_queue_manager_ops {
 	int	(*create_queue)(struct device_queue_manager *dqm,
 				struct queue *q,
-				struct qcm_process_device *qpd,
-				int *allocate_vmid);
+				struct qcm_process_device *qpd);
 
 	int	(*destroy_queue)(struct device_queue_manager *dqm,
 				struct qcm_process_device *qpd,
@@ -122,6 +121,11 @@ struct device_queue_manager_ops {
 					   enum cache_policy alternate_policy,
 					   void __user *alternate_aperture_base,
 					   uint64_t alternate_aperture_size);
+
+	int	(*set_trap_handler)(struct device_queue_manager *dqm,
+				    struct qcm_process_device *qpd,
+				    uint64_t tba_addr,
+				    uint64_t tma_addr);
 
 	int (*process_termination)(struct device_queue_manager *dqm,
 			struct qcm_process_device *qpd);

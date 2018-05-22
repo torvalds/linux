@@ -50,10 +50,7 @@ struct nvm_id;
 struct nvm_dev;
 struct nvm_tgt_dev;
 
-typedef int (nvm_l2p_update_fn)(u64, u32, __le64 *, void *);
 typedef int (nvm_id_fn)(struct nvm_dev *, struct nvm_id *);
-typedef int (nvm_get_l2p_tbl_fn)(struct nvm_dev *, u64, u32,
-				nvm_l2p_update_fn *, void *);
 typedef int (nvm_op_bb_tbl_fn)(struct nvm_dev *, struct ppa_addr, u8 *);
 typedef int (nvm_op_set_bb_fn)(struct nvm_dev *, struct ppa_addr *, int, int);
 typedef int (nvm_submit_io_fn)(struct nvm_dev *, struct nvm_rq *);
@@ -66,7 +63,6 @@ typedef void (nvm_dev_dma_free_fn)(void *, void*, dma_addr_t);
 
 struct nvm_dev_ops {
 	nvm_id_fn		*identity;
-	nvm_get_l2p_tbl_fn	*get_l2p_tbl;
 	nvm_op_bb_tbl_fn	*get_bb_tbl;
 	nvm_op_set_bb_fn	*set_bb_tbl;
 
@@ -112,8 +108,6 @@ enum {
 	NVM_RSP_WARN_HIGHECC	= 0x4700,
 
 	/* Device opcodes */
-	NVM_OP_HBREAD		= 0x02,
-	NVM_OP_HBWRITE		= 0x81,
 	NVM_OP_PWRITE		= 0x91,
 	NVM_OP_PREAD		= 0x92,
 	NVM_OP_ERASE		= 0x90,
@@ -165,12 +159,16 @@ struct nvm_id_group {
 	u8	fmtype;
 	u8	num_ch;
 	u8	num_lun;
-	u8	num_pln;
-	u16	num_blk;
-	u16	num_pg;
-	u16	fpg_sz;
+	u16	num_chk;
+	u16	clba;
 	u16	csecs;
 	u16	sos;
+
+	u16	ws_min;
+	u16	ws_opt;
+	u16	ws_seq;
+	u16	ws_per_chk;
+
 	u32	trdt;
 	u32	trdm;
 	u32	tprt;
@@ -181,7 +179,10 @@ struct nvm_id_group {
 	u32	mccap;
 	u16	cpar;
 
-	struct nvm_id_lp_tbl lptbl;
+	/* 1.2 compatibility */
+	u8	num_pln;
+	u16	num_pg;
+	u16	fpg_sz;
 };
 
 struct nvm_addr_format {
@@ -217,6 +218,10 @@ struct nvm_target {
 
 #define ADDR_EMPTY (~0ULL)
 
+#define NVM_TARGET_DEFAULT_OP (101)
+#define NVM_TARGET_MIN_OP (3)
+#define NVM_TARGET_MAX_OP (80)
+
 #define NVM_VERSION_MAJOR 1
 #define NVM_VERSION_MINOR 0
 #define NVM_VERSION_PATCH 0
@@ -239,7 +244,6 @@ struct nvm_rq {
 	void *meta_list;
 	dma_addr_t dma_meta_list;
 
-	struct completion *wait;
 	nvm_end_io_fn *end_io;
 
 	uint8_t opcode;
@@ -268,31 +272,38 @@ enum {
 	NVM_BLK_ST_BAD =	0x8,	/* Bad block */
 };
 
+
 /* Device generic information */
 struct nvm_geo {
+	/* generic geometry */
 	int nr_chnls;
-	int nr_luns;
-	int luns_per_chnl; /* -1 if channels are not symmetric */
-	int nr_planes;
-	int sec_per_pg; /* only sectors for a single page */
-	int pgs_per_blk;
-	int blks_per_lun;
-	int fpg_size;
-	int pfpg_size; /* size of buffer if all pages are to be read */
+	int all_luns; /* across channels */
+	int nr_luns; /* per channel */
+	int nr_chks; /* per lun */
+
 	int sec_size;
 	int oob_size;
 	int mccap;
+
+	int sec_per_chk;
+	int sec_per_lun;
+
+	int ws_min;
+	int ws_opt;
+	int ws_seq;
+	int ws_per_chk;
+
+	int max_rq_size;
+
+	int op;
+
 	struct nvm_addr_format ppaf;
 
-	/* Calculated/Cached values. These do not reflect the actual usable
-	 * blocks at run-time.
-	 */
-	int max_rq_size;
+	/* Legacy 1.2 specific geometry */
 	int plane_mode; /* drive device in single, double or quad mode */
-
+	int nr_planes;
+	int sec_per_pg; /* only sectors for a single page */
 	int sec_per_pl; /* all sectors across planes */
-	int sec_per_blk;
-	int sec_per_lun;
 };
 
 /* sub-device structure */
@@ -320,10 +331,6 @@ struct nvm_dev {
 	/* Device information */
 	struct nvm_geo geo;
 
-	  /* lower page table */
-	int lps_per_blk;
-	int *lptbl;
-
 	unsigned long total_secs;
 
 	unsigned long *lun_map;
@@ -345,36 +352,6 @@ struct nvm_dev {
 	struct list_head area_list;
 	struct list_head targets;
 };
-
-static inline struct ppa_addr linear_to_generic_addr(struct nvm_geo *geo,
-						     u64 pba)
-{
-	struct ppa_addr l;
-	int secs, pgs, blks, luns;
-	sector_t ppa = pba;
-
-	l.ppa = 0;
-
-	div_u64_rem(ppa, geo->sec_per_pg, &secs);
-	l.g.sec = secs;
-
-	sector_div(ppa, geo->sec_per_pg);
-	div_u64_rem(ppa, geo->pgs_per_blk, &pgs);
-	l.g.pg = pgs;
-
-	sector_div(ppa, geo->pgs_per_blk);
-	div_u64_rem(ppa, geo->blks_per_lun, &blks);
-	l.g.blk = blks;
-
-	sector_div(ppa, geo->blks_per_lun);
-	div_u64_rem(ppa, geo->luns_per_chnl, &luns);
-	l.g.lun = luns;
-
-	sector_div(ppa, geo->luns_per_chnl);
-	l.g.ch = ppa;
-
-	return l;
-}
 
 static inline struct ppa_addr generic_to_dev_addr(struct nvm_tgt_dev *tgt_dev,
 						  struct ppa_addr r)
@@ -416,25 +393,6 @@ static inline struct ppa_addr dev_to_generic_addr(struct nvm_tgt_dev *tgt_dev,
 					(((1 << geo->ppaf.ch_len) - 1));
 
 	return l;
-}
-
-static inline int ppa_empty(struct ppa_addr ppa_addr)
-{
-	return (ppa_addr.ppa == ADDR_EMPTY);
-}
-
-static inline void ppa_set_empty(struct ppa_addr *ppa_addr)
-{
-	ppa_addr->ppa = ADDR_EMPTY;
-}
-
-static inline int ppa_cmp_blk(struct ppa_addr ppa1, struct ppa_addr ppa2)
-{
-	if (ppa_empty(ppa1) || ppa_empty(ppa2))
-		return 0;
-
-	return ((ppa1.g.ch == ppa2.g.ch) && (ppa1.g.lun == ppa2.g.lun) &&
-					(ppa1.g.blk == ppa2.g.blk));
 }
 
 typedef blk_qc_t (nvm_tgt_make_rq_fn)(struct request_queue *, struct bio *);
@@ -481,16 +439,9 @@ extern int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *, struct ppa_addr *,
 extern int nvm_max_phys_sects(struct nvm_tgt_dev *);
 extern int nvm_submit_io(struct nvm_tgt_dev *, struct nvm_rq *);
 extern int nvm_submit_io_sync(struct nvm_tgt_dev *, struct nvm_rq *);
-extern int nvm_erase_sync(struct nvm_tgt_dev *, struct ppa_addr *, int);
-extern int nvm_get_l2p_tbl(struct nvm_tgt_dev *, u64, u32, nvm_l2p_update_fn *,
-			   void *);
-extern int nvm_get_area(struct nvm_tgt_dev *, sector_t *, sector_t);
-extern void nvm_put_area(struct nvm_tgt_dev *, sector_t);
 extern void nvm_end_io(struct nvm_rq *);
 extern int nvm_bb_tbl_fold(struct nvm_dev *, u8 *, int);
 extern int nvm_get_tgt_bb_tbl(struct nvm_tgt_dev *, struct ppa_addr, u8 *);
-
-extern void nvm_part_to_tgt(struct nvm_dev *, sector_t *, int);
 
 #else /* CONFIG_NVM */
 struct nvm_dev_ops;

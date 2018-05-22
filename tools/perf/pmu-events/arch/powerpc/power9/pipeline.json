@@ -125,6 +125,11 @@
     "BriefDescription": "Overflow from counter 5"
   },
   {,
+    "EventCode": "0x4505E",
+    "EventName": "PM_FLOP_CMPL",
+    "BriefDescription": "Floating Point Operation Finished"
+  },
+  {,
     "EventCode": "0x2C018",
     "EventName": "PM_CMPLU_STALL_DMISS_L21_L31",
     "BriefDescription": "Completion stall by Dcache miss which resolved on chip ( excluding local L2/L3)"
@@ -390,11 +395,6 @@
     "BriefDescription": "Ict empty for this thread due to branch mispred"
   },
   {,
-    "EventCode": "0x3405E",
-    "EventName": "PM_IFETCH_THROTTLE",
-    "BriefDescription": "Cycles in which Instruction fetch throttle was active."
-  },
-  {,
     "EventCode": "0x1F148",
     "EventName": "PM_MRK_DPTEG_FROM_ON_CHIP_CACHE",
     "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from another core's L2/L3 on the same chip due to a marked data side request.. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
@@ -422,7 +422,7 @@
   {,
     "EventCode": "0xD0A8",
     "EventName": "PM_DSLB_MISS",
-    "BriefDescription": "Data SLB Miss - Total of all segment sizes"
+    "BriefDescription": "gate_and(sd_pc_c0_comp_valid AND sd_pc_c0_comp_thread(0:1)=tid,sd_pc_c0_comp_ppc_count(0:3)) + gate_and(sd_pc_c1_comp_valid AND sd_pc_c1_comp_thread(0:1)=tid,sd_pc_c1_comp_ppc_count(0:3))"
   },
   {,
     "EventCode": "0x4C058",

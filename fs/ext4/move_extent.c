@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
  * Copyright (c) 2008,2009 NEC Software Tohoku, Ltd.
  * Written by Takashi Sato <t-sato@yk.jp.nec.com>
  *            Akira Fujita <a-fujita@rs.jp.nec.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2.1 of the GNU Lesser General Public License
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/fs.h>

@@ -31,9 +31,6 @@
 #include <sys/param.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
-#include <limits.h>
-#include <errno.h>
 #include <linux/list.h>
 
 #include "../perf.h"
@@ -55,11 +52,19 @@
 #include "debug.h"
 #include <subcmd/parse-options.h>
 
+#include "cs-etm.h"
 #include "intel-pt.h"
 #include "intel-bts.h"
+#include "arm-spe.h"
 
 #include "sane_ctype.h"
 #include "symbol/kallsyms.h"
+
+static bool auxtrace__dont_decode(struct perf_session *session)
+{
+	return !session->itrace_synth_opts ||
+	       session->itrace_synth_opts->dont_decode;
+}
 
 int auxtrace_mmap__mmap(struct auxtrace_mmap *mm,
 			struct auxtrace_mmap_params *mp,
@@ -763,6 +768,9 @@ int auxtrace_queues__process_index(struct auxtrace_queues *queues,
 	size_t i;
 	int err;
 
+	if (auxtrace__dont_decode(session))
+		return 0;
+
 	list_for_each_entry(auxtrace_index, &session->auxtrace_index, list) {
 		for (i = 0; i < auxtrace_index->nr; i++) {
 			ent = &auxtrace_index->entries[i];
@@ -893,12 +901,6 @@ out_free:
 	return err;
 }
 
-static bool auxtrace__dont_decode(struct perf_session *session)
-{
-	return !session->itrace_synth_opts ||
-	       session->itrace_synth_opts->dont_decode;
-}
-
 int perf_event__process_auxtrace_info(struct perf_tool *tool __maybe_unused,
 				      union perf_event *event,
 				      struct perf_session *session)
@@ -913,7 +915,10 @@ int perf_event__process_auxtrace_info(struct perf_tool *tool __maybe_unused,
 		return intel_pt_process_auxtrace_info(event, session);
 	case PERF_AUXTRACE_INTEL_BTS:
 		return intel_bts_process_auxtrace_info(event, session);
+	case PERF_AUXTRACE_ARM_SPE:
+		return arm_spe_process_auxtrace_info(event, session);
 	case PERF_AUXTRACE_CS_ETM:
+		return cs_etm__process_auxtrace_info(event, session);
 	case PERF_AUXTRACE_UNKNOWN:
 	default:
 		return -EINVAL;

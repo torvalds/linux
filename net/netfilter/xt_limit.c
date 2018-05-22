@@ -106,8 +106,8 @@ static int limit_mt_check(const struct xt_mtchk_param *par)
 	/* Check for overflow. */
 	if (r->burst == 0
 	    || user2credits(r->avg * r->burst) < user2credits(r->avg)) {
-		pr_info("Overflow, try lower: %u/%u\n",
-			r->avg, r->burst);
+		pr_info_ratelimited("Overflow, try lower: %u/%u\n",
+				    r->avg, r->burst);
 		return -ERANGE;
 	}
 
@@ -193,9 +193,8 @@ static struct xt_match limit_mt_reg __read_mostly = {
 	.compatsize       = sizeof(struct compat_xt_rateinfo),
 	.compat_from_user = limit_mt_compat_from_user,
 	.compat_to_user   = limit_mt_compat_to_user,
-#else
-	.usersize         = offsetof(struct xt_rateinfo, prev),
 #endif
+	.usersize         = offsetof(struct xt_rateinfo, prev),
 	.me               = THIS_MODULE,
 };
 

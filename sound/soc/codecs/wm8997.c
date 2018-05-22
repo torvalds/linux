@@ -1062,7 +1062,10 @@ static int wm8997_codec_probe(struct snd_soc_codec *codec)
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
 	struct wm8997_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->core.arizona;
 	int ret;
+
+	snd_soc_codec_init_regmap(codec, arizona->regmap);
 
 	ret = arizona_init_spk(codec);
 	if (ret < 0)
@@ -1095,17 +1098,9 @@ static unsigned int wm8997_digital_vu[] = {
 	ARIZONA_DAC_DIGITAL_VOLUME_5R,
 };
 
-static struct regmap *wm8997_get_regmap(struct device *dev)
-{
-	struct wm8997_priv *priv = dev_get_drvdata(dev);
-
-	return priv->core.arizona->regmap;
-}
-
 static const struct snd_soc_codec_driver soc_codec_dev_wm8997 = {
 	.probe = wm8997_codec_probe,
 	.remove = wm8997_codec_remove,
-	.get_regmap =   wm8997_get_regmap,
 
 	.idle_bias_off = true,
 

@@ -66,6 +66,12 @@ struct ptrace_peeksiginfo_args {
 #define PTRACE_SETSIGMASK	0x420b
 
 #define PTRACE_SECCOMP_GET_FILTER	0x420c
+#define PTRACE_SECCOMP_GET_METADATA	0x420d
+
+struct seccomp_metadata {
+	__u64 filter_off;	/* Input: which filter */
+	__u64 flags;		/* Output: filter's flags */
+};
 
 /* Read signals from a shared (process wide) queue */
 #define PTRACE_PEEKSIGINFO_SHARED	(1 << 0)

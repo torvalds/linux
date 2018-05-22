@@ -839,7 +839,7 @@ static void omap_vout_buffer_release(struct videobuf_queue *q,
 /*
  *  File operations
  */
-static unsigned int omap_vout_poll(struct file *file,
+static __poll_t omap_vout_poll(struct file *file,
 				   struct poll_table_struct *wait)
 {
 	struct omap_vout_device *vout = file->private_data;
@@ -1774,8 +1774,8 @@ static int vidioc_g_fbuf(struct file *file, void *fh,
 }
 
 static const struct v4l2_ioctl_ops vout_ioctl_ops = {
-	.vidioc_querycap      			= vidioc_querycap,
-	.vidioc_enum_fmt_vid_out 		= vidioc_enum_fmt_vid_out,
+	.vidioc_querycap			= vidioc_querycap,
+	.vidioc_enum_fmt_vid_out		= vidioc_enum_fmt_vid_out,
 	.vidioc_g_fmt_vid_out			= vidioc_g_fmt_vid_out,
 	.vidioc_try_fmt_vid_out			= vidioc_try_fmt_vid_out,
 	.vidioc_s_fmt_vid_out			= vidioc_s_fmt_vid_out,
@@ -1795,12 +1795,12 @@ static const struct v4l2_ioctl_ops vout_ioctl_ops = {
 };
 
 static const struct v4l2_file_operations omap_vout_fops = {
-	.owner 		= THIS_MODULE,
+	.owner		= THIS_MODULE,
 	.poll		= omap_vout_poll,
 	.unlocked_ioctl	= video_ioctl2,
-	.mmap 		= omap_vout_mmap,
-	.open 		= omap_vout_open,
-	.release 	= omap_vout_release,
+	.mmap		= omap_vout_mmap,
+	.open		= omap_vout_open,
+	.release	= omap_vout_release,
 };
 
 /* Init functions used during driver initialization */

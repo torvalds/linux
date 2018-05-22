@@ -250,8 +250,10 @@ struct transform_funcs {
 
 	void (*ipp_setup)(
 			struct transform *xfm_base,
-			enum surface_pixel_format input_format,
-			enum expansion_mode mode);
+			enum surface_pixel_format format,
+			enum expansion_mode mode,
+			struct csc_transform input_csc_color_matrix,
+			enum dc_color_space input_color_space);
 
 	void (*ipp_full_bypass)(struct transform *xfm_base);
 

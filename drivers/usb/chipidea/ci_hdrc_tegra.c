@@ -29,7 +29,7 @@ static const struct tegra_udc_soc_info tegra20_udc_soc_info = {
 };
 
 static const struct tegra_udc_soc_info tegra30_udc_soc_info = {
-	.flags = 0,
+	.flags = CI_HDRC_REQUIRES_ALIGNED_DMA,
 };
 
 static const struct tegra_udc_soc_info tegra114_udc_soc_info = {

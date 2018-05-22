@@ -218,6 +218,7 @@ struct dc_edid_caps {
 	bool lte_340mcsc_scramble;
 
 	bool edid_hdmi;
+	bool hdr_supported;
 };
 
 struct view {
@@ -636,11 +637,6 @@ struct psr_context {
 struct colorspace_transform {
 	struct fixed31_32 matrix[12];
 	bool enable_remap;
-};
-
-struct csc_transform {
-	uint16_t matrix[12];
-	bool enable_adjustment;
 };
 
 enum i2c_mot_mode {

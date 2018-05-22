@@ -43,6 +43,7 @@ static struct kmem_cache *f2fs_inode_cachep;
 
 char *fault_name[FAULT_MAX] = {
 	[FAULT_KMALLOC]		= "kmalloc",
+	[FAULT_KVMALLOC]	= "kvmalloc",
 	[FAULT_PAGE_ALLOC]	= "page alloc",
 	[FAULT_PAGE_GET]	= "page get",
 	[FAULT_ALLOC_BIO]	= "alloc bio",
@@ -106,6 +107,9 @@ enum {
 	Opt_noextent_cache,
 	Opt_noinline_data,
 	Opt_data_flush,
+	Opt_reserve_root,
+	Opt_resgid,
+	Opt_resuid,
 	Opt_mode,
 	Opt_io_size_bits,
 	Opt_fault_injection,
@@ -156,6 +160,9 @@ static match_table_t f2fs_tokens = {
 	{Opt_noextent_cache, "noextent_cache"},
 	{Opt_noinline_data, "noinline_data"},
 	{Opt_data_flush, "data_flush"},
+	{Opt_reserve_root, "reserve_root=%u"},
+	{Opt_resgid, "resgid=%u"},
+	{Opt_resuid, "resuid=%u"},
 	{Opt_mode, "mode=%s"},
 	{Opt_io_size_bits, "io_bits=%u"},
 	{Opt_fault_injection, "fault_injection=%u"},
@@ -188,6 +195,28 @@ void f2fs_msg(struct super_block *sb, const char *level, const char *fmt, ...)
 	vaf.va = &args;
 	printk_ratelimited("%sF2FS-fs (%s): %pV\n", level, sb->s_id, &vaf);
 	va_end(args);
+}
+
+static inline void limit_reserve_root(struct f2fs_sb_info *sbi)
+{
+	block_t limit = (sbi->user_block_count << 1) / 1000;
+
+	/* limit is 0.2% */
+	if (test_opt(sbi, RESERVE_ROOT) && sbi->root_reserved_blocks > limit) {
+		sbi->root_reserved_blocks = limit;
+		f2fs_msg(sbi->sb, KERN_INFO,
+			"Reduce reserved blocks for root = %u",
+				sbi->root_reserved_blocks);
+	}
+	if (!test_opt(sbi, RESERVE_ROOT) &&
+		(!uid_eq(sbi->s_resuid,
+				make_kuid(&init_user_ns, F2FS_DEF_RESUID)) ||
+		!gid_eq(sbi->s_resgid,
+				make_kgid(&init_user_ns, F2FS_DEF_RESGID))))
+		f2fs_msg(sbi->sb, KERN_INFO,
+			"Ignore s_resuid=%u, s_resgid=%u w/o reserve_root",
+				from_kuid_munged(&init_user_ns, sbi->s_resuid),
+				from_kgid_munged(&init_user_ns, sbi->s_resgid));
 }
 
 static void init_once(void *foo)
@@ -320,6 +349,8 @@ static int parse_options(struct super_block *sb, char *options)
 	substring_t args[MAX_OPT_ARGS];
 	char *p, *name;
 	int arg = 0;
+	kuid_t uid;
+	kgid_t gid;
 #ifdef CONFIG_QUOTA
 	int ret;
 #endif
@@ -486,6 +517,40 @@ static int parse_options(struct super_block *sb, char *options)
 			break;
 		case Opt_data_flush:
 			set_opt(sbi, DATA_FLUSH);
+			break;
+		case Opt_reserve_root:
+			if (args->from && match_int(args, &arg))
+				return -EINVAL;
+			if (test_opt(sbi, RESERVE_ROOT)) {
+				f2fs_msg(sb, KERN_INFO,
+					"Preserve previous reserve_root=%u",
+					sbi->root_reserved_blocks);
+			} else {
+				sbi->root_reserved_blocks = arg;
+				set_opt(sbi, RESERVE_ROOT);
+			}
+			break;
+		case Opt_resuid:
+			if (args->from && match_int(args, &arg))
+				return -EINVAL;
+			uid = make_kuid(current_user_ns(), arg);
+			if (!uid_valid(uid)) {
+				f2fs_msg(sb, KERN_ERR,
+					"Invalid uid value %d", arg);
+				return -EINVAL;
+			}
+			sbi->s_resuid = uid;
+			break;
+		case Opt_resgid:
+			if (args->from && match_int(args, &arg))
+				return -EINVAL;
+			gid = make_kgid(current_user_ns(), arg);
+			if (!gid_valid(gid)) {
+				f2fs_msg(sb, KERN_ERR,
+					"Invalid gid value %d", arg);
+				return -EINVAL;
+			}
+			sbi->s_resgid = gid;
 			break;
 		case Opt_mode:
 			name = match_strdup(&args[0]);
@@ -993,22 +1058,25 @@ static int f2fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct super_block *sb = dentry->d_sb;
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
 	u64 id = huge_encode_dev(sb->s_bdev->bd_dev);
-	block_t total_count, user_block_count, start_count, ovp_count;
+	block_t total_count, user_block_count, start_count;
 	u64 avail_node_count;
 
 	total_count = le64_to_cpu(sbi->raw_super->block_count);
 	user_block_count = sbi->user_block_count;
 	start_count = le32_to_cpu(sbi->raw_super->segment0_blkaddr);
-	ovp_count = SM_I(sbi)->ovp_segments << sbi->log_blocks_per_seg;
 	buf->f_type = F2FS_SUPER_MAGIC;
 	buf->f_bsize = sbi->blocksize;
 
 	buf->f_blocks = total_count - start_count;
-	buf->f_bfree = user_block_count - valid_user_blocks(sbi) + ovp_count;
-	buf->f_bavail = user_block_count - valid_user_blocks(sbi) -
+	buf->f_bfree = user_block_count - valid_user_blocks(sbi) -
 						sbi->current_reserved_blocks;
+	if (buf->f_bfree > sbi->root_reserved_blocks)
+		buf->f_bavail = buf->f_bfree - sbi->root_reserved_blocks;
+	else
+		buf->f_bavail = 0;
 
-	avail_node_count = sbi->total_node_count - F2FS_RESERVED_NODE_NUM;
+	avail_node_count = sbi->total_node_count - sbi->nquota_files -
+						F2FS_RESERVED_NODE_NUM;
 
 	if (avail_node_count > user_block_count) {
 		buf->f_files = user_block_count;
@@ -1134,6 +1202,11 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 	else if (test_opt(sbi, LFS))
 		seq_puts(seq, "lfs");
 	seq_printf(seq, ",active_logs=%u", sbi->active_logs);
+	if (test_opt(sbi, RESERVE_ROOT))
+		seq_printf(seq, ",reserve_root=%u,resuid=%u,resgid=%u",
+				sbi->root_reserved_blocks,
+				from_kuid_munged(&init_user_ns, sbi->s_resuid),
+				from_kgid_munged(&init_user_ns, sbi->s_resgid));
 	if (F2FS_IO_SIZE_BITS(sbi))
 		seq_printf(seq, ",io_size=%uKB", F2FS_IO_SIZE_KB(sbi));
 #ifdef CONFIG_F2FS_FAULT_INJECTION
@@ -1263,7 +1336,7 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 		err = dquot_suspend(sb, -1);
 		if (err < 0)
 			goto restore_opts;
-	} else {
+	} else if (f2fs_readonly(sb) && !(*flags & MS_RDONLY)) {
 		/* dquot_resume needs RW */
 		sb->s_flags &= ~SB_RDONLY;
 		if (sb_any_quota_suspended(sb)) {
@@ -1332,6 +1405,7 @@ skip:
 	sb->s_flags = (sb->s_flags & ~SB_POSIXACL) |
 		(test_opt(sbi, POSIX_ACL) ? SB_POSIXACL : 0);
 
+	limit_reserve_root(sbi);
 	return 0;
 restore_gc:
 	if (need_restart_gc) {
@@ -1656,7 +1730,7 @@ void f2fs_quota_off_umount(struct super_block *sb)
 		f2fs_quota_off(sb, type);
 }
 
-int f2fs_get_projid(struct inode *inode, kprojid_t *projid)
+static int f2fs_get_projid(struct inode *inode, kprojid_t *projid)
 {
 	*projid = F2FS_I(inode)->i_projid;
 	return 0;
@@ -2148,14 +2222,15 @@ static int init_blkz_info(struct f2fs_sb_info *sbi, int devi)
 	if (nr_sectors & (bdev_zone_sectors(bdev) - 1))
 		FDEV(devi).nr_blkz++;
 
-	FDEV(devi).blkz_type = kmalloc(FDEV(devi).nr_blkz, GFP_KERNEL);
+	FDEV(devi).blkz_type = f2fs_kmalloc(sbi, FDEV(devi).nr_blkz,
+								GFP_KERNEL);
 	if (!FDEV(devi).blkz_type)
 		return -ENOMEM;
 
 #define F2FS_REPORT_NR_ZONES   4096
 
-	zones = kcalloc(F2FS_REPORT_NR_ZONES, sizeof(struct blk_zone),
-			GFP_KERNEL);
+	zones = f2fs_kzalloc(sbi, sizeof(struct blk_zone) *
+				F2FS_REPORT_NR_ZONES, GFP_KERNEL);
 	if (!zones)
 		return -ENOMEM;
 
@@ -2295,8 +2370,8 @@ static int f2fs_scan_devices(struct f2fs_sb_info *sbi)
 	 * Initialize multiple devices information, or single
 	 * zoned block device information.
 	 */
-	sbi->devs = kcalloc(max_devices, sizeof(struct f2fs_dev_info),
-				GFP_KERNEL);
+	sbi->devs = f2fs_kzalloc(sbi, sizeof(struct f2fs_dev_info) *
+						max_devices, GFP_KERNEL);
 	if (!sbi->devs)
 		return -ENOMEM;
 
@@ -2419,6 +2494,9 @@ try_onemore:
 	sb->s_fs_info = sbi;
 	sbi->raw_super = raw_super;
 
+	sbi->s_resuid = make_kuid(&init_user_ns, F2FS_DEF_RESUID);
+	sbi->s_resgid = make_kgid(&init_user_ns, F2FS_DEF_RESGID);
+
 	/* precompute checksum seed for metadata */
 	if (f2fs_sb_has_inode_chksum(sb))
 		sbi->s_chksum_seed = f2fs_chksum(sbi, ~0, raw_super->uuid,
@@ -2462,6 +2540,13 @@ try_onemore:
 	else
 		sb->s_qcop = &f2fs_quotactl_ops;
 	sb->s_quota_types = QTYPE_MASK_USR | QTYPE_MASK_GRP | QTYPE_MASK_PRJ;
+
+	if (f2fs_sb_has_quota_ino(sbi->sb)) {
+		for (i = 0; i < MAXQUOTAS; i++) {
+			if (f2fs_qf_ino(sbi->sb, i))
+				sbi->nquota_files++;
+		}
+	}
 #endif
 
 	sb->s_op = &f2fs_sops;
@@ -2475,6 +2560,7 @@ try_onemore:
 	sb->s_flags = (sb->s_flags & ~SB_POSIXACL) |
 		(test_opt(sbi, POSIX_ACL) ? SB_POSIXACL : 0);
 	memcpy(&sb->s_uuid, raw_super->uuid, sizeof(raw_super->uuid));
+	sb->s_iflags |= SB_I_CGROUPWB;
 
 	/* init f2fs-specific super block info */
 	sbi->valid_super_block = valid_super_block;
@@ -2495,8 +2581,9 @@ try_onemore:
 		int n = (i == META) ? 1: NR_TEMP_TYPE;
 		int j;
 
-		sbi->write_io[i] = kmalloc(n * sizeof(struct f2fs_bio_info),
-								GFP_KERNEL);
+		sbi->write_io[i] = f2fs_kmalloc(sbi,
+					n * sizeof(struct f2fs_bio_info),
+					GFP_KERNEL);
 		if (!sbi->write_io[i]) {
 			err = -ENOMEM;
 			goto free_options;
@@ -2517,14 +2604,14 @@ try_onemore:
 
 	err = init_percpu_info(sbi);
 	if (err)
-		goto free_options;
+		goto free_bio_info;
 
 	if (F2FS_IO_SIZE(sbi) > 1) {
 		sbi->write_io_dummy =
 			mempool_create_page_pool(2 * (F2FS_IO_SIZE(sbi) - 1), 0);
 		if (!sbi->write_io_dummy) {
 			err = -ENOMEM;
-			goto free_options;
+			goto free_percpu;
 		}
 	}
 
@@ -2559,6 +2646,7 @@ try_onemore:
 	sbi->last_valid_block_count = sbi->total_valid_block_count;
 	sbi->reserved_blocks = 0;
 	sbi->current_reserved_blocks = 0;
+	limit_reserve_root(sbi);
 
 	for (i = 0; i < NR_INODE_TYPE; i++) {
 		INIT_LIST_HEAD(&sbi->inode_list[i]);
@@ -2604,18 +2692,16 @@ try_onemore:
 		goto free_nm;
 	}
 
-	f2fs_join_shrinker(sbi);
-
 	err = f2fs_build_stats(sbi);
 	if (err)
-		goto free_nm;
+		goto free_node_inode;
 
 	/* read root inode and dentry */
 	root = f2fs_iget(sb, F2FS_ROOT_INO(sbi));
 	if (IS_ERR(root)) {
 		f2fs_msg(sb, KERN_ERR, "Failed to read root inode");
 		err = PTR_ERR(root);
-		goto free_node_inode;
+		goto free_stats;
 	}
 	if (!S_ISDIR(root->i_mode) || !root->i_blocks || !root->i_size) {
 		iput(root);
@@ -2711,6 +2797,8 @@ skip_recovery:
 			sbi->valid_super_block ? 1 : 2, err);
 	}
 
+	f2fs_join_shrinker(sbi);
+
 	f2fs_msg(sbi->sb, KERN_NOTICE, "Mounted with checkpoint version = %llx",
 				cur_cp_version(F2FS_CKPT(sbi)));
 	f2fs_update_time(sbi, CP_TIME);
@@ -2737,14 +2825,12 @@ free_sysfs:
 free_root_inode:
 	dput(sb->s_root);
 	sb->s_root = NULL;
-free_node_inode:
-	truncate_inode_pages_final(NODE_MAPPING(sbi));
-	mutex_lock(&sbi->umount_mutex);
-	release_ino_entry(sbi, true);
-	f2fs_leave_shrinker(sbi);
-	iput(sbi->node_inode);
-	mutex_unlock(&sbi->umount_mutex);
+free_stats:
 	f2fs_destroy_stats(sbi);
+free_node_inode:
+	release_ino_entry(sbi, true);
+	truncate_inode_pages_final(NODE_MAPPING(sbi));
+	iput(sbi->node_inode);
 free_nm:
 	destroy_node_manager(sbi);
 free_sm:
@@ -2757,10 +2843,12 @@ free_meta_inode:
 	iput(sbi->meta_inode);
 free_io_dummy:
 	mempool_destroy(sbi->write_io_dummy);
-free_options:
+free_percpu:
+	destroy_percpu_info(sbi);
+free_bio_info:
 	for (i = 0; i < NR_PAGE_TYPE; i++)
 		kfree(sbi->write_io[i]);
-	destroy_percpu_info(sbi);
+free_options:
 #ifdef CONFIG_QUOTA
 	for (i = 0; i < MAXQUOTAS; i++)
 		kfree(sbi->s_qf_names[i]);

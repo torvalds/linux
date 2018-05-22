@@ -34,6 +34,7 @@
 #include "log.h"
 #include "inode.h"
 #include "trace_gfs2.h"
+#include "dir.h"
 
 #define BFITNOENT ((u32)~0)
 #define NO_BLOCK ((u64)~0)
@@ -488,6 +489,13 @@ void gfs2_rgrp_verify(struct gfs2_rgrpd *rgd)
  * @sdp: The GFS2 superblock
  * @blk: The data block number
  * @exact: True if this needs to be an exact match
+ *
+ * The @exact argument should be set to true by most callers. The exception
+ * is when we need to match blocks which are not represented by the rgrp
+ * bitmap, but which are part of the rgrp (i.e. padding blocks) which are
+ * there for alignment purposes. Another way of looking at it is that @exact
+ * matches only valid data/metadata blocks, but with @exact false, it will
+ * match any block within the extent of the rgrp.
  *
  * Returns: The resource group, or NULL if not found
  */
@@ -1040,17 +1048,30 @@ static void gfs2_rgrp_in(struct gfs2_rgrpd *rgd, const void *buf)
 	rgd->rd_free = be32_to_cpu(str->rg_free);
 	rgd->rd_dinodes = be32_to_cpu(str->rg_dinodes);
 	rgd->rd_igeneration = be64_to_cpu(str->rg_igeneration);
+	/* rd_data0, rd_data and rd_bitbytes already set from rindex */
 }
 
 static void gfs2_rgrp_out(struct gfs2_rgrpd *rgd, void *buf)
 {
+	struct gfs2_rgrpd *next = gfs2_rgrpd_get_next(rgd);
 	struct gfs2_rgrp *str = buf;
+	u32 crc;
 
 	str->rg_flags = cpu_to_be32(rgd->rd_flags & ~GFS2_RDF_MASK);
 	str->rg_free = cpu_to_be32(rgd->rd_free);
 	str->rg_dinodes = cpu_to_be32(rgd->rd_dinodes);
-	str->__pad = cpu_to_be32(0);
+	if (next == NULL)
+		str->rg_skip = 0;
+	else if (next->rd_addr > rgd->rd_addr)
+		str->rg_skip = cpu_to_be32(next->rd_addr - rgd->rd_addr);
 	str->rg_igeneration = cpu_to_be64(rgd->rd_igeneration);
+	str->rg_data0 = cpu_to_be64(rgd->rd_data0);
+	str->rg_data = cpu_to_be32(rgd->rd_data);
+	str->rg_bitbytes = cpu_to_be32(rgd->rd_bitbytes);
+	str->rg_crc = 0;
+	crc = gfs2_disk_hash(buf, sizeof(struct gfs2_rgrp));
+	str->rg_crc = cpu_to_be32(crc);
+
 	memset(&str->rg_reserved, 0, sizeof(str->rg_reserved));
 }
 
@@ -1318,7 +1339,7 @@ start_new_extent:
 
 fail:
 	if (sdp->sd_args.ar_discard)
-		fs_warn(sdp, "error %d on discard request, turning discards off for this filesystem", rv);
+		fs_warn(sdp, "error %d on discard request, turning discards off for this filesystem\n", rv);
 	sdp->sd_args.ar_discard = 0;
 	return -EIO;
 }
@@ -2072,7 +2093,8 @@ next_rgrp:
 		}
 		/* Flushing the log may release space */
 		if (loops == 2)
-			gfs2_log_flush(sdp, NULL, NORMAL_FLUSH);
+			gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_NORMAL |
+				       GFS2_LFC_INPLACE_RESERVE);
 	}
 
 	return -ENOSPC;
@@ -2453,12 +2475,12 @@ void gfs2_unlink_di(struct inode *inode)
 	update_rgrp_lvb_unlinked(rgd, 1);
 }
 
-static void gfs2_free_uninit_di(struct gfs2_rgrpd *rgd, u64 blkno)
+void gfs2_free_di(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
 	struct gfs2_rgrpd *tmp_rgd;
 
-	tmp_rgd = rgblk_free(sdp, blkno, 1, GFS2_BLKST_FREE);
+	tmp_rgd = rgblk_free(sdp, ip->i_no_addr, 1, GFS2_BLKST_FREE);
 	if (!tmp_rgd)
 		return;
 	gfs2_assert_withdraw(sdp, rgd == tmp_rgd);
@@ -2474,12 +2496,6 @@ static void gfs2_free_uninit_di(struct gfs2_rgrpd *rgd, u64 blkno)
 	update_rgrp_lvb_unlinked(rgd, -1);
 
 	gfs2_statfs_change(sdp, 0, +1, -1);
-}
-
-
-void gfs2_free_di(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip)
-{
-	gfs2_free_uninit_di(rgd, ip->i_no_addr);
 	trace_gfs2_block_alloc(ip, rgd, ip->i_no_addr, 1, GFS2_BLKST_FREE);
 	gfs2_quota_change(ip, -1, ip->i_inode.i_uid, ip->i_inode.i_gid);
 	gfs2_meta_wipe(ip, ip->i_no_addr, 1);

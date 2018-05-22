@@ -72,7 +72,7 @@ int uvcg_queue_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf);
 int uvcg_dequeue_buffer(struct uvc_video_queue *queue,
 			struct v4l2_buffer *buf, int nonblocking);
 
-unsigned int uvcg_queue_poll(struct uvc_video_queue *queue,
+__poll_t uvcg_queue_poll(struct uvc_video_queue *queue,
 			     struct file *file, poll_table *wait);
 
 int uvcg_queue_mmap(struct uvc_video_queue *queue, struct vm_area_struct *vma);

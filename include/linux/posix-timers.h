@@ -42,13 +42,26 @@ struct cpu_timer_list {
 #define CLOCKFD			CPUCLOCK_MAX
 #define CLOCKFD_MASK		(CPUCLOCK_PERTHREAD_MASK|CPUCLOCK_CLOCK_MASK)
 
-#define MAKE_PROCESS_CPUCLOCK(pid, clock) \
-	((~(clockid_t) (pid) << 3) | (clockid_t) (clock))
-#define MAKE_THREAD_CPUCLOCK(tid, clock) \
-	MAKE_PROCESS_CPUCLOCK((tid), (clock) | CPUCLOCK_PERTHREAD_MASK)
+static inline clockid_t make_process_cpuclock(const unsigned int pid,
+		const clockid_t clock)
+{
+	return ((~pid) << 3) | clock;
+}
+static inline clockid_t make_thread_cpuclock(const unsigned int tid,
+		const clockid_t clock)
+{
+	return make_process_cpuclock(tid, clock | CPUCLOCK_PERTHREAD_MASK);
+}
 
-#define FD_TO_CLOCKID(fd)	((~(clockid_t) (fd) << 3) | CLOCKFD)
-#define CLOCKID_TO_FD(clk)	((unsigned int) ~((clk) >> 3))
+static inline clockid_t fd_to_clockid(const int fd)
+{
+	return make_process_cpuclock((unsigned int) fd, CLOCKFD);
+}
+
+static inline int clockid_to_fd(const clockid_t clk)
+{
+	return ~(clk >> 3);
+}
 
 #define REQUEUE_PENDING 1
 

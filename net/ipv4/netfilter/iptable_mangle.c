@@ -49,11 +49,6 @@ ipt_mangle_out(struct sk_buff *skb, const struct nf_hook_state *state)
 	u_int32_t mark;
 	int err;
 
-	/* root is playing with raw sockets. */
-	if (skb->len < sizeof(struct iphdr) ||
-	    ip_hdrlen(skb) < sizeof(struct iphdr))
-		return NF_ACCEPT;
-
 	/* Save things which could affect route */
 	mark = skb->mark;
 	iph = ip_hdr(skb);

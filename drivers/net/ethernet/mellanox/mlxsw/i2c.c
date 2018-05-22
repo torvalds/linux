@@ -539,7 +539,8 @@ static int mlxsw_i2c_probe(struct i2c_client *client,
 	mlxsw_i2c->dev = &client->dev;
 
 	err = mlxsw_core_bus_device_register(&mlxsw_i2c->bus_info,
-					     &mlxsw_i2c_bus, mlxsw_i2c);
+					     &mlxsw_i2c_bus, mlxsw_i2c, false,
+					     NULL);
 	if (err) {
 		dev_err(&client->dev, "Fail to register core bus\n");
 		return err;
@@ -557,7 +558,7 @@ static int mlxsw_i2c_remove(struct i2c_client *client)
 {
 	struct mlxsw_i2c *mlxsw_i2c = i2c_get_clientdata(client);
 
-	mlxsw_core_bus_device_unregister(mlxsw_i2c->core);
+	mlxsw_core_bus_device_unregister(mlxsw_i2c->core, false);
 	mutex_destroy(&mlxsw_i2c->cmd.lock);
 
 	return 0;

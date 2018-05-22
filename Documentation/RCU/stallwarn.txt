@@ -23,12 +23,10 @@ o	A CPU looping with preemption disabled.  This condition can
 o	A CPU looping with bottom halves disabled.  This condition can
 	result in RCU-sched and RCU-bh stalls.
 
-o	For !CONFIG_PREEMPT kernels, a CPU looping anywhere in the
-	kernel without invoking schedule().  Note that cond_resched()
-	does not necessarily prevent RCU CPU stall warnings.  Therefore,
-	if the looping in the kernel is really expected and desirable
-	behavior, you might need to replace some of the cond_resched()
-	calls with calls to cond_resched_rcu_qs().
+o	For !CONFIG_PREEMPT kernels, a CPU looping anywhere in the kernel
+	without invoking schedule().  If the looping in the kernel is
+	really expected and desirable behavior, you might need to add
+	some calls to cond_resched().
 
 o	Booting Linux using a console connection that is too slow to
 	keep up with the boot-time console-message rate.  For example,

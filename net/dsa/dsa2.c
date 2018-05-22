@@ -241,7 +241,7 @@ static int dsa_tree_setup_default_cpu(struct dsa_switch_tree *dst)
 		for (port = 0; port < ds->num_ports; port++) {
 			dp = &ds->ports[port];
 
-			if (dsa_port_is_user(dp))
+			if (dsa_port_is_user(dp) || dsa_port_is_dsa(dp))
 				dp->cpu_dp = dst->cpu_dp;
 		}
 	}
@@ -271,13 +271,12 @@ static int dsa_port_setup(struct dsa_port *dp)
 		break;
 	case DSA_PORT_TYPE_CPU:
 	case DSA_PORT_TYPE_DSA:
-		err = dsa_port_fixed_link_register_of(dp);
+		err = dsa_port_link_register_of(dp);
 		if (err) {
-			dev_err(ds->dev, "failed to register fixed link for port %d.%d\n",
+			dev_err(ds->dev, "failed to setup link for port %d.%d\n",
 				ds->index, dp->index);
 			return err;
 		}
-
 		break;
 	case DSA_PORT_TYPE_USER:
 		err = dsa_slave_create(dp);
@@ -301,7 +300,7 @@ static void dsa_port_teardown(struct dsa_port *dp)
 		break;
 	case DSA_PORT_TYPE_CPU:
 	case DSA_PORT_TYPE_DSA:
-		dsa_port_fixed_link_unregister_of(dp);
+		dsa_port_link_unregister_of(dp);
 		break;
 	case DSA_PORT_TYPE_USER:
 		if (dp->slave) {

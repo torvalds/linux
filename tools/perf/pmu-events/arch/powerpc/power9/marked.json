@@ -1,10 +1,5 @@
 [
   {,
-    "EventCode": "0x3C052",
-    "EventName": "PM_DATA_SYS_PUMP_MPRED",
-    "BriefDescription": "Final Pump Scope (system) mispredicted. Either the original scope was too small (Chip/Group) or the original scope was System and it should have been smaller. Counts for a demand load"
-  },
-  {,
     "EventCode": "0x3013E",
     "EventName": "PM_MRK_STALL_CMPLU_CYC",
     "BriefDescription": "Number of cycles the marked instruction is experiencing a stall while it is next to complete (NTC)"
@@ -255,6 +250,11 @@
     "BriefDescription": "A Page Directory Entry was reloaded to a level 1 page walk cache from the core's L3 data cache"
   },
   {,
+    "EventCode": "0x3C052",
+    "EventName": "PM_DATA_SYS_PUMP_MPRED",
+    "BriefDescription": "Final Pump Scope (system) mispredicted. Either the original scope was too small (Chip/Group) or the original scope was System and it should have been smaller. Counts for a demand load"
+  },
+  {,
     "EventCode": "0x4D142",
     "EventName": "PM_MRK_DATA_FROM_L3",
     "BriefDescription": "The processor's data cache was reloaded from local core's L3 due to a marked load"
@@ -433,21 +433,6 @@
     "EventCode": "0x400FC",
     "EventName": "PM_ITLB_MISS",
     "BriefDescription": "ITLB Reloaded. Counts 1 per ITLB miss for HPT but multiple for radix depending on number of levels traveresed"
-  },
-  {,
-    "EventCode": "0x2D024",
-    "EventName": "PM_RADIX_PWC_L2_HIT",
-    "BriefDescription": "A radix translation attempt missed in the TLB but hit on both the first and second levels of page walk cache."
-  },
-  {,
-    "EventCode": "0x3F056",
-    "EventName": "PM_RADIX_PWC_L3_HIT",
-    "BriefDescription": "A radix translation attempt missed in the TLB but hit on the first, second, and third levels of page walk cache."
-  },
-  {,
-    "EventCode": "0x4E014",
-    "EventName": "PM_TM_TX_PASS_RUN_INST",
-    "BriefDescription": "Run instructions spent in successful transactions"
   },
   {,
     "EventCode": "0x1E044",

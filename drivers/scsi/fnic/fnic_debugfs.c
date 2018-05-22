@@ -108,24 +108,6 @@ void fnic_debugfs_terminate(void)
 }
 
 /*
- * fnic_trace_ctrl_open - Open the trace_enable file for fnic_trace
- *               Or Open fc_trace_enable file for fc_trace
- * @inode: The inode pointer.
- * @file: The file pointer to attach the trace enable/disable flag.
- *
- * Description:
- * This routine opens a debugsfs file trace_enable or fc_trace_enable.
- *
- * Returns:
- * This function returns zero if successful.
- */
-static int fnic_trace_ctrl_open(struct inode *inode, struct file *filp)
-{
-	filp->private_data = inode->i_private;
-	return 0;
-}
-
-/*
  * fnic_trace_ctrl_read -
  *          Read  trace_enable ,fc_trace_enable
  *              or fc_trace_clear debugfs file
@@ -220,7 +202,7 @@ static ssize_t fnic_trace_ctrl_write(struct file *filp,
 
 static const struct file_operations fnic_trace_ctrl_fops = {
 	.owner = THIS_MODULE,
-	.open = fnic_trace_ctrl_open,
+	.open = simple_open,
 	.read = fnic_trace_ctrl_read,
 	.write = fnic_trace_ctrl_write,
 };
@@ -632,7 +614,7 @@ static ssize_t fnic_reset_stats_write(struct file *file,
 			sizeof(struct io_path_stats) - sizeof(u64));
 		memset(fw_stats_p+1, 0,
 			sizeof(struct fw_stats) - sizeof(u64));
-		getnstimeofday(&stats->stats_timestamps.last_reset_time);
+		ktime_get_real_ts64(&stats->stats_timestamps.last_reset_time);
 	}
 
 	(*ppos)++;

@@ -412,7 +412,7 @@ out_clips:
  * Wrapper around the drm_poll function that makes sure the device is
  * processing the fifo if drm_poll decides to wait.
  */
-unsigned int vmw_fops_poll(struct file *filp, struct poll_table_struct *wait)
+__poll_t vmw_fops_poll(struct file *filp, struct poll_table_struct *wait)
 {
 	struct drm_file *file_priv = filp->private_data;
 	struct vmw_private *dev_priv =

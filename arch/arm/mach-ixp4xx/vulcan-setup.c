@@ -16,6 +16,7 @@
 #include <linux/serial_8250.h>
 #include <linux/io.h>
 #include <linux/w1-gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/mtd/plat-ram.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -162,9 +163,16 @@ static struct platform_device vulcan_max6369 = {
 	.num_resources		= 1,
 };
 
+static struct gpiod_lookup_table vulcan_w1_gpiod_table = {
+	.dev_id = "w1-gpio",
+	.table = {
+		GPIO_LOOKUP_IDX("IXP4XX_GPIO_CHIP", 14, NULL, 0,
+				GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+	},
+};
+
 static struct w1_gpio_platform_data vulcan_w1_gpio_pdata = {
-	.pin			= 14,
-	.ext_pullup_enable_pin	= -EINVAL,
+	/* Intentionally left blank */
 };
 
 static struct platform_device vulcan_w1_gpio = {
@@ -233,6 +241,7 @@ static void __init vulcan_init(void)
 			  IXP4XX_EXP_BUS_WR_EN		|
 			  IXP4XX_EXP_BUS_BYTE_EN;
 
+	gpiod_add_lookup_table(&vulcan_w1_gpiod_table);
 	platform_add_devices(vulcan_devices, ARRAY_SIZE(vulcan_devices));
 }
 

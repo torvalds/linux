@@ -65,6 +65,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0>;
+			clocks = <&nb_periph_clk 16>;
 			enable-method = "psci";
 		};
 	};
@@ -234,6 +235,12 @@
 				};
 			};
 
+			nb_pm: syscon@14000 {
+				compatible = "marvell,armada-3700-nb-pm",
+					     "syscon";
+				reg = <0x14000 0x60>;
+			};
+
 			pinctrl_sb: pinctrl@18800 {
 				compatible = "marvell,armada3710-sb-pinctrl",
 					     "syscon", "simple-mfd";
@@ -307,6 +314,20 @@
 				xor11 {
 					interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
 				};
+			};
+
+			crypto: crypto@90000 {
+				compatible = "inside-secure,safexcel-eip97";
+				reg = <0x90000 0x20000>;
+				interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "mem", "ring0", "ring1",
+						  "ring2", "ring3", "eip";
+				clocks = <&nb_periph_clk 15>;
 			};
 
 			sdhci1: sdhci@d0000 {

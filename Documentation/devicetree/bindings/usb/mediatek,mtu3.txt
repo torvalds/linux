@@ -42,9 +42,14 @@ Optional properties:
  - enable-manual-drd : supports manual dual-role switch via debugfs; usually
 	used when receptacle is TYPE-A and also wants to support dual-role
 	mode.
- - mediatek,enable-wakeup : supports ip sleep wakeup used by host mode
- - mediatek,syscon-wakeup : phandle to syscon used to access USB wakeup
-	control register, it depends on "mediatek,enable-wakeup".
+ - wakeup-source: enable USB remote wakeup of host mode.
+ - mediatek,syscon-wakeup : phandle to syscon used to access the register
+	of the USB wakeup glue layer between SSUSB and SPM; it depends on
+	"wakeup-source", and has two arguments:
+	- the first one : register base address of the glue layer in syscon;
+	- the second one : hardware version of the glue layer
+		- 1 : used by mt8173 etc
+		- 2 : used by mt2712 etc
  - mediatek,u3p-dis-msk : mask to disable u3ports, bit0 for u3port0,
 	bit1 for u3port1, ... etc;
 
@@ -71,8 +76,8 @@ ssusb: usb@11271000 {
 	vbus-supply = <&usb_p0_vbus>;
 	extcon = <&extcon_usb>;
 	dr_mode = "otg";
-	mediatek,enable-wakeup;
-	mediatek,syscon-wakeup = <&pericfg>;
+	wakeup-source;
+	mediatek,syscon-wakeup = <&pericfg 0x400 1>;
 	#address-cells = <2>;
 	#size-cells = <2>;
 	ranges;

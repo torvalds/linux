@@ -1982,6 +1982,7 @@ static void adv76xx_cec_tx_raw_status(struct v4l2_subdev *sd, u8 tx_raw_status)
 			 __func__);
 		cec_transmit_done(state->cec_adap, CEC_TX_STATUS_ARB_LOST,
 				  1, 0, 0, 0);
+		return;
 	}
 	if (tx_raw_status & 0x04) {
 		u8 status;

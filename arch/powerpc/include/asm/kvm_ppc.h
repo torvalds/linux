@@ -81,6 +81,10 @@ extern int kvmppc_handle_loads(struct kvm_run *run, struct kvm_vcpu *vcpu,
 extern int kvmppc_handle_vsx_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				unsigned int rt, unsigned int bytes,
 			int is_default_endian, int mmio_sign_extend);
+extern int kvmppc_handle_load128_by2x64(struct kvm_run *run,
+		struct kvm_vcpu *vcpu, unsigned int rt, int is_default_endian);
+extern int kvmppc_handle_store128_by2x64(struct kvm_run *run,
+		struct kvm_vcpu *vcpu, unsigned int rs, int is_default_endian);
 extern int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			       u64 val, unsigned int bytes,
 			       int is_default_endian);
@@ -873,7 +877,7 @@ static inline void kvmppc_fix_ee_before_entry(void)
 
 	/* Only need to enable IRQs by hard enabling them after this */
 	local_paca->irq_happened = 0;
-	local_paca->soft_enabled = 1;
+	irq_soft_mask_set(IRQS_ENABLED);
 #endif
 }
 

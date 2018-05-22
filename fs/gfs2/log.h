@@ -65,14 +65,10 @@ extern unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct,
 
 extern void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks);
 extern int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks);
-enum gfs2_flush_type {
-	NORMAL_FLUSH = 0,
-	SYNC_FLUSH,
-	SHUTDOWN_FLUSH,
-	FREEZE_FLUSH
-};
+extern void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
+				  u64 seq, u32 tail, u32 flags, int op_flags);
 extern void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl,
-			   enum gfs2_flush_type type);
+			   u32 type);
 extern void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *trans);
 extern void gfs2_remove_from_ail(struct gfs2_bufdata *bd);
 extern void gfs2_ail1_flush(struct gfs2_sbd *sdp, struct writeback_control *wbc);

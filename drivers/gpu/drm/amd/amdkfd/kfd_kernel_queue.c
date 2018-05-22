@@ -218,7 +218,7 @@ static int acquire_packet_buffer(struct kernel_queue *kq,
 	rptr = *kq->rptr_kernel;
 	wptr = *kq->wptr_kernel;
 	queue_address = (unsigned int *)kq->pq_kernel_addr;
-	queue_size_dwords = kq->queue->properties.queue_size / sizeof(uint32_t);
+	queue_size_dwords = kq->queue->properties.queue_size / 4;
 
 	pr_debug("rptr: %d\n", rptr);
 	pr_debug("wptr: %d\n", wptr);

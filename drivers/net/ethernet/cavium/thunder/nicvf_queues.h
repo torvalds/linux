@@ -11,6 +11,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/iommu.h>
+#include <net/xdp.h>
 #include "q_struct.h"
 
 #define MAX_QUEUE_SET			128
@@ -208,7 +209,7 @@ struct rx_tx_queue_stats {
 struct q_desc_mem {
 	dma_addr_t	dma;
 	u64		size;
-	u16		q_len;
+	u32		q_len;
 	dma_addr_t	phys_base;
 	void		*base;
 	void		*unalign_base;
@@ -251,6 +252,7 @@ struct rcv_queue {
 	u8		start_qs_rbdr_idx; /* RBDR idx in the above QS */
 	u8		caching;
 	struct		rx_tx_queue_stats stats;
+	struct xdp_rxq_info xdp_rxq;
 } ____cacheline_aligned_in_smp;
 
 struct cmp_queue {

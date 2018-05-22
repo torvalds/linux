@@ -55,6 +55,19 @@ static int skl_free_dma_buf(struct device *dev, struct snd_dma_buffer *dmab)
 	return 0;
 }
 
+#define SKL_ASTATE_PARAM_ID	4
+
+void skl_dsp_set_astate_cfg(struct skl_sst *ctx, u32 cnt, void *data)
+{
+	struct skl_ipc_large_config_msg	msg = {0};
+
+	msg.large_param_id = SKL_ASTATE_PARAM_ID;
+	msg.param_data_size = (cnt * sizeof(struct skl_astate_param) +
+				sizeof(cnt));
+
+	skl_ipc_set_large_config(&ctx->ipc, &msg, data);
+}
+
 #define NOTIFICATION_PARAM_ID 3
 #define NOTIFICATION_MASK 0xf
 
@@ -404,11 +417,20 @@ int skl_resume_dsp(struct skl *skl)
 	if (skl->skl_sst->is_first_boot == true)
 		return 0;
 
+	/* disable dynamic clock gating during fw and lib download */
+	ctx->enable_miscbdcge(ctx->dev, false);
+
 	ret = skl_dsp_wake(ctx->dsp);
+	ctx->enable_miscbdcge(ctx->dev, true);
 	if (ret < 0)
 		return ret;
 
 	skl_dsp_enable_notification(skl->skl_sst, false);
+
+	if (skl->cfg.astate_cfg != NULL) {
+		skl_dsp_set_astate_cfg(skl->skl_sst, skl->cfg.astate_cfg->count,
+					skl->cfg.astate_cfg);
+	}
 	return ret;
 }
 
@@ -653,6 +675,7 @@ int skl_dsp_set_dma_control(struct skl_sst *ctx, u32 *caps,
 	kfree(dma_ctrl);
 	return err;
 }
+EXPORT_SYMBOL_GPL(skl_dsp_set_dma_control);
 
 static void skl_setup_out_format(struct skl_sst *ctx,
 			struct skl_module_cfg *mconfig,

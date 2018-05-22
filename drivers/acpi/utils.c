@@ -737,16 +737,17 @@ bool acpi_dev_found(const char *hid)
 }
 EXPORT_SYMBOL(acpi_dev_found);
 
-struct acpi_dev_present_info {
+struct acpi_dev_match_info {
+	const char *dev_name;
 	struct acpi_device_id hid[2];
 	const char *uid;
 	s64 hrv;
 };
 
-static int acpi_dev_present_cb(struct device *dev, void *data)
+static int acpi_dev_match_cb(struct device *dev, void *data)
 {
 	struct acpi_device *adev = to_acpi_device(dev);
-	struct acpi_dev_present_info *match = data;
+	struct acpi_dev_match_info *match = data;
 	unsigned long long hrv;
 	acpi_status status;
 
@@ -756,6 +757,8 @@ static int acpi_dev_present_cb(struct device *dev, void *data)
 	if (match->uid && (!adev->pnp.unique_id ||
 	    strcmp(adev->pnp.unique_id, match->uid)))
 		return 0;
+
+	match->dev_name = acpi_dev_name(adev);
 
 	if (match->hrv == -1)
 		return 1;
@@ -789,19 +792,43 @@ static int acpi_dev_present_cb(struct device *dev, void *data)
  */
 bool acpi_dev_present(const char *hid, const char *uid, s64 hrv)
 {
-	struct acpi_dev_present_info match = {};
+	struct acpi_dev_match_info match = {};
 	struct device *dev;
 
 	strlcpy(match.hid[0].id, hid, sizeof(match.hid[0].id));
 	match.uid = uid;
 	match.hrv = hrv;
 
-	dev = bus_find_device(&acpi_bus_type, NULL, &match,
-			      acpi_dev_present_cb);
-
+	dev = bus_find_device(&acpi_bus_type, NULL, &match, acpi_dev_match_cb);
 	return !!dev;
 }
 EXPORT_SYMBOL(acpi_dev_present);
+
+/**
+ * acpi_dev_get_first_match_name - Return name of first match of ACPI device
+ * @hid: Hardware ID of the device.
+ * @uid: Unique ID of the device, pass NULL to not check _UID
+ * @hrv: Hardware Revision of the device, pass -1 to not check _HRV
+ *
+ * Return device name if a matching device was present
+ * at the moment of invocation, or NULL otherwise.
+ *
+ * See additional information in acpi_dev_present() as well.
+ */
+const char *
+acpi_dev_get_first_match_name(const char *hid, const char *uid, s64 hrv)
+{
+	struct acpi_dev_match_info match = {};
+	struct device *dev;
+
+	strlcpy(match.hid[0].id, hid, sizeof(match.hid[0].id));
+	match.uid = uid;
+	match.hrv = hrv;
+
+	dev = bus_find_device(&acpi_bus_type, NULL, &match, acpi_dev_match_cb);
+	return dev ? match.dev_name : NULL;
+}
+EXPORT_SYMBOL(acpi_dev_get_first_match_name);
 
 /*
  * acpi_backlight= handling, this is done here rather then in video_detect.c

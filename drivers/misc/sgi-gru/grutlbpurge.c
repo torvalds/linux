@@ -258,6 +258,7 @@ static void gru_release(struct mmu_notifier *mn, struct mm_struct *mm)
 
 
 static const struct mmu_notifier_ops gru_mmuops = {
+	.flags			= MMU_INVALIDATE_DOES_NOT_BLOCK,
 	.invalidate_range_start	= gru_invalidate_range_start,
 	.invalidate_range_end	= gru_invalidate_range_end,
 	.release		= gru_release,

@@ -528,6 +528,20 @@ static ssize_t resource_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(resource);
 
+static ssize_t persistence_domain_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_region *nd_region = to_nd_region(dev);
+
+	if (test_bit(ND_REGION_PERSIST_CACHE, &nd_region->flags))
+		return sprintf(buf, "cpu_cache\n");
+	else if (test_bit(ND_REGION_PERSIST_MEMCTRL, &nd_region->flags))
+		return sprintf(buf, "memory_controller\n");
+	else
+		return sprintf(buf, "\n");
+}
+static DEVICE_ATTR_RO(persistence_domain);
+
 static struct attribute *nd_region_attributes[] = {
 	&dev_attr_size.attr,
 	&dev_attr_nstype.attr,
@@ -543,6 +557,7 @@ static struct attribute *nd_region_attributes[] = {
 	&dev_attr_init_namespaces.attr,
 	&dev_attr_badblocks.attr,
 	&dev_attr_resource.attr,
+	&dev_attr_persistence_domain.attr,
 	NULL,
 };
 
@@ -578,6 +593,13 @@ static umode_t region_visible(struct kobject *kobj, struct attribute *a, int n)
 			return 0444;
 		else
 			return 0;
+	}
+
+	if (a == &dev_attr_persistence_domain.attr) {
+		if ((nd_region->flags & (BIT(ND_REGION_PERSIST_CACHE)
+					| BIT(ND_REGION_PERSIST_MEMCTRL))) == 0)
+			return 0;
+		return a->mode;
 	}
 
 	if (a != &dev_attr_set_cookie.attr

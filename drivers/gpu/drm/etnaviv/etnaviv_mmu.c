@@ -263,18 +263,16 @@ int etnaviv_iommu_map_gem(struct etnaviv_iommu *mmu,
 		if (iova < 0x80000000 - sg_dma_len(sgt->sgl)) {
 			mapping->iova = iova;
 			list_add_tail(&mapping->mmu_node, &mmu->mappings);
-			mutex_unlock(&mmu->lock);
-			return 0;
+			ret = 0;
+			goto unlock;
 		}
 	}
 
 	node = &mapping->vram_node;
 
 	ret = etnaviv_iommu_find_iova(mmu, node, etnaviv_obj->base.size);
-	if (ret < 0) {
-		mutex_unlock(&mmu->lock);
-		return ret;
-	}
+	if (ret < 0)
+		goto unlock;
 
 	mmu->last_iova = node->start + etnaviv_obj->base.size;
 	mapping->iova = node->start;
@@ -283,12 +281,12 @@ int etnaviv_iommu_map_gem(struct etnaviv_iommu *mmu,
 
 	if (ret < 0) {
 		drm_mm_remove_node(node);
-		mutex_unlock(&mmu->lock);
-		return ret;
+		goto unlock;
 	}
 
 	list_add_tail(&mapping->mmu_node, &mmu->mappings);
 	mmu->need_flush = true;
+unlock:
 	mutex_unlock(&mmu->lock);
 
 	return ret;

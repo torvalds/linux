@@ -265,7 +265,7 @@ extern struct resource * __devm_request_region(struct device *dev,
 extern void __devm_release_region(struct device *dev, struct resource *parent,
 				  resource_size_t start, resource_size_t n);
 extern int iomem_map_sanity_check(resource_size_t addr, unsigned long size);
-extern int iomem_is_exclusive(u64 addr);
+extern bool iomem_is_exclusive(u64 addr);
 
 extern int
 walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,

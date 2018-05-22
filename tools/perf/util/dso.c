@@ -446,7 +446,7 @@ static int do_open(char *name)
 	char sbuf[STRERR_BUFSIZE];
 
 	do {
-		fd = open(name, O_RDONLY);
+		fd = open(name, O_RDONLY|O_CLOEXEC);
 		if (fd >= 0)
 			return fd;
 

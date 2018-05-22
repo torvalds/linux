@@ -812,7 +812,6 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 	struct gendisk *disk;
 	struct request_queue *q;
 	struct blkcg_gq *blkg;
-	struct module *owner;
 	unsigned int major, minor;
 	int key_len, part, ret;
 	char *body;
@@ -904,9 +903,7 @@ fail_unlock:
 	spin_unlock_irq(q->queue_lock);
 	rcu_read_unlock();
 fail:
-	owner = disk->fops->owner;
-	put_disk(disk);
-	module_put(owner);
+	put_disk_and_module(disk);
 	/*
 	 * If queue was bypassing, we should retry.  Do so after a
 	 * short msleep().  It isn't strictly necessary but queue
@@ -931,13 +928,9 @@ EXPORT_SYMBOL_GPL(blkg_conf_prep);
 void blkg_conf_finish(struct blkg_conf_ctx *ctx)
 	__releases(ctx->disk->queue->queue_lock) __releases(rcu)
 {
-	struct module *owner;
-
 	spin_unlock_irq(ctx->disk->queue->queue_lock);
 	rcu_read_unlock();
-	owner = ctx->disk->fops->owner;
-	put_disk(ctx->disk);
-	module_put(owner);
+	put_disk_and_module(ctx->disk);
 }
 EXPORT_SYMBOL_GPL(blkg_conf_finish);
 
