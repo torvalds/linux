@@ -82,6 +82,8 @@ enum nfp_port_flags {
  * @eth_stats:	for %NFP_PORT_PHYS_PORT MAC stats if available
  * @pf_id:	for %NFP_PORT_PF_PORT, %NFP_PORT_VF_PORT ID of the PCI PF (0-3)
  * @vf_id:	for %NFP_PORT_VF_PORT ID of the PCI VF within @pf_id
+ * @pf_split:	for %NFP_PORT_PF_PORT %true if PCI PF has more than one vNIC
+ * @pf_split_id:for %NFP_PORT_PF_PORT ID of PCI PF vNIC (valid if @pf_split)
  * @vnic:	for %NFP_PORT_PF_PORT, %NFP_PORT_VF_PORT vNIC ctrl memory
  * @port_list:	entry on pf's list of ports
  */
@@ -108,6 +110,8 @@ struct nfp_port {
 		struct {
 			unsigned int pf_id;
 			unsigned int vf_id;
+			bool pf_split;
+			unsigned int pf_split_id;
 			u8 __iomem *vnic;
 		};
 	};

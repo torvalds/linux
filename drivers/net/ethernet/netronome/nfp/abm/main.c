@@ -109,6 +109,8 @@ nfp_abm_spawn_repr(struct nfp_app *app, struct nfp_abm_link *alink,
 			goto err_free_port;
 	} else {
 		port->pf_id = alink->abm->pf_id;
+		port->pf_split = app->pf->max_data_vnics > 1;
+		port->pf_split_id = alink->id;
 		port->vnic = alink->vnic->dp.ctrl_bar;
 	}
 

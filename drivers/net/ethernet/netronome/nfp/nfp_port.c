@@ -181,7 +181,11 @@ nfp_port_get_phys_port_name(struct net_device *netdev, char *name, size_t len)
 				     eth_port->label_subport);
 		break;
 	case NFP_PORT_PF_PORT:
-		n = snprintf(name, len, "pf%d", port->pf_id);
+		if (!port->pf_split)
+			n = snprintf(name, len, "pf%d", port->pf_id);
+		else
+			n = snprintf(name, len, "pf%ds%d", port->pf_id,
+				     port->pf_split_id);
 		break;
 	case NFP_PORT_VF_PORT:
 		n = snprintf(name, len, "pf%dvf%d", port->pf_id, port->vf_id);
