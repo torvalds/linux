@@ -831,8 +831,8 @@ static int adv7511_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 	 */
 	adv7511_cec_write_and_or(sd, 0x12, ~0x70, max(1, attempts - 1) << 4);
 
-	/* blocking, clear cec tx irq status */
-	adv7511_wr_and_or(sd, 0x97, 0xc7, 0x38);
+	/* clear cec tx irq status */
+	adv7511_wr(sd, 0x97, 0x38);
 
 	/* write data */
 	for (i = 0; i < len; i++)
