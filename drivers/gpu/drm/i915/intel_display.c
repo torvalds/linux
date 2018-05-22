@@ -9209,6 +9209,44 @@ static void cannonlake_get_ddi_pll(struct drm_i915_private *dev_priv,
 	pipe_config->shared_dpll = intel_get_shared_dpll_by_id(dev_priv, id);
 }
 
+static void icelake_get_ddi_pll(struct drm_i915_private *dev_priv,
+				enum port port,
+				struct intel_crtc_state *pipe_config)
+{
+	enum intel_dpll_id id;
+	u32 temp;
+
+	/* TODO: TBT pll not implemented. */
+	switch (port) {
+	case PORT_A:
+	case PORT_B:
+		temp = I915_READ(DPCLKA_CFGCR0_ICL) &
+		       DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port);
+		id = temp >> DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(port);
+
+		if (WARN_ON(id != DPLL_ID_ICL_DPLL0 && id != DPLL_ID_ICL_DPLL1))
+			return;
+		break;
+	case PORT_C:
+		id = DPLL_ID_ICL_MGPLL1;
+		break;
+	case PORT_D:
+		id = DPLL_ID_ICL_MGPLL2;
+		break;
+	case PORT_E:
+		id = DPLL_ID_ICL_MGPLL3;
+		break;
+	case PORT_F:
+		id = DPLL_ID_ICL_MGPLL4;
+		break;
+	default:
+		MISSING_CASE(port);
+		return;
+	}
+
+	pipe_config->shared_dpll = intel_get_shared_dpll_by_id(dev_priv, id);
+}
+
 static void bxt_get_ddi_pll(struct drm_i915_private *dev_priv,
 				enum port port,
 				struct intel_crtc_state *pipe_config)
@@ -9396,7 +9434,9 @@ static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
 
 	port = (tmp & TRANS_DDI_PORT_MASK) >> TRANS_DDI_PORT_SHIFT;
 
-	if (IS_CANNONLAKE(dev_priv))
+	if (IS_ICELAKE(dev_priv))
+		icelake_get_ddi_pll(dev_priv, port, pipe_config);
+	else if (IS_CANNONLAKE(dev_priv))
 		cannonlake_get_ddi_pll(dev_priv, port, pipe_config);
 	else if (IS_GEN9_BC(dev_priv))
 		skylake_get_ddi_pll(dev_priv, port, pipe_config);
