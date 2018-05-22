@@ -107,6 +107,8 @@ struct cif_isp10_isp_readout_work {
 	struct cif_isp10_isp_dev *isp_dev;
 
 	unsigned int frame_id;
+	struct timeval vs_t;
+	struct timeval fi_t;
 	enum cif_isp10_isp_readout_cmd readout;
 	struct vb2_buffer *vb;
 	unsigned int stream_id;

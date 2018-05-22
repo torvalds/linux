@@ -794,6 +794,11 @@ int cif_isp10_s_exp(
 	struct cif_isp10_device *dev,
 	struct cif_isp10_img_src_ext_ctrl *exp_ctrl);
 
+int cif_isp10_s_vcm(
+	struct cif_isp10_device *dev,
+	unsigned int id,
+	int val);
+
 void cif_isp10_sensor_mode_data_sync(
 	struct cif_isp10_device *dev,
 	unsigned int frame_id,

@@ -125,6 +125,17 @@ struct pltfrm_cam_itf {
 				(PLTFRM_CIFCAM_IOCTL_INTERNAL_BASE + 2)
 #define PLTFRM_CIFCAM_ATTACH    \
 				(PLTFRM_CIFCAM_IOCTL_INTERNAL_BASE + 3)
+#define PLTFRM_CIFCAM_SET_VCM_POS    \
+				(PLTFRM_CIFCAM_IOCTL_INTERNAL_BASE + 4)
+#define PLTFRM_CIFCAM_GET_VCM_POS    \
+				(PLTFRM_CIFCAM_IOCTL_INTERNAL_BASE + 5)
+#define PLTFRM_CIFCAM_GET_VCM_MOVE_RES    \
+				(PLTFRM_CIFCAM_IOCTL_INTERNAL_BASE + 6)
+
+struct pltfrm_cam_vcm_tim {
+	struct timeval vcm_start_t;
+	struct timeval vcm_end_t;
+};
 
 struct pltfrm_cam_defrect {
 	unsigned int width;

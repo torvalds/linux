@@ -464,6 +464,9 @@ long cif_isp10_img_src_v4l2_subdev_ioctl(
 	case PLTFRM_CIFCAM_G_ITF_CFG:
 	case PLTFRM_CIFCAM_G_DEFRECT:
 	case PLTFRM_CIFCAM_ATTACH:
+	case PLTFRM_CIFCAM_SET_VCM_POS:
+	case PLTFRM_CIFCAM_GET_VCM_POS:
+	case PLTFRM_CIFCAM_GET_VCM_MOVE_RES:
 		ret = v4l2_subdev_call(subdev,
 			core,
 			ioctl,
@@ -475,7 +478,7 @@ long cif_isp10_img_src_v4l2_subdev_ioctl(
 		break;
 	}
 
-	if (IS_ERR_VALUE(ret))
+	if (IS_ERR_VALUE(ret) && cmd != PLTFRM_CIFCAM_GET_VCM_MOVE_RES)
 		pr_err("img_src.%s subdev call(cmd: 0x%x) failed with error %ld\n",
 		__func__, cmd, ret);
 

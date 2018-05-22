@@ -46,8 +46,6 @@ struct isp_supplemental_sensor_mode_data {
 	unsigned char exposure_valid_frame[2];
 	int exp_time;
 	unsigned short gain;
-	unsigned short af_onoff;
-	unsigned int vcm_max_step;
 };
 
 struct camera_module_info_s {
@@ -64,6 +62,7 @@ struct camera_module_info_s {
 	bool iq_flip;
 	int flash_support;
 	int flash_exp_percent;
+	int af_support;
 };
 
 struct flash_timeinfo_s {
