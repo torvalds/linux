@@ -1088,14 +1088,13 @@ static int cif_isp10_v4l2_release(struct file *file)
 	return ret;
 }
 
-/*
-static unsigned int cif_isp10_v4l2_poll(
+static unsigned int __maybe_unused cif_isp10_v4l2_poll(
 	struct file *file,
 	struct poll_table_struct *wait)
 {
 	struct cif_isp10_v4l2_fh *fh = to_fh(file);
 	int ret = 0;
-	struct videobuf_queue *queue = to_videobuf_queue(file);
+	struct vb2_queue *queue = to_vb2_queue(file);
 	unsigned long req_events = poll_requested_events(wait);
 
 	cif_isp10_pltfrm_pr_dbg(NULL, "%s\n",
@@ -1109,20 +1108,18 @@ static unsigned int cif_isp10_v4l2_poll(
 	if (!(req_events & (POLLIN | POLLOUT | POLLRDNORM)))
 		return ret;
 
-	ret |= videobuf_poll_stream(file, queue, wait);
+	ret |= vb2_fop_poll(file, wait);
 	if (ret & POLLERR) {
 		cif_isp10_pltfrm_pr_err(NULL,
 			"videobuf_poll_stream failed with error 0x%x\n", ret);
 	}
 	return ret;
 }
-*/
 
 /*
  * VMA operations.
  */
-/*
-static void cif_isp10_v4l2_vm_open(struct vm_area_struct *vma)
+static void __maybe_unused cif_isp10_v4l2_vm_open(struct vm_area_struct *vma)
 {
 	struct cif_isp10_metadata_s *metadata =
 		(struct cif_isp10_metadata_s *)vma->vm_private_data;
@@ -1130,7 +1127,7 @@ static void cif_isp10_v4l2_vm_open(struct vm_area_struct *vma)
 	metadata->vmas++;
 }
 
-static void cif_isp10_v4l2_vm_close(struct vm_area_struct *vma)
+static void __maybe_unused cif_isp10_v4l2_vm_close(struct vm_area_struct *vma)
 {
 	struct cif_isp10_metadata_s *metadata =
 		(struct cif_isp10_metadata_s *)vma->vm_private_data;
@@ -1138,14 +1135,14 @@ static void cif_isp10_v4l2_vm_close(struct vm_area_struct *vma)
 	metadata->vmas--;
 }
 
-static const struct vm_operations_struct cif_isp10_vm_ops = {
+static const struct __maybe_unused vm_operations_struct cif_isp10_vm_ops = {
 	.open		= cif_isp10_v4l2_vm_open,
 	.close		= cif_isp10_v4l2_vm_close,
 };
 
-int cif_isp10_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
+int __maybe_unused cif_isp10_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct videobuf_queue *queue = to_videobuf_queue(file);
+	struct vb2_queue *queue = to_vb2_queue(file);
 	struct cif_isp10_device *dev = to_cif_isp10_device(queue);
 	enum cif_isp10_stream_id strm = to_stream_id(file);
 	int retval;
@@ -1161,7 +1158,6 @@ int cif_isp10_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 done:
 	return retval;
 }
-*/
 
 const struct v4l2_file_operations cif_isp10_v4l2_fops = {
 	.open = cif_isp10_v4l2_open,
