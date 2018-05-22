@@ -388,7 +388,7 @@ static void msdc_dump_io_resp(struct msdc_host *host, u32 resp)
 	if (flags & (1 << 7))
 		N_MSG(RSP, "[IO] COM_CRC_ERR");
 	if (flags & (1 << 6))
-		N_MSG(RSP, "[IO] Illgal command");
+		N_MSG(RSP, "[IO] Illegal command");
 	if (flags & (1 << 3))
 		N_MSG(RSP, "[IO] Error");
 	if (flags & (1 << 2))
