@@ -178,11 +178,13 @@ nfp_net_pf_init_vnic(struct nfp_pf *pf, struct nfp_net *nn, unsigned int id)
 {
 	int err;
 
+	nn->id = id;
+
 	err = nfp_net_init(nn);
 	if (err)
 		return err;
 
-	nfp_net_debugfs_vnic_add(nn, pf->ddir, id);
+	nfp_net_debugfs_vnic_add(nn, pf->ddir);
 
 	if (nn->port) {
 		err = nfp_devlink_port_register(pf->app, nn->port);
