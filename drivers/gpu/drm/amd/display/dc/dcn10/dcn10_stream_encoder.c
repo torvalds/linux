@@ -1097,27 +1097,6 @@ static union audio_cea_channels speakers_to_channels(
 	return cea_channels;
 }
 
-static uint32_t calc_max_audio_packets_per_line(
-	const struct audio_crtc_info *crtc_info)
-{
-	uint32_t max_packets_per_line;
-
-	max_packets_per_line =
-		crtc_info->h_total - crtc_info->h_active;
-
-	if (crtc_info->pixel_repetition)
-		max_packets_per_line *= crtc_info->pixel_repetition;
-
-	/* for other hdmi features */
-	max_packets_per_line -= 58;
-	/* for Control Period */
-	max_packets_per_line -= 16;
-	/* Number of Audio Packets per Line */
-	max_packets_per_line /= 32;
-
-	return max_packets_per_line;
-}
-
 static void get_audio_clock_info(
 	enum dc_color_depth color_depth,
 	uint32_t crtc_pixel_clock_in_khz,
@@ -1211,16 +1190,9 @@ static void enc1_se_setup_hdmi_audio(
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
 	struct audio_clock_info audio_clock_info = {0};
-	uint32_t max_packets_per_line;
-
-	/* For now still do calculation, although this field is ignored when
-	 * above HDMI_PACKET_GEN_VERSION set to 1
-	 */
-	max_packets_per_line = calc_max_audio_packets_per_line(crtc_info);
 
 	/* HDMI_AUDIO_PACKET_CONTROL */
-	REG_UPDATE_2(HDMI_AUDIO_PACKET_CONTROL,
-			HDMI_AUDIO_PACKETS_PER_LINE, max_packets_per_line,
+	REG_UPDATE(HDMI_AUDIO_PACKET_CONTROL,
 			HDMI_AUDIO_DELAY_EN, 1);
 
 	/* AFMT_AUDIO_PACKET_CONTROL */
