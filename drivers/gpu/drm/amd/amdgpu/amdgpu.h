@@ -969,6 +969,7 @@ struct amdgpu_gfx {
 	struct amdgpu_irq_src		priv_reg_irq;
 	struct amdgpu_irq_src		priv_inst_irq;
 	struct amdgpu_irq_src		cp_ecc_error_irq;
+	struct amdgpu_irq_src		sq_irq;
 	/* gfx status */
 	uint32_t			gfx_current_status;
 	/* ce ram size*/
