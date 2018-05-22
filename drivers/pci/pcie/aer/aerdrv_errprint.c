@@ -163,17 +163,17 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 	int id = ((dev->bus->number << 8) | dev->devfn);
 
 	if (!info->status) {
-		pci_err(dev, "PCIe Bus Error: severity=%s, type=Unaccessible, id=%04x(Unregistered Agent ID)\n",
-			aer_error_severity_string[info->severity], id);
+		pci_err(dev, "PCIe Bus Error: severity=%s, type=Inaccessible, (Unregistered Agent ID)\n",
+			aer_error_severity_string[info->severity]);
 		goto out;
 	}
 
 	layer = AER_GET_LAYER_ERROR(info->severity, info->status);
 	agent = AER_GET_AGENT(info->severity, info->status);
 
-	pci_err(dev, "PCIe Bus Error: severity=%s, type=%s, id=%04x(%s)\n",
+	pci_err(dev, "PCIe Bus Error: severity=%s, type=%s, (%s)\n",
 		aer_error_severity_string[info->severity],
-		aer_error_layer[layer], id, aer_agent_string[agent]);
+		aer_error_layer[layer], aer_agent_string[agent]);
 
 	pci_err(dev, "  device [%04x:%04x] error status/mask=%08x/%08x\n",
 		dev->vendor, dev->device,
@@ -186,7 +186,7 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 
 out:
 	if (info->id && info->error_dev_num > 1 && info->id == id)
-		pci_err(dev, "  Error of this Agent(%04x) is reported first\n", id);
+		pci_err(dev, "  Error of this Agent is reported first\n");
 
 	trace_aer_event(dev_name(&dev->dev), (info->status & ~info->mask),
 			info->severity, info->tlp_header_valid, &info->tlp);
@@ -194,9 +194,13 @@ out:
 
 void aer_print_port_info(struct pci_dev *dev, struct aer_err_info *info)
 {
-	pci_info(dev, "AER: %s%s error received: id=%04x\n",
+	u8 bus = info->id >> 8;
+	u8 devfn = info->id & 0xff;
+
+	pci_info(dev, "AER: %s%s error received: %04x:%02x:%02x.%d\n",
 		info->multi_error_valid ? "Multiple " : "",
-		aer_error_severity_string[info->severity], info->id);
+		aer_error_severity_string[info->severity],
+		pci_domain_nr(dev->bus), bus, PCI_SLOT(devfn), PCI_FUNC(devfn));
 }
 
 #ifdef CONFIG_ACPI_APEI_PCIEAER
