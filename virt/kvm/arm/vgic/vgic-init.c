@@ -199,6 +199,9 @@ int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
 	int ret = 0;
 	int i;
 
+	vgic_cpu->rd_iodev.base_addr = VGIC_ADDR_UNDEF;
+	vgic_cpu->sgi_iodev.base_addr = VGIC_ADDR_UNDEF;
+
 	INIT_LIST_HEAD(&vgic_cpu->ap_list_head);
 	spin_lock_init(&vgic_cpu->ap_list_lock);
 
