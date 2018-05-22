@@ -42,18 +42,18 @@ static const struct i40e_stats i40e_gstrings_net_stats[] = {
 };
 
 static const struct i40e_stats i40e_gstrings_veb_stats[] = {
-	I40E_VEB_STAT("rx_bytes", stats.rx_bytes),
-	I40E_VEB_STAT("tx_bytes", stats.tx_bytes),
-	I40E_VEB_STAT("rx_unicast", stats.rx_unicast),
-	I40E_VEB_STAT("tx_unicast", stats.tx_unicast),
-	I40E_VEB_STAT("rx_multicast", stats.rx_multicast),
-	I40E_VEB_STAT("tx_multicast", stats.tx_multicast),
-	I40E_VEB_STAT("rx_broadcast", stats.rx_broadcast),
-	I40E_VEB_STAT("tx_broadcast", stats.tx_broadcast),
-	I40E_VEB_STAT("rx_discards", stats.rx_discards),
-	I40E_VEB_STAT("tx_discards", stats.tx_discards),
-	I40E_VEB_STAT("tx_errors", stats.tx_errors),
-	I40E_VEB_STAT("rx_unknown_protocol", stats.rx_unknown_protocol),
+	I40E_VEB_STAT("veb.rx_bytes", stats.rx_bytes),
+	I40E_VEB_STAT("veb.tx_bytes", stats.tx_bytes),
+	I40E_VEB_STAT("veb.rx_unicast", stats.rx_unicast),
+	I40E_VEB_STAT("veb.tx_unicast", stats.tx_unicast),
+	I40E_VEB_STAT("veb.rx_multicast", stats.rx_multicast),
+	I40E_VEB_STAT("veb.tx_multicast", stats.tx_multicast),
+	I40E_VEB_STAT("veb.rx_broadcast", stats.rx_broadcast),
+	I40E_VEB_STAT("veb.tx_broadcast", stats.tx_broadcast),
+	I40E_VEB_STAT("veb.rx_discards", stats.rx_discards),
+	I40E_VEB_STAT("veb.tx_discards", stats.tx_discards),
+	I40E_VEB_STAT("veb.tx_errors", stats.tx_errors),
+	I40E_VEB_STAT("veb.rx_unknown_protocol", stats.rx_unknown_protocol),
 };
 
 static const struct i40e_stats i40e_gstrings_misc_stats[] = {
@@ -82,66 +82,71 @@ static const struct i40e_stats i40e_gstrings_misc_stats[] = {
  * is queried on the base PF netdev, not on the VMDq or FCoE netdev.
  */
 static const struct i40e_stats i40e_gstrings_stats[] = {
-	I40E_PF_STAT("rx_bytes", stats.eth.rx_bytes),
-	I40E_PF_STAT("tx_bytes", stats.eth.tx_bytes),
-	I40E_PF_STAT("rx_unicast", stats.eth.rx_unicast),
-	I40E_PF_STAT("tx_unicast", stats.eth.tx_unicast),
-	I40E_PF_STAT("rx_multicast", stats.eth.rx_multicast),
-	I40E_PF_STAT("tx_multicast", stats.eth.tx_multicast),
-	I40E_PF_STAT("rx_broadcast", stats.eth.rx_broadcast),
-	I40E_PF_STAT("tx_broadcast", stats.eth.tx_broadcast),
-	I40E_PF_STAT("tx_errors", stats.eth.tx_errors),
-	I40E_PF_STAT("rx_dropped", stats.eth.rx_discards),
-	I40E_PF_STAT("tx_dropped_link_down", stats.tx_dropped_link_down),
-	I40E_PF_STAT("rx_crc_errors", stats.crc_errors),
-	I40E_PF_STAT("illegal_bytes", stats.illegal_bytes),
-	I40E_PF_STAT("mac_local_faults", stats.mac_local_faults),
-	I40E_PF_STAT("mac_remote_faults", stats.mac_remote_faults),
-	I40E_PF_STAT("tx_timeout", tx_timeout_count),
-	I40E_PF_STAT("rx_csum_bad", hw_csum_rx_error),
-	I40E_PF_STAT("rx_length_errors", stats.rx_length_errors),
-	I40E_PF_STAT("link_xon_rx", stats.link_xon_rx),
-	I40E_PF_STAT("link_xoff_rx", stats.link_xoff_rx),
-	I40E_PF_STAT("link_xon_tx", stats.link_xon_tx),
-	I40E_PF_STAT("link_xoff_tx", stats.link_xoff_tx),
-	I40E_PF_STAT("rx_size_64", stats.rx_size_64),
-	I40E_PF_STAT("rx_size_127", stats.rx_size_127),
-	I40E_PF_STAT("rx_size_255", stats.rx_size_255),
-	I40E_PF_STAT("rx_size_511", stats.rx_size_511),
-	I40E_PF_STAT("rx_size_1023", stats.rx_size_1023),
-	I40E_PF_STAT("rx_size_1522", stats.rx_size_1522),
-	I40E_PF_STAT("rx_size_big", stats.rx_size_big),
-	I40E_PF_STAT("tx_size_64", stats.tx_size_64),
-	I40E_PF_STAT("tx_size_127", stats.tx_size_127),
-	I40E_PF_STAT("tx_size_255", stats.tx_size_255),
-	I40E_PF_STAT("tx_size_511", stats.tx_size_511),
-	I40E_PF_STAT("tx_size_1023", stats.tx_size_1023),
-	I40E_PF_STAT("tx_size_1522", stats.tx_size_1522),
-	I40E_PF_STAT("tx_size_big", stats.tx_size_big),
-	I40E_PF_STAT("rx_undersize", stats.rx_undersize),
-	I40E_PF_STAT("rx_fragments", stats.rx_fragments),
-	I40E_PF_STAT("rx_oversize", stats.rx_oversize),
-	I40E_PF_STAT("rx_jabber", stats.rx_jabber),
-	I40E_PF_STAT("VF_admin_queue_requests", vf_aq_requests),
-	I40E_PF_STAT("arq_overflows", arq_overflows),
-	I40E_PF_STAT("rx_hwtstamp_cleared", rx_hwtstamp_cleared),
-	I40E_PF_STAT("tx_hwtstamp_skipped", tx_hwtstamp_skipped),
-	I40E_PF_STAT("fdir_flush_cnt", fd_flush_cnt),
-	I40E_PF_STAT("fdir_atr_match", stats.fd_atr_match),
-	I40E_PF_STAT("fdir_atr_tunnel_match", stats.fd_atr_tunnel_match),
-	I40E_PF_STAT("fdir_atr_status", stats.fd_atr_status),
-	I40E_PF_STAT("fdir_sb_match", stats.fd_sb_match),
-	I40E_PF_STAT("fdir_sb_status", stats.fd_sb_status),
+	I40E_PF_STAT("port.rx_bytes", stats.eth.rx_bytes),
+	I40E_PF_STAT("port.tx_bytes", stats.eth.tx_bytes),
+	I40E_PF_STAT("port.rx_unicast", stats.eth.rx_unicast),
+	I40E_PF_STAT("port.tx_unicast", stats.eth.tx_unicast),
+	I40E_PF_STAT("port.rx_multicast", stats.eth.rx_multicast),
+	I40E_PF_STAT("port.tx_multicast", stats.eth.tx_multicast),
+	I40E_PF_STAT("port.rx_broadcast", stats.eth.rx_broadcast),
+	I40E_PF_STAT("port.tx_broadcast", stats.eth.tx_broadcast),
+	I40E_PF_STAT("port.tx_errors", stats.eth.tx_errors),
+	I40E_PF_STAT("port.rx_dropped", stats.eth.rx_discards),
+	I40E_PF_STAT("port.tx_dropped_link_down", stats.tx_dropped_link_down),
+	I40E_PF_STAT("port.rx_crc_errors", stats.crc_errors),
+	I40E_PF_STAT("port.illegal_bytes", stats.illegal_bytes),
+	I40E_PF_STAT("port.mac_local_faults", stats.mac_local_faults),
+	I40E_PF_STAT("port.mac_remote_faults", stats.mac_remote_faults),
+	I40E_PF_STAT("port.tx_timeout", tx_timeout_count),
+	I40E_PF_STAT("port.rx_csum_bad", hw_csum_rx_error),
+	I40E_PF_STAT("port.rx_length_errors", stats.rx_length_errors),
+	I40E_PF_STAT("port.link_xon_rx", stats.link_xon_rx),
+	I40E_PF_STAT("port.link_xoff_rx", stats.link_xoff_rx),
+	I40E_PF_STAT("port.link_xon_tx", stats.link_xon_tx),
+	I40E_PF_STAT("port.link_xoff_tx", stats.link_xoff_tx),
+	I40E_PF_STAT("port.rx_size_64", stats.rx_size_64),
+	I40E_PF_STAT("port.rx_size_127", stats.rx_size_127),
+	I40E_PF_STAT("port.rx_size_255", stats.rx_size_255),
+	I40E_PF_STAT("port.rx_size_511", stats.rx_size_511),
+	I40E_PF_STAT("port.rx_size_1023", stats.rx_size_1023),
+	I40E_PF_STAT("port.rx_size_1522", stats.rx_size_1522),
+	I40E_PF_STAT("port.rx_size_big", stats.rx_size_big),
+	I40E_PF_STAT("port.tx_size_64", stats.tx_size_64),
+	I40E_PF_STAT("port.tx_size_127", stats.tx_size_127),
+	I40E_PF_STAT("port.tx_size_255", stats.tx_size_255),
+	I40E_PF_STAT("port.tx_size_511", stats.tx_size_511),
+	I40E_PF_STAT("port.tx_size_1023", stats.tx_size_1023),
+	I40E_PF_STAT("port.tx_size_1522", stats.tx_size_1522),
+	I40E_PF_STAT("port.tx_size_big", stats.tx_size_big),
+	I40E_PF_STAT("port.rx_undersize", stats.rx_undersize),
+	I40E_PF_STAT("port.rx_fragments", stats.rx_fragments),
+	I40E_PF_STAT("port.rx_oversize", stats.rx_oversize),
+	I40E_PF_STAT("port.rx_jabber", stats.rx_jabber),
+	I40E_PF_STAT("port.VF_admin_queue_requests", vf_aq_requests),
+	I40E_PF_STAT("port.arq_overflows", arq_overflows),
+	I40E_PF_STAT("port.tx_hwtstamp_timeouts", tx_hwtstamp_timeouts),
+	I40E_PF_STAT("port.rx_hwtstamp_cleared", rx_hwtstamp_cleared),
+	I40E_PF_STAT("port.tx_hwtstamp_skipped", tx_hwtstamp_skipped),
+	I40E_PF_STAT("port.fdir_flush_cnt", fd_flush_cnt),
+	I40E_PF_STAT("port.fdir_atr_match", stats.fd_atr_match),
+	I40E_PF_STAT("port.fdir_atr_tunnel_match", stats.fd_atr_tunnel_match),
+	I40E_PF_STAT("port.fdir_atr_status", stats.fd_atr_status),
+	I40E_PF_STAT("port.fdir_sb_match", stats.fd_sb_match),
+	I40E_PF_STAT("port.fdir_sb_status", stats.fd_sb_status),
 
 	/* LPI stats */
-	I40E_PF_STAT("tx_lpi_status", stats.tx_lpi_status),
-	I40E_PF_STAT("rx_lpi_status", stats.rx_lpi_status),
-	I40E_PF_STAT("tx_lpi_count", stats.tx_lpi_count),
-	I40E_PF_STAT("rx_lpi_count", stats.rx_lpi_count),
+	I40E_PF_STAT("port.tx_lpi_status", stats.tx_lpi_status),
+	I40E_PF_STAT("port.rx_lpi_status", stats.rx_lpi_status),
+	I40E_PF_STAT("port.tx_lpi_count", stats.tx_lpi_count),
+	I40E_PF_STAT("port.rx_lpi_count", stats.rx_lpi_count),
 };
 
-#define I40E_QUEUE_STATS_LEN(n) \
-	(((struct i40e_netdev_priv *)netdev_priv((n)))->vsi->num_queue_pairs \
+/* We use num_tx_queues here as a proxy for the maximum number of queues
+ * available because we always allocate queues symmetrically.
+ */
+#define I40E_MAX_NUM_QUEUES(n) ((n)->num_tx_queues)
+#define I40E_QUEUE_STATS_LEN(n)                                              \
+	   (I40E_MAX_NUM_QUEUES(n)                                           \
 	    * 2 /* Tx and Rx together */                                     \
 	    * (sizeof(struct i40e_queue_stats) / sizeof(u64)))
 #define I40E_GLOBAL_STATS_LEN	ARRAY_SIZE(i40e_gstrings_stats)
@@ -1655,21 +1660,30 @@ done:
 	return err;
 }
 
+/**
+ * i40e_get_stats_count - return the stats count for a device
+ * @netdev: the netdev to return the count for
+ *
+ * Returns the total number of statistics for this netdev. Note that even
+ * though this is a function, it is required that the count for a specific
+ * netdev must never change. Basing the count on static values such as the
+ * maximum number of queues or the device type is ok. However, the API for
+ * obtaining stats is *not* safe against changes based on non-static
+ * values such as the *current* number of queues, or runtime flags.
+ *
+ * If a statistic is not always enabled, return it as part of the count
+ * anyways, always return its string, and report its value as zero.
+ **/
 static int i40e_get_stats_count(struct net_device *netdev)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
 
-	if (vsi == pf->vsi[pf->lan_vsi] && pf->hw.partition_id == 1) {
-		if (pf->lan_veb != I40E_NO_VEB &&
-		    pf->flags & I40E_FLAG_VEB_STATS_ENABLED)
-			return I40E_PF_STATS_LEN(netdev) + I40E_VEB_STATS_TOTAL;
-		else
-			return I40E_PF_STATS_LEN(netdev);
-	} else {
+	if (vsi == pf->vsi[pf->lan_vsi] && pf->hw.partition_id == 1)
+		return I40E_PF_STATS_LEN(netdev) + I40E_VEB_STATS_TOTAL;
+	else
 		return I40E_VSI_STATS_LEN(netdev);
-	}
 }
 
 static int i40e_get_sset_count(struct net_device *netdev, int sset)
@@ -1691,6 +1705,20 @@ static int i40e_get_sset_count(struct net_device *netdev, int sset)
 	}
 }
 
+/**
+ * i40e_get_ethtool_stats - copy stat values into supplied buffer
+ * @netdev: the netdev to collect stats for
+ * @stats: ethtool stats command structure
+ * @data: ethtool supplied buffer
+ *
+ * Copy the stats values for this netdev into the buffer. Expects data to be
+ * pre-allocated to the size returned by i40e_get_stats_count.. Note that all
+ * statistics must be copied in a static order, and the count must not change
+ * for a given netdev. See i40e_get_stats_count for more details.
+ *
+ * If a statistic is not currently valid (such as a disabled queue), this
+ * function reports its value as zero.
+ **/
 static void i40e_get_ethtool_stats(struct net_device *netdev,
 				   struct ethtool_stats *stats, u64 *data)
 {
@@ -1698,47 +1726,54 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 	struct i40e_ring *tx_ring, *rx_ring;
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
-	unsigned int j;
-	int i = 0;
+	unsigned int i;
 	char *p;
 	struct rtnl_link_stats64 *net_stats = i40e_get_vsi_stats_struct(vsi);
 	unsigned int start;
 
 	i40e_update_stats(vsi);
 
-	for (j = 0; j < I40E_NETDEV_STATS_LEN; j++) {
-		p = (char *)net_stats + i40e_gstrings_net_stats[j].stat_offset;
-		data[i++] = (i40e_gstrings_net_stats[j].sizeof_stat ==
+	for (i = 0; i < I40E_NETDEV_STATS_LEN; i++) {
+		p = (char *)net_stats + i40e_gstrings_net_stats[i].stat_offset;
+		*(data++) = (i40e_gstrings_net_stats[i].sizeof_stat ==
 			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
-	for (j = 0; j < I40E_MISC_STATS_LEN; j++) {
-		p = (char *)vsi + i40e_gstrings_misc_stats[j].stat_offset;
-		data[i++] = (i40e_gstrings_misc_stats[j].sizeof_stat ==
+	for (i = 0; i < I40E_MISC_STATS_LEN; i++) {
+		p = (char *)vsi + i40e_gstrings_misc_stats[i].stat_offset;
+		*(data++) = (i40e_gstrings_misc_stats[i].sizeof_stat ==
 			    sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
 	rcu_read_lock();
-	for (j = 0; j < vsi->num_queue_pairs; j++) {
-		tx_ring = READ_ONCE(vsi->tx_rings[j]);
+	for (i = 0; i < I40E_MAX_NUM_QUEUES(netdev) ; i++) {
+		tx_ring = READ_ONCE(vsi->tx_rings[i]);
 
-		if (!tx_ring)
+		if (!tx_ring) {
+			/* Bump the stat counter to skip these stats, and make
+			 * sure the memory is zero'd
+			 */
+			*(data++) = 0;
+			*(data++) = 0;
+			*(data++) = 0;
+			*(data++) = 0;
 			continue;
+		}
 
 		/* process Tx ring statistics */
 		do {
 			start = u64_stats_fetch_begin_irq(&tx_ring->syncp);
-			data[i] = tx_ring->stats.packets;
-			data[i + 1] = tx_ring->stats.bytes;
+			data[0] = tx_ring->stats.packets;
+			data[1] = tx_ring->stats.bytes;
 		} while (u64_stats_fetch_retry_irq(&tx_ring->syncp, start));
-		i += 2;
+		data += 2;
 
 		/* Rx ring is the 2nd half of the queue pair */
 		rx_ring = &tx_ring[1];
 		do {
 			start = u64_stats_fetch_begin_irq(&rx_ring->syncp);
-			data[i] = rx_ring->stats.packets;
-			data[i + 1] = rx_ring->stats.bytes;
+			data[0] = rx_ring->stats.packets;
+			data[1] = rx_ring->stats.bytes;
 		} while (u64_stats_fetch_retry_irq(&rx_ring->syncp, start));
-		i += 2;
+		data += 2;
 	}
 	rcu_read_unlock();
 	if (vsi != pf->vsi[pf->lan_vsi] || pf->hw.partition_id != 1)
@@ -1748,38 +1783,131 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 	    (pf->flags & I40E_FLAG_VEB_STATS_ENABLED)) {
 		struct i40e_veb *veb = pf->veb[pf->lan_veb];
 
-		for (j = 0; j < I40E_VEB_STATS_LEN; j++) {
+		for (i = 0; i < I40E_VEB_STATS_LEN; i++) {
 			p = (char *)veb;
-			p += i40e_gstrings_veb_stats[j].stat_offset;
-			data[i++] = (i40e_gstrings_veb_stats[j].sizeof_stat ==
+			p += i40e_gstrings_veb_stats[i].stat_offset;
+			*(data++) = (i40e_gstrings_veb_stats[i].sizeof_stat ==
 				     sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 		}
-		for (j = 0; j < I40E_MAX_TRAFFIC_CLASS; j++) {
-			data[i++] = veb->tc_stats.tc_tx_packets[j];
-			data[i++] = veb->tc_stats.tc_tx_bytes[j];
-			data[i++] = veb->tc_stats.tc_rx_packets[j];
-			data[i++] = veb->tc_stats.tc_rx_bytes[j];
+		for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
+			*(data++) = veb->tc_stats.tc_tx_packets[i];
+			*(data++) = veb->tc_stats.tc_tx_bytes[i];
+			*(data++) = veb->tc_stats.tc_rx_packets[i];
+			*(data++) = veb->tc_stats.tc_rx_bytes[i];
 		}
+	} else {
+		data += I40E_VEB_STATS_TOTAL;
 	}
-	for (j = 0; j < I40E_GLOBAL_STATS_LEN; j++) {
-		p = (char *)pf + i40e_gstrings_stats[j].stat_offset;
-		data[i++] = (i40e_gstrings_stats[j].sizeof_stat ==
+	for (i = 0; i < I40E_GLOBAL_STATS_LEN; i++) {
+		p = (char *)pf + i40e_gstrings_stats[i].stat_offset;
+		*(data++) = (i40e_gstrings_stats[i].sizeof_stat ==
 			     sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
-	for (j = 0; j < I40E_MAX_USER_PRIORITY; j++) {
-		data[i++] = pf->stats.priority_xon_tx[j];
-		data[i++] = pf->stats.priority_xoff_tx[j];
+	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
+		*(data++) = pf->stats.priority_xon_tx[i];
+		*(data++) = pf->stats.priority_xoff_tx[i];
 	}
-	for (j = 0; j < I40E_MAX_USER_PRIORITY; j++) {
-		data[i++] = pf->stats.priority_xon_rx[j];
-		data[i++] = pf->stats.priority_xoff_rx[j];
+	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
+		*(data++) = pf->stats.priority_xon_rx[i];
+		*(data++) = pf->stats.priority_xoff_rx[i];
 	}
-	for (j = 0; j < I40E_MAX_USER_PRIORITY; j++)
-		data[i++] = pf->stats.priority_xon_2_xoff[j];
+	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++)
+		*(data++) = pf->stats.priority_xon_2_xoff[i];
 }
 
-static void i40e_get_strings(struct net_device *netdev, u32 stringset,
-			     u8 *data)
+/**
+ * i40e_get_stat_strings - copy stat strings into supplied buffer
+ * @netdev: the netdev to collect strings for
+ * @data: supplied buffer to copy strings into
+ *
+ * Copy the strings related to stats for this netdev. Expects data to be
+ * pre-allocated with the size reported by i40e_get_stats_count. Note that the
+ * strings must be copied in a static order and the total count must not
+ * change for a given netdev. See i40e_get_stats_count for more details.
+ **/
+static void i40e_get_stat_strings(struct net_device *netdev, u8 *data)
+{
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
+	unsigned int i;
+	u8 *p = data;
+
+	for (i = 0; i < I40E_NETDEV_STATS_LEN; i++) {
+		snprintf(data, ETH_GSTRING_LEN, "%s",
+			 i40e_gstrings_net_stats[i].stat_string);
+		data += ETH_GSTRING_LEN;
+	}
+	for (i = 0; i < I40E_MISC_STATS_LEN; i++) {
+		snprintf(data, ETH_GSTRING_LEN, "%s",
+			 i40e_gstrings_misc_stats[i].stat_string);
+		data += ETH_GSTRING_LEN;
+	}
+	for (i = 0; i < I40E_MAX_NUM_QUEUES(netdev); i++) {
+		snprintf(data, ETH_GSTRING_LEN, "tx-%u.tx_packets", i);
+		data += ETH_GSTRING_LEN;
+		snprintf(data, ETH_GSTRING_LEN, "tx-%u.tx_bytes", i);
+		data += ETH_GSTRING_LEN;
+		snprintf(data, ETH_GSTRING_LEN, "rx-%u.rx_packets", i);
+		data += ETH_GSTRING_LEN;
+		snprintf(data, ETH_GSTRING_LEN, "rx-%u.rx_bytes", i);
+		data += ETH_GSTRING_LEN;
+	}
+	if (vsi != pf->vsi[pf->lan_vsi] || pf->hw.partition_id != 1)
+		return;
+
+	for (i = 0; i < I40E_VEB_STATS_LEN; i++) {
+		snprintf(data, ETH_GSTRING_LEN, "%s",
+			 i40e_gstrings_veb_stats[i].stat_string);
+		data += ETH_GSTRING_LEN;
+	}
+	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
+		snprintf(data, ETH_GSTRING_LEN,
+			 "veb.tc_%u_tx_packets", i);
+		data += ETH_GSTRING_LEN;
+		snprintf(data, ETH_GSTRING_LEN,
+			 "veb.tc_%u_tx_bytes", i);
+		data += ETH_GSTRING_LEN;
+		snprintf(data, ETH_GSTRING_LEN,
+			 "veb.tc_%u_rx_packets", i);
+		data += ETH_GSTRING_LEN;
+		snprintf(data, ETH_GSTRING_LEN,
+			 "veb.tc_%u_rx_bytes", i);
+		data += ETH_GSTRING_LEN;
+	}
+
+	for (i = 0; i < I40E_GLOBAL_STATS_LEN; i++) {
+		snprintf(data, ETH_GSTRING_LEN, "%s",
+			 i40e_gstrings_stats[i].stat_string);
+		data += ETH_GSTRING_LEN;
+	}
+	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
+		snprintf(data, ETH_GSTRING_LEN,
+			 "port.tx_priority_%u_xon", i);
+		data += ETH_GSTRING_LEN;
+		snprintf(data, ETH_GSTRING_LEN,
+			 "port.tx_priority_%u_xoff", i);
+		data += ETH_GSTRING_LEN;
+	}
+	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
+		snprintf(data, ETH_GSTRING_LEN,
+			 "port.rx_priority_%u_xon", i);
+		data += ETH_GSTRING_LEN;
+		snprintf(data, ETH_GSTRING_LEN,
+			 "port.rx_priority_%u_xoff", i);
+		data += ETH_GSTRING_LEN;
+	}
+	for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
+		snprintf(data, ETH_GSTRING_LEN,
+			 "port.rx_priority_%u_xon_2_xoff", i);
+		data += ETH_GSTRING_LEN;
+	}
+
+	WARN_ONCE(p - data != i40e_get_stats_count(netdev) * ETH_GSTRING_LEN,
+		  "stat strings count mismatch!");
+}
+
+static void i40e_get_priv_flag_strings(struct net_device *netdev, u8 *data)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
@@ -1787,98 +1915,33 @@ static void i40e_get_strings(struct net_device *netdev, u32 stringset,
 	char *p = (char *)data;
 	unsigned int i;
 
+	for (i = 0; i < I40E_PRIV_FLAGS_STR_LEN; i++) {
+		snprintf(p, ETH_GSTRING_LEN, "%s",
+			 i40e_gstrings_priv_flags[i].flag_string);
+		p += ETH_GSTRING_LEN;
+	}
+	if (pf->hw.pf_id != 0)
+		return;
+	for (i = 0; i < I40E_GL_PRIV_FLAGS_STR_LEN; i++) {
+		snprintf(p, ETH_GSTRING_LEN, "%s",
+			 i40e_gl_gstrings_priv_flags[i].flag_string);
+		p += ETH_GSTRING_LEN;
+	}
+}
+
+static void i40e_get_strings(struct net_device *netdev, u32 stringset,
+			     u8 *data)
+{
 	switch (stringset) {
 	case ETH_SS_TEST:
 		memcpy(data, i40e_gstrings_test,
 		       I40E_TEST_LEN * ETH_GSTRING_LEN);
 		break;
 	case ETH_SS_STATS:
-		for (i = 0; i < I40E_NETDEV_STATS_LEN; i++) {
-			snprintf(p, ETH_GSTRING_LEN, "%s",
-				 i40e_gstrings_net_stats[i].stat_string);
-			p += ETH_GSTRING_LEN;
-		}
-		for (i = 0; i < I40E_MISC_STATS_LEN; i++) {
-			snprintf(p, ETH_GSTRING_LEN, "%s",
-				 i40e_gstrings_misc_stats[i].stat_string);
-			p += ETH_GSTRING_LEN;
-		}
-		for (i = 0; i < vsi->num_queue_pairs; i++) {
-			snprintf(p, ETH_GSTRING_LEN, "tx-%d.tx_packets", i);
-			p += ETH_GSTRING_LEN;
-			snprintf(p, ETH_GSTRING_LEN, "tx-%d.tx_bytes", i);
-			p += ETH_GSTRING_LEN;
-			snprintf(p, ETH_GSTRING_LEN, "rx-%d.rx_packets", i);
-			p += ETH_GSTRING_LEN;
-			snprintf(p, ETH_GSTRING_LEN, "rx-%d.rx_bytes", i);
-			p += ETH_GSTRING_LEN;
-		}
-		if (vsi != pf->vsi[pf->lan_vsi] || pf->hw.partition_id != 1)
-			return;
-
-		if ((pf->lan_veb != I40E_NO_VEB) &&
-		    (pf->flags & I40E_FLAG_VEB_STATS_ENABLED)) {
-			for (i = 0; i < I40E_VEB_STATS_LEN; i++) {
-				snprintf(p, ETH_GSTRING_LEN, "veb.%s",
-					i40e_gstrings_veb_stats[i].stat_string);
-				p += ETH_GSTRING_LEN;
-			}
-			for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
-				snprintf(p, ETH_GSTRING_LEN,
-					 "veb.tc_%d_tx_packets", i);
-				p += ETH_GSTRING_LEN;
-				snprintf(p, ETH_GSTRING_LEN,
-					 "veb.tc_%d_tx_bytes", i);
-				p += ETH_GSTRING_LEN;
-				snprintf(p, ETH_GSTRING_LEN,
-					 "veb.tc_%d_rx_packets", i);
-				p += ETH_GSTRING_LEN;
-				snprintf(p, ETH_GSTRING_LEN,
-					 "veb.tc_%d_rx_bytes", i);
-				p += ETH_GSTRING_LEN;
-			}
-		}
-		for (i = 0; i < I40E_GLOBAL_STATS_LEN; i++) {
-			snprintf(p, ETH_GSTRING_LEN, "port.%s",
-				 i40e_gstrings_stats[i].stat_string);
-			p += ETH_GSTRING_LEN;
-		}
-		for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
-			snprintf(p, ETH_GSTRING_LEN,
-				 "port.tx_priority_%d_xon", i);
-			p += ETH_GSTRING_LEN;
-			snprintf(p, ETH_GSTRING_LEN,
-				 "port.tx_priority_%d_xoff", i);
-			p += ETH_GSTRING_LEN;
-		}
-		for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
-			snprintf(p, ETH_GSTRING_LEN,
-				 "port.rx_priority_%d_xon", i);
-			p += ETH_GSTRING_LEN;
-			snprintf(p, ETH_GSTRING_LEN,
-				 "port.rx_priority_%d_xoff", i);
-			p += ETH_GSTRING_LEN;
-		}
-		for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
-			snprintf(p, ETH_GSTRING_LEN,
-				 "port.rx_priority_%d_xon_2_xoff", i);
-			p += ETH_GSTRING_LEN;
-		}
-		/* BUG_ON(p - data != I40E_STATS_LEN * ETH_GSTRING_LEN); */
+		i40e_get_stat_strings(netdev, data);
 		break;
 	case ETH_SS_PRIV_FLAGS:
-		for (i = 0; i < I40E_PRIV_FLAGS_STR_LEN; i++) {
-			snprintf(p, ETH_GSTRING_LEN, "%s",
-				 i40e_gstrings_priv_flags[i].flag_string);
-			p += ETH_GSTRING_LEN;
-		}
-		if (pf->hw.pf_id != 0)
-			break;
-		for (i = 0; i < I40E_GL_PRIV_FLAGS_STR_LEN; i++) {
-			snprintf(p, ETH_GSTRING_LEN, "%s",
-				 i40e_gl_gstrings_priv_flags[i].flag_string);
-			p += ETH_GSTRING_LEN;
-		}
+		i40e_get_priv_flag_strings(netdev, data);
 		break;
 	default:
 		break;
