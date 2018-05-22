@@ -276,7 +276,7 @@ static int mlx4_ib_add_gid(const union ib_gid *gid,
 			found = i;
 			break;
 		}
-		if (free < 0 && !memcmp(&port_gid_table->gids[i].gid, &zgid, sizeof(*gid)))
+		if (free < 0 && rdma_is_zero_gid(&port_gid_table->gids[i].gid))
 			free = i; /* HW has space */
 	}
 
@@ -345,7 +345,8 @@ static int mlx4_ib_del_gid(const struct ib_gid_attr *attr, void **context)
 		if (!ctx->refcount) {
 			unsigned int real_index = ctx->real_index;
 
-			memcpy(&port_gid_table->gids[real_index].gid, &zgid, sizeof(zgid));
+			memset(&port_gid_table->gids[real_index].gid, 0,
+			       sizeof(port_gid_table->gids[real_index].gid));
 			kfree(port_gid_table->gids[real_index].ctx);
 			port_gid_table->gids[real_index].ctx = NULL;
 			hw_update = 1;

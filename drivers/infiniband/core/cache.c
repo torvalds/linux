@@ -125,6 +125,16 @@ const char *ib_cache_gid_type_str(enum ib_gid_type gid_type)
 }
 EXPORT_SYMBOL(ib_cache_gid_type_str);
 
+/** rdma_is_zero_gid - Check if given GID is zero or not.
+ * @gid:	GID to check
+ * Returns true if given GID is zero, returns false otherwise.
+ */
+bool rdma_is_zero_gid(const union ib_gid *gid)
+{
+	return !memcmp(gid, &zgid, sizeof(*gid));
+}
+EXPORT_SYMBOL(rdma_is_zero_gid);
+
 int ib_cache_gid_parse_type_str(const char *buf)
 {
 	unsigned int i;
@@ -231,7 +241,7 @@ static int add_modify_gid(struct ib_gid_table *table,
 		 * So ignore such behavior for IB link layer and don't
 		 * fail the call, but don't add such entry to GID cache.
 		 */
-		if (!memcmp(gid, &zgid, sizeof(*gid)))
+		if (rdma_is_zero_gid(gid))
 			return 0;
 	}
 
@@ -264,7 +274,7 @@ static void del_gid(struct ib_device *ib_dev, u8 port,
 
 	if (rdma_protocol_roce(ib_dev, port))
 		del_roce_gid(ib_dev, port, table, ix);
-	memcpy(&table->data_vec[ix].gid, &zgid, sizeof(zgid));
+	memset(&table->data_vec[ix].gid, 0, sizeof(table->data_vec[ix].gid));
 	memset(&table->data_vec[ix].attr, 0, sizeof(table->data_vec[ix].attr));
 	table->data_vec[ix].context = NULL;
 }
@@ -363,7 +373,7 @@ static int __ib_cache_gid_add(struct ib_device *ib_dev, u8 port,
 	 * IB spec version 1.3 section 4.1.1 point (6) and
 	 * section 12.7.10 and section 12.7.20
 	 */
-	if (!memcmp(gid, &zgid, sizeof(*gid)))
+	if (rdma_is_zero_gid(gid))
 		return -EINVAL;
 
 	table = ib_dev->cache.ports[port - rdma_start_port(ib_dev)].gid;
@@ -724,8 +734,7 @@ static void cleanup_gid_table_port(struct ib_device *ib_dev, u8 port,
 
 	mutex_lock(&table->lock);
 	for (i = 0; i < table->sz; ++i) {
-		if (memcmp(&table->data_vec[i].gid, &zgid,
-			   sizeof(table->data_vec[i].gid))) {
+		if (!rdma_is_zero_gid(&table->data_vec[i].gid)) {
 			del_gid(ib_dev, port, table, i);
 			deleted = true;
 		}
