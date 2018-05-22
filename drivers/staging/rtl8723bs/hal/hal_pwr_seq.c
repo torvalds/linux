@@ -17,7 +17,7 @@ Major Change History:
 
 */
 
-#include "Hal8723BPwrSeq.h"
+#include "hal_pwr_seq.h"
 
 /* drivers should parse below arrays and do the corresponding actions */
 /* 3 Power on  Array */

@@ -16,7 +16,7 @@
 #include "rtl8723b_xmit.h"
 #include "rtl8723b_cmd.h"
 #include "rtw_mp.h"
-#include "Hal8723BPwrSeq.h"
+#include "hal_pwr_seq.h"
 #include "Hal8723BPhyReg.h"
 #include "Hal8723BPhyCfg.h"
 
