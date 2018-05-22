@@ -42,7 +42,7 @@
 #include "intel_drv.h"
 #include "intel_frontbuffer.h"
 
-#define I915_GFP_DMA (GFP_KERNEL | __GFP_HIGHMEM)
+#define I915_GFP_ALLOW_FAIL (GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN)
 
 /**
  * DOC: Global GTT views
@@ -489,7 +489,7 @@ static int __setup_page_dma(struct i915_address_space *vm,
 			    struct i915_page_dma *p,
 			    gfp_t gfp)
 {
-	p->page = vm_alloc_page(vm, gfp | __GFP_NOWARN | __GFP_NORETRY);
+	p->page = vm_alloc_page(vm, gfp | I915_GFP_ALLOW_FAIL);
 	if (unlikely(!p->page))
 		return -ENOMEM;
 
@@ -506,7 +506,7 @@ static int __setup_page_dma(struct i915_address_space *vm,
 static int setup_page_dma(struct i915_address_space *vm,
 			  struct i915_page_dma *p)
 {
-	return __setup_page_dma(vm, p, I915_GFP_DMA);
+	return __setup_page_dma(vm, p, __GFP_HIGHMEM);
 }
 
 static void cleanup_page_dma(struct i915_address_space *vm,
@@ -614,7 +614,7 @@ static struct i915_page_table *alloc_pt(struct i915_address_space *vm)
 {
 	struct i915_page_table *pt;
 
-	pt = kmalloc(sizeof(*pt), GFP_KERNEL | __GFP_NOWARN);
+	pt = kmalloc(sizeof(*pt), I915_GFP_ALLOW_FAIL);
 	if (unlikely(!pt))
 		return ERR_PTR(-ENOMEM);
 
@@ -651,7 +651,7 @@ static struct i915_page_directory *alloc_pd(struct i915_address_space *vm)
 {
 	struct i915_page_directory *pd;
 
-	pd = kzalloc(sizeof(*pd), GFP_KERNEL | __GFP_NOWARN);
+	pd = kzalloc(sizeof(*pd), I915_GFP_ALLOW_FAIL);
 	if (unlikely(!pd))
 		return ERR_PTR(-ENOMEM);
 
@@ -685,7 +685,7 @@ static int __pdp_init(struct i915_address_space *vm,
 	const unsigned int pdpes = i915_pdpes_per_pdp(vm);
 
 	pdp->page_directory = kmalloc_array(pdpes, sizeof(*pdp->page_directory),
-					    GFP_KERNEL | __GFP_NOWARN);
+					    I915_GFP_ALLOW_FAIL);
 	if (unlikely(!pdp->page_directory))
 		return -ENOMEM;
 
@@ -1229,7 +1229,7 @@ static int gen8_init_scratch(struct i915_address_space *vm)
 {
 	int ret;
 
-	ret = setup_scratch_page(vm, I915_GFP_DMA);
+	ret = setup_scratch_page(vm, __GFP_HIGHMEM);
 	if (ret)
 		return ret;
 
@@ -1974,7 +1974,7 @@ static int gen6_init_scratch(struct i915_address_space *vm)
 {
 	int ret;
 
-	ret = setup_scratch_page(vm, I915_GFP_DMA);
+	ret = setup_scratch_page(vm, __GFP_HIGHMEM);
 	if (ret)
 		return ret;
 
