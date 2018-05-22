@@ -43,8 +43,8 @@
 #define FW_8723B_START_ADDRESS 0x1000
 #define FW_8723B_END_ADDRESS   0x1FFF /* 0x5FFF */
 
-#define IS_FW_HEADER_EXIST_8723B(_pFwHdr) \
-	((le16_to_cpu(_pFwHdr->Signature) & 0xFFF0) == 0x5300)
+#define IS_FW_HEADER_EXIST_8723B(fw_hdr) \
+	((le16_to_cpu(fw_hdr->Signature) & 0xFFF0) == 0x5300)
 
 struct rt_firmware {
 	u32 ulFwLength;
