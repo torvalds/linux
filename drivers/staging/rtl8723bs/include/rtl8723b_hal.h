@@ -51,7 +51,7 @@ struct rt_firmware {
 	u8 *fw_buffer_sz;
 };
 
-/*  This structure must be cared byte-ordering */
+/* This structure must be carefully byte-ordered. */
 struct rt_firmware_hdr {
 	/*  8-byte alinment required */
 
