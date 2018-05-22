@@ -409,22 +409,22 @@ struct mlx5e_xdp_info {
 struct mlx5e_xdpsq {
 	/* data path */
 
-	/* dirtied @rx completion */
+	/* dirtied @completion */
 	u16                        cc;
-	u16                        pc;
+	bool                       redirect_flush;
+
+	/* dirtied @xmit */
+	u16                        pc ____cacheline_aligned_in_smp;
+	bool                       doorbell;
 
 	struct mlx5e_cq            cq;
-
-	/* write@xmit, read@completion */
-	struct {
-		struct mlx5e_xdp_info     *xdpi;
-		bool                       doorbell;
-		bool                       redirect_flush;
-	} db;
 
 	/* read only */
 	struct mlx5_wq_cyc         wq;
 	struct mlx5e_xdpsq_stats  *stats;
+	struct {
+		struct mlx5e_xdp_info     *xdpi;
+	} db;
 	void __iomem              *uar_map;
 	u32                        sqn;
 	struct device             *pdev;

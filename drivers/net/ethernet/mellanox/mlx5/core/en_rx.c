@@ -1201,14 +1201,14 @@ int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 		rq->handle_rx_cqe(rq, cqe);
 	} while ((++work_done < budget) && (cqe = mlx5_cqwq_get_cqe(&cq->wq)));
 
-	if (xdpsq->db.doorbell) {
+	if (xdpsq->doorbell) {
 		mlx5e_xmit_xdp_doorbell(xdpsq);
-		xdpsq->db.doorbell = false;
+		xdpsq->doorbell = false;
 	}
 
-	if (xdpsq->db.redirect_flush) {
+	if (xdpsq->redirect_flush) {
 		xdp_do_flush_map();
-		xdpsq->db.redirect_flush = false;
+		xdpsq->redirect_flush = false;
 	}
 
 	mlx5_cqwq_update_db_record(&cq->wq);

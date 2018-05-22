@@ -85,7 +85,7 @@ bool mlx5e_xdp_handle(struct mlx5e_rq *rq, struct mlx5e_dma_info *di,
 		if (unlikely(err))
 			goto xdp_abort;
 		__set_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags);
-		rq->xdpsq.db.redirect_flush = true;
+		rq->xdpsq.redirect_flush = true;
 		mlx5e_page_dma_unmap(rq, di);
 		rq->stats->xdp_redirect++;
 		return true;
@@ -124,10 +124,10 @@ bool mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xdp_info *xdpi)
 	}
 
 	if (unlikely(!mlx5e_wqc_has_room_for(wq, sq->cc, sq->pc, 1))) {
-		if (sq->db.doorbell) {
+		if (sq->doorbell) {
 			/* SQ is full, ring doorbell */
 			mlx5e_xmit_xdp_doorbell(sq);
-			sq->db.doorbell = false;
+			sq->doorbell = false;
 		}
 		stats->full++;
 		return false;
@@ -156,7 +156,7 @@ bool mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xdp_info *xdpi)
 	sq->db.xdpi[pi] = *xdpi;
 	sq->pc++;
 
-	sq->db.doorbell = true;
+	sq->doorbell = true;
 
 	stats->xmit++;
 	return true;

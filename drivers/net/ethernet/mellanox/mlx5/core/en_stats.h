@@ -230,7 +230,8 @@ struct mlx5e_xdpsq_stats {
 	u64 xmit;
 	u64 full;
 	u64 err;
-	u64 cqes;
+	/* dirtied @completion */
+	u64 cqes ____cacheline_aligned_in_smp;
 };
 
 struct mlx5e_ch_stats {
