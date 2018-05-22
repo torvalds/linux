@@ -976,6 +976,7 @@ static int sfp_probe(struct platform_device *pdev)
 	if (pdev->dev.of_node) {
 		struct device_node *node = pdev->dev.of_node;
 		const struct of_device_id *id;
+		struct i2c_adapter *i2c;
 		struct device_node *np;
 
 		id = of_match_node(sfp_of_match, node);
@@ -985,19 +986,20 @@ static int sfp_probe(struct platform_device *pdev)
 		sff = sfp->type = id->data;
 
 		np = of_parse_phandle(node, "i2c-bus", 0);
-		if (np) {
-			struct i2c_adapter *i2c;
+		if (!np) {
+			dev_err(sfp->dev, "missing 'i2c-bus' property\n");
+			return -ENODEV;
+		}
 
-			i2c = of_find_i2c_adapter_by_node(np);
-			of_node_put(np);
-			if (!i2c)
-				return -EPROBE_DEFER;
+		i2c = of_find_i2c_adapter_by_node(np);
+		of_node_put(np);
+		if (!i2c)
+			return -EPROBE_DEFER;
 
-			err = sfp_i2c_configure(sfp, i2c);
-			if (err < 0) {
-				i2c_put_adapter(i2c);
-				return err;
-			}
+		err = sfp_i2c_configure(sfp, i2c);
+		if (err < 0) {
+			i2c_put_adapter(i2c);
+			return err;
 		}
 	}
 
