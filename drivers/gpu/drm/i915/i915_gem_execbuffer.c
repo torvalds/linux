@@ -1894,6 +1894,33 @@ static int i915_reset_gen7_sol_offsets(struct i915_request *rq)
 	return 0;
 }
 
+static struct i915_vma *
+shadow_batch_pin(struct i915_execbuffer *eb, struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *dev_priv = eb->i915;
+	struct i915_address_space *vm;
+	u64 flags;
+
+	/*
+	 * PPGTT backed shadow buffers must be mapped RO, to prevent
+	 * post-scan tampering
+	 */
+	if (CMDPARSER_USES_GGTT(dev_priv)) {
+		flags = PIN_GLOBAL;
+		vm = &dev_priv->ggtt.vm;
+		eb->batch_flags |= I915_DISPATCH_SECURE;
+	} else if (eb->vm->has_read_only) {
+		flags = PIN_USER;
+		vm = eb->vm;
+		i915_gem_object_set_readonly(obj);
+	} else {
+		DRM_DEBUG("Cannot prevent post-scan tampering without RO capable vm\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	return i915_gem_object_pin(obj, vm, NULL, 0, 0, flags);
+}
+
 static struct i915_vma *eb_parse(struct i915_execbuffer *eb)
 {
 	struct drm_i915_gem_object *shadow_batch_obj;
@@ -1911,14 +1938,21 @@ static struct i915_vma *eb_parse(struct i915_execbuffer *eb)
 				      eb->batch_start_offset,
 				      eb->batch_len);
 	if (err) {
-		if (err == -EACCES) /* unhandled chained batch */
+		/*
+		 * Unsafe GGTT-backed buffers can still be submitted safely
+		 * as non-secure.
+		 * For PPGTT backing however, we have no choice but to forcibly
+		 * reject unsafe buffers
+		 */
+		if (CMDPARSER_USES_GGTT(eb->i915) && (err == -EACCES))
+			/* Execute original buffer non-secure */
 			vma = NULL;
 		else
 			vma = ERR_PTR(err);
 		goto out;
 	}
 
-	vma = i915_gem_object_ggtt_pin(shadow_batch_obj, NULL, 0, 0, 0);
+	vma = shadow_batch_pin(eb, shadow_batch_obj);
 	if (IS_ERR(vma))
 		goto out;
 
@@ -1927,7 +1961,9 @@ static struct i915_vma *eb_parse(struct i915_execbuffer *eb)
 		__EXEC_OBJECT_HAS_PIN | __EXEC_OBJECT_HAS_REF;
 	vma->exec_flags = &eb->flags[eb->buffer_count];
 	eb->buffer_count++;
-
+	eb->batch_start_offset = 0;
+	eb->batch = vma;
+	/* eb->batch_len unchanged */
 out:
 	i915_gem_object_unpin_pages(shadow_batch_obj);
 	return vma;
@@ -2312,21 +2348,6 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
 			goto err_vma;
-		}
-
-		if (vma) {
-			/*
-			 * Batch parsed and accepted:
-			 *
-			 * Set the DISPATCH_SECURE bit to remove the NON_SECURE
-			 * bit from MI_BATCH_BUFFER_START commands issued in
-			 * the dispatch_execbuffer implementations. We
-			 * specifically don't want that set on batches the
-			 * command parser has accepted.
-			 */
-			eb.batch_flags |= I915_DISPATCH_SECURE;
-			eb.batch_start_offset = 0;
-			eb.batch = vma;
 		}
 	}
 
