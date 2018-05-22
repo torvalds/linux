@@ -43,6 +43,7 @@ Kernel breakdown features by version
 | SATA     |  Y  |  Y  |  Y  |  Y?  |
 | 2 GMAC   |  Y  |  Y  |  N  |  N  |
 | DSA      |  N  |  Y  |  Y  |  Y?  |
+| USB      |  Y  |  Y  |  Y  |  Y?  |
 | VLAN     |     |     |  Y  |     |
 | HW NAT   |     |  Y  |  Y? |     |
 | HW QOS   |     |  Y  |  Y? |     |
