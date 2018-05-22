@@ -386,10 +386,6 @@ static int advbt771_samsung_tdtc9251dh0_tuner_calc_regs(struct dvb_frontend *fe,
 		bs = 0x02;
 	else if (c->frequency < 470000000)
 		bs = 0x02;
-	else if (c->frequency < 600000000)
-		bs = 0x08;
-	else if (c->frequency < 730000000)
-		bs = 0x08;
 	else
 		bs = 0x08;
 
