@@ -103,6 +103,7 @@ nfp_abm_spawn_repr(struct nfp_app *app, struct nfp_abm_link *alink,
 	}
 
 	if (ptype == NFP_PORT_PHYS_PORT) {
+		port->eth_forced = true;
 		err = nfp_port_init_phy_port(app->pf, app, port, alink->id);
 		if (err)
 			goto err_free_port;
@@ -276,8 +277,10 @@ nfp_abm_vnic_set_mac(struct nfp_pf *pf, struct nfp_abm *abm, struct nfp_net *nn,
 static int
 nfp_abm_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 {
+	struct nfp_eth_table_port *eth_port = &app->pf->eth_tbl->ports[id];
 	struct nfp_abm *abm = app->priv;
 	struct nfp_abm_link *alink;
+	int err;
 
 	alink = kzalloc(sizeof(*alink), GFP_KERNEL);
 	if (!alink)
@@ -287,12 +290,23 @@ nfp_abm_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 	alink->vnic = nn;
 	alink->id = id;
 
+	/* This is a multi-host app, make sure MAC/PHY is up, but don't
+	 * make the MAC/PHY state follow the state of any of the ports.
+	 */
+	err = nfp_eth_set_configured(app->cpp, eth_port->index, true);
+	if (err < 0)
+		goto err_free_alink;
+
 	netif_keep_dst(nn->dp.netdev);
 
 	nfp_abm_vnic_set_mac(app->pf, abm, nn, id);
 	nfp_abm_ctrl_read_params(alink);
 
 	return 0;
+
+err_free_alink:
+	kfree(alink);
+	return err;
 }
 
 static void nfp_abm_vnic_free(struct nfp_app *app, struct nfp_net *nn)

@@ -218,6 +218,8 @@ int nfp_port_configure(struct net_device *netdev, bool configed)
 	eth_port = __nfp_port_get_eth_port(port);
 	if (!eth_port)
 		return 0;
+	if (port->eth_forced)
+		return 0;
 
 	err = nfp_eth_set_configured(port->app->cpp, eth_port->index, configed);
 	return err < 0 && err != -EOPNOTSUPP ? err : 0;
