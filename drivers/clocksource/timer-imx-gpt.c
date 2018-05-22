@@ -1,6 +1,4 @@
 /*
- *  linux/arch/arm/plat-mxc/time.c
- *
  *  Copyright (C) 2000-2001 Deep Blue Solutions
  *  Copyright (C) 2002 Shane Nay (shane@minirl.com)
  *  Copyright (C) 2006-2007 Pavel Pisa (ppisa@pikron.com)
