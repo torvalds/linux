@@ -2266,7 +2266,7 @@ again:
 		complete_request(req, err);
 	mutex_unlock(&osd->lock);
 
-	if (ct_res == CALC_TARGET_POOL_DNE)
+	if (!err && ct_res == CALC_TARGET_POOL_DNE)
 		send_map_check(req);
 
 	if (promoted)
