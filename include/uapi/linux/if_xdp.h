@@ -17,10 +17,10 @@
 
 struct sockaddr_xdp {
 	__u16 sxdp_family;
+	__u16 sxdp_flags;
 	__u32 sxdp_ifindex;
 	__u32 sxdp_queue_id;
 	__u32 sxdp_shared_umem_fd;
-	__u16 sxdp_flags;
 };
 
 /* XDP socket options */
