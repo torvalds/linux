@@ -1266,12 +1266,16 @@ static void cif_isp10_v4l2_requeue_bufs(
 			to_cif_isp10_device(q), stream_id, ispbuf))) {
 			spin_lock(&dev->vbreq_lock);
 			if ((buf->state == VB2_BUF_STATE_QUEUED) ||
-			    (buf->state == VB2_BUF_STATE_ACTIVE))
+			    (buf->state == VB2_BUF_STATE_DONE)) {
 				buf->state = VB2_BUF_STATE_ACTIVE;
-			else
+				atomic_inc(&q->owned_by_drv_count);
+			} else if (buf->state == VB2_BUF_STATE_ACTIVE) {
+				/* nothing */
+			} else {
 				cif_isp10_pltfrm_pr_err(NULL,
 					"skip state change for buf: %d, state: %d\n",
 					buf->index, buf->state);
+			}
 			spin_unlock(&dev->vbreq_lock);
 		} else {
 			cif_isp10_pltfrm_pr_err(NULL,
