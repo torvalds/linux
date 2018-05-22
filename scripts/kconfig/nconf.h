@@ -14,7 +14,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <locale.h>
 #include <ncurses.h>
 #include <menu.h>
 #include <panel.h>

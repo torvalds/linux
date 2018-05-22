@@ -3,7 +3,7 @@
 # Kernel configuration targets
 # These targets are used from top-level makefile
 
-PHONY += xconfig gconfig menuconfig config syncconfig update-po-config \
+PHONY += xconfig gconfig menuconfig config syncconfig \
 	localmodconfig localyesconfig
 
 ifdef KBUILD_KCONFIG
@@ -54,29 +54,6 @@ localyesconfig localmodconfig: $(obj)/conf
 			$< $(silent) --oldconfig $(Kconfig);		\
 	fi
 	$(Q)rm -f .tmp.config
-
-# Create new linux.pot file
-# Adjust charset to UTF-8 in .po file to accept UTF-8 in Kconfig files
-update-po-config: $(obj)/kxgettext $(obj)/gconf.glade.h
-	$(Q)$(kecho) "  GEN     config.pot"
-	$(Q)xgettext --default-domain=linux                         \
-	    --add-comments --keyword=_ --keyword=N_                 \
-	    --from-code=UTF-8                                       \
-	    --files-from=$(srctree)/scripts/kconfig/POTFILES.in     \
-	    --directory=$(srctree) --directory=$(objtree)           \
-	    --output $(obj)/config.pot
-	$(Q)sed -i s/CHARSET/UTF-8/ $(obj)/config.pot
-	$(Q)(for i in `ls $(srctree)/arch/*/Kconfig      \
-	    $(srctree)/arch/*/um/Kconfig`;               \
-	    do                                           \
-		$(kecho) "  GEN     $$i";                    \
-		$(obj)/kxgettext $$i                     \
-		     >> $(obj)/config.pot;               \
-	    done )
-	$(Q)$(kecho) "  GEN     linux.pot"
-	$(Q)msguniq --sort-by-file --to-code=UTF-8 $(obj)/config.pot \
-	    --output $(obj)/linux.pot
-	$(Q)rm -f $(obj)/config.pot
 
 # These targets map 1:1 to the commandline options of 'conf'
 simple-targets := oldconfig allnoconfig allyesconfig allmodconfig \
@@ -179,19 +156,11 @@ help:
 # object files used by all kconfig flavours
 
 conf-objs	:= conf.o  zconf.tab.o
-kxgettext-objs	:= kxgettext.o zconf.tab.o
 
-hostprogs-y := conf kxgettext
+hostprogs-y := conf
 
 targets		+= zconf.lex.c
-clean-files	+= gconf.glade.h
-clean-files     += config.pot linux.pot
 
-# Add environment specific flags
-HOST_EXTRACFLAGS += $(shell $(CONFIG_SHELL) $(srctree)/$(src)/check.sh $(HOSTCC) $(HOSTCFLAGS)) \
-		    -DLOCALE
-HOST_EXTRACXXFLAGS += $(shell $(CONFIG_SHELL) $(srctree)/$(src)/check.sh $(HOSTCXX) $(HOSTCXXFLAGS)) \
-		    -DLOCALE
 # generated files seem to need this to find local include files
 HOSTCFLAGS_zconf.lex.o	:= -I$(src)
 HOSTCFLAGS_zconf.tab.o	:= -I$(src)
@@ -243,11 +212,6 @@ HOSTCFLAGS_gconf.o  = $(shell . $(obj)/.gconf-cfg && echo $$cflags)
 $(obj)/gconf.o: $(obj)/.gconf-cfg
 
 $(obj)/zconf.tab.o: $(obj)/zconf.lex.c
-
-# Extract gconf menu items for i18n support
-$(obj)/gconf.glade.h: $(obj)/gconf.glade
-	$(Q)intltool-extract --type=gettext/glade --srcdir=$(srctree) \
-	$(obj)/gconf.glade
 
 # check if necessary packages are available, and configure build flags
 define filechk_conf_cfg

@@ -546,7 +546,7 @@ void conf_parse(const char *name)
 		modules_sym = sym_find( "n" );
 
 	tmp = rootmenu.prompt->text;
-	rootmenu.prompt->text = _(rootmenu.prompt->text);
+	rootmenu.prompt->text = rootmenu.prompt->text;
 	rootmenu.prompt->text = sym_expand_string_value(rootmenu.prompt->text);
 	free((char*)tmp);
 
