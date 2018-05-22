@@ -27,7 +27,7 @@ struct xdp_umem {
 	struct pid *pid;
 	unsigned long address;
 	size_t size;
-	atomic_t users;
+	refcount_t users;
 	struct work_struct work;
 };
 

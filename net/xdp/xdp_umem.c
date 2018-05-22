@@ -78,7 +78,7 @@ static void xdp_umem_release_deferred(struct work_struct *work)
 
 void xdp_get_umem(struct xdp_umem *umem)
 {
-	atomic_inc(&umem->users);
+	refcount_inc(&umem->users);
 }
 
 void xdp_put_umem(struct xdp_umem *umem)
@@ -86,7 +86,7 @@ void xdp_put_umem(struct xdp_umem *umem)
 	if (!umem)
 		return;
 
-	if (atomic_dec_and_test(&umem->users)) {
+	if (refcount_dec_and_test(&umem->users)) {
 		INIT_WORK(&umem->work, xdp_umem_release_deferred);
 		schedule_work(&umem->work);
 	}
@@ -206,7 +206,7 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 	umem->frame_size_log2 = ilog2(frame_size);
 	umem->nfpp_mask = nfpp - 1;
 	umem->nfpplog2 = ilog2(nfpp);
-	atomic_set(&umem->users, 1);
+	refcount_set(&umem->users, 1);
 
 	err = xdp_umem_account_pages(umem);
 	if (err)
