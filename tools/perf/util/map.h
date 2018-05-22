@@ -8,6 +8,7 @@
 #include <linux/rbtree.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <string.h>
 #include <stdbool.h>
 #include <linux/types.h>
 #include "rwsem.h"
@@ -238,5 +239,12 @@ static inline bool __map__is_kmodule(const struct map *map)
 }
 
 bool map__has_symbols(const struct map *map);
+
+#define ENTRY_TRAMPOLINE_NAME "__entry_SYSCALL_64_trampoline"
+
+static inline bool is_entry_trampoline(const char *name)
+{
+	return !strcmp(name, ENTRY_TRAMPOLINE_NAME);
+}
 
 #endif /* __PERF_MAP_H */
