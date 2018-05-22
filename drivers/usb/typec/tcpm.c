@@ -14,6 +14,7 @@
 #include <linux/mutex.h>
 #include <linux/power_supply.h>
 #include <linux/proc_fs.h>
+#include <linux/property.h>
 #include <linux/sched/clock.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
@@ -4500,6 +4501,7 @@ static int devm_tcpm_psy_register(struct tcpm_port *port)
 	char *psy_name;
 
 	psy_cfg.drv_data = port;
+	psy_cfg.fwnode = dev_fwnode(port->dev);
 	psy_name = devm_kzalloc(port->dev, psy_name_len, GFP_KERNEL);
 	if (!psy_name)
 		return -ENOMEM;
