@@ -2148,10 +2148,7 @@ void pnfs_parse_lgopen(struct inode *ino, struct nfs4_layoutget *lgp,
 				lgp->callback_count))
 		return;
 	lseg = pnfs_layout_process(lgp);
-	if (IS_ERR(lseg)) {
-		/* ignore lseg, but would like to mark not to try lgopen */
-		/* clear some lo flags - first and fail ???? */
-	} else {
+	if (!IS_ERR(lseg)) {
 		iomode = lgp->args.range.iomode;
 		pnfs_layout_clear_fail_bit(lo, pnfs_iomode_to_fail_bit(iomode));
 		pnfs_put_lseg(lseg);
@@ -2236,8 +2233,6 @@ out_forget:
 	spin_unlock(&ino->i_lock);
 	lseg->pls_layout = lo;
 	NFS_SERVER(ino)->pnfs_curr_ld->free_lseg(lseg);
-	if (!pnfs_layout_is_valid(lo))
-		nfs_commit_inode(ino, 0);
 	return ERR_PTR(-EAGAIN);
 }
 
