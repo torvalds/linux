@@ -12,8 +12,6 @@
 */
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
-#include <linux/kfifo.h>
-#include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -116,36 +114,30 @@ struct inv_mpu6050_hw {
 
 /*
  *  struct inv_mpu6050_state - Driver state variables.
- *  @TIMESTAMP_FIFO_SIZE: fifo size for timestamp.
  *  @lock:              Chip access lock.
  *  @trig:              IIO trigger.
  *  @chip_config:	Cached attribute information.
  *  @reg:		Map of important registers.
  *  @hw:		Other hardware-specific information.
  *  @chip_type:		chip type.
- *  @time_stamp_lock:	spin lock to time stamp.
  *  @plat_data:		platform data (deprecated in favor of @orientation).
  *  @orientation:	sensor chip orientation relative to main hardware.
- *  @timestamps:        kfifo queue to store time stamp.
  *  @map		regmap pointer.
  *  @irq		interrupt number.
  *  @irq_mask		the int_pin_cfg mask to configure interrupt type.
  */
 struct inv_mpu6050_state {
-#define TIMESTAMP_FIFO_SIZE 16
 	struct mutex lock;
 	struct iio_trigger  *trig;
 	struct inv_mpu6050_chip_config chip_config;
 	const struct inv_mpu6050_reg_map *reg;
 	const struct inv_mpu6050_hw *hw;
 	enum   inv_devices chip_type;
-	spinlock_t time_stamp_lock;
 	struct i2c_mux_core *muxc;
 	struct i2c_client *mux_client;
 	unsigned int powerup_count;
 	struct inv_mpu6050_platform_data plat_data;
 	struct iio_mount_matrix orientation;
-	DECLARE_KFIFO(timestamps, long long, TIMESTAMP_FIFO_SIZE);
 	struct regmap *map;
 	int irq;
 	u8 irq_mask;
@@ -234,7 +226,6 @@ struct inv_mpu6050_state {
 
 /* init parameters */
 #define INV_MPU6050_INIT_FIFO_RATE           50
-#define INV_MPU6050_TIME_STAMP_TOR           5
 #define INV_MPU6050_MAX_FIFO_RATE            1000
 #define INV_MPU6050_MIN_FIFO_RATE            4
 #define INV_MPU6050_ONE_K_HZ                 1000
@@ -300,7 +291,6 @@ enum inv_mpu6050_clock_sel_e {
 	NUM_CLK
 };
 
-irqreturn_t inv_mpu6050_irq_handler(int irq, void *p);
 irqreturn_t inv_mpu6050_read_fifo(int irq, void *p);
 int inv_mpu6050_probe_trigger(struct iio_dev *indio_dev, int irq_type);
 int inv_reset_fifo(struct iio_dev *indio_dev);

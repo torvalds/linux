@@ -20,8 +20,6 @@
 #include <linux/jiffies.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <linux/kfifo.h>
-#include <linux/spinlock.h>
 #include <linux/iio/iio.h>
 #include <linux/acpi.h>
 #include <linux/platform_device.h>
@@ -1003,7 +1001,7 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	indio_dev->modes = INDIO_BUFFER_TRIGGERED;
 
 	result = devm_iio_triggered_buffer_setup(dev, indio_dev,
-						 inv_mpu6050_irq_handler,
+						 iio_pollfunc_store_time,
 						 inv_mpu6050_read_fifo,
 						 NULL);
 	if (result) {
@@ -1016,8 +1014,6 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 		return result;
 	}
 
-	INIT_KFIFO(st->timestamps);
-	spin_lock_init(&st->time_stamp_lock);
 	result = devm_iio_device_register(dev, indio_dev);
 	if (result) {
 		dev_err(dev, "IIO register fail %d\n", result);
