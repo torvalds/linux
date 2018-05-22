@@ -3682,15 +3682,6 @@ static void cifisp_send_measurement(
 		container_of(isp_dev, struct cif_isp10_device, isp_dev);
 
 	spin_lock_irqsave(&isp_dev->irq_lock, lock_flags);
-	if (isp_dev->frame_id != meas_work->frame_id) {
-		spin_unlock_irqrestore(&isp_dev->irq_lock, lock_flags);
-		CIFISP_DPRINT(CIFISP_ERROR,
-			"Measurement late(%d, %d)\n",
-			isp_dev->frame_id,
-			meas_work->frame_id);
-		goto end;
-	}
-
 	if (!list_empty(&isp_dev->stat)) {
 		buf = list_first_entry(&isp_dev->stat,
 			struct cif_isp10_buffer, queue);
@@ -3702,7 +3693,6 @@ static void cifisp_send_measurement(
 			"Not enought measurement bufs\n");
 		goto end;
 	}
-
 	spin_unlock_irqrestore(&isp_dev->irq_lock, lock_flags);
 	vb->state = VB2_BUF_STATE_ACTIVE;
 
@@ -3726,17 +3716,7 @@ static void cifisp_send_measurement(
 		cifisp_get_hst_meas(isp_dev, stat_buf);
 
 	spin_lock_irqsave(&isp_dev->irq_lock, lock_flags);
-
-	if (isp_dev->frame_id != meas_work->frame_id) {
-		spin_unlock_irqrestore(&isp_dev->irq_lock, lock_flags);
-		CIFISP_DPRINT(CIFISP_ERROR,
-			"Measurement late(%d, %d)\n",
-			isp_dev->frame_id,
-			meas_work->frame_id);
-		goto end;
-	}
 	list_del(&buf->queue);
-
 	spin_unlock_irqrestore(&isp_dev->irq_lock, lock_flags);
 
 	if (active_meas & CIF_ISP_AWB_DONE) {
