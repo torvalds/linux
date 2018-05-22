@@ -1240,7 +1240,6 @@ struct  atom_gfx_info_v2_4 {
   uint8_t active_cu_per_sh;
   uint8_t active_rb_per_se;
   uint16_t gcgoldenoffset;
-  uint32_t rm21_sram_vmin_value;
   uint16_t gc_num_gprs;
   uint16_t gc_gsprim_buff_depth;
   uint16_t gc_parameter_cache_depth;
@@ -1251,6 +1250,8 @@ struct  atom_gfx_info_v2_4 {
   uint8_t gc_gs_table_depth;
   uint8_t gc_double_offchip_lds_buffer;
   uint8_t gc_max_scratch_slots_per_cu;
+  uint32_t sram_rm_fuses_val;
+  uint32_t sram_custom_rm_fuses_val;
 };
 
 /* 

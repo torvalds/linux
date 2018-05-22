@@ -354,11 +354,9 @@ int amdgpu_atomfirmware_get_gfx_info(struct amdgpu_device *adev)
 				le16_to_cpu(gfx_info->v24.gc_gsprim_buff_depth);
 			adev->gfx.config.double_offchip_lds_buf =
 				gfx_info->v24.gc_double_offchip_lds_buffer;
-			adev->gfx.cu_info.wave_front_size = gfx_info->v24.gc_wave_size;
-			adev->gfx.cu_info.max_waves_per_simd =
-				le16_to_cpu(gfx_info->v24.gc_max_waves_per_simd);
-			adev->gfx.cu_info.max_scratch_slots_per_cu =
-				gfx_info->v24.gc_max_scratch_slots_per_cu;
+			adev->gfx.cu_info.wave_front_size = le16_to_cpu(gfx_info->v24.gc_wave_size);
+			adev->gfx.cu_info.max_waves_per_simd = le16_to_cpu(gfx_info->v24.gc_max_waves_per_simd);
+			adev->gfx.cu_info.max_scratch_slots_per_cu = gfx_info->v24.gc_max_scratch_slots_per_cu;
 			adev->gfx.cu_info.lds_size = le16_to_cpu(gfx_info->v24.gc_lds_size);
 			return 0;
 		default:
