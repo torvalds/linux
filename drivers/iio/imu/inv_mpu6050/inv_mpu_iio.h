@@ -166,6 +166,7 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_REG_RAW_GYRO            0x43
 
 #define INV_MPU6050_REG_INT_STATUS          0x3A
+#define INV_MPU6050_BIT_FIFO_OVERFLOW_INT   0x10
 #define INV_MPU6050_BIT_RAW_DATA_RDY_INT    0x01
 
 #define INV_MPU6050_REG_USER_CTRL           0x6A
@@ -190,7 +191,6 @@ struct inv_mpu6050_state {
 
 #define INV_MPU6050_BYTES_PER_3AXIS_SENSOR   6
 #define INV_MPU6050_FIFO_COUNT_BYTE          2
-#define INV_MPU6050_FIFO_THRESHOLD           500
 
 /* mpu6500 registers */
 #define INV_MPU6500_REG_ACCEL_CONFIG_2      0x1D

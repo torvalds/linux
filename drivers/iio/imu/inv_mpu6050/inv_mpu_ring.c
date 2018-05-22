@@ -110,6 +110,9 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 			"failed to ack interrupt\n");
 		goto flush_fifo;
 	}
+	/* handle fifo overflow by reseting fifo */
+	if (int_status & INV_MPU6050_BIT_FIFO_OVERFLOW_INT)
+		goto flush_fifo;
 	if (!(int_status & INV_MPU6050_BIT_RAW_DATA_RDY_INT)) {
 		dev_warn(regmap_get_device(st->map),
 			"spurious interrupt with status 0x%x\n", int_status);
@@ -135,8 +138,6 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 	if (result)
 		goto end_session;
 	fifo_count = get_unaligned_be16(&data[0]);
-	if (fifo_count >  INV_MPU6050_FIFO_THRESHOLD)
-		goto flush_fifo;
 	/* compute and process all complete datum */
 	nb = fifo_count / bytes_per_datum;
 	for (i = 0; i < nb; ++i) {
