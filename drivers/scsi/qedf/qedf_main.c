@@ -566,6 +566,7 @@ static struct qed_fcoe_cb_ops qedf_cb_ops = {
 	{
 		.link_update = qedf_link_update,
 		.dcbx_aen = qedf_dcbx_handler,
+		.get_generic_tlv_data = qedf_get_generic_tlv_data,
 		.get_protocol_tlv_data = qedf_get_protocol_tlv_data,
 	}
 };
@@ -3477,6 +3478,22 @@ void qedf_get_protocol_tlv_data(void *dev, void *data)
 
 	fcoe->scsi_tsk_full_set = true;
 	fcoe->scsi_tsk_full = qedf->task_set_fulls;
+}
+
+/* Generic TLV data callback */
+void qedf_get_generic_tlv_data(void *dev, struct qed_generic_tlvs *data)
+{
+	struct qedf_ctx *qedf;
+
+	if (!dev) {
+		QEDF_INFO(NULL, QEDF_LOG_EVT,
+			  "dev is NULL so ignoring get_generic_tlv_data request.\n");
+		return;
+	}
+	qedf = (struct qedf_ctx *)dev;
+
+	memset(data, 0, sizeof(struct qed_generic_tlvs));
+	ether_addr_copy(data->mac[0], qedf->mac);
 }
 
 /*
