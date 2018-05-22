@@ -179,8 +179,7 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 	for (idx=0; idx<6; idx++) {
 		r = &dev->resource[idx];
 		if (!r->start && r->end) {
-			pr_err("PCI: Device %s not available because "
-			       "of resource collisions\n", pci_name(dev));
+			pci_err(dev, "can't enable device: resource collisions\n");
 			return -EINVAL;
 		}
 		if (r->flags & IORESOURCE_IO)
@@ -189,8 +188,7 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 			cmd |= PCI_COMMAND_MEMORY;
 	}
 	if (cmd != old_cmd) {
-		pr_info("PCI: Enabling device %s (%04x -> %04x)\n",
-			pci_name(dev), old_cmd, cmd);
+		pci_info(dev, "enabling device (%04x -> %04x)\n", old_cmd, cmd);
 		pci_write_config_word(dev, PCI_COMMAND, cmd);
 	}
 
