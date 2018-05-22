@@ -9030,8 +9030,7 @@ static int btrfs_truncate(struct inode *inode, bool skip_writeback)
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_block_rsv *rsv;
-	int ret = 0;
-	int err = 0;
+	int ret;
 	struct btrfs_trans_handle *trans;
 	u64 mask = fs_info->sectorsize - 1;
 	u64 min_size = btrfs_calc_trunc_metadata_size(fs_info, 1);
@@ -9083,7 +9082,7 @@ static int btrfs_truncate(struct inode *inode, bool skip_writeback)
 	 */
 	trans = btrfs_start_transaction(root, 2);
 	if (IS_ERR(trans)) {
-		err = PTR_ERR(trans);
+		ret = PTR_ERR(trans);
 		goto out;
 	}
 
@@ -9107,24 +9106,19 @@ static int btrfs_truncate(struct inode *inode, bool skip_writeback)
 						 inode->i_size,
 						 BTRFS_EXTENT_DATA_KEY);
 		trans->block_rsv = &fs_info->trans_block_rsv;
-		if (ret != -ENOSPC && ret != -EAGAIN) {
-			if (ret < 0)
-				err = ret;
+		if (ret != -ENOSPC && ret != -EAGAIN)
 			break;
-		}
 
 		ret = btrfs_update_inode(trans, root, inode);
-		if (ret) {
-			err = ret;
+		if (ret)
 			break;
-		}
 
 		btrfs_end_transaction(trans);
 		btrfs_btree_balance_dirty(fs_info);
 
 		trans = btrfs_start_transaction(root, 2);
 		if (IS_ERR(trans)) {
-			ret = err = PTR_ERR(trans);
+			ret = PTR_ERR(trans);
 			trans = NULL;
 			break;
 		}
@@ -9158,21 +9152,22 @@ static int btrfs_truncate(struct inode *inode, bool skip_writeback)
 	}
 
 	if (trans) {
-		trans->block_rsv = &fs_info->trans_block_rsv;
-		ret = btrfs_update_inode(trans, root, inode);
-		if (ret && !err)
-			err = ret;
+		int ret2;
 
-		ret = btrfs_end_transaction(trans);
+		trans->block_rsv = &fs_info->trans_block_rsv;
+		ret2 = btrfs_update_inode(trans, root, inode);
+		if (ret2 && !ret)
+			ret = ret2;
+
+		ret2 = btrfs_end_transaction(trans);
+		if (ret2 && !ret)
+			ret = ret2;
 		btrfs_btree_balance_dirty(fs_info);
 	}
 out:
 	btrfs_free_block_rsv(fs_info, rsv);
 
-	if (ret && !err)
-		err = ret;
-
-	return err;
+	return ret;
 }
 
 /*
