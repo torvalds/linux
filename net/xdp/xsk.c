@@ -142,6 +142,11 @@ static int xsk_generic_xmit(struct sock *sk, struct msghdr *m,
 			goto out;
 		}
 
+		if (xs->queue_id >= xs->dev->real_num_tx_queues) {
+			err = -ENXIO;
+			goto out;
+		}
+
 		skb = sock_alloc_send_skb(sk, len, !need_wait, &err);
 		if (unlikely(!skb)) {
 			err = -EAGAIN;
@@ -305,7 +310,8 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 		goto out_unlock;
 	}
 
-	if (sxdp->sxdp_queue_id >= dev->num_rx_queues) {
+	if ((xs->rx && sxdp->sxdp_queue_id >= dev->real_num_rx_queues) ||
+	    (xs->tx && sxdp->sxdp_queue_id >= dev->real_num_tx_queues)) {
 		err = -EINVAL;
 		goto out_unlock;
 	}
