@@ -2059,10 +2059,6 @@ static int mlx5_ib_mmap_clock_info_page(struct mlx5_ib_dev *dev,
 	if (err)
 		return err;
 
-	mlx5_ib_dbg(dev, "mapped clock info at 0x%lx, PA 0x%llx\n",
-		    vma->vm_start,
-		    (unsigned long long)pfn << PAGE_SHIFT);
-
 	return mlx5_ib_set_vma_data(vma, context);
 }
 
@@ -2157,15 +2153,14 @@ static int uar_mmap(struct mlx5_ib_dev *dev, enum mlx5_ib_mmap_cmd cmd,
 	err = io_remap_pfn_range(vma, vma->vm_start, pfn,
 				 PAGE_SIZE, vma->vm_page_prot);
 	if (err) {
-		mlx5_ib_err(dev, "io_remap_pfn_range failed with error=%d, vm_start=0x%lx, pfn=%pa, mmap_cmd=%s\n",
-			    err, vma->vm_start, &pfn, mmap_cmd2str(cmd));
+		mlx5_ib_err(dev,
+			    "io_remap_pfn_range failed with error=%d, mmap_cmd=%s\n",
+			    err, mmap_cmd2str(cmd));
 		err = -EAGAIN;
 		goto err;
 	}
 
 	pa = pfn << PAGE_SHIFT;
-	mlx5_ib_dbg(dev, "mapped %s at 0x%lx, PA %pa\n", mmap_cmd2str(cmd),
-		    vma->vm_start, &pa);
 
 	err = mlx5_ib_set_vma_data(vma, context);
 	if (err)
@@ -2251,10 +2246,6 @@ static int mlx5_ib_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vm
 		if (io_remap_pfn_range(vma, vma->vm_start, pfn,
 				       PAGE_SIZE, vma->vm_page_prot))
 			return -EAGAIN;
-
-		mlx5_ib_dbg(dev, "mapped internal timer at 0x%lx, PA 0x%llx\n",
-			    vma->vm_start,
-			    (unsigned long long)pfn << PAGE_SHIFT);
 		break;
 	case MLX5_IB_MMAP_CLOCK_INFO:
 		return mlx5_ib_mmap_clock_info_page(dev, vma, context);
