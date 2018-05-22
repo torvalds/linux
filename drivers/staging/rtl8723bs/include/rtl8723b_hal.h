@@ -44,7 +44,7 @@
 #define FW_8723B_END_ADDRESS   0x1FFF /* 0x5FFF */
 
 #define IS_FW_HEADER_EXIST_8723B(fw_hdr) \
-	((le16_to_cpu(fw_hdr->Signature) & 0xFFF0) == 0x5300)
+	((le16_to_cpu(fw_hdr->signature) & 0xFFF0) == 0x5300)
 
 struct rt_firmware {
 	u32 fw_length;
@@ -56,31 +56,31 @@ struct rt_firmware_hdr {
 	/*  8-byte alinment required */
 
 	/*  LONG WORD 0 ---- */
-	__le16 Signature;  /* 92C0: test chip; 92C, 88C0: test chip;
+	__le16 signature;  /* 92C0: test chip; 92C, 88C0: test chip;
 			    * 88C1: MP A-cut; 92C1: MP A-cut */
-	u8 Category;	   /* AP/NIC and USB/PCI */
-	u8 Function;	   /* Reserved for different FW function indications,
+	u8 category;	   /* AP/NIC and USB/PCI */
+	u8 function;	   /* Reserved for different FW function indications,
 			    * for further use when driver needs to download
 			    * different FW in different conditions. */
-	__le16 Version;    /* FW Version */
-	__le16 Subversion; /* FW Subversion, default 0x00 */
+	__le16 version;    /* FW Version */
+	__le16 subversion; /* FW Subversion, default 0x00 */
 
 	/*  LONG WORD 1 ---- */
-	u8 Month;  /* Release time Month field */
-	u8 Date;   /* Release time Date field */
-	u8 Hour;   /* Release time Hour field */
-	u8 Minute; /* Release time Minute field */
+	u8 month;  /* Release time Month field */
+	u8 date;   /* Release time Date field */
+	u8 hour;   /* Release time Hour field */
+	u8 minute; /* Release time Minute field */
 
-	__le16 RamCodeSize; /* The size of RAM code */
-	__le16 Rsvd2;
+	__le16 ram_code_size; /* The size of RAM code */
+	__le16 rsvd2;
 
 	/*  LONG WORD 2 ---- */
-	__le32 SvnIdx;	/* The SVN entry index */
-	__le32 Rsvd3;
+	__le32 svn_idx;	/* The SVN entry index */
+	__le32 rsvd3;
 
 	/*  LONG WORD 3 ---- */
-	__le32 Rsvd4;
-	__le32 Rsvd5;
+	__le32 rsvd4;
+	__le32 rsvd5;
 };
 
 #define DRIVER_EARLY_INT_TIME_8723B  0x05

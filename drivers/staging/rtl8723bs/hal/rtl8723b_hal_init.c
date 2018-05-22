@@ -445,9 +445,9 @@ s32 rtl8723b_FirmwareDownload(struct adapter *padapter, bool  bUsedWoWLANFw)
 	/*  To Check Fw header. Added by tynli. 2009.12.04. */
 	pFwHdr = (struct rt_firmware_hdr *)pFirmwareBuf;
 
-	pHalData->FirmwareVersion =  le16_to_cpu(pFwHdr->Version);
-	pHalData->FirmwareSubVersion = le16_to_cpu(pFwHdr->Subversion);
-	pHalData->FirmwareSignature = le16_to_cpu(pFwHdr->Signature);
+	pHalData->FirmwareVersion =  le16_to_cpu(pFwHdr->version);
+	pHalData->FirmwareSubVersion = le16_to_cpu(pFwHdr->subversion);
+	pHalData->FirmwareSignature = le16_to_cpu(pFwHdr->signature);
 
 	DBG_871X(
 		"%s: fw_ver =%x fw_subver =%04x sig = 0x%x, Month =%02x, Date =%02x, Hour =%02x, Minute =%02x\n",
@@ -455,10 +455,10 @@ s32 rtl8723b_FirmwareDownload(struct adapter *padapter, bool  bUsedWoWLANFw)
 		pHalData->FirmwareVersion,
 		pHalData->FirmwareSubVersion,
 		pHalData->FirmwareSignature,
-		pFwHdr->Month,
-		pFwHdr->Date,
-		pFwHdr->Hour,
-		pFwHdr->Minute
+		pFwHdr->month,
+		pFwHdr->date,
+		pFwHdr->hour,
+		pFwHdr->minute
 	);
 
 	if (IS_FW_HEADER_EXIST_8723B(pFwHdr)) {
