@@ -44,7 +44,7 @@
  *
  * CPU Interface:
  *
- * - kvm_vgic_vcpu_early_init(): initialization of static data that
+ * - kvm_vgic_vcpu_init(): initialization of static data that
  *   doesn't depend on any sizing information or emulation type. No
  *   allocation is allowed there.
  */
@@ -65,46 +65,6 @@ void kvm_vgic_early_init(struct kvm *kvm)
 
 	INIT_LIST_HEAD(&dist->lpi_list_head);
 	spin_lock_init(&dist->lpi_list_lock);
-}
-
-/**
- * kvm_vgic_vcpu_early_init() - Initialize static VGIC VCPU data structures
- * @vcpu: The VCPU whose VGIC data structures whould be initialized
- *
- * Only do initialization, but do not actually enable the VGIC CPU interface
- * yet.
- */
-void kvm_vgic_vcpu_early_init(struct kvm_vcpu *vcpu)
-{
-	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
-	int i;
-
-	INIT_LIST_HEAD(&vgic_cpu->ap_list_head);
-	spin_lock_init(&vgic_cpu->ap_list_lock);
-
-	/*
-	 * Enable and configure all SGIs to be edge-triggered and
-	 * configure all PPIs as level-triggered.
-	 */
-	for (i = 0; i < VGIC_NR_PRIVATE_IRQS; i++) {
-		struct vgic_irq *irq = &vgic_cpu->private_irqs[i];
-
-		INIT_LIST_HEAD(&irq->ap_list);
-		spin_lock_init(&irq->irq_lock);
-		irq->intid = i;
-		irq->vcpu = NULL;
-		irq->target_vcpu = vcpu;
-		irq->targets = 1U << vcpu->vcpu_id;
-		kref_init(&irq->refcount);
-		if (vgic_irq_is_sgi(i)) {
-			/* SGIs */
-			irq->enabled = 1;
-			irq->config = VGIC_CONFIG_EDGE;
-		} else {
-			/* PPIs */
-			irq->config = VGIC_CONFIG_LEVEL;
-		}
-	}
 }
 
 /* CREATION */
@@ -224,13 +184,47 @@ static int kvm_vgic_dist_init(struct kvm *kvm, unsigned int nr_spis)
 }
 
 /**
- * kvm_vgic_vcpu_init() - Register VCPU-specific KVM iodevs
+ * kvm_vgic_vcpu_init() - Initialize static VGIC VCPU data
+ * structures and register VCPU-specific KVM iodevs
+ *
  * @vcpu: pointer to the VCPU being created and initialized
+ *
+ * Only do initialization, but do not actually enable the
+ * VGIC CPU interface
  */
 int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
 {
-	int ret = 0;
+	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+	int ret = 0;
+	int i;
+
+	INIT_LIST_HEAD(&vgic_cpu->ap_list_head);
+	spin_lock_init(&vgic_cpu->ap_list_lock);
+
+	/*
+	 * Enable and configure all SGIs to be edge-triggered and
+	 * configure all PPIs as level-triggered.
+	 */
+	for (i = 0; i < VGIC_NR_PRIVATE_IRQS; i++) {
+		struct vgic_irq *irq = &vgic_cpu->private_irqs[i];
+
+		INIT_LIST_HEAD(&irq->ap_list);
+		spin_lock_init(&irq->irq_lock);
+		irq->intid = i;
+		irq->vcpu = NULL;
+		irq->target_vcpu = vcpu;
+		irq->targets = 1U << vcpu->vcpu_id;
+		kref_init(&irq->refcount);
+		if (vgic_irq_is_sgi(i)) {
+			/* SGIs */
+			irq->enabled = 1;
+			irq->config = VGIC_CONFIG_EDGE;
+		} else {
+			/* PPIs */
+			irq->config = VGIC_CONFIG_LEVEL;
+		}
+	}
 
 	if (!irqchip_in_kernel(vcpu->kvm))
 		return 0;
