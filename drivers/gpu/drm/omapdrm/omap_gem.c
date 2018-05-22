@@ -371,7 +371,7 @@ size_t omap_gem_mmap_size(struct drm_gem_object *obj)
  */
 
 /* Normal handling for the case of faulting in non-tiled buffers */
-static int fault_1d(struct drm_gem_object *obj,
+static vm_fault_t fault_1d(struct drm_gem_object *obj,
 		struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
@@ -392,11 +392,12 @@ static int fault_1d(struct drm_gem_object *obj,
 	VERB("Inserting %p pfn %lx, pa %lx", (void *)vmf->address,
 			pfn, pfn << PAGE_SHIFT);
 
-	return vm_insert_mixed(vma, vmf->address, __pfn_to_pfn_t(pfn, PFN_DEV));
+	return vmf_insert_mixed(vma, vmf->address,
+			__pfn_to_pfn_t(pfn, PFN_DEV));
 }
 
 /* Special handling for the case of faulting in 2d tiled buffers */
-static int fault_2d(struct drm_gem_object *obj,
+static vm_fault_t fault_2d(struct drm_gem_object *obj,
 		struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
@@ -407,7 +408,8 @@ static int fault_2d(struct drm_gem_object *obj,
 	unsigned long pfn;
 	pgoff_t pgoff, base_pgoff;
 	unsigned long vaddr;
-	int i, ret, slots;
+	int i, err, slots;
+	vm_fault_t ret = VM_FAULT_NOPAGE;
 
 	/*
 	 * Note the height of the slot is also equal to the number of pages
@@ -473,9 +475,10 @@ static int fault_2d(struct drm_gem_object *obj,
 	memset(pages + slots, 0,
 			sizeof(struct page *) * (n - slots));
 
-	ret = tiler_pin(entry->block, pages, ARRAY_SIZE(pages), 0, true);
-	if (ret) {
-		dev_err(obj->dev->dev, "failed to pin: %d\n", ret);
+	err = tiler_pin(entry->block, pages, ARRAY_SIZE(pages), 0, true);
+	if (err) {
+		ret = vmf_error(err);
+		dev_err(obj->dev->dev, "failed to pin: %d\n", err);
 		return ret;
 	}
 
@@ -485,7 +488,10 @@ static int fault_2d(struct drm_gem_object *obj,
 			pfn, pfn << PAGE_SHIFT);
 
 	for (i = n; i > 0; i--) {
-		vm_insert_mixed(vma, vaddr, __pfn_to_pfn_t(pfn, PFN_DEV));
+		ret = vmf_insert_mixed(vma,
+			vaddr, __pfn_to_pfn_t(pfn, PFN_DEV));
+		if (ret & VM_FAULT_ERROR)
+			break;
 		pfn += priv->usergart[fmt].stride_pfn;
 		vaddr += PAGE_SIZE * m;
 	}
@@ -494,7 +500,7 @@ static int fault_2d(struct drm_gem_object *obj,
 	priv->usergart[fmt].last = (priv->usergart[fmt].last + 1)
 				 % NUM_USERGART_ENTRIES;
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -509,14 +515,15 @@ static int fault_2d(struct drm_gem_object *obj,
  * vma->vm_private_data points to the GEM object that is backing this
  * mapping.
  */
-int omap_gem_fault(struct vm_fault *vmf)
+vm_fault_t omap_gem_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *obj = vma->vm_private_data;
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	struct drm_device *dev = obj->dev;
 	struct page **pages;
-	int ret;
+	int err;
+	vm_fault_t ret;
 
 	/* Make sure we don't parallel update on a fault, nor move or remove
 	 * something from beneath our feet
@@ -524,9 +531,11 @@ int omap_gem_fault(struct vm_fault *vmf)
 	mutex_lock(&dev->struct_mutex);
 
 	/* if a shmem backed object, make sure we have pages attached now */
-	ret = get_pages(obj, &pages);
-	if (ret)
+	err = get_pages(obj, &pages);
+	if (err) {
+		ret = vmf_error(err);
 		goto fail;
+	}
 
 	/* where should we do corresponding put_pages().. we are mapping
 	 * the original page, rather than thru a GART, so we can't rely
@@ -542,21 +551,7 @@ int omap_gem_fault(struct vm_fault *vmf)
 
 fail:
 	mutex_unlock(&dev->struct_mutex);
-	switch (ret) {
-	case 0:
-	case -ERESTARTSYS:
-	case -EINTR:
-	case -EBUSY:
-		/*
-		 * EBUSY is ok: this just means that another thread
-		 * already did the job.
-		 */
-		return VM_FAULT_NOPAGE;
-	case -ENOMEM:
-		return VM_FAULT_OOM;
-	default:
-		return VM_FAULT_SIGBUS;
-	}
+	return ret;
 }
 
 /** We override mainly to fix up some of the vm mapping flags.. */
