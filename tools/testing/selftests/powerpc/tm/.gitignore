@@ -14,3 +14,4 @@ tm-signal-context-chk-vsx
 tm-vmx-unavail
 tm-unavailable
 tm-trap
+tm-sigreturn
