@@ -2617,18 +2617,21 @@ static int enable_scrq_irq(struct ibmvnic_adapter *adapter,
 {
 	struct device *dev = &adapter->vdev->dev;
 	unsigned long rc;
-	u64 val;
 
 	if (scrq->hw_irq > 0x100000000ULL) {
 		dev_err(dev, "bad hw_irq = %lx\n", scrq->hw_irq);
 		return 1;
 	}
 
-	val = (0xff000000) | scrq->hw_irq;
-	rc = plpar_hcall_norets(H_EOI, val);
-	if (rc)
-		dev_err(dev, "H_EOI FAILED irq 0x%llx. rc=%ld\n",
-			val, rc);
+	if (adapter->resetting &&
+	    adapter->reset_reason == VNIC_RESET_MOBILITY) {
+		u64 val = (0xff000000) | scrq->hw_irq;
+
+		rc = plpar_hcall_norets(H_EOI, val);
+		if (rc)
+			dev_err(dev, "H_EOI FAILED irq 0x%llx. rc=%ld\n",
+				val, rc);
+	}
 
 	rc = plpar_hcall_norets(H_VIOCTL, adapter->vdev->unit_address,
 				H_ENABLE_VIO_INTERRUPT, scrq->hw_irq, 0, 0);
