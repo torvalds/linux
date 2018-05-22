@@ -1572,6 +1572,11 @@ static inline bool cpu_has_vmx_invept_global(void)
 	return vmx_capability.ept & VMX_EPT_EXTENT_GLOBAL_BIT;
 }
 
+static inline bool cpu_has_vmx_invvpid_individual_addr(void)
+{
+	return vmx_capability.vpid & VMX_VPID_EXTENT_INDIVIDUAL_ADDR_BIT;
+}
+
 static inline bool cpu_has_vmx_invvpid_single(void)
 {
 	return vmx_capability.vpid & VMX_VPID_EXTENT_SINGLE_CONTEXT_BIT;
@@ -8513,12 +8518,19 @@ static int handle_invvpid(struct kvm_vcpu *vcpu)
 
 	switch (type) {
 	case VMX_VPID_EXTENT_INDIVIDUAL_ADDR:
-		if (is_noncanonical_address(operand.gla, vcpu)) {
+		if (!operand.vpid ||
+		    is_noncanonical_address(operand.gla, vcpu)) {
 			nested_vmx_failValid(vcpu,
 				VMXERR_INVALID_OPERAND_TO_INVEPT_INVVPID);
 			return kvm_skip_emulated_instruction(vcpu);
 		}
-		/* fall through */
+		if (cpu_has_vmx_invvpid_individual_addr() &&
+		    vmx->nested.vpid02) {
+			__invvpid(VMX_VPID_EXTENT_INDIVIDUAL_ADDR,
+				vmx->nested.vpid02, operand.gla);
+		} else
+			__vmx_flush_tlb(vcpu, vmx->nested.vpid02, true);
+		break;
 	case VMX_VPID_EXTENT_SINGLE_CONTEXT:
 	case VMX_VPID_EXTENT_SINGLE_NON_GLOBAL:
 		if (!operand.vpid) {
@@ -8526,15 +8538,16 @@ static int handle_invvpid(struct kvm_vcpu *vcpu)
 				VMXERR_INVALID_OPERAND_TO_INVEPT_INVVPID);
 			return kvm_skip_emulated_instruction(vcpu);
 		}
+		__vmx_flush_tlb(vcpu, vmx->nested.vpid02, true);
 		break;
 	case VMX_VPID_EXTENT_ALL_CONTEXT:
+		__vmx_flush_tlb(vcpu, vmx->nested.vpid02, true);
 		break;
 	default:
 		WARN_ON_ONCE(1);
 		return kvm_skip_emulated_instruction(vcpu);
 	}
 
-	__vmx_flush_tlb(vcpu, vmx->nested.vpid02, true);
 	nested_vmx_succeed(vcpu);
 
 	return kvm_skip_emulated_instruction(vcpu);
