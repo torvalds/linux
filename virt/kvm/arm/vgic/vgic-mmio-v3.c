@@ -764,11 +764,11 @@ free:
 	return ret;
 }
 
-int vgic_v3_set_redist_base(struct kvm *kvm, u64 addr)
+int vgic_v3_set_redist_base(struct kvm *kvm, u32 index, u64 addr, u32 count)
 {
 	int ret;
 
-	ret = vgic_v3_insert_redist_region(kvm, 0, addr, 0);
+	ret = vgic_v3_insert_redist_region(kvm, index, addr, count);
 	if (ret)
 		return ret;
 
