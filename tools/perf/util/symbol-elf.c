@@ -1390,6 +1390,7 @@ struct phdr_data {
 	u64 addr;
 	u64 len;
 	struct list_head node;
+	struct phdr_data *remaps;
 };
 
 struct sym_data {
@@ -1597,15 +1598,61 @@ static int kcore_copy__read_maps(struct kcore_copy_info *kci, Elf *elf)
 	return 0;
 }
 
+static void kcore_copy__find_remaps(struct kcore_copy_info *kci)
+{
+	struct phdr_data *p, *k = NULL;
+	u64 kend;
+
+	if (!kci->stext)
+		return;
+
+	/* Find phdr that corresponds to the kernel map (contains stext) */
+	kcore_copy__for_each_phdr(kci, p) {
+		u64 pend = p->addr + p->len - 1;
+
+		if (p->addr <= kci->stext && pend >= kci->stext) {
+			k = p;
+			break;
+		}
+	}
+
+	if (!k)
+		return;
+
+	kend = k->offset + k->len;
+
+	/* Find phdrs that remap the kernel */
+	kcore_copy__for_each_phdr(kci, p) {
+		u64 pend = p->offset + p->len;
+
+		if (p == k)
+			continue;
+
+		if (p->offset >= k->offset && pend <= kend)
+			p->remaps = k;
+	}
+}
+
 static void kcore_copy__layout(struct kcore_copy_info *kci)
 {
 	struct phdr_data *p;
 	off_t rel = 0;
 
+	kcore_copy__find_remaps(kci);
+
 	kcore_copy__for_each_phdr(kci, p) {
-		p->rel = rel;
-		rel += p->len;
+		if (!p->remaps) {
+			p->rel = rel;
+			rel += p->len;
+		}
 		kci->phnum += 1;
+	}
+
+	kcore_copy__for_each_phdr(kci, p) {
+		struct phdr_data *k = p->remaps;
+
+		if (k)
+			p->rel = p->offset - k->offset + k->rel;
 	}
 }
 
@@ -1821,6 +1868,8 @@ int kcore_copy(const char *from_dir, const char *to_dir)
 	kcore_copy__for_each_phdr(&kci, p) {
 		off_t offs = p->rel + offset;
 
+		if (p->remaps)
+			continue;
 		if (copy_bytes(kcore.fd, p->offset, extract.fd, offs, p->len))
 			goto out_extract_close;
 	}
