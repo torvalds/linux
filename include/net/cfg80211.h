@@ -2225,9 +2225,14 @@ struct cfg80211_connect_params {
  * have to be updated as part of update_connect_params() call.
  *
  * @UPDATE_ASSOC_IES: Indicates whether association request IEs are updated
+ * @UPDATE_FILS_ERP_INFO: Indicates that FILS connection parameters (realm,
+ *	username, erp sequence number and rrk) are updated
+ * @UPDATE_AUTH_TYPE: Indicates that authentication type is updated
  */
 enum cfg80211_connect_params_changed {
 	UPDATE_ASSOC_IES		= BIT(0),
+	UPDATE_FILS_ERP_INFO		= BIT(1),
+	UPDATE_AUTH_TYPE		= BIT(2),
 };
 
 /**

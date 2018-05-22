@@ -204,7 +204,8 @@
  * FILS shared key authentication offload should be able to construct the
  * authentication and association frames for FILS shared key authentication and
  * eventually do a key derivation as per IEEE 802.11ai. The below additional
- * parameters should be given to driver in %NL80211_CMD_CONNECT.
+ * parameters should be given to driver in %NL80211_CMD_CONNECT and/or in
+ * %NL80211_CMD_UPDATE_CONNECT_PARAMS.
  *	%NL80211_ATTR_FILS_ERP_USERNAME - used to construct keyname_nai
  *	%NL80211_ATTR_FILS_ERP_REALM - used to construct keyname_nai
  *	%NL80211_ATTR_FILS_ERP_NEXT_SEQ_NUM - used to construct erp message
