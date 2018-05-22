@@ -991,24 +991,45 @@ static int ixgbevf_xmit_xdp_ring(struct ixgbevf_ring *ring,
 		return IXGBEVF_XDP_CONSUMED;
 
 	/* record the location of the first descriptor for this packet */
-	tx_buffer = &ring->tx_buffer_info[ring->next_to_use];
-	tx_buffer->bytecount = len;
-	tx_buffer->gso_segs = 1;
-	tx_buffer->protocol = 0;
-
 	i = ring->next_to_use;
-	tx_desc = IXGBEVF_TX_DESC(ring, i);
+	tx_buffer = &ring->tx_buffer_info[i];
 
 	dma_unmap_len_set(tx_buffer, len, len);
 	dma_unmap_addr_set(tx_buffer, dma, dma);
 	tx_buffer->data = xdp->data;
-	tx_desc->read.buffer_addr = cpu_to_le64(dma);
+	tx_buffer->bytecount = len;
+	tx_buffer->gso_segs = 1;
+	tx_buffer->protocol = 0;
+
+	/* Populate minimal context descriptor that will provide for the
+	 * fact that we are expected to process Ethernet frames.
+	 */
+	if (!test_bit(__IXGBEVF_TX_XDP_RING_PRIMED, &ring->state)) {
+		struct ixgbe_adv_tx_context_desc *context_desc;
+
+		set_bit(__IXGBEVF_TX_XDP_RING_PRIMED, &ring->state);
+
+		context_desc = IXGBEVF_TX_CTXTDESC(ring, 0);
+		context_desc->vlan_macip_lens	=
+			cpu_to_le32(ETH_HLEN << IXGBE_ADVTXD_MACLEN_SHIFT);
+		context_desc->seqnum_seed	= 0;
+		context_desc->type_tucmd_mlhl	=
+			cpu_to_le32(IXGBE_TXD_CMD_DEXT |
+				    IXGBE_ADVTXD_DTYP_CTXT);
+		context_desc->mss_l4len_idx	= 0;
+
+		i = 1;
+	}
 
 	/* put descriptor type bits */
 	cmd_type = IXGBE_ADVTXD_DTYP_DATA |
 		   IXGBE_ADVTXD_DCMD_DEXT |
 		   IXGBE_ADVTXD_DCMD_IFCS;
 	cmd_type |= len | IXGBE_TXD_CMD;
+
+	tx_desc = IXGBEVF_TX_DESC(ring, i);
+	tx_desc->read.buffer_addr = cpu_to_le64(dma);
+
 	tx_desc->read.cmd_type_len = cpu_to_le32(cmd_type);
 	tx_desc->read.olinfo_status =
 			cpu_to_le32((len << IXGBE_ADVTXD_PAYLEN_SHIFT) |
@@ -1688,6 +1709,7 @@ static void ixgbevf_configure_tx_ring(struct ixgbevf_adapter *adapter,
 	       sizeof(struct ixgbevf_tx_buffer) * ring->count);
 
 	clear_bit(__IXGBEVF_HANG_CHECK_ARMED, &ring->state);
+	clear_bit(__IXGBEVF_TX_XDP_RING_PRIMED, &ring->state);
 
 	IXGBE_WRITE_REG(hw, IXGBE_VFTXDCTL(reg_idx), txdctl);
 
