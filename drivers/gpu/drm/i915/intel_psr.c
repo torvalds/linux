@@ -461,23 +461,23 @@ static void hsw_activate_psr1(struct intel_dp *intel_dp)
 	if (dev_priv->psr.link_standby)
 		val |= EDP_PSR_LINK_STANDBY;
 
-	if (dev_priv->vbt.psr.tp1_wakeup_time > 5)
-		val |= EDP_PSR_TP1_TIME_2500us;
-	else if (dev_priv->vbt.psr.tp1_wakeup_time > 1)
-		val |= EDP_PSR_TP1_TIME_500us;
-	else if (dev_priv->vbt.psr.tp1_wakeup_time > 0)
+	if (dev_priv->vbt.psr.tp1_wakeup_time_us == 0)
+		val |=  EDP_PSR_TP1_TIME_0us;
+	else if (dev_priv->vbt.psr.tp1_wakeup_time_us <= 100)
 		val |= EDP_PSR_TP1_TIME_100us;
+	else if (dev_priv->vbt.psr.tp1_wakeup_time_us <= 500)
+		val |= EDP_PSR_TP1_TIME_500us;
 	else
-		val |= EDP_PSR_TP1_TIME_0us;
+		val |= EDP_PSR_TP1_TIME_2500us;
 
-	if (dev_priv->vbt.psr.tp2_tp3_wakeup_time > 5)
-		val |= EDP_PSR_TP2_TP3_TIME_2500us;
-	else if (dev_priv->vbt.psr.tp2_tp3_wakeup_time > 1)
-		val |= EDP_PSR_TP2_TP3_TIME_500us;
-	else if (dev_priv->vbt.psr.tp2_tp3_wakeup_time > 0)
+	if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us == 0)
+		val |=  EDP_PSR_TP2_TP3_TIME_0us;
+	else if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us <= 100)
 		val |= EDP_PSR_TP2_TP3_TIME_100us;
+	else if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us <= 500)
+		val |= EDP_PSR_TP2_TP3_TIME_500us;
 	else
-		val |= EDP_PSR_TP2_TP3_TIME_0us;
+		val |= EDP_PSR_TP2_TP3_TIME_2500us;
 
 	if (intel_dp_source_supports_hbr2(intel_dp) &&
 	    drm_dp_tps3_supported(intel_dp->dpcd))
@@ -513,14 +513,15 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 
 	val |= EDP_PSR2_FRAME_BEFORE_SU(dev_priv->psr.sink_sync_latency + 1);
 
-	if (dev_priv->vbt.psr.tp2_tp3_wakeup_time > 5)
-		val |= EDP_PSR2_TP2_TIME_2500;
-	else if (dev_priv->vbt.psr.tp2_tp3_wakeup_time > 1)
-		val |= EDP_PSR2_TP2_TIME_500;
-	else if (dev_priv->vbt.psr.tp2_tp3_wakeup_time > 0)
-		val |= EDP_PSR2_TP2_TIME_100;
+	if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us >= 0 &&
+	    dev_priv->vbt.psr.tp2_tp3_wakeup_time_us <= 50)
+		val |= EDP_PSR2_TP2_TIME_50us;
+	else if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us <= 100)
+		val |= EDP_PSR2_TP2_TIME_100us;
+	else if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us <= 500)
+		val |= EDP_PSR2_TP2_TIME_500us;
 	else
-		val |= EDP_PSR2_TP2_TIME_50;
+		val |= EDP_PSR2_TP2_TIME_2500us;
 
 	I915_WRITE(EDP_PSR2_CTL, val);
 }

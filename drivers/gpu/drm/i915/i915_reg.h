@@ -4092,10 +4092,10 @@ enum {
 #define   EDP_Y_COORDINATE_ENABLE	(1<<25) /* GLK and CNL+ */
 #define   EDP_MAX_SU_DISABLE_TIME(t)	((t)<<20)
 #define   EDP_MAX_SU_DISABLE_TIME_MASK	(0x1f<<20)
-#define   EDP_PSR2_TP2_TIME_500		(0<<8)
-#define   EDP_PSR2_TP2_TIME_100		(1<<8)
-#define   EDP_PSR2_TP2_TIME_2500	(2<<8)
-#define   EDP_PSR2_TP2_TIME_50		(3<<8)
+#define   EDP_PSR2_TP2_TIME_500us	(0<<8)
+#define   EDP_PSR2_TP2_TIME_100us	(1<<8)
+#define   EDP_PSR2_TP2_TIME_2500us	(2<<8)
+#define   EDP_PSR2_TP2_TIME_50us	(3<<8)
 #define   EDP_PSR2_TP2_TIME_MASK	(3<<8)
 #define   EDP_PSR2_FRAME_BEFORE_SU_SHIFT 4
 #define   EDP_PSR2_FRAME_BEFORE_SU_MASK	(0xf<<4)

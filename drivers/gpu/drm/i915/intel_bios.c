@@ -684,8 +684,52 @@ parse_psr(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 		break;
 	}
 
-	dev_priv->vbt.psr.tp1_wakeup_time = psr_table->tp1_wakeup_time;
-	dev_priv->vbt.psr.tp2_tp3_wakeup_time = psr_table->tp2_tp3_wakeup_time;
+	/*
+	 * New psr options 0=500us, 1=100us, 2=2500us, 3=0us
+	 * Old decimal value is wake up time in multiples of 100 us.
+	 */
+	if (bdb->version >= 209 && IS_GEN9_BC(dev_priv)) {
+		switch (psr_table->tp1_wakeup_time) {
+		case 0:
+			dev_priv->vbt.psr.tp1_wakeup_time_us = 500;
+			break;
+		case 1:
+			dev_priv->vbt.psr.tp1_wakeup_time_us = 100;
+			break;
+		case 3:
+			dev_priv->vbt.psr.tp1_wakeup_time_us = 0;
+			break;
+		default:
+			DRM_DEBUG_KMS("VBT tp1 wakeup time value %d is outside range[0-3], defaulting to max value 2500us\n",
+					psr_table->tp1_wakeup_time);
+			/* fallthrough */
+		case 2:
+			dev_priv->vbt.psr.tp1_wakeup_time_us = 2500;
+			break;
+		}
+
+		switch (psr_table->tp2_tp3_wakeup_time) {
+		case 0:
+			dev_priv->vbt.psr.tp2_tp3_wakeup_time_us = 500;
+			break;
+		case 1:
+			dev_priv->vbt.psr.tp2_tp3_wakeup_time_us = 100;
+			break;
+		case 3:
+			dev_priv->vbt.psr.tp1_wakeup_time_us = 0;
+			break;
+		default:
+			DRM_DEBUG_KMS("VBT tp2_tp3 wakeup time value %d is outside range[0-3], defaulting to max value 2500us\n",
+					psr_table->tp2_tp3_wakeup_time);
+			/* fallthrough */
+		case 2:
+			dev_priv->vbt.psr.tp2_tp3_wakeup_time_us = 2500;
+		break;
+		}
+	} else {
+		dev_priv->vbt.psr.tp1_wakeup_time_us = psr_table->tp1_wakeup_time * 100;
+		dev_priv->vbt.psr.tp2_tp3_wakeup_time_us = psr_table->tp2_tp3_wakeup_time * 100;
+	}
 }
 
 static void parse_dsi_backlight_ports(struct drm_i915_private *dev_priv,
