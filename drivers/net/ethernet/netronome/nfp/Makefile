@@ -53,4 +53,9 @@ nfp-objs += \
 	    bpf/jit.o
 endif
 
+ifeq ($(CONFIG_NFP_APP_ABM_NIC),y)
+nfp-objs += \
+	    abm/main.o
+endif
+
 nfp-$(CONFIG_NFP_DEBUG) += nfp_net_debugfs.o
