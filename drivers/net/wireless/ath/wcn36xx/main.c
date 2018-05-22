@@ -26,6 +26,7 @@
 #include <linux/soc/qcom/smem_state.h>
 #include <linux/soc/qcom/wcnss_ctrl.h>
 #include "wcn36xx.h"
+#include "testmode.h"
 
 unsigned int wcn36xx_dbg_mask;
 module_param_named(debug_mask, wcn36xx_dbg_mask, uint, 0644);
@@ -1146,6 +1147,8 @@ static const struct ieee80211_ops wcn36xx_ops = {
 	.sta_add		= wcn36xx_sta_add,
 	.sta_remove		= wcn36xx_sta_remove,
 	.ampdu_action		= wcn36xx_ampdu_action,
+
+	CFG80211_TESTMODE_CMD(wcn36xx_tm_cmd)
 };
 
 static int wcn36xx_init_ieee80211(struct wcn36xx *wcn)

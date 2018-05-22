@@ -298,11 +298,25 @@ static void init_hal_msg(struct wcn36xx_hal_msg_header *hdr,
 		msg_body.header.len = sizeof(msg_body);			\
 	} while (0)							\
 
+#define INIT_HAL_PTT_MSG(p_msg_body, ppt_msg_len) \
+	do { \
+		memset(p_msg_body, 0, sizeof(*p_msg_body) + ppt_msg_len); \
+		p_msg_body->header.msg_type = WCN36XX_HAL_PROCESS_PTT_REQ; \
+		p_msg_body->header.msg_version = WCN36XX_HAL_MSG_VERSION0; \
+		p_msg_body->header.len = sizeof(*p_msg_body) + ppt_msg_len; \
+	} while (0)
+
 #define PREPARE_HAL_BUF(send_buf, msg_body) \
 	do {							\
 		memset(send_buf, 0, msg_body.header.len);	\
 		memcpy(send_buf, &msg_body, sizeof(msg_body));	\
 	} while (0)						\
+
+#define PREPARE_HAL_PTT_MSG_BUF(send_buf, p_msg_body) \
+	do {							\
+		memset(send_buf, 0, p_msg_body->header.len); \
+		memcpy(send_buf, p_msg_body, p_msg_body->header.len); \
+	} while (0)
 
 static int wcn36xx_smd_rsp_status_check(void *buf, size_t len)
 {
@@ -756,6 +770,71 @@ int wcn36xx_smd_switch_channel(struct wcn36xx *wcn,
 		goto out;
 	}
 out:
+	mutex_unlock(&wcn->hal_mutex);
+	return ret;
+}
+
+static int wcn36xx_smd_process_ptt_msg_rsp(void *buf, size_t len,
+					   void **p_ptt_rsp_msg)
+{
+	struct wcn36xx_hal_process_ptt_msg_rsp_msg *rsp;
+	int ret;
+
+	ret = wcn36xx_smd_rsp_status_check(buf, len);
+	if (ret)
+		return ret;
+
+	rsp = (struct wcn36xx_hal_process_ptt_msg_rsp_msg *)buf;
+
+	wcn36xx_dbg(WCN36XX_DBG_HAL, "process ptt msg responded with length %d\n",
+		    rsp->header.len);
+	wcn36xx_dbg_dump(WCN36XX_DBG_HAL_DUMP, "HAL_PTT_MSG_RSP:", rsp->ptt_msg,
+			 rsp->header.len - sizeof(rsp->ptt_msg_resp_status));
+
+	if (rsp->header.len > 0) {
+		*p_ptt_rsp_msg = kmalloc(rsp->header.len, GFP_ATOMIC);
+		if (!*p_ptt_rsp_msg)
+			return -ENOMEM;
+		memcpy(*p_ptt_rsp_msg, rsp->ptt_msg, rsp->header.len);
+	}
+	return ret;
+}
+
+int wcn36xx_smd_process_ptt_msg(struct wcn36xx *wcn,
+				struct ieee80211_vif *vif, void *ptt_msg, size_t len,
+		void **ptt_rsp_msg)
+{
+	struct wcn36xx_hal_process_ptt_msg_req_msg *p_msg_body;
+	int ret;
+
+	mutex_lock(&wcn->hal_mutex);
+	p_msg_body = kmalloc(
+		sizeof(struct wcn36xx_hal_process_ptt_msg_req_msg) + len,
+		GFP_ATOMIC);
+	if (!p_msg_body) {
+		ret = -ENOMEM;
+		goto out_nomem;
+	}
+	INIT_HAL_PTT_MSG(p_msg_body, len);
+
+	memcpy(&p_msg_body->ptt_msg, ptt_msg, len);
+
+	PREPARE_HAL_PTT_MSG_BUF(wcn->hal_buf, p_msg_body);
+
+	ret = wcn36xx_smd_send_and_wait(wcn, p_msg_body->header.len);
+	if (ret) {
+		wcn36xx_err("Sending hal_process_ptt_msg failed\n");
+		goto out;
+	}
+	ret = wcn36xx_smd_process_ptt_msg_rsp(wcn->hal_buf, wcn->hal_rsp_len,
+					      ptt_rsp_msg);
+	if (ret) {
+		wcn36xx_err("process_ptt_msg response failed err=%d\n", ret);
+		goto out;
+	}
+out:
+	kfree(p_msg_body);
+out_nomem:
 	mutex_unlock(&wcn->hal_mutex);
 	return ret;
 }
@@ -2396,6 +2475,7 @@ int wcn36xx_smd_rsp_process(struct rpmsg_device *rpdev,
 	case WCN36XX_HAL_JOIN_RSP:
 	case WCN36XX_HAL_UPDATE_SCAN_PARAM_RSP:
 	case WCN36XX_HAL_CH_SWITCH_RSP:
+	case WCN36XX_HAL_PROCESS_PTT_RSP:
 	case WCN36XX_HAL_FEATURE_CAPS_EXCHANGE_RSP:
 	case WCN36XX_HAL_8023_MULTICAST_LIST_RSP:
 	case WCN36XX_HAL_START_SCAN_OFFLOAD_RSP:
@@ -2436,6 +2516,7 @@ int wcn36xx_smd_rsp_process(struct rpmsg_device *rpdev,
 
 	return 0;
 }
+
 static void wcn36xx_ind_smd_work(struct work_struct *work)
 {
 	struct wcn36xx *wcn =
