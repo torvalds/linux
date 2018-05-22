@@ -71,6 +71,9 @@ static struct clock_event_device clockevent_gpt;
 /* Clockevent hwmod for am335x and am437x suspend */
 static struct omap_hwmod *clockevent_gpt_hwmod;
 
+/* Clockesource hwmod for am437x suspend */
+static struct omap_hwmod *clocksource_gpt_hwmod;
+
 #ifdef CONFIG_SOC_HAS_REALTIME_COUNTER
 static unsigned long arch_timer_freq;
 
@@ -442,6 +445,26 @@ static int __init __maybe_unused omap2_sync32k_clocksource_init(void)
 	return ret;
 }
 
+static unsigned int omap2_gptimer_clksrc_load;
+
+static void omap2_gptimer_clksrc_suspend(struct clocksource *unused)
+{
+	omap2_gptimer_clksrc_load =
+		__omap_dm_timer_read_counter(&clksrc, OMAP_TIMER_NONPOSTED);
+
+	omap_hwmod_idle(clocksource_gpt_hwmod);
+}
+
+static void omap2_gptimer_clksrc_resume(struct clocksource *unused)
+{
+	omap_hwmod_enable(clocksource_gpt_hwmod);
+
+	__omap_dm_timer_load_start(&clksrc,
+				   OMAP_TIMER_CTRL_ST | OMAP_TIMER_CTRL_AR,
+				   omap2_gptimer_clksrc_load,
+				   OMAP_TIMER_NONPOSTED);
+}
+
 static void __init omap2_gptimer_clocksource_init(int gptimer_id,
 						  const char *fck_source,
 						  const char *property)
@@ -454,6 +477,15 @@ static void __init omap2_gptimer_clocksource_init(int gptimer_id,
 	res = omap_dm_timer_init_one(&clksrc, fck_source, property,
 				     &clocksource_gpt.name,
 				     OMAP_TIMER_NONPOSTED);
+
+	if (soc_is_am43xx()) {
+		clocksource_gpt.suspend = omap2_gptimer_clksrc_suspend;
+		clocksource_gpt.resume = omap2_gptimer_clksrc_resume;
+
+		clocksource_gpt_hwmod =
+			omap_hwmod_lookup(clocksource_gpt.name);
+	}
+
 	BUG_ON(res);
 
 	__omap_dm_timer_load_start(&clksrc,
