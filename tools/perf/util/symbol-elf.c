@@ -1400,13 +1400,46 @@ struct kcore_copy_info {
 	u64 first_module;
 	u64 last_module_symbol;
 	size_t phnum;
-	struct phdr_data kernel_map;
-	struct phdr_data modules_map;
 	struct list_head phdrs;
 };
 
 #define kcore_copy__for_each_phdr(k, p) \
 	list_for_each_entry((p), &(k)->phdrs, node)
+
+static struct phdr_data *phdr_data__new(u64 addr, u64 len, off_t offset)
+{
+	struct phdr_data *p = zalloc(sizeof(*p));
+
+	if (p) {
+		p->addr   = addr;
+		p->len    = len;
+		p->offset = offset;
+	}
+
+	return p;
+}
+
+static struct phdr_data *kcore_copy_info__addnew(struct kcore_copy_info *kci,
+						 u64 addr, u64 len,
+						 off_t offset)
+{
+	struct phdr_data *p = phdr_data__new(addr, len, offset);
+
+	if (p)
+		list_add_tail(&p->node, &kci->phdrs);
+
+	return p;
+}
+
+static void kcore_copy__free_phdrs(struct kcore_copy_info *kci)
+{
+	struct phdr_data *p, *tmp;
+
+	list_for_each_entry_safe(p, tmp, &kci->phdrs, node) {
+		list_del(&p->node);
+		free(p);
+	}
+}
 
 static int kcore_copy__process_kallsyms(void *arg, const char *name, char type,
 					u64 start)
@@ -1487,15 +1520,18 @@ static int kcore_copy__parse_modules(struct kcore_copy_info *kci,
 	return 0;
 }
 
-static void kcore_copy__map(struct phdr_data *p, u64 start, u64 end, u64 pgoff,
-			    u64 s, u64 e)
+static int kcore_copy__map(struct kcore_copy_info *kci, u64 start, u64 end,
+			   u64 pgoff, u64 s, u64 e)
 {
-	if (p->addr || s < start || s >= end)
-		return;
+	u64 len, offset;
 
-	p->addr = s;
-	p->offset = (s - start) + pgoff;
-	p->len = e < end ? e - s : end - s;
+	if (s < start || s >= end)
+		return 0;
+
+	offset = (s - start) + pgoff;
+	len = e < end ? e - s : end - s;
+
+	return kcore_copy_info__addnew(kci, s, len, offset) ? 0 : -1;
 }
 
 static int kcore_copy__read_map(u64 start, u64 len, u64 pgoff, void *data)
@@ -1503,11 +1539,12 @@ static int kcore_copy__read_map(u64 start, u64 len, u64 pgoff, void *data)
 	struct kcore_copy_info *kci = data;
 	u64 end = start + len;
 
-	kcore_copy__map(&kci->kernel_map, start, end, pgoff, kci->stext,
-			kci->etext);
+	if (kcore_copy__map(kci, start, end, pgoff, kci->stext, kci->etext))
+		return -1;
 
-	kcore_copy__map(&kci->modules_map, start, end, pgoff, kci->first_module,
-			kci->last_module_symbol);
+	if (kcore_copy__map(kci, start, end, pgoff, kci->first_module,
+			    kci->last_module_symbol))
+		return -1;
 
 	return 0;
 }
@@ -1516,11 +1553,6 @@ static int kcore_copy__read_maps(struct kcore_copy_info *kci, Elf *elf)
 {
 	if (elf_read_maps(elf, true, kcore_copy__read_map, kci) < 0)
 		return -1;
-
-	if (kci->kernel_map.len)
-		list_add_tail(&kci->kernel_map.node, &kci->phdrs);
-	if (kci->modules_map.len)
-		list_add_tail(&kci->modules_map.node, &kci->phdrs);
 
 	return 0;
 }
@@ -1772,6 +1804,8 @@ out_unlink_modules:
 out_unlink_kallsyms:
 	if (err)
 		kcore_copy__unlink(to_dir, "kallsyms");
+
+	kcore_copy__free_phdrs(&kci);
 
 	return err;
 }
