@@ -1682,7 +1682,7 @@ int kcore_copy(const char *from_dir, const char *to_dir)
 	struct kcore kcore;
 	struct kcore extract;
 	int idx = 0, err = -1;
-	off_t offset = page_size, sz, modules_offset = 0;
+	off_t offset, sz, modules_offset = 0;
 	struct kcore_copy_info kci = { .stext = 0, };
 	char kcore_filename[PATH_MAX];
 	char extract_filename[PATH_MAX];
@@ -1709,6 +1709,10 @@ int kcore_copy(const char *from_dir, const char *to_dir)
 
 	if (kcore__copy_hdr(&kcore, &extract, kci.phnum))
 		goto out_extract_close;
+
+	offset = gelf_fsize(extract.elf, ELF_T_EHDR, 1, EV_CURRENT) +
+		 gelf_fsize(extract.elf, ELF_T_PHDR, kci.phnum, EV_CURRENT);
+	offset = round_up(offset, page_size);
 
 	if (kcore__add_phdr(&extract, idx++, offset, kci.kernel_map.addr,
 			    kci.kernel_map.len))
