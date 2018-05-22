@@ -3,6 +3,11 @@ config COMMON_CLK_AMLOGIC
 	depends on ARCH_MESON || COMPILE_TEST
 	select COMMON_CLK_REGMAP_MESON
 
+config COMMON_CLK_AMLOGIC_AUDIO
+	bool
+	depends on ARCH_MESON || COMPILE_TEST
+	select COMMON_CLK_AMLOGIC
+
 config COMMON_CLK_MESON_AO
 	bool
 	depends on OF
