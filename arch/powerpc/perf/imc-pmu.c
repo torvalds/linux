@@ -1371,7 +1371,7 @@ int init_imc_pmu(struct device_node *parent, struct imc_pmu *pmu_ptr, int pmu_id
 
 		break;
 	default:
-		return  -1;	/* Unknown domain */
+		return  -EINVAL;	/* Unknown domain */
 	}
 
 	ret = update_events_in_group(parent, pmu_ptr);
