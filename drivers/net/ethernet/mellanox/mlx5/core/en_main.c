@@ -988,7 +988,8 @@ static int mlx5e_alloc_xdpsq_db(struct mlx5e_xdpsq *sq, int numa)
 static int mlx5e_alloc_xdpsq(struct mlx5e_channel *c,
 			     struct mlx5e_params *params,
 			     struct mlx5e_sq_param *param,
-			     struct mlx5e_xdpsq *sq)
+			     struct mlx5e_xdpsq *sq,
+			     bool is_redirect)
 {
 	void *sqc_wq               = MLX5_ADDR_OF(sqc, param->sqc, wq);
 	struct mlx5_core_dev *mdev = c->mdev;
@@ -1001,7 +1002,9 @@ static int mlx5e_alloc_xdpsq(struct mlx5e_channel *c,
 	sq->uar_map   = mdev->mlx5e_res.bfreg.map;
 	sq->min_inline_mode = params->tx_min_inline_mode;
 	sq->hw_mtu    = MLX5E_SW2HW_MTU(params, params->sw_mtu);
-	sq->stats     = &c->priv->channel_stats[c->ix].rq_xdpsq;
+	sq->stats     = is_redirect ?
+		&c->priv->channel_stats[c->ix].xdpsq :
+		&c->priv->channel_stats[c->ix].rq_xdpsq;
 
 	param->wq.db_numa_node = cpu_to_node(c->cpu);
 	err = mlx5_wq_cyc_create(mdev, &param->wq, sqc_wq, wq, &sq->wq_ctrl);
@@ -1531,7 +1534,8 @@ static void mlx5e_close_icosq(struct mlx5e_icosq *sq)
 static int mlx5e_open_xdpsq(struct mlx5e_channel *c,
 			    struct mlx5e_params *params,
 			    struct mlx5e_sq_param *param,
-			    struct mlx5e_xdpsq *sq)
+			    struct mlx5e_xdpsq *sq,
+			    bool is_redirect)
 {
 	unsigned int ds_cnt = MLX5E_XDP_TX_DS_COUNT;
 	struct mlx5e_create_sq_param csp = {};
@@ -1539,7 +1543,7 @@ static int mlx5e_open_xdpsq(struct mlx5e_channel *c,
 	int err;
 	int i;
 
-	err = mlx5e_alloc_xdpsq(c, params, param, sq);
+	err = mlx5e_alloc_xdpsq(c, params, param, sq, is_redirect);
 	if (err)
 		return err;
 
@@ -1548,6 +1552,8 @@ static int mlx5e_open_xdpsq(struct mlx5e_channel *c,
 	csp.cqn             = sq->cq.mcq.cqn;
 	csp.wq_ctrl         = &sq->wq_ctrl;
 	csp.min_inline_mode = sq->min_inline_mode;
+	if (is_redirect)
+		set_bit(MLX5E_SQ_STATE_REDIRECT, &sq->state);
 	set_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
 	err = mlx5e_create_sq_rdy(c->mdev, param, &csp, &sq->sqn);
 	if (err)
@@ -1930,9 +1936,13 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	if (err)
 		goto err_close_icosq_cq;
 
-	err = mlx5e_open_cq(c, params->rx_cq_moderation, &cparam->rx_cq, &c->rq.cq);
+	err = mlx5e_open_cq(c, params->tx_cq_moderation, &cparam->tx_cq, &c->xdpsq.cq);
 	if (err)
 		goto err_close_tx_cqs;
+
+	err = mlx5e_open_cq(c, params->rx_cq_moderation, &cparam->rx_cq, &c->rq.cq);
+	if (err)
+		goto err_close_xdp_tx_cqs;
 
 	/* XDP SQ CQ params are same as normal TXQ sq CQ params */
 	err = c->xdp ? mlx5e_open_cq(c, params->tx_cq_moderation,
@@ -1950,7 +1960,7 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	if (err)
 		goto err_close_icosq;
 
-	err = c->xdp ? mlx5e_open_xdpsq(c, params, &cparam->xdp_sq, &c->rq.xdpsq) : 0;
+	err = c->xdp ? mlx5e_open_xdpsq(c, params, &cparam->xdp_sq, &c->rq.xdpsq, false) : 0;
 	if (err)
 		goto err_close_sqs;
 
@@ -1958,9 +1968,17 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	if (err)
 		goto err_close_xdp_sq;
 
+	err = mlx5e_open_xdpsq(c, params, &cparam->xdp_sq, &c->xdpsq, true);
+	if (err)
+		goto err_close_rq;
+
 	*cp = c;
 
 	return 0;
+
+err_close_rq:
+	mlx5e_close_rq(&c->rq);
+
 err_close_xdp_sq:
 	if (c->xdp)
 		mlx5e_close_xdpsq(&c->rq.xdpsq);
@@ -1978,6 +1996,9 @@ err_disable_napi:
 
 err_close_rx_cq:
 	mlx5e_close_cq(&c->rq.cq);
+
+err_close_xdp_tx_cqs:
+	mlx5e_close_cq(&c->xdpsq.cq);
 
 err_close_tx_cqs:
 	mlx5e_close_tx_cqs(c);
@@ -2013,6 +2034,7 @@ static void mlx5e_deactivate_channel(struct mlx5e_channel *c)
 
 static void mlx5e_close_channel(struct mlx5e_channel *c)
 {
+	mlx5e_close_xdpsq(&c->xdpsq);
 	mlx5e_close_rq(&c->rq);
 	if (c->xdp)
 		mlx5e_close_xdpsq(&c->rq.xdpsq);
@@ -2022,6 +2044,7 @@ static void mlx5e_close_channel(struct mlx5e_channel *c)
 	if (c->xdp)
 		mlx5e_close_cq(&c->rq.xdpsq.cq);
 	mlx5e_close_cq(&c->rq.cq);
+	mlx5e_close_cq(&c->xdpsq.cq);
 	mlx5e_close_tx_cqs(c);
 	mlx5e_close_cq(&c->icosq.cq);
 	netif_napi_del(&c->napi);
@@ -4278,6 +4301,7 @@ static const struct net_device_ops mlx5e_netdev_ops = {
 #endif
 	.ndo_tx_timeout          = mlx5e_tx_timeout,
 	.ndo_bpf		 = mlx5e_xdp,
+	.ndo_xdp_xmit            = mlx5e_xdp_xmit,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller     = mlx5e_netpoll,
 #endif
