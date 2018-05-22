@@ -76,6 +76,7 @@ struct nfp_repr_pcpu_stats {
  * @port:	Port of representor
  * @app:	APP handle
  * @stats:	Statistic of packets hitting CPU
+ * @app_priv:	Pointer for APP data
  */
 struct nfp_repr {
 	struct net_device *netdev;
@@ -83,6 +84,7 @@ struct nfp_repr {
 	struct nfp_port *port;
 	struct nfp_app *app;
 	struct nfp_repr_pcpu_stats __percpu *stats;
+	void *app_priv;
 };
 
 /**
