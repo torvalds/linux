@@ -28,20 +28,11 @@ fi
 # ignore userspace tools
 ignore="$ignore ( -path ${tree}tools ) -prune -o"
 
-# Find all available archs
-find_all_archs()
-{
-	ALLSOURCE_ARCHS=""
-	for arch in `ls ${tree}arch`; do
-		ALLSOURCE_ARCHS="${ALLSOURCE_ARCHS} "${arch##\/}
-	done
-}
-
 # Detect if ALLSOURCE_ARCHS is set. If not, we assume SRCARCH
 if [ "${ALLSOURCE_ARCHS}" = "" ]; then
 	ALLSOURCE_ARCHS=${SRCARCH}
 elif [ "${ALLSOURCE_ARCHS}" = "all" ]; then
-	find_all_archs
+	ALLSOURCE_ARCHS=$(find ${tree}arch/ -mindepth 1 -maxdepth 1 -type d -printf '%f ')
 fi
 
 # find sources in arch/$ARCH
