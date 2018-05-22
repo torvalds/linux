@@ -1965,6 +1965,7 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 	u64 len;
 	int width = symbol_conf.show_total_period ? 12 : 8;
 	int graph_dotted_len;
+	char buf[512];
 
 	filename = strdup(dso->long_name);
 	if (!filename)
@@ -1977,8 +1978,11 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 
 	len = symbol__size(sym);
 
-	if (perf_evsel__is_group_event(evsel))
+	if (perf_evsel__is_group_event(evsel)) {
 		width *= evsel->nr_members;
+		perf_evsel__group_desc(evsel, buf, sizeof(buf));
+		evsel_name = buf;
+	}
 
 	graph_dotted_len = printf(" %-*.*s|	Source code & Disassembly of %s for %s (%" PRIu64 " samples)\n",
 				  width, width, symbol_conf.show_total_period ? "Period" :
