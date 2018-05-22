@@ -1618,8 +1618,24 @@ static int netvsc_set_ringparam(struct net_device *ndev,
 	return ret;
 }
 
+static u32 netvsc_get_msglevel(struct net_device *ndev)
+{
+	struct net_device_context *ndev_ctx = netdev_priv(ndev);
+
+	return ndev_ctx->msg_enable;
+}
+
+static void netvsc_set_msglevel(struct net_device *ndev, u32 val)
+{
+	struct net_device_context *ndev_ctx = netdev_priv(ndev);
+
+	ndev_ctx->msg_enable = val;
+}
+
 static const struct ethtool_ops ethtool_ops = {
 	.get_drvinfo	= netvsc_get_drvinfo,
+	.get_msglevel	= netvsc_get_msglevel,
+	.set_msglevel	= netvsc_set_msglevel,
 	.get_link	= ethtool_op_get_link,
 	.get_ethtool_stats = netvsc_get_ethtool_stats,
 	.get_sset_count = netvsc_get_sset_count,
