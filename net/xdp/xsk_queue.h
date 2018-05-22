@@ -13,6 +13,23 @@
 
 #define RX_BATCH_SIZE 16
 
+struct xdp_ring {
+	u32 producer ____cacheline_aligned_in_smp;
+	u32 consumer ____cacheline_aligned_in_smp;
+};
+
+/* Used for the RX and TX queues for packets */
+struct xdp_rxtx_ring {
+	struct xdp_ring ptrs;
+	struct xdp_desc desc[0] ____cacheline_aligned_in_smp;
+};
+
+/* Used for the fill and completion queues for buffers */
+struct xdp_umem_ring {
+	struct xdp_ring ptrs;
+	u32 desc[0] ____cacheline_aligned_in_smp;
+};
+
 struct xsk_queue {
 	struct xdp_umem_props umem_props;
 	u32 ring_mask;

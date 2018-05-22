@@ -79,7 +79,10 @@ struct xdp_umem_uqueue {
 	u32 cached_cons;
 	u32 mask;
 	u32 size;
-	struct xdp_umem_ring *ring;
+	u32 *producer;
+	u32 *consumer;
+	u32 *ring;
+	void *map;
 };
 
 struct xdp_umem {
@@ -94,7 +97,10 @@ struct xdp_uqueue {
 	u32 cached_cons;
 	u32 mask;
 	u32 size;
-	struct xdp_rxtx_ring *ring;
+	u32 *producer;
+	u32 *consumer;
+	struct xdp_desc *ring;
+	void *map;
 };
 
 struct xdpsock {
@@ -155,7 +161,7 @@ static inline u32 umem_nb_free(struct xdp_umem_uqueue *q, u32 nb)
 		return free_entries;
 
 	/* Refresh the local tail pointer */
-	q->cached_cons = q->ring->ptrs.consumer;
+	q->cached_cons = *q->consumer;
 
 	return q->size - (q->cached_prod - q->cached_cons);
 }
@@ -168,7 +174,7 @@ static inline u32 xq_nb_free(struct xdp_uqueue *q, u32 ndescs)
 		return free_entries;
 
 	/* Refresh the local tail pointer */
-	q->cached_cons = q->ring->ptrs.consumer + q->size;
+	q->cached_cons = *q->consumer + q->size;
 	return q->cached_cons - q->cached_prod;
 }
 
@@ -177,7 +183,7 @@ static inline u32 umem_nb_avail(struct xdp_umem_uqueue *q, u32 nb)
 	u32 entries = q->cached_prod - q->cached_cons;
 
 	if (entries == 0) {
-		q->cached_prod = q->ring->ptrs.producer;
+		q->cached_prod = *q->producer;
 		entries = q->cached_prod - q->cached_cons;
 	}
 
@@ -189,7 +195,7 @@ static inline u32 xq_nb_avail(struct xdp_uqueue *q, u32 ndescs)
 	u32 entries = q->cached_prod - q->cached_cons;
 
 	if (entries == 0) {
-		q->cached_prod = q->ring->ptrs.producer;
+		q->cached_prod = *q->producer;
 		entries = q->cached_prod - q->cached_cons;
 	}
 
@@ -208,12 +214,12 @@ static inline int umem_fill_to_kernel_ex(struct xdp_umem_uqueue *fq,
 	for (i = 0; i < nb; i++) {
 		u32 idx = fq->cached_prod++ & fq->mask;
 
-		fq->ring->desc[idx] = d[i].idx;
+		fq->ring[idx] = d[i].idx;
 	}
 
 	u_smp_wmb();
 
-	fq->ring->ptrs.producer = fq->cached_prod;
+	*fq->producer = fq->cached_prod;
 
 	return 0;
 }
@@ -229,12 +235,12 @@ static inline int umem_fill_to_kernel(struct xdp_umem_uqueue *fq, u32 *d,
 	for (i = 0; i < nb; i++) {
 		u32 idx = fq->cached_prod++ & fq->mask;
 
-		fq->ring->desc[idx] = d[i];
+		fq->ring[idx] = d[i];
 	}
 
 	u_smp_wmb();
 
-	fq->ring->ptrs.producer = fq->cached_prod;
+	*fq->producer = fq->cached_prod;
 
 	return 0;
 }
@@ -248,13 +254,13 @@ static inline size_t umem_complete_from_kernel(struct xdp_umem_uqueue *cq,
 
 	for (i = 0; i < entries; i++) {
 		idx = cq->cached_cons++ & cq->mask;
-		d[i] = cq->ring->desc[idx];
+		d[i] = cq->ring[idx];
 	}
 
 	if (entries > 0) {
 		u_smp_wmb();
 
-		cq->ring->ptrs.consumer = cq->cached_cons;
+		*cq->consumer = cq->cached_cons;
 	}
 
 	return entries;
@@ -270,7 +276,7 @@ static inline int xq_enq(struct xdp_uqueue *uq,
 			 const struct xdp_desc *descs,
 			 unsigned int ndescs)
 {
-	struct xdp_rxtx_ring *r = uq->ring;
+	struct xdp_desc *r = uq->ring;
 	unsigned int i;
 
 	if (xq_nb_free(uq, ndescs) < ndescs)
@@ -279,21 +285,21 @@ static inline int xq_enq(struct xdp_uqueue *uq,
 	for (i = 0; i < ndescs; i++) {
 		u32 idx = uq->cached_prod++ & uq->mask;
 
-		r->desc[idx].idx = descs[i].idx;
-		r->desc[idx].len = descs[i].len;
-		r->desc[idx].offset = descs[i].offset;
+		r[idx].idx = descs[i].idx;
+		r[idx].len = descs[i].len;
+		r[idx].offset = descs[i].offset;
 	}
 
 	u_smp_wmb();
 
-	r->ptrs.producer = uq->cached_prod;
+	*uq->producer = uq->cached_prod;
 	return 0;
 }
 
 static inline int xq_enq_tx_only(struct xdp_uqueue *uq,
 				 __u32 idx, unsigned int ndescs)
 {
-	struct xdp_rxtx_ring *q = uq->ring;
+	struct xdp_desc *r = uq->ring;
 	unsigned int i;
 
 	if (xq_nb_free(uq, ndescs) < ndescs)
@@ -302,14 +308,14 @@ static inline int xq_enq_tx_only(struct xdp_uqueue *uq,
 	for (i = 0; i < ndescs; i++) {
 		u32 idx = uq->cached_prod++ & uq->mask;
 
-		q->desc[idx].idx	= idx + i;
-		q->desc[idx].len	= sizeof(pkt_data) - 1;
-		q->desc[idx].offset	= 0;
+		r[idx].idx	= idx + i;
+		r[idx].len	= sizeof(pkt_data) - 1;
+		r[idx].offset	= 0;
 	}
 
 	u_smp_wmb();
 
-	q->ptrs.producer = uq->cached_prod;
+	*uq->producer = uq->cached_prod;
 	return 0;
 }
 
@@ -317,7 +323,7 @@ static inline int xq_deq(struct xdp_uqueue *uq,
 			 struct xdp_desc *descs,
 			 int ndescs)
 {
-	struct xdp_rxtx_ring *r = uq->ring;
+	struct xdp_desc *r = uq->ring;
 	unsigned int idx;
 	int i, entries;
 
@@ -327,13 +333,13 @@ static inline int xq_deq(struct xdp_uqueue *uq,
 
 	for (i = 0; i < entries; i++) {
 		idx = uq->cached_cons++ & uq->mask;
-		descs[i] = r->desc[idx];
+		descs[i] = r[idx];
 	}
 
 	if (entries > 0) {
 		u_smp_wmb();
 
-		r->ptrs.consumer = uq->cached_cons;
+		*uq->consumer = uq->cached_cons;
 	}
 
 	return entries;
@@ -392,8 +398,10 @@ static size_t gen_eth_frame(char *frame)
 static struct xdp_umem *xdp_umem_configure(int sfd)
 {
 	int fq_size = FQ_NUM_DESCS, cq_size = CQ_NUM_DESCS;
+	struct xdp_mmap_offsets off;
 	struct xdp_umem_reg mr;
 	struct xdp_umem *umem;
+	socklen_t optlen;
 	void *bufs;
 
 	umem = calloc(1, sizeof(*umem));
@@ -413,25 +421,35 @@ static struct xdp_umem *xdp_umem_configure(int sfd)
 	lassert(setsockopt(sfd, SOL_XDP, XDP_UMEM_COMPLETION_RING, &cq_size,
 			   sizeof(int)) == 0);
 
-	umem->fq.ring = mmap(0, sizeof(struct xdp_umem_ring) +
-			     FQ_NUM_DESCS * sizeof(u32),
-			     PROT_READ | PROT_WRITE,
-			     MAP_SHARED | MAP_POPULATE, sfd,
-			     XDP_UMEM_PGOFF_FILL_RING);
-	lassert(umem->fq.ring != MAP_FAILED);
+	optlen = sizeof(off);
+	lassert(getsockopt(sfd, SOL_XDP, XDP_MMAP_OFFSETS, &off,
+			   &optlen) == 0);
+
+	umem->fq.map = mmap(0, off.fr.desc +
+			    FQ_NUM_DESCS * sizeof(u32),
+			    PROT_READ | PROT_WRITE,
+			    MAP_SHARED | MAP_POPULATE, sfd,
+			    XDP_UMEM_PGOFF_FILL_RING);
+	lassert(umem->fq.map != MAP_FAILED);
 
 	umem->fq.mask = FQ_NUM_DESCS - 1;
 	umem->fq.size = FQ_NUM_DESCS;
+	umem->fq.producer = umem->fq.map + off.fr.producer;
+	umem->fq.consumer = umem->fq.map + off.fr.consumer;
+	umem->fq.ring = umem->fq.map + off.fr.desc;
 
-	umem->cq.ring = mmap(0, sizeof(struct xdp_umem_ring) +
+	umem->cq.map = mmap(0, off.cr.desc +
 			     CQ_NUM_DESCS * sizeof(u32),
 			     PROT_READ | PROT_WRITE,
 			     MAP_SHARED | MAP_POPULATE, sfd,
 			     XDP_UMEM_PGOFF_COMPLETION_RING);
-	lassert(umem->cq.ring != MAP_FAILED);
+	lassert(umem->cq.map != MAP_FAILED);
 
 	umem->cq.mask = CQ_NUM_DESCS - 1;
 	umem->cq.size = CQ_NUM_DESCS;
+	umem->cq.producer = umem->cq.map + off.cr.producer;
+	umem->cq.consumer = umem->cq.map + off.cr.consumer;
+	umem->cq.ring = umem->cq.map + off.cr.desc;
 
 	umem->frames = (char (*)[FRAME_SIZE])bufs;
 	umem->fd = sfd;
@@ -449,9 +467,11 @@ static struct xdp_umem *xdp_umem_configure(int sfd)
 static struct xdpsock *xsk_configure(struct xdp_umem *umem)
 {
 	struct sockaddr_xdp sxdp = {};
+	struct xdp_mmap_offsets off;
 	int sfd, ndescs = NUM_DESCS;
 	struct xdpsock *xsk;
 	bool shared = true;
+	socklen_t optlen;
 	u32 i;
 
 	sfd = socket(PF_XDP, SOCK_RAW, 0);
@@ -474,15 +494,18 @@ static struct xdpsock *xsk_configure(struct xdp_umem *umem)
 			   &ndescs, sizeof(int)) == 0);
 	lassert(setsockopt(sfd, SOL_XDP, XDP_TX_RING,
 			   &ndescs, sizeof(int)) == 0);
+	optlen = sizeof(off);
+	lassert(getsockopt(sfd, SOL_XDP, XDP_MMAP_OFFSETS, &off,
+			   &optlen) == 0);
 
 	/* Rx */
-	xsk->rx.ring = mmap(NULL,
-			    sizeof(struct xdp_ring) +
-			    NUM_DESCS * sizeof(struct xdp_desc),
-			    PROT_READ | PROT_WRITE,
-			    MAP_SHARED | MAP_POPULATE, sfd,
-			    XDP_PGOFF_RX_RING);
-	lassert(xsk->rx.ring != MAP_FAILED);
+	xsk->rx.map = mmap(NULL,
+			   off.rx.desc +
+			   NUM_DESCS * sizeof(struct xdp_desc),
+			   PROT_READ | PROT_WRITE,
+			   MAP_SHARED | MAP_POPULATE, sfd,
+			   XDP_PGOFF_RX_RING);
+	lassert(xsk->rx.map != MAP_FAILED);
 
 	if (!shared) {
 		for (i = 0; i < NUM_DESCS / 2; i++)
@@ -491,19 +514,25 @@ static struct xdpsock *xsk_configure(struct xdp_umem *umem)
 	}
 
 	/* Tx */
-	xsk->tx.ring = mmap(NULL,
-			 sizeof(struct xdp_ring) +
-			 NUM_DESCS * sizeof(struct xdp_desc),
-			 PROT_READ | PROT_WRITE,
-			 MAP_SHARED | MAP_POPULATE, sfd,
-			 XDP_PGOFF_TX_RING);
-	lassert(xsk->tx.ring != MAP_FAILED);
+	xsk->tx.map = mmap(NULL,
+			   off.tx.desc +
+			   NUM_DESCS * sizeof(struct xdp_desc),
+			   PROT_READ | PROT_WRITE,
+			   MAP_SHARED | MAP_POPULATE, sfd,
+			   XDP_PGOFF_TX_RING);
+	lassert(xsk->tx.map != MAP_FAILED);
 
 	xsk->rx.mask = NUM_DESCS - 1;
 	xsk->rx.size = NUM_DESCS;
+	xsk->rx.producer = xsk->rx.map + off.rx.producer;
+	xsk->rx.consumer = xsk->rx.map + off.rx.consumer;
+	xsk->rx.ring = xsk->rx.map + off.rx.desc;
 
 	xsk->tx.mask = NUM_DESCS - 1;
 	xsk->tx.size = NUM_DESCS;
+	xsk->tx.producer = xsk->tx.map + off.tx.producer;
+	xsk->tx.consumer = xsk->tx.map + off.tx.consumer;
+	xsk->tx.ring = xsk->tx.map + off.tx.desc;
 
 	sxdp.sxdp_family = PF_XDP;
 	sxdp.sxdp_ifindex = opt_ifindex;
