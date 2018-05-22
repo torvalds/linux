@@ -143,7 +143,7 @@ static inline int cfs_fail_timeout_set(u32 id, u32 value, int ms, int set)
 
 /* If id hit cfs_fail_loc, sleep for seconds or milliseconds */
 #define CFS_FAIL_TIMEOUT(id, secs) \
-	cfs_fail_timeout_set(id, 0, secs * 1000, CFS_FAIL_LOC_NOSET)
+	cfs_fail_timeout_set(id, 0, (secs) * 1000, CFS_FAIL_LOC_NOSET)
 
 #define CFS_FAIL_TIMEOUT_MS(id, ms) \
 	cfs_fail_timeout_set(id, 0, ms, CFS_FAIL_LOC_NOSET)
@@ -153,10 +153,10 @@ static inline int cfs_fail_timeout_set(u32 id, u32 value, int ms, int set)
  * sleep seconds or milliseconds
  */
 #define CFS_FAIL_TIMEOUT_ORSET(id, value, secs) \
-	cfs_fail_timeout_set(id, value, secs * 1000, CFS_FAIL_LOC_ORSET)
+	cfs_fail_timeout_set(id, value, (secs) * 1000, CFS_FAIL_LOC_ORSET)
 
 #define CFS_FAIL_TIMEOUT_RESET(id, value, secs) \
-	cfs_fail_timeout_set(id, value, secs * 1000, CFS_FAIL_LOC_RESET)
+	cfs_fail_timeout_set(id, value, (secs) * 1000, CFS_FAIL_LOC_RESET)
 
 #define CFS_FAIL_TIMEOUT_MS_ORSET(id, value, ms) \
 	cfs_fail_timeout_set(id, value, ms, CFS_FAIL_LOC_ORSET)
