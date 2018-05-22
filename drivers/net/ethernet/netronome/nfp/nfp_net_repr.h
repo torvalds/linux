@@ -127,6 +127,7 @@ int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 		  struct net_device *pf_netdev);
 void nfp_repr_free(struct net_device *netdev);
 struct net_device *nfp_repr_alloc(struct nfp_app *app);
+void nfp_repr_clean_and_free(struct nfp_repr *repr);
 void nfp_reprs_clean_and_free(struct nfp_app *app, struct nfp_reprs *reprs);
 void nfp_reprs_clean_and_free_by_type(struct nfp_app *app,
 				      enum nfp_repr_type type);

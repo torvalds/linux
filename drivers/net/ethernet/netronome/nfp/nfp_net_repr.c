@@ -385,7 +385,7 @@ err_free_netdev:
 	return NULL;
 }
 
-static void nfp_repr_clean_and_free(struct nfp_repr *repr)
+void nfp_repr_clean_and_free(struct nfp_repr *repr)
 {
 	nfp_info(repr->app->cpp, "Destroying Representor(%s)\n",
 		 repr->netdev->name);

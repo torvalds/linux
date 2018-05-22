@@ -35,17 +35,25 @@
 #ifndef __NFP_ABM_H__
 #define __NFP_ABM_H__ 1
 
+#include <net/devlink.h>
+
 struct nfp_app;
 struct nfp_net;
+
+#define NFP_ABM_PORTID_TYPE	GENMASK(23, 16)
+#define NFP_ABM_PORTID_ID	GENMASK(7, 0)
 
 /**
  * struct nfp_abm - ABM NIC app structure
  * @app:	back pointer to nfp_app
  * @pf_id:	ID of our PF link
+ * @eswitch_mode:	devlink eswitch mode, advanced functions only visible
+ *			in switchdev mode
  */
 struct nfp_abm {
 	struct nfp_app *app;
 	unsigned int pf_id;
+	enum devlink_eswitch_mode eswitch_mode;
 };
 
 /**
