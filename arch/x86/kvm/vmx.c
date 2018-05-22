@@ -11374,7 +11374,7 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 		if (nested_cpu_has_vpid(vmcs12) && vmx->nested.vpid02) {
 			if (vmcs12->virtual_processor_id != vmx->nested.last_vpid) {
 				vmx->nested.last_vpid = vmcs12->virtual_processor_id;
-				__vmx_flush_tlb(vcpu, to_vmx(vcpu)->nested.vpid02, true);
+				__vmx_flush_tlb(vcpu, vmx->nested.vpid02, true);
 			}
 		} else {
 			vmx_flush_tlb(vcpu, true);
