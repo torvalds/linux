@@ -1036,7 +1036,7 @@ static bool dispatch_rq_from_ctx(struct sbitmap *sb, unsigned int bitnr,
 	struct blk_mq_ctx *ctx = hctx->ctxs[bitnr];
 
 	spin_lock(&ctx->lock);
-	if (unlikely(!list_empty(&ctx->rq_list))) {
+	if (!list_empty(&ctx->rq_list)) {
 		dispatch_data->rq = list_entry_rq(ctx->rq_list.next);
 		list_del_init(&dispatch_data->rq->queuelist);
 		if (list_empty(&ctx->rq_list))
