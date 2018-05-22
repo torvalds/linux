@@ -216,7 +216,8 @@ enum qed_ov_wol {
 enum qed_mfw_tlv_type {
 	QED_MFW_TLV_GENERIC = 0x1,	/* Core driver TLVs */
 	QED_MFW_TLV_ETH = 0x2,		/* L2 driver TLVs */
-	QED_MFW_TLV_MAX = 0x4,
+	QED_MFW_TLV_FCOE = 0x4,		/* FCoE protocol TLVs */
+	QED_MFW_TLV_MAX = 0x8,
 };
 
 struct qed_mfw_tlv_generic {
@@ -245,6 +246,7 @@ struct qed_mfw_tlv_generic {
 union qed_mfw_tlv_data {
 	struct qed_mfw_tlv_generic generic;
 	struct qed_mfw_tlv_eth eth;
+	struct qed_mfw_tlv_fcoe fcoe;
 };
 
 /**
