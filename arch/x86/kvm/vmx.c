@@ -12104,12 +12104,20 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 
 	load_vmcs12_mmu_host_state(vcpu, vmcs12);
 
-	if (enable_vpid) {
-		/*
-		 * Trivially support vpid by letting L2s share their parent
-		 * L1's vpid. TODO: move to a more elaborate solution, giving
-		 * each L2 its own vpid and exposing the vpid feature to L1.
-		 */
+	/*
+	 * If vmcs01 don't use VPID, CPU flushes TLB on every
+	 * VMEntry/VMExit. Thus, no need to flush TLB.
+	 *
+	 * If vmcs12 uses VPID, TLB entries populated by L2 are
+	 * tagged with vmx->nested.vpid02 while L1 entries are tagged
+	 * with vmx->vpid. Thus, no need to flush TLB.
+	 *
+	 * Therefore, flush TLB only in case vmcs01 uses VPID and
+	 * vmcs12 don't use VPID as in this case L1 & L2 TLB entries
+	 * are both tagged with vmx->vpid.
+	 */
+	if (enable_vpid &&
+	    !(nested_cpu_has_vpid(vmcs12) && to_vmx(vcpu)->nested.vpid02)) {
 		vmx_flush_tlb(vcpu, true);
 	}
 
