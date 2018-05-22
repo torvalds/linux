@@ -1062,6 +1062,8 @@ static uint32_t hsw_pll_to_ddi_pll_sel(const struct intel_shared_dpll *pll)
 static uint32_t icl_pll_to_ddi_pll_sel(struct intel_encoder *encoder,
 				       const struct intel_shared_dpll *pll)
 {
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
+	int clock = crtc->config->port_clock;
 	const enum intel_dpll_id id = pll->info->id;
 
 	switch (id) {
@@ -1070,6 +1072,20 @@ static uint32_t icl_pll_to_ddi_pll_sel(struct intel_encoder *encoder,
 	case DPLL_ID_ICL_DPLL0:
 	case DPLL_ID_ICL_DPLL1:
 		return DDI_CLK_SEL_NONE;
+	case DPLL_ID_ICL_TBTPLL:
+		switch (clock) {
+		case 162000:
+			return DDI_CLK_SEL_TBT_162;
+		case 270000:
+			return DDI_CLK_SEL_TBT_270;
+		case 540000:
+			return DDI_CLK_SEL_TBT_540;
+		case 810000:
+			return DDI_CLK_SEL_TBT_810;
+		default:
+			MISSING_CASE(clock);
+			break;
+		}
 	case DPLL_ID_ICL_MGPLL1:
 	case DPLL_ID_ICL_MGPLL2:
 	case DPLL_ID_ICL_MGPLL3:

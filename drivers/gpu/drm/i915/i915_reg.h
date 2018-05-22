@@ -8836,6 +8836,10 @@ enum skl_power_gate {
 #define DDI_CLK_SEL(port)		PORT_CLK_SEL(port)
 #define  DDI_CLK_SEL_NONE		(0x0 << 28)
 #define  DDI_CLK_SEL_MG			(0x8 << 28)
+#define  DDI_CLK_SEL_TBT_162		(0xC << 28)
+#define  DDI_CLK_SEL_TBT_270		(0xD << 28)
+#define  DDI_CLK_SEL_TBT_540		(0xE << 28)
+#define  DDI_CLK_SEL_TBT_810		(0xF << 28)
 #define  DDI_CLK_SEL_MASK		(0xF << 28)
 
 /* Transcoder clock selection */
@@ -8984,6 +8988,8 @@ enum skl_power_gate {
 #define  PLL_POWER_ENABLE	(1 << 27)
 #define  PLL_POWER_STATE	(1 << 26)
 #define CNL_DPLL_ENABLE(pll)	_MMIO_PLL(pll, DPLL0_ENABLE, DPLL1_ENABLE)
+
+#define TBT_PLL_ENABLE		_MMIO(0x46020)
 
 #define _MG_PLL1_ENABLE		0x46030
 #define _MG_PLL2_ENABLE		0x46034
