@@ -97,6 +97,7 @@ extern const struct nfp_app_type app_abm;
  * @bpf:	BPF ndo offload-related calls
  * @xdp_offload:    offload an XDP program
  * @eswitch_mode_get:    get SR-IOV eswitch mode
+ * @eswitch_mode_set:    set SR-IOV eswitch mode (under pf->lock)
  * @sriov_enable: app-specific sriov initialisation
  * @sriov_disable: app-specific sriov clean-up
  * @repr_get:	get representor netdev
@@ -148,6 +149,7 @@ struct nfp_app_type {
 	void (*sriov_disable)(struct nfp_app *app);
 
 	enum devlink_eswitch_mode (*eswitch_mode_get)(struct nfp_app *app);
+	int (*eswitch_mode_set)(struct nfp_app *app, u16 mode);
 	struct net_device *(*repr_get)(struct nfp_app *app, u32 id);
 };
 
@@ -370,6 +372,13 @@ static inline int nfp_app_eswitch_mode_get(struct nfp_app *app, u16 *mode)
 	*mode = app->type->eswitch_mode_get(app);
 
 	return 0;
+}
+
+static inline int nfp_app_eswitch_mode_set(struct nfp_app *app, u16 mode)
+{
+	if (!app->type->eswitch_mode_set)
+		return -EOPNOTSUPP;
+	return app->type->eswitch_mode_set(app, mode);
 }
 
 static inline int nfp_app_sriov_enable(struct nfp_app *app, int num_vfs)
