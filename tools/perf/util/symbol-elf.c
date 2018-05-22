@@ -1392,6 +1392,11 @@ struct phdr_data {
 	struct list_head node;
 };
 
+struct sym_data {
+	u64 addr;
+	struct list_head node;
+};
+
 struct kcore_copy_info {
 	u64 stext;
 	u64 etext;
@@ -1401,6 +1406,7 @@ struct kcore_copy_info {
 	u64 last_module_symbol;
 	size_t phnum;
 	struct list_head phdrs;
+	struct list_head syms;
 };
 
 #define kcore_copy__for_each_phdr(k, p) \
@@ -1441,6 +1447,29 @@ static void kcore_copy__free_phdrs(struct kcore_copy_info *kci)
 	}
 }
 
+static struct sym_data *kcore_copy__new_sym(struct kcore_copy_info *kci,
+					    u64 addr)
+{
+	struct sym_data *s = zalloc(sizeof(*s));
+
+	if (s) {
+		s->addr = addr;
+		list_add_tail(&s->node, &kci->syms);
+	}
+
+	return s;
+}
+
+static void kcore_copy__free_syms(struct kcore_copy_info *kci)
+{
+	struct sym_data *s, *tmp;
+
+	list_for_each_entry_safe(s, tmp, &kci->syms, node) {
+		list_del(&s->node);
+		free(s);
+	}
+}
+
 static int kcore_copy__process_kallsyms(void *arg, const char *name, char type,
 					u64 start)
 {
@@ -1470,6 +1499,9 @@ static int kcore_copy__process_kallsyms(void *arg, const char *name, char type,
 		kci->etext = start;
 		return 0;
 	}
+
+	if (is_entry_trampoline(name) && !kcore_copy__new_sym(kci, start))
+		return -1;
 
 	return 0;
 }
@@ -1538,6 +1570,7 @@ static int kcore_copy__read_map(u64 start, u64 len, u64 pgoff, void *data)
 {
 	struct kcore_copy_info *kci = data;
 	u64 end = start + len;
+	struct sym_data *sdat;
 
 	if (kcore_copy__map(kci, start, end, pgoff, kci->stext, kci->etext))
 		return -1;
@@ -1545,6 +1578,13 @@ static int kcore_copy__read_map(u64 start, u64 len, u64 pgoff, void *data)
 	if (kcore_copy__map(kci, start, end, pgoff, kci->first_module,
 			    kci->last_module_symbol))
 		return -1;
+
+	list_for_each_entry(sdat, &kci->syms, node) {
+		u64 s = round_down(sdat->addr, page_size);
+
+		if (kcore_copy__map(kci, start, end, pgoff, s, s + len))
+			return -1;
+	}
 
 	return 0;
 }
@@ -1740,6 +1780,7 @@ int kcore_copy(const char *from_dir, const char *to_dir)
 	struct phdr_data *p;
 
 	INIT_LIST_HEAD(&kci.phdrs);
+	INIT_LIST_HEAD(&kci.syms);
 
 	if (kcore_copy__copy_file(from_dir, to_dir, "kallsyms"))
 		return -1;
@@ -1806,6 +1847,7 @@ out_unlink_kallsyms:
 		kcore_copy__unlink(to_dir, "kallsyms");
 
 	kcore_copy__free_phdrs(&kci);
+	kcore_copy__free_syms(&kci);
 
 	return err;
 }
