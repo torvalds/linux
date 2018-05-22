@@ -213,6 +213,40 @@ enum qed_ov_wol {
 	QED_OV_WOL_ENABLED
 };
 
+enum qed_mfw_tlv_type {
+	QED_MFW_TLV_GENERIC = 0x1,	/* Core driver TLVs */
+	QED_MFW_TLV_ETH = 0x2,		/* L2 driver TLVs */
+	QED_MFW_TLV_MAX = 0x4,
+};
+
+struct qed_mfw_tlv_generic {
+#define QED_MFW_TLV_FLAGS_SIZE	2
+	struct {
+		u8 ipv4_csum_offload;
+		u8 lso_supported;
+		bool b_set;
+	} flags;
+
+#define QED_MFW_TLV_MAC_COUNT 3
+	/* First entry for primary MAC, 2 secondary MACs possible */
+	u8 mac[QED_MFW_TLV_MAC_COUNT][6];
+	bool mac_set[QED_MFW_TLV_MAC_COUNT];
+
+	u64 rx_frames;
+	bool rx_frames_set;
+	u64 rx_bytes;
+	bool rx_bytes_set;
+	u64 tx_frames;
+	bool tx_frames_set;
+	u64 tx_bytes;
+	bool tx_bytes_set;
+};
+
+union qed_mfw_tlv_data {
+	struct qed_mfw_tlv_generic generic;
+	struct qed_mfw_tlv_eth eth;
+};
+
 /**
  * @brief - returns the link params of the hw function
  *
@@ -561,6 +595,17 @@ int qed_mcp_bist_nvm_get_image_att(struct qed_hwfn *p_hwfn,
 				   struct bist_nvm_image_att *p_image_att,
 				   u32 image_index);
 
+/**
+ * @brief - Processes the TLV request from MFW i.e., get the required TLV info
+ *          from the qed client and send it to the MFW.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ *
+ * @param return 0 upon success.
+ */
+int qed_mfw_process_tlv_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
 /* Using hwfn number (and not pf_num) is required since in CMT mode,
  * same pf_num may be used by two different hwfn
  * TODO - this shouldn't really be in .h file, but until all fields
@@ -619,6 +664,14 @@ struct qed_mcp_mb_params {
 	u8			data_dst_size;
 	u32			mcp_resp;
 	u32			mcp_param;
+};
+
+struct qed_drv_tlv_hdr {
+	u8 tlv_type;
+	u8 tlv_length;	/* In dwords - not including this header */
+	u8 tlv_reserved;
+#define QED_DRV_TLV_FLAGS_CHANGED 0x01
+	u8 tlv_flags;
 };
 
 /**

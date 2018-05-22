@@ -182,6 +182,43 @@ enum qed_led_mode {
 	QED_LED_MODE_RESTORE
 };
 
+struct qed_mfw_tlv_eth {
+	u16 lso_maxoff_size;
+	bool lso_maxoff_size_set;
+	u16 lso_minseg_size;
+	bool lso_minseg_size_set;
+	u8 prom_mode;
+	bool prom_mode_set;
+	u16 tx_descr_size;
+	bool tx_descr_size_set;
+	u16 rx_descr_size;
+	bool rx_descr_size_set;
+	u16 netq_count;
+	bool netq_count_set;
+	u32 tcp4_offloads;
+	bool tcp4_offloads_set;
+	u32 tcp6_offloads;
+	bool tcp6_offloads_set;
+	u16 tx_descr_qdepth;
+	bool tx_descr_qdepth_set;
+	u16 rx_descr_qdepth;
+	bool rx_descr_qdepth_set;
+	u8 iov_offload;
+#define QED_MFW_TLV_IOV_OFFLOAD_NONE            (0)
+#define QED_MFW_TLV_IOV_OFFLOAD_MULTIQUEUE      (1)
+#define QED_MFW_TLV_IOV_OFFLOAD_VEB             (2)
+#define QED_MFW_TLV_IOV_OFFLOAD_VEPA            (3)
+	bool iov_offload_set;
+	u8 txqs_empty;
+	bool txqs_empty_set;
+	u8 rxqs_empty;
+	bool rxqs_empty_set;
+	u8 num_txqs_full;
+	bool num_txqs_full_set;
+	u8 num_rxqs_full;
+	bool num_rxqs_full_set;
+};
+
 #define DIRECT_REG_WR(reg_addr, val) writel((u32)val, \
 					    (void __iomem *)(reg_addr))
 

@@ -2088,3 +2088,9 @@ void qed_get_protocol_stats(struct qed_dev *cdev,
 		return;
 	}
 }
+
+int qed_mfw_fill_tlv_data(struct qed_hwfn *hwfn, enum qed_mfw_tlv_type type,
+			  union qed_mfw_tlv_data *tlv_buf)
+{
+	return -EINVAL;
+}
