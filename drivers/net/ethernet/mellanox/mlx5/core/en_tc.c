@@ -2876,3 +2876,10 @@ void mlx5e_tc_esw_cleanup(struct rhashtable *tc_ht)
 {
 	rhashtable_free_and_destroy(tc_ht, _mlx5e_tc_del_flow, NULL);
 }
+
+int mlx5e_tc_num_filters(struct mlx5e_priv *priv)
+{
+	struct rhashtable *tc_ht = get_tc_ht(priv);
+
+	return atomic_read(&tc_ht->nelems);
+}
