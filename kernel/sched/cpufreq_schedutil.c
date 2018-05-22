@@ -89,7 +89,7 @@ static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time)
 	 * schedule the kthread.
 	 */
 	if (sg_policy->policy->fast_switch_enabled &&
-	    !cpufreq_can_do_remote_dvfs(sg_policy->policy))
+	    !cpufreq_this_cpu_can_update(sg_policy->policy))
 		return false;
 
 	if (sg_policy->work_in_progress)
