@@ -633,6 +633,17 @@ static int rk3308_set_dai_fmt(struct snd_soc_dai *codec_dai,
 				   RK3308_ADC_DIG_WORK,
 				   RK3308_ADC_DIG_WORK);
 
+	/* Enable high pass filter and cut-off 20Hz for ADCs */
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_DIG_CON04(grp),
+				   RK3308_ADC_HPF_PATH_MSK,
+				   RK3308_ADC_HPF_PATH_EN);
+		udelay(10);
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_DIG_CON04(grp),
+				   RK3308_ADC_HPF_CUTOFF_MSK,
+				   RK3308_ADC_HPF_CUTOFF_20HZ);
+	}
+
 	regmap_update_bits(rk3308->regmap, RK3308_DAC_DIG_CON01,
 			   RK3308_DAC_I2S_LRC_POL_MSK |
 			   RK3308_DAC_I2S_MODE_MSK,
