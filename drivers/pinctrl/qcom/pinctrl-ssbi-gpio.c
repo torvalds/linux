@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015, Sony Mobile Communications AB.
- * Copyright (c) 2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013, 2018 The Linux Foundation. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -371,7 +371,7 @@ static int pm8xxx_pin_config_set(struct pinctrl_dev *pctldev,
 			banks |= BIT(0);
 			break;
 		case PM8XXX_QCOM_DRIVE_STRENGH:
-			if (arg > PMIC_GPIO_STRENGTH_LOW) {
+			if (arg > PM8921_GPIO_STRENGTH_LOW) {
 				dev_err(pctrl->dev, "invalid drive strength\n");
 				return -EINVAL;
 			}
