@@ -96,6 +96,13 @@ struct meson_clk_audio_div_data {
 	u8 flags;
 };
 
+struct meson_clk_phase_data {
+	struct parm ph;
+};
+
+int meson_clk_degrees_from_val(unsigned int val, unsigned int width);
+unsigned int meson_clk_degrees_to_val(int degrees, unsigned int width);
+
 #define MESON_GATE(_name, _reg, _bit)					\
 struct clk_regmap _name = {						\
 	.data = &(struct clk_regmap_gate_data){				\
@@ -119,5 +126,6 @@ extern const struct clk_ops meson_clk_mpll_ro_ops;
 extern const struct clk_ops meson_clk_mpll_ops;
 extern const struct clk_ops meson_clk_audio_divider_ro_ops;
 extern const struct clk_ops meson_clk_audio_divider_ops;
+extern const struct clk_ops meson_clk_phase_ops;
 
 #endif /* __CLKC_H */
