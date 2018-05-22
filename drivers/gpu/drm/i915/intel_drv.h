@@ -1489,6 +1489,9 @@ void intel_connector_attach_encoder(struct intel_connector *connector,
 				    struct intel_encoder *encoder);
 struct drm_display_mode *
 intel_encoder_current_mode(struct intel_encoder *encoder);
+bool intel_port_is_tc(struct drm_i915_private *dev_priv, enum port port);
+enum tc_port intel_port_to_tc(struct drm_i915_private *dev_priv,
+			      enum port port);
 
 enum pipe intel_get_pipe_from_connector(struct intel_connector *connector);
 int intel_get_pipe_from_crtc_id_ioctl(struct drm_device *dev, void *data,
