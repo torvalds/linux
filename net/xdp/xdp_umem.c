@@ -16,39 +16,25 @@
 
 #define XDP_UMEM_MIN_FRAME_SIZE 2048
 
-int xdp_umem_create(struct xdp_umem **umem)
-{
-	*umem = kzalloc(sizeof(**umem), GFP_KERNEL);
-
-	if (!*umem)
-		return -ENOMEM;
-
-	return 0;
-}
-
 static void xdp_umem_unpin_pages(struct xdp_umem *umem)
 {
 	unsigned int i;
 
-	if (umem->pgs) {
-		for (i = 0; i < umem->npgs; i++) {
-			struct page *page = umem->pgs[i];
+	for (i = 0; i < umem->npgs; i++) {
+		struct page *page = umem->pgs[i];
 
-			set_page_dirty_lock(page);
-			put_page(page);
-		}
-
-		kfree(umem->pgs);
-		umem->pgs = NULL;
+		set_page_dirty_lock(page);
+		put_page(page);
 	}
+
+	kfree(umem->pgs);
+	umem->pgs = NULL;
 }
 
 static void xdp_umem_unaccount_pages(struct xdp_umem *umem)
 {
-	if (umem->user) {
-		atomic_long_sub(umem->npgs, &umem->user->locked_vm);
-		free_uid(umem->user);
-	}
+	atomic_long_sub(umem->npgs, &umem->user->locked_vm);
+	free_uid(umem->user);
 }
 
 static void xdp_umem_release(struct xdp_umem *umem)
@@ -66,22 +52,18 @@ static void xdp_umem_release(struct xdp_umem *umem)
 		umem->cq = NULL;
 	}
 
-	if (umem->pgs) {
-		xdp_umem_unpin_pages(umem);
+	xdp_umem_unpin_pages(umem);
 
-		task = get_pid_task(umem->pid, PIDTYPE_PID);
-		put_pid(umem->pid);
-		if (!task)
-			goto out;
-		mm = get_task_mm(task);
-		put_task_struct(task);
-		if (!mm)
-			goto out;
+	task = get_pid_task(umem->pid, PIDTYPE_PID);
+	put_pid(umem->pid);
+	if (!task)
+		goto out;
+	mm = get_task_mm(task);
+	put_task_struct(task);
+	if (!mm)
+		goto out;
 
-		mmput(mm);
-		umem->pgs = NULL;
-	}
-
+	mmput(mm);
 	xdp_umem_unaccount_pages(umem);
 out:
 	kfree(umem);
@@ -167,15 +149,12 @@ static int xdp_umem_account_pages(struct xdp_umem *umem)
 	return 0;
 }
 
-int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
+static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 {
 	u32 frame_size = mr->frame_size, frame_headroom = mr->frame_headroom;
 	u64 addr = mr->addr, size = mr->len;
 	unsigned int nframes, nfpp;
 	int size_chk, err;
-
-	if (!umem)
-		return -EINVAL;
 
 	if (frame_size < XDP_UMEM_MIN_FRAME_SIZE || frame_size > PAGE_SIZE) {
 		/* Strictly speaking we could support this, if:
@@ -243,6 +222,24 @@ out_account:
 out:
 	put_pid(umem->pid);
 	return err;
+}
+
+struct xdp_umem *xdp_umem_create(struct xdp_umem_reg *mr)
+{
+	struct xdp_umem *umem;
+	int err;
+
+	umem = kzalloc(sizeof(*umem), GFP_KERNEL);
+	if (!umem)
+		return ERR_PTR(-ENOMEM);
+
+	err = xdp_umem_reg(umem, mr);
+	if (err) {
+		kfree(umem);
+		return ERR_PTR(err);
+	}
+
+	return umem;
 }
 
 bool xdp_umem_validate_queues(struct xdp_umem *umem)

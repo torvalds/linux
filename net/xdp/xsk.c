@@ -406,25 +406,23 @@ static int xsk_setsockopt(struct socket *sock, int level, int optname,
 		struct xdp_umem_reg mr;
 		struct xdp_umem *umem;
 
-		if (xs->umem)
-			return -EBUSY;
-
 		if (copy_from_user(&mr, optval, sizeof(mr)))
 			return -EFAULT;
 
 		mutex_lock(&xs->mutex);
-		err = xdp_umem_create(&umem);
-
-		err = xdp_umem_reg(umem, &mr);
-		if (err) {
-			kfree(umem);
+		if (xs->umem) {
 			mutex_unlock(&xs->mutex);
-			return err;
+			return -EBUSY;
+		}
+
+		umem = xdp_umem_create(&mr);
+		if (IS_ERR(umem)) {
+			mutex_unlock(&xs->mutex);
+			return PTR_ERR(umem);
 		}
 
 		/* Make sure umem is ready before it can be seen by others */
 		smp_wmb();
-
 		xs->umem = umem;
 		mutex_unlock(&xs->mutex);
 		return 0;
@@ -435,13 +433,15 @@ static int xsk_setsockopt(struct socket *sock, int level, int optname,
 		struct xsk_queue **q;
 		int entries;
 
-		if (!xs->umem)
-			return -EINVAL;
-
 		if (copy_from_user(&entries, optval, sizeof(entries)))
 			return -EFAULT;
 
 		mutex_lock(&xs->mutex);
+		if (!xs->umem) {
+			mutex_unlock(&xs->mutex);
+			return -EINVAL;
+		}
+
 		q = (optname == XDP_UMEM_FILL_RING) ? &xs->umem->fq :
 			&xs->umem->cq;
 		err = xsk_init_queue(entries, q, true);
