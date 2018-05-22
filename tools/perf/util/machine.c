@@ -856,6 +856,7 @@ struct extra_kernel_map {
 	u64 start;
 	u64 end;
 	u64 pgoff;
+	char name[KMAP_NAME_LEN];
 };
 
 static int machine__create_extra_kernel_map(struct machine *machine,
@@ -875,11 +876,12 @@ static int machine__create_extra_kernel_map(struct machine *machine,
 	kmap = map__kmap(map);
 
 	kmap->kmaps = &machine->kmaps;
+	strlcpy(kmap->name, xm->name, KMAP_NAME_LEN);
 
 	map_groups__insert(&machine->kmaps, map);
 
-	pr_debug2("Added extra kernel map %" PRIx64 "-%" PRIx64 "\n",
-		  map->start, map->end);
+	pr_debug2("Added extra kernel map %s %" PRIx64 "-%" PRIx64 "\n",
+		  kmap->name, map->start, map->end);
 
 	map__put(map);
 
@@ -939,6 +941,8 @@ int machine__map_x86_64_entry_trampolines(struct machine *machine,
 			.end   = va + page_size,
 			.pgoff = pgoff,
 		};
+
+		strlcpy(xm.name, ENTRY_TRAMPOLINE_NAME, KMAP_NAME_LEN);
 
 		if (machine__create_extra_kernel_map(machine, kernel, &xm) < 0)
 			return -1;

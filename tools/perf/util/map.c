@@ -252,6 +252,13 @@ bool __map__is_kernel(const struct map *map)
 	return machine__kernel_map(map->groups->machine) == map;
 }
 
+bool __map__is_extra_kernel_map(const struct map *map)
+{
+	struct kmap *kmap = __map__kmap((struct map *)map);
+
+	return kmap && kmap->name[0];
+}
+
 bool map__has_symbols(const struct map *map)
 {
 	return dso__has_symbols(map->dso);
@@ -846,13 +853,20 @@ struct map *map__next(struct map *map)
 	return NULL;
 }
 
+struct kmap *__map__kmap(struct map *map)
+{
+	if (!map->dso || !map->dso->kernel)
+		return NULL;
+	return (struct kmap *)(map + 1);
+}
+
 struct kmap *map__kmap(struct map *map)
 {
-	if (!map->dso || !map->dso->kernel) {
+	struct kmap *kmap = __map__kmap(map);
+
+	if (!kmap)
 		pr_err("Internal error: map__kmap with a non-kernel map\n");
-		return NULL;
-	}
-	return (struct kmap *)(map + 1);
+	return kmap;
 }
 
 struct map_groups *map__kmaps(struct map *map)
