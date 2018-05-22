@@ -63,6 +63,7 @@
 #include <net/lwtunnel.h>
 #include <net/ip_tunnels.h>
 #include <net/l3mdev.h>
+#include <net/ip.h>
 #include <trace/events/fib6.h>
 
 #include <linux/uaccess.h>
@@ -4083,6 +4084,9 @@ static const struct nla_policy rtm_ipv6_policy[RTA_MAX+1] = {
 	[RTA_UID]		= { .type = NLA_U32 },
 	[RTA_MARK]		= { .type = NLA_U32 },
 	[RTA_TABLE]		= { .type = NLA_U32 },
+	[RTA_IP_PROTO]		= { .type = NLA_U8 },
+	[RTA_SPORT]		= { .type = NLA_U16 },
+	[RTA_DPORT]		= { .type = NLA_U16 },
 };
 
 static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
@@ -4794,6 +4798,19 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 					   nla_get_u32(tb[RTA_UID]));
 	else
 		fl6.flowi6_uid = iif ? INVALID_UID : current_uid();
+
+	if (tb[RTA_SPORT])
+		fl6.fl6_sport = nla_get_be16(tb[RTA_SPORT]);
+
+	if (tb[RTA_DPORT])
+		fl6.fl6_dport = nla_get_be16(tb[RTA_DPORT]);
+
+	if (tb[RTA_IP_PROTO]) {
+		err = rtm_getroute_parse_ip_proto(tb[RTA_IP_PROTO],
+						  &fl6.flowi6_proto, extack);
+		if (err)
+			goto errout;
+	}
 
 	if (iif) {
 		struct net_device *dev;
