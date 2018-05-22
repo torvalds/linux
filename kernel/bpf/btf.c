@@ -443,6 +443,28 @@ static const struct btf_type *btf_type_by_id(const struct btf *btf, u32 type_id)
 	return btf->types[type_id];
 }
 
+/*
+ * Regular int is not a bit field and it must be either
+ * u8/u16/u32/u64.
+ */
+static bool btf_type_int_is_regular(const struct btf_type *t)
+{
+	u16 nr_bits, nr_bytes;
+	u32 int_data;
+
+	int_data = btf_type_int(t);
+	nr_bits = BTF_INT_BITS(int_data);
+	nr_bytes = BITS_ROUNDUP_BYTES(nr_bits);
+	if (BITS_PER_BYTE_MASKED(nr_bits) ||
+	    BTF_INT_OFFSET(int_data) ||
+	    (nr_bytes != sizeof(u8) && nr_bytes != sizeof(u16) &&
+	     nr_bytes != sizeof(u32) && nr_bytes != sizeof(u64))) {
+		return false;
+	}
+
+	return true;
+}
+
 __printf(2, 3) static void __btf_verifier_log(struct bpf_verifier_log *log,
 					      const char *fmt, ...)
 {
@@ -1308,14 +1330,16 @@ static s32 btf_array_check_meta(struct btf_verifier_env *env,
 		return -EINVAL;
 	}
 
-	/* We are a little forgiving on array->index_type since
-	 * the kernel is not using it.
-	 */
-	/* Array elem cannot be in type void,
-	 * so !array->type is not allowed.
+	/* Array elem type and index type cannot be in type void,
+	 * so !array->type and !array->index_type are not allowed.
 	 */
 	if (!array->type || BTF_TYPE_PARENT(array->type)) {
-		btf_verifier_log_type(env, t, "Invalid type_id");
+		btf_verifier_log_type(env, t, "Invalid elem");
+		return -EINVAL;
+	}
+
+	if (!array->index_type || BTF_TYPE_PARENT(array->index_type)) {
+		btf_verifier_log_type(env, t, "Invalid index");
 		return -EINVAL;
 	}
 
@@ -1328,11 +1352,32 @@ static int btf_array_resolve(struct btf_verifier_env *env,
 			     const struct resolve_vertex *v)
 {
 	const struct btf_array *array = btf_type_array(v->t);
-	const struct btf_type *elem_type;
-	u32 elem_type_id = array->type;
+	const struct btf_type *elem_type, *index_type;
+	u32 elem_type_id, index_type_id;
 	struct btf *btf = env->btf;
 	u32 elem_size;
 
+	/* Check array->index_type */
+	index_type_id = array->index_type;
+	index_type = btf_type_by_id(btf, index_type_id);
+	if (btf_type_is_void_or_null(index_type)) {
+		btf_verifier_log_type(env, v->t, "Invalid index");
+		return -EINVAL;
+	}
+
+	if (!env_type_is_resolve_sink(env, index_type) &&
+	    !env_type_is_resolved(env, index_type_id))
+		return env_stack_push(env, index_type, index_type_id);
+
+	index_type = btf_type_id_size(btf, &index_type_id, NULL);
+	if (!index_type || !btf_type_is_int(index_type) ||
+	    !btf_type_int_is_regular(index_type)) {
+		btf_verifier_log_type(env, v->t, "Invalid index");
+		return -EINVAL;
+	}
+
+	/* Check array->type */
+	elem_type_id = array->type;
 	elem_type = btf_type_by_id(btf, elem_type_id);
 	if (btf_type_is_void_or_null(elem_type)) {
 		btf_verifier_log_type(env, v->t,
@@ -1350,22 +1395,9 @@ static int btf_array_resolve(struct btf_verifier_env *env,
 		return -EINVAL;
 	}
 
-	if (btf_type_is_int(elem_type)) {
-		int int_type_data = btf_type_int(elem_type);
-		u16 nr_bits = BTF_INT_BITS(int_type_data);
-		u16 nr_bytes = BITS_ROUNDUP_BYTES(nr_bits);
-
-		/* Put more restriction on array of int.  The int cannot
-		 * be a bit field and it must be either u8/u16/u32/u64.
-		 */
-		if (BITS_PER_BYTE_MASKED(nr_bits) ||
-		    BTF_INT_OFFSET(int_type_data) ||
-		    (nr_bytes != sizeof(u8) && nr_bytes != sizeof(u16) &&
-		     nr_bytes != sizeof(u32) && nr_bytes != sizeof(u64))) {
-			btf_verifier_log_type(env, v->t,
-					      "Invalid array of int");
-			return -EINVAL;
-		}
+	if (btf_type_is_int(elem_type) && !btf_type_int_is_regular(elem_type)) {
+		btf_verifier_log_type(env, v->t, "Invalid array of int");
+		return -EINVAL;
 	}
 
 	if (array->nelems && elem_size > U32_MAX / array->nelems) {
