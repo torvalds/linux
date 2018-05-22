@@ -424,6 +424,7 @@ struct mlx5e_xdpsq {
 
 	/* read only */
 	struct mlx5_wq_cyc         wq;
+	struct mlx5e_xdpsq_stats  *stats;
 	void __iomem              *uar_map;
 	u32                        sqn;
 	struct device             *pdev;
@@ -619,6 +620,7 @@ struct mlx5e_channel_stats {
 	struct mlx5e_ch_stats ch;
 	struct mlx5e_sq_stats sq[MLX5E_MAX_NUM_TC];
 	struct mlx5e_rq_stats rq;
+	struct mlx5e_xdpsq_stats rq_xdpsq;
 } ____cacheline_aligned_in_smp;
 
 enum mlx5e_traffic_types {

@@ -106,8 +106,6 @@ bool mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xdp_info *xdpi)
 	u16                       pi   = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 	struct mlx5e_tx_wqe      *wqe  = mlx5_wq_cyc_get_wqe(wq, pi);
 
-	struct mlx5e_rq *rq = container_of(sq, struct mlx5e_rq, xdpsq);
-
 	struct mlx5_wqe_ctrl_seg *cseg = &wqe->ctrl;
 	struct mlx5_wqe_eth_seg  *eseg = &wqe->eth;
 	struct mlx5_wqe_data_seg *dseg = wqe->data;
@@ -116,12 +114,12 @@ bool mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xdp_info *xdpi)
 	dma_addr_t dma_addr  = xdpi->dma_addr;
 	unsigned int dma_len = xdpf->len;
 
-	struct mlx5e_rq_stats *stats = rq->stats;
+	struct mlx5e_xdpsq_stats *stats = sq->stats;
 
 	prefetchw(wqe);
 
 	if (unlikely(dma_len < MLX5E_XDP_MIN_INLINE || sq->hw_mtu < dma_len)) {
-		stats->xdp_drop++;
+		stats->err++;
 		return false;
 	}
 
@@ -131,7 +129,7 @@ bool mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xdp_info *xdpi)
 			mlx5e_xmit_xdp_doorbell(sq);
 			sq->db.doorbell = false;
 		}
-		stats->xdp_tx_full++;
+		stats->full++;
 		return false;
 	}
 
@@ -160,7 +158,7 @@ bool mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xdp_info *xdpi)
 
 	sq->db.doorbell = true;
 
-	stats->xdp_tx++;
+	stats->xmit++;
 	return true;
 }
 
@@ -212,7 +210,7 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq)
 		} while (!last_wqe);
 	} while ((++i < MLX5E_TX_CQ_POLL_BUDGET) && (cqe = mlx5_cqwq_get_cqe(&cq->wq)));
 
-	rq->stats->xdp_tx_cqe += i;
+	sq->stats->cqes += i;
 
 	mlx5_cqwq_update_db_record(&cq->wq);
 
