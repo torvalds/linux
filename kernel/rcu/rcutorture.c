@@ -1153,53 +1153,8 @@ static DEFINE_TORTURE_RANDOM_PERCPU(rcu_torture_timer_rand);
  */
 static void rcu_torture_timer(struct timer_list *unused)
 {
-	int idx;
-	unsigned long started;
-	unsigned long completed;
-	struct rcu_torture *p;
-	int pipe_count;
-	struct torture_random_state *trsp;
-	unsigned long long ts;
-
-	trsp = this_cpu_ptr(&rcu_torture_timer_rand);
 	atomic_long_inc(&n_rcu_torture_timers);
-	idx = cur_ops->readlock();
-	started = cur_ops->get_gp_seq();
-	ts = rcu_trace_clock_local();
-	p = rcu_dereference_check(rcu_torture_current,
-				  rcu_read_lock_bh_held() ||
-				  rcu_read_lock_sched_held() ||
-				  srcu_read_lock_held(srcu_ctlp) ||
-				  torturing_tasks());
-	if (p == NULL) {
-		/* Leave because rcu_torture_writer is not yet underway */
-		cur_ops->readunlock(idx);
-		return;
-	}
-	if (p->rtort_mbtest == 0)
-		atomic_inc(&n_rcu_torture_mberror);
-	cur_ops->read_delay(trsp);
-	preempt_disable();
-	pipe_count = p->rtort_pipe_count;
-	if (pipe_count > RCU_TORTURE_PIPE_LEN) {
-		/* Should not happen, but... */
-		pipe_count = RCU_TORTURE_PIPE_LEN;
-	}
-	completed = cur_ops->get_gp_seq();
-	if (pipe_count > 1) {
-		do_trace_rcu_torture_read(cur_ops->name, &p->rtort_rcu, ts,
-					  started, completed);
-		rcu_ftrace_dump(DUMP_ALL);
-	}
-	__this_cpu_inc(rcu_torture_count[pipe_count]);
-	completed = rcutorture_seq_diff(completed, started);
-	if (completed > RCU_TORTURE_PIPE_LEN) {
-		/* Should not happen, but... */
-		completed = RCU_TORTURE_PIPE_LEN;
-	}
-	__this_cpu_inc(rcu_torture_batch[completed]);
-	preempt_enable();
-	cur_ops->readunlock(idx);
+	(void)rcu_torture_one_read(this_cpu_ptr(&rcu_torture_timer_rand));
 
 	/* Test call_rcu() invocation from interrupt handler. */
 	if (cur_ops->call) {
