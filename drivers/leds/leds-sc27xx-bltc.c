@@ -176,8 +176,8 @@ static int sc27xx_led_probe(struct platform_device *pdev)
 	mutex_init(&priv->lock);
 	priv->base = base;
 	priv->regmap = dev_get_regmap(dev->parent, NULL);
-	if (IS_ERR(priv->regmap)) {
-		err = PTR_ERR(priv->regmap);
+	if (!priv->regmap) {
+		err = -ENODEV;
 		dev_err(dev, "failed to get regmap: %d\n", err);
 		return err;
 	}
