@@ -1236,7 +1236,7 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 								int pmu_index)
 {
 	const char *s;
-	int nr_cores, cpu, res;
+	int nr_cores, cpu, res = -ENOMEM;
 
 	if (of_property_read_string(parent, "name", &s))
 		return -ENODEV;
@@ -1246,7 +1246,7 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 		/* Update the pmu name */
 		pmu_ptr->pmu.name = kasprintf(GFP_KERNEL, "%s%s_imc", "nest_", s);
 		if (!pmu_ptr->pmu.name)
-			return -ENOMEM;
+			goto err;
 
 		/* Needed for hotplug/migration */
 		if (!per_nest_pmu_arr) {
@@ -1254,7 +1254,7 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 						sizeof(struct imc_pmu *),
 						GFP_KERNEL);
 			if (!per_nest_pmu_arr)
-				return -ENOMEM;
+				goto err;
 		}
 		per_nest_pmu_arr[pmu_index] = pmu_ptr;
 		break;
@@ -1262,21 +1262,21 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 		/* Update the pmu name */
 		pmu_ptr->pmu.name = kasprintf(GFP_KERNEL, "%s%s", s, "_imc");
 		if (!pmu_ptr->pmu.name)
-			return -ENOMEM;
+			goto err;
 
 		nr_cores = DIV_ROUND_UP(num_possible_cpus(), threads_per_core);
 		pmu_ptr->mem_info = kcalloc(nr_cores, sizeof(struct imc_mem_info),
 								GFP_KERNEL);
 
 		if (!pmu_ptr->mem_info)
-			return -ENOMEM;
+			goto err;
 
 		core_imc_refc = kcalloc(nr_cores, sizeof(struct imc_pmu_ref),
 								GFP_KERNEL);
 
 		if (!core_imc_refc) {
 			kfree(pmu_ptr->mem_info);
-			return -ENOMEM;
+			goto err;
 		}
 
 		core_imc_pmu = pmu_ptr;
@@ -1285,14 +1285,14 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 		/* Update the pmu name */
 		pmu_ptr->pmu.name = kasprintf(GFP_KERNEL, "%s%s", s, "_imc");
 		if (!pmu_ptr->pmu.name)
-			return -ENOMEM;
+			goto err;
 
 		thread_imc_mem_size = pmu_ptr->counter_mem_size;
 		for_each_online_cpu(cpu) {
 			res = thread_imc_mem_alloc(cpu, pmu_ptr->counter_mem_size);
 			if (res) {
 				cleanup_all_thread_imc_memory();
-				return res;
+				goto err;
 			}
 		}
 
@@ -1302,6 +1302,8 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 	}
 
 	return 0;
+err:
+	return res;
 }
 
 /*
