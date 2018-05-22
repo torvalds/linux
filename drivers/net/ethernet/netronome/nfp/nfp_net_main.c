@@ -728,6 +728,10 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	if (err)
 		goto err_app_clean;
 
+	err = nfp_shared_buf_register(pf);
+	if (err)
+		goto err_devlink_unreg;
+
 	mutex_lock(&pf->lock);
 	pf->ddir = nfp_net_debugfs_device_add(pf->pdev);
 
@@ -761,6 +765,8 @@ err_free_vnics:
 err_clean_ddir:
 	nfp_net_debugfs_dir_clean(&pf->ddir);
 	mutex_unlock(&pf->lock);
+	nfp_shared_buf_unregister(pf);
+err_devlink_unreg:
 	cancel_work_sync(&pf->port_refresh_work);
 	devlink_unregister(devlink);
 err_app_clean:
@@ -788,6 +794,7 @@ void nfp_net_pci_remove(struct nfp_pf *pf)
 
 	mutex_unlock(&pf->lock);
 
+	nfp_shared_buf_unregister(pf);
 	devlink_unregister(priv_to_devlink(pf));
 
 	nfp_net_pf_free_irqs(pf);

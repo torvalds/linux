@@ -51,9 +51,79 @@
  *
  * @NFP_MBOX_NO_CMD:	null command
  * Used to indicate previous command has finished.
+ *
+ * @NFP_MBOX_POOL_GET:	get shared buffer pool info/config
+ * Input  - struct nfp_shared_buf_pool_id
+ * Output - struct nfp_shared_buf_pool_info_get
+ *
+ * @NFP_MBOX_POOL_SET:	set shared buffer pool info/config
+ * Input  - struct nfp_shared_buf_pool_info_set
+ * Output - None
  */
 enum nfp_mbox_cmd {
 	NFP_MBOX_NO_CMD			= 0x00,
+
+	NFP_MBOX_POOL_GET		= 0x01,
+	NFP_MBOX_POOL_SET		= 0x02,
+};
+
+#define NFP_SHARED_BUF_COUNT_SYM_NAME	"_abi_nfd_pf%u_sb_cnt"
+#define NFP_SHARED_BUF_TABLE_SYM_NAME	"_abi_nfd_pf%u_sb_tbl"
+
+/**
+ * struct nfp_shared_buf - NFP shared buffer description
+ * @id:				numerical user-visible id of the shared buffer
+ * @size:			size in bytes of the buffer
+ * @ingress_pools_count:	number of ingress pools
+ * @egress_pools_count:		number of egress pools
+ * @ingress_tc_count:		number of ingress trafic classes
+ * @egress_tc_count:		number of egress trafic classes
+ * @pool_size_unit:		pool size may be in credits, each credit is
+ *				@pool_size_unit bytes
+ */
+struct nfp_shared_buf {
+	__le32 id;
+	__le32 size;
+	__le16 ingress_pools_count;
+	__le16 egress_pools_count;
+	__le16 ingress_tc_count;
+	__le16 egress_tc_count;
+
+	__le32 pool_size_unit;
+};
+
+/**
+ * struct nfp_shared_buf_pool_id - shared buffer pool identification
+ * @shared_buf:		shared buffer id
+ * @pool:		pool index
+ */
+struct nfp_shared_buf_pool_id {
+	__le32 shared_buf;
+	__le32 pool;
+};
+
+/**
+ * struct nfp_shared_buf_pool_info_get - struct devlink_sb_pool_info mirror
+ * @pool_type:		one of enum devlink_sb_pool_type
+ * @size:		pool size in units of SB's @pool_size_unit
+ * @threshold_type:	one of enum devlink_sb_threshold_type
+ */
+struct nfp_shared_buf_pool_info_get {
+	__le32 pool_type;
+	__le32 size;
+	__le32 threshold_type;
+};
+
+/**
+ * struct nfp_shared_buf_pool_info_set - packed args of sb_pool_set
+ * @id:			pool identification info
+ * @size:		pool size in units of SB's @pool_size_unit
+ * @threshold_type:	one of enum devlink_sb_threshold_type
+ */
+struct nfp_shared_buf_pool_info_set {
+	struct nfp_shared_buf_pool_id id;
+	__le32 size;
+	__le32 threshold_type;
 };
 
 #endif
