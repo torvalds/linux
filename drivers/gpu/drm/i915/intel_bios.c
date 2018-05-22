@@ -1259,18 +1259,37 @@ static const u8 cnp_ddc_pin_map[] = {
 	[DDC_BUS_DDI_F] = GMBUS_PIN_3_BXT, /* sic */
 };
 
+static const u8 icp_ddc_pin_map[] = {
+	[ICL_DDC_BUS_DDI_A] = GMBUS_PIN_1_BXT,
+	[ICL_DDC_BUS_DDI_B] = GMBUS_PIN_2_BXT,
+	[ICL_DDC_BUS_PORT_1] = GMBUS_PIN_9_TC1_ICP,
+	[ICL_DDC_BUS_PORT_2] = GMBUS_PIN_10_TC2_ICP,
+	[ICL_DDC_BUS_PORT_3] = GMBUS_PIN_11_TC3_ICP,
+	[ICL_DDC_BUS_PORT_4] = GMBUS_PIN_12_TC4_ICP,
+};
+
 static u8 map_ddc_pin(struct drm_i915_private *dev_priv, u8 vbt_pin)
 {
-	if (HAS_PCH_CNP(dev_priv)) {
-		if (vbt_pin < ARRAY_SIZE(cnp_ddc_pin_map)) {
-			return cnp_ddc_pin_map[vbt_pin];
-		} else {
-			DRM_DEBUG_KMS("Ignoring alternate pin: VBT claims DDC pin %d, which is not valid for this platform\n", vbt_pin);
-			return 0;
-		}
+	const u8 *ddc_pin_map;
+	int n_entries;
+
+	if (HAS_PCH_ICP(dev_priv)) {
+		ddc_pin_map = icp_ddc_pin_map;
+		n_entries = ARRAY_SIZE(icp_ddc_pin_map);
+	} else if (HAS_PCH_CNP(dev_priv)) {
+		ddc_pin_map = cnp_ddc_pin_map;
+		n_entries = ARRAY_SIZE(cnp_ddc_pin_map);
+	} else {
+		/* Assuming direct map */
+		return vbt_pin;
 	}
 
-	return vbt_pin;
+	if (vbt_pin < n_entries && ddc_pin_map[vbt_pin] != 0)
+		return ddc_pin_map[vbt_pin];
+
+	DRM_DEBUG_KMS("Ignoring alternate pin: VBT claims DDC pin %d, which is not valid for this platform\n",
+		      vbt_pin);
+	return 0;
 }
 
 static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
