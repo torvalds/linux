@@ -70,8 +70,6 @@ extern int pci_mmap_legacy_page_range(struct pci_bus *bus,
 
 extern void pcibios_claim_one_bus(struct pci_bus *b);
 
-extern void pcibios_finish_adding_to_bus(struct pci_bus *bus);
-
 extern void pcibios_resource_survey(void);
 
 struct file;

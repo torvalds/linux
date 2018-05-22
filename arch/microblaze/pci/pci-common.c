@@ -952,30 +952,6 @@ void pcibios_claim_one_bus(struct pci_bus *bus)
 }
 EXPORT_SYMBOL_GPL(pcibios_claim_one_bus);
 
-
-/* pcibios_finish_adding_to_bus
- *
- * This is to be called by the hotplug code after devices have been
- * added to a bus, this include calling it for a PHB that is just
- * being added
- */
-void pcibios_finish_adding_to_bus(struct pci_bus *bus)
-{
-	pr_debug("PCI: Finishing adding to hotplug bus %04x:%02x\n",
-		 pci_domain_nr(bus), bus->number);
-
-	/* Allocate bus and devices resources */
-	pcibios_allocate_bus_resources(bus);
-	pcibios_claim_one_bus(bus);
-
-	/* Add new devices to global lists.  Register in proc, sysfs. */
-	pci_bus_add_devices(bus);
-
-	/* Fixup EEH */
-	/* eeh_add_device_tree_late(bus); */
-}
-EXPORT_SYMBOL_GPL(pcibios_finish_adding_to_bus);
-
 static void pcibios_setup_phb_resources(struct pci_controller *hose,
 					struct list_head *resources)
 {
