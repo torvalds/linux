@@ -47,8 +47,8 @@
 	((le16_to_cpu(fw_hdr->Signature) & 0xFFF0) == 0x5300)
 
 struct rt_firmware {
-	u32 ulFwLength;
-	u8 *szFwBuffer;
+	u32 fw_length;
+	u8 *fw_buffer_sz;
 };
 
 /*  This structure must be cared byte-ordering */

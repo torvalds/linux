@@ -425,22 +425,22 @@ s32 rtl8723b_FirmwareDownload(struct adapter *padapter, bool  bUsedWoWLANFw)
 		goto exit;
 	}
 
-	pFirmware->szFwBuffer = kmemdup(fw->data, fw->size, GFP_KERNEL);
-	if (!pFirmware->szFwBuffer) {
+	pFirmware->fw_buffer_sz = kmemdup(fw->data, fw->size, GFP_KERNEL);
+	if (!pFirmware->fw_buffer_sz) {
 		rtStatus = _FAIL;
 		goto exit;
 	}
 
-	pFirmware->ulFwLength = fw->size;
+	pFirmware->fw_length = fw->size;
 	release_firmware(fw);
-	if (pFirmware->ulFwLength > FW_8723B_SIZE) {
+	if (pFirmware->fw_length > FW_8723B_SIZE) {
 		rtStatus = _FAIL;
-		DBG_871X_LEVEL(_drv_emerg_, "Firmware size:%u exceed %u\n", pFirmware->ulFwLength, FW_8723B_SIZE);
+		DBG_871X_LEVEL(_drv_emerg_, "Firmware size:%u exceed %u\n", pFirmware->fw_length, FW_8723B_SIZE);
 		goto release_fw1;
 	}
 
-	pFirmwareBuf = pFirmware->szFwBuffer;
-	FirmwareLen = pFirmware->ulFwLength;
+	pFirmwareBuf = pFirmware->fw_buffer_sz;
+	FirmwareLen = pFirmware->fw_length;
 
 	/*  To Check Fw header. Added by tynli. 2009.12.04. */
 	pFwHdr = (struct rt_firmware_hdr *)pFirmwareBuf;
@@ -510,7 +510,7 @@ fwdl_stat:
 	);
 
 exit:
-	kfree(pFirmware->szFwBuffer);
+	kfree(pFirmware->fw_buffer_sz);
 	kfree(pFirmware);
 release_fw1:
 	kfree(pBTFirmware);
