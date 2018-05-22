@@ -3856,6 +3856,10 @@ struct wiphy_iftype_ext_capab {
  *	bitmap of &enum nl80211_band values.  For instance, for
  *	NL80211_BAND_2GHZ, bit 0 would be set
  *	(i.e. BIT(NL80211_BAND_2GHZ)).
+ *
+ * @txq_limit: configuration of internal TX queue frame limit
+ * @txq_memory_limit: configuration internal TX queue memory limit
+ * @txq_quantum: configuration of internal TX queue scheduler quantum
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
