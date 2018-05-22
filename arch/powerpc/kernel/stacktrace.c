@@ -168,13 +168,14 @@ save_stack_trace_tsk_reliable(struct task_struct *tsk,
 		 * arch-dependent code, they are generic.
 		 */
 		ip = ftrace_graph_ret_addr(tsk, &graph_idx, ip, NULL);
-
+#ifdef CONFIG_KPROBES
 		/*
 		 * Mark stacktraces with kretprobed functions on them
 		 * as unreliable.
 		 */
 		if (ip == (unsigned long)kretprobe_trampoline)
 			return 1;
+#endif
 
 		if (!trace->skip)
 			trace->entries[trace->nr_entries++] = ip;
