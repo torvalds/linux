@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause) */
+// SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 /*
  * Copyright (C) 2018 Netronome Systems, Inc.
  *
@@ -32,36 +32,27 @@
  * SOFTWARE.
  */
 
-#ifndef __NFP_ABM_H__
-#define __NFP_ABM_H__ 1
+#include <linux/kernel.h>
 
-struct nfp_app;
-struct nfp_net;
+#include "../nfpcore/nfp_cpp.h"
+#include "../nfp_app.h"
+#include "../nfp_main.h"
+#include "../nfp_net.h"
+#include "main.h"
 
-/**
- * struct nfp_abm - ABM NIC app structure
- * @app:	back pointer to nfp_app
- * @pf_id:	ID of our PF link
- */
-struct nfp_abm {
-	struct nfp_app *app;
+void nfp_abm_ctrl_read_params(struct nfp_abm_link *alink)
+{
+	alink->queue_base = nn_readl(alink->vnic, NFP_NET_CFG_START_RXQ);
+	alink->queue_base /= alink->vnic->stride_rx;
+}
+
+int nfp_abm_ctrl_find_addrs(struct nfp_abm *abm)
+{
+	struct nfp_pf *pf = abm->app->pf;
 	unsigned int pf_id;
-};
 
-/**
- * struct nfp_abm_link - port tuple of a ABM NIC
- * @abm:	back pointer to nfp_abm
- * @vnic:	data vNIC
- * @id:		id of the data vNIC
- * @queue_base:	id of base to host queue within PCIe (not QC idx)
- */
-struct nfp_abm_link {
-	struct nfp_abm *abm;
-	struct nfp_net *vnic;
-	unsigned int id;
-	unsigned int queue_base;
-};
+	pf_id =	nfp_cppcore_pcie_unit(pf->cpp);
+	abm->pf_id = pf_id;
 
-void nfp_abm_ctrl_read_params(struct nfp_abm_link *alink);
-int nfp_abm_ctrl_find_addrs(struct nfp_abm *abm);
-#endif
+	return 0;
+}
