@@ -411,6 +411,13 @@ static const struct dmi_system_id btusb_needs_reset_resume_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "XPS 13 9360"),
 		},
 	},
+	{
+		/* Dell Inspiron 5565 (QCA ROME device 0cf3:e009) */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 5565"),
+		},
+	},
 	{}
 };
 
