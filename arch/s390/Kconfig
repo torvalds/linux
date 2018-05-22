@@ -847,6 +847,10 @@ config CCW
 
 source "drivers/Kconfig"
 
+config HAVE_PNETID
+	tristate
+	default (SMC || CCWGROUP)
+
 source "fs/Kconfig"
 
 source "arch/s390/Kconfig.debug"
