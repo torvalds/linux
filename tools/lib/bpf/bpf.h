@@ -36,8 +36,8 @@ struct bpf_create_map_attr {
 	__u32 max_entries;
 	__u32 numa_node;
 	__u32 btf_fd;
-	__u32 btf_key_id;
-	__u32 btf_value_id;
+	__u32 btf_key_type_id;
+	__u32 btf_value_type_id;
 	__u32 map_ifindex;
 };
 

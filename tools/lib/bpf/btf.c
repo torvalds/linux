@@ -35,9 +35,8 @@ struct btf {
 
 static const char *btf_name_by_offset(const struct btf *btf, uint32_t offset)
 {
-	if (!BTF_STR_TBL_ELF_ID(offset) &&
-	    BTF_STR_OFFSET(offset) < btf->hdr->str_len)
-		return &btf->strings[BTF_STR_OFFSET(offset)];
+	if (offset < btf->hdr->str_len)
+		return &btf->strings[offset];
 	else
 		return NULL;
 }
