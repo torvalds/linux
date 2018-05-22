@@ -1143,6 +1143,8 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp)
 	return true;
 }
 
+static DEFINE_TORTURE_RANDOM_PERCPU(rcu_torture_timer_rand);
+
 /*
  * RCU torture reader from timer handler.  Dereferences rcu_torture_current,
  * incrementing the corresponding element of the pipeline array.  The
@@ -1154,12 +1156,12 @@ static void rcu_torture_timer(struct timer_list *unused)
 	int idx;
 	unsigned long started;
 	unsigned long completed;
-	static DEFINE_TORTURE_RANDOM(rand);
-	static DEFINE_SPINLOCK(rand_lock);
 	struct rcu_torture *p;
 	int pipe_count;
+	struct torture_random_state *trsp;
 	unsigned long long ts;
 
+	trsp = this_cpu_ptr(&rcu_torture_timer_rand);
 	atomic_long_inc(&n_rcu_torture_timers);
 	idx = cur_ops->readlock();
 	started = cur_ops->get_gp_seq();
@@ -1176,9 +1178,7 @@ static void rcu_torture_timer(struct timer_list *unused)
 	}
 	if (p->rtort_mbtest == 0)
 		atomic_inc(&n_rcu_torture_mberror);
-	spin_lock(&rand_lock);
-	cur_ops->read_delay(&rand);
-	spin_unlock(&rand_lock);
+	cur_ops->read_delay(trsp);
 	preempt_disable();
 	pipe_count = p->rtort_pipe_count;
 	if (pipe_count > RCU_TORTURE_PIPE_LEN) {
