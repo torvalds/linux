@@ -211,7 +211,7 @@
 			pcie@600000 {
 				status = "okay";
 				perst-gpio = <&msmgpio 35 GPIO_ACTIVE_LOW>;
-				vddpe-supply = <&wlan_en>;
+				vddpe-3v3-supply = <&wlan_en>;
 				vddpe1-supply = <&bt_en>;
 			};
 
