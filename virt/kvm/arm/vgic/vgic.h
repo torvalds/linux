@@ -276,6 +276,16 @@ vgic_v3_redist_region_full(struct vgic_redist_region *region)
 
 struct vgic_redist_region *vgic_v3_rdist_free_slot(struct list_head *rdregs);
 
+static inline size_t
+vgic_v3_rd_region_size(struct kvm *kvm, struct vgic_redist_region *rdreg)
+{
+	if (!rdreg->count)
+		return atomic_read(&kvm->online_vcpus) * KVM_VGIC_V3_REDIST_SIZE;
+	else
+		return rdreg->count * KVM_VGIC_V3_REDIST_SIZE;
+}
+bool vgic_v3_rdist_overlap(struct kvm *kvm, gpa_t base, size_t size);
+
 int vgic_its_resolve_lpi(struct kvm *kvm, struct vgic_its *its,
 			 u32 devid, u32 eventid, struct vgic_irq **irq);
 struct vgic_its *vgic_msi_to_its(struct kvm *kvm, struct kvm_msi *msi);
