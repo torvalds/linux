@@ -915,7 +915,14 @@ static int intel_ddi_hdmi_level(struct drm_i915_private *dev_priv, enum port por
 
 	level = dev_priv->vbt.ddi_port_info[port].hdmi_level_shift;
 
-	if (IS_CANNONLAKE(dev_priv)) {
+	if (IS_ICELAKE(dev_priv)) {
+		if (port == PORT_A || port == PORT_B)
+			icl_get_combo_buf_trans(dev_priv, port,
+						INTEL_OUTPUT_HDMI, &n_entries);
+		else
+			n_entries = ARRAY_SIZE(icl_mg_phy_ddi_translations);
+		default_entry = n_entries - 1;
+	} else if (IS_CANNONLAKE(dev_priv)) {
 		cnl_get_buf_trans_hdmi(dev_priv, &n_entries);
 		default_entry = n_entries - 1;
 	} else if (IS_GEN9_LP(dev_priv)) {
