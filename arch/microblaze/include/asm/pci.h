@@ -68,8 +68,6 @@ extern int pci_mmap_legacy_page_range(struct pci_bus *bus,
  */
 #define PCI_DMA_BUS_IS_PHYS     (1)
 
-extern void pcibios_claim_one_bus(struct pci_bus *b);
-
 extern void pcibios_resource_survey(void);
 
 struct file;

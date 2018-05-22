@@ -915,43 +915,6 @@ void __init pcibios_resource_survey(void)
 	pci_assign_unassigned_resources();
 }
 
-/* This is used by the PCI hotplug driver to allocate resource
- * of newly plugged busses. We can try to consolidate with the
- * rest of the code later, for now, keep it as-is as our main
- * resource allocation function doesn't deal with sub-trees yet.
- */
-void pcibios_claim_one_bus(struct pci_bus *bus)
-{
-	struct pci_dev *dev;
-	struct pci_bus *child_bus;
-
-	list_for_each_entry(dev, &bus->devices, bus_list) {
-		int i;
-
-		for (i = 0; i < PCI_NUM_RESOURCES; i++) {
-			struct resource *r = &dev->resource[i];
-
-			if (r->parent || !r->start || !r->flags)
-				continue;
-
-			pr_debug("PCI: Claiming %s: ", pci_name(dev));
-			pr_debug("Resource %d: %016llx..%016llx [%x]\n",
-				 i, (unsigned long long)r->start,
-				 (unsigned long long)r->end,
-				 (unsigned int)r->flags);
-
-			if (pci_claim_resource(dev, i) == 0)
-				continue;
-
-			pci_claim_bridge_resource(dev, i);
-		}
-	}
-
-	list_for_each_entry(child_bus, &bus->children, node)
-		pcibios_claim_one_bus(child_bus);
-}
-EXPORT_SYMBOL_GPL(pcibios_claim_one_bus);
-
 static void pcibios_setup_phb_resources(struct pci_controller *hose,
 					struct list_head *resources)
 {
