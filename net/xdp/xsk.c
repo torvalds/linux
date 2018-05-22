@@ -489,6 +489,35 @@ static int xsk_getsockopt(struct socket *sock, int level, int optname,
 
 		return 0;
 	}
+	case XDP_MMAP_OFFSETS:
+	{
+		struct xdp_mmap_offsets off;
+
+		if (len < sizeof(off))
+			return -EINVAL;
+
+		off.rx.producer = offsetof(struct xdp_rxtx_ring, ptrs.producer);
+		off.rx.consumer = offsetof(struct xdp_rxtx_ring, ptrs.consumer);
+		off.rx.desc	= offsetof(struct xdp_rxtx_ring, desc);
+		off.tx.producer = offsetof(struct xdp_rxtx_ring, ptrs.producer);
+		off.tx.consumer = offsetof(struct xdp_rxtx_ring, ptrs.consumer);
+		off.tx.desc	= offsetof(struct xdp_rxtx_ring, desc);
+
+		off.fr.producer = offsetof(struct xdp_umem_ring, ptrs.producer);
+		off.fr.consumer = offsetof(struct xdp_umem_ring, ptrs.consumer);
+		off.fr.desc	= offsetof(struct xdp_umem_ring, desc);
+		off.cr.producer = offsetof(struct xdp_umem_ring, ptrs.producer);
+		off.cr.consumer = offsetof(struct xdp_umem_ring, ptrs.consumer);
+		off.cr.desc	= offsetof(struct xdp_umem_ring, desc);
+
+		len = sizeof(off);
+		if (copy_to_user(optval, &off, len))
+			return -EFAULT;
+		if (put_user(len, optlen))
+			return -EFAULT;
+
+		return 0;
+	}
 	default:
 		break;
 	}

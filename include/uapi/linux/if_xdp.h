@@ -23,13 +23,27 @@ struct sockaddr_xdp {
 	__u32 sxdp_shared_umem_fd;
 };
 
+struct xdp_ring_offset {
+	__u64 producer;
+	__u64 consumer;
+	__u64 desc;
+};
+
+struct xdp_mmap_offsets {
+	struct xdp_ring_offset rx;
+	struct xdp_ring_offset tx;
+	struct xdp_ring_offset fr; /* Fill */
+	struct xdp_ring_offset cr; /* Completion */
+};
+
 /* XDP socket options */
-#define XDP_RX_RING			1
-#define XDP_TX_RING			2
-#define XDP_UMEM_REG			3
-#define XDP_UMEM_FILL_RING		4
-#define XDP_UMEM_COMPLETION_RING	5
-#define XDP_STATISTICS			6
+#define XDP_MMAP_OFFSETS		1
+#define XDP_RX_RING			2
+#define XDP_TX_RING			3
+#define XDP_UMEM_REG			4
+#define XDP_UMEM_FILL_RING		5
+#define XDP_UMEM_COMPLETION_RING	6
+#define XDP_STATISTICS			7
 
 struct xdp_umem_reg {
 	__u64 addr; /* Start of packet data area */
@@ -50,6 +64,7 @@ struct xdp_statistics {
 #define XDP_UMEM_PGOFF_FILL_RING	0x100000000
 #define XDP_UMEM_PGOFF_COMPLETION_RING	0x180000000
 
+/* Rx/Tx descriptor */
 struct xdp_desc {
 	__u32 idx;
 	__u32 len;
@@ -58,21 +73,6 @@ struct xdp_desc {
 	__u8 padding[5];
 };
 
-struct xdp_ring {
-	__u32 producer __attribute__((aligned(64)));
-	__u32 consumer __attribute__((aligned(64)));
-};
-
-/* Used for the RX and TX queues for packets */
-struct xdp_rxtx_ring {
-	struct xdp_ring ptrs;
-	struct xdp_desc desc[0] __attribute__((aligned(64)));
-};
-
-/* Used for the fill and completion queues for buffers */
-struct xdp_umem_ring {
-	struct xdp_ring ptrs;
-	__u32 desc[0] __attribute__((aligned(64)));
-};
+/* UMEM descriptor is __u32 */
 
 #endif /* _LINUX_IF_XDP_H */
