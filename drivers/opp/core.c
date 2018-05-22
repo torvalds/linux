@@ -1477,7 +1477,6 @@ struct opp_table *dev_pm_opp_register_set_opp_helper(struct device *dev,
 			int (*set_opp)(struct dev_pm_set_opp_data *data))
 {
 	struct opp_table *opp_table;
-	int ret;
 
 	if (!set_opp)
 		return ERR_PTR(-EINVAL);
@@ -1488,24 +1487,15 @@ struct opp_table *dev_pm_opp_register_set_opp_helper(struct device *dev,
 
 	/* This should be called before OPPs are initialized */
 	if (WARN_ON(!list_empty(&opp_table->opp_list))) {
-		ret = -EBUSY;
-		goto err;
+		dev_pm_opp_put_opp_table(opp_table);
+		return ERR_PTR(-EBUSY);
 	}
 
-	/* Already have custom set_opp helper */
-	if (WARN_ON(opp_table->set_opp)) {
-		ret = -EBUSY;
-		goto err;
-	}
-
-	opp_table->set_opp = set_opp;
+	/* Another CPU that shares the OPP table has set the helper ? */
+	if (!opp_table->set_opp)
+		opp_table->set_opp = set_opp;
 
 	return opp_table;
-
-err:
-	dev_pm_opp_put_opp_table(opp_table);
-
-	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_register_set_opp_helper);
 
@@ -1518,17 +1508,10 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_register_set_opp_helper);
  */
 void dev_pm_opp_unregister_set_opp_helper(struct opp_table *opp_table)
 {
-	if (!opp_table->set_opp) {
-		pr_err("%s: Doesn't have custom set_opp helper set\n",
-		       __func__);
-		return;
-	}
-
 	/* Make sure there are no concurrent readers while updating opp_table */
 	WARN_ON(!list_empty(&opp_table->opp_list));
 
 	opp_table->set_opp = NULL;
-
 	dev_pm_opp_put_opp_table(opp_table);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_unregister_set_opp_helper);
