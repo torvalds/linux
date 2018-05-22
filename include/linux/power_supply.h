@@ -199,6 +199,8 @@ struct power_supply;
 /* Run-time specific power supply configuration */
 struct power_supply_config {
 	struct device_node *of_node;
+	struct fwnode_handle *fwnode;
+
 	/* Driver private data */
 	void *drv_data;
 

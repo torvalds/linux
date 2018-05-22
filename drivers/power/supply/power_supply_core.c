@@ -19,6 +19,7 @@
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/power_supply.h>
+#include <linux/property.h>
 #include <linux/thermal.h>
 #include "power_supply.h"
 
@@ -874,7 +875,8 @@ __power_supply_register(struct device *parent,
 	psy->desc = desc;
 	if (cfg) {
 		psy->drv_data = cfg->drv_data;
-		psy->of_node = cfg->of_node;
+		psy->of_node =
+			cfg->fwnode ? to_of_node(cfg->fwnode) : cfg->of_node;
 		psy->supplied_to = cfg->supplied_to;
 		psy->num_supplicants = cfg->num_supplicants;
 	}
