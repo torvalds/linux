@@ -80,50 +80,6 @@ pcibios_align_resource(void *data, const struct resource *res,
 	return start;
 }
 
-int
-pcibios_enable_resources(struct pci_dev *dev, int mask)
-{
-	u16 cmd, old_cmd;
-	int idx;
-	struct resource *r;
-
-	pci_read_config_word(dev, PCI_COMMAND, &cmd);
-	old_cmd = cmd;
-	for(idx=0; idx<6; idx++) {
-		r = &dev->resource[idx];
-		if (!r->start && r->end) {
-			pr_err("PCI: Device %s not available because "
-			       "of resource collisions\n", pci_name(dev));
-			return -EINVAL;
-		}
-		if (r->flags & IORESOURCE_IO)
-			cmd |= PCI_COMMAND_IO;
-		if (r->flags & IORESOURCE_MEM)
-			cmd |= PCI_COMMAND_MEMORY;
-	}
-	if (dev->resource[PCI_ROM_RESOURCE].start)
-		cmd |= PCI_COMMAND_MEMORY;
-	if (cmd != old_cmd) {
-		pr_info("PCI: Enabling device %s (%04x -> %04x)\n",
-			pci_name(dev), old_cmd, cmd);
-		pci_write_config_word(dev, PCI_COMMAND, cmd);
-	}
-	return 0;
-}
-
-struct pci_controller * __init pcibios_alloc_controller(void)
-{
-	struct pci_controller *pci_ctrl;
-
-	pci_ctrl = (struct pci_controller *)alloc_bootmem(sizeof(*pci_ctrl));
-	memset(pci_ctrl, 0, sizeof(struct pci_controller));
-
-	*pci_ctrl_tail = pci_ctrl;
-	pci_ctrl_tail = &pci_ctrl->next;
-
-	return pci_ctrl;
-}
-
 static void __init pci_controller_apertures(struct pci_controller *pci_ctrl,
 					    struct list_head *resources)
 {
@@ -240,21 +196,6 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 
 	return 0;
 }
-
-#ifdef CONFIG_PROC_FS
-
-/*
- * Return the index of the PCI controller for device pdev.
- */
-
-int
-pci_controller_num(struct pci_dev *dev)
-{
-	struct pci_controller *pci_ctrl = (struct pci_controller*) dev->sysdata;
-	return pci_ctrl->index;
-}
-
-#endif /* CONFIG_PROC_FS */
 
 /*
  * Platform support for /proc/bus/pci/X/Y mmap()s.
