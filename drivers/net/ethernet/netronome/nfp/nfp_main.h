@@ -60,6 +60,7 @@ struct nfp_mip;
 struct nfp_net;
 struct nfp_nsp_identify;
 struct nfp_port;
+struct nfp_rtsym;
 struct nfp_rtsym_table;
 
 /**
@@ -87,6 +88,7 @@ struct nfp_dumpspec {
  * @vf_cfg_mem:		Pointer to mapped VF configuration area
  * @vfcfg_tbl2_area:	Pointer to the CPP area for the VF config table
  * @vfcfg_tbl2:		Pointer to mapped VF config table
+ * @mbox:		RTSym of per-PCI PF mailbox (under devlink lock)
  * @irq_entries:	Array of MSI-X entries for all vNICs
  * @limit_vfs:		Number of VFs supported by firmware (~0 for PCI limit)
  * @num_vfs:		Number of SR-IOV VFs enabled
@@ -126,6 +128,8 @@ struct nfp_pf {
 	u8 __iomem *vf_cfg_mem;
 	struct nfp_cpp_area *vfcfg_tbl2_area;
 	u8 __iomem *vfcfg_tbl2;
+
+	const struct nfp_rtsym *mbox;
 
 	struct msix_entry *irq_entries;
 
@@ -182,6 +186,8 @@ int nfp_pf_rtsym_read_optional(struct nfp_pf *pf, const char *format,
 u8 __iomem *
 nfp_pf_map_rtsym(struct nfp_pf *pf, const char *name, const char *sym_fmt,
 		 unsigned int min_size, struct nfp_cpp_area **area);
+int nfp_mbox_cmd(struct nfp_pf *pf, u32 cmd, void *in_data, u64 in_length,
+		 void *out_data, u64 out_length);
 
 enum nfp_dump_diag {
 	NFP_DUMP_NSP_DIAG = 0,
