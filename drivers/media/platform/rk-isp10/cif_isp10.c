@@ -2182,13 +2182,14 @@ static int cif_isp10_config_mi_mp(
 			dev->config.base_addr + CIF_MI_XTD_FORMAT_CTRL);
 	}
 
-	mi_ctrl = cif_ioread32(dev->config.base_addr + CIF_MI_CTRL) |
-		CIF_MI_CTRL_MP_WRITE_FMT(writeformat) |
-		CIF_MI_CTRL_BURST_LEN_LUM_16 |
-		CIF_MI_CTRL_BURST_LEN_CHROM_16 |
-		CIF_MI_CTRL_INIT_BASE_EN |
-		CIF_MI_CTRL_INIT_OFFSET_EN |
-		CIF_MI_MP_AUTOUPDATE_ENABLE;
+	mi_ctrl = cif_ioread32(dev->config.base_addr + CIF_MI_CTRL);
+	mi_ctrl &= ~(CIF_MI_CTRL_MP_WRITE_FMT(3));
+	mi_ctrl |= CIF_MI_CTRL_MP_WRITE_FMT(writeformat) |
+		   CIF_MI_CTRL_BURST_LEN_LUM_16 |
+		   CIF_MI_CTRL_BURST_LEN_CHROM_16 |
+		   CIF_MI_CTRL_INIT_BASE_EN |
+		   CIF_MI_CTRL_INIT_OFFSET_EN |
+		   CIF_MI_MP_AUTOUPDATE_ENABLE;
 
 	cif_iowrite32_verify(mi_ctrl,
 		dev->config.base_addr + CIF_MI_CTRL, ~0);
@@ -2423,14 +2424,15 @@ static int cif_isp10_config_mi_sp(
 			dev->config.base_addr + CIF_MI_XTD_FORMAT_CTRL);
 	}
 
-	mi_ctrl = cif_ioread32(dev->config.base_addr + CIF_MI_CTRL) |
-		CIF_MI_CTRL_SP_WRITE_FMT(writeformat) |
-		input_format |
-		output_format |
-		burst_len |
-		CIF_MI_CTRL_INIT_BASE_EN |
-		CIF_MI_CTRL_INIT_OFFSET_EN |
-		CIF_MI_SP_AUTOUPDATE_ENABLE;
+	mi_ctrl = cif_ioread32(dev->config.base_addr + CIF_MI_CTRL);
+	mi_ctrl &= ~(CIF_MI_CTRL_SP_WRITE_FMT(3));
+	mi_ctrl |= CIF_MI_CTRL_SP_WRITE_FMT(writeformat) |
+		   input_format |
+		   output_format |
+		   burst_len |
+		   CIF_MI_CTRL_INIT_BASE_EN |
+		   CIF_MI_CTRL_INIT_OFFSET_EN |
+		   CIF_MI_SP_AUTOUPDATE_ENABLE;
 	cif_iowrite32_verify(mi_ctrl,
 		dev->config.base_addr + CIF_MI_CTRL, ~0);
 
@@ -2562,11 +2564,12 @@ static int cif_isp10_config_mi_dma(
 	cif_iowrite32_verify(llength,
 		dev->config.base_addr + CIF_MI_DMA_Y_LLENGTH, ~0x3);
 
-	mi_ctrl = cif_ioread32(dev->config.base_addr + CIF_MI_DMA_CTRL) |
-		CIF_MI_DMA_CTRL_READ_FMT(readformat) |
-		output_format |
-		CIF_MI_DMA_CTRL_BURST_LEN_LUM_64 |
-		CIF_MI_DMA_CTRL_BURST_LEN_CHROM_64;
+	mi_ctrl = cif_ioread32(dev->config.base_addr + CIF_MI_DMA_CTRL);
+	mi_ctrl &= ~(CIF_MI_DMA_CTRL_READ_FMT(3) & CIF_MI_DMA_CTRL_FMT_YUV444);
+	mi_ctrl |= CIF_MI_DMA_CTRL_READ_FMT(readformat) |
+		   output_format |
+		   CIF_MI_DMA_CTRL_BURST_LEN_LUM_64 |
+		   CIF_MI_DMA_CTRL_BURST_LEN_CHROM_64;
 	cif_iowrite32_verify(mi_ctrl,
 		dev->config.base_addr + CIF_MI_DMA_CTRL, ~0);
 
