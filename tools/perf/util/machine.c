@@ -851,6 +851,102 @@ static int machine__get_running_kernel_start(struct machine *machine,
 	return 0;
 }
 
+/* Kernel-space maps for symbols that are outside the main kernel map and module maps */
+struct extra_kernel_map {
+	u64 start;
+	u64 end;
+	u64 pgoff;
+};
+
+static int machine__create_extra_kernel_map(struct machine *machine,
+					    struct dso *kernel,
+					    struct extra_kernel_map *xm)
+{
+	struct kmap *kmap;
+	struct map *map;
+
+	map = map__new2(xm->start, kernel);
+	if (!map)
+		return -1;
+
+	map->end   = xm->end;
+	map->pgoff = xm->pgoff;
+
+	kmap = map__kmap(map);
+
+	kmap->kmaps = &machine->kmaps;
+
+	map_groups__insert(&machine->kmaps, map);
+
+	pr_debug2("Added extra kernel map %" PRIx64 "-%" PRIx64 "\n",
+		  map->start, map->end);
+
+	map__put(map);
+
+	return 0;
+}
+
+static u64 find_entry_trampoline(struct dso *dso)
+{
+	/* Duplicates are removed so lookup all aliases */
+	const char *syms[] = {
+		"_entry_trampoline",
+		"__entry_trampoline_start",
+		"entry_SYSCALL_64_trampoline",
+	};
+	struct symbol *sym = dso__first_symbol(dso);
+	unsigned int i;
+
+	for (; sym; sym = dso__next_symbol(sym)) {
+		if (sym->binding != STB_GLOBAL)
+			continue;
+		for (i = 0; i < ARRAY_SIZE(syms); i++) {
+			if (!strcmp(sym->name, syms[i]))
+				return sym->start;
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * These values can be used for kernels that do not have symbols for the entry
+ * trampolines in kallsyms.
+ */
+#define X86_64_CPU_ENTRY_AREA_PER_CPU	0xfffffe0000000000ULL
+#define X86_64_CPU_ENTRY_AREA_SIZE	0x2c000
+#define X86_64_ENTRY_TRAMPOLINE		0x6000
+
+/* Map x86_64 PTI entry trampolines */
+int machine__map_x86_64_entry_trampolines(struct machine *machine,
+					  struct dso *kernel)
+{
+	u64 pgoff = find_entry_trampoline(kernel);
+	int nr_cpus_avail, cpu;
+
+	if (!pgoff)
+		return 0;
+
+	nr_cpus_avail = machine__nr_cpus_avail(machine);
+
+	/* Add a 1 page map for each CPU's entry trampoline */
+	for (cpu = 0; cpu < nr_cpus_avail; cpu++) {
+		u64 va = X86_64_CPU_ENTRY_AREA_PER_CPU +
+			 cpu * X86_64_CPU_ENTRY_AREA_SIZE +
+			 X86_64_ENTRY_TRAMPOLINE;
+		struct extra_kernel_map xm = {
+			.start = va,
+			.end   = va + page_size,
+			.pgoff = pgoff,
+		};
+
+		if (machine__create_extra_kernel_map(machine, kernel, &xm) < 0)
+			return -1;
+	}
+
+	return 0;
+}
+
 static int
 __machine__create_kernel_maps(struct machine *machine, struct dso *kernel)
 {

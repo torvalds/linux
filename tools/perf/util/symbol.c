@@ -1490,19 +1490,21 @@ int dso__load(struct dso *dso, struct map *map)
 		goto out;
 	}
 
+	if (map->groups && map->groups->machine)
+		machine = map->groups->machine;
+	else
+		machine = NULL;
+
 	if (dso->kernel) {
 		if (dso->kernel == DSO_TYPE_KERNEL)
 			ret = dso__load_kernel_sym(dso, map);
 		else if (dso->kernel == DSO_TYPE_GUEST_KERNEL)
 			ret = dso__load_guest_kernel_sym(dso, map);
 
+		if (machine__is(machine, "x86_64"))
+			machine__map_x86_64_entry_trampolines(machine, dso);
 		goto out;
 	}
-
-	if (map->groups && map->groups->machine)
-		machine = map->groups->machine;
-	else
-		machine = NULL;
 
 	dso->adjust_symbols = 0;
 

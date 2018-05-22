@@ -268,4 +268,7 @@ int machine__set_current_tid(struct machine *machine, int cpu, pid_t pid,
  */
 char *machine__resolve_kernel_addr(void *vmachine, unsigned long long *addrp, char **modp);
 
+int machine__map_x86_64_entry_trampolines(struct machine *machine,
+					  struct dso *kernel);
+
 #endif /* __PERF_MACHINE_H */
