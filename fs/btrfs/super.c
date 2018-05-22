@@ -323,6 +323,7 @@ enum {
 	Opt_ssd, Opt_nossd,
 	Opt_ssd_spread, Opt_nossd_spread,
 	Opt_subvol,
+	Opt_subvol_empty,
 	Opt_subvolid,
 	Opt_thread_pool,
 	Opt_treelog, Opt_notreelog,
@@ -388,6 +389,7 @@ static const match_table_t tokens = {
 	{Opt_ssd_spread, "ssd_spread"},
 	{Opt_nossd_spread, "nossd_spread"},
 	{Opt_subvol, "subvol=%s"},
+	{Opt_subvol_empty, "subvol="},
 	{Opt_subvolid, "subvolid=%s"},
 	{Opt_thread_pool, "thread_pool=%u"},
 	{Opt_treelog, "treelog"},
@@ -461,6 +463,7 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			btrfs_set_opt(info->mount_opt, DEGRADED);
 			break;
 		case Opt_subvol:
+		case Opt_subvol_empty:
 		case Opt_subvolid:
 		case Opt_subvolrootid:
 		case Opt_device:
