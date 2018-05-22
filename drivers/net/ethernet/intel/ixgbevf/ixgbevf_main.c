@@ -3141,15 +3141,17 @@ static void ixgbevf_reset_subtask(struct ixgbevf_adapter *adapter)
 	if (!test_and_clear_bit(__IXGBEVF_RESET_REQUESTED, &adapter->state))
 		return;
 
+	rtnl_lock();
 	/* If we're already down or resetting, just bail */
 	if (test_bit(__IXGBEVF_DOWN, &adapter->state) ||
 	    test_bit(__IXGBEVF_REMOVING, &adapter->state) ||
-	    test_bit(__IXGBEVF_RESETTING, &adapter->state))
+	    test_bit(__IXGBEVF_RESETTING, &adapter->state)) {
+		rtnl_unlock();
 		return;
+	}
 
 	adapter->tx_timeout_count++;
 
-	rtnl_lock();
 	ixgbevf_reinit_locked(adapter);
 	rtnl_unlock();
 }
