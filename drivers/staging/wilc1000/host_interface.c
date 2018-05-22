@@ -577,7 +577,7 @@ static void handle_cfg_param(struct wilc_vif *vif, struct cfg_param_attr *param)
 			wid_list[i].size = sizeof(char);
 			hif_drv->cfg_values.preamble_type = preamble_type;
 		} else {
-			netdev_err(vif->ndev, "Preamle Range(0~2) over\n");
+			netdev_err(vif->ndev, "Preamble Range(0~2) over\n");
 			goto unlock;
 		}
 		i++;
