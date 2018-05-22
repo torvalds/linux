@@ -176,6 +176,7 @@ struct nvme_ctrl {
 	u16 kas;
 	u8 npss;
 	u8 apsta;
+	u32 oaes;
 	u32 aen_result;
 	unsigned int shutdown_timeout;
 	unsigned int kato;
