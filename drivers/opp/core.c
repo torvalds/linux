@@ -1320,11 +1320,9 @@ struct opp_table *dev_pm_opp_set_regulators(struct device *dev,
 		goto err;
 	}
 
-	/* Already have regulators set */
-	if (opp_table->regulators) {
-		ret = -EBUSY;
-		goto err;
-	}
+	/* Another CPU that shares the OPP table has set the regulators ? */
+	if (opp_table->regulators)
+		return opp_table;
 
 	opp_table->regulators = kmalloc_array(count,
 					      sizeof(*opp_table->regulators),
@@ -1378,10 +1376,8 @@ void dev_pm_opp_put_regulators(struct opp_table *opp_table)
 {
 	int i;
 
-	if (!opp_table->regulators) {
-		pr_err("%s: Doesn't have regulators set\n", __func__);
-		return;
-	}
+	if (!opp_table->regulators)
+		goto put_opp_table;
 
 	/* Make sure there are no concurrent readers while updating opp_table */
 	WARN_ON(!list_empty(&opp_table->opp_list));
@@ -1395,6 +1391,7 @@ void dev_pm_opp_put_regulators(struct opp_table *opp_table)
 	opp_table->regulators = NULL;
 	opp_table->regulator_count = 0;
 
+put_opp_table:
 	dev_pm_opp_put_opp_table(opp_table);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_put_regulators);
