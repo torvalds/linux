@@ -1388,6 +1388,7 @@ struct phdr_data {
 	off_t offset;
 	u64 addr;
 	u64 len;
+	struct list_head node;
 };
 
 struct kcore_copy_info {
@@ -1399,6 +1400,7 @@ struct kcore_copy_info {
 	u64 last_module_symbol;
 	struct phdr_data kernel_map;
 	struct phdr_data modules_map;
+	struct list_head phdrs;
 };
 
 static int kcore_copy__process_kallsyms(void *arg, const char *name, char type,
@@ -1509,6 +1511,11 @@ static int kcore_copy__read_maps(struct kcore_copy_info *kci, Elf *elf)
 {
 	if (elf_read_maps(elf, true, kcore_copy__read_map, kci) < 0)
 		return -1;
+
+	if (kci->kernel_map.len)
+		list_add_tail(&kci->kernel_map.node, &kci->phdrs);
+	if (kci->modules_map.len)
+		list_add_tail(&kci->modules_map.node, &kci->phdrs);
 
 	return 0;
 }
@@ -1677,6 +1684,8 @@ int kcore_copy(const char *from_dir, const char *to_dir)
 	struct kcore_copy_info kci = { .stext = 0, };
 	char kcore_filename[PATH_MAX];
 	char extract_filename[PATH_MAX];
+
+	INIT_LIST_HEAD(&kci.phdrs);
 
 	if (kcore_copy__copy_file(from_dir, to_dir, "kallsyms"))
 		return -1;
