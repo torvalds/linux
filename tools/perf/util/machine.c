@@ -1387,6 +1387,32 @@ static bool machine__uses_kcore(struct machine *machine)
 	return false;
 }
 
+static bool perf_event__is_extra_kernel_mmap(struct machine *machine,
+					     union perf_event *event)
+{
+	return machine__is(machine, "x86_64") &&
+	       is_entry_trampoline(event->mmap.filename);
+}
+
+static int machine__process_extra_kernel_map(struct machine *machine,
+					     union perf_event *event)
+{
+	struct map *kernel_map = machine__kernel_map(machine);
+	struct dso *kernel = kernel_map ? kernel_map->dso : NULL;
+	struct extra_kernel_map xm = {
+		.start = event->mmap.start,
+		.end   = event->mmap.start + event->mmap.len,
+		.pgoff = event->mmap.pgoff,
+	};
+
+	if (kernel == NULL)
+		return -1;
+
+	strlcpy(xm.name, event->mmap.filename, KMAP_NAME_LEN);
+
+	return machine__create_extra_kernel_map(machine, kernel, &xm);
+}
+
 static int machine__process_kernel_mmap_event(struct machine *machine,
 					      union perf_event *event)
 {
@@ -1490,6 +1516,8 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 			 */
 			dso__load(kernel, machine__kernel_map(machine));
 		}
+	} else if (perf_event__is_extra_kernel_mmap(machine, event)) {
+		return machine__process_extra_kernel_map(machine, event);
 	}
 	return 0;
 out_problem:
