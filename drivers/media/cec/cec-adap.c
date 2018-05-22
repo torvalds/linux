@@ -339,12 +339,19 @@ static void cec_data_cancel(struct cec_data *data)
 			data->adap->transmit_queue_sz--;
 	}
 
-	/* Mark it as an error */
-	data->msg.tx_ts = ktime_get_ns();
-	data->msg.tx_status |= CEC_TX_STATUS_ERROR |
-			       CEC_TX_STATUS_MAX_RETRIES;
-	data->msg.tx_error_cnt++;
-	data->attempts = 0;
+	if (data->msg.tx_status & CEC_TX_STATUS_OK) {
+		/* Mark the canceled RX as a timeout */
+		data->msg.rx_ts = ktime_get_ns();
+		data->msg.rx_status = CEC_RX_STATUS_TIMEOUT;
+	} else {
+		/* Mark the canceled TX as an error */
+		data->msg.tx_ts = ktime_get_ns();
+		data->msg.tx_status |= CEC_TX_STATUS_ERROR |
+				       CEC_TX_STATUS_MAX_RETRIES;
+		data->msg.tx_error_cnt++;
+		data->attempts = 0;
+	}
+
 	/* Queue transmitted message for monitoring purposes */
 	cec_queue_msg_monitor(data->adap, &data->msg, 1);
 
