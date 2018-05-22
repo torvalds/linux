@@ -1157,7 +1157,6 @@ struct opp_table *dev_pm_opp_set_supported_hw(struct device *dev,
 			const u32 *versions, unsigned int count)
 {
 	struct opp_table *opp_table;
-	int ret;
 
 	opp_table = dev_pm_opp_get_opp_table(dev);
 	if (!opp_table)
@@ -1166,29 +1165,20 @@ struct opp_table *dev_pm_opp_set_supported_hw(struct device *dev,
 	/* Make sure there are no concurrent readers while updating opp_table */
 	WARN_ON(!list_empty(&opp_table->opp_list));
 
-	/* Do we already have a version hierarchy associated with opp_table? */
-	if (opp_table->supported_hw) {
-		dev_err(dev, "%s: Already have supported hardware list\n",
-			__func__);
-		ret = -EBUSY;
-		goto err;
-	}
+	/* Another CPU that shares the OPP table has set the property ? */
+	if (opp_table->supported_hw)
+		return opp_table;
 
 	opp_table->supported_hw = kmemdup(versions, count * sizeof(*versions),
 					GFP_KERNEL);
 	if (!opp_table->supported_hw) {
-		ret = -ENOMEM;
-		goto err;
+		dev_pm_opp_put_opp_table(opp_table);
+		return ERR_PTR(-ENOMEM);
 	}
 
 	opp_table->supported_hw_count = count;
 
 	return opp_table;
-
-err:
-	dev_pm_opp_put_opp_table(opp_table);
-
-	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_set_supported_hw);
 
@@ -1204,12 +1194,6 @@ void dev_pm_opp_put_supported_hw(struct opp_table *opp_table)
 {
 	/* Make sure there are no concurrent readers while updating opp_table */
 	WARN_ON(!list_empty(&opp_table->opp_list));
-
-	if (!opp_table->supported_hw) {
-		pr_err("%s: Doesn't have supported hardware list\n",
-		       __func__);
-		return;
-	}
 
 	kfree(opp_table->supported_hw);
 	opp_table->supported_hw = NULL;
