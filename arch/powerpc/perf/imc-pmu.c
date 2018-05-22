@@ -40,6 +40,7 @@ static struct imc_pmu *core_imc_pmu;
 /* Thread IMC data structures and variables */
 
 static DEFINE_PER_CPU(u64 *, thread_imc_mem);
+static struct imc_pmu *thread_imc_pmu;
 static int thread_imc_mem_size;
 
 struct imc_pmu *imc_event_to_pmu(struct perf_event *event)
@@ -1228,6 +1229,16 @@ static void imc_common_cpuhp_mem_free(struct imc_pmu *pmu_ptr)
 	}
 }
 
+/*
+ * Function to unregister thread-imc if core-imc
+ * is not registered.
+ */
+void unregister_thread_imc(void)
+{
+	imc_common_cpuhp_mem_free(thread_imc_pmu);
+	imc_common_mem_free(thread_imc_pmu);
+	perf_pmu_unregister(&thread_imc_pmu->pmu);
+}
 
 /*
  * imc_mem_init : Function to support memory allocation for core imc.
@@ -1296,6 +1307,7 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 			}
 		}
 
+		thread_imc_pmu = pmu_ptr;
 		break;
 	default:
 		return -EINVAL;

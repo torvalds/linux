@@ -255,6 +255,7 @@ static int opal_imc_counters_probe(struct platform_device *pdev)
 {
 	struct device_node *imc_dev = pdev->dev.of_node;
 	int pmu_count = 0, domain;
+	bool core_imc_reg = false, thread_imc_reg = false;
 	u32 type;
 
 	/*
@@ -292,12 +293,20 @@ static int opal_imc_counters_probe(struct platform_device *pdev)
 		if (!imc_pmu_create(imc_dev, pmu_count, domain)) {
 			if (domain == IMC_DOMAIN_NEST)
 				pmu_count++;
+			if (domain == IMC_DOMAIN_CORE)
+				core_imc_reg = true;
+			if (domain == IMC_DOMAIN_THREAD)
+				thread_imc_reg = true;
 		}
 	}
 
 	/* If none of the nest units are registered, remove debugfs interface */
 	if (pmu_count == 0)
 		debugfs_remove_recursive(imc_debugfs_parent);
+
+	/* If core imc is not registered, unregister thread-imc */
+	if (!core_imc_reg && thread_imc_reg)
+		unregister_thread_imc();
 
 	return 0;
 }
