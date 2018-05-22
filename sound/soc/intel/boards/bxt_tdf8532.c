@@ -263,3 +263,4 @@ module_platform_driver(broxton_tdf8532_audio)
 MODULE_DESCRIPTION("Intel SST Audio for Broxton GP MRB");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:gpmrb_machine");
+MODULE_ALIAS("platform:bxt_tdf8532");
