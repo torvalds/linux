@@ -286,6 +286,14 @@ vgic_v3_rd_region_size(struct kvm *kvm, struct vgic_redist_region *rdreg)
 }
 bool vgic_v3_rdist_overlap(struct kvm *kvm, gpa_t base, size_t size);
 
+static inline bool vgic_dist_overlap(struct kvm *kvm, gpa_t base, size_t size)
+{
+	struct vgic_dist *d = &kvm->arch.vgic;
+
+	return (base + size > d->vgic_dist_base) &&
+		(base < d->vgic_dist_base + KVM_VGIC_V3_DIST_SIZE);
+}
+
 int vgic_its_resolve_lpi(struct kvm *kvm, struct vgic_its *its,
 			 u32 devid, u32 eventid, struct vgic_irq **irq);
 struct vgic_its *vgic_msi_to_its(struct kvm *kvm, struct kvm_msi *msi);
