@@ -12,15 +12,11 @@ struct btf_header {
 	__u16	magic;
 	__u8	version;
 	__u8	flags;
-
-	__u32	parent_label;
-	__u32	parent_name;
+	__u32	hdr_len;
 
 	/* All offsets are in bytes relative to the end of this header */
-	__u32	label_off;	/* offset of label section	*/
-	__u32	object_off;	/* offset of data object section*/
-	__u32	func_off;	/* offset of function section	*/
 	__u32	type_off;	/* offset of type section	*/
+	__u32	type_len;	/* length of type section	*/
 	__u32	str_off;	/* offset of string section	*/
 	__u32	str_len;	/* length of string section	*/
 };

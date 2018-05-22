@@ -12,6 +12,7 @@
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/idr.h>
+#include <linux/sort.h>
 #include <linux/bpf_verifier.h>
 #include <linux/btf.h>
 
@@ -184,15 +185,13 @@ static DEFINE_IDR(btf_idr);
 static DEFINE_SPINLOCK(btf_idr_lock);
 
 struct btf {
-	union {
-		struct btf_header *hdr;
-		void *data;
-	};
+	void *data;
 	struct btf_type **types;
 	u32 *resolved_ids;
 	u32 *resolved_sizes;
 	const char *strings;
 	void *nohdr_data;
+	struct btf_header hdr;
 	u32 nr_types;
 	u32 types_size;
 	u32 data_size;
@@ -227,6 +226,11 @@ enum resolve_mode {
 };
 
 #define MAX_RESOLVE_DEPTH 32
+
+struct btf_sec_info {
+	u32 off;
+	u32 len;
+};
 
 struct btf_verifier_env {
 	struct btf *btf;
@@ -418,14 +422,14 @@ static const struct btf_kind_operations *btf_type_ops(const struct btf_type *t)
 static bool btf_name_offset_valid(const struct btf *btf, u32 offset)
 {
 	return !BTF_STR_TBL_ELF_ID(offset) &&
-		BTF_STR_OFFSET(offset) < btf->hdr->str_len;
+		BTF_STR_OFFSET(offset) < btf->hdr.str_len;
 }
 
 static const char *btf_name_by_offset(const struct btf *btf, u32 offset)
 {
 	if (!BTF_STR_OFFSET(offset))
 		return "(anon)";
-	else if (BTF_STR_OFFSET(offset) < btf->hdr->str_len)
+	else if (BTF_STR_OFFSET(offset) < btf->hdr.str_len)
 		return &btf->strings[BTF_STR_OFFSET(offset)];
 	else
 		return "(invalid-name-offset)";
@@ -536,7 +540,8 @@ static void btf_verifier_log_member(struct btf_verifier_env *env,
 	__btf_verifier_log(log, "\n");
 }
 
-static void btf_verifier_log_hdr(struct btf_verifier_env *env)
+static void btf_verifier_log_hdr(struct btf_verifier_env *env,
+				 u32 btf_data_size)
 {
 	struct bpf_verifier_log *log = &env->log;
 	const struct btf *btf = env->btf;
@@ -545,19 +550,16 @@ static void btf_verifier_log_hdr(struct btf_verifier_env *env)
 	if (!bpf_verifier_log_needed(log))
 		return;
 
-	hdr = btf->hdr;
+	hdr = &btf->hdr;
 	__btf_verifier_log(log, "magic: 0x%x\n", hdr->magic);
 	__btf_verifier_log(log, "version: %u\n", hdr->version);
 	__btf_verifier_log(log, "flags: 0x%x\n", hdr->flags);
-	__btf_verifier_log(log, "parent_label: %u\n", hdr->parent_label);
-	__btf_verifier_log(log, "parent_name: %u\n", hdr->parent_name);
-	__btf_verifier_log(log, "label_off: %u\n", hdr->label_off);
-	__btf_verifier_log(log, "object_off: %u\n", hdr->object_off);
-	__btf_verifier_log(log, "func_off: %u\n", hdr->func_off);
+	__btf_verifier_log(log, "hdr_len: %u\n", hdr->hdr_len);
 	__btf_verifier_log(log, "type_off: %u\n", hdr->type_off);
+	__btf_verifier_log(log, "type_len: %u\n", hdr->type_len);
 	__btf_verifier_log(log, "str_off: %u\n", hdr->str_off);
 	__btf_verifier_log(log, "str_len: %u\n", hdr->str_len);
-	__btf_verifier_log(log, "btf_total_size: %u\n", btf->data_size);
+	__btf_verifier_log(log, "btf_total_size: %u\n", btf_data_size);
 }
 
 static int btf_add_type(struct btf_verifier_env *env, struct btf_type *t)
@@ -1754,9 +1756,9 @@ static int btf_check_all_metas(struct btf_verifier_env *env)
 	struct btf_header *hdr;
 	void *cur, *end;
 
-	hdr = btf->hdr;
+	hdr = &btf->hdr;
 	cur = btf->nohdr_data + hdr->type_off;
-	end = btf->nohdr_data + hdr->str_off;
+	end = btf->nohdr_data + hdr->type_len;
 
 	env->log_type_id = 1;
 	while (cur < end) {
@@ -1866,7 +1868,19 @@ static int btf_check_all_types(struct btf_verifier_env *env)
 
 static int btf_parse_type_sec(struct btf_verifier_env *env)
 {
+	const struct btf_header *hdr = &env->btf->hdr;
 	int err;
+
+	/* Type section must align to 4 bytes */
+	if (hdr->type_off & (sizeof(u32) - 1)) {
+		btf_verifier_log(env, "Unaligned type_off");
+		return -EINVAL;
+	}
+
+	if (!hdr->type_len) {
+		btf_verifier_log(env, "No type found");
+		return -EINVAL;
+	}
 
 	err = btf_check_all_metas(env);
 	if (err)
@@ -1881,9 +1895,14 @@ static int btf_parse_str_sec(struct btf_verifier_env *env)
 	struct btf *btf = env->btf;
 	const char *start, *end;
 
-	hdr = btf->hdr;
+	hdr = &btf->hdr;
 	start = btf->nohdr_data + hdr->str_off;
 	end = start + hdr->str_len;
+
+	if (end != btf->data + btf->data_size) {
+		btf_verifier_log(env, "String section is not at the end");
+		return -EINVAL;
+	}
 
 	if (!hdr->str_len || hdr->str_len - 1 > BTF_MAX_NAME_OFFSET ||
 	    start[0] || end[-1]) {
@@ -1896,20 +1915,122 @@ static int btf_parse_str_sec(struct btf_verifier_env *env)
 	return 0;
 }
 
-static int btf_parse_hdr(struct btf_verifier_env *env)
+static const size_t btf_sec_info_offset[] = {
+	offsetof(struct btf_header, type_off),
+	offsetof(struct btf_header, str_off),
+};
+
+static int btf_sec_info_cmp(const void *a, const void *b)
+{
+	const struct btf_sec_info *x = a;
+	const struct btf_sec_info *y = b;
+
+	return (int)(x->off - y->off) ? : (int)(x->len - y->len);
+}
+
+static int btf_check_sec_info(struct btf_verifier_env *env,
+			      u32 btf_data_size)
+{
+	const unsigned int nr_secs = ARRAY_SIZE(btf_sec_info_offset);
+	struct btf_sec_info secs[nr_secs];
+	u32 total, expected_total, i;
+	const struct btf_header *hdr;
+	const struct btf *btf;
+
+	btf = env->btf;
+	hdr = &btf->hdr;
+
+	/* Populate the secs from hdr */
+	for (i = 0; i < nr_secs; i++)
+		secs[i] = *(struct btf_sec_info *)((void *)hdr +
+						   btf_sec_info_offset[i]);
+
+	sort(secs, nr_secs, sizeof(struct btf_sec_info),
+	     btf_sec_info_cmp, NULL);
+
+	/* Check for gaps and overlap among sections */
+	total = 0;
+	expected_total = btf_data_size - hdr->hdr_len;
+	for (i = 0; i < nr_secs; i++) {
+		if (expected_total < secs[i].off) {
+			btf_verifier_log(env, "Invalid section offset");
+			return -EINVAL;
+		}
+		if (total < secs[i].off) {
+			/* gap */
+			btf_verifier_log(env, "Unsupported section found");
+			return -EINVAL;
+		}
+		if (total > secs[i].off) {
+			btf_verifier_log(env, "Section overlap found");
+			return -EINVAL;
+		}
+		if (expected_total - total < secs[i].len) {
+			btf_verifier_log(env,
+					 "Total section length too long");
+			return -EINVAL;
+		}
+		total += secs[i].len;
+	}
+
+	/* There is data other than hdr and known sections */
+	if (expected_total != total) {
+		btf_verifier_log(env, "Unsupported section found");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int btf_parse_hdr(struct btf_verifier_env *env, void __user *btf_data,
+			 u32 btf_data_size)
 {
 	const struct btf_header *hdr;
-	struct btf *btf = env->btf;
-	u32 meta_left;
+	u32 hdr_len, hdr_copy;
+	/*
+	 * Minimal part of the "struct btf_header" that
+	 * contains the hdr_len.
+	 */
+	struct btf_min_header {
+		u16	magic;
+		u8	version;
+		u8	flags;
+		u32	hdr_len;
+	} __user *min_hdr;
+	struct btf *btf;
+	int err;
 
-	if (btf->data_size < sizeof(*hdr)) {
+	btf = env->btf;
+	min_hdr = btf_data;
+
+	if (btf_data_size < sizeof(*min_hdr)) {
+		btf_verifier_log(env, "hdr_len not found");
+		return -EINVAL;
+	}
+
+	if (get_user(hdr_len, &min_hdr->hdr_len))
+		return -EFAULT;
+
+	if (btf_data_size < hdr_len) {
 		btf_verifier_log(env, "btf_header not found");
 		return -EINVAL;
 	}
 
-	btf_verifier_log_hdr(env);
+	err = bpf_check_uarg_tail_zero(btf_data, sizeof(btf->hdr), hdr_len);
+	if (err) {
+		if (err == -E2BIG)
+			btf_verifier_log(env, "Unsupported btf_header");
+		return err;
+	}
 
-	hdr = btf->hdr;
+	hdr_copy = min_t(u32, hdr_len, sizeof(btf->hdr));
+	if (copy_from_user(&btf->hdr, btf_data, hdr_copy))
+		return -EFAULT;
+
+	hdr = &btf->hdr;
+
+	btf_verifier_log_hdr(env, btf_data_size);
+
 	if (hdr->magic != BTF_MAGIC) {
 		btf_verifier_log(env, "Invalid magic");
 		return -EINVAL;
@@ -1925,26 +2046,14 @@ static int btf_parse_hdr(struct btf_verifier_env *env)
 		return -ENOTSUPP;
 	}
 
-	meta_left = btf->data_size - sizeof(*hdr);
-	if (!meta_left) {
+	if (btf_data_size == hdr->hdr_len) {
 		btf_verifier_log(env, "No data");
 		return -EINVAL;
 	}
 
-	if (meta_left < hdr->type_off || hdr->str_off <= hdr->type_off ||
-	    /* Type section must align to 4 bytes */
-	    hdr->type_off & (sizeof(u32) - 1)) {
-		btf_verifier_log(env, "Invalid type_off");
-		return -EINVAL;
-	}
-
-	if (meta_left < hdr->str_off ||
-	    meta_left - hdr->str_off < hdr->str_len) {
-		btf_verifier_log(env, "Invalid str_off or str_len");
-		return -EINVAL;
-	}
-
-	btf->nohdr_data = btf->hdr + 1;
+	err = btf_check_sec_info(env, btf_data_size);
+	if (err)
+		return err;
 
 	return 0;
 }
@@ -1987,6 +2096,11 @@ static struct btf *btf_parse(void __user *btf_data, u32 btf_data_size,
 		err = -ENOMEM;
 		goto errout;
 	}
+	env->btf = btf;
+
+	err = btf_parse_hdr(env, btf_data, btf_data_size);
+	if (err)
+		goto errout;
 
 	data = kvmalloc(btf_data_size, GFP_KERNEL | __GFP_NOWARN);
 	if (!data) {
@@ -1996,17 +2110,12 @@ static struct btf *btf_parse(void __user *btf_data, u32 btf_data_size,
 
 	btf->data = data;
 	btf->data_size = btf_data_size;
+	btf->nohdr_data = btf->data + btf->hdr.hdr_len;
 
 	if (copy_from_user(data, btf_data, btf_data_size)) {
 		err = -EFAULT;
 		goto errout;
 	}
-
-	env->btf = btf;
-
-	err = btf_parse_hdr(env);
-	if (err)
-		goto errout;
 
 	err = btf_parse_str_sec(env);
 	if (err)
@@ -2016,16 +2125,14 @@ static struct btf *btf_parse(void __user *btf_data, u32 btf_data_size,
 	if (err)
 		goto errout;
 
-	if (!err && log->level && bpf_verifier_log_full(log)) {
+	if (log->level && bpf_verifier_log_full(log)) {
 		err = -ENOSPC;
 		goto errout;
 	}
 
-	if (!err) {
-		btf_verifier_env_free(env);
-		refcount_set(&btf->refcnt, 1);
-		return btf;
-	}
+	btf_verifier_env_free(env);
+	refcount_set(&btf->refcnt, 1);
+	return btf;
 
 errout:
 	btf_verifier_env_free(env);
