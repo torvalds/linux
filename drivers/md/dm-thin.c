@@ -240,9 +240,9 @@ struct pool {
 	struct dm_bio_prison *prison;
 	struct dm_kcopyd_client *copier;
 
+	struct work_struct worker;
 	struct workqueue_struct *wq;
 	struct throttle throttle;
-	struct work_struct worker;
 	struct delayed_work waker;
 	struct delayed_work no_space_timeout;
 
@@ -260,7 +260,6 @@ struct pool {
 	struct dm_deferred_set *all_io_ds;
 
 	struct dm_thin_new_mapping *next_mapping;
-	mempool_t mapping_pool;
 
 	process_bio_fn process_bio;
 	process_bio_fn process_discard;
@@ -273,6 +272,8 @@ struct pool {
 	process_mapping_fn process_prepared_discard_pt2;
 
 	struct dm_bio_prison_cell **cell_sort_array;
+
+	mempool_t mapping_pool;
 };
 
 static enum pool_mode get_pool_mode(struct pool *pool);
