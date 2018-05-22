@@ -711,7 +711,7 @@ void phydm_update_hal_ra_mask(void *dm_void, u32 wireless_mode, u8 rf_type,
 	phydm_BW = phydm_trans_platform_bw(dm, BW);
 
 	ODM_RT_TRACE(dm, ODM_COMP_RA_MASK,
-		     "Platfoem original RA Mask = (( 0x %x | %x ))\n",
+		     "Platform original RA Mask = (( 0x %x | %x ))\n",
 		     ratr_bitmap_msb, ratr_bitmap);
 
 	switch (wireless_mode) {
