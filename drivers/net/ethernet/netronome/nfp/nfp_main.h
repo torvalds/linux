@@ -177,6 +177,12 @@ nfp_net_get_mac_addr(struct nfp_pf *pf, struct net_device *netdev,
 
 bool nfp_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb);
 
+int nfp_pf_rtsym_read_optional(struct nfp_pf *pf, const char *format,
+			       unsigned int default_val);
+u8 __iomem *
+nfp_pf_map_rtsym(struct nfp_pf *pf, const char *name, const char *sym_fmt,
+		 unsigned int min_size, struct nfp_cpp_area **area);
+
 enum nfp_dump_diag {
 	NFP_DUMP_NSP_DIAG = 0,
 };

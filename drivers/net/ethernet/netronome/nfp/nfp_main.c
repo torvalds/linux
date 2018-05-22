@@ -75,6 +75,38 @@ static const struct pci_device_id nfp_pci_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, nfp_pci_device_ids);
 
+int nfp_pf_rtsym_read_optional(struct nfp_pf *pf, const char *format,
+			       unsigned int default_val)
+{
+	char name[256];
+	int err = 0;
+	u64 val;
+
+	snprintf(name, sizeof(name), format, nfp_cppcore_pcie_unit(pf->cpp));
+
+	val = nfp_rtsym_read_le(pf->rtbl, name, &err);
+	if (err) {
+		if (err == -ENOENT)
+			return default_val;
+		nfp_err(pf->cpp, "Unable to read symbol %s\n", name);
+		return err;
+	}
+
+	return val;
+}
+
+u8 __iomem *
+nfp_pf_map_rtsym(struct nfp_pf *pf, const char *name, const char *sym_fmt,
+		 unsigned int min_size, struct nfp_cpp_area **area)
+{
+	char pf_symbol[256];
+
+	snprintf(pf_symbol, sizeof(pf_symbol), sym_fmt,
+		 nfp_cppcore_pcie_unit(pf->cpp));
+
+	return nfp_rtsym_map(pf->rtbl, pf_symbol, name, min_size, area);
+}
+
 static bool nfp_board_ready(struct nfp_pf *pf)
 {
 	const char *cp;
