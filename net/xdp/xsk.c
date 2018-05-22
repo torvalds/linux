@@ -228,6 +228,8 @@ static int xsk_init_queue(u32 entries, struct xsk_queue **queue,
 	if (!q)
 		return -ENOMEM;
 
+	/* Make sure queue is ready before it can be seen by others */
+	smp_wmb();
 	*queue = q;
 	return 0;
 }
@@ -532,21 +534,23 @@ static int xsk_mmap(struct file *file, struct socket *sock,
 	unsigned long size = vma->vm_end - vma->vm_start;
 	struct xdp_sock *xs = xdp_sk(sock->sk);
 	struct xsk_queue *q = NULL;
+	struct xdp_umem *umem;
 	unsigned long pfn;
 	struct page *qpg;
 
 	if (offset == XDP_PGOFF_RX_RING) {
-		q = xs->rx;
+		q = READ_ONCE(xs->rx);
 	} else if (offset == XDP_PGOFF_TX_RING) {
-		q = xs->tx;
+		q = READ_ONCE(xs->tx);
 	} else {
-		if (!xs->umem)
+		umem = READ_ONCE(xs->umem);
+		if (!umem)
 			return -EINVAL;
 
 		if (offset == XDP_UMEM_PGOFF_FILL_RING)
-			q = xs->umem->fq;
+			q = READ_ONCE(umem->fq);
 		else if (offset == XDP_UMEM_PGOFF_COMPLETION_RING)
-			q = xs->umem->cq;
+			q = READ_ONCE(umem->cq);
 	}
 
 	if (!q)
