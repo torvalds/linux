@@ -59,8 +59,8 @@ struct rt_firmware_hdr {
 	__le16 Signature;  /* 92C0: test chip; 92C, 88C0: test chip;
 			    * 88C1: MP A-cut; 92C1: MP A-cut */
 	u8 Category;	   /* AP/NIC and USB/PCI */
-	u8 Function;	   /* Reserved for different FW function indcation, for
-			    * further use when driver needs to download
+	u8 Function;	   /* Reserved for different FW function indications,
+			    * for further use when driver needs to download
 			    * different FW in different conditions. */
 	__le16 Version;    /* FW Version */
 	__le16 Subversion; /* FW Subversion, default 0x00 */
