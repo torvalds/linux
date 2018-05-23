@@ -19,6 +19,7 @@
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 #include <dt-bindings/power/rk3036-power.h>
+#include <dt-bindings/power/rk3128-power.h>
 #include <dt-bindings/power/rk3288-power.h>
 #include <dt-bindings/power/rk3328-power.h>
 #include <dt-bindings/power/rk3366-power.h>
@@ -721,6 +722,14 @@ static const struct rockchip_domain_info rk3036_pm_domains[] = {
 	[RK3036_PD_SYS]		= DOMAIN_RK3036(8, 22, 29, false),
 };
 
+static const struct rockchip_domain_info rk3128_pm_domains[] = {
+	[RK3128_PD_CORE]	= DOMAIN_RK3288(0, 0, 4, false),
+	[RK3128_PD_MSCH]	= DOMAIN_RK3288(-1, -1, 6, true),
+	[RK3128_PD_VIO]		= DOMAIN_RK3288(3, 3, 2, false),
+	[RK3128_PD_VIDEO]	= DOMAIN_RK3288(2, 2, 1, false),
+	[RK3128_PD_GPU]		= DOMAIN_RK3288(1, 1, 3, false),
+};
+
 static const struct rockchip_domain_info rk3288_pm_domains[] = {
 	[RK3288_PD_VIO]		= DOMAIN_RK3288(7, 7, 4, false),
 	[RK3288_PD_HEVC]	= DOMAIN_RK3288(14, 10, 9, false),
@@ -795,6 +804,17 @@ static const struct rockchip_pmu_info rk3036_pmu = {
 
 	.num_domains = ARRAY_SIZE(rk3036_pm_domains),
 	.domain_info = rk3036_pm_domains,
+};
+
+static const struct rockchip_pmu_info rk3128_pmu = {
+	.pwr_offset = 0x04,
+	.status_offset = 0x08,
+	.req_offset = 0x0c,
+	.idle_offset = 0x10,
+	.ack_offset = 0x10,
+
+	.num_domains = ARRAY_SIZE(rk3128_pm_domains),
+	.domain_info = rk3128_pm_domains,
 };
 
 static const struct rockchip_pmu_info rk3288_pmu = {
@@ -874,6 +894,10 @@ static const struct of_device_id rockchip_pm_domain_dt_match[] = {
 	{
 		.compatible = "rockchip,rk3036-power-controller",
 		.data = (void *)&rk3036_pmu,
+	},
+	{
+		.compatible = "rockchip,rk3128-power-controller",
+		.data = (void *)&rk3128_pmu,
 	},
 	{
 		.compatible = "rockchip,rk3288-power-controller",
