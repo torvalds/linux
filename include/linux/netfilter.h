@@ -324,11 +324,15 @@ int nf_reroute(struct sk_buff *skb, struct nf_queue_entry *entry);
 struct nf_conn;
 enum nf_nat_manip_type;
 struct nlattr;
+enum ip_conntrack_dir;
 
 struct nf_nat_hook {
 	int (*parse_nat_setup)(struct nf_conn *ct, enum nf_nat_manip_type manip,
 			       const struct nlattr *attr);
 	void (*decode_session)(struct sk_buff *skb, struct flowi *fl);
+	unsigned int (*manip_pkt)(struct sk_buff *skb, struct nf_conn *ct,
+				  enum nf_nat_manip_type mtype,
+				  enum ip_conntrack_dir dir);
 };
 
 extern struct nf_nat_hook __rcu *nf_nat_hook;
@@ -392,6 +396,7 @@ struct nf_conn;
 enum ip_conntrack_info;
 
 struct nf_ct_hook {
+	int (*update)(struct net *net, struct sk_buff *skb);
 	void (*destroy)(struct nf_conntrack *);
 };
 extern struct nf_ct_hook __rcu *nf_ct_hook;

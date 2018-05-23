@@ -493,17 +493,36 @@ nf_nat_alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
 }
 EXPORT_SYMBOL_GPL(nf_nat_alloc_null_binding);
 
+static unsigned int nf_nat_manip_pkt(struct sk_buff *skb, struct nf_conn *ct,
+				     enum nf_nat_manip_type mtype,
+				     enum ip_conntrack_dir dir)
+{
+	const struct nf_nat_l3proto *l3proto;
+	const struct nf_nat_l4proto *l4proto;
+	struct nf_conntrack_tuple target;
+
+	/* We are aiming to look like inverse of other direction. */
+	nf_ct_invert_tuplepr(&target, &ct->tuplehash[!dir].tuple);
+
+	l3proto = __nf_nat_l3proto_find(target.src.l3num);
+	l4proto = __nf_nat_l4proto_find(target.src.l3num,
+					target.dst.protonum);
+	if (!l3proto->manip_pkt(skb, 0, l4proto, &target, mtype))
+		return NF_DROP;
+
+	return NF_ACCEPT;
+}
+
 /* Do packet manipulations according to nf_nat_setup_info. */
 unsigned int nf_nat_packet(struct nf_conn *ct,
 			   enum ip_conntrack_info ctinfo,
 			   unsigned int hooknum,
 			   struct sk_buff *skb)
 {
-	const struct nf_nat_l3proto *l3proto;
-	const struct nf_nat_l4proto *l4proto;
-	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
-	unsigned long statusbit;
 	enum nf_nat_manip_type mtype = HOOK2MANIP(hooknum);
+	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
+	unsigned int verdict = NF_ACCEPT;
+	unsigned long statusbit;
 
 	if (mtype == NF_NAT_MANIP_SRC)
 		statusbit = IPS_SRC_NAT;
@@ -515,19 +534,10 @@ unsigned int nf_nat_packet(struct nf_conn *ct,
 		statusbit ^= IPS_NAT_MASK;
 
 	/* Non-atomic: these bits don't change. */
-	if (ct->status & statusbit) {
-		struct nf_conntrack_tuple target;
+	if (ct->status & statusbit)
+		verdict = nf_nat_manip_pkt(skb, ct, mtype, dir);
 
-		/* We are aiming to look like inverse of other direction. */
-		nf_ct_invert_tuplepr(&target, &ct->tuplehash[!dir].tuple);
-
-		l3proto = __nf_nat_l3proto_find(target.src.l3num);
-		l4proto = __nf_nat_l4proto_find(target.src.l3num,
-						target.dst.protonum);
-		if (!l3proto->manip_pkt(skb, 0, l4proto, &target, mtype))
-			return NF_DROP;
-	}
-	return NF_ACCEPT;
+	return verdict;
 }
 EXPORT_SYMBOL_GPL(nf_nat_packet);
 
@@ -1031,6 +1041,7 @@ struct nf_nat_hook nat_hook = {
 #ifdef CONFIG_XFRM
 	.decode_session		= __nf_nat_decode_session,
 #endif
+	.manip_pkt		= nf_nat_manip_pkt,
 };
 
 static int __init nf_nat_init(void)
