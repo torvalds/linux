@@ -3138,12 +3138,12 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 kvmppc_save_tm_hv:
 	/* See if we need to handle fake suspend mode */
 BEGIN_FTR_SECTION
-	b	kvmppc_save_tm
+	b	__kvmppc_save_tm
 END_FTR_SECTION_IFCLR(CPU_FTR_P9_TM_HV_ASSIST)
 
 	lbz	r0, HSTATE_FAKE_SUSPEND(r13) /* Were we fake suspended? */
 	cmpwi	r0, 0
-	beq	kvmppc_save_tm
+	beq	__kvmppc_save_tm
 
 	/* The following code handles the fake_suspend = 1 case */
 	mflr	r0
@@ -3228,7 +3228,7 @@ kvmppc_restore_tm_hv:
 	 * fake-suspend mode, or emulate a TM rollback.
 	 */
 BEGIN_FTR_SECTION
-	b	kvmppc_restore_tm
+	b	__kvmppc_restore_tm
 END_FTR_SECTION_IFCLR(CPU_FTR_P9_TM_HV_ASSIST)
 	mflr	r0
 	std	r0, PPC_LR_STKOFF(r1)

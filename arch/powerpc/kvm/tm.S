@@ -33,7 +33,7 @@
  * This can modify all checkpointed registers, but
  * restores r1, r2 before exit.
  */
-_GLOBAL(kvmppc_save_tm)
+_GLOBAL(__kvmppc_save_tm)
 	mflr	r0
 	std	r0, PPC_LR_STKOFF(r1)
 
@@ -157,6 +157,52 @@ END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_HV_ASSIST)
 	blr
 
 /*
+ * _kvmppc_save_tm_pr() is a wrapper around __kvmppc_save_tm(), so that it can
+ * be invoked from C function by PR KVM only.
+ */
+_GLOBAL(_kvmppc_save_tm_pr)
+	mflr	r5
+	std	r5, PPC_LR_STKOFF(r1)
+	stdu    r1, -SWITCH_FRAME_SIZE(r1)
+	SAVE_NVGPRS(r1)
+
+	/* save MSR since TM/math bits might be impacted
+	 * by __kvmppc_save_tm().
+	 */
+	mfmsr	r5
+	SAVE_GPR(5, r1)
+
+	/* also save DSCR/CR so that it can be recovered later */
+	mfspr   r6, SPRN_DSCR
+	SAVE_GPR(6, r1)
+
+	mfcr    r7
+	stw     r7, _CCR(r1)
+
+	bl	__kvmppc_save_tm
+
+	ld      r7, _CCR(r1)
+	mtcr	r7
+
+	REST_GPR(6, r1)
+	mtspr   SPRN_DSCR, r6
+
+	/* need preserve current MSR's MSR_TS bits */
+	REST_GPR(5, r1)
+	mfmsr   r6
+	rldicl  r6, r6, 64 - MSR_TS_S_LG, 62
+	rldimi  r5, r6, MSR_TS_S_LG, 63 - MSR_TS_T_LG
+	mtmsrd  r5
+
+	REST_NVGPRS(r1)
+	addi    r1, r1, SWITCH_FRAME_SIZE
+	ld	r5, PPC_LR_STKOFF(r1)
+	mtlr	r5
+	blr
+
+EXPORT_SYMBOL_GPL(_kvmppc_save_tm_pr);
+
+/*
  * Restore transactional state and TM-related registers.
  * Called with:
  *  - r3 pointing to the vcpu struct.
@@ -166,7 +212,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_HV_ASSIST)
  * This potentially modifies all checkpointed registers.
  * It restores r1, r2 from the PACA.
  */
-_GLOBAL(kvmppc_restore_tm)
+_GLOBAL(__kvmppc_restore_tm)
 	mflr	r0
 	std	r0, PPC_LR_STKOFF(r1)
 
@@ -279,4 +325,48 @@ _GLOBAL(kvmppc_restore_tm)
 	ld	r0, PPC_LR_STKOFF(r1)
 	mtlr	r0
 	blr
+
+/*
+ * _kvmppc_restore_tm_pr() is a wrapper around __kvmppc_restore_tm(), so that it
+ * can be invoked from C function by PR KVM only.
+ */
+_GLOBAL(_kvmppc_restore_tm_pr)
+	mflr	r5
+	std	r5, PPC_LR_STKOFF(r1)
+	stdu    r1, -SWITCH_FRAME_SIZE(r1)
+	SAVE_NVGPRS(r1)
+
+	/* save MSR to avoid TM/math bits change */
+	mfmsr	r5
+	SAVE_GPR(5, r1)
+
+	/* also save DSCR/CR so that it can be recovered later */
+	mfspr   r6, SPRN_DSCR
+	SAVE_GPR(6, r1)
+
+	mfcr    r7
+	stw     r7, _CCR(r1)
+
+	bl	__kvmppc_restore_tm
+
+	ld      r7, _CCR(r1)
+	mtcr	r7
+
+	REST_GPR(6, r1)
+	mtspr   SPRN_DSCR, r6
+
+	/* need preserve current MSR's MSR_TS bits */
+	REST_GPR(5, r1)
+	mfmsr   r6
+	rldicl  r6, r6, 64 - MSR_TS_S_LG, 62
+	rldimi  r5, r6, MSR_TS_S_LG, 63 - MSR_TS_T_LG
+	mtmsrd  r5
+
+	REST_NVGPRS(r1)
+	addi    r1, r1, SWITCH_FRAME_SIZE
+	ld	r5, PPC_LR_STKOFF(r1)
+	mtlr	r5
+	blr
+
+EXPORT_SYMBOL_GPL(_kvmppc_restore_tm_pr);
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
