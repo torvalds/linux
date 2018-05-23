@@ -2232,8 +2232,10 @@ EXPORT_SYMBOL_GPL(mlx5_eswitch_mode);
 
 bool mlx5_esw_lag_prereq(struct mlx5_core_dev *dev0, struct mlx5_core_dev *dev1)
 {
-	if (dev0->priv.eswitch->mode == SRIOV_NONE &&
-	    dev1->priv.eswitch->mode == SRIOV_NONE)
+	if ((dev0->priv.eswitch->mode == SRIOV_NONE &&
+	     dev1->priv.eswitch->mode == SRIOV_NONE) ||
+	    (dev0->priv.eswitch->mode == SRIOV_OFFLOADS &&
+	     dev1->priv.eswitch->mode == SRIOV_OFFLOADS))
 		return true;
 
 	return false;
