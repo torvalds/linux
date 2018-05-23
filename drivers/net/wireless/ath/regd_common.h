@@ -45,6 +45,7 @@ enum EnumRd {
 	ETSI5_WORLD = 0x39,
 	ETSI6_WORLD = 0x34,
 	ETSI8_WORLD = 0x3D,
+	ETSI9_WORLD = 0x3E,
 	ETSI_RESERVED = 0x33,
 
 	MKK1_MKKA = 0x40,
@@ -183,6 +184,7 @@ static struct reg_dmn_pair_mapping regDomainPairs[] = {
 	{ETSI5_WORLD, CTL_ETSI, CTL_ETSI},
 	{ETSI6_WORLD, CTL_ETSI, CTL_ETSI},
 	{ETSI8_WORLD, CTL_ETSI, CTL_ETSI},
+	{ETSI9_WORLD, CTL_ETSI, CTL_ETSI},
 
 	/* XXX: For ETSI3_ETSIA, Was NO_CTL meant for the 2 GHz band ? */
 	{ETSI3_ETSIA, CTL_ETSI, CTL_ETSI},
