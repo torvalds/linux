@@ -5435,7 +5435,7 @@ int dwc2_host_enter_hibernation(struct dwc2_hsotg *hsotg)
 	dwc2_writel(hprt0, hsotg->regs + HPRT0);
 
 	/* Wait for the HPRT0.PrtSusp register field to be set */
-	if (dwc2_hsotg_wait_bit_set(hsotg, HPRT0, HPRT0_SUSP, 300))
+	if (dwc2_hsotg_wait_bit_set(hsotg, HPRT0, HPRT0_SUSP, 3000))
 		dev_warn(hsotg->dev, "Suspend wasn't generated\n");
 
 	/*
@@ -5615,6 +5615,8 @@ int dwc2_host_exit_hibernation(struct dwc2_hsotg *hsotg, int rem_wakeup,
 			__func__);
 		return ret;
 	}
+
+	dwc2_hcd_rem_wakeup(hsotg);
 
 	hsotg->hibernated = 0;
 	hsotg->bus_suspended = 0;
