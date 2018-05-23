@@ -4249,7 +4249,10 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 			dev_info(dev, "Partner initialized\n");
 			adapter->from_passive_init = true;
 			adapter->failover_pending = false;
-			complete(&adapter->init_done);
+			if (!completion_done(&adapter->init_done)) {
+				complete(&adapter->init_done);
+				adapter->init_done_rc = -EIO;
+			}
 			ibmvnic_reset(adapter, VNIC_RESET_FAILOVER);
 			break;
 		case IBMVNIC_CRQ_INIT_COMPLETE:
