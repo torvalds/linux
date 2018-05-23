@@ -64,6 +64,7 @@
 #include <asm/trace.h>
 #include <asm/ps3.h>
 #include <asm/pte-walk.h>
+#include <asm/asm-prototypes.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
