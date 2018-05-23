@@ -444,7 +444,7 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 		int i;
 
 		for (i = 0; i < pp->ngpio; i++) {
-			if (pp->irq[i])
+			if (pp->irq[i] >= 0)
 				irq_set_chained_handler_and_data(pp->irq[i],
 						dwapb_irq_handler, gpio);
 		}
@@ -562,7 +562,7 @@ dwapb_gpio_get_pdata(struct device *dev)
 	struct dwapb_platform_data *pdata;
 	struct dwapb_port_property *pp;
 	int nports;
-	int i;
+	int i, j;
 
 	nports = device_get_child_node_count(dev);
 	if (nports == 0)
@@ -580,6 +580,8 @@ dwapb_gpio_get_pdata(struct device *dev)
 
 	i = 0;
 	device_for_each_child_node(dev, fwnode)  {
+		struct device_node *np = NULL;
+
 		pp = &pdata->properties[i++];
 		pp->fwnode = fwnode;
 
@@ -599,46 +601,35 @@ dwapb_gpio_get_pdata(struct device *dev)
 			pp->ngpio = 32;
 		}
 
+		pp->irq_shared	= false;
+		pp->gpio_base	= -1;
+
 		/*
 		 * Only port A can provide interrupts in all configurations of
 		 * the IP.
 		 */
-		if (dev->of_node && pp->idx == 0 &&
-			fwnode_property_read_bool(fwnode,
+		if (pp->idx != 0)
+			continue;
+
+		if (dev->of_node && fwnode_property_read_bool(fwnode,
 						  "interrupt-controller")) {
-			struct device_node *np = to_of_node(fwnode);
-			unsigned int j;
-
-			/*
-			 * The IP has configuration options to allow a single
-			 * combined interrupt or one per gpio. If one per gpio,
-			 * some might not be used.
-			 */
-			for (j = 0; j < pp->ngpio; j++) {
-				int irq = of_irq_get(np, j);
-				if (irq < 0)
-					continue;
-
-				pp->irq[j] = irq;
-				pp->has_irq = true;
-			}
-
-			if (!pp->has_irq)
-				dev_warn(dev, "no irq for port%d\n", pp->idx);
+			np = to_of_node(fwnode);
 		}
 
-		if (has_acpi_companion(dev) && pp->idx == 0) {
-			unsigned int j;
+		for (j = 0; j < pp->ngpio; j++) {
+			pp->irq[j] = -ENXIO;
 
-			for (j = 0; j < pp->ngpio; j++) {
+			if (np)
+				pp->irq[j] = of_irq_get(np, j);
+			else if (has_acpi_companion(dev))
 				pp->irq[j] = platform_get_irq(to_platform_device(dev), j);
-				if (pp->irq[j])
-					pp->has_irq = true;
-			}
+
+			if (pp->irq[j] >= 0)
+				pp->has_irq = true;
 		}
 
-		pp->irq_shared	= false;
-		pp->gpio_base	= -1;
+		if (!pp->has_irq)
+			dev_warn(dev, "no irq for port%d\n", pp->idx);
 	}
 
 	return pdata;
