@@ -788,7 +788,8 @@ static int udp_send_skb(struct sk_buff *skb, struct flowi4 *fl4,
 			return -EINVAL;
 		if (sk->sk_no_check_tx)
 			return -EINVAL;
-		if (skb->ip_summed != CHECKSUM_PARTIAL || is_udplite)
+		if (skb->ip_summed != CHECKSUM_PARTIAL || is_udplite ||
+		    dst_xfrm(skb_dst(skb)))
 			return -EIO;
 
 		skb_shinfo(skb)->gso_size = cork->gso_size;
