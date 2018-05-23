@@ -337,13 +337,13 @@ void dcn10_log_hw_state(struct dc *dc)
 
 	DTN_INFO("\nCALCULATED Clocks: dcfclk_khz:%d  dcfclk_deep_sleep_khz:%d  dispclk_khz:%d\n"
 		"dppclk_khz:%d  max_supported_dppclk_khz:%d  fclk_khz:%d  socclk_khz:%d\n\n",
-			dc->current_state->bw.dcn.calc_clk.dcfclk_khz,
-			dc->current_state->bw.dcn.calc_clk.dcfclk_deep_sleep_khz,
-			dc->current_state->bw.dcn.calc_clk.dispclk_khz,
-			dc->current_state->bw.dcn.calc_clk.dppclk_khz,
-			dc->current_state->bw.dcn.calc_clk.max_supported_dppclk_khz,
-			dc->current_state->bw.dcn.calc_clk.fclk_khz,
-			dc->current_state->bw.dcn.calc_clk.socclk_khz);
+			dc->current_state->bw.dcn.clk.dcfclk_khz,
+			dc->current_state->bw.dcn.clk.dcfclk_deep_sleep_khz,
+			dc->current_state->bw.dcn.clk.dispclk_khz,
+			dc->current_state->bw.dcn.clk.dppclk_khz,
+			dc->current_state->bw.dcn.clk.max_supported_dppclk_khz,
+			dc->current_state->bw.dcn.clk.fclk_khz,
+			dc->current_state->bw.dcn.clk.socclk_khz);
 
 	log_mpc_crc(dc);
 
@@ -1952,18 +1952,17 @@ static void update_dchubp_dpp(
 	 * divided by 2
 	 */
 	if (plane_state->update_flags.bits.full_update) {
-		bool should_divided_by_2 = context->bw.dcn.calc_clk.dppclk_khz <=
-				context->bw.dcn.cur_clk.dispclk_khz / 2;
+		bool should_divided_by_2 = context->bw.dcn.clk.dppclk_khz <=
+				dc->res_pool->dccg->clks.dispclk_khz / 2;
 
 		dpp->funcs->dpp_dppclk_control(
 				dpp,
 				should_divided_by_2,
 				true);
 
-		dc->current_state->bw.dcn.cur_clk.dppclk_khz =
-				should_divided_by_2 ?
-				context->bw.dcn.cur_clk.dispclk_khz / 2 :
-				context->bw.dcn.cur_clk.dispclk_khz;
+		dc->res_pool->dccg->clks.dppclk_khz = should_divided_by_2 ?
+						dc->res_pool->dccg->clks.dispclk_khz / 2 :
+							dc->res_pool->dccg->clks.dispclk_khz;
 	}
 
 	/* TODO: Need input parameter to tell current DCHUB pipe tie to which OTG
@@ -2158,7 +2157,7 @@ static void dcn10_pplib_apply_display_requirements(
 	pp_display_cfg->min_engine_clock_deep_sleep_khz = dc->res_pool->dccg->clks.dcfclk_deep_sleep_khz;
 	pp_display_cfg->min_dcfc_deep_sleep_clock_khz = dc->res_pool->dccg->clks.dcfclk_deep_sleep_khz;
 	pp_display_cfg->min_dcfclock_khz = dc->res_pool->dccg->clks.dcfclk_khz;
-	pp_display_cfg->disp_clk_khz = context->bw.dcn.cur_clk.dispclk_khz;
+	pp_display_cfg->disp_clk_khz = dc->res_pool->dccg->clks.dispclk_khz;
 	dce110_fill_display_configs(context, pp_display_cfg);
 
 	if (memcmp(&dc->prev_display_config, pp_display_cfg, sizeof(
@@ -2363,29 +2362,29 @@ static void dcn10_apply_ctx_for_surface(
 
 static int determine_dppclk_threshold(struct dc *dc, struct dc_state *context)
 {
-	bool request_dpp_div = context->bw.dcn.calc_clk.dispclk_khz >
-			context->bw.dcn.calc_clk.dppclk_khz;
-	bool dispclk_increase = context->bw.dcn.calc_clk.dispclk_khz >
-			context->bw.dcn.cur_clk.dispclk_khz;
-	int disp_clk_threshold = context->bw.dcn.calc_clk.max_supported_dppclk_khz;
-	bool cur_dpp_div = context->bw.dcn.cur_clk.dispclk_khz >
-			context->bw.dcn.cur_clk.dppclk_khz;
+	bool request_dpp_div = context->bw.dcn.clk.dispclk_khz >
+			context->bw.dcn.clk.dppclk_khz;
+	bool dispclk_increase = context->bw.dcn.clk.dispclk_khz >
+			dc->res_pool->dccg->clks.dispclk_khz;
+	int disp_clk_threshold = context->bw.dcn.clk.max_supported_dppclk_khz;
+	bool cur_dpp_div = dc->res_pool->dccg->clks.dispclk_khz >
+			dc->res_pool->dccg->clks.dppclk_khz;
 
 	/* increase clock, looking for div is 0 for current, request div is 1*/
 	if (dispclk_increase) {
 		/* already divided by 2, no need to reach target clk with 2 steps*/
 		if (cur_dpp_div)
-			return context->bw.dcn.calc_clk.dispclk_khz;
+			return context->bw.dcn.clk.dispclk_khz;
 
 		/* request disp clk is lower than maximum supported dpp clk,
 		 * no need to reach target clk with two steps.
 		 */
-		if (context->bw.dcn.calc_clk.dispclk_khz <= disp_clk_threshold)
-			return context->bw.dcn.calc_clk.dispclk_khz;
+		if (context->bw.dcn.clk.dispclk_khz <= disp_clk_threshold)
+			return context->bw.dcn.clk.dispclk_khz;
 
 		/* target dpp clk not request divided by 2, still within threshold */
 		if (!request_dpp_div)
-			return context->bw.dcn.calc_clk.dispclk_khz;
+			return context->bw.dcn.clk.dispclk_khz;
 
 	} else {
 		/* decrease clock, looking for current dppclk divided by 2,
@@ -2394,17 +2393,17 @@ static int determine_dppclk_threshold(struct dc *dc, struct dc_state *context)
 
 		/* current dpp clk not divided by 2, no need to ramp*/
 		if (!cur_dpp_div)
-			return context->bw.dcn.calc_clk.dispclk_khz;
+			return context->bw.dcn.clk.dispclk_khz;
 
 		/* current disp clk is lower than current maximum dpp clk,
 		 * no need to ramp
 		 */
-		if (context->bw.dcn.cur_clk.dispclk_khz <= disp_clk_threshold)
-			return context->bw.dcn.calc_clk.dispclk_khz;
+		if (dc->res_pool->dccg->clks.dispclk_khz <= disp_clk_threshold)
+			return context->bw.dcn.clk.dispclk_khz;
 
 		/* request dpp clk need to be divided by 2 */
 		if (request_dpp_div)
-			return context->bw.dcn.calc_clk.dispclk_khz;
+			return context->bw.dcn.clk.dispclk_khz;
 	}
 
 	return disp_clk_threshold;
@@ -2413,8 +2412,8 @@ static int determine_dppclk_threshold(struct dc *dc, struct dc_state *context)
 static void ramp_up_dispclk_with_dpp(struct dc *dc, struct dc_state *context)
 {
 	int i;
-	bool request_dpp_div = context->bw.dcn.calc_clk.dispclk_khz >
-				context->bw.dcn.calc_clk.dppclk_khz;
+	bool request_dpp_div = context->bw.dcn.clk.dispclk_khz >
+				context->bw.dcn.clk.dppclk_khz;
 
 	int dispclk_to_dpp_threshold = determine_dppclk_threshold(dc, context);
 
@@ -2437,18 +2436,18 @@ static void ramp_up_dispclk_with_dpp(struct dc *dc, struct dc_state *context)
 	}
 
 	/* If target clk not same as dppclk threshold, set to target clock */
-	if (dispclk_to_dpp_threshold != context->bw.dcn.calc_clk.dispclk_khz) {
+	if (dispclk_to_dpp_threshold != context->bw.dcn.clk.dispclk_khz) {
 		dc->res_pool->dccg->funcs->set_dispclk(
 				dc->res_pool->dccg,
-				context->bw.dcn.calc_clk.dispclk_khz);
+				context->bw.dcn.clk.dispclk_khz);
 	}
 
-	context->bw.dcn.cur_clk.dispclk_khz =
-			context->bw.dcn.calc_clk.dispclk_khz;
-	context->bw.dcn.cur_clk.dppclk_khz =
-			context->bw.dcn.calc_clk.dppclk_khz;
-	context->bw.dcn.cur_clk.max_supported_dppclk_khz =
-			context->bw.dcn.calc_clk.max_supported_dppclk_khz;
+	dc->res_pool->dccg->clks.dispclk_khz =
+			context->bw.dcn.clk.dispclk_khz;
+	dc->res_pool->dccg->clks.dppclk_khz =
+			context->bw.dcn.clk.dppclk_khz;
+	dc->res_pool->dccg->clks.max_supported_dppclk_khz =
+			context->bw.dcn.clk.max_supported_dppclk_khz;
 }
 
 static inline bool should_set_clock(bool safe_to_lower, int calc_clk, int cur_clk)
@@ -2469,11 +2468,11 @@ static void dcn10_set_bandwidth(
 		return;
 
 	if (context->stream_count == 0)
-		context->bw.dcn.calc_clk.phyclk_khz = 0;
+		context->bw.dcn.clk.phyclk_khz = 0;
 
 	dc->res_pool->dccg->funcs->update_clocks(
 			dc->res_pool->dccg,
-			&context->bw.dcn.calc_clk,
+			&context->bw.dcn.clk,
 			decrease_allowed);
 
 	/* make sure dcf clk is before dpp clk to
@@ -2481,8 +2480,8 @@ static void dcn10_set_bandwidth(
 	 */
 	if (should_set_clock(
 			decrease_allowed,
-			context->bw.dcn.calc_clk.dispclk_khz,
-			dc->current_state->bw.dcn.cur_clk.dispclk_khz)) {
+			context->bw.dcn.clk.dispclk_khz,
+			dc->res_pool->dccg->clks.dispclk_khz)) {
 
 		ramp_up_dispclk_with_dpp(dc, context);
 	}

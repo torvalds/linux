@@ -1284,7 +1284,7 @@ static enum dc_status enable_link_dp(
 		max_link_rate = LINK_RATE_HIGH3;
 
 	if (link_settings.link_rate == max_link_rate) {
-		struct dc_clocks clocks = state->bw.dcn.calc_clk;
+		struct dc_clocks clocks = state->bw.dcn.clk;
 
 		/* dce/dcn compat, do not update dispclk */
 		clocks.dispclk_khz = 0;

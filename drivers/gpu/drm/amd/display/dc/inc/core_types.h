@@ -256,8 +256,7 @@ struct dce_bw_output {
 };
 
 struct dcn_bw_output {
-	struct dc_clocks cur_clk;
-	struct dc_clocks calc_clk;
+	struct dc_clocks clk;
 	struct dcn_watermark_set watermarks;
 };
 

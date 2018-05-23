@@ -977,42 +977,42 @@ bool dcn_validate_bandwidth(
 
 		display_pipe_configuration(v);
 		calc_wm_sets_and_perf_params(context, v);
-		context->bw.dcn.calc_clk.fclk_khz = (int)(bw_consumed * 1000000 /
+		context->bw.dcn.clk.fclk_khz = (int)(bw_consumed * 1000000 /
 				(ddr4_dram_factor_single_Channel * v->number_of_channels));
 		if (bw_consumed == v->fabric_and_dram_bandwidth_vmin0p65) {
-			context->bw.dcn.calc_clk.fclk_khz = (int)(bw_consumed * 1000000 / 32);
+			context->bw.dcn.clk.fclk_khz = (int)(bw_consumed * 1000000 / 32);
 		}
 
-		context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz = (int)(v->dcf_clk_deep_sleep * 1000);
-		context->bw.dcn.calc_clk.dcfclk_khz = (int)(v->dcfclk * 1000);
+		context->bw.dcn.clk.dcfclk_deep_sleep_khz = (int)(v->dcf_clk_deep_sleep * 1000);
+		context->bw.dcn.clk.dcfclk_khz = (int)(v->dcfclk * 1000);
 
-		context->bw.dcn.calc_clk.dispclk_khz = (int)(v->dispclk * 1000);
+		context->bw.dcn.clk.dispclk_khz = (int)(v->dispclk * 1000);
 		if (dc->debug.max_disp_clk == true)
-			context->bw.dcn.calc_clk.dispclk_khz = (int)(dc->dcn_soc->max_dispclk_vmax0p9 * 1000);
+			context->bw.dcn.clk.dispclk_khz = (int)(dc->dcn_soc->max_dispclk_vmax0p9 * 1000);
 
-		if (context->bw.dcn.calc_clk.dispclk_khz <
+		if (context->bw.dcn.clk.dispclk_khz <
 				dc->debug.min_disp_clk_khz) {
-			context->bw.dcn.calc_clk.dispclk_khz =
+			context->bw.dcn.clk.dispclk_khz =
 					dc->debug.min_disp_clk_khz;
 		}
 
-		context->bw.dcn.calc_clk.dppclk_khz = context->bw.dcn.calc_clk.dispclk_khz / v->dispclk_dppclk_ratio;
-		context->bw.dcn.calc_clk.phyclk_khz = v->phyclk_per_state[v->voltage_level];
+		context->bw.dcn.clk.dppclk_khz = context->bw.dcn.clk.dispclk_khz / v->dispclk_dppclk_ratio;
+		context->bw.dcn.clk.phyclk_khz = v->phyclk_per_state[v->voltage_level];
 		switch (v->voltage_level) {
 		case 0:
-			context->bw.dcn.calc_clk.max_supported_dppclk_khz =
+			context->bw.dcn.clk.max_supported_dppclk_khz =
 					(int)(dc->dcn_soc->max_dppclk_vmin0p65 * 1000);
 			break;
 		case 1:
-			context->bw.dcn.calc_clk.max_supported_dppclk_khz =
+			context->bw.dcn.clk.max_supported_dppclk_khz =
 					(int)(dc->dcn_soc->max_dppclk_vmid0p72 * 1000);
 			break;
 		case 2:
-			context->bw.dcn.calc_clk.max_supported_dppclk_khz =
+			context->bw.dcn.clk.max_supported_dppclk_khz =
 					(int)(dc->dcn_soc->max_dppclk_vnom0p8 * 1000);
 			break;
 		default:
-			context->bw.dcn.calc_clk.max_supported_dppclk_khz =
+			context->bw.dcn.clk.max_supported_dppclk_khz =
 					(int)(dc->dcn_soc->max_dppclk_vmax0p9 * 1000);
 			break;
 		}
