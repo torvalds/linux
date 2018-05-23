@@ -1422,6 +1422,30 @@ static void ddi_dotclock_get(struct intel_crtc_state *pipe_config)
 	pipe_config->base.adjusted_mode.crtc_clock = dotclock;
 }
 
+static void icl_ddi_clock_get(struct intel_encoder *encoder,
+			      struct intel_crtc_state *pipe_config)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum port port = encoder->port;
+	int link_clock = 0;
+	uint32_t pll_id;
+
+	pll_id = intel_get_shared_dpll_id(dev_priv, pipe_config->shared_dpll);
+	if (port == PORT_A || port == PORT_B) {
+		if (intel_crtc_has_type(pipe_config, INTEL_OUTPUT_HDMI))
+			link_clock = cnl_calc_wrpll_link(dev_priv, pll_id);
+		else
+			link_clock = icl_calc_dp_combo_pll_link(dev_priv,
+								pll_id);
+	} else {
+		/* FIXME - Add for MG PLL */
+		WARN(1, "MG PLL clock_get code not implemented yet\n");
+	}
+
+	pipe_config->port_clock = link_clock;
+	ddi_dotclock_get(pipe_config);
+}
+
 static void cnl_ddi_clock_get(struct intel_encoder *encoder,
 			      struct intel_crtc_state *pipe_config)
 {
@@ -1615,6 +1639,8 @@ static void intel_ddi_clock_get(struct intel_encoder *encoder,
 		bxt_ddi_clock_get(encoder, pipe_config);
 	else if (IS_CANNONLAKE(dev_priv))
 		cnl_ddi_clock_get(encoder, pipe_config);
+	else if (IS_ICELAKE(dev_priv))
+		icl_ddi_clock_get(encoder, pipe_config);
 }
 
 void intel_ddi_set_pipe_settings(const struct intel_crtc_state *crtc_state)
