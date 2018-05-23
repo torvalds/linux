@@ -623,10 +623,17 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 		if (on && !clk->in_on) {
 			rockchip_set_system_status(SYS_STATUS_ISP);
 
-		if (on == 1)
-			isp_clk = 210000000;
-		else
+		if (CHIP_TYPE == 3288) {
 			isp_clk = 420000000;
+			camsys_trace(1, "%s isp_clk: 420Mhz; CHIP TYPE is %d",
+				     dev_name(camsys_dev->miscdev.this_device),
+				     CHIP_TYPE);
+		} else {
+			if (on == 1)
+				isp_clk = 210000000;
+			else
+				isp_clk = 420000000;
+		}
 
 		clk_set_rate(clk->isp, isp_clk);
 		clk_set_rate(clk->isp_jpe, isp_clk);
