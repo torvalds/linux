@@ -884,6 +884,35 @@ static const struct panel_desc chunghwa_claa101wb01 = {
 	},
 };
 
+static const struct display_timing dlc_dlc0700yzg_1_timing = {
+	.pixelclock = { 45000000, 51200000, 57000000 },
+	.hactive = { 1024, 1024, 1024 },
+	.hfront_porch = { 100, 106, 113 },
+	.hback_porch = { 100, 106, 113 },
+	.hsync_len = { 100, 108, 114 },
+	.vactive = { 600, 600, 600 },
+	.vfront_porch = { 8, 11, 15 },
+	.vback_porch = { 8, 11, 15 },
+	.vsync_len = { 9, 13, 15 },
+	.flags = DISPLAY_FLAGS_DE_HIGH,
+};
+
+static const struct panel_desc dlc_dlc0700yzg_1 = {
+	.timings = &dlc_dlc0700yzg_1_timing,
+	.num_timings = 1,
+	.bpc = 6,
+	.size = {
+		.width = 154,
+		.height = 86,
+	},
+	.delay = {
+		.prepare = 30,
+		.enable = 200,
+		.disable = 200,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X7X3_SPWG,
+};
+
 static const struct drm_display_mode edt_et057090dhu_mode = {
 	.clock = 25175,
 	.hdisplay = 640,
@@ -2220,6 +2249,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "chunghwa,claa101wb01",
 		.data = &chunghwa_claa101wb01
+	}, {
+		.compatible = "dlc,dlc0700yzg-1",
+		.data = &dlc_dlc0700yzg_1,
 	}, {
 		.compatible = "edt,et057090dhu",
 		.data = &edt_et057090dhu,
