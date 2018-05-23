@@ -31,7 +31,7 @@ update-alternatives --config arm-linux-gnueabihf-gcc
 Kernel upstream + BPI-R2
 * 4.14-main
 * 4.9-main
-* 4.16-main (currently not compiling because of wifi driver)
+* 4.16-main (internal wifi driver currently only in wlan-branch)
 
 ## Kernel version
 
@@ -66,7 +66,7 @@ kernel 4.4: https://github.com/frank-w/BPI-R2-4.4
 * linux-mediatek: https://patchwork.kernel.org/project/linux-mediatek/list/
 * kernelci: https://kernelci.org/boot/mt7623n-bananapi-bpi-r2/
 * Forum: http://forum.banana-pi.org/c/Banana-Pi-BPI-R2
-* Wiki: http://wiki.fw-web.de/doku.php?id=en/bpi-r2/start
+* Wiki: http://www.fw-web.de/dokuwiki/doku.php?id=en/bpi-r2/start
 
 License
 ----
