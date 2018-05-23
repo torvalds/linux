@@ -835,6 +835,7 @@ struct xgbe_hw_if {
  *   Optional routines:
  *     an_pre, an_post
  *     kr_training_pre, kr_training_post
+ *     module_info, module_eeprom
  */
 struct xgbe_phy_impl_if {
 	/* Perform Setup/teardown actions */
@@ -883,6 +884,12 @@ struct xgbe_phy_impl_if {
 	/* Pre/Post KR training enablement support */
 	void (*kr_training_pre)(struct xgbe_prv_data *);
 	void (*kr_training_post)(struct xgbe_prv_data *);
+
+	/* SFP module related info */
+	int (*module_info)(struct xgbe_prv_data *pdata,
+			   struct ethtool_modinfo *modinfo);
+	int (*module_eeprom)(struct xgbe_prv_data *pdata,
+			     struct ethtool_eeprom *eeprom, u8 *data);
 };
 
 struct xgbe_phy_if {
@@ -904,6 +911,12 @@ struct xgbe_phy_if {
 
 	/* For single interrupt support */
 	irqreturn_t (*an_isr)(struct xgbe_prv_data *);
+
+	/* For ethtool PHY support */
+	int (*module_info)(struct xgbe_prv_data *pdata,
+			   struct ethtool_modinfo *modinfo);
+	int (*module_eeprom)(struct xgbe_prv_data *pdata,
+			     struct ethtool_eeprom *eeprom, u8 *data);
 
 	/* PHY implementation specific services */
 	struct xgbe_phy_impl_if phy_impl;

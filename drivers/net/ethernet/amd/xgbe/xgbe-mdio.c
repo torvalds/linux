@@ -126,6 +126,24 @@
 #include "xgbe.h"
 #include "xgbe-common.h"
 
+static int xgbe_phy_module_eeprom(struct xgbe_prv_data *pdata,
+				  struct ethtool_eeprom *eeprom, u8 *data)
+{
+	if (!pdata->phy_if.phy_impl.module_eeprom)
+		return -ENXIO;
+
+	return pdata->phy_if.phy_impl.module_eeprom(pdata, eeprom, data);
+}
+
+static int xgbe_phy_module_info(struct xgbe_prv_data *pdata,
+				struct ethtool_modinfo *modinfo)
+{
+	if (!pdata->phy_if.phy_impl.module_info)
+		return -ENXIO;
+
+	return pdata->phy_if.phy_impl.module_info(pdata, modinfo);
+}
+
 static void xgbe_an37_clear_interrupts(struct xgbe_prv_data *pdata)
 {
 	int reg;
@@ -1639,4 +1657,7 @@ void xgbe_init_function_ptrs_phy(struct xgbe_phy_if *phy_if)
 	phy_if->phy_valid_speed = xgbe_phy_valid_speed;
 
 	phy_if->an_isr          = xgbe_an_combined_isr;
+
+	phy_if->module_info     = xgbe_phy_module_info;
+	phy_if->module_eeprom   = xgbe_phy_module_eeprom;
 }

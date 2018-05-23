@@ -119,6 +119,7 @@
 #include <linux/kmod.h>
 #include <linux/mdio.h>
 #include <linux/phy.h>
+#include <linux/ethtool.h>
 
 #include "xgbe.h"
 #include "xgbe-common.h"
@@ -269,6 +270,15 @@ struct xgbe_sfp_eeprom {
 	u8 extd[32];
 	u8 vendor[32];
 };
+
+#define XGBE_SFP_DIAGS_SUPPORTED(_x)			\
+	((_x)->extd[XGBE_SFP_EXTD_SFF_8472] &&		\
+	 !((_x)->extd[XGBE_SFP_EXTD_DIAG] & XGBE_SFP_EXTD_DIAG_ADDR_CHANGE))
+
+#define XGBE_SFP_EEPROM_BASE_LEN	256
+#define XGBE_SFP_EEPROM_DIAG_LEN	256
+#define XGBE_SFP_EEPROM_MAX		(XGBE_SFP_EEPROM_BASE_LEN +	\
+					 XGBE_SFP_EEPROM_DIAG_LEN)
 
 #define XGBE_BEL_FUSE_VENDOR	"BEL-FUSE        "
 #define XGBE_BEL_FUSE_PARTNO	"1GBT-SFP06      "
@@ -1299,6 +1309,130 @@ put:
 	xgbe_phy_sfp_phy_settings(pdata);
 
 	xgbe_phy_put_comm_ownership(pdata);
+}
+
+static int xgbe_phy_module_eeprom(struct xgbe_prv_data *pdata,
+				  struct ethtool_eeprom *eeprom, u8 *data)
+{
+	struct xgbe_phy_data *phy_data = pdata->phy_data;
+	u8 eeprom_addr, eeprom_data[XGBE_SFP_EEPROM_MAX];
+	struct xgbe_sfp_eeprom *sfp_eeprom;
+	unsigned int i, j, rem;
+	int ret;
+
+	rem = eeprom->len;
+
+	if (!eeprom->len) {
+		ret = -EINVAL;
+		goto done;
+	}
+
+	if ((eeprom->offset + eeprom->len) > XGBE_SFP_EEPROM_MAX) {
+		ret = -EINVAL;
+		goto done;
+	}
+
+	if (phy_data->port_mode != XGBE_PORT_MODE_SFP) {
+		ret = -ENXIO;
+		goto done;
+	}
+
+	if (!netif_running(pdata->netdev)) {
+		ret = -EIO;
+		goto done;
+	}
+
+	if (phy_data->sfp_mod_absent) {
+		ret = -EIO;
+		goto done;
+	}
+
+	ret = xgbe_phy_get_comm_ownership(pdata);
+	if (ret) {
+		ret = -EIO;
+		goto done;
+	}
+
+	ret = xgbe_phy_sfp_get_mux(pdata);
+	if (ret) {
+		netdev_err(pdata->netdev, "I2C error setting SFP MUX\n");
+		ret = -EIO;
+		goto put_own;
+	}
+
+	/* Read the SFP serial ID eeprom */
+	eeprom_addr = 0;
+	ret = xgbe_phy_i2c_read(pdata, XGBE_SFP_SERIAL_ID_ADDRESS,
+				&eeprom_addr, sizeof(eeprom_addr),
+				eeprom_data, XGBE_SFP_EEPROM_BASE_LEN);
+	if (ret) {
+		netdev_err(pdata->netdev,
+			   "I2C error reading SFP EEPROM\n");
+		ret = -EIO;
+		goto put_mux;
+	}
+
+	sfp_eeprom = (struct xgbe_sfp_eeprom *)eeprom_data;
+
+	if (XGBE_SFP_DIAGS_SUPPORTED(sfp_eeprom)) {
+		/* Read the SFP diagnostic eeprom */
+		eeprom_addr = 0;
+		ret = xgbe_phy_i2c_read(pdata, XGBE_SFP_DIAG_INFO_ADDRESS,
+					&eeprom_addr, sizeof(eeprom_addr),
+					eeprom_data + XGBE_SFP_EEPROM_BASE_LEN,
+					XGBE_SFP_EEPROM_DIAG_LEN);
+		if (ret) {
+			netdev_err(pdata->netdev,
+				   "I2C error reading SFP DIAGS\n");
+			ret = -EIO;
+			goto put_mux;
+		}
+	}
+
+	for (i = 0, j = eeprom->offset; i < eeprom->len; i++, j++) {
+		if ((j >= XGBE_SFP_EEPROM_BASE_LEN) &&
+		    !XGBE_SFP_DIAGS_SUPPORTED(sfp_eeprom))
+			break;
+
+		data[i] = eeprom_data[j];
+		rem--;
+	}
+
+put_mux:
+	xgbe_phy_sfp_put_mux(pdata);
+
+put_own:
+	xgbe_phy_put_comm_ownership(pdata);
+
+done:
+	eeprom->len -= rem;
+
+	return ret;
+}
+
+static int xgbe_phy_module_info(struct xgbe_prv_data *pdata,
+				struct ethtool_modinfo *modinfo)
+{
+	struct xgbe_phy_data *phy_data = pdata->phy_data;
+
+	if (phy_data->port_mode != XGBE_PORT_MODE_SFP)
+		return -ENXIO;
+
+	if (!netif_running(pdata->netdev))
+		return -EIO;
+
+	if (phy_data->sfp_mod_absent)
+		return -EIO;
+
+	if (XGBE_SFP_DIAGS_SUPPORTED(&phy_data->sfp_eeprom)) {
+		modinfo->type = ETH_MODULE_SFF_8472;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
+	} else {
+		modinfo->type = ETH_MODULE_SFF_8079;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
+	}
+
+	return 0;
 }
 
 static void xgbe_phy_phydev_flowctrl(struct xgbe_prv_data *pdata)
@@ -3196,4 +3330,7 @@ void xgbe_init_function_ptrs_phy_v2(struct xgbe_phy_if *phy_if)
 
 	phy_impl->kr_training_pre	= xgbe_phy_kr_training_pre;
 	phy_impl->kr_training_post	= xgbe_phy_kr_training_post;
+
+	phy_impl->module_info		= xgbe_phy_module_info;
+	phy_impl->module_eeprom		= xgbe_phy_module_eeprom;
 }
