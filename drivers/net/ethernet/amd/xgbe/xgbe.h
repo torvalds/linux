@@ -1261,6 +1261,7 @@ struct xgbe_prv_data {
 	enum xgbe_rx kr_state;
 	enum xgbe_rx kx_state;
 	struct work_struct an_work;
+	unsigned int an_again;
 	unsigned int an_supported;
 	unsigned int parallel_detect;
 	unsigned int fec_ability;

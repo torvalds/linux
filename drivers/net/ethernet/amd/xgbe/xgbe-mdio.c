@@ -331,13 +331,15 @@ static void xgbe_switch_mode(struct xgbe_prv_data *pdata)
 	xgbe_change_mode(pdata, pdata->phy_if.phy_impl.switch_mode(pdata));
 }
 
-static void xgbe_set_mode(struct xgbe_prv_data *pdata,
+static bool xgbe_set_mode(struct xgbe_prv_data *pdata,
 			  enum xgbe_mode mode)
 {
 	if (mode == xgbe_cur_mode(pdata))
-		return;
+		return false;
 
 	xgbe_change_mode(pdata, mode);
+
+	return true;
 }
 
 static bool xgbe_use_mode(struct xgbe_prv_data *pdata,
@@ -1178,21 +1180,23 @@ static int xgbe_phy_config_fixed(struct xgbe_prv_data *pdata)
 	return 0;
 }
 
-static int __xgbe_phy_config_aneg(struct xgbe_prv_data *pdata)
+static int __xgbe_phy_config_aneg(struct xgbe_prv_data *pdata, bool set_mode)
 {
 	int ret;
+
+	mutex_lock(&pdata->an_mutex);
 
 	set_bit(XGBE_LINK_INIT, &pdata->dev_state);
 	pdata->link_check = jiffies;
 
 	ret = pdata->phy_if.phy_impl.an_config(pdata);
 	if (ret)
-		return ret;
+		goto out;
 
 	if (pdata->phy.autoneg != AUTONEG_ENABLE) {
 		ret = xgbe_phy_config_fixed(pdata);
 		if (ret || !pdata->kr_redrv)
-			return ret;
+			goto out;
 
 		netif_dbg(pdata, link, pdata->netdev, "AN redriver support\n");
 	} else {
@@ -1202,24 +1206,27 @@ static int __xgbe_phy_config_aneg(struct xgbe_prv_data *pdata)
 	/* Disable auto-negotiation interrupt */
 	disable_irq(pdata->an_irq);
 
-	/* Start auto-negotiation in a supported mode */
-	if (xgbe_use_mode(pdata, XGBE_MODE_KR)) {
-		xgbe_set_mode(pdata, XGBE_MODE_KR);
-	} else if (xgbe_use_mode(pdata, XGBE_MODE_KX_2500)) {
-		xgbe_set_mode(pdata, XGBE_MODE_KX_2500);
-	} else if (xgbe_use_mode(pdata, XGBE_MODE_KX_1000)) {
-		xgbe_set_mode(pdata, XGBE_MODE_KX_1000);
-	} else if (xgbe_use_mode(pdata, XGBE_MODE_SFI)) {
-		xgbe_set_mode(pdata, XGBE_MODE_SFI);
-	} else if (xgbe_use_mode(pdata, XGBE_MODE_X)) {
-		xgbe_set_mode(pdata, XGBE_MODE_X);
-	} else if (xgbe_use_mode(pdata, XGBE_MODE_SGMII_1000)) {
-		xgbe_set_mode(pdata, XGBE_MODE_SGMII_1000);
-	} else if (xgbe_use_mode(pdata, XGBE_MODE_SGMII_100)) {
-		xgbe_set_mode(pdata, XGBE_MODE_SGMII_100);
-	} else {
-		enable_irq(pdata->an_irq);
-		return -EINVAL;
+	if (set_mode) {
+		/* Start auto-negotiation in a supported mode */
+		if (xgbe_use_mode(pdata, XGBE_MODE_KR)) {
+			xgbe_set_mode(pdata, XGBE_MODE_KR);
+		} else if (xgbe_use_mode(pdata, XGBE_MODE_KX_2500)) {
+			xgbe_set_mode(pdata, XGBE_MODE_KX_2500);
+		} else if (xgbe_use_mode(pdata, XGBE_MODE_KX_1000)) {
+			xgbe_set_mode(pdata, XGBE_MODE_KX_1000);
+		} else if (xgbe_use_mode(pdata, XGBE_MODE_SFI)) {
+			xgbe_set_mode(pdata, XGBE_MODE_SFI);
+		} else if (xgbe_use_mode(pdata, XGBE_MODE_X)) {
+			xgbe_set_mode(pdata, XGBE_MODE_X);
+		} else if (xgbe_use_mode(pdata, XGBE_MODE_SGMII_1000)) {
+			xgbe_set_mode(pdata, XGBE_MODE_SGMII_1000);
+		} else if (xgbe_use_mode(pdata, XGBE_MODE_SGMII_100)) {
+			xgbe_set_mode(pdata, XGBE_MODE_SGMII_100);
+		} else {
+			enable_irq(pdata->an_irq);
+			ret = -EINVAL;
+			goto out;
+		}
 	}
 
 	/* Disable and stop any in progress auto-negotiation */
@@ -1239,16 +1246,7 @@ static int __xgbe_phy_config_aneg(struct xgbe_prv_data *pdata)
 	xgbe_an_init(pdata);
 	xgbe_an_restart(pdata);
 
-	return 0;
-}
-
-static int xgbe_phy_config_aneg(struct xgbe_prv_data *pdata)
-{
-	int ret;
-
-	mutex_lock(&pdata->an_mutex);
-
-	ret = __xgbe_phy_config_aneg(pdata);
+out:
 	if (ret)
 		set_bit(XGBE_LINK_ERR, &pdata->dev_state);
 	else
@@ -1257,6 +1255,16 @@ static int xgbe_phy_config_aneg(struct xgbe_prv_data *pdata)
 	mutex_unlock(&pdata->an_mutex);
 
 	return ret;
+}
+
+static int xgbe_phy_config_aneg(struct xgbe_prv_data *pdata)
+{
+	return __xgbe_phy_config_aneg(pdata, true);
+}
+
+static int xgbe_phy_reconfig_aneg(struct xgbe_prv_data *pdata)
+{
+	return __xgbe_phy_config_aneg(pdata, false);
 }
 
 static bool xgbe_phy_aneg_done(struct xgbe_prv_data *pdata)
@@ -1315,7 +1323,8 @@ static void xgbe_phy_status_result(struct xgbe_prv_data *pdata)
 
 	pdata->phy.duplex = DUPLEX_FULL;
 
-	xgbe_set_mode(pdata, mode);
+	if (xgbe_set_mode(pdata, mode) && pdata->an_again)
+		xgbe_phy_reconfig_aneg(pdata);
 }
 
 static void xgbe_phy_status(struct xgbe_prv_data *pdata)

@@ -902,6 +902,9 @@ static bool xgbe_phy_belfuse_phy_quirks(struct xgbe_prv_data *pdata)
 		   XGBE_BEL_FUSE_VENDOR, XGBE_SFP_BASE_VENDOR_NAME_LEN))
 		return false;
 
+	/* For Bel-Fuse, use the extra AN flag */
+	pdata->an_again = 1;
+
 	if (memcmp(&sfp_eeprom->base[XGBE_SFP_BASE_VENDOR_PN],
 		   XGBE_BEL_FUSE_PARTNO, XGBE_SFP_BASE_VENDOR_PN_LEN))
 		return false;
@@ -977,6 +980,9 @@ static int xgbe_phy_find_phy_device(struct xgbe_prv_data *pdata)
 	/* If we already have a PHY, just return */
 	if (phy_data->phydev)
 		return 0;
+
+	/* Clear the extra AN flag */
+	pdata->an_again = 0;
 
 	/* Check for the use of an external PHY */
 	if (phy_data->phydev_mode == XGBE_MDIO_MODE_NONE)
