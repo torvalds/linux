@@ -1454,8 +1454,10 @@ static inline int pci_irqd_intx_xlate(struct irq_domain *d,
 
 #ifdef CONFIG_PCIEPORTBUS
 extern bool pcie_ports_disabled;
+extern bool pcie_ports_native;
 #else
 #define pcie_ports_disabled	true
+#define pcie_ports_native	false
 #endif
 
 #ifdef CONFIG_PCIEASPM
