@@ -929,6 +929,10 @@ static int set_link_state(struct ibmvnic_adapter *adapter, u8 link_state)
 			/* Partuial success, delay and re-send */
 			mdelay(1000);
 			resend = true;
+		} else if (adapter->init_done_rc) {
+			netdev_warn(netdev, "Unable to set link state, rc=%d\n",
+				    adapter->init_done_rc);
+			return adapter->init_done_rc;
 		}
 	} while (resend);
 
