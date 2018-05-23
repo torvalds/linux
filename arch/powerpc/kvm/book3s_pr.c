@@ -1539,6 +1539,73 @@ static int kvmppc_get_one_reg_pr(struct kvm_vcpu *vcpu, u64 id,
 		else
 			*val = get_reg_val(id, 0);
 		break;
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	case KVM_REG_PPC_TFHAR:
+		*val = get_reg_val(id, vcpu->arch.tfhar);
+		break;
+	case KVM_REG_PPC_TFIAR:
+		*val = get_reg_val(id, vcpu->arch.tfiar);
+		break;
+	case KVM_REG_PPC_TEXASR:
+		*val = get_reg_val(id, vcpu->arch.texasr);
+		break;
+	case KVM_REG_PPC_TM_GPR0 ... KVM_REG_PPC_TM_GPR31:
+		*val = get_reg_val(id,
+				vcpu->arch.gpr_tm[id-KVM_REG_PPC_TM_GPR0]);
+		break;
+	case KVM_REG_PPC_TM_VSR0 ... KVM_REG_PPC_TM_VSR63:
+	{
+		int i, j;
+
+		i = id - KVM_REG_PPC_TM_VSR0;
+		if (i < 32)
+			for (j = 0; j < TS_FPRWIDTH; j++)
+				val->vsxval[j] = vcpu->arch.fp_tm.fpr[i][j];
+		else {
+			if (cpu_has_feature(CPU_FTR_ALTIVEC))
+				val->vval = vcpu->arch.vr_tm.vr[i-32];
+			else
+				r = -ENXIO;
+		}
+		break;
+	}
+	case KVM_REG_PPC_TM_CR:
+		*val = get_reg_val(id, vcpu->arch.cr_tm);
+		break;
+	case KVM_REG_PPC_TM_XER:
+		*val = get_reg_val(id, vcpu->arch.xer_tm);
+		break;
+	case KVM_REG_PPC_TM_LR:
+		*val = get_reg_val(id, vcpu->arch.lr_tm);
+		break;
+	case KVM_REG_PPC_TM_CTR:
+		*val = get_reg_val(id, vcpu->arch.ctr_tm);
+		break;
+	case KVM_REG_PPC_TM_FPSCR:
+		*val = get_reg_val(id, vcpu->arch.fp_tm.fpscr);
+		break;
+	case KVM_REG_PPC_TM_AMR:
+		*val = get_reg_val(id, vcpu->arch.amr_tm);
+		break;
+	case KVM_REG_PPC_TM_PPR:
+		*val = get_reg_val(id, vcpu->arch.ppr_tm);
+		break;
+	case KVM_REG_PPC_TM_VRSAVE:
+		*val = get_reg_val(id, vcpu->arch.vrsave_tm);
+		break;
+	case KVM_REG_PPC_TM_VSCR:
+		if (cpu_has_feature(CPU_FTR_ALTIVEC))
+			*val = get_reg_val(id, vcpu->arch.vr_tm.vscr.u[3]);
+		else
+			r = -ENXIO;
+		break;
+	case KVM_REG_PPC_TM_DSCR:
+		*val = get_reg_val(id, vcpu->arch.dscr_tm);
+		break;
+	case KVM_REG_PPC_TM_TAR:
+		*val = get_reg_val(id, vcpu->arch.tar_tm);
+		break;
+#endif
 	default:
 		r = -EINVAL;
 		break;
@@ -1572,6 +1639,72 @@ static int kvmppc_set_one_reg_pr(struct kvm_vcpu *vcpu, u64 id,
 	case KVM_REG_PPC_LPCR_64:
 		kvmppc_set_lpcr_pr(vcpu, set_reg_val(id, *val));
 		break;
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	case KVM_REG_PPC_TFHAR:
+		vcpu->arch.tfhar = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_TFIAR:
+		vcpu->arch.tfiar = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_TEXASR:
+		vcpu->arch.texasr = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_TM_GPR0 ... KVM_REG_PPC_TM_GPR31:
+		vcpu->arch.gpr_tm[id - KVM_REG_PPC_TM_GPR0] =
+			set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_TM_VSR0 ... KVM_REG_PPC_TM_VSR63:
+	{
+		int i, j;
+
+		i = id - KVM_REG_PPC_TM_VSR0;
+		if (i < 32)
+			for (j = 0; j < TS_FPRWIDTH; j++)
+				vcpu->arch.fp_tm.fpr[i][j] = val->vsxval[j];
+		else
+			if (cpu_has_feature(CPU_FTR_ALTIVEC))
+				vcpu->arch.vr_tm.vr[i-32] = val->vval;
+			else
+				r = -ENXIO;
+		break;
+	}
+	case KVM_REG_PPC_TM_CR:
+		vcpu->arch.cr_tm = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_TM_XER:
+		vcpu->arch.xer_tm = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_TM_LR:
+		vcpu->arch.lr_tm = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_TM_CTR:
+		vcpu->arch.ctr_tm = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_TM_FPSCR:
+		vcpu->arch.fp_tm.fpscr = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_TM_AMR:
+		vcpu->arch.amr_tm = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_TM_PPR:
+		vcpu->arch.ppr_tm = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_TM_VRSAVE:
+		vcpu->arch.vrsave_tm = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_TM_VSCR:
+		if (cpu_has_feature(CPU_FTR_ALTIVEC))
+			vcpu->arch.vr.vscr.u[3] = set_reg_val(id, *val);
+		else
+			r = -ENXIO;
+		break;
+	case KVM_REG_PPC_TM_DSCR:
+		vcpu->arch.dscr_tm = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_TM_TAR:
+		vcpu->arch.tar_tm = set_reg_val(id, *val);
+		break;
+#endif
 	default:
 		r = -EINVAL;
 		break;
