@@ -23,6 +23,7 @@
 #include <asm/reg.h>
 #include <asm/switch_to.h>
 #include <asm/time.h>
+#include <asm/tm.h>
 #include "book3s.h"
 #include <asm/asm-prototypes.h>
 
@@ -47,6 +48,8 @@
 #define OP_31_XOP_SLBMFEV	851
 #define OP_31_XOP_EIOIO		854
 #define OP_31_XOP_SLBMFEE	915
+
+#define OP_31_XOP_TBEGIN	654
 
 /* DCBZ is actually 1014, but we patch it to 1010 so we get a trap */
 #define OP_31_XOP_DCBZ		1010
@@ -363,6 +366,43 @@ int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 			break;
 		}
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+		case OP_31_XOP_TBEGIN:
+		{
+			if (!cpu_has_feature(CPU_FTR_TM))
+				break;
+
+			if (!(kvmppc_get_msr(vcpu) & MSR_TM)) {
+				kvmppc_trigger_fac_interrupt(vcpu, FSCR_TM_LG);
+				emulated = EMULATE_AGAIN;
+				break;
+			}
+
+			if (!(kvmppc_get_msr(vcpu) & MSR_PR)) {
+				preempt_disable();
+				vcpu->arch.cr = (CR0_TBEGIN_FAILURE |
+				  (vcpu->arch.cr & ~(CR0_MASK << CR0_SHIFT)));
+
+				vcpu->arch.texasr = (TEXASR_FS | TEXASR_EXACT |
+					(((u64)(TM_CAUSE_EMULATE | TM_CAUSE_PERSISTENT))
+						 << TEXASR_FC_LG));
+
+				if ((inst >> 21) & 0x1)
+					vcpu->arch.texasr |= TEXASR_ROT;
+
+				if (kvmppc_get_msr(vcpu) & MSR_HV)
+					vcpu->arch.texasr |= TEXASR_HV;
+
+				vcpu->arch.tfhar = kvmppc_get_pc(vcpu) + 4;
+				vcpu->arch.tfiar = kvmppc_get_pc(vcpu);
+
+				kvmppc_restore_tm_sprs(vcpu);
+				preempt_enable();
+			} else
+				emulated = EMULATE_FAIL;
+			break;
+		}
+#endif
 		default:
 			emulated = EMULATE_FAIL;
 		}

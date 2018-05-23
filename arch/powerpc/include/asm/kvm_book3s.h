@@ -262,9 +262,11 @@ extern void kvmppc_copy_from_svcpu(struct kvm_vcpu *vcpu);
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 void kvmppc_save_tm_pr(struct kvm_vcpu *vcpu);
 void kvmppc_restore_tm_pr(struct kvm_vcpu *vcpu);
+void kvmppc_restore_tm_sprs(struct kvm_vcpu *vcpu);
 #else
 static inline void kvmppc_save_tm_pr(struct kvm_vcpu *vcpu) {}
 static inline void kvmppc_restore_tm_pr(struct kvm_vcpu *vcpu) {}
+static inline void kvmppc_restore_tm_sprs(struct kvm_vcpu *vcpu) {}
 #endif
 
 extern int kvm_irq_bypass;
