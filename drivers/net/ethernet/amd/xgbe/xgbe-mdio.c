@@ -216,31 +216,8 @@ static void xgbe_an_clear_interrupts_all(struct xgbe_prv_data *pdata)
 	xgbe_an37_clear_interrupts(pdata);
 }
 
-static void xgbe_an73_enable_kr_training(struct xgbe_prv_data *pdata)
-{
-	unsigned int reg;
-
-	reg = XMDIO_READ(pdata, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_PMD_CTRL);
-
-	reg |= XGBE_KR_TRAINING_ENABLE;
-	XMDIO_WRITE(pdata, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_PMD_CTRL, reg);
-}
-
-static void xgbe_an73_disable_kr_training(struct xgbe_prv_data *pdata)
-{
-	unsigned int reg;
-
-	reg = XMDIO_READ(pdata, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_PMD_CTRL);
-
-	reg &= ~XGBE_KR_TRAINING_ENABLE;
-	XMDIO_WRITE(pdata, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_PMD_CTRL, reg);
-}
-
 static void xgbe_kr_mode(struct xgbe_prv_data *pdata)
 {
-	/* Enable KR training */
-	xgbe_an73_enable_kr_training(pdata);
-
 	/* Set MAC to 10G speed */
 	pdata->hw_if.set_speed(pdata, SPEED_10000);
 
@@ -250,9 +227,6 @@ static void xgbe_kr_mode(struct xgbe_prv_data *pdata)
 
 static void xgbe_kx_2500_mode(struct xgbe_prv_data *pdata)
 {
-	/* Disable KR training */
-	xgbe_an73_disable_kr_training(pdata);
-
 	/* Set MAC to 2.5G speed */
 	pdata->hw_if.set_speed(pdata, SPEED_2500);
 
@@ -262,9 +236,6 @@ static void xgbe_kx_2500_mode(struct xgbe_prv_data *pdata)
 
 static void xgbe_kx_1000_mode(struct xgbe_prv_data *pdata)
 {
-	/* Disable KR training */
-	xgbe_an73_disable_kr_training(pdata);
-
 	/* Set MAC to 1G speed */
 	pdata->hw_if.set_speed(pdata, SPEED_1000);
 
@@ -278,9 +249,6 @@ static void xgbe_sfi_mode(struct xgbe_prv_data *pdata)
 	if (pdata->kr_redrv)
 		return xgbe_kr_mode(pdata);
 
-	/* Disable KR training */
-	xgbe_an73_disable_kr_training(pdata);
-
 	/* Set MAC to 10G speed */
 	pdata->hw_if.set_speed(pdata, SPEED_10000);
 
@@ -290,9 +258,6 @@ static void xgbe_sfi_mode(struct xgbe_prv_data *pdata)
 
 static void xgbe_x_mode(struct xgbe_prv_data *pdata)
 {
-	/* Disable KR training */
-	xgbe_an73_disable_kr_training(pdata);
-
 	/* Set MAC to 1G speed */
 	pdata->hw_if.set_speed(pdata, SPEED_1000);
 
@@ -302,9 +267,6 @@ static void xgbe_x_mode(struct xgbe_prv_data *pdata)
 
 static void xgbe_sgmii_1000_mode(struct xgbe_prv_data *pdata)
 {
-	/* Disable KR training */
-	xgbe_an73_disable_kr_training(pdata);
-
 	/* Set MAC to 1G speed */
 	pdata->hw_if.set_speed(pdata, SPEED_1000);
 
@@ -314,9 +276,6 @@ static void xgbe_sgmii_1000_mode(struct xgbe_prv_data *pdata)
 
 static void xgbe_sgmii_100_mode(struct xgbe_prv_data *pdata)
 {
-	/* Disable KR training */
-	xgbe_an73_disable_kr_training(pdata);
-
 	/* Set MAC to 1G speed */
 	pdata->hw_if.set_speed(pdata, SPEED_1000);
 
@@ -425,6 +384,12 @@ static void xgbe_an73_set(struct xgbe_prv_data *pdata, bool enable,
 {
 	unsigned int reg;
 
+	/* Disable KR training for now */
+	reg = XMDIO_READ(pdata, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_PMD_CTRL);
+	reg &= ~XGBE_KR_TRAINING_ENABLE;
+	XMDIO_WRITE(pdata, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_PMD_CTRL, reg);
+
+	/* Update AN settings */
 	reg = XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_CTRL1);
 	reg &= ~MDIO_AN_CTRL1_ENABLE;
 
@@ -522,21 +487,19 @@ static enum xgbe_an xgbe_an73_tx_training(struct xgbe_prv_data *pdata,
 	XMDIO_WRITE(pdata, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_FECCTRL, reg);
 
 	/* Start KR training */
+	if (pdata->phy_if.phy_impl.kr_training_pre)
+		pdata->phy_if.phy_impl.kr_training_pre(pdata);
+
 	reg = XMDIO_READ(pdata, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_PMD_CTRL);
-	if (reg & XGBE_KR_TRAINING_ENABLE) {
-		if (pdata->phy_if.phy_impl.kr_training_pre)
-			pdata->phy_if.phy_impl.kr_training_pre(pdata);
+	reg |= XGBE_KR_TRAINING_ENABLE;
+	reg |= XGBE_KR_TRAINING_START;
+	XMDIO_WRITE(pdata, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_PMD_CTRL, reg);
 
-		reg |= XGBE_KR_TRAINING_START;
-		XMDIO_WRITE(pdata, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_PMD_CTRL,
-			    reg);
+	netif_dbg(pdata, link, pdata->netdev,
+		  "KR training initiated\n");
 
-		netif_dbg(pdata, link, pdata->netdev,
-			  "KR training initiated\n");
-
-		if (pdata->phy_if.phy_impl.kr_training_post)
-			pdata->phy_if.phy_impl.kr_training_post(pdata);
-	}
+	if (pdata->phy_if.phy_impl.kr_training_post)
+		pdata->phy_if.phy_impl.kr_training_post(pdata);
 
 	return XGBE_AN_PAGE_RECEIVED;
 }
