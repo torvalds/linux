@@ -12,6 +12,10 @@ Date:		Dec 2014
 KernelVersion:	4.0
 Description:	Control descriptors
 
+		All attributes read only:
+		bInterfaceNumber	- USB interface number for this
+					  streaming interface
+
 What:		/config/usb-gadget/gadget/functions/uvc.name/control/class
 Date:		Dec 2014
 KernelVersion:	4.0
@@ -108,6 +112,10 @@ What:		/config/usb-gadget/gadget/functions/uvc.name/streaming
 Date:		Dec 2014
 KernelVersion:	4.0
 Description:	Streaming descriptors
+
+		All attributes read only:
+		bInterfaceNumber	- USB interface number for this
+					  streaming interface
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/streaming/class
 Date:		Dec 2014
