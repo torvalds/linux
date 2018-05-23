@@ -42,6 +42,7 @@
 #include <linux/highmem.h>
 #include <linux/module.h>
 #include <linux/miscdevice.h>
+#include <asm/asm-prototypes.h>
 
 #include "book3s.h"
 
@@ -283,6 +284,27 @@ void kvmppc_copy_from_svcpu(struct kvm_vcpu *vcpu)
 out:
 	svcpu_put(svcpu);
 }
+
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+static inline void kvmppc_save_tm_sprs(struct kvm_vcpu *vcpu)
+{
+	tm_enable();
+	vcpu->arch.tfhar = mfspr(SPRN_TFHAR);
+	vcpu->arch.texasr = mfspr(SPRN_TEXASR);
+	vcpu->arch.tfiar = mfspr(SPRN_TFIAR);
+	tm_disable();
+}
+
+static inline void kvmppc_restore_tm_sprs(struct kvm_vcpu *vcpu)
+{
+	tm_enable();
+	mtspr(SPRN_TFHAR, vcpu->arch.tfhar);
+	mtspr(SPRN_TEXASR, vcpu->arch.texasr);
+	mtspr(SPRN_TFIAR, vcpu->arch.tfiar);
+	tm_disable();
+}
+
+#endif
 
 static int kvmppc_core_check_requests_pr(struct kvm_vcpu *vcpu)
 {
