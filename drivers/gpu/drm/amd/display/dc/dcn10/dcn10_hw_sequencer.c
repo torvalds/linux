@@ -2153,11 +2153,11 @@ static void dcn10_pplib_apply_display_requirements(
 {
 	struct dm_pp_display_configuration *pp_display_cfg = &context->pp_display_cfg;
 
-	pp_display_cfg->min_engine_clock_khz = context->bw.dcn.cur_clk.dcfclk_khz;
-	pp_display_cfg->min_memory_clock_khz = context->bw.dcn.cur_clk.fclk_khz;
-	pp_display_cfg->min_engine_clock_deep_sleep_khz = context->bw.dcn.cur_clk.dcfclk_deep_sleep_khz;
-	pp_display_cfg->min_dcfc_deep_sleep_clock_khz = context->bw.dcn.cur_clk.dcfclk_deep_sleep_khz;
-	pp_display_cfg->min_dcfclock_khz = context->bw.dcn.cur_clk.dcfclk_khz;
+	pp_display_cfg->min_engine_clock_khz = dc->res_pool->dccg->clks.dcfclk_khz;
+	pp_display_cfg->min_memory_clock_khz = dc->res_pool->dccg->clks.fclk_khz;
+	pp_display_cfg->min_engine_clock_deep_sleep_khz = dc->res_pool->dccg->clks.dcfclk_deep_sleep_khz;
+	pp_display_cfg->min_dcfc_deep_sleep_clock_khz = dc->res_pool->dccg->clks.dcfclk_deep_sleep_khz;
+	pp_display_cfg->min_dcfclock_khz = dc->res_pool->dccg->clks.dcfclk_khz;
 	pp_display_cfg->disp_clk_khz = context->bw.dcn.cur_clk.dispclk_khz;
 	dce110_fill_display_configs(context, pp_display_cfg);
 
@@ -2361,11 +2361,6 @@ static void dcn10_apply_ctx_for_surface(
 */
 }
 
-static inline bool should_set_clock(bool decrease_allowed, int calc_clk, int cur_clk)
-{
-	return ((decrease_allowed && calc_clk < cur_clk) || calc_clk > cur_clk);
-}
-
 static int determine_dppclk_threshold(struct dc *dc, struct dc_state *context)
 {
 	bool request_dpp_div = context->bw.dcn.calc_clk.dispclk_khz >
@@ -2456,16 +2451,16 @@ static void ramp_up_dispclk_with_dpp(struct dc *dc, struct dc_state *context)
 			context->bw.dcn.calc_clk.max_supported_dppclk_khz;
 }
 
+static inline bool should_set_clock(bool safe_to_lower, int calc_clk, int cur_clk)
+{
+	return ((safe_to_lower && calc_clk < cur_clk) || calc_clk > cur_clk);
+}
+
 static void dcn10_set_bandwidth(
 		struct dc *dc,
 		struct dc_state *context,
 		bool decrease_allowed)
 {
-	struct pp_smu_display_requirement_rv *smu_req_cur =
-			&dc->res_pool->pp_smu_req;
-	struct pp_smu_display_requirement_rv smu_req = *smu_req_cur;
-	struct pp_smu_funcs_rv *pp_smu = dc->res_pool->pp_smu;
-
 	if (dc->debug.sanity_checks) {
 		dcn10_verify_allow_pstate_change_high(dc);
 	}
@@ -2473,44 +2468,13 @@ static void dcn10_set_bandwidth(
 	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
 		return;
 
+	if (context->stream_count == 0)
+		context->bw.dcn.calc_clk.phyclk_khz = 0;
+
 	dc->res_pool->dccg->funcs->update_clocks(
 			dc->res_pool->dccg,
 			&context->bw.dcn.calc_clk,
 			decrease_allowed);
-
-	if (should_set_clock(
-			decrease_allowed,
-			context->bw.dcn.calc_clk.dcfclk_khz,
-			dc->current_state->bw.dcn.cur_clk.dcfclk_khz)) {
-		context->bw.dcn.cur_clk.dcfclk_khz =
-				context->bw.dcn.calc_clk.dcfclk_khz;
-		smu_req.hard_min_dcefclk_khz =
-				context->bw.dcn.calc_clk.dcfclk_khz;
-	}
-
-	if (should_set_clock(
-			decrease_allowed,
-			context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz,
-			dc->current_state->bw.dcn.cur_clk.dcfclk_deep_sleep_khz)) {
-		context->bw.dcn.cur_clk.dcfclk_deep_sleep_khz =
-				context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz;
-	}
-
-	if (should_set_clock(
-			decrease_allowed,
-			context->bw.dcn.calc_clk.fclk_khz,
-			dc->current_state->bw.dcn.cur_clk.fclk_khz)) {
-		context->bw.dcn.cur_clk.fclk_khz =
-				context->bw.dcn.calc_clk.fclk_khz;
-		smu_req.hard_min_fclk_khz = context->bw.dcn.calc_clk.fclk_khz;
-	}
-
-	smu_req.display_count = context->stream_count;
-
-	if (pp_smu->set_display_requirement)
-		pp_smu->set_display_requirement(&pp_smu->pp_smu, &smu_req);
-
-	*smu_req_cur = smu_req;
 
 	/* make sure dcf clk is before dpp clk to
 	 * make sure we have enough voltage to run dpp clk

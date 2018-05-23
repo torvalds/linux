@@ -997,7 +997,7 @@ bool dcn_validate_bandwidth(
 		}
 
 		context->bw.dcn.calc_clk.dppclk_khz = context->bw.dcn.calc_clk.dispclk_khz / v->dispclk_dppclk_ratio;
-
+		context->bw.dcn.calc_clk.phyclk_khz = v->phyclk_per_state[v->voltage_level];
 		switch (v->voltage_level) {
 		case 0:
 			context->bw.dcn.calc_clk.max_supported_dppclk_khz =

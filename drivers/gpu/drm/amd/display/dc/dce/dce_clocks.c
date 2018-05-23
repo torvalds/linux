@@ -523,14 +523,18 @@ static void dce_clock_read_ss_info(struct dce_dccg *clk_dce)
 	}
 }
 
+static inline bool should_set_clock(bool safe_to_lower, int calc_clk, int cur_clk)
+{
+	return ((safe_to_lower && calc_clk < cur_clk) || calc_clk > cur_clk);
+}
+
 static void dce12_update_clocks(struct dccg *dccg,
 			struct dc_clocks *new_clocks,
 			bool safe_to_lower)
 {
 	struct dm_pp_clock_for_voltage_req clock_voltage_req = {0};
 
-	if ((new_clocks->dispclk_khz < dccg->clks.dispclk_khz && safe_to_lower)
-			|| new_clocks->dispclk_khz > dccg->clks.dispclk_khz) {
+	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, dccg->clks.dispclk_khz)) {
 		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DISPLAY_CLK;
 		clock_voltage_req.clocks_in_khz = new_clocks->dispclk_khz;
 		dccg->funcs->set_dispclk(dccg, new_clocks->dispclk_khz);
@@ -539,8 +543,7 @@ static void dce12_update_clocks(struct dccg *dccg,
 		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
 	}
 
-	if ((new_clocks->phyclk_khz < dccg->clks.phyclk_khz && safe_to_lower)
-			|| new_clocks->phyclk_khz > dccg->clks.phyclk_khz) {
+	if (should_set_clock(safe_to_lower, new_clocks->phyclk_khz, dccg->clks.phyclk_khz)) {
 		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DISPLAYPHYCLK;
 		clock_voltage_req.clocks_in_khz = new_clocks->phyclk_khz;
 		dccg->clks.phyclk_khz = new_clocks->phyclk_khz;
@@ -553,6 +556,11 @@ static void dcn_update_clocks(struct dccg *dccg,
 			struct dc_clocks *new_clocks,
 			bool safe_to_lower)
 {
+	struct dc *dc = dccg->ctx->dc;
+	struct pp_smu_display_requirement_rv *smu_req_cur =
+			&dc->res_pool->pp_smu_req;
+	struct pp_smu_display_requirement_rv smu_req = *smu_req_cur;
+	struct pp_smu_funcs_rv *pp_smu = dc->res_pool->pp_smu;
 	struct dm_pp_clock_for_voltage_req clock_voltage_req = {0};
 	bool send_request_to_increase = false;
 	bool send_request_to_lower = false;
@@ -566,17 +574,14 @@ static void dcn_update_clocks(struct dccg *dccg,
 #ifdef CONFIG_DRM_AMD_DC_DCN1_0
 	if (send_request_to_increase
 		) {
-		struct dc *core_dc = dccg->ctx->dc;
-
 		/*use dcfclk to request voltage*/
 		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
-		clock_voltage_req.clocks_in_khz = dcn_find_dcfclk_suits_all(core_dc, new_clocks);
+		clock_voltage_req.clocks_in_khz = dcn_find_dcfclk_suits_all(dc, new_clocks);
 		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
 	}
 #endif
 
-	if ((new_clocks->dispclk_khz < dccg->clks.dispclk_khz && safe_to_lower)
-			|| new_clocks->dispclk_khz > dccg->clks.dispclk_khz) {
+	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, dccg->clks.dispclk_khz)) {
 		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DISPLAY_CLK;
 		clock_voltage_req.clocks_in_khz = new_clocks->dispclk_khz;
 		/* TODO: ramp up - dccg->funcs->set_dispclk(dccg, new_clocks->dispclk_khz);*/
@@ -586,8 +591,7 @@ static void dcn_update_clocks(struct dccg *dccg,
 		send_request_to_lower = true;
 	}
 
-	if ((new_clocks->phyclk_khz < dccg->clks.phyclk_khz && safe_to_lower)
-			|| new_clocks->phyclk_khz > dccg->clks.phyclk_khz) {
+	if (should_set_clock(safe_to_lower, new_clocks->phyclk_khz, dccg->clks.phyclk_khz)) {
 		dccg->clks.phyclk_khz = new_clocks->phyclk_khz;
 		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DISPLAYPHYCLK;
 		clock_voltage_req.clocks_in_khz = new_clocks->phyclk_khz;
@@ -596,36 +600,50 @@ static void dcn_update_clocks(struct dccg *dccg,
 		send_request_to_lower = true;
 	}
 
-	if ((new_clocks->fclk_khz < dccg->clks.fclk_khz && safe_to_lower)
-			|| new_clocks->fclk_khz > dccg->clks.fclk_khz) {
+	if (should_set_clock(safe_to_lower, new_clocks->fclk_khz, dccg->clks.fclk_khz)) {
 		dccg->clks.phyclk_khz = new_clocks->fclk_khz;
 		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_FCLK;
 		clock_voltage_req.clocks_in_khz = new_clocks->fclk_khz;
+		smu_req.hard_min_fclk_khz = new_clocks->fclk_khz;
 
 		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
 		send_request_to_lower = true;
 	}
 
-	if ((new_clocks->dcfclk_khz < dccg->clks.dcfclk_khz && safe_to_lower)
-			|| new_clocks->dcfclk_khz > dccg->clks.dcfclk_khz) {
+	if (should_set_clock(safe_to_lower, new_clocks->dcfclk_khz, dccg->clks.dcfclk_khz)) {
 		dccg->clks.phyclk_khz = new_clocks->dcfclk_khz;
 		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
 		clock_voltage_req.clocks_in_khz = new_clocks->dcfclk_khz;
+		smu_req.hard_min_dcefclk_khz = new_clocks->dcfclk_khz;
 
 		send_request_to_lower = true;
+	}
+
+	if (should_set_clock(safe_to_lower,
+			new_clocks->dcfclk_deep_sleep_khz, dccg->clks.dcfclk_deep_sleep_khz)) {
+		dccg->clks.dcfclk_deep_sleep_khz = new_clocks->dcfclk_deep_sleep_khz;
+		smu_req.min_deep_sleep_dcefclk_mhz = new_clocks->dcfclk_deep_sleep_khz;
 	}
 
 #ifdef CONFIG_DRM_AMD_DC_DCN1_0
 	if (!send_request_to_increase && send_request_to_lower
 		) {
-		struct dc *core_dc = dccg->ctx->dc;
-
 		/*use dcfclk to request voltage*/
 		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
-		clock_voltage_req.clocks_in_khz = dcn_find_dcfclk_suits_all(core_dc, new_clocks);
+		clock_voltage_req.clocks_in_khz = dcn_find_dcfclk_suits_all(dc, new_clocks);
 		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
 	}
 #endif
+
+	if (new_clocks->phyclk_khz)
+		smu_req.display_count = 1;
+	else
+		smu_req.display_count = 0;
+
+	if (pp_smu->set_display_requirement)
+		pp_smu->set_display_requirement(&pp_smu->pp_smu, &smu_req);
+
+	*smu_req_cur = smu_req;
 }
 
 static void dce_update_clocks(struct dccg *dccg,
@@ -642,8 +660,7 @@ static void dce_update_clocks(struct dccg *dccg,
 			dccg->cur_min_clks_state = level_change_req.power_level;
 	}
 
-	if ((new_clocks->dispclk_khz < dccg->clks.dispclk_khz && safe_to_lower)
-			|| new_clocks->dispclk_khz > dccg->clks.dispclk_khz) {
+	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, dccg->clks.dispclk_khz)) {
 		dccg->funcs->set_dispclk(dccg, new_clocks->dispclk_khz);
 		dccg->clks.dispclk_khz = new_clocks->dispclk_khz;
 	}
