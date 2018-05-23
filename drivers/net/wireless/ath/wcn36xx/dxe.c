@@ -642,8 +642,8 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 			 struct sk_buff *skb,
 			 bool is_low)
 {
-	struct wcn36xx_dxe_ctl *ctl = NULL;
-	struct wcn36xx_dxe_desc *desc = NULL;
+	struct wcn36xx_dxe_desc *desc_bd, *desc_skb;
+	struct wcn36xx_dxe_ctl *ctl_bd, *ctl_skb;
 	struct wcn36xx_dxe_ch *ch = NULL;
 	unsigned long flags;
 	int ret;
@@ -651,74 +651,75 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 	ch = is_low ? &wcn->dxe_tx_l_ch : &wcn->dxe_tx_h_ch;
 
 	spin_lock_irqsave(&ch->lock, flags);
-	ctl = ch->head_blk_ctl;
+	ctl_bd = ch->head_blk_ctl;
+	ctl_skb = ctl_bd->next;
 
 	/*
 	 * If skb is not null that means that we reached the tail of the ring
 	 * hence ring is full. Stop queues to let mac80211 back off until ring
 	 * has an empty slot again.
 	 */
-	if (NULL != ctl->next->skb) {
+	if (NULL != ctl_skb->skb) {
 		ieee80211_stop_queues(wcn->hw);
 		wcn->queues_stopped = true;
 		spin_unlock_irqrestore(&ch->lock, flags);
 		return -EBUSY;
 	}
 
-	ctl->skb = NULL;
-	desc = ctl->desc;
-
-	/* write buffer descriptor */
-	memcpy(ctl->bd_cpu_addr, bd, sizeof(*bd));
-
-	/* Set source address of the BD we send */
-	desc->src_addr_l = ctl->bd_phy_addr;
-
-	desc->dst_addr_l = ch->dxe_wq;
-	desc->fr_len = sizeof(struct wcn36xx_tx_bd);
-	desc->ctrl = ch->ctrl_bd;
-
-	wcn36xx_dbg(WCN36XX_DBG_DXE, "DXE TX\n");
-
-	wcn36xx_dbg_dump(WCN36XX_DBG_DXE_DUMP, "DESC1 >>> ",
-			 (char *)desc, sizeof(*desc));
-	wcn36xx_dbg_dump(WCN36XX_DBG_DXE_DUMP,
-			 "BD   >>> ", (char *)ctl->bd_cpu_addr,
-			 sizeof(struct wcn36xx_tx_bd));
-
-	/* Set source address of the SKB we send */
-	ctl = ctl->next;
-	desc = ctl->desc;
-	if (ctl->bd_cpu_addr) {
+	if (unlikely(ctl_skb->bd_cpu_addr)) {
 		wcn36xx_err("bd_cpu_addr cannot be NULL for skb DXE\n");
 		ret = -EINVAL;
 		goto unlock;
 	}
 
-	desc->src_addr_l = dma_map_single(wcn->dev,
-					  skb->data,
-					  skb->len,
-					  DMA_TO_DEVICE);
-	if (dma_mapping_error(wcn->dev, desc->src_addr_l)) {
+	desc_bd = ctl_bd->desc;
+	desc_skb = ctl_skb->desc;
+
+	ctl_bd->skb = NULL;
+
+	/* write buffer descriptor */
+	memcpy(ctl_bd->bd_cpu_addr, bd, sizeof(*bd));
+
+	/* Set source address of the BD we send */
+	desc_bd->src_addr_l = ctl_bd->bd_phy_addr;
+	desc_bd->dst_addr_l = ch->dxe_wq;
+	desc_bd->fr_len = sizeof(struct wcn36xx_tx_bd);
+
+	wcn36xx_dbg(WCN36XX_DBG_DXE, "DXE TX\n");
+
+	wcn36xx_dbg_dump(WCN36XX_DBG_DXE_DUMP, "DESC1 >>> ",
+			 (char *)desc_bd, sizeof(*desc_bd));
+	wcn36xx_dbg_dump(WCN36XX_DBG_DXE_DUMP,
+			 "BD   >>> ", (char *)ctl_bd->bd_cpu_addr,
+			 sizeof(struct wcn36xx_tx_bd));
+
+	desc_skb->src_addr_l = dma_map_single(wcn->dev,
+					      skb->data,
+					      skb->len,
+					      DMA_TO_DEVICE);
+	if (dma_mapping_error(wcn->dev, desc_skb->src_addr_l)) {
 		dev_err(wcn->dev, "unable to DMA map src_addr_l\n");
 		ret = -ENOMEM;
 		goto unlock;
 	}
 
-	ctl->skb = skb;
-	desc->dst_addr_l = ch->dxe_wq;
-	desc->fr_len = ctl->skb->len;
-
-	/* set dxe descriptor to VALID */
-	desc->ctrl = ch->ctrl_skb;
+	ctl_skb->skb = skb;
+	desc_skb->dst_addr_l = ch->dxe_wq;
+	desc_skb->fr_len = ctl_skb->skb->len;
 
 	wcn36xx_dbg_dump(WCN36XX_DBG_DXE_DUMP, "DESC2 >>> ",
-			 (char *)desc, sizeof(*desc));
+			 (char *)desc_skb, sizeof(*desc_skb));
 	wcn36xx_dbg_dump(WCN36XX_DBG_DXE_DUMP, "SKB   >>> ",
-			 (char *)ctl->skb->data, ctl->skb->len);
+			 (char *)ctl_skb->skb->data, ctl_skb->skb->len);
 
 	/* Move the head of the ring to the next empty descriptor */
-	 ch->head_blk_ctl = ctl->next;
+	 ch->head_blk_ctl = ctl_skb->next;
+
+	/* Commit all previous writes and set descriptors to VALID */
+	wmb();
+	desc_skb->ctrl = ch->ctrl_skb;
+	wmb();
+	desc_bd->ctrl = ch->ctrl_bd;
 
 	/*
 	 * When connected and trying to send data frame chip can be in sleep
