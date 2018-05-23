@@ -1774,7 +1774,7 @@ static int elantech_create_smbus(struct psmouse *psmouse,
 	if (info->has_trackpoint)
 		smbus_board.properties = i2c_properties;
 
-	return psmouse_smbus_init(psmouse, &smbus_board, NULL, 0,
+	return psmouse_smbus_init(psmouse, &smbus_board, NULL, 0, false,
 				  leave_breadcrumbs);
 }
 
