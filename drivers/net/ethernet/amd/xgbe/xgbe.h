@@ -1122,6 +1122,9 @@ struct xgbe_prv_data {
 	unsigned int rx_ring_count;
 	unsigned int rx_desc_count;
 
+	unsigned int new_tx_ring_count;
+	unsigned int new_rx_ring_count;
+
 	unsigned int tx_max_q_count;
 	unsigned int rx_max_q_count;
 	unsigned int tx_q_count;
@@ -1336,6 +1339,7 @@ int xgbe_powerdown(struct net_device *, unsigned int);
 void xgbe_init_rx_coalesce(struct xgbe_prv_data *);
 void xgbe_init_tx_coalesce(struct xgbe_prv_data *);
 void xgbe_restart_dev(struct xgbe_prv_data *pdata);
+void xgbe_full_restart_dev(struct xgbe_prv_data *pdata);
 
 #ifdef CONFIG_DEBUG_FS
 void xgbe_debugfs_init(struct xgbe_prv_data *);

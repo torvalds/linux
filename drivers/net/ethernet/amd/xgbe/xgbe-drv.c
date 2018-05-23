@@ -1329,6 +1329,17 @@ static int xgbe_alloc_memory(struct xgbe_prv_data *pdata)
 	struct net_device *netdev = pdata->netdev;
 	int ret;
 
+	if (pdata->new_tx_ring_count) {
+		pdata->tx_ring_count = pdata->new_tx_ring_count;
+		pdata->tx_q_count = pdata->tx_ring_count;
+		pdata->new_tx_ring_count = 0;
+	}
+
+	if (pdata->new_rx_ring_count) {
+		pdata->rx_ring_count = pdata->new_rx_ring_count;
+		pdata->new_rx_ring_count = 0;
+	}
+
 	/* Calculate the Rx buffer size before allocating rings */
 	pdata->rx_buf_size = xgbe_calc_rx_buf_size(netdev, netdev->mtu);
 
@@ -1480,6 +1491,20 @@ static void xgbe_stopdev(struct work_struct *work)
 	rtnl_unlock();
 
 	netdev_alert(pdata->netdev, "device stopped\n");
+}
+
+void xgbe_full_restart_dev(struct xgbe_prv_data *pdata)
+{
+	/* If not running, "restart" will happen on open */
+	if (!netif_running(pdata->netdev))
+		return;
+
+	xgbe_stop(pdata);
+
+	xgbe_free_memory(pdata);
+	xgbe_alloc_memory(pdata);
+
+	xgbe_start(pdata);
 }
 
 void xgbe_restart_dev(struct xgbe_prv_data *pdata)
