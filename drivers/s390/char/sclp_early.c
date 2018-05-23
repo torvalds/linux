@@ -15,80 +15,17 @@
 #include "sclp_sdias.h"
 #include "sclp.h"
 
-#define SCLP_CMDW_READ_SCP_INFO		0x00020001
-#define SCLP_CMDW_READ_SCP_INFO_FORCED	0x00120001
-
-struct read_info_sccb {
-	struct	sccb_header header;	/* 0-7 */
-	u16	rnmax;			/* 8-9 */
-	u8	rnsize;			/* 10 */
-	u8	_pad_11[16 - 11];	/* 11-15 */
-	u16	ncpurl;			/* 16-17 */
-	u16	cpuoff;			/* 18-19 */
-	u8	_pad_20[24 - 20];	/* 20-23 */
-	u8	loadparm[8];		/* 24-31 */
-	u8	_pad_32[42 - 32];	/* 32-41 */
-	u8	fac42;			/* 42 */
-	u8	fac43;			/* 43 */
-	u8	_pad_44[48 - 44];	/* 44-47 */
-	u64	facilities;		/* 48-55 */
-	u8	_pad_56[66 - 56];	/* 56-65 */
-	u8	fac66;			/* 66 */
-	u8	_pad_67[76 - 67];	/* 67-83 */
-	u32	ibc;			/* 76-79 */
-	u8	_pad80[84 - 80];	/* 80-83 */
-	u8	fac84;			/* 84 */
-	u8	fac85;			/* 85 */
-	u8	_pad_86[91 - 86];	/* 86-90 */
-	u8	fac91;			/* 91 */
-	u8	_pad_92[98 - 92];	/* 92-97 */
-	u8	fac98;			/* 98 */
-	u8	hamaxpow;		/* 99 */
-	u32	rnsize2;		/* 100-103 */
-	u64	rnmax2;			/* 104-111 */
-	u32	hsa_size;		/* 112-115 */
-	u8	fac116;			/* 116 */
-	u8	fac117;			/* 117 */
-	u8	fac118;			/* 118 */
-	u8	fac119;			/* 119 */
-	u16	hcpua;			/* 120-121 */
-	u8	_pad_122[124 - 122];	/* 122-123 */
-	u32	hmfai;			/* 124-127 */
-	u8	_pad_128[4096 - 128];	/* 128-4095 */
-} __packed __aligned(PAGE_SIZE);
-
 static struct sclp_ipl_info sclp_ipl_info;
 
 struct sclp_info sclp;
 EXPORT_SYMBOL(sclp);
-
-static int __init sclp_early_read_info(struct read_info_sccb *sccb)
-{
-	int i;
-	sclp_cmdw_t commands[] = {SCLP_CMDW_READ_SCP_INFO_FORCED,
-				  SCLP_CMDW_READ_SCP_INFO};
-
-	for (i = 0; i < ARRAY_SIZE(commands); i++) {
-		memset(sccb, 0, sizeof(*sccb));
-		sccb->header.length = sizeof(*sccb);
-		sccb->header.function_code = 0x80;
-		sccb->header.control_mask[2] = 0x80;
-		if (sclp_early_cmd(commands[i], sccb))
-			break;
-		if (sccb->header.response_code == 0x10)
-			return 0;
-		if (sccb->header.response_code != 0x1f0)
-			break;
-	}
-	return -EIO;
-}
 
 static void __init sclp_early_facilities_detect(struct read_info_sccb *sccb)
 {
 	struct sclp_core_entry *cpue;
 	u16 boot_cpu_address, cpu;
 
-	if (sclp_early_read_info(sccb))
+	if (sclp_early_get_info(sccb))
 		return;
 
 	sclp.facilities = sccb->facilities;

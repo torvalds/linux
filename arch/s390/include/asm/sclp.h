@@ -105,6 +105,7 @@ struct zpci_report_error_header {
 	u8 data[0];	/* Subsequent Data passed verbatim to SCLP ET 24 */
 } __packed;
 
+int sclp_early_read_info(void);
 int sclp_early_get_core_info(struct sclp_core_info *info);
 void sclp_early_get_ipl_info(struct sclp_ipl_info *info);
 void sclp_early_detect(void);

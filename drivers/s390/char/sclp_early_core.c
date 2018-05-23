@@ -9,9 +9,12 @@
 #include <asm/lowcore.h>
 #include <asm/ebcdic.h>
 #include <asm/irq.h>
+#include <asm/sections.h>
 #include "sclp.h"
 #include "sclp_rw.h"
 
+static struct read_info_sccb __bootdata(sclp_info_sccb);
+static int __bootdata(sclp_info_sccb_valid);
 char sclp_early_sccb[PAGE_SIZE] __aligned(PAGE_SIZE) __section(.data);
 int sclp_init_state __section(.data) = sclp_init_state_uninitialized;
 /*
@@ -233,4 +236,37 @@ void sclp_early_printk(const char *str)
 void sclp_early_printk_force(const char *str)
 {
 	__sclp_early_printk(str, strlen(str), 1);
+}
+
+int __init sclp_early_read_info(void)
+{
+	int i;
+	struct read_info_sccb *sccb = &sclp_info_sccb;
+	sclp_cmdw_t commands[] = {SCLP_CMDW_READ_SCP_INFO_FORCED,
+				  SCLP_CMDW_READ_SCP_INFO};
+
+	for (i = 0; i < ARRAY_SIZE(commands); i++) {
+		memset(sccb, 0, sizeof(*sccb));
+		sccb->header.length = sizeof(*sccb);
+		sccb->header.function_code = 0x80;
+		sccb->header.control_mask[2] = 0x80;
+		if (sclp_early_cmd(commands[i], sccb))
+			break;
+		if (sccb->header.response_code == 0x10) {
+			sclp_info_sccb_valid = 1;
+			return 0;
+		}
+		if (sccb->header.response_code != 0x1f0)
+			break;
+	}
+	return -EIO;
+}
+
+int __init sclp_early_get_info(struct read_info_sccb *info)
+{
+	if (!sclp_info_sccb_valid)
+		return -EIO;
+
+	*info = sclp_info_sccb;
+	return 0;
 }

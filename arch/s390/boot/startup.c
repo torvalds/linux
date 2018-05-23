@@ -50,6 +50,7 @@ void startup_kernel(void)
 	void *img;
 
 	rescue_initrd();
+	sclp_early_read_info();
 	if (!IS_ENABLED(CONFIG_KERNEL_UNCOMPRESSED)) {
 		img = decompress_kernel();
 		memmove((void *)vmlinux.default_lma, img, vmlinux.image_size);
