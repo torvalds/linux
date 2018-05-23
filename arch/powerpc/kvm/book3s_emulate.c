@@ -24,6 +24,7 @@
 #include <asm/switch_to.h>
 #include <asm/time.h>
 #include "book3s.h"
+#include <asm/asm-prototypes.h>
 
 #define OP_19_XOP_RFID		18
 #define OP_19_XOP_RFI		50
@@ -523,13 +524,38 @@ int kvmppc_core_emulate_mtspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 		break;
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	case SPRN_TFHAR:
-		vcpu->arch.tfhar = spr_val;
-		break;
 	case SPRN_TEXASR:
-		vcpu->arch.texasr = spr_val;
-		break;
 	case SPRN_TFIAR:
-		vcpu->arch.tfiar = spr_val;
+		if (!cpu_has_feature(CPU_FTR_TM))
+			break;
+
+		if (!(kvmppc_get_msr(vcpu) & MSR_TM)) {
+			kvmppc_trigger_fac_interrupt(vcpu, FSCR_TM_LG);
+			emulated = EMULATE_AGAIN;
+			break;
+		}
+
+		if (MSR_TM_ACTIVE(kvmppc_get_msr(vcpu)) &&
+			!((MSR_TM_SUSPENDED(kvmppc_get_msr(vcpu))) &&
+					(sprn == SPRN_TFHAR))) {
+			/* it is illegal to mtspr() TM regs in
+			 * other than non-transactional state, with
+			 * the exception of TFHAR in suspend state.
+			 */
+			kvmppc_core_queue_program(vcpu, SRR1_PROGTM);
+			emulated = EMULATE_AGAIN;
+			break;
+		}
+
+		tm_enable();
+		if (sprn == SPRN_TFHAR)
+			mtspr(SPRN_TFHAR, spr_val);
+		else if (sprn == SPRN_TEXASR)
+			mtspr(SPRN_TEXASR, spr_val);
+		else
+			mtspr(SPRN_TFIAR, spr_val);
+		tm_disable();
+
 		break;
 #endif
 #endif
@@ -676,13 +702,25 @@ int kvmppc_core_emulate_mfspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val
 		break;
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	case SPRN_TFHAR:
-		*spr_val = vcpu->arch.tfhar;
-		break;
 	case SPRN_TEXASR:
-		*spr_val = vcpu->arch.texasr;
-		break;
 	case SPRN_TFIAR:
-		*spr_val = vcpu->arch.tfiar;
+		if (!cpu_has_feature(CPU_FTR_TM))
+			break;
+
+		if (!(kvmppc_get_msr(vcpu) & MSR_TM)) {
+			kvmppc_trigger_fac_interrupt(vcpu, FSCR_TM_LG);
+			emulated = EMULATE_AGAIN;
+			break;
+		}
+
+		tm_enable();
+		if (sprn == SPRN_TFHAR)
+			*spr_val = mfspr(SPRN_TFHAR);
+		else if (sprn == SPRN_TEXASR)
+			*spr_val = mfspr(SPRN_TEXASR);
+		else if (sprn == SPRN_TFIAR)
+			*spr_val = mfspr(SPRN_TFIAR);
+		tm_disable();
 		break;
 #endif
 #endif

@@ -918,7 +918,7 @@ static void kvmppc_handle_lost_ext(struct kvm_vcpu *vcpu)
 
 #ifdef CONFIG_PPC_BOOK3S_64
 
-static void kvmppc_trigger_fac_interrupt(struct kvm_vcpu *vcpu, ulong fac)
+void kvmppc_trigger_fac_interrupt(struct kvm_vcpu *vcpu, ulong fac)
 {
 	/* Inject the Interrupt Cause field and trigger a guest interrupt */
 	vcpu->arch.fscr &= ~(0xffULL << 56);
