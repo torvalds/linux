@@ -8,8 +8,6 @@
  *
  *  Initial restrictions:
  *    - support for alternate links postponed
- *    - partial support for non-blocking sockets only
- *    - support for urgent data postponed
  *
  *  Copyright IBM Corp. 2016, 2018
  *
@@ -1338,6 +1336,8 @@ static __poll_t smc_poll(struct file *file, struct socket *sock,
 			if (sk->sk_state == SMC_APPCLOSEWAIT1)
 				mask |= EPOLLIN;
 		}
+		if (smc->conn.urg_state == SMC_URG_VALID)
+			mask |= EPOLLPRI;
 
 	}
 	release_sock(sk);
@@ -1477,10 +1477,13 @@ static int smc_getsockopt(struct socket *sock, int level, int optname,
 static int smc_ioctl(struct socket *sock, unsigned int cmd,
 		     unsigned long arg)
 {
+	union smc_host_cursor cons, urg;
+	struct smc_connection *conn;
 	struct smc_sock *smc;
 	int answ;
 
 	smc = smc_sk(sock->sk);
+	conn = &smc->conn;
 	if (smc->use_fallback) {
 		if (!smc->clcsock)
 			return -EBADF;
@@ -1516,6 +1519,23 @@ static int smc_ioctl(struct socket *sock, unsigned int cmd,
 			answ = 0;
 		else
 			answ = smc_tx_prepared_sends(&smc->conn);
+		break;
+	case SIOCATMARK:
+		if (smc->sk.sk_state == SMC_LISTEN)
+			return -EINVAL;
+		if (smc->sk.sk_state == SMC_INIT ||
+		    smc->sk.sk_state == SMC_CLOSED) {
+			answ = 0;
+		} else {
+			smc_curs_write(&cons,
+			       smc_curs_read(&conn->local_tx_ctrl.cons, conn),
+				       conn);
+			smc_curs_write(&urg,
+				       smc_curs_read(&conn->urg_curs, conn),
+				       conn);
+			answ = smc_curs_diff(conn->rmb_desc->len,
+					     &cons, &urg) == 1;
+		}
 		break;
 	default:
 		return -ENOIOCTLCMD;

@@ -114,6 +114,12 @@ struct smc_host_cdc_msg {		/* Connection Data Control message */
 	u8				reserved[18];
 } __aligned(8);
 
+enum smc_urg_state {
+	SMC_URG_VALID,			/* data present */
+	SMC_URG_NOTYET,			/* data pending */
+	SMC_URG_READ			/* data was already read */
+};
+
 struct smc_connection {
 	struct rb_node		alert_node;
 	struct smc_link_group	*lgr;		/* link group of connection */
@@ -160,6 +166,15 @@ struct smc_connection {
 	union smc_host_cursor	rx_curs_confirmed; /* confirmed to peer
 						    * source of snd_una ?
 						    */
+	union smc_host_cursor	urg_curs;	/* points at urgent byte */
+	enum smc_urg_state	urg_state;
+	bool			urg_tx_pend;	/* urgent data staged */
+	bool			urg_rx_skip_pend;
+						/* indicate urgent oob data
+						 * read, but previous regular
+						 * data still pending
+						 */
+	char			urg_rx_byte;	/* urgent byte */
 	atomic_t		bytes_to_rcv;	/* arrived data,
 						 * not yet received
 						 */

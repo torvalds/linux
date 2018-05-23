@@ -164,6 +164,28 @@ static inline bool smc_cdc_before(u16 seq1, u16 seq2)
 	return (s16)(seq1 - seq2) < 0;
 }
 
+static void smc_cdc_handle_urg_data_arrival(struct smc_sock *smc,
+					    int *diff_prod)
+{
+	struct smc_connection *conn = &smc->conn;
+	char *base;
+
+	/* new data included urgent business */
+	smc_curs_write(&conn->urg_curs,
+		       smc_curs_read(&conn->local_rx_ctrl.prod, conn),
+		       conn);
+	conn->urg_state = SMC_URG_VALID;
+	if (!sock_flag(&smc->sk, SOCK_URGINLINE))
+		/* we'll skip the urgent byte, so don't account for it */
+		(*diff_prod)--;
+	base = (char *)conn->rmb_desc->cpu_addr;
+	if (conn->urg_curs.count)
+		conn->urg_rx_byte = *(base + conn->urg_curs.count - 1);
+	else
+		conn->urg_rx_byte = *(base + conn->rmb_desc->len - 1);
+	sk_send_sigurg(&smc->sk);
+}
+
 static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 				    struct smc_cdc_msg *cdc)
 {
@@ -194,15 +216,25 @@ static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 	diff_prod = smc_curs_diff(conn->rmb_desc->len, &prod_old,
 				  &conn->local_rx_ctrl.prod);
 	if (diff_prod) {
+		if (conn->local_rx_ctrl.prod_flags.urg_data_present)
+			smc_cdc_handle_urg_data_arrival(smc, &diff_prod);
 		/* bytes_to_rcv is decreased in smc_recvmsg */
 		smp_mb__before_atomic();
 		atomic_add(diff_prod, &conn->bytes_to_rcv);
 		/* guarantee 0 <= bytes_to_rcv <= rmb_desc->len */
 		smp_mb__after_atomic();
 		smc->sk.sk_data_ready(&smc->sk);
-	} else if ((conn->local_rx_ctrl.prod_flags.write_blocked) ||
-		   (conn->local_rx_ctrl.prod_flags.cons_curs_upd_req)) {
-		smc->sk.sk_data_ready(&smc->sk);
+	} else {
+		if (conn->local_rx_ctrl.prod_flags.write_blocked ||
+		    conn->local_rx_ctrl.prod_flags.cons_curs_upd_req ||
+		    conn->local_rx_ctrl.prod_flags.urg_data_pending) {
+			if (conn->local_rx_ctrl.prod_flags.urg_data_pending)
+				conn->urg_state = SMC_URG_NOTYET;
+			/* force immediate tx of current consumer cursor, but
+			 * under send_lock to guarantee arrival in seqno-order
+			 */
+			smc_tx_sndbuf_nonempty(conn);
+		}
 	}
 
 	/* piggy backed tx info */
@@ -211,6 +243,12 @@ static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 		smc_tx_sndbuf_nonempty(conn);
 		/* trigger socket release if connection closed */
 		smc_close_wake_tx_prepared(smc);
+	}
+	if (diff_cons && conn->urg_tx_pend &&
+	    atomic_read(&conn->peer_rmbe_space) == conn->peer_rmbe_size) {
+		/* urg data confirmed by peer, indicate we're ready for more */
+		conn->urg_tx_pend = false;
+		smc->sk.sk_write_space(&smc->sk);
 	}
 
 	if (conn->local_rx_ctrl.conn_state_flags.peer_conn_abort) {
