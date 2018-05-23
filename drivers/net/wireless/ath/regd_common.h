@@ -35,6 +35,7 @@ enum EnumRd {
 	FRANCE_RES = 0x31,
 	FCC3_FCCA = 0x3A,
 	FCC3_WORLD = 0x3B,
+	FCC3_ETSIC = 0x3F,
 
 	ETSI1_WORLD = 0x37,
 	ETSI3_ETSIA = 0x32,
@@ -168,6 +169,7 @@ static struct reg_dmn_pair_mapping regDomainPairs[] = {
 	{FCC2_ETSIC, CTL_FCC, CTL_ETSI},
 	{FCC3_FCCA, CTL_FCC, CTL_FCC},
 	{FCC3_WORLD, CTL_FCC, CTL_ETSI},
+	{FCC3_ETSIC, CTL_FCC, CTL_ETSI},
 	{FCC4_FCCA, CTL_FCC, CTL_FCC},
 	{FCC5_FCCA, CTL_FCC, CTL_FCC},
 	{FCC6_FCCA, CTL_FCC, CTL_FCC},
