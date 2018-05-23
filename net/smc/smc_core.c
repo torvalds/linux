@@ -346,7 +346,7 @@ void smc_lgr_forget(struct smc_link_group *lgr)
 }
 
 /* terminate linkgroup abnormally */
-void smc_lgr_terminate(struct smc_link_group *lgr)
+static void __smc_lgr_terminate(struct smc_link_group *lgr)
 {
 	struct smc_connection *conn;
 	struct smc_sock *smc;
@@ -355,7 +355,8 @@ void smc_lgr_terminate(struct smc_link_group *lgr)
 	if (lgr->terminating)
 		return;	/* lgr already terminating */
 	lgr->terminating = 1;
-	smc_lgr_forget(lgr);
+	if (!list_empty(&lgr->list)) /* forget lgr */
+		list_del_init(&lgr->list);
 	smc_llc_link_inactive(&lgr->lnk[SMC_SINGLE_LINK]);
 
 	write_lock_bh(&lgr->conns_lock);
@@ -377,16 +378,25 @@ void smc_lgr_terminate(struct smc_link_group *lgr)
 	smc_lgr_schedule_free_work(lgr);
 }
 
+void smc_lgr_terminate(struct smc_link_group *lgr)
+{
+	spin_lock_bh(&smc_lgr_list.lock);
+	__smc_lgr_terminate(lgr);
+	spin_unlock_bh(&smc_lgr_list.lock);
+}
+
 /* Called when IB port is terminated */
 void smc_port_terminate(struct smc_ib_device *smcibdev, u8 ibport)
 {
 	struct smc_link_group *lgr, *l;
 
+	spin_lock_bh(&smc_lgr_list.lock);
 	list_for_each_entry_safe(lgr, l, &smc_lgr_list.list, list) {
 		if (lgr->lnk[SMC_SINGLE_LINK].smcibdev == smcibdev &&
 		    lgr->lnk[SMC_SINGLE_LINK].ibport == ibport)
-			smc_lgr_terminate(lgr);
+			__smc_lgr_terminate(lgr);
 	}
+	spin_unlock_bh(&smc_lgr_list.lock);
 }
 
 /* Determine vlan of internal TCP socket.
