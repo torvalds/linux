@@ -791,8 +791,8 @@ static void destruct(struct dcn10_resource_pool *pool)
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
 
-	if (pool->base.display_clock != NULL)
-		dce_disp_clk_destroy(&pool->base.display_clock);
+	if (pool->base.dccg != NULL)
+		dce_dccg_destroy(&pool->base.dccg);
 
 	kfree(pool->base.pp_smu);
 }
@@ -1072,8 +1072,8 @@ static bool construct(
 		}
 	}
 
-	pool->base.display_clock = dcn_disp_clk_create(ctx);
-	if (pool->base.display_clock == NULL) {
+	pool->base.dccg = dcn_dccg_create(ctx);
+	if (pool->base.dccg == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();
 		goto fail;

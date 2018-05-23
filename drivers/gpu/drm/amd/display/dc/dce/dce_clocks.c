@@ -38,7 +38,7 @@
 #include "dal_asic_id.h"
 
 #define TO_DCE_CLOCKS(clocks)\
-	container_of(clocks, struct dce_disp_clk, base)
+	container_of(clocks, struct dce_dccg, base)
 
 #define REG(reg) \
 	(clk_dce->regs->reg)
@@ -187,9 +187,9 @@ static int dce_divider_range_get_divider(
 	return div;
 }
 
-static int dce_clocks_get_dp_ref_freq(struct display_clock *clk)
+static int dce_clocks_get_dp_ref_freq(struct dccg *clk)
 {
-	struct dce_disp_clk *clk_dce = TO_DCE_CLOCKS(clk);
+	struct dce_dccg *clk_dce = TO_DCE_CLOCKS(clk);
 	int dprefclk_wdivider;
 	int dprefclk_src_sel;
 	int dp_ref_clk_khz = 600000;
@@ -250,9 +250,9 @@ static int dce_clocks_get_dp_ref_freq(struct display_clock *clk)
  * or CLK0_CLK11 by SMU. For DCE120, it is wlays 600Mhz. Will re-visit
  * clock implementation
  */
-static int dce_clocks_get_dp_ref_freq_wrkaround(struct display_clock *clk)
+static int dce_clocks_get_dp_ref_freq_wrkaround(struct dccg *clk)
 {
-	struct dce_disp_clk *clk_dce = TO_DCE_CLOCKS(clk);
+	struct dce_dccg *clk_dce = TO_DCE_CLOCKS(clk);
 	int dp_ref_clk_khz = 600000;
 
 	if (clk_dce->ss_on_dprefclk && clk_dce->dprefclk_ss_divider != 0) {
@@ -274,10 +274,10 @@ static int dce_clocks_get_dp_ref_freq_wrkaround(struct display_clock *clk)
 	return dp_ref_clk_khz;
 }
 static enum dm_pp_clocks_state dce_get_required_clocks_state(
-	struct display_clock *clk,
+	struct dccg *clk,
 	struct dc_clocks *req_clocks)
 {
-	struct dce_disp_clk *clk_dce = TO_DCE_CLOCKS(clk);
+	struct dce_dccg *clk_dce = TO_DCE_CLOCKS(clk);
 	int i;
 	enum dm_pp_clocks_state low_req_clk;
 
@@ -306,10 +306,10 @@ static enum dm_pp_clocks_state dce_get_required_clocks_state(
 }
 
 static int dce_set_clock(
-	struct display_clock *clk,
+	struct dccg *clk,
 	int requested_clk_khz)
 {
-	struct dce_disp_clk *clk_dce = TO_DCE_CLOCKS(clk);
+	struct dce_dccg *clk_dce = TO_DCE_CLOCKS(clk);
 	struct bp_pixel_clock_parameters pxl_clk_params = { 0 };
 	struct dc_bios *bp = clk->ctx->dc_bios;
 	int actual_clock = requested_clk_khz;
@@ -341,10 +341,10 @@ static int dce_set_clock(
 }
 
 static int dce_psr_set_clock(
-	struct display_clock *clk,
+	struct dccg *clk,
 	int requested_clk_khz)
 {
-	struct dce_disp_clk *clk_dce = TO_DCE_CLOCKS(clk);
+	struct dce_dccg *clk_dce = TO_DCE_CLOCKS(clk);
 	struct dc_context *ctx = clk_dce->base.ctx;
 	struct dc *core_dc = ctx->dc;
 	struct dmcu *dmcu = core_dc->res_pool->dmcu;
@@ -357,10 +357,10 @@ static int dce_psr_set_clock(
 }
 
 static int dce112_set_clock(
-	struct display_clock *clk,
+	struct dccg *clk,
 	int requested_clk_khz)
 {
-	struct dce_disp_clk *clk_dce = TO_DCE_CLOCKS(clk);
+	struct dce_dccg *clk_dce = TO_DCE_CLOCKS(clk);
 	struct bp_set_dce_clock_parameters dce_clk_params;
 	struct dc_bios *bp = clk->ctx->dc_bios;
 	struct dc *core_dc = clk->ctx->dc;
@@ -409,7 +409,7 @@ static int dce112_set_clock(
 	return actual_clock;
 }
 
-static void dce_clock_read_integrated_info(struct dce_disp_clk *clk_dce)
+static void dce_clock_read_integrated_info(struct dce_dccg *clk_dce)
 {
 	struct dc_debug *debug = &clk_dce->base.ctx->dc->debug;
 	struct dc_bios *bp = clk_dce->base.ctx->dc_bios;
@@ -467,7 +467,7 @@ static void dce_clock_read_integrated_info(struct dce_disp_clk *clk_dce)
 			clk_dce->dfs_bypass_enabled = true;
 }
 
-static void dce_clock_read_ss_info(struct dce_disp_clk *clk_dce)
+static void dce_clock_read_ss_info(struct dce_dccg *clk_dce)
 {
 	struct dc_bios *bp = clk_dce->base.ctx->dc_bios;
 	int ss_info_num = bp->funcs->get_ss_entry_number(
@@ -523,7 +523,7 @@ static void dce_clock_read_ss_info(struct dce_disp_clk *clk_dce)
 	}
 }
 
-static void dce12_update_clocks(struct display_clock *dccg,
+static void dce12_update_clocks(struct dccg *dccg,
 			struct dc_clocks *new_clocks,
 			bool safe_to_lower)
 {
@@ -549,7 +549,7 @@ static void dce12_update_clocks(struct display_clock *dccg,
 	}
 }
 
-static void dcn_update_clocks(struct display_clock *dccg,
+static void dcn_update_clocks(struct dccg *dccg,
 			struct dc_clocks *new_clocks,
 			bool safe_to_lower)
 {
@@ -628,7 +628,7 @@ static void dcn_update_clocks(struct display_clock *dccg,
 #endif
 }
 
-static void dce_update_clocks(struct display_clock *dccg,
+static void dce_update_clocks(struct dccg *dccg,
 			struct dc_clocks *new_clocks,
 			bool safe_to_lower)
 {
@@ -679,14 +679,14 @@ static const struct display_clock_funcs dce_funcs = {
 	.update_clocks = dce_update_clocks
 };
 
-static void dce_disp_clk_construct(
-	struct dce_disp_clk *clk_dce,
+static void dce_dccg_construct(
+	struct dce_dccg *clk_dce,
 	struct dc_context *ctx,
 	const struct dce_disp_clk_registers *regs,
 	const struct dce_disp_clk_shift *clk_shift,
 	const struct dce_disp_clk_mask *clk_mask)
 {
-	struct display_clock *base = &clk_dce->base;
+	struct dccg *base = &clk_dce->base;
 
 	base->ctx = ctx;
 	base->funcs = &dce_funcs;
@@ -727,13 +727,13 @@ static void dce_disp_clk_construct(
 		DIVIDER_RANGE_MAX_DIVIDER_ID);
 }
 
-struct display_clock *dce_disp_clk_create(
+struct dccg *dce_dccg_create(
 	struct dc_context *ctx,
 	const struct dce_disp_clk_registers *regs,
 	const struct dce_disp_clk_shift *clk_shift,
 	const struct dce_disp_clk_mask *clk_mask)
 {
-	struct dce_disp_clk *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
+	struct dce_dccg *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
 
 	if (clk_dce == NULL) {
 		BREAK_TO_DEBUGGER();
@@ -744,19 +744,19 @@ struct display_clock *dce_disp_clk_create(
 		dce80_max_clks_by_state,
 		sizeof(dce80_max_clks_by_state));
 
-	dce_disp_clk_construct(
+	dce_dccg_construct(
 		clk_dce, ctx, regs, clk_shift, clk_mask);
 
 	return &clk_dce->base;
 }
 
-struct display_clock *dce110_disp_clk_create(
+struct dccg *dce110_dccg_create(
 	struct dc_context *ctx,
 	const struct dce_disp_clk_registers *regs,
 	const struct dce_disp_clk_shift *clk_shift,
 	const struct dce_disp_clk_mask *clk_mask)
 {
-	struct dce_disp_clk *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
+	struct dce_dccg *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
 
 	if (clk_dce == NULL) {
 		BREAK_TO_DEBUGGER();
@@ -767,7 +767,7 @@ struct display_clock *dce110_disp_clk_create(
 		dce110_max_clks_by_state,
 		sizeof(dce110_max_clks_by_state));
 
-	dce_disp_clk_construct(
+	dce_dccg_construct(
 		clk_dce, ctx, regs, clk_shift, clk_mask);
 
 	clk_dce->base.funcs = &dce110_funcs;
@@ -775,13 +775,13 @@ struct display_clock *dce110_disp_clk_create(
 	return &clk_dce->base;
 }
 
-struct display_clock *dce112_disp_clk_create(
+struct dccg *dce112_dccg_create(
 	struct dc_context *ctx,
 	const struct dce_disp_clk_registers *regs,
 	const struct dce_disp_clk_shift *clk_shift,
 	const struct dce_disp_clk_mask *clk_mask)
 {
-	struct dce_disp_clk *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
+	struct dce_dccg *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
 
 	if (clk_dce == NULL) {
 		BREAK_TO_DEBUGGER();
@@ -792,7 +792,7 @@ struct display_clock *dce112_disp_clk_create(
 		dce112_max_clks_by_state,
 		sizeof(dce112_max_clks_by_state));
 
-	dce_disp_clk_construct(
+	dce_dccg_construct(
 		clk_dce, ctx, regs, clk_shift, clk_mask);
 
 	clk_dce->base.funcs = &dce112_funcs;
@@ -800,9 +800,9 @@ struct display_clock *dce112_disp_clk_create(
 	return &clk_dce->base;
 }
 
-struct display_clock *dce120_disp_clk_create(struct dc_context *ctx)
+struct dccg *dce120_dccg_create(struct dc_context *ctx)
 {
-	struct dce_disp_clk *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
+	struct dce_dccg *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
 
 	if (clk_dce == NULL) {
 		BREAK_TO_DEBUGGER();
@@ -813,7 +813,7 @@ struct display_clock *dce120_disp_clk_create(struct dc_context *ctx)
 		dce120_max_clks_by_state,
 		sizeof(dce120_max_clks_by_state));
 
-	dce_disp_clk_construct(
+	dce_dccg_construct(
 		clk_dce, ctx, NULL, NULL, NULL);
 
 	clk_dce->base.funcs = &dce120_funcs;
@@ -821,9 +821,9 @@ struct display_clock *dce120_disp_clk_create(struct dc_context *ctx)
 	return &clk_dce->base;
 }
 
-struct display_clock *dcn_disp_clk_create(struct dc_context *ctx)
+struct dccg *dcn_dccg_create(struct dc_context *ctx)
 {
-	struct dce_disp_clk *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
+	struct dce_dccg *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
 
 	if (clk_dce == NULL) {
 		BREAK_TO_DEBUGGER();
@@ -831,7 +831,7 @@ struct display_clock *dcn_disp_clk_create(struct dc_context *ctx)
 	}
 
 	/* TODO strip out useful stuff out of dce constructor */
-	dce_disp_clk_construct(
+	dce_dccg_construct(
 		clk_dce, ctx, NULL, NULL, NULL);
 
 	clk_dce->base.funcs = &dcn_funcs;
@@ -839,10 +839,10 @@ struct display_clock *dcn_disp_clk_create(struct dc_context *ctx)
 	return &clk_dce->base;
 }
 
-void dce_disp_clk_destroy(struct display_clock **disp_clk)
+void dce_dccg_destroy(struct dccg **dccg)
 {
-	struct dce_disp_clk *clk_dce = TO_DCE_CLOCKS(*disp_clk);
+	struct dce_dccg *clk_dce = TO_DCE_CLOCKS(*dccg);
 
 	kfree(clk_dce);
-	*disp_clk = NULL;
+	*dccg = NULL;
 }

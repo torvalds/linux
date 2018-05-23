@@ -168,8 +168,8 @@ void dce100_set_bandwidth(
 
 	dce110_set_safe_displaymarks(&context->res_ctx, dc->res_pool);
 
-	dc->res_pool->display_clock->funcs->update_clocks(
-			dc->res_pool->display_clock,
+	dc->res_pool->dccg->funcs->update_clocks(
+			dc->res_pool->dccg,
 			&req_clks,
 			decrease_allowed);
 

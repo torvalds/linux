@@ -36,7 +36,7 @@ struct state_dependent_clocks {
 	int pixel_clk_khz;
 };
 
-struct display_clock {
+struct dccg {
 	struct dc_context *ctx;
 	const struct display_clock_funcs *funcs;
 
@@ -46,13 +46,13 @@ struct display_clock {
 };
 
 struct display_clock_funcs {
-	void (*update_clocks)(struct display_clock *dccg,
+	void (*update_clocks)(struct dccg *dccg,
 			struct dc_clocks *new_clocks,
 			bool safe_to_lower);
-	int (*set_dispclk)(struct display_clock *disp_clk,
+	int (*set_dispclk)(struct dccg *dccg,
 		int requested_clock_khz);
 
-	int (*get_dp_ref_clk_frequency)(struct display_clock *disp_clk);
+	int (*get_dp_ref_clk_frequency)(struct dccg *dccg);
 };
 
 #endif /* __DISPLAY_CLOCK_H__ */

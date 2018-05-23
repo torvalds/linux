@@ -163,7 +163,7 @@ struct resource_pool {
 	unsigned int audio_count;
 	struct audio_support audio_support;
 
-	struct display_clock *display_clock;
+	struct dccg *dccg;
 	struct irq_service *irqs;
 
 	struct abm *abm;
@@ -282,7 +282,7 @@ struct dc_state {
 	struct dcn_bw_internal_vars dcn_bw_vars;
 #endif
 
-	struct display_clock *dis_clk;
+	struct dccg *dis_clk;
 
 	struct kref refcount;
 };

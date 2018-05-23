@@ -82,8 +82,8 @@ struct dce_divider_range {
 	int did_max;
 };
 
-struct dce_disp_clk {
-	struct display_clock base;
+struct dce_dccg {
+	struct dccg base;
 	const struct dce_disp_clk_registers *regs;
 	const struct dce_disp_clk_shift *clk_shift;
 	const struct dce_disp_clk_mask *clk_mask;
@@ -108,28 +108,28 @@ struct dce_disp_clk {
 };
 
 
-struct display_clock *dce_disp_clk_create(
+struct dccg *dce_dccg_create(
 	struct dc_context *ctx,
 	const struct dce_disp_clk_registers *regs,
 	const struct dce_disp_clk_shift *clk_shift,
 	const struct dce_disp_clk_mask *clk_mask);
 
-struct display_clock *dce110_disp_clk_create(
+struct dccg *dce110_dccg_create(
 	struct dc_context *ctx,
 	const struct dce_disp_clk_registers *regs,
 	const struct dce_disp_clk_shift *clk_shift,
 	const struct dce_disp_clk_mask *clk_mask);
 
-struct display_clock *dce112_disp_clk_create(
+struct dccg *dce112_dccg_create(
 	struct dc_context *ctx,
 	const struct dce_disp_clk_registers *regs,
 	const struct dce_disp_clk_shift *clk_shift,
 	const struct dce_disp_clk_mask *clk_mask);
 
-struct display_clock *dce120_disp_clk_create(struct dc_context *ctx);
+struct dccg *dce120_dccg_create(struct dc_context *ctx);
 
-struct display_clock *dcn_disp_clk_create(struct dc_context *ctx);
+struct dccg *dcn_dccg_create(struct dc_context *ctx);
 
-void dce_disp_clk_destroy(struct display_clock **disp_clk);
+void dce_dccg_destroy(struct dccg **dccg);
 
 #endif /* _DCE_CLOCKS_H_ */

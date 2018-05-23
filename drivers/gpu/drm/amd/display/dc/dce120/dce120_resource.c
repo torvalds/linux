@@ -494,8 +494,8 @@ static void destruct(struct dce110_resource_pool *pool)
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
 
-	if (pool->base.display_clock != NULL)
-		dce_disp_clk_destroy(&pool->base.display_clock);
+	if (pool->base.dccg != NULL)
+		dce_dccg_destroy(&pool->base.dccg);
 }
 
 static void read_dce_straps(
@@ -894,11 +894,11 @@ static bool construct(
 		}
 	}
 
-	pool->base.display_clock = dce120_disp_clk_create(ctx);
-	if (pool->base.display_clock == NULL) {
+	pool->base.dccg = dce120_dccg_create(ctx);
+	if (pool->base.dccg == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();
-		goto disp_clk_create_fail;
+		goto dccg_create_fail;
 	}
 
 	pool->base.dmcu = dce_dmcu_create(ctx,
@@ -1011,7 +1011,7 @@ static bool construct(
 
 irqs_create_fail:
 controller_create_fail:
-disp_clk_create_fail:
+dccg_create_fail:
 clk_src_create_fail:
 res_create_fail:
 
