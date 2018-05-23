@@ -59,6 +59,7 @@ enum EnumRd {
 	MKK1_MKKA1 = 0x4A,
 	MKK1_MKKA2 = 0x4B,
 	MKK1_MKKC = 0x4C,
+	APL2_FCCA = 0x4D,
 
 	APL3_FCCA = 0x50,
 	APL1_WORLD = 0x52,
@@ -188,6 +189,7 @@ static struct reg_dmn_pair_mapping regDomainPairs[] = {
 	{FCC1_FCCA, CTL_FCC, CTL_FCC},
 	{APL1_WORLD, CTL_FCC, CTL_ETSI},
 	{APL2_WORLD, CTL_FCC, CTL_ETSI},
+	{APL2_FCCA, CTL_FCC, CTL_FCC},
 	{APL3_WORLD, CTL_FCC, CTL_ETSI},
 	{APL4_WORLD, CTL_FCC, CTL_ETSI},
 	{APL5_WORLD, CTL_FCC, CTL_ETSI},
