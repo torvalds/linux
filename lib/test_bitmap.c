@@ -434,23 +434,32 @@ static void noinline __init test_mem_optimisations(void)
 	unsigned int start, nbits;
 
 	for (start = 0; start < 1024; start += 8) {
-		memset(bmap1, 0x5a, sizeof(bmap1));
-		memset(bmap2, 0x5a, sizeof(bmap2));
 		for (nbits = 0; nbits < 1024 - start; nbits += 8) {
+			memset(bmap1, 0x5a, sizeof(bmap1));
+			memset(bmap2, 0x5a, sizeof(bmap2));
+
 			bitmap_set(bmap1, start, nbits);
 			__bitmap_set(bmap2, start, nbits);
-			if (!bitmap_equal(bmap1, bmap2, 1024))
+			if (!bitmap_equal(bmap1, bmap2, 1024)) {
 				printk("set not equal %d %d\n", start, nbits);
-			if (!__bitmap_equal(bmap1, bmap2, 1024))
+				failed_tests++;
+			}
+			if (!__bitmap_equal(bmap1, bmap2, 1024)) {
 				printk("set not __equal %d %d\n", start, nbits);
+				failed_tests++;
+			}
 
 			bitmap_clear(bmap1, start, nbits);
 			__bitmap_clear(bmap2, start, nbits);
-			if (!bitmap_equal(bmap1, bmap2, 1024))
+			if (!bitmap_equal(bmap1, bmap2, 1024)) {
 				printk("clear not equal %d %d\n", start, nbits);
-			if (!__bitmap_equal(bmap1, bmap2, 1024))
+				failed_tests++;
+			}
+			if (!__bitmap_equal(bmap1, bmap2, 1024)) {
 				printk("clear not __equal %d %d\n", start,
 									nbits);
+				failed_tests++;
+			}
 		}
 	}
 }

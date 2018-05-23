@@ -297,7 +297,7 @@ retry:
 	bit_nr = irq->intid % BITS_PER_BYTE;
 	ptr = pendbase + byte_offset;
 
-	ret = kvm_read_guest(kvm, ptr, &val, 1);
+	ret = kvm_read_guest_lock(kvm, ptr, &val, 1);
 	if (ret)
 		return ret;
 
@@ -350,7 +350,7 @@ int vgic_v3_save_pending_tables(struct kvm *kvm)
 		ptr = pendbase + byte_offset;
 
 		if (byte_offset != last_byte_offset) {
-			ret = kvm_read_guest(kvm, ptr, &val, 1);
+			ret = kvm_read_guest_lock(kvm, ptr, &val, 1);
 			if (ret)
 				return ret;
 			last_byte_offset = byte_offset;
