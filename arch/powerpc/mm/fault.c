@@ -80,23 +80,23 @@ static bool store_updates_sp(struct pt_regs *regs)
 		return false;
 	/* check major opcode */
 	switch (inst >> 26) {
-	case 37:	/* stwu */
-	case 39:	/* stbu */
-	case 45:	/* sthu */
-	case 53:	/* stfsu */
-	case 55:	/* stfdu */
+	case OP_STWU:
+	case OP_STBU:
+	case OP_STHU:
+	case OP_STFSU:
+	case OP_STFDU:
 		return true;
-	case 62:	/* std or stdu */
+	case OP_STD:	/* std or stdu */
 		return (inst & 3) == 1;
-	case 31:
+	case OP_31:
 		/* check minor opcode */
 		switch ((inst >> 1) & 0x3ff) {
-		case 181:	/* stdux */
-		case 183:	/* stwux */
-		case 247:	/* stbux */
-		case 439:	/* sthux */
-		case 695:	/* stfsux */
-		case 759:	/* stfdux */
+		case OP_31_XOP_STDUX:
+		case OP_31_XOP_STWUX:
+		case OP_31_XOP_STBUX:
+		case OP_31_XOP_STHUX:
+		case OP_31_XOP_STFSUX:
+		case OP_31_XOP_STFDUX:
 			return true;
 		}
 	}
