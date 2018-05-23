@@ -1202,7 +1202,7 @@ void assert_panel_unlocked(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
 	i915_reg_t pp_reg;
 	u32 val;
-	enum pipe panel_pipe = PIPE_A;
+	enum pipe panel_pipe = INVALID_PIPE;
 	bool locked = true;
 
 	if (WARN_ON(HAS_DDI(dev_priv)))
