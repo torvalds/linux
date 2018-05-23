@@ -492,7 +492,7 @@ static struct country_code_to_enum_rd allCountries[] = {
 	{CTRY_VENEZUELA, APL2_ETSIC, "VE"},
 	{CTRY_VIET_NAM, NULL1_WORLD, "VN"},
 	{CTRY_YEMEN, NULL1_WORLD, "YE"},
-	{CTRY_ZIMBABWE, NULL1_WORLD, "ZW"},
+	{CTRY_ZIMBABWE, ETSI1_WORLD, "ZW"},
 };
 
 #endif
