@@ -2933,7 +2933,6 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	/* bail out if we need to do a full commit */
 	if (btrfs_need_log_full_commit(fs_info, trans)) {
 		ret = -EAGAIN;
-		btrfs_free_logged_extents(log, log_transid);
 		mutex_unlock(&root->log_mutex);
 		goto out;
 	}
@@ -2951,7 +2950,6 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	if (ret) {
 		blk_finish_plug(&plug);
 		btrfs_abort_transaction(trans, ret);
-		btrfs_free_logged_extents(log, log_transid);
 		btrfs_set_log_full_commit(fs_info, trans);
 		mutex_unlock(&root->log_mutex);
 		goto out;
@@ -3002,7 +3000,6 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 			goto out;
 		}
 		btrfs_wait_tree_log_extents(log, mark);
-		btrfs_free_logged_extents(log, log_transid);
 		mutex_unlock(&log_root_tree->log_mutex);
 		ret = -EAGAIN;
 		goto out;
@@ -3020,7 +3017,6 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	if (atomic_read(&log_root_tree->log_commit[index2])) {
 		blk_finish_plug(&plug);
 		ret = btrfs_wait_tree_log_extents(log, mark);
-		btrfs_wait_logged_extents(trans, log, log_transid);
 		wait_log_commit(log_root_tree,
 				root_log_ctx.log_transid);
 		mutex_unlock(&log_root_tree->log_mutex);
@@ -3045,7 +3041,6 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	if (btrfs_need_log_full_commit(fs_info, trans)) {
 		blk_finish_plug(&plug);
 		btrfs_wait_tree_log_extents(log, mark);
-		btrfs_free_logged_extents(log, log_transid);
 		mutex_unlock(&log_root_tree->log_mutex);
 		ret = -EAGAIN;
 		goto out_wake_log_root;
@@ -3058,7 +3053,6 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	if (ret) {
 		btrfs_set_log_full_commit(fs_info, trans);
 		btrfs_abort_transaction(trans, ret);
-		btrfs_free_logged_extents(log, log_transid);
 		mutex_unlock(&log_root_tree->log_mutex);
 		goto out_wake_log_root;
 	}
@@ -3068,11 +3062,9 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 						  EXTENT_NEW | EXTENT_DIRTY);
 	if (ret) {
 		btrfs_set_log_full_commit(fs_info, trans);
-		btrfs_free_logged_extents(log, log_transid);
 		mutex_unlock(&log_root_tree->log_mutex);
 		goto out_wake_log_root;
 	}
-	btrfs_wait_logged_extents(trans, log, log_transid);
 
 	btrfs_set_super_log_root(fs_info->super_for_commit,
 				 log_root_tree->node->start);
@@ -3158,14 +3150,6 @@ static void free_log_tree(struct btrfs_trans_handle *trans,
 		clear_extent_bits(&log->dirty_log_pages, start, end,
 				  EXTENT_DIRTY | EXTENT_NEW | EXTENT_NEED_WAIT);
 	}
-
-	/*
-	 * We may have short-circuited the log tree with the full commit logic
-	 * and left ordered extents on our list, so clear these out to keep us
-	 * from leaking inodes and memory.
-	 */
-	btrfs_free_logged_extents(log, 0);
-	btrfs_free_logged_extents(log, 1);
 
 	free_extent_buffer(log->node);
 	kfree(log);
