@@ -401,18 +401,6 @@ enum iwl_image_response_code {
 };
 
 /**
- * struct iwl_dram_data
- * @physical: page phy pointer
- * @block: pointer to the allocated block/page
- * @size: size of the block/page
- */
-struct iwl_dram_data {
-	dma_addr_t physical;
-	void *block;
-	int size;
-};
-
-/**
  * struct iwl_self_init_dram - dram data used by self init process
  * @fw: lmac and umac dram data
  * @fw_cnt: total number of items in array
@@ -463,9 +451,6 @@ struct iwl_self_init_dram {
  * @reg_lock: protect hw register access
  * @mutex: to protect stop_device / start_fw / start_hw
  * @cmd_in_flight: true when we have a host command in flight
- * @fw_mon_phys: physical address of the buffer for the firmware monitor
- * @fw_mon_cpu_addr: address of the buffer for the firmware monitor
- * @fw_mon_size: size of the buffer for the firmware monitor
  * @msix_entries: array of MSI-X entries
  * @msix_enabled: true if managed to enable MSI-X
  * @shared_vec_mask: the type of causes the shared vector handles
@@ -552,10 +537,6 @@ struct iwl_trans_pcie {
 	spinlock_t reg_lock;
 	bool cmd_hold_nic_awake;
 	bool ref_cmd_in_flight;
-
-	dma_addr_t fw_mon_phys;
-	void *fw_mon_cpu_addr;
-	u32 fw_mon_size;
 
 	struct msix_entry msix_entries[IWL_MAX_RX_HW_QUEUES];
 	bool msix_enabled;

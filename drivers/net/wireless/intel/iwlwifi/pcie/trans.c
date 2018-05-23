@@ -185,44 +185,28 @@ static void iwl_trans_pcie_sw_reset(struct iwl_trans *trans)
 
 static void iwl_pcie_free_fw_monitor(struct iwl_trans *trans)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	int i;
 
-	if (!trans_pcie->fw_mon_cpu_addr)
-		return;
-
-	dma_free_coherent(trans->dev, trans_pcie->fw_mon_size,
-			  trans_pcie->fw_mon_cpu_addr,
-			  trans_pcie->fw_mon_phys);
-	trans_pcie->fw_mon_cpu_addr = NULL;
-	trans_pcie->fw_mon_phys = 0;
-	trans_pcie->fw_mon_size = 0;
+	for (i = 0; i < trans->num_blocks; i++) {
+		dma_free_coherent(trans->dev, trans->fw_mon[i].size,
+				  trans->fw_mon[i].block,
+				  trans->fw_mon[i].physical);
+		trans->fw_mon[i].block = NULL;
+		trans->fw_mon[i].physical = 0;
+		trans->fw_mon[i].size = 0;
+		trans->num_blocks--;
+	}
 }
 
-void iwl_pcie_alloc_fw_monitor(struct iwl_trans *trans, u8 max_power)
+static void iwl_pcie_alloc_fw_monitor_block(struct iwl_trans *trans,
+					    u8 max_power, u8 min_power)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	void *cpu_addr = NULL;
-	dma_addr_t phys;
+	dma_addr_t phys = 0;
 	u32 size = 0;
 	u8 power;
 
-	if (!max_power) {
-		/* default max_power is maximum */
-		max_power = 26;
-	} else {
-		max_power += 11;
-	}
-
-	if (WARN(max_power > 26,
-		 "External buffer size for monitor is too big %d, check the FW TLV\n",
-		 max_power))
-		return;
-
-	if (trans_pcie->fw_mon_cpu_addr)
-		return;
-
-	phys = 0;
-	for (power = max_power; power >= 11; power--) {
+	for (power = max_power; power >= min_power; power--) {
 		size = BIT(power);
 		cpu_addr = dma_alloc_coherent(trans->dev, size, &phys,
 					      GFP_KERNEL | __GFP_NOWARN |
@@ -245,9 +229,34 @@ void iwl_pcie_alloc_fw_monitor(struct iwl_trans *trans, u8 max_power)
 			(unsigned long)BIT(power - 10),
 			(unsigned long)BIT(max_power - 10));
 
-	trans_pcie->fw_mon_cpu_addr = cpu_addr;
-	trans_pcie->fw_mon_phys = phys;
-	trans_pcie->fw_mon_size = size;
+	trans->fw_mon[trans->num_blocks].block = cpu_addr;
+	trans->fw_mon[trans->num_blocks].physical = phys;
+	trans->fw_mon[trans->num_blocks].size = size;
+	trans->num_blocks++;
+}
+
+void iwl_pcie_alloc_fw_monitor(struct iwl_trans *trans, u8 max_power)
+{
+	if (!max_power) {
+		/* default max_power is maximum */
+		max_power = 26;
+	} else {
+		max_power += 11;
+	}
+
+	if (WARN(max_power > 26,
+		 "External buffer size for monitor is too big %d, check the FW TLV\n",
+		 max_power))
+		return;
+
+	/*
+	 * This function allocats the default fw monitor.
+	 * The optional additional ones will be allocated in runtime
+	 */
+	if (trans->num_blocks)
+		return;
+
+	iwl_pcie_alloc_fw_monitor_block(trans, max_power, 11);
 }
 
 static u32 iwl_trans_pcie_read_shr(struct iwl_trans *trans, u32 reg)
@@ -911,7 +920,6 @@ static int iwl_pcie_load_cpu_sections(struct iwl_trans *trans,
 
 void iwl_pcie_apply_destination(struct iwl_trans *trans)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	const struct iwl_fw_dbg_dest_tlv_v1 *dest = trans->dbg_dest_tlv;
 	int i;
 
@@ -962,18 +970,18 @@ void iwl_pcie_apply_destination(struct iwl_trans *trans)
 	}
 
 monitor:
-	if (dest->monitor_mode == EXTERNAL_MODE && trans_pcie->fw_mon_size) {
+	if (dest->monitor_mode == EXTERNAL_MODE && trans->fw_mon[0].size) {
 		iwl_write_prph(trans, le32_to_cpu(dest->base_reg),
-			       trans_pcie->fw_mon_phys >> dest->base_shift);
+			       trans->fw_mon[0].physical >> dest->base_shift);
 		if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_8000)
 			iwl_write_prph(trans, le32_to_cpu(dest->end_reg),
-				       (trans_pcie->fw_mon_phys +
-					trans_pcie->fw_mon_size - 256) >>
+				       (trans->fw_mon[0].physical +
+					trans->fw_mon[0].size - 256) >>
 						dest->end_shift);
 		else
 			iwl_write_prph(trans, le32_to_cpu(dest->end_reg),
-				       (trans_pcie->fw_mon_phys +
-					trans_pcie->fw_mon_size) >>
+				       (trans->fw_mon[0].physical +
+					trans->fw_mon[0].size) >>
 						dest->end_shift);
 	}
 }
@@ -981,7 +989,6 @@ monitor:
 static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 				const struct fw_img *image)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ret = 0;
 	int first_ucode_section;
 
@@ -1011,12 +1018,12 @@ static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 	    trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
 		iwl_pcie_alloc_fw_monitor(trans, 0);
 
-		if (trans_pcie->fw_mon_size) {
+		if (trans->fw_mon[0].size) {
 			iwl_write_prph(trans, MON_BUFF_BASE_ADDR,
-				       trans_pcie->fw_mon_phys >> 4);
+				       trans->fw_mon[0].physical >> 4);
 			iwl_write_prph(trans, MON_BUFF_END_ADDR,
-				       (trans_pcie->fw_mon_phys +
-					trans_pcie->fw_mon_size) >> 4);
+				       (trans->fw_mon[0].physical +
+					trans->fw_mon[0].size) >> 4);
 		}
 	} else if (trans->dbg_dest_tlv) {
 		iwl_pcie_apply_destination(trans);
@@ -2852,10 +2859,9 @@ iwl_trans_pcie_dump_monitor(struct iwl_trans *trans,
 			    struct iwl_fw_error_dump_data **data,
 			    u32 monitor_len)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 len = 0;
 
-	if ((trans_pcie->fw_mon_cpu_addr &&
+	if ((trans->num_blocks &&
 	     trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) ||
 	    trans->dbg_dest_tlv) {
 		struct iwl_fw_error_dump_fw_mon *fw_mon_data;
@@ -2883,12 +2889,12 @@ iwl_trans_pcie_dump_monitor(struct iwl_trans *trans,
 			cpu_to_le32(iwl_read_prph(trans, base));
 
 		len += sizeof(**data) + sizeof(*fw_mon_data);
-		if (trans_pcie->fw_mon_cpu_addr) {
+		if (trans->num_blocks) {
 			memcpy(fw_mon_data->data,
-			       trans_pcie->fw_mon_cpu_addr,
-			       trans_pcie->fw_mon_size);
+			       trans->fw_mon[0].block,
+			       trans->fw_mon[0].size);
 
-			monitor_len = trans_pcie->fw_mon_size;
+			monitor_len = trans->fw_mon[0].size;
 		} else if (trans->dbg_dest_tlv->monitor_mode == SMEM_MODE) {
 			/*
 			 * Update pointers to reflect actual values after
@@ -2926,13 +2932,11 @@ iwl_trans_pcie_dump_monitor(struct iwl_trans *trans,
 
 static int iwl_trans_get_fw_monitor_len(struct iwl_trans *trans, int *len)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-
-	if (trans_pcie->fw_mon_cpu_addr) {
+	if (trans->num_blocks) {
 		*len += sizeof(struct iwl_fw_error_dump_data) +
 			sizeof(struct iwl_fw_error_dump_fw_mon) +
-			trans_pcie->fw_mon_size;
-		return trans_pcie->fw_mon_size;
+			trans->fw_mon[0].size;
+		return trans->fw_mon[0].size;
 	} else if (trans->dbg_dest_tlv) {
 		u32 base, end, cfg_reg, monitor_len;
 
