@@ -177,10 +177,7 @@ static int nft_jhash_map_init(const struct nft_ctx *ctx,
 	priv->map = nft_set_lookup_global(ctx->net, ctx->table,
 					  tb[NFTA_HASH_SET_NAME],
 					  tb[NFTA_HASH_SET_ID], genmask);
-	if (IS_ERR(priv->map))
-		return PTR_ERR(priv->map);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(priv->map);
 }
 
 static int nft_symhash_init(const struct nft_ctx *ctx,
@@ -220,10 +217,7 @@ static int nft_symhash_map_init(const struct nft_ctx *ctx,
 	priv->map = nft_set_lookup_global(ctx->net, ctx->table,
 					  tb[NFTA_HASH_SET_NAME],
 					  tb[NFTA_HASH_SET_ID], genmask);
-	if (IS_ERR(priv->map))
-		return PTR_ERR(priv->map);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(priv->map);
 }
 
 static int nft_jhash_dump(struct sk_buff *skb,
