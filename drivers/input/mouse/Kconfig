@@ -133,6 +133,18 @@ config MOUSE_PS2_ELANTECH
 
 	  If unsure, say N.
 
+config MOUSE_PS2_ELANTECH_SMBUS
+	bool "Elantech PS/2 SMbus companion" if EXPERT
+	default y
+	depends on MOUSE_PS2 && MOUSE_PS2_ELANTECH
+	depends on I2C=y || I2C=MOUSE_PS2
+	select MOUSE_PS2_SMBUS
+	help
+	  Say Y here if you have a Elantech touchpad connected to
+	  to an SMBus, but enumerated through PS/2.
+
+	  If unsure, say Y.
+
 config MOUSE_PS2_SENTELIC
 	bool "Sentelic Finger Sensing Pad PS/2 protocol extension"
 	depends on MOUSE_PS2

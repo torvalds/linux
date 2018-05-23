@@ -237,10 +237,13 @@ int psmouse_smbus_init(struct psmouse *psmouse,
 	smbdev->psmouse = psmouse;
 	smbdev->board = *board;
 
-	smbdev->board.platform_data = kmemdup(pdata, pdata_size, GFP_KERNEL);
-	if (!smbdev->board.platform_data) {
-		kfree(smbdev);
-		return -ENOMEM;
+	if (pdata) {
+		smbdev->board.platform_data = kmemdup(pdata, pdata_size,
+						      GFP_KERNEL);
+		if (!smbdev->board.platform_data) {
+			kfree(smbdev);
+			return -ENOMEM;
+		}
 	}
 
 	psmouse->private = smbdev;

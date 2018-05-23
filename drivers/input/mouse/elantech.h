@@ -107,6 +107,15 @@
 #define ETP_WEIGHT_VALUE		5
 
 /*
+ * Bus information on 3rd byte of query ETP_RESOLUTION_QUERY(0x04)
+ */
+#define ETP_BUS_PS2_ONLY		0
+#define ETP_BUS_SMB_ALERT_ONLY		1
+#define ETP_BUS_SMB_HST_NTFY_ONLY	2
+#define ETP_BUS_PS2_SMB_ALERT		3
+#define ETP_BUS_PS2_SMB_HST_NTFY	4
+
+/*
  * The base position for one finger, v4 hardware
  */
 struct finger_pos {
@@ -122,6 +131,7 @@ struct elantech_device_info {
 	unsigned int fw_version;
 	unsigned int x_res;
 	unsigned int y_res;
+	unsigned int bus;
 	bool paritycheck;
 	bool jumpy_cursor;
 	bool reports_pressure;
@@ -156,6 +166,7 @@ struct elantech_data {
 
 #ifdef CONFIG_MOUSE_PS2_ELANTECH
 int elantech_detect(struct psmouse *psmouse, bool set_properties);
+int elantech_init_ps2(struct psmouse *psmouse);
 int elantech_init(struct psmouse *psmouse);
 #else
 static inline int elantech_detect(struct psmouse *psmouse, bool set_properties)
@@ -166,6 +177,19 @@ static inline int elantech_init(struct psmouse *psmouse)
 {
 	return -ENOSYS;
 }
+static inline int elantech_init_ps2(struct psmouse *psmouse)
+{
+	return -ENOSYS;
+}
 #endif /* CONFIG_MOUSE_PS2_ELANTECH */
+
+#if defined(CONFIG_MOUSE_PS2_ELANTECH_SMBUS)
+int elantech_init_smbus(struct psmouse *psmouse);
+#else
+static inline int elantech_init_smbus(struct psmouse *psmouse)
+{
+	return -ENOSYS;
+}
+#endif /* CONFIG_MOUSE_PS2_ELANTECH_SMBUS */
 
 #endif

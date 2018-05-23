@@ -14,13 +14,16 @@
 #include <linux/dmi.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
+#include <linux/platform_device.h>
 #include <linux/serio.h>
 #include <linux/libps2.h>
 #include <asm/unaligned.h>
 #include "psmouse.h"
 #include "elantech.h"
+#include "elan_i2c.h"
 
 #define elantech_debug(fmt, ...)					\
 	do {								\
@@ -1084,7 +1087,8 @@ static unsigned int elantech_convert_res(unsigned int val)
 
 static int elantech_get_resolution_v4(struct psmouse *psmouse,
 				      unsigned int *x_res,
-				      unsigned int *y_res)
+				      unsigned int *y_res,
+				      unsigned int *bus)
 {
 	unsigned char param[3];
 
@@ -1093,6 +1097,7 @@ static int elantech_get_resolution_v4(struct psmouse *psmouse,
 
 	*x_res = elantech_convert_res(param[1] & 0x0f);
 	*y_res = elantech_convert_res((param[1] & 0xf0) >> 4);
+	*bus = param[2];
 
 	return 0;
 }
@@ -1474,6 +1479,12 @@ static void elantech_disconnect(struct psmouse *psmouse)
 {
 	struct elantech_data *etd = psmouse->private;
 
+	/*
+	 * We might have left a breadcrumb when trying to
+	 * set up SMbus companion.
+	 */
+	psmouse_smbus_cleanup(psmouse);
+
 	if (etd->tp_dev)
 		input_unregister_device(etd->tp_dev);
 	sysfs_remove_group(&psmouse->ps2dev.serio->dev.kobj,
@@ -1659,6 +1670,8 @@ static int elantech_query_info(struct psmouse *psmouse,
 {
 	unsigned char param[3];
 
+	memset(info, 0, sizeof(*info));
+
 	/*
 	 * Do the version query again so we can store the result
 	 */
@@ -1717,7 +1730,8 @@ static int elantech_query_info(struct psmouse *psmouse,
 	if (info->hw_version == 4) {
 		if (elantech_get_resolution_v4(psmouse,
 					       &info->x_res,
-					       &info->y_res)) {
+					       &info->y_res,
+					       &info->bus)) {
 			psmouse_warn(psmouse,
 				     "failed to query resolution data.\n");
 		}
@@ -1725,6 +1739,129 @@ static int elantech_query_info(struct psmouse *psmouse,
 
 	return 0;
 }
+
+#if defined(CONFIG_MOUSE_PS2_ELANTECH_SMBUS)
+
+/*
+ * The newest Elantech device can use a secondary bus (over SMBus) which
+ * provides a better bandwidth and allow a better control of the touchpads.
+ * This is used to decide if we need to use this bus or not.
+ */
+enum {
+	ELANTECH_SMBUS_NOT_SET = -1,
+	ELANTECH_SMBUS_OFF,
+	ELANTECH_SMBUS_ON,
+};
+
+static int elantech_smbus = IS_ENABLED(CONFIG_MOUSE_ELAN_I2C_SMBUS) ?
+		ELANTECH_SMBUS_NOT_SET : ELANTECH_SMBUS_OFF;
+module_param_named(elantech_smbus, elantech_smbus, int, 0644);
+MODULE_PARM_DESC(elantech_smbus, "Use a secondary bus for the Elantech device.");
+
+static int elantech_create_smbus(struct psmouse *psmouse,
+				 struct elantech_device_info *info,
+				 bool leave_breadcrumbs)
+{
+	const struct property_entry i2c_properties[] = {
+		PROPERTY_ENTRY_BOOL("elan,trackpoint"),
+		{ },
+	};
+	struct i2c_board_info smbus_board = {
+		I2C_BOARD_INFO("elan_i2c", 0x15),
+		.flags = I2C_CLIENT_HOST_NOTIFY,
+	};
+
+	if (info->has_trackpoint)
+		smbus_board.properties = i2c_properties;
+
+	return psmouse_smbus_init(psmouse, &smbus_board, NULL, 0,
+				  leave_breadcrumbs);
+}
+
+/**
+ * elantech_setup_smbus - called once the PS/2 devices are enumerated
+ * and decides to instantiate a SMBus InterTouch device.
+ */
+static int elantech_setup_smbus(struct psmouse *psmouse,
+				struct elantech_device_info *info,
+				bool leave_breadcrumbs)
+{
+	int error;
+
+	if (elantech_smbus == ELANTECH_SMBUS_OFF)
+		return -ENXIO;
+
+	if (elantech_smbus == ELANTECH_SMBUS_NOT_SET) {
+		/*
+		 * FIXME:
+		 * constraint the I2C capable devices by using FW version,
+		 * board version, or by using DMI matching
+		 */
+		return -ENXIO;
+	}
+
+	psmouse_info(psmouse, "Trying to set up SMBus access\n");
+
+	error = elantech_create_smbus(psmouse, info, leave_breadcrumbs);
+	if (error) {
+		if (error == -EAGAIN)
+			psmouse_info(psmouse, "SMbus companion is not ready yet\n");
+		else
+			psmouse_err(psmouse, "unable to create intertouch device\n");
+
+		return error;
+	}
+
+	return 0;
+}
+
+static bool elantech_use_host_notify(struct psmouse *psmouse,
+				     struct elantech_device_info *info)
+{
+	switch (info->bus) {
+	case ETP_BUS_PS2_ONLY:
+		/* expected case */
+		break;
+	case ETP_BUS_SMB_ALERT_ONLY:
+		/* fall-through  */
+	case ETP_BUS_PS2_SMB_ALERT:
+		psmouse_dbg(psmouse, "Ignoring SMBus provider through alert protocol.\n");
+		break;
+	case ETP_BUS_SMB_HST_NTFY_ONLY:
+		/* fall-through  */
+	case ETP_BUS_PS2_SMB_HST_NTFY:
+		return true;
+	default:
+		psmouse_dbg(psmouse,
+			    "Ignoring SMBus bus provider %d.\n",
+			    info->bus);
+	}
+
+	return false;
+}
+
+int elantech_init_smbus(struct psmouse *psmouse)
+{
+	struct elantech_device_info info;
+	int error = -EINVAL;
+
+	psmouse_reset(psmouse);
+
+	error = elantech_query_info(psmouse, &info);
+	if (error)
+		goto init_fail;
+
+	if (info.hw_version < 4) {
+		error = -ENXIO;
+		goto init_fail;
+	}
+
+	return elantech_create_smbus(psmouse, &info, false);
+ init_fail:
+	psmouse_reset(psmouse);
+	return error;
+}
+#endif /* CONFIG_MOUSE_PS2_ELANTECH_SMBUS */
 
 /*
  * Initialize the touchpad and create sysfs entries
@@ -1734,7 +1871,7 @@ static int elantech_setup_ps2(struct psmouse *psmouse,
 {
 	struct elantech_data *etd;
 	int i;
-	int error;
+	int error = -EINVAL;
 	struct input_dev *tp_dev;
 
 	psmouse->private = etd = kzalloc(sizeof(*etd), GFP_KERNEL);
@@ -1821,7 +1958,7 @@ static int elantech_setup_ps2(struct psmouse *psmouse,
 	return error;
 }
 
-int elantech_init(struct psmouse *psmouse)
+int elantech_init_ps2(struct psmouse *psmouse)
 {
 	struct elantech_device_info info;
 	int error = -EINVAL;
@@ -1837,6 +1974,49 @@ int elantech_init(struct psmouse *psmouse)
 		goto init_fail;
 
 	return 0;
+ init_fail:
+	psmouse_reset(psmouse);
+	return error;
+}
+
+int elantech_init(struct psmouse *psmouse)
+{
+	struct elantech_device_info info;
+	int error = -EINVAL;
+
+	psmouse_reset(psmouse);
+
+	error = elantech_query_info(psmouse, &info);
+	if (error)
+		goto init_fail;
+
+#if defined(CONFIG_MOUSE_PS2_ELANTECH_SMBUS)
+
+	if (elantech_use_host_notify(psmouse, &info)) {
+		if (!IS_ENABLED(CONFIG_MOUSE_ELAN_I2C_SMBUS) ||
+		    !IS_ENABLED(CONFIG_MOUSE_PS2_ELANTECH_SMBUS)) {
+			psmouse_warn(psmouse,
+				     "The touchpad can support a better bus than the too old PS/2 protocol. "
+				     "Make sure MOUSE_PS2_ELANTECH_SMBUS and MOUSE_ELAN_I2C_SMBUS are enabled to get a better touchpad experience.\n");
+		}
+		error = elantech_setup_smbus(psmouse, &info, true);
+		if (!error)
+			return PSMOUSE_ELANTECH_SMBUS;
+	}
+
+#endif /* CONFIG_MOUSE_PS2_ELANTECH_SMBUS */
+
+	error = elantech_setup_ps2(psmouse, &info);
+	if (error < 0) {
+		/*
+		 * Not using any flavor of Elantech support, so clean up
+		 * SMbus breadcrumbs, if any.
+		 */
+		psmouse_smbus_cleanup(psmouse);
+		goto init_fail;
+	}
+
+	return PSMOUSE_ELANTECH;
  init_fail:
 	psmouse_reset(psmouse);
 	return error;
