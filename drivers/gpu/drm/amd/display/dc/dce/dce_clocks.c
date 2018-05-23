@@ -275,7 +275,7 @@ static int dce_clocks_get_dp_ref_freq_wrkaround(struct display_clock *clk)
 }
 static enum dm_pp_clocks_state dce_get_required_clocks_state(
 	struct display_clock *clk,
-	struct state_dependent_clocks *req_clocks)
+	struct dc_clocks *req_clocks)
 {
 	struct dce_disp_clk *clk_dce = TO_DCE_CLOCKS(clk);
 	int i;
@@ -286,46 +286,23 @@ static enum dm_pp_clocks_state dce_get_required_clocks_state(
 	 * all required clocks
 	 */
 	for (i = clk->max_clks_state; i >= DM_PP_CLOCKS_STATE_ULTRA_LOW; i--)
-		if (req_clocks->display_clk_khz >
+		if (req_clocks->dispclk_khz >
 				clk_dce->max_clks_by_state[i].display_clk_khz
-			|| req_clocks->pixel_clk_khz >
+			|| req_clocks->phyclk_khz >
 				clk_dce->max_clks_by_state[i].pixel_clk_khz)
 			break;
 
 	low_req_clk = i + 1;
 	if (low_req_clk > clk->max_clks_state) {
-		DC_LOG_WARNING("%s: clocks unsupported disp_clk %d pix_clk %d",
-				__func__,
-				req_clocks->display_clk_khz,
-				req_clocks->pixel_clk_khz);
-		low_req_clk = DM_PP_CLOCKS_STATE_INVALID;
+		/* set max clock state for high phyclock, invalid on exceeding display clock */
+		if (clk_dce->max_clks_by_state[clk->max_clks_state].display_clk_khz
+				< req_clocks->dispclk_khz)
+			low_req_clk = DM_PP_CLOCKS_STATE_INVALID;
+		else
+			low_req_clk = clk->max_clks_state;
 	}
 
 	return low_req_clk;
-}
-
-static bool dce_clock_set_min_clocks_state(
-	struct display_clock *clk,
-	enum dm_pp_clocks_state clocks_state)
-{
-	struct dm_pp_power_level_change_request level_change_req = {
-			clocks_state };
-
-	if (clocks_state > clk->max_clks_state) {
-		/*Requested state exceeds max supported state.*/
-		DC_LOG_WARNING("Requested state exceeds max supported state");
-		return false;
-	} else if (clocks_state == clk->cur_min_clks_state) {
-		/*if we're trying to set the same state, we can just return
-		 * since nothing needs to be done*/
-		return true;
-	}
-
-	/* get max clock state from PPLIB */
-	if (dm_pp_apply_power_level_change_request(clk->ctx, &level_change_req))
-		clk->cur_min_clks_state = clocks_state;
-
-	return true;
 }
 
 static int dce_set_clock(
@@ -488,8 +465,6 @@ static void dce_clock_read_integrated_info(struct dce_disp_clk *clk_dce)
 	if (!debug->disable_dfs_bypass && bp->integrated_info)
 		if (bp->integrated_info->gpu_cap_info & DFS_BYPASS_ENABLE)
 			clk_dce->dfs_bypass_enabled = true;
-
-	clk_dce->use_max_disp_clk = debug->max_disp_clk;
 }
 
 static void dce_clock_read_ss_info(struct dce_disp_clk *clk_dce)
@@ -548,117 +523,160 @@ static void dce_clock_read_ss_info(struct dce_disp_clk *clk_dce)
 	}
 }
 
-static bool dce_apply_clock_voltage_request(
-	struct display_clock *clk,
-	enum dm_pp_clock_type clocks_type,
-	int clocks_in_khz,
-	bool pre_mode_set,
-	bool update_dp_phyclk)
+static void dce12_update_clocks(struct display_clock *dccg,
+			struct dc_clocks *new_clocks,
+			bool safe_to_lower)
 {
-	bool send_request = false;
 	struct dm_pp_clock_for_voltage_req clock_voltage_req = {0};
 
-	switch (clocks_type) {
-	case DM_PP_CLOCK_TYPE_DISPLAY_CLK:
-	case DM_PP_CLOCK_TYPE_DISPLAYPHYCLK:
-		break;
-	default:
-		return false;
+	if ((new_clocks->dispclk_khz < dccg->clks.dispclk_khz && safe_to_lower)
+			|| new_clocks->dispclk_khz > dccg->clks.dispclk_khz) {
+		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DISPLAY_CLK;
+		clock_voltage_req.clocks_in_khz = new_clocks->dispclk_khz;
+		dccg->funcs->set_dispclk(dccg, new_clocks->dispclk_khz);
+		dccg->clks.dispclk_khz = new_clocks->dispclk_khz;
+
+		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
 	}
 
-	clock_voltage_req.clk_type = clocks_type;
-	clock_voltage_req.clocks_in_khz = clocks_in_khz;
+	if ((new_clocks->phyclk_khz < dccg->clks.phyclk_khz && safe_to_lower)
+			|| new_clocks->phyclk_khz > dccg->clks.phyclk_khz) {
+		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DISPLAYPHYCLK;
+		clock_voltage_req.clocks_in_khz = new_clocks->phyclk_khz;
+		dccg->clks.phyclk_khz = new_clocks->phyclk_khz;
 
-	/* to pplib */
-	if (pre_mode_set) {
-		switch (clocks_type) {
-		case DM_PP_CLOCK_TYPE_DISPLAY_CLK:
-			if (clocks_in_khz > clk->clks.dispclk_khz) {
-				clk->dispclk_notify_pplib_done = true;
-				send_request = true;
-			} else
-				clk->dispclk_notify_pplib_done = false;
-			/* no matter incrase or decrase clock, update current clock value */
-			clk->clks.dispclk_khz = clocks_in_khz;
-			break;
-		case DM_PP_CLOCK_TYPE_DISPLAYPHYCLK:
-			if (clocks_in_khz > clk->clks.phyclk_khz) {
-				clk->phyclk_notify_pplib_done = true;
-				send_request = true;
-			} else
-				clk->phyclk_notify_pplib_done = false;
-			/* no matter incrase or decrase clock, update current clock value */
-			clk->clks.phyclk_khz = clocks_in_khz;
-			break;
-		default:
-			ASSERT(0);
-			break;
-		}
-
-	} else {
-		switch (clocks_type) {
-		case DM_PP_CLOCK_TYPE_DISPLAY_CLK:
-			if (!clk->dispclk_notify_pplib_done)
-				send_request = true;
-			clk->dispclk_notify_pplib_done = true;
-			break;
-		case DM_PP_CLOCK_TYPE_DISPLAYPHYCLK:
-			if (!clk->phyclk_notify_pplib_done)
-				send_request = true;
-			clk->phyclk_notify_pplib_done = true;
-			break;
-		default:
-			ASSERT(0);
-			break;
-		}
+		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
 	}
-	if (send_request) {
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-		if (clk->ctx->dce_version >= DCN_VERSION_1_0
-		) {
-			struct dc *core_dc = clk->ctx->dc;
-			/*use dcfclk request voltage*/
-			clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
-			clock_voltage_req.clocks_in_khz =
-				dcn_find_dcfclk_suits_all(core_dc, &clk->clks);
-		}
-#endif
-		dm_pp_apply_clock_for_voltage_request(
-			clk->ctx, &clock_voltage_req);
-	}
-	if (update_dp_phyclk && (clocks_in_khz >
-	clk->clks.phyclk_khz))
-		clk->clks.phyclk_khz = clocks_in_khz;
-
-	return true;
 }
 
+static void dcn_update_clocks(struct display_clock *dccg,
+			struct dc_clocks *new_clocks,
+			bool safe_to_lower)
+{
+	struct dm_pp_clock_for_voltage_req clock_voltage_req = {0};
+	bool send_request_to_increase = false;
+	bool send_request_to_lower = false;
+
+	if (new_clocks->dispclk_khz > dccg->clks.dispclk_khz
+			|| new_clocks->phyclk_khz > dccg->clks.phyclk_khz
+			|| new_clocks->fclk_khz > dccg->clks.fclk_khz
+			|| new_clocks->dcfclk_khz > dccg->clks.dcfclk_khz)
+		send_request_to_increase = true;
+
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+	if (send_request_to_increase
+		) {
+		struct dc *core_dc = dccg->ctx->dc;
+
+		/*use dcfclk to request voltage*/
+		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
+		clock_voltage_req.clocks_in_khz = dcn_find_dcfclk_suits_all(core_dc, new_clocks);
+		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
+	}
+#endif
+
+	if ((new_clocks->dispclk_khz < dccg->clks.dispclk_khz && safe_to_lower)
+			|| new_clocks->dispclk_khz > dccg->clks.dispclk_khz) {
+		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DISPLAY_CLK;
+		clock_voltage_req.clocks_in_khz = new_clocks->dispclk_khz;
+		/* TODO: ramp up - dccg->funcs->set_dispclk(dccg, new_clocks->dispclk_khz);*/
+		dccg->clks.dispclk_khz = new_clocks->dispclk_khz;
+
+		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
+		send_request_to_lower = true;
+	}
+
+	if ((new_clocks->phyclk_khz < dccg->clks.phyclk_khz && safe_to_lower)
+			|| new_clocks->phyclk_khz > dccg->clks.phyclk_khz) {
+		dccg->clks.phyclk_khz = new_clocks->phyclk_khz;
+		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DISPLAYPHYCLK;
+		clock_voltage_req.clocks_in_khz = new_clocks->phyclk_khz;
+
+		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
+		send_request_to_lower = true;
+	}
+
+	if ((new_clocks->fclk_khz < dccg->clks.fclk_khz && safe_to_lower)
+			|| new_clocks->fclk_khz > dccg->clks.fclk_khz) {
+		dccg->clks.phyclk_khz = new_clocks->fclk_khz;
+		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_FCLK;
+		clock_voltage_req.clocks_in_khz = new_clocks->fclk_khz;
+
+		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
+		send_request_to_lower = true;
+	}
+
+	if ((new_clocks->dcfclk_khz < dccg->clks.dcfclk_khz && safe_to_lower)
+			|| new_clocks->dcfclk_khz > dccg->clks.dcfclk_khz) {
+		dccg->clks.phyclk_khz = new_clocks->dcfclk_khz;
+		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
+		clock_voltage_req.clocks_in_khz = new_clocks->dcfclk_khz;
+
+		send_request_to_lower = true;
+	}
+
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+	if (!send_request_to_increase && send_request_to_lower
+		) {
+		struct dc *core_dc = dccg->ctx->dc;
+
+		/*use dcfclk to request voltage*/
+		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
+		clock_voltage_req.clocks_in_khz = dcn_find_dcfclk_suits_all(core_dc, new_clocks);
+		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
+	}
+#endif
+}
+
+static void dce_update_clocks(struct display_clock *dccg,
+			struct dc_clocks *new_clocks,
+			bool safe_to_lower)
+{
+	struct dm_pp_power_level_change_request level_change_req;
+
+	level_change_req.power_level = dce_get_required_clocks_state(dccg, new_clocks);
+	/* get max clock state from PPLIB */
+	if ((level_change_req.power_level < dccg->cur_min_clks_state && safe_to_lower)
+			|| level_change_req.power_level > dccg->cur_min_clks_state) {
+		if (dm_pp_apply_power_level_change_request(dccg->ctx, &level_change_req))
+			dccg->cur_min_clks_state = level_change_req.power_level;
+	}
+
+	if ((new_clocks->dispclk_khz < dccg->clks.dispclk_khz && safe_to_lower)
+			|| new_clocks->dispclk_khz > dccg->clks.dispclk_khz) {
+		dccg->funcs->set_dispclk(dccg, new_clocks->dispclk_khz);
+		dccg->clks.dispclk_khz = new_clocks->dispclk_khz;
+	}
+}
+
+static const struct display_clock_funcs dcn_funcs = {
+	.get_dp_ref_clk_frequency = dce_clocks_get_dp_ref_freq_wrkaround,
+	.set_dispclk = dce112_set_clock,
+	.update_clocks = dcn_update_clocks
+};
 
 static const struct display_clock_funcs dce120_funcs = {
 	.get_dp_ref_clk_frequency = dce_clocks_get_dp_ref_freq_wrkaround,
-	.apply_clock_voltage_request = dce_apply_clock_voltage_request,
-	.set_clock = dce112_set_clock
+	.set_dispclk = dce112_set_clock,
+	.update_clocks = dce12_update_clocks
 };
 
 static const struct display_clock_funcs dce112_funcs = {
 	.get_dp_ref_clk_frequency = dce_clocks_get_dp_ref_freq,
-	.get_required_clocks_state = dce_get_required_clocks_state,
-	.set_min_clocks_state = dce_clock_set_min_clocks_state,
-	.set_clock = dce112_set_clock
+	.set_dispclk = dce112_set_clock,
+	.update_clocks = dce_update_clocks
 };
 
 static const struct display_clock_funcs dce110_funcs = {
 	.get_dp_ref_clk_frequency = dce_clocks_get_dp_ref_freq,
-	.get_required_clocks_state = dce_get_required_clocks_state,
-	.set_min_clocks_state = dce_clock_set_min_clocks_state,
-	.set_clock = dce_psr_set_clock
+	.set_dispclk = dce_psr_set_clock,
+	.update_clocks = dce_update_clocks
 };
 
 static const struct display_clock_funcs dce_funcs = {
 	.get_dp_ref_clk_frequency = dce_clocks_get_dp_ref_freq,
-	.get_required_clocks_state = dce_get_required_clocks_state,
-	.set_min_clocks_state = dce_clock_set_min_clocks_state,
-	.set_clock = dce_set_clock
+	.set_dispclk = dce_set_clock,
+	.update_clocks = dce_update_clocks
 };
 
 static void dce_disp_clk_construct(
@@ -785,7 +803,6 @@ struct display_clock *dce112_disp_clk_create(
 struct display_clock *dce120_disp_clk_create(struct dc_context *ctx)
 {
 	struct dce_disp_clk *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
-	struct dm_pp_clock_levels_with_voltage clk_level_info = {0};
 
 	if (clk_dce == NULL) {
 		BREAK_TO_DEBUGGER();
@@ -801,15 +818,23 @@ struct display_clock *dce120_disp_clk_create(struct dc_context *ctx)
 
 	clk_dce->base.funcs = &dce120_funcs;
 
-	/* new in dce120 */
-	if (!ctx->dc->debug.disable_pplib_clock_request  &&
-			dm_pp_get_clock_levels_by_type_with_voltage(
-			ctx, DM_PP_CLOCK_TYPE_DISPLAY_CLK, &clk_level_info)
-						&& clk_level_info.num_levels)
-		clk_dce->max_displ_clk_in_khz =
-			clk_level_info.data[clk_level_info.num_levels - 1].clocks_in_khz;
-	else
-		clk_dce->max_displ_clk_in_khz = 1133000;
+	return &clk_dce->base;
+}
+
+struct display_clock *dcn_disp_clk_create(struct dc_context *ctx)
+{
+	struct dce_disp_clk *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
+
+	if (clk_dce == NULL) {
+		BREAK_TO_DEBUGGER();
+		return NULL;
+	}
+
+	/* TODO strip out useful stuff out of dce constructor */
+	dce_disp_clk_construct(
+		clk_dce, ctx, NULL, NULL, NULL);
+
+	clk_dce->base.funcs = &dcn_funcs;
 
 	return &clk_dce->base;
 }

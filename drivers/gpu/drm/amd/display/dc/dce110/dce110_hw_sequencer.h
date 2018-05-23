@@ -60,6 +60,10 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context);
 
 void dce110_power_down(struct dc *dc);
 
+void dce110_set_safe_displaymarks(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool);
+
 void dce110_fill_display_configs(
 	const struct dc_state *context,
 	struct dm_pp_display_configuration *pp_display_cfg);

@@ -40,32 +40,19 @@ struct display_clock {
 	struct dc_context *ctx;
 	const struct display_clock_funcs *funcs;
 
-	bool dispclk_notify_pplib_done;
-	bool phyclk_notify_pplib_done;
 	enum dm_pp_clocks_state max_clks_state;
 	enum dm_pp_clocks_state cur_min_clks_state;
 	struct dc_clocks clks;
 };
 
 struct display_clock_funcs {
-	int (*set_clock)(struct display_clock *disp_clk,
+	void (*update_clocks)(struct display_clock *dccg,
+			struct dc_clocks *new_clocks,
+			bool safe_to_lower);
+	int (*set_dispclk)(struct display_clock *disp_clk,
 		int requested_clock_khz);
 
-	enum dm_pp_clocks_state (*get_required_clocks_state)(
-		struct display_clock *disp_clk,
-		struct state_dependent_clocks *req_clocks);
-
-	bool (*set_min_clocks_state)(struct display_clock *disp_clk,
-		enum dm_pp_clocks_state dm_pp_clocks_state);
-
 	int (*get_dp_ref_clk_frequency)(struct display_clock *disp_clk);
-
-	bool (*apply_clock_voltage_request)(
-		struct display_clock *disp_clk,
-		enum dm_pp_clock_type clocks_type,
-		int clocks_in_khz,
-		bool pre_mode_set,
-		bool update_dp_phyclk);
 };
 
 #endif /* __DISPLAY_CLOCK_H__ */

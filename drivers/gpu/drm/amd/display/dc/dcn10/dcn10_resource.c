@@ -1072,7 +1072,7 @@ static bool construct(
 		}
 	}
 
-	pool->base.display_clock = dce120_disp_clk_create(ctx);
+	pool->base.display_clock = dcn_disp_clk_create(ctx);
 	if (pool->base.display_clock == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();

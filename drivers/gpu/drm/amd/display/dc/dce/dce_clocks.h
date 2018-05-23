@@ -91,7 +91,6 @@ struct dce_disp_clk {
 	struct state_dependent_clocks max_clks_by_state[DM_PP_CLOCKS_MAX_STATES];
 	struct dce_divider_range divider_ranges[DIVIDER_RANGE_MAX];
 
-	bool use_max_disp_clk;
 	int dentist_vco_freq_khz;
 
 	/* Cache the status of DFS-bypass feature*/
@@ -106,9 +105,6 @@ struct dce_disp_clk {
 	int dprefclk_ss_percentage;
 	/* DPREFCLK SS percentage Divider (100 or 1000) */
 	int dprefclk_ss_divider;
-
-	/* max disp_clk from PPLIB for max validation display clock*/
-	int max_displ_clk_in_khz;
 };
 
 
@@ -131,6 +127,8 @@ struct display_clock *dce112_disp_clk_create(
 	const struct dce_disp_clk_mask *clk_mask);
 
 struct display_clock *dce120_disp_clk_create(struct dc_context *ctx);
+
+struct display_clock *dcn_disp_clk_create(struct dc_context *ctx);
 
 void dce_disp_clk_destroy(struct display_clock **disp_clk);
 

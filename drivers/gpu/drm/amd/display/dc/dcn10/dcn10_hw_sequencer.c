@@ -2424,7 +2424,7 @@ static void ramp_up_dispclk_with_dpp(struct dc *dc, struct dc_state *context)
 	int dispclk_to_dpp_threshold = determine_dppclk_threshold(dc, context);
 
 	/* set disp clk to dpp clk threshold */
-	dc->res_pool->display_clock->funcs->set_clock(
+	dc->res_pool->display_clock->funcs->set_dispclk(
 			dc->res_pool->display_clock,
 			dispclk_to_dpp_threshold);
 
@@ -2443,7 +2443,7 @@ static void ramp_up_dispclk_with_dpp(struct dc *dc, struct dc_state *context)
 
 	/* If target clk not same as dppclk threshold, set to target clock */
 	if (dispclk_to_dpp_threshold != context->bw.dcn.calc_clk.dispclk_khz) {
-		dc->res_pool->display_clock->funcs->set_clock(
+		dc->res_pool->display_clock->funcs->set_dispclk(
 				dc->res_pool->display_clock,
 				context->bw.dcn.calc_clk.dispclk_khz);
 	}
@@ -2472,6 +2472,11 @@ static void dcn10_set_bandwidth(
 
 	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
 		return;
+
+	dc->res_pool->display_clock->funcs->update_clocks(
+			dc->res_pool->display_clock,
+			&context->bw.dcn.calc_clk,
+			decrease_allowed);
 
 	if (should_set_clock(
 			decrease_allowed,
