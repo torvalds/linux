@@ -1980,16 +1980,16 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	void __user *argp = (void __user *)arg;
 	long r;
 
-	vcpu_load(vcpu);
-
 	switch (ioctl) {
 	case KVM_ENABLE_CAP:
 	{
 		struct kvm_enable_cap cap;
 		r = -EFAULT;
+		vcpu_load(vcpu);
 		if (copy_from_user(&cap, argp, sizeof(cap)))
 			goto out;
 		r = kvm_vcpu_ioctl_enable_cap(vcpu, &cap);
+		vcpu_put(vcpu);
 		break;
 	}
 
@@ -1998,12 +1998,14 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	{
 		struct kvm_one_reg reg;
 		r = -EFAULT;
+		vcpu_load(vcpu);
 		if (copy_from_user(&reg, argp, sizeof(reg)))
 			goto out;
 		if (ioctl == KVM_SET_ONE_REG)
 			r = kvm_vcpu_ioctl_set_one_reg(vcpu, &reg);
 		else
 			r = kvm_vcpu_ioctl_get_one_reg(vcpu, &reg);
+		vcpu_put(vcpu);
 		break;
 	}
 
@@ -2011,9 +2013,11 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	case KVM_DIRTY_TLB: {
 		struct kvm_dirty_tlb dirty;
 		r = -EFAULT;
+		vcpu_load(vcpu);
 		if (copy_from_user(&dirty, argp, sizeof(dirty)))
 			goto out;
 		r = kvm_vcpu_ioctl_dirty_tlb(vcpu, &dirty);
+		vcpu_put(vcpu);
 		break;
 	}
 #endif
@@ -2022,7 +2026,6 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	}
 
 out:
-	vcpu_put(vcpu);
 	return r;
 }
 
