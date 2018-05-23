@@ -778,6 +778,16 @@ static int xmon_fault_handler(struct pt_regs *regs)
 	return 0;
 }
 
+/* Force enable xmon if not already enabled */
+static inline void force_enable_xmon(void)
+{
+	/* Enable xmon hooks if needed */
+	if (!xmon_on) {
+		printf("xmon: Enabling debugger hooks\n");
+		xmon_on = 1;
+	}
+}
+
 static struct bpt *at_breakpoint(unsigned long pc)
 {
 	int i;
@@ -1094,6 +1104,7 @@ static int do_step(struct pt_regs *regs)
 	unsigned int instr;
 	int stepped;
 
+	force_enable_xmon();
 	/* check we are in 64-bit kernel mode, translation enabled */
 	if ((regs->msr & (MSR_64BIT|MSR_PR|MSR_IR)) == (MSR_64BIT|MSR_IR)) {
 		if (mread(regs->nip, &instr, 4) == 4) {
@@ -1266,16 +1277,6 @@ static long check_bp_loc(unsigned long addr)
 		return 0;
 	}
 	return 1;
-}
-
-/* Force enable xmon if not already enabled */
-static inline void force_enable_xmon(void)
-{
-	/* Enable xmon hooks if needed */
-	if (!xmon_on) {
-		printf("xmon: Enabling debugger hooks\n");
-		xmon_on = 1;
-	}
 }
 
 static char *breakpoint_help_string =
