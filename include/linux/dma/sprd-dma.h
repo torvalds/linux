@@ -3,6 +3,10 @@
 #ifndef _SPRD_DMA_H_
 #define _SPRD_DMA_H_
 
+#define SPRD_DMA_REQ_SHIFT 16
+#define SPRD_DMA_FLAGS(req_mode, int_type) \
+	((req_mode) << SPRD_DMA_REQ_SHIFT | (int_type))
+
 /*
  * enum sprd_dma_req_mode: define the DMA request mode
  * @SPRD_DMA_FRAG_REQ: fragment request mode
