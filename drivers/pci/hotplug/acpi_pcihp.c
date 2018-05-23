@@ -63,11 +63,10 @@ static acpi_status acpi_run_oshp(acpi_handle handle)
 /**
  * acpi_get_hp_hw_control_from_firmware
  * @dev: the pci_dev of the bridge that has a hotplug controller
- * @flags: requested control bits for _OSC
  *
  * Attempt to take hotplug control from firmware.
  */
-int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev, u32 flags)
+int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev)
 {
 	const struct pci_host_bridge *host;
 	const struct acpi_pci_root *root;
