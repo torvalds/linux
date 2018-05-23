@@ -397,7 +397,7 @@ static inline u32 scaler_get_int_status(struct scaler_context *scaler)
 	return scaler_read(SCALER_INT_STATUS);
 }
 
-static inline bool scaler_task_done(u32 val)
+static inline int scaler_task_done(u32 val)
 {
 	return val & SCALER_INT_STATUS_FRAME_END ? 0 : -EINVAL;
 }
