@@ -1247,7 +1247,7 @@ static void snd_mixer_oss_proc_init(struct snd_mixer_oss *mixer)
 	if (! entry)
 		return;
 	entry->content = SNDRV_INFO_CONTENT_TEXT;
-	entry->mode = S_IFREG | S_IRUGO | S_IWUSR;
+	entry->mode = S_IFREG | 0644;
 	entry->c.text.read = snd_mixer_oss_proc_read;
 	entry->c.text.write = snd_mixer_oss_proc_write;
 	entry->private_data = mixer;
