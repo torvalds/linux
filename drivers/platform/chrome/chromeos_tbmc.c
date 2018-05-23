@@ -1,25 +1,8 @@
-/*
- * chromeos_tbmc - Driver to detect Tablet Mode for ChromeOS convertible.
- *
- * Copyright 2017 Google, Inc
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * On Chromebook using ACPI, this device listens for notification
- * from GOOG0006 and issue method TBMC to retrieve the status.
- *
- * GOOG0006 issues the notification when it receives EC_HOST_EVENT_MODE_CHANGE
- * from the EC.
- * Method TBMC reads EC_ACPI_MEM_DEVICE_ORIENTATION byte from the shared
- * memory region.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// Driver to detect Tablet Mode for ChromeOS convertible.
+//
+// Copyright (C) 2017 Google, Inc.
+// Author: Gwendal Grignou <gwendal@chromium.org>
 
 #include <linux/acpi.h>
 #include <linux/input.h>
