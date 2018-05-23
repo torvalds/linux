@@ -336,7 +336,7 @@ static void hsw_psr_setup_aux(struct intel_dp *intel_dp)
 	aux_clock_divider = intel_dp->get_aux_clock_divider(intel_dp, 0);
 
 	/* Start with bits set for DDI_AUX_CTL register */
-	aux_ctl = intel_dp->get_aux_send_ctl(intel_dp, 0, sizeof(aux_msg),
+	aux_ctl = intel_dp->get_aux_send_ctl(intel_dp, sizeof(aux_msg),
 					     aux_clock_divider);
 
 	/* Select only valid bits for SRD_AUX_CTL */

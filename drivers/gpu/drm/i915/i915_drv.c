@@ -1165,6 +1165,12 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	 * get lost on g4x as well, and interrupt delivery seems to stay
 	 * properly dead afterwards. So we'll just disable them for all
 	 * pre-gen5 chipsets.
+	 *
+	 * dp aux and gmbus irq on gen4 seems to be able to generate legacy
+	 * interrupts even when in MSI mode. This results in spurious
+	 * interrupt warnings if the legacy irq no. is shared with another
+	 * device. The kernel then disables that interrupt source and so
+	 * prevents the other device from working properly.
 	 */
 	if (INTEL_GEN(dev_priv) >= 5) {
 		if (pci_enable_msi(pdev) < 0)

@@ -1132,7 +1132,6 @@ struct intel_dp {
 	 * register with to kick off an AUX transaction.
 	 */
 	uint32_t (*get_aux_send_ctl)(struct intel_dp *dp,
-				     bool has_aux_irq,
 				     int send_bytes,
 				     uint32_t aux_clock_divider);
 
