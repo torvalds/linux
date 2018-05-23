@@ -174,16 +174,40 @@ static void ssusb_set_mailbox(struct otg_switch_mtk *otg_sx,
 	}
 }
 
+static void ssusb_id_work(struct work_struct *work)
+{
+	struct otg_switch_mtk *otg_sx =
+		container_of(work, struct otg_switch_mtk, id_work);
+
+	if (otg_sx->id_event)
+		ssusb_set_mailbox(otg_sx, MTU3_ID_GROUND);
+	else
+		ssusb_set_mailbox(otg_sx, MTU3_ID_FLOAT);
+}
+
+static void ssusb_vbus_work(struct work_struct *work)
+{
+	struct otg_switch_mtk *otg_sx =
+		container_of(work, struct otg_switch_mtk, vbus_work);
+
+	if (otg_sx->vbus_event)
+		ssusb_set_mailbox(otg_sx, MTU3_VBUS_VALID);
+	else
+		ssusb_set_mailbox(otg_sx, MTU3_VBUS_OFF);
+}
+
+/*
+ * @ssusb_id_notifier is called in atomic context, but @ssusb_set_mailbox
+ * may sleep, so use work queue here
+ */
 static int ssusb_id_notifier(struct notifier_block *nb,
 	unsigned long event, void *ptr)
 {
 	struct otg_switch_mtk *otg_sx =
 		container_of(nb, struct otg_switch_mtk, id_nb);
 
-	if (event)
-		ssusb_set_mailbox(otg_sx, MTU3_ID_GROUND);
-	else
-		ssusb_set_mailbox(otg_sx, MTU3_ID_FLOAT);
+	otg_sx->id_event = event;
+	schedule_work(&otg_sx->id_work);
 
 	return NOTIFY_DONE;
 }
@@ -194,10 +218,8 @@ static int ssusb_vbus_notifier(struct notifier_block *nb,
 	struct otg_switch_mtk *otg_sx =
 		container_of(nb, struct otg_switch_mtk, vbus_nb);
 
-	if (event)
-		ssusb_set_mailbox(otg_sx, MTU3_VBUS_VALID);
-	else
-		ssusb_set_mailbox(otg_sx, MTU3_VBUS_OFF);
+	otg_sx->vbus_event = event;
+	schedule_work(&otg_sx->vbus_work);
 
 	return NOTIFY_DONE;
 }
@@ -398,6 +420,9 @@ int ssusb_otg_switch_init(struct ssusb_mtk *ssusb)
 {
 	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
 
+	INIT_WORK(&otg_sx->id_work, ssusb_id_work);
+	INIT_WORK(&otg_sx->vbus_work, ssusb_vbus_work);
+
 	if (otg_sx->manual_drd_enabled)
 		ssusb_debugfs_init(ssusb);
 	else
@@ -412,4 +437,7 @@ void ssusb_otg_switch_exit(struct ssusb_mtk *ssusb)
 
 	if (otg_sx->manual_drd_enabled)
 		ssusb_debugfs_exit(ssusb);
+
+	cancel_work_sync(&otg_sx->id_work);
+	cancel_work_sync(&otg_sx->vbus_work);
 }
