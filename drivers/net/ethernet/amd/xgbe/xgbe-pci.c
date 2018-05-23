@@ -344,7 +344,7 @@ static int xgbe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (netif_msg_probe(pdata)) {
 		dev_dbg(dev, "max tx/rx channel count = %u/%u\n",
 			pdata->tx_max_channel_count,
-			pdata->tx_max_channel_count);
+			pdata->rx_max_channel_count);
 		dev_dbg(dev, "max tx/rx hw queue count = %u/%u\n",
 			pdata->tx_max_q_count, pdata->rx_max_q_count);
 	}
