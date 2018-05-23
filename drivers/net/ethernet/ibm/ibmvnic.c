@@ -789,6 +789,7 @@ static void release_napi(struct ibmvnic_adapter *adapter)
 	kfree(adapter->napi);
 	adapter->napi = NULL;
 	adapter->num_active_rx_napi = 0;
+	adapter->napi_enabled = false;
 }
 
 static int ibmvnic_login(struct net_device *netdev)
