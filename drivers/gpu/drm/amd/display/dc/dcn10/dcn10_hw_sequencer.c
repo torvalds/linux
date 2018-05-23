@@ -2268,8 +2268,7 @@ static void dcn10_apply_ctx_for_surface(
 			hwss1_plane_atomic_disconnect(dc, old_pipe_ctx);
 			removed_pipe[i] = true;
 
-			DC_LOG_DC(
-					"Reset mpcc for pipe %d\n",
+			DC_LOG_DC("Reset mpcc for pipe %d\n",
 					old_pipe_ctx->pipe_idx);
 		}
 	}
@@ -2365,9 +2364,8 @@ static void dcn10_set_bandwidth(
 		struct dc_state *context,
 		bool decrease_allowed)
 {
-	if (dc->debug.sanity_checks) {
+	if (dc->debug.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
-	}
 
 	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
 		return;
@@ -2382,11 +2380,8 @@ static void dcn10_set_bandwidth(
 
 	dcn10_pplib_apply_display_requirements(dc, context);
 
-	if (dc->debug.sanity_checks) {
+	if (dc->debug.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
-	}
-
-	/* need to fix this function.  not doing the right thing here */
 }
 
 static void set_drr(struct pipe_ctx **pipe_ctx,

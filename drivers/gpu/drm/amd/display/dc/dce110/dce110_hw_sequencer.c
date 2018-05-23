@@ -2036,8 +2036,6 @@ enum dc_status dce110_apply_ctx_to_hw(
 	if (dc->fbc_compressor)
 		dc->fbc_compressor->funcs->disable_fbc(dc->fbc_compressor);
 
-	dc->hwss.set_bandwidth(dc, context, false);
-
 	dce110_setup_audio_dto(dc, context);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -2065,9 +2063,6 @@ enum dc_status dce110_apply_ctx_to_hw(
 		if (DC_OK != status)
 			return status;
 	}
-
-	/* to save power */
-	dc->hwss.set_bandwidth(dc, context, true);
 
 	dcb->funcs->set_scratch_critical_state(dcb, false);
 
