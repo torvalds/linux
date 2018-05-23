@@ -707,7 +707,7 @@ static int tc358749xbg_s_ext_ctrls(
 	/* Handles only exposure and gain together special case. */
 	if (ctrls->count == 1)
 		ret = tc358749xbg_s_ctrl(cam_mod, ctrls->ctrls[0].id);
-	else if ((ctrls->count == 3) &&
+	else if ((ctrls->count >= 3) &&
 		 (ctrls->ctrls[0].id == V4L2_CID_GAIN ||
 		  ctrls->ctrls[0].id == V4L2_CID_EXPOSURE ||
 		  ctrls->ctrls[1].id == V4L2_CID_GAIN ||

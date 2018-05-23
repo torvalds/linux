@@ -374,7 +374,7 @@ static int ov7675_s_ext_ctrls(struct ov_camera_module *cam_mod,
 	/* Handles only exposure and gain together special case. */
 	if (ctrls->count == 1)
 		ret = ov7675_s_ctrl(cam_mod, ctrls->ctrls[0].id);
-	else if ((ctrls->count == 3) &&
+	else if ((ctrls->count >= 3) &&
 		 ((ctrls->ctrls[0].id == V4L2_CID_GAIN &&
 		   ctrls->ctrls[1].id == V4L2_CID_EXPOSURE) ||
 		  (ctrls->ctrls[1].id == V4L2_CID_GAIN &&

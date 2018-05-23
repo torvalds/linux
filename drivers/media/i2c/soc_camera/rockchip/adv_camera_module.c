@@ -740,6 +740,10 @@ int adv_camera_module_s_ext_ctrls(
 			"V4L2_CID_EXPOSURE %d\n",
 			ctrl->value);
 			break;
+		case RK_V4L2_CID_VTS:
+			ctrl_updt = ADV_CAMERA_MODULE_CTRL_UPDT_VTS_VALUE;
+			cam_mod->exp_config.vts_value = ctrl->value;
+			break;
 		case V4L2_CID_WHITE_BALANCE_TEMPERATURE:
 			ctrl_updt = ADV_CAMERA_MODULE_CTRL_UPDT_WB_TEMPERATURE;
 			cam_mod->wb_config.temperature = ctrl->value;

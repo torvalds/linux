@@ -398,6 +398,33 @@ static int ov7750_auto_adjust_fps(struct ov_camera_module *cam_mod,
 	return ret;
 }
 
+static int ov7750_set_vts(struct ov_camera_module *cam_mod,
+	u32 vts)
+{
+	int ret = 0;
+
+	if (vts < cam_mod->vts_min)
+		return ret;
+
+	if (vts > 0xfff)
+		vts = 0xfff;
+
+	ret = ov_camera_module_write_reg(cam_mod,
+		ov7750_TIMING_VTS_LOW_REG,
+		vts & 0xFF);
+	ret |= ov_camera_module_write_reg(cam_mod,
+		ov7750_TIMING_VTS_HIGH_REG,
+		(vts >> 8) & 0xFF);
+
+	if (IS_ERR_VALUE(ret)) {
+		ov_camera_module_pr_err(cam_mod, "failed with error (%d)\n", ret);
+	} else {
+		ov_camera_module_pr_info(cam_mod, "updated vts=%d,vts_min=%d\n", vts, cam_mod->vts_min);
+		cam_mod->vts_cur = vts;
+	}
+	return ret;
+}
+
 static int ov7750_write_aec(struct ov_camera_module *cam_mod)
 {
 	int ret = 0;
@@ -443,6 +470,8 @@ static int ov7750_write_aec(struct ov_camera_module *cam_mod)
 		ret |= ov_camera_module_write_reg(cam_mod,
 			ov7750_AEC_PK_LONG_EXPO_1ST_REG,
 			ov7750_FETCH_1ST_BYTE_EXP(exp_time));
+		if (!cam_mod->auto_adjust_fps)
+			ret |= ov7750_set_vts(cam_mod, cam_mod->exp_config.vts_value);
 		if (cam_mod->state == OV_CAMERA_MODULE_STREAMING) {
 			ret = ov_camera_module_write_reg(cam_mod,
 				ov7750_AEC_GROUP_UPDATE_ADDRESS,
@@ -709,7 +738,7 @@ static int ov7750_s_ext_ctrls(struct ov_camera_module *cam_mod,
 	/* Handles only exposure and gain together special case. */
 	if (ctrls->count == 1)
 		ret = ov7750_s_ctrl(cam_mod, ctrls->ctrls[0].id);
-	else if ((ctrls->count == 3) &&
+	else if ((ctrls->count >= 3) &&
 		 ((ctrls->ctrls[0].id == V4L2_CID_GAIN &&
 		   ctrls->ctrls[1].id == V4L2_CID_EXPOSURE) ||
 		  (ctrls->ctrls[1].id == V4L2_CID_GAIN &&

@@ -42,6 +42,7 @@
 #define APTINA_CAMERA_MODULE_CTRL_UPDT_AUTO_EXP 0x20
 #define APTINA_CAMERA_MODULE_CTRL_UPDT_FOCUS_ABSOLUTE 0x40
 #define APTINA_CAMERA_MODULE_CTRL_UPDT_PRESET_WB 0x80
+#define APTINA_CAMERA_MODULE_CTRL_UPDT_VTS_VALUE 0x100
 
 enum aptina_camera_module_state {
 	APTINA_CAMERA_MODULE_POWER_OFF = 0,
@@ -97,6 +98,7 @@ struct aptina_camera_module_exp_config {
 	u16 gain_percent;
 	bool auto_gain;
 	enum v4l2_flash_led_mode flash_mode;
+	u32 vts_value;
 };
 
 struct aptina_camera_module_wb_config {
