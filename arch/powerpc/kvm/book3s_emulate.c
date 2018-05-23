@@ -117,11 +117,28 @@ int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	case 19:
 		switch (get_xop(inst)) {
 		case OP_19_XOP_RFID:
-		case OP_19_XOP_RFI:
+		case OP_19_XOP_RFI: {
+			unsigned long srr1 = kvmppc_get_srr1(vcpu);
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+			unsigned long cur_msr = kvmppc_get_msr(vcpu);
+
+			/*
+			 * add rules to fit in ISA specification regarding TM
+			 * state transistion in TM disable/Suspended state,
+			 * and target TM state is TM inactive(00) state. (the
+			 * change should be suppressed).
+			 */
+			if (((cur_msr & MSR_TM) == 0) &&
+				((srr1 & MSR_TM) == 0) &&
+				MSR_TM_SUSPENDED(cur_msr) &&
+				!MSR_TM_ACTIVE(srr1))
+				srr1 |= MSR_TS_S;
+#endif
 			kvmppc_set_pc(vcpu, kvmppc_get_srr0(vcpu));
-			kvmppc_set_msr(vcpu, kvmppc_get_srr1(vcpu));
+			kvmppc_set_msr(vcpu, srr1);
 			*advance = 0;
 			break;
+		}
 
 		default:
 			emulated = EMULATE_FAIL;
