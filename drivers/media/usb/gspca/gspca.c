@@ -472,13 +472,20 @@ static void destroy_urbs(struct gspca_dev *gspca_dev)
 	unsigned int i;
 
 	gspca_dbg(gspca_dev, D_STREAM, "kill transfer\n");
+
+	/* Killing all URBs guarantee that no URB completion
+	 * handler is running. Therefore, there shouldn't
+	 * be anyone trying to access gspca_dev->urb[i]
+	 */
+	for (i = 0; i < MAX_NURBS; i++)
+		usb_kill_urb(gspca_dev->urb[i]);
+
+	gspca_dbg(gspca_dev, D_STREAM, "releasing urbs\n");
 	for (i = 0; i < MAX_NURBS; i++) {
 		urb = gspca_dev->urb[i];
-		if (urb == NULL)
-			break;
-
+		if (!urb)
+			continue;
 		gspca_dev->urb[i] = NULL;
-		usb_kill_urb(urb);
 		usb_free_coherent(gspca_dev->dev,
 				  urb->transfer_buffer_length,
 				  urb->transfer_buffer,
