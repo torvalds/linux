@@ -199,7 +199,7 @@ static void kvmppc_emulate_trchkpt(struct kvm_vcpu *vcpu)
 }
 
 /* emulate tabort. at guest privilege state */
-static void kvmppc_emulate_tabort(struct kvm_vcpu *vcpu, int ra_val)
+void kvmppc_emulate_tabort(struct kvm_vcpu *vcpu, int ra_val)
 {
 	/* currently we only emulate tabort. but no emulation of other
 	 * tabort variants since there is no kernel usage of them at

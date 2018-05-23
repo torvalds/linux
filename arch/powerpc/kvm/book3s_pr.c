@@ -446,12 +446,23 @@ static void kvm_set_spte_hva_pr(struct kvm *kvm, unsigned long hva, pte_t pte)
 
 static void kvmppc_set_msr_pr(struct kvm_vcpu *vcpu, u64 msr)
 {
-	ulong old_msr = kvmppc_get_msr(vcpu);
+	ulong old_msr;
 
 #ifdef EXIT_DEBUG
 	printk(KERN_INFO "KVM: Set MSR to 0x%llx\n", msr);
 #endif
 
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	/* We should never target guest MSR to TS=10 && PR=0,
+	 * since we always fail transaction for guest privilege
+	 * state.
+	 */
+	if (!(msr & MSR_PR) && MSR_TM_TRANSACTIONAL(msr))
+		kvmppc_emulate_tabort(vcpu,
+			TM_CAUSE_KVM_FAC_UNAV | TM_CAUSE_PERSISTENT);
+#endif
+
+	old_msr = kvmppc_get_msr(vcpu);
 	msr &= to_book3s(vcpu)->msr_mask;
 	kvmppc_set_msr_fast(vcpu, msr);
 	kvmppc_recalc_shadow_msr(vcpu);
