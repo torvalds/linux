@@ -182,10 +182,36 @@ void kvmppc_copy_to_svcpu(struct kvm_vcpu *vcpu)
 	svcpu_put(svcpu);
 }
 
+static void kvmppc_recalc_shadow_msr(struct kvm_vcpu *vcpu)
+{
+	ulong guest_msr = kvmppc_get_msr(vcpu);
+	ulong smsr = guest_msr;
+
+	/* Guest MSR values */
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	smsr &= MSR_FE0 | MSR_FE1 | MSR_SF | MSR_SE | MSR_BE | MSR_LE |
+		MSR_TM | MSR_TS_MASK;
+#else
+	smsr &= MSR_FE0 | MSR_FE1 | MSR_SF | MSR_SE | MSR_BE | MSR_LE;
+#endif
+	/* Process MSR values */
+	smsr |= MSR_ME | MSR_RI | MSR_IR | MSR_DR | MSR_PR | MSR_EE;
+	/* External providers the guest reserved */
+	smsr |= (guest_msr & vcpu->arch.guest_owned_ext);
+	/* 64-bit Process MSR values */
+#ifdef CONFIG_PPC_BOOK3S_64
+	smsr |= MSR_ISF | MSR_HV;
+#endif
+	vcpu->arch.shadow_msr = smsr;
+}
+
 /* Copy data touched by real-mode code from shadow vcpu back to vcpu */
 void kvmppc_copy_from_svcpu(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	ulong old_msr;
+#endif
 
 	/*
 	 * Maybe we were already preempted and synced the svcpu from
@@ -228,6 +254,30 @@ void kvmppc_copy_from_svcpu(struct kvm_vcpu *vcpu)
 	to_book3s(vcpu)->vtb += get_vtb() - vcpu->arch.entry_vtb;
 	if (cpu_has_feature(CPU_FTR_ARCH_207S))
 		vcpu->arch.ic += mfspr(SPRN_IC) - vcpu->arch.entry_ic;
+
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	/*
+	 * Unlike other MSR bits, MSR[TS]bits can be changed at guest without
+	 * notifying host:
+	 *  modified by unprivileged instructions like "tbegin"/"tend"/
+	 * "tresume"/"tsuspend" in PR KVM guest.
+	 *
+	 * It is necessary to sync here to calculate a correct shadow_msr.
+	 *
+	 * privileged guest's tbegin will be failed at present. So we
+	 * only take care of problem state guest.
+	 */
+	old_msr = kvmppc_get_msr(vcpu);
+	if (unlikely((old_msr & MSR_PR) &&
+		(vcpu->arch.shadow_srr1 & (MSR_TS_MASK)) !=
+				(old_msr & (MSR_TS_MASK)))) {
+		old_msr &= ~(MSR_TS_MASK);
+		old_msr |= (vcpu->arch.shadow_srr1 & (MSR_TS_MASK));
+		kvmppc_set_msr_fast(vcpu, old_msr);
+		kvmppc_recalc_shadow_msr(vcpu);
+	}
+#endif
+
 	svcpu->in_use = false;
 
 out:
@@ -305,29 +355,6 @@ static void kvm_set_spte_hva_pr(struct kvm *kvm, unsigned long hva, pte_t pte)
 }
 
 /*****************************************/
-
-static void kvmppc_recalc_shadow_msr(struct kvm_vcpu *vcpu)
-{
-	ulong guest_msr = kvmppc_get_msr(vcpu);
-	ulong smsr = guest_msr;
-
-	/* Guest MSR values */
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	smsr &= MSR_FE0 | MSR_FE1 | MSR_SF | MSR_SE | MSR_BE | MSR_LE |
-		MSR_TM | MSR_TS_MASK;
-#else
-	smsr &= MSR_FE0 | MSR_FE1 | MSR_SF | MSR_SE | MSR_BE | MSR_LE;
-#endif
-	/* Process MSR values */
-	smsr |= MSR_ME | MSR_RI | MSR_IR | MSR_DR | MSR_PR | MSR_EE;
-	/* External providers the guest reserved */
-	smsr |= (guest_msr & vcpu->arch.guest_owned_ext);
-	/* 64-bit Process MSR values */
-#ifdef CONFIG_PPC_BOOK3S_64
-	smsr |= MSR_ISF | MSR_HV;
-#endif
-	vcpu->arch.shadow_msr = smsr;
-}
 
 static void kvmppc_set_msr_pr(struct kvm_vcpu *vcpu, u64 msr)
 {
