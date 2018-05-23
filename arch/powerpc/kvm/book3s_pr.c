@@ -43,6 +43,7 @@
 #include <linux/module.h>
 #include <linux/miscdevice.h>
 #include <asm/asm-prototypes.h>
+#include <asm/tm.h>
 
 #include "book3s.h"
 
@@ -115,6 +116,8 @@ static void kvmppc_core_vcpu_load_pr(struct kvm_vcpu *vcpu, int cpu)
 
 	if (kvmppc_is_split_real(vcpu))
 		kvmppc_fixup_split_real(vcpu);
+
+	kvmppc_restore_tm_pr(vcpu);
 }
 
 static void kvmppc_core_vcpu_put_pr(struct kvm_vcpu *vcpu)
@@ -134,6 +137,7 @@ static void kvmppc_core_vcpu_put_pr(struct kvm_vcpu *vcpu)
 
 	kvmppc_giveup_ext(vcpu, MSR_FP | MSR_VEC | MSR_VSX);
 	kvmppc_giveup_fac(vcpu, FSCR_TAR_LG);
+	kvmppc_save_tm_pr(vcpu);
 
 	/* Enable AIL if supported */
 	if (cpu_has_feature(CPU_FTR_HVMODE) &&
@@ -304,6 +308,29 @@ static inline void kvmppc_restore_tm_sprs(struct kvm_vcpu *vcpu)
 	tm_disable();
 }
 
+void kvmppc_save_tm_pr(struct kvm_vcpu *vcpu)
+{
+	if (!(MSR_TM_ACTIVE(kvmppc_get_msr(vcpu)))) {
+		kvmppc_save_tm_sprs(vcpu);
+		return;
+	}
+
+	preempt_disable();
+	_kvmppc_save_tm_pr(vcpu, mfmsr());
+	preempt_enable();
+}
+
+void kvmppc_restore_tm_pr(struct kvm_vcpu *vcpu)
+{
+	if (!MSR_TM_ACTIVE(kvmppc_get_msr(vcpu))) {
+		kvmppc_restore_tm_sprs(vcpu);
+		return;
+	}
+
+	preempt_disable();
+	_kvmppc_restore_tm_pr(vcpu, kvmppc_get_msr(vcpu));
+	preempt_enable();
+}
 #endif
 
 static int kvmppc_core_check_requests_pr(struct kvm_vcpu *vcpu)
