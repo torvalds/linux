@@ -299,7 +299,7 @@ static struct reg_dmn_pair_mapping regDomainPairs[] = {
 static struct country_code_to_enum_rd allCountries[] = {
 	{CTRY_DEBUG, NO_ENUMRD, "DB"},
 	{CTRY_DEFAULT, FCC1_FCCA, "CO"},
-	{CTRY_ALBANIA, NULL1_WORLD, "AL"},
+	{CTRY_ALBANIA, ETSI1_WORLD, "AL"},
 	{CTRY_ALGERIA, NULL1_WORLD, "DZ"},
 	{CTRY_ARGENTINA, FCC3_WORLD, "AR"},
 	{CTRY_ARMENIA, ETSI4_WORLD, "AM"},
