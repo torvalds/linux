@@ -860,6 +860,9 @@ static bool xgbe_phy_finisar_phy_quirks(struct xgbe_prv_data *pdata)
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 	unsigned int phy_id = phy_data->phydev->phy_id;
 
+	if (phy_data->port_mode != XGBE_PORT_MODE_SFP)
+		return false;
+
 	if ((phy_id & 0xfffffff0) != 0x01ff0cc0)
 		return false;
 
@@ -885,8 +888,80 @@ static bool xgbe_phy_finisar_phy_quirks(struct xgbe_prv_data *pdata)
 	return true;
 }
 
+static bool xgbe_phy_belfuse_phy_quirks(struct xgbe_prv_data *pdata)
+{
+	struct xgbe_phy_data *phy_data = pdata->phy_data;
+	struct xgbe_sfp_eeprom *sfp_eeprom = &phy_data->sfp_eeprom;
+	unsigned int phy_id = phy_data->phydev->phy_id;
+	int reg;
+
+	if (phy_data->port_mode != XGBE_PORT_MODE_SFP)
+		return false;
+
+	if (memcmp(&sfp_eeprom->base[XGBE_SFP_BASE_VENDOR_NAME],
+		   XGBE_BEL_FUSE_VENDOR, XGBE_SFP_BASE_VENDOR_NAME_LEN))
+		return false;
+
+	if (memcmp(&sfp_eeprom->base[XGBE_SFP_BASE_VENDOR_PN],
+		   XGBE_BEL_FUSE_PARTNO, XGBE_SFP_BASE_VENDOR_PN_LEN))
+		return false;
+
+	if ((phy_id & 0xfffffff0) != 0x03625d10)
+		return false;
+
+	/* Disable RGMII mode */
+	phy_write(phy_data->phydev, 0x18, 0x7007);
+	reg = phy_read(phy_data->phydev, 0x18);
+	phy_write(phy_data->phydev, 0x18, reg & ~0x0080);
+
+	/* Enable fiber register bank */
+	phy_write(phy_data->phydev, 0x1c, 0x7c00);
+	reg = phy_read(phy_data->phydev, 0x1c);
+	reg &= 0x03ff;
+	reg &= ~0x0001;
+	phy_write(phy_data->phydev, 0x1c, 0x8000 | 0x7c00 | reg | 0x0001);
+
+	/* Power down SerDes */
+	reg = phy_read(phy_data->phydev, 0x00);
+	phy_write(phy_data->phydev, 0x00, reg | 0x00800);
+
+	/* Configure SGMII-to-Copper mode */
+	phy_write(phy_data->phydev, 0x1c, 0x7c00);
+	reg = phy_read(phy_data->phydev, 0x1c);
+	reg &= 0x03ff;
+	reg &= ~0x0006;
+	phy_write(phy_data->phydev, 0x1c, 0x8000 | 0x7c00 | reg | 0x0004);
+
+	/* Power up SerDes */
+	reg = phy_read(phy_data->phydev, 0x00);
+	phy_write(phy_data->phydev, 0x00, reg & ~0x00800);
+
+	/* Enable copper register bank */
+	phy_write(phy_data->phydev, 0x1c, 0x7c00);
+	reg = phy_read(phy_data->phydev, 0x1c);
+	reg &= 0x03ff;
+	reg &= ~0x0001;
+	phy_write(phy_data->phydev, 0x1c, 0x8000 | 0x7c00 | reg);
+
+	/* Power up SerDes */
+	reg = phy_read(phy_data->phydev, 0x00);
+	phy_write(phy_data->phydev, 0x00, reg & ~0x00800);
+
+	phy_data->phydev->supported = PHY_GBIT_FEATURES;
+	phy_data->phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+	phy_data->phydev->advertising = phy_data->phydev->supported;
+
+	netif_dbg(pdata, drv, pdata->netdev,
+		  "BelFuse PHY quirk in place\n");
+
+	return true;
+}
+
 static void xgbe_phy_external_phy_quirks(struct xgbe_prv_data *pdata)
 {
+	if (xgbe_phy_belfuse_phy_quirks(pdata))
+		return;
+
 	if (xgbe_phy_finisar_phy_quirks(pdata))
 		return;
 }
@@ -1027,37 +1102,6 @@ static bool xgbe_phy_check_sfp_mod_absent(struct xgbe_phy_data *phy_data)
 	return false;
 }
 
-static bool xgbe_phy_belfuse_parse_quirks(struct xgbe_prv_data *pdata)
-{
-	struct xgbe_phy_data *phy_data = pdata->phy_data;
-	struct xgbe_sfp_eeprom *sfp_eeprom = &phy_data->sfp_eeprom;
-
-	if (memcmp(&sfp_eeprom->base[XGBE_SFP_BASE_VENDOR_NAME],
-		   XGBE_BEL_FUSE_VENDOR, XGBE_SFP_BASE_VENDOR_NAME_LEN))
-		return false;
-
-	if (!memcmp(&sfp_eeprom->base[XGBE_SFP_BASE_VENDOR_PN],
-		    XGBE_BEL_FUSE_PARTNO, XGBE_SFP_BASE_VENDOR_PN_LEN)) {
-		phy_data->sfp_base = XGBE_SFP_BASE_1000_SX;
-		phy_data->sfp_cable = XGBE_SFP_CABLE_ACTIVE;
-		phy_data->sfp_speed = XGBE_SFP_SPEED_1000;
-		if (phy_data->sfp_changed)
-			netif_dbg(pdata, drv, pdata->netdev,
-				  "Bel-Fuse SFP quirk in place\n");
-		return true;
-	}
-
-	return false;
-}
-
-static bool xgbe_phy_sfp_parse_quirks(struct xgbe_prv_data *pdata)
-{
-	if (xgbe_phy_belfuse_parse_quirks(pdata))
-		return true;
-
-	return false;
-}
-
 static void xgbe_phy_sfp_parse_eeprom(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
@@ -1075,9 +1119,6 @@ static void xgbe_phy_sfp_parse_eeprom(struct xgbe_prv_data *pdata)
 	/* Update transceiver signals (eeprom extd/options) */
 	phy_data->sfp_tx_fault = xgbe_phy_check_sfp_tx_fault(phy_data);
 	phy_data->sfp_rx_los = xgbe_phy_check_sfp_rx_los(phy_data);
-
-	if (xgbe_phy_sfp_parse_quirks(pdata))
-		return;
 
 	/* Assume ACTIVE cable unless told it is PASSIVE */
 	if (sfp_base[XGBE_SFP_BASE_CABLE] & XGBE_SFP_BASE_CABLE_PASSIVE) {
