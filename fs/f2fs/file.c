@@ -352,7 +352,7 @@ static bool __found_offset(block_t blkaddr, pgoff_t dirty, pgoff_t pgofs,
 	switch (whence) {
 	case SEEK_DATA:
 		if ((blkaddr == NEW_ADDR && dirty == pgofs) ||
-			(blkaddr != NEW_ADDR && blkaddr != NULL_ADDR))
+			is_valid_blkaddr(blkaddr))
 			return true;
 		break;
 	case SEEK_HOLE:
