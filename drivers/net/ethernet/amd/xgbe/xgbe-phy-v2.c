@@ -1720,6 +1720,10 @@ static void xgbe_phy_an_advertising(struct xgbe_prv_data *pdata,
 	XGBE_CLR_ADV(dlks, 1000baseKX_Full);
 	XGBE_CLR_ADV(dlks, 10000baseKR_Full);
 
+	/* Advertise FEC support is present */
+	if (pdata->fec_ability & MDIO_PMA_10GBR_FECABLE_ABLE)
+		XGBE_SET_ADV(dlks, 10000baseR_FEC);
+
 	switch (phy_data->port_mode) {
 	case XGBE_PORT_MODE_BACKPLANE:
 		XGBE_SET_ADV(dlks, 10000baseKR_Full);
