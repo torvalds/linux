@@ -63,10 +63,6 @@
 
 #define	P80211_FRMMETA_MAGIC	0x802110
 
-#define P80211SKB_RXMETA(s) \
-	(p80211skb_frmmeta((s)) ?  p80211skb_frmmeta((s))->rx : \
-		((struct p80211_rxmeta *)(NULL)))
-
 struct p80211_rxmeta {
 	struct wlandevice *wlandev;
 
@@ -97,6 +93,13 @@ static inline struct p80211_frmmeta *p80211skb_frmmeta(struct sk_buff *skb)
 	struct p80211_frmmeta *frmmeta = (struct p80211_frmmeta *)skb->cb;
 
 	return frmmeta->magic == P80211_FRMMETA_MAGIC ? frmmeta : NULL;
+}
+
+static inline struct p80211_rxmeta *p80211skb_rxmeta(struct sk_buff *skb)
+{
+	struct p80211_frmmeta *frmmeta = p80211skb_frmmeta(skb);
+
+	return frmmeta ? frmmeta->rx : NULL;
 }
 
 /*

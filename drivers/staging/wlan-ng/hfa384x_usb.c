@@ -3417,7 +3417,7 @@ static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb)
 
 		/* Attach the rxmeta, set some stuff */
 		p80211skb_rxmeta_attach(wlandev, skb);
-		rxmeta = P80211SKB_RXMETA(skb);
+		rxmeta = p80211skb_rxmeta(skb);
 		rxmeta->mactime = usbin->rxfrm.desc.time;
 		rxmeta->rxrate = usbin->rxfrm.desc.rate;
 		rxmeta->signal = usbin->rxfrm.desc.signal - hw->dbmadjust;
