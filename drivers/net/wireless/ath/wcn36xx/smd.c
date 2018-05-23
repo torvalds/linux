@@ -252,23 +252,29 @@ static int wcn36xx_smd_send_and_wait(struct wcn36xx *wcn, size_t len)
 {
 	int ret = 0;
 	unsigned long start;
+	struct wcn36xx_hal_msg_header *hdr =
+		(struct wcn36xx_hal_msg_header *)wcn->hal_buf;
+	u16 req_type = hdr->msg_type;
+
 	wcn36xx_dbg_dump(WCN36XX_DBG_SMD_DUMP, "HAL >>> ", wcn->hal_buf, len);
 
 	init_completion(&wcn->hal_rsp_compl);
 	start = jiffies;
 	ret = rpmsg_send(wcn->smd_channel, wcn->hal_buf, len);
 	if (ret) {
-		wcn36xx_err("HAL TX failed\n");
+		wcn36xx_err("HAL TX failed for req %d\n", req_type);
 		goto out;
 	}
 	if (wait_for_completion_timeout(&wcn->hal_rsp_compl,
 		msecs_to_jiffies(HAL_MSG_TIMEOUT)) <= 0) {
-		wcn36xx_err("Timeout! No SMD response in %dms\n",
-			    HAL_MSG_TIMEOUT);
+		wcn36xx_err("Timeout! No SMD response to req %d in %dms\n",
+			    req_type, HAL_MSG_TIMEOUT);
 		ret = -ETIME;
 		goto out;
 	}
-	wcn36xx_dbg(WCN36XX_DBG_SMD, "SMD command completed in %dms",
+	wcn36xx_dbg(WCN36XX_DBG_SMD,
+		    "SMD command (req %d, rsp %d) completed in %dms\n",
+		    req_type, hdr->msg_type,
 		    jiffies_to_msecs(jiffies - start));
 out:
 	return ret;
