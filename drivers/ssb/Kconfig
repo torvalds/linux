@@ -117,7 +117,7 @@ config SSB_SERIAL
 
 config SSB_DRIVER_PCICORE_POSSIBLE
 	bool
-	depends on SSB_PCIHOST && SSB = y
+	depends on SSB_PCIHOST
 	default y
 
 config SSB_DRIVER_PCICORE
@@ -131,7 +131,7 @@ config SSB_DRIVER_PCICORE
 
 config SSB_PCICORE_HOSTMODE
 	bool "Hostmode support for SSB PCI core"
-	depends on SSB_DRIVER_PCICORE && SSB_DRIVER_MIPS
+	depends on SSB_DRIVER_PCICORE && SSB_DRIVER_MIPS && SSB = y
 	help
 	  PCIcore hostmode operation (external PCI bus).
 
