@@ -563,6 +563,9 @@ EXPORT_SYMBOL(skb_make_writable);
 struct nfnl_ct_hook __rcu *nfnl_ct_hook __read_mostly;
 EXPORT_SYMBOL_GPL(nfnl_ct_hook);
 
+struct nf_ct_hook __rcu *nf_ct_hook __read_mostly;
+EXPORT_SYMBOL_GPL(nf_ct_hook);
+
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 /* This does not belong here, but locally generated errors need it if connection
    tracking in use: without this, connection may not be in hash table, and hence
@@ -585,17 +588,14 @@ void nf_ct_attach(struct sk_buff *new, const struct sk_buff *skb)
 }
 EXPORT_SYMBOL(nf_ct_attach);
 
-void (*nf_ct_destroy)(struct nf_conntrack *) __rcu __read_mostly;
-EXPORT_SYMBOL(nf_ct_destroy);
-
 void nf_conntrack_destroy(struct nf_conntrack *nfct)
 {
-	void (*destroy)(struct nf_conntrack *);
+	struct nf_ct_hook *ct_hook;
 
 	rcu_read_lock();
-	destroy = rcu_dereference(nf_ct_destroy);
-	BUG_ON(destroy == NULL);
-	destroy(nfct);
+	ct_hook = rcu_dereference(nf_ct_hook);
+	BUG_ON(ct_hook == NULL);
+	ct_hook->destroy(nfct);
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL(nf_conntrack_destroy);

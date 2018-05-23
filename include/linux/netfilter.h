@@ -373,13 +373,18 @@ nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, u_int8_t family)
 
 extern void (*ip_ct_attach)(struct sk_buff *, const struct sk_buff *) __rcu;
 void nf_ct_attach(struct sk_buff *, const struct sk_buff *);
-extern void (*nf_ct_destroy)(struct nf_conntrack *) __rcu;
 #else
 static inline void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb) {}
 #endif
 
 struct nf_conn;
 enum ip_conntrack_info;
+
+struct nf_ct_hook {
+	void (*destroy)(struct nf_conntrack *);
+};
+extern struct nf_ct_hook __rcu *nf_ct_hook;
+
 struct nlattr;
 
 struct nfnl_ct_hook {
