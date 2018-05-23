@@ -327,8 +327,6 @@ struct xgbe_phy_data {
 
 	unsigned int mdio_addr;
 
-	unsigned int comm_owned;
-
 	/* SFP Support */
 	enum xgbe_sfp_comm sfp_comm;
 	unsigned int sfp_mux_address;
@@ -382,12 +380,6 @@ static enum xgbe_an_mode xgbe_phy_an_mode(struct xgbe_prv_data *pdata);
 static int xgbe_phy_i2c_xfer(struct xgbe_prv_data *pdata,
 			     struct xgbe_i2c_op *i2c_op)
 {
-	struct xgbe_phy_data *phy_data = pdata->phy_data;
-
-	/* Be sure we own the bus */
-	if (WARN_ON(!phy_data->comm_owned))
-		return -EIO;
-
 	return pdata->i2c_if.i2c_xfer(pdata, i2c_op);
 }
 
@@ -549,10 +541,6 @@ static int xgbe_phy_sfp_get_mux(struct xgbe_prv_data *pdata)
 
 static void xgbe_phy_put_comm_ownership(struct xgbe_prv_data *pdata)
 {
-	struct xgbe_phy_data *phy_data = pdata->phy_data;
-
-	phy_data->comm_owned = 0;
-
 	mutex_unlock(&xgbe_phy_comm_lock);
 }
 
@@ -561,9 +549,6 @@ static int xgbe_phy_get_comm_ownership(struct xgbe_prv_data *pdata)
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 	unsigned long timeout;
 	unsigned int mutex_id;
-
-	if (phy_data->comm_owned)
-		return 0;
 
 	/* The I2C and MDIO/GPIO bus is multiplexed between multiple devices,
 	 * the driver needs to take the software mutex and then the hardware
@@ -593,7 +578,6 @@ static int xgbe_phy_get_comm_ownership(struct xgbe_prv_data *pdata)
 		XP_IOWRITE(pdata, XP_I2C_MUTEX, mutex_id);
 		XP_IOWRITE(pdata, XP_MDIO_MUTEX, mutex_id);
 
-		phy_data->comm_owned = 1;
 		return 0;
 	}
 
