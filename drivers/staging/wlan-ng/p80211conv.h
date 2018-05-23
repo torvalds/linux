@@ -63,14 +63,8 @@
 
 #define	P80211_FRMMETA_MAGIC	0x802110
 
-#define P80211SKB_FRMMETA(s) \
-	(((((struct p80211_frmmeta *)((s)->cb))->magic) == \
-		P80211_FRMMETA_MAGIC) ? \
-		((struct p80211_frmmeta *)((s)->cb)) : \
-		(NULL))
-
 #define P80211SKB_RXMETA(s) \
-	(P80211SKB_FRMMETA((s)) ?  P80211SKB_FRMMETA((s))->rx : \
+	(p80211skb_frmmeta((s)) ?  p80211skb_frmmeta((s))->rx : \
 		((struct p80211_rxmeta *)(NULL)))
 
 struct p80211_rxmeta {
@@ -97,6 +91,13 @@ struct p80211_frmmeta {
 void p80211skb_free(struct wlandevice *wlandev, struct sk_buff *skb);
 int p80211skb_rxmeta_attach(struct wlandevice *wlandev, struct sk_buff *skb);
 void p80211skb_rxmeta_detach(struct sk_buff *skb);
+
+static inline struct p80211_frmmeta *p80211skb_frmmeta(struct sk_buff *skb)
+{
+	struct p80211_frmmeta *frmmeta = (struct p80211_frmmeta *)skb->cb;
+
+	return frmmeta->magic == P80211_FRMMETA_MAGIC ? frmmeta : NULL;
+}
 
 /*
  * Frame capture header.  (See doc/capturefrm.txt)

@@ -563,7 +563,7 @@ void p80211skb_rxmeta_detach(struct sk_buff *skb)
 		pr_debug("Called w/ null skb.\n");
 		return;
 	}
-	frmmeta = P80211SKB_FRMMETA(skb);
+	frmmeta = p80211skb_frmmeta(skb);
 	if (!frmmeta) {	/* no magic */
 		pr_debug("Called w/ bad frmmeta magic.\n");
 		return;
@@ -654,7 +654,7 @@ void p80211skb_free(struct wlandevice *wlandev, struct sk_buff *skb)
 {
 	struct p80211_frmmeta *meta;
 
-	meta = P80211SKB_FRMMETA(skb);
+	meta = p80211skb_frmmeta(skb);
 	if (meta && meta->rx)
 		p80211skb_rxmeta_detach(skb);
 	else
