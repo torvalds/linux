@@ -476,9 +476,8 @@ static irqreturn_t wcn36xx_irq_rx_ready(int irq, void *dev)
 {
 	struct wcn36xx *wcn = (struct wcn36xx *)dev;
 
-	disable_irq_nosync(wcn->rx_irq);
 	wcn36xx_dxe_rx_frame(wcn);
-	enable_irq(wcn->rx_irq);
+
 	return IRQ_HANDLED;
 }
 
@@ -514,8 +513,8 @@ out_err:
 static int wcn36xx_rx_handle_packets(struct wcn36xx *wcn,
 				     struct wcn36xx_dxe_ch *ch)
 {
-	struct wcn36xx_dxe_ctl *ctl = ch->head_blk_ctl;
-	struct wcn36xx_dxe_desc *dxe = ctl->desc;
+	struct wcn36xx_dxe_desc *dxe;
+	struct wcn36xx_dxe_ctl *ctl;
 	dma_addr_t  dma_addr;
 	struct sk_buff *skb;
 	int ret = 0, int_mask;
@@ -528,6 +527,11 @@ static int wcn36xx_rx_handle_packets(struct wcn36xx *wcn,
 		value = WCN36XX_DXE_CTRL_RX_H;
 		int_mask = WCN36XX_DXE_INT_CH3_MASK;
 	}
+
+	spin_lock(&ch->lock);
+
+	ctl = ch->head_blk_ctl;
+	dxe = ctl->desc;
 
 	while (!(READ_ONCE(dxe->ctrl) & WCN36xx_DXE_CTRL_VLD)) {
 		skb = ctl->skb;
@@ -549,6 +553,9 @@ static int wcn36xx_rx_handle_packets(struct wcn36xx *wcn,
 	wcn36xx_dxe_write_register(wcn, WCN36XX_DXE_ENCH_ADDR, int_mask);
 
 	ch->head_blk_ctl = ctl;
+
+	spin_unlock(&ch->lock);
+
 	return 0;
 }
 
