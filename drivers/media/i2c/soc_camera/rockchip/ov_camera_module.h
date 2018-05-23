@@ -200,6 +200,7 @@ struct ov_camera_module {
 	u32 rotation;
 	void *pltfm_data;
 	bool inited;
+	bool as_master;
 };
 
 #define ov_camera_module_pr_info(cam_mod, fmt, arg...) \

@@ -68,3 +68,10 @@ config VIDEO_OV13850
 	default n
 	---help---
 	  This is ov13850 camera driver adapt to rockchip cif isp platform.
+
+config VIDEO_OV9750
+	tristate "ov9750 driver adapt to rockchip cif isp platform"
+	depends on VIDEO_V4L2 && VIDEO_RK_CIF_ISP10 && I2C
+	default n
+	---help---
+	  This is ov9750 camera driver adapt to rockchip cif isp platform.
