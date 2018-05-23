@@ -116,6 +116,7 @@ static void send_cap_queries(struct ibmvnic_adapter *adapter);
 static int init_sub_crqs(struct ibmvnic_adapter *);
 static int init_sub_crq_irqs(struct ibmvnic_adapter *adapter);
 static int ibmvnic_init(struct ibmvnic_adapter *);
+static int ibmvnic_reset_init(struct ibmvnic_adapter *);
 static void release_crq_queue(struct ibmvnic_adapter *);
 static int __ibmvnic_set_mac(struct net_device *netdev, struct sockaddr *p);
 static int init_crq_queue(struct ibmvnic_adapter *adapter);
@@ -1807,7 +1808,7 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 			return rc;
 		}
 
-		rc = ibmvnic_init(adapter);
+		rc = ibmvnic_reset_init(adapter);
 		if (rc)
 			return IBMVNIC_INIT_FAILED;
 
@@ -4571,7 +4572,7 @@ map_failed:
 	return retrc;
 }
 
-static int ibmvnic_init(struct ibmvnic_adapter *adapter)
+static int ibmvnic_reset_init(struct ibmvnic_adapter *adapter)
 {
 	struct device *dev = &adapter->vdev->dev;
 	unsigned long timeout = msecs_to_jiffies(30000);
@@ -4615,6 +4616,49 @@ static int ibmvnic_init(struct ibmvnic_adapter *adapter)
 		rc = init_sub_crqs(adapter);
 	}
 
+	if (rc) {
+		dev_err(dev, "Initialization of sub crqs failed\n");
+		release_crq_queue(adapter);
+		return rc;
+	}
+
+	rc = init_sub_crq_irqs(adapter);
+	if (rc) {
+		dev_err(dev, "Failed to initialize sub crq irqs\n");
+		release_crq_queue(adapter);
+	}
+
+	return rc;
+}
+
+static int ibmvnic_init(struct ibmvnic_adapter *adapter)
+{
+	struct device *dev = &adapter->vdev->dev;
+	unsigned long timeout = msecs_to_jiffies(30000);
+	int rc;
+
+	adapter->from_passive_init = false;
+
+	init_completion(&adapter->init_done);
+	adapter->init_done_rc = 0;
+	ibmvnic_send_crq_init(adapter);
+	if (!wait_for_completion_timeout(&adapter->init_done, timeout)) {
+		dev_err(dev, "Initialization sequence timed out\n");
+		return -1;
+	}
+
+	if (adapter->init_done_rc) {
+		release_crq_queue(adapter);
+		return adapter->init_done_rc;
+	}
+
+	if (adapter->from_passive_init) {
+		adapter->state = VNIC_OPEN;
+		adapter->from_passive_init = false;
+		return -1;
+	}
+
+	rc = init_sub_crqs(adapter);
 	if (rc) {
 		dev_err(dev, "Initialization of sub crqs failed\n");
 		release_crq_queue(adapter);
