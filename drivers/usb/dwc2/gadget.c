@@ -848,6 +848,7 @@ static int dwc2_gadget_fill_isoc_desc(struct dwc2_hsotg_ep *hs_ep,
 	u32 index;
 	u32 maxsize = 0;
 	u32 mask = 0;
+	u8 pid = 0;
 
 	maxsize = dwc2_gadget_get_desc_params(hs_ep, &mask);
 	if (len > maxsize) {
@@ -893,7 +894,11 @@ static int dwc2_gadget_fill_isoc_desc(struct dwc2_hsotg_ep *hs_ep,
 			 ((len << DEV_DMA_NBYTES_SHIFT) & mask));
 
 	if (hs_ep->dir_in) {
-		desc->status |= ((hs_ep->mc << DEV_DMA_ISOC_PID_SHIFT) &
+		if (len)
+			pid = DIV_ROUND_UP(len, hs_ep->ep.maxpacket);
+		else
+			pid = 1;
+		desc->status |= ((pid << DEV_DMA_ISOC_PID_SHIFT) &
 				 DEV_DMA_ISOC_PID_MASK) |
 				((len % hs_ep->ep.maxpacket) ?
 				 DEV_DMA_SHORT : 0) |
