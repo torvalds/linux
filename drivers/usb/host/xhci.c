@@ -209,6 +209,68 @@ int xhci_reset(struct xhci_hcd *xhci)
 	return ret;
 }
 
+static void xhci_zero_64b_regs(struct xhci_hcd *xhci)
+{
+	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
+	int err, i;
+	u64 val;
+
+	/*
+	 * Some Renesas controllers get into a weird state if they are
+	 * reset while programmed with 64bit addresses (they will preserve
+	 * the top half of the address in internal, non visible
+	 * registers). You end up with half the address coming from the
+	 * kernel, and the other half coming from the firmware. Also,
+	 * changing the programming leads to extra accesses even if the
+	 * controller is supposed to be halted. The controller ends up with
+	 * a fatal fault, and is then ripe for being properly reset.
+	 *
+	 * Special care is taken to only apply this if the device is behind
+	 * an iommu. Doing anything when there is no iommu is definitely
+	 * unsafe...
+	 */
+	if (!(xhci->quirks & XHCI_ZERO_64B_REGS) || !dev->iommu_group)
+		return;
+
+	xhci_info(xhci, "Zeroing 64bit base registers, expecting fault\n");
+
+	/* Clear HSEIE so that faults do not get signaled */
+	val = readl(&xhci->op_regs->command);
+	val &= ~CMD_HSEIE;
+	writel(val, &xhci->op_regs->command);
+
+	/* Clear HSE (aka FATAL) */
+	val = readl(&xhci->op_regs->status);
+	val |= STS_FATAL;
+	writel(val, &xhci->op_regs->status);
+
+	/* Now zero the registers, and brace for impact */
+	val = xhci_read_64(xhci, &xhci->op_regs->dcbaa_ptr);
+	if (upper_32_bits(val))
+		xhci_write_64(xhci, 0, &xhci->op_regs->dcbaa_ptr);
+	val = xhci_read_64(xhci, &xhci->op_regs->cmd_ring);
+	if (upper_32_bits(val))
+		xhci_write_64(xhci, 0, &xhci->op_regs->cmd_ring);
+
+	for (i = 0; i < HCS_MAX_INTRS(xhci->hcs_params1); i++) {
+		struct xhci_intr_reg __iomem *ir;
+
+		ir = &xhci->run_regs->ir_set[i];
+		val = xhci_read_64(xhci, &ir->erst_base);
+		if (upper_32_bits(val))
+			xhci_write_64(xhci, 0, &ir->erst_base);
+		val= xhci_read_64(xhci, &ir->erst_dequeue);
+		if (upper_32_bits(val))
+			xhci_write_64(xhci, 0, &ir->erst_dequeue);
+	}
+
+	/* Wait for the fault to appear. It will be cleared on reset */
+	err = xhci_handshake(&xhci->op_regs->status,
+			     STS_FATAL, STS_FATAL,
+			     XHCI_MAX_HALT_USEC);
+	if (!err)
+		xhci_info(xhci, "Fault detected\n");
+}
 
 #ifdef CONFIG_USB_PCI
 /*
@@ -1006,6 +1068,7 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 
 		xhci_dbg(xhci, "Stop HCD\n");
 		xhci_halt(xhci);
+		xhci_zero_64b_regs(xhci);
 		xhci_reset(xhci);
 		spin_unlock_irq(&xhci->lock);
 		xhci_cleanup_msix(xhci);
@@ -4916,6 +4979,8 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 	retval = xhci_halt(xhci);
 	if (retval)
 		return retval;
+
+	xhci_zero_64b_regs(xhci);
 
 	xhci_dbg(xhci, "Resetting HCD\n");
 	/* Reset the internal HC memory state and registers. */
