@@ -170,11 +170,11 @@ PNAME(mux_i2s2_out_p)		= { "clk_i2s2", "xin12m"};
 PNAME(mux_i2s0_tx_rx_p)		= { "clk_i2s0_tx_mux", "clk_i2s0_rx_mux"};
 PNAME(mux_i2s0_rx_tx_p)		= { "clk_i2s0_rx_mux", "clk_i2s0_tx_mux"};
 PNAME(mux_uart_src_p)		= { "gpll", "xin24m", "usb480m", "npll" };
-PNAME(mux_uart1_p)		= { "clk_uart1_src", "dummy", "clk_uart1_frac" };
-PNAME(mux_uart2_p)		= { "clk_uart2_src", "dummy", "clk_uart2_frac" };
-PNAME(mux_uart3_p)		= { "clk_uart3_src", "dummy", "clk_uart3_frac" };
-PNAME(mux_uart4_p)		= { "clk_uart4_src", "dummy", "clk_uart4_frac" };
-PNAME(mux_uart5_p)		= { "clk_uart5_src", "dummy", "clk_uart5_frac" };
+PNAME(mux_uart1_p)		= { "clk_uart1_src", "clk_uart1_np5", "clk_uart1_frac" };
+PNAME(mux_uart2_p)		= { "clk_uart2_src", "clk_uart2_np5", "clk_uart2_frac" };
+PNAME(mux_uart3_p)		= { "clk_uart3_src", "clk_uart3_np5", "clk_uart3_frac" };
+PNAME(mux_uart4_p)		= { "clk_uart4_src", "clk_uart4_np5", "clk_uart4_frac" };
+PNAME(mux_uart5_p)		= { "clk_uart5_src", "clk_uart5_np5", "clk_uart5_frac" };
 PNAME(mux_cif_out_p)		= { "xin24m", "dummy_cpll", "npll", "usb480m" };
 PNAME(mux_dclk_vopb_p)		= { "dclk_vopb_src", "dclk_vopb_frac", "xin24m" };
 PNAME(mux_dclk_vopl_p)		= { "dclk_vopl_src", "dclk_vopl_frac", "xin24m" };
@@ -182,7 +182,7 @@ PNAME(mux_gmac_p)		= { "clk_gmac_src", "gmac_clkin" };
 PNAME(mux_gmac_rmii_sel_p)	= { "clk_gmac_rx_tx_div20", "clk_gmac_rx_tx_div2" };
 PNAME(mux_rtc32k_pmu_p)		= { "xin32k", "pmu_pvtm_32k", "clk_rtc32k_frac", };
 PNAME(mux_wifi_pmu_p)		= { "xin24m", "clk_wifi_pmu_src" };
-PNAME(mux_uart0_pmu_p)		= { "clk_uart0_pmu_src", "dummy", "clk_uart0_frac" };
+PNAME(mux_uart0_pmu_p)		= { "clk_uart0_pmu_src", "clk_uart0_np5", "clk_uart0_frac" };
 PNAME(mux_usbphy_ref_p)		= { "xin24m", "clk_ref24m_pmu" };
 PNAME(mux_mipidsiphy_ref_p)	= { "xin24m", "clk_ref24m_pmu" };
 
@@ -629,6 +629,9 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	COMPOSITE(SCLK_UART1_SRC, "clk_uart1_src", mux_uart_src_p, CLK_SET_RATE_NO_REPARENT,
 			PX30_CLKSEL_CON(34), 14, 2, MFLAGS, 0, 5, DFLAGS,
 			PX30_CLKGATE_CON(10), 12, GFLAGS),
+	COMPOSITE_NOMUX_HALFDIV(0, "clk_uart1_np5", "clk_uart1_src", CLK_SET_RATE_PARENT,
+			PX30_CLKSEL_CON(35), 0, 5, DFLAGS,
+			PX30_CLKGATE_CON(10), 13, GFLAGS),
 	COMPOSITE_FRACMUX(0, "clk_uart1_frac", "clk_uart1_src", CLK_SET_RATE_PARENT,
 			PX30_CLKSEL_CON(36), 0,
 			PX30_CLKGATE_CON(10), 14, GFLAGS,
@@ -639,6 +642,9 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	COMPOSITE(SCLK_UART2_SRC, "clk_uart2_src", mux_uart_src_p, 0,
 			PX30_CLKSEL_CON(37), 14, 2, MFLAGS, 0, 5, DFLAGS,
 			PX30_CLKGATE_CON(11), 0, GFLAGS),
+	COMPOSITE_NOMUX_HALFDIV(0, "clk_uart2_np5", "clk_uart2_src", CLK_SET_RATE_PARENT,
+			PX30_CLKSEL_CON(38), 0, 5, DFLAGS,
+			PX30_CLKGATE_CON(11), 1, GFLAGS),
 	COMPOSITE_FRACMUX(0, "clk_uart2_frac", "clk_uart2_src", CLK_SET_RATE_PARENT,
 			PX30_CLKSEL_CON(39), 0,
 			PX30_CLKGATE_CON(11), 2, GFLAGS,
@@ -649,6 +655,9 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	COMPOSITE(0, "clk_uart3_src", mux_uart_src_p, 0,
 			PX30_CLKSEL_CON(40), 14, 2, MFLAGS, 0, 5, DFLAGS,
 			PX30_CLKGATE_CON(11), 4, GFLAGS),
+	COMPOSITE_NOMUX_HALFDIV(0, "clk_uart3_np5", "clk_uart3_src", CLK_SET_RATE_PARENT,
+			PX30_CLKSEL_CON(41), 0, 5, DFLAGS,
+			PX30_CLKGATE_CON(11), 5, GFLAGS),
 	COMPOSITE_FRACMUX(0, "clk_uart3_frac", "clk_uart3_src", CLK_SET_RATE_PARENT,
 			PX30_CLKSEL_CON(42), 0,
 			PX30_CLKGATE_CON(11), 6, GFLAGS,
@@ -659,6 +668,9 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	COMPOSITE(0, "clk_uart4_src", mux_uart_src_p, 0,
 			PX30_CLKSEL_CON(43), 14, 2, MFLAGS, 0, 5, DFLAGS,
 			PX30_CLKGATE_CON(11), 8, GFLAGS),
+	COMPOSITE_NOMUX_HALFDIV(0, "clk_uart4_np5", "clk_uart4_src", CLK_SET_RATE_PARENT,
+			PX30_CLKSEL_CON(44), 0, 5, DFLAGS,
+			PX30_CLKGATE_CON(11), 9, GFLAGS),
 	COMPOSITE_FRACMUX(0, "clk_uart4_frac", "clk_uart4_src", CLK_SET_RATE_PARENT,
 			PX30_CLKSEL_CON(45), 0,
 			PX30_CLKGATE_CON(11), 10, GFLAGS,
@@ -669,6 +681,9 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	COMPOSITE(0, "clk_uart5_src", mux_uart_src_p, 0,
 			PX30_CLKSEL_CON(46), 14, 2, MFLAGS, 0, 5, DFLAGS,
 			PX30_CLKGATE_CON(11), 12, GFLAGS),
+	COMPOSITE_NOMUX_HALFDIV(0, "clk_uart5_np5", "clk_uart5_src", CLK_SET_RATE_PARENT,
+			PX30_CLKSEL_CON(47), 0, 5, DFLAGS,
+			PX30_CLKGATE_CON(11), 13, GFLAGS),
 	COMPOSITE_FRACMUX(0, "clk_uart5_frac", "clk_uart5_src", CLK_SET_RATE_PARENT,
 			PX30_CLKSEL_CON(48), 0,
 			PX30_CLKGATE_CON(11), 14, GFLAGS,
@@ -885,6 +900,9 @@ static struct rockchip_clk_branch px30_clk_pmu_branches[] __initdata = {
 	COMPOSITE(0, "clk_uart0_pmu_src", mux_uart_src_p, 0,
 			PX30_PMU_CLKSEL_CON(3), 14, 2, MFLAGS, 0, 5, DFLAGS,
 			PX30_PMU_CLKGATE_CON(1), 0, GFLAGS),
+	COMPOSITE_NOMUX_HALFDIV(0, "clk_uart0_np5", "clk_uart0_pmu_src", CLK_SET_RATE_PARENT,
+			PX30_PMU_CLKSEL_CON(4), 0, 5, DFLAGS,
+			PX30_PMU_CLKGATE_CON(1), 1, GFLAGS),
 	COMPOSITE_FRACMUX(0, "clk_uart0_frac", "clk_uart0_pmu_src", CLK_SET_RATE_PARENT,
 			PX30_PMU_CLKSEL_CON(5), 0,
 			PX30_PMU_CLKGATE_CON(1), 2, GFLAGS,
