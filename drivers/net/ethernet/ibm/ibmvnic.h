@@ -1109,6 +1109,7 @@ struct ibmvnic_adapter {
 
 	bool mac_change_pending;
 	bool failover_pending;
+	bool force_reset_recovery;
 
 	struct ibmvnic_tunables desired;
 	struct ibmvnic_tunables fallback;

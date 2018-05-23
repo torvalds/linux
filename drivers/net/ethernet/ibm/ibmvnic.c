@@ -1878,6 +1878,85 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 	return 0;
 }
 
+static int do_hard_reset(struct ibmvnic_adapter *adapter,
+			 struct ibmvnic_rwi *rwi, u32 reset_state)
+{
+	struct net_device *netdev = adapter->netdev;
+	int rc;
+
+	netdev_dbg(adapter->netdev, "Hard resetting driver (%d)\n",
+		   rwi->reset_reason);
+
+	netif_carrier_off(netdev);
+	adapter->reset_reason = rwi->reset_reason;
+
+	ibmvnic_cleanup(netdev);
+	release_resources(adapter);
+	release_sub_crqs(adapter, 0);
+	release_crq_queue(adapter);
+
+	/* remove the closed state so when we call open it appears
+	 * we are coming from the probed state.
+	 */
+	adapter->state = VNIC_PROBED;
+
+	rc = init_crq_queue(adapter);
+	if (rc) {
+		netdev_err(adapter->netdev,
+			   "Couldn't initialize crq. rc=%d\n", rc);
+		return rc;
+	}
+
+	rc = ibmvnic_init(adapter);
+	if (rc)
+		return rc;
+
+	/* If the adapter was in PROBE state prior to the reset,
+	 * exit here.
+	 */
+	if (reset_state == VNIC_PROBED)
+		return 0;
+
+	rc = ibmvnic_login(netdev);
+	if (rc) {
+		adapter->state = VNIC_PROBED;
+		return 0;
+	}
+	/* netif_set_real_num_xx_queues needs to take rtnl lock here
+	 * unless wait_for_reset is set, in which case the rtnl lock
+	 * has already been taken before initializing the reset
+	 */
+	if (!adapter->wait_for_reset) {
+		rtnl_lock();
+		rc = init_resources(adapter);
+		rtnl_unlock();
+	} else {
+		rc = init_resources(adapter);
+	}
+	if (rc)
+		return rc;
+
+	ibmvnic_disable_irqs(adapter);
+	adapter->state = VNIC_CLOSED;
+
+	if (reset_state == VNIC_CLOSED)
+		return 0;
+
+	rc = __ibmvnic_open(netdev);
+	if (rc) {
+		if (list_empty(&adapter->rwi_list))
+			adapter->state = VNIC_CLOSED;
+		else
+			adapter->state = reset_state;
+
+		return 0;
+	}
+
+	netif_carrier_on(netdev);
+
+	return 0;
+}
+
 static struct ibmvnic_rwi *get_next_rwi(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_rwi *rwi;
@@ -1923,9 +2002,15 @@ static void __ibmvnic_reset(struct work_struct *work)
 
 	rwi = get_next_rwi(adapter);
 	while (rwi) {
-		rc = do_reset(adapter, rwi, reset_state);
+		if (adapter->force_reset_recovery) {
+			adapter->force_reset_recovery = false;
+			rc = do_hard_reset(adapter, rwi, reset_state);
+		} else {
+			rc = do_reset(adapter, rwi, reset_state);
+		}
 		kfree(rwi);
-		if (rc && rc != IBMVNIC_INIT_FAILED)
+		if (rc && rc != IBMVNIC_INIT_FAILED &&
+		    !adapter->force_reset_recovery)
 			break;
 
 		rwi = get_next_rwi(adapter);
@@ -1951,9 +2036,9 @@ static void __ibmvnic_reset(struct work_struct *work)
 static int ibmvnic_reset(struct ibmvnic_adapter *adapter,
 			 enum ibmvnic_reset_reason reason)
 {
+	struct list_head *entry, *tmp_entry;
 	struct ibmvnic_rwi *rwi, *tmp;
 	struct net_device *netdev = adapter->netdev;
-	struct list_head *entry;
 	int ret;
 
 	if (adapter->state == VNIC_REMOVING ||
@@ -1989,7 +2074,13 @@ static int ibmvnic_reset(struct ibmvnic_adapter *adapter,
 		ret = ENOMEM;
 		goto err;
 	}
-
+	/* if we just received a transport event,
+	 * flush reset queue and process this reset
+	 */
+	if (adapter->force_reset_recovery && !list_empty(&adapter->rwi_list)) {
+		list_for_each_safe(entry, tmp_entry, &adapter->rwi_list)
+			list_del(entry);
+	}
 	rwi->reset_reason = reason;
 	list_add_tail(&rwi->list, &adapter->rwi_list);
 	mutex_unlock(&adapter->rwi_lock);
@@ -4271,6 +4362,8 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 	case IBMVNIC_CRQ_XPORT_EVENT:
 		netif_carrier_off(netdev);
 		adapter->crq.active = false;
+		if (adapter->resetting)
+			adapter->force_reset_recovery = true;
 		if (gen_crq->cmd == IBMVNIC_PARTITION_MIGRATED) {
 			dev_info(dev, "Migrated, re-enabling adapter\n");
 			ibmvnic_reset(adapter, VNIC_RESET_MOBILITY);
