@@ -584,6 +584,8 @@ static ssize_t cifsFYI_proc_write(struct file *file, const char __user *buffer,
 		cifsFYI = bv;
 	else if ((c[0] > '1') && (c[0] <= '9'))
 		cifsFYI = (int) (c[0] - '0'); /* see cifs_debug.h for meanings */
+	else
+		return -EINVAL;
 
 	return count;
 }
