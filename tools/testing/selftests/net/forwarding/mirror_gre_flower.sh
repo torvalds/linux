@@ -67,6 +67,11 @@ test_span_gre_dir_acl()
 	test_span_gre_dir_ips "$@" 192.0.2.3 192.0.2.4
 }
 
+fail_test_span_gre_dir_acl()
+{
+	fail_test_span_gre_dir_ips "$@" 192.0.2.3 192.0.2.4
+}
+
 full_test_span_gre_dir_acl()
 {
 	local tundev=$1; shift
@@ -82,6 +87,9 @@ full_test_span_gre_dir_acl()
 	test_span_gre_dir_acl "$tundev" "$direction" \
 			  "$forward_type" "$backward_type"
 	mirror_uninstall $swp1 $direction
+
+	# Test lack of mirroring after ACL mirror is uninstalled.
+	fail_test_span_gre_dir_acl "$tundev" "$direction"
 
 	log_test "$direction $what ($tcflags)"
 }
