@@ -114,6 +114,22 @@ struct finger_pos {
 	unsigned int y;
 };
 
+struct elantech_device_info {
+	unsigned char capabilities[3];
+	unsigned char samples[3];
+	unsigned char debug;
+	unsigned char hw_version;
+	unsigned int fw_version;
+	bool paritycheck;
+	bool jumpy_cursor;
+	bool reports_pressure;
+	bool crc_enabled;
+	bool set_hw_resolution;
+	bool has_trackpoint;
+	int (*send_cmd)(struct psmouse *psmouse, unsigned char c,
+			unsigned char *param);
+};
+
 struct elantech_data {
 	struct input_dev *tp_dev;	/* Relative device for trackpoint */
 	char tp_phys[32];
@@ -127,22 +143,12 @@ struct elantech_data {
 	unsigned char reg_24;
 	unsigned char reg_25;
 	unsigned char reg_26;
-	unsigned char debug;
-	unsigned char capabilities[3];
-	unsigned char samples[3];
-	bool paritycheck;
-	bool jumpy_cursor;
-	bool reports_pressure;
-	bool crc_enabled;
-	bool set_hw_resolution;
-	unsigned char hw_version;
-	unsigned int fw_version;
 	unsigned int single_finger_reports;
 	unsigned int y_max;
 	unsigned int width;
 	struct finger_pos mt[ETP_MAX_FINGERS];
 	unsigned char parity[256];
-	int (*send_cmd)(struct psmouse *psmouse, unsigned char c, unsigned char *param);
+	struct elantech_device_info info;
 	void (*original_set_rate)(struct psmouse *psmouse, unsigned int rate);
 };
 
