@@ -2513,5 +2513,11 @@ out:
 
 void wcn36xx_smd_close(struct wcn36xx *wcn)
 {
+	struct wcn36xx_hal_ind_msg *msg, *tmp;
+
+	cancel_work_sync(&wcn->hal_ind_work);
 	destroy_workqueue(wcn->hal_ind_wq);
+
+	list_for_each_entry_safe(msg, tmp, &wcn->hal_ind_queue, list)
+		kfree(msg);
 }
