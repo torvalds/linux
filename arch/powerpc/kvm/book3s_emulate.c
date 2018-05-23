@@ -51,6 +51,8 @@
 
 #define OP_31_XOP_TBEGIN	654
 
+#define OP_31_XOP_TRECLAIM	942
+
 /* DCBZ is actually 1014, but we patch it to 1010 so we get a trap */
 #define OP_31_XOP_DCBZ		1010
 
@@ -130,6 +132,46 @@ static inline void kvmppc_copyfrom_vcpu_tm(struct kvm_vcpu *vcpu)
 	vcpu->arch.vrsave = vcpu->arch.vrsave_tm;
 }
 
+static void kvmppc_emulate_treclaim(struct kvm_vcpu *vcpu, int ra_val)
+{
+	unsigned long guest_msr = kvmppc_get_msr(vcpu);
+	int fc_val = ra_val ? ra_val : 1;
+
+	/* CR0 = 0 | MSR[TS] | 0 */
+	vcpu->arch.cr = (vcpu->arch.cr & ~(CR0_MASK << CR0_SHIFT)) |
+		(((guest_msr & MSR_TS_MASK) >> (MSR_TS_S_LG - 1))
+		 << CR0_SHIFT);
+
+	preempt_disable();
+	kvmppc_save_tm_pr(vcpu);
+	kvmppc_copyfrom_vcpu_tm(vcpu);
+
+	tm_enable();
+	vcpu->arch.texasr = mfspr(SPRN_TEXASR);
+	/* failure recording depends on Failure Summary bit */
+	if (!(vcpu->arch.texasr & TEXASR_FS)) {
+		vcpu->arch.texasr &= ~TEXASR_FC;
+		vcpu->arch.texasr |= ((u64)fc_val << TEXASR_FC_LG);
+
+		vcpu->arch.texasr &= ~(TEXASR_PR | TEXASR_HV);
+		if (kvmppc_get_msr(vcpu) & MSR_PR)
+			vcpu->arch.texasr |= TEXASR_PR;
+
+		if (kvmppc_get_msr(vcpu) & MSR_HV)
+			vcpu->arch.texasr |= TEXASR_HV;
+
+		vcpu->arch.tfiar = kvmppc_get_pc(vcpu);
+		mtspr(SPRN_TEXASR, vcpu->arch.texasr);
+		mtspr(SPRN_TFIAR, vcpu->arch.tfiar);
+	}
+	tm_disable();
+	/*
+	 * treclaim need quit to non-transactional state.
+	 */
+	guest_msr &= ~(MSR_TS_MASK);
+	kvmppc_set_msr(vcpu, guest_msr);
+	preempt_enable();
+}
 #endif
 
 int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
@@ -400,6 +442,40 @@ int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				preempt_enable();
 			} else
 				emulated = EMULATE_FAIL;
+			break;
+		}
+		case OP_31_XOP_TRECLAIM:
+		{
+			ulong guest_msr = kvmppc_get_msr(vcpu);
+			unsigned long ra_val = 0;
+
+			if (!cpu_has_feature(CPU_FTR_TM))
+				break;
+
+			if (!(kvmppc_get_msr(vcpu) & MSR_TM)) {
+				kvmppc_trigger_fac_interrupt(vcpu, FSCR_TM_LG);
+				emulated = EMULATE_AGAIN;
+				break;
+			}
+
+			/* generate interrupts based on priorities */
+			if (guest_msr & MSR_PR) {
+				/* Privileged Instruction type Program Interrupt */
+				kvmppc_core_queue_program(vcpu, SRR1_PROGPRIV);
+				emulated = EMULATE_AGAIN;
+				break;
+			}
+
+			if (!MSR_TM_ACTIVE(guest_msr)) {
+				/* TM bad thing interrupt */
+				kvmppc_core_queue_program(vcpu, SRR1_PROGTM);
+				emulated = EMULATE_AGAIN;
+				break;
+			}
+
+			if (ra)
+				ra_val = kvmppc_get_gpr(vcpu, ra);
+			kvmppc_emulate_treclaim(vcpu, ra_val);
 			break;
 		}
 #endif
