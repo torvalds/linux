@@ -1491,9 +1491,17 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
 
 	vb = q->bufs[index];
 
+	if ((req && q->uses_qbuf) ||
+	    (!req && vb->state != VB2_BUF_STATE_IN_REQUEST &&
+	     q->uses_requests)) {
+		dprintk(1, "queue in wrong mode (qbuf vs requests)\n");
+		return -EPERM;
+	}
+
 	if (req) {
 		int ret;
 
+		q->uses_requests = 1;
 		if (vb->state != VB2_BUF_STATE_DEQUEUED) {
 			dprintk(1, "buffer %d not in dequeued state\n",
 				vb->index);
@@ -1522,6 +1530,9 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
 		dprintk(2, "qbuf of buffer %d succeeded\n", vb->index);
 		return 0;
 	}
+
+	if (vb->state != VB2_BUF_STATE_IN_REQUEST)
+		q->uses_qbuf = 1;
 
 	switch (vb->state) {
 	case VB2_BUF_STATE_DEQUEUED:
@@ -1825,6 +1836,8 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 	q->start_streaming_called = 0;
 	q->queued_count = 0;
 	q->error = 0;
+	q->uses_requests = 0;
+	q->uses_qbuf = 0;
 
 	/*
 	 * Remove all buffers from videobuf's list...
