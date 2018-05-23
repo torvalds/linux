@@ -34,6 +34,18 @@ config INFINIBAND_USER_ACCESS
 	  libibverbs, libibcm and a hardware driver library from
 	  <http://www.openfabrics.org/git/>.
 
+config INFINIBAND_USER_ACCESS_UCM
+	bool "Userspace CM (UCM, DEPRECATED)"
+	depends on BROKEN
+	depends on INFINIBAND_USER_ACCESS
+	help
+	  The UCM module has known security flaws, which no one is
+	  interested to fix. The user-space part of this code was
+	  dropped from the upstream a long time ago.
+
+	  This option is DEPRECATED and planned to be removed.
+
+
 config INFINIBAND_EXP_USER_ACCESS
 	bool "Allow experimental support for Infiniband ABI"
 	depends on INFINIBAND_USER_ACCESS
