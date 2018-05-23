@@ -113,22 +113,25 @@ static char btf_log_buf[BTF_LOG_BUF_SIZE];
 static struct btf_header hdr_tmpl = {
 	.magic = BTF_MAGIC,
 	.version = BTF_VERSION,
+	.hdr_len = sizeof(struct btf_header),
 };
 
 struct btf_raw_test {
 	const char *descr;
 	const char *str_sec;
 	const char *map_name;
+	const char *err_str;
 	__u32 raw_types[MAX_NR_RAW_TYPES];
 	__u32 str_sec_size;
 	enum bpf_map_type map_type;
 	__u32 key_size;
 	__u32 value_size;
-	__u32 key_id;
-	__u32 value_id;
+	__u32 key_type_id;
+	__u32 value_type_id;
 	__u32 max_entries;
 	bool btf_load_err;
 	bool map_create_err;
+	int hdr_len_delta;
 	int type_off_delta;
 	int str_off_delta;
 	int str_len_delta;
@@ -141,8 +144,8 @@ static struct btf_raw_test raw_tests[] = {
  * };
  *
  * struct A {
- *	int m;
- *	unsigned long long n;
+ *	unsigned long long m;
+ *	int n;
  *	char o;
  *	[3 bytes hole]
  *	int p[8];
@@ -163,8 +166,8 @@ static struct btf_raw_test raw_tests[] = {
 		BTF_TYPE_ARRAY_ENC(1, 1, 8),			/* [4] */
 		/* struct A { */				/* [5] */
 		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 6), 180),
-		BTF_MEMBER_ENC(NAME_TBD, 1, 0),	/* int m;		*/
-		BTF_MEMBER_ENC(NAME_TBD, 2, 32),/* unsigned long long n;*/
+		BTF_MEMBER_ENC(NAME_TBD, 2, 0),	/* unsigned long long m;*/
+		BTF_MEMBER_ENC(NAME_TBD, 1, 64),/* int n;		*/
 		BTF_MEMBER_ENC(NAME_TBD, 3, 96),/* char o;		*/
 		BTF_MEMBER_ENC(NAME_TBD, 4, 128),/* int p[8]		*/
 		BTF_MEMBER_ENC(NAME_TBD, 6, 384),/* int q[4][8]		*/
@@ -172,6 +175,7 @@ static struct btf_raw_test raw_tests[] = {
 		/* } */
 		/* int[4][8] */
 		BTF_TYPE_ARRAY_ENC(4, 1, 4),			/* [6] */
+		/* enum E */					/* [7] */
 		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_ENUM, 0, 2), sizeof(int)),
 		BTF_ENUM_ENC(NAME_TBD, 0),
 		BTF_ENUM_ENC(NAME_TBD, 1),
@@ -183,8 +187,8 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "struct_test1_map",
 	.key_size = sizeof(int),
 	.value_size = 180,
-	.key_id = 1,
-	.value_id = 5,
+	.key_type_id = 1,
+	.value_type_id = 5,
 	.max_entries = 4,
 },
 
@@ -238,8 +242,8 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "struct_test2_map",
 	.key_size = sizeof(int),
 	.value_size = 68,
-	.key_id = 1,
-	.value_id = 3,
+	.key_type_id = 1,
+	.value_type_id = 3,
 	.max_entries = 4,
 },
 
@@ -258,7 +262,7 @@ static struct btf_raw_test raw_tests[] = {
 		/* struct A { */				/* [2] */
 		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 2), sizeof(int) * 2 -  1),
 		BTF_MEMBER_ENC(NAME_TBD, 1, 0),	/* int m; */
-		BTF_MEMBER_ENC(NAME_TBD, 2, 32),/* int n; */
+		BTF_MEMBER_ENC(NAME_TBD, 1, 32),/* int n; */
 		/* } */
 		BTF_END_RAW,
 	},
@@ -268,10 +272,11 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "size_check1_map",
 	.key_size = sizeof(int),
 	.value_size = 1,
-	.key_id = 1,
-	.value_id = 2,
+	.key_type_id = 1,
+	.value_type_id = 2,
 	.max_entries = 4,
 	.btf_load_err = true,
+	.err_str = "Member exceeds struct_size",
 },
 
 /* Test member exeeds the size of struct
@@ -301,11 +306,11 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "size_check2_map",
 	.key_size = sizeof(int),
 	.value_size = 1,
-	.key_id = 1,
-	.value_id = 3,
+	.key_type_id = 1,
+	.value_type_id = 3,
 	.max_entries = 4,
 	.btf_load_err = true,
-
+	.err_str = "Member exceeds struct_size",
 },
 
 /* Test member exeeds the size of struct
@@ -335,10 +340,11 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "size_check3_map",
 	.key_size = sizeof(int),
 	.value_size = 1,
-	.key_id = 1,
-	.value_id = 3,
+	.key_type_id = 1,
+	.value_type_id = 3,
 	.max_entries = 4,
 	.btf_load_err = true,
+	.err_str = "Member exceeds struct_size",
 },
 
 /* Test member exceeds the size of struct
@@ -376,10 +382,11 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "size_check4_map",
 	.key_size = sizeof(int),
 	.value_size = 1,
-	.key_id = 1,
-	.value_id = 3,
+	.key_type_id = 1,
+	.value_type_id = 3,
 	.max_entries = 4,
 	.btf_load_err = true,
+	.err_str = "Member exceeds struct_size",
 },
 
 /* typedef const void * const_void_ptr;
@@ -411,8 +418,8 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "void_test1_map",
 	.key_size = sizeof(int),
 	.value_size = sizeof(void *),
-	.key_id = 1,
-	.value_id = 4,
+	.key_type_id = 1,
+	.value_type_id = 4,
 	.max_entries = 4,
 },
 
@@ -440,10 +447,11 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "void_test2_map",
 	.key_size = sizeof(int),
 	.value_size = sizeof(void *),
-	.key_id = 1,
-	.value_id = 3,
+	.key_type_id = 1,
+	.value_type_id = 3,
 	.max_entries = 4,
 	.btf_load_err = true,
+	.err_str = "Invalid member",
 },
 
 /* typedef const void * const_void_ptr;
@@ -458,9 +466,9 @@ static struct btf_raw_test raw_tests[] = {
 		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_CONST, 0, 0), 0),
 		/* const void* */	/* [3] */
 		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_PTR, 0, 0), 2),
-		/* typedef const void * const_void_ptr */
+		/* typedef const void * const_void_ptr */	/* [4] */
 		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_PTR, 0, 0), 3),
-		/* const_void_ptr[4] */	/* [4] */
+		/* const_void_ptr[4] */	/* [5] */
 		BTF_TYPE_ARRAY_ENC(3, 1, 4),
 		BTF_END_RAW,
 	},
@@ -470,8 +478,8 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "void_test3_map",
 	.key_size = sizeof(int),
 	.value_size = sizeof(void *) * 4,
-	.key_id = 1,
-	.value_id = 4,
+	.key_type_id = 1,
+	.value_type_id = 4,
 	.max_entries = 4,
 },
 
@@ -493,10 +501,11 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "void_test4_map",
 	.key_size = sizeof(int),
 	.value_size = sizeof(void *) * 4,
-	.key_id = 1,
-	.value_id = 3,
+	.key_type_id = 1,
+	.value_type_id = 3,
 	.max_entries = 4,
 	.btf_load_err = true,
+	.err_str = "Invalid elem",
 },
 
 /* Array_A  <------------------+
@@ -523,10 +532,11 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "loop_test1_map",
 	.key_size = sizeof(int),
 	.value_size = sizeof(sizeof(int) * 8),
-	.key_id = 1,
-	.value_id = 2,
+	.key_type_id = 1,
+	.value_type_id = 2,
 	.max_entries = 4,
 	.btf_load_err = true,
+	.err_str = "Loop detected",
 },
 
 /* typedef is _before_ the BTF type of Array_A and Array_B
@@ -551,7 +561,6 @@ static struct btf_raw_test raw_tests[] = {
 		BTF_TYPE_ARRAY_ENC(2, 1, 8),			/* [3] */
 		/* Array_B */
 		BTF_TYPE_ARRAY_ENC(3, 1, 8),			/* [4] */
-
 		BTF_END_RAW,
 	},
 	.str_sec = "\0int_array\0",
@@ -560,10 +569,11 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "loop_test2_map",
 	.key_size = sizeof(int),
 	.value_size = sizeof(sizeof(int) * 8),
-	.key_id = 1,
-	.value_id = 2,
+	.key_type_id = 1,
+	.value_type_id = 2,
 	.max_entries = 4,
 	.btf_load_err = true,
+	.err_str = "Loop detected",
 },
 
 /* Array_A  <------------------+
@@ -582,7 +592,6 @@ static struct btf_raw_test raw_tests[] = {
 		BTF_TYPE_ARRAY_ENC(3, 1, 8),
 		/* Array_B */				/* [3] */
 		BTF_TYPE_ARRAY_ENC(2, 1, 8),
-
 		BTF_END_RAW,
 	},
 	.str_sec = "",
@@ -591,10 +600,11 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "loop_test3_map",
 	.key_size = sizeof(int),
 	.value_size = sizeof(sizeof(int) * 8),
-	.key_id = 1,
-	.value_id = 2,
+	.key_type_id = 1,
+	.value_type_id = 2,
 	.max_entries = 4,
 	.btf_load_err = true,
+	.err_str = "Loop detected",
 },
 
 /* typedef is _between_ the BTF type of Array_A and Array_B
@@ -627,10 +637,11 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "loop_test4_map",
 	.key_size = sizeof(int),
 	.value_size = sizeof(sizeof(int) * 8),
-	.key_id = 1,
-	.value_id = 2,
+	.key_type_id = 1,
+	.value_type_id = 2,
 	.max_entries = 4,
 	.btf_load_err = true,
+	.err_str = "Loop detected",
 },
 
 /* typedef struct B Struct_B
@@ -668,10 +679,11 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "loop_test5_map",
 	.key_size = sizeof(int),
 	.value_size = 8,
-	.key_id = 1,
-	.value_id = 2,
+	.key_type_id = 1,
+	.value_type_id = 2,
 	.max_entries = 4,
 	.btf_load_err = true,
+	.err_str = "Loop detected",
 },
 
 /* struct A {
@@ -697,10 +709,11 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "loop_test6_map",
 	.key_size = sizeof(int),
 	.value_size = 8,
-	.key_id = 1,
-	.value_id = 2,
+	.key_type_id = 1,
+	.value_type_id = 2,
 	.max_entries = 4,
 	.btf_load_err = true,
+	.err_str = "Loop detected",
 },
 
 {
@@ -724,10 +737,11 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "loop_test7_map",
 	.key_size = sizeof(int),
 	.value_size = sizeof(void *),
-	.key_id = 1,
-	.value_id = 2,
+	.key_type_id = 1,
+	.value_type_id = 2,
 	.max_entries = 4,
 	.btf_load_err = true,
+	.err_str = "Loop detected",
 },
 
 {
@@ -759,14 +773,73 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "loop_test8_map",
 	.key_size = sizeof(int),
 	.value_size = sizeof(void *),
-	.key_id = 1,
-	.value_id = 2,
+	.key_type_id = 1,
+	.value_type_id = 2,
 	.max_entries = 4,
 	.btf_load_err = true,
+	.err_str = "Loop detected",
 },
 
 {
-	.descr = "type_off == str_off",
+	.descr = "string section does not end with null",
+	.raw_types = {
+		/* int */				/* [1] */
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0int",
+	.str_sec_size = sizeof("\0int") - 1,
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "hdr_test_map",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid string section",
+},
+
+{
+	.descr = "empty string section",
+	.raw_types = {
+		/* int */				/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = 0,
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "hdr_test_map",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid string section",
+},
+
+{
+	.descr = "empty type section",
+	.raw_types = {
+		BTF_END_RAW,
+	},
+	.str_sec = "\0int",
+	.str_sec_size = sizeof("\0int"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "hdr_test_map",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "No type found",
+},
+
+{
+	.descr = "btf_header test. Longer hdr_len",
 	.raw_types = {
 		/* int */				/* [1] */
 		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),
@@ -778,15 +851,16 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "hdr_test_map",
 	.key_size = sizeof(int),
 	.value_size = sizeof(int),
-	.key_id = 1,
-	.value_id = 1,
+	.key_type_id = 1,
+	.value_type_id = 1,
 	.max_entries = 4,
 	.btf_load_err = true,
-	.type_off_delta = sizeof(struct btf_type) + sizeof(int) + sizeof("\0int"),
+	.hdr_len_delta = 4,
+	.err_str = "Unsupported btf_header",
 },
 
 {
-	.descr = "Unaligned type_off",
+	.descr = "btf_header test. Gap between hdr and type",
 	.raw_types = {
 		/* int */				/* [1] */
 		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),
@@ -798,15 +872,16 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "hdr_test_map",
 	.key_size = sizeof(int),
 	.value_size = sizeof(int),
-	.key_id = 1,
-	.value_id = 1,
+	.key_type_id = 1,
+	.value_type_id = 1,
 	.max_entries = 4,
 	.btf_load_err = true,
-	.type_off_delta = 1,
+	.type_off_delta = 4,
+	.err_str = "Unsupported section found",
 },
 
 {
-	.descr = "str_off beyonds btf size",
+	.descr = "btf_header test. Gap between type and str",
 	.raw_types = {
 		/* int */				/* [1] */
 		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),
@@ -818,15 +893,16 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "hdr_test_map",
 	.key_size = sizeof(int),
 	.value_size = sizeof(int),
-	.key_id = 1,
-	.value_id = 1,
+	.key_type_id = 1,
+	.value_type_id = 1,
 	.max_entries = 4,
 	.btf_load_err = true,
-	.str_off_delta = sizeof("\0int") + 1,
+	.str_off_delta = 4,
+	.err_str = "Unsupported section found",
 },
 
 {
-	.descr = "str_len beyonds btf size",
+	.descr = "btf_header test. Overlap between type and str",
 	.raw_types = {
 		/* int */				/* [1] */
 		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),
@@ -838,15 +914,16 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "hdr_test_map",
 	.key_size = sizeof(int),
 	.value_size = sizeof(int),
-	.key_id = 1,
-	.value_id = 1,
+	.key_type_id = 1,
+	.value_type_id = 1,
 	.max_entries = 4,
 	.btf_load_err = true,
-	.str_len_delta = 1,
+	.str_off_delta = -4,
+	.err_str = "Section overlap found",
 },
 
 {
-	.descr = "String section does not end with null",
+	.descr = "btf_header test. Larger BTF size",
 	.raw_types = {
 		/* int */				/* [1] */
 		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),
@@ -858,15 +935,16 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "hdr_test_map",
 	.key_size = sizeof(int),
 	.value_size = sizeof(int),
-	.key_id = 1,
-	.value_id = 1,
+	.key_type_id = 1,
+	.value_type_id = 1,
 	.max_entries = 4,
 	.btf_load_err = true,
-	.str_len_delta = -1,
+	.str_len_delta = -4,
+	.err_str = "Unsupported section found",
 },
 
 {
-	.descr = "Empty string section",
+	.descr = "btf_header test. Smaller BTF size",
 	.raw_types = {
 		/* int */				/* [1] */
 		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),
@@ -878,11 +956,267 @@ static struct btf_raw_test raw_tests[] = {
 	.map_name = "hdr_test_map",
 	.key_size = sizeof(int),
 	.value_size = sizeof(int),
-	.key_id = 1,
-	.value_id = 1,
+	.key_type_id = 1,
+	.value_type_id = 1,
 	.max_entries = 4,
 	.btf_load_err = true,
-	.str_len_delta = 0 - (int)sizeof("\0int"),
+	.str_len_delta = 4,
+	.err_str = "Total section length too long",
+},
+
+{
+	.descr = "array test. index_type/elem_type \"int\"",
+	.raw_types = {
+		/* int */				/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),
+		/* int[16] */				/* [2] */
+		BTF_TYPE_ARRAY_ENC(1, 1, 16),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "array_test_map",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "array test. index_type/elem_type \"const int\"",
+	.raw_types = {
+		/* int */				/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),
+		/* int[16] */				/* [2] */
+		BTF_TYPE_ARRAY_ENC(3, 3, 16),
+		/* CONST type_id=1 */			/* [3] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_CONST, 0, 0), 1),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "array_test_map",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "array test. index_type \"const int:31\"",
+	.raw_types = {
+		/* int */				/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),
+		/* int:31 */				/* [2] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 31, 4),
+		/* int[16] */				/* [3] */
+		BTF_TYPE_ARRAY_ENC(1, 4, 16),
+		/* CONST type_id=2 */			/* [4] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_CONST, 0, 0), 2),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "array_test_map",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid index",
+},
+
+{
+	.descr = "array test. elem_type \"const int:31\"",
+	.raw_types = {
+		/* int */				/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),
+		/* int:31 */				/* [2] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 31, 4),
+		/* int[16] */				/* [3] */
+		BTF_TYPE_ARRAY_ENC(4, 1, 16),
+		/* CONST type_id=2 */			/* [4] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_CONST, 0, 0), 2),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "array_test_map",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid array of int",
+},
+
+{
+	.descr = "array test. index_type \"void\"",
+	.raw_types = {
+		/* int */				/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),
+		/* int[16] */				/* [2] */
+		BTF_TYPE_ARRAY_ENC(1, 0, 16),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "array_test_map",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid index",
+},
+
+{
+	.descr = "array test. index_type \"const void\"",
+	.raw_types = {
+		/* int */				/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),
+		/* int[16] */				/* [2] */
+		BTF_TYPE_ARRAY_ENC(1, 3, 16),
+		/* CONST type_id=0 (void) */		/* [3] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_CONST, 0, 0), 0),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "array_test_map",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid index",
+},
+
+{
+	.descr = "array test. elem_type \"const void\"",
+	.raw_types = {
+		/* int */				/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),
+		/* int[16] */				/* [2] */
+		BTF_TYPE_ARRAY_ENC(3, 1, 16),
+		/* CONST type_id=0 (void) */		/* [3] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_CONST, 0, 0), 0),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "array_test_map",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid elem",
+},
+
+{
+	.descr = "array test. elem_type \"const void *\"",
+	.raw_types = {
+		/* int */				/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),
+		/* const void *[16] */			/* [2] */
+		BTF_TYPE_ARRAY_ENC(3, 1, 16),
+		/* CONST type_id=4 */			/* [3] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_CONST, 0, 0), 4),
+		/* void* */				/* [4] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_PTR, 0, 0), 0),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "array_test_map",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "array test. index_type \"const void *\"",
+	.raw_types = {
+		/* int */				/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),
+		/* const void *[16] */			/* [2] */
+		BTF_TYPE_ARRAY_ENC(3, 3, 16),
+		/* CONST type_id=4 */			/* [3] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_CONST, 0, 0), 4),
+		/* void* */				/* [4] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_PTR, 0, 0), 0),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "array_test_map",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid index",
+},
+
+{
+	.descr = "int test. invalid int_data",
+	.raw_types = {
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_INT, 0, 0), 4),
+		0x10000000,
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "array_test_map",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid int_data",
+},
+
+{
+	.descr = "invalid BTF_INFO",
+	.raw_types = {
+		/* int */				/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),
+		BTF_TYPE_ENC(0, 0x10000000, 4),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "array_test_map",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid btf_info",
 },
 
 }; /* struct btf_raw_test raw_tests[] */
@@ -951,6 +1285,7 @@ static void *btf_raw_create(const struct btf_header *hdr,
 	memcpy(raw_btf + offset, str, str_sec_size);
 
 	ret_hdr = (struct btf_header *)raw_btf;
+	ret_hdr->type_len = type_sec_size;
 	ret_hdr->str_off = type_sec_size;
 	ret_hdr->str_len = str_sec_size;
 
@@ -981,6 +1316,7 @@ static int do_test_raw(unsigned int test_num)
 
 	hdr = raw_btf;
 
+	hdr->hdr_len = (int)hdr->hdr_len + test->hdr_len_delta;
 	hdr->type_off = (int)hdr->type_off + test->type_off_delta;
 	hdr->str_off = (int)hdr->str_off + test->str_off_delta;
 	hdr->str_len = (int)hdr->str_len + test->str_len_delta;
@@ -992,8 +1328,13 @@ static int do_test_raw(unsigned int test_num)
 	free(raw_btf);
 
 	err = ((btf_fd == -1) != test->btf_load_err);
-	CHECK(err, "btf_fd:%d test->btf_load_err:%u",
-	      btf_fd, test->btf_load_err);
+	if (CHECK(err, "btf_fd:%d test->btf_load_err:%u",
+		  btf_fd, test->btf_load_err) ||
+	    CHECK(test->err_str && !strstr(btf_log_buf, test->err_str),
+		  "expected err_str:%s", test->err_str)) {
+		err = -1;
+		goto done;
+	}
 
 	if (err || btf_fd == -1)
 		goto done;
@@ -1004,8 +1345,8 @@ static int do_test_raw(unsigned int test_num)
 	create_attr.value_size = test->value_size;
 	create_attr.max_entries = test->max_entries;
 	create_attr.btf_fd = btf_fd;
-	create_attr.btf_key_id = test->key_id;
-	create_attr.btf_value_id = test->value_id;
+	create_attr.btf_key_type_id = test->key_type_id;
+	create_attr.btf_value_type_id = test->value_type_id;
 
 	map_fd = bpf_create_map_xattr(&create_attr);
 
@@ -1267,8 +1608,8 @@ static int test_btf_id(unsigned int test_num)
 	create_attr.value_size = sizeof(unsigned int);
 	create_attr.max_entries = 4;
 	create_attr.btf_fd = btf_fd[0];
-	create_attr.btf_key_id = 1;
-	create_attr.btf_value_id = 2;
+	create_attr.btf_key_type_id = 1;
+	create_attr.btf_value_type_id = 2;
 
 	map_fd = bpf_create_map_xattr(&create_attr);
 	if (CHECK(map_fd == -1, "errno:%d", errno)) {
@@ -1279,10 +1620,10 @@ static int test_btf_id(unsigned int test_num)
 	info_len = sizeof(map_info);
 	err = bpf_obj_get_info_by_fd(map_fd, &map_info, &info_len);
 	if (CHECK(err || map_info.btf_id != info[0].id ||
-		  map_info.btf_key_id != 1 || map_info.btf_value_id != 2,
-		  "err:%d errno:%d info.id:%u btf_id:%u btf_key_id:%u btf_value_id:%u",
-		  err, errno, info[0].id, map_info.btf_id, map_info.btf_key_id,
-		  map_info.btf_value_id)) {
+		  map_info.btf_key_type_id != 1 || map_info.btf_value_type_id != 2,
+		  "err:%d errno:%d info.id:%u btf_id:%u btf_key_type_id:%u btf_value_type_id:%u",
+		  err, errno, info[0].id, map_info.btf_id, map_info.btf_key_type_id,
+		  map_info.btf_value_type_id)) {
 		err = -1;
 		goto done;
 	}
@@ -1542,10 +1883,10 @@ static int do_test_file(unsigned int test_num)
 		goto done;
 	}
 
-	err = (bpf_map__btf_key_id(map) == 0 || bpf_map__btf_value_id(map) == 0)
+	err = (bpf_map__btf_key_type_id(map) == 0 || bpf_map__btf_value_type_id(map) == 0)
 		!= test->btf_kv_notfound;
-	if (CHECK(err, "btf_key_id:%u btf_value_id:%u test->btf_kv_notfound:%u",
-		  bpf_map__btf_key_id(map), bpf_map__btf_value_id(map),
+	if (CHECK(err, "btf_key_type_id:%u btf_value_type_id:%u test->btf_kv_notfound:%u",
+		  bpf_map__btf_key_type_id(map), bpf_map__btf_value_type_id(map),
 		  test->btf_kv_notfound))
 		goto done;
 
@@ -1615,7 +1956,7 @@ static struct btf_raw_test pprint_test = {
 		/* 28 bits */				/* [7] */
 		BTF_TYPE_INT_ENC(0, 0, 0, 28, 4),
 		/* uint8_t[8] */			/* [8] */
-		BTF_TYPE_ARRAY_ENC(9, 3, 8),
+		BTF_TYPE_ARRAY_ENC(9, 1, 8),
 		/* typedef unsigned char uint8_t */	/* [9] */
 		BTF_TYPEDEF_ENC(NAME_TBD, 1),
 		/* typedef unsigned short uint16_t */	/* [10] */
@@ -1654,8 +1995,8 @@ static struct btf_raw_test pprint_test = {
 	.map_name = "pprint_test",
 	.key_size = sizeof(unsigned int),
 	.value_size = sizeof(struct pprint_mapv),
-	.key_id = 3,	/* unsigned int */
-	.value_id = 16,	/* struct pprint_mapv */
+	.key_type_id = 3,	/* unsigned int */
+	.value_type_id = 16,	/* struct pprint_mapv */
 	.max_entries = 128 * 1024,
 };
 
@@ -1712,8 +2053,8 @@ static int test_pprint(void)
 	create_attr.value_size = test->value_size;
 	create_attr.max_entries = test->max_entries;
 	create_attr.btf_fd = btf_fd;
-	create_attr.btf_key_id = test->key_id;
-	create_attr.btf_value_id = test->value_id;
+	create_attr.btf_key_type_id = test->key_type_id;
+	create_attr.btf_value_type_id = test->value_type_id;
 
 	map_fd = bpf_create_map_xattr(&create_attr);
 	if (CHECK(map_fd == -1, "errno:%d", errno)) {

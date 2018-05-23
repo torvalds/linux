@@ -352,7 +352,7 @@ static void array_map_seq_show_elem(struct bpf_map *map, void *key,
 	}
 
 	seq_printf(m, "%u: ", *(u32 *)key);
-	btf_type_seq_show(map->btf, map->btf_value_id, value, m);
+	btf_type_seq_show(map->btf, map->btf_value_type_id, value, m);
 	seq_puts(m, "\n");
 
 	rcu_read_unlock();

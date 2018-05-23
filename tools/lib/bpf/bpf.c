@@ -89,8 +89,8 @@ int bpf_create_map_xattr(const struct bpf_create_map_attr *create_attr)
 	       min(name_len, BPF_OBJ_NAME_LEN - 1));
 	attr.numa_node = create_attr->numa_node;
 	attr.btf_fd = create_attr->btf_fd;
-	attr.btf_key_id = create_attr->btf_key_id;
-	attr.btf_value_id = create_attr->btf_value_id;
+	attr.btf_key_type_id = create_attr->btf_key_type_id;
+	attr.btf_value_type_id = create_attr->btf_value_type_id;
 	attr.map_ifindex = create_attr->map_ifindex;
 
 	return sys_bpf(BPF_MAP_CREATE, &attr, sizeof(attr));

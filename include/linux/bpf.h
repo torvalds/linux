@@ -69,8 +69,8 @@ struct bpf_map {
 	u32 pages;
 	u32 id;
 	int numa_node;
-	u32 btf_key_id;
-	u32 btf_value_id;
+	u32 btf_key_type_id;
+	u32 btf_value_type_id;
 	struct btf *btf;
 	bool unpriv_array;
 	/* 55 bytes hole */
@@ -463,6 +463,8 @@ int bpf_fd_htab_map_update_elem(struct bpf_map *map, struct file *map_file,
 int bpf_fd_htab_map_lookup_elem(struct bpf_map *map, void *key, u32 *value);
 
 int bpf_get_file_flag(int flags);
+int bpf_check_uarg_tail_zero(void __user *uaddr, size_t expected_size,
+			     size_t actual_size);
 
 /* memcpy that is used with 8-byte aligned pointers, power-of-8 size and
  * forced to use 'long' read/writes to try to atomically copy long counters.
