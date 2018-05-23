@@ -41,6 +41,8 @@ _GLOBAL(kvmppc_save_tm)
 	mfmsr	r8
 	li	r0, 1
 	rldimi	r8, r0, MSR_TM_LG, 63-MSR_TM_LG
+	ori     r8, r8, MSR_FP
+	oris    r8, r8, (MSR_VEC | MSR_VSX)@h
 	mtmsrd	r8
 
 	rldicl. r4, r4, 64 - MSR_TS_S_LG, 62
