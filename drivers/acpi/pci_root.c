@@ -902,7 +902,7 @@ struct pci_bus *acpi_pci_root_create(struct acpi_pci_root *root,
 
 	host_bridge = to_pci_host_bridge(bus->bridge);
 	if (!(root->osc_control_set & OSC_PCI_EXPRESS_NATIVE_HP_CONTROL))
-		host_bridge->native_hotplug = 0;
+		host_bridge->native_pcie_hotplug = 0;
 	if (!(root->osc_control_set & OSC_PCI_EXPRESS_AER_CONTROL))
 		host_bridge->native_aer = 0;
 	if (!(root->osc_control_set & OSC_PCI_EXPRESS_PME_CONTROL))
