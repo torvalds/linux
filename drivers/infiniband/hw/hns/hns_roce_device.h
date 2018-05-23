@@ -214,6 +214,7 @@ enum {
 struct hns_roce_uar {
 	u64		pfn;
 	unsigned long	index;
+	unsigned long	logic_idx;
 };
 
 struct hns_roce_ucontext {
