@@ -642,6 +642,69 @@ static int xgbe_get_module_eeprom(struct net_device *netdev,
 	return pdata->phy_if.module_eeprom(pdata, eeprom, data);
 }
 
+static void xgbe_get_ringparam(struct net_device *netdev,
+			       struct ethtool_ringparam *ringparam)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+
+	ringparam->rx_max_pending = XGBE_RX_DESC_CNT_MAX;
+	ringparam->tx_max_pending = XGBE_TX_DESC_CNT_MAX;
+	ringparam->rx_pending = pdata->rx_desc_count;
+	ringparam->tx_pending = pdata->tx_desc_count;
+}
+
+static int xgbe_set_ringparam(struct net_device *netdev,
+			      struct ethtool_ringparam *ringparam)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	unsigned int rx, tx;
+
+	if (ringparam->rx_mini_pending || ringparam->rx_jumbo_pending) {
+		netdev_err(netdev, "unsupported ring parameter\n");
+		return -EINVAL;
+	}
+
+	if ((ringparam->rx_pending < XGBE_RX_DESC_CNT_MIN) ||
+	    (ringparam->rx_pending > XGBE_RX_DESC_CNT_MAX)) {
+		netdev_err(netdev,
+			   "rx ring parameter must be between %u and %u\n",
+			   XGBE_RX_DESC_CNT_MIN, XGBE_RX_DESC_CNT_MAX);
+		return -EINVAL;
+	}
+
+	if ((ringparam->tx_pending < XGBE_TX_DESC_CNT_MIN) ||
+	    (ringparam->tx_pending > XGBE_TX_DESC_CNT_MAX)) {
+		netdev_err(netdev,
+			   "tx ring parameter must be between %u and %u\n",
+			   XGBE_TX_DESC_CNT_MIN, XGBE_TX_DESC_CNT_MAX);
+		return -EINVAL;
+	}
+
+	rx = __rounddown_pow_of_two(ringparam->rx_pending);
+	if (rx != ringparam->rx_pending)
+		netdev_notice(netdev,
+			      "rx ring parameter rounded to power of two: %u\n",
+			      rx);
+
+	tx = __rounddown_pow_of_two(ringparam->tx_pending);
+	if (tx != ringparam->tx_pending)
+		netdev_notice(netdev,
+			      "tx ring parameter rounded to power of two: %u\n",
+			      tx);
+
+	if ((rx == pdata->rx_desc_count) &&
+	    (tx == pdata->tx_desc_count))
+		goto out;
+
+	pdata->rx_desc_count = rx;
+	pdata->tx_desc_count = tx;
+
+	xgbe_restart_dev(pdata);
+
+out:
+	return 0;
+}
+
 static const struct ethtool_ops xgbe_ethtool_ops = {
 	.get_drvinfo = xgbe_get_drvinfo,
 	.get_msglevel = xgbe_get_msglevel,
@@ -664,6 +727,8 @@ static const struct ethtool_ops xgbe_ethtool_ops = {
 	.set_link_ksettings = xgbe_set_link_ksettings,
 	.get_module_info = xgbe_get_module_info,
 	.get_module_eeprom = xgbe_get_module_eeprom,
+	.get_ringparam = xgbe_get_ringparam,
+	.set_ringparam = xgbe_set_ringparam,
 };
 
 const struct ethtool_ops *xgbe_get_ethtool_ops(void)

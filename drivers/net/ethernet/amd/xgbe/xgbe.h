@@ -144,6 +144,11 @@
 #define XGBE_TX_DESC_MAX_PROC	(XGBE_TX_DESC_CNT >> 1)
 #define XGBE_RX_DESC_CNT	512
 
+#define XGBE_TX_DESC_CNT_MIN	64
+#define XGBE_TX_DESC_CNT_MAX	4096
+#define XGBE_RX_DESC_CNT_MIN	64
+#define XGBE_RX_DESC_CNT_MAX	4096
+
 #define XGBE_TX_MAX_BUF_SIZE	(0x3fff & ~(64 - 1))
 
 /* Descriptors required for maximum contiguous TSO/GSO packet */
@@ -1330,6 +1335,7 @@ int xgbe_powerup(struct net_device *, unsigned int);
 int xgbe_powerdown(struct net_device *, unsigned int);
 void xgbe_init_rx_coalesce(struct xgbe_prv_data *);
 void xgbe_init_tx_coalesce(struct xgbe_prv_data *);
+void xgbe_restart_dev(struct xgbe_prv_data *pdata);
 
 #ifdef CONFIG_DEBUG_FS
 void xgbe_debugfs_init(struct xgbe_prv_data *);
