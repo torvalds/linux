@@ -172,14 +172,20 @@ _GLOBAL(_kvmppc_save_tm_pr)
 	mfmsr	r5
 	SAVE_GPR(5, r1)
 
-	/* also save DSCR/CR so that it can be recovered later */
+	/* also save DSCR/CR/TAR so that it can be recovered later */
 	mfspr   r6, SPRN_DSCR
 	SAVE_GPR(6, r1)
 
 	mfcr    r7
 	stw     r7, _CCR(r1)
 
+	mfspr   r8, SPRN_TAR
+	SAVE_GPR(8, r1)
+
 	bl	__kvmppc_save_tm
+
+	REST_GPR(8, r1)
+	mtspr   SPRN_TAR, r8
 
 	ld      r7, _CCR(r1)
 	mtcr	r7
@@ -340,14 +346,20 @@ _GLOBAL(_kvmppc_restore_tm_pr)
 	mfmsr	r5
 	SAVE_GPR(5, r1)
 
-	/* also save DSCR/CR so that it can be recovered later */
+	/* also save DSCR/CR/TAR so that it can be recovered later */
 	mfspr   r6, SPRN_DSCR
 	SAVE_GPR(6, r1)
 
 	mfcr    r7
 	stw     r7, _CCR(r1)
 
+	mfspr   r8, SPRN_TAR
+	SAVE_GPR(8, r1)
+
 	bl	__kvmppc_restore_tm
+
+	REST_GPR(8, r1)
+	mtspr   SPRN_TAR, r8
 
 	ld      r7, _CCR(r1)
 	mtcr	r7

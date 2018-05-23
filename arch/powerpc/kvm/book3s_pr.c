@@ -55,7 +55,9 @@
 
 static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 			     ulong msr);
-static void kvmppc_giveup_fac(struct kvm_vcpu *vcpu, ulong fac);
+#ifdef CONFIG_PPC_BOOK3S_64
+static int kvmppc_handle_fac(struct kvm_vcpu *vcpu, ulong fac);
+#endif
 
 /* Some compatibility defines */
 #ifdef CONFIG_PPC_BOOK3S_32
@@ -346,6 +348,7 @@ void kvmppc_save_tm_pr(struct kvm_vcpu *vcpu)
 		return;
 	}
 
+	kvmppc_giveup_fac(vcpu, FSCR_TAR_LG);
 	kvmppc_giveup_ext(vcpu, MSR_VSX);
 
 	preempt_disable();
@@ -357,8 +360,11 @@ void kvmppc_restore_tm_pr(struct kvm_vcpu *vcpu)
 {
 	if (!MSR_TM_ACTIVE(kvmppc_get_msr(vcpu))) {
 		kvmppc_restore_tm_sprs(vcpu);
-		if (kvmppc_get_msr(vcpu) & MSR_TM)
+		if (kvmppc_get_msr(vcpu) & MSR_TM) {
 			kvmppc_handle_lost_math_exts(vcpu);
+			if (vcpu->arch.fscr & FSCR_TAR)
+				kvmppc_handle_fac(vcpu, FSCR_TAR_LG);
+		}
 		return;
 	}
 
@@ -366,9 +372,11 @@ void kvmppc_restore_tm_pr(struct kvm_vcpu *vcpu)
 	_kvmppc_restore_tm_pr(vcpu, kvmppc_get_msr(vcpu));
 	preempt_enable();
 
-	if (kvmppc_get_msr(vcpu) & MSR_TM)
+	if (kvmppc_get_msr(vcpu) & MSR_TM) {
 		kvmppc_handle_lost_math_exts(vcpu);
-
+		if (vcpu->arch.fscr & FSCR_TAR)
+			kvmppc_handle_fac(vcpu, FSCR_TAR_LG);
+	}
 }
 #endif
 
@@ -819,7 +827,7 @@ void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr)
 }
 
 /* Give up facility (TAR / EBB / DSCR) */
-static void kvmppc_giveup_fac(struct kvm_vcpu *vcpu, ulong fac)
+void kvmppc_giveup_fac(struct kvm_vcpu *vcpu, ulong fac)
 {
 #ifdef CONFIG_PPC_BOOK3S_64
 	if (!(vcpu->arch.shadow_fscr & (1ULL << fac))) {
@@ -1020,7 +1028,12 @@ void kvmppc_set_fscr(struct kvm_vcpu *vcpu, u64 fscr)
 	if ((vcpu->arch.fscr & FSCR_TAR) && !(fscr & FSCR_TAR)) {
 		/* TAR got dropped, drop it in shadow too */
 		kvmppc_giveup_fac(vcpu, FSCR_TAR_LG);
+	} else if (!(vcpu->arch.fscr & FSCR_TAR) && (fscr & FSCR_TAR)) {
+		vcpu->arch.fscr = fscr;
+		kvmppc_handle_fac(vcpu, FSCR_TAR_LG);
+		return;
 	}
+
 	vcpu->arch.fscr = fscr;
 }
 #endif
