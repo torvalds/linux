@@ -173,7 +173,7 @@ static ssize_t afs_proc_rootcell_read(struct file *file, char __user *buf,
 
 	if (*_pos > 0)
 		return 0;
-	if (!net->ws_cell)
+	if (!rcu_access_pointer(net->ws_cell))
 		return 0;
 
 	rcu_read_lock();
