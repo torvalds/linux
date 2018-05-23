@@ -668,8 +668,10 @@ static irqreturn_t mtu3_u3_ltssm_isr(struct mtu3 *mtu)
 	if (ltssm & (HOT_RST_INTR | WARM_RST_INTR))
 		mtu3_gadget_reset(mtu);
 
-	if (ltssm & VBUS_FALL_INTR)
+	if (ltssm & VBUS_FALL_INTR) {
 		mtu3_ss_func_set(mtu, false);
+		mtu3_gadget_reset(mtu);
+	}
 
 	if (ltssm & VBUS_RISE_INTR)
 		mtu3_ss_func_set(mtu, true);
