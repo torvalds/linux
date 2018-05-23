@@ -343,7 +343,6 @@ struct xgbe_phy_data {
 	unsigned int sfp_rx_los;
 	unsigned int sfp_tx_fault;
 	unsigned int sfp_mod_absent;
-	unsigned int sfp_diags;
 	unsigned int sfp_changed;
 	unsigned int sfp_phy_avail;
 	unsigned int sfp_cable_len;
@@ -1211,13 +1210,6 @@ static int xgbe_phy_sfp_read_eeprom(struct xgbe_prv_data *pdata)
 
 		memcpy(&phy_data->sfp_eeprom, &sfp_eeprom, sizeof(sfp_eeprom));
 
-		if (sfp_eeprom.extd[XGBE_SFP_EXTD_SFF_8472]) {
-			u8 diag_type = sfp_eeprom.extd[XGBE_SFP_EXTD_DIAG];
-
-			if (!(diag_type & XGBE_SFP_EXTD_DIAG_ADDR_CHANGE))
-				phy_data->sfp_diags = 1;
-		}
-
 		xgbe_phy_free_phy_device(pdata);
 	} else {
 		phy_data->sfp_changed = 0;
@@ -1267,7 +1259,6 @@ static void xgbe_phy_sfp_reset(struct xgbe_phy_data *phy_data)
 	phy_data->sfp_rx_los = 0;
 	phy_data->sfp_tx_fault = 0;
 	phy_data->sfp_mod_absent = 1;
-	phy_data->sfp_diags = 0;
 	phy_data->sfp_base = XGBE_SFP_BASE_UNKNOWN;
 	phy_data->sfp_cable = XGBE_SFP_CABLE_UNKNOWN;
 	phy_data->sfp_speed = XGBE_SFP_SPEED_UNKNOWN;
