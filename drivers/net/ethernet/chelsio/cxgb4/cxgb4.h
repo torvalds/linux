@@ -491,6 +491,9 @@ struct link_config {
 
 	unsigned char  link_ok;          /* link up? */
 	unsigned char  link_down_rc;     /* link down reason */
+
+	bool new_module;		 /* ->OS Transceiver Module inserted */
+	bool redo_l1cfg;		 /* ->CC redo current "sticky" L1 CFG */
 };
 
 #define FW_LEN16(fw_struct) FW_CMD_LEN16_V(sizeof(fw_struct) / 16)
@@ -1324,7 +1327,7 @@ static inline unsigned int qtimer_val(const struct adapter *adap,
 extern char cxgb4_driver_name[];
 extern const char cxgb4_driver_version[];
 
-void t4_os_portmod_changed(const struct adapter *adap, int port_id);
+void t4_os_portmod_changed(struct adapter *adap, int port_id);
 void t4_os_link_changed(struct adapter *adap, int port_id, int link_stat);
 
 void t4_free_sge_resources(struct adapter *adap);
@@ -1505,8 +1508,25 @@ void t4_intr_disable(struct adapter *adapter);
 int t4_slow_intr_handler(struct adapter *adapter);
 
 int t4_wait_dev_ready(void __iomem *regs);
-int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
-		  struct link_config *lc);
+
+int t4_link_l1cfg_core(struct adapter *adap, unsigned int mbox,
+		       unsigned int port, struct link_config *lc,
+		       bool sleep_ok, int timeout);
+
+static inline int t4_link_l1cfg(struct adapter *adapter, unsigned int mbox,
+				unsigned int port, struct link_config *lc)
+{
+	return t4_link_l1cfg_core(adapter, mbox, port, lc,
+				  true, FW_CMD_MAX_TIMEOUT);
+}
+
+static inline int t4_link_l1cfg_ns(struct adapter *adapter, unsigned int mbox,
+				   unsigned int port, struct link_config *lc)
+{
+	return t4_link_l1cfg_core(adapter, mbox, port, lc,
+				  false, FW_CMD_MAX_TIMEOUT);
+}
+
 int t4_restart_aneg(struct adapter *adap, unsigned int mbox, unsigned int port);
 
 u32 t4_read_pcie_cfg4(struct adapter *adap, int reg);

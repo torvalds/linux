@@ -301,14 +301,14 @@ void t4_os_link_changed(struct adapter *adapter, int port_id, int link_stat)
 	}
 }
 
-void t4_os_portmod_changed(const struct adapter *adap, int port_id)
+void t4_os_portmod_changed(struct adapter *adap, int port_id)
 {
 	static const char *mod_str[] = {
 		NULL, "LR", "SR", "ER", "passive DA", "active DA", "LRM"
 	};
 
-	const struct net_device *dev = adap->port[port_id];
-	const struct port_info *pi = netdev_priv(dev);
+	struct net_device *dev = adap->port[port_id];
+	struct port_info *pi = netdev_priv(dev);
 
 	if (pi->mod_type == FW_PORT_MOD_TYPE_NONE)
 		netdev_info(dev, "port module unplugged\n");
@@ -325,6 +325,11 @@ void t4_os_portmod_changed(const struct adapter *adap, int port_id)
 	else
 		netdev_info(dev, "%s: unknown module type %d inserted\n",
 			    dev->name, pi->mod_type);
+
+	/* If the interface is running, then we'll need any "sticky" Link
+	 * Parameters redone with a new Transceiver Module.
+	 */
+	pi->link_cfg.redo_l1cfg = netif_running(dev);
 }
 
 int dbfifo_int_thresh = 10; /* 10 == 640 entry threshold */

@@ -4058,14 +4058,16 @@ static inline fw_port_cap32_t cc_to_fwcap_fec(enum cc_fec cc_fec)
  *	- If auto-negotiation is off set the MAC to the proper speed/duplex/FC,
  *	  otherwise do it later based on the outcome of auto-negotiation.
  */
-int t4_link_l1cfg(struct adapter *adapter, unsigned int mbox,
-		  unsigned int port, struct link_config *lc)
+int t4_link_l1cfg_core(struct adapter *adapter, unsigned int mbox,
+		       unsigned int port, struct link_config *lc,
+		       bool sleep_ok, int timeout)
 {
 	unsigned int fw_caps = adapter->params.fw_caps_support;
-	struct fw_port_cmd cmd;
-	unsigned int fw_mdi = FW_PORT_CAP32_MDI_V(FW_PORT_CAP32_MDI_AUTO);
 	fw_port_cap32_t fw_fc, cc_fec, fw_fec, rcap;
+	struct fw_port_cmd cmd;
+	unsigned int fw_mdi;
 
+	fw_mdi = (FW_PORT_CAP32_MDI_V(FW_PORT_CAP32_MDI_AUTO) & lc->pcaps);
 	/* Convert driver coding of Pause Frame Flow Control settings into the
 	 * Firmware's API.
 	 */
@@ -4087,7 +4089,7 @@ int t4_link_l1cfg(struct adapter *adapter, unsigned int mbox,
 	/* Figure out what our Requested Port Capabilities are going to be.
 	 */
 	if (!(lc->pcaps & FW_PORT_CAP32_ANEG)) {
-		rcap = (lc->pcaps & ADVERT_MASK) | fw_fc | fw_fec;
+		rcap = lc->acaps | fw_fc | fw_fec;
 		lc->fc = lc->requested_fc & ~PAUSE_AUTONEG;
 		lc->fec = cc_fec;
 	} else if (lc->autoneg == AUTONEG_DISABLE) {
@@ -4113,7 +4115,8 @@ int t4_link_l1cfg(struct adapter *adapter, unsigned int mbox,
 		cmd.u.l1cfg.rcap = cpu_to_be32(fwcaps32_to_caps16(rcap));
 	else
 		cmd.u.l1cfg32.rcap32 = cpu_to_be32(rcap);
-	return t4_wr_mbox(adapter, mbox, &cmd, sizeof(cmd), NULL);
+	return t4_wr_mbox_meat_timeout(adapter, mbox, &cmd, sizeof(cmd), NULL,
+				       sleep_ok, timeout);
 }
 
 /**
@@ -8335,6 +8338,9 @@ void t4_handle_get_port_info(struct port_info *pi, const __be64 *rpl)
 	fc = fwcap_to_cc_pause(linkattr);
 	speed = fwcap_to_speed(linkattr);
 
+	lc->new_module = false;
+	lc->redo_l1cfg = false;
+
 	if (mod_type != pi->mod_type) {
 		/* With the newer SFP28 and QSFP28 Transceiver Module Types,
 		 * various fundamental Port Capabilities which used to be
@@ -8369,6 +8375,8 @@ void t4_handle_get_port_info(struct port_info *pi, const __be64 *rpl)
 		pi->port_type = port_type;
 
 		pi->mod_type = mod_type;
+
+		lc->new_module = t4_is_inserted_mod_type(mod_type);
 		t4_os_portmod_changed(adapter, pi->port_id);
 	}
 
@@ -8401,6 +8409,26 @@ void t4_handle_get_port_info(struct port_info *pi, const __be64 *rpl)
 
 		t4_os_link_changed(adapter, pi->port_id, link_ok);
 	}
+
+	if (lc->new_module && lc->redo_l1cfg) {
+		struct link_config old_lc;
+		int ret;
+
+		/* Save the current L1 Configuration and restore it if an
+		 * error occurs.  We probably should fix the l1_cfg*()
+		 * routines not to change the link_config when an error
+		 * occurs ...
+		 */
+		old_lc = *lc;
+		ret = t4_link_l1cfg_ns(adapter, adapter->mbox, pi->lport, lc);
+		if (ret) {
+			*lc = old_lc;
+			dev_warn(adapter->pdev_dev,
+				 "Attempt to update new Transceiver Module settings failed\n");
+		}
+	}
+	lc->new_module = false;
+	lc->redo_l1cfg = false;
 }
 
 /**
