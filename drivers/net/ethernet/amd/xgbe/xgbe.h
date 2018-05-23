@@ -1027,6 +1027,13 @@ struct xgbe_prv_data {
 	void __iomem *xprop_regs;	/* XGBE property registers */
 	void __iomem *xi2c_regs;	/* XGBE I2C CSRs */
 
+	/* Port property registers */
+	unsigned int pp0;
+	unsigned int pp1;
+	unsigned int pp2;
+	unsigned int pp3;
+	unsigned int pp4;
+
 	/* Overall device lock */
 	spinlock_t lock;
 

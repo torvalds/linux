@@ -2421,22 +2421,21 @@ static int xgbe_phy_link_status(struct xgbe_prv_data *pdata, int *an_restart)
 static void xgbe_phy_sfp_gpio_setup(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
-	unsigned int reg;
-
-	reg = XP_IOREAD(pdata, XP_PROP_3);
 
 	phy_data->sfp_gpio_address = XGBE_GPIO_ADDRESS_PCA9555 +
-				     XP_GET_BITS(reg, XP_PROP_3, GPIO_ADDR);
+				     XP_GET_BITS(pdata->pp3, XP_PROP_3,
+						 GPIO_ADDR);
 
-	phy_data->sfp_gpio_mask = XP_GET_BITS(reg, XP_PROP_3, GPIO_MASK);
+	phy_data->sfp_gpio_mask = XP_GET_BITS(pdata->pp3, XP_PROP_3,
+					      GPIO_MASK);
 
-	phy_data->sfp_gpio_rx_los = XP_GET_BITS(reg, XP_PROP_3,
+	phy_data->sfp_gpio_rx_los = XP_GET_BITS(pdata->pp3, XP_PROP_3,
 						GPIO_RX_LOS);
-	phy_data->sfp_gpio_tx_fault = XP_GET_BITS(reg, XP_PROP_3,
+	phy_data->sfp_gpio_tx_fault = XP_GET_BITS(pdata->pp3, XP_PROP_3,
 						  GPIO_TX_FAULT);
-	phy_data->sfp_gpio_mod_absent = XP_GET_BITS(reg, XP_PROP_3,
+	phy_data->sfp_gpio_mod_absent = XP_GET_BITS(pdata->pp3, XP_PROP_3,
 						    GPIO_MOD_ABS);
-	phy_data->sfp_gpio_rate_select = XP_GET_BITS(reg, XP_PROP_3,
+	phy_data->sfp_gpio_rate_select = XP_GET_BITS(pdata->pp3, XP_PROP_3,
 						     GPIO_RATE_SELECT);
 
 	if (netif_msg_probe(pdata)) {
@@ -2458,18 +2457,17 @@ static void xgbe_phy_sfp_gpio_setup(struct xgbe_prv_data *pdata)
 static void xgbe_phy_sfp_comm_setup(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
-	unsigned int reg, mux_addr_hi, mux_addr_lo;
+	unsigned int mux_addr_hi, mux_addr_lo;
 
-	reg = XP_IOREAD(pdata, XP_PROP_4);
-
-	mux_addr_hi = XP_GET_BITS(reg, XP_PROP_4, MUX_ADDR_HI);
-	mux_addr_lo = XP_GET_BITS(reg, XP_PROP_4, MUX_ADDR_LO);
+	mux_addr_hi = XP_GET_BITS(pdata->pp4, XP_PROP_4, MUX_ADDR_HI);
+	mux_addr_lo = XP_GET_BITS(pdata->pp4, XP_PROP_4, MUX_ADDR_LO);
 	if (mux_addr_lo == XGBE_SFP_DIRECT)
 		return;
 
 	phy_data->sfp_comm = XGBE_SFP_COMM_PCA9545;
 	phy_data->sfp_mux_address = (mux_addr_hi << 2) + mux_addr_lo;
-	phy_data->sfp_mux_channel = XP_GET_BITS(reg, XP_PROP_4, MUX_CHAN);
+	phy_data->sfp_mux_channel = XP_GET_BITS(pdata->pp4, XP_PROP_4,
+						MUX_CHAN);
 
 	if (netif_msg_probe(pdata)) {
 		dev_dbg(pdata->dev, "SFP: mux_address=%#x\n",
@@ -2592,13 +2590,11 @@ static bool xgbe_phy_redrv_error(struct xgbe_phy_data *phy_data)
 static int xgbe_phy_mdio_reset_setup(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
-	unsigned int reg;
 
 	if (phy_data->conn_type != XGBE_CONN_TYPE_MDIO)
 		return 0;
 
-	reg = XP_IOREAD(pdata, XP_PROP_3);
-	phy_data->mdio_reset = XP_GET_BITS(reg, XP_PROP_3, MDIO_RESET);
+	phy_data->mdio_reset = XP_GET_BITS(pdata->pp3, XP_PROP_3, MDIO_RESET);
 	switch (phy_data->mdio_reset) {
 	case XGBE_MDIO_RESET_NONE:
 	case XGBE_MDIO_RESET_I2C_GPIO:
@@ -2612,12 +2608,12 @@ static int xgbe_phy_mdio_reset_setup(struct xgbe_prv_data *pdata)
 
 	if (phy_data->mdio_reset == XGBE_MDIO_RESET_I2C_GPIO) {
 		phy_data->mdio_reset_addr = XGBE_GPIO_ADDRESS_PCA9555 +
-					    XP_GET_BITS(reg, XP_PROP_3,
+					    XP_GET_BITS(pdata->pp3, XP_PROP_3,
 							MDIO_RESET_I2C_ADDR);
-		phy_data->mdio_reset_gpio = XP_GET_BITS(reg, XP_PROP_3,
+		phy_data->mdio_reset_gpio = XP_GET_BITS(pdata->pp3, XP_PROP_3,
 							MDIO_RESET_I2C_GPIO);
 	} else if (phy_data->mdio_reset == XGBE_MDIO_RESET_INT_GPIO) {
-		phy_data->mdio_reset_gpio = XP_GET_BITS(reg, XP_PROP_3,
+		phy_data->mdio_reset_gpio = XP_GET_BITS(pdata->pp3, XP_PROP_3,
 							MDIO_RESET_INT_GPIO);
 	}
 
@@ -2707,12 +2703,9 @@ static bool xgbe_phy_conn_type_mismatch(struct xgbe_prv_data *pdata)
 
 static bool xgbe_phy_port_enabled(struct xgbe_prv_data *pdata)
 {
-	unsigned int reg;
-
-	reg = XP_IOREAD(pdata, XP_PROP_0);
-	if (!XP_GET_BITS(reg, XP_PROP_0, PORT_SPEEDS))
+	if (!XP_GET_BITS(pdata->pp0, XP_PROP_0, PORT_SPEEDS))
 		return false;
-	if (!XP_GET_BITS(reg, XP_PROP_0, CONN_TYPE))
+	if (!XP_GET_BITS(pdata->pp0, XP_PROP_0, CONN_TYPE))
 		return false;
 
 	return true;
@@ -2921,7 +2914,6 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 	struct ethtool_link_ksettings *lks = &pdata->phy.lks;
 	struct xgbe_phy_data *phy_data;
 	struct mii_bus *mii;
-	unsigned int reg;
 	int ret;
 
 	/* Check if enabled */
@@ -2940,12 +2932,11 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 		return -ENOMEM;
 	pdata->phy_data = phy_data;
 
-	reg = XP_IOREAD(pdata, XP_PROP_0);
-	phy_data->port_mode = XP_GET_BITS(reg, XP_PROP_0, PORT_MODE);
-	phy_data->port_id = XP_GET_BITS(reg, XP_PROP_0, PORT_ID);
-	phy_data->port_speeds = XP_GET_BITS(reg, XP_PROP_0, PORT_SPEEDS);
-	phy_data->conn_type = XP_GET_BITS(reg, XP_PROP_0, CONN_TYPE);
-	phy_data->mdio_addr = XP_GET_BITS(reg, XP_PROP_0, MDIO_ADDR);
+	phy_data->port_mode = XP_GET_BITS(pdata->pp0, XP_PROP_0, PORT_MODE);
+	phy_data->port_id = XP_GET_BITS(pdata->pp0, XP_PROP_0, PORT_ID);
+	phy_data->port_speeds = XP_GET_BITS(pdata->pp0, XP_PROP_0, PORT_SPEEDS);
+	phy_data->conn_type = XP_GET_BITS(pdata->pp0, XP_PROP_0, CONN_TYPE);
+	phy_data->mdio_addr = XP_GET_BITS(pdata->pp0, XP_PROP_0, MDIO_ADDR);
 	if (netif_msg_probe(pdata)) {
 		dev_dbg(pdata->dev, "port mode=%u\n", phy_data->port_mode);
 		dev_dbg(pdata->dev, "port id=%u\n", phy_data->port_id);
@@ -2954,12 +2945,11 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 		dev_dbg(pdata->dev, "mdio addr=%u\n", phy_data->mdio_addr);
 	}
 
-	reg = XP_IOREAD(pdata, XP_PROP_4);
-	phy_data->redrv = XP_GET_BITS(reg, XP_PROP_4, REDRV_PRESENT);
-	phy_data->redrv_if = XP_GET_BITS(reg, XP_PROP_4, REDRV_IF);
-	phy_data->redrv_addr = XP_GET_BITS(reg, XP_PROP_4, REDRV_ADDR);
-	phy_data->redrv_lane = XP_GET_BITS(reg, XP_PROP_4, REDRV_LANE);
-	phy_data->redrv_model = XP_GET_BITS(reg, XP_PROP_4, REDRV_MODEL);
+	phy_data->redrv = XP_GET_BITS(pdata->pp4, XP_PROP_4, REDRV_PRESENT);
+	phy_data->redrv_if = XP_GET_BITS(pdata->pp4, XP_PROP_4, REDRV_IF);
+	phy_data->redrv_addr = XP_GET_BITS(pdata->pp4, XP_PROP_4, REDRV_ADDR);
+	phy_data->redrv_lane = XP_GET_BITS(pdata->pp4, XP_PROP_4, REDRV_LANE);
+	phy_data->redrv_model = XP_GET_BITS(pdata->pp4, XP_PROP_4, REDRV_MODEL);
 	if (phy_data->redrv && netif_msg_probe(pdata)) {
 		dev_dbg(pdata->dev, "redrv present\n");
 		dev_dbg(pdata->dev, "redrv i/f=%u\n", phy_data->redrv_if);
