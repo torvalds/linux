@@ -1072,7 +1072,7 @@ static bool construct(
 		}
 	}
 
-	pool->base.dccg = dcn_dccg_create(ctx);
+	pool->base.dccg = dcn1_dccg_create(ctx);
 	if (pool->base.dccg == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();

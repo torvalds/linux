@@ -2360,101 +2360,6 @@ static void dcn10_apply_ctx_for_surface(
 */
 }
 
-static int determine_dppclk_threshold(struct dc *dc, struct dc_state *context)
-{
-	bool request_dpp_div = context->bw.dcn.clk.dispclk_khz >
-			context->bw.dcn.clk.dppclk_khz;
-	bool dispclk_increase = context->bw.dcn.clk.dispclk_khz >
-			dc->res_pool->dccg->clks.dispclk_khz;
-	int disp_clk_threshold = context->bw.dcn.clk.max_supported_dppclk_khz;
-	bool cur_dpp_div = dc->res_pool->dccg->clks.dispclk_khz >
-			dc->res_pool->dccg->clks.dppclk_khz;
-
-	/* increase clock, looking for div is 0 for current, request div is 1*/
-	if (dispclk_increase) {
-		/* already divided by 2, no need to reach target clk with 2 steps*/
-		if (cur_dpp_div)
-			return context->bw.dcn.clk.dispclk_khz;
-
-		/* request disp clk is lower than maximum supported dpp clk,
-		 * no need to reach target clk with two steps.
-		 */
-		if (context->bw.dcn.clk.dispclk_khz <= disp_clk_threshold)
-			return context->bw.dcn.clk.dispclk_khz;
-
-		/* target dpp clk not request divided by 2, still within threshold */
-		if (!request_dpp_div)
-			return context->bw.dcn.clk.dispclk_khz;
-
-	} else {
-		/* decrease clock, looking for current dppclk divided by 2,
-		 * request dppclk not divided by 2.
-		 */
-
-		/* current dpp clk not divided by 2, no need to ramp*/
-		if (!cur_dpp_div)
-			return context->bw.dcn.clk.dispclk_khz;
-
-		/* current disp clk is lower than current maximum dpp clk,
-		 * no need to ramp
-		 */
-		if (dc->res_pool->dccg->clks.dispclk_khz <= disp_clk_threshold)
-			return context->bw.dcn.clk.dispclk_khz;
-
-		/* request dpp clk need to be divided by 2 */
-		if (request_dpp_div)
-			return context->bw.dcn.clk.dispclk_khz;
-	}
-
-	return disp_clk_threshold;
-}
-
-static void ramp_up_dispclk_with_dpp(struct dc *dc, struct dc_state *context)
-{
-	int i;
-	bool request_dpp_div = context->bw.dcn.clk.dispclk_khz >
-				context->bw.dcn.clk.dppclk_khz;
-
-	int dispclk_to_dpp_threshold = determine_dppclk_threshold(dc, context);
-
-	/* set disp clk to dpp clk threshold */
-	dc->res_pool->dccg->funcs->set_dispclk(
-			dc->res_pool->dccg,
-			dispclk_to_dpp_threshold);
-
-	/* update request dpp clk division option */
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
-
-		if (!pipe_ctx->plane_state)
-			continue;
-
-		pipe_ctx->plane_res.dpp->funcs->dpp_dppclk_control(
-				pipe_ctx->plane_res.dpp,
-				request_dpp_div,
-				true);
-	}
-
-	/* If target clk not same as dppclk threshold, set to target clock */
-	if (dispclk_to_dpp_threshold != context->bw.dcn.clk.dispclk_khz) {
-		dc->res_pool->dccg->funcs->set_dispclk(
-				dc->res_pool->dccg,
-				context->bw.dcn.clk.dispclk_khz);
-	}
-
-	dc->res_pool->dccg->clks.dispclk_khz =
-			context->bw.dcn.clk.dispclk_khz;
-	dc->res_pool->dccg->clks.dppclk_khz =
-			context->bw.dcn.clk.dppclk_khz;
-	dc->res_pool->dccg->clks.max_supported_dppclk_khz =
-			context->bw.dcn.clk.max_supported_dppclk_khz;
-}
-
-static inline bool should_set_clock(bool safe_to_lower, int calc_clk, int cur_clk)
-{
-	return ((safe_to_lower && calc_clk < cur_clk) || calc_clk > cur_clk);
-}
-
 static void dcn10_set_bandwidth(
 		struct dc *dc,
 		struct dc_state *context,
@@ -2474,17 +2379,6 @@ static void dcn10_set_bandwidth(
 			dc->res_pool->dccg,
 			&context->bw.dcn.clk,
 			decrease_allowed);
-
-	/* make sure dcf clk is before dpp clk to
-	 * make sure we have enough voltage to run dpp clk
-	 */
-	if (should_set_clock(
-			decrease_allowed,
-			context->bw.dcn.clk.dispclk_khz,
-			dc->res_pool->dccg->clks.dispclk_khz)) {
-
-		ramp_up_dispclk_with_dpp(dc, context);
-	}
 
 	dcn10_pplib_apply_display_requirements(dc, context);
 

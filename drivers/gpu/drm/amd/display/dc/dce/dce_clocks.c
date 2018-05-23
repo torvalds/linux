@@ -552,7 +552,85 @@ static void dce12_update_clocks(struct dccg *dccg,
 	}
 }
 
-static void dcn_update_clocks(struct dccg *dccg,
+static int dcn1_determine_dppclk_threshold(struct dccg *dccg, struct dc_clocks *new_clocks)
+{
+	bool request_dpp_div = new_clocks->dispclk_khz > new_clocks->dppclk_khz;
+	bool dispclk_increase = new_clocks->dispclk_khz > dccg->clks.dispclk_khz;
+	int disp_clk_threshold = new_clocks->max_supported_dppclk_khz;
+	bool cur_dpp_div = dccg->clks.dispclk_khz > dccg->clks.dppclk_khz;
+
+	/* increase clock, looking for div is 0 for current, request div is 1*/
+	if (dispclk_increase) {
+		/* already divided by 2, no need to reach target clk with 2 steps*/
+		if (cur_dpp_div)
+			return new_clocks->dispclk_khz;
+
+		/* request disp clk is lower than maximum supported dpp clk,
+		 * no need to reach target clk with two steps.
+		 */
+		if (new_clocks->dispclk_khz <= disp_clk_threshold)
+			return new_clocks->dispclk_khz;
+
+		/* target dpp clk not request divided by 2, still within threshold */
+		if (!request_dpp_div)
+			return new_clocks->dispclk_khz;
+
+	} else {
+		/* decrease clock, looking for current dppclk divided by 2,
+		 * request dppclk not divided by 2.
+		 */
+
+		/* current dpp clk not divided by 2, no need to ramp*/
+		if (!cur_dpp_div)
+			return new_clocks->dispclk_khz;
+
+		/* current disp clk is lower than current maximum dpp clk,
+		 * no need to ramp
+		 */
+		if (dccg->clks.dispclk_khz <= disp_clk_threshold)
+			return new_clocks->dispclk_khz;
+
+		/* request dpp clk need to be divided by 2 */
+		if (request_dpp_div)
+			return new_clocks->dispclk_khz;
+	}
+
+	return disp_clk_threshold;
+}
+
+static void dcn1_ramp_up_dispclk_with_dpp(struct dccg *dccg, struct dc_clocks *new_clocks)
+{
+	struct dc *dc = dccg->ctx->dc;
+	int dispclk_to_dpp_threshold = dcn1_determine_dppclk_threshold(dccg, new_clocks);
+	bool request_dpp_div = new_clocks->dispclk_khz > new_clocks->dppclk_khz;
+	int i;
+
+	/* set disp clk to dpp clk threshold */
+	dccg->funcs->set_dispclk(dccg, dispclk_to_dpp_threshold);
+
+	/* update request dpp clk division option */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (!pipe_ctx->plane_state)
+			continue;
+
+		pipe_ctx->plane_res.dpp->funcs->dpp_dppclk_control(
+				pipe_ctx->plane_res.dpp,
+				request_dpp_div,
+				true);
+	}
+
+	/* If target clk not same as dppclk threshold, set to target clock */
+	if (dispclk_to_dpp_threshold != new_clocks->dispclk_khz)
+		dccg->funcs->set_dispclk(dccg, new_clocks->dispclk_khz);
+
+	dccg->clks.dispclk_khz = new_clocks->dispclk_khz;
+	dccg->clks.dppclk_khz = new_clocks->dppclk_khz;
+	dccg->clks.max_supported_dppclk_khz = new_clocks->max_supported_dppclk_khz;
+}
+
+static void dcn1_update_clocks(struct dccg *dccg,
 			struct dc_clocks *new_clocks,
 			bool safe_to_lower)
 {
@@ -572,6 +650,9 @@ static void dcn_update_clocks(struct dccg *dccg,
 		send_request_to_increase = true;
 
 #ifdef CONFIG_DRM_AMD_DC_DCN1_0
+	/* make sure dcf clk is before dpp clk to
+	 * make sure we have enough voltage to run dpp clk
+	 */
 	if (send_request_to_increase
 		) {
 		/*use dcfclk to request voltage*/
@@ -584,8 +665,8 @@ static void dcn_update_clocks(struct dccg *dccg,
 	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, dccg->clks.dispclk_khz)) {
 		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DISPLAY_CLK;
 		clock_voltage_req.clocks_in_khz = new_clocks->dispclk_khz;
-		/* TODO: ramp up - dccg->funcs->set_dispclk(dccg, new_clocks->dispclk_khz);
-		dccg->clks.dispclk_khz = new_clocks->dispclk_khz;*/
+		dcn1_ramp_up_dispclk_with_dpp(dccg, new_clocks);
+		dccg->clks.dispclk_khz = new_clocks->dispclk_khz;
 
 		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
 		send_request_to_lower = true;
@@ -666,10 +747,10 @@ static void dce_update_clocks(struct dccg *dccg,
 	}
 }
 
-static const struct display_clock_funcs dcn_funcs = {
+static const struct display_clock_funcs dcn1_funcs = {
 	.get_dp_ref_clk_frequency = dce_clocks_get_dp_ref_freq_wrkaround,
 	.set_dispclk = dce112_set_clock,
-	.update_clocks = dcn_update_clocks
+	.update_clocks = dcn1_update_clocks
 };
 
 static const struct display_clock_funcs dce120_funcs = {
@@ -838,7 +919,7 @@ struct dccg *dce120_dccg_create(struct dc_context *ctx)
 	return &clk_dce->base;
 }
 
-struct dccg *dcn_dccg_create(struct dc_context *ctx)
+struct dccg *dcn1_dccg_create(struct dc_context *ctx)
 {
 	struct dce_dccg *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
 
@@ -851,7 +932,7 @@ struct dccg *dcn_dccg_create(struct dc_context *ctx)
 	dce_dccg_construct(
 		clk_dce, ctx, NULL, NULL, NULL);
 
-	clk_dce->base.funcs = &dcn_funcs;
+	clk_dce->base.funcs = &dcn1_funcs;
 
 	return &clk_dce->base;
 }

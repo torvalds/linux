@@ -128,7 +128,7 @@ struct dccg *dce112_dccg_create(
 
 struct dccg *dce120_dccg_create(struct dc_context *ctx);
 
-struct dccg *dcn_dccg_create(struct dc_context *ctx);
+struct dccg *dcn1_dccg_create(struct dc_context *ctx);
 
 void dce_dccg_destroy(struct dccg **dccg);
 
