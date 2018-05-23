@@ -865,6 +865,7 @@ struct ibmvnic_crq_queue {
 	int size, cur;
 	dma_addr_t msg_token;
 	spinlock_t lock;
+	bool active;
 };
 
 union sub_crq {
