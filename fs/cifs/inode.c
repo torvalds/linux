@@ -746,7 +746,8 @@ cifs_get_inode_info(struct inode **inode, const char *full_path,
 	cifs_dbg(FYI, "Getting info on %s\n", full_path);
 
 	if ((data == NULL) && (*inode != NULL)) {
-		if (CIFS_CACHE_READ(CIFS_I(*inode))) {
+		if (CIFS_CACHE_READ(CIFS_I(*inode)) &&
+		    CIFS_I(*inode)->time != 0) {
 			cifs_dbg(FYI, "No need to revalidate cached inode sizes\n");
 			goto cgii_exit;
 		}
@@ -1857,13 +1858,13 @@ cifs_inode_needs_reval(struct inode *inode)
 	struct cifsInodeInfo *cifs_i = CIFS_I(inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 
+	if (cifs_i->time == 0)
+		return true;
+
 	if (CIFS_CACHE_READ(cifs_i))
 		return false;
 
 	if (!lookupCacheEnabled)
-		return true;
-
-	if (cifs_i->time == 0)
 		return true;
 
 	if (!cifs_sb->actimeo)
@@ -2104,10 +2105,14 @@ static int cifs_truncate_page(struct address_space *mapping, loff_t from)
 
 static void cifs_setsize(struct inode *inode, loff_t offset)
 {
+	struct cifsInodeInfo *cifs_i = CIFS_I(inode);
+
 	spin_lock(&inode->i_lock);
 	i_size_write(inode, offset);
 	spin_unlock(&inode->i_lock);
 
+	/* Cached inode must be refreshed on truncate */
+	cifs_i->time = 0;
 	truncate_pagecache(inode, offset);
 }
 
