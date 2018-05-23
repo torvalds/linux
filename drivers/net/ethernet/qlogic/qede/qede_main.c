@@ -133,6 +133,9 @@ static int qede_probe(struct pci_dev *pdev, const struct pci_device_id *id);
 static void qede_remove(struct pci_dev *pdev);
 static void qede_shutdown(struct pci_dev *pdev);
 static void qede_link_update(void *dev, struct qed_link_output *link);
+static void qede_get_eth_tlv_data(void *edev, void *data);
+static void qede_get_generic_tlv_data(void *edev,
+				      struct qed_generic_tlvs *data);
 
 /* The qede lock is used to protect driver state change and driver flows that
  * are not reentrant.
@@ -228,6 +231,8 @@ static struct qed_eth_cb_ops qede_ll_ops = {
 		.arfs_filter_op = qede_arfs_filter_op,
 #endif
 		.link_update = qede_link_update,
+		.get_generic_tlv_data = qede_get_generic_tlv_data,
+		.get_protocol_tlv_data = qede_get_eth_tlv_data,
 	},
 	.force_mac = qede_force_mac,
 	.ports_update = qede_udp_ports_update,
@@ -2130,4 +2135,100 @@ static void qede_link_update(void *dev, struct qed_link_output *link)
 			qede_rdma_dev_event_close(edev);
 		}
 	}
+}
+
+static bool qede_is_txq_full(struct qede_dev *edev, struct qede_tx_queue *txq)
+{
+	struct netdev_queue *netdev_txq;
+
+	netdev_txq = netdev_get_tx_queue(edev->ndev, txq->index);
+	if (netif_xmit_stopped(netdev_txq))
+		return true;
+
+	return false;
+}
+
+static void qede_get_generic_tlv_data(void *dev, struct qed_generic_tlvs *data)
+{
+	struct qede_dev *edev = dev;
+	struct netdev_hw_addr *ha;
+	int i;
+
+	if (edev->ndev->features & NETIF_F_IP_CSUM)
+		data->feat_flags |= QED_TLV_IP_CSUM;
+	if (edev->ndev->features & NETIF_F_TSO)
+		data->feat_flags |= QED_TLV_LSO;
+
+	ether_addr_copy(data->mac[0], edev->ndev->dev_addr);
+	memset(data->mac[1], 0, ETH_ALEN);
+	memset(data->mac[2], 0, ETH_ALEN);
+	/* Copy the first two UC macs */
+	netif_addr_lock_bh(edev->ndev);
+	i = 1;
+	netdev_for_each_uc_addr(ha, edev->ndev) {
+		ether_addr_copy(data->mac[i++], ha->addr);
+		if (i == QED_TLV_MAC_COUNT)
+			break;
+	}
+
+	netif_addr_unlock_bh(edev->ndev);
+}
+
+static void qede_get_eth_tlv_data(void *dev, void *data)
+{
+	struct qed_mfw_tlv_eth *etlv = data;
+	struct qede_dev *edev = dev;
+	struct qede_fastpath *fp;
+	int i;
+
+	etlv->lso_maxoff_size = 0XFFFF;
+	etlv->lso_maxoff_size_set = true;
+	etlv->lso_minseg_size = (u16)ETH_TX_LSO_WINDOW_MIN_LEN;
+	etlv->lso_minseg_size_set = true;
+	etlv->prom_mode = !!(edev->ndev->flags & IFF_PROMISC);
+	etlv->prom_mode_set = true;
+	etlv->tx_descr_size = QEDE_TSS_COUNT(edev);
+	etlv->tx_descr_size_set = true;
+	etlv->rx_descr_size = QEDE_RSS_COUNT(edev);
+	etlv->rx_descr_size_set = true;
+	etlv->iov_offload = QED_MFW_TLV_IOV_OFFLOAD_VEB;
+	etlv->iov_offload_set = true;
+
+	/* Fill information regarding queues; Should be done under the qede
+	 * lock to guarantee those don't change beneath our feet.
+	 */
+	etlv->txqs_empty = true;
+	etlv->rxqs_empty = true;
+	etlv->num_txqs_full = 0;
+	etlv->num_rxqs_full = 0;
+
+	__qede_lock(edev);
+	for_each_queue(i) {
+		fp = &edev->fp_array[i];
+		if (fp->type & QEDE_FASTPATH_TX) {
+			if (fp->txq->sw_tx_cons != fp->txq->sw_tx_prod)
+				etlv->txqs_empty = false;
+			if (qede_is_txq_full(edev, fp->txq))
+				etlv->num_txqs_full++;
+		}
+		if (fp->type & QEDE_FASTPATH_RX) {
+			if (qede_has_rx_work(fp->rxq))
+				etlv->rxqs_empty = false;
+
+			/* This one is a bit tricky; Firmware might stop
+			 * placing packets if ring is not yet full.
+			 * Give an approximation.
+			 */
+			if (le16_to_cpu(*fp->rxq->hw_cons_ptr) -
+			    qed_chain_get_cons_idx(&fp->rxq->rx_comp_ring) >
+			    RX_RING_SIZE - 100)
+				etlv->num_rxqs_full++;
+		}
+	}
+	__qede_unlock(edev);
+
+	etlv->txqs_empty_set = true;
+	etlv->rxqs_empty_set = true;
+	etlv->num_txqs_full_set = true;
+	etlv->num_rxqs_full_set = true;
 }

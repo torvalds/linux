@@ -92,6 +92,8 @@ struct qed_eth_cb_ops;
 struct qed_dev_info;
 union qed_mcp_protocol_stats;
 enum qed_mcp_protocol_type;
+enum qed_mfw_tlv_type;
+union qed_mfw_tlv_data;
 
 /* helpers */
 #define QED_MFW_GET_FIELD(name, field) \
@@ -513,6 +515,10 @@ struct qed_simd_fp_handler {
 	void	(*func)(void *);
 };
 
+enum qed_slowpath_wq_flag {
+	QED_SLOWPATH_MFW_TLV_REQ,
+};
+
 struct qed_hwfn {
 	struct qed_dev			*cdev;
 	u8				my_id;          /* ID inside the PF */
@@ -642,6 +648,9 @@ struct qed_hwfn {
 #endif
 
 	struct z_stream_s		*stream;
+	struct workqueue_struct *slowpath_wq;
+	struct delayed_work slowpath_task;
+	unsigned long slowpath_task_flags;
 };
 
 struct pci_params {
@@ -906,5 +915,9 @@ void qed_get_protocol_stats(struct qed_dev *cdev,
 			    union qed_mcp_protocol_stats *stats);
 int qed_slowpath_irq_req(struct qed_hwfn *hwfn);
 void qed_slowpath_irq_sync(struct qed_hwfn *p_hwfn);
+int qed_mfw_tlv_req(struct qed_hwfn *hwfn);
 
+int qed_mfw_fill_tlv_data(struct qed_hwfn *hwfn,
+			  enum qed_mfw_tlv_type type,
+			  union qed_mfw_tlv_data *tlv_data);
 #endif /* _QED_H */
