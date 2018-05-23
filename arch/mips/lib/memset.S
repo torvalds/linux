@@ -195,6 +195,7 @@
 #endif
 #else
 	 PTR_SUBU	t0, $0, a2
+	move		a2, zero		/* No remaining longs */
 	PTR_ADDIU	t0, 1
 	STORE_BYTE(0)
 	STORE_BYTE(1)
@@ -231,7 +232,7 @@
 
 #ifdef CONFIG_CPU_MIPSR6
 .Lbyte_fixup\@:
-	PTR_SUBU	a2, $0, t0
+	PTR_SUBU	a2, t0
 	jr		ra
 	 PTR_ADDIU	a2, 1
 #endif /* CONFIG_CPU_MIPSR6 */
