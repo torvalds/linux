@@ -50,6 +50,7 @@
 #define OP_31_XOP_SLBMFEE	915
 
 #define OP_31_XOP_TBEGIN	654
+#define OP_31_XOP_TABORT	910
 
 #define OP_31_XOP_TRECLAIM	942
 #define OP_31_XOP_TRCHKPT	1006
@@ -196,6 +197,47 @@ static void kvmppc_emulate_trchkpt(struct kvm_vcpu *vcpu)
 	kvmppc_restore_tm_pr(vcpu);
 	preempt_enable();
 }
+
+/* emulate tabort. at guest privilege state */
+static void kvmppc_emulate_tabort(struct kvm_vcpu *vcpu, int ra_val)
+{
+	/* currently we only emulate tabort. but no emulation of other
+	 * tabort variants since there is no kernel usage of them at
+	 * present.
+	 */
+	unsigned long guest_msr = kvmppc_get_msr(vcpu);
+
+	preempt_disable();
+	tm_enable();
+	tm_abort(ra_val);
+
+	/* CR0 = 0 | MSR[TS] | 0 */
+	vcpu->arch.cr = (vcpu->arch.cr & ~(CR0_MASK << CR0_SHIFT)) |
+		(((guest_msr & MSR_TS_MASK) >> (MSR_TS_S_LG - 1))
+		 << CR0_SHIFT);
+
+	vcpu->arch.texasr = mfspr(SPRN_TEXASR);
+	/* failure recording depends on Failure Summary bit,
+	 * and tabort will be treated as nops in non-transactional
+	 * state.
+	 */
+	if (!(vcpu->arch.texasr & TEXASR_FS) &&
+			MSR_TM_ACTIVE(guest_msr)) {
+		vcpu->arch.texasr &= ~(TEXASR_PR | TEXASR_HV);
+		if (guest_msr & MSR_PR)
+			vcpu->arch.texasr |= TEXASR_PR;
+
+		if (guest_msr & MSR_HV)
+			vcpu->arch.texasr |= TEXASR_HV;
+
+		vcpu->arch.tfiar = kvmppc_get_pc(vcpu);
+		mtspr(SPRN_TEXASR, vcpu->arch.texasr);
+		mtspr(SPRN_TFIAR, vcpu->arch.tfiar);
+	}
+	tm_disable();
+	preempt_enable();
+}
+
 #endif
 
 int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
@@ -466,6 +508,32 @@ int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				preempt_enable();
 			} else
 				emulated = EMULATE_FAIL;
+			break;
+		}
+		case OP_31_XOP_TABORT:
+		{
+			ulong guest_msr = kvmppc_get_msr(vcpu);
+			unsigned long ra_val = 0;
+
+			if (!cpu_has_feature(CPU_FTR_TM))
+				break;
+
+			if (!(kvmppc_get_msr(vcpu) & MSR_TM)) {
+				kvmppc_trigger_fac_interrupt(vcpu, FSCR_TM_LG);
+				emulated = EMULATE_AGAIN;
+				break;
+			}
+
+			/* only emulate for privilege guest, since problem state
+			 * guest can run with TM enabled and we don't expect to
+			 * trap at here for that case.
+			 */
+			WARN_ON(guest_msr & MSR_PR);
+
+			if (ra)
+				ra_val = kvmppc_get_gpr(vcpu, ra);
+
+			kvmppc_emulate_tabort(vcpu, ra_val);
 			break;
 		}
 		case OP_31_XOP_TRECLAIM:
