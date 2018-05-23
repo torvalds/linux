@@ -20,6 +20,7 @@
 #include <linux/mfd/syscon.h>
 #include <dt-bindings/power/rk3036-power.h>
 #include <dt-bindings/power/rk3128-power.h>
+#include <dt-bindings/power/rk3228-power.h>
 #include <dt-bindings/power/rk3288-power.h>
 #include <dt-bindings/power/rk3328-power.h>
 #include <dt-bindings/power/rk3366-power.h>
@@ -730,6 +731,20 @@ static const struct rockchip_domain_info rk3128_pm_domains[] = {
 	[RK3128_PD_GPU]		= DOMAIN_RK3288(1, 1, 3, false),
 };
 
+static const struct rockchip_domain_info rk3228_pm_domains[] = {
+	[RK3228_PD_CORE]	= DOMAIN_RK3036(0, 0, 16, true),
+	[RK3228_PD_MSCH]	= DOMAIN_RK3036(1, 1, 17, true),
+	[RK3228_PD_BUS]		= DOMAIN_RK3036(2, 2, 18, true),
+	[RK3228_PD_SYS]		= DOMAIN_RK3036(3, 3, 19, true),
+	[RK3228_PD_VIO]		= DOMAIN_RK3036(4, 4, 20, false),
+	[RK3228_PD_VOP]		= DOMAIN_RK3036(5, 5, 21, false),
+	[RK3228_PD_VPU]		= DOMAIN_RK3036(6, 6, 22, false),
+	[RK3228_PD_RKVDEC]	= DOMAIN_RK3036(7, 7, 23, false),
+	[RK3228_PD_GPU]		= DOMAIN_RK3036(8, 8, 24, false),
+	[RK3228_PD_PERI]	= DOMAIN_RK3036(9, 9, 25, true),
+	[RK3228_PD_GMAC]	= DOMAIN_RK3036(10, 10, 26, false),
+};
+
 static const struct rockchip_domain_info rk3288_pm_domains[] = {
 	[RK3288_PD_VIO]		= DOMAIN_RK3288(7, 7, 4, false),
 	[RK3288_PD_HEVC]	= DOMAIN_RK3288(14, 10, 9, false),
@@ -817,6 +832,15 @@ static const struct rockchip_pmu_info rk3128_pmu = {
 	.domain_info = rk3128_pm_domains,
 };
 
+static const struct rockchip_pmu_info rk3228_pmu = {
+	.req_offset = 0x40c,
+	.idle_offset = 0x488,
+	.ack_offset = 0x488,
+
+	.num_domains = ARRAY_SIZE(rk3228_pm_domains),
+	.domain_info = rk3228_pm_domains,
+};
+
 static const struct rockchip_pmu_info rk3288_pmu = {
 	.pwr_offset = 0x08,
 	.status_offset = 0x0c,
@@ -898,6 +922,10 @@ static const struct of_device_id rockchip_pm_domain_dt_match[] = {
 	{
 		.compatible = "rockchip,rk3128-power-controller",
 		.data = (void *)&rk3128_pmu,
+	},
+	{
+		.compatible = "rockchip,rk3228-power-controller",
+		.data = (void *)&rk3228_pmu,
 	},
 	{
 		.compatible = "rockchip,rk3288-power-controller",
