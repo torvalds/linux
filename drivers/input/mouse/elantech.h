@@ -116,6 +116,21 @@
 #define ETP_BUS_PS2_SMB_HST_NTFY	4
 
 /*
+ * New ICs are either using SMBus Host Notify or just plain PS2.
+ *
+ * ETP_FW_VERSION_QUERY is:
+ * Byte 1:
+ *  - bit 0..3: IC BODY
+ * Byte 2:
+ *  - bit 4: HiddenButton
+ *  - bit 5: PS2_SMBUS_NOTIFY
+ *  - bit 6: PS2CRCCheck
+ */
+#define ETP_NEW_IC_SMBUS_HOST_NOTIFY(fw_version)	\
+		((((fw_version) & 0x0f2000) == 0x0f2000) && \
+		 ((fw_version) & 0x0000ff) > 0)
+
+/*
  * The base position for one finger, v4 hardware
  */
 struct finger_pos {

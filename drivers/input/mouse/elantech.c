@@ -1793,11 +1793,11 @@ static int elantech_setup_smbus(struct psmouse *psmouse,
 
 	if (elantech_smbus == ELANTECH_SMBUS_NOT_SET) {
 		/*
-		 * FIXME:
-		 * constraint the I2C capable devices by using FW version,
-		 * board version, or by using DMI matching
+		 * New ICs are enabled by default.
+		 * Old ICs are up to the user to decide.
 		 */
-		return -ENXIO;
+		if (!ETP_NEW_IC_SMBUS_HOST_NOTIFY(info->fw_version))
+			return -ENXIO;
 	}
 
 	psmouse_info(psmouse, "Trying to set up SMBus access\n");
@@ -1818,6 +1818,9 @@ static int elantech_setup_smbus(struct psmouse *psmouse,
 static bool elantech_use_host_notify(struct psmouse *psmouse,
 				     struct elantech_device_info *info)
 {
+	if (ETP_NEW_IC_SMBUS_HOST_NOTIFY(info->fw_version))
+		return true;
+
 	switch (info->bus) {
 	case ETP_BUS_PS2_ONLY:
 		/* expected case */
