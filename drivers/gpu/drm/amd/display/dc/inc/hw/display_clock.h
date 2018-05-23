@@ -27,23 +27,7 @@
 #define __DISPLAY_CLOCK_H__
 
 #include "dm_services_types.h"
-
-
-struct clocks_value {
-	int dispclk_in_khz;
-	int max_pixelclk_in_khz;
-	int max_non_dp_phyclk_in_khz;
-	int max_dp_phyclk_in_khz;
-	bool dispclk_notify_pplib_done;
-	bool pixelclk_notify_pplib_done;
-	bool phyclk_notigy_pplib_done;
-	int dcfclock_in_khz;
-	int dppclk_in_khz;
-	int mclk_in_khz;
-	int phyclk_in_khz;
-	int common_vdd_level;
-};
-
+#include "dc.h"
 
 /* Structure containing all state-dependent clocks
  * (dependent on "enum clocks_state") */
@@ -56,9 +40,11 @@ struct display_clock {
 	struct dc_context *ctx;
 	const struct display_clock_funcs *funcs;
 
+	bool dispclk_notify_pplib_done;
+	bool phyclk_notify_pplib_done;
 	enum dm_pp_clocks_state max_clks_state;
 	enum dm_pp_clocks_state cur_min_clks_state;
-	struct clocks_value cur_clocks_value;
+	struct dc_clocks clks;
 };
 
 struct display_clock_funcs {

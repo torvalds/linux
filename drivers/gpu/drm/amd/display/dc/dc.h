@@ -186,6 +186,10 @@ enum wm_report_mode {
 	WM_REPORT_OVERRIDE = 1,
 };
 
+/*
+ * For any clocks that may differ per pipe
+ * only the max is stored in this structure
+ */
 struct dc_clocks {
 	int dispclk_khz;
 	int max_supported_dppclk_khz;
@@ -194,6 +198,7 @@ struct dc_clocks {
 	int socclk_khz;
 	int dcfclk_deep_sleep_khz;
 	int fclk_khz;
+	int phyclk_khz;
 };
 
 struct dc_debug {

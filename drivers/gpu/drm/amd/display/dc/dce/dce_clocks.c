@@ -560,11 +560,9 @@ static bool dce_apply_clock_voltage_request(
 
 	switch (clocks_type) {
 	case DM_PP_CLOCK_TYPE_DISPLAY_CLK:
-	case DM_PP_CLOCK_TYPE_PIXELCLK:
 	case DM_PP_CLOCK_TYPE_DISPLAYPHYCLK:
 		break;
 	default:
-		BREAK_TO_DEBUGGER();
 		return false;
 	}
 
@@ -575,31 +573,22 @@ static bool dce_apply_clock_voltage_request(
 	if (pre_mode_set) {
 		switch (clocks_type) {
 		case DM_PP_CLOCK_TYPE_DISPLAY_CLK:
-			if (clocks_in_khz > clk->cur_clocks_value.dispclk_in_khz) {
-				clk->cur_clocks_value.dispclk_notify_pplib_done = true;
+			if (clocks_in_khz > clk->clks.dispclk_khz) {
+				clk->dispclk_notify_pplib_done = true;
 				send_request = true;
 			} else
-				clk->cur_clocks_value.dispclk_notify_pplib_done = false;
+				clk->dispclk_notify_pplib_done = false;
 			/* no matter incrase or decrase clock, update current clock value */
-			clk->cur_clocks_value.dispclk_in_khz = clocks_in_khz;
-			break;
-		case DM_PP_CLOCK_TYPE_PIXELCLK:
-			if (clocks_in_khz > clk->cur_clocks_value.max_pixelclk_in_khz) {
-				clk->cur_clocks_value.pixelclk_notify_pplib_done = true;
-				send_request = true;
-			} else
-				clk->cur_clocks_value.pixelclk_notify_pplib_done = false;
-			/* no matter incrase or decrase clock, update current clock value */
-			clk->cur_clocks_value.max_pixelclk_in_khz = clocks_in_khz;
+			clk->clks.dispclk_khz = clocks_in_khz;
 			break;
 		case DM_PP_CLOCK_TYPE_DISPLAYPHYCLK:
-			if (clocks_in_khz > clk->cur_clocks_value.max_non_dp_phyclk_in_khz) {
-				clk->cur_clocks_value.phyclk_notigy_pplib_done = true;
+			if (clocks_in_khz > clk->clks.phyclk_khz) {
+				clk->phyclk_notify_pplib_done = true;
 				send_request = true;
 			} else
-				clk->cur_clocks_value.phyclk_notigy_pplib_done = false;
+				clk->phyclk_notify_pplib_done = false;
 			/* no matter incrase or decrase clock, update current clock value */
-			clk->cur_clocks_value.max_non_dp_phyclk_in_khz = clocks_in_khz;
+			clk->clks.phyclk_khz = clocks_in_khz;
 			break;
 		default:
 			ASSERT(0);
@@ -609,16 +598,14 @@ static bool dce_apply_clock_voltage_request(
 	} else {
 		switch (clocks_type) {
 		case DM_PP_CLOCK_TYPE_DISPLAY_CLK:
-			if (!clk->cur_clocks_value.dispclk_notify_pplib_done)
+			if (!clk->dispclk_notify_pplib_done)
 				send_request = true;
-			break;
-		case DM_PP_CLOCK_TYPE_PIXELCLK:
-			if (!clk->cur_clocks_value.pixelclk_notify_pplib_done)
-				send_request = true;
+			clk->dispclk_notify_pplib_done = true;
 			break;
 		case DM_PP_CLOCK_TYPE_DISPLAYPHYCLK:
-			if (!clk->cur_clocks_value.phyclk_notigy_pplib_done)
+			if (!clk->phyclk_notify_pplib_done)
 				send_request = true;
+			clk->phyclk_notify_pplib_done = true;
 			break;
 		default:
 			ASSERT(0);
@@ -627,20 +614,21 @@ static bool dce_apply_clock_voltage_request(
 	}
 	if (send_request) {
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-		if (clk->ctx->dce_version >= DCN_VERSION_1_0) {
+		if (clk->ctx->dce_version >= DCN_VERSION_1_0
+		) {
 			struct dc *core_dc = clk->ctx->dc;
 			/*use dcfclk request voltage*/
 			clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
 			clock_voltage_req.clocks_in_khz =
-				dcn_find_dcfclk_suits_all(core_dc, &clk->cur_clocks_value);
+				dcn_find_dcfclk_suits_all(core_dc, &clk->clks);
 		}
 #endif
 		dm_pp_apply_clock_for_voltage_request(
 			clk->ctx, &clock_voltage_req);
 	}
 	if (update_dp_phyclk && (clocks_in_khz >
-	clk->cur_clocks_value.max_dp_phyclk_in_khz))
-		clk->cur_clocks_value.max_dp_phyclk_in_khz = clocks_in_khz;
+	clk->clks.phyclk_khz))
+		clk->clks.phyclk_khz = clocks_in_khz;
 
 	return true;
 }

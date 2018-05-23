@@ -1818,21 +1818,14 @@ static void apply_min_clocks(
 		context->dis_clk->funcs->apply_clock_voltage_request(
 				context->dis_clk,
 				DM_PP_CLOCK_TYPE_DISPLAY_CLK,
-				context->dis_clk->cur_clocks_value.dispclk_in_khz,
-				pre_mode_set,
-				false);
-
-		context->dis_clk->funcs->apply_clock_voltage_request(
-				context->dis_clk,
-				DM_PP_CLOCK_TYPE_PIXELCLK,
-				context->dis_clk->cur_clocks_value.max_pixelclk_in_khz,
+				context->dis_clk->clks.dispclk_khz,
 				pre_mode_set,
 				false);
 
 		context->dis_clk->funcs->apply_clock_voltage_request(
 				context->dis_clk,
 				DM_PP_CLOCK_TYPE_DISPLAYPHYCLK,
-				context->dis_clk->cur_clocks_value.max_non_dp_phyclk_in_khz,
+				context->dis_clk->clks.phyclk_khz,
 				pre_mode_set,
 				false);
 		return;
@@ -1856,13 +1849,6 @@ static void apply_min_clocks(
 				context->dis_clk,
 				DM_PP_CLOCK_TYPE_DISPLAY_CLK,
 				req_clocks.display_clk_khz,
-				pre_mode_set,
-				false);
-
-		context->dis_clk->funcs->apply_clock_voltage_request(
-				context->dis_clk,
-				DM_PP_CLOCK_TYPE_PIXELCLK,
-				req_clocks.pixel_clk_khz,
 				pre_mode_set,
 				false);
 

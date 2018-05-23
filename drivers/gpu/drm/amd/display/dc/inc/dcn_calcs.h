@@ -625,7 +625,7 @@ bool dcn_validate_bandwidth(
 
 unsigned int dcn_find_dcfclk_suits_all(
 	const struct dc *dc,
-	struct clocks_value *clocks);
+	struct dc_clocks *clocks);
 
 void dcn_bw_update_from_pplib(struct dc *dc);
 void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc);

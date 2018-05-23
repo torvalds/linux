@@ -1290,15 +1290,13 @@ static enum dc_status enable_link_dp(
 					state->dis_clk, DM_PP_CLOCKS_STATE_NOMINAL);
 		} else {
 			uint32_t dp_phyclk_in_khz;
-			const struct clocks_value clocks_value =
-					state->dis_clk->cur_clocks_value;
+			const struct dc_clocks clocks_value =
+					state->dis_clk->clks;
 
 			/* 27mhz = 27000000hz= 27000khz */
 			dp_phyclk_in_khz = link_settings.link_rate * 27000;
 
-			if (((clocks_value.max_non_dp_phyclk_in_khz != 0) &&
-				(dp_phyclk_in_khz > clocks_value.max_non_dp_phyclk_in_khz)) ||
-				(dp_phyclk_in_khz > clocks_value.max_dp_phyclk_in_khz)) {
+			if (dp_phyclk_in_khz > clocks_value.phyclk_khz) {
 				state->dis_clk->funcs->apply_clock_voltage_request(
 						state->dis_clk,
 						DM_PP_CLOCK_TYPE_DISPLAYPHYCLK,
