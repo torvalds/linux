@@ -167,6 +167,7 @@ struct qca8k_priv {
 	struct ar8xxx_port_status port_sts[QCA8K_NUM_PORTS];
 	struct dsa_switch *ds;
 	struct mutex reg_mutex;
+	struct device *dev;
 };
 
 struct qca8k_mib_desc {
