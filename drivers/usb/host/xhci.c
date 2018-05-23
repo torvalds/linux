@@ -33,8 +33,8 @@ static int link_quirk;
 module_param(link_quirk, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(link_quirk, "Don't clear the chain bit on a link TRB");
 
-static unsigned int quirks;
-module_param(quirks, uint, S_IRUGO);
+static unsigned long long quirks;
+module_param(quirks, ullong, S_IRUGO);
 MODULE_PARM_DESC(quirks, "Bit flags for quirks to be enabled as default");
 
 /* TODO: copied from ehci-hcd.c - can this be refactored? */
@@ -4959,7 +4959,7 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 		return retval;
 	xhci_dbg(xhci, "Called HCD init\n");
 
-	xhci_info(xhci, "hcc params 0x%08x hci version 0x%x quirks 0x%08x\n",
+	xhci_info(xhci, "hcc params 0x%08x hci version 0x%x quirks 0x%016llx\n",
 		  xhci->hcc_params, xhci->hci_version, xhci->quirks);
 
 	return 0;
