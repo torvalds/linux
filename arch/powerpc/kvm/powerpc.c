@@ -648,9 +648,8 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 #endif
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	case KVM_CAP_PPC_HTM:
-		r = hv_enabled &&
-		    (!!(cur_cpu_spec->cpu_user_features2 & PPC_FEATURE2_HTM) ||
-		     cpu_has_feature(CPU_FTR_P9_TM_HV_ASSIST));
+		r = !!(cur_cpu_spec->cpu_user_features2 & PPC_FEATURE2_HTM) ||
+		     (hv_enabled && cpu_has_feature(CPU_FTR_P9_TM_HV_ASSIST));
 		break;
 #endif
 	default:
