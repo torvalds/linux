@@ -4,8 +4,6 @@
 
 #include <linux/list.h>
 
-struct nft_af_info;
-
 struct netns_nftables {
 	struct list_head	tables;
 	struct list_head	commit_list;
