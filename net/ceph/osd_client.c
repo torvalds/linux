@@ -1430,7 +1430,6 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 	bool recovery_deletes = ceph_osdmap_flag(osdc,
 						 CEPH_OSDMAP_RECOVERY_DELETES);
 	enum calc_target_result ct_res;
-	int ret;
 
 	t->epoch = osdc->osdmap->epoch;
 	pi = ceph_pg_pool_by_id(osdc->osdmap, t->base_oloc.pool);
@@ -1466,14 +1465,7 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 		}
 	}
 
-	ret = __ceph_object_locator_to_pg(pi, &t->target_oid, &t->target_oloc,
-					  &pgid);
-	if (ret) {
-		WARN_ON(ret != -ENOENT);
-		t->osd = CEPH_HOMELESS_OSD;
-		ct_res = CALC_TARGET_POOL_DNE;
-		goto out;
-	}
+	__ceph_object_locator_to_pg(pi, &t->target_oid, &t->target_oloc, &pgid);
 	last_pgid.pool = pgid.pool;
 	last_pgid.seed = ceph_stable_mod(pgid.seed, t->pg_num, t->pg_num_mask);
 
