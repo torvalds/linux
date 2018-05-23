@@ -1309,6 +1309,12 @@ static int wcn36xx_probe(struct platform_device *pdev)
 	mutex_init(&wcn->hal_mutex);
 	mutex_init(&wcn->scan_lock);
 
+	ret = dma_set_mask_and_coherent(wcn->dev, DMA_BIT_MASK(32));
+	if (ret < 0) {
+		wcn36xx_err("failed to set DMA mask: %d\n", ret);
+		goto out_wq;
+	}
+
 	INIT_WORK(&wcn->scan_work, wcn36xx_hw_scan_worker);
 
 	wcn->smd_channel = qcom_wcnss_open_channel(wcnss, "WLAN_CTRL", wcn36xx_smd_rsp_process, hw);
