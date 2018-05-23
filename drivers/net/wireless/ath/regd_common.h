@@ -356,7 +356,7 @@ static struct country_code_to_enum_rd allCountries[] = {
 	{CTRY_INDONESIA, NULL1_WORLD, "ID"},
 	{CTRY_IRAN, APL1_WORLD, "IR"},
 	{CTRY_IRELAND, ETSI1_WORLD, "IE"},
-	{CTRY_ISRAEL, NULL1_WORLD, "IL"},
+	{CTRY_ISRAEL, ETSI3_WORLD, "IL"},
 	{CTRY_ITALY, ETSI1_WORLD, "IT"},
 	{CTRY_JAMAICA, FCC3_WORLD, "JM"},
 
