@@ -258,6 +258,13 @@
 
 		#include "stingray-clock.dtsi"
 
+		otp: otp@1c400 {
+			compatible = "brcm,ocotp-v2";
+			reg = <0x0001c400 0x68>;
+			brcm,ocotp-size = <2048>;
+			status = "okay";
+		};
+
 		gpio_crmu: gpio@24800 {
 			compatible = "brcm,iproc-gpio";
 			reg = <0x00024800 0x4c>;
