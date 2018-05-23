@@ -299,7 +299,7 @@ static int handle_test_mode(struct mtu3 *mtu, struct usb_ctrlrequest *setup)
 	mtu3_writel(mbase, U3D_EP0CSR, value | EP0_SETUPPKTRDY | EP0_DATAEND);
 
 	/* wait for ACK status sent by host */
-	readl_poll_timeout(mbase + U3D_EP0CSR, value,
+	readl_poll_timeout_atomic(mbase + U3D_EP0CSR, value,
 			!(value & EP0_DATAEND), 100, 5000);
 
 	mtu3_writel(mbase, U3D_USB2_TEST_MODE, mtu->test_mode_nr);
