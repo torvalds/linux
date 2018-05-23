@@ -308,12 +308,36 @@ static inline void kvmppc_restore_tm_sprs(struct kvm_vcpu *vcpu)
 	tm_disable();
 }
 
+/* loadup math bits which is enabled at kvmppc_get_msr() but not enabled at
+ * hardware.
+ */
+static void kvmppc_handle_lost_math_exts(struct kvm_vcpu *vcpu)
+{
+	ulong exit_nr;
+	ulong ext_diff = (kvmppc_get_msr(vcpu) & ~vcpu->arch.guest_owned_ext) &
+		(MSR_FP | MSR_VEC | MSR_VSX);
+
+	if (!ext_diff)
+		return;
+
+	if (ext_diff == MSR_FP)
+		exit_nr = BOOK3S_INTERRUPT_FP_UNAVAIL;
+	else if (ext_diff == MSR_VEC)
+		exit_nr = BOOK3S_INTERRUPT_ALTIVEC;
+	else
+		exit_nr = BOOK3S_INTERRUPT_VSX;
+
+	kvmppc_handle_ext(vcpu, exit_nr, ext_diff);
+}
+
 void kvmppc_save_tm_pr(struct kvm_vcpu *vcpu)
 {
 	if (!(MSR_TM_ACTIVE(kvmppc_get_msr(vcpu)))) {
 		kvmppc_save_tm_sprs(vcpu);
 		return;
 	}
+
+	kvmppc_giveup_ext(vcpu, MSR_VSX);
 
 	preempt_disable();
 	_kvmppc_save_tm_pr(vcpu, mfmsr());
@@ -324,12 +348,18 @@ void kvmppc_restore_tm_pr(struct kvm_vcpu *vcpu)
 {
 	if (!MSR_TM_ACTIVE(kvmppc_get_msr(vcpu))) {
 		kvmppc_restore_tm_sprs(vcpu);
+		if (kvmppc_get_msr(vcpu) & MSR_TM)
+			kvmppc_handle_lost_math_exts(vcpu);
 		return;
 	}
 
 	preempt_disable();
 	_kvmppc_restore_tm_pr(vcpu, kvmppc_get_msr(vcpu));
 	preempt_enable();
+
+	if (kvmppc_get_msr(vcpu) & MSR_TM)
+		kvmppc_handle_lost_math_exts(vcpu);
+
 }
 #endif
 
@@ -468,6 +498,11 @@ static void kvmppc_set_msr_pr(struct kvm_vcpu *vcpu, u64 msr)
 	/* Preload FPU if it's enabled */
 	if (kvmppc_get_msr(vcpu) & MSR_FP)
 		kvmppc_handle_ext(vcpu, BOOK3S_INTERRUPT_FP_UNAVAIL, MSR_FP);
+
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	if (kvmppc_get_msr(vcpu) & MSR_TM)
+		kvmppc_handle_lost_math_exts(vcpu);
+#endif
 }
 
 void kvmppc_set_pvr_pr(struct kvm_vcpu *vcpu, u32 pvr)
