@@ -430,8 +430,12 @@ static irqreturn_t wcn36xx_irq_tx_complete(int irq, void *dev)
 						   WCN36XX_INT_MASK_CHAN_TX_H);
 		}
 
-		wcn36xx_dbg(WCN36XX_DBG_DXE, "dxe tx ready high\n");
-		reap_tx_dxes(wcn, &wcn->dxe_tx_h_ch);
+		wcn36xx_dbg(WCN36XX_DBG_DXE, "dxe tx ready high, reason %08x\n",
+			    int_reason);
+
+		if (int_reason & (WCN36XX_CH_STAT_INT_DONE_MASK |
+				  WCN36XX_CH_STAT_INT_ED_MASK))
+			reap_tx_dxes(wcn, &wcn->dxe_tx_h_ch);
 	}
 
 	if (int_src & WCN36XX_INT_MASK_CHAN_TX_L) {
@@ -465,8 +469,12 @@ static irqreturn_t wcn36xx_irq_tx_complete(int irq, void *dev)
 						   WCN36XX_INT_MASK_CHAN_TX_L);
 		}
 
-		wcn36xx_dbg(WCN36XX_DBG_DXE, "dxe tx ready low\n");
-		reap_tx_dxes(wcn, &wcn->dxe_tx_l_ch);
+		wcn36xx_dbg(WCN36XX_DBG_DXE, "dxe tx ready low, reason %08x\n",
+			    int_reason);
+
+		if (int_reason & (WCN36XX_CH_STAT_INT_DONE_MASK |
+				  WCN36XX_CH_STAT_INT_ED_MASK))
+			reap_tx_dxes(wcn, &wcn->dxe_tx_l_ch);
 	}
 
 	return IRQ_HANDLED;
@@ -544,6 +552,10 @@ static int wcn36xx_rx_handle_packets(struct wcn36xx *wcn,
 		wcn36xx_dxe_write_register(wcn,
 					   WCN36XX_DXE_0_INT_ED_CLR,
 					   int_mask);
+
+	if (!(int_reason & (WCN36XX_CH_STAT_INT_DONE_MASK |
+			    WCN36XX_CH_STAT_INT_ED_MASK)))
+		return 0;
 
 	spin_lock(&ch->lock);
 
