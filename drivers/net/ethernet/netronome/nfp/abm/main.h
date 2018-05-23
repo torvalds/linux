@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause) */
 /*
- * Copyright (C) 2017 Netronome Systems, Inc.
+ * Copyright (C) 2018 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -31,44 +32,44 @@
  * SOFTWARE.
  */
 
-#include "nfpcore/nfp_cpp.h"
-#include "nfpcore/nfp_nsp.h"
-#include "nfp_app.h"
-#include "nfp_main.h"
-#include "nfp_net.h"
-#include "nfp_port.h"
+#ifndef __NFP_ABM_H__
+#define __NFP_ABM_H__ 1
 
-int nfp_app_nic_vnic_init_phy_port(struct nfp_pf *pf, struct nfp_app *app,
-				   struct nfp_net *nn, unsigned int id)
-{
-	int err;
+#include <net/devlink.h>
 
-	if (!pf->eth_tbl)
-		return 0;
+struct nfp_app;
+struct nfp_net;
 
-	nn->port = nfp_port_alloc(app, NFP_PORT_PHYS_PORT, nn->dp.netdev);
-	if (IS_ERR(nn->port))
-		return PTR_ERR(nn->port);
+#define NFP_ABM_PORTID_TYPE	GENMASK(23, 16)
+#define NFP_ABM_PORTID_ID	GENMASK(7, 0)
 
-	err = nfp_port_init_phy_port(pf, app, nn->port, id);
-	if (err) {
-		nfp_port_free(nn->port);
-		return err;
-	}
+/**
+ * struct nfp_abm - ABM NIC app structure
+ * @app:	back pointer to nfp_app
+ * @pf_id:	ID of our PF link
+ * @eswitch_mode:	devlink eswitch mode, advanced functions only visible
+ *			in switchdev mode
+ */
+struct nfp_abm {
+	struct nfp_app *app;
+	unsigned int pf_id;
+	enum devlink_eswitch_mode eswitch_mode;
+};
 
-	return nn->port->type == NFP_PORT_INVALID;
-}
+/**
+ * struct nfp_abm_link - port tuple of a ABM NIC
+ * @abm:	back pointer to nfp_abm
+ * @vnic:	data vNIC
+ * @id:		id of the data vNIC
+ * @queue_base:	id of base to host queue within PCIe (not QC idx)
+ */
+struct nfp_abm_link {
+	struct nfp_abm *abm;
+	struct nfp_net *vnic;
+	unsigned int id;
+	unsigned int queue_base;
+};
 
-int nfp_app_nic_vnic_alloc(struct nfp_app *app, struct nfp_net *nn,
-			   unsigned int id)
-{
-	int err;
-
-	err = nfp_app_nic_vnic_init_phy_port(app->pf, app, nn, id);
-	if (err)
-		return err < 0 ? err : 0;
-
-	nfp_net_get_mac_addr(app->pf, nn->dp.netdev, nn->port);
-
-	return 0;
-}
+void nfp_abm_ctrl_read_params(struct nfp_abm_link *alink);
+int nfp_abm_ctrl_find_addrs(struct nfp_abm *abm);
+#endif

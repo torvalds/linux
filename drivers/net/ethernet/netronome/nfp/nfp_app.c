@@ -54,6 +54,9 @@ static const struct nfp_app_type *apps[] = {
 #ifdef CONFIG_NFP_APP_FLOWER
 	[NFP_APP_FLOWER_NIC]	= &app_flower,
 #endif
+#ifdef CONFIG_NFP_APP_ABM_NIC
+	[NFP_APP_ACTIVE_BUFFER_MGMT_NIC] = &app_abm,
+#endif
 };
 
 struct nfp_app *nfp_app_from_netdev(struct net_device *netdev)

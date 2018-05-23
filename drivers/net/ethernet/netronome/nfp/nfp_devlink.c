@@ -149,6 +149,26 @@ out:
 	return ret;
 }
 
+static int
+nfp_devlink_sb_pool_get(struct devlink *devlink, unsigned int sb_index,
+			u16 pool_index, struct devlink_sb_pool_info *pool_info)
+{
+	struct nfp_pf *pf = devlink_priv(devlink);
+
+	return nfp_shared_buf_pool_get(pf, sb_index, pool_index, pool_info);
+}
+
+static int
+nfp_devlink_sb_pool_set(struct devlink *devlink, unsigned int sb_index,
+			u16 pool_index,
+			u32 size, enum devlink_sb_threshold_type threshold_type)
+{
+	struct nfp_pf *pf = devlink_priv(devlink);
+
+	return nfp_shared_buf_pool_set(pf, sb_index, pool_index,
+				       size, threshold_type);
+}
+
 static int nfp_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode)
 {
 	struct nfp_pf *pf = devlink_priv(devlink);
@@ -156,10 +176,25 @@ static int nfp_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode)
 	return nfp_app_eswitch_mode_get(pf->app, mode);
 }
 
+static int nfp_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode)
+{
+	struct nfp_pf *pf = devlink_priv(devlink);
+	int ret;
+
+	mutex_lock(&pf->lock);
+	ret = nfp_app_eswitch_mode_set(pf->app, mode);
+	mutex_unlock(&pf->lock);
+
+	return ret;
+}
+
 const struct devlink_ops nfp_devlink_ops = {
 	.port_split		= nfp_devlink_port_split,
 	.port_unsplit		= nfp_devlink_port_unsplit,
+	.sb_pool_get		= nfp_devlink_sb_pool_get,
+	.sb_pool_set		= nfp_devlink_sb_pool_set,
 	.eswitch_mode_get	= nfp_devlink_eswitch_mode_get,
+	.eswitch_mode_set	= nfp_devlink_eswitch_mode_set,
 };
 
 int nfp_devlink_port_register(struct nfp_app *app, struct nfp_port *port)

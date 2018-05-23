@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 /*
- * Copyright (C) 2017 Netronome Systems, Inc.
+ * Copyright (C) 2018 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -31,44 +32,27 @@
  * SOFTWARE.
  */
 
-#include "nfpcore/nfp_cpp.h"
-#include "nfpcore/nfp_nsp.h"
-#include "nfp_app.h"
-#include "nfp_main.h"
-#include "nfp_net.h"
-#include "nfp_port.h"
+#include <linux/kernel.h>
 
-int nfp_app_nic_vnic_init_phy_port(struct nfp_pf *pf, struct nfp_app *app,
-				   struct nfp_net *nn, unsigned int id)
+#include "../nfpcore/nfp_cpp.h"
+#include "../nfp_app.h"
+#include "../nfp_main.h"
+#include "../nfp_net.h"
+#include "main.h"
+
+void nfp_abm_ctrl_read_params(struct nfp_abm_link *alink)
 {
-	int err;
-
-	if (!pf->eth_tbl)
-		return 0;
-
-	nn->port = nfp_port_alloc(app, NFP_PORT_PHYS_PORT, nn->dp.netdev);
-	if (IS_ERR(nn->port))
-		return PTR_ERR(nn->port);
-
-	err = nfp_port_init_phy_port(pf, app, nn->port, id);
-	if (err) {
-		nfp_port_free(nn->port);
-		return err;
-	}
-
-	return nn->port->type == NFP_PORT_INVALID;
+	alink->queue_base = nn_readl(alink->vnic, NFP_NET_CFG_START_RXQ);
+	alink->queue_base /= alink->vnic->stride_rx;
 }
 
-int nfp_app_nic_vnic_alloc(struct nfp_app *app, struct nfp_net *nn,
-			   unsigned int id)
+int nfp_abm_ctrl_find_addrs(struct nfp_abm *abm)
 {
-	int err;
+	struct nfp_pf *pf = abm->app->pf;
+	unsigned int pf_id;
 
-	err = nfp_app_nic_vnic_init_phy_port(app->pf, app, nn, id);
-	if (err)
-		return err < 0 ? err : 0;
-
-	nfp_net_get_mac_addr(app->pf, nn->dp.netdev, nn->port);
+	pf_id =	nfp_cppcore_pcie_unit(pf->cpp);
+	abm->pf_id = pf_id;
 
 	return 0;
 }
