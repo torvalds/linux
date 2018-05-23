@@ -128,61 +128,6 @@ TRACE_EVENT(iwlwifi_dev_tx,
 		  __entry->framelen, __entry->skbaddr)
 );
 
-struct iwl_error_event_table;
-TRACE_EVENT(iwlwifi_dev_ucode_error,
-	TP_PROTO(const struct device *dev, const struct iwl_error_event_table *table,
-		 u32 hw_ver, u32 brd_ver),
-	TP_ARGS(dev, table, hw_ver, brd_ver),
-	TP_STRUCT__entry(
-		DEV_ENTRY
-		__field(u32, desc)
-		__field(u32, tsf_low)
-		__field(u32, data1)
-		__field(u32, data2)
-		__field(u32, line)
-		__field(u32, blink2)
-		__field(u32, ilink1)
-		__field(u32, ilink2)
-		__field(u32, bcon_time)
-		__field(u32, gp1)
-		__field(u32, gp2)
-		__field(u32, rev_type)
-		__field(u32, major)
-		__field(u32, minor)
-		__field(u32, hw_ver)
-		__field(u32, brd_ver)
-	),
-	TP_fast_assign(
-		DEV_ASSIGN;
-		__entry->desc = table->error_id;
-		__entry->tsf_low = table->tsf_low;
-		__entry->data1 = table->data1;
-		__entry->data2 = table->data2;
-		__entry->line = table->line;
-		__entry->blink2 = table->blink2;
-		__entry->ilink1 = table->ilink1;
-		__entry->ilink2 = table->ilink2;
-		__entry->bcon_time = table->bcon_time;
-		__entry->gp1 = table->gp1;
-		__entry->gp2 = table->gp2;
-		__entry->rev_type = table->gp3;
-		__entry->major = table->ucode_ver;
-		__entry->minor = table->hw_ver;
-		__entry->hw_ver = hw_ver;
-		__entry->brd_ver = brd_ver;
-	),
-	TP_printk("[%s] #%02d %010u data 0x%08X 0x%08X line %u, "
-		  "blink2 0x%05X ilink 0x%05X 0x%05X "
-		  "bcon_tm %010u gp 0x%08X 0x%08X rev_type 0x%08X major 0x%08X "
-		  "minor 0x%08X hw 0x%08X brd 0x%08X",
-		  __get_str(dev), __entry->desc, __entry->tsf_low,
-		  __entry->data1, __entry->data2, __entry->line,
-		  __entry->blink2, __entry->ilink1, __entry->ilink2,
-		  __entry->bcon_time, __entry->gp1, __entry->gp2,
-		  __entry->rev_type, __entry->major, __entry->minor,
-		  __entry->hw_ver, __entry->brd_ver)
-);
-
 TRACE_EVENT(iwlwifi_dev_ucode_event,
 	TP_PROTO(const struct device *dev, u32 time, u32 data, u32 ev),
 	TP_ARGS(dev, time, data, ev),
