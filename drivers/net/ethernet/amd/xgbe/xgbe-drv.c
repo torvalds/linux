@@ -1312,14 +1312,72 @@ int xgbe_powerup(struct net_device *netdev, unsigned int caller)
 	return 0;
 }
 
+static void xgbe_free_memory(struct xgbe_prv_data *pdata)
+{
+	struct xgbe_desc_if *desc_if = &pdata->desc_if;
+
+	/* Free the ring descriptors and buffers */
+	desc_if->free_ring_resources(pdata);
+
+	/* Free the channel and ring structures */
+	xgbe_free_channels(pdata);
+}
+
+static int xgbe_alloc_memory(struct xgbe_prv_data *pdata)
+{
+	struct xgbe_desc_if *desc_if = &pdata->desc_if;
+	struct net_device *netdev = pdata->netdev;
+	int ret;
+
+	/* Calculate the Rx buffer size before allocating rings */
+	pdata->rx_buf_size = xgbe_calc_rx_buf_size(netdev, netdev->mtu);
+
+	/* Allocate the channel and ring structures */
+	ret = xgbe_alloc_channels(pdata);
+	if (ret)
+		return ret;
+
+	/* Allocate the ring descriptors and buffers */
+	ret = desc_if->alloc_ring_resources(pdata);
+	if (ret)
+		goto err_channels;
+
+	/* Initialize the service and Tx timers */
+	xgbe_init_timers(pdata);
+
+	return 0;
+
+err_channels:
+	xgbe_free_memory(pdata);
+
+	return ret;
+}
+
 static int xgbe_start(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
 	struct xgbe_phy_if *phy_if = &pdata->phy_if;
 	struct net_device *netdev = pdata->netdev;
+	unsigned int i;
 	int ret;
 
-	DBGPR("-->xgbe_start\n");
+	/* Set the number of queues */
+	ret = netif_set_real_num_tx_queues(netdev, pdata->tx_ring_count);
+	if (ret) {
+		netdev_err(netdev, "error setting real tx queue count\n");
+		return ret;
+	}
+
+	ret = netif_set_real_num_rx_queues(netdev, pdata->rx_ring_count);
+	if (ret) {
+		netdev_err(netdev, "error setting real rx queue count\n");
+		return ret;
+	}
+
+	/* Set RSS lookup table data for programming */
+	for (i = 0; i < XGBE_RSS_MAX_TABLE_SIZE; i++)
+		XGMAC_SET_BITS(pdata->rss_table[i], MAC_RSSDR, DMCH,
+			       i % pdata->rx_ring_count);
 
 	ret = hw_if->init(pdata);
 	if (ret)
@@ -1346,8 +1404,6 @@ static int xgbe_start(struct xgbe_prv_data *pdata)
 	queue_work(pdata->dev_workqueue, &pdata->service_work);
 
 	clear_bit(XGBE_STOPPED, &pdata->dev_state);
-
-	DBGPR("<--xgbe_start\n");
 
 	return 0;
 
@@ -1823,10 +1879,7 @@ static void xgbe_packet_info(struct xgbe_prv_data *pdata,
 static int xgbe_open(struct net_device *netdev)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
-	struct xgbe_desc_if *desc_if = &pdata->desc_if;
 	int ret;
-
-	DBGPR("-->xgbe_open\n");
 
 	/* Create the various names based on netdev name */
 	snprintf(pdata->an_name, sizeof(pdata->an_name) - 1, "%s-pcs",
@@ -1872,43 +1925,25 @@ static int xgbe_open(struct net_device *netdev)
 		goto err_sysclk;
 	}
 
-	/* Calculate the Rx buffer size before allocating rings */
-	ret = xgbe_calc_rx_buf_size(netdev, netdev->mtu);
-	if (ret < 0)
-		goto err_ptpclk;
-	pdata->rx_buf_size = ret;
-
-	/* Allocate the channel and ring structures */
-	ret = xgbe_alloc_channels(pdata);
-	if (ret)
-		goto err_ptpclk;
-
-	/* Allocate the ring descriptors and buffers */
-	ret = desc_if->alloc_ring_resources(pdata);
-	if (ret)
-		goto err_channels;
-
 	INIT_WORK(&pdata->service_work, xgbe_service);
 	INIT_WORK(&pdata->restart_work, xgbe_restart);
 	INIT_WORK(&pdata->stopdev_work, xgbe_stopdev);
 	INIT_WORK(&pdata->tx_tstamp_work, xgbe_tx_tstamp);
-	xgbe_init_timers(pdata);
+
+	ret = xgbe_alloc_memory(pdata);
+	if (ret)
+		goto err_ptpclk;
 
 	ret = xgbe_start(pdata);
 	if (ret)
-		goto err_rings;
+		goto err_mem;
 
 	clear_bit(XGBE_DOWN, &pdata->dev_state);
 
-	DBGPR("<--xgbe_open\n");
-
 	return 0;
 
-err_rings:
-	desc_if->free_ring_resources(pdata);
-
-err_channels:
-	xgbe_free_channels(pdata);
+err_mem:
+	xgbe_free_memory(pdata);
 
 err_ptpclk:
 	clk_disable_unprepare(pdata->ptpclk);
@@ -1928,18 +1963,11 @@ err_dev_wq:
 static int xgbe_close(struct net_device *netdev)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
-	struct xgbe_desc_if *desc_if = &pdata->desc_if;
-
-	DBGPR("-->xgbe_close\n");
 
 	/* Stop the device */
 	xgbe_stop(pdata);
 
-	/* Free the ring descriptors and buffers */
-	desc_if->free_ring_resources(pdata);
-
-	/* Free the channel and ring structures */
-	xgbe_free_channels(pdata);
+	xgbe_free_memory(pdata);
 
 	/* Disable the clocks */
 	clk_disable_unprepare(pdata->ptpclk);
@@ -1952,8 +1980,6 @@ static int xgbe_close(struct net_device *netdev)
 	destroy_workqueue(pdata->dev_workqueue);
 
 	set_bit(XGBE_DOWN, &pdata->dev_state);
-
-	DBGPR("<--xgbe_close\n");
 
 	return 0;
 }
