@@ -29,7 +29,7 @@ struct pfn_array {
 	unsigned long		*pa_iova_pfn;
 	/* Array that receives PFNs of the pages pinned. */
 	unsigned long		*pa_pfn;
-	/* Number of pages to pin/pinned from @pa_iova. */
+	/* Number of pages pinned from @pa_iova. */
 	int			pa_nr;
 };
 
@@ -50,64 +50,33 @@ struct ccwchain {
 };
 
 /*
- * pfn_array_pin() - pin user pages in memory
+ * pfn_array_alloc_pin() - alloc memory for PFNs, then pin user pages in memory
  * @pa: pfn_array on which to perform the operation
  * @mdev: the mediated device to perform pin/unpin operations
+ * @iova: target guest physical address
+ * @len: number of bytes that should be pinned from @iova
  *
- * Attempt to pin user pages in memory.
+ * Attempt to allocate memory for PFNs, and pin user pages in memory.
  *
  * Usage of pfn_array:
- * Any field in this structure should be initialized by caller.
- * We expect @pa->pa_nr > 0, and its value will be assigned by callee.
+ * We expect (pa_nr == 0) and (pa_iova_pfn == NULL), any field in
+ * this structure will be filled in by this function.
  *
  * Returns:
  *   Number of pages pinned on success.
- *   If @pa->pa_nr is 0 or negative, returns 0.
+ *   If @pa->pa_nr is not 0, or @pa->pa_iova_pfn is not NULL initially,
+ *   returns -EINVAL.
  *   If no pages were pinned, returns -errno.
  */
-static int pfn_array_pin(struct pfn_array *pa, struct device *mdev)
-{
-	int i, ret;
-
-	if (pa->pa_nr <= 0) {
-		pa->pa_nr = 0;
-		return 0;
-	}
-
-	pa->pa_iova_pfn[0] = pa->pa_iova >> PAGE_SHIFT;
-	for (i = 1; i < pa->pa_nr; i++)
-		pa->pa_iova_pfn[i] = pa->pa_iova_pfn[i - 1] + 1;
-
-	ret = vfio_pin_pages(mdev, pa->pa_iova_pfn, pa->pa_nr,
-			     IOMMU_READ | IOMMU_WRITE, pa->pa_pfn);
-
-	if (ret > 0 && ret != pa->pa_nr) {
-		vfio_unpin_pages(mdev, pa->pa_iova_pfn, ret);
-		pa->pa_nr = 0;
-		return 0;
-	}
-
-	return ret;
-}
-
-/* Unpin the pages before releasing the memory. */
-static void pfn_array_unpin_free(struct pfn_array *pa, struct device *mdev)
-{
-	vfio_unpin_pages(mdev, pa->pa_iova_pfn, pa->pa_nr);
-	pa->pa_nr = 0;
-	kfree(pa->pa_iova_pfn);
-}
-
-/* Alloc memory for PFNs, then pin pages with them. */
 static int pfn_array_alloc_pin(struct pfn_array *pa, struct device *mdev,
 			       u64 iova, unsigned int len)
 {
-	int ret = 0;
+	int i, ret = 0;
 
 	if (!len)
 		return 0;
 
-	if (pa->pa_nr)
+	if (pa->pa_nr || pa->pa_iova_pfn)
 		return -EINVAL;
 
 	pa->pa_iova = iova;
@@ -124,16 +93,37 @@ static int pfn_array_alloc_pin(struct pfn_array *pa, struct device *mdev,
 		return -ENOMEM;
 	pa->pa_pfn = pa->pa_iova_pfn + pa->pa_nr;
 
-	ret = pfn_array_pin(pa, mdev);
+	pa->pa_iova_pfn[0] = pa->pa_iova >> PAGE_SHIFT;
+	for (i = 1; i < pa->pa_nr; i++)
+		pa->pa_iova_pfn[i] = pa->pa_iova_pfn[i - 1] + 1;
 
-	if (ret > 0)
-		return ret;
-	else if (!ret)
+	ret = vfio_pin_pages(mdev, pa->pa_iova_pfn, pa->pa_nr,
+			     IOMMU_READ | IOMMU_WRITE, pa->pa_pfn);
+
+	if (ret < 0) {
+		goto err_out;
+	} else if (ret > 0 && ret != pa->pa_nr) {
+		vfio_unpin_pages(mdev, pa->pa_iova_pfn, ret);
 		ret = -EINVAL;
-
-	kfree(pa->pa_iova_pfn);
+		goto err_out;
+	}
 
 	return ret;
+
+err_out:
+	pa->pa_nr = 0;
+	kfree(pa->pa_iova_pfn);
+	pa->pa_iova_pfn = NULL;
+
+	return ret;
+}
+
+/* Unpin the pages before releasing the memory. */
+static void pfn_array_unpin_free(struct pfn_array *pa, struct device *mdev)
+{
+	vfio_unpin_pages(mdev, pa->pa_iova_pfn, pa->pa_nr);
+	pa->pa_nr = 0;
+	kfree(pa->pa_iova_pfn);
 }
 
 static int pfn_array_table_init(struct pfn_array_table *pat, int nr)
