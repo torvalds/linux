@@ -1459,10 +1459,11 @@ static const u32 sgpr_init_compute_shader[] =
 static const u32 vgpr_init_regs[] =
 {
 	mmCOMPUTE_STATIC_THREAD_MGMT_SE0, 0xffffffff,
-	mmCOMPUTE_RESOURCE_LIMITS, 0,
+	mmCOMPUTE_RESOURCE_LIMITS, 0x1000000, /* CU_GROUP_COUNT=1 */
 	mmCOMPUTE_NUM_THREAD_X, 256*4,
 	mmCOMPUTE_NUM_THREAD_Y, 1,
 	mmCOMPUTE_NUM_THREAD_Z, 1,
+	mmCOMPUTE_PGM_RSRC1, 0x100004f, /* VGPRS=15 (64 logical VGPRs), SGPRS=1 (16 SGPRs), BULKY=1 */
 	mmCOMPUTE_PGM_RSRC2, 20,
 	mmCOMPUTE_USER_DATA_0, 0xedcedc00,
 	mmCOMPUTE_USER_DATA_1, 0xedcedc01,
@@ -1479,10 +1480,11 @@ static const u32 vgpr_init_regs[] =
 static const u32 sgpr1_init_regs[] =
 {
 	mmCOMPUTE_STATIC_THREAD_MGMT_SE0, 0x0f,
-	mmCOMPUTE_RESOURCE_LIMITS, 0x1000000,
+	mmCOMPUTE_RESOURCE_LIMITS, 0x1000000, /* CU_GROUP_COUNT=1 */
 	mmCOMPUTE_NUM_THREAD_X, 256*5,
 	mmCOMPUTE_NUM_THREAD_Y, 1,
 	mmCOMPUTE_NUM_THREAD_Z, 1,
+	mmCOMPUTE_PGM_RSRC1, 0x240, /* SGPRS=9 (80 GPRS) */
 	mmCOMPUTE_PGM_RSRC2, 20,
 	mmCOMPUTE_USER_DATA_0, 0xedcedc00,
 	mmCOMPUTE_USER_DATA_1, 0xedcedc01,
@@ -1503,6 +1505,7 @@ static const u32 sgpr2_init_regs[] =
 	mmCOMPUTE_NUM_THREAD_X, 256*5,
 	mmCOMPUTE_NUM_THREAD_Y, 1,
 	mmCOMPUTE_NUM_THREAD_Z, 1,
+	mmCOMPUTE_PGM_RSRC1, 0x240, /* SGPRS=9 (80 GPRS) */
 	mmCOMPUTE_PGM_RSRC2, 20,
 	mmCOMPUTE_USER_DATA_0, 0xedcedc00,
 	mmCOMPUTE_USER_DATA_1, 0xedcedc01,
@@ -3475,6 +3478,12 @@ static void gfx_v8_0_select_se_sh(struct amdgpu_device *adev,
 	WREG32(mmGRBM_GFX_INDEX, data);
 }
 
+static void gfx_v8_0_select_me_pipe_q(struct amdgpu_device *adev,
+				  u32 me, u32 pipe, u32 q)
+{
+	vi_srbm_select(adev, me, pipe, q, 0);
+}
+
 static u32 gfx_v8_0_get_rb_active_bitmap(struct amdgpu_device *adev)
 {
 	u32 data, mask;
@@ -5442,6 +5451,7 @@ static const struct amdgpu_gfx_funcs gfx_v8_0_gfx_funcs = {
 	.select_se_sh = &gfx_v8_0_select_se_sh,
 	.read_wave_data = &gfx_v8_0_read_wave_data,
 	.read_wave_sgprs = &gfx_v8_0_read_wave_sgprs,
+	.select_me_pipe_q = &gfx_v8_0_select_me_pipe_q
 };
 
 static int gfx_v8_0_early_init(void *handle)

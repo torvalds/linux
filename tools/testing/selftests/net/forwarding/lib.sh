@@ -321,6 +321,25 @@ simple_if_fini()
 	vrf_destroy $vrf_name
 }
 
+tunnel_create()
+{
+	local name=$1; shift
+	local type=$1; shift
+	local local=$1; shift
+	local remote=$1; shift
+
+	ip link add name $name type $type \
+	   local $local remote $remote "$@"
+	ip link set dev $name up
+}
+
+tunnel_destroy()
+{
+	local name=$1; shift
+
+	ip link del dev $name
+}
+
 master_name_get()
 {
 	local if_name=$1
@@ -333,6 +352,15 @@ link_stats_tx_packets_get()
        local if_name=$1
 
        ip -j -s link show dev $if_name | jq '.[]["stats64"]["tx"]["packets"]'
+}
+
+tc_rule_stats_get()
+{
+	local dev=$1; shift
+	local pref=$1; shift
+
+	tc -j -s filter show dev $dev ingress pref $pref |
+	jq '.[1].options.actions[].stats.packets'
 }
 
 mac_get()
@@ -353,19 +381,33 @@ bridge_ageing_time_get()
 	echo $((ageing_time / 100))
 }
 
+declare -A SYSCTL_ORIG
+sysctl_set()
+{
+	local key=$1; shift
+	local value=$1; shift
+
+	SYSCTL_ORIG[$key]=$(sysctl -n $key)
+	sysctl -qw $key=$value
+}
+
+sysctl_restore()
+{
+	local key=$1; shift
+
+	sysctl -qw $key=${SYSCTL_ORIG["$key"]}
+}
+
 forwarding_enable()
 {
-       ipv4_fwd=$(sysctl -n net.ipv4.conf.all.forwarding)
-       ipv6_fwd=$(sysctl -n net.ipv6.conf.all.forwarding)
-
-       sysctl -q -w net.ipv4.conf.all.forwarding=1
-       sysctl -q -w net.ipv6.conf.all.forwarding=1
+	sysctl_set net.ipv4.conf.all.forwarding 1
+	sysctl_set net.ipv6.conf.all.forwarding 1
 }
 
 forwarding_restore()
 {
-       sysctl -q -w net.ipv6.conf.all.forwarding=$ipv6_fwd
-       sysctl -q -w net.ipv4.conf.all.forwarding=$ipv4_fwd
+	sysctl_restore net.ipv6.conf.all.forwarding
+	sysctl_restore net.ipv4.conf.all.forwarding
 }
 
 tc_offload_check()
@@ -379,6 +421,83 @@ tc_offload_check()
 	done
 
 	return 0
+}
+
+slow_path_trap_install()
+{
+	local dev=$1; shift
+	local direction=$1; shift
+
+	if [ "${tcflags/skip_hw}" != "$tcflags" ]; then
+		# For slow-path testing, we need to install a trap to get to
+		# slow path the packets that would otherwise be switched in HW.
+		tc filter add dev $dev $direction pref 1 \
+		   flower skip_sw action trap
+	fi
+}
+
+slow_path_trap_uninstall()
+{
+	local dev=$1; shift
+	local direction=$1; shift
+
+	if [ "${tcflags/skip_hw}" != "$tcflags" ]; then
+		tc filter del dev $dev $direction pref 1 flower skip_sw
+	fi
+}
+
+__icmp_capture_add_del()
+{
+	local add_del=$1; shift
+	local pref=$1; shift
+	local vsuf=$1; shift
+	local tundev=$1; shift
+	local filter=$1; shift
+
+	tc filter $add_del dev "$tundev" ingress \
+	   proto ip$vsuf pref $pref \
+	   flower ip_proto icmp$vsuf $filter \
+	   action pass
+}
+
+icmp_capture_install()
+{
+	__icmp_capture_add_del add 100 "" "$@"
+}
+
+icmp_capture_uninstall()
+{
+	__icmp_capture_add_del del 100 "" "$@"
+}
+
+icmp6_capture_install()
+{
+	__icmp_capture_add_del add 100 v6 "$@"
+}
+
+icmp6_capture_uninstall()
+{
+	__icmp_capture_add_del del 100 v6 "$@"
+}
+
+matchall_sink_create()
+{
+	local dev=$1; shift
+
+	tc qdisc add dev $dev clsact
+	tc filter add dev $dev ingress \
+	   pref 10000 \
+	   matchall \
+	   action drop
+}
+
+tests_run()
+{
+	local current_test
+
+	for current_test in ${TESTS:-$ALL_TESTS}; do
+		$current_test
+	done
 }
 
 ##############################################################################

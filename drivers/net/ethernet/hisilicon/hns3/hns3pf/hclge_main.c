@@ -304,8 +304,6 @@ static const struct hclge_comm_stats_str g_mac_stats_string[] = {
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_2048_4095_oct_pkt_num)},
 	{"mac_tx_4096_8191_oct_pkt_num",
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_4096_8191_oct_pkt_num)},
-	{"mac_tx_8192_12287_oct_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_8192_12287_oct_pkt_num)},
 	{"mac_tx_8192_9216_oct_pkt_num",
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_8192_9216_oct_pkt_num)},
 	{"mac_tx_9217_12287_oct_pkt_num",
@@ -356,8 +354,6 @@ static const struct hclge_comm_stats_str g_mac_stats_string[] = {
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_2048_4095_oct_pkt_num)},
 	{"mac_rx_4096_8191_oct_pkt_num",
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_4096_8191_oct_pkt_num)},
-	{"mac_rx_8192_12287_oct_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_8192_12287_oct_pkt_num)},
 	{"mac_rx_8192_9216_oct_pkt_num",
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_8192_9216_oct_pkt_num)},
 	{"mac_rx_9217_12287_oct_pkt_num",
@@ -1459,8 +1455,11 @@ static int hclge_alloc_vport(struct hclge_dev *hdev)
 	/* We need to alloc a vport for main NIC of PF */
 	num_vport = hdev->num_vmdq_vport + hdev->num_req_vfs + 1;
 
-	if (hdev->num_tqps < num_vport)
-		num_vport = hdev->num_tqps;
+	if (hdev->num_tqps < num_vport) {
+		dev_err(&hdev->pdev->dev, "tqps(%d) is less than vports(%d)",
+			hdev->num_tqps, num_vport);
+		return -EINVAL;
+	}
 
 	/* Alloc the same number of TQPs for every vport */
 	tqp_per_vport = hdev->num_tqps / num_vport;
@@ -1474,21 +1473,8 @@ static int hclge_alloc_vport(struct hclge_dev *hdev)
 	hdev->vport = vport;
 	hdev->num_alloc_vport = num_vport;
 
-#ifdef CONFIG_PCI_IOV
-	/* Enable SRIOV */
-	if (hdev->num_req_vfs) {
-		dev_info(&pdev->dev, "active VFs(%d) found, enabling SRIOV\n",
-			 hdev->num_req_vfs);
-		ret = pci_enable_sriov(hdev->pdev, hdev->num_req_vfs);
-		if (ret) {
-			hdev->num_alloc_vfs = 0;
-			dev_err(&pdev->dev, "SRIOV enable failed %d\n",
-				ret);
-			return ret;
-		}
-	}
-	hdev->num_alloc_vfs = hdev->num_req_vfs;
-#endif
+	if (IS_ENABLED(CONFIG_PCI_IOV))
+		hdev->num_alloc_vfs = hdev->num_req_vfs;
 
 	for (i = 0; i < num_vport; i++) {
 		vport->back = hdev;
@@ -2947,21 +2933,6 @@ static void hclge_service_task(struct work_struct *work)
 	hclge_service_complete(hdev);
 }
 
-static void hclge_disable_sriov(struct hclge_dev *hdev)
-{
-	/* If our VFs are assigned we cannot shut down SR-IOV
-	 * without causing issues, so just leave the hardware
-	 * available but disabled
-	 */
-	if (pci_vfs_assigned(hdev->pdev)) {
-		dev_warn(&hdev->pdev->dev,
-			 "disabling driver while VFs are assigned\n");
-		return;
-	}
-
-	pci_disable_sriov(hdev->pdev);
-}
-
 struct hclge_vport *hclge_get_vport(struct hnae3_handle *handle)
 {
 	/* VF handle has no client */
@@ -3683,48 +3654,50 @@ static void hclge_cfg_mac_mode(struct hclge_dev *hdev, bool enable)
 			"mac enable fail, ret =%d.\n", ret);
 }
 
-static int hclge_set_loopback(struct hnae3_handle *handle,
-			      enum hnae3_loop loop_mode, bool en)
+static int hclge_set_mac_loopback(struct hclge_dev *hdev, bool en)
 {
-	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_config_mac_mode_cmd *req;
-	struct hclge_dev *hdev = vport->back;
 	struct hclge_desc desc;
 	u32 loop_en;
 	int ret;
 
+	req = (struct hclge_config_mac_mode_cmd *)&desc.data[0];
+	/* 1 Read out the MAC mode config at first */
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_MAC_MODE, true);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"mac loopback get fail, ret =%d.\n", ret);
+		return ret;
+	}
+
+	/* 2 Then setup the loopback flag */
+	loop_en = le32_to_cpu(req->txrx_pad_fcs_loop_en);
+	hnae_set_bit(loop_en, HCLGE_MAC_APP_LP_B, en ? 1 : 0);
+
+	req->txrx_pad_fcs_loop_en = cpu_to_le32(loop_en);
+
+	/* 3 Config mac work mode with loopback flag
+	 * and its original configure parameters
+	 */
+	hclge_cmd_reuse_desc(&desc, false);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"mac loopback set fail, ret =%d.\n", ret);
+	return ret;
+}
+
+static int hclge_set_loopback(struct hnae3_handle *handle,
+			      enum hnae3_loop loop_mode, bool en)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	int ret;
+
 	switch (loop_mode) {
 	case HNAE3_MAC_INTER_LOOP_MAC:
-		req = (struct hclge_config_mac_mode_cmd *)&desc.data[0];
-		/* 1 Read out the MAC mode config at first */
-		hclge_cmd_setup_basic_desc(&desc,
-					   HCLGE_OPC_CONFIG_MAC_MODE,
-					   true);
-		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-		if (ret) {
-			dev_err(&hdev->pdev->dev,
-				"mac loopback get fail, ret =%d.\n",
-				ret);
-			return ret;
-		}
-
-		/* 2 Then setup the loopback flag */
-		loop_en = le32_to_cpu(req->txrx_pad_fcs_loop_en);
-		if (en)
-			hnae_set_bit(loop_en, HCLGE_MAC_APP_LP_B, 1);
-		else
-			hnae_set_bit(loop_en, HCLGE_MAC_APP_LP_B, 0);
-
-		req->txrx_pad_fcs_loop_en = cpu_to_le32(loop_en);
-
-		/* 3 Config mac work mode with loopback flag
-		 * and its original configure parameters
-		 */
-		hclge_cmd_reuse_desc(&desc, false);
-		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-		if (ret)
-			dev_err(&hdev->pdev->dev,
-				"mac loopback set fail, ret =%d.\n", ret);
+		ret = hclge_set_mac_loopback(hdev, en);
 		break;
 	default:
 		ret = -ENOTSUPP;
@@ -3783,6 +3756,7 @@ static int hclge_ae_start(struct hnae3_handle *handle)
 	hclge_cfg_mac_mode(hdev, true);
 	clear_bit(HCLGE_STATE_DOWN, &hdev->state);
 	mod_timer(&hdev->service_timer, jiffies + HZ);
+	hdev->hw.mac.link = 0;
 
 	/* reset tqp stats */
 	hclge_reset_tqp_stats(handle);
@@ -3819,6 +3793,8 @@ static void hclge_ae_stop(struct hnae3_handle *handle)
 
 	/* reset tqp stats */
 	hclge_reset_tqp_stats(handle);
+	del_timer_sync(&hdev->service_timer);
+	cancel_work_sync(&hdev->service_task);
 	hclge_update_link_status(hdev);
 }
 
@@ -4540,8 +4516,9 @@ static void hclge_enable_vlan_filter(struct hnae3_handle *handle, bool enable)
 	hclge_set_vlan_filter_ctrl(hdev, HCLGE_FILTER_TYPE_VF, enable);
 }
 
-int hclge_set_vf_vlan_common(struct hclge_dev *hdev, int vfid,
-			     bool is_kill, u16 vlan, u8 qos, __be16 proto)
+static int hclge_set_vf_vlan_common(struct hclge_dev *hdev, int vfid,
+				    bool is_kill, u16 vlan, u8 qos,
+				    __be16 proto)
 {
 #define HCLGE_MAX_VF_BYTES  16
 	struct hclge_vlan_filter_vf_cfg_cmd *req0;
@@ -4599,12 +4576,9 @@ int hclge_set_vf_vlan_common(struct hclge_dev *hdev, int vfid,
 	return -EIO;
 }
 
-static int hclge_set_port_vlan_filter(struct hnae3_handle *handle,
-				      __be16 proto, u16 vlan_id,
-				      bool is_kill)
+static int hclge_set_port_vlan_filter(struct hclge_dev *hdev, __be16 proto,
+				      u16 vlan_id, bool is_kill)
 {
-	struct hclge_vport *vport = hclge_get_vport(handle);
-	struct hclge_dev *hdev = vport->back;
 	struct hclge_vlan_filter_pf_cfg_cmd *req;
 	struct hclge_desc desc;
 	u8 vlan_offset_byte_val;
@@ -4624,22 +4598,66 @@ static int hclge_set_port_vlan_filter(struct hnae3_handle *handle,
 	req->vlan_offset_bitmap[vlan_offset_byte] = vlan_offset_byte_val;
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"port vlan command, send fail, ret =%d.\n", ret);
+	return ret;
+}
+
+static int hclge_set_vlan_filter_hw(struct hclge_dev *hdev, __be16 proto,
+				    u16 vport_id, u16 vlan_id, u8 qos,
+				    bool is_kill)
+{
+	u16 vport_idx, vport_num = 0;
+	int ret;
+
+	ret = hclge_set_vf_vlan_common(hdev, vport_id, is_kill, vlan_id,
+				       0, proto);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
-			"port vlan command, send fail, ret =%d.\n",
-			ret);
+			"Set %d vport vlan filter config fail, ret =%d.\n",
+			vport_id, ret);
 		return ret;
 	}
 
-	ret = hclge_set_vf_vlan_common(hdev, 0, is_kill, vlan_id, 0, proto);
-	if (ret) {
+	/* vlan 0 may be added twice when 8021q module is enabled */
+	if (!is_kill && !vlan_id &&
+	    test_bit(vport_id, hdev->vlan_table[vlan_id]))
+		return 0;
+
+	if (!is_kill && test_and_set_bit(vport_id, hdev->vlan_table[vlan_id])) {
 		dev_err(&hdev->pdev->dev,
-			"Set pf vlan filter config fail, ret =%d.\n",
-			ret);
-		return -EIO;
+			"Add port vlan failed, vport %d is already in vlan %d\n",
+			vport_id, vlan_id);
+		return -EINVAL;
 	}
 
-	return 0;
+	if (is_kill &&
+	    !test_and_clear_bit(vport_id, hdev->vlan_table[vlan_id])) {
+		dev_err(&hdev->pdev->dev,
+			"Delete port vlan failed, vport %d is not in vlan %d\n",
+			vport_id, vlan_id);
+		return -EINVAL;
+	}
+
+	for_each_set_bit(vport_idx, hdev->vlan_table[vlan_id], VLAN_N_VID)
+		vport_num++;
+
+	if ((is_kill && vport_num == 0) || (!is_kill && vport_num == 1))
+		ret = hclge_set_port_vlan_filter(hdev, proto, vlan_id,
+						 is_kill);
+
+	return ret;
+}
+
+int hclge_set_vlan_filter(struct hnae3_handle *handle, __be16 proto,
+			  u16 vlan_id, bool is_kill)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+
+	return hclge_set_vlan_filter_hw(hdev, proto, vport->vport_id, vlan_id,
+					0, is_kill);
 }
 
 static int hclge_set_vf_vlan_filter(struct hnae3_handle *handle, int vfid,
@@ -4653,7 +4671,7 @@ static int hclge_set_vf_vlan_filter(struct hnae3_handle *handle, int vfid,
 	if (proto != htons(ETH_P_8021Q))
 		return -EPROTONOSUPPORT;
 
-	return hclge_set_vf_vlan_common(hdev, vfid, false, vlan, qos, proto);
+	return hclge_set_vlan_filter_hw(hdev, proto, vfid, vlan, qos, false);
 }
 
 static int hclge_set_vlan_tx_offload_cfg(struct hclge_vport *vport)
@@ -4818,10 +4836,10 @@ static int hclge_init_vlan_config(struct hclge_dev *hdev)
 	}
 
 	handle = &hdev->vport[0].nic;
-	return hclge_set_port_vlan_filter(handle, htons(ETH_P_8021Q), 0, false);
+	return hclge_set_vlan_filter(handle, htons(ETH_P_8021Q), 0, false);
 }
 
-static int hclge_en_hw_strip_rxvtag(struct hnae3_handle *handle, bool enable)
+int hclge_en_hw_strip_rxvtag(struct hnae3_handle *handle, bool enable)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 
@@ -5166,12 +5184,6 @@ static int hclge_set_pauseparam(struct hnae3_handle *handle, u32 auto_neg,
 	struct phy_device *phydev = hdev->hw.mac.phydev;
 	u32 fc_autoneg;
 
-	/* Only support flow control negotiation for netdev with
-	 * phy attached for now.
-	 */
-	if (!phydev)
-		return -EOPNOTSUPP;
-
 	fc_autoneg = hclge_get_autoneg(handle);
 	if (auto_neg != fc_autoneg) {
 		dev_info(&hdev->pdev->dev,
@@ -5189,6 +5201,12 @@ static int hclge_set_pauseparam(struct hnae3_handle *handle, u32 auto_neg,
 
 	if (!fc_autoneg)
 		return hclge_cfg_pauseparam(hdev, rx_en, tx_en);
+
+	/* Only support flow control negotiation for netdev with
+	 * phy attached for now.
+	 */
+	if (!phydev)
+		return -EOPNOTSUPP;
 
 	return phy_start_aneg(phydev);
 }
@@ -5282,7 +5300,7 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 			vport->nic.client = client;
 			ret = client->ops->init_instance(&vport->nic);
 			if (ret)
-				goto err;
+				return ret;
 
 			if (hdev->roce_client &&
 			    hnae3_dev_roce_supported(hdev)) {
@@ -5290,11 +5308,11 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 
 				ret = hclge_init_roce_base_info(vport);
 				if (ret)
-					goto err;
+					return ret;
 
 				ret = rc->ops->init_instance(&vport->roce);
 				if (ret)
-					goto err;
+					return ret;
 			}
 
 			break;
@@ -5304,7 +5322,7 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 
 			ret = client->ops->init_instance(&vport->nic);
 			if (ret)
-				goto err;
+				return ret;
 
 			break;
 		case HNAE3_CLIENT_ROCE:
@@ -5316,18 +5334,16 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 			if (hdev->roce_client && hdev->nic_client) {
 				ret = hclge_init_roce_base_info(vport);
 				if (ret)
-					goto err;
+					return ret;
 
 				ret = client->ops->init_instance(&vport->roce);
 				if (ret)
-					goto err;
+					return ret;
 			}
 		}
 	}
 
 	return 0;
-err:
-	return ret;
 }
 
 static void hclge_uninit_client_instance(struct hnae3_client *client,
@@ -5364,7 +5380,7 @@ static int hclge_pci_init(struct hclge_dev *hdev)
 	ret = pci_enable_device(pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to enable PCI device\n");
-		goto err_no_drvdata;
+		return ret;
 	}
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
@@ -5402,8 +5418,6 @@ err_clr_master:
 	pci_release_regions(pdev);
 err_disable_device:
 	pci_disable_device(pdev);
-err_no_drvdata:
-	pci_set_drvdata(pdev, NULL);
 
 	return ret;
 }
@@ -5412,6 +5426,7 @@ static void hclge_pci_uninit(struct hclge_dev *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
 
+	pcim_iounmap(pdev, hdev->hw.io_base);
 	pci_free_irq_vectors(pdev);
 	pci_clear_master(pdev);
 	pci_release_mem_regions(pdev);
@@ -5427,7 +5442,7 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hdev = devm_kzalloc(&pdev->dev, sizeof(*hdev), GFP_KERNEL);
 	if (!hdev) {
 		ret = -ENOMEM;
-		goto err_hclge_dev;
+		goto out;
 	}
 
 	hdev->pdev = pdev;
@@ -5440,38 +5455,38 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	ret = hclge_pci_init(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "PCI init failed\n");
-		goto err_pci_init;
+		goto out;
 	}
 
 	/* Firmware command queue initialize */
 	ret = hclge_cmd_queue_init(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Cmd queue init failed, ret = %d.\n", ret);
-		return ret;
+		goto err_pci_uninit;
 	}
 
 	/* Firmware command initialize */
 	ret = hclge_cmd_init(hdev);
 	if (ret)
-		goto err_cmd_init;
+		goto err_cmd_uninit;
 
 	ret = hclge_get_cap(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "get hw capability error, ret = %d.\n",
 			ret);
-		return ret;
+		goto err_cmd_uninit;
 	}
 
 	ret = hclge_configure(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Configure dev error, ret = %d.\n", ret);
-		return ret;
+		goto err_cmd_uninit;
 	}
 
 	ret = hclge_init_msi(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Init MSI/MSI-X error, ret = %d.\n", ret);
-		return ret;
+		goto err_cmd_uninit;
 	}
 
 	ret = hclge_misc_irq_init(hdev);
@@ -5479,69 +5494,71 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 		dev_err(&pdev->dev,
 			"Misc IRQ(vector0) init error, ret = %d.\n",
 			ret);
-		return ret;
+		goto err_msi_uninit;
 	}
 
 	ret = hclge_alloc_tqps(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Allocate TQPs error, ret = %d.\n", ret);
-		return ret;
+		goto err_msi_irq_uninit;
 	}
 
 	ret = hclge_alloc_vport(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Allocate vport error, ret = %d.\n", ret);
-		return ret;
+		goto err_msi_irq_uninit;
 	}
 
 	ret = hclge_map_tqp(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Map tqp error, ret = %d.\n", ret);
-		return ret;
+		goto err_msi_irq_uninit;
 	}
 
-	ret = hclge_mac_mdio_config(hdev);
-	if (ret) {
-		dev_warn(&hdev->pdev->dev,
-			 "mdio config fail ret=%d\n", ret);
-		return ret;
+	if (hdev->hw.mac.media_type == HNAE3_MEDIA_TYPE_COPPER) {
+		ret = hclge_mac_mdio_config(hdev);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"mdio config fail ret=%d\n", ret);
+			goto err_msi_irq_uninit;
+		}
 	}
 
 	ret = hclge_mac_init(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Mac init error, ret = %d\n", ret);
-		return ret;
+		goto err_mdiobus_unreg;
 	}
 
 	ret = hclge_config_tso(hdev, HCLGE_TSO_MSS_MIN, HCLGE_TSO_MSS_MAX);
 	if (ret) {
 		dev_err(&pdev->dev, "Enable tso fail, ret =%d\n", ret);
-		return ret;
+		goto err_mdiobus_unreg;
 	}
 
 	ret = hclge_init_vlan_config(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "VLAN init fail, ret =%d\n", ret);
-		return  ret;
+		goto err_mdiobus_unreg;
 	}
 
 	ret = hclge_tm_schd_init(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "tm schd init fail, ret =%d\n", ret);
-		return ret;
+		goto err_mdiobus_unreg;
 	}
 
 	hclge_rss_init_cfg(hdev);
 	ret = hclge_rss_init_hw(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Rss init fail, ret =%d\n", ret);
-		return ret;
+		goto err_mdiobus_unreg;
 	}
 
 	ret = init_mgr_tbl(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "manager table init fail, ret =%d\n", ret);
-		return ret;
+		goto err_mdiobus_unreg;
 	}
 
 	hclge_dcb_ops_set(hdev);
@@ -5564,11 +5581,21 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	pr_info("%s driver initialization finished.\n", HCLGE_DRIVER_NAME);
 	return 0;
 
-err_cmd_init:
+err_mdiobus_unreg:
+	if (hdev->hw.mac.phydev)
+		mdiobus_unregister(hdev->hw.mac.mdio_bus);
+err_msi_irq_uninit:
+	hclge_misc_irq_uninit(hdev);
+err_msi_uninit:
+	pci_free_irq_vectors(pdev);
+err_cmd_uninit:
+	hclge_destroy_cmd_queue(&hdev->hw);
+err_pci_uninit:
+	pcim_iounmap(pdev, hdev->hw.io_base);
+	pci_clear_master(pdev);
 	pci_release_regions(pdev);
-err_pci_init:
-	pci_set_drvdata(pdev, NULL);
-err_hclge_dev:
+	pci_disable_device(pdev);
+out:
 	return ret;
 }
 
@@ -5586,6 +5613,7 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 	set_bit(HCLGE_STATE_DOWN, &hdev->state);
 
 	hclge_stats_clear(hdev);
+	memset(hdev->vlan_table, 0, sizeof(hdev->vlan_table));
 
 	ret = hclge_cmd_init(hdev);
 	if (ret) {
@@ -5657,9 +5685,6 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 	struct hclge_mac *mac = &hdev->hw.mac;
 
 	set_bit(HCLGE_STATE_DOWN, &hdev->state);
-
-	if (IS_ENABLED(CONFIG_PCI_IOV))
-		hclge_disable_sriov(hdev);
 
 	if (hdev->service_timer.function)
 		del_timer_sync(&hdev->service_timer);
@@ -6203,7 +6228,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_fw_version = hclge_get_fw_version,
 	.get_mdix_mode = hclge_get_mdix_mode,
 	.enable_vlan_filter = hclge_enable_vlan_filter,
-	.set_vlan_filter = hclge_set_port_vlan_filter,
+	.set_vlan_filter = hclge_set_vlan_filter,
 	.set_vf_vlan_filter = hclge_set_vf_vlan_filter,
 	.enable_hw_strip_rxvtag = hclge_en_hw_strip_rxvtag,
 	.reset_event = hclge_reset_event,
@@ -6228,7 +6253,9 @@ static int hclge_init(void)
 {
 	pr_info("%s is initializing\n", HCLGE_NAME);
 
-	return hnae3_register_ae_algo(&ae_algo);
+	hnae3_register_ae_algo(&ae_algo);
+
+	return 0;
 }
 
 static void hclge_exit(void)

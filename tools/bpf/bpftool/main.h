@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Netronome Systems, Inc.
+ * Copyright (C) 2017-2018 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -117,14 +117,19 @@ int do_pin_fd(int fd, const char *name);
 
 int do_prog(int argc, char **arg);
 int do_map(int argc, char **arg);
+int do_event_pipe(int argc, char **argv);
 int do_cgroup(int argc, char **arg);
 
 int prog_parse_fd(int *argc, char ***argv);
+int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len);
 
 void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
 		       const char *arch);
+void print_data_json(uint8_t *data, size_t len);
 void print_hex_data_json(uint8_t *data, size_t len);
 
+unsigned int get_page_size(void);
+unsigned int get_possible_cpus(void);
 const char *ifindex_to_bfd_name_ns(__u32 ifindex, __u64 ns_dev, __u64 ns_ino);
 
 #endif

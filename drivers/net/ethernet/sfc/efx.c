@@ -1551,6 +1551,38 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 	return 0;
 }
 
+#if defined(CONFIG_SMP)
+static void efx_set_interrupt_affinity(struct efx_nic *efx)
+{
+	struct efx_channel *channel;
+	unsigned int cpu;
+
+	efx_for_each_channel(channel, efx) {
+		cpu = cpumask_local_spread(channel->channel,
+					   pcibus_to_node(efx->pci_dev->bus));
+		irq_set_affinity_hint(channel->irq, cpumask_of(cpu));
+	}
+}
+
+static void efx_clear_interrupt_affinity(struct efx_nic *efx)
+{
+	struct efx_channel *channel;
+
+	efx_for_each_channel(channel, efx)
+		irq_set_affinity_hint(channel->irq, NULL);
+}
+#else
+static void
+efx_set_interrupt_affinity(struct efx_nic *efx __attribute__ ((unused)))
+{
+}
+
+static void
+efx_clear_interrupt_affinity(struct efx_nic *efx __attribute__ ((unused)))
+{
+}
+#endif /* CONFIG_SMP */
+
 static int efx_soft_enable_interrupts(struct efx_nic *efx)
 {
 	struct efx_channel *channel, *end_channel;
@@ -3027,6 +3059,10 @@ static int efx_init_struct(struct efx_nic *efx,
 	mutex_init(&efx->mac_lock);
 #ifdef CONFIG_RFS_ACCEL
 	mutex_init(&efx->rps_mutex);
+	spin_lock_init(&efx->rps_hash_lock);
+	/* Failure to allocate is not fatal, but may degrade ARFS performance */
+	efx->rps_hash_table = kcalloc(EFX_ARFS_HASH_TABLE_SIZE,
+				      sizeof(*efx->rps_hash_table), GFP_KERNEL);
 #endif
 	efx->phy_op = &efx_dummy_phy_operations;
 	efx->mdio.dev = net_dev;
@@ -3070,6 +3106,10 @@ static void efx_fini_struct(struct efx_nic *efx)
 {
 	int i;
 
+#ifdef CONFIG_RFS_ACCEL
+	kfree(efx->rps_hash_table);
+#endif
+
 	for (i = 0; i < EFX_MAX_CHANNELS; i++)
 		kfree(efx->channel[i]);
 
@@ -3091,6 +3131,141 @@ void efx_update_sw_stats(struct efx_nic *efx, u64 *stats)
 	stats[GENERIC_STAT_rx_nodesc_trunc] = n_rx_nodesc_trunc;
 	stats[GENERIC_STAT_rx_noskb_drops] = atomic_read(&efx->n_rx_noskb_drops);
 }
+
+bool efx_filter_spec_equal(const struct efx_filter_spec *left,
+			   const struct efx_filter_spec *right)
+{
+	if ((left->match_flags ^ right->match_flags) |
+	    ((left->flags ^ right->flags) &
+	     (EFX_FILTER_FLAG_RX | EFX_FILTER_FLAG_TX)))
+		return false;
+
+	return memcmp(&left->outer_vid, &right->outer_vid,
+		      sizeof(struct efx_filter_spec) -
+		      offsetof(struct efx_filter_spec, outer_vid)) == 0;
+}
+
+u32 efx_filter_spec_hash(const struct efx_filter_spec *spec)
+{
+	BUILD_BUG_ON(offsetof(struct efx_filter_spec, outer_vid) & 3);
+	return jhash2((const u32 *)&spec->outer_vid,
+		      (sizeof(struct efx_filter_spec) -
+		       offsetof(struct efx_filter_spec, outer_vid)) / 4,
+		      0);
+}
+
+#ifdef CONFIG_RFS_ACCEL
+bool efx_rps_check_rule(struct efx_arfs_rule *rule, unsigned int filter_idx,
+			bool *force)
+{
+	if (rule->filter_id == EFX_ARFS_FILTER_ID_PENDING) {
+		/* ARFS is currently updating this entry, leave it */
+		return false;
+	}
+	if (rule->filter_id == EFX_ARFS_FILTER_ID_ERROR) {
+		/* ARFS tried and failed to update this, so it's probably out
+		 * of date.  Remove the filter and the ARFS rule entry.
+		 */
+		rule->filter_id = EFX_ARFS_FILTER_ID_REMOVING;
+		*force = true;
+		return true;
+	} else if (WARN_ON(rule->filter_id != filter_idx)) { /* can't happen */
+		/* ARFS has moved on, so old filter is not needed.  Since we did
+		 * not mark the rule with EFX_ARFS_FILTER_ID_REMOVING, it will
+		 * not be removed by efx_rps_hash_del() subsequently.
+		 */
+		*force = true;
+		return true;
+	}
+	/* Remove it iff ARFS wants to. */
+	return true;
+}
+
+struct hlist_head *efx_rps_hash_bucket(struct efx_nic *efx,
+				       const struct efx_filter_spec *spec)
+{
+	u32 hash = efx_filter_spec_hash(spec);
+
+	WARN_ON(!spin_is_locked(&efx->rps_hash_lock));
+	if (!efx->rps_hash_table)
+		return NULL;
+	return &efx->rps_hash_table[hash % EFX_ARFS_HASH_TABLE_SIZE];
+}
+
+struct efx_arfs_rule *efx_rps_hash_find(struct efx_nic *efx,
+					const struct efx_filter_spec *spec)
+{
+	struct efx_arfs_rule *rule;
+	struct hlist_head *head;
+	struct hlist_node *node;
+
+	head = efx_rps_hash_bucket(efx, spec);
+	if (!head)
+		return NULL;
+	hlist_for_each(node, head) {
+		rule = container_of(node, struct efx_arfs_rule, node);
+		if (efx_filter_spec_equal(spec, &rule->spec))
+			return rule;
+	}
+	return NULL;
+}
+
+struct efx_arfs_rule *efx_rps_hash_add(struct efx_nic *efx,
+				       const struct efx_filter_spec *spec,
+				       bool *new)
+{
+	struct efx_arfs_rule *rule;
+	struct hlist_head *head;
+	struct hlist_node *node;
+
+	head = efx_rps_hash_bucket(efx, spec);
+	if (!head)
+		return NULL;
+	hlist_for_each(node, head) {
+		rule = container_of(node, struct efx_arfs_rule, node);
+		if (efx_filter_spec_equal(spec, &rule->spec)) {
+			*new = false;
+			return rule;
+		}
+	}
+	rule = kmalloc(sizeof(*rule), GFP_ATOMIC);
+	*new = true;
+	if (rule) {
+		memcpy(&rule->spec, spec, sizeof(rule->spec));
+		hlist_add_head(&rule->node, head);
+	}
+	return rule;
+}
+
+void efx_rps_hash_del(struct efx_nic *efx, const struct efx_filter_spec *spec)
+{
+	struct efx_arfs_rule *rule;
+	struct hlist_head *head;
+	struct hlist_node *node;
+
+	head = efx_rps_hash_bucket(efx, spec);
+	if (WARN_ON(!head))
+		return;
+	hlist_for_each(node, head) {
+		rule = container_of(node, struct efx_arfs_rule, node);
+		if (efx_filter_spec_equal(spec, &rule->spec)) {
+			/* Someone already reused the entry.  We know that if
+			 * this check doesn't fire (i.e. filter_id == REMOVING)
+			 * then the REMOVING mark was put there by our caller,
+			 * because caller is holding a lock on filter table and
+			 * only holders of that lock set REMOVING.
+			 */
+			if (rule->filter_id != EFX_ARFS_FILTER_ID_REMOVING)
+				return;
+			hlist_del(node);
+			kfree(rule);
+			return;
+		}
+	}
+	/* We didn't find it. */
+	WARN_ON(1);
+}
+#endif
 
 /* RSS contexts.  We're using linked lists and crappy O(n) algorithms, because
  * (a) this is an infrequent control-plane operation and (b) n is small (max 64)
@@ -3165,6 +3340,7 @@ static void efx_pci_remove_main(struct efx_nic *efx)
 	cancel_work_sync(&efx->reset_work);
 
 	efx_disable_interrupts(efx);
+	efx_clear_interrupt_affinity(efx);
 	efx_nic_fini_interrupt(efx);
 	efx_fini_port(efx);
 	efx->type->fini(efx);
@@ -3314,6 +3490,8 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 	rc = efx_nic_init_interrupt(efx);
 	if (rc)
 		goto fail5;
+
+	efx_set_interrupt_affinity(efx);
 	rc = efx_enable_interrupts(efx);
 	if (rc)
 		goto fail6;
@@ -3321,6 +3499,7 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 	return 0;
 
  fail6:
+	efx_clear_interrupt_affinity(efx);
 	efx_nic_fini_interrupt(efx);
  fail5:
 	efx_fini_port(efx);

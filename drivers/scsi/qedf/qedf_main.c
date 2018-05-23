@@ -566,6 +566,8 @@ static struct qed_fcoe_cb_ops qedf_cb_ops = {
 	{
 		.link_update = qedf_link_update,
 		.dcbx_aen = qedf_dcbx_handler,
+		.get_generic_tlv_data = qedf_get_generic_tlv_data,
+		.get_protocol_tlv_data = qedf_get_protocol_tlv_data,
 	}
 };
 
@@ -994,7 +996,7 @@ static int qedf_xmit(struct fc_lport *lport, struct fc_frame *fp)
 	if (qedf_dump_frames)
 		print_hex_dump(KERN_WARNING, "fcoe: ", DUMP_PREFIX_OFFSET, 16,
 		    1, skb->data, skb->len, false);
-	qed_ops->ll2->start_xmit(qedf->cdev, skb);
+	qed_ops->ll2->start_xmit(qedf->cdev, skb, 0);
 
 	return 0;
 }
@@ -1746,6 +1748,8 @@ static struct fc_host_statistics *qedf_fc_get_host_stats(struct Scsi_Host
 		goto out;
 	}
 
+	mutex_lock(&qedf->stats_mutex);
+
 	/* Query firmware for offload stats */
 	qed_ops->get_stats(qedf->cdev, fw_fcoe_stats);
 
@@ -1779,6 +1783,7 @@ static struct fc_host_statistics *qedf_fc_get_host_stats(struct Scsi_Host
 	qedf_stats->fcp_packet_aborts += qedf->packet_aborts;
 	qedf_stats->fcp_frame_alloc_failures += qedf->alloc_failures;
 
+	mutex_unlock(&qedf->stats_mutex);
 	kfree(fw_fcoe_stats);
 out:
 	return qedf_stats;
@@ -2948,6 +2953,7 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 		qedf->stop_io_on_error = false;
 		pci_set_drvdata(pdev, qedf);
 		init_completion(&qedf->fipvlan_compl);
+		mutex_init(&qedf->stats_mutex);
 
 		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_INFO,
 		   "QLogic FastLinQ FCoE Module qedf %s, "
@@ -3390,6 +3396,104 @@ static void qedf_remove(struct pci_dev *pdev)
 		return;
 
 	__qedf_remove(pdev, QEDF_MODE_NORMAL);
+}
+
+/*
+ * Protocol TLV handler
+ */
+void qedf_get_protocol_tlv_data(void *dev, void *data)
+{
+	struct qedf_ctx *qedf = dev;
+	struct qed_mfw_tlv_fcoe *fcoe = data;
+	struct fc_lport *lport = qedf->lport;
+	struct Scsi_Host *host = lport->host;
+	struct fc_host_attrs *fc_host = shost_to_fc_host(host);
+	struct fc_host_statistics *hst;
+
+	/* Force a refresh of the fc_host stats including offload stats */
+	hst = qedf_fc_get_host_stats(host);
+
+	fcoe->qos_pri_set = true;
+	fcoe->qos_pri = 3; /* Hard coded to 3 in driver */
+
+	fcoe->ra_tov_set = true;
+	fcoe->ra_tov = lport->r_a_tov;
+
+	fcoe->ed_tov_set = true;
+	fcoe->ed_tov = lport->e_d_tov;
+
+	fcoe->npiv_state_set = true;
+	fcoe->npiv_state = 1; /* NPIV always enabled */
+
+	fcoe->num_npiv_ids_set = true;
+	fcoe->num_npiv_ids = fc_host->npiv_vports_inuse;
+
+	/* Certain attributes we only want to set if we've selected an FCF */
+	if (qedf->ctlr.sel_fcf) {
+		fcoe->switch_name_set = true;
+		u64_to_wwn(qedf->ctlr.sel_fcf->switch_name, fcoe->switch_name);
+	}
+
+	fcoe->port_state_set = true;
+	/* For qedf we're either link down or fabric attach */
+	if (lport->link_up)
+		fcoe->port_state = QED_MFW_TLV_PORT_STATE_FABRIC;
+	else
+		fcoe->port_state = QED_MFW_TLV_PORT_STATE_OFFLINE;
+
+	fcoe->link_failures_set = true;
+	fcoe->link_failures = (u16)hst->link_failure_count;
+
+	fcoe->fcoe_txq_depth_set = true;
+	fcoe->fcoe_rxq_depth_set = true;
+	fcoe->fcoe_rxq_depth = FCOE_PARAMS_NUM_TASKS;
+	fcoe->fcoe_txq_depth = FCOE_PARAMS_NUM_TASKS;
+
+	fcoe->fcoe_rx_frames_set = true;
+	fcoe->fcoe_rx_frames = hst->rx_frames;
+
+	fcoe->fcoe_tx_frames_set = true;
+	fcoe->fcoe_tx_frames = hst->tx_frames;
+
+	fcoe->fcoe_rx_bytes_set = true;
+	fcoe->fcoe_rx_bytes = hst->fcp_input_megabytes * 1000000;
+
+	fcoe->fcoe_tx_bytes_set = true;
+	fcoe->fcoe_tx_bytes = hst->fcp_output_megabytes * 1000000;
+
+	fcoe->crc_count_set = true;
+	fcoe->crc_count = hst->invalid_crc_count;
+
+	fcoe->tx_abts_set = true;
+	fcoe->tx_abts = hst->fcp_packet_aborts;
+
+	fcoe->tx_lun_rst_set = true;
+	fcoe->tx_lun_rst = qedf->lun_resets;
+
+	fcoe->abort_task_sets_set = true;
+	fcoe->abort_task_sets = qedf->packet_aborts;
+
+	fcoe->scsi_busy_set = true;
+	fcoe->scsi_busy = qedf->busy;
+
+	fcoe->scsi_tsk_full_set = true;
+	fcoe->scsi_tsk_full = qedf->task_set_fulls;
+}
+
+/* Generic TLV data callback */
+void qedf_get_generic_tlv_data(void *dev, struct qed_generic_tlvs *data)
+{
+	struct qedf_ctx *qedf;
+
+	if (!dev) {
+		QEDF_INFO(NULL, QEDF_LOG_EVT,
+			  "dev is NULL so ignoring get_generic_tlv_data request.\n");
+		return;
+	}
+	qedf = (struct qedf_ctx *)dev;
+
+	memset(data, 0, sizeof(struct qed_generic_tlvs));
+	ether_addr_copy(data->mac[0], qedf->mac);
 }
 
 /*

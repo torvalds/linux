@@ -7513,6 +7513,43 @@ int t4_set_rxmode(struct adapter *adap, unsigned int mbox, unsigned int viid,
 }
 
 /**
+ *      t4_free_encap_mac_filt - frees MPS entry at given index
+ *      @adap: the adapter
+ *      @viid: the VI id
+ *      @idx: index of MPS entry to be freed
+ *      @sleep_ok: call is allowed to sleep
+ *
+ *      Frees the MPS entry at supplied index
+ *
+ *      Returns a negative error number or zero on success
+ */
+int t4_free_encap_mac_filt(struct adapter *adap, unsigned int viid,
+			   int idx, bool sleep_ok)
+{
+	struct fw_vi_mac_exact *p;
+	u8 addr[] = {0, 0, 0, 0, 0, 0};
+	struct fw_vi_mac_cmd c;
+	int ret = 0;
+	u32 exact;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_MAC_CMD) |
+				   FW_CMD_REQUEST_F | FW_CMD_WRITE_F |
+				   FW_CMD_EXEC_V(0) |
+				   FW_VI_MAC_CMD_VIID_V(viid));
+	exact = FW_VI_MAC_CMD_ENTRY_TYPE_V(FW_VI_MAC_TYPE_EXACTMAC);
+	c.freemacs_to_len16 = cpu_to_be32(FW_VI_MAC_CMD_FREEMACS_V(0) |
+					  exact |
+					  FW_CMD_LEN16_V(1));
+	p = c.u.exact;
+	p->valid_to_idx = cpu_to_be16(FW_VI_MAC_CMD_VALID_F |
+				      FW_VI_MAC_CMD_IDX_V(idx));
+	memcpy(p->macaddr, addr, sizeof(p->macaddr));
+	ret = t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, sleep_ok);
+	return ret;
+}
+
+/**
  *	t4_free_raw_mac_filt - Frees a raw mac entry in mps tcam
  *	@adap: the adapter
  *	@viid: the VI id
@@ -7560,6 +7597,55 @@ int t4_free_raw_mac_filt(struct adapter *adap, unsigned int viid,
 	memcpy((u8 *)&p->data1m[0] + 2, mask, ETH_ALEN);
 
 	return t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, sleep_ok);
+}
+
+/**
+ *      t4_alloc_encap_mac_filt - Adds a mac entry in mps tcam with VNI support
+ *      @adap: the adapter
+ *      @viid: the VI id
+ *      @mac: the MAC address
+ *      @mask: the mask
+ *      @vni: the VNI id for the tunnel protocol
+ *      @vni_mask: mask for the VNI id
+ *      @dip_hit: to enable DIP match for the MPS entry
+ *      @lookup_type: MAC address for inner (1) or outer (0) header
+ *      @sleep_ok: call is allowed to sleep
+ *
+ *      Allocates an MPS entry with specified MAC address and VNI value.
+ *
+ *      Returns a negative error number or the allocated index for this mac.
+ */
+int t4_alloc_encap_mac_filt(struct adapter *adap, unsigned int viid,
+			    const u8 *addr, const u8 *mask, unsigned int vni,
+			    unsigned int vni_mask, u8 dip_hit, u8 lookup_type,
+			    bool sleep_ok)
+{
+	struct fw_vi_mac_cmd c;
+	struct fw_vi_mac_vni *p = c.u.exact_vni;
+	int ret = 0;
+	u32 val;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_MAC_CMD) |
+				   FW_CMD_REQUEST_F | FW_CMD_WRITE_F |
+				   FW_VI_MAC_CMD_VIID_V(viid));
+	val = FW_CMD_LEN16_V(1) |
+	      FW_VI_MAC_CMD_ENTRY_TYPE_V(FW_VI_MAC_TYPE_EXACTMAC_VNI);
+	c.freemacs_to_len16 = cpu_to_be32(val);
+	p->valid_to_idx = cpu_to_be16(FW_VI_MAC_CMD_VALID_F |
+				      FW_VI_MAC_CMD_IDX_V(FW_VI_MAC_ADD_MAC));
+	memcpy(p->macaddr, addr, sizeof(p->macaddr));
+	memcpy(p->macaddr_mask, mask, sizeof(p->macaddr_mask));
+
+	p->lookup_type_to_vni =
+		cpu_to_be32(FW_VI_MAC_CMD_VNI_V(vni) |
+			    FW_VI_MAC_CMD_DIP_HIT_V(dip_hit) |
+			    FW_VI_MAC_CMD_LOOKUP_TYPE_V(lookup_type));
+	p->vni_mask_pkd = cpu_to_be32(FW_VI_MAC_CMD_VNI_MASK_V(vni_mask));
+	ret = t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, sleep_ok);
+	if (ret == 0)
+		ret = FW_VI_MAC_CMD_IDX_G(be16_to_cpu(p->valid_to_idx));
+	return ret;
 }
 
 /**

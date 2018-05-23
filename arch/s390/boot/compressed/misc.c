@@ -119,34 +119,12 @@ static void error(char *x)
 	asm volatile("lpsw %0" : : "Q" (psw));
 }
 
-/*
- * Safe guard the ipl parameter block against a memory area that will be
- * overwritten. The validity check for the ipl parameter block is complex
- * (see cio_get_iplinfo and ipl_save_parameters) but if the pointer to
- * the ipl parameter block intersects with the passed memory area we can
- * safely assume that we can read from that memory. In that case just copy
- * the memory to IPL_PARMBLOCK_ORIGIN even if there is no ipl parameter
- * block.
- */
-static void check_ipl_parmblock(void *start, unsigned long size)
-{
-	void *src, *dst;
-
-	src = (void *)(unsigned long) S390_lowcore.ipl_parmblock_ptr;
-	if (src + PAGE_SIZE <= start || src >= start + size)
-		return;
-	dst = (void *) IPL_PARMBLOCK_ORIGIN;
-	memmove(dst, src, PAGE_SIZE);
-	S390_lowcore.ipl_parmblock_ptr = IPL_PARMBLOCK_ORIGIN;
-}
-
 unsigned long decompress_kernel(void)
 {
 	void *output, *kernel_end;
 
 	output = (void *) ALIGN((unsigned long) _end + HEAP_SIZE, PAGE_SIZE);
 	kernel_end = output + SZ__bss_start;
-	check_ipl_parmblock((void *) 0, (unsigned long) kernel_end);
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	/*
@@ -156,7 +134,6 @@ unsigned long decompress_kernel(void)
 	 * current bss section..
 	 */
 	if (INITRD_START && INITRD_SIZE && kernel_end > (void *) INITRD_START) {
-		check_ipl_parmblock(kernel_end, INITRD_SIZE);
 		memmove(kernel_end, (void *) INITRD_START, INITRD_SIZE);
 		INITRD_START = (unsigned long) kernel_end;
 	}

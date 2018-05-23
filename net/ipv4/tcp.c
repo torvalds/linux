@@ -697,7 +697,7 @@ static bool tcp_should_autocork(struct sock *sk, struct sk_buff *skb,
 {
 	return skb->len < size_goal &&
 	       sock_net(sk)->ipv4.sysctl_tcp_autocorking &&
-	       skb != tcp_write_queue_head(sk) &&
+	       !tcp_rtx_queue_empty(sk) &&
 	       refcount_read(&sk->sk_wmem_alloc) > skb->truesize;
 }
 
@@ -1204,7 +1204,8 @@ int tcp_sendmsg_locked(struct sock *sk, struct msghdr *msg, size_t size)
 			uarg->zerocopy = 0;
 	}
 
-	if (unlikely(flags & MSG_FASTOPEN || inet_sk(sk)->defer_connect)) {
+	if (unlikely(flags & MSG_FASTOPEN || inet_sk(sk)->defer_connect) &&
+	    !tp->repair) {
 		err = tcp_sendmsg_fastopen(sk, msg, &copied_syn, size);
 		if (err == -EINPROGRESS && copied_syn > 0)
 			goto out;
@@ -1726,118 +1727,113 @@ int tcp_set_rcvlowat(struct sock *sk, int val)
 }
 EXPORT_SYMBOL(tcp_set_rcvlowat);
 
-/* When user wants to mmap X pages, we first need to perform the mapping
- * before freeing any skbs in receive queue, otherwise user would be unable
- * to fallback to standard recvmsg(). This happens if some data in the
- * requested block is not exactly fitting in a page.
- *
- * We only support order-0 pages for the moment.
- * mmap() on TCP is very strict, there is no point
- * trying to accommodate with pathological layouts.
- */
+#ifdef CONFIG_MMU
+static const struct vm_operations_struct tcp_vm_ops = {
+};
+
 int tcp_mmap(struct file *file, struct socket *sock,
 	     struct vm_area_struct *vma)
 {
-	unsigned long size = vma->vm_end - vma->vm_start;
-	unsigned int nr_pages = size >> PAGE_SHIFT;
-	struct page **pages_array = NULL;
-	u32 seq, len, offset, nr = 0;
-	struct sock *sk = sock->sk;
-	const skb_frag_t *frags;
+	if (vma->vm_flags & (VM_WRITE | VM_EXEC))
+		return -EPERM;
+	vma->vm_flags &= ~(VM_MAYWRITE | VM_MAYEXEC);
+
+	/* Instruct vm_insert_page() to not down_read(mmap_sem) */
+	vma->vm_flags |= VM_MIXEDMAP;
+
+	vma->vm_ops = &tcp_vm_ops;
+	return 0;
+}
+EXPORT_SYMBOL(tcp_mmap);
+
+static int tcp_zerocopy_receive(struct sock *sk,
+				struct tcp_zerocopy_receive *zc)
+{
+	unsigned long address = (unsigned long)zc->address;
+	const skb_frag_t *frags = NULL;
+	u32 length = 0, seq, offset;
+	struct vm_area_struct *vma;
+	struct sk_buff *skb = NULL;
 	struct tcp_sock *tp;
-	struct sk_buff *skb;
 	int ret;
 
-	if (vma->vm_pgoff || !nr_pages)
+	if (address & (PAGE_SIZE - 1) || address != zc->address)
 		return -EINVAL;
 
-	if (vma->vm_flags & VM_WRITE)
-		return -EPERM;
-	/* TODO: Maybe the following is not needed if pages are COW */
-	vma->vm_flags &= ~VM_MAYWRITE;
-
-	lock_sock(sk);
-
-	ret = -ENOTCONN;
 	if (sk->sk_state == TCP_LISTEN)
-		goto out;
+		return -ENOTCONN;
 
 	sock_rps_record_flow(sk);
 
-	if (tcp_inq(sk) < size) {
-		ret = sock_flag(sk, SOCK_DONE) ? -EIO : -EAGAIN;
+	down_read(&current->mm->mmap_sem);
+
+	ret = -EINVAL;
+	vma = find_vma(current->mm, address);
+	if (!vma || vma->vm_start > address || vma->vm_ops != &tcp_vm_ops)
 		goto out;
-	}
+	zc->length = min_t(unsigned long, zc->length, vma->vm_end - address);
+
 	tp = tcp_sk(sk);
 	seq = tp->copied_seq;
-	/* Abort if urgent data is in the area */
-	if (unlikely(tp->urg_data)) {
-		u32 urg_offset = tp->urg_seq - seq;
+	zc->length = min_t(u32, zc->length, tcp_inq(sk));
+	zc->length &= ~(PAGE_SIZE - 1);
 
-		ret = -EINVAL;
-		if (urg_offset < size)
-			goto out;
-	}
-	ret = -ENOMEM;
-	pages_array = kvmalloc_array(nr_pages, sizeof(struct page *),
-				     GFP_KERNEL);
-	if (!pages_array)
-		goto out;
-	skb = tcp_recv_skb(sk, seq, &offset);
-	ret = -EINVAL;
-skb_start:
-	/* We do not support anything not in page frags */
-	offset -= skb_headlen(skb);
-	if ((int)offset < 0)
-		goto out;
-	if (skb_has_frag_list(skb))
-		goto out;
-	len = skb->data_len - offset;
-	frags = skb_shinfo(skb)->frags;
-	while (offset) {
-		if (frags->size > offset)
-			goto out;
-		offset -= frags->size;
+	zap_page_range(vma, address, zc->length);
+
+	zc->recv_skip_hint = 0;
+	ret = 0;
+	while (length + PAGE_SIZE <= zc->length) {
+		if (zc->recv_skip_hint < PAGE_SIZE) {
+			if (skb) {
+				skb = skb->next;
+				offset = seq - TCP_SKB_CB(skb)->seq;
+			} else {
+				skb = tcp_recv_skb(sk, seq, &offset);
+			}
+
+			zc->recv_skip_hint = skb->len - offset;
+			offset -= skb_headlen(skb);
+			if ((int)offset < 0 || skb_has_frag_list(skb))
+				break;
+			frags = skb_shinfo(skb)->frags;
+			while (offset) {
+				if (frags->size > offset)
+					goto out;
+				offset -= frags->size;
+				frags++;
+			}
+		}
+		if (frags->size != PAGE_SIZE || frags->page_offset)
+			break;
+		ret = vm_insert_page(vma, address + length,
+				     skb_frag_page(frags));
+		if (ret)
+			break;
+		length += PAGE_SIZE;
+		seq += PAGE_SIZE;
+		zc->recv_skip_hint -= PAGE_SIZE;
 		frags++;
 	}
-	while (nr < nr_pages) {
-		if (len) {
-			if (len < PAGE_SIZE)
-				goto out;
-			if (frags->size != PAGE_SIZE || frags->page_offset)
-				goto out;
-			pages_array[nr++] = skb_frag_page(frags);
-			frags++;
-			len -= PAGE_SIZE;
-			seq += PAGE_SIZE;
-			continue;
-		}
-		skb = skb->next;
-		offset = seq - TCP_SKB_CB(skb)->seq;
-		goto skb_start;
-	}
-	/* OK, we have a full set of pages ready to be inserted into vma */
-	for (nr = 0; nr < nr_pages; nr++) {
-		ret = vm_insert_page(vma, vma->vm_start + (nr << PAGE_SHIFT),
-				     pages_array[nr]);
-		if (ret)
-			goto out;
-	}
-	/* operation is complete, we can 'consume' all skbs */
-	tp->copied_seq = seq;
-	tcp_rcv_space_adjust(sk);
-
-	/* Clean up data we have read: This will do ACK frames. */
-	tcp_recv_skb(sk, seq, &offset);
-	tcp_cleanup_rbuf(sk, size);
-
-	ret = 0;
 out:
-	release_sock(sk);
-	kvfree(pages_array);
+	up_read(&current->mm->mmap_sem);
+	if (length) {
+		tp->copied_seq = seq;
+		tcp_rcv_space_adjust(sk);
+
+		/* Clean up data we have read: This will do ACK frames. */
+		tcp_recv_skb(sk, seq, &offset);
+		tcp_cleanup_rbuf(sk, length);
+		ret = 0;
+		if (length == zc->length)
+			zc->recv_skip_hint = 0;
+	} else {
+		if (!zc->recv_skip_hint && sock_flag(sk, SOCK_DONE))
+			ret = -EIO;
+	}
+	zc->length = length;
 	return ret;
 }
-EXPORT_SYMBOL(tcp_mmap);
+#endif
 
 static void tcp_update_recv_tstamps(struct sk_buff *skb,
 				    struct scm_timestamping *tss)
@@ -1894,6 +1890,22 @@ static void tcp_recv_timestamp(struct msghdr *msg, const struct sock *sk,
 	}
 }
 
+static int tcp_inq_hint(struct sock *sk)
+{
+	const struct tcp_sock *tp = tcp_sk(sk);
+	u32 copied_seq = READ_ONCE(tp->copied_seq);
+	u32 rcv_nxt = READ_ONCE(tp->rcv_nxt);
+	int inq;
+
+	inq = rcv_nxt - copied_seq;
+	if (unlikely(inq < 0 || copied_seq != READ_ONCE(tp->copied_seq))) {
+		lock_sock(sk);
+		inq = tp->rcv_nxt - tp->copied_seq;
+		release_sock(sk);
+	}
+	return inq;
+}
+
 /*
  *	This routine copies from a sock struct into the user buffer.
  *
@@ -1910,13 +1922,14 @@ int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
 	u32 peek_seq;
 	u32 *seq;
 	unsigned long used;
-	int err;
+	int err, inq;
 	int target;		/* Read at least this many bytes */
 	long timeo;
 	struct sk_buff *skb, *last;
 	u32 urg_hole = 0;
 	struct scm_timestamping tss;
 	bool has_tss = false;
+	bool has_cmsg;
 
 	if (unlikely(flags & MSG_ERRQUEUE))
 		return inet_recv_error(sk, msg, len, addr_len);
@@ -1931,6 +1944,7 @@ int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
 	if (sk->sk_state == TCP_LISTEN)
 		goto out;
 
+	has_cmsg = tp->recvmsg_inq;
 	timeo = sock_rcvtimeo(sk, nonblock);
 
 	/* Urgent data needs to be handled specially. */
@@ -2117,6 +2131,7 @@ skip_copy:
 		if (TCP_SKB_CB(skb)->has_rxtstamp) {
 			tcp_update_recv_tstamps(skb, &tss);
 			has_tss = true;
+			has_cmsg = true;
 		}
 		if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)
 			goto found_fin_ok;
@@ -2136,13 +2151,20 @@ skip_copy:
 	 * on connected socket. I was just happy when found this 8) --ANK
 	 */
 
-	if (has_tss)
-		tcp_recv_timestamp(msg, sk, &tss);
-
 	/* Clean up data we have read: This will do ACK frames. */
 	tcp_cleanup_rbuf(sk, copied);
 
 	release_sock(sk);
+
+	if (has_cmsg) {
+		if (has_tss)
+			tcp_recv_timestamp(msg, sk, &tss);
+		if (tp->recvmsg_inq) {
+			inq = tcp_inq_hint(sk);
+			put_cmsg(msg, SOL_TCP, TCP_CM_INQ, sizeof(inq), &inq);
+		}
+	}
+
 	return copied;
 
 out:
@@ -2506,6 +2528,7 @@ void tcp_write_queue_purge(struct sock *sk)
 	INIT_LIST_HEAD(&tcp_sk(sk)->tsorted_sent_queue);
 	sk_mem_reclaim(sk);
 	tcp_clear_all_retrans_hints(tcp_sk(sk));
+	tcp_sk(sk)->packets_out = 0;
 }
 
 int tcp_disconnect(struct sock *sk, int flags)
@@ -2555,10 +2578,10 @@ int tcp_disconnect(struct sock *sk, int flags)
 	icsk->icsk_backoff = 0;
 	tp->snd_cwnd = 2;
 	icsk->icsk_probes_out = 0;
-	tp->packets_out = 0;
 	tp->snd_ssthresh = TCP_INFINITE_SSTHRESH;
 	tp->snd_cwnd_cnt = 0;
 	tp->window_clamp = 0;
+	tp->delivered_ce = 0;
 	tcp_set_ca_state(sk, TCP_CA_Open);
 	tp->is_sack_reneg = 0;
 	tcp_clear_retrans(tp);
@@ -2572,6 +2595,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 	dst_release(sk->sk_rx_dst);
 	sk->sk_rx_dst = NULL;
 	tcp_saved_syn_free(tp);
+	tp->compressed_ack = 0;
 
 	/* Clean up fastopen related fields */
 	tcp_free_fastopen_req(tp);
@@ -2811,7 +2835,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 	case TCP_REPAIR_QUEUE:
 		if (!tp->repair)
 			err = -EPERM;
-		else if (val < TCP_QUEUES_NR)
+		else if ((unsigned int)val < TCP_QUEUES_NR)
 			tp->repair_queue = val;
 		else
 			err = -EINVAL;
@@ -2951,8 +2975,10 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 #ifdef CONFIG_TCP_MD5SIG
 	case TCP_MD5SIG:
 	case TCP_MD5SIG_EXT:
-		/* Read the IP->Key mappings from userspace */
-		err = tp->af_specific->md5_parse(sk, optname, optval, optlen);
+		if ((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_LISTEN))
+			err = tp->af_specific->md5_parse(sk, optname, optval, optlen);
+		else
+			err = -EINVAL;
 		break;
 #endif
 	case TCP_USER_TIMEOUT:
@@ -3007,6 +3033,12 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 	case TCP_NOTSENT_LOWAT:
 		tp->notsent_lowat = val;
 		sk->sk_write_space(sk);
+		break;
+	case TCP_INQ:
+		if (val > 1 || val < 0)
+			err = -EINVAL;
+		else
+			tp->recvmsg_inq = val;
 		break;
 	default:
 		err = -ENOPROTOOPT;
@@ -3166,6 +3198,8 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	rate64 = tcp_compute_delivery_rate(tp);
 	if (rate64)
 		info->tcpi_delivery_rate = rate64;
+	info->tcpi_delivered = tp->delivered;
+	info->tcpi_delivered_ce = tp->delivered_ce;
 	unlock_sock_fast(sk, slow);
 }
 EXPORT_SYMBOL_GPL(tcp_get_info);
@@ -3179,7 +3213,7 @@ struct sk_buff *tcp_get_timestamping_opt_stats(const struct sock *sk)
 	u32 rate;
 
 	stats = alloc_skb(7 * nla_total_size_64bit(sizeof(u64)) +
-			  5 * nla_total_size(sizeof(u32)) +
+			  7 * nla_total_size(sizeof(u32)) +
 			  3 * nla_total_size(sizeof(u8)), GFP_ATOMIC);
 	if (!stats)
 		return NULL;
@@ -3210,9 +3244,12 @@ struct sk_buff *tcp_get_timestamping_opt_stats(const struct sock *sk)
 	nla_put_u8(stats, TCP_NLA_RECUR_RETRANS, inet_csk(sk)->icsk_retransmits);
 	nla_put_u8(stats, TCP_NLA_DELIVERY_RATE_APP_LMT, !!tp->rate_app_limited);
 	nla_put_u32(stats, TCP_NLA_SND_SSTHRESH, tp->snd_ssthresh);
+	nla_put_u32(stats, TCP_NLA_DELIVERED, tp->delivered);
+	nla_put_u32(stats, TCP_NLA_DELIVERED_CE, tp->delivered_ce);
 
 	nla_put_u32(stats, TCP_NLA_SNDQ_SIZE, tp->write_seq - tp->snd_una);
 	nla_put_u8(stats, TCP_NLA_CA_STATE, inet_csk(sk)->icsk_ca_state);
+
 	return stats;
 }
 
@@ -3428,6 +3465,9 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 	case TCP_NOTSENT_LOWAT:
 		val = tp->notsent_lowat;
 		break;
+	case TCP_INQ:
+		val = tp->recvmsg_inq;
+		break;
 	case TCP_SAVE_SYN:
 		val = tp->save_syn;
 		break;
@@ -3464,6 +3504,25 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 		}
 		return 0;
 	}
+#ifdef CONFIG_MMU
+	case TCP_ZEROCOPY_RECEIVE: {
+		struct tcp_zerocopy_receive zc;
+		int err;
+
+		if (get_user(len, optlen))
+			return -EFAULT;
+		if (len != sizeof(zc))
+			return -EINVAL;
+		if (copy_from_user(&zc, optval, len))
+			return -EFAULT;
+		lock_sock(sk);
+		err = tcp_zerocopy_receive(sk, &zc);
+		release_sock(sk);
+		if (!err && copy_to_user(optval, &zc, len))
+			err = -EFAULT;
+		return err;
+	}
+#endif
 	default:
 		return -ENOPROTOOPT;
 	}

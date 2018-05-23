@@ -505,6 +505,9 @@ failed:
 
 int psp_gpu_reset(struct amdgpu_device *adev)
 {
+	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
+		return 0;
+
 	return psp_mode1_reset(&adev->psp);
 }
 

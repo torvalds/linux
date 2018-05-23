@@ -117,6 +117,9 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 --sched::
 	Accrue thread runtime and provide a summary at the end of the session.
 
+--failure::
+	Show only syscalls that failed, i.e. that returned < 0.
+
 -i::
 --input::
 	Process events from a given perf data file.

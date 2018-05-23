@@ -315,10 +315,12 @@ static int btbcm_read_info(struct hci_dev *hdev)
 	return 0;
 }
 
-static const struct {
+struct bcm_subver_table {
 	u16 subver;
 	const char *name;
-} bcm_uart_subver_table[] = {
+};
+
+static const struct bcm_subver_table bcm_uart_subver_table[] = {
 	{ 0x4103, "BCM4330B1"	},	/* 002.001.003 */
 	{ 0x410e, "BCM43341B0"	},	/* 002.001.014 */
 	{ 0x4406, "BCM4324B3"	},	/* 002.004.006 */
@@ -330,98 +332,7 @@ static const struct {
 	{ }
 };
 
-int btbcm_initialize(struct hci_dev *hdev, char *fw_name, size_t len)
-{
-	u16 subver, rev;
-	const char *hw_name = NULL;
-	struct sk_buff *skb;
-	struct hci_rp_read_local_version *ver;
-	int i, err;
-
-	/* Reset */
-	err = btbcm_reset(hdev);
-	if (err)
-		return err;
-
-	/* Read Local Version Info */
-	skb = btbcm_read_local_version(hdev);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
-
-	ver = (struct hci_rp_read_local_version *)skb->data;
-	rev = le16_to_cpu(ver->hci_rev);
-	subver = le16_to_cpu(ver->lmp_subver);
-	kfree_skb(skb);
-
-	/* Read controller information */
-	err = btbcm_read_info(hdev);
-	if (err)
-		return err;
-
-	switch ((rev & 0xf000) >> 12) {
-	case 0:
-	case 1:
-	case 2:
-	case 3:
-		for (i = 0; bcm_uart_subver_table[i].name; i++) {
-			if (subver == bcm_uart_subver_table[i].subver) {
-				hw_name = bcm_uart_subver_table[i].name;
-				break;
-			}
-		}
-
-		snprintf(fw_name, len, "brcm/%s.hcd", hw_name ? : "BCM");
-		break;
-	default:
-		return 0;
-	}
-
-	bt_dev_info(hdev, "%s (%3.3u.%3.3u.%3.3u) build %4.4u",
-		    hw_name ? : "BCM", (subver & 0xe000) >> 13,
-		    (subver & 0x1f00) >> 8, (subver & 0x00ff), rev & 0x0fff);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(btbcm_initialize);
-
-int btbcm_finalize(struct hci_dev *hdev)
-{
-	struct sk_buff *skb;
-	struct hci_rp_read_local_version *ver;
-	u16 subver, rev;
-	int err;
-
-	/* Reset */
-	err = btbcm_reset(hdev);
-	if (err)
-		return err;
-
-	/* Read Local Version Info */
-	skb = btbcm_read_local_version(hdev);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
-
-	ver = (struct hci_rp_read_local_version *)skb->data;
-	rev = le16_to_cpu(ver->hci_rev);
-	subver = le16_to_cpu(ver->lmp_subver);
-	kfree_skb(skb);
-
-	bt_dev_info(hdev, "BCM (%3.3u.%3.3u.%3.3u) build %4.4u",
-		    (subver & 0xe000) >> 13, (subver & 0x1f00) >> 8,
-		    (subver & 0x00ff), rev & 0x0fff);
-
-	btbcm_check_bdaddr(hdev);
-
-	set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(btbcm_finalize);
-
-static const struct {
-	u16 subver;
-	const char *name;
-} bcm_usb_subver_table[] = {
+static const struct bcm_subver_table bcm_usb_subver_table[] = {
 	{ 0x210b, "BCM43142A0"	},	/* 001.001.011 */
 	{ 0x2112, "BCM4314A0"	},	/* 001.001.018 */
 	{ 0x2118, "BCM20702A0"	},	/* 001.001.024 */
@@ -435,14 +346,14 @@ static const struct {
 	{ }
 };
 
-int btbcm_setup_patchram(struct hci_dev *hdev)
+int btbcm_initialize(struct hci_dev *hdev, char *fw_name, size_t len,
+		     bool reinit)
 {
-	char fw_name[64];
-	const struct firmware *fw;
 	u16 subver, rev, pid, vid;
-	const char *hw_name = NULL;
+	const char *hw_name = "BCM";
 	struct sk_buff *skb;
 	struct hci_rp_read_local_version *ver;
+	const struct bcm_subver_table *bcm_subver_table;
 	int i, err;
 
 	/* Reset */
@@ -461,25 +372,27 @@ int btbcm_setup_patchram(struct hci_dev *hdev)
 	kfree_skb(skb);
 
 	/* Read controller information */
-	err = btbcm_read_info(hdev);
-	if (err)
-		return err;
+	if (!reinit) {
+		err = btbcm_read_info(hdev);
+		if (err)
+			return err;
+	}
 
-	switch ((rev & 0xf000) >> 12) {
-	case 0:
-	case 3:
-		for (i = 0; bcm_uart_subver_table[i].name; i++) {
-			if (subver == bcm_uart_subver_table[i].subver) {
-				hw_name = bcm_uart_subver_table[i].name;
-				break;
-			}
+	/* Upper nibble of rev should be between 0 and 3? */
+	if (((rev & 0xf000) >> 12) > 3)
+		return 0;
+
+	bcm_subver_table = (hdev->bus == HCI_USB) ? bcm_usb_subver_table :
+						    bcm_uart_subver_table;
+
+	for (i = 0; bcm_subver_table[i].name; i++) {
+		if (subver == bcm_subver_table[i].subver) {
+			hw_name = bcm_subver_table[i].name;
+			break;
 		}
+	}
 
-		snprintf(fw_name, sizeof(fw_name), "brcm/%s.hcd",
-			 hw_name ? : "BCM");
-		break;
-	case 1:
-	case 2:
+	if (hdev->bus == HCI_USB) {
 		/* Read USB Product Info */
 		skb = btbcm_read_usb_product(hdev);
 		if (IS_ERR(skb))
@@ -489,23 +402,49 @@ int btbcm_setup_patchram(struct hci_dev *hdev)
 		pid = get_unaligned_le16(skb->data + 3);
 		kfree_skb(skb);
 
-		for (i = 0; bcm_usb_subver_table[i].name; i++) {
-			if (subver == bcm_usb_subver_table[i].subver) {
-				hw_name = bcm_usb_subver_table[i].name;
-				break;
-			}
-		}
-
-		snprintf(fw_name, sizeof(fw_name), "brcm/%s-%4.4x-%4.4x.hcd",
-			 hw_name ? : "BCM", vid, pid);
-		break;
-	default:
-		return 0;
+		snprintf(fw_name, len, "brcm/%s-%4.4x-%4.4x.hcd",
+			 hw_name, vid, pid);
+	} else {
+		snprintf(fw_name, len, "brcm/%s.hcd", hw_name);
 	}
 
 	bt_dev_info(hdev, "%s (%3.3u.%3.3u.%3.3u) build %4.4u",
-		    hw_name ? : "BCM", (subver & 0xe000) >> 13,
+		    hw_name, (subver & 0xe000) >> 13,
 		    (subver & 0x1f00) >> 8, (subver & 0x00ff), rev & 0x0fff);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(btbcm_initialize);
+
+int btbcm_finalize(struct hci_dev *hdev)
+{
+	char fw_name[64];
+	int err;
+
+	/* Re-initialize */
+	err = btbcm_initialize(hdev, fw_name, sizeof(fw_name), true);
+	if (err)
+		return err;
+
+	btbcm_check_bdaddr(hdev);
+
+	set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(btbcm_finalize);
+
+int btbcm_setup_patchram(struct hci_dev *hdev)
+{
+	char fw_name[64];
+	const struct firmware *fw;
+	struct sk_buff *skb;
+	int err;
+
+	/* Initialize */
+	err = btbcm_initialize(hdev, fw_name, sizeof(fw_name), false);
+	if (err)
+		return err;
 
 	err = request_firmware(&fw, fw_name, &hdev->dev);
 	if (err < 0) {
@@ -517,24 +456,10 @@ int btbcm_setup_patchram(struct hci_dev *hdev)
 
 	release_firmware(fw);
 
-	/* Reset */
-	err = btbcm_reset(hdev);
+	/* Re-initialize */
+	err = btbcm_initialize(hdev, fw_name, sizeof(fw_name), true);
 	if (err)
 		return err;
-
-	/* Read Local Version Info */
-	skb = btbcm_read_local_version(hdev);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
-
-	ver = (struct hci_rp_read_local_version *)skb->data;
-	rev = le16_to_cpu(ver->hci_rev);
-	subver = le16_to_cpu(ver->lmp_subver);
-	kfree_skb(skb);
-
-	bt_dev_info(hdev, "%s (%3.3u.%3.3u.%3.3u) build %4.4u",
-		    hw_name ? : "BCM", (subver & 0xe000) >> 13,
-		    (subver & 0x1f00) >> 8, (subver & 0x00ff), rev & 0x0fff);
 
 	/* Read Local Name */
 	skb = btbcm_read_local_name(hdev);

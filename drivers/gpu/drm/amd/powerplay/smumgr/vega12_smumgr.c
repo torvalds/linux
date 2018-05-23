@@ -30,8 +30,7 @@
 
 #include "ppatomctrl.h"
 #include "pp_debug.h"
-#include "smu_ucode_xfer_vi.h"
-#include "smu7_smumgr.h"
+
 
 /* MP Apertures */
 #define MP0_Public                  0x03800000
@@ -392,8 +391,7 @@ static int vega12_smu_init(struct pp_hwmgr *hwmgr)
 	struct cgs_firmware_info info = {0};
 	int ret;
 
-	ret = cgs_get_firmware_info(hwmgr->device,
-				smu7_convert_fw_type_to_cgs(UCODE_ID_SMU),
+	ret = cgs_get_firmware_info(hwmgr->device, CGS_UCODE_ID_SMU,
 				&info);
 	if (ret || !info.kptr)
 		return -EINVAL;

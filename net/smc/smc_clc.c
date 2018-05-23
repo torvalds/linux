@@ -316,7 +316,7 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 	if (clcm->type == SMC_CLC_DECLINE) {
 		reason_code = SMC_CLC_DECL_REPLY;
 		if (((struct smc_clc_msg_decline *)buf)->hdr.flag) {
-			smc->conn.lgr->sync_err = true;
+			smc->conn.lgr->sync_err = 1;
 			smc_lgr_terminate(smc->conn.lgr);
 		}
 	}
@@ -442,7 +442,7 @@ int smc_clc_send_confirm(struct smc_sock *smc)
 	hton24(cclc.qpn, link->roce_qp->qp_num);
 	cclc.rmb_rkey =
 		htonl(conn->rmb_desc->mr_rx[SMC_SINGLE_LINK]->rkey);
-	cclc.conn_idx = 1; /* for now: 1 RMB = 1 RMBE */
+	cclc.rmbe_idx = 1; /* for now: 1 RMB = 1 RMBE */
 	cclc.rmbe_alert_token = htonl(conn->alert_token_local);
 	cclc.qp_mtu = min(link->path_mtu, link->peer_mtu);
 	cclc.rmbe_size = conn->rmbe_size_short;
@@ -494,7 +494,7 @@ int smc_clc_send_accept(struct smc_sock *new_smc, int srv_first_contact)
 	hton24(aclc.qpn, link->roce_qp->qp_num);
 	aclc.rmb_rkey =
 		htonl(conn->rmb_desc->mr_rx[SMC_SINGLE_LINK]->rkey);
-	aclc.conn_idx = 1;			/* as long as 1 RMB = 1 RMBE */
+	aclc.rmbe_idx = 1;			/* as long as 1 RMB = 1 RMBE */
 	aclc.rmbe_alert_token = htonl(conn->alert_token_local);
 	aclc.qp_mtu = link->path_mtu;
 	aclc.rmbe_size = conn->rmbe_size_short,

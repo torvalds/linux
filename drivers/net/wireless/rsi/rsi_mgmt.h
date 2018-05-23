@@ -33,6 +33,7 @@
 #define WMM_SHORT_SLOT_TIME             9
 #define SIFS_DURATION                   16
 
+#define EAPOL4_PACKET_LEN		0x85
 #define KEY_TYPE_CLEAR                  0
 #define RSI_PAIRWISE_KEY                1
 #define RSI_GROUP_KEY                   2
@@ -62,9 +63,12 @@
 #define RX_DOT11_MGMT                   0x02
 #define TX_STATUS_IND                   0x04
 #define BEACON_EVENT_IND		0x08
+#define EAPOL4_CONFIRM                  1
 #define PROBEREQ_CONFIRM                2
 #define CARD_READY_IND                  0x00
 #define SLEEP_NOTIFY_IND                0x06
+#define RSI_TX_STATUS_TYPE		15
+#define RSI_TX_STATUS			12
 
 #define RSI_DELETE_PEER                 0x0
 #define RSI_ADD_PEER                    0x1
@@ -221,6 +225,9 @@
 #define RSI_WOW_DISCONNECT		BIT(5)
 #endif
 
+#define RSI_MAX_TX_AGGR_FRMS		8
+#define RSI_MAX_RX_AGGR_FRMS		8
+
 enum opmode {
 	RSI_OPMODE_UNSUPPORTED = -1,
 	RSI_OPMODE_AP = 0,
@@ -300,6 +307,12 @@ struct rsi_mac_frame {
 #define REQUIRE_TSF_SYNC_CONFIRM	BIT(6)
 #define ENCAP_MGMT_PKT			BIT(7)
 #define DESC_IMMEDIATE_WAKEUP		BIT(15)
+
+struct rsi_xtended_desc {
+	u8 confirm_frame_type;
+	u8 retry_cnt;
+	u16 reserved;
+};
 
 struct rsi_cmd_desc_dword0 {
 	__le16 len_qno;
@@ -654,10 +667,14 @@ int rsi_set_channel(struct rsi_common *common,
 		    struct ieee80211_channel *channel);
 int rsi_send_vap_dynamic_update(struct rsi_common *common);
 int rsi_send_block_unblock_frame(struct rsi_common *common, bool event);
+int rsi_hal_send_sta_notify_frame(struct rsi_common *common, enum opmode opmode,
+				  u8 notify_event, const unsigned char *bssid,
+				  u8 qos_enable, u16 aid, u16 sta_id,
+				  struct ieee80211_vif *vif);
 void rsi_inform_bss_status(struct rsi_common *common, enum opmode opmode,
 			   u8 status, const u8 *addr, u8 qos_enable, u16 aid,
 			   struct ieee80211_sta *sta, u16 sta_id,
-			   struct ieee80211_vif *vif);
+			   u16 assoc_cap, struct ieee80211_vif *vif);
 void rsi_indicate_pkt_to_os(struct rsi_common *common, struct sk_buff *skb);
 int rsi_mac80211_attach(struct rsi_common *common);
 void rsi_indicate_tx_status(struct rsi_hw *common, struct sk_buff *skb,

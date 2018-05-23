@@ -4,7 +4,7 @@
  *
  *    (c) 2007 Trent Piepho <xyzzy@speakeasy.org>
  *    (c) 2005,2006 Ricardo Cerqueira <v4l@cerqueira.org>
- *    (c) 2005 Mauro Carvalho Chehab <mchehab@infradead.org>
+ *    (c) 2005 Mauro Carvalho Chehab <mchehab@kernel.org>
  *    Based on a dummy cx88 module by Gerd Knorr <kraxel@bytesex.org>
  *    Based on dummy.c by Jaroslav Kysela <perex@perex.cz>
  *
@@ -103,7 +103,7 @@ MODULE_PARM_DESC(index, "Index value for cx88x capture interface(s).");
 
 MODULE_DESCRIPTION("ALSA driver module for cx2388x based TV cards");
 MODULE_AUTHOR("Ricardo Cerqueira");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
+MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@kernel.org>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(CX88_VERSION);
 

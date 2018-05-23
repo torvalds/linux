@@ -68,6 +68,9 @@ static const char * const prog_type_name[] = {
 	[BPF_PROG_TYPE_SOCK_OPS]	= "sock_ops",
 	[BPF_PROG_TYPE_SK_SKB]		= "sk_skb",
 	[BPF_PROG_TYPE_CGROUP_DEVICE]	= "cgroup_device",
+	[BPF_PROG_TYPE_SK_MSG]		= "sk_msg",
+	[BPF_PROG_TYPE_RAW_TRACEPOINT]	= "raw_tracepoint",
+	[BPF_PROG_TYPE_CGROUP_SOCK_ADDR] = "cgroup_sock_addr",
 };
 
 static void print_boot_time(__u64 nsecs, char *buf, unsigned int size)
@@ -93,7 +96,10 @@ static void print_boot_time(__u64 nsecs, char *buf, unsigned int size)
 		return;
 	}
 
-	strftime(buf, size, "%b %d/%H:%M", &load_tm);
+	if (json_output)
+		strftime(buf, size, "%s", &load_tm);
+	else
+		strftime(buf, size, "%FT%T%z", &load_tm);
 }
 
 static int prog_fd_by_tag(unsigned char *tag)
@@ -232,6 +238,8 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 		     info->tag[0], info->tag[1], info->tag[2], info->tag[3],
 		     info->tag[4], info->tag[5], info->tag[6], info->tag[7]);
 
+	jsonw_bool_field(json_wtr, "gpl_compatible", info->gpl_compatible);
+
 	print_dev_json(info->ifindex, info->netns_dev, info->netns_ino);
 
 	if (info->load_time) {
@@ -240,7 +248,8 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 		print_boot_time(info->load_time, buf, sizeof(buf));
 
 		/* Piggy back on load_time, since 0 uid is a valid one */
-		jsonw_string_field(json_wtr, "loaded_at", buf);
+		jsonw_name(json_wtr, "loaded_at");
+		jsonw_printf(json_wtr, "%s", buf);
 		jsonw_uint_field(json_wtr, "uid", info->created_by_uid);
 	}
 
@@ -292,6 +301,7 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 	printf("tag ");
 	fprint_hex(stdout, info->tag, BPF_TAG_SIZE, "");
 	print_dev_plain(info->ifindex, info->netns_dev, info->netns_ino);
+	printf("%s", info->gpl_compatible ? "  gpl" : "");
 	printf("\n");
 
 	if (info->load_time) {

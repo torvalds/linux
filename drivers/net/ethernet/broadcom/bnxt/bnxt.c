@@ -62,6 +62,7 @@
 #include "bnxt_vfr.h"
 #include "bnxt_tc.h"
 #include "bnxt_devlink.h"
+#include "bnxt_debugfs.h"
 
 #define BNXT_TX_TIMEOUT		(5 * HZ)
 
@@ -2383,6 +2384,7 @@ static int bnxt_alloc_tx_rings(struct bnxt *bp)
 	for (i = 0, j = 0; i < bp->tx_nr_rings; i++) {
 		struct bnxt_tx_ring_info *txr = &bp->tx_ring[i];
 		struct bnxt_ring_struct *ring;
+		u8 qidx;
 
 		ring = &txr->tx_ring_struct;
 
@@ -2411,7 +2413,8 @@ static int bnxt_alloc_tx_rings(struct bnxt *bp)
 
 			memset(txr->tx_push, 0, sizeof(struct tx_push_bd));
 		}
-		ring->queue_id = bp->q_info[j].queue_id;
+		qidx = bp->tc_to_qidx[j];
+		ring->queue_id = bp->q_info[qidx].queue_id;
 		if (i < bp->tx_nr_rings_xdp)
 			continue;
 		if (i % bp->tx_nr_rings_per_tc == (bp->tx_nr_rings_per_tc - 1))
@@ -3493,15 +3496,29 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 
 	if (!timeout)
 		timeout = DFLT_HWRM_CMD_TIMEOUT;
+	/* convert timeout to usec */
+	timeout *= 1000;
 
 	i = 0;
-	tmo_count = timeout * 40;
+	/* Short timeout for the first few iterations:
+	 * number of loops = number of loops for short timeout +
+	 * number of loops for standard timeout.
+	 */
+	tmo_count = HWRM_SHORT_TIMEOUT_COUNTER;
+	timeout = timeout - HWRM_SHORT_MIN_TIMEOUT * HWRM_SHORT_TIMEOUT_COUNTER;
+	tmo_count += DIV_ROUND_UP(timeout, HWRM_MIN_TIMEOUT);
 	resp_len = bp->hwrm_cmd_resp_addr + HWRM_RESP_LEN_OFFSET;
 	if (intr_process) {
 		/* Wait until hwrm response cmpl interrupt is processed */
 		while (bp->hwrm_intr_seq_id != HWRM_SEQ_ID_INVALID &&
 		       i++ < tmo_count) {
-			usleep_range(25, 40);
+			/* on first few passes, just barely sleep */
+			if (i < HWRM_SHORT_TIMEOUT_COUNTER)
+				usleep_range(HWRM_SHORT_MIN_TIMEOUT,
+					     HWRM_SHORT_MAX_TIMEOUT);
+			else
+				usleep_range(HWRM_MIN_TIMEOUT,
+					     HWRM_MAX_TIMEOUT);
 		}
 
 		if (bp->hwrm_intr_seq_id != HWRM_SEQ_ID_INVALID) {
@@ -3513,25 +3530,34 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 		      HWRM_RESP_LEN_SFT;
 		valid = bp->hwrm_cmd_resp_addr + len - 1;
 	} else {
+		int j;
+
 		/* Check if response len is updated */
 		for (i = 0; i < tmo_count; i++) {
 			len = (le32_to_cpu(*resp_len) & HWRM_RESP_LEN_MASK) >>
 			      HWRM_RESP_LEN_SFT;
 			if (len)
 				break;
-			usleep_range(25, 40);
+			/* on first few passes, just barely sleep */
+			if (i < DFLT_HWRM_CMD_TIMEOUT)
+				usleep_range(HWRM_SHORT_MIN_TIMEOUT,
+					     HWRM_SHORT_MAX_TIMEOUT);
+			else
+				usleep_range(HWRM_MIN_TIMEOUT,
+					     HWRM_MAX_TIMEOUT);
 		}
 
 		if (i >= tmo_count) {
 			netdev_err(bp->dev, "Error (timeout: %d) msg {0x%x 0x%x} len:%d\n",
-				   timeout, le16_to_cpu(req->req_type),
+				   HWRM_TOTAL_TIMEOUT(i),
+				   le16_to_cpu(req->req_type),
 				   le16_to_cpu(req->seq_id), len);
 			return -1;
 		}
 
 		/* Last byte of resp contains valid bit */
 		valid = bp->hwrm_cmd_resp_addr + len - 1;
-		for (i = 0; i < 5; i++) {
+		for (j = 0; j < HWRM_VALID_BIT_DELAY_USEC; j++) {
 			/* make sure we read from updated DMA memory */
 			dma_rmb();
 			if (*valid)
@@ -3539,9 +3565,10 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 			udelay(1);
 		}
 
-		if (i >= 5) {
+		if (j >= HWRM_VALID_BIT_DELAY_USEC) {
 			netdev_err(bp->dev, "Error (timeout: %d) msg {0x%x 0x%x} len:%d v:%d\n",
-				   timeout, le16_to_cpu(req->req_type),
+				   HWRM_TOTAL_TIMEOUT(i),
+				   le16_to_cpu(req->req_type),
 				   le16_to_cpu(req->seq_id), len, *valid);
 			return -1;
 		}
@@ -4334,26 +4361,9 @@ static int hwrm_ring_alloc_send_msg(struct bnxt *bp,
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
 	if (rc || err) {
-		switch (ring_type) {
-		case RING_FREE_REQ_RING_TYPE_L2_CMPL:
-			netdev_err(bp->dev, "hwrm_ring_alloc cp failed. rc:%x err:%x\n",
-				   rc, err);
-			return -1;
-
-		case RING_FREE_REQ_RING_TYPE_RX:
-			netdev_err(bp->dev, "hwrm_ring_alloc rx failed. rc:%x err:%x\n",
-				   rc, err);
-			return -1;
-
-		case RING_FREE_REQ_RING_TYPE_TX:
-			netdev_err(bp->dev, "hwrm_ring_alloc tx failed. rc:%x err:%x\n",
-				   rc, err);
-			return -1;
-
-		default:
-			netdev_err(bp->dev, "Invalid ring\n");
-			return -1;
-		}
+		netdev_err(bp->dev, "hwrm_ring_alloc type %d failed. rc:%x err:%x\n",
+			   ring_type, rc, err);
+		return -EIO;
 	}
 	ring->fw_ring_id = ring_id;
 	return rc;
@@ -4477,23 +4487,9 @@ static int hwrm_ring_free_send_msg(struct bnxt *bp,
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
 	if (rc || error_code) {
-		switch (ring_type) {
-		case RING_FREE_REQ_RING_TYPE_L2_CMPL:
-			netdev_err(bp->dev, "hwrm_ring_free cp failed. rc:%d\n",
-				   rc);
-			return rc;
-		case RING_FREE_REQ_RING_TYPE_RX:
-			netdev_err(bp->dev, "hwrm_ring_free rx failed. rc:%d\n",
-				   rc);
-			return rc;
-		case RING_FREE_REQ_RING_TYPE_TX:
-			netdev_err(bp->dev, "hwrm_ring_free tx failed. rc:%d\n",
-				   rc);
-			return rc;
-		default:
-			netdev_err(bp->dev, "Invalid ring\n");
-			return -1;
-		}
+		netdev_err(bp->dev, "hwrm_ring_free type %d failed. rc:%x err:%x\n",
+			   ring_type, rc, error_code);
+		return -EIO;
 	}
 	return 0;
 }
@@ -4721,6 +4717,10 @@ bnxt_hwrm_reserve_vf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
 
 	__bnxt_hwrm_reserve_vf_rings(bp, &req, tx_rings, rx_rings, ring_grps,
 				     cp_rings, vnics);
+	req.enables |= cpu_to_le32(FUNC_VF_CFG_REQ_ENABLES_NUM_RSSCOS_CTXS |
+				   FUNC_VF_CFG_REQ_ENABLES_NUM_L2_CTXS);
+	req.num_rsscos_ctxs = cpu_to_le16(BNXT_VF_MAX_RSS_CTX);
+	req.num_l2_ctxs = cpu_to_le16(BNXT_VF_MAX_L2_CTX);
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc)
 		return -ENOMEM;
@@ -5309,6 +5309,7 @@ static int bnxt_hwrm_queue_qportcfg(struct bnxt *bp)
 	for (i = 0; i < bp->max_tc; i++) {
 		bp->q_info[i].queue_id = *qptr++;
 		bp->q_info[i].queue_profile = *qptr++;
+		bp->tc_to_qidx[i] = i;
 	}
 
 qportcfg_exit:
@@ -5376,7 +5377,8 @@ int bnxt_hwrm_fw_set_time(struct bnxt *bp)
 	struct tm tm;
 	time64_t now = ktime_get_real_seconds();
 
-	if (bp->hwrm_spec_code < 0x10400)
+	if ((BNXT_VF(bp) && bp->hwrm_spec_code < 0x10901) ||
+	    bp->hwrm_spec_code < 0x10400)
 		return -EOPNOTSUPP;
 
 	time64_to_tm(now, 0, &tm);
@@ -5958,6 +5960,9 @@ static int bnxt_init_msix(struct bnxt *bp)
 	if (total_vecs > max)
 		total_vecs = max;
 
+	if (!total_vecs)
+		return 0;
+
 	msix_ent = kcalloc(total_vecs, sizeof(struct msix_entry), GFP_KERNEL);
 	if (!msix_ent)
 		return -ENOMEM;
@@ -6457,6 +6462,9 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
+	if (!BNXT_SINGLE_PF(bp))
+		return 0;
+
 	diff = link_info->support_auto_speeds ^ link_info->advertising;
 	if ((link_info->support_auto_speeds | diff) !=
 	    link_info->support_auto_speeds) {
@@ -6843,6 +6851,8 @@ static void bnxt_preset_reg_win(struct bnxt *bp)
 	}
 }
 
+static int bnxt_init_dflt_ring_mode(struct bnxt *bp);
+
 static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 {
 	int rc = 0;
@@ -6850,6 +6860,12 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	bnxt_preset_reg_win(bp);
 	netif_carrier_off(bp->dev);
 	if (irq_re_init) {
+		/* Reserve rings now if none were reserved at driver probe. */
+		rc = bnxt_init_dflt_ring_mode(bp);
+		if (rc) {
+			netdev_err(bp->dev, "Failed to reserve default rings at open\n");
+			return rc;
+		}
 		rc = bnxt_reserve_rings(bp);
 		if (rc)
 			return rc;
@@ -6877,6 +6893,7 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	}
 
 	bnxt_enable_napi(bp);
+	bnxt_debug_dev_init(bp);
 
 	rc = bnxt_init_nic(bp, irq_re_init);
 	if (rc) {
@@ -6909,6 +6926,7 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	return 0;
 
 open_err:
+	bnxt_debug_dev_exit(bp);
 	bnxt_disable_napi(bp);
 	bnxt_del_napi(bp);
 
@@ -7002,6 +7020,7 @@ static void __bnxt_close_nic(struct bnxt *bp, bool irq_re_init,
 
 	/* TODO CHIMP_FW: Link/PHY related cleanup if (link_re_init) */
 
+	bnxt_debug_dev_exit(bp);
 	bnxt_disable_napi(bp);
 	del_timer_sync(&bp->timer);
 	bnxt_free_skbs(bp);
@@ -7279,6 +7298,25 @@ skip_uc:
 	return rc;
 }
 
+static bool bnxt_can_reserve_rings(struct bnxt *bp)
+{
+#ifdef CONFIG_BNXT_SRIOV
+	if ((bp->flags & BNXT_FLAG_NEW_RM) && BNXT_VF(bp)) {
+		struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
+
+		/* No minimum rings were provisioned by the PF.  Don't
+		 * reserve rings by default when device is down.
+		 */
+		if (hw_resc->min_tx_rings || hw_resc->resv_tx_rings)
+			return true;
+
+		if (!netif_running(bp->dev))
+			return false;
+	}
+#endif
+	return true;
+}
+
 /* If the chip and firmware supports RFS */
 static bool bnxt_rfs_supported(struct bnxt *bp)
 {
@@ -7295,7 +7333,7 @@ static bool bnxt_rfs_capable(struct bnxt *bp)
 #ifdef CONFIG_RFS_ACCEL
 	int vnics, max_vnics, max_rss_ctxs;
 
-	if (!(bp->flags & BNXT_FLAG_MSIX_CAP))
+	if (!(bp->flags & BNXT_FLAG_MSIX_CAP) || !bnxt_can_reserve_rings(bp))
 		return false;
 
 	vnics = 1 + bp->rx_nr_rings;
@@ -7729,7 +7767,7 @@ static void bnxt_init_dflt_coal(struct bnxt *bp)
 	coal->coal_bufs = 30;
 	coal->coal_ticks_irq = 1;
 	coal->coal_bufs_irq = 2;
-	coal->idle_thresh = 25;
+	coal->idle_thresh = 50;
 	coal->bufs_per_record = 2;
 	coal->budget = 64;		/* NAPI budget */
 
@@ -8529,6 +8567,9 @@ static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 {
 	int dflt_rings, max_rx_rings, max_tx_rings, rc;
 
+	if (!bnxt_can_reserve_rings(bp))
+		return 0;
+
 	if (sh)
 		bp->flags |= BNXT_FLAG_SHARED_RINGS;
 	dflt_rings = netif_get_num_default_rss_queues();
@@ -8574,6 +8615,29 @@ static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 	return rc;
 }
 
+static int bnxt_init_dflt_ring_mode(struct bnxt *bp)
+{
+	int rc;
+
+	if (bp->tx_nr_rings)
+		return 0;
+
+	rc = bnxt_set_dflt_rings(bp, true);
+	if (rc) {
+		netdev_err(bp->dev, "Not enough rings available.\n");
+		return rc;
+	}
+	rc = bnxt_init_int_mode(bp);
+	if (rc)
+		return rc;
+	bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
+	if (bnxt_rfs_supported(bp) && bnxt_rfs_capable(bp)) {
+		bp->flags |= BNXT_FLAG_RFS;
+		bp->dev->features |= NETIF_F_NTUPLE;
+	}
+	return 0;
+}
+
 int bnxt_restore_pf_fw_resources(struct bnxt *bp)
 {
 	int rc;
@@ -8614,8 +8678,8 @@ static int bnxt_init_mac_addr(struct bnxt *bp)
 			memcpy(bp->dev->dev_addr, vf->mac_addr, ETH_ALEN);
 		} else {
 			eth_hw_addr_random(bp->dev);
-			rc = bnxt_approve_mac(bp, bp->dev->dev_addr);
 		}
+		rc = bnxt_approve_mac(bp, bp->dev->dev_addr);
 #endif
 	}
 	return rc;
@@ -9078,6 +9142,7 @@ static struct pci_driver bnxt_pci_driver = {
 
 static int __init bnxt_init(void)
 {
+	bnxt_debug_init();
 	return pci_register_driver(&bnxt_pci_driver);
 }
 
@@ -9086,6 +9151,7 @@ static void __exit bnxt_exit(void)
 	pci_unregister_driver(&bnxt_pci_driver);
 	if (bnxt_pf_wq)
 		destroy_workqueue(bnxt_pf_wq);
+	bnxt_debug_exit();
 }
 
 module_init(bnxt_init);

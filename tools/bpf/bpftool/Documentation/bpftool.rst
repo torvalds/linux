@@ -23,7 +23,7 @@ SYNOPSIS
 
 	*MAP-COMMANDS* :=
 	{ **show** | **list** | **dump** | **update** | **lookup** | **getnext** | **delete**
-	| **pin** | **help** }
+	| **pin** | **event_pipe** | **help** }
 
 	*PROG-COMMANDS* := { **show** | **list** | **dump jited** | **dump xlated** | **pin**
 	| **load** | **help** }

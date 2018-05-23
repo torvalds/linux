@@ -2886,13 +2886,13 @@ static int cxgb_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 	}
 
 	/* Convert from Mbps to Kbps */
-	req_rate = rate << 10;
+	req_rate = rate * 1000;
 
 	/* Max rate is 100 Gbps */
-	if (req_rate >= SCHED_MAX_RATE_KBPS) {
+	if (req_rate > SCHED_MAX_RATE_KBPS) {
 		dev_err(adap->pdev_dev,
 			"Invalid rate %u Mbps, Max rate is %u Mbps\n",
-			rate, SCHED_MAX_RATE_KBPS >> 10);
+			rate, SCHED_MAX_RATE_KBPS / 1000);
 		return -ERANGE;
 	}
 
@@ -3081,7 +3081,7 @@ static void cxgb_del_udp_tunnel(struct net_device *netdev,
 					   match_all_mac, match_all_mac,
 					   adapter->rawf_start +
 					    pi->port_id,
-					   1, pi->port_id, true);
+					   1, pi->port_id, false);
 		if (ret < 0) {
 			netdev_info(netdev, "Failed to free mac filter entry, for port %d\n",
 				    i);
@@ -3169,7 +3169,7 @@ static void cxgb_add_udp_tunnel(struct net_device *netdev,
 					    match_all_mac,
 					    adapter->rawf_start +
 					    pi->port_id,
-					    1, pi->port_id, true);
+					    1, pi->port_id, false);
 		if (ret < 0) {
 			netdev_info(netdev, "Failed to allocate a mac filter entry, not adding port %d\n",
 				    be16_to_cpu(ti->port));
@@ -3433,8 +3433,8 @@ static int adap_config_hma(struct adapter *adapter)
 	sgl = adapter->hma.sgt->sgl;
 	node = dev_to_node(adapter->pdev_dev);
 	for_each_sg(sgl, iter, sgt->orig_nents, i) {
-		newpage = alloc_pages_node(node, __GFP_NOWARN | GFP_KERNEL,
-					   page_order);
+		newpage = alloc_pages_node(node, __GFP_NOWARN | GFP_KERNEL |
+					   __GFP_ZERO, page_order);
 		if (!newpage) {
 			dev_err(adapter->pdev_dev,
 				"Not enough memory for HMA page allocation\n");
@@ -4275,6 +4275,20 @@ static int adap_init0(struct adapter *adap)
 	adap->tids.ftid_base = val[3];
 	adap->tids.nftids = val[4] - val[3] + 1;
 	adap->sge.ingr_start = val[5];
+
+	if (CHELSIO_CHIP_VERSION(adap->params.chip) > CHELSIO_T5) {
+		/* Read the raw mps entries. In T6, the last 2 tcam entries
+		 * are reserved for raw mac addresses (rawf = 2, one per port).
+		 */
+		params[0] = FW_PARAM_PFVF(RAWF_START);
+		params[1] = FW_PARAM_PFVF(RAWF_END);
+		ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 2,
+				      params, val);
+		if (ret == 0) {
+			adap->rawf_start = val[0];
+			adap->rawf_cnt = val[1] - val[0] + 1;
+		}
+	}
 
 	/* qids (ingress/egress) returned from firmware can be anywhere
 	 * in the range from EQ(IQFLINT)_START to EQ(IQFLINT)_END.
@@ -5181,6 +5195,7 @@ static void free_some_resources(struct adapter *adapter)
 {
 	unsigned int i;
 
+	kvfree(adapter->mps_encap);
 	kvfree(adapter->smt);
 	kvfree(adapter->l2t);
 	kvfree(adapter->srq);
@@ -5261,13 +5276,9 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 	u32 pcie_fw;
 
 	pcie_fw = readl(adap->regs + PCIE_FW_A);
-	/* Check if cxgb4 is the MASTER and fw is initialized */
-	if (num_vfs &&
-	    (!(pcie_fw & PCIE_FW_INIT_F) ||
-	    !(pcie_fw & PCIE_FW_MASTER_VLD_F) ||
-	    PCIE_FW_MASTER_G(pcie_fw) != CXGB4_UNIFIED_PF)) {
-		dev_warn(&pdev->dev,
-			 "cxgb4 driver needs to be MASTER to support SRIOV\n");
+	/* Check if fw is initialized */
+	if (!(pcie_fw & PCIE_FW_INIT_F)) {
+		dev_warn(&pdev->dev, "Device not initialized\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -5474,6 +5485,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	spin_lock_init(&adapter->mbox_lock);
 	INIT_LIST_HEAD(&adapter->mlist.list);
+	adapter->mbox_log->size = T4_OS_LOG_MBOX_CMDS;
 	pci_set_drvdata(pdev, adapter);
 
 	if (func != ent->driver_data) {
@@ -5507,8 +5519,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = -ENOMEM;
 		goto out_free_adapter;
 	}
-
-	adapter->mbox_log->size = T4_OS_LOG_MBOX_CMDS;
 
 	/* PCI device has been enabled */
 	adapter->flags |= DEV_ENABLED;
@@ -5544,6 +5554,16 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto out_free_adapter;
 
+	if (is_kdump_kernel()) {
+		/* Collect hardware state and append to /proc/vmcore */
+		err = cxgb4_cudbg_vmcore_add_dump(adapter);
+		if (err) {
+			dev_warn(adapter->pdev_dev,
+				 "Fail collecting vmcore device dump, err: %d. Continuing\n",
+				 err);
+			err = 0;
+		}
+	}
 
 	if (!is_t4(adapter->params.chip)) {
 		s_qpp = (QUEUESPERPAGEPF0_S +
@@ -5611,8 +5631,15 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
 			NETIF_F_HW_TC;
 
-		if (CHELSIO_CHIP_VERSION(chip) > CHELSIO_T5)
+		if (CHELSIO_CHIP_VERSION(chip) > CHELSIO_T5) {
+			netdev->hw_enc_features |= NETIF_F_IP_CSUM |
+						   NETIF_F_IPV6_CSUM |
+						   NETIF_F_RXCSUM |
+						   NETIF_F_GSO_UDP_TUNNEL |
+						   NETIF_F_TSO | NETIF_F_TSO6;
+
 			netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL;
+		}
 
 		if (highdma)
 			netdev->hw_features |= NETIF_F_HIGHDMA;
@@ -5676,6 +5703,12 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_warn(&pdev->dev, "could not allocate L2T, continuing\n");
 		adapter->params.offload = 0;
 	}
+
+	adapter->mps_encap = kvzalloc(sizeof(struct mps_encap_entry) *
+					  adapter->params.arch.mps_tcam_size,
+				      GFP_KERNEL);
+	if (!adapter->mps_encap)
+		dev_warn(&pdev->dev, "could not allocate MPS Encap entries, continuing\n");
 
 #if IS_ENABLED(CONFIG_IPV6)
 	if ((CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5) &&

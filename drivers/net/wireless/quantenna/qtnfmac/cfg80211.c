@@ -813,6 +813,9 @@ static int qtnf_start_radar_detection(struct wiphy *wiphy,
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
 	int ret;
 
+	if (wiphy_ext_feature_isset(wiphy, NL80211_EXT_FEATURE_DFS_OFFLOAD))
+		return -ENOTSUPP;
+
 	ret = qtnf_cmd_start_cac(vif, chandef, cac_time_ms);
 	if (ret)
 		pr_err("%s: failed to start CAC ret=%d\n", ndev->name, ret);
@@ -909,6 +912,9 @@ struct wiphy *qtnf_wiphy_allocate(struct qtnf_bus *bus)
 {
 	struct wiphy *wiphy;
 
+	if (bus->hw_info.hw_capab & QLINK_HW_CAPAB_DFS_OFFLOAD)
+		qtn_cfg80211_ops.start_radar_detection = NULL;
+
 	wiphy = wiphy_new(&qtn_cfg80211_ops, sizeof(struct qtnf_wmac));
 	if (!wiphy)
 		return NULL;
@@ -981,6 +987,9 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
 			WIPHY_FLAG_AP_UAPSD |
 			WIPHY_FLAG_HAS_CHANNEL_SWITCH;
+
+	if (hw_info->hw_capab & QLINK_HW_CAPAB_DFS_OFFLOAD)
+		wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_DFS_OFFLOAD);
 
 	wiphy->probe_resp_offload = NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS |
 				    NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS2;

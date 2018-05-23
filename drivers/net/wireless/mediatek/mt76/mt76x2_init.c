@@ -228,7 +228,7 @@ mt76x2_init_beacon_offsets(struct mt76x2_dev *dev)
 		mt76_wr(dev, MT_BCN_OFFSET(i), regs[i]);
 }
 
-int mt76x2_mac_reset(struct mt76x2_dev *dev, bool hard)
+static int mt76x2_mac_reset(struct mt76x2_dev *dev, bool hard)
 {
 	static const u8 null_addr[ETH_ALEN] = {};
 	const u8 *macaddr = dev->mt76.macaddr;
@@ -370,12 +370,12 @@ void mt76x2_mac_stop(struct mt76x2_dev *dev, bool force)
 
 	/* Wait for MAC to become idle */
 	for (i = 0; i < 300; i++) {
-		if (mt76_rr(dev, MT_MAC_STATUS) &
-		    (MT_MAC_STATUS_RX | MT_MAC_STATUS_TX))
+		if ((mt76_rr(dev, MT_MAC_STATUS) &
+		     (MT_MAC_STATUS_RX | MT_MAC_STATUS_TX)) ||
+		    mt76_rr(dev, MT_BBP(IBI, 12))) {
+			usleep_range(10, 20);
 			continue;
-
-		if (mt76_rr(dev, MT_BBP(IBI, 12)))
-			continue;
+		}
 
 		stopped = true;
 		break;
@@ -645,6 +645,7 @@ struct mt76x2_dev *mt76x2_alloc_device(struct device *pdev)
 	dev->mt76.drv = &drv_ops;
 	mutex_init(&dev->mutex);
 	spin_lock_init(&dev->irq_lock);
+	spin_lock_init(&dev->mt76.rx_lock);
 
 	return dev;
 }

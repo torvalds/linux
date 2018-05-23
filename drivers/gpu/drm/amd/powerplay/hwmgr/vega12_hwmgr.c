@@ -33,7 +33,6 @@
 #include "ppatomfwctrl.h"
 #include "atomfirmware.h"
 #include "cgs_common.h"
-#include "vega12_powertune.h"
 #include "vega12_inc.h"
 #include "pp_soc15.h"
 #include "pppcielanes.h"
@@ -891,6 +890,28 @@ static int vega12_odn_initialize_default_settings(
 		struct pp_hwmgr *hwmgr)
 {
 	return 0;
+}
+
+static int vega12_set_overdrive_target_percentage(struct pp_hwmgr *hwmgr,
+		uint32_t adjust_percent)
+{
+	return smum_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_OverDriveSetPercentage, adjust_percent);
+}
+
+static int vega12_power_control_set_level(struct pp_hwmgr *hwmgr)
+{
+	int adjust_percent, result = 0;
+
+	if (PP_CAP(PHM_PlatformCaps_PowerContainment)) {
+		adjust_percent =
+				hwmgr->platform_descriptor.TDPAdjustmentPolarity ?
+				hwmgr->platform_descriptor.TDPAdjustment :
+				(-1 * hwmgr->platform_descriptor.TDPAdjustment);
+		result = vega12_set_overdrive_target_percentage(hwmgr,
+				(uint32_t)adjust_percent);
+	}
+	return result;
 }
 
 static int vega12_enable_dpm_tasks(struct pp_hwmgr *hwmgr)

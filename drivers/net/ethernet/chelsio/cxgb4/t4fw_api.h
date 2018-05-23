@@ -1305,6 +1305,8 @@ enum fw_params_param_pfvf {
 	FW_PARAMS_PARAM_PFVF_HPFILTER_END = 0x33,
 	FW_PARAMS_PARAM_PFVF_TLS_START = 0x34,
 	FW_PARAMS_PARAM_PFVF_TLS_END = 0x35,
+	FW_PARAMS_PARAM_PFVF_RAWF_START = 0x36,
+	FW_PARAMS_PARAM_PFVF_RAWF_END = 0x37,
 	FW_PARAMS_PARAM_PFVF_NCRYPTO_LOOKASIDE = 0x39,
 	FW_PARAMS_PARAM_PFVF_PORT_CAPS32 = 0x3A,
 };
@@ -2156,6 +2158,14 @@ struct fw_vi_mac_cmd {
 			__be64 data0m_pkd;
 			__be32 data1m[2];
 		} raw;
+		struct fw_vi_mac_vni {
+			__be16 valid_to_idx;
+			__u8 macaddr[6];
+			__be16 r7;
+			__u8 macaddr_mask[6];
+			__be32 lookup_type_to_vni;
+			__be32 vni_mask_pkd;
+		} exact_vni[2];
 	} u;
 };
 
@@ -2202,6 +2212,32 @@ struct fw_vi_mac_cmd {
 #define FW_VI_MAC_CMD_RAW_IDX_V(x)      ((x) << FW_VI_MAC_CMD_RAW_IDX_S)
 #define FW_VI_MAC_CMD_RAW_IDX_G(x)      \
 	(((x) >> FW_VI_MAC_CMD_RAW_IDX_S) & FW_VI_MAC_CMD_RAW_IDX_M)
+
+#define FW_VI_MAC_CMD_LOOKUP_TYPE_S	31
+#define FW_VI_MAC_CMD_LOOKUP_TYPE_M	0x1
+#define FW_VI_MAC_CMD_LOOKUP_TYPE_V(x)	((x) << FW_VI_MAC_CMD_LOOKUP_TYPE_S)
+#define FW_VI_MAC_CMD_LOOKUP_TYPE_G(x)	\
+	(((x) >> FW_VI_MAC_CMD_LOOKUP_TYPE_S) & FW_VI_MAC_CMD_LOOKUP_TYPE_M)
+#define FW_VI_MAC_CMD_LOOKUP_TYPE_F	FW_VI_MAC_CMD_LOOKUP_TYPE_V(1U)
+
+#define FW_VI_MAC_CMD_DIP_HIT_S		30
+#define FW_VI_MAC_CMD_DIP_HIT_M		0x1
+#define FW_VI_MAC_CMD_DIP_HIT_V(x)	((x) << FW_VI_MAC_CMD_DIP_HIT_S)
+#define FW_VI_MAC_CMD_DIP_HIT_G(x)	\
+	(((x) >> FW_VI_MAC_CMD_DIP_HIT_S) & FW_VI_MAC_CMD_DIP_HIT_M)
+#define FW_VI_MAC_CMD_DIP_HIT_F		FW_VI_MAC_CMD_DIP_HIT_V(1U)
+
+#define FW_VI_MAC_CMD_VNI_S		0
+#define FW_VI_MAC_CMD_VNI_M		0xffffff
+#define FW_VI_MAC_CMD_VNI_V(x)		((x) << FW_VI_MAC_CMD_VNI_S)
+#define FW_VI_MAC_CMD_VNI_G(x)		\
+	(((x) >> FW_VI_MAC_CMD_VNI_S) & FW_VI_MAC_CMD_VNI_M)
+
+#define FW_VI_MAC_CMD_VNI_MASK_S	0
+#define FW_VI_MAC_CMD_VNI_MASK_M	0xffffff
+#define FW_VI_MAC_CMD_VNI_MASK_V(x)	((x) << FW_VI_MAC_CMD_VNI_MASK_S)
+#define FW_VI_MAC_CMD_VNI_MASK_G(x)	\
+	(((x) >> FW_VI_MAC_CMD_VNI_MASK_S) & FW_VI_MAC_CMD_VNI_MASK_M)
 
 #define FW_RXMODE_MTU_NO_CHG	65535
 

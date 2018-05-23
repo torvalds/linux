@@ -441,29 +441,29 @@ static void mlxsw_sp_txhdr_construct(struct sk_buff *skb,
 	mlxsw_tx_hdr_type_set(txhdr, MLXSW_TXHDR_TYPE_CONTROL);
 }
 
-int mlxsw_sp_port_vid_stp_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid,
-			      u8 state)
+enum mlxsw_reg_spms_state mlxsw_sp_stp_spms_state(u8 state)
 {
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	enum mlxsw_reg_spms_state spms_state;
-	char *spms_pl;
-	int err;
-
 	switch (state) {
 	case BR_STATE_FORWARDING:
-		spms_state = MLXSW_REG_SPMS_STATE_FORWARDING;
-		break;
+		return MLXSW_REG_SPMS_STATE_FORWARDING;
 	case BR_STATE_LEARNING:
-		spms_state = MLXSW_REG_SPMS_STATE_LEARNING;
-		break;
+		return MLXSW_REG_SPMS_STATE_LEARNING;
 	case BR_STATE_LISTENING: /* fall-through */
 	case BR_STATE_DISABLED: /* fall-through */
 	case BR_STATE_BLOCKING:
-		spms_state = MLXSW_REG_SPMS_STATE_DISCARDING;
-		break;
+		return MLXSW_REG_SPMS_STATE_DISCARDING;
 	default:
 		BUG();
 	}
+}
+
+int mlxsw_sp_port_vid_stp_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid,
+			      u8 state)
+{
+	enum mlxsw_reg_spms_state spms_state = mlxsw_sp_stp_spms_state(state);
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char *spms_pl;
+	int err;
 
 	spms_pl = kmalloc(MLXSW_REG_SPMS_LEN, GFP_KERNEL);
 	if (!spms_pl)
@@ -1238,21 +1238,10 @@ static int mlxsw_sp_port_get_phys_port_name(struct net_device *dev, char *name,
 					    size_t len)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
-	u8 module = mlxsw_sp_port->mapping.module;
-	u8 width = mlxsw_sp_port->mapping.width;
-	u8 lane = mlxsw_sp_port->mapping.lane;
-	int err;
 
-	if (!mlxsw_sp_port->split)
-		err = snprintf(name, len, "p%d", module + 1);
-	else
-		err = snprintf(name, len, "p%ds%d", module + 1,
-			       lane / width);
-
-	if (err >= len)
-		return -EINVAL;
-
-	return 0;
+	return mlxsw_core_port_get_phys_port_name(mlxsw_sp_port->mlxsw_sp->core,
+						  mlxsw_sp_port->local_port,
+						  name, len);
 }
 
 static struct mlxsw_sp_port_mall_tc_entry *
@@ -2927,8 +2916,8 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	}
 
 	mlxsw_core_port_eth_set(mlxsw_sp->core, mlxsw_sp_port->local_port,
-				mlxsw_sp_port, dev, mlxsw_sp_port->split,
-				module);
+				mlxsw_sp_port, dev, module + 1,
+				mlxsw_sp_port->split, lane / width);
 	mlxsw_core_schedule_dw(&mlxsw_sp_port->periodic_hw_stats.update_dw, 0);
 	return 0;
 
@@ -3666,6 +3655,15 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		goto err_lag_init;
 	}
 
+	/* Initialize SPAN before router and switchdev, so that those components
+	 * can call mlxsw_sp_span_respin().
+	 */
+	err = mlxsw_sp_span_init(mlxsw_sp);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to init span system\n");
+		goto err_span_init;
+	}
+
 	err = mlxsw_sp_switchdev_init(mlxsw_sp);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize switchdev\n");
@@ -3684,15 +3682,6 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		goto err_afa_init;
 	}
 
-	err = mlxsw_sp_span_init(mlxsw_sp);
-	if (err) {
-		dev_err(mlxsw_sp->bus_info->dev, "Failed to init span system\n");
-		goto err_span_init;
-	}
-
-	/* Initialize router after SPAN is initialized, so that the FIB and
-	 * neighbor event handlers can issue SPAN respin.
-	 */
 	err = mlxsw_sp_router_init(mlxsw_sp);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize router\n");
@@ -3739,14 +3728,14 @@ err_acl_init:
 err_netdev_notifier:
 	mlxsw_sp_router_fini(mlxsw_sp);
 err_router_init:
-	mlxsw_sp_span_fini(mlxsw_sp);
-err_span_init:
 	mlxsw_sp_afa_fini(mlxsw_sp);
 err_afa_init:
 	mlxsw_sp_counter_pool_fini(mlxsw_sp);
 err_counter_pool_init:
 	mlxsw_sp_switchdev_fini(mlxsw_sp);
 err_switchdev_init:
+	mlxsw_sp_span_fini(mlxsw_sp);
+err_span_init:
 	mlxsw_sp_lag_fini(mlxsw_sp);
 err_lag_init:
 	mlxsw_sp_buffers_fini(mlxsw_sp);
@@ -3768,10 +3757,10 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	mlxsw_sp_acl_fini(mlxsw_sp);
 	unregister_netdevice_notifier(&mlxsw_sp->netdevice_nb);
 	mlxsw_sp_router_fini(mlxsw_sp);
-	mlxsw_sp_span_fini(mlxsw_sp);
 	mlxsw_sp_afa_fini(mlxsw_sp);
 	mlxsw_sp_counter_pool_fini(mlxsw_sp);
 	mlxsw_sp_switchdev_fini(mlxsw_sp);
+	mlxsw_sp_span_fini(mlxsw_sp);
 	mlxsw_sp_lag_fini(mlxsw_sp);
 	mlxsw_sp_buffers_fini(mlxsw_sp);
 	mlxsw_sp_traps_fini(mlxsw_sp);

@@ -126,12 +126,6 @@ static void __init sh_of_setup(char **cmdline_p)
 {
 	struct device_node *root;
 
-#ifdef CONFIG_USE_BUILTIN_DTB
-	unflatten_and_copy_device_tree();
-#else
-	unflatten_device_tree();
-#endif
-
 	board_time_init = sh_of_time_init;
 
 	sh_mv.mv_name = "Unknown SH model";

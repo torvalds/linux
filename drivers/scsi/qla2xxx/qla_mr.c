@@ -1821,9 +1821,11 @@ qlafx00_fx_disc(scsi_qla_host_t *vha, fc_port_t *fcport, uint16_t fx_type)
 
 	sp->type = SRB_FXIOCB_DCMD;
 	sp->name = "fxdisc";
-	qla2x00_init_timer(sp, FXDISC_TIMEOUT);
 
 	fdisc = &sp->u.iocb_cmd;
+	fdisc->timeout = qla2x00_fxdisc_iocb_timeout;
+	qla2x00_init_timer(sp, FXDISC_TIMEOUT);
+
 	switch (fx_type) {
 	case FXDISC_GET_CONFIG_INFO:
 	fdisc->u.fxiocb.flags =
@@ -1924,7 +1926,6 @@ qlafx00_fx_disc(scsi_qla_host_t *vha, fc_port_t *fcport, uint16_t fx_type)
 			goto done_unmap_req;
 	}
 
-	fdisc->timeout = qla2x00_fxdisc_iocb_timeout;
 	fdisc->u.fxiocb.req_func_type = cpu_to_le16(fx_type);
 	sp->done = qla2x00_fxdisc_sp_done;
 

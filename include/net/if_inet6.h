@@ -143,7 +143,6 @@ struct ipv6_ac_socklist {
 
 struct ifacaddr6 {
 	struct in6_addr		aca_addr;
-	struct inet6_dev	*aca_idev;
 	struct fib6_info	*aca_rt;
 	struct ifacaddr6	*aca_next;
 	int			aca_users;

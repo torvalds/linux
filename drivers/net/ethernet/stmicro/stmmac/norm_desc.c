@@ -168,7 +168,7 @@ static void ndesc_set_tx_owner(struct dma_desc *p)
 	p->des0 |= cpu_to_le32(TDES0_OWN);
 }
 
-static void ndesc_set_rx_owner(struct dma_desc *p)
+static void ndesc_set_rx_owner(struct dma_desc *p, int disable_rx_ic)
 {
 	p->des0 |= cpu_to_le32(RDES0_OWN);
 }
@@ -297,6 +297,21 @@ static void ndesc_display_ring(void *head, unsigned int size, bool rx)
 	pr_info("\n");
 }
 
+static void ndesc_get_addr(struct dma_desc *p, unsigned int *addr)
+{
+	*addr = le32_to_cpu(p->des2);
+}
+
+static void ndesc_set_addr(struct dma_desc *p, dma_addr_t addr)
+{
+	p->des2 = cpu_to_le32(addr);
+}
+
+static void ndesc_clear(struct dma_desc *p)
+{
+	p->des2 = 0;
+}
+
 const struct stmmac_desc_ops ndesc_ops = {
 	.tx_status = ndesc_get_tx_status,
 	.rx_status = ndesc_get_rx_status,
@@ -316,4 +331,7 @@ const struct stmmac_desc_ops ndesc_ops = {
 	.get_timestamp = ndesc_get_timestamp,
 	.get_rx_timestamp_status = ndesc_get_rx_timestamp_status,
 	.display_ring = ndesc_display_ring,
+	.get_addr = ndesc_get_addr,
+	.set_addr = ndesc_set_addr,
+	.clear = ndesc_clear,
 };

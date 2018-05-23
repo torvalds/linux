@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,6 +29,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,62 +66,38 @@
 
 /**
  * enum iwl_tlc_mng_cfg_flags_enum - options for TLC config flags
- * @IWL_TLC_MNG_CFG_FLAGS_CCK_MSK: CCK support
- * @IWL_TLC_MNG_CFG_FLAGS_DD_MSK: enable DD
  * @IWL_TLC_MNG_CFG_FLAGS_STBC_MSK: enable STBC
  * @IWL_TLC_MNG_CFG_FLAGS_LDPC_MSK: enable LDPC
- * @IWL_TLC_MNG_CFG_FLAGS_BF_MSK: enable BFER
- * @IWL_TLC_MNG_CFG_FLAGS_DCM_MSK: enable DCM
  */
 enum iwl_tlc_mng_cfg_flags {
-	IWL_TLC_MNG_CFG_FLAGS_CCK_MSK	= BIT(0),
-	IWL_TLC_MNG_CFG_FLAGS_DD_MSK	= BIT(1),
-	IWL_TLC_MNG_CFG_FLAGS_STBC_MSK	= BIT(2),
-	IWL_TLC_MNG_CFG_FLAGS_LDPC_MSK	= BIT(3),
-	IWL_TLC_MNG_CFG_FLAGS_BF_MSK	= BIT(4),
-	IWL_TLC_MNG_CFG_FLAGS_DCM_MSK	= BIT(5),
+	IWL_TLC_MNG_CFG_FLAGS_STBC_MSK		= BIT(0),
+	IWL_TLC_MNG_CFG_FLAGS_LDPC_MSK		= BIT(1),
 };
 
 /**
  * enum iwl_tlc_mng_cfg_cw - channel width options
- * @IWL_TLC_MNG_MAX_CH_WIDTH_20MHZ: 20MHZ channel
- * @IWL_TLC_MNG_MAX_CH_WIDTH_40MHZ: 40MHZ channel
- * @IWL_TLC_MNG_MAX_CH_WIDTH_80MHZ: 80MHZ channel
- * @IWL_TLC_MNG_MAX_CH_WIDTH_160MHZ: 160MHZ channel
- * @IWL_TLC_MNG_MAX_CH_WIDTH_LAST: maximum value
+ * @IWL_TLC_MNG_CH_WIDTH_20MHZ: 20MHZ channel
+ * @IWL_TLC_MNG_CH_WIDTH_40MHZ: 40MHZ channel
+ * @IWL_TLC_MNG_CH_WIDTH_80MHZ: 80MHZ channel
+ * @IWL_TLC_MNG_CH_WIDTH_160MHZ: 160MHZ channel
+ * @IWL_TLC_MNG_CH_WIDTH_LAST: maximum value
  */
 enum iwl_tlc_mng_cfg_cw {
-	IWL_TLC_MNG_MAX_CH_WIDTH_20MHZ,
-	IWL_TLC_MNG_MAX_CH_WIDTH_40MHZ,
-	IWL_TLC_MNG_MAX_CH_WIDTH_80MHZ,
-	IWL_TLC_MNG_MAX_CH_WIDTH_160MHZ,
-	IWL_TLC_MNG_MAX_CH_WIDTH_LAST = IWL_TLC_MNG_MAX_CH_WIDTH_160MHZ,
+	IWL_TLC_MNG_CH_WIDTH_20MHZ,
+	IWL_TLC_MNG_CH_WIDTH_40MHZ,
+	IWL_TLC_MNG_CH_WIDTH_80MHZ,
+	IWL_TLC_MNG_CH_WIDTH_160MHZ,
+	IWL_TLC_MNG_CH_WIDTH_LAST = IWL_TLC_MNG_CH_WIDTH_160MHZ,
 };
 
 /**
  * enum iwl_tlc_mng_cfg_chains - possible chains
  * @IWL_TLC_MNG_CHAIN_A_MSK: chain A
  * @IWL_TLC_MNG_CHAIN_B_MSK: chain B
- * @IWL_TLC_MNG_CHAIN_C_MSK: chain C
  */
 enum iwl_tlc_mng_cfg_chains {
 	IWL_TLC_MNG_CHAIN_A_MSK = BIT(0),
 	IWL_TLC_MNG_CHAIN_B_MSK = BIT(1),
-	IWL_TLC_MNG_CHAIN_C_MSK = BIT(2),
-};
-
-/**
- * enum iwl_tlc_mng_cfg_gi - guard interval options
- * @IWL_TLC_MNG_SGI_20MHZ_MSK: enable short GI for 20MHZ
- * @IWL_TLC_MNG_SGI_40MHZ_MSK: enable short GI for 40MHZ
- * @IWL_TLC_MNG_SGI_80MHZ_MSK: enable short GI for 80MHZ
- * @IWL_TLC_MNG_SGI_160MHZ_MSK: enable short GI for 160MHZ
- */
-enum iwl_tlc_mng_cfg_gi {
-	IWL_TLC_MNG_SGI_20MHZ_MSK  = BIT(0),
-	IWL_TLC_MNG_SGI_40MHZ_MSK  = BIT(1),
-	IWL_TLC_MNG_SGI_80MHZ_MSK  = BIT(2),
-	IWL_TLC_MNG_SGI_160MHZ_MSK = BIT(3),
 };
 
 /**
@@ -145,25 +123,7 @@ enum iwl_tlc_mng_cfg_mode {
 };
 
 /**
- * enum iwl_tlc_mng_vht_he_types - VHT HE types
- * @IWL_TLC_MNG_VALID_VHT_HE_TYPES_SU: VHT HT single user
- * @IWL_TLC_MNG_VALID_VHT_HE_TYPES_SU_EXT: VHT HT single user extended
- * @IWL_TLC_MNG_VALID_VHT_HE_TYPES_MU: VHT HT multiple users
- * @IWL_TLC_MNG_VALID_VHT_HE_TYPES_TRIG_BASED: trigger based
- * @IWL_TLC_MNG_VALID_VHT_HE_TYPES_NUM: a count of possible types
- */
-enum iwl_tlc_mng_vht_he_types {
-	IWL_TLC_MNG_VALID_VHT_HE_TYPES_SU = 0,
-	IWL_TLC_MNG_VALID_VHT_HE_TYPES_SU_EXT,
-	IWL_TLC_MNG_VALID_VHT_HE_TYPES_MU,
-	IWL_TLC_MNG_VALID_VHT_HE_TYPES_TRIG_BASED,
-	IWL_TLC_MNG_VALID_VHT_HE_TYPES_NUM =
-		IWL_TLC_MNG_VALID_VHT_HE_TYPES_TRIG_BASED,
-
-};
-
-/**
- * enum iwl_tlc_mng_ht_rates - HT/VHT rates
+ * enum iwl_tlc_mng_ht_rates - HT/VHT/HE rates
  * @IWL_TLC_MNG_HT_RATE_MCS0: index of MCS0
  * @IWL_TLC_MNG_HT_RATE_MCS1: index of MCS1
  * @IWL_TLC_MNG_HT_RATE_MCS2: index of MCS2
@@ -174,6 +134,8 @@ enum iwl_tlc_mng_vht_he_types {
  * @IWL_TLC_MNG_HT_RATE_MCS7: index of MCS7
  * @IWL_TLC_MNG_HT_RATE_MCS8: index of MCS8
  * @IWL_TLC_MNG_HT_RATE_MCS9: index of MCS9
+ * @IWL_TLC_MNG_HT_RATE_MCS10: index of MCS10
+ * @IWL_TLC_MNG_HT_RATE_MCS11: index of MCS11
  * @IWL_TLC_MNG_HT_RATE_MAX: maximal rate for HT/VHT
  */
 enum iwl_tlc_mng_ht_rates {
@@ -187,81 +149,73 @@ enum iwl_tlc_mng_ht_rates {
 	IWL_TLC_MNG_HT_RATE_MCS7,
 	IWL_TLC_MNG_HT_RATE_MCS8,
 	IWL_TLC_MNG_HT_RATE_MCS9,
-	IWL_TLC_MNG_HT_RATE_MAX = IWL_TLC_MNG_HT_RATE_MCS9,
+	IWL_TLC_MNG_HT_RATE_MCS10,
+	IWL_TLC_MNG_HT_RATE_MCS11,
+	IWL_TLC_MNG_HT_RATE_MAX = IWL_TLC_MNG_HT_RATE_MCS11,
 };
 
 /* Maximum supported tx antennas number */
-#define MAX_RS_ANT_NUM 3
+#define MAX_NSS 2
 
 /**
  * struct tlc_config_cmd - TLC configuration
  * @sta_id: station id
  * @reserved1: reserved
- * @max_supp_ch_width: channel width
- * @flags: bitmask of &enum iwl_tlc_mng_cfg_flags
- * @chains: bitmask of &enum iwl_tlc_mng_cfg_chains
- * @max_supp_ss: valid values are 0-3, 0 - spatial streams are not supported
- * @valid_vht_he_types: bitmap of &enum iwl_tlc_mng_vht_he_types
- * @non_ht_supp_rates: bitmap of supported legacy rates
- * @ht_supp_rates: bitmap of supported HT/VHT rates, valid bits are 0-9
+ * @max_ch_width: max supported channel width from @enum iwl_tlc_mng_cfg_cw
  * @mode: &enum iwl_tlc_mng_cfg_mode
- * @reserved2: reserved
- * @he_supp_rates: bitmap of supported HE rates
+ * @chains: bitmask of &enum iwl_tlc_mng_cfg_chains
+ * @amsdu: TX amsdu is supported
+ * @flags: bitmask of &enum iwl_tlc_mng_cfg_flags
+ * @non_ht_rates: bitmap of supported legacy rates
+ * @ht_rates: bitmap of &enum iwl_tlc_mng_ht_rates, per <nss, channel-width>
+ *	      pair (0 - 80mhz width and below, 1 - 160mhz).
+ * @max_mpdu_len: max MPDU length, in bytes
  * @sgi_ch_width_supp: bitmap of SGI support per channel width
- * @he_gi_support: 11ax HE guard interval
- * @max_ampdu_cnt: max AMPDU size (frames count)
+ *		       use BIT(@enum iwl_tlc_mng_cfg_cw)
+ * @reserved2: reserved
  */
 struct iwl_tlc_config_cmd {
 	u8 sta_id;
 	u8 reserved1[3];
-	u8 max_supp_ch_width;
-	u8 chains;
-	u8 max_supp_ss;
-	u8 valid_vht_he_types;
-	__le16 flags;
-	__le16 non_ht_supp_rates;
-	__le16 ht_supp_rates[MAX_RS_ANT_NUM];
+	u8 max_ch_width;
 	u8 mode;
-	u8 reserved2;
-	__le16 he_supp_rates;
+	u8 chains;
+	u8 amsdu;
+	__le16 flags;
+	__le16 non_ht_rates;
+	__le16 ht_rates[MAX_NSS][2];
+	__le16 max_mpdu_len;
 	u8 sgi_ch_width_supp;
-	u8 he_gi_support;
-	__le32 max_ampdu_cnt;
-} __packed; /* TLC_MNG_CONFIG_CMD_API_S_VER_1 */
-
-#define IWL_TLC_NOTIF_INIT_RATE_POS 0
-#define IWL_TLC_NOTIF_INIT_RATE_MSK BIT(IWL_TLC_NOTIF_INIT_RATE_POS)
-#define IWL_TLC_NOTIF_REQ_INTERVAL (500)
+	u8 reserved2[1];
+} __packed; /* TLC_MNG_CONFIG_CMD_API_S_VER_2 */
 
 /**
- * struct iwl_tlc_notif_req_config_cmd - request notif on specific changes
- * @sta_id: relevant station
- * @reserved1: reserved
- * @flags: bitmap of requested notifications %IWL_TLC_NOTIF_INIT_\*
- * @interval: minimum time between notifications from TLC to the driver (msec)
- * @reserved2: reserved
+ * enum iwl_tlc_update_flags - updated fields
+ * @IWL_TLC_NOTIF_FLAG_RATE: last initial rate update
+ * @IWL_TLC_NOTIF_FLAG_AMSDU: umsdu parameters update
  */
-struct iwl_tlc_notif_req_config_cmd {
-	u8 sta_id;
-	u8 reserved1;
-	__le16 flags;
-	__le16 interval;
-	__le16 reserved2;
-} __packed; /* TLC_MNG_NOTIF_REQ_CMD_API_S_VER_1 */
+enum iwl_tlc_update_flags {
+	IWL_TLC_NOTIF_FLAG_RATE  = BIT(0),
+	IWL_TLC_NOTIF_FLAG_AMSDU = BIT(1),
+};
 
 /**
  * struct iwl_tlc_update_notif - TLC notification from FW
  * @sta_id: station id
  * @reserved: reserved
  * @flags: bitmap of notifications reported
- * @values: field per flag in struct iwl_tlc_notif_req_config_cmd
+ * @rate: current initial rate
+ * @amsdu_size: Max AMSDU size, in bytes
+ * @amsdu_enabled: bitmap for per-TID AMSDU enablement
  */
 struct iwl_tlc_update_notif {
 	u8 sta_id;
-	u8 reserved;
-	__le16 flags;
-	__le32 values[16];
-} __packed; /* TLC_MNG_UPDATE_NTFY_API_S_VER_1 */
+	u8 reserved[3];
+	__le32 flags;
+	__le32 rate;
+	__le32 amsdu_size;
+	__le32 amsdu_enabled;
+} __packed; /* TLC_MNG_UPDATE_NTFY_API_S_VER_2 */
 
 /**
  * enum iwl_tlc_debug_flags - debug options

@@ -410,6 +410,7 @@ int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
 int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 				  unsigned num_hw_submission)
 {
+	long timeout;
 	int r;
 
 	/* Check that num_hw_submission is a power of two */
@@ -433,11 +434,16 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 
 	/* No need to setup the GPU scheduler for KIQ ring */
 	if (ring->funcs->type != AMDGPU_RING_TYPE_KIQ) {
+		/* for non-sriov case, no timeout enforce on compute ring */
+		if ((ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE)
+				&& !amdgpu_sriov_vf(ring->adev))
+			timeout = MAX_SCHEDULE_TIMEOUT;
+		else
+			timeout = msecs_to_jiffies(amdgpu_lockup_timeout);
+
 		r = drm_sched_init(&ring->sched, &amdgpu_sched_ops,
 				   num_hw_submission, amdgpu_job_hang_limit,
-				   (ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE) ?
-				   MAX_SCHEDULE_TIMEOUT : msecs_to_jiffies(amdgpu_lockup_timeout),
-				   ring->name);
+				   timeout, ring->name);
 		if (r) {
 			DRM_ERROR("Failed to create scheduler on ring %s.\n",
 				  ring->name);

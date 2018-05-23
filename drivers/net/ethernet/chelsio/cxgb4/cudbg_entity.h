@@ -62,6 +62,18 @@ struct cudbg_hw_sched {
 	u32 map;
 };
 
+#define SGE_QBASE_DATA_REG_NUM 4
+
+struct sge_qbase_reg_field {
+	u32 reg_addr;
+	u32 reg_data[SGE_QBASE_DATA_REG_NUM];
+	/* Max supported PFs */
+	u32 pf_data_value[PCIE_FW_MASTER_M + 1][SGE_QBASE_DATA_REG_NUM];
+	/* Max supported VFs */
+	u32 vf_data_value[T6_VF_M + 1][SGE_QBASE_DATA_REG_NUM];
+	u32 vfcount; /* Actual number of max vfs in current configuration */
+};
+
 struct ireg_field {
 	u32 ireg_addr;
 	u32 ireg_data;
@@ -235,6 +247,9 @@ struct cudbg_vpd_data {
 };
 
 #define CUDBG_MAX_TCAM_TID 0x800
+#define CUDBG_T6_CLIP 1536
+#define CUDBG_MAX_TID_COMP_EN 6144
+#define CUDBG_MAX_TID_COMP_DIS 3072
 
 enum cudbg_le_entry_types {
 	LE_ET_UNKNOWN = 0,
@@ -354,6 +369,11 @@ static const u32 t5_sge_dbg_index_array[2][IREG_NUM_ELEM] = {
 	{0x10cc, 0x10d4, 0x0, 16},
 };
 
+static const u32 t6_sge_qbase_index_array[] = {
+	/* 1 addr reg SGE_QBASE_INDEX and 4 data reg SGE_QBASE_MAP[0-3] */
+	0x1250, 0x1240, 0x1244, 0x1248, 0x124c,
+};
+
 static const u32 t5_pcie_pdbg_array[][IREG_NUM_ELEM] = {
 	{0x5a04, 0x5a0c, 0x00, 0x20}, /* t5_pcie_pdbg_regs_00_to_20 */
 	{0x5a04, 0x5a0c, 0x21, 0x20}, /* t5_pcie_pdbg_regs_21_to_40 */
@@ -419,15 +439,15 @@ static const u32 t6_up_cim_reg_array[][IREG_NUM_ELEM + 1] = {
 	{0x7b50, 0x7b54, 0x280, 0x20, 0}, /* up_cim_280_to_2fc */
 	{0x7b50, 0x7b54, 0x300, 0x20, 0}, /* up_cim_300_to_37c */
 	{0x7b50, 0x7b54, 0x380, 0x14, 0}, /* up_cim_380_to_3cc */
-	{0x7b50, 0x7b54, 0x2900, 0x4, 0x4}, /* up_cim_2900_to_3d40 */
-	{0x7b50, 0x7b54, 0x2904, 0x4, 0x4}, /* up_cim_2904_to_3d44 */
-	{0x7b50, 0x7b54, 0x2908, 0x4, 0x4}, /* up_cim_2908_to_3d48 */
-	{0x7b50, 0x7b54, 0x2910, 0x4, 0x4}, /* up_cim_2910_to_3d4c */
-	{0x7b50, 0x7b54, 0x2914, 0x4, 0x4}, /* up_cim_2914_to_3d50 */
-	{0x7b50, 0x7b54, 0x2920, 0x10, 0x10}, /* up_cim_2920_to_2a10 */
-	{0x7b50, 0x7b54, 0x2924, 0x10, 0x10}, /* up_cim_2924_to_2a14 */
-	{0x7b50, 0x7b54, 0x2928, 0x10, 0x10}, /* up_cim_2928_to_2a18 */
-	{0x7b50, 0x7b54, 0x292c, 0x10, 0x10}, /* up_cim_292c_to_2a1c */
+	{0x7b50, 0x7b54, 0x4900, 0x4, 0x4}, /* up_cim_4900_to_4c60 */
+	{0x7b50, 0x7b54, 0x4904, 0x4, 0x4}, /* up_cim_4904_to_4c64 */
+	{0x7b50, 0x7b54, 0x4908, 0x4, 0x4}, /* up_cim_4908_to_4c68 */
+	{0x7b50, 0x7b54, 0x4910, 0x4, 0x4}, /* up_cim_4910_to_4c70 */
+	{0x7b50, 0x7b54, 0x4914, 0x4, 0x4}, /* up_cim_4914_to_4c74 */
+	{0x7b50, 0x7b54, 0x4920, 0x10, 0x10}, /* up_cim_4920_to_4a10 */
+	{0x7b50, 0x7b54, 0x4924, 0x10, 0x10}, /* up_cim_4924_to_4a14 */
+	{0x7b50, 0x7b54, 0x4928, 0x10, 0x10}, /* up_cim_4928_to_4a18 */
+	{0x7b50, 0x7b54, 0x492c, 0x10, 0x10}, /* up_cim_492c_to_4a1c */
 };
 
 static const u32 t5_up_cim_reg_array[][IREG_NUM_ELEM + 1] = {
@@ -444,16 +464,6 @@ static const u32 t5_up_cim_reg_array[][IREG_NUM_ELEM + 1] = {
 	{0x7b50, 0x7b54, 0x280, 0x20, 0}, /* up_cim_280_to_2fc */
 	{0x7b50, 0x7b54, 0x300, 0x20, 0}, /* up_cim_300_to_37c */
 	{0x7b50, 0x7b54, 0x380, 0x14, 0}, /* up_cim_380_to_3cc */
-	{0x7b50, 0x7b54, 0x2900, 0x4, 0x4}, /* up_cim_2900_to_3d40 */
-	{0x7b50, 0x7b54, 0x2904, 0x4, 0x4}, /* up_cim_2904_to_3d44 */
-	{0x7b50, 0x7b54, 0x2908, 0x4, 0x4}, /* up_cim_2908_to_3d48 */
-	{0x7b50, 0x7b54, 0x2910, 0x4, 0x4}, /* up_cim_2910_to_3d4c */
-	{0x7b50, 0x7b54, 0x2914, 0x4, 0x4}, /* up_cim_2914_to_3d50 */
-	{0x7b50, 0x7b54, 0x2918, 0x4, 0x4}, /* up_cim_2918_to_3d54 */
-	{0x7b50, 0x7b54, 0x291c, 0x4, 0x4}, /* up_cim_291c_to_3d58 */
-	{0x7b50, 0x7b54, 0x2924, 0x10, 0x10}, /* up_cim_2924_to_2914 */
-	{0x7b50, 0x7b54, 0x2928, 0x10, 0x10}, /* up_cim_2928_to_2a18 */
-	{0x7b50, 0x7b54, 0x292c, 0x10, 0x10}, /* up_cim_292c_to_2a1c */
 };
 
 static const u32 t6_hma_ireg_array[][IREG_NUM_ELEM] = {

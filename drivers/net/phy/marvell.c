@@ -1393,6 +1393,15 @@ static int m88e1318_set_wol(struct phy_device *phydev,
 		if (err < 0)
 			goto error;
 
+		/* If WOL event happened once, the LED[2] interrupt pin
+		 * will not be cleared unless we reading the interrupt status
+		 * register. If interrupts are in use, the normal interrupt
+		 * handling will clear the WOL event. Clear the WOL event
+		 * before enabling it if !phy_interrupt_is_valid()
+		 */
+		if (!phy_interrupt_is_valid(phydev))
+			phy_read(phydev, MII_M1011_IEVENT);
+
 		/* Enable the WOL interrupt */
 		err = __phy_modify(phydev, MII_88E1318S_PHY_CSIER, 0,
 				   MII_88E1318S_PHY_CSIER_WOL_EIE);
@@ -1473,9 +1482,6 @@ static void marvell_get_strings(struct phy_device *phydev, u8 *data)
 	}
 }
 
-#ifndef UINT64_MAX
-#define UINT64_MAX		(u64)(~((u64)0))
-#endif
 static u64 marvell_get_stat(struct phy_device *phydev, int i)
 {
 	struct marvell_hw_stat stat = marvell_hw_stats[i];
@@ -1485,7 +1491,7 @@ static u64 marvell_get_stat(struct phy_device *phydev, int i)
 
 	val = phy_read_paged(phydev, stat.page, stat.reg);
 	if (val < 0) {
-		ret = UINT64_MAX;
+		ret = U64_MAX;
 	} else {
 		val = val & ((1 << stat.bits) - 1);
 		priv->stats[i] += val;

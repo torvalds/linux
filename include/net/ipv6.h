@@ -298,6 +298,7 @@ struct ipcm6_cookie {
 	__s16 tclass;
 	__s8  dontfrag;
 	struct ipv6_txoptions *opt;
+	__u16 gso_size;
 };
 
 static inline struct ipv6_txoptions *txopt_get(const struct ipv6_pinfo *np)
@@ -950,6 +951,7 @@ struct sk_buff *ip6_make_skb(struct sock *sk,
 			     void *from, int length, int transhdrlen,
 			     struct ipcm6_cookie *ipc6, struct flowi6 *fl6,
 			     struct rt6_info *rt, unsigned int flags,
+			     struct inet_cork_full *cork,
 			     const struct sockcm_cookie *sockc);
 
 static inline struct sk_buff *ip6_finish_skb(struct sock *sk)
@@ -957,8 +959,6 @@ static inline struct sk_buff *ip6_finish_skb(struct sock *sk)
 	return __ip6_make_skb(sk, &sk->sk_write_queue, &inet_sk(sk)->cork,
 			      &inet6_sk(sk)->cork);
 }
-
-unsigned int ip6_dst_mtu_forward(const struct dst_entry *dst);
 
 int ip6_dst_lookup(struct net *net, struct sock *sk, struct dst_entry **dst,
 		   struct flowi6 *fl6);

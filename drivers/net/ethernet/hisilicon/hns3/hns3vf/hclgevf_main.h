@@ -9,7 +9,7 @@
 #include "hclgevf_cmd.h"
 #include "hnae3.h"
 
-#define HCLGEVF_MOD_VERSION "v1.0"
+#define HCLGEVF_MOD_VERSION "1.0"
 #define HCLGEVF_DRIVER_NAME "hclgevf"
 
 #define HCLGEVF_ROCEE_VECTOR_NUM	0

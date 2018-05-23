@@ -180,7 +180,8 @@ static const struct nla_policy ip6mr_rule_policy[FRA_MAX + 1] = {
 };
 
 static int ip6mr_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
-				struct fib_rule_hdr *frh, struct nlattr **tb)
+				struct fib_rule_hdr *frh, struct nlattr **tb,
+				struct netlink_ext_ack *extack)
 {
 	return 0;
 }

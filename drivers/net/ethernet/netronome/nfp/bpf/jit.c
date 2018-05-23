@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2017 Netronome Systems, Inc.
+ * Copyright (C) 2016-2018 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -42,6 +42,7 @@
 
 #include "main.h"
 #include "../nfp_asm.h"
+#include "../nfp_net_ctrl.h"
 
 /* --- NFP prog --- */
 /* Foreach "multiple" entries macros provide pos and next<n> pointers.
@@ -1214,45 +1215,83 @@ wrp_test_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	return 0;
 }
 
-static int
-wrp_cmp_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
-	    enum br_mask br_mask, bool swap)
+static const struct jmp_code_map {
+	enum br_mask br_mask;
+	bool swap;
+} jmp_code_map[] = {
+	[BPF_JGT >> 4]	= { BR_BLO, true },
+	[BPF_JGE >> 4]	= { BR_BHS, false },
+	[BPF_JLT >> 4]	= { BR_BLO, false },
+	[BPF_JLE >> 4]	= { BR_BHS, true },
+	[BPF_JSGT >> 4]	= { BR_BLT, true },
+	[BPF_JSGE >> 4]	= { BR_BGE, false },
+	[BPF_JSLT >> 4]	= { BR_BLT, false },
+	[BPF_JSLE >> 4]	= { BR_BGE, true },
+};
+
+static const struct jmp_code_map *nfp_jmp_code_get(struct nfp_insn_meta *meta)
+{
+	unsigned int op;
+
+	op = BPF_OP(meta->insn.code) >> 4;
+	/* br_mask of 0 is BR_BEQ which we don't use in jump code table */
+	if (WARN_ONCE(op >= ARRAY_SIZE(jmp_code_map) ||
+		      !jmp_code_map[op].br_mask,
+		      "no code found for jump instruction"))
+		return NULL;
+
+	return &jmp_code_map[op];
+}
+
+static int cmp_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
 	u64 imm = insn->imm; /* sign extend */
+	const struct jmp_code_map *code;
+	enum alu_op alu_op, carry_op;
 	u8 reg = insn->dst_reg * 2;
 	swreg tmp_reg;
 
+	code = nfp_jmp_code_get(meta);
+	if (!code)
+		return -EINVAL;
+
+	alu_op = meta->jump_neg_op ? ALU_OP_ADD : ALU_OP_SUB;
+	carry_op = meta->jump_neg_op ? ALU_OP_ADD_C : ALU_OP_SUB_C;
+
 	tmp_reg = ur_load_imm_any(nfp_prog, imm & ~0U, imm_b(nfp_prog));
-	if (!swap)
-		emit_alu(nfp_prog, reg_none(), reg_a(reg), ALU_OP_SUB, tmp_reg);
+	if (!code->swap)
+		emit_alu(nfp_prog, reg_none(), reg_a(reg), alu_op, tmp_reg);
 	else
-		emit_alu(nfp_prog, reg_none(), tmp_reg, ALU_OP_SUB, reg_a(reg));
+		emit_alu(nfp_prog, reg_none(), tmp_reg, alu_op, reg_a(reg));
 
 	tmp_reg = ur_load_imm_any(nfp_prog, imm >> 32, imm_b(nfp_prog));
-	if (!swap)
+	if (!code->swap)
 		emit_alu(nfp_prog, reg_none(),
-			 reg_a(reg + 1), ALU_OP_SUB_C, tmp_reg);
+			 reg_a(reg + 1), carry_op, tmp_reg);
 	else
 		emit_alu(nfp_prog, reg_none(),
-			 tmp_reg, ALU_OP_SUB_C, reg_a(reg + 1));
+			 tmp_reg, carry_op, reg_a(reg + 1));
 
-	emit_br(nfp_prog, br_mask, insn->off, 0);
+	emit_br(nfp_prog, code->br_mask, insn->off, 0);
 
 	return 0;
 }
 
-static int
-wrp_cmp_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
-	    enum br_mask br_mask, bool swap)
+static int cmp_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
+	const struct jmp_code_map *code;
 	u8 areg, breg;
+
+	code = nfp_jmp_code_get(meta);
+	if (!code)
+		return -EINVAL;
 
 	areg = insn->dst_reg * 2;
 	breg = insn->src_reg * 2;
 
-	if (swap) {
+	if (code->swap) {
 		areg ^= breg;
 		breg ^= areg;
 		areg ^= breg;
@@ -1261,7 +1300,7 @@ wrp_cmp_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	emit_alu(nfp_prog, reg_none(), reg_a(areg), ALU_OP_SUB, reg_b(breg));
 	emit_alu(nfp_prog, reg_none(),
 		 reg_a(areg + 1), ALU_OP_SUB_C, reg_b(breg + 1));
-	emit_br(nfp_prog, br_mask, insn->off, 0);
+	emit_br(nfp_prog, code->br_mask, insn->off, 0);
 
 	return 0;
 }
@@ -1357,15 +1396,9 @@ static int adjust_head(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 static int
 map_call_stack_common(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	struct bpf_offloaded_map *offmap;
-	struct nfp_bpf_map *nfp_map;
 	bool load_lm_ptr;
 	u32 ret_tgt;
 	s64 lm_off;
-	swreg tid;
-
-	offmap = (struct bpf_offloaded_map *)meta->arg1.map_ptr;
-	nfp_map = offmap->dev_priv;
 
 	/* We only have to reload LM0 if the key is not at start of stack */
 	lm_off = nfp_prog->stack_depth;
@@ -1378,17 +1411,12 @@ map_call_stack_common(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	if (meta->func_id == BPF_FUNC_map_update_elem)
 		emit_csr_wr(nfp_prog, reg_b(3 * 2), NFP_CSR_ACT_LM_ADDR2);
 
-	/* Load map ID into a register, it should actually fit as an immediate
-	 * but in case it doesn't deal with it here, not in the delay slots.
-	 */
-	tid = ur_load_imm_any(nfp_prog, nfp_map->tid, imm_a(nfp_prog));
-
 	emit_br_relo(nfp_prog, BR_UNC, BR_OFF_RELO + meta->func_id,
 		     2, RELO_BR_HELPER);
 	ret_tgt = nfp_prog_current_offset(nfp_prog) + 2;
 
 	/* Load map ID into A0 */
-	wrp_mov(nfp_prog, reg_a(0), tid);
+	wrp_mov(nfp_prog, reg_a(0), reg_a(2));
 
 	/* Load the return address into B0 */
 	wrp_immed_relo(nfp_prog, reg_b(0), ret_tgt, RELO_IMMED_REL);
@@ -1400,7 +1428,7 @@ map_call_stack_common(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	if (!load_lm_ptr)
 		return 0;
 
-	emit_csr_wr(nfp_prog, stack_reg(nfp_prog),  NFP_CSR_ACT_LM_ADDR0);
+	emit_csr_wr(nfp_prog, stack_reg(nfp_prog), NFP_CSR_ACT_LM_ADDR0);
 	wrp_nops(nfp_prog, 3);
 
 	return 0;
@@ -1415,6 +1443,63 @@ nfp_get_prandom_u32(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		   IMMED_WIDTH_ALL, false, IMMED_SHIFT_0B);
 	emit_immed(nfp_prog, reg_both(1), 0,
 		   IMMED_WIDTH_ALL, false, IMMED_SHIFT_0B);
+	return 0;
+}
+
+static int
+nfp_perf_event_output(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	swreg ptr_type;
+	u32 ret_tgt;
+
+	ptr_type = ur_load_imm_any(nfp_prog, meta->arg1.type, imm_a(nfp_prog));
+
+	ret_tgt = nfp_prog_current_offset(nfp_prog) + 3;
+
+	emit_br_relo(nfp_prog, BR_UNC, BR_OFF_RELO + meta->func_id,
+		     2, RELO_BR_HELPER);
+
+	/* Load ptr type into A1 */
+	wrp_mov(nfp_prog, reg_a(1), ptr_type);
+
+	/* Load the return address into B0 */
+	wrp_immed_relo(nfp_prog, reg_b(0), ret_tgt, RELO_IMMED_REL);
+
+	if (!nfp_prog_confirm_current_offset(nfp_prog, ret_tgt))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int
+nfp_queue_select(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	u32 jmp_tgt;
+
+	jmp_tgt = nfp_prog_current_offset(nfp_prog) + 5;
+
+	/* Make sure the queue id fits into FW field */
+	emit_alu(nfp_prog, reg_none(), reg_a(meta->insn.src_reg * 2),
+		 ALU_OP_AND_NOT_B, reg_imm(0xff));
+	emit_br(nfp_prog, BR_BEQ, jmp_tgt, 2);
+
+	/* Set the 'queue selected' bit and the queue value */
+	emit_shf(nfp_prog, pv_qsel_set(nfp_prog),
+		 pv_qsel_set(nfp_prog), SHF_OP_OR, reg_imm(1),
+		 SHF_SC_L_SHF, PKT_VEL_QSEL_SET_BIT);
+	emit_ld_field(nfp_prog,
+		      pv_qsel_val(nfp_prog), 0x1, reg_b(meta->insn.src_reg * 2),
+		      SHF_SC_NONE, 0);
+	/* Delay slots end here, we will jump over next instruction if queue
+	 * value fits into the field.
+	 */
+	emit_ld_field(nfp_prog,
+		      pv_qsel_val(nfp_prog), 0x1, reg_imm(NFP_NET_RXR_MAX),
+		      SHF_SC_NONE, 0);
+
+	if (!nfp_prog_confirm_current_offset(nfp_prog, jmp_tgt))
+		return -EINVAL;
+
 	return 0;
 }
 
@@ -2108,6 +2193,17 @@ mem_stx_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 			    false, wrp_lmem_store);
 }
 
+static int mem_stx_xdp(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	switch (meta->insn.off) {
+	case offsetof(struct xdp_md, rx_queue_index):
+		return nfp_queue_select(nfp_prog, meta);
+	}
+
+	WARN_ON_ONCE(1); /* verifier should have rejected bad accesses */
+	return -EOPNOTSUPP;
+}
+
 static int
 mem_stx(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	unsigned int size)
@@ -2134,6 +2230,9 @@ static int mem_stx2(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int mem_stx4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
+	if (meta->ptr.type == PTR_TO_CTX)
+		if (nfp_prog->type == BPF_PROG_TYPE_XDP)
+			return mem_stx_xdp(nfp_prog, meta);
 	return mem_stx(nfp_prog, meta, 4);
 }
 
@@ -2283,46 +2382,6 @@ static int jeq_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	return 0;
 }
 
-static int jgt_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
-{
-	return wrp_cmp_imm(nfp_prog, meta, BR_BLO, true);
-}
-
-static int jge_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
-{
-	return wrp_cmp_imm(nfp_prog, meta, BR_BHS, false);
-}
-
-static int jlt_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
-{
-	return wrp_cmp_imm(nfp_prog, meta, BR_BLO, false);
-}
-
-static int jle_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
-{
-	return wrp_cmp_imm(nfp_prog, meta, BR_BHS, true);
-}
-
-static int jsgt_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
-{
-	return wrp_cmp_imm(nfp_prog, meta, BR_BLT, true);
-}
-
-static int jsge_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
-{
-	return wrp_cmp_imm(nfp_prog, meta, BR_BGE, false);
-}
-
-static int jslt_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
-{
-	return wrp_cmp_imm(nfp_prog, meta, BR_BLT, false);
-}
-
-static int jsle_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
-{
-	return wrp_cmp_imm(nfp_prog, meta, BR_BGE, true);
-}
-
 static int jset_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
@@ -2392,46 +2451,6 @@ static int jeq_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	return 0;
 }
 
-static int jgt_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
-{
-	return wrp_cmp_reg(nfp_prog, meta, BR_BLO, true);
-}
-
-static int jge_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
-{
-	return wrp_cmp_reg(nfp_prog, meta, BR_BHS, false);
-}
-
-static int jlt_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
-{
-	return wrp_cmp_reg(nfp_prog, meta, BR_BLO, false);
-}
-
-static int jle_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
-{
-	return wrp_cmp_reg(nfp_prog, meta, BR_BHS, true);
-}
-
-static int jsgt_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
-{
-	return wrp_cmp_reg(nfp_prog, meta, BR_BLT, true);
-}
-
-static int jsge_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
-{
-	return wrp_cmp_reg(nfp_prog, meta, BR_BGE, false);
-}
-
-static int jslt_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
-{
-	return wrp_cmp_reg(nfp_prog, meta, BR_BLT, false);
-}
-
-static int jsle_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
-{
-	return wrp_cmp_reg(nfp_prog, meta, BR_BGE, true);
-}
-
 static int jset_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	return wrp_test_reg(nfp_prog, meta, ALU_OP_AND, BR_BNE);
@@ -2453,6 +2472,8 @@ static int call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		return map_call_stack_common(nfp_prog, meta);
 	case BPF_FUNC_get_prandom_u32:
 		return nfp_get_prandom_u32(nfp_prog, meta);
+	case BPF_FUNC_perf_event_output:
+		return nfp_perf_event_output(nfp_prog, meta);
 	default:
 		WARN_ONCE(1, "verifier allowed unsupported function\n");
 		return -EOPNOTSUPP;
@@ -2520,25 +2541,25 @@ static const instr_cb_t instr_cb[256] = {
 	[BPF_ST | BPF_MEM | BPF_DW] =	mem_st8,
 	[BPF_JMP | BPF_JA | BPF_K] =	jump,
 	[BPF_JMP | BPF_JEQ | BPF_K] =	jeq_imm,
-	[BPF_JMP | BPF_JGT | BPF_K] =	jgt_imm,
-	[BPF_JMP | BPF_JGE | BPF_K] =	jge_imm,
-	[BPF_JMP | BPF_JLT | BPF_K] =	jlt_imm,
-	[BPF_JMP | BPF_JLE | BPF_K] =	jle_imm,
-	[BPF_JMP | BPF_JSGT | BPF_K] =  jsgt_imm,
-	[BPF_JMP | BPF_JSGE | BPF_K] =  jsge_imm,
-	[BPF_JMP | BPF_JSLT | BPF_K] =  jslt_imm,
-	[BPF_JMP | BPF_JSLE | BPF_K] =  jsle_imm,
+	[BPF_JMP | BPF_JGT | BPF_K] =	cmp_imm,
+	[BPF_JMP | BPF_JGE | BPF_K] =	cmp_imm,
+	[BPF_JMP | BPF_JLT | BPF_K] =	cmp_imm,
+	[BPF_JMP | BPF_JLE | BPF_K] =	cmp_imm,
+	[BPF_JMP | BPF_JSGT | BPF_K] =  cmp_imm,
+	[BPF_JMP | BPF_JSGE | BPF_K] =  cmp_imm,
+	[BPF_JMP | BPF_JSLT | BPF_K] =  cmp_imm,
+	[BPF_JMP | BPF_JSLE | BPF_K] =  cmp_imm,
 	[BPF_JMP | BPF_JSET | BPF_K] =	jset_imm,
 	[BPF_JMP | BPF_JNE | BPF_K] =	jne_imm,
 	[BPF_JMP | BPF_JEQ | BPF_X] =	jeq_reg,
-	[BPF_JMP | BPF_JGT | BPF_X] =	jgt_reg,
-	[BPF_JMP | BPF_JGE | BPF_X] =	jge_reg,
-	[BPF_JMP | BPF_JLT | BPF_X] =	jlt_reg,
-	[BPF_JMP | BPF_JLE | BPF_X] =	jle_reg,
-	[BPF_JMP | BPF_JSGT | BPF_X] =  jsgt_reg,
-	[BPF_JMP | BPF_JSGE | BPF_X] =  jsge_reg,
-	[BPF_JMP | BPF_JSLT | BPF_X] =  jslt_reg,
-	[BPF_JMP | BPF_JSLE | BPF_X] =  jsle_reg,
+	[BPF_JMP | BPF_JGT | BPF_X] =	cmp_reg,
+	[BPF_JMP | BPF_JGE | BPF_X] =	cmp_reg,
+	[BPF_JMP | BPF_JLT | BPF_X] =	cmp_reg,
+	[BPF_JMP | BPF_JLE | BPF_X] =	cmp_reg,
+	[BPF_JMP | BPF_JSGT | BPF_X] =  cmp_reg,
+	[BPF_JMP | BPF_JSGE | BPF_X] =  cmp_reg,
+	[BPF_JMP | BPF_JSLT | BPF_X] =  cmp_reg,
+	[BPF_JMP | BPF_JSLE | BPF_X] =  cmp_reg,
 	[BPF_JMP | BPF_JSET | BPF_X] =	jset_reg,
 	[BPF_JMP | BPF_JNE | BPF_X] =	jne_reg,
 	[BPF_JMP | BPF_CALL] =		call,
@@ -2774,6 +2795,54 @@ static void nfp_bpf_opt_reg_init(struct nfp_prog *nfp_prog)
 		/* Return as soon as something doesn't match */
 		if (!meta->skip)
 			return;
+	}
+}
+
+/* abs(insn.imm) will fit better into unrestricted reg immediate -
+ * convert add/sub of a negative number into a sub/add of a positive one.
+ */
+static void nfp_bpf_opt_neg_add_sub(struct nfp_prog *nfp_prog)
+{
+	struct nfp_insn_meta *meta;
+
+	list_for_each_entry(meta, &nfp_prog->insns, l) {
+		struct bpf_insn insn = meta->insn;
+
+		if (meta->skip)
+			continue;
+
+		if (BPF_CLASS(insn.code) != BPF_ALU &&
+		    BPF_CLASS(insn.code) != BPF_ALU64 &&
+		    BPF_CLASS(insn.code) != BPF_JMP)
+			continue;
+		if (BPF_SRC(insn.code) != BPF_K)
+			continue;
+		if (insn.imm >= 0)
+			continue;
+
+		if (BPF_CLASS(insn.code) == BPF_JMP) {
+			switch (BPF_OP(insn.code)) {
+			case BPF_JGE:
+			case BPF_JSGE:
+			case BPF_JLT:
+			case BPF_JSLT:
+				meta->jump_neg_op = true;
+				break;
+			default:
+				continue;
+			}
+		} else {
+			if (BPF_OP(insn.code) == BPF_ADD)
+				insn.code = BPF_CLASS(insn.code) | BPF_SUB;
+			else if (BPF_OP(insn.code) == BPF_SUB)
+				insn.code = BPF_CLASS(insn.code) | BPF_ADD;
+			else
+				continue;
+
+			meta->insn.code = insn.code | BPF_K;
+		}
+
+		meta->insn.imm = -insn.imm;
 	}
 }
 
@@ -3212,10 +3281,38 @@ static int nfp_bpf_optimize(struct nfp_prog *nfp_prog)
 {
 	nfp_bpf_opt_reg_init(nfp_prog);
 
+	nfp_bpf_opt_neg_add_sub(nfp_prog);
 	nfp_bpf_opt_ld_mask(nfp_prog);
 	nfp_bpf_opt_ld_shift(nfp_prog);
 	nfp_bpf_opt_ldst_gather(nfp_prog);
 	nfp_bpf_opt_pkt_cache(nfp_prog);
+
+	return 0;
+}
+
+static int nfp_bpf_replace_map_ptrs(struct nfp_prog *nfp_prog)
+{
+	struct nfp_insn_meta *meta1, *meta2;
+	struct nfp_bpf_map *nfp_map;
+	struct bpf_map *map;
+
+	nfp_for_each_insn_walk2(nfp_prog, meta1, meta2) {
+		if (meta1->skip || meta2->skip)
+			continue;
+
+		if (meta1->insn.code != (BPF_LD | BPF_IMM | BPF_DW) ||
+		    meta1->insn.src_reg != BPF_PSEUDO_MAP_FD)
+			continue;
+
+		map = (void *)(unsigned long)((u32)meta1->insn.imm |
+					      (u64)meta2->insn.imm << 32);
+		if (bpf_map_offload_neutral(map))
+			continue;
+		nfp_map = map_to_offmap(map)->dev_priv;
+
+		meta1->insn.imm = nfp_map->tid;
+		meta2->insn.imm = 0;
+	}
 
 	return 0;
 }
@@ -3255,6 +3352,10 @@ static void nfp_bpf_prog_trim(struct nfp_prog *nfp_prog)
 int nfp_bpf_jit(struct nfp_prog *nfp_prog)
 {
 	int ret;
+
+	ret = nfp_bpf_replace_map_ptrs(nfp_prog);
+	if (ret)
+		return ret;
 
 	ret = nfp_bpf_optimize(nfp_prog);
 	if (ret)
@@ -3345,6 +3446,9 @@ void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv)
 				break;
 			case BPF_FUNC_map_delete_elem:
 				val = nfp_prog->bpf->helpers.map_delete;
+				break;
+			case BPF_FUNC_perf_event_output:
+				val = nfp_prog->bpf->helpers.perf_event_output;
 				break;
 			default:
 				pr_err("relocation of unknown helper %d\n",

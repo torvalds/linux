@@ -33,13 +33,12 @@ static inline void tlbiel_radix_set_isa300(unsigned int set, unsigned int is,
 {
 	unsigned long rb;
 	unsigned long rs;
-	unsigned int r = 1; /* radix format */
 
 	rb = (set << PPC_BITLSHIFT(51)) | (is << PPC_BITLSHIFT(53));
 	rs = ((unsigned long)pid << PPC_BITLSHIFT(31));
 
-	asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4)
-		     : : "r"(rb), "r"(rs), "i"(ric), "i"(prs), "r"(r)
+	asm volatile(PPC_TLBIEL(%0, %1, %2, %3, 1)
+		     : : "r"(rb), "r"(rs), "i"(ric), "i"(prs)
 		     : "memory");
 }
 

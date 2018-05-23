@@ -967,6 +967,14 @@ static void volume_control_quirks(struct usb_mixer_elem_info *cval,
 		}
 		break;
 
+	case USB_ID(0x0d8c, 0x0103):
+		if (!strcmp(kctl->id.name, "PCM Playback Volume")) {
+			usb_audio_info(chip,
+				 "set volume quirk for CM102-A+/102S+\n");
+			cval->min = -256;
+		}
+		break;
+
 	case USB_ID(0x0471, 0x0101):
 	case USB_ID(0x0471, 0x0104):
 	case USB_ID(0x0471, 0x0105):
@@ -1776,7 +1784,8 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid,
 				build_feature_ctl(state, _ftr, ch_bits, control,
 						  &iterm, unitid, ch_read_only);
 			if (uac_v2v3_control_is_readable(master_bits, control))
-				build_feature_ctl(state, _ftr, 0, i, &iterm, unitid,
+				build_feature_ctl(state, _ftr, 0, control,
+						  &iterm, unitid,
 						  !uac_v2v3_control_is_writeable(master_bits,
 										 control));
 		}
@@ -1859,7 +1868,7 @@ static int parse_audio_input_terminal(struct mixer_build *state, int unitid,
 	check_input_term(state, d->bTerminalID, &iterm);
 	if (state->mixer->protocol == UAC_VERSION_2) {
 		/* Check for jack detection. */
-		if (uac_v2v3_control_is_readable(d->bmControls,
+		if (uac_v2v3_control_is_readable(le16_to_cpu(d->bmControls),
 						 UAC2_TE_CONNECTOR)) {
 			build_connector_control(state, &iterm, true);
 		}
@@ -2561,7 +2570,7 @@ static int snd_usb_mixer_controls(struct usb_mixer_interface *mixer)
 			if (err < 0 && err != -EINVAL)
 				return err;
 
-			if (uac_v2v3_control_is_readable(desc->bmControls,
+			if (uac_v2v3_control_is_readable(le16_to_cpu(desc->bmControls),
 							 UAC2_TE_CONNECTOR)) {
 				build_connector_control(&state, &state.oterm,
 							false);

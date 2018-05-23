@@ -2823,6 +2823,11 @@ enum bt_ant_num {
 	ANT_X1 = 1,
 };
 
+enum bt_ant_path {
+	ANT_MAIN = 0,
+	ANT_AUX = 1,
+};
+
 enum bt_co_type {
 	BT_2WIRE = 0,
 	BT_ISSC_3WIRE = 1,
@@ -2835,11 +2840,6 @@ enum bt_co_type {
 	BT_RTL8723B = 8,
 	BT_RTL8192E = 9,
 	BT_RTL8812A = 11,
-};
-
-enum bt_total_ant_num {
-	ANT_TOTAL_X2 = 0,
-	ANT_TOTAL_X1 = 1
 };
 
 enum bt_cur_state {

@@ -52,8 +52,6 @@
 
 #define NFP_FLOWER_ALLOWED_VER 0x0001000000010000UL
 
-#define NFP_FLOWER_FRAME_HEADROOM	158
-
 static const char *nfp_flower_extra_cap(struct nfp_app *app, struct nfp_net *nn)
 {
 	return "FLOWER";
@@ -249,12 +247,16 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 			err = -ENOMEM;
 			goto err_reprs_clean;
 		}
-		RCU_INIT_POINTER(reprs->reprs[i], repr);
 
 		/* For now we only support 1 PF */
 		WARN_ON(repr_type == NFP_REPR_TYPE_PF && i);
 
 		port = nfp_port_alloc(app, port_type, repr);
+		if (IS_ERR(port)) {
+			err = PTR_ERR(port);
+			nfp_repr_free(repr);
+			goto err_reprs_clean;
+		}
 		if (repr_type == NFP_REPR_TYPE_PF) {
 			port->pf_id = i;
 			port->vnic = priv->nn->dp.ctrl_bar;
@@ -273,9 +275,11 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 				    port_id, port, priv->nn->dp.netdev);
 		if (err) {
 			nfp_port_free(port);
+			nfp_repr_free(repr);
 			goto err_reprs_clean;
 		}
 
+		RCU_INIT_POINTER(reprs->reprs[i], repr);
 		nfp_info(app->cpp, "%s%d Representor(%s) created\n",
 			 repr_type == NFP_REPR_TYPE_PF ? "PF" : "VF", i,
 			 repr->name);
@@ -346,27 +350,29 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 			err = -ENOMEM;
 			goto err_reprs_clean;
 		}
-		RCU_INIT_POINTER(reprs->reprs[phys_port], repr);
 
 		port = nfp_port_alloc(app, NFP_PORT_PHYS_PORT, repr);
 		if (IS_ERR(port)) {
 			err = PTR_ERR(port);
+			nfp_repr_free(repr);
 			goto err_reprs_clean;
 		}
 		err = nfp_port_init_phy_port(app->pf, app, port, i);
 		if (err) {
 			nfp_port_free(port);
+			nfp_repr_free(repr);
 			goto err_reprs_clean;
 		}
 
 		SET_NETDEV_DEV(repr, &priv->nn->pdev->dev);
-		nfp_net_get_mac_addr(app->pf, port);
+		nfp_net_get_mac_addr(app->pf, repr, port);
 
 		cmsg_port_id = nfp_flower_cmsg_phys_port(phys_port);
 		err = nfp_repr_init(app, repr,
 				    cmsg_port_id, port, priv->nn->dp.netdev);
 		if (err) {
 			nfp_port_free(port);
+			nfp_repr_free(repr);
 			goto err_reprs_clean;
 		}
 
@@ -375,6 +381,7 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 					     eth_tbl->ports[i].base,
 					     phys_port);
 
+		RCU_INIT_POINTER(reprs->reprs[phys_port], repr);
 		nfp_info(app->cpp, "Phys Port %d Representor(%s) created\n",
 			 phys_port, repr->name);
 	}
@@ -519,7 +526,8 @@ static int nfp_flower_init(struct nfp_app *app)
 
 	app->priv = app_priv;
 	app_priv->app = app;
-	skb_queue_head_init(&app_priv->cmsg_skbs);
+	skb_queue_head_init(&app_priv->cmsg_skbs_high);
+	skb_queue_head_init(&app_priv->cmsg_skbs_low);
 	INIT_WORK(&app_priv->cmsg_work, nfp_flower_cmsg_process_rx);
 	init_waitqueue_head(&app_priv->reify_wait_queue);
 
@@ -549,28 +557,13 @@ static void nfp_flower_clean(struct nfp_app *app)
 {
 	struct nfp_flower_priv *app_priv = app->priv;
 
-	skb_queue_purge(&app_priv->cmsg_skbs);
+	skb_queue_purge(&app_priv->cmsg_skbs_high);
+	skb_queue_purge(&app_priv->cmsg_skbs_low);
 	flush_work(&app_priv->cmsg_work);
 
 	nfp_flower_metadata_cleanup(app);
 	vfree(app->priv);
 	app->priv = NULL;
-}
-
-static int
-nfp_flower_check_mtu(struct nfp_app *app, struct net_device *netdev,
-		     int new_mtu)
-{
-	/* The flower fw reserves NFP_FLOWER_FRAME_HEADROOM bytes of the
-	 * supported max MTU to allow for appending tunnel headers. To prevent
-	 * unexpected behaviour this needs to be accounted for.
-	 */
-	if (new_mtu > netdev->max_mtu - NFP_FLOWER_FRAME_HEADROOM) {
-		nfp_err(app->cpp, "New MTU (%d) is not valid\n", new_mtu);
-		return -EINVAL;
-	}
-
-	return 0;
 }
 
 static bool nfp_flower_check_ack(struct nfp_flower_priv *app_priv)
@@ -654,7 +647,6 @@ const struct nfp_app_type app_flower = {
 	.init		= nfp_flower_init,
 	.clean		= nfp_flower_clean,
 
-	.check_mtu	= nfp_flower_check_mtu,
 	.repr_change_mtu  = nfp_flower_repr_change_mtu,
 
 	.vnic_alloc	= nfp_flower_vnic_alloc,

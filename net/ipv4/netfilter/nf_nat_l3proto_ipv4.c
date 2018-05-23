@@ -63,7 +63,7 @@ static void nf_nat_ipv4_decode_session(struct sk_buff *skb,
 #endif /* CONFIG_XFRM */
 
 static bool nf_nat_ipv4_in_range(const struct nf_conntrack_tuple *t,
-				 const struct nf_nat_range *range)
+				 const struct nf_nat_range2 *range)
 {
 	return ntohl(t->src.u3.ip) >= ntohl(range->min_addr.ip) &&
 	       ntohl(t->src.u3.ip) <= ntohl(range->max_addr.ip);
@@ -143,7 +143,7 @@ static void nf_nat_ipv4_csum_recalc(struct sk_buff *skb,
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 static int nf_nat_ipv4_nlattr_to_range(struct nlattr *tb[],
-				       struct nf_nat_range *range)
+				       struct nf_nat_range2 *range)
 {
 	if (tb[CTA_NAT_V4_MINIP]) {
 		range->min_addr.ip = nla_get_be32(tb[CTA_NAT_V4_MINIP]);
@@ -246,8 +246,7 @@ nf_nat_ipv4_fn(void *priv, struct sk_buff *skb,
 	       const struct nf_hook_state *state,
 	       unsigned int (*do_chain)(void *priv,
 					struct sk_buff *skb,
-					const struct nf_hook_state *state,
-					struct nf_conn *ct))
+					const struct nf_hook_state *state))
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
@@ -285,7 +284,7 @@ nf_nat_ipv4_fn(void *priv, struct sk_buff *skb,
 		if (!nf_nat_initialized(ct, maniptype)) {
 			unsigned int ret;
 
-			ret = do_chain(priv, skb, state, ct);
+			ret = do_chain(priv, skb, state);
 			if (ret != NF_ACCEPT)
 				return ret;
 
@@ -326,8 +325,7 @@ nf_nat_ipv4_in(void *priv, struct sk_buff *skb,
 	       const struct nf_hook_state *state,
 	       unsigned int (*do_chain)(void *priv,
 					 struct sk_buff *skb,
-					 const struct nf_hook_state *state,
-					 struct nf_conn *ct))
+					 const struct nf_hook_state *state))
 {
 	unsigned int ret;
 	__be32 daddr = ip_hdr(skb)->daddr;
@@ -346,8 +344,7 @@ nf_nat_ipv4_out(void *priv, struct sk_buff *skb,
 		const struct nf_hook_state *state,
 		unsigned int (*do_chain)(void *priv,
 					  struct sk_buff *skb,
-					  const struct nf_hook_state *state,
-					  struct nf_conn *ct))
+					  const struct nf_hook_state *state))
 {
 #ifdef CONFIG_XFRM
 	const struct nf_conn *ct;
@@ -383,8 +380,7 @@ nf_nat_ipv4_local_fn(void *priv, struct sk_buff *skb,
 		     const struct nf_hook_state *state,
 		     unsigned int (*do_chain)(void *priv,
 					       struct sk_buff *skb,
-					       const struct nf_hook_state *state,
-					       struct nf_conn *ct))
+					       const struct nf_hook_state *state))
 {
 	const struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;

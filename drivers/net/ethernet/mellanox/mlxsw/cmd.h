@@ -424,9 +424,14 @@ MLXSW_ITEM32(cmd_mbox, query_aq_cap, log_max_rdq_sz, 0x04, 24, 8);
 MLXSW_ITEM32(cmd_mbox, query_aq_cap, max_num_rdqs, 0x04, 0, 8);
 
 /* cmd_mbox_query_aq_cap_log_max_cq_sz
- * Log (base 2) of max CQEs allowed on CQ.
+ * Log (base 2) of the Maximum CQEs allowed in a CQ for CQEv0 and CQEv1.
  */
 MLXSW_ITEM32(cmd_mbox, query_aq_cap, log_max_cq_sz, 0x08, 24, 8);
+
+/* cmd_mbox_query_aq_cap_log_max_cqv2_sz
+ * Log (base 2) of the Maximum CQEs allowed in a CQ for CQEv2.
+ */
+MLXSW_ITEM32(cmd_mbox, query_aq_cap, log_max_cqv2_sz, 0x08, 16, 8);
 
 /* cmd_mbox_query_aq_cap_max_num_cqs
  * Maximum number of CQs.
@@ -662,6 +667,12 @@ MLXSW_ITEM32(cmd_mbox, config_profile, set_kvd_hash_single_size, 0x0C, 25, 1);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_kvd_hash_double_size, 0x0C, 26, 1);
 
+/* cmd_mbox_config_set_cqe_version
+ * Capability bit. Setting a bit to 1 configures the profile
+ * according to the mailbox contents.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, set_cqe_version, 0x08, 0, 1);
+
 /* cmd_mbox_config_profile_max_vepa_channels
  * Maximum number of VEPA channels per port (0 through 16)
  * 0 - multi-channel VEPA is disabled
@@ -840,6 +851,14 @@ MLXSW_ITEM32_INDEXED(cmd_mbox, config_profile, swid_config_type,
  */
 MLXSW_ITEM32_INDEXED(cmd_mbox, config_profile, swid_config_properties,
 		     0x60, 0, 8, 0x08, 0x00, false);
+
+/* cmd_mbox_config_profile_cqe_version
+ * CQE version:
+ * 0: CQE version is 0
+ * 1: CQE version is either 1 or 2
+ * CQE ver 1 or 2 is configured by Completion Queue Context field cqe_ver.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, cqe_version, 0xB0, 0, 8);
 
 /* ACCESS_REG - Access EMAD Supported Register
  * ----------------------------------
@@ -1032,11 +1051,15 @@ static inline int mlxsw_cmd_sw2hw_cq(struct mlxsw_core *mlxsw_core,
 				 0, cq_number, in_mbox, MLXSW_CMD_MBOX_SIZE);
 }
 
-/* cmd_mbox_sw2hw_cq_cv
+enum mlxsw_cmd_mbox_sw2hw_cq_cqe_ver {
+	MLXSW_CMD_MBOX_SW2HW_CQ_CQE_VER_1,
+	MLXSW_CMD_MBOX_SW2HW_CQ_CQE_VER_2,
+};
+
+/* cmd_mbox_sw2hw_cq_cqe_ver
  * CQE Version.
- * 0 - CQE Version 0, 1 - CQE Version 1
  */
-MLXSW_ITEM32(cmd_mbox, sw2hw_cq, cv, 0x00, 28, 4);
+MLXSW_ITEM32(cmd_mbox, sw2hw_cq, cqe_ver, 0x00, 28, 4);
 
 /* cmd_mbox_sw2hw_cq_c_eqn
  * Event Queue this CQ reports completion events to.

@@ -18,13 +18,21 @@ struct ovl_config {
 	const char *redirect_mode;
 	bool index;
 	bool nfs_export;
+	int xino;
+};
+
+struct ovl_sb {
+	struct super_block *sb;
+	dev_t pseudo_dev;
 };
 
 struct ovl_layer {
 	struct vfsmount *mnt;
-	dev_t pseudo_dev;
-	/* Index of this layer in fs root (upper == 0) */
+	struct ovl_sb *fs;
+	/* Index of this layer in fs root (upper idx == 0) */
 	int idx;
+	/* One fsid per unique underlying sb (upper fsid == 0) */
+	int fsid;
 };
 
 struct ovl_path {
@@ -35,8 +43,11 @@ struct ovl_path {
 /* private information held for overlayfs's superblock */
 struct ovl_fs {
 	struct vfsmount *upper_mnt;
-	unsigned numlower;
+	unsigned int numlower;
+	/* Number of unique lower sb that differ from upper sb */
+	unsigned int numlowerfs;
 	struct ovl_layer *lower_layers;
+	struct ovl_sb *lower_fs;
 	/* workbasedir is the path at workdir= mount option */
 	struct dentry *workbasedir;
 	/* workdir is the 'work' directory under workbasedir */
@@ -50,11 +61,11 @@ struct ovl_fs {
 	const struct cred *creator_cred;
 	bool tmpfile;
 	bool noxattr;
-	/* sb common to all layers */
-	struct super_block *same_sb;
 	/* Did we take the inuse lock? */
 	bool upperdir_locked;
 	bool workdir_locked;
+	/* Inode numbers in all layers do not use the high xino_bits */
+	unsigned int xino_bits;
 };
 
 /* private information held for every overlayfs dentry */

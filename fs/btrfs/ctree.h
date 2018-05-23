@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2007 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
-#ifndef __BTRFS_CTREE__
-#define __BTRFS_CTREE__
+#ifndef BTRFS_CTREE_H
+#define BTRFS_CTREE_H
 
 #include <linux/mm.h>
 #include <linux/sched/signal.h>
@@ -472,6 +459,25 @@ struct btrfs_block_rsv {
 	unsigned short full;
 	unsigned short type;
 	unsigned short failfast;
+
+	/*
+	 * Qgroup equivalent for @size @reserved
+	 *
+	 * Unlike normal @size/@reserved for inode rsv, qgroup doesn't care
+	 * about things like csum size nor how many tree blocks it will need to
+	 * reserve.
+	 *
+	 * Qgroup cares more about net change of the extent usage.
+	 *
+	 * So for one newly inserted file extent, in worst case it will cause
+	 * leaf split and level increase, nodesize for each file extent is
+	 * already too much.
+	 *
+	 * In short, qgroup_size/reserved is the upper limit of possible needed
+	 * qgroup metadata reservation.
+	 */
+	u64 qgroup_rsv_size;
+	u64 qgroup_rsv_reserved;
 };
 
 /*
@@ -726,6 +732,12 @@ struct btrfs_delayed_root;
  * (device replace, resize, device add/delete, balance)
  */
 #define BTRFS_FS_EXCL_OP			16
+
+/*
+ * To info transaction_kthread we need an immediate commit so it doesn't
+ * need to wait for commit_interval
+ */
+#define BTRFS_FS_NEED_ASYNC_COMMIT		17
 
 struct btrfs_fs_info {
 	u8 fsid[BTRFS_FSID_SIZE];
@@ -3170,6 +3182,8 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 			      u64 *orig_start, u64 *orig_block_len,
 			      u64 *ram_bytes);
 
+void __btrfs_del_delalloc_inode(struct btrfs_root *root,
+				struct btrfs_inode *inode);
 struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry);
 int btrfs_set_inode_index(struct btrfs_inode *dir, u64 *index);
 int btrfs_unlink_inode(struct btrfs_trans_handle *trans,
@@ -3752,4 +3766,5 @@ static inline int btrfs_is_testing(struct btrfs_fs_info *fs_info)
 #endif
 	return 0;
 }
+
 #endif

@@ -127,7 +127,7 @@
 #define FEATURE_GFX_EDC_MASK            (1 << FEATURE_GFX_EDC_BIT            )
 #define FEATURE_GFXOFF_MASK             (1 << FEATURE_GFXOFF_BIT             )
 #define FEATURE_CG_MASK                 (1 << FEATURE_CG_BIT                 )
-#define FEATURE_ACG_MASK                (1 << FEATURE_ACG_BIT                )
+#define FEATURE_ACG_MASK          (1 << FEATURE_ACG_BIT)
 #define FEATURE_SPARE_29_MASK           (1 << FEATURE_SPARE_29_BIT           )
 #define FEATURE_SPARE_30_MASK           (1 << FEATURE_SPARE_30_BIT           )
 #define FEATURE_SPARE_31_MASK           (1 << FEATURE_SPARE_31_BIT           )
@@ -412,8 +412,10 @@ typedef struct {
   QuadraticInt_t    ReservedEquation2;
   QuadraticInt_t    ReservedEquation3;
 
+	uint16_t     MinVoltageUlvGfx;
+	uint16_t     MinVoltageUlvSoc;
 
-  uint32_t     Reserved[15];
+	uint32_t     Reserved[14];
 
 
 
@@ -481,9 +483,9 @@ typedef struct {
   uint8_t      padding8_4;
 
 
-  uint8_t      GfxclkSpreadEnabled;
-  uint8_t      GfxclkSpreadPercent;
-  uint16_t     GfxclkSpreadFreq;
+	uint8_t      PllGfxclkSpreadEnabled;
+	uint8_t      PllGfxclkSpreadPercent;
+	uint16_t     PllGfxclkSpreadFreq;
 
   uint8_t      UclkSpreadEnabled;
   uint8_t      UclkSpreadPercent;
@@ -493,7 +495,11 @@ typedef struct {
   uint8_t      SocclkSpreadPercent;
   uint16_t     SocclkSpreadFreq;
 
-  uint32_t     BoardReserved[3];
+	uint8_t      AcgGfxclkSpreadEnabled;
+	uint8_t      AcgGfxclkSpreadPercent;
+	uint16_t     AcgGfxclkSpreadFreq;
+
+	uint32_t     BoardReserved[10];
 
 
   uint32_t     MmHubPadding[7];

@@ -348,10 +348,15 @@ err_clean:
 	return err;
 }
 
-static void nfp_repr_free(struct nfp_repr *repr)
+static void __nfp_repr_free(struct nfp_repr *repr)
 {
 	free_percpu(repr->stats);
 	free_netdev(repr->netdev);
+}
+
+void nfp_repr_free(struct net_device *netdev)
+{
+	__nfp_repr_free(netdev_priv(netdev));
 }
 
 struct net_device *nfp_repr_alloc(struct nfp_app *app)
@@ -385,7 +390,7 @@ static void nfp_repr_clean_and_free(struct nfp_repr *repr)
 	nfp_info(repr->app->cpp, "Destroying Representor(%s)\n",
 		 repr->netdev->name);
 	nfp_repr_clean(repr);
-	nfp_repr_free(repr);
+	__nfp_repr_free(repr);
 }
 
 void nfp_reprs_clean_and_free(struct nfp_app *app, struct nfp_reprs *reprs)

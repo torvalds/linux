@@ -193,6 +193,12 @@ struct compat_shmid64_ds {
 };
 
 /*
+ * The type of struct elf_prstatus.pr_reg in compatible core dumps.
+ */
+#define COMPAT_ELF_NGREG 80
+typedef compat_ulong_t compat_elf_gregset_t[COMPAT_ELF_NGREG];
+
+/*
  * A pointer passed in from user mode. This should not
  * be used for syscall parameters, just declare them
  * as pointers because the syscall entry code will have

@@ -39,6 +39,7 @@
 #define	DWMAC_CORE_3_40	0x34
 #define	DWMAC_CORE_3_50	0x35
 #define	DWMAC_CORE_4_00	0x40
+#define DWMAC_CORE_4_10	0x41
 #define DWMAC_CORE_5_00 0x50
 #define DWMAC_CORE_5_10 0x51
 #define STMMAC_CHAN0	0	/* Always supported and default for all chips */
@@ -352,6 +353,10 @@ struct dma_features {
 	unsigned int rx_fifo_size;
 	/* Automotive Safety Package */
 	unsigned int asp;
+	/* RX Parser */
+	unsigned int frpsel;
+	unsigned int frpbs;
+	unsigned int frpes;
 };
 
 /* GMAC TX FIFO is 8K, Rx FIFO is 16K */
@@ -411,6 +416,7 @@ struct mac_device_info {
 	const struct stmmac_dma_ops *dma;
 	const struct stmmac_mode_ops *mode;
 	const struct stmmac_hwtimestamp *ptp;
+	const struct stmmac_tc_ops *tc;
 	struct mii_regs mii;	/* MII register Addresses */
 	struct mac_link link;
 	void __iomem *pcsr;     /* vpointer to device CSRs */
@@ -428,12 +434,9 @@ struct stmmac_rx_routing {
 	u32 reg_shift;
 };
 
-struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr, int mcbins,
-					int perfect_uc_entries,
-					int *synopsys_id);
-struct mac_device_info *dwmac100_setup(void __iomem *ioaddr, int *synopsys_id);
-struct mac_device_info *dwmac4_setup(void __iomem *ioaddr, int mcbins,
-				     int perfect_uc_entries, int *synopsys_id);
+int dwmac100_setup(struct stmmac_priv *priv);
+int dwmac1000_setup(struct stmmac_priv *priv);
+int dwmac4_setup(struct stmmac_priv *priv);
 
 void stmmac_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
 			 unsigned int high, unsigned int low);
@@ -453,24 +456,4 @@ extern const struct stmmac_mode_ops ring_mode_ops;
 extern const struct stmmac_mode_ops chain_mode_ops;
 extern const struct stmmac_desc_ops dwmac4_desc_ops;
 
-/**
- * stmmac_get_synopsys_id - return the SYINID.
- * @priv: driver private structure
- * Description: this simple function is to decode and return the SYINID
- * starting from the HW core register.
- */
-static inline u32 stmmac_get_synopsys_id(u32 hwid)
-{
-	/* Check Synopsys Id (not available on old chips) */
-	if (likely(hwid)) {
-		u32 uid = ((hwid & 0x0000ff00) >> 8);
-		u32 synid = (hwid & 0x000000ff);
-
-		pr_info("stmmac - user ID: 0x%x, Synopsys ID: 0x%x\n",
-			uid, synid);
-
-		return synid;
-	}
-	return 0;
-}
 #endif /* __COMMON_H__ */

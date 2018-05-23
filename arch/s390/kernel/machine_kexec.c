@@ -20,7 +20,6 @@
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/smp.h>
-#include <asm/reset.h>
 #include <asm/ipl.h>
 #include <asm/diag.h>
 #include <asm/elf.h>
@@ -253,6 +252,7 @@ void machine_shutdown(void)
 
 void machine_crash_shutdown(struct pt_regs *regs)
 {
+	set_os_info_reipl_block();
 }
 
 /*

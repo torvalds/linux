@@ -1508,7 +1508,8 @@ static int qede_selftest_receive_traffic(struct qede_dev *edev)
 		len =  le16_to_cpu(fp_cqe->len_on_first_bd);
 		data_ptr = (u8 *)(page_address(sw_rx_data->data) +
 				  fp_cqe->placement_offset +
-				  sw_rx_data->page_offset);
+				  sw_rx_data->page_offset +
+				  rxq->rx_headroom);
 		if (ether_addr_equal(data_ptr,  edev->ndev->dev_addr) &&
 		    ether_addr_equal(data_ptr + ETH_ALEN,
 				     edev->ndev->dev_addr)) {

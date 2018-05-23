@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2011 Fujitsu.  All rights reserved.
  * Written by Miao Xie <miaox@cn.fujitsu.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/slab.h>
@@ -569,6 +556,12 @@ static int btrfs_delayed_item_reserve_metadata(struct btrfs_trans_handle *trans,
 	dst_rsv = &fs_info->delayed_block_rsv;
 
 	num_bytes = btrfs_calc_trans_metadata_size(fs_info, 1);
+
+	/*
+	 * Here we migrate space rsv from transaction rsv, since have already
+	 * reserved space when starting a transaction.  So no need to reserve
+	 * qgroup space here.
+	 */
 	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes, 1);
 	if (!ret) {
 		trace_btrfs_space_reservation(fs_info, "delayed_item",
@@ -590,7 +583,10 @@ static void btrfs_delayed_item_release_metadata(struct btrfs_root *root,
 		return;
 
 	rsv = &fs_info->delayed_block_rsv;
-	btrfs_qgroup_convert_reserved_meta(root, item->bytes_reserved);
+	/*
+	 * Check btrfs_delayed_item_reserve_metadata() to see why we don't need
+	 * to release/reserve qgroup space.
+	 */
 	trace_btrfs_space_reservation(fs_info, "delayed_item",
 				      item->key.objectid, item->bytes_reserved,
 				      0);
@@ -615,9 +611,6 @@ static int btrfs_delayed_inode_reserve_metadata(
 
 	num_bytes = btrfs_calc_trans_metadata_size(fs_info, 1);
 
-	ret = btrfs_qgroup_reserve_meta_prealloc(root, num_bytes, true);
-	if (ret < 0)
-		return ret;
 	/*
 	 * btrfs_dirty_inode will update the inode under btrfs_join_transaction
 	 * which doesn't reserve space for speed.  This is a problem since we
@@ -629,6 +622,10 @@ static int btrfs_delayed_inode_reserve_metadata(
 	 */
 	if (!src_rsv || (!trans->bytes_reserved &&
 			 src_rsv->type != BTRFS_BLOCK_RSV_DELALLOC)) {
+		ret = btrfs_qgroup_reserve_meta_prealloc(root,
+				fs_info->nodesize, true);
+		if (ret < 0)
+			return ret;
 		ret = btrfs_block_rsv_add(root, dst_rsv, num_bytes,
 					  BTRFS_RESERVE_NO_FLUSH);
 		/*
@@ -647,6 +644,8 @@ static int btrfs_delayed_inode_reserve_metadata(
 						      "delayed_inode",
 						      btrfs_ino(inode),
 						      num_bytes, 1);
+		} else {
+			btrfs_qgroup_free_meta_prealloc(root, fs_info->nodesize);
 		}
 		return ret;
 	}

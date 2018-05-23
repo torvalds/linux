@@ -1598,6 +1598,10 @@
 #define VNIC_V(x) ((x) << VNIC_S)
 #define VNIC_F    VNIC_V(1U)
 
+#define USE_ENC_IDX_S		13
+#define USE_ENC_IDX_V(x)	((x) << USE_ENC_IDX_S)
+#define USE_ENC_IDX_F		USE_ENC_IDX_V(1U)
+
 #define CSUM_HAS_PSEUDO_HDR_S    10
 #define CSUM_HAS_PSEUDO_HDR_V(x) ((x) << CSUM_HAS_PSEUDO_HDR_S)
 #define CSUM_HAS_PSEUDO_HDR_F    CSUM_HAS_PSEUDO_HDR_V(1U)
@@ -2995,6 +2999,7 @@
 #define LE_DB_HASH_TID_BASE_A 0x19c30
 #define LE_DB_HASH_TBL_BASE_ADDR_A 0x19c30
 #define LE_DB_INT_CAUSE_A 0x19c3c
+#define LE_DB_CLCAM_TID_BASE_A 0x19df4
 #define LE_DB_TID_HASHBASE_A 0x19df8
 #define T6_LE_DB_HASH_TID_BASE_A 0x19df8
 

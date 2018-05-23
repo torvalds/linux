@@ -566,10 +566,35 @@ void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *))
 #endif
 
 #ifdef CONFIG_NMI_IPI
-static void stop_this_cpu(struct pt_regs *regs)
-#else
+static void nmi_stop_this_cpu(struct pt_regs *regs)
+{
+	/*
+	 * This is a special case because it never returns, so the NMI IPI
+	 * handling would never mark it as done, which makes any later
+	 * smp_send_nmi_ipi() call spin forever. Mark it done now.
+	 *
+	 * IRQs are already hard disabled by the smp_handle_nmi_ipi.
+	 */
+	nmi_ipi_lock();
+	nmi_ipi_busy_count--;
+	nmi_ipi_unlock();
+
+	/* Remove this CPU */
+	set_cpu_online(smp_processor_id(), false);
+
+	spin_begin();
+	while (1)
+		spin_cpu_relax();
+}
+
+void smp_send_stop(void)
+{
+	smp_send_nmi_ipi(NMI_IPI_ALL_OTHERS, nmi_stop_this_cpu, 1000000);
+}
+
+#else /* CONFIG_NMI_IPI */
+
 static void stop_this_cpu(void *dummy)
-#endif
 {
 	/* Remove this CPU */
 	set_cpu_online(smp_processor_id(), false);
@@ -582,12 +607,22 @@ static void stop_this_cpu(void *dummy)
 
 void smp_send_stop(void)
 {
-#ifdef CONFIG_NMI_IPI
-	smp_send_nmi_ipi(NMI_IPI_ALL_OTHERS, stop_this_cpu, 1000000);
-#else
+	static bool stopped = false;
+
+	/*
+	 * Prevent waiting on csd lock from a previous smp_send_stop.
+	 * This is racy, but in general callers try to do the right
+	 * thing and only fire off one smp_send_stop (e.g., see
+	 * kernel/panic.c)
+	 */
+	if (stopped)
+		return;
+
+	stopped = true;
+
 	smp_call_function(stop_this_cpu, NULL, 0);
-#endif
 }
+#endif /* CONFIG_NMI_IPI */
 
 struct thread_info *current_set[NR_CPUS];
 

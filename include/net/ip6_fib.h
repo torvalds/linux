@@ -134,34 +134,33 @@ struct fib6_nh {
 };
 
 struct fib6_info {
-	struct fib6_table		*rt6i_table;
-	struct fib6_info __rcu		*rt6_next;
-	struct fib6_node __rcu		*rt6i_node;
+	struct fib6_table		*fib6_table;
+	struct fib6_info __rcu		*fib6_next;
+	struct fib6_node __rcu		*fib6_node;
 
 	/* Multipath routes:
 	 * siblings is a list of fib6_info that have the the same metric/weight,
 	 * destination, but not the same gateway. nsiblings is just a cache
 	 * to speed up lookup.
 	 */
-	struct list_head		rt6i_siblings;
-	unsigned int			rt6i_nsiblings;
+	struct list_head		fib6_siblings;
+	unsigned int			fib6_nsiblings;
 
-	atomic_t			rt6i_ref;
-	struct inet6_dev		*rt6i_idev;
+	atomic_t			fib6_ref;
 	unsigned long			expires;
 	struct dst_metrics		*fib6_metrics;
 #define fib6_pmtu		fib6_metrics->metrics[RTAX_MTU-1]
 
-	struct rt6key			rt6i_dst;
-	u32				rt6i_flags;
-	struct rt6key			rt6i_src;
-	struct rt6key			rt6i_prefsrc;
+	struct rt6key			fib6_dst;
+	u32				fib6_flags;
+	struct rt6key			fib6_src;
+	struct rt6key			fib6_prefsrc;
 
 	struct rt6_info * __percpu	*rt6i_pcpu;
 	struct rt6_exception_bucket __rcu *rt6i_exception_bucket;
 
-	u32				rt6i_metric;
-	u8				rt6i_protocol;
+	u32				fib6_metric;
+	u8				fib6_protocol;
 	u8				fib6_type;
 	u8				exception_bucket_flushed:1,
 					should_flush:1,
@@ -175,7 +174,7 @@ struct fib6_info {
 
 struct rt6_info {
 	struct dst_entry		dst;
-	struct fib6_info		*from;
+	struct fib6_info __rcu		*from;
 
 	struct rt6key			rt6i_dst;
 	struct rt6key			rt6i_src;
@@ -193,11 +192,11 @@ struct rt6_info {
 
 #define for_each_fib6_node_rt_rcu(fn)					\
 	for (rt = rcu_dereference((fn)->leaf); rt;			\
-	     rt = rcu_dereference(rt->rt6_next))
+	     rt = rcu_dereference(rt->fib6_next))
 
 #define for_each_fib6_walker_rt(w)					\
 	for (rt = (w)->leaf; rt;					\
-	     rt = rcu_dereference_protected(rt->rt6_next, 1))
+	     rt = rcu_dereference_protected(rt->fib6_next, 1))
 
 static inline struct inet6_dev *ip6_dst_idev(struct dst_entry *dst)
 {
@@ -206,7 +205,7 @@ static inline struct inet6_dev *ip6_dst_idev(struct dst_entry *dst)
 
 static inline void fib6_clean_expires(struct fib6_info *f6i)
 {
-	f6i->rt6i_flags &= ~RTF_EXPIRES;
+	f6i->fib6_flags &= ~RTF_EXPIRES;
 	f6i->expires = 0;
 }
 
@@ -214,35 +213,14 @@ static inline void fib6_set_expires(struct fib6_info *f6i,
 				    unsigned long expires)
 {
 	f6i->expires = expires;
-	f6i->rt6i_flags |= RTF_EXPIRES;
+	f6i->fib6_flags |= RTF_EXPIRES;
 }
 
 static inline bool fib6_check_expired(const struct fib6_info *f6i)
 {
-	if (f6i->rt6i_flags & RTF_EXPIRES)
+	if (f6i->fib6_flags & RTF_EXPIRES)
 		return time_after(jiffies, f6i->expires);
 	return false;
-}
-
-static inline void rt6_clean_expires(struct rt6_info *rt)
-{
-	rt->rt6i_flags &= ~RTF_EXPIRES;
-	rt->dst.expires = 0;
-}
-
-static inline void rt6_set_expires(struct rt6_info *rt, unsigned long expires)
-{
-	rt->dst.expires = expires;
-	rt->rt6i_flags |= RTF_EXPIRES;
-}
-
-static inline void rt6_update_expires(struct rt6_info *rt0, int timeout)
-{
-	if (!(rt0->rt6i_flags & RTF_EXPIRES) && rt0->from)
-		rt0->dst.expires = rt0->from->expires;
-
-	dst_set_expires(&rt0->dst, timeout);
-	rt0->rt6i_flags |= RTF_EXPIRES;
 }
 
 /* Function to safely get fn->sernum for passed in rt
@@ -250,14 +228,13 @@ static inline void rt6_update_expires(struct rt6_info *rt0, int timeout)
  * Return true if we can get cookie safely
  * Return false if not
  */
-static inline bool rt6_get_cookie_safe(const struct fib6_info *rt,
-				       u32 *cookie)
+static inline bool fib6_get_cookie_safe(const struct fib6_info *f6i,
+					u32 *cookie)
 {
 	struct fib6_node *fn;
 	bool status = false;
 
-	rcu_read_lock();
-	fn = rcu_dereference(rt->rt6i_node);
+	fn = rcu_dereference(f6i->fib6_node);
 
 	if (fn) {
 		*cookie = fn->fn_sernum;
@@ -266,17 +243,22 @@ static inline bool rt6_get_cookie_safe(const struct fib6_info *rt,
 		status = true;
 	}
 
-	rcu_read_unlock();
 	return status;
 }
 
 static inline u32 rt6_get_cookie(const struct rt6_info *rt)
 {
+	struct fib6_info *from;
 	u32 cookie = 0;
 
-	if (rt->rt6i_flags & RTF_PCPU ||
-	    (unlikely(!list_empty(&rt->rt6i_uncached)) && rt->from))
-		rt6_get_cookie_safe(rt->from, &cookie);
+	rcu_read_lock();
+
+	from = rcu_dereference(rt->from);
+	if (from && (rt->rt6i_flags & RTF_PCPU ||
+	    unlikely(!list_empty(&rt->rt6i_uncached))))
+		fib6_get_cookie_safe(from, &cookie);
+
+	rcu_read_unlock();
 
 	return cookie;
 }
@@ -295,12 +277,12 @@ void fib6_info_destroy(struct fib6_info *f6i);
 
 static inline void fib6_info_hold(struct fib6_info *f6i)
 {
-	atomic_inc(&f6i->rt6i_ref);
+	atomic_inc(&f6i->fib6_ref);
 }
 
 static inline void fib6_info_release(struct fib6_info *f6i)
 {
-	if (f6i && atomic_dec_and_test(&f6i->rt6i_ref))
+	if (f6i && atomic_dec_and_test(&f6i->fib6_ref))
 		fib6_info_destroy(f6i);
 }
 
@@ -394,9 +376,24 @@ struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi6 *fl6,
 				   const struct sk_buff *skb,
 				   int flags, pol_lookup_t lookup);
 
-struct fib6_node *fib6_lookup(struct fib6_node *root,
-			      const struct in6_addr *daddr,
-			      const struct in6_addr *saddr);
+/* called with rcu lock held; can return error pointer
+ * caller needs to select path
+ */
+struct fib6_info *fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
+			      int flags);
+
+/* called with rcu lock held; caller needs to select path */
+struct fib6_info *fib6_table_lookup(struct net *net, struct fib6_table *table,
+				    int oif, struct flowi6 *fl6, int strict);
+
+struct fib6_info *fib6_multipath_select(const struct net *net,
+					struct fib6_info *match,
+					struct flowi6 *fl6, int oif,
+					const struct sk_buff *skb, int strict);
+
+struct fib6_node *fib6_node_lookup(struct fib6_node *root,
+				   const struct in6_addr *daddr,
+				   const struct in6_addr *saddr);
 
 struct fib6_node *fib6_locate(struct fib6_node *root,
 			      const struct in6_addr *daddr, int dst_len,
@@ -409,6 +406,11 @@ void fib6_clean_all(struct net *net, int (*func)(struct fib6_info *, void *arg),
 int fib6_add(struct fib6_node *root, struct fib6_info *rt,
 	     struct nl_info *info, struct netlink_ext_ack *extack);
 int fib6_del(struct fib6_info *rt, struct nl_info *info);
+
+static inline struct net_device *fib6_info_nh_dev(const struct fib6_info *f6i)
+{
+	return f6i->fib6_nh.nh_dev;
+}
 
 void inet6_rt_notify(int event, struct fib6_info *rt, struct nl_info *info,
 		     unsigned int flags);

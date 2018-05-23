@@ -538,9 +538,9 @@ static inline bool nicvf_xdp_rx(struct nicvf *nic, struct bpf_prog *prog,
 	action = bpf_prog_run_xdp(prog, &xdp);
 	rcu_read_unlock();
 
+	len = xdp.data_end - xdp.data;
 	/* Check if XDP program has changed headers */
 	if (orig_data != xdp.data) {
-		len = xdp.data_end - xdp.data;
 		offset = orig_data - xdp.data;
 		dma_addr -= offset;
 	}

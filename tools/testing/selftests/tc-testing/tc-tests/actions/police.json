@@ -401,11 +401,11 @@
         ],
         "cmdUnderTest": "$TC actions add action police rate 10mbit burst 10k index 4294967295",
         "expExitCode": "0",
-        "verifyCmd": "$TC actions get action mirred index 4294967295",
+        "verifyCmd": "$TC actions get action police index 4294967295",
         "matchPattern": "action order [0-9]*:  police 0xffffffff rate 10Mbit burst 10Kb mtu 2Kb",
         "matchCount": "1",
         "teardown": [
-            "$TC actions flush action mirred"
+            "$TC actions flush action police"
         ]
     },
     {

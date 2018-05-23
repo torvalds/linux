@@ -1149,3 +1149,44 @@ void br_vlan_get_stats(const struct net_bridge_vlan *v,
 		stats->tx_packets += txpackets;
 	}
 }
+
+int br_vlan_get_pvid(const struct net_device *dev, u16 *p_pvid)
+{
+	struct net_bridge_vlan_group *vg;
+
+	ASSERT_RTNL();
+	if (netif_is_bridge_master(dev))
+		vg = br_vlan_group(netdev_priv(dev));
+	else
+		return -EINVAL;
+
+	*p_pvid = br_get_pvid(vg);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(br_vlan_get_pvid);
+
+int br_vlan_get_info(const struct net_device *dev, u16 vid,
+		     struct bridge_vlan_info *p_vinfo)
+{
+	struct net_bridge_vlan_group *vg;
+	struct net_bridge_vlan *v;
+	struct net_bridge_port *p;
+
+	ASSERT_RTNL();
+	p = br_port_get_check_rtnl(dev);
+	if (p)
+		vg = nbp_vlan_group(p);
+	else if (netif_is_bridge_master(dev))
+		vg = br_vlan_group(netdev_priv(dev));
+	else
+		return -EINVAL;
+
+	v = br_vlan_find(vg, vid);
+	if (!v)
+		return -ENOENT;
+
+	p_vinfo->vid = vid;
+	p_vinfo->flags = v->flags;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(br_vlan_get_info);

@@ -36,6 +36,8 @@
 #include <linux/pci.h>
 #include <linux/types.h>
 
+#define HNAE3_MOD_VERSION "1.0"
+
 /* Device IDs */
 #define HNAE3_DEV_ID_GE				0xA220
 #define HNAE3_DEV_ID_25GE			0xA221
@@ -52,6 +54,7 @@
 #define HNAE3_DEV_INITED_B			0x0
 #define HNAE3_DEV_SUPPORT_ROCE_B		0x1
 #define HNAE3_DEV_SUPPORT_DCB_B			0x2
+#define HNAE3_CLIENT_INITED_B			0x3
 
 #define HNAE3_DEV_SUPPORT_ROCE_DCB_BITS (BIT(HNAE3_DEV_SUPPORT_DCB_B) |\
 		BIT(HNAE3_DEV_SUPPORT_ROCE_B))
@@ -273,10 +276,6 @@ struct hnae3_ae_dev {
  *   Map rings to vector
  * unmap_ring_from_vector()
  *   Unmap rings from vector
- * add_tunnel_udp()
- *   Add tunnel information to hardware
- * del_tunnel_udp()
- *   Delete tunnel information from hardware
  * reset_queue()
  *   Reset queue
  * get_fw_version()
@@ -387,9 +386,6 @@ struct hnae3_ae_ops {
 	int (*unmap_ring_from_vector)(struct hnae3_handle *handle,
 				      int vector_num,
 				      struct hnae3_ring_chain_node *vr_chain);
-
-	int (*add_tunnel_udp)(struct hnae3_handle *handle, u16 port_num);
-	int (*del_tunnel_udp)(struct hnae3_handle *handle, u16 port_num);
 
 	void (*reset_queue)(struct hnae3_handle *handle, u16 queue_id);
 	u32 (*get_fw_version)(struct hnae3_handle *handle);
@@ -521,11 +517,11 @@ struct hnae3_handle {
 #define hnae_get_bit(origin, shift) \
 	hnae_get_field((origin), (0x1 << (shift)), (shift))
 
-int hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev);
+void hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev);
 void hnae3_unregister_ae_dev(struct hnae3_ae_dev *ae_dev);
 
 void hnae3_unregister_ae_algo(struct hnae3_ae_algo *ae_algo);
-int hnae3_register_ae_algo(struct hnae3_ae_algo *ae_algo);
+void hnae3_register_ae_algo(struct hnae3_ae_algo *ae_algo);
 
 void hnae3_unregister_client(struct hnae3_client *client);
 int hnae3_register_client(struct hnae3_client *client);

@@ -1074,7 +1074,7 @@ static int marvell_nfc_hw_ecc_hmg_do_write_page(struct nand_chip *chip,
 		return ret;
 
 	ret = marvell_nfc_wait_op(chip,
-				  chip->data_interface.timings.sdr.tPROG_max);
+				  PSEC_TO_MSEC(chip->data_interface.timings.sdr.tPROG_max));
 	return ret;
 }
 
@@ -1194,11 +1194,13 @@ static void marvell_nfc_hw_ecc_bch_read_chunk(struct nand_chip *chip, int chunk,
 				  NDCB0_CMD2(NAND_CMD_READSTART);
 
 	/*
-	 * Trigger the naked read operation only on the last chunk.
-	 * Otherwise, use monolithic read.
+	 * Trigger the monolithic read on the first chunk, then naked read on
+	 * intermediate chunks and finally a last naked read on the last chunk.
 	 */
-	if (lt->nchunks == 1 || (chunk < lt->nchunks - 1))
+	if (chunk == 0)
 		nfc_op.ndcb[0] |= NDCB0_CMD_XTYPE(XTYPE_MONOLITHIC_RW);
+	else if (chunk < lt->nchunks - 1)
+		nfc_op.ndcb[0] |= NDCB0_CMD_XTYPE(XTYPE_NAKED_RW);
 	else
 		nfc_op.ndcb[0] |= NDCB0_CMD_XTYPE(XTYPE_LAST_NAKED_RW);
 
@@ -1408,6 +1410,7 @@ marvell_nfc_hw_ecc_bch_write_chunk(struct nand_chip *chip, int chunk,
 	struct marvell_nand_chip *marvell_nand = to_marvell_nand(chip);
 	struct marvell_nfc *nfc = to_marvell_nfc(chip->controller);
 	const struct marvell_hw_ecc_layout *lt = to_marvell_nand(chip)->layout;
+	u32 xtype;
 	int ret;
 	struct marvell_nfc_op nfc_op = {
 		.ndcb[0] = NDCB0_CMD_TYPE(TYPE_WRITE) | NDCB0_LEN_OVRD,
@@ -1423,7 +1426,12 @@ marvell_nfc_hw_ecc_bch_write_chunk(struct nand_chip *chip, int chunk,
 	 * last naked write.
 	 */
 	if (chunk == 0) {
-		nfc_op.ndcb[0] |= NDCB0_CMD_XTYPE(XTYPE_WRITE_DISPATCH) |
+		if (lt->nchunks == 1)
+			xtype = XTYPE_MONOLITHIC_RW;
+		else
+			xtype = XTYPE_WRITE_DISPATCH;
+
+		nfc_op.ndcb[0] |= NDCB0_CMD_XTYPE(xtype) |
 				  NDCB0_ADDR_CYC(marvell_nand->addr_cyc) |
 				  NDCB0_CMD1(NAND_CMD_SEQIN);
 		nfc_op.ndcb[1] |= NDCB1_ADDRS_PAGE(page);
@@ -1494,7 +1502,7 @@ static int marvell_nfc_hw_ecc_bch_write_page(struct mtd_info *mtd,
 	}
 
 	ret = marvell_nfc_wait_op(chip,
-				  chip->data_interface.timings.sdr.tPROG_max);
+				  PSEC_TO_MSEC(chip->data_interface.timings.sdr.tPROG_max));
 
 	marvell_nfc_disable_hw_ecc(chip);
 
@@ -2299,29 +2307,20 @@ static int marvell_nand_chip_init(struct device *dev, struct marvell_nfc *nfc,
 	/*
 	 * The legacy "num-cs" property indicates the number of CS on the only
 	 * chip connected to the controller (legacy bindings does not support
-	 * more than one chip). CS are only incremented one by one while the RB
-	 * pin is always the #0.
+	 * more than one chip). The CS and RB pins are always the #0.
 	 *
 	 * When not using legacy bindings, a couple of "reg" and "nand-rb"
 	 * properties must be filled. For each chip, expressed as a subnode,
 	 * "reg" points to the CS lines and "nand-rb" to the RB line.
 	 */
-	if (pdata) {
+	if (pdata || nfc->caps->legacy_of_bindings) {
 		nsels = 1;
-	} else if (nfc->caps->legacy_of_bindings &&
-		   !of_get_property(np, "num-cs", &nsels)) {
-		dev_err(dev, "missing num-cs property\n");
-		return -EINVAL;
-	} else if (!of_get_property(np, "reg", &nsels)) {
-		dev_err(dev, "missing reg property\n");
-		return -EINVAL;
-	}
-
-	if (!pdata)
-		nsels /= sizeof(u32);
-	if (!nsels) {
-		dev_err(dev, "invalid reg property size\n");
-		return -EINVAL;
+	} else {
+		nsels = of_property_count_elems_of_size(np, "reg", sizeof(u32));
+		if (nsels <= 0) {
+			dev_err(dev, "missing/invalid reg property\n");
+			return -EINVAL;
+		}
 	}
 
 	/* Alloc the nand chip structure */

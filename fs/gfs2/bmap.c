@@ -1744,7 +1744,7 @@ do_grow_qunlock:
  * @newsize: the size to make the file
  *
  * The file size can grow, shrink, or stay the same size. This
- * is called holding i_mutex and an exclusive glock on the inode
+ * is called holding i_rwsem and an exclusive glock on the inode
  * in question.
  *
  * Returns: errno

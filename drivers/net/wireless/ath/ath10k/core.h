@@ -52,6 +52,8 @@
 /* Antenna noise floor */
 #define ATH10K_DEFAULT_NOISE_FLOOR -95
 
+#define ATH10K_INVALID_RSSI 128
+
 #define ATH10K_MAX_NUM_MGMT_PENDING 128
 
 /* number of failed packets (20 packets with 16 sw reties each) */

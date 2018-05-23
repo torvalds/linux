@@ -419,6 +419,7 @@ struct phy_defs {
 #define NUM_RSS_MEM_TYPES		5
 
 #define NUM_BIG_RAM_TYPES		3
+#define BIG_RAM_NAME_LEN		3
 
 #define NUM_PHY_TBUS_ADDRESSES		2048
 #define PHY_DUMP_SIZE_DWORDS		(NUM_PHY_TBUS_ADDRESSES / 2)
@@ -3650,8 +3651,8 @@ static u32 qed_grc_dump_big_ram(struct qed_hwfn *p_hwfn,
 		     BIT(big_ram->is_256b_bit_offset[dev_data->chip_id]) ? 256
 									 : 128;
 
-	strscpy(type_name, big_ram->instance_name, sizeof(type_name));
-	strscpy(mem_name, big_ram->instance_name, sizeof(mem_name));
+	strncpy(type_name, big_ram->instance_name, BIG_RAM_NAME_LEN);
+	strncpy(mem_name, big_ram->instance_name, BIG_RAM_NAME_LEN);
 
 	/* Dump memory header */
 	offset += qed_grc_dump_mem_hdr(p_hwfn,
@@ -7778,6 +7779,57 @@ int qed_dbg_igu_fifo_size(struct qed_dev *cdev)
 	return qed_dbg_feature_size(cdev, DBG_FEATURE_IGU_FIFO);
 }
 
+int qed_dbg_nvm_image_length(struct qed_hwfn *p_hwfn,
+			     enum qed_nvm_images image_id, u32 *length)
+{
+	struct qed_nvm_image_att image_att;
+	int rc;
+
+	*length = 0;
+	rc = qed_mcp_get_nvm_image_att(p_hwfn, image_id, &image_att);
+	if (rc)
+		return rc;
+
+	*length = image_att.length;
+
+	return rc;
+}
+
+int qed_dbg_nvm_image(struct qed_dev *cdev, void *buffer,
+		      u32 *num_dumped_bytes, enum qed_nvm_images image_id)
+{
+	struct qed_hwfn *p_hwfn =
+		&cdev->hwfns[cdev->dbg_params.engine_for_debug];
+	u32 len_rounded, i;
+	__be32 val;
+	int rc;
+
+	*num_dumped_bytes = 0;
+	rc = qed_dbg_nvm_image_length(p_hwfn, image_id, &len_rounded);
+	if (rc)
+		return rc;
+
+	DP_NOTICE(p_hwfn->cdev,
+		  "Collecting a debug feature [\"nvram image %d\"]\n",
+		  image_id);
+
+	len_rounded = roundup(len_rounded, sizeof(u32));
+	rc = qed_mcp_get_nvm_image(p_hwfn, image_id, buffer, len_rounded);
+	if (rc)
+		return rc;
+
+	/* QED_NVM_IMAGE_NVM_META image is not swapped like other images */
+	if (image_id != QED_NVM_IMAGE_NVM_META)
+		for (i = 0; i < len_rounded; i += 4) {
+			val = cpu_to_be32(*(u32 *)(buffer + i));
+			*(u32 *)(buffer + i) = val;
+		}
+
+	*num_dumped_bytes = len_rounded;
+
+	return rc;
+}
+
 int qed_dbg_protection_override(struct qed_dev *cdev, void *buffer,
 				u32 *num_dumped_bytes)
 {
@@ -7831,6 +7883,9 @@ enum debug_print_features {
 	IGU_FIFO = 6,
 	PHY = 7,
 	FW_ASSERTS = 8,
+	NVM_CFG1 = 9,
+	DEFAULT_CFG = 10,
+	NVM_META = 11,
 };
 
 static u32 qed_calc_regdump_header(enum debug_print_features feature,
@@ -7965,13 +8020,61 @@ int qed_dbg_all_data(struct qed_dev *cdev, void *buffer)
 		DP_ERR(cdev, "qed_dbg_mcp_trace failed. rc = %d\n", rc);
 	}
 
+	/* nvm cfg1 */
+	rc = qed_dbg_nvm_image(cdev,
+			       (u8 *)buffer + offset + REGDUMP_HEADER_SIZE,
+			       &feature_size, QED_NVM_IMAGE_NVM_CFG1);
+	if (!rc) {
+		*(u32 *)((u8 *)buffer + offset) =
+		    qed_calc_regdump_header(NVM_CFG1, cur_engine,
+					    feature_size, omit_engine);
+		offset += (feature_size + REGDUMP_HEADER_SIZE);
+	} else if (rc != -ENOENT) {
+		DP_ERR(cdev,
+		       "qed_dbg_nvm_image failed for image  %d (%s), rc = %d\n",
+		       QED_NVM_IMAGE_NVM_CFG1, "QED_NVM_IMAGE_NVM_CFG1", rc);
+	}
+
+	/* nvm default */
+	rc = qed_dbg_nvm_image(cdev,
+			       (u8 *)buffer + offset + REGDUMP_HEADER_SIZE,
+			       &feature_size, QED_NVM_IMAGE_DEFAULT_CFG);
+	if (!rc) {
+		*(u32 *)((u8 *)buffer + offset) =
+		    qed_calc_regdump_header(DEFAULT_CFG, cur_engine,
+					    feature_size, omit_engine);
+		offset += (feature_size + REGDUMP_HEADER_SIZE);
+	} else if (rc != -ENOENT) {
+		DP_ERR(cdev,
+		       "qed_dbg_nvm_image failed for image %d (%s), rc = %d\n",
+		       QED_NVM_IMAGE_DEFAULT_CFG, "QED_NVM_IMAGE_DEFAULT_CFG",
+		       rc);
+	}
+
+	/* nvm meta */
+	rc = qed_dbg_nvm_image(cdev,
+			       (u8 *)buffer + offset + REGDUMP_HEADER_SIZE,
+			       &feature_size, QED_NVM_IMAGE_NVM_META);
+	if (!rc) {
+		*(u32 *)((u8 *)buffer + offset) =
+		    qed_calc_regdump_header(NVM_META, cur_engine,
+					    feature_size, omit_engine);
+		offset += (feature_size + REGDUMP_HEADER_SIZE);
+	} else if (rc != -ENOENT) {
+		DP_ERR(cdev,
+		       "qed_dbg_nvm_image failed for image %d (%s), rc = %d\n",
+		       QED_NVM_IMAGE_NVM_META, "QED_NVM_IMAGE_NVM_META", rc);
+	}
+
 	return 0;
 }
 
 int qed_dbg_all_data_size(struct qed_dev *cdev)
 {
+	struct qed_hwfn *p_hwfn =
+		&cdev->hwfns[cdev->dbg_params.engine_for_debug];
+	u32 regs_len = 0, image_len = 0;
 	u8 cur_engine, org_engine;
-	u32 regs_len = 0;
 
 	org_engine = qed_get_debug_engine(cdev);
 	for (cur_engine = 0; cur_engine < cdev->num_hwfns; cur_engine++) {
@@ -7993,6 +8096,15 @@ int qed_dbg_all_data_size(struct qed_dev *cdev)
 
 	/* Engine common */
 	regs_len += REGDUMP_HEADER_SIZE + qed_dbg_mcp_trace_size(cdev);
+	qed_dbg_nvm_image_length(p_hwfn, QED_NVM_IMAGE_NVM_CFG1, &image_len);
+	if (image_len)
+		regs_len += REGDUMP_HEADER_SIZE + image_len;
+	qed_dbg_nvm_image_length(p_hwfn, QED_NVM_IMAGE_DEFAULT_CFG, &image_len);
+	if (image_len)
+		regs_len += REGDUMP_HEADER_SIZE + image_len;
+	qed_dbg_nvm_image_length(p_hwfn, QED_NVM_IMAGE_NVM_META, &image_len);
+	if (image_len)
+		regs_len += REGDUMP_HEADER_SIZE + image_len;
 
 	return regs_len;
 }

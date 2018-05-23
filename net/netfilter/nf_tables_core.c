@@ -119,15 +119,22 @@ DEFINE_STATIC_KEY_FALSE(nft_counters_enabled);
 static noinline void nft_update_chain_stats(const struct nft_chain *chain,
 					    const struct nft_pktinfo *pkt)
 {
+	struct nft_base_chain *base_chain;
 	struct nft_stats *stats;
 
-	local_bh_disable();
-	stats = this_cpu_ptr(rcu_dereference(nft_base_chain(chain)->stats));
-	u64_stats_update_begin(&stats->syncp);
-	stats->pkts++;
-	stats->bytes += pkt->skb->len;
-	u64_stats_update_end(&stats->syncp);
-	local_bh_enable();
+	base_chain = nft_base_chain(chain);
+	if (!base_chain->stats)
+		return;
+
+	stats = this_cpu_ptr(rcu_dereference(base_chain->stats));
+	if (stats) {
+		local_bh_disable();
+		u64_stats_update_begin(&stats->syncp);
+		stats->pkts++;
+		stats->bytes += pkt->skb->len;
+		u64_stats_update_end(&stats->syncp);
+		local_bh_enable();
+	}
 }
 
 struct nft_jumpstack {
@@ -251,6 +258,9 @@ static struct nft_expr_type *nft_basic_types[] = {
 	&nft_payload_type,
 	&nft_dynset_type,
 	&nft_range_type,
+	&nft_meta_type,
+	&nft_rt_type,
+	&nft_exthdr_type,
 };
 
 int __init nf_tables_core_module_init(void)

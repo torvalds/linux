@@ -824,7 +824,7 @@ static void wmi_evt_connect(struct wil6210_vif *vif, int id, void *d, int len)
 	struct wireless_dev *wdev = vif_to_wdev(vif);
 	struct wmi_connect_event *evt = d;
 	int ch; /* channel number */
-	struct station_info sinfo;
+	struct station_info *sinfo;
 	u8 *assoc_req_ie, *assoc_resp_ie;
 	size_t assoc_req_ielen, assoc_resp_ielen;
 	/* capinfo(u16) + listen_interval(u16) + IEs */
@@ -940,6 +940,7 @@ static void wmi_evt_connect(struct wil6210_vif *vif, int id, void *d, int len)
 		vif->bss = NULL;
 	} else if ((wdev->iftype == NL80211_IFTYPE_AP) ||
 		   (wdev->iftype == NL80211_IFTYPE_P2P_GO)) {
+
 		if (rc) {
 			if (disable_ap_sme)
 				/* notify new_sta has failed */
@@ -947,16 +948,22 @@ static void wmi_evt_connect(struct wil6210_vif *vif, int id, void *d, int len)
 			goto out;
 		}
 
-		memset(&sinfo, 0, sizeof(sinfo));
-
-		sinfo.generation = wil->sinfo_gen++;
-
-		if (assoc_req_ie) {
-			sinfo.assoc_req_ies = assoc_req_ie;
-			sinfo.assoc_req_ies_len = assoc_req_ielen;
+		sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
+		if (!sinfo) {
+			rc = -ENOMEM;
+			goto out;
 		}
 
-		cfg80211_new_sta(ndev, evt->bssid, &sinfo, GFP_KERNEL);
+		sinfo->generation = wil->sinfo_gen++;
+
+		if (assoc_req_ie) {
+			sinfo->assoc_req_ies = assoc_req_ie;
+			sinfo->assoc_req_ies_len = assoc_req_ielen;
+		}
+
+		cfg80211_new_sta(ndev, evt->bssid, sinfo, GFP_KERNEL);
+
+		kfree(sinfo);
 	} else {
 		wil_err(wil, "unhandled iftype %d for CID %d\n", wdev->iftype,
 			evt->cid);

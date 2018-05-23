@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Netronome Systems, Inc.
+ * Copyright (C) 2017-2018 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -100,6 +100,15 @@ nfp_bpf_cmsg_map_req_alloc(struct nfp_app_bpf *bpf, unsigned int n)
 	size += sizeof(struct cmsg_key_value_pair) * n;
 
 	return nfp_bpf_cmsg_alloc(bpf, size);
+}
+
+static u8 nfp_bpf_cmsg_get_type(struct sk_buff *skb)
+{
+	struct cmsg_hdr *hdr;
+
+	hdr = (struct cmsg_hdr *)skb->data;
+
+	return hdr->type;
 }
 
 static unsigned int nfp_bpf_cmsg_get_tag(struct sk_buff *skb)
@@ -429,6 +438,11 @@ void nfp_bpf_ctrl_msg_rx(struct nfp_app *app, struct sk_buff *skb)
 	if (unlikely(skb->len < sizeof(struct cmsg_reply_map_simple))) {
 		cmsg_warn(bpf, "cmsg drop - too short %d!\n", skb->len);
 		goto err_free;
+	}
+
+	if (nfp_bpf_cmsg_get_type(skb) == CMSG_TYPE_BPF_EVENT) {
+		nfp_bpf_event_output(bpf, skb);
+		return;
 	}
 
 	nfp_ctrl_lock(bpf->app->ctrl);

@@ -706,11 +706,16 @@ static void nand_wait_status_ready(struct mtd_info *mtd, unsigned long timeo)
  */
 int nand_soft_waitrdy(struct nand_chip *chip, unsigned long timeout_ms)
 {
+	const struct nand_sdr_timings *timings;
 	u8 status = 0;
 	int ret;
 
 	if (!chip->exec_op)
 		return -ENOTSUPP;
+
+	/* Wait tWB before polling the STATUS reg. */
+	timings = nand_get_sdr_timings(&chip->data_interface);
+	ndelay(PSEC_TO_NSEC(timings->tWB_max));
 
 	ret = nand_status_op(chip, NULL);
 	if (ret)

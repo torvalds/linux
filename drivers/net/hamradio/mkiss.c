@@ -217,7 +217,7 @@ static int kiss_esc_crc(unsigned char *s, unsigned char *d, unsigned short crc,
 			c = *s++;
 		else if (len > 1)
 			c = crc >> 8;
-		else if (len > 0)
+		else
 			c = crc & 0xff;
 
 		len--;

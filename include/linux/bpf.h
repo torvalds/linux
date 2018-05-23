@@ -22,6 +22,8 @@ struct perf_event;
 struct bpf_prog;
 struct bpf_map;
 struct sock;
+struct seq_file;
+struct btf;
 
 /* map is generic key/value storage optionally accesible by eBPF programs */
 struct bpf_map_ops {
@@ -31,6 +33,7 @@ struct bpf_map_ops {
 	void (*map_release)(struct bpf_map *map, struct file *map_file);
 	void (*map_free)(struct bpf_map *map);
 	int (*map_get_next_key)(struct bpf_map *map, void *key, void *next_key);
+	void (*map_release_uref)(struct bpf_map *map);
 
 	/* funcs callable from userspace and from eBPF programs */
 	void *(*map_lookup_elem)(struct bpf_map *map, void *key);
@@ -43,10 +46,14 @@ struct bpf_map_ops {
 	void (*map_fd_put_ptr)(void *ptr);
 	u32 (*map_gen_lookup)(struct bpf_map *map, struct bpf_insn *insn_buf);
 	u32 (*map_fd_sys_lookup_elem)(void *ptr);
+	void (*map_seq_show_elem)(struct bpf_map *map, void *key,
+				  struct seq_file *m);
+	int (*map_check_btf)(const struct bpf_map *map, const struct btf *btf,
+			     u32 key_type_id, u32 value_type_id);
 };
 
 struct bpf_map {
-	/* 1st cacheline with read-mostly members of which some
+	/* The first two cachelines with read-mostly members of which some
 	 * are also accessed in fast-path (e.g. ops, max_entries).
 	 */
 	const struct bpf_map_ops *ops ____cacheline_aligned;
@@ -62,10 +69,13 @@ struct bpf_map {
 	u32 pages;
 	u32 id;
 	int numa_node;
+	u32 btf_key_id;
+	u32 btf_value_id;
+	struct btf *btf;
 	bool unpriv_array;
-	/* 7 bytes hole */
+	/* 55 bytes hole */
 
-	/* 2nd cacheline with misc members to avoid false sharing
+	/* The 3rd and 4th cacheline with misc members to avoid false sharing
 	 * particularly with refcounting.
 	 */
 	struct user_struct *user ____cacheline_aligned;
@@ -98,6 +108,16 @@ struct bpf_offloaded_map {
 static inline struct bpf_offloaded_map *map_to_offmap(struct bpf_map *map)
 {
 	return container_of(map, struct bpf_offloaded_map, map);
+}
+
+static inline bool bpf_map_offload_neutral(const struct bpf_map *map)
+{
+	return map->map_type == BPF_MAP_TYPE_PERF_EVENT_ARRAY;
+}
+
+static inline bool bpf_map_support_seq_show(const struct bpf_map *map)
+{
+	return map->ops->map_seq_show_elem && map->ops->map_check_btf;
 }
 
 extern const struct bpf_map_ops bpf_map_offload_ops;
@@ -220,6 +240,8 @@ struct bpf_verifier_ops {
 				struct bpf_insn_access_aux *info);
 	int (*gen_prologue)(struct bpf_insn *insn, bool direct_write,
 			    const struct bpf_prog *prog);
+	int (*gen_ld_abs)(const struct bpf_insn *orig,
+			  struct bpf_insn *insn_buf);
 	u32 (*convert_ctx_access)(enum bpf_access_type type,
 				  const struct bpf_insn *src,
 				  struct bpf_insn *dst,
@@ -339,8 +361,8 @@ int bpf_prog_array_copy_to_user(struct bpf_prog_array __rcu *progs,
 void bpf_prog_array_delete_safe(struct bpf_prog_array __rcu *progs,
 				struct bpf_prog *old_prog);
 int bpf_prog_array_copy_info(struct bpf_prog_array __rcu *array,
-			     __u32 __user *prog_ids, u32 request_cnt,
-			     __u32 __user *prog_cnt);
+			     u32 *prog_ids, u32 request_cnt,
+			     u32 *prog_cnt);
 int bpf_prog_array_copy(struct bpf_prog_array __rcu *old_array,
 			struct bpf_prog *exclude_prog,
 			struct bpf_prog *include_prog,
@@ -351,6 +373,7 @@ int bpf_prog_array_copy(struct bpf_prog_array __rcu *old_array,
 		struct bpf_prog **_prog, *__prog;	\
 		struct bpf_prog_array *_array;		\
 		u32 _ret = 1;				\
+		preempt_disable();			\
 		rcu_read_lock();			\
 		_array = rcu_dereference(array);	\
 		if (unlikely(check_non_null && !_array))\
@@ -362,6 +385,7 @@ int bpf_prog_array_copy(struct bpf_prog_array __rcu *old_array,
 		}					\
 _out:							\
 		rcu_read_unlock();			\
+		preempt_enable_no_resched();		\
 		_ret;					\
 	 })
 
@@ -434,7 +458,6 @@ int bpf_stackmap_copy(struct bpf_map *map, void *key, void *value);
 int bpf_fd_array_map_update_elem(struct bpf_map *map, struct file *map_file,
 				 void *key, void *value, u64 map_flags);
 int bpf_fd_array_map_lookup_elem(struct bpf_map *map, void *key, u32 *value);
-void bpf_fd_array_map_clear(struct bpf_map *map);
 int bpf_fd_htab_map_update_elem(struct bpf_map *map, struct file *map_file,
 				void *key, void *value, u64 map_flags);
 int bpf_fd_htab_map_lookup_elem(struct bpf_map *map, void *key, u32 *value);
@@ -604,7 +627,7 @@ bool bpf_offload_dev_match(struct bpf_prog *prog, struct bpf_map *map);
 #if defined(CONFIG_NET) && defined(CONFIG_BPF_SYSCALL)
 int bpf_prog_offload_init(struct bpf_prog *prog, union bpf_attr *attr);
 
-static inline bool bpf_prog_is_dev_bound(struct bpf_prog_aux *aux)
+static inline bool bpf_prog_is_dev_bound(const struct bpf_prog_aux *aux)
 {
 	return aux->offload_requested;
 }
@@ -645,9 +668,16 @@ static inline void bpf_map_offload_map_free(struct bpf_map *map)
 
 #if defined(CONFIG_STREAM_PARSER) && defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_INET)
 struct sock  *__sock_map_lookup_elem(struct bpf_map *map, u32 key);
+struct sock  *__sock_hash_lookup_elem(struct bpf_map *map, void *key);
 int sock_map_prog(struct bpf_map *map, struct bpf_prog *prog, u32 type);
 #else
 static inline struct sock  *__sock_map_lookup_elem(struct bpf_map *map, u32 key)
+{
+	return NULL;
+}
+
+static inline struct sock  *__sock_hash_lookup_elem(struct bpf_map *map,
+						    void *key)
 {
 	return NULL;
 }
@@ -657,6 +687,31 @@ static inline int sock_map_prog(struct bpf_map *map,
 				u32 type)
 {
 	return -EOPNOTSUPP;
+}
+#endif
+
+#if defined(CONFIG_XDP_SOCKETS)
+struct xdp_sock;
+struct xdp_sock *__xsk_map_lookup_elem(struct bpf_map *map, u32 key);
+int __xsk_map_redirect(struct bpf_map *map, struct xdp_buff *xdp,
+		       struct xdp_sock *xs);
+void __xsk_map_flush(struct bpf_map *map);
+#else
+struct xdp_sock;
+static inline struct xdp_sock *__xsk_map_lookup_elem(struct bpf_map *map,
+						     u32 key)
+{
+	return NULL;
+}
+
+static inline int __xsk_map_redirect(struct bpf_map *map, struct xdp_buff *xdp,
+				     struct xdp_sock *xs)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void __xsk_map_flush(struct bpf_map *map)
+{
 }
 #endif
 
@@ -673,10 +728,10 @@ extern const struct bpf_func_proto bpf_ktime_get_ns_proto;
 extern const struct bpf_func_proto bpf_get_current_pid_tgid_proto;
 extern const struct bpf_func_proto bpf_get_current_uid_gid_proto;
 extern const struct bpf_func_proto bpf_get_current_comm_proto;
-extern const struct bpf_func_proto bpf_skb_vlan_push_proto;
-extern const struct bpf_func_proto bpf_skb_vlan_pop_proto;
 extern const struct bpf_func_proto bpf_get_stackid_proto;
+extern const struct bpf_func_proto bpf_get_stack_proto;
 extern const struct bpf_func_proto bpf_sock_map_update_proto;
+extern const struct bpf_func_proto bpf_sock_hash_update_proto;
 
 /* Shared helpers among cBPF and eBPF. */
 void bpf_user_rnd_init_once(void);

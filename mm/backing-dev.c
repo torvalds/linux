@@ -115,6 +115,7 @@ static int bdi_debug_register(struct backing_dev_info *bdi, const char *name)
 					       bdi, &bdi_debug_stats_fops);
 	if (!bdi->debug_stats) {
 		debugfs_remove(bdi->debug_dir);
+		bdi->debug_dir = NULL;
 		return -ENOMEM;
 	}
 
@@ -383,7 +384,7 @@ static void wb_shutdown(struct bdi_writeback *wb)
 	 * the barrier provided by test_and_clear_bit() above.
 	 */
 	smp_wmb();
-	clear_bit(WB_shutting_down, &wb->state);
+	clear_and_wake_up_bit(WB_shutting_down, &wb->state);
 }
 
 static void wb_exit(struct bdi_writeback *wb)

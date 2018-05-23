@@ -226,7 +226,8 @@ static struct lock_class_key af_family_kern_slock_keys[AF_MAX];
   x "AF_RXRPC" ,	x "AF_ISDN"     ,	x "AF_PHONET"   , \
   x "AF_IEEE802154",	x "AF_CAIF"	,	x "AF_ALG"      , \
   x "AF_NFC"   ,	x "AF_VSOCK"    ,	x "AF_KCM"      , \
-  x "AF_QIPCRTR",	x "AF_SMC"	,	x "AF_MAX"
+  x "AF_QIPCRTR",	x "AF_SMC"	,	x "AF_XDP"	, \
+  x "AF_MAX"
 
 static const char *const af_family_key_strings[AF_MAX+1] = {
 	_sock_locks("sk_lock-")
@@ -262,7 +263,8 @@ static const char *const af_family_rlock_key_strings[AF_MAX+1] = {
   "rlock-AF_RXRPC" , "rlock-AF_ISDN"     , "rlock-AF_PHONET"   ,
   "rlock-AF_IEEE802154", "rlock-AF_CAIF" , "rlock-AF_ALG"      ,
   "rlock-AF_NFC"   , "rlock-AF_VSOCK"    , "rlock-AF_KCM"      ,
-  "rlock-AF_QIPCRTR", "rlock-AF_SMC"     , "rlock-AF_MAX"
+  "rlock-AF_QIPCRTR", "rlock-AF_SMC"     , "rlock-AF_XDP"      ,
+  "rlock-AF_MAX"
 };
 static const char *const af_family_wlock_key_strings[AF_MAX+1] = {
   "wlock-AF_UNSPEC", "wlock-AF_UNIX"     , "wlock-AF_INET"     ,
@@ -279,7 +281,8 @@ static const char *const af_family_wlock_key_strings[AF_MAX+1] = {
   "wlock-AF_RXRPC" , "wlock-AF_ISDN"     , "wlock-AF_PHONET"   ,
   "wlock-AF_IEEE802154", "wlock-AF_CAIF" , "wlock-AF_ALG"      ,
   "wlock-AF_NFC"   , "wlock-AF_VSOCK"    , "wlock-AF_KCM"      ,
-  "wlock-AF_QIPCRTR", "wlock-AF_SMC"     , "wlock-AF_MAX"
+  "wlock-AF_QIPCRTR", "wlock-AF_SMC"     , "wlock-AF_XDP"      ,
+  "wlock-AF_MAX"
 };
 static const char *const af_family_elock_key_strings[AF_MAX+1] = {
   "elock-AF_UNSPEC", "elock-AF_UNIX"     , "elock-AF_INET"     ,
@@ -296,7 +299,8 @@ static const char *const af_family_elock_key_strings[AF_MAX+1] = {
   "elock-AF_RXRPC" , "elock-AF_ISDN"     , "elock-AF_PHONET"   ,
   "elock-AF_IEEE802154", "elock-AF_CAIF" , "elock-AF_ALG"      ,
   "elock-AF_NFC"   , "elock-AF_VSOCK"    , "elock-AF_KCM"      ,
-  "elock-AF_QIPCRTR", "elock-AF_SMC"     , "elock-AF_MAX"
+  "elock-AF_QIPCRTR", "elock-AF_SMC"     , "elock-AF_XDP"      ,
+  "elock-AF_MAX"
 };
 
 /*
@@ -323,8 +327,8 @@ EXPORT_SYMBOL(sysctl_optmem_max);
 
 int sysctl_tstamp_allow_data __read_mostly = 1;
 
-struct static_key memalloc_socks = STATIC_KEY_INIT_FALSE;
-EXPORT_SYMBOL_GPL(memalloc_socks);
+DEFINE_STATIC_KEY_FALSE(memalloc_socks_key);
+EXPORT_SYMBOL_GPL(memalloc_socks_key);
 
 /**
  * sk_set_memalloc - sets %SOCK_MEMALLOC
@@ -338,7 +342,7 @@ void sk_set_memalloc(struct sock *sk)
 {
 	sock_set_flag(sk, SOCK_MEMALLOC);
 	sk->sk_allocation |= __GFP_MEMALLOC;
-	static_key_slow_inc(&memalloc_socks);
+	static_branch_inc(&memalloc_socks_key);
 }
 EXPORT_SYMBOL_GPL(sk_set_memalloc);
 
@@ -346,7 +350,7 @@ void sk_clear_memalloc(struct sock *sk)
 {
 	sock_reset_flag(sk, SOCK_MEMALLOC);
 	sk->sk_allocation &= ~__GFP_MEMALLOC;
-	static_key_slow_dec(&memalloc_socks);
+	static_branch_dec(&memalloc_socks_key);
 
 	/*
 	 * SOCK_MEMALLOC is allowed to ignore rmem limits to ensure forward
@@ -1609,7 +1613,7 @@ static void __sk_free(struct sock *sk)
 	if (likely(sk->sk_net_refcnt))
 		sock_inuse_add(sock_net(sk), -1);
 
-	if (unlikely(sock_diag_has_destroy_listeners(sk) && sk->sk_net_refcnt))
+	if (unlikely(sk->sk_net_refcnt && sock_diag_has_destroy_listeners(sk)))
 		sock_diag_broadcast_destroy(sk);
 	else
 		sk_destruct(sk);

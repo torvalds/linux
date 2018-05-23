@@ -142,7 +142,7 @@ static enum dss_clk_source dpi_get_clk_src(struct dpi_data *dpi)
 }
 
 struct dpi_clk_calc_ctx {
-	struct dss_pll *pll;
+	struct dpi_data *dpi;
 	unsigned int clkout_idx;
 
 	/* inputs */
@@ -191,7 +191,7 @@ static bool dpi_calc_hsdiv_cb(int m_dispc, unsigned long dispc,
 	ctx->pll_cinfo.mX[ctx->clkout_idx] = m_dispc;
 	ctx->pll_cinfo.clkout[ctx->clkout_idx] = dispc;
 
-	return dispc_div_calc(ctx->pll->dss->dispc, dispc,
+	return dispc_div_calc(ctx->dpi->dss->dispc, dispc,
 			      ctx->pck_min, ctx->pck_max,
 			      dpi_calc_dispc_cb, ctx);
 }
@@ -208,8 +208,8 @@ static bool dpi_calc_pll_cb(int n, int m, unsigned long fint,
 	ctx->pll_cinfo.fint = fint;
 	ctx->pll_cinfo.clkdco = clkdco;
 
-	return dss_pll_hsdiv_calc_a(ctx->pll, clkdco,
-		ctx->pck_min, dss_get_max_fck_rate(ctx->pll->dss),
+	return dss_pll_hsdiv_calc_a(ctx->dpi->pll, clkdco,
+		ctx->pck_min, dss_get_max_fck_rate(ctx->dpi->dss),
 		dpi_calc_hsdiv_cb, ctx);
 }
 
@@ -219,7 +219,7 @@ static bool dpi_calc_dss_cb(unsigned long fck, void *data)
 
 	ctx->fck = fck;
 
-	return dispc_div_calc(ctx->pll->dss->dispc, fck,
+	return dispc_div_calc(ctx->dpi->dss->dispc, fck,
 			      ctx->pck_min, ctx->pck_max,
 			      dpi_calc_dispc_cb, ctx);
 }
@@ -230,7 +230,7 @@ static bool dpi_pll_clk_calc(struct dpi_data *dpi, unsigned long pck,
 	unsigned long clkin;
 
 	memset(ctx, 0, sizeof(*ctx));
-	ctx->pll = dpi->pll;
+	ctx->dpi = dpi;
 	ctx->clkout_idx = dss_pll_get_clkout_idx_for_src(dpi->clk_src);
 
 	clkin = clk_get_rate(dpi->pll->clkin);
@@ -244,7 +244,7 @@ static bool dpi_pll_clk_calc(struct dpi_data *dpi, unsigned long pck,
 		pll_min = 0;
 		pll_max = 0;
 
-		return dss_pll_calc_a(ctx->pll, clkin,
+		return dss_pll_calc_a(ctx->dpi->pll, clkin,
 				pll_min, pll_max,
 				dpi_calc_pll_cb, ctx);
 	} else { /* DSS_PLL_TYPE_B */
@@ -275,6 +275,7 @@ static bool dpi_dss_clk_calc(struct dpi_data *dpi, unsigned long pck,
 		bool ok;
 
 		memset(ctx, 0, sizeof(*ctx));
+		ctx->dpi = dpi;
 		if (pck > 1000 * i * i * i)
 			ctx->pck_min = max(pck - 1000 * i * i * i, 0lu);
 		else

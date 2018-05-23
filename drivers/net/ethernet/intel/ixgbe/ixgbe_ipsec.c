@@ -1,29 +1,5 @@
-/*******************************************************************************
- *
- * Intel 10 Gigabit PCI Express Linux driver
- * Copyright(c) 2017 Oracle and/or its affiliates. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * Linux NICS <linux.nics@intel.com>
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- ******************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2017 Oracle and/or its affiliates. All rights reserved. */
 
 #include "ixgbe.h"
 #include <net/xfrm.h>
@@ -43,8 +19,9 @@ static void ixgbe_ipsec_set_tx_sa(struct ixgbe_hw *hw, u16 idx,
 	int i;
 
 	for (i = 0; i < 4; i++)
-		IXGBE_WRITE_REG(hw, IXGBE_IPSTXKEY(i), cpu_to_be32(key[3 - i]));
-	IXGBE_WRITE_REG(hw, IXGBE_IPSTXSALT, cpu_to_be32(salt));
+		IXGBE_WRITE_REG(hw, IXGBE_IPSTXKEY(i),
+				(__force u32)cpu_to_be32(key[3 - i]));
+	IXGBE_WRITE_REG(hw, IXGBE_IPSTXSALT, (__force u32)cpu_to_be32(salt));
 	IXGBE_WRITE_FLUSH(hw);
 
 	reg = IXGBE_READ_REG(hw, IXGBE_IPSTXIDX);
@@ -93,7 +70,8 @@ static void ixgbe_ipsec_set_rx_sa(struct ixgbe_hw *hw, u16 idx, __be32 spi,
 	int i;
 
 	/* store the SPI (in bigendian) and IPidx */
-	IXGBE_WRITE_REG(hw, IXGBE_IPSRXSPI, cpu_to_le32(spi));
+	IXGBE_WRITE_REG(hw, IXGBE_IPSRXSPI,
+			(__force u32)cpu_to_le32((__force u32)spi));
 	IXGBE_WRITE_REG(hw, IXGBE_IPSRXIPIDX, ip_idx);
 	IXGBE_WRITE_FLUSH(hw);
 
@@ -101,8 +79,9 @@ static void ixgbe_ipsec_set_rx_sa(struct ixgbe_hw *hw, u16 idx, __be32 spi,
 
 	/* store the key, salt, and mode */
 	for (i = 0; i < 4; i++)
-		IXGBE_WRITE_REG(hw, IXGBE_IPSRXKEY(i), cpu_to_be32(key[3 - i]));
-	IXGBE_WRITE_REG(hw, IXGBE_IPSRXSALT, cpu_to_be32(salt));
+		IXGBE_WRITE_REG(hw, IXGBE_IPSRXKEY(i),
+				(__force u32)cpu_to_be32(key[3 - i]));
+	IXGBE_WRITE_REG(hw, IXGBE_IPSRXSALT, (__force u32)cpu_to_be32(salt));
 	IXGBE_WRITE_REG(hw, IXGBE_IPSRXMOD, mode);
 	IXGBE_WRITE_FLUSH(hw);
 
@@ -121,7 +100,8 @@ static void ixgbe_ipsec_set_rx_ip(struct ixgbe_hw *hw, u16 idx, __be32 addr[])
 
 	/* store the ip address */
 	for (i = 0; i < 4; i++)
-		IXGBE_WRITE_REG(hw, IXGBE_IPSRXIPADDR(i), cpu_to_le32(addr[i]));
+		IXGBE_WRITE_REG(hw, IXGBE_IPSRXIPADDR(i),
+				(__force u32)cpu_to_le32((__force u32)addr[i]));
 	IXGBE_WRITE_FLUSH(hw);
 
 	ixgbe_ipsec_set_rx_item(hw, idx, ips_rx_ip_tbl);
@@ -391,7 +371,8 @@ static struct xfrm_state *ixgbe_ipsec_find_rx_state(struct ixgbe_ipsec *ipsec,
 	struct xfrm_state *ret = NULL;
 
 	rcu_read_lock();
-	hash_for_each_possible_rcu(ipsec->rx_sa_list, rsa, hlist, spi)
+	hash_for_each_possible_rcu(ipsec->rx_sa_list, rsa, hlist,
+				   (__force u32)spi) {
 		if (spi == rsa->xs->id.spi &&
 		    ((ip4 && *daddr == rsa->xs->id.daddr.a4) ||
 		      (!ip4 && !memcmp(daddr, &rsa->xs->id.daddr.a6,
@@ -401,6 +382,7 @@ static struct xfrm_state *ixgbe_ipsec_find_rx_state(struct ixgbe_ipsec *ipsec,
 			xfrm_state_hold(ret);
 			break;
 		}
+	}
 	rcu_read_unlock();
 	return ret;
 }
@@ -593,7 +575,7 @@ static int ixgbe_ipsec_add_sa(struct xfrm_state *xs)
 
 		/* hash the new entry for faster search in Rx path */
 		hash_add_rcu(ipsec->rx_sa_list, &ipsec->rx_tbl[sa_idx].hlist,
-			     rsa.xs->id.spi);
+			     (__force u64)rsa.xs->id.spi);
 	} else {
 		struct tx_sa tsa;
 
@@ -677,7 +659,8 @@ static void ixgbe_ipsec_del_sa(struct xfrm_state *xs)
 			if (!ipsec->ip_tbl[ipi].ref_cnt) {
 				memset(&ipsec->ip_tbl[ipi], 0,
 				       sizeof(struct rx_ip_sa));
-				ixgbe_ipsec_set_rx_ip(hw, ipi, zerobuf);
+				ixgbe_ipsec_set_rx_ip(hw, ipi,
+						      (__force __be32 *)zerobuf);
 			}
 		}
 
@@ -943,8 +926,8 @@ err2:
 	kfree(ipsec->ip_tbl);
 	kfree(ipsec->rx_tbl);
 	kfree(ipsec->tx_tbl);
+	kfree(ipsec);
 err1:
-	kfree(adapter->ipsec);
 	netdev_err(adapter->netdev, "Unable to allocate memory for SA tables");
 }
 

@@ -148,9 +148,9 @@ static int compute_score(struct sock *sk, struct net *net,
 		bool dev_match = (sk->sk_bound_dev_if == dif ||
 				  sk->sk_bound_dev_if == sdif);
 
-		if (exact_dif && !dev_match)
+		if (!dev_match)
 			return -1;
-		if (sk->sk_bound_dev_if && dev_match)
+		if (sk->sk_bound_dev_if)
 			score++;
 	}
 
@@ -546,10 +546,10 @@ static __inline__ void udpv6_err(struct sk_buff *skb,
 	__udp6_lib_err(skb, opt, type, code, offset, info, &udp_table);
 }
 
-static struct static_key udpv6_encap_needed __read_mostly;
+static DEFINE_STATIC_KEY_FALSE(udpv6_encap_needed_key);
 void udpv6_encap_enable(void)
 {
-	static_key_enable(&udpv6_encap_needed);
+	static_branch_enable(&udpv6_encap_needed_key);
 }
 EXPORT_SYMBOL(udpv6_encap_enable);
 
@@ -561,7 +561,7 @@ static int udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	if (!xfrm6_policy_check(sk, XFRM_POLICY_IN, skb))
 		goto drop;
 
-	if (static_key_false(&udpv6_encap_needed) && up->encap_type) {
+	if (static_branch_unlikely(&udpv6_encap_needed_key) && up->encap_type) {
 		int (*encap_rcv)(struct sock *sk, struct sk_buff *skb);
 
 		/*
@@ -1023,7 +1023,8 @@ static void udp6_hwcsum_outgoing(struct sock *sk, struct sk_buff *skb,
  *	Sending
  */
 
-static int udp_v6_send_skb(struct sk_buff *skb, struct flowi6 *fl6)
+static int udp_v6_send_skb(struct sk_buff *skb, struct flowi6 *fl6,
+			   struct inet_cork *cork)
 {
 	struct sock *sk = skb->sk;
 	struct udphdr *uh;
@@ -1042,12 +1043,31 @@ static int udp_v6_send_skb(struct sk_buff *skb, struct flowi6 *fl6)
 	uh->len = htons(len);
 	uh->check = 0;
 
+	if (cork->gso_size) {
+		const int hlen = skb_network_header_len(skb) +
+				 sizeof(struct udphdr);
+
+		if (hlen + cork->gso_size > cork->fragsize)
+			return -EINVAL;
+		if (skb->len > cork->gso_size * UDP_MAX_SEGMENTS)
+			return -EINVAL;
+		if (udp_sk(sk)->no_check6_tx)
+			return -EINVAL;
+		if (skb->ip_summed != CHECKSUM_PARTIAL || is_udplite)
+			return -EIO;
+
+		skb_shinfo(skb)->gso_size = cork->gso_size;
+		skb_shinfo(skb)->gso_type = SKB_GSO_UDP_L4;
+		goto csum_partial;
+	}
+
 	if (is_udplite)
 		csum = udplite_csum(skb);
 	else if (udp_sk(sk)->no_check6_tx) {   /* UDP csum disabled */
 		skb->ip_summed = CHECKSUM_NONE;
 		goto send;
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) { /* UDP hardware csum */
+csum_partial:
 		udp6_hwcsum_outgoing(sk, skb, &fl6->saddr, &fl6->daddr, len);
 		goto send;
 	} else
@@ -1093,7 +1113,7 @@ static int udp_v6_push_pending_frames(struct sock *sk)
 	if (!skb)
 		goto out;
 
-	err = udp_v6_send_skb(skb, &fl6);
+	err = udp_v6_send_skb(skb, &fl6, &inet_sk(sk)->cork.base);
 
 out:
 	up->len = 0;
@@ -1127,6 +1147,7 @@ int udpv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	ipc6.hlimit = -1;
 	ipc6.tclass = -1;
 	ipc6.dontfrag = -1;
+	ipc6.gso_size = up->gso_size;
 	sockc.tsflags = sk->sk_tsflags;
 
 	/* destination address check */
@@ -1259,7 +1280,10 @@ do_udp_sendmsg:
 		opt->tot_len = sizeof(*opt);
 		ipc6.opt = opt;
 
-		err = ip6_datagram_send_ctl(sock_net(sk), sk, msg, &fl6, &ipc6, &sockc);
+		err = udp_cmsg_send(sk, msg, &ipc6.gso_size);
+		if (err > 0)
+			err = ip6_datagram_send_ctl(sock_net(sk), sk, msg, &fl6,
+						    &ipc6, &sockc);
 		if (err < 0) {
 			fl6_sock_release(flowlabel);
 			return err;
@@ -1324,15 +1348,16 @@ back_from_confirm:
 
 	/* Lockless fast path for the non-corking case */
 	if (!corkreq) {
+		struct inet_cork_full cork;
 		struct sk_buff *skb;
 
 		skb = ip6_make_skb(sk, getfrag, msg, ulen,
 				   sizeof(struct udphdr), &ipc6,
 				   &fl6, (struct rt6_info *)dst,
-				   msg->msg_flags, &sockc);
+				   msg->msg_flags, &cork, &sockc);
 		err = PTR_ERR(skb);
 		if (!IS_ERR_OR_NULL(skb))
-			err = udp_v6_send_skb(skb, &fl6);
+			err = udp_v6_send_skb(skb, &fl6, &cork.base);
 		goto out;
 	}
 
@@ -1402,7 +1427,7 @@ void udpv6_destroy_sock(struct sock *sk)
 	udp_v6_flush_pending_frames(sk);
 	release_sock(sk);
 
-	if (static_key_false(&udpv6_encap_needed) && up->encap_type) {
+	if (static_branch_unlikely(&udpv6_encap_needed_key) && up->encap_type) {
 		void (*encap_destroy)(struct sock *sk);
 		encap_destroy = READ_ONCE(up->encap_destroy);
 		if (encap_destroy)

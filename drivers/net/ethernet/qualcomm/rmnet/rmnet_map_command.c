@@ -69,17 +69,9 @@ static void rmnet_map_send_ack(struct sk_buff *skb,
 	struct rmnet_map_control_command *cmd;
 	int xmit_status;
 
-	if (port->data_format & RMNET_FLAGS_INGRESS_MAP_CKSUMV4) {
-		if (skb->len < sizeof(struct rmnet_map_header) +
-		    RMNET_MAP_GET_LENGTH(skb) +
-		    sizeof(struct rmnet_map_dl_csum_trailer)) {
-			kfree_skb(skb);
-			return;
-		}
-
-		skb_trim(skb, skb->len -
-			 sizeof(struct rmnet_map_dl_csum_trailer));
-	}
+	if (port->data_format & RMNET_FLAGS_INGRESS_MAP_CKSUMV4)
+		skb_trim(skb,
+			 skb->len - sizeof(struct rmnet_map_dl_csum_trailer));
 
 	skb->protocol = htons(ETH_P_MAP);
 

@@ -14,6 +14,8 @@
 
 #include "hnae3.h"
 
+#define HNS3_MOD_VERSION "1.0"
+
 extern const char hns3_driver_version[];
 
 enum hns3_nic_state {

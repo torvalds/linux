@@ -1,4 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
+
+BPF_SAMPLES_PATH ?= $(abspath $(srctree)/$(src))
+TOOLS_PATH := $(BPF_SAMPLES_PATH)/../../tools
+
 # List of programs to build
 hostprogs-y := test_lru_dist
 hostprogs-y += sock_example
@@ -44,57 +48,63 @@ hostprogs-y += xdp_monitor
 hostprogs-y += xdp_rxq_info
 hostprogs-y += syscall_tp
 hostprogs-y += cpustat
+hostprogs-y += xdp_adjust_tail
+hostprogs-y += xdpsock
+hostprogs-y += xdp_fwd
 
 # Libbpf dependencies
-LIBBPF := ../../tools/lib/bpf/bpf.o ../../tools/lib/bpf/nlattr.o
-CGROUP_HELPERS := ../../tools/testing/selftests/bpf/cgroup_helpers.o
+LIBBPF = $(TOOLS_PATH)/lib/bpf/libbpf.a
 
-test_lru_dist-objs := test_lru_dist.o $(LIBBPF)
-sock_example-objs := sock_example.o $(LIBBPF)
-fds_example-objs := bpf_load.o $(LIBBPF) fds_example.o
-sockex1-objs := bpf_load.o $(LIBBPF) sockex1_user.o
-sockex2-objs := bpf_load.o $(LIBBPF) sockex2_user.o
-sockex3-objs := bpf_load.o $(LIBBPF) sockex3_user.o
-tracex1-objs := bpf_load.o $(LIBBPF) tracex1_user.o
-tracex2-objs := bpf_load.o $(LIBBPF) tracex2_user.o
-tracex3-objs := bpf_load.o $(LIBBPF) tracex3_user.o
-tracex4-objs := bpf_load.o $(LIBBPF) tracex4_user.o
-tracex5-objs := bpf_load.o $(LIBBPF) tracex5_user.o
-tracex6-objs := bpf_load.o $(LIBBPF) tracex6_user.o
-tracex7-objs := bpf_load.o $(LIBBPF) tracex7_user.o
-load_sock_ops-objs := bpf_load.o $(LIBBPF) load_sock_ops.o
-test_probe_write_user-objs := bpf_load.o $(LIBBPF) test_probe_write_user_user.o
-trace_output-objs := bpf_load.o $(LIBBPF) trace_output_user.o
-lathist-objs := bpf_load.o $(LIBBPF) lathist_user.o
-offwaketime-objs := bpf_load.o $(LIBBPF) offwaketime_user.o
-spintest-objs := bpf_load.o $(LIBBPF) spintest_user.o
-map_perf_test-objs := bpf_load.o $(LIBBPF) map_perf_test_user.o
-test_overhead-objs := bpf_load.o $(LIBBPF) test_overhead_user.o
-test_cgrp2_array_pin-objs := $(LIBBPF) test_cgrp2_array_pin.o
-test_cgrp2_attach-objs := $(LIBBPF) test_cgrp2_attach.o
-test_cgrp2_attach2-objs := $(LIBBPF) test_cgrp2_attach2.o $(CGROUP_HELPERS)
-test_cgrp2_sock-objs := $(LIBBPF) test_cgrp2_sock.o
-test_cgrp2_sock2-objs := bpf_load.o $(LIBBPF) test_cgrp2_sock2.o
-xdp1-objs := bpf_load.o $(LIBBPF) xdp1_user.o
+CGROUP_HELPERS := ../../tools/testing/selftests/bpf/cgroup_helpers.o
+TRACE_HELPERS := ../../tools/testing/selftests/bpf/trace_helpers.o
+
+fds_example-objs := bpf_load.o fds_example.o
+sockex1-objs := bpf_load.o sockex1_user.o
+sockex2-objs := bpf_load.o sockex2_user.o
+sockex3-objs := bpf_load.o sockex3_user.o
+tracex1-objs := bpf_load.o tracex1_user.o
+tracex2-objs := bpf_load.o tracex2_user.o
+tracex3-objs := bpf_load.o tracex3_user.o
+tracex4-objs := bpf_load.o tracex4_user.o
+tracex5-objs := bpf_load.o tracex5_user.o
+tracex6-objs := bpf_load.o tracex6_user.o
+tracex7-objs := bpf_load.o tracex7_user.o
+load_sock_ops-objs := bpf_load.o load_sock_ops.o
+test_probe_write_user-objs := bpf_load.o test_probe_write_user_user.o
+trace_output-objs := bpf_load.o trace_output_user.o $(TRACE_HELPERS)
+lathist-objs := bpf_load.o lathist_user.o
+offwaketime-objs := bpf_load.o offwaketime_user.o $(TRACE_HELPERS)
+spintest-objs := bpf_load.o spintest_user.o $(TRACE_HELPERS)
+map_perf_test-objs := bpf_load.o map_perf_test_user.o
+test_overhead-objs := bpf_load.o test_overhead_user.o
+test_cgrp2_array_pin-objs := test_cgrp2_array_pin.o
+test_cgrp2_attach-objs := test_cgrp2_attach.o
+test_cgrp2_attach2-objs := test_cgrp2_attach2.o $(CGROUP_HELPERS)
+test_cgrp2_sock-objs := test_cgrp2_sock.o
+test_cgrp2_sock2-objs := bpf_load.o test_cgrp2_sock2.o
+xdp1-objs := xdp1_user.o
 # reuse xdp1 source intentionally
-xdp2-objs := bpf_load.o $(LIBBPF) xdp1_user.o
-xdp_router_ipv4-objs := bpf_load.o $(LIBBPF) xdp_router_ipv4_user.o
-test_current_task_under_cgroup-objs := bpf_load.o $(LIBBPF) $(CGROUP_HELPERS) \
+xdp2-objs := xdp1_user.o
+xdp_router_ipv4-objs := bpf_load.o xdp_router_ipv4_user.o
+test_current_task_under_cgroup-objs := bpf_load.o $(CGROUP_HELPERS) \
 				       test_current_task_under_cgroup_user.o
-trace_event-objs := bpf_load.o $(LIBBPF) trace_event_user.o
-sampleip-objs := bpf_load.o $(LIBBPF) sampleip_user.o
-tc_l2_redirect-objs := bpf_load.o $(LIBBPF) tc_l2_redirect_user.o
-lwt_len_hist-objs := bpf_load.o $(LIBBPF) lwt_len_hist_user.o
-xdp_tx_iptunnel-objs := bpf_load.o $(LIBBPF) xdp_tx_iptunnel_user.o
-test_map_in_map-objs := bpf_load.o $(LIBBPF) test_map_in_map_user.o
-per_socket_stats_example-objs := $(LIBBPF) cookie_uid_helper_example.o
-xdp_redirect-objs := bpf_load.o $(LIBBPF) xdp_redirect_user.o
-xdp_redirect_map-objs := bpf_load.o $(LIBBPF) xdp_redirect_map_user.o
-xdp_redirect_cpu-objs := bpf_load.o $(LIBBPF) xdp_redirect_cpu_user.o
-xdp_monitor-objs := bpf_load.o $(LIBBPF) xdp_monitor_user.o
-xdp_rxq_info-objs := bpf_load.o $(LIBBPF) xdp_rxq_info_user.o
-syscall_tp-objs := bpf_load.o $(LIBBPF) syscall_tp_user.o
-cpustat-objs := bpf_load.o $(LIBBPF) cpustat_user.o
+trace_event-objs := bpf_load.o trace_event_user.o $(TRACE_HELPERS)
+sampleip-objs := bpf_load.o sampleip_user.o $(TRACE_HELPERS)
+tc_l2_redirect-objs := bpf_load.o tc_l2_redirect_user.o
+lwt_len_hist-objs := bpf_load.o lwt_len_hist_user.o
+xdp_tx_iptunnel-objs := bpf_load.o xdp_tx_iptunnel_user.o
+test_map_in_map-objs := bpf_load.o test_map_in_map_user.o
+per_socket_stats_example-objs := cookie_uid_helper_example.o
+xdp_redirect-objs := bpf_load.o xdp_redirect_user.o
+xdp_redirect_map-objs := bpf_load.o xdp_redirect_map_user.o
+xdp_redirect_cpu-objs := bpf_load.o xdp_redirect_cpu_user.o
+xdp_monitor-objs := bpf_load.o xdp_monitor_user.o
+xdp_rxq_info-objs := xdp_rxq_info_user.o
+syscall_tp-objs := bpf_load.o syscall_tp_user.o
+cpustat-objs := bpf_load.o cpustat_user.o
+xdp_adjust_tail-objs := xdp_adjust_tail_user.o
+xdpsock-objs := bpf_load.o xdpsock_user.o
+xdp_fwd-objs := bpf_load.o xdp_fwd_user.o
 
 # Tell kbuild to always build the programs
 always := $(hostprogs-y)
@@ -112,7 +122,6 @@ always += sock_flags_kern.o
 always += test_probe_write_user_kern.o
 always += trace_output_kern.o
 always += tcbpf1_kern.o
-always += tcbpf2_kern.o
 always += tc_l2_redirect_kern.o
 always += lathist_kern.o
 always += offwaketime_kern.o
@@ -148,6 +157,9 @@ always += xdp_rxq_info_kern.o
 always += xdp2skb_meta_kern.o
 always += syscall_tp_kern.o
 always += cpustat_kern.o
+always += xdp_adjust_tail_kern.o
+always += xdpsock_kern.o
+always += xdp_fwd_kern.o
 
 HOSTCFLAGS += -I$(objtree)/usr/include
 HOSTCFLAGS += -I$(srctree)/tools/lib/
@@ -156,43 +168,20 @@ HOSTCFLAGS += -I$(srctree)/tools/lib/ -I$(srctree)/tools/include
 HOSTCFLAGS += -I$(srctree)/tools/perf
 
 HOSTCFLAGS_bpf_load.o += -I$(objtree)/usr/include -Wno-unused-variable
-HOSTLOADLIBES_fds_example += -lelf
-HOSTLOADLIBES_sockex1 += -lelf
-HOSTLOADLIBES_sockex2 += -lelf
-HOSTLOADLIBES_sockex3 += -lelf
-HOSTLOADLIBES_tracex1 += -lelf
-HOSTLOADLIBES_tracex2 += -lelf
-HOSTLOADLIBES_tracex3 += -lelf
-HOSTLOADLIBES_tracex4 += -lelf -lrt
-HOSTLOADLIBES_tracex5 += -lelf
-HOSTLOADLIBES_tracex6 += -lelf
-HOSTLOADLIBES_tracex7 += -lelf
-HOSTLOADLIBES_test_cgrp2_sock2 += -lelf
-HOSTLOADLIBES_load_sock_ops += -lelf
-HOSTLOADLIBES_test_probe_write_user += -lelf
-HOSTLOADLIBES_trace_output += -lelf -lrt
-HOSTLOADLIBES_lathist += -lelf
-HOSTLOADLIBES_offwaketime += -lelf
-HOSTLOADLIBES_spintest += -lelf
-HOSTLOADLIBES_map_perf_test += -lelf -lrt
-HOSTLOADLIBES_test_overhead += -lelf -lrt
-HOSTLOADLIBES_xdp1 += -lelf
-HOSTLOADLIBES_xdp2 += -lelf
-HOSTLOADLIBES_xdp_router_ipv4 += -lelf
-HOSTLOADLIBES_test_current_task_under_cgroup += -lelf
-HOSTLOADLIBES_trace_event += -lelf
-HOSTLOADLIBES_sampleip += -lelf
-HOSTLOADLIBES_tc_l2_redirect += -l elf
-HOSTLOADLIBES_lwt_len_hist += -l elf
-HOSTLOADLIBES_xdp_tx_iptunnel += -lelf
-HOSTLOADLIBES_test_map_in_map += -lelf
-HOSTLOADLIBES_xdp_redirect += -lelf
-HOSTLOADLIBES_xdp_redirect_map += -lelf
-HOSTLOADLIBES_xdp_redirect_cpu += -lelf
-HOSTLOADLIBES_xdp_monitor += -lelf
-HOSTLOADLIBES_xdp_rxq_info += -lelf
-HOSTLOADLIBES_syscall_tp += -lelf
-HOSTLOADLIBES_cpustat += -lelf
+HOSTCFLAGS_trace_helpers.o += -I$(srctree)/tools/lib/bpf/
+
+HOSTCFLAGS_trace_output_user.o += -I$(srctree)/tools/lib/bpf/
+HOSTCFLAGS_offwaketime_user.o += -I$(srctree)/tools/lib/bpf/
+HOSTCFLAGS_spintest_user.o += -I$(srctree)/tools/lib/bpf/
+HOSTCFLAGS_trace_event_user.o += -I$(srctree)/tools/lib/bpf/
+HOSTCFLAGS_sampleip_user.o += -I$(srctree)/tools/lib/bpf/
+
+HOST_LOADLIBES		+= $(LIBBPF) -lelf
+HOSTLOADLIBES_tracex4		+= -lrt
+HOSTLOADLIBES_trace_output	+= -lrt
+HOSTLOADLIBES_map_perf_test	+= -lrt
+HOSTLOADLIBES_test_overhead	+= -lrt
+HOSTLOADLIBES_xdpsock		+= -pthread
 
 # Allows pointing LLC/CLANG to a LLVM backend with bpf support, redefine on cmdline:
 #  make samples/bpf/ LLC=~/git/llvm/build/bin/llc CLANG=~/git/llvm/build/bin/clang
@@ -206,15 +195,16 @@ CLANG_ARCH_ARGS = -target $(ARCH)
 endif
 
 # Trick to allow make to be run from this directory
-all: $(LIBBPF)
-	$(MAKE) -C ../../ $(CURDIR)/
+all:
+	$(MAKE) -C ../../ $(CURDIR)/ BPF_SAMPLES_PATH=$(CURDIR)
 
 clean:
 	$(MAKE) -C ../../ M=$(CURDIR) clean
 	@rm -f *~
 
 $(LIBBPF): FORCE
-	$(MAKE) -C $(dir $@) $(notdir $@)
+# Fix up variables inherited from Kbuild that tools/ build system won't like
+	$(MAKE) -C $(dir $@) RM='rm -rf' LDFLAGS= srctree=$(BPF_SAMPLES_PATH)/../../ O=
 
 $(obj)/syscall_nrs.s:	$(src)/syscall_nrs.c
 	$(call if_changed_dep,cc_s_c)
@@ -245,7 +235,8 @@ verify_target_bpf: verify_cmds
 		exit 2; \
 	else true; fi
 
-$(src)/*.c: verify_target_bpf
+$(BPF_SAMPLES_PATH)/*.c: verify_target_bpf $(LIBBPF)
+$(src)/*.c: verify_target_bpf $(LIBBPF)
 
 $(obj)/tracex5_kern.o: $(obj)/syscall_nrs.h
 
@@ -253,9 +244,10 @@ $(obj)/tracex5_kern.o: $(obj)/syscall_nrs.h
 # But, there is no easy way to fix it, so just exclude it since it is
 # useless for BPF samples.
 $(obj)/%.o: $(src)/%.c
-	$(CLANG) $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(EXTRA_CFLAGS) -I$(obj) \
+	@echo "  CLANG-bpf " $@
+	$(Q)$(CLANG) $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(EXTRA_CFLAGS) -I$(obj) \
 		-I$(srctree)/tools/testing/selftests/bpf/ \
-		-D__KERNEL__ -Wno-unused-value -Wno-pointer-sign \
+		-D__KERNEL__ -D__BPF_TRACING__ -Wno-unused-value -Wno-pointer-sign \
 		-D__TARGET_ARCH_$(ARCH) -Wno-compare-distinct-pointer-types \
 		-Wno-gnu-variable-sized-type-not-at-end \
 		-Wno-address-of-packed-member -Wno-tautological-compare \

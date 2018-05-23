@@ -26,7 +26,7 @@ static inline void signal_compat_build_tests(void)
 	 * new fields are handled in copy_siginfo_to_user32()!
 	 */
 	BUILD_BUG_ON(NSIGILL  != 11);
-	BUILD_BUG_ON(NSIGFPE  != 14);
+	BUILD_BUG_ON(NSIGFPE  != 15);
 	BUILD_BUG_ON(NSIGSEGV != 7);
 	BUILD_BUG_ON(NSIGBUS  != 5);
 	BUILD_BUG_ON(NSIGTRAP != 4);

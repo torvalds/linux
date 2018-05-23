@@ -207,5 +207,6 @@ config USB_ULPI_BUS
 
 config USB_ROLE_SWITCH
 	tristate
+	select USB_COMMON
 
 endif # USB_SUPPORT

@@ -1150,6 +1150,7 @@ static int handle_g2v_notification(struct intel_vgpu *vgpu, int notification)
 	switch (notification) {
 	case VGT_G2V_PPGTT_L3_PAGE_TABLE_CREATE:
 		root_entry_type = GTT_TYPE_PPGTT_ROOT_L3_ENTRY;
+		/* fall through */
 	case VGT_G2V_PPGTT_L4_PAGE_TABLE_CREATE:
 		mm = intel_vgpu_get_ppgtt_mm(vgpu, root_entry_type, pdps);
 		return PTR_ERR_OR_ZERO(mm);

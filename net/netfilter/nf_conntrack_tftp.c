@@ -104,7 +104,7 @@ static const struct nf_conntrack_expect_policy tftp_exp_policy = {
 	.timeout	= 5 * 60,
 };
 
-static void nf_conntrack_tftp_fini(void)
+static void __exit nf_conntrack_tftp_fini(void)
 {
 	nf_conntrack_helpers_unregister(tftp, ports_c * 2);
 }

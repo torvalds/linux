@@ -502,7 +502,7 @@ static int hns3_get_l4_protocol(struct sk_buff *skb, u8 *ol4_proto,
 
 	/* find outer header point */
 	l3.hdr = skb_network_header(skb);
-	l4_hdr = skb_inner_transport_header(skb);
+	l4_hdr = skb_transport_header(skb);
 
 	if (skb->protocol == htons(ETH_P_IPV6)) {
 		exthdr = l3.hdr + sizeof(*l3.v6);
@@ -1244,93 +1244,6 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 	stats->tx_compressed = netdev->stats.tx_compressed;
 }
 
-static void hns3_add_tunnel_port(struct net_device *netdev, u16 port,
-				 enum hns3_udp_tnl_type type)
-{
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hns3_udp_tunnel *udp_tnl = &priv->udp_tnl[type];
-	struct hnae3_handle *h = priv->ae_handle;
-
-	if (udp_tnl->used && udp_tnl->dst_port == port) {
-		udp_tnl->used++;
-		return;
-	}
-
-	if (udp_tnl->used) {
-		netdev_warn(netdev,
-			    "UDP tunnel [%d], port [%d] offload\n", type, port);
-		return;
-	}
-
-	udp_tnl->dst_port = port;
-	udp_tnl->used = 1;
-	/* TBD send command to hardware to add port */
-	if (h->ae_algo->ops->add_tunnel_udp)
-		h->ae_algo->ops->add_tunnel_udp(h, port);
-}
-
-static void hns3_del_tunnel_port(struct net_device *netdev, u16 port,
-				 enum hns3_udp_tnl_type type)
-{
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hns3_udp_tunnel *udp_tnl = &priv->udp_tnl[type];
-	struct hnae3_handle *h = priv->ae_handle;
-
-	if (!udp_tnl->used || udp_tnl->dst_port != port) {
-		netdev_warn(netdev,
-			    "Invalid UDP tunnel port %d\n", port);
-		return;
-	}
-
-	udp_tnl->used--;
-	if (udp_tnl->used)
-		return;
-
-	udp_tnl->dst_port = 0;
-	/* TBD send command to hardware to del port  */
-	if (h->ae_algo->ops->del_tunnel_udp)
-		h->ae_algo->ops->del_tunnel_udp(h, port);
-}
-
-/* hns3_nic_udp_tunnel_add - Get notifiacetion about UDP tunnel ports
- * @netdev: This physical ports's netdev
- * @ti: Tunnel information
- */
-static void hns3_nic_udp_tunnel_add(struct net_device *netdev,
-				    struct udp_tunnel_info *ti)
-{
-	u16 port_n = ntohs(ti->port);
-
-	switch (ti->type) {
-	case UDP_TUNNEL_TYPE_VXLAN:
-		hns3_add_tunnel_port(netdev, port_n, HNS3_UDP_TNL_VXLAN);
-		break;
-	case UDP_TUNNEL_TYPE_GENEVE:
-		hns3_add_tunnel_port(netdev, port_n, HNS3_UDP_TNL_GENEVE);
-		break;
-	default:
-		netdev_err(netdev, "unsupported tunnel type %d\n", ti->type);
-		break;
-	}
-}
-
-static void hns3_nic_udp_tunnel_del(struct net_device *netdev,
-				    struct udp_tunnel_info *ti)
-{
-	u16 port_n = ntohs(ti->port);
-
-	switch (ti->type) {
-	case UDP_TUNNEL_TYPE_VXLAN:
-		hns3_del_tunnel_port(netdev, port_n, HNS3_UDP_TNL_VXLAN);
-		break;
-	case UDP_TUNNEL_TYPE_GENEVE:
-		hns3_del_tunnel_port(netdev, port_n, HNS3_UDP_TNL_GENEVE);
-		break;
-	default:
-		break;
-	}
-}
-
 static int hns3_setup_tc(struct net_device *netdev, void *type_data)
 {
 	struct tc_mqprio_qopt_offload *mqprio_qopt = type_data;
@@ -1569,12 +1482,49 @@ static const struct net_device_ops hns3_nic_netdev_ops = {
 	.ndo_get_stats64	= hns3_nic_get_stats64,
 	.ndo_setup_tc		= hns3_nic_setup_tc,
 	.ndo_set_rx_mode	= hns3_nic_set_rx_mode,
-	.ndo_udp_tunnel_add	= hns3_nic_udp_tunnel_add,
-	.ndo_udp_tunnel_del	= hns3_nic_udp_tunnel_del,
 	.ndo_vlan_rx_add_vid	= hns3_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= hns3_vlan_rx_kill_vid,
 	.ndo_set_vf_vlan	= hns3_ndo_set_vf_vlan,
 };
+
+static bool hns3_is_phys_func(struct pci_dev *pdev)
+{
+	u32 dev_id = pdev->device;
+
+	switch (dev_id) {
+	case HNAE3_DEV_ID_GE:
+	case HNAE3_DEV_ID_25GE:
+	case HNAE3_DEV_ID_25GE_RDMA:
+	case HNAE3_DEV_ID_25GE_RDMA_MACSEC:
+	case HNAE3_DEV_ID_50GE_RDMA:
+	case HNAE3_DEV_ID_50GE_RDMA_MACSEC:
+	case HNAE3_DEV_ID_100G_RDMA_MACSEC:
+		return true;
+	case HNAE3_DEV_ID_100G_VF:
+	case HNAE3_DEV_ID_100G_RDMA_DCB_PFC_VF:
+		return false;
+	default:
+		dev_warn(&pdev->dev, "un-recognized pci device-id %d",
+			 dev_id);
+	}
+
+	return false;
+}
+
+static void hns3_disable_sriov(struct pci_dev *pdev)
+{
+	/* If our VFs are assigned we cannot shut down SR-IOV
+	 * without causing issues, so just leave the hardware
+	 * available but disabled
+	 */
+	if (pci_vfs_assigned(pdev)) {
+		dev_warn(&pdev->dev,
+			 "disabling driver while VFs are assigned\n");
+		return;
+	}
+
+	pci_disable_sriov(pdev);
+}
 
 /* hns3_probe - Device initialization routine
  * @pdev: PCI device information struct
@@ -1603,7 +1553,9 @@ static int hns3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ae_dev->dev_type = HNAE3_DEV_KNIC;
 	pci_set_drvdata(pdev, ae_dev);
 
-	return hnae3_register_ae_dev(ae_dev);
+	hnae3_register_ae_dev(ae_dev);
+
+	return 0;
 }
 
 /* hns3_remove - Device removal routine
@@ -1613,7 +1565,43 @@ static void hns3_remove(struct pci_dev *pdev)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
 
+	if (hns3_is_phys_func(pdev) && IS_ENABLED(CONFIG_PCI_IOV))
+		hns3_disable_sriov(pdev);
+
 	hnae3_unregister_ae_dev(ae_dev);
+}
+
+/**
+ * hns3_pci_sriov_configure
+ * @pdev: pointer to a pci_dev structure
+ * @num_vfs: number of VFs to allocate
+ *
+ * Enable or change the number of VFs. Called when the user updates the number
+ * of VFs in sysfs.
+ **/
+static int hns3_pci_sriov_configure(struct pci_dev *pdev, int num_vfs)
+{
+	int ret;
+
+	if (!(hns3_is_phys_func(pdev) && IS_ENABLED(CONFIG_PCI_IOV))) {
+		dev_warn(&pdev->dev, "Can not config SRIOV\n");
+		return -EINVAL;
+	}
+
+	if (num_vfs) {
+		ret = pci_enable_sriov(pdev, num_vfs);
+		if (ret)
+			dev_err(&pdev->dev, "SRIOV enable failed %d\n", ret);
+		else
+			return num_vfs;
+	} else if (!pci_vfs_assigned(pdev)) {
+		pci_disable_sriov(pdev);
+	} else {
+		dev_warn(&pdev->dev,
+			 "Unable to free VFs because some are assigned to VMs.\n");
+	}
+
+	return 0;
 }
 
 static struct pci_driver hns3_driver = {
@@ -1621,13 +1609,12 @@ static struct pci_driver hns3_driver = {
 	.id_table = hns3_pci_tbl,
 	.probe    = hns3_probe,
 	.remove   = hns3_remove,
+	.sriov_configure = hns3_pci_sriov_configure,
 };
 
 /* set default feature to hns3 */
 static void hns3_set_default_feature(struct net_device *netdev)
 {
-	struct hnae3_handle *h = hns3_get_handle(netdev);
-
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 
 	netdev->hw_enc_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
@@ -1656,15 +1643,11 @@ static void hns3_set_default_feature(struct net_device *netdev)
 		NETIF_F_GSO_UDP_TUNNEL_CSUM;
 
 	netdev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-		NETIF_F_HW_VLAN_CTAG_TX |
+		NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
 		NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO |
 		NETIF_F_GRO | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GSO_GRE |
 		NETIF_F_GSO_GRE_CSUM | NETIF_F_GSO_UDP_TUNNEL |
 		NETIF_F_GSO_UDP_TUNNEL_CSUM;
-
-	if (!(h->flags & HNAE3_SUPPORT_VF))
-		netdev->hw_features |=
-			NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_VLAN_CTAG_RX;
 }
 
 static int hns3_alloc_buffer(struct hns3_enet_ring *ring,
@@ -1971,106 +1954,6 @@ hns3_nic_alloc_rx_buffers(struct hns3_enet_ring *ring, int cleand_count)
 	writel_relaxed(i, ring->tqp->io_base + HNS3_RING_RX_RING_HEAD_REG);
 }
 
-/* hns3_nic_get_headlen - determine size of header for LRO/GRO
- * @data: pointer to the start of the headers
- * @max: total length of section to find headers in
- *
- * This function is meant to determine the length of headers that will
- * be recognized by hardware for LRO, GRO, and RSC offloads.  The main
- * motivation of doing this is to only perform one pull for IPv4 TCP
- * packets so that we can do basic things like calculating the gso_size
- * based on the average data per packet.
- */
-static unsigned int hns3_nic_get_headlen(unsigned char *data, u32 flag,
-					 unsigned int max_size)
-{
-	unsigned char *network;
-	u8 hlen;
-
-	/* This should never happen, but better safe than sorry */
-	if (max_size < ETH_HLEN)
-		return max_size;
-
-	/* Initialize network frame pointer */
-	network = data;
-
-	/* Set first protocol and move network header forward */
-	network += ETH_HLEN;
-
-	/* Handle any vlan tag if present */
-	if (hnae_get_field(flag, HNS3_RXD_VLAN_M, HNS3_RXD_VLAN_S)
-		== HNS3_RX_FLAG_VLAN_PRESENT) {
-		if ((typeof(max_size))(network - data) > (max_size - VLAN_HLEN))
-			return max_size;
-
-		network += VLAN_HLEN;
-	}
-
-	/* Handle L3 protocols */
-	if (hnae_get_field(flag, HNS3_RXD_L3ID_M, HNS3_RXD_L3ID_S)
-		== HNS3_RX_FLAG_L3ID_IPV4) {
-		if ((typeof(max_size))(network - data) >
-		    (max_size - sizeof(struct iphdr)))
-			return max_size;
-
-		/* Access ihl as a u8 to avoid unaligned access on ia64 */
-		hlen = (network[0] & 0x0F) << 2;
-
-		/* Verify hlen meets minimum size requirements */
-		if (hlen < sizeof(struct iphdr))
-			return network - data;
-
-		/* Record next protocol if header is present */
-	} else if (hnae_get_field(flag, HNS3_RXD_L3ID_M, HNS3_RXD_L3ID_S)
-		== HNS3_RX_FLAG_L3ID_IPV6) {
-		if ((typeof(max_size))(network - data) >
-		    (max_size - sizeof(struct ipv6hdr)))
-			return max_size;
-
-		/* Record next protocol */
-		hlen = sizeof(struct ipv6hdr);
-	} else {
-		return network - data;
-	}
-
-	/* Relocate pointer to start of L4 header */
-	network += hlen;
-
-	/* Finally sort out TCP/UDP */
-	if (hnae_get_field(flag, HNS3_RXD_L4ID_M, HNS3_RXD_L4ID_S)
-		== HNS3_RX_FLAG_L4ID_TCP) {
-		if ((typeof(max_size))(network - data) >
-		    (max_size - sizeof(struct tcphdr)))
-			return max_size;
-
-		/* Access doff as a u8 to avoid unaligned access on ia64 */
-		hlen = (network[12] & 0xF0) >> 2;
-
-		/* Verify hlen meets minimum size requirements */
-		if (hlen < sizeof(struct tcphdr))
-			return network - data;
-
-		network += hlen;
-	} else if (hnae_get_field(flag, HNS3_RXD_L4ID_M, HNS3_RXD_L4ID_S)
-		== HNS3_RX_FLAG_L4ID_UDP) {
-		if ((typeof(max_size))(network - data) >
-		    (max_size - sizeof(struct udphdr)))
-			return max_size;
-
-		network += sizeof(struct udphdr);
-	}
-
-	/* If everything has gone correctly network should be the
-	 * data section of the packet and will be the end of the header.
-	 * If not then it probably represents the end of the last recognized
-	 * header.
-	 */
-	if ((typeof(max_size))(network - data) < max_size)
-		return network - data;
-	else
-		return max_size;
-}
-
 static void hns3_nic_reuse_page(struct sk_buff *skb, int i,
 				struct hns3_enet_ring *ring, int pull_len,
 				struct hns3_desc_cb *desc_cb)
@@ -2270,8 +2153,8 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 		ring->stats.seg_pkt_cnt++;
 		u64_stats_update_end(&ring->syncp);
 
-		pull_len = hns3_nic_get_headlen(va, l234info,
-						HNS3_RX_HEAD_SIZE);
+		pull_len = eth_get_headlen(va, HNS3_RX_HEAD_SIZE);
+
 		memcpy(__skb_put(skb, pull_len), va,
 		       ALIGN(pull_len, sizeof(long)));
 
@@ -3052,13 +2935,13 @@ int hns3_uninit_all_ring(struct hns3_nic_priv *priv)
 }
 
 /* Set mac addr if it is configured. or leave it to the AE driver */
-static void hns3_init_mac_addr(struct net_device *netdev)
+static void hns3_init_mac_addr(struct net_device *netdev, bool init)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = priv->ae_handle;
 	u8 mac_addr_temp[ETH_ALEN];
 
-	if (h->ae_algo->ops->get_mac_addr) {
+	if (h->ae_algo->ops->get_mac_addr && init) {
 		h->ae_algo->ops->get_mac_addr(h, mac_addr_temp);
 		ether_addr_copy(netdev->dev_addr, mac_addr_temp);
 	}
@@ -3112,7 +2995,7 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	handle->kinfo.netdev = netdev;
 	handle->priv = (void *)priv;
 
-	hns3_init_mac_addr(netdev);
+	hns3_init_mac_addr(netdev, true);
 
 	hns3_set_default_feature(netdev);
 
@@ -3298,9 +3181,35 @@ static void hns3_recover_hw_addr(struct net_device *ndev)
 		hns3_nic_mc_sync(ndev, ha->addr);
 }
 
-static void hns3_drop_skb_data(struct hns3_enet_ring *ring, struct sk_buff *skb)
+static void hns3_clear_tx_ring(struct hns3_enet_ring *ring)
 {
-	dev_kfree_skb_any(skb);
+	if (!HNAE3_IS_TX_RING(ring))
+		return;
+
+	while (ring->next_to_clean != ring->next_to_use) {
+		hns3_free_buffer_detach(ring, ring->next_to_clean);
+		ring_ptr_move_fw(ring, next_to_clean);
+	}
+}
+
+static void hns3_clear_rx_ring(struct hns3_enet_ring *ring)
+{
+	if (HNAE3_IS_TX_RING(ring))
+		return;
+
+	while (ring->next_to_use != ring->next_to_clean) {
+		/* When a buffer is not reused, it's memory has been
+		 * freed in hns3_handle_rx_bd or will be freed by
+		 * stack, so only need to unmap the buffer here.
+		 */
+		if (!ring->desc_cb[ring->next_to_use].reuse_flag) {
+			hns3_unmap_buffer(ring,
+					  &ring->desc_cb[ring->next_to_use]);
+			ring->desc_cb[ring->next_to_use].dma = 0;
+		}
+
+		ring_ptr_move_fw(ring, next_to_use);
+	}
 }
 
 static void hns3_clear_all_ring(struct hnae3_handle *h)
@@ -3314,13 +3223,13 @@ static void hns3_clear_all_ring(struct hnae3_handle *h)
 		struct hns3_enet_ring *ring;
 
 		ring = priv->ring_data[i].ring;
-		hns3_clean_tx_ring(ring, ring->desc_num);
+		hns3_clear_tx_ring(ring);
 		dev_queue = netdev_get_tx_queue(ndev,
 						priv->ring_data[i].queue_index);
 		netdev_tx_reset_queue(dev_queue);
 
 		ring = priv->ring_data[i + h->kinfo.num_tqps].ring;
-		hns3_clean_rx_ring(ring, ring->desc_num, hns3_drop_skb_data);
+		hns3_clear_rx_ring(ring);
 	}
 }
 
@@ -3359,7 +3268,7 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret;
 
-	hns3_init_mac_addr(netdev);
+	hns3_init_mac_addr(netdev, false);
 	hns3_nic_set_rx_mode(netdev);
 	hns3_recover_hw_addr(netdev);
 
@@ -3600,6 +3509,8 @@ static int __init hns3_init_module(void)
 
 	client.ops = &client_ops;
 
+	INIT_LIST_HEAD(&client.node);
+
 	ret = hnae3_register_client(&client);
 	if (ret)
 		return ret;
@@ -3627,3 +3538,4 @@ MODULE_DESCRIPTION("HNS3: Hisilicon Ethernet Driver");
 MODULE_AUTHOR("Huawei Tech. Co., Ltd.");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("pci:hns-nic");
+MODULE_VERSION(HNS3_MOD_VERSION);

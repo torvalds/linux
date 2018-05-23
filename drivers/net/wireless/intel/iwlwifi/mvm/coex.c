@@ -279,6 +279,8 @@ struct iwl_bt_iterator_data {
 	struct ieee80211_chanctx_conf *primary;
 	struct ieee80211_chanctx_conf *secondary;
 	bool primary_ll;
+	u8 primary_load;
+	u8 secondary_load;
 };
 
 static inline
@@ -293,6 +295,30 @@ void iwl_mvm_bt_coex_enable_rssi_event(struct iwl_mvm *mvm,
 		enable ? -IWL_MVM_BT_COEX_EN_RED_TXP_THRESH : 0;
 	mvmvif->bf_data.bt_coex_min_thold =
 		enable ? -IWL_MVM_BT_COEX_DIS_RED_TXP_THRESH : 0;
+}
+
+#define MVM_COEX_TCM_PERIOD (HZ * 10)
+
+static void iwl_mvm_bt_coex_tcm_based_ci(struct iwl_mvm *mvm,
+					 struct iwl_bt_iterator_data *data)
+{
+	unsigned long now = jiffies;
+
+	if (!time_after(now, mvm->bt_coex_last_tcm_ts + MVM_COEX_TCM_PERIOD))
+		return;
+
+	mvm->bt_coex_last_tcm_ts = now;
+
+	/* We assume here that we don't have more than 2 vifs on 2.4GHz */
+
+	/* if the primary is low latency, it will stay primary */
+	if (data->primary_ll)
+		return;
+
+	if (data->primary_load >= data->secondary_load)
+		return;
+
+	swap(data->primary, data->secondary);
 }
 
 /* must be called under rcu_read_lock */
@@ -385,6 +411,11 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 			/* there is low latency vif - we will be secondary */
 			data->secondary = chanctx_conf;
 		}
+
+		if (data->primary == chanctx_conf)
+			data->primary_load = mvm->tcm.result.load[mvmvif->id];
+		else if (data->secondary == chanctx_conf)
+			data->secondary_load = mvm->tcm.result.load[mvmvif->id];
 		return;
 	}
 
@@ -398,6 +429,10 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		/* if secondary is not NULL, it might be a GO */
 		data->secondary = chanctx_conf;
 
+	if (data->primary == chanctx_conf)
+		data->primary_load = mvm->tcm.result.load[mvmvif->id];
+	else if (data->secondary == chanctx_conf)
+		data->secondary_load = mvm->tcm.result.load[mvmvif->id];
 	/*
 	 * don't reduce the Tx power if one of these is true:
 	 *  we are in LOOSE
@@ -448,6 +483,8 @@ static void iwl_mvm_bt_coex_notif_handle(struct iwl_mvm *mvm)
 	ieee80211_iterate_active_interfaces_atomic(
 					mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 					iwl_mvm_bt_notif_iterator, &data);
+
+	iwl_mvm_bt_coex_tcm_based_ci(mvm, &data);
 
 	if (data.primary) {
 		struct ieee80211_chanctx_conf *chan = data.primary;

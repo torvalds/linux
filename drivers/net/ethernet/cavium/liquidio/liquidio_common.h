@@ -28,7 +28,7 @@
 #define LIQUIDIO_PACKAGE ""
 #define LIQUIDIO_BASE_MAJOR_VERSION 1
 #define LIQUIDIO_BASE_MINOR_VERSION 7
-#define LIQUIDIO_BASE_MICRO_VERSION 0
+#define LIQUIDIO_BASE_MICRO_VERSION 2
 #define LIQUIDIO_BASE_VERSION   __stringify(LIQUIDIO_BASE_MAJOR_VERSION) "." \
 				__stringify(LIQUIDIO_BASE_MINOR_VERSION)
 #define LIQUIDIO_MICRO_VERSION  "." __stringify(LIQUIDIO_BASE_MICRO_VERSION)
@@ -84,6 +84,7 @@ enum octeon_tag_type {
 #define OPCODE_NIC_IF_CFG              0x09
 #define OPCODE_NIC_VF_DRV_NOTICE       0x0A
 #define OPCODE_NIC_INTRMOD_PARAMS      0x0B
+#define OPCODE_NIC_QCOUNT_UPDATE       0x12
 #define OPCODE_NIC_SET_TRUSTED_VF	0x13
 #define OPCODE_NIC_SYNC_OCTEON_TIME	0x14
 #define VF_DRV_LOADED                  1
@@ -92,6 +93,7 @@ enum octeon_tag_type {
 
 #define OPCODE_NIC_VF_REP_PKT          0x15
 #define OPCODE_NIC_VF_REP_CMD          0x16
+#define OPCODE_NIC_UBOOT_CTL           0x17
 
 #define CORE_DRV_TEST_SCATTER_OP    0xFFF5
 
@@ -247,6 +249,9 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 #define   OCTNET_CMD_TXCSUM_DISABLE    0x1
 #define   OCTNET_CMD_VLAN_FILTER_ENABLE 0x1
 #define   OCTNET_CMD_VLAN_FILTER_DISABLE 0x0
+
+#define   SEAPI_CMD_SPEED_SET           0x2
+#define   SEAPI_CMD_SPEED_GET           0x3
 
 #define   LIO_CMD_WAIT_TM 100
 
@@ -802,6 +807,9 @@ struct nic_rx_stats {
 	u64 fw_total_rcvd;
 	u64 fw_total_fwd;
 	u64 fw_total_fwd_bytes;
+	u64 fw_total_mcast;
+	u64 fw_total_bcast;
+
 	u64 fw_err_pko;
 	u64 fw_err_link;
 	u64 fw_err_drop;
@@ -858,6 +866,8 @@ struct nic_tx_stats {
 	u64 fw_total_sent;
 	u64 fw_total_fwd;
 	u64 fw_total_fwd_bytes;
+	u64 fw_total_mcast_sent;
+	u64 fw_total_bcast_sent;
 	u64 fw_err_pko;
 	u64 fw_err_link;
 	u64 fw_err_drop;

@@ -858,7 +858,7 @@ mwifiex_clone_skb_for_tx_status(struct mwifiex_private *priv,
 /*
  * CFG802.11 network device handler for data transmission.
  */
-static int
+static netdev_tx_t
 mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
@@ -940,28 +940,32 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 int mwifiex_set_mac_address(struct mwifiex_private *priv,
-			    struct net_device *dev)
+			    struct net_device *dev, bool external,
+			    u8 *new_mac)
 {
 	int ret;
 	u64 mac_addr, old_mac_addr;
 
-	if (priv->bss_type == MWIFIEX_BSS_TYPE_ANY)
-		return -ENOTSUPP;
+	old_mac_addr = ether_addr_to_u64(priv->curr_addr);
 
-	mac_addr = ether_addr_to_u64(priv->curr_addr);
-	old_mac_addr = mac_addr;
+	if (external) {
+		mac_addr = ether_addr_to_u64(new_mac);
+	} else {
+		/* Internal mac address change */
+		if (priv->bss_type == MWIFIEX_BSS_TYPE_ANY)
+			return -ENOTSUPP;
 
-	if (priv->bss_type == MWIFIEX_BSS_TYPE_P2P)
-		mac_addr |= BIT_ULL(MWIFIEX_MAC_LOCAL_ADMIN_BIT);
+		mac_addr = old_mac_addr;
 
-	if (mwifiex_get_intf_num(priv->adapter, priv->bss_type) > 1) {
-		/* Set mac address based on bss_type/bss_num */
-		mac_addr ^= BIT_ULL(priv->bss_type + 8);
-		mac_addr += priv->bss_num;
+		if (priv->bss_type == MWIFIEX_BSS_TYPE_P2P)
+			mac_addr |= BIT_ULL(MWIFIEX_MAC_LOCAL_ADMIN_BIT);
+
+		if (mwifiex_get_intf_num(priv->adapter, priv->bss_type) > 1) {
+			/* Set mac address based on bss_type/bss_num */
+			mac_addr ^= BIT_ULL(priv->bss_type + 8);
+			mac_addr += priv->bss_num;
+		}
 	}
-
-	if (mac_addr == old_mac_addr)
-		goto done;
 
 	u64_to_ether_addr(mac_addr, priv->curr_addr);
 
@@ -976,7 +980,6 @@ int mwifiex_set_mac_address(struct mwifiex_private *priv,
 		return ret;
 	}
 
-done:
 	ether_addr_copy(dev->dev_addr, priv->curr_addr);
 	return 0;
 }
@@ -989,8 +992,7 @@ mwifiex_ndo_set_mac_address(struct net_device *dev, void *addr)
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	struct sockaddr *hw_addr = addr;
 
-	memcpy(priv->curr_addr, hw_addr->sa_data, ETH_ALEN);
-	return mwifiex_set_mac_address(priv, dev);
+	return mwifiex_set_mac_address(priv, dev, true, hw_addr->sa_data);
 }
 
 /*
@@ -1331,7 +1333,10 @@ void mwifiex_init_priv_params(struct mwifiex_private *priv,
 	priv->assocresp_idx = MWIFIEX_AUTO_IDX_MASK;
 	priv->gen_idx = MWIFIEX_AUTO_IDX_MASK;
 	priv->num_tx_timeout = 0;
-	ether_addr_copy(priv->curr_addr, priv->adapter->perm_addr);
+	if (is_valid_ether_addr(dev->dev_addr))
+		ether_addr_copy(priv->curr_addr, dev->dev_addr);
+	else
+		ether_addr_copy(priv->curr_addr, priv->adapter->perm_addr);
 
 	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA ||
 	    GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {

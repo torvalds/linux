@@ -211,7 +211,8 @@ typedef struct siginfo {
 #define __FPE_INVASC	12	/* invalid ASCII digit */
 #define __FPE_INVDEC	13	/* invalid decimal digit */
 #define FPE_FLTUNK	14	/* undiagnosed floating-point exception */
-#define NSIGFPE		14
+#define FPE_CONDTRAP	15	/* trap on condition */
+#define NSIGFPE		15
 
 /*
  * SIGSEGV si_codes

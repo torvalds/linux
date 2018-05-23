@@ -264,19 +264,23 @@ static int hclge_set_vf_vlan_cfg(struct hclge_vport *vport,
 				 struct hclge_mbx_vf_to_pf_cmd *mbx_req,
 				 bool gen_resp)
 {
-	struct hclge_dev *hdev = vport->back;
 	int status = 0;
 
 	if (mbx_req->msg[1] == HCLGE_MBX_VLAN_FILTER) {
+		struct hnae3_handle *handle = &vport->nic;
 		u16 vlan, proto;
 		bool is_kill;
 
 		is_kill = !!mbx_req->msg[2];
 		memcpy(&vlan, &mbx_req->msg[3], sizeof(vlan));
 		memcpy(&proto, &mbx_req->msg[5], sizeof(proto));
-		status = hclge_set_vf_vlan_common(hdev, vport->vport_id,
-						  is_kill, vlan, 0,
-						  cpu_to_be16(proto));
+		status = hclge_set_vlan_filter(handle, cpu_to_be16(proto),
+					       vlan, is_kill);
+	} else if (mbx_req->msg[1] == HCLGE_MBX_VLAN_RX_OFF_CFG) {
+		struct hnae3_handle *handle = &vport->nic;
+		bool en = mbx_req->msg[2] ? true : false;
+
+		status = hclge_en_hw_strip_rxvtag(handle, en);
 	}
 
 	if (gen_resp)

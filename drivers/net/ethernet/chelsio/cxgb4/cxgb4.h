@@ -50,6 +50,7 @@
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/ptp_classify.h>
+#include <linux/crash_dump.h>
 #include <asm/io.h>
 #include "t4_chip_type.h"
 #include "cxgb4_uld.h"
@@ -964,6 +965,9 @@ struct adapter {
 	struct hma_data hma;
 
 	struct srq_data *srq;
+
+	/* Dump buffer for collecting logs in kdump kernel */
+	struct vmcoredd_data vmcoredd;
 };
 
 /* Support for "sched-class" command to allow a TX Scheduling Class to be
@@ -1034,6 +1038,7 @@ struct ch_sched_queue {
 #define VF_BITWIDTH 8
 #define IVLAN_BITWIDTH 16
 #define OVLAN_BITWIDTH 16
+#define ENCAP_VNI_BITWIDTH 24
 
 /* Filter matching rules.  These consist of a set of ingress packet field
  * (value, mask) tuples.  The associated ingress packet field matches the
@@ -1064,6 +1069,7 @@ struct ch_filter_tuple {
 	uint32_t ivlan_vld:1;                   /* inner VLAN valid */
 	uint32_t ovlan_vld:1;                   /* outer VLAN valid */
 	uint32_t pfvf_vld:1;                    /* PF/VF valid */
+	uint32_t encap_vld:1;			/* Encapsulation valid */
 	uint32_t macidx:MACIDX_BITWIDTH;        /* exact match MAC index */
 	uint32_t fcoe:FCOE_BITWIDTH;            /* FCoE packet */
 	uint32_t iport:IPORT_BITWIDTH;          /* ingress port */
@@ -1074,6 +1080,7 @@ struct ch_filter_tuple {
 	uint32_t vf:VF_BITWIDTH;                /* PCI-E VF ID */
 	uint32_t ivlan:IVLAN_BITWIDTH;          /* inner VLAN */
 	uint32_t ovlan:OVLAN_BITWIDTH;          /* outer VLAN */
+	uint32_t vni:ENCAP_VNI_BITWIDTH;	/* VNI of tunnel */
 
 	/* Uncompressed header matching field rules.  These are always
 	 * available for field rules.
@@ -1690,6 +1697,12 @@ int t4_set_rxmode(struct adapter *adap, unsigned int mbox, unsigned int viid,
 int t4_free_raw_mac_filt(struct adapter *adap, unsigned int viid,
 			 const u8 *addr, const u8 *mask, unsigned int idx,
 			 u8 lookup_type, u8 port_id, bool sleep_ok);
+int t4_free_encap_mac_filt(struct adapter *adap, unsigned int viid, int idx,
+			   bool sleep_ok);
+int t4_alloc_encap_mac_filt(struct adapter *adap, unsigned int viid,
+			    const u8 *addr, const u8 *mask, unsigned int vni,
+			    unsigned int vni_mask, u8 dip_hit, u8 lookup_type,
+			    bool sleep_ok);
 int t4_alloc_raw_mac_filt(struct adapter *adap, unsigned int viid,
 			  const u8 *addr, const u8 *mask, unsigned int idx,
 			  u8 lookup_type, u8 port_id, bool sleep_ok);

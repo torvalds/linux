@@ -349,6 +349,7 @@ int xgbe_config_netdev(struct xgbe_prv_data *pdata)
 	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, UDP4TE, 1);
 
 	/* Call MDIO/PHY initialization routine */
+	pdata->debugfs_an_cdr_workaround = pdata->vdata->an_cdr_workaround;
 	ret = pdata->phy_if.phy_init(pdata);
 	if (ret)
 		return ret;

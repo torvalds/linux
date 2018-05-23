@@ -449,8 +449,10 @@ tcp_recovery - INTEGER
 	features.
 
 	RACK: 0x1 enables the RACK loss detection for fast detection of lost
-	      retransmissions and tail drops.
+	      retransmissions and tail drops. It also subsumes and disables
+	      RFC6675 recovery for SACK connections.
 	RACK: 0x2 makes RACK's reordering window static (min_rtt/4).
+	RACK: 0x4 disables RACK's DUPACK threshold heuristic
 
 	Default: 0x1
 
@@ -522,6 +524,19 @@ tcp_rmem - vector of 3 INTEGERs: min, default, max
 
 tcp_sack - BOOLEAN
 	Enable select acknowledgments (SACKS).
+
+tcp_comp_sack_delay_ns - LONG INTEGER
+	TCP tries to reduce number of SACK sent, using a timer
+	based on 5% of SRTT, capped by this sysctl, in nano seconds.
+	The default is 1ms, based on TSO autosizing period.
+
+	Default : 1,000,000 ns (1 ms)
+
+tcp_comp_sack_nr - INTEGER
+	Max numer of SACK that can be compressed.
+	Using 0 disables SACK compression.
+
+	Detault : 44
 
 tcp_slow_start_after_idle - BOOLEAN
 	If set, provide RFC2861 behavior and time out the congestion
@@ -1390,26 +1405,26 @@ mld_qrv - INTEGER
 	Default: 2 (as specified by RFC3810 9.1)
 	Minimum: 1 (as specified by RFC6636 4.5)
 
-max_dst_opts_cnt - INTEGER
+max_dst_opts_number - INTEGER
 	Maximum number of non-padding TLVs allowed in a Destination
 	options extension header. If this value is less than zero
 	then unknown options are disallowed and the number of known
 	TLVs allowed is the absolute value of this number.
 	Default: 8
 
-max_hbh_opts_cnt - INTEGER
+max_hbh_opts_number - INTEGER
 	Maximum number of non-padding TLVs allowed in a Hop-by-Hop
 	options extension header. If this value is less than zero
 	then unknown options are disallowed and the number of known
 	TLVs allowed is the absolute value of this number.
 	Default: 8
 
-max dst_opts_len - INTEGER
+max_dst_opts_length - INTEGER
 	Maximum length allowed for a Destination options extension
 	header.
 	Default: INT_MAX (unlimited)
 
-max hbh_opts_len - INTEGER
+max_hbh_length - INTEGER
 	Maximum length allowed for a Hop-by-Hop options extension
 	header.
 	Default: INT_MAX (unlimited)
@@ -1427,6 +1442,19 @@ ip6frag_low_thresh - INTEGER
 
 ip6frag_time - INTEGER
 	Time in seconds to keep an IPv6 fragment in memory.
+
+IPv6 Segment Routing:
+
+seg6_flowlabel - INTEGER
+	Controls the behaviour of computing the flowlabel of outer
+	IPv6 header in case of SR T.encaps
+
+	-1 set flowlabel to zero.
+	0 copy flowlabel from Inner packet in case of Inner IPv6
+		(Set flowlabel to 0 in case IPv4/L2)
+	1 Compute the flowlabel using seg6_make_flowlabel()
+
+	Default is 0.
 
 conf/default/*:
 	Change the interface-specific default settings.
@@ -2126,18 +2154,3 @@ max_dgram_qlen - INTEGER
 
 	Default: 10
 
-
-UNDOCUMENTED:
-
-/proc/sys/net/irda/*
-	fast_poll_increase FIXME
-	warn_noreply_time FIXME
-	discovery_slots FIXME
-	slot_timeout FIXME
-	max_baud_rate FIXME
-	discovery_timeout FIXME
-	lap_keepalive_time FIXME
-	max_noreply_time FIXME
-	max_tx_data_size FIXME
-	max_tx_window FIXME
-	min_tx_turn_time FIXME

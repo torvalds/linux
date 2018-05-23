@@ -94,6 +94,10 @@ static void dwmac4_dma_init_tx_chan(void __iomem *ioaddr,
 
 	value = readl(ioaddr + DMA_CHAN_TX_CONTROL(chan));
 	value = value | (txpbl << DMA_BUS_MODE_PBL_SHIFT);
+
+	/* Enable OSP to get best performance */
+	value |= DMA_CONTROL_OSP;
+
 	writel(value, ioaddr + DMA_CHAN_TX_CONTROL(chan));
 
 	writel(dma_tx_phy, ioaddr + DMA_CHAN_TX_BASE_ADDR(chan));
@@ -116,8 +120,7 @@ static void dwmac4_dma_init_channel(void __iomem *ioaddr,
 }
 
 static void dwmac4_dma_init(void __iomem *ioaddr,
-			    struct stmmac_dma_cfg *dma_cfg,
-			    u32 dma_tx, u32 dma_rx, int atds)
+			    struct stmmac_dma_cfg *dma_cfg, int atds)
 {
 	u32 value = readl(ioaddr + DMA_SYS_BUS_MODE);
 
@@ -379,6 +382,9 @@ static void dwmac4_get_hw_feature(void __iomem *ioaddr,
 
 	/* 5.10 Features */
 	dma_cap->asp = (hw_cap & GMAC_HW_FEAT_ASP) >> 28;
+	dma_cap->frpes = (hw_cap & GMAC_HW_FEAT_FRPES) >> 13;
+	dma_cap->frpbs = (hw_cap & GMAC_HW_FEAT_FRPBS) >> 11;
+	dma_cap->frpsel = (hw_cap & GMAC_HW_FEAT_FRPSEL) >> 10;
 }
 
 /* Enable/disable TSO feature and set MSS */

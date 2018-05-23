@@ -38,6 +38,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
 MODULE_DESCRIPTION("IPv6 packet filter");
+MODULE_ALIAS("ip6t_icmp6");
 
 void *ip6t_alloc_initial_table(const struct xt_table *info)
 {
@@ -528,7 +529,6 @@ static int check_target(struct ip6t_entry *e, struct net *net, const char *name)
 		.family    = NFPROTO_IPV6,
 	};
 
-	t = ip6t_get_target(e);
 	return xt_check_target(&par, t->u.target_size - sizeof(*t),
 			       e->ipv6.proto,
 			       e->ipv6.invflags & IP6T_INV_PROTO);

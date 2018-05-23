@@ -67,7 +67,7 @@ static void strp_abort_strp(struct strparser *strp, int err)
 
 static void strp_start_timer(struct strparser *strp, long timeo)
 {
-	if (timeo)
+	if (timeo && timeo != LONG_MAX)
 		mod_delayed_work(strp_wq, &strp->msg_timer_work, timeo);
 }
 
@@ -296,9 +296,9 @@ static int __strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 					strp_start_timer(strp, timeo);
 				}
 
+				stm->accum_len += cand_len;
 				strp->need_bytes = stm->strp.full_len -
 						       stm->accum_len;
-				stm->accum_len += cand_len;
 				stm->early_eaten = cand_len;
 				STRP_STATS_ADD(strp->stats.bytes, cand_len);
 				desc->count = 0; /* Stop reading socket */
@@ -321,6 +321,7 @@ static int __strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 		/* Hurray, we have a new message! */
 		cancel_delayed_work(&strp->msg_timer_work);
 		strp->skb_head = NULL;
+		strp->need_bytes = 0;
 		STRP_STATS_INCR(strp->stats.msgs);
 
 		/* Give skb to upper layer */
@@ -410,9 +411,7 @@ void strp_data_ready(struct strparser *strp)
 		return;
 
 	if (strp->need_bytes) {
-		if (strp_peek_len(strp) >= strp->need_bytes)
-			strp->need_bytes = 0;
-		else
+		if (strp_peek_len(strp) < strp->need_bytes)
 			return;
 	}
 

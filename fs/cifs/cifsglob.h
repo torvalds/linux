@@ -665,6 +665,8 @@ struct TCP_Server_Info {
 	struct delayed_work	echo; /* echo ping workqueue job */
 	char	*smallbuf;	/* pointer to current "small" buffer */
 	char	*bigbuf;	/* pointer to current "big" buffer */
+	/* Total size of this PDU. Only valid from cifs_demultiplex_thread */
+	unsigned int pdu_size;
 	unsigned int total_read; /* total amount of data read in this pass */
 #ifdef CONFIG_CIFS_FSCACHE
 	struct fscache_cookie   *fscache; /* client index cache cookie */
@@ -676,6 +678,7 @@ struct TCP_Server_Info {
 	unsigned int	max_read;
 	unsigned int	max_write;
 #ifdef CONFIG_CIFS_SMB311
+	__le16	cipher_type;
 	 /* save initital negprot hash */
 	__u8	preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
 #endif /* 3.1.1 */
@@ -1373,6 +1376,7 @@ struct mid_q_entry {
 	mid_handle_t *handle; /* call handle mid callback */
 	void *callback_data;	  /* general purpose pointer for callback */
 	void *resp_buf;		/* pointer to received SMB header */
+	unsigned int resp_buf_size;
 	int mid_state;	/* wish this were enum but can not pass to wait_event */
 	unsigned int mid_flags;
 	__le16 command;		/* smb command code */

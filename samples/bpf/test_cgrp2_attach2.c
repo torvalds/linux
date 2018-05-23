@@ -24,8 +24,9 @@
 #include <unistd.h>
 
 #include <linux/bpf.h>
+#include <bpf/bpf.h>
 
-#include "libbpf.h"
+#include "bpf_insn.h"
 #include "cgroup_helpers.h"
 
 #define FOO		"/foo"

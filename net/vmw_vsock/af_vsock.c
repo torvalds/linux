@@ -2018,7 +2018,13 @@ const struct vsock_transport *vsock_core_get_transport(void)
 }
 EXPORT_SYMBOL_GPL(vsock_core_get_transport);
 
+static void __exit vsock_exit(void)
+{
+	/* Do nothing.  This function makes this module removable. */
+}
+
 module_init(vsock_init_tables);
+module_exit(vsock_exit);
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Virtual Socket Family");

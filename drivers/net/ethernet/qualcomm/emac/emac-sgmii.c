@@ -53,6 +53,46 @@
 
 #define SERDES_START_WAIT_TIMES			100
 
+int emac_sgmii_init(struct emac_adapter *adpt)
+{
+	if (!(adpt->phy.sgmii_ops && adpt->phy.sgmii_ops->init))
+		return 0;
+
+	return adpt->phy.sgmii_ops->init(adpt);
+}
+
+int emac_sgmii_open(struct emac_adapter *adpt)
+{
+	if (!(adpt->phy.sgmii_ops && adpt->phy.sgmii_ops->open))
+		return 0;
+
+	return adpt->phy.sgmii_ops->open(adpt);
+}
+
+void emac_sgmii_close(struct emac_adapter *adpt)
+{
+	if (!(adpt->phy.sgmii_ops && adpt->phy.sgmii_ops->close))
+		return;
+
+	adpt->phy.sgmii_ops->close(adpt);
+}
+
+int emac_sgmii_link_change(struct emac_adapter *adpt, bool link_state)
+{
+	if (!(adpt->phy.sgmii_ops && adpt->phy.sgmii_ops->link_change))
+		return 0;
+
+	return adpt->phy.sgmii_ops->link_change(adpt, link_state);
+}
+
+void emac_sgmii_reset(struct emac_adapter *adpt)
+{
+	if (!(adpt->phy.sgmii_ops && adpt->phy.sgmii_ops->reset))
+		return;
+
+	adpt->phy.sgmii_ops->reset(adpt);
+}
+
 /* Initialize the SGMII link between the internal and external PHYs. */
 static void emac_sgmii_link_init(struct emac_adapter *adpt)
 {
@@ -163,21 +203,21 @@ static void emac_sgmii_reset_prepare(struct emac_adapter *adpt)
 	msleep(50);
 }
 
-void emac_sgmii_reset(struct emac_adapter *adpt)
+static void emac_sgmii_common_reset(struct emac_adapter *adpt)
 {
 	int ret;
 
 	emac_sgmii_reset_prepare(adpt);
 	emac_sgmii_link_init(adpt);
 
-	ret = adpt->phy.initialize(adpt);
+	ret = emac_sgmii_init(adpt);
 	if (ret)
 		netdev_err(adpt->netdev,
 			   "could not reinitialize internal PHY (error=%i)\n",
 			   ret);
 }
 
-static int emac_sgmii_open(struct emac_adapter *adpt)
+static int emac_sgmii_common_open(struct emac_adapter *adpt)
 {
 	struct emac_sgmii *sgmii = &adpt->phy;
 	int ret;
@@ -201,43 +241,53 @@ static int emac_sgmii_open(struct emac_adapter *adpt)
 	return 0;
 }
 
-static int emac_sgmii_close(struct emac_adapter *adpt)
+static void emac_sgmii_common_close(struct emac_adapter *adpt)
 {
 	struct emac_sgmii *sgmii = &adpt->phy;
 
 	/* Make sure interrupts are disabled */
 	writel(0, sgmii->base + EMAC_SGMII_PHY_INTERRUPT_MASK);
 	free_irq(sgmii->irq, adpt);
-
-	return 0;
 }
 
 /* The error interrupts are only valid after the link is up */
-static int emac_sgmii_link_up(struct emac_adapter *adpt)
+static int emac_sgmii_common_link_change(struct emac_adapter *adpt, bool linkup)
 {
 	struct emac_sgmii *sgmii = &adpt->phy;
 	int ret;
 
-	/* Clear and enable interrupts */
-	ret = emac_sgmii_irq_clear(adpt, 0xff);
-	if (ret)
-		return ret;
+	if (linkup) {
+		/* Clear and enable interrupts */
+		ret = emac_sgmii_irq_clear(adpt, 0xff);
+		if (ret)
+			return ret;
 
-	writel(SGMII_ISR_MASK, sgmii->base + EMAC_SGMII_PHY_INTERRUPT_MASK);
-
-	return 0;
-}
-
-static int emac_sgmii_link_down(struct emac_adapter *adpt)
-{
-	struct emac_sgmii *sgmii = &adpt->phy;
-
-	/* Disable interrupts */
-	writel(0, sgmii->base + EMAC_SGMII_PHY_INTERRUPT_MASK);
-	synchronize_irq(sgmii->irq);
+		writel(SGMII_ISR_MASK,
+		       sgmii->base + EMAC_SGMII_PHY_INTERRUPT_MASK);
+	} else {
+		/* Disable interrupts */
+		writel(0, sgmii->base + EMAC_SGMII_PHY_INTERRUPT_MASK);
+		synchronize_irq(sgmii->irq);
+	}
 
 	return 0;
 }
+
+static struct sgmii_ops qdf2432_ops = {
+	.init = emac_sgmii_init_qdf2432,
+	.open = emac_sgmii_common_open,
+	.close = emac_sgmii_common_close,
+	.link_change = emac_sgmii_common_link_change,
+	.reset = emac_sgmii_common_reset,
+};
+
+static struct sgmii_ops qdf2400_ops = {
+	.init = emac_sgmii_init_qdf2400,
+	.open = emac_sgmii_common_open,
+	.close = emac_sgmii_common_close,
+	.link_change = emac_sgmii_common_link_change,
+	.reset = emac_sgmii_common_reset,
+};
 
 static int emac_sgmii_acpi_match(struct device *dev, void *data)
 {
@@ -249,7 +299,7 @@ static int emac_sgmii_acpi_match(struct device *dev, void *data)
 		{}
 	};
 	const struct acpi_device_id *id = acpi_match_device(match_table, dev);
-	emac_sgmii_function *initialize = data;
+	struct sgmii_ops **ops = data;
 
 	if (id) {
 		acpi_handle handle = ACPI_HANDLE(dev);
@@ -270,10 +320,10 @@ static int emac_sgmii_acpi_match(struct device *dev, void *data)
 
 		switch (hrv) {
 		case 1:
-			*initialize = emac_sgmii_init_qdf2432;
+			*ops = &qdf2432_ops;
 			return 1;
 		case 2:
-			*initialize = emac_sgmii_init_qdf2400;
+			*ops = &qdf2400_ops;
 			return 1;
 		}
 	}
@@ -294,14 +344,6 @@ static const struct of_device_id emac_sgmii_dt_match[] = {
 	{}
 };
 
-/* Dummy function for systems without an internal PHY. This avoids having
- * to check for NULL pointers before calling the functions.
- */
-static int emac_sgmii_dummy(struct emac_adapter *adpt)
-{
-	return 0;
-}
-
 int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt)
 {
 	struct platform_device *sgmii_pdev = NULL;
@@ -312,22 +354,11 @@ int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt)
 	if (has_acpi_companion(&pdev->dev)) {
 		struct device *dev;
 
-		dev = device_find_child(&pdev->dev, &phy->initialize,
+		dev = device_find_child(&pdev->dev, &phy->sgmii_ops,
 					emac_sgmii_acpi_match);
 
 		if (!dev) {
 			dev_warn(&pdev->dev, "cannot find internal phy node\n");
-			/* There is typically no internal PHY on emulation
-			 * systems, so if we can't find the node, assume
-			 * we are on an emulation system and stub-out
-			 * support for the internal PHY.  These systems only
-			 * use ACPI.
-			 */
-			phy->open = emac_sgmii_dummy;
-			phy->close = emac_sgmii_dummy;
-			phy->link_up = emac_sgmii_dummy;
-			phy->link_down = emac_sgmii_dummy;
-
 			return 0;
 		}
 
@@ -355,13 +386,8 @@ int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt)
 			goto error_put_device;
 		}
 
-		phy->initialize = (emac_sgmii_function)match->data;
+		phy->sgmii_ops->init = match->data;
 	}
-
-	phy->open = emac_sgmii_open;
-	phy->close = emac_sgmii_close;
-	phy->link_up = emac_sgmii_link_up;
-	phy->link_down = emac_sgmii_link_down;
 
 	/* Base address is the first address */
 	res = platform_get_resource(sgmii_pdev, IORESOURCE_MEM, 0);
@@ -386,7 +412,7 @@ int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt)
 		}
 	}
 
-	ret = phy->initialize(adpt);
+	ret = emac_sgmii_init(adpt);
 	if (ret)
 		goto error;
 

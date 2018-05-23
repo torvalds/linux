@@ -683,9 +683,11 @@ static inline bool tc_skip_sw(u32 flags)
 /* SKIP_HW and SKIP_SW are mutually exclusive flags. */
 static inline bool tc_flags_valid(u32 flags)
 {
-	if (flags & ~(TCA_CLS_FLAGS_SKIP_HW | TCA_CLS_FLAGS_SKIP_SW))
+	if (flags & ~(TCA_CLS_FLAGS_SKIP_HW | TCA_CLS_FLAGS_SKIP_SW |
+		      TCA_CLS_FLAGS_VERBOSE))
 		return false;
 
+	flags &= TCA_CLS_FLAGS_SKIP_HW | TCA_CLS_FLAGS_SKIP_SW;
 	if (!(flags ^ (TCA_CLS_FLAGS_SKIP_HW | TCA_CLS_FLAGS_SKIP_SW)))
 		return false;
 
@@ -705,7 +707,7 @@ tc_cls_common_offload_init(struct tc_cls_common_offload *cls_common,
 	cls_common->chain_index = tp->chain->index;
 	cls_common->protocol = tp->protocol;
 	cls_common->prio = tp->prio;
-	if (tc_skip_sw(flags))
+	if (tc_skip_sw(flags) || flags & TCA_CLS_FLAGS_VERBOSE)
 		cls_common->extack = extack;
 }
 

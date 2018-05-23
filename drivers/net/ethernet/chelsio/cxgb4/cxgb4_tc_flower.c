@@ -194,6 +194,23 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 		fs->mask.tos = mask->tos;
 	}
 
+	if (dissector_uses_key(cls->dissector, FLOW_DISSECTOR_KEY_ENC_KEYID)) {
+		struct flow_dissector_key_keyid *key, *mask;
+
+		key = skb_flow_dissector_target(cls->dissector,
+						FLOW_DISSECTOR_KEY_ENC_KEYID,
+						cls->key);
+		mask = skb_flow_dissector_target(cls->dissector,
+						 FLOW_DISSECTOR_KEY_ENC_KEYID,
+						 cls->mask);
+		fs->val.vni = be32_to_cpu(key->keyid);
+		fs->mask.vni = be32_to_cpu(mask->keyid);
+		if (fs->mask.vni) {
+			fs->val.encap_vld = 1;
+			fs->mask.encap_vld = 1;
+		}
+	}
+
 	if (dissector_uses_key(cls->dissector, FLOW_DISSECTOR_KEY_VLAN)) {
 		struct flow_dissector_key_vlan *key, *mask;
 		u16 vlan_tci, vlan_tci_mask;
@@ -247,6 +264,7 @@ static int cxgb4_validate_flow_match(struct net_device *dev,
 	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
+	      BIT(FLOW_DISSECTOR_KEY_ENC_KEYID) |
 	      BIT(FLOW_DISSECTOR_KEY_VLAN) |
 	      BIT(FLOW_DISSECTOR_KEY_IP))) {
 		netdev_warn(dev, "Unsupported key used: 0x%x\n",

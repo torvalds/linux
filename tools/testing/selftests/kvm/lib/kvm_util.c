@@ -50,8 +50,8 @@ int kvm_check_cap(long cap)
 	int kvm_fd;
 
 	kvm_fd = open(KVM_DEV_PATH, O_RDONLY);
-	TEST_ASSERT(kvm_fd >= 0, "open %s failed, rc: %i errno: %i",
-		KVM_DEV_PATH, kvm_fd, errno);
+	if (kvm_fd < 0)
+		exit(KSFT_SKIP);
 
 	ret = ioctl(kvm_fd, KVM_CHECK_EXTENSION, cap);
 	TEST_ASSERT(ret != -1, "KVM_CHECK_EXTENSION IOCTL failed,\n"
@@ -91,8 +91,8 @@ struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 
 	vm->mode = mode;
 	kvm_fd = open(KVM_DEV_PATH, perm);
-	TEST_ASSERT(kvm_fd >= 0, "open %s failed, rc: %i errno: %i",
-		KVM_DEV_PATH, kvm_fd, errno);
+	if (kvm_fd < 0)
+		exit(KSFT_SKIP);
 
 	/* Create VM. */
 	vm->fd = ioctl(kvm_fd, KVM_CREATE_VM, NULL);
@@ -378,7 +378,7 @@ int kvm_memcmp_hva_gva(void *hva,
  * complicated. This function uses a reasonable default length for
  * the array and performs the appropriate allocation.
  */
-struct kvm_cpuid2 *allocate_kvm_cpuid2(void)
+static struct kvm_cpuid2 *allocate_kvm_cpuid2(void)
 {
 	struct kvm_cpuid2 *cpuid;
 	int nent = 100;
@@ -402,26 +402,31 @@ struct kvm_cpuid2 *allocate_kvm_cpuid2(void)
  * Input Args: None
  *
  * Output Args:
- *   cpuid - The supported KVM CPUID
  *
- * Return: void
+ * Return: The supported KVM CPUID
  *
  * Get the guest CPUID supported by KVM.
  */
-void kvm_get_supported_cpuid(struct kvm_cpuid2 *cpuid)
+struct kvm_cpuid2 *kvm_get_supported_cpuid(void)
 {
+	static struct kvm_cpuid2 *cpuid;
 	int ret;
 	int kvm_fd;
 
+	if (cpuid)
+		return cpuid;
+
+	cpuid = allocate_kvm_cpuid2();
 	kvm_fd = open(KVM_DEV_PATH, O_RDONLY);
-	TEST_ASSERT(kvm_fd >= 0, "open %s failed, rc: %i errno: %i",
-		KVM_DEV_PATH, kvm_fd, errno);
+	if (kvm_fd < 0)
+		exit(KSFT_SKIP);
 
 	ret = ioctl(kvm_fd, KVM_GET_SUPPORTED_CPUID, cpuid);
 	TEST_ASSERT(ret == 0, "KVM_GET_SUPPORTED_CPUID failed %d %d\n",
 		    ret, errno);
 
 	close(kvm_fd);
+	return cpuid;
 }
 
 /* Locate a cpuid entry.
@@ -435,12 +440,13 @@ void kvm_get_supported_cpuid(struct kvm_cpuid2 *cpuid)
  * Return: A pointer to the cpuid entry. Never returns NULL.
  */
 struct kvm_cpuid_entry2 *
-find_cpuid_index_entry(struct kvm_cpuid2 *cpuid, uint32_t function,
-		       uint32_t index)
+kvm_get_supported_cpuid_index(uint32_t function, uint32_t index)
 {
+	struct kvm_cpuid2 *cpuid;
 	struct kvm_cpuid_entry2 *entry = NULL;
 	int i;
 
+	cpuid = kvm_get_supported_cpuid();
 	for (i = 0; i < cpuid->nent; i++) {
 		if (cpuid->entries[i].function == function &&
 		    cpuid->entries[i].index == index) {
@@ -669,8 +675,8 @@ static int vcpu_mmap_sz(void)
 	int dev_fd, ret;
 
 	dev_fd = open(KVM_DEV_PATH, O_RDONLY);
-	TEST_ASSERT(dev_fd >= 0, "%s open %s failed, rc: %i errno: %i",
-		__func__, KVM_DEV_PATH, dev_fd, errno);
+	if (dev_fd < 0)
+		exit(KSFT_SKIP);
 
 	ret = ioctl(dev_fd, KVM_GET_VCPU_MMAP_SIZE, NULL);
 	TEST_ASSERT(ret >= sizeof(struct kvm_run),
@@ -1435,7 +1441,7 @@ vm_paddr_t vm_phy_page_alloc(struct kvm_vm *vm,
 	sparsebit_idx_t pg;
 
 	TEST_ASSERT((paddr_min % vm->page_size) == 0, "Min physical address "
-		"not divisable by page size.\n"
+		"not divisible by page size.\n"
 		"  paddr_min: 0x%lx page_size: 0x%x",
 		paddr_min, vm->page_size);
 

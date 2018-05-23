@@ -8,6 +8,7 @@
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -35,6 +36,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -241,6 +243,8 @@ enum iwl_fw_type {
  * @ucode_ver: ucode version from the ucode file
  * @fw_version: firmware version string
  * @img: ucode image like ucode_rt, ucode_init, ucode_wowlan.
+ * @iml_len: length of the image loader image
+ * @iml: image loader fw image
  * @ucode_capa: capabilities parsed from the ucode file.
  * @enhance_sensitivity_table: device can do enhanced sensitivity.
  * @init_evtlog_ptr: event log offset for init ucode.
@@ -267,6 +271,8 @@ struct iwl_fw {
 
 	/* ucode images */
 	struct fw_img img[IWL_UCODE_TYPE_MAX];
+	size_t iml_len;
+	u8 *iml;
 
 	struct iwl_ucode_capabilities ucode_capa;
 	bool enhance_sensitivity_table;

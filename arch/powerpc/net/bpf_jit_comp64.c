@@ -59,7 +59,7 @@ static inline bool bpf_has_stack_frame(struct codegen_context *ctx)
  *		[	prev sp		] <-------------
  *		[	  ...       	] 		|
  * sp (r1) --->	[    stack pointer	] --------------
- *		[   nv gpr save area	] 8*8
+ *		[   nv gpr save area	] 6*8
  *		[    tail_call_cnt	] 8
  *		[    local_tmp_var	] 8
  *		[   unused red zone	] 208 bytes protected
@@ -86,21 +86,6 @@ static int bpf_jit_stack_offsetof(struct codegen_context *ctx, int reg)
 
 	pr_err("BPF JIT is asking about unknown registers");
 	BUG();
-}
-
-static void bpf_jit_emit_skb_loads(u32 *image, struct codegen_context *ctx)
-{
-	/*
-	 * Load skb->len and skb->data_len
-	 * r3 points to skb
-	 */
-	PPC_LWZ(b2p[SKB_HLEN_REG], 3, offsetof(struct sk_buff, len));
-	PPC_LWZ(b2p[TMP_REG_1], 3, offsetof(struct sk_buff, data_len));
-	/* header_len = len - data_len */
-	PPC_SUB(b2p[SKB_HLEN_REG], b2p[SKB_HLEN_REG], b2p[TMP_REG_1]);
-
-	/* skb->data pointer */
-	PPC_BPF_LL(b2p[SKB_DATA_REG], 3, offsetof(struct sk_buff, data));
 }
 
 static void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
@@ -145,18 +130,6 @@ static void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 		if (bpf_is_seen_register(ctx, i))
 			PPC_BPF_STL(b2p[i], 1, bpf_jit_stack_offsetof(ctx, b2p[i]));
 
-	/*
-	 * Save additional non-volatile regs if we cache skb
-	 * Also, setup skb data
-	 */
-	if (ctx->seen & SEEN_SKB) {
-		PPC_BPF_STL(b2p[SKB_HLEN_REG], 1,
-				bpf_jit_stack_offsetof(ctx, b2p[SKB_HLEN_REG]));
-		PPC_BPF_STL(b2p[SKB_DATA_REG], 1,
-				bpf_jit_stack_offsetof(ctx, b2p[SKB_DATA_REG]));
-		bpf_jit_emit_skb_loads(image, ctx);
-	}
-
 	/* Setup frame pointer to point to the bpf stack area */
 	if (bpf_is_seen_register(ctx, BPF_REG_FP))
 		PPC_ADDI(b2p[BPF_REG_FP], 1,
@@ -171,14 +144,6 @@ static void bpf_jit_emit_common_epilogue(u32 *image, struct codegen_context *ctx
 	for (i = BPF_REG_6; i <= BPF_REG_10; i++)
 		if (bpf_is_seen_register(ctx, i))
 			PPC_BPF_LL(b2p[i], 1, bpf_jit_stack_offsetof(ctx, b2p[i]));
-
-	/* Restore non-volatile registers used for skb cache */
-	if (ctx->seen & SEEN_SKB) {
-		PPC_BPF_LL(b2p[SKB_HLEN_REG], 1,
-				bpf_jit_stack_offsetof(ctx, b2p[SKB_HLEN_REG]));
-		PPC_BPF_LL(b2p[SKB_DATA_REG], 1,
-				bpf_jit_stack_offsetof(ctx, b2p[SKB_DATA_REG]));
-	}
 
 	/* Tear down our stack frame */
 	if (bpf_has_stack_frame(ctx)) {
@@ -753,23 +718,10 @@ emit_clear:
 			ctx->seen |= SEEN_FUNC;
 			func = (u8 *) __bpf_call_base + imm;
 
-			/* Save skb pointer if we need to re-cache skb data */
-			if ((ctx->seen & SEEN_SKB) &&
-			    bpf_helper_changes_pkt_data(func))
-				PPC_BPF_STL(3, 1, bpf_jit_stack_local(ctx));
-
 			bpf_jit_emit_func_call(image, ctx, (u64)func);
 
 			/* move return value from r3 to BPF_REG_0 */
 			PPC_MR(b2p[BPF_REG_0], 3);
-
-			/* refresh skb cache */
-			if ((ctx->seen & SEEN_SKB) &&
-			    bpf_helper_changes_pkt_data(func)) {
-				/* reload skb pointer to r3 */
-				PPC_BPF_LL(3, 1, bpf_jit_stack_local(ctx));
-				bpf_jit_emit_skb_loads(image, ctx);
-			}
 			break;
 
 		/*
@@ -884,65 +836,6 @@ cond_branch:
 				break;
 			}
 			PPC_BCC(true_cond, addrs[i + 1 + off]);
-			break;
-
-		/*
-		 * Loads from packet header/data
-		 * Assume 32-bit input value in imm and X (src_reg)
-		 */
-
-		/* Absolute loads */
-		case BPF_LD | BPF_W | BPF_ABS:
-			func = (u8 *)CHOOSE_LOAD_FUNC(imm, sk_load_word);
-			goto common_load_abs;
-		case BPF_LD | BPF_H | BPF_ABS:
-			func = (u8 *)CHOOSE_LOAD_FUNC(imm, sk_load_half);
-			goto common_load_abs;
-		case BPF_LD | BPF_B | BPF_ABS:
-			func = (u8 *)CHOOSE_LOAD_FUNC(imm, sk_load_byte);
-common_load_abs:
-			/*
-			 * Load from [imm]
-			 * Load into r4, which can just be passed onto
-			 *  skb load helpers as the second parameter
-			 */
-			PPC_LI32(4, imm);
-			goto common_load;
-
-		/* Indirect loads */
-		case BPF_LD | BPF_W | BPF_IND:
-			func = (u8 *)sk_load_word;
-			goto common_load_ind;
-		case BPF_LD | BPF_H | BPF_IND:
-			func = (u8 *)sk_load_half;
-			goto common_load_ind;
-		case BPF_LD | BPF_B | BPF_IND:
-			func = (u8 *)sk_load_byte;
-common_load_ind:
-			/*
-			 * Load from [src_reg + imm]
-			 * Treat src_reg as a 32-bit value
-			 */
-			PPC_EXTSW(4, src_reg);
-			if (imm) {
-				if (imm >= -32768 && imm < 32768)
-					PPC_ADDI(4, 4, IMM_L(imm));
-				else {
-					PPC_LI32(b2p[TMP_REG_1], imm);
-					PPC_ADD(4, 4, b2p[TMP_REG_1]);
-				}
-			}
-
-common_load:
-			ctx->seen |= SEEN_SKB;
-			ctx->seen |= SEEN_FUNC;
-			bpf_jit_emit_func_call(image, ctx, (u64)func);
-
-			/*
-			 * Helper returns 'lt' condition on error, and an
-			 * appropriate return value in BPF_REG_0
-			 */
-			PPC_BCC(COND_LT, exit_addr);
 			break;
 
 		/*

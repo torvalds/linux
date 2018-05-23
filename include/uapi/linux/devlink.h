@@ -132,6 +132,16 @@ enum devlink_eswitch_encap_mode {
 	DEVLINK_ESWITCH_ENCAP_MODE_BASIC,
 };
 
+enum devlink_port_flavour {
+	DEVLINK_PORT_FLAVOUR_PHYSICAL, /* Any kind of a port physically
+					* facing the user.
+					*/
+	DEVLINK_PORT_FLAVOUR_CPU, /* CPU port */
+	DEVLINK_PORT_FLAVOUR_DSA, /* Distributed switch architecture
+				   * interconnect port.
+				   */
+};
+
 enum devlink_attr {
 	/* don't change the order or add anything between, this is ABI! */
 	DEVLINK_ATTR_UNSPEC,
@@ -223,6 +233,10 @@ enum devlink_attr {
 	DEVLINK_ATTR_RESOURCE_OCC,		/* u64 */
 	DEVLINK_ATTR_DPIPE_TABLE_RESOURCE_ID,	/* u64 */
 	DEVLINK_ATTR_DPIPE_TABLE_RESOURCE_UNITS,/* u64 */
+
+	DEVLINK_ATTR_PORT_FLAVOUR,		/* u16 */
+	DEVLINK_ATTR_PORT_NUMBER,		/* u32 */
+	DEVLINK_ATTR_PORT_SPLIT_SUBPORT_NUMBER,	/* u32 */
 
 	/* add new attributes above here, update the policy in devlink.c */
 

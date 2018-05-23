@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2007 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
-#ifndef __BTRFS_TRANSACTION__
-#define __BTRFS_TRANSACTION__
+#ifndef BTRFS_TRANSACTION_H
+#define BTRFS_TRANSACTION_H
 
 #include <linux/refcount.h>
 #include "btrfs_inode.h"
@@ -212,6 +199,20 @@ int btrfs_clean_one_deleted_snapshot(struct btrfs_root *root);
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans);
 int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans,
 				   int wait_for_unblock);
+
+/*
+ * Try to commit transaction asynchronously, so this is safe to call
+ * even holding a spinlock.
+ *
+ * It's done by informing transaction_kthread to commit transaction without
+ * waiting for commit interval.
+ */
+static inline void btrfs_commit_transaction_locksafe(
+		struct btrfs_fs_info *fs_info)
+{
+	set_bit(BTRFS_FS_NEED_ASYNC_COMMIT, &fs_info->flags);
+	wake_up_process(fs_info->transaction_kthread);
+}
 int btrfs_end_transaction_throttle(struct btrfs_trans_handle *trans);
 int btrfs_should_end_transaction(struct btrfs_trans_handle *trans);
 void btrfs_throttle(struct btrfs_fs_info *fs_info);
@@ -228,4 +229,5 @@ void btrfs_put_transaction(struct btrfs_transaction *transaction);
 void btrfs_apply_pending_changes(struct btrfs_fs_info *fs_info);
 void btrfs_add_dropped_root(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root);
+
 #endif

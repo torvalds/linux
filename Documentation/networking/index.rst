@@ -6,6 +6,7 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   af_xdp
    batman-adv
    can
    dpaa2/index

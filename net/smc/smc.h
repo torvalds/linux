@@ -118,7 +118,7 @@ struct smc_connection {
 	struct rb_node		alert_node;
 	struct smc_link_group	*lgr;		/* link group of connection */
 	u32			alert_token_local; /* unique conn. id */
-	u8			peer_conn_idx;	/* from tcp handshake */
+	u8			peer_rmbe_idx;	/* from tcp handshake */
 	int			peer_rmbe_size;	/* size of peer rx buffer */
 	atomic_t		peer_rmbe_space;/* remaining free bytes in peer
 						 * rmbe
@@ -126,9 +126,7 @@ struct smc_connection {
 	int			rtoken_idx;	/* idx to peer RMB rkey/addr */
 
 	struct smc_buf_desc	*sndbuf_desc;	/* send buffer descriptor */
-	int			sndbuf_size;	/* sndbuf size <== sock wmem */
 	struct smc_buf_desc	*rmb_desc;	/* RMBE descriptor */
-	int			rmbe_size;	/* RMBE size <== sock rmem */
 	int			rmbe_size_short;/* compressed notation */
 	int			rmbe_update_limit;
 						/* lower limit for consumer
@@ -153,6 +151,7 @@ struct smc_connection {
 	u16			tx_cdc_seq;	/* sequence # for CDC send */
 	spinlock_t		send_lock;	/* protect wr_sends */
 	struct delayed_work	tx_work;	/* retry of smc_cdc_msg_send */
+	u32			tx_off;		/* base offset in peer rmb */
 
 	struct smc_host_cdc_msg	local_rx_ctrl;	/* filled during event_handl.
 						 * .prod cf. TCP rcv_nxt
@@ -163,6 +162,9 @@ struct smc_connection {
 						    */
 	atomic_t		bytes_to_rcv;	/* arrived data,
 						 * not yet received
+						 */
+	atomic_t		splice_pending;	/* number of spliced bytes
+						 * pending processing
 						 */
 #ifndef KERNEL_HAS_ATOMIC64
 	spinlock_t		acurs_lock;	/* protect cursors */
@@ -180,6 +182,10 @@ struct smc_sock {				/* smc sock container */
 	struct list_head	accept_q;	/* sockets to be accepted */
 	spinlock_t		accept_q_lock;	/* protects accept_q */
 	bool			use_fallback;	/* fallback to tcp */
+	int			sockopt_defer_accept;
+						/* sockopt TCP_DEFER_ACCEPT
+						 * value
+						 */
 	u8			wait_close_tx_prepared : 1;
 						/* shutdown wr or close
 						 * started, waiting for unsent
@@ -214,41 +220,6 @@ static inline u32 ntoh24(u8 *net)
 	return be32_to_cpu(t);
 }
 
-#define SMC_BUF_MIN_SIZE 16384		/* minimum size of an RMB */
-
-#define SMC_RMBE_SIZES	16	/* number of distinct sizes for an RMBE */
-/* theoretically, the RFC states that largest size would be 512K,
- * i.e. compressed 5 and thus 6 sizes (0..5), despite
- * struct smc_clc_msg_accept_confirm.rmbe_size being a 4 bit value (0..15)
- */
-
-/* convert the RMB size into the compressed notation - minimum 16K.
- * In contrast to plain ilog2, this rounds towards the next power of 2,
- * so the socket application gets at least its desired sndbuf / rcvbuf size.
- */
-static inline u8 smc_compress_bufsize(int size)
-{
-	u8 compressed;
-
-	if (size <= SMC_BUF_MIN_SIZE)
-		return 0;
-
-	size = (size - 1) >> 14;
-	compressed = ilog2(size) + 1;
-	if (compressed >= SMC_RMBE_SIZES)
-		compressed = SMC_RMBE_SIZES - 1;
-	return compressed;
-}
-
-/* convert the RMB size from compressed notation into integer */
-static inline int smc_uncompress_bufsize(u8 compressed)
-{
-	u32 size;
-
-	size = 0x00000001 << (((int)compressed) + 14);
-	return (int)size;
-}
-
 #ifdef CONFIG_XFRM
 static inline bool using_ipsec(struct smc_sock *smc)
 {
@@ -262,12 +233,6 @@ static inline bool using_ipsec(struct smc_sock *smc)
 }
 #endif
 
-struct smc_clc_msg_local;
-
-void smc_conn_free(struct smc_connection *conn);
-int smc_conn_create(struct smc_sock *smc,
-		    struct smc_ib_device *smcibdev, u8 ibport,
-		    struct smc_clc_msg_local *lcl, int srv_first_contact);
 struct sock *smc_accept_dequeue(struct sock *parent, struct socket *new_sock);
 void smc_close_non_accepted(struct sock *sk);
 

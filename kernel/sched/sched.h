@@ -976,13 +976,20 @@ static inline u64 rq_clock_task(struct rq *rq)
 	return rq->clock_task;
 }
 
-static inline void rq_clock_skip_update(struct rq *rq, bool skip)
+static inline void rq_clock_skip_update(struct rq *rq)
 {
 	lockdep_assert_held(&rq->lock);
-	if (skip)
-		rq->clock_update_flags |= RQCF_REQ_SKIP;
-	else
-		rq->clock_update_flags &= ~RQCF_REQ_SKIP;
+	rq->clock_update_flags |= RQCF_REQ_SKIP;
+}
+
+/*
+ * See rt task throttoling, which is the only time a skip
+ * request is cancelled.
+ */
+static inline void rq_clock_cancel_skipupdate(struct rq *rq)
+{
+	lockdep_assert_held(&rq->lock);
+	rq->clock_update_flags &= ~RQCF_REQ_SKIP;
 }
 
 struct rq_flags {
@@ -2018,8 +2025,9 @@ extern bool sched_debug_enabled;
 extern void print_cfs_stats(struct seq_file *m, int cpu);
 extern void print_rt_stats(struct seq_file *m, int cpu);
 extern void print_dl_stats(struct seq_file *m, int cpu);
-extern void
-print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq);
+extern void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq);
+extern void print_rt_rq(struct seq_file *m, int cpu, struct rt_rq *rt_rq);
+extern void print_dl_rq(struct seq_file *m, int cpu, struct dl_rq *dl_rq);
 #ifdef CONFIG_NUMA_BALANCING
 extern void
 show_numa_stats(struct task_struct *p, struct seq_file *m);

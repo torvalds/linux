@@ -1072,12 +1072,27 @@ static void *inline_tx_skb_header(const struct sk_buff *skb,
 static u64 hwcsum(enum chip_type chip, const struct sk_buff *skb)
 {
 	int csum_type;
-	const struct iphdr *iph = ip_hdr(skb);
+	bool inner_hdr_csum = false;
+	u16 proto, ver;
 
-	if (iph->version == 4) {
-		if (iph->protocol == IPPROTO_TCP)
+	if (skb->encapsulation &&
+	    (CHELSIO_CHIP_VERSION(chip) > CHELSIO_T5))
+		inner_hdr_csum = true;
+
+	if (inner_hdr_csum) {
+		ver = inner_ip_hdr(skb)->version;
+		proto = (ver == 4) ? inner_ip_hdr(skb)->protocol :
+			inner_ipv6_hdr(skb)->nexthdr;
+	} else {
+		ver = ip_hdr(skb)->version;
+		proto = (ver == 4) ? ip_hdr(skb)->protocol :
+			ipv6_hdr(skb)->nexthdr;
+	}
+
+	if (ver == 4) {
+		if (proto == IPPROTO_TCP)
 			csum_type = TX_CSUM_TCPIP;
-		else if (iph->protocol == IPPROTO_UDP)
+		else if (proto == IPPROTO_UDP)
 			csum_type = TX_CSUM_UDPIP;
 		else {
 nocsum:			/*
@@ -1090,19 +1105,29 @@ nocsum:			/*
 		/*
 		 * this doesn't work with extension headers
 		 */
-		const struct ipv6hdr *ip6h = (const struct ipv6hdr *)iph;
-
-		if (ip6h->nexthdr == IPPROTO_TCP)
+		if (proto == IPPROTO_TCP)
 			csum_type = TX_CSUM_TCPIP6;
-		else if (ip6h->nexthdr == IPPROTO_UDP)
+		else if (proto == IPPROTO_UDP)
 			csum_type = TX_CSUM_UDPIP6;
 		else
 			goto nocsum;
 	}
 
 	if (likely(csum_type >= TX_CSUM_TCPIP)) {
-		u64 hdr_len = TXPKT_IPHDR_LEN_V(skb_network_header_len(skb));
-		int eth_hdr_len = skb_network_offset(skb) - ETH_HLEN;
+		int eth_hdr_len, l4_len;
+		u64 hdr_len;
+
+		if (inner_hdr_csum) {
+			/* This allows checksum offload for all encapsulated
+			 * packets like GRE etc..
+			 */
+			l4_len = skb_inner_network_header_len(skb);
+			eth_hdr_len = skb_inner_network_offset(skb) - ETH_HLEN;
+		} else {
+			l4_len = skb_network_header_len(skb);
+			eth_hdr_len = skb_network_offset(skb) - ETH_HLEN;
+		}
+		hdr_len = TXPKT_IPHDR_LEN_V(l4_len);
 
 		if (CHELSIO_CHIP_VERSION(chip) <= CHELSIO_T5)
 			hdr_len |= TXPKT_ETHHDR_LEN_V(eth_hdr_len);
@@ -1273,7 +1298,7 @@ static inline void t6_fill_tnl_lso(struct sk_buff *skb,
 netdev_tx_t t4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	u32 wr_mid, ctrl0, op;
-	u64 cntrl, *end;
+	u64 cntrl, *end, *sgl;
 	int qidx, credits;
 	unsigned int flits, ndesc;
 	struct adapter *adap;
@@ -1386,8 +1411,9 @@ out_free:	dev_kfree_skb_any(skb);
 	end = (u64 *)wr + flits;
 
 	len = immediate ? skb->len : 0;
+	len += sizeof(*cpl);
 	if (ssi->gso_size) {
-		struct cpl_tx_pkt_lso *lso = (void *)wr;
+		struct cpl_tx_pkt_lso_core *lso = (void *)(wr + 1);
 		bool v6 = (ssi->gso_type & SKB_GSO_TCPV6) != 0;
 		int l3hdr_len = skb_network_header_len(skb);
 		int eth_xtra_len = skb_network_offset(skb) - ETH_HLEN;
@@ -1417,20 +1443,19 @@ out_free:	dev_kfree_skb_any(skb);
 			if (skb->ip_summed == CHECKSUM_PARTIAL)
 				cntrl = hwcsum(adap->params.chip, skb);
 		} else {
-			lso->c.lso_ctrl = htonl(LSO_OPCODE_V(CPL_TX_PKT_LSO) |
-					  LSO_FIRST_SLICE_F | LSO_LAST_SLICE_F |
-					  LSO_IPV6_V(v6) |
-					  LSO_ETHHDR_LEN_V(eth_xtra_len / 4) |
-					  LSO_IPHDR_LEN_V(l3hdr_len / 4) |
-					  LSO_TCPHDR_LEN_V(tcp_hdr(skb)->doff));
-			lso->c.ipid_ofst = htons(0);
-			lso->c.mss = htons(ssi->gso_size);
-			lso->c.seqno_offset = htonl(0);
+			lso->lso_ctrl = htonl(LSO_OPCODE_V(CPL_TX_PKT_LSO) |
+					LSO_FIRST_SLICE_F | LSO_LAST_SLICE_F |
+					LSO_IPV6_V(v6) |
+					LSO_ETHHDR_LEN_V(eth_xtra_len / 4) |
+					LSO_IPHDR_LEN_V(l3hdr_len / 4) |
+					LSO_TCPHDR_LEN_V(tcp_hdr(skb)->doff));
+			lso->ipid_ofst = htons(0);
+			lso->mss = htons(ssi->gso_size);
+			lso->seqno_offset = htonl(0);
 			if (is_t4(adap->params.chip))
-				lso->c.len = htonl(skb->len);
+				lso->len = htonl(skb->len);
 			else
-				lso->c.len =
-					htonl(LSO_T5_XFER_SIZE_V(skb->len));
+				lso->len = htonl(LSO_T5_XFER_SIZE_V(skb->len));
 			cpl = (void *)(lso + 1);
 
 			if (CHELSIO_CHIP_VERSION(adap->params.chip)
@@ -1443,10 +1468,22 @@ out_free:	dev_kfree_skb_any(skb);
 				 TX_CSUM_TCPIP6 : TX_CSUM_TCPIP) |
 				 TXPKT_IPHDR_LEN_V(l3hdr_len);
 		}
+		sgl = (u64 *)(cpl + 1); /* sgl start here */
+		if (unlikely((u8 *)sgl >= (u8 *)q->q.stat)) {
+			/* If current position is already at the end of the
+			 * txq, reset the current to point to start of the queue
+			 * and update the end ptr as well.
+			 */
+			if (sgl == (u64 *)q->q.stat) {
+				int left = (u8 *)end - (u8 *)q->q.stat;
+
+				end = (void *)q->q.desc + left;
+				sgl = (void *)q->q.desc;
+			}
+		}
 		q->tso++;
 		q->tx_cso += ssi->gso_segs;
 	} else {
-		len += sizeof(*cpl);
 		if (ptp_enabled)
 			op = FW_PTP_TX_PKT_WR;
 		else
@@ -1454,6 +1491,7 @@ out_free:	dev_kfree_skb_any(skb);
 		wr->op_immdlen = htonl(FW_WR_OP_V(op) |
 				       FW_WR_IMMDLEN_V(len));
 		cpl = (void *)(wr + 1);
+		sgl = (u64 *)(cpl + 1);
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
 			cntrl = hwcsum(adap->params.chip, skb) |
 				TXPKT_IPCSUM_DIS_F;
@@ -1487,20 +1525,19 @@ out_free:	dev_kfree_skb_any(skb);
 	cpl->ctrl1 = cpu_to_be64(cntrl);
 
 	if (immediate) {
-		cxgb4_inline_tx_skb(skb, &q->q, cpl + 1);
+		cxgb4_inline_tx_skb(skb, &q->q, sgl);
 		dev_consume_skb_any(skb);
 	} else {
 		int last_desc;
 
-		cxgb4_write_sgl(skb, &q->q, (struct ulptx_sgl *)(cpl + 1),
-				end, 0, addr);
+		cxgb4_write_sgl(skb, &q->q, (void *)sgl, end, 0, addr);
 		skb_orphan(skb);
 
 		last_desc = q->q.pidx + ndesc - 1;
 		if (last_desc >= q->q.size)
 			last_desc -= q->q.size;
 		q->q.sdesc[last_desc].skb = skb;
-		q->q.sdesc[last_desc].sgl = (struct ulptx_sgl *)(cpl + 1);
+		q->q.sdesc[last_desc].sgl = (struct ulptx_sgl *)sgl;
 	}
 
 	txq_advance(&q->q, ndesc);
@@ -2259,7 +2296,7 @@ static void cxgb4_sgetim_to_hwtstamp(struct adapter *adap,
 }
 
 static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
-		   const struct cpl_rx_pkt *pkt)
+		   const struct cpl_rx_pkt *pkt, unsigned long tnl_hdr_len)
 {
 	struct adapter *adapter = rxq->rspq.adap;
 	struct sge *s = &adapter->sge;
@@ -2275,6 +2312,8 @@ static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 	}
 
 	copy_frags(skb, gl, s->pktshift);
+	if (tnl_hdr_len)
+		skb->csum_level = 1;
 	skb->len = gl->tot_len - s->pktshift;
 	skb->data_len = skb->len;
 	skb->truesize += skb->data_len;
@@ -2406,7 +2445,7 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 	struct sge *s = &q->adap->sge;
 	int cpl_trace_pkt = is_t4(q->adap->params.chip) ?
 			    CPL_TRACE_PKT : CPL_TRACE_PKT_T5;
-	u16 err_vec;
+	u16 err_vec, tnl_hdr_len = 0;
 	struct port_info *pi;
 	int ret = 0;
 
@@ -2415,16 +2454,19 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 
 	pkt = (const struct cpl_rx_pkt *)rsp;
 	/* Compressed error vector is enabled for T6 only */
-	if (q->adap->params.tp.rx_pkt_encap)
+	if (q->adap->params.tp.rx_pkt_encap) {
 		err_vec = T6_COMPR_RXERR_VEC_G(be16_to_cpu(pkt->err_vec));
-	else
+		tnl_hdr_len = T6_RX_TNLHDR_LEN_G(ntohs(pkt->err_vec));
+	} else {
 		err_vec = be16_to_cpu(pkt->err_vec);
+	}
 
 	csum_ok = pkt->csum_calc && !err_vec &&
 		  (q->netdev->features & NETIF_F_RXCSUM);
-	if ((pkt->l2info & htonl(RXF_TCP_F)) &&
+	if (((pkt->l2info & htonl(RXF_TCP_F)) ||
+	     tnl_hdr_len) &&
 	    (q->netdev->features & NETIF_F_GRO) && csum_ok && !pkt->ip_frag) {
-		do_gro(rxq, si, pkt);
+		do_gro(rxq, si, pkt, tnl_hdr_len);
 		return 0;
 	}
 
@@ -2471,7 +2513,13 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 		} else if (pkt->l2info & htonl(RXF_IP_F)) {
 			__sum16 c = (__force __sum16)pkt->csum;
 			skb->csum = csum_unfold(c);
-			skb->ip_summed = CHECKSUM_COMPLETE;
+
+			if (tnl_hdr_len) {
+				skb->ip_summed = CHECKSUM_UNNECESSARY;
+				skb->csum_level = 1;
+			} else {
+				skb->ip_summed = CHECKSUM_COMPLETE;
+			}
 			rxq->stats.rx_cso++;
 		}
 	} else {

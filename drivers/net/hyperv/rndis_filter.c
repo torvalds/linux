@@ -752,7 +752,7 @@ int rndis_filter_set_rss_param(struct rndis_device *rdev,
 	rssp->indirect_tabsize = 4*ITAB_NUM;
 	rssp->indirect_taboffset = sizeof(struct ndis_recv_scale_param);
 	rssp->hashkey_size = NETVSC_HASH_KEYLEN;
-	rssp->kashkey_offset = rssp->indirect_taboffset +
+	rssp->hashkey_offset = rssp->indirect_taboffset +
 			       rssp->indirect_tabsize;
 
 	/* Set indirection table entries */
@@ -761,7 +761,7 @@ int rndis_filter_set_rss_param(struct rndis_device *rdev,
 		itab[i] = rdev->rx_table[i];
 
 	/* Set hask key values */
-	keyp = (u8 *)((unsigned long)rssp + rssp->kashkey_offset);
+	keyp = (u8 *)((unsigned long)rssp + rssp->hashkey_offset);
 	memcpy(keyp, rss_key, NETVSC_HASH_KEYLEN);
 
 	ret = rndis_filter_send_request(rdev, request);
@@ -1316,7 +1316,7 @@ struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
 		   rndis_device->link_state ? "down" : "up");
 
 	if (net_device->nvsp_version < NVSP_PROTOCOL_VERSION_5)
-		return net_device;
+		goto out;
 
 	rndis_filter_query_link_speed(rndis_device, net_device);
 

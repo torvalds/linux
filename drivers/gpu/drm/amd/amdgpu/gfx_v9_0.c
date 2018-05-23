@@ -998,12 +998,19 @@ static void gfx_v9_0_read_wave_vgprs(struct amdgpu_device *adev, uint32_t simd,
 		start + SQIND_WAVE_VGPRS_OFFSET, size, dst);
 }
 
+static void gfx_v9_0_select_me_pipe_q(struct amdgpu_device *adev,
+				  u32 me, u32 pipe, u32 q)
+{
+	soc15_grbm_select(adev, me, pipe, q, 0);
+}
+
 static const struct amdgpu_gfx_funcs gfx_v9_0_gfx_funcs = {
 	.get_gpu_clock_counter = &gfx_v9_0_get_gpu_clock_counter,
 	.select_se_sh = &gfx_v9_0_select_se_sh,
 	.read_wave_data = &gfx_v9_0_read_wave_data,
 	.read_wave_sgprs = &gfx_v9_0_read_wave_sgprs,
 	.read_wave_vgprs = &gfx_v9_0_read_wave_vgprs,
+	.select_me_pipe_q = &gfx_v9_0_select_me_pipe_q
 };
 
 static void gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
@@ -2757,6 +2764,45 @@ static int gfx_v9_0_kiq_init_register(struct amdgpu_ring *ring)
 	return 0;
 }
 
+static int gfx_v9_0_kiq_fini_register(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	int j;
+
+	/* disable the queue if it's active */
+	if (RREG32_SOC15(GC, 0, mmCP_HQD_ACTIVE) & 1) {
+
+		WREG32_SOC15(GC, 0, mmCP_HQD_DEQUEUE_REQUEST, 1);
+
+		for (j = 0; j < adev->usec_timeout; j++) {
+			if (!(RREG32_SOC15(GC, 0, mmCP_HQD_ACTIVE) & 1))
+				break;
+			udelay(1);
+		}
+
+		if (j == AMDGPU_MAX_USEC_TIMEOUT) {
+			DRM_DEBUG("KIQ dequeue request failed.\n");
+
+			/* Manual disable if dequeue request times out */
+			WREG32_SOC15(GC, 0, mmCP_HQD_ACTIVE, 0);
+		}
+
+		WREG32_SOC15(GC, 0, mmCP_HQD_DEQUEUE_REQUEST,
+		      0);
+	}
+
+	WREG32_SOC15(GC, 0, mmCP_HQD_IQ_TIMER, 0);
+	WREG32_SOC15(GC, 0, mmCP_HQD_IB_CONTROL, 0);
+	WREG32_SOC15(GC, 0, mmCP_HQD_PERSISTENT_STATE, 0);
+	WREG32_SOC15(GC, 0, mmCP_HQD_PQ_DOORBELL_CONTROL, 0x40000000);
+	WREG32_SOC15(GC, 0, mmCP_HQD_PQ_DOORBELL_CONTROL, 0);
+	WREG32_SOC15(GC, 0, mmCP_HQD_PQ_RPTR, 0);
+	WREG32_SOC15(GC, 0, mmCP_HQD_PQ_WPTR_HI, 0);
+	WREG32_SOC15(GC, 0, mmCP_HQD_PQ_WPTR_LO, 0);
+
+	return 0;
+}
+
 static int gfx_v9_0_kiq_init_queue(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
@@ -3010,7 +3056,6 @@ static int gfx_v9_0_kcq_disable(struct amdgpu_ring *kiq_ring,struct amdgpu_ring 
 	return r;
 }
 
-
 static int gfx_v9_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -3033,6 +3078,20 @@ static int gfx_v9_0_hw_fini(void *handle)
 		WREG32_FIELD15(GC, 0, CP_PQ_WPTR_POLL_CNTL, EN, 0);
 		return 0;
 	}
+
+	/* Use deinitialize sequence from CAIL when unbinding device from driver,
+	 * otherwise KIQ is hanging when binding back
+	 */
+	if (!adev->in_gpu_reset && !adev->gfx.in_suspend) {
+		mutex_lock(&adev->srbm_mutex);
+		soc15_grbm_select(adev, adev->gfx.kiq.ring.me,
+				adev->gfx.kiq.ring.pipe,
+				adev->gfx.kiq.ring.queue, 0);
+		gfx_v9_0_kiq_fini_register(&adev->gfx.kiq.ring);
+		soc15_grbm_select(adev, 0, 0, 0, 0);
+		mutex_unlock(&adev->srbm_mutex);
+	}
+
 	gfx_v9_0_cp_enable(adev, false);
 	gfx_v9_0_rlc_stop(adev);
 

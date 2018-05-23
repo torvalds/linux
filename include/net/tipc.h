@@ -44,11 +44,11 @@ struct tipc_basic_hdr {
 	__be32 w[4];
 };
 
-static inline u32 tipc_hdr_rps_key(struct tipc_basic_hdr *hdr)
+static inline __be32 tipc_hdr_rps_key(struct tipc_basic_hdr *hdr)
 {
 	u32 w0 = ntohl(hdr->w[0]);
 	bool keepalive_msg = (w0 & KEEPALIVE_MSG_MASK) == KEEPALIVE_MSG_MASK;
-	int key;
+	__be32 key;
 
 	/* Return source node identity as key */
 	if (likely(!keepalive_msg))

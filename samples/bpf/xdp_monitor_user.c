@@ -26,7 +26,7 @@ static const char *__doc_err_only__=
 #include <net/if.h>
 #include <time.h>
 
-#include "libbpf.h"
+#include <bpf/bpf.h>
 #include "bpf_load.h"
 #include "bpf_util.h"
 
@@ -58,7 +58,7 @@ static void usage(char *argv[])
 			printf(" flag (internal value:%d)",
 			       *long_options[i].flag);
 		else
-			printf("(internal short-option: -%c)",
+			printf("short-option: -%c",
 			       long_options[i].val);
 		printf("\n");
 	}
@@ -330,7 +330,7 @@ static void stats_print(struct stats_record *stats_rec,
 			pps = calc_pps_u64(r, p, t);
 			if (pps > 0)
 				printf(fmt1, "Exception", i,
-				       0.0, pps, err2str(rec_i));
+				       0.0, pps, action2str(rec_i));
 		}
 		pps = calc_pps_u64(&rec->total, &prev->total, t);
 		if (pps > 0)
@@ -594,7 +594,7 @@ int main(int argc, char **argv)
 	snprintf(bpf_obj_file, sizeof(bpf_obj_file), "%s_kern.o", argv[0]);
 
 	/* Parse commands line args */
-	while ((opt = getopt_long(argc, argv, "h",
+	while ((opt = getopt_long(argc, argv, "hDSs:",
 				  long_options, &longindex)) != -1) {
 		switch (opt) {
 		case 'D':

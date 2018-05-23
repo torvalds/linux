@@ -373,7 +373,6 @@ xfs_refcountbt_init_cursor(
  */
 int
 xfs_refcountbt_maxrecs(
-	struct xfs_mount	*mp,
 	int			blocklen,
 	bool			leaf)
 {
@@ -390,7 +389,7 @@ void
 xfs_refcountbt_compute_maxlevels(
 	struct xfs_mount		*mp)
 {
-	mp->m_refc_maxlevels = xfs_btree_compute_maxlevels(mp,
+	mp->m_refc_maxlevels = xfs_btree_compute_maxlevels(
 			mp->m_refc_mnr, mp->m_sb.sb_agblocks);
 }
 
@@ -400,7 +399,7 @@ xfs_refcountbt_calc_size(
 	struct xfs_mount	*mp,
 	unsigned long long	len)
 {
-	return xfs_btree_calc_size(mp, mp->m_refc_mnr, len);
+	return xfs_btree_calc_size(mp->m_refc_mnr, len);
 }
 
 /*

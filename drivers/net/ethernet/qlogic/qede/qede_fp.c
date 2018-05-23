@@ -660,7 +660,8 @@ static int qede_fill_frag_skb(struct qede_dev *edev,
 
 	/* Add one frag and update the appropriate fields in the skb */
 	skb_fill_page_desc(skb, tpa_info->frag_id++,
-			   current_bd->data, current_bd->page_offset,
+			   current_bd->data,
+			   current_bd->page_offset + rxq->rx_headroom,
 			   len_on_bd);
 
 	if (unlikely(qede_realloc_rx_buffer(rxq, current_bd))) {
@@ -671,8 +672,7 @@ static int qede_fill_frag_skb(struct qede_dev *edev,
 		goto out;
 	}
 
-	qed_chain_consume(&rxq->rx_bd_ring);
-	rxq->sw_rx_cons++;
+	qede_rx_bd_ring_consume(rxq);
 
 	skb->data_len += len_on_bd;
 	skb->truesize += rxq->rx_buf_seg_size;
@@ -721,64 +721,129 @@ static u8 qede_check_tunn_csum(u16 flag)
 	return QEDE_CSUM_UNNECESSARY | tcsum;
 }
 
+static inline struct sk_buff *
+qede_build_skb(struct qede_rx_queue *rxq,
+	       struct sw_rx_data *bd, u16 len, u16 pad)
+{
+	struct sk_buff *skb;
+	void *buf;
+
+	buf = page_address(bd->data) + bd->page_offset;
+	skb = build_skb(buf, rxq->rx_buf_seg_size);
+
+	skb_reserve(skb, pad);
+	skb_put(skb, len);
+
+	return skb;
+}
+
+static struct sk_buff *
+qede_tpa_rx_build_skb(struct qede_dev *edev,
+		      struct qede_rx_queue *rxq,
+		      struct sw_rx_data *bd, u16 len, u16 pad,
+		      bool alloc_skb)
+{
+	struct sk_buff *skb;
+
+	skb = qede_build_skb(rxq, bd, len, pad);
+	bd->page_offset += rxq->rx_buf_seg_size;
+
+	if (bd->page_offset == PAGE_SIZE) {
+		if (unlikely(qede_alloc_rx_buffer(rxq, true))) {
+			DP_NOTICE(edev,
+				  "Failed to allocate RX buffer for tpa start\n");
+			bd->page_offset -= rxq->rx_buf_seg_size;
+			page_ref_inc(bd->data);
+			dev_kfree_skb_any(skb);
+			return NULL;
+		}
+	} else {
+		page_ref_inc(bd->data);
+		qede_reuse_page(rxq, bd);
+	}
+
+	/* We've consumed the first BD and prepared an SKB */
+	qede_rx_bd_ring_consume(rxq);
+
+	return skb;
+}
+
+static struct sk_buff *
+qede_rx_build_skb(struct qede_dev *edev,
+		  struct qede_rx_queue *rxq,
+		  struct sw_rx_data *bd, u16 len, u16 pad)
+{
+	struct sk_buff *skb = NULL;
+
+	/* For smaller frames still need to allocate skb, memcpy
+	 * data and benefit in reusing the page segment instead of
+	 * un-mapping it.
+	 */
+	if ((len + pad <= edev->rx_copybreak)) {
+		unsigned int offset = bd->page_offset + pad;
+
+		skb = netdev_alloc_skb(edev->ndev, QEDE_RX_HDR_SIZE);
+		if (unlikely(!skb))
+			return NULL;
+
+		skb_reserve(skb, pad);
+		memcpy(skb_put(skb, len),
+		       page_address(bd->data) + offset, len);
+		qede_reuse_page(rxq, bd);
+		goto out;
+	}
+
+	skb = qede_build_skb(rxq, bd, len, pad);
+
+	if (unlikely(qede_realloc_rx_buffer(rxq, bd))) {
+		/* Incr page ref count to reuse on allocation failure so
+		 * that it doesn't get freed while freeing SKB [as its
+		 * already mapped there].
+		 */
+		page_ref_inc(bd->data);
+		dev_kfree_skb_any(skb);
+		return NULL;
+	}
+out:
+	/* We've consumed the first BD and prepared an SKB */
+	qede_rx_bd_ring_consume(rxq);
+
+	return skb;
+}
+
 static void qede_tpa_start(struct qede_dev *edev,
 			   struct qede_rx_queue *rxq,
 			   struct eth_fast_path_rx_tpa_start_cqe *cqe)
 {
 	struct qede_agg_info *tpa_info = &rxq->tpa_info[cqe->tpa_agg_index];
-	struct eth_rx_bd *rx_bd_cons = qed_chain_consume(&rxq->rx_bd_ring);
-	struct eth_rx_bd *rx_bd_prod = qed_chain_produce(&rxq->rx_bd_ring);
-	struct sw_rx_data *replace_buf = &tpa_info->buffer;
-	dma_addr_t mapping = tpa_info->buffer_mapping;
 	struct sw_rx_data *sw_rx_data_cons;
-	struct sw_rx_data *sw_rx_data_prod;
+	u16 pad;
 
 	sw_rx_data_cons = &rxq->sw_rx_ring[rxq->sw_rx_cons & NUM_RX_BDS_MAX];
-	sw_rx_data_prod = &rxq->sw_rx_ring[rxq->sw_rx_prod & NUM_RX_BDS_MAX];
+	pad = cqe->placement_offset + rxq->rx_headroom;
 
-	/* Use pre-allocated replacement buffer - we can't release the agg.
-	 * start until its over and we don't want to risk allocation failing
-	 * here, so re-allocate when aggregation will be over.
-	 */
-	sw_rx_data_prod->mapping = replace_buf->mapping;
+	tpa_info->skb = qede_tpa_rx_build_skb(edev, rxq, sw_rx_data_cons,
+					      le16_to_cpu(cqe->len_on_first_bd),
+					      pad, false);
+	tpa_info->buffer.page_offset = sw_rx_data_cons->page_offset;
+	tpa_info->buffer.mapping = sw_rx_data_cons->mapping;
 
-	sw_rx_data_prod->data = replace_buf->data;
-	rx_bd_prod->addr.hi = cpu_to_le32(upper_32_bits(mapping));
-	rx_bd_prod->addr.lo = cpu_to_le32(lower_32_bits(mapping));
-	sw_rx_data_prod->page_offset = replace_buf->page_offset;
-
-	rxq->sw_rx_prod++;
-
-	/* move partial skb from cons to pool (don't unmap yet)
-	 * save mapping, incase we drop the packet later on.
-	 */
-	tpa_info->buffer = *sw_rx_data_cons;
-	mapping = HILO_U64(le32_to_cpu(rx_bd_cons->addr.hi),
-			   le32_to_cpu(rx_bd_cons->addr.lo));
-
-	tpa_info->buffer_mapping = mapping;
-	rxq->sw_rx_cons++;
-
-	/* set tpa state to start only if we are able to allocate skb
-	 * for this aggregation, otherwise mark as error and aggregation will
-	 * be dropped
-	 */
-	tpa_info->skb = netdev_alloc_skb(edev->ndev,
-					 le16_to_cpu(cqe->len_on_first_bd));
 	if (unlikely(!tpa_info->skb)) {
 		DP_NOTICE(edev, "Failed to allocate SKB for gro\n");
+
+		/* Consume from ring but do not produce since
+		 * this might be used by FW still, it will be re-used
+		 * at TPA end.
+		 */
+		tpa_info->tpa_start_fail = true;
+		qede_rx_bd_ring_consume(rxq);
 		tpa_info->state = QEDE_AGG_STATE_ERROR;
 		goto cons_buf;
 	}
 
-	/* Start filling in the aggregation info */
-	skb_put(tpa_info->skb, le16_to_cpu(cqe->len_on_first_bd));
 	tpa_info->frag_id = 0;
 	tpa_info->state = QEDE_AGG_STATE_START;
 
-	/* Store some information from first CQE */
-	tpa_info->start_cqe_placement_offset = cqe->placement_offset;
-	tpa_info->start_cqe_bd_len = le16_to_cpu(cqe->len_on_first_bd);
 	if ((le16_to_cpu(cqe->pars_flags.flags) >>
 	     PARSING_AND_ERR_FLAGS_TAG8021QEXIST_SHIFT) &
 	    PARSING_AND_ERR_FLAGS_TAG8021QEXIST_MASK)
@@ -899,6 +964,10 @@ static int qede_tpa_end(struct qede_dev *edev,
 	tpa_info = &rxq->tpa_info[cqe->tpa_agg_index];
 	skb = tpa_info->skb;
 
+	if (tpa_info->buffer.page_offset == PAGE_SIZE)
+		dma_unmap_page(rxq->dev, tpa_info->buffer.mapping,
+			       PAGE_SIZE, rxq->data_direction);
+
 	for (i = 0; cqe->len_list[i]; i++)
 		qede_fill_frag_skb(edev, rxq, cqe->tpa_agg_index,
 				   le16_to_cpu(cqe->len_list[i]));
@@ -919,11 +988,6 @@ static int qede_tpa_end(struct qede_dev *edev,
 		       "Strange - total packet len [cqe] is %4x but SKB has len %04x\n",
 		       le16_to_cpu(cqe->total_packet_len), skb->len);
 
-	memcpy(skb->data,
-	       page_address(tpa_info->buffer.data) +
-	       tpa_info->start_cqe_placement_offset +
-	       tpa_info->buffer.page_offset, tpa_info->start_cqe_bd_len);
-
 	/* Finalize the SKB */
 	skb->protocol = eth_type_trans(skb, edev->ndev);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -940,6 +1004,12 @@ static int qede_tpa_end(struct qede_dev *edev,
 	return 1;
 err:
 	tpa_info->state = QEDE_AGG_STATE_NONE;
+
+	if (tpa_info->tpa_start_fail) {
+		qede_reuse_page(rxq, &tpa_info->buffer);
+		tpa_info->tpa_start_fail = false;
+	}
+
 	dev_kfree_skb_any(tpa_info->skb);
 	tpa_info->skb = NULL;
 	return 0;
@@ -1058,65 +1128,6 @@ static bool qede_rx_xdp(struct qede_dev *edev,
 	return false;
 }
 
-static struct sk_buff *qede_rx_allocate_skb(struct qede_dev *edev,
-					    struct qede_rx_queue *rxq,
-					    struct sw_rx_data *bd, u16 len,
-					    u16 pad)
-{
-	unsigned int offset = bd->page_offset + pad;
-	struct skb_frag_struct *frag;
-	struct page *page = bd->data;
-	unsigned int pull_len;
-	struct sk_buff *skb;
-	unsigned char *va;
-
-	/* Allocate a new SKB with a sufficient large header len */
-	skb = netdev_alloc_skb(edev->ndev, QEDE_RX_HDR_SIZE);
-	if (unlikely(!skb))
-		return NULL;
-
-	/* Copy data into SKB - if it's small, we can simply copy it and
-	 * re-use the already allcoated & mapped memory.
-	 */
-	if (len + pad <= edev->rx_copybreak) {
-		skb_put_data(skb, page_address(page) + offset, len);
-		qede_reuse_page(rxq, bd);
-		goto out;
-	}
-
-	frag = &skb_shinfo(skb)->frags[0];
-
-	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
-			page, offset, len, rxq->rx_buf_seg_size);
-
-	va = skb_frag_address(frag);
-	pull_len = eth_get_headlen(va, QEDE_RX_HDR_SIZE);
-
-	/* Align the pull_len to optimize memcpy */
-	memcpy(skb->data, va, ALIGN(pull_len, sizeof(long)));
-
-	/* Correct the skb & frag sizes offset after the pull */
-	skb_frag_size_sub(frag, pull_len);
-	frag->page_offset += pull_len;
-	skb->data_len -= pull_len;
-	skb->tail += pull_len;
-
-	if (unlikely(qede_realloc_rx_buffer(rxq, bd))) {
-		/* Incr page ref count to reuse on allocation failure so
-		 * that it doesn't get freed while freeing SKB [as its
-		 * already mapped there].
-		 */
-		page_ref_inc(page);
-		dev_kfree_skb_any(skb);
-		return NULL;
-	}
-
-out:
-	/* We've consumed the first BD and prepared an SKB */
-	qede_rx_bd_ring_consume(rxq);
-	return skb;
-}
-
 static int qede_rx_build_jumbo(struct qede_dev *edev,
 			       struct qede_rx_queue *rxq,
 			       struct sk_buff *skb,
@@ -1157,7 +1168,7 @@ static int qede_rx_build_jumbo(struct qede_dev *edev,
 			       PAGE_SIZE, DMA_FROM_DEVICE);
 
 		skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags++,
-				   bd->data, 0, cur_size);
+				   bd->data, rxq->rx_headroom, cur_size);
 
 		skb->truesize += PAGE_SIZE;
 		skb->data_len += cur_size;
@@ -1256,7 +1267,7 @@ static int qede_rx_process_cqe(struct qede_dev *edev,
 	/* Basic validation passed; Need to prepare an SKB. This would also
 	 * guarantee to finally consume the first BD upon success.
 	 */
-	skb = qede_rx_allocate_skb(edev, rxq, bd, len, pad);
+	skb = qede_rx_build_skb(edev, rxq, bd, len, pad);
 	if (!skb) {
 		rxq->rx_alloc_errors++;
 		qede_recycle_rx_bd_ring(rxq, fp_cqe->bd_num);

@@ -218,6 +218,7 @@ struct tcp_sock {
 		   reord:1;	 /* reordering detected */
 	} rack;
 	u16	advmss;		/* Advertised MSS			*/
+	u8	compressed_ack;
 	u32	chrono_start;	/* Start time in jiffies of a TCP chrono */
 	u32	chrono_stat[3];	/* Time in jiffies for chrono_stat stats */
 	u8	chrono_type:2,	/* current chronograph type */
@@ -228,7 +229,7 @@ struct tcp_sock {
 		unused:2;
 	u8	nonagle     : 4,/* Disable Nagle algorithm?             */
 		thin_lto    : 1,/* Use linear timeouts for thin streams */
-		unused1	    : 1,
+		recvmsg_inq : 1,/* Indicate # of bytes in queue upon recvmsg */
 		repair      : 1,
 		frto        : 1;/* F-RTO (RFC5682) activated in CA_Loss */
 	u8	repair_queue;
@@ -281,6 +282,7 @@ struct tcp_sock {
 				 * receiver in Recovery. */
 	u32	prr_out;	/* Total number of pkts sent during Recovery. */
 	u32	delivered;	/* Total data packets delivered incl. rexmits */
+	u32	delivered_ce;	/* Like the above but only ECE marked packets */
 	u32	lost;		/* Total data packets lost incl. rexmits */
 	u32	app_limited;	/* limited until "delivered" reaches this val */
 	u64	first_tx_mstamp;  /* start of window send phase */
@@ -296,6 +298,7 @@ struct tcp_sock {
 	u32	sacked_out;	/* SACK'd packets			*/
 
 	struct hrtimer	pacing_timer;
+	struct hrtimer	compressed_ack_timer;
 
 	/* from STCP, retrans queue hinting */
 	struct sk_buff* lost_skb_hint;

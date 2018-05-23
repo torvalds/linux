@@ -26,14 +26,14 @@
 static atomic_t v6_worker_count;
 
 unsigned int
-nf_nat_masquerade_ipv6(struct sk_buff *skb, const struct nf_nat_range *range,
+nf_nat_masquerade_ipv6(struct sk_buff *skb, const struct nf_nat_range2 *range,
 		       const struct net_device *out)
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn_nat *nat;
 	struct in6_addr src;
 	struct nf_conn *ct;
-	struct nf_nat_range newrange;
+	struct nf_nat_range2 newrange;
 
 	ct = nf_ct_get(skb, &ctinfo);
 	WARN_ON(!(ct && (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED ||

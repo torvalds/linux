@@ -183,16 +183,18 @@ enum shf_sc {
 #define OP_ALU_DST_LMEXTN	0x80000000000ULL
 
 enum alu_op {
-	ALU_OP_NONE	= 0x00,
-	ALU_OP_ADD	= 0x01,
-	ALU_OP_NOT	= 0x04,
-	ALU_OP_ADD_2B	= 0x05,
-	ALU_OP_AND	= 0x08,
-	ALU_OP_SUB_C	= 0x0d,
-	ALU_OP_ADD_C	= 0x11,
-	ALU_OP_OR	= 0x14,
-	ALU_OP_SUB	= 0x15,
-	ALU_OP_XOR	= 0x18,
+	ALU_OP_NONE		= 0x00,
+	ALU_OP_ADD		= 0x01,
+	ALU_OP_NOT		= 0x04,
+	ALU_OP_ADD_2B		= 0x05,
+	ALU_OP_AND		= 0x08,
+	ALU_OP_AND_NOT_A	= 0x0c,
+	ALU_OP_SUB_C		= 0x0d,
+	ALU_OP_AND_NOT_B	= 0x10,
+	ALU_OP_ADD_C		= 0x11,
+	ALU_OP_OR		= 0x14,
+	ALU_OP_SUB		= 0x15,
+	ALU_OP_XOR		= 0x18,
 };
 
 enum alu_dst_ab {

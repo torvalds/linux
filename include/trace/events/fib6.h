@@ -12,10 +12,10 @@
 
 TRACE_EVENT(fib6_table_lookup,
 
-	TP_PROTO(const struct net *net, const struct rt6_info *rt,
+	TP_PROTO(const struct net *net, const struct fib6_info *f6i,
 		 struct fib6_table *table, const struct flowi6 *flp),
 
-	TP_ARGS(net, rt, table, flp),
+	TP_ARGS(net, f6i, table, flp),
 
 	TP_STRUCT__entry(
 		__field(	u32,	tb_id		)
@@ -48,20 +48,20 @@ TRACE_EVENT(fib6_table_lookup,
 		in6 = (struct in6_addr *)__entry->dst;
 		*in6 = flp->daddr;
 
-		if (rt->rt6i_idev) {
-			__assign_str(name, rt->rt6i_idev->dev->name);
+		if (f6i->fib6_nh.nh_dev) {
+			__assign_str(name, f6i->fib6_nh.nh_dev);
 		} else {
 			__assign_str(name, "");
 		}
-		if (rt == net->ipv6.ip6_null_entry) {
+		if (f6i == net->ipv6.fib6_null_entry) {
 			struct in6_addr in6_zero = {};
 
 			in6 = (struct in6_addr *)__entry->gw;
 			*in6 = in6_zero;
 
-		} else if (rt) {
+		} else if (f6i) {
 			in6 = (struct in6_addr *)__entry->gw;
-			*in6 = rt->rt6i_gateway;
+			*in6 = f6i->fib6_nh.nh_gw;
 		}
 	),
 

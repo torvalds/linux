@@ -15,6 +15,7 @@
 #include <linux/stat.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/namei.h>
 #include <linux/slab.h>
 #include <linux/printk.h>
 #include <linux/mount.h>
@@ -217,6 +218,26 @@ void proc_free_inum(unsigned int inum)
 	ida_simple_remove(&proc_inum_ida, inum - PROC_DYNAMIC_FIRST);
 }
 
+static int proc_misc_d_revalidate(struct dentry *dentry, unsigned int flags)
+{
+	if (flags & LOOKUP_RCU)
+		return -ECHILD;
+
+	if (atomic_read(&PDE(d_inode(dentry))->in_use) < 0)
+		return 0; /* revalidate */
+	return 1;
+}
+
+static int proc_misc_d_delete(const struct dentry *dentry)
+{
+	return atomic_read(&PDE(d_inode(dentry))->in_use) < 0;
+}
+
+static const struct dentry_operations proc_misc_dentry_ops = {
+	.d_revalidate	= proc_misc_d_revalidate,
+	.d_delete	= proc_misc_d_delete,
+};
+
 /*
  * Don't create negative dentries here, return -ENOENT by hand
  * instead.
@@ -234,7 +255,7 @@ struct dentry *proc_lookup_de(struct inode *dir, struct dentry *dentry,
 		inode = proc_get_inode(dir->i_sb, de);
 		if (!inode)
 			return ERR_PTR(-ENOMEM);
-		d_set_d_op(dentry, &simple_dentry_operations);
+		d_set_d_op(dentry, &proc_misc_dentry_ops);
 		d_add(dentry, inode);
 		return NULL;
 	}
