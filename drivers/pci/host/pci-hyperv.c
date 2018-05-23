@@ -433,7 +433,7 @@ enum hv_pcibus_state {
 struct hv_pcibus_device {
 	struct pci_sysdata sysdata;
 	enum hv_pcibus_state state;
-	atomic_t remove_lock;
+	refcount_t remove_lock;
 	struct hv_device *hdev;
 	resource_size_t low_mmio_space;
 	resource_size_t high_mmio_space;
@@ -2430,12 +2430,12 @@ static int hv_send_resources_released(struct hv_device *hdev)
 
 static void get_hvpcibus(struct hv_pcibus_device *hbus)
 {
-	atomic_inc(&hbus->remove_lock);
+	refcount_inc(&hbus->remove_lock);
 }
 
 static void put_hvpcibus(struct hv_pcibus_device *hbus)
 {
-	if (atomic_dec_and_test(&hbus->remove_lock))
+	if (refcount_dec_and_test(&hbus->remove_lock))
 		complete(&hbus->remove_event);
 }
 
@@ -2479,7 +2479,7 @@ static int hv_pci_probe(struct hv_device *hdev,
 			       hdev->dev_instance.b[8] << 8;
 
 	hbus->hdev = hdev;
-	atomic_inc(&hbus->remove_lock);
+	refcount_set(&hbus->remove_lock, 1);
 	INIT_LIST_HEAD(&hbus->children);
 	INIT_LIST_HEAD(&hbus->dr_list);
 	INIT_LIST_HEAD(&hbus->resources_for_children);
