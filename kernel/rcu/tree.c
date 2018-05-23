@@ -1598,11 +1598,12 @@ static bool rcu_start_this_gp(struct rcu_node *rnp_start, struct rcu_data *rdp,
 			goto unlock_out;
 		}
 		rnp->gp_seq_needed = gp_seq_req;
-		if (rcu_seq_state(rcu_seq_current(&rnp_start->gp_seq))) {
+		if (rcu_seq_state(rcu_seq_current(&rnp->gp_seq))) {
 			/*
-			 * We just marked the leaf, and a grace period
-			 * is in progress, which means that rcu_gp_cleanup()
-			 * will see the marking.  Bail to reduce contention.
+			 * We just marked the leaf or internal node, and a
+			 * grace period is in progress, which means that
+			 * rcu_gp_cleanup() will see the marking.  Bail to
+			 * reduce contention.
 			 */
 			trace_rcu_this_gp(rnp_start, rdp, gp_seq_req,
 					  TPS("Startedleaf"));
