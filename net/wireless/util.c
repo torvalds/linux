@@ -1789,8 +1789,9 @@ bool cfg80211_does_bw_fit_range(const struct ieee80211_freq_range *freq_range,
 
 int cfg80211_sinfo_alloc_tid_stats(struct station_info *sinfo, gfp_t gfp)
 {
-	sinfo->pertid = kcalloc(sizeof(*(sinfo->pertid)),
-				IEEE80211_NUM_TIDS + 1, gfp);
+	sinfo->pertid = kcalloc(IEEE80211_NUM_TIDS + 1,
+				sizeof(*(sinfo->pertid)),
+				gfp);
 	if (!sinfo->pertid)
 		return -ENOMEM;
 
