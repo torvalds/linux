@@ -320,18 +320,29 @@ int nf_route(struct net *net, struct dst_entry **dst, struct flowi *fl,
 int nf_reroute(struct sk_buff *skb, struct nf_queue_entry *entry);
 
 #include <net/flow.h>
-extern void (*nf_nat_decode_session_hook)(struct sk_buff *, struct flowi *);
+
+struct nf_conn;
+enum nf_nat_manip_type;
+struct nlattr;
+
+struct nf_nat_hook {
+	int (*parse_nat_setup)(struct nf_conn *ct, enum nf_nat_manip_type manip,
+			       const struct nlattr *attr);
+	void (*decode_session)(struct sk_buff *skb, struct flowi *fl);
+};
+
+extern struct nf_nat_hook __rcu *nf_nat_hook;
 
 static inline void
 nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, u_int8_t family)
 {
 #ifdef CONFIG_NF_NAT_NEEDED
-	void (*decodefn)(struct sk_buff *, struct flowi *);
+	struct nf_nat_hook *nat_hook;
 
 	rcu_read_lock();
-	decodefn = rcu_dereference(nf_nat_decode_session_hook);
-	if (decodefn)
-		decodefn(skb, fl);
+	nat_hook = rcu_dereference(nf_nat_hook);
+	if (nat_hook->decode_session)
+		nat_hook->decode_session(skb, fl);
 	rcu_read_unlock();
 #endif
 }

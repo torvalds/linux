@@ -574,6 +574,9 @@ void (*ip_ct_attach)(struct sk_buff *, const struct sk_buff *)
 		__rcu __read_mostly;
 EXPORT_SYMBOL(ip_ct_attach);
 
+struct nf_nat_hook __rcu *nf_nat_hook __read_mostly;
+EXPORT_SYMBOL_GPL(nf_nat_hook);
+
 void nf_ct_attach(struct sk_buff *new, const struct sk_buff *skb)
 {
 	void (*attach)(struct sk_buff *, const struct sk_buff *);
@@ -607,11 +610,6 @@ const struct nf_conntrack_zone nf_ct_zone_dflt = {
 };
 EXPORT_SYMBOL_GPL(nf_ct_zone_dflt);
 #endif /* CONFIG_NF_CONNTRACK */
-
-#ifdef CONFIG_NF_NAT_NEEDED
-void (*nf_nat_decode_session_hook)(struct sk_buff *, struct flowi *);
-EXPORT_SYMBOL(nf_nat_decode_session_hook);
-#endif
 
 static void __net_init __netfilter_net_init(struct nf_hook_entries **e, int max)
 {
