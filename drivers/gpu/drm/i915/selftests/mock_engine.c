@@ -212,8 +212,13 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	if (!engine->base.buffer)
 		goto err_breadcrumbs;
 
+	if (IS_ERR(intel_context_pin(i915->kernel_context, &engine->base)))
+		goto err_ring;
+
 	return &engine->base;
 
+err_ring:
+	mock_ring_free(engine->base.buffer);
 err_breadcrumbs:
 	intel_engine_fini_breadcrumbs(&engine->base);
 	i915_timeline_fini(&engine->base.timeline);
@@ -253,6 +258,8 @@ void mock_engine_free(struct intel_engine_cs *engine)
 	ce = fetch_and_zero(&engine->last_retired_context);
 	if (ce)
 		intel_context_unpin(ce);
+
+	__intel_context_unpin(engine->i915->kernel_context, engine);
 
 	mock_ring_free(engine->buffer);
 
