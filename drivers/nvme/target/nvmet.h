@@ -43,6 +43,7 @@ struct nvmet_ns {
 	struct list_head	dev_link;
 	struct percpu_ref	ref;
 	struct block_device	*bdev;
+	struct file		*file;
 	u32			nsid;
 	u32			blksize_shift;
 	loff_t			size;
@@ -57,6 +58,8 @@ struct nvmet_ns {
 	struct config_group	group;
 
 	struct completion	disable_done;
+	mempool_t		*bvec_pool;
+	struct kmem_cache	*bvec_cache;
 };
 
 static inline struct nvmet_ns *to_nvmet_ns(struct config_item *item)
@@ -222,8 +225,18 @@ struct nvmet_req {
 	struct nvmet_cq		*cq;
 	struct nvmet_ns		*ns;
 	struct scatterlist	*sg;
-	struct bio		inline_bio;
 	struct bio_vec		inline_bvec[NVMET_MAX_INLINE_BIOVEC];
+	union {
+		struct {
+			struct bio      inline_bio;
+		} b;
+		struct {
+			bool			mpool_alloc;
+			struct kiocb            iocb;
+			struct bio_vec          *bvec;
+			struct work_struct      work;
+		} f;
+	};
 	int			sg_cnt;
 	/* data length as parsed from the command: */
 	size_t			data_len;
@@ -263,7 +276,8 @@ struct nvmet_async_event {
 };
 
 u16 nvmet_parse_connect_cmd(struct nvmet_req *req);
-u16 nvmet_parse_io_cmd(struct nvmet_req *req);
+u16 nvmet_bdev_parse_io_cmd(struct nvmet_req *req);
+u16 nvmet_file_parse_io_cmd(struct nvmet_req *req);
 u16 nvmet_parse_admin_cmd(struct nvmet_req *req);
 u16 nvmet_parse_discovery_cmd(struct nvmet_req *req);
 u16 nvmet_parse_fabrics_cmd(struct nvmet_req *req);
@@ -338,4 +352,14 @@ extern struct rw_semaphore nvmet_config_sem;
 bool nvmet_host_allowed(struct nvmet_req *req, struct nvmet_subsys *subsys,
 		const char *hostnqn);
 
+int nvmet_bdev_ns_enable(struct nvmet_ns *ns);
+int nvmet_file_ns_enable(struct nvmet_ns *ns);
+void nvmet_bdev_ns_disable(struct nvmet_ns *ns);
+void nvmet_file_ns_disable(struct nvmet_ns *ns);
+
+static inline u32 nvmet_rw_len(struct nvmet_req *req)
+{
+	return ((u32)le16_to_cpu(req->cmd->rw.length) + 1) <<
+			req->ns->blksize_shift;
+}
 #endif /* _NVMET_H */

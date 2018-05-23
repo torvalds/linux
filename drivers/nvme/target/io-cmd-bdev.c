@@ -16,6 +16,34 @@
 #include <linux/module.h>
 #include "nvmet.h"
 
+int nvmet_bdev_ns_enable(struct nvmet_ns *ns)
+{
+	int ret;
+
+	ns->bdev = blkdev_get_by_path(ns->device_path,
+			FMODE_READ | FMODE_WRITE, NULL);
+	if (IS_ERR(ns->bdev)) {
+		ret = PTR_ERR(ns->bdev);
+		if (ret != -ENOTBLK) {
+			pr_err("failed to open block device %s: (%ld)\n",
+					ns->device_path, PTR_ERR(ns->bdev));
+		}
+		ns->bdev = NULL;
+		return ret;
+	}
+	ns->size = i_size_read(ns->bdev->bd_inode);
+	ns->blksize_shift = blksize_bits(bdev_logical_block_size(ns->bdev));
+	return 0;
+}
+
+void nvmet_bdev_ns_disable(struct nvmet_ns *ns)
+{
+	if (ns->bdev) {
+		blkdev_put(ns->bdev, FMODE_WRITE | FMODE_READ);
+		ns->bdev = NULL;
+	}
+}
+
 static void nvmet_bio_done(struct bio *bio)
 {
 	struct nvmet_req *req = bio->bi_private;
@@ -23,20 +51,14 @@ static void nvmet_bio_done(struct bio *bio)
 	nvmet_req_complete(req,
 		bio->bi_status ? NVME_SC_INTERNAL | NVME_SC_DNR : 0);
 
-	if (bio != &req->inline_bio)
+	if (bio != &req->b.inline_bio)
 		bio_put(bio);
 }
 
-static inline u32 nvmet_rw_len(struct nvmet_req *req)
-{
-	return ((u32)le16_to_cpu(req->cmd->rw.length) + 1) <<
-			req->ns->blksize_shift;
-}
-
-static void nvmet_execute_rw(struct nvmet_req *req)
+static void nvmet_bdev_execute_rw(struct nvmet_req *req)
 {
 	int sg_cnt = req->sg_cnt;
-	struct bio *bio = &req->inline_bio;
+	struct bio *bio = &req->b.inline_bio;
 	struct scatterlist *sg;
 	sector_t sector;
 	blk_qc_t cookie;
@@ -89,9 +111,9 @@ static void nvmet_execute_rw(struct nvmet_req *req)
 	blk_poll(bdev_get_queue(req->ns->bdev), cookie);
 }
 
-static void nvmet_execute_flush(struct nvmet_req *req)
+static void nvmet_bdev_execute_flush(struct nvmet_req *req)
 {
-	struct bio *bio = &req->inline_bio;
+	struct bio *bio = &req->b.inline_bio;
 
 	bio_init(bio, req->inline_bvec, ARRAY_SIZE(req->inline_bvec));
 	bio_set_dev(bio, req->ns->bdev);
@@ -102,7 +124,7 @@ static void nvmet_execute_flush(struct nvmet_req *req)
 	submit_bio(bio);
 }
 
-static u16 nvmet_discard_range(struct nvmet_ns *ns,
+static u16 nvmet_bdev_discard_range(struct nvmet_ns *ns,
 		struct nvme_dsm_range *range, struct bio **bio)
 {
 	int ret;
@@ -116,7 +138,7 @@ static u16 nvmet_discard_range(struct nvmet_ns *ns,
 	return 0;
 }
 
-static void nvmet_execute_discard(struct nvmet_req *req)
+static void nvmet_bdev_execute_discard(struct nvmet_req *req)
 {
 	struct nvme_dsm_range range;
 	struct bio *bio = NULL;
@@ -129,7 +151,7 @@ static void nvmet_execute_discard(struct nvmet_req *req)
 		if (status)
 			break;
 
-		status = nvmet_discard_range(req->ns, &range, &bio);
+		status = nvmet_bdev_discard_range(req->ns, &range, &bio);
 		if (status)
 			break;
 	}
@@ -148,11 +170,11 @@ static void nvmet_execute_discard(struct nvmet_req *req)
 	}
 }
 
-static void nvmet_execute_dsm(struct nvmet_req *req)
+static void nvmet_bdev_execute_dsm(struct nvmet_req *req)
 {
 	switch (le32_to_cpu(req->cmd->dsm.attributes)) {
 	case NVME_DSMGMT_AD:
-		nvmet_execute_discard(req);
+		nvmet_bdev_execute_discard(req);
 		return;
 	case NVME_DSMGMT_IDR:
 	case NVME_DSMGMT_IDW:
@@ -163,7 +185,7 @@ static void nvmet_execute_dsm(struct nvmet_req *req)
 	}
 }
 
-static void nvmet_execute_write_zeroes(struct nvmet_req *req)
+static void nvmet_bdev_execute_write_zeroes(struct nvmet_req *req)
 {
 	struct nvme_write_zeroes_cmd *write_zeroes = &req->cmd->write_zeroes;
 	struct bio *bio = NULL;
@@ -189,36 +211,27 @@ static void nvmet_execute_write_zeroes(struct nvmet_req *req)
 	}
 }
 
-u16 nvmet_parse_io_cmd(struct nvmet_req *req)
+u16 nvmet_bdev_parse_io_cmd(struct nvmet_req *req)
 {
 	struct nvme_command *cmd = req->cmd;
-	u16 ret;
-
-	ret = nvmet_check_ctrl_status(req, cmd);
-	if (unlikely(ret))
-		return ret;
-
-	req->ns = nvmet_find_namespace(req->sq->ctrl, cmd->rw.nsid);
-	if (unlikely(!req->ns))
-		return NVME_SC_INVALID_NS | NVME_SC_DNR;
 
 	switch (cmd->common.opcode) {
 	case nvme_cmd_read:
 	case nvme_cmd_write:
-		req->execute = nvmet_execute_rw;
+		req->execute = nvmet_bdev_execute_rw;
 		req->data_len = nvmet_rw_len(req);
 		return 0;
 	case nvme_cmd_flush:
-		req->execute = nvmet_execute_flush;
+		req->execute = nvmet_bdev_execute_flush;
 		req->data_len = 0;
 		return 0;
 	case nvme_cmd_dsm:
-		req->execute = nvmet_execute_dsm;
+		req->execute = nvmet_bdev_execute_dsm;
 		req->data_len = (le32_to_cpu(cmd->dsm.nr) + 1) *
 			sizeof(struct nvme_dsm_range);
 		return 0;
 	case nvme_cmd_write_zeroes:
-		req->execute = nvmet_execute_write_zeroes;
+		req->execute = nvmet_bdev_execute_write_zeroes;
 		return 0;
 	default:
 		pr_err("unhandled cmd %d on qid %d\n", cmd->common.opcode,
