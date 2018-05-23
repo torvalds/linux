@@ -1981,8 +1981,7 @@ static int btf_sec_info_cmp(const void *a, const void *b)
 static int btf_check_sec_info(struct btf_verifier_env *env,
 			      u32 btf_data_size)
 {
-	const unsigned int nr_secs = ARRAY_SIZE(btf_sec_info_offset);
-	struct btf_sec_info secs[nr_secs];
+	struct btf_sec_info secs[ARRAY_SIZE(btf_sec_info_offset)];
 	u32 total, expected_total, i;
 	const struct btf_header *hdr;
 	const struct btf *btf;
@@ -1991,17 +1990,17 @@ static int btf_check_sec_info(struct btf_verifier_env *env,
 	hdr = &btf->hdr;
 
 	/* Populate the secs from hdr */
-	for (i = 0; i < nr_secs; i++)
+	for (i = 0; i < ARRAY_SIZE(btf_sec_info_offset); i++)
 		secs[i] = *(struct btf_sec_info *)((void *)hdr +
 						   btf_sec_info_offset[i]);
 
-	sort(secs, nr_secs, sizeof(struct btf_sec_info),
-	     btf_sec_info_cmp, NULL);
+	sort(secs, ARRAY_SIZE(btf_sec_info_offset),
+	     sizeof(struct btf_sec_info), btf_sec_info_cmp, NULL);
 
 	/* Check for gaps and overlap among sections */
 	total = 0;
 	expected_total = btf_data_size - hdr->hdr_len;
-	for (i = 0; i < nr_secs; i++) {
+	for (i = 0; i < ARRAY_SIZE(btf_sec_info_offset); i++) {
 		if (expected_total < secs[i].off) {
 			btf_verifier_log(env, "Invalid section offset");
 			return -EINVAL;
