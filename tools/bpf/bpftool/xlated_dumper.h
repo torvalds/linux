@@ -49,6 +49,8 @@ struct dump_data {
 	unsigned long address_call_base;
 	struct kernel_sym *sym_mapping;
 	__u32 sym_count;
+	__u64 *jited_ksyms;
+	__u32 nr_jited_ksyms;
 	char scratch_buff[SYM_MAX_NAME + 8];
 };
 
