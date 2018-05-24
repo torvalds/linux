@@ -116,6 +116,14 @@ static inline struct rk_i2s_tdm_dev *to_info(struct snd_soc_dai *dai)
 	return snd_soc_dai_get_drvdata(dai);
 }
 
+#if defined(CONFIG_ARM) && !defined(writeq)
+static inline void __raw_writeq(u64 val, volatile void __iomem *addr)
+{
+	asm volatile("strd %0, %H0, [%1]" : : "r" (val), "r" (addr));
+}
+#define writeq(v,c) ({ __iowmb(); __raw_writeq((__force u64) cpu_to_le64(v), c); })
+#endif
+
 static void rockchip_snd_xfer_reset_assert(struct rk_i2s_tdm_dev *i2s_tdm,
 					   int tx_bank, int tx_offset,
 					   int rx_bank, int rx_offset)
