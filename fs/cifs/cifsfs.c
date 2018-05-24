@@ -899,6 +899,17 @@ struct file_system_type cifs_fs_type = {
 	/*  .fs_flags */
 };
 MODULE_ALIAS_FS("cifs");
+
+static struct file_system_type smb3_fs_type = {
+	.owner = THIS_MODULE,
+	.name = "smb3",
+	.mount = cifs_do_mount,
+	.kill_sb = cifs_kill_sb,
+	/*  .fs_flags */
+};
+MODULE_ALIAS_FS("smb3");
+MODULE_ALIAS("smb3");
+
 const struct inode_operations cifs_dir_inode_ops = {
 	.create = cifs_create,
 	.atomic_open = cifs_atomic_open,
@@ -1437,6 +1448,12 @@ init_cifs(void)
 	if (rc)
 		goto out_init_cifs_idmap;
 
+	rc = register_filesystem(&smb3_fs_type);
+	if (rc) {
+		unregister_filesystem(&cifs_fs_type);
+		goto out_init_cifs_idmap;
+	}
+
 	return 0;
 
 out_init_cifs_idmap:
@@ -1467,8 +1484,9 @@ out_clean_proc:
 static void __exit
 exit_cifs(void)
 {
-	cifs_dbg(NOISY, "exit_cifs\n");
+	cifs_dbg(NOISY, "exit_smb3\n");
 	unregister_filesystem(&cifs_fs_type);
+	unregister_filesystem(&smb3_fs_type);
 	cifs_dfs_release_automount_timer();
 #ifdef CONFIG_CIFS_ACL
 	exit_cifs_idmap();
