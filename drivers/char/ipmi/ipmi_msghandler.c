@@ -1291,18 +1291,19 @@ int ipmi_set_my_address(struct ipmi_user *user,
 			unsigned int  channel,
 			unsigned char address)
 {
-	int index;
+	int index, rv = 0;
 
 	user = acquire_ipmi_user(user, &index);
 	if (!user)
 		return -ENODEV;
 
 	if (channel >= IPMI_MAX_CHANNELS)
-		return -EINVAL;
-	user->intf->addrinfo[channel].address = address;
+		rv = -EINVAL;
+	else
+		user->intf->addrinfo[channel].address = address;
 	release_ipmi_user(user, index);
 
-	return 0;
+	return rv;
 }
 EXPORT_SYMBOL(ipmi_set_my_address);
 
@@ -1310,18 +1311,19 @@ int ipmi_get_my_address(struct ipmi_user *user,
 			unsigned int  channel,
 			unsigned char *address)
 {
-	int index;
+	int index, rv = 0;
 
 	user = acquire_ipmi_user(user, &index);
 	if (!user)
 		return -ENODEV;
 
 	if (channel >= IPMI_MAX_CHANNELS)
-		return -EINVAL;
-	*address = user->intf->addrinfo[channel].address;
+		rv = -EINVAL;
+	else
+		*address = user->intf->addrinfo[channel].address;
 	release_ipmi_user(user, index);
 
-	return 0;
+	return rv;
 }
 EXPORT_SYMBOL(ipmi_get_my_address);
 
@@ -1329,15 +1331,16 @@ int ipmi_set_my_LUN(struct ipmi_user *user,
 		    unsigned int  channel,
 		    unsigned char LUN)
 {
-	int index;
+	int index, rv = 0;
 
 	user = acquire_ipmi_user(user, &index);
 	if (!user)
 		return -ENODEV;
 
 	if (channel >= IPMI_MAX_CHANNELS)
-		return -EINVAL;
-	user->intf->addrinfo[channel].lun = LUN & 0x3;
+		rv = -EINVAL;
+	else
+		user->intf->addrinfo[channel].lun = LUN & 0x3;
 	release_ipmi_user(user, index);
 
 	return 0;
@@ -1348,18 +1351,19 @@ int ipmi_get_my_LUN(struct ipmi_user *user,
 		    unsigned int  channel,
 		    unsigned char *address)
 {
-	int index;
+	int index, rv = 0;
 
 	user = acquire_ipmi_user(user, &index);
 	if (!user)
 		return -ENODEV;
 
 	if (channel >= IPMI_MAX_CHANNELS)
-		return -EINVAL;
-	*address = user->intf->addrinfo[channel].lun;
+		rv = -EINVAL;
+	else
+		*address = user->intf->addrinfo[channel].lun;
 	release_ipmi_user(user, index);
 
-	return 0;
+	return rv;
 }
 EXPORT_SYMBOL(ipmi_get_my_LUN);
 
@@ -1540,8 +1544,10 @@ int ipmi_register_for_cmd(struct ipmi_user *user,
 		return -ENODEV;
 
 	rcvr = kmalloc(sizeof(*rcvr), GFP_KERNEL);
-	if (!rcvr)
-		return -ENOMEM;
+	if (!rcvr) {
+		rv = -ENOMEM;
+		goto out_release;
+	}
 	rcvr->cmd = cmd;
 	rcvr->netfn = netfn;
 	rcvr->chans = chans;
@@ -1559,10 +1565,11 @@ int ipmi_register_for_cmd(struct ipmi_user *user,
 
 	list_add_rcu(&rcvr->link, &intf->cmd_rcvrs);
 
- out_unlock:
+out_unlock:
 	mutex_unlock(&intf->cmd_rcvrs_mutex);
 	if (rv)
 		kfree(rcvr);
+out_release:
 	release_ipmi_user(user, index);
 
 	return rv;
