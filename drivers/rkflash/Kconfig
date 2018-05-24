@@ -20,10 +20,14 @@ comment "Rockchip Flash Devices"
 config RK_NANDC_NAND
 	tristate "RK NANDC NAND Device Support"
 	default n
+	depends on (BLOCK_RKNAND != y && RK_NAND != y)
 	help
 	  Enable NANDC_NAND device support.
-	  It's block interface.
-	  Say Y when you have a board with nand flash supported by rockchip
+
+	  It's block interface. only effective for some kinds of slc nand
+          flash, and it's compatible with spi nand flash drivers.
+
+	  Say Y when you have a board with nand flash supported by rockchip.
 	  nandc controller.
 
 config RK_SFC_NOR
