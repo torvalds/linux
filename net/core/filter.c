@@ -3067,7 +3067,7 @@ static int __bpf_tx_xdp_map(struct net_device *dev_rx, void *fwd,
 	case BPF_MAP_TYPE_DEVMAP: {
 		struct bpf_dtab_netdev *dst = fwd;
 
-		err = dev_map_enqueue(dst, xdp);
+		err = dev_map_enqueue(dst, xdp, dev_rx);
 		if (err)
 			return err;
 		__dev_map_insert_ctx(map, index);

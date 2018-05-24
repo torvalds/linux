@@ -58,6 +58,7 @@
 #define DEV_MAP_BULK_SIZE 16
 struct xdp_bulk_queue {
 	struct xdp_frame *q[DEV_MAP_BULK_SIZE];
+	struct net_device *dev_rx;
 	unsigned int count;
 };
 
@@ -219,6 +220,7 @@ static int bq_xmit_all(struct bpf_dtab_netdev *obj,
 			 struct xdp_bulk_queue *bq)
 {
 	struct net_device *dev = obj->dev;
+	int sent = 0, drops = 0;
 	int i;
 
 	if (unlikely(!bq->count))
@@ -235,11 +237,18 @@ static int bq_xmit_all(struct bpf_dtab_netdev *obj,
 		int err;
 
 		err = dev->netdev_ops->ndo_xdp_xmit(dev, xdpf);
-		if (err)
+		if (err) {
+			drops++;
 			xdp_return_frame(xdpf);
+		} else {
+			sent++;
+		}
 	}
 	bq->count = 0;
 
+	trace_xdp_devmap_xmit(&obj->dtab->map, obj->bit,
+			      sent, drops, bq->dev_rx, dev);
+	bq->dev_rx = NULL;
 	return 0;
 }
 
@@ -296,18 +305,28 @@ struct bpf_dtab_netdev *__dev_map_lookup_elem(struct bpf_map *map, u32 key)
 /* Runs under RCU-read-side, plus in softirq under NAPI protection.
  * Thus, safe percpu variable access.
  */
-static int bq_enqueue(struct bpf_dtab_netdev *obj, struct xdp_frame *xdpf)
+static int bq_enqueue(struct bpf_dtab_netdev *obj, struct xdp_frame *xdpf,
+		      struct net_device *dev_rx)
+
 {
 	struct xdp_bulk_queue *bq = this_cpu_ptr(obj->bulkq);
 
 	if (unlikely(bq->count == DEV_MAP_BULK_SIZE))
 		bq_xmit_all(obj, bq);
 
+	/* Ingress dev_rx will be the same for all xdp_frame's in
+	 * bulk_queue, because bq stored per-CPU and must be flushed
+	 * from net_device drivers NAPI func end.
+	 */
+	if (!bq->dev_rx)
+		bq->dev_rx = dev_rx;
+
 	bq->q[bq->count++] = xdpf;
 	return 0;
 }
 
-int dev_map_enqueue(struct bpf_dtab_netdev *dst, struct xdp_buff *xdp)
+int dev_map_enqueue(struct bpf_dtab_netdev *dst, struct xdp_buff *xdp,
+		    struct net_device *dev_rx)
 {
 	struct net_device *dev = dst->dev;
 	struct xdp_frame *xdpf;
@@ -319,7 +338,7 @@ int dev_map_enqueue(struct bpf_dtab_netdev *dst, struct xdp_buff *xdp)
 	if (unlikely(!xdpf))
 		return -EOVERFLOW;
 
-	return bq_enqueue(dst, xdpf);
+	return bq_enqueue(dst, xdpf, dev_rx);
 }
 
 static void *dev_map_lookup_elem(struct bpf_map *map, void *key)
