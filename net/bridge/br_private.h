@@ -423,6 +423,7 @@ struct br_input_skb_cb {
 #endif
 
 	bool proxyarp_replied;
+	bool src_port_isolated;
 
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	bool vlan_filtered;
@@ -573,6 +574,14 @@ void br_forward(const struct net_bridge_port *to, struct sk_buff *skb,
 int br_forward_finish(struct net *net, struct sock *sk, struct sk_buff *skb);
 void br_flood(struct net_bridge *br, struct sk_buff *skb,
 	      enum br_pkt_type pkt_type, bool local_rcv, bool local_orig);
+
+/* return true if both source port and dest port are isolated */
+static inline bool br_skb_isolated(const struct net_bridge_port *to,
+				   const struct sk_buff *skb)
+{
+	return BR_INPUT_SKB_CB(skb)->src_port_isolated &&
+	       (to->flags & BR_ISOLATED);
+}
 
 /* br_if.c */
 void br_port_carrier_check(struct net_bridge_port *p, bool *notified);
