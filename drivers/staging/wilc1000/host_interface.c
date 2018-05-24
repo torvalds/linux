@@ -3813,9 +3813,9 @@ int wilc_setup_multicast_filter(struct wilc_vif *vif, bool enabled,
 
 static void host_int_fill_join_bss_param(struct join_bss_param *param, u8 *ies,
 					 u16 *out_index, u8 *pcipher_tc,
-					 u8 *auth_total_cnt, u32 tsf_lo)
+					 u8 *auth_total_cnt, u32 tsf_lo,
+					 u8 *rates_no)
 {
-	u8 rates_no = 0;
 	u8 ext_rates_no;
 	u16 offset;
 	u8 pcipher_cnt;
@@ -3824,23 +3824,23 @@ static void host_int_fill_join_bss_param(struct join_bss_param *param, u8 *ies,
 	u16 index = *out_index;
 
 	if (ies[index] == SUPP_RATES_IE) {
-		rates_no = ies[index + 1];
-		param->supp_rates[0] = rates_no;
+		*rates_no = ies[index + 1];
+		param->supp_rates[0] = *rates_no;
 		index += 2;
 
-		for (i = 0; i < rates_no; i++)
+		for (i = 0; i < *rates_no; i++)
 			param->supp_rates[i + 1] = ies[index + i];
 
-		index += rates_no;
+		index += *rates_no;
 	} else if (ies[index] == EXT_SUPP_RATES_IE) {
 		ext_rates_no = ies[index + 1];
-		if (ext_rates_no > (MAX_RATES_SUPPORTED - rates_no))
+		if (ext_rates_no > (MAX_RATES_SUPPORTED - *rates_no))
 			param->supp_rates[0] = MAX_RATES_SUPPORTED;
 		else
 			param->supp_rates[0] += ext_rates_no;
 		index += 2;
-		for (i = 0; i < (param->supp_rates[0] - rates_no); i++)
-			param->supp_rates[rates_no + i + 1] = ies[index + i];
+		for (i = 0; i < (param->supp_rates[0] - *rates_no); i++)
+			param->supp_rates[*rates_no + i + 1] = ies[index + i];
 
 		index += ext_rates_no;
 	} else if (ies[index] == HT_CAPABILITY_IE) {
@@ -3929,7 +3929,7 @@ static void host_int_fill_join_bss_param(struct join_bss_param *param, u8 *ies,
 			*policy = ies[rsn_idx + ((j + 1) * 4) - 1];
 		}
 
-		auth_total_cnt += auth_cnt;
+		*auth_total_cnt += auth_cnt;
 		rsn_idx += offset;
 
 		if (ies[index] == RSN_IE) {
@@ -3950,6 +3950,7 @@ static void *host_int_parse_join_bss_param(struct network_info *info)
 {
 	struct join_bss_param *param = NULL;
 	u16 index = 0;
+	u8 rates_no = 0;
 	u8 pcipher_total_cnt = 0;
 	u8 auth_total_cnt = 0;
 
@@ -3969,7 +3970,8 @@ static void *host_int_parse_join_bss_param(struct network_info *info)
 	while (index < info->ies_len)
 		host_int_fill_join_bss_param(param, info->ies, &index,
 					     &pcipher_total_cnt,
-					     &auth_total_cnt, info->tsf_lo);
+					     &auth_total_cnt, info->tsf_lo,
+					     &rates_no);
 
 	return (void *)param;
 }
