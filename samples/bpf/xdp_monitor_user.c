@@ -141,6 +141,7 @@ struct stats_record {
 	struct record_u64 xdp_exception[XDP_ACTION_MAX];
 	struct record xdp_cpumap_kthread;
 	struct record xdp_cpumap_enqueue[MAX_CPUS];
+	struct record xdp_devmap_xmit;
 };
 
 static bool map_collect_record(int fd, __u32 key, struct record *rec)
@@ -397,7 +398,7 @@ static void stats_print(struct stats_record *stats_rec,
 			info = calc_info(r, p, t);
 			if (info > 0)
 				i_str = "sched";
-			if (pps > 0)
+			if (pps > 0 || drop > 0)
 				printf(fmt1, "cpumap-kthread",
 				       i, pps, drop, info, i_str);
 		}
@@ -407,6 +408,42 @@ static void stats_print(struct stats_record *stats_rec,
 		if (info > 0)
 			i_str = "sched-sum";
 		printf(fmt2, "cpumap-kthread", "total", pps, drop, info, i_str);
+	}
+
+	/* devmap ndo_xdp_xmit stats */
+	{
+		char *fmt1 = "%-15s %-7d %'-12.0f %'-12.0f %'-10.2f %s\n";
+		char *fmt2 = "%-15s %-7s %'-12.0f %'-12.0f %'-10.2f %s\n";
+		struct record *rec, *prev;
+		double drop, info;
+		char *i_str = "";
+
+		rec  =  &stats_rec->xdp_devmap_xmit;
+		prev = &stats_prev->xdp_devmap_xmit;
+		t = calc_period(rec, prev);
+		for (i = 0; i < nr_cpus; i++) {
+			struct datarec *r = &rec->cpu[i];
+			struct datarec *p = &prev->cpu[i];
+
+			pps  = calc_pps(r, p, t);
+			drop = calc_drop(r, p, t);
+			info = calc_info(r, p, t);
+			if (info > 0) {
+				i_str = "bulk-average";
+				info = (pps+drop) / info; /* calc avg bulk */
+			}
+			if (pps > 0 || drop > 0)
+				printf(fmt1, "devmap-xmit",
+				       i, pps, drop, info, i_str);
+		}
+		pps = calc_pps(&rec->total, &prev->total, t);
+		drop = calc_drop(&rec->total, &prev->total, t);
+		info = calc_info(&rec->total, &prev->total, t);
+		if (info > 0) {
+			i_str = "bulk-average";
+			info = (pps+drop) / info; /* calc avg bulk */
+		}
+		printf(fmt2, "devmap-xmit", "total", pps, drop, info, i_str);
 	}
 
 	printf("\n");
@@ -436,6 +473,9 @@ static bool stats_collect(struct stats_record *rec)
 
 	fd = map_data[3].fd; /* map3: cpumap_kthread_cnt */
 	map_collect_record(fd, 0, &rec->xdp_cpumap_kthread);
+
+	fd = map_data[4].fd; /* map4: devmap_xmit_cnt */
+	map_collect_record(fd, 0, &rec->xdp_devmap_xmit);
 
 	return true;
 }
@@ -480,6 +520,7 @@ static struct stats_record *alloc_stats_record(void)
 
 	rec_sz = sizeof(struct datarec);
 	rec->xdp_cpumap_kthread.cpu = alloc_rec_per_cpu(rec_sz);
+	rec->xdp_devmap_xmit.cpu    = alloc_rec_per_cpu(rec_sz);
 
 	for (i = 0; i < MAX_CPUS; i++)
 		rec->xdp_cpumap_enqueue[i].cpu = alloc_rec_per_cpu(rec_sz);
@@ -498,6 +539,7 @@ static void free_stats_record(struct stats_record *r)
 		free(r->xdp_exception[i].cpu);
 
 	free(r->xdp_cpumap_kthread.cpu);
+	free(r->xdp_devmap_xmit.cpu);
 
 	for (i = 0; i < MAX_CPUS; i++)
 		free(r->xdp_cpumap_enqueue[i].cpu);
