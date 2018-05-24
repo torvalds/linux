@@ -441,7 +441,14 @@ done:
 		kfree_skb(skb);
 		goto replay;
 	} else if (status == NFNL_BATCH_DONE) {
-		ss->commit(net, oskb);
+		err = ss->commit(net, oskb);
+		if (err == -EAGAIN) {
+			status |= NFNL_BATCH_REPLAY;
+			goto done;
+		} else if (err) {
+			ss->abort(net, oskb);
+			netlink_ack(oskb, nlmsg_hdr(oskb), err, NULL);
+		}
 	} else {
 		ss->abort(net, oskb);
 	}
