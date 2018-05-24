@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/usb/role.h>
 
 /* register definition */
@@ -56,6 +57,8 @@ static int intel_xhci_usb_set_role(struct device *dev, enum usb_role role)
 		return -EIO;
 	}
 
+	pm_runtime_get_sync(dev);
+
 	/* Set idpin value as requested */
 	val = readl(data->base + DUAL_ROLE_CFG0);
 	switch (role) {
@@ -84,12 +87,16 @@ static int intel_xhci_usb_set_role(struct device *dev, enum usb_role role)
 	/* Polling on CFG1 register to confirm mode switch.*/
 	do {
 		val = readl(data->base + DUAL_ROLE_CFG1);
-		if (!!(val & HOST_MODE) == (role == USB_ROLE_HOST))
+		if (!!(val & HOST_MODE) == (role == USB_ROLE_HOST)) {
+			pm_runtime_put(dev);
 			return 0;
+		}
 
 		/* Interval for polling is set to about 5 - 10 ms */
 		usleep_range(5000, 10000);
 	} while (time_before(jiffies, timeout));
+
+	pm_runtime_put(dev);
 
 	dev_warn(dev, "Timeout waiting for role-switch\n");
 	return -ETIMEDOUT;
@@ -101,7 +108,9 @@ static enum usb_role intel_xhci_usb_get_role(struct device *dev)
 	enum usb_role role;
 	u32 val;
 
+	pm_runtime_get_sync(dev);
 	val = readl(data->base + DUAL_ROLE_CFG0);
+	pm_runtime_put(dev);
 
 	if (!(val & SW_IDPIN))
 		role = USB_ROLE_HOST;
@@ -141,6 +150,9 @@ static int intel_xhci_usb_probe(struct platform_device *pdev)
 	data->role_sw = usb_role_switch_register(dev, &sw_desc);
 	if (IS_ERR(data->role_sw))
 		return PTR_ERR(data->role_sw);
+
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
 
 	return 0;
 }
