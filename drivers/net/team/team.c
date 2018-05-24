@@ -1129,6 +1129,7 @@ static int team_upper_dev_link(struct team *team, struct team_port *port,
 	int err;
 
 	lag_upper_info.tx_type = team->mode->lag_tx_type;
+	lag_upper_info.hash_type = NETDEV_LAG_HASH_UNKNOWN;
 	err = netdev_master_upper_dev_link(port->dev, team->dev, NULL,
 					   &lag_upper_info, extack);
 	if (err)
