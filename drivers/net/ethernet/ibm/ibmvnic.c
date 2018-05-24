@@ -796,9 +796,11 @@ static int ibmvnic_login(struct net_device *netdev)
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	unsigned long timeout = msecs_to_jiffies(30000);
 	int retry_count = 0;
+	bool retry;
 	int rc;
 
 	do {
+		retry = false;
 		if (retry_count > IBMVNIC_MAX_QUEUES) {
 			netdev_warn(netdev, "Login attempts exceeded\n");
 			return -1;
@@ -822,6 +824,9 @@ static int ibmvnic_login(struct net_device *netdev)
 			retry_count++;
 			release_sub_crqs(adapter, 1);
 
+			retry = true;
+			netdev_dbg(netdev,
+				   "Received partial success, retrying...\n");
 			adapter->init_done_rc = 0;
 			reinit_completion(&adapter->init_done);
 			send_cap_queries(adapter);
@@ -849,7 +854,7 @@ static int ibmvnic_login(struct net_device *netdev)
 			netdev_warn(netdev, "Adapter login failed\n");
 			return -1;
 		}
-	} while (adapter->init_done_rc == PARTIALSUCCESS);
+	} while (retry);
 
 	/* handle pending MAC address changes after successful login */
 	if (adapter->mac_change_pending) {
