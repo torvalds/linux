@@ -151,6 +151,7 @@ endif
 textofs-$(CONFIG_ARCH_MSM8X60) := 0x00208000
 textofs-$(CONFIG_ARCH_MSM8960) := 0x00208000
 textofs-$(CONFIG_ARCH_AXXIA) := 0x00308000
+textofs-$(CONFIG_CPU_RK3308) := 0x00058000
 
 # Machine directory name.  This list is sorted alphanumerically
 # by CONFIG_* macro name.
