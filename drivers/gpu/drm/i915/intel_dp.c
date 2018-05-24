@@ -420,6 +420,9 @@ intel_dp_mode_valid(struct drm_connector *connector,
 	int max_rate, mode_rate, max_lanes, max_link_clock;
 	int max_dotclk;
 
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return MODE_NO_DBLESCAN;
+
 	max_dotclk = intel_dp_downstream_max_dotclock(intel_dp);
 
 	if (intel_dp_is_edp(intel_dp) && fixed_mode) {
@@ -1868,6 +1871,9 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 			intel_pch_panel_fitting(intel_crtc, pipe_config,
 						conn_state->scaling_mode);
 	}
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return false;
 
 	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
 	    adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
