@@ -924,6 +924,28 @@ err:
 	return err;
 }
 
+static void rcar_pcie_teardown_msi(struct rcar_pcie *pcie)
+{
+	struct rcar_msi *msi = &pcie->msi;
+	int irq, i;
+
+	/* Disable all MSI interrupts */
+	rcar_pci_write_reg(pcie, 0, PCIEMSIIER);
+
+	/* Disable address decoding of the MSI interrupt, MSIFE */
+	rcar_pci_write_reg(pcie, 0, PCIEMSIALR);
+
+	free_pages(msi->pages, 0);
+
+	for (i = 0; i < INT_PCI_MSI_NR; i++) {
+		irq = irq_find_mapping(msi->domain, i);
+		if (irq > 0)
+			irq_dispose_mapping(irq);
+	}
+
+	irq_domain_remove(msi->domain);
+}
+
 static int rcar_pcie_get_resources(struct rcar_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
@@ -1152,9 +1174,13 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 
 	err = rcar_pcie_enable(pcie);
 	if (err)
-		goto err_clk_disable;
+		goto err_msi_teardown;
 
 	return 0;
+
+err_msi_teardown:
+	if (IS_ENABLED(CONFIG_PCI_MSI))
+		rcar_pcie_teardown_msi(pcie);
 
 err_clk_disable:
 	clk_disable_unprepare(pcie->bus_clk);
