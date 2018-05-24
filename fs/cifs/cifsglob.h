@@ -632,7 +632,7 @@ struct TCP_Server_Info {
 	bool oplocks:1; /* enable oplocks */
 	unsigned int maxReq;	/* Clients should submit no more */
 	/* than maxReq distinct unanswered SMBs to the server when using  */
-	/* multiplexed reads or writes */
+	/* multiplexed reads or writes (for SMB1/CIFS only, not SMB2/SMB3) */
 	unsigned int maxBuf;	/* maxBuf specifies the maximum */
 	/* message size the server can send or receive for non-raw SMBs */
 	/* maxBuf is returned by SMB NegotiateProtocol so maxBuf is only 0 */
