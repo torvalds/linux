@@ -396,6 +396,17 @@ EXPORT_SYMBOL(uv_hub_info_version);
 /* Default UV memory block size is 2GB */
 static unsigned long mem_block_size = (2UL << 30);
 
+/* Kernel parameter to specify UV mem block size */
+static int parse_mem_block_size(char *ptr)
+{
+	unsigned long size = memparse(ptr, NULL);
+
+	/* Size will be rounded down by set_block_size() below */
+	mem_block_size = size;
+	return 0;
+}
+early_param("uv_memblksize", parse_mem_block_size);
+
 static __init int adj_blksize(u32 lgre)
 {
 	unsigned long base = (unsigned long)lgre << UV_GAM_RANGE_SHFT;
