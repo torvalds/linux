@@ -90,6 +90,7 @@ struct qede_arfs_fltr_node {
 	bool filter_op;
 	bool used;
 	u8 fw_rc;
+	bool b_is_drop;
 	struct hlist_node node;
 };
 
@@ -125,6 +126,7 @@ static void qede_configure_arfs_fltr(struct qede_dev *edev,
 	params.length = n->buf_len;
 	params.qid = rxq_id;
 	params.b_is_add = add_fltr;
+	params.b_is_drop = n->b_is_drop;
 
 	if (n->vfid) {
 		params.b_is_vf = true;
@@ -1445,6 +1447,9 @@ int qede_get_cls_rule_entry(struct qede_dev *edev, struct ethtool_rxnfc *cmd)
 		fsp->ring_cookie |= ((u64)fltr->vfid) <<
 					ETHTOOL_RX_FLOW_SPEC_RING_VF_OFF;
 	}
+
+	if (fltr->b_is_drop)
+		fsp->ring_cookie = RX_CLS_FLOW_DISC;
 unlock:
 	__qede_unlock(edev);
 	return rc;
@@ -1816,6 +1821,10 @@ static int qede_flow_spec_validate(struct qede_dev *edev,
 		return -EINVAL;
 	}
 
+	/* If drop requested then no need to validate other data */
+	if (fs->ring_cookie == RX_CLS_FLOW_DISC)
+		return 0;
+
 	if (ethtool_get_flow_spec_ring_vf(fs->ring_cookie))
 		return 0;
 
@@ -1852,6 +1861,11 @@ static void qede_flow_set_destination(struct qede_dev *edev,
 				      struct qede_arfs_fltr_node *n,
 				      struct ethtool_rx_flow_spec *fs)
 {
+	if (fs->ring_cookie == RX_CLS_FLOW_DISC) {
+		n->b_is_drop = true;
+		return;
+	}
+
 	n->vfid = ethtool_get_flow_spec_ring_vf(fs->ring_cookie);
 	n->rxq_id = ethtool_get_flow_spec_ring(fs->ring_cookie);
 	n->next_rxq_id = n->rxq_id;

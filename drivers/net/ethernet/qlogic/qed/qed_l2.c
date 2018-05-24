@@ -1677,6 +1677,8 @@ static void __qed_get_vport_tstats(struct qed_hwfn *p_hwfn,
 	    HILO_64_REGPAIR(tstats.mftag_filter_discard);
 	p_stats->common.mac_filter_discards +=
 	    HILO_64_REGPAIR(tstats.eth_mac_filter_discard);
+	p_stats->common.gft_filter_drop +=
+		HILO_64_REGPAIR(tstats.eth_gft_drop_pkt);
 }
 
 static void __qed_get_vport_ustats_addrlen(struct qed_hwfn *p_hwfn,
@@ -2015,16 +2017,6 @@ qed_configure_rfs_ntuple_filter(struct qed_hwfn *p_hwfn,
 	u8 abs_vport_id = 0;
 	int rc = -EINVAL;
 
-	rc = qed_fw_vport(p_hwfn, p_params->vport_id, &abs_vport_id);
-	if (rc)
-		return rc;
-
-	if (p_params->qid != QED_RFS_NTUPLE_QID_RSS) {
-		rc = qed_fw_l2_queue(p_hwfn, p_params->qid, &abs_rx_q_id);
-		if (rc)
-			return rc;
-	}
-
 	/* Get SPQ entry */
 	memset(&init_data, 0, sizeof(init_data));
 	init_data.cid = qed_spq_get_cid(p_hwfn);
@@ -2049,15 +2041,28 @@ qed_configure_rfs_ntuple_filter(struct qed_hwfn *p_hwfn,
 	DMA_REGPAIR_LE(p_ramrod->pkt_hdr_addr, p_params->addr);
 	p_ramrod->pkt_hdr_length = cpu_to_le16(p_params->length);
 
-	if (p_params->qid != QED_RFS_NTUPLE_QID_RSS) {
-		p_ramrod->rx_qid_valid = 1;
-		p_ramrod->rx_qid = cpu_to_le16(abs_rx_q_id);
+	if (p_params->b_is_drop) {
+		p_ramrod->vport_id = cpu_to_le16(ETH_GFT_TRASHCAN_VPORT);
+	} else {
+		rc = qed_fw_vport(p_hwfn, p_params->vport_id, &abs_vport_id);
+		if (rc)
+			return rc;
+
+		if (p_params->qid != QED_RFS_NTUPLE_QID_RSS) {
+			rc = qed_fw_l2_queue(p_hwfn, p_params->qid,
+					     &abs_rx_q_id);
+			if (rc)
+				return rc;
+
+			p_ramrod->rx_qid_valid = 1;
+			p_ramrod->rx_qid = cpu_to_le16(abs_rx_q_id);
+		}
+
+		p_ramrod->vport_id = cpu_to_le16((u16)abs_vport_id);
 	}
 
 	p_ramrod->flow_id_valid = 0;
 	p_ramrod->flow_id = 0;
-
-	p_ramrod->vport_id = cpu_to_le16((u16)abs_vport_id);
 	p_ramrod->filter_action = p_params->b_is_add ? GFT_ADD_FILTER
 	    : GFT_DELETE_FILTER;
 
