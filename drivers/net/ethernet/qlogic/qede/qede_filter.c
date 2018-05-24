@@ -38,6 +38,7 @@
 #include <linux/qed/qed_if.h>
 #include "qede.h"
 
+#define QEDE_FILTER_PRINT_MAX_LEN	(64)
 struct qede_arfs_tuple {
 	union {
 		__be32 src_ipv4;
@@ -51,6 +52,18 @@ struct qede_arfs_tuple {
 	__be16  dst_port;
 	__be16  eth_proto;
 	u8      ip_proto;
+
+	/* Describe filtering mode needed for this kind of filter */
+	enum qed_filter_config_mode mode;
+
+	/* Used to compare new/old filters. Return true if IPs match */
+	bool (*ip_comp)(struct qede_arfs_tuple *a, struct qede_arfs_tuple *b);
+
+	/* Given an address into ethhdr build a header from tuple info */
+	void (*build_hdr)(struct qede_arfs_tuple *t, void *header);
+
+	/* Stringify the tuple for a print into the provided buffer */
+	void (*stringify)(struct qede_arfs_tuple *t, void *buffer);
 };
 
 struct qede_arfs_fltr_node {
@@ -90,7 +103,9 @@ struct qede_arfs {
 	spinlock_t		arfs_list_lock;
 	unsigned long		*arfs_fltr_bmap;
 	int			filter_count;
-	bool			enable;
+
+	/* Currently configured filtering mode */
+	enum qed_filter_config_mode mode;
 };
 
 static void qede_configure_arfs_fltr(struct qede_dev *edev,
@@ -110,11 +125,15 @@ static void qede_configure_arfs_fltr(struct qede_dev *edev,
 	params.qid = rxq_id;
 	params.b_is_add = add_fltr;
 
-	DP_VERBOSE(edev, NETIF_MSG_RX_STATUS,
-		   "%s arfs filter flow_id=%d, sw_id=%d, src_port=%d, dst_port=%d, rxq=%d\n",
-		   add_fltr ? "Adding" : "Deleting",
-		   n->flow_id, n->sw_id, ntohs(n->tuple.src_port),
-		   ntohs(n->tuple.dst_port), rxq_id);
+	if (n->tuple.stringify) {
+		char tuple_buffer[QEDE_FILTER_PRINT_MAX_LEN];
+
+		n->tuple.stringify(&n->tuple, tuple_buffer);
+		DP_VERBOSE(edev, NETIF_MSG_RX_STATUS,
+			   "%s sw_id[0x%x]: %s [queue %d]\n",
+			   add_fltr ? "Adding" : "Deleting",
+			   n->sw_id, tuple_buffer, rxq_id);
+	}
 
 	n->used = true;
 	n->filter_op = add_fltr;
@@ -145,14 +164,13 @@ qede_enqueue_fltr_and_config_searcher(struct qede_dev *edev,
 	INIT_HLIST_NODE(&fltr->node);
 	hlist_add_head(&fltr->node,
 		       QEDE_ARFS_BUCKET_HEAD(edev, bucket_idx));
+
 	edev->arfs->filter_count++;
-
-	if (edev->arfs->filter_count == 1 && !edev->arfs->enable) {
-		enum qed_filter_config_mode mode;
-
-		mode = QED_FILTER_CONFIG_MODE_5_TUPLE;
-		edev->ops->configure_arfs_searcher(edev->cdev, mode);
-		edev->arfs->enable = true;
+	if (edev->arfs->filter_count == 1 &&
+	    edev->arfs->mode == QED_FILTER_CONFIG_MODE_DISABLE) {
+		edev->ops->configure_arfs_searcher(edev->cdev,
+						   fltr->tuple.mode);
+		edev->arfs->mode = fltr->tuple.mode;
 	}
 
 	return 0;
@@ -167,14 +185,15 @@ qede_dequeue_fltr_and_config_searcher(struct qede_dev *edev,
 			 fltr->buf_len, DMA_TO_DEVICE);
 
 	qede_free_arfs_filter(edev, fltr);
-	edev->arfs->filter_count--;
 
-	if (!edev->arfs->filter_count && edev->arfs->enable) {
+	edev->arfs->filter_count--;
+	if (!edev->arfs->filter_count &&
+	    edev->arfs->mode != QED_FILTER_CONFIG_MODE_DISABLE) {
 		enum qed_filter_config_mode mode;
 
 		mode = QED_FILTER_CONFIG_MODE_DISABLE;
-		edev->arfs->enable = false;
 		edev->ops->configure_arfs_searcher(edev->cdev, mode);
+		edev->arfs->mode = QED_FILTER_CONFIG_MODE_DISABLE;
 	}
 }
 
@@ -264,25 +283,17 @@ void qede_process_arfs_filters(struct qede_dev *edev, bool free_fltr)
 		}
 	}
 
+#ifdef CONFIG_RFS_ACCEL
 	spin_lock_bh(&edev->arfs->arfs_list_lock);
 
-	if (!edev->arfs->filter_count) {
-		if (edev->arfs->enable) {
-			enum qed_filter_config_mode mode;
-
-			mode = QED_FILTER_CONFIG_MODE_DISABLE;
-			edev->arfs->enable = false;
-			edev->ops->configure_arfs_searcher(edev->cdev, mode);
-		}
-#ifdef CONFIG_RFS_ACCEL
-	} else {
+	if (edev->arfs->filter_count) {
 		set_bit(QEDE_SP_ARFS_CONFIG, &edev->sp_flags);
 		schedule_delayed_work(&edev->sp_task,
 				      QEDE_SP_TASK_POLL_DELAY);
-#endif
 	}
 
 	spin_unlock_bh(&edev->arfs->arfs_list_lock);
+#endif
 }
 
 /* This function waits until all aRFS filters get deleted and freed.
@@ -512,6 +523,7 @@ int qede_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	eth->h_proto = skb->protocol;
 	n->tuple.eth_proto = skb->protocol;
 	n->tuple.ip_proto = ip_proto;
+	n->tuple.mode = QED_FILTER_CONFIG_MODE_5_TUPLE;
 	memcpy(n->data + ETH_HLEN, skb->data, skb_headlen(skb));
 
 	rc = qede_enqueue_fltr_and_config_searcher(edev, n, tbl_idx);
@@ -1339,38 +1351,6 @@ qede_get_arfs_fltr_by_loc(struct hlist_head *head, u32 location)
 	return NULL;
 }
 
-static bool
-qede_compare_user_flow_ips(struct qede_arfs_fltr_node *tpos,
-			   struct ethtool_rx_flow_spec *fsp,
-			   __be16 proto)
-{
-	if (proto == htons(ETH_P_IP)) {
-		struct ethtool_tcpip4_spec *ip;
-
-		ip = &fsp->h_u.tcp_ip4_spec;
-
-		if (tpos->tuple.src_ipv4 == ip->ip4src &&
-		    tpos->tuple.dst_ipv4 == ip->ip4dst)
-			return true;
-		else
-			return false;
-	} else {
-		struct ethtool_tcpip6_spec *ip6;
-		struct in6_addr *src;
-
-		ip6 = &fsp->h_u.tcp_ip6_spec;
-		src = &tpos->tuple.src_ipv6;
-
-		if (!memcmp(src, &ip6->ip6src, sizeof(struct in6_addr)) &&
-		    !memcmp(&tpos->tuple.dst_ipv6, &ip6->ip6dst,
-			    sizeof(struct in6_addr)))
-			return true;
-		else
-			return false;
-	}
-	return false;
-}
-
 int qede_get_cls_rule_all(struct qede_dev *edev, struct ethtool_rxnfc *info,
 			  u32 *rule_locs)
 {
@@ -1461,70 +1441,6 @@ unlock:
 }
 
 static int
-qede_validate_and_check_flow_exist(struct qede_dev *edev,
-				   struct ethtool_rx_flow_spec *fsp,
-				   int *min_hlen)
-{
-	__be16 src_port = 0x0, dst_port = 0x0;
-	struct qede_arfs_fltr_node *fltr;
-	struct hlist_node *temp;
-	struct hlist_head *head;
-	__be16 eth_proto;
-	u8 ip_proto;
-
-	if (fsp->location >= QEDE_RFS_MAX_FLTR ||
-	    fsp->ring_cookie >= QEDE_RSS_COUNT(edev))
-		return -EINVAL;
-
-	if (fsp->flow_type == TCP_V4_FLOW) {
-		*min_hlen += sizeof(struct iphdr) +
-				sizeof(struct tcphdr);
-		eth_proto = htons(ETH_P_IP);
-		ip_proto = IPPROTO_TCP;
-	} else if (fsp->flow_type == UDP_V4_FLOW) {
-		*min_hlen += sizeof(struct iphdr) +
-				sizeof(struct udphdr);
-		eth_proto = htons(ETH_P_IP);
-		ip_proto = IPPROTO_UDP;
-	} else if (fsp->flow_type == TCP_V6_FLOW) {
-		*min_hlen += sizeof(struct ipv6hdr) +
-				sizeof(struct tcphdr);
-		eth_proto = htons(ETH_P_IPV6);
-		ip_proto = IPPROTO_TCP;
-	} else if (fsp->flow_type == UDP_V6_FLOW) {
-		*min_hlen += sizeof(struct ipv6hdr) +
-				sizeof(struct udphdr);
-		eth_proto = htons(ETH_P_IPV6);
-		ip_proto = IPPROTO_UDP;
-	} else {
-		DP_NOTICE(edev, "Unsupported flow type = 0x%x\n",
-			  fsp->flow_type);
-		return -EPROTONOSUPPORT;
-	}
-
-	if (eth_proto == htons(ETH_P_IP)) {
-		src_port = fsp->h_u.tcp_ip4_spec.psrc;
-		dst_port = fsp->h_u.tcp_ip4_spec.pdst;
-	} else {
-		src_port = fsp->h_u.tcp_ip6_spec.psrc;
-		dst_port = fsp->h_u.tcp_ip6_spec.pdst;
-	}
-
-	head = QEDE_ARFS_BUCKET_HEAD(edev, 0);
-	hlist_for_each_entry_safe(fltr, temp, head, node) {
-		if ((fltr->tuple.ip_proto == ip_proto &&
-		     fltr->tuple.eth_proto == eth_proto &&
-		     qede_compare_user_flow_ips(fltr, fsp, eth_proto) &&
-		     fltr->tuple.src_port == src_port &&
-		     fltr->tuple.dst_port == dst_port) ||
-		    fltr->sw_id == fsp->location)
-			return -EEXIST;
-	}
-
-	return 0;
-}
-
-static int
 qede_poll_arfs_filter_config(struct qede_dev *edev,
 			     struct qede_arfs_fltr_node *fltr)
 {
@@ -1536,6 +1452,7 @@ qede_poll_arfs_filter_config(struct qede_dev *edev,
 	}
 
 	if (count == 0 || fltr->fw_rc) {
+		DP_NOTICE(edev, "Timeout in polling filter config\n");
 		qede_dequeue_fltr_and_config_searcher(edev, fltr);
 		return -EIO;
 	}
@@ -1543,14 +1460,287 @@ qede_poll_arfs_filter_config(struct qede_dev *edev,
 	return fltr->fw_rc;
 }
 
+static int qede_flow_get_min_header_size(struct qede_arfs_tuple *t)
+{
+	int size = ETH_HLEN;
+
+	if (t->eth_proto == htons(ETH_P_IP))
+		size += sizeof(struct iphdr);
+	else
+		size += sizeof(struct ipv6hdr);
+
+	if (t->ip_proto == IPPROTO_TCP)
+		size += sizeof(struct tcphdr);
+	else
+		size += sizeof(struct udphdr);
+
+	return size;
+}
+
+static bool qede_flow_spec_ipv4_cmp(struct qede_arfs_tuple *a,
+				    struct qede_arfs_tuple *b)
+{
+	if (a->eth_proto != htons(ETH_P_IP) ||
+	    b->eth_proto != htons(ETH_P_IP))
+		return false;
+
+	return (a->src_ipv4 == b->src_ipv4) &&
+	       (a->dst_ipv4 == b->dst_ipv4);
+}
+
+static void qede_flow_build_ipv4_hdr(struct qede_arfs_tuple *t,
+				     void *header)
+{
+	__be16 *ports = (__be16 *)(header + ETH_HLEN + sizeof(struct iphdr));
+	struct iphdr *ip = (struct iphdr *)(header + ETH_HLEN);
+	struct ethhdr *eth = (struct ethhdr *)header;
+
+	eth->h_proto = t->eth_proto;
+	ip->saddr = t->src_ipv4;
+	ip->daddr = t->dst_ipv4;
+	ip->version = 0x4;
+	ip->ihl = 0x5;
+	ip->protocol = t->ip_proto;
+	ip->tot_len = cpu_to_be16(qede_flow_get_min_header_size(t) - ETH_HLEN);
+
+	/* ports is weakly typed to suit both TCP and UDP ports */
+	ports[0] = t->src_port;
+	ports[1] = t->dst_port;
+}
+
+static void qede_flow_stringify_ipv4_hdr(struct qede_arfs_tuple *t,
+					 void *buffer)
+{
+	const char *prefix = t->ip_proto == IPPROTO_TCP ? "TCP" : "UDP";
+
+	snprintf(buffer, QEDE_FILTER_PRINT_MAX_LEN,
+		 "%s %pI4 (%04x) -> %pI4 (%04x)",
+		 prefix, &t->src_ipv4, t->src_port,
+		 &t->dst_ipv4, t->dst_port);
+}
+
+static bool qede_flow_spec_ipv6_cmp(struct qede_arfs_tuple *a,
+				    struct qede_arfs_tuple *b)
+{
+	if (a->eth_proto != htons(ETH_P_IPV6) ||
+	    b->eth_proto != htons(ETH_P_IPV6))
+		return false;
+
+	if (memcmp(&a->src_ipv6, &b->src_ipv6, sizeof(struct in6_addr)))
+		return false;
+
+	if (memcmp(&a->dst_ipv6, &b->dst_ipv6, sizeof(struct in6_addr)))
+		return false;
+
+	return true;
+}
+
+static void qede_flow_build_ipv6_hdr(struct qede_arfs_tuple *t,
+				     void *header)
+{
+	__be16 *ports = (__be16 *)(header + ETH_HLEN + sizeof(struct ipv6hdr));
+	struct ipv6hdr *ip6 = (struct ipv6hdr *)(header + ETH_HLEN);
+	struct ethhdr *eth = (struct ethhdr *)header;
+
+	eth->h_proto = t->eth_proto;
+	memcpy(&ip6->saddr, &t->src_ipv6, sizeof(struct in6_addr));
+	memcpy(&ip6->daddr, &t->dst_ipv6, sizeof(struct in6_addr));
+	ip6->version = 0x6;
+
+	if (t->ip_proto == IPPROTO_TCP) {
+		ip6->nexthdr = NEXTHDR_TCP;
+		ip6->payload_len = cpu_to_be16(sizeof(struct tcphdr));
+	} else {
+		ip6->nexthdr = NEXTHDR_UDP;
+		ip6->payload_len = cpu_to_be16(sizeof(struct udphdr));
+	}
+
+	/* ports is weakly typed to suit both TCP and UDP ports */
+	ports[0] = t->src_port;
+	ports[1] = t->dst_port;
+}
+
+static int qede_flow_spec_to_tuple_ipv4_common(struct qede_dev *edev,
+					       struct qede_arfs_tuple *t,
+					       struct ethtool_rx_flow_spec *fs)
+{
+	t->eth_proto = htons(ETH_P_IP);
+	t->src_ipv4 = fs->h_u.tcp_ip4_spec.ip4src;
+	t->dst_ipv4 = fs->h_u.tcp_ip4_spec.ip4dst;
+	t->src_port = fs->h_u.tcp_ip4_spec.psrc;
+	t->dst_port = fs->h_u.tcp_ip4_spec.pdst;
+
+	/* We must have a valid 4-tuple */
+	if (t->src_port && t->dst_port && t->src_ipv4 && t->dst_ipv4) {
+		t->mode = QED_FILTER_CONFIG_MODE_5_TUPLE;
+	} else {
+		DP_INFO(edev, "Invalid N-tuple\n");
+		return -EOPNOTSUPP;
+	}
+
+	t->ip_comp = qede_flow_spec_ipv4_cmp;
+	t->build_hdr = qede_flow_build_ipv4_hdr;
+	t->stringify = qede_flow_stringify_ipv4_hdr;
+
+	return 0;
+}
+
+static int qede_flow_spec_to_tuple_tcpv4(struct qede_dev *edev,
+					 struct qede_arfs_tuple *t,
+					 struct ethtool_rx_flow_spec *fs)
+{
+	t->ip_proto = IPPROTO_TCP;
+
+	if (qede_flow_spec_to_tuple_ipv4_common(edev, t, fs))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int qede_flow_spec_to_tuple_udpv4(struct qede_dev *edev,
+					 struct qede_arfs_tuple *t,
+					 struct ethtool_rx_flow_spec *fs)
+{
+	t->ip_proto = IPPROTO_UDP;
+
+	if (qede_flow_spec_to_tuple_ipv4_common(edev, t, fs))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int qede_flow_spec_to_tuple_ipv6_common(struct qede_dev *edev,
+					       struct qede_arfs_tuple *t,
+					       struct ethtool_rx_flow_spec *fs)
+{
+	struct in6_addr zero_addr;
+	void *p;
+
+	p = &zero_addr;
+	memset(p, 0, sizeof(zero_addr));
+
+	t->eth_proto = htons(ETH_P_IPV6);
+	memcpy(&t->src_ipv6, &fs->h_u.tcp_ip6_spec.ip6src,
+	       sizeof(struct in6_addr));
+	memcpy(&t->dst_ipv6, &fs->h_u.tcp_ip6_spec.ip6dst,
+	       sizeof(struct in6_addr));
+	t->src_port = fs->h_u.tcp_ip6_spec.psrc;
+	t->dst_port = fs->h_u.tcp_ip6_spec.pdst;
+
+	/* We must make sure we have a valid 4-tuple */
+	if (t->src_port && t->dst_port &&
+	    memcmp(&t->src_ipv6, p, sizeof(struct in6_addr)) &&
+	    memcmp(&t->dst_ipv6, p, sizeof(struct in6_addr))) {
+		t->mode = QED_FILTER_CONFIG_MODE_5_TUPLE;
+	} else {
+		DP_INFO(edev, "Invalid N-tuple\n");
+		return -EOPNOTSUPP;
+	}
+
+	t->ip_comp = qede_flow_spec_ipv6_cmp;
+	t->build_hdr = qede_flow_build_ipv6_hdr;
+
+	return 0;
+}
+
+static int qede_flow_spec_to_tuple_tcpv6(struct qede_dev *edev,
+					 struct qede_arfs_tuple *t,
+					 struct ethtool_rx_flow_spec *fs)
+{
+	t->ip_proto = IPPROTO_TCP;
+
+	if (qede_flow_spec_to_tuple_ipv6_common(edev, t, fs))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int qede_flow_spec_to_tuple_udpv6(struct qede_dev *edev,
+					 struct qede_arfs_tuple *t,
+					 struct ethtool_rx_flow_spec *fs)
+{
+	t->ip_proto = IPPROTO_UDP;
+
+	if (qede_flow_spec_to_tuple_ipv6_common(edev, t, fs))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int qede_flow_spec_to_tuple(struct qede_dev *edev,
+				   struct qede_arfs_tuple *t,
+				   struct ethtool_rx_flow_spec *fs)
+{
+	memset(t, 0, sizeof(*t));
+
+	switch ((fs->flow_type & ~FLOW_EXT)) {
+	case TCP_V4_FLOW:
+		return qede_flow_spec_to_tuple_tcpv4(edev, t, fs);
+	case UDP_V4_FLOW:
+		return qede_flow_spec_to_tuple_udpv4(edev, t, fs);
+	case TCP_V6_FLOW:
+		return qede_flow_spec_to_tuple_tcpv6(edev, t, fs);
+	case UDP_V6_FLOW:
+		return qede_flow_spec_to_tuple_udpv6(edev, t, fs);
+	default:
+		DP_VERBOSE(edev, NETIF_MSG_IFUP,
+			   "Can't support flow of type %08x\n", fs->flow_type);
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int qede_flow_spec_validate(struct qede_dev *edev,
+				   struct ethtool_rx_flow_spec *fs,
+				   struct qede_arfs_tuple *t)
+{
+	if (fs->location >= QEDE_RFS_MAX_FLTR) {
+		DP_INFO(edev, "Location out-of-bounds\n");
+		return -EINVAL;
+	}
+
+	/* Check location isn't already in use */
+	if (test_bit(fs->location, edev->arfs->arfs_fltr_bmap)) {
+		DP_INFO(edev, "Location already in use\n");
+		return -EINVAL;
+	}
+
+	if (fs->ring_cookie >= QEDE_RSS_COUNT(edev)) {
+		DP_INFO(edev, "Queue out-of-bounds\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/* Must be called while qede lock is held */
+static struct qede_arfs_fltr_node *
+qede_flow_find_fltr(struct qede_dev *edev, struct qede_arfs_tuple *t)
+{
+	struct qede_arfs_fltr_node *fltr;
+	struct hlist_node *temp;
+	struct hlist_head *head;
+
+	head = QEDE_ARFS_BUCKET_HEAD(edev, 0);
+
+	hlist_for_each_entry_safe(fltr, temp, head, node) {
+		if (fltr->tuple.ip_proto == t->ip_proto &&
+		    fltr->tuple.src_port == t->src_port &&
+		    fltr->tuple.dst_port == t->dst_port &&
+		    t->ip_comp(&fltr->tuple, t))
+			return fltr;
+	}
+
+	return NULL;
+}
+
 int qede_add_cls_rule(struct qede_dev *edev, struct ethtool_rxnfc *info)
 {
 	struct ethtool_rx_flow_spec *fsp = &info->fs;
 	struct qede_arfs_fltr_node *n;
-	int min_hlen = ETH_HLEN, rc;
-	struct ethhdr *eth;
-	struct iphdr *ip;
-	__be16 *ports;
+	struct qede_arfs_tuple t;
+	int min_hlen, rc;
 
 	__qede_lock(edev);
 
@@ -1559,9 +1749,20 @@ int qede_add_cls_rule(struct qede_dev *edev, struct ethtool_rxnfc *info)
 		goto unlock;
 	}
 
-	rc = qede_validate_and_check_flow_exist(edev, fsp, &min_hlen);
+	/* Translate the flow specification into something fittign our DB */
+	rc = qede_flow_spec_to_tuple(edev, &t, fsp);
 	if (rc)
 		goto unlock;
+
+	/* Make sure location is valid and filter isn't already set */
+	rc = qede_flow_spec_validate(edev, fsp, &t);
+	if (rc)
+		goto unlock;
+
+	if (qede_flow_find_fltr(edev, &t)) {
+		rc = -EINVAL;
+		goto unlock;
+	}
 
 	n = kzalloc(sizeof(*n), GFP_KERNEL);
 	if (!n) {
@@ -1569,6 +1770,7 @@ int qede_add_cls_rule(struct qede_dev *edev, struct ethtool_rxnfc *info)
 		goto unlock;
 	}
 
+	min_hlen = qede_flow_get_min_header_size(&t);
 	n->data = kzalloc(min_hlen, GFP_KERNEL);
 	if (!n->data) {
 		kfree(n);
@@ -1581,66 +1783,11 @@ int qede_add_cls_rule(struct qede_dev *edev, struct ethtool_rxnfc *info)
 	n->buf_len = min_hlen;
 	n->rxq_id = fsp->ring_cookie;
 	n->next_rxq_id = n->rxq_id;
-	eth = (struct ethhdr *)n->data;
 
-	if (info->fs.flow_type == TCP_V4_FLOW ||
-	    info->fs.flow_type == UDP_V4_FLOW) {
-		ports = (__be16 *)(n->data + ETH_HLEN +
-					sizeof(struct iphdr));
-		eth->h_proto = htons(ETH_P_IP);
-		n->tuple.eth_proto = htons(ETH_P_IP);
-		n->tuple.src_ipv4 = info->fs.h_u.tcp_ip4_spec.ip4src;
-		n->tuple.dst_ipv4 = info->fs.h_u.tcp_ip4_spec.ip4dst;
-		n->tuple.src_port = info->fs.h_u.tcp_ip4_spec.psrc;
-		n->tuple.dst_port = info->fs.h_u.tcp_ip4_spec.pdst;
-		ports[0] = n->tuple.src_port;
-		ports[1] = n->tuple.dst_port;
-		ip = (struct iphdr *)(n->data + ETH_HLEN);
-		ip->saddr = info->fs.h_u.tcp_ip4_spec.ip4src;
-		ip->daddr = info->fs.h_u.tcp_ip4_spec.ip4dst;
-		ip->version = 0x4;
-		ip->ihl = 0x5;
+	memcpy(&n->tuple, &t, sizeof(n->tuple));
 
-		if (info->fs.flow_type == TCP_V4_FLOW) {
-			n->tuple.ip_proto = IPPROTO_TCP;
-			ip->protocol = IPPROTO_TCP;
-		} else {
-			n->tuple.ip_proto = IPPROTO_UDP;
-			ip->protocol = IPPROTO_UDP;
-		}
-		ip->tot_len = cpu_to_be16(min_hlen - ETH_HLEN);
-	} else {
-		struct ipv6hdr *ip6;
-
-		ip6 = (struct ipv6hdr *)(n->data + ETH_HLEN);
-		ports = (__be16 *)(n->data + ETH_HLEN +
-					sizeof(struct ipv6hdr));
-		eth->h_proto = htons(ETH_P_IPV6);
-		n->tuple.eth_proto = htons(ETH_P_IPV6);
-		memcpy(&n->tuple.src_ipv6, &info->fs.h_u.tcp_ip6_spec.ip6src,
-		       sizeof(struct in6_addr));
-		memcpy(&n->tuple.dst_ipv6, &info->fs.h_u.tcp_ip6_spec.ip6dst,
-		       sizeof(struct in6_addr));
-		n->tuple.src_port = info->fs.h_u.tcp_ip6_spec.psrc;
-		n->tuple.dst_port = info->fs.h_u.tcp_ip6_spec.pdst;
-		ports[0] = n->tuple.src_port;
-		ports[1] = n->tuple.dst_port;
-		memcpy(&ip6->saddr, &n->tuple.src_ipv6,
-		       sizeof(struct in6_addr));
-		memcpy(&ip6->daddr, &n->tuple.dst_ipv6,
-		       sizeof(struct in6_addr));
-		ip6->version = 0x6;
-
-		if (info->fs.flow_type == TCP_V6_FLOW) {
-			n->tuple.ip_proto = IPPROTO_TCP;
-			ip6->nexthdr = NEXTHDR_TCP;
-			ip6->payload_len = cpu_to_be16(sizeof(struct tcphdr));
-		} else {
-			n->tuple.ip_proto = IPPROTO_UDP;
-			ip6->nexthdr = NEXTHDR_UDP;
-			ip6->payload_len = cpu_to_be16(sizeof(struct udphdr));
-		}
-	}
+	/* Build a minimal header according to the flow */
+	n->tuple.build_hdr(&n->tuple, n->data);
 
 	rc = qede_enqueue_fltr_and_config_searcher(edev, n, 0);
 	if (rc)
@@ -1650,6 +1797,7 @@ int qede_add_cls_rule(struct qede_dev *edev, struct ethtool_rxnfc *info)
 	rc = qede_poll_arfs_filter_config(edev, n);
 unlock:
 	__qede_unlock(edev);
+
 	return rc;
 }
 
