@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * cec-adap.c - HDMI Consumer Electronics Control framework - CEC adapter
  *
  * Copyright 2016 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #include <linux/errno.h>
@@ -85,8 +73,8 @@ static unsigned int cec_log_addr2dev(const struct cec_adapter *adap, u8 log_addr
 void cec_queue_event_fh(struct cec_fh *fh,
 			const struct cec_event *new_ev, u64 ts)
 {
-	static const u8 max_events[CEC_NUM_EVENTS] = {
-		1, 1, 64, 64, 8, 8,
+	static const u16 max_events[CEC_NUM_EVENTS] = {
+		1, 1, 800, 800, 8, 8,
 	};
 	struct cec_event_entry *entry;
 	unsigned int ev_idx = new_ev->event - 1;
@@ -154,11 +142,13 @@ static void cec_queue_event(struct cec_adapter *adap,
 }
 
 /* Notify userspace that the CEC pin changed state at the given time. */
-void cec_queue_pin_cec_event(struct cec_adapter *adap, bool is_high, ktime_t ts)
+void cec_queue_pin_cec_event(struct cec_adapter *adap, bool is_high,
+			     bool dropped_events, ktime_t ts)
 {
 	struct cec_event ev = {
 		.event = is_high ? CEC_EVENT_PIN_CEC_HIGH :
 				   CEC_EVENT_PIN_CEC_LOW,
+		.flags = dropped_events ? CEC_EVENT_FL_DROPPED_EVENTS : 0,
 	};
 	struct cec_fh *fh;
 
@@ -711,16 +701,31 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 	else
 		msg->flags = 0;
 
+	if (msg->len > 1 && msg->msg[1] == CEC_MSG_CDC_MESSAGE) {
+		msg->msg[2] = adap->phys_addr >> 8;
+		msg->msg[3] = adap->phys_addr & 0xff;
+	}
+
 	/* Sanity checks */
 	if (msg->len == 0 || msg->len > CEC_MAX_MSG_SIZE) {
 		dprintk(1, "%s: invalid length %d\n", __func__, msg->len);
 		return -EINVAL;
 	}
+
+	memset(msg->msg + msg->len, 0, sizeof(msg->msg) - msg->len);
+
+	if (msg->timeout)
+		dprintk(2, "%s: %*ph (wait for 0x%02x%s)\n",
+			__func__, msg->len, msg->msg, msg->reply,
+			!block ? ", nb" : "");
+	else
+		dprintk(2, "%s: %*ph%s\n",
+			__func__, msg->len, msg->msg, !block ? " (nb)" : "");
+
 	if (msg->timeout && msg->len == 1) {
-		dprintk(1, "%s: can't reply for poll msg\n", __func__);
+		dprintk(1, "%s: can't reply to poll msg\n", __func__);
 		return -EINVAL;
 	}
-	memset(msg->msg + msg->len, 0, sizeof(msg->msg) - msg->len);
 	if (msg->len == 1) {
 		if (cec_msg_destination(msg) == 0xf) {
 			dprintk(1, "%s: invalid poll message\n", __func__);
@@ -779,19 +784,6 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 	msg->sequence = ++adap->sequence;
 	if (!msg->sequence)
 		msg->sequence = ++adap->sequence;
-
-	if (msg->len > 1 && msg->msg[1] == CEC_MSG_CDC_MESSAGE) {
-		msg->msg[2] = adap->phys_addr >> 8;
-		msg->msg[3] = adap->phys_addr & 0xff;
-	}
-
-	if (msg->timeout)
-		dprintk(2, "%s: %*ph (wait for 0x%02x%s)\n",
-			__func__, msg->len, msg->msg, msg->reply,
-			!block ? ", nb" : "");
-	else
-		dprintk(2, "%s: %*ph%s\n",
-			__func__, msg->len, msg->msg, !block ? " (nb)" : "");
 
 	data->msg = *msg;
 	data->fh = fh;

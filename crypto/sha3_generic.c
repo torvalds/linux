@@ -21,7 +21,7 @@
 #include <asm/unaligned.h>
 
 /*
- * On some 32-bit architectures (mn10300 and h8300), GCC ends up using
+ * On some 32-bit architectures (h8300), GCC ends up using
  * over 1 KB of stack if we inline the round calculation into the loop
  * in keccakf(). On the other hand, on 64-bit architectures with plenty
  * of [64-bit wide] general purpose registers, not inlining it severely

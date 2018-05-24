@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *	Procfs interface for the PCI bus.
+ * Procfs interface for the PCI bus
  *
- *	Copyright (c) 1997--1999 Martin Mares <mj@ucw.cz>
+ * Copyright (c) 1997--1999 Martin Mares <mj@ucw.cz>
  */
 
 #include <linux/init.h>

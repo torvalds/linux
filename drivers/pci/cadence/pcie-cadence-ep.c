@@ -77,16 +77,19 @@ static int cdns_pcie_ep_write_header(struct pci_epc *epc, u8 fn,
 	return 0;
 }
 
-static int cdns_pcie_ep_set_bar(struct pci_epc *epc, u8 fn, enum pci_barno bar,
-				dma_addr_t bar_phys, size_t size, int flags)
+static int cdns_pcie_ep_set_bar(struct pci_epc *epc, u8 fn,
+				struct pci_epf_bar *epf_bar)
 {
 	struct cdns_pcie_ep *ep = epc_get_drvdata(epc);
 	struct cdns_pcie *pcie = &ep->pcie;
+	dma_addr_t bar_phys = epf_bar->phys_addr;
+	enum pci_barno bar = epf_bar->barno;
+	int flags = epf_bar->flags;
 	u32 addr0, addr1, reg, cfg, b, aperture, ctrl;
 	u64 sz;
 
 	/* BAR size is 2^(aperture + 7) */
-	sz = max_t(size_t, size, CDNS_PCIE_EP_MIN_APERTURE);
+	sz = max_t(size_t, epf_bar->size, CDNS_PCIE_EP_MIN_APERTURE);
 	/*
 	 * roundup_pow_of_two() returns an unsigned long, which is not suited
 	 * for 64bit values.
@@ -102,6 +105,9 @@ static int cdns_pcie_ep_set_bar(struct pci_epc *epc, u8 fn, enum pci_barno bar,
 
 		if (is_64bits && (bar & 1))
 			return -EINVAL;
+
+		if (is_64bits && !(flags & PCI_BASE_ADDRESS_MEM_TYPE_64))
+			epf_bar->flags |= PCI_BASE_ADDRESS_MEM_TYPE_64;
 
 		if (is_64bits && is_prefetch)
 			ctrl = CDNS_PCIE_LM_BAR_CFG_CTRL_PREFETCH_MEM_64BITS;
@@ -139,10 +145,11 @@ static int cdns_pcie_ep_set_bar(struct pci_epc *epc, u8 fn, enum pci_barno bar,
 }
 
 static void cdns_pcie_ep_clear_bar(struct pci_epc *epc, u8 fn,
-				   enum pci_barno bar)
+				   struct pci_epf_bar *epf_bar)
 {
 	struct cdns_pcie_ep *ep = epc_get_drvdata(epc);
 	struct cdns_pcie *pcie = &ep->pcie;
+	enum pci_barno bar = epf_bar->barno;
 	u32 reg, cfg, b, ctrl;
 
 	if (bar < BAR_4) {

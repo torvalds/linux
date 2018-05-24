@@ -905,7 +905,6 @@ static const struct davinci_soc_info davinci_soc_info_dm644x = {
 	.jtag_id_reg		= 0x01c40028,
 	.ids			= dm644x_ids,
 	.ids_num		= ARRAY_SIZE(dm644x_ids),
-	.cpu_clks		= dm644x_clks,
 	.psc_bases		= dm644x_psc_bases,
 	.psc_bases_num		= ARRAY_SIZE(dm644x_psc_bases),
 	.pinmux_base		= DAVINCI_SYSTEM_MODULE_BASE,
@@ -931,7 +930,12 @@ void __init dm644x_init(void)
 {
 	davinci_common_init(&davinci_soc_info_dm644x);
 	davinci_map_sysmod();
-	davinci_clk_init(davinci_soc_info_dm644x.cpu_clks);
+}
+
+void __init dm644x_init_time(void)
+{
+	davinci_clk_init(dm644x_clks);
+	davinci_timer_init();
 }
 
 int __init dm644x_init_video(struct vpfe_config *vpfe_cfg,

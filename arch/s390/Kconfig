@@ -47,10 +47,6 @@ config PGSTE
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y
 
-config KEXEC
-	def_bool y
-	select KEXEC_CORE
-
 config AUDIT_ARCH
 	def_bool y
 
@@ -120,6 +116,7 @@ config S390
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_CPU_DEVICES if !SMP
+	select GENERIC_CPU_VULNERABILITIES
 	select GENERIC_FIND_FIRST_BIT
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_TIME_VSYSCALL
@@ -289,12 +286,12 @@ config MARCH_Z13
 	  older machines.
 
 config MARCH_Z14
-	bool "IBM z14"
+	bool "IBM z14 ZR1 and z14"
 	select HAVE_MARCH_Z14_FEATURES
 	help
-	  Select this to enable optimizations for IBM z14 (3906 series).
-	  The kernel will be slightly faster but will not work on older
-	  machines.
+	  Select this to enable optimizations for IBM z14 ZR1 and z14 (3907
+	  and 3906 series). The kernel will be slightly faster but will not
+	  work on older machines.
 
 endchoice
 
@@ -524,6 +521,26 @@ source kernel/Kconfig.preempt
 
 source kernel/Kconfig.hz
 
+config KEXEC
+	def_bool y
+	select KEXEC_CORE
+
+config KEXEC_FILE
+	bool "kexec file based system call"
+	select KEXEC_CORE
+	select BUILD_BIN2C
+	depends on CRYPTO
+	depends on CRYPTO_SHA256
+	depends on CRYPTO_SHA256_S390
+	help
+	  Enable the kexec file based system call. In contrast to the normal
+	  kexec system call this system call takes file descriptors for the
+	  kernel and initramfs as arguments.
+
+config ARCH_HAS_KEXEC_PURGATORY
+	def_bool y
+	depends on KEXEC_FILE
+
 config ARCH_RANDOM
 	def_bool y
 	prompt "s390 architectural random number generation API"
@@ -576,7 +593,7 @@ choice
 config EXPOLINE_OFF
 	bool "spectre_v2=off"
 
-config EXPOLINE_MEDIUM
+config EXPOLINE_AUTO
 	bool "spectre_v2=auto"
 
 config EXPOLINE_FULL

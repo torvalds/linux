@@ -124,6 +124,8 @@ enum ath10k_mem_region_type {
 	ATH10K_MEM_REGION_TYPE_AXI	= 3,
 	ATH10K_MEM_REGION_TYPE_IRAM1	= 4,
 	ATH10K_MEM_REGION_TYPE_IRAM2	= 5,
+	ATH10K_MEM_REGION_TYPE_IOSRAM	= 6,
+	ATH10K_MEM_REGION_TYPE_IOREG	= 7,
 };
 
 /* Define a section of the region which should be copied. As not all parts

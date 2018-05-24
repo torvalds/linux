@@ -203,7 +203,7 @@ static void bcma_pmu_resources_init(struct bcma_drv_cc *cc)
 	 * Add some delay; allow resources to come up and settle.
 	 * Delay is required for SoC (early init).
 	 */
-	mdelay(2);
+	usleep_range(2000, 2500);
 }
 
 /* Disable to allow reading SPROM. Don't know the adventages of enabling it. */

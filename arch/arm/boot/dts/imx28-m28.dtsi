@@ -15,7 +15,7 @@
 	model = "Aries/DENX M28";
 	compatible = "aries,m28", "denx,m28", "fsl,imx28";
 
-	memory {
+	memory@40000000 {
 		reg = <0x40000000 0x08000000>;
 	};
 

@@ -586,10 +586,17 @@ int snd_soc_test_bits(struct snd_soc_codec *codec, unsigned int reg,
 				unsigned int mask, unsigned int value);
 
 #ifdef CONFIG_SND_SOC_AC97_BUS
-struct snd_ac97 *snd_soc_alloc_ac97_codec(struct snd_soc_codec *codec);
-struct snd_ac97 *snd_soc_new_ac97_codec(struct snd_soc_codec *codec,
+#define snd_soc_alloc_ac97_codec(codec) \
+	snd_soc_alloc_ac97_component(&codec->component)
+#define snd_soc_new_ac97_codec(codec, id, id_mask) \
+	snd_soc_new_ac97_component(&codec->component, id, id_mask)
+#define snd_soc_free_ac97_codec(ac97) \
+	snd_soc_free_ac97_component(ac97)
+
+struct snd_ac97 *snd_soc_alloc_ac97_component(struct snd_soc_component *component);
+struct snd_ac97 *snd_soc_new_ac97_component(struct snd_soc_component *component,
 	unsigned int id, unsigned int id_mask);
-void snd_soc_free_ac97_codec(struct snd_ac97 *ac97);
+void snd_soc_free_ac97_component(struct snd_ac97 *ac97);
 
 int snd_soc_set_ac97_ops(struct snd_ac97_bus_ops *ops);
 int snd_soc_set_ac97_ops_of_reset(struct snd_ac97_bus_ops *ops,
@@ -1807,6 +1814,7 @@ int snd_soc_of_get_dai_name(struct device_node *of_node,
 int snd_soc_of_get_dai_link_codecs(struct device *dev,
 				   struct device_node *of_node,
 				   struct snd_soc_dai_link *dai_link);
+void snd_soc_of_put_dai_link_codecs(struct snd_soc_dai_link *dai_link);
 
 int snd_soc_add_dai_link(struct snd_soc_card *card,
 				struct snd_soc_dai_link *dai_link);

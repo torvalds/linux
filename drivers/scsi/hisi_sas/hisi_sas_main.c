@@ -33,7 +33,7 @@ u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis, int direction)
 	case ATA_CMD_FPDMA_RECV:
 	case ATA_CMD_FPDMA_SEND:
 	case ATA_CMD_NCQ_NON_DATA:
-	return HISI_SAS_SATA_PROTOCOL_FPDMA;
+		return HISI_SAS_SATA_PROTOCOL_FPDMA;
 
 	case ATA_CMD_DOWNLOAD_MICRO:
 	case ATA_CMD_ID_ATA:
@@ -45,7 +45,7 @@ u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis, int direction)
 	case ATA_CMD_WRITE_LOG_EXT:
 	case ATA_CMD_PIO_WRITE:
 	case ATA_CMD_PIO_WRITE_EXT:
-	return HISI_SAS_SATA_PROTOCOL_PIO;
+		return HISI_SAS_SATA_PROTOCOL_PIO;
 
 	case ATA_CMD_DSM:
 	case ATA_CMD_DOWNLOAD_MICRO_DMA:
@@ -64,7 +64,7 @@ u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis, int direction)
 	case ATA_CMD_WRITE_LOG_DMA_EXT:
 	case ATA_CMD_WRITE_STREAM_DMA_EXT:
 	case ATA_CMD_ZAC_MGMT_IN:
-	return HISI_SAS_SATA_PROTOCOL_DMA;
+		return HISI_SAS_SATA_PROTOCOL_DMA;
 
 	case ATA_CMD_CHK_POWER:
 	case ATA_CMD_DEV_RESET:
@@ -77,21 +77,21 @@ u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis, int direction)
 	case ATA_CMD_STANDBY:
 	case ATA_CMD_STANDBYNOW1:
 	case ATA_CMD_ZAC_MGMT_OUT:
-	return HISI_SAS_SATA_PROTOCOL_NONDATA;
+		return HISI_SAS_SATA_PROTOCOL_NONDATA;
 	default:
 	{
 		if (fis->command == ATA_CMD_SET_MAX) {
 			switch (fis->features) {
 			case ATA_SET_MAX_PASSWD:
 			case ATA_SET_MAX_LOCK:
-			return HISI_SAS_SATA_PROTOCOL_PIO;
+				return HISI_SAS_SATA_PROTOCOL_PIO;
 
 			case ATA_SET_MAX_PASSWD_DMA:
 			case ATA_SET_MAX_UNLOCK_DMA:
-			return HISI_SAS_SATA_PROTOCOL_DMA;
+				return HISI_SAS_SATA_PROTOCOL_DMA;
 
 			default:
-			return HISI_SAS_SATA_PROTOCOL_NONDATA;
+				return HISI_SAS_SATA_PROTOCOL_NONDATA;
 			}
 		}
 		if (direction == DMA_NONE)
@@ -200,8 +200,6 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 
 	if (task) {
 		struct device *dev = hisi_hba->dev;
-		struct domain_device *device = task->dev;
-		struct hisi_sas_device *sas_dev = device->lldd_dev;
 
 		if (!task->lldd_task)
 			return;
@@ -213,9 +211,6 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 				dma_unmap_sg(dev, task->scatter,
 					     task->num_scatter,
 					     task->data_dir);
-
-		if (sas_dev)
-			atomic64_dec(&sas_dev->running_req);
 	}
 
 	if (slot->buf)
@@ -321,7 +316,7 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq
 		 */
 		if (device->dev_type != SAS_SATA_DEV)
 			task->task_done(task);
-		return SAS_PHY_DOWN;
+		return -ECOMM;
 	}
 
 	if (DEV_IS_GONE(sas_dev)) {
@@ -332,7 +327,7 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq
 			dev_info(dev, "task prep: device %016llx not ready\n",
 				 SAS_ADDR(device->sas_addr));
 
-		return SAS_PHY_DOWN;
+		return -ECOMM;
 	}
 
 	port = to_hisi_sas_port(sas_port);
@@ -342,7 +337,7 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq
 			 "SATA/STP" : "SAS",
 			 device->port->id);
 
-		return SAS_PHY_DOWN;
+		return -ECOMM;
 	}
 
 	if (!sas_protocol_ata(task->task_proto)) {
@@ -431,8 +426,6 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 	dq->slot_prep = slot;
-
-	atomic64_inc(&sas_dev->running_req);
 	++(*pass);
 
 	return 0;
@@ -683,6 +676,8 @@ static void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int phy_no)
 
 	phy->hisi_hba = hisi_hba;
 	phy->port = NULL;
+	phy->minimum_linkrate = SAS_LINK_RATE_1_5_GBPS;
+	phy->maximum_linkrate = hisi_hba->hw->phy_get_max_linkrate();
 	sas_phy->enabled = (phy_no < hisi_hba->n_phy) ? 1 : 0;
 	sas_phy->class = SAS;
 	sas_phy->iproto = SAS_PROTOCOL_ALL;
@@ -869,6 +864,7 @@ static void hisi_sas_tmf_timedout(struct timer_list *t)
 
 #define TASK_TIMEOUT 20
 #define TASK_RETRY 3
+#define INTERNAL_ABORT_TIMEOUT 6
 static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 					   void *parameter, u32 para_len,
 					   struct hisi_sas_tmf_task *tmf)
@@ -1514,8 +1510,6 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 
 	dq->slot_prep = slot;
 
-	atomic64_inc(&sas_dev->running_req);
-
 	/* send abort command to the chip */
 	hisi_hba->hw->start_delivery(dq);
 	spin_unlock_irqrestore(&dq->lock, flags_dq);
@@ -1572,7 +1566,7 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	task->task_proto = device->tproto;
 	task->task_done = hisi_sas_task_done;
 	task->slow_task->timer.function = hisi_sas_tmf_timedout;
-	task->slow_task->timer.expires = jiffies + msecs_to_jiffies(110);
+	task->slow_task->timer.expires = jiffies + INTERNAL_ABORT_TIMEOUT*HZ;
 	add_timer(&task->slow_task->timer);
 
 	res = hisi_sas_internal_abort_task_exec(hisi_hba, sas_dev->device_id,

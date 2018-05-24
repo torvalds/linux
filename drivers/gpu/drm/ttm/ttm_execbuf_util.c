@@ -62,7 +62,7 @@ void ttm_eu_backoff_reservation(struct ww_acquire_ctx *ticket,
 		return;
 
 	entry = list_first_entry(list, struct ttm_validate_buffer, head);
-	glob = entry->bo->glob;
+	glob = entry->bo->bdev->glob;
 
 	spin_lock(&glob->lru_lock);
 	list_for_each_entry(entry, list, head) {
@@ -102,7 +102,7 @@ int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
 		return 0;
 
 	entry = list_first_entry(list, struct ttm_validate_buffer, head);
-	glob = entry->bo->glob;
+	glob = entry->bo->bdev->glob;
 
 	if (ticket)
 		ww_acquire_init(ticket, &reservation_ww_class);
@@ -139,12 +139,14 @@ int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
 		 */
 		ttm_eu_backoff_reservation_reverse(list, entry);
 
-		if (ret == -EDEADLK && intr) {
-			ret = ww_mutex_lock_slow_interruptible(&bo->resv->lock,
-							       ticket);
-		} else if (ret == -EDEADLK) {
-			ww_mutex_lock_slow(&bo->resv->lock, ticket);
-			ret = 0;
+		if (ret == -EDEADLK) {
+			if (intr) {
+				ret = ww_mutex_lock_slow_interruptible(&bo->resv->lock,
+								       ticket);
+			} else {
+				ww_mutex_lock_slow(&bo->resv->lock, ticket);
+				ret = 0;
+			}
 		}
 
 		if (!ret && entry->shared)
@@ -192,7 +194,7 @@ void ttm_eu_fence_buffer_objects(struct ww_acquire_ctx *ticket,
 	bo = list_first_entry(list, struct ttm_validate_buffer, head)->bo;
 	bdev = bo->bdev;
 	driver = bdev->driver;
-	glob = bo->glob;
+	glob = bo->bdev->glob;
 
 	spin_lock(&glob->lru_lock);
 

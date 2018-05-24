@@ -287,7 +287,7 @@ enum dpaa2_sg_format {
  */
 static inline dma_addr_t dpaa2_sg_get_addr(const struct dpaa2_sg_entry *sg)
 {
-	return le64_to_cpu((dma_addr_t)sg->addr);
+	return (dma_addr_t)le64_to_cpu(sg->addr);
 }
 
 /**
@@ -418,8 +418,8 @@ static inline bool dpaa2_sg_is_final(const struct dpaa2_sg_entry *sg)
  */
 static inline void dpaa2_sg_set_final(struct dpaa2_sg_entry *sg, bool final)
 {
-	sg->format_offset &= cpu_to_le16(~(SG_FINAL_FLAG_MASK
-					 << SG_FINAL_FLAG_SHIFT));
+	sg->format_offset &= cpu_to_le16((~(SG_FINAL_FLAG_MASK
+					 << SG_FINAL_FLAG_SHIFT)) & 0xFFFF);
 	sg->format_offset |= cpu_to_le16(final << SG_FINAL_FLAG_SHIFT);
 }
 

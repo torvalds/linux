@@ -118,8 +118,8 @@ enum {
 	TSU_FWSL0,
 	TSU_FWSL1,
 	TSU_FWSLC,
-	TSU_QTAG0,
-	TSU_QTAG1,
+	TSU_QTAG0,			/* Same as TSU_QTAGM0 */
+	TSU_QTAG1,			/* Same as TSU_QTAGM1 */
 	TSU_QTAGM0,
 	TSU_QTAGM1,
 	TSU_FWSR,
@@ -469,6 +469,9 @@ struct sh_eth_rxdesc {
 
 /* This structure is used by each CPU dependency handling. */
 struct sh_eth_cpu_data {
+	/* mandatory functions */
+	int (*soft_reset)(struct net_device *ndev);
+
 	/* optional functions */
 	void (*chip_reset)(struct net_device *ndev);
 	void (*set_duplex)(struct net_device *ndev);
@@ -476,6 +479,7 @@ struct sh_eth_cpu_data {
 
 	/* mandatory initialize value */
 	int register_type;
+	u32 edtrr_trns;
 	u32 eesipr_value;
 
 	/* optional initialize value */
@@ -504,11 +508,16 @@ struct sh_eth_cpu_data {
 	unsigned rpadir:1;	/* E-DMAC have RPADIR */
 	unsigned no_trimd:1;	/* E-DMAC DO NOT have TRIMD */
 	unsigned no_ade:1;	/* E-DMAC DO NOT have ADE bit in EESR */
+	unsigned no_xdfar:1;	/* E-DMAC DOES NOT have RDFAR/TDFAR */
+	unsigned xdfar_rw:1;	/* E-DMAC has writeable RDFAR/TDFAR */
 	unsigned hw_checksum:1;	/* E-DMAC has CSMR */
 	unsigned select_mii:1;	/* EtherC have RMII_MII (MII select register) */
 	unsigned rmiimode:1;	/* EtherC has RMIIMODE register */
 	unsigned rtrate:1;	/* EtherC has RTRATE register */
 	unsigned magic:1;	/* EtherC has ECMR.MPDE and ECSR.MPD */
+	unsigned no_tx_cntrs:1;	/* EtherC DOES NOT have TX error counters */
+	unsigned cexcr:1;	/* EtherC has CERCR/CEECR */
+	unsigned dual_port:1;	/* Dual EtherC/E-DMAC */
 };
 
 struct sh_eth_private {

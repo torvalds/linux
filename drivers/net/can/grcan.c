@@ -1484,7 +1484,7 @@ static netdev_tx_t grcan_start_xmit(struct sk_buff *skb,
 		}							\
 	}								\
 	module_param_named(name, grcan_module_config.name,		\
-			   mtype, S_IRUGO);				\
+			   mtype, 0444);				\
 	MODULE_PARM_DESC(name, desc)
 
 #define GRCAN_CONFIG_ATTR(name, desc)					\
@@ -1513,7 +1513,7 @@ static netdev_tx_t grcan_start_xmit(struct sk_buff *skb,
 		struct grcan_priv *priv = netdev_priv(dev);		\
 		return sprintf(buf, "%d\n", priv->config.name);		\
 	}								\
-	static DEVICE_ATTR(name, S_IRUGO | S_IWUSR,			\
+	static DEVICE_ATTR(name, 0644,					\
 			   grcan_show_##name,				\
 			   grcan_store_##name);				\
 	GRCAN_MODULE_PARAM(name, ushort, GRCAN_NOT_BOOL, desc)

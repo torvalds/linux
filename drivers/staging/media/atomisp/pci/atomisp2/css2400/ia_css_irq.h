@@ -186,7 +186,7 @@ ia_css_rx_get_irq_info(unsigned int *irq_bits);
  * that occurred.
  */
 void
-ia_css_rx_port_get_irq_info(enum ia_css_csi2_port port, unsigned int *irq_bits);
+ia_css_rx_port_get_irq_info(enum mipi_port_id port, unsigned int *irq_bits);
 
 /* @brief Clear CSI receiver error info.
  *
@@ -218,7 +218,7 @@ ia_css_rx_clear_irq_info(unsigned int irq_bits);
  * error bits get overwritten.
  */
 void
-ia_css_rx_port_clear_irq_info(enum ia_css_csi2_port port, unsigned int irq_bits);
+ia_css_rx_port_clear_irq_info(enum mipi_port_id port, unsigned int irq_bits);
 
 /* @brief Enable or disable specific interrupts.
  *

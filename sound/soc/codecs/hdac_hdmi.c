@@ -718,10 +718,22 @@ static struct hdac_hdmi_pcm *hdac_hdmi_get_pcm(struct hdac_ext_device *edev,
 static void hdac_hdmi_set_power_state(struct hdac_ext_device *edev,
 			     hda_nid_t nid, unsigned int pwr_state)
 {
+	int count;
+	unsigned int state;
+
 	if (get_wcaps(&edev->hdev, nid) & AC_WCAP_POWER) {
-		if (!snd_hdac_check_power_state(&edev->hdev, nid, pwr_state))
-			snd_hdac_codec_write(&edev->hdev, nid, 0,
-				AC_VERB_SET_POWER_STATE, pwr_state);
+		if (!snd_hdac_check_power_state(&edev->hdev, nid, pwr_state)) {
+			for (count = 0; count < 10; count++) {
+				snd_hdac_codec_read(&edev->hdev, nid, 0,
+						AC_VERB_SET_POWER_STATE,
+						pwr_state);
+				state = snd_hdac_sync_power_state(&edev->hdev,
+						nid, pwr_state);
+				if (!(state & AC_PWRST_ERROR))
+					break;
+			}
+		}
+
 	}
 }
 
@@ -1536,7 +1548,7 @@ static void hdac_hdmi_eld_notify_cb(void *aptr, int port, int pipe)
 	struct hdac_hdmi_priv *hdmi = hdev_to_hdmi_priv(&edev->hdev);
 	struct hdac_hdmi_pin *pin = NULL;
 	struct hdac_hdmi_port *hport = NULL;
-	struct snd_soc_codec *codec = edev->scodec;
+	struct snd_soc_component *component = edev->scodec;
 	int i;
 
 	/* Don't know how this mapping is derived */
@@ -1551,7 +1563,7 @@ static void hdac_hdmi_eld_notify_cb(void *aptr, int port, int pipe)
 	 * connection states are updated in anyway at the end of the resume,
 	 * we can skip it when received during PM process.
 	 */
-	if (snd_power_get_state(codec->component.card->snd_card) !=
+	if (snd_power_get_state(component->card->snd_card) !=
 			SNDRV_CTL_POWER_D0)
 		return;
 
@@ -1609,10 +1621,10 @@ static int create_fill_jack_kcontrols(struct snd_soc_card *card,
 	char kc_name[NAME_SIZE], xname[NAME_SIZE];
 	char *name;
 	int i = 0, j;
-	struct snd_soc_codec *codec = edev->scodec;
+	struct snd_soc_component *component = edev->scodec;
 	struct hdac_hdmi_priv *hdmi = hdev_to_hdmi_priv(&edev->hdev);
 
-	kc = devm_kcalloc(codec->dev, hdmi->num_ports,
+	kc = devm_kcalloc(component->dev, hdmi->num_ports,
 				sizeof(*kc), GFP_KERNEL);
 
 	if (!kc)
@@ -1622,11 +1634,11 @@ static int create_fill_jack_kcontrols(struct snd_soc_card *card,
 		for (j = 0; j < pin->num_ports; j++) {
 			snprintf(xname, sizeof(xname), "hif%d-%d Jack",
 						pin->nid, pin->ports[j].id);
-			name = devm_kstrdup(codec->dev, xname, GFP_KERNEL);
+			name = devm_kstrdup(component->dev, xname, GFP_KERNEL);
 			if (!name)
 				return -ENOMEM;
 			snprintf(kc_name, sizeof(kc_name), "%s Switch", xname);
-			kc[i].name = devm_kstrdup(codec->dev, kc_name,
+			kc[i].name = devm_kstrdup(component->dev, kc_name,
 							GFP_KERNEL);
 			if (!kc[i].name)
 				return -ENOMEM;
@@ -1644,10 +1656,10 @@ static int create_fill_jack_kcontrols(struct snd_soc_card *card,
 	return snd_soc_add_card_controls(card, kc, i);
 }
 
-int hdac_hdmi_jack_port_init(struct snd_soc_codec *codec,
+int hdac_hdmi_jack_port_init(struct snd_soc_component *component,
 			struct snd_soc_dapm_context *dapm)
 {
-	struct hdac_ext_device *edev = snd_soc_codec_get_drvdata(codec);
+	struct hdac_ext_device *edev = snd_soc_component_get_drvdata(component);
 	struct hdac_hdmi_priv *hdmi = hdev_to_hdmi_priv(&edev->hdev);
 	struct hdac_hdmi_pin *pin;
 	struct snd_soc_dapm_widget *widgets;
@@ -1722,8 +1734,8 @@ EXPORT_SYMBOL_GPL(hdac_hdmi_jack_port_init);
 int hdac_hdmi_jack_init(struct snd_soc_dai *dai, int device,
 				struct snd_soc_jack *jack)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct hdac_ext_device *edev = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct hdac_ext_device *edev = snd_soc_component_get_drvdata(component);
 	struct hdac_hdmi_priv *hdmi = hdev_to_hdmi_priv(&edev->hdev);
 	struct hdac_hdmi_pcm *pcm;
 	struct snd_pcm *snd_pcm;
@@ -1784,16 +1796,16 @@ static void hdac_hdmi_present_sense_all_pins(struct hdac_ext_device *edev,
 	}
 }
 
-static int hdmi_codec_probe(struct snd_soc_codec *codec)
+static int hdmi_codec_probe(struct snd_soc_component *component)
 {
-	struct hdac_ext_device *edev = snd_soc_codec_get_drvdata(codec);
+	struct hdac_ext_device *edev = snd_soc_component_get_drvdata(component);
 	struct hdac_hdmi_priv *hdmi = hdev_to_hdmi_priv(&edev->hdev);
 	struct snd_soc_dapm_context *dapm =
-		snd_soc_component_get_dapm(&codec->component);
+		snd_soc_component_get_dapm(component);
 	struct hdac_ext_link *hlink = NULL;
 	int ret;
 
-	edev->scodec = codec;
+	edev->scodec = component;
 
 	/*
 	 * hold the ref while we probe, also no need to drop the ref on
@@ -1834,12 +1846,11 @@ static int hdmi_codec_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int hdmi_codec_remove(struct snd_soc_codec *codec)
+static void hdmi_codec_remove(struct snd_soc_component *component)
 {
-	struct hdac_ext_device *edev = snd_soc_codec_get_drvdata(codec);
+	struct hdac_ext_device *edev = snd_soc_component_get_drvdata(component);
 
 	pm_runtime_disable(&edev->hdev.dev);
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -1891,10 +1902,12 @@ static void hdmi_codec_complete(struct device *dev)
 #define hdmi_codec_complete NULL
 #endif
 
-static const struct snd_soc_codec_driver hdmi_hda_codec = {
-	.probe		= hdmi_codec_probe,
-	.remove		= hdmi_codec_remove,
-	.idle_bias_off	= true,
+static const struct snd_soc_component_driver hdmi_hda_codec = {
+	.probe			= hdmi_codec_probe,
+	.remove			= hdmi_codec_remove,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static void hdac_hdmi_get_chmap(struct hdac_device *hdev, int pcm_idx,
@@ -2042,7 +2055,7 @@ static int hdac_hdmi_dev_probe(struct hdac_ext_device *edev)
 	snd_hdac_refresh_widgets(hdev, true);
 
 	/* ASoC specific initialization */
-	ret = snd_soc_register_codec(&hdev->dev, &hdmi_hda_codec,
+	ret = devm_snd_soc_register_component(&hdev->dev, &hdmi_hda_codec,
 					hdmi_dais, num_dais);
 
 	snd_hdac_ext_bus_link_put(edev->ebus, hlink);
@@ -2058,8 +2071,6 @@ static int hdac_hdmi_dev_remove(struct hdac_ext_device *edev)
 	struct hdac_hdmi_pcm *pcm, *pcm_next;
 	struct hdac_hdmi_port *port, *port_next;
 	int i;
-
-	snd_soc_unregister_codec(&edev->hdev.dev);
 
 	list_for_each_entry_safe(pcm, pcm_next, &hdmi->pcm_list, head) {
 		pcm->cvt = NULL;

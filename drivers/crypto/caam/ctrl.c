@@ -337,7 +337,8 @@ static int caam_remove(struct platform_device *pdev)
 
 	/* shut clocks off before finalizing shutdown */
 	clk_disable_unprepare(ctrlpriv->caam_ipg);
-	clk_disable_unprepare(ctrlpriv->caam_mem);
+	if (ctrlpriv->caam_mem)
+		clk_disable_unprepare(ctrlpriv->caam_mem);
 	clk_disable_unprepare(ctrlpriv->caam_aclk);
 	if (ctrlpriv->caam_emi_slow)
 		clk_disable_unprepare(ctrlpriv->caam_emi_slow);
@@ -466,14 +467,17 @@ static int caam_probe(struct platform_device *pdev)
 	}
 	ctrlpriv->caam_ipg = clk;
 
-	clk = caam_drv_identify_clk(&pdev->dev, "mem");
-	if (IS_ERR(clk)) {
-		ret = PTR_ERR(clk);
-		dev_err(&pdev->dev,
-			"can't identify CAAM mem clk: %d\n", ret);
-		return ret;
+	if (!of_machine_is_compatible("fsl,imx7d") &&
+	    !of_machine_is_compatible("fsl,imx7s")) {
+		clk = caam_drv_identify_clk(&pdev->dev, "mem");
+		if (IS_ERR(clk)) {
+			ret = PTR_ERR(clk);
+			dev_err(&pdev->dev,
+				"can't identify CAAM mem clk: %d\n", ret);
+			return ret;
+		}
+		ctrlpriv->caam_mem = clk;
 	}
-	ctrlpriv->caam_mem = clk;
 
 	clk = caam_drv_identify_clk(&pdev->dev, "aclk");
 	if (IS_ERR(clk)) {
@@ -484,7 +488,9 @@ static int caam_probe(struct platform_device *pdev)
 	}
 	ctrlpriv->caam_aclk = clk;
 
-	if (!of_machine_is_compatible("fsl,imx6ul")) {
+	if (!of_machine_is_compatible("fsl,imx6ul") &&
+	    !of_machine_is_compatible("fsl,imx7d") &&
+	    !of_machine_is_compatible("fsl,imx7s")) {
 		clk = caam_drv_identify_clk(&pdev->dev, "emi_slow");
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
@@ -501,11 +507,13 @@ static int caam_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = clk_prepare_enable(ctrlpriv->caam_mem);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "can't enable CAAM secure mem clock: %d\n",
-			ret);
-		goto disable_caam_ipg;
+	if (ctrlpriv->caam_mem) {
+		ret = clk_prepare_enable(ctrlpriv->caam_mem);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "can't enable CAAM secure mem clock: %d\n",
+				ret);
+			goto disable_caam_ipg;
+		}
 	}
 
 	ret = clk_prepare_enable(ctrlpriv->caam_aclk);
@@ -815,9 +823,6 @@ static int caam_probe(struct platform_device *pdev)
 	return 0;
 
 caam_remove:
-#ifdef CONFIG_DEBUG_FS
-	debugfs_remove_recursive(ctrlpriv->dfs_root);
-#endif
 	caam_remove(pdev);
 	return ret;
 
@@ -829,7 +834,8 @@ disable_caam_emi_slow:
 disable_caam_aclk:
 	clk_disable_unprepare(ctrlpriv->caam_aclk);
 disable_caam_mem:
-	clk_disable_unprepare(ctrlpriv->caam_mem);
+	if (ctrlpriv->caam_mem)
+		clk_disable_unprepare(ctrlpriv->caam_mem);
 disable_caam_ipg:
 	clk_disable_unprepare(ctrlpriv->caam_ipg);
 	return ret;

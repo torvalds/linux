@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Intel(R) Ethernet Switch Host Interface Driver
  * Copyright(c) 2013 - 2017 Intel Corporation.
  *
@@ -28,13 +29,13 @@
 
 #include "fm10k.h"
 
-#define DRV_VERSION	"0.22.1-k"
+#define DRV_VERSION	"0.23.4-k"
 #define DRV_SUMMARY	"Intel(R) Ethernet Switch Host Interface Driver"
 const char fm10k_driver_version[] = DRV_VERSION;
 char fm10k_driver_name[] = "fm10k";
 static const char fm10k_driver_string[] = DRV_SUMMARY;
 static const char fm10k_copyright[] =
-	"Copyright(c) 2013 - 2017 Intel Corporation.";
+	"Copyright(c) 2013 - 2018 Intel Corporation.";
 
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
 MODULE_DESCRIPTION(DRV_SUMMARY);

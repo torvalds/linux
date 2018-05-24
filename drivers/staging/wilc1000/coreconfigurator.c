@@ -148,19 +148,19 @@ static inline u8 get_from_ds(u8 *header)
 	return ((header[1] & 0x02) >> 1);
 }
 
-static inline void get_address1(u8 *pu8msa, u8 *addr)
+static inline void get_address1(u8 *msa, u8 *addr)
 {
-	memcpy(addr, pu8msa + 4, 6);
+	memcpy(addr, msa + 4, 6);
 }
 
-static inline void get_address2(u8 *pu8msa, u8 *addr)
+static inline void get_address2(u8 *msa, u8 *addr)
 {
-	memcpy(addr, pu8msa + 10, 6);
+	memcpy(addr, msa + 10, 6);
 }
 
-static inline void get_address3(u8 *pu8msa, u8 *addr)
+static inline void get_address3(u8 *msa, u8 *addr)
 {
-	memcpy(addr, pu8msa + 16, 6);
+	memcpy(addr, msa + 16, 6);
 }
 
 static inline void get_BSSID(u8 *data, u8 *bssid)
@@ -238,30 +238,30 @@ static inline u16 get_asoc_id(u8 *data)
 	return asoc_id;
 }
 
-static u8 *get_tim_elm(u8 *pu8msa, u16 rx_len, u16 tag_param_offset)
+static u8 *get_tim_elm(u8 *msa, u16 rx_len, u16 tag_param_offset)
 {
 	u16 index;
 
 	index = tag_param_offset;
 
 	while (index < (rx_len - FCS_LEN)) {
-		if (pu8msa[index] == ITIM)
-			return &pu8msa[index];
-		index += (IE_HDR_LEN + pu8msa[index + 1]);
+		if (msa[index] == ITIM)
+			return &msa[index];
+		index += (IE_HDR_LEN + msa[index + 1]);
 	}
 
 	return NULL;
 }
 
-static u8 get_current_channel_802_11n(u8 *pu8msa, u16 rx_len)
+static u8 get_current_channel_802_11n(u8 *msa, u16 rx_len)
 {
 	u16 index;
 
 	index = TAG_PARAM_OFFSET;
 	while (index < (rx_len - FCS_LEN)) {
-		if (pu8msa[index] == IDSPARMS)
-			return pu8msa[index + 2];
-		index += pu8msa[index + 1] + IE_HDR_LEN;
+		if (msa[index] == IDSPARMS)
+			return msa[index + 2];
+		index += msa[index + 1] + IE_HDR_LEN;
 	}
 
 	return 0;
@@ -320,8 +320,8 @@ s32 wilc_parse_network_info(u8 *msg_buffer,
 		get_ssid(msa, network_info->ssid, &network_info->ssid_len);
 		get_BSSID(msa, network_info->bssid);
 
-		network_info->ch = get_current_channel_802_11n(msa,
-							rx_len + FCS_LEN);
+		network_info->ch = get_current_channel_802_11n(msa, rx_len
+							       + FCS_LEN);
 
 		index = MAC_HDR_LEN + TIME_STAMP_LEN;
 

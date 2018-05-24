@@ -315,6 +315,12 @@ int hclgevf_cmd_init(struct hclgevf_dev *hdev)
 		goto err_csq;
 	}
 
+	/* initialize the pointers of async rx queue of mailbox */
+	hdev->arq.hdev = hdev;
+	hdev->arq.head = 0;
+	hdev->arq.tail = 0;
+	hdev->arq.count = 0;
+
 	/* get firmware version */
 	ret = hclgevf_cmd_query_firmware_version(&hdev->hw, &version);
 	if (ret) {

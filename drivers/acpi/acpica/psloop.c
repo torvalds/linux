@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: psloop - Main AML parse loop
  *
- *****************************************************************************/
-
-/*
  * Copyright (C) 2000 - 2018, Intel Corp.
- * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
+ *****************************************************************************/
 
 /*
  * Parse the AML and build an operation tree as most interpreters, (such as
@@ -165,15 +131,23 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 		}
 
 		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-				  "Final argument count: %u pass %u\n",
+				  "Final argument count: %8.8X pass %u\n",
 				  walk_state->arg_count,
 				  walk_state->pass_number));
 
 		/*
-		 * Handle executable code at "module-level". This refers to
-		 * executable opcodes that appear outside of any control method.
+		 * This case handles the legacy option that groups all module-level
+		 * code blocks together and defers execution until all of the tables
+		 * are loaded. Execute all of these blocks at this time.
+		 * Execute any module-level code that was detected during the table
+		 * load phase.
+		 *
+		 * Note: this option is deprecated and will be eliminated in the
+		 * future. Use of this option can cause problems with AML code that
+		 * depends upon in-order immediate execution of module-level code.
 		 */
-		if ((walk_state->pass_number <= ACPI_IMODE_LOAD_PASS2) &&
+		if (acpi_gbl_group_module_level_code &&
+		    (walk_state->pass_number <= ACPI_IMODE_LOAD_PASS2) &&
 		    ((walk_state->parse_flags & ACPI_PARSE_DISASSEMBLE) == 0)) {
 			/*
 			 * We want to skip If/Else/While constructs during Pass1 because we
@@ -339,6 +313,16 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
  * DESCRIPTION: Wrap the module-level code with a method object and link the
  *              object to the global list. Note, the mutex field of the method
  *              object is used to link multiple module-level code objects.
+ *
+ * NOTE: In this legacy option, each block of detected executable AML
+ * code that is outside of any control method is wrapped with a temporary
+ * control method object and placed on a global list below.
+ *
+ * This function executes the module-level code for all tables only after
+ * all of the tables have been loaded. It is a legacy option and is
+ * not compatible with other ACPI implementations. See acpi_ns_load_table.
+ *
+ * This function will be removed when the legacy option is removed.
  *
  ******************************************************************************/
 
@@ -581,7 +565,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 		/* Check for arguments that need to be processed */
 
 		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-				  "Parseloop: argument count: %u\n",
+				  "Parseloop: argument count: %8.8X\n",
 				  walk_state->arg_count));
 
 		if (walk_state->arg_count) {

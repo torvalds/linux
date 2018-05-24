@@ -651,7 +651,7 @@ static int vmlfb_check_var_locked(struct fb_var_screeninfo *var,
 	}
 
 	pitch = ALIGN((var->xres * var->bits_per_pixel) >> 3, 0x40);
-	mem = pitch * var->yres_virtual;
+	mem = (u64)pitch * var->yres_virtual;
 	if (mem > vinfo->vram_contig_size) {
 		return -ENOMEM;
 	}

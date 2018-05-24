@@ -155,7 +155,7 @@ int llog_init_handle(const struct lu_env *env, struct llog_handle *handle,
 	LASSERT(!handle->lgh_hdr);
 
 	LASSERT(chunk_size >= LLOG_MIN_CHUNK_SIZE);
-	llh = libcfs_kvzalloc(sizeof(*llh), GFP_NOFS);
+	llh = kvzalloc(sizeof(*llh), GFP_KERNEL);
 	if (!llh)
 		return -ENOMEM;
 	handle->lgh_hdr = llh;
@@ -240,7 +240,7 @@ static int llog_process_thread(void *arg)
 	/* expect chunk_size to be power of two */
 	LASSERT(is_power_of_2(chunk_size));
 
-	buf = libcfs_kvzalloc(chunk_size, GFP_NOFS);
+	buf = kvzalloc(chunk_size, GFP_NOFS);
 	if (!buf) {
 		lpi->lpi_rc = -ENOMEM;
 		return 0;
@@ -466,7 +466,7 @@ int llog_open(const struct lu_env *env, struct llog_ctxt *ctxt,
 	      struct llog_handle **lgh, struct llog_logid *logid,
 	      char *name, enum llog_open_param open_param)
 {
-	int	 raised;
+	const struct cred *old_cred = NULL;
 	int	 rc;
 
 	LASSERT(ctxt);
@@ -483,12 +483,18 @@ int llog_open(const struct lu_env *env, struct llog_ctxt *ctxt,
 	(*lgh)->lgh_ctxt = ctxt;
 	(*lgh)->lgh_logops = ctxt->loc_logops;
 
-	raised = cfs_cap_raised(CFS_CAP_SYS_RESOURCE);
-	if (!raised)
-		cfs_cap_raise(CFS_CAP_SYS_RESOURCE);
+	if (cap_raised(current_cap(), CAP_SYS_RESOURCE)) {
+		struct cred *cred = prepare_creds();
+
+		if (cred) {
+			cap_raise(cred->cap_effective, CAP_SYS_RESOURCE);
+			old_cred = override_creds(cred);
+		}
+	}
 	rc = ctxt->loc_logops->lop_open(env, *lgh, logid, name, open_param);
-	if (!raised)
-		cfs_cap_lower(CFS_CAP_SYS_RESOURCE);
+	if (old_cred)
+		revert_creds(old_cred);
+
 	if (rc) {
 		llog_free_handle(*lgh);
 		*lgh = NULL;

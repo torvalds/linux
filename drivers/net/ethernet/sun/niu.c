@@ -3443,7 +3443,7 @@ static int niu_process_rx_pkt(struct napi_struct *napi, struct niu *np,
 
 		len = (val & RCR_ENTRY_L2_LEN) >>
 			RCR_ENTRY_L2_LEN_SHIFT;
-		len -= ETH_FCS_LEN;
+		append_size = len + ETH_HLEN + ETH_FCS_LEN;
 
 		addr = (val & RCR_ENTRY_PKT_BUF_ADDR) <<
 			RCR_ENTRY_PKT_BUF_ADDR_SHIFT;
@@ -3453,7 +3453,6 @@ static int niu_process_rx_pkt(struct napi_struct *napi, struct niu *np,
 					 RCR_ENTRY_PKTBUFSZ_SHIFT];
 
 		off = addr & ~PAGE_MASK;
-		append_size = rcr_size;
 		if (num_rcr == 1) {
 			int ptype;
 
@@ -3466,7 +3465,7 @@ static int niu_process_rx_pkt(struct napi_struct *napi, struct niu *np,
 			else
 				skb_checksum_none_assert(skb);
 		} else if (!(val & RCR_ENTRY_MULTI))
-			append_size = len - skb->len;
+			append_size = append_size - skb->len;
 
 		niu_rx_skb_append(skb, page, off, append_size, rcr_size);
 		if ((page->index + rp->rbr_block_size) - rcr_size == addr) {
@@ -9437,11 +9436,11 @@ static ssize_t show_num_ports(struct device *dev,
 }
 
 static struct device_attribute niu_parent_attributes[] = {
-	__ATTR(port_phy, S_IRUGO, show_port_phy, NULL),
-	__ATTR(plat_type, S_IRUGO, show_plat_type, NULL),
-	__ATTR(rxchan_per_port, S_IRUGO, show_rxchan_per_port, NULL),
-	__ATTR(txchan_per_port, S_IRUGO, show_txchan_per_port, NULL),
-	__ATTR(num_ports, S_IRUGO, show_num_ports, NULL),
+	__ATTR(port_phy, 0444, show_port_phy, NULL),
+	__ATTR(plat_type, 0444, show_plat_type, NULL),
+	__ATTR(rxchan_per_port, 0444, show_rxchan_per_port, NULL),
+	__ATTR(txchan_per_port, 0444, show_txchan_per_port, NULL),
+	__ATTR(num_ports, 0444, show_num_ports, NULL),
 	{}
 };
 

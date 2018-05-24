@@ -33,9 +33,11 @@
 
 int linkea_data_new(struct linkea_data *ldata, struct lu_buf *buf)
 {
-	ldata->ld_buf = lu_buf_check_and_alloc(buf, PAGE_SIZE);
-	if (!ldata->ld_buf->lb_buf)
+	buf->lb_buf = kzalloc(PAGE_SIZE, GFP_NOFS);
+	if (!buf->lb_buf)
 		return -ENOMEM;
+	buf->lb_len = PAGE_SIZE;
+	ldata->ld_buf = buf;
 	ldata->ld_leh = ldata->ld_buf->lb_buf;
 	ldata->ld_leh->leh_magic = LINK_EA_MAGIC;
 	ldata->ld_leh->leh_len = sizeof(struct link_ea_header);
@@ -158,11 +160,15 @@ int linkea_add_buf(struct linkea_data *ldata, const struct lu_name *lname,
 	}
 
 	if (leh->leh_len + reclen > ldata->ld_buf->lb_len) {
-		if (lu_buf_check_and_grow(ldata->ld_buf,
-					  leh->leh_len + reclen) < 0)
+		/* Note: this never happens as MAX_LINKEA_SIZE is 4096, while
+		 * the initial allocation is PAGE_SIZE.
+		 */
+		void *b = krealloc(ldata->ld_buf->lb_buf, leh->leh_len + reclen, GFP_NOFS);
+		if (!b)
 			return -ENOMEM;
 
-		leh = ldata->ld_leh = ldata->ld_buf->lb_buf;
+		ldata->ld_buf->lb_len = leh->leh_len + reclen;
+		leh = ldata->ld_leh = ldata->ld_buf->lb_buf = b;
 	}
 
 	ldata->ld_lee = ldata->ld_buf->lb_buf + leh->leh_len;

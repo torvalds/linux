@@ -121,9 +121,8 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	cpumask_copy(policy->cpus, cpu_sibling_mask(policy->cpu));
 #endif
 
-	/* this ensures that policy->cpuinfo_min
-	 * and policy->cpuinfo_max are set correctly */
-	return cpufreq_table_validate_and_show(policy, cbe_freqs);
+	policy->freq_table = cbe_freqs;
+	return 0;
 }
 
 static int cbe_cpufreq_target(struct cpufreq_policy *policy,

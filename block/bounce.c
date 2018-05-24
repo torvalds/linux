@@ -31,7 +31,7 @@
 static struct bio_set *bounce_bio_set, *bounce_bio_split;
 static mempool_t *page_pool, *isa_page_pool;
 
-#if defined(CONFIG_HIGHMEM) || defined(CONFIG_NEED_BOUNCE_POOL)
+#if defined(CONFIG_HIGHMEM)
 static __init int init_emergency_pool(void)
 {
 #if defined(CONFIG_HIGHMEM) && !defined(CONFIG_MEMORY_HOTPLUG)

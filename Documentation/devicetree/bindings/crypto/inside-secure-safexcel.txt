@@ -8,7 +8,11 @@ Required properties:
 - interrupt-names: Should be "ring0", "ring1", "ring2", "ring3", "eip", "mem".
 
 Optional properties:
-- clocks: Reference to the crypto engine clock.
+- clocks: Reference to the crypto engine clocks, the second clock is
+          needed for the Armada 7K/8K SoCs.
+- clock-names: mandatory if there is a second clock, in this case the
+               name must be "core" for the first clock and "reg" for
+               the second one.
 
 Example:
 

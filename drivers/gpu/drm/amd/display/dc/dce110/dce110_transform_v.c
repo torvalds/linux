@@ -30,6 +30,8 @@
 #include "dce/dce_11_0_sh_mask.h"
 
 #define SCLV_PHASES 64
+#define DC_LOGGER \
+	xfm->ctx->logger
 
 struct sclv_ratios_inits {
 	uint32_t h_int_scale_ratio_luma;
@@ -670,8 +672,7 @@ static void dce110_xfmv_set_pixel_storage_depth(
 	if (!(xfm_dce->lb_pixel_depth_supported & depth)) {
 		/*we should use unsupported capabilities
 		 *  unless it is required by w/a*/
-		dm_logger_write(xfm->ctx->logger, LOG_WARNING,
-			"%s: Capability not supported",
+		DC_LOG_WARNING("%s: Capability not supported",
 			__func__);
 	}
 }

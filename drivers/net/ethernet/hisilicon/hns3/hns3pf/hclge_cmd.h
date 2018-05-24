@@ -12,7 +12,7 @@
 #include <linux/types.h>
 #include <linux/io.h>
 
-#define HCLGE_CMDQ_TX_TIMEOUT		1000
+#define HCLGE_CMDQ_TX_TIMEOUT		30000
 
 struct hclge_dev;
 struct hclge_desc {
@@ -414,6 +414,8 @@ struct hclge_pf_res_cmd {
 #define HCLGE_CFG_DEFAULT_SPEED_M	GENMASK(23, 16)
 #define HCLGE_CFG_RSS_SIZE_S	24
 #define HCLGE_CFG_RSS_SIZE_M	GENMASK(31, 24)
+#define HCLGE_CFG_SPEED_ABILITY_S	0
+#define HCLGE_CFG_SPEED_ABILITY_M	GENMASK(7, 0)
 
 struct hclge_cfg_param_cmd {
 	__le32 offset;

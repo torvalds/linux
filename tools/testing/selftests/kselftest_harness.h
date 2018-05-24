@@ -107,6 +107,27 @@
 			__FILE__, __LINE__, _metadata->name, ##__VA_ARGS__)
 
 /**
+ * XFAIL(statement, fmt, ...)
+ *
+ * @statement: statement to run after reporting XFAIL
+ * @fmt: format string
+ * @...: optional arguments
+ *
+ * This forces a "pass" after reporting a failure with an XFAIL prefix,
+ * and runs "statement", which is usually "return" or "goto skip".
+ */
+#define XFAIL(statement, fmt, ...) do { \
+	if (TH_LOG_ENABLED) { \
+		fprintf(TH_LOG_STREAM, "[  XFAIL!  ] " fmt "\n", \
+			##__VA_ARGS__); \
+	} \
+	/* TODO: find a way to pass xfail to test runner process. */ \
+	_metadata->passed = 1; \
+	_metadata->trigger = 0; \
+	statement; \
+} while (0)
+
+/**
  * TEST(test_name) - Defines the test function and creates the registration
  * stub
  *
@@ -198,7 +219,7 @@
 
 /**
  * FIXTURE_SETUP(fixture_name) - Prepares the setup function for the fixture.
- * *_metadata* is included so that ASSERT_* work as a convenience
+ * *_metadata* is included so that EXPECT_* and ASSERT_* work correctly.
  *
  * @fixture_name: fixture name
  *
@@ -221,6 +242,7 @@
 		FIXTURE_DATA(fixture_name) __attribute__((unused)) *self)
 /**
  * FIXTURE_TEARDOWN(fixture_name)
+ * *_metadata* is included so that EXPECT_* and ASSERT_* work correctly.
  *
  * @fixture_name: fixture name
  *
@@ -253,6 +275,8 @@
  * Defines a test that depends on a fixture (e.g., is part of a test case).
  * Very similar to TEST() except that *self* is the setup instance of fixture's
  * datatype exposed for use by the implementation.
+ *
+ * Warning: use of ASSERT_* here will skip TEARDOWN.
  */
 /* TODO(wad) register fixtures on dedicated test lists. */
 #define TEST_F(fixture_name, test_name) \

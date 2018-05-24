@@ -46,8 +46,12 @@
 #define ST_LSM6DSX_FIFO_ODR_MASK		GENMASK(6, 3)
 #define ST_LSM6DSX_FIFO_EMPTY_MASK		BIT(12)
 #define ST_LSM6DSX_REG_FIFO_OUTL_ADDR		0x3e
+#define ST_LSM6DSX_REG_TS_RESET_ADDR		0x42
 
 #define ST_LSM6DSX_MAX_FIFO_ODR_VAL		0x08
+
+#define ST_LSM6DSX_TS_SENSITIVITY		25000UL /* 25us */
+#define ST_LSM6DSX_TS_RESET_VAL			0xaa
 
 struct st_lsm6dsx_decimator_entry {
 	u8 decimator;
@@ -98,9 +102,10 @@ static void st_lsm6dsx_get_max_min_odr(struct st_lsm6dsx_hw *hw,
 
 static int st_lsm6dsx_update_decimators(struct st_lsm6dsx_hw *hw)
 {
+	u16 max_odr, min_odr, sip = 0, ts_sip = 0;
+	const struct st_lsm6dsx_reg *ts_dec_reg;
 	struct st_lsm6dsx_sensor *sensor;
-	u16 max_odr, min_odr, sip = 0;
-	int err, i;
+	int err = 0, i;
 	u8 data;
 
 	st_lsm6dsx_get_max_min_odr(hw, &max_odr, &min_odr);
@@ -119,6 +124,7 @@ static int st_lsm6dsx_update_decimators(struct st_lsm6dsx_hw *hw)
 			sensor->decimator = 0;
 			data = 0;
 		}
+		ts_sip = max_t(u16, ts_sip, sensor->sip);
 
 		dec_reg = &hw->settings->decimator[sensor->id];
 		if (dec_reg->addr) {
@@ -131,9 +137,23 @@ static int st_lsm6dsx_update_decimators(struct st_lsm6dsx_hw *hw)
 		}
 		sip += sensor->sip;
 	}
-	hw->sip = sip;
+	hw->sip = sip + ts_sip;
+	hw->ts_sip = ts_sip;
 
-	return 0;
+	/*
+	 * update hw ts decimator if necessary. Decimator for hw timestamp
+	 * is always 1 or 0 in order to have a ts sample for each data
+	 * sample in FIFO
+	 */
+	ts_dec_reg = &hw->settings->ts_settings.decimator;
+	if (ts_dec_reg->addr) {
+		int val, ts_dec = !!hw->ts_sip;
+
+		val = ST_LSM6DSX_SHIFT_VAL(ts_dec, ts_dec_reg->mask);
+		err = regmap_update_bits(hw->regmap, ts_dec_reg->addr,
+					 ts_dec_reg->mask, val);
+	}
+	return err;
 }
 
 int st_lsm6dsx_set_fifo_mode(struct st_lsm6dsx_hw *hw,
@@ -208,6 +228,28 @@ int st_lsm6dsx_update_watermark(struct st_lsm6dsx_sensor *sensor, u16 watermark)
 				 &wdata, sizeof(wdata));
 }
 
+static int st_lsm6dsx_reset_hw_ts(struct st_lsm6dsx_hw *hw)
+{
+	struct st_lsm6dsx_sensor *sensor;
+	int i, err;
+
+	/* reset hw ts counter */
+	err = regmap_write(hw->regmap, ST_LSM6DSX_REG_TS_RESET_ADDR,
+			   ST_LSM6DSX_TS_RESET_VAL);
+	if (err < 0)
+		return err;
+
+	for (i = 0; i < ST_LSM6DSX_ID_MAX; i++) {
+		sensor = iio_priv(hw->iio_devs[i]);
+		/*
+		 * store enable buffer timestamp as reference for
+		 * hw timestamp
+		 */
+		sensor->ts_ref = iio_get_time_ns(hw->iio_devs[i]);
+	}
+	return 0;
+}
+
 /*
  * Set max bulk read to ST_LSM6DSX_MAX_WORD_LEN in order to avoid
  * a kmalloc for each bus access
@@ -231,6 +273,8 @@ static inline int st_lsm6dsx_read_block(struct st_lsm6dsx_hw *hw, u8 *data,
 	return 0;
 }
 
+#define ST_LSM6DSX_IIO_BUFF_SIZE	(ALIGN(ST_LSM6DSX_SAMPLE_SIZE, \
+					       sizeof(s64)) + sizeof(s64))
 /**
  * st_lsm6dsx_read_fifo() - LSM6DS3-LSM6DS3H-LSM6DSL-LSM6DSM read FIFO routine
  * @hw: Pointer to instance of struct st_lsm6dsx_hw.
@@ -243,11 +287,13 @@ static int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw)
 {
 	u16 fifo_len, pattern_len = hw->sip * ST_LSM6DSX_SAMPLE_SIZE;
 	u16 fifo_diff_mask = hw->settings->fifo_ops.fifo_diff.mask;
-	int err, acc_sip, gyro_sip, read_len, samples, offset;
+	int err, acc_sip, gyro_sip, ts_sip, read_len, offset;
 	struct st_lsm6dsx_sensor *acc_sensor, *gyro_sensor;
-	s64 acc_ts, acc_delta_ts, gyro_ts, gyro_delta_ts;
-	u8 iio_buff[ALIGN(ST_LSM6DSX_SAMPLE_SIZE, sizeof(s64)) + sizeof(s64)];
+	u8 gyro_buff[ST_LSM6DSX_IIO_BUFF_SIZE];
+	u8 acc_buff[ST_LSM6DSX_IIO_BUFF_SIZE];
+	bool reset_ts = false;
 	__le16 fifo_status;
+	s64 ts = 0;
 
 	err = regmap_bulk_read(hw->regmap,
 			       hw->settings->fifo_ops.fifo_diff.addr,
@@ -260,23 +306,10 @@ static int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw)
 
 	fifo_len = (le16_to_cpu(fifo_status) & fifo_diff_mask) *
 		   ST_LSM6DSX_CHAN_SIZE;
-	samples = fifo_len / ST_LSM6DSX_SAMPLE_SIZE;
 	fifo_len = (fifo_len / pattern_len) * pattern_len;
 
-	/*
-	 * compute delta timestamp between two consecutive samples
-	 * in order to estimate queueing time of data generated
-	 * by the sensor
-	 */
 	acc_sensor = iio_priv(hw->iio_devs[ST_LSM6DSX_ID_ACC]);
-	acc_ts = acc_sensor->ts - acc_sensor->delta_ts;
-	acc_delta_ts = div_s64(acc_sensor->delta_ts * acc_sensor->decimator,
-			       samples);
-
 	gyro_sensor = iio_priv(hw->iio_devs[ST_LSM6DSX_ID_GYRO]);
-	gyro_ts = gyro_sensor->ts - gyro_sensor->delta_ts;
-	gyro_delta_ts = div_s64(gyro_sensor->delta_ts * gyro_sensor->decimator,
-				samples);
 
 	for (read_len = 0; read_len < fifo_len; read_len += pattern_len) {
 		err = st_lsm6dsx_read_block(hw, hw->buff, pattern_len);
@@ -287,7 +320,7 @@ static int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw)
 		 * Data are written to the FIFO with a specific pattern
 		 * depending on the configured ODRs. The first sequence of data
 		 * stored in FIFO contains the data of all enabled sensors
-		 * (e.g. Gx, Gy, Gz, Ax, Ay, Az), then data are repeated
+		 * (e.g. Gx, Gy, Gz, Ax, Ay, Az, Ts), then data are repeated
 		 * depending on the value of the decimation factor set for each
 		 * sensor.
 		 *
@@ -296,35 +329,65 @@ static int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw)
 		 *   - gyroscope ODR = 208Hz, accelerometer ODR = 104Hz
 		 * Since the gyroscope ODR is twice the accelerometer one, the
 		 * following pattern is repeated every 9 samples:
-		 *   - Gx, Gy, Gz, Ax, Ay, Az, Gx, Gy, Gz
+		 *   - Gx, Gy, Gz, Ax, Ay, Az, Ts, Gx, Gy, Gz, Ts, Gx, ..
 		 */
 		gyro_sip = gyro_sensor->sip;
 		acc_sip = acc_sensor->sip;
+		ts_sip = hw->ts_sip;
 		offset = 0;
 
 		while (acc_sip > 0 || gyro_sip > 0) {
-			if (gyro_sip-- > 0) {
-				memcpy(iio_buff, &hw->buff[offset],
+			if (gyro_sip > 0) {
+				memcpy(gyro_buff, &hw->buff[offset],
 				       ST_LSM6DSX_SAMPLE_SIZE);
-				iio_push_to_buffers_with_timestamp(
-					hw->iio_devs[ST_LSM6DSX_ID_GYRO],
-					iio_buff, gyro_ts);
 				offset += ST_LSM6DSX_SAMPLE_SIZE;
-				gyro_ts += gyro_delta_ts;
+			}
+			if (acc_sip > 0) {
+				memcpy(acc_buff, &hw->buff[offset],
+				       ST_LSM6DSX_SAMPLE_SIZE);
+				offset += ST_LSM6DSX_SAMPLE_SIZE;
 			}
 
-			if (acc_sip-- > 0) {
-				memcpy(iio_buff, &hw->buff[offset],
-				       ST_LSM6DSX_SAMPLE_SIZE);
+			if (ts_sip-- > 0) {
+				u8 data[ST_LSM6DSX_SAMPLE_SIZE];
+
+				memcpy(data, &hw->buff[offset], sizeof(data));
+				/*
+				 * hw timestamp is 3B long and it is stored
+				 * in FIFO using 6B as 4th FIFO data set
+				 * according to this schema:
+				 * B0 = ts[15:8], B1 = ts[23:16], B3 = ts[7:0]
+				 */
+				ts = data[1] << 16 | data[0] << 8 | data[3];
+				/*
+				 * check if hw timestamp engine is going to
+				 * reset (the sensor generates an interrupt
+				 * to signal the hw timestamp will reset in
+				 * 1.638s)
+				 */
+				if (!reset_ts && ts >= 0xff0000)
+					reset_ts = true;
+				ts *= ST_LSM6DSX_TS_SENSITIVITY;
+
+				offset += ST_LSM6DSX_SAMPLE_SIZE;
+			}
+
+			if (gyro_sip-- > 0)
+				iio_push_to_buffers_with_timestamp(
+					hw->iio_devs[ST_LSM6DSX_ID_GYRO],
+					gyro_buff, gyro_sensor->ts_ref + ts);
+			if (acc_sip-- > 0)
 				iio_push_to_buffers_with_timestamp(
 					hw->iio_devs[ST_LSM6DSX_ID_ACC],
-					iio_buff, acc_ts);
-				offset += ST_LSM6DSX_SAMPLE_SIZE;
-				acc_ts += acc_delta_ts;
-			}
+					acc_buff, acc_sensor->ts_ref + ts);
 		}
 	}
 
+	if (unlikely(reset_ts)) {
+		err = st_lsm6dsx_reset_hw_ts(hw);
+		if (err < 0)
+			return err;
+	}
 	return read_len;
 }
 
@@ -379,15 +442,12 @@ static int st_lsm6dsx_update_fifo(struct iio_dev *iio_dev, bool enable)
 		goto out;
 
 	if (hw->enable_mask) {
-		err = st_lsm6dsx_set_fifo_mode(hw, ST_LSM6DSX_FIFO_CONT);
+		/* reset hw ts counter */
+		err = st_lsm6dsx_reset_hw_ts(hw);
 		if (err < 0)
 			goto out;
 
-		/*
-		 * store enable buffer timestamp as reference to compute
-		 * first delta timestamp
-		 */
-		sensor->ts = iio_get_time_ns(iio_dev);
+		err = st_lsm6dsx_set_fifo_mode(hw, ST_LSM6DSX_FIFO_CONT);
 	}
 
 out:
@@ -399,25 +459,8 @@ out:
 static irqreturn_t st_lsm6dsx_handler_irq(int irq, void *private)
 {
 	struct st_lsm6dsx_hw *hw = private;
-	struct st_lsm6dsx_sensor *sensor;
-	int i;
 
-	if (!hw->sip)
-		return IRQ_NONE;
-
-	for (i = 0; i < ST_LSM6DSX_ID_MAX; i++) {
-		sensor = iio_priv(hw->iio_devs[i]);
-
-		if (sensor->sip > 0) {
-			s64 timestamp;
-
-			timestamp = iio_get_time_ns(hw->iio_devs[i]);
-			sensor->delta_ts = timestamp - sensor->ts;
-			sensor->ts = timestamp;
-		}
-	}
-
-	return IRQ_WAKE_THREAD;
+	return hw->sip > 0 ? IRQ_WAKE_THREAD : IRQ_NONE;
 }
 
 static irqreturn_t st_lsm6dsx_handler_thread(int irq, void *private)

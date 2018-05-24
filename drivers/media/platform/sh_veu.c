@@ -520,8 +520,8 @@ static void sh_veu_colour_offset(struct sh_veu_dev *veu, struct sh_veu_vfmt *vfm
 	/* dst_left and dst_top validity will be verified in CROP / COMPOSE */
 	unsigned int left = vfmt->frame.left & ~0x03;
 	unsigned int top = vfmt->frame.top;
-	dma_addr_t offset = ((left * veu->vfmt_out.fmt->depth) >> 3) +
-		top * veu->vfmt_out.bytesperline;
+	dma_addr_t offset = (dma_addr_t)top * veu->vfmt_out.bytesperline +
+			(((dma_addr_t)left * veu->vfmt_out.fmt->depth) >> 3);
 	unsigned int y_line;
 
 	vfmt->offset_y = offset;

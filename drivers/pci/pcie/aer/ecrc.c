@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *    Enables/disables PCIe ECRC checking.
+ * Enable/disable PCIe ECRC checking
  *
- *    (C) Copyright 2009 Hewlett-Packard Development Company, L.P.
+ * (C) Copyright 2009 Hewlett-Packard Development Company, L.P.
  *    Andrew Patterson <andrew.patterson@hp.com>
  */
 
@@ -40,7 +40,7 @@ static int enable_ecrc_checking(struct pci_dev *dev)
 	if (!pci_is_pcie(dev))
 		return -ENODEV;
 
-	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
+	pos = dev->aer_cap;
 	if (!pos)
 		return -ENODEV;
 
@@ -68,7 +68,7 @@ static int disable_ecrc_checking(struct pci_dev *dev)
 	if (!pci_is_pcie(dev))
 		return -ENODEV;
 
-	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
+	pos = dev->aer_cap;
 	if (!pos)
 		return -ENODEV;
 

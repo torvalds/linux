@@ -2,8 +2,10 @@ Samsung Exynos Odroid XU3/XU4 audio complex with MAX98090 codec
 
 Required properties:
 
- - compatible - "samsung,odroidxu3-audio" - for Odroid XU3 board,
-		"samsung,odroidxu4-audio" - for Odroid XU4 board
+ - compatible - "hardkernel,odroid-xu3-audio" - for Odroid XU3 board,
+		"hardkernel,odroid-xu4-audio" - for Odroid XU4 board (deprecated),
+		"samsung,odroid-xu3-audio" - for Odroid XU3 board (deprecated),
+		"samsung,odroid-xu4-audio" - for Odroid XU4 board (deprecated)
  - model - the user-visible name of this sound complex
  - clocks - should contain entries matching clock names in the clock-names
     property
@@ -35,7 +37,7 @@ Required sub-nodes:
 Example:
 
 sound {
-	compatible = "samsung,odroidxu3-audio";
+	compatible = "hardkernel,odroid-xu3-audio";
 	model = "Odroid-XU3";
 	samsung,audio-routing =
 		"Headphone Jack", "HPL",

@@ -409,15 +409,17 @@ static int wcn36xx_smd_start_rsp(struct wcn36xx *wcn, void *buf, size_t len)
 	wcn->fw_minor = rsp->start_rsp_params.version.minor;
 	wcn->fw_major = rsp->start_rsp_params.version.major;
 
-	wcn36xx_info("firmware WLAN version '%s' and CRM version '%s'\n",
-		     wcn->wlan_version, wcn->crm_version);
+	if (wcn->first_boot) {
+		wcn->first_boot = false;
+		wcn36xx_info("firmware WLAN version '%s' and CRM version '%s'\n",
+			     wcn->wlan_version, wcn->crm_version);
 
-	wcn36xx_info("firmware API %u.%u.%u.%u, %u stations, %u bssids\n",
-		     wcn->fw_major, wcn->fw_minor,
-		     wcn->fw_version, wcn->fw_revision,
-		     rsp->start_rsp_params.stations,
-		     rsp->start_rsp_params.bssids);
-
+		wcn36xx_info("firmware API %u.%u.%u.%u, %u stations, %u bssids\n",
+			     wcn->fw_major, wcn->fw_minor,
+			     wcn->fw_version, wcn->fw_revision,
+			     rsp->start_rsp_params.stations,
+			     rsp->start_rsp_params.bssids);
+	}
 	return 0;
 }
 
@@ -2138,6 +2140,8 @@ static int wcn36xx_smd_hw_scan_ind(struct wcn36xx *wcn, void *buf, size_t len)
 	case WCN36XX_HAL_SCAN_IND_COMPLETED:
 		mutex_lock(&wcn->scan_lock);
 		wcn->scan_req = NULL;
+		if (wcn->scan_aborted)
+			scan_info.aborted = true;
 		mutex_unlock(&wcn->scan_lock);
 		ieee80211_scan_completed(wcn->hw, &scan_info);
 		break;
@@ -2407,54 +2411,63 @@ static void wcn36xx_ind_smd_work(struct work_struct *work)
 {
 	struct wcn36xx *wcn =
 		container_of(work, struct wcn36xx, hal_ind_work);
-	struct wcn36xx_hal_msg_header *msg_header;
-	struct wcn36xx_hal_ind_msg *hal_ind_msg;
-	unsigned long flags;
 
-	spin_lock_irqsave(&wcn->hal_ind_lock, flags);
+	for (;;) {
+		struct wcn36xx_hal_msg_header *msg_header;
+		struct wcn36xx_hal_ind_msg *hal_ind_msg;
+		unsigned long flags;
 
-	hal_ind_msg = list_first_entry(&wcn->hal_ind_queue,
-				       struct wcn36xx_hal_ind_msg,
-				       list);
-	list_del(wcn->hal_ind_queue.next);
-	spin_unlock_irqrestore(&wcn->hal_ind_lock, flags);
+		spin_lock_irqsave(&wcn->hal_ind_lock, flags);
 
-	msg_header = (struct wcn36xx_hal_msg_header *)hal_ind_msg->msg;
+		if (list_empty(&wcn->hal_ind_queue)) {
+			spin_unlock_irqrestore(&wcn->hal_ind_lock, flags);
+			return;
+		}
 
-	switch (msg_header->msg_type) {
-	case WCN36XX_HAL_COEX_IND:
-	case WCN36XX_HAL_DEL_BA_IND:
-	case WCN36XX_HAL_AVOID_FREQ_RANGE_IND:
-		break;
-	case WCN36XX_HAL_OTA_TX_COMPL_IND:
-		wcn36xx_smd_tx_compl_ind(wcn,
-					 hal_ind_msg->msg,
-					 hal_ind_msg->msg_len);
-		break;
-	case WCN36XX_HAL_MISSED_BEACON_IND:
-		wcn36xx_smd_missed_beacon_ind(wcn,
-					      hal_ind_msg->msg,
-					      hal_ind_msg->msg_len);
-		break;
-	case WCN36XX_HAL_DELETE_STA_CONTEXT_IND:
-		wcn36xx_smd_delete_sta_context_ind(wcn,
-						   hal_ind_msg->msg,
-						   hal_ind_msg->msg_len);
-		break;
-	case WCN36XX_HAL_PRINT_REG_INFO_IND:
-		wcn36xx_smd_print_reg_info_ind(wcn,
-					       hal_ind_msg->msg,
-					       hal_ind_msg->msg_len);
-		break;
-	case WCN36XX_HAL_SCAN_OFFLOAD_IND:
-		wcn36xx_smd_hw_scan_ind(wcn, hal_ind_msg->msg,
-					hal_ind_msg->msg_len);
-		break;
-	default:
-		wcn36xx_err("SMD_EVENT (%d) not supported\n",
-			      msg_header->msg_type);
+		hal_ind_msg = list_first_entry(&wcn->hal_ind_queue,
+					       struct wcn36xx_hal_ind_msg,
+					       list);
+		list_del(&hal_ind_msg->list);
+		spin_unlock_irqrestore(&wcn->hal_ind_lock, flags);
+
+		msg_header = (struct wcn36xx_hal_msg_header *)hal_ind_msg->msg;
+
+		switch (msg_header->msg_type) {
+		case WCN36XX_HAL_COEX_IND:
+		case WCN36XX_HAL_DEL_BA_IND:
+		case WCN36XX_HAL_AVOID_FREQ_RANGE_IND:
+			break;
+		case WCN36XX_HAL_OTA_TX_COMPL_IND:
+			wcn36xx_smd_tx_compl_ind(wcn,
+						 hal_ind_msg->msg,
+						 hal_ind_msg->msg_len);
+			break;
+		case WCN36XX_HAL_MISSED_BEACON_IND:
+			wcn36xx_smd_missed_beacon_ind(wcn,
+						      hal_ind_msg->msg,
+						      hal_ind_msg->msg_len);
+			break;
+		case WCN36XX_HAL_DELETE_STA_CONTEXT_IND:
+			wcn36xx_smd_delete_sta_context_ind(wcn,
+							   hal_ind_msg->msg,
+							   hal_ind_msg->msg_len);
+			break;
+		case WCN36XX_HAL_PRINT_REG_INFO_IND:
+			wcn36xx_smd_print_reg_info_ind(wcn,
+						       hal_ind_msg->msg,
+						       hal_ind_msg->msg_len);
+			break;
+		case WCN36XX_HAL_SCAN_OFFLOAD_IND:
+			wcn36xx_smd_hw_scan_ind(wcn, hal_ind_msg->msg,
+						hal_ind_msg->msg_len);
+			break;
+		default:
+			wcn36xx_err("SMD_EVENT (%d) not supported\n",
+				    msg_header->msg_type);
+		}
+
+		kfree(hal_ind_msg);
 	}
-	kfree(hal_ind_msg);
 }
 int wcn36xx_smd_open(struct wcn36xx *wcn)
 {

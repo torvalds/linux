@@ -153,7 +153,7 @@ static int ds1390_read_time(struct device *dev, struct rtc_time *dt)
 	/* adjust for century bit */
 	dt->tm_year = bcd2bin(chip->txrx_buf[6]) + ((chip->txrx_buf[5] & 0x80) ? 100 : 0);
 
-	return rtc_valid_tm(dt);
+	return 0;
 }
 
 static int ds1390_set_time(struct device *dev, struct rtc_time *dt)

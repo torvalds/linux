@@ -133,7 +133,7 @@ int __init spiderpci_iowa_init(struct iowa_bus *bus, void *data)
 	pr_debug("SPIDERPCI-IOWA:Bus initialize for spider(%pOF)\n",
 		 np);
 
-	priv = kzalloc(sizeof(struct spiderpci_iowa_private), GFP_KERNEL);
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		pr_err("SPIDERPCI-IOWA:"
 		       "Can't allocate struct spiderpci_iowa_private");

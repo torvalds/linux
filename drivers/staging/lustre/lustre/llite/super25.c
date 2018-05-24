@@ -85,8 +85,7 @@ MODULE_ALIAS_FS("lustre");
 
 static int __init lustre_init(void)
 {
-	struct lnet_process_id lnet_id;
-	int i, rc;
+	int rc;
 
 	BUILD_BUG_ON(sizeof(LUSTRE_VOLATILE_HDR) !=
 		     LUSTRE_VOLATILE_HDR_LEN + 1);
@@ -123,20 +122,6 @@ static int __init lustre_init(void)
 	if (!llite_kset) {
 		rc = -ENOMEM;
 		goto out_debugfs;
-	}
-
-	/* Nodes with small feet have little entropy. The NID for this
-	 * node gives the most entropy in the low bits
-	 */
-	for (i = 0;; i++) {
-		u32 seed;
-
-		if (LNetGetId(i, &lnet_id) == -ENOENT)
-			break;
-		if (LNET_NETTYP(LNET_NIDNET(lnet_id.nid)) != LOLND) {
-			 seed = LNET_NIDADDR(lnet_id.nid);
-			 add_device_randomness(&seed, sizeof(seed));
-		}
 	}
 
 	rc = vvp_global_init();

@@ -1104,7 +1104,7 @@ static void halbtc8723b1ant_ps_tdma(struct btc_coexist *btcoexist,
 	}
 
 	if ((type == 1) || (type == 2) || (type == 9) || (type == 11) ||
-	    (type == 101) || (type == 102) || (type == 109) || (type == 101)) {
+	    (type == 101) || (type == 102) || (type == 109) || (type == 111)) {
 		if (!coex_sta->force_lps_on) {
 			/* Native power save TDMA, only for A2DP-only case
 			 * 1/2/9/11 while wifi noisy threshold > 30
@@ -1436,6 +1436,7 @@ static void halbtc8723b1ant_ps_tdma(struct btc_coexist *btcoexist,
 	coex_dm->pre_ps_tdma = coex_dm->cur_ps_tdma;
 }
 
+static
 void btc8723b1ant_tdma_dur_adj_for_acl(struct btc_coexist *btcoexist,
 				       u8 wifi_status)
 {

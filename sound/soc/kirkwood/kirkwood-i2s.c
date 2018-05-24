@@ -26,8 +26,6 @@
 
 #include "kirkwood.h"
 
-#define DRV_NAME	"mvebu-audio"
-
 #define KIRKWOOD_I2S_FORMATS \
 	(SNDRV_PCM_FMTBIT_S16_LE | \
 	 SNDRV_PCM_FMTBIT_S24_LE | \
@@ -524,10 +522,6 @@ static struct snd_soc_dai_driver kirkwood_i2s_dai_extclk[2] = {
     },
 };
 
-static const struct snd_soc_component_driver kirkwood_i2s_component = {
-	.name		= DRV_NAME,
-};
-
 static int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 {
 	struct kirkwood_asoc_platform_data *data = pdev->dev.platform_data;
@@ -601,24 +595,17 @@ static int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 		priv->ctl_rec |= KIRKWOOD_RECCTL_BURST_128;
 	}
 
-	err = snd_soc_register_component(&pdev->dev, &kirkwood_i2s_component,
+	err = devm_snd_soc_register_component(&pdev->dev, &kirkwood_soc_component,
 					 soc_dai, 2);
 	if (err) {
 		dev_err(&pdev->dev, "snd_soc_register_component failed\n");
 		goto err_component;
 	}
 
-	err = snd_soc_register_platform(&pdev->dev, &kirkwood_soc_platform);
-	if (err) {
-		dev_err(&pdev->dev, "snd_soc_register_platform failed\n");
-		goto err_platform;
-	}
-
 	kirkwood_i2s_init(priv);
 
 	return 0;
- err_platform:
-	snd_soc_unregister_component(&pdev->dev);
+
  err_component:
 	if (!IS_ERR(priv->extclk))
 		clk_disable_unprepare(priv->extclk);
@@ -630,9 +617,6 @@ static int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 static int kirkwood_i2s_dev_remove(struct platform_device *pdev)
 {
 	struct kirkwood_dma_data *priv = dev_get_drvdata(&pdev->dev);
-
-	snd_soc_unregister_platform(&pdev->dev);
-	snd_soc_unregister_component(&pdev->dev);
 
 	if (!IS_ERR(priv->extclk))
 		clk_disable_unprepare(priv->extclk);

@@ -145,7 +145,7 @@ static struct lov_lock *lov_lock_sub_init(const struct lu_env *env,
 			nr++;
 	}
 	LASSERT(nr > 0);
-	lovlck = libcfs_kvzalloc(offsetof(struct lov_lock, lls_sub[nr]),
+	lovlck = kvzalloc(offsetof(struct lov_lock, lls_sub[nr]),
 				 GFP_NOFS);
 	if (!lovlck)
 		return ERR_PTR(-ENOMEM);

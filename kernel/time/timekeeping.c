@@ -332,6 +332,7 @@ static void tk_setup_internals(struct timekeeper *tk, struct clocksource *clock)
 	tk->tkr_mono.mult = clock->mult;
 	tk->tkr_raw.mult = clock->mult;
 	tk->ntp_err_mult = 0;
+	tk->skip_second_overflow = 0;
 }
 
 /* Timekeeper helper functions. */
@@ -1799,20 +1800,19 @@ device_initcall(timekeeping_init_ops);
  */
 static __always_inline void timekeeping_apply_adjustment(struct timekeeper *tk,
 							 s64 offset,
-							 bool negative,
-							 int adj_scale)
+							 s32 mult_adj)
 {
 	s64 interval = tk->cycle_interval;
-	s32 mult_adj = 1;
 
-	if (negative) {
-		mult_adj = -mult_adj;
+	if (mult_adj == 0) {
+		return;
+	} else if (mult_adj == -1) {
 		interval = -interval;
-		offset  = -offset;
+		offset = -offset;
+	} else if (mult_adj != 1) {
+		interval *= mult_adj;
+		offset *= mult_adj;
 	}
-	mult_adj <<= adj_scale;
-	interval <<= adj_scale;
-	offset <<= adj_scale;
 
 	/*
 	 * So the following can be confusing.
@@ -1860,8 +1860,6 @@ static __always_inline void timekeeping_apply_adjustment(struct timekeeper *tk,
 	 *	xtime_nsec_2 = xtime_nsec_1 - offset
 	 * Which simplfies to:
 	 *	xtime_nsec -= offset
-	 *
-	 * XXX - TODO: Doc ntp_error calculation.
 	 */
 	if ((mult_adj > 0) && (tk->tkr_mono.mult + mult_adj < mult_adj)) {
 		/* NTP adjustment caused clocksource mult overflow */
@@ -1872,69 +1870,6 @@ static __always_inline void timekeeping_apply_adjustment(struct timekeeper *tk,
 	tk->tkr_mono.mult += mult_adj;
 	tk->xtime_interval += interval;
 	tk->tkr_mono.xtime_nsec -= offset;
-	tk->ntp_error -= (interval - offset) << tk->ntp_error_shift;
-}
-
-/*
- * Calculate the multiplier adjustment needed to match the frequency
- * specified by NTP
- */
-static __always_inline void timekeeping_freqadjust(struct timekeeper *tk,
-							s64 offset)
-{
-	s64 interval = tk->cycle_interval;
-	s64 xinterval = tk->xtime_interval;
-	u32 base = tk->tkr_mono.clock->mult;
-	u32 max = tk->tkr_mono.clock->maxadj;
-	u32 cur_adj = tk->tkr_mono.mult;
-	s64 tick_error;
-	bool negative;
-	u32 adj_scale;
-
-	/* Remove any current error adj from freq calculation */
-	if (tk->ntp_err_mult)
-		xinterval -= tk->cycle_interval;
-
-	tk->ntp_tick = ntp_tick_length();
-
-	/* Calculate current error per tick */
-	tick_error = ntp_tick_length() >> tk->ntp_error_shift;
-	tick_error -= (xinterval + tk->xtime_remainder);
-
-	/* Don't worry about correcting it if its small */
-	if (likely((tick_error >= 0) && (tick_error <= interval)))
-		return;
-
-	/* preserve the direction of correction */
-	negative = (tick_error < 0);
-
-	/* If any adjustment would pass the max, just return */
-	if (negative && (cur_adj - 1) <= (base - max))
-		return;
-	if (!negative && (cur_adj + 1) >= (base + max))
-		return;
-	/*
-	 * Sort out the magnitude of the correction, but
-	 * avoid making so large a correction that we go
-	 * over the max adjustment.
-	 */
-	adj_scale = 0;
-	tick_error = abs(tick_error);
-	while (tick_error > interval) {
-		u32 adj = 1 << (adj_scale + 1);
-
-		/* Check if adjustment gets us within 1 unit from the max */
-		if (negative && (cur_adj - adj) <= (base - max))
-			break;
-		if (!negative && (cur_adj + adj) >= (base + max))
-			break;
-
-		adj_scale++;
-		tick_error >>= 1;
-	}
-
-	/* scale the corrections */
-	timekeeping_apply_adjustment(tk, offset, negative, adj_scale);
 }
 
 /*
@@ -1943,18 +1878,30 @@ static __always_inline void timekeeping_freqadjust(struct timekeeper *tk,
  */
 static void timekeeping_adjust(struct timekeeper *tk, s64 offset)
 {
-	/* Correct for the current frequency error */
-	timekeeping_freqadjust(tk, offset);
+	u32 mult;
 
-	/* Next make a small adjustment to fix any cumulative error */
-	if (!tk->ntp_err_mult && (tk->ntp_error > 0)) {
-		tk->ntp_err_mult = 1;
-		timekeeping_apply_adjustment(tk, offset, 0, 0);
-	} else if (tk->ntp_err_mult && (tk->ntp_error <= 0)) {
-		/* Undo any existing error adjustment */
-		timekeeping_apply_adjustment(tk, offset, 1, 0);
-		tk->ntp_err_mult = 0;
+	/*
+	 * Determine the multiplier from the current NTP tick length.
+	 * Avoid expensive division when the tick length doesn't change.
+	 */
+	if (likely(tk->ntp_tick == ntp_tick_length())) {
+		mult = tk->tkr_mono.mult - tk->ntp_err_mult;
+	} else {
+		tk->ntp_tick = ntp_tick_length();
+		mult = div64_u64((tk->ntp_tick >> tk->ntp_error_shift) -
+				 tk->xtime_remainder, tk->cycle_interval);
 	}
+
+	/*
+	 * If the clock is behind the NTP time, increase the multiplier by 1
+	 * to catch up with it. If it's ahead and there was a remainder in the
+	 * tick division, the clock will slow down. Otherwise it will stay
+	 * ahead until the tick length changes to a non-divisible value.
+	 */
+	tk->ntp_err_mult = tk->ntp_error > 0 ? 1 : 0;
+	mult += tk->ntp_err_mult;
+
+	timekeeping_apply_adjustment(tk, offset, mult - tk->tkr_mono.mult);
 
 	if (unlikely(tk->tkr_mono.clock->maxadj &&
 		(abs(tk->tkr_mono.mult - tk->tkr_mono.clock->mult)
@@ -1971,18 +1918,15 @@ static void timekeeping_adjust(struct timekeeper *tk, s64 offset)
 	 * in the code above, its possible the required corrective factor to
 	 * xtime_nsec could cause it to underflow.
 	 *
-	 * Now, since we already accumulated the second, cannot simply roll
-	 * the accumulated second back, since the NTP subsystem has been
-	 * notified via second_overflow. So instead we push xtime_nsec forward
-	 * by the amount we underflowed, and add that amount into the error.
-	 *
-	 * We'll correct this error next time through this function, when
-	 * xtime_nsec is not as small.
+	 * Now, since we have already accumulated the second and the NTP
+	 * subsystem has been notified via second_overflow(), we need to skip
+	 * the next update.
 	 */
 	if (unlikely((s64)tk->tkr_mono.xtime_nsec < 0)) {
-		s64 neg = -(s64)tk->tkr_mono.xtime_nsec;
-		tk->tkr_mono.xtime_nsec = 0;
-		tk->ntp_error += neg << tk->ntp_error_shift;
+		tk->tkr_mono.xtime_nsec += (u64)NSEC_PER_SEC <<
+							tk->tkr_mono.shift;
+		tk->xtime_sec--;
+		tk->skip_second_overflow = 1;
 	}
 }
 
@@ -2004,6 +1948,15 @@ static inline unsigned int accumulate_nsecs_to_secs(struct timekeeper *tk)
 
 		tk->tkr_mono.xtime_nsec -= nsecps;
 		tk->xtime_sec++;
+
+		/*
+		 * Skip NTP update if this second was accumulated before,
+		 * i.e. xtime_nsec underflowed in timekeeping_adjust()
+		 */
+		if (unlikely(tk->skip_second_overflow)) {
+			tk->skip_second_overflow = 0;
+			continue;
+		}
 
 		/* Figure out if its a leap sec and apply if needed */
 		leap = second_overflow(tk->xtime_sec);
@@ -2121,7 +2074,7 @@ void update_wall_time(void)
 			shift--;
 	}
 
-	/* correct the clock when NTP error is too big */
+	/* Adjust the multiplier to correct NTP error */
 	timekeeping_adjust(tk, offset);
 
 	/*
@@ -2179,13 +2132,6 @@ unsigned long get_seconds(void)
 	return tk->xtime_sec;
 }
 EXPORT_SYMBOL(get_seconds);
-
-struct timespec __current_kernel_time(void)
-{
-	struct timekeeper *tk = &tk_core.timekeeper;
-
-	return timespec64_to_timespec(tk_xtime(tk));
-}
 
 struct timespec64 current_kernel_time64(void)
 {

@@ -495,7 +495,7 @@ static int nf_conntrack_standalone_init_proc(struct net *net)
 	if (uid_valid(root_uid) && gid_valid(root_gid))
 		proc_set_user(pde, root_uid, root_gid);
 
-	pde = proc_create("nf_conntrack", S_IRUGO, net->proc_net_stat,
+	pde = proc_create("nf_conntrack", 0444, net->proc_net_stat,
 			  &ct_cpu_seq_fops);
 	if (!pde)
 		goto out_stat_nf_conntrack;

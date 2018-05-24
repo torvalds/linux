@@ -431,7 +431,7 @@ static ssize_t group_store(struct device *dev, struct device_attribute *attr,
 	return netdev_store(dev, attr, buf, len, change_group);
 }
 NETDEVICE_SHOW(group, fmt_dec);
-static DEVICE_ATTR(netdev_group, S_IRUGO | S_IWUSR, group_show, group_store);
+static DEVICE_ATTR(netdev_group, 0644, group_show, group_store);
 
 static int change_proto_down(struct net_device *dev, unsigned long proto_down)
 {
@@ -854,10 +854,10 @@ static ssize_t store_rps_dev_flow_table_cnt(struct netdev_rx_queue *queue,
 }
 
 static struct rx_queue_attribute rps_cpus_attribute __ro_after_init
-	= __ATTR(rps_cpus, S_IRUGO | S_IWUSR, show_rps_map, store_rps_map);
+	= __ATTR(rps_cpus, 0644, show_rps_map, store_rps_map);
 
 static struct rx_queue_attribute rps_dev_flow_table_cnt_attribute __ro_after_init
-	= __ATTR(rps_flow_cnt, S_IRUGO | S_IWUSR,
+	= __ATTR(rps_flow_cnt, 0644,
 		 show_rps_dev_flow_table_cnt, store_rps_dev_flow_table_cnt);
 #endif /* CONFIG_RPS */
 
@@ -1154,7 +1154,7 @@ static ssize_t bql_set_hold_time(struct netdev_queue *queue,
 }
 
 static struct netdev_queue_attribute bql_hold_time_attribute __ro_after_init
-	= __ATTR(hold_time, S_IRUGO | S_IWUSR,
+	= __ATTR(hold_time, 0644,
 		 bql_show_hold_time, bql_set_hold_time);
 
 static ssize_t bql_show_inflight(struct netdev_queue *queue,
@@ -1166,7 +1166,7 @@ static ssize_t bql_show_inflight(struct netdev_queue *queue,
 }
 
 static struct netdev_queue_attribute bql_inflight_attribute __ro_after_init =
-	__ATTR(inflight, S_IRUGO, bql_show_inflight, NULL);
+	__ATTR(inflight, 0444, bql_show_inflight, NULL);
 
 #define BQL_ATTR(NAME, FIELD)						\
 static ssize_t bql_show_ ## NAME(struct netdev_queue *queue,		\
@@ -1182,7 +1182,7 @@ static ssize_t bql_set_ ## NAME(struct netdev_queue *queue,		\
 }									\
 									\
 static struct netdev_queue_attribute bql_ ## NAME ## _attribute __ro_after_init \
-	= __ATTR(NAME, S_IRUGO | S_IWUSR,				\
+	= __ATTR(NAME, 0644,				\
 		 bql_show_ ## NAME, bql_set_ ## NAME)
 
 BQL_ATTR(limit, limit);

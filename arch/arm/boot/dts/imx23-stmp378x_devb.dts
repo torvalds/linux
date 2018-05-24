@@ -16,7 +16,7 @@
 	model = "Freescale STMP378x Development Board";
 	compatible = "fsl,stmp378x-devb", "fsl,imx23";
 
-	memory {
+	memory@40000000 {
 		reg = <0x40000000 0x04000000>;
 	};
 

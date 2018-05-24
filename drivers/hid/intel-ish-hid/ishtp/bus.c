@@ -418,7 +418,7 @@ static struct ishtp_cl_device *ishtp_bus_add_device(struct ishtp_device *dev,
 		list_del(&device->device_link);
 		spin_unlock_irqrestore(&dev->device_list_lock, flags);
 		dev_err(dev->devc, "Failed to register ISHTP client device\n");
-		kfree(device);
+		put_device(&device->dev);
 		return NULL;
 	}
 

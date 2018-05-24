@@ -215,11 +215,6 @@
 		compatible = "fsl,imx-display-subsystem";
 		ports = <&ipu1_di0>, <&ipu1_di1>, <&ipu2_di0>, <&ipu2_di1>;
 	};
-
-	gpu-subsystem {
-		compatible = "fsl,imx-gpu-subsystem";
-		cores = <&gpu_2d>, <&gpu_3d>, <&gpu_vg>;
-	};
 };
 
 &gpio1 {

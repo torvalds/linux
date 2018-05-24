@@ -51,7 +51,7 @@ struct tas571x_private {
 	unsigned int			format;
 	struct gpio_desc		*reset_gpio;
 	struct gpio_desc		*pdn_gpio;
-	struct snd_soc_codec_driver	codec_driver;
+	struct snd_soc_component_driver	component_driver;
 };
 
 static int tas571x_register_size(struct tas571x_private *priv, unsigned int reg)
@@ -242,8 +242,8 @@ static int tas571x_coefficient_info(struct snd_kcontrol *kcontrol,
 static int tas571x_coefficient_get(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct i2c_client *i2c = to_i2c_client(codec->dev);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct i2c_client *i2c = to_i2c_client(component->dev);
 	int numcoef = kcontrol->private_value >> 16;
 	int index = kcontrol->private_value & 0xffff;
 
@@ -254,8 +254,8 @@ static int tas571x_coefficient_get(struct snd_kcontrol *kcontrol,
 static int tas571x_coefficient_put(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct i2c_client *i2c = to_i2c_client(codec->dev);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct i2c_client *i2c = to_i2c_client(component->dev);
 	int numcoef = kcontrol->private_value >> 16;
 	int index = kcontrol->private_value & 0xffff;
 
@@ -265,7 +265,7 @@ static int tas571x_coefficient_put(struct snd_kcontrol *kcontrol,
 
 static int tas571x_set_dai_fmt(struct snd_soc_dai *dai, unsigned int format)
 {
-	struct tas571x_private *priv = snd_soc_codec_get_drvdata(dai->codec);
+	struct tas571x_private *priv = snd_soc_component_get_drvdata(dai->component);
 
 	priv->format = format;
 
@@ -276,7 +276,7 @@ static int tas571x_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params,
 			     struct snd_soc_dai *dai)
 {
-	struct tas571x_private *priv = snd_soc_codec_get_drvdata(dai->codec);
+	struct tas571x_private *priv = snd_soc_component_get_drvdata(dai->component);
 	u32 val;
 
 	switch (priv->format & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -304,13 +304,13 @@ static int tas571x_hw_params(struct snd_pcm_substream *substream,
 
 static int tas571x_mute(struct snd_soc_dai *dai, int mute)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 	u8 sysctl2;
 	int ret;
 
 	sysctl2 = mute ? TAS571X_SYS_CTRL_2_SDN_MASK : 0;
 
-	ret = snd_soc_update_bits(codec,
+	ret = snd_soc_component_update_bits(component,
 			    TAS571X_SYS_CTRL_2_REG,
 		     TAS571X_SYS_CTRL_2_SDN_MASK,
 		     sysctl2);
@@ -319,10 +319,10 @@ static int tas571x_mute(struct snd_soc_dai *dai, int mute)
 	return ret;
 }
 
-static int tas571x_set_bias_level(struct snd_soc_codec *codec,
+static int tas571x_set_bias_level(struct snd_soc_component *component,
 				  enum snd_soc_bias_level level)
 {
-	struct tas571x_private *priv = snd_soc_codec_get_drvdata(codec);
+	struct tas571x_private *priv = snd_soc_component_get_drvdata(component);
 	int ret;
 
 	switch (level) {
@@ -331,11 +331,11 @@ static int tas571x_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
 			if (!IS_ERR(priv->mclk)) {
 				ret = clk_prepare_enable(priv->mclk);
 				if (ret) {
-					dev_err(codec->dev,
+					dev_err(component->dev,
 						"Failed to enable master clock: %d\n",
 						ret);
 					return ret;
@@ -643,16 +643,15 @@ static const struct snd_soc_dapm_route tas571x_dapm_routes[] = {
 	{ "OUT_D", NULL, "DACR" },
 };
 
-static const struct snd_soc_codec_driver tas571x_codec = {
-	.set_bias_level = tas571x_set_bias_level,
-	.idle_bias_off = true,
-
-	.component_driver = {
-		.dapm_widgets		= tas571x_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(tas571x_dapm_widgets),
-		.dapm_routes		= tas571x_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(tas571x_dapm_routes),
-	},
+static const struct snd_soc_component_driver tas571x_component = {
+	.set_bias_level		= tas571x_set_bias_level,
+	.dapm_widgets		= tas571x_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(tas571x_dapm_widgets),
+	.dapm_routes		= tas571x_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(tas571x_dapm_routes),
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static struct snd_soc_dai_driver tas571x_dai = {
@@ -746,9 +745,9 @@ static int tas571x_i2c_probe(struct i2c_client *client,
 
 	usleep_range(50000, 60000);
 
-	memcpy(&priv->codec_driver, &tas571x_codec, sizeof(priv->codec_driver));
-	priv->codec_driver.component_driver.controls = priv->chip->controls;
-	priv->codec_driver.component_driver.num_controls = priv->chip->num_controls;
+	memcpy(&priv->component_driver, &tas571x_component, sizeof(priv->component_driver));
+	priv->component_driver.controls = priv->chip->controls;
+	priv->component_driver.num_controls = priv->chip->num_controls;
 
 	if (priv->chip->vol_reg_size == 2) {
 		/*
@@ -761,7 +760,8 @@ static int tas571x_i2c_probe(struct i2c_client *client,
 			return ret;
 	}
 
-	return snd_soc_register_codec(&client->dev, &priv->codec_driver,
+	return devm_snd_soc_register_component(&client->dev,
+				      &priv->component_driver,
 				      &tas571x_dai, 1);
 }
 
@@ -769,7 +769,6 @@ static int tas571x_i2c_remove(struct i2c_client *client)
 {
 	struct tas571x_private *priv = i2c_get_clientdata(client);
 
-	snd_soc_unregister_codec(&client->dev);
 	regulator_bulk_disable(priv->chip->num_supply_names, priv->supplies);
 
 	return 0;

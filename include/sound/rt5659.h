@@ -30,6 +30,7 @@ enum rt5659_dmic2_data_pin {
 enum rt5659_jd_src {
 	RT5659_JD_NULL,
 	RT5659_JD3,
+	RT5659_JD_HDA_HEADER,
 };
 
 struct rt5659_platform_data {

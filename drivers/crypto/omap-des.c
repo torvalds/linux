@@ -86,6 +86,7 @@
 #define FLAGS_OUT_DATA_ST_SHIFT	10
 
 struct omap_des_ctx {
+	struct crypto_engine_ctx enginectx;
 	struct omap_des_dev *dd;
 
 	int		keylen;
@@ -498,7 +499,7 @@ static void omap_des_finish_req(struct omap_des_dev *dd, int err)
 
 	pr_debug("err: %d\n", err);
 
-	crypto_finalize_cipher_request(dd->engine, req, err);
+	crypto_finalize_ablkcipher_request(dd->engine, req, err);
 
 	pm_runtime_mark_last_busy(dd->dev);
 	pm_runtime_put_autosuspend(dd->dev);
@@ -520,14 +521,15 @@ static int omap_des_handle_queue(struct omap_des_dev *dd,
 				 struct ablkcipher_request *req)
 {
 	if (req)
-		return crypto_transfer_cipher_request_to_engine(dd->engine, req);
+		return crypto_transfer_ablkcipher_request_to_engine(dd->engine, req);
 
 	return 0;
 }
 
 static int omap_des_prepare_req(struct crypto_engine *engine,
-				struct ablkcipher_request *req)
+				void *areq)
 {
+	struct ablkcipher_request *req = container_of(areq, struct ablkcipher_request, base);
 	struct omap_des_ctx *ctx = crypto_ablkcipher_ctx(
 			crypto_ablkcipher_reqtfm(req));
 	struct omap_des_dev *dd = omap_des_find_dev(ctx);
@@ -582,8 +584,9 @@ static int omap_des_prepare_req(struct crypto_engine *engine,
 }
 
 static int omap_des_crypt_req(struct crypto_engine *engine,
-			      struct ablkcipher_request *req)
+			      void *areq)
 {
+	struct ablkcipher_request *req = container_of(areq, struct ablkcipher_request, base);
 	struct omap_des_ctx *ctx = crypto_ablkcipher_ctx(
 			crypto_ablkcipher_reqtfm(req));
 	struct omap_des_dev *dd = omap_des_find_dev(ctx);
@@ -695,11 +698,22 @@ static int omap_des_cbc_decrypt(struct ablkcipher_request *req)
 	return omap_des_crypt(req, FLAGS_CBC);
 }
 
+static int omap_des_prepare_req(struct crypto_engine *engine,
+				void *areq);
+static int omap_des_crypt_req(struct crypto_engine *engine,
+			      void *areq);
+
 static int omap_des_cra_init(struct crypto_tfm *tfm)
 {
+	struct omap_des_ctx *ctx = crypto_tfm_ctx(tfm);
+
 	pr_debug("enter\n");
 
 	tfm->crt_ablkcipher.reqsize = sizeof(struct omap_des_reqctx);
+
+	ctx->enginectx.op.prepare_request = omap_des_prepare_req;
+	ctx->enginectx.op.unprepare_request = NULL;
+	ctx->enginectx.op.do_one_request = omap_des_crypt_req;
 
 	return 0;
 }
@@ -1046,8 +1060,6 @@ static int omap_des_probe(struct platform_device *pdev)
 		goto err_engine;
 	}
 
-	dd->engine->prepare_cipher_request = omap_des_prepare_req;
-	dd->engine->cipher_one_request = omap_des_crypt_req;
 	err = crypto_engine_start(dd->engine);
 	if (err)
 		goto err_engine;

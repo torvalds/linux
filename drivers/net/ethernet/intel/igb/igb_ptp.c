@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /* PTP Hardware Clock (PHC) driver for the Intel 82576 and 82580
  *
  * Copyright (C) 2011 Richard Cochran <richardcochran@gmail.com>

@@ -91,7 +91,6 @@ static int mtk_plane_atomic_check(struct drm_plane *plane,
 {
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_crtc_state *crtc_state;
-	struct drm_rect clip = { 0, };
 
 	if (!fb)
 		return 0;
@@ -108,10 +107,7 @@ static int mtk_plane_atomic_check(struct drm_plane *plane,
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
 
-	clip.x2 = crtc_state->mode.hdisplay;
-	clip.y2 = crtc_state->mode.vdisplay;
-
-	return drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
+	return drm_atomic_helper_check_plane_state(state, crtc_state,
 						   DRM_PLANE_HELPER_NO_SCALING,
 						   DRM_PLANE_HELPER_NO_SCALING,
 						   true, true);

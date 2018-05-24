@@ -52,14 +52,15 @@ static inline bool list_lru_memcg_aware(struct list_lru *lru)
 static inline struct list_lru_one *
 list_lru_from_memcg_idx(struct list_lru_node *nlru, int idx)
 {
+	struct list_lru_memcg *memcg_lrus;
 	/*
-	 * The lock protects the array of per cgroup lists from relocation
-	 * (see memcg_update_list_lru_node).
+	 * Either lock or RCU protects the array of per cgroup lists
+	 * from relocation (see memcg_update_list_lru_node).
 	 */
-	lockdep_assert_held(&nlru->lock);
-	if (nlru->memcg_lrus && idx >= 0)
-		return nlru->memcg_lrus->lru[idx];
-
+	memcg_lrus = rcu_dereference_check(nlru->memcg_lrus,
+					   lockdep_is_held(&nlru->lock));
+	if (memcg_lrus && idx >= 0)
+		return memcg_lrus->lru[idx];
 	return &nlru->lru;
 }
 
@@ -168,10 +169,10 @@ static unsigned long __list_lru_count_one(struct list_lru *lru,
 	struct list_lru_one *l;
 	unsigned long count;
 
-	spin_lock(&nlru->lock);
+	rcu_read_lock();
 	l = list_lru_from_memcg_idx(nlru, memcg_idx);
 	count = l->nr_items;
-	spin_unlock(&nlru->lock);
+	rcu_read_unlock();
 
 	return count;
 }
@@ -324,24 +325,41 @@ fail:
 
 static int memcg_init_list_lru_node(struct list_lru_node *nlru)
 {
+	struct list_lru_memcg *memcg_lrus;
 	int size = memcg_nr_cache_ids;
 
-	nlru->memcg_lrus = kvmalloc(size * sizeof(void *), GFP_KERNEL);
-	if (!nlru->memcg_lrus)
+	memcg_lrus = kvmalloc(sizeof(*memcg_lrus) +
+			      size * sizeof(void *), GFP_KERNEL);
+	if (!memcg_lrus)
 		return -ENOMEM;
 
-	if (__memcg_init_list_lru_node(nlru->memcg_lrus, 0, size)) {
-		kvfree(nlru->memcg_lrus);
+	if (__memcg_init_list_lru_node(memcg_lrus, 0, size)) {
+		kvfree(memcg_lrus);
 		return -ENOMEM;
 	}
+	RCU_INIT_POINTER(nlru->memcg_lrus, memcg_lrus);
 
 	return 0;
 }
 
 static void memcg_destroy_list_lru_node(struct list_lru_node *nlru)
 {
-	__memcg_destroy_list_lru_node(nlru->memcg_lrus, 0, memcg_nr_cache_ids);
-	kvfree(nlru->memcg_lrus);
+	struct list_lru_memcg *memcg_lrus;
+	/*
+	 * This is called when shrinker has already been unregistered,
+	 * and nobody can use it. So, there is no need to use kvfree_rcu().
+	 */
+	memcg_lrus = rcu_dereference_protected(nlru->memcg_lrus, true);
+	__memcg_destroy_list_lru_node(memcg_lrus, 0, memcg_nr_cache_ids);
+	kvfree(memcg_lrus);
+}
+
+static void kvfree_rcu(struct rcu_head *head)
+{
+	struct list_lru_memcg *mlru;
+
+	mlru = container_of(head, struct list_lru_memcg, rcu);
+	kvfree(mlru);
 }
 
 static int memcg_update_list_lru_node(struct list_lru_node *nlru,
@@ -351,8 +369,9 @@ static int memcg_update_list_lru_node(struct list_lru_node *nlru,
 
 	BUG_ON(old_size > new_size);
 
-	old = nlru->memcg_lrus;
-	new = kvmalloc(new_size * sizeof(void *), GFP_KERNEL);
+	old = rcu_dereference_protected(nlru->memcg_lrus,
+					lockdep_is_held(&list_lrus_mutex));
+	new = kvmalloc(sizeof(*new) + new_size * sizeof(void *), GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
 
@@ -361,29 +380,33 @@ static int memcg_update_list_lru_node(struct list_lru_node *nlru,
 		return -ENOMEM;
 	}
 
-	memcpy(new, old, old_size * sizeof(void *));
+	memcpy(&new->lru, &old->lru, old_size * sizeof(void *));
 
 	/*
-	 * The lock guarantees that we won't race with a reader
-	 * (see list_lru_from_memcg_idx).
+	 * The locking below allows readers that hold nlru->lock avoid taking
+	 * rcu_read_lock (see list_lru_from_memcg_idx).
 	 *
 	 * Since list_lru_{add,del} may be called under an IRQ-safe lock,
 	 * we have to use IRQ-safe primitives here to avoid deadlock.
 	 */
 	spin_lock_irq(&nlru->lock);
-	nlru->memcg_lrus = new;
+	rcu_assign_pointer(nlru->memcg_lrus, new);
 	spin_unlock_irq(&nlru->lock);
 
-	kvfree(old);
+	call_rcu(&old->rcu, kvfree_rcu);
 	return 0;
 }
 
 static void memcg_cancel_update_list_lru_node(struct list_lru_node *nlru,
 					      int old_size, int new_size)
 {
+	struct list_lru_memcg *memcg_lrus;
+
+	memcg_lrus = rcu_dereference_protected(nlru->memcg_lrus,
+					       lockdep_is_held(&list_lrus_mutex));
 	/* do not bother shrinking the array back to the old size, because we
 	 * cannot handle allocation failures here */
-	__memcg_destroy_list_lru_node(nlru->memcg_lrus, old_size, new_size);
+	__memcg_destroy_list_lru_node(memcg_lrus, old_size, new_size);
 }
 
 static int memcg_init_list_lru(struct list_lru *lru, bool memcg_aware)

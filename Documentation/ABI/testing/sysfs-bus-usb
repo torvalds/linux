@@ -189,6 +189,16 @@ Description:
 		The file will read "hotplug", "wired" and "not used" if the
 		information is available, and "unknown" otherwise.
 
+What:		/sys/bus/usb/devices/.../(hub interface)/portX/over_current_count
+Date:		February 2018
+Contact:	Richard Leitner <richard.leitner@skidata.com>
+Description:
+		Most hubs are able to detect over-current situations on their
+		ports and report them to the kernel. This attribute is to expose
+		the number of over-current situation occurred on a specific port
+		to user space. This file will contain an unsigned 32 bit value
+		which wraps to 0 after its maximum is reached.
+
 What:		/sys/bus/usb/devices/.../(hub interface)/portX/usb3_lpm_permit
 Date:		November 2015
 Contact:	Lu Baolu <baolu.lu@linux.intel.com>

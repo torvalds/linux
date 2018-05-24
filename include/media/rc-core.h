@@ -23,13 +23,6 @@
 #include <linux/timer.h>
 #include <media/rc-map.h>
 
-extern int rc_core_debug;
-#define IR_dprintk(level, fmt, ...)				\
-do {								\
-	if (rc_core_debug >= level)				\
-		printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__);	\
-} while (0)
-
 /**
  * enum rc_driver_type - type of the RC driver.
  *
@@ -341,7 +334,9 @@ void ir_raw_event_handle(struct rc_dev *dev);
 int ir_raw_event_store(struct rc_dev *dev, struct ir_raw_event *ev);
 int ir_raw_event_store_edge(struct rc_dev *dev, bool pulse);
 int ir_raw_event_store_with_filter(struct rc_dev *dev,
-				struct ir_raw_event *ev);
+				   struct ir_raw_event *ev);
+int ir_raw_event_store_with_timeout(struct rc_dev *dev,
+				    struct ir_raw_event *ev);
 void ir_raw_event_set_idle(struct rc_dev *dev, bool idle);
 int ir_raw_encode_scancode(enum rc_proto protocol, u32 scancode,
 			   struct ir_raw_event *events, unsigned int max);

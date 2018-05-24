@@ -441,6 +441,9 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	atomic64_set(&ci->i_complete_seq[1], 0);
 	ci->i_symlink = NULL;
 
+	ci->i_max_bytes = 0;
+	ci->i_max_files = 0;
+
 	memset(&ci->i_dir_layout, 0, sizeof(ci->i_dir_layout));
 	RCU_INIT_POINTER(ci->i_layout.pool_ns, NULL);
 
@@ -536,6 +539,9 @@ void ceph_destroy_inode(struct inode *inode)
 
 	ceph_queue_caps_release(inode);
 
+	if (__ceph_has_any_quota(ci))
+		ceph_adjust_quota_realms_count(inode, false);
+
 	/*
 	 * we may still have a snap_realm reference if there are stray
 	 * caps in i_snap_caps.
@@ -548,6 +554,9 @@ void ceph_destroy_inode(struct inode *inode)
 		dout(" dropping residual ref to snap realm %p\n", realm);
 		spin_lock(&realm->inodes_with_caps_lock);
 		list_del_init(&ci->i_snap_realm_item);
+		ci->i_snap_realm = NULL;
+		if (realm->ino == ci->i_vino.ino)
+			realm->inode = NULL;
 		spin_unlock(&realm->inodes_with_caps_lock);
 		ceph_put_snap_realm(mdsc, realm);
 	}
@@ -660,13 +669,15 @@ void ceph_fill_file_time(struct inode *inode, int issued,
 		      CEPH_CAP_FILE_BUFFER|
 		      CEPH_CAP_AUTH_EXCL|
 		      CEPH_CAP_XATTR_EXCL)) {
-		if (timespec_compare(ctime, &inode->i_ctime) > 0) {
+		if (ci->i_version == 0 ||
+		    timespec_compare(ctime, &inode->i_ctime) > 0) {
 			dout("ctime %ld.%09ld -> %ld.%09ld inc w/ cap\n",
 			     inode->i_ctime.tv_sec, inode->i_ctime.tv_nsec,
 			     ctime->tv_sec, ctime->tv_nsec);
 			inode->i_ctime = *ctime;
 		}
-		if (ceph_seq_cmp(time_warp_seq, ci->i_time_warp_seq) > 0) {
+		if (ci->i_version == 0 ||
+		    ceph_seq_cmp(time_warp_seq, ci->i_time_warp_seq) > 0) {
 			/* the MDS did a utimes() */
 			dout("mtime %ld.%09ld -> %ld.%09ld "
 			     "tw %d -> %d\n",
@@ -786,9 +797,10 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 	new_issued = ~issued & le32_to_cpu(info->cap.caps);
 
 	/* update inode */
-	ci->i_version = le64_to_cpu(info->version);
 	inode->i_rdev = le32_to_cpu(info->rdev);
 	inode->i_blkbits = fls(le32_to_cpu(info->layout.fl_stripe_unit)) - 1;
+
+	__ceph_update_quota(ci, iinfo->max_bytes, iinfo->max_files);
 
 	if ((new_version || (new_issued & CEPH_CAP_AUTH_SHARED)) &&
 	    (issued & CEPH_CAP_AUTH_EXCL) == 0) {
@@ -856,6 +868,9 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 		ceph_forget_all_cached_acls(inode);
 		xattr_blob = NULL;
 	}
+
+	/* finally update i_version */
+	ci->i_version = le64_to_cpu(info->version);
 
 	inode->i_mapping->a_ops = &ceph_aops;
 
@@ -1867,20 +1882,9 @@ retry:
 	 * possibly truncate them.. so write AND block!
 	 */
 	if (ci->i_wrbuffer_ref_head < ci->i_wrbuffer_ref) {
-		struct ceph_cap_snap *capsnap;
-		to = ci->i_truncate_size;
-		list_for_each_entry(capsnap, &ci->i_cap_snaps, ci_item) {
-			// MDS should have revoked Frw caps
-			WARN_ON_ONCE(capsnap->writing);
-			if (capsnap->dirty_pages && capsnap->size > to)
-				to = capsnap->size;
-		}
 		spin_unlock(&ci->i_ceph_lock);
 		dout("__do_pending_vmtruncate %p flushing snaps first\n",
 		     inode);
-
-		truncate_pagecache(inode, to);
-
 		filemap_write_and_wait_range(&inode->i_data, 0,
 					     inode->i_sb->s_maxbytes);
 		goto retry;
@@ -2151,6 +2155,10 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 	err = setattr_prepare(dentry, attr);
 	if (err != 0)
 		return err;
+
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    ceph_quota_is_max_bytes_exceeded(inode, attr->ia_size))
+		return -EDQUOT;
 
 	err = __ceph_setattr(inode, attr);
 

@@ -123,6 +123,9 @@ INSTALL_TARGETS = zinstall install
 
 PHONY += bzImage $(BOOT_TARGETS) $(INSTALL_TARGETS)
 
+# Default kernel to build
+all: bzImage
+
 zImage: vmlinuz
 Image: vmlinux
 

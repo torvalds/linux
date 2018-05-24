@@ -321,7 +321,7 @@ out_unlock:
 static loff_t ashmem_llseek(struct file *file, loff_t offset, int origin)
 {
 	struct ashmem_area *asma = file->private_data;
-	int ret;
+	loff_t ret;
 
 	mutex_lock(&ashmem_mutex);
 

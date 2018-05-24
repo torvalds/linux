@@ -78,9 +78,7 @@ struct amdgpu_irq {
 	uint32_t                        srbm_soft_reset;
 };
 
-void amdgpu_irq_preinstall(struct drm_device *dev);
-int amdgpu_irq_postinstall(struct drm_device *dev);
-void amdgpu_irq_uninstall(struct drm_device *dev);
+void amdgpu_irq_disable_all(struct amdgpu_device *adev);
 irqreturn_t amdgpu_irq_handler(int irq, void *arg);
 
 int amdgpu_irq_init(struct amdgpu_device *adev);

@@ -39,6 +39,7 @@
 #define CEPH_MOUNT_OPT_FSCACHE         (1<<10) /* use fscache */
 #define CEPH_MOUNT_OPT_NOPOOLPERM      (1<<11) /* no pool permission check */
 #define CEPH_MOUNT_OPT_MOUNTWAIT       (1<<12) /* mount waits if no mds is up */
+#define CEPH_MOUNT_OPT_NOQUOTADF       (1<<13) /* no root dir quota in statfs */
 
 #define CEPH_MOUNT_OPT_DEFAULT    CEPH_MOUNT_OPT_DCACHE
 
@@ -309,6 +310,9 @@ struct ceph_inode_info {
 	struct timespec i_rctime;
 	u64 i_rbytes, i_rfiles, i_rsubdirs;
 	u64 i_files, i_subdirs;
+
+	/* quotas */
+	u64 i_max_bytes, i_max_files;
 
 	struct rb_root i_fragtree;
 	int i_fragtree_nsplits;
@@ -671,6 +675,10 @@ struct ceph_file_info {
 
 	spinlock_t rw_contexts_lock;
 	struct list_head rw_contexts;
+};
+
+struct ceph_dir_file_info {
+	struct ceph_file_info file_info;
 
 	/* readdir: position within the dir */
 	u32 frag;
@@ -748,6 +756,7 @@ struct ceph_readdir_cache_control {
  */
 struct ceph_snap_realm {
 	u64 ino;
+	struct inode *inode;
 	atomic_t nref;
 	struct rb_node node;
 
@@ -1065,5 +1074,38 @@ extern int ceph_locks_to_pagelist(struct ceph_filelock *flocks,
 /* debugfs.c */
 extern int ceph_fs_debugfs_init(struct ceph_fs_client *client);
 extern void ceph_fs_debugfs_cleanup(struct ceph_fs_client *client);
+
+/* quota.c */
+static inline bool __ceph_has_any_quota(struct ceph_inode_info *ci)
+{
+	return ci->i_max_files || ci->i_max_bytes;
+}
+
+extern void ceph_adjust_quota_realms_count(struct inode *inode, bool inc);
+
+static inline void __ceph_update_quota(struct ceph_inode_info *ci,
+				       u64 max_bytes, u64 max_files)
+{
+	bool had_quota, has_quota;
+	had_quota = __ceph_has_any_quota(ci);
+	ci->i_max_bytes = max_bytes;
+	ci->i_max_files = max_files;
+	has_quota = __ceph_has_any_quota(ci);
+
+	if (had_quota != has_quota)
+		ceph_adjust_quota_realms_count(&ci->vfs_inode, has_quota);
+}
+
+extern void ceph_handle_quota(struct ceph_mds_client *mdsc,
+			      struct ceph_mds_session *session,
+			      struct ceph_msg *msg);
+extern bool ceph_quota_is_max_files_exceeded(struct inode *inode);
+extern bool ceph_quota_is_same_realm(struct inode *old, struct inode *new);
+extern bool ceph_quota_is_max_bytes_exceeded(struct inode *inode,
+					     loff_t newlen);
+extern bool ceph_quota_is_max_bytes_approaching(struct inode *inode,
+						loff_t newlen);
+extern bool ceph_quota_update_statfs(struct ceph_fs_client *fsc,
+				     struct kstatfs *buf);
 
 #endif /* _FS_CEPH_SUPER_H */

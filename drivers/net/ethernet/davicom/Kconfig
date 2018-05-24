@@ -4,7 +4,7 @@
 
 config DM9000
 	tristate "DM9000 support"
-	depends on ARM || BLACKFIN || MIPS || COLDFIRE || NIOS2
+	depends on ARM || MIPS || COLDFIRE || NIOS2
 	select CRC32
 	select MII
 	---help---

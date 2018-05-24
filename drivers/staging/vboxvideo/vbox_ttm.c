@@ -193,10 +193,8 @@ static struct ttm_backend_func vbox_tt_backend_func = {
 	.destroy = &vbox_ttm_backend_destroy,
 };
 
-static struct ttm_tt *vbox_ttm_tt_create(struct ttm_bo_device *bdev,
-					 unsigned long size,
-					 u32 page_flags,
-					 struct page *dummy_read_page)
+static struct ttm_tt *vbox_ttm_tt_create(struct ttm_buffer_object *bo,
+					 u32 page_flags)
 {
 	struct ttm_tt *tt;
 
@@ -205,7 +203,7 @@ static struct ttm_tt *vbox_ttm_tt_create(struct ttm_bo_device *bdev,
 		return NULL;
 
 	tt->func = &vbox_tt_backend_func;
-	if (ttm_tt_init(tt, bdev, size, page_flags, dummy_read_page)) {
+	if (ttm_tt_init(tt, bo, page_flags)) {
 		kfree(tt);
 		return NULL;
 	}
@@ -213,21 +211,8 @@ static struct ttm_tt *vbox_ttm_tt_create(struct ttm_bo_device *bdev,
 	return tt;
 }
 
-static int vbox_ttm_tt_populate(struct ttm_tt *ttm,
-				struct ttm_operation_ctx *ctx)
-{
-	return ttm_pool_populate(ttm, ctx);
-}
-
-static void vbox_ttm_tt_unpopulate(struct ttm_tt *ttm)
-{
-	ttm_pool_unpopulate(ttm);
-}
-
 static struct ttm_bo_driver vbox_bo_driver = {
 	.ttm_tt_create = vbox_ttm_tt_create,
-	.ttm_tt_populate = vbox_ttm_tt_populate,
-	.ttm_tt_unpopulate = vbox_ttm_tt_unpopulate,
 	.init_mem_type = vbox_bo_init_mem_type,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = vbox_bo_evict_flags,
@@ -345,7 +330,7 @@ int vbox_bo_create(struct drm_device *dev, int size, int align,
 
 	ret = ttm_bo_init(&vbox->ttm.bdev, &vboxbo->bo, size,
 			  ttm_bo_type_device, &vboxbo->placement,
-			  align >> PAGE_SHIFT, false, NULL, acc_size,
+			  align >> PAGE_SHIFT, false, acc_size,
 			  NULL, NULL, vbox_bo_ttm_destroy);
 	if (ret)
 		goto err_free_vboxbo;

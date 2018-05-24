@@ -364,11 +364,9 @@ static int max77686_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	max77686_rtc_data_to_tm(data, tm, info);
 
-	ret = rtc_valid_tm(tm);
-
 out:
 	mutex_unlock(&info->lock);
-	return ret;
+	return 0;
 }
 
 static int max77686_rtc_set_time(struct device *dev, struct rtc_time *tm)

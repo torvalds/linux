@@ -35,6 +35,18 @@
 #define   LIO_IFSTATE_RX_TIMESTAMP_ENABLED 0x08
 #define   LIO_IFSTATE_RESETTING		   0x10
 
+struct liquidio_if_cfg_context {
+	u32 octeon_id;
+	wait_queue_head_t wc;
+	int cond;
+};
+
+struct liquidio_if_cfg_resp {
+	u64 rh;
+	struct liquidio_if_cfg_info cfg_info;
+	u64 status;
+};
+
 struct oct_nic_stats_resp {
 	u64     rh;
 	struct oct_link_stats stats;
@@ -178,11 +190,20 @@ irqreturn_t liquidio_msix_intr_handler(int irq __attribute__((unused)),
 
 int octeon_setup_interrupt(struct octeon_device *oct, u32 num_ioqs);
 
+int lio_wait_for_clean_oq(struct octeon_device *oct);
 /**
  * \brief Register ethtool operations
  * @param netdev    pointer to network device
  */
 void liquidio_set_ethtool_ops(struct net_device *netdev);
+
+/**
+ * \brief Net device change_mtu
+ * @param netdev network device
+ */
+int liquidio_change_mtu(struct net_device *netdev, int new_mtu);
+#define LIO_CHANGE_MTU_SUCCESS 1
+#define LIO_CHANGE_MTU_FAIL    2
 
 #define SKB_ADJ_MASK  0x3F
 #define SKB_ADJ       (SKB_ADJ_MASK + 1)
@@ -484,6 +505,58 @@ static inline int wait_for_pending_requests(struct octeon_device *oct)
 		return 1;
 
 	return 0;
+}
+
+/**
+ * \brief Stop Tx queues
+ * @param netdev network device
+ */
+static inline void stop_txqs(struct net_device *netdev)
+{
+	int i;
+
+	for (i = 0; i < netdev->num_tx_queues; i++)
+		netif_stop_subqueue(netdev, i);
+}
+
+/**
+ * \brief Wake Tx queues
+ * @param netdev network device
+ */
+static inline void wake_txqs(struct net_device *netdev)
+{
+	struct lio *lio = GET_LIO(netdev);
+	int i, qno;
+
+	for (i = 0; i < netdev->num_tx_queues; i++) {
+		qno = lio->linfo.txpciq[i % lio->oct_dev->num_iqs].s.q_no;
+
+		if (__netif_subqueue_stopped(netdev, i)) {
+			INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, qno,
+						  tx_restart, 1);
+			netif_wake_subqueue(netdev, i);
+		}
+	}
+}
+
+/**
+ * \brief Start Tx queues
+ * @param netdev network device
+ */
+static inline void start_txqs(struct net_device *netdev)
+{
+	struct lio *lio = GET_LIO(netdev);
+	int i;
+
+	if (lio->linfo.link.s.link_up) {
+		for (i = 0; i < netdev->num_tx_queues; i++)
+			netif_start_subqueue(netdev, i);
+	}
+}
+
+static inline int skb_iq(struct lio *lio, struct sk_buff *skb)
+{
+	return skb->queue_mapping % lio->linfo.num_txpciq;
 }
 
 #endif

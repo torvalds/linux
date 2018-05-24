@@ -141,7 +141,13 @@ on the first memory controller on socket 0 of a Intel Xeon system
 
 Each memory controller has its own PMU.  Measuring the complete system
 bandwidth would require specifying all imc PMUs (see perf list output),
-and adding the values together.
+and adding the values together. To simplify creation of multiple events,
+prefix and glob matching is supported in the PMU name, and the prefix
+'uncore_' is also ignored when performing the match. So the command above
+can be expanded to all memory controllers by using the syntaxes:
+
+  perf stat -C 0 -a imc/cas_count_read/,imc/cas_count_write/ -I 1000 ...
+  perf stat -C 0 -a *imc*/cas_count_read/,*imc*/cas_count_write/ -I 1000 ...
 
 This example measures the combined core power every second
 

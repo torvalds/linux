@@ -419,7 +419,7 @@ static int l2tp_ip6_disconnect(struct sock *sk, int flags)
 }
 
 static int l2tp_ip6_getname(struct socket *sock, struct sockaddr *uaddr,
-			    int *uaddr_len, int peer)
+			    int peer)
 {
 	struct sockaddr_l2tpip6 *lsa = (struct sockaddr_l2tpip6 *)uaddr;
 	struct sock *sk = sock->sk;
@@ -447,8 +447,7 @@ static int l2tp_ip6_getname(struct socket *sock, struct sockaddr *uaddr,
 	}
 	if (ipv6_addr_type(&lsa->l2tp_addr) & IPV6_ADDR_LINKLOCAL)
 		lsa->l2tp_scope_id = sk->sk_bound_dev_if;
-	*uaddr_len = sizeof(*lsa);
-	return 0;
+	return sizeof(*lsa);
 }
 
 static int l2tp_ip6_backlog_recv(struct sock *sk, struct sk_buff *skb)

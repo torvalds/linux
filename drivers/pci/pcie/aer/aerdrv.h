@@ -3,16 +3,16 @@
  * Copyright (C) 2006 Intel Corp.
  *	Tom Long Nguyen (tom.l.nguyen@intel.com)
  *	Zhang Yanmin (yanmin.zhang@intel.com)
- *
  */
 
 #ifndef _AERDRV_H_
 #define _AERDRV_H_
 
 #include <linux/workqueue.h>
-#include <linux/pcieport_if.h>
 #include <linux/aer.h>
 #include <linux/interrupt.h>
+
+#include "../portdrv.h"
 
 #define SYSTEM_ERROR_INTR_ON_MESG_MASK	(PCI_EXP_RTCTL_SECEE|	\
 					PCI_EXP_RTCTL_SENFEE|	\

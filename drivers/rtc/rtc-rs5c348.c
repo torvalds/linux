@@ -135,11 +135,6 @@ rs5c348_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_year = bcd2bin(rxbuf[RS5C348_REG_YEAR]) +
 		((rxbuf[RS5C348_REG_MONTH] & RS5C348_BIT_Y2K) ? 100 : 0);
 
-	if (rtc_valid_tm(tm) < 0) {
-		dev_err(&spi->dev, "retrieved date/time is not valid.\n");
-		rtc_time_to_tm(0, tm);
-	}
-
 	return 0;
 }
 

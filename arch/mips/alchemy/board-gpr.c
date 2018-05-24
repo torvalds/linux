@@ -190,7 +190,7 @@ static struct platform_device gpr_mtd_device = {
 /*
  * LEDs
  */
-static struct gpio_led gpr_gpio_leds[] = {
+static const struct gpio_led gpr_gpio_leds[] = {
 	{	/* green */
 		.name			= "gpr:green",
 		.gpio			= 4,

@@ -364,7 +364,7 @@ struct iw_handler_def {
  * defined in struct iw_priv_args.
  *
  * For standard IOCTLs, things are quite different and we need to
- * use the stuctures below. Actually, this struct is also more
+ * use the structures below. Actually, this struct is also more
  * efficient, but that's another story...
  */
 

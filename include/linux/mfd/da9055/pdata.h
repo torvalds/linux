@@ -12,6 +12,7 @@
 #define DA9055_MAX_REGULATORS	8
 
 struct da9055;
+struct gpio_desc;
 
 enum gpio_select {
 	NO_GPIO = 0,
@@ -47,7 +48,7 @@ struct da9055_pdata {
 	 * controls the regulator set A/B, 0 if  not available.
 	 */
 	enum gpio_select *reg_rsel;
-	/* GPIOs to enable regulator, 0 if not available */
-	int *ena_gpio;
+	/* GPIO descriptors to enable regulator, NULL if not available */
+	struct gpio_desc **ena_gpiods;
 };
 #endif /* __DA9055_PDATA_H */

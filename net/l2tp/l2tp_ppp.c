@@ -619,6 +619,13 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	lock_sock(sk);
 
 	error = -EINVAL;
+
+	if (sockaddr_len != sizeof(struct sockaddr_pppol2tp) &&
+	    sockaddr_len != sizeof(struct sockaddr_pppol2tpv3) &&
+	    sockaddr_len != sizeof(struct sockaddr_pppol2tpin6) &&
+	    sockaddr_len != sizeof(struct sockaddr_pppol2tpv3in6))
+		goto end;
+
 	if (sp->sa_protocol != PX_PROTO_OL2TP)
 		goto end;
 
@@ -698,6 +705,15 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 			error = l2tp_tunnel_create(sock_net(sk), fd, ver, tunnel_id, peer_tunnel_id, &tcfg, &tunnel);
 			if (error < 0)
 				goto end;
+
+			l2tp_tunnel_inc_refcount(tunnel);
+			error = l2tp_tunnel_register(tunnel, sock_net(sk),
+						     &tcfg);
+			if (error < 0) {
+				kfree(tunnel);
+				goto end;
+			}
+			drop_tunnel = true;
 		}
 	} else {
 		/* Error if we can't find the tunnel */
@@ -862,7 +878,7 @@ err:
 /* getname() support.
  */
 static int pppol2tp_getname(struct socket *sock, struct sockaddr *uaddr,
-			    int *usockaddr_len, int peer)
+			    int peer)
 {
 	int len = 0;
 	int error = 0;
@@ -961,8 +977,7 @@ static int pppol2tp_getname(struct socket *sock, struct sockaddr *uaddr,
 		memcpy(uaddr, &sp, len);
 	}
 
-	*usockaddr_len = len;
-	error = 0;
+	error = len;
 
 	sock_put(sk);
 end:
@@ -1543,16 +1558,19 @@ struct pppol2tp_seq_data {
 
 static void pppol2tp_next_tunnel(struct net *net, struct pppol2tp_seq_data *pd)
 {
+	/* Drop reference taken during previous invocation */
+	if (pd->tunnel)
+		l2tp_tunnel_dec_refcount(pd->tunnel);
+
 	for (;;) {
-		pd->tunnel = l2tp_tunnel_find_nth(net, pd->tunnel_idx);
+		pd->tunnel = l2tp_tunnel_get_nth(net, pd->tunnel_idx);
 		pd->tunnel_idx++;
 
-		if (pd->tunnel == NULL)
-			break;
+		/* Only accept L2TPv2 tunnels */
+		if (!pd->tunnel || pd->tunnel->version == 2)
+			return;
 
-		/* Ignore L2TPv3 tunnels */
-		if (pd->tunnel->version < 3)
-			break;
+		l2tp_tunnel_dec_refcount(pd->tunnel);
 	}
 }
 
@@ -1601,7 +1619,17 @@ static void *pppol2tp_seq_next(struct seq_file *m, void *v, loff_t *pos)
 
 static void pppol2tp_seq_stop(struct seq_file *p, void *v)
 {
-	/* nothing to do */
+	struct pppol2tp_seq_data *pd = v;
+
+	if (!pd || pd == SEQ_START_TOKEN)
+		return;
+
+	/* Drop reference taken by last invocation of pppol2tp_next_tunnel() */
+	if (pd->tunnel) {
+		l2tp_tunnel_dec_refcount(pd->tunnel);
+		pd->tunnel = NULL;
+		pd->session = NULL;
+	}
 }
 
 static void pppol2tp_seq_tunnel_show(struct seq_file *m, void *v)
@@ -1743,7 +1771,7 @@ static __net_init int pppol2tp_init_net(struct net *net)
 	struct proc_dir_entry *pde;
 	int err = 0;
 
-	pde = proc_create("pppol2tp", S_IRUGO, net->proc_net,
+	pde = proc_create("pppol2tp", 0444, net->proc_net,
 			  &pppol2tp_proc_fops);
 	if (!pde) {
 		err = -ENOMEM;

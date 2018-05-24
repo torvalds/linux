@@ -24,7 +24,7 @@
 	};
 
 	chosen {
-		linux,stdout-path = &usart2;
+		stdout-path = &usart2;
 	};
 
 	memory {

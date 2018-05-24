@@ -157,11 +157,6 @@
 #define OMAP_MPUIO(nr)		(OMAP_MAX_GPIO_LINES + (nr))
 #define OMAP_GPIO_IS_MPUIO(nr)	((nr) >= OMAP_MAX_GPIO_LINES)
 
-struct omap_gpio_dev_attr {
-	int bank_width;		/* GPIO bank width */
-	bool dbck_flag;		/* dbck required or not - True for OMAP3&4 */
-};
-
 struct omap_gpio_reg_offs {
 	u16 revision;
 	u16 direction;

@@ -58,6 +58,8 @@
 #define I2C_ADDR_7BITS_MAX	0x77
 #define I2C_ADDR_7BITS_COUNT	(I2C_ADDR_7BITS_MAX + 1)
 
+#define I2C_ADDR_DEVICE_ID	0x7c
+
 /*
  * core_lock protects i2c_adapter_idr, and guarantees that device detection,
  * deletion of detected devices, and attach_adapter calls are serialized
@@ -67,18 +69,18 @@ static DEFINE_IDR(i2c_adapter_idr);
 
 static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver);
 
-static struct static_key i2c_trace_msg = STATIC_KEY_INIT_FALSE;
+static DEFINE_STATIC_KEY_FALSE(i2c_trace_msg_key);
 static bool is_registered;
 
 int i2c_transfer_trace_reg(void)
 {
-	static_key_slow_inc(&i2c_trace_msg);
+	static_branch_inc(&i2c_trace_msg_key);
 	return 0;
 }
 
 void i2c_transfer_trace_unreg(void)
 {
-	static_key_slow_dec(&i2c_trace_msg);
+	static_branch_dec(&i2c_trace_msg_key);
 }
 
 const struct i2c_device_id *i2c_match_id(const struct i2c_device_id *id,
@@ -123,6 +125,10 @@ static int i2c_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	int rc;
+
+	rc = of_device_uevent_modalias(dev, env);
+	if (rc != -ENODEV)
+		return rc;
 
 	rc = acpi_device_uevent_modalias(dev, env);
 	if (rc != -ENODEV)
@@ -439,6 +445,10 @@ show_modalias(struct device *dev, struct device_attribute *attr, char *buf)
 	struct i2c_client *client = to_i2c_client(dev);
 	int len;
 
+	len = of_device_modalias(dev, buf, PAGE_SIZE);
+	if (len != -ENODEV)
+		return len;
+
 	len = acpi_device_modalias(dev, buf, PAGE_SIZE -1);
 	if (len != -ENODEV)
 		return len;
@@ -507,7 +517,7 @@ static unsigned short i2c_encode_flags_to_addr(struct i2c_client *client)
 
 /* This is a permissive address validity check, I2C address map constraints
  * are purposely not enforced, except for the general call address. */
-int i2c_check_addr_validity(unsigned addr, unsigned short flags)
+static int i2c_check_addr_validity(unsigned int addr, unsigned short flags)
 {
 	if (flags & I2C_CLIENT_TEN) {
 		/* 10-bit address, all values are valid */
@@ -1835,14 +1845,18 @@ int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	unsigned long orig_jiffies;
 	int ret, try;
 
+	if (WARN_ON(!msgs || num < 1))
+		return -EINVAL;
+
 	if (adap->quirks && i2c_check_for_quirks(adap, msgs, num))
 		return -EOPNOTSUPP;
 
-	/* i2c_trace_msg gets enabled when tracepoint i2c_transfer gets
+	/*
+	 * i2c_trace_msg_key gets enabled when tracepoint i2c_transfer gets
 	 * enabled.  This is an efficient way of keeping the for-loop from
 	 * being executed when not needed.
 	 */
-	if (static_key_false(&i2c_trace_msg)) {
+	if (static_branch_unlikely(&i2c_trace_msg_key)) {
 		int i;
 		for (i = 0; i < num; i++)
 			if (msgs[i].flags & I2C_M_RD)
@@ -1861,12 +1875,12 @@ int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 			break;
 	}
 
-	if (static_key_false(&i2c_trace_msg)) {
+	if (static_branch_unlikely(&i2c_trace_msg_key)) {
 		int i;
 		for (i = 0; i < ret; i++)
 			if (msgs[i].flags & I2C_M_RD)
 				trace_i2c_reply(adap, &msgs[i], i);
-		trace_i2c_result(adap, i, ret);
+		trace_i2c_result(adap, num, ret);
 	}
 
 	return ret;
@@ -1967,6 +1981,37 @@ int i2c_transfer_buffer_flags(const struct i2c_client *client, char *buf,
 	return (ret == 1) ? count : ret;
 }
 EXPORT_SYMBOL(i2c_transfer_buffer_flags);
+
+/**
+ * i2c_get_device_id - get manufacturer, part id and die revision of a device
+ * @client: The device to query
+ * @id: The queried information
+ *
+ * Returns negative errno on error, zero on success.
+ */
+int i2c_get_device_id(const struct i2c_client *client,
+		      struct i2c_device_identity *id)
+{
+	struct i2c_adapter *adap = client->adapter;
+	union i2c_smbus_data raw_id;
+	int ret;
+
+	if (!i2c_check_functionality(adap, I2C_FUNC_SMBUS_READ_I2C_BLOCK))
+		return -EOPNOTSUPP;
+
+	raw_id.block[0] = 3;
+	ret = i2c_smbus_xfer(adap, I2C_ADDR_DEVICE_ID, 0,
+			     I2C_SMBUS_READ, client->addr << 1,
+			     I2C_SMBUS_I2C_BLOCK_DATA, &raw_id);
+	if (ret)
+		return ret;
+
+	id->manufacturer_id = (raw_id.block[1] << 4) | (raw_id.block[2] >> 4);
+	id->part_id = ((raw_id.block[2] & 0xf) << 5) | (raw_id.block[3] >> 3);
+	id->die_revision = raw_id.block[3] & 0x7;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(i2c_get_device_id);
 
 /* ----------------------------------------------------
  * the i2c address scanning function

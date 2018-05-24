@@ -414,7 +414,7 @@ static int sh_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
 		tm->tm_mday, tm->tm_mon + 1, tm->tm_year, tm->tm_wday);
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int sh_rtc_set_time(struct device *dev, struct rtc_time *tm)

@@ -464,6 +464,10 @@ config GCC_PLUGIN_LATENT_ENTROPY
 config GCC_PLUGIN_STRUCTLEAK
 	bool "Force initialization of variables containing userspace addresses"
 	depends on GCC_PLUGINS
+	# Currently STRUCTLEAK inserts initialization out of live scope of
+	# variables from KASAN point of view. This leads to KASAN false
+	# positive reports. Prohibit this combination for now.
+	depends on !KASAN_EXTRA
 	help
 	  This plugin zero-initializes any structures containing a
 	  __user attribute. This can prevent some classes of information
@@ -595,12 +599,6 @@ config CC_STACKPROTECTOR_AUTO
 	  option will be chosen.
 
 endchoice
-
-config THIN_ARCHIVES
-	def_bool y
-	help
-	  Select this if the architecture wants to use thin archives
-	  instead of ld -r to create the built-in.o files.
 
 config LD_DEAD_CODE_DATA_ELIMINATION
 	bool

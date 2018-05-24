@@ -2255,6 +2255,23 @@ static const struct bin_attribute edid2_attr = {
 	.read	= radeon_show_edid2,
 };
 
+static int radeon_kick_out_firmware_fb(struct pci_dev *pdev)
+{
+	struct apertures_struct *ap;
+
+	ap = alloc_apertures(1);
+	if (!ap)
+		return -ENOMEM;
+
+	ap->ranges[0].base = pci_resource_start(pdev, 0);
+	ap->ranges[0].size = pci_resource_len(pdev, 0);
+
+	remove_conflicting_framebuffers(ap, KBUILD_MODNAME, false);
+
+	kfree(ap);
+
+	return 0;
+}
 
 static int radeonfb_pci_register(struct pci_dev *pdev,
 				 const struct pci_device_id *ent)
@@ -2307,6 +2324,10 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 	/* Set base addrs */
 	rinfo->fb_base_phys = pci_resource_start (pdev, 0);
 	rinfo->mmio_base_phys = pci_resource_start (pdev, 2);
+
+	ret = radeon_kick_out_firmware_fb(pdev);
+	if (ret)
+		return ret;
 
 	/* request the mem regions */
 	ret = pci_request_region(pdev, 0, "radeonfb framebuffer");

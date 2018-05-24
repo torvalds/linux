@@ -1940,7 +1940,6 @@ int gfs2_dir_mvino(struct gfs2_inode *dip, const struct qstr *filename,
 {
 	struct buffer_head *bh;
 	struct gfs2_dirent *dent;
-	int error;
 
 	dent = gfs2_dirent_search(&dip->i_inode, filename, gfs2_dirent_find, &bh);
 	if (!dent) {
@@ -1953,18 +1952,10 @@ int gfs2_dir_mvino(struct gfs2_inode *dip, const struct qstr *filename,
 	gfs2_trans_add_meta(dip->i_gl, bh);
 	gfs2_inum_out(nip, dent);
 	dent->de_type = cpu_to_be16(new_type);
-
-	if (dip->i_diskflags & GFS2_DIF_EXHASH) {
-		brelse(bh);
-		error = gfs2_meta_inode_buffer(dip, &bh);
-		if (error)
-			return error;
-		gfs2_trans_add_meta(dip->i_gl, bh);
-	}
+	brelse(bh);
 
 	dip->i_inode.i_mtime = dip->i_inode.i_ctime = current_time(&dip->i_inode);
-	gfs2_dinode_out(dip, bh->b_data);
-	brelse(bh);
+	mark_inode_dirty_sync(&dip->i_inode);
 	return 0;
 }
 

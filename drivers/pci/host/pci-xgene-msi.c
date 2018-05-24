@@ -456,7 +456,7 @@ static int xgene_msi_probe(struct platform_device *pdev)
 	xgene_msi->msi_regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(xgene_msi->msi_regs)) {
 		dev_err(&pdev->dev, "no reg space\n");
-		rc = -EINVAL;
+		rc = PTR_ERR(xgene_msi->msi_regs);
 		goto error;
 	}
 	xgene_msi->msi_addr = res->start;

@@ -4,8 +4,14 @@
 
 #define H_PTE_INDEX_SIZE  8
 #define H_PMD_INDEX_SIZE  10
-#define H_PUD_INDEX_SIZE  7
+#define H_PUD_INDEX_SIZE  10
 #define H_PGD_INDEX_SIZE  8
+
+/*
+ * Each context is 512TB size. SLB miss for first context/default context
+ * is handled in the hotpath.
+ */
+#define MAX_EA_BITS_PER_CONTEXT		49
 
 /*
  * 64k aligned address free up few of the lower bits of RPN for us
@@ -16,6 +22,13 @@
 #define H_PAGE_BUSY	_RPAGE_RPN44     /* software: PTE & hash are busy */
 #define H_PAGE_HASHPTE	_RPAGE_RPN43	/* PTE has associated HPTE */
 
+/* memory key bits. */
+#define H_PTE_PKEY_BIT0	_RPAGE_RSV1
+#define H_PTE_PKEY_BIT1	_RPAGE_RSV2
+#define H_PTE_PKEY_BIT2	_RPAGE_RSV3
+#define H_PTE_PKEY_BIT3	_RPAGE_RSV4
+#define H_PTE_PKEY_BIT4	_RPAGE_RSV5
+
 /*
  * We need to differentiate between explicit huge page and THP huge
  * page, since THP huge page also need to track real subpage details
@@ -25,15 +38,13 @@
 /* PTE flags to conserve for HPTE identification */
 #define _PAGE_HPTEFLAGS (H_PAGE_BUSY | H_PAGE_HASHPTE | H_PAGE_COMBO)
 /*
- * we support 16 fragments per PTE page of 64K size.
- */
-#define H_PTE_FRAG_NR	16
-/*
  * We use a 2K PTE page fragment and another 2K for storing
  * real_pte_t hash index
+ * 8 bytes per each pte entry and another 8 bytes for storing
+ * slot details.
  */
-#define H_PTE_FRAG_SIZE_SHIFT  12
-#define PTE_FRAG_SIZE (1UL << PTE_FRAG_SIZE_SHIFT)
+#define H_PTE_FRAG_SIZE_SHIFT  (H_PTE_INDEX_SIZE + 3 + 1)
+#define H_PTE_FRAG_NR	(PAGE_SIZE >> H_PTE_FRAG_SIZE_SHIFT)
 
 #ifndef __ASSEMBLY__
 #include <asm/errno.h>

@@ -33,7 +33,7 @@
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/acpi.h>
-#include "battery.h"
+#include <acpi/battery.h>
 
 #define PREFIX "ACPI: "
 

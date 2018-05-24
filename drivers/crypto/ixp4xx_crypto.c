@@ -1167,9 +1167,11 @@ static int aead_setkey(struct crypto_aead *tfm, const u8 *key,
 	ctx->authkey_len = keys.authkeylen;
 	ctx->enckey_len = keys.enckeylen;
 
+	memzero_explicit(&keys, sizeof(keys));
 	return aead_setup(tfm, crypto_aead_authsize(tfm));
 badkey:
 	crypto_aead_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	memzero_explicit(&keys, sizeof(keys));
 	return -EINVAL;
 }
 

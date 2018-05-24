@@ -17,6 +17,7 @@
 #include <linux/smp.h>
 #include <linux/soc/renesas/rcar-sysc.h>
 #include <asm/io.h>
+#include <asm/cputype.h>
 #include "common.h"
 #include "rcar-gen2.h"
 
@@ -36,7 +37,6 @@
 #define CA15RESCNT_CPUS	0xf		/* CPU0-3 */
 #define CA7RESCNT_CODE	0x5a5a0000
 #define CA7RESCNT_CPUS	0xf		/* CPU0-3 */
-
 
 /* On-chip RAM */
 #define ICRAM1		0xe63c0000	/* Inter Connect RAM1 (4 KiB) */
@@ -119,8 +119,17 @@ map:
 	p = ioremap(res.start, resource_size(&res));
 	if (!p)
 		return;
-
-	memcpy_toio(p, shmobile_boot_vector, shmobile_boot_size);
+	/*
+	 * install the reset vector, use the largest version if we have enough
+	 * memory available
+	 */
+	if (resource_size(&res) >= shmobile_boot_size_gen2) {
+		shmobile_boot_cpu_gen2 = read_cpuid_mpidr();
+		memcpy_toio(p, shmobile_boot_vector_gen2,
+			    shmobile_boot_size_gen2);
+	} else {
+		memcpy_toio(p, shmobile_boot_vector, shmobile_boot_size);
+	}
 	iounmap(p);
 
 	/* setup reset vectors */

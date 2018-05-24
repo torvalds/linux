@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
@@ -287,6 +288,17 @@ out:
 	return capable;
 }
 
+void i40e_client_update_msix_info(struct i40e_pf *pf)
+{
+	struct i40e_client_instance *cdev = pf->cinst;
+
+	if (!cdev || !cdev->client)
+		return;
+
+	cdev->lan_info.msix_count = pf->num_iwarp_msix;
+	cdev->lan_info.msix_entries = &pf->msix_entries[pf->iwarp_base_vector];
+}
+
 /**
  * i40e_client_add_instance - add a client instance struct to the instance list
  * @pf: pointer to the board struct
@@ -328,9 +340,6 @@ static void i40e_client_add_instance(struct i40e_pf *pf)
 		return;
 	}
 
-	cdev->lan_info.msix_count = pf->num_iwarp_msix;
-	cdev->lan_info.msix_entries = &pf->msix_entries[pf->iwarp_base_vector];
-
 	mac = list_first_entry(&cdev->lan_info.netdev->dev_addrs.list,
 			       struct netdev_hw_addr, list);
 	if (mac)
@@ -340,6 +349,8 @@ static void i40e_client_add_instance(struct i40e_pf *pf)
 
 	cdev->client = registered_client;
 	pf->cinst = cdev;
+
+	i40e_client_update_msix_info(pf);
 }
 
 /**
@@ -365,9 +376,8 @@ void i40e_client_subtask(struct i40e_pf *pf)
 	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
 	int ret = 0;
 
-	if (!(pf->flags & I40E_FLAG_SERVICE_CLIENT_REQUESTED))
+	if (!test_and_clear_bit(__I40E_CLIENT_SERVICE_REQUESTED, pf->state))
 		return;
-	pf->flags &= ~I40E_FLAG_SERVICE_CLIENT_REQUESTED;
 	cdev = pf->cinst;
 
 	/* If we're down or resetting, just bail */
@@ -448,7 +458,7 @@ int i40e_lan_add_device(struct i40e_pf *pf)
 	 * added, we can schedule a subtask to go initiate the clients if
 	 * they can be launched at probe time.
 	 */
-	pf->flags |= I40E_FLAG_SERVICE_CLIENT_REQUESTED;
+	set_bit(__I40E_CLIENT_SERVICE_REQUESTED, pf->state);
 	i40e_service_event_schedule(pf);
 
 out:
@@ -543,7 +553,7 @@ static void i40e_client_prepare(struct i40e_client *client)
 		pf = ldev->pf;
 		i40e_client_add_instance(pf);
 		/* Start the client subtask */
-		pf->flags |= I40E_FLAG_SERVICE_CLIENT_REQUESTED;
+		set_bit(__I40E_CLIENT_SERVICE_REQUESTED, pf->state);
 		i40e_service_event_schedule(pf);
 	}
 	mutex_unlock(&i40e_device_mutex);

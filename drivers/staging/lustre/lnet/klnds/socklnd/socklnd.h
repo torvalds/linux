@@ -304,15 +304,6 @@ struct ksock_tx {			   /* transmit packet */
 
 /* network zero copy callback descriptor embedded in struct ksock_tx */
 
-/*
- * space for the rx frag descriptors; we either read a single contiguous
- * header, or up to LNET_MAX_IOV frags of payload of either type.
- */
-union ksock_rxiovspace {
-	struct kvec      iov[LNET_MAX_IOV];
-	struct bio_vec	kiov[LNET_MAX_IOV];
-};
-
 #define SOCKNAL_RX_KSM_HEADER   1 /* reading ksock message header */
 #define SOCKNAL_RX_LNET_HEADER  2 /* reading lnet message header */
 #define SOCKNAL_RX_PARSE        3 /* Calling lnet_parse() */
@@ -359,7 +350,7 @@ struct ksock_conn {
 	__u8               ksnc_rx_state;     /* what is being read */
 	int                ksnc_rx_nob_left;  /* # bytes to next hdr/body */
 	struct iov_iter    ksnc_rx_to;		/* copy destination */
-	union ksock_rxiovspace ksnc_rx_iov_space; /* space for frag descriptors */
+	struct kvec        ksnc_rx_iov_space[LNET_MAX_IOV]; /* space for frag descriptors */
 	__u32              ksnc_rx_csum;      /* partial checksum for incoming
 					       * data
 					       */

@@ -114,14 +114,14 @@ kalmia_init_and_get_ethernet_addr(struct usbnet *dev, u8 *ethernet_addr)
 		return -ENOMEM;
 
 	memcpy(usb_buf, init_msg_1, 12);
-	status = kalmia_send_init_packet(dev, usb_buf, sizeof(init_msg_1)
-		/ sizeof(init_msg_1[0]), usb_buf, 24);
+	status = kalmia_send_init_packet(dev, usb_buf, ARRAY_SIZE(init_msg_1),
+					 usb_buf, 24);
 	if (status != 0)
 		return status;
 
 	memcpy(usb_buf, init_msg_2, 12);
-	status = kalmia_send_init_packet(dev, usb_buf, sizeof(init_msg_2)
-		/ sizeof(init_msg_2[0]), usb_buf, 28);
+	status = kalmia_send_init_packet(dev, usb_buf, ARRAY_SIZE(init_msg_2),
+					 usb_buf, 28);
 	if (status != 0)
 		return status;
 
@@ -150,12 +150,8 @@ kalmia_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->rx_urb_size = dev->hard_mtu * 10; // Found as optimal after testing
 
 	status = kalmia_init_and_get_ethernet_addr(dev, ethernet_addr);
-
-	if (status) {
-		usb_set_intfdata(intf, NULL);
-		usb_driver_release_interface(driver_of(intf), intf);
+	if (status)
 		return status;
-	}
 
 	memcpy(dev->net->dev_addr, ethernet_addr, ETH_ALEN);
 

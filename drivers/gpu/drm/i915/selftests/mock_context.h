@@ -36,4 +36,7 @@ void mock_context_close(struct i915_gem_context *ctx);
 struct i915_gem_context *
 live_context(struct drm_i915_private *i915, struct drm_file *file);
 
+struct i915_gem_context *kernel_context(struct drm_i915_private *i915);
+void kernel_context_close(struct i915_gem_context *ctx);
+
 #endif /* !__MOCK_CONTEXT_H */

@@ -465,12 +465,12 @@ config NF_TABLES_INET
 	depends on IPV6
 	select NF_TABLES_IPV4
 	select NF_TABLES_IPV6
-	tristate "Netfilter nf_tables mixed IPv4/IPv6 tables support"
+	bool "Netfilter nf_tables mixed IPv4/IPv6 tables support"
 	help
 	  This option enables support for a mixed IPv4/IPv6 "inet" table.
 
 config NF_TABLES_NETDEV
-	tristate "Netfilter nf_tables netdev tables support"
+	bool "Netfilter nf_tables netdev tables support"
 	help
 	  This option enables support for the "netdev" table.
 
@@ -594,6 +594,7 @@ config NFT_QUOTA
 config NFT_REJECT
 	default m if NETFILTER_ADVANCED=n
 	tristate "Netfilter nf_tables reject support"
+	depends on !NF_TABLES_INET || (IPV6!=m || m)
 	help
 	  This option adds the "reject" expression that you can use to
 	  explicitly deny and notify via TCP reset/ICMP informational errors

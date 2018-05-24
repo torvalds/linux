@@ -22,7 +22,21 @@
  */
 
 #include "amdgpu.h"
-#define MAX_KIQ_REG_WAIT	100000000 /* in usecs */
+#define MAX_KIQ_REG_WAIT	5000 /* in usecs, 5ms */
+#define MAX_KIQ_REG_BAILOUT_INTERVAL	5 /* in msecs, 5ms */
+#define MAX_KIQ_REG_TRY 20
+
+uint64_t amdgpu_csa_vaddr(struct amdgpu_device *adev)
+{
+	uint64_t addr = adev->vm_manager.max_pfn << AMDGPU_GPU_PAGE_SHIFT;
+
+	addr -= AMDGPU_VA_RESERVED_SIZE;
+
+	if (addr >= AMDGPU_VA_HOLE_START)
+		addr |= AMDGPU_VA_HOLE_END;
+
+	return addr;
+}
 
 bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev)
 {
@@ -55,14 +69,14 @@ void amdgpu_free_static_csa(struct amdgpu_device *adev) {
 
 /*
  * amdgpu_map_static_csa should be called during amdgpu_vm_init
- * it maps virtual address "AMDGPU_VA_RESERVED_SIZE - AMDGPU_CSA_SIZE"
- * to this VM, and each command submission of GFX should use this virtual
- * address within META_DATA init package to support SRIOV gfx preemption.
+ * it maps virtual address amdgpu_csa_vaddr() to this VM, and each command
+ * submission of GFX should use this virtual address within META_DATA init
+ * package to support SRIOV gfx preemption.
  */
-
 int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			  struct amdgpu_bo_va **bo_va)
 {
+	uint64_t csa_addr = amdgpu_csa_vaddr(adev) & AMDGPU_VA_HOLE_MASK;
 	struct ww_acquire_ctx ticket;
 	struct list_head list;
 	struct amdgpu_bo_list_entry pd;
@@ -90,7 +104,7 @@ int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		return -ENOMEM;
 	}
 
-	r = amdgpu_vm_alloc_pts(adev, (*bo_va)->base.vm, AMDGPU_CSA_VADDR,
+	r = amdgpu_vm_alloc_pts(adev, (*bo_va)->base.vm, csa_addr,
 				AMDGPU_CSA_SIZE);
 	if (r) {
 		DRM_ERROR("failed to allocate pts for static CSA, err=%d\n", r);
@@ -99,7 +113,7 @@ int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		return r;
 	}
 
-	r = amdgpu_vm_bo_map(adev, *bo_va, AMDGPU_CSA_VADDR, 0, AMDGPU_CSA_SIZE,
+	r = amdgpu_vm_bo_map(adev, *bo_va, csa_addr, 0, AMDGPU_CSA_SIZE,
 			     AMDGPU_PTE_READABLE | AMDGPU_PTE_WRITEABLE |
 			     AMDGPU_PTE_EXECUTABLE);
 
@@ -125,9 +139,9 @@ void amdgpu_virt_init_setting(struct amdgpu_device *adev)
 
 uint32_t amdgpu_virt_kiq_rreg(struct amdgpu_device *adev, uint32_t reg)
 {
-	signed long r;
+	signed long r, cnt = 0;
 	unsigned long flags;
-	uint32_t val, seq;
+	uint32_t seq;
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
 	struct amdgpu_ring *ring = &kiq->ring;
 
@@ -141,18 +155,39 @@ uint32_t amdgpu_virt_kiq_rreg(struct amdgpu_device *adev, uint32_t reg)
 	spin_unlock_irqrestore(&kiq->ring_lock, flags);
 
 	r = amdgpu_fence_wait_polling(ring, seq, MAX_KIQ_REG_WAIT);
-	if (r < 1) {
-		DRM_ERROR("wait for kiq fence error: %ld\n", r);
-		return ~0;
-	}
-	val = adev->wb.wb[adev->virt.reg_val_offs];
 
-	return val;
+	/* don't wait anymore for gpu reset case because this way may
+	 * block gpu_recover() routine forever, e.g. this virt_kiq_rreg
+	 * is triggered in TTM and ttm_bo_lock_delayed_workqueue() will
+	 * never return if we keep waiting in virt_kiq_rreg, which cause
+	 * gpu_recover() hang there.
+	 *
+	 * also don't wait anymore for IRQ context
+	 * */
+	if (r < 1 && (adev->in_gpu_reset || in_interrupt()))
+		goto failed_kiq_read;
+
+	if (in_interrupt())
+		might_sleep();
+
+	while (r < 1 && cnt++ < MAX_KIQ_REG_TRY) {
+		msleep(MAX_KIQ_REG_BAILOUT_INTERVAL);
+		r = amdgpu_fence_wait_polling(ring, seq, MAX_KIQ_REG_WAIT);
+	}
+
+	if (cnt > MAX_KIQ_REG_TRY)
+		goto failed_kiq_read;
+
+	return adev->wb.wb[adev->virt.reg_val_offs];
+
+failed_kiq_read:
+	pr_err("failed to read reg:%x\n", reg);
+	return ~0;
 }
 
 void amdgpu_virt_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v)
 {
-	signed long r;
+	signed long r, cnt = 0;
 	unsigned long flags;
 	uint32_t seq;
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
@@ -168,8 +203,34 @@ void amdgpu_virt_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v)
 	spin_unlock_irqrestore(&kiq->ring_lock, flags);
 
 	r = amdgpu_fence_wait_polling(ring, seq, MAX_KIQ_REG_WAIT);
-	if (r < 1)
-		DRM_ERROR("wait for kiq fence error: %ld\n", r);
+
+	/* don't wait anymore for gpu reset case because this way may
+	 * block gpu_recover() routine forever, e.g. this virt_kiq_rreg
+	 * is triggered in TTM and ttm_bo_lock_delayed_workqueue() will
+	 * never return if we keep waiting in virt_kiq_rreg, which cause
+	 * gpu_recover() hang there.
+	 *
+	 * also don't wait anymore for IRQ context
+	 * */
+	if (r < 1 && (adev->in_gpu_reset || in_interrupt()))
+		goto failed_kiq_write;
+
+	if (in_interrupt())
+		might_sleep();
+
+	while (r < 1 && cnt++ < MAX_KIQ_REG_TRY) {
+
+		msleep(MAX_KIQ_REG_BAILOUT_INTERVAL);
+		r = amdgpu_fence_wait_polling(ring, seq, MAX_KIQ_REG_WAIT);
+	}
+
+	if (cnt > MAX_KIQ_REG_TRY)
+		goto failed_kiq_write;
+
+	return;
+
+failed_kiq_write:
+	pr_err("failed to write reg:%x\n", reg);
 }
 
 /**

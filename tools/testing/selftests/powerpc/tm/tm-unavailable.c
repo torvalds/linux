@@ -80,7 +80,7 @@ bool is_failure(uint64_t condition_reg)
 	return ((condition_reg >> 28) & 0xa) == 0xa;
 }
 
-void *ping(void *input)
+void *tm_una_ping(void *input)
 {
 
 	/*
@@ -280,7 +280,7 @@ void *ping(void *input)
 }
 
 /* Thread to force context switch */
-void *pong(void *not_used)
+void *tm_una_pong(void *not_used)
 {
 	/* Wait thread get its name "pong". */
 	if (DEBUG)
@@ -311,11 +311,11 @@ void test_fp_vec(int fp, int vec, pthread_attr_t *attr)
 	do {
 		int rc;
 
-		/* Bind 'ping' to CPU 0, as specified in 'attr'. */
-		rc = pthread_create(&t0, attr, ping, (void *) &flags);
+		/* Bind to CPU 0, as specified in 'attr'. */
+		rc = pthread_create(&t0, attr, tm_una_ping, (void *) &flags);
 		if (rc)
 			pr_err(rc, "pthread_create()");
-		rc = pthread_setname_np(t0, "ping");
+		rc = pthread_setname_np(t0, "tm_una_ping");
 		if (rc)
 			pr_warn(rc, "pthread_setname_np");
 		rc = pthread_join(t0, &ret_value);
@@ -333,12 +333,14 @@ void test_fp_vec(int fp, int vec, pthread_attr_t *attr)
 	}
 }
 
-int main(int argc, char **argv)
+int tm_unavailable_test(void)
 {
 	int rc, exception; /* FP = 0, VEC = 1, VSX = 2 */
 	pthread_t t1;
 	pthread_attr_t attr;
 	cpu_set_t cpuset;
+
+	SKIP_IF(!have_htm());
 
 	/* Set only CPU 0 in the mask. Both threads will be bound to CPU 0. */
 	CPU_ZERO(&cpuset);
@@ -354,12 +356,12 @@ int main(int argc, char **argv)
 	if (rc)
 		pr_err(rc, "pthread_attr_setaffinity_np()");
 
-	rc = pthread_create(&t1, &attr /* Bind 'pong' to CPU 0 */, pong, NULL);
+	rc = pthread_create(&t1, &attr /* Bind to CPU 0 */, tm_una_pong, NULL);
 	if (rc)
 		pr_err(rc, "pthread_create()");
 
 	/* Name it for systemtap convenience */
-	rc = pthread_setname_np(t1, "pong");
+	rc = pthread_setname_np(t1, "tm_una_pong");
 	if (rc)
 		pr_warn(rc, "pthread_create()");
 
@@ -393,4 +395,10 @@ int main(int argc, char **argv)
 		printf("result: success\n");
 		exit(0);
 	}
+}
+
+int main(int argc, char **argv)
+{
+	test_harness_set_timeout(220);
+	return test_harness(tm_unavailable_test, "tm_unavailable_test");
 }

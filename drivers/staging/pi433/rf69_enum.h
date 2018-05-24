@@ -41,7 +41,7 @@ enum mod_shaping {
 	SHAPING_2BR
 };
 
-enum paRamp {
+enum pa_ramp {
 	ramp3400,
 	ramp2000,
 	ramp1000,
@@ -60,12 +60,12 @@ enum paRamp {
 	ramp10
 };
 
-enum antennaImpedance {
-	fiftyOhm,
-	twohundretOhm
+enum antenna_impedance {
+	fifty_ohm,
+	two_hundred_ohm
 };
 
-enum lnaGain {
+enum lna_gain {
 	automatic,
 	max,
 	max_minus_6,
@@ -82,7 +82,7 @@ enum mantisse {
 	mantisse24
 };
 
-enum thresholdDecrement {
+enum threshold_decrement {
 	dec_every8th,
 	dec_every4th,
 	dec_every2nd,
@@ -94,50 +94,50 @@ enum thresholdDecrement {
 };
 
 enum flag {
-	modeSwitchCompleted,
-	readyToReceive,
-	readyToSend,
-	pllLocked,
-	rssiExceededThreshold,
+	mode_switch_completed,
+	ready_to_receive,
+	ready_to_send,
+	pll_locked,
+	rssi_exceeded_threshold,
 	timeout,
 	automode,
-	syncAddressMatch,
+	sync_address_match,
 	fifo_full,
 //	fifo_not_empty, collision with next enum; replaced by following enum...
 	fifo_empty,
 	fifo_level_below_threshold,
 	fifo_overrun,
-	packetSent,
+	packet_sent,
 	payload_ready,
-	crcOk,
-	batteryLow
+	crc_ok,
+	battery_low
 };
 
 enum fifo_fill_condition {
-	afterSyncInterrupt,
+	after_sync_interrupt,
 	always
 };
 
-enum packetFormat {
-	packetLengthFix,
-	packetLengthVar
+enum packet_format {
+	packet_length_fix,
+	packet_length_var
 };
 
-enum txStartCondition {
+enum tx_start_condition {
 	fifo_level,
 	fifo_not_empty
 };
 
-enum addressFiltering {
-	filteringOff,
-	nodeAddress,
-	nodeOrBroadcastAddress
+enum address_filtering {
+	filtering_off,
+	node_address,
+	node_or_broadcast_address
 };
 
 enum dagc {
-	normalMode,
+	normal_mode,
 	improve,
-	improve4LowModulationIndex
+	improve_for_low_modulation_index
 };
 
 #endif

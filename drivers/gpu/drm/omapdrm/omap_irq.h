@@ -32,7 +32,7 @@ void omap_drm_irq_uninstall(struct drm_device *dev);
 int omap_drm_irq_install(struct drm_device *dev);
 
 struct omap_irq_wait *omap_irq_wait_init(struct drm_device *dev,
-		uint32_t irqmask, int count);
+		u32 irqmask, int count);
 int omap_irq_wait(struct drm_device *dev, struct omap_irq_wait *wait,
 		unsigned long timeout);
 

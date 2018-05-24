@@ -136,6 +136,19 @@ Sorting
 .. kernel-doc:: lib/list_sort.c
    :export:
 
+Text Searching
+--------------
+
+.. kernel-doc:: lib/textsearch.c
+   :doc: ts_intro
+
+.. kernel-doc:: lib/textsearch.c
+   :export:
+
+.. kernel-doc:: include/linux/textsearch.h
+   :functions: textsearch_find textsearch_next \
+               textsearch_get_pattern textsearch_get_pattern_len
+
 UUID/GUID
 ---------
 

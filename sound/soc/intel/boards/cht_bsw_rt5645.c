@@ -252,14 +252,14 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 {
 	struct snd_soc_card *card = runtime->card;
 	struct cht_mc_private *ctx = snd_soc_card_get_drvdata(runtime->card);
-	struct snd_soc_codec *codec = runtime->codec;
+	struct snd_soc_component *component = runtime->codec_dai->component;
 	int jack_type;
 	int ret;
 
 	if ((cht_rt5645_quirk & CHT_RT5645_SSP2_AIF2) ||
 	    (cht_rt5645_quirk & CHT_RT5645_SSP0_AIF2)) {
 		/* Select clk_i2s2_asrc as ASRC clock source */
-		rt5645_sel_asrc_clk_src(codec,
+		rt5645_sel_asrc_clk_src(component,
 					RT5645_DA_STEREO_FILTER |
 					RT5645_DA_MONO_L_FILTER |
 					RT5645_DA_MONO_R_FILTER |
@@ -267,7 +267,7 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 					RT5645_CLK_SEL_I2S2_ASRC);
 	} else {
 		/* Select clk_i2s1_asrc as ASRC clock source */
-		rt5645_sel_asrc_clk_src(codec,
+		rt5645_sel_asrc_clk_src(component,
 					RT5645_DA_STEREO_FILTER |
 					RT5645_DA_MONO_L_FILTER |
 					RT5645_DA_MONO_R_FILTER |
@@ -310,7 +310,7 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 		return ret;
 	}
 
-	rt5645_set_jack_detect(codec, &ctx->jack, &ctx->jack, &ctx->jack);
+	rt5645_set_jack_detect(component, &ctx->jack, &ctx->jack, &ctx->jack);
 
 
 	/*

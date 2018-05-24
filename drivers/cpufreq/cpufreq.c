@@ -178,14 +178,7 @@ int cpufreq_generic_init(struct cpufreq_policy *policy,
 		struct cpufreq_frequency_table *table,
 		unsigned int transition_latency)
 {
-	int ret;
-
-	ret = cpufreq_table_validate_and_show(policy, table);
-	if (ret) {
-		pr_err("%s: invalid frequency table: %d\n", __func__, ret);
-		return ret;
-	}
-
+	policy->freq_table = table;
 	policy->cpuinfo.transition_latency = transition_latency;
 
 	/*
@@ -1219,6 +1212,10 @@ static int cpufreq_online(unsigned int cpu)
 		goto out_free_policy;
 	}
 
+	ret = cpufreq_table_validate_and_sort(policy);
+	if (ret)
+		goto out_exit_policy;
+
 	down_write(&policy->rwsem);
 
 	if (new_policy) {
@@ -1249,7 +1246,7 @@ static int cpufreq_online(unsigned int cpu)
 		policy->cur = cpufreq_driver->get(policy->cpu);
 		if (!policy->cur) {
 			pr_err("%s: ->get() failed\n", __func__);
-			goto out_exit_policy;
+			goto out_destroy_policy;
 		}
 	}
 
@@ -1296,7 +1293,7 @@ static int cpufreq_online(unsigned int cpu)
 	if (new_policy) {
 		ret = cpufreq_add_dev_interface(policy);
 		if (ret)
-			goto out_exit_policy;
+			goto out_destroy_policy;
 
 		cpufreq_stats_create_table(policy);
 
@@ -1311,7 +1308,7 @@ static int cpufreq_online(unsigned int cpu)
 		       __func__, cpu, ret);
 		/* cpufreq_policy_free() will notify based on this */
 		new_policy = false;
-		goto out_exit_policy;
+		goto out_destroy_policy;
 	}
 
 	up_write(&policy->rwsem);
@@ -1326,14 +1323,15 @@ static int cpufreq_online(unsigned int cpu)
 
 	return 0;
 
-out_exit_policy:
-	up_write(&policy->rwsem);
-
-	if (cpufreq_driver->exit)
-		cpufreq_driver->exit(policy);
-
+out_destroy_policy:
 	for_each_cpu(j, policy->real_cpus)
 		remove_cpu_dev_symlink(policy, get_cpu_device(j));
+
+	up_write(&policy->rwsem);
+
+out_exit_policy:
+	if (cpufreq_driver->exit)
+		cpufreq_driver->exit(policy);
 
 out_free_policy:
 	cpufreq_policy_free(policy);

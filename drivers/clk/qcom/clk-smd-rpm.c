@@ -686,7 +686,7 @@ static int rpm_smd_clk_probe(struct platform_device *pdev)
 			goto err;
 	}
 
-	ret = of_clk_add_hw_provider(pdev->dev.of_node, qcom_smdrpm_clk_hw_get,
+	ret = devm_of_clk_add_hw_provider(&pdev->dev, qcom_smdrpm_clk_hw_get,
 				     rcc);
 	if (ret)
 		goto err;
@@ -697,19 +697,12 @@ err:
 	return ret;
 }
 
-static int rpm_smd_clk_remove(struct platform_device *pdev)
-{
-	of_clk_del_provider(pdev->dev.of_node);
-	return 0;
-}
-
 static struct platform_driver rpm_smd_clk_driver = {
 	.driver = {
 		.name = "qcom-clk-smd-rpm",
 		.of_match_table = rpm_smd_clk_match_table,
 	},
 	.probe = rpm_smd_clk_probe,
-	.remove = rpm_smd_clk_remove,
 };
 
 static int __init rpm_smd_clk_init(void)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * kirkwood-viper.dts - Device Tree file for Linksys viper (E4200v2 / EA4500)
  *
@@ -6,9 +7,6 @@
  * (c) 2014 Luka Perkov <luka@openwrt.org>
  * (c) 2014 Randy C. Will <randall.will@gmail.com>
  *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 /dts-v1/;

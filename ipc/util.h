@@ -15,6 +15,7 @@
 #include <linux/err.h>
 #include <linux/ipc_namespace.h>
 
+#define IPCMNI 32768  /* <= MAX_INT limit for ipc arrays (including sysctl changes) */
 #define SEQ_MULTIPLIER	(IPCMNI)
 
 int sem_init(void);
@@ -22,6 +23,7 @@ int msg_init(void);
 void shm_init(void);
 
 struct ipc_namespace;
+struct pid_namespace;
 
 #ifdef CONFIG_POSIX_MQUEUE
 extern void mq_clear_sbinfo(struct ipc_namespace *ns);
@@ -85,6 +87,7 @@ int ipc_init_ids(struct ipc_ids *);
 #ifdef CONFIG_PROC_FS
 void __init ipc_init_proc_interface(const char *path, const char *header,
 		int ids, int (*show)(struct seq_file *, void *));
+struct pid_namespace *ipc_seq_pid_ns(struct seq_file *);
 #else
 #define ipc_init_proc_interface(path, header, ids, show) do {} while (0)
 #endif
@@ -148,6 +151,15 @@ int ipc_update_perm(struct ipc64_perm *in, struct kern_ipc_perm *out);
 struct kern_ipc_perm *ipcctl_pre_down_nolock(struct ipc_namespace *ns,
 					     struct ipc_ids *ids, int id, int cmd,
 					     struct ipc64_perm *perm, int extra_perm);
+
+static inline void ipc_update_pid(struct pid **pos, struct pid *pid)
+{
+	struct pid *old = *pos;
+	if (old != pid) {
+		*pos = get_pid(pid);
+		put_pid(old);
+	}
+}
 
 #ifndef CONFIG_ARCH_WANT_IPC_PARSE_VERSION
 /* On IA-64, we always use the "64-bit version" of the IPC structures.  */
@@ -235,4 +247,35 @@ static inline int compat_ipc_parse_version(int *cmd)
 #endif
 }
 #endif
+
+/* for __ARCH_WANT_SYS_IPC */
+long ksys_semtimedop(int semid, struct sembuf __user *tsops,
+		     unsigned int nsops,
+		     const struct timespec __user *timeout);
+long ksys_semget(key_t key, int nsems, int semflg);
+long ksys_semctl(int semid, int semnum, int cmd, unsigned long arg);
+long ksys_msgget(key_t key, int msgflg);
+long ksys_msgctl(int msqid, int cmd, struct msqid_ds __user *buf);
+long ksys_msgrcv(int msqid, struct msgbuf __user *msgp, size_t msgsz,
+		 long msgtyp, int msgflg);
+long ksys_msgsnd(int msqid, struct msgbuf __user *msgp, size_t msgsz,
+		 int msgflg);
+long ksys_shmget(key_t key, size_t size, int shmflg);
+long ksys_shmdt(char __user *shmaddr);
+long ksys_shmctl(int shmid, int cmd, struct shmid_ds __user *buf);
+
+/* for CONFIG_ARCH_WANT_OLD_COMPAT_IPC */
+#ifdef CONFIG_COMPAT
+long compat_ksys_semtimedop(int semid, struct sembuf __user *tsems,
+			    unsigned int nsops,
+			    const struct compat_timespec __user *timeout);
+long compat_ksys_semctl(int semid, int semnum, int cmd, int arg);
+long compat_ksys_msgctl(int msqid, int cmd, void __user *uptr);
+long compat_ksys_msgrcv(int msqid, compat_uptr_t msgp, compat_ssize_t msgsz,
+			compat_long_t msgtyp, int msgflg);
+long compat_ksys_msgsnd(int msqid, compat_uptr_t msgp,
+		       compat_ssize_t msgsz, int msgflg);
+long compat_ksys_shmctl(int shmid, int cmd, void __user *uptr);
+#endif /* CONFIG_COMPAT */
+
 #endif

@@ -264,6 +264,30 @@
         ]
     },
     {
+        "id": "6046",
+        "name": "Add skbmod action with control reclassify and cookie",
+        "category": [
+            "actions",
+            "skbmod"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbmod",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action skbmod set smac 00:01:02:03:04:01 reclassify index 1 cookie ddeeffaabb11cc22",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action skbmod index 1",
+        "matchPattern": "action order [0-9]*: skbmod reclassify set smac 00:01:02:03:04:01.*index 1 ref.*cookie ddeeffaabb11cc22",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbmod"
+        ]
+    },
+    {
         "id": "58cb",
         "name": "List skbmod actions",
         "category": [

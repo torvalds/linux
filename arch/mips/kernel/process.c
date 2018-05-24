@@ -781,6 +781,8 @@ int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 	atomic_set(&task->mm->context.fp_mode_switching, 0);
 	preempt_enable();
 
+	wake_up_var(&task->mm->context.fp_mode_switching);
+
 	return 0;
 }
 

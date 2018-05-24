@@ -328,7 +328,7 @@ int vmw_host_get_guestinfo(const char *guest_info_param,
 {
 	struct rpc_channel channel;
 	char *msg, *reply = NULL;
-	size_t msg_len, reply_len = 0;
+	size_t reply_len = 0;
 	int ret = 0;
 
 
@@ -338,14 +338,11 @@ int vmw_host_get_guestinfo(const char *guest_info_param,
 	if (!guest_info_param || !length)
 		return -EINVAL;
 
-	msg_len = strlen(guest_info_param) + strlen("info-get ") + 1;
-	msg = kzalloc(msg_len, GFP_KERNEL);
+	msg = kasprintf(GFP_KERNEL, "info-get %s", guest_info_param);
 	if (!msg) {
 		DRM_ERROR("Cannot allocate memory to get %s", guest_info_param);
 		return -ENOMEM;
 	}
-
-	sprintf(msg, "info-get %s", guest_info_param);
 
 	if (vmw_open_channel(&channel, RPCI_PROTOCOL_NUM) ||
 	    vmw_send_msg(&channel, msg) ||
@@ -388,7 +385,6 @@ int vmw_host_log(const char *log)
 {
 	struct rpc_channel channel;
 	char *msg;
-	int msg_len;
 	int ret = 0;
 
 
@@ -398,14 +394,11 @@ int vmw_host_log(const char *log)
 	if (!log)
 		return ret;
 
-	msg_len = strlen(log) + strlen("log ") + 1;
-	msg = kzalloc(msg_len, GFP_KERNEL);
+	msg = kasprintf(GFP_KERNEL, "log %s", log);
 	if (!msg) {
 		DRM_ERROR("Cannot allocate memory for log message\n");
 		return -ENOMEM;
 	}
-
-	sprintf(msg, "log %s", log);
 
 	if (vmw_open_channel(&channel, RPCI_PROTOCOL_NUM) ||
 	    vmw_send_msg(&channel, msg) ||

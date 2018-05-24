@@ -373,24 +373,33 @@ bool sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
  */
 static inline bool qdisc_restart(struct Qdisc *q, int *packets)
 {
+	bool more, validate, nolock = q->flags & TCQ_F_NOLOCK;
 	spinlock_t *root_lock = NULL;
 	struct netdev_queue *txq;
 	struct net_device *dev;
 	struct sk_buff *skb;
-	bool validate;
 
 	/* Dequeue packet */
-	skb = dequeue_skb(q, &validate, packets);
-	if (unlikely(!skb))
+	if (nolock && test_and_set_bit(__QDISC_STATE_RUNNING, &q->state))
 		return false;
 
-	if (!(q->flags & TCQ_F_NOLOCK))
+	skb = dequeue_skb(q, &validate, packets);
+	if (unlikely(!skb)) {
+		if (nolock)
+			clear_bit(__QDISC_STATE_RUNNING, &q->state);
+		return false;
+	}
+
+	if (!nolock)
 		root_lock = qdisc_lock(q);
 
 	dev = qdisc_dev(q);
 	txq = skb_get_tx_queue(dev, skb);
 
-	return sch_direct_xmit(skb, q, dev, txq, root_lock, validate);
+	more = sch_direct_xmit(skb, q, dev, txq, root_lock, validate);
+	if (nolock)
+		clear_bit(__QDISC_STATE_RUNNING, &q->state);
+	return more;
 }
 
 void __qdisc_run(struct Qdisc *q)

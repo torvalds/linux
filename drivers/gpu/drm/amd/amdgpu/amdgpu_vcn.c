@@ -270,33 +270,16 @@ int amdgpu_vcn_dec_ring_test_ring(struct amdgpu_ring *ring)
 	return r;
 }
 
-static int amdgpu_vcn_dec_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
-			       bool direct, struct dma_fence **fence)
+static int amdgpu_vcn_dec_send_msg(struct amdgpu_ring *ring,
+				   struct amdgpu_bo *bo, bool direct,
+				   struct dma_fence **fence)
 {
-	struct ttm_operation_ctx ctx = { true, false };
-	struct ttm_validate_buffer tv;
-	struct ww_acquire_ctx ticket;
-	struct list_head head;
+	struct amdgpu_device *adev = ring->adev;
+	struct dma_fence *f = NULL;
 	struct amdgpu_job *job;
 	struct amdgpu_ib *ib;
-	struct dma_fence *f = NULL;
-	struct amdgpu_device *adev = ring->adev;
 	uint64_t addr;
 	int i, r;
-
-	memset(&tv, 0, sizeof(tv));
-	tv.bo = &bo->tbo;
-
-	INIT_LIST_HEAD(&head);
-	list_add(&tv.head, &head);
-
-	r = ttm_eu_reserve_buffers(&ticket, &head, true, NULL);
-	if (r)
-		return r;
-
-	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
-	if (r)
-		goto err;
 
 	r = amdgpu_job_alloc_with_ib(adev, 64, &job);
 	if (r)
@@ -330,11 +313,12 @@ static int amdgpu_vcn_dec_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *b
 			goto err_free;
 	}
 
-	ttm_eu_fence_buffer_objects(&ticket, &head, f);
+	amdgpu_bo_fence(bo, f, false);
+	amdgpu_bo_unreserve(bo);
+	amdgpu_bo_unref(&bo);
 
 	if (fence)
 		*fence = dma_fence_get(f);
-	amdgpu_bo_unref(&bo);
 	dma_fence_put(f);
 
 	return 0;
@@ -343,7 +327,8 @@ err_free:
 	amdgpu_job_free(job);
 
 err:
-	ttm_eu_backoff_reservation(&ticket, &head);
+	amdgpu_bo_unreserve(bo);
+	amdgpu_bo_unref(&bo);
 	return r;
 }
 
@@ -351,30 +336,15 @@ static int amdgpu_vcn_dec_get_create_msg(struct amdgpu_ring *ring, uint32_t hand
 			      struct dma_fence **fence)
 {
 	struct amdgpu_device *adev = ring->adev;
-	struct amdgpu_bo *bo;
+	struct amdgpu_bo *bo = NULL;
 	uint32_t *msg;
 	int r, i;
 
-	r = amdgpu_bo_create(adev, 1024, PAGE_SIZE, true,
-			     AMDGPU_GEM_DOMAIN_VRAM,
-			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-			     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-			     NULL, NULL, 0, &bo);
+	r = amdgpu_bo_create_reserved(adev, 1024, PAGE_SIZE,
+				      AMDGPU_GEM_DOMAIN_VRAM,
+				      &bo, NULL, (void **)&msg);
 	if (r)
 		return r;
-
-	r = amdgpu_bo_reserve(bo, false);
-	if (r) {
-		amdgpu_bo_unref(&bo);
-		return r;
-	}
-
-	r = amdgpu_bo_kmap(bo, (void **)&msg);
-	if (r) {
-		amdgpu_bo_unreserve(bo);
-		amdgpu_bo_unref(&bo);
-		return r;
-	}
 
 	msg[0] = cpu_to_le32(0x00000028);
 	msg[1] = cpu_to_le32(0x00000038);
@@ -393,9 +363,6 @@ static int amdgpu_vcn_dec_get_create_msg(struct amdgpu_ring *ring, uint32_t hand
 	for (i = 14; i < 1024; ++i)
 		msg[i] = cpu_to_le32(0x0);
 
-	amdgpu_bo_kunmap(bo);
-	amdgpu_bo_unreserve(bo);
-
 	return amdgpu_vcn_dec_send_msg(ring, bo, true, fence);
 }
 
@@ -403,30 +370,15 @@ static int amdgpu_vcn_dec_get_destroy_msg(struct amdgpu_ring *ring, uint32_t han
 			       bool direct, struct dma_fence **fence)
 {
 	struct amdgpu_device *adev = ring->adev;
-	struct amdgpu_bo *bo;
+	struct amdgpu_bo *bo = NULL;
 	uint32_t *msg;
 	int r, i;
 
-	r = amdgpu_bo_create(adev, 1024, PAGE_SIZE, true,
-			     AMDGPU_GEM_DOMAIN_VRAM,
-			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-			     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-			     NULL, NULL, 0, &bo);
+	r = amdgpu_bo_create_reserved(adev, 1024, PAGE_SIZE,
+				      AMDGPU_GEM_DOMAIN_VRAM,
+				      &bo, NULL, (void **)&msg);
 	if (r)
 		return r;
-
-	r = amdgpu_bo_reserve(bo, false);
-	if (r) {
-		amdgpu_bo_unref(&bo);
-		return r;
-	}
-
-	r = amdgpu_bo_kmap(bo, (void **)&msg);
-	if (r) {
-		amdgpu_bo_unreserve(bo);
-		amdgpu_bo_unref(&bo);
-		return r;
-	}
 
 	msg[0] = cpu_to_le32(0x00000028);
 	msg[1] = cpu_to_le32(0x00000018);
@@ -436,9 +388,6 @@ static int amdgpu_vcn_dec_get_destroy_msg(struct amdgpu_ring *ring, uint32_t han
 	msg[5] = cpu_to_le32(0x00000000);
 	for (i = 6; i < 1024; ++i)
 		msg[i] = cpu_to_le32(0x0);
-
-	amdgpu_bo_kunmap(bo);
-	amdgpu_bo_unreserve(bo);
 
 	return amdgpu_vcn_dec_send_msg(ring, bo, direct, fence);
 }

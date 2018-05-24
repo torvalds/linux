@@ -110,6 +110,10 @@ int drm_encoder_init(struct drm_device *dev,
 {
 	int ret;
 
+	/* encoder index is used with 32bit bitmasks */
+	if (WARN_ON(dev->mode_config.num_encoder >= 32))
+		return -EINVAL;
+
 	ret = drm_mode_object_add(dev, &encoder->base, DRM_MODE_OBJECT_ENCODER);
 	if (ret)
 		return ret;

@@ -658,6 +658,18 @@ config NET_EMATCH_IPSET
 	  To compile this code as a module, choose M here: the
 	  module will be called em_ipset.
 
+config NET_EMATCH_IPT
+	tristate "IPtables Matches"
+	depends on NET_EMATCH && NETFILTER && NETFILTER_XTABLES
+	---help---
+	  Say Y here to be able to classify packets based on iptables
+	  matches.
+	  Current supported match is "policy" which allows packet classification
+	  based on IPsec policy that was used during decapsulation
+
+	  To compile this code as a module, choose M here: the
+	  module will be called em_ipt.
+
 config NET_CLS_ACT
 	bool "Actions"
 	select NET_CLS

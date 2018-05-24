@@ -277,15 +277,6 @@ static void do_kvm_unmap_hva(struct kvm *kvm, unsigned long start,
 	}
 }
 
-static int kvm_unmap_hva_pr(struct kvm *kvm, unsigned long hva)
-{
-	trace_kvm_unmap_hva(hva);
-
-	do_kvm_unmap_hva(kvm, hva, hva + PAGE_SIZE);
-
-	return 0;
-}
-
 static int kvm_unmap_hva_range_pr(struct kvm *kvm, unsigned long start,
 				  unsigned long end)
 {
@@ -1773,7 +1764,6 @@ static struct kvmppc_ops kvm_ops_pr = {
 	.flush_memslot = kvmppc_core_flush_memslot_pr,
 	.prepare_memory_region = kvmppc_core_prepare_memory_region_pr,
 	.commit_memory_region = kvmppc_core_commit_memory_region_pr,
-	.unmap_hva = kvm_unmap_hva_pr,
 	.unmap_hva_range = kvm_unmap_hva_range_pr,
 	.age_hva  = kvm_age_hva_pr,
 	.test_age_hva = kvm_test_age_hva_pr,

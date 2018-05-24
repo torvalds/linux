@@ -92,13 +92,14 @@ int crypto_hash_walk_done(struct crypto_hash_walk *walk, int err)
 
 	if (nbytes && walk->offset & alignmask && !err) {
 		walk->offset = ALIGN(walk->offset, alignmask + 1);
-		walk->data += walk->offset;
-
 		nbytes = min(nbytes,
 			     ((unsigned int)(PAGE_SIZE)) - walk->offset);
 		walk->entrylen -= nbytes;
 
-		return nbytes;
+		if (nbytes) {
+			walk->data += walk->offset;
+			return nbytes;
+		}
 	}
 
 	if (walk->flags & CRYPTO_ALG_ASYNC)
@@ -446,24 +447,12 @@ static int ahash_def_finup(struct ahash_request *req)
 	return ahash_def_finup_finish1(req, err);
 }
 
-static int ahash_no_export(struct ahash_request *req, void *out)
-{
-	return -ENOSYS;
-}
-
-static int ahash_no_import(struct ahash_request *req, const void *in)
-{
-	return -ENOSYS;
-}
-
 static int crypto_ahash_init_tfm(struct crypto_tfm *tfm)
 {
 	struct crypto_ahash *hash = __crypto_ahash_cast(tfm);
 	struct ahash_alg *alg = crypto_ahash_alg(hash);
 
 	hash->setkey = ahash_nosetkey;
-	hash->export = ahash_no_export;
-	hash->import = ahash_no_import;
 
 	if (tfm->__crt_alg->cra_type != &crypto_ahash_type)
 		return crypto_init_shash_ops_async(tfm);
@@ -473,16 +462,14 @@ static int crypto_ahash_init_tfm(struct crypto_tfm *tfm)
 	hash->final = alg->final;
 	hash->finup = alg->finup ?: ahash_def_finup;
 	hash->digest = alg->digest;
+	hash->export = alg->export;
+	hash->import = alg->import;
 
 	if (alg->setkey) {
 		hash->setkey = alg->setkey;
 		if (!(alg->halg.base.cra_flags & CRYPTO_ALG_OPTIONAL_KEY))
 			crypto_ahash_set_flags(hash, CRYPTO_TFM_NEED_KEY);
 	}
-	if (alg->export)
-		hash->export = alg->export;
-	if (alg->import)
-		hash->import = alg->import;
 
 	return 0;
 }

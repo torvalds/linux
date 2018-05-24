@@ -24,6 +24,7 @@
 #include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
+#include "si.h"
 #include "sid.h"
 
 const u32 sdma_offsets[SDMA_MAX_INSTANCE] =
@@ -74,20 +75,6 @@ static void si_dma_ring_emit_ib(struct amdgpu_ring *ring,
 
 }
 
-static void si_dma_ring_emit_hdp_flush(struct amdgpu_ring *ring)
-{
-	amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0, 0, 0));
-	amdgpu_ring_write(ring, (0xf << 16) | (HDP_MEM_COHERENCY_FLUSH_CNTL));
-	amdgpu_ring_write(ring, 1);
-}
-
-static void si_dma_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
-{
-	amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0, 0, 0));
-	amdgpu_ring_write(ring, (0xf << 16) | (HDP_DEBUG0));
-	amdgpu_ring_write(ring, 1);
-}
-
 /**
  * si_dma_ring_emit_fence - emit a fence on the DMA ring
  *
@@ -134,7 +121,7 @@ static void si_dma_stop(struct amdgpu_device *adev)
 		WREG32(DMA_RB_CNTL + sdma_offsets[i], rb_cntl);
 
 		if (adev->mman.buffer_funcs_ring == ring)
-			amdgpu_ttm_set_active_vram_size(adev, adev->mc.visible_vram_size);
+			amdgpu_ttm_set_buffer_funcs_status(adev, false);
 		ring->ready = false;
 	}
 }
@@ -197,7 +184,7 @@ static int si_dma_start(struct amdgpu_device *adev)
 		}
 
 		if (adev->mman.buffer_funcs_ring == ring)
-			amdgpu_ttm_set_active_vram_size(adev, adev->mc.real_vram_size);
+			amdgpu_ttm_set_buffer_funcs_status(adev, true);
 	}
 
 	return 0;
@@ -475,17 +462,7 @@ static void si_dma_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 static void si_dma_ring_emit_vm_flush(struct amdgpu_ring *ring,
 				      unsigned vmid, uint64_t pd_addr)
 {
-	amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0, 0, 0));
-	if (vmid < 8)
-		amdgpu_ring_write(ring, (0xf << 16) | (VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + vmid));
-	else
-		amdgpu_ring_write(ring, (0xf << 16) | (VM_CONTEXT8_PAGE_TABLE_BASE_ADDR + (vmid - 8)));
-	amdgpu_ring_write(ring, pd_addr >> 12);
-
-	/* bits 0-7 are the VM contexts0-7 */
-	amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0, 0, 0));
-	amdgpu_ring_write(ring, (0xf << 16) | (VM_INVALIDATE_REQUEST));
-	amdgpu_ring_write(ring, 1 << vmid);
+	amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pd_addr);
 
 	/* wait for invalidate to complete */
 	amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_POLL_REG_MEM, 0, 0, 0, 0));
@@ -494,6 +471,14 @@ static void si_dma_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, 1 << vmid); /* mask */
 	amdgpu_ring_write(ring, 0); /* value */
 	amdgpu_ring_write(ring, (0 << 28) | 0x20); /* func(always) | poll interval */
+}
+
+static void si_dma_ring_emit_wreg(struct amdgpu_ring *ring,
+				  uint32_t reg, uint32_t val)
+{
+	amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0, 0, 0));
+	amdgpu_ring_write(ring, (0xf << 16) | reg);
+	amdgpu_ring_write(ring, val);
 }
 
 static int si_dma_early_init(void *handle)
@@ -772,22 +757,20 @@ static const struct amdgpu_ring_funcs si_dma_ring_funcs = {
 	.get_wptr = si_dma_ring_get_wptr,
 	.set_wptr = si_dma_ring_set_wptr,
 	.emit_frame_size =
-		3 + /* si_dma_ring_emit_hdp_flush */
-		3 + /* si_dma_ring_emit_hdp_invalidate */
+		3 + 3 + /* hdp flush / invalidate */
 		6 + /* si_dma_ring_emit_pipeline_sync */
-		12 + /* si_dma_ring_emit_vm_flush */
+		SI_FLUSH_GPU_TLB_NUM_WREG * 3 + 6 + /* si_dma_ring_emit_vm_flush */
 		9 + 9 + 9, /* si_dma_ring_emit_fence x3 for user fence, vm fence */
 	.emit_ib_size = 7 + 3, /* si_dma_ring_emit_ib */
 	.emit_ib = si_dma_ring_emit_ib,
 	.emit_fence = si_dma_ring_emit_fence,
 	.emit_pipeline_sync = si_dma_ring_emit_pipeline_sync,
 	.emit_vm_flush = si_dma_ring_emit_vm_flush,
-	.emit_hdp_flush = si_dma_ring_emit_hdp_flush,
-	.emit_hdp_invalidate = si_dma_ring_emit_hdp_invalidate,
 	.test_ring = si_dma_ring_test_ring,
 	.test_ib = si_dma_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
 	.pad_ib = si_dma_ring_pad_ib,
+	.emit_wreg = si_dma_ring_emit_wreg,
 };
 
 static void si_dma_set_ring_funcs(struct amdgpu_device *adev)
@@ -891,9 +874,6 @@ static const struct amdgpu_vm_pte_funcs si_dma_vm_pte_funcs = {
 	.copy_pte = si_dma_vm_copy_pte,
 
 	.write_pte = si_dma_vm_write_pte,
-
-	.set_max_nums_pte_pde = 0xffff8 >> 3,
-	.set_pte_pde_num_dw = 9,
 	.set_pte_pde = si_dma_vm_set_pte_pde,
 };
 

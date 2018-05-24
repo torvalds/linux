@@ -69,7 +69,7 @@ static struct tc_action_ops act_mirred_ops;
 
 static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 			   struct nlattr *est, struct tc_action **a, int ovr,
-			   int bind)
+			   int bind, struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, mirred_net_id);
 	struct nlattr *tb[TCA_MIRRED_MAX + 1];
@@ -80,13 +80,17 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	bool exists = false;
 	int ret;
 
-	if (nla == NULL)
+	if (!nla) {
+		NL_SET_ERR_MSG_MOD(extack, "Mirred requires attributes to be passed");
 		return -EINVAL;
-	ret = nla_parse_nested(tb, TCA_MIRRED_MAX, nla, mirred_policy, NULL);
+	}
+	ret = nla_parse_nested(tb, TCA_MIRRED_MAX, nla, mirred_policy, extack);
 	if (ret < 0)
 		return ret;
-	if (tb[TCA_MIRRED_PARMS] == NULL)
+	if (!tb[TCA_MIRRED_PARMS]) {
+		NL_SET_ERR_MSG_MOD(extack, "Missing required mirred parameters");
 		return -EINVAL;
+	}
 	parm = nla_data(tb[TCA_MIRRED_PARMS]);
 
 	exists = tcf_idr_check(tn, parm->index, a, bind);
@@ -102,6 +106,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	default:
 		if (exists)
 			tcf_idr_release(*a, bind);
+		NL_SET_ERR_MSG_MOD(extack, "Unknown mirred option");
 		return -EINVAL;
 	}
 	if (parm->ifindex) {
@@ -117,8 +122,10 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	}
 
 	if (!exists) {
-		if (dev == NULL)
+		if (!dev) {
+			NL_SET_ERR_MSG_MOD(extack, "Specified device does not exist");
 			return -EINVAL;
+		}
 		ret = tcf_idr_create(tn, parm->index, est, a,
 				     &act_mirred_ops, bind, true);
 		if (ret)
@@ -265,14 +272,16 @@ nla_put_failure:
 
 static int tcf_mirred_walker(struct net *net, struct sk_buff *skb,
 			     struct netlink_callback *cb, int type,
-			     const struct tc_action_ops *ops)
+			     const struct tc_action_ops *ops,
+			     struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, mirred_net_id);
 
-	return tcf_generic_walker(tn, skb, cb, type, ops);
+	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static int tcf_mirred_search(struct net *net, struct tc_action **a, u32 index)
+static int tcf_mirred_search(struct net *net, struct tc_action **a, u32 index,
+			     struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, mirred_net_id);
 

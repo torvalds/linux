@@ -7,8 +7,6 @@
 
 #include "of.h"
 
-typedef u32 uint32_t;
-typedef u64 uint64_t;
 typedef unsigned long uintptr_t;
 
 typedef __be16 fdt16_t;

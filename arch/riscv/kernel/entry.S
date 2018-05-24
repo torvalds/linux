@@ -167,10 +167,9 @@ ENTRY(handle_exception)
 	bge s4, zero, 1f
 
 	/* Handle interrupts */
-	slli a0, s4, 1
-	srli a0, a0, 1
-	move a1, sp /* pt_regs */
-	tail do_IRQ
+	move a0, sp /* pt_regs */
+	REG_L a1, handle_arch_irq
+	jr a1
 1:
 	/* Exceptions run with interrupts enabled */
 	csrs sstatus, SR_SIE

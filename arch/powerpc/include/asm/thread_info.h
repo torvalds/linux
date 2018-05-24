@@ -70,6 +70,7 @@ static inline struct thread_info *current_thread_info(void)
 	return (struct thread_info *)val;
 }
 
+extern int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
 #endif /* __ASSEMBLY__ */
 
 /*

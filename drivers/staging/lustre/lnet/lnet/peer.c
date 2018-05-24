@@ -137,7 +137,7 @@ lnet_peer_table_deathrow_wait_locked(struct lnet_peer_table *ptable,
 			       ptable->pt_zombies);
 		}
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(cfs_time_seconds(1) >> 1);
+		schedule_timeout(HZ >> 1);
 		lnet_net_lock(cpt_locked);
 	}
 }

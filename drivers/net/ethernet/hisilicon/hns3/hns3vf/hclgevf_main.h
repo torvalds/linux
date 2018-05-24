@@ -34,6 +34,9 @@
 #define HCLGEVF_VECTOR0_RX_CMDQ_INT_B	1
 
 #define HCLGEVF_TQP_RESET_TRY_TIMES	10
+/* Reset related Registers */
+#define HCLGEVF_FUN_RST_ING		0x20C00
+#define HCLGEVF_FUN_RST_ING_B		0
 
 #define HCLGEVF_RSS_IND_TBL_SIZE		512
 #define HCLGEVF_RSS_SET_BITMAP_MSK	0xffff
@@ -52,6 +55,8 @@ enum hclgevf_states {
 	HCLGEVF_STATE_DISABLED,
 	/* task states */
 	HCLGEVF_STATE_SERVICE_SCHED,
+	HCLGEVF_STATE_RST_SERVICE_SCHED,
+	HCLGEVF_STATE_RST_HANDLING,
 	HCLGEVF_STATE_MBX_SERVICE_SCHED,
 	HCLGEVF_STATE_MBX_HANDLING,
 };
@@ -61,6 +66,8 @@ enum hclgevf_states {
 struct hclgevf_mac {
 	u8 mac_addr[ETH_ALEN];
 	int link;
+	u8 duplex;
+	u32 speed;
 };
 
 struct hclgevf_hw {
@@ -120,6 +127,11 @@ struct hclgevf_dev {
 	struct hclgevf_rss_cfg rss_cfg;
 	unsigned long state;
 
+#define HCLGEVF_RESET_REQUESTED		0
+#define HCLGEVF_RESET_PENDING		1
+	unsigned long reset_state;	/* requested, pending */
+	u32 reset_attempts;
+
 	u32 fw_version;
 	u16 num_tqps;		/* num task queue pairs of this PF */
 
@@ -140,10 +152,13 @@ struct hclgevf_dev {
 	int *vector_irq;
 
 	bool accept_mta_mc; /* whether to accept mta filter multicast */
+	bool mbx_event_pending;
 	struct hclgevf_mbx_resp_status mbx_resp; /* mailbox response */
+	struct hclgevf_mbx_arq_ring arq; /* mailbox async rx queue */
 
 	struct timer_list service_timer;
 	struct work_struct service_task;
+	struct work_struct rst_service_task;
 	struct work_struct mbx_service_task;
 
 	struct hclgevf_tqp *htqp;
@@ -156,9 +171,29 @@ struct hclgevf_dev {
 	u32 flag;
 };
 
+static inline bool hclgevf_dev_ongoing_reset(struct hclgevf_dev *hdev)
+{
+	return (hdev &&
+		(test_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state)) &&
+		(hdev->nic.reset_level == HNAE3_VF_RESET));
+}
+
+static inline bool hclgevf_dev_ongoing_full_reset(struct hclgevf_dev *hdev)
+{
+	return (hdev &&
+		(test_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state)) &&
+		(hdev->nic.reset_level == HNAE3_VF_FULL_RESET));
+}
+
 int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev, u16 code, u16 subcode,
 			 const u8 *msg_data, u8 msg_len, bool need_resp,
 			 u8 *resp_data, u16 resp_len);
 void hclgevf_mbx_handler(struct hclgevf_dev *hdev);
+void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev);
+
 void hclgevf_update_link_status(struct hclgevf_dev *hdev, int link_state);
+void hclgevf_update_speed_duplex(struct hclgevf_dev *hdev, u32 speed,
+				 u8 duplex);
+void hclgevf_reset_task_schedule(struct hclgevf_dev *hdev);
+void hclgevf_mbx_task_schedule(struct hclgevf_dev *hdev);
 #endif

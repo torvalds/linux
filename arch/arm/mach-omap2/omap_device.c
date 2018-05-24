@@ -140,6 +140,7 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 	struct omap_device *od;
 	struct omap_hwmod *oh;
 	struct device_node *node = pdev->dev.of_node;
+	struct resource res;
 	const char *oh_name;
 	int oh_cnt, i, ret = 0;
 	bool device_active = false;
@@ -149,6 +150,10 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "No 'hwmods' to build omap_device\n");
 		return -ENODEV;
 	}
+
+	/* Use ti-sysc driver instead of omap_device? */
+	if (!omap_hwmod_parse_module_range(NULL, node, &res))
+		return -ENODEV;
 
 	hwmods = kzalloc(sizeof(struct omap_hwmod *) * oh_cnt, GFP_KERNEL);
 	if (!hwmods) {

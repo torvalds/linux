@@ -213,21 +213,27 @@
 			GPIO_ACTIVE_HIGH>;
 	};
 
+	/*
+	 * GEN1_I2C: I2C_SDA/SCL on SODIMM pin 194/196 (e.g. RTC on carrier
+	 * board)
+	 */
 	i2c@7000c000 {
 		clock-frequency = <400000>;
 	};
 
+	/* DDC_SCL/SDA on X3 pin 15/16 (e.g. display EDID) */
 	i2c_ddc: i2c@7000c400 {
-		clock-frequency = <100000>;
+		clock-frequency = <10000>;
 	};
 
-	i2c@7000c500 {
-		clock-frequency = <400000>;
-	};
+	/* GEN2_I2C: unused */
 
+	/* CAM/GEN3_I2C: used as EXT_IO1/2 GPIOs on SODIMM pin 133/127 */
+
+	/* PWR_I2C: power I2C to PMIC and temperature sensor (On-module) */
 	i2c@7000d000 {
 		status = "okay";
-		clock-frequency = <400000>;
+		clock-frequency = <100000>;
 
 		pmic: tps6586x@34 {
 			compatible = "ti,tps6586x";

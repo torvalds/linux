@@ -17,6 +17,7 @@ struct ltdc_caps {
 	u32 reg_ofs;		/* register offset for applicable regs */
 	u32 bus_width;		/* bus width (32 or 64 bits) */
 	const u32 *pix_fmt_hw;	/* supported pixel formats */
+	bool non_alpha_only_l1; /* non-native no-alpha formats on layer 1 */
 };
 
 struct ltdc_device {

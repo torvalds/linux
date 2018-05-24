@@ -523,10 +523,22 @@ stmmac_set_pauseparam(struct net_device *netdev,
 static void stmmac_get_ethtool_stats(struct net_device *dev,
 				 struct ethtool_stats *dummy, u64 *data)
 {
+	const char *(*dump)(struct stmmac_safety_stats *stats, int index,
+			unsigned long *count);
 	struct stmmac_priv *priv = netdev_priv(dev);
 	u32 rx_queues_count = priv->plat->rx_queues_to_use;
 	u32 tx_queues_count = priv->plat->tx_queues_to_use;
+	unsigned long count;
 	int i, j = 0;
+
+	if (priv->dma_cap.asp && priv->hw->mac->safety_feat_dump) {
+		dump = priv->hw->mac->safety_feat_dump;
+
+		for (i = 0; i < STMMAC_SAFETY_FEAT_SIZE; i++) {
+			if (dump(&priv->sstats, i, &count))
+				data[j++] = count;
+		}
+	}
 
 	/* Update the DMA HW counters for dwmac10/100 */
 	if (priv->hw->dma->dma_diagnostic_fr)
@@ -569,7 +581,9 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 static int stmmac_get_sset_count(struct net_device *netdev, int sset)
 {
 	struct stmmac_priv *priv = netdev_priv(netdev);
-	int len;
+	const char *(*dump)(struct stmmac_safety_stats *stats, int index,
+			unsigned long *count);
+	int i, len, safety_len = 0;
 
 	switch (sset) {
 	case ETH_SS_STATS:
@@ -577,6 +591,16 @@ static int stmmac_get_sset_count(struct net_device *netdev, int sset)
 
 		if (priv->dma_cap.rmon)
 			len += STMMAC_MMC_STATS_LEN;
+		if (priv->dma_cap.asp && priv->hw->mac->safety_feat_dump) {
+			dump = priv->hw->mac->safety_feat_dump;
+
+			for (i = 0; i < STMMAC_SAFETY_FEAT_SIZE; i++) {
+				if (dump(&priv->sstats, i, NULL))
+					safety_len++;
+			}
+
+			len += safety_len;
+		}
 
 		return len;
 	default:
@@ -589,9 +613,22 @@ static void stmmac_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 	int i;
 	u8 *p = data;
 	struct stmmac_priv *priv = netdev_priv(dev);
+	const char *(*dump)(struct stmmac_safety_stats *stats, int index,
+			unsigned long *count);
 
 	switch (stringset) {
 	case ETH_SS_STATS:
+		if (priv->dma_cap.asp && priv->hw->mac->safety_feat_dump) {
+			dump = priv->hw->mac->safety_feat_dump;
+			for (i = 0; i < STMMAC_SAFETY_FEAT_SIZE; i++) {
+				const char *desc = dump(&priv->sstats, i, NULL);
+
+				if (desc) {
+					memcpy(p, desc, ETH_GSTRING_LEN);
+					p += ETH_GSTRING_LEN;
+				}
+			}
+		}
 		if (priv->dma_cap.rmon)
 			for (i = 0; i < STMMAC_MMC_STATS_LEN; i++) {
 				memcpy(p, stmmac_mmc[i].stat_string,

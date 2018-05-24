@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * linux/kernel/irq/autoprobe.c
- *
  * Copyright (C) 1992, 1998-2004 Linus Torvalds, Ingo Molnar
  *
  * This file contains the interrupt probing code and driver APIs.

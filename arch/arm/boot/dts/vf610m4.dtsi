@@ -42,9 +42,16 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "skeleton.dtsi"
 #include "armv7-m.dtsi"
 #include "vfxxx.dtsi"
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	chosen { };
+	aliases { };
+	memory { device_type = "memory"; };
+};
 
 &mscm_ir {
 	interrupt-parent = <&nvic>;

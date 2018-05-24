@@ -235,8 +235,7 @@ struct mlxsw_config_profile {
 		used_max_pkey:1,
 		used_ar_sec:1,
 		used_adaptive_routing_group_cap:1,
-		used_kvd_split_data:1; /* indicate for the kvd's values */
-
+		used_kvd_sizes:1;
 	u8	max_vepa_channels;
 	u16	max_mid;
 	u16	max_pgt;
@@ -256,10 +255,8 @@ struct mlxsw_config_profile {
 	u16	adaptive_routing_group_cap;
 	u8	arn;
 	u32	kvd_linear_size;
-	u16	kvd_hash_granularity;
 	u8	kvd_hash_single_parts;
 	u8	kvd_hash_double_parts;
-	u8	resource_query_enable;
 	struct mlxsw_swid_config swid_config[MLXSW_CONFIG_PROFILE_SWID_COUNT];
 };
 
@@ -316,6 +313,7 @@ struct mlxsw_driver {
 			     u64 *p_linear_size);
 	u8 txhdr_len;
 	const struct mlxsw_config_profile *profile;
+	bool res_query_enabled;
 };
 
 int mlxsw_core_kvd_sizes_get(struct mlxsw_core *mlxsw_core,
@@ -326,14 +324,14 @@ int mlxsw_core_kvd_sizes_get(struct mlxsw_core *mlxsw_core,
 bool mlxsw_core_res_valid(struct mlxsw_core *mlxsw_core,
 			  enum mlxsw_res_id res_id);
 
-#define MLXSW_CORE_RES_VALID(res, short_res_id)			\
-	mlxsw_core_res_valid(res, MLXSW_RES_ID_##short_res_id)
+#define MLXSW_CORE_RES_VALID(mlxsw_core, short_res_id)			\
+	mlxsw_core_res_valid(mlxsw_core, MLXSW_RES_ID_##short_res_id)
 
 u64 mlxsw_core_res_get(struct mlxsw_core *mlxsw_core,
 		       enum mlxsw_res_id res_id);
 
-#define MLXSW_CORE_RES_GET(res, short_res_id)			\
-	mlxsw_core_res_get(res, MLXSW_RES_ID_##short_res_id)
+#define MLXSW_CORE_RES_GET(mlxsw_core, short_res_id)			\
+	mlxsw_core_res_get(mlxsw_core, MLXSW_RES_ID_##short_res_id)
 
 #define MLXSW_BUS_F_TXRX	BIT(0)
 

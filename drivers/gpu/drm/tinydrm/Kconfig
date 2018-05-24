@@ -3,8 +3,6 @@ menuconfig DRM_TINYDRM
 	depends on DRM
 	select DRM_KMS_HELPER
 	select DRM_KMS_CMA_HELPER
-	select BACKLIGHT_LCD_SUPPORT
-	select BACKLIGHT_CLASS_DEVICE
 	help
 	  Choose this option if you have a tinydrm supported display.
 	  If M is selected the module will be called tinydrm.
@@ -25,6 +23,7 @@ config TINYDRM_ILI9225
 config TINYDRM_MI0283QT
 	tristate "DRM support for MI0283QT"
 	depends on DRM_TINYDRM && SPI
+	depends on BACKLIGHT_CLASS_DEVICE
 	select TINYDRM_MIPI_DBI
 	help
 	  DRM driver for the Multi-Inno MI0283QT display panel
@@ -56,6 +55,7 @@ config TINYDRM_ST7586
 config TINYDRM_ST7735R
 	tristate "DRM support for Sitronix ST7735R display panels"
 	depends on DRM_TINYDRM && SPI
+	depends on BACKLIGHT_CLASS_DEVICE
 	select TINYDRM_MIPI_DBI
 	help
 	  DRM driver Sitronix ST7735R with one of the following LCDs:

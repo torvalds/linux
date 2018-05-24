@@ -73,8 +73,8 @@ enum {
 
 bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
 		      int tolerance, char net_plane, u32 mtu, int priority,
-		      int window, u32 session, u32 ownnode, u32 peer,
-		      u16 peer_caps,
+		      int window, u32 session, u32 ownnode,
+		      u32 peer, u8 *peer_id, u16 peer_caps,
 		      struct tipc_link *bc_sndlink,
 		      struct tipc_link *bc_rcvlink,
 		      struct sk_buff_head *inputq,

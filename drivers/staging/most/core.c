@@ -583,6 +583,7 @@ static ssize_t components_show(struct device_driver *drv, char *buf)
 	}
 	return offs;
 }
+
 /**
  * split_string - parses buf and extracts ':' separated substrings.
  *
@@ -915,7 +916,6 @@ static void arm_mbo(struct mbo *mbo)
 	unsigned long flags;
 	struct most_channel *c;
 
-	BUG_ON((!mbo) || (!mbo->context));
 	c = mbo->context;
 
 	if (c->is_poisoned) {
@@ -1017,8 +1017,6 @@ EXPORT_SYMBOL_GPL(most_submit_mbo);
 static void most_write_completion(struct mbo *mbo)
 {
 	struct most_channel *c;
-
-	BUG_ON((!mbo) || (!mbo->context));
 
 	c = mbo->context;
 	if (mbo->status == MBO_E_INVAL)
@@ -1202,7 +1200,6 @@ int most_start_channel(struct most_interface *iface, int id,
 		num_buffer = arm_mbo_chain(c, c->cfg.direction,
 					   most_write_completion);
 	if (unlikely(!num_buffer)) {
-		pr_info("failed to allocate memory\n");
 		ret = -ENOMEM;
 		goto error;
 	}
@@ -1381,7 +1378,6 @@ int most_register_interface(struct most_interface *iface)
 
 	iface->p = kzalloc(sizeof(*iface->p), GFP_KERNEL);
 	if (!iface->p) {
-		pr_info("Failed to allocate interface instance\n");
 		ida_simple_remove(&mdev_id, id);
 		return -ENOMEM;
 	}
@@ -1474,7 +1470,8 @@ void most_deregister_interface(struct most_interface *iface)
 	int i;
 	struct most_channel *c;
 
-	pr_info("deregistering device %s (%s)\n", dev_name(&iface->dev), iface->description);
+	pr_info("deregistering device %s (%s)\n", dev_name(&iface->dev),
+		iface->description);
 	for (i = 0; i < iface->num_channels; i++) {
 		c = iface->p->channel[i];
 		if (c->pipe0.comp)

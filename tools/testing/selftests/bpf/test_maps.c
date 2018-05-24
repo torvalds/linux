@@ -17,13 +17,14 @@
 #include <stdlib.h>
 
 #include <sys/wait.h>
-#include <sys/resource.h>
 
 #include <linux/bpf.h>
 
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
+
 #include "bpf_util.h"
+#include "bpf_rlimit.h"
 
 static int map_flags;
 
@@ -463,15 +464,17 @@ static void test_devmap(int task, void *data)
 #include <linux/err.h>
 #define SOCKMAP_PARSE_PROG "./sockmap_parse_prog.o"
 #define SOCKMAP_VERDICT_PROG "./sockmap_verdict_prog.o"
+#define SOCKMAP_TCP_MSG_PROG "./sockmap_tcp_msg_prog.o"
 static void test_sockmap(int tasks, void *data)
 {
-	int one = 1, map_fd_rx = 0, map_fd_tx = 0, map_fd_break, s, sc, rc;
-	struct bpf_map *bpf_map_rx, *bpf_map_tx, *bpf_map_break;
+	struct bpf_map *bpf_map_rx, *bpf_map_tx, *bpf_map_msg, *bpf_map_break;
+	int map_fd_msg = 0, map_fd_rx = 0, map_fd_tx = 0, map_fd_break;
 	int ports[] = {50200, 50201, 50202, 50204};
 	int err, i, fd, udp, sfd[6] = {0xdeadbeef};
 	u8 buf[20] = {0x0, 0x5, 0x3, 0x2, 0x1, 0x0};
-	int parse_prog, verdict_prog;
+	int parse_prog, verdict_prog, msg_prog;
 	struct sockaddr_in addr;
+	int one = 1, s, sc, rc;
 	struct bpf_object *obj;
 	struct timeval to;
 	__u32 key, value;
@@ -583,6 +586,12 @@ static void test_sockmap(int tasks, void *data)
 		goto out_sockmap;
 	}
 
+	err = bpf_prog_attach(-1, fd, BPF_SK_MSG_VERDICT, 0);
+	if (!err) {
+		printf("Failed invalid msg verdict prog attach\n");
+		goto out_sockmap;
+	}
+
 	err = bpf_prog_attach(-1, fd, __MAX_BPF_ATTACH_TYPE, 0);
 	if (!err) {
 		printf("Failed unknown prog attach\n");
@@ -601,6 +610,12 @@ static void test_sockmap(int tasks, void *data)
 		goto out_sockmap;
 	}
 
+	err = bpf_prog_detach(fd, BPF_SK_MSG_VERDICT);
+	if (err) {
+		printf("Failed empty msg verdict prog detach\n");
+		goto out_sockmap;
+	}
+
 	err = bpf_prog_detach(fd, __MAX_BPF_ATTACH_TYPE);
 	if (!err) {
 		printf("Detach invalid prog successful\n");
@@ -612,6 +627,13 @@ static void test_sockmap(int tasks, void *data)
 			    BPF_PROG_TYPE_SK_SKB, &obj, &parse_prog);
 	if (err) {
 		printf("Failed to load SK_SKB parse prog\n");
+		goto out_sockmap;
+	}
+
+	err = bpf_prog_load(SOCKMAP_TCP_MSG_PROG,
+			    BPF_PROG_TYPE_SK_MSG, &obj, &msg_prog);
+	if (err) {
+		printf("Failed to load SK_SKB msg prog\n");
 		goto out_sockmap;
 	}
 
@@ -630,7 +652,7 @@ static void test_sockmap(int tasks, void *data)
 
 	map_fd_rx = bpf_map__fd(bpf_map_rx);
 	if (map_fd_rx < 0) {
-		printf("Failed to get map fd\n");
+		printf("Failed to get map rx fd\n");
 		goto out_sockmap;
 	}
 
@@ -643,6 +665,18 @@ static void test_sockmap(int tasks, void *data)
 	map_fd_tx = bpf_map__fd(bpf_map_tx);
 	if (map_fd_tx < 0) {
 		printf("Failed to get map tx fd\n");
+		goto out_sockmap;
+	}
+
+	bpf_map_msg = bpf_object__find_map_by_name(obj, "sock_map_msg");
+	if (IS_ERR(bpf_map_msg)) {
+		printf("Failed to load map msg from msg_verdict prog\n");
+		goto out_sockmap;
+	}
+
+	map_fd_msg = bpf_map__fd(bpf_map_msg);
+	if (map_fd_msg < 0) {
+		printf("Failed to get map msg fd\n");
 		goto out_sockmap;
 	}
 
@@ -676,6 +710,12 @@ static void test_sockmap(int tasks, void *data)
 			      BPF_SK_SKB_STREAM_VERDICT, 0);
 	if (err) {
 		printf("Failed stream verdict bpf prog attach\n");
+		goto out_sockmap;
+	}
+
+	err = bpf_prog_attach(msg_prog, map_fd_msg, BPF_SK_MSG_VERDICT, 0);
+	if (err) {
+		printf("Failed msg verdict bpf prog attach\n");
 		goto out_sockmap;
 	}
 
@@ -716,6 +756,14 @@ static void test_sockmap(int tasks, void *data)
 			       err, i, sfd[i]);
 			goto out_sockmap;
 		}
+	}
+
+	/* Put sfd[2] (sending fd below) into msg map to test sendmsg bpf */
+	i = 0;
+	err = bpf_map_update_elem(map_fd_msg, &i, &sfd[2], BPF_ANY);
+	if (err) {
+		printf("Failed map_fd_msg update sockmap %i\n", err);
+		goto out_sockmap;
 	}
 
 	/* Test map send/recv */
@@ -1126,10 +1174,6 @@ static void run_all_tests(void)
 
 int main(void)
 {
-	struct rlimit rinf = { RLIM_INFINITY, RLIM_INFINITY };
-
-	setrlimit(RLIMIT_MEMLOCK, &rinf);
-
 	map_flags = 0;
 	run_all_tests();
 

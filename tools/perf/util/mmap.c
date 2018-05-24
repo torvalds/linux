@@ -64,25 +64,6 @@ static union perf_event *perf_mmap__read(struct perf_mmap *map,
 }
 
 /*
- * legacy interface for mmap read.
- * Don't use it. Use perf_mmap__read_event().
- */
-union perf_event *perf_mmap__read_forward(struct perf_mmap *map)
-{
-	u64 head;
-
-	/*
-	 * Check if event was unmapped due to a POLLHUP/POLLERR.
-	 */
-	if (!refcount_read(&map->refcnt))
-		return NULL;
-
-	head = perf_mmap__read_head(map);
-
-	return perf_mmap__read(map, &map->prev, head);
-}
-
-/*
  * Read event from ring buffer one by one.
  * Return one event for each call.
  *
@@ -94,9 +75,7 @@ union perf_event *perf_mmap__read_forward(struct perf_mmap *map)
  * }
  * perf_mmap__read_done()
  */
-union perf_event *perf_mmap__read_event(struct perf_mmap *map,
-					bool overwrite,
-					u64 *startp, u64 end)
+union perf_event *perf_mmap__read_event(struct perf_mmap *map)
 {
 	union perf_event *event;
 
@@ -106,17 +85,14 @@ union perf_event *perf_mmap__read_event(struct perf_mmap *map,
 	if (!refcount_read(&map->refcnt))
 		return NULL;
 
-	if (startp == NULL)
-		return NULL;
-
 	/* non-overwirte doesn't pause the ringbuffer */
-	if (!overwrite)
-		end = perf_mmap__read_head(map);
+	if (!map->overwrite)
+		map->end = perf_mmap__read_head(map);
 
-	event = perf_mmap__read(map, startp, end);
+	event = perf_mmap__read(map, &map->start, map->end);
 
-	if (!overwrite)
-		map->prev = *startp;
+	if (!map->overwrite)
+		map->prev = map->start;
 
 	return event;
 }
@@ -139,9 +115,9 @@ void perf_mmap__put(struct perf_mmap *map)
 		perf_mmap__munmap(map);
 }
 
-void perf_mmap__consume(struct perf_mmap *map, bool overwrite)
+void perf_mmap__consume(struct perf_mmap *map)
 {
-	if (!overwrite) {
+	if (!map->overwrite) {
 		u64 old = map->prev;
 
 		perf_mmap__write_tail(map, old);
@@ -191,7 +167,7 @@ void perf_mmap__munmap(struct perf_mmap *map)
 int perf_mmap__mmap(struct perf_mmap *map, struct mmap_params *mp, int fd)
 {
 	/*
-	 * The last one will be done at perf_evlist__mmap_consume(), so that we
+	 * The last one will be done at perf_mmap__consume(), so that we
 	 * make sure we don't prevent tools from consuming every last event in
 	 * the ring buffer.
 	 *
@@ -223,19 +199,18 @@ int perf_mmap__mmap(struct perf_mmap *map, struct mmap_params *mp, int fd)
 	return 0;
 }
 
-static int overwrite_rb_find_range(void *buf, int mask, u64 head, u64 *start, u64 *end)
+static int overwrite_rb_find_range(void *buf, int mask, u64 *start, u64 *end)
 {
 	struct perf_event_header *pheader;
-	u64 evt_head = head;
+	u64 evt_head = *start;
 	int size = mask + 1;
 
-	pr_debug2("overwrite_rb_find_range: buf=%p, head=%"PRIx64"\n", buf, head);
-	pheader = (struct perf_event_header *)(buf + (head & mask));
-	*start = head;
+	pr_debug2("%s: buf=%p, start=%"PRIx64"\n", __func__, buf, *start);
+	pheader = (struct perf_event_header *)(buf + (*start & mask));
 	while (true) {
-		if (evt_head - head >= (unsigned int)size) {
+		if (evt_head - *start >= (unsigned int)size) {
 			pr_debug("Finished reading overwrite ring buffer: rewind\n");
-			if (evt_head - head > (unsigned int)size)
+			if (evt_head - *start > (unsigned int)size)
 				evt_head -= pheader->size;
 			*end = evt_head;
 			return 0;
@@ -259,27 +234,26 @@ static int overwrite_rb_find_range(void *buf, int mask, u64 head, u64 *start, u6
 /*
  * Report the start and end of the available data in ringbuffer
  */
-int perf_mmap__read_init(struct perf_mmap *md, bool overwrite,
-			 u64 *startp, u64 *endp)
+static int __perf_mmap__read_init(struct perf_mmap *md)
 {
 	u64 head = perf_mmap__read_head(md);
 	u64 old = md->prev;
 	unsigned char *data = md->base + page_size;
 	unsigned long size;
 
-	*startp = overwrite ? head : old;
-	*endp = overwrite ? old : head;
+	md->start = md->overwrite ? head : old;
+	md->end = md->overwrite ? old : head;
 
-	if (*startp == *endp)
+	if (md->start == md->end)
 		return -EAGAIN;
 
-	size = *endp - *startp;
+	size = md->end - md->start;
 	if (size > (unsigned long)(md->mask) + 1) {
-		if (!overwrite) {
+		if (!md->overwrite) {
 			WARN_ONCE(1, "failed to keep up with mmap data. (warn only once)\n");
 
 			md->prev = head;
-			perf_mmap__consume(md, overwrite);
+			perf_mmap__consume(md);
 			return -EAGAIN;
 		}
 
@@ -287,33 +261,43 @@ int perf_mmap__read_init(struct perf_mmap *md, bool overwrite,
 		 * Backward ring buffer is full. We still have a chance to read
 		 * most of data from it.
 		 */
-		if (overwrite_rb_find_range(data, md->mask, head, startp, endp))
+		if (overwrite_rb_find_range(data, md->mask, &md->start, &md->end))
 			return -EINVAL;
 	}
 
 	return 0;
 }
 
-int perf_mmap__push(struct perf_mmap *md, bool overwrite,
-		    void *to, int push(void *to, void *buf, size_t size))
+int perf_mmap__read_init(struct perf_mmap *map)
+{
+	/*
+	 * Check if event was unmapped due to a POLLHUP/POLLERR.
+	 */
+	if (!refcount_read(&map->refcnt))
+		return -ENOENT;
+
+	return __perf_mmap__read_init(map);
+}
+
+int perf_mmap__push(struct perf_mmap *md, void *to,
+		    int push(void *to, void *buf, size_t size))
 {
 	u64 head = perf_mmap__read_head(md);
-	u64 end, start;
 	unsigned char *data = md->base + page_size;
 	unsigned long size;
 	void *buf;
 	int rc = 0;
 
-	rc = perf_mmap__read_init(md, overwrite, &start, &end);
+	rc = perf_mmap__read_init(md);
 	if (rc < 0)
 		return (rc == -EAGAIN) ? 0 : -1;
 
-	size = end - start;
+	size = md->end - md->start;
 
-	if ((start & md->mask) + size != (end & md->mask)) {
-		buf = &data[start & md->mask];
-		size = md->mask + 1 - (start & md->mask);
-		start += size;
+	if ((md->start & md->mask) + size != (md->end & md->mask)) {
+		buf = &data[md->start & md->mask];
+		size = md->mask + 1 - (md->start & md->mask);
+		md->start += size;
 
 		if (push(to, buf, size) < 0) {
 			rc = -1;
@@ -321,9 +305,9 @@ int perf_mmap__push(struct perf_mmap *md, bool overwrite,
 		}
 	}
 
-	buf = &data[start & md->mask];
-	size = end - start;
-	start += size;
+	buf = &data[md->start & md->mask];
+	size = md->end - md->start;
+	md->start += size;
 
 	if (push(to, buf, size) < 0) {
 		rc = -1;
@@ -331,7 +315,7 @@ int perf_mmap__push(struct perf_mmap *md, bool overwrite,
 	}
 
 	md->prev = head;
-	perf_mmap__consume(md, overwrite);
+	perf_mmap__consume(md);
 out:
 	return rc;
 }
@@ -344,5 +328,11 @@ out:
  */
 void perf_mmap__read_done(struct perf_mmap *map)
 {
+	/*
+	 * Check if event was unmapped due to a POLLHUP/POLLERR.
+	 */
+	if (!refcount_read(&map->refcnt))
+		return;
+
 	map->prev = perf_mmap__read_head(map);
 }

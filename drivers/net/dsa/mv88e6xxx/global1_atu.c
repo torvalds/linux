@@ -336,8 +336,6 @@ static irqreturn_t mv88e6xxx_g1_atu_prob_irq_thread_fn(int irq, void *dev_id)
 	if (err)
 		goto out;
 
-	mutex_unlock(&chip->reg_lock);
-
 	if (val & MV88E6XXX_G1_ATU_OP_AGE_OUT_VIOLATION) {
 		dev_err_ratelimited(chip->dev,
 				    "ATU age out violation for %pM\n",
@@ -348,17 +346,23 @@ static irqreturn_t mv88e6xxx_g1_atu_prob_irq_thread_fn(int irq, void *dev_id)
 		dev_err_ratelimited(chip->dev,
 				    "ATU member violation for %pM portvec %x\n",
 				    entry.mac, entry.portvec);
+		chip->ports[entry.portvec].atu_member_violation++;
 	}
 
-	if (val & MV88E6XXX_G1_ATU_OP_MEMBER_VIOLATION)
+	if (val & MV88E6XXX_G1_ATU_OP_MEMBER_VIOLATION) {
 		dev_err_ratelimited(chip->dev,
 				    "ATU miss violation for %pM portvec %x\n",
 				    entry.mac, entry.portvec);
+		chip->ports[entry.portvec].atu_miss_violation++;
+	}
 
-	if (val & MV88E6XXX_G1_ATU_OP_FULL_VIOLATION)
+	if (val & MV88E6XXX_G1_ATU_OP_FULL_VIOLATION) {
 		dev_err_ratelimited(chip->dev,
 				    "ATU full violation for %pM portvec %x\n",
 				    entry.mac, entry.portvec);
+		chip->ports[entry.portvec].atu_full_violation++;
+	}
+	mutex_unlock(&chip->reg_lock);
 
 	return IRQ_HANDLED;
 

@@ -86,7 +86,7 @@ struct panel_drv_data {
 	struct workqueue_struct *workqueue;
 
 	bool ulps_enabled;
-	unsigned ulps_timeout;
+	unsigned int ulps_timeout;
 	struct delayed_work ulps_work;
 };
 
@@ -513,7 +513,7 @@ static ssize_t dsicm_show_ulps(struct device *dev,
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	unsigned t;
+	unsigned int t;
 
 	mutex_lock(&ddata->lock);
 	t = ddata->ulps_enabled;
@@ -560,7 +560,7 @@ static ssize_t dsicm_show_ulps_timeout(struct device *dev,
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	unsigned t;
+	unsigned int t;
 
 	mutex_lock(&ddata->lock);
 	t = ddata->ulps_timeout;
@@ -759,37 +759,46 @@ static int dsicm_panel_reset(struct panel_drv_data *ddata)
 static int dsicm_connect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
 	struct device *dev = &ddata->pdev->dev;
+	struct omap_dss_device *in;
 	int r;
 
 	if (omapdss_device_is_connected(dssdev))
 		return 0;
 
+	in = omapdss_of_find_source_for_first_ep(dssdev->dev->of_node);
+	if (IS_ERR(in)) {
+		dev_err(dssdev->dev, "failed to find video source\n");
+		return PTR_ERR(in);
+	}
+
 	r = in->ops.dsi->connect(in, dssdev);
 	if (r) {
 		dev_err(dev, "Failed to connect to video source\n");
-		return r;
+		goto err_connect;
 	}
 
-	r = in->ops.dsi->request_vc(ddata->in, &ddata->channel);
+	r = in->ops.dsi->request_vc(in, &ddata->channel);
 	if (r) {
 		dev_err(dev, "failed to get virtual channel\n");
 		goto err_req_vc;
 	}
 
-	r = in->ops.dsi->set_vc_id(ddata->in, ddata->channel, TCH);
+	r = in->ops.dsi->set_vc_id(in, ddata->channel, TCH);
 	if (r) {
 		dev_err(dev, "failed to set VC_ID\n");
 		goto err_vc_id;
 	}
 
+	ddata->in = in;
 	return 0;
 
 err_vc_id:
-	in->ops.dsi->release_vc(ddata->in, ddata->channel);
+	in->ops.dsi->release_vc(in, ddata->channel);
 err_req_vc:
 	in->ops.dsi->disconnect(in, dssdev);
+err_connect:
+	omap_dss_put_device(in);
 	return r;
 }
 
@@ -803,6 +812,9 @@ static void dsicm_disconnect(struct omap_dss_device *dssdev)
 
 	in->ops.dsi->release_vc(in, ddata->channel);
 	in->ops.dsi->disconnect(in, dssdev);
+
+	omap_dss_put_device(in);
+	ddata->in = NULL;
 }
 
 static int dsicm_enable(struct omap_dss_device *dssdev)
@@ -1064,7 +1076,7 @@ static int dsicm_memory_read(struct omap_dss_device *dssdev,
 	int r;
 	int first = 1;
 	int plen;
-	unsigned buf_used = 0;
+	unsigned int buf_used = 0;
 
 	if (size < w * h * 3)
 		return -ENOMEM;
@@ -1223,7 +1235,6 @@ static int dsicm_probe_of(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 	struct device_node *backlight;
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct omap_dss_device *in;
 	struct display_timing timing;
 	int err;
 
@@ -1259,12 +1270,6 @@ static int dsicm_probe_of(struct platform_device *pdev)
 	ddata->height_mm = 0;
 	of_property_read_u32(node, "height-mm", &ddata->height_mm);
 
-	in = omapdss_of_find_source_for_first_ep(node);
-	if (IS_ERR(in)) {
-		dev_err(&pdev->dev, "failed to find video source\n");
-		return PTR_ERR(in);
-	}
-
 	ddata->vpnl = devm_regulator_get_optional(&pdev->dev, "vpnl");
 	if (IS_ERR(ddata->vpnl)) {
 		err = PTR_ERR(ddata->vpnl);
@@ -1280,8 +1285,6 @@ static int dsicm_probe_of(struct platform_device *pdev)
 			return err;
 		ddata->vddi = NULL;
 	}
-
-	ddata->in = in;
 
 	backlight = of_parse_phandle(node, "backlight", 0);
 	if (backlight) {
@@ -1316,9 +1319,6 @@ static int dsicm_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ddata);
 	ddata->pdev = pdev;
-
-	if (!pdev->dev.of_node)
-		return -ENODEV;
 
 	ddata->vm.hactive = 864;
 	ddata->vm.vactive = 480;
@@ -1423,8 +1423,6 @@ static int __exit dsicm_remove(struct platform_device *pdev)
 
 	if (ddata->extbldev)
 		put_device(&ddata->extbldev->dev);
-
-	omap_dss_put_device(ddata->in);
 
 	dsicm_cancel_ulps_work(ddata);
 	destroy_workqueue(ddata->workqueue);

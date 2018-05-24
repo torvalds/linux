@@ -260,17 +260,16 @@ lustre_get_emerg_rs(struct ptlrpc_service_part *svcpt)
 
 	/* See if we have anything in a pool, and wait if nothing */
 	while (list_empty(&svcpt->scp_rep_idle)) {
-		struct l_wait_info lwi;
 		int rc;
 
 		spin_unlock(&svcpt->scp_rep_lock);
 		/* If we cannot get anything for some long time, we better
 		 * bail out instead of waiting infinitely
 		 */
-		lwi = LWI_TIMEOUT(cfs_time_seconds(10), NULL, NULL);
-		rc = l_wait_event(svcpt->scp_rep_waitq,
-				  !list_empty(&svcpt->scp_rep_idle), &lwi);
-		if (rc != 0)
+		rc = wait_event_idle_timeout(svcpt->scp_rep_waitq,
+					     !list_empty(&svcpt->scp_rep_idle),
+					     10 * HZ);
+		if (rc == 0)
 			goto out;
 		spin_lock(&svcpt->scp_rep_lock);
 	}

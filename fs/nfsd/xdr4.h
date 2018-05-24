@@ -110,6 +110,7 @@ struct nfsd4_create {
 		struct {
 			u32 datalen;
 			char *data;
+			struct kvec first;
 		} link;   /* NF4LNK */
 		struct {
 			u32 specdata1;
@@ -118,12 +119,14 @@ struct nfsd4_create {
 	} u;
 	u32		cr_bmval[3];        /* request */
 	struct iattr	cr_iattr;           /* request */
+	int		cr_umask;           /* request */
 	struct nfsd4_change_info  cr_cinfo; /* response */
 	struct nfs4_acl *cr_acl;
 	struct xdr_netobj cr_label;
 };
 #define cr_datalen	u.link.datalen
 #define cr_data		u.link.data
+#define cr_first	u.link.first
 #define cr_specdata1	u.dev.specdata1
 #define cr_specdata2	u.dev.specdata2
 
@@ -228,6 +231,7 @@ struct nfsd4_open {
 	u32		op_why_no_deleg;    /* response - DELEG_NONE_EXT only */
 	u32		op_create;     	    /* request */
 	u32		op_createmode;      /* request */
+	int		op_umask;           /* request */
 	u32		op_bmval[3];        /* request */
 	struct iattr	op_iattr;           /* UNCHECKED4, GUARDED4, EXCLUSIVE4_1 */
 	nfs4_verifier	op_verf __attribute__((aligned(32)));
@@ -518,7 +522,6 @@ struct nfsd4_copy {
 	u64		cp_count;
 
 	/* both */
-	bool		cp_consecutive;
 	bool		cp_synchronous;
 
 	/* response */

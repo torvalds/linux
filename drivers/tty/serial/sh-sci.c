@@ -33,6 +33,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
+#include <linux/ktime.h>
 #include <linux/major.h>
 #include <linux/module.h>
 #include <linux/mm.h>
@@ -143,8 +144,8 @@ struct sci_port {
 	void				*rx_buf[2];
 	size_t				buf_len_rx;
 	struct work_struct		work_tx;
-	struct timer_list		rx_timer;
-	unsigned int			rx_timeout;
+	struct hrtimer			rx_timer;
+	unsigned int			rx_timeout;	/* microseconds */
 #endif
 	unsigned int			rx_frame;
 	int				rx_trigger;
@@ -1231,6 +1232,15 @@ static void sci_rx_dma_release(struct sci_port *s, bool enable_pio)
 	}
 }
 
+static void start_hrtimer_us(struct hrtimer *hrt, unsigned long usec)
+{
+	long sec = usec / 1000000;
+	long nsec = (usec % 1000000) * 1000;
+	ktime_t t = ktime_set(sec, nsec);
+
+	hrtimer_start(hrt, t, HRTIMER_MODE_REL);
+}
+
 static void sci_dma_rx_complete(void *arg)
 {
 	struct sci_port *s = arg;
@@ -1249,7 +1259,7 @@ static void sci_dma_rx_complete(void *arg)
 	if (active >= 0)
 		count = sci_dma_rx_push(s, s->rx_buf[active], s->buf_len_rx);
 
-	mod_timer(&s->rx_timer, jiffies + s->rx_timeout);
+	start_hrtimer_us(&s->rx_timer, s->rx_timeout);
 
 	if (count)
 		tty_flip_buffer_push(&port->state->port);
@@ -1393,9 +1403,9 @@ static void work_fn_tx(struct work_struct *work)
 	dma_async_issue_pending(chan);
 }
 
-static void rx_timer_fn(struct timer_list *t)
+static enum hrtimer_restart rx_timer_fn(struct hrtimer *t)
 {
-	struct sci_port *s = from_timer(s, t, rx_timer);
+	struct sci_port *s = container_of(t, struct sci_port, rx_timer);
 	struct dma_chan *chan = s->chan_rx;
 	struct uart_port *port = &s->port;
 	struct dma_tx_state state;
@@ -1412,7 +1422,7 @@ static void rx_timer_fn(struct timer_list *t)
 	active = sci_dma_rx_find_active(s);
 	if (active < 0) {
 		spin_unlock_irqrestore(&port->lock, flags);
-		return;
+		return HRTIMER_NORESTART;
 	}
 
 	status = dmaengine_tx_status(s->chan_rx, s->active_rx, &state);
@@ -1422,7 +1432,7 @@ static void rx_timer_fn(struct timer_list *t)
 			s->active_rx, active);
 
 		/* Let packet complete handler take care of the packet */
-		return;
+		return HRTIMER_NORESTART;
 	}
 
 	dmaengine_pause(chan);
@@ -1437,7 +1447,7 @@ static void rx_timer_fn(struct timer_list *t)
 	if (status == DMA_COMPLETE) {
 		spin_unlock_irqrestore(&port->lock, flags);
 		dev_dbg(port->dev, "Transaction complete after DMA engine was stopped");
-		return;
+		return HRTIMER_NORESTART;
 	}
 
 	/* Handle incomplete DMA receive */
@@ -1462,6 +1472,8 @@ static void rx_timer_fn(struct timer_list *t)
 	serial_port_out(port, SCSCR, scr | SCSCR_RIE);
 
 	spin_unlock_irqrestore(&port->lock, flags);
+
+	return HRTIMER_NORESTART;
 }
 
 static struct dma_chan *sci_request_dma_chan(struct uart_port *port,
@@ -1573,7 +1585,8 @@ static void sci_request_dma(struct uart_port *port)
 			dma += s->buf_len_rx;
 		}
 
-		timer_setup(&s->rx_timer, rx_timer_fn, 0);
+		hrtimer_init(&s->rx_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		s->rx_timer.function = rx_timer_fn;
 
 		if (port->type == PORT_SCIFA || port->type == PORT_SCIFB)
 			sci_submit_rx(s);
@@ -1632,9 +1645,9 @@ static irqreturn_t sci_rx_interrupt(int irq, void *ptr)
 		/* Clear current interrupt */
 		serial_port_out(port, SCxSR,
 				ssr & ~(SCIF_DR | SCxSR_RDxF(port)));
-		dev_dbg(port->dev, "Rx IRQ %lu: setup t-out in %u jiffies\n",
+		dev_dbg(port->dev, "Rx IRQ %lu: setup t-out in %u us\n",
 			jiffies, s->rx_timeout);
-		mod_timer(&s->rx_timer, jiffies + s->rx_timeout);
+		start_hrtimer_us(&s->rx_timer, s->rx_timeout);
 
 		return IRQ_HANDLED;
 	}
@@ -1645,7 +1658,7 @@ static irqreturn_t sci_rx_interrupt(int irq, void *ptr)
 			scif_set_rtrg(port, s->rx_trigger);
 
 		mod_timer(&s->rx_fifo_timer, jiffies + DIV_ROUND_UP(
-			  s->rx_frame * s->rx_fifo_timeout, 1000));
+			  s->rx_frame * HZ * s->rx_fifo_timeout, 1000000));
 	}
 
 	/* I think sci_receive_chars has to be called irrespective
@@ -2081,7 +2094,7 @@ static void sci_shutdown(struct uart_port *port)
 	if (s->chan_rx) {
 		dev_dbg(port->dev, "%s(%d) deleting rx_timer\n", __func__,
 			port->line);
-		del_timer_sync(&s->rx_timer);
+		hrtimer_cancel(&s->rx_timer);
 	}
 #endif
 
@@ -2482,11 +2495,11 @@ done:
 	if (termios->c_cflag & PARENB)
 		bits++;
 
-	s->rx_frame = (100 * bits * HZ) / (baud / 10);
+	s->rx_frame = (10000 * bits) / (baud / 100);
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
-	s->rx_timeout = DIV_ROUND_UP(s->buf_len_rx * 2 * s->rx_frame, 1000);
-	if (s->rx_timeout < msecs_to_jiffies(20))
-		s->rx_timeout = msecs_to_jiffies(20);
+	s->rx_timeout = s->buf_len_rx * 2 * s->rx_frame;
+	if (s->rx_timeout < 20)
+		s->rx_timeout = 20;
 #endif
 
 	if ((termios->c_cflag & CREAD) != 0)
@@ -3096,6 +3109,10 @@ static struct plat_sci_port *sci_parse_dt(struct platform_device *pdev,
 	id = of_alias_get_id(np, "serial");
 	if (id < 0) {
 		dev_err(&pdev->dev, "failed to get alias id (%d)\n", id);
+		return NULL;
+	}
+	if (id >= ARRAY_SIZE(sci_ports)) {
+		dev_err(&pdev->dev, "serial%d out of range\n", id);
 		return NULL;
 	}
 

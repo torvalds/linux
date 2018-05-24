@@ -75,6 +75,7 @@
 #define DP_MAX_DOWNSPREAD                   0x003
 # define DP_MAX_DOWNSPREAD_0_5		    (1 << 0)
 # define DP_NO_AUX_HANDSHAKE_LINK_TRAINING  (1 << 6)
+# define DP_TPS4_SUPPORTED                  (1 << 7)
 
 #define DP_NORP                             0x004
 
@@ -287,6 +288,7 @@
 #define DP_PSR_SUPPORT                      0x070   /* XXX 1.2? */
 # define DP_PSR_IS_SUPPORTED                1
 # define DP_PSR2_IS_SUPPORTED		    2	    /* eDP 1.4 */
+# define DP_PSR2_WITH_Y_COORD_IS_SUPPORTED  3	    /* eDP 1.4a */
 
 #define DP_PSR_CAPS                         0x071   /* XXX 1.2? */
 # define DP_PSR_NO_TRAIN_ON_EXIT            1
@@ -328,12 +330,20 @@
 # define DP_DS_12BPC		            2
 # define DP_DS_16BPC		            3
 
+/* DP Forward error Correction Registers */
+#define DP_FEC_CAPABILITY		    0x090    /* 1.4 */
+# define DP_FEC_CAPABLE			    (1 << 0)
+# define DP_FEC_UNCORR_BLK_ERROR_COUNT_CAP  (1 << 1)
+# define DP_FEC_CORR_BLK_ERROR_COUNT_CAP    (1 << 2)
+# define DP_FEC_BIT_ERROR_COUNT_CAP	    (1 << 3)
+
 /* link configuration */
 #define	DP_LINK_BW_SET		            0x100
 # define DP_LINK_RATE_TABLE		    0x00    /* eDP 1.4 */
 # define DP_LINK_BW_1_62		    0x06
 # define DP_LINK_BW_2_7			    0x0a
 # define DP_LINK_BW_5_4			    0x14    /* 1.2 */
+# define DP_LINK_BW_8_1			    0x1e    /* 1.4 */
 
 #define DP_LANE_COUNT_SET	            0x101
 # define DP_LANE_COUNT_MASK		    0x0f
@@ -344,7 +354,9 @@
 # define DP_TRAINING_PATTERN_1		    1
 # define DP_TRAINING_PATTERN_2		    2
 # define DP_TRAINING_PATTERN_3		    3	    /* 1.2 */
+# define DP_TRAINING_PATTERN_4              7       /* 1.4 */
 # define DP_TRAINING_PATTERN_MASK	    0x3
+# define DP_TRAINING_PATTERN_MASK_1_4	    0xf
 
 /* DPCD 1.1 only. For DPCD >= 1.2 see per-lane DP_LINK_QUAL_LANEn_SET */
 # define DP_LINK_QUAL_PATTERN_11_DISABLE    (0 << 2)
@@ -440,6 +452,19 @@
 
 #define DP_UPSTREAM_DEVICE_DP_PWR_NEED	    0x118   /* 1.2 */
 # define DP_PWR_NOT_NEEDED		    (1 << 0)
+
+#define DP_FEC_CONFIGURATION		    0x120    /* 1.4 */
+# define DP_FEC_READY			    (1 << 0)
+# define DP_FEC_ERR_COUNT_SEL_MASK	    (7 << 1)
+# define DP_FEC_ERR_COUNT_DIS		    (0 << 1)
+# define DP_FEC_UNCORR_BLK_ERROR_COUNT	    (1 << 1)
+# define DP_FEC_CORR_BLK_ERROR_COUNT	    (2 << 1)
+# define DP_FEC_BIT_ERROR_COUNT		    (3 << 1)
+# define DP_FEC_LANE_SELECT_MASK	    (3 << 4)
+# define DP_FEC_LANE_0_SELECT		    (0 << 4)
+# define DP_FEC_LANE_1_SELECT		    (1 << 4)
+# define DP_FEC_LANE_2_SELECT		    (2 << 4)
+# define DP_FEC_LANE_3_SELECT		    (3 << 4)
 
 #define DP_AUX_FRAME_SYNC_VALUE		    0x15c   /* eDP 1.4 */
 # define DP_AUX_FRAME_SYNC_VALID	    (1 << 0)
@@ -615,6 +640,16 @@
 
 #define DP_TEST_SINK			    0x270
 # define DP_TEST_SINK_START		    (1 << 0)
+
+#define DP_FEC_STATUS			    0x280    /* 1.4 */
+# define DP_FEC_DECODE_EN_DETECTED	    (1 << 0)
+# define DP_FEC_DECODE_DIS_DETECTED	    (1 << 1)
+
+#define DP_FEC_ERROR_COUNT_LSB		    0x0281    /* 1.4 */
+
+#define DP_FEC_ERROR_COUNT_MSB		    0x0282    /* 1.4 */
+# define DP_FEC_ERROR_COUNT_MASK	    0x7F
+# define DP_FEC_ERR_COUNT_VALID		    (1 << 7)
 
 #define DP_PAYLOAD_TABLE_UPDATE_STATUS      0x2c0   /* 1.2 MST */
 # define DP_PAYLOAD_TABLE_UPDATED           (1 << 0)
@@ -836,6 +871,23 @@
 #define DP_CEC_TX_MESSAGE_BUFFER               0x3020
 #define DP_CEC_MESSAGE_BUFFER_LENGTH             0x10
 
+#define DP_AUX_HDCP_BKSV		0x68000
+#define DP_AUX_HDCP_RI_PRIME		0x68005
+#define DP_AUX_HDCP_AKSV		0x68007
+#define DP_AUX_HDCP_AN			0x6800C
+#define DP_AUX_HDCP_V_PRIME(h)		(0x68014 + h * 4)
+#define DP_AUX_HDCP_BCAPS		0x68028
+# define DP_BCAPS_REPEATER_PRESENT	BIT(1)
+# define DP_BCAPS_HDCP_CAPABLE		BIT(0)
+#define DP_AUX_HDCP_BSTATUS		0x68029
+# define DP_BSTATUS_REAUTH_REQ		BIT(3)
+# define DP_BSTATUS_LINK_FAILURE	BIT(2)
+# define DP_BSTATUS_R0_PRIME_READY	BIT(1)
+# define DP_BSTATUS_READY		BIT(0)
+#define DP_AUX_HDCP_BINFO		0x6802A
+#define DP_AUX_HDCP_KSV_FIFO		0x6802C
+#define DP_AUX_HDCP_AINFO		0x6803B
+
 /* DP 1.2 Sideband message defines */
 /* peer device type - DP 1.2a Table 2-92 */
 #define DP_PEER_DEVICE_NONE		0x0
@@ -968,6 +1020,20 @@ drm_dp_tps3_supported(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
 	return dpcd[DP_DPCD_REV] >= 0x12 &&
 		dpcd[DP_MAX_LANE_COUNT] & DP_TPS3_SUPPORTED;
+}
+
+static inline bool
+drm_dp_tps4_supported(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return dpcd[DP_DPCD_REV] >= 0x14 &&
+		dpcd[DP_MAX_DOWNSPREAD] & DP_TPS4_SUPPORTED;
+}
+
+static inline u8
+drm_dp_training_pattern_mask(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return (dpcd[DP_DPCD_REV] >= 0x14) ? DP_TRAINING_PATTERN_MASK_1_4 :
+		DP_TRAINING_PATTERN_MASK;
 }
 
 static inline bool

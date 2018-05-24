@@ -13,9 +13,11 @@ Optional properties:
 - remote-wakeup-connected: remote wakeup is wired on the platform
 - num-ports : u32, to override the detected port count
 - clocks : a list of phandle + clock specifier pairs
-- phys : phandle + phy specifier pair
-- phy-names : "usb"
+- phys : see usb-hcd.txt in the current directory
 - resets : a list of phandle + reset specifier pairs
+
+additionally the properties from usb-hcd.txt (in the current directory) are
+supported.
 
 Example:
 

@@ -224,6 +224,39 @@ static size_t ceph_vxattrcb_dir_rctime(struct ceph_inode_info *ci, char *val,
 			(long)ci->i_rctime.tv_nsec);
 }
 
+/* quotas */
+
+static bool ceph_vxattrcb_quota_exists(struct ceph_inode_info *ci)
+{
+	bool ret = false;
+	spin_lock(&ci->i_ceph_lock);
+	if ((ci->i_max_files || ci->i_max_bytes) &&
+	    ci->i_vino.snap == CEPH_NOSNAP &&
+	    ci->i_snap_realm &&
+	    ci->i_snap_realm->ino == ci->i_vino.ino)
+		ret = true;
+	spin_unlock(&ci->i_ceph_lock);
+	return ret;
+}
+
+static size_t ceph_vxattrcb_quota(struct ceph_inode_info *ci, char *val,
+				  size_t size)
+{
+	return snprintf(val, size, "max_bytes=%llu max_files=%llu",
+			ci->i_max_bytes, ci->i_max_files);
+}
+
+static size_t ceph_vxattrcb_quota_max_bytes(struct ceph_inode_info *ci,
+					    char *val, size_t size)
+{
+	return snprintf(val, size, "%llu", ci->i_max_bytes);
+}
+
+static size_t ceph_vxattrcb_quota_max_files(struct ceph_inode_info *ci,
+					    char *val, size_t size)
+{
+	return snprintf(val, size, "%llu", ci->i_max_files);
+}
 
 #define CEPH_XATTR_NAME(_type, _name)	XATTR_CEPH_PREFIX #_type "." #_name
 #define CEPH_XATTR_NAME2(_type, _name, _name2)	\
@@ -246,6 +279,15 @@ static size_t ceph_vxattrcb_dir_rctime(struct ceph_inode_info *ci, char *val,
 		.readonly = false,				\
 		.hidden = true,			\
 		.exists_cb = ceph_vxattrcb_layout_exists,	\
+	}
+#define XATTR_QUOTA_FIELD(_type, _name)					\
+	{								\
+		.name = CEPH_XATTR_NAME(_type, _name),			\
+		.name_size = sizeof(CEPH_XATTR_NAME(_type, _name)),	\
+		.getxattr_cb = ceph_vxattrcb_ ## _type ## _ ## _name,	\
+		.readonly = false,					\
+		.hidden = true,						\
+		.exists_cb = ceph_vxattrcb_quota_exists,		\
 	}
 
 static struct ceph_vxattr ceph_dir_vxattrs[] = {
@@ -270,6 +312,16 @@ static struct ceph_vxattr ceph_dir_vxattrs[] = {
 	XATTR_NAME_CEPH(dir, rsubdirs),
 	XATTR_NAME_CEPH(dir, rbytes),
 	XATTR_NAME_CEPH(dir, rctime),
+	{
+		.name = "ceph.quota",
+		.name_size = sizeof("ceph.quota"),
+		.getxattr_cb = ceph_vxattrcb_quota,
+		.readonly = false,
+		.hidden = true,
+		.exists_cb = ceph_vxattrcb_quota_exists,
+	},
+	XATTR_QUOTA_FIELD(quota, max_bytes),
+	XATTR_QUOTA_FIELD(quota, max_files),
 	{ .name = NULL, 0 }	/* Required table terminator */
 };
 static size_t ceph_dir_vxattrs_name_size;	/* total size of all names */
@@ -964,14 +1016,19 @@ int __ceph_setxattr(struct inode *inode, const char *name,
 	char *newval = NULL;
 	struct ceph_inode_xattr *xattr = NULL;
 	int required_blob_size;
+	bool check_realm = false;
 	bool lock_snap_rwsem = false;
 
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EROFS;
 
 	vxattr = ceph_match_vxattr(inode, name);
-	if (vxattr && vxattr->readonly)
-		return -EOPNOTSUPP;
+	if (vxattr) {
+		if (vxattr->readonly)
+			return -EOPNOTSUPP;
+		if (value && !strncmp(vxattr->name, "ceph.quota", 10))
+			check_realm = true;
+	}
 
 	/* pass any unhandled ceph.* xattrs through to the MDS */
 	if (!strncmp(name, XATTR_CEPH_PREFIX, XATTR_CEPH_PREFIX_LEN))
@@ -1065,6 +1122,15 @@ do_sync_unlocked:
 		err = -EBUSY;
 	} else {
 		err = ceph_sync_setxattr(inode, name, value, size, flags);
+		if (err >= 0 && check_realm) {
+			/* check if snaprealm was created for quota inode */
+			spin_lock(&ci->i_ceph_lock);
+			if ((ci->i_max_files || ci->i_max_bytes) &&
+			    !(ci->i_snap_realm &&
+			      ci->i_snap_realm->ino == ci->i_vino.ino))
+				err = -EOPNOTSUPP;
+			spin_unlock(&ci->i_ceph_lock);
+		}
 	}
 out:
 	ceph_free_cap_flush(prealloc_cf);

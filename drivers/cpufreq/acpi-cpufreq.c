@@ -794,14 +794,8 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		valid_states++;
 	}
 	freq_table[valid_states].frequency = CPUFREQ_TABLE_END;
+	policy->freq_table = freq_table;
 	perf->state = 0;
-
-	result = cpufreq_table_validate_and_show(policy, freq_table);
-	if (result)
-		goto err_freqfree;
-
-	if (perf->states[0].core_frequency * 1000 != policy->cpuinfo.max_freq)
-		pr_warn(FW_WARN "P-state 0 is not max freq\n");
 
 	switch (perf->control_register.space_id) {
 	case ACPI_ADR_SPACE_SYSTEM_IO:
@@ -842,8 +836,6 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	return result;
 
-err_freqfree:
-	kfree(freq_table);
 err_unreg:
 	acpi_processor_unregister_performance(cpu);
 err_free_mask:
@@ -869,6 +861,15 @@ static int acpi_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 	kfree(data);
 
 	return 0;
+}
+
+static void acpi_cpufreq_cpu_ready(struct cpufreq_policy *policy)
+{
+	struct acpi_processor_performance *perf = per_cpu_ptr(acpi_perf_data,
+							      policy->cpu);
+
+	if (perf->states[0].core_frequency * 1000 != policy->cpuinfo.max_freq)
+		pr_warn(FW_WARN "P-state 0 is not max freq\n");
 }
 
 static int acpi_cpufreq_resume(struct cpufreq_policy *policy)
@@ -898,6 +899,7 @@ static struct cpufreq_driver acpi_cpufreq_driver = {
 	.bios_limit	= acpi_processor_get_bios_limit,
 	.init		= acpi_cpufreq_cpu_init,
 	.exit		= acpi_cpufreq_cpu_exit,
+	.ready		= acpi_cpufreq_cpu_ready,
 	.resume		= acpi_cpufreq_resume,
 	.name		= "acpi-cpufreq",
 	.attr		= acpi_cpufreq_attr,

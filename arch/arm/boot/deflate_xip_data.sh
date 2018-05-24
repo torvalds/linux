@@ -30,7 +30,7 @@ esac
 
 sym_val() {
 	# extract hex value for symbol in $1
-	local val=$($NM "$VMLINUX" | sed -n "/ $1$/{s/ .*$//p;q}")
+	local val=$($NM "$VMLINUX" 2>/dev/null | sed -n "/ $1\$/{s/ .*$//p;q}")
 	[ "$val" ] || { echo "can't find $1 in $VMLINUX" 1>&2; exit 1; }
 	# convert from hex to decimal
 	echo $((0x$val))
@@ -45,15 +45,15 @@ data_start=$(($__data_loc - $base_offset))
 data_end=$(($_edata_loc - $base_offset))
 
 # Make sure data occupies the last part of the file.
-file_end=$(stat -c "%s" "$XIPIMAGE")
+file_end=$(${CONFIG_SHELL} "${srctree}/scripts/file-size.sh" "$XIPIMAGE")
 if [ "$file_end" != "$data_end" ]; then
 	printf "end of xipImage doesn't match with _edata_loc (%#x vs %#x)\n" \
-	       $(($file_end + $base_offset)) $_edata_loc 2>&1
+	       $(($file_end + $base_offset)) $_edata_loc 1>&2
 	exit 1;
 fi
 
 # be ready to clean up
-trap 'rm -f "$XIPIMAGE.tmp"' 0 1 2 3
+trap 'rm -f "$XIPIMAGE.tmp"; exit 1' 1 2 3
 
 # substitute the data section by a compressed version
 $DD if="$XIPIMAGE" count=$data_start iflag=count_bytes of="$XIPIMAGE.tmp"

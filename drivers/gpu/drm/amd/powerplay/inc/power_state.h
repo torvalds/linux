@@ -122,8 +122,8 @@ struct PP_StateSoftwareAlgorithmBlock {
  * Type to hold a temperature range.
  */
 struct PP_TemperatureRange {
-	uint32_t min;
-	uint32_t max;
+	int min;
+	int max;
 };
 
 struct PP_StateValidationBlock {

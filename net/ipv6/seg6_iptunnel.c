@@ -16,6 +16,7 @@
 #include <linux/net.h>
 #include <linux/module.h>
 #include <net/ip.h>
+#include <net/ip_tunnels.h>
 #include <net/lwtunnel.h>
 #include <net/netevent.h>
 #include <net/netns/generic.h>
@@ -135,7 +136,7 @@ int seg6_do_srh_encap(struct sk_buff *skb, struct ipv6_sr_hdr *osrh, int proto)
 	isrh->nexthdr = proto;
 
 	hdr->daddr = isrh->segments[isrh->first_segment];
-	set_tun_src(net, ip6_dst_idev(dst)->dev, &hdr->daddr, &hdr->saddr);
+	set_tun_src(net, dst->dev, &hdr->daddr, &hdr->saddr);
 
 #ifdef CONFIG_IPV6_SEG6_HMAC
 	if (sr_has_hmac(isrh)) {
@@ -211,11 +212,6 @@ static int seg6_do_srh(struct sk_buff *skb)
 
 	tinfo = seg6_encap_lwtunnel(dst->lwtstate);
 
-	if (likely(!skb->encapsulation)) {
-		skb_reset_inner_headers(skb);
-		skb->encapsulation = 1;
-	}
-
 	switch (tinfo->mode) {
 	case SEG6_IPTUN_MODE_INLINE:
 		if (skb->protocol != htons(ETH_P_IPV6))
@@ -224,10 +220,12 @@ static int seg6_do_srh(struct sk_buff *skb)
 		err = seg6_do_srh_inline(skb, tinfo->srh);
 		if (err)
 			return err;
-
-		skb_reset_inner_headers(skb);
 		break;
 	case SEG6_IPTUN_MODE_ENCAP:
+		err = iptunnel_handle_offloads(skb, SKB_GSO_IPXIP6);
+		if (err)
+			return err;
+
 		if (skb->protocol == htons(ETH_P_IPV6))
 			proto = IPPROTO_IPV6;
 		else if (skb->protocol == htons(ETH_P_IP))
@@ -239,6 +237,8 @@ static int seg6_do_srh(struct sk_buff *skb)
 		if (err)
 			return err;
 
+		skb_set_inner_transport_header(skb, skb_transport_offset(skb));
+		skb_set_inner_protocol(skb, skb->protocol);
 		skb->protocol = htons(ETH_P_IPV6);
 		break;
 	case SEG6_IPTUN_MODE_L2ENCAP:
@@ -261,8 +261,6 @@ static int seg6_do_srh(struct sk_buff *skb)
 
 	ipv6_hdr(skb)->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
 	skb_set_transport_header(skb, sizeof(struct ipv6hdr));
-
-	skb_set_inner_protocol(skb, skb->protocol);
 
 	return 0;
 }

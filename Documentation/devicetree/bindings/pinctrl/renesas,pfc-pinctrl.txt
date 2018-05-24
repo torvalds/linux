@@ -15,7 +15,7 @@ Required Properties:
     - "renesas,pfc-r8a7740": for R8A7740 (R-Mobile A1) compatible pin-controller.
     - "renesas,pfc-r8a7743": for R8A7743 (RZ/G1M) compatible pin-controller.
     - "renesas,pfc-r8a7745": for R8A7745 (RZ/G1E) compatible pin-controller.
-    - "renesas,pfc-r8a7778": for R8A7778 (R-Mobile M1) compatible pin-controller.
+    - "renesas,pfc-r8a7778": for R8A7778 (R-Car M1) compatible pin-controller.
     - "renesas,pfc-r8a7779": for R8A7779 (R-Car H1) compatible pin-controller.
     - "renesas,pfc-r8a7790": for R8A7790 (R-Car H2) compatible pin-controller.
     - "renesas,pfc-r8a7791": for R8A7791 (R-Car M2-W) compatible pin-controller.
@@ -24,7 +24,9 @@ Required Properties:
     - "renesas,pfc-r8a7794": for R8A7794 (R-Car E2) compatible pin-controller.
     - "renesas,pfc-r8a7795": for R8A7795 (R-Car H3) compatible pin-controller.
     - "renesas,pfc-r8a7796": for R8A7796 (R-Car M3-W) compatible pin-controller.
+    - "renesas,pfc-r8a77965": for R8A77965 (R-Car M3-N) compatible pin-controller.
     - "renesas,pfc-r8a77970": for R8A77970 (R-Car V3M) compatible pin-controller.
+    - "renesas,pfc-r8a77980": for R8A77980 (R-Car V3H) compatible pin-controller.
     - "renesas,pfc-r8a77995": for R8A77995 (R-Car D3) compatible pin-controller.
     - "renesas,pfc-sh73a0": for SH73A0 (SH-Mobile AG5) compatible pin-controller.
 

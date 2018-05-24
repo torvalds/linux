@@ -33,6 +33,8 @@ extern int mem_init_done;
 #define PAGE_KERNEL		__pgprot(0) /* these mean nothing to non MMU */
 
 #define pgprot_noncached(x)	(x)
+#define pgprot_writecombine	pgprot_noncached
+#define pgprot_device		pgprot_noncached
 
 #define __swp_type(x)		(0)
 #define __swp_offset(x)		(0)

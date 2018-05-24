@@ -199,9 +199,8 @@ static struct ttm_backend_func cirrus_tt_backend_func = {
 };
 
 
-static struct ttm_tt *cirrus_ttm_tt_create(struct ttm_bo_device *bdev,
-				 unsigned long size, uint32_t page_flags,
-				 struct page *dummy_read_page)
+static struct ttm_tt *cirrus_ttm_tt_create(struct ttm_buffer_object *bo,
+					   uint32_t page_flags)
 {
 	struct ttm_tt *tt;
 
@@ -209,28 +208,15 @@ static struct ttm_tt *cirrus_ttm_tt_create(struct ttm_bo_device *bdev,
 	if (tt == NULL)
 		return NULL;
 	tt->func = &cirrus_tt_backend_func;
-	if (ttm_tt_init(tt, bdev, size, page_flags, dummy_read_page)) {
+	if (ttm_tt_init(tt, bo, page_flags)) {
 		kfree(tt);
 		return NULL;
 	}
 	return tt;
 }
 
-static int cirrus_ttm_tt_populate(struct ttm_tt *ttm,
-		struct ttm_operation_ctx *ctx)
-{
-	return ttm_pool_populate(ttm, ctx);
-}
-
-static void cirrus_ttm_tt_unpopulate(struct ttm_tt *ttm)
-{
-	ttm_pool_unpopulate(ttm);
-}
-
 struct ttm_bo_driver cirrus_bo_driver = {
 	.ttm_tt_create = cirrus_ttm_tt_create,
-	.ttm_tt_populate = cirrus_ttm_tt_populate,
-	.ttm_tt_unpopulate = cirrus_ttm_tt_unpopulate,
 	.init_mem_type = cirrus_bo_init_mem_type,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = cirrus_bo_evict_flags,
@@ -342,7 +328,7 @@ int cirrus_bo_create(struct drm_device *dev, int size, int align,
 
 	ret = ttm_bo_init(&cirrus->ttm.bdev, &cirrusbo->bo, size,
 			  ttm_bo_type_device, &cirrusbo->placement,
-			  align >> PAGE_SHIFT, false, NULL, acc_size,
+			  align >> PAGE_SHIFT, false, acc_size,
 			  NULL, NULL, cirrus_bo_ttm_destroy);
 	if (ret)
 		return ret;

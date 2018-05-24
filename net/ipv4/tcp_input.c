@@ -1358,9 +1358,6 @@ static struct sk_buff *tcp_shift_skb_data(struct sock *sk, struct sk_buff *skb,
 	int len;
 	int in_sack;
 
-	if (!sk_can_gso(sk))
-		goto fallback;
-
 	/* Normally R but no L won't result in plain S */
 	if (!dup_sack &&
 	    (TCP_SKB_CB(skb)->sacked & (TCPCB_LOST|TCPCB_SACKED_RETRANS)) == TCPCB_SACKED_RETRANS)
@@ -3871,11 +3868,8 @@ const u8 *tcp_parse_md5sig_option(const struct tcphdr *th)
 	int length = (th->doff << 2) - sizeof(*th);
 	const u8 *ptr = (const u8 *)(th + 1);
 
-	/* If the TCP option is too short, we can short cut */
-	if (length < TCPOLEN_MD5SIG)
-		return NULL;
-
-	while (length > 0) {
+	/* If not enough data remaining, we can short cut */
+	while (length >= TCPOLEN_MD5SIG) {
 		int opcode = *ptr++;
 		int opsize;
 
@@ -5862,10 +5856,12 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 	tp->rx_opt.saw_tstamp = 0;
 	req = tp->fastopen_rsk;
 	if (req) {
+		bool req_stolen;
+
 		WARN_ON_ONCE(sk->sk_state != TCP_SYN_RECV &&
 		    sk->sk_state != TCP_FIN_WAIT1);
 
-		if (!tcp_check_req(sk, skb, req, true))
+		if (!tcp_check_req(sk, skb, req, true, &req_stolen))
 			goto discard;
 	}
 
@@ -6255,6 +6251,9 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 
 	if (want_cookie && !tmp_opt.saw_tstamp)
 		tcp_clear_options(&tmp_opt);
+
+	if (IS_ENABLED(CONFIG_SMC) && want_cookie)
+		tmp_opt.smc_ok = 0;
 
 	tmp_opt.tstamp_ok = tmp_opt.saw_tstamp;
 	tcp_openreq_init(req, &tmp_opt, skb, sk);

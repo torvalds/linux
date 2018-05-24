@@ -11,9 +11,9 @@
  */
 
 #include <linux/bug.h>
+#include <linux/sha256.h>
 #include <asm/purgatory.h>
 
-#include "sha256.h"
 #include "../boot/string.h"
 
 unsigned long purgatory_backup_dest __section(.kexec-purgatory);

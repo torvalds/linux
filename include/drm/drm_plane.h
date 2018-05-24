@@ -26,6 +26,7 @@
 #include <linux/list.h>
 #include <linux/ctype.h>
 #include <drm/drm_mode_object.h>
+#include <drm/drm_color_mgmt.h>
 
 struct drm_crtc;
 struct drm_printer;
@@ -111,6 +112,20 @@ struct drm_plane_state {
 	/* Plane zpos */
 	unsigned int zpos;
 	unsigned int normalized_zpos;
+
+	/**
+	 * @color_encoding:
+	 *
+	 * Color encoding for non RGB formats
+	 */
+	enum drm_color_encoding color_encoding;
+
+	/**
+	 * @color_range:
+	 *
+	 * Color range for non RGB formats
+	 */
+	enum drm_color_range color_range;
 
 	/* Clipped coordinates */
 	struct drm_rect src, dst;
@@ -558,6 +573,23 @@ struct drm_plane {
 
 	struct drm_property *zpos_property;
 	struct drm_property *rotation_property;
+
+	/**
+	 * @color_encoding_property:
+	 *
+	 * Optional "COLOR_ENCODING" enum property for specifying
+	 * color encoding for non RGB formats.
+	 * See drm_plane_create_color_properties().
+	 */
+	struct drm_property *color_encoding_property;
+	/**
+	 * @color_range_property:
+	 *
+	 * Optional "COLOR_RANGE" enum property for specifying
+	 * color range for non RGB formats.
+	 * See drm_plane_create_color_properties().
+	 */
+	struct drm_property *color_range_property;
 };
 
 #define obj_to_plane(x) container_of(x, struct drm_plane, base)

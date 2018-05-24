@@ -305,6 +305,13 @@ void kvmppc_core_queue_fpunavail(struct kvm_vcpu *vcpu)
 	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_FP_UNAVAIL);
 }
 
+#ifdef CONFIG_ALTIVEC
+void kvmppc_core_queue_vec_unavail(struct kvm_vcpu *vcpu)
+{
+	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_ALTIVEC_UNAVAIL);
+}
+#endif
+
 void kvmppc_core_queue_dec(struct kvm_vcpu *vcpu)
 {
 	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_DECREMENTER);

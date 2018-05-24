@@ -22,6 +22,31 @@ typedef int (*nvmem_reg_read_t)(void *priv, unsigned int offset,
 typedef int (*nvmem_reg_write_t)(void *priv, unsigned int offset,
 				 void *val, size_t bytes);
 
+/**
+ * struct nvmem_config - NVMEM device configuration
+ *
+ * @dev:	Parent device.
+ * @name:	Optional name.
+ * @id:		Optional device ID used in full name. Ignored if name is NULL.
+ * @owner:	Pointer to exporter module. Used for refcounting.
+ * @cells:	Optional array of pre-defined NVMEM cells.
+ * @ncells:	Number of elements in cells.
+ * @read_only:	Device is read-only.
+ * @root_only:	Device is accessibly to root only.
+ * @reg_read:	Callback to read data.
+ * @reg_write:	Callback to write data.
+ * @size:	Device size.
+ * @word_size:	Minimum read/write access granularity.
+ * @stride:	Minimum read/write access stride.
+ * @priv:	User context passed to read/write callbacks.
+ *
+ * Note: A default "nvmem<id>" name will be assigned to the device if
+ * no name is specified in its configuration. In such case "<id>" is
+ * generated with ida_simple_get() and provided id field is ignored.
+ *
+ * Note: Specifying name and setting id to -1 implies a unique device
+ * whose name is provided as-is (kept unaltered).
+ */
 struct nvmem_config {
 	struct device		*dev;
 	const char		*name;
@@ -47,6 +72,11 @@ struct nvmem_config {
 struct nvmem_device *nvmem_register(const struct nvmem_config *cfg);
 int nvmem_unregister(struct nvmem_device *nvmem);
 
+struct nvmem_device *devm_nvmem_register(struct device *dev,
+					 const struct nvmem_config *cfg);
+
+int devm_nvmem_unregister(struct device *dev, struct nvmem_device *nvmem);
+
 #else
 
 static inline struct nvmem_device *nvmem_register(const struct nvmem_config *c)
@@ -57,6 +87,18 @@ static inline struct nvmem_device *nvmem_register(const struct nvmem_config *c)
 static inline int nvmem_unregister(struct nvmem_device *nvmem)
 {
 	return -ENOSYS;
+}
+
+static inline struct nvmem_device *
+devm_nvmem_register(struct device *dev, const struct nvmem_config *c)
+{
+	return nvmem_register(c);
+}
+
+static inline int
+devm_nvmem_unregister(struct device *dev, struct nvmem_device *nvmem)
+{
+	return nvmem_unregister(nvmem);
 }
 
 #endif /* CONFIG_NVMEM */

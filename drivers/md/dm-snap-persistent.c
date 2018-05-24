@@ -14,7 +14,7 @@
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/dm-io.h>
-#include "dm-bufio.h"
+#include <linux/dm-bufio.h>
 
 #define DM_MSG_PREFIX "persistent snapshot"
 #define DM_CHUNK_SIZE_DEFAULT_SECTORS 32	/* 16KB */

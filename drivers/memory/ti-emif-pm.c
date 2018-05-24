@@ -271,7 +271,6 @@ static int ti_emif_probe(struct platform_device *pdev)
 	emif_data->pm_data.ti_emif_base_addr_virt = devm_ioremap_resource(dev,
 									  res);
 	if (IS_ERR(emif_data->pm_data.ti_emif_base_addr_virt)) {
-		dev_err(dev, "could not ioremap emif mem\n");
 		ret = PTR_ERR(emif_data->pm_data.ti_emif_base_addr_virt);
 		return ret;
 	}

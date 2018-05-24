@@ -64,16 +64,21 @@ int amdgpu_debugfs_add_files(struct amdgpu_device *adev,
 
 #if defined(CONFIG_DEBUG_FS)
 
-static ssize_t amdgpu_debugfs_regs_read(struct file *f, char __user *buf,
-					size_t size, loff_t *pos)
+
+static int  amdgpu_debugfs_process_reg_op(bool read, struct file *f,
+		char __user *buf, size_t size, loff_t *pos)
 {
 	struct amdgpu_device *adev = file_inode(f)->i_private;
 	ssize_t result = 0;
 	int r;
-	bool pm_pg_lock, use_bank;
-	unsigned instance_bank, sh_bank, se_bank;
+	bool pm_pg_lock, use_bank, use_ring;
+	unsigned instance_bank, sh_bank, se_bank, me, pipe, queue;
 
-	if (size & 0x3 || *pos & 0x3)
+	pm_pg_lock = use_bank = use_ring = false;
+	instance_bank = sh_bank = se_bank = me = pipe = queue = 0;
+
+	if (size & 0x3 || *pos & 0x3 ||
+			((*pos & (1ULL << 62)) && (*pos & (1ULL << 61))))
 		return -EINVAL;
 
 	/* are we reading registers for which a PG lock is necessary? */
@@ -91,8 +96,15 @@ static ssize_t amdgpu_debugfs_regs_read(struct file *f, char __user *buf,
 		if (instance_bank == 0x3FF)
 			instance_bank = 0xFFFFFFFF;
 		use_bank = 1;
+	} else if (*pos & (1ULL << 61)) {
+
+		me = (*pos & GENMASK_ULL(33, 24)) >> 24;
+		pipe = (*pos & GENMASK_ULL(43, 34)) >> 34;
+		queue = (*pos & GENMASK_ULL(53, 44)) >> 44;
+
+		use_ring = 1;
 	} else {
-		use_bank = 0;
+		use_bank = use_ring = 0;
 	}
 
 	*pos &= (1UL << 22) - 1;
@@ -104,6 +116,9 @@ static ssize_t amdgpu_debugfs_regs_read(struct file *f, char __user *buf,
 		mutex_lock(&adev->grbm_idx_mutex);
 		amdgpu_gfx_select_se_sh(adev, se_bank,
 					sh_bank, instance_bank);
+	} else if (use_ring) {
+		mutex_lock(&adev->srbm_mutex);
+		amdgpu_gfx_select_me_pipe_q(adev, me, pipe, queue);
 	}
 
 	if (pm_pg_lock)
@@ -115,8 +130,14 @@ static ssize_t amdgpu_debugfs_regs_read(struct file *f, char __user *buf,
 		if (*pos > adev->rmmio_size)
 			goto end;
 
-		value = RREG32(*pos >> 2);
-		r = put_user(value, (uint32_t *)buf);
+		if (read) {
+			value = RREG32(*pos >> 2);
+			r = put_user(value, (uint32_t *)buf);
+		} else {
+			r = get_user(value, (uint32_t *)buf);
+			if (!r)
+				WREG32(*pos >> 2, value);
+		}
 		if (r) {
 			result = r;
 			goto end;
@@ -132,6 +153,9 @@ end:
 	if (use_bank) {
 		amdgpu_gfx_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
 		mutex_unlock(&adev->grbm_idx_mutex);
+	} else if (use_ring) {
+		amdgpu_gfx_select_me_pipe_q(adev, 0, 0, 0);
+		mutex_unlock(&adev->srbm_mutex);
 	}
 
 	if (pm_pg_lock)
@@ -140,78 +164,17 @@ end:
 	return result;
 }
 
+
+static ssize_t amdgpu_debugfs_regs_read(struct file *f, char __user *buf,
+					size_t size, loff_t *pos)
+{
+	return amdgpu_debugfs_process_reg_op(true, f, buf, size, pos);
+}
+
 static ssize_t amdgpu_debugfs_regs_write(struct file *f, const char __user *buf,
 					 size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
-	ssize_t result = 0;
-	int r;
-	bool pm_pg_lock, use_bank;
-	unsigned instance_bank, sh_bank, se_bank;
-
-	if (size & 0x3 || *pos & 0x3)
-		return -EINVAL;
-
-	/* are we reading registers for which a PG lock is necessary? */
-	pm_pg_lock = (*pos >> 23) & 1;
-
-	if (*pos & (1ULL << 62)) {
-		se_bank = (*pos & GENMASK_ULL(33, 24)) >> 24;
-		sh_bank = (*pos & GENMASK_ULL(43, 34)) >> 34;
-		instance_bank = (*pos & GENMASK_ULL(53, 44)) >> 44;
-
-		if (se_bank == 0x3FF)
-			se_bank = 0xFFFFFFFF;
-		if (sh_bank == 0x3FF)
-			sh_bank = 0xFFFFFFFF;
-		if (instance_bank == 0x3FF)
-			instance_bank = 0xFFFFFFFF;
-		use_bank = 1;
-	} else {
-		use_bank = 0;
-	}
-
-	*pos &= (1UL << 22) - 1;
-
-	if (use_bank) {
-		if ((sh_bank != 0xFFFFFFFF && sh_bank >= adev->gfx.config.max_sh_per_se) ||
-		    (se_bank != 0xFFFFFFFF && se_bank >= adev->gfx.config.max_shader_engines))
-			return -EINVAL;
-		mutex_lock(&adev->grbm_idx_mutex);
-		amdgpu_gfx_select_se_sh(adev, se_bank,
-					sh_bank, instance_bank);
-	}
-
-	if (pm_pg_lock)
-		mutex_lock(&adev->pm.mutex);
-
-	while (size) {
-		uint32_t value;
-
-		if (*pos > adev->rmmio_size)
-			return result;
-
-		r = get_user(value, (uint32_t *)buf);
-		if (r)
-			return r;
-
-		WREG32(*pos >> 2, value);
-
-		result += 4;
-		buf += 4;
-		*pos += 4;
-		size -= 4;
-	}
-
-	if (use_bank) {
-		amdgpu_gfx_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
-		mutex_unlock(&adev->grbm_idx_mutex);
-	}
-
-	if (pm_pg_lock)
-		mutex_unlock(&adev->pm.mutex);
-
-	return result;
+	return amdgpu_debugfs_process_reg_op(false, f, (char __user *)buf, size, pos);
 }
 
 static ssize_t amdgpu_debugfs_regs_pcie_read(struct file *f, char __user *buf,
@@ -767,10 +730,21 @@ static int amdgpu_debugfs_evict_vram(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int amdgpu_debugfs_evict_gtt(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *)m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct amdgpu_device *adev = dev->dev_private;
+
+	seq_printf(m, "(%d)\n", ttm_bo_evict_mm(&adev->mman.bdev, TTM_PL_TT));
+	return 0;
+}
+
 static const struct drm_info_list amdgpu_debugfs_list[] = {
 	{"amdgpu_vbios", amdgpu_debugfs_get_vbios_dump},
 	{"amdgpu_test_ib", &amdgpu_debugfs_test_ib},
-	{"amdgpu_evict_vram", &amdgpu_debugfs_evict_vram}
+	{"amdgpu_evict_vram", &amdgpu_debugfs_evict_vram},
+	{"amdgpu_evict_gtt", &amdgpu_debugfs_evict_gtt},
 };
 
 int amdgpu_debugfs_init(struct amdgpu_device *adev)

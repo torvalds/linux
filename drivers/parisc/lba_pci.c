@@ -1403,9 +1403,27 @@ lba_hw_init(struct lba_device *d)
 		WRITE_REG32(stat, d->hba.base_addr + LBA_ERROR_CONFIG);
 	}
 
-	/* Set HF mode as the default (vs. -1 mode). */
+
+	/*
+	 * Hard Fail vs. Soft Fail on PCI "Master Abort".
+	 *
+	 * "Master Abort" means the MMIO transaction timed out - usually due to
+	 * the device not responding to an MMIO read. We would like HF to be
+	 * enabled to find driver problems, though it means the system will
+	 * crash with a HPMC.
+	 *
+	 * In SoftFail mode "~0L" is returned as a result of a timeout on the
+	 * pci bus. This is like how PCI busses on x86 and most other
+	 * architectures behave.  In order to increase compatibility with
+	 * existing (x86) PCI hardware and existing Linux drivers we enable
+	 * Soft Faul mode on PA-RISC now too.
+	 */
         stat = READ_REG32(d->hba.base_addr + LBA_STAT_CTL);
+#if defined(ENABLE_HARDFAIL)
 	WRITE_REG32(stat | HF_ENABLE, d->hba.base_addr + LBA_STAT_CTL);
+#else
+	WRITE_REG32(stat & ~HF_ENABLE, d->hba.base_addr + LBA_STAT_CTL);
+#endif
 
 	/*
 	** Writing a zero to STAT_CTL.rf (bit 0) will clear reset signal

@@ -174,6 +174,16 @@
 	.ltorg
 	.endm
 
+ENTRY(__aes_arm_encrypt)
+	do_crypt	fround, crypto_ft_tab, crypto_ft_tab + 1, 2
+ENDPROC(__aes_arm_encrypt)
+
+	.align		5
+ENTRY(__aes_arm_decrypt)
+	do_crypt	iround, crypto_it_tab, __aes_arm_inverse_sbox, 0
+ENDPROC(__aes_arm_decrypt)
+
+	.section	".rodata", "a"
 	.align		L1_CACHE_SHIFT
 	.type		__aes_arm_inverse_sbox, %object
 __aes_arm_inverse_sbox:
@@ -210,12 +220,3 @@ __aes_arm_inverse_sbox:
 	.byte		0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26
 	.byte		0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d
 	.size		__aes_arm_inverse_sbox, . - __aes_arm_inverse_sbox
-
-ENTRY(__aes_arm_encrypt)
-	do_crypt	fround, crypto_ft_tab, crypto_ft_tab + 1, 2
-ENDPROC(__aes_arm_encrypt)
-
-	.align		5
-ENTRY(__aes_arm_decrypt)
-	do_crypt	iround, crypto_it_tab, __aes_arm_inverse_sbox, 0
-ENDPROC(__aes_arm_decrypt)

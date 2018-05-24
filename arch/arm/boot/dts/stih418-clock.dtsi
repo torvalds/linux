@@ -7,33 +7,28 @@
  */
 #include <dt-bindings/clock/stih418-clks.h>
 / {
+	/*
+	 * Fixed 30MHz oscillator inputs to SoC
+	 */
+	clk_sysin: clk-sysin {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <30000000>;
+		clock-output-names = "CLK_SYSIN";
+	};
+
+	clk_tmdsout_hdmi: clk-tmdsout-hdmi {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <0>;
+	};
+
 	clocks {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
 
 		compatible = "st,stih418-clk", "simple-bus";
-
-		/*
-		 * Fixed 30MHz oscillator inputs to SoC
-		 */
-		clk_sysin: clk-sysin {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <30000000>;
-			clock-output-names = "CLK_SYSIN";
-		};
-
-		/*
-		 * ARM Peripheral clock for timers
-		 */
-		arm_periph_clk: clk-m-a9-periphs {
-			#clock-cells = <0>;
-			compatible = "fixed-factor-clock";
-			clocks = <&clk_m_a9>;
-			clock-div = <2>;
-			clock-mult = <1>;
-		};
 
 		/*
 		 * A9 PLL.
@@ -64,32 +59,17 @@
 				 <&clockgen_a9_pll 0>,
 				 <&clk_s_c0_flexgen 13>,
 				 <&clk_m_a9_ext2f_div2>;
-		};
 
-		/*
-		 * ARM Peripheral clock for timers
-		 */
-		clk_m_a9_ext2f_div2: clk-m-a9-ext2f-div2s {
-			#clock-cells = <0>;
-			compatible = "fixed-factor-clock";
-
-			clocks = <&clk_s_c0_flexgen 13>;
-
-			clock-output-names = "clk-m-a9-ext2f-div2";
-
-			clock-div = <2>;
-			clock-mult = <1>;
-		};
-
-		/*
-		 * Bootloader initialized system infrastructure clock for
-		 * serial devices.
-		 */
-		clk_ext2f_a9: clockgen-c0@13 {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <200000000>;
-			clock-output-names = "clk-s-icn-reg-0";
+			/*
+			 * ARM Peripheral clock for timers
+			 */
+			arm_periph_clk: clk-m-a9-periphs {
+				#clock-cells = <0>;
+				compatible = "fixed-factor-clock";
+				clocks = <&clk_m_a9>;
+				clock-div = <2>;
+				clock-mult = <1>;
+			};
 		};
 
 		clockgen-a@90ff000 {
@@ -207,6 +187,21 @@
 						     "clk-proc-mixer",
 						     "clk-proc-sc",
 						     "clk-avsp-hevc";
+
+				/*
+				 * ARM Peripheral clock for timers
+				 */
+				clk_m_a9_ext2f_div2: clk-m-a9-ext2f-div2s {
+					#clock-cells = <0>;
+					compatible = "fixed-factor-clock";
+
+					clocks = <&clk_s_c0_flexgen 13>;
+
+					clock-output-names = "clk-m-a9-ext2f-div2";
+
+					clock-div = <2>;
+					clock-mult = <1>;
+				};
 			};
 		};
 
@@ -259,13 +254,7 @@
 					     "clk-s-d2-fs0-ch3";
 		};
 
-		clk_tmdsout_hdmi: clk-tmdsout-hdmi {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <0>;
-		};
-
-		clockgen-d2@x9106000 {
+		clockgen-d2@9106000 {
 			compatible = "st,clkgen-c32";
 			reg = <0x9106000 0x1000>;
 

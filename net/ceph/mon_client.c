@@ -60,7 +60,7 @@ struct ceph_monmap *ceph_monmap_decode(void *p, void *end)
 	num_mon = ceph_decode_32(&p);
 	ceph_decode_need(&p, end, num_mon*sizeof(m->mon_inst[0]), bad);
 
-	if (num_mon >= CEPH_MAX_MON)
+	if (num_mon > CEPH_MAX_MON)
 		goto bad;
 	m = kmalloc(sizeof(*m) + sizeof(m->mon_inst[0])*num_mon, GFP_NOFS);
 	if (m == NULL)
@@ -207,6 +207,14 @@ static void reopen_session(struct ceph_mon_client *monc)
 
 	__close_session(monc);
 	__open_session(monc);
+}
+
+static void un_backoff(struct ceph_mon_client *monc)
+{
+	monc->hunt_mult /= 2; /* reduce by 50% */
+	if (monc->hunt_mult < 1)
+		monc->hunt_mult = 1;
+	dout("%s hunt_mult now %d\n", __func__, monc->hunt_mult);
 }
 
 /*
@@ -963,6 +971,7 @@ static void delayed_work(struct work_struct *work)
 		if (!monc->hunting) {
 			ceph_con_keepalive(&monc->con);
 			__validate_auth(monc);
+			un_backoff(monc);
 		}
 
 		if (is_auth &&
@@ -1123,9 +1132,8 @@ static void finish_hunting(struct ceph_mon_client *monc)
 		dout("%s found mon%d\n", __func__, monc->cur_mon);
 		monc->hunting = false;
 		monc->had_a_connection = true;
-		monc->hunt_mult /= 2; /* reduce by 50% */
-		if (monc->hunt_mult < 1)
-			monc->hunt_mult = 1;
+		un_backoff(monc);
+		__schedule_delayed(monc);
 	}
 }
 

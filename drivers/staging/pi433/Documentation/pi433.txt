@@ -92,7 +92,7 @@ rf params:
 		shaping0_3	- gauss filter with BT 0.3 (FSK only)
 		shapingBR	- filter cut off at BR (OOK only)
 		shaping2BR	- filter cut off at 2*BR (OOK only)
-	paRamp (FSK only)
+	pa_ramp (FSK only)
 		ramp3400	- amp ramps up in 3.4ms
 		ramp2000	- amp ramps up in 2.0ms
 		ramp1000	- amp ramps up in 1ms
@@ -180,7 +180,7 @@ rf params:
 		threshold value for the signal strength on the receiver input.
 		If this value is exceeded, a reception cycle starts
 		Allowed values: 0...255
-	thresholdDecrement
+	threshold_decrement
 		in order to adapt to different levels of singnal strength, over
 		time the receiver gets more and more sensitive. This value
 		determs, how fast the sensitivity increases.
@@ -192,11 +192,11 @@ rf params:
 		step_4_0db	- increase in 4 db steps
 		step_5_0db	- increase in 5 db steps
 		step_6_0db	- increase in 6 db steps
-	antennaImpedance
+	antenna_impedance
 		sets the electrical adoption of the antenna
-		fiftyOhm	- for antennas with an impedance of 50Ohm
-		twohundretOhm	- for antennas with an impedance of 200Ohm
-	lnaGain
+		fifty_ohm	- for antennas with an impedance of 50Ohm
+		two_hundred_ohm	- for antennas with an impedance of 200Ohm
+	lna_gain
 		sets the gain of the low noise amp
 		automatic	- lna gain is determined by an agc
 		max		- lna gain is set to maximum
@@ -215,9 +215,9 @@ rf params:
 		Allowd values: 0...7
 	dagc;
 		operation mode of the digital automatic gain control
-		normalMode
+		normal_mode
 		improve
-		improve4LowModulationIndex
+		improve_for_low_modulation_index
 
  packet format:
 	enable_sync
@@ -232,12 +232,12 @@ rf params:
 			     amount of bytes that were requested by the read request.
 		Attention: should be used in combination with sync, only
 	enable_address_filtering;
-		filteringOff		- no address filtering will take place
-		nodeAddress		- all telegrams, not matching the node
-					  address will be internally discarded
-		nodeOrBroadcastAddress	- all telegrams, neither matching the
-					  node, nor the broadcast address will
-					  be internally discarded
+		filtering_off		  - no address filtering will take place
+		node_address		  - all telegrams, not matching the node
+					    address will be internally discarded
+		node_or_broadcast_address - all telegrams, neither matching the
+					    node, nor the broadcast address will
+					    be internally discarded
 		Attention: Sync option must be enabled in order to use this feature
 	enable_crc
 		optionOn	- a crc will be calculated over the payload of

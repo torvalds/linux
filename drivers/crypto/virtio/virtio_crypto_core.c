@@ -111,9 +111,6 @@ static int virtcrypto_find_vqs(struct virtio_crypto *vi)
 			ret = -ENOMEM;
 			goto err_engine;
 		}
-
-		vi->data_vq[i].engine->cipher_one_request =
-			virtio_crypto_ablkcipher_crypt_req;
 	}
 
 	kfree(names);

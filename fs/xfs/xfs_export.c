@@ -122,7 +122,7 @@ xfs_nfs_get_inode(
 	struct super_block	*sb,
 	u64			ino,
 	u32			generation)
- {
+{
  	xfs_mount_t		*mp = XFS_M(sb);
 	xfs_inode_t		*ip;
 	int			error;
@@ -237,7 +237,7 @@ xfs_fs_nfs_commit_metadata(
 
 	if (!lsn)
 		return 0;
-	return _xfs_log_force_lsn(mp, lsn, XFS_LOG_SYNC, NULL);
+	return xfs_log_force_lsn(mp, lsn, XFS_LOG_SYNC, NULL);
 }
 
 const struct export_operations xfs_export_operations = {

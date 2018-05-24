@@ -210,7 +210,7 @@ void tipc_bearer_add_dest(struct net *net, u32 bearer_id, u32 dest)
 	rcu_read_lock();
 	b = rcu_dereference_rtnl(tn->bearer_list[bearer_id]);
 	if (b)
-		tipc_disc_add_dest(b->link_req);
+		tipc_disc_add_dest(b->disc);
 	rcu_read_unlock();
 }
 
@@ -222,7 +222,7 @@ void tipc_bearer_remove_dest(struct net *net, u32 bearer_id, u32 dest)
 	rcu_read_lock();
 	b = rcu_dereference_rtnl(tn->bearer_list[bearer_id]);
 	if (b)
-		tipc_disc_remove_dest(b->link_req);
+		tipc_disc_remove_dest(b->disc);
 	rcu_read_unlock();
 }
 
@@ -230,88 +230,67 @@ void tipc_bearer_remove_dest(struct net *net, u32 bearer_id, u32 dest)
  * tipc_enable_bearer - enable bearer with the given name
  */
 static int tipc_enable_bearer(struct net *net, const char *name,
-			      u32 disc_domain, u32 priority,
+			      u32 disc_domain, u32 prio,
 			      struct nlattr *attr[])
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	struct tipc_net *tn = tipc_net(net);
+	struct tipc_bearer_names b_names;
+	int with_this_prio = 1;
 	struct tipc_bearer *b;
 	struct tipc_media *m;
-	struct tipc_bearer_names b_names;
 	struct sk_buff *skb;
-	char addr_string[16];
-	u32 bearer_id;
-	u32 with_this_prio;
-	u32 i;
+	int bearer_id = 0;
 	int res = -EINVAL;
+	char *errstr = "";
 
-	if (!tn->own_addr) {
-		pr_warn("Bearer <%s> rejected, not supported in standalone mode\n",
-			name);
-		return -ENOPROTOOPT;
-	}
 	if (!bearer_name_validate(name, &b_names)) {
-		pr_warn("Bearer <%s> rejected, illegal name\n", name);
-		return -EINVAL;
+		errstr = "illegal name";
+		goto rejected;
 	}
-	if (tipc_addr_domain_valid(disc_domain) &&
-	    (disc_domain != tn->own_addr)) {
-		if (tipc_in_scope(disc_domain, tn->own_addr)) {
-			disc_domain = tn->own_addr & TIPC_ZONE_CLUSTER_MASK;
-			res = 0;   /* accept any node in own cluster */
-		} else if (in_own_cluster_exact(net, disc_domain))
-			res = 0;   /* accept specified node in own cluster */
-	}
-	if (res) {
-		pr_warn("Bearer <%s> rejected, illegal discovery domain\n",
-			name);
-		return -EINVAL;
-	}
-	if ((priority > TIPC_MAX_LINK_PRI) &&
-	    (priority != TIPC_MEDIA_LINK_PRI)) {
-		pr_warn("Bearer <%s> rejected, illegal priority\n", name);
-		return -EINVAL;
+
+	if (prio > TIPC_MAX_LINK_PRI && prio != TIPC_MEDIA_LINK_PRI) {
+		errstr = "illegal priority";
+		goto rejected;
 	}
 
 	m = tipc_media_find(b_names.media_name);
 	if (!m) {
-		pr_warn("Bearer <%s> rejected, media <%s> not registered\n",
-			name, b_names.media_name);
-		return -EINVAL;
+		errstr = "media not registered";
+		goto rejected;
 	}
 
-	if (priority == TIPC_MEDIA_LINK_PRI)
-		priority = m->priority;
+	if (prio == TIPC_MEDIA_LINK_PRI)
+		prio = m->priority;
 
-restart:
-	bearer_id = MAX_BEARERS;
-	with_this_prio = 1;
-	for (i = MAX_BEARERS; i-- != 0; ) {
-		b = rtnl_dereference(tn->bearer_list[i]);
-		if (!b) {
-			bearer_id = i;
-			continue;
-		}
+	/* Check new bearer vs existing ones and find free bearer id if any */
+	while (bearer_id < MAX_BEARERS) {
+		b = rtnl_dereference(tn->bearer_list[bearer_id]);
+		if (!b)
+			break;
 		if (!strcmp(name, b->name)) {
-			pr_warn("Bearer <%s> rejected, already enabled\n",
-				name);
-			return -EINVAL;
+			errstr = "already enabled";
+			goto rejected;
 		}
-		if ((b->priority == priority) &&
-		    (++with_this_prio > 2)) {
-			if (priority-- == 0) {
-				pr_warn("Bearer <%s> rejected, duplicate priority\n",
-					name);
-				return -EINVAL;
-			}
-			pr_warn("Bearer <%s> priority adjustment required %u->%u\n",
-				name, priority + 1, priority);
-			goto restart;
+		bearer_id++;
+		if (b->priority != prio)
+			continue;
+		if (++with_this_prio <= 2)
+			continue;
+		pr_warn("Bearer <%s>: already 2 bearers with priority %u\n",
+			name, prio);
+		if (prio == TIPC_MIN_LINK_PRI) {
+			errstr = "cannot adjust to lower";
+			goto rejected;
 		}
+		pr_warn("Bearer <%s>: trying with adjusted priority\n", name);
+		prio--;
+		bearer_id = 0;
+		with_this_prio = 1;
 	}
+
 	if (bearer_id >= MAX_BEARERS) {
-		pr_warn("Bearer <%s> rejected, bearer limit reached (%u)\n",
-			name, MAX_BEARERS);
-		return -EINVAL;
+		errstr = "max 3 bearers permitted";
+		goto rejected;
 	}
 
 	b = kzalloc(sizeof(*b), GFP_ATOMIC);
@@ -322,10 +301,9 @@ restart:
 	b->media = m;
 	res = m->enable_media(net, b, attr);
 	if (res) {
-		pr_warn("Bearer <%s> rejected, enable failure (%d)\n",
-			name, -res);
 		kfree(b);
-		return -EINVAL;
+		errstr = "failed to enable media";
+		goto rejected;
 	}
 
 	b->identity = bearer_id;
@@ -333,15 +311,15 @@ restart:
 	b->window = m->window;
 	b->domain = disc_domain;
 	b->net_plane = bearer_id + 'A';
-	b->priority = priority;
+	b->priority = prio;
 	test_and_set_bit_lock(0, &b->up);
 
 	res = tipc_disc_create(net, b, &b->bcast_addr, &skb);
 	if (res) {
 		bearer_disable(net, b);
-		pr_warn("Bearer <%s> rejected, discovery object creation failed\n",
-			name);
-		return -EINVAL;
+		kfree(b);
+		errstr = "failed to create discoverer";
+		goto rejected;
 	}
 
 	rcu_assign_pointer(tn->bearer_list[bearer_id], b);
@@ -353,9 +331,11 @@ restart:
 		return -ENOMEM;
 	}
 
-	pr_info("Enabled bearer <%s>, discovery domain %s, priority %u\n",
-		name,
-		tipc_addr_string_fill(addr_string, disc_domain), priority);
+	pr_info("Enabled bearer <%s>, priority %u\n", name, prio);
+
+	return res;
+rejected:
+	pr_warn("Enabling of bearer <%s> rejected, %s\n", name, errstr);
 	return res;
 }
 
@@ -385,8 +365,8 @@ static void bearer_disable(struct net *net, struct tipc_bearer *b)
 	tipc_node_delete_links(net, bearer_id);
 	b->media->disable_media(b);
 	RCU_INIT_POINTER(b->media_ptr, NULL);
-	if (b->link_req)
-		tipc_disc_delete(b->link_req);
+	if (b->disc)
+		tipc_disc_delete(b->disc);
 	RCU_INIT_POINTER(tn->bearer_list[bearer_id], NULL);
 	kfree_rcu(b, rcu);
 	tipc_mon_delete(net, bearer_id);
@@ -395,15 +375,27 @@ static void bearer_disable(struct net *net, struct tipc_bearer *b)
 int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b,
 			 struct nlattr *attr[])
 {
+	char *dev_name = strchr((const char *)b->name, ':') + 1;
+	int hwaddr_len = b->media->hwaddr_len;
+	u8 node_id[NODE_ID_LEN] = {0,};
 	struct net_device *dev;
-	char *driver_name = strchr((const char *)b->name, ':') + 1;
 
 	/* Find device with specified name */
-	dev = dev_get_by_name(net, driver_name);
+	dev = dev_get_by_name(net, dev_name);
 	if (!dev)
 		return -ENODEV;
 	if (tipc_mtu_bad(dev, 0)) {
 		dev_put(dev);
+		return -EINVAL;
+	}
+
+	/* Autoconfigure own node identity if needed */
+	if (!tipc_own_id(net) && hwaddr_len <= NODE_ID_LEN) {
+		memcpy(node_id, dev->dev_addr, hwaddr_len);
+		tipc_net_init(net, node_id, 0);
+	}
+	if (!tipc_own_id(net)) {
+		pr_warn("Failed to obtain node identity\n");
 		return -EINVAL;
 	}
 
@@ -414,7 +406,7 @@ int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b,
 	b->pt.func = tipc_l2_rcv_msg;
 	dev_add_pack(&b->pt);
 	memset(&b->bcast_addr, 0, sizeof(b->bcast_addr));
-	memcpy(b->bcast_addr.value, dev->broadcast, b->media->hwaddr_len);
+	memcpy(b->bcast_addr.value, dev->broadcast, hwaddr_len);
 	b->bcast_addr.media_id = b->media->type_id;
 	b->bcast_addr.broadcast = TIPC_BROADCAST_SUPPORT;
 	b->mtu = dev->mtu;
@@ -861,12 +853,10 @@ int __tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info)
 	char *bearer;
 	struct nlattr *attrs[TIPC_NLA_BEARER_MAX + 1];
 	struct net *net = sock_net(skb->sk);
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	u32 domain;
+	u32 domain = 0;
 	u32 prio;
 
 	prio = TIPC_MEDIA_LINK_PRI;
-	domain = tn->own_addr & TIPC_ZONE_CLUSTER_MASK;
 
 	if (!info->attrs[TIPC_NLA_BEARER])
 		return -EINVAL;
@@ -956,11 +946,11 @@ int tipc_nl_bearer_add(struct sk_buff *skb, struct genl_info *info)
 
 int __tipc_nl_bearer_set(struct sk_buff *skb, struct genl_info *info)
 {
-	int err;
-	char *name;
 	struct tipc_bearer *b;
 	struct nlattr *attrs[TIPC_NLA_BEARER_MAX + 1];
 	struct net *net = sock_net(skb->sk);
+	char *name;
+	int err;
 
 	if (!info->attrs[TIPC_NLA_BEARER])
 		return -EINVAL;
@@ -987,8 +977,10 @@ int __tipc_nl_bearer_set(struct sk_buff *skb, struct genl_info *info)
 		if (err)
 			return err;
 
-		if (props[TIPC_NLA_PROP_TOL])
+		if (props[TIPC_NLA_PROP_TOL]) {
 			b->tolerance = nla_get_u32(props[TIPC_NLA_PROP_TOL]);
+			tipc_node_apply_tolerance(net, b);
+		}
 		if (props[TIPC_NLA_PROP_PRIO])
 			b->priority = nla_get_u32(props[TIPC_NLA_PROP_PRIO]);
 		if (props[TIPC_NLA_PROP_WIN])

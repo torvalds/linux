@@ -87,7 +87,7 @@ int octeon_mbox_read(struct octeon_mbox *mbox)
 	}
 
 	if (mbox->state & OCTEON_MBOX_STATE_REQUEST_RECEIVING) {
-		if (mbox->mbox_req.recv_len < msg.s.len) {
+		if (mbox->mbox_req.recv_len < mbox->mbox_req.msg.s.len) {
 			ret = 0;
 		} else {
 			mbox->state &= ~OCTEON_MBOX_STATE_REQUEST_RECEIVING;
@@ -96,7 +96,8 @@ int octeon_mbox_read(struct octeon_mbox *mbox)
 		}
 	} else {
 		if (mbox->state & OCTEON_MBOX_STATE_RESPONSE_RECEIVING) {
-			if (mbox->mbox_resp.recv_len < msg.s.len) {
+			if (mbox->mbox_resp.recv_len <
+			    mbox->mbox_resp.msg.s.len) {
 				ret = 0;
 			} else {
 				mbox->state &=

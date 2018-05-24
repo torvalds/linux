@@ -192,7 +192,7 @@ static int pcf8523_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_mon = bcd2bin(regs[5] & 0x1f) - 1;
 	tm->tm_year = bcd2bin(regs[6]) + 100;
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int pcf8523_rtc_set_time(struct device *dev, struct rtc_time *tm)

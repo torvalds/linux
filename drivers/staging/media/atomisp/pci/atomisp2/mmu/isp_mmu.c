@@ -344,13 +344,6 @@ static int mmu_map(struct isp_mmu *mmu, unsigned int isp_virt,
 		/*
 		 * setup L1 page table physical addr to MMU
 		 */
-		ret = mmu->driver->set_pd_base(mmu, l1_pt);
-		if (ret) {
-			dev_err(atomisp_dev,
-				 "set page directory base address fail.\n");
-			mutex_unlock(&mmu->pt_mutex);
-			return ret;
-		}
 		mmu->base_address = l1_pt;
 		mmu->l1_pte = isp_pgaddr_to_pte_valid(mmu, l1_pt);
 		memset(mmu->l2_pgt_refcount, 0, sizeof(int) * ISP_L1PT_PTES);
@@ -450,7 +443,7 @@ static void mmu_l1_unmap(struct isp_mmu *mmu, phys_addr_t l1_pt,
 			ptr = end;
 		}
 		/*
-		 * use the same L2 page next time, so we dont
+		 * use the same L2 page next time, so we don't
 		 * need to invalidate and free this PT.
 		 */
 		/*      atomisp_set_pte(l1_pt, idx, NULL_PTE); */
@@ -531,10 +524,8 @@ int isp_mmu_init(struct isp_mmu *mmu, struct isp_mmu_client *driver)
 
 	mmu->driver = driver;
 
-	if (!driver->set_pd_base || !driver->tlb_flush_all) {
-		dev_err(atomisp_dev,
-			    "set_pd_base or tlb_flush_all operation "
-			     "not provided.\n");
+	if (!driver->tlb_flush_all) {
+		dev_err(atomisp_dev, "tlb_flush_all operation not provided.\n");
 		return -EINVAL;
 	}
 

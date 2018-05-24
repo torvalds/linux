@@ -52,24 +52,6 @@ enum {
 };
 
 /*
- * pgdat resizing functions
- */
-static inline
-void pgdat_resize_lock(struct pglist_data *pgdat, unsigned long *flags)
-{
-	spin_lock_irqsave(&pgdat->node_size_lock, *flags);
-}
-static inline
-void pgdat_resize_unlock(struct pglist_data *pgdat, unsigned long *flags)
-{
-	spin_unlock_irqrestore(&pgdat->node_size_lock, *flags);
-}
-static inline
-void pgdat_resize_init(struct pglist_data *pgdat)
-{
-	spin_lock_init(&pgdat->node_size_lock);
-}
-/*
  * Zone resizing functions
  *
  * Note: any attempt to resize a zone should has pgdat_resize_lock()
@@ -234,9 +216,6 @@ void put_online_mems(void);
 void mem_hotplug_begin(void);
 void mem_hotplug_done(void);
 
-extern void set_zone_contiguous(struct zone *zone);
-extern void clear_zone_contiguous(struct zone *zone);
-
 #else /* ! CONFIG_MEMORY_HOTPLUG */
 #define pfn_to_online_page(pfn)			\
 ({						\
@@ -245,13 +224,6 @@ extern void clear_zone_contiguous(struct zone *zone);
 		___page = pfn_to_page(pfn);	\
 	___page;				\
  })
-
-/*
- * Stub functions for when hotplug is off
- */
-static inline void pgdat_resize_lock(struct pglist_data *p, unsigned long *f) {}
-static inline void pgdat_resize_unlock(struct pglist_data *p, unsigned long *f) {}
-static inline void pgdat_resize_init(struct pglist_data *pgdat) {}
 
 static inline unsigned zone_span_seqbegin(struct zone *zone)
 {
@@ -292,6 +264,34 @@ static inline bool movable_node_is_enabled(void)
 	return false;
 }
 #endif /* ! CONFIG_MEMORY_HOTPLUG */
+
+#if defined(CONFIG_MEMORY_HOTPLUG) || defined(CONFIG_DEFERRED_STRUCT_PAGE_INIT)
+/*
+ * pgdat resizing functions
+ */
+static inline
+void pgdat_resize_lock(struct pglist_data *pgdat, unsigned long *flags)
+{
+	spin_lock_irqsave(&pgdat->node_size_lock, *flags);
+}
+static inline
+void pgdat_resize_unlock(struct pglist_data *pgdat, unsigned long *flags)
+{
+	spin_unlock_irqrestore(&pgdat->node_size_lock, *flags);
+}
+static inline
+void pgdat_resize_init(struct pglist_data *pgdat)
+{
+	spin_lock_init(&pgdat->node_size_lock);
+}
+#else /* !(CONFIG_MEMORY_HOTPLUG || CONFIG_DEFERRED_STRUCT_PAGE_INIT) */
+/*
+ * Stub functions for when hotplug is off
+ */
+static inline void pgdat_resize_lock(struct pglist_data *p, unsigned long *f) {}
+static inline void pgdat_resize_unlock(struct pglist_data *p, unsigned long *f) {}
+static inline void pgdat_resize_init(struct pglist_data *pgdat) {}
+#endif /* !(CONFIG_MEMORY_HOTPLUG || CONFIG_DEFERRED_STRUCT_PAGE_INIT) */
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
 

@@ -72,8 +72,9 @@ static int sfi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
 	policy->shared_type = CPUFREQ_SHARED_TYPE_HW;
 	policy->cpuinfo.transition_latency = 100000;	/* 100us */
+	policy->freq_table = freq_table;
 
-	return cpufreq_table_validate_and_show(policy, freq_table);
+	return 0;
 }
 
 static struct cpufreq_driver sfi_cpufreq_driver = {

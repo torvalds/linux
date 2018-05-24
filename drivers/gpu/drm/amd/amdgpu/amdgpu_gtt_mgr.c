@@ -56,7 +56,7 @@ static int amdgpu_gtt_mgr_init(struct ttm_mem_type_manager *man,
 		return -ENOMEM;
 
 	start = AMDGPU_GTT_MAX_TRANSFER_SIZE * AMDGPU_GTT_NUM_TRANSFER_WINDOWS;
-	size = (adev->mc.gart_size >> PAGE_SHIFT) - start;
+	size = (adev->gmc.gart_size >> PAGE_SHIFT) - start;
 	drm_mm_init(&mgr->mm, start, size);
 	spin_lock_init(&mgr->lock);
 	atomic64_set(&mgr->available, p_size);

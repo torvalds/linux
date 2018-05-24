@@ -89,10 +89,7 @@ static int dwc3_get_dr_mode(struct dwc3 *dwc)
 	return 0;
 }
 
-static void dwc3_event_buffers_cleanup(struct dwc3 *dwc);
-static int dwc3_event_buffers_setup(struct dwc3 *dwc);
-
-static void dwc3_set_prtcap(struct dwc3 *dwc, u32 mode)
+void dwc3_set_prtcap(struct dwc3 *dwc, u32 mode)
 {
 	u32 reg;
 
@@ -110,13 +107,19 @@ static void __dwc3_set_mode(struct work_struct *work)
 	unsigned long flags;
 	int ret;
 
+	if (dwc->dr_mode != USB_DR_MODE_OTG)
+		return;
+
+	if (dwc->current_dr_role == DWC3_GCTL_PRTCAP_OTG)
+		dwc3_otg_update(dwc, 0);
+
 	if (!dwc->desired_dr_role)
 		return;
 
 	if (dwc->desired_dr_role == dwc->current_dr_role)
 		return;
 
-	if (dwc->dr_mode != USB_DR_MODE_OTG)
+	if (dwc->desired_dr_role == DWC3_GCTL_PRTCAP_OTG && dwc->edev)
 		return;
 
 	switch (dwc->current_dr_role) {
@@ -126,6 +129,13 @@ static void __dwc3_set_mode(struct work_struct *work)
 	case DWC3_GCTL_PRTCAP_DEVICE:
 		dwc3_gadget_exit(dwc);
 		dwc3_event_buffers_cleanup(dwc);
+		break;
+	case DWC3_GCTL_PRTCAP_OTG:
+		dwc3_otg_exit(dwc);
+		spin_lock_irqsave(&dwc->lock, flags);
+		dwc->desired_otg_role = DWC3_OTG_ROLE_IDLE;
+		spin_unlock_irqrestore(&dwc->lock, flags);
+		dwc3_otg_update(dwc, 1);
 		break;
 	default:
 		break;
@@ -162,9 +172,14 @@ static void __dwc3_set_mode(struct work_struct *work)
 		if (ret)
 			dev_err(dwc->dev, "failed to initialize peripheral\n");
 		break;
+	case DWC3_GCTL_PRTCAP_OTG:
+		dwc3_otg_init(dwc);
+		dwc3_otg_update(dwc, 0);
+		break;
 	default:
 		break;
 	}
+
 }
 
 void dwc3_set_mode(struct dwc3 *dwc, u32 mode)
@@ -229,7 +244,7 @@ static int dwc3_core_soft_reset(struct dwc3 *dwc)
 	do {
 		reg = dwc3_readl(dwc->regs, DWC3_DCTL);
 		if (!(reg & DWC3_DCTL_CSFTRST))
-			return 0;
+			goto done;
 
 		udelay(1);
 	} while (--retries);
@@ -238,6 +253,17 @@ static int dwc3_core_soft_reset(struct dwc3 *dwc)
 	phy_exit(dwc->usb2_generic_phy);
 
 	return -ETIMEDOUT;
+
+done:
+	/*
+	 * For DWC_usb31 controller, once DWC3_DCTL_CSFTRST bit is cleared,
+	 * we must wait at least 50ms before accessing the PHY domain
+	 * (synchronization delay). DWC_usb31 programming guide section 1.3.2.
+	 */
+	if (dwc3_is_usb31(dwc))
+		msleep(50);
+
+	return 0;
 }
 
 /*
@@ -348,7 +374,7 @@ static int dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned length)
  *
  * Returns 0 on success otherwise negative errno.
  */
-static int dwc3_event_buffers_setup(struct dwc3 *dwc)
+int dwc3_event_buffers_setup(struct dwc3 *dwc)
 {
 	struct dwc3_event_buffer	*evt;
 
@@ -365,7 +391,7 @@ static int dwc3_event_buffers_setup(struct dwc3 *dwc)
 	return 0;
 }
 
-static void dwc3_event_buffers_cleanup(struct dwc3 *dwc)
+void dwc3_event_buffers_cleanup(struct dwc3 *dwc)
 {
 	struct dwc3_event_buffer	*evt;
 
@@ -846,6 +872,43 @@ static int dwc3_core_init(struct dwc3 *dwc)
 		dwc3_writel(dwc->regs, DWC3_GUCTL1, reg);
 	}
 
+	/*
+	 * Must config both number of packets and max burst settings to enable
+	 * RX and/or TX threshold.
+	 */
+	if (dwc3_is_usb31(dwc) && dwc->dr_mode == USB_DR_MODE_HOST) {
+		u8 rx_thr_num = dwc->rx_thr_num_pkt_prd;
+		u8 rx_maxburst = dwc->rx_max_burst_prd;
+		u8 tx_thr_num = dwc->tx_thr_num_pkt_prd;
+		u8 tx_maxburst = dwc->tx_max_burst_prd;
+
+		if (rx_thr_num && rx_maxburst) {
+			reg = dwc3_readl(dwc->regs, DWC3_GRXTHRCFG);
+			reg |= DWC31_RXTHRNUMPKTSEL_PRD;
+
+			reg &= ~DWC31_RXTHRNUMPKT_PRD(~0);
+			reg |= DWC31_RXTHRNUMPKT_PRD(rx_thr_num);
+
+			reg &= ~DWC31_MAXRXBURSTSIZE_PRD(~0);
+			reg |= DWC31_MAXRXBURSTSIZE_PRD(rx_maxburst);
+
+			dwc3_writel(dwc->regs, DWC3_GRXTHRCFG, reg);
+		}
+
+		if (tx_thr_num && tx_maxburst) {
+			reg = dwc3_readl(dwc->regs, DWC3_GTXTHRCFG);
+			reg |= DWC31_TXTHRNUMPKTSEL_PRD;
+
+			reg &= ~DWC31_TXTHRNUMPKT_PRD(~0);
+			reg |= DWC31_TXTHRNUMPKT_PRD(tx_thr_num);
+
+			reg &= ~DWC31_MAXTXBURSTSIZE_PRD(~0);
+			reg |= DWC31_MAXTXBURSTSIZE_PRD(tx_maxburst);
+
+			dwc3_writel(dwc->regs, DWC3_GTXTHRCFG, reg);
+		}
+	}
+
 	return 0;
 
 err4:
@@ -1016,6 +1079,10 @@ static void dwc3_get_properties(struct dwc3 *dwc)
 	u8			lpm_nyet_threshold;
 	u8			tx_de_emphasis;
 	u8			hird_threshold;
+	u8			rx_thr_num_pkt_prd;
+	u8			rx_max_burst_prd;
+	u8			tx_thr_num_pkt_prd;
+	u8			tx_max_burst_prd;
 
 	/* default to highest possible threshold */
 	lpm_nyet_threshold = 0xff;
@@ -1050,6 +1117,14 @@ static void dwc3_get_properties(struct dwc3 *dwc)
 				&hird_threshold);
 	dwc->usb3_lpm_capable = device_property_read_bool(dev,
 				"snps,usb3_lpm_capable");
+	device_property_read_u8(dev, "snps,rx-thr-num-pkt-prd",
+				&rx_thr_num_pkt_prd);
+	device_property_read_u8(dev, "snps,rx-max-burst-prd",
+				&rx_max_burst_prd);
+	device_property_read_u8(dev, "snps,tx-thr-num-pkt-prd",
+				&tx_thr_num_pkt_prd);
+	device_property_read_u8(dev, "snps,tx-max-burst-prd",
+				&tx_max_burst_prd);
 
 	dwc->disable_scramble_quirk = device_property_read_bool(dev,
 				"snps,disable_scramble_quirk");
@@ -1099,6 +1174,12 @@ static void dwc3_get_properties(struct dwc3 *dwc)
 
 	dwc->hird_threshold = hird_threshold
 		| (dwc->is_utmi_l1_suspend << 4);
+
+	dwc->rx_thr_num_pkt_prd = rx_thr_num_pkt_prd;
+	dwc->rx_max_burst_prd = rx_max_burst_prd;
+
+	dwc->tx_thr_num_pkt_prd = tx_thr_num_pkt_prd;
+	dwc->tx_max_burst_prd = tx_max_burst_prd;
 
 	dwc->imod_interval = 0;
 }
@@ -1326,6 +1407,20 @@ static int dwc3_suspend_common(struct dwc3 *dwc, pm_message_t msg)
 		if (!PMSG_IS_AUTO(msg))
 			dwc3_core_exit(dwc);
 		break;
+	case DWC3_GCTL_PRTCAP_OTG:
+		/* do nothing during runtime_suspend */
+		if (PMSG_IS_AUTO(msg))
+			break;
+
+		if (dwc->current_otg_role == DWC3_OTG_ROLE_DEVICE) {
+			spin_lock_irqsave(&dwc->lock, flags);
+			dwc3_gadget_suspend(dwc);
+			spin_unlock_irqrestore(&dwc->lock, flags);
+		}
+
+		dwc3_otg_exit(dwc);
+		dwc3_core_exit(dwc);
+		break;
 	default:
 		/* do nothing */
 		break;
@@ -1345,6 +1440,7 @@ static int dwc3_resume_common(struct dwc3 *dwc, pm_message_t msg)
 		if (ret)
 			return ret;
 
+		dwc3_set_prtcap(dwc, DWC3_GCTL_PRTCAP_DEVICE);
 		spin_lock_irqsave(&dwc->lock, flags);
 		dwc3_gadget_resume(dwc);
 		spin_unlock_irqrestore(&dwc->lock, flags);
@@ -1355,7 +1451,29 @@ static int dwc3_resume_common(struct dwc3 *dwc, pm_message_t msg)
 			ret = dwc3_core_init(dwc);
 			if (ret)
 				return ret;
+			dwc3_set_prtcap(dwc, DWC3_GCTL_PRTCAP_HOST);
 		}
+		break;
+	case DWC3_GCTL_PRTCAP_OTG:
+		/* nothing to do on runtime_resume */
+		if (PMSG_IS_AUTO(msg))
+			break;
+
+		ret = dwc3_core_init(dwc);
+		if (ret)
+			return ret;
+
+		dwc3_set_prtcap(dwc, dwc->current_dr_role);
+
+		dwc3_otg_init(dwc);
+		if (dwc->current_otg_role == DWC3_OTG_ROLE_HOST) {
+			dwc3_otg_host_init(dwc);
+		} else if (dwc->current_otg_role == DWC3_OTG_ROLE_DEVICE) {
+			spin_lock_irqsave(&dwc->lock, flags);
+			dwc3_gadget_resume(dwc);
+			spin_unlock_irqrestore(&dwc->lock, flags);
+		}
+
 		break;
 	default:
 		/* do nothing */

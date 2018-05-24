@@ -7,6 +7,9 @@
 
 struct blk_mq_tag_set;
 
+/**
+ * struct blk_mq_ctx - State for a software queue facing the submitting CPUs
+ */
 struct blk_mq_ctx {
 	struct {
 		spinlock_t		lock;
@@ -185,7 +188,9 @@ static inline bool blk_mq_hw_queue_mapped(struct blk_mq_hw_ctx *hctx)
 }
 
 void blk_mq_in_flight(struct request_queue *q, struct hd_struct *part,
-			unsigned int inflight[2]);
+		      unsigned int inflight[2]);
+void blk_mq_in_flight_rw(struct request_queue *q, struct hd_struct *part,
+			 unsigned int inflight[2]);
 
 static inline void blk_mq_put_dispatch_budget(struct blk_mq_hw_ctx *hctx)
 {

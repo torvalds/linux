@@ -364,32 +364,21 @@ static int mt9v011_set_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int mt9v011_g_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
+static int mt9v011_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_frame_interval *ival)
 {
-	struct v4l2_captureparm *cp = &parms->parm.capture;
-
-	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	memset(cp, 0, sizeof(struct v4l2_captureparm));
-	cp->capability = V4L2_CAP_TIMEPERFRAME;
 	calc_fps(sd,
-		 &cp->timeperframe.numerator,
-		 &cp->timeperframe.denominator);
+		 &ival->interval.numerator,
+		 &ival->interval.denominator);
 
 	return 0;
 }
 
-static int mt9v011_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
+static int mt9v011_s_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_frame_interval *ival)
 {
-	struct v4l2_captureparm *cp = &parms->parm.capture;
-	struct v4l2_fract *tpf = &cp->timeperframe;
+	struct v4l2_fract *tpf = &ival->interval;
 	u16 speed;
-
-	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-	if (cp->extendedmode != 0)
-		return -EINVAL;
 
 	speed = calc_speed(sd, tpf->numerator, tpf->denominator);
 
@@ -469,8 +458,8 @@ static const struct v4l2_subdev_core_ops mt9v011_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops mt9v011_video_ops = {
-	.g_parm = mt9v011_g_parm,
-	.s_parm = mt9v011_s_parm,
+	.g_frame_interval = mt9v011_g_frame_interval,
+	.s_frame_interval = mt9v011_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops mt9v011_pad_ops = {

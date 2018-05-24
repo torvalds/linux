@@ -1960,7 +1960,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 			      i,
 			      ppd->pkeys);
 
-	ret = rvt_register_device(&dd->verbs_dev.rdi);
+	ret = rvt_register_device(&dd->verbs_dev.rdi, RDMA_DRIVER_HFI1);
 	if (ret)
 		goto err_verbs_txreq;
 

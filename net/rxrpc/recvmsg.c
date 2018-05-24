@@ -272,7 +272,7 @@ static int rxrpc_locate_data(struct rxrpc_call *call, struct sk_buff *skb,
 			     unsigned int *_offset, unsigned int *_len)
 {
 	unsigned int offset = sizeof(struct rxrpc_wire_header);
-	unsigned int len = *_len;
+	unsigned int len;
 	int ret;
 	u8 annotation = *_annotation;
 

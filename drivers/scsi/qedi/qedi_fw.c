@@ -1882,7 +1882,7 @@ static int qedi_map_scsi_sg(struct qedi_ctx *qedi, struct qedi_cmd *cmd)
 		bd[bd_count].sge_len = (u16)sg_len;
 
 		QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_IO,
-			  "single-cashed-sgl: bd_count:%d addr=%llx, len=%x",
+			  "single-cached-sgl: bd_count:%d addr=%llx, len=%x",
 			  sg_count, addr, sg_len);
 
 		return ++bd_count;

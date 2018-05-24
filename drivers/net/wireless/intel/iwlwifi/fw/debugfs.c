@@ -157,6 +157,20 @@ static void iwl_fw_timestamp_marker_wk(struct work_struct *work)
 			 ret, jiffies_to_msecs(delay) / 1000);
 }
 
+void iwl_fw_trigger_timestamp(struct iwl_fw_runtime *fwrt, u32 delay)
+{
+	IWL_INFO(fwrt,
+		 "starting timestamp_marker trigger with delay: %us\n",
+		 delay);
+
+	iwl_fw_cancel_timestamp(fwrt);
+
+	fwrt->timestamp.delay = msecs_to_jiffies(delay * 1000);
+
+	schedule_delayed_work(&fwrt->timestamp.wk,
+			      round_jiffies_relative(fwrt->timestamp.delay));
+}
+
 static ssize_t iwl_dbgfs_timestamp_marker_write(struct iwl_fw_runtime *fwrt,
 						char *buf, size_t count,
 						loff_t *ppos)
@@ -168,16 +182,8 @@ static ssize_t iwl_dbgfs_timestamp_marker_write(struct iwl_fw_runtime *fwrt,
 	if (ret < 0)
 		return ret;
 
-	IWL_INFO(fwrt,
-		 "starting timestamp_marker trigger with delay: %us\n",
-		 delay);
+	iwl_fw_trigger_timestamp(fwrt, delay);
 
-	iwl_fw_cancel_timestamp(fwrt);
-
-	fwrt->timestamp.delay = msecs_to_jiffies(delay * 1000);
-
-	schedule_delayed_work(&fwrt->timestamp.wk,
-			      round_jiffies_relative(fwrt->timestamp.delay));
 	return count;
 }
 
@@ -187,7 +193,7 @@ int iwl_fwrt_dbgfs_register(struct iwl_fw_runtime *fwrt,
 			    struct dentry *dbgfs_dir)
 {
 	INIT_DELAYED_WORK(&fwrt->timestamp.wk, iwl_fw_timestamp_marker_wk);
-	FWRT_DEBUGFS_ADD_FILE(timestamp_marker, dbgfs_dir, S_IWUSR);
+	FWRT_DEBUGFS_ADD_FILE(timestamp_marker, dbgfs_dir, 0200);
 	return 0;
 err:
 	IWL_ERR(fwrt, "Can't create the fwrt debugfs directory\n");

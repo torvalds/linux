@@ -2775,6 +2775,8 @@
 #define ULP_RX_LA_RDPTR_A 0x19240
 #define ULP_RX_LA_RDDATA_A 0x19244
 #define ULP_RX_LA_WRPTR_A 0x19248
+#define ULP_RX_TLS_KEY_LLIMIT_A 0x192ac
+#define ULP_RX_TLS_KEY_ULIMIT_A 0x192b0
 
 #define HPZ3_S    24
 #define HPZ3_V(x) ((x) << HPZ3_S)

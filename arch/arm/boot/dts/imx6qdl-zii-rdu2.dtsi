@@ -305,6 +305,15 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart4>;
 	status = "okay";
+
+	rave-sp {
+		compatible = "zii,rave-sp-rdu2";
+		current-speed = <1000000>;
+
+		watchdog {
+			compatible = "zii,rave-sp-watchdog";
+		};
+	};
 };
 
 &ecspi1 {
@@ -498,7 +507,7 @@
 	};
 
 	eeprom@54 {
-		compatible = "at,24c128";
+		compatible = "atmel,24c128";
 		reg = <0x54>;
 	};
 
@@ -602,6 +611,8 @@
 	wp-gpios = <&gpio2 3 GPIO_ACTIVE_HIGH>;
 	vmmc-supply = <&reg_3p3v_sd>;
 	vqmmc-supply = <&reg_3p3v>;
+	no-1-8-v;
+	no-sdio;
 	status = "okay";
 };
 
@@ -613,6 +624,8 @@
 	wp-gpios = <&gpio2 1 GPIO_ACTIVE_HIGH>;
 	vmmc-supply = <&reg_3p3v_sd>;
 	vqmmc-supply = <&reg_3p3v>;
+	no-1-8-v;
+	no-sdio;
 	status = "okay";
 };
 
@@ -622,7 +635,10 @@
 	bus-width = <8>;
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_3p3v>;
+	no-1-8-v;
 	non-removable;
+	no-sdio;
+	no-sd;
 	status = "okay";
 };
 
@@ -803,6 +819,10 @@
 			IMX_AUDMUX_V2_PDCR_RXDSEL(1)
 		>;
 	};
+};
+
+&wdog1 {
+	status = "disabled";
 };
 
 &iomuxc {

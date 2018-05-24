@@ -2616,12 +2616,12 @@ int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans)
 {
 	struct dentry *dir = trans->dbgfs_dir;
 
-	DEBUGFS_ADD_FILE(rx_queue, dir, S_IRUSR);
-	DEBUGFS_ADD_FILE(tx_queue, dir, S_IRUSR);
-	DEBUGFS_ADD_FILE(interrupt, dir, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(csr, dir, S_IWUSR);
-	DEBUGFS_ADD_FILE(fh_reg, dir, S_IRUSR);
-	DEBUGFS_ADD_FILE(rfkill, dir, S_IWUSR | S_IRUSR);
+	DEBUGFS_ADD_FILE(rx_queue, dir, 0400);
+	DEBUGFS_ADD_FILE(tx_queue, dir, 0400);
+	DEBUGFS_ADD_FILE(interrupt, dir, 0600);
+	DEBUGFS_ADD_FILE(csr, dir, 0200);
+	DEBUGFS_ADD_FILE(fh_reg, dir, 0400);
+	DEBUGFS_ADD_FILE(rfkill, dir, 0600);
 	return 0;
 
 err:

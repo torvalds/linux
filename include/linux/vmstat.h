@@ -20,6 +20,17 @@ extern int sysctl_vm_numa_stat_handler(struct ctl_table *table,
 		int write, void __user *buffer, size_t *length, loff_t *ppos);
 #endif
 
+struct reclaim_stat {
+	unsigned nr_dirty;
+	unsigned nr_unqueued_dirty;
+	unsigned nr_congested;
+	unsigned nr_writeback;
+	unsigned nr_immediate;
+	unsigned nr_activate;
+	unsigned nr_ref_keep;
+	unsigned nr_unmap_fail;
+};
+
 #ifdef CONFIG_VM_EVENT_COUNTERS
 /*
  * Light weight per cpu counter implementation.

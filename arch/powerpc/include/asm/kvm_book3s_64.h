@@ -472,6 +472,49 @@ static inline void set_dirty_bits_atomic(unsigned long *map, unsigned long i,
 			set_bit_le(i, map);
 }
 
+static inline u64 sanitize_msr(u64 msr)
+{
+	msr &= ~MSR_HV;
+	msr |= MSR_ME;
+	return msr;
+}
+
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+static inline void copy_from_checkpoint(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.cr  = vcpu->arch.cr_tm;
+	vcpu->arch.xer = vcpu->arch.xer_tm;
+	vcpu->arch.lr  = vcpu->arch.lr_tm;
+	vcpu->arch.ctr = vcpu->arch.ctr_tm;
+	vcpu->arch.amr = vcpu->arch.amr_tm;
+	vcpu->arch.ppr = vcpu->arch.ppr_tm;
+	vcpu->arch.dscr = vcpu->arch.dscr_tm;
+	vcpu->arch.tar = vcpu->arch.tar_tm;
+	memcpy(vcpu->arch.gpr, vcpu->arch.gpr_tm,
+	       sizeof(vcpu->arch.gpr));
+	vcpu->arch.fp  = vcpu->arch.fp_tm;
+	vcpu->arch.vr  = vcpu->arch.vr_tm;
+	vcpu->arch.vrsave = vcpu->arch.vrsave_tm;
+}
+
+static inline void copy_to_checkpoint(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.cr_tm  = vcpu->arch.cr;
+	vcpu->arch.xer_tm = vcpu->arch.xer;
+	vcpu->arch.lr_tm  = vcpu->arch.lr;
+	vcpu->arch.ctr_tm = vcpu->arch.ctr;
+	vcpu->arch.amr_tm = vcpu->arch.amr;
+	vcpu->arch.ppr_tm = vcpu->arch.ppr;
+	vcpu->arch.dscr_tm = vcpu->arch.dscr;
+	vcpu->arch.tar_tm = vcpu->arch.tar;
+	memcpy(vcpu->arch.gpr_tm, vcpu->arch.gpr,
+	       sizeof(vcpu->arch.gpr));
+	vcpu->arch.fp_tm  = vcpu->arch.fp;
+	vcpu->arch.vr_tm  = vcpu->arch.vr;
+	vcpu->arch.vrsave_tm = vcpu->arch.vrsave;
+}
+#endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
+
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 
 #endif /* __ASM_KVM_BOOK3S_64_H__ */

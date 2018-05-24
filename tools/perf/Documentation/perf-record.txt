@@ -191,9 +191,16 @@ OPTIONS
 -i::
 --no-inherit::
 	Child tasks do not inherit counters.
+
 -F::
 --freq=::
-	Profile at this frequency.
+	Profile at this frequency. Use 'max' to use the currently maximum
+	allowed frequency, i.e. the value in the kernel.perf_event_max_sample_rate
+	sysctl. Will throttle down to the currently maximum allowed frequency.
+	See --strict-freq.
+
+--strict-freq::
+	Fail if the specified frequency can't be used.
 
 -m::
 --mmap-pages=::
@@ -308,7 +315,11 @@ can be provided. Each cgroup is applied to the corresponding event, i.e., first 
 to first event, second cgroup to second event and so on. It is possible to provide
 an empty cgroup (monitor all the time) using, e.g., -G foo,,bar. Cgroups must have
 corresponding events, i.e., they always refer to events defined earlier on the command
-line.
+line. If the user wants to track multiple events for a specific cgroup, the user can
+use '-e e1 -e e2 -G foo,foo' or just use '-e e1 -e e2 -G foo'.
+
+If wanting to monitor, say, 'cycles' for a cgroup and also for system wide, this
+command line can be used: 'perf stat -e cycles -G cgroup_name -a -e cycles'.
 
 -b::
 --branch-any::

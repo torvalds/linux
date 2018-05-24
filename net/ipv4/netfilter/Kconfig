@@ -34,7 +34,7 @@ config NF_SOCKET_IPV4
 if NF_TABLES
 
 config NF_TABLES_IPV4
-	tristate "IPv4 nf_tables support"
+	bool "IPv4 nf_tables support"
 	help
 	  This option enables the IPv4 support for nf_tables.
 
@@ -71,7 +71,7 @@ config NFT_FIB_IPV4
 endif # NF_TABLES_IPV4
 
 config NF_TABLES_ARP
-	tristate "ARP nf_tables support"
+	bool "ARP nf_tables support"
 	select NETFILTER_FAMILY_ARP
 	help
 	  This option enables the ARP support for nf_tables.

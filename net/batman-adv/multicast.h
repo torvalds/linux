@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2014-2017  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2014-2018  B.A.T.M.A.N. contributors:
  *
  * Linus Lüssing
  *
@@ -21,6 +21,7 @@
 
 #include "main.h"
 
+struct netlink_callback;
 struct seq_file;
 struct sk_buff;
 
@@ -54,6 +55,11 @@ void batadv_mcast_init(struct batadv_priv *bat_priv);
 
 int batadv_mcast_flags_seq_print_text(struct seq_file *seq, void *offset);
 
+int batadv_mcast_mesh_info_put(struct sk_buff *msg,
+			       struct batadv_priv *bat_priv);
+
+int batadv_mcast_flags_dump(struct sk_buff *msg, struct netlink_callback *cb);
+
 void batadv_mcast_free(struct batadv_priv *bat_priv);
 
 void batadv_mcast_purge_orig(struct batadv_orig_node *orig_node);
@@ -70,6 +76,18 @@ batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
 static inline int batadv_mcast_init(struct batadv_priv *bat_priv)
 {
 	return 0;
+}
+
+static inline int
+batadv_mcast_mesh_info_put(struct sk_buff *msg, struct batadv_priv *bat_priv)
+{
+	return 0;
+}
+
+static inline int batadv_mcast_flags_dump(struct sk_buff *msg,
+					  struct netlink_callback *cb)
+{
+	return -EOPNOTSUPP;
 }
 
 static inline void batadv_mcast_free(struct batadv_priv *bat_priv)

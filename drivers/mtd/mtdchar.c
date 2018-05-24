@@ -324,10 +324,6 @@ static ssize_t mtdchar_write(struct file *file, const char __user *buf, size_t c
     IOCTL calls for getting device parameters.
 
 ======================================================================*/
-static void mtdchar_erase_callback (struct erase_info *instr)
-{
-	wake_up((wait_queue_head_t *)instr->priv);
-}
 
 static int otp_select_filemode(struct mtd_file_info *mfi, int mode)
 {
@@ -709,11 +705,6 @@ static int mtdchar_ioctl(struct file *file, u_int cmd, u_long arg)
 		if (!erase)
 			ret = -ENOMEM;
 		else {
-			wait_queue_head_t waitq;
-			DECLARE_WAITQUEUE(wait, current);
-
-			init_waitqueue_head(&waitq);
-
 			if (cmd == MEMERASE64) {
 				struct erase_info_user64 einfo64;
 
@@ -735,31 +726,8 @@ static int mtdchar_ioctl(struct file *file, u_int cmd, u_long arg)
 				erase->addr = einfo32.start;
 				erase->len = einfo32.length;
 			}
-			erase->mtd = mtd;
-			erase->callback = mtdchar_erase_callback;
-			erase->priv = (unsigned long)&waitq;
 
-			/*
-			  FIXME: Allow INTERRUPTIBLE. Which means
-			  not having the wait_queue head on the stack.
-
-			  If the wq_head is on the stack, and we
-			  leave because we got interrupted, then the
-			  wq_head is no longer there when the
-			  callback routine tries to wake us up.
-			*/
 			ret = mtd_erase(mtd, erase);
-			if (!ret) {
-				set_current_state(TASK_UNINTERRUPTIBLE);
-				add_wait_queue(&waitq, &wait);
-				if (erase->state != MTD_ERASE_DONE &&
-				    erase->state != MTD_ERASE_FAILED)
-					schedule();
-				remove_wait_queue(&waitq, &wait);
-				set_current_state(TASK_RUNNING);
-
-				ret = (erase->state == MTD_ERASE_FAILED)?-EIO:0;
-			}
 			kfree(erase);
 		}
 		break;

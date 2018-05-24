@@ -427,8 +427,8 @@ iblock_execute_zero_out(struct block_device *bdev, struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct scatterlist *sg = &cmd->t_data_sg[0];
-	unsigned char *buf, zero = 0x00, *p = &zero;
-	int rc, ret;
+	unsigned char *buf, *not_zero;
+	int ret;
 
 	buf = kmap(sg_page(sg)) + sg->offset;
 	if (!buf)
@@ -437,10 +437,10 @@ iblock_execute_zero_out(struct block_device *bdev, struct se_cmd *cmd)
 	 * Fall back to block_execute_write_same() slow-path if
 	 * incoming WRITE_SAME payload does not contain zeros.
 	 */
-	rc = memcmp(buf, p, cmd->data_length);
+	not_zero = memchr_inv(buf, 0x00, cmd->data_length);
 	kunmap(sg_page(sg));
 
-	if (rc)
+	if (not_zero)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
 	ret = blkdev_issue_zeroout(bdev,

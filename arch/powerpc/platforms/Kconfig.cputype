@@ -61,7 +61,7 @@ choice
 	help
 	  There are two families of 64 bit PowerPC chips supported.
 	  The most common ones are the desktop and server CPUs
-	  (POWER4, POWER5, 970, POWER5+, POWER6, POWER7, POWER8 ...)
+	  (POWER5, 970, POWER5+, POWER6, POWER7, POWER8, POWER9 ...)
 
 	  The other are the "embedded" processors compliant with the
 	  "Book 3E" variant of the architecture
@@ -87,7 +87,6 @@ endchoice
 choice
 	prompt "CPU selection"
 	depends on PPC64
-	default POWER8_CPU if CPU_LITTLE_ENDIAN
 	default GENERIC_CPU
 	help
 	  This will create a kernel which is optimised for a particular CPU.
@@ -96,15 +95,16 @@ choice
 	  If unsure, select Generic.
 
 config GENERIC_CPU
-	bool "Generic"
+	bool "Generic (POWER4 and above)"
 	depends on !CPU_LITTLE_ENDIAN
+
+config GENERIC_CPU
+	bool "Generic (POWER8 and above)"
+	depends on CPU_LITTLE_ENDIAN
+	select ARCH_HAS_FAST_MULTIPLIER
 
 config CELL_CPU
 	bool "Cell Broadband Engine"
-	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
-
-config POWER4_CPU
-	bool "POWER4"
 	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
 
 config POWER5_CPU
@@ -122,6 +122,11 @@ config POWER7_CPU
 
 config POWER8_CPU
 	bool "POWER8"
+	depends on PPC_BOOK3S_64
+	select ARCH_HAS_FAST_MULTIPLIER
+
+config POWER9_CPU
+	bool "POWER9"
 	depends on PPC_BOOK3S_64
 	select ARCH_HAS_FAST_MULTIPLIER
 
@@ -326,6 +331,7 @@ config PPC_BOOK3E_MMU
 config PPC_MM_SLICES
 	bool
 	default y if PPC_BOOK3S_64
+	default y if PPC_8xx && HUGETLB_PAGE
 	default n
 
 config PPC_HAVE_PMU_SUPPORT

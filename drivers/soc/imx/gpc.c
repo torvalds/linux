@@ -254,6 +254,7 @@ static struct imx_pm_domain imx_gpc_domains[] = {
 	{
 		.base = {
 			.name = "ARM",
+			.flags = GENPD_FLAG_ALWAYS_ON,
 		},
 	}, {
 		.base = {

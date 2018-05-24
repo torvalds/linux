@@ -3783,7 +3783,7 @@ static int skge_device_event(struct notifier_block *unused,
 		break;
 
 	case NETDEV_UP:
-		d = debugfs_create_file(dev->name, S_IRUGO,
+		d = debugfs_create_file(dev->name, 0444,
 					skge_debug, dev,
 					&skge_debug_fops);
 		if (!d || IS_ERR(d))

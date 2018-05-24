@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // tm6000-cards.c - driver for TM5600/TM6000/TM6010 USB video capture devices
 //
-// Copyright (c) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
+// Copyright (c) 2006-2007 Mauro Carvalho Chehab <mchehab@kernel.org>
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -1174,7 +1174,7 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 {
 	struct usb_device *usbdev;
 	struct tm6000_core *dev;
-	int i, rc = 0;
+	int i, rc;
 	int nr = 0;
 	char *speed;
 

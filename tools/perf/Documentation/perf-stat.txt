@@ -49,6 +49,13 @@ report::
 	  parameters are defined by corresponding entries in
 	  /sys/bus/event_source/devices/<pmu>/format/*
 
+	Note that the last two syntaxes support prefix and glob matching in
+	the PMU name to simplify creation of events accross multiple instances
+	of the same type of PMU in large systems (e.g. memory controller PMUs).
+	Multiple PMU instances are typical for uncore PMUs, so the prefix
+	'uncore_' is also ignored when performing this match.
+
+
 -i::
 --no-inherit::
         child tasks do not inherit counters
@@ -118,7 +125,11 @@ can be provided. Each cgroup is applied to the corresponding event, i.e., first 
 to first event, second cgroup to second event and so on. It is possible to provide
 an empty cgroup (monitor all the time) using, e.g., -G foo,,bar. Cgroups must have
 corresponding events, i.e., they always refer to events defined earlier on the command
-line.
+line. If the user wants to track multiple events for a specific cgroup, the user can
+use '-e e1 -e e2 -G foo,foo' or just use '-e e1 -e e2 -G foo'.
+
+If wanting to monitor, say, 'cycles' for a cgroup and also for system wide, this
+command line can be used: 'perf stat -e cycles -G cgroup_name -a -e cycles'.
 
 -o file::
 --output file::
@@ -142,9 +153,19 @@ perf stat --repeat 10 --null --sync --pre 'make -s O=defconfig-build/clean' -- m
 
 -I msecs::
 --interval-print msecs::
-Print count deltas every N milliseconds (minimum: 10ms)
+Print count deltas every N milliseconds (minimum: 1ms)
 The overhead percentage could be high in some cases, for instance with small, sub 100ms intervals.  Use with caution.
 	example: 'perf stat -I 1000 -e cycles -a sleep 5'
+
+--interval-count times::
+Print count deltas for fixed number of times.
+This option should be used together with "-I" option.
+	example: 'perf stat -I 1000 --interval-count 2 -e cycles -a'
+
+--timeout msecs::
+Stop the 'perf stat' session and print count deltas after N milliseconds (minimum: 10 ms).
+This option is not supported with the "-I" option.
+	example: 'perf stat --time 2000 -e cycles -a'
 
 --metric-only::
 Only print computed metrics. Print them in a single line.
@@ -245,6 +266,16 @@ taskset.
 
 --no-merge::
 Do not merge results from same PMUs.
+
+When multiple events are created from a single event specification,
+stat will, by default, aggregate the event counts and show the result
+in a single row. This option disables that behavior and shows
+the individual events and counts.
+
+Multiple events are created from a single event specification when:
+1. Prefix or glob matching is used for the PMU name.
+2. Aliases, which are listed immediately after the Kernel PMU events
+   by perf list, are used.
 
 --smi-cost::
 Measure SMI cost if msr/aperf/ and msr/smi/ events are supported.

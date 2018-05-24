@@ -1070,8 +1070,8 @@ struct ll_statahead_info {
 				sai_agl_valid:1,/* AGL is valid for the dir */
 				sai_in_readpage:1;/* statahead in readdir() */
 	wait_queue_head_t	sai_waitq;      /* stat-ahead wait queue */
-	struct ptlrpc_thread    sai_thread;     /* stat-ahead thread */
-	struct ptlrpc_thread    sai_agl_thread; /* AGL thread */
+	struct task_struct     *sai_task;       /* stat-ahead thread */
+	struct task_struct     *sai_agl_task;   /* AGL thread */
 	struct list_head	sai_interim_entries; /* entries which got async
 						      * stat reply, but not
 						      * instantiated

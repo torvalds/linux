@@ -715,7 +715,7 @@ void HT_caps_handler(struct adapter *padapter, struct ndis_802_11_var_ie *pIE)
 	struct ht_priv			*phtpriv = &pmlmepriv->htpriv;
 	u8 *HT_cap = (u8 *)(&pmlmeinfo->HT_caps);
 
-	if (pIE == NULL)
+	if (!pIE)
 		return;
 
 	if (!phtpriv->ht_option)
@@ -755,7 +755,7 @@ void HT_info_handler(struct adapter *padapter, struct ndis_802_11_var_ie *pIE)
 	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
 	struct ht_priv			*phtpriv = &pmlmepriv->htpriv;
 
-	if (pIE == NULL)
+	if (!pIE)
 		return;
 
 	if (!phtpriv->ht_option)
@@ -1534,7 +1534,7 @@ int update_sta_support_rate(struct adapter *padapter, u8 *pvar_ie, uint var_ie_l
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 
 	pIE = (struct ndis_802_11_var_ie *)rtw_get_ie(pvar_ie, _SUPPORTEDRATES_IE_, &ie_len, var_ie_len);
-	if (pIE == NULL)
+	if (!pIE)
 		return _FAIL;
 	if (ie_len > NDIS_802_11_LENGTH_RATES_EX)
 		return _FAIL;

@@ -48,10 +48,7 @@ struct kmem_cache *obdo_cachep;
 EXPORT_SYMBOL(obdo_cachep);
 static struct kmem_cache *import_cachep;
 
-static struct list_head      obd_zombie_imports;
-static struct list_head      obd_zombie_exports;
-static spinlock_t  obd_zombie_impexp_lock;
-static void obd_zombie_impexp_notify(void);
+static struct workqueue_struct *zombie_wq;
 static void obd_zombie_export_add(struct obd_export *exp);
 static void obd_zombie_import_add(struct obd_import *imp);
 
@@ -701,6 +698,13 @@ void class_export_put(struct obd_export *exp)
 }
 EXPORT_SYMBOL(class_export_put);
 
+static void obd_zombie_exp_cull(struct work_struct *ws)
+{
+	struct obd_export *export = container_of(ws, struct obd_export, exp_zombie_work);
+
+	class_export_destroy(export);
+}
+
 /* Creates a new export, adds it to the hash table, and returns a
  * pointer to it. The refcount is 2: one for the hash reference, and
  * one for the pointer returned by this function.
@@ -741,6 +745,7 @@ struct obd_export *class_new_export(struct obd_device *obd,
 	INIT_HLIST_NODE(&export->exp_uuid_hash);
 	spin_lock_init(&export->exp_bl_list_lock);
 	INIT_LIST_HEAD(&export->exp_bl_list);
+	INIT_WORK(&export->exp_zombie_work, obd_zombie_exp_cull);
 
 	export->exp_sp_peer = LUSTRE_SP_ANY;
 	export->exp_flvr.sf_rpc = SPTLRPC_FLVR_INVALID;
@@ -862,7 +867,6 @@ EXPORT_SYMBOL(class_import_get);
 
 void class_import_put(struct obd_import *imp)
 {
-	LASSERT(list_empty(&imp->imp_zombie_chain));
 	LASSERT_ATOMIC_GT_LT(&imp->imp_refcount, 0, LI_POISON);
 
 	CDEBUG(D_INFO, "import %p refcount=%d obd=%s\n", imp,
@@ -894,6 +898,13 @@ static void init_imp_at(struct imp_at *at)
 	}
 }
 
+static void obd_zombie_imp_cull(struct work_struct *ws)
+{
+	struct obd_import *import = container_of(ws, struct obd_import, imp_zombie_work);
+
+	class_import_destroy(import);
+}
+
 struct obd_import *class_new_import(struct obd_device *obd)
 {
 	struct obd_import *imp;
@@ -903,7 +914,6 @@ struct obd_import *class_new_import(struct obd_device *obd)
 		return NULL;
 
 	INIT_LIST_HEAD(&imp->imp_pinger_chain);
-	INIT_LIST_HEAD(&imp->imp_zombie_chain);
 	INIT_LIST_HEAD(&imp->imp_replay_list);
 	INIT_LIST_HEAD(&imp->imp_sending_list);
 	INIT_LIST_HEAD(&imp->imp_delayed_list);
@@ -917,6 +927,7 @@ struct obd_import *class_new_import(struct obd_device *obd)
 	imp->imp_obd = class_incref(obd, "import", imp);
 	mutex_init(&imp->imp_sec_mutex);
 	init_waitqueue_head(&imp->imp_recovery_waitq);
+	INIT_WORK(&imp->imp_zombie_work, obd_zombie_imp_cull);
 
 	atomic_set(&imp->imp_refcount, 2);
 	atomic_set(&imp->imp_unregistering, 0);
@@ -1098,81 +1109,6 @@ EXPORT_SYMBOL(class_fail_export);
 void (*class_export_dump_hook)(struct obd_export *) = NULL;
 #endif
 
-/* Total amount of zombies to be destroyed */
-static int zombies_count;
-
-/**
- * kill zombie imports and exports
- */
-static void obd_zombie_impexp_cull(void)
-{
-	struct obd_import *import;
-	struct obd_export *export;
-
-	do {
-		spin_lock(&obd_zombie_impexp_lock);
-
-		import = NULL;
-		if (!list_empty(&obd_zombie_imports)) {
-			import = list_entry(obd_zombie_imports.next,
-					    struct obd_import,
-					    imp_zombie_chain);
-			list_del_init(&import->imp_zombie_chain);
-		}
-
-		export = NULL;
-		if (!list_empty(&obd_zombie_exports)) {
-			export = list_entry(obd_zombie_exports.next,
-					    struct obd_export,
-					    exp_obd_chain);
-			list_del_init(&export->exp_obd_chain);
-		}
-
-		spin_unlock(&obd_zombie_impexp_lock);
-
-		if (import) {
-			class_import_destroy(import);
-			spin_lock(&obd_zombie_impexp_lock);
-			zombies_count--;
-			spin_unlock(&obd_zombie_impexp_lock);
-		}
-
-		if (export) {
-			class_export_destroy(export);
-			spin_lock(&obd_zombie_impexp_lock);
-			zombies_count--;
-			spin_unlock(&obd_zombie_impexp_lock);
-		}
-
-		cond_resched();
-	} while (import || export);
-}
-
-static struct completion	obd_zombie_start;
-static struct completion	obd_zombie_stop;
-static unsigned long		obd_zombie_flags;
-static wait_queue_head_t		obd_zombie_waitq;
-static pid_t			obd_zombie_pid;
-
-enum {
-	OBD_ZOMBIE_STOP		= 0x0001,
-};
-
-/**
- * check for work for kill zombie import/export thread.
- */
-static int obd_zombie_impexp_check(void *arg)
-{
-	int rc;
-
-	spin_lock(&obd_zombie_impexp_lock);
-	rc = (zombies_count == 0) &&
-	     !test_bit(OBD_ZOMBIE_STOP, &obd_zombie_flags);
-	spin_unlock(&obd_zombie_impexp_lock);
-
-	return rc;
-}
-
 /**
  * Add export to the obd_zombie thread and notify it.
  */
@@ -1182,12 +1118,7 @@ static void obd_zombie_export_add(struct obd_export *exp)
 	LASSERT(!list_empty(&exp->exp_obd_chain));
 	list_del_init(&exp->exp_obd_chain);
 	spin_unlock(&exp->exp_obd->obd_dev_lock);
-	spin_lock(&obd_zombie_impexp_lock);
-	zombies_count++;
-	list_add(&exp->exp_obd_chain, &obd_zombie_exports);
-	spin_unlock(&obd_zombie_impexp_lock);
-
-	obd_zombie_impexp_notify();
+	queue_work(zombie_wq, &exp->exp_zombie_work);
 }
 
 /**
@@ -1196,40 +1127,7 @@ static void obd_zombie_export_add(struct obd_export *exp)
 static void obd_zombie_import_add(struct obd_import *imp)
 {
 	LASSERT(!imp->imp_sec);
-	spin_lock(&obd_zombie_impexp_lock);
-	LASSERT(list_empty(&imp->imp_zombie_chain));
-	zombies_count++;
-	list_add(&imp->imp_zombie_chain, &obd_zombie_imports);
-	spin_unlock(&obd_zombie_impexp_lock);
-
-	obd_zombie_impexp_notify();
-}
-
-/**
- * notify import/export destroy thread about new zombie.
- */
-static void obd_zombie_impexp_notify(void)
-{
-	/*
-	 * Make sure obd_zombie_impexp_thread get this notification.
-	 * It is possible this signal only get by obd_zombie_barrier, and
-	 * barrier gulps this notification and sleeps away and hangs ensues
-	 */
-	wake_up_all(&obd_zombie_waitq);
-}
-
-/**
- * check whether obd_zombie is idle
- */
-static int obd_zombie_is_idle(void)
-{
-	int rc;
-
-	LASSERT(!test_bit(OBD_ZOMBIE_STOP, &obd_zombie_flags));
-	spin_lock(&obd_zombie_impexp_lock);
-	rc = (zombies_count == 0);
-	spin_unlock(&obd_zombie_impexp_lock);
-	return rc;
+	queue_work(zombie_wq, &imp->imp_zombie_work);
 }
 
 /**
@@ -1237,64 +1135,19 @@ static int obd_zombie_is_idle(void)
  */
 void obd_zombie_barrier(void)
 {
-	struct l_wait_info lwi = { 0 };
-
-	if (obd_zombie_pid == current_pid())
-		/* don't wait for myself */
-		return;
-	l_wait_event(obd_zombie_waitq, obd_zombie_is_idle(), &lwi);
+	flush_workqueue(zombie_wq);
 }
 EXPORT_SYMBOL(obd_zombie_barrier);
-
-/**
- * destroy zombie export/import thread.
- */
-static int obd_zombie_impexp_thread(void *unused)
-{
-	unshare_fs_struct();
-	complete(&obd_zombie_start);
-
-	obd_zombie_pid = current_pid();
-
-	while (!test_bit(OBD_ZOMBIE_STOP, &obd_zombie_flags)) {
-		struct l_wait_info lwi = { 0 };
-
-		l_wait_event(obd_zombie_waitq,
-			     !obd_zombie_impexp_check(NULL), &lwi);
-		obd_zombie_impexp_cull();
-
-		/*
-		 * Notify obd_zombie_barrier callers that queues
-		 * may be empty.
-		 */
-		wake_up(&obd_zombie_waitq);
-	}
-
-	complete(&obd_zombie_stop);
-
-	return 0;
-}
 
 /**
  * start destroy zombie import/export thread
  */
 int obd_zombie_impexp_init(void)
 {
-	struct task_struct *task;
+	zombie_wq = alloc_workqueue("obd_zombid", 0, 0);
+	if (!zombie_wq)
+		return -ENOMEM;
 
-	INIT_LIST_HEAD(&obd_zombie_imports);
-	INIT_LIST_HEAD(&obd_zombie_exports);
-	spin_lock_init(&obd_zombie_impexp_lock);
-	init_completion(&obd_zombie_start);
-	init_completion(&obd_zombie_stop);
-	init_waitqueue_head(&obd_zombie_waitq);
-	obd_zombie_pid = 0;
-
-	task = kthread_run(obd_zombie_impexp_thread, NULL, "obd_zombid");
-	if (IS_ERR(task))
-		return PTR_ERR(task);
-
-	wait_for_completion(&obd_zombie_start);
 	return 0;
 }
 
@@ -1303,9 +1156,7 @@ int obd_zombie_impexp_init(void)
  */
 void obd_zombie_impexp_stop(void)
 {
-	set_bit(OBD_ZOMBIE_STOP, &obd_zombie_flags);
-	obd_zombie_impexp_notify();
-	wait_for_completion(&obd_zombie_stop);
+	destroy_workqueue(zombie_wq);
 }
 
 struct obd_request_slot_waiter {
@@ -1336,7 +1187,6 @@ static bool obd_request_slot_avail(struct client_obd *cli,
 int obd_get_request_slot(struct client_obd *cli)
 {
 	struct obd_request_slot_waiter orsw;
-	struct l_wait_info lwi;
 	int rc;
 
 	spin_lock(&cli->cl_loi_list_lock);
@@ -1351,11 +1201,9 @@ int obd_get_request_slot(struct client_obd *cli)
 	orsw.orsw_signaled = false;
 	spin_unlock(&cli->cl_loi_list_lock);
 
-	lwi = LWI_INTR(LWI_ON_SIGNAL_NOOP, NULL);
-	rc = l_wait_event(orsw.orsw_waitq,
-			  obd_request_slot_avail(cli, &orsw) ||
-			  orsw.orsw_signaled,
-			  &lwi);
+	rc = l_wait_event_abortable(orsw.orsw_waitq,
+				    obd_request_slot_avail(cli, &orsw) ||
+				    orsw.orsw_signaled);
 
 	/*
 	 * Here, we must take the lock to avoid the on-stack 'orsw' to be
@@ -1593,7 +1441,6 @@ static inline bool obd_mod_rpc_slot_avail(struct client_obd *cli,
 u16 obd_get_mod_rpc_slot(struct client_obd *cli, __u32 opc,
 			 struct lookup_intent *it)
 {
-	struct l_wait_info lwi = LWI_INTR(NULL, NULL);
 	bool close_req = false;
 	u16 i, max;
 
@@ -1631,8 +1478,8 @@ u16 obd_get_mod_rpc_slot(struct client_obd *cli, __u32 opc,
 		CDEBUG(D_RPCTRACE, "%s: sleeping for a modify RPC slot opc %u, max %hu\n",
 		       cli->cl_import->imp_obd->obd_name, opc, max);
 
-		l_wait_event(cli->cl_mod_rpcs_waitq,
-			     obd_mod_rpc_slot_avail(cli, close_req), &lwi);
+		wait_event_idle(cli->cl_mod_rpcs_waitq,
+				obd_mod_rpc_slot_avail(cli, close_req));
 	} while (true);
 }
 EXPORT_SYMBOL(obd_get_mod_rpc_slot);

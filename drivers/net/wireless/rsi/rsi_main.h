@@ -20,6 +20,7 @@
 #include <linux/string.h>
 #include <linux/skbuff.h>
 #include <net/mac80211.h>
+#include <net/rsi_91x.h>
 
 struct rsi_sta {
 	struct ieee80211_sta *sta;
@@ -85,10 +86,6 @@ extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 #define MGMT_HW_Q			10
 #define BEACON_HW_Q			11
 
-/* Queue information */
-#define RSI_COEX_Q			0x0
-#define RSI_WIFI_MGMT_Q                 0x4
-#define RSI_WIFI_DATA_Q                 0x5
 #define IEEE80211_MGMT_FRAME            0x00
 #define IEEE80211_CTL_FRAME             0x04
 
@@ -115,6 +112,7 @@ extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 #define RSI_WOW_NO_CONNECTION		BIT(1)
 
 #define RSI_DEV_9113		1
+#define RSI_MAX_RX_PKTS		64
 
 struct version_info {
 	u16 major;
@@ -209,6 +207,7 @@ struct rsi_common {
 	struct rsi_hw *priv;
 	struct vif_priv vif_info[RSI_MAX_VIFS];
 
+	void *coex_cb;
 	bool mgmt_q_block;
 	struct version_info lmac_ver;
 
@@ -273,6 +272,8 @@ struct rsi_common {
 	u8 obm_ant_sel_val;
 	int tx_power;
 	u8 ant_in_use;
+	/* Mutex used for writing packet to bus */
+	struct mutex tx_bus_mutex;
 	bool hibernate_resume;
 	bool reinit_hw;
 	u8 wow_flags;
@@ -291,11 +292,8 @@ struct rsi_common {
 	bool p2p_enabled;
 	struct timer_list roc_timer;
 	struct ieee80211_vif *roc_vif;
-};
 
-enum host_intf {
-	RSI_HOST_INTF_SDIO = 0,
-	RSI_HOST_INTF_USB
+	void *bt_adapter;
 };
 
 struct eepromrw_info {
@@ -322,7 +320,7 @@ struct rsi_hw {
 	struct device *device;
 	u8 sc_nvifs;
 
-	enum host_intf rsi_host_intf;
+	enum rsi_host_intf rsi_host_intf;
 	u16 block_size;
 	enum ps_state ps_state;
 	struct rsi_ps_info ps_info;
@@ -343,7 +341,6 @@ struct rsi_hw {
 	void *rsi_dev;
 	struct rsi_host_intf_ops *host_intf_ops;
 	int (*check_hw_queue_status)(struct rsi_hw *adapter, u8 q_num);
-	int (*rx_urb_submit)(struct rsi_hw *adapter);
 	int (*determine_event_timeout)(struct rsi_hw *adapter);
 };
 
@@ -367,4 +364,8 @@ struct rsi_host_intf_ops {
 				      u8 *fw);
 	int (*reinit_device)(struct rsi_hw *adapter);
 };
+
+enum rsi_host_intf rsi_get_host_intf(void *priv);
+void rsi_set_bt_context(void *priv, void *bt_context);
+
 #endif

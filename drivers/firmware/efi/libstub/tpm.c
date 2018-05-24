@@ -16,11 +16,8 @@
 #include "efistub.h"
 
 #ifdef CONFIG_RESET_ATTACK_MITIGATION
-static const efi_char16_t efi_MemoryOverWriteRequest_name[] = {
-	'M', 'e', 'm', 'o', 'r', 'y', 'O', 'v', 'e', 'r', 'w', 'r', 'i', 't',
-	'e', 'R', 'e', 'q', 'u', 'e', 's', 't', 'C', 'o', 'n', 't', 'r', 'o',
-	'l', 0
-};
+static const efi_char16_t efi_MemoryOverWriteRequest_name[] =
+	L"MemoryOverwriteRequestControl";
 
 #define MEMORY_ONLY_RESET_CONTROL_GUID \
 	EFI_GUID(0xe20939be, 0x32d4, 0x41be, 0xa1, 0x50, 0x89, 0x7f, 0x85, 0xd4, 0x98, 0x29)

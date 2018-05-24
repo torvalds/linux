@@ -2948,6 +2948,9 @@ struct ec_response_usb_pd_control_v1 {
 
 #define EC_CMD_USB_PD_PORTS 0x102
 
+/* Maximum number of PD ports on a device, num_ports will be <= this */
+#define EC_USB_PD_MAX_PORTS 8
+
 struct ec_response_usb_pd_ports {
 	uint8_t num_ports;
 } __packed;

@@ -15,7 +15,6 @@
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/kmemleak.h>
 
 #include <net/ip.h>
 #include <net/sock.h>
@@ -31,6 +30,9 @@ static int min_rcvbuf = SOCK_MIN_RCVBUF;
 static int max_skb_frags = MAX_SKB_FRAGS;
 
 static int net_msg_warn;	/* Unused, but still a sysctl */
+
+int sysctl_fb_tunnels_only_for_init_net __read_mostly = 0;
+EXPORT_SYMBOL(sysctl_fb_tunnels_only_for_init_net);
 
 #ifdef CONFIG_RPS
 static int rps_sock_flow_sysctl(struct ctl_table *table, int write,
@@ -512,6 +514,15 @@ static struct ctl_table net_core_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &zero,
+	},
+	{
+		.procname	= "fb_tunnels_only_for_init_net",
+		.data		= &sysctl_fb_tunnels_only_for_init_net,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &one,
 	},
 	{ }
 };

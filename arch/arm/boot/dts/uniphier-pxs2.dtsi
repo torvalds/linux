@@ -1,11 +1,9 @@
-/*
- * Device Tree Source for UniPhier PXs2 SoC
- *
- * Copyright (C) 2015-2016 Socionext Inc.
- *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
- *
- * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
- */
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+//
+// Device Tree Source for UniPhier PXs2 SoC
+//
+// Copyright (C) 2015-2016 Socionext Inc.
+//   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
 
 #include <dt-bindings/gpio/uniphier-gpio.h>
 #include <dt-bindings/thermal/thermal.h>
@@ -227,6 +225,61 @@
 						     <21 217 3>;
 		};
 
+		audio@56000000 {
+			compatible = "socionext,uniphier-pxs2-aio";
+			reg = <0x56000000 0x80000>;
+			interrupts = <0 144 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_ain1>,
+				    <&pinctrl_ain2>,
+				    <&pinctrl_ainiec1>,
+				    <&pinctrl_aout2>,
+				    <&pinctrl_aout3>,
+				    <&pinctrl_aoutiec1>,
+				    <&pinctrl_aoutiec2>;
+			clock-names = "aio";
+			clocks = <&sys_clk 40>;
+			reset-names = "aio";
+			resets = <&sys_rst 40>;
+			#sound-dai-cells = <1>;
+			socionext,syscon = <&soc_glue>;
+
+			i2s_port0: port@0 {
+				i2s_hdmi: endpoint {
+				};
+			};
+
+			i2s_port1: port@1 {
+				i2s_line: endpoint {
+				};
+			};
+
+			i2s_port2: port@2 {
+				i2s_aux: endpoint {
+				};
+			};
+
+			spdif_port0: port@3 {
+				spdif_hiecout1: endpoint {
+				};
+			};
+
+			spdif_port1: port@4 {
+				spdif_iecout1: endpoint {
+				};
+			};
+
+			comp_spdif_port0: port@5 {
+				comp_spdif_hiecout1: endpoint {
+				};
+			};
+
+			comp_spdif_port1: port@6 {
+				comp_spdif_iecout1: endpoint {
+				};
+			};
+		};
+
 		i2c0: i2c@58780000 {
 			compatible = "socionext,uniphier-fi2c";
 			status = "disabled";
@@ -366,7 +419,7 @@
 			};
 		};
 
-		soc-glue@5f800000 {
+		soc_glue: soc-glue@5f800000 {
 			compatible = "socionext,uniphier-pxs2-soc-glue",
 				     "simple-mfd", "syscon";
 			reg = <0x5f800000 0x2000>;
@@ -443,6 +496,24 @@
 				interrupts = <0 3 4>;
 				#thermal-sensor-cells = <0>;
 				socionext,tmod-calibration = <0x0f86 0x6844>;
+			};
+		};
+
+		eth: ethernet@65000000 {
+			compatible = "socionext,uniphier-pxs2-ave4";
+			status = "disabled";
+			reg = <0x65000000 0x8500>;
+			interrupts = <0 66 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_ether_rgmii>;
+			clocks = <&sys_clk 6>;
+			resets = <&sys_rst 6>;
+			phy-mode = "rgmii";
+			local-mac-address = [00 00 00 00 00 00];
+
+			mdio: mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
 			};
 		};
 

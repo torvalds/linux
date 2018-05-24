@@ -44,13 +44,6 @@ static int rpcrdma_bc_setup_rqst(struct rpcrdma_xprt *r_xprt,
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
-	rb = rpcrdma_alloc_regbuf(RPCRDMA_HDRBUF_SIZE,
-				  DMA_TO_DEVICE, GFP_KERNEL);
-	if (IS_ERR(rb))
-		goto out_fail;
-	req->rl_rdmabuf = rb;
-	xdr_buf_init(&req->rl_hdrbuf, rb->rg_base, rdmab_length(rb));
-
 	size = r_xprt->rx_data.inline_rsize;
 	rb = rpcrdma_alloc_regbuf(size, DMA_TO_DEVICE, GFP_KERNEL);
 	if (IS_ERR(rb))

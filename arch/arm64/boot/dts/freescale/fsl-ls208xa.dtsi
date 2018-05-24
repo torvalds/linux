@@ -111,6 +111,55 @@
 		mask = <0x2>;
 	};
 
+	thermal-zones {
+		cpu_thermal: cpu-thermal {
+			polling-delay-passive = <1000>;
+			polling-delay = <5000>;
+
+			thermal-sensors = <&tmu 4>;
+
+			trips {
+				cpu_alert: cpu-alert {
+					temperature = <75000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				cpu_crit: cpu-crit {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_alert>;
+					cooling-device =
+						<&cpu0 THERMAL_NO_LIMIT
+						THERMAL_NO_LIMIT>;
+				};
+				map1 {
+					trip = <&cpu_alert>;
+					cooling-device =
+						<&cpu2 THERMAL_NO_LIMIT
+						THERMAL_NO_LIMIT>;
+				};
+				map2 {
+					trip = <&cpu_alert>;
+					cooling-device =
+						<&cpu4 THERMAL_NO_LIMIT
+						THERMAL_NO_LIMIT>;
+				};
+				map3 {
+					trip = <&cpu_alert>;
+					cooling-device =
+						<&cpu6 THERMAL_NO_LIMIT
+						THERMAL_NO_LIMIT>;
+				};
+			};
+		};
+	};
+
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <1 13 4>, /* Physical Secure PPI, active-low */
@@ -192,55 +241,6 @@
 					       0x00030003 0x0000004e>;
 			little-endian;
 			#thermal-sensor-cells = <1>;
-		};
-
-		thermal-zones {
-			cpu_thermal: cpu-thermal {
-				polling-delay-passive = <1000>;
-				polling-delay = <5000>;
-
-				thermal-sensors = <&tmu 4>;
-
-				trips {
-					cpu_alert: cpu-alert {
-						temperature = <75000>;
-						hysteresis = <2000>;
-						type = "passive";
-					};
-					cpu_crit: cpu-crit {
-						temperature = <85000>;
-						hysteresis = <2000>;
-						type = "critical";
-					};
-				};
-
-				cooling-maps {
-					map0 {
-						trip = <&cpu_alert>;
-						cooling-device =
-							<&cpu0 THERMAL_NO_LIMIT
-							THERMAL_NO_LIMIT>;
-					};
-					map1 {
-						trip = <&cpu_alert>;
-						cooling-device =
-							<&cpu2 THERMAL_NO_LIMIT
-							THERMAL_NO_LIMIT>;
-					};
-					map2 {
-						trip = <&cpu_alert>;
-						cooling-device =
-							<&cpu4 THERMAL_NO_LIMIT
-							THERMAL_NO_LIMIT>;
-					};
-					map3 {
-						trip = <&cpu_alert>;
-						cooling-device =
-							<&cpu6 THERMAL_NO_LIMIT
-							THERMAL_NO_LIMIT>;
-					};
-				};
-			};
 		};
 
 		serial0: serial@21c0500 {

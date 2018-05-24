@@ -43,6 +43,7 @@ void rtw_os_recv_resource_free(struct recv_priv *precvpriv)
 {
 	sint i;
 	union recv_frame *precvframe;
+
 	precvframe = (union recv_frame*) precvpriv->precv_frame_buf;
 
 	for (i = 0; i < NR_RECVFRAME; i++)
@@ -181,11 +182,11 @@ void rtw_os_recv_indicate_pkt(struct adapter *padapter, _pkt *pkt, struct rx_pkt
 		pkt->dev = padapter->pnetdev;
 
 #ifdef CONFIG_TCP_CSUM_OFFLOAD_RX
-		if ((pattrib->tcpchk_valid == 1) && (pattrib->tcp_chkrpt == 1)) {
+		if ((pattrib->tcpchk_valid == 1) && (pattrib->tcp_chkrpt == 1))
 			pkt->ip_summed = CHECKSUM_UNNECESSARY;
-		} else {
+		else
 			pkt->ip_summed = CHECKSUM_NONE;
-		}
+
 #else /* !CONFIG_TCP_CSUM_OFFLOAD_RX */
 		pkt->ip_summed = CHECKSUM_NONE;
 #endif /* CONFIG_TCP_CSUM_OFFLOAD_RX */

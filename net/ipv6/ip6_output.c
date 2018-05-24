@@ -71,7 +71,7 @@ static int ip6_finish_output2(struct net *net, struct sock *sk, struct sk_buff *
 		struct inet6_dev *idev = ip6_dst_idev(skb_dst(skb));
 
 		if (!(dev->flags & IFF_LOOPBACK) && sk_mc_loop(sk) &&
-		    ((mroute6_socket(net, skb) &&
+		    ((mroute6_is_socket(net, skb) &&
 		     !(IP6CB(skb)->flags & IP6SKB_FORWARDED)) ||
 		     ipv6_chk_mcast_addr(dev, &ipv6_hdr(skb)->daddr,
 					 &ipv6_hdr(skb)->saddr))) {
@@ -375,6 +375,11 @@ static int ip6_forward_proxy_check(struct sk_buff *skb)
 static inline int ip6_forward_finish(struct net *net, struct sock *sk,
 				     struct sk_buff *skb)
 {
+	struct dst_entry *dst = skb_dst(skb);
+
+	__IP6_INC_STATS(net, ip6_dst_idev(dst), IPSTATS_MIB_OUTFORWDATAGRAMS);
+	__IP6_ADD_STATS(net, ip6_dst_idev(dst), IPSTATS_MIB_OUTOCTETS, skb->len);
+
 	return dst_output(net, sk, skb);
 }
 
@@ -569,8 +574,6 @@ int ip6_forward(struct sk_buff *skb)
 
 	hdr->hop_limit--;
 
-	__IP6_INC_STATS(net, ip6_dst_idev(dst), IPSTATS_MIB_OUTFORWDATAGRAMS);
-	__IP6_ADD_STATS(net, ip6_dst_idev(dst), IPSTATS_MIB_OUTOCTETS, skb->len);
 	return NF_HOOK(NFPROTO_IPV6, NF_INET_FORWARD,
 		       net, NULL, skb, skb->dev, dst->dev,
 		       ip6_forward_finish);
@@ -1105,23 +1108,32 @@ EXPORT_SYMBOL_GPL(ip6_dst_lookup_flow);
  *	@sk: socket which provides the dst cache and route info
  *	@fl6: flow to lookup
  *	@final_dst: final destination address for ipsec lookup
+ *	@connected: whether @sk is connected or not
  *
  *	This function performs a route lookup on the given flow with the
  *	possibility of using the cached route in the socket if it is valid.
  *	It will take the socket dst lock when operating on the dst cache.
  *	As a result, this function can only be used in process context.
  *
+ *	In addition, for a connected socket, cache the dst in the socket
+ *	if the current cache is not valid.
+ *
  *	It returns a valid dst pointer on success, or a pointer encoded
  *	error code.
  */
 struct dst_entry *ip6_sk_dst_lookup_flow(struct sock *sk, struct flowi6 *fl6,
-					 const struct in6_addr *final_dst)
+					 const struct in6_addr *final_dst,
+					 bool connected)
 {
 	struct dst_entry *dst = sk_dst_check(sk, inet6_sk(sk)->dst_cookie);
 
 	dst = ip6_sk_dst_check(sk, dst, fl6);
-	if (!dst)
-		dst = ip6_dst_lookup_flow(sk, fl6, final_dst);
+	if (dst)
+		return dst;
+
+	dst = ip6_dst_lookup_flow(sk, fl6, final_dst);
+	if (connected && !IS_ERR(dst))
+		ip6_sk_dst_store_flow(sk, dst_clone(dst), fl6);
 
 	return dst;
 }
@@ -1246,7 +1258,7 @@ static int __ip6_append_data(struct sock *sk,
 			     const struct sockcm_cookie *sockc)
 {
 	struct sk_buff *skb, *skb_prev = NULL;
-	unsigned int maxfraglen, fragheaderlen, mtu, orig_mtu;
+	unsigned int maxfraglen, fragheaderlen, mtu, orig_mtu, pmtu;
 	int exthdrlen = 0;
 	int dst_exthdrlen = 0;
 	int hh_len;
@@ -1259,6 +1271,7 @@ static int __ip6_append_data(struct sock *sk,
 	struct ipv6_txoptions *opt = v6_cork->opt;
 	int csummode = CHECKSUM_NONE;
 	unsigned int maxnonfragsize, headersize;
+	unsigned int wmem_alloc_delta = 0;
 
 	skb = skb_peek_tail(queue);
 	if (!skb) {
@@ -1282,6 +1295,12 @@ static int __ip6_append_data(struct sock *sk,
 		      sizeof(struct frag_hdr) : 0) +
 		     rt->rt6i_nfheader_len;
 
+	/* as per RFC 7112 section 5, the entire IPv6 Header Chain must fit
+	 * the first fragment
+	 */
+	if (headersize + transhdrlen > mtu)
+		goto emsgsize;
+
 	if (cork->length + length > mtu - headersize && ipc6->dontfrag &&
 	    (sk->sk_protocol == IPPROTO_UDP ||
 	     sk->sk_protocol == IPPROTO_RAW)) {
@@ -1297,9 +1316,8 @@ static int __ip6_append_data(struct sock *sk,
 
 	if (cork->length + length > maxnonfragsize - headersize) {
 emsgsize:
-		ipv6_local_error(sk, EMSGSIZE, fl6,
-				 mtu - headersize +
-				 sizeof(struct ipv6hdr));
+		pmtu = max_t(int, mtu - headersize + sizeof(struct ipv6hdr), 0);
+		ipv6_local_error(sk, EMSGSIZE, fl6, pmtu);
 		return -EMSGSIZE;
 	}
 
@@ -1411,11 +1429,10 @@ alloc_new_skb:
 						(flags & MSG_DONTWAIT), &err);
 			} else {
 				skb = NULL;
-				if (refcount_read(&sk->sk_wmem_alloc) <=
+				if (refcount_read(&sk->sk_wmem_alloc) + wmem_alloc_delta <=
 				    2 * sk->sk_sndbuf)
-					skb = sock_wmalloc(sk,
-							   alloclen + hh_len, 1,
-							   sk->sk_allocation);
+					skb = alloc_skb(alloclen + hh_len,
+							sk->sk_allocation);
 				if (unlikely(!skb))
 					err = -ENOBUFS;
 			}
@@ -1474,6 +1491,11 @@ alloc_new_skb:
 			/*
 			 * Put the packet on the pending queue
 			 */
+			if (!skb->destructor) {
+				skb->destructor = sock_wfree;
+				skb->sk = sk;
+				wmem_alloc_delta += skb->truesize;
+			}
 			__skb_queue_tail(queue, skb);
 			continue;
 		}
@@ -1520,12 +1542,14 @@ alloc_new_skb:
 			skb->len += copy;
 			skb->data_len += copy;
 			skb->truesize += copy;
-			refcount_add(copy, &sk->sk_wmem_alloc);
+			wmem_alloc_delta += copy;
 		}
 		offset += copy;
 		length -= copy;
 	}
 
+	if (wmem_alloc_delta)
+		refcount_add(wmem_alloc_delta, &sk->sk_wmem_alloc);
 	return 0;
 
 error_efault:
@@ -1533,6 +1557,7 @@ error_efault:
 error:
 	cork->length -= length;
 	IP6_INC_STATS(sock_net(sk), rt->rt6i_idev, IPSTATS_MIB_OUTDISCARDS);
+	refcount_add(wmem_alloc_delta, &sk->sk_wmem_alloc);
 	return err;
 }
 

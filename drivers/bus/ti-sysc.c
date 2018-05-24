@@ -13,21 +13,19 @@
 
 #include <linux/io.h>
 #include <linux/clk.h>
+#include <linux/clkdev.h>
+#include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/slab.h>
+
 #include <linux/platform_data/ti-sysc.h>
 
 #include <dt-bindings/bus/ti-sysc.h>
-
-enum sysc_registers {
-	SYSC_REVISION,
-	SYSC_SYSCONFIG,
-	SYSC_SYSSTATUS,
-	SYSC_MAX_REGS,
-};
 
 static const char * const reg_names[] = { "rev", "sysc", "syss", };
 
@@ -55,6 +53,7 @@ static const char * const clock_names[] = { "fck", "ick", };
  * @cfg: interconnect target module configuration
  * @name: name if available
  * @revision: interconnect target module revision
+ * @needs_resume: runtime resume needed on resume from suspend
  */
 struct sysc {
 	struct device *dev;
@@ -66,8 +65,13 @@ struct sysc {
 	const char *legacy_mode;
 	const struct sysc_capabilities *cap;
 	struct sysc_config cfg;
+	struct ti_sysc_cookie cookie;
 	const char *name;
 	u32 revision;
+	bool enabled;
+	bool needs_resume;
+	bool child_needs_resume;
+	struct delayed_work idle_work;
 };
 
 static u32 sysc_read(struct sysc *ddata, int offset)
@@ -136,9 +140,6 @@ static int sysc_get_clocks(struct sysc *ddata)
 {
 	int i, error;
 
-	if (ddata->legacy_mode)
-		return 0;
-
 	for (i = 0; i < SYSC_MAX_CLOCKS; i++) {
 		error = sysc_get_one_clock(ddata, i);
 		if (error && error != -ENOENT)
@@ -197,10 +198,51 @@ static int sysc_parse_and_check_child_range(struct sysc *ddata)
 	ddata->module_pa = of_translate_address(np, ranges++);
 	ddata->module_size = be32_to_cpup(ranges);
 
-	dev_dbg(ddata->dev, "interconnect target 0x%llx size 0x%x for %pOF\n",
-		ddata->module_pa, ddata->module_size, np);
-
 	return 0;
+}
+
+static struct device_node *stdout_path;
+
+static void sysc_init_stdout_path(struct sysc *ddata)
+{
+	struct device_node *np = NULL;
+	const char *uart;
+
+	if (IS_ERR(stdout_path))
+		return;
+
+	if (stdout_path)
+		return;
+
+	np = of_find_node_by_path("/chosen");
+	if (!np)
+		goto err;
+
+	uart = of_get_property(np, "stdout-path", NULL);
+	if (!uart)
+		goto err;
+
+	np = of_find_node_by_path(uart);
+	if (!np)
+		goto err;
+
+	stdout_path = np;
+
+	return;
+
+err:
+	stdout_path = ERR_PTR(-ENODEV);
+}
+
+static void sysc_check_quirk_stdout(struct sysc *ddata,
+				    struct device_node *np)
+{
+	sysc_init_stdout_path(ddata);
+	if (np != stdout_path)
+		return;
+
+	ddata->cfg.quirks |= SYSC_QUIRK_NO_IDLE_ON_INIT |
+				SYSC_QUIRK_NO_RESET_ON_INIT;
 }
 
 /**
@@ -220,6 +262,8 @@ static int sysc_check_one_child(struct sysc *ddata,
 	name = of_get_property(np, "ti,hwmods", NULL);
 	if (name)
 		dev_warn(ddata->dev, "really a child ti,hwmods property?");
+
+	sysc_check_quirk_stdout(ddata, np);
 
 	return 0;
 }
@@ -246,11 +290,8 @@ static int sysc_check_children(struct sysc *ddata)
  */
 static void sysc_check_quirk_16bit(struct sysc *ddata, struct resource *res)
 {
-	if (resource_size(res) == 8) {
-		dev_dbg(ddata->dev,
-			"enabling 16-bit and clockactivity quirks\n");
+	if (resource_size(res) == 8)
 		ddata->cfg.quirks |= SYSC_QUIRK_16BIT | SYSC_QUIRK_USE_CLOCKACT;
-	}
 }
 
 /**
@@ -276,7 +317,6 @@ static int sysc_parse_one(struct sysc *ddata, enum sysc_registers reg)
 	res = platform_get_resource_byname(to_platform_device(ddata->dev),
 					   IORESOURCE_MEM, name);
 	if (!res) {
-		dev_dbg(ddata->dev, "has no %s register\n", name);
 		ddata->offsets[reg] = -ENODEV;
 
 		return 0;
@@ -437,6 +477,14 @@ static int sysc_show_reg(struct sysc *ddata,
 	return sprintf(bufp, ":%x", ddata->offsets[reg]);
 }
 
+static int sysc_show_name(char *bufp, struct sysc *ddata)
+{
+	if (!ddata->name)
+		return 0;
+
+	return sprintf(bufp, ":%s", ddata->name);
+}
+
 /**
  * sysc_show_registers - show information about interconnect target module
  * @ddata: device driver data
@@ -451,6 +499,7 @@ static void sysc_show_registers(struct sysc *ddata)
 		bufp += sysc_show_reg(ddata, bufp, i);
 
 	bufp += sysc_show_rev(bufp, ddata);
+	bufp += sysc_show_name(bufp, ddata);
 
 	dev_dbg(ddata->dev, "%llx:%x%s\n",
 		ddata->module_pa, ddata->module_size,
@@ -459,13 +508,30 @@ static void sysc_show_registers(struct sysc *ddata)
 
 static int __maybe_unused sysc_runtime_suspend(struct device *dev)
 {
+	struct ti_sysc_platform_data *pdata;
 	struct sysc *ddata;
-	int i;
+	int error = 0, i;
 
 	ddata = dev_get_drvdata(dev);
 
-	if (ddata->legacy_mode)
+	if (!ddata->enabled)
 		return 0;
+
+	if (ddata->legacy_mode) {
+		pdata = dev_get_platdata(ddata->dev);
+		if (!pdata)
+			return 0;
+
+		if (!pdata->idle_module)
+			return -ENODEV;
+
+		error = pdata->idle_module(dev, &ddata->cookie);
+		if (error)
+			dev_err(dev, "%s: could not idle: %i\n",
+				__func__, error);
+
+		goto idled;
+	}
 
 	for (i = 0; i < SYSC_MAX_CLOCKS; i++) {
 		if (IS_ERR_OR_NULL(ddata->clocks[i]))
@@ -473,18 +539,38 @@ static int __maybe_unused sysc_runtime_suspend(struct device *dev)
 		clk_disable(ddata->clocks[i]);
 	}
 
-	return 0;
+idled:
+	ddata->enabled = false;
+
+	return error;
 }
 
 static int __maybe_unused sysc_runtime_resume(struct device *dev)
 {
+	struct ti_sysc_platform_data *pdata;
 	struct sysc *ddata;
-	int i, error;
+	int error = 0, i;
 
 	ddata = dev_get_drvdata(dev);
 
-	if (ddata->legacy_mode)
+	if (ddata->enabled)
 		return 0;
+
+	if (ddata->legacy_mode) {
+		pdata = dev_get_platdata(ddata->dev);
+		if (!pdata)
+			return 0;
+
+		if (!pdata->enable_module)
+			return -ENODEV;
+
+		error = pdata->enable_module(dev, &ddata->cookie);
+		if (error)
+			dev_err(dev, "%s: could not enable: %i\n",
+				__func__, error);
+
+		goto awake;
+	}
 
 	for (i = 0; i < SYSC_MAX_CLOCKS; i++) {
 		if (IS_ERR_OR_NULL(ddata->clocks[i]))
@@ -494,19 +580,135 @@ static int __maybe_unused sysc_runtime_resume(struct device *dev)
 			return error;
 	}
 
-	return 0;
+awake:
+	ddata->enabled = true;
+
+	return error;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int sysc_suspend(struct device *dev)
+{
+	struct sysc *ddata;
+
+	ddata = dev_get_drvdata(dev);
+
+	if (!ddata->enabled)
+		return 0;
+
+	ddata->needs_resume = true;
+
+	return sysc_runtime_suspend(dev);
+}
+
+static int sysc_resume(struct device *dev)
+{
+	struct sysc *ddata;
+
+	ddata = dev_get_drvdata(dev);
+	if (ddata->needs_resume) {
+		ddata->needs_resume = false;
+
+		return sysc_runtime_resume(dev);
+	}
+
+	return 0;
+}
+#endif
+
 static const struct dev_pm_ops sysc_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(sysc_suspend, sysc_resume)
 	SET_RUNTIME_PM_OPS(sysc_runtime_suspend,
 			   sysc_runtime_resume,
 			   NULL)
 };
 
+/* Module revision register based quirks */
+struct sysc_revision_quirk {
+	const char *name;
+	u32 base;
+	int rev_offset;
+	int sysc_offset;
+	int syss_offset;
+	u32 revision;
+	u32 revision_mask;
+	u32 quirks;
+};
+
+#define SYSC_QUIRK(optname, optbase, optrev, optsysc, optsyss,		\
+		   optrev_val, optrevmask, optquirkmask)		\
+	{								\
+		.name = (optname),					\
+		.base = (optbase),					\
+		.rev_offset = (optrev),					\
+		.sysc_offset = (optsysc),				\
+		.syss_offset = (optsyss),				\
+		.revision = (optrev_val),				\
+		.revision_mask = (optrevmask),				\
+		.quirks = (optquirkmask),				\
+	}
+
+static const struct sysc_revision_quirk sysc_revision_quirks[] = {
+	/* These drivers need to be fixed to not use pm_runtime_irq_safe() */
+	SYSC_QUIRK("gpio", 0, 0, 0x10, 0x114, 0x50600801, 0xffffffff,
+		   SYSC_QUIRK_LEGACY_IDLE),
+	SYSC_QUIRK("mmu", 0, 0, 0x10, 0x14, 0x00000020, 0xffffffff,
+		   SYSC_QUIRK_LEGACY_IDLE),
+	SYSC_QUIRK("mmu", 0, 0, 0x10, 0x14, 0x00000030, 0xffffffff,
+		   SYSC_QUIRK_LEGACY_IDLE),
+	SYSC_QUIRK("sham", 0, 0x100, 0x110, 0x114, 0x40000c03, 0xffffffff,
+		   SYSC_QUIRK_LEGACY_IDLE),
+	SYSC_QUIRK("smartreflex", 0, -1, 0x24, -1, 0x00000000, 0xffffffff,
+		   SYSC_QUIRK_LEGACY_IDLE),
+	SYSC_QUIRK("smartreflex", 0, -1, 0x38, -1, 0x00000000, 0xffffffff,
+		   SYSC_QUIRK_LEGACY_IDLE),
+	SYSC_QUIRK("timer", 0, 0, 0x10, 0x14, 0x00000015, 0xffffffff,
+		   SYSC_QUIRK_LEGACY_IDLE),
+	SYSC_QUIRK("uart", 0, 0x50, 0x54, 0x58, 0x00000052, 0xffffffff,
+		   SYSC_QUIRK_LEGACY_IDLE),
+};
+
+static void sysc_init_revision_quirks(struct sysc *ddata)
+{
+	const struct sysc_revision_quirk *q;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sysc_revision_quirks); i++) {
+		q = &sysc_revision_quirks[i];
+
+		if (q->base && q->base != ddata->module_pa)
+			continue;
+
+		if (q->rev_offset >= 0 &&
+		    q->rev_offset != ddata->offsets[SYSC_REVISION])
+			continue;
+
+		if (q->sysc_offset >= 0 &&
+		    q->sysc_offset != ddata->offsets[SYSC_SYSCONFIG])
+			continue;
+
+		if (q->syss_offset >= 0 &&
+		    q->syss_offset != ddata->offsets[SYSC_SYSSTATUS])
+			continue;
+
+		if (q->revision == ddata->revision ||
+		    (q->revision & q->revision_mask) ==
+		    (ddata->revision & q->revision_mask)) {
+			ddata->name = q->name;
+			ddata->cfg.quirks |= q->quirks;
+		}
+	}
+}
+
 /* At this point the module is configured enough to read the revision */
 static int sysc_init_module(struct sysc *ddata)
 {
 	int error;
+
+	if (ddata->cfg.quirks & SYSC_QUIRK_NO_IDLE_ON_INIT) {
+		ddata->revision = sysc_read_revision(ddata);
+		goto rev_quirks;
+	}
 
 	error = pm_runtime_get_sync(ddata->dev);
 	if (error < 0) {
@@ -516,6 +718,9 @@ static int sysc_init_module(struct sysc *ddata)
 	}
 	ddata->revision = sysc_read_revision(ddata);
 	pm_runtime_put_sync(ddata->dev);
+
+rev_quirks:
+	sysc_init_revision_quirks(ddata);
 
 	return 0;
 }
@@ -604,6 +809,196 @@ static int sysc_init_syss_mask(struct sysc *ddata)
 
 	return 0;
 }
+
+/*
+ * Many child device drivers need to have fck available to get the clock
+ * rate for device internal configuration.
+ */
+static int sysc_child_add_fck(struct sysc *ddata,
+			      struct device *child)
+{
+	struct clk *fck;
+	struct clk_lookup *l;
+	const char *name = clock_names[SYSC_FCK];
+
+	if (IS_ERR_OR_NULL(ddata->clocks[SYSC_FCK]))
+		return 0;
+
+	fck = clk_get(child, name);
+	if (!IS_ERR(fck)) {
+		clk_put(fck);
+
+		return -EEXIST;
+	}
+
+	l = clkdev_create(ddata->clocks[SYSC_FCK], name, dev_name(child));
+
+	return l ? 0 : -ENODEV;
+}
+
+static struct device_type sysc_device_type = {
+};
+
+static struct sysc *sysc_child_to_parent(struct device *dev)
+{
+	struct device *parent = dev->parent;
+
+	if (!parent || parent->type != &sysc_device_type)
+		return NULL;
+
+	return dev_get_drvdata(parent);
+}
+
+static int __maybe_unused sysc_child_runtime_suspend(struct device *dev)
+{
+	struct sysc *ddata;
+	int error;
+
+	ddata = sysc_child_to_parent(dev);
+
+	error = pm_generic_runtime_suspend(dev);
+	if (error)
+		return error;
+
+	if (!ddata->enabled)
+		return 0;
+
+	return sysc_runtime_suspend(ddata->dev);
+}
+
+static int __maybe_unused sysc_child_runtime_resume(struct device *dev)
+{
+	struct sysc *ddata;
+	int error;
+
+	ddata = sysc_child_to_parent(dev);
+
+	if (!ddata->enabled) {
+		error = sysc_runtime_resume(ddata->dev);
+		if (error < 0)
+			dev_err(ddata->dev,
+				"%s error: %i\n", __func__, error);
+	}
+
+	return pm_generic_runtime_resume(dev);
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int sysc_child_suspend_noirq(struct device *dev)
+{
+	struct sysc *ddata;
+	int error;
+
+	ddata = sysc_child_to_parent(dev);
+
+	error = pm_generic_suspend_noirq(dev);
+	if (error)
+		return error;
+
+	if (!pm_runtime_status_suspended(dev)) {
+		error = pm_generic_runtime_suspend(dev);
+		if (error)
+			return error;
+
+		error = sysc_runtime_suspend(ddata->dev);
+		if (error)
+			return error;
+
+		ddata->child_needs_resume = true;
+	}
+
+	return 0;
+}
+
+static int sysc_child_resume_noirq(struct device *dev)
+{
+	struct sysc *ddata;
+	int error;
+
+	ddata = sysc_child_to_parent(dev);
+
+	if (ddata->child_needs_resume) {
+		ddata->child_needs_resume = false;
+
+		error = sysc_runtime_resume(ddata->dev);
+		if (error)
+			dev_err(ddata->dev,
+				"%s runtime resume error: %i\n",
+				__func__, error);
+
+		error = pm_generic_runtime_resume(dev);
+		if (error)
+			dev_err(ddata->dev,
+				"%s generic runtime resume: %i\n",
+				__func__, error);
+	}
+
+	return pm_generic_resume_noirq(dev);
+}
+#endif
+
+struct dev_pm_domain sysc_child_pm_domain = {
+	.ops = {
+		SET_RUNTIME_PM_OPS(sysc_child_runtime_suspend,
+				   sysc_child_runtime_resume,
+				   NULL)
+		USE_PLATFORM_PM_SLEEP_OPS
+		SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(sysc_child_suspend_noirq,
+					      sysc_child_resume_noirq)
+	}
+};
+
+/**
+ * sysc_legacy_idle_quirk - handle children in omap_device compatible way
+ * @ddata: device driver data
+ * @child: child device driver
+ *
+ * Allow idle for child devices as done with _od_runtime_suspend().
+ * Otherwise many child devices will not idle because of the permanent
+ * parent usecount set in pm_runtime_irq_safe().
+ *
+ * Note that the long term solution is to just modify the child device
+ * drivers to not set pm_runtime_irq_safe() and then this can be just
+ * dropped.
+ */
+static void sysc_legacy_idle_quirk(struct sysc *ddata, struct device *child)
+{
+	if (!ddata->legacy_mode)
+		return;
+
+	if (ddata->cfg.quirks & SYSC_QUIRK_LEGACY_IDLE)
+		dev_pm_domain_set(child, &sysc_child_pm_domain);
+}
+
+static int sysc_notifier_call(struct notifier_block *nb,
+			      unsigned long event, void *device)
+{
+	struct device *dev = device;
+	struct sysc *ddata;
+	int error;
+
+	ddata = sysc_child_to_parent(dev);
+	if (!ddata)
+		return NOTIFY_DONE;
+
+	switch (event) {
+	case BUS_NOTIFY_ADD_DEVICE:
+		error = sysc_child_add_fck(ddata, dev);
+		if (error && error != -EEXIST)
+			dev_warn(ddata->dev, "could not add %s fck: %i\n",
+				 dev_name(dev), error);
+		sysc_legacy_idle_quirk(ddata, dev);
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block sysc_nb = {
+	.notifier_call = sysc_notifier_call,
+};
 
 /* Device tree configured quirks */
 struct sysc_dts_quirk {
@@ -797,7 +1192,8 @@ static const struct sysc_capabilities sysc_34xx_sr = {
 	.type = TI_SYSC_OMAP34XX_SR,
 	.sysc_mask = SYSC_OMAP2_CLOCKACTIVITY,
 	.regbits = &sysc_regbits_omap34xx_sr,
-	.mod_quirks = SYSC_QUIRK_USE_CLOCKACT | SYSC_QUIRK_UNCACHED,
+	.mod_quirks = SYSC_QUIRK_USE_CLOCKACT | SYSC_QUIRK_UNCACHED |
+		      SYSC_QUIRK_LEGACY_IDLE,
 };
 
 /*
@@ -818,12 +1214,13 @@ static const struct sysc_capabilities sysc_36xx_sr = {
 	.type = TI_SYSC_OMAP36XX_SR,
 	.sysc_mask = SYSC_OMAP3_SR_ENAWAKEUP,
 	.regbits = &sysc_regbits_omap36xx_sr,
-	.mod_quirks = SYSC_QUIRK_UNCACHED,
+	.mod_quirks = SYSC_QUIRK_UNCACHED | SYSC_QUIRK_LEGACY_IDLE,
 };
 
 static const struct sysc_capabilities sysc_omap4_sr = {
 	.type = TI_SYSC_OMAP4_SR,
 	.regbits = &sysc_regbits_omap36xx_sr,
+	.mod_quirks = SYSC_QUIRK_LEGACY_IDLE,
 };
 
 /*
@@ -865,6 +1262,33 @@ static const struct sysc_capabilities sysc_omap4_usb_host_fs = {
 	.regbits = &sysc_regbits_omap4_usb_host_fs,
 };
 
+static int sysc_init_pdata(struct sysc *ddata)
+{
+	struct ti_sysc_platform_data *pdata = dev_get_platdata(ddata->dev);
+	struct ti_sysc_module_data mdata;
+	int error = 0;
+
+	if (!pdata || !ddata->legacy_mode)
+		return 0;
+
+	mdata.name = ddata->legacy_mode;
+	mdata.module_pa = ddata->module_pa;
+	mdata.module_size = ddata->module_size;
+	mdata.offsets = ddata->offsets;
+	mdata.nr_offsets = SYSC_MAX_REGS;
+	mdata.cap = ddata->cap;
+	mdata.cfg = &ddata->cfg;
+
+	if (!pdata->init_module)
+		return -ENODEV;
+
+	error = pdata->init_module(ddata->dev, &mdata, &ddata->cookie);
+	if (error == -EEXIST)
+		error = 0;
+
+	return error;
+}
+
 static int sysc_init_match(struct sysc *ddata)
 {
 	const struct sysc_capabilities *cap;
@@ -880,8 +1304,19 @@ static int sysc_init_match(struct sysc *ddata)
 	return 0;
 }
 
+static void ti_sysc_idle(struct work_struct *work)
+{
+	struct sysc *ddata;
+
+	ddata = container_of(work, struct sysc, idle_work.work);
+
+	if (pm_runtime_active(ddata->dev))
+		pm_runtime_put_sync(ddata->dev);
+}
+
 static int sysc_probe(struct platform_device *pdev)
 {
+	struct ti_sysc_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct sysc *ddata;
 	int error;
 
@@ -920,6 +1355,10 @@ static int sysc_probe(struct platform_device *pdev)
 	if (error)
 		goto unprepare;
 
+	error = sysc_init_pdata(ddata);
+	if (error)
+		goto unprepare;
+
 	pm_runtime_enable(ddata->dev);
 
 	error = sysc_init_module(ddata);
@@ -933,22 +1372,28 @@ static int sysc_probe(struct platform_device *pdev)
 		goto unprepare;
 	}
 
-	pm_runtime_use_autosuspend(ddata->dev);
-
 	sysc_show_registers(ddata);
 
+	ddata->dev->type = &sysc_device_type;
 	error = of_platform_populate(ddata->dev->of_node,
-				     NULL, NULL, ddata->dev);
+				     NULL, pdata ? pdata->auxdata : NULL,
+				     ddata->dev);
 	if (error)
 		goto err;
 
-	pm_runtime_mark_last_busy(ddata->dev);
-	pm_runtime_put_autosuspend(ddata->dev);
+	INIT_DELAYED_WORK(&ddata->idle_work, ti_sysc_idle);
+
+	/* At least earlycon won't survive without deferred idle */
+	if (ddata->cfg.quirks & (SYSC_QUIRK_NO_IDLE_ON_INIT |
+				 SYSC_QUIRK_NO_RESET_ON_INIT)) {
+		schedule_delayed_work(&ddata->idle_work, 3000);
+	} else {
+		pm_runtime_put(&pdev->dev);
+	}
 
 	return 0;
 
 err:
-	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 unprepare:
@@ -962,6 +1407,8 @@ static int sysc_remove(struct platform_device *pdev)
 	struct sysc *ddata = platform_get_drvdata(pdev);
 	int error;
 
+	cancel_delayed_work_sync(&ddata->idle_work);
+
 	error = pm_runtime_get_sync(ddata->dev);
 	if (error < 0) {
 		pm_runtime_put_noidle(ddata->dev);
@@ -971,7 +1418,6 @@ static int sysc_remove(struct platform_device *pdev)
 
 	of_platform_depopulate(&pdev->dev);
 
-	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
@@ -1008,7 +1454,21 @@ static struct platform_driver sysc_driver = {
 		.pm = &sysc_pm_ops,
 	},
 };
-module_platform_driver(sysc_driver);
+
+static int __init sysc_init(void)
+{
+	bus_register_notifier(&platform_bus_type, &sysc_nb);
+
+	return platform_driver_register(&sysc_driver);
+}
+module_init(sysc_init);
+
+static void __exit sysc_exit(void)
+{
+	bus_unregister_notifier(&platform_bus_type, &sysc_nb);
+	platform_driver_unregister(&sysc_driver);
+}
+module_exit(sysc_exit);
 
 MODULE_DESCRIPTION("TI sysc interconnect target driver");
 MODULE_LICENSE("GPL v2");

@@ -54,24 +54,24 @@ kbd_alloc(void) {
 	kbd = kzalloc(sizeof(struct kbd_data), GFP_KERNEL);
 	if (!kbd)
 		goto out;
-	kbd->key_maps = kzalloc(sizeof(key_maps), GFP_KERNEL);
+	kbd->key_maps = kzalloc(sizeof(ebc_key_maps), GFP_KERNEL);
 	if (!kbd->key_maps)
 		goto out_kbd;
-	for (i = 0; i < ARRAY_SIZE(key_maps); i++) {
-		if (key_maps[i]) {
-			kbd->key_maps[i] = kmemdup(key_maps[i],
+	for (i = 0; i < ARRAY_SIZE(ebc_key_maps); i++) {
+		if (ebc_key_maps[i]) {
+			kbd->key_maps[i] = kmemdup(ebc_key_maps[i],
 						   sizeof(u_short) * NR_KEYS,
 						   GFP_KERNEL);
 			if (!kbd->key_maps[i])
 				goto out_maps;
 		}
 	}
-	kbd->func_table = kzalloc(sizeof(func_table), GFP_KERNEL);
+	kbd->func_table = kzalloc(sizeof(ebc_func_table), GFP_KERNEL);
 	if (!kbd->func_table)
 		goto out_maps;
-	for (i = 0; i < ARRAY_SIZE(func_table); i++) {
-		if (func_table[i]) {
-			kbd->func_table[i] = kstrdup(func_table[i],
+	for (i = 0; i < ARRAY_SIZE(ebc_func_table); i++) {
+		if (ebc_func_table[i]) {
+			kbd->func_table[i] = kstrdup(ebc_func_table[i],
 						     GFP_KERNEL);
 			if (!kbd->func_table[i])
 				goto out_func;
@@ -81,22 +81,22 @@ kbd_alloc(void) {
 		kzalloc(sizeof(fn_handler_fn *) * NR_FN_HANDLER, GFP_KERNEL);
 	if (!kbd->fn_handler)
 		goto out_func;
-	kbd->accent_table = kmemdup(accent_table,
+	kbd->accent_table = kmemdup(ebc_accent_table,
 				    sizeof(struct kbdiacruc) * MAX_DIACR,
 				    GFP_KERNEL);
 	if (!kbd->accent_table)
 		goto out_fn_handler;
-	kbd->accent_table_size = accent_table_size;
+	kbd->accent_table_size = ebc_accent_table_size;
 	return kbd;
 
 out_fn_handler:
 	kfree(kbd->fn_handler);
 out_func:
-	for (i = 0; i < ARRAY_SIZE(func_table); i++)
+	for (i = 0; i < ARRAY_SIZE(ebc_func_table); i++)
 		kfree(kbd->func_table[i]);
 	kfree(kbd->func_table);
 out_maps:
-	for (i = 0; i < ARRAY_SIZE(key_maps); i++)
+	for (i = 0; i < ARRAY_SIZE(ebc_key_maps); i++)
 		kfree(kbd->key_maps[i]);
 	kfree(kbd->key_maps);
 out_kbd:
@@ -112,10 +112,10 @@ kbd_free(struct kbd_data *kbd)
 
 	kfree(kbd->accent_table);
 	kfree(kbd->fn_handler);
-	for (i = 0; i < ARRAY_SIZE(func_table); i++)
+	for (i = 0; i < ARRAY_SIZE(ebc_func_table); i++)
 		kfree(kbd->func_table[i]);
 	kfree(kbd->func_table);
-	for (i = 0; i < ARRAY_SIZE(key_maps); i++)
+	for (i = 0; i < ARRAY_SIZE(ebc_key_maps); i++)
 		kfree(kbd->key_maps[i]);
 	kfree(kbd->key_maps);
 	kfree(kbd);
@@ -131,7 +131,7 @@ kbd_ascebc(struct kbd_data *kbd, unsigned char *ascebc)
 	int i, j, k;
 
 	memset(ascebc, 0x40, 256);
-	for (i = 0; i < ARRAY_SIZE(key_maps); i++) {
+	for (i = 0; i < ARRAY_SIZE(ebc_key_maps); i++) {
 		keymap = kbd->key_maps[i];
 		if (!keymap)
 			continue;
@@ -158,7 +158,7 @@ kbd_ebcasc(struct kbd_data *kbd, unsigned char *ebcasc)
 	int i, j, k;
 
 	memset(ebcasc, ' ', 256);
-	for (i = 0; i < ARRAY_SIZE(key_maps); i++) {
+	for (i = 0; i < ARRAY_SIZE(ebc_key_maps); i++) {
 		keymap = kbd->key_maps[i];
 		if (!keymap)
 			continue;

@@ -202,6 +202,7 @@ static int __init armada37xx_cpufreq_driver_init(void)
 	cur_frequency = clk_get_rate(clk);
 	if (!cur_frequency) {
 		dev_err(cpu_dev, "Failed to get clock rate for CPU\n");
+		clk_put(clk);
 		return -EINVAL;
 	}
 
@@ -210,6 +211,7 @@ static int __init armada37xx_cpufreq_driver_init(void)
 		return -EINVAL;
 
 	armada37xx_cpufreq_dvfs_setup(nb_pm_base, clk, dvfs->divider);
+	clk_put(clk);
 
 	for (load_lvl = ARMADA_37XX_DVFS_LOAD_0; load_lvl < LOAD_LEVEL_NR;
 	     load_lvl++) {

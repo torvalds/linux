@@ -136,8 +136,8 @@ fw_handle_capabilities(struct wil6210_priv *wil, const void *data,
 	size_t capa_size;
 
 	if (size < sizeof(*rec)) {
-		wil_hex_dump_fw("", DUMP_PREFIX_OFFSET, 16, 1,
-				data, size, true);
+		wil_err_fw(wil, "capabilities record too short: %zu\n", size);
+		/* let the FW load anyway */
 		return 0;
 	}
 
@@ -158,8 +158,7 @@ fw_handle_brd_file(struct wil6210_priv *wil, const void *data,
 	const struct wil_fw_record_brd_file *rec = data;
 
 	if (size < sizeof(*rec)) {
-		wil_hex_dump_fw("", DUMP_PREFIX_OFFSET, 16, 1,
-				data, size, true);
+		wil_err_fw(wil, "brd_file record too short: %zu\n", size);
 		return 0;
 	}
 
@@ -169,6 +168,44 @@ fw_handle_brd_file(struct wil6210_priv *wil, const void *data,
 	wil_dbg_fw(wil, "brd_file_addr 0x%x, brd_file_max_size %d\n",
 		   wil->brd_file_addr, wil->brd_file_max_size);
 
+	return 0;
+}
+
+static int
+fw_handle_concurrency(struct wil6210_priv *wil, const void *data,
+		      size_t size)
+{
+	const struct wil_fw_record_concurrency *rec = data;
+	const struct wil_fw_concurrency_combo *combo;
+	const struct wil_fw_concurrency_limit *limit;
+	size_t remain, lsize;
+	int i, n_combos;
+
+	if (size < sizeof(*rec)) {
+		wil_err_fw(wil, "concurrency record too short: %zu\n", size);
+		/* continue, let the FW load anyway */
+		return 0;
+	}
+
+	n_combos = le16_to_cpu(rec->n_combos);
+	remain = size - offsetof(struct wil_fw_record_concurrency, combos);
+	combo = rec->combos;
+	for (i = 0; i < n_combos; i++) {
+		if (remain < sizeof(*combo))
+			goto out_short;
+		remain -= sizeof(*combo);
+		limit = combo->limits;
+		lsize = combo->n_limits * sizeof(*limit);
+		if (remain < lsize)
+			goto out_short;
+		remain -= lsize;
+		limit += combo->n_limits;
+		combo = (struct wil_fw_concurrency_combo *)limit;
+	}
+
+	return wil_cfg80211_iface_combinations_from_fw(wil, rec);
+out_short:
+	wil_err_fw(wil, "concurrency record truncated\n");
 	return 0;
 }
 
@@ -194,6 +231,13 @@ fw_handle_comment(struct wil6210_priv *wil, const void *data,
 		wil_dbg_fw(wil, "magic is WIL_BRD_FILE_MAGIC\n");
 		rc = fw_handle_brd_file(wil, data, size);
 		break;
+	case WIL_FW_CONCURRENCY_MAGIC:
+		wil_dbg_fw(wil, "magic is WIL_FW_CONCURRENCY_MAGIC\n");
+		rc = fw_handle_concurrency(wil, data, size);
+		break;
+	default:
+		wil_hex_dump_fw("", DUMP_PREFIX_OFFSET, 16, 1,
+				data, size, true);
 	}
 
 	return rc;

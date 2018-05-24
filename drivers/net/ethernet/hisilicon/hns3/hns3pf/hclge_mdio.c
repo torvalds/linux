@@ -60,6 +60,9 @@ static int hclge_mdio_write(struct mii_bus *bus, int phyid, int regnum,
 	struct hclge_desc desc;
 	int ret;
 
+	if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state))
+		return 0;
+
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MDIO_CONFIG, false);
 
 	mdio_cmd = (struct hclge_mdio_cfg_cmd *)desc.data;
@@ -94,6 +97,9 @@ static int hclge_mdio_read(struct mii_bus *bus, int phyid, int regnum)
 	struct hclge_dev *hdev = bus->priv;
 	struct hclge_desc desc;
 	int ret;
+
+	if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state))
+		return 0;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MDIO_CONFIG, true);
 

@@ -112,7 +112,7 @@ Since a device is created for the sysfs interface to help load firmware as a
 fallback mechanism userspace can be informed of the addition of the device by
 relying on kobject uevents. The addition of the device into the device
 hierarchy means the fallback mechanism for firmware loading has been initiated.
-For details of implementation refer to _request_firmware_load(), in particular
+For details of implementation refer to fw_load_sysfs_fallback(), in particular
 on the use of dev_set_uevent_suppress() and kobject_uevent().
 
 The kernel's kobject uevent mechanism is implemented in lib/kobject_uevent.c,

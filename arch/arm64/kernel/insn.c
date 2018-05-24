@@ -35,6 +35,7 @@
 
 #define AARCH64_INSN_SF_BIT	BIT(31)
 #define AARCH64_INSN_N_BIT	BIT(22)
+#define AARCH64_INSN_LSL_12	BIT(22)
 
 static int aarch64_insn_encoding_class[] = {
 	AARCH64_INSN_CLS_UNKNOWN,
@@ -342,6 +343,10 @@ static int __kprobes aarch64_get_imm_shift_mask(enum aarch64_insn_imm_type type,
 	case AARCH64_INSN_IMM_R:
 		mask = BIT(6) - 1;
 		shift = 16;
+		break;
+	case AARCH64_INSN_IMM_N:
+		mask = 1;
+		shift = 22;
 		break;
 	default:
 		return -EINVAL;
@@ -899,9 +904,18 @@ u32 aarch64_insn_gen_add_sub_imm(enum aarch64_insn_register dst,
 		return AARCH64_BREAK_FAULT;
 	}
 
+	/* We can't encode more than a 24bit value (12bit + 12bit shift) */
+	if (imm & ~(BIT(24) - 1))
+		goto out;
+
+	/* If we have something in the top 12 bits... */
 	if (imm & ~(SZ_4K - 1)) {
-		pr_err("%s: invalid immediate encoding %d\n", __func__, imm);
-		return AARCH64_BREAK_FAULT;
+		/* ... and in the low 12 bits -> error */
+		if (imm & (SZ_4K - 1))
+			goto out;
+
+		imm >>= 12;
+		insn |= AARCH64_INSN_LSL_12;
 	}
 
 	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RD, insn, dst);
@@ -909,6 +923,10 @@ u32 aarch64_insn_gen_add_sub_imm(enum aarch64_insn_register dst,
 	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn, src);
 
 	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_12, insn, imm);
+
+out:
+	pr_err("%s: invalid immediate encoding %d\n", __func__, imm);
+	return AARCH64_BREAK_FAULT;
 }
 
 u32 aarch64_insn_gen_bitfield(enum aarch64_insn_register dst,
@@ -1481,3 +1499,171 @@ pstate_check_t * const aarch32_opcode_cond_checks[16] = {
 	__check_hi, __check_ls, __check_ge, __check_lt,
 	__check_gt, __check_le, __check_al, __check_al
 };
+
+static bool range_of_ones(u64 val)
+{
+	/* Doesn't handle full ones or full zeroes */
+	u64 sval = val >> __ffs64(val);
+
+	/* One of Sean Eron Anderson's bithack tricks */
+	return ((sval + 1) & (sval)) == 0;
+}
+
+static u32 aarch64_encode_immediate(u64 imm,
+				    enum aarch64_insn_variant variant,
+				    u32 insn)
+{
+	unsigned int immr, imms, n, ones, ror, esz, tmp;
+	u64 mask = ~0UL;
+
+	/* Can't encode full zeroes or full ones */
+	if (!imm || !~imm)
+		return AARCH64_BREAK_FAULT;
+
+	switch (variant) {
+	case AARCH64_INSN_VARIANT_32BIT:
+		if (upper_32_bits(imm))
+			return AARCH64_BREAK_FAULT;
+		esz = 32;
+		break;
+	case AARCH64_INSN_VARIANT_64BIT:
+		insn |= AARCH64_INSN_SF_BIT;
+		esz = 64;
+		break;
+	default:
+		pr_err("%s: unknown variant encoding %d\n", __func__, variant);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	/*
+	 * Inverse of Replicate(). Try to spot a repeating pattern
+	 * with a pow2 stride.
+	 */
+	for (tmp = esz / 2; tmp >= 2; tmp /= 2) {
+		u64 emask = BIT(tmp) - 1;
+
+		if ((imm & emask) != ((imm >> tmp) & emask))
+			break;
+
+		esz = tmp;
+		mask = emask;
+	}
+
+	/* N is only set if we're encoding a 64bit value */
+	n = esz == 64;
+
+	/* Trim imm to the element size */
+	imm &= mask;
+
+	/* That's how many ones we need to encode */
+	ones = hweight64(imm);
+
+	/*
+	 * imms is set to (ones - 1), prefixed with a string of ones
+	 * and a zero if they fit. Cap it to 6 bits.
+	 */
+	imms  = ones - 1;
+	imms |= 0xf << ffs(esz);
+	imms &= BIT(6) - 1;
+
+	/* Compute the rotation */
+	if (range_of_ones(imm)) {
+		/*
+		 * Pattern: 0..01..10..0
+		 *
+		 * Compute how many rotate we need to align it right
+		 */
+		ror = __ffs64(imm);
+	} else {
+		/*
+		 * Pattern: 0..01..10..01..1
+		 *
+		 * Fill the unused top bits with ones, and check if
+		 * the result is a valid immediate (all ones with a
+		 * contiguous ranges of zeroes).
+		 */
+		imm |= ~mask;
+		if (!range_of_ones(~imm))
+			return AARCH64_BREAK_FAULT;
+
+		/*
+		 * Compute the rotation to get a continuous set of
+		 * ones, with the first bit set at position 0
+		 */
+		ror = fls(~imm);
+	}
+
+	/*
+	 * immr is the number of bits we need to rotate back to the
+	 * original set of ones. Note that this is relative to the
+	 * element size...
+	 */
+	immr = (esz - ror) % esz;
+
+	insn = aarch64_insn_encode_immediate(AARCH64_INSN_IMM_N, insn, n);
+	insn = aarch64_insn_encode_immediate(AARCH64_INSN_IMM_R, insn, immr);
+	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_S, insn, imms);
+}
+
+u32 aarch64_insn_gen_logical_immediate(enum aarch64_insn_logic_type type,
+				       enum aarch64_insn_variant variant,
+				       enum aarch64_insn_register Rn,
+				       enum aarch64_insn_register Rd,
+				       u64 imm)
+{
+	u32 insn;
+
+	switch (type) {
+	case AARCH64_INSN_LOGIC_AND:
+		insn = aarch64_insn_get_and_imm_value();
+		break;
+	case AARCH64_INSN_LOGIC_ORR:
+		insn = aarch64_insn_get_orr_imm_value();
+		break;
+	case AARCH64_INSN_LOGIC_EOR:
+		insn = aarch64_insn_get_eor_imm_value();
+		break;
+	case AARCH64_INSN_LOGIC_AND_SETFLAGS:
+		insn = aarch64_insn_get_ands_imm_value();
+		break;
+	default:
+		pr_err("%s: unknown logical encoding %d\n", __func__, type);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RD, insn, Rd);
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn, Rn);
+	return aarch64_encode_immediate(imm, variant, insn);
+}
+
+u32 aarch64_insn_gen_extr(enum aarch64_insn_variant variant,
+			  enum aarch64_insn_register Rm,
+			  enum aarch64_insn_register Rn,
+			  enum aarch64_insn_register Rd,
+			  u8 lsb)
+{
+	u32 insn;
+
+	insn = aarch64_insn_get_extr_value();
+
+	switch (variant) {
+	case AARCH64_INSN_VARIANT_32BIT:
+		if (lsb > 31)
+			return AARCH64_BREAK_FAULT;
+		break;
+	case AARCH64_INSN_VARIANT_64BIT:
+		if (lsb > 63)
+			return AARCH64_BREAK_FAULT;
+		insn |= AARCH64_INSN_SF_BIT;
+		insn = aarch64_insn_encode_immediate(AARCH64_INSN_IMM_N, insn, 1);
+		break;
+	default:
+		pr_err("%s: unknown variant encoding %d\n", __func__, variant);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	insn = aarch64_insn_encode_immediate(AARCH64_INSN_IMM_S, insn, lsb);
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RD, insn, Rd);
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn, Rn);
+	return aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RM, insn, Rm);
+}

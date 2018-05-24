@@ -491,6 +491,7 @@ struct sctp_af {
 	void		(*ecn_capable)(struct sock *sk);
 	__u16		net_header_len;
 	int		sockaddr_len;
+	int		(*ip_options_len)(struct sock *sk);
 	sa_family_t	sa_family;
 	struct list_head list;
 };
@@ -515,6 +516,7 @@ struct sctp_pf {
 	int (*addr_to_user)(struct sctp_sock *sk, union sctp_addr *addr);
 	void (*to_sk_saddr)(union sctp_addr *, struct sock *sk);
 	void (*to_sk_daddr)(union sctp_addr *, struct sock *sk);
+	void (*copy_ip_options)(struct sock *sk, struct sock *newsk);
 	struct sctp_af *af;
 };
 
@@ -577,8 +579,12 @@ struct sctp_chunk {
 	/* This points to the sk_buff containing the actual data.  */
 	struct sk_buff *skb;
 
-	/* In case of GSO packets, this will store the head one */
-	struct sk_buff *head_skb;
+	union {
+		/* In case of GSO packets, this will store the head one */
+		struct sk_buff *head_skb;
+		/* In case of auth enabled, this will point to the shkey */
+		struct sctp_shared_key *shkey;
+	};
 
 	/* These are the SCTP headers by reverse order in a packet.
 	 * Note that some of these may happen more than once.  In that
@@ -1316,6 +1322,16 @@ struct sctp_endpoint {
 	      reconf_enable:1;
 
 	__u8  strreset_enable;
+
+	/* Security identifiers from incoming (INIT). These are set by
+	 * security_sctp_assoc_request(). These will only be used by
+	 * SCTP TCP type sockets and peeled off connections as they
+	 * cause a new socket to be generated. security_sctp_sk_clone()
+	 * will then plug these into the new socket.
+	 */
+
+	u32 secid;
+	u32 peer_secid;
 };
 
 /* Recover the outter endpoint structure. */
@@ -1337,12 +1353,12 @@ struct sctp_association *sctp_endpoint_lookup_assoc(
 	const struct sctp_endpoint *ep,
 	const union sctp_addr *paddr,
 	struct sctp_transport **);
-int sctp_endpoint_is_peeled_off(struct sctp_endpoint *,
-				const union sctp_addr *);
+bool sctp_endpoint_is_peeled_off(struct sctp_endpoint *ep,
+				 const union sctp_addr *paddr);
 struct sctp_endpoint *sctp_endpoint_is_match(struct sctp_endpoint *,
 					struct net *, const union sctp_addr *);
-int sctp_has_association(struct net *net, const union sctp_addr *laddr,
-			 const union sctp_addr *paddr);
+bool sctp_has_association(struct net *net, const union sctp_addr *laddr,
+			  const union sctp_addr *paddr);
 
 int sctp_verify_init(struct net *net, const struct sctp_endpoint *ep,
 		     const struct sctp_association *asoc,
@@ -1995,6 +2011,7 @@ struct sctp_association {
 	 * The current generated assocaition shared key (secret)
 	 */
 	struct sctp_auth_bytes *asoc_shared_key;
+	struct sctp_shared_key *shkey;
 
 	/* SCTP AUTH: hmac id of the first peer requested algorithm
 	 * that we support.
@@ -2112,6 +2129,9 @@ struct sctp_cmsgs {
 	struct sctp_initmsg *init;
 	struct sctp_sndrcvinfo *srinfo;
 	struct sctp_sndinfo *sinfo;
+	struct sctp_prinfo *prinfo;
+	struct sctp_authinfo *authinfo;
+	struct msghdr *addrs_msg;
 };
 
 /* Structure for tracking memory objects */

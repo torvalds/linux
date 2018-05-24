@@ -38,6 +38,7 @@ struct drm_mode_fb_cmd2;
  * @cpp: Number of bytes per pixel (per plane)
  * @hsub: Horizontal chroma subsampling factor
  * @vsub: Vertical chroma subsampling factor
+ * @has_alpha: Does the format embeds an alpha component?
  */
 struct drm_format_info {
 	u32 format;
@@ -46,6 +47,7 @@ struct drm_format_info {
 	u8 cpp[3];
 	u8 hsub;
 	u8 vsub;
+	bool has_alpha;
 };
 
 /**

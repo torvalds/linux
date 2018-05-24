@@ -1,0 +1,522 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * dts file for Xilinx ZynqMP ZCU106
+ *
+ * (C) Copyright 2016, Xilinx, Inc.
+ *
+ * Michal Simek <michal.simek@xilinx.com>
+ */
+
+/dts-v1/;
+
+#include "zynqmp.dtsi"
+#include "zynqmp-clk.dtsi"
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "ZynqMP ZCU106 RevA";
+	compatible = "xlnx,zynqmp-zcu106-revA", "xlnx,zynqmp-zcu106", "xlnx,zynqmp";
+
+	aliases {
+		ethernet0 = &gem3;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		mmc0 = &sdhci1;
+		rtc0 = &rtc;
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &dcc;
+	};
+
+	chosen {
+		bootargs = "earlycon";
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x80000000>, <0x8 0x00000000 0x0 0x80000000>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		autorepeat;
+		sw19 {
+			label = "sw19";
+			gpios = <&gpio 22 GPIO_ACTIVE_HIGH>;
+			linux,code = <KEY_DOWN>;
+			gpio-key,wakeup;
+			autorepeat;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		heartbeat_led {
+			label = "heartbeat";
+			gpios = <&gpio 23 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+};
+
+&can1 {
+	status = "okay";
+};
+
+&dcc {
+	status = "okay";
+};
+
+/* fpd_dma clk 667MHz, lpd_dma 500MHz */
+&fpd_dma_chan1 {
+	status = "okay";
+};
+
+&fpd_dma_chan2 {
+	status = "okay";
+};
+
+&fpd_dma_chan3 {
+	status = "okay";
+};
+
+&fpd_dma_chan4 {
+	status = "okay";
+};
+
+&fpd_dma_chan5 {
+	status = "okay";
+};
+
+&fpd_dma_chan6 {
+	status = "okay";
+};
+
+&fpd_dma_chan7 {
+	status = "okay";
+};
+
+&fpd_dma_chan8 {
+	status = "okay";
+};
+
+&gem3 {
+	status = "okay";
+	phy-handle = <&phy0>;
+	phy-mode = "rgmii-id";
+	phy0: phy@c {
+		reg = <0xc>;
+		ti,rx-internal-delay = <0x8>;
+		ti,tx-internal-delay = <0xa>;
+		ti,fifo-depth = <0x1>;
+	};
+};
+
+&gpio {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	tca6416_u97: gpio@20 {
+		compatible = "ti,tca6416";
+		reg = <0x20>;
+		gpio-controller; /* interrupt not connected */
+		#gpio-cells = <2>;
+		/*
+		 * IRQ not connected
+		 * Lines:
+		 * 0 - SFP_SI5328_INT_ALM
+		 * 1 - HDMI_SI5328_INT_ALM
+		 * 5 - IIC_MUX_RESET_B
+		 * 6 - GEM3_EXP_RESET_B
+		 * 10 - FMC_HPC0_PRSNT_M2C_B
+		 * 11 - FMC_HPC1_PRSNT_M2C_B
+		 * 2-4, 7, 12-17 - not connected
+		 */
+	};
+
+	tca6416_u61: gpio@21 {
+		compatible = "ti,tca6416";
+		reg = <0x21>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		/*
+		 * IRQ not connected
+		 * Lines:
+		 * 0 - VCCPSPLL_EN
+		 * 1 - MGTRAVCC_EN
+		 * 2 - MGTRAVTT_EN
+		 * 3 - VCCPSDDRPLL_EN
+		 * 4 - MIO26_PMU_INPUT_LS
+		 * 5 - PL_PMBUS_ALERT
+		 * 6 - PS_PMBUS_ALERT
+		 * 7 - MAXIM_PMBUS_ALERT
+		 * 10 - PL_DDR4_VTERM_EN
+		 * 11 - PL_DDR4_VPP_2V5_EN
+		 * 12 - PS_DIMM_VDDQ_TO_PSVCCO_ON
+		 * 13 - PS_DIMM_SUSPEND_EN
+		 * 14 - PS_DDR4_VTERM_EN
+		 * 15 - PS_DDR4_VPP_2V5_EN
+		 * 16 - 17 - not connected
+		 */
+	};
+
+	i2c-mux@75 { /* u60 */
+		compatible = "nxp,pca9544";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x75>;
+		i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+			/* PS_PMBUS */
+			ina226@40 { /* u76 */
+				compatible = "ti,ina226";
+				reg = <0x40>;
+				shunt-resistor = <5000>;
+			};
+			ina226@41 { /* u77 */
+				compatible = "ti,ina226";
+				reg = <0x41>;
+				shunt-resistor = <5000>;
+			};
+			ina226@42 { /* u78 */
+				compatible = "ti,ina226";
+				reg = <0x42>;
+				shunt-resistor = <5000>;
+			};
+			ina226@43 { /* u87 */
+				compatible = "ti,ina226";
+				reg = <0x43>;
+				shunt-resistor = <5000>;
+			};
+			ina226@44 { /* u85 */
+				compatible = "ti,ina226";
+				reg = <0x44>;
+				shunt-resistor = <5000>;
+			};
+			ina226@45 { /* u86 */
+				compatible = "ti,ina226";
+				reg = <0x45>;
+				shunt-resistor = <5000>;
+			};
+			ina226@46 { /* u93 */
+				compatible = "ti,ina226";
+				reg = <0x46>;
+				shunt-resistor = <5000>;
+			};
+			ina226@47 { /* u88 */
+				compatible = "ti,ina226";
+				reg = <0x47>;
+				shunt-resistor = <5000>;
+			};
+			ina226@4a { /* u15 */
+				compatible = "ti,ina226";
+				reg = <0x4a>;
+				shunt-resistor = <5000>;
+			};
+			ina226@4b { /* u92 */
+				compatible = "ti,ina226";
+				reg = <0x4b>;
+				shunt-resistor = <5000>;
+			};
+		};
+		i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+			/* PL_PMBUS */
+			ina226@40 { /* u79 */
+				compatible = "ti,ina226";
+				reg = <0x40>;
+				shunt-resistor = <2000>;
+			};
+			ina226@41 { /* u81 */
+				compatible = "ti,ina226";
+				reg = <0x41>;
+				shunt-resistor = <5000>;
+			};
+			ina226@42 { /* u80 */
+				compatible = "ti,ina226";
+				reg = <0x42>;
+				shunt-resistor = <5000>;
+			};
+			ina226@43 { /* u84 */
+				compatible = "ti,ina226";
+				reg = <0x43>;
+				shunt-resistor = <5000>;
+			};
+			ina226@44 { /* u16 */
+				compatible = "ti,ina226";
+				reg = <0x44>;
+				shunt-resistor = <5000>;
+			};
+			ina226@45 { /* u65 */
+				compatible = "ti,ina226";
+				reg = <0x45>;
+				shunt-resistor = <5000>;
+			};
+			ina226@46 { /* u74 */
+				compatible = "ti,ina226";
+				reg = <0x46>;
+				shunt-resistor = <5000>;
+			};
+			ina226@47 { /* u75 */
+				compatible = "ti,ina226";
+				reg = <0x47>;
+				shunt-resistor = <5000>;
+			};
+		};
+		i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+			/* MAXIM_PMBUS - 00 */
+			max15301@a { /* u46 */
+				compatible = "maxim,max15301";
+				reg = <0xa>;
+			};
+			max15303@b { /* u4 */
+				compatible = "maxim,max15303";
+				reg = <0xb>;
+			};
+			max15303@10 { /* u13 */
+				compatible = "maxim,max15303";
+				reg = <0x10>;
+			};
+			max15301@13 { /* u47 */
+				compatible = "maxim,max15301";
+				reg = <0x13>;
+			};
+			max15303@14 { /* u7 */
+				compatible = "maxim,max15303";
+				reg = <0x14>;
+			};
+			max15303@15 { /* u6 */
+				compatible = "maxim,max15303";
+				reg = <0x15>;
+			};
+			max15303@16 { /* u10 */
+				compatible = "maxim,max15303";
+				reg = <0x16>;
+			};
+			max15303@17 { /* u9 */
+				compatible = "maxim,max15303";
+				reg = <0x17>;
+			};
+			max15301@18 { /* u63 */
+				compatible = "maxim,max15301";
+				reg = <0x18>;
+			};
+			max15303@1a { /* u49 */
+				compatible = "maxim,max15303";
+				reg = <0x1a>;
+			};
+			max15303@1b { /* u8 */
+				compatible = "maxim,max15303";
+				reg = <0x1b>;
+			};
+			max15303@1d { /* u18 */
+				compatible = "maxim,max15303";
+				reg = <0x1d>;
+			};
+
+			max20751@72 { /* u95 */
+				compatible = "maxim,max20751";
+				reg = <0x72>;
+			};
+			max20751@73 { /* u96 */
+				compatible = "maxim,max20751";
+				reg = <0x73>;
+			};
+		};
+		/* Bus 3 is not connected */
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	/* PL i2c via PCA9306 - u45 */
+	i2c-mux@74 { /* u34 */
+		compatible = "nxp,pca9548";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x74>;
+		i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+			/*
+			 * IIC_EEPROM 1kB memory which uses 256B blocks
+			 * where every block has different address.
+			 *    0 - 256B address 0x54
+			 * 256B - 512B address 0x55
+			 * 512B - 768B address 0x56
+			 * 768B - 1024B address 0x57
+			 */
+			eeprom: eeprom@54 { /* u23 */
+				compatible = "atmel,24c08";
+				reg = <0x54>;
+			};
+		};
+		i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+			si5341: clock-generator@36 { /* SI5341 - u69 */
+				reg = <0x36>;
+			};
+
+		};
+		i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+			si570_1: clock-generator@5d { /* USER SI570 - u42 */
+				#clock-cells = <0>;
+				compatible = "silabs,si570";
+				reg = <0x5d>;
+				temperature-stability = <50>;
+				factory-fout = <300000000>;
+				clock-frequency = <300000000>;
+			};
+		};
+		i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <3>;
+			si570_2: clock-generator@5d { /* USER MGT SI570 - u56 */
+				#clock-cells = <0>;
+				compatible = "silabs,si570";
+				reg = <0x5d>;
+				temperature-stability = <50>; /* copy from zc702 */
+				factory-fout = <156250000>;
+				clock-frequency = <148500000>;
+			};
+		};
+		i2c@4 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <4>;
+			si5328: clock-generator@69 {/* SI5328 - u20 */
+				reg = <0x69>;
+			};
+		};
+		i2c@5 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <5>; /* FAN controller */
+			temp@4c {/* lm96163 - u128 */
+				compatible = "national,lm96163";
+				reg = <0x4c>;
+			};
+		};
+		/* 6 - 7 unconnected */
+	};
+
+	i2c-mux@75 {
+		compatible = "nxp,pca9548"; /* u135 */
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x75>;
+
+		i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+			/* HPC0_IIC */
+		};
+		i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+			/* HPC1_IIC */
+		};
+		i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+			/* SYSMON */
+		};
+		i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <3>;
+			/* DDR4 SODIMM */
+		};
+		i2c@4 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <4>;
+			/* SEP 3 */
+		};
+		i2c@5 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <5>;
+			/* SEP 2 */
+		};
+		i2c@6 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <6>;
+			/* SEP 1 */
+		};
+		i2c@7 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <7>;
+			/* SEP 0 */
+		};
+	};
+};
+
+&rtc {
+	status = "okay";
+};
+
+&sata {
+	status = "okay";
+	/* SATA OOB timing settings */
+	ceva,p0-cominit-params = /bits/ 8 <0x18 0x40 0x18 0x28>;
+	ceva,p0-comwake-params = /bits/ 8 <0x06 0x14 0x08 0x0E>;
+	ceva,p0-burst-params = /bits/ 8 <0x13 0x08 0x4A 0x06>;
+	ceva,p0-retry-params = /bits/ 16 <0x96A4 0x3FFC>;
+	ceva,p1-cominit-params = /bits/ 8 <0x18 0x40 0x18 0x28>;
+	ceva,p1-comwake-params = /bits/ 8 <0x06 0x14 0x08 0x0E>;
+	ceva,p1-burst-params = /bits/ 8 <0x13 0x08 0x4A 0x06>;
+	ceva,p1-retry-params = /bits/ 16 <0x96A4 0x3FFC>;
+};
+
+/* SD1 with level shifter */
+&sdhci1 {
+	status = "okay";
+	no-1-8-v;
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+};
+
+/* ULPI SMSC USB3320 */
+&usb0 {
+	status = "okay";
+};
+
+&watchdog0 {
+	status = "okay";
+};

@@ -105,7 +105,7 @@
 #define ETH_CTL_FRAME_ETH_TYPE_NUM	4
 
 /* GFS constants */
-#define ETH_GFT_TRASH_CAN_VPORT		0x1FF
+#define ETH_GFT_TRASHCAN_VPORT         0x1FF	/* GFT drop flow vport number */
 
 /* Destination port mode */
 enum dest_port_mode {

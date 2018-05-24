@@ -35,11 +35,10 @@
 
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
+#include <linux/fsl/mc.h>
 
 #include "../../fsl-mc/include/dpaa2-io.h"
 #include "../../fsl-mc/include/dpaa2-fd.h"
-#include "../../fsl-mc/include/dpbp.h"
-#include "../../fsl-mc/include/dpcon.h"
 #include "dpni.h"
 #include "dpni-cmd.h"
 
@@ -109,7 +108,7 @@ struct dpaa2_eth_swa {
 	struct sk_buff *skb;
 	struct scatterlist *scl;
 	int num_sg;
-	int num_dma_bufs;
+	int sgt_size;
 };
 
 /* Annotation valid bits in FD FRC */
@@ -143,7 +142,7 @@ struct dpaa2_fas {
 	u8 ppid;
 	__le16 ifpid;
 	__le32 status;
-} __packed;
+};
 
 /* Frame annotation status word is located in the first 8 bytes
  * of the buffer's hardware annoatation area
@@ -252,11 +251,11 @@ struct dpaa2_eth_ch_stats {
 
 /* Maximum number of queues associated with a DPNI */
 #define DPAA2_ETH_MAX_RX_QUEUES		16
-#define DPAA2_ETH_MAX_TX_QUEUES		NR_CPUS
+#define DPAA2_ETH_MAX_TX_QUEUES		16
 #define DPAA2_ETH_MAX_QUEUES		(DPAA2_ETH_MAX_RX_QUEUES + \
 					DPAA2_ETH_MAX_TX_QUEUES)
 
-#define DPAA2_ETH_MAX_DPCONS		NR_CPUS
+#define DPAA2_ETH_MAX_DPCONS		16
 
 enum dpaa2_eth_fq_type {
 	DPAA2_RX_FQ = 0,
@@ -286,7 +285,6 @@ struct dpaa2_eth_channel {
 	struct fsl_mc_device *dpcon;
 	int dpcon_id;
 	int ch_id;
-	int dpio_id;
 	struct napi_struct napi;
 	struct dpaa2_io *dpio;
 	struct dpaa2_io_store *store;
@@ -313,6 +311,8 @@ struct dpaa2_eth_priv {
 	struct dpaa2_eth_channel *channel[DPAA2_ETH_MAX_DPCONS];
 
 	struct dpni_attr dpni_attrs;
+	u16 dpni_ver_major;
+	u16 dpni_ver_minor;
 	u16 tx_data_offset;
 
 	struct fsl_mc_device *dpbp_dev;
@@ -355,6 +355,14 @@ struct dpaa2_eth_priv {
 
 extern const struct ethtool_ops dpaa2_ethtool_ops;
 extern const char dpaa2_eth_drv_version[];
+
+static inline int dpaa2_eth_cmp_dpni_ver(struct dpaa2_eth_priv *priv,
+					 u16 ver_major, u16 ver_minor)
+{
+	if (priv->dpni_ver_major == ver_major)
+		return priv->dpni_ver_minor - ver_minor;
+	return priv->dpni_ver_major - ver_major;
+}
 
 /* Hardware only sees DPAA2_ETH_RX_BUF_SIZE, but the skb built around
  * the buffer also needs space for its shared info struct, and we need

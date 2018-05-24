@@ -40,6 +40,11 @@
  */
 
 / {
+	/* Will be filled by the bootloader */
+	memory@10000000 {
+		reg = <0x10000000 0>;
+	};
+
 	chosen {
 		stdout-path = &uart1;
 	};
@@ -191,6 +196,7 @@
 	sgtl5000: codec@a {
 		clocks = <&clks IMX6QDL_CLK_CKO>;
 		compatible = "fsl,sgtl5000";
+		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_hummingboard2_sgtl5000>;
 		reg = <0x0a>;
@@ -409,8 +415,7 @@
 
 		pinctrl_hummingboard2_usbotg_id: hummingboard2-usbotg-id {
 			/*
-			 * Similar to pinctrl_usbotg_2, but we want it
-			 * pulled down for a fixed host connection.
+			 * We want it pulled down for a fixed host connection.
 			 */
 			fsl,pins = <MX6QDL_PAD_GPIO_1__USB_OTG_ID 0x13059>;
 		};

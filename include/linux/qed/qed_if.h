@@ -483,6 +483,15 @@ struct qed_int_info {
 	u8			used_cnt;
 };
 
+#define QED_NVM_SIGNATURE 0x12435687
+
+enum qed_nvm_flash_cmd {
+	QED_NVM_FLASH_CMD_FILE_DATA = 0x2,
+	QED_NVM_FLASH_CMD_FILE_START = 0x3,
+	QED_NVM_FLASH_CMD_NVM_CHANGE = 0x4,
+	QED_NVM_FLASH_CMD_NVM_MAX,
+};
+
 struct qed_common_cb_ops {
 	void (*arfs_filter_op)(void *dev, void *fltr, u8 fw_rc);
 	void	(*link_update)(void			*dev,
@@ -656,6 +665,16 @@ struct qed_common_ops {
 
 	void		(*chain_free)(struct qed_dev *cdev,
 				      struct qed_chain *p_chain);
+
+/**
+ * @brief nvm_flash - Flash nvm data.
+ *
+ * @param cdev
+ * @param name - file containing the data
+ *
+ * @return 0 on success, error otherwise.
+ */
+	int (*nvm_flash)(struct qed_dev *cdev, const char *name);
 
 /**
  * @brief nvm_get_image - reads an entire image from nvram

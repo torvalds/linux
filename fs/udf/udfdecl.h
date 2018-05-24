@@ -48,6 +48,8 @@ extern __printf(3, 4) void _udf_warn(struct super_block *sb,
 #define UDF_EXTENT_LENGTH_MASK	0x3FFFFFFF
 #define UDF_EXTENT_FLAG_MASK	0xC0000000
 
+#define UDF_INVALID_ID ((uint32_t)-1)
+
 #define UDF_NAME_PAD		4
 #define UDF_NAME_LEN		254
 #define UDF_NAME_LEN_CS0	255

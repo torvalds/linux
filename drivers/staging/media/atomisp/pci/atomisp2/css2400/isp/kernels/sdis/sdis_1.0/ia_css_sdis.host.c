@@ -169,8 +169,7 @@ ia_css_sdis_init_info(
 	unsigned enabled)
 {
 	if (!enabled) {
-		struct ia_css_sdis_info default_dis = IA_CSS_DEFAULT_SDIS_INFO;
-		*dis = default_dis;
+		*dis = (struct ia_css_sdis_info) { };
 		return;
 	}
 

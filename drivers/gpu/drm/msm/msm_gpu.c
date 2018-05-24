@@ -552,7 +552,7 @@ static void retire_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 		/* move to inactive: */
 		msm_gem_move_to_inactive(&msm_obj->base);
 		msm_gem_put_iova(&msm_obj->base, gpu->aspace);
-		drm_gem_object_unreference(&msm_obj->base);
+		drm_gem_object_put(&msm_obj->base);
 	}
 
 	pm_runtime_mark_last_busy(&gpu->pdev->dev);
@@ -634,7 +634,7 @@ void msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 		WARN_ON(is_active(msm_obj) && (msm_obj->gpu != gpu));
 
 		/* submit takes a reference to the bo and iova until retired: */
-		drm_gem_object_reference(&msm_obj->base);
+		drm_gem_object_get(&msm_obj->base);
 		msm_gem_get_iova(&msm_obj->base,
 				submit->gpu->aspace, &iova);
 
@@ -682,8 +682,10 @@ static int get_clocks(struct platform_device *pdev, struct msm_gpu *gpu)
 
 	gpu->grp_clks = devm_kcalloc(dev, sizeof(struct clk *), gpu->nr_clocks,
 		GFP_KERNEL);
-	if (!gpu->grp_clks)
+	if (!gpu->grp_clks) {
+		gpu->nr_clocks = 0;
 		return -ENOMEM;
+	}
 
 	of_property_for_each_string(dev->of_node, "clock-names", prop, name) {
 		gpu->grp_clks[i] = get_clock(dev, name);
@@ -865,7 +867,7 @@ fail:
 	if (gpu->memptrs_bo) {
 		msm_gem_put_vaddr(gpu->memptrs_bo);
 		msm_gem_put_iova(gpu->memptrs_bo, gpu->aspace);
-		drm_gem_object_unreference_unlocked(gpu->memptrs_bo);
+		drm_gem_object_put_unlocked(gpu->memptrs_bo);
 	}
 
 	platform_set_drvdata(pdev, NULL);
@@ -888,7 +890,7 @@ void msm_gpu_cleanup(struct msm_gpu *gpu)
 	if (gpu->memptrs_bo) {
 		msm_gem_put_vaddr(gpu->memptrs_bo);
 		msm_gem_put_iova(gpu->memptrs_bo, gpu->aspace);
-		drm_gem_object_unreference_unlocked(gpu->memptrs_bo);
+		drm_gem_object_put_unlocked(gpu->memptrs_bo);
 	}
 
 	if (!IS_ERR_OR_NULL(gpu->aspace)) {

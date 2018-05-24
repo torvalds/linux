@@ -152,81 +152,19 @@ struct ia_css_pipe_config {
 };
 
 
-#ifdef ISP2401
-/**
- * Default origin of internal frame positioned on shading table.
- */
-#define IA_CSS_PIPE_DEFAULT_INTERNAL_FRAME_ORIGIN_BQS_ON_SCTBL \
-{ \
-	0,					/* x [bqs] */ \
-	0					/* y [bqs] */ \
-}
-
 /**
  * Default settings for newly created pipe configurations.
  */
 #define DEFAULT_PIPE_CONFIG \
-{ \
-	IA_CSS_PIPE_MODE_PREVIEW,		/* mode */ \
-	1,					/* isp_pipe_version */ \
-	{ 0, 0 },				/* pipe_effective_input_res */ \
-	{ 0, 0 },				/* bayer_ds_out_res */ \
-	{ 0, 0 },				/* vf_pp_in_res */ \
-	{ 0, 0 },				/* capt_pp_in_res */ \
-	{ 0, 0 },				/* output_system_in_res */ \
-	{ 0, 0 },				/* dvs_crop_out_res */ \
-	{IA_CSS_BINARY_DEFAULT_FRAME_INFO},	/* output_info */ \
-	{IA_CSS_BINARY_DEFAULT_FRAME_INFO},	/* vf_output_info */ \
-	NULL,					/* acc_extension */ \
-	NULL,					/* acc_stages */ \
-	0,					/* num_acc_stages */ \
-	DEFAULT_CAPTURE_CONFIG,			/* default_capture_config */ \
-	{ 0, 0 },				/* dvs_envelope */ \
-	IA_CSS_FRAME_DELAY_1,			/* dvs_frame_delay */ \
-	-1,					/* acc_num_execs */ \
-	false,					/* enable_dz */ \
-	false,					/* enable_dpc */ \
-	false,					/* enable_vfpp_bci */ \
-	false,					/* enable_luma_only */ \
-	false,					/* enable_tnr */ \
-	NULL,					/* p_isp_config */\
-	{ 0, 0 },				/* gdc_in_buffer_res */ \
-	{ 0, 0 },				/* gdc_in_buffer_offset */ \
-	IA_CSS_PIPE_DEFAULT_INTERNAL_FRAME_ORIGIN_BQS_ON_SCTBL	/* internal_frame_origin_bqs_on_sctbl */ \
+(struct ia_css_pipe_config) { \
+	.mode			= IA_CSS_PIPE_MODE_PREVIEW, \
+	.isp_pipe_version	= 1, \
+	.output_info		= {IA_CSS_BINARY_DEFAULT_FRAME_INFO}, \
+	.vf_output_info		= {IA_CSS_BINARY_DEFAULT_FRAME_INFO}, \
+	.default_capture_config	= DEFAULT_CAPTURE_CONFIG, \
+	.dvs_frame_delay	= IA_CSS_FRAME_DELAY_1, \
+	.acc_num_execs		= -1, \
 }
-
-#else
-
-/**
- * Default settings for newly created pipe configurations.
- */
-#define DEFAULT_PIPE_CONFIG \
-{ \
-	IA_CSS_PIPE_MODE_PREVIEW,		/* mode */ \
-	1,					/* isp_pipe_version */ \
-	{ 0, 0 },				/* pipe_effective_input_res */ \
-	{ 0, 0 },				/* bayer_ds_out_res */ \
-	{ 0, 0 },				/* vf_pp_in_res */ \
-	{ 0, 0 },				/* capt_pp_in_res */ \
-	{ 0, 0 },				/* dvs_crop_out_res */ \
-	{IA_CSS_BINARY_DEFAULT_FRAME_INFO},	/* output_info */ \
-	{IA_CSS_BINARY_DEFAULT_FRAME_INFO},	/* vf_output_info */ \
-	NULL,					/* acc_extension */ \
-	NULL,					/* acc_stages */ \
-	0,					/* num_acc_stages */ \
-	DEFAULT_CAPTURE_CONFIG,			/* default_capture_config */ \
-	{ 0, 0 },				/* dvs_envelope */ \
-	IA_CSS_FRAME_DELAY_1,			/* dvs_frame_delay */ \
-	-1,					/* acc_num_execs */ \
-	false,					/* enable_dz */ \
-	false,					/* enable_dpc */ \
-	false,					/* enable_vfpp_bci */ \
-	NULL,					/* p_isp_config */\
-	{ 0, 0 },				/* gdc_in_buffer_res */ \
-	{ 0, 0 }				/* gdc_in_buffer_offset */ \
-}
-
-#endif
 
 /* Pipe info, this struct describes properties of a pipe after it's stream has
  * been created.
@@ -272,32 +210,14 @@ struct ia_css_pipe_info {
 /**
  * Defaults for ia_css_pipe_info structs.
  */
-#ifdef ISP2401
-
 #define DEFAULT_PIPE_INFO \
-{ \
-	{IA_CSS_BINARY_DEFAULT_FRAME_INFO},	/* output_info */ \
-	{IA_CSS_BINARY_DEFAULT_FRAME_INFO},	/* vf_output_info */ \
-	IA_CSS_BINARY_DEFAULT_FRAME_INFO,	/* raw_output_info */ \
-	{ 0, 0},				/* output system in res */ \
-	DEFAULT_SHADING_INFO,			/* shading_info */ \
-	DEFAULT_GRID_INFO,			/* grid_info */ \
-	0					/* num_invalid_frames */ \
+(struct ia_css_pipe_info) { \
+	.output_info		= {IA_CSS_BINARY_DEFAULT_FRAME_INFO}, \
+	.vf_output_info		= {IA_CSS_BINARY_DEFAULT_FRAME_INFO}, \
+	.raw_output_info	= IA_CSS_BINARY_DEFAULT_FRAME_INFO, \
+	.shading_info		= DEFAULT_SHADING_INFO, \
+	.grid_info		= DEFAULT_GRID_INFO, \
 }
-
-#else
-
-#define DEFAULT_PIPE_INFO \
-{ \
-	{IA_CSS_BINARY_DEFAULT_FRAME_INFO},	/* output_info */ \
-	{IA_CSS_BINARY_DEFAULT_FRAME_INFO},	/* vf_output_info */ \
-	IA_CSS_BINARY_DEFAULT_FRAME_INFO,	/* raw_output_info */ \
-	DEFAULT_SHADING_INFO,			/* shading_info */ \
-	DEFAULT_GRID_INFO,			/* grid_info */ \
-	0					/* num_invalid_frames */ \
-}
-
-#endif
 
 /* @brief Load default pipe configuration
  * @param[out]	pipe_config The pipe configuration.
@@ -402,7 +322,7 @@ ia_css_pipe_set_isp_config(struct ia_css_pipe *pipe,
  exception holds for IA_CSS_EVENT_TYPE_PORT_EOF, for this event an IRQ is always
  raised.
  Note that events are still queued and the Host can poll for them. The
- or_mask and and_mask may be be active at the same time\n
+ or_mask and and_mask may be active at the same time\n
  \n
  Default values, for all pipe id's, after ia_css_init:\n
  or_mask = IA_CSS_EVENT_TYPE_ALL\n

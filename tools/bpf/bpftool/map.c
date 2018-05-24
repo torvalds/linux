@@ -428,7 +428,7 @@ static int show_map_close_json(int fd, struct bpf_map_info *info)
 		jsonw_string_field(json_wtr, "name", info->name);
 
 	jsonw_name(json_wtr, "flags");
-	jsonw_printf(json_wtr, "%#x", info->map_flags);
+	jsonw_printf(json_wtr, "%d", info->map_flags);
 
 	print_dev_json(info->ifindex, info->netns_dev, info->netns_ino);
 

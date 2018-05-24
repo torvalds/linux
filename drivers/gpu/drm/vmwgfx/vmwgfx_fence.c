@@ -901,11 +901,12 @@ static void vmw_event_fence_action_seq_passed(struct vmw_fence_action *action)
 	spin_lock_irq(&dev->event_lock);
 
 	if (likely(eaction->tv_sec != NULL)) {
-		struct timeval tv;
+		struct timespec64 ts;
 
-		do_gettimeofday(&tv);
-		*eaction->tv_sec = tv.tv_sec;
-		*eaction->tv_usec = tv.tv_usec;
+		ktime_get_ts64(&ts);
+		/* monotonic time, so no y2038 overflow */
+		*eaction->tv_sec = ts.tv_sec;
+		*eaction->tv_usec = ts.tv_nsec / NSEC_PER_USEC;
 	}
 
 	drm_send_event_locked(dev, eaction->event);

@@ -255,7 +255,7 @@ mlx5e_txwqe_build_dsegs(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		dma_addr = dma_map_single(sq->pdev, skb_data, headlen,
 					  DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(sq->pdev, dma_addr)))
-			return -ENOMEM;
+			goto dma_unmap_wqe_err;
 
 		dseg->addr       = cpu_to_be64(dma_addr);
 		dseg->lkey       = sq->mkey_be;
@@ -273,7 +273,7 @@ mlx5e_txwqe_build_dsegs(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		dma_addr = skb_frag_dma_map(sq->pdev, frag, 0, fsz,
 					    DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(sq->pdev, dma_addr)))
-			return -ENOMEM;
+			goto dma_unmap_wqe_err;
 
 		dseg->addr       = cpu_to_be64(dma_addr);
 		dseg->lkey       = sq->mkey_be;
@@ -285,6 +285,10 @@ mlx5e_txwqe_build_dsegs(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	}
 
 	return num_dma;
+
+dma_unmap_wqe_err:
+	mlx5e_dma_unmap_wqe_err(sq, num_dma);
+	return -ENOMEM;
 }
 
 static inline void
@@ -380,17 +384,15 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	num_dma = mlx5e_txwqe_build_dsegs(sq, skb, skb_data, headlen,
 					  (struct mlx5_wqe_data_seg *)cseg + ds_cnt);
 	if (unlikely(num_dma < 0))
-		goto dma_unmap_wqe_err;
+		goto err_drop;
 
 	mlx5e_txwqe_complete(sq, skb, opcode, ds_cnt + num_dma,
 			     num_bytes, num_dma, wi, cseg);
 
 	return NETDEV_TX_OK;
 
-dma_unmap_wqe_err:
+err_drop:
 	sq->stats.dropped++;
-	mlx5e_dma_unmap_wqe_err(sq, wi->num_dma);
-
 	dev_kfree_skb_any(skb);
 
 	return NETDEV_TX_OK;
@@ -415,6 +417,18 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 
 	return mlx5e_sq_xmit(sq, skb, wqe, pi);
+}
+
+static void mlx5e_dump_error_cqe(struct mlx5e_txqsq *sq,
+				 struct mlx5_err_cqe *err_cqe)
+{
+	u32 ci = mlx5_cqwq_get_ci(&sq->cq.wq);
+
+	netdev_err(sq->channel->netdev,
+		   "Error cqe on cqn 0x%x, ci 0x%x, sqn 0x%x, syndrome 0x%x, vendor syndrome 0x%x\n",
+		   sq->cq.mcq.cqn, ci, sq->sqn, err_cqe->syndrome,
+		   err_cqe->vendor_err_synd);
+	mlx5_dump_err_cqe(sq->cq.mdev, err_cqe);
 }
 
 bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
@@ -455,6 +469,17 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 		mlx5_cqwq_pop(&cq->wq);
 
 		wqe_counter = be16_to_cpu(cqe->wqe_counter);
+
+		if (unlikely(cqe->op_own >> 4 == MLX5_CQE_REQ_ERR)) {
+			if (!test_and_set_bit(MLX5E_SQ_STATE_RECOVERING,
+					      &sq->state)) {
+				mlx5e_dump_error_cqe(sq,
+						     (struct mlx5_err_cqe *)cqe);
+				queue_work(cq->channel->priv->wq,
+					   &sq->recover.recover_work);
+			}
+			sq->stats.cqe_err++;
+		}
 
 		do {
 			struct mlx5e_tx_wqe_info *wi;
@@ -509,7 +534,9 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 	netdev_tx_completed_queue(sq->txq, npkts, nbytes);
 
 	if (netif_tx_queue_stopped(sq->txq) &&
-	    mlx5e_wqc_has_room_for(&sq->wq, sq->cc, sq->pc, MLX5E_SQ_STOP_ROOM)) {
+	    mlx5e_wqc_has_room_for(&sq->wq, sq->cc, sq->pc,
+				   MLX5E_SQ_STOP_ROOM) &&
+	    !test_bit(MLX5E_SQ_STATE_RECOVERING, &sq->state)) {
 		netif_tx_wake_queue(sq->txq);
 		sq->stats.wake++;
 	}
@@ -620,17 +647,15 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	num_dma = mlx5e_txwqe_build_dsegs(sq, skb, skb_data, headlen,
 					  (struct mlx5_wqe_data_seg *)cseg + ds_cnt);
 	if (unlikely(num_dma < 0))
-		goto dma_unmap_wqe_err;
+		goto err_drop;
 
 	mlx5e_txwqe_complete(sq, skb, opcode, ds_cnt + num_dma,
 			     num_bytes, num_dma, wi, cseg);
 
 	return NETDEV_TX_OK;
 
-dma_unmap_wqe_err:
+err_drop:
 	sq->stats.dropped++;
-	mlx5e_dma_unmap_wqe_err(sq, wi->num_dma);
-
 	dev_kfree_skb_any(skb);
 
 	return NETDEV_TX_OK;

@@ -1716,7 +1716,7 @@ static int aty128fb_setup(char *options)
 			continue;
 		}
 		if(!strncmp(this_opt, "nomtrr", 6)) {
-			mtrr = 0;
+			mtrr = false;
 			continue;
 		}
 #ifdef CONFIG_PPC_PMAC

@@ -70,6 +70,11 @@
     "BriefDescription": "Cycles thread running at priority level 0 or 1"
   },
   {,
+    "EventCode": "0x4C054",
+    "EventName": "PM_DERAT_MISS_16G_1G",
+    "BriefDescription": "Data ERAT Miss (Data TLB Access) page size 16G (hpt mode) or 1G (radix mode)"
+  },
+  {,
     "EventCode": "0x2084",
     "EventName": "PM_FLUSH_HB_RESTORE_CYC",
     "BriefDescription": "Cycles in which no new instructions can be dispatched to the ICT after a flush.  History buffer recovery"
@@ -107,12 +112,12 @@
   {,
     "EventCode": "0x360B2",
     "EventName": "PM_L3_GRP_GUESS_WRONG_LOW",
-    "BriefDescription": "Initial scope=group (GS or NNS) but data from outside group (far or rem). Prediction too Low"
+    "BriefDescription": "Prefetch scope predictor selected GS or NNS, but was wrong because scope was LNS"
   },
   {,
     "EventCode": "0x168A6",
     "EventName": "PM_TM_CAM_OVERFLOW",
-    "BriefDescription": "L3 TM cam overflow during L2 co of SC"
+    "BriefDescription": "L3 TM CAM is full when a L2 castout of TM_SC line occurs.  Line is pushed to memory"
   },
   {,
     "EventCode": "0xE8B0",
@@ -150,11 +155,6 @@
     "BriefDescription": "All ISU rejects"
   },
   {,
-    "EventCode": "0x460A6",
-    "EventName": "PM_RD_FORMING_SC",
-    "BriefDescription": "Read forming SC"
-  },
-  {,
     "EventCode": "0x468A0",
     "EventName": "PM_L3_PF_OFF_CHIP_MEM",
     "BriefDescription": "L3 PF from Off chip memory"
@@ -187,7 +187,7 @@
   {,
     "EventCode": "0x368A6",
     "EventName": "PM_SNP_TM_HIT_T",
-    "BriefDescription": "Snp TM sthit T/Tn/Te"
+    "BriefDescription": "TM snoop that is a store hits line in L3 in T, Tn or Te state (shared modified)"
   },
   {,
     "EventCode": "0x3001A",
@@ -203,6 +203,11 @@
     "EventCode": "0x35158",
     "EventName": "PM_MRK_DATA_FROM_L31_ECO_MOD_CYC",
     "BriefDescription": "Duration in cycles to reload with Modified (M) data from another core's ECO L3 on the same chip due to a marked load"
+  },
+  {,
+    "EventCode": "0xF0B4",
+    "EventName": "PM_DC_PREF_CONS_ALLOC",
+    "BriefDescription": "Prefetch stream allocated in the conservative phase by either the hardware prefetch mechanism or software prefetch. The sum of this pair subtracted from the total number of allocs will give the total allocs in normal phase"
   },
   {,
     "EventCode": "0xF894",
@@ -227,7 +232,12 @@
   {,
     "EventCode": "0x468A6",
     "EventName": "PM_RD_CLEARING_SC",
-    "BriefDescription": "Read clearing SC"
+    "BriefDescription": "Core TM load hits line in L3 in TM_SC state and causes it to be invalidated"
+  },
+  {,
+    "EventCode": "0xD0B0",
+    "EventName": "PM_HWSYNC",
+    "BriefDescription": ""
   },
   {,
     "EventCode": "0x168B0",
@@ -265,6 +275,11 @@
     "BriefDescription": "Prefetch stream allocated by the hardware prefetch mechanism"
   },
   {,
+    "EventCode": "0xF0BC",
+    "EventName": "PM_LS2_UNALIGNED_ST",
+    "BriefDescription": "Store instructions whose data crosses a double-word boundary, which causes it to require an additional slice than than what normally would be required of the Store of that size.  If the Store wraps from slice 3 to slice 0, thee is an additional 3-cycle penalty"
+  },
+  {,
     "EventCode": "0xD0AC",
     "EventName": "PM_SRQ_SYNC_CYC",
     "BriefDescription": "A sync is in the S2Q (edge detect to count)"
@@ -273,6 +288,11 @@
     "EventCode": "0x401E6",
     "EventName": "PM_MRK_INST_FROM_L3MISS",
     "BriefDescription": "Marked instruction was reloaded from a location beyond the local chiplet"
+  },
+  {,
+    "EventCode": "0x58A8",
+    "EventName": "PM_DECODE_HOLD_ICT_FULL",
+    "BriefDescription": "Counts the number of cycles in which the IFU was not able to decode and transmit one or more instructions because all itags were in use.  This means the ICT is full for this thread"
   },
   {,
     "EventCode": "0x26082",
@@ -365,6 +385,16 @@
     "BriefDescription": "Duration in cycles to reload either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to a marked load"
   },
   {,
+    "EventCode": "0xF888",
+    "EventName": "PM_LSU1_STORE_REJECT",
+    "BriefDescription": "All internal store rejects cause the instruction to go back to the SRQ and go to sleep until woken up to try again after the condition has been met"
+  },
+  {,
+    "EventCode": "0xC098",
+    "EventName": "PM_LS2_UNALIGNED_LD",
+    "BriefDescription": "Load instructions whose data crosses a double-word boundary, which causes it to require an additional slice than than what normally would be required of the load of that size.  If the load wraps from slice 3 to slice 0, thee is an additional 3-cycle penalty"
+  },
+  {,
     "EventCode": "0x20058",
     "EventName": "PM_DARQ1_10_12_ENTRIES",
     "BriefDescription": "Cycles in which 10 or  more DARQ1 entries (out of 12) are in use"
@@ -372,7 +402,7 @@
   {,
     "EventCode": "0x360A6",
     "EventName": "PM_SNP_TM_HIT_M",
-    "BriefDescription": "Snp TM st hit M/Mu"
+    "BriefDescription": "TM snoop that is a store hits line in L3 in M or Mu state (exclusive modified)"
   },
   {,
     "EventCode": "0x5898",
@@ -395,9 +425,9 @@
     "BriefDescription": "A data line was written to the L1 due to a hardware or software prefetch"
   },
   {,
-    "EventCode": "0xF888",
-    "EventName": "PM_LSU1_STORE_REJECT",
-    "BriefDescription": "All internal store rejects cause the instruction to go back to the SRQ and go to sleep until woken up to try again after the condition has been met"
+    "EventCode": "0x2608E",
+    "EventName": "PM_TM_LD_CONF",
+    "BriefDescription": "TM Load (fav or non-fav) ran into conflict (failed)"
   },
   {,
     "EventCode": "0x1D144",
@@ -422,7 +452,7 @@
   {,
     "EventCode": "0x26884",
     "EventName": "PM_DSIDE_MRU_TOUCH",
-    "BriefDescription": "D-side L2 MRU touch sent to L2"
+    "BriefDescription": "D-side L2 MRU touch commands sent to the L2"
   },
   {,
     "EventCode": "0x30134",
@@ -438,6 +468,16 @@
     "EventCode": "0x50A8",
     "EventName": "PM_EAT_FORCE_MISPRED",
     "BriefDescription": "XL-form branch was mispredicted due to the predicted target address missing from EAT.  The EAT forces a mispredict in this case since there is no predicated target to validate.  This is a rare case that may occur when the EAT is full and a branch is issued"
+  },
+  {,
+    "EventCode": "0xC094",
+    "EventName": "PM_LS0_UNALIGNED_LD",
+    "BriefDescription": "Load instructions whose data crosses a double-word boundary, which causes it to require an additional slice than than what normally would be required of the load of that size.  If the load wraps from slice 3 to slice 0, thee is an additional 3-cycle penalty"
+  },
+  {,
+    "EventCode": "0xF8BC",
+    "EventName": "PM_LS3_UNALIGNED_ST",
+    "BriefDescription": "Store instructions whose data crosses a double-word boundary, which causes it to require an additional slice than than what normally would be required of the Store of that size.  If the Store wraps from slice 3 to slice 0, thee is an additional 3-cycle penalty"
   },
   {,
     "EventCode": "0x460AE",
@@ -492,7 +532,7 @@
   {,
     "EventCode": "0xC880",
     "EventName": "PM_LS1_LD_VECTOR_FIN",
-    "BriefDescription": ""
+    "BriefDescription": "LS1 finished load vector op"
   },
   {,
     "EventCode": "0x2894",
@@ -513,6 +553,11 @@
     "EventCode": "0x30162",
     "EventName": "PM_MRK_LSU_DERAT_MISS",
     "BriefDescription": "Marked derat reload (miss) for any page size"
+  },
+  {,
+    "EventCode": "0x160A0",
+    "EventName": "PM_L3_PF_MISS_L3",
+    "BriefDescription": "L3 PF missed in L3"
   },
   {,
     "EventCode": "0x1C04A",
@@ -565,9 +610,19 @@
     "BriefDescription": "L2 guess local (LNS) and guess was not correct (ie data not on chip)"
   },
   {,
+    "EventCode": "0xC888",
+    "EventName": "PM_LSU_DTLB_MISS_64K",
+    "BriefDescription": "Data TLB Miss page size 64K"
+  },
+  {,
     "EventCode": "0xE0A4",
     "EventName": "PM_TMA_REQ_L2",
     "BriefDescription": "addrs only req to L2 only on the first one,Indication that Load footprint is not expanding"
+  },
+  {,
+    "EventCode": "0xC088",
+    "EventName": "PM_LSU_DTLB_MISS_4K",
+    "BriefDescription": "Data TLB Miss page size 4K"
   },
   {,
     "EventCode": "0x3C042",
@@ -602,7 +657,7 @@
   {,
     "EventCode": "0x26084",
     "EventName": "PM_L2_RCLD_DISP_FAIL_OTHER",
-    "BriefDescription": "All I-or-D side load dispatch attempts for this thread that failed due to reason other than address collision (excludes i_l2mru_tch_reqs)"
+    "BriefDescription": "All D-side-Ld or I-side-instruction-fetch dispatch attempts for this thread that failed due to reasons other than an address collision conflicts with an L2 machines (e.g. Read-Claim/Snoop machine not available)"
   },
   {,
     "EventCode": "0x101E4",
@@ -647,12 +702,12 @@
   {,
     "EventCode": "0x46080",
     "EventName": "PM_L2_DISP_ALL_L2MISS",
-    "BriefDescription": "All successful Ld/St dispatches for this thread that were an L2 miss (excludes i_l2mru_tch_reqs)"
+    "BriefDescription": "All successful D-side-Ld/St or I-side-instruction-fetch dispatches for this thread that were an L2 miss"
   },
   {,
-    "EventCode": "0x160A0",
-    "EventName": "PM_L3_PF_MISS_L3",
-    "BriefDescription": "L3 PF missed in L3"
+    "EventCode": "0xF8B8",
+    "EventName": "PM_LS1_UNALIGNED_ST",
+    "BriefDescription": "Store instructions whose data crosses a double-word boundary, which causes it to require an additional slice than than what normally would be required of the Store of that size.  If the Store wraps from slice 3 to slice 0, thee is an additional 3-cycle penalty"
   },
   {,
     "EventCode": "0x408C",
@@ -667,7 +722,7 @@
   {,
     "EventCode": "0x160B2",
     "EventName": "PM_L3_LOC_GUESS_CORRECT",
-    "BriefDescription": "initial scope=node/chip (LNS) and data from local node (local) (pred successful) - always PFs only"
+    "BriefDescription": "Prefetch scope predictor selected LNS and was correct"
   },
   {,
     "EventCode": "0x48B4",
@@ -767,7 +822,7 @@
   {,
     "EventCode": "0x36082",
     "EventName": "PM_L2_LD_DISP",
-    "BriefDescription": "All successful I-or-D side load dispatches for this thread (excludes i_l2mru_tch_reqs)"
+    "BriefDescription": "All successful D-side-Ld or I-side-instruction-fetch dispatches for this thread"
   },
   {,
     "EventCode": "0xF8B0",
@@ -787,7 +842,7 @@
   {,
     "EventCode": "0x16884",
     "EventName": "PM_L2_RCLD_DISP_FAIL_ADDR",
-    "BriefDescription": "All I-od-D side load dispatch attempts for this thread that failed due to address collision with RC/CO/SN/SQ machine (excludes i_l2mru_tch_reqs)"
+    "BriefDescription": "All D-side-Ld or I-side-instruction-fetch dispatch attempts for this thread that failed due to an address collision conflicts with an L2 machines already working on this line (e.g. ld-hit-stq or Read-claim/Castout/Snoop machines)"
   },
   {,
     "EventCode": "0x460A0",
@@ -830,6 +885,11 @@
     "BriefDescription": "Instruction prefetch requests"
   },
   {,
+    "EventCode": "0xC898",
+    "EventName": "PM_LS3_UNALIGNED_LD",
+    "BriefDescription": "Load instructions whose data crosses a double-word boundary, which causes it to require an additional slice than than what normally would be required of the load of that size.  If the load wraps from slice 3 to slice 0, thee is an additional 3-cycle penalty"
+  },
+  {,
     "EventCode": "0x488C",
     "EventName": "PM_IC_PREF_WRITE",
     "BriefDescription": "Instruction prefetch written into IL1"
@@ -837,7 +897,7 @@
   {,
     "EventCode": "0xF89C",
     "EventName": "PM_XLATE_MISS",
-    "BriefDescription": "The LSU requested a line from L2 for translation.  It may be satisfied from any source beyond L2.  Includes speculative instructions"
+    "BriefDescription": "The LSU requested a line from L2 for translation.  It may be satisfied from any source beyond L2.  Includes speculative instructions. Includes instruction, prefetch and demand"
   },
   {,
     "EventCode": "0x14158",
@@ -850,9 +910,14 @@
     "BriefDescription": "Duration in cycles to reload with Shared (S) data from another core's L3 on the same chip due to a marked load"
   },
   {,
+    "EventCode": "0xC88C",
+    "EventName": "PM_LSU_DTLB_MISS_16G_1G",
+    "BriefDescription": "Data TLB Miss page size 16G (HPT) or 1G (Radix)"
+  },
+  {,
     "EventCode": "0x268A6",
     "EventName": "PM_TM_RST_SC",
-    "BriefDescription": "TM-snp rst RM SC"
+    "BriefDescription": "TM snoop hits line in L3 that is TM_SC state and causes it to be invalidated"
   },
   {,
     "EventCode": "0x468A4",
@@ -917,7 +982,7 @@
   {,
     "EventCode": "0x46086",
     "EventName": "PM_L2_SN_M_RD_DONE",
-    "BriefDescription": "SNP dispatched for a read and was M (true M)"
+    "BriefDescription": "Snoop dispatched for a read and was M (true M)"
   },
   {,
     "EventCode": "0x40154",
@@ -980,14 +1045,9 @@
     "BriefDescription": "Link stack predicts right address"
   },
   {,
-    "EventCode": "0x4C05A",
-    "EventName": "PM_DTLB_MISS_1G",
-    "BriefDescription": "Data TLB reload (after a miss) page size 1G. Implies radix translation was used"
-  },
-  {,
     "EventCode": "0x36886",
     "EventName": "PM_L2_SN_SX_I_DONE",
-    "BriefDescription": "SNP dispatched and went from Sx to Ix"
+    "BriefDescription": "Snoop dispatched and went from Sx to Ix"
   },
   {,
     "EventCode": "0x4E04A",
@@ -998,11 +1058,6 @@
     "EventCode": "0x2C12C",
     "EventName": "PM_MRK_DATA_FROM_DL4_CYC",
     "BriefDescription": "Duration in cycles to reload from another chip's L4 on a different Node or Group (Distant) due to a marked load"
-  },
-  {,
-    "EventCode": "0x2608E",
-    "EventName": "PM_TM_LD_CONF",
-    "BriefDescription": "TM Load (fav or non-fav) ran into conflict (failed)"
   },
   {,
     "EventCode": "0x4080",
@@ -1037,7 +1092,7 @@
   {,
     "EventCode": "0x260A6",
     "EventName": "PM_NON_TM_RST_SC",
-    "BriefDescription": "Non-TM snp rst TM SC"
+    "BriefDescription": "Non-TM snoop hits line in L3 that is TM_SC state and causes it to be invalidated"
   },
   {,
     "EventCode": "0x3608A",
@@ -1063,11 +1118,6 @@
     "EventCode": "0x50A4",
     "EventName": "PM_FLUSH_MPRED",
     "BriefDescription": "Branch mispredict flushes.  Includes target and address misprecition"
-  },
-  {,
-    "EventCode": "0x508C",
-    "EventName": "PM_SHL_CREATED",
-    "BriefDescription": "Store-Hit-Load Table Entry Created"
   },
   {,
     "EventCode": "0x1504C",
@@ -1107,7 +1157,7 @@
   {,
     "EventCode": "0x2608A",
     "EventName": "PM_ISIDE_DISP_FAIL_ADDR",
-    "BriefDescription": "All I-side dispatch attempts for this thread that failed due to a addr collision with another machine (excludes i_l2mru_tch_reqs)"
+    "BriefDescription": "All I-side-instruction-fetch dispatch attempts for this thread that failed due to an address collision conflict with an L2 machine already working on this line (e.g. ld-hit-stq or RC/CO/SN machines)"
   },
   {,
     "EventCode": "0x50B4",
@@ -1180,9 +1230,9 @@
     "BriefDescription": "Number of stcx instructions finished. This includes instructions in the speculative path of a branch that may be flushed"
   },
   {,
-    "EventCode": "0xE0B8",
-    "EventName": "PM_LS2_TM_DISALLOW",
-    "BriefDescription": "A TM-ineligible instruction tries to execute inside a transaction and the LSU disallows it"
+    "EventCode": "0xD8AC",
+    "EventName": "PM_LWSYNC",
+    "BriefDescription": ""
   },
   {,
     "EventCode": "0x2094",
@@ -1208,6 +1258,11 @@
     "EventCode": "0x30018",
     "EventName": "PM_ICT_NOSLOT_DISP_HELD_HB_FULL",
     "BriefDescription": "Ict empty for this thread due to dispatch holds because the History Buffer was full. Could be GPR/VSR/VMR/FPR/CR/XVF; CR; XVF (XER/VSCR/FPSCR)"
+  },
+  {,
+    "EventCode": "0xC894",
+    "EventName": "PM_LS1_UNALIGNED_LD",
+    "BriefDescription": "Load instructions whose data crosses a double-word boundary, which causes it to require an additional slice than than what normally would be required of the load of that size.  If the load wraps from slice 3 to slice 0, thee is an additional 3-cycle penalty"
   },
   {,
     "EventCode": "0x360A2",
@@ -1292,7 +1347,7 @@
   {,
     "EventCode": "0xC084",
     "EventName": "PM_LS2_LD_VECTOR_FIN",
-    "BriefDescription": ""
+    "BriefDescription": "LS2 finished load vector op"
   },
   {,
     "EventCode": "0x1608E",
@@ -1345,6 +1400,11 @@
     "BriefDescription": "Continuous 16 cycle (2to1) window where this signals rotates thru sampling each SN machine busy. PMU uses this wave to then do 16 cyc count to sample total number of machs running"
   },
   {,
+    "EventCode": "0x36084",
+    "EventName": "PM_L2_RCST_DISP",
+    "BriefDescription": "All D-side store dispatch attempts for this thread"
+  },
+  {,
     "EventCode": "0x46084",
     "EventName": "PM_L2_RCST_DISP_FAIL_OTHER",
     "BriefDescription": "All D-side store dispatch attempts for this thread that failed due to reason other than address collision"
@@ -1353,11 +1413,6 @@
     "EventCode": "0xF0AC",
     "EventName": "PM_DC_PREF_STRIDED_CONF",
     "BriefDescription": "A demand load referenced a line in an active strided prefetch stream. The stream could have been allocated through the hardware prefetch mechanism or through software."
-  },
-  {,
-    "EventCode": "0x36084",
-    "EventName": "PM_L2_RCST_DISP",
-    "BriefDescription": "All D-side store dispatch attempts for this thread"
   },
   {,
     "EventCode": "0x45054",
@@ -1372,7 +1427,7 @@
   {,
     "EventCode": "0x36080",
     "EventName": "PM_L2_INST",
-    "BriefDescription": "All successful I-side dispatches for this thread   (excludes i_l2mru_tch reqs)"
+    "BriefDescription": "All successful I-side-instruction-fetch (e.g. i-demand, i-prefetch) dispatches for this thread"
   },
   {,
     "EventCode": "0x3504C",
@@ -1387,7 +1442,7 @@
   {,
     "EventCode": "0x1688A",
     "EventName": "PM_ISIDE_DISP",
-    "BriefDescription": "All I-side dispatch attempts for this thread (excludes i_l2mru_tch_reqs)"
+    "BriefDescription": "All I-side-instruction-fetch dispatch attempts for this thread"
   },
   {,
     "EventCode": "0x468AA",
@@ -1418,6 +1473,11 @@
     "EventCode": "0xE098",
     "EventName": "PM_LSU2_TM_L1_HIT",
     "BriefDescription": "Load tm hit in L1"
+  },
+  {,
+    "EventCode": "0xE0B8",
+    "EventName": "PM_LS2_TM_DISALLOW",
+    "BriefDescription": "A TM-ineligible instruction tries to execute inside a transaction and the LSU disallows it"
   },
   {,
     "EventCode": "0x44044",
@@ -1467,7 +1527,7 @@
   {,
     "EventCode": "0x36086",
     "EventName": "PM_L2_RC_ST_DONE",
-    "BriefDescription": "RC did store to line that was Tx or Sx"
+    "BriefDescription": "Read-claim machine did store to line that was in Tx or Sx (Tagged or Shared state)"
   },
   {,
     "EventCode": "0xE8AC",
@@ -1500,6 +1560,11 @@
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L2 without conflict due to a instruction side request"
   },
   {,
+    "EventCode": "0x460A6",
+    "EventName": "PM_RD_FORMING_SC",
+    "BriefDescription": "Doesn't occur"
+  },
+  {,
     "EventCode": "0x35042",
     "EventName": "PM_IPTEG_FROM_L3_DISP_CONFLICT",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L3 with dispatch conflict due to a instruction side request"
@@ -1527,7 +1592,7 @@
   {,
     "EventCode": "0x36882",
     "EventName": "PM_L2_LD_HIT",
-    "BriefDescription": "All successful I-or-D side load dispatches for this thread that were L2 hits (excludes i_l2mru_tch_reqs)"
+    "BriefDescription": "All successful D-side-Ld or I-side-instruction-fetch dispatches for this thread that were L2 hits"
   },
   {,
     "EventCode": "0x168AC",
@@ -1555,11 +1620,6 @@
     "BriefDescription": "ProbeNops dispatched"
   },
   {,
-    "EventCode": "0x58A8",
-    "EventName": "PM_DECODE_HOLD_ICT_FULL",
-    "BriefDescription": "Counts the number of cycles in which the IFU was not able to decode and transmit one or more instructions because all itags were in use.  This means the ICT is full for this thread"
-  },
-  {,
     "EventCode": "0x10052",
     "EventName": "PM_GRP_PUMP_MPRED_RTY",
     "BriefDescription": "Final Pump Scope (Group) ended up larger than Initial Pump Scope (Chip) for all data types excluding data prefetch (demand load,inst prefetch,inst fetch,xlate)"
@@ -1572,7 +1632,7 @@
   {,
     "EventCode": "0x2688A",
     "EventName": "PM_ISIDE_DISP_FAIL_OTHER",
-    "BriefDescription": "All I-side dispatch attempts for this thread that failed due to a reason other than addrs collision (excludes i_l2mru_tch_reqs)"
+    "BriefDescription": "All I-side-instruction-fetch dispatch attempts for this thread that failed due to reasons other than an address collision conflict with an L2 machine (e.g. no available RC/CO machines)"
   },
   {,
     "EventCode": "0x2001A",
@@ -1652,12 +1712,12 @@
   {,
     "EventCode": "0x46880",
     "EventName": "PM_ISIDE_MRU_TOUCH",
-    "BriefDescription": "I-side L2 MRU touch sent to L2 for this thread"
+    "BriefDescription": "I-side L2 MRU touch sent to L2 for this thread I-side L2 MRU touch commands sent to the L2 for this thread"
   },
   {,
-    "EventCode": "0x1C05C",
-    "EventName": "PM_DTLB_MISS_2M",
-    "BriefDescription": "Data TLB reload (after a miss) page size 2M. Implies radix translation was used"
+    "EventCode": "0x508C",
+    "EventName": "PM_SHL_CREATED",
+    "BriefDescription": "Store-Hit-Load Table Entry Created"
   },
   {,
     "EventCode": "0x50B8",
@@ -1672,7 +1732,7 @@
   {,
     "EventCode": "0x268B2",
     "EventName": "PM_L3_LOC_GUESS_WRONG",
-    "BriefDescription": "Initial scope=node (LNS) but data from out side local node (near or far or rem). Prediction too Low"
+    "BriefDescription": "Prefetch scope predictor selected LNS, but was wrong"
   },
   {,
     "EventCode": "0x36088",
@@ -1683,6 +1743,11 @@
     "EventCode": "0x260AE",
     "EventName": "PM_L3_P2_PF_RTY",
     "BriefDescription": "L3 PF received retry port 2, every retry counted"
+  },
+  {,
+    "EventCode": "0xD8B0",
+    "EventName": "PM_PTESYNC",
+    "BriefDescription": ""
   },
   {,
     "EventCode": "0x26086",
@@ -1740,6 +1805,11 @@
     "BriefDescription": "All successful D-Side Store dispatches that were an L2 miss for this thread"
   },
   {,
+    "EventCode": "0xF8B4",
+    "EventName": "PM_DC_PREF_XCONS_ALLOC",
+    "BriefDescription": "Prefetch stream allocated in the Ultra conservative phase by either the hardware prefetch mechanism or software prefetch"
+  },
+  {,
     "EventCode": "0x35048",
     "EventName": "PM_IPTEG_FROM_DL2L3_SHR",
     "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a instruction side request"
@@ -1782,7 +1852,7 @@
   {,
     "EventCode": "0x460B2",
     "EventName": "PM_L3_SYS_GUESS_WRONG",
-    "BriefDescription": "Initial scope=system (VGS or RNS) but data from local or near. Prediction too high"
+    "BriefDescription": "Prefetch scope predictor selected VGS or RNS, but was wrong"
   },
   {,
     "EventCode": "0x58B8",
@@ -1798,11 +1868,6 @@
     "EventCode": "0x2898",
     "EventName": "PM_TM_TABORT_TRECLAIM",
     "BriefDescription": "Completion time tabortnoncd, tabortcd, treclaim"
-  },
-  {,
-    "EventCode": "0x4C054",
-    "EventName": "PM_DERAT_MISS_16G",
-    "BriefDescription": "Data ERAT Miss (Data TLB Access) page size 16G"
   },
   {,
     "EventCode": "0x268A0",
@@ -1862,7 +1927,7 @@
   {,
     "EventCode": "0x368B2",
     "EventName": "PM_L3_GRP_GUESS_WRONG_HIGH",
-    "BriefDescription": "Initial scope=group (GS or NNS) but data from local node. Prediction too high"
+    "BriefDescription": "Prefetch scope predictor selected GS or NNS, but was wrong because scope was VGS or RNS"
   },
   {,
     "EventCode": "0xE8BC",
@@ -1897,7 +1962,7 @@
   {,
     "EventCode": "0x260B2",
     "EventName": "PM_L3_SYS_GUESS_CORRECT",
-    "BriefDescription": "Initial scope=system (VGS or RNS) and data from outside group (far or rem)(pred successful)"
+    "BriefDescription": "Prefetch scope predictor selected VGS or RNS and was correct"
   },
   {,
     "EventCode": "0x1D146",
@@ -1915,6 +1980,11 @@
     "BriefDescription": "RC requests that were on group (aka nodel) pump attempts"
   },
   {,
+    "EventCode": "0xC08C",
+    "EventName": "PM_LSU_DTLB_MISS_16M_2M",
+    "BriefDescription": "Data TLB Miss page size 16M (HPT) or 2M (Radix)"
+  },
+  {,
     "EventCode": "0x16080",
     "EventName": "PM_L2_LD",
     "BriefDescription": "All successful D-side Load dispatches for this thread (L2 miss + L2 hits)"
@@ -1927,7 +1997,7 @@
   {,
     "EventCode": "0xC080",
     "EventName": "PM_LS0_LD_VECTOR_FIN",
-    "BriefDescription": ""
+    "BriefDescription": "LS0 finished load vector op"
   },
   {,
     "EventCode": "0x368B0",
@@ -2000,6 +2070,11 @@
     "BriefDescription": "Conditional Branch Completed in which the HW correctly predicted the direction as taken.  Counted at completion time"
   },
   {,
+    "EventCode": "0xF0B8",
+    "EventName": "PM_LS0_UNALIGNED_ST",
+    "BriefDescription": "Store instructions whose data crosses a double-word boundary, which causes it to require an additional slice than than what normally would be required of the Store of that size.  If the Store wraps from slice 3 to slice 0, thee is an additional 3-cycle penalty"
+  },
+  {,
     "EventCode": "0x20132",
     "EventName": "PM_MRK_DFU_FIN",
     "BriefDescription": "Decimal Unit marked Instruction Finish"
@@ -2007,7 +2082,7 @@
   {,
     "EventCode": "0x160A6",
     "EventName": "PM_TM_SC_CO",
-    "BriefDescription": "L3 castout TM SC line"
+    "BriefDescription": "L3 castout of line that was StoreCopy (original value of speculatively written line) in a Transaction"
   },
   {,
     "EventCode": "0xC8B0",
@@ -2017,7 +2092,7 @@
   {,
     "EventCode": "0x16084",
     "EventName": "PM_L2_RCLD_DISP",
-    "BriefDescription": "All I-or-D side load dispatch attempts for this thread (excludes i_l2mru_tch_reqs)"
+    "BriefDescription": "All D-side-Ld or I-side-instruction-fetch dispatch attempts for this thread"
   },
   {,
     "EventCode": "0x3F150",
@@ -2122,12 +2197,12 @@
   {,
     "EventCode": "0x46082",
     "EventName": "PM_L2_ST_DISP",
-    "BriefDescription": "All successful D-side store dispatches for this thread (L2 miss + L2 hits)"
+    "BriefDescription": "All successful D-side store dispatches for this thread"
   },
   {,
     "EventCode": "0x36880",
     "EventName": "PM_L2_INST_MISS",
-    "BriefDescription": "All successful I-side dispatches that were an L2 miss for this thread (excludes i_l2mru_tch reqs)"
+    "BriefDescription": "All successful I-side-instruction-fetch (e.g. i-demand, i-prefetch) dispatches for this thread that were an L2 miss"
   },
   {,
     "EventCode": "0xE084",
@@ -2217,7 +2292,7 @@
   {,
     "EventCode": "0xC884",
     "EventName": "PM_LS3_LD_VECTOR_FIN",
-    "BriefDescription": ""
+    "BriefDescription": "LS3 finished load vector op"
   },
   {,
     "EventCode": "0x360A8",
@@ -2242,7 +2317,7 @@
   {,
     "EventCode": "0x168B2",
     "EventName": "PM_L3_GRP_GUESS_CORRECT",
-    "BriefDescription": "Initial scope=group (GS or NNS) and data from same group (near) (pred successful)"
+    "BriefDescription": "Prefetch scope predictor selected GS or NNS and was correct"
   },
   {,
     "EventCode": "0x48A4",

@@ -43,7 +43,7 @@ static const char *const cs35l32_supply_names[CS35L32_NUM_SUPPLIES] = {
 
 struct  cs35l32_private {
 	struct regmap *regmap;
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct regulator_bulk_data supplies[CS35L32_NUM_SUPPLIES];
 	struct cs35l32_platform_data pdata;
 	struct gpio_desc *reset_gpio;
@@ -154,16 +154,16 @@ static const struct snd_soc_dapm_route cs35l32_audio_map[] = {
 
 static int cs35l32_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
+	struct snd_soc_component *component = codec_dai->component;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
-		snd_soc_update_bits(codec, CS35L32_ADSP_CTL,
+		snd_soc_component_update_bits(component, CS35L32_ADSP_CTL,
 				    CS35L32_ADSP_MASTER_MASK,
 				CS35L32_ADSP_MASTER_MASK);
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
-		snd_soc_update_bits(codec, CS35L32_ADSP_CTL,
+		snd_soc_component_update_bits(component, CS35L32_ADSP_CTL,
 				    CS35L32_ADSP_MASTER_MASK, 0);
 		break;
 	default:
@@ -175,9 +175,9 @@ static int cs35l32_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 
 static int cs35l32_set_tristate(struct snd_soc_dai *dai, int tristate)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 
-	return snd_soc_update_bits(codec, CS35L32_PWRCTL2,
+	return snd_soc_component_update_bits(component, CS35L32_PWRCTL2,
 					CS35L32_SDOUT_3ST, tristate << 3);
 }
 
@@ -202,7 +202,7 @@ static struct snd_soc_dai_driver cs35l32_dai[] = {
 	}
 };
 
-static int cs35l32_codec_set_sysclk(struct snd_soc_codec *codec,
+static int cs35l32_component_set_sysclk(struct snd_soc_component *component,
 			      int clk_id, int source, unsigned int freq, int dir)
 {
 	unsigned int val;
@@ -224,21 +224,22 @@ static int cs35l32_codec_set_sysclk(struct snd_soc_codec *codec,
 		return -EINVAL;
 	}
 
-	return snd_soc_update_bits(codec, CS35L32_CLK_CTL,
+	return snd_soc_component_update_bits(component, CS35L32_CLK_CTL,
 			CS35L32_MCLK_DIV2_MASK | CS35L32_MCLK_RATIO_MASK, val);
 }
 
-static const struct snd_soc_codec_driver soc_codec_dev_cs35l32 = {
-	.set_sysclk = cs35l32_codec_set_sysclk,
-
-	.component_driver = {
-		.controls		= cs35l32_snd_controls,
-		.num_controls		= ARRAY_SIZE(cs35l32_snd_controls),
-		.dapm_widgets		= cs35l32_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(cs35l32_dapm_widgets),
-		.dapm_routes		= cs35l32_audio_map,
-		.num_dapm_routes	= ARRAY_SIZE(cs35l32_audio_map),
-	},
+static const struct snd_soc_component_driver soc_component_dev_cs35l32 = {
+	.set_sysclk		= cs35l32_component_set_sysclk,
+	.controls		= cs35l32_snd_controls,
+	.num_controls		= ARRAY_SIZE(cs35l32_snd_controls),
+	.dapm_widgets		= cs35l32_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(cs35l32_dapm_widgets),
+	.dapm_routes		= cs35l32_audio_map,
+	.num_dapm_routes	= ARRAY_SIZE(cs35l32_audio_map),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 /* Current and threshold powerup sequence Pg37 in datasheet */
@@ -483,8 +484,8 @@ static int cs35l32_i2c_probe(struct i2c_client *i2c_client,
 	/* Clear MCLK Error Bit since we don't have the clock yet */
 	ret = regmap_read(cs35l32->regmap, CS35L32_INT_STATUS_1, &reg);
 
-	ret =  snd_soc_register_codec(&i2c_client->dev,
-			&soc_codec_dev_cs35l32, cs35l32_dai,
+	ret = devm_snd_soc_register_component(&i2c_client->dev,
+			&soc_component_dev_cs35l32, cs35l32_dai,
 			ARRAY_SIZE(cs35l32_dai));
 	if (ret < 0)
 		goto err_disable;
@@ -500,8 +501,6 @@ err_disable:
 static int cs35l32_i2c_remove(struct i2c_client *i2c_client)
 {
 	struct cs35l32_private *cs35l32 = i2c_get_clientdata(i2c_client);
-
-	snd_soc_unregister_codec(&i2c_client->dev);
 
 	/* Hold down reset */
 	gpiod_set_value_cansleep(cs35l32->reset_gpio, 0);

@@ -226,10 +226,10 @@ int f2fs_write_inline_data(struct inode *inode, struct page *page)
 	kunmap_atomic(src_addr);
 	set_page_dirty(dn.inode_page);
 
-	spin_lock_irqsave(&mapping->tree_lock, flags);
-	radix_tree_tag_clear(&mapping->page_tree, page_index(page),
+	xa_lock_irqsave(&mapping->i_pages, flags);
+	radix_tree_tag_clear(&mapping->i_pages, page_index(page),
 			     PAGECACHE_TAG_DIRTY);
-	spin_unlock_irqrestore(&mapping->tree_lock, flags);
+	xa_unlock_irqrestore(&mapping->i_pages, flags);
 
 	set_inode_flag(inode, FI_APPEND_WRITE);
 	set_inode_flag(inode, FI_DATA_EXIST);
@@ -369,7 +369,7 @@ static int f2fs_move_inline_dirents(struct inode *dir, struct page *ipage,
 	f2fs_wait_on_page_writeback(page, DATA, true);
 	zero_user_segment(page, MAX_INLINE_DATA(dir), PAGE_SIZE);
 
-	dentry_blk = kmap_atomic(page);
+	dentry_blk = page_address(page);
 
 	make_dentry_ptr_inline(dir, &src, inline_dentry);
 	make_dentry_ptr_block(dir, &dst, dentry_blk);
@@ -386,7 +386,6 @@ static int f2fs_move_inline_dirents(struct inode *dir, struct page *ipage,
 	memcpy(dst.dentry, src.dentry, SIZE_OF_DIR_ENTRY * src.max);
 	memcpy(dst.filename, src.filename, src.max * F2FS_SLOT_LEN);
 
-	kunmap_atomic(dentry_blk);
 	if (!PageUptodate(page))
 		SetPageUptodate(page);
 	set_page_dirty(page);

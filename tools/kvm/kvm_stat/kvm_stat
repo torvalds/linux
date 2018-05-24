@@ -1121,9 +1121,6 @@ class Tui(object):
         self.screen.refresh()
 
     def _refresh_body(self, sleeptime):
-        def is_child_field(field):
-            return field.find('(') != -1
-
         def insert_child(sorted_items, child, values, parent):
             num = len(sorted_items)
             for i in range(0, num):
@@ -1134,12 +1131,14 @@ class Tui(object):
         def get_sorted_events(self, stats):
             """ separate parent and child events """
             if self._sorting == SORT_DEFAULT:
-                def sortkey((_k, v)):
+                def sortkey(pair):
                     # sort by (delta value, overall value)
+                    v = pair[1]
                     return (v.delta, v.value)
             else:
-                def sortkey((_k, v)):
+                def sortkey(pair):
                     # sort by overall value
+                    v = pair[1]
                     return v.value
 
             childs = []
@@ -1613,7 +1612,7 @@ def assign_globals():
     global PATH_DEBUGFS_TRACING
 
     debugfs = ''
-    for line in file('/proc/mounts'):
+    for line in open('/proc/mounts'):
         if line.split(' ')[0] == 'debugfs':
             debugfs = line.split(' ')[1]
             break

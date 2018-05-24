@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -196,6 +197,7 @@ static struct wmi_cmd_map wmi_cmd_map = {
 	.mu_cal_start_cmdid = WMI_CMD_UNSUPPORTED,
 	.set_cca_params_cmdid = WMI_CMD_UNSUPPORTED,
 	.pdev_bss_chan_info_request_cmdid = WMI_CMD_UNSUPPORTED,
+	.pdev_get_tpc_table_cmdid = WMI_CMD_UNSUPPORTED,
 };
 
 /* 10.X WMI cmd track */
@@ -362,6 +364,7 @@ static struct wmi_cmd_map wmi_10x_cmd_map = {
 	.mu_cal_start_cmdid = WMI_CMD_UNSUPPORTED,
 	.set_cca_params_cmdid = WMI_CMD_UNSUPPORTED,
 	.pdev_bss_chan_info_request_cmdid = WMI_CMD_UNSUPPORTED,
+	.pdev_get_tpc_table_cmdid = WMI_CMD_UNSUPPORTED,
 };
 
 /* 10.2.4 WMI cmd track */
@@ -528,6 +531,7 @@ static struct wmi_cmd_map wmi_10_2_4_cmd_map = {
 	.set_cca_params_cmdid = WMI_CMD_UNSUPPORTED,
 	.pdev_bss_chan_info_request_cmdid =
 		WMI_10_2_PDEV_BSS_CHAN_INFO_REQUEST_CMDID,
+	.pdev_get_tpc_table_cmdid = WMI_CMD_UNSUPPORTED,
 };
 
 /* 10.4 WMI cmd track */
@@ -1480,6 +1484,7 @@ static struct wmi_cmd_map wmi_10_2_cmd_map = {
 	.pdev_get_ani_cck_config_cmdid = WMI_CMD_UNSUPPORTED,
 	.pdev_get_ani_ofdm_config_cmdid = WMI_CMD_UNSUPPORTED,
 	.pdev_reserve_ast_entry_cmdid = WMI_CMD_UNSUPPORTED,
+	.pdev_get_tpc_table_cmdid = WMI_CMD_UNSUPPORTED,
 };
 
 static struct wmi_pdev_param_map wmi_10_4_pdev_param_map = {
@@ -1742,8 +1747,8 @@ int ath10k_wmi_cmd_send_nowait(struct ath10k *ar, struct sk_buff *skb,
 	cmd_hdr->cmd_id = __cpu_to_le32(cmd);
 
 	memset(skb_cb, 0, sizeof(*skb_cb));
+	trace_ath10k_wmi_cmd(ar, cmd_id, skb->data, skb->len);
 	ret = ath10k_htc_send(&ar->htc, ar->wmi.eid, skb);
-	trace_ath10k_wmi_cmd(ar, cmd_id, skb->data, skb->len, ret);
 
 	if (ret)
 		goto err_pull;
@@ -2703,6 +2708,28 @@ ath10k_wmi_10_4_pull_peer_stats(const struct wmi_10_4_peer_stats *src,
 	dst->peer_rx_rate = __le32_to_cpu(src->peer_rx_rate);
 }
 
+static void
+ath10k_wmi_10_4_pull_vdev_stats(const struct wmi_vdev_stats_extd *src,
+				struct ath10k_fw_stats_vdev_extd *dst)
+{
+	dst->vdev_id = __le32_to_cpu(src->vdev_id);
+	dst->ppdu_aggr_cnt = __le32_to_cpu(src->ppdu_aggr_cnt);
+	dst->ppdu_noack = __le32_to_cpu(src->ppdu_noack);
+	dst->mpdu_queued = __le32_to_cpu(src->mpdu_queued);
+	dst->ppdu_nonaggr_cnt = __le32_to_cpu(src->ppdu_nonaggr_cnt);
+	dst->mpdu_sw_requeued = __le32_to_cpu(src->mpdu_sw_requeued);
+	dst->mpdu_suc_retry = __le32_to_cpu(src->mpdu_suc_retry);
+	dst->mpdu_suc_multitry = __le32_to_cpu(src->mpdu_suc_multitry);
+	dst->mpdu_fail_retry = __le32_to_cpu(src->mpdu_fail_retry);
+	dst->tx_ftm_suc = __le32_to_cpu(src->tx_ftm_suc);
+	dst->tx_ftm_suc_retry = __le32_to_cpu(src->tx_ftm_suc_retry);
+	dst->tx_ftm_fail = __le32_to_cpu(src->tx_ftm_fail);
+	dst->rx_ftmr_cnt = __le32_to_cpu(src->rx_ftmr_cnt);
+	dst->rx_ftmr_dup_cnt = __le32_to_cpu(src->rx_ftmr_dup_cnt);
+	dst->rx_iftmr_cnt = __le32_to_cpu(src->rx_iftmr_cnt);
+	dst->rx_iftmr_dup_cnt = __le32_to_cpu(src->rx_iftmr_dup_cnt);
+}
+
 static int ath10k_wmi_main_op_pull_fw_stats(struct ath10k *ar,
 					    struct sk_buff *skb,
 					    struct ath10k_fw_stats *stats)
@@ -3042,7 +3069,16 @@ static int ath10k_wmi_10_4_op_pull_fw_stats(struct ath10k *ar,
 		 */
 	}
 
-	/* fw doesn't implement vdev stats */
+	for (i = 0; i < num_vdev_stats; i++) {
+		const struct wmi_vdev_stats *src;
+
+		/* Ignore vdev stats here as it has only vdev id. Actual vdev
+		 * stats will be retrieved from vdev extended stats.
+		 */
+		src = (void *)skb->data;
+		if (!skb_pull(skb, sizeof(*src)))
+			return -EPROTO;
+	}
 
 	for (i = 0; i < num_peer_stats; i++) {
 		const struct wmi_10_4_peer_stats *src;
@@ -3074,26 +3110,43 @@ static int ath10k_wmi_10_4_op_pull_fw_stats(struct ath10k *ar,
 		 */
 	}
 
-	if ((stats_id & WMI_10_4_STAT_PEER_EXTD) == 0)
-		return 0;
+	if (stats_id & WMI_10_4_STAT_PEER_EXTD) {
+		stats->extended = true;
 
-	stats->extended = true;
+		for (i = 0; i < num_peer_stats; i++) {
+			const struct wmi_10_4_peer_extd_stats *src;
+			struct ath10k_fw_extd_stats_peer *dst;
 
-	for (i = 0; i < num_peer_stats; i++) {
-		const struct wmi_10_4_peer_extd_stats *src;
-		struct ath10k_fw_extd_stats_peer *dst;
+			src = (void *)skb->data;
+			if (!skb_pull(skb, sizeof(*src)))
+				return -EPROTO;
 
-		src = (void *)skb->data;
-		if (!skb_pull(skb, sizeof(*src)))
-			return -EPROTO;
+			dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
+			if (!dst)
+				continue;
 
-		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
-		if (!dst)
-			continue;
+			ether_addr_copy(dst->peer_macaddr,
+					src->peer_macaddr.addr);
+			dst->rx_duration = __le32_to_cpu(src->rx_duration);
+			list_add_tail(&dst->list, &stats->peers_extd);
+		}
+	}
 
-		ether_addr_copy(dst->peer_macaddr, src->peer_macaddr.addr);
-		dst->rx_duration = __le32_to_cpu(src->rx_duration);
-		list_add_tail(&dst->list, &stats->peers_extd);
+	if (stats_id & WMI_10_4_STAT_VDEV_EXTD) {
+		for (i = 0; i < num_vdev_stats; i++) {
+			const struct wmi_vdev_stats_extd *src;
+			struct ath10k_fw_stats_vdev_extd *dst;
+
+			src = (void *)skb->data;
+			if (!skb_pull(skb, sizeof(*src)))
+				return -EPROTO;
+
+			dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
+			if (!dst)
+				continue;
+			ath10k_wmi_10_4_pull_vdev_stats(src, dst);
+			list_add_tail(&dst->list, &stats->vdevs);
+		}
 	}
 
 	return 0;
@@ -4313,19 +4366,11 @@ static void ath10k_tpc_config_disp_tables(struct ath10k *ar,
 	}
 }
 
-void ath10k_wmi_event_pdev_tpc_config(struct ath10k *ar, struct sk_buff *skb)
+void ath10k_wmi_tpc_config_get_rate_code(u8 *rate_code, u16 *pream_table,
+					 u32 num_tx_chain)
 {
-	u32 i, j, pream_idx, num_tx_chain;
-	u8 rate_code[WMI_TPC_RATE_MAX], rate_idx;
-	u16 pream_table[WMI_TPC_PREAM_TABLE_MAX];
-	struct wmi_pdev_tpc_config_event *ev;
-	struct ath10k_tpc_stats *tpc_stats;
-
-	ev = (struct wmi_pdev_tpc_config_event *)skb->data;
-
-	tpc_stats = kzalloc(sizeof(*tpc_stats), GFP_ATOMIC);
-	if (!tpc_stats)
-		return;
+	u32 i, j, pream_idx;
+	u8 rate_idx;
 
 	/* Create the rate code table based on the chains supported */
 	rate_idx = 0;
@@ -4348,8 +4393,6 @@ void ath10k_wmi_event_pdev_tpc_config(struct ath10k *ar, struct sk_buff *skb)
 	}
 	pream_table[pream_idx] = rate_idx;
 	pream_idx++;
-
-	num_tx_chain = __le32_to_cpu(ev->num_tx_chain);
 
 	/* Fill HT20 rate code */
 	for (i = 0; i < num_tx_chain; i++) {
@@ -4374,7 +4417,7 @@ void ath10k_wmi_event_pdev_tpc_config(struct ath10k *ar, struct sk_buff *skb)
 	pream_idx++;
 
 	/* Fill VHT20 rate code */
-	for (i = 0; i < __le32_to_cpu(ev->num_tx_chain); i++) {
+	for (i = 0; i < num_tx_chain; i++) {
 		for (j = 0; j < 10; j++) {
 			rate_code[rate_idx] =
 			ATH10K_HW_RATECODE(j, i, WMI_RATE_PREAMBLE_VHT);
@@ -4418,6 +4461,26 @@ void ath10k_wmi_event_pdev_tpc_config(struct ath10k *ar, struct sk_buff *skb)
 		ATH10K_HW_RATECODE(0, 0, WMI_RATE_PREAMBLE_OFDM);
 
 	pream_table[pream_idx] = ATH10K_TPC_PREAM_TABLE_END;
+}
+
+void ath10k_wmi_event_pdev_tpc_config(struct ath10k *ar, struct sk_buff *skb)
+{
+	u32 num_tx_chain;
+	u8 rate_code[WMI_TPC_RATE_MAX];
+	u16 pream_table[WMI_TPC_PREAM_TABLE_MAX];
+	struct wmi_pdev_tpc_config_event *ev;
+	struct ath10k_tpc_stats *tpc_stats;
+
+	ev = (struct wmi_pdev_tpc_config_event *)skb->data;
+
+	tpc_stats = kzalloc(sizeof(*tpc_stats), GFP_ATOMIC);
+	if (!tpc_stats)
+		return;
+
+	num_tx_chain = __le32_to_cpu(ev->num_tx_chain);
+
+	ath10k_wmi_tpc_config_get_rate_code(rate_code, pream_table,
+					    num_tx_chain);
 
 	tpc_stats->chan_freq = __le32_to_cpu(ev->chan_freq);
 	tpc_stats->phy_mode = __le32_to_cpu(ev->phy_mode);
@@ -4445,6 +4508,246 @@ void ath10k_wmi_event_pdev_tpc_config(struct ath10k *ar, struct sk_buff *skb)
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
 		   "wmi event tpc config channel %d mode %d ctl %d regd %d gain %d %d limit %d max_power %d tx_chanins %d rates %d\n",
+		   __le32_to_cpu(ev->chan_freq),
+		   __le32_to_cpu(ev->phy_mode),
+		   __le32_to_cpu(ev->ctl),
+		   __le32_to_cpu(ev->reg_domain),
+		   a_sle32_to_cpu(ev->twice_antenna_gain),
+		   __le32_to_cpu(ev->twice_antenna_reduction),
+		   __le32_to_cpu(ev->power_limit),
+		   __le32_to_cpu(ev->twice_max_rd_power) / 2,
+		   __le32_to_cpu(ev->num_tx_chain),
+		   __le32_to_cpu(ev->rate_max));
+}
+
+static u8
+ath10k_wmi_tpc_final_get_rate(struct ath10k *ar,
+			      struct wmi_pdev_tpc_final_table_event *ev,
+			      u32 rate_idx, u32 num_chains,
+			      u32 rate_code, u8 type, u32 pream_idx)
+{
+	u8 tpc, num_streams, preamble, ch, stm_idx;
+	s8 pow_agcdd, pow_agstbc, pow_agtxbf;
+	int pream;
+
+	num_streams = ATH10K_HW_NSS(rate_code);
+	preamble = ATH10K_HW_PREAMBLE(rate_code);
+	ch = num_chains - 1;
+	stm_idx = num_streams - 1;
+	pream = -1;
+
+	if (__le32_to_cpu(ev->chan_freq) <= 2483) {
+		switch (pream_idx) {
+		case WMI_TPC_PREAM_2GHZ_CCK:
+			pream = 0;
+			break;
+		case WMI_TPC_PREAM_2GHZ_OFDM:
+			pream = 1;
+			break;
+		case WMI_TPC_PREAM_2GHZ_HT20:
+		case WMI_TPC_PREAM_2GHZ_VHT20:
+			pream = 2;
+			break;
+		case WMI_TPC_PREAM_2GHZ_HT40:
+		case WMI_TPC_PREAM_2GHZ_VHT40:
+			pream = 3;
+			break;
+		case WMI_TPC_PREAM_2GHZ_VHT80:
+			pream = 4;
+			break;
+		default:
+			pream = -1;
+			break;
+		}
+	}
+
+	if (__le32_to_cpu(ev->chan_freq) >= 5180) {
+		switch (pream_idx) {
+		case WMI_TPC_PREAM_5GHZ_OFDM:
+			pream = 0;
+			break;
+		case WMI_TPC_PREAM_5GHZ_HT20:
+		case WMI_TPC_PREAM_5GHZ_VHT20:
+			pream = 1;
+			break;
+		case WMI_TPC_PREAM_5GHZ_HT40:
+		case WMI_TPC_PREAM_5GHZ_VHT40:
+			pream = 2;
+			break;
+		case WMI_TPC_PREAM_5GHZ_VHT80:
+			pream = 3;
+			break;
+		case WMI_TPC_PREAM_5GHZ_HTCUP:
+			pream = 4;
+			break;
+		default:
+			pream = -1;
+			break;
+		}
+	}
+
+	if (pream == 4)
+		tpc = min_t(u8, ev->rates_array[rate_idx],
+			    ev->max_reg_allow_pow[ch]);
+	else
+		tpc = min_t(u8, min_t(u8, ev->rates_array[rate_idx],
+				      ev->max_reg_allow_pow[ch]),
+			    ev->ctl_power_table[0][pream][stm_idx]);
+
+	if (__le32_to_cpu(ev->num_tx_chain) <= 1)
+		goto out;
+
+	if (preamble == WMI_RATE_PREAMBLE_CCK)
+		goto out;
+
+	if (num_chains <= num_streams)
+		goto out;
+
+	switch (type) {
+	case WMI_TPC_TABLE_TYPE_STBC:
+		pow_agstbc = ev->max_reg_allow_pow_agstbc[ch - 1][stm_idx];
+		if (pream == 4)
+			tpc = min_t(u8, tpc, pow_agstbc);
+		else
+			tpc = min_t(u8, min_t(u8, tpc, pow_agstbc),
+				    ev->ctl_power_table[0][pream][stm_idx]);
+		break;
+	case WMI_TPC_TABLE_TYPE_TXBF:
+		pow_agtxbf = ev->max_reg_allow_pow_agtxbf[ch - 1][stm_idx];
+		if (pream == 4)
+			tpc = min_t(u8, tpc, pow_agtxbf);
+		else
+			tpc = min_t(u8, min_t(u8, tpc, pow_agtxbf),
+				    ev->ctl_power_table[1][pream][stm_idx]);
+		break;
+	case WMI_TPC_TABLE_TYPE_CDD:
+		pow_agcdd = ev->max_reg_allow_pow_agcdd[ch - 1][stm_idx];
+		if (pream == 4)
+			tpc = min_t(u8, tpc, pow_agcdd);
+		else
+			tpc = min_t(u8, min_t(u8, tpc, pow_agcdd),
+				    ev->ctl_power_table[0][pream][stm_idx]);
+		break;
+	default:
+		ath10k_warn(ar, "unknown wmi tpc final table type: %d\n", type);
+		tpc = 0;
+		break;
+	}
+
+out:
+	return tpc;
+}
+
+static void
+ath10k_wmi_tpc_stats_final_disp_tables(struct ath10k *ar,
+				       struct wmi_pdev_tpc_final_table_event *ev,
+				       struct ath10k_tpc_stats_final *tpc_stats,
+				       u8 *rate_code, u16 *pream_table, u8 type)
+{
+	u32 i, j, pream_idx, flags;
+	u8 tpc[WMI_TPC_TX_N_CHAIN];
+	char tpc_value[WMI_TPC_TX_N_CHAIN * WMI_TPC_BUF_SIZE];
+	char buff[WMI_TPC_BUF_SIZE];
+
+	flags = __le32_to_cpu(ev->flags);
+
+	switch (type) {
+	case WMI_TPC_TABLE_TYPE_CDD:
+		if (!(flags & WMI_TPC_CONFIG_EVENT_FLAG_TABLE_CDD)) {
+			ath10k_dbg(ar, ATH10K_DBG_WMI, "CDD not supported\n");
+			tpc_stats->flag[type] = ATH10K_TPC_TABLE_TYPE_FLAG;
+			return;
+		}
+		break;
+	case WMI_TPC_TABLE_TYPE_STBC:
+		if (!(flags & WMI_TPC_CONFIG_EVENT_FLAG_TABLE_STBC)) {
+			ath10k_dbg(ar, ATH10K_DBG_WMI, "STBC not supported\n");
+			tpc_stats->flag[type] = ATH10K_TPC_TABLE_TYPE_FLAG;
+			return;
+		}
+		break;
+	case WMI_TPC_TABLE_TYPE_TXBF:
+		if (!(flags & WMI_TPC_CONFIG_EVENT_FLAG_TABLE_TXBF)) {
+			ath10k_dbg(ar, ATH10K_DBG_WMI, "TXBF not supported\n");
+			tpc_stats->flag[type] = ATH10K_TPC_TABLE_TYPE_FLAG;
+			return;
+		}
+		break;
+	default:
+		ath10k_dbg(ar, ATH10K_DBG_WMI,
+			   "invalid table type in wmi tpc event: %d\n", type);
+		return;
+	}
+
+	pream_idx = 0;
+	for (i = 0; i < __le32_to_cpu(ev->rate_max); i++) {
+		memset(tpc_value, 0, sizeof(tpc_value));
+		memset(buff, 0, sizeof(buff));
+		if (i == pream_table[pream_idx])
+			pream_idx++;
+
+		for (j = 0; j < WMI_TPC_TX_N_CHAIN; j++) {
+			if (j >= __le32_to_cpu(ev->num_tx_chain))
+				break;
+
+			tpc[j] = ath10k_wmi_tpc_final_get_rate(ar, ev, i, j + 1,
+							       rate_code[i],
+							       type, pream_idx);
+			snprintf(buff, sizeof(buff), "%8d ", tpc[j]);
+			strncat(tpc_value, buff, strlen(buff));
+		}
+		tpc_stats->tpc_table_final[type].pream_idx[i] = pream_idx;
+		tpc_stats->tpc_table_final[type].rate_code[i] = rate_code[i];
+		memcpy(tpc_stats->tpc_table_final[type].tpc_value[i],
+		       tpc_value, sizeof(tpc_value));
+	}
+}
+
+void ath10k_wmi_event_tpc_final_table(struct ath10k *ar, struct sk_buff *skb)
+{
+	u32 num_tx_chain;
+	u8 rate_code[WMI_TPC_FINAL_RATE_MAX];
+	u16 pream_table[WMI_TPC_PREAM_TABLE_MAX];
+	struct wmi_pdev_tpc_final_table_event *ev;
+	struct ath10k_tpc_stats_final *tpc_stats;
+
+	ev = (struct wmi_pdev_tpc_final_table_event *)skb->data;
+
+	tpc_stats = kzalloc(sizeof(*tpc_stats), GFP_ATOMIC);
+	if (!tpc_stats)
+		return;
+
+	num_tx_chain = __le32_to_cpu(ev->num_tx_chain);
+
+	ath10k_wmi_tpc_config_get_rate_code(rate_code, pream_table,
+					    num_tx_chain);
+
+	tpc_stats->chan_freq = __le32_to_cpu(ev->chan_freq);
+	tpc_stats->phy_mode = __le32_to_cpu(ev->phy_mode);
+	tpc_stats->ctl = __le32_to_cpu(ev->ctl);
+	tpc_stats->reg_domain = __le32_to_cpu(ev->reg_domain);
+	tpc_stats->twice_antenna_gain = a_sle32_to_cpu(ev->twice_antenna_gain);
+	tpc_stats->twice_antenna_reduction =
+		__le32_to_cpu(ev->twice_antenna_reduction);
+	tpc_stats->power_limit = __le32_to_cpu(ev->power_limit);
+	tpc_stats->twice_max_rd_power = __le32_to_cpu(ev->twice_max_rd_power);
+	tpc_stats->num_tx_chain = __le32_to_cpu(ev->num_tx_chain);
+	tpc_stats->rate_max = __le32_to_cpu(ev->rate_max);
+
+	ath10k_wmi_tpc_stats_final_disp_tables(ar, ev, tpc_stats,
+					       rate_code, pream_table,
+					       WMI_TPC_TABLE_TYPE_CDD);
+	ath10k_wmi_tpc_stats_final_disp_tables(ar, ev,  tpc_stats,
+					       rate_code, pream_table,
+					       WMI_TPC_TABLE_TYPE_STBC);
+	ath10k_wmi_tpc_stats_final_disp_tables(ar, ev, tpc_stats,
+					       rate_code, pream_table,
+					       WMI_TPC_TABLE_TYPE_TXBF);
+
+	ath10k_debug_tpc_stats_final_process(ar, tpc_stats);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI,
+		   "wmi event tpc final table channel %d mode %d ctl %d regd %d gain %d %d limit %d max_power %d tx_chanins %d rates %d\n",
 		   __le32_to_cpu(ev->chan_freq),
 		   __le32_to_cpu(ev->phy_mode),
 		   __le32_to_cpu(ev->ctl),
@@ -5531,6 +5834,7 @@ static void ath10k_wmi_10_4_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	case WMI_10_4_WOW_WAKEUP_HOST_EVENTID:
 	case WMI_10_4_PEER_RATECODE_LIST_EVENTID:
 	case WMI_10_4_WDS_PEER_EVENTID:
+	case WMI_10_4_DEBUG_FATAL_CONDITION_EVENTID:
 		ath10k_dbg(ar, ATH10K_DBG_WMI,
 			   "received event id %d not implemented\n", id);
 		break;
@@ -5548,6 +5852,9 @@ static void ath10k_wmi_10_4_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_10_4_TDLS_PEER_EVENTID:
 		ath10k_wmi_handle_tdls_peer_event(ar, skb);
+		break;
+	case WMI_10_4_PDEV_TPC_TABLE_EVENTID:
+		ath10k_wmi_event_tpc_final_table(ar, skb);
 		break;
 	default:
 		ath10k_warn(ar, "Unknown eventid: %d\n", id);
@@ -7745,6 +8052,72 @@ ath10k_wmi_op_gen_pdev_enable_adaptive_cca(struct ath10k *ar, u8 enable,
 	return skb;
 }
 
+static void
+ath10k_wmi_fw_vdev_stats_extd_fill(const struct ath10k_fw_stats_vdev_extd *vdev,
+				   char *buf, u32 *length)
+{
+	u32 len = *length;
+	u32 buf_len = ATH10K_FW_STATS_BUF_SIZE;
+	u32 val;
+
+	len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+			 "vdev id", vdev->vdev_id);
+	len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+			 "ppdu aggr count", vdev->ppdu_aggr_cnt);
+	len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+			 "ppdu noack", vdev->ppdu_noack);
+	len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+			 "mpdu queued", vdev->mpdu_queued);
+	len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+			 "ppdu nonaggr count", vdev->ppdu_nonaggr_cnt);
+	len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+			 "mpdu sw requeued", vdev->mpdu_sw_requeued);
+	len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+			 "mpdu success retry", vdev->mpdu_suc_retry);
+	len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+			 "mpdu success multitry", vdev->mpdu_suc_multitry);
+	len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+			 "mpdu fail retry", vdev->mpdu_fail_retry);
+	val = vdev->tx_ftm_suc;
+	if (val & WMI_VDEV_STATS_FTM_COUNT_VALID)
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "tx ftm success",
+				 MS(val, WMI_VDEV_STATS_FTM_COUNT));
+	val = vdev->tx_ftm_suc_retry;
+	if (val & WMI_VDEV_STATS_FTM_COUNT_VALID)
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "tx ftm success retry",
+				 MS(val, WMI_VDEV_STATS_FTM_COUNT));
+	val = vdev->tx_ftm_fail;
+	if (val & WMI_VDEV_STATS_FTM_COUNT_VALID)
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "tx ftm fail",
+				 MS(val, WMI_VDEV_STATS_FTM_COUNT));
+	val = vdev->rx_ftmr_cnt;
+	if (val & WMI_VDEV_STATS_FTM_COUNT_VALID)
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "rx ftm request count",
+				 MS(val, WMI_VDEV_STATS_FTM_COUNT));
+	val = vdev->rx_ftmr_dup_cnt;
+	if (val & WMI_VDEV_STATS_FTM_COUNT_VALID)
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "rx ftm request dup count",
+				 MS(val, WMI_VDEV_STATS_FTM_COUNT));
+	val = vdev->rx_iftmr_cnt;
+	if (val & WMI_VDEV_STATS_FTM_COUNT_VALID)
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "rx initial ftm req count",
+				 MS(val, WMI_VDEV_STATS_FTM_COUNT));
+	val = vdev->rx_iftmr_dup_cnt;
+	if (val & WMI_VDEV_STATS_FTM_COUNT_VALID)
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "rx initial ftm req dup cnt",
+				 MS(val, WMI_VDEV_STATS_FTM_COUNT));
+	len += scnprintf(buf + len, buf_len - len, "\n");
+
+	*length = len;
+}
+
 void ath10k_wmi_10_4_op_fw_stats_fill(struct ath10k *ar,
 				      struct ath10k_fw_stats *fw_stats,
 				      char *buf)
@@ -7752,7 +8125,7 @@ void ath10k_wmi_10_4_op_fw_stats_fill(struct ath10k *ar,
 	u32 len = 0;
 	u32 buf_len = ATH10K_FW_STATS_BUF_SIZE;
 	const struct ath10k_fw_stats_pdev *pdev;
-	const struct ath10k_fw_stats_vdev *vdev;
+	const struct ath10k_fw_stats_vdev_extd *vdev;
 	const struct ath10k_fw_stats_peer *peer;
 	size_t num_peers;
 	size_t num_vdevs;
@@ -7805,9 +8178,8 @@ void ath10k_wmi_10_4_op_fw_stats_fill(struct ath10k *ar,
 			"ath10k VDEV stats", num_vdevs);
 	len += scnprintf(buf + len, buf_len - len, "%30s\n\n",
 				"=================");
-
 	list_for_each_entry(vdev, &fw_stats->vdevs, list) {
-		ath10k_wmi_fw_vdev_stats_fill(vdev, buf, &len);
+		ath10k_wmi_fw_vdev_stats_extd_fill(vdev, buf, &len);
 	}
 
 	len += scnprintf(buf + len, buf_len - len, "\n");
@@ -7987,6 +8359,24 @@ static u32 ath10k_wmi_prepare_peer_qos(u8 uapsd_queues, u8 sp)
 	peer_qos |= SM(sp, WMI_TDLS_PEER_SP);
 
 	return peer_qos;
+}
+
+static struct sk_buff *
+ath10k_wmi_10_4_op_gen_pdev_get_tpc_table_cmdid(struct ath10k *ar, u32 param)
+{
+	struct wmi_pdev_get_tpc_table_cmd *cmd;
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(ar, sizeof(*cmd));
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	cmd = (struct wmi_pdev_get_tpc_table_cmd *)skb->data;
+	cmd->param = __cpu_to_le32(param);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI,
+		   "wmi pdev get tpc table param:%d\n", param);
+	return skb;
 }
 
 static struct sk_buff *
@@ -8430,6 +8820,8 @@ static const struct wmi_ops wmi_10_4_ops = {
 	.ext_resource_config = ath10k_wmi_10_4_ext_resource_config,
 	.gen_update_fw_tdls_state = ath10k_wmi_10_4_gen_update_fw_tdls_state,
 	.gen_tdls_peer_update = ath10k_wmi_10_4_gen_tdls_peer_update,
+	.gen_pdev_get_tpc_table_cmdid =
+			ath10k_wmi_10_4_op_gen_pdev_get_tpc_table_cmdid,
 
 	/* shared with 10.2 */
 	.pull_echo_ev = ath10k_wmi_op_pull_echo_ev,

@@ -257,7 +257,7 @@ static void amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev,
 		return;
 	}
 
-	total_vram = adev->mc.real_vram_size - adev->vram_pin_size;
+	total_vram = adev->gmc.real_vram_size - adev->vram_pin_size;
 	used_vram = amdgpu_vram_mgr_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
 	free_vram = used_vram >= total_vram ? 0 : total_vram - used_vram;
 
@@ -302,8 +302,8 @@ static void amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev,
 	*max_bytes = us_to_bytes(adev, adev->mm_stats.accum_us);
 
 	/* Do the same for visible VRAM if half of it is free */
-	if (adev->mc.visible_vram_size < adev->mc.real_vram_size) {
-		u64 total_vis_vram = adev->mc.visible_vram_size;
+	if (adev->gmc.visible_vram_size < adev->gmc.real_vram_size) {
+		u64 total_vis_vram = adev->gmc.visible_vram_size;
 		u64 used_vis_vram =
 			amdgpu_vram_mgr_vis_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
 
@@ -346,8 +346,8 @@ static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
 	struct ttm_operation_ctx ctx = {
 		.interruptible = true,
 		.no_wait_gpu = false,
-		.allow_reserved_eviction = false,
-		.resv = bo->tbo.resv
+		.resv = bo->tbo.resv,
+		.flags = 0
 	};
 	uint32_t domain;
 	int r;
@@ -359,7 +359,7 @@ static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
 	 * to move it. Don't move anything if the threshold is zero.
 	 */
 	if (p->bytes_moved < p->bytes_moved_threshold) {
-		if (adev->mc.visible_vram_size < adev->mc.real_vram_size &&
+		if (adev->gmc.visible_vram_size < adev->gmc.real_vram_size &&
 		    (bo->flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)) {
 			/* And don't move a CPU_ACCESS_REQUIRED BO to limited
 			 * visible VRAM if we've depleted our allowance to do
@@ -381,9 +381,9 @@ retry:
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 
 	p->bytes_moved += ctx.bytes_moved;
-	if (adev->mc.visible_vram_size < adev->mc.real_vram_size &&
+	if (adev->gmc.visible_vram_size < adev->gmc.real_vram_size &&
 	    bo->tbo.mem.mem_type == TTM_PL_VRAM &&
-	    bo->tbo.mem.start < adev->mc.visible_vram_size >> PAGE_SHIFT)
+	    bo->tbo.mem.start < adev->gmc.visible_vram_size >> PAGE_SHIFT)
 		p->bytes_moved_vis += ctx.bytes_moved;
 
 	if (unlikely(r == -ENOMEM) && domain != bo->allowed_domains) {
@@ -437,9 +437,9 @@ static bool amdgpu_cs_try_evict(struct amdgpu_cs_parser *p,
 		/* Good we can try to move this BO somewhere else */
 		amdgpu_ttm_placement_from_domain(bo, other);
 		update_bytes_moved_vis =
-			adev->mc.visible_vram_size < adev->mc.real_vram_size &&
+			adev->gmc.visible_vram_size < adev->gmc.real_vram_size &&
 			bo->tbo.mem.mem_type == TTM_PL_VRAM &&
-			bo->tbo.mem.start < adev->mc.visible_vram_size >> PAGE_SHIFT;
+			bo->tbo.mem.start < adev->gmc.visible_vram_size >> PAGE_SHIFT;
 		initial_bytes_moved = atomic64_read(&adev->num_bytes_moved);
 		r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 		bytes_moved = atomic64_read(&adev->num_bytes_moved) -
@@ -542,7 +542,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	INIT_LIST_HEAD(&duplicates);
 	amdgpu_vm_get_pd_bo(&fpriv->vm, &p->validated, &p->vm_pd);
 
-	if (p->uf_entry.robj)
+	if (p->uf_entry.robj && !p->uf_entry.robj->parent)
 		list_add(&p->uf_entry.tv.head, &p->validated);
 
 	while (1) {

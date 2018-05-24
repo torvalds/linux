@@ -495,7 +495,7 @@ static void ssip_rx_wd(struct timer_list *t)
 	struct ssi_protocol *ssi = from_timer(ssi, t, rx_wd);
 	struct hsi_client *cl = ssi->cl;
 
-	dev_err(&cl->device, "Watchdog trigerred\n");
+	dev_err(&cl->device, "Watchdog triggered\n");
 	ssip_error(cl);
 }
 
@@ -504,7 +504,7 @@ static void ssip_tx_wd(struct timer_list *t)
 	struct ssi_protocol *ssi = from_timer(ssi, t, tx_wd);
 	struct hsi_client *cl = ssi->cl;
 
-	dev_err(&cl->device, "Watchdog trigerred\n");
+	dev_err(&cl->device, "Watchdog triggered\n");
 	ssip_error(cl);
 }
 
@@ -993,8 +993,8 @@ static int ssip_pn_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto inc_dropped;
 
 	/*
-	 * Modem sends Phonet messages over SSI with its own endianess...
-	 * Assume that modem has the same endianess as we do.
+	 * Modem sends Phonet messages over SSI with its own endianness.
+	 * Assume that modem has the same endianness as we do.
 	 */
 	if (skb_cow_head(skb, 0))
 		goto drop;
@@ -1088,10 +1088,8 @@ static int ssi_protocol_probe(struct device *dev)
 	int err;
 
 	ssi = kzalloc(sizeof(*ssi), GFP_KERNEL);
-	if (!ssi) {
-		dev_err(dev, "No memory for ssi protocol\n");
+	if (!ssi)
 		return -ENOMEM;
-	}
 
 	spin_lock_init(&ssi->lock);
 	timer_setup(&ssi->rx_wd, ssip_rx_wd, TIMER_DEFERRABLE);

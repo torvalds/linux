@@ -72,10 +72,10 @@ config SPI_ARMADA_3700
 config SPI_ATMEL
 	tristate "Atmel SPI Controller"
 	depends on HAS_DMA
-	depends on (ARCH_AT91 || AVR32 || COMPILE_TEST)
+	depends on ARCH_AT91 || COMPILE_TEST
 	help
 	  This selects a driver for the Atmel SPI Controller, present on
-	  many AT32 (AVR32) and AT91 (ARM) chips.
+	  many AT91 ARM chips.
 
 config SPI_AU1550
 	tristate "Au1550/Au1200/Au1300 SPI Controller"
@@ -114,25 +114,6 @@ config SPI_BCM2835AUX
 	  The BCM2835 contains two types of SPI master controller; the
 	  "universal SPI master", and the regular SPI controller.
 	  This driver is for the universal/auxiliary SPI controller.
-
-config SPI_BFIN5XX
-	tristate "SPI controller driver for ADI Blackfin5xx"
-	depends on BLACKFIN && !BF60x
-	help
-	  This is the SPI controller master driver for Blackfin 5xx processor.
-
-config SPI_ADI_V3
-	tristate "SPI controller v3 for ADI"
-	depends on BF60x
-	help
-	  This is the SPI controller v3 master driver
-	  found on Blackfin 60x processor.
-
-config SPI_BFIN_SPORT
-	tristate "SPI bus via Blackfin SPORT"
-	depends on BLACKFIN
-	help
-	  Enable support for a SPI bus via the Blackfin SPORT peripheral.
 
 config SPI_BCM53XX
 	tristate "Broadcom BCM53xx SPI controller"

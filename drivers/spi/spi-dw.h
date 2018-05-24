@@ -93,14 +93,14 @@ struct dw_spi_dma_ops {
 	int (*dma_init)(struct dw_spi *dws);
 	void (*dma_exit)(struct dw_spi *dws);
 	int (*dma_setup)(struct dw_spi *dws, struct spi_transfer *xfer);
-	bool (*can_dma)(struct spi_master *master, struct spi_device *spi,
+	bool (*can_dma)(struct spi_controller *master, struct spi_device *spi,
 			struct spi_transfer *xfer);
 	int (*dma_transfer)(struct dw_spi *dws, struct spi_transfer *xfer);
 	void (*dma_stop)(struct dw_spi *dws);
 };
 
 struct dw_spi {
-	struct spi_master	*master;
+	struct spi_controller	*master;
 	enum dw_ssi_type	type;
 
 	void __iomem		*regs;

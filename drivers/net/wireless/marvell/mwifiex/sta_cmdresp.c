@@ -1170,6 +1170,22 @@ static int mwifiex_ret_pkt_aggr_ctrl(struct mwifiex_private *priv,
 	return 0;
 }
 
+static int mwifiex_ret_get_chan_info(struct mwifiex_private *priv,
+				     struct host_cmd_ds_command *resp,
+				     struct mwifiex_channel_band *channel_band)
+{
+	struct host_cmd_ds_sta_configure *sta_cfg_cmd = &resp->params.sta_cfg;
+	struct host_cmd_tlv_channel_band *tlv_band_channel;
+
+	tlv_band_channel =
+	(struct host_cmd_tlv_channel_band *)sta_cfg_cmd->tlv_buffer;
+	memcpy(&channel_band->band_config, &tlv_band_channel->band_config,
+	       sizeof(struct mwifiex_band_config));
+	channel_band->channel = tlv_band_channel->channel;
+
+	return 0;
+}
+
 /*
  * This function handles the command responses.
  *
@@ -1392,6 +1408,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_CHAN_REGION_CFG:
 		ret = mwifiex_ret_chan_region_cfg(priv, resp);
+		break;
+	case HostCmd_CMD_STA_CONFIGURE:
+		ret = mwifiex_ret_get_chan_info(priv, resp, data_buf);
 		break;
 	default:
 		mwifiex_dbg(adapter, ERROR,
