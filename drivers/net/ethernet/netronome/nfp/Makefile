@@ -37,6 +37,7 @@ ifeq ($(CONFIG_NFP_APP_FLOWER),y)
 nfp-objs += \
 	    flower/action.o \
 	    flower/cmsg.o \
+	    flower/lag_conf.o \
 	    flower/main.o \
 	    flower/match.o \
 	    flower/metadata.o \

@@ -575,12 +575,14 @@ static int nfp_flower_init(struct nfp_app *app)
 	/* Tell the firmware that the driver supports lag. */
 	err = nfp_rtsym_write_le(app->pf->rtbl,
 				 "_abi_flower_balance_sync_enable", 1);
-	if (!err)
+	if (!err) {
 		app_priv->flower_ext_feats |= NFP_FL_FEATS_LAG;
-	else if (err == -ENOENT)
+		nfp_flower_lag_init(&app_priv->nfp_lag);
+	} else if (err == -ENOENT) {
 		nfp_warn(app->cpp, "LAG not supported by FW.\n");
-	else
+	} else {
 		goto err_cleanup_metadata;
+	}
 
 	return 0;
 
@@ -598,6 +600,9 @@ static void nfp_flower_clean(struct nfp_app *app)
 	skb_queue_purge(&app_priv->cmsg_skbs_high);
 	skb_queue_purge(&app_priv->cmsg_skbs_low);
 	flush_work(&app_priv->cmsg_work);
+
+	if (app_priv->flower_ext_feats & NFP_FL_FEATS_LAG)
+		nfp_flower_lag_cleanup(&app_priv->nfp_lag);
 
 	nfp_flower_metadata_cleanup(app);
 	vfree(app->priv);
@@ -665,11 +670,29 @@ nfp_flower_repr_change_mtu(struct nfp_app *app, struct net_device *netdev,
 
 static int nfp_flower_start(struct nfp_app *app)
 {
+	struct nfp_flower_priv *app_priv = app->priv;
+	int err;
+
+	if (app_priv->flower_ext_feats & NFP_FL_FEATS_LAG) {
+		err = nfp_flower_lag_reset(&app_priv->nfp_lag);
+		if (err)
+			return err;
+
+		err = register_netdevice_notifier(&app_priv->nfp_lag.lag_nb);
+		if (err)
+			return err;
+	}
+
 	return nfp_tunnel_config_start(app);
 }
 
 static void nfp_flower_stop(struct nfp_app *app)
 {
+	struct nfp_flower_priv *app_priv = app->priv;
+
+	if (app_priv->flower_ext_feats & NFP_FL_FEATS_LAG)
+		unregister_netdevice_notifier(&app_priv->nfp_lag.lag_nb);
+
 	nfp_tunnel_config_stop(app);
 }
 

@@ -43,6 +43,7 @@
 #include <net/pkt_cls.h>
 #include <net/tcp.h>
 #include <linux/workqueue.h>
+#include <linux/idr.h>
 
 struct net_device;
 struct nfp_app;
@@ -98,6 +99,30 @@ struct nfp_mtu_conf {
 };
 
 /**
+ * struct nfp_fl_lag - Flower APP priv data for link aggregation
+ * @lag_nb:		Notifier to track master/slave events
+ * @work:		Work queue for writing configs to the HW
+ * @lock:		Lock to protect lag_group_list
+ * @group_list:		List of all master/slave groups offloaded
+ * @ida_handle:		IDA to handle group ids
+ * @pkt_num:		Incremented for each config packet sent
+ * @batch_ver:		Incremented for each batch of config packets
+ * @global_inst:	Instance allocator for groups
+ * @rst_cfg:		Marker to reset HW LAG config
+ */
+struct nfp_fl_lag {
+	struct notifier_block lag_nb;
+	struct delayed_work work;
+	struct mutex lock;
+	struct list_head group_list;
+	struct ida ida_handle;
+	unsigned int pkt_num;
+	unsigned int batch_ver;
+	u8 global_inst;
+	bool rst_cfg;
+};
+
+/**
  * struct nfp_flower_priv - Flower APP per-vNIC priv data
  * @app:		Back pointer to app
  * @nn:			Pointer to vNIC
@@ -129,6 +154,7 @@ struct nfp_mtu_conf {
  *			from firmware for repr reify
  * @reify_wait_queue:	wait queue for repr reify response counting
  * @mtu_conf:		Configuration of repr MTU value
+ * @nfp_lag:		Link aggregation data block
  */
 struct nfp_flower_priv {
 	struct nfp_app *app;
@@ -158,6 +184,7 @@ struct nfp_flower_priv {
 	atomic_t reify_replies;
 	wait_queue_head_t reify_wait_queue;
 	struct nfp_mtu_conf mtu_conf;
+	struct nfp_fl_lag nfp_lag;
 };
 
 /**
@@ -250,5 +277,8 @@ void nfp_tunnel_request_route(struct nfp_app *app, struct sk_buff *skb);
 void nfp_tunnel_keep_alive(struct nfp_app *app, struct sk_buff *skb);
 int nfp_flower_setup_tc_egress_cb(enum tc_setup_type type, void *type_data,
 				  void *cb_priv);
+void nfp_flower_lag_init(struct nfp_fl_lag *lag);
+void nfp_flower_lag_cleanup(struct nfp_fl_lag *lag);
+int nfp_flower_lag_reset(struct nfp_fl_lag *lag);
 
 #endif
