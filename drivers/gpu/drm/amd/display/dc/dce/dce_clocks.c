@@ -139,7 +139,34 @@ static int dentist_get_divider_from_did(int did)
 	}
 }
 
-static int dce_clocks_get_dp_ref_freq(struct dccg *clk)
+/* SW will adjust DP REF Clock average value for all purposes
+ * (DP DTO / DP Audio DTO and DP GTC)
+ if clock is spread for all cases:
+ -if SS enabled on DP Ref clock and HW de-spreading enabled with SW
+ calculations for DS_INCR/DS_MODULO (this is planned to be default case)
+ -if SS enabled on DP Ref clock and HW de-spreading enabled with HW
+ calculations (not planned to be used, but average clock should still
+ be valid)
+ -if SS enabled on DP Ref clock and HW de-spreading disabled
+ (should not be case with CIK) then SW should program all rates
+ generated according to average value (case as with previous ASICs)
+  */
+static int dccg_adjust_dp_ref_freq_for_ss(struct dce_dccg *clk_dce, int dp_ref_clk_khz)
+{
+	if (clk_dce->ss_on_dprefclk && clk_dce->dprefclk_ss_divider != 0) {
+		struct fixed31_32 ss_percentage = dc_fixpt_div_int(
+				dc_fixpt_from_fraction(clk_dce->dprefclk_ss_percentage,
+							clk_dce->dprefclk_ss_divider), 200);
+		struct fixed31_32 adj_dp_ref_clk_khz;
+
+		ss_percentage = dc_fixpt_sub(dc_fixpt_one, ss_percentage);
+		adj_dp_ref_clk_khz = dc_fixpt_mul_int(ss_percentage, dp_ref_clk_khz);
+		dp_ref_clk_khz = dc_fixpt_floor(adj_dp_ref_clk_khz);
+	}
+	return dp_ref_clk_khz;
+}
+
+static int dce_get_dp_ref_freq_khz(struct dccg *clk)
 {
 	struct dce_dccg *clk_dce = TO_DCE_CLOCKS(clk);
 	int dprefclk_wdivider;
@@ -162,54 +189,16 @@ static int dce_clocks_get_dp_ref_freq(struct dccg *clk)
 	dp_ref_clk_khz = (dentist_divider_range_scale_factor
 		* clk_dce->dentist_vco_freq_khz) / target_div;
 
-	/* SW will adjust DP REF Clock average value for all purposes
-	 * (DP DTO / DP Audio DTO and DP GTC)
-	 if clock is spread for all cases:
-	 -if SS enabled on DP Ref clock and HW de-spreading enabled with SW
-	 calculations for DS_INCR/DS_MODULO (this is planned to be default case)
-	 -if SS enabled on DP Ref clock and HW de-spreading enabled with HW
-	 calculations (not planned to be used, but average clock should still
-	 be valid)
-	 -if SS enabled on DP Ref clock and HW de-spreading disabled
-	 (should not be case with CIK) then SW should program all rates
-	 generated according to average value (case as with previous ASICs)
-	  */
-	if (clk_dce->ss_on_dprefclk && clk_dce->dprefclk_ss_divider != 0) {
-		struct fixed31_32 ss_percentage = dc_fixpt_div_int(
-				dc_fixpt_from_fraction(clk_dce->dprefclk_ss_percentage,
-							clk_dce->dprefclk_ss_divider), 200);
-		struct fixed31_32 adj_dp_ref_clk_khz;
-
-		ss_percentage = dc_fixpt_sub(dc_fixpt_one, ss_percentage);
-		adj_dp_ref_clk_khz = dc_fixpt_mul_int(ss_percentage, dp_ref_clk_khz);
-		dp_ref_clk_khz = dc_fixpt_floor(adj_dp_ref_clk_khz);
-	}
-
-	return dp_ref_clk_khz;
+	return dccg_adjust_dp_ref_freq_for_ss(clk_dce, dp_ref_clk_khz);
 }
 
-/* TODO: This is DCN DPREFCLK: it could be program by DENTIST by VBIOS
- * or CLK0_CLK11 by SMU. For DCE120, it is wlays 600Mhz. Will re-visit
- * clock implementation
- */
-static int dce_clocks_get_dp_ref_freq_wrkaround(struct dccg *clk)
+static int dce12_get_dp_ref_freq_khz(struct dccg *clk)
 {
 	struct dce_dccg *clk_dce = TO_DCE_CLOCKS(clk);
-	int dp_ref_clk_khz = 600000;
 
-	if (clk_dce->ss_on_dprefclk && clk_dce->dprefclk_ss_divider != 0) {
-		struct fixed31_32 ss_percentage = dc_fixpt_div_int(
-				dc_fixpt_from_fraction(clk_dce->dprefclk_ss_percentage,
-						clk_dce->dprefclk_ss_divider), 200);
-		struct fixed31_32 adj_dp_ref_clk_khz;
-
-		ss_percentage = dc_fixpt_sub(dc_fixpt_one, ss_percentage);
-		adj_dp_ref_clk_khz = dc_fixpt_mul_int(ss_percentage, dp_ref_clk_khz);
-		dp_ref_clk_khz = dc_fixpt_floor(adj_dp_ref_clk_khz);
-	}
-
-	return dp_ref_clk_khz;
+	return dccg_adjust_dp_ref_freq_for_ss(clk_dce, 600000);
 }
+
 static enum dm_pp_clocks_state dce_get_required_clocks_state(
 	struct dccg *clk,
 	struct dc_clocks *req_clocks)
@@ -590,8 +579,7 @@ static void dcn1_update_clocks(struct dccg *dccg,
 	/* make sure dcf clk is before dpp clk to
 	 * make sure we have enough voltage to run dpp clk
 	 */
-	if (send_request_to_increase
-		) {
+	if (send_request_to_increase) {
 		/*use dcfclk to request voltage*/
 		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
 		clock_voltage_req.clocks_in_khz = dcn_find_dcfclk_suits_all(dc, new_clocks);
@@ -644,8 +632,7 @@ static void dcn1_update_clocks(struct dccg *dccg,
 	}
 
 #ifdef CONFIG_DRM_AMD_DC_DCN1_0
-	if (!send_request_to_increase && send_request_to_lower
-		) {
+	if (!send_request_to_increase && send_request_to_lower) {
 		/*use dcfclk to request voltage*/
 		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
 		clock_voltage_req.clocks_in_khz = dcn_find_dcfclk_suits_all(dc, new_clocks);
@@ -685,31 +672,31 @@ static void dce_update_clocks(struct dccg *dccg,
 }
 
 static const struct display_clock_funcs dcn1_funcs = {
-	.get_dp_ref_clk_frequency = dce_clocks_get_dp_ref_freq_wrkaround,
+	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.set_dispclk = dce112_set_clock,
 	.update_clocks = dcn1_update_clocks
 };
 
 static const struct display_clock_funcs dce120_funcs = {
-	.get_dp_ref_clk_frequency = dce_clocks_get_dp_ref_freq_wrkaround,
+	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.set_dispclk = dce112_set_clock,
 	.update_clocks = dce12_update_clocks
 };
 
 static const struct display_clock_funcs dce112_funcs = {
-	.get_dp_ref_clk_frequency = dce_clocks_get_dp_ref_freq,
+	.get_dp_ref_clk_frequency = dce_get_dp_ref_freq_khz,
 	.set_dispclk = dce112_set_clock,
 	.update_clocks = dce_update_clocks
 };
 
 static const struct display_clock_funcs dce110_funcs = {
-	.get_dp_ref_clk_frequency = dce_clocks_get_dp_ref_freq,
+	.get_dp_ref_clk_frequency = dce_get_dp_ref_freq_khz,
 	.set_dispclk = dce_psr_set_clock,
 	.update_clocks = dce_update_clocks
 };
 
 static const struct display_clock_funcs dce_funcs = {
-	.get_dp_ref_clk_frequency = dce_clocks_get_dp_ref_freq,
+	.get_dp_ref_clk_frequency = dce_get_dp_ref_freq_khz,
 	.set_dispclk = dce_set_clock,
 	.update_clocks = dce_update_clocks
 };
@@ -717,9 +704,9 @@ static const struct display_clock_funcs dce_funcs = {
 static void dce_dccg_construct(
 	struct dce_dccg *clk_dce,
 	struct dc_context *ctx,
-	const struct dce_disp_clk_registers *regs,
-	const struct dce_disp_clk_shift *clk_shift,
-	const struct dce_disp_clk_mask *clk_mask)
+	const struct dccg_registers *regs,
+	const struct dccg_shift *clk_shift,
+	const struct dccg_mask *clk_mask)
 {
 	struct dccg *base = &clk_dce->base;
 
@@ -745,9 +732,9 @@ static void dce_dccg_construct(
 
 struct dccg *dce_dccg_create(
 	struct dc_context *ctx,
-	const struct dce_disp_clk_registers *regs,
-	const struct dce_disp_clk_shift *clk_shift,
-	const struct dce_disp_clk_mask *clk_mask)
+	const struct dccg_registers *regs,
+	const struct dccg_shift *clk_shift,
+	const struct dccg_mask *clk_mask)
 {
 	struct dce_dccg *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
 
@@ -768,9 +755,9 @@ struct dccg *dce_dccg_create(
 
 struct dccg *dce110_dccg_create(
 	struct dc_context *ctx,
-	const struct dce_disp_clk_registers *regs,
-	const struct dce_disp_clk_shift *clk_shift,
-	const struct dce_disp_clk_mask *clk_mask)
+	const struct dccg_registers *regs,
+	const struct dccg_shift *clk_shift,
+	const struct dccg_mask *clk_mask)
 {
 	struct dce_dccg *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
 
@@ -793,9 +780,9 @@ struct dccg *dce110_dccg_create(
 
 struct dccg *dce112_dccg_create(
 	struct dc_context *ctx,
-	const struct dce_disp_clk_registers *regs,
-	const struct dce_disp_clk_shift *clk_shift,
-	const struct dce_disp_clk_mask *clk_mask)
+	const struct dccg_registers *regs,
+	const struct dccg_shift *clk_shift,
+	const struct dccg_mask *clk_mask)
 {
 	struct dce_dccg *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
 

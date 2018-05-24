@@ -33,6 +33,9 @@
 	.DPREFCLK_CNTL = mmDPREFCLK_CNTL, \
 	.DENTIST_DISPCLK_CNTL = mmDENTIST_DISPCLK_CNTL
 
+#define CLK_COMMON_REG_LIST_DCN_BASE() \
+	SR(DENTIST_DISPCLK_CNTL)
+
 #define CLK_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
 
@@ -40,28 +43,34 @@
 	CLK_SF(DPREFCLK_CNTL, DPREFCLK_SRC_SEL, mask_sh), \
 	CLK_SF(DENTIST_DISPCLK_CNTL, DENTIST_DPREFCLK_WDIVIDER, mask_sh)
 
+#define CLK_COMMON_MASK_SH_LIST_DCN_COMMON_BASE(mask_sh) \
+	CLK_SF(DENTIST_DISPCLK_CNTL, DENTIST_DPPCLK_WDIVIDER, mask_sh),\
+	CLK_SF(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_WDIVIDER, mask_sh)
+
 #define CLK_REG_FIELD_LIST(type) \
 	type DPREFCLK_SRC_SEL; \
-	type DENTIST_DPREFCLK_WDIVIDER;
+	type DENTIST_DPREFCLK_WDIVIDER; \
+	type DENTIST_DISPCLK_WDIVIDER; \
+	type DENTIST_DPPCLK_WDIVIDER;
 
-struct dce_disp_clk_shift {
+struct dccg_shift {
 	CLK_REG_FIELD_LIST(uint8_t)
 };
 
-struct dce_disp_clk_mask {
+struct dccg_mask {
 	CLK_REG_FIELD_LIST(uint32_t)
 };
 
-struct dce_disp_clk_registers {
+struct dccg_registers {
 	uint32_t DPREFCLK_CNTL;
 	uint32_t DENTIST_DISPCLK_CNTL;
 };
 
 struct dce_dccg {
 	struct dccg base;
-	const struct dce_disp_clk_registers *regs;
-	const struct dce_disp_clk_shift *clk_shift;
-	const struct dce_disp_clk_mask *clk_mask;
+	const struct dccg_registers *regs;
+	const struct dccg_shift *clk_shift;
+	const struct dccg_mask *clk_mask;
 
 	struct state_dependent_clocks max_clks_by_state[DM_PP_CLOCKS_MAX_STATES];
 
@@ -84,21 +93,21 @@ struct dce_dccg {
 
 struct dccg *dce_dccg_create(
 	struct dc_context *ctx,
-	const struct dce_disp_clk_registers *regs,
-	const struct dce_disp_clk_shift *clk_shift,
-	const struct dce_disp_clk_mask *clk_mask);
+	const struct dccg_registers *regs,
+	const struct dccg_shift *clk_shift,
+	const struct dccg_mask *clk_mask);
 
 struct dccg *dce110_dccg_create(
 	struct dc_context *ctx,
-	const struct dce_disp_clk_registers *regs,
-	const struct dce_disp_clk_shift *clk_shift,
-	const struct dce_disp_clk_mask *clk_mask);
+	const struct dccg_registers *regs,
+	const struct dccg_shift *clk_shift,
+	const struct dccg_mask *clk_mask);
 
 struct dccg *dce112_dccg_create(
 	struct dc_context *ctx,
-	const struct dce_disp_clk_registers *regs,
-	const struct dce_disp_clk_shift *clk_shift,
-	const struct dce_disp_clk_mask *clk_mask);
+	const struct dccg_registers *regs,
+	const struct dccg_shift *clk_shift,
+	const struct dccg_mask *clk_mask);
 
 struct dccg *dce120_dccg_create(struct dc_context *ctx);
 
