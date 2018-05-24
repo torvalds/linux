@@ -448,6 +448,15 @@ _bpftool()
                     ;;
             esac
             ;;
+        perf)
+            case $command in
+                *)
+                    [[ $prev == $object ]] && \
+                        COMPREPLY=( $( compgen -W 'help \
+                            show list' -- "$cur" ) )
+                    ;;
+            esac
+            ;;
     esac
 } &&
 complete -F _bpftool bpftool
