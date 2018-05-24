@@ -96,6 +96,7 @@ struct kvmppc_vcore {
 	struct kvm_vcpu *runner;
 	struct kvm *kvm;
 	u64 tb_offset;		/* guest timebase - host timebase */
+	u64 tb_offset_applied;	/* timebase offset currently in force */
 	ulong lpcr;
 	u32 arch_compat;
 	ulong pcr;
