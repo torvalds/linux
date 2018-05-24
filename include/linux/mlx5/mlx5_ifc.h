@@ -418,7 +418,7 @@ struct mlx5_ifc_fte_match_set_misc_bits {
 	u8         reserved_at_0[0x8];
 	u8         source_sqn[0x18];
 
-	u8         reserved_at_20[0x10];
+	u8         source_eswitch_owner_vhca_id[0x10];
 	u8         source_port[0x10];
 
 	u8         outer_second_prio[0x3];
@@ -586,7 +586,8 @@ struct mlx5_ifc_e_switch_cap_bits {
 	u8         vport_svlan_insert[0x1];
 	u8         vport_cvlan_insert_if_not_exist[0x1];
 	u8         vport_cvlan_insert_overwrite[0x1];
-	u8         reserved_at_5[0x19];
+	u8         reserved_at_5[0x18];
+	u8         merged_eswitch[0x1];
 	u8         nic_vport_node_guid_modify[0x1];
 	u8         nic_vport_port_guid_modify[0x1];
 
@@ -1178,8 +1179,9 @@ enum mlx5_flow_destination_type {
 struct mlx5_ifc_dest_format_struct_bits {
 	u8         destination_type[0x8];
 	u8         destination_id[0x18];
-
-	u8         reserved_at_20[0x20];
+	u8         destination_eswitch_owner_vhca_id_valid[0x1];
+	u8         reserved_at_21[0xf];
+	u8         destination_eswitch_owner_vhca_id[0x10];
 };
 
 struct mlx5_ifc_flow_counter_list_bits {
@@ -7028,7 +7030,9 @@ struct mlx5_ifc_create_flow_group_in_bits {
 	u8         reserved_at_a0[0x8];
 	u8         table_id[0x18];
 
-	u8         reserved_at_c0[0x20];
+	u8         source_eswitch_owner_vhca_id_valid[0x1];
+
+	u8         reserved_at_c1[0x1f];
 
 	u8         start_flow_index[0x20];
 

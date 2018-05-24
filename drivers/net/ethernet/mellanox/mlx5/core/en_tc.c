@@ -836,6 +836,7 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		out_priv = netdev_priv(encap_dev);
 		rpriv = out_priv->ppriv;
 		attr->out_rep = rpriv->rep;
+		attr->out_mdev = out_priv->mdev;
 	}
 
 	err = mlx5_eswitch_add_vlan_action(esw, attr);
@@ -2461,6 +2462,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 
 	memset(attr, 0, sizeof(*attr));
 	attr->in_rep = rpriv->rep;
+	attr->in_mdev = priv->mdev;
 
 	tcf_exts_to_list(exts, &actions);
 	list_for_each_entry(a, &actions, list) {
@@ -2501,6 +2503,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				out_priv = netdev_priv(out_dev);
 				rpriv = out_priv->ppriv;
 				attr->out_rep = rpriv->rep;
+				attr->out_mdev = out_priv->mdev;
 			} else if (encap) {
 				parse_attr->mirred_ifindex = out_dev->ifindex;
 				parse_attr->tun_info = *info;
