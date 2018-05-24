@@ -183,6 +183,7 @@ enum {
 		(BATCHED_TRIM_SEGMENTS(sbi) << (sbi)->log_blocks_per_seg)
 #define MAX_DISCARD_BLOCKS(sbi)		BLKS_PER_SEC(sbi)
 #define DEF_MAX_DISCARD_REQUEST		8	/* issue 8 discards per round */
+#define DEF_MAX_DISCARD_LEN		512	/* Max. 2MB per discard */
 #define DEF_MIN_DISCARD_ISSUE_TIME	50	/* 50 ms, if exists */
 #define DEF_MAX_DISCARD_ISSUE_TIME	60000	/* 60 s, if no candidates */
 #define DEF_CP_INTERVAL			60	/* 60 secs */
@@ -694,7 +695,8 @@ static inline void set_extent_info(struct extent_info *ei, unsigned int fofs,
 static inline bool __is_discard_mergeable(struct discard_info *back,
 						struct discard_info *front)
 {
-	return back->lstart + back->len == front->lstart;
+	return (back->lstart + back->len == front->lstart) &&
+		(back->len + front->len < DEF_MAX_DISCARD_LEN);
 }
 
 static inline bool __is_discard_back_mergeable(struct discard_info *cur,

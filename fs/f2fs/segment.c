@@ -1130,68 +1130,6 @@ static int __queue_discard_cmd(struct f2fs_sb_info *sbi,
 	return 0;
 }
 
-static void __issue_discard_cmd_range(struct f2fs_sb_info *sbi,
-					struct discard_policy *dpolicy,
-					unsigned int start, unsigned int end)
-{
-	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
-	struct discard_cmd *prev_dc = NULL, *next_dc = NULL;
-	struct rb_node **insert_p = NULL, *insert_parent = NULL;
-	struct discard_cmd *dc;
-	struct blk_plug plug;
-	int issued;
-
-next:
-	issued = 0;
-
-	mutex_lock(&dcc->cmd_lock);
-	f2fs_bug_on(sbi, !__check_rb_tree_consistence(sbi, &dcc->root));
-
-	dc = (struct discard_cmd *)__lookup_rb_tree_ret(&dcc->root,
-					NULL, start,
-					(struct rb_entry **)&prev_dc,
-					(struct rb_entry **)&next_dc,
-					&insert_p, &insert_parent, true);
-	if (!dc)
-		dc = next_dc;
-
-	blk_start_plug(&plug);
-
-	while (dc && dc->lstart <= end) {
-		struct rb_node *node;
-
-		if (dc->len < dpolicy->granularity)
-			goto skip;
-
-		if (dc->state != D_PREP) {
-			list_move_tail(&dc->list, &dcc->fstrim_list);
-			goto skip;
-		}
-
-		__submit_discard_cmd(sbi, dpolicy, dc);
-
-		if (++issued >= dpolicy->max_requests) {
-			start = dc->lstart + dc->len;
-
-			blk_finish_plug(&plug);
-			mutex_unlock(&dcc->cmd_lock);
-
-			schedule();
-
-			goto next;
-		}
-skip:
-		node = rb_next(&dc->rb_node);
-		dc = rb_entry_safe(node, struct discard_cmd, rb_node);
-
-		if (fatal_signal_pending(current))
-			break;
-	}
-
-	blk_finish_plug(&plug);
-	mutex_unlock(&dcc->cmd_lock);
-}
-
 static int __issue_discard_cmd(struct f2fs_sb_info *sbi,
 					struct discard_policy *dpolicy)
 {
@@ -1332,7 +1270,18 @@ next:
 static void __wait_all_discard_cmd(struct f2fs_sb_info *sbi,
 						struct discard_policy *dpolicy)
 {
-	__wait_discard_cmd_range(sbi, dpolicy, 0, UINT_MAX);
+	struct discard_policy dp;
+
+	if (dpolicy) {
+		__wait_discard_cmd_range(sbi, dpolicy, 0, UINT_MAX);
+		return;
+	}
+
+	/* wait all */
+	init_discard_policy(&dp, DPOLICY_FSTRIM, 1);
+	__wait_discard_cmd_range(sbi, &dp, 0, UINT_MAX);
+	init_discard_policy(&dp, DPOLICY_UMOUNT, 1);
+	__wait_discard_cmd_range(sbi, &dp, 0, UINT_MAX);
 }
 
 /* This should be covered by global mutex, &sit_i->sentry_lock */
@@ -1380,8 +1329,9 @@ bool f2fs_wait_discard_bios(struct f2fs_sb_info *sbi)
 	init_discard_policy(&dpolicy, DPOLICY_UMOUNT, dcc->discard_granularity);
 	__issue_discard_cmd(sbi, &dpolicy);
 	dropped = __drop_discard_cmd(sbi);
-	__wait_all_discard_cmd(sbi, &dpolicy);
 
+	/* just to make sure there is no pending discard commands */
+	__wait_all_discard_cmd(sbi, NULL);
 	return dropped;
 }
 
@@ -2371,6 +2321,67 @@ bool exist_trim_candidates(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	cpc->trim_start = trim_start;
 	return has_candidate;
+}
+
+static void __issue_discard_cmd_range(struct f2fs_sb_info *sbi,
+					struct discard_policy *dpolicy,
+					unsigned int start, unsigned int end)
+{
+	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
+	struct discard_cmd *prev_dc = NULL, *next_dc = NULL;
+	struct rb_node **insert_p = NULL, *insert_parent = NULL;
+	struct discard_cmd *dc;
+	struct blk_plug plug;
+	int issued;
+
+next:
+	issued = 0;
+
+	mutex_lock(&dcc->cmd_lock);
+	f2fs_bug_on(sbi, !__check_rb_tree_consistence(sbi, &dcc->root));
+
+	dc = (struct discard_cmd *)__lookup_rb_tree_ret(&dcc->root,
+					NULL, start,
+					(struct rb_entry **)&prev_dc,
+					(struct rb_entry **)&next_dc,
+					&insert_p, &insert_parent, true);
+	if (!dc)
+		dc = next_dc;
+
+	blk_start_plug(&plug);
+
+	while (dc && dc->lstart <= end) {
+		struct rb_node *node;
+
+		if (dc->len < dpolicy->granularity)
+			goto skip;
+
+		if (dc->state != D_PREP) {
+			list_move_tail(&dc->list, &dcc->fstrim_list);
+			goto skip;
+		}
+
+		__submit_discard_cmd(sbi, dpolicy, dc);
+
+		if (++issued >= dpolicy->max_requests) {
+			start = dc->lstart + dc->len;
+
+			blk_finish_plug(&plug);
+			mutex_unlock(&dcc->cmd_lock);
+			__wait_all_discard_cmd(sbi, NULL);
+			congestion_wait(BLK_RW_ASYNC, HZ/50);
+			goto next;
+		}
+skip:
+		node = rb_next(&dc->rb_node);
+		dc = rb_entry_safe(node, struct discard_cmd, rb_node);
+
+		if (fatal_signal_pending(current))
+			break;
+	}
+
+	blk_finish_plug(&plug);
+	mutex_unlock(&dcc->cmd_lock);
 }
 
 int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range)
