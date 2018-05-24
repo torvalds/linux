@@ -129,10 +129,7 @@ config NFT_CHAIN_NAT_IPV4
 	  source and destination ports.
 
 config NF_NAT_MASQUERADE_IPV4
-	tristate "IPv4 masquerade support"
-	help
-	  This is the kernel functionality to provide NAT in the masquerade
-	  flavour (automatic source address selection).
+	bool
 
 config NFT_MASQ_IPV4
 	tristate "IPv4 masquerading support for nf_tables"
