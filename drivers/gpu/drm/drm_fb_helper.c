@@ -1164,7 +1164,7 @@ EXPORT_SYMBOL(drm_fb_helper_sys_imageblit);
  * @info: fbdev registered by the helper
  * @rect: info about rectangle to fill
  *
- * A wrapper around cfb_imageblit implemented by fbdev core
+ * A wrapper around cfb_fillrect implemented by fbdev core
  */
 void drm_fb_helper_cfb_fillrect(struct fb_info *info,
 				const struct fb_fillrect *rect)
