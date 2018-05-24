@@ -295,7 +295,6 @@ struct chcr_blkcipher_req_ctx {
 	unsigned int src_ofst;
 	unsigned int dst_ofst;
 	unsigned int op;
-	dma_addr_t iv_dma;
 	u16 imm;
 	u8 iv[CHCR_MAX_CRYPTO_IV_LEN];
 };
@@ -327,7 +326,7 @@ void chcr_add_aead_dst_ent(struct aead_request *req,
 void chcr_add_aead_src_ent(struct aead_request *req, struct ulptx_sgl *ulptx,
 			   unsigned int assoclen, unsigned short op_type);
 void chcr_add_cipher_src_ent(struct ablkcipher_request *req,
-			     struct ulptx_sgl *ulptx,
+			     void *ulptx,
 			     struct  cipher_wr_param *wrparam);
 int chcr_cipher_dma_map(struct device *dev, struct ablkcipher_request *req);
 void chcr_cipher_dma_unmap(struct device *dev, struct ablkcipher_request *req);

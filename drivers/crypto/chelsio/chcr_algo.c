@@ -638,7 +638,6 @@ static int chcr_sg_ent_in_wr(struct scatterlist *src,
 		src = sg_next(src);
 		srcskip = 0;
 	}
-
 	if (sg_dma_len(dst) == dstskip) {
 		dst = sg_next(dst);
 		dstskip = 0;
@@ -761,13 +760,13 @@ static struct sk_buff *create_cipher_wr(struct cipher_wr_param *wrparam)
 
 	nents = sg_nents_xlen(reqctx->dstsg,  wrparam->bytes, CHCR_DST_SG_SIZE,
 			      reqctx->dst_ofst);
-	dst_size = get_space_for_phys_dsgl(nents + 1);
+	dst_size = get_space_for_phys_dsgl(nents);
 	kctx_len = roundup(ablkctx->enckey_len, 16);
 	transhdr_len = CIPHER_TRANSHDR_SIZE(kctx_len, dst_size);
 	nents = sg_nents_xlen(reqctx->srcsg, wrparam->bytes,
 				  CHCR_SRC_SG_SIZE, reqctx->src_ofst);
-	temp = reqctx->imm ? roundup(IV + wrparam->req->nbytes, 16) :
-				     (sgl_len(nents + MIN_CIPHER_SG) * 8);
+	temp = reqctx->imm ? roundup(wrparam->bytes, 16) :
+				     (sgl_len(nents) * 8);
 	transhdr_len += temp;
 	transhdr_len = roundup(transhdr_len, 16);
 	skb = alloc_skb(SGE_MAX_WR_LEN, flags);
@@ -789,7 +788,7 @@ static struct sk_buff *create_cipher_wr(struct cipher_wr_param *wrparam)
 							 ablkctx->ciph_mode,
 							 0, 0, IV >> 1);
 	chcr_req->sec_cpl.ivgen_hdrlen = FILL_SEC_CPL_IVGEN_HDRLEN(0, 0, 0,
-							  0, 0, dst_size);
+							  0, 1, dst_size);
 
 	chcr_req->key_ctx.ctx_hdr = ablkctx->key_ctx_hdr;
 	if ((reqctx->op == CHCR_DECRYPT_OP) &&
@@ -819,8 +818,8 @@ static struct sk_buff *create_cipher_wr(struct cipher_wr_param *wrparam)
 	chcr_add_cipher_dst_ent(wrparam->req, phys_cpl, wrparam, wrparam->qid);
 
 	atomic_inc(&adap->chcr_stats.cipher_rqst);
-	temp = sizeof(struct cpl_rx_phys_dsgl) + dst_size + kctx_len
-		+(reqctx->imm ? (IV + wrparam->bytes) : 0);
+	temp = sizeof(struct cpl_rx_phys_dsgl) + dst_size + kctx_len + IV
+		+ (reqctx->imm ? (wrparam->bytes) : 0);
 	create_wreq(c_ctx(tfm), chcr_req, &(wrparam->req->base), reqctx->imm, 0,
 		    transhdr_len, temp,
 			ablkctx->ciph_mode == CHCR_SCMD_CIPHER_MODE_AES_CBC);
@@ -1023,7 +1022,7 @@ static int chcr_update_tweak(struct ablkcipher_request *req, u8 *iv,
 	ret = crypto_cipher_setkey(cipher, key, keylen);
 	if (ret)
 		goto out;
-	/*H/W sends the encrypted IV in dsgl when AADIVDROP bit is 0*/
+	crypto_cipher_encrypt_one(cipher, iv, iv);
 	for (i = 0; i < round8; i++)
 		gf128mul_x8_ble((le128 *)iv, (le128 *)iv);
 
@@ -1115,7 +1114,7 @@ static int chcr_handle_cipher_resp(struct ablkcipher_request *req,
 	}
 
 	if (!reqctx->imm) {
-		bytes = chcr_sg_ent_in_wr(reqctx->srcsg, reqctx->dstsg, 1,
+		bytes = chcr_sg_ent_in_wr(reqctx->srcsg, reqctx->dstsg, 0,
 					  CIP_SPACE_LEFT(ablkctx->enckey_len),
 					  reqctx->src_ofst, reqctx->dst_ofst);
 		if ((bytes + reqctx->processed) >= req->nbytes)
@@ -1126,11 +1125,7 @@ static int chcr_handle_cipher_resp(struct ablkcipher_request *req,
 		/*CTR mode counter overfloa*/
 		bytes  = req->nbytes - reqctx->processed;
 	}
-	dma_sync_single_for_cpu(&ULD_CTX(c_ctx(tfm))->lldi.pdev->dev,
-				reqctx->iv_dma, IV, DMA_BIDIRECTIONAL);
 	err = chcr_update_cipher_iv(req, fw6_pld, reqctx->iv);
-	dma_sync_single_for_device(&ULD_CTX(c_ctx(tfm))->lldi.pdev->dev,
-				   reqctx->iv_dma, IV, DMA_BIDIRECTIONAL);
 	if (err)
 		goto unmap;
 
@@ -1205,7 +1200,6 @@ static int process_cipher(struct ablkcipher_request *req,
 
 		dnents = sg_nents_xlen(req->dst, req->nbytes,
 				       CHCR_DST_SG_SIZE, 0);
-		dnents += 1; // IV
 		phys_dsgl = get_space_for_phys_dsgl(dnents);
 		kctx_len = roundup(ablkctx->enckey_len, 16);
 		transhdr_len = CIPHER_TRANSHDR_SIZE(kctx_len, phys_dsgl);
@@ -1218,8 +1212,7 @@ static int process_cipher(struct ablkcipher_request *req,
 	}
 
 	if (!reqctx->imm) {
-		bytes = chcr_sg_ent_in_wr(req->src, req->dst,
-					  MIN_CIPHER_SG,
+		bytes = chcr_sg_ent_in_wr(req->src, req->dst, 0,
 					  CIP_SPACE_LEFT(ablkctx->enckey_len),
 					  0, 0);
 		if ((bytes + reqctx->processed) >= req->nbytes)
@@ -2516,22 +2509,20 @@ void chcr_add_aead_dst_ent(struct aead_request *req,
 }
 
 void chcr_add_cipher_src_ent(struct ablkcipher_request *req,
-			     struct ulptx_sgl *ulptx,
+			     void *ulptx,
 			     struct  cipher_wr_param *wrparam)
 {
 	struct ulptx_walk ulp_walk;
 	struct chcr_blkcipher_req_ctx *reqctx = ablkcipher_request_ctx(req);
+	u8 *buf = ulptx;
 
+	memcpy(buf, reqctx->iv, IV);
+	buf += IV;
 	if (reqctx->imm) {
-		u8 *buf = (u8 *)ulptx;
-
-		memcpy(buf, reqctx->iv, IV);
-		buf += IV;
 		sg_pcopy_to_buffer(req->src, sg_nents(req->src),
 				   buf, wrparam->bytes, reqctx->processed);
 	} else {
-		ulptx_walk_init(&ulp_walk, ulptx);
-		ulptx_walk_add_page(&ulp_walk, IV, &reqctx->iv_dma);
+		ulptx_walk_init(&ulp_walk, (struct ulptx_sgl *)buf);
 		ulptx_walk_add_sg(&ulp_walk, reqctx->srcsg, wrparam->bytes,
 				  reqctx->src_ofst);
 		reqctx->srcsg = ulp_walk.last_sg;
@@ -2549,7 +2540,6 @@ void chcr_add_cipher_dst_ent(struct ablkcipher_request *req,
 	struct dsgl_walk dsgl_walk;
 
 	dsgl_walk_init(&dsgl_walk, phys_cpl);
-	dsgl_walk_add_page(&dsgl_walk, IV, &reqctx->iv_dma);
 	dsgl_walk_add_sg(&dsgl_walk, reqctx->dstsg, wrparam->bytes,
 			 reqctx->dst_ofst);
 	reqctx->dstsg = dsgl_walk.last_sg;
@@ -2623,12 +2613,6 @@ int chcr_cipher_dma_map(struct device *dev,
 			struct ablkcipher_request *req)
 {
 	int error;
-	struct chcr_blkcipher_req_ctx *reqctx = ablkcipher_request_ctx(req);
-
-	reqctx->iv_dma = dma_map_single(dev, reqctx->iv, IV,
-					DMA_BIDIRECTIONAL);
-	if (dma_mapping_error(dev, reqctx->iv_dma))
-		return -ENOMEM;
 
 	if (req->src == req->dst) {
 		error = dma_map_sg(dev, req->src, sg_nents(req->src),
@@ -2651,17 +2635,12 @@ int chcr_cipher_dma_map(struct device *dev,
 
 	return 0;
 err:
-	dma_unmap_single(dev, reqctx->iv_dma, IV, DMA_BIDIRECTIONAL);
 	return -ENOMEM;
 }
 
 void chcr_cipher_dma_unmap(struct device *dev,
 			   struct ablkcipher_request *req)
 {
-	struct chcr_blkcipher_req_ctx *reqctx = ablkcipher_request_ctx(req);
-
-	dma_unmap_single(dev, reqctx->iv_dma, IV,
-					DMA_BIDIRECTIONAL);
 	if (req->src == req->dst) {
 		dma_unmap_sg(dev, req->src, sg_nents(req->src),
 				   DMA_BIDIRECTIONAL);
