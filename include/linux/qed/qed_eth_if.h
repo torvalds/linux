@@ -66,6 +66,7 @@ enum qed_filter_config_mode {
 	QED_FILTER_CONFIG_MODE_5_TUPLE,
 	QED_FILTER_CONFIG_MODE_L4_PORT,
 	QED_FILTER_CONFIG_MODE_IP_DEST,
+	QED_FILTER_CONFIG_MODE_IP_SRC,
 };
 
 struct qed_ntuple_filter_params {

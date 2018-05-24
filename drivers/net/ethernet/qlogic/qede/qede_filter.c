@@ -1623,9 +1623,17 @@ static int qede_flow_spec_to_tuple_ipv4_common(struct qede_dev *edev,
 	t->src_port = fs->h_u.tcp_ip4_spec.psrc;
 	t->dst_port = fs->h_u.tcp_ip4_spec.pdst;
 
-	/* We must have a valid 4-tuple */
+	/* We must either have a valid 4-tuple or only dst port
+	 * or only src ip as an input
+	 */
 	if (t->src_port && t->dst_port && t->src_ipv4 && t->dst_ipv4) {
 		t->mode = QED_FILTER_CONFIG_MODE_5_TUPLE;
+	} else if (!t->src_port && t->dst_port &&
+		   !t->src_ipv4 && !t->dst_ipv4) {
+		t->mode = QED_FILTER_CONFIG_MODE_L4_PORT;
+	}  else if (!t->src_port && !t->dst_port &&
+		    !t->dst_ipv4 && t->src_ipv4) {
+		t->mode = QED_FILTER_CONFIG_MODE_IP_SRC;
 	} else {
 		DP_INFO(edev, "Invalid N-tuple\n");
 		return -EOPNOTSUPP;
@@ -1697,11 +1705,21 @@ static int qede_flow_spec_to_tuple_ipv6_common(struct qede_dev *edev,
 	t->src_port = fs->h_u.tcp_ip6_spec.psrc;
 	t->dst_port = fs->h_u.tcp_ip6_spec.pdst;
 
-	/* We must make sure we have a valid 4-tuple */
+	/* We must make sure we have a valid 4-tuple or only dest port
+	 * or only src ip as an input
+	 */
 	if (t->src_port && t->dst_port &&
 	    memcmp(&t->src_ipv6, p, sizeof(struct in6_addr)) &&
 	    memcmp(&t->dst_ipv6, p, sizeof(struct in6_addr))) {
 		t->mode = QED_FILTER_CONFIG_MODE_5_TUPLE;
+	} else if (!t->src_port && t->dst_port &&
+		   !memcmp(&t->src_ipv6, p, sizeof(struct in6_addr)) &&
+		   !memcmp(&t->dst_ipv6, p, sizeof(struct in6_addr))) {
+		t->mode = QED_FILTER_CONFIG_MODE_L4_PORT;
+	} else if (!t->src_port && !t->dst_port &&
+		   !memcmp(&t->dst_ipv6, p, sizeof(struct in6_addr)) &&
+		   memcmp(&t->src_ipv6, p, sizeof(struct in6_addr))) {
+		t->mode = QED_FILTER_CONFIG_MODE_IP_SRC;
 	} else {
 		DP_INFO(edev, "Invalid N-tuple\n");
 		return -EOPNOTSUPP;
@@ -1776,6 +1794,15 @@ static int qede_flow_spec_validate(struct qede_dev *edev,
 	/* Check location isn't already in use */
 	if (test_bit(fs->location, edev->arfs->arfs_fltr_bmap)) {
 		DP_INFO(edev, "Location already in use\n");
+		return -EINVAL;
+	}
+
+	/* Check if the filtering-mode could support the filter */
+	if (edev->arfs->filter_count &&
+	    edev->arfs->mode != t->mode) {
+		DP_INFO(edev,
+			"flow_spec would require filtering mode %08x, but %08x is configured\n",
+			t->mode, edev->arfs->filter_count);
 		return -EINVAL;
 	}
 

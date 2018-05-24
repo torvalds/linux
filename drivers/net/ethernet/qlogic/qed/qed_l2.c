@@ -1973,6 +1973,8 @@ qed_arfs_mode_to_hsi(enum qed_filter_config_mode mode)
 		return GFT_PROFILE_TYPE_4_TUPLE;
 	if (mode == QED_FILTER_CONFIG_MODE_IP_DEST)
 		return GFT_PROFILE_TYPE_IP_DST_ADDR;
+	if (mode == QED_FILTER_CONFIG_MODE_IP_SRC)
+		return GFT_PROFILE_TYPE_IP_SRC_ADDR;
 	return GFT_PROFILE_TYPE_L4_DST_PORT;
 }
 
