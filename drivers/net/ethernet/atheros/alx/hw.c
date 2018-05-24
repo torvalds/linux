@@ -332,6 +332,16 @@ void alx_set_macaddr(struct alx_hw *hw, const u8 *addr)
 	alx_write_mem32(hw, ALX_STAD1, val);
 }
 
+static void alx_enable_osc(struct alx_hw *hw)
+{
+	u32 val;
+
+	/* rising edge */
+	val = alx_read_mem32(hw, ALX_MISC);
+	alx_write_mem32(hw, ALX_MISC, val & ~ALX_MISC_INTNLOSC_OPEN);
+	alx_write_mem32(hw, ALX_MISC, val | ALX_MISC_INTNLOSC_OPEN);
+}
+
 static void alx_reset_osc(struct alx_hw *hw, u8 rev)
 {
 	u32 val, val2;
@@ -774,7 +784,6 @@ int alx_setup_speed_duplex(struct alx_hw *hw, u32 ethadv, u8 flowctrl)
 	return err;
 }
 
-
 void alx_post_phy_link(struct alx_hw *hw)
 {
 	u16 phy_val, len, agc;
@@ -848,6 +857,65 @@ void alx_post_phy_link(struct alx_hw *hw)
 	}
 }
 
+/* NOTE:
+ *    1. phy link must be established before calling this function
+ *    2. wol option (pattern,magic,link,etc.) is configed before call it.
+ */
+int alx_pre_suspend(struct alx_hw *hw, int speed, u8 duplex)
+{
+	u32 master, mac, phy, val;
+	int err = 0;
+
+	master = alx_read_mem32(hw, ALX_MASTER);
+	master &= ~ALX_MASTER_PCLKSEL_SRDS;
+	mac = hw->rx_ctrl;
+	/* 10/100 half */
+	ALX_SET_FIELD(mac, ALX_MAC_CTRL_SPEED,  ALX_MAC_CTRL_SPEED_10_100);
+	mac &= ~(ALX_MAC_CTRL_FULLD | ALX_MAC_CTRL_RX_EN | ALX_MAC_CTRL_TX_EN);
+
+	phy = alx_read_mem32(hw, ALX_PHY_CTRL);
+	phy &= ~(ALX_PHY_CTRL_DSPRST_OUT | ALX_PHY_CTRL_CLS);
+	phy |= ALX_PHY_CTRL_RST_ANALOG | ALX_PHY_CTRL_HIB_PULSE |
+	       ALX_PHY_CTRL_HIB_EN;
+
+	/* without any activity  */
+	if (!(hw->sleep_ctrl & ALX_SLEEP_ACTIVE)) {
+		err = alx_write_phy_reg(hw, ALX_MII_IER, 0);
+		if (err)
+			return err;
+		phy |= ALX_PHY_CTRL_IDDQ | ALX_PHY_CTRL_POWER_DOWN;
+	} else {
+		if (hw->sleep_ctrl & (ALX_SLEEP_WOL_MAGIC | ALX_SLEEP_CIFS))
+			mac |= ALX_MAC_CTRL_RX_EN | ALX_MAC_CTRL_BRD_EN;
+		if (hw->sleep_ctrl & ALX_SLEEP_CIFS)
+			mac |= ALX_MAC_CTRL_TX_EN;
+		if (duplex == DUPLEX_FULL)
+			mac |= ALX_MAC_CTRL_FULLD;
+		if (speed == SPEED_1000)
+			ALX_SET_FIELD(mac, ALX_MAC_CTRL_SPEED,
+				      ALX_MAC_CTRL_SPEED_1000);
+		phy |= ALX_PHY_CTRL_DSPRST_OUT;
+		err = alx_write_phy_ext(hw, ALX_MIIEXT_ANEG,
+					ALX_MIIEXT_S3DIG10,
+					ALX_MIIEXT_S3DIG10_SL);
+		if (err)
+			return err;
+	}
+
+	alx_enable_osc(hw);
+	hw->rx_ctrl = mac;
+	alx_write_mem32(hw, ALX_MASTER, master);
+	alx_write_mem32(hw, ALX_MAC_CTRL, mac);
+	alx_write_mem32(hw, ALX_PHY_CTRL, phy);
+
+	/* set val of PDLL D3PLLOFF */
+	val = alx_read_mem32(hw, ALX_PDLL_TRNS1);
+	val |= ALX_PDLL_TRNS1_D3PLLOFF_EN;
+	alx_write_mem32(hw, ALX_PDLL_TRNS1, val);
+
+	return 0;
+}
+
 bool alx_phy_configured(struct alx_hw *hw)
 {
 	u32 cfg, hw_cfg;
@@ -918,6 +986,26 @@ int alx_clear_phy_intr(struct alx_hw *hw)
 
 	/* clear interrupt status by reading it */
 	return alx_read_phy_reg(hw, ALX_MII_ISR, &isr);
+}
+
+int alx_config_wol(struct alx_hw *hw)
+{
+	u32 wol = 0;
+	int err = 0;
+
+	/* turn on magic packet event */
+	if (hw->sleep_ctrl & ALX_SLEEP_WOL_MAGIC)
+		wol |= ALX_WOL0_MAGIC_EN | ALX_WOL0_PME_MAGIC_EN;
+
+	/* turn on link up event */
+	if (hw->sleep_ctrl & ALX_SLEEP_WOL_PHY) {
+		wol |=  ALX_WOL0_LINK_EN | ALX_WOL0_PME_LINK;
+		/* only link up can wake up */
+		err = alx_write_phy_reg(hw, ALX_MII_IER, ALX_IER_LINK_UP);
+	}
+	alx_write_mem32(hw, ALX_WOL0, wol);
+
+	return err;
 }
 
 void alx_disable_rss(struct alx_hw *hw)
@@ -1044,6 +1132,70 @@ void alx_mask_msix(struct alx_hw *hw, int index, bool mask)
 	alx_post_write(hw);
 }
 
+int alx_select_powersaving_speed(struct alx_hw *hw, int *speed, u8 *duplex)
+{
+	int i, err;
+	u16 lpa;
+
+	err = alx_read_phy_link(hw);
+	if (err)
+		return err;
+
+	if (hw->link_speed == SPEED_UNKNOWN) {
+		*speed = SPEED_UNKNOWN;
+		*duplex = DUPLEX_UNKNOWN;
+		return 0;
+	}
+
+	err = alx_read_phy_reg(hw, MII_LPA, &lpa);
+	if (err)
+		return err;
+
+	if (!(lpa & LPA_LPACK)) {
+		*speed = hw->link_speed;
+		return 0;
+	}
+
+	if (lpa & LPA_10FULL) {
+		*speed = SPEED_10;
+		*duplex = DUPLEX_FULL;
+	} else if (lpa & LPA_10HALF) {
+		*speed = SPEED_10;
+		*duplex = DUPLEX_HALF;
+	} else if (lpa & LPA_100FULL) {
+		*speed = SPEED_100;
+		*duplex = DUPLEX_FULL;
+	} else {
+		*speed = SPEED_100;
+		*duplex = DUPLEX_HALF;
+	}
+
+	if (*speed == hw->link_speed && *duplex == hw->duplex)
+		return 0;
+	err = alx_write_phy_reg(hw, ALX_MII_IER, 0);
+	if (err)
+		return err;
+	err = alx_setup_speed_duplex(hw, alx_speed_to_ethadv(*speed, *duplex) |
+					ADVERTISED_Autoneg, ALX_FC_ANEG |
+					ALX_FC_RX | ALX_FC_TX);
+	if (err)
+		return err;
+
+	/* wait for linkup */
+	for (i = 0; i < ALX_MAX_SETUP_LNK_CYCLE; i++) {
+		msleep(100);
+
+		err = alx_read_phy_link(hw);
+		if (err < 0)
+			return err;
+		if (hw->link_speed != SPEED_UNKNOWN)
+			break;
+	}
+	if (i == ALX_MAX_SETUP_LNK_CYCLE)
+		return -ETIMEDOUT;
+
+	return 0;
+}
 
 bool alx_get_phy_info(struct alx_hw *hw)
 {

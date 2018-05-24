@@ -310,11 +310,47 @@ static int alx_get_sset_count(struct net_device *netdev, int sset)
 	}
 }
 
+static void alx_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+{
+	struct alx_priv *alx = netdev_priv(netdev);
+	struct alx_hw *hw = &alx->hw;
+
+	wol->supported = WAKE_MAGIC | WAKE_PHY;
+	wol->wolopts = 0;
+
+	if (hw->sleep_ctrl & ALX_SLEEP_WOL_MAGIC)
+		wol->wolopts |= WAKE_MAGIC;
+	if (hw->sleep_ctrl & ALX_SLEEP_WOL_PHY)
+		wol->wolopts |= WAKE_PHY;
+}
+
+static int alx_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+{
+	struct alx_priv *alx = netdev_priv(netdev);
+	struct alx_hw *hw = &alx->hw;
+
+	if (wol->wolopts & ~(WAKE_MAGIC | WAKE_PHY))
+		return -EOPNOTSUPP;
+
+	hw->sleep_ctrl = 0;
+
+	if (wol->wolopts & WAKE_MAGIC)
+		hw->sleep_ctrl |= ALX_SLEEP_WOL_MAGIC;
+	if (wol->wolopts & WAKE_PHY)
+		hw->sleep_ctrl |= ALX_SLEEP_WOL_PHY;
+
+	device_set_wakeup_enable(&alx->hw.pdev->dev, hw->sleep_ctrl);
+
+	return 0;
+}
+
 const struct ethtool_ops alx_ethtool_ops = {
 	.get_pauseparam	= alx_get_pauseparam,
 	.set_pauseparam	= alx_set_pauseparam,
 	.get_msglevel	= alx_get_msglevel,
 	.set_msglevel	= alx_set_msglevel,
+	.get_wol	= alx_get_wol,
+	.set_wol	= alx_set_wol,
 	.get_link	= ethtool_op_get_link,
 	.get_strings	= alx_get_strings,
 	.get_sset_count	= alx_get_sset_count,
