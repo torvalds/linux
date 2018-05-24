@@ -689,7 +689,7 @@ static struct annotated_source *annotated_source__new(void)
 	return src;
 }
 
-static void annotated_source__delete(struct annotated_source *src)
+static __maybe_unused void annotated_source__delete(struct annotated_source *src)
 {
 	if (src == NULL)
 		return;
@@ -727,23 +727,6 @@ static int annotated_source__alloc_histograms(struct annotated_source *src,
 	src->nr_histograms   = nr_hists;
 	src->histograms	     = calloc(nr_hists, sizeof_sym_hist) ;
 	return src->histograms ? 0 : -1;
-}
-
-int symbol__alloc_hist(struct symbol *sym)
-{
-	size_t size = symbol__size(sym);
-	struct annotation *notes = symbol__annotation(sym);
-
-	notes->src = annotated_source__new();
-	if (notes->src == NULL)
-		return -1;
-
-	if (annotated_source__alloc_histograms(notes->src, size, symbol_conf.nr_events) < 0) {
-		annotated_source__delete(notes->src);
-		notes->src = NULL;
-		return -1;
-	}
-	return 0;
 }
 
 /* The cycles histogram is lazily allocated. */
@@ -868,7 +851,7 @@ alloc_cycles_hist:
 	return notes->src->cycles_hist;
 }
 
-static struct annotated_source *symbol__hists(struct symbol *sym, int nr_hists)
+struct annotated_source *symbol__hists(struct symbol *sym, int nr_hists)
 {
 	struct annotation *notes = symbol__annotation(sym);
 

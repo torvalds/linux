@@ -292,7 +292,7 @@ int addr_map_symbol__account_cycles(struct addr_map_symbol *ams,
 int hist_entry__inc_addr_samples(struct hist_entry *he, struct perf_sample *sample,
 				 struct perf_evsel *evsel, u64 addr);
 
-int symbol__alloc_hist(struct symbol *sym);
+struct annotated_source *symbol__hists(struct symbol *sym, int nr_hists);
 void symbol__annotate_zero_histograms(struct symbol *sym);
 
 int symbol__annotate(struct symbol *sym, struct map *map,

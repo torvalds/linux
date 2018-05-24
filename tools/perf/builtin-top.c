@@ -123,14 +123,9 @@ static int perf_top__parse_source(struct perf_top *top, struct hist_entry *he)
 	}
 
 	notes = symbol__annotation(sym);
-	if (notes->src != NULL) {
-		pthread_mutex_lock(&notes->lock);
-		goto out_assign;
-	}
-
 	pthread_mutex_lock(&notes->lock);
 
-	if (symbol__alloc_hist(sym) < 0) {
+	if (!symbol__hists(sym, top->evlist->nr_entries)) {
 		pthread_mutex_unlock(&notes->lock);
 		pr_err("Not enough memory for annotating '%s' symbol!\n",
 		       sym->name);
@@ -140,7 +135,6 @@ static int perf_top__parse_source(struct perf_top *top, struct hist_entry *he)
 
 	err = symbol__annotate(sym, map, evsel, 0, NULL);
 	if (err == 0) {
-out_assign:
 		top->sym_filter_entry = he;
 	} else {
 		char msg[BUFSIZ];
