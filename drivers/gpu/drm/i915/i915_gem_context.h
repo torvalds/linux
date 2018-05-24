@@ -46,6 +46,8 @@ struct intel_ring;
 
 #define DEFAULT_CONTEXT_HANDLE 0
 
+struct intel_context;
+
 struct intel_context_ops {
 	void (*unpin)(struct intel_context *ce);
 	void (*destroy)(struct intel_context *ce);
