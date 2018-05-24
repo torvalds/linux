@@ -187,9 +187,9 @@
 			"isp_mipi_fl_prefl", "isp_flash_as_gpio",
 			"isp_flash_as_trigger_out";
 		pinctrl-0 = <&cif_clkout>;
-		pinctrl-1 = <&isp_dvp_d0d7>;
+		pinctrl-1 = <&cif_clkout &isp_dvp_d0d7>;
 		pinctrl-2 = <&cif_clkout>;
-		pinctrl-3 = <&isp_prelight>;
+		pinctrl-3 = <&cif_clkout &isp_prelight>;
 		pinctrl-4 = <&isp_flash_trigger_as_gpio>;
 		pinctrl-5 = <&isp_flash_trigger>;
 		rockchip,isp,mipiphy = <2>;
