@@ -69,15 +69,11 @@ static acpi_status acpi_run_oshp(acpi_handle handle)
  */
 int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev, u32 flags)
 {
+	const struct pci_host_bridge *host;
+	const struct acpi_pci_root *root;
 	acpi_status status;
 	acpi_handle chandle, handle;
 	struct acpi_buffer string = { ACPI_ALLOCATE_BUFFER, NULL };
-
-	flags &= OSC_PCI_SHPC_NATIVE_HP_CONTROL;
-	if (!flags) {
-		err("Invalid flags %u specified!\n", flags);
-		return -EINVAL;
-	}
 
 	/*
 	 * Per PCI firmware specification, we should run the ACPI _OSC
@@ -88,19 +84,14 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev, u32 flags)
 	 * OSHP within the scope of the hotplug controller and its parents,
 	 * up to the host bridge under which this controller exists.
 	 */
-	handle = acpi_find_root_bridge_handle(pdev);
-	if (handle) {
-		acpi_get_name(handle, ACPI_FULL_PATHNAME, &string);
-		dbg("Trying to get hotplug control for %s\n",
-				(char *)string.pointer);
-		status = acpi_pci_osc_control_set(handle, &flags, flags);
-		if (ACPI_SUCCESS(status))
-			goto got_one;
-		if (status == AE_SUPPORT)
-			goto no_control;
-		kfree(string.pointer);
-		string = (struct acpi_buffer){ ACPI_ALLOCATE_BUFFER, NULL };
-	}
+	host = pci_find_host_bridge(pdev->bus);
+	if (host->native_shpc_hotplug)
+		return 0;
+
+	/* If _OSC exists, we should not evaluate OSHP */
+	root = acpi_pci_find_root(ACPI_HANDLE(&host->dev));
+	if (root->osc_support_set)
+		goto no_control;
 
 	handle = ACPI_HANDLE(&pdev->dev);
 	if (!handle) {
