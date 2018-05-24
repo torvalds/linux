@@ -96,7 +96,7 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev)
 	if (!handle) {
 		/*
 		 * This hotplug controller was not listed in the ACPI name
-		 * space at all. Try to get acpi handle of parent pci bus.
+		 * space at all. Try to get ACPI handle of parent PCI bus.
 		 */
 		struct pci_bus *pbus;
 		for (pbus = pdev->bus; pbus; pbus = pbus->parent) {
@@ -108,8 +108,8 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev)
 
 	while (handle) {
 		acpi_get_name(handle, ACPI_FULL_PATHNAME, &string);
-		dbg("Trying to get hotplug control for %s\n",
-		    (char *)string.pointer);
+		pci_info(pdev, "Requesting control of SHPC hotplug via OSHP (%s)\n",
+			 (char *)string.pointer);
 		status = acpi_run_oshp(handle);
 		if (ACPI_SUCCESS(status))
 			goto got_one;
@@ -121,13 +121,12 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev)
 			break;
 	}
 no_control:
-	dbg("Cannot get control of hotplug hardware for pci %s\n",
-	    pci_name(pdev));
+	pci_info(pdev, "Cannot get control of SHPC hotplug\n");
 	kfree(string.pointer);
 	return -ENODEV;
 got_one:
-	dbg("Gained control for hotplug HW for pci %s (%s)\n",
-	    pci_name(pdev), (char *)string.pointer);
+	pci_info(pdev, "Gained control of SHPC hotplug (%s)\n",
+		 (char *)string.pointer);
 	kfree(string.pointer);
 	return 0;
 }
