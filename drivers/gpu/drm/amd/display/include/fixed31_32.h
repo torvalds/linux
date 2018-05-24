@@ -209,7 +209,7 @@ static inline struct fixed31_32 dc_fixpt_clamp(
 static inline struct fixed31_32 dc_fixpt_shl(struct fixed31_32 arg, unsigned char shift)
 {
 	ASSERT(((arg.value >= 0) && (arg.value <= LLONG_MAX >> shift)) ||
-		((arg.value < 0) && (arg.value >= (LLONG_MIN / (1LL << shift)))));
+		((arg.value < 0) && (arg.value >= ~(LLONG_MAX >> shift))));
 
 	arg.value = arg.value << shift;
 
