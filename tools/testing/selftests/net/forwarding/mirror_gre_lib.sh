@@ -43,6 +43,35 @@ full_test_span_gre_dir_ips()
 	log_test "$direction $what ($tcflags)"
 }
 
+full_test_span_gre_dir_vlan_ips()
+{
+	local tundev=$1; shift
+	local direction=$1; shift
+	local vlan_match=$1; shift
+	local forward_type=$1; shift
+	local backward_type=$1; shift
+	local what=$1; shift
+	local ip1=$1; shift
+	local ip2=$1; shift
+
+	RET=0
+
+	mirror_install $swp1 $direction $tundev "matchall $tcflags"
+
+	test_span_dir_ips "h3-$tundev" "$direction" "$forward_type" \
+			  "$backward_type" "$ip1" "$ip2"
+
+	tc filter add dev $h3 ingress pref 77 prot 802.1q \
+		flower $vlan_match ip_proto 0x2f \
+		action pass
+	mirror_test v$h1 $ip1 $ip2 $h3 77 10
+	tc filter del dev $h3 ingress pref 77
+
+	mirror_uninstall $swp1 $direction
+
+	log_test "$direction $what ($tcflags)"
+}
+
 quick_test_span_gre_dir()
 {
 	quick_test_span_gre_dir_ips "$@" 192.0.2.1 192.0.2.2
@@ -61,4 +90,9 @@ test_span_gre_dir()
 full_test_span_gre_dir()
 {
 	full_test_span_gre_dir_ips "$@" 192.0.2.1 192.0.2.2
+}
+
+full_test_span_gre_dir_vlan()
+{
+	full_test_span_gre_dir_vlan_ips "$@" 192.0.2.1 192.0.2.2
 }
