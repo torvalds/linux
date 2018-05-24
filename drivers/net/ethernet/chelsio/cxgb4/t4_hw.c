@@ -4066,6 +4066,7 @@ int t4_link_l1cfg_core(struct adapter *adapter, unsigned int mbox,
 	fw_port_cap32_t fw_fc, cc_fec, fw_fec, rcap;
 	struct fw_port_cmd cmd;
 	unsigned int fw_mdi;
+	int ret;
 
 	fw_mdi = (FW_PORT_CAP32_MDI_V(FW_PORT_CAP32_MDI_AUTO) & lc->pcaps);
 	/* Convert driver coding of Pause Frame Flow Control settings into the
@@ -4100,6 +4101,13 @@ int t4_link_l1cfg_core(struct adapter *adapter, unsigned int mbox,
 		rcap = lc->acaps | fw_fc | fw_fec | fw_mdi;
 	}
 
+	if (rcap & ~lc->pcaps) {
+		dev_err(adapter->pdev_dev,
+			"Requested Port Capabilities %#x exceed Physical Port Capabilities %#x\n",
+			rcap, lc->pcaps);
+		return -EINVAL;
+	}
+
 	/* And send that on to the Firmware ...
 	 */
 	memset(&cmd, 0, sizeof(cmd));
@@ -4110,13 +4118,21 @@ int t4_link_l1cfg_core(struct adapter *adapter, unsigned int mbox,
 		cpu_to_be32(FW_PORT_CMD_ACTION_V(fw_caps == FW_CAPS16
 						 ? FW_PORT_ACTION_L1_CFG
 						 : FW_PORT_ACTION_L1_CFG32) |
-			    FW_LEN16(cmd));
+						 FW_LEN16(cmd));
 	if (fw_caps == FW_CAPS16)
 		cmd.u.l1cfg.rcap = cpu_to_be32(fwcaps32_to_caps16(rcap));
 	else
 		cmd.u.l1cfg32.rcap32 = cpu_to_be32(rcap);
-	return t4_wr_mbox_meat_timeout(adapter, mbox, &cmd, sizeof(cmd), NULL,
-				       sleep_ok, timeout);
+
+	ret = t4_wr_mbox_meat_timeout(adapter, mbox, &cmd, sizeof(cmd), NULL,
+				      sleep_ok, timeout);
+	if (ret) {
+		dev_err(adapter->pdev_dev,
+			"Requested Port Capabilities %#x rejected, error %d\n",
+			rcap, -ret);
+		return ret;
+	}
+	return ret;
 }
 
 /**
@@ -8395,7 +8411,9 @@ void t4_handle_get_port_info(struct port_info *pi, const __be64 *rpl)
 		lc->lpacaps = lpacaps;
 		lc->acaps = acaps & ADVERT_MASK;
 
-		if (lc->acaps & FW_PORT_CAP32_ANEG) {
+		if (!(lc->acaps & FW_PORT_CAP32_ANEG)) {
+			lc->autoneg = AUTONEG_DISABLE;
+		} else if (lc->acaps & FW_PORT_CAP32_ANEG) {
 			lc->autoneg = AUTONEG_ENABLE;
 		} else {
 			/* When Autoneg is disabled, user needs to set
@@ -8600,6 +8618,13 @@ static void init_link_config(struct link_config *lc, fw_port_cap32_t pcaps,
 	lc->requested_fec = FEC_AUTO;
 	lc->fec = fwcap_to_cc_fec(lc->def_acaps);
 
+	/* If the Port is capable of Auto-Negtotiation, initialize it as
+	 * "enabled" and copy over all of the Physical Port Capabilities
+	 * to the Advertised Port Capabilities.  Otherwise mark it as
+	 * Auto-Negotiate disabled and select the highest supported speed
+	 * for the link.  Note parallel structure in t4_link_l1cfg_core()
+	 * and t4_handle_get_port_info().
+	 */
 	if (lc->pcaps & FW_PORT_CAP32_ANEG) {
 		lc->acaps = lc->pcaps & ADVERT_MASK;
 		lc->autoneg = AUTONEG_ENABLE;
@@ -8607,6 +8632,7 @@ static void init_link_config(struct link_config *lc, fw_port_cap32_t pcaps,
 	} else {
 		lc->acaps = 0;
 		lc->autoneg = AUTONEG_DISABLE;
+		lc->speed_caps = fwcap_to_fwspeed(acaps);
 	}
 }
 

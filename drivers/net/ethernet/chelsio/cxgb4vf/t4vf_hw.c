@@ -405,6 +405,36 @@ static unsigned int fwcap_to_speed(fw_port_cap32_t caps)
 	return 0;
 }
 
+/**
+ *      fwcap_to_fwspeed - return highest speed in Port Capabilities
+ *      @acaps: advertised Port Capabilities
+ *
+ *      Get the highest speed for the port from the advertised Port
+ *      Capabilities.  It will be either the highest speed from the list of
+ *      speeds or whatever user has set using ethtool.
+ */
+static fw_port_cap32_t fwcap_to_fwspeed(fw_port_cap32_t acaps)
+{
+	#define TEST_SPEED_RETURN(__caps_speed) \
+		do { \
+			if (acaps & FW_PORT_CAP32_SPEED_##__caps_speed) \
+				return FW_PORT_CAP32_SPEED_##__caps_speed; \
+		} while (0)
+
+	TEST_SPEED_RETURN(400G);
+	TEST_SPEED_RETURN(200G);
+	TEST_SPEED_RETURN(100G);
+	TEST_SPEED_RETURN(50G);
+	TEST_SPEED_RETURN(40G);
+	TEST_SPEED_RETURN(25G);
+	TEST_SPEED_RETURN(10G);
+	TEST_SPEED_RETURN(1G);
+	TEST_SPEED_RETURN(100M);
+
+	#undef TEST_SPEED_RETURN
+	return 0;
+}
+
 /*
  *	init_link_config - initialize a link's SW state
  *	@lc: structure holding the link state
@@ -431,6 +461,13 @@ static void init_link_config(struct link_config *lc,
 	lc->requested_fec = FEC_AUTO;
 	lc->fec = lc->auto_fec;
 
+	/* If the Port is capable of Auto-Negtotiation, initialize it as
+	 * "enabled" and copy over all of the Physical Port Capabilities
+	 * to the Advertised Port Capabilities.  Otherwise mark it as
+	 * Auto-Negotiate disabled and select the highest supported speed
+	 * for the link.  Note parallel structure in t4_link_l1cfg_core()
+	 * and t4_handle_get_port_info().
+	 */
 	if (lc->pcaps & FW_PORT_CAP32_ANEG) {
 		lc->acaps = acaps & ADVERT_MASK;
 		lc->autoneg = AUTONEG_ENABLE;
@@ -438,6 +475,7 @@ static void init_link_config(struct link_config *lc,
 	} else {
 		lc->acaps = 0;
 		lc->autoneg = AUTONEG_DISABLE;
+		lc->speed_caps = fwcap_to_fwspeed(acaps);
 	}
 }
 
@@ -1955,7 +1993,14 @@ static void t4vf_handle_get_port_info(struct port_info *pi,
 		lc->lpacaps = lpacaps;
 		lc->acaps = acaps & ADVERT_MASK;
 
-		if (lc->acaps & FW_PORT_CAP32_ANEG) {
+		/* If we're not physically capable of Auto-Negotiation, note
+		 * this as Auto-Negotiation disabled.  Otherwise, we track
+		 * what Auto-Negotiation settings we have.  Note parallel
+		 * structure in init_link_config().
+		 */
+		if (!(lc->pcaps & FW_PORT_CAP32_ANEG)) {
+			lc->autoneg = AUTONEG_DISABLE;
+		} else if (lc->acaps & FW_PORT_CAP32_ANEG) {
 			lc->autoneg = AUTONEG_ENABLE;
 		} else {
 			/* When Autoneg is disabled, user needs to set
