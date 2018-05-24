@@ -1862,6 +1862,8 @@ int rc_register_device(struct rc_dev *dev)
 		 dev->device_name ?: "Unspecified device", path ?: "N/A");
 	kfree(path);
 
+	dev->registered = true;
+
 	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
 		rc = rc_setup_rx_device(dev);
 		if (rc)
@@ -1880,8 +1882,6 @@ int rc_register_device(struct rc_dev *dev)
 		if (rc < 0)
 			goto out_lirc;
 	}
-
-	dev->registered = true;
 
 	dev_dbg(&dev->dev, "Registered rc%u (driver: %s)\n", dev->minor,
 		dev->driver_name ? dev->driver_name : "unknown");
