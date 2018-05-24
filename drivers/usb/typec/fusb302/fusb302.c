@@ -234,6 +234,7 @@ static int fusb302_debugfs_init(struct fusb302_chip *chip)
 static void fusb302_debugfs_exit(struct fusb302_chip *chip)
 {
 	debugfs_remove(chip->dentry);
+	debugfs_remove(rootdir);
 }
 
 #else
