@@ -296,7 +296,7 @@ xfs_inobt_verify(
 	case cpu_to_be32(XFS_FIBT_MAGIC):
 		break;
 	default:
-		return NULL;
+		return __this_address;
 	}
 
 	/* level verification */
