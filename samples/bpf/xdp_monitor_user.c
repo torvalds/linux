@@ -117,6 +117,7 @@ struct datarec {
 	__u64 processed;
 	__u64 dropped;
 	__u64 info;
+	__u64 err;
 };
 #define MAX_CPUS 64
 
@@ -152,6 +153,7 @@ static bool map_collect_record(int fd, __u32 key, struct record *rec)
 	__u64 sum_processed = 0;
 	__u64 sum_dropped = 0;
 	__u64 sum_info = 0;
+	__u64 sum_err = 0;
 	int i;
 
 	if ((bpf_map_lookup_elem(fd, &key, values)) != 0) {
@@ -170,10 +172,13 @@ static bool map_collect_record(int fd, __u32 key, struct record *rec)
 		sum_dropped        += values[i].dropped;
 		rec->cpu[i].info = values[i].info;
 		sum_info        += values[i].info;
+		rec->cpu[i].err = values[i].err;
+		sum_err        += values[i].err;
 	}
 	rec->total.processed = sum_processed;
 	rec->total.dropped   = sum_dropped;
 	rec->total.info      = sum_info;
+	rec->total.err       = sum_err;
 	return true;
 }
 
@@ -269,6 +274,18 @@ static double calc_info(struct datarec *r, struct datarec *p, double period)
 
 	if (period > 0) {
 		packets = r->info - p->info;
+		pps = packets / period;
+	}
+	return pps;
+}
+
+static double calc_err(struct datarec *r, struct datarec *p, double period)
+{
+	__u64 packets = 0;
+	double pps = 0;
+
+	if (period > 0) {
+		packets = r->err - p->err;
 		pps = packets / period;
 	}
 	return pps;
@@ -412,11 +429,12 @@ static void stats_print(struct stats_record *stats_rec,
 
 	/* devmap ndo_xdp_xmit stats */
 	{
-		char *fmt1 = "%-15s %-7d %'-12.0f %'-12.0f %'-10.2f %s\n";
-		char *fmt2 = "%-15s %-7s %'-12.0f %'-12.0f %'-10.2f %s\n";
+		char *fmt1 = "%-15s %-7d %'-12.0f %'-12.0f %'-10.2f %s %s\n";
+		char *fmt2 = "%-15s %-7s %'-12.0f %'-12.0f %'-10.2f %s %s\n";
 		struct record *rec, *prev;
-		double drop, info;
+		double drop, info, err;
 		char *i_str = "";
+		char *err_str = "";
 
 		rec  =  &stats_rec->xdp_devmap_xmit;
 		prev = &stats_prev->xdp_devmap_xmit;
@@ -428,22 +446,29 @@ static void stats_print(struct stats_record *stats_rec,
 			pps  = calc_pps(r, p, t);
 			drop = calc_drop(r, p, t);
 			info = calc_info(r, p, t);
+			err  = calc_err(r, p, t);
 			if (info > 0) {
 				i_str = "bulk-average";
 				info = (pps+drop) / info; /* calc avg bulk */
 			}
+			if (err > 0)
+				err_str = "drv-err";
 			if (pps > 0 || drop > 0)
 				printf(fmt1, "devmap-xmit",
-				       i, pps, drop, info, i_str);
+				       i, pps, drop, info, i_str, err_str);
 		}
 		pps = calc_pps(&rec->total, &prev->total, t);
 		drop = calc_drop(&rec->total, &prev->total, t);
 		info = calc_info(&rec->total, &prev->total, t);
+		err  = calc_err(&rec->total, &prev->total, t);
 		if (info > 0) {
 			i_str = "bulk-average";
 			info = (pps+drop) / info; /* calc avg bulk */
 		}
-		printf(fmt2, "devmap-xmit", "total", pps, drop, info, i_str);
+		if (err > 0)
+			err_str = "drv-err";
+		printf(fmt2, "devmap-xmit", "total", pps, drop,
+		       info, i_str, err_str);
 	}
 
 	printf("\n");

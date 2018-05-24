@@ -125,6 +125,7 @@ struct datarec {
 	u64 processed;
 	u64 dropped;
 	u64 info;
+	u64 err;
 };
 #define MAX_CPUS 64
 
@@ -228,6 +229,7 @@ struct devmap_xmit_ctx {
 	int sent;		//	offset:24; size:4; signed:1;
 	int from_ifindex;	//	offset:28; size:4; signed:1;
 	int to_ifindex;		//	offset:32; size:4; signed:1;
+	int err;		//	offset:36; size:4; signed:1;
 };
 
 SEC("tracepoint/xdp/xdp_devmap_xmit")
@@ -244,6 +246,14 @@ int trace_xdp_devmap_xmit(struct devmap_xmit_ctx *ctx)
 
 	/* Record bulk events, then userspace can calc average bulk size */
 	rec->info += 1;
+
+	/* Record error cases, where no frame were sent */
+	if (ctx->err)
+		rec->err++;
+
+	/* Catch API error of drv ndo_xdp_xmit sent more than count */
+	if (ctx->drops < 0)
+		rec->err++;
 
 	return 1;
 }
