@@ -1237,7 +1237,10 @@ static void rndis_get_friendly_name(struct net_device *net,
 	if (rndis_filter_query_device(rndis_device, net_device,
 				      RNDIS_OID_GEN_FRIENDLY_NAME,
 				      wname, &size) != 0)
-		return;
+		return;	/* ignore if host does not support */
+
+	if (size == 0)
+		return;	/* name not set */
 
 	/* Convert Windows Unicode string to UTF-8 */
 	len = ucs2_as_utf8(ifalias, wname, sizeof(ifalias));
