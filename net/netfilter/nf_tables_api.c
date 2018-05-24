@@ -1237,11 +1237,28 @@ static void nft_chain_stats_replace(struct nft_base_chain *chain,
 		rcu_assign_pointer(chain->stats, newstats);
 }
 
+static void nf_tables_chain_free_chain_rules(struct nft_chain *chain)
+{
+	struct nft_rule **g0 = rcu_dereference_raw(chain->rules_gen_0);
+	struct nft_rule **g1 = rcu_dereference_raw(chain->rules_gen_1);
+
+	if (g0 != g1)
+		kvfree(g1);
+	kvfree(g0);
+
+	/* should be NULL either via abort or via successful commit */
+	WARN_ON_ONCE(chain->rules_next);
+	kvfree(chain->rules_next);
+}
+
 static void nf_tables_chain_destroy(struct nft_ctx *ctx)
 {
 	struct nft_chain *chain = ctx->chain;
 
 	BUG_ON(chain->use > 0);
+
+	/* no concurrent access possible anymore */
+	nf_tables_chain_free_chain_rules(chain);
 
 	if (nft_is_base_chain(chain)) {
 		struct nft_base_chain *basechain = nft_base_chain(chain);
@@ -1335,6 +1352,27 @@ static void nft_chain_release_hook(struct nft_chain_hook *hook)
 	module_put(hook->type->owner);
 }
 
+struct nft_rules_old {
+	struct rcu_head h;
+	struct nft_rule **start;
+};
+
+static struct nft_rule **nf_tables_chain_alloc_rules(const struct nft_chain *chain,
+						     unsigned int alloc)
+{
+	if (alloc > INT_MAX)
+		return NULL;
+
+	alloc += 1;	/* NULL, ends rules */
+	if (sizeof(struct nft_rule *) > INT_MAX / alloc)
+		return NULL;
+
+	alloc *= sizeof(struct nft_rule *);
+	alloc += sizeof(struct nft_rules_old);
+
+	return kvmalloc(alloc, GFP_KERNEL);
+}
+
 static int nf_tables_addchain(struct nft_ctx *ctx, u8 family, u8 genmask,
 			      u8 policy, bool create)
 {
@@ -1344,6 +1382,7 @@ static int nf_tables_addchain(struct nft_ctx *ctx, u8 family, u8 genmask,
 	struct nft_stats __percpu *stats;
 	struct net *net = ctx->net;
 	struct nft_chain *chain;
+	struct nft_rule **rules;
 	int err;
 
 	if (table->use == UINT_MAX)
@@ -1405,6 +1444,16 @@ static int nf_tables_addchain(struct nft_ctx *ctx, u8 family, u8 genmask,
 		err = -ENOMEM;
 		goto err1;
 	}
+
+	rules = nf_tables_chain_alloc_rules(chain, 0);
+	if (!rules) {
+		err = -ENOMEM;
+		goto err1;
+	}
+
+	*rules = NULL;
+	rcu_assign_pointer(chain->rules_gen_0, rules);
+	rcu_assign_pointer(chain->rules_gen_1, rules);
 
 	err = nf_tables_register_hook(net, table, chain);
 	if (err < 0)
@@ -5850,21 +5899,162 @@ static void nf_tables_commit_release(struct net *net)
 	}
 }
 
+static int nf_tables_commit_chain_prepare(struct net *net, struct nft_chain *chain)
+{
+	struct nft_rule *rule;
+	unsigned int alloc = 0;
+	int i;
+
+	/* already handled or inactive chain? */
+	if (chain->rules_next || !nft_is_active_next(net, chain))
+		return 0;
+
+	rule = list_entry(&chain->rules, struct nft_rule, list);
+	i = 0;
+
+	list_for_each_entry_continue(rule, &chain->rules, list) {
+		if (nft_is_active_next(net, rule))
+			alloc++;
+	}
+
+	chain->rules_next = nf_tables_chain_alloc_rules(chain, alloc);
+	if (!chain->rules_next)
+		return -ENOMEM;
+
+	list_for_each_entry_continue(rule, &chain->rules, list) {
+		if (nft_is_active_next(net, rule))
+			chain->rules_next[i++] = rule;
+	}
+
+	chain->rules_next[i] = NULL;
+	return 0;
+}
+
+static void nf_tables_commit_chain_prepare_cancel(struct net *net)
+{
+	struct nft_trans *trans, *next;
+
+	list_for_each_entry_safe(trans, next, &net->nft.commit_list, list) {
+		struct nft_chain *chain = trans->ctx.chain;
+
+		if (trans->msg_type == NFT_MSG_NEWRULE ||
+		    trans->msg_type == NFT_MSG_DELRULE) {
+			kvfree(chain->rules_next);
+			chain->rules_next = NULL;
+		}
+	}
+}
+
+static void __nf_tables_commit_chain_free_rules_old(struct rcu_head *h)
+{
+	struct nft_rules_old *o = container_of(h, struct nft_rules_old, h);
+
+	kvfree(o->start);
+}
+
+static void nf_tables_commit_chain_free_rules_old(struct nft_rule **rules)
+{
+	struct nft_rule **r = rules;
+	struct nft_rules_old *old;
+
+	while (*r)
+		r++;
+
+	r++;	/* rcu_head is after end marker */
+	old = (void *) r;
+	old->start = rules;
+
+	call_rcu(&old->h, __nf_tables_commit_chain_free_rules_old);
+}
+
+static void nf_tables_commit_chain_active(struct net *net, struct nft_chain *chain)
+{
+	struct nft_rule **g0, **g1;
+	bool next_genbit;
+
+	next_genbit = nft_gencursor_next(net);
+
+	g0 = rcu_dereference_protected(chain->rules_gen_0,
+				       lockdep_nfnl_is_held(NFNL_SUBSYS_NFTABLES));
+	g1 = rcu_dereference_protected(chain->rules_gen_1,
+				       lockdep_nfnl_is_held(NFNL_SUBSYS_NFTABLES));
+
+	/* No changes to this chain? */
+	if (chain->rules_next == NULL) {
+		/* chain had no change in last or next generation */
+		if (g0 == g1)
+			return;
+		/*
+		 * chain had no change in this generation; make sure next
+		 * one uses same rules as current generation.
+		 */
+		if (next_genbit) {
+			rcu_assign_pointer(chain->rules_gen_1, g0);
+			nf_tables_commit_chain_free_rules_old(g1);
+		} else {
+			rcu_assign_pointer(chain->rules_gen_0, g1);
+			nf_tables_commit_chain_free_rules_old(g0);
+		}
+
+		return;
+	}
+
+	if (next_genbit)
+		rcu_assign_pointer(chain->rules_gen_1, chain->rules_next);
+	else
+		rcu_assign_pointer(chain->rules_gen_0, chain->rules_next);
+
+	chain->rules_next = NULL;
+
+	if (g0 == g1)
+		return;
+
+	if (next_genbit)
+		nf_tables_commit_chain_free_rules_old(g1);
+	else
+		nf_tables_commit_chain_free_rules_old(g0);
+}
+
 static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 {
 	struct nft_trans *trans, *next;
 	struct nft_trans_elem *te;
+	struct nft_chain *chain;
+	struct nft_table *table;
 
-	/* Bump generation counter, invalidate any dump in progress */
+	/* 1.  Allocate space for next generation rules_gen_X[] */
+	list_for_each_entry_safe(trans, next, &net->nft.commit_list, list) {
+		int ret;
+
+		if (trans->msg_type == NFT_MSG_NEWRULE ||
+		    trans->msg_type == NFT_MSG_DELRULE) {
+			chain = trans->ctx.chain;
+
+			ret = nf_tables_commit_chain_prepare(net, chain);
+			if (ret < 0) {
+				nf_tables_commit_chain_prepare_cancel(net);
+				return ret;
+			}
+		}
+	}
+
+	/* step 2.  Make rules_gen_X visible to packet path */
+	list_for_each_entry(table, &net->nft.tables, list) {
+		list_for_each_entry(chain, &table->chains, list) {
+			if (!nft_is_active_next(net, chain))
+				continue;
+			nf_tables_commit_chain_active(net, chain);
+		}
+	}
+
+	/*
+	 * Bump generation counter, invalidate any dump in progress.
+	 * Cannot fail after this point.
+	 */
 	while (++net->nft.base_seq == 0);
 
-	/* A new generation has just started */
+	/* step 3. Start new generation, rules_gen_X now in use. */
 	net->nft.gencursor = nft_gencursor_next(net);
-
-	/* Make sure all packets have left the previous generation before
-	 * purging old rules.
-	 */
-	synchronize_rcu();
 
 	list_for_each_entry_safe(trans, next, &net->nft.commit_list, list) {
 		switch (trans->msg_type) {
