@@ -38,20 +38,6 @@ struct intel_xhci_usb_data {
 	void __iomem *base;
 };
 
-struct intel_xhci_acpi_match {
-	const char *hid;
-	int hrv;
-};
-
-/*
- * ACPI IDs for PMICs which do not support separate data and power role
- * detection (USB ACA detection for micro USB OTG), we allow userspace to
- * change the role manually on these.
- */
-static const struct intel_xhci_acpi_match allow_userspace_ctrl_ids[] = {
-	{ "INT33F4",  3 }, /* X-Powers AXP288 PMIC */
-};
-
 static int intel_xhci_usb_set_role(struct device *dev, enum usb_role role)
 {
 	struct intel_xhci_usb_data *data = dev_get_drvdata(dev);
@@ -127,9 +113,10 @@ static enum usb_role intel_xhci_usb_get_role(struct device *dev)
 	return role;
 }
 
-static struct usb_role_switch_desc sw_desc = {
+static const struct usb_role_switch_desc sw_desc = {
 	.set = intel_xhci_usb_set_role,
 	.get = intel_xhci_usb_get_role,
+	.allow_userspace_control = true,
 };
 
 static int intel_xhci_usb_probe(struct platform_device *pdev)
@@ -137,7 +124,6 @@ static int intel_xhci_usb_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct intel_xhci_usb_data *data;
 	struct resource *res;
-	int i;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -149,11 +135,6 @@ static int intel_xhci_usb_probe(struct platform_device *pdev)
 	data->base = devm_ioremap_nocache(dev, res->start, resource_size(res));
 	if (!data->base)
 		return -ENOMEM;
-
-	for (i = 0; i < ARRAY_SIZE(allow_userspace_ctrl_ids); i++)
-		if (acpi_dev_present(allow_userspace_ctrl_ids[i].hid, "1",
-				     allow_userspace_ctrl_ids[i].hrv))
-			sw_desc.allow_userspace_control = true;
 
 	platform_set_drvdata(pdev, data);
 
