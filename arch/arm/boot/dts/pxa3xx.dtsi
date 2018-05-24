@@ -174,7 +174,7 @@
 			compatible = "marvell,pxa-mmc";
 			reg = <0x41100000 0x1000>;
 			interrupts = <23>;
-			clocks = <&clks CLK_MMC>;
+			clocks = <&clks CLK_MMC1>;
 			dmas = <&pdma 21 3
 				&pdma 22 3>;
 			dma-names = "rx", "tx";
@@ -185,7 +185,7 @@
 			compatible = "marvell,pxa-mmc";
 			reg = <0x42000000 0x1000>;
 			interrupts = <41>;
-			clocks = <&clks CLK_MMC1>;
+			clocks = <&clks CLK_MMC2>;
 			dmas = <&pdma 93 3
 				&pdma 94 3>;
 			dma-names = "rx", "tx";
@@ -196,7 +196,7 @@
 			compatible = "marvell,pxa-mmc";
 			reg = <0x42500000 0x1000>;
 			interrupts = <55>;
-			clocks = <&clks CLK_MMC2>;
+			clocks = <&clks CLK_MMC3>;
 			dmas = <&pdma 46 3
 				&pdma 47 3>;
 			dma-names = "rx", "tx";
