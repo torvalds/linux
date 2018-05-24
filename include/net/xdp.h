@@ -104,6 +104,7 @@ struct xdp_frame *convert_to_xdp_frame(struct xdp_buff *xdp)
 }
 
 void xdp_return_frame(struct xdp_frame *xdpf);
+void xdp_return_frame_rx_napi(struct xdp_frame *xdpf);
 void xdp_return_buff(struct xdp_buff *xdp);
 
 int xdp_rxq_info_reg(struct xdp_rxq_info *xdp_rxq,
