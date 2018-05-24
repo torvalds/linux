@@ -220,7 +220,7 @@ static int bq_xmit_all(struct bpf_dtab_netdev *obj,
 			 struct xdp_bulk_queue *bq)
 {
 	struct net_device *dev = obj->dev;
-	int sent = 0, drops = 0;
+	int sent = 0, drops = 0, err = 0;
 	int i;
 
 	if (unlikely(!bq->count))
@@ -234,6 +234,7 @@ static int bq_xmit_all(struct bpf_dtab_netdev *obj,
 
 	sent = dev->netdev_ops->ndo_xdp_xmit(dev, bq->count, bq->q);
 	if (sent < 0) {
+		err = sent;
 		sent = 0;
 		goto error;
 	}
@@ -242,7 +243,7 @@ out:
 	bq->count = 0;
 
 	trace_xdp_devmap_xmit(&obj->dtab->map, obj->bit,
-			      sent, drops, bq->dev_rx, dev);
+			      sent, drops, bq->dev_rx, dev, err);
 	bq->dev_rx = NULL;
 	return 0;
 error:

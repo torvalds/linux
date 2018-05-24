@@ -234,9 +234,9 @@ TRACE_EVENT(xdp_devmap_xmit,
 	TP_PROTO(const struct bpf_map *map, u32 map_index,
 		 int sent, int drops,
 		 const struct net_device *from_dev,
-		 const struct net_device *to_dev),
+		 const struct net_device *to_dev, int err),
 
-	TP_ARGS(map, map_index, sent, drops, from_dev, to_dev),
+	TP_ARGS(map, map_index, sent, drops, from_dev, to_dev, err),
 
 	TP_STRUCT__entry(
 		__field(int, map_id)
@@ -246,6 +246,7 @@ TRACE_EVENT(xdp_devmap_xmit,
 		__field(int, sent)
 		__field(int, from_ifindex)
 		__field(int, to_ifindex)
+		__field(int, err)
 	),
 
 	TP_fast_assign(
@@ -256,16 +257,17 @@ TRACE_EVENT(xdp_devmap_xmit,
 		__entry->sent		= sent;
 		__entry->from_ifindex	= from_dev->ifindex;
 		__entry->to_ifindex	= to_dev->ifindex;
+		__entry->err		= err;
 	),
 
 	TP_printk("ndo_xdp_xmit"
 		  " map_id=%d map_index=%d action=%s"
 		  " sent=%d drops=%d"
-		  " from_ifindex=%d to_ifindex=%d",
+		  " from_ifindex=%d to_ifindex=%d err=%d",
 		  __entry->map_id, __entry->map_index,
 		  __print_symbolic(__entry->act, __XDP_ACT_SYM_TAB),
 		  __entry->sent, __entry->drops,
-		  __entry->from_ifindex, __entry->to_ifindex)
+		  __entry->from_ifindex, __entry->to_ifindex, __entry->err)
 );
 
 #endif /* _TRACE_XDP_H */
