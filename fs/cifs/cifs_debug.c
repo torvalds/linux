@@ -501,32 +501,32 @@ cifs_proc_init(void)
 	proc_create("DebugData", 0, proc_fs_cifs, &cifs_debug_data_proc_fops);
 
 #ifdef CONFIG_CIFS_STATS
-	proc_create("Stats", 0, proc_fs_cifs, &cifs_stats_proc_fops);
+	proc_create("Stats", 0644, proc_fs_cifs, &cifs_stats_proc_fops);
 #endif /* STATS */
-	proc_create("cifsFYI", 0, proc_fs_cifs, &cifsFYI_proc_fops);
-	proc_create("traceSMB", 0, proc_fs_cifs, &traceSMB_proc_fops);
-	proc_create("LinuxExtensionsEnabled", 0, proc_fs_cifs,
+	proc_create("cifsFYI", 0644, proc_fs_cifs, &cifsFYI_proc_fops);
+	proc_create("traceSMB", 0644, proc_fs_cifs, &traceSMB_proc_fops);
+	proc_create("LinuxExtensionsEnabled", 0644, proc_fs_cifs,
 		    &cifs_linux_ext_proc_fops);
-	proc_create("SecurityFlags", 0, proc_fs_cifs,
+	proc_create("SecurityFlags", 0644, proc_fs_cifs,
 		    &cifs_security_flags_proc_fops);
-	proc_create("LookupCacheEnabled", 0, proc_fs_cifs,
+	proc_create("LookupCacheEnabled", 0644, proc_fs_cifs,
 		    &cifs_lookup_cache_proc_fops);
 #ifdef CONFIG_CIFS_SMB_DIRECT
-	proc_create("rdma_readwrite_threshold", 0, proc_fs_cifs,
+	proc_create("rdma_readwrite_threshold", 0644, proc_fs_cifs,
 		&cifs_rdma_readwrite_threshold_proc_fops);
-	proc_create("smbd_max_frmr_depth", 0, proc_fs_cifs,
+	proc_create("smbd_max_frmr_depth", 0644, proc_fs_cifs,
 		&cifs_smbd_max_frmr_depth_proc_fops);
-	proc_create("smbd_keep_alive_interval", 0, proc_fs_cifs,
+	proc_create("smbd_keep_alive_interval", 0644, proc_fs_cifs,
 		&cifs_smbd_keep_alive_interval_proc_fops);
-	proc_create("smbd_max_receive_size", 0, proc_fs_cifs,
+	proc_create("smbd_max_receive_size", 0644, proc_fs_cifs,
 		&cifs_smbd_max_receive_size_proc_fops);
-	proc_create("smbd_max_fragmented_recv_size", 0, proc_fs_cifs,
+	proc_create("smbd_max_fragmented_recv_size", 0644, proc_fs_cifs,
 		&cifs_smbd_max_fragmented_recv_size_proc_fops);
-	proc_create("smbd_max_send_size", 0, proc_fs_cifs,
+	proc_create("smbd_max_send_size", 0644, proc_fs_cifs,
 		&cifs_smbd_max_send_size_proc_fops);
-	proc_create("smbd_send_credit_target", 0, proc_fs_cifs,
+	proc_create("smbd_send_credit_target", 0644, proc_fs_cifs,
 		&cifs_smbd_send_credit_target_proc_fops);
-	proc_create("smbd_receive_credit_max", 0, proc_fs_cifs,
+	proc_create("smbd_receive_credit_max", 0644, proc_fs_cifs,
 		&cifs_smbd_receive_credit_max_proc_fops);
 #endif
 }
