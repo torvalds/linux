@@ -5528,9 +5528,16 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 	if (HAS_PCH_CPT(dev_priv))
 		cpt_verify_modeset(dev, intel_crtc->pipe);
 
-	/* Must wait for vblank to avoid spurious PCH FIFO underruns */
-	if (intel_crtc->config->has_pch_encoder)
+	/*
+	 * Must wait for vblank to avoid spurious PCH FIFO underruns.
+	 * And a second vblank wait is needed at least on ILK with
+	 * some interlaced HDMI modes. Let's do the double wait always
+	 * in case there are more corner cases we don't know about.
+	 */
+	if (intel_crtc->config->has_pch_encoder) {
 		intel_wait_for_vblank(dev_priv, pipe);
+		intel_wait_for_vblank(dev_priv, pipe);
+	}
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, true);
 }
