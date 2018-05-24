@@ -1462,8 +1462,6 @@ int cmd_top(int argc, const char **argv)
 		goto out_delete_evlist;
 	}
 
-	symbol_conf.nr_events = top.evlist->nr_entries;
-
 	if (top.delay_secs < 1)
 		top.delay_secs = 1;
 

@@ -90,7 +90,6 @@ struct intlist;
 
 struct symbol_conf {
 	unsigned short	priv_size;
-	unsigned short	nr_events;
 	bool		try_vmlinux_path,
 			init_annotation,
 			force,

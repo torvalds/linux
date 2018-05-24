@@ -3312,8 +3312,6 @@ int perf_session__read_header(struct perf_session *session)
 		lseek(fd, tmp, SEEK_SET);
 	}
 
-	symbol_conf.nr_events = nr_attrs;
-
 	perf_header__process_sections(header, fd, &session->tevent,
 				      perf_file_section__process);
 
@@ -3738,8 +3736,6 @@ int perf_event__process_attr(struct perf_tool *tool __maybe_unused,
 	for (i = 0; i < n_ids; i++) {
 		perf_evlist__id_add(evlist, evsel, 0, i, event->attr.id[i]);
 	}
-
-	symbol_conf.nr_events = evlist->nr_entries;
 
 	return 0;
 }
