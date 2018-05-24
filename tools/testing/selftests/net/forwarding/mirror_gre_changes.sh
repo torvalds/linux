@@ -73,7 +73,6 @@ test_span_gre_ttl()
 	RET=0
 
 	mirror_install $swp1 ingress $tundev "matchall $tcflags"
-	tc qdisc add dev $h3 clsact
 	tc filter add dev $h3 ingress pref 77 prot $prot \
 		flower ip_ttl 50 action pass
 
@@ -84,7 +83,6 @@ test_span_gre_ttl()
 
 	ip link set dev $tundev type $type ttl 100
 	tc filter del dev $h3 ingress pref 77
-	tc qdisc del dev $h3 clsact
 	mirror_uninstall $swp1 ingress
 
 	log_test "$what: TTL change ($tcflags)"

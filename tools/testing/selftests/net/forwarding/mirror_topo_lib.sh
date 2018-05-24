@@ -46,10 +46,12 @@ mirror_topo_h2_destroy()
 mirror_topo_h3_create()
 {
 	simple_if_init $h3
+	tc qdisc add dev $h3 clsact
 }
 
 mirror_topo_h3_destroy()
 {
+	tc qdisc del dev $h3 clsact
 	simple_if_fini $h3
 }
 
