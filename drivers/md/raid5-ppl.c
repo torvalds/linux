@@ -693,6 +693,16 @@ void ppl_quiesce(struct r5conf *conf, int quiesce)
 	}
 }
 
+int ppl_handle_flush_request(struct r5l_log *log, struct bio *bio)
+{
+	if (bio->bi_iter.bi_size == 0) {
+		bio_endio(bio);
+		return 0;
+	}
+	bio->bi_opf &= ~REQ_PREFLUSH;
+	return -EAGAIN;
+}
+
 void ppl_stripe_write_finished(struct stripe_head *sh)
 {
 	struct ppl_io_unit *io;

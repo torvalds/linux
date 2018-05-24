@@ -109,7 +109,7 @@ imx6-mipi-csi2
 This is the MIPI CSI-2 receiver entity. It has one sink pad to receive
 the MIPI CSI-2 stream (usually from a MIPI CSI-2 camera sensor). It has
 four source pads, corresponding to the four MIPI CSI-2 demuxed virtual
-channel outputs. Multpiple source pads can be enabled to independently
+channel outputs. Multiple source pads can be enabled to independently
 stream from multiple virtual channels.
 
 This entity actually consists of two sub-blocks. One is the MIPI CSI-2
@@ -213,9 +213,11 @@ To give an example of crop and /2 downscale, this will crop a
 1280x960 input frame to 640x480, and then /2 downscale in both
 dimensions to 320x240 (assumes ipu1_csi0 is linked to ipu1_csi0_mux):
 
-media-ctl -V "'ipu1_csi0_mux':2[fmt:UYVY2X8/1280x960]"
-media-ctl -V "'ipu1_csi0':0[crop:(0,0)/640x480]"
-media-ctl -V "'ipu1_csi0':0[compose:(0,0)/320x240]"
+.. code-block:: none
+
+   media-ctl -V "'ipu1_csi0_mux':2[fmt:UYVY2X8/1280x960]"
+   media-ctl -V "'ipu1_csi0':0[crop:(0,0)/640x480]"
+   media-ctl -V "'ipu1_csi0':0[compose:(0,0)/320x240]"
 
 Frame Skipping in ipuX_csiY
 ---------------------------
@@ -229,8 +231,10 @@ at the source pad.
 The following example reduces an assumed incoming 60 Hz frame
 rate by half at the IDMAC output source pad:
 
-media-ctl -V "'ipu1_csi0':0[fmt:UYVY2X8/640x480@1/60]"
-media-ctl -V "'ipu1_csi0':2[fmt:UYVY2X8/640x480@1/30]"
+.. code-block:: none
+
+   media-ctl -V "'ipu1_csi0':0[fmt:UYVY2X8/640x480@1/60]"
+   media-ctl -V "'ipu1_csi0':2[fmt:UYVY2X8/640x480@1/30]"
 
 Frame Interval Monitor in ipuX_csiY
 -----------------------------------
@@ -422,8 +426,7 @@ This pipeline uses the preprocess encode entity to route frames directly
 from the CSI to the IC, to carry out scaling up to 1024x1024 resolution,
 CSC, flipping, and image rotation:
 
--> ipuX_csiY:1 -> 0:ipuX_ic_prp:1 -> 0:ipuX_ic_prpenc:1 ->
-   ipuX_ic_prpenc capture
+-> ipuX_csiY:1 -> 0:ipuX_ic_prp:1 -> 0:ipuX_ic_prpenc:1 -> ipuX_ic_prpenc capture
 
 Motion Compensated De-interlace:
 --------------------------------
@@ -432,8 +435,7 @@ This pipeline routes frames from the CSI direct pad to the VDIC entity to
 support motion-compensated de-interlacing (high motion mode only),
 scaling up to 1024x1024, CSC, flip, and rotation:
 
--> ipuX_csiY:1 -> 0:ipuX_vdic:2 -> 0:ipuX_ic_prp:2 ->
-   0:ipuX_ic_prpvf:1 -> ipuX_ic_prpvf capture
+-> ipuX_csiY:1 -> 0:ipuX_vdic:2 -> 0:ipuX_ic_prp:2 -> 0:ipuX_ic_prpvf:1 -> ipuX_ic_prpvf capture
 
 
 Usage Notes
@@ -458,8 +460,8 @@ This platform requires the OmniVision OV5642 module with a parallel
 camera interface, and the OV5640 module with a MIPI CSI-2
 interface. Both modules are available from Boundary Devices:
 
-https://boundarydevices.com/product/nit6x_5mp
-https://boundarydevices.com/product/nit6x_5mp_mipi
+- https://boundarydevices.com/product/nit6x_5mp
+- https://boundarydevices.com/product/nit6x_5mp_mipi
 
 Note that if only one camera module is available, the other sensor
 node can be disabled in the device tree.

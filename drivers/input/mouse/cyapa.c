@@ -740,7 +740,7 @@ static ssize_t cyapa_show_suspend_scanrate(struct device *dev,
 					   char *buf)
 {
 	struct cyapa *cyapa = dev_get_drvdata(dev);
-	u8 pwr_cmd = cyapa->suspend_power_mode;
+	u8 pwr_cmd;
 	u16 sleep_time;
 	int len;
 	int error;

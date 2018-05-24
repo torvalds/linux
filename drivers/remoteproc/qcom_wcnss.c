@@ -40,6 +40,7 @@
 #define WCNSS_CRASH_REASON_SMEM		422
 #define WCNSS_FIRMWARE_NAME		"wcnss.mdt"
 #define WCNSS_PAS_ID			6
+#define WCNSS_SSCTL_ID			0x13
 
 #define WCNSS_SPARE_NVBIN_DLND		BIT(25)
 
@@ -98,6 +99,7 @@ struct qcom_wcnss {
 	size_t mem_size;
 
 	struct qcom_rproc_subdev smd_subdev;
+	struct qcom_sysmon *sysmon;
 };
 
 static const struct wcnss_data riva_data = {
@@ -153,13 +155,9 @@ static int wcnss_load(struct rproc *rproc, const struct firmware *fw)
 	struct qcom_wcnss *wcnss = (struct qcom_wcnss *)rproc->priv;
 
 	return qcom_mdt_load(wcnss->dev, fw, rproc->firmware, WCNSS_PAS_ID,
-			     wcnss->mem_region, wcnss->mem_phys, wcnss->mem_size);
+			     wcnss->mem_region, wcnss->mem_phys,
+			     wcnss->mem_size, &wcnss->mem_reloc);
 }
-
-static const struct rproc_fw_ops wcnss_fw_ops = {
-	.find_rsc_table = qcom_mdt_find_rsc_table,
-	.load = wcnss_load,
-};
 
 static void wcnss_indicate_nv_download(struct qcom_wcnss *wcnss)
 {
@@ -313,6 +311,8 @@ static const struct rproc_ops wcnss_ops = {
 	.start = wcnss_start,
 	.stop = wcnss_stop,
 	.da_to_va = wcnss_da_to_va,
+	.parse_fw = qcom_register_dump_segments,
+	.load = wcnss_load,
 };
 
 static irqreturn_t wcnss_wdog_interrupt(int irq, void *dev)
@@ -335,9 +335,6 @@ static irqreturn_t wcnss_fatal_interrupt(int irq, void *dev)
 		dev_err(wcnss->dev, "fatal error received: %s\n", msg);
 
 	rproc_report_crash(wcnss->rproc, RPROC_FATAL_ERROR);
-
-	if (!IS_ERR(msg))
-		msg[0] = '\0';
 
 	return IRQ_HANDLED;
 }
@@ -492,8 +489,6 @@ static int wcnss_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	rproc->fw_ops = &wcnss_fw_ops;
-
 	wcnss = (struct qcom_wcnss *)rproc->priv;
 	wcnss->dev = &pdev->dev;
 	wcnss->rproc = rproc;
@@ -557,6 +552,7 @@ static int wcnss_probe(struct platform_device *pdev)
 	}
 
 	qcom_add_smd_subdev(rproc, &wcnss->smd_subdev);
+	wcnss->sysmon = qcom_add_sysmon_subdev(rproc, "wcnss", WCNSS_SSCTL_ID);
 
 	ret = rproc_add(rproc);
 	if (ret)
@@ -579,6 +575,7 @@ static int wcnss_remove(struct platform_device *pdev)
 	qcom_smem_state_put(wcnss->state);
 	rproc_del(wcnss->rproc);
 
+	qcom_remove_sysmon_subdev(wcnss->sysmon);
 	qcom_remove_smd_subdev(wcnss->rproc, &wcnss->smd_subdev);
 	rproc_free(wcnss->rproc);
 

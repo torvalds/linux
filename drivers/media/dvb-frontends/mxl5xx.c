@@ -33,7 +33,7 @@
 #include <asm/div64.h>
 #include <asm/unaligned.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "mxl5xx.h"
 #include "mxl5xx_regs.h"
 #include "mxl5xx_defs.h"
@@ -380,6 +380,38 @@ static int get_algo(struct dvb_frontend *fe)
 	return DVBFE_ALGO_HW;
 }
 
+static u32 gold2root(u32 gold)
+{
+	u32 x, g, tmp = gold;
+
+	if (tmp >= 0x3ffff)
+		tmp = 0;
+	for (g = 0, x = 1; g < tmp; g++)
+		x = (((x ^ (x >> 7)) & 1) << 17) | (x >> 1);
+	return x;
+}
+
+static int cfg_scrambler(struct mxl *state, u32 gold)
+{
+	u32 root;
+	u8 buf[26] = {
+		MXL_HYDRA_PLID_CMD_WRITE, 24,
+		0, MXL_HYDRA_DEMOD_SCRAMBLE_CODE_CMD, 0, 0,
+		state->demod, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 1, 0, 0, 0,
+	};
+
+	root = gold2root(gold);
+
+	buf[25] = (root >> 24) & 0xff;
+	buf[24] = (root >> 16) & 0xff;
+	buf[23] = (root >> 8) & 0xff;
+	buf[22] = root & 0xff;
+
+	return send_command(state, sizeof(buf), buf);
+}
+
 static int cfg_demod_abort_tune(struct mxl *state)
 {
 	struct MXL_HYDRA_DEMOD_ABORT_TUNE_T abort_tune_cmd;
@@ -437,7 +469,7 @@ static int set_parameters(struct dvb_frontend *fe)
 		demod_chan_cfg.roll_off = MXL_HYDRA_ROLLOFF_AUTO;
 		demod_chan_cfg.modulation_scheme = MXL_HYDRA_MOD_AUTO;
 		demod_chan_cfg.pilots = MXL_HYDRA_PILOTS_AUTO;
-		/* cfg_scrambler(state); */
+		cfg_scrambler(state, p->scrambling_sequence_index);
 		break;
 	default:
 		return -EINVAL;
@@ -636,16 +668,9 @@ static int tune(struct dvb_frontend *fe, bool re_tune,
 		if (r)
 			return r;
 		state->tune_time = jiffies;
-		return 0;
 	}
-	if (*status & FE_HAS_LOCK)
-		return 0;
 
-	r = read_status(fe, status);
-	if (r)
-		return r;
-
-	return 0;
+	return read_status(fe, status);
 }
 
 static enum fe_code_rate conv_fec(enum MXL_HYDRA_FEC_E fec)

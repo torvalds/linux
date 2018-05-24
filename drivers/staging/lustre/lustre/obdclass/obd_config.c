@@ -236,7 +236,7 @@ static int class_attach(struct lustre_cfg *lcfg)
 	uuid = lustre_cfg_string(lcfg, 2);
 
 	CDEBUG(D_IOCTL, "attach type %s name: %s uuid: %s\n",
-	       MKSTR(typename), MKSTR(name), MKSTR(uuid));
+	       typename, name, uuid);
 
 	obd = class_newdev(typename, name);
 	if (IS_ERR(obd)) {
@@ -455,7 +455,7 @@ static int class_cleanup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	spin_unlock(&obd->obd_dev_lock);
 
 	while (obd->obd_conn_inprogress > 0)
-		yield();
+		cond_resched();
 	smp_rmb();
 
 	if (lcfg->lcfg_bufcount >= 2 && LUSTRE_CFG_BUFLEN(lcfg, 1) > 0) {

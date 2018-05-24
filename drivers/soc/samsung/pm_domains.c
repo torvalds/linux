@@ -1,17 +1,13 @@
-/*
- * Exynos Generic power domain support.
- *
- * Copyright (c) 2012 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com
- *
- * Implementation of Exynos specific power domain control which is used in
- * conjunction with runtime-pm. Support for both device-tree and non-device-tree
- * based power domain support is included.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Exynos Generic power domain support.
+//
+// Copyright (c) 2012 Samsung Electronics Co., Ltd.
+//		http://www.samsung.com
+//
+// Implementation of Exynos specific power domain control which is used in
+// conjunction with runtime-pm. Support for both device-tree and non-device-tree
+// based power domain support is included.
 
 #include <linux/io.h>
 #include <linux/err.h>
@@ -151,6 +147,12 @@ static __init const char *exynos_get_domain_name(struct device_node *node)
 	return kstrdup_const(name, GFP_KERNEL);
 }
 
+static const char *soc_force_no_clk[] = {
+	"samsung,exynos5250-clock",
+	"samsung,exynos5420-clock",
+	"samsung,exynos5800-clock",
+};
+
 static __init int exynos4_pm_init_power_domain(void)
 {
 	struct device_node *np;
@@ -186,6 +188,11 @@ static __init int exynos4_pm_init_power_domain(void)
 		pd->pd.power_off = exynos_pd_power_off;
 		pd->pd.power_on = exynos_pd_power_on;
 		pd->local_pwr_cfg = pm_domain_cfg->local_pwr_cfg;
+
+		for (i = 0; i < ARRAY_SIZE(soc_force_no_clk); i++)
+			if (of_find_compatible_node(NULL, NULL,
+						    soc_force_no_clk[i]))
+				goto no_clk;
 
 		for (i = 0; i < MAX_CLK_PER_DOMAIN; i++) {
 			char clk_name[8];

@@ -120,30 +120,6 @@ struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
 void drm_mode_object_get(struct drm_mode_object *obj);
 void drm_mode_object_put(struct drm_mode_object *obj);
 
-/**
- * drm_mode_object_reference - acquire a mode object reference
- * @obj: DRM mode object
- *
- * This is a compatibility alias for drm_mode_object_get() and should not be
- * used by new code.
- */
-static inline void drm_mode_object_reference(struct drm_mode_object *obj)
-{
-	drm_mode_object_get(obj);
-}
-
-/**
- * drm_mode_object_unreference - release a mode object reference
- * @obj: DRM mode object
- *
- * This is a compatibility alias for drm_mode_object_put() and should not be
- * used by new code.
- */
-static inline void drm_mode_object_unreference(struct drm_mode_object *obj)
-{
-	drm_mode_object_put(obj);
-}
-
 int drm_object_property_set_value(struct drm_mode_object *obj,
 				  struct drm_property *property,
 				  uint64_t val);

@@ -1,16 +1,11 @@
-/* linux/arch/arm/plat-s3c/pm.c
- *
- * Copyright 2008 Openmoko, Inc.
- * Copyright 2004-2008 Simtec Electronics
- *	Ben Dooks <ben@simtec.co.uk>
- *	http://armlinux.simtec.co.uk/
- *
- * S3C common power management (suspend to ram) support.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright 2008 Openmoko, Inc.
+// Copyright 2004-2008 Simtec Electronics
+//	Ben Dooks <ben@simtec.co.uk>
+//	http://armlinux.simtec.co.uk/
+//
+// S3C common power management (suspend to ram) support.
 
 #include <linux/init.h>
 #include <linux/suspend.h>

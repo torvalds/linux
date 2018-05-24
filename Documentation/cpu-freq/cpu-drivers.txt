@@ -259,10 +259,8 @@ CPUFREQ_ENTRY_INVALID. The entries don't need to be in sorted in any
 particular order, but if they are cpufreq core will do DVFS a bit
 quickly for them as search for best match is faster.
 
-By calling cpufreq_table_validate_and_show(), the cpuinfo.min_freq and
-cpuinfo.max_freq values are detected, and policy->min and policy->max
-are set to the same values. This is helpful for the per-CPU
-initialization stage.
+The cpufreq table is verified automatically by the core if the policy contains a
+valid pointer in its policy->freq_table field.
 
 cpufreq_frequency_table_verify() assures that at least one valid
 frequency is within policy->min and policy->max, and all other criteria
@@ -291,3 +289,7 @@ For example:
 		/* Do something with pos */
 		pos->frequency = ...
 	}
+
+If you need to work with the position of pos within driver_freq_table,
+do not subtract the pointers, as it is quite costly. Instead, use the
+macros cpufreq_for_each_entry_idx() and cpufreq_for_each_valid_entry_idx().

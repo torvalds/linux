@@ -39,16 +39,16 @@ static bool long_ram_code;
 
 u32 tegra_read_chipid(void)
 {
-	return readl_relaxed(apbmisc_base + 4);
-}
-
-u8 tegra_get_chip_id(void)
-{
 	if (!apbmisc_base) {
 		WARN(1, "Tegra Chip ID not yet available\n");
 		return 0;
 	}
 
+	return readl_relaxed(apbmisc_base + 4);
+}
+
+u8 tegra_get_chip_id(void)
+{
 	return (tegra_read_chipid() >> 8) & 0xff;
 }
 
@@ -74,6 +74,7 @@ u32 tegra_read_ram_code(void)
 
 static const struct of_device_id apbmisc_match[] __initconst = {
 	{ .compatible = "nvidia,tegra20-apbmisc", },
+	{ .compatible = "nvidia,tegra186-misc", },
 	{},
 };
 

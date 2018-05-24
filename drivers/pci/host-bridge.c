@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * host bridge related code
+ * Host bridge related code
  */
 
 #include <linux/kernel.h>

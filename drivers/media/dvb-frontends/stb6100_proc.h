@@ -18,7 +18,7 @@
 */
 
 #include <linux/dvb/frontend.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 static int stb6100_get_freq(struct dvb_frontend *fe, u32 *frequency)
 {

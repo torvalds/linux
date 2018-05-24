@@ -1,19 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /* speakup_soft.c - speakup driver to register and make available
  * a user space device for software synthesizers.  written by: Kirk
  * Reiser <kirk@braille.uwo.ca>
  *
  * Copyright (C) 2003  Kirk Reiser.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  *
  * this code is specificly written as a driver for the speakup screenreview
  * package and is not a general device driver.
@@ -335,7 +325,7 @@ static __poll_t softsynth_poll(struct file *fp, struct poll_table_struct *wait)
 
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	if (!synth_buffer_empty() || speakup_info.flushing)
-		ret = POLLIN | POLLRDNORM;
+		ret = EPOLLIN | EPOLLRDNORM;
 	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 	return ret;
 }

@@ -86,65 +86,6 @@ extern u64 ppc64_pft_size;
 
 #endif /* __ASSEMBLY__ */
 
-#ifdef CONFIG_PPC_MM_SLICES
-
-#define SLICE_LOW_SHIFT		28
-#define SLICE_HIGH_SHIFT	40
-
-#define SLICE_LOW_TOP		(0x100000000ul)
-#define SLICE_NUM_LOW		(SLICE_LOW_TOP >> SLICE_LOW_SHIFT)
-#define SLICE_NUM_HIGH		(H_PGTABLE_RANGE >> SLICE_HIGH_SHIFT)
-
-#define GET_LOW_SLICE_INDEX(addr)	((addr) >> SLICE_LOW_SHIFT)
-#define GET_HIGH_SLICE_INDEX(addr)	((addr) >> SLICE_HIGH_SHIFT)
-
-#ifndef __ASSEMBLY__
-struct mm_struct;
-
-extern unsigned long slice_get_unmapped_area(unsigned long addr,
-					     unsigned long len,
-					     unsigned long flags,
-					     unsigned int psize,
-					     int topdown);
-
-extern unsigned int get_slice_psize(struct mm_struct *mm,
-				    unsigned long addr);
-
-extern void slice_set_user_psize(struct mm_struct *mm, unsigned int psize);
-extern void slice_set_range_psize(struct mm_struct *mm, unsigned long start,
-				  unsigned long len, unsigned int psize);
-
-#endif /* __ASSEMBLY__ */
-#else
-#define slice_init()
-#ifdef CONFIG_PPC_BOOK3S_64
-#define get_slice_psize(mm, addr)	((mm)->context.user_psize)
-#define slice_set_user_psize(mm, psize)		\
-do {						\
-	(mm)->context.user_psize = (psize);	\
-	(mm)->context.sllp = SLB_VSID_USER | mmu_psize_defs[(psize)].sllp; \
-} while (0)
-#else /* !CONFIG_PPC_BOOK3S_64 */
-#ifdef CONFIG_PPC_64K_PAGES
-#define get_slice_psize(mm, addr)	MMU_PAGE_64K
-#else /* CONFIG_PPC_64K_PAGES */
-#define get_slice_psize(mm, addr)	MMU_PAGE_4K
-#endif /* !CONFIG_PPC_64K_PAGES */
-#define slice_set_user_psize(mm, psize)	do { BUG(); } while(0)
-#endif /* CONFIG_PPC_BOOK3S_64 */
-
-#define slice_set_range_psize(mm, start, len, psize)	\
-	slice_set_user_psize((mm), (psize))
-#endif /* CONFIG_PPC_MM_SLICES */
-
-#ifdef CONFIG_HUGETLB_PAGE
-
-#ifdef CONFIG_PPC_MM_SLICES
-#define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
-#endif
-
-#endif /* !CONFIG_HUGETLB_PAGE */
-
 #define VM_DATA_DEFAULT_FLAGS \
 	(is_32bit_task() ? \
 	 VM_DATA_DEFAULT_FLAGS32 : VM_DATA_DEFAULT_FLAGS64)

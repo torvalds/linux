@@ -213,13 +213,6 @@ will learn the basics of getting your patch into the Linux kernel tree,
 and possibly be pointed in the direction of what to go work on next, if
 you do not already have an idea.
 
-If you already have a chunk of code that you want to put into the kernel
-tree, but need some help getting it in the proper form, the
-kernel-mentors project was created to help you out with this.  It is a
-mailing list, and can be found at:
-
-	https://selenic.com/mailman/listinfo/kernel-mentors
-
 Before making any actual modifications to the Linux kernel code, it is
 imperative to understand how the code in question works.  For this
 purpose, nothing is better than reading through it directly (most tricky
@@ -381,14 +374,6 @@ bugs is one of the best ways to get merits among other developers, because
 not many people like wasting time fixing other people's bugs.
 
 To work in the already reported bug reports, go to https://bugzilla.kernel.org.
-If you want to be advised of the future bug reports, you can subscribe to the
-bugme-new mailing list (only new bug reports are mailed here) or to the
-bugme-janitor mailing list (every change in the bugzilla is mailed here)
-
-	https://lists.linux-foundation.org/mailman/listinfo/bugme-new
-
-	https://lists.linux-foundation.org/mailman/listinfo/bugme-janitors
-
 
 
 Mailing lists

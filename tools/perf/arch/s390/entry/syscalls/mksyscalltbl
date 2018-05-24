@@ -3,25 +3,23 @@
 #
 # Generate system call table for perf
 #
-#
-# Copyright IBM Corp. 2017
+# Copyright IBM Corp. 2017, 2018
 # Author(s):  Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
 #
 
-gcc=$1
-input=$2
+SYSCALL_TBL=$1
 
-if ! test -r $input; then
+if ! test -r $SYSCALL_TBL; then
 	echo "Could not read input file" >&2
 	exit 1
 fi
 
 create_table()
 {
-	local max_nr
+	local max_nr nr abi sc discard
 
 	echo 'static const char *syscalltbl_s390_64[] = {'
-	while read sc nr; do
+	while read nr abi sc discard; do
 		printf '\t[%d] = "%s",\n' $nr $sc
 		max_nr=$nr
 	done
@@ -29,8 +27,6 @@ create_table()
 	echo "#define SYSCALLTBL_S390_64_MAX_ID $max_nr"
 }
 
-
-$gcc -m64 -E -dM -x c  $input	       \
-	|sed -ne 's/^#define __NR_//p' \
-	|sort -t' ' -k2 -nu	       \
+grep -E "^[[:digit:]]+[[:space:]]+(common|64)" $SYSCALL_TBL	\
+	|sort -k1 -n					\
 	|create_table

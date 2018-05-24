@@ -450,7 +450,7 @@ long kvmppc_rm_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 
 		/*
 		 * Synchronize with the MMU notifier callbacks in
-		 * book3s_64_mmu_hv.c (kvm_unmap_hva_hv etc.).
+		 * book3s_64_mmu_hv.c (kvm_unmap_hva_range_hv etc.).
 		 * While we have the rmap lock, code running on other CPUs
 		 * cannot finish unmapping the host real page that backs
 		 * this guest real page, so we are OK to access the host

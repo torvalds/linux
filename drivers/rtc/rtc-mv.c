@@ -94,7 +94,7 @@ static int mv_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	/* hw counts from year 2000, but tm_year is relative to 1900 */
 	tm->tm_year = bcd2bin(year) + 100;
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int mv_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
@@ -223,7 +223,6 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct rtc_plat_data *pdata;
 	u32 rtc_time;
-	u32 rtc_date;
 	int ret = 0;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
@@ -257,17 +256,6 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 			ret = -ENODEV;
 			goto out;
 		}
-	}
-
-	/*
-	 * A date after January 19th, 2038 does not fit on 32 bits and
-	 * will confuse the kernel and userspace. Reset to a sane date
-	 * (January 1st, 2013) if we're after 2038.
-	 */
-	rtc_date = readl(pdata->ioaddr + RTC_DATE_REG_OFFS);
-	if (bcd2bin((rtc_date >> RTC_YEAR_OFFS) & 0xff) >= 38) {
-		dev_info(&pdev->dev, "invalid RTC date, resetting to January 1st, 2013\n");
-		writel(0x130101, pdata->ioaddr + RTC_DATE_REG_OFFS);
 	}
 
 	pdata->irq = platform_get_irq(pdev, 0);

@@ -72,7 +72,7 @@ static int afs_mntpt_open(struct inode *inode, struct file *file)
  */
 static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 {
-	struct afs_super_info *super;
+	struct afs_super_info *as;
 	struct vfsmount *mnt;
 	struct afs_vnode *vnode;
 	struct page *page;
@@ -104,13 +104,13 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 			goto error_no_page;
 
 		if (mntpt->d_name.name[0] == '.') {
-			devname[0] = '#';
-			memcpy(devname + 1, mntpt->d_name.name, size - 1);
+			devname[0] = '%';
+			memcpy(devname + 1, mntpt->d_name.name + 1, size - 1);
 			memcpy(devname + size, afs_root_cell,
 			       sizeof(afs_root_cell));
 			rwpath = true;
 		} else {
-			devname[0] = '%';
+			devname[0] = '#';
 			memcpy(devname + 1, mntpt->d_name.name, size);
 			memcpy(devname + size + 1, afs_root_cell,
 			       sizeof(afs_root_cell));
@@ -142,11 +142,13 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 	}
 
 	/* work out what options we want */
-	super = AFS_FS_S(mntpt->d_sb);
-	memcpy(options, "cell=", 5);
-	strcpy(options + 5, super->volume->cell->name);
-	if (super->volume->type == AFSVL_RWVOL || rwpath)
-		strcat(options, ",rwpath");
+	as = AFS_FS_S(mntpt->d_sb);
+	if (as->cell) {
+		memcpy(options, "cell=", 5);
+		strcpy(options + 5, as->cell->name);
+		if ((as->volume && as->volume->type == AFSVL_RWVOL) || rwpath)
+			strcat(options, ",rwpath");
+	}
 
 	/* try and do the mount */
 	_debug("--- attempting mount %s -o %s ---", devname, options);

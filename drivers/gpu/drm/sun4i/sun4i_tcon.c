@@ -17,6 +17,7 @@
 #include <drm/drm_encoder.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_of.h>
+#include <drm/drm_panel.h>
 
 #include <uapi/drm/drm_mode.h>
 
@@ -31,9 +32,51 @@
 #include "sun4i_crtc.h"
 #include "sun4i_dotclock.h"
 #include "sun4i_drv.h"
+#include "sun4i_lvds.h"
 #include "sun4i_rgb.h"
 #include "sun4i_tcon.h"
 #include "sunxi_engine.h"
+
+static struct drm_connector *sun4i_tcon_get_connector(const struct drm_encoder *encoder)
+{
+	struct drm_connector *connector;
+	struct drm_connector_list_iter iter;
+
+	drm_connector_list_iter_begin(encoder->dev, &iter);
+	drm_for_each_connector_iter(connector, &iter)
+		if (connector->encoder == encoder) {
+			drm_connector_list_iter_end(&iter);
+			return connector;
+		}
+	drm_connector_list_iter_end(&iter);
+
+	return NULL;
+}
+
+static int sun4i_tcon_get_pixel_depth(const struct drm_encoder *encoder)
+{
+	struct drm_connector *connector;
+	struct drm_display_info *info;
+
+	connector = sun4i_tcon_get_connector(encoder);
+	if (!connector)
+		return -EINVAL;
+
+	info = &connector->display_info;
+	if (info->num_bus_formats != 1)
+		return -EINVAL;
+
+	switch (info->bus_formats[0]) {
+	case MEDIA_BUS_FMT_RGB666_1X7X3_SPWG:
+		return 18;
+
+	case MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA:
+	case MEDIA_BUS_FMT_RGB888_1X7X4_SPWG:
+		return 24;
+	}
+
+	return -EINVAL;
+}
 
 static void sun4i_tcon_channel_set_status(struct sun4i_tcon *tcon, int channel,
 					  bool enabled)
@@ -42,6 +85,7 @@ static void sun4i_tcon_channel_set_status(struct sun4i_tcon *tcon, int channel,
 
 	switch (channel) {
 	case 0:
+		WARN_ON(!tcon->quirks->has_channel_0);
 		regmap_update_bits(tcon->regs, SUN4I_TCON0_CTL_REG,
 				   SUN4I_TCON0_CTL_TCON_ENABLE,
 				   enabled ? SUN4I_TCON0_CTL_TCON_ENABLE : 0);
@@ -59,19 +103,72 @@ static void sun4i_tcon_channel_set_status(struct sun4i_tcon *tcon, int channel,
 		return;
 	}
 
-	if (enabled)
+	if (enabled) {
 		clk_prepare_enable(clk);
-	else
+		clk_rate_exclusive_get(clk);
+	} else {
+		clk_rate_exclusive_put(clk);
 		clk_disable_unprepare(clk);
+	}
+}
+
+static void sun4i_tcon_lvds_set_status(struct sun4i_tcon *tcon,
+				       const struct drm_encoder *encoder,
+				       bool enabled)
+{
+	if (enabled) {
+		u8 val;
+
+		regmap_update_bits(tcon->regs, SUN4I_TCON0_LVDS_IF_REG,
+				   SUN4I_TCON0_LVDS_IF_EN,
+				   SUN4I_TCON0_LVDS_IF_EN);
+
+		/*
+		 * As their name suggest, these values only apply to the A31
+		 * and later SoCs. We'll have to rework this when merging
+		 * support for the older SoCs.
+		 */
+		regmap_write(tcon->regs, SUN4I_TCON0_LVDS_ANA0_REG,
+			     SUN6I_TCON0_LVDS_ANA0_C(2) |
+			     SUN6I_TCON0_LVDS_ANA0_V(3) |
+			     SUN6I_TCON0_LVDS_ANA0_PD(2) |
+			     SUN6I_TCON0_LVDS_ANA0_EN_LDO);
+		udelay(2);
+
+		regmap_update_bits(tcon->regs, SUN4I_TCON0_LVDS_ANA0_REG,
+				   SUN6I_TCON0_LVDS_ANA0_EN_MB,
+				   SUN6I_TCON0_LVDS_ANA0_EN_MB);
+		udelay(2);
+
+		regmap_update_bits(tcon->regs, SUN4I_TCON0_LVDS_ANA0_REG,
+				   SUN6I_TCON0_LVDS_ANA0_EN_DRVC,
+				   SUN6I_TCON0_LVDS_ANA0_EN_DRVC);
+
+		if (sun4i_tcon_get_pixel_depth(encoder) == 18)
+			val = 7;
+		else
+			val = 0xf;
+
+		regmap_write_bits(tcon->regs, SUN4I_TCON0_LVDS_ANA0_REG,
+				  SUN6I_TCON0_LVDS_ANA0_EN_DRVD(0xf),
+				  SUN6I_TCON0_LVDS_ANA0_EN_DRVD(val));
+	} else {
+		regmap_update_bits(tcon->regs, SUN4I_TCON0_LVDS_IF_REG,
+				   SUN4I_TCON0_LVDS_IF_EN, 0);
+	}
 }
 
 void sun4i_tcon_set_status(struct sun4i_tcon *tcon,
 			   const struct drm_encoder *encoder,
 			   bool enabled)
 {
+	bool is_lvds = false;
 	int channel;
 
 	switch (encoder->encoder_type) {
+	case DRM_MODE_ENCODER_LVDS:
+		is_lvds = true;
+		/* Fallthrough */
 	case DRM_MODE_ENCODER_NONE:
 		channel = 0;
 		break;
@@ -84,9 +181,15 @@ void sun4i_tcon_set_status(struct sun4i_tcon *tcon,
 		return;
 	}
 
+	if (is_lvds && !enabled)
+		sun4i_tcon_lvds_set_status(tcon, encoder, false);
+
 	regmap_update_bits(tcon->regs, SUN4I_TCON_GCTL_REG,
 			   SUN4I_TCON_GCTL_TCON_ENABLE,
 			   enabled ? SUN4I_TCON_GCTL_TCON_ENABLE : 0);
+
+	if (is_lvds && enabled)
+		sun4i_tcon_lvds_set_status(tcon, encoder, true);
 
 	sun4i_tcon_channel_set_status(tcon, channel, enabled);
 }
@@ -170,13 +273,94 @@ static void sun4i_tcon0_mode_set_common(struct sun4i_tcon *tcon,
 		     SUN4I_TCON0_BASIC0_Y(mode->crtc_vdisplay));
 }
 
+static void sun4i_tcon0_mode_set_lvds(struct sun4i_tcon *tcon,
+				      const struct drm_encoder *encoder,
+				      const struct drm_display_mode *mode)
+{
+	unsigned int bp;
+	u8 clk_delay;
+	u32 reg, val = 0;
+
+	WARN_ON(!tcon->quirks->has_channel_0);
+
+	tcon->dclk_min_div = 7;
+	tcon->dclk_max_div = 7;
+	sun4i_tcon0_mode_set_common(tcon, mode);
+
+	/* Adjust clock delay */
+	clk_delay = sun4i_tcon_get_clk_delay(mode, 0);
+	regmap_update_bits(tcon->regs, SUN4I_TCON0_CTL_REG,
+			   SUN4I_TCON0_CTL_CLK_DELAY_MASK,
+			   SUN4I_TCON0_CTL_CLK_DELAY(clk_delay));
+
+	/*
+	 * This is called a backporch in the register documentation,
+	 * but it really is the back porch + hsync
+	 */
+	bp = mode->crtc_htotal - mode->crtc_hsync_start;
+	DRM_DEBUG_DRIVER("Setting horizontal total %d, backporch %d\n",
+			 mode->crtc_htotal, bp);
+
+	/* Set horizontal display timings */
+	regmap_write(tcon->regs, SUN4I_TCON0_BASIC1_REG,
+		     SUN4I_TCON0_BASIC1_H_TOTAL(mode->htotal) |
+		     SUN4I_TCON0_BASIC1_H_BACKPORCH(bp));
+
+	/*
+	 * This is called a backporch in the register documentation,
+	 * but it really is the back porch + hsync
+	 */
+	bp = mode->crtc_vtotal - mode->crtc_vsync_start;
+	DRM_DEBUG_DRIVER("Setting vertical total %d, backporch %d\n",
+			 mode->crtc_vtotal, bp);
+
+	/* Set vertical display timings */
+	regmap_write(tcon->regs, SUN4I_TCON0_BASIC2_REG,
+		     SUN4I_TCON0_BASIC2_V_TOTAL(mode->crtc_vtotal * 2) |
+		     SUN4I_TCON0_BASIC2_V_BACKPORCH(bp));
+
+	reg = SUN4I_TCON0_LVDS_IF_CLK_SEL_TCON0 |
+		SUN4I_TCON0_LVDS_IF_DATA_POL_NORMAL |
+		SUN4I_TCON0_LVDS_IF_CLK_POL_NORMAL;
+	if (sun4i_tcon_get_pixel_depth(encoder) == 24)
+		reg |= SUN4I_TCON0_LVDS_IF_BITWIDTH_24BITS;
+	else
+		reg |= SUN4I_TCON0_LVDS_IF_BITWIDTH_18BITS;
+
+	regmap_write(tcon->regs, SUN4I_TCON0_LVDS_IF_REG, reg);
+
+	/* Setup the polarity of the various signals */
+	if (!(mode->flags & DRM_MODE_FLAG_PHSYNC))
+		val |= SUN4I_TCON0_IO_POL_HSYNC_POSITIVE;
+
+	if (!(mode->flags & DRM_MODE_FLAG_PVSYNC))
+		val |= SUN4I_TCON0_IO_POL_VSYNC_POSITIVE;
+
+	regmap_write(tcon->regs, SUN4I_TCON0_IO_POL_REG, val);
+
+	/* Map output pins to channel 0 */
+	regmap_update_bits(tcon->regs, SUN4I_TCON_GCTL_REG,
+			   SUN4I_TCON_GCTL_IOMAP_MASK,
+			   SUN4I_TCON_GCTL_IOMAP_TCON0);
+
+	/* Enable the output on the pins */
+	regmap_write(tcon->regs, SUN4I_TCON0_IO_TRI_REG, 0xe0000000);
+}
+
 static void sun4i_tcon0_mode_set_rgb(struct sun4i_tcon *tcon,
 				     const struct drm_display_mode *mode)
 {
+	struct drm_panel *panel = tcon->panel;
+	struct drm_connector *connector = panel->connector;
+	struct drm_display_info display_info = connector->display_info;
 	unsigned int bp, hsync, vsync;
 	u8 clk_delay;
 	u32 val = 0;
 
+	WARN_ON(!tcon->quirks->has_channel_0);
+
+	tcon->dclk_min_div = 6;
+	tcon->dclk_max_div = 127;
 	sun4i_tcon0_mode_set_common(tcon, mode);
 
 	/* Adjust clock delay */
@@ -220,11 +404,32 @@ static void sun4i_tcon0_mode_set_rgb(struct sun4i_tcon *tcon,
 		     SUN4I_TCON0_BASIC3_H_SYNC(hsync));
 
 	/* Setup the polarity of the various signals */
-	if (!(mode->flags & DRM_MODE_FLAG_PHSYNC))
+	if (mode->flags & DRM_MODE_FLAG_PHSYNC)
 		val |= SUN4I_TCON0_IO_POL_HSYNC_POSITIVE;
 
-	if (!(mode->flags & DRM_MODE_FLAG_PVSYNC))
+	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
 		val |= SUN4I_TCON0_IO_POL_VSYNC_POSITIVE;
+
+	/*
+	 * On A20 and similar SoCs, the only way to achieve Positive Edge
+	 * (Rising Edge), is setting dclk clock phase to 2/3(240°).
+	 * By default TCON works in Negative Edge(Falling Edge),
+	 * this is why phase is set to 0 in that case.
+	 * Unfortunately there's no way to logically invert dclk through
+	 * IO_POL register.
+	 * The only acceptable way to work, triple checked with scope,
+	 * is using clock phase set to 0° for Negative Edge and set to 240°
+	 * for Positive Edge.
+	 * On A33 and similar SoCs there would be a 90° phase option,
+	 * but it divides also dclk by 2.
+	 * Following code is a way to avoid quirks all around TCON
+	 * and DOTCLOCK drivers.
+	 */
+	if (display_info.bus_flags & DRM_BUS_FLAG_PIXDATA_POSEDGE)
+		clk_set_phase(tcon->dclk, 240);
+
+	if (display_info.bus_flags & DRM_BUS_FLAG_PIXDATA_NEGEDGE)
+		clk_set_phase(tcon->dclk, 0);
 
 	regmap_update_bits(tcon->regs, SUN4I_TCON0_IO_POL_REG,
 			   SUN4I_TCON0_IO_POL_HSYNC_POSITIVE | SUN4I_TCON0_IO_POL_VSYNC_POSITIVE,
@@ -334,6 +539,9 @@ void sun4i_tcon_mode_set(struct sun4i_tcon *tcon,
 			 const struct drm_display_mode *mode)
 {
 	switch (encoder->encoder_type) {
+	case DRM_MODE_ENCODER_LVDS:
+		sun4i_tcon0_mode_set_lvds(tcon, encoder, mode);
+		break;
 	case DRM_MODE_ENCODER_NONE:
 		sun4i_tcon0_mode_set_rgb(tcon, mode);
 		sun4i_tcon_set_mux(tcon, 0, encoder);
@@ -368,6 +576,7 @@ static irqreturn_t sun4i_tcon_handler(int irq, void *private)
 	struct sun4i_tcon *tcon = private;
 	struct drm_device *drm = tcon->drm;
 	struct sun4i_crtc *scrtc = tcon->crtc;
+	struct sunxi_engine *engine = scrtc->engine;
 	unsigned int status;
 
 	regmap_read(tcon->regs, SUN4I_TCON_GINT0_REG, &status);
@@ -385,6 +594,9 @@ static irqreturn_t sun4i_tcon_handler(int irq, void *private)
 			   SUN4I_TCON_GINT0_VBLANK_INT(1),
 			   0);
 
+	if (engine->ops->vblank_quirk)
+		engine->ops->vblank_quirk(engine);
+
 	return IRQ_HANDLED;
 }
 
@@ -398,10 +610,12 @@ static int sun4i_tcon_init_clocks(struct device *dev,
 	}
 	clk_prepare_enable(tcon->clk);
 
-	tcon->sclk0 = devm_clk_get(dev, "tcon-ch0");
-	if (IS_ERR(tcon->sclk0)) {
-		dev_err(dev, "Couldn't get the TCON channel 0 clock\n");
-		return PTR_ERR(tcon->sclk0);
+	if (tcon->quirks->has_channel_0) {
+		tcon->sclk0 = devm_clk_get(dev, "tcon-ch0");
+		if (IS_ERR(tcon->sclk0)) {
+			dev_err(dev, "Couldn't get the TCON channel 0 clock\n");
+			return PTR_ERR(tcon->sclk0);
+		}
 	}
 
 	if (tcon->quirks->has_channel_1) {
@@ -665,7 +879,10 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 	struct drm_device *drm = data;
 	struct sun4i_drv *drv = drm->dev_private;
 	struct sunxi_engine *engine;
+	struct device_node *remote;
 	struct sun4i_tcon *tcon;
+	struct reset_control *edp_rstc;
+	bool has_lvds_rst, has_lvds_alt, can_lvds;
 	int ret;
 
 	engine = sun4i_tcon_find_engine(drv, dev->of_node);
@@ -689,11 +906,77 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 		return PTR_ERR(tcon->lcd_rst);
 	}
 
+	if (tcon->quirks->needs_edp_reset) {
+		edp_rstc = devm_reset_control_get_shared(dev, "edp");
+		if (IS_ERR(edp_rstc)) {
+			dev_err(dev, "Couldn't get edp reset line\n");
+			return PTR_ERR(edp_rstc);
+		}
+
+		ret = reset_control_deassert(edp_rstc);
+		if (ret) {
+			dev_err(dev, "Couldn't deassert edp reset line\n");
+			return ret;
+		}
+	}
+
 	/* Make sure our TCON is reset */
 	ret = reset_control_reset(tcon->lcd_rst);
 	if (ret) {
 		dev_err(dev, "Couldn't deassert our reset line\n");
 		return ret;
+	}
+
+	if (tcon->quirks->supports_lvds) {
+		/*
+		 * This can only be made optional since we've had DT
+		 * nodes without the LVDS reset properties.
+		 *
+		 * If the property is missing, just disable LVDS, and
+		 * print a warning.
+		 */
+		tcon->lvds_rst = devm_reset_control_get_optional(dev, "lvds");
+		if (IS_ERR(tcon->lvds_rst)) {
+			dev_err(dev, "Couldn't get our reset line\n");
+			return PTR_ERR(tcon->lvds_rst);
+		} else if (tcon->lvds_rst) {
+			has_lvds_rst = true;
+			reset_control_reset(tcon->lvds_rst);
+		} else {
+			has_lvds_rst = false;
+		}
+
+		/*
+		 * This can only be made optional since we've had DT
+		 * nodes without the LVDS reset properties.
+		 *
+		 * If the property is missing, just disable LVDS, and
+		 * print a warning.
+		 */
+		if (tcon->quirks->has_lvds_alt) {
+			tcon->lvds_pll = devm_clk_get(dev, "lvds-alt");
+			if (IS_ERR(tcon->lvds_pll)) {
+				if (PTR_ERR(tcon->lvds_pll) == -ENOENT) {
+					has_lvds_alt = false;
+				} else {
+					dev_err(dev, "Couldn't get the LVDS PLL\n");
+					return PTR_ERR(tcon->lvds_pll);
+				}
+			} else {
+				has_lvds_alt = true;
+			}
+		}
+
+		if (!has_lvds_rst ||
+		    (tcon->quirks->has_lvds_alt && !has_lvds_alt)) {
+			dev_warn(dev, "Missing LVDS properties, Please upgrade your DT\n");
+			dev_warn(dev, "LVDS output disabled\n");
+			can_lvds = false;
+		} else {
+			can_lvds = true;
+		}
+	} else {
+		can_lvds = false;
 	}
 
 	ret = sun4i_tcon_init_clocks(dev, tcon);
@@ -708,10 +991,12 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 		goto err_free_clocks;
 	}
 
-	ret = sun4i_dclk_create(dev, tcon);
-	if (ret) {
-		dev_err(dev, "Couldn't create our TCON dot clock\n");
-		goto err_free_clocks;
+	if (tcon->quirks->has_channel_0) {
+		ret = sun4i_dclk_create(dev, tcon);
+		if (ret) {
+			dev_err(dev, "Couldn't create our TCON dot clock\n");
+			goto err_free_clocks;
+		}
 	}
 
 	ret = sun4i_tcon_init_irq(dev, tcon);
@@ -727,7 +1012,21 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 		goto err_free_dotclock;
 	}
 
-	ret = sun4i_rgb_init(drm, tcon);
+	/*
+	 * If we have an LVDS panel connected to the TCON, we should
+	 * just probe the LVDS connector. Otherwise, just probe RGB as
+	 * we used to.
+	 */
+	remote = of_graph_get_remote_node(dev->of_node, 1, 0);
+	if (of_device_is_compatible(remote, "panel-lvds"))
+		if (can_lvds)
+			ret = sun4i_lvds_init(drm, tcon);
+		else
+			ret = -EINVAL;
+	else
+		ret = sun4i_rgb_init(drm, tcon);
+	of_node_put(remote);
+
 	if (ret < 0)
 		goto err_free_dotclock;
 
@@ -755,7 +1054,8 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 	return 0;
 
 err_free_dotclock:
-	sun4i_dclk_free(tcon);
+	if (tcon->quirks->has_channel_0)
+		sun4i_dclk_free(tcon);
 err_free_clocks:
 	sun4i_tcon_free_clocks(tcon);
 err_assert_reset:
@@ -769,7 +1069,8 @@ static void sun4i_tcon_unbind(struct device *dev, struct device *master,
 	struct sun4i_tcon *tcon = dev_get_drvdata(dev);
 
 	list_del(&tcon->list);
-	sun4i_dclk_free(tcon);
+	if (tcon->quirks->has_channel_0)
+		sun4i_dclk_free(tcon);
 	sun4i_tcon_free_clocks(tcon);
 }
 
@@ -866,51 +1167,83 @@ static int sun6i_tcon_set_mux(struct sun4i_tcon *tcon,
 }
 
 static const struct sun4i_tcon_quirks sun4i_a10_quirks = {
+	.has_channel_0		= true,
 	.has_channel_1		= true,
 	.set_mux		= sun4i_a10_tcon_set_mux,
 };
 
 static const struct sun4i_tcon_quirks sun5i_a13_quirks = {
+	.has_channel_0		= true,
 	.has_channel_1		= true,
 	.set_mux		= sun5i_a13_tcon_set_mux,
 };
 
 static const struct sun4i_tcon_quirks sun6i_a31_quirks = {
+	.has_channel_0		= true,
 	.has_channel_1		= true,
+	.has_lvds_alt		= true,
 	.needs_de_be_mux	= true,
 	.set_mux		= sun6i_tcon_set_mux,
 };
 
 static const struct sun4i_tcon_quirks sun6i_a31s_quirks = {
+	.has_channel_0		= true,
 	.has_channel_1		= true,
 	.needs_de_be_mux	= true,
 };
 
 static const struct sun4i_tcon_quirks sun7i_a20_quirks = {
+	.has_channel_0		= true,
 	.has_channel_1		= true,
 	/* Same display pipeline structure as A10 */
 	.set_mux		= sun4i_a10_tcon_set_mux,
 };
 
 static const struct sun4i_tcon_quirks sun8i_a33_quirks = {
-	/* nothing is supported */
+	.has_channel_0		= true,
+	.has_lvds_alt		= true,
+};
+
+static const struct sun4i_tcon_quirks sun8i_a83t_lcd_quirks = {
+	.supports_lvds		= true,
+	.has_channel_0		= true,
+};
+
+static const struct sun4i_tcon_quirks sun8i_a83t_tv_quirks = {
+	.has_channel_1		= true,
 };
 
 static const struct sun4i_tcon_quirks sun8i_v3s_quirks = {
-	/* nothing is supported */
+	.has_channel_0		= true,
 };
 
-static const struct of_device_id sun4i_tcon_of_table[] = {
+static const struct sun4i_tcon_quirks sun9i_a80_tcon_lcd_quirks = {
+	.has_channel_0	= true,
+	.needs_edp_reset = true,
+};
+
+static const struct sun4i_tcon_quirks sun9i_a80_tcon_tv_quirks = {
+	.has_channel_1	= true,
+	.needs_edp_reset = true,
+};
+
+/* sun4i_drv uses this list to check if a device node is a TCON */
+const struct of_device_id sun4i_tcon_of_table[] = {
 	{ .compatible = "allwinner,sun4i-a10-tcon", .data = &sun4i_a10_quirks },
 	{ .compatible = "allwinner,sun5i-a13-tcon", .data = &sun5i_a13_quirks },
 	{ .compatible = "allwinner,sun6i-a31-tcon", .data = &sun6i_a31_quirks },
 	{ .compatible = "allwinner,sun6i-a31s-tcon", .data = &sun6i_a31s_quirks },
 	{ .compatible = "allwinner,sun7i-a20-tcon", .data = &sun7i_a20_quirks },
 	{ .compatible = "allwinner,sun8i-a33-tcon", .data = &sun8i_a33_quirks },
+	{ .compatible = "allwinner,sun8i-a83t-tcon-lcd", .data = &sun8i_a83t_lcd_quirks },
+	{ .compatible = "allwinner,sun8i-a83t-tcon-tv", .data = &sun8i_a83t_tv_quirks },
 	{ .compatible = "allwinner,sun8i-v3s-tcon", .data = &sun8i_v3s_quirks },
+	{ .compatible = "allwinner,sun9i-a80-tcon-lcd", .data = &sun9i_a80_tcon_lcd_quirks },
+	{ .compatible = "allwinner,sun9i-a80-tcon-tv", .data = &sun9i_a80_tcon_tv_quirks },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sun4i_tcon_of_table);
+EXPORT_SYMBOL(sun4i_tcon_of_table);
 
 static struct platform_driver sun4i_tcon_platform_driver = {
 	.probe		= sun4i_tcon_probe,

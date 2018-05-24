@@ -403,10 +403,12 @@ static void enum_all_gids_of_dev_cb(struct ib_device *ib_dev,
 	 * our feet
 	 */
 	rtnl_lock();
+	down_read(&net_rwsem);
 	for_each_net(net)
 		for_each_netdev(net, ndev)
 			if (is_eth_port_of_netdev(ib_dev, port, rdma_ndev, ndev))
 				add_netdev_ips(ib_dev, port, rdma_ndev, ndev);
+	up_read(&net_rwsem);
 	rtnl_unlock();
 }
 

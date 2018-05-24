@@ -16,6 +16,7 @@
 #include <linux/completion.h>
 #include <linux/slab.h>
 #include <linux/seq_file.h>
+#define CREATE_TRACE_POINTS
 #include "internal.h"
 
 MODULE_DESCRIPTION("FS Cache Manager");

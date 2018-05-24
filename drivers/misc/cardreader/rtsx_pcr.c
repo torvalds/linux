@@ -444,12 +444,12 @@ static void rtsx_pci_add_sg_tbl(struct rtsx_pcr *pcr,
 {
 	u64 *ptr = (u64 *)(pcr->host_sg_tbl_ptr) + pcr->sgi;
 	u64 val;
-	u8 option = SG_VALID | SG_TRANS_DATA;
+	u8 option = RTSX_SG_VALID | RTSX_SG_TRANS_DATA;
 
 	pcr_dbg(pcr, "DMA addr: 0x%x, Len: 0x%x\n", (unsigned int)addr, len);
 
 	if (end)
-		option |= SG_END;
+		option |= RTSX_SG_END;
 	val = ((u64)addr << 32) | ((u64)len << 12) | option;
 
 	put_unaligned_le64(val, ptr);

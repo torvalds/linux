@@ -287,7 +287,7 @@ void bond_create_proc_entry(struct bonding *bond)
 
 	if (bn->proc_dir) {
 		bond->proc_entry = proc_create_data(bond_dev->name,
-						    S_IRUGO, bn->proc_dir,
+						    0444, bn->proc_dir,
 						    &bond_info_fops, bond);
 		if (bond->proc_entry == NULL)
 			netdev_warn(bond_dev, "Cannot create /proc/net/%s/%s\n",

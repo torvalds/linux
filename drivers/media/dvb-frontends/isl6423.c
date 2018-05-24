@@ -26,7 +26,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "isl6423.h"
 
 static unsigned int verbose;

@@ -196,9 +196,18 @@ int hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev)
 	const struct pci_device_id *id;
 	struct hnae3_ae_algo *ae_algo;
 	struct hnae3_client *client;
-	int ret = 0;
+	int ret = 0, lock_acquired;
 
-	mutex_lock(&hnae3_common_lock);
+	/* we can get deadlocked if SRIOV is being enabled in context to probe
+	 * and probe gets called again in same context. This can happen when
+	 * pci_enable_sriov() is called to create VFs from PF probes context.
+	 * Therefore, for simplicity uniformly defering further probing in all
+	 * cases where we detect contention.
+	 */
+	lock_acquired = mutex_trylock(&hnae3_common_lock);
+	if (!lock_acquired)
+		return -EPROBE_DEFER;
+
 	list_add_tail(&ae_dev->node, &hnae3_ae_dev_list);
 
 	/* Check if there are matched ae_algo */
@@ -211,6 +220,7 @@ int hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev)
 
 		if (!ae_dev->ops) {
 			dev_err(&ae_dev->pdev->dev, "ae_dev ops are null\n");
+			ret = -EOPNOTSUPP;
 			goto out_err;
 		}
 

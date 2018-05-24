@@ -11,6 +11,7 @@
 #include <linux/time.h>
 #include <linux/fs.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <linux/proc_fs.h>
 
 #include "ext4.h"
@@ -48,8 +49,7 @@ struct ext4_attr {
 	} u;
 };
 
-static ssize_t session_write_kbytes_show(struct ext4_attr *a,
-					 struct ext4_sb_info *sbi, char *buf)
+static ssize_t session_write_kbytes_show(struct ext4_sb_info *sbi, char *buf)
 {
 	struct super_block *sb = sbi->s_buddy_cache->i_sb;
 
@@ -60,8 +60,7 @@ static ssize_t session_write_kbytes_show(struct ext4_attr *a,
 			 sbi->s_sectors_written_start) >> 1);
 }
 
-static ssize_t lifetime_write_kbytes_show(struct ext4_attr *a,
-					  struct ext4_sb_info *sbi, char *buf)
+static ssize_t lifetime_write_kbytes_show(struct ext4_sb_info *sbi, char *buf)
 {
 	struct super_block *sb = sbi->s_buddy_cache->i_sb;
 
@@ -73,8 +72,7 @@ static ssize_t lifetime_write_kbytes_show(struct ext4_attr *a,
 			  EXT4_SB(sb)->s_sectors_written_start) >> 1)));
 }
 
-static ssize_t inode_readahead_blks_store(struct ext4_attr *a,
-					  struct ext4_sb_info *sbi,
+static ssize_t inode_readahead_blks_store(struct ext4_sb_info *sbi,
 					  const char *buf, size_t count)
 {
 	unsigned long t;
@@ -91,8 +89,7 @@ static ssize_t inode_readahead_blks_store(struct ext4_attr *a,
 	return count;
 }
 
-static ssize_t reserved_clusters_store(struct ext4_attr *a,
-				   struct ext4_sb_info *sbi,
+static ssize_t reserved_clusters_store(struct ext4_sb_info *sbi,
 				   const char *buf, size_t count)
 {
 	unsigned long long val;
@@ -108,8 +105,7 @@ static ssize_t reserved_clusters_store(struct ext4_attr *a,
 	return count;
 }
 
-static ssize_t trigger_test_error(struct ext4_attr *a,
-				  struct ext4_sb_info *sbi,
+static ssize_t trigger_test_error(struct ext4_sb_info *sbi,
 				  const char *buf, size_t count)
 {
 	int len = count;
@@ -267,9 +263,9 @@ static ssize_t ext4_attr_show(struct kobject *kobj,
 				(s64) EXT4_C2B(sbi,
 		       percpu_counter_sum(&sbi->s_dirtyclusters_counter)));
 	case attr_session_write_kbytes:
-		return session_write_kbytes_show(a, sbi, buf);
+		return session_write_kbytes_show(sbi, buf);
 	case attr_lifetime_write_kbytes:
-		return lifetime_write_kbytes_show(a, sbi, buf);
+		return lifetime_write_kbytes_show(sbi, buf);
 	case attr_reserved_clusters:
 		return snprintf(buf, PAGE_SIZE, "%llu\n",
 				(unsigned long long)
@@ -305,7 +301,7 @@ static ssize_t ext4_attr_store(struct kobject *kobj,
 
 	switch (a->attr_id) {
 	case attr_reserved_clusters:
-		return reserved_clusters_store(a, sbi, buf, len);
+		return reserved_clusters_store(sbi, buf, len);
 	case attr_pointer_ui:
 		if (!ptr)
 			return 0;
@@ -315,9 +311,9 @@ static ssize_t ext4_attr_store(struct kobject *kobj,
 		*((unsigned int *) ptr) = t;
 		return len;
 	case attr_inode_readahead:
-		return inode_readahead_blks_store(a, sbi, buf, len);
+		return inode_readahead_blks_store(sbi, buf, len);
 	case attr_trigger_test_error:
-		return trigger_test_error(a, sbi, buf, len);
+		return trigger_test_error(sbi, buf, len);
 	}
 	return 0;
 }
@@ -340,22 +336,15 @@ static struct kobj_type ext4_sb_ktype = {
 	.release	= ext4_sb_release,
 };
 
-static struct kobj_type ext4_ktype = {
-	.sysfs_ops	= &ext4_attr_ops,
-};
-
-static struct kset ext4_kset = {
-	.kobj   = {.ktype = &ext4_ktype},
-};
-
 static struct kobj_type ext4_feat_ktype = {
 	.default_attrs	= ext4_feat_attrs,
 	.sysfs_ops	= &ext4_attr_ops,
+	.release	= (void (*)(struct kobject *))kfree,
 };
 
-static struct kobject ext4_feat = {
-	.kset	= &ext4_kset,
-};
+static struct kobject *ext4_root;
+
+static struct kobject *ext4_feat;
 
 #define PROC_FILE_SHOW_DEFN(name) \
 static int name##_open(struct inode *inode, struct file *file) \
@@ -392,12 +381,14 @@ int ext4_register_sysfs(struct super_block *sb)
 	const struct ext4_proc_files *p;
 	int err;
 
-	sbi->s_kobj.kset = &ext4_kset;
 	init_completion(&sbi->s_kobj_unregister);
-	err = kobject_init_and_add(&sbi->s_kobj, &ext4_sb_ktype, NULL,
+	err = kobject_init_and_add(&sbi->s_kobj, &ext4_sb_ktype, ext4_root,
 				   "%s", sb->s_id);
-	if (err)
+	if (err) {
+		kobject_put(&sbi->s_kobj);
+		wait_for_completion(&sbi->s_kobj_unregister);
 		return err;
+	}
 
 	if (ext4_proc_root)
 		sbi->s_proc = proc_mkdir(sb->s_id, ext4_proc_root);
@@ -427,25 +418,39 @@ int __init ext4_init_sysfs(void)
 {
 	int ret;
 
-	kobject_set_name(&ext4_kset.kobj, "ext4");
-	ext4_kset.kobj.parent = fs_kobj;
-	ret = kset_register(&ext4_kset);
-	if (ret)
-		return ret;
+	ext4_root = kobject_create_and_add("ext4", fs_kobj);
+	if (!ext4_root)
+		return -ENOMEM;
 
-	ret = kobject_init_and_add(&ext4_feat, &ext4_feat_ktype,
-				   NULL, "features");
+	ext4_feat = kzalloc(sizeof(*ext4_feat), GFP_KERNEL);
+	if (!ext4_feat) {
+		ret = -ENOMEM;
+		goto root_err;
+	}
+
+	ret = kobject_init_and_add(ext4_feat, &ext4_feat_ktype,
+				   ext4_root, "features");
 	if (ret)
-		kset_unregister(&ext4_kset);
-	else
-		ext4_proc_root = proc_mkdir(proc_dirname, NULL);
+		goto feat_err;
+
+	ext4_proc_root = proc_mkdir(proc_dirname, NULL);
+	return ret;
+
+feat_err:
+	kobject_put(ext4_feat);
+	ext4_feat = NULL;
+root_err:
+	kobject_put(ext4_root);
+	ext4_root = NULL;
 	return ret;
 }
 
 void ext4_exit_sysfs(void)
 {
-	kobject_put(&ext4_feat);
-	kset_unregister(&ext4_kset);
+	kobject_put(ext4_feat);
+	ext4_feat = NULL;
+	kobject_put(ext4_root);
+	ext4_root = NULL;
 	remove_proc_entry(proc_dirname, NULL);
 	ext4_proc_root = NULL;
 }

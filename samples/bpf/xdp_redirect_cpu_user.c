@@ -26,7 +26,7 @@ static const char *__doc__ =
 
 /* Wanted to get rid of bpf_load.h and fake-"libbpf.h" (and instead
  * use bpf/libbpf.h), but cannot as (currently) needed for XDP
- * attaching to a device via set_link_xdp_fd()
+ * attaching to a device via bpf_set_link_xdp_fd()
  */
 #include "libbpf.h"
 #include "bpf_load.h"
@@ -67,7 +67,7 @@ static void int_exit(int sig)
 		"Interrupted: Removing XDP program on ifindex:%d device:%s\n",
 		ifindex, ifname);
 	if (ifindex > -1)
-		set_link_xdp_fd(ifindex, -1, xdp_flags);
+		bpf_set_link_xdp_fd(ifindex, -1, xdp_flags);
 	exit(EXIT_OK);
 }
 
@@ -682,7 +682,7 @@ int main(int argc, char **argv)
 	/* Remove XDP program when program is interrupted */
 	signal(SIGINT, int_exit);
 
-	if (set_link_xdp_fd(ifindex, prog_fd[prog_num], xdp_flags) < 0) {
+	if (bpf_set_link_xdp_fd(ifindex, prog_fd[prog_num], xdp_flags) < 0) {
 		fprintf(stderr, "link set xdp fd failed\n");
 		return EXIT_FAIL_XDP;
 	}

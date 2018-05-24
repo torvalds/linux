@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /**
  * PCI Endpoint *Function* (EPF) header file
  *
  * Copyright (C) 2017 Texas Instruments
  * Author: Kishon Vijay Abraham I <kishon@ti.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 of
- * the License as published by the Free Software Foundation.
  */
 
 #ifndef __LINUX_PCI_EPF_H
@@ -100,6 +97,8 @@ struct pci_epf_driver {
 struct pci_epf_bar {
 	dma_addr_t	phys_addr;
 	size_t		size;
+	enum pci_barno	barno;
+	int		flags;
 };
 
 /**

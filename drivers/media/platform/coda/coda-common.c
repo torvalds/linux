@@ -128,13 +128,21 @@ void coda_write_base(struct coda_ctx *ctx, struct coda_q_data *q_data,
 /*
  * Arrays of codecs supported by each given version of Coda:
  *  i.MX27 -> codadx6
- *  i.MX5x -> coda7
+ *  i.MX51 -> codahx4
+ *  i.MX53 -> coda7
  *  i.MX6  -> coda960
  * Use V4L2_PIX_FMT_YUV420 as placeholder for all supported YUV 4:2:0 variants
  */
 static const struct coda_codec codadx6_codecs[] = {
 	CODA_CODEC(CODADX6_MODE_ENCODE_H264, V4L2_PIX_FMT_YUV420, V4L2_PIX_FMT_H264,  720, 576),
 	CODA_CODEC(CODADX6_MODE_ENCODE_MP4,  V4L2_PIX_FMT_YUV420, V4L2_PIX_FMT_MPEG4, 720, 576),
+};
+
+static const struct coda_codec codahx4_codecs[] = {
+	CODA_CODEC(CODA7_MODE_ENCODE_H264, V4L2_PIX_FMT_YUV420, V4L2_PIX_FMT_H264,   720, 576),
+	CODA_CODEC(CODA7_MODE_DECODE_H264, V4L2_PIX_FMT_H264,   V4L2_PIX_FMT_YUV420, 1920, 1088),
+	CODA_CODEC(CODA7_MODE_DECODE_MP2,  V4L2_PIX_FMT_MPEG2,  V4L2_PIX_FMT_YUV420, 1920, 1088),
+	CODA_CODEC(CODA7_MODE_DECODE_MP4,  V4L2_PIX_FMT_MPEG4,  V4L2_PIX_FMT_YUV420, 1280, 720),
 };
 
 static const struct coda_codec coda7_codecs[] = {
@@ -232,6 +240,11 @@ static const struct coda_video_device coda_bit_jpeg_decoder = {
 
 static const struct coda_video_device *codadx6_video_devices[] = {
 	&coda_bit_encoder,
+};
+
+static const struct coda_video_device *codahx4_video_devices[] = {
+	&coda_bit_encoder,
+	&coda_bit_decoder,
 };
 
 static const struct coda_video_device *coda7_video_devices[] = {
@@ -332,6 +345,8 @@ const char *coda_product_name(int product)
 	switch (product) {
 	case CODA_DX6:
 		return "CodaDx6";
+	case CODA_HX4:
+		return "CodaHx4";
 	case CODA_7541:
 		return "CODA7541";
 	case CODA_960:
@@ -486,8 +501,8 @@ static int coda_try_fmt_vdoa(struct coda_ctx *ctx, struct v4l2_format *f,
 		return 0;
 	}
 
-	err = vdoa_context_configure(NULL, f->fmt.pix.width, f->fmt.pix.height,
-				     f->fmt.pix.pixelformat);
+	err = vdoa_context_configure(NULL, round_up(f->fmt.pix.width, 16),
+				     f->fmt.pix.height, f->fmt.pix.pixelformat);
 	if (err) {
 		*use_vdoa = false;
 		return 0;
@@ -730,7 +745,8 @@ static int coda_s_fmt(struct coda_ctx *ctx, struct v4l2_format *f,
 	if (ctx->tiled_map_type == GDI_TILED_FRAME_MB_RASTER_MAP &&
 	    !coda_try_fmt_vdoa(ctx, f, &ctx->use_vdoa) &&
 	    ctx->use_vdoa)
-		vdoa_context_configure(ctx->vdoa, f->fmt.pix.width,
+		vdoa_context_configure(ctx->vdoa,
+				       round_up(f->fmt.pix.width, 16),
 				       f->fmt.pix.height,
 				       f->fmt.pix.pixelformat);
 	else
@@ -1774,7 +1790,8 @@ static void coda_encode_ctrls(struct coda_ctx *ctx)
 		V4L2_CID_MPEG_VIDEO_H264_PROFILE,
 		V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE, 0x0,
 		V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE);
-	if (ctx->dev->devtype->product == CODA_7541) {
+	if (ctx->dev->devtype->product == CODA_HX4 ||
+	    ctx->dev->devtype->product == CODA_7541) {
 		v4l2_ctrl_new_std_menu(&ctx->ctrls, &coda_ctrl_ops,
 			V4L2_CID_MPEG_VIDEO_H264_LEVEL,
 			V4L2_MPEG_VIDEO_H264_LEVEL_3_1,
@@ -1802,7 +1819,8 @@ static void coda_encode_ctrls(struct coda_ctx *ctx)
 		V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE,
 		V4L2_MPEG_VIDEO_MPEG4_PROFILE_SIMPLE, 0x0,
 		V4L2_MPEG_VIDEO_MPEG4_PROFILE_SIMPLE);
-	if (ctx->dev->devtype->product == CODA_7541 ||
+	if (ctx->dev->devtype->product == CODA_HX4 ||
+	    ctx->dev->devtype->product == CODA_7541 ||
 	    ctx->dev->devtype->product == CODA_960) {
 		v4l2_ctrl_new_std_menu(&ctx->ctrls, &coda_ctrl_ops,
 			V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL,
@@ -1884,6 +1902,12 @@ static int coda_queue_init(struct coda_ctx *ctx, struct vb2_queue *vq)
 	 * that videobuf2 will keep the value of bytesused intact.
 	 */
 	vq->allow_zero_bytesused = 1;
+	/*
+	 * We might be fine with no buffers on some of the queues, but that
+	 * would need to be reflected in job_ready(). Currently we expect all
+	 * queues to have at least one buffer queued.
+	 */
+	vq->min_buffers_needed = 1;
 	vq->dev = &ctx->dev->plat_dev->dev;
 
 	return vb2_queue_init(vq);
@@ -1997,6 +2021,7 @@ static int coda_open(struct file *file)
 		if (enable_bwb || ctx->inst_type == CODA_INST_ENCODER)
 			ctx->frame_mem_ctrl = CODA9_FRAME_ENABLE_BWB;
 		/* fallthrough */
+	case CODA_HX4:
 	case CODA_7541:
 		ctx->reg_idx = 0;
 		break;
@@ -2175,7 +2200,8 @@ static int coda_hw_init(struct coda_dev *dev)
 
 	/* Tell the BIT where to find everything it needs */
 	if (dev->devtype->product == CODA_960 ||
-	    dev->devtype->product == CODA_7541) {
+	    dev->devtype->product == CODA_7541 ||
+	    dev->devtype->product == CODA_HX4) {
 		coda_write(dev, dev->tempbuf.paddr,
 				CODA_REG_BIT_TEMP_BUF_ADDR);
 		coda_write(dev, 0, CODA_REG_BIT_BIT_STREAM_PARAM);
@@ -2380,6 +2406,7 @@ put_pm:
 
 enum coda_platform {
 	CODA_IMX27,
+	CODA_IMX51,
 	CODA_IMX53,
 	CODA_IMX6Q,
 	CODA_IMX6DL,
@@ -2399,6 +2426,21 @@ static const struct coda_devtype coda_devdata[] = {
 		.num_vdevs    = ARRAY_SIZE(codadx6_video_devices),
 		.workbuf_size = 288 * 1024 + FMO_SLICE_SAVE_BUF_SIZE * 8 * 1024,
 		.iram_size    = 0xb000,
+	},
+	[CODA_IMX51] = {
+		.firmware     = {
+			"vpu_fw_imx51.bin",
+			"vpu/vpu_fw_imx51.bin",
+			"v4l-codahx4-imx51.bin"
+		},
+		.product      = CODA_HX4,
+		.codecs       = codahx4_codecs,
+		.num_codecs   = ARRAY_SIZE(codahx4_codecs),
+		.vdevs        = codahx4_video_devices,
+		.num_vdevs    = ARRAY_SIZE(codahx4_video_devices),
+		.workbuf_size = 128 * 1024,
+		.tempbuf_size = 304 * 1024,
+		.iram_size    = 0x14000,
 	},
 	[CODA_IMX53] = {
 		.firmware     = {
@@ -2456,6 +2498,7 @@ MODULE_DEVICE_TABLE(platform, coda_platform_ids);
 #ifdef CONFIG_OF
 static const struct of_device_id coda_dt_ids[] = {
 	{ .compatible = "fsl,imx27-vpu", .data = &coda_devdata[CODA_IMX27] },
+	{ .compatible = "fsl,imx51-vpu", .data = &coda_devdata[CODA_IMX51] },
 	{ .compatible = "fsl,imx53-vpu", .data = &coda_devdata[CODA_IMX53] },
 	{ .compatible = "fsl,imx6q-vpu", .data = &coda_devdata[CODA_IMX6Q] },
 	{ .compatible = "fsl,imx6dl-vpu", .data = &coda_devdata[CODA_IMX6DL] },

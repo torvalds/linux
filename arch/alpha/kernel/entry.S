@@ -785,7 +785,6 @@ ret_from_kernel_thread:
 	mov	$9, $27
 	mov	$10, $16
 	jsr	$26, ($9)
-	mov	$31, $19		/* to disable syscall restarts */
 	br	$31, ret_to_user
 .end ret_from_kernel_thread
 

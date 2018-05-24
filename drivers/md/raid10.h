@@ -2,6 +2,19 @@
 #ifndef _RAID10_H
 #define _RAID10_H
 
+/* Note: raid10_info.rdev can be set to NULL asynchronously by
+ * raid10_remove_disk.
+ * There are three safe ways to access raid10_info.rdev.
+ * 1/ when holding mddev->reconfig_mutex
+ * 2/ when resync/recovery/reshape is known to be happening - i.e. in code
+ *    that is called as part of performing resync/recovery/reshape.
+ * 3/ while holding rcu_read_lock(), use rcu_dereference to get the pointer
+ *    and if it is non-NULL, increment rdev->nr_pending before dropping the
+ *    RCU lock.
+ * When .rdev is set to NULL, the nr_pending count checked again and if it has
+ * been incremented, the pointer is put back in .rdev.
+ */
+
 struct raid10_info {
 	struct md_rdev	*rdev, *replacement;
 	sector_t	head_position;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* sunqe.c: Sparc QuadEthernet 10baseT SBUS card driver.
  *          Once again I am out to prove that every ethernet
  *          controller out there can be most efficiently programmed

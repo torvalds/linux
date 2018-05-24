@@ -385,7 +385,7 @@ void omap2xxx_cm_set_mod_dividers(u32 mpu, u32 dsp, u32 gfx, u32 core, u32 mdm)
  *
  */
 
-static struct cm_ll_data omap2xxx_cm_ll_data = {
+static const struct cm_ll_data omap2xxx_cm_ll_data = {
 	.split_idlest_reg	= &omap2xxx_cm_split_idlest_reg,
 	.wait_module_ready	= &omap2xxx_cm_wait_module_ready,
 };

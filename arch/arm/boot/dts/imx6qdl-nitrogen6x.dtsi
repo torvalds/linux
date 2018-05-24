@@ -48,7 +48,7 @@
 		stdout-path = &uart2;
 	};
 
-	memory {
+	memory@10000000 {
 		reg = <0x10000000 0x40000000>;
 	};
 
@@ -276,6 +276,23 @@
 		compatible = "sst,sst25vf016b", "jedec,spi-nor";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "bootloader";
+			reg = <0x0 0xc0000>;
+		};
+
+		partition@c0000 {
+			label = "env";
+			reg = <0xc0000 0x2000>;
+		};
+
+		partition@c2000 {
+			label = "splash";
+			reg = <0xc2000 0x13e000>;
+		};
 	};
 };
 

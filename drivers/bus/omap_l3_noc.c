@@ -375,3 +375,8 @@ static void __exit omap_l3_exit(void)
 	platform_driver_unregister(&omap_l3_driver);
 }
 module_exit(omap_l3_exit);
+
+MODULE_AUTHOR("Santosh Shilimkar");
+MODULE_AUTHOR("Sricharan R");
+MODULE_DESCRIPTION("OMAP L3 Interconnect error handling driver");
+MODULE_LICENSE("GPL v2");

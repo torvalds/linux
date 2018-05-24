@@ -22,7 +22,7 @@
 #include <linux/serial_8250.h>
 #include <linux/dm9000.h>
 #include <linux/gpio.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 
 #include <linux/platform_data/mtd-nand-pxa3xx.h>
 
@@ -359,7 +359,7 @@ void __init mxm_8x10_ac97_init(void)
 }
 
 /* NAND flash Support */
-#if defined(CONFIG_MTD_NAND_PXA3xx) || defined(CONFIG_MTD_NAND_PXA3xx_MODULE)
+#if IS_ENABLED(CONFIG_MTD_NAND_MARVELL)
 #define NAND_BLOCK_SIZE SZ_128K
 #define NB(x)           (NAND_BLOCK_SIZE * (x))
 static struct mtd_partition mxm_8x10_nand_partitions[] = {
@@ -389,11 +389,9 @@ static struct mtd_partition mxm_8x10_nand_partitions[] = {
 };
 
 static struct pxa3xx_nand_platform_data mxm_8x10_nand_info = {
-	.enable_arbiter	= 1,
 	.keep_config	= 1,
-	.num_cs		= 1,
-	.parts[0]	= mxm_8x10_nand_partitions,
-	.nr_parts[0]	= ARRAY_SIZE(mxm_8x10_nand_partitions)
+	.parts		= mxm_8x10_nand_partitions,
+	.nr_parts	= ARRAY_SIZE(mxm_8x10_nand_partitions)
 };
 
 static void __init mxm_8x10_nand_init(void)
@@ -402,7 +400,7 @@ static void __init mxm_8x10_nand_init(void)
 }
 #else
 static inline void mxm_8x10_nand_init(void) {}
-#endif /* CONFIG_MTD_NAND_PXA3xx || CONFIG_MTD_NAND_PXA3xx_MODULE */
+#endif /* IS_ENABLED(CONFIG_MTD_NAND_MARVELL) */
 
 /* Ethernet support: Davicom DM9000 */
 static struct resource dm9k_resources[] = {

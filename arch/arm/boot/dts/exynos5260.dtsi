@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SAMSUNG EXYNOS5260 SoC device tree source
  *
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 #include <dt-bindings/clock/exynos5260-clk.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -106,13 +103,13 @@
 			#clock-cells = <1>;
 		};
 
-		clock_g2d: clock-controller@10A00000 {
+		clock_g2d: clock-controller@10a00000 {
 			compatible = "samsung,exynos5260-clock-g2d";
 			reg = <0x10A00000 0x10000>;
 			#clock-cells = <1>;
 		};
 
-		clock_mif: clock-controller@10CE0000 {
+		clock_mif: clock-controller@10ce0000 {
 			compatible = "samsung,exynos5260-clock-mif";
 			reg = <0x10CE0000 0x10000>;
 			#clock-cells = <1>;
@@ -130,25 +127,25 @@
 			#clock-cells = <1>;
 		};
 
-		clock_fsys: clock-controller@122E0000 {
+		clock_fsys: clock-controller@122e0000 {
 			compatible = "samsung,exynos5260-clock-fsys";
 			reg = <0x122E0000 0x10000>;
 			#clock-cells = <1>;
 		};
 
-		clock_aud: clock-controller@128C0000 {
+		clock_aud: clock-controller@128c0000 {
 			compatible = "samsung,exynos5260-clock-aud";
 			reg = <0x128C0000 0x10000>;
 			#clock-cells = <1>;
 		};
 
-		clock_isp: clock-controller@133C0000 {
+		clock_isp: clock-controller@133c0000 {
 			compatible = "samsung,exynos5260-clock-isp";
 			reg = <0x133C0000 0x10000>;
 			#clock-cells = <1>;
 		};
 
-		clock_gscl: clock-controller@13F00000 {
+		clock_gscl: clock-controller@13f00000 {
 			compatible = "samsung,exynos5260-clock-gscl";
 			reg = <0x13F00000 0x10000>;
 			#clock-cells = <1>;
@@ -179,7 +176,7 @@
 			reg = <0x10000000 0x100>;
 		};
 
-		mct: mct@100B0000 {
+		mct: mct@100b0000 {
 			compatible = "samsung,exynos4210-mct";
 			reg = <0x100B0000 0x1000>;
 			clocks = <&fin_pll>, <&clock_peri PERI_CLK_MCT>;
@@ -198,7 +195,7 @@
 				     <GIC_SPI 129 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		cci: cci@10F00000 {
+		cci: cci@10f00000 {
 			compatible = "arm,cci-400";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -236,18 +233,18 @@
 			interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		pinctrl_2: pinctrl@128B0000 {
+		pinctrl_2: pinctrl@128b0000 {
 			compatible = "samsung,exynos5260-pinctrl";
 			reg = <0x128B0000 0x1000>;
 			interrupts = <GIC_SPI 243 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		pmu_system_controller: system-controller@10D50000 {
+		pmu_system_controller: system-controller@10d50000 {
 			compatible = "samsung,exynos5260-pmu", "syscon";
 			reg = <0x10D50000 0x10000>;
 		};
 
-		uart0: serial@12C00000 {
+		uart0: serial@12c00000 {
 			compatible = "samsung,exynos4210-uart";
 			reg = <0x12C00000 0x100>;
 			interrupts = <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
@@ -256,7 +253,7 @@
 			status = "disabled";
 		};
 
-		uart1: serial@12C10000 {
+		uart1: serial@12c10000 {
 			compatible = "samsung,exynos4210-uart";
 			reg = <0x12C10000 0x100>;
 			interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
@@ -265,7 +262,7 @@
 			status = "disabled";
 		};
 
-		uart2: serial@12C20000 {
+		uart2: serial@12c20000 {
 			compatible = "samsung,exynos4210-uart";
 			reg = <0x12C20000 0x100>;
 			interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;

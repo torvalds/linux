@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
- * Copyright (c) 2011-2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2011-2016 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -102,11 +102,6 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	memset(&info->status, 0, sizeof(info->status));
 	trace_ath10k_txrx_tx_unref(ar, tx_done->msdu_id);
 
-	if (tx_done->status == HTT_TX_COMPL_STATE_DISCARD) {
-		ieee80211_free_txskb(htt->ar->hw, msdu);
-		return 0;
-	}
-
 	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
 		info->flags |= IEEE80211_TX_STAT_ACK;
 
@@ -116,6 +111,13 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	if ((tx_done->status == HTT_TX_COMPL_STATE_ACK) &&
 	    (info->flags & IEEE80211_TX_CTL_NO_ACK))
 		info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
+
+	if (tx_done->status == HTT_TX_COMPL_STATE_DISCARD) {
+		if (info->flags & IEEE80211_TX_CTL_NO_ACK)
+			info->flags &= ~IEEE80211_TX_STAT_NOACK_TRANSMITTED;
+		else
+			info->flags &= ~IEEE80211_TX_STAT_ACK;
+	}
 
 	ieee80211_tx_status(htt->ar->hw, msdu);
 	/* we do not own the msdu anymore */

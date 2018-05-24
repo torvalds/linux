@@ -106,7 +106,7 @@ static int ab3100_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	rtc_time64_to_tm(time, tm);
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int ab3100_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)

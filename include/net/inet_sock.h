@@ -291,6 +291,31 @@ static inline void inet_sk_copy_descendant(struct sock *sk_to,
 
 int inet_sk_rebuild_header(struct sock *sk);
 
+/**
+ * inet_sk_state_load - read sk->sk_state for lockless contexts
+ * @sk: socket pointer
+ *
+ * Paired with inet_sk_state_store(). Used in places we don't hold socket lock:
+ * tcp_diag_get_info(), tcp_get_info(), tcp_poll(), get_tcp4_sock() ...
+ */
+static inline int inet_sk_state_load(const struct sock *sk)
+{
+	/* state change might impact lockless readers. */
+	return smp_load_acquire(&sk->sk_state);
+}
+
+/**
+ * inet_sk_state_store - update sk->sk_state
+ * @sk: socket pointer
+ * @newstate: new state
+ *
+ * Paired with inet_sk_state_load(). Should be used in contexts where
+ * state change might impact lockless readers.
+ */
+void inet_sk_state_store(struct sock *sk, int newstate);
+
+void inet_sk_set_state(struct sock *sk, int state);
+
 static inline unsigned int __inet_ehashfn(const __be32 laddr,
 					  const __u16 lport,
 					  const __be32 faddr,

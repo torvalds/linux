@@ -263,13 +263,19 @@ Taken all together there's two consequences for the atomic design:
 
 - An atomic update is assembled and validated as an entirely free-standing pile
   of structures within the :c:type:`drm_atomic_state <drm_atomic_state>`
-  container. Again drivers can subclass that container for their own state
-  structure tracking needs. Only when a state is committed is it applied to the
-  driver and modeset objects. This way rolling back an update boils down to
-  releasing memory and unreferencing objects like framebuffers.
+  container. Driver private state structures are also tracked in the same
+  structure; see the next chapter.  Only when a state is committed is it applied
+  to the driver and modeset objects. This way rolling back an update boils down
+  to releasing memory and unreferencing objects like framebuffers.
 
 Read on in this chapter, and also in :ref:`drm_atomic_helper` for more detailed
 coverage of specific topics.
+
+Handling Driver Private State
+-----------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_atomic.c
+   :doc: handling driver private state
 
 Atomic Mode Setting Function Reference
 --------------------------------------
@@ -279,6 +285,9 @@ Atomic Mode Setting Function Reference
 
 .. kernel-doc:: drivers/gpu/drm/drm_atomic.c
    :export:
+
+.. kernel-doc:: drivers/gpu/drm/drm_atomic.c
+   :internal:
 
 CRTC Abstraction
 ================
@@ -541,8 +550,9 @@ Explicit Fencing Properties
 Existing KMS Properties
 -----------------------
 
-The following table gives description of drm properties exposed by
-various modules/drivers.
+The following table gives description of drm properties exposed by various
+modules/drivers. Because this table is very unwieldy, do not add any new
+properties here. Instead document them in a section above.
 
 .. csv-table::
    :header-rows: 1

@@ -59,10 +59,11 @@ qtnf_event_handle_sta_assoc(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 	pr_debug("VIF%u.%u: MAC:%pM FC:%x\n", mac->macid, vif->vifid, sta_addr,
 		 frame_control);
 
-	qtnf_sta_list_add(&vif->sta_list, sta_addr);
+	qtnf_sta_list_add(vif, sta_addr);
 
 	sinfo.assoc_req_ies = NULL;
 	sinfo.assoc_req_ies_len = 0;
+	sinfo.generation = vif->generation;
 
 	payload_len = len - sizeof(*sta_assoc);
 	tlv = (const struct qlink_tlv_hdr *)sta_assoc->ies;
@@ -132,7 +133,7 @@ qtnf_event_handle_sta_deauth(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 	pr_debug("VIF%u.%u: MAC:%pM reason:%x\n", mac->macid, vif->vifid,
 		 sta_addr, reason);
 
-	if (qtnf_sta_list_del(&vif->sta_list, sta_addr))
+	if (qtnf_sta_list_del(vif, sta_addr))
 		cfg80211_del_sta(vif->netdev, sta_deauth->sta_addr,
 				 GFP_KERNEL);
 
@@ -237,9 +238,8 @@ qtnf_event_handle_mgmt_received(struct qtnf_vif *vif,
 	pr_debug("%s LEN:%u FC:%.4X SA:%pM\n", vif->netdev->name, frame_len,
 		 le16_to_cpu(frame->frame_control), frame->addr2);
 
-	cfg80211_rx_mgmt(&vif->wdev, le32_to_cpu(rxmgmt->freq),
-			 le32_to_cpu(rxmgmt->sig_dbm), rxmgmt->frame_data,
-			 frame_len, flags);
+	cfg80211_rx_mgmt(&vif->wdev, le32_to_cpu(rxmgmt->freq), rxmgmt->sig_dbm,
+			 rxmgmt->frame_data, frame_len, flags);
 
 	return 0;
 }
@@ -324,7 +324,7 @@ qtnf_event_handle_scan_results(struct qtnf_vif *vif,
 				  sr->bssid, get_unaligned_le64(&sr->tsf),
 				  le16_to_cpu(sr->capab),
 				  le16_to_cpu(sr->bintval), ies, ies_len,
-				  sr->signal, GFP_KERNEL);
+				  DBM_TO_MBM(sr->sig_dbm), GFP_KERNEL);
 	if (!bss)
 		return -ENOMEM;
 
@@ -369,7 +369,8 @@ qtnf_event_handle_freq_change(struct qtnf_wmac *mac,
 	qlink_chandef_q2cfg(wiphy, &data->chan, &chandef);
 
 	if (!cfg80211_chandef_valid(&chandef)) {
-		pr_err("MAC%u: bad channel f1=%u f2=%u bw=%u\n", mac->macid,
+		pr_err("MAC%u: bad channel freq=%u cf1=%u cf2=%u bw=%u\n",
+		       mac->macid, chandef.chan->center_freq,
 		       chandef.center_freq1, chandef.center_freq2,
 		       chandef.width);
 		return -EINVAL;
@@ -389,6 +390,63 @@ qtnf_event_handle_freq_change(struct qtnf_wmac *mac,
 			cfg80211_ch_switch_notify(vif->netdev, &chandef);
 			mutex_unlock(&vif->wdev.mtx);
 		}
+	}
+
+	return 0;
+}
+
+static int qtnf_event_handle_radar(struct qtnf_vif *vif,
+				   const struct qlink_event_radar *ev,
+				   u16 len)
+{
+	struct wiphy *wiphy = priv_to_wiphy(vif->mac);
+	struct cfg80211_chan_def chandef;
+
+	if (len < sizeof(*ev)) {
+		pr_err("MAC%u: payload is too short\n", vif->mac->macid);
+		return -EINVAL;
+	}
+
+	if (!wiphy->registered || !vif->netdev)
+		return 0;
+
+	qlink_chandef_q2cfg(wiphy, &ev->chan, &chandef);
+
+	if (!cfg80211_chandef_valid(&chandef)) {
+		pr_err("MAC%u: bad channel f1=%u f2=%u bw=%u\n",
+		       vif->mac->macid,
+		       chandef.center_freq1, chandef.center_freq2,
+		       chandef.width);
+		return -EINVAL;
+	}
+
+	pr_info("%s: radar event=%u f1=%u f2=%u bw=%u\n",
+		vif->netdev->name, ev->event,
+		chandef.center_freq1, chandef.center_freq2,
+		chandef.width);
+
+	switch (ev->event) {
+	case QLINK_RADAR_DETECTED:
+		cfg80211_radar_event(wiphy, &chandef, GFP_KERNEL);
+		break;
+	case QLINK_RADAR_CAC_FINISHED:
+		if (!vif->wdev.cac_started)
+			break;
+
+		cfg80211_cac_event(vif->netdev, &chandef,
+				   NL80211_RADAR_CAC_FINISHED, GFP_KERNEL);
+		break;
+	case QLINK_RADAR_CAC_ABORTED:
+		if (!vif->wdev.cac_started)
+			break;
+
+		cfg80211_cac_event(vif->netdev, &chandef,
+				   NL80211_RADAR_CAC_ABORTED, GFP_KERNEL);
+		break;
+	default:
+		pr_warn("%s: unhandled radar event %u\n",
+			vif->netdev->name, ev->event);
+		break;
 	}
 
 	return 0;
@@ -448,6 +506,10 @@ static int qtnf_event_parse(struct qtnf_wmac *mac,
 		ret = qtnf_event_handle_freq_change(mac, (const void *)event,
 						    event_len);
 		break;
+	case QLINK_EVENT_RADAR:
+		ret = qtnf_event_handle_radar(vif, (const void *)event,
+					      event_len);
+		break;
 	default:
 		pr_warn("unknown event type: %x\n", event_id);
 		break;
@@ -479,9 +541,9 @@ static int qtnf_event_process_skb(struct qtnf_bus *bus,
 	if (unlikely(!mac))
 		return -ENXIO;
 
-	qtnf_bus_lock(bus);
+	rtnl_lock();
 	res = qtnf_event_parse(mac, skb);
-	qtnf_bus_unlock(bus);
+	rtnl_unlock();
 
 	return res;
 }

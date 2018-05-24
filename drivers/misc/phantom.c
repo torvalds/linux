@@ -265,9 +265,9 @@ static __poll_t phantom_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &dev->wait, wait);
 
 	if (!(dev->status & PHB_RUNNING))
-		mask = POLLERR;
+		mask = EPOLLERR;
 	else if (atomic_read(&dev->counter))
-		mask = POLLIN | POLLRDNORM;
+		mask = EPOLLIN | EPOLLRDNORM;
 
 	pr_debug("phantom_poll end: %x/%d\n", mask, atomic_read(&dev->counter));
 

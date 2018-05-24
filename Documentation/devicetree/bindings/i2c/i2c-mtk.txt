@@ -5,6 +5,7 @@ The MediaTek's I2C controller is used to interface with I2C devices.
 Required properties:
   - compatible: value should be either of the following.
       "mediatek,mt2701-i2c", "mediatek,mt6577-i2c": for MediaTek MT2701
+      "mediatek,mt2712-i2c": for MediaTek MT2712
       "mediatek,mt6577-i2c": for MediaTek MT6577
       "mediatek,mt6589-i2c": for MediaTek MT6589
       "mediatek,mt7622-i2c": for MediaTek MT7622

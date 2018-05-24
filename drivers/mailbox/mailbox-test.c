@@ -243,7 +243,7 @@ mbox_test_message_poll(struct file *filp, struct poll_table_struct *wait)
 	poll_wait(filp, &tdev->waitq, wait);
 
 	if (mbox_test_message_data_ready(tdev))
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	return 0;
 }
 

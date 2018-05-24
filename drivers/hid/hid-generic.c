@@ -26,37 +26,6 @@
 
 static struct hid_driver hid_generic;
 
-static int __unmap_hid_generic(struct device *dev, void *data)
-{
-	struct hid_driver *hdrv = data;
-	struct hid_device *hdev = to_hid_device(dev);
-
-	/* only unbind matching devices already bound to hid-generic */
-	if (hdev->driver != &hid_generic ||
-	    hid_match_device(hdev, hdrv) == NULL)
-		return 0;
-
-	if (dev->parent)	/* Needed for USB */
-		device_lock(dev->parent);
-	device_release_driver(dev);
-	if (dev->parent)
-		device_unlock(dev->parent);
-
-	return 0;
-}
-
-static void hid_generic_add_driver(struct hid_driver *hdrv)
-{
-	bus_for_each_dev(&hid_bus_type, NULL, hdrv, __unmap_hid_generic);
-}
-
-static void hid_generic_removed_driver(struct hid_driver *hdrv)
-{
-	int ret;
-
-	ret = driver_attach(&hid_generic.driver);
-}
-
 static int __check_hid_generic(struct device_driver *drv, void *data)
 {
 	struct hid_driver *hdrv = to_hid_driver(drv);
@@ -97,8 +66,6 @@ static struct hid_driver hid_generic = {
 	.name = "hid-generic",
 	.id_table = hid_table,
 	.match = hid_generic_match,
-	.bus_add_driver = hid_generic_add_driver,
-	.bus_removed_driver = hid_generic_removed_driver,
 };
 module_hid_driver(hid_generic);
 

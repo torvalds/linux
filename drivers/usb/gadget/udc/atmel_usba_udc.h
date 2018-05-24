@@ -7,6 +7,8 @@
 #ifndef __LINUX_USB_GADGET_USBA_UDC_H__
 #define __LINUX_USB_GADGET_USBA_UDC_H__
 
+#include <linux/gpio/consumer.h>
+
 /* USB register offsets */
 #define USBA_CTRL				0x0000
 #define USBA_FNUM				0x0004
@@ -323,7 +325,7 @@ struct usba_udc {
 	struct platform_device *pdev;
 	const struct usba_udc_errata *errata;
 	int irq;
-	int vbus_pin;
+	struct gpio_desc *vbus_pin;
 	int vbus_pin_inverted;
 	int num_ep;
 	int configured_ep;

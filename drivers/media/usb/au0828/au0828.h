@@ -33,12 +33,12 @@
 #include <media/media-device.h>
 
 /* DVB */
-#include "demux.h"
-#include "dmxdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dvb_net.h"
-#include "dvbdev.h"
+#include <media/demux.h>
+#include <media/dmxdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dvb_net.h>
+#include <media/dvbdev.h>
 
 #include "au0828-reg.h"
 #include "au0828-cards.h"
@@ -190,7 +190,7 @@ struct au0828_dev {
 	struct i2c_adapter		i2c_adap;
 	struct i2c_algorithm		i2c_algo;
 	struct i2c_client		i2c_client;
-	u32 				i2c_rc;
+	u32				i2c_rc;
 
 	/* Digital */
 	struct au0828_dvb		dvb;
@@ -293,8 +293,8 @@ struct au0828_dev {
 /* ----------------------------------------------------------- */
 #define au0828_read(dev, reg) au0828_readreg(dev, reg)
 #define au0828_write(dev, reg, value) au0828_writereg(dev, reg, value)
-#define au0828_andor(dev, reg, mask, value) 				\
-	 au0828_writereg(dev, reg, 					\
+#define au0828_andor(dev, reg, mask, value)				\
+	 au0828_writereg(dev, reg,					\
 	(au0828_readreg(dev, reg) & ~(mask)) | ((value) & (mask)))
 
 #define au0828_set(dev, reg, bit) au0828_andor(dev, (reg), (bit), (bit))

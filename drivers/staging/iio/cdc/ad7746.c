@@ -217,7 +217,7 @@ static const unsigned char ad7746_cap_filter_rate_table[][2] = {
 };
 
 static int ad7746_select_channel(struct iio_dev *indio_dev,
-			    struct iio_chan_spec const *chan)
+				 struct iio_chan_spec const *chan)
 {
 	struct ad7746_chip_info *chip = iio_priv(indio_dev);
 	int ret, delay, idx;
@@ -302,23 +302,24 @@ static inline ssize_t ad7746_start_calib(struct device *dev,
 	mutex_lock(&chip->lock);
 	regval |= chip->config;
 	ret = i2c_smbus_write_byte_data(chip->client, AD7746_REG_CFG, regval);
-	if (ret < 0) {
-		mutex_unlock(&chip->lock);
-		return ret;
-	}
+	if (ret < 0)
+		goto unlock;
 
 	do {
 		msleep(20);
 		ret = i2c_smbus_read_byte_data(chip->client, AD7746_REG_CFG);
-		if (ret < 0) {
-			mutex_unlock(&chip->lock);
-			return ret;
-		}
+		if (ret < 0)
+			goto unlock;
+
 	} while ((ret == regval) && timeout--);
 
 	mutex_unlock(&chip->lock);
 
 	return len;
+
+unlock:
+	mutex_unlock(&chip->lock);
+	return ret;
 }
 
 static ssize_t ad7746_start_offset_calib(struct device *dev,
@@ -486,13 +487,13 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 			AD7746_CAPDAC_DACP(val) | AD7746_CAPDAC_DACEN : 0;
 
 		ret = i2c_smbus_write_byte_data(chip->client,
-			AD7746_REG_CAPDACA,
-			chip->capdac[chan->channel][0]);
+						AD7746_REG_CAPDACA,
+						chip->capdac[chan->channel][0]);
 		if (ret < 0)
 			goto out;
 		ret = i2c_smbus_write_byte_data(chip->client,
-			AD7746_REG_CAPDACB,
-			chip->capdac[chan->channel][1]);
+						AD7746_REG_CAPDACB,
+						chip->capdac[chan->channel][1]);
 		if (ret < 0)
 			goto out;
 
@@ -674,7 +675,7 @@ static const struct iio_info ad7746_info = {
  */
 
 static int ad7746_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+			const struct i2c_device_id *id)
 {
 	struct ad7746_platform_data *pdata = client->dev.platform_data;
 	struct ad7746_chip_info *chip;

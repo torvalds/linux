@@ -84,6 +84,11 @@
 		mask = <0x1000>;
 	};
 
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&adc0 16>, <&adc1 16>;
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -761,11 +766,6 @@
 				dma-names = "rx","tx";
 				status = "disabled";
 			};
-		};
-
-		iio-hwmon {
-			compatible = "iio-hwmon";
-			io-channels = <&adc0 16>, <&adc1 16>;
 		};
 	};
 };

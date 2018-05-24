@@ -247,7 +247,6 @@ static int kcm_seq_show(struct seq_file *seq, void *v)
 }
 
 static const struct file_operations kcm_seq_fops = {
-	.owner		= THIS_MODULE,
 	.open		= kcm_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -270,7 +269,7 @@ static int kcm_proc_register(struct net *net, struct kcm_seq_muxinfo *muxinfo)
 	struct proc_dir_entry *p;
 	int rc = 0;
 
-	p = proc_create_data(muxinfo->name, S_IRUGO, net->proc_net,
+	p = proc_create_data(muxinfo->name, 0444, net->proc_net,
 			     muxinfo->seq_fops, muxinfo);
 	if (!p)
 		rc = -ENOMEM;
@@ -397,7 +396,6 @@ static int kcm_stats_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations kcm_stats_seq_fops = {
-	.owner   = THIS_MODULE,
 	.open    = kcm_stats_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
@@ -408,7 +406,7 @@ static int kcm_proc_init_net(struct net *net)
 {
 	int err;
 
-	if (!proc_create("kcm_stats", S_IRUGO, net->proc_net,
+	if (!proc_create("kcm_stats", 0444, net->proc_net,
 			 &kcm_stats_seq_fops)) {
 		err = -ENOMEM;
 		goto out_kcm_stats;

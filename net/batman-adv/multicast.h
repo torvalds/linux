@@ -1,4 +1,5 @@
-/* Copyright (C) 2014-2017  B.A.T.M.A.N. contributors:
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright (C) 2014-2018  B.A.T.M.A.N. contributors:
  *
  * Linus Lüssing
  *
@@ -20,20 +21,27 @@
 
 #include "main.h"
 
+struct netlink_callback;
 struct seq_file;
 struct sk_buff;
 
 /**
  * enum batadv_forw_mode - the way a packet should be forwarded as
- * @BATADV_FORW_ALL: forward the packet to all nodes (currently via classic
- *  flooding)
- * @BATADV_FORW_SINGLE: forward the packet to a single node (currently via the
- *  BATMAN unicast routing protocol)
- * @BATADV_FORW_NONE: don't forward, drop it
  */
 enum batadv_forw_mode {
+	/**
+	 * @BATADV_FORW_ALL: forward the packet to all nodes (currently via
+	 *  classic flooding)
+	 */
 	BATADV_FORW_ALL,
+
+	/**
+	 * @BATADV_FORW_SINGLE: forward the packet to a single node (currently
+	 *  via the BATMAN unicast routing protocol)
+	 */
 	BATADV_FORW_SINGLE,
+
+	/** @BATADV_FORW_NONE: don't forward, drop it */
 	BATADV_FORW_NONE,
 };
 
@@ -46,6 +54,11 @@ batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
 void batadv_mcast_init(struct batadv_priv *bat_priv);
 
 int batadv_mcast_flags_seq_print_text(struct seq_file *seq, void *offset);
+
+int batadv_mcast_mesh_info_put(struct sk_buff *msg,
+			       struct batadv_priv *bat_priv);
+
+int batadv_mcast_flags_dump(struct sk_buff *msg, struct netlink_callback *cb);
 
 void batadv_mcast_free(struct batadv_priv *bat_priv);
 
@@ -63,6 +76,18 @@ batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
 static inline int batadv_mcast_init(struct batadv_priv *bat_priv)
 {
 	return 0;
+}
+
+static inline int
+batadv_mcast_mesh_info_put(struct sk_buff *msg, struct batadv_priv *bat_priv)
+{
+	return 0;
+}
+
+static inline int batadv_mcast_flags_dump(struct sk_buff *msg,
+					  struct netlink_callback *cb)
+{
+	return -EOPNOTSUPP;
 }
 
 static inline void batadv_mcast_free(struct batadv_priv *bat_priv)

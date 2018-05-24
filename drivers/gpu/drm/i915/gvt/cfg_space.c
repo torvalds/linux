@@ -119,16 +119,6 @@ static int map_aperture(struct intel_vgpu *vgpu, bool map)
 	if (map == vgpu->cfg_space.bar[INTEL_GVT_PCI_BAR_APERTURE].tracked)
 		return 0;
 
-	if (map) {
-		vgpu->gm.aperture_va = memremap(aperture_pa, aperture_sz,
-						MEMREMAP_WC);
-		if (!vgpu->gm.aperture_va)
-			return -ENOMEM;
-	} else {
-		memunmap(vgpu->gm.aperture_va);
-		vgpu->gm.aperture_va = NULL;
-	}
-
 	val = vgpu_cfg_space(vgpu)[PCI_BASE_ADDRESS_2];
 	if (val & PCI_BASE_ADDRESS_MEM_TYPE_64)
 		val = *(u64 *)(vgpu_cfg_space(vgpu) + PCI_BASE_ADDRESS_2);
@@ -141,11 +131,8 @@ static int map_aperture(struct intel_vgpu *vgpu, bool map)
 						  aperture_pa >> PAGE_SHIFT,
 						  aperture_sz >> PAGE_SHIFT,
 						  map);
-	if (ret) {
-		memunmap(vgpu->gm.aperture_va);
-		vgpu->gm.aperture_va = NULL;
+	if (ret)
 		return ret;
-	}
 
 	vgpu->cfg_space.bar[INTEL_GVT_PCI_BAR_APERTURE].tracked = map;
 	return 0;
@@ -335,7 +322,8 @@ int intel_vgpu_emulate_cfg_write(struct intel_vgpu *vgpu, unsigned int offset,
 	case INTEL_GVT_PCI_OPREGION:
 		if (WARN_ON(!IS_ALIGNED(offset, 4)))
 			return -EINVAL;
-		ret = intel_vgpu_init_opregion(vgpu, *(u32 *)p_data);
+		ret = intel_vgpu_opregion_base_write_handler(vgpu,
+						   *(u32 *)p_data);
 		if (ret)
 			return ret;
 

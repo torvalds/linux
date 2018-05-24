@@ -289,7 +289,7 @@ found_command:
 
 /*
  * poll for culling state
- * - use POLLOUT to indicate culling state
+ * - use EPOLLOUT to indicate culling state
  */
 static __poll_t cachefiles_daemon_poll(struct file *file,
 					   struct poll_table_struct *poll)
@@ -301,10 +301,10 @@ static __poll_t cachefiles_daemon_poll(struct file *file,
 	mask = 0;
 
 	if (test_bit(CACHEFILES_STATE_CHANGED, &cache->flags))
-		mask |= POLLIN;
+		mask |= EPOLLIN;
 
 	if (test_bit(CACHEFILES_CULLING, &cache->flags))
-		mask |= POLLOUT;
+		mask |= EPOLLOUT;
 
 	return mask;
 }

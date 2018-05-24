@@ -2158,6 +2158,7 @@ static int bcm63xx_usbd_dbg_show(struct seq_file *s, void *p)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(bcm63xx_usbd_dbg);
 
 /*
  * bcm63xx_iudma_dbg_show - Show IUDMA status and descriptors.
@@ -2238,33 +2239,7 @@ static int bcm63xx_iudma_dbg_show(struct seq_file *s, void *p)
 
 	return 0;
 }
-
-static int bcm63xx_usbd_dbg_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, bcm63xx_usbd_dbg_show, inode->i_private);
-}
-
-static int bcm63xx_iudma_dbg_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, bcm63xx_iudma_dbg_show, inode->i_private);
-}
-
-static const struct file_operations usbd_dbg_fops = {
-	.owner		= THIS_MODULE,
-	.open		= bcm63xx_usbd_dbg_open,
-	.llseek		= seq_lseek,
-	.read		= seq_read,
-	.release	= single_release,
-};
-
-static const struct file_operations iudma_dbg_fops = {
-	.owner		= THIS_MODULE,
-	.open		= bcm63xx_iudma_dbg_open,
-	.llseek		= seq_lseek,
-	.read		= seq_read,
-	.release	= single_release,
-};
-
+DEFINE_SHOW_ATTRIBUTE(bcm63xx_iudma_dbg);
 
 /**
  * bcm63xx_udc_init_debugfs - Create debugfs entries.
@@ -2282,11 +2257,11 @@ static void bcm63xx_udc_init_debugfs(struct bcm63xx_udc *udc)
 		goto err_root;
 
 	usbd = debugfs_create_file("usbd", 0400, root, udc,
-			&usbd_dbg_fops);
+			&bcm63xx_usbd_dbg_fops);
 	if (!usbd)
 		goto err_usbd;
 	iudma = debugfs_create_file("iudma", 0400, root, udc,
-			&iudma_dbg_fops);
+			&bcm63xx_iudma_dbg_fops);
 	if (!iudma)
 		goto err_iudma;
 
@@ -2385,10 +2360,8 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 		goto out_uninit;
 	}
 	if (devm_request_irq(dev, irq, &bcm63xx_udc_ctrl_isr, 0,
-			     dev_name(dev), udc) < 0) {
-		dev_err(dev, "error requesting IRQ #%d\n", irq);
-		goto out_uninit;
-	}
+			     dev_name(dev), udc) < 0)
+		goto report_request_failure;
 
 	/* IRQ resources #1-6: data interrupts for IUDMA channels 0-5 */
 	for (i = 0; i < BCM63XX_NUM_IUDMA; i++) {
@@ -2398,10 +2371,8 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 			goto out_uninit;
 		}
 		if (devm_request_irq(dev, irq, &bcm63xx_udc_data_isr, 0,
-				     dev_name(dev), &udc->iudma[i]) < 0) {
-			dev_err(dev, "error requesting IRQ #%d\n", irq);
-			goto out_uninit;
-		}
+				     dev_name(dev), &udc->iudma[i]) < 0)
+			goto report_request_failure;
 	}
 
 	bcm63xx_udc_init_debugfs(udc);
@@ -2413,6 +2384,10 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 out_uninit:
 	bcm63xx_uninit_udc_hw(udc);
 	return rc;
+
+report_request_failure:
+	dev_err(dev, "error requesting IRQ #%d\n", irq);
+	goto out_uninit;
 }
 
 /**

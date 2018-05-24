@@ -3,7 +3,7 @@
 
     Copyright (C) 1998-2006 Michael Hunold <michael@mihu.de>
 
-    Visit http://www.themm.net/~mihu/linux/saa7146/mxb.html 
+    Visit http://www.themm.net/~mihu/linux/saa7146/mxb.html
     for further details about this card.
 
     This program is free software; you can redistribute it and/or modify
@@ -30,6 +30,7 @@
 #include <media/v4l2-common.h>
 #include <media/i2c/saa7115.h>
 #include <linux/module.h>
+#include <linux/kernel.h>
 
 #include "tea6415c.h"
 #include "tea6420.h"
@@ -792,24 +793,24 @@ static int std_callback(struct saa7146_dev *dev, struct saa7146_standard *standa
 
 static struct saa7146_standard standard[] = {
 	{
-		.name	= "PAL-BG", 	.id	= V4L2_STD_PAL_BG,
-		.v_offset	= 0x17,	.v_field 	= 288,
-		.h_offset	= 0x14,	.h_pixels 	= 680,
+		.name	= "PAL-BG",	.id	= V4L2_STD_PAL_BG,
+		.v_offset	= 0x17,	.v_field	= 288,
+		.h_offset	= 0x14,	.h_pixels	= 680,
 		.v_max_out	= 576,	.h_max_out	= 768,
 	}, {
-		.name	= "PAL-I", 	.id	= V4L2_STD_PAL_I,
-		.v_offset	= 0x17,	.v_field 	= 288,
-		.h_offset	= 0x14,	.h_pixels 	= 680,
+		.name	= "PAL-I",	.id	= V4L2_STD_PAL_I,
+		.v_offset	= 0x17,	.v_field	= 288,
+		.h_offset	= 0x14,	.h_pixels	= 680,
 		.v_max_out	= 576,	.h_max_out	= 768,
 	}, {
-		.name	= "NTSC", 	.id	= V4L2_STD_NTSC,
-		.v_offset	= 0x16,	.v_field 	= 240,
-		.h_offset	= 0x06,	.h_pixels 	= 708,
+		.name	= "NTSC",	.id	= V4L2_STD_NTSC,
+		.v_offset	= 0x16,	.v_field	= 240,
+		.h_offset	= 0x06,	.h_pixels	= 708,
 		.v_max_out	= 480,	.h_max_out	= 640,
 	}, {
-		.name	= "SECAM", 	.id	= V4L2_STD_SECAM,
-		.v_offset	= 0x14,	.v_field 	= 288,
-		.h_offset	= 0x14,	.h_pixels 	= 720,
+		.name	= "SECAM",	.id	= V4L2_STD_SECAM,
+		.v_offset	= 0x14,	.v_field	= 288,
+		.h_offset	= 0x14,	.h_pixels	= 720,
 		.v_max_out	= 576,	.h_max_out	= 768,
 	}
 };
@@ -837,7 +838,7 @@ static struct saa7146_ext_vv vv_data = {
 	.inputs		= MXB_INPUTS,
 	.capabilities	= V4L2_CAP_TUNER | V4L2_CAP_VBI_CAPTURE | V4L2_CAP_AUDIO,
 	.stds		= &standard[0],
-	.num_stds	= sizeof(standard)/sizeof(struct saa7146_standard),
+	.num_stds	= ARRAY_SIZE(standard),
 	.std_callback	= &std_callback,
 };
 

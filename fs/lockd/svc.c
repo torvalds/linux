@@ -57,8 +57,8 @@ static struct task_struct	*nlmsvc_task;
 static struct svc_rqst		*nlmsvc_rqst;
 unsigned long			nlmsvc_timeout;
 
-atomic_t nlm_ntf_refcnt = ATOMIC_INIT(0);
-DECLARE_WAIT_QUEUE_HEAD(nlm_ntf_wq);
+static atomic_t nlm_ntf_refcnt = ATOMIC_INIT(0);
+static DECLARE_WAIT_QUEUE_HEAD(nlm_ntf_wq);
 
 unsigned int lockd_net_id;
 

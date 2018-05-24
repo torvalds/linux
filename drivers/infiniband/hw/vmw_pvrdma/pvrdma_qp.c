@@ -489,7 +489,7 @@ int pvrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	union pvrdma_cmd_req req;
 	union pvrdma_cmd_resp rsp;
 	struct pvrdma_cmd_modify_qp *cmd = &req.modify_qp;
-	int cur_state, next_state;
+	enum ib_qp_state cur_state, next_state;
 	int ret;
 
 	/* Sanity checking. Should need lock here */

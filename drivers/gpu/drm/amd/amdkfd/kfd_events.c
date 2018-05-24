@@ -30,6 +30,7 @@
 #include <linux/memory.h>
 #include "kfd_priv.h"
 #include "kfd_events.h"
+#include "kfd_iommu.h"
 #include <linux/device.h>
 
 /*
@@ -51,6 +52,7 @@ struct kfd_event_waiter {
 struct kfd_signal_page {
 	uint64_t *kernel_address;
 	uint64_t __user *user_address;
+	bool need_to_free_pages;
 };
 
 
@@ -78,6 +80,7 @@ static struct kfd_signal_page *allocate_signal_page(struct kfd_process *p)
 	       KFD_SIGNAL_EVENT_LIMIT * 8);
 
 	page->kernel_address = backing_store;
+	page->need_to_free_pages = true;
 	pr_debug("Allocated new event signal page at %p, for process %p\n",
 			page, p);
 
@@ -268,8 +271,9 @@ static void shutdown_signal_page(struct kfd_process *p)
 	struct kfd_signal_page *page = p->signal_page;
 
 	if (page) {
-		free_pages((unsigned long)page->kernel_address,
-				get_order(KFD_SIGNAL_EVENT_LIMIT * 8));
+		if (page->need_to_free_pages)
+			free_pages((unsigned long)page->kernel_address,
+				   get_order(KFD_SIGNAL_EVENT_LIMIT * 8));
 		kfree(page);
 	}
 }
@@ -289,6 +293,30 @@ static bool event_can_be_gpu_signaled(const struct kfd_event *ev)
 static bool event_can_be_cpu_signaled(const struct kfd_event *ev)
 {
 	return ev->type == KFD_EVENT_TYPE_SIGNAL;
+}
+
+int kfd_event_page_set(struct kfd_process *p, void *kernel_address,
+		       uint64_t size)
+{
+	struct kfd_signal_page *page;
+
+	if (p->signal_page)
+		return -EBUSY;
+
+	page = kzalloc(sizeof(*page), GFP_KERNEL);
+	if (!page)
+		return -ENOMEM;
+
+	/* Initialize all events to unsignaled */
+	memset(kernel_address, (uint8_t) UNSIGNALED_EVENT_SLOT,
+	       KFD_SIGNAL_EVENT_LIMIT * 8);
+
+	page->kernel_address = kernel_address;
+
+	p->signal_page = page;
+	p->signal_mapped_size = size;
+
+	return 0;
 }
 
 int kfd_event_create(struct file *devkfd, struct kfd_process *p,
@@ -441,7 +469,7 @@ void kfd_signal_event_interrupt(unsigned int pasid, uint32_t partial_id,
 	/*
 	 * Because we are called from arbitrary context (workqueue) as opposed
 	 * to process context, kfd_process could attempt to exit while we are
-	 * running so the lookup function returns a locked process.
+	 * running so the lookup function increments the process ref count.
 	 */
 	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
 
@@ -493,7 +521,7 @@ void kfd_signal_event_interrupt(unsigned int pasid, uint32_t partial_id,
 	}
 
 	mutex_unlock(&p->event_mutex);
-	mutex_unlock(&p->mutex);
+	kfd_unref_process(p);
 }
 
 static struct kfd_event_waiter *alloc_event_waiters(uint32_t num_events)
@@ -837,6 +865,7 @@ static void lookup_events_by_type_and_signal(struct kfd_process *p,
 	}
 }
 
+#ifdef KFD_SUPPORT_IOMMU_V2
 void kfd_signal_iommu_event(struct kfd_dev *dev, unsigned int pasid,
 		unsigned long address, bool is_write_requested,
 		bool is_execute_requested)
@@ -847,7 +876,7 @@ void kfd_signal_iommu_event(struct kfd_dev *dev, unsigned int pasid,
 	/*
 	 * Because we are called from arbitrary context (workqueue) as opposed
 	 * to process context, kfd_process could attempt to exit while we are
-	 * running so the lookup function returns a locked process.
+	 * running so the lookup function increments the process ref count.
 	 */
 	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
 	struct mm_struct *mm;
@@ -860,7 +889,7 @@ void kfd_signal_iommu_event(struct kfd_dev *dev, unsigned int pasid,
 	 */
 	mm = get_task_mm(p->lead_thread);
 	if (!mm) {
-		mutex_unlock(&p->mutex);
+		kfd_unref_process(p);
 		return; /* Process is exiting */
 	}
 
@@ -903,15 +932,16 @@ void kfd_signal_iommu_event(struct kfd_dev *dev, unsigned int pasid,
 			&memory_exception_data);
 
 	mutex_unlock(&p->event_mutex);
-	mutex_unlock(&p->mutex);
+	kfd_unref_process(p);
 }
+#endif /* KFD_SUPPORT_IOMMU_V2 */
 
 void kfd_signal_hw_exception_event(unsigned int pasid)
 {
 	/*
 	 * Because we are called from arbitrary context (workqueue) as opposed
 	 * to process context, kfd_process could attempt to exit while we are
-	 * running so the lookup function returns a locked process.
+	 * running so the lookup function increments the process ref count.
 	 */
 	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
 
@@ -924,5 +954,5 @@ void kfd_signal_hw_exception_event(unsigned int pasid)
 	lookup_events_by_type_and_signal(p, KFD_EVENT_TYPE_HW_EXCEPTION, NULL);
 
 	mutex_unlock(&p->event_mutex);
-	mutex_unlock(&p->mutex);
+	kfd_unref_process(p);
 }

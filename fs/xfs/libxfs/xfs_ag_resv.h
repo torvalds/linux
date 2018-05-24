@@ -32,4 +32,35 @@ void xfs_ag_resv_alloc_extent(struct xfs_perag *pag, enum xfs_ag_resv_type type,
 void xfs_ag_resv_free_extent(struct xfs_perag *pag, enum xfs_ag_resv_type type,
 		struct xfs_trans *tp, xfs_extlen_t len);
 
+/*
+ * RMAPBT reservation accounting wrappers. Since rmapbt blocks are sourced from
+ * the AGFL, they are allocated one at a time and the reservation updates don't
+ * require a transaction.
+ */
+static inline void
+xfs_ag_resv_rmapbt_alloc(
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		agno)
+{
+	struct xfs_alloc_arg	args = {0};
+	struct xfs_perag	*pag;
+
+	args.len = 1;
+	pag = xfs_perag_get(mp, agno);
+	xfs_ag_resv_alloc_extent(pag, XFS_AG_RESV_RMAPBT, &args);
+	xfs_perag_put(pag);
+}
+
+static inline void
+xfs_ag_resv_rmapbt_free(
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		agno)
+{
+	struct xfs_perag	*pag;
+
+	pag = xfs_perag_get(mp, agno);
+	xfs_ag_resv_free_extent(pag, XFS_AG_RESV_RMAPBT, NULL, 1);
+	xfs_perag_put(pag);
+}
+
 #endif	/* __XFS_AG_RESV_H__ */

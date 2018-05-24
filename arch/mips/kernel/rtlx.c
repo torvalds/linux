@@ -349,11 +349,11 @@ static __poll_t file_poll(struct file *file, poll_table *wait)
 
 	/* data available to read? */
 	if (rtlx_read_poll(minor, 0))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	/* space to write */
 	if (rtlx_write_poll(minor))
-		mask |= POLLOUT | POLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRNORM;
 
 	return mask;
 }

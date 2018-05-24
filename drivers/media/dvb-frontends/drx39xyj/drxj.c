@@ -61,7 +61,7 @@ INCLUDE FILES
 #include <linux/slab.h>
 #include <asm/div64.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "drx39xxj.h"
 
 #include "drxj.h"
@@ -2151,9 +2151,13 @@ int drxj_dap_atomic_read_write_block(struct i2c_device_addr *dev_addr,
 	if (read_flag) {
 		/* read data from buffer */
 		for (i = 0; i < (datasize / 2); i++) {
-			drxj_dap_read_reg16(dev_addr,
-					    (DRXJ_HI_ATOMIC_BUF_START + i),
-					   &word, 0);
+			rc = drxj_dap_read_reg16(dev_addr,
+						 (DRXJ_HI_ATOMIC_BUF_START + i),
+						 &word, 0);
+			if (rc) {
+				pr_err("error %d\n", rc);
+				goto rw_error;
+			}
 			data[2 * i] = (u8) (word & 0xFF);
 			data[(2 * i) + 1] = (u8) (word >> 8);
 		}
@@ -11074,7 +11078,7 @@ ctrl_power_mode(struct drx_demod_instance *demod, enum drx_power_mode *mode)
 		}
 	}
 
-	if ((*mode == DRX_POWER_UP)) {
+	if (*mode == DRX_POWER_UP) {
 		/* Restore analog & pin configuration */
 
 		/* Initialize default AFE configuration for VSB */
@@ -11723,7 +11727,7 @@ eof:
  *		- In case of UCODE_UPLOAD: I2C error.
  *		- In case of UCODE_VERIFY: I2C error or image on device
  *		  is not equal to image provided to this control function.
- * 	-EINVAL:
+ *	-EINVAL:
  *		- Invalid arguments.
  *		- Provided image is corrupt
  */

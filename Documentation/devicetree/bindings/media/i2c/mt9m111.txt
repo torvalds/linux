@@ -6,6 +6,8 @@ interface.
 
 Required Properties:
 - compatible: value should be "micron,mt9m111"
+- clocks: reference to the master clock.
+- clock-names: shall be "mclk".
 
 For further reading on port node refer to
 Documentation/devicetree/bindings/media/video-interfaces.txt.
@@ -16,6 +18,8 @@ Example:
 		mt9m111@5d {
 			compatible = "micron,mt9m111";
 			reg = <0x5d>;
+			clocks = <&mclk>;
+			clock-names = "mclk";
 
 			remote = <&pxa_camera>;
 			port {

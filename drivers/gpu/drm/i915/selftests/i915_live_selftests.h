@@ -11,7 +11,7 @@
  */
 selftest(sanitycheck, i915_live_sanitycheck) /* keep first (igt selfcheck) */
 selftest(uncore, intel_uncore_live_selftests)
-selftest(requests, i915_gem_request_live_selftests)
+selftest(requests, i915_request_live_selftests)
 selftest(objects, i915_gem_object_live_selftests)
 selftest(dmabuf, i915_gem_dmabuf_live_selftests)
 selftest(coherency, i915_gem_coherency_live_selftests)
@@ -20,3 +20,4 @@ selftest(evict, i915_gem_evict_live_selftests)
 selftest(hugepages, i915_gem_huge_page_live_selftests)
 selftest(contexts, i915_gem_context_live_selftests)
 selftest(hangcheck, intel_hangcheck_live_selftests)
+selftest(guc, intel_guc_live_selftest)

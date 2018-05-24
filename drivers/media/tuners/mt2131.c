@@ -21,7 +21,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "mt2131.h"
 #include "mt2131_priv.h"

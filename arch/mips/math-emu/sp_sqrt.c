@@ -82,7 +82,8 @@ union ieee754sp ieee754sp_sqrt(union ieee754sp x)
 
 	/* generate sqrt(x) bit by bit */
 	ix += ix;
-	q = s = 0;		/* q = sqrt(x) */
+	s = 0;
+	q = 0;			/* q = sqrt(x) */
 	r = 0x01000000;		/* r = moving bit from right to left */
 
 	while (r != 0) {

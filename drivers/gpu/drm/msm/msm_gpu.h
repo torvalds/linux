@@ -65,7 +65,10 @@ struct msm_gpu_funcs {
 #ifdef CONFIG_DEBUG_FS
 	/* show GPU status in debugfs: */
 	void (*show)(struct msm_gpu *gpu, struct seq_file *m);
+	/* for generation specific debugfs: */
+	int (*debugfs_init)(struct msm_gpu *gpu, struct drm_minor *minor);
 #endif
+	int (*gpu_busy)(struct msm_gpu *gpu, uint64_t *value);
 };
 
 struct msm_gpu {
@@ -108,12 +111,7 @@ struct msm_gpu {
 	struct clk **grp_clks;
 	int nr_clocks;
 	struct clk *ebi1_clk, *core_clk, *rbbmtimer_clk;
-	uint32_t fast_rate, bus_freq;
-
-#ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
-	struct msm_bus_scale_pdata *bus_scale_table;
-	uint32_t bsc;
-#endif
+	uint32_t fast_rate;
 
 	/* Hang and Inactivity Detection:
 	 */
@@ -125,6 +123,12 @@ struct msm_gpu {
 	struct work_struct recover_work;
 
 	struct drm_gem_object *memptrs_bo;
+
+	struct {
+		struct devfreq *devfreq;
+		u64 busy_cycles;
+		ktime_t time;
+	} devfreq;
 };
 
 /* It turns out that all targets use the same ringbuffer size */

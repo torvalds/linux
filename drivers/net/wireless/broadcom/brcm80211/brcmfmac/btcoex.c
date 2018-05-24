@@ -462,7 +462,7 @@ static void brcmf_btcoex_dhcp_end(struct brcmf_btcoex_info *btci)
 int brcmf_btcoex_set_mode(struct brcmf_cfg80211_vif *vif,
 			  enum brcmf_btcoex_mode mode, u16 duration)
 {
-	struct brcmf_cfg80211_info *cfg = wiphy_priv(vif->wdev.wiphy);
+	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(vif->wdev.wiphy);
 	struct brcmf_btcoex_info *btci = cfg->btcoex;
 	struct brcmf_if *ifp = brcmf_get_ifp(cfg->pub, 0);
 

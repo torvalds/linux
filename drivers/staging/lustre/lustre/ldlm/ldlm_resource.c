@@ -752,24 +752,22 @@ extern struct ldlm_lock *ldlm_lock_get(struct ldlm_lock *lock);
 static void cleanup_resource(struct ldlm_resource *res, struct list_head *q,
 			     __u64 flags)
 {
-	struct list_head *tmp;
 	int rc = 0;
 	bool local_only = !!(flags & LDLM_FL_LOCAL_ONLY);
 
 	do {
-		struct ldlm_lock *lock = NULL;
+		struct ldlm_lock *lock = NULL, *tmp;
 		struct lustre_handle lockh;
 
 		/* First, we look for non-cleaned-yet lock
 		 * all cleaned locks are marked by CLEANED flag.
 		 */
 		lock_res(res);
-		list_for_each(tmp, q) {
-			lock = list_entry(tmp, struct ldlm_lock, l_res_link);
-			if (ldlm_is_cleaned(lock)) {
-				lock = NULL;
+		list_for_each_entry(tmp, q, l_res_link) {
+			if (ldlm_is_cleaned(tmp))
 				continue;
-			}
+
+			lock = tmp;
 			LDLM_LOCK_GET(lock);
 			ldlm_set_cleaned(lock);
 			break;
@@ -801,7 +799,7 @@ static void cleanup_resource(struct ldlm_resource *res, struct list_head *q,
 			LDLM_DEBUG(lock, "setting FL_LOCAL_ONLY");
 			if (lock->l_flags & LDLM_FL_FAIL_LOC) {
 				set_current_state(TASK_UNINTERRUPTIBLE);
-				schedule_timeout(cfs_time_seconds(4));
+				schedule_timeout(4 * HZ);
 				set_current_state(TASK_RUNNING);
 			}
 			if (lock->l_completion_ast)
@@ -881,7 +879,6 @@ static int __ldlm_namespace_free(struct ldlm_namespace *ns, int force)
 	ldlm_namespace_cleanup(ns, force ? LDLM_FL_LOCAL_ONLY : 0);
 
 	if (atomic_read(&ns->ns_bref) > 0) {
-		struct l_wait_info lwi = LWI_INTR(LWI_ON_SIGNAL_NOOP, NULL);
 		int rc;
 
 		CDEBUG(D_DLMTRACE,
@@ -889,11 +886,12 @@ static int __ldlm_namespace_free(struct ldlm_namespace *ns, int force)
 		       ldlm_ns_name(ns), atomic_read(&ns->ns_bref));
 force_wait:
 		if (force)
-			lwi = LWI_TIMEOUT(msecs_to_jiffies(obd_timeout *
-					  MSEC_PER_SEC) / 4, NULL, NULL);
-
-		rc = l_wait_event(ns->ns_waitq,
-				  atomic_read(&ns->ns_bref) == 0, &lwi);
+			rc = wait_event_idle_timeout(ns->ns_waitq,
+						     atomic_read(&ns->ns_bref) == 0,
+						     obd_timeout * HZ / 4) ? 0 : -ETIMEDOUT;
+		else
+			rc = l_wait_event_abortable(ns->ns_waitq,
+						    atomic_read(&ns->ns_bref) == 0);
 
 		/* Forced cleanups should be able to reclaim all references,
 		 * so it's safe to wait forever... we can't leak locks...
@@ -1283,19 +1281,15 @@ void ldlm_res2desc(struct ldlm_resource *res, struct ldlm_resource_desc *desc)
  */
 void ldlm_dump_all_namespaces(enum ldlm_side client, int level)
 {
-	struct list_head *tmp;
+	struct ldlm_namespace *ns;
 
 	if (!((libcfs_debug | D_ERROR) & level))
 		return;
 
 	mutex_lock(ldlm_namespace_lock(client));
 
-	list_for_each(tmp, ldlm_namespace_list(client)) {
-		struct ldlm_namespace *ns;
-
-		ns = list_entry(tmp, struct ldlm_namespace, ns_list_chain);
+	list_for_each_entry(ns, ldlm_namespace_list(client), ns_list_chain)
 		ldlm_namespace_dump(level, ns);
-	}
 
 	mutex_unlock(ldlm_namespace_lock(client));
 }

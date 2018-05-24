@@ -70,8 +70,8 @@
 		stdout-path = &uart1;
 	};
 
-	memory {
-		reg = <0 0>; /* will be filled by U-Boot */
+	memory@80000000 {
+		reg = <0x80000000 0>; /* will be filled by U-Boot */
 	};
 
 	clocks {

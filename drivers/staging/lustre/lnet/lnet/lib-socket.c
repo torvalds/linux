@@ -170,7 +170,7 @@ lnet_ipif_enumerate(char ***namesp)
 			      nalloc);
 		}
 
-		LIBCFS_ALLOC(ifr, nalloc * sizeof(*ifr));
+		ifr = kzalloc(nalloc * sizeof(*ifr), GFP_KERNEL);
 		if (!ifr) {
 			CERROR("ENOMEM enumerating up to %d interfaces\n",
 			       nalloc);
@@ -195,14 +195,14 @@ lnet_ipif_enumerate(char ***namesp)
 		if (nfound < nalloc || toobig)
 			break;
 
-		LIBCFS_FREE(ifr, nalloc * sizeof(*ifr));
+		kfree(ifr);
 		nalloc *= 2;
 	}
 
 	if (!nfound)
 		goto out1;
 
-	LIBCFS_ALLOC(names, nfound * sizeof(*names));
+	names = kzalloc(nfound * sizeof(*names), GFP_KERNEL);
 	if (!names) {
 		rc = -ENOMEM;
 		goto out1;
@@ -218,7 +218,7 @@ lnet_ipif_enumerate(char ***namesp)
 			goto out2;
 		}
 
-		LIBCFS_ALLOC(names[i], IFNAMSIZ);
+		names[i] = kmalloc(IFNAMSIZ, GFP_KERNEL);
 		if (!names[i]) {
 			rc = -ENOMEM;
 			goto out2;
@@ -235,7 +235,7 @@ out2:
 	if (rc < 0)
 		lnet_ipif_free_enumeration(names, nfound);
 out1:
-	LIBCFS_FREE(ifr, nalloc * sizeof(*ifr));
+	kfree(ifr);
 out0:
 	return rc;
 }
@@ -249,9 +249,9 @@ lnet_ipif_free_enumeration(char **names, int n)
 	LASSERT(n > 0);
 
 	for (i = 0; i < n && names[i]; i++)
-		LIBCFS_FREE(names[i], IFNAMSIZ);
+		kfree(names[i]);
 
-	LIBCFS_FREE(names, n * sizeof(*names));
+	kfree(names);
 }
 EXPORT_SYMBOL(lnet_ipif_free_enumeration);
 
@@ -448,14 +448,13 @@ int
 lnet_sock_getaddr(struct socket *sock, bool remote, __u32 *ip, int *port)
 {
 	struct sockaddr_in sin;
-	int len = sizeof(sin);
 	int rc;
 
 	if (remote)
-		rc = kernel_getpeername(sock, (struct sockaddr *)&sin, &len);
+		rc = kernel_getpeername(sock, (struct sockaddr *)&sin);
 	else
-		rc = kernel_getsockname(sock, (struct sockaddr *)&sin, &len);
-	if (rc) {
+		rc = kernel_getsockname(sock, (struct sockaddr *)&sin);
+	if (rc < 0) {
 		CERROR("Error %d getting sock %s IP/port\n",
 		       rc, remote ? "peer" : "local");
 		return rc;

@@ -125,7 +125,8 @@ static void __init tegra_sclk_init(void __iomem *clk_base,
 		/* SCLK */
 		dt_clk = tegra_lookup_dt_id(tegra_clk_sclk, tegra_clks);
 		if (dt_clk) {
-			clk = clk_register_divider(NULL, "sclk", "sclk_mux", 0,
+			clk = clk_register_divider(NULL, "sclk", "sclk_mux",
+						CLK_IS_CRITICAL,
 						clk_base + SCLK_DIVIDER, 0, 8,
 						0, &sysrate_lock);
 			*dt_clk = clk;
@@ -137,7 +138,8 @@ static void __init tegra_sclk_init(void __iomem *clk_base,
 			clk = tegra_clk_register_super_mux("sclk",
 						gen_info->sclk_parents,
 						gen_info->num_sclk_parents,
-						CLK_SET_RATE_PARENT,
+						CLK_SET_RATE_PARENT |
+						CLK_IS_CRITICAL,
 						clk_base + SCLK_BURST_POLICY,
 						0, 4, 0, 0, NULL);
 			*dt_clk = clk;
@@ -151,7 +153,7 @@ static void __init tegra_sclk_init(void __iomem *clk_base,
 				   clk_base + SYSTEM_CLK_RATE, 4, 2, 0,
 				   &sysrate_lock);
 		clk = clk_register_gate(NULL, "hclk", "hclk_div",
-				CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+				CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
 				clk_base + SYSTEM_CLK_RATE,
 				7, CLK_GATE_SET_TO_DISABLE, &sysrate_lock);
 		*dt_clk = clk;

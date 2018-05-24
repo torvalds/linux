@@ -34,12 +34,12 @@
  * each stage of the walk.
  */
 .macro break_before_make_ttbr_switch zero_page, page_table, tmp
-	phys_to_ttbr \zero_page, \tmp
+	phys_to_ttbr \tmp, \zero_page
 	msr	ttbr1_el1, \tmp
 	isb
 	tlbi	vmalle1
 	dsb	nsh
-	phys_to_ttbr \page_table, \tmp
+	phys_to_ttbr \tmp, \page_table
 	msr	ttbr1_el1, \tmp
 	isb
 .endm

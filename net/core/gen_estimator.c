@@ -66,6 +66,7 @@ struct net_rate_estimator {
 static void est_fetch_counters(struct net_rate_estimator *e,
 			       struct gnet_stats_basic_packed *b)
 {
+	memset(b, 0, sizeof(*b));
 	if (e->stats_lock)
 		spin_lock(e->stats_lock);
 
@@ -159,7 +160,11 @@ int gen_new_estimator(struct gnet_stats_basic_packed *bstats,
 	est->intvl_log = intvl_log;
 	est->cpu_bstats = cpu_bstats;
 
+	if (stats_lock)
+		local_bh_disable();
 	est_fetch_counters(est, &b);
+	if (stats_lock)
+		local_bh_enable();
 	est->last_bytes = b.bytes;
 	est->last_packets = b.packets;
 	old = rcu_dereference_protected(*rate_est, 1);

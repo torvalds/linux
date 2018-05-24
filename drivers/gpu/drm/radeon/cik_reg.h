@@ -147,8 +147,6 @@
 
 #define CIK_LB_DESKTOP_HEIGHT                     0x6b0c
 
-#define KFD_CIK_SDMA_QUEUE_OFFSET		0x200
-
 #define SQ_IND_INDEX					0x8DE0
 #define SQ_CMD						0x8DEC
 #define SQ_IND_DATA					0x8DE4

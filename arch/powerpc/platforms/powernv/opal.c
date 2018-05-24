@@ -127,7 +127,7 @@ int __init early_init_dt_scan_opal(unsigned long node,
 
 	if (of_flat_dt_is_compatible(node, "ibm,opal-v3")) {
 		powerpc_firmware_features |= FW_FEATURE_OPAL;
-		pr_info("OPAL detected !\n");
+		pr_debug("OPAL detected !\n");
 	} else {
 		panic("OPAL != V3 detected, no longer supported.\n");
 	}
@@ -239,8 +239,8 @@ int opal_message_notifier_register(enum opal_msg_type msg_type,
 					struct notifier_block *nb)
 {
 	if (!nb || msg_type >= OPAL_MSG_TYPE_MAX) {
-		pr_warning("%s: Invalid arguments, msg_type:%d\n",
-			   __func__, msg_type);
+		pr_warn("%s: Invalid arguments, msg_type:%d\n",
+			__func__, msg_type);
 		return -EINVAL;
 	}
 
@@ -281,8 +281,8 @@ static void opal_handle_message(void)
 
 	/* check for errors. */
 	if (ret) {
-		pr_warning("%s: Failed to retrieve opal message, err=%lld\n",
-				__func__, ret);
+		pr_warn("%s: Failed to retrieve opal message, err=%lld\n",
+			__func__, ret);
 		return;
 	}
 
@@ -461,24 +461,14 @@ static int opal_recover_mce(struct pt_regs *regs,
 
 void pnv_platform_error_reboot(struct pt_regs *regs, const char *msg)
 {
-	/*
-	 * This is mostly taken from kernel/panic.c, but tries to do
-	 * relatively minimal work. Don't use delay functions (TB may
-	 * be broken), don't crash dump (need to set a firmware log),
-	 * don't run notifiers. We do want to get some information to
-	 * Linux console.
-	 */
-	console_verbose();
-	bust_spinlocks(1);
+	panic_flush_kmsg_start();
+
 	pr_emerg("Hardware platform error: %s\n", msg);
 	if (regs)
 		show_regs(regs);
 	smp_send_stop();
-	printk_safe_flush_on_panic();
-	kmsg_dump(KMSG_DUMP_PANIC);
-	bust_spinlocks(0);
-	debug_locks_off();
-	console_flush_on_panic();
+
+	panic_flush_kmsg_end();
 
 	/*
 	 * Don't bother to shut things down because this will
@@ -500,9 +490,12 @@ void pnv_platform_error_reboot(struct pt_regs *regs, const char *msg)
 	 *    opal to trigger checkstop explicitly for error analysis.
 	 *    The FSP PRD component would have already got notified
 	 *    about this error through other channels.
+	 * 4. We are running on a newer skiboot that by default does
+	 *    not cause a checkstop, drops us back to the kernel to
+	 *    extract context and state at the time of the error.
 	 */
 
-	ppc_md.restart(NULL);
+	panic(msg);
 }
 
 int opal_machine_check(struct pt_regs *regs)
@@ -830,6 +823,9 @@ static int __init opal_init(void)
 
 	/* Create i2c platform devices */
 	opal_pdev_init("ibm,opal-i2c");
+
+	/* Handle non-volatile memory devices */
+	opal_pdev_init("pmem-region");
 
 	/* Setup a heatbeat thread if requested by OPAL */
 	opal_init_heartbeat();

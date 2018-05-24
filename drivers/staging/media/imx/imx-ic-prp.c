@@ -300,7 +300,7 @@ static int prp_link_validate(struct v4l2_subdev *sd,
 {
 	struct imx_ic_priv *ic_priv = v4l2_get_subdevdata(sd);
 	struct prp_priv *priv = ic_priv->prp_priv;
-	struct imx_media_subdev *csi;
+	struct v4l2_subdev *csi;
 	int ret;
 
 	ret = v4l2_subdev_link_validate_default(sd, link,
@@ -333,7 +333,7 @@ static int prp_link_validate(struct v4l2_subdev *sd,
 	}
 
 	if (csi) {
-		switch (csi->sd->grp_id) {
+		switch (csi->grp_id) {
 		case IMX_MEDIA_GRP_ID_CSI0:
 			priv->csi_id = 0;
 			break;
@@ -462,6 +462,7 @@ static int prp_registered(struct v4l2_subdev *sd)
 }
 
 static const struct v4l2_subdev_pad_ops prp_pad_ops = {
+	.init_cfg = imx_media_init_cfg,
 	.enum_mbus_code = prp_enum_mbus_code,
 	.get_fmt = prp_get_fmt,
 	.set_fmt = prp_set_fmt,

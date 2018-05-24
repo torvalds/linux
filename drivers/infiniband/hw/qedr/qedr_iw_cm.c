@@ -458,8 +458,7 @@ qedr_addr6_resolve(struct qedr_dev *dev,
 		}
 		return -EINVAL;
 	}
-	neigh = dst_neigh_lookup(dst, &dst_in);
-
+	neigh = dst_neigh_lookup(dst, &fl6.daddr);
 	if (neigh) {
 		rcu_read_lock();
 		if (neigh->nud_state & NUD_VALID) {
@@ -494,10 +493,14 @@ int qedr_iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	qp = idr_find(&dev->qpidr, conn_param->qpn);
 
-	laddr = (struct sockaddr_in *)&cm_id->local_addr;
-	raddr = (struct sockaddr_in *)&cm_id->remote_addr;
-	laddr6 = (struct sockaddr_in6 *)&cm_id->local_addr;
-	raddr6 = (struct sockaddr_in6 *)&cm_id->remote_addr;
+	laddr = (struct sockaddr_in *)&cm_id->m_local_addr;
+	raddr = (struct sockaddr_in *)&cm_id->m_remote_addr;
+	laddr6 = (struct sockaddr_in6 *)&cm_id->m_local_addr;
+	raddr6 = (struct sockaddr_in6 *)&cm_id->m_remote_addr;
+
+	DP_DEBUG(dev, QEDR_MSG_IWARP, "MAPPED %d %d\n",
+		 ntohs(((struct sockaddr_in *)&cm_id->remote_addr)->sin_port),
+		 ntohs(raddr->sin_port));
 
 	DP_DEBUG(dev, QEDR_MSG_IWARP,
 		 "Connect source address: %pISpc, remote address: %pISpc\n",
@@ -599,8 +602,8 @@ int qedr_iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 	int rc;
 	int i;
 
-	laddr = (struct sockaddr_in *)&cm_id->local_addr;
-	laddr6 = (struct sockaddr_in6 *)&cm_id->local_addr;
+	laddr = (struct sockaddr_in *)&cm_id->m_local_addr;
+	laddr6 = (struct sockaddr_in6 *)&cm_id->m_local_addr;
 
 	DP_DEBUG(dev, QEDR_MSG_IWARP,
 		 "Create Listener address: %pISpc\n", &cm_id->local_addr);

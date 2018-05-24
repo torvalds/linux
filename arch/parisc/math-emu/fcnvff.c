@@ -148,7 +148,7 @@ dbl_to_sgl_fcnvff(
         register int src_exponent, dest_exponent, dest_mantissa;
         register boolean inexact = FALSE, guardbit = FALSE, stickybit = FALSE;
 	register boolean lsb_odd = FALSE;
-	boolean is_tiny;
+	boolean is_tiny = FALSE;
 
 	Dbl_copyfromptr(srcptr,srcp1,srcp2);
         src_exponent = Dbl_exponent(srcp1);

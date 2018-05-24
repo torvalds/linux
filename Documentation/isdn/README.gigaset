@@ -29,8 +29,9 @@ GigaSet 307x Device Driver
         T-Com Sinus 721 data
         Chicago 390 USB (KPN)
 
-     See also http://www.erbze.info/sinus_gigaset.htm and
-              http://gigaset307x.sourceforge.net/
+     See also http://www.erbze.info/sinus_gigaset.htm
+       (archived at https://web.archive.org/web/20100717020421/http://www.erbze.info:80/sinus_gigaset.htm ) and
+	http://gigaset307x.sourceforge.net/
 
      We had also reports from users of Gigaset M105 who could use the drivers
      with SX 100 and CX 100 ISDN bases (only in unimodem mode, see section 2.5.)
@@ -52,7 +53,7 @@ GigaSet 307x Device Driver
      to use CAPI 2.0 or ISDN4Linux for ISDN connections (voice or data).
 
      There are some user space tools available at
-     http://sourceforge.net/projects/gigaset307x/
+     https://sourceforge.net/projects/gigaset307x/
      which provide access to additional device specific functions like SMS,
      phonebook or call journal.
 
@@ -202,7 +203,7 @@ GigaSet 307x Device Driver
      You can use some configuration tool of your distribution to configure this
      "modem" or configure pppd/wvdial manually. There are some example ppp
      configuration files and chat scripts in the gigaset-VERSION/ppp directory
-     in the driver packages from http://sourceforge.net/projects/gigaset307x/.
+     in the driver packages from https://sourceforge.net/projects/gigaset307x/.
      Please note that the USB drivers are not able to change the state of the
      control lines. This means you must use "Stupid Mode" if you are using
      wvdial or you should use the nocrtscts option of pppd.
@@ -361,7 +362,7 @@ GigaSet 307x Device Driver
      ---------------------------
      If you can't solve problems with the driver on your own, feel free to
      use one of the forums, bug trackers, or mailing lists on
-         http://sourceforge.net/projects/gigaset307x
+         https://sourceforge.net/projects/gigaset307x
      or write an electronic mail to the maintainers.
 
      Try to provide as much information as possible, such as
@@ -391,11 +392,12 @@ GigaSet 307x Device Driver
 4.   Links, other software
      ---------------------
      - Sourceforge project developing this driver and associated tools
-         http://sourceforge.net/projects/gigaset307x
+         https://sourceforge.net/projects/gigaset307x
      - Yahoo! Group on the Siemens Gigaset family of devices
-         http://de.groups.yahoo.com/group/Siemens-Gigaset
+         https://de.groups.yahoo.com/group/Siemens-Gigaset
      - Siemens Gigaset/T-Sinus compatibility table
          http://www.erbze.info/sinus_gigaset.htm
+	    (archived at https://web.archive.org/web/20100717020421/http://www.erbze.info:80/sinus_gigaset.htm )
 
 
 5.   Credits

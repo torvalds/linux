@@ -1436,13 +1436,13 @@ static int ace_init(struct net_device *dev)
 	ace_set_txprd(regs, ap, 0);
 	writel(0, &regs->RxRetCsm);
 
-       /*
-	* Enable DMA engine now.
-	* If we do this sooner, Mckinley box pukes.
-	* I assume it's because Tigon II DMA engine wants to check
-	* *something* even before the CPU is started.
-	*/
-       writel(1, &regs->AssistState);  /* enable DMA */
+	/*
+	 * Enable DMA engine now.
+	 * If we do this sooner, Mckinley box pukes.
+	 * I assume it's because Tigon II DMA engine wants to check
+	 * *something* even before the CPU is started.
+	 */
+	writel(1, &regs->AssistState);  /* enable DMA */
 
 	/*
 	 * Start the NIC CPU

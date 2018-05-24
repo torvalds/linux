@@ -33,6 +33,8 @@
 
 #define CTX \
 	aud->base.ctx
+#define DC_LOGGER \
+	aud->base.ctx->logger
 #define REG(reg)\
 	(aud->regs->reg)
 
@@ -63,8 +65,7 @@ static void write_indirect_azalia_reg(struct audio *audio,
 	REG_SET(AZALIA_F0_CODEC_ENDPOINT_DATA, 0,
 			AZALIA_ENDPOINT_REG_DATA, reg_data);
 
-	dm_logger_write(CTX->logger, LOG_HW_AUDIO,
-		"AUDIO:write_indirect_azalia_reg: index: %u  data: %u\n",
+	DC_LOG_HW_AUDIO("AUDIO:write_indirect_azalia_reg: index: %u  data: %u\n",
 		reg_index, reg_data);
 }
 
@@ -81,8 +82,7 @@ static uint32_t read_indirect_azalia_reg(struct audio *audio, uint32_t reg_index
 	/* AZALIA_F0_CODEC_ENDPOINT_DATA  endpoint data  */
 	value = REG_READ(AZALIA_F0_CODEC_ENDPOINT_DATA);
 
-	dm_logger_write(CTX->logger, LOG_HW_AUDIO,
-		"AUDIO:read_indirect_azalia_reg: index: %u  data: %u\n",
+	DC_LOG_HW_AUDIO("AUDIO:read_indirect_azalia_reg: index: %u  data: %u\n",
 		reg_index, value);
 
 	return value;
@@ -359,10 +359,12 @@ void dce_aud_az_enable(struct audio *audio)
 			    AUDIO_ENABLED);
 
 	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL, value);
-	value = AZ_REG_READ(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL);
+	set_reg_field_value(value, 0,
+			AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL,
+			CLOCK_GATING_DISABLE);
+	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL, value);
 
-	dm_logger_write(CTX->logger, LOG_HW_AUDIO,
-			"\n\t========= AUDIO:dce_aud_az_enable: index: %u  data: 0x%x\n",
+	DC_LOG_HW_AUDIO("\n\t========= AUDIO:dce_aud_az_enable: index: %u  data: 0x%x\n",
 			audio->inst, value);
 }
 
@@ -372,6 +374,10 @@ void dce_aud_az_disable(struct audio *audio)
 	struct dce_audio *aud = DCE_AUD(audio);
 
 	value = AZ_REG_READ(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL);
+	set_reg_field_value(value, 1,
+			AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL,
+			CLOCK_GATING_DISABLE);
+	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL, value);
 
 	set_reg_field_value(value, 0,
 		AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL,
@@ -383,8 +389,7 @@ void dce_aud_az_disable(struct audio *audio)
 			CLOCK_GATING_DISABLE);
 	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL, value);
 	value = AZ_REG_READ(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL);
-	dm_logger_write(CTX->logger, LOG_HW_AUDIO,
-			"\n\t========= AUDIO:dce_aud_az_disable: index: %u  data: 0x%x\n",
+	DC_LOG_HW_AUDIO("\n\t========= AUDIO:dce_aud_az_disable: index: %u  data: 0x%x\n",
 			audio->inst, value);
 }
 
@@ -716,6 +721,11 @@ void dce_aud_az_configure(
 		DESCRIPTION17);
 
 	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_SINK_INFO8, value);
+	value = AZ_REG_READ(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL);
+	set_reg_field_value(value, 0,
+			AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL,
+			CLOCK_GATING_DISABLE);
+	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL, value);
 }
 
 /*
@@ -783,8 +793,7 @@ void dce_aud_wall_dto_setup(
 			crtc_info->calculated_pixel_clock,
 			&clock_info);
 
-		dm_logger_write(audio->ctx->logger, LOG_HW_AUDIO,\
-				"\n%s:Input::requested_pixel_clock = %d"\
+		DC_LOG_HW_AUDIO("\n%s:Input::requested_pixel_clock = %d"\
 				"calculated_pixel_clock =%d\n"\
 				"audio_dto_module = %d audio_dto_phase =%d \n\n", __func__,\
 				crtc_info->requested_pixel_clock,\
@@ -897,6 +906,10 @@ void dce_aud_hw_init(
 	REG_UPDATE_2(AZALIA_F0_CODEC_FUNCTION_PARAMETER_POWER_STATES,
 			CLKSTOP, 1,
 			EPSS, 1);
+	set_reg_field_value(value, 0,
+			AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL,
+			CLOCK_GATING_DISABLE);
+	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL, value);
 }
 
 static const struct audio_funcs funcs = {

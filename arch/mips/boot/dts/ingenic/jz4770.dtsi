@@ -1,0 +1,212 @@
+// SPDX-License-Identifier: GPL-2.0
+
+#include <dt-bindings/clock/jz4770-cgu.h>
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	compatible = "ingenic,jz4770";
+
+	cpuintc: interrupt-controller {
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		compatible = "mti,cpu-interrupt-controller";
+	};
+
+	intc: interrupt-controller@10001000 {
+		compatible = "ingenic,jz4770-intc";
+		reg = <0x10001000 0x40>;
+
+		interrupt-controller;
+		#interrupt-cells = <1>;
+
+		interrupt-parent = <&cpuintc>;
+		interrupts = <2>;
+	};
+
+	ext: ext {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+	};
+
+	osc32k: osc32k {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+	};
+
+	cgu: jz4770-cgu@10000000 {
+		compatible = "ingenic,jz4770-cgu";
+		reg = <0x10000000 0x100>;
+
+		clocks = <&ext>, <&osc32k>;
+		clock-names = "ext", "osc32k";
+
+		#clock-cells = <1>;
+	};
+
+	pinctrl: pin-controller@10010000 {
+		compatible = "ingenic,jz4770-pinctrl";
+		reg = <0x10010000 0x600>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		gpa: gpio@0 {
+			compatible = "ingenic,jz4770-gpio";
+			reg = <0>;
+
+			gpio-controller;
+			gpio-ranges = <&pinctrl 0 0 32>;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <17>;
+		};
+
+		gpb: gpio@1 {
+			compatible = "ingenic,jz4770-gpio";
+			reg = <1>;
+
+			gpio-controller;
+			gpio-ranges = <&pinctrl 0 32 32>;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <16>;
+		};
+
+		gpc: gpio@2 {
+			compatible = "ingenic,jz4770-gpio";
+			reg = <2>;
+
+			gpio-controller;
+			gpio-ranges = <&pinctrl 0 64 32>;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <15>;
+		};
+
+		gpd: gpio@3 {
+			compatible = "ingenic,jz4770-gpio";
+			reg = <3>;
+
+			gpio-controller;
+			gpio-ranges = <&pinctrl 0 96 32>;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <14>;
+		};
+
+		gpe: gpio@4 {
+			compatible = "ingenic,jz4770-gpio";
+			reg = <4>;
+
+			gpio-controller;
+			gpio-ranges = <&pinctrl 0 128 32>;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <13>;
+		};
+
+		gpf: gpio@5 {
+			compatible = "ingenic,jz4770-gpio";
+			reg = <5>;
+
+			gpio-controller;
+			gpio-ranges = <&pinctrl 0 160 32>;
+			#gpio-cells = <2>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <12>;
+		};
+	};
+
+	uart0: serial@10030000 {
+		compatible = "ingenic,jz4770-uart";
+		reg = <0x10030000 0x100>;
+
+		clocks = <&ext>, <&cgu JZ4770_CLK_UART0>;
+		clock-names = "baud", "module";
+
+		interrupt-parent = <&intc>;
+		interrupts = <5>;
+
+		status = "disabled";
+	};
+
+	uart1: serial@10031000 {
+		compatible = "ingenic,jz4770-uart";
+		reg = <0x10031000 0x100>;
+
+		clocks = <&ext>, <&cgu JZ4770_CLK_UART1>;
+		clock-names = "baud", "module";
+
+		interrupt-parent = <&intc>;
+		interrupts = <4>;
+
+		status = "disabled";
+	};
+
+	uart2: serial@10032000 {
+		compatible = "ingenic,jz4770-uart";
+		reg = <0x10032000 0x100>;
+
+		clocks = <&ext>, <&cgu JZ4770_CLK_UART2>;
+		clock-names = "baud", "module";
+
+		interrupt-parent = <&intc>;
+		interrupts = <3>;
+
+		status = "disabled";
+	};
+
+	uart3: serial@10033000 {
+		compatible = "ingenic,jz4770-uart";
+		reg = <0x10033000 0x100>;
+
+		clocks = <&ext>, <&cgu JZ4770_CLK_UART3>;
+		clock-names = "baud", "module";
+
+		interrupt-parent = <&intc>;
+		interrupts = <2>;
+
+		status = "disabled";
+	};
+
+	uhc: uhc@13430000 {
+		compatible = "generic-ohci";
+		reg = <0x13430000 0x1000>;
+
+		clocks = <&cgu JZ4770_CLK_UHC>, <&cgu JZ4770_CLK_UHC_PHY>;
+		assigned-clocks = <&cgu JZ4770_CLK_UHC>;
+		assigned-clock-rates = <48000000>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <20>;
+
+		status = "disabled";
+	};
+};

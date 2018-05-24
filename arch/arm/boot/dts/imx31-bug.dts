@@ -16,7 +16,7 @@
 	model = "Buglabs i.MX31 Bug 1.x";
 	compatible = "buglabs,imx31-bug", "fsl,imx31";
 
-	memory {
+	memory@80000000 {
 		reg = <0x80000000 0x8000000>; /* 128M */
 	};
 };

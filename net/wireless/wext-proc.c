@@ -133,7 +133,6 @@ static int seq_open_wireless(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations wireless_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open    = seq_open_wireless,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
@@ -143,7 +142,7 @@ static const struct file_operations wireless_seq_fops = {
 int __net_init wext_proc_init(struct net *net)
 {
 	/* Create /proc/net/wireless entry */
-	if (!proc_create("wireless", S_IRUGO, net->proc_net,
+	if (!proc_create("wireless", 0444, net->proc_net,
 			 &wireless_seq_fops))
 		return -ENOMEM;
 

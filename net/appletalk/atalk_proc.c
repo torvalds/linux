@@ -226,7 +226,6 @@ static int atalk_seq_socket_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations atalk_seq_interface_fops = {
-	.owner		= THIS_MODULE,
 	.open		= atalk_seq_interface_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -234,7 +233,6 @@ static const struct file_operations atalk_seq_interface_fops = {
 };
 
 static const struct file_operations atalk_seq_route_fops = {
-	.owner		= THIS_MODULE,
 	.open		= atalk_seq_route_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -242,7 +240,6 @@ static const struct file_operations atalk_seq_route_fops = {
 };
 
 static const struct file_operations atalk_seq_socket_fops = {
-	.owner		= THIS_MODULE,
 	.open		= atalk_seq_socket_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -260,22 +257,22 @@ int __init atalk_proc_init(void)
 	if (!atalk_proc_dir)
 		goto out;
 
-	p = proc_create("interface", S_IRUGO, atalk_proc_dir,
+	p = proc_create("interface", 0444, atalk_proc_dir,
 			&atalk_seq_interface_fops);
 	if (!p)
 		goto out_interface;
 
-	p = proc_create("route", S_IRUGO, atalk_proc_dir,
+	p = proc_create("route", 0444, atalk_proc_dir,
 			&atalk_seq_route_fops);
 	if (!p)
 		goto out_route;
 
-	p = proc_create("socket", S_IRUGO, atalk_proc_dir,
+	p = proc_create("socket", 0444, atalk_proc_dir,
 			&atalk_seq_socket_fops);
 	if (!p)
 		goto out_socket;
 
-	p = proc_create("arp", S_IRUGO, atalk_proc_dir, &atalk_seq_arp_fops);
+	p = proc_create("arp", 0444, atalk_proc_dir, &atalk_seq_arp_fops);
 	if (!p)
 		goto out_arp;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Netronome Systems, Inc.
+ * Copyright (C) 2016-2017 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -39,6 +39,7 @@
 #include <linux/types.h>
 
 #define REG_NONE	0
+#define REG_WIDTH	4
 
 #define RE_REG_NO_DST	0x020
 #define RE_REG_IMM	0x020
@@ -77,9 +78,11 @@
 enum br_mask {
 	BR_BEQ = 0x00,
 	BR_BNE = 0x01,
+	BR_BMI = 0x02,
 	BR_BHS = 0x04,
 	BR_BLO = 0x05,
 	BR_BGE = 0x08,
+	BR_BLT = 0x09,
 	BR_UNC = 0x18,
 };
 
@@ -91,6 +94,10 @@ enum br_ev_pip {
 enum br_ctx_signal_state {
 	BR_CSS_NONE = 2,
 };
+
+u16 br_get_offset(u64 instr);
+void br_set_offset(u64 *instr, u16 offset);
+void br_add_offset(u64 *instr, u16 offset);
 
 #define OP_BBYTE_BASE		0x0c800000000ULL
 #define OP_BB_A_SRC		0x000000000ffULL
@@ -131,6 +138,10 @@ enum immed_shift {
 	IMMED_SHIFT_1B = 1,
 	IMMED_SHIFT_2B = 2,
 };
+
+u16 immed_get_value(u64 instr);
+void immed_set_value(u64 *instr, u16 immed);
+void immed_add_value(u64 *instr, u16 offset);
 
 #define OP_SHF_BASE		0x08000000000ULL
 #define OP_SHF_A_SRC		0x000000000ffULL
@@ -175,6 +186,7 @@ enum alu_op {
 	ALU_OP_NONE	= 0x00,
 	ALU_OP_ADD	= 0x01,
 	ALU_OP_NOT	= 0x04,
+	ALU_OP_ADD_2B	= 0x05,
 	ALU_OP_AND	= 0x08,
 	ALU_OP_SUB_C	= 0x0d,
 	ALU_OP_ADD_C	= 0x11,
@@ -209,6 +221,7 @@ enum alu_dst_ab {
 #define OP_CMD_CNT		0x0000e000000ULL
 #define OP_CMD_SIG		0x000f0000000ULL
 #define OP_CMD_TGT_CMD		0x07f00000000ULL
+#define OP_CMD_INDIR		0x20000000000ULL
 #define OP_CMD_MODE	       0x1c0000000000ULL
 
 struct cmd_tgt_act {
@@ -219,11 +232,14 @@ struct cmd_tgt_act {
 enum cmd_tgt_map {
 	CMD_TGT_READ8,
 	CMD_TGT_WRITE8_SWAP,
+	CMD_TGT_WRITE32_SWAP,
 	CMD_TGT_READ32,
 	CMD_TGT_READ32_LE,
 	CMD_TGT_READ32_SWAP,
 	CMD_TGT_READ_LE,
 	CMD_TGT_READ_SWAP_LE,
+	CMD_TGT_ADD,
+	CMD_TGT_ADD_IMM,
 	__CMD_TGT_MAP_SIZE,
 };
 
@@ -237,8 +253,14 @@ enum cmd_mode {
 
 enum cmd_ctx_swap {
 	CMD_CTX_SWAP = 0,
+	CMD_CTX_SWAP_DEFER1 = 1,
+	CMD_CTX_SWAP_DEFER2 = 2,
 	CMD_CTX_NO_SWAP = 3,
 };
+
+#define CMD_OVE_DATA	GENMASK(5, 3)
+#define CMD_OVE_LEN	BIT(7)
+#define CMD_OV_LEN	GENMASK(12, 8)
 
 #define OP_LCSR_BASE		0x0fc00000000ULL
 #define OP_LCSR_A_SRC		0x000000003ffULL
@@ -257,10 +279,12 @@ enum lcsr_wr_src {
 #define OP_CARB_BASE		0x0e000000000ULL
 #define OP_CARB_OR		0x00000010000ULL
 
+#define NFP_CSR_CTX_PTR		0x20
 #define NFP_CSR_ACT_LM_ADDR0	0x64
 #define NFP_CSR_ACT_LM_ADDR1	0x6c
 #define NFP_CSR_ACT_LM_ADDR2	0x94
 #define NFP_CSR_ACT_LM_ADDR3	0x9c
+#define NFP_CSR_PSEUDO_RND_NUM	0x148
 
 /* Software register representation, independent of operand type */
 #define NN_REG_TYPE	GENMASK(31, 24)
@@ -376,5 +400,14 @@ int swreg_to_restricted(swreg dst, swreg lreg, swreg rreg,
 
 int nfp_ustore_check_valid_no_ecc(u64 insn);
 u64 nfp_ustore_calc_ecc_insn(u64 insn);
+
+#define NFP_IND_ME_REFL_WR_SIG_INIT	3
+#define NFP_IND_ME_CTX_PTR_BASE_MASK	GENMASK(9, 0)
+#define NFP_IND_NUM_CONTEXTS		8
+
+static inline u32 nfp_get_ind_csr_ctx_ptr_offs(u32 read_offset)
+{
+	return (read_offset & ~NFP_IND_ME_CTX_PTR_BASE_MASK) | NFP_CSR_CTX_PTR;
+}
 
 #endif

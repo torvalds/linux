@@ -21,7 +21,8 @@ struct sysinfo_1_1_1 {
 	unsigned char :8;
 	unsigned char ccr;
 	unsigned char cai;
-	char reserved_0[28];
+	char reserved_0[20];
+	unsigned long lic;
 	char manufacturer[16];
 	char type[4];
 	char reserved_1[12];

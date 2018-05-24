@@ -18,6 +18,7 @@ Required Properties:
 	      Examples with soctypes are:
 		- "renesas,dmac-r8a7743" (RZ/G1M)
 		- "renesas,dmac-r8a7745" (RZ/G1E)
+		- "renesas,dmac-r8a77470" (RZ/G1C)
 		- "renesas,dmac-r8a7790" (R-Car H2)
 		- "renesas,dmac-r8a7791" (R-Car M2-W)
 		- "renesas,dmac-r8a7792" (R-Car V2H)
@@ -26,6 +27,7 @@ Required Properties:
 		- "renesas,dmac-r8a7795" (R-Car H3)
 		- "renesas,dmac-r8a7796" (R-Car M3-W)
 		- "renesas,dmac-r8a77970" (R-Car V3M)
+		- "renesas,dmac-r8a77980" (R-Car V3H)
 
 - reg: base address and length of the registers block for the DMAC
 

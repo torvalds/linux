@@ -20,7 +20,11 @@
 
 #include "cudbg_if.h"
 #include "cudbg_lib_common.h"
+#include "cudbg_entity.h"
 #include "cudbg_lib.h"
+
+#define CUDBG_DUMP_BUFF_SIZE (32 * 1024 * 1024) /* 32 MB */
+#define CUDBG_COMPRESS_BUFF_SIZE (4 * 1024 * 1024) /* 4 MB */
 
 typedef int (*cudbg_collect_callback_t)(struct cudbg_init *pdbg_init,
 					struct cudbg_buffer *dbg_buff,

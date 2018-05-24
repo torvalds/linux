@@ -3,22 +3,22 @@
 /plugin/;
 
 / {
-        compatible = "bcm,bcm2835", "bcm,bcm2708", "bcm,bcm2709";
+	compatible = "bcm,bcm2835", "bcm,bcm2708", "bcm,bcm2709";
 
-        fragment@0 {
-                target = <&spi0>;
-                __overlay__ {
-                        status = "okay";
+	fragment@0 {
+		target = <&spi0>;
+		__overlay__ {
+			status = "okay";
 
-                        spidev@0{
-                                status = "disabled";
-                        };
+			spidev@0{
+				status = "disabled";
+			};
 
-                        spidev@1{
-                                status = "disabled";
-                        };
-                };
-        };
+			spidev@1{
+				status = "disabled";
+			};
+		};
+	};
 
 	fragment@1 {
 		target = <&gpio>;

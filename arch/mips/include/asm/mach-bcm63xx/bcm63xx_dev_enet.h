@@ -55,6 +55,10 @@ struct bcm63xx_enet_platform_data {
 
 	/* DMA descriptor shift */
 	unsigned int dma_desc_shift;
+
+	/* dma channel ids */
+	int rx_chan;
+	int tx_chan;
 };
 
 /*

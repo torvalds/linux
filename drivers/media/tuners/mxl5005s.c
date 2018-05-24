@@ -63,7 +63,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "mxl5005s.h"
 
 static int debug;
@@ -1677,10 +1677,10 @@ static u16 MXL5005_TunerConfig(struct dvb_frontend *fe,
 	u8	AGC_Mode,	/* AGC Mode - Dual AGC: 0, Single AGC: 1 */
 	u16	TOP,		/* 0: Dual AGC; Value: take over point */
 	u16	IF_OUT_LOAD,	/* IF Out Load Resistor (200 / 300 Ohms) */
-	u8	CLOCK_OUT, 	/* 0: turn off clk out; 1: turn on clock out */
+	u8	CLOCK_OUT,	/* 0: turn off clk out; 1: turn on clock out */
 	u8	DIV_OUT,	/* 0: Div-1; 1: Div-4 */
-	u8	CAPSELECT, 	/* 0: disable On-Chip pulling cap; 1: enable */
-	u8	EN_RSSI, 	/* 0: disable RSSI; 1: enable RSSI */
+	u8	CAPSELECT,	/* 0: disable On-Chip pulling cap; 1: enable */
+	u8	EN_RSSI,	/* 0: disable RSSI; 1: enable RSSI */
 
 	/* Modulation Type; */
 	/* 0 - Default;	1 - DVB-T; 2 - ATSC; 3 - QAM; 4 - Analog Cable */
@@ -3591,10 +3591,11 @@ static u16 MXL_GetInitRegister(struct dvb_frontend *fe, u8 *RegNum,
 	u16 status = 0;
 	int i ;
 
-	u8 RegAddr[] = {
+	static const u8 RegAddr[] = {
 		11, 12, 13, 22, 32, 43, 44, 53, 56, 59, 73,
 		76, 77, 91, 134, 135, 137, 147,
-		156, 166, 167, 168, 25 };
+		156, 166, 167, 168, 25
+	};
 
 	*count = ARRAY_SIZE(RegAddr);
 
@@ -3616,11 +3617,15 @@ static u16 MXL_GetCHRegister(struct dvb_frontend *fe, u8 *RegNum, u8 *RegVal,
 
 /* add 77, 166, 167, 168 register for 2.6.12 */
 #ifdef _MXL_PRODUCTION
-	u8 RegAddr[] = {14, 15, 16, 17, 22, 43, 65, 68, 69, 70, 73, 92, 93, 106,
-	   107, 108, 109, 110, 111, 112, 136, 138, 149, 77, 166, 167, 168 } ;
+	static const u8 RegAddr[] = {
+		14, 15, 16, 17, 22, 43, 65, 68, 69, 70, 73, 92, 93, 106,
+		107, 108, 109, 110, 111, 112, 136, 138, 149, 77, 166, 167, 168
+	};
 #else
-	u8 RegAddr[] = {14, 15, 16, 17, 22, 43, 68, 69, 70, 73, 92, 93, 106,
-	   107, 108, 109, 110, 111, 112, 136, 138, 149, 77, 166, 167, 168 } ;
+	static const u8 RegAddr[] = {
+		14, 15, 16, 17, 22, 43, 68, 69, 70, 73, 92, 93, 106,
+		107, 108, 109, 110, 111, 112, 136, 138, 149, 77, 166, 167, 168
+	};
 	/*
 	u8 RegAddr[171];
 	for (i = 0; i <= 170; i++)

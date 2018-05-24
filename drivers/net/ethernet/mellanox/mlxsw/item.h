@@ -42,7 +42,7 @@
 
 struct mlxsw_item {
 	unsigned short	offset;		/* bytes in container */
-	unsigned short	step;		/* step in bytes for indexed items */
+	short		step;		/* step in bytes for indexed items */
 	unsigned short	in_step_offset; /* offset within one step */
 	unsigned char	shift;		/* shift in bits */
 	unsigned char	element_size;	/* size of element in bit array */

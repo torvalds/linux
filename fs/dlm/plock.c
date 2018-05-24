@@ -471,7 +471,7 @@ static __poll_t dev_poll(struct file *file, poll_table *wait)
 
 	spin_lock(&ops_lock);
 	if (!list_empty(&send_list))
-		mask = POLLIN | POLLRDNORM;
+		mask = EPOLLIN | EPOLLRDNORM;
 	spin_unlock(&ops_lock);
 
 	return mask;

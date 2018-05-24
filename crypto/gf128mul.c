@@ -160,8 +160,6 @@ void gf128mul_x8_ble(le128 *r, const le128 *x)
 {
 	u64 a = le64_to_cpu(x->a);
 	u64 b = le64_to_cpu(x->b);
-
-	/* equivalent to gf128mul_table_be[b >> 63] (see crypto/gf128mul.c): */
 	u64 _tt = gf128mul_table_be[a >> 56];
 
 	r->a = cpu_to_le64((a << 8) | (b >> 56));

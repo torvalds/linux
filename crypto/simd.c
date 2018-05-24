@@ -19,9 +19,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
- * USA
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -222,5 +220,55 @@ void simd_skcipher_free(struct simd_skcipher_alg *salg)
 	kfree(salg);
 }
 EXPORT_SYMBOL_GPL(simd_skcipher_free);
+
+int simd_register_skciphers_compat(struct skcipher_alg *algs, int count,
+				   struct simd_skcipher_alg **simd_algs)
+{
+	int err;
+	int i;
+	const char *algname;
+	const char *drvname;
+	const char *basename;
+	struct simd_skcipher_alg *simd;
+
+	err = crypto_register_skciphers(algs, count);
+	if (err)
+		return err;
+
+	for (i = 0; i < count; i++) {
+		WARN_ON(strncmp(algs[i].base.cra_name, "__", 2));
+		WARN_ON(strncmp(algs[i].base.cra_driver_name, "__", 2));
+		algname = algs[i].base.cra_name + 2;
+		drvname = algs[i].base.cra_driver_name + 2;
+		basename = algs[i].base.cra_driver_name;
+		simd = simd_skcipher_create_compat(algname, drvname, basename);
+		err = PTR_ERR(simd);
+		if (IS_ERR(simd))
+			goto err_unregister;
+		simd_algs[i] = simd;
+	}
+	return 0;
+
+err_unregister:
+	simd_unregister_skciphers(algs, count, simd_algs);
+	return err;
+}
+EXPORT_SYMBOL_GPL(simd_register_skciphers_compat);
+
+void simd_unregister_skciphers(struct skcipher_alg *algs, int count,
+			       struct simd_skcipher_alg **simd_algs)
+{
+	int i;
+
+	crypto_unregister_skciphers(algs, count);
+
+	for (i = 0; i < count; i++) {
+		if (simd_algs[i]) {
+			simd_skcipher_free(simd_algs[i]);
+			simd_algs[i] = NULL;
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(simd_unregister_skciphers);
 
 MODULE_LICENSE("GPL");

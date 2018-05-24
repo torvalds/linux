@@ -583,21 +583,21 @@
 			};
 		};
 
-		OHCI1: ohci@02040000 {
+		OHCI1: ohci@2040000 {
 			compatible = "ohci-le";
 			reg = <0x02040000 0xa0>;
 			interrupt-parent = <&UIC1_3>;
 			interrupts = <28 0x8 29 0x8>;
 		};
 
-		OHCI2: ohci@02080000 {
+		OHCI2: ohci@2080000 {
 			compatible = "ohci-le";
 			reg = <0x02080000 0xa0>;
 			interrupt-parent = <&UIC1_3>;
 			interrupts = <30 0x8 31 0x8>;
 		};
 
-		EHCI: ehci@02000000 {
+		EHCI: ehci@2000000 {
 			compatible = "usb-ehci";
 			reg = <0x02000000 0xa4>;
 			interrupt-parent = <&UIC1_3>;
@@ -607,7 +607,7 @@
 	};
 
 	chosen {
-		linux,stdout-path = "/plb/opb/serial@b0020000";
+		stdout-path = "/plb/opb/serial@b0020000";
 		bootargs = "console=ttyS0,115200 rw log_buf_len=32768 debug";
 	};
 };

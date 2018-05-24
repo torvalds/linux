@@ -20,6 +20,18 @@ typedef unsigned long	pgprotval_t;
 
 typedef struct { pteval_t pte; } pte_t;
 
+#ifdef CONFIG_X86_5LEVEL
+extern unsigned int __pgtable_l5_enabled;
+#ifndef pgtable_l5_enabled
+#define pgtable_l5_enabled cpu_feature_enabled(X86_FEATURE_LA57)
+#endif
+#else
+#define pgtable_l5_enabled 0
+#endif
+
+extern unsigned int pgdir_shift;
+extern unsigned int ptrs_per_p4d;
+
 #endif	/* !__ASSEMBLY__ */
 
 #define SHARED_KERNEL_PMD	0
@@ -29,24 +41,28 @@ typedef struct { pteval_t pte; } pte_t;
 /*
  * PGDIR_SHIFT determines what a top-level page table entry can map
  */
-#define PGDIR_SHIFT	48
+#define PGDIR_SHIFT	pgdir_shift
 #define PTRS_PER_PGD	512
 
 /*
  * 4th level page in 5-level paging case
  */
-#define P4D_SHIFT	39
-#define PTRS_PER_P4D	512
-#define P4D_SIZE	(_AC(1, UL) << P4D_SHIFT)
-#define P4D_MASK	(~(P4D_SIZE - 1))
+#define P4D_SHIFT		39
+#define MAX_PTRS_PER_P4D	512
+#define PTRS_PER_P4D		ptrs_per_p4d
+#define P4D_SIZE		(_AC(1, UL) << P4D_SHIFT)
+#define P4D_MASK		(~(P4D_SIZE - 1))
+
+#define MAX_POSSIBLE_PHYSMEM_BITS	52
 
 #else /* CONFIG_X86_5LEVEL */
 
 /*
  * PGDIR_SHIFT determines what a top-level page table entry can map
  */
-#define PGDIR_SHIFT	39
-#define PTRS_PER_PGD	512
+#define PGDIR_SHIFT		39
+#define PTRS_PER_PGD		512
+#define MAX_PTRS_PER_P4D	1
 
 #endif /* CONFIG_X86_5LEVEL */
 
@@ -82,31 +98,33 @@ typedef struct { pteval_t pte; } pte_t;
  * range must not overlap with anything except the KASAN shadow area, which
  * is correct as KASAN disables KASLR.
  */
-#define MAXMEM			_AC(__AC(1, UL) << MAX_PHYSMEM_BITS, UL)
+#define MAXMEM			(1UL << MAX_PHYSMEM_BITS)
 
-#ifdef CONFIG_X86_5LEVEL
-# define VMALLOC_SIZE_TB	_AC(12800, UL)
-# define __VMALLOC_BASE		_AC(0xffa0000000000000, UL)
-# define __VMEMMAP_BASE		_AC(0xffd4000000000000, UL)
-# define LDT_PGD_ENTRY		_AC(-112, UL)
-# define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
-#else
-# define VMALLOC_SIZE_TB	_AC(32, UL)
-# define __VMALLOC_BASE		_AC(0xffffc90000000000, UL)
-# define __VMEMMAP_BASE		_AC(0xffffea0000000000, UL)
-# define LDT_PGD_ENTRY		_AC(-3, UL)
-# define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
-#endif
+#define LDT_PGD_ENTRY_L4	-3UL
+#define LDT_PGD_ENTRY_L5	-112UL
+#define LDT_PGD_ENTRY		(pgtable_l5_enabled ? LDT_PGD_ENTRY_L5 : LDT_PGD_ENTRY_L4)
+#define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
 
-#ifdef CONFIG_RANDOMIZE_MEMORY
+#define __VMALLOC_BASE_L4	0xffffc90000000000
+#define __VMALLOC_BASE_L5 	0xffa0000000000000
+
+#define VMALLOC_SIZE_TB_L4	32UL
+#define VMALLOC_SIZE_TB_L5	12800UL
+
+#define __VMEMMAP_BASE_L4	0xffffea0000000000
+#define __VMEMMAP_BASE_L5	0xffd4000000000000
+
+#ifdef CONFIG_DYNAMIC_MEMORY_LAYOUT
 # define VMALLOC_START		vmalloc_base
+# define VMALLOC_SIZE_TB	(pgtable_l5_enabled ? VMALLOC_SIZE_TB_L5 : VMALLOC_SIZE_TB_L4)
 # define VMEMMAP_START		vmemmap_base
 #else
-# define VMALLOC_START		__VMALLOC_BASE
-# define VMEMMAP_START		__VMEMMAP_BASE
-#endif /* CONFIG_RANDOMIZE_MEMORY */
+# define VMALLOC_START		__VMALLOC_BASE_L4
+# define VMALLOC_SIZE_TB	VMALLOC_SIZE_TB_L4
+# define VMEMMAP_START		__VMEMMAP_BASE_L4
+#endif /* CONFIG_DYNAMIC_MEMORY_LAYOUT */
 
-#define VMALLOC_END		(VMALLOC_START + _AC((VMALLOC_SIZE_TB << 40) - 1, UL))
+#define VMALLOC_END		(VMALLOC_START + (VMALLOC_SIZE_TB << 40) - 1)
 
 #define MODULES_VADDR		(__START_KERNEL_map + KERNEL_IMAGE_SIZE)
 /* The module sections ends with the start of the fixmap */

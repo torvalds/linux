@@ -747,7 +747,7 @@ __poll_t ivtv_v4l2_dec_poll(struct file *filp, poll_table *wait)
 		/* Turn off the old-style vsync events */
 		clear_bit(IVTV_F_I_EV_VSYNC_ENABLED, &itv->i_flags);
 		if (v4l2_event_pending(&id->fh))
-			res = POLLPRI;
+			res = EPOLLPRI;
 	} else {
 		/* This is the old-style API which is here only for backwards
 		   compatibility. */
@@ -755,12 +755,12 @@ __poll_t ivtv_v4l2_dec_poll(struct file *filp, poll_table *wait)
 		set_bit(IVTV_F_I_EV_VSYNC_ENABLED, &itv->i_flags);
 		if (test_bit(IVTV_F_I_EV_VSYNC, &itv->i_flags) ||
 		    test_bit(IVTV_F_I_EV_DEC_STOPPED, &itv->i_flags))
-			res = POLLPRI;
+			res = EPOLLPRI;
 	}
 
 	/* Allow write if buffers are available for writing */
 	if (s->q_free.buffers)
-		res |= POLLOUT | POLLWRNORM;
+		res |= EPOLLOUT | EPOLLWRNORM;
 	return res;
 }
 
@@ -776,7 +776,7 @@ __poll_t ivtv_v4l2_enc_poll(struct file *filp, poll_table *wait)
 	/* Start a capture if there is none */
 	if (!eof && !test_bit(IVTV_F_S_STREAMING, &s->s_flags) &&
 			s->type != IVTV_ENC_STREAM_TYPE_RAD &&
-			(req_events & (POLLIN | POLLRDNORM))) {
+			(req_events & (EPOLLIN | EPOLLRDNORM))) {
 		int rc;
 
 		mutex_lock(&itv->serialize_lock);
@@ -785,7 +785,7 @@ __poll_t ivtv_v4l2_enc_poll(struct file *filp, poll_table *wait)
 		if (rc) {
 			IVTV_DEBUG_INFO("Could not start capture for %s (%d)\n",
 					s->name, rc);
-			return POLLERR;
+			return EPOLLERR;
 		}
 		IVTV_DEBUG_FILE("Encoder poll started capture\n");
 	}
@@ -794,14 +794,14 @@ __poll_t ivtv_v4l2_enc_poll(struct file *filp, poll_table *wait)
 	IVTV_DEBUG_HI_FILE("Encoder poll\n");
 	poll_wait(filp, &s->waitq, wait);
 	if (v4l2_event_pending(&id->fh))
-		res |= POLLPRI;
+		res |= EPOLLPRI;
 	else
 		poll_wait(filp, &id->fh.wait, wait);
 
 	if (s->q_full.length || s->q_io.length)
-		return res | POLLIN | POLLRDNORM;
+		return res | EPOLLIN | EPOLLRDNORM;
 	if (eof)
-		return res | POLLHUP;
+		return res | EPOLLHUP;
 	return res;
 }
 

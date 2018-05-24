@@ -21,6 +21,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/flashchip.h>
 #include <linux/mtd/bbm.h>
+#include <linux/types.h>
 
 struct mtd_info;
 struct nand_flash_dev;
@@ -235,7 +236,8 @@ struct nand_chip;
 #define ONFI_TIMING_MODE_5		(1 << 5)
 #define ONFI_TIMING_MODE_UNKNOWN	(1 << 6)
 
-/* ONFI feature address */
+/* ONFI feature number/address */
+#define ONFI_FEATURE_NUMBER		256
 #define ONFI_FEATURE_ADDR_TIMING_MODE	0x1
 
 /* Vendor-specific feature address (Micron) */
@@ -428,6 +430,47 @@ struct nand_jedec_params {
 	/* CRC for Parameter Page */
 	__le16 crc;
 } __packed;
+
+/**
+ * struct onfi_params - ONFI specific parameters that will be reused
+ * @version: ONFI version (BCD encoded), 0 if ONFI is not supported
+ * @tPROG: Page program time
+ * @tBERS: Block erase time
+ * @tR: Page read time
+ * @tCCS: Change column setup time
+ * @async_timing_mode: Supported asynchronous timing mode
+ * @vendor_revision: Vendor specific revision number
+ * @vendor: Vendor specific data
+ */
+struct onfi_params {
+	int version;
+	u16 tPROG;
+	u16 tBERS;
+	u16 tR;
+	u16 tCCS;
+	u16 async_timing_mode;
+	u16 vendor_revision;
+	u8 vendor[88];
+};
+
+/**
+ * struct nand_parameters - NAND generic parameters from the parameter page
+ * @model: Model name
+ * @supports_set_get_features: The NAND chip supports setting/getting features
+ * @set_feature_list: Bitmap of features that can be set
+ * @get_feature_list: Bitmap of features that can be get
+ * @onfi: ONFI specific parameters
+ */
+struct nand_parameters {
+	/* Generic parameters */
+	char model[100];
+	bool supports_set_get_features;
+	DECLARE_BITMAP(set_feature_list, ONFI_FEATURE_NUMBER);
+	DECLARE_BITMAP(get_feature_list, ONFI_FEATURE_NUMBER);
+
+	/* ONFI parameters */
+	struct onfi_params onfi;
+};
 
 /* The maximum expected count of bytes in the NAND ID sequence */
 #define NAND_MAX_ID_LEN 8
@@ -1157,21 +1200,15 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
  *			currently in data_buf.
  * @subpagesize:	[INTERN] holds the subpagesize
  * @id:			[INTERN] holds NAND ID
- * @onfi_version:	[INTERN] holds the chip ONFI version (BCD encoded),
- *			non 0 if ONFI supported.
- * @jedec_version:	[INTERN] holds the chip JEDEC version (BCD encoded),
- *			non 0 if JEDEC supported.
- * @onfi_params:	[INTERN] holds the ONFI page parameter when ONFI is
- *			supported, 0 otherwise.
- * @jedec_params:	[INTERN] holds the JEDEC parameter page when JEDEC is
- *			supported, 0 otherwise.
+ * @parameters:		[INTERN] holds generic parameters under an easily
+ *			readable form.
  * @max_bb_per_die:	[INTERN] the max number of bad blocks each die of a
  *			this nand device will encounter their life times.
  * @blocks_per_die:	[INTERN] The number of PEBs in a die
  * @data_interface:	[INTERN] NAND interface timing information
  * @read_retries:	[INTERN] the number of read retry modes supported
- * @onfi_set_features:	[REPLACEABLE] set the features for ONFI nand
- * @onfi_get_features:	[REPLACEABLE] get the features for ONFI nand
+ * @set_features:	[REPLACEABLE] set the NAND chip features
+ * @get_features:	[REPLACEABLE] get the NAND chip features
  * @setup_data_interface: [OPTIONAL] setup the data interface and timing. If
  *			  chipnr is set to %NAND_DATA_IFACE_CHECK_ONLY this
  *			  means the configuration should not be applied but
@@ -1212,10 +1249,10 @@ struct nand_chip {
 		       bool check_only);
 	int (*erase)(struct mtd_info *mtd, int page);
 	int (*scan_bbt)(struct mtd_info *mtd);
-	int (*onfi_set_features)(struct mtd_info *mtd, struct nand_chip *chip,
-			int feature_addr, uint8_t *subfeature_para);
-	int (*onfi_get_features)(struct mtd_info *mtd, struct nand_chip *chip,
-			int feature_addr, uint8_t *subfeature_para);
+	int (*set_features)(struct mtd_info *mtd, struct nand_chip *chip,
+			    int feature_addr, uint8_t *subfeature_para);
+	int (*get_features)(struct mtd_info *mtd, struct nand_chip *chip,
+			    int feature_addr, uint8_t *subfeature_para);
 	int (*setup_read_retry)(struct mtd_info *mtd, int retry_mode);
 	int (*setup_data_interface)(struct mtd_info *mtd, int chipnr,
 				    const struct nand_data_interface *conf);
@@ -1243,12 +1280,7 @@ struct nand_chip {
 	int badblockbits;
 
 	struct nand_id id;
-	int onfi_version;
-	int jedec_version;
-	union {
-		struct nand_onfi_params	onfi_params;
-		struct nand_jedec_params jedec_params;
-	};
+	struct nand_parameters parameters;
 	u16 max_bb_per_die;
 	u32 blocks_per_die;
 
@@ -1535,26 +1567,13 @@ struct platform_nand_data {
 	struct platform_nand_ctrl ctrl;
 };
 
-/* return the supported features. */
-static inline int onfi_feature(struct nand_chip *chip)
-{
-	return chip->onfi_version ? le16_to_cpu(chip->onfi_params.features) : 0;
-}
-
 /* return the supported asynchronous timing mode. */
 static inline int onfi_get_async_timing_mode(struct nand_chip *chip)
 {
-	if (!chip->onfi_version)
+	if (!chip->parameters.onfi.version)
 		return ONFI_TIMING_MODE_UNKNOWN;
-	return le16_to_cpu(chip->onfi_params.async_timing_mode);
-}
 
-/* return the supported synchronous timing mode. */
-static inline int onfi_get_sync_timing_mode(struct nand_chip *chip)
-{
-	if (!chip->onfi_version)
-		return ONFI_TIMING_MODE_UNKNOWN;
-	return le16_to_cpu(chip->onfi_params.src_sync_timing_mode);
+	return chip->parameters.onfi.async_timing_mode;
 }
 
 int onfi_fill_data_interface(struct nand_chip *chip,
@@ -1591,13 +1610,6 @@ static inline int nand_opcode_8bits(unsigned int command)
 	return 0;
 }
 
-/* return the supported JEDEC features. */
-static inline int jedec_feature(struct nand_chip *chip)
-{
-	return chip->jedec_version ? le16_to_cpu(chip->jedec_params.features)
-		: 0;
-}
-
 /* get timing characteristics from ONFI timing mode. */
 const struct nand_sdr_timings *onfi_async_timing_mode_to_sdr_timings(int mode);
 
@@ -1629,10 +1641,12 @@ int nand_read_oob_std(struct mtd_info *mtd, struct nand_chip *chip, int page);
 int nand_read_oob_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
 			   int page);
 
+/* Wrapper to use in order for controllers/vendors to GET/SET FEATURES */
+int nand_get_features(struct nand_chip *chip, int addr, u8 *subfeature_param);
+int nand_set_features(struct nand_chip *chip, int addr, u8 *subfeature_param);
 /* Stub used by drivers that do not support GET/SET FEATURES operations */
-int nand_onfi_get_set_features_notsupp(struct mtd_info *mtd,
-				       struct nand_chip *chip, int addr,
-				       u8 *subfeature_param);
+int nand_get_set_features_notsupp(struct mtd_info *mtd, struct nand_chip *chip,
+				  int addr, u8 *subfeature_param);
 
 /* Default read_page_raw implementation */
 int nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,

@@ -54,10 +54,11 @@
 #include "dce/dce_abm.h"
 #include "dce/dce_dmcu.h"
 
-#include "vega10/DC/dce_12_0_offset.h"
-#include "vega10/DC/dce_12_0_sh_mask.h"
-#include "vega10/soc15ip.h"
-#include "vega10/NBIO/nbio_6_1_offset.h"
+#include "dce/dce_12_0_offset.h"
+#include "dce/dce_12_0_sh_mask.h"
+#include "soc15_hw_ip.h"
+#include "vega10_ip_offset.h"
+#include "nbio/nbio_6_1_offset.h"
 #include "reg_helper.h"
 
 #include "dce100/dce100_resource.h"
@@ -830,11 +831,14 @@ static bool construct(
 
 	/* TODO: Fill more data from GreenlandAsicCapability.cpp */
 	pool->base.pipe_count = res_cap.num_timing_generator;
+	pool->base.timing_generator_count = pool->base.res_cap->num_timing_generator;
 	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
 
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 100;
 	dc->caps.max_cursor_size = 128;
+	dc->caps.dual_link_dvi = true;
+
 	dc->debug = debug_defaults;
 
 	/*************************************************

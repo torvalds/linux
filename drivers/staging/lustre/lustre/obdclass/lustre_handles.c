@@ -181,13 +181,11 @@ EXPORT_SYMBOL(class_handle_free_cb);
 int class_handle_init(void)
 {
 	struct handle_bucket *bucket;
-	struct timespec64 ts;
-	int seed[2];
 
 	LASSERT(!handle_hash);
 
-	handle_hash = libcfs_kvzalloc(sizeof(*bucket) * HANDLE_HASH_SIZE,
-				      GFP_NOFS);
+	handle_hash = kvzalloc(sizeof(*bucket) * HANDLE_HASH_SIZE,
+				      GFP_KERNEL);
 	if (!handle_hash)
 		return -ENOMEM;
 
@@ -198,12 +196,7 @@ int class_handle_init(void)
 		spin_lock_init(&bucket->lock);
 	}
 
-	/** bug 21430: add randomness to the initial base */
-	cfs_get_random_bytes(seed, sizeof(seed));
-	ktime_get_ts64(&ts);
-	cfs_srand(ts.tv_sec ^ seed[0], ts.tv_nsec ^ seed[1]);
-
-	cfs_get_random_bytes(&handle_base, sizeof(handle_base));
+	get_random_bytes(&handle_base, sizeof(handle_base));
 	LASSERT(handle_base != 0ULL);
 
 	return 0;

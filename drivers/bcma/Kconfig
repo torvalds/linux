@@ -55,7 +55,7 @@ config BCMA_DRIVER_PCI
 
 config BCMA_DRIVER_PCI_HOSTMODE
 	bool "Driver for PCI core working in hostmode"
-	depends on MIPS && BCMA_DRIVER_PCI && PCI_DRIVERS_LEGACY
+	depends on MIPS && BCMA_DRIVER_PCI && PCI_DRIVERS_LEGACY && BCMA = y
 	help
 	  PCI core hostmode operation (external PCI bus).
 

@@ -35,6 +35,7 @@
 
 #include "siu.h"
 
+#define DRV_NAME "siu-i2s"
 #define GET_MAX_PERIODS(buf_bytes, period_bytes) \
 				((buf_bytes) / (period_bytes))
 #define PERIOD_OFFSET(buf_addr, period_num, period_bytes) \
@@ -340,7 +341,8 @@ static int siu_pcm_open(struct snd_pcm_substream *ss)
 {
 	/* Playback / Capture */
 	struct snd_soc_pcm_runtime *rtd = ss->private_data;
-	struct siu_platform *pdata = rtd->platform->dev->platform_data;
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
+	struct siu_platform *pdata = component->dev->platform_data;
 	struct siu_info *info = siu_i2s_data;
 	struct siu_port *port_info = siu_port_info(ss);
 	struct siu_stream *siu_stream;
@@ -604,9 +606,10 @@ static const struct snd_pcm_ops siu_pcm_ops = {
 	.pointer	= siu_pcm_pointer_dma,
 };
 
-struct snd_soc_platform_driver siu_platform = {
+struct snd_soc_component_driver siu_component = {
+	.name		= DRV_NAME,
 	.ops			= &siu_pcm_ops,
 	.pcm_new	= siu_pcm_new,
 	.pcm_free	= siu_pcm_free,
 };
-EXPORT_SYMBOL_GPL(siu_platform);
+EXPORT_SYMBOL_GPL(siu_component);

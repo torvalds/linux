@@ -214,6 +214,7 @@ struct eeh_ops {
 	int (*write_config)(struct pci_dn *pdn, int where, int size, u32 val);
 	int (*next_error)(struct eeh_pe **pe);
 	int (*restore_config)(struct pci_dn *pdn);
+	int (*notify_resume)(struct pci_dn *pdn);
 };
 
 extern int eeh_subsystem_flags;
@@ -253,6 +254,12 @@ static inline void eeh_serialize_lock(unsigned long *flags)
 static inline void eeh_serialize_unlock(unsigned long flags)
 {
 	raw_spin_unlock_irqrestore(&confirm_error_lock, flags);
+}
+
+static inline bool eeh_state_active(int state)
+{
+	return (state & (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE))
+	== (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
 }
 
 typedef void *(*eeh_traverse_func)(void *data, void *flag);
@@ -297,6 +304,7 @@ int eeh_pe_reset(struct eeh_pe *pe, int option);
 int eeh_pe_configure(struct eeh_pe *pe);
 int eeh_pe_inject_err(struct eeh_pe *pe, int type, int func,
 		      unsigned long addr, unsigned long mask);
+int eeh_restore_vf_config(struct pci_dn *pdn);
 
 /**
  * EEH_POSSIBLE_ERROR() -- test for possible MMIO failure.

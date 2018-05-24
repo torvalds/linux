@@ -71,9 +71,10 @@ struct hix5hd2_ir_priv {
 	unsigned long		rate;
 };
 
-static void hix5hd2_ir_enable(struct hix5hd2_ir_priv *dev, bool on)
+static int hix5hd2_ir_enable(struct hix5hd2_ir_priv *dev, bool on)
 {
 	u32 val;
+	int ret = 0;
 
 	if (dev->regmap) {
 		regmap_read(dev->regmap, IR_CLK, &val);
@@ -87,10 +88,11 @@ static void hix5hd2_ir_enable(struct hix5hd2_ir_priv *dev, bool on)
 		regmap_write(dev->regmap, IR_CLK, val);
 	} else {
 		if (on)
-			clk_prepare_enable(dev->clock);
+			ret = clk_prepare_enable(dev->clock);
 		else
 			clk_disable_unprepare(dev->clock);
 	}
+	return ret;
 }
 
 static int hix5hd2_ir_config(struct hix5hd2_ir_priv *priv)
@@ -127,9 +129,18 @@ static int hix5hd2_ir_config(struct hix5hd2_ir_priv *priv)
 static int hix5hd2_ir_open(struct rc_dev *rdev)
 {
 	struct hix5hd2_ir_priv *priv = rdev->priv;
+	int ret;
 
-	hix5hd2_ir_enable(priv, true);
-	return hix5hd2_ir_config(priv);
+	ret = hix5hd2_ir_enable(priv, true);
+	if (ret)
+		return ret;
+
+	ret = hix5hd2_ir_config(priv);
+	if (ret) {
+		hix5hd2_ir_enable(priv, false);
+		return ret;
+	}
+	return 0;
 }
 
 static void hix5hd2_ir_close(struct rc_dev *rdev)
@@ -239,7 +250,9 @@ static int hix5hd2_ir_probe(struct platform_device *pdev)
 		ret = PTR_ERR(priv->clock);
 		goto err;
 	}
-	clk_prepare_enable(priv->clock);
+	ret = clk_prepare_enable(priv->clock);
+	if (ret)
+		goto err;
 	priv->rate = clk_get_rate(priv->clock);
 
 	rdev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
@@ -309,9 +322,17 @@ static int hix5hd2_ir_suspend(struct device *dev)
 static int hix5hd2_ir_resume(struct device *dev)
 {
 	struct hix5hd2_ir_priv *priv = dev_get_drvdata(dev);
+	int ret;
 
-	hix5hd2_ir_enable(priv, true);
-	clk_prepare_enable(priv->clock);
+	ret = hix5hd2_ir_enable(priv, true);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(priv->clock);
+	if (ret) {
+		hix5hd2_ir_enable(priv, false);
+		return ret;
+	}
 
 	writel_relaxed(0x01, priv->base + IR_ENABLE);
 	writel_relaxed(0x00, priv->base + IR_INTM);

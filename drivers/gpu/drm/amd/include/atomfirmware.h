@@ -381,7 +381,7 @@ struct atom_rom_hw_function_header
 struct atom_master_list_of_data_tables_v2_1{
   uint16_t utilitypipeline;               /* Offest for the utility to get parser info,Don't change this position!*/
   uint16_t multimedia_info;               
-  uint16_t sw_datatable2;
+  uint16_t smc_dpm_info;
   uint16_t sw_datatable3;                 
   uint16_t firmwareinfo;                  /* Shared by various SW components */
   uint16_t sw_datatable5;
@@ -1198,6 +1198,90 @@ struct atom_smu_info_v3_1
   uint8_t  fw_ctf_polarity;         // GPIO polarity for CTF
 };
 
+/*
+ ***************************************************************************
+   Data Table smc_dpm_info  structure
+ ***************************************************************************
+ */
+struct atom_smc_dpm_info_v4_1
+{
+  struct   atom_common_table_header  table_header;
+  uint8_t  liquid1_i2c_address;
+  uint8_t  liquid2_i2c_address;
+  uint8_t  vr_i2c_address;
+  uint8_t  plx_i2c_address;
+
+  uint8_t  liquid_i2c_linescl;
+  uint8_t  liquid_i2c_linesda;
+  uint8_t  vr_i2c_linescl;
+  uint8_t  vr_i2c_linesda;
+
+  uint8_t  plx_i2c_linescl;
+  uint8_t  plx_i2c_linesda;
+  uint8_t  vrsensorpresent;
+  uint8_t  liquidsensorpresent;
+
+  uint16_t maxvoltagestepgfx;
+  uint16_t maxvoltagestepsoc;
+
+  uint8_t  vddgfxvrmapping;
+  uint8_t  vddsocvrmapping;
+  uint8_t  vddmem0vrmapping;
+  uint8_t  vddmem1vrmapping;
+
+  uint8_t  gfxulvphasesheddingmask;
+  uint8_t  soculvphasesheddingmask;
+  uint8_t  padding8_v[2];
+
+  uint16_t gfxmaxcurrent;
+  uint8_t  gfxoffset;
+  uint8_t  padding_telemetrygfx;
+
+  uint16_t socmaxcurrent;
+  uint8_t  socoffset;
+  uint8_t  padding_telemetrysoc;
+
+  uint16_t mem0maxcurrent;
+  uint8_t  mem0offset;
+  uint8_t  padding_telemetrymem0;
+
+  uint16_t mem1maxcurrent;
+  uint8_t  mem1offset;
+  uint8_t  padding_telemetrymem1;
+
+  uint8_t  acdcgpio;
+  uint8_t  acdcpolarity;
+  uint8_t  vr0hotgpio;
+  uint8_t  vr0hotpolarity;
+
+  uint8_t  vr1hotgpio;
+  uint8_t  vr1hotpolarity;
+  uint8_t  padding1;
+  uint8_t  padding2;
+
+  uint8_t  ledpin0;
+  uint8_t  ledpin1;
+  uint8_t  ledpin2;
+  uint8_t  padding8_4;
+
+	uint8_t  pllgfxclkspreadenabled;
+	uint8_t  pllgfxclkspreadpercent;
+	uint16_t pllgfxclkspreadfreq;
+
+  uint8_t uclkspreadenabled;
+  uint8_t uclkspreadpercent;
+  uint16_t uclkspreadfreq;
+
+  uint8_t socclkspreadenabled;
+  uint8_t socclkspreadpercent;
+  uint16_t socclkspreadfreq;
+
+	uint8_t  acggfxclkspreadenabled;
+	uint8_t  acggfxclkspreadpercent;
+	uint16_t acggfxclkspreadfreq;
+
+	uint32_t boardreserved[10];
+};
 
 
 /* 

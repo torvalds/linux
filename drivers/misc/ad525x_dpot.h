@@ -195,12 +195,12 @@ enum dpot_devid {
 struct dpot_data;
 
 struct ad_dpot_bus_ops {
-	int (*read_d8) (void *client);
-	int (*read_r8d8) (void *client, u8 reg);
-	int (*read_r8d16) (void *client, u8 reg);
-	int (*write_d8) (void *client, u8 val);
-	int (*write_r8d8) (void *client, u8 reg, u8 val);
-	int (*write_r8d16) (void *client, u8 reg, u16 val);
+	int (*read_d8)(void *client);
+	int (*read_r8d8)(void *client, u8 reg);
+	int (*read_r8d16)(void *client, u8 reg);
+	int (*write_d8)(void *client, u8 val);
+	int (*write_r8d8)(void *client, u8 reg, u8 val);
+	int (*write_r8d16)(void *client, u8 reg, u16 val);
 };
 
 struct ad_dpot_bus_data {

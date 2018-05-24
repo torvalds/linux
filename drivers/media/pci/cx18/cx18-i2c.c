@@ -47,8 +47,7 @@ static const u8 hw_addrs[] = {
 	0,				/* CX18_HW_418_AV */
 	0,				/* CX18_HW_GPIO_MUX */
 	0,				/* CX18_HW_GPIO_RESET_CTRL */
-	CX18_Z8F0811_IR_TX_I2C_ADDR,	/* CX18_HW_Z8F0811_IR_TX_HAUP */
-	CX18_Z8F0811_IR_RX_I2C_ADDR,	/* CX18_HW_Z8F0811_IR_RX_HAUP */
+	CX18_Z8F0811_IR_RX_I2C_ADDR,	/* CX18_HW_Z8F0811_IR_HAUP */
 };
 
 /* This array should match the CX18_HW_ defines */
@@ -61,8 +60,7 @@ static const u8 hw_bus[] = {
 	0,	/* CX18_HW_418_AV */
 	0,	/* CX18_HW_GPIO_MUX */
 	0,	/* CX18_HW_GPIO_RESET_CTRL */
-	0,	/* CX18_HW_Z8F0811_IR_TX_HAUP */
-	0,	/* CX18_HW_Z8F0811_IR_RX_HAUP */
+	0,	/* CX18_HW_Z8F0811_IR_HAUP */
 };
 
 /* This array should match the CX18_HW_ defines */
@@ -74,8 +72,7 @@ static const char * const hw_devicenames[] = {
 	"cx23418_AV",
 	"gpio_mux",
 	"gpio_reset_ctrl",
-	"ir_tx_z8f0811_haup",
-	"ir_rx_z8f0811_haup",
+	"ir_z8f0811_haup",
 };
 
 static int cx18_i2c_new_ir(struct cx18 *cx, struct i2c_adapter *adap, u32 hw,
@@ -90,7 +87,7 @@ static int cx18_i2c_new_ir(struct cx18 *cx, struct i2c_adapter *adap, u32 hw,
 
 	/* Our default information for ir-kbd-i2c.c to use */
 	switch (hw) {
-	case CX18_HW_Z8F0811_IR_RX_HAUP:
+	case CX18_HW_Z8F0811_IR_HAUP:
 		init_data->ir_codes = RC_MAP_HAUPPAUGE;
 		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
 		init_data->type = RC_PROTO_BIT_RC5 | RC_PROTO_BIT_RC6_MCE |
@@ -129,7 +126,7 @@ int cx18_i2c_register(struct cx18 *cx, unsigned idx)
 		return sd != NULL ? 0 : -1;
 	}
 
-	if (hw & CX18_HW_IR_ANY)
+	if (hw == CX18_HW_Z8F0811_IR_HAUP)
 		return cx18_i2c_new_ir(cx, adap, hw, type, hw_addrs[idx]);
 
 	/* Is it not an I2C device or one we do not wish to register? */

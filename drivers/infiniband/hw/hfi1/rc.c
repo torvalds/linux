@@ -226,12 +226,10 @@ normal:
 		bth2 = mask_psn(qp->s_ack_psn);
 	}
 	qp->s_rdma_ack_cnt++;
-	qp->s_hdrwords = hwords;
 	ps->s_txreq->sde = priv->s_sde;
 	ps->s_txreq->s_cur_size = len;
+	ps->s_txreq->hdr_dwords = hwords;
 	hfi1_make_ruc_header(qp, ohdr, bth0, bth2, middle, ps);
-	/* pbc */
-	ps->s_txreq->hdr_dwords = qp->s_hdrwords + 2;
 	return 1;
 
 bail:
@@ -385,7 +383,6 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 						       : IB_WC_SUCCESS);
 				if (local_ops)
 					atomic_dec(&qp->local_ops_pending);
-				qp->s_hdrwords = 0;
 				goto done_free_tx;
 			}
 
@@ -688,7 +685,7 @@ no_flow_control:
 		bth2 |= IB_BTH_REQ_ACK;
 	}
 	qp->s_len -= len;
-	qp->s_hdrwords = hwords;
+	ps->s_txreq->hdr_dwords = hwords;
 	ps->s_txreq->sde = priv->s_sde;
 	ps->s_txreq->ss = ss;
 	ps->s_txreq->s_cur_size = len;
@@ -699,8 +696,6 @@ no_flow_control:
 		bth2,
 		middle,
 		ps);
-	/* pbc */
-	ps->s_txreq->hdr_dwords = qp->s_hdrwords + 2;
 	return 1;
 
 done_free_tx:
@@ -714,7 +709,6 @@ bail:
 bail_no_tx:
 	ps->s_txreq = NULL;
 	qp->s_flags &= ~RVT_S_BUSY;
-	qp->s_hdrwords = 0;
 	return 0;
 }
 
@@ -734,14 +728,16 @@ static inline void hfi1_make_bth_aeth(struct rvt_qp *qp,
 	ohdr->bth[2] = cpu_to_be32(mask_psn(qp->r_ack_psn));
 }
 
-static inline void hfi1_queue_rc_ack(struct rvt_qp *qp, bool is_fecn)
+static inline void hfi1_queue_rc_ack(struct hfi1_packet *packet, bool is_fecn)
 {
-	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
+	struct rvt_qp *qp = packet->qp;
+	struct hfi1_ibport *ibp;
 	unsigned long flags;
 
 	spin_lock_irqsave(&qp->s_lock, flags);
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK))
 		goto unlock;
+	ibp = rcd_to_iport(packet->rcd);
 	this_cpu_inc(*ibp->rvp.rc_qacks);
 	qp->s_flags |= RVT_S_ACK_PENDING | RVT_S_RESP_PENDING;
 	qp->s_nak_state = qp->r_nak_state;
@@ -755,13 +751,14 @@ unlock:
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 }
 
-static inline void hfi1_make_rc_ack_9B(struct rvt_qp *qp,
+static inline void hfi1_make_rc_ack_9B(struct hfi1_packet *packet,
 				       struct hfi1_opa_header *opa_hdr,
 				       u8 sc5, bool is_fecn,
 				       u64 *pbc_flags, u32 *hwords,
 				       u32 *nwords)
 {
-	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
+	struct rvt_qp *qp = packet->qp;
+	struct hfi1_ibport *ibp = rcd_to_iport(packet->rcd);
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	struct ib_header *hdr = &opa_hdr->ibh;
 	struct ib_other_headers *ohdr;
@@ -802,19 +799,20 @@ static inline void hfi1_make_rc_ack_9B(struct rvt_qp *qp,
 	hfi1_make_bth_aeth(qp, ohdr, bth0, bth1);
 }
 
-static inline void hfi1_make_rc_ack_16B(struct rvt_qp *qp,
+static inline void hfi1_make_rc_ack_16B(struct hfi1_packet *packet,
 					struct hfi1_opa_header *opa_hdr,
 					u8 sc5, bool is_fecn,
 					u64 *pbc_flags, u32 *hwords,
 					u32 *nwords)
 {
-	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
+	struct rvt_qp *qp = packet->qp;
+	struct hfi1_ibport *ibp = rcd_to_iport(packet->rcd);
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	struct hfi1_16b_header *hdr = &opa_hdr->opah;
 	struct ib_other_headers *ohdr;
 	u32 bth0, bth1 = 0;
 	u16 len, pkey;
-	u8 becn = !!is_fecn;
+	bool becn = is_fecn;
 	u8 l4 = OPA_16B_L4_IB_LOCAL;
 	u8 extra_bytes;
 
@@ -854,7 +852,7 @@ static inline void hfi1_make_rc_ack_16B(struct rvt_qp *qp,
 	hfi1_make_bth_aeth(qp, ohdr, bth0, bth1);
 }
 
-typedef void (*hfi1_make_rc_ack)(struct rvt_qp *qp,
+typedef void (*hfi1_make_rc_ack)(struct hfi1_packet *packet,
 				 struct hfi1_opa_header *opa_hdr,
 				 u8 sc5, bool is_fecn,
 				 u64 *pbc_flags, u32 *hwords,
@@ -874,9 +872,10 @@ static const hfi1_make_rc_ack hfi1_make_rc_ack_tbl[2] = {
  * Note that RDMA reads and atomics are handled in the
  * send side QP state and send engine.
  */
-void hfi1_send_rc_ack(struct hfi1_ctxtdata *rcd,
-		      struct rvt_qp *qp, bool is_fecn)
+void hfi1_send_rc_ack(struct hfi1_packet *packet, bool is_fecn)
 {
+	struct hfi1_ctxtdata *rcd = packet->rcd;
+	struct rvt_qp *qp = packet->qp;
 	struct hfi1_ibport *ibp = rcd_to_iport(rcd);
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
@@ -893,13 +892,13 @@ void hfi1_send_rc_ack(struct hfi1_ctxtdata *rcd,
 
 	/* Don't send ACK or NAK if a RDMA read or atomic is pending. */
 	if (qp->s_flags & RVT_S_RESP_PENDING) {
-		hfi1_queue_rc_ack(qp, is_fecn);
+		hfi1_queue_rc_ack(packet, is_fecn);
 		return;
 	}
 
 	/* Ensure s_rdma_ack_cnt changes are committed */
 	if (qp->s_rdma_ack_cnt) {
-		hfi1_queue_rc_ack(qp, is_fecn);
+		hfi1_queue_rc_ack(packet, is_fecn);
 		return;
 	}
 
@@ -908,7 +907,7 @@ void hfi1_send_rc_ack(struct hfi1_ctxtdata *rcd,
 		return;
 
 	/* Make the appropriate header */
-	hfi1_make_rc_ack_tbl[priv->hdr_type](qp, &opa_hdr, sc5, is_fecn,
+	hfi1_make_rc_ack_tbl[priv->hdr_type](packet, &opa_hdr, sc5, is_fecn,
 					     &pbc_flags, &hwords, &nwords);
 
 	plen = 2 /* PBC */ + hwords + nwords;
@@ -922,7 +921,7 @@ void hfi1_send_rc_ack(struct hfi1_ctxtdata *rcd,
 		 * so that when enough buffer space becomes available,
 		 * the ACK is sent ahead of other outgoing packets.
 		 */
-		hfi1_queue_rc_ack(qp, is_fecn);
+		hfi1_queue_rc_ack(packet, is_fecn);
 		return;
 	}
 	trace_ack_output_ibhdr(dd_from_ibdev(qp->ibqp.device),
@@ -1540,7 +1539,7 @@ static void rc_rcv_resp(struct hfi1_packet *packet)
 	void *data = packet->payload;
 	u32 tlen = packet->tlen;
 	struct rvt_qp *qp = packet->qp;
-	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
+	struct hfi1_ibport *ibp;
 	struct ib_other_headers *ohdr = packet->ohdr;
 	struct rvt_swqe *wqe;
 	enum ib_wc_status status;
@@ -1697,6 +1696,7 @@ ack_op_err:
 	goto ack_err;
 
 ack_seq_err:
+	ibp = rcd_to_iport(rcd);
 	rdma_seq_err(qp, ibp, psn, rcd);
 	goto ack_done;
 
@@ -2037,7 +2037,6 @@ void hfi1_rc_rcv(struct hfi1_packet *packet)
 	struct rvt_qp *qp = packet->qp;
 	struct hfi1_ibport *ibp = rcd_to_iport(rcd);
 	struct ib_other_headers *ohdr = packet->ohdr;
-	u32 bth0 = be32_to_cpu(ohdr->bth[0]);
 	u32 opcode = packet->opcode;
 	u32 hdrsize = packet->hlen;
 	u32 psn = ib_bth_get_psn(packet->ohdr);
@@ -2235,7 +2234,7 @@ send_last:
 		wc.port_num = 0;
 		/* Signal completion event if the solicited bit is set. */
 		rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc,
-			     (bth0 & IB_BTH_SOLICITED) != 0);
+			     ib_bth_is_solicited(ohdr));
 		break;
 
 	case OP(RDMA_WRITE_ONLY):
@@ -2479,7 +2478,7 @@ nack_acc:
 	qp->r_nak_state = IB_NAK_REMOTE_ACCESS_ERROR;
 	qp->r_ack_psn = qp->r_psn;
 send_ack:
-	hfi1_send_rc_ack(rcd, qp, is_fecn);
+	hfi1_send_rc_ack(packet, is_fecn);
 }
 
 void hfi1_rc_hdrerr(

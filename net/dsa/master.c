@@ -42,7 +42,7 @@ static int dsa_master_get_sset_count(struct net_device *dev, int sset)
 		count += ops->get_sset_count(dev, sset);
 
 	if (sset == ETH_SS_STATS && ds->ops->get_sset_count)
-		count += ds->ops->get_sset_count(ds);
+		count += ds->ops->get_sset_count(ds, cpu_dp->index);
 
 	return count;
 }
@@ -76,7 +76,7 @@ static void dsa_master_get_strings(struct net_device *dev, uint32_t stringset,
 		 * constructed earlier
 		 */
 		ds->ops->get_strings(ds, port, ndata);
-		count = ds->ops->get_sset_count(ds);
+		count = ds->ops->get_sset_count(ds, port);
 		for (i = 0; i < count; i++) {
 			memmove(ndata + (i * len + sizeof(pfx)),
 				ndata + i * len, len - sizeof(pfx));

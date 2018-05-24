@@ -206,7 +206,7 @@ static const struct file_operations command_fops = {
 	.owner  = THIS_MODULE,
 };
 
-static int reservations_print(struct seq_file *s, void *p)
+static int reservations_show(struct seq_file *s, void *p)
 {
 	struct uwb_rc *rc = s->private;
 	struct uwb_rsv *rsv;
@@ -240,21 +240,9 @@ static int reservations_print(struct seq_file *s, void *p)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(reservations);
 
-static int reservations_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, reservations_print, inode->i_private);
-}
-
-static const struct file_operations reservations_fops = {
-	.open    = reservations_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release,
-	.owner   = THIS_MODULE,
-};
-
-static int drp_avail_print(struct seq_file *s, void *p)
+static int drp_avail_show(struct seq_file *s, void *p)
 {
 	struct uwb_rc *rc = s->private;
 
@@ -264,19 +252,7 @@ static int drp_avail_print(struct seq_file *s, void *p)
 
 	return 0;
 }
-
-static int drp_avail_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, drp_avail_print, inode->i_private);
-}
-
-static const struct file_operations drp_avail_fops = {
-	.open    = drp_avail_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release,
-	.owner   = THIS_MODULE,
-};
+DEFINE_SHOW_ATTRIBUTE(drp_avail);
 
 static void uwb_dbg_channel_changed(struct uwb_pal *pal, int channel)
 {

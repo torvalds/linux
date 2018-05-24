@@ -551,6 +551,8 @@ static void xfrm_replay_advance_esn(struct xfrm_state *x, __be32 net_seq)
 			bitnr = replay_esn->replay_window - (diff - pos);
 	}
 
+	xfrm_dev_state_advance_esn(x);
+
 	nr = bitnr >> 5;
 	bitnr = bitnr & 0x1F;
 	replay_esn->bmp[nr] |= (1U << bitnr);
@@ -658,7 +660,7 @@ static int xfrm_replay_overflow_offload_esn(struct xfrm_state *x, struct sk_buff
 		} else {
 			XFRM_SKB_CB(skb)->seq.output.low = oseq + 1;
 			XFRM_SKB_CB(skb)->seq.output.hi = oseq_hi;
-			xo->seq.low = oseq = oseq + 1;
+			xo->seq.low = oseq + 1;
 			xo->seq.hi = oseq_hi;
 			oseq += skb_shinfo(skb)->gso_segs;
 		}
@@ -666,7 +668,7 @@ static int xfrm_replay_overflow_offload_esn(struct xfrm_state *x, struct sk_buff
 		if (unlikely(oseq < replay_esn->oseq)) {
 			XFRM_SKB_CB(skb)->seq.output.hi = ++oseq_hi;
 			xo->seq.hi = oseq_hi;
-
+			replay_esn->oseq_hi = oseq_hi;
 			if (replay_esn->oseq_hi == 0) {
 				replay_esn->oseq--;
 				replay_esn->oseq_hi--;
@@ -678,7 +680,6 @@ static int xfrm_replay_overflow_offload_esn(struct xfrm_state *x, struct sk_buff
 		}
 
 		replay_esn->oseq = oseq;
-		replay_esn->oseq_hi = oseq_hi;
 
 		if (xfrm_aevent_is_on(net))
 			x->repl->notify(x, XFRM_REPLAY_UPDATE);

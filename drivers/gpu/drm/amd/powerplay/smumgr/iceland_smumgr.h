@@ -65,7 +65,6 @@ struct iceland_smumgr {
 	const struct iceland_pt_defaults  *power_tune_defaults;
 	SMU71_Discrete_MCRegisters      mc_regs;
 	struct iceland_mc_reg_table mc_reg_table;
-	uint32_t        activity_target[SMU71_MAX_LEVELS_GRAPHICS];
 };
 
 #endif

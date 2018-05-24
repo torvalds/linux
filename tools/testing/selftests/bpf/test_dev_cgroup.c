@@ -10,16 +10,18 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#include <sys/time.h>
 
 #include <linux/bpf.h>
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 
 #include "cgroup_helpers.h"
+#include "bpf_rlimit.h"
 
 #define DEV_CGROUP_PROG "./dev_cgroup.o"
 
-#define TEST_CGROUP "test-bpf-based-device-cgroup/"
+#define TEST_CGROUP "/test-bpf-based-device-cgroup/"
 
 int main(int argc, char **argv)
 {
@@ -31,7 +33,7 @@ int main(int argc, char **argv)
 	if (bpf_prog_load(DEV_CGROUP_PROG, BPF_PROG_TYPE_CGROUP_DEVICE,
 			  &obj, &prog_fd)) {
 		printf("Failed to load DEV_CGROUP program\n");
-		goto err;
+		goto out;
 	}
 
 	if (setup_cgroup_environment()) {
@@ -89,5 +91,6 @@ int main(int argc, char **argv)
 err:
 	cleanup_cgroup_environment();
 
+out:
 	return error;
 }

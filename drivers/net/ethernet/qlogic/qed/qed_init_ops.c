@@ -414,11 +414,23 @@ static void qed_init_cmd_rd(struct qed_hwfn *p_hwfn,
 }
 
 /* init_ops callbacks entry point */
-static void qed_init_cmd_cb(struct qed_hwfn *p_hwfn,
-			    struct qed_ptt *p_ptt,
-			    struct init_callback_op *p_cmd)
+static int qed_init_cmd_cb(struct qed_hwfn *p_hwfn,
+			   struct qed_ptt *p_ptt,
+			   struct init_callback_op *p_cmd)
 {
-	DP_NOTICE(p_hwfn, "Currently init values have no need of callbacks\n");
+	int rc;
+
+	switch (p_cmd->callback_id) {
+	case DMAE_READY_CB:
+		rc = qed_dmae_sanity(p_hwfn, p_ptt, "engine_phase");
+		break;
+	default:
+		DP_NOTICE(p_hwfn, "Unexpected init op callback ID %d\n",
+			  p_cmd->callback_id);
+		return -EINVAL;
+	}
+
+	return rc;
 }
 
 static u8 qed_init_cmd_mode_match(struct qed_hwfn *p_hwfn,
@@ -519,7 +531,7 @@ int qed_init_run(struct qed_hwfn *p_hwfn,
 			break;
 
 		case INIT_OP_CALLBACK:
-			qed_init_cmd_cb(p_hwfn, p_ptt, &cmd->callback);
+			rc = qed_init_cmd_cb(p_hwfn, p_ptt, &cmd->callback);
 			break;
 		}
 

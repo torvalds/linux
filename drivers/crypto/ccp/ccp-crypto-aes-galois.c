@@ -21,7 +21,6 @@
 #include <crypto/ctr.h>
 #include <crypto/gcm.h>
 #include <crypto/scatterwalk.h>
-#include <linux/delay.h>
 
 #include "ccp-crypto.h"
 

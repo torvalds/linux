@@ -16,7 +16,7 @@
 	model = "Phytec phyFLEX-i.MX6 DualLite/Solo";
 	compatible = "phytec,imx6dl-pfla02", "fsl,imx6dl";
 
-	memory {
+	memory@10000000 {
 		reg = <0x10000000 0x20000000>;
 	};
 };

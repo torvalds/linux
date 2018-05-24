@@ -31,7 +31,7 @@
 #define USB_VENDOR_REGISTER_WRITE    0x16
 #define RSI_USB_TX_HEAD_ROOM         128
 
-#define MAX_RX_URBS                  1
+#define MAX_RX_URBS                  2
 #define MAX_BULK_EP                  8
 #define WLAN_EP                      1
 #define BT_EP                        2
@@ -39,19 +39,28 @@
 #define RSI_USB_BUF_SIZE	     4096
 #define RSI_USB_CTRL_BUF_SIZE	     0x04
 
+struct rx_usb_ctrl_block {
+	u8 *data;
+	struct urb *rx_urb;
+	struct sk_buff *rx_skb;
+	u8 ep_num;
+};
+
 struct rsi_91x_usbdev {
+	void *priv;
 	struct rsi_thread rx_thread;
 	u8 endpoint;
 	struct usb_device *usbdev;
 	struct usb_interface *pfunction;
-	struct urb *rx_usb_urb[MAX_RX_URBS];
+	struct rx_usb_ctrl_block rx_cb[MAX_RX_URBS];
 	u8 *tx_buffer;
-	__le16 bulkin_size;
-	u8 bulkin_endpoint_addr;
+	__le16 bulkin_size[MAX_BULK_EP];
+	u8 bulkin_endpoint_addr[MAX_BULK_EP];
 	__le16 bulkout_size[MAX_BULK_EP];
 	u8 bulkout_endpoint_addr[MAX_BULK_EP];
 	u32 tx_blk_size;
 	u8 write_fail;
+	struct sk_buff_head rx_q;
 };
 
 static inline int rsi_usb_check_queue_status(struct rsi_hw *adapter, u8 q_num)

@@ -28,7 +28,6 @@ ____xchg(_u8, volatile char *m, unsigned long val)
 	"	or	%1,%2,%2\n"
 	"	stq_c	%2,0(%3)\n"
 	"	beq	%2,2f\n"
-		__ASM__MB
 	".subsection 2\n"
 	"2:	br	1b\n"
 	".previous"
@@ -52,7 +51,6 @@ ____xchg(_u16, volatile short *m, unsigned long val)
 	"	or	%1,%2,%2\n"
 	"	stq_c	%2,0(%3)\n"
 	"	beq	%2,2f\n"
-		__ASM__MB
 	".subsection 2\n"
 	"2:	br	1b\n"
 	".previous"
@@ -72,7 +70,6 @@ ____xchg(_u32, volatile int *m, unsigned long val)
 	"	bis $31,%3,%1\n"
 	"	stl_c %1,%2\n"
 	"	beq %1,2f\n"
-		__ASM__MB
 	".subsection 2\n"
 	"2:	br 1b\n"
 	".previous"
@@ -92,7 +89,6 @@ ____xchg(_u64, volatile long *m, unsigned long val)
 	"	bis $31,%3,%1\n"
 	"	stq_c %1,%2\n"
 	"	beq %1,2f\n"
-		__ASM__MB
 	".subsection 2\n"
 	"2:	br 1b\n"
 	".previous"
@@ -127,11 +123,6 @@ ____xchg(, volatile void *ptr, unsigned long x, int size)
  * Atomic compare and exchange.  Compare OLD with MEM, if identical,
  * store NEW in MEM.  Return the initial value in MEM.  Success is
  * indicated by comparing RETURN with OLD.
- *
- * The memory barrier should be placed in SMP only when we actually
- * make the change. If we don't change anything (so if the returned
- * prev is equal to old) then we aren't acquiring anything new and
- * we don't need any memory barrier as far I can tell.
  */
 
 static inline unsigned long
@@ -150,7 +141,6 @@ ____cmpxchg(_u8, volatile char *m, unsigned char old, unsigned char new)
 	"	or	%1,%2,%2\n"
 	"	stq_c	%2,0(%4)\n"
 	"	beq	%2,3f\n"
-		__ASM__MB
 	"2:\n"
 	".subsection 2\n"
 	"3:	br	1b\n"
@@ -177,7 +167,6 @@ ____cmpxchg(_u16, volatile short *m, unsigned short old, unsigned short new)
 	"	or	%1,%2,%2\n"
 	"	stq_c	%2,0(%4)\n"
 	"	beq	%2,3f\n"
-		__ASM__MB
 	"2:\n"
 	".subsection 2\n"
 	"3:	br	1b\n"
@@ -200,7 +189,6 @@ ____cmpxchg(_u32, volatile int *m, int old, int new)
 	"	mov %4,%1\n"
 	"	stl_c %1,%2\n"
 	"	beq %1,3f\n"
-		__ASM__MB
 	"2:\n"
 	".subsection 2\n"
 	"3:	br 1b\n"
@@ -223,7 +211,6 @@ ____cmpxchg(_u64, volatile long *m, unsigned long old, unsigned long new)
 	"	mov %4,%1\n"
 	"	stq_c %1,%2\n"
 	"	beq %1,3f\n"
-		__ASM__MB
 	"2:\n"
 	".subsection 2\n"
 	"3:	br 1b\n"

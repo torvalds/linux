@@ -2,7 +2,7 @@ menu "STMicroelectronics STM32 SOC audio support"
 
 config SND_SOC_STM32_SAI
 	tristate "STM32 SAI interface (Serial Audio Interface) support"
-	depends on ARCH_STM32 || COMPILE_TEST
+	depends on (ARCH_STM32 && OF) || COMPILE_TEST
 	depends on SND_SOC
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 	select REGMAP_MMIO
@@ -11,7 +11,7 @@ config SND_SOC_STM32_SAI
 
 config SND_SOC_STM32_I2S
 	tristate "STM32 I2S interface (SPI/I2S block) support"
-	depends on ARCH_STM32 || COMPILE_TEST
+	depends on (ARCH_STM32 && OF) || COMPILE_TEST
 	depends on SND_SOC
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 	select REGMAP_MMIO
@@ -20,7 +20,7 @@ config SND_SOC_STM32_I2S
 
 config SND_SOC_STM32_SPDIFRX
 	tristate "STM32 S/PDIF receiver (SPDIFRX) support"
-	depends on ARCH_STM32 || COMPILE_TEST
+	depends on (ARCH_STM32 && OF) || COMPILE_TEST
 	depends on SND_SOC
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 	select REGMAP_MMIO

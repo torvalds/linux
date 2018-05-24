@@ -699,6 +699,14 @@ static u32 qede_get_link(struct net_device *dev)
 	return current_link.link_up;
 }
 
+static int qede_flash_device(struct net_device *dev,
+			     struct ethtool_flash *flash)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	return edev->ops->common->nvm_flash(edev->cdev, flash->data);
+}
+
 static int qede_get_coalesce(struct net_device *dev,
 			     struct ethtool_coalesce *coal)
 {
@@ -939,6 +947,9 @@ int qede_change_mtu(struct net_device *ndev, int new_mtu)
 
 	DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
 		   "Configuring MTU size of %d\n", new_mtu);
+
+	if (new_mtu > PAGE_SIZE)
+		ndev->features &= ~NETIF_F_GRO_HW;
 
 	/* Set the mtu field and re-start the interface if needed */
 	args.u.mtu = new_mtu;
@@ -1803,6 +1814,7 @@ static const struct ethtool_ops qede_ethtool_ops = {
 
 	.get_tunable = qede_get_tunable,
 	.set_tunable = qede_set_tunable,
+	.flash_device = qede_flash_device,
 };
 
 static const struct ethtool_ops qede_vf_ethtool_ops = {

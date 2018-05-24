@@ -179,18 +179,6 @@ static const u8 filter_cr_horiz_tap4[] = {
 	70,	59,	48,	37,	27,	19,	11,	5,
 };
 
-static inline bool is_alpha_format(unsigned int pixel_format)
-{
-	switch (pixel_format) {
-	case DRM_FORMAT_ARGB8888:
-	case DRM_FORMAT_ARGB1555:
-	case DRM_FORMAT_ARGB4444:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static inline u32 vp_reg_read(struct mixer_context *ctx, u32 reg_id)
 {
 	return readl(ctx->vp_regs + reg_id);
@@ -625,7 +613,7 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	mixer_reg_write(ctx, MXR_GRAPHIC_BASE(win), dma_addr);
 
 	mixer_cfg_layer(ctx, win, priority, true);
-	mixer_cfg_gfx_blend(ctx, win, is_alpha_format(fb->format->format));
+	mixer_cfg_gfx_blend(ctx, win, fb->format->has_alpha);
 
 	/* layer update mandatory for mixer 16.0.33.0 */
 	if (ctx->mxr_ver == MXR_VER_16_0_33_0 ||

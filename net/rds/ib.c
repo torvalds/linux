@@ -48,6 +48,7 @@
 static unsigned int rds_ib_mr_1m_pool_size = RDS_MR_1M_POOL_SIZE;
 static unsigned int rds_ib_mr_8k_pool_size = RDS_MR_8K_POOL_SIZE;
 unsigned int rds_ib_retry_count = RDS_IB_DEFAULT_RETRY_COUNT;
+static atomic_t rds_ib_unloading;
 
 module_param(rds_ib_mr_1m_pool_size, int, 0444);
 MODULE_PARM_DESC(rds_ib_mr_1m_pool_size, " Max number of 1M mr per HCA");
@@ -320,8 +321,11 @@ static void rds_ib_ic_info(struct socket *sock, unsigned int len,
 			   struct rds_info_iterator *iter,
 			   struct rds_info_lengths *lens)
 {
+	u64 buffer[(sizeof(struct rds_info_rdma_connection) + 7) / 8];
+
 	rds_for_each_conn_info(sock, len, iter, lens,
 				rds_ib_conn_info_visitor,
+				buffer,
 				sizeof(struct rds_info_rdma_connection));
 }
 
@@ -345,7 +349,8 @@ static int rds_ib_laddr_check(struct net *net, __be32 addr)
 	/* Create a CMA ID and try to bind it. This catches both
 	 * IB and iWARP capable NICs.
 	 */
-	cm_id = rdma_create_id(&init_net, NULL, NULL, RDMA_PS_TCP, IB_QPT_RC);
+	cm_id = rdma_create_id(&init_net, rds_rdma_cm_event_handler,
+			       NULL, RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(cm_id))
 		return PTR_ERR(cm_id);
 
@@ -377,8 +382,23 @@ static void rds_ib_unregister_client(void)
 	flush_workqueue(rds_wq);
 }
 
+static void rds_ib_set_unloading(void)
+{
+	atomic_set(&rds_ib_unloading, 1);
+}
+
+static bool rds_ib_is_unloading(struct rds_connection *conn)
+{
+	struct rds_conn_path *cp = &conn->c_path[0];
+
+	return (test_bit(RDS_DESTROY_PENDING, &cp->cp_flags) ||
+		atomic_read(&rds_ib_unloading) != 0);
+}
+
 void rds_ib_exit(void)
 {
+	rds_ib_set_unloading();
+	synchronize_rcu();
 	rds_info_deregister_func(RDS_INFO_IB_CONNECTIONS, rds_ib_ic_info);
 	rds_ib_unregister_client();
 	rds_ib_destroy_nodev_conns();
@@ -412,6 +432,7 @@ struct rds_transport rds_ib_transport = {
 	.flush_mrs		= rds_ib_flush_mrs,
 	.t_owner		= THIS_MODULE,
 	.t_name			= "infiniband",
+	.t_unloading		= rds_ib_is_unloading,
 	.t_type			= RDS_TRANS_IB
 };
 

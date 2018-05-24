@@ -35,11 +35,11 @@ static struct platform_device eisa_root_dev = {
 };
 
 static struct eisa_root_device eisa_bus_root = {
-	.dev           = &eisa_root_dev.dev,
-	.bus_base_addr = 0,
-	.res	       = &ioport_resource,
-	.slots	       = EISA_MAX_SLOTS,
-	.dma_mask      = 0xffffffff,
+	.dev		= &eisa_root_dev.dev,
+	.bus_base_addr	= 0,
+	.res		= &ioport_resource,
+	.slots		= EISA_MAX_SLOTS,
+	.dma_mask	= 0xffffffff,
 };
 
 static void virtual_eisa_release (struct device *dev)
@@ -50,13 +50,12 @@ static void virtual_eisa_release (struct device *dev)
 static int __init virtual_eisa_root_init (void)
 {
 	int r;
-	
-        if ((r = platform_device_register (&eisa_root_dev))) {
-                return r;
-        }
+
+	if ((r = platform_device_register (&eisa_root_dev)))
+		return r;
 
 	eisa_bus_root.force_probe = force_probe;
-	
+
 	dev_set_drvdata(&eisa_root_dev.dev, &eisa_bus_root);
 
 	if (eisa_root_register (&eisa_bus_root)) {

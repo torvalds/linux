@@ -19,7 +19,10 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "common.h"
+
 #define MEMFD_STR	"memfd:"
+#define MEMFD_HUGE_STR	"memfd-hugetlb:"
 #define SHARED_FT_STR	"(shared file-table)"
 
 #define MFD_DEF_SIZE 8192
@@ -28,41 +31,8 @@
 /*
  * Default is not to test hugetlbfs
  */
-static int hugetlbfs_test;
 static size_t mfd_def_size = MFD_DEF_SIZE;
-
-/*
- * Copied from mlock2-tests.c
- */
-static unsigned long default_huge_page_size(void)
-{
-	unsigned long hps = 0;
-	char *line = NULL;
-	size_t linelen = 0;
-	FILE *f = fopen("/proc/meminfo", "r");
-
-	if (!f)
-		return 0;
-	while (getline(&line, &linelen, f) > 0) {
-		if (sscanf(line, "Hugepagesize:       %lu kB", &hps) == 1) {
-			hps <<= 10;
-			break;
-		}
-	}
-
-	free(line);
-	fclose(f);
-	return hps;
-}
-
-static int sys_memfd_create(const char *name,
-			    unsigned int flags)
-{
-	if (hugetlbfs_test)
-		flags |= MFD_HUGETLB;
-
-	return syscall(__NR_memfd_create, name, flags);
-}
+static const char *memfd_str = MEMFD_STR;
 
 static int mfd_assert_new(const char *name, loff_t sz, unsigned int flags)
 {
@@ -513,6 +483,10 @@ static void mfd_assert_grow_write(int fd)
 	static char *buf;
 	ssize_t l;
 
+	/* hugetlbfs does not support write */
+	if (hugetlbfs_test)
+		return;
+
 	buf = malloc(mfd_def_size * 8);
 	if (!buf) {
 		printf("malloc(%zu) failed: %m\n", mfd_def_size * 8);
@@ -532,6 +506,10 @@ static void mfd_fail_grow_write(int fd)
 {
 	static char *buf;
 	ssize_t l;
+
+	/* hugetlbfs does not support write */
+	if (hugetlbfs_test)
+		return;
 
 	buf = malloc(mfd_def_size * 8);
 	if (!buf) {
@@ -598,7 +576,7 @@ static void test_create(void)
 	char buf[2048];
 	int fd;
 
-	printf("%s CREATE\n", MEMFD_STR);
+	printf("%s CREATE\n", memfd_str);
 
 	/* test NULL name */
 	mfd_fail_new(NULL, 0);
@@ -627,18 +605,13 @@ static void test_create(void)
 	fd = mfd_assert_new("", 0, MFD_CLOEXEC);
 	close(fd);
 
-	if (!hugetlbfs_test) {
-		/* verify MFD_ALLOW_SEALING is allowed */
-		fd = mfd_assert_new("", 0, MFD_ALLOW_SEALING);
-		close(fd);
+	/* verify MFD_ALLOW_SEALING is allowed */
+	fd = mfd_assert_new("", 0, MFD_ALLOW_SEALING);
+	close(fd);
 
-		/* verify MFD_ALLOW_SEALING | MFD_CLOEXEC is allowed */
-		fd = mfd_assert_new("", 0, MFD_ALLOW_SEALING | MFD_CLOEXEC);
-		close(fd);
-	} else {
-		/* sealing is not supported on hugetlbfs */
-		mfd_fail_new("", MFD_ALLOW_SEALING);
-	}
+	/* verify MFD_ALLOW_SEALING | MFD_CLOEXEC is allowed */
+	fd = mfd_assert_new("", 0, MFD_ALLOW_SEALING | MFD_CLOEXEC);
+	close(fd);
 }
 
 /*
@@ -649,11 +622,7 @@ static void test_basic(void)
 {
 	int fd;
 
-	/* hugetlbfs does not contain sealing support */
-	if (hugetlbfs_test)
-		return;
-
-	printf("%s BASIC\n", MEMFD_STR);
+	printf("%s BASIC\n", memfd_str);
 
 	fd = mfd_assert_new("kern_memfd_basic",
 			    mfd_def_size,
@@ -698,28 +667,6 @@ static void test_basic(void)
 }
 
 /*
- * hugetlbfs doesn't support seals or write, so just verify grow and shrink
- * on a hugetlbfs file created via memfd_create.
- */
-static void test_hugetlbfs_grow_shrink(void)
-{
-	int fd;
-
-	printf("%s HUGETLBFS-GROW-SHRINK\n", MEMFD_STR);
-
-	fd = mfd_assert_new("kern_memfd_seal_write",
-			    mfd_def_size,
-			    MFD_CLOEXEC);
-
-	mfd_assert_read(fd);
-	mfd_assert_write(fd);
-	mfd_assert_shrink(fd);
-	mfd_assert_grow(fd);
-
-	close(fd);
-}
-
-/*
  * Test SEAL_WRITE
  * Test whether SEAL_WRITE actually prevents modifications.
  */
@@ -727,14 +674,7 @@ static void test_seal_write(void)
 {
 	int fd;
 
-	/*
-	 * hugetlbfs does not contain sealing or write support.  Just test
-	 * basic grow and shrink via test_hugetlbfs_grow_shrink.
-	 */
-	if (hugetlbfs_test)
-		return test_hugetlbfs_grow_shrink();
-
-	printf("%s SEAL-WRITE\n", MEMFD_STR);
+	printf("%s SEAL-WRITE\n", memfd_str);
 
 	fd = mfd_assert_new("kern_memfd_seal_write",
 			    mfd_def_size,
@@ -760,11 +700,7 @@ static void test_seal_shrink(void)
 {
 	int fd;
 
-	/* hugetlbfs does not contain sealing support */
-	if (hugetlbfs_test)
-		return;
-
-	printf("%s SEAL-SHRINK\n", MEMFD_STR);
+	printf("%s SEAL-SHRINK\n", memfd_str);
 
 	fd = mfd_assert_new("kern_memfd_seal_shrink",
 			    mfd_def_size,
@@ -790,11 +726,7 @@ static void test_seal_grow(void)
 {
 	int fd;
 
-	/* hugetlbfs does not contain sealing support */
-	if (hugetlbfs_test)
-		return;
-
-	printf("%s SEAL-GROW\n", MEMFD_STR);
+	printf("%s SEAL-GROW\n", memfd_str);
 
 	fd = mfd_assert_new("kern_memfd_seal_grow",
 			    mfd_def_size,
@@ -820,11 +752,7 @@ static void test_seal_resize(void)
 {
 	int fd;
 
-	/* hugetlbfs does not contain sealing support */
-	if (hugetlbfs_test)
-		return;
-
-	printf("%s SEAL-RESIZE\n", MEMFD_STR);
+	printf("%s SEAL-RESIZE\n", memfd_str);
 
 	fd = mfd_assert_new("kern_memfd_seal_resize",
 			    mfd_def_size,
@@ -843,32 +771,6 @@ static void test_seal_resize(void)
 }
 
 /*
- * hugetlbfs does not support seals.  Basic test to dup the memfd created
- * fd and perform some basic operations on it.
- */
-static void hugetlbfs_dup(char *b_suffix)
-{
-	int fd, fd2;
-
-	printf("%s HUGETLBFS-DUP %s\n", MEMFD_STR, b_suffix);
-
-	fd = mfd_assert_new("kern_memfd_share_dup",
-			    mfd_def_size,
-			    MFD_CLOEXEC);
-
-	fd2 = mfd_assert_dup(fd);
-
-	mfd_assert_read(fd);
-	mfd_assert_write(fd);
-
-	mfd_assert_shrink(fd2);
-	mfd_assert_grow(fd2);
-
-	close(fd2);
-	close(fd);
-}
-
-/*
  * Test sharing via dup()
  * Test that seals are shared between dupped FDs and they're all equal.
  */
@@ -876,16 +778,7 @@ static void test_share_dup(char *banner, char *b_suffix)
 {
 	int fd, fd2;
 
-	/*
-	 * hugetlbfs does not contain sealing support.  Perform some
-	 * basic testing on dup'ed fd instead via hugetlbfs_dup.
-	 */
-	if (hugetlbfs_test) {
-		hugetlbfs_dup(b_suffix);
-		return;
-	}
-
-	printf("%s %s %s\n", MEMFD_STR, banner, b_suffix);
+	printf("%s %s %s\n", memfd_str, banner, b_suffix);
 
 	fd = mfd_assert_new("kern_memfd_share_dup",
 			    mfd_def_size,
@@ -927,11 +820,7 @@ static void test_share_mmap(char *banner, char *b_suffix)
 	int fd;
 	void *p;
 
-	/* hugetlbfs does not contain sealing support */
-	if (hugetlbfs_test)
-		return;
-
-	printf("%s %s %s\n", MEMFD_STR,  banner, b_suffix);
+	printf("%s %s %s\n", memfd_str,  banner, b_suffix);
 
 	fd = mfd_assert_new("kern_memfd_share_mmap",
 			    mfd_def_size,
@@ -956,32 +845,6 @@ static void test_share_mmap(char *banner, char *b_suffix)
 }
 
 /*
- * Basic test to make sure we can open the hugetlbfs fd via /proc and
- * perform some simple operations on it.
- */
-static void hugetlbfs_proc_open(char *b_suffix)
-{
-	int fd, fd2;
-
-	printf("%s HUGETLBFS-PROC-OPEN %s\n", MEMFD_STR, b_suffix);
-
-	fd = mfd_assert_new("kern_memfd_share_open",
-			    mfd_def_size,
-			    MFD_CLOEXEC);
-
-	fd2 = mfd_assert_open(fd, O_RDWR, 0);
-
-	mfd_assert_read(fd);
-	mfd_assert_write(fd);
-
-	mfd_assert_shrink(fd2);
-	mfd_assert_grow(fd2);
-
-	close(fd2);
-	close(fd);
-}
-
-/*
  * Test sealing with open(/proc/self/fd/%d)
  * Via /proc we can get access to a separate file-context for the same memfd.
  * This is *not* like dup(), but like a real separate open(). Make sure the
@@ -991,16 +854,7 @@ static void test_share_open(char *banner, char *b_suffix)
 {
 	int fd, fd2;
 
-	/*
-	 * hugetlbfs does not contain sealing support.  So test basic
-	 * functionality of using /proc fd via hugetlbfs_proc_open
-	 */
-	if (hugetlbfs_test) {
-		hugetlbfs_proc_open(b_suffix);
-		return;
-	}
-
-	printf("%s %s %s\n", MEMFD_STR, banner, b_suffix);
+	printf("%s %s %s\n", memfd_str, banner, b_suffix);
 
 	fd = mfd_assert_new("kern_memfd_share_open",
 			    mfd_def_size,
@@ -1043,11 +897,7 @@ static void test_share_fork(char *banner, char *b_suffix)
 	int fd;
 	pid_t pid;
 
-	/* hugetlbfs does not contain sealing support */
-	if (hugetlbfs_test)
-		return;
-
-	printf("%s %s %s\n", MEMFD_STR, banner, b_suffix);
+	printf("%s %s %s\n", memfd_str, banner, b_suffix);
 
 	fd = mfd_assert_new("kern_memfd_share_fork",
 			    mfd_def_size,
@@ -1083,7 +933,11 @@ int main(int argc, char **argv)
 			}
 
 			hugetlbfs_test = 1;
+			memfd_str = MEMFD_HUGE_STR;
 			mfd_def_size = hpage_size * 2;
+		} else {
+			printf("Unknown option: %s\n", argv[1]);
+			abort();
 		}
 	}
 

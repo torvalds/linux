@@ -8,6 +8,7 @@
 #define _ASM_S390_UNISTD_H_
 
 #include <uapi/asm/unistd.h>
+#include <asm/unistd_nr.h>
 
 #define __IGNORE_time
 #define __IGNORE_pkey_mprotect

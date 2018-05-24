@@ -272,12 +272,9 @@ static int gluebi_erase(struct mtd_info *mtd, struct erase_info *instr)
 	if (err)
 		goto out_err;
 
-	instr->state = MTD_ERASE_DONE;
-	mtd_erase_callback(instr);
 	return 0;
 
 out_err:
-	instr->state = MTD_ERASE_FAILED;
 	instr->fail_addr = (long long)lnum * mtd->erasesize;
 	return err;
 }

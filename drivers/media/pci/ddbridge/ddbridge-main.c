@@ -107,7 +107,7 @@ static void ddb_irq_exit(struct ddb *dev)
 
 static void ddb_remove(struct pci_dev *pdev)
 {
-	struct ddb *dev = (struct ddb *) pci_get_drvdata(pdev);
+	struct ddb *dev = (struct ddb *)pci_get_drvdata(pdev);
 
 	ddb_device_destroy(dev);
 	ddb_ports_detach(dev);
@@ -132,9 +132,10 @@ static void ddb_irq_msi(struct ddb *dev, int nr)
 		if (stat >= 1) {
 			dev->msi = stat;
 			dev_info(dev->dev, "using %d MSI interrupt(s)\n",
-				dev->msi);
-		} else
+				 dev->msi);
+		} else {
 			dev_info(dev->dev, "MSI not available.\n");
+		}
 	}
 }
 #endif
@@ -160,11 +161,11 @@ static int ddb_irq_init(struct ddb *dev)
 		irq_flag = 0;
 	if (dev->msi == 2) {
 		stat = request_irq(dev->pdev->irq, ddb_irq_handler0,
-				   irq_flag, "ddbridge", (void *) dev);
+				   irq_flag, "ddbridge", (void *)dev);
 		if (stat < 0)
 			return stat;
 		stat = request_irq(dev->pdev->irq + 1, ddb_irq_handler1,
-				   irq_flag, "ddbridge", (void *) dev);
+				   irq_flag, "ddbridge", (void *)dev);
 		if (stat < 0) {
 			free_irq(dev->pdev->irq, dev);
 			return stat;
@@ -173,7 +174,7 @@ static int ddb_irq_init(struct ddb *dev)
 #endif
 	{
 		stat = request_irq(dev->pdev->irq, ddb_irq_handler,
-				   irq_flag, "ddbridge", (void *) dev);
+				   irq_flag, "ddbridge", (void *)dev);
 		if (stat < 0)
 			return stat;
 	}
@@ -188,7 +189,7 @@ static int ddb_irq_init(struct ddb *dev)
 }
 
 static int ddb_probe(struct pci_dev *pdev,
-			       const struct pci_device_id *id)
+		     const struct pci_device_id *id)
 {
 	struct ddb *dev;
 	int stat = 0;
@@ -202,8 +203,8 @@ static int ddb_probe(struct pci_dev *pdev,
 		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)))
 			return -ENODEV;
 
-	dev = vzalloc(sizeof(struct ddb));
-	if (dev == NULL)
+	dev = vzalloc(sizeof(*dev));
+	if (!dev)
 		return -ENOMEM;
 
 	mutex_init(&dev->mutex);
@@ -242,7 +243,7 @@ static int ddb_probe(struct pci_dev *pdev,
 	dev->link[0].ids.regmapid = ddbreadl(dev, 4);
 
 	dev_info(&pdev->dev, "HW %08x REGMAP %08x\n",
-		dev->link[0].ids.hwid, dev->link[0].ids.regmapid);
+		 dev->link[0].ids.hwid, dev->link[0].ids.regmapid);
 
 	ddbwritel(dev, 0, DMA_BASE_READ);
 	ddbwritel(dev, 0, DMA_BASE_WRITE);
@@ -317,7 +318,7 @@ static __init int module_init_ddbridge(void)
 	if (ddb_class_create() < 0)
 		return -1;
 	ddb_wq = create_workqueue("ddbridge");
-	if (ddb_wq == NULL)
+	if (!ddb_wq)
 		goto exit1;
 	stat = pci_register_driver(&ddb_pci_driver);
 	if (stat < 0)

@@ -6,6 +6,7 @@
 
 #include <linux/bitops.h>
 #include <linux/memblock.h>
+#include <linux/string.h>
 
 #include <asm/cacheflush.h>
 #include <asm/cp15.h>
@@ -296,6 +297,7 @@ void __init adjust_lowmem_bounds_mpu(void)
 		}
 	}
 
+	memset(mem, 0, sizeof(mem));
 	num = allocate_region(mem_start, specified_mem_size, mem_max_regions, mem);
 
 	for (i = 0; i < num; i++) {
@@ -433,7 +435,7 @@ void __init mpu_setup(void)
 
 	/* Background */
 	err |= mpu_setup_region(region++, 0, 32,
-				MPU_ACR_XN | MPU_RGN_STRONGLY_ORDERED | MPU_AP_PL1RW_PL0NA,
+				MPU_ACR_XN | MPU_RGN_STRONGLY_ORDERED | MPU_AP_PL1RW_PL0RW,
 				0, false);
 
 #ifdef CONFIG_XIP_KERNEL

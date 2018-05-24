@@ -11,6 +11,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/gpio/machine.h>
 #include <linux/kernel.h>
 #include <linux/tty.h>
 #include <linux/platform_data/sa11x0-serial.h>
@@ -43,6 +44,19 @@ static struct platform_device cerfuart2_device = {
 	.id		= 2,
 	.num_resources	= ARRAY_SIZE(cerfuart2_resources),
 	.resource	= cerfuart2_resources,
+};
+
+/* Compact Flash */
+static struct gpiod_lookup_table cerf_cf_gpio_table = {
+	.dev_id = "sa11x0-pcmcia.1",
+	.table = {
+		GPIO_LOOKUP("gpio", 19, "bvd2", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio", 20, "bvd1", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio", 21, "reset", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio", 22, "ready", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio", 23, "detect", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 /* LEDs */
@@ -151,9 +165,6 @@ static void __init cerf_map_io(void)
 	sa1100_register_uart(0, 3);
 	sa1100_register_uart(1, 2); /* disable this and the uart2 device for sa1100_fir */
 	sa1100_register_uart(2, 1);
-
-	/* set some GPDR bits here while it's safe */
-	GPDR |= CERF_GPIO_CF_RESET;
 }
 
 static struct mcp_plat_data cerf_mcp_data = {
@@ -167,6 +178,7 @@ static void __init cerf_init(void)
 	platform_add_devices(cerf_devices, ARRAY_SIZE(cerf_devices));
 	sa11x0_register_mtd(&cerf_flash_data, &cerf_flash_resource, 1);
 	sa11x0_register_mcp(&cerf_mcp_data);
+	sa11x0_register_pcmcia(1, &cerf_cf_gpio_table);
 }
 
 MACHINE_START(CERF, "Intrinsyc CerfBoard/CerfCube")

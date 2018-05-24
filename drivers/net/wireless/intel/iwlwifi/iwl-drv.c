@@ -296,7 +296,12 @@ struct iwl_firmware_pieces {
 	u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
 
 	/* FW debug data parsed for driver usage */
-	struct iwl_fw_dbg_dest_tlv *dbg_dest_tlv;
+	bool dbg_dest_tlv_init;
+	u8 *dbg_dest_ver;
+	union {
+		struct iwl_fw_dbg_dest_tlv *dbg_dest_tlv;
+		struct iwl_fw_dbg_dest_tlv_v1 *dbg_dest_tlv_v1;
+	};
 	struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_CONF_MAX];
 	size_t dbg_conf_tlv_len[FW_DBG_CONF_MAX];
 	struct iwl_fw_dbg_trigger_tlv *dbg_trigger_tlv[FW_DBG_TRIGGER_MAX];
@@ -919,27 +924,60 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			minor = le32_to_cpup(ptr++);
 			local_comp = le32_to_cpup(ptr);
 
-			snprintf(drv->fw.fw_version,
-				 sizeof(drv->fw.fw_version), "%u.%u.%u",
-				 major, minor, local_comp);
+			if (major >= 35)
+				snprintf(drv->fw.fw_version,
+					 sizeof(drv->fw.fw_version),
+					"%u.%08x.%u", major, minor, local_comp);
+			else
+				snprintf(drv->fw.fw_version,
+					 sizeof(drv->fw.fw_version),
+					"%u.%u.%u", major, minor, local_comp);
 			break;
 			}
 		case IWL_UCODE_TLV_FW_DBG_DEST: {
-			struct iwl_fw_dbg_dest_tlv *dest = (void *)tlv_data;
+			struct iwl_fw_dbg_dest_tlv *dest = NULL;
+			struct iwl_fw_dbg_dest_tlv_v1 *dest_v1 = NULL;
+			u8 mon_mode;
 
-			if (pieces->dbg_dest_tlv) {
+			pieces->dbg_dest_ver = (u8 *)tlv_data;
+			if (*pieces->dbg_dest_ver == 1) {
+				dest = (void *)tlv_data;
+			} else if (*pieces->dbg_dest_ver == 0) {
+				dest_v1 = (void *)tlv_data;
+			} else {
+				IWL_ERR(drv,
+					"The version is %d, and it is invalid\n",
+					*pieces->dbg_dest_ver);
+				break;
+			}
+
+			if (pieces->dbg_dest_tlv_init) {
 				IWL_ERR(drv,
 					"dbg destination ignored, already exists\n");
 				break;
 			}
 
-			pieces->dbg_dest_tlv = dest;
-			IWL_INFO(drv, "Found debug destination: %s\n",
-				 get_fw_dbg_mode_string(dest->monitor_mode));
+			pieces->dbg_dest_tlv_init = true;
 
-			drv->fw.dbg_dest_reg_num =
-				tlv_len - offsetof(struct iwl_fw_dbg_dest_tlv,
-						   reg_ops);
+			if (dest_v1) {
+				pieces->dbg_dest_tlv_v1 = dest_v1;
+				mon_mode = dest_v1->monitor_mode;
+			} else {
+				pieces->dbg_dest_tlv = dest;
+				mon_mode = dest->monitor_mode;
+			}
+
+			IWL_INFO(drv, "Found debug destination: %s\n",
+				 get_fw_dbg_mode_string(mon_mode));
+
+			drv->fw.dbg_dest_reg_num = (dest_v1) ?
+				tlv_len -
+				offsetof(struct iwl_fw_dbg_dest_tlv_v1,
+					 reg_ops) :
+				tlv_len -
+				offsetof(struct iwl_fw_dbg_dest_tlv,
+					 reg_ops);
+
 			drv->fw.dbg_dest_reg_num /=
 				sizeof(drv->fw.dbg_dest_tlv->reg_ops[0]);
 
@@ -948,7 +986,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		case IWL_UCODE_TLV_FW_DBG_CONF: {
 			struct iwl_fw_dbg_conf_tlv *conf = (void *)tlv_data;
 
-			if (!pieces->dbg_dest_tlv) {
+			if (!pieces->dbg_dest_tlv_init) {
 				IWL_ERR(drv,
 					"Ignore dbg config %d - no destination configured\n",
 					conf->id);
@@ -1335,15 +1373,51 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 		if (iwl_alloc_ucode(drv, pieces, i))
 			goto out_free_fw;
 
-	if (pieces->dbg_dest_tlv) {
-		drv->fw.dbg_dest_tlv =
-			kmemdup(pieces->dbg_dest_tlv,
-				sizeof(*pieces->dbg_dest_tlv) +
-				sizeof(pieces->dbg_dest_tlv->reg_ops[0]) *
-				drv->fw.dbg_dest_reg_num, GFP_KERNEL);
+	if (pieces->dbg_dest_tlv_init) {
+		size_t dbg_dest_size = sizeof(*drv->fw.dbg_dest_tlv) +
+			sizeof(drv->fw.dbg_dest_tlv->reg_ops[0]) *
+			drv->fw.dbg_dest_reg_num;
+
+		drv->fw.dbg_dest_tlv = kmalloc(dbg_dest_size, GFP_KERNEL);
 
 		if (!drv->fw.dbg_dest_tlv)
 			goto out_free_fw;
+
+		if (*pieces->dbg_dest_ver == 0) {
+			memcpy(drv->fw.dbg_dest_tlv, pieces->dbg_dest_tlv_v1,
+			       dbg_dest_size);
+		} else {
+			struct iwl_fw_dbg_dest_tlv_v1 *dest_tlv =
+				drv->fw.dbg_dest_tlv;
+
+			dest_tlv->version = pieces->dbg_dest_tlv->version;
+			dest_tlv->monitor_mode =
+				pieces->dbg_dest_tlv->monitor_mode;
+			dest_tlv->size_power =
+				pieces->dbg_dest_tlv->size_power;
+			dest_tlv->wrap_count =
+				pieces->dbg_dest_tlv->wrap_count;
+			dest_tlv->write_ptr_reg =
+				pieces->dbg_dest_tlv->write_ptr_reg;
+			dest_tlv->base_shift =
+				pieces->dbg_dest_tlv->base_shift;
+			memcpy(dest_tlv->reg_ops,
+			       pieces->dbg_dest_tlv->reg_ops,
+			       sizeof(drv->fw.dbg_dest_tlv->reg_ops[0]) *
+			       drv->fw.dbg_dest_reg_num);
+
+			/* In version 1 of the destination tlv, which is
+			 * relevant for internal buffer exclusively,
+			 * the base address is part of given with the length
+			 * of the buffer, and the size shift is give instead of
+			 * end shift. We now store these values in base_reg,
+			 * and end shift, and when dumping the data we'll
+			 * manipulate it for extracting both the length and
+			 * base address */
+			dest_tlv->base_reg = pieces->dbg_dest_tlv->cfg_reg;
+			dest_tlv->end_shift =
+				pieces->dbg_dest_tlv->size_shift;
+		}
 	}
 
 	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_conf_tlv); i++) {
@@ -1694,41 +1768,36 @@ static void __exit iwl_drv_exit(void)
 module_exit(iwl_drv_exit);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-module_param_named(debug, iwlwifi_mod_params.debug_level, uint,
-		   S_IRUGO | S_IWUSR);
+module_param_named(debug, iwlwifi_mod_params.debug_level, uint, 0644);
 MODULE_PARM_DESC(debug, "debug output mask");
 #endif
 
-module_param_named(swcrypto, iwlwifi_mod_params.swcrypto, int, S_IRUGO);
+module_param_named(swcrypto, iwlwifi_mod_params.swcrypto, int, 0444);
 MODULE_PARM_DESC(swcrypto, "using crypto in software (default 0 [hardware])");
-module_param_named(11n_disable, iwlwifi_mod_params.disable_11n, uint, S_IRUGO);
+module_param_named(11n_disable, iwlwifi_mod_params.disable_11n, uint, 0444);
 MODULE_PARM_DESC(11n_disable,
 	"disable 11n functionality, bitmap: 1: full, 2: disable agg TX, 4: disable agg RX, 8 enable agg TX");
-module_param_named(amsdu_size, iwlwifi_mod_params.amsdu_size,
-		   int, S_IRUGO);
+module_param_named(amsdu_size, iwlwifi_mod_params.amsdu_size, int, 0444);
 MODULE_PARM_DESC(amsdu_size,
 		 "amsdu size 0: 12K for multi Rx queue devices, 4K for other devices 1:4K 2:8K 3:12K (default 0)");
-module_param_named(fw_restart, iwlwifi_mod_params.fw_restart, bool, S_IRUGO);
+module_param_named(fw_restart, iwlwifi_mod_params.fw_restart, bool, 0444);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error (default true)");
 
 module_param_named(antenna_coupling, iwlwifi_mod_params.antenna_coupling,
-		   int, S_IRUGO);
+		   int, 0444);
 MODULE_PARM_DESC(antenna_coupling,
 		 "specify antenna coupling in dB (default: 0 dB)");
 
-module_param_named(nvm_file, iwlwifi_mod_params.nvm_file, charp, S_IRUGO);
+module_param_named(nvm_file, iwlwifi_mod_params.nvm_file, charp, 0444);
 MODULE_PARM_DESC(nvm_file, "NVM file name");
 
-module_param_named(d0i3_disable, iwlwifi_mod_params.d0i3_disable,
-		   bool, S_IRUGO);
+module_param_named(d0i3_disable, iwlwifi_mod_params.d0i3_disable, bool, 0444);
 MODULE_PARM_DESC(d0i3_disable, "disable d0i3 functionality (default: Y)");
 
-module_param_named(lar_disable, iwlwifi_mod_params.lar_disable,
-		   bool, S_IRUGO);
+module_param_named(lar_disable, iwlwifi_mod_params.lar_disable, bool, 0444);
 MODULE_PARM_DESC(lar_disable, "disable LAR functionality (default: N)");
 
-module_param_named(uapsd_disable, iwlwifi_mod_params.uapsd_disable,
-		   uint, S_IRUGO | S_IWUSR);
+module_param_named(uapsd_disable, iwlwifi_mod_params.uapsd_disable, uint, 0644);
 MODULE_PARM_DESC(uapsd_disable,
 		 "disable U-APSD functionality bitmap 1: BSS 2: P2P Client (default: 3)");
 
@@ -1749,31 +1818,27 @@ MODULE_PARM_DESC(uapsd_disable,
  * default: bt_coex_active = true (BT_COEX_ENABLE)
  */
 module_param_named(bt_coex_active, iwlwifi_mod_params.bt_coex_active,
-		bool, S_IRUGO);
+		   bool, 0444);
 MODULE_PARM_DESC(bt_coex_active, "enable wifi/bt co-exist (default: enable)");
 
-module_param_named(led_mode, iwlwifi_mod_params.led_mode, int, S_IRUGO);
+module_param_named(led_mode, iwlwifi_mod_params.led_mode, int, 0444);
 MODULE_PARM_DESC(led_mode, "0=system default, "
 		"1=On(RF On)/Off(RF Off), 2=blinking, 3=Off (default: 0)");
 
-module_param_named(power_save, iwlwifi_mod_params.power_save,
-		bool, S_IRUGO);
+module_param_named(power_save, iwlwifi_mod_params.power_save, bool, 0444);
 MODULE_PARM_DESC(power_save,
 		 "enable WiFi power management (default: disable)");
 
-module_param_named(power_level, iwlwifi_mod_params.power_level,
-		int, S_IRUGO);
+module_param_named(power_level, iwlwifi_mod_params.power_level, int, 0444);
 MODULE_PARM_DESC(power_level,
 		 "default power save level (range from 1 - 5, default: 1)");
 
-module_param_named(fw_monitor, iwlwifi_mod_params.fw_monitor, bool, S_IRUGO);
+module_param_named(fw_monitor, iwlwifi_mod_params.fw_monitor, bool, 0444);
 MODULE_PARM_DESC(fw_monitor,
 		 "firmware monitor - to debug FW (default: false - needs lots of memory)");
 
-module_param_named(d0i3_timeout, iwlwifi_mod_params.d0i3_timeout,
-		   uint, S_IRUGO);
+module_param_named(d0i3_timeout, iwlwifi_mod_params.d0i3_timeout, uint, 0444);
 MODULE_PARM_DESC(d0i3_timeout, "Timeout to D0i3 entry when idle (ms)");
 
-module_param_named(disable_11ac, iwlwifi_mod_params.disable_11ac, bool,
-		   S_IRUGO);
+module_param_named(disable_11ac, iwlwifi_mod_params.disable_11ac, bool, 0444);
 MODULE_PARM_DESC(disable_11ac, "Disable VHT capabilities (default: false)");

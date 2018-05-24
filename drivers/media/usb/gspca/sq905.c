@@ -246,9 +246,9 @@ static void sq905_dostream(struct work_struct *work)
 			ret = sq905_read_data(gspca_dev, buffer, data_len, 1);
 			if (ret < 0)
 				goto quit_stream;
-			PDEBUG(D_PACK,
-				"Got %d bytes out of %d for frame",
-				data_len, bytes_left);
+			gspca_dbg(gspca_dev, D_PACK,
+				  "Got %d bytes out of %d for frame\n",
+				  data_len, bytes_left);
 			bytes_left -= data_len;
 			data = buffer;
 			if (!header_read) {
@@ -345,7 +345,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	ret = sq905_command(gspca_dev, SQ905_CLEAR);
 	if (ret < 0)
 		return ret;
-	PDEBUG(D_CONF, "SQ905 camera ID %08x detected", ident);
+	gspca_dbg(gspca_dev, D_CONF, "SQ905 camera ID %08x detected\n", ident);
 	gspca_dev->cam.cam_mode = sq905_mode;
 	gspca_dev->cam.nmodes = ARRAY_SIZE(sq905_mode);
 	if (!(ident & SQ905_HIRES_MASK))
@@ -369,20 +369,20 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	switch (gspca_dev->curr_mode) {
 	default:
 /*	case 2: */
-		PDEBUG(D_STREAM, "Start streaming at high resolution");
+		gspca_dbg(gspca_dev, D_STREAM, "Start streaming at high resolution\n");
 		ret = sq905_command(&dev->gspca_dev, SQ905_CAPTURE_HIGH);
 		break;
 	case 1:
-		PDEBUG(D_STREAM, "Start streaming at medium resolution");
+		gspca_dbg(gspca_dev, D_STREAM, "Start streaming at medium resolution\n");
 		ret = sq905_command(&dev->gspca_dev, SQ905_CAPTURE_MED);
 		break;
 	case 0:
-		PDEBUG(D_STREAM, "Start streaming at low resolution");
+		gspca_dbg(gspca_dev, D_STREAM, "Start streaming at low resolution\n");
 		ret = sq905_command(&dev->gspca_dev, SQ905_CAPTURE_LOW);
 	}
 
 	if (ret < 0) {
-		PERR("Start streaming command failed");
+		gspca_err(gspca_dev, "Start streaming command failed\n");
 		return ret;
 	}
 	/* Start the workqueue function to do the streaming */

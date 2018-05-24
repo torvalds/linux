@@ -129,7 +129,7 @@ struct qedf_ioreq {
 	struct delayed_work timeout_work;
 	struct completion tm_done;
 	struct completion abts_done;
-	struct fcoe_task_context *task;
+	struct e4_fcoe_task_context *task;
 	struct fcoe_task_params *task_params;
 	struct scsi_sgl_task_params *sgl_task_params;
 	int idx;
@@ -465,7 +465,7 @@ extern void qedf_cmd_timer_set(struct qedf_ctx *qedf, struct qedf_ioreq *io_req,
 	unsigned int timer_msec);
 extern int qedf_init_mp_req(struct qedf_ioreq *io_req);
 extern void qedf_init_mp_task(struct qedf_ioreq *io_req,
-	struct fcoe_task_context *task_ctx, struct fcoe_wqe *wqe);
+	struct e4_fcoe_task_context *task_ctx, struct fcoe_wqe *sqe);
 extern u16 qedf_get_sqe_idx(struct qedf_rport *fcport);
 extern void qedf_ring_doorbell(struct qedf_rport *fcport);
 extern void qedf_process_els_compl(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,

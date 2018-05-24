@@ -341,8 +341,8 @@ void sptlrpc_conf_client_adapt(struct obd_device *obd);
 #define SPTLRPC_MAX_PAYLOAD     (1024)
 
 struct vfs_cred {
-	uint32_t	vc_uid;
-	uint32_t	vc_gid;
+	u32	vc_uid;
+	u32	vc_gid;
 };
 
 struct ptlrpc_ctx_ops {
@@ -1057,9 +1057,6 @@ static inline int sptlrpc_user_desc_size(int ngroups)
 int sptlrpc_current_user_desc_size(void);
 int sptlrpc_pack_user_desc(struct lustre_msg *msg, int offset);
 int sptlrpc_unpack_user_desc(struct lustre_msg *req, int offset, int swabbed);
-
-#define CFS_CAP_CHOWN_MASK (1 << CFS_CAP_CHOWN)
-#define CFS_CAP_SYS_RESOURCE_MASK (1 << CFS_CAP_SYS_RESOURCE)
 
 enum {
 	LUSTRE_SEC_NONE	 = 0,

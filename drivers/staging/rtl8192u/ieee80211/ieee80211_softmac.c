@@ -1725,7 +1725,7 @@ static void ieee80211_sta_ps_send_null_frame(struct ieee80211_device *ieee,
 static short ieee80211_sta_ps_sleep(struct ieee80211_device *ieee, u32 *time_h,
 				    u32 *time_l)
 {
-	int timeout = ieee->ps_timeout;
+	int timeout;
 	u8 dtim;
 	/*if(ieee->ps == IEEE80211_PS_DISABLED ||
 		ieee->iw_mode != IW_MODE_INFRA ||

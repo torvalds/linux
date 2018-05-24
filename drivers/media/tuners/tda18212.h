@@ -21,7 +21,7 @@
 #ifndef TDA18212_H
 #define TDA18212_H
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 struct tda18212_config {
 	u16 if_dvbt_6;

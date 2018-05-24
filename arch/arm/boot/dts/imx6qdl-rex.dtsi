@@ -137,7 +137,7 @@
 	status = "okay";
 
 	eeprom@57 {
-		compatible = "at,24c02";
+		compatible = "atmel,24c02";
 		reg = <0x57>;
 	};
 };

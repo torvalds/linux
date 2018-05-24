@@ -405,22 +405,22 @@
 			reg = <0 0x80000>;
 		};
 
-		partition@0x80000 {
+		partition@80000 {
 			label = "u-boot";
 			reg = <0x80000 0x1e0000>;
 		};
 
-		partition@0x260000 {
+		partition@260000 {
 			label = "u-boot-environment";
 			reg = <0x260000 0x20000>;
 		};
 
-		partition@0x280000 {
+		partition@280000 {
 			label = "kernel";
 			reg = <0x280000 0x500000>;
 		};
 
-		partition@0x780000 {
+		partition@780000 {
 			label = "filesystem";
 			reg = <0x780000 0xf880000>;
 		};

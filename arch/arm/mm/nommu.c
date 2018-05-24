@@ -31,7 +31,7 @@ struct mpu_rgn_info mpu_rgn_info;
 
 #ifdef CONFIG_CPU_CP15
 #ifdef CONFIG_CPU_HIGH_VECTOR
-static unsigned long __init setup_vectors_base(void)
+unsigned long setup_vectors_base(void)
 {
 	unsigned long reg = get_cr();
 
@@ -57,7 +57,7 @@ static inline bool security_extensions_enabled(void)
 	return 0;
 }
 
-static unsigned long __init setup_vectors_base(void)
+unsigned long setup_vectors_base(void)
 {
 	unsigned long base = 0, reg = get_cr();
 

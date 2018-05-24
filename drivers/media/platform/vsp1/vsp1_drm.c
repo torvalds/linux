@@ -27,6 +27,7 @@
 #include "vsp1_pipe.h"
 #include "vsp1_rwpf.h"
 
+#define BRU_NAME(e)	(e)->type == VSP1_ENTITY_BRU ? "BRU" : "BRS"
 
 /* -----------------------------------------------------------------------------
  * Interrupt Handling
@@ -84,8 +85,11 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 	struct vsp1_drm_pipeline *drm_pipe;
 	struct vsp1_pipeline *pipe;
 	struct vsp1_bru *bru;
+	struct vsp1_entity *entity;
+	struct vsp1_entity *next;
+	struct vsp1_dl_list *dl;
 	struct v4l2_subdev_format format;
-	const char *bru_name;
+	unsigned long flags;
 	unsigned int i;
 	int ret;
 
@@ -95,7 +99,6 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 	drm_pipe = &vsp1->drm->pipe[pipe_index];
 	pipe = &drm_pipe->pipe;
 	bru = to_bru(&pipe->bru->subdev);
-	bru_name = pipe->bru->type == VSP1_ENTITY_BRU ? "BRU" : "BRS";
 
 	if (!cfg) {
 		/*
@@ -161,7 +164,7 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 
 		dev_dbg(vsp1->dev, "%s: set format %ux%u (%x) on %s pad %u\n",
 			__func__, format.format.width, format.format.height,
-			format.format.code, bru_name, i);
+			format.format.code, BRU_NAME(pipe->bru), i);
 	}
 
 	format.pad = pipe->bru->source_pad;
@@ -177,7 +180,7 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 
 	dev_dbg(vsp1->dev, "%s: set format %ux%u (%x) on %s pad %u\n",
 		__func__, format.format.width, format.format.height,
-		format.format.code, bru_name, i);
+		format.format.code, BRU_NAME(pipe->bru), i);
 
 	format.pad = RWPF_PAD_SINK;
 	ret = v4l2_subdev_call(&pipe->output->entity.subdev, pad, set_fmt, NULL,
@@ -249,6 +252,29 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 	/* Disable the display interrupts. */
 	vsp1_write(vsp1, VI6_DISP_IRQ_STA, 0);
 	vsp1_write(vsp1, VI6_DISP_IRQ_ENB, 0);
+
+	/* Configure all entities in the pipeline. */
+	dl = vsp1_dl_list_get(pipe->output->dlm);
+
+	list_for_each_entry_safe(entity, next, &pipe->entities, list_pipe) {
+		vsp1_entity_route_setup(entity, pipe, dl);
+
+		if (entity->ops->configure) {
+			entity->ops->configure(entity, pipe, dl,
+					       VSP1_ENTITY_PARAMS_INIT);
+			entity->ops->configure(entity, pipe, dl,
+					       VSP1_ENTITY_PARAMS_RUNTIME);
+			entity->ops->configure(entity, pipe, dl,
+					       VSP1_ENTITY_PARAMS_PARTITION);
+		}
+	}
+
+	vsp1_dl_list_commit(dl);
+
+	/* Start the pipeline. */
+	spin_lock_irqsave(&pipe->irqlock, flags);
+	vsp1_pipeline_run(pipe);
+	spin_unlock_irqrestore(&pipe->irqlock, flags);
 
 	dev_dbg(vsp1->dev, "%s: pipeline enabled\n", __func__);
 
@@ -446,9 +472,9 @@ static int vsp1_du_setup_rpf_pipe(struct vsp1_device *vsp1,
 	if (ret < 0)
 		return ret;
 
-	dev_dbg(vsp1->dev, "%s: set format %ux%u (%x) on BRU pad %u\n",
+	dev_dbg(vsp1->dev, "%s: set format %ux%u (%x) on %s pad %u\n",
 		__func__, format.format.width, format.format.height,
-		format.format.code, format.pad);
+		format.format.code, BRU_NAME(pipe->bru), format.pad);
 
 	sel.pad = bru_input;
 	sel.target = V4L2_SEL_TGT_COMPOSE;
@@ -459,10 +485,9 @@ static int vsp1_du_setup_rpf_pipe(struct vsp1_device *vsp1,
 	if (ret < 0)
 		return ret;
 
-	dev_dbg(vsp1->dev,
-		"%s: set selection (%u,%u)/%ux%u on BRU pad %u\n",
+	dev_dbg(vsp1->dev, "%s: set selection (%u,%u)/%ux%u on %s pad %u\n",
 		__func__, sel.r.left, sel.r.top, sel.r.width, sel.r.height,
-		sel.pad);
+		BRU_NAME(pipe->bru), sel.pad);
 
 	return 0;
 }
@@ -487,12 +512,8 @@ void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index)
 	struct vsp1_entity *entity;
 	struct vsp1_entity *next;
 	struct vsp1_dl_list *dl;
-	const char *bru_name;
-	unsigned long flags;
 	unsigned int i;
 	int ret;
-
-	bru_name = pipe->bru->type == VSP1_ENTITY_BRU ? "BRU" : "BRS";
 
 	/* Prepare the display list. */
 	dl = vsp1_dl_list_get(pipe->output->dlm);
@@ -503,6 +524,15 @@ void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index)
 	for (i = 0; i < vsp1->info->rpf_count; ++i) {
 		struct vsp1_rwpf *rpf = vsp1->rpf[i];
 		unsigned int j;
+
+		/*
+		 * Make sure we don't accept more inputs than the hardware can
+		 * handle. This is a temporary fix to avoid display stall, we
+		 * need to instead allocate the BRU or BRS to display pipelines
+		 * dynamically based on the number of planes they each use.
+		 */
+		if (pipe->num_inputs >= pipe->bru->source_pad)
+			pipe->inputs[i] = NULL;
 
 		if (!pipe->inputs[i])
 			continue;
@@ -535,7 +565,7 @@ void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index)
 		rpf->entity.sink_pad = i;
 
 		dev_dbg(vsp1->dev, "%s: connecting RPF.%u to %s:%u\n",
-			__func__, rpf->entity.index, bru_name, i);
+			__func__, rpf->entity.index, BRU_NAME(pipe->bru), i);
 
 		ret = vsp1_du_setup_rpf_pipe(vsp1, pipe, rpf, i);
 		if (ret < 0)
@@ -570,15 +600,6 @@ void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index)
 	}
 
 	vsp1_dl_list_commit(dl);
-
-	/* Start or stop the pipeline if needed. */
-	if (!drm_pipe->enabled && pipe->num_inputs) {
-		spin_lock_irqsave(&pipe->irqlock, flags);
-		vsp1_pipeline_run(pipe);
-		spin_unlock_irqrestore(&pipe->irqlock, flags);
-	} else if (drm_pipe->enabled && !pipe->num_inputs) {
-		vsp1_pipeline_stop(pipe);
-	}
 }
 EXPORT_SYMBOL_GPL(vsp1_du_atomic_flush);
 

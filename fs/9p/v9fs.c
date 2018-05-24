@@ -292,6 +292,10 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 #ifdef CONFIG_9P_FSCACHE
 			kfree(v9ses->cachetag);
 			v9ses->cachetag = match_strdup(&args[0]);
+			if (!v9ses->cachetag) {
+				ret = -ENOMEM;
+				goto free_and_return;
+			}
 #endif
 			break;
 		case Opt_cache:
@@ -471,6 +475,9 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 	return fid;
 
 err_clnt:
+#ifdef CONFIG_9P_FSCACHE
+	kfree(v9ses->cachetag);
+#endif
 	p9_client_destroy(v9ses->clnt);
 err_names:
 	kfree(v9ses->uname);

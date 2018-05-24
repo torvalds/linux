@@ -39,7 +39,7 @@
 #include <media/drv-intf/msp3400.h>
 #include <media/tuner.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "cx231xx-vbi.h"
 
@@ -1756,6 +1756,8 @@ static int cx231xx_v4l2_open(struct file *filp)
 	case VFL_TYPE_RADIO:
 		radio = 1;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	cx231xx_videodbg("open dev=%s type=%s users=%d\n",
@@ -1939,7 +1941,7 @@ static int cx231xx_close(struct file *filp)
 		}
 
 		/* Save some power by putting tuner to sleep */
-		call_all(dev, core, s_power, 0);
+		call_all(dev, tuner, standby);
 
 		/* do this before setting alternate! */
 		if (dev->USE_ISO)
@@ -2016,19 +2018,19 @@ static __poll_t cx231xx_v4l2_poll(struct file *filp, poll_table *wait)
 
 	rc = check_dev(dev);
 	if (rc < 0)
-		return POLLERR;
+		return EPOLLERR;
 
 	rc = res_get(fh);
 
 	if (unlikely(rc < 0))
-		return POLLERR;
+		return EPOLLERR;
 
 	if (v4l2_event_pending(&fh->fh))
-		res |= POLLPRI;
+		res |= EPOLLPRI;
 	else
 		poll_wait(filp, &fh->fh.wait, wait);
 
-	if (!(req_events & (POLLIN | POLLRDNORM)))
+	if (!(req_events & (EPOLLIN | EPOLLRDNORM)))
 		return res;
 
 	if ((V4L2_BUF_TYPE_VIDEO_CAPTURE == fh->type) ||
@@ -2038,7 +2040,7 @@ static __poll_t cx231xx_v4l2_poll(struct file *filp, poll_table *wait)
 		mutex_unlock(&dev->lock);
 		return res;
 	}
-	return res | POLLERR;
+	return res | EPOLLERR;
 }
 
 /*

@@ -34,11 +34,6 @@ parameters may be changed at runtime by the command
 			See drivers/scsi/BusLogic.c, comment before function
 			BusLogic_ParseDriverOptions().
 
-	eata=		[HW,SCSI]
-
-	fdomain=	[HW,SCSI]
-			See header of drivers/scsi/fdomain.c.
-
 	gdth=		[HW,SCSI]
 			See header of drivers/scsi/gdth.c.
 
@@ -69,8 +64,6 @@ parameters may be changed at runtime by the command
 
 	ncr53c400a=	[HW,SCSI]
 			See Documentation/scsi/g_NCR5380.txt.
-
-	ncr53c406a=	[HW,SCSI]
 
 	ncr53c8xx=	[HW,SCSI]
 
@@ -109,13 +102,6 @@ parameters may be changed at runtime by the command
 
 	st=		[HW,SCSI] SCSI tape parameters (buffers, etc.)
 			See Documentation/scsi/st.txt.
-
-	sym53c416=	[HW,SCSI]
-			See header of drivers/scsi/sym53c416.c.
-
-	tmscsim=	[HW,SCSI]
-			See comment before function dc390_setup() in
-			drivers/scsi/tmscsim.c.
 
 	wd33c93=	[HW,SCSI]
 			See header of drivers/scsi/wd33c93.c.

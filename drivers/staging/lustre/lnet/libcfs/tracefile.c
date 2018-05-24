@@ -441,7 +441,7 @@ console:
 
 		if (cfs_time_after(cfs_time_current(),
 				   cdls->cdls_next + libcfs_console_max_delay +
-				   cfs_time_seconds(10))) {
+				   10 * HZ)) {
 			/* last timeout was a long time ago */
 			cdls->cdls_delay /= libcfs_console_backoff * 4;
 		} else {
@@ -785,7 +785,7 @@ int cfs_trace_copyin_string(char *knl_buffer, int knl_buffer_nob,
 		return -EFAULT;
 
 	nob = strnlen(knl_buffer, usr_buffer_nob);
-	while (nob-- >= 0)		      /* strip trailing whitespace */
+	while (--nob >= 0)		      /* strip trailing whitespace */
 		if (!isspace(knl_buffer[nob]))
 			break;
 
@@ -1071,7 +1071,7 @@ end_loop:
 		init_waitqueue_entry(&__wait, current);
 		add_wait_queue(&tctl->tctl_waitq, &__wait);
 		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(cfs_time_seconds(1));
+		schedule_timeout(HZ);
 		remove_wait_queue(&tctl->tctl_waitq, &__wait);
 	}
 	complete(&tctl->tctl_stop);

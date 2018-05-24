@@ -58,6 +58,7 @@
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
+static int svc_rdma_post_recv(struct svcxprt_rdma *xprt);
 static struct svcxprt_rdma *rdma_create_xprt(struct svc_serv *, int);
 static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 					struct net *net,
@@ -68,7 +69,7 @@ static void svc_rdma_release_rqst(struct svc_rqst *);
 static void svc_rdma_detach(struct svc_xprt *xprt);
 static void svc_rdma_free(struct svc_xprt *xprt);
 static int svc_rdma_has_wspace(struct svc_xprt *xprt);
-static int svc_rdma_secure_port(struct svc_rqst *);
+static void svc_rdma_secure_port(struct svc_rqst *);
 static void svc_rdma_kill_temp_xprt(struct svc_xprt *);
 
 static const struct svc_xprt_ops svc_rdma_ops = {
@@ -320,6 +321,8 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	list_add_tail(&ctxt->list, &xprt->sc_rq_dto_q);
 	spin_unlock(&xprt->sc_rq_dto_lock);
 
+	svc_rdma_post_recv(xprt);
+
 	set_bit(XPT_DATA, &xprt->sc_xprt.xpt_flags);
 	if (test_bit(RDMAXPRT_CONN_PENDING, &xprt->sc_flags))
 		goto out;
@@ -327,9 +330,9 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 
 flushed:
 	if (wc->status != IB_WC_WR_FLUSH_ERR)
-		pr_warn("svcrdma: receive: %s (%u/0x%x)\n",
-			ib_wc_status_msg(wc->status),
-			wc->status, wc->vendor_err);
+		pr_err("svcrdma: Recv: %s (%u/0x%x)\n",
+		       ib_wc_status_msg(wc->status),
+		       wc->status, wc->vendor_err);
 	set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
 	svc_rdma_put_context(ctxt, 1);
 
@@ -398,13 +401,16 @@ static struct svcxprt_rdma *rdma_create_xprt(struct svc_serv *serv,
 	 */
 	set_bit(XPT_CONG_CTRL, &cma_xprt->sc_xprt.xpt_flags);
 
-	if (listener)
+	if (listener) {
+		strcpy(cma_xprt->sc_xprt.xpt_remotebuf, "listener");
 		set_bit(XPT_LISTENER, &cma_xprt->sc_xprt.xpt_flags);
+	}
 
 	return cma_xprt;
 }
 
-int svc_rdma_post_recv(struct svcxprt_rdma *xprt, gfp_t flags)
+static int
+svc_rdma_post_recv(struct svcxprt_rdma *xprt)
 {
 	struct ib_recv_wr recv_wr, *bad_recv_wr;
 	struct svc_rdma_op_ctxt *ctxt;
@@ -423,7 +429,7 @@ int svc_rdma_post_recv(struct svcxprt_rdma *xprt, gfp_t flags)
 			pr_err("svcrdma: Too many sges (%d)\n", sge_no);
 			goto err_put_ctxt;
 		}
-		page = alloc_page(flags);
+		page = alloc_page(GFP_KERNEL);
 		if (!page)
 			goto err_put_ctxt;
 		ctxt->pages[sge_no] = page;
@@ -457,21 +463,6 @@ int svc_rdma_post_recv(struct svcxprt_rdma *xprt, gfp_t flags)
 	svc_rdma_unmap_dma(ctxt);
 	svc_rdma_put_context(ctxt, 1);
 	return -ENOMEM;
-}
-
-int svc_rdma_repost_recv(struct svcxprt_rdma *xprt, gfp_t flags)
-{
-	int ret = 0;
-
-	ret = svc_rdma_post_recv(xprt, flags);
-	if (ret) {
-		pr_err("svcrdma: could not post a receive buffer, err=%d.\n",
-		       ret);
-		pr_err("svcrdma: closing transport %p.\n", xprt);
-		set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
-		ret = -ENOTCONN;
-	}
-	return ret;
 }
 
 static void
@@ -773,13 +764,6 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	if (!svc_rdma_prealloc_ctxts(newxprt))
 		goto errout;
 
-	/*
-	 * Limit ORD based on client limit, local device limit, and
-	 * configured svcrdma limit.
-	 */
-	newxprt->sc_ord = min_t(size_t, dev->attrs.max_qp_rd_atom, newxprt->sc_ord);
-	newxprt->sc_ord = min_t(size_t,	svcrdma_ord, newxprt->sc_ord);
-
 	newxprt->sc_pd = ib_alloc_pd(dev, 0);
 	if (IS_ERR(newxprt->sc_pd)) {
 		dprintk("svcrdma: error creating PD for connect request\n");
@@ -833,7 +817,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 
 	/* Post receive buffers */
 	for (i = 0; i < newxprt->sc_max_requests; i++) {
-		ret = svc_rdma_post_recv(newxprt, GFP_KERNEL);
+		ret = svc_rdma_post_recv(newxprt);
 		if (ret) {
 			dprintk("svcrdma: failure posting receive buffers\n");
 			goto errout;
@@ -854,15 +838,18 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	set_bit(RDMAXPRT_CONN_PENDING, &newxprt->sc_flags);
 	memset(&conn_param, 0, sizeof conn_param);
 	conn_param.responder_resources = 0;
-	conn_param.initiator_depth = newxprt->sc_ord;
+	conn_param.initiator_depth = min_t(int, newxprt->sc_ord,
+					   dev->attrs.max_qp_init_rd_atom);
+	if (!conn_param.initiator_depth) {
+		dprintk("svcrdma: invalid ORD setting\n");
+		ret = -EINVAL;
+		goto errout;
+	}
 	conn_param.private_data = &pmsg;
 	conn_param.private_data_len = sizeof(pmsg);
 	ret = rdma_accept(newxprt->sc_cm_id, &conn_param);
-	if (ret) {
-		dprintk("svcrdma: failed to accept new connection, ret=%d\n",
-		       ret);
+	if (ret)
 		goto errout;
-	}
 
 	dprintk("svcrdma: new connection %p accepted:\n", newxprt);
 	sap = (struct sockaddr *)&newxprt->sc_cm_id->route.addr.src_addr;
@@ -873,7 +860,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	dprintk("    sq_depth        : %d\n", newxprt->sc_sq_depth);
 	dprintk("    rdma_rw_ctxs    : %d\n", ctxts);
 	dprintk("    max_requests    : %d\n", newxprt->sc_max_requests);
-	dprintk("    ord             : %d\n", newxprt->sc_ord);
+	dprintk("    ord             : %d\n", conn_param.initiator_depth);
 
 	return &newxprt->sc_xprt;
 
@@ -1003,9 +990,9 @@ static int svc_rdma_has_wspace(struct svc_xprt *xprt)
 	return 1;
 }
 
-static int svc_rdma_secure_port(struct svc_rqst *rqstp)
+static void svc_rdma_secure_port(struct svc_rqst *rqstp)
 {
-	return 1;
+	set_bit(RQ_SECURE, &rqstp->rq_flags);
 }
 
 static void svc_rdma_kill_temp_xprt(struct svc_xprt *xprt)

@@ -16,38 +16,36 @@
 	model = "aristainetos i.MX6 Dual Lite Board 7";
 	compatible = "fsl,imx6dl";
 
-	memory {
+	memory@10000000 {
 		reg = <0x10000000 0x40000000>;
 	};
 
-	soc {
-		display0: disp0 {
-			compatible = "fsl,imx-parallel-display";
-			interface-pix-fmt = "rgb24";
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_ipu_disp>;
-			status = "okay";
+	display0: disp0 {
+		compatible = "fsl,imx-parallel-display";
+		interface-pix-fmt = "rgb24";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ipu_disp>;
+		status = "okay";
 
-			display-timings {
-				800x480p60 {
-					native-mode;
-					clock-frequency = <33246000>;
-					hactive = <800>;
-					vactive = <480>;
-					hfront-porch = <88>;
-					hback-porch = <88>;
-					hsync-len = <80>;
-					vback-porch = <10>;
-					vfront-porch = <10>;
-					vsync-len = <25>;
-					vsync-active = <1>;
-				};
+		display-timings {
+			800x480p60 {
+				native-mode;
+				clock-frequency = <33246000>;
+				hactive = <800>;
+				vactive = <480>;
+				hfront-porch = <88>;
+				hback-porch = <88>;
+				hsync-len = <80>;
+				vback-porch = <10>;
+				vfront-porch = <10>;
+				vsync-len = <25>;
+				vsync-active = <1>;
 			};
+		};
 
-			port {
-				display0_in: endpoint {
-					remote-endpoint = <&ipu1_di0_disp0>;
-				};
+		port {
+			display0_in: endpoint {
+				remote-endpoint = <&ipu1_di0_disp0>;
 			};
 		};
 	};

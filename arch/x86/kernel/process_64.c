@@ -205,6 +205,20 @@ static __always_inline void save_fsgs(struct task_struct *task)
 	save_base_legacy(task, task->thread.gsindex, GS);
 }
 
+#if IS_ENABLED(CONFIG_KVM)
+/*
+ * While a process is running,current->thread.fsbase and current->thread.gsbase
+ * may not match the corresponding CPU registers (see save_base_legacy()). KVM
+ * wants an efficient way to save and restore FSBASE and GSBASE.
+ * When FSGSBASE extensions are enabled, this will have to use RD{FS,GS}BASE.
+ */
+void save_fsgs_for_kvm(void)
+{
+	save_fsgs(current);
+}
+EXPORT_SYMBOL_GPL(save_fsgs_for_kvm);
+#endif
+
 static __always_inline void loadseg(enum which_selector which,
 				    unsigned short sel)
 {
@@ -557,7 +571,7 @@ static void __set_personality_x32(void)
 	 * Pretend to come from a x32 execve.
 	 */
 	task_pt_regs(current)->orig_ax = __NR_x32_execve | __X32_SYSCALL_BIT;
-	current->thread.status &= ~TS_COMPAT;
+	current_thread_info()->status &= ~TS_COMPAT;
 #endif
 }
 
@@ -571,7 +585,7 @@ static void __set_personality_ia32(void)
 	current->personality |= force_personality32;
 	/* Prepare the first "return" to user space */
 	task_pt_regs(current)->orig_ax = __NR_ia32_execve;
-	current->thread.status |= TS_COMPAT;
+	current_thread_info()->status |= TS_COMPAT;
 #endif
 }
 

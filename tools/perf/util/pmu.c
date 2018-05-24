@@ -351,7 +351,7 @@ static int pmu_aliases_parse(char *dir, struct list_head *head)
 		if (pmu_alias_info_file(name))
 			continue;
 
-		snprintf(path, PATH_MAX, "%s/%s", dir, name);
+		scnprintf(path, PATH_MAX, "%s/%s", dir, name);
 
 		file = fopen(path, "r");
 		if (!file) {
@@ -576,6 +576,34 @@ char * __weak get_cpuid_str(struct perf_pmu *pmu __maybe_unused)
 	return NULL;
 }
 
+/* Return zero when the cpuid from the mapfile.csv matches the
+ * cpuid string generated on this platform.
+ * Otherwise return non-zero.
+ */
+int __weak strcmp_cpuid_str(const char *mapcpuid, const char *cpuid)
+{
+	regex_t re;
+	regmatch_t pmatch[1];
+	int match;
+
+	if (regcomp(&re, mapcpuid, REG_EXTENDED) != 0) {
+		/* Warn unable to generate match particular string. */
+		pr_info("Invalid regular expression %s\n", mapcpuid);
+		return 1;
+	}
+
+	match = !regexec(&re, cpuid, 1, pmatch, 0);
+	regfree(&re);
+	if (match) {
+		size_t match_len = (pmatch[0].rm_eo - pmatch[0].rm_so);
+
+		/* Verify the entire string matched. */
+		if (match_len == strlen(cpuid))
+			return 0;
+	}
+	return 1;
+}
+
 static char *perf_pmu__getcpuid(struct perf_pmu *pmu)
 {
 	char *cpuid;
@@ -610,31 +638,14 @@ struct pmu_events_map *perf_pmu__find_map(struct perf_pmu *pmu)
 
 	i = 0;
 	for (;;) {
-		regex_t re;
-		regmatch_t pmatch[1];
-		int match;
-
 		map = &pmu_events_map[i++];
 		if (!map->table) {
 			map = NULL;
 			break;
 		}
 
-		if (regcomp(&re, map->cpuid, REG_EXTENDED) != 0) {
-			/* Warn unable to generate match particular string. */
-			pr_info("Invalid regular expression %s\n", map->cpuid);
+		if (!strcmp_cpuid_str(map->cpuid, cpuid))
 			break;
-		}
-
-		match = !regexec(&re, cpuid, 1, pmatch, 0);
-		regfree(&re);
-		if (match) {
-			size_t match_len = (pmatch[0].rm_eo - pmatch[0].rm_so);
-
-			/* Verify the entire string matched. */
-			if (match_len == strlen(cpuid))
-				break;
-		}
 	}
 	free(cpuid);
 	return map;

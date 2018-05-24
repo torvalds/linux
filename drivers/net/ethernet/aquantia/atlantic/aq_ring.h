@@ -15,6 +15,7 @@
 #include "aq_common.h"
 
 struct page;
+struct aq_nic_cfg_s;
 
 /*           TxC       SOP        DX         EOP
  *         +----------+----------+----------+-----------
@@ -105,7 +106,6 @@ union aq_ring_stats_s {
 };
 
 struct aq_ring_s {
-	struct aq_obj_s header;
 	struct aq_ring_buff_s *buff_ring;
 	u8 *dx_ring;		/* descriptors ring, dma shared mem */
 	struct aq_nic_s *aq_nic;
@@ -153,7 +153,7 @@ void aq_ring_free(struct aq_ring_s *self);
 void aq_ring_update_queue_state(struct aq_ring_s *ring);
 void aq_ring_queue_wake(struct aq_ring_s *ring);
 void aq_ring_queue_stop(struct aq_ring_s *ring);
-void aq_ring_tx_clean(struct aq_ring_s *self);
+bool aq_ring_tx_clean(struct aq_ring_s *self);
 int aq_ring_rx_clean(struct aq_ring_s *self,
 		     struct napi_struct *napi,
 		     int *work_done,

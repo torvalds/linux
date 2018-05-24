@@ -294,7 +294,7 @@ hysdn_log_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &(pd->rd_queue), wait);
 
 	if (*((struct log_data **) file->private_data))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	return mask;
 }				/* hysdn_log_poll */

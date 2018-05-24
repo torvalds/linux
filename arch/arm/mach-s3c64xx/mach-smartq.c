@@ -1,13 +1,6 @@
-/*
- * linux/arch/arm/mach-s3c64xx/mach-smartq.c
- *
- * Copyright (C) 2010 Maurus Cuelenaere
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (C) 2010 Maurus Cuelenaere
 
 #include <linux/delay.h>
 #include <linux/fb.h>
@@ -213,15 +206,28 @@ static int __init smartq_lcd_setup_gpio(void)
 
 /* GPM0 -> CS */
 static struct spi_gpio_platform_data smartq_lcd_control = {
-	.sck			= S3C64XX_GPM(1),
-	.mosi			= S3C64XX_GPM(2),
-	.miso			= S3C64XX_GPM(2),
+	.num_chipselect	= 1,
 };
 
 static struct platform_device smartq_lcd_control_device = {
-	.name			= "spi-gpio",
+	.name			= "spi_gpio",
 	.id			= 1,
 	.dev.platform_data	= &smartq_lcd_control,
+};
+
+static struct gpiod_lookup_table smartq_lcd_control_gpiod_table = {
+	.dev_id         = "spi_gpio",
+	.table          = {
+		GPIO_LOOKUP("GPIOM", 1,
+			    "sck", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("GPIOM", 2,
+			    "mosi", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("GPIOM", 3,
+			    "miso", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("GPIOM", 0,
+			    "cs", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static void smartq_lcd_power_set(struct plat_lcd_data *pd, unsigned int power)
@@ -411,6 +417,7 @@ void __init smartq_machine_init(void)
 	WARN_ON(smartq_wifi_init());
 
 	pwm_add_table(smartq_pwm_lookup, ARRAY_SIZE(smartq_pwm_lookup));
+	gpiod_add_lookup_table(&smartq_lcd_control_gpiod_table);
 	platform_add_devices(smartq_devices, ARRAY_SIZE(smartq_devices));
 
 	gpiod_add_lookup_table(&smartq_audio_gpios);

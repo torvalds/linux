@@ -8,5 +8,6 @@ config DRM_STI
 	select DRM_PANEL
 	select FW_LOADER
 	select SND_SOC_HDMI_CODEC if SND_SOC
+	select OF
 	help
 	  Choose this option to enable DRM on STM stiH4xx chipset

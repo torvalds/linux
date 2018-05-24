@@ -1,16 +1,5 @@
-/*****************************************************************************
- * Copyright 2011 Broadcom Corporation.  All rights reserved.
- *
- * Unless you and Broadcom execute a separate written software license
- * agreement governing use of this software, this software is licensed to you
- * under the terms of the GNU General Public License version 2, available at
- * http://www.broadcom.com/licenses/GPLv2.php (the "GPL").
- *
- * Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a
- * license other than the GPL, without Broadcom's express prior written
- * consent.
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright 2011 Broadcom Corporation.  All rights reserved. */
 
 #include <linux/interrupt.h>
 #include <linux/slab.h>
@@ -220,6 +209,7 @@ static int snd_bcm2835_playback_close(struct snd_pcm_substream *substream)
 	 */
 	if (alsa_stream->running) {
 		int err;
+
 		err = bcm2835_audio_stop(alsa_stream);
 		alsa_stream->running = 0;
 		if (err)
@@ -289,7 +279,8 @@ static int snd_bcm2835_pcm_prepare(struct snd_pcm_substream *substream)
 
 	/* notify the vchiq that it should enter spdif passthrough mode by
 	 * setting channels=0 (see
-	 * https://github.com/raspberrypi/linux/issues/528) */
+	 * https://github.com/raspberrypi/linux/issues/528)
+	 */
 	if (chip->spdif_status & IEC958_AES0_NONAUDIO)
 		channels = 0;
 	else
@@ -423,7 +414,7 @@ static int snd_bcm2835_pcm_lib_ioctl(struct snd_pcm_substream *substream,
 	int ret = snd_pcm_lib_ioctl(substream, cmd, arg);
 
 	audio_info(" .. substream=%p, cmd=%d, arg=%p (%x) ret=%d\n", substream,
-		cmd, arg, arg ? *(unsigned *) arg : 0, ret);
+		cmd, arg, arg ? *(unsigned int *)arg : 0, ret);
 	return ret;
 }
 

@@ -680,7 +680,7 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	host->hw_name	= "ACPI";
 	host->ops	= &sdhci_acpi_ops_dflt;
 	host->irq	= platform_get_irq(pdev, 0);
-	if (host->irq <= 0) {
+	if (host->irq < 0) {
 		err = -EINVAL;
 		goto err_free;
 	}

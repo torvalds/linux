@@ -871,3 +871,60 @@ ENTRY(sun4v_m7_set_perfreg)
 	retl
 	nop
 ENDPROC(sun4v_m7_set_perfreg)
+
+	/* %o0: address of CCB array
+	 * %o1: size (in bytes) of CCB array
+	 * %o2: flags
+	 * %o3: reserved
+	 *
+	 * returns:
+	 * %o0: status
+	 * %o1: size (in bytes) of the CCB array that was accepted
+	 * %o2: status data
+	 * %o3: reserved
+	 */
+ENTRY(sun4v_ccb_submit)
+	mov	%o5, %g1
+	mov	HV_CCB_SUBMIT, %o5
+	ta	HV_FAST_TRAP
+	stx	%o1, [%o4]
+	retl
+	 stx	%o2, [%g1]
+ENDPROC(sun4v_ccb_submit)
+EXPORT_SYMBOL(sun4v_ccb_submit)
+
+	/* %o0: completion area ra for the ccb to get info
+	 *
+	 * returns:
+	 * %o0: status
+	 * %o1: CCB state
+	 * %o2: position
+	 * %o3: dax unit
+	 * %o4: queue
+	 */
+ENTRY(sun4v_ccb_info)
+	mov	%o1, %g1
+	mov	HV_CCB_INFO, %o5
+	ta	HV_FAST_TRAP
+	sth	%o1, [%g1 + CCB_INFO_OFFSET_CCB_STATE]
+	sth	%o2, [%g1 + CCB_INFO_OFFSET_QUEUE_POS]
+	sth	%o3, [%g1 + CCB_INFO_OFFSET_DAX_UNIT]
+	retl
+	 sth	%o4, [%g1 + CCB_INFO_OFFSET_QUEUE_NUM]
+ENDPROC(sun4v_ccb_info)
+EXPORT_SYMBOL(sun4v_ccb_info)
+
+	/* %o0: completion area ra for the ccb to kill
+	 *
+	 * returns:
+	 * %o0: status
+	 * %o1: result of the kill
+	 */
+ENTRY(sun4v_ccb_kill)
+	mov	%o1, %g1
+	mov	HV_CCB_KILL, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 sth	%o1, [%g1]
+ENDPROC(sun4v_ccb_kill)
+EXPORT_SYMBOL(sun4v_ccb_kill)

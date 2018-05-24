@@ -1,0 +1,106 @@
+// SPDX-License-Identifier: GPL-2.0+
+//
+// An earlier version of this file appears in the companion webpage for
+// "Frightening small children and disconcerting grown-ups: Concurrency
+// in the Linux kernel" by Alglave, Maranget, McKenney, Parri, and Stern,
+// which is to appear in ASPLOS 2018.
+
+// ONCE
+READ_ONCE(X) __load{once}(X)
+WRITE_ONCE(X,V) { __store{once}(X,V); }
+
+// Release Acquire and friends
+smp_store_release(X,V) { __store{release}(*X,V); }
+smp_load_acquire(X) __load{acquire}(*X)
+rcu_assign_pointer(X,V) { __store{release}(X,V); }
+rcu_dereference(X) __load{once}(X)
+
+// Fences
+smp_mb() { __fence{mb} ; }
+smp_rmb() { __fence{rmb} ; }
+smp_wmb() { __fence{wmb} ; }
+smp_mb__before_atomic() { __fence{before-atomic} ; }
+smp_mb__after_atomic() { __fence{after-atomic} ; }
+smp_mb__after_spinlock() { __fence{after-spinlock} ; }
+
+// Exchange
+xchg(X,V)  __xchg{mb}(X,V)
+xchg_relaxed(X,V) __xchg{once}(X,V)
+xchg_release(X,V) __xchg{release}(X,V)
+xchg_acquire(X,V) __xchg{acquire}(X,V)
+cmpxchg(X,V,W) __cmpxchg{mb}(X,V,W)
+cmpxchg_relaxed(X,V,W) __cmpxchg{once}(X,V,W)
+cmpxchg_acquire(X,V,W) __cmpxchg{acquire}(X,V,W)
+cmpxchg_release(X,V,W) __cmpxchg{release}(X,V,W)
+
+// Spinlocks
+spin_lock(X) { __lock(X) ; }
+spin_unlock(X) { __unlock(X) ; }
+spin_trylock(X) __trylock(X)
+
+// RCU
+rcu_read_lock() { __fence{rcu-lock}; }
+rcu_read_unlock() { __fence{rcu-unlock};}
+synchronize_rcu() { __fence{sync-rcu}; }
+synchronize_rcu_expedited() { __fence{sync-rcu}; }
+
+// Atomic
+atomic_read(X) READ_ONCE(*X)
+atomic_set(X,V) { WRITE_ONCE(*X,V) ; }
+atomic_read_acquire(X) smp_load_acquire(X)
+atomic_set_release(X,V) { smp_store_release(X,V); }
+
+atomic_add(V,X) { __atomic_op(X,+,V) ; }
+atomic_sub(V,X) { __atomic_op(X,-,V) ; }
+atomic_inc(X)   { __atomic_op(X,+,1) ; }
+atomic_dec(X)   { __atomic_op(X,-,1) ; }
+
+atomic_add_return(V,X) __atomic_op_return{mb}(X,+,V)
+atomic_add_return_relaxed(V,X) __atomic_op_return{once}(X,+,V)
+atomic_add_return_acquire(V,X) __atomic_op_return{acquire}(X,+,V)
+atomic_add_return_release(V,X) __atomic_op_return{release}(X,+,V)
+atomic_fetch_add(V,X) __atomic_fetch_op{mb}(X,+,V)
+atomic_fetch_add_relaxed(V,X) __atomic_fetch_op{once}(X,+,V)
+atomic_fetch_add_acquire(V,X) __atomic_fetch_op{acquire}(X,+,V)
+atomic_fetch_add_release(V,X) __atomic_fetch_op{release}(X,+,V)
+
+atomic_inc_return(X) __atomic_op_return{mb}(X,+,1)
+atomic_inc_return_relaxed(X) __atomic_op_return{once}(X,+,1)
+atomic_inc_return_acquire(X) __atomic_op_return{acquire}(X,+,1)
+atomic_inc_return_release(X) __atomic_op_return{release}(X,+,1)
+atomic_fetch_inc(X) __atomic_fetch_op{mb}(X,+,1)
+atomic_fetch_inc_relaxed(X) __atomic_fetch_op{once}(X,+,1)
+atomic_fetch_inc_acquire(X) __atomic_fetch_op{acquire}(X,+,1)
+atomic_fetch_inc_release(X) __atomic_fetch_op{release}(X,+,1)
+
+atomic_sub_return(V,X) __atomic_op_return{mb}(X,-,V)
+atomic_sub_return_relaxed(V,X) __atomic_op_return{once}(X,-,V)
+atomic_sub_return_acquire(V,X) __atomic_op_return{acquire}(X,-,V)
+atomic_sub_return_release(V,X) __atomic_op_return{release}(X,-,V)
+atomic_fetch_sub(V,X) __atomic_fetch_op{mb}(X,-,V)
+atomic_fetch_sub_relaxed(V,X) __atomic_fetch_op{once}(X,-,V)
+atomic_fetch_sub_acquire(V,X) __atomic_fetch_op{acquire}(X,-,V)
+atomic_fetch_sub_release(V,X) __atomic_fetch_op{release}(X,-,V)
+
+atomic_dec_return(X) __atomic_op_return{mb}(X,-,1)
+atomic_dec_return_relaxed(X) __atomic_op_return{once}(X,-,1)
+atomic_dec_return_acquire(X) __atomic_op_return{acquire}(X,-,1)
+atomic_dec_return_release(X) __atomic_op_return{release}(X,-,1)
+atomic_fetch_dec(X) __atomic_fetch_op{mb}(X,-,1)
+atomic_fetch_dec_relaxed(X) __atomic_fetch_op{once}(X,-,1)
+atomic_fetch_dec_acquire(X) __atomic_fetch_op{acquire}(X,-,1)
+atomic_fetch_dec_release(X) __atomic_fetch_op{release}(X,-,1)
+
+atomic_xchg(X,V) __xchg{mb}(X,V)
+atomic_xchg_relaxed(X,V) __xchg{once}(X,V)
+atomic_xchg_release(X,V) __xchg{release}(X,V)
+atomic_xchg_acquire(X,V) __xchg{acquire}(X,V)
+atomic_cmpxchg(X,V,W) __cmpxchg{mb}(X,V,W)
+atomic_cmpxchg_relaxed(X,V,W) __cmpxchg{once}(X,V,W)
+atomic_cmpxchg_acquire(X,V,W) __cmpxchg{acquire}(X,V,W)
+atomic_cmpxchg_release(X,V,W) __cmpxchg{release}(X,V,W)
+
+atomic_sub_and_test(V,X) __atomic_op_return{mb}(X,-,V) == 0
+atomic_dec_and_test(X)  __atomic_op_return{mb}(X,-,1) == 0
+atomic_inc_and_test(X)  __atomic_op_return{mb}(X,+,1) == 0
+atomic_add_negative(V,X) __atomic_op_return{mb}(X,+,V) < 0

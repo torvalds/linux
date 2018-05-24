@@ -398,7 +398,7 @@ pcibios_enable_device (struct pci_dev *dev, int mask)
 	if (ret < 0)
 		return ret;
 
-	if (!dev->msi_enabled)
+	if (!pci_dev_msi_enabled(dev))
 		return acpi_pci_irq_enable(dev);
 	return 0;
 }
@@ -407,7 +407,7 @@ void
 pcibios_disable_device (struct pci_dev *dev)
 {
 	BUG_ON(atomic_read(&dev->enable_cnt));
-	if (!dev->msi_enabled)
+	if (!pci_dev_msi_enabled(dev))
 		acpi_pci_irq_disable(dev);
 }
 

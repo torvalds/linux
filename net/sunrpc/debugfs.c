@@ -139,7 +139,7 @@ rpc_clnt_debugfs_register(struct rpc_clnt *clnt)
 		return;
 
 	/* make tasks file */
-	if (!debugfs_create_file("tasks", S_IFREG | S_IRUSR, clnt->cl_debugfs,
+	if (!debugfs_create_file("tasks", S_IFREG | 0400, clnt->cl_debugfs,
 				 clnt, &tasks_fops))
 		goto out_err;
 
@@ -241,7 +241,7 @@ rpc_xprt_debugfs_register(struct rpc_xprt *xprt)
 		return;
 
 	/* make tasks file */
-	if (!debugfs_create_file("info", S_IFREG | S_IRUSR, xprt->debugfs,
+	if (!debugfs_create_file("info", S_IFREG | 0400, xprt->debugfs,
 				 xprt, &xprt_info_fops)) {
 		debugfs_remove_recursive(xprt->debugfs);
 		xprt->debugfs = NULL;
@@ -317,7 +317,7 @@ inject_fault_dir(struct dentry *topdir)
 	if (!faultdir)
 		return NULL;
 
-	if (!debugfs_create_file("disconnect", S_IFREG | S_IRUSR, faultdir,
+	if (!debugfs_create_file("disconnect", S_IFREG | 0400, faultdir,
 				 NULL, &fault_disconnect_fops))
 		return NULL;
 

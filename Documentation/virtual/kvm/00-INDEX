@@ -1,7 +1,12 @@
 00-INDEX
 	- this file.
+amd-memory-encryption.rst
+	- notes on AMD Secure Encrypted Virtualization feature and SEV firmware
+	  command description
 api.txt
 	- KVM userspace API.
+arm
+	- internal ABI between the kernel and HYP (for arm/arm64)
 cpuid.txt
 	- KVM-specific cpuid leaves (x86).
 devices/
@@ -26,3 +31,5 @@ s390-diag.txt
 	- Diagnose hypercall description (for IBM S/390)
 timekeeping.txt
 	- timekeeping virtualization for x86-based architectures.
+vcpu-requests.rst
+	- internal VCPU request API

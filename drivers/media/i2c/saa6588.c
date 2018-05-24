@@ -411,9 +411,9 @@ static long saa6588_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 		/* --- poll() for /dev/radio --- */
 	case SAA6588_CMD_POLL:
-		a->result = 0;
+		a->poll_mask = 0;
 		if (s->data_available_for_read)
-			a->result |= POLLIN | POLLRDNORM;
+			a->poll_mask |= EPOLLIN | EPOLLRDNORM;
 		poll_wait(a->instance, &s->read_queue, a->event_list);
 		break;
 

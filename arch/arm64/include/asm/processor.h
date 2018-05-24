@@ -21,6 +21,9 @@
 
 #define TASK_SIZE_64		(UL(1) << VA_BITS)
 
+#define KERNEL_DS	UL(-1)
+#define USER_DS		(TASK_SIZE_64 - 1)
+
 #ifndef __ASSEMBLY__
 
 /*
@@ -31,10 +34,12 @@
 
 #ifdef __KERNEL__
 
+#include <linux/build_bug.h>
+#include <linux/stddef.h>
 #include <linux/string.h>
 
 #include <asm/alternative.h>
-#include <asm/fpsimd.h>
+#include <asm/cpufeature.h>
 #include <asm/hw_breakpoint.h>
 #include <asm/lse.h>
 #include <asm/pgtable-hwdef.h>
@@ -100,11 +105,19 @@ struct cpu_context {
 
 struct thread_struct {
 	struct cpu_context	cpu_context;	/* cpu context */
-	unsigned long		tp_value;	/* TLS register */
-#ifdef CONFIG_COMPAT
-	unsigned long		tp2_value;
-#endif
-	struct fpsimd_state	fpsimd_state;
+
+	/*
+	 * Whitelisted fields for hardened usercopy:
+	 * Maintainers must ensure manually that this contains no
+	 * implicit padding.
+	 */
+	struct {
+		unsigned long	tp_value;	/* TLS register */
+		unsigned long	tp2_value;
+		struct user_fpsimd_state fpsimd_state;
+	} uw;
+
+	unsigned int		fpsimd_cpu;
 	void			*sve_state;	/* SVE registers, if any */
 	unsigned int		sve_vl;		/* SVE vector length */
 	unsigned int		sve_vl_onexec;	/* SVE vl after next exec */
@@ -113,18 +126,31 @@ struct thread_struct {
 	struct debug_info	debug;		/* debugging */
 };
 
+static inline void arch_thread_struct_whitelist(unsigned long *offset,
+						unsigned long *size)
+{
+	/* Verify that there is no padding among the whitelisted fields: */
+	BUILD_BUG_ON(sizeof_field(struct thread_struct, uw) !=
+		     sizeof_field(struct thread_struct, uw.tp_value) +
+		     sizeof_field(struct thread_struct, uw.tp2_value) +
+		     sizeof_field(struct thread_struct, uw.fpsimd_state));
+
+	*offset = offsetof(struct thread_struct, uw);
+	*size = sizeof_field(struct thread_struct, uw);
+}
+
 #ifdef CONFIG_COMPAT
 #define task_user_tls(t)						\
 ({									\
 	unsigned long *__tls;						\
 	if (is_compat_thread(task_thread_info(t)))			\
-		__tls = &(t)->thread.tp2_value;				\
+		__tls = &(t)->thread.uw.tp2_value;			\
 	else								\
-		__tls = &(t)->thread.tp_value;				\
+		__tls = &(t)->thread.uw.tp_value;			\
 	__tls;								\
  })
 #else
-#define task_user_tls(t)	(&(t)->thread.tp_value)
+#define task_user_tls(t)	(&(t)->thread.uw.tp_value)
 #endif
 
 /* Sync TPIDR_EL0 back to thread_struct for current */
@@ -214,9 +240,9 @@ static inline void spin_lock_prefetch(const void *ptr)
 
 #endif
 
-int cpu_enable_pan(void *__unused);
-int cpu_enable_cache_maint_trap(void *__unused);
-int cpu_clear_disr(void *__unused);
+void cpu_enable_pan(const struct arm64_cpu_capabilities *__unused);
+void cpu_enable_cache_maint_trap(const struct arm64_cpu_capabilities *__unused);
+void cpu_clear_disr(const struct arm64_cpu_capabilities *__unused);
 
 /* Userspace interface for PR_SVE_{SET,GET}_VL prctl()s: */
 #define SVE_SET_VL(arg)	sve_set_current_vl(arg)

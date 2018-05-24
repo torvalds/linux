@@ -23,7 +23,7 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 	struct afs_uvldbentry__xdr *uvldb;
 	struct afs_vldb_entry *entry;
 	bool new_only = false;
-	u32 tmp;
+	u32 tmp, nr_servers;
 	int i, ret;
 
 	_enter("");
@@ -36,6 +36,10 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 	uvldb = call->buffer;
 	entry = call->reply[0];
 
+	nr_servers = ntohl(uvldb->nServers);
+	if (nr_servers > AFS_NMAXNSERVERS)
+		nr_servers = AFS_NMAXNSERVERS;
+
 	for (i = 0; i < ARRAY_SIZE(uvldb->name) - 1; i++)
 		entry->name[i] = (u8)ntohl(uvldb->name[i]);
 	entry->name[i] = 0;
@@ -44,14 +48,14 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 	/* If there is a new replication site that we can use, ignore all the
 	 * sites that aren't marked as new.
 	 */
-	for (i = 0; i < AFS_NMAXNSERVERS; i++) {
+	for (i = 0; i < nr_servers; i++) {
 		tmp = ntohl(uvldb->serverFlags[i]);
 		if (!(tmp & AFS_VLSF_DONTUSE) &&
 		    (tmp & AFS_VLSF_NEWREPSITE))
 			new_only = true;
 	}
 
-	for (i = 0; i < AFS_NMAXNSERVERS; i++) {
+	for (i = 0; i < nr_servers; i++) {
 		struct afs_uuid__xdr *xdr;
 		struct afs_uuid *uuid;
 		int j;
@@ -299,7 +303,7 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_net *net,
 	r->uuid.clock_seq_hi_and_reserved 	= htonl(u->clock_seq_hi_and_reserved);
 	r->uuid.clock_seq_low			= htonl(u->clock_seq_low);
 	for (i = 0; i < 6; i++)
-		r->uuid.node[i] = ntohl(u->node[i]);
+		r->uuid.node[i] = htonl(u->node[i]);
 
 	trace_afs_make_vl_call(call);
 	return (struct afs_addr_list *)afs_make_call(ac, call, GFP_KERNEL, false);
@@ -446,7 +450,7 @@ again:
 		call->count2	= ntohl(*bp); /* Type or next count */
 
 		if (call->count > YFS_MAXENDPOINTS)
-			return -EBADMSG;
+			return afs_protocol_error(call, -EBADMSG);
 
 		alist = afs_alloc_addrlist(call->count, FS_SERVICE, AFS_FS_PORT);
 		if (!alist)
@@ -470,7 +474,7 @@ again:
 			size = sizeof(__be32) * (1 + 4 + 1);
 			break;
 		default:
-			return -EBADMSG;
+			return afs_protocol_error(call, -EBADMSG);
 		}
 
 		size += sizeof(__be32);
@@ -483,24 +487,24 @@ again:
 		switch (call->count2) {
 		case YFS_ENDPOINT_IPV4:
 			if (ntohl(bp[0]) != sizeof(__be32) * 2)
-				return -EBADMSG;
+				return afs_protocol_error(call, -EBADMSG);
 			afs_merge_fs_addr4(alist, bp[1], ntohl(bp[2]));
 			bp += 3;
 			break;
 		case YFS_ENDPOINT_IPV6:
 			if (ntohl(bp[0]) != sizeof(__be32) * 5)
-				return -EBADMSG;
+				return afs_protocol_error(call, -EBADMSG);
 			afs_merge_fs_addr6(alist, bp + 1, ntohl(bp[5]));
 			bp += 6;
 			break;
 		default:
-			return -EBADMSG;
+			return afs_protocol_error(call, -EBADMSG);
 		}
 
 		/* Got either the type of the next entry or the count of
 		 * volEndpoints if no more fsEndpoints.
 		 */
-		call->count2 = htonl(*bp++);
+		call->count2 = ntohl(*bp++);
 
 		call->offset = 0;
 		call->count--;
@@ -513,7 +517,7 @@ again:
 		if (!call->count)
 			goto end;
 		if (call->count > YFS_MAXENDPOINTS)
-			return -EBADMSG;
+			return afs_protocol_error(call, -EBADMSG);
 
 		call->unmarshall = 3;
 
@@ -527,7 +531,7 @@ again:
 			return ret;
 
 		bp = call->buffer;
-		call->count2 = htonl(*bp++);
+		call->count2 = ntohl(*bp++);
 		call->offset = 0;
 		call->unmarshall = 4;
 
@@ -541,7 +545,7 @@ again:
 			size = sizeof(__be32) * (1 + 4 + 1);
 			break;
 		default:
-			return -EBADMSG;
+			return afs_protocol_error(call, -EBADMSG);
 		}
 
 		if (call->count > 1)
@@ -554,16 +558,16 @@ again:
 		switch (call->count2) {
 		case YFS_ENDPOINT_IPV4:
 			if (ntohl(bp[0]) != sizeof(__be32) * 2)
-				return -EBADMSG;
+				return afs_protocol_error(call, -EBADMSG);
 			bp += 3;
 			break;
 		case YFS_ENDPOINT_IPV6:
 			if (ntohl(bp[0]) != sizeof(__be32) * 5)
-				return -EBADMSG;
+				return afs_protocol_error(call, -EBADMSG);
 			bp += 6;
 			break;
 		default:
-			return -EBADMSG;
+			return afs_protocol_error(call, -EBADMSG);
 		}
 
 		/* Got either the type of the next entry or the count of
@@ -572,7 +576,7 @@ again:
 		call->offset = 0;
 		call->count--;
 		if (call->count > 0) {
-			call->count2 = htonl(*bp++);
+			call->count2 = ntohl(*bp++);
 			goto again;
 		}
 

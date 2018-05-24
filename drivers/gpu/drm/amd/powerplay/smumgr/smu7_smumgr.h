@@ -31,15 +31,9 @@
 
 struct smu7_buffer_entry {
 	uint32_t data_size;
-	uint32_t mc_addr_low;
-	uint32_t mc_addr_high;
+	uint64_t mc_addr;
 	void *kaddr;
-	unsigned long  handle;
-};
-
-struct smu7_avfs {
-	enum AVFS_BTC_STATUS avfs_btc_status;
-	uint32_t           avfs_btc_param;
+	struct amdgpu_bo *handle;
 };
 
 struct smu7_smumgr {
@@ -56,7 +50,7 @@ struct smu7_smumgr {
 	uint32_t                             ulv_setting_starts;
 	uint8_t                              security_hard_key;
 	uint32_t                             acpi_optimization;
-	struct smu7_avfs                     avfs;
+	uint32_t                             avfs_btc_param;
 };
 
 

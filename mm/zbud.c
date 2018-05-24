@@ -466,7 +466,7 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
 /**
  * zbud_reclaim_page() - evicts allocations from a pool page and frees it
  * @pool:	pool from which a page will attempt to be evicted
- * @retires:	number of pages on the LRU list for which eviction will
+ * @retries:	number of pages on the LRU list for which eviction will
  *		be attempted before failing
  *
  * zbud reclaim is different from normal system reclaim in that the reclaim is
@@ -476,7 +476,7 @@ void zbud_free(struct zbud_pool *pool, unsigned long handle)
  * the user, however.
  *
  * To avoid these, this is how zbud_reclaim_page() should be called:
-
+ *
  * The user detects a page should be reclaimed and calls zbud_reclaim_page().
  * zbud_reclaim_page() will remove a zbud page from the pool LRU list and call
  * the user-defined eviction handler with the pool and handle as arguments.

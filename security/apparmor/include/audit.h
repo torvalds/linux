@@ -126,7 +126,20 @@ struct apparmor_audit_data {
 					const char *target;
 					kuid_t ouid;
 				} fs;
-				int signal;
+				struct {
+					int rlim;
+					unsigned long max;
+				} rlim;
+				struct {
+					int signal;
+					int unmappedsig;
+				};
+				struct {
+					int type, protocol;
+					struct sock *peer_sk;
+					void *addr;
+					int addrlen;
+				} net;
 			};
 		};
 		struct {
@@ -134,10 +147,6 @@ struct apparmor_audit_data {
 			const char *ns;
 			long pos;
 		} iface;
-		struct {
-			int rlim;
-			unsigned long max;
-		} rlim;
 		struct {
 			const char *src_name;
 			const char *type;

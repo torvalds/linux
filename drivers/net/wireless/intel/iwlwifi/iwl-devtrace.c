@@ -30,6 +30,7 @@
 #ifndef __CHECKER__
 #include "iwl-trans.h"
 
+#include "dvm/commands.h"
 #define CREATE_TRACE_POINTS
 #include "iwl-devtrace.h"
 

@@ -571,7 +571,7 @@ static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
 	if (max_tc > adapter->dcb_cfg.num_tcs.pg_tcs)
 		return -EINVAL;
 
-	if (max_tc != netdev_get_num_tc(dev)) {
+	if (max_tc != adapter->hw_tcs) {
 		err = ixgbe_setup_tc(dev, max_tc);
 		if (err)
 			return err;

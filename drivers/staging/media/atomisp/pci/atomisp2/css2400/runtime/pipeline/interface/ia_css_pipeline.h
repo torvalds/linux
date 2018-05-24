@@ -74,21 +74,15 @@ struct ia_css_pipeline {
 };
 
 #define DEFAULT_PIPELINE \
-{ \
-	IA_CSS_PIPE_ID_PREVIEW, /* pipe_id */ \
-	0,			/* pipe_num */ \
-	false,			/* stop_requested */ \
-	NULL,                   /* stages */ \
-	NULL,                   /* current_stage */ \
-	0,                      /* num_stages */ \
-	DEFAULT_FRAME,          /* in_frame */ \
-	{DEFAULT_FRAME},          /* out_frame */ \
-	{DEFAULT_FRAME},          /* vf_frame */ \
-	IA_CSS_FRAME_DELAY_1,   /* frame_delay */ \
-	0,                      /* inout_port_config */ \
-	-1,                     /* num_execs */ \
-	true,					/* acquire_isp_each_stage */\
-	QOS_INVALID             /* pipe_qos_config */\
+(struct ia_css_pipeline) { \
+	.pipe_id		= IA_CSS_PIPE_ID_PREVIEW, \
+	.in_frame		= DEFAULT_FRAME, \
+	.out_frame		= {DEFAULT_FRAME}, \
+	.vf_frame		= {DEFAULT_FRAME}, \
+	.dvs_frame_delay	= IA_CSS_FRAME_DELAY_1, \
+	.num_execs		= -1, \
+	.acquire_isp_each_stage	= true, \
+	.pipe_qos_config	= QOS_INVALID \
 }
 
 /* Stage descriptor used to create a new stage in the pipeline */

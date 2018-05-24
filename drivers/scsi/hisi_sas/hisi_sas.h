@@ -175,7 +175,6 @@ struct hisi_sas_device {
 	struct hisi_sas_dq	*dq;
 	struct list_head	list;
 	u64 attached_phy;
-	atomic64_t running_req;
 	enum sas_device_type	dev_type;
 	int device_id;
 	int sata_idx;

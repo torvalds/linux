@@ -388,7 +388,7 @@
 };
 
 &cpu0 {
-	cpu0-supply = <&smps12_reg>;
+	vdd-supply = <&smps12_reg>;
 	voltage-tolerance = <1>;
 };
 
@@ -442,6 +442,7 @@
 	pinctrl-0 = <&mmc2_pins_default>;
 
 	vmmc-supply = <&vdd_3v3>;
+	vqmmc-supply = <&vdd_3v3>;
 	bus-width = <8>;
 	ti,non-removable;
 	cap-mmc-dual-data-rate;
@@ -554,7 +555,7 @@
 
 &mcasp3 {
 	#sound-dai-cells = <0>;
-	assigned-clocks = <&mcasp3_ahclkx_mux>;
+	assigned-clocks = <&l4per_clkctrl DRA7_MCASP3_CLKCTRL 24>;
 	assigned-clock-parents = <&sys_clkin2>;
 	status = "okay";
 

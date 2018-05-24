@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  pci-rcar-gen2: internal PCI bus support
  *
@@ -5,10 +6,6 @@
  * Copyright (C) 2013 Cogent Embedded, Inc.
  *
  * Author: Valentine Barshak <valentine.barshak@cogentembedded.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/delay.h>
@@ -55,7 +52,6 @@
 #define RCAR_PCI_INT_B			(1 << 17)
 #define RCAR_PCI_INT_PME		(1 << 19)
 #define RCAR_PCI_INT_ALLERRORS (RCAR_PCI_INT_SIGTABORT		| \
-				RCAR_PCI_INT_SIGRETABORT	| \
 				RCAR_PCI_INT_SIGRETABORT	| \
 				RCAR_PCI_INT_REMABORT		| \
 				RCAR_PCI_INT_PERR		| \

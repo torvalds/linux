@@ -3,8 +3,8 @@
 
 obj-y				+= media/
 obj-y				+= typec/
-obj-$(CONFIG_IRDA)		+= irda/net/
-obj-$(CONFIG_IRDA)		+= irda/drivers/
+obj-$(CONFIG_IPX)		+= ipx/
+obj-$(CONFIG_NCP_FS)		+= ncpfs/
 obj-$(CONFIG_PRISM2_USB)	+= wlan-ng/
 obj-$(CONFIG_COMEDI)		+= comedi/
 obj-$(CONFIG_FB_OLPC_DCON)	+= olpc_dcon/
@@ -47,6 +47,13 @@ obj-$(CONFIG_MOST)		+= most/
 obj-$(CONFIG_KS7010)		+= ks7010/
 obj-$(CONFIG_GREYBUS)		+= greybus/
 obj-$(CONFIG_BCM2835_VCHIQ)	+= vc04_services/
-obj-$(CONFIG_CRYPTO_DEV_CCREE)	+= ccree/
 obj-$(CONFIG_DRM_VBOXVIDEO)	+= vboxvideo/
 obj-$(CONFIG_PI433)		+= pi433/
+obj-$(CONFIG_SOC_MT7621)	+= mt7621-pci/
+obj-$(CONFIG_SOC_MT7621)	+= mt7621-pinctrl/
+obj-$(CONFIG_SOC_MT7621)	+= mt7621-gpio/
+obj-$(CONFIG_SOC_MT7621)	+= mt7621-spi/
+obj-$(CONFIG_SOC_MT7621)	+= mt7621-dma/
+obj-$(CONFIG_SOC_MT7621)	+= mt7621-mmc/
+obj-$(CONFIG_SOC_MT7621)	+= mt7621-eth/
+obj-$(CONFIG_SOC_MT7621)	+= mt7621-dts/

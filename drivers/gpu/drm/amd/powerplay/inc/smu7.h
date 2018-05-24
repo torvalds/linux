@@ -82,6 +82,25 @@
 #define SCRATCH_B_CURR_SAMU_INDEX_MASK  (0x7<<SCRATCH_B_CURR_SAMU_INDEX_SHIFT)
 
 
+/* Voltage Regulator Configuration */
+/* VR Config info is contained in dpmTable */
+
+#define VRCONF_VDDC_MASK         0x000000FF
+#define VRCONF_VDDC_SHIFT        0
+#define VRCONF_VDDGFX_MASK       0x0000FF00
+#define VRCONF_VDDGFX_SHIFT      8
+#define VRCONF_VDDCI_MASK        0x00FF0000
+#define VRCONF_VDDCI_SHIFT       16
+#define VRCONF_MVDD_MASK         0xFF000000
+#define VRCONF_MVDD_SHIFT        24
+
+#define VR_MERGED_WITH_VDDC      0
+#define VR_SVI2_PLANE_1          1
+#define VR_SVI2_PLANE_2          2
+#define VR_SMIO_PATTERN_1        3
+#define VR_SMIO_PATTERN_2        4
+#define VR_STATIC_VOLTAGE        5
+
 struct SMU7_PIDController
 {
     uint32_t Ki;

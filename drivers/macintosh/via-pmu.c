@@ -198,14 +198,14 @@ static const struct file_operations pmu_battery_proc_fops;
 static const struct file_operations pmu_options_proc_fops;
 
 #ifdef CONFIG_ADB
-struct adb_driver via_pmu_driver = {
-	"PMU",
-	pmu_probe,
-	pmu_init,
-	pmu_send_request,
-	pmu_adb_autopoll,
-	pmu_poll_adb,
-	pmu_adb_reset_bus
+const struct adb_driver via_pmu_driver = {
+	.name         = "PMU",
+	.probe        = pmu_probe,
+	.init         = pmu_init,
+	.send_request = pmu_send_request,
+	.autopoll     = pmu_adb_autopoll,
+	.poll         = pmu_poll_adb,
+	.reset_bus    = pmu_adb_reset_bus,
 };
 #endif /* CONFIG_ADB */
 
@@ -1799,7 +1799,7 @@ static int powerbook_sleep_grackle(void)
 	struct adb_request req;
 	struct pci_dev *grackle;
 
-	grackle = pci_get_bus_and_slot(0, 0);
+	grackle = pci_get_domain_bus_and_slot(0, 0, 0);
 	if (!grackle)
 		return -ENODEV;
 
@@ -2169,7 +2169,7 @@ pmu_fpoll(struct file *filp, poll_table *wait)
 	poll_wait(filp, &pp->wait, wait);
 	spin_lock_irqsave(&pp->lock, flags);
 	if (pp->rb_get != pp->rb_put)
-		mask |= POLLIN;
+		mask |= EPOLLIN;
 	spin_unlock_irqrestore(&pp->lock, flags);
 	return mask;
 }

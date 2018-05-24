@@ -55,6 +55,7 @@ static u8 do_join(struct _adapter *padapter)
 	u8 *pibss = NULL;
 	struct	mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
 	struct  __queue	*queue	= &(pmlmepriv->scanned_queue);
+	int ret;
 
 	phead = &queue->queue;
 	plist = phead->next;
@@ -74,45 +75,42 @@ static u8 do_join(struct _adapter *padapter)
 		if (!pmlmepriv->sitesurveyctrl.traffic_busy)
 			r8712_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid);
 		return true;
-	} else {
-		int ret;
+	}
 
-		ret = r8712_select_and_join_from_scan(pmlmepriv);
-		if (ret == _SUCCESS) {
-			mod_timer(&pmlmepriv->assoc_timer,
-				  jiffies + msecs_to_jiffies(MAX_JOIN_TIMEOUT));
+	ret = r8712_select_and_join_from_scan(pmlmepriv);
+	if (ret == _SUCCESS) {
+		mod_timer(&pmlmepriv->assoc_timer,
+			  jiffies + msecs_to_jiffies(MAX_JOIN_TIMEOUT));
+	} else {
+		if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE)) {
+			/* submit r8712_createbss_cmd to change to an
+			 * ADHOC_MASTER pmlmepriv->lock has been
+			 * acquired by caller...
+			 */
+			struct wlan_bssid_ex *pdev_network =
+				&(padapter->registrypriv.dev_network);
+			pmlmepriv->fw_state = WIFI_ADHOC_MASTER_STATE;
+			pibss = padapter->registrypriv.dev_network.MacAddress;
+			memcpy(&pdev_network->Ssid,
+			       &pmlmepriv->assoc_ssid,
+			       sizeof(struct ndis_802_11_ssid));
+			r8712_update_registrypriv_dev_network(padapter);
+			r8712_generate_random_ibss(pibss);
+			if (r8712_createbss_cmd(padapter) != _SUCCESS)
+				return false;
+			pmlmepriv->to_join = false;
 		} else {
-			if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE)) {
-				/* submit r8712_createbss_cmd to change to an
-				 * ADHOC_MASTER pmlmepriv->lock has been
-				 * acquired by caller...
-				 */
-				struct wlan_bssid_ex *pdev_network =
-					&(padapter->registrypriv.dev_network);
-				pmlmepriv->fw_state = WIFI_ADHOC_MASTER_STATE;
-				pibss = padapter->registrypriv.dev_network.
-					MacAddress;
-				memcpy(&pdev_network->Ssid,
-					&pmlmepriv->assoc_ssid,
-					sizeof(struct ndis_802_11_ssid));
-				r8712_update_registrypriv_dev_network(padapter);
-				r8712_generate_random_ibss(pibss);
-				if (r8712_createbss_cmd(padapter) != _SUCCESS)
-					return false;
-				pmlmepriv->to_join = false;
-			} else {
-				/* can't associate ; reset under-linking */
-				if (pmlmepriv->fw_state & _FW_UNDER_LINKING)
-					pmlmepriv->fw_state ^=
-							     _FW_UNDER_LINKING;
-				/* when set_ssid/set_bssid for do_join(), but
-				 * there are no desired bss in scanning queue
-				 * we try to issue sitesurvey first
-				 */
-				if (!pmlmepriv->sitesurveyctrl.traffic_busy)
-					r8712_sitesurvey_cmd(padapter,
-						       &pmlmepriv->assoc_ssid);
-			}
+			/* can't associate ; reset under-linking */
+			if (pmlmepriv->fw_state & _FW_UNDER_LINKING)
+				pmlmepriv->fw_state ^=
+					_FW_UNDER_LINKING;
+			/* when set_ssid/set_bssid for do_join(), but
+			 * there are no desired bss in scanning queue
+			 * we try to issue sitesurvey first
+			 */
+			if (!pmlmepriv->sitesurveyctrl.traffic_busy)
+				r8712_sitesurvey_cmd(padapter,
+						     &pmlmepriv->assoc_ssid);
 		}
 	}
 	return true;

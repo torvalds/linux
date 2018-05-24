@@ -17,6 +17,7 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/extcon.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -25,6 +26,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
@@ -81,6 +83,10 @@ struct sii8620 {
 	struct edid *edid;
 	unsigned int gen2_write_burst:1;
 	enum sii8620_mt_state mt_state;
+	struct extcon_dev *extcon;
+	struct notifier_block extcon_nb;
+	struct work_struct extcon_wq;
+	int cable_state;
 	struct list_head mt_queue;
 	struct {
 		int r_size;
@@ -1169,8 +1175,18 @@ static void sii8620_set_infoframes(struct sii8620 *ctx)
 	sii8620_write_buf(ctx, REG_TPI_INFO_B0, buf, ret);
 }
 
-static void sii8620_start_hdmi(struct sii8620 *ctx)
+static void sii8620_start_video(struct sii8620 *ctx)
 {
+	if (!sii8620_is_mhl3(ctx))
+		sii8620_stop_video(ctx);
+
+	if (ctx->sink_type == SINK_DVI && !sii8620_is_mhl3(ctx)) {
+		sii8620_write(ctx, REG_RX_HDMI_CTRL2,
+			      VAL_RX_HDMI_CTRL2_DEFVAL);
+		sii8620_write(ctx, REG_TPI_SC, 0);
+		return;
+	}
+
 	sii8620_write_seq_static(ctx,
 		REG_RX_HDMI_CTRL2, VAL_RX_HDMI_CTRL2_DEFVAL
 			| BIT_RX_HDMI_CTRL2_USE_AV_MUTE,
@@ -1227,21 +1243,6 @@ static void sii8620_start_hdmi(struct sii8620 *ctx)
 	}
 
 	sii8620_set_infoframes(ctx);
-}
-
-static void sii8620_start_video(struct sii8620 *ctx)
-{
-	if (!sii8620_is_mhl3(ctx))
-		sii8620_stop_video(ctx);
-
-	switch (ctx->sink_type) {
-	case SINK_HDMI:
-		sii8620_start_hdmi(ctx);
-		break;
-	case SINK_DVI:
-	default:
-		break;
-	}
 }
 
 static void sii8620_disable_hpd(struct sii8620 *ctx)
@@ -1945,8 +1946,13 @@ static void sii8620_irq_scdt(struct sii8620 *ctx)
 	if (stat & BIT_INTR_SCDT_CHANGE) {
 		u8 cstat = sii8620_readb(ctx, REG_TMDS_CSTAT_P3);
 
-		if (cstat & BIT_TMDS_CSTAT_P3_SCDT)
-			sii8620_scdt_high(ctx);
+		if (cstat & BIT_TMDS_CSTAT_P3_SCDT) {
+			if (ctx->sink_type == SINK_HDMI)
+				/* enable infoframe interrupt */
+				sii8620_scdt_high(ctx);
+			else
+				sii8620_start_video(ctx);
+		}
 	}
 
 	sii8620_write(ctx, REG_INTR5, stat);
@@ -2170,6 +2176,77 @@ static void sii8620_init_rcp_input_dev(struct sii8620 *ctx)
 	ctx->rc_dev = rc_dev;
 }
 
+static void sii8620_cable_out(struct sii8620 *ctx)
+{
+	disable_irq(to_i2c_client(ctx->dev)->irq);
+	sii8620_hw_off(ctx);
+}
+
+static void sii8620_extcon_work(struct work_struct *work)
+{
+	struct sii8620 *ctx =
+		container_of(work, struct sii8620, extcon_wq);
+	int state = extcon_get_state(ctx->extcon, EXTCON_DISP_MHL);
+
+	if (state == ctx->cable_state)
+		return;
+
+	ctx->cable_state = state;
+
+	if (state > 0)
+		sii8620_cable_in(ctx);
+	else
+		sii8620_cable_out(ctx);
+}
+
+static int sii8620_extcon_notifier(struct notifier_block *self,
+			unsigned long event, void *ptr)
+{
+	struct sii8620 *ctx =
+		container_of(self, struct sii8620, extcon_nb);
+
+	schedule_work(&ctx->extcon_wq);
+
+	return NOTIFY_DONE;
+}
+
+static int sii8620_extcon_init(struct sii8620 *ctx)
+{
+	struct extcon_dev *edev;
+	struct device_node *musb, *muic;
+	int ret;
+
+	/* get micro-USB connector node */
+	musb = of_graph_get_remote_node(ctx->dev->of_node, 1, -1);
+	/* next get micro-USB Interface Controller node */
+	muic = of_get_next_parent(musb);
+
+	if (!muic) {
+		dev_info(ctx->dev, "no extcon found, switching to 'always on' mode\n");
+		return 0;
+	}
+
+	edev = extcon_find_edev_by_node(muic);
+	of_node_put(muic);
+	if (IS_ERR(edev)) {
+		if (PTR_ERR(edev) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		dev_err(ctx->dev, "Invalid or missing extcon\n");
+		return PTR_ERR(edev);
+	}
+
+	ctx->extcon = edev;
+	ctx->extcon_nb.notifier_call = sii8620_extcon_notifier;
+	INIT_WORK(&ctx->extcon_wq, sii8620_extcon_work);
+	ret = extcon_register_notifier(edev, EXTCON_DISP_MHL, &ctx->extcon_nb);
+	if (ret) {
+		dev_err(ctx->dev, "failed to register notifier for MHL\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static inline struct sii8620 *bridge_to_sii8620(struct drm_bridge *bridge)
 {
 	return container_of(bridge, struct sii8620, bridge);
@@ -2189,6 +2266,19 @@ static void sii8620_detach(struct drm_bridge *bridge)
 	struct sii8620 *ctx = bridge_to_sii8620(bridge);
 
 	rc_unregister_device(ctx->rc_dev);
+}
+
+static enum drm_mode_status sii8620_mode_valid(struct drm_bridge *bridge,
+					 const struct drm_display_mode *mode)
+{
+	struct sii8620 *ctx = bridge_to_sii8620(bridge);
+	bool can_pack = ctx->devcap[MHL_DCAP_VID_LINK_MODE] &
+			MHL_DCAP_VID_LINK_PPIXEL;
+	unsigned int max_pclk = sii8620_is_mhl3(ctx) ? MHL3_MAX_LCLK :
+						       MHL1_MAX_LCLK;
+	max_pclk /= can_pack ? 2 : 3;
+
+	return (mode->clock > max_pclk) ? MODE_CLOCK_HIGH : MODE_OK;
 }
 
 static bool sii8620_mode_fixup(struct drm_bridge *bridge,
@@ -2220,8 +2310,9 @@ end:
 			union hdmi_infoframe frm;
 			u8 mhl_vic[] = { 0, 95, 94, 93, 98 };
 
+			/* FIXME: We need the connector here */
 			drm_hdmi_vendor_infoframe_from_display_mode(
-				&frm.vendor.hdmi, adjusted_mode);
+				&frm.vendor.hdmi, NULL, adjusted_mode);
 			vic = frm.vendor.hdmi.vic;
 			if (vic >= ARRAY_SIZE(mhl_vic))
 				vic = 0;
@@ -2238,6 +2329,7 @@ static const struct drm_bridge_funcs sii8620_bridge_funcs = {
 	.attach = sii8620_attach,
 	.detach = sii8620_detach,
 	.mode_fixup = sii8620_mode_fixup,
+	.mode_valid = sii8620_mode_valid,
 };
 
 static int sii8620_probe(struct i2c_client *client,
@@ -2287,13 +2379,20 @@ static int sii8620_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
+	ret = sii8620_extcon_init(ctx);
+	if (ret < 0) {
+		dev_err(ctx->dev, "failed to initialize EXTCON\n");
+		return ret;
+	}
+
 	i2c_set_clientdata(client, ctx);
 
 	ctx->bridge.funcs = &sii8620_bridge_funcs;
 	ctx->bridge.of_node = dev->of_node;
 	drm_bridge_add(&ctx->bridge);
 
-	sii8620_cable_in(ctx);
+	if (!ctx->extcon)
+		sii8620_cable_in(ctx);
 
 	return 0;
 }
@@ -2302,8 +2401,15 @@ static int sii8620_remove(struct i2c_client *client)
 {
 	struct sii8620 *ctx = i2c_get_clientdata(client);
 
-	disable_irq(to_i2c_client(ctx->dev)->irq);
-	sii8620_hw_off(ctx);
+	if (ctx->extcon) {
+		extcon_unregister_notifier(ctx->extcon, EXTCON_DISP_MHL,
+					   &ctx->extcon_nb);
+		flush_work(&ctx->extcon_wq);
+		if (ctx->cable_state > 0)
+			sii8620_cable_out(ctx);
+	} else {
+		sii8620_cable_out(ctx);
+	}
 	drm_bridge_remove(&ctx->bridge);
 
 	return 0;

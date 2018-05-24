@@ -41,6 +41,10 @@ unsigned long long dm_get_timestamp(struct dc_context *ctx)
 	return 0;
 }
 
+void dm_perf_trace_timestamp(const char *func_name, unsigned int line)
+{
+}
+
 bool dm_write_persistent_data(struct dc_context *ctx,
 		const struct dc_sink *sink,
 		const char *module_name,
@@ -66,15 +70,6 @@ bool dm_read_persistent_data(struct dc_context *ctx,
 }
 
 /**** power component interfaces ****/
-
-bool dm_pp_pre_dce_clock_change(
-		struct dc_context *ctx,
-		struct dm_pp_gpu_clock_range *requested_state,
-		struct dm_pp_gpu_clock_range *actual_state)
-{
-	/*TODO*/
-	return false;
-}
 
 bool dm_pp_apply_display_requirements(
 		const struct dc_context *ctx,
@@ -131,40 +126,17 @@ bool dm_pp_apply_display_requirements(
 		adev->pm.pm_display_cfg.min_bus_bandwidth = 0;
 
 		/* TODO: complete implementation of
-		 * amd_powerplay_display_configuration_change().
+		 * pp_display_configuration_change().
 		 * Follow example of:
 		 * PHM_StoreDALConfigurationData - powerplay\hwmgr\hardwaremanager.c
 		 * PP_IRI_DisplayConfigurationChange - powerplay\eventmgr\iri.c */
-		amd_powerplay_display_configuration_change(
+		if (adev->powerplay.pp_funcs->display_configuration_change)
+			adev->powerplay.pp_funcs->display_configuration_change(
 				adev->powerplay.pp_handle,
 				&adev->pm.pm_display_cfg);
 
 		/* TODO: replace by a separate call to 'apply display cfg'? */
 		amdgpu_pm_compute_clocks(adev);
-	}
-
-	return true;
-}
-
-bool dc_service_get_system_clocks_range(
-		const struct dc_context *ctx,
-		struct dm_pp_gpu_clock_range *sys_clks)
-{
-	struct amdgpu_device *adev = ctx->driver_context;
-
-	/* Default values, in case PPLib is not compiled-in. */
-	sys_clks->mclk.max_khz = 800000;
-	sys_clks->mclk.min_khz = 800000;
-
-	sys_clks->sclk.max_khz = 600000;
-	sys_clks->sclk.min_khz = 300000;
-
-	if (adev->pm.dpm_enabled) {
-		sys_clks->mclk.max_khz = amdgpu_dpm_get_mclk(adev, false);
-		sys_clks->mclk.min_khz = amdgpu_dpm_get_mclk(adev, true);
-
-		sys_clks->sclk.max_khz = amdgpu_dpm_get_sclk(adev, false);
-		sys_clks->sclk.min_khz = amdgpu_dpm_get_sclk(adev, true);
 	}
 
 	return true;
@@ -264,22 +236,26 @@ bool dm_pp_get_clock_levels_by_type(
 	struct amd_pp_simple_clock_info validation_clks = { 0 };
 	uint32_t i;
 
-	if (amd_powerplay_get_clock_by_type(pp_handle,
+	if (adev->powerplay.pp_funcs->get_clock_by_type) {
+		if (adev->powerplay.pp_funcs->get_clock_by_type(pp_handle,
 			dc_to_pp_clock_type(clk_type), &pp_clks)) {
 		/* Error in pplib. Provide default values. */
-		get_default_clock_levels(clk_type, dc_clks);
-		return true;
+			get_default_clock_levels(clk_type, dc_clks);
+			return true;
+		}
 	}
 
 	pp_to_dc_clock_levels(&pp_clks, dc_clks, clk_type);
 
-	if (amd_powerplay_get_display_mode_validation_clocks(pp_handle,
-			&validation_clks)) {
-		/* Error in pplib. Provide default values. */
-		DRM_INFO("DM_PPLIB: Warning: using default validation clocks!\n");
-		validation_clks.engine_max_clock = 72000;
-		validation_clks.memory_max_clock = 80000;
-		validation_clks.level = 0;
+	if (adev->powerplay.pp_funcs->get_display_mode_validation_clocks) {
+		if (adev->powerplay.pp_funcs->get_display_mode_validation_clocks(
+						pp_handle, &validation_clks)) {
+			/* Error in pplib. Provide default values. */
+			DRM_INFO("DM_PPLIB: Warning: using default validation clocks!\n");
+			validation_clks.engine_max_clock = 72000;
+			validation_clks.memory_max_clock = 80000;
+			validation_clks.level = 0;
+		}
 	}
 
 	DRM_INFO("DM_PPLIB: Validation clocks:\n");

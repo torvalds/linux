@@ -16,7 +16,7 @@
 	model = "Digi ConnectCore CC(W)-MX51";
 	compatible = "digi,connectcore-ccxmx51-som", "fsl,imx51";
 
-	memory {
+	memory@90000000 {
 		reg = <0x90000000 0x08000000>;
 	};
 };

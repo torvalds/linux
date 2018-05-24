@@ -24,8 +24,8 @@ enum address_markers_idx {
 
 static struct addr_marker address_markers[] = {
 	[IDENTITY_NR]	  = {0, "Identity Mapping"},
-	[KERNEL_START_NR] = {(unsigned long)&_stext, "Kernel Image Start"},
-	[KERNEL_END_NR]	  = {(unsigned long)&_end, "Kernel Image End"},
+	[KERNEL_START_NR] = {(unsigned long)_stext, "Kernel Image Start"},
+	[KERNEL_END_NR]	  = {(unsigned long)_end, "Kernel Image End"},
 	[VMEMMAP_NR]	  = {0, "vmemmap Area"},
 	[VMALLOC_NR]	  = {0, "vmalloc Area"},
 	[MODULES_NR]	  = {0, "Modules Area"},

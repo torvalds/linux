@@ -395,6 +395,10 @@ static const struct of_device_id dsi_phy_dt_match[] = {
 	{ .compatible = "qcom,dsi-phy-14nm",
 	  .data = &dsi_phy_14nm_cfgs },
 #endif
+#ifdef CONFIG_DRM_MSM_DSI_10NM_PHY
+	{ .compatible = "qcom,dsi-phy-10nm",
+	  .data = &dsi_phy_10nm_cfgs },
+#endif
 	{}
 };
 
@@ -503,10 +507,10 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 		goto fail;
 
 	phy->pll = msm_dsi_pll_init(pdev, phy->cfg->type, phy->id);
-	if (!phy->pll)
+	if (IS_ERR_OR_NULL(phy->pll))
 		dev_info(dev,
-			"%s: pll init failed, need separate pll clk driver\n",
-			__func__);
+			"%s: pll init failed: %ld, need separate pll clk driver\n",
+			__func__, PTR_ERR(phy->pll));
 
 	dsi_phy_disable_resource(phy);
 

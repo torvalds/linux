@@ -439,6 +439,7 @@ enum vnic_devcmd_cmd {
 
 /* flags for CMD_OPEN */
 #define CMD_OPENF_OPROM		0x1	/* open coming from option rom */
+#define CMD_OPENF_IG_DESCCACHE	0x2	/* Do not flush IG DESC cache */
 
 /* flags for CMD_INIT */
 #define CMD_INITF_DEFAULT_MAC	0x1	/* init with default mac addr */
@@ -696,6 +697,10 @@ enum overlay_ofld_cmd {
 };
 
 #define OVERLAY_CFG_VXLAN_PORT_UPDATE	0
+
+#define ENIC_VXLAN_INNER_IPV6		BIT(0)
+#define ENIC_VXLAN_OUTER_IPV6		BIT(1)
+#define ENIC_VXLAN_MULTI_WQ		BIT(2)
 
 /* Use this enum to get the supported versions for each of these features
  * If you need to use the devcmd_get_supported_feature_version(), add

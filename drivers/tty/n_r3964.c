@@ -1223,7 +1223,7 @@ static __poll_t r3964_poll(struct tty_struct *tty, struct file *file,
 	struct r3964_client_info *pClient;
 	struct r3964_message *pMsg = NULL;
 	unsigned long flags;
-	__poll_t result = POLLOUT;
+	__poll_t result = EPOLLOUT;
 
 	TRACE_L("POLL");
 
@@ -1234,7 +1234,7 @@ static __poll_t r3964_poll(struct tty_struct *tty, struct file *file,
 		pMsg = pClient->first_msg;
 		spin_unlock_irqrestore(&pInfo->lock, flags);
 		if (pMsg)
-			result |= POLLIN | POLLRDNORM;
+			result |= EPOLLIN | EPOLLRDNORM;
 	} else {
 		result = -EINVAL;
 	}

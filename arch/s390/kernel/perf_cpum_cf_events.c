@@ -226,7 +226,7 @@ CPUMF_EVENT_ATTR(cf_z14, L1I_OFFDRAWER_L4_SOURCED_WRITES, 0x00af);
 CPUMF_EVENT_ATTR(cf_z14, BCD_DFP_EXECUTION_SLOTS, 0x00e0);
 CPUMF_EVENT_ATTR(cf_z14, VX_BCD_EXECUTION_SLOTS, 0x00e1);
 CPUMF_EVENT_ATTR(cf_z14, DECIMAL_INSTRUCTIONS, 0x00e2);
-CPUMF_EVENT_ATTR(cf_z14, LAST_HOST_TRANSLATIONS, 0x00e9);
+CPUMF_EVENT_ATTR(cf_z14, LAST_HOST_TRANSLATIONS, 0x00e8);
 CPUMF_EVENT_ATTR(cf_z14, TX_NC_TABORT, 0x00f3);
 CPUMF_EVENT_ATTR(cf_z14, TX_C_TABORT_NO_SPECIAL, 0x00f4);
 CPUMF_EVENT_ATTR(cf_z14, TX_C_TABORT_SPECIAL, 0x00f5);
@@ -583,6 +583,7 @@ __init const struct attribute_group **cpumf_cf_event_group(void)
 		model = cpumcf_z13_pmu_event_attr;
 		break;
 	case 0x3906:
+	case 0x3907:
 		model = cpumcf_z14_pmu_event_attr;
 		break;
 	default:

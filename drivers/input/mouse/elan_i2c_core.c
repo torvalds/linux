@@ -42,7 +42,6 @@
 #include "elan_i2c.h"
 
 #define DRIVER_NAME		"elan_i2c"
-#define ELAN_DRIVER_VERSION	"1.6.3"
 #define ELAN_VENDOR_ID		0x04f3
 #define ETP_MAX_PRESSURE	255
 #define ETP_FWIDTH_REDUCE	90
@@ -1294,4 +1293,3 @@ module_i2c_driver(elan_driver);
 MODULE_AUTHOR("Duson Lin <dusonlin@emc.com.tw>");
 MODULE_DESCRIPTION("Elan I2C/SMBus Touchpad driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(ELAN_DRIVER_VERSION);

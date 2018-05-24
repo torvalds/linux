@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) STMicroelectronics SA 2017
  *
@@ -5,8 +6,6 @@
  *          Yannick Fertre <yannick.fertre@st.com>
  *          Fabien Dessenne <fabien.dessenne@st.com>
  *          Mickael Reulier <mickael.reulier@st.com>
- *
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #include <linux/clk.h>
@@ -32,6 +31,8 @@
 #define CRTC_MASK GENMASK(NB_CRTC - 1, 0)
 
 #define MAX_IRQ 4
+
+#define MAX_ENDPOINTS 2
 
 #define HWVER_10200 0x010200
 #define HWVER_10300 0x010300
@@ -173,6 +174,8 @@
 #define LXCFBLR_CFBP	GENMASK(28, 16)	/* Color Frame Buffer Pitch in bytes */
 
 #define LXCFBLNR_CFBLN	GENMASK(10, 0)	/* Color Frame Buffer Line Number */
+
+#define CLUT_SIZE	256
 
 #define CONSTA_MAX	0xFF		/* CONSTant Alpha MAX= 1.0 */
 #define BF1_PAXCA	0x600		/* Pixel Alpha x Constant Alpha */
@@ -325,6 +328,26 @@ static inline u32 to_drm_pixelformat(enum ltdc_pix_fmt pf)
 	}
 }
 
+static inline u32 get_pixelformat_without_alpha(u32 drm)
+{
+	switch (drm) {
+	case DRM_FORMAT_ARGB4444:
+		return DRM_FORMAT_XRGB4444;
+	case DRM_FORMAT_RGBA4444:
+		return DRM_FORMAT_RGBX4444;
+	case DRM_FORMAT_ARGB1555:
+		return DRM_FORMAT_XRGB1555;
+	case DRM_FORMAT_RGBA5551:
+		return DRM_FORMAT_RGBX5551;
+	case DRM_FORMAT_ARGB8888:
+		return DRM_FORMAT_XRGB8888;
+	case DRM_FORMAT_RGBA8888:
+		return DRM_FORMAT_RGBX8888;
+	default:
+		return 0;
+	}
+}
+
 static irqreturn_t ltdc_irq_thread(int irq, void *arg)
 {
 	struct drm_device *ddev = arg;
@@ -361,6 +384,28 @@ static irqreturn_t ltdc_irq(int irq, void *arg)
 /*
  * DRM_CRTC
  */
+
+static void ltdc_crtc_update_clut(struct drm_crtc *crtc)
+{
+	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
+	struct drm_color_lut *lut;
+	u32 val;
+	int i;
+
+	if (!crtc || !crtc->state)
+		return;
+
+	if (!crtc->state->color_mgmt_changed || !crtc->state->gamma_lut)
+		return;
+
+	lut = (struct drm_color_lut *)crtc->state->gamma_lut->data;
+
+	for (i = 0; i < CLUT_SIZE; i++, lut++) {
+		val = ((lut->red << 8) & 0xff0000) | (lut->green & 0xff00) |
+			(lut->blue >> 8) | (i << 24);
+		reg_write(ldev->regs, LTDC_L1CLUTWR, val);
+	}
+}
 
 static void ltdc_crtc_atomic_enable(struct drm_crtc *crtc,
 				    struct drm_crtc_state *old_state)
@@ -403,12 +448,35 @@ static void ltdc_crtc_atomic_disable(struct drm_crtc *crtc,
 	reg_set(ldev->regs, LTDC_SRCR, SRCR_IMR);
 }
 
+static bool ltdc_crtc_mode_fixup(struct drm_crtc *crtc,
+				 const struct drm_display_mode *mode,
+				 struct drm_display_mode *adjusted_mode)
+{
+	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
+	int rate = mode->clock * 1000;
+
+	/*
+	 * TODO clk_round_rate() does not work yet. When ready, it can
+	 * be used instead of clk_set_rate() then clk_get_rate().
+	 */
+
+	clk_disable(ldev->pixel_clk);
+	if (clk_set_rate(ldev->pixel_clk, rate) < 0) {
+		DRM_ERROR("Cannot set rate (%dHz) for pixel clk\n", rate);
+		return false;
+	}
+	clk_enable(ldev->pixel_clk);
+
+	adjusted_mode->clock = clk_get_rate(ldev->pixel_clk) / 1000;
+
+	return true;
+}
+
 static void ltdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	struct videomode vm;
-	int rate = mode->clock * 1000;
 	u32 hsync, vsync, accum_hbp, accum_vbp, accum_act_w, accum_act_h;
 	u32 total_width, total_height;
 	u32 val;
@@ -430,15 +498,6 @@ static void ltdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	accum_act_h = accum_vbp + vm.vactive;
 	total_width = accum_act_w + vm.hfront_porch;
 	total_height = accum_act_h + vm.vfront_porch;
-
-	clk_disable(ldev->pixel_clk);
-
-	if (clk_set_rate(ldev->pixel_clk, rate) < 0) {
-		DRM_ERROR("Cannot set rate (%dHz) for pixel clk\n", rate);
-		return;
-	}
-
-	clk_enable(ldev->pixel_clk);
 
 	/* Configures the HS, VS, DE and PC polarities. Default Active Low */
 	val = 0;
@@ -485,6 +544,8 @@ static void ltdc_crtc_atomic_flush(struct drm_crtc *crtc,
 
 	DRM_DEBUG_ATOMIC("\n");
 
+	ltdc_crtc_update_clut(crtc);
+
 	/* Commit shadow registers = update planes at next vblank */
 	reg_set(ldev->regs, LTDC_SRCR, SRCR_VBR);
 
@@ -501,6 +562,7 @@ static void ltdc_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs ltdc_crtc_helper_funcs = {
+	.mode_fixup = ltdc_crtc_mode_fixup,
 	.mode_set_nofb = ltdc_crtc_mode_set_nofb,
 	.atomic_flush = ltdc_crtc_atomic_flush,
 	.atomic_enable = ltdc_crtc_atomic_enable,
@@ -532,6 +594,7 @@ static const struct drm_crtc_funcs ltdc_crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.gamma_set = drm_atomic_helper_legacy_gamma_set,
 };
 
 /*
@@ -556,7 +619,7 @@ static int ltdc_plane_atomic_check(struct drm_plane *plane,
 	src_h = state->src_h >> 16;
 
 	/* Reject scaling */
-	if ((src_w != state->crtc_w) || (src_h != state->crtc_h)) {
+	if (src_w != state->crtc_w || src_h != state->crtc_h) {
 		DRM_ERROR("Scaling is not supported");
 		return -EINVAL;
 	}
@@ -637,6 +700,14 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 
 	/* Specifies the blending factors */
 	val = BF1_PAXCA | BF2_1PAXCA;
+	if (!fb->format->has_alpha)
+		val = BF1_CA | BF2_1CA;
+
+	/* Manage hw-specific capabilities */
+	if (ldev->caps.non_alpha_only_l1 &&
+	    plane->type != DRM_PLANE_TYPE_PRIMARY)
+		val = BF1_PAXCA | BF2_1PAXCA;
+
 	reg_update_bits(ldev->regs, LTDC_L1BFCR + lofs,
 			LXBFCR_BF2 | LXBFCR_BF1, val);
 
@@ -704,8 +775,8 @@ static struct drm_plane *ltdc_plane_create(struct drm_device *ddev,
 	struct device *dev = ddev->dev;
 	struct drm_plane *plane;
 	unsigned int i, nb_fmt = 0;
-	u32 formats[NB_PF];
-	u32 drm_fmt;
+	u32 formats[NB_PF * 2];
+	u32 drm_fmt, drm_fmt_no_alpha;
 	int ret;
 
 	/* Get supported pixel formats */
@@ -714,6 +785,18 @@ static struct drm_plane *ltdc_plane_create(struct drm_device *ddev,
 		if (!drm_fmt)
 			continue;
 		formats[nb_fmt++] = drm_fmt;
+
+		/* Add the no-alpha related format if any & supported */
+		drm_fmt_no_alpha = get_pixelformat_without_alpha(drm_fmt);
+		if (!drm_fmt_no_alpha)
+			continue;
+
+		/* Manage hw-specific capabilities */
+		if (ldev->caps.non_alpha_only_l1 &&
+		    type != DRM_PLANE_TYPE_PRIMARY)
+			continue;
+
+		formats[nb_fmt++] = drm_fmt_no_alpha;
 	}
 
 	plane = devm_kzalloc(dev, sizeof(*plane), GFP_KERNEL);
@@ -763,6 +846,9 @@ static int ltdc_crtc_init(struct drm_device *ddev, struct drm_crtc *crtc)
 	}
 
 	drm_crtc_helper_add(crtc, &ltdc_crtc_helper_funcs);
+
+	drm_mode_crtc_set_gamma_size(crtc, CLUT_SIZE);
+	drm_crtc_enable_color_mgmt(crtc, 0, false, CLUT_SIZE);
 
 	DRM_DEBUG_DRIVER("CRTC:%d created\n", crtc->base.id);
 
@@ -838,10 +924,19 @@ static int ltdc_get_caps(struct drm_device *ddev)
 	case HWVER_10300:
 		ldev->caps.reg_ofs = REG_OFS_NONE;
 		ldev->caps.pix_fmt_hw = ltdc_pix_fmt_a0;
+		/*
+		 * Hw older versions support non-alpha color formats derived
+		 * from native alpha color formats only on the primary layer.
+		 * For instance, RG16 native format without alpha works fine
+		 * on 2nd layer but XR24 (derived color format from AR24)
+		 * does not work on 2nd layer.
+		 */
+		ldev->caps.non_alpha_only_l1 = true;
 		break;
 	case HWVER_20101:
 		ldev->caps.reg_ofs = REG_OFS_4;
 		ldev->caps.pix_fmt_hw = ltdc_pix_fmt_a1;
+		ldev->caps.non_alpha_only_l1 = false;
 		break;
 	default:
 		return -ENODEV;
@@ -856,18 +951,33 @@ int ltdc_load(struct drm_device *ddev)
 	struct ltdc_device *ldev = ddev->dev_private;
 	struct device *dev = ddev->dev;
 	struct device_node *np = dev->of_node;
-	struct drm_bridge *bridge;
-	struct drm_panel *panel;
+	struct drm_bridge *bridge[MAX_ENDPOINTS] = {NULL};
+	struct drm_panel *panel[MAX_ENDPOINTS] = {NULL};
 	struct drm_crtc *crtc;
 	struct reset_control *rstc;
 	struct resource *res;
-	int irq, ret, i;
+	int irq, ret, i, endpoint_not_ready = -ENODEV;
 
 	DRM_DEBUG_DRIVER("\n");
 
-	ret = drm_of_find_panel_or_bridge(np, 0, 0, &panel, &bridge);
-	if (ret)
-		return ret;
+	/* Get endpoints if any */
+	for (i = 0; i < MAX_ENDPOINTS; i++) {
+		ret = drm_of_find_panel_or_bridge(np, 0, i, &panel[i],
+						  &bridge[i]);
+
+		/*
+		 * If at least one endpoint is ready, continue probing,
+		 * else if at least one endpoint is -EPROBE_DEFER and
+		 * there is no previous ready endpoints, defer probing.
+		 */
+		if (!ret)
+			endpoint_not_ready = 0;
+		else if (ret == -EPROBE_DEFER && endpoint_not_ready)
+			endpoint_not_ready = -EPROBE_DEFER;
+	}
+
+	if (endpoint_not_ready)
+		return endpoint_not_ready;
 
 	rstc = devm_reset_control_get_exclusive(dev, NULL);
 
@@ -885,12 +995,6 @@ int ltdc_load(struct drm_device *ddev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		DRM_ERROR("Unable to get resource\n");
-		ret = -ENODEV;
-		goto err;
-	}
-
 	ldev->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(ldev->regs)) {
 		DRM_ERROR("Unable to get ltdc registers\n");
@@ -928,19 +1032,25 @@ int ltdc_load(struct drm_device *ddev)
 
 	DRM_INFO("ltdc hw version 0x%08x - ready\n", ldev->caps.hw_version);
 
-	if (panel) {
-		bridge = drm_panel_bridge_add(panel, DRM_MODE_CONNECTOR_DPI);
-		if (IS_ERR(bridge)) {
-			DRM_ERROR("Failed to create panel-bridge\n");
-			ret = PTR_ERR(bridge);
-			goto err;
+	/* Add endpoints panels or bridges if any */
+	for (i = 0; i < MAX_ENDPOINTS; i++) {
+		if (panel[i]) {
+			bridge[i] = drm_panel_bridge_add(panel[i],
+							DRM_MODE_CONNECTOR_DPI);
+			if (IS_ERR(bridge[i])) {
+				DRM_ERROR("panel-bridge endpoint %d\n", i);
+				ret = PTR_ERR(bridge[i]);
+				goto err;
+			}
 		}
-	}
 
-	ret = ltdc_encoder_init(ddev, bridge);
-	if (ret) {
-		DRM_ERROR("Failed to init encoder\n");
-		goto err;
+		if (bridge[i]) {
+			ret = ltdc_encoder_init(ddev, bridge[i]);
+			if (ret) {
+				DRM_ERROR("init encoder endpoint %d\n", i);
+				goto err;
+			}
+		}
 	}
 
 	crtc = devm_kzalloc(dev, sizeof(*crtc), GFP_KERNEL);
@@ -968,7 +1078,8 @@ int ltdc_load(struct drm_device *ddev)
 	return 0;
 
 err:
-	drm_panel_bridge_remove(bridge);
+	for (i = 0; i < MAX_ENDPOINTS; i++)
+		drm_panel_bridge_remove(bridge[i]);
 
 	clk_disable_unprepare(ldev->pixel_clk);
 
@@ -978,10 +1089,12 @@ err:
 void ltdc_unload(struct drm_device *ddev)
 {
 	struct ltdc_device *ldev = ddev->dev_private;
+	int i;
 
 	DRM_DEBUG_DRIVER("\n");
 
-	drm_of_panel_bridge_remove(ddev->dev->of_node, 0, 0);
+	for (i = 0; i < MAX_ENDPOINTS; i++)
+		drm_of_panel_bridge_remove(ddev->dev->of_node, 0, i);
 
 	clk_disable_unprepare(ldev->pixel_clk);
 }

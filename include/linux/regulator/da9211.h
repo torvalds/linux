@@ -21,6 +21,8 @@
 
 #define DA9211_MAX_REGULATORS	2
 
+struct gpio_desc;
+
 enum da9211_chip_id {
 	DA9211,
 	DA9212,
@@ -39,7 +41,7 @@ struct da9211_pdata {
 	 * 2 : 2 phase 2 buck
 	 */
 	int num_buck;
-	int gpio_ren[DA9211_MAX_REGULATORS];
+	struct gpio_desc *gpiod_ren[DA9211_MAX_REGULATORS];
 	struct device_node *reg_node[DA9211_MAX_REGULATORS];
 	struct regulator_init_data *init_data[DA9211_MAX_REGULATORS];
 };

@@ -91,7 +91,7 @@ struct gscps2port {
 	struct parisc_device *padev;
 	struct serio *port;
 	spinlock_t lock;
-	char *addr;
+	char __iomem *addr;
 	u8 act, append; /* position in buffer[] */
 	struct {
 		u8 data;
@@ -114,7 +114,7 @@ struct gscps2port {
  * wait_TBE() - wait for Transmit Buffer Empty
  */
 
-static int wait_TBE(char *addr)
+static int wait_TBE(char __iomem *addr)
 {
 	int timeout = 25000; /* device is expected to react within 250 msec */
 	while (gscps2_readb_status(addr) & GSC_STAT_TBNE) {
@@ -146,14 +146,14 @@ static void gscps2_flush(struct gscps2port *ps2port)
 static inline int gscps2_writeb_output(struct gscps2port *ps2port, u8 data)
 {
 	unsigned long flags;
-	char *addr = ps2port->addr;
+	char __iomem *addr = ps2port->addr;
 
 	if (!wait_TBE(addr)) {
 		printk(KERN_DEBUG PFX "timeout - could not write byte %#x\n", data);
 		return 0;
 	}
 
-	while (gscps2_readb_status(ps2port->addr) & GSC_STAT_RBNE)
+	while (gscps2_readb_status(addr) & GSC_STAT_RBNE)
 		/* wait */;
 
 	spin_lock_irqsave(&ps2port->lock, flags);
@@ -200,13 +200,12 @@ static void gscps2_enable(struct gscps2port *ps2port, int enable)
 
 static void gscps2_reset(struct gscps2port *ps2port)
 {
-	char *addr = ps2port->addr;
 	unsigned long flags;
 
 	/* reset the interface */
 	spin_lock_irqsave(&ps2port->lock, flags);
 	gscps2_flush(ps2port);
-	writeb(0xff, addr+GSC_RESET);
+	writeb(0xff, ps2port->addr + GSC_RESET);
 	gscps2_flush(ps2port);
 	spin_unlock_irqrestore(&ps2port->lock, flags);
 }

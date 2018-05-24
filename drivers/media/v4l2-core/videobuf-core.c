@@ -1131,11 +1131,11 @@ __poll_t videobuf_poll_stream(struct file *file,
 		if (!list_empty(&q->stream))
 			buf = list_entry(q->stream.next,
 					 struct videobuf_buffer, stream);
-	} else if (req_events & (POLLIN | POLLRDNORM)) {
+	} else if (req_events & (EPOLLIN | EPOLLRDNORM)) {
 		if (!q->reading)
 			__videobuf_read_start(q);
 		if (!q->reading) {
-			rc = POLLERR;
+			rc = EPOLLERR;
 		} else if (NULL == q->read_buf) {
 			q->read_buf = list_entry(q->stream.next,
 						 struct videobuf_buffer,
@@ -1146,7 +1146,7 @@ __poll_t videobuf_poll_stream(struct file *file,
 		buf = q->read_buf;
 	}
 	if (!buf)
-		rc = POLLERR;
+		rc = EPOLLERR;
 
 	if (0 == rc) {
 		poll_wait(file, &buf->done, wait);
@@ -1157,10 +1157,10 @@ __poll_t videobuf_poll_stream(struct file *file,
 			case V4L2_BUF_TYPE_VBI_OUTPUT:
 			case V4L2_BUF_TYPE_SLICED_VBI_OUTPUT:
 			case V4L2_BUF_TYPE_SDR_OUTPUT:
-				rc = POLLOUT | POLLWRNORM;
+				rc = EPOLLOUT | EPOLLWRNORM;
 				break;
 			default:
-				rc = POLLIN | POLLRDNORM;
+				rc = EPOLLIN | EPOLLRDNORM;
 				break;
 			}
 		}

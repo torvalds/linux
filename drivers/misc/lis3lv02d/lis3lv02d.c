@@ -658,7 +658,7 @@ static __poll_t lis3lv02d_misc_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &lis3->misc_wait, wait);
 	if (atomic_read(&lis3->count))
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	return 0;
 }
 

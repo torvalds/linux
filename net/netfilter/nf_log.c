@@ -402,7 +402,6 @@ static int nflog_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations nflog_file_ops = {
-	.owner	 = THIS_MODULE,
 	.open	 = nflog_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
@@ -550,7 +549,7 @@ static int __net_init nf_log_net_init(struct net *net)
 	int ret = -ENOMEM;
 
 #ifdef CONFIG_PROC_FS
-	if (!proc_create("nf_log", S_IRUGO,
+	if (!proc_create("nf_log", 0444,
 			 net->nf.proc_netfilter, &nflog_file_ops))
 		return ret;
 #endif

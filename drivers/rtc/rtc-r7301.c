@@ -95,7 +95,7 @@ static int rtc7301_wait_while_busy(struct rtc7301_priv *priv)
 		if (!(val & RTC7301_CONTROL_BUSY))
 			return 0;
 
-		usleep_range(200, 300);
+		udelay(300);
 	}
 
 	return -ETIMEDOUT;
@@ -224,7 +224,7 @@ static int rtc7301_read_time(struct device *dev, struct rtc_time *tm)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	return err ? err : rtc_valid_tm(tm);
+	return err;
 }
 
 static int rtc7301_set_time(struct device *dev, struct rtc_time *tm)
@@ -235,7 +235,7 @@ static int rtc7301_set_time(struct device *dev, struct rtc_time *tm)
 	spin_lock_irqsave(&priv->lock, flags);
 
 	rtc7301_stop(priv);
-	usleep_range(200, 300);
+	udelay(300);
 	rtc7301_select_bank(priv, 0);
 	rtc7301_write_time(priv, tm, false);
 	rtc7301_start(priv);

@@ -152,7 +152,7 @@ resetn
 
 Example:
 --------
-pinctrl@18101C00 {
+pinctrl@18101c00 {
 	compatible = "img,pistachio-system-pinctrl";
 	reg = <0x18101C00 0x400>;
 

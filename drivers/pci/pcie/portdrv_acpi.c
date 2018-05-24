@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * PCIe Port Native Services Support, ACPI-Related Part
  *
  * Copyright (C) 2010 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License V2.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 
 #include <linux/pci.h>
@@ -13,7 +10,6 @@
 #include <linux/errno.h>
 #include <linux/acpi.h>
 #include <linux/pci-acpi.h>
-#include <linux/pcieport_if.h>
 
 #include "aer/aerdrv.h"
 #include "../pci.h"
@@ -51,11 +47,11 @@ void pcie_port_acpi_setup(struct pci_dev *port, int *srv_mask)
 
 	flags = root->osc_control_set;
 
-	*srv_mask = PCIE_PORT_SERVICE_VC | PCIE_PORT_SERVICE_DPC;
+	*srv_mask = 0;
 	if (flags & OSC_PCI_EXPRESS_NATIVE_HP_CONTROL)
 		*srv_mask |= PCIE_PORT_SERVICE_HP;
 	if (flags & OSC_PCI_EXPRESS_PME_CONTROL)
 		*srv_mask |= PCIE_PORT_SERVICE_PME;
 	if (flags & OSC_PCI_EXPRESS_AER_CONTROL)
-		*srv_mask |= PCIE_PORT_SERVICE_AER;
+		*srv_mask |= PCIE_PORT_SERVICE_AER | PCIE_PORT_SERVICE_DPC;
 }

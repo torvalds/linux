@@ -15,7 +15,7 @@ signal(SIGPIPE, SIG_DFL)
 if len(sys.argv) < 3:
     sys.stderr.write("usage: %s [option] file1 file2\n" % sys.argv[0])
     sys.stderr.write("The options are:\n")
-    sys.stderr.write("-c	cateogrize output based on symbole type\n")
+    sys.stderr.write("-c	categorize output based on symbol type\n")
     sys.stderr.write("-d	Show delta of Data Section\n")
     sys.stderr.write("-t	Show delta of text Section\n")
     sys.exit(-1)
@@ -30,8 +30,8 @@ def getsizes(file, format):
             if type in format:
                 # strip generated symbols
                 if name.startswith("__mod_"): continue
-                if name.startswith("SyS_"): continue
-                if name.startswith("compat_SyS_"): continue
+                if name.startswith("__se_sys"): continue
+                if name.startswith("__se_compat_sys"): continue
                 if name == "linux_banner": continue
                 # statics and some other optimizations adds random .NUMBER
                 name = re_NUMBER.sub('', name)

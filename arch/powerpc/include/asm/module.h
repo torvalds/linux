@@ -15,8 +15,18 @@
 
 
 #ifdef CC_USING_MPROFILE_KERNEL
-#define MODULE_ARCH_VERMAGIC	"mprofile-kernel"
+#define MODULE_ARCH_VERMAGIC_FTRACE	"mprofile-kernel "
+#else
+#define MODULE_ARCH_VERMAGIC_FTRACE	""
 #endif
+
+#ifdef CONFIG_RELOCATABLE
+#define MODULE_ARCH_VERMAGIC_RELOCATABLE	"relocatable "
+#else
+#define MODULE_ARCH_VERMAGIC_RELOCATABLE	""
+#endif
+
+#define MODULE_ARCH_VERMAGIC MODULE_ARCH_VERMAGIC_FTRACE MODULE_ARCH_VERMAGIC_RELOCATABLE
 
 #ifndef __powerpc64__
 /*
@@ -45,6 +55,9 @@ struct mod_arch_specific {
 	unsigned long tramp;
 #endif
 
+	/* For module function descriptor dereference */
+	unsigned long start_opd;
+	unsigned long end_opd;
 #else /* powerpc64 */
 	/* Indices of PLT sections within module. */
 	unsigned int core_plt_section;

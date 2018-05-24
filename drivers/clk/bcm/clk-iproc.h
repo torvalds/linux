@@ -81,6 +81,11 @@
 #define IPROC_CLK_PLL_RESET_ACTIVE_LOW BIT(9)
 
 /*
+ * Calculate the PLL parameters are runtime, instead of using table
+ */
+#define IPROC_CLK_PLL_CALC_PARAM BIT(10)
+
+/*
  * Parameters for VCO frequency configuration
  *
  * VCO frequency =

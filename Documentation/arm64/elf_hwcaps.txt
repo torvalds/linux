@@ -162,3 +162,19 @@ HWCAP_SVE
 HWCAP_ASIMDFHM
 
    Functionality implied by ID_AA64ISAR0_EL1.FHM == 0b0001.
+
+HWCAP_DIT
+
+    Functionality implied by ID_AA64PFR0_EL1.DIT == 0b0001.
+
+HWCAP_USCAT
+
+    Functionality implied by ID_AA64MMFR2_EL1.AT == 0b0001.
+
+HWCAP_ILRCPC
+
+    Functionality implied by ID_AA64ISR1_EL1.LRCPC == 0b0002.
+
+HWCAP_FLAGM
+
+    Functionality implied by ID_AA64ISAR0_EL1.TS == 0b0001.

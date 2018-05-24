@@ -108,7 +108,7 @@
 				reg = <0x50000000 0x4>;
 			};
 
-			IIC0: i2c@00000000 {
+			IIC0: i2c@0 {
 				compatible = "ibm,iic-currituck", "ibm,iic";
 				reg = <0x0 0x00000014>;
 				interrupt-parent = <&MPIC>;
@@ -237,6 +237,6 @@
 	};
 
 	chosen {
-		linux,stdout-path = &UART0;
+		stdout-path = &UART0;
 	};
 };

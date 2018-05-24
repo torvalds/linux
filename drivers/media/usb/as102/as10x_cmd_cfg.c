@@ -133,9 +133,9 @@ out:
  * as10x_cmd_eLNA_change_mode - send eLNA change mode command to AS10x
  * @adap:      pointer to AS10x bus adapter
  * @mode:      mode selected:
- *	        - ON    : 0x0 => eLNA always ON
- *	        - OFF   : 0x1 => eLNA always OFF
- *	        - AUTO  : 0x2 => eLNA follow hysteresis parameters
+ *		- ON    : 0x0 => eLNA always ON
+ *		- OFF   : 0x1 => eLNA always OFF
+ *		- AUTO  : 0x2 => eLNA follow hysteresis parameters
  *				 to be ON or OFF
  *
  * Return 0 on success or negative value in case of error.

@@ -44,9 +44,11 @@ available subsections can be seen below.
    uio-howto
    firmware/index
    pinctl
-   gpio
+   gpio/index
    misc_devices
    dmaengine/index
+   slimbus
+   soundwire/index
 
 .. only::  subproject and html
 

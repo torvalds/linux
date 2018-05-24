@@ -180,7 +180,7 @@ static int int0002_probe(struct platform_device *pdev)
 	 * to gpiochip_set_chained_irqchip, because the irq is shared.
 	 */
 	ret = devm_request_irq(dev, irq, int0002_irq,
-			       IRQF_SHARED | IRQF_NO_THREAD, "INT0002", chip);
+			       IRQF_SHARED, "INT0002", chip);
 	if (ret) {
 		dev_err(dev, "Error requesting IRQ %d: %d\n", irq, ret);
 		return ret;

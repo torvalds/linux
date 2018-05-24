@@ -33,7 +33,8 @@ static unsigned int nft_nat_do_chain(void *priv,
 {
 	struct nft_pktinfo pkt;
 
-	nft_set_pktinfo_ipv4(&pkt, skb, state);
+	nft_set_pktinfo(&pkt, skb, state);
+	nft_set_pktinfo_ipv4(&pkt, skb);
 
 	return nft_do_chain(&pkt, priv);
 }
@@ -66,7 +67,17 @@ static unsigned int nft_nat_ipv4_local_fn(void *priv,
 	return nf_nat_ipv4_local_fn(priv, skb, state, nft_nat_do_chain);
 }
 
-static const struct nf_chain_type nft_chain_nat_ipv4 = {
+static int nft_nat_ipv4_init(struct nft_ctx *ctx)
+{
+	return nf_ct_netns_get(ctx->net, ctx->family);
+}
+
+static void nft_nat_ipv4_free(struct nft_ctx *ctx)
+{
+	nf_ct_netns_put(ctx->net, ctx->family);
+}
+
+static const struct nft_chain_type nft_chain_nat_ipv4 = {
 	.name		= "nat",
 	.type		= NFT_CHAIN_T_NAT,
 	.family		= NFPROTO_IPV4,
@@ -81,15 +92,13 @@ static const struct nf_chain_type nft_chain_nat_ipv4 = {
 		[NF_INET_LOCAL_OUT]	= nft_nat_ipv4_local_fn,
 		[NF_INET_LOCAL_IN]	= nft_nat_ipv4_fn,
 	},
+	.init		= nft_nat_ipv4_init,
+	.free		= nft_nat_ipv4_free,
 };
 
 static int __init nft_chain_nat_init(void)
 {
-	int err;
-
-	err = nft_register_chain_type(&nft_chain_nat_ipv4);
-	if (err < 0)
-		return err;
+	nft_register_chain_type(&nft_chain_nat_ipv4);
 
 	return 0;
 }

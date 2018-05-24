@@ -66,6 +66,8 @@
 
 #define CHT_WC_VBUS_GPIO_CTLO		0x6e2d
 #define CHT_WC_VBUS_GPIO_CTLO_OUTPUT	BIT(0)
+#define CHT_WC_VBUS_GPIO_CTLO_DRV_OD	BIT(4)
+#define CHT_WC_VBUS_GPIO_CTLO_DIR_OUT	BIT(5)
 
 enum cht_wc_usb_id {
 	USB_ID_OTG,
@@ -183,14 +185,15 @@ static void cht_wc_extcon_set_5v_boost(struct cht_wc_extcon_data *ext,
 {
 	int ret, val;
 
-	val = enable ? CHT_WC_VBUS_GPIO_CTLO_OUTPUT : 0;
-
 	/*
 	 * The 5V boost converter is enabled through a gpio on the PMIC, since
 	 * there currently is no gpio driver we access the gpio reg directly.
 	 */
-	ret = regmap_update_bits(ext->regmap, CHT_WC_VBUS_GPIO_CTLO,
-				 CHT_WC_VBUS_GPIO_CTLO_OUTPUT, val);
+	val = CHT_WC_VBUS_GPIO_CTLO_DRV_OD | CHT_WC_VBUS_GPIO_CTLO_DIR_OUT;
+	if (enable)
+		val |= CHT_WC_VBUS_GPIO_CTLO_OUTPUT;
+
+	ret = regmap_write(ext->regmap, CHT_WC_VBUS_GPIO_CTLO, val);
 	if (ret)
 		dev_err(ext->dev, "Error writing Vbus GPIO CTLO: %d\n", ret);
 }

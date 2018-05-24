@@ -91,7 +91,8 @@ static void cls_cgroup_destroy_rcu(struct rcu_head *root)
 static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 			     struct tcf_proto *tp, unsigned long base,
 			     u32 handle, struct nlattr **tca,
-			     void **arg, bool ovr)
+			     void **arg, bool ovr,
+			     struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[TCA_CGROUP_MAX + 1];
 	struct cls_cgroup_head *head = rtnl_dereference(tp->root);
@@ -121,7 +122,8 @@ static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 	if (err < 0)
 		goto errout;
 
-	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &new->exts, ovr);
+	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &new->exts, ovr,
+				extack);
 	if (err < 0)
 		goto errout;
 
@@ -141,7 +143,8 @@ errout:
 	return err;
 }
 
-static void cls_cgroup_destroy(struct tcf_proto *tp)
+static void cls_cgroup_destroy(struct tcf_proto *tp,
+			       struct netlink_ext_ack *extack)
 {
 	struct cls_cgroup_head *head = rtnl_dereference(tp->root);
 
@@ -154,7 +157,8 @@ static void cls_cgroup_destroy(struct tcf_proto *tp)
 	}
 }
 
-static int cls_cgroup_delete(struct tcf_proto *tp, void *arg, bool *last)
+static int cls_cgroup_delete(struct tcf_proto *tp, void *arg, bool *last,
+			     struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
 }

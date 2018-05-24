@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
@@ -132,7 +133,7 @@ struct i40e_info {
 
 #define I40E_CLIENT_RESET_LEVEL_PF   1
 #define I40E_CLIENT_RESET_LEVEL_CORE 2
-#define I40E_CLIENT_VSI_FLAG_TCP_PACKET_ENABLE  BIT(1)
+#define I40E_CLIENT_VSI_FLAG_TCP_ENABLE  BIT(1)
 
 struct i40e_ops {
 	/* setup_q_vector_list enables queues with a particular vector */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Copyright (c) 2016 Martin Blumenstingl <martin.blumenstingl@googlemail.com>.
  * Based on meson-gx-p23x-q20x.dtsi:
@@ -5,8 +6,6 @@
  *   Author: Carlo Caione <carlo@endlessm.com>
  * - Copyright (c) 2016 BayLibre, SAS.
  *   Author: Neil Armstrong <narmstrong@baylibre.com>
- *
- * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
  */
 
 /* Common DTSI for devices which are based on the P212 reference board. */
@@ -17,6 +16,7 @@
 	aliases {
 		serial0 = &uart_AO;
 		serial1 = &uart_A;
+		ethernet0 = &ethmac;
 	};
 
 	chosen {
@@ -26,6 +26,18 @@
 	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x0 0x0 0x80000000>;
+	};
+
+	hdmi_5v: regulator-hdmi-5v {
+		compatible = "regulator-fixed";
+
+		regulator-name = "HDMI_5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+
+		gpio = <&gpio GPIOH_3 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-always-on;
 	};
 
 	vddio_boot: regulator-vddio_boot {

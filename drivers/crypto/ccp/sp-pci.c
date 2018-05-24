@@ -25,6 +25,7 @@
 #include <linux/ccp.h>
 
 #include "ccp-dev.h"
+#include "psp-dev.h"
 
 #define MSIX_VECTORS			2
 
@@ -32,6 +33,7 @@ struct sp_pci {
 	int msix_count;
 	struct msix_entry msix_entry[MSIX_VECTORS];
 };
+static struct sp_device *sp_dev_master;
 
 static int sp_get_msix_irqs(struct sp_device *sp)
 {
@@ -108,6 +110,45 @@ static void sp_free_irqs(struct sp_device *sp)
 	sp->psp_irq = 0;
 }
 
+static bool sp_pci_is_master(struct sp_device *sp)
+{
+	struct device *dev_cur, *dev_new;
+	struct pci_dev *pdev_cur, *pdev_new;
+
+	dev_new = sp->dev;
+	dev_cur = sp_dev_master->dev;
+
+	pdev_new = to_pci_dev(dev_new);
+	pdev_cur = to_pci_dev(dev_cur);
+
+	if (pdev_new->bus->number < pdev_cur->bus->number)
+		return true;
+
+	if (PCI_SLOT(pdev_new->devfn) < PCI_SLOT(pdev_cur->devfn))
+		return true;
+
+	if (PCI_FUNC(pdev_new->devfn) < PCI_FUNC(pdev_cur->devfn))
+		return true;
+
+	return false;
+}
+
+static void psp_set_master(struct sp_device *sp)
+{
+	if (!sp_dev_master) {
+		sp_dev_master = sp;
+		return;
+	}
+
+	if (sp_pci_is_master(sp))
+		sp_dev_master = sp;
+}
+
+static struct sp_device *psp_get_master(void)
+{
+	return sp_dev_master;
+}
+
 static int sp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct sp_device *sp;
@@ -166,6 +207,8 @@ static int sp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto e_err;
 
 	pci_set_master(pdev);
+	sp->set_psp_master_device = psp_set_master;
+	sp->get_psp_master_device = psp_get_master;
 
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(48));
 	if (ret) {
@@ -225,6 +268,12 @@ static int sp_pci_resume(struct pci_dev *pdev)
 }
 #endif
 
+#ifdef CONFIG_CRYPTO_DEV_SP_PSP
+static const struct psp_vdata psp_entry = {
+	.offset = 0x10500,
+};
+#endif
+
 static const struct sp_dev_vdata dev_vdata[] = {
 	{
 		.bar = 2,
@@ -236,6 +285,9 @@ static const struct sp_dev_vdata dev_vdata[] = {
 		.bar = 2,
 #ifdef CONFIG_CRYPTO_DEV_SP_CCP
 		.ccp_vdata = &ccpv5a,
+#endif
+#ifdef CONFIG_CRYPTO_DEV_SP_PSP
+		.psp_vdata = &psp_entry
 #endif
 	},
 	{

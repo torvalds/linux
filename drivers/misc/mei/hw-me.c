@@ -1260,7 +1260,9 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 		if (rets == -ENODATA)
 			break;
 
-		if (rets && dev->dev_state != MEI_DEV_RESETTING) {
+		if (rets &&
+		    (dev->dev_state != MEI_DEV_RESETTING &&
+		     dev->dev_state != MEI_DEV_POWER_DOWN)) {
 			dev_err(dev->dev, "mei_irq_read_handler ret = %d.\n",
 						rets);
 			schedule_work(&dev->reset_work);

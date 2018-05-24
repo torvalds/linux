@@ -45,12 +45,16 @@ enum tb_cfg_pkg_type {
  * @TB_SECURITY_USER: User approval required at minimum
  * @TB_SECURITY_SECURE: One time saved key required at minimum
  * @TB_SECURITY_DPONLY: Only tunnel Display port (and USB)
+ * @TB_SECURITY_USBONLY: Only tunnel USB controller of the connected
+ *			 Thunderbolt dock (and Display Port). All PCIe
+ *			 links downstream of the dock are removed.
  */
 enum tb_security_level {
 	TB_SECURITY_NONE,
 	TB_SECURITY_USER,
 	TB_SECURITY_SECURE,
 	TB_SECURITY_DPONLY,
+	TB_SECURITY_USBONLY,
 };
 
 /**
@@ -65,6 +69,7 @@ enum tb_security_level {
  * @cm_ops: Connection manager specific operations vector
  * @index: Linux assigned domain number
  * @security_level: Current security level
+ * @nboot_acl: Number of boot ACLs the domain supports
  * @privdata: Private connection manager specific data
  */
 struct tb {
@@ -77,6 +82,7 @@ struct tb {
 	const struct tb_cm_ops *cm_ops;
 	int index;
 	enum tb_security_level security_level;
+	size_t nboot_acl;
 	unsigned long privdata[0];
 };
 
@@ -237,6 +243,7 @@ int tb_xdomain_enable_paths(struct tb_xdomain *xd, u16 transmit_path,
 			    u16 receive_ring);
 int tb_xdomain_disable_paths(struct tb_xdomain *xd);
 struct tb_xdomain *tb_xdomain_find_by_uuid(struct tb *tb, const uuid_t *uuid);
+struct tb_xdomain *tb_xdomain_find_by_route(struct tb *tb, u64 route);
 
 static inline struct tb_xdomain *
 tb_xdomain_find_by_uuid_locked(struct tb *tb, const uuid_t *uuid)
@@ -245,6 +252,18 @@ tb_xdomain_find_by_uuid_locked(struct tb *tb, const uuid_t *uuid)
 
 	mutex_lock(&tb->lock);
 	xd = tb_xdomain_find_by_uuid(tb, uuid);
+	mutex_unlock(&tb->lock);
+
+	return xd;
+}
+
+static inline struct tb_xdomain *
+tb_xdomain_find_by_route_locked(struct tb *tb, u64 route)
+{
+	struct tb_xdomain *xd;
+
+	mutex_lock(&tb->lock);
+	xd = tb_xdomain_find_by_route(tb, route);
 	mutex_unlock(&tb->lock);
 
 	return xd;

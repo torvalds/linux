@@ -24,7 +24,7 @@ static ssize_t switch_show(struct device *dev,
 	struct push_switch_platform_info *psw_info = dev->platform_data;
 	return sprintf(buf, "%s\n", psw_info->name);
 }
-static DEVICE_ATTR(switch, S_IRUGO, switch_show, NULL);
+static DEVICE_ATTR_RO(switch);
 
 static void switch_timer(struct timer_list *t)
 {

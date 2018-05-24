@@ -327,7 +327,12 @@ static inline struct crypto_aead *crypto_aead_reqtfm(struct aead_request *req)
  */
 static inline int crypto_aead_encrypt(struct aead_request *req)
 {
-	return crypto_aead_alg(crypto_aead_reqtfm(req))->encrypt(req);
+	struct crypto_aead *aead = crypto_aead_reqtfm(req);
+
+	if (crypto_aead_get_flags(aead) & CRYPTO_TFM_NEED_KEY)
+		return -ENOKEY;
+
+	return crypto_aead_alg(aead)->encrypt(req);
 }
 
 /**
@@ -355,6 +360,9 @@ static inline int crypto_aead_encrypt(struct aead_request *req)
 static inline int crypto_aead_decrypt(struct aead_request *req)
 {
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
+
+	if (crypto_aead_get_flags(aead) & CRYPTO_TFM_NEED_KEY)
+		return -ENOKEY;
 
 	if (req->cryptlen < crypto_aead_authsize(aead))
 		return -EINVAL;

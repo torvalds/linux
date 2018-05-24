@@ -225,7 +225,7 @@ static struct knav_queue *__knav_queue_open(struct knav_queue_inst *inst,
 	if (!knav_queue_is_busy(inst)) {
 		struct knav_range_info *range = inst->range;
 
-		inst->name = kstrndup(name, KNAV_NAME_SIZE, GFP_KERNEL);
+		inst->name = kstrndup(name, KNAV_NAME_SIZE - 1, GFP_KERNEL);
 		if (range->ops && range->ops->open_queue)
 			ret = range->ops->open_queue(range, inst, flags);
 
@@ -779,7 +779,7 @@ void *knav_pool_create(const char *name,
 		goto err;
 	}
 
-	pool->name = kstrndup(name, KNAV_NAME_SIZE, GFP_KERNEL);
+	pool->name = kstrndup(name, KNAV_NAME_SIZE - 1, GFP_KERNEL);
 	pool->kdev = kdev;
 	pool->dev = kdev->dev;
 

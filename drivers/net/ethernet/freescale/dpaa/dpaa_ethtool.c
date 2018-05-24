@@ -211,7 +211,7 @@ static int dpaa_set_pauseparam(struct net_device *net_dev,
 	if (epause->rx_pause)
 		newadv = ADVERTISED_Pause | ADVERTISED_Asym_Pause;
 	if (epause->tx_pause)
-		newadv |= ADVERTISED_Asym_Pause;
+		newadv ^= ADVERTISED_Asym_Pause;
 
 	oldadv = phydev->advertising &
 			(ADVERTISED_Pause | ADVERTISED_Asym_Pause);
@@ -344,7 +344,7 @@ static void dpaa_get_ethtool_stats(struct net_device *net_dev,
 
 	/* gather congestion related counters */
 	cg_num    = 0;
-	cg_status = 0;
+	cg_status = false;
 	cg_time   = jiffies_to_msecs(priv->cgr_data.congested_jiffies);
 	if (qman_query_cgr_congested(&priv->cgr_data.cgr, &cg_status) == 0) {
 		cg_num    = priv->cgr_data.cgr_congested_count;

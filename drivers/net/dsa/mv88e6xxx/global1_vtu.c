@@ -11,6 +11,9 @@
  * (at your option) any later version.
  */
 
+#include <linux/interrupt.h>
+#include <linux/irqdomain.h>
+
 #include "chip.h"
 #include "global1.h"
 
@@ -512,4 +515,78 @@ int mv88e6xxx_g1_vtu_flush(struct mv88e6xxx_chip *chip)
 		return err;
 
 	return mv88e6xxx_g1_vtu_op(chip, MV88E6XXX_G1_VTU_OP_FLUSH_ALL);
+}
+
+static irqreturn_t mv88e6xxx_g1_vtu_prob_irq_thread_fn(int irq, void *dev_id)
+{
+	struct mv88e6xxx_chip *chip = dev_id;
+	struct mv88e6xxx_vtu_entry entry;
+	int spid;
+	int err;
+	u16 val;
+
+	mutex_lock(&chip->reg_lock);
+
+	err = mv88e6xxx_g1_vtu_op(chip, MV88E6XXX_G1_VTU_OP_GET_CLR_VIOLATION);
+	if (err)
+		goto out;
+
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_VTU_OP, &val);
+	if (err)
+		goto out;
+
+	err = mv88e6xxx_g1_vtu_vid_read(chip, &entry);
+	if (err)
+		goto out;
+
+	spid = val & MV88E6XXX_G1_VTU_OP_SPID_MASK;
+
+	if (val & MV88E6XXX_G1_VTU_OP_MEMBER_VIOLATION) {
+		dev_err_ratelimited(chip->dev, "VTU member violation for vid %d, source port %d\n",
+				    entry.vid, spid);
+		chip->ports[spid].vtu_member_violation++;
+	}
+
+	if (val & MV88E6XXX_G1_VTU_OP_MISS_VIOLATION) {
+		dev_dbg_ratelimited(chip->dev, "VTU miss violation for vid %d, source port %d\n",
+				    entry.vid, spid);
+		chip->ports[spid].vtu_miss_violation++;
+	}
+
+	mutex_unlock(&chip->reg_lock);
+
+	return IRQ_HANDLED;
+
+out:
+	mutex_unlock(&chip->reg_lock);
+
+	dev_err(chip->dev, "VTU problem: error %d while handling interrupt\n",
+		err);
+
+	return IRQ_HANDLED;
+}
+
+int mv88e6xxx_g1_vtu_prob_irq_setup(struct mv88e6xxx_chip *chip)
+{
+	int err;
+
+	chip->vtu_prob_irq = irq_find_mapping(chip->g1_irq.domain,
+					      MV88E6XXX_G1_STS_IRQ_VTU_PROB);
+	if (chip->vtu_prob_irq < 0)
+		return chip->vtu_prob_irq;
+
+	err = request_threaded_irq(chip->vtu_prob_irq, NULL,
+				   mv88e6xxx_g1_vtu_prob_irq_thread_fn,
+				   IRQF_ONESHOT, "mv88e6xxx-g1-vtu-prob",
+				   chip);
+	if (err)
+		irq_dispose_mapping(chip->vtu_prob_irq);
+
+	return err;
+}
+
+void mv88e6xxx_g1_vtu_prob_irq_free(struct mv88e6xxx_chip *chip)
+{
+	free_irq(chip->vtu_prob_irq, chip);
+	irq_dispose_mapping(chip->vtu_prob_irq);
 }

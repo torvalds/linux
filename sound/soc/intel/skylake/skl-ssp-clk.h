@@ -54,8 +54,46 @@ struct skl_clk_parent_src {
 	const char *parent_name;
 };
 
+struct skl_tlv_hdr {
+	u32 type;
+	u32 size;
+};
+
+struct skl_dmactrl_mclk_cfg {
+	struct skl_tlv_hdr hdr;
+	/* DMA Clk TLV params */
+	u32 clk_warm_up:16;
+	u32 mclk:1;
+	u32 warm_up_over:1;
+	u32 rsvd0:14;
+	u32 clk_stop_delay:16;
+	u32 keep_running:1;
+	u32 clk_stop_over:1;
+	u32 rsvd1:14;
+};
+
+struct skl_dmactrl_sclkfs_cfg {
+	struct skl_tlv_hdr hdr;
+	/* DMA SClk&FS  TLV params */
+	u32 sampling_frequency;
+	u32 bit_depth;
+	u32 channel_map;
+	u32 channel_config;
+	u32 interleaving_style;
+	u32 number_of_channels : 8;
+	u32 valid_bit_depth : 8;
+	u32 sample_type : 8;
+	u32 reserved : 8;
+};
+
+union skl_clk_ctrl_ipc {
+	struct skl_dmactrl_mclk_cfg mclk;
+	struct skl_dmactrl_sclkfs_cfg sclk_fs;
+};
+
 struct skl_clk_rate_cfg_table {
 	unsigned long rate;
+	union skl_clk_ctrl_ipc dma_ctl_ipc;
 	void *config;
 };
 

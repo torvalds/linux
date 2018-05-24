@@ -45,9 +45,11 @@
 #include <sys/stat.h>
 
 #include <bpf.h>
+#include <libbpf.h>
 
+#include "cfg.h"
 #include "main.h"
-#include "disasm.h"
+#include "xlated_dumper.h"
 
 static const char * const prog_type_name[] = {
 	[BPF_PROG_TYPE_UNSPEC]		= "unspec",
@@ -65,6 +67,7 @@ static const char * const prog_type_name[] = {
 	[BPF_PROG_TYPE_LWT_XMIT]	= "lwt_xmit",
 	[BPF_PROG_TYPE_SOCK_OPS]	= "sock_ops",
 	[BPF_PROG_TYPE_SK_SKB]		= "sk_skb",
+	[BPF_PROG_TYPE_CGROUP_DEVICE]	= "cgroup_device",
 };
 
 static void print_boot_time(__u64 nsecs, char *buf, unsigned int size)
@@ -229,6 +232,8 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 		     info->tag[0], info->tag[1], info->tag[2], info->tag[3],
 		     info->tag[4], info->tag[5], info->tag[6], info->tag[7]);
 
+	print_dev_json(info->ifindex, info->netns_dev, info->netns_ino);
+
 	if (info->load_time) {
 		char buf[32];
 
@@ -286,6 +291,7 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 
 	printf("tag ");
 	fprint_hex(stdout, info->tag, BPF_TAG_SIZE, "");
+	print_dev_plain(info->ifindex, info->netns_dev, info->netns_ino);
 	printf("\n");
 
 	if (info->load_time) {
@@ -402,114 +408,15 @@ static int do_show(int argc, char **argv)
 	return err;
 }
 
-static void print_insn(struct bpf_verifier_env *env, const char *fmt, ...)
-{
-	va_list args;
-
-	va_start(args, fmt);
-	vprintf(fmt, args);
-	va_end(args);
-}
-
-static void dump_xlated_plain(void *buf, unsigned int len, bool opcodes)
-{
-	struct bpf_insn *insn = buf;
-	bool double_insn = false;
-	unsigned int i;
-
-	for (i = 0; i < len / sizeof(*insn); i++) {
-		if (double_insn) {
-			double_insn = false;
-			continue;
-		}
-
-		double_insn = insn[i].code == (BPF_LD | BPF_IMM | BPF_DW);
-
-		printf("% 4d: ", i);
-		print_bpf_insn(print_insn, NULL, insn + i, true);
-
-		if (opcodes) {
-			printf("       ");
-			fprint_hex(stdout, insn + i, 8, " ");
-			if (double_insn && i < len - 1) {
-				printf(" ");
-				fprint_hex(stdout, insn + i + 1, 8, " ");
-			}
-			printf("\n");
-		}
-	}
-}
-
-static void print_insn_json(struct bpf_verifier_env *env, const char *fmt, ...)
-{
-	unsigned int l = strlen(fmt);
-	char chomped_fmt[l];
-	va_list args;
-
-	va_start(args, fmt);
-	if (l > 0) {
-		strncpy(chomped_fmt, fmt, l - 1);
-		chomped_fmt[l - 1] = '\0';
-	}
-	jsonw_vprintf_enquote(json_wtr, chomped_fmt, args);
-	va_end(args);
-}
-
-static void dump_xlated_json(void *buf, unsigned int len, bool opcodes)
-{
-	struct bpf_insn *insn = buf;
-	bool double_insn = false;
-	unsigned int i;
-
-	jsonw_start_array(json_wtr);
-	for (i = 0; i < len / sizeof(*insn); i++) {
-		if (double_insn) {
-			double_insn = false;
-			continue;
-		}
-		double_insn = insn[i].code == (BPF_LD | BPF_IMM | BPF_DW);
-
-		jsonw_start_object(json_wtr);
-		jsonw_name(json_wtr, "disasm");
-		print_bpf_insn(print_insn_json, NULL, insn + i, true);
-
-		if (opcodes) {
-			jsonw_name(json_wtr, "opcodes");
-			jsonw_start_object(json_wtr);
-
-			jsonw_name(json_wtr, "code");
-			jsonw_printf(json_wtr, "\"0x%02hhx\"", insn[i].code);
-
-			jsonw_name(json_wtr, "src_reg");
-			jsonw_printf(json_wtr, "\"0x%hhx\"", insn[i].src_reg);
-
-			jsonw_name(json_wtr, "dst_reg");
-			jsonw_printf(json_wtr, "\"0x%hhx\"", insn[i].dst_reg);
-
-			jsonw_name(json_wtr, "off");
-			print_hex_data_json((uint8_t *)(&insn[i].off), 2);
-
-			jsonw_name(json_wtr, "imm");
-			if (double_insn && i < len - 1)
-				print_hex_data_json((uint8_t *)(&insn[i].imm),
-						    12);
-			else
-				print_hex_data_json((uint8_t *)(&insn[i].imm),
-						    4);
-			jsonw_end_object(json_wtr);
-		}
-		jsonw_end_object(json_wtr);
-	}
-	jsonw_end_array(json_wtr);
-}
-
 static int do_dump(int argc, char **argv)
 {
 	struct bpf_prog_info info = {};
+	struct dump_data dd = {};
 	__u32 len = sizeof(info);
 	unsigned int buf_size;
 	char *filepath = NULL;
 	bool opcodes = false;
+	bool visual = false;
 	unsigned char *buf;
 	__u32 *member_len;
 	__u64 *member_ptr;
@@ -547,6 +454,9 @@ static int do_dump(int argc, char **argv)
 		NEXT_ARG();
 	} else if (is_prefix(*argv, "opcodes")) {
 		opcodes = true;
+		NEXT_ARG();
+	} else if (is_prefix(*argv, "visual")) {
+		visual = true;
 		NEXT_ARG();
 	}
 
@@ -593,6 +503,14 @@ static int do_dump(int argc, char **argv)
 		goto err_free;
 	}
 
+	if ((member_len == &info.jited_prog_len &&
+	     info.jited_prog_insns == 0) ||
+	    (member_len == &info.xlated_prog_len &&
+	     info.xlated_prog_insns == 0)) {
+		p_err("error retrieving insn dump: kernel.kptr_restrict set?");
+		goto err_free;
+	}
+
 	if (filepath) {
 		fd = open(filepath, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 		if (fd < 0) {
@@ -608,18 +526,36 @@ static int do_dump(int argc, char **argv)
 			      n < 0 ? strerror(errno) : "short write");
 			goto err_free;
 		}
-	} else {
-		if (member_len == &info.jited_prog_len)
-			disasm_print_insn(buf, *member_len, opcodes);
+
+		if (json_output)
+			jsonw_null(json_wtr);
+	} else if (member_len == &info.jited_prog_len) {
+		const char *name = NULL;
+
+		if (info.ifindex) {
+			name = ifindex_to_bfd_name_ns(info.ifindex,
+						      info.netns_dev,
+						      info.netns_ino);
+			if (!name)
+				goto err_free;
+		}
+
+		disasm_print_insn(buf, *member_len, opcodes, name);
+	} else if (visual) {
+		if (json_output)
+			jsonw_null(json_wtr);
 		else
-			if (json_output)
-				dump_xlated_json(buf, *member_len, opcodes);
-			else
-				dump_xlated_plain(buf, *member_len, opcodes);
+			dump_xlated_cfg(buf, *member_len);
+	} else {
+		kernel_syms_load(&dd);
+		if (json_output)
+			dump_xlated_json(&dd, buf, *member_len, opcodes);
+		else
+			dump_xlated_plain(&dd, buf, *member_len, opcodes);
+		kernel_syms_destroy(&dd);
 	}
 
 	free(buf);
-
 	return 0;
 
 err_free:
@@ -637,6 +573,30 @@ static int do_pin(int argc, char **argv)
 	return err;
 }
 
+static int do_load(int argc, char **argv)
+{
+	struct bpf_object *obj;
+	int prog_fd;
+
+	if (argc != 2)
+		usage();
+
+	if (bpf_prog_load(argv[0], BPF_PROG_TYPE_UNSPEC, &obj, &prog_fd)) {
+		p_err("failed to load program");
+		return -1;
+	}
+
+	if (do_pin_fd(prog_fd, argv[1])) {
+		p_err("failed to pin program");
+		return -1;
+	}
+
+	if (json_output)
+		jsonw_null(json_wtr);
+
+	return 0;
+}
+
 static int do_help(int argc, char **argv)
 {
 	if (json_output) {
@@ -645,26 +605,29 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %s %s show [PROG]\n"
-		"       %s %s dump xlated PROG [{ file FILE | opcodes }]\n"
+		"Usage: %s %s { show | list } [PROG]\n"
+		"       %s %s dump xlated PROG [{ file FILE | opcodes | visual }]\n"
 		"       %s %s dump jited  PROG [{ file FILE | opcodes }]\n"
 		"       %s %s pin   PROG FILE\n"
+		"       %s %s load  OBJ  FILE\n"
 		"       %s %s help\n"
 		"\n"
 		"       " HELP_SPEC_PROGRAM "\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2]);
+		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2]);
 
 	return 0;
 }
 
 static const struct cmd cmds[] = {
 	{ "show",	do_show },
+	{ "list",	do_show },
 	{ "help",	do_help },
 	{ "dump",	do_dump },
 	{ "pin",	do_pin },
+	{ "load",	do_load },
 	{ 0 }
 };
 

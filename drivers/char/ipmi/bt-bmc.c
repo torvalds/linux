@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2015-2016, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/atomic.h>
@@ -349,10 +345,10 @@ static __poll_t bt_bmc_poll(struct file *file, poll_table *wait)
 	ctrl = bt_inb(bt_bmc, BT_CTRL);
 
 	if (ctrl & BT_CTRL_H2B_ATN)
-		mask |= POLLIN;
+		mask |= EPOLLIN;
 
 	if (!(ctrl & (BT_CTRL_H_BUSY | BT_CTRL_B2H_ATN)))
-		mask |= POLLOUT;
+		mask |= EPOLLOUT;
 
 	return mask;
 }

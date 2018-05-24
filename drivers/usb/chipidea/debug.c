@@ -45,18 +45,7 @@ static int ci_device_show(struct seq_file *s, void *data)
 
 	return 0;
 }
-
-static int ci_device_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ci_device_show, inode->i_private);
-}
-
-static const struct file_operations ci_device_fops = {
-	.open		= ci_device_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(ci_device);
 
 /**
  * ci_port_test_show: reads port test mode
@@ -156,18 +145,7 @@ static int ci_qheads_show(struct seq_file *s, void *data)
 
 	return 0;
 }
-
-static int ci_qheads_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ci_qheads_show, inode->i_private);
-}
-
-static const struct file_operations ci_qheads_fops = {
-	.open		= ci_qheads_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(ci_qheads);
 
 /**
  * ci_requests_show: DMA contents of all requests currently queued (all endpts)
@@ -204,18 +182,7 @@ static int ci_requests_show(struct seq_file *s, void *data)
 
 	return 0;
 }
-
-static int ci_requests_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ci_requests_show, inode->i_private);
-}
-
-static const struct file_operations ci_requests_fops = {
-	.open		= ci_requests_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(ci_requests);
 
 static int ci_otg_show(struct seq_file *s, void *unused)
 {
@@ -278,18 +245,7 @@ static int ci_otg_show(struct seq_file *s, void *unused)
 
 	return 0;
 }
-
-static int ci_otg_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ci_otg_show, inode->i_private);
-}
-
-static const struct file_operations ci_otg_fops = {
-	.open			= ci_otg_open,
-	.read			= seq_read,
-	.llseek			= seq_lseek,
-	.release		= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(ci_otg);
 
 static int ci_role_show(struct seq_file *s, void *data)
 {
@@ -376,18 +332,7 @@ static int ci_registers_show(struct seq_file *s, void *unused)
 
 	return 0;
 }
-
-static int ci_registers_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ci_registers_show, inode->i_private);
-}
-
-static const struct file_operations ci_registers_fops = {
-	.open			= ci_registers_open,
-	.read			= seq_read,
-	.llseek			= seq_lseek,
-	.release		= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(ci_registers);
 
 /**
  * dbg_create_files: initializes the attribute interface

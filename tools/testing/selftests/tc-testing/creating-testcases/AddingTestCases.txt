@@ -12,14 +12,18 @@ template.json for the required JSON format for test cases.
 Include the 'id' field, but do not assign a value. Running tdc with the -i
 option will generate a unique ID for that test case.
 
-tdc will recursively search the 'tc' subdirectory for .json files.  Any
-test case files you create in these directories will automatically be included.
-If you wish to store your custom test cases elsewhere, be sure to run tdc
-with the -f argument and the path to your file.
+tdc will recursively search the 'tc-tests' subdirectory (or the
+directories named with the -D option) for .json files.  Any test case
+files you create in these directories will automatically be included.
+If you wish to store your custom test cases elsewhere, be sure to run
+tdc with the -f argument and the path to your file, or the -D argument
+and the path to your directory(ies).
 
-Be aware of required escape characters in the JSON data - particularly when
-defining the match pattern. Refer to the tctests.json file for examples when
-in doubt.
+Be aware of required escape characters in the JSON data - particularly
+when defining the match pattern. Refer to the supplied json test files
+for examples when in doubt.  The match pattern is written in json, and
+will be used by python.  So the match pattern will be a python regular
+expression, but should be written using json syntax.
 
 
 TEST CASE STRUCTURE
@@ -69,7 +73,8 @@ SETUP/TEARDOWN ERRORS
 If an error is detected during the setup/teardown process, execution of the
 tests will immediately stop with an error message and the namespace in which
 the tests are run will be destroyed. This is to prevent inaccurate results
-in the test cases.
+in the test cases.  tdc will output a series of TAP results for the skipped
+tests.
 
 Repeated failures of the setup/teardown may indicate a problem with the test
 case, or possibly even a bug in one of the commands that are not being tested.
@@ -79,3 +84,17 @@ so that it doesn't halt the script for an error that doesn't matter. Turn the
 individual command into a list, with the command being first, followed by all
 acceptable exit codes for the command.
 
+Example:
+
+A pair of setup commands.  The first can have exit code 0, 1 or 255, the
+second must have exit code 0.
+
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action reclassify index 65536"
+        ],

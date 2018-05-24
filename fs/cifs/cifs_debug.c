@@ -42,23 +42,6 @@ cifs_dump_mem(char *label, void *data, int length)
 		       data, length, true);
 }
 
-#ifdef CONFIG_CIFS_DEBUG
-void cifs_vfs_err(const char *fmt, ...)
-{
-	struct va_format vaf;
-	va_list args;
-
-	va_start(args, fmt);
-
-	vaf.fmt = fmt;
-	vaf.va = &args;
-
-	pr_err_ratelimited("CIFS VFS: %pV", &vaf);
-
-	va_end(args);
-}
-#endif
-
 void cifs_dump_detail(void *buf)
 {
 #ifdef CONFIG_CIFS_DEBUG2
@@ -128,6 +111,10 @@ static void cifs_debug_tcon(struct seq_file *m, struct cifs_tcon *tcon)
 		seq_puts(m, " type: CDROM ");
 	else
 		seq_printf(m, " type: %d ", dev_type);
+	if (tcon->seal)
+		seq_printf(m, " Encrypted");
+	if (tcon->unix_ext)
+		seq_printf(m, " POSIX Extensions");
 	if (tcon->ses->server->ops->dump_share_caps)
 		tcon->ses->server->ops->dump_share_caps(m, tcon);
 
@@ -246,7 +233,10 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			atomic_read(&server->smbd_conn->mr_used_count));
 skip_rdma:
 #endif
-		seq_printf(m, "\nNumber of credits: %d", server->credits);
+		seq_printf(m, "\nNumber of credits: %d Dialect 0x%x",
+			server->credits,  server->dialect);
+		if (server->sign)
+			seq_printf(m, " signed");
 		i++;
 		list_for_each(tmp2, &server->smb_ses_list) {
 			ses = list_entry(tmp2, struct cifs_ses,

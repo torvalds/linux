@@ -198,7 +198,7 @@ static int genwqe_jtimer_show(struct seq_file *s, void *unused)
 
 	jtimer = genwqe_read_vreg(cd, IO_SLC_VF_APPJOB_TIMEOUT, 0);
 	seq_printf(s, "  PF   0x%016llx %d msec\n", jtimer,
-		   genwqe_pf_jobtimeout_msec);
+		   GENWQE_PF_JOBTIMEOUT_MSEC);
 
 	for (vf_num = 0; vf_num < cd->num_vfs; vf_num++) {
 		jtimer = genwqe_read_vreg(cd, IO_SLC_VF_APPJOB_TIMEOUT,

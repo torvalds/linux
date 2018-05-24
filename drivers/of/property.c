@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * drivers/of/property.c - Procedures for accessing and interpreting
  *			   Devicetree properties and graphs.
@@ -16,11 +17,6 @@
  *
  *  Reconsolidated from arch/x/kernel/prom.c by Stephen Rothwell and
  *  Grant Likely.
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt)	"OF: " fmt
@@ -981,11 +977,11 @@ static int of_fwnode_graph_parse_endpoint(const struct fwnode_handle *fwnode,
 	return 0;
 }
 
-static void *
+static const void *
 of_fwnode_device_get_match_data(const struct fwnode_handle *fwnode,
 				const struct device *dev)
 {
-	return (void *)of_device_get_match_data(dev);
+	return of_device_get_match_data(dev);
 }
 
 const struct fwnode_operations of_fwnode_ops = {

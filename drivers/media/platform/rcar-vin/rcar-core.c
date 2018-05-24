@@ -187,7 +187,7 @@ static int rvin_digital_graph_init(struct rvin_dev *vin)
 		return -ENODEV;
 
 	vin_dbg(vin, "Found digital subdevice %pOF\n",
-		to_of_node(vin->digital->asd.match.fwnode.fwnode));
+		to_of_node(vin->digital->asd.match.fwnode));
 
 	vin->notifier.ops = &rvin_digital_notify_ops;
 	ret = v4l2_async_notifier_register(&vin->v4l2_dev, &vin->notifier);

@@ -45,6 +45,10 @@
 #include "cxgb4_debugfs.h"
 #include "clip_tbl.h"
 #include "l2t.h"
+#include "cudbg_if.h"
+#include "cudbg_lib_common.h"
+#include "cudbg_entity.h"
+#include "cudbg_lib.h"
 
 /* generic seq_file support for showing a table of size rows x width. */
 static void *seq_tab_get_idx(struct seq_tab *tb, loff_t pos)
@@ -1739,7 +1743,7 @@ static int mps_tcam_show(struct seq_file *seq, void *v)
 			 */
 			if (lookup_type && (lookup_type != DATALKPTYPE_M)) {
 				/* Inner header VNI */
-				vniy = ((data2 & DATAVIDH2_F) << 23) |
+				vniy = (data2 & DATAVIDH2_F) |
 				       (DATAVIDH1_G(data2) << 16) | VIDL_G(val);
 				dip_hit = data2 & DATADIPHIT_F;
 			} else {
@@ -1749,6 +1753,7 @@ static int mps_tcam_show(struct seq_file *seq, void *v)
 			port_num = DATAPORTNUM_G(data2);
 
 			/* Read tcamx. Change the control param */
+			vnix = 0;
 			ctl |= CTLXYBITSEL_V(1);
 			t4_write_reg(adap, MPS_CLS_TCAM_DATA2_CTL_A, ctl);
 			val = t4_read_reg(adap, MPS_CLS_TCAM_DATA1_A);
@@ -1757,7 +1762,7 @@ static int mps_tcam_show(struct seq_file *seq, void *v)
 			data2 = t4_read_reg(adap, MPS_CLS_TCAM_DATA2_CTL_A);
 			if (lookup_type && (lookup_type != DATALKPTYPE_M)) {
 				/* Inner header VNI mask */
-				vnix = ((data2 & DATAVIDH2_F) << 23) |
+				vnix = (data2 & DATAVIDH2_F) |
 				       (DATAVIDH1_G(data2) << 16) | VIDL_G(val);
 			}
 		} else {
@@ -1830,7 +1835,8 @@ static int mps_tcam_show(struct seq_file *seq, void *v)
 					   addr[1], addr[2], addr[3],
 					   addr[4], addr[5],
 					   (unsigned long long)mask,
-					   vniy, vnix, dip_hit ? 'Y' : 'N',
+					   vniy, (vnix | vniy),
+					   dip_hit ? 'Y' : 'N',
 					   port_num,
 					   (cls_lo & T6_SRAM_VLD_F) ? 'Y' : 'N',
 					   PORTMAP_G(cls_hi),
@@ -2017,11 +2023,12 @@ static int rss_show(struct seq_file *seq, void *v, int idx)
 
 static int rss_open(struct inode *inode, struct file *file)
 {
-	int ret;
-	struct seq_tab *p;
 	struct adapter *adap = inode->i_private;
+	int ret, nentries;
+	struct seq_tab *p;
 
-	p = seq_open_tab(file, RSS_NENTRIES / 8, 8 * sizeof(u16), 0, rss_show);
+	nentries = t4_chip_rss_size(adap);
+	p = seq_open_tab(file, nentries / 8, 8 * sizeof(u16), 0, rss_show);
 	if (!p)
 		return -ENOMEM;
 
@@ -2610,7 +2617,7 @@ int mem_open(struct inode *inode, struct file *file)
 
 	file->private_data = inode->i_private;
 
-	mem = (uintptr_t)file->private_data & 0x3;
+	mem = (uintptr_t)file->private_data & 0x7;
 	adap = file->private_data - mem;
 
 	(void)t4_fwcache(adap, FW_PARAM_DEV_FWCACHE_FLUSH);
@@ -2623,7 +2630,7 @@ static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
 {
 	loff_t pos = *ppos;
 	loff_t avail = file_inode(file)->i_size;
-	unsigned int mem = (uintptr_t)file->private_data & 3;
+	unsigned int mem = (uintptr_t)file->private_data & 0x7;
 	struct adapter *adap = file->private_data - mem;
 	__be32 *data;
 	int ret;
@@ -2664,9 +2671,13 @@ static const struct file_operations mem_debugfs_fops = {
 
 static int tid_info_show(struct seq_file *seq, void *v)
 {
+	unsigned int tid_start = 0;
 	struct adapter *adap = seq->private;
 	const struct tid_info *t = &adap->tids;
 	enum chip_type chip = CHELSIO_CHIP_VERSION(adap->params.chip);
+
+	if (chip > CHELSIO_T5)
+		tid_start = t4_read_reg(adap, LE_DB_ACTIVE_TABLE_START_INDEX_A);
 
 	if (t4_read_reg(adap, LE_DB_CONFIG_A) & HASHEN_F) {
 		unsigned int sb;
@@ -2679,8 +2690,8 @@ static int tid_info_show(struct seq_file *seq, void *v)
 			sb = t4_read_reg(adap, LE_DB_SRVR_START_INDEX_A);
 
 		if (sb) {
-			seq_printf(seq, "TID range: 0..%u/%u..%u", sb - 1,
-				   adap->tids.hash_base,
+			seq_printf(seq, "TID range: %u..%u/%u..%u", tid_start,
+				   sb - 1, adap->tids.hash_base,
 				   t->ntids - 1);
 			seq_printf(seq, ", in use: %u/%u\n",
 				   atomic_read(&t->tids_in_use),
@@ -2705,7 +2716,8 @@ static int tid_info_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "Connections in use: %u\n",
 			   atomic_read(&t->conns_in_use));
 
-		seq_printf(seq, "TID range: 0..%u", t->ntids - 1);
+		seq_printf(seq, "TID range: %u..%u", tid_start,
+			   tid_start + t->ntids - 1);
 		seq_printf(seq, ", in use: %u\n",
 			   atomic_read(&t->tids_in_use));
 	}
@@ -2740,7 +2752,7 @@ DEFINE_SIMPLE_DEBUGFS_FILE(tid_info);
 static void add_debugfs_mem(struct adapter *adap, const char *name,
 			    unsigned int idx, unsigned int size_mb)
 {
-	debugfs_create_file_size(name, S_IRUSR, adap->debugfs_root,
+	debugfs_create_file_size(name, 0400, adap->debugfs_root,
 				 (void *)adap + idx, &mem_debugfs_fops,
 				 size_mb << 20);
 }
@@ -2794,18 +2806,6 @@ static const struct file_operations blocked_fl_fops = {
 	.llseek  = generic_file_llseek,
 };
 
-struct mem_desc {
-	unsigned int base;
-	unsigned int limit;
-	unsigned int idx;
-};
-
-static int mem_desc_cmp(const void *a, const void *b)
-{
-	return ((const struct mem_desc *)a)->base -
-	       ((const struct mem_desc *)b)->base;
-}
-
 static void mem_region_show(struct seq_file *seq, const char *name,
 			    unsigned int from, unsigned int to)
 {
@@ -2819,250 +2819,60 @@ static void mem_region_show(struct seq_file *seq, const char *name,
 static int meminfo_show(struct seq_file *seq, void *v)
 {
 	static const char * const memory[] = { "EDC0:", "EDC1:", "MC:",
-					"MC0:", "MC1:"};
-	static const char * const region[] = {
-		"DBQ contexts:", "IMSG contexts:", "FLM cache:", "TCBs:",
-		"Pstructs:", "Timers:", "Rx FL:", "Tx FL:", "Pstruct FL:",
-		"Tx payload:", "Rx payload:", "LE hash:", "iSCSI region:",
-		"TDDP region:", "TPT region:", "STAG region:", "RQ region:",
-		"RQUDP region:", "PBL region:", "TXPBL region:",
-		"DBVFIFO region:", "ULPRX state:", "ULPTX state:",
-		"On-chip queues:"
-	};
-
-	int i, n;
-	u32 lo, hi, used, alloc;
-	struct mem_desc avail[4];
-	struct mem_desc mem[ARRAY_SIZE(region) + 3];      /* up to 3 holes */
-	struct mem_desc *md = mem;
+					       "MC0:", "MC1:", "HMA:"};
 	struct adapter *adap = seq->private;
+	struct cudbg_meminfo meminfo;
+	int i, rc;
 
-	for (i = 0; i < ARRAY_SIZE(mem); i++) {
-		mem[i].limit = 0;
-		mem[i].idx = i;
-	}
+	memset(&meminfo, 0, sizeof(struct cudbg_meminfo));
+	rc = cudbg_fill_meminfo(adap, &meminfo);
+	if (rc)
+		return -ENXIO;
 
-	/* Find and sort the populated memory ranges */
-	i = 0;
-	lo = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
-	if (lo & EDRAM0_ENABLE_F) {
-		hi = t4_read_reg(adap, MA_EDRAM0_BAR_A);
-		avail[i].base = EDRAM0_BASE_G(hi) << 20;
-		avail[i].limit = avail[i].base + (EDRAM0_SIZE_G(hi) << 20);
-		avail[i].idx = 0;
-		i++;
-	}
-	if (lo & EDRAM1_ENABLE_F) {
-		hi = t4_read_reg(adap, MA_EDRAM1_BAR_A);
-		avail[i].base = EDRAM1_BASE_G(hi) << 20;
-		avail[i].limit = avail[i].base + (EDRAM1_SIZE_G(hi) << 20);
-		avail[i].idx = 1;
-		i++;
-	}
-
-	if (is_t5(adap->params.chip)) {
-		if (lo & EXT_MEM0_ENABLE_F) {
-			hi = t4_read_reg(adap, MA_EXT_MEMORY0_BAR_A);
-			avail[i].base = EXT_MEM0_BASE_G(hi) << 20;
-			avail[i].limit =
-				avail[i].base + (EXT_MEM0_SIZE_G(hi) << 20);
-			avail[i].idx = 3;
-			i++;
-		}
-		if (lo & EXT_MEM1_ENABLE_F) {
-			hi = t4_read_reg(adap, MA_EXT_MEMORY1_BAR_A);
-			avail[i].base = EXT_MEM1_BASE_G(hi) << 20;
-			avail[i].limit =
-				avail[i].base + (EXT_MEM1_SIZE_G(hi) << 20);
-			avail[i].idx = 4;
-			i++;
-		}
-	} else {
-		if (lo & EXT_MEM_ENABLE_F) {
-			hi = t4_read_reg(adap, MA_EXT_MEMORY_BAR_A);
-			avail[i].base = EXT_MEM_BASE_G(hi) << 20;
-			avail[i].limit =
-				avail[i].base + (EXT_MEM_SIZE_G(hi) << 20);
-			avail[i].idx = 2;
-			i++;
-		}
-	}
-	if (!i)                                    /* no memory available */
-		return 0;
-	sort(avail, i, sizeof(struct mem_desc), mem_desc_cmp, NULL);
-
-	(md++)->base = t4_read_reg(adap, SGE_DBQ_CTXT_BADDR_A);
-	(md++)->base = t4_read_reg(adap, SGE_IMSG_CTXT_BADDR_A);
-	(md++)->base = t4_read_reg(adap, SGE_FLM_CACHE_BADDR_A);
-	(md++)->base = t4_read_reg(adap, TP_CMM_TCB_BASE_A);
-	(md++)->base = t4_read_reg(adap, TP_CMM_MM_BASE_A);
-	(md++)->base = t4_read_reg(adap, TP_CMM_TIMER_BASE_A);
-	(md++)->base = t4_read_reg(adap, TP_CMM_MM_RX_FLST_BASE_A);
-	(md++)->base = t4_read_reg(adap, TP_CMM_MM_TX_FLST_BASE_A);
-	(md++)->base = t4_read_reg(adap, TP_CMM_MM_PS_FLST_BASE_A);
-
-	/* the next few have explicit upper bounds */
-	md->base = t4_read_reg(adap, TP_PMM_TX_BASE_A);
-	md->limit = md->base - 1 +
-		    t4_read_reg(adap, TP_PMM_TX_PAGE_SIZE_A) *
-		    PMTXMAXPAGE_G(t4_read_reg(adap, TP_PMM_TX_MAX_PAGE_A));
-	md++;
-
-	md->base = t4_read_reg(adap, TP_PMM_RX_BASE_A);
-	md->limit = md->base - 1 +
-		    t4_read_reg(adap, TP_PMM_RX_PAGE_SIZE_A) *
-		    PMRXMAXPAGE_G(t4_read_reg(adap, TP_PMM_RX_MAX_PAGE_A));
-	md++;
-
-	if (t4_read_reg(adap, LE_DB_CONFIG_A) & HASHEN_F) {
-		if (CHELSIO_CHIP_VERSION(adap->params.chip) <= CHELSIO_T5) {
-			hi = t4_read_reg(adap, LE_DB_TID_HASHBASE_A) / 4;
-			md->base = t4_read_reg(adap, LE_DB_HASH_TID_BASE_A);
-		 } else {
-			hi = t4_read_reg(adap, LE_DB_HASH_TID_BASE_A);
-			md->base = t4_read_reg(adap,
-					       LE_DB_HASH_TBL_BASE_ADDR_A);
-		}
-		md->limit = 0;
-	} else {
-		md->base = 0;
-		md->idx = ARRAY_SIZE(region);  /* hide it */
-	}
-	md++;
-
-#define ulp_region(reg) do { \
-	md->base = t4_read_reg(adap, ULP_ ## reg ## _LLIMIT_A);\
-	(md++)->limit = t4_read_reg(adap, ULP_ ## reg ## _ULIMIT_A); \
-} while (0)
-
-	ulp_region(RX_ISCSI);
-	ulp_region(RX_TDDP);
-	ulp_region(TX_TPT);
-	ulp_region(RX_STAG);
-	ulp_region(RX_RQ);
-	ulp_region(RX_RQUDP);
-	ulp_region(RX_PBL);
-	ulp_region(TX_PBL);
-#undef ulp_region
-	md->base = 0;
-	md->idx = ARRAY_SIZE(region);
-	if (!is_t4(adap->params.chip)) {
-		u32 size = 0;
-		u32 sge_ctrl = t4_read_reg(adap, SGE_CONTROL2_A);
-		u32 fifo_size = t4_read_reg(adap, SGE_DBVFIFO_SIZE_A);
-
-		if (is_t5(adap->params.chip)) {
-			if (sge_ctrl & VFIFO_ENABLE_F)
-				size = DBVFIFO_SIZE_G(fifo_size);
-		} else {
-			size = T6_DBVFIFO_SIZE_G(fifo_size);
-		}
-
-		if (size) {
-			md->base = BASEADDR_G(t4_read_reg(adap,
-					SGE_DBVFIFO_BADDR_A));
-			md->limit = md->base + (size << 2) - 1;
-		}
-	}
-
-	md++;
-
-	md->base = t4_read_reg(adap, ULP_RX_CTX_BASE_A);
-	md->limit = 0;
-	md++;
-	md->base = t4_read_reg(adap, ULP_TX_ERR_TABLE_BASE_A);
-	md->limit = 0;
-	md++;
-
-	md->base = adap->vres.ocq.start;
-	if (adap->vres.ocq.size)
-		md->limit = md->base + adap->vres.ocq.size - 1;
-	else
-		md->idx = ARRAY_SIZE(region);  /* hide it */
-	md++;
-
-	/* add any address-space holes, there can be up to 3 */
-	for (n = 0; n < i - 1; n++)
-		if (avail[n].limit < avail[n + 1].base)
-			(md++)->base = avail[n].limit;
-	if (avail[n].limit)
-		(md++)->base = avail[n].limit;
-
-	n = md - mem;
-	sort(mem, n, sizeof(struct mem_desc), mem_desc_cmp, NULL);
-
-	for (lo = 0; lo < i; lo++)
-		mem_region_show(seq, memory[avail[lo].idx], avail[lo].base,
-				avail[lo].limit - 1);
+	for (i = 0; i < meminfo.avail_c; i++)
+		mem_region_show(seq, memory[meminfo.avail[i].idx],
+				meminfo.avail[i].base,
+				meminfo.avail[i].limit - 1);
 
 	seq_putc(seq, '\n');
-	for (i = 0; i < n; i++) {
-		if (mem[i].idx >= ARRAY_SIZE(region))
+	for (i = 0; i < meminfo.mem_c; i++) {
+		if (meminfo.mem[i].idx >= ARRAY_SIZE(cudbg_region))
 			continue;                        /* skip holes */
-		if (!mem[i].limit)
-			mem[i].limit = i < n - 1 ? mem[i + 1].base - 1 : ~0;
-		mem_region_show(seq, region[mem[i].idx], mem[i].base,
-				mem[i].limit);
+		if (!meminfo.mem[i].limit)
+			meminfo.mem[i].limit =
+				i < meminfo.mem_c - 1 ?
+				meminfo.mem[i + 1].base - 1 : ~0;
+		mem_region_show(seq, cudbg_region[meminfo.mem[i].idx],
+				meminfo.mem[i].base, meminfo.mem[i].limit);
 	}
 
 	seq_putc(seq, '\n');
-	lo = t4_read_reg(adap, CIM_SDRAM_BASE_ADDR_A);
-	hi = t4_read_reg(adap, CIM_SDRAM_ADDR_SIZE_A) + lo - 1;
-	mem_region_show(seq, "uP RAM:", lo, hi);
+	mem_region_show(seq, "uP RAM:", meminfo.up_ram_lo, meminfo.up_ram_hi);
+	mem_region_show(seq, "uP Extmem2:", meminfo.up_extmem2_lo,
+			meminfo.up_extmem2_hi);
 
-	lo = t4_read_reg(adap, CIM_EXTMEM2_BASE_ADDR_A);
-	hi = t4_read_reg(adap, CIM_EXTMEM2_ADDR_SIZE_A) + lo - 1;
-	mem_region_show(seq, "uP Extmem2:", lo, hi);
-
-	lo = t4_read_reg(adap, TP_PMM_RX_MAX_PAGE_A);
 	seq_printf(seq, "\n%u Rx pages of size %uKiB for %u channels\n",
-		   PMRXMAXPAGE_G(lo),
-		   t4_read_reg(adap, TP_PMM_RX_PAGE_SIZE_A) >> 10,
-		   (lo & PMRXNUMCHN_F) ? 2 : 1);
+		   meminfo.rx_pages_data[0], meminfo.rx_pages_data[1],
+		   meminfo.rx_pages_data[2]);
 
-	lo = t4_read_reg(adap, TP_PMM_TX_MAX_PAGE_A);
-	hi = t4_read_reg(adap, TP_PMM_TX_PAGE_SIZE_A);
 	seq_printf(seq, "%u Tx pages of size %u%ciB for %u channels\n",
-		   PMTXMAXPAGE_G(lo),
-		   hi >= (1 << 20) ? (hi >> 20) : (hi >> 10),
-		   hi >= (1 << 20) ? 'M' : 'K', 1 << PMTXNUMCHN_G(lo));
-	seq_printf(seq, "%u p-structs\n\n",
-		   t4_read_reg(adap, TP_CMM_MM_MAX_PSTRUCT_A));
+		   meminfo.tx_pages_data[0], meminfo.tx_pages_data[1],
+		   meminfo.tx_pages_data[2], meminfo.tx_pages_data[3]);
 
-	for (i = 0; i < 4; i++) {
-		if (CHELSIO_CHIP_VERSION(adap->params.chip) > CHELSIO_T5)
-			lo = t4_read_reg(adap, MPS_RX_MAC_BG_PG_CNT0_A + i * 4);
-		else
-			lo = t4_read_reg(adap, MPS_RX_PG_RSV0_A + i * 4);
-		if (is_t5(adap->params.chip)) {
-			used = T5_USED_G(lo);
-			alloc = T5_ALLOC_G(lo);
-		} else {
-			used = USED_G(lo);
-			alloc = ALLOC_G(lo);
-		}
+	seq_printf(seq, "%u p-structs\n\n", meminfo.p_structs);
+
+	for (i = 0; i < 4; i++)
 		/* For T6 these are MAC buffer groups */
 		seq_printf(seq, "Port %d using %u pages out of %u allocated\n",
-			   i, used, alloc);
-	}
-	for (i = 0; i < adap->params.arch.nchan; i++) {
-		if (CHELSIO_CHIP_VERSION(adap->params.chip) > CHELSIO_T5)
-			lo = t4_read_reg(adap,
-					 MPS_RX_LPBK_BG_PG_CNT0_A + i * 4);
-		else
-			lo = t4_read_reg(adap, MPS_RX_PG_RSV4_A + i * 4);
-		if (is_t5(adap->params.chip)) {
-			used = T5_USED_G(lo);
-			alloc = T5_ALLOC_G(lo);
-		} else {
-			used = USED_G(lo);
-			alloc = ALLOC_G(lo);
-		}
+			   i, meminfo.port_used[i], meminfo.port_alloc[i]);
+
+	for (i = 0; i < adap->params.arch.nchan; i++)
 		/* For T6 these are MAC buffer groups */
 		seq_printf(seq,
 			   "Loopback %d using %u pages out of %u allocated\n",
-			   i, used, alloc);
-	}
+			   i, meminfo.loopback_used[i],
+			   meminfo.loopback_alloc[i]);
+
 	return 0;
 }
 
@@ -3096,6 +2906,8 @@ static int chcr_show(struct seq_file *seq, void *v)
 		   atomic_read(&adap->chcr_stats.error));
 	seq_printf(seq, "Fallback: %10u \n",
 		   atomic_read(&adap->chcr_stats.fallback));
+	seq_printf(seq, "IPSec PDU: %10u\n",
+		   atomic_read(&adap->chcr_stats.ipsec_cnt));
 	return 0;
 }
 
@@ -3135,65 +2947,65 @@ int t4_setup_debugfs(struct adapter *adap)
 	struct dentry *de;
 
 	static struct t4_debugfs_entry t4_debugfs_files[] = {
-		{ "cim_la", &cim_la_fops, S_IRUSR, 0 },
-		{ "cim_pif_la", &cim_pif_la_fops, S_IRUSR, 0 },
-		{ "cim_ma_la", &cim_ma_la_fops, S_IRUSR, 0 },
-		{ "cim_qcfg", &cim_qcfg_fops, S_IRUSR, 0 },
-		{ "clk", &clk_debugfs_fops, S_IRUSR, 0 },
-		{ "devlog", &devlog_fops, S_IRUSR, 0 },
-		{ "mboxlog", &mboxlog_fops, S_IRUSR, 0 },
-		{ "mbox0", &mbox_debugfs_fops, S_IRUSR | S_IWUSR, 0 },
-		{ "mbox1", &mbox_debugfs_fops, S_IRUSR | S_IWUSR, 1 },
-		{ "mbox2", &mbox_debugfs_fops, S_IRUSR | S_IWUSR, 2 },
-		{ "mbox3", &mbox_debugfs_fops, S_IRUSR | S_IWUSR, 3 },
-		{ "mbox4", &mbox_debugfs_fops, S_IRUSR | S_IWUSR, 4 },
-		{ "mbox5", &mbox_debugfs_fops, S_IRUSR | S_IWUSR, 5 },
-		{ "mbox6", &mbox_debugfs_fops, S_IRUSR | S_IWUSR, 6 },
-		{ "mbox7", &mbox_debugfs_fops, S_IRUSR | S_IWUSR, 7 },
-		{ "trace0", &mps_trc_debugfs_fops, S_IRUSR | S_IWUSR, 0 },
-		{ "trace1", &mps_trc_debugfs_fops, S_IRUSR | S_IWUSR, 1 },
-		{ "trace2", &mps_trc_debugfs_fops, S_IRUSR | S_IWUSR, 2 },
-		{ "trace3", &mps_trc_debugfs_fops, S_IRUSR | S_IWUSR, 3 },
-		{ "l2t", &t4_l2t_fops, S_IRUSR, 0},
-		{ "mps_tcam", &mps_tcam_debugfs_fops, S_IRUSR, 0 },
-		{ "rss", &rss_debugfs_fops, S_IRUSR, 0 },
-		{ "rss_config", &rss_config_debugfs_fops, S_IRUSR, 0 },
-		{ "rss_key", &rss_key_debugfs_fops, S_IRUSR, 0 },
-		{ "rss_pf_config", &rss_pf_config_debugfs_fops, S_IRUSR, 0 },
-		{ "rss_vf_config", &rss_vf_config_debugfs_fops, S_IRUSR, 0 },
-		{ "sge_qinfo", &sge_qinfo_debugfs_fops, S_IRUSR, 0 },
-		{ "ibq_tp0",  &cim_ibq_fops, S_IRUSR, 0 },
-		{ "ibq_tp1",  &cim_ibq_fops, S_IRUSR, 1 },
-		{ "ibq_ulp",  &cim_ibq_fops, S_IRUSR, 2 },
-		{ "ibq_sge0", &cim_ibq_fops, S_IRUSR, 3 },
-		{ "ibq_sge1", &cim_ibq_fops, S_IRUSR, 4 },
-		{ "ibq_ncsi", &cim_ibq_fops, S_IRUSR, 5 },
-		{ "obq_ulp0", &cim_obq_fops, S_IRUSR, 0 },
-		{ "obq_ulp1", &cim_obq_fops, S_IRUSR, 1 },
-		{ "obq_ulp2", &cim_obq_fops, S_IRUSR, 2 },
-		{ "obq_ulp3", &cim_obq_fops, S_IRUSR, 3 },
-		{ "obq_sge",  &cim_obq_fops, S_IRUSR, 4 },
-		{ "obq_ncsi", &cim_obq_fops, S_IRUSR, 5 },
-		{ "tp_la", &tp_la_fops, S_IRUSR, 0 },
-		{ "ulprx_la", &ulprx_la_fops, S_IRUSR, 0 },
-		{ "sensors", &sensors_debugfs_fops, S_IRUSR, 0 },
-		{ "pm_stats", &pm_stats_debugfs_fops, S_IRUSR, 0 },
-		{ "tx_rate", &tx_rate_debugfs_fops, S_IRUSR, 0 },
-		{ "cctrl", &cctrl_tbl_debugfs_fops, S_IRUSR, 0 },
+		{ "cim_la", &cim_la_fops, 0400, 0 },
+		{ "cim_pif_la", &cim_pif_la_fops, 0400, 0 },
+		{ "cim_ma_la", &cim_ma_la_fops, 0400, 0 },
+		{ "cim_qcfg", &cim_qcfg_fops, 0400, 0 },
+		{ "clk", &clk_debugfs_fops, 0400, 0 },
+		{ "devlog", &devlog_fops, 0400, 0 },
+		{ "mboxlog", &mboxlog_fops, 0400, 0 },
+		{ "mbox0", &mbox_debugfs_fops, 0600, 0 },
+		{ "mbox1", &mbox_debugfs_fops, 0600, 1 },
+		{ "mbox2", &mbox_debugfs_fops, 0600, 2 },
+		{ "mbox3", &mbox_debugfs_fops, 0600, 3 },
+		{ "mbox4", &mbox_debugfs_fops, 0600, 4 },
+		{ "mbox5", &mbox_debugfs_fops, 0600, 5 },
+		{ "mbox6", &mbox_debugfs_fops, 0600, 6 },
+		{ "mbox7", &mbox_debugfs_fops, 0600, 7 },
+		{ "trace0", &mps_trc_debugfs_fops, 0600, 0 },
+		{ "trace1", &mps_trc_debugfs_fops, 0600, 1 },
+		{ "trace2", &mps_trc_debugfs_fops, 0600, 2 },
+		{ "trace3", &mps_trc_debugfs_fops, 0600, 3 },
+		{ "l2t", &t4_l2t_fops, 0400, 0},
+		{ "mps_tcam", &mps_tcam_debugfs_fops, 0400, 0 },
+		{ "rss", &rss_debugfs_fops, 0400, 0 },
+		{ "rss_config", &rss_config_debugfs_fops, 0400, 0 },
+		{ "rss_key", &rss_key_debugfs_fops, 0400, 0 },
+		{ "rss_pf_config", &rss_pf_config_debugfs_fops, 0400, 0 },
+		{ "rss_vf_config", &rss_vf_config_debugfs_fops, 0400, 0 },
+		{ "sge_qinfo", &sge_qinfo_debugfs_fops, 0400, 0 },
+		{ "ibq_tp0",  &cim_ibq_fops, 0400, 0 },
+		{ "ibq_tp1",  &cim_ibq_fops, 0400, 1 },
+		{ "ibq_ulp",  &cim_ibq_fops, 0400, 2 },
+		{ "ibq_sge0", &cim_ibq_fops, 0400, 3 },
+		{ "ibq_sge1", &cim_ibq_fops, 0400, 4 },
+		{ "ibq_ncsi", &cim_ibq_fops, 0400, 5 },
+		{ "obq_ulp0", &cim_obq_fops, 0400, 0 },
+		{ "obq_ulp1", &cim_obq_fops, 0400, 1 },
+		{ "obq_ulp2", &cim_obq_fops, 0400, 2 },
+		{ "obq_ulp3", &cim_obq_fops, 0400, 3 },
+		{ "obq_sge",  &cim_obq_fops, 0400, 4 },
+		{ "obq_ncsi", &cim_obq_fops, 0400, 5 },
+		{ "tp_la", &tp_la_fops, 0400, 0 },
+		{ "ulprx_la", &ulprx_la_fops, 0400, 0 },
+		{ "sensors", &sensors_debugfs_fops, 0400, 0 },
+		{ "pm_stats", &pm_stats_debugfs_fops, 0400, 0 },
+		{ "tx_rate", &tx_rate_debugfs_fops, 0400, 0 },
+		{ "cctrl", &cctrl_tbl_debugfs_fops, 0400, 0 },
 #if IS_ENABLED(CONFIG_IPV6)
-		{ "clip_tbl", &clip_tbl_debugfs_fops, S_IRUSR, 0 },
+		{ "clip_tbl", &clip_tbl_debugfs_fops, 0400, 0 },
 #endif
-		{ "tids", &tid_info_debugfs_fops, S_IRUSR, 0},
-		{ "blocked_fl", &blocked_fl_fops, S_IRUSR | S_IWUSR, 0 },
-		{ "meminfo", &meminfo_fops, S_IRUSR, 0 },
-		{ "crypto", &chcr_stats_debugfs_fops, S_IRUSR, 0 },
+		{ "tids", &tid_info_debugfs_fops, 0400, 0},
+		{ "blocked_fl", &blocked_fl_fops, 0600, 0 },
+		{ "meminfo", &meminfo_fops, 0400, 0 },
+		{ "crypto", &chcr_stats_debugfs_fops, 0400, 0 },
 	};
 
 	/* Debug FS nodes common to all T5 and later adapters.
 	 */
 	static struct t4_debugfs_entry t5_debugfs_files[] = {
-		{ "obq_sge_rx_q0", &cim_obq_fops, S_IRUSR, 6 },
-		{ "obq_sge_rx_q1", &cim_obq_fops, S_IRUSR, 7 },
+		{ "obq_sge_rx_q0", &cim_obq_fops, 0400, 6 },
+		{ "obq_sge_rx_q1", &cim_obq_fops, 0400, 7 },
 	};
 
 	add_debugfs_files(adap,
@@ -3230,13 +3042,19 @@ int t4_setup_debugfs(struct adapter *adap)
 			add_debugfs_mem(adap, "mc", MEM_MC,
 					EXT_MEM_SIZE_G(size));
 		}
+
+		if (i & HMA_MUX_F) {
+			size = t4_read_reg(adap, MA_EXT_MEMORY1_BAR_A);
+			add_debugfs_mem(adap, "hma", MEM_HMA,
+					EXT_MEM1_SIZE_G(size));
+		}
 	}
 
-	de = debugfs_create_file_size("flash", S_IRUSR, adap->debugfs_root, adap,
+	de = debugfs_create_file_size("flash", 0400, adap->debugfs_root, adap,
 				      &flash_debugfs_fops, adap->params.sf_size);
-	debugfs_create_bool("use_backdoor", S_IWUSR | S_IRUSR,
+	debugfs_create_bool("use_backdoor", 0600,
 			    adap->debugfs_root, &adap->use_bd);
-	debugfs_create_bool("trace_rss", S_IWUSR | S_IRUSR,
+	debugfs_create_bool("trace_rss", 0600,
 			    adap->debugfs_root, &adap->trace_rss);
 
 	return 0;

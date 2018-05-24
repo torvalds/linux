@@ -26,7 +26,6 @@
 #include <linux/sysfs.h>
 #include <linux/types.h>
 #include <linux/fs.h>
-#include <linux/debugfs.h>
 #include <linux/acpi.h>
 #include <linux/vmalloc.h>
 #include <trace/events/power.h>
@@ -779,12 +778,17 @@ static int intel_pstate_hwp_save_state(struct cpufreq_policy *policy)
 	return 0;
 }
 
+static void intel_pstate_hwp_enable(struct cpudata *cpudata);
+
 static int intel_pstate_resume(struct cpufreq_policy *policy)
 {
 	if (!hwp_active)
 		return 0;
 
 	mutex_lock(&intel_pstate_limits_lock);
+
+	if (policy->cpu == 0)
+		intel_pstate_hwp_enable(all_cpu_data[policy->cpu]);
 
 	all_cpu_data[policy->cpu]->epp_policy = 0;
 	intel_pstate_hwp_set(policy->cpu);

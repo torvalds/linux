@@ -140,6 +140,42 @@ static unsigned int davinci_wdt_get_timeleft(struct watchdog_device *wdd)
 	return wdd->timeout - timer_counter;
 }
 
+static int davinci_wdt_restart(struct watchdog_device *wdd,
+			       unsigned long action, void *data)
+{
+	struct davinci_wdt_device *davinci_wdt = watchdog_get_drvdata(wdd);
+	u32 tgcr, wdtcr;
+
+	/* disable, internal clock source */
+	iowrite32(0, davinci_wdt->base + TCR);
+
+	/* reset timer, set mode to 64-bit watchdog, and unreset */
+	tgcr = 0;
+	iowrite32(tgcr, davinci_wdt->base + TGCR);
+	tgcr = TIMMODE_64BIT_WDOG | TIM12RS_UNRESET | TIM34RS_UNRESET;
+	iowrite32(tgcr, davinci_wdt->base + TGCR);
+
+	/* clear counter and period regs */
+	iowrite32(0, davinci_wdt->base + TIM12);
+	iowrite32(0, davinci_wdt->base + TIM34);
+	iowrite32(0, davinci_wdt->base + PRD12);
+	iowrite32(0, davinci_wdt->base + PRD34);
+
+	/* put watchdog in pre-active state */
+	wdtcr = WDKEY_SEQ0 | WDEN;
+	iowrite32(wdtcr, davinci_wdt->base + WDTCR);
+
+	/* put watchdog in active state */
+	wdtcr = WDKEY_SEQ1 | WDEN;
+	iowrite32(wdtcr, davinci_wdt->base + WDTCR);
+
+	/* write an invalid value to the WDKEY field to trigger a restart */
+	wdtcr = 0x00004000;
+	iowrite32(wdtcr, davinci_wdt->base + WDTCR);
+
+	return 0;
+}
+
 static const struct watchdog_info davinci_wdt_info = {
 	.options = WDIOF_KEEPALIVEPING,
 	.identity = "DaVinci/Keystone Watchdog",
@@ -151,6 +187,7 @@ static const struct watchdog_ops davinci_wdt_ops = {
 	.stop		= davinci_wdt_ping,
 	.ping		= davinci_wdt_ping,
 	.get_timeleft	= davinci_wdt_get_timeleft,
+	.restart	= davinci_wdt_restart,
 };
 
 static int davinci_wdt_probe(struct platform_device *pdev)
@@ -195,17 +232,25 @@ static int davinci_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_drvdata(wdd, davinci_wdt);
 	watchdog_set_nowayout(wdd, 1);
+	watchdog_set_restart_priority(wdd, 128);
 
 	wdt_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	davinci_wdt->base = devm_ioremap_resource(dev, wdt_mem);
-	if (IS_ERR(davinci_wdt->base))
-		return PTR_ERR(davinci_wdt->base);
+	if (IS_ERR(davinci_wdt->base)) {
+		ret = PTR_ERR(davinci_wdt->base);
+		goto err_clk_disable;
+	}
 
 	ret = watchdog_register_device(wdd);
-	if (ret < 0) {
-		clk_disable_unprepare(davinci_wdt->clk);
+	if (ret) {
 		dev_err(dev, "cannot register watchdog device\n");
+		goto err_clk_disable;
 	}
+
+	return 0;
+
+err_clk_disable:
+	clk_disable_unprepare(davinci_wdt->clk);
 
 	return ret;
 }

@@ -47,7 +47,7 @@
 	model = "Liebherr (LWN) display5 i.MX6 Quad Board";
 	compatible = "lwn,display5", "fsl,imx6q";
 
-	memory {
+	memory@10000000 {
 		reg = <0x10000000 0x40000000>;
 	};
 
@@ -255,7 +255,7 @@
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
 
-	codec: tfa9879@6C {
+	codec: tfa9879@6c {
 		#sound-dai-cells = <0>;
 		compatible = "nxp,tfa9879";
 		reg = <0x6C>;

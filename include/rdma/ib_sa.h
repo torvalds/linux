@@ -163,7 +163,15 @@ struct sa_path_rec_ib {
 	u8           raw_traffic;
 };
 
+/**
+ * struct sa_path_rec_roce - RoCE specific portion of the path record entry
+ * @route_resolved:	When set, it indicates that this route is already
+ *			resolved for this path record entry.
+ * @dmac:		Destination mac address for the given DGID entry
+ *			of the path record entry.
+ */
 struct sa_path_rec_roce {
+	bool	route_resolved;
 	u8           dmac[ETH_ALEN];
 	/* ignored in IB */
 	int	     ifindex;
@@ -588,6 +596,11 @@ static inline bool sa_path_is_roce(struct sa_path_rec *rec)
 {
 	return ((rec->rec_type == SA_PATH_REC_TYPE_ROCE_V1) ||
 		(rec->rec_type == SA_PATH_REC_TYPE_ROCE_V2));
+}
+
+static inline bool sa_path_is_opa(struct sa_path_rec *rec)
+{
+	return (rec->rec_type == SA_PATH_REC_TYPE_OPA);
 }
 
 static inline void sa_path_set_slid(struct sa_path_rec *rec, u32 slid)

@@ -8,6 +8,7 @@
  * kind, whether express or implied.
  */
 
+#include <dt-bindings/bus/ti-sysc.h>
 #include <dt-bindings/media/omap3-isp.h>
 
 #include "omap3.dtsi"
@@ -92,6 +93,51 @@
 			reg = <0x48002524 0x4>;
 			compatible = "ti,omap36xx-bandgap";
 			#thermal-sensor-cells = <0>;
+		};
+
+		target-module@480cb000 {
+			compatible = "ti,sysc-omap3630-sr", "ti,sysc";
+			ti,hwmods = "smartreflex_core";
+			reg = <0x480cb038 0x4>;
+			reg-names = "sysc";
+			ti,sysc-mask = <SYSC_OMAP3_SR_ENAWAKEUP>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&sr2_fck>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x480cb000 0x001000>;
+
+			smartreflex_core: smartreflex@0 {
+				compatible = "ti,omap3-smartreflex-core";
+				reg = <0 0x400>;
+				interrupts = <19>;
+			};
+		};
+
+		target-module@480c9000 {
+			compatible = "ti,sysc-omap3630-sr", "ti,sysc";
+			ti,hwmods = "smartreflex_mpu_iva";
+			reg = <0x480c9038 0x4>;
+			reg-names = "sysc";
+			ti,sysc-mask = <SYSC_OMAP3_SR_ENAWAKEUP>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			clocks = <&sr1_fck>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x480c9000 0x001000>;
+
+
+			smartreflex_mpu_iva: smartreflex@480c9000 {
+				compatible = "ti,omap3-smartreflex-mpu-iva";
+				reg = <0 0x400>;
+				interrupts = <18>;
+			};
 		};
 	};
 

@@ -13,4 +13,3 @@ obj-y += impedance-analyzer/
 obj-y += light/
 obj-y += meter/
 obj-y += resolver/
-obj-y += trigger/

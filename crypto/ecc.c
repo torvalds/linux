@@ -964,7 +964,7 @@ int ecc_gen_privkey(unsigned int curve_id, unsigned int ndigits, u64 *privkey)
 	 * DRBG with a security strength of 256.
 	 */
 	if (crypto_get_default_rng())
-		err = -EFAULT;
+		return -EFAULT;
 
 	err = crypto_rng_get_bytes(crypto_default_rng, (u8 *)priv, nbytes);
 	crypto_put_default_rng();
@@ -1025,9 +1025,7 @@ int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
 {
 	int ret = 0;
 	struct ecc_point *product, *pk;
-	u64 priv[ndigits];
-	u64 rand_z[ndigits];
-	unsigned int nbytes;
+	u64 *priv, *rand_z;
 	const struct ecc_curve *curve = ecc_get_curve(curve_id);
 
 	if (!private_key || !public_key || !curve) {
@@ -1035,14 +1033,22 @@ int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
 		goto out;
 	}
 
-	nbytes = ndigits << ECC_DIGITS_TO_BYTES_SHIFT;
+	priv = kmalloc_array(ndigits, sizeof(*priv), GFP_KERNEL);
+	if (!priv) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
-	get_random_bytes(rand_z, nbytes);
+	rand_z = kmalloc_array(ndigits, sizeof(*rand_z), GFP_KERNEL);
+	if (!rand_z) {
+		ret = -ENOMEM;
+		goto kfree_out;
+	}
 
 	pk = ecc_alloc_point(ndigits);
 	if (!pk) {
 		ret = -ENOMEM;
-		goto out;
+		goto kfree_out;
 	}
 
 	product = ecc_alloc_point(ndigits);
@@ -1050,6 +1056,8 @@ int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
 		ret = -ENOMEM;
 		goto err_alloc_product;
 	}
+
+	get_random_bytes(rand_z, ndigits << ECC_DIGITS_TO_BYTES_SHIFT);
 
 	ecc_swap_digits(public_key, pk->x, ndigits);
 	ecc_swap_digits(&public_key[ndigits], pk->y, ndigits);
@@ -1065,6 +1073,9 @@ int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
 	ecc_free_point(product);
 err_alloc_product:
 	ecc_free_point(pk);
+kfree_out:
+	kzfree(priv);
+	kzfree(rand_z);
 out:
 	return ret;
 }

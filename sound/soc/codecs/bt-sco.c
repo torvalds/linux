@@ -62,25 +62,26 @@ static struct snd_soc_dai_driver bt_sco_dai[] = {
 	}
 };
 
-static const struct snd_soc_codec_driver soc_codec_dev_bt_sco = {
-	.component_driver = {
-		.dapm_widgets		= bt_sco_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(bt_sco_widgets),
-		.dapm_routes		= bt_sco_routes,
-		.num_dapm_routes	= ARRAY_SIZE(bt_sco_routes),
-	},
+static const struct snd_soc_component_driver soc_component_dev_bt_sco = {
+	.dapm_widgets		= bt_sco_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(bt_sco_widgets),
+	.dapm_routes		= bt_sco_routes,
+	.num_dapm_routes	= ARRAY_SIZE(bt_sco_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int bt_sco_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_bt_sco,
+	return devm_snd_soc_register_component(&pdev->dev,
+				      &soc_component_dev_bt_sco,
 				      bt_sco_dai, ARRAY_SIZE(bt_sco_dai));
 }
 
 static int bt_sco_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_codec(&pdev->dev);
-
 	return 0;
 }
 

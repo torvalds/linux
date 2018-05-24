@@ -326,7 +326,7 @@ static int pn_socket_accept(struct socket *sock, struct socket *newsock,
 }
 
 static int pn_socket_getname(struct socket *sock, struct sockaddr *addr,
-				int *sockaddr_len, int peer)
+				int peer)
 {
 	struct sock *sk = sock->sk;
 	struct pn_sock *pn = pn_sk(sk);
@@ -337,8 +337,7 @@ static int pn_socket_getname(struct socket *sock, struct sockaddr *addr,
 		pn_sockaddr_set_object((struct sockaddr_pn *)addr,
 					pn->sobject);
 
-	*sockaddr_len = sizeof(struct sockaddr_pn);
-	return 0;
+	return sizeof(struct sockaddr_pn);
 }
 
 static __poll_t pn_socket_poll(struct file *file, struct socket *sock,
@@ -351,18 +350,18 @@ static __poll_t pn_socket_poll(struct file *file, struct socket *sock,
 	poll_wait(file, sk_sleep(sk), wait);
 
 	if (sk->sk_state == TCP_CLOSE)
-		return POLLERR;
+		return EPOLLERR;
 	if (!skb_queue_empty(&sk->sk_receive_queue))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	if (!skb_queue_empty(&pn->ctrlreq_queue))
-		mask |= POLLPRI;
+		mask |= EPOLLPRI;
 	if (!mask && sk->sk_state == TCP_CLOSE_WAIT)
-		return POLLHUP;
+		return EPOLLHUP;
 
 	if (sk->sk_state == TCP_ESTABLISHED &&
 		refcount_read(&sk->sk_wmem_alloc) < sk->sk_sndbuf &&
 		atomic_read(&pn->tx_credits))
-		mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
+		mask |= EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND;
 
 	return mask;
 }
@@ -635,7 +634,6 @@ static int pn_sock_open(struct inode *inode, struct file *file)
 }
 
 const struct file_operations pn_sock_seq_fops = {
-	.owner = THIS_MODULE,
 	.open = pn_sock_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -818,7 +816,6 @@ static int pn_res_open(struct inode *inode, struct file *file)
 }
 
 const struct file_operations pn_res_seq_fops = {
-	.owner = THIS_MODULE,
 	.open = pn_res_open,
 	.read = seq_read,
 	.llseek = seq_lseek,

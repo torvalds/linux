@@ -16,8 +16,6 @@
 static LIST_HEAD(_targets);
 static DECLARE_RWSEM(_lock);
 
-#define DM_MOD_NAME_SIZE 32
-
 static inline struct target_type *__find_target_type(const char *name)
 {
 	struct target_type *tt;

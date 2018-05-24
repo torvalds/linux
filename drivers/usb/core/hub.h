@@ -96,6 +96,7 @@ struct usb_port {
 	enum usb_port_connect_type connect_type;
 	usb_port_location_t location;
 	struct mutex status_lock;
+	u32 over_current_count;
 	u8 portnum;
 	unsigned int is_superspeed:1;
 	unsigned int usb3_lpm_u1_permit:1;

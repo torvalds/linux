@@ -235,3 +235,5 @@ static struct platform_driver goldfish_rtc = {
 };
 
 module_platform_driver(goldfish_rtc);
+
+MODULE_LICENSE("GPL v2");

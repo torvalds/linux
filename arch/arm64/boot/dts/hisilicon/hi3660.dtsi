@@ -61,6 +61,7 @@
 			enable-method = "psci";
 			next-level-cache = <&A53_L2>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_0>;
+			capacity-dmips-mhz = <592>;
 		};
 
 		cpu1: cpu@1 {
@@ -70,6 +71,7 @@
 			enable-method = "psci";
 			next-level-cache = <&A53_L2>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_0>;
+			capacity-dmips-mhz = <592>;
 		};
 
 		cpu2: cpu@2 {
@@ -79,6 +81,7 @@
 			enable-method = "psci";
 			next-level-cache = <&A53_L2>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_0>;
+			capacity-dmips-mhz = <592>;
 		};
 
 		cpu3: cpu@3 {
@@ -88,6 +91,7 @@
 			enable-method = "psci";
 			next-level-cache = <&A53_L2>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_0>;
+			capacity-dmips-mhz = <592>;
 		};
 
 		cpu4: cpu@100 {
@@ -96,11 +100,8 @@
 			reg = <0x0 0x100>;
 			enable-method = "psci";
 			next-level-cache = <&A73_L2>;
-			cpu-idle-states = <
-					&CPU_NAP
-					&CPU_SLEEP
-					&CLUSTER_SLEEP_1
-			>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_1>;
+			capacity-dmips-mhz = <1024>;
 		};
 
 		cpu5: cpu@101 {
@@ -109,11 +110,8 @@
 			reg = <0x0 0x101>;
 			enable-method = "psci";
 			next-level-cache = <&A73_L2>;
-			cpu-idle-states = <
-					&CPU_NAP
-					&CPU_SLEEP
-					&CLUSTER_SLEEP_1
-			>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_1>;
+			capacity-dmips-mhz = <1024>;
 		};
 
 		cpu6: cpu@102 {
@@ -122,11 +120,8 @@
 			reg = <0x0 0x102>;
 			enable-method = "psci";
 			next-level-cache = <&A73_L2>;
-			cpu-idle-states = <
-					&CPU_NAP
-					&CPU_SLEEP
-					&CLUSTER_SLEEP_1
-			>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_1>;
+			capacity-dmips-mhz = <1024>;
 		};
 
 		cpu7: cpu@103 {
@@ -135,23 +130,12 @@
 			reg = <0x0 0x103>;
 			enable-method = "psci";
 			next-level-cache = <&A73_L2>;
-			cpu-idle-states = <
-					&CPU_NAP
-					&CPU_SLEEP
-					&CLUSTER_SLEEP_1
-			>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_1>;
+			capacity-dmips-mhz = <1024>;
 		};
 
 		idle-states {
 			entry-method = "psci";
-
-			CPU_NAP: cpu-nap {
-				compatible = "arm,idle-state";
-				arm,psci-suspend-param = <0x0000001>;
-				entry-latency-us = <7>;
-				exit-latency-us = <2>;
-				min-residency-us = <15>;
-			};
 
 			CPU_SLEEP: cpu-sleep {
 				compatible = "arm,idle-state";
@@ -203,21 +187,25 @@
 					 IRQ_TYPE_LEVEL_HIGH)>;
 	};
 
-	pmu {
-		compatible = "arm,armv8-pmuv3";
+	a53-pmu {
+		compatible = "arm,cortex-a53-pmu";
 		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
+			     <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-affinity = <&cpu0>,
 				     <&cpu1>,
 				     <&cpu2>,
-				     <&cpu3>,
-				     <&cpu4>,
+				     <&cpu3>;
+	};
+
+	a73-pmu {
+		compatible = "arm,cortex-a73-pmu";
+		interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&cpu4>,
 				     <&cpu5>,
 				     <&cpu6>,
 				     <&cpu7>;
@@ -910,7 +898,6 @@
 			#size-cells = <0>;
 			cd-inverted;
 			compatible = "hisilicon,hi3660-dw-mshc";
-			num-slots = <1>;
 			bus-width = <0x4>;
 			disable-wp;
 			cap-sd-highspeed;
@@ -948,7 +935,6 @@
 			compatible = "hisilicon,hi3660-dw-mshc";
 			reg = <0x0 0xff3ff000 0x0 0x1000>;
 			interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
-			num-slots = <1>;
 			clocks = <&crg_ctrl HI3660_CLK_GATE_SDIO0>,
 				 <&crg_ctrl HI3660_HCLK_GATE_SDIO0>;
 			clock-names = "ciu", "biu";

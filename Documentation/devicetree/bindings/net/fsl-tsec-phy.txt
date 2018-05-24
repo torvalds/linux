@@ -6,7 +6,11 @@ the definition of the PHY node in booting-without-of.txt for an example
 of how to define a PHY.
 
 Required properties:
-  - reg : Offset and length of the register set for the device
+  - reg : Offset and length of the register set for the device, and optionally
+          the offset and length of the TBIPA register (TBI PHY address
+	  register).  If TBIPA register is not specified, the driver will
+	  attempt to infer it from the register set specified (your mileage may
+	  vary).
   - compatible : Should define the compatible device type for the
     mdio. Currently supported strings/devices are:
 	- "fsl,gianfar-tbi"
@@ -136,7 +140,7 @@ Clock Properties:
 
 Example:
 
-	ptp_clock@24E00 {
+	ptp_clock@24e00 {
 		compatible = "fsl,etsec-ptp";
 		reg = <0x24E00 0xB0>;
 		interrupts = <12 0x8 13 0x8>;

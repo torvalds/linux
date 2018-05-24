@@ -28,7 +28,14 @@
 #include <linux/bug.h>
 
 #ifdef CONFIG_DRM_I915_DEBUG_GEM
-#define GEM_BUG_ON(expr) BUG_ON(expr)
+#define GEM_BUG_ON(condition) do { if (unlikely((condition))) {	\
+		pr_err("%s:%d GEM_BUG_ON(%s)\n", \
+		       __func__, __LINE__, __stringify(condition)); \
+		GEM_TRACE("%s:%d GEM_BUG_ON(%s)\n", \
+			  __func__, __LINE__, __stringify(condition)); \
+		BUG(); \
+		} \
+	} while(0)
 #define GEM_WARN_ON(expr) WARN_ON(expr)
 
 #define GEM_DEBUG_DECL(var) var
@@ -44,6 +51,12 @@
 #define GEM_DEBUG_BUG_ON(expr)
 #endif
 
-#define I915_NUM_ENGINES 5
+#if IS_ENABLED(CONFIG_DRM_I915_TRACE_GEM)
+#define GEM_TRACE(...) trace_printk(__VA_ARGS__)
+#else
+#define GEM_TRACE(...) do { } while (0)
+#endif
+
+#define I915_NUM_ENGINES 8
 
 #endif /* __I915_GEM_H__ */

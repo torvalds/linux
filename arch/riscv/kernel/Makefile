@@ -2,6 +2,11 @@
 # Makefile for the RISC-V Linux kernel
 #
 
+ifdef CONFIG_FTRACE
+CFLAGS_REMOVE_ftrace.o = -pg
+CFLAGS_REMOVE_setup.o = -pg
+endif
+
 extra-y += head.o
 extra-y += vmlinux.lds
 
@@ -29,5 +34,9 @@ CFLAGS_setup.o := -mcmodel=medany
 obj-$(CONFIG_SMP)		+= smpboot.o
 obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_MODULES)		+= module.o
+obj-$(CONFIG_MODULE_SECTIONS)	+= module-sections.o
+
+obj-$(CONFIG_FUNCTION_TRACER)	+= mcount.o ftrace.o
+obj-$(CONFIG_DYNAMIC_FTRACE)	+= mcount-dyn.o
 
 clean:

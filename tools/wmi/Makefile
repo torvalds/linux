@@ -2,7 +2,6 @@ PREFIX ?= /usr
 SBINDIR ?= sbin
 INSTALL ?= install
 CFLAGS += -D__EXPORTED_HEADERS__ -I../../include/uapi -I../../include
-CC = $(CROSS_COMPILE)gcc
 
 TARGET = dell-smbios-example
 

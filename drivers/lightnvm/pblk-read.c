@@ -563,7 +563,7 @@ int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq)
 	if (!(gc_rq->secs_to_gc))
 		goto out;
 
-	data_len = (gc_rq->secs_to_gc) * geo->sec_size;
+	data_len = (gc_rq->secs_to_gc) * geo->csecs;
 	bio = pblk_bio_map_addr(pblk, gc_rq->data, gc_rq->secs_to_gc, data_len,
 						PBLK_VMALLOC_META, GFP_KERNEL);
 	if (IS_ERR(bio)) {

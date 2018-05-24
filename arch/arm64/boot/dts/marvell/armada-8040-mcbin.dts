@@ -1,46 +1,7 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Copyright (C) 2016 Marvell Technology Group Ltd.
  *
- * This file is dual-licensed: you can use it either under the terms
- * of the GPLv2 or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
- * whole.
- *
- *  a) This library is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License as
- *     published by the Free Software Foundation; either version 2 of the
- *     License, or (at your option) any later version.
- *
- *     This library is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- * Or, alternatively,
- *
- *  b) Permission is hereby granted, free of charge, to any person
- *     obtaining a copy of this software and associated documentation
- *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use,
- *     copy, modify, merge, publish, distribute, sublicense, and/or
- *     sell copies of the Software, and to permit persons to whom the
- *     Software is furnished to do so, subject to the following
- *     conditions:
- *
- *     The above copyright notice and this permission notice shall be
- *     included in all copies or substantial portions of the Software.
- *
- *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- *     OTHER DEALINGS IN THE SOFTWARE.
- */
-
-/*
  * Device Tree file for MACCHIATOBin Armada 8040 community board platform
  */
 
@@ -49,7 +10,7 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Marvell 8040 MACHIATOBin";
+	model = "Marvell 8040 MACCHIATOBin";
 	compatible = "marvell,armada8040-mcbin", "marvell,armada8040",
 			"marvell,armada-ap806-quad", "marvell,armada-ap806";
 
@@ -60,6 +21,12 @@
 	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x0 0x0 0x80000000>;
+	};
+
+	aliases {
+		ethernet0 = &cp0_eth0;
+		ethernet1 = &cp1_eth0;
+		ethernet2 = &cp1_eth1;
 	};
 
 	/* Regulator labels correspond with schematics */
@@ -84,9 +51,9 @@
 	v_5v0_usb3_hst_vbus: regulator-usb3-vbus0 {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&cpm_gpio2 15 GPIO_ACTIVE_HIGH>;
+		gpio = <&cp0_gpio2 15 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&cpm_xhci_vbus_pins>;
+		pinctrl-0 = <&cp0_xhci_vbus_pins>;
 		regulator-name = "v_5v0_usb3_hst_vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
@@ -120,17 +87,17 @@
 	vqmmc-supply = <&v_vddo_h>;
 };
 
-&cpm_i2c0 {
+&cp0_i2c0 {
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&cpm_i2c0_pins>;
+	pinctrl-0 = <&cp0_i2c0_pins>;
 	status = "okay";
 };
 
-&cpm_i2c1 {
+&cp0_i2c1 {
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&cpm_i2c1_pins>;
+	pinctrl-0 = <&cp0_i2c1_pins>;
 	status = "okay";
 
 	i2c-switch@70 {
@@ -157,9 +124,16 @@
 	};
 };
 
-&cpm_mdio {
+/* J25 UART header */
+&cp0_uart1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&cpm_ge_mdio_pins>;
+	pinctrl-0 = <&cp0_uart1_pins>;
+	status = "okay";
+};
+
+&cp0_mdio {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp0_ge_mdio_pins>;
 	status = "okay";
 
 	ge_phy: ethernet-phy@0 {
@@ -167,44 +141,48 @@
 	};
 };
 
-&cpm_pcie0 {
+&cp0_pcie0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&cpm_pcie_pins>;
+	pinctrl-0 = <&cp0_pcie_pins>;
 	num-lanes = <4>;
 	num-viewport = <8>;
-	reset-gpio = <&cpm_gpio1 20 GPIO_ACTIVE_LOW>;
+	reset-gpio = <&cp0_gpio1 20 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
-&cpm_pinctrl {
-	cpm_ge_mdio_pins: ge-mdio-pins {
+&cp0_pinctrl {
+	cp0_ge_mdio_pins: ge-mdio-pins {
 		marvell,pins = "mpp32", "mpp34";
 		marvell,function = "ge";
 	};
-	cpm_i2c1_pins: i2c1-pins {
+	cp0_i2c1_pins: i2c1-pins {
 		marvell,pins = "mpp35", "mpp36";
 		marvell,function = "i2c1";
 	};
-	cpm_i2c0_pins: i2c0-pins {
+	cp0_i2c0_pins: i2c0-pins {
 		marvell,pins = "mpp37", "mpp38";
 		marvell,function = "i2c0";
 	};
-	cpm_xhci_vbus_pins: xhci0-vbus-pins {
+	cp0_uart1_pins: uart1-pins {
+		marvell,pins = "mpp40", "mpp41";
+		marvell,function = "uart1";
+	};
+	cp0_xhci_vbus_pins: xhci0-vbus-pins {
 		marvell,pins = "mpp47";
 		marvell,function = "gpio";
 	};
-	cpm_pcie_pins: pcie-pins {
+	cp0_pcie_pins: pcie-pins {
 		marvell,pins = "mpp52";
 		marvell,function = "gpio";
 	};
-	cpm_sdhci_pins: sdhci-pins {
+	cp0_sdhci_pins: sdhci-pins {
 		marvell,pins = "mpp55", "mpp56", "mpp57", "mpp58", "mpp59",
 			       "mpp60", "mpp61";
 		marvell,function = "sdio";
 	};
 };
 
-&cpm_xmdio {
+&cp0_xmdio {
 	status = "okay";
 
 	phy0: ethernet-phy@0 {
@@ -218,83 +196,94 @@
 	};
 };
 
-&cpm_ethernet {
+&cp0_ethernet {
 	status = "okay";
 };
 
-&cpm_eth0 {
+&cp0_eth0 {
 	status = "okay";
 	/* Network PHY */
 	phy = <&phy0>;
 	phy-mode = "10gbase-kr";
 	/* Generic PHY, providing serdes lanes */
-	phys = <&cpm_comphy4 0>;
+	phys = <&cp0_comphy4 0>;
 };
 
-&cpm_sata0 {
+&cp0_sata0 {
 	/* CPM Lane 0 - U29 */
 	status = "okay";
 };
 
-&cpm_sdhci0 {
+&cp0_sdhci0 {
 	/* U6 */
 	broken-cd;
 	bus-width = <4>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&cpm_sdhci_pins>;
+	pinctrl-0 = <&cp0_sdhci_pins>;
 	status = "okay";
 	vqmmc-supply = <&v_3_3>;
 };
 
-&cpm_usb3_0 {
+&cp0_usb3_0 {
 	/* J38? - USB2.0 only */
 	status = "okay";
 };
 
-&cpm_usb3_1 {
+&cp0_usb3_1 {
 	/* J38? - USB2.0 only */
 	status = "okay";
 };
 
-&cps_ethernet {
+&cp1_ethernet {
 	status = "okay";
 };
 
-&cps_eth0 {
+&cp1_eth0 {
 	status = "okay";
 	/* Network PHY */
 	phy = <&phy8>;
 	phy-mode = "10gbase-kr";
 	/* Generic PHY, providing serdes lanes */
-	phys = <&cps_comphy4 0>;
+	phys = <&cp1_comphy4 0>;
 };
 
-&cps_eth1 {
+&cp1_eth1 {
 	/* CPS Lane 0 - J5 (Gigabit RJ45) */
 	status = "okay";
 	/* Network PHY */
 	phy = <&ge_phy>;
 	phy-mode = "sgmii";
 	/* Generic PHY, providing serdes lanes */
-	phys = <&cps_comphy0 1>;
+	phys = <&cp1_comphy0 1>;
 };
 
-&cps_pinctrl {
-	cps_spi1_pins: spi1-pins {
+&cp1_pinctrl {
+	cp1_spi1_pins: spi1-pins {
 		marvell,pins = "mpp12", "mpp13", "mpp14", "mpp15", "mpp16";
 		marvell,function = "spi1";
 	};
+	cp1_uart0_pins: uart0-pins {
+		marvell,pins = "mpp6", "mpp7";
+		marvell,function = "uart0";
+	};
 };
 
-&cps_sata0 {
+/* J27 UART header */
+&cp1_uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp1_uart0_pins>;
+	status = "okay";
+};
+
+&cp1_sata0 {
 	/* CPS Lane 1 - U32 */
 	/* CPS Lane 3 - U31 */
 	status = "okay";
 };
 
-&cps_spi1 {
+&cp1_spi1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&cps_spi1_pins>;
+	pinctrl-0 = <&cp1_spi1_pins>;
 	status = "okay";
 
 	spi-flash@0 {
@@ -304,7 +293,7 @@
 	};
 };
 
-&cps_usb3_0 {
+&cp1_usb3_0 {
 	/* CPS Lane 2 - CON7 */
 	usb-phy = <&usb3h0_phy>;
 	status = "okay";

@@ -37,6 +37,7 @@
 #include <linux/user_namespace.h>
 #include "internal.h"
 
+static int thaw_super_locked(struct super_block *sb);
 
 static LIST_HEAD(super_blocks);
 static DEFINE_SPINLOCK(sb_lock);
@@ -574,6 +575,28 @@ void drop_super_exclusive(struct super_block *sb)
 }
 EXPORT_SYMBOL(drop_super_exclusive);
 
+static void __iterate_supers(void (*f)(struct super_block *))
+{
+	struct super_block *sb, *p = NULL;
+
+	spin_lock(&sb_lock);
+	list_for_each_entry(sb, &super_blocks, s_list) {
+		if (hlist_unhashed(&sb->s_instances))
+			continue;
+		sb->s_count++;
+		spin_unlock(&sb_lock);
+
+		f(sb);
+
+		spin_lock(&sb_lock);
+		if (p)
+			__put_super(p);
+		p = sb;
+	}
+	if (p)
+		__put_super(p);
+	spin_unlock(&sb_lock);
+}
 /**
  *	iterate_supers - call function for all active superblocks
  *	@f: function to call
@@ -881,33 +904,22 @@ cancel_readonly:
 	return retval;
 }
 
+static void do_emergency_remount_callback(struct super_block *sb)
+{
+	down_write(&sb->s_umount);
+	if (sb->s_root && sb->s_bdev && (sb->s_flags & SB_BORN) &&
+	    !sb_rdonly(sb)) {
+		/*
+		 * What lock protects sb->s_flags??
+		 */
+		do_remount_sb(sb, SB_RDONLY, NULL, 1);
+	}
+	up_write(&sb->s_umount);
+}
+
 static void do_emergency_remount(struct work_struct *work)
 {
-	struct super_block *sb, *p = NULL;
-
-	spin_lock(&sb_lock);
-	list_for_each_entry(sb, &super_blocks, s_list) {
-		if (hlist_unhashed(&sb->s_instances))
-			continue;
-		sb->s_count++;
-		spin_unlock(&sb_lock);
-		down_write(&sb->s_umount);
-		if (sb->s_root && sb->s_bdev && (sb->s_flags & SB_BORN) &&
-		    !sb_rdonly(sb)) {
-			/*
-			 * What lock protects sb->s_flags??
-			 */
-			do_remount_sb(sb, SB_RDONLY, NULL, 1);
-		}
-		up_write(&sb->s_umount);
-		spin_lock(&sb_lock);
-		if (p)
-			__put_super(p);
-		p = sb;
-	}
-	if (p)
-		__put_super(p);
-	spin_unlock(&sb_lock);
+	__iterate_supers(do_emergency_remount_callback);
 	kfree(work);
 	printk("Emergency Remount complete\n");
 }
@@ -919,6 +931,40 @@ void emergency_remount(void)
 	work = kmalloc(sizeof(*work), GFP_ATOMIC);
 	if (work) {
 		INIT_WORK(work, do_emergency_remount);
+		schedule_work(work);
+	}
+}
+
+static void do_thaw_all_callback(struct super_block *sb)
+{
+	down_write(&sb->s_umount);
+	if (sb->s_root && sb->s_flags & MS_BORN) {
+		emergency_thaw_bdev(sb);
+		thaw_super_locked(sb);
+	} else {
+		up_write(&sb->s_umount);
+	}
+}
+
+static void do_thaw_all(struct work_struct *work)
+{
+	__iterate_supers(do_thaw_all_callback);
+	kfree(work);
+	printk(KERN_WARNING "Emergency Thaw complete\n");
+}
+
+/**
+ * emergency_thaw_all -- forcibly thaw every frozen filesystem
+ *
+ * Used for emergency unfreeze of all filesystems via SysRq
+ */
+void emergency_thaw_all(void)
+{
+	struct work_struct *work;
+
+	work = kmalloc(sizeof(*work), GFP_ATOMIC);
+	if (work) {
+		INIT_WORK(work, do_thaw_all);
 		schedule_work(work);
 	}
 }
@@ -1492,11 +1538,10 @@ EXPORT_SYMBOL(freeze_super);
  *
  * Unlocks the filesystem and marks it writeable again after freeze_super().
  */
-int thaw_super(struct super_block *sb)
+static int thaw_super_locked(struct super_block *sb)
 {
 	int error;
 
-	down_write(&sb->s_umount);
 	if (sb->s_writers.frozen != SB_FREEZE_COMPLETE) {
 		up_write(&sb->s_umount);
 		return -EINVAL;
@@ -1526,5 +1571,11 @@ out:
 	wake_up(&sb->s_writers.wait_unfrozen);
 	deactivate_locked_super(sb);
 	return 0;
+}
+
+int thaw_super(struct super_block *sb)
+{
+	down_write(&sb->s_umount);
+	return thaw_super_locked(sb);
 }
 EXPORT_SYMBOL(thaw_super);

@@ -132,3 +132,9 @@ config GENERIC_IRQ_DEBUGFS
 	  If you don't know what to do here, say N.
 
 endmenu
+
+config GENERIC_IRQ_MULTI_HANDLER
+	depends on !MULTI_IRQ_HANDLER
+	bool
+	help
+	  Allow to specify the low level IRQ handler at run time.

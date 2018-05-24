@@ -25,6 +25,10 @@ OPTIONS
 --input=<file>::
 	Select the input file (default: perf.data unless stdin is a fifo)
 
+-f::
+--force::
+	Don't do ownership validation
+
 -v::
 --verbose::
         Be more verbose. (show symbol address, etc)
@@ -61,7 +65,7 @@ OPTIONS
 	default, but this option shows live (currently allocated) pages
 	instead.  (This option works with --page option only)
 
---time::
+--time=<start>,<stop>::
 	Only analyze samples within given time window: <start>,<stop>. Times
 	have the format seconds.microseconds. If start is not given (i.e., time
 	string is ',x.y') then analysis starts at the beginning of the file. If

@@ -154,8 +154,8 @@ static int tomoyo_release(struct inode *inode, struct file *file)
  * @file: Pointer to "struct file".
  * @wait: Pointer to "poll_table". Maybe NULL.
  *
- * Returns POLLIN | POLLRDNORM | POLLOUT | POLLWRNORM if ready to read/write,
- * POLLOUT | POLLWRNORM otherwise.
+ * Returns EPOLLIN | EPOLLRDNORM | EPOLLOUT | EPOLLWRNORM if ready to read/write,
+ * EPOLLOUT | EPOLLWRNORM otherwise.
  */
 static __poll_t tomoyo_poll(struct file *file, poll_table *wait)
 {

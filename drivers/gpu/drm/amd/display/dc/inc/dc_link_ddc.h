@@ -102,7 +102,7 @@ bool dal_ddc_service_query_ddc_data(
 		uint8_t *read_buf,
 		uint32_t read_size);
 
-enum ddc_result dal_ddc_service_read_dpcd_data(
+ssize_t dal_ddc_service_read_dpcd_data(
 		struct ddc_service *ddc,
 		bool i2c,
 		enum i2c_mot_mode mot,

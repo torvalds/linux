@@ -168,14 +168,10 @@ static int chaoskey_probe(struct usb_interface *interface,
 	 */
 
 	if (udev->product && udev->serial) {
-		dev->name = kmalloc(strlen(udev->product) + 1 +
-				    strlen(udev->serial) + 1, GFP_KERNEL);
+		dev->name = kasprintf(GFP_KERNEL, "%s-%s", udev->product,
+				      udev->serial);
 		if (dev->name == NULL)
 			goto out;
-
-		strcpy(dev->name, udev->product);
-		strcat(dev->name, "-");
-		strcat(dev->name, udev->serial);
 	}
 
 	dev->interface = interface;
@@ -183,10 +179,10 @@ static int chaoskey_probe(struct usb_interface *interface,
 	dev->in_ep = in_ep;
 
 	if (le16_to_cpu(udev->descriptor.idVendor) != ALEA_VENDOR_ID)
-		dev->reads_started = 1;
+		dev->reads_started = true;
 
 	dev->size = size;
-	dev->present = 1;
+	dev->present = true;
 
 	init_waitqueue_head(&dev->wait_q);
 
@@ -239,7 +235,7 @@ static void chaoskey_disconnect(struct usb_interface *interface)
 	usb_set_intfdata(interface, NULL);
 	mutex_lock(&dev->lock);
 
-	dev->present = 0;
+	dev->present = false;
 	usb_poison_urb(dev->urb);
 
 	if (!dev->open) {

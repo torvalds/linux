@@ -324,6 +324,7 @@
 				label = "apq8016-sbc:green:user4";
 				gpios = <&pm8916_gpios 2 GPIO_ACTIVE_HIGH>;
 				linux,default-trigger = "none";
+				panic-indicator;
 				default-state = "off";
 			};
 

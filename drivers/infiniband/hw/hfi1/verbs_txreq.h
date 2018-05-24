@@ -113,6 +113,13 @@ static inline struct verbs_txreq *get_waiting_verbs_txreq(struct rvt_qp *qp)
 	return NULL;
 }
 
+static inline bool verbs_txreq_queued(struct rvt_qp *qp)
+{
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	return iowait_packet_queued(&priv->s_iowait);
+}
+
 void hfi1_put_txreq(struct verbs_txreq *tx);
 int verbs_txreq_init(struct hfi1_ibdev *dev);
 void verbs_txreq_exit(struct hfi1_ibdev *dev);

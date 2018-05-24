@@ -25,7 +25,8 @@
 #define __AMDGPU_RING_H__
 
 #include <drm/amdgpu_drm.h>
-#include "gpu_scheduler.h"
+#include <drm/gpu_scheduler.h>
+#include <drm/drm_print.h>
 
 /* max number of rings */
 #define AMDGPU_MAX_RINGS		18
@@ -35,8 +36,9 @@
 #define AMDGPU_MAX_UVD_ENC_RINGS	2
 
 /* some special values for the owner field */
-#define AMDGPU_FENCE_OWNER_UNDEFINED	((void*)0ul)
-#define AMDGPU_FENCE_OWNER_VM		((void*)1ul)
+#define AMDGPU_FENCE_OWNER_UNDEFINED	((void *)0ul)
+#define AMDGPU_FENCE_OWNER_VM		((void *)1ul)
+#define AMDGPU_FENCE_OWNER_KFD		((void *)2ul)
 
 #define AMDGPU_FENCE_FLAG_64BIT         (1 << 0)
 #define AMDGPU_FENCE_FLAG_INT           (1 << 1)
@@ -79,8 +81,7 @@ struct amdgpu_fence_driver {
 
 int amdgpu_fence_driver_init(struct amdgpu_device *adev);
 void amdgpu_fence_driver_fini(struct amdgpu_device *adev);
-void amdgpu_fence_driver_force_completion(struct amdgpu_device *adev);
-void amdgpu_fence_driver_force_completion_ring(struct amdgpu_ring *ring);
+void amdgpu_fence_driver_force_completion(struct amdgpu_ring *ring);
 
 int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 				  unsigned num_hw_submission);
@@ -122,14 +123,13 @@ struct amdgpu_ring_funcs {
 	/* command emit functions */
 	void (*emit_ib)(struct amdgpu_ring *ring,
 			struct amdgpu_ib *ib,
-			unsigned vm_id, bool ctx_switch);
+			unsigned vmid, bool ctx_switch);
 	void (*emit_fence)(struct amdgpu_ring *ring, uint64_t addr,
 			   uint64_t seq, unsigned flags);
 	void (*emit_pipeline_sync)(struct amdgpu_ring *ring);
-	void (*emit_vm_flush)(struct amdgpu_ring *ring, unsigned vm_id,
+	void (*emit_vm_flush)(struct amdgpu_ring *ring, unsigned vmid,
 			      uint64_t pd_addr);
 	void (*emit_hdp_flush)(struct amdgpu_ring *ring);
-	void (*emit_hdp_invalidate)(struct amdgpu_ring *ring);
 	void (*emit_gds_switch)(struct amdgpu_ring *ring, uint32_t vmid,
 				uint32_t gds_base, uint32_t gds_size,
 				uint32_t gws_base, uint32_t gws_size,
@@ -152,17 +152,19 @@ struct amdgpu_ring_funcs {
 	void (*emit_cntxcntl) (struct amdgpu_ring *ring, uint32_t flags);
 	void (*emit_rreg)(struct amdgpu_ring *ring, uint32_t reg);
 	void (*emit_wreg)(struct amdgpu_ring *ring, uint32_t reg, uint32_t val);
+	void (*emit_reg_wait)(struct amdgpu_ring *ring, uint32_t reg,
+			      uint32_t val, uint32_t mask);
 	void (*emit_tmz)(struct amdgpu_ring *ring, bool start);
 	/* priority functions */
 	void (*set_priority) (struct amdgpu_ring *ring,
-			      enum amd_sched_priority priority);
+			      enum drm_sched_priority priority);
 };
 
 struct amdgpu_ring {
 	struct amdgpu_device		*adev;
 	const struct amdgpu_ring_funcs	*funcs;
 	struct amdgpu_fence_driver	fence_drv;
-	struct amd_gpu_scheduler	sched;
+	struct drm_gpu_scheduler	sched;
 	struct list_head		lru_list;
 
 	struct amdgpu_bo	*ring_obj;
@@ -187,6 +189,7 @@ struct amdgpu_ring {
 	uint64_t                eop_gpu_addr;
 	u32			doorbell_index;
 	bool			use_doorbell;
+	bool			use_pollmem;
 	unsigned		wptr_offs;
 	unsigned		fence_offs;
 	uint64_t		current_ctx;
@@ -195,9 +198,10 @@ struct amdgpu_ring {
 	u64			cond_exe_gpu_addr;
 	volatile u32		*cond_exe_cpu_addr;
 	unsigned		vm_inv_eng;
+	struct dma_fence	*vmid_wait;
 	bool			has_compute_vm_bug;
 
-	atomic_t		num_jobs[AMD_SCHED_PRIORITY_MAX];
+	atomic_t		num_jobs[DRM_SCHED_PRIORITY_MAX];
 	struct mutex		priority_mutex;
 	/* protected by priority_mutex */
 	int			priority;
@@ -213,9 +217,9 @@ void amdgpu_ring_generic_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib);
 void amdgpu_ring_commit(struct amdgpu_ring *ring);
 void amdgpu_ring_undo(struct amdgpu_ring *ring);
 void amdgpu_ring_priority_get(struct amdgpu_ring *ring,
-			      enum amd_sched_priority priority);
+			      enum drm_sched_priority priority);
 void amdgpu_ring_priority_put(struct amdgpu_ring *ring,
-			      enum amd_sched_priority priority);
+			      enum drm_sched_priority priority);
 int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		     unsigned ring_size, struct amdgpu_irq_src *irq_src,
 		     unsigned irq_type);

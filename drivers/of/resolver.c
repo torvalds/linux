@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Functions for dealing with DT resolution
  *
  * Copyright (C) 2012 Pantelis Antoniou <panto@antoniou-consulting.com>
  * Copyright (C) 2012 Texas Instruments Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt)	"OF: resolver: " fmt
@@ -21,9 +18,6 @@
 #include <linux/slab.h>
 
 #include "of_private.h"
-
-/* illegal phandle value (set when unresolved) */
-#define OF_PHANDLE_ILLEGAL	0xdeadbeef
 
 static phandle live_tree_max_phandle(void)
 {
@@ -272,17 +266,11 @@ int of_resolve_phandles(struct device_node *overlay)
 		goto out;
 	}
 
-#if 0
-	Temporarily disable check so that old style overlay unittests
-	do not fail when of_resolve_phandles() is moved into
-	of_overlay_apply().
-
 	if (!of_node_check_flag(overlay, OF_DETACHED)) {
 		pr_err("overlay not detached\n");
 		err = -EINVAL;
 		goto out;
 	}
-#endif
 
 	phandle_delta = live_tree_max_phandle() + 1;
 	adjust_overlay_phandles(overlay, phandle_delta);

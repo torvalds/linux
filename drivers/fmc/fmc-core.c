@@ -244,7 +244,7 @@ int fmc_device_register_n_gw(struct fmc_device **devs, int n,
 		if (!fmc->carrier_name || !fmc->carrier_data ||
 		    !fmc->device_id) {
 			dev_err(fmc->hwdev,
-				"deivce nr %i: carrier name, "
+				"device nr %i: carrier name, "
 				"data or dev_id not set\n", i);
 			ret = -EINVAL;
 		}
