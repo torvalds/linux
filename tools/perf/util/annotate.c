@@ -701,13 +701,17 @@ int symbol__alloc_hist(struct symbol *sym)
 	sizeof_sym_hist = (sizeof(struct sym_hist) + size * sizeof(struct sym_hist_entry));
 
 	/* Check for overflow in zalloc argument */
-	if (sizeof_sym_hist > (SIZE_MAX - sizeof(*notes->src))
-				/ symbol_conf.nr_events)
+	if (sizeof_sym_hist > SIZE_MAX / symbol_conf.nr_events)
 		return -1;
 
-	notes->src = zalloc(sizeof(*notes->src) + symbol_conf.nr_events * sizeof_sym_hist);
+	notes->src = zalloc(sizeof(*notes->src));
 	if (notes->src == NULL)
 		return -1;
+	notes->src->histograms = calloc(symbol_conf.nr_events, sizeof_sym_hist);
+	if (notes->src->histograms == NULL) {
+		zfree(&notes->src);
+		return -1;
+	}
 	notes->src->sizeof_sym_hist = sizeof_sym_hist;
 	notes->src->nr_histograms   = symbol_conf.nr_events;
 	INIT_LIST_HEAD(&notes->src->source);
