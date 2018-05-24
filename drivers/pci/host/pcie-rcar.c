@@ -947,32 +947,22 @@ static int rcar_pcie_get_resources(struct rcar_pcie *pcie)
 		dev_err(dev, "cannot get pcie bus clock\n");
 		return PTR_ERR(pcie->bus_clk);
 	}
-	err = clk_prepare_enable(pcie->bus_clk);
-	if (err)
-		return err;
 
 	i = irq_of_parse_and_map(dev->of_node, 0);
 	if (!i) {
 		dev_err(dev, "cannot get platform resources for msi interrupt\n");
-		err = -ENOENT;
-		goto err_map_reg;
+		return -ENOENT;
 	}
 	pcie->msi.irq1 = i;
 
 	i = irq_of_parse_and_map(dev->of_node, 1);
 	if (!i) {
 		dev_err(dev, "cannot get platform resources for msi interrupt\n");
-		err = -ENOENT;
-		goto err_map_reg;
+		return -ENOENT;
 	}
 	pcie->msi.irq2 = i;
 
 	return 0;
-
-err_map_reg:
-	clk_disable_unprepare(pcie->bus_clk);
-
-	return err;
 }
 
 static int rcar_pcie_inbound_ranges(struct rcar_pcie *pcie,
@@ -1116,22 +1106,28 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 		goto err_pm_put;
 	}
 
+	err = clk_prepare_enable(pcie->bus_clk);
+	if (err) {
+		dev_err(dev, "failed to enable bus clock: %d\n", err);
+		goto err_pm_put;
+	}
+
 	err = rcar_pcie_parse_map_dma_ranges(pcie, dev->of_node);
 	if (err)
-		goto err_pm_put;
+		goto err_clk_disable;
 
 	phy_init_fn = of_device_get_match_data(dev);
 	err = phy_init_fn(pcie);
 	if (err) {
 		dev_err(dev, "failed to init PCIe PHY\n");
-		goto err_pm_put;
+		goto err_clk_disable;
 	}
 
 	/* Failure to get a link might just be that no cards are inserted */
 	if (rcar_pcie_hw_init(pcie)) {
 		dev_info(dev, "PCIe link down\n");
 		err = -ENODEV;
-		goto err_pm_put;
+		goto err_clk_disable;
 	}
 
 	data = rcar_pci_read_reg(pcie, MACSR);
@@ -1143,15 +1139,18 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 			dev_err(dev,
 				"failed to enable MSI support: %d\n",
 				err);
-			goto err_pm_put;
+			goto err_clk_disable;
 		}
 	}
 
 	err = rcar_pcie_enable(pcie);
 	if (err)
-		goto err_pm_put;
+		goto err_clk_disable;
 
 	return 0;
+
+err_clk_disable:
+	clk_disable_unprepare(pcie->bus_clk);
 
 err_pm_put:
 	pm_runtime_put(dev);
