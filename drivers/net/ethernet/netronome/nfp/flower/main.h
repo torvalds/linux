@@ -160,6 +160,14 @@ struct nfp_flower_priv {
 	struct nfp_mtu_conf mtu_conf;
 };
 
+/**
+ * struct nfp_flower_repr_priv - Flower APP per-repr priv data
+ * @lag_port_flags:	Extended port flags to record lag state of repr
+ */
+struct nfp_flower_repr_priv {
+	unsigned long lag_port_flags;
+};
+
 struct nfp_fl_key_ls {
 	u32 key_layer_two;
 	u8 key_layer;
