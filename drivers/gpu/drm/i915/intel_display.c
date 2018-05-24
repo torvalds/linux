@@ -5470,10 +5470,8 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 	 *
 	 * Spurious PCH underruns also occur during PCH enabling.
 	 */
-	if (intel_crtc->config->has_pch_encoder || IS_GEN5(dev_priv))
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
-	if (intel_crtc->config->has_pch_encoder)
-		intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, false);
+	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
+	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, false);
 
 	if (intel_crtc->config->has_pch_encoder)
 		intel_prepare_shared_dpll(intel_crtc);
@@ -5717,10 +5715,8 @@ static void ironlake_crtc_disable(struct intel_crtc_state *old_crtc_state,
 	 * pipe is already disabled, but FDI RX/TX is still enabled.
 	 * Happens at least with VGA+HDMI cloning. Suppress them.
 	 */
-	if (intel_crtc->config->has_pch_encoder) {
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
-		intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, false);
-	}
+	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
+	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, false);
 
 	intel_encoders_disable(crtc, old_crtc_state, old_state);
 
