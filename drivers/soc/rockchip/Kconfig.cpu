@@ -1,63 +1,65 @@
 # SPDX-License-Identifier: GPL-2.0
 
 menu "CPU selection"
-	depends on ARCH_ROCKCHIP && ARM
+	depends on ARCH_ROCKCHIP
 
 config CPU_RK312X
 	bool "RK3126/8"
+	depends on ARM
 	default y
 
 config CPU_RK3036
 	bool "RK3036"
+	depends on ARM
 	default y
 
 config CPU_RK30XX
 	bool "RK3066/8"
+	depends on ARM
 	default y
 
 config CPU_RK3188
 	bool "RK3188"
+	depends on ARM
 	default y
 
 config CPU_RK3288
 	bool "RK3288"
+	depends on ARM
 	default y
 
 config CPU_RK322X
 	bool "RK3228/9"
+	depends on ARM
 	default y
 
 config CPU_RV110X
 	bool "RV1107/8"
+	depends on ARM
 	default y
-
-endmenu
-
-menu "CPU selection"
-	depends on ARCH_ROCKCHIP && ARM64
 
 config CPU_PX30
 	bool "PX30"
-	default y
+	default y if ARM64
 
 config CPU_RK3308
 	bool "RK3308"
-	default y
+	default y if ARM64
 
 config CPU_RK3328
 	bool "RK3328"
-	default y
+	default y if ARM64
 
 config CPU_RK3366
 	bool "RK3366"
-	default y
+	default y if ARM64
 
 config CPU_RK3368
 	bool "RK3368"
-	default y
+	default y if ARM64
 
 config CPU_RK3399
 	bool "RK3399"
-	default y
+	default y if ARM64
 
 endmenu
