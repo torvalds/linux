@@ -106,9 +106,22 @@ static int perf_env__read_arch(struct perf_env *env)
 	return env->arch ? 0 : -ENOMEM;
 }
 
+static int perf_env__read_nr_cpus_avail(struct perf_env *env)
+{
+	if (env->nr_cpus_avail == 0)
+		env->nr_cpus_avail = cpu__max_present_cpu();
+
+	return env->nr_cpus_avail ? 0 : -ENOENT;
+}
+
 const char *perf_env__raw_arch(struct perf_env *env)
 {
 	return env && !perf_env__read_arch(env) ? env->arch : "unknown";
+}
+
+int perf_env__nr_cpus_avail(struct perf_env *env)
+{
+	return env && !perf_env__read_nr_cpus_avail(env) ? env->nr_cpus_avail : 0;
 }
 
 void cpu_cache_level__free(struct cpu_cache_level *cache)

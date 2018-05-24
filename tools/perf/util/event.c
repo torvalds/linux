@@ -88,10 +88,10 @@ static const char *perf_ns__name(unsigned int id)
 	return perf_ns__names[id];
 }
 
-static int perf_tool__process_synth_event(struct perf_tool *tool,
-					  union perf_event *event,
-					  struct machine *machine,
-					  perf_event__handler_t process)
+int perf_tool__process_synth_event(struct perf_tool *tool,
+				   union perf_event *event,
+				   struct machine *machine,
+				   perf_event__handler_t process)
 {
 	struct perf_sample synth_sample = {
 	.pid	   = -1,
@@ -487,7 +487,7 @@ int perf_event__synthesize_modules(struct perf_tool *tool,
 	for (pos = maps__first(maps); pos; pos = map__next(pos)) {
 		size_t size;
 
-		if (__map__is_kernel(pos))
+		if (!__map__is_kmodule(pos))
 			continue;
 
 		size = PERF_ALIGN(pos->dso->long_name_len + 1, sizeof(u64));
@@ -888,9 +888,16 @@ int kallsyms__get_function_start(const char *kallsyms_filename,
 	return 0;
 }
 
-int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
-				       perf_event__handler_t process,
-				       struct machine *machine)
+int __weak perf_event__synthesize_extra_kmaps(struct perf_tool *tool __maybe_unused,
+					      perf_event__handler_t process __maybe_unused,
+					      struct machine *machine __maybe_unused)
+{
+	return 0;
+}
+
+static int __perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
+						perf_event__handler_t process,
+						struct machine *machine)
 {
 	size_t size;
 	struct map *map = machine__kernel_map(machine);
@@ -941,6 +948,19 @@ int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 	free(event);
 
 	return err;
+}
+
+int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
+				       perf_event__handler_t process,
+				       struct machine *machine)
+{
+	int err;
+
+	err = __perf_event__synthesize_kernel_mmap(tool, process, machine);
+	if (err < 0)
+		return err;
+
+	return perf_event__synthesize_extra_kmaps(tool, process, machine);
 }
 
 int perf_event__synthesize_thread_map2(struct perf_tool *tool,

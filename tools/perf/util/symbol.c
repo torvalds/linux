@@ -737,11 +737,14 @@ static int map_groups__split_kallsyms(struct map_groups *kmaps, struct dso *dso,
 	struct rb_root *root = &dso->symbols;
 	struct rb_node *next = rb_first(root);
 	int kernel_range = 0;
+	bool x86_64;
 
 	if (!kmaps)
 		return -1;
 
 	machine = kmaps->machine;
+
+	x86_64 = machine__is(machine, "x86_64");
 
 	while (next) {
 		char *module;
@@ -790,6 +793,16 @@ static int map_groups__split_kallsyms(struct map_groups *kmaps, struct dso *dso,
 			 */
 			pos->start = curr_map->map_ip(curr_map, pos->start);
 			pos->end   = curr_map->map_ip(curr_map, pos->end);
+		} else if (x86_64 && is_entry_trampoline(pos->name)) {
+			/*
+			 * These symbols are not needed anymore since the
+			 * trampoline maps refer to the text section and it's
+			 * symbols instead. Avoid having to deal with
+			 * relocations, and the assumption that the first symbol
+			 * is the start of kernel text, by simply removing the
+			 * symbols at this point.
+			 */
+			goto discard_symbol;
 		} else if (curr_map != initial_map) {
 			char dso_name[PATH_MAX];
 			struct dso *ndso;
@@ -1017,7 +1030,7 @@ struct map *map_groups__first(struct map_groups *mg)
 	return maps__first(&mg->maps);
 }
 
-static int do_validate_kcore_modules(const char *filename, struct map *map,
+static int do_validate_kcore_modules(const char *filename,
 				  struct map_groups *kmaps)
 {
 	struct rb_root modules = RB_ROOT;
@@ -1033,8 +1046,7 @@ static int do_validate_kcore_modules(const char *filename, struct map *map,
 		struct map *next = map_groups__next(old_map);
 		struct module_info *mi;
 
-		if (old_map == map || old_map->start == map->start) {
-			/* The kernel map */
+		if (!__map__is_kmodule(old_map)) {
 			old_map = next;
 			continue;
 		}
@@ -1091,7 +1103,7 @@ static int validate_kcore_modules(const char *kallsyms_filename,
 					     kallsyms_filename))
 		return -EINVAL;
 
-	if (do_validate_kcore_modules(modules_filename, map, kmaps))
+	if (do_validate_kcore_modules(modules_filename, kmaps))
 		return -EINVAL;
 
 	return 0;
@@ -1146,6 +1158,7 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 	struct map_groups *kmaps = map__kmaps(map);
 	struct kcore_mapfn_data md;
 	struct map *old_map, *new_map, *replacement_map = NULL;
+	struct machine *machine;
 	bool is_64_bit;
 	int err, fd;
 	char kcore_filename[PATH_MAX];
@@ -1153,6 +1166,8 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 
 	if (!kmaps)
 		return -EINVAL;
+
+	machine = kmaps->machine;
 
 	/* This function requires that the map is the kernel map */
 	if (!__map__is_kernel(map))
@@ -1197,6 +1212,7 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 			map_groups__remove(kmaps, old_map);
 		old_map = next;
 	}
+	machine->trampolines_mapped = false;
 
 	/* Find the kernel map using the '_stext' symbol */
 	if (!kallsyms__get_function_start(kallsyms_filename, "_stext", &stext)) {
@@ -1231,6 +1247,19 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 		}
 
 		map__put(new_map);
+	}
+
+	if (machine__is(machine, "x86_64")) {
+		u64 addr;
+
+		/*
+		 * If one of the corresponding symbols is there, assume the
+		 * entry trampoline maps are too.
+		 */
+		if (!kallsyms__get_function_start(kallsyms_filename,
+						  ENTRY_TRAMPOLINE_NAME,
+						  &addr))
+			machine->trampolines_mapped = true;
 	}
 
 	/*
@@ -1490,19 +1519,21 @@ int dso__load(struct dso *dso, struct map *map)
 		goto out;
 	}
 
+	if (map->groups && map->groups->machine)
+		machine = map->groups->machine;
+	else
+		machine = NULL;
+
 	if (dso->kernel) {
 		if (dso->kernel == DSO_TYPE_KERNEL)
 			ret = dso__load_kernel_sym(dso, map);
 		else if (dso->kernel == DSO_TYPE_GUEST_KERNEL)
 			ret = dso__load_guest_kernel_sym(dso, map);
 
+		if (machine__is(machine, "x86_64"))
+			machine__map_x86_64_entry_trampolines(machine, dso);
 		goto out;
 	}
-
-	if (map->groups && map->groups->machine)
-		machine = map->groups->machine;
-	else
-		machine = NULL;
 
 	dso->adjust_symbols = 0;
 
