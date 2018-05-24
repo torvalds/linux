@@ -602,7 +602,7 @@ static void stm_device_release(struct device *dev)
 {
 	struct stm_device *stm = to_stm_device(dev);
 
-	kfree(stm);
+	vfree(stm);
 }
 
 int stm_register_device(struct device *parent, struct stm_data *stm_data,
@@ -619,7 +619,7 @@ int stm_register_device(struct device *parent, struct stm_data *stm_data,
 		return -EINVAL;
 
 	nmasters = stm_data->sw_end - stm_data->sw_start;
-	stm = kzalloc(sizeof(*stm) + nmasters * sizeof(void *), GFP_KERNEL);
+	stm = vzalloc(sizeof(*stm) + nmasters * sizeof(void *));
 	if (!stm)
 		return -ENOMEM;
 
@@ -656,7 +656,7 @@ int stm_register_device(struct device *parent, struct stm_data *stm_data,
 err_device:
 	put_device(&stm->dev);
 err_free:
-	kfree(stm);
+	vfree(stm);
 
 	return err;
 }
