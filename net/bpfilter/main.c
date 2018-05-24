@@ -55,7 +55,7 @@ static void loop(void)
 
 int main(void)
 {
-	debug_fd = open("/dev/console", 00000002 | 00000100);
+	debug_fd = open("/dev/console", 00000002);
 	dprintf(debug_fd, "Started bpfilter\n");
 	loop();
 	close(debug_fd);
