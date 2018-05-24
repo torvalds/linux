@@ -9117,7 +9117,8 @@ static int btrfs_truncate(struct inode *inode, bool skip_writeback)
 						 BTRFS_EXTENT_DATA_KEY);
 		trans->block_rsv = &fs_info->trans_block_rsv;
 		if (ret != -ENOSPC && ret != -EAGAIN) {
-			err = ret;
+			if (ret < 0)
+				err = ret;
 			break;
 		}
 
