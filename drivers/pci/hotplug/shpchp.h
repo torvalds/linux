@@ -173,16 +173,6 @@ static inline const char *slot_name(struct slot *slot)
 	return hotplug_slot_name(slot->hotplug_slot);
 }
 
-#ifdef CONFIG_ACPI
-#include <linux/pci-acpi.h>
-static inline int get_hp_hw_control_from_firmware(struct pci_dev *dev)
-{
-	return acpi_get_hp_hw_control_from_firmware(dev);
-}
-#else
-#define get_hp_hw_control_from_firmware(dev) (0)
-#endif
-
 struct ctrl_reg {
 	volatile u32 base_offset;
 	volatile u32 slot_avail1;

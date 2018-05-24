@@ -277,7 +277,7 @@ static int is_shpc_capable(struct pci_dev *dev)
 		return 1;
 	if (!pci_find_capability(dev, PCI_CAP_ID_SHPC))
 		return 0;
-	if (get_hp_hw_control_from_firmware(dev))
+	if (acpi_get_hp_hw_control_from_firmware(dev))
 		return 0;
 	return 1;
 }
