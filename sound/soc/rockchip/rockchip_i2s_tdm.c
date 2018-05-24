@@ -145,7 +145,7 @@ static void rockchip_snd_xfer_reset_assert(struct rk_i2s_tdm_dev *i2s_tdm,
 			addr = cru_reset + (rx_bank * 4);
 		}
 
-		if (IS_ALIGNED((u64)addr, 8)) {
+		if (IS_ALIGNED((uintptr_t)addr, 8)) {
 			writeq(val, addr);
 			break;
 		}
@@ -189,7 +189,7 @@ static void rockchip_snd_xfer_reset_deassert(struct rk_i2s_tdm_dev *i2s_tdm,
 			addr = cru_reset + (rx_bank * 4);
 		}
 
-		if (IS_ALIGNED((u64)addr, 8)) {
+		if (IS_ALIGNED((uintptr_t)addr, 8)) {
 			writeq(val, addr);
 			break;
 		}
