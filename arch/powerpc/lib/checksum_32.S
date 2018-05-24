@@ -302,3 +302,36 @@ dst_error:
 	EX_TABLE(51b, dst_error);
 
 EXPORT_SYMBOL(csum_partial_copy_generic)
+
+/*
+ * __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
+ *			   const struct in6_addr *daddr,
+ *			   __u32 len, __u8 proto, __wsum sum)
+ */
+
+_GLOBAL(csum_ipv6_magic)
+	lwz	r8, 0(r3)
+	lwz	r9, 4(r3)
+	addc	r0, r7, r8
+	lwz	r10, 8(r3)
+	adde	r0, r0, r9
+	lwz	r11, 12(r3)
+	adde	r0, r0, r10
+	lwz	r8, 0(r4)
+	adde	r0, r0, r11
+	lwz	r9, 4(r4)
+	adde	r0, r0, r8
+	lwz	r10, 8(r4)
+	adde	r0, r0, r9
+	lwz	r11, 12(r4)
+	adde	r0, r0, r10
+	add	r5, r5, r6	/* assumption: len + proto doesn't carry */
+	adde	r0, r0, r11
+	adde	r0, r0, r5
+	addze	r0, r0
+	rotlwi	r3, r0, 16
+	add	r3, r0, r3
+	not	r3, r3
+	rlwinm	r3, r3, 16, 16, 31
+	blr
+EXPORT_SYMBOL(csum_ipv6_magic)
