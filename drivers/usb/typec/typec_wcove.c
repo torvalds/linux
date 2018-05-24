@@ -202,6 +202,10 @@ static int wcove_init(struct tcpc_dev *tcpc)
 	struct wcove_typec *wcove = tcpc_to_wcove(tcpc);
 	int ret;
 
+	ret = regmap_write(wcove->regmap, USBC_CONTROL1, 0);
+	if (ret)
+		return ret;
+
 	/* Unmask everything */
 	ret = regmap_write(wcove->regmap, USBC_IRQMASK1, 0);
 	if (ret)
@@ -285,8 +289,30 @@ static int wcove_get_cc(struct tcpc_dev *tcpc, enum typec_cc_status *cc1,
 
 static int wcove_set_cc(struct tcpc_dev *tcpc, enum typec_cc_status cc)
 {
-	/* XXX: Relying on the HW FSM to configure things correctly for now */
-	return 0;
+	struct wcove_typec *wcove = tcpc_to_wcove(tcpc);
+	unsigned int ctrl;
+
+	switch (cc) {
+	case TYPEC_CC_RD:
+		ctrl = USBC_CONTROL1_MODE_SNK;
+		break;
+	case TYPEC_CC_RP_DEF:
+		ctrl = USBC_CONTROL1_CURSRC_UA_80 | USBC_CONTROL1_MODE_SRC;
+		break;
+	case TYPEC_CC_RP_1_5:
+		ctrl = USBC_CONTROL1_CURSRC_UA_180 | USBC_CONTROL1_MODE_SRC;
+		break;
+	case TYPEC_CC_RP_3_0:
+		ctrl = USBC_CONTROL1_CURSRC_UA_330 | USBC_CONTROL1_MODE_SRC;
+		break;
+	case TYPEC_CC_OPEN:
+		ctrl = 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return regmap_write(wcove->regmap, USBC_CONTROL1, ctrl);
 }
 
 static int wcove_set_polarity(struct tcpc_dev *tcpc, enum typec_cc_polarity pol)
