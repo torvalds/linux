@@ -72,6 +72,18 @@ struct ksym *ksym_search(long key)
 	return &syms[0];
 }
 
+long ksym_get_addr(const char *name)
+{
+	int i;
+
+	for (i = 0; i < sym_cnt; i++) {
+		if (strcmp(syms[i].name, name) == 0)
+			return syms[i].addr;
+	}
+
+	return 0;
+}
+
 static int page_size;
 static int page_cnt = 8;
 static struct perf_event_mmap_page *header;

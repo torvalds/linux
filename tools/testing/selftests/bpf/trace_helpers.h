@@ -11,6 +11,7 @@ struct ksym {
 
 int load_kallsyms(void);
 struct ksym *ksym_search(long key);
+long ksym_get_addr(const char *name);
 
 typedef enum bpf_perf_event_ret (*perf_event_print_fn)(void *data, int size);
 
