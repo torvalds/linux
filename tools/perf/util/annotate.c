@@ -697,10 +697,9 @@ static void annotated_source__delete(struct annotated_source *src)
 	free(src);
 }
 
-int symbol__alloc_hist(struct symbol *sym)
+static int annotated_source__alloc_histograms(struct annotated_source *src,
+					      size_t size, int nr_hists)
 {
-	struct annotation *notes = symbol__annotation(sym);
-	size_t size = symbol__size(sym);
 	size_t sizeof_sym_hist;
 
 	/*
@@ -720,20 +719,29 @@ int symbol__alloc_hist(struct symbol *sym)
 	sizeof_sym_hist = (sizeof(struct sym_hist) + size * sizeof(struct sym_hist_entry));
 
 	/* Check for overflow in zalloc argument */
-	if (sizeof_sym_hist > SIZE_MAX / symbol_conf.nr_events)
+	if (sizeof_sym_hist > SIZE_MAX / nr_hists)
 		return -1;
+
+	src->sizeof_sym_hist = sizeof_sym_hist;
+	src->nr_histograms   = nr_hists;
+	src->histograms	     = calloc(nr_hists, sizeof_sym_hist) ;
+	return src->histograms ? 0 : -1;
+}
+
+int symbol__alloc_hist(struct symbol *sym)
+{
+	size_t size = symbol__size(sym);
+	struct annotation *notes = symbol__annotation(sym);
 
 	notes->src = annotated_source__new();
 	if (notes->src == NULL)
 		return -1;
-	notes->src->histograms = calloc(symbol_conf.nr_events, sizeof_sym_hist);
-	if (notes->src->histograms == NULL) {
+
+	if (annotated_source__alloc_histograms(notes->src, size, symbol_conf.nr_events) < 0) {
 		annotated_source__delete(notes->src);
 		notes->src = NULL;
 		return -1;
 	}
-	notes->src->sizeof_sym_hist = sizeof_sym_hist;
-	notes->src->nr_histograms   = symbol_conf.nr_events;
 	return 0;
 }
 
