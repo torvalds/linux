@@ -92,8 +92,10 @@ static int rockchip_rk3366_pll_set_params(struct rockchip_clk_pll *pll,
 #define MAX_FOUTVCO_FREQ	(2000 * MHZ)
 
 static struct rockchip_pll_rate_table auto_table;
+#ifdef CONFIG_DEBUG_FS
 static HLIST_HEAD(clk_boost_list);
 static DEFINE_MUTEX(clk_boost_lock);
+#endif
 
 int rockchip_pll_clk_adaptive_scaling(struct clk *clk, int sel)
 {
@@ -1510,11 +1512,13 @@ struct clk *rockchip_clk_register_pll(struct rockchip_clk_provider *ctx,
 		goto err_pll;
 	}
 
+#ifdef CONFIG_DEBUG_FS
 	if (boost_enabled && !IS_ERR(ctx->boost)) {
 		mutex_lock(&clk_boost_lock);
 		hlist_add_head(&pll->debug_node, &clk_boost_list);
 		mutex_unlock(&clk_boost_lock);
 	}
+#endif
 
 	return mux_clk;
 
