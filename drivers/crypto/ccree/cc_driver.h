@@ -129,6 +129,8 @@ struct cc_drvdata {
 	enum cc_hw_rev hw_rev;
 	u32 hash_len_sz;
 	u32 axim_mon_offset;
+	u32 sig_offset;
+	u32 ver_offset;
 };
 
 struct cc_crypto_alg {
