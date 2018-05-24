@@ -440,7 +440,7 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 	if (err)
 		goto err_destroy_flow;
 
-	err = nfp_flower_compile_action(flow, netdev, flow_pay);
+	err = nfp_flower_compile_action(app, flow, netdev, flow_pay);
 	if (err)
 		goto err_destroy_flow;
 

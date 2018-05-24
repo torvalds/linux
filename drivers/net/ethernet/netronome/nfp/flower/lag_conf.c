@@ -184,6 +184,48 @@ nfp_fl_lag_find_group_for_master_with_lag(struct nfp_fl_lag *lag,
 	return NULL;
 }
 
+int nfp_flower_lag_populate_pre_action(struct nfp_app *app,
+				       struct net_device *master,
+				       struct nfp_fl_pre_lag *pre_act)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_fl_lag_group *group = NULL;
+	__be32 temp_vers;
+
+	mutex_lock(&priv->nfp_lag.lock);
+	group = nfp_fl_lag_find_group_for_master_with_lag(&priv->nfp_lag,
+							  master);
+	if (!group) {
+		mutex_unlock(&priv->nfp_lag.lock);
+		return -ENOENT;
+	}
+
+	pre_act->group_id = cpu_to_be16(group->group_id);
+	temp_vers = cpu_to_be32(priv->nfp_lag.batch_ver <<
+				NFP_FL_PRE_LAG_VER_OFF);
+	memcpy(pre_act->lag_version, &temp_vers, 3);
+	pre_act->instance = group->group_inst;
+	mutex_unlock(&priv->nfp_lag.lock);
+
+	return 0;
+}
+
+int nfp_flower_lag_get_output_id(struct nfp_app *app, struct net_device *master)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_fl_lag_group *group = NULL;
+	int group_id = -ENOENT;
+
+	mutex_lock(&priv->nfp_lag.lock);
+	group = nfp_fl_lag_find_group_for_master_with_lag(&priv->nfp_lag,
+							  master);
+	if (group)
+		group_id = group->group_id;
+	mutex_unlock(&priv->nfp_lag.lock);
+
+	return group_id;
+}
+
 static int
 nfp_fl_lag_config_group(struct nfp_fl_lag *lag, struct nfp_fl_lag_group *group,
 			struct net_device **active_members,

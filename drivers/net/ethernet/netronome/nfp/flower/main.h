@@ -45,6 +45,7 @@
 #include <linux/workqueue.h>
 #include <linux/idr.h>
 
+struct nfp_fl_pre_lag;
 struct net_device;
 struct nfp_app;
 
@@ -253,7 +254,8 @@ int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
 				  struct net_device *netdev,
 				  struct nfp_fl_payload *nfp_flow,
 				  enum nfp_flower_tun_type tun_type);
-int nfp_flower_compile_action(struct tc_cls_flower_offload *flow,
+int nfp_flower_compile_action(struct nfp_app *app,
+			      struct tc_cls_flower_offload *flow,
 			      struct net_device *netdev,
 			      struct nfp_fl_payload *nfp_flow);
 int nfp_compile_flow_metadata(struct nfp_app *app,
@@ -284,5 +286,10 @@ void nfp_flower_lag_init(struct nfp_fl_lag *lag);
 void nfp_flower_lag_cleanup(struct nfp_fl_lag *lag);
 int nfp_flower_lag_reset(struct nfp_fl_lag *lag);
 bool nfp_flower_lag_unprocessed_msg(struct nfp_app *app, struct sk_buff *skb);
+int nfp_flower_lag_populate_pre_action(struct nfp_app *app,
+				       struct net_device *master,
+				       struct nfp_fl_pre_lag *pre_act);
+int nfp_flower_lag_get_output_id(struct nfp_app *app,
+				 struct net_device *master);
 
 #endif
