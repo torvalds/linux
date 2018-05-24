@@ -86,6 +86,7 @@ struct qede_arfs_fltr_node {
 	u16 sw_id;
 	u16 rxq_id;
 	u16 next_rxq_id;
+	u8 vfid;
 	bool filter_op;
 	bool used;
 	u8 fw_rc;
@@ -125,14 +126,19 @@ static void qede_configure_arfs_fltr(struct qede_dev *edev,
 	params.qid = rxq_id;
 	params.b_is_add = add_fltr;
 
+	if (n->vfid) {
+		params.b_is_vf = true;
+		params.vf_id = n->vfid - 1;
+	}
+
 	if (n->tuple.stringify) {
 		char tuple_buffer[QEDE_FILTER_PRINT_MAX_LEN];
 
 		n->tuple.stringify(&n->tuple, tuple_buffer);
 		DP_VERBOSE(edev, NETIF_MSG_RX_STATUS,
-			   "%s sw_id[0x%x]: %s [queue %d]\n",
+			   "%s sw_id[0x%x]: %s [vf %u queue %d]\n",
 			   add_fltr ? "Adding" : "Deleting",
-			   n->sw_id, tuple_buffer, rxq_id);
+			   n->sw_id, tuple_buffer, n->vfid, rxq_id);
 	}
 
 	n->used = true;
@@ -1435,6 +1441,10 @@ int qede_get_cls_rule_entry(struct qede_dev *edev, struct ethtool_rxnfc *cmd)
 
 	fsp->ring_cookie = fltr->rxq_id;
 
+	if (fltr->vfid) {
+		fsp->ring_cookie |= ((u64)fltr->vfid) <<
+					ETHTOOL_RX_FLOW_SPEC_RING_VF_OFF;
+	}
 unlock:
 	__qede_unlock(edev);
 	return rc;
@@ -1806,6 +1816,9 @@ static int qede_flow_spec_validate(struct qede_dev *edev,
 		return -EINVAL;
 	}
 
+	if (ethtool_get_flow_spec_ring_vf(fs->ring_cookie))
+		return 0;
+
 	if (fs->ring_cookie >= QEDE_RSS_COUNT(edev)) {
 		DP_INFO(edev, "Queue out-of-bounds\n");
 		return -EINVAL;
@@ -1833,6 +1846,19 @@ qede_flow_find_fltr(struct qede_dev *edev, struct qede_arfs_tuple *t)
 	}
 
 	return NULL;
+}
+
+static void qede_flow_set_destination(struct qede_dev *edev,
+				      struct qede_arfs_fltr_node *n,
+				      struct ethtool_rx_flow_spec *fs)
+{
+	n->vfid = ethtool_get_flow_spec_ring_vf(fs->ring_cookie);
+	n->rxq_id = ethtool_get_flow_spec_ring(fs->ring_cookie);
+	n->next_rxq_id = n->rxq_id;
+
+	if (n->vfid)
+		DP_VERBOSE(edev, QED_MSG_SP,
+			   "Configuring N-tuple for VF 0x%02x\n", n->vfid - 1);
 }
 
 int qede_add_cls_rule(struct qede_dev *edev, struct ethtool_rxnfc *info)
@@ -1881,10 +1907,10 @@ int qede_add_cls_rule(struct qede_dev *edev, struct ethtool_rxnfc *info)
 	n->sw_id = fsp->location;
 	set_bit(n->sw_id, edev->arfs->arfs_fltr_bmap);
 	n->buf_len = min_hlen;
-	n->rxq_id = fsp->ring_cookie;
-	n->next_rxq_id = n->rxq_id;
 
 	memcpy(&n->tuple, &t, sizeof(n->tuple));
+
+	qede_flow_set_destination(edev, n, fsp);
 
 	/* Build a minimal header according to the flow */
 	n->tuple.build_hdr(&n->tuple, n->data);
