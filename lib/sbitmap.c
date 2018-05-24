@@ -352,8 +352,9 @@ static void sbitmap_queue_update_wake_batch(struct sbitmap_queue *sbq,
 	if (sbq->wake_batch != wake_batch) {
 		WRITE_ONCE(sbq->wake_batch, wake_batch);
 		/*
-		 * Pairs with the memory barrier in sbq_wake_up() to ensure that
-		 * the batch size is updated before the wait counts.
+		 * Pairs with the memory barrier in sbitmap_queue_wake_up()
+		 * to ensure that the batch size is updated before the wait
+		 * counts.
 		 */
 		smp_mb__before_atomic();
 		for (i = 0; i < SBQ_WAIT_QUEUES; i++)
@@ -463,15 +464,6 @@ static bool __sbq_wake_up(struct sbitmap_queue *sbq)
 	unsigned int wake_batch;
 	int wait_cnt;
 
-	/*
-	 * Pairs with the memory barrier in set_current_state() to ensure the
-	 * proper ordering of clear_bit()/waitqueue_active() in the waker and
-	 * test_and_set_bit_lock()/prepare_to_wait()/finish_wait() in the
-	 * waiter. See the comment on waitqueue_active(). This is __after_atomic
-	 * because we just did clear_bit_unlock() in the caller.
-	 */
-	smp_mb__after_atomic();
-
 	ws = sbq_wake_ptr(sbq);
 	if (!ws)
 		return false;
@@ -507,17 +499,26 @@ static bool __sbq_wake_up(struct sbitmap_queue *sbq)
 	return false;
 }
 
-static void sbq_wake_up(struct sbitmap_queue *sbq)
+void sbitmap_queue_wake_up(struct sbitmap_queue *sbq)
 {
 	while (__sbq_wake_up(sbq))
 		;
 }
+EXPORT_SYMBOL_GPL(sbitmap_queue_wake_up);
 
 void sbitmap_queue_clear(struct sbitmap_queue *sbq, unsigned int nr,
 			 unsigned int cpu)
 {
 	sbitmap_clear_bit_unlock(&sbq->sb, nr);
-	sbq_wake_up(sbq);
+	/*
+	 * Pairs with the memory barrier in set_current_state() to ensure the
+	 * proper ordering of clear_bit_unlock()/waitqueue_active() in the waker
+	 * and test_and_set_bit_lock()/prepare_to_wait()/finish_wait() in the
+	 * waiter. See the comment on waitqueue_active().
+	 */
+	smp_mb__after_atomic();
+	sbitmap_queue_wake_up(sbq);
+
 	if (likely(!sbq->round_robin && nr < sbq->sb.depth))
 		*per_cpu_ptr(sbq->alloc_hint, cpu) = nr;
 }
@@ -529,7 +530,7 @@ void sbitmap_queue_wake_all(struct sbitmap_queue *sbq)
 
 	/*
 	 * Pairs with the memory barrier in set_current_state() like in
-	 * sbq_wake_up().
+	 * sbitmap_queue_wake_up().
 	 */
 	smp_mb();
 	wake_index = atomic_read(&sbq->wake_index);
