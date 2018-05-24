@@ -30,6 +30,7 @@
 #include <linux/radix-tree.h>
 
 #include "i915_gem.h"
+#include "i915_scheduler.h"
 
 struct pid;
 
