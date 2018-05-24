@@ -2431,7 +2431,8 @@ unsigned int of_genpd_opp_to_performance_state(struct device *dev,
 
 	opp = of_dev_pm_opp_find_required_opp(&genpd->dev, opp_node);
 	if (IS_ERR(opp)) {
-		state = PTR_ERR(opp);
+		dev_err(dev, "Failed to find required OPP: %ld\n",
+			PTR_ERR(opp));
 		goto unlock;
 	}
 
