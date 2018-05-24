@@ -141,6 +141,7 @@ enum bpf_prog_type {
 	BPF_PROG_TYPE_SK_MSG,
 	BPF_PROG_TYPE_RAW_TRACEPOINT,
 	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
+	BPF_PROG_TYPE_LWT_SEG6LOCAL,
 };
 
 enum bpf_attach_type {
@@ -1902,6 +1903,90 @@ union bpf_attr {
  *		egress otherwise). This is the only flag supported for now.
  *	Return
  *		**SK_PASS** on success, or **SK_DROP** on error.
+ *
+ * int bpf_lwt_push_encap(struct sk_buff *skb, u32 type, void *hdr, u32 len)
+ *	Description
+ *		Encapsulate the packet associated to *skb* within a Layer 3
+ *		protocol header. This header is provided in the buffer at
+ *		address *hdr*, with *len* its size in bytes. *type* indicates
+ *		the protocol of the header and can be one of:
+ *
+ *		**BPF_LWT_ENCAP_SEG6**
+ *			IPv6 encapsulation with Segment Routing Header
+ *			(**struct ipv6_sr_hdr**). *hdr* only contains the SRH,
+ *			the IPv6 header is computed by the kernel.
+ *		**BPF_LWT_ENCAP_SEG6_INLINE**
+ *			Only works if *skb* contains an IPv6 packet. Insert a
+ *			Segment Routing Header (**struct ipv6_sr_hdr**) inside
+ *			the IPv6 header.
+ *
+ * 		A call to this helper is susceptible to change the underlaying
+ * 		packet buffer. Therefore, at load time, all checks on pointers
+ * 		previously done by the verifier are invalidated and must be
+ * 		performed again, if the helper is used in combination with
+ * 		direct packet access.
+ *	Return
+ * 		0 on success, or a negative error in case of failure.
+ *
+ * int bpf_lwt_seg6_store_bytes(struct sk_buff *skb, u32 offset, const void *from, u32 len)
+ *	Description
+ *		Store *len* bytes from address *from* into the packet
+ *		associated to *skb*, at *offset*. Only the flags, tag and TLVs
+ *		inside the outermost IPv6 Segment Routing Header can be
+ *		modified through this helper.
+ *
+ * 		A call to this helper is susceptible to change the underlaying
+ * 		packet buffer. Therefore, at load time, all checks on pointers
+ * 		previously done by the verifier are invalidated and must be
+ * 		performed again, if the helper is used in combination with
+ * 		direct packet access.
+ *	Return
+ * 		0 on success, or a negative error in case of failure.
+ *
+ * int bpf_lwt_seg6_adjust_srh(struct sk_buff *skb, u32 offset, s32 delta)
+ *	Description
+ *		Adjust the size allocated to TLVs in the outermost IPv6
+ *		Segment Routing Header contained in the packet associated to
+ *		*skb*, at position *offset* by *delta* bytes. Only offsets
+ *		after the segments are accepted. *delta* can be as well
+ *		positive (growing) as negative (shrinking).
+ *
+ * 		A call to this helper is susceptible to change the underlaying
+ * 		packet buffer. Therefore, at load time, all checks on pointers
+ * 		previously done by the verifier are invalidated and must be
+ * 		performed again, if the helper is used in combination with
+ * 		direct packet access.
+ *	Return
+ * 		0 on success, or a negative error in case of failure.
+ *
+ * int bpf_lwt_seg6_action(struct sk_buff *skb, u32 action, void *param, u32 param_len)
+ *	Description
+ *		Apply an IPv6 Segment Routing action of type *action* to the
+ *		packet associated to *skb*. Each action takes a parameter
+ *		contained at address *param*, and of length *param_len* bytes.
+ *		*action* can be one of:
+ *
+ *		**SEG6_LOCAL_ACTION_END_X**
+ *			End.X action: Endpoint with Layer-3 cross-connect.
+ *			Type of *param*: **struct in6_addr**.
+ *		**SEG6_LOCAL_ACTION_END_T**
+ *			End.T action: Endpoint with specific IPv6 table lookup.
+ *			Type of *param*: **int**.
+ *		**SEG6_LOCAL_ACTION_END_B6**
+ *			End.B6 action: Endpoint bound to an SRv6 policy.
+ *			Type of param: **struct ipv6_sr_hdr**.
+ *		**SEG6_LOCAL_ACTION_END_B6_ENCAP**
+ *			End.B6.Encap action: Endpoint bound to an SRv6
+ *			encapsulation policy.
+ *			Type of param: **struct ipv6_sr_hdr**.
+ *
+ * 		A call to this helper is susceptible to change the underlaying
+ * 		packet buffer. Therefore, at load time, all checks on pointers
+ * 		previously done by the verifier are invalidated and must be
+ * 		performed again, if the helper is used in combination with
+ * 		direct packet access.
+ *	Return
+ * 		0 on success, or a negative error in case of failure.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -1976,7 +2061,11 @@ union bpf_attr {
 	FN(fib_lookup),			\
 	FN(sock_hash_update),		\
 	FN(msg_redirect_hash),		\
-	FN(sk_redirect_hash),
+	FN(sk_redirect_hash),		\
+	FN(lwt_push_encap),		\
+	FN(lwt_seg6_store_bytes),	\
+	FN(lwt_seg6_adjust_srh),	\
+	FN(lwt_seg6_action),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
@@ -2041,6 +2130,12 @@ enum bpf_adj_room_mode {
 enum bpf_hdr_start_off {
 	BPF_HDR_START_MAC,
 	BPF_HDR_START_NET,
+};
+
+/* Encapsulation type for BPF_FUNC_lwt_push_encap helper. */
+enum bpf_lwt_encap_mode {
+	BPF_LWT_ENCAP_SEG6,
+	BPF_LWT_ENCAP_SEG6_INLINE
 };
 
 /* user accessible mirror of in-kernel sk_buff.

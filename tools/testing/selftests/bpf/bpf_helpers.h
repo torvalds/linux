@@ -114,6 +114,18 @@ static int (*bpf_get_stack)(void *ctx, void *buf, int size, int flags) =
 static int (*bpf_fib_lookup)(void *ctx, struct bpf_fib_lookup *params,
 			     int plen, __u32 flags) =
 	(void *) BPF_FUNC_fib_lookup;
+static int (*bpf_lwt_push_encap)(void *ctx, unsigned int type, void *hdr,
+				 unsigned int len) =
+	(void *) BPF_FUNC_lwt_push_encap;
+static int (*bpf_lwt_seg6_store_bytes)(void *ctx, unsigned int offset,
+				       void *from, unsigned int len) =
+	(void *) BPF_FUNC_lwt_seg6_store_bytes;
+static int (*bpf_lwt_seg6_action)(void *ctx, unsigned int action, void *param,
+				  unsigned int param_len) =
+	(void *) BPF_FUNC_lwt_seg6_action;
+static int (*bpf_lwt_seg6_adjust_srh)(void *ctx, unsigned int offset,
+				      unsigned int len) =
+	(void *) BPF_FUNC_lwt_seg6_adjust_srh;
 
 /* llvm builtin functions that eBPF C program may use to
  * emit BPF_LD_ABS and BPF_LD_IND instructions
