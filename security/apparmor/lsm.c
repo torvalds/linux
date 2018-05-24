@@ -23,6 +23,8 @@
 #include <linux/sysctl.h>
 #include <linux/audit.h>
 #include <linux/user_namespace.h>
+#include <linux/netfilter_ipv4.h>
+#include <linux/netfilter_ipv6.h>
 #include <net/sock.h>
 
 #include "include/apparmor.h"
@@ -1030,7 +1032,13 @@ static int apparmor_socket_shutdown(struct socket *sock, int how)
  */
 static int apparmor_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
-	return 0;
+	struct aa_sk_ctx *ctx = SK_CTX(sk);
+
+	if (!skb->secmark)
+		return 0;
+
+	return apparmor_secmark_check(ctx->label, OP_RECVMSG, AA_MAY_RECEIVE,
+				      skb->secmark, sk);
 }
 
 
@@ -1126,6 +1134,18 @@ static void apparmor_sock_graft(struct sock *sk, struct socket *parent)
 		ctx->label = aa_get_current_label();
 }
 
+static int apparmor_inet_conn_request(struct sock *sk, struct sk_buff *skb,
+				      struct request_sock *req)
+{
+	struct aa_sk_ctx *ctx = SK_CTX(sk);
+
+	if (!skb->secmark)
+		return 0;
+
+	return apparmor_secmark_check(ctx->label, OP_CONNECT, AA_MAY_CONNECT,
+				      skb->secmark, sk);
+}
+
 static struct security_hook_list apparmor_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(ptrace_access_check, apparmor_ptrace_access_check),
 	LSM_HOOK_INIT(ptrace_traceme, apparmor_ptrace_traceme),
@@ -1183,6 +1203,7 @@ static struct security_hook_list apparmor_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(socket_getpeersec_dgram,
 		      apparmor_socket_getpeersec_dgram),
 	LSM_HOOK_INIT(sock_graft, apparmor_sock_graft),
+	LSM_HOOK_INIT(inet_conn_request, apparmor_inet_conn_request),
 
 	LSM_HOOK_INIT(cred_alloc_blank, apparmor_cred_alloc_blank),
 	LSM_HOOK_INIT(cred_free, apparmor_cred_free),
@@ -1537,6 +1558,95 @@ static inline int apparmor_init_sysctl(void)
 	return 0;
 }
 #endif /* CONFIG_SYSCTL */
+
+static unsigned int apparmor_ip_postroute(void *priv,
+					  struct sk_buff *skb,
+					  const struct nf_hook_state *state)
+{
+	struct aa_sk_ctx *ctx;
+	struct sock *sk;
+
+	if (!skb->secmark)
+		return NF_ACCEPT;
+
+	sk = skb_to_full_sk(skb);
+	if (sk == NULL)
+		return NF_ACCEPT;
+
+	ctx = SK_CTX(sk);
+	if (!apparmor_secmark_check(ctx->label, OP_SENDMSG, AA_MAY_SEND,
+				    skb->secmark, sk))
+		return NF_ACCEPT;
+
+	return NF_DROP_ERR(-ECONNREFUSED);
+
+}
+
+static unsigned int apparmor_ipv4_postroute(void *priv,
+					    struct sk_buff *skb,
+					    const struct nf_hook_state *state)
+{
+	return apparmor_ip_postroute(priv, skb, state);
+}
+
+static unsigned int apparmor_ipv6_postroute(void *priv,
+					    struct sk_buff *skb,
+					    const struct nf_hook_state *state)
+{
+	return apparmor_ip_postroute(priv, skb, state);
+}
+
+static const struct nf_hook_ops apparmor_nf_ops[] = {
+	{
+		.hook =         apparmor_ipv4_postroute,
+		.pf =           NFPROTO_IPV4,
+		.hooknum =      NF_INET_POST_ROUTING,
+		.priority =     NF_IP_PRI_SELINUX_FIRST,
+	},
+#if IS_ENABLED(CONFIG_IPV6)
+	{
+		.hook =         apparmor_ipv6_postroute,
+		.pf =           NFPROTO_IPV6,
+		.hooknum =      NF_INET_POST_ROUTING,
+		.priority =     NF_IP6_PRI_SELINUX_FIRST,
+	},
+#endif
+};
+
+static int __net_init apparmor_nf_register(struct net *net)
+{
+	int ret;
+
+	ret = nf_register_net_hooks(net, apparmor_nf_ops,
+				    ARRAY_SIZE(apparmor_nf_ops));
+	return ret;
+}
+
+static void __net_exit apparmor_nf_unregister(struct net *net)
+{
+	nf_unregister_net_hooks(net, apparmor_nf_ops,
+				ARRAY_SIZE(apparmor_nf_ops));
+}
+
+static struct pernet_operations apparmor_net_ops = {
+	.init = apparmor_nf_register,
+	.exit = apparmor_nf_unregister,
+};
+
+static int __init apparmor_nf_ip_init(void)
+{
+	int err;
+
+	if (!apparmor_enabled)
+		return 0;
+
+	err = register_pernet_subsys(&apparmor_net_ops);
+	if (err)
+		panic("Apparmor: register_pernet_subsys: error %d\n", err);
+
+	return 0;
+}
+__initcall(apparmor_nf_ip_init);
 
 static int __init apparmor_init(void)
 {
