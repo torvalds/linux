@@ -340,6 +340,31 @@ tunnel_destroy()
 	ip link del dev $name
 }
 
+vlan_create()
+{
+	local if_name=$1; shift
+	local vid=$1; shift
+	local vrf=$1; shift
+	local ips=("${@}")
+	local name=$if_name.$vid
+
+	ip link add name $name link $if_name type vlan id $vid
+	if [ "$vrf" != "" ]; then
+		ip link set dev $name master $vrf
+	fi
+	ip link set dev $name up
+	__addr_add_del $name add "${ips[@]}"
+}
+
+vlan_destroy()
+{
+	local if_name=$1; shift
+	local vid=$1; shift
+	local name=$if_name.$vid
+
+	ip link del dev $name
+}
+
 master_name_get()
 {
 	local if_name=$1
