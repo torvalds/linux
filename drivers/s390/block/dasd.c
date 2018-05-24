@@ -1885,6 +1885,33 @@ static void __dasd_device_process_ccw_queue(struct dasd_device *device,
 	}
 }
 
+static void __dasd_process_cqr(struct dasd_device *device,
+			       struct dasd_ccw_req *cqr)
+{
+	char errorstring[ERRORLENGTH];
+
+	switch (cqr->status) {
+	case DASD_CQR_SUCCESS:
+		cqr->status = DASD_CQR_DONE;
+		break;
+	case DASD_CQR_ERROR:
+		cqr->status = DASD_CQR_NEED_ERP;
+		break;
+	case DASD_CQR_CLEARED:
+		cqr->status = DASD_CQR_TERMINATED;
+		break;
+	default:
+		/* internal error 12 - wrong cqr status*/
+		snprintf(errorstring, ERRORLENGTH, "12 %p %x02", cqr, cqr->status);
+		dev_err(&device->cdev->dev,
+			"An error occurred in the DASD device driver, "
+			"reason=%s\n", errorstring);
+		BUG();
+	}
+	if (cqr->callback)
+		cqr->callback(cqr, cqr->callback_data);
+}
+
 /*
  * the cqrs from the final queue are returned to the upper layer
  * by setting a dasd_block state and calling the callback function
@@ -1895,40 +1922,18 @@ static void __dasd_device_process_final_queue(struct dasd_device *device,
 	struct list_head *l, *n;
 	struct dasd_ccw_req *cqr;
 	struct dasd_block *block;
-	void (*callback)(struct dasd_ccw_req *, void *data);
-	void *callback_data;
-	char errorstring[ERRORLENGTH];
 
 	list_for_each_safe(l, n, final_queue) {
 		cqr = list_entry(l, struct dasd_ccw_req, devlist);
 		list_del_init(&cqr->devlist);
 		block = cqr->block;
-		callback = cqr->callback;
-		callback_data = cqr->callback_data;
-		if (block)
+		if (!block) {
+			__dasd_process_cqr(device, cqr);
+		} else {
 			spin_lock_bh(&block->queue_lock);
-		switch (cqr->status) {
-		case DASD_CQR_SUCCESS:
-			cqr->status = DASD_CQR_DONE;
-			break;
-		case DASD_CQR_ERROR:
-			cqr->status = DASD_CQR_NEED_ERP;
-			break;
-		case DASD_CQR_CLEARED:
-			cqr->status = DASD_CQR_TERMINATED;
-			break;
-		default:
-			/* internal error 12 - wrong cqr status*/
-			snprintf(errorstring, ERRORLENGTH, "12 %p %x02", cqr, cqr->status);
-			dev_err(&device->cdev->dev,
-				"An error occurred in the DASD device driver, "
-				"reason=%s\n", errorstring);
-			BUG();
-		}
-		if (cqr->callback != NULL)
-			(callback)(cqr, callback_data);
-		if (block)
+			__dasd_process_cqr(device, cqr);
 			spin_unlock_bh(&block->queue_lock);
+		}
 	}
 }
 
