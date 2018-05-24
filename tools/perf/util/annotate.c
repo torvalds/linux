@@ -678,6 +678,25 @@ static struct arch *arch__find(const char *name)
 	return bsearch(name, architectures, nmemb, sizeof(struct arch), arch__key_cmp);
 }
 
+static struct annotated_source *annotated_source__new(void)
+{
+	struct annotated_source *src = zalloc(sizeof(*src));
+
+	if (src != NULL)
+		INIT_LIST_HEAD(&src->source);
+
+	return src;
+}
+
+static void annotated_source__delete(struct annotated_source *src)
+{
+	if (src == NULL)
+		return;
+	zfree(&src->histograms);
+	zfree(&src->cycles_hist);
+	free(src);
+}
+
 int symbol__alloc_hist(struct symbol *sym)
 {
 	struct annotation *notes = symbol__annotation(sym);
@@ -704,17 +723,17 @@ int symbol__alloc_hist(struct symbol *sym)
 	if (sizeof_sym_hist > SIZE_MAX / symbol_conf.nr_events)
 		return -1;
 
-	notes->src = zalloc(sizeof(*notes->src));
+	notes->src = annotated_source__new();
 	if (notes->src == NULL)
 		return -1;
 	notes->src->histograms = calloc(symbol_conf.nr_events, sizeof_sym_hist);
 	if (notes->src->histograms == NULL) {
-		zfree(&notes->src);
+		annotated_source__delete(notes->src);
+		notes->src = NULL;
 		return -1;
 	}
 	notes->src->sizeof_sym_hist = sizeof_sym_hist;
 	notes->src->nr_histograms   = symbol_conf.nr_events;
-	INIT_LIST_HEAD(&notes->src->source);
 	return 0;
 }
 
