@@ -5240,14 +5240,11 @@ static void free_some_resources(struct adapter *adapter)
 		   NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA)
 #define SEGMENT_SIZE 128
 
-static int get_chip_type(struct pci_dev *pdev, u32 pl_rev)
+static int t4_get_chip_type(struct adapter *adap, int ver)
 {
-	u16 device_id;
+	u32 pl_rev = REV_G(t4_read_reg(adap, PL_REV_A));
 
-	/* Retrieve adapter's device ID */
-	pci_read_config_word(pdev, PCI_DEVICE_ID, &device_id);
-
-	switch (device_id >> 12) {
+	switch (ver) {
 	case CHELSIO_T4:
 		return CHELSIO_CHIP_CODE(CHELSIO_T4, pl_rev);
 	case CHELSIO_T5:
@@ -5255,8 +5252,7 @@ static int get_chip_type(struct pci_dev *pdev, u32 pl_rev)
 	case CHELSIO_T6:
 		return CHELSIO_CHIP_CODE(CHELSIO_T6, pl_rev);
 	default:
-		dev_err(&pdev->dev, "Device %d is not supported\n",
-			device_id);
+		break;
 	}
 	return -EINVAL;
 }
@@ -5426,15 +5422,18 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 
 static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	int func, i, err, s_qpp, qpp, num_seg;
+	struct net_device *netdev;
+	struct adapter *adapter;
+	static int adap_idx = 1;
+	int s_qpp, qpp, num_seg;
 	struct port_info *pi;
 	bool highdma = false;
-	struct adapter *adapter = NULL;
-	struct net_device *netdev;
-	void __iomem *regs;
-	u32 whoami, pl_rev;
 	enum chip_type chip;
-	static int adap_idx = 1;
+	void __iomem *regs;
+	int func, chip_ver;
+	u16 device_id;
+	int i, err;
+	u32 whoami;
 
 	printk_once(KERN_INFO "%s - version %s\n", DRV_DESC, DRV_VERSION);
 
@@ -5470,11 +5469,17 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_free_adapter;
 
 	/* We control everything through one PF */
-	whoami = readl(regs + PL_WHOAMI_A);
-	pl_rev = REV_G(readl(regs + PL_REV_A));
-	chip = get_chip_type(pdev, pl_rev);
-	func = CHELSIO_CHIP_VERSION(chip) <= CHELSIO_T5 ?
-		SOURCEPF_G(whoami) : T6_SOURCEPF_G(whoami);
+	whoami = t4_read_reg(adapter, PL_WHOAMI_A);
+	pci_read_config_word(pdev, PCI_DEVICE_ID, &device_id);
+	chip = t4_get_chip_type(adapter, CHELSIO_PCI_ID_VER(device_id));
+	if (chip < 0) {
+		dev_err(&pdev->dev, "Device %d is not supported\n", device_id);
+		err = chip;
+		goto out_free_adapter;
+	}
+	chip_ver = CHELSIO_CHIP_VERSION(chip);
+	func = chip_ver <= CHELSIO_T5 ?
+	       SOURCEPF_G(whoami) : T6_SOURCEPF_G(whoami);
 
 	adapter->pdev = pdev;
 	adapter->pdev_dev = &pdev->dev;
@@ -5640,7 +5645,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
 			NETIF_F_HW_TC;
 
-		if (CHELSIO_CHIP_VERSION(chip) > CHELSIO_T5) {
+		if (chip_ver > CHELSIO_T5) {
 			netdev->hw_enc_features |= NETIF_F_IP_CSUM |
 						   NETIF_F_IPV6_CSUM |
 						   NETIF_F_RXCSUM |
@@ -5720,7 +5725,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_warn(&pdev->dev, "could not allocate MPS Encap entries, continuing\n");
 
 #if IS_ENABLED(CONFIG_IPV6)
-	if ((CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5) &&
+	if (chip_ver <= CHELSIO_T5 &&
 	    (!(t4_read_reg(adapter, LE_DB_CONFIG_A) & ASLIPCOMPEN_F))) {
 		/* CLIP functionality is not present in hardware,
 		 * hence disable all offload features
