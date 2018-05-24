@@ -70,6 +70,9 @@ static u32 flash_vendor_init(void)
 {
 	u32 i, max_ver, max_index;
 
+	if (!_flash_read)
+		return -EPERM;
+
 	g_vendor = kmalloc(sizeof(*g_vendor), GFP_KERNEL | GFP_DMA);
 	if (!g_vendor)
 		return 0;
