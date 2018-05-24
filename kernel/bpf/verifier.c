@@ -5383,11 +5383,24 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 			    insn->src_reg != BPF_PSEUDO_CALL)
 				continue;
 			subprog = insn->off;
-			insn->off = 0;
 			insn->imm = (u64 (*)(u64, u64, u64, u64, u64))
 				func[subprog]->bpf_func -
 				__bpf_call_base;
 		}
+
+		/* we use the aux data to keep a list of the start addresses
+		 * of the JITed images for each function in the program
+		 *
+		 * for some architectures, such as powerpc64, the imm field
+		 * might not be large enough to hold the offset of the start
+		 * address of the callee's JITed image from __bpf_call_base
+		 *
+		 * in such cases, we can lookup the start address of a callee
+		 * by using its subprog id, available from the off field of
+		 * the call instruction, as an index for this list
+		 */
+		func[i]->aux->func = func;
+		func[i]->aux->func_cnt = env->subprog_cnt;
 	}
 	for (i = 0; i < env->subprog_cnt; i++) {
 		old_bpf_func = func[i]->bpf_func;
