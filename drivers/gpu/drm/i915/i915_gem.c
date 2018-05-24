@@ -3703,6 +3703,9 @@ static int wait_for_engines(struct drm_i915_private *i915)
 
 int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
 {
+	GEM_TRACE("flags=%x (%s)\n",
+		  flags, flags & I915_WAIT_LOCKED ? "locked" : "unlocked");
+
 	/* If the device is asleep, we have no requests outstanding */
 	if (!READ_ONCE(i915->gt.awake))
 		return 0;
@@ -3719,6 +3722,7 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
 				return err;
 		}
 		i915_retire_requests(i915);
+		GEM_BUG_ON(i915->gt.active_requests);
 
 		return wait_for_engines(i915);
 	} else {
@@ -4901,6 +4905,7 @@ static void assert_kernel_context_is_current(struct drm_i915_private *i915)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
+	GEM_BUG_ON(i915->gt.active_requests);
 	for_each_engine(engine, i915, id) {
 		GEM_BUG_ON(__i915_gem_active_peek(&engine->timeline.last_request));
 		GEM_BUG_ON(engine->last_retired_context->gem_context != kctx);
@@ -4931,6 +4936,8 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
 	int ret;
+
+	GEM_TRACE("\n");
 
 	intel_runtime_pm_get(dev_priv);
 	intel_suspend_gt_powersave(dev_priv);

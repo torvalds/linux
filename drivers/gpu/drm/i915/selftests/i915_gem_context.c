@@ -26,6 +26,7 @@
 #include "igt_flush_test.h"
 
 #include "mock_drm.h"
+#include "mock_gem_device.h"
 #include "huge_gem_object.h"
 
 #define DW_PER_PAGE (PAGE_SIZE / sizeof(u32))
@@ -420,6 +421,130 @@ out_unlock:
 	return err;
 }
 
+static __maybe_unused const char *
+__engine_name(struct drm_i915_private *i915, unsigned int engines)
+{
+	struct intel_engine_cs *engine;
+	unsigned int tmp;
+
+	if (engines == ALL_ENGINES)
+		return "all";
+
+	for_each_engine_masked(engine, i915, engines, tmp)
+		return engine->name;
+
+	return "none";
+}
+
+static int __igt_switch_to_kernel_context(struct drm_i915_private *i915,
+					  struct i915_gem_context *ctx,
+					  unsigned int engines)
+{
+	struct intel_engine_cs *engine;
+	unsigned int tmp;
+	int err;
+
+	GEM_TRACE("Testing %s\n", __engine_name(i915, engines));
+	for_each_engine_masked(engine, i915, engines, tmp) {
+		struct i915_request *rq;
+
+		rq = i915_request_alloc(engine, ctx);
+		if (IS_ERR(rq))
+			return PTR_ERR(rq);
+
+		i915_request_add(rq);
+	}
+
+	err = i915_gem_switch_to_kernel_context(i915);
+	if (err)
+		return err;
+
+	for_each_engine_masked(engine, i915, engines, tmp) {
+		if (!engine_has_kernel_context_barrier(engine)) {
+			pr_err("kernel context not last on engine %s!\n",
+			       engine->name);
+			return -EINVAL;
+		}
+	}
+
+	err = i915_gem_wait_for_idle(i915, I915_WAIT_LOCKED);
+	if (err)
+		return err;
+
+	GEM_BUG_ON(i915->gt.active_requests);
+	for_each_engine_masked(engine, i915, engines, tmp) {
+		if (engine->last_retired_context->gem_context != i915->kernel_context) {
+			pr_err("engine %s not idling in kernel context!\n",
+			       engine->name);
+			return -EINVAL;
+		}
+	}
+
+	err = i915_gem_switch_to_kernel_context(i915);
+	if (err)
+		return err;
+
+	if (i915->gt.active_requests) {
+		pr_err("switch-to-kernel-context emitted %d requests even though it should already be idling in the kernel context\n",
+		       i915->gt.active_requests);
+		return -EINVAL;
+	}
+
+	for_each_engine_masked(engine, i915, engines, tmp) {
+		if (!intel_engine_has_kernel_context(engine)) {
+			pr_err("kernel context not last on engine %s!\n",
+			       engine->name);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int igt_switch_to_kernel_context(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct intel_engine_cs *engine;
+	struct i915_gem_context *ctx;
+	enum intel_engine_id id;
+	int err;
+
+	/*
+	 * A core premise of switching to the kernel context is that
+	 * if an engine is already idling in the kernel context, we
+	 * do not emit another request and wake it up. The other being
+	 * that we do indeed end up idling in the kernel context.
+	 */
+
+	mutex_lock(&i915->drm.struct_mutex);
+	ctx = kernel_context(i915);
+	if (IS_ERR(ctx)) {
+		err = PTR_ERR(ctx);
+		goto out_unlock;
+	}
+
+	/* First check idling each individual engine */
+	for_each_engine(engine, i915, id) {
+		err = __igt_switch_to_kernel_context(i915, ctx, BIT(id));
+		if (err)
+			goto out_unlock;
+	}
+
+	/* Now en masse */
+	err = __igt_switch_to_kernel_context(i915, ctx, ALL_ENGINES);
+	if (err)
+		goto out_unlock;
+
+out_unlock:
+	GEM_TRACE_DUMP_ON(err);
+	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+		err = -EIO;
+	mutex_unlock(&i915->drm.struct_mutex);
+
+	kernel_context_close(ctx);
+	return err;
+}
+
 static int fake_aliasing_ppgtt_enable(struct drm_i915_private *i915)
 {
 	struct drm_i915_gem_object *obj;
@@ -447,9 +572,28 @@ static void fake_aliasing_ppgtt_disable(struct drm_i915_private *i915)
 	i915_gem_fini_aliasing_ppgtt(i915);
 }
 
+int i915_gem_context_mock_selftests(void)
+{
+	static const struct i915_subtest tests[] = {
+		SUBTEST(igt_switch_to_kernel_context),
+	};
+	struct drm_i915_private *i915;
+	int err;
+
+	i915 = mock_gem_device();
+	if (!i915)
+		return -ENOMEM;
+
+	err = i915_subtests(tests, i915);
+
+	drm_dev_unref(&i915->drm);
+	return err;
+}
+
 int i915_gem_context_live_selftests(struct drm_i915_private *dev_priv)
 {
 	static const struct i915_subtest tests[] = {
+		SUBTEST(igt_switch_to_kernel_context),
 		SUBTEST(igt_ctx_exec),
 	};
 	bool fake_alias = false;

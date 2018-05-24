@@ -320,6 +320,7 @@ static void advance_ring(struct i915_request *request)
 		 * is just about to be. Either works, if we miss the last two
 		 * noops - they are safe to be replayed on a reset.
 		 */
+		GEM_TRACE("marking %s as inactive\n", ring->timeline->name);
 		tail = READ_ONCE(request->tail);
 		list_del(&ring->active_link);
 	} else {
@@ -1095,8 +1096,10 @@ void __i915_request_add(struct i915_request *request, bool flush_caches)
 	i915_gem_active_set(&timeline->last_request, request);
 
 	list_add_tail(&request->ring_link, &ring->request_list);
-	if (list_is_first(&request->ring_link, &ring->request_list))
+	if (list_is_first(&request->ring_link, &ring->request_list)) {
+		GEM_TRACE("marking %s as active\n", ring->timeline->name);
 		list_add(&ring->active_link, &request->i915->gt.active_rings);
+	}
 	request->emitted_jiffies = jiffies;
 
 	/*
