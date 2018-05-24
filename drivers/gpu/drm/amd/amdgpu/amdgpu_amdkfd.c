@@ -103,7 +103,7 @@ void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev)
 		kfd2kgd = amdgpu_amdkfd_gfx_9_0_get_functions();
 		break;
 	default:
-		dev_dbg(adev->dev, "kfd not supported on this ASIC\n");
+		dev_info(adev->dev, "kfd not supported on this ASIC\n");
 		return;
 	}
 
