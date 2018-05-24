@@ -101,90 +101,42 @@ static const struct state_dependent_clocks dce120_max_clks_by_state[] = {
 /*ClocksStatePerformance*/
 { .display_clk_khz = 1133000, .pixel_clk_khz = 600000 } };
 
-/* Starting point for each divider range.*/
-enum dce_divider_range_start {
-	DIVIDER_RANGE_01_START = 200, /* 2.00*/
-	DIVIDER_RANGE_02_START = 1600, /* 16.00*/
-	DIVIDER_RANGE_03_START = 3200, /* 32.00*/
-	DIVIDER_RANGE_SCALE_FACTOR = 100 /* Results are scaled up by 100.*/
+/* Starting DID for each range */
+enum dentist_base_divider_id {
+	dentist_base_divider_id_1 = 0x08,
+	dentist_base_divider_id_2 = 0x40,
+	dentist_base_divider_id_3 = 0x60,
+	dentist_max_divider_id    = 0x80
 };
 
-/* Ranges for divider identifiers (Divider ID or DID)
- mmDENTIST_DISPCLK_CNTL.DENTIST_DISPCLK_WDIVIDER*/
-enum dce_divider_id_register_setting {
-	DIVIDER_RANGE_01_BASE_DIVIDER_ID = 0X08,
-	DIVIDER_RANGE_02_BASE_DIVIDER_ID = 0X40,
-	DIVIDER_RANGE_03_BASE_DIVIDER_ID = 0X60,
-	DIVIDER_RANGE_MAX_DIVIDER_ID = 0X80
+/* Starting point and step size for each divider range.*/
+enum dentist_divider_range {
+	dentist_divider_range_1_start = 8,   /* 2.00  */
+	dentist_divider_range_1_step  = 1,   /* 0.25  */
+	dentist_divider_range_2_start = 64,  /* 16.00 */
+	dentist_divider_range_2_step  = 2,   /* 0.50  */
+	dentist_divider_range_3_start = 128, /* 32.00 */
+	dentist_divider_range_3_step  = 4,   /* 1.00  */
+	dentist_divider_range_scale_factor = 4
 };
 
-/* Step size between each divider within a range.
- Incrementing the DENTIST_DISPCLK_WDIVIDER by one
- will increment the divider by this much.*/
-enum dce_divider_range_step_size {
-	DIVIDER_RANGE_01_STEP_SIZE = 25, /* 0.25*/
-	DIVIDER_RANGE_02_STEP_SIZE = 50, /* 0.50*/
-	DIVIDER_RANGE_03_STEP_SIZE = 100 /* 1.00 */
-};
-
-static bool dce_divider_range_construct(
-	struct dce_divider_range *div_range,
-	int range_start,
-	int range_step,
-	int did_min,
-	int did_max)
+static int dentist_get_divider_from_did(int did)
 {
-	div_range->div_range_start = range_start;
-	div_range->div_range_step = range_step;
-	div_range->did_min = did_min;
-	div_range->did_max = did_max;
+	if (did < dentist_base_divider_id_1)
+		did = dentist_base_divider_id_1;
+	if (did > dentist_max_divider_id)
+		did = dentist_max_divider_id;
 
-	if (div_range->div_range_step == 0) {
-		div_range->div_range_step = 1;
-		/*div_range_step cannot be zero*/
-		BREAK_TO_DEBUGGER();
+	if (did < dentist_base_divider_id_2) {
+		return dentist_divider_range_1_start + dentist_divider_range_1_step
+							* (did - dentist_base_divider_id_1);
+	} else if (did < dentist_base_divider_id_3) {
+		return dentist_divider_range_2_start + dentist_divider_range_2_step
+							* (did - dentist_base_divider_id_2);
+	} else {
+		return dentist_divider_range_3_start + dentist_divider_range_3_step
+							* (did - dentist_base_divider_id_3);
 	}
-	/* Calculate this based on the other inputs.*/
-	/* See DividerRange.h for explanation of */
-	/* the relationship between divider id (DID) and a divider.*/
-	/* Number of Divider IDs = (Maximum Divider ID - Minimum Divider ID)*/
-	/* Maximum divider identified in this range =
-	 * (Number of Divider IDs)*Step size between dividers
-	 *  + The start of this range.*/
-	div_range->div_range_end = (did_max - did_min) * range_step
-		+ range_start;
-	return true;
-}
-
-static int dce_divider_range_calc_divider(
-	struct dce_divider_range *div_range,
-	int did)
-{
-	/* Is this DID within our range?*/
-	if ((did < div_range->did_min) || (did >= div_range->did_max))
-		return INVALID_DIVIDER;
-
-	return ((did - div_range->did_min) * div_range->div_range_step)
-			+ div_range->div_range_start;
-
-}
-
-static int dce_divider_range_get_divider(
-	struct dce_divider_range *div_range,
-	int ranges_num,
-	int did)
-{
-	int div = INVALID_DIVIDER;
-	int i;
-
-	for (i = 0; i < ranges_num; i++) {
-		/* Calculate divider with given divider ID*/
-		div = dce_divider_range_calc_divider(&div_range[i], did);
-		/* Found a valid return divider*/
-		if (div != INVALID_DIVIDER)
-			break;
-	}
-	return div;
 }
 
 static int dce_clocks_get_dp_ref_freq(struct dccg *clk)
@@ -193,7 +145,7 @@ static int dce_clocks_get_dp_ref_freq(struct dccg *clk)
 	int dprefclk_wdivider;
 	int dprefclk_src_sel;
 	int dp_ref_clk_khz = 600000;
-	int target_div = INVALID_DIVIDER;
+	int target_div;
 
 	/* ASSERT DP Reference Clock source is from DFS*/
 	REG_GET(DPREFCLK_CNTL, DPREFCLK_SRC_SEL, &dprefclk_src_sel);
@@ -204,16 +156,11 @@ static int dce_clocks_get_dp_ref_freq(struct dccg *clk)
 	REG_GET(DENTIST_DISPCLK_CNTL, DENTIST_DPREFCLK_WDIVIDER, &dprefclk_wdivider);
 
 	/* Convert DENTIST_DPREFCLK_WDIVIDERto actual divider*/
-	target_div = dce_divider_range_get_divider(
-			clk_dce->divider_ranges,
-			DIVIDER_RANGE_MAX,
-			dprefclk_wdivider);
+	target_div = dentist_get_divider_from_did(dprefclk_wdivider);
 
-	if (target_div != INVALID_DIVIDER) {
-		/* Calculate the current DFS clock, in kHz.*/
-		dp_ref_clk_khz = (DIVIDER_RANGE_SCALE_FACTOR
-			* clk_dce->dentist_vco_freq_khz) / target_div;
-	}
+	/* Calculate the current DFS clock, in kHz.*/
+	dp_ref_clk_khz = (dentist_divider_range_scale_factor
+		* clk_dce->dentist_vco_freq_khz) / target_div;
 
 	/* SW will adjust DP REF Clock average value for all purposes
 	 * (DP DTO / DP Audio DTO and DP GTC)
@@ -229,17 +176,12 @@ static int dce_clocks_get_dp_ref_freq(struct dccg *clk)
 	  */
 	if (clk_dce->ss_on_dprefclk && clk_dce->dprefclk_ss_divider != 0) {
 		struct fixed31_32 ss_percentage = dc_fixpt_div_int(
-				dc_fixpt_from_fraction(
-						clk_dce->dprefclk_ss_percentage,
-						clk_dce->dprefclk_ss_divider), 200);
+				dc_fixpt_from_fraction(clk_dce->dprefclk_ss_percentage,
+							clk_dce->dprefclk_ss_divider), 200);
 		struct fixed31_32 adj_dp_ref_clk_khz;
 
-		ss_percentage = dc_fixpt_sub(dc_fixpt_one,
-								ss_percentage);
-		adj_dp_ref_clk_khz =
-			dc_fixpt_mul_int(
-				ss_percentage,
-				dp_ref_clk_khz);
+		ss_percentage = dc_fixpt_sub(dc_fixpt_one, ss_percentage);
+		adj_dp_ref_clk_khz = dc_fixpt_mul_int(ss_percentage, dp_ref_clk_khz);
 		dp_ref_clk_khz = dc_fixpt_floor(adj_dp_ref_clk_khz);
 	}
 
@@ -257,17 +199,12 @@ static int dce_clocks_get_dp_ref_freq_wrkaround(struct dccg *clk)
 
 	if (clk_dce->ss_on_dprefclk && clk_dce->dprefclk_ss_divider != 0) {
 		struct fixed31_32 ss_percentage = dc_fixpt_div_int(
-				dc_fixpt_from_fraction(
-						clk_dce->dprefclk_ss_percentage,
+				dc_fixpt_from_fraction(clk_dce->dprefclk_ss_percentage,
 						clk_dce->dprefclk_ss_divider), 200);
 		struct fixed31_32 adj_dp_ref_clk_khz;
 
-		ss_percentage = dc_fixpt_sub(dc_fixpt_one,
-								ss_percentage);
-		adj_dp_ref_clk_khz =
-			dc_fixpt_mul_int(
-				ss_percentage,
-				dp_ref_clk_khz);
+		ss_percentage = dc_fixpt_sub(dc_fixpt_one, ss_percentage);
+		adj_dp_ref_clk_khz = dc_fixpt_mul_int(ss_percentage, dp_ref_clk_khz);
 		dp_ref_clk_khz = dc_fixpt_floor(adj_dp_ref_clk_khz);
 	}
 
@@ -804,25 +741,6 @@ static void dce_dccg_construct(
 
 	dce_clock_read_integrated_info(clk_dce);
 	dce_clock_read_ss_info(clk_dce);
-
-	dce_divider_range_construct(
-		&clk_dce->divider_ranges[DIVIDER_RANGE_01],
-		DIVIDER_RANGE_01_START,
-		DIVIDER_RANGE_01_STEP_SIZE,
-		DIVIDER_RANGE_01_BASE_DIVIDER_ID,
-		DIVIDER_RANGE_02_BASE_DIVIDER_ID);
-	dce_divider_range_construct(
-		&clk_dce->divider_ranges[DIVIDER_RANGE_02],
-		DIVIDER_RANGE_02_START,
-		DIVIDER_RANGE_02_STEP_SIZE,
-		DIVIDER_RANGE_02_BASE_DIVIDER_ID,
-		DIVIDER_RANGE_03_BASE_DIVIDER_ID);
-	dce_divider_range_construct(
-		&clk_dce->divider_ranges[DIVIDER_RANGE_03],
-		DIVIDER_RANGE_03_START,
-		DIVIDER_RANGE_03_STEP_SIZE,
-		DIVIDER_RANGE_03_BASE_DIVIDER_ID,
-		DIVIDER_RANGE_MAX_DIVIDER_ID);
 }
 
 struct dccg *dce_dccg_create(
@@ -921,6 +839,9 @@ struct dccg *dce120_dccg_create(struct dc_context *ctx)
 
 struct dccg *dcn1_dccg_create(struct dc_context *ctx)
 {
+	struct dc_debug *debug = &ctx->dc->debug;
+	struct dc_bios *bp = ctx->dc_bios;
+	struct dc_firmware_info fw_info = { { 0 } };
 	struct dce_dccg *clk_dce = kzalloc(sizeof(*clk_dce), GFP_KERNEL);
 
 	if (clk_dce == NULL) {
@@ -928,11 +849,29 @@ struct dccg *dcn1_dccg_create(struct dc_context *ctx)
 		return NULL;
 	}
 
-	/* TODO strip out useful stuff out of dce constructor */
-	dce_dccg_construct(
-		clk_dce, ctx, NULL, NULL, NULL);
-
+	clk_dce->base.ctx = ctx;
 	clk_dce->base.funcs = &dcn1_funcs;
+
+	clk_dce->dfs_bypass_disp_clk = 0;
+
+	clk_dce->dprefclk_ss_percentage = 0;
+	clk_dce->dprefclk_ss_divider = 1000;
+	clk_dce->ss_on_dprefclk = false;
+
+	if (bp->integrated_info)
+		clk_dce->dentist_vco_freq_khz = bp->integrated_info->dentist_vco_freq;
+	if (clk_dce->dentist_vco_freq_khz == 0) {
+		bp->funcs->get_firmware_info(bp, &fw_info);
+		clk_dce->dentist_vco_freq_khz = fw_info.smu_gpu_pll_output_freq;
+		if (clk_dce->dentist_vco_freq_khz == 0)
+			clk_dce->dentist_vco_freq_khz = 3600000;
+	}
+
+	if (!debug->disable_dfs_bypass && bp->integrated_info)
+		if (bp->integrated_info->gpu_cap_info & DFS_BYPASS_ENABLE)
+			clk_dce->dfs_bypass_enabled = true;
+
+	dce_clock_read_ss_info(clk_dce);
 
 	return &clk_dce->base;
 }

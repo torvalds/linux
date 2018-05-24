@@ -57,31 +57,6 @@ struct dce_disp_clk_registers {
 	uint32_t DENTIST_DISPCLK_CNTL;
 };
 
-/* Array identifiers and count for the divider ranges.*/
-enum dce_divider_range_count {
-	DIVIDER_RANGE_01 = 0,
-	DIVIDER_RANGE_02,
-	DIVIDER_RANGE_03,
-	DIVIDER_RANGE_MAX /* == 3*/
-};
-
-enum dce_divider_error_types {
-	INVALID_DID = 0,
-	INVALID_DIVIDER = 1
-};
-
-struct dce_divider_range {
-	int div_range_start;
-	/* The end of this range of dividers.*/
-	int div_range_end;
-	/* The distance between each divider in this range.*/
-	int div_range_step;
-	/* The divider id for the lowest divider.*/
-	int did_min;
-	/* The divider id for the highest divider.*/
-	int did_max;
-};
-
 struct dce_dccg {
 	struct dccg base;
 	const struct dce_disp_clk_registers *regs;
@@ -89,7 +64,6 @@ struct dce_dccg {
 	const struct dce_disp_clk_mask *clk_mask;
 
 	struct state_dependent_clocks max_clks_by_state[DM_PP_CLOCKS_MAX_STATES];
-	struct dce_divider_range divider_ranges[DIVIDER_RANGE_MAX];
 
 	int dentist_vco_freq_khz;
 
