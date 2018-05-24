@@ -270,12 +270,9 @@ void mlx5e_update_stats_work(struct work_struct *work)
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct mlx5e_priv *priv = container_of(dwork, struct mlx5e_priv,
 					       update_stats_work);
+
 	mutex_lock(&priv->state_lock);
-	if (test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-		priv->profile->update_stats(priv);
-		queue_delayed_work(priv->wq, dwork,
-				   msecs_to_jiffies(MLX5E_UPDATE_STATS_INTERVAL));
-	}
+	priv->profile->update_stats(priv);
 	mutex_unlock(&priv->state_lock);
 }
 
@@ -3404,6 +3401,9 @@ mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	struct mlx5e_sw_stats *sstats = &priv->stats.sw;
 	struct mlx5e_vport_stats *vstats = &priv->stats.vport;
 	struct mlx5e_pport_stats *pstats = &priv->stats.pport;
+
+	/* update HW stats in background for next time */
+	queue_delayed_work(priv->wq, &priv->update_stats_work, 0);
 
 	if (mlx5e_is_uplink_rep(priv)) {
 		stats->rx_packets = PPORT_802_3_GET(pstats, a_frames_received_ok);
