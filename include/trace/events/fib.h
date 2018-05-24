@@ -87,41 +87,6 @@ TRACE_EVENT(fib_table_lookup,
 		  __entry->tos, __entry->scope, __entry->flags,
 		  __get_str(name), __entry->gw, __entry->saddr, __entry->err)
 );
-
-TRACE_EVENT(fib_validate_source,
-
-	TP_PROTO(const struct net_device *dev, const struct flowi4 *flp),
-
-	TP_ARGS(dev, flp),
-
-	TP_STRUCT__entry(
-		__string(	name,	dev->name	)
-		__field(	int,	oif		)
-		__field(	int,	iif		)
-		__field(	__u8,	tos		)
-		__array(	__u8,	src,	4	)
-		__array(	__u8,	dst,	4	)
-	),
-
-	TP_fast_assign(
-		__be32 *p32;
-
-		__assign_str(name, dev ? dev->name : "not set");
-		__entry->oif = flp->flowi4_oif;
-		__entry->iif = flp->flowi4_iif;
-		__entry->tos = flp->flowi4_tos;
-
-		p32 = (__be32 *) __entry->src;
-		*p32 = flp->saddr;
-
-		p32 = (__be32 *) __entry->dst;
-		*p32 = flp->daddr;
-	),
-
-	TP_printk("dev %s oif %d iif %d tos %d src %pI4 dst %pI4",
-		  __get_str(name), __entry->oif, __entry->iif, __entry->tos,
-		  __entry->src, __entry->dst)
-);
 #endif /* _TRACE_FIB_H */
 
 /* This part must be outside protection */
