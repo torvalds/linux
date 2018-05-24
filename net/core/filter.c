@@ -3065,20 +3065,9 @@ static int __bpf_tx_xdp_map(struct net_device *dev_rx, void *fwd,
 
 	switch (map->map_type) {
 	case BPF_MAP_TYPE_DEVMAP: {
-		struct net_device *dev = fwd;
-		struct xdp_frame *xdpf;
+		struct bpf_dtab_netdev *dst = fwd;
 
-		if (!dev->netdev_ops->ndo_xdp_xmit)
-			return -EOPNOTSUPP;
-
-		xdpf = convert_to_xdp_frame(xdp);
-		if (unlikely(!xdpf))
-			return -EOVERFLOW;
-
-		/* TODO: move to inside map code instead, for bulk support
-		 * err = dev_map_enqueue(dev, xdp);
-		 */
-		err = dev->netdev_ops->ndo_xdp_xmit(dev, xdpf);
+		err = dev_map_enqueue(dst, xdp);
 		if (err)
 			return err;
 		__dev_map_insert_ctx(map, index);

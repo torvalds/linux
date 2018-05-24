@@ -48,13 +48,15 @@
  * calls will fail at this point.
  */
 #include <linux/bpf.h>
+#include <net/xdp.h>
 #include <linux/filter.h>
+#include <trace/events/xdp.h>
 
 #define DEV_CREATE_FLAG_MASK \
 	(BPF_F_NUMA_NODE | BPF_F_RDONLY | BPF_F_WRONLY)
 
 struct bpf_dtab_netdev {
-	struct net_device *dev;
+	struct net_device *dev; /* must be first member, due to tracepoint */
 	struct bpf_dtab *dtab;
 	unsigned int bit;
 	struct rcu_head rcu;
@@ -240,21 +242,38 @@ void __dev_map_flush(struct bpf_map *map)
  * update happens in parallel here a dev_put wont happen until after reading the
  * ifindex.
  */
-struct net_device  *__dev_map_lookup_elem(struct bpf_map *map, u32 key)
+struct bpf_dtab_netdev *__dev_map_lookup_elem(struct bpf_map *map, u32 key)
 {
 	struct bpf_dtab *dtab = container_of(map, struct bpf_dtab, map);
-	struct bpf_dtab_netdev *dev;
+	struct bpf_dtab_netdev *obj;
 
 	if (key >= map->max_entries)
 		return NULL;
 
-	dev = READ_ONCE(dtab->netdev_map[key]);
-	return dev ? dev->dev : NULL;
+	obj = READ_ONCE(dtab->netdev_map[key]);
+	return obj;
+}
+
+int dev_map_enqueue(struct bpf_dtab_netdev *dst, struct xdp_buff *xdp)
+{
+	struct net_device *dev = dst->dev;
+	struct xdp_frame *xdpf;
+
+	if (!dev->netdev_ops->ndo_xdp_xmit)
+		return -EOPNOTSUPP;
+
+	xdpf = convert_to_xdp_frame(xdp);
+	if (unlikely(!xdpf))
+		return -EOVERFLOW;
+
+	/* TODO: implement a bulking/enqueue step later */
+	return dev->netdev_ops->ndo_xdp_xmit(dev, xdpf);
 }
 
 static void *dev_map_lookup_elem(struct bpf_map *map, void *key)
 {
-	struct net_device *dev = __dev_map_lookup_elem(map, *(u32 *)key);
+	struct bpf_dtab_netdev *obj = __dev_map_lookup_elem(map, *(u32 *)key);
+	struct net_device *dev = dev = obj ? obj->dev : NULL;
 
 	return dev ? &dev->ifindex : NULL;
 }
@@ -405,6 +424,9 @@ static struct notifier_block dev_map_notifier = {
 
 static int __init dev_map_init(void)
 {
+	/* Assure tracepoint shadow struct _bpf_dtab_netdev is in sync */
+	BUILD_BUG_ON(offsetof(struct bpf_dtab_netdev, dev) !=
+		     offsetof(struct _bpf_dtab_netdev, dev));
 	register_netdevice_notifier(&dev_map_notifier);
 	return 0;
 }

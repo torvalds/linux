@@ -138,11 +138,18 @@ DEFINE_EVENT_PRINT(xdp_redirect_template, xdp_redirect_map_err,
 		  __entry->map_id, __entry->map_index)
 );
 
+#ifndef __DEVMAP_OBJ_TYPE
+#define __DEVMAP_OBJ_TYPE
+struct _bpf_dtab_netdev {
+	struct net_device *dev;
+};
+#endif /* __DEVMAP_OBJ_TYPE */
+
 #define devmap_ifindex(fwd, map)				\
 	(!fwd ? 0 :						\
 	 (!map ? 0 :						\
 	  ((map->map_type == BPF_MAP_TYPE_DEVMAP) ?		\
-	   ((struct net_device *)fwd)->ifindex : 0)))
+	   ((struct _bpf_dtab_netdev *)fwd)->dev->ifindex : 0)))
 
 #define _trace_xdp_redirect_map(dev, xdp, fwd, map, idx)		\
 	 trace_xdp_redirect_map(dev, xdp, devmap_ifindex(fwd, map),	\
