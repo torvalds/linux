@@ -2299,7 +2299,7 @@ static void dcn10_apply_ctx_for_surface(
 
 		/* watermark is for all pipes */
 		hubbub1_program_watermarks(dc->res_pool->hubbub,
-				&context->bw.dcn.watermarks, ref_clk_mhz);
+				&context->bw.dcn.watermarks, ref_clk_mhz, true);
 
 		if (dc->debug.sanity_checks) {
 			/* pstate stuck check after watermark update */

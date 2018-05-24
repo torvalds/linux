@@ -185,6 +185,7 @@ struct hubbub {
 	const struct dcn_hubbub_shift *shifts;
 	const struct dcn_hubbub_mask *masks;
 	unsigned int debug_test_index_pstate;
+	struct dcn_watermark_set watermarks;
 };
 
 void hubbub1_update_dchub(
@@ -197,7 +198,8 @@ bool hubbub1_verify_allow_pstate_change_high(
 void hubbub1_program_watermarks(
 		struct hubbub *hubbub,
 		struct dcn_watermark_set *watermarks,
-		unsigned int refclk_mhz);
+		unsigned int refclk_mhz,
+		bool safe_to_lower);
 
 void hubbub1_toggle_watermark_change_req(
 		struct hubbub *hubbub);
