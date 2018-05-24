@@ -688,6 +688,7 @@ static int chcr_cipher_fallback(struct crypto_skcipher *cipher,
 	int err;
 
 	SKCIPHER_REQUEST_ON_STACK(subreq, cipher);
+
 	skcipher_request_set_tfm(subreq, cipher);
 	skcipher_request_set_callback(subreq, flags, NULL, NULL);
 	skcipher_request_set_crypt(subreq, src, dst,
@@ -1113,14 +1114,6 @@ static int chcr_handle_cipher_resp(struct ablkcipher_request *req,
 		goto complete;
 	}
 
-	if (unlikely(cxgb4_is_crypto_q_full(u_ctx->lldi.ports[0],
-					    c_ctx(tfm)->tx_qidx))) {
-		if (!(req->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG)) {
-			err = -EBUSY;
-			goto unmap;
-		}
-
-	}
 	if (!reqctx->imm) {
 		bytes = chcr_sg_ent_in_wr(reqctx->srcsg, reqctx->dstsg, 1,
 					  CIP_SPACE_LEFT(ablkctx->enckey_len),
@@ -1293,13 +1286,14 @@ static int chcr_aes_encrypt(struct ablkcipher_request *req)
 {
 	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(req);
 	struct sk_buff *skb = NULL;
-	int err;
+	int err, isfull = 0;
 	struct uld_ctx *u_ctx = ULD_CTX(c_ctx(tfm));
 
 	if (unlikely(cxgb4_is_crypto_q_full(u_ctx->lldi.ports[0],
 					    c_ctx(tfm)->tx_qidx))) {
+		isfull = 1;
 		if (!(req->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG))
-			return -EBUSY;
+			return -ENOSPC;
 	}
 
 	err = process_cipher(req, u_ctx->lldi.rxq_ids[c_ctx(tfm)->rx_qidx],
@@ -1309,7 +1303,7 @@ static int chcr_aes_encrypt(struct ablkcipher_request *req)
 	skb->dev = u_ctx->lldi.ports[0];
 	set_wr_txq(skb, CPL_PRIORITY_DATA, c_ctx(tfm)->tx_qidx);
 	chcr_send_wr(skb);
-	return -EINPROGRESS;
+	return isfull ? -EBUSY : -EINPROGRESS;
 }
 
 static int chcr_aes_decrypt(struct ablkcipher_request *req)
@@ -1317,12 +1311,13 @@ static int chcr_aes_decrypt(struct ablkcipher_request *req)
 	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(req);
 	struct uld_ctx *u_ctx = ULD_CTX(c_ctx(tfm));
 	struct sk_buff *skb = NULL;
-	int err;
+	int err, isfull = 0;
 
 	if (unlikely(cxgb4_is_crypto_q_full(u_ctx->lldi.ports[0],
 					    c_ctx(tfm)->tx_qidx))) {
+		isfull = 1;
 		if (!(req->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG))
-			return -EBUSY;
+			return -ENOSPC;
 	}
 
 	 err = process_cipher(req, u_ctx->lldi.rxq_ids[c_ctx(tfm)->rx_qidx],
@@ -1332,7 +1327,7 @@ static int chcr_aes_decrypt(struct ablkcipher_request *req)
 	skb->dev = u_ctx->lldi.ports[0];
 	set_wr_txq(skb, CPL_PRIORITY_DATA, c_ctx(tfm)->tx_qidx);
 	chcr_send_wr(skb);
-	return -EINPROGRESS;
+	return isfull ? -EBUSY : -EINPROGRESS;
 }
 
 static int chcr_device_init(struct chcr_context *ctx)
@@ -1574,14 +1569,15 @@ static int chcr_ahash_update(struct ahash_request *req)
 	u8 remainder = 0, bs;
 	unsigned int nbytes = req->nbytes;
 	struct hash_wr_param params;
-	int error;
+	int error, isfull = 0;
 
 	bs = crypto_tfm_alg_blocksize(crypto_ahash_tfm(rtfm));
 	u_ctx = ULD_CTX(h_ctx(rtfm));
 	if (unlikely(cxgb4_is_crypto_q_full(u_ctx->lldi.ports[0],
 					    h_ctx(rtfm)->tx_qidx))) {
+		isfull = 1;
 		if (!(req->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG))
-			return -EBUSY;
+			return -ENOSPC;
 	}
 
 	if (nbytes + req_ctx->reqlen >= bs) {
@@ -1633,7 +1629,7 @@ static int chcr_ahash_update(struct ahash_request *req)
 	set_wr_txq(skb, CPL_PRIORITY_DATA, h_ctx(rtfm)->tx_qidx);
 	chcr_send_wr(skb);
 
-	return -EINPROGRESS;
+	return isfull ? -EBUSY : -EINPROGRESS;
 unmap:
 	chcr_hash_dma_unmap(&u_ctx->lldi.pdev->dev, req);
 	return error;
@@ -1710,15 +1706,16 @@ static int chcr_ahash_finup(struct ahash_request *req)
 	struct sk_buff *skb;
 	struct hash_wr_param params;
 	u8  bs;
-	int error;
+	int error, isfull = 0;
 
 	bs = crypto_tfm_alg_blocksize(crypto_ahash_tfm(rtfm));
 	u_ctx = ULD_CTX(h_ctx(rtfm));
 
 	if (unlikely(cxgb4_is_crypto_q_full(u_ctx->lldi.ports[0],
 					    h_ctx(rtfm)->tx_qidx))) {
+		isfull = 1;
 		if (!(req->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG))
-			return -EBUSY;
+			return -ENOSPC;
 	}
 	chcr_init_hctx_per_wr(req_ctx);
 	error = chcr_hash_dma_map(&u_ctx->lldi.pdev->dev, req);
@@ -1777,7 +1774,7 @@ static int chcr_ahash_finup(struct ahash_request *req)
 	set_wr_txq(skb, CPL_PRIORITY_DATA, h_ctx(rtfm)->tx_qidx);
 	chcr_send_wr(skb);
 
-	return -EINPROGRESS;
+	return isfull ? -EBUSY : -EINPROGRESS;
 unmap:
 	chcr_hash_dma_unmap(&u_ctx->lldi.pdev->dev, req);
 	return error;
@@ -1791,7 +1788,7 @@ static int chcr_ahash_digest(struct ahash_request *req)
 	struct sk_buff *skb;
 	struct hash_wr_param params;
 	u8  bs;
-	int error;
+	int error, isfull = 0;
 
 	rtfm->init(req);
 	bs = crypto_tfm_alg_blocksize(crypto_ahash_tfm(rtfm));
@@ -1799,8 +1796,9 @@ static int chcr_ahash_digest(struct ahash_request *req)
 	u_ctx = ULD_CTX(h_ctx(rtfm));
 	if (unlikely(cxgb4_is_crypto_q_full(u_ctx->lldi.ports[0],
 					    h_ctx(rtfm)->tx_qidx))) {
+		isfull = 1;
 		if (!(req->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG))
-			return -EBUSY;
+			return -ENOSPC;
 	}
 
 	chcr_init_hctx_per_wr(req_ctx);
@@ -1856,7 +1854,7 @@ static int chcr_ahash_digest(struct ahash_request *req)
 	skb->dev = u_ctx->lldi.ports[0];
 	set_wr_txq(skb, CPL_PRIORITY_DATA, h_ctx(rtfm)->tx_qidx);
 	chcr_send_wr(skb);
-	return -EINPROGRESS;
+	return isfull ? -EBUSY : -EINPROGRESS;
 unmap:
 	chcr_hash_dma_unmap(&u_ctx->lldi.pdev->dev, req);
 	return error;
@@ -1875,11 +1873,6 @@ static int chcr_ahash_continue(struct ahash_request *req)
 
 	bs = crypto_tfm_alg_blocksize(crypto_ahash_tfm(rtfm));
 	u_ctx = ULD_CTX(h_ctx(rtfm));
-	if (unlikely(cxgb4_is_crypto_q_full(u_ctx->lldi.ports[0],
-					    h_ctx(rtfm)->tx_qidx))) {
-		if (!(req->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG))
-			return -EBUSY;
-	}
 	get_alg_config(&params.alg_prm, crypto_ahash_digestsize(rtfm));
 	params.kctx_len = roundup(params.alg_prm.result_size, 16);
 	if (is_hmac(crypto_ahash_tfm(rtfm))) {
@@ -3461,6 +3454,7 @@ static int chcr_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 	}
 	{
 		SHASH_DESC_ON_STACK(shash, base_hash);
+
 		shash->tfm = base_hash;
 		shash->flags = crypto_shash_get_flags(base_hash);
 		bs = crypto_shash_blocksize(base_hash);
@@ -3592,6 +3586,7 @@ static int chcr_aead_op(struct aead_request *req,
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct uld_ctx *u_ctx;
 	struct sk_buff *skb;
+	int isfull = 0;
 
 	if (!a_ctx(tfm)->dev) {
 		pr_err("chcr : %s : No crypto device.\n", __func__);
@@ -3600,8 +3595,9 @@ static int chcr_aead_op(struct aead_request *req,
 	u_ctx = ULD_CTX(a_ctx(tfm));
 	if (cxgb4_is_crypto_q_full(u_ctx->lldi.ports[0],
 				   a_ctx(tfm)->tx_qidx)) {
+		isfull = 1;
 		if (!(req->base.flags & CRYPTO_TFM_REQ_MAY_BACKLOG))
-			return -EBUSY;
+			return -ENOSPC;
 	}
 
 	/* Form a WR from req */
@@ -3614,7 +3610,7 @@ static int chcr_aead_op(struct aead_request *req,
 	skb->dev = u_ctx->lldi.ports[0];
 	set_wr_txq(skb, CPL_PRIORITY_DATA, a_ctx(tfm)->tx_qidx);
 	chcr_send_wr(skb);
-	return -EINPROGRESS;
+	return isfull ? -EBUSY : -EINPROGRESS;
 }
 
 static int chcr_aead_encrypt(struct aead_request *req)
