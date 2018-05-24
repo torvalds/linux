@@ -2313,8 +2313,11 @@ static int manifest_new_ver(struct soc_tplg *tplg,
 	*manifest = NULL;
 
 	if (src->size != sizeof(*src_v4)) {
-		dev_err(tplg->dev, "ASoC: invalid manifest size\n");
-		return -EINVAL;
+		dev_warn(tplg->dev, "ASoC: invalid manifest size %d\n",
+			 src->size);
+		if (src->size)
+			return -EINVAL;
+		src->size = sizeof(*src_v4);
 	}
 
 	dev_warn(tplg->dev, "ASoC: old version of manifest\n");
