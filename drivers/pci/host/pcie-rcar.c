@@ -951,18 +951,25 @@ static int rcar_pcie_get_resources(struct rcar_pcie *pcie)
 	i = irq_of_parse_and_map(dev->of_node, 0);
 	if (!i) {
 		dev_err(dev, "cannot get platform resources for msi interrupt\n");
-		return -ENOENT;
+		err = -ENOENT;
+		goto err_irq1;
 	}
 	pcie->msi.irq1 = i;
 
 	i = irq_of_parse_and_map(dev->of_node, 1);
 	if (!i) {
 		dev_err(dev, "cannot get platform resources for msi interrupt\n");
-		return -ENOENT;
+		err = -ENOENT;
+		goto err_irq2;
 	}
 	pcie->msi.irq2 = i;
 
 	return 0;
+
+err_irq2:
+	irq_dispose_mapping(pcie->msi.irq1);
+err_irq1:
+	return err;
 }
 
 static int rcar_pcie_inbound_ranges(struct rcar_pcie *pcie,
@@ -1109,7 +1116,7 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 	err = clk_prepare_enable(pcie->bus_clk);
 	if (err) {
 		dev_err(dev, "failed to enable bus clock: %d\n", err);
-		goto err_pm_put;
+		goto err_unmap_msi_irqs;
 	}
 
 	err = rcar_pcie_parse_map_dma_ranges(pcie, dev->of_node);
@@ -1151,6 +1158,10 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 
 err_clk_disable:
 	clk_disable_unprepare(pcie->bus_clk);
+
+err_unmap_msi_irqs:
+	irq_dispose_mapping(pcie->msi.irq2);
+	irq_dispose_mapping(pcie->msi.irq1);
 
 err_pm_put:
 	pm_runtime_put(dev);
