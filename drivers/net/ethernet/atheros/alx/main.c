@@ -51,6 +51,11 @@
 
 static const char alx_drv_name[] = "alx";
 
+/* disable WoL by default */
+bool enable_wol;
+module_param(enable_wol, bool, 0644);
+MODULE_PARM_DESC(enable_wol, "Enable Wake on Lan feature");
+
 static void alx_free_txbuf(struct alx_tx_queue *txq, int entry)
 {
 	struct alx_buffer *txb = &txq->bufs[entry];

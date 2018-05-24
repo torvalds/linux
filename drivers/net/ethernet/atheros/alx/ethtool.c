@@ -46,6 +46,8 @@
 #include "reg.h"
 #include "hw.h"
 
+extern const bool enable_wol;
+
 /* The order of these strings must match the order of the fields in
  * struct alx_hw_stats
  * See hw.h
@@ -315,6 +317,9 @@ static void alx_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	struct alx_priv *alx = netdev_priv(netdev);
 	struct alx_hw *hw = &alx->hw;
 
+	if (!enable_wol)
+		return;
+
 	wol->supported = WAKE_MAGIC | WAKE_PHY;
 	wol->wolopts = 0;
 
@@ -329,7 +334,7 @@ static int alx_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	struct alx_priv *alx = netdev_priv(netdev);
 	struct alx_hw *hw = &alx->hw;
 
-	if (wol->wolopts & ~(WAKE_MAGIC | WAKE_PHY))
+	if (!enable_wol || (wol->wolopts & ~(WAKE_MAGIC | WAKE_PHY)))
 		return -EOPNOTSUPP;
 
 	hw->sleep_ctrl = 0;
