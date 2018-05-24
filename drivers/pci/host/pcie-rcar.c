@@ -866,6 +866,20 @@ static const struct irq_domain_ops msi_domain_ops = {
 	.map = rcar_msi_map,
 };
 
+static void rcar_pcie_unmap_msi(struct rcar_pcie *pcie)
+{
+	struct rcar_msi *msi = &pcie->msi;
+	int i, irq;
+
+	for (i = 0; i < INT_PCI_MSI_NR; i++) {
+		irq = irq_find_mapping(msi->domain, i);
+		if (irq > 0)
+			irq_dispose_mapping(irq);
+	}
+
+	irq_domain_remove(msi->domain);
+}
+
 static int rcar_pcie_enable_msi(struct rcar_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
@@ -920,14 +934,13 @@ static int rcar_pcie_enable_msi(struct rcar_pcie *pcie)
 	return 0;
 
 err:
-	irq_domain_remove(msi->domain);
+	rcar_pcie_unmap_msi(pcie);
 	return err;
 }
 
 static void rcar_pcie_teardown_msi(struct rcar_pcie *pcie)
 {
 	struct rcar_msi *msi = &pcie->msi;
-	int irq, i;
 
 	/* Disable all MSI interrupts */
 	rcar_pci_write_reg(pcie, 0, PCIEMSIIER);
@@ -937,13 +950,7 @@ static void rcar_pcie_teardown_msi(struct rcar_pcie *pcie)
 
 	free_pages(msi->pages, 0);
 
-	for (i = 0; i < INT_PCI_MSI_NR; i++) {
-		irq = irq_find_mapping(msi->domain, i);
-		if (irq > 0)
-			irq_dispose_mapping(irq);
-	}
-
-	irq_domain_remove(msi->domain);
+	rcar_pcie_unmap_msi(pcie);
 }
 
 static int rcar_pcie_get_resources(struct rcar_pcie *pcie)
