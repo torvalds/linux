@@ -21,6 +21,7 @@
 #include "debug.h"
 #include "annotate.h"
 #include "evsel.h"
+#include "evlist.h"
 #include "block-range.h"
 #include "string2.h"
 #include "arch/common.h"
@@ -867,7 +868,7 @@ alloc_cycles_hist:
 	return notes->src->cycles_hist;
 }
 
-static struct annotated_source *symbol__hists(struct symbol *sym)
+static struct annotated_source *symbol__hists(struct symbol *sym, int nr_hists)
 {
 	struct annotation *notes = symbol__annotation(sym);
 
@@ -881,7 +882,7 @@ static struct annotated_source *symbol__hists(struct symbol *sym)
 	if (notes->src->histograms == NULL) {
 alloc_histograms:
 		annotated_source__alloc_histograms(notes->src, symbol__size(sym),
-						   symbol_conf.nr_events);
+						   nr_hists);
 	}
 
 	return notes->src;
@@ -895,7 +896,7 @@ static int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 
 	if (sym == NULL)
 		return 0;
-	src = symbol__hists(sym);
+	src = symbol__hists(sym, evsel->evlist->nr_entries);
 	if (src == NULL)
 		return -ENOMEM;
 	return __symbol__inc_addr_samples(sym, map, src, evsel->idx, addr, sample);
