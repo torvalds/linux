@@ -1400,6 +1400,30 @@ int t4vf_enable_vi(struct adapter *adapter, unsigned int viid,
 }
 
 /**
+ *	t4vf_enable_pi - enable/disable a Port's virtual interface
+ *	@adapter: the adapter
+ *	@pi: the Port Information structure
+ *	@rx_en: 1=enable Rx, 0=disable Rx
+ *	@tx_en: 1=enable Tx, 0=disable Tx
+ *
+ *	Enables/disables a Port's virtual interface.  If the Virtual
+ *	Interface enable/disable operation is successful, we notify the
+ *	OS-specific code of a potential Link Status change via the OS Contract
+ *	API t4vf_os_link_changed().
+ */
+int t4vf_enable_pi(struct adapter *adapter, struct port_info *pi,
+		   bool rx_en, bool tx_en)
+{
+	int ret = t4vf_enable_vi(adapter, pi->viid, rx_en, tx_en);
+
+	if (ret)
+		return ret;
+	t4vf_os_link_changed(adapter, pi->pidx,
+			     rx_en && tx_en && pi->link_cfg.link_ok);
+	return 0;
+}
+
+/**
  *	t4vf_identify_port - identify a VI's port by blinking its LED
  *	@adapter: the adapter
  *	@viid: the Virtual Interface ID

@@ -465,7 +465,7 @@ static int link_start(struct net_device *dev)
 				    &pi->link_cfg);
 	if (ret == 0) {
 		local_bh_disable();
-		ret = t4_enable_vi_params(pi->adapter, mb, pi->viid, true,
+		ret = t4_enable_pi_params(pi->adapter, mb, pi, true,
 					  true, CXGB4_DCB_ENABLED);
 		local_bh_enable();
 	}
@@ -2344,7 +2344,8 @@ static int cxgb_close(struct net_device *dev)
 
 	netif_tx_stop_all_queues(dev);
 	netif_carrier_off(dev);
-	ret = t4_enable_vi(adapter, adapter->pf, pi->viid, false, false);
+	ret = t4_enable_pi_params(adapter, adapter->pf, pi,
+				  false, false, false);
 #ifdef CONFIG_CHELSIO_T4_DCB
 	cxgb4_dcb_reset(dev);
 	dcb_tx_queue_prio_enable(dev, false);
