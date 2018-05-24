@@ -61,6 +61,7 @@
 #define RFC1001_PORT 139
 
 extern mempool_t *cifs_req_poolp;
+extern bool disable_legacy_dialects;
 
 /* FIXME: should these be tunable? */
 #define TLINK_ERROR_EXPIRE	(1 * HZ)
@@ -1146,10 +1147,18 @@ cifs_parse_smb_version(char *value, struct smb_vol *vol)
 
 	switch (match_token(value, cifs_smb_version_tokens, args)) {
 	case Smb_1:
+		if (disable_legacy_dialects) {
+			cifs_dbg(VFS, "mount with legacy dialect disabled\n");
+			return 1;
+		}
 		vol->ops = &smb1_operations;
 		vol->vals = &smb1_values;
 		break;
 	case Smb_20:
+		if (disable_legacy_dialects) {
+			cifs_dbg(VFS, "mount with legacy dialect disabled\n");
+			return 1;
+		}
 		vol->ops = &smb20_operations;
 		vol->vals = &smb20_values;
 		break;

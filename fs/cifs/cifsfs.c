@@ -58,6 +58,7 @@ bool traceSMB;
 bool enable_oplocks = true;
 bool linuxExtEnabled = true;
 bool lookupCacheEnabled = true;
+bool disable_legacy_dialects; /* false by default */
 unsigned int global_secflags = CIFSSEC_DEF;
 /* unsigned int ntlmv2_support = 0; */
 unsigned int sign_CIFS_PDUs = 1;
@@ -82,6 +83,15 @@ MODULE_PARM_DESC(cifs_max_pending, "Simultaneous requests to server for "
 				   "Default: 32767 Range: 2 to 32767.");
 module_param(enable_oplocks, bool, 0644);
 MODULE_PARM_DESC(enable_oplocks, "Enable or disable oplocks. Default: y/Y/1");
+
+module_param(disable_legacy_dialects, bool, 0644);
+MODULE_PARM_DESC(disable_legacy_dialects, "To improve security it may be "
+				  "helpful to restrict the ability to "
+				  "override the default dialects (SMB2.1, "
+				  "SMB3 and SMB3.02) on mount with old "
+				  "dialects (CIFS/SMB1 and SMB2) since "
+				  "vers=1.0 (CIFS/SMB1) and vers=2.0 are weaker"
+				  " and less secure. Default: n/N/0");
 
 extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
