@@ -56,6 +56,7 @@ struct dump_data {
 
 void kernel_syms_load(struct dump_data *dd);
 void kernel_syms_destroy(struct dump_data *dd);
+struct kernel_sym *kernel_syms_search(struct dump_data *dd, unsigned long key);
 void dump_xlated_json(struct dump_data *dd, void *buf, unsigned int len,
 		      bool opcodes);
 void dump_xlated_plain(struct dump_data *dd, void *buf, unsigned int len,

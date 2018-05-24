@@ -102,8 +102,8 @@ void kernel_syms_destroy(struct dump_data *dd)
 	free(dd->sym_mapping);
 }
 
-static struct kernel_sym *kernel_syms_search(struct dump_data *dd,
-					     unsigned long key)
+struct kernel_sym *kernel_syms_search(struct dump_data *dd,
+				      unsigned long key)
 {
 	struct kernel_sym sym = {
 		.address = key,
