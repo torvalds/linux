@@ -3039,7 +3039,7 @@ static int __bpf_tx_xdp(struct net_device *dev,
 			u32 index)
 {
 	struct xdp_frame *xdpf;
-	int err;
+	int sent;
 
 	if (!dev->netdev_ops->ndo_xdp_xmit) {
 		return -EOPNOTSUPP;
@@ -3049,9 +3049,9 @@ static int __bpf_tx_xdp(struct net_device *dev,
 	if (unlikely(!xdpf))
 		return -EOVERFLOW;
 
-	err = dev->netdev_ops->ndo_xdp_xmit(dev, xdpf);
-	if (err)
-		return err;
+	sent = dev->netdev_ops->ndo_xdp_xmit(dev, 1, &xdpf);
+	if (sent <= 0)
+		return sent;
 	dev->netdev_ops->ndo_xdp_flush(dev);
 	return 0;
 }

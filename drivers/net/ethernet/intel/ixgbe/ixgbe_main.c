@@ -10017,11 +10017,13 @@ static int ixgbe_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	}
 }
 
-static int ixgbe_xdp_xmit(struct net_device *dev, struct xdp_frame *xdpf)
+static int ixgbe_xdp_xmit(struct net_device *dev, int n,
+			  struct xdp_frame **frames)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	struct ixgbe_ring *ring;
-	int err;
+	int drops = 0;
+	int i;
 
 	if (unlikely(test_bit(__IXGBE_DOWN, &adapter->state)))
 		return -ENETDOWN;
@@ -10033,11 +10035,18 @@ static int ixgbe_xdp_xmit(struct net_device *dev, struct xdp_frame *xdpf)
 	if (unlikely(!ring))
 		return -ENXIO;
 
-	err = ixgbe_xmit_xdp_ring(adapter, xdpf);
-	if (err != IXGBE_XDP_TX)
-		return -ENOSPC;
+	for (i = 0; i < n; i++) {
+		struct xdp_frame *xdpf = frames[i];
+		int err;
 
-	return 0;
+		err = ixgbe_xmit_xdp_ring(adapter, xdpf);
+		if (err != IXGBE_XDP_TX) {
+			xdp_return_frame_rx_napi(xdpf);
+			drops++;
+		}
+	}
+
+	return n - drops;
 }
 
 static void ixgbe_xdp_flush(struct net_device *dev)
