@@ -36,6 +36,9 @@
 /* LAG group config flags. */
 #define NFP_FL_LAG_LAST			BIT(1)
 #define NFP_FL_LAG_FIRST		BIT(2)
+#define NFP_FL_LAG_DATA			BIT(3)
+#define NFP_FL_LAG_XON			BIT(4)
+#define NFP_FL_LAG_SYNC			BIT(5)
 #define NFP_FL_LAG_SWITCH		BIT(6)
 #define NFP_FL_LAG_RESET		BIT(7)
 
@@ -107,6 +110,8 @@ struct nfp_fl_lag_group {
 
 /* wait for more config */
 #define NFP_FL_LAG_DELAY		(msecs_to_jiffies(2))
+
+#define NFP_FL_LAG_RETRANS_LIMIT	100 /* max retrans cmsgs to store */
 
 static unsigned int nfp_fl_get_next_pkt_number(struct nfp_fl_lag *lag)
 {
@@ -360,6 +365,92 @@ static void nfp_fl_lag_do_work(struct work_struct *work)
 	mutex_unlock(&lag->lock);
 }
 
+static int
+nfp_fl_lag_put_unprocessed(struct nfp_fl_lag *lag, struct sk_buff *skb)
+{
+	struct nfp_flower_cmsg_lag_config *cmsg_payload;
+
+	cmsg_payload = nfp_flower_cmsg_get_data(skb);
+	if (be32_to_cpu(cmsg_payload->group_id) >= NFP_FL_LAG_GROUP_MAX)
+		return -EINVAL;
+
+	/* Drop cmsg retrans if storage limit is exceeded to prevent
+	 * overloading. If the fw notices that expected messages have not been
+	 * received in a given time block, it will request a full resync.
+	 */
+	if (skb_queue_len(&lag->retrans_skbs) >= NFP_FL_LAG_RETRANS_LIMIT)
+		return -ENOSPC;
+
+	__skb_queue_tail(&lag->retrans_skbs, skb);
+
+	return 0;
+}
+
+static void nfp_fl_send_unprocessed(struct nfp_fl_lag *lag)
+{
+	struct nfp_flower_priv *priv;
+	struct sk_buff *skb;
+
+	priv = container_of(lag, struct nfp_flower_priv, nfp_lag);
+
+	while ((skb = __skb_dequeue(&lag->retrans_skbs)))
+		nfp_ctrl_tx(priv->app->ctrl, skb);
+}
+
+bool nfp_flower_lag_unprocessed_msg(struct nfp_app *app, struct sk_buff *skb)
+{
+	struct nfp_flower_cmsg_lag_config *cmsg_payload;
+	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_fl_lag_group *group_entry;
+	unsigned long int flags;
+	bool store_skb = false;
+	int err;
+
+	cmsg_payload = nfp_flower_cmsg_get_data(skb);
+	flags = cmsg_payload->ctrl_flags;
+
+	/* Note the intentional fall through below. If DATA and XON are both
+	 * set, the message will stored and sent again with the rest of the
+	 * unprocessed messages list.
+	 */
+
+	/* Store */
+	if (flags & NFP_FL_LAG_DATA)
+		if (!nfp_fl_lag_put_unprocessed(&priv->nfp_lag, skb))
+			store_skb = true;
+
+	/* Send stored */
+	if (flags & NFP_FL_LAG_XON)
+		nfp_fl_send_unprocessed(&priv->nfp_lag);
+
+	/* Resend all */
+	if (flags & NFP_FL_LAG_SYNC) {
+		/* To resend all config:
+		 * 1) Clear all unprocessed messages
+		 * 2) Mark all groups dirty
+		 * 3) Reset NFP group config
+		 * 4) Schedule a LAG config update
+		 */
+
+		__skb_queue_purge(&priv->nfp_lag.retrans_skbs);
+
+		mutex_lock(&priv->nfp_lag.lock);
+		list_for_each_entry(group_entry, &priv->nfp_lag.group_list,
+				    list)
+			group_entry->dirty = true;
+
+		err = nfp_flower_lag_reset(&priv->nfp_lag);
+		if (err)
+			nfp_flower_cmsg_warn(priv->app,
+					     "mem err in group reset msg\n");
+		mutex_unlock(&priv->nfp_lag.lock);
+
+		schedule_delayed_work(&priv->nfp_lag.work, 0);
+	}
+
+	return store_skb;
+}
+
 static void
 nfp_fl_lag_schedule_group_remove(struct nfp_fl_lag *lag,
 				 struct nfp_fl_lag_group *group)
@@ -565,6 +656,8 @@ void nfp_flower_lag_init(struct nfp_fl_lag *lag)
 	mutex_init(&lag->lock);
 	ida_init(&lag->ida_handle);
 
+	__skb_queue_head_init(&lag->retrans_skbs);
+
 	/* 0 is a reserved batch version so increment to first valid value. */
 	nfp_fl_increment_version(lag);
 
@@ -576,6 +669,8 @@ void nfp_flower_lag_cleanup(struct nfp_fl_lag *lag)
 	struct nfp_fl_lag_group *entry, *storage;
 
 	cancel_delayed_work_sync(&lag->work);
+
+	__skb_queue_purge(&lag->retrans_skbs);
 
 	/* Remove all groups. */
 	mutex_lock(&lag->lock);

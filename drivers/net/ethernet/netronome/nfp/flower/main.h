@@ -109,6 +109,8 @@ struct nfp_mtu_conf {
  * @batch_ver:		Incremented for each batch of config packets
  * @global_inst:	Instance allocator for groups
  * @rst_cfg:		Marker to reset HW LAG config
+ * @retrans_skbs:	Cmsgs that could not be processed by HW and require
+ *			retransmission
  */
 struct nfp_fl_lag {
 	struct notifier_block lag_nb;
@@ -120,6 +122,7 @@ struct nfp_fl_lag {
 	unsigned int batch_ver;
 	u8 global_inst;
 	bool rst_cfg;
+	struct sk_buff_head retrans_skbs;
 };
 
 /**
@@ -280,5 +283,6 @@ int nfp_flower_setup_tc_egress_cb(enum tc_setup_type type, void *type_data,
 void nfp_flower_lag_init(struct nfp_fl_lag *lag);
 void nfp_flower_lag_cleanup(struct nfp_fl_lag *lag);
 int nfp_flower_lag_reset(struct nfp_fl_lag *lag);
+bool nfp_flower_lag_unprocessed_msg(struct nfp_app *app, struct sk_buff *skb);
 
 #endif
