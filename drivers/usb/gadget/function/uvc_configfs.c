@@ -12,6 +12,10 @@
 #include "u_uvc.h"
 #include "uvc_configfs.h"
 
+/* -----------------------------------------------------------------------------
+ * Global Utility Structures and Macros
+ */
+
 #define UVCG_STREAMING_CONTROL_SIZE	1
 
 #define UVC_ATTR(prefix, cname, aname) \
@@ -37,7 +41,11 @@ static inline struct f_uvc_opts *to_f_uvc_opts(struct config_item *item)
 			    func_inst.group);
 }
 
-/* control/header/<NAME> */
+/* -----------------------------------------------------------------------------
+ * control/header/<NAME>
+ * control/header
+ */
+
 DECLARE_UVC_HEADER_DESCRIPTOR(1);
 
 struct uvcg_control_header {
@@ -161,7 +169,6 @@ static void uvcg_control_header_drop(struct config_group *group,
 	kfree(h);
 }
 
-/* control/header */
 static struct config_group uvcg_control_header_grp;
 
 static struct configfs_group_operations uvcg_control_header_grp_ops = {
@@ -174,7 +181,10 @@ static const struct config_item_type uvcg_control_header_grp_type = {
 	.ct_owner	= THIS_MODULE,
 };
 
-/* control/processing/default */
+/* -----------------------------------------------------------------------------
+ * control/processing/default
+ */
+
 static struct config_group uvcg_default_processing_grp;
 
 #define UVCG_DEFAULT_PROCESSING_ATTR(cname, aname, conv)		\
@@ -260,16 +270,20 @@ static const struct config_item_type uvcg_default_processing_type = {
 	.ct_owner	= THIS_MODULE,
 };
 
-/* struct uvcg_processing {}; */
+/* -----------------------------------------------------------------------------
+ * control/processing
+ */
 
-/* control/processing */
 static struct config_group uvcg_processing_grp;
 
 static const struct config_item_type uvcg_processing_grp_type = {
 	.ct_owner = THIS_MODULE,
 };
 
-/* control/terminal/camera/default */
+/* -----------------------------------------------------------------------------
+ * control/terminal/camera/default
+ */
+
 static struct config_group uvcg_default_camera_grp;
 
 #define UVCG_DEFAULT_CAMERA_ATTR(cname, aname, conv)			\
@@ -366,16 +380,20 @@ static const struct config_item_type uvcg_default_camera_type = {
 	.ct_owner	= THIS_MODULE,
 };
 
-/* struct uvcg_camera {}; */
+/* -----------------------------------------------------------------------------
+ * control/terminal/camera
+ */
 
-/* control/terminal/camera */
 static struct config_group uvcg_camera_grp;
 
 static const struct config_item_type uvcg_camera_grp_type = {
 	.ct_owner = THIS_MODULE,
 };
 
-/* control/terminal/output/default */
+/* -----------------------------------------------------------------------------
+ * control/terminal/output/default
+ */
+
 static struct config_group uvcg_default_output_grp;
 
 #define UVCG_DEFAULT_OUTPUT_ATTR(cname, aname, conv)			\
@@ -433,23 +451,30 @@ static const struct config_item_type uvcg_default_output_type = {
 	.ct_owner	= THIS_MODULE,
 };
 
-/* struct uvcg_output {}; */
+/* -----------------------------------------------------------------------------
+ * control/terminal/output
+ */
 
-/* control/terminal/output */
 static struct config_group uvcg_output_grp;
 
 static const struct config_item_type uvcg_output_grp_type = {
 	.ct_owner = THIS_MODULE,
 };
 
-/* control/terminal */
+/* -----------------------------------------------------------------------------
+ * control/terminal
+ */
+
 static struct config_group uvcg_terminal_grp;
 
 static const struct config_item_type uvcg_terminal_grp_type = {
 	.ct_owner = THIS_MODULE,
 };
 
-/* control/class/{fs} */
+/* -----------------------------------------------------------------------------
+ * control/class/{fs|ss}
+ */
+
 static struct config_group uvcg_control_class_fs_grp;
 static struct config_group uvcg_control_class_ss_grp;
 
@@ -552,24 +577,32 @@ static const struct config_item_type uvcg_control_class_type = {
 	.ct_owner	= THIS_MODULE,
 };
 
-/* control/class */
+/* -----------------------------------------------------------------------------
+ * control/class
+ */
+
 static struct config_group uvcg_control_class_grp;
 
 static const struct config_item_type uvcg_control_class_grp_type = {
 	.ct_owner = THIS_MODULE,
 };
 
-/* control */
+/* -----------------------------------------------------------------------------
+ * control
+ */
+
 static struct config_group uvcg_control_grp;
 
 static const struct config_item_type uvcg_control_grp_type = {
 	.ct_owner = THIS_MODULE,
 };
 
-/* streaming/uncompressed */
-static struct config_group uvcg_uncompressed_grp;
+/* -----------------------------------------------------------------------------
+ * streaming/uncompressed
+ * streaming/mjpeg
+ */
 
-/* streaming/mjpeg */
+static struct config_group uvcg_uncompressed_grp;
 static struct config_group uvcg_mjpeg_grp;
 
 static struct config_item *fmt_parent[] = {
@@ -658,7 +691,11 @@ struct uvcg_format_ptr {
 	struct list_head	entry;
 };
 
-/* streaming/header/<NAME> */
+/* -----------------------------------------------------------------------------
+ * streaming/header/<NAME>
+ * streaming/header
+ */
+
 struct uvcg_streaming_header {
 	struct config_item				item;
 	struct uvc_input_header_descriptor		desc;
@@ -844,7 +881,6 @@ static void uvcg_streaming_header_drop(struct config_group *group,
 	kfree(h);
 }
 
-/* streaming/header */
 static struct config_group uvcg_streaming_header_grp;
 
 static struct configfs_group_operations uvcg_streaming_header_grp_ops = {
@@ -857,7 +893,10 @@ static const struct config_item_type uvcg_streaming_header_grp_type = {
 	.ct_owner	= THIS_MODULE,
 };
 
-/* streaming/<mode>/<format>/<NAME> */
+/* -----------------------------------------------------------------------------
+ * streaming/<mode>/<format>/<NAME>
+ */
+
 struct uvcg_frame {
 	struct {
 		u8	b_length;
@@ -1168,7 +1207,10 @@ static void uvcg_frame_drop(struct config_group *group, struct config_item *item
 	mutex_unlock(&opts->lock);
 }
 
-/* streaming/uncompressed/<NAME> */
+/* -----------------------------------------------------------------------------
+ * streaming/uncompressed/<NAME>
+ */
+
 struct uvcg_uncompressed {
 	struct uvcg_format		fmt;
 	struct uvc_format_uncompressed	desc;
@@ -1425,7 +1467,10 @@ static const struct config_item_type uvcg_uncompressed_grp_type = {
 	.ct_owner	= THIS_MODULE,
 };
 
-/* streaming/mjpeg/<NAME> */
+/* -----------------------------------------------------------------------------
+ * streaming/mjpeg/<NAME>
+ */
+
 struct uvcg_mjpeg {
 	struct uvcg_format		fmt;
 	struct uvc_format_mjpeg		desc;
@@ -1619,7 +1664,10 @@ static const struct config_item_type uvcg_mjpeg_grp_type = {
 	.ct_owner	= THIS_MODULE,
 };
 
-/* streaming/color_matching/default */
+/* -----------------------------------------------------------------------------
+ * streaming/color_matching/default
+ */
+
 static struct config_group uvcg_default_color_matching_grp;
 
 #define UVCG_DEFAULT_COLOR_MATCHING_ATTR(cname, aname, conv)		\
@@ -1674,16 +1722,20 @@ static const struct config_item_type uvcg_default_color_matching_type = {
 	.ct_owner	= THIS_MODULE,
 };
 
-/* struct uvcg_color_matching {}; */
+/* -----------------------------------------------------------------------------
+ * streaming/color_matching
+ */
 
-/* streaming/color_matching */
 static struct config_group uvcg_color_matching_grp;
 
 static const struct config_item_type uvcg_color_matching_grp_type = {
 	.ct_owner = THIS_MODULE,
 };
 
-/* streaming/class/{fs|hs|ss} */
+/* -----------------------------------------------------------------------------
+ * streaming/class/{fs|hs|ss}
+ */
+
 static struct config_group uvcg_streaming_class_fs_grp;
 static struct config_group uvcg_streaming_class_hs_grp;
 static struct config_group uvcg_streaming_class_ss_grp;
@@ -2027,19 +2079,29 @@ static const struct config_item_type uvcg_streaming_class_type = {
 	.ct_owner	= THIS_MODULE,
 };
 
-/* streaming/class */
+/* -----------------------------------------------------------------------------
+ * streaming/class
+ */
+
 static struct config_group uvcg_streaming_class_grp;
 
 static const struct config_item_type uvcg_streaming_class_grp_type = {
 	.ct_owner = THIS_MODULE,
 };
 
-/* streaming */
+/* -----------------------------------------------------------------------------
+ * streaming
+ */
+
 static struct config_group uvcg_streaming_grp;
 
 static const struct config_item_type uvcg_streaming_grp_type = {
 	.ct_owner = THIS_MODULE,
 };
+
+/* -----------------------------------------------------------------------------
+ * UVC function
+ */
 
 static void uvc_attr_release(struct config_item *item)
 {
