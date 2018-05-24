@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/gpio-pxa.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
