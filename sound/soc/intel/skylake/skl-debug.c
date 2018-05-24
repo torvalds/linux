@@ -15,10 +15,10 @@
 
 #include <linux/pci.h>
 #include <linux/debugfs.h>
+#include <uapi/sound/skl-tplg-interface.h>
 #include "skl.h"
 #include "skl-sst-dsp.h"
 #include "skl-sst-ipc.h"
-#include "skl-tplg-interface.h"
 #include "skl-topology.h"
 #include "../common/sst-dsp.h"
 #include "../common/sst-dsp-priv.h"

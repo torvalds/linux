@@ -23,11 +23,11 @@
 #include <sound/soc.h>
 #include <sound/soc-topology.h>
 #include <uapi/sound/snd_sst_tokens.h>
+#include <uapi/sound/skl-tplg-interface.h>
 #include "skl-sst-dsp.h"
 #include "skl-sst-ipc.h"
 #include "skl-topology.h"
 #include "skl.h"
-#include "skl-tplg-interface.h"
 #include "../common/sst-dsp.h"
 #include "../common/sst-dsp-priv.h"
 
