@@ -84,7 +84,7 @@ struct stmmac_priv {
 	struct net_device *dev;
 	struct device *device;
 	struct mac_device_info *hw;
-	spinlock_t lock;
+	struct mutex lock;
 
 	struct phy_device *phydev ____cacheline_aligned_in_smp;
 	int oldlink;
