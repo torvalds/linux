@@ -2285,7 +2285,7 @@ static ssize_t mtip_hw_show_status(struct device *dev,
 	return size;
 }
 
-static DEVICE_ATTR(status, S_IRUGO, mtip_hw_show_status, NULL);
+static DEVICE_ATTR(status, 0444, mtip_hw_show_status, NULL);
 
 /* debugsfs entries */
 
@@ -2566,10 +2566,9 @@ static int mtip_hw_debugfs_init(struct driver_data *dd)
 		return -1;
 	}
 
-	debugfs_create_file("flags", S_IRUGO, dd->dfs_node, dd,
-							&mtip_flags_fops);
-	debugfs_create_file("registers", S_IRUGO, dd->dfs_node, dd,
-							&mtip_regs_fops);
+	debugfs_create_file("flags", 0444, dd->dfs_node, dd, &mtip_flags_fops);
+	debugfs_create_file("registers", 0444, dd->dfs_node, dd,
+			    &mtip_regs_fops);
 
 	return 0;
 }
@@ -4613,7 +4612,7 @@ static int __init mtip_init(void)
 	}
 	if (dfs_parent) {
 		dfs_device_status = debugfs_create_file("device_status",
-					S_IRUGO, dfs_parent, NULL,
+					0444, dfs_parent, NULL,
 					&mtip_device_status_fops);
 		if (IS_ERR_OR_NULL(dfs_device_status)) {
 			pr_err("Error creating device_status node\n");

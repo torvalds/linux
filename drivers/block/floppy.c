@@ -4450,7 +4450,7 @@ static ssize_t floppy_cmos_show(struct device *dev,
 	return sprintf(buf, "%X\n", UDP->cmos);
 }
 
-static DEVICE_ATTR(cmos, S_IRUGO, floppy_cmos_show, NULL);
+static DEVICE_ATTR(cmos, 0444, floppy_cmos_show, NULL);
 
 static struct attribute *floppy_dev_attrs[] = {
 	&dev_attr_cmos.attr,

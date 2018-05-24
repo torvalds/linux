@@ -247,19 +247,19 @@ static void rsxx_debugfs_dev_new(struct rsxx_cardinfo *card)
 	if (IS_ERR_OR_NULL(card->debugfs_dir))
 		goto failed_debugfs_dir;
 
-	debugfs_stats = debugfs_create_file("stats", S_IRUGO,
+	debugfs_stats = debugfs_create_file("stats", 0444,
 					    card->debugfs_dir, card,
 					    &debugfs_stats_fops);
 	if (IS_ERR_OR_NULL(debugfs_stats))
 		goto failed_debugfs_stats;
 
-	debugfs_pci_regs = debugfs_create_file("pci_regs", S_IRUGO,
+	debugfs_pci_regs = debugfs_create_file("pci_regs", 0444,
 					       card->debugfs_dir, card,
 					       &debugfs_pci_regs_fops);
 	if (IS_ERR_OR_NULL(debugfs_pci_regs))
 		goto failed_debugfs_pci_regs;
 
-	debugfs_cram = debugfs_create_file("cram", S_IRUGO | S_IWUSR,
+	debugfs_cram = debugfs_create_file("cram", 0644,
 					   card->debugfs_dir, card,
 					   &debugfs_cram_fops);
 	if (IS_ERR_OR_NULL(debugfs_cram))

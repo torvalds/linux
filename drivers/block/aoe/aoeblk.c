@@ -159,14 +159,14 @@ static int aoe_debugfs_open(struct inode *inode, struct file *file)
 	return single_open(file, aoedisk_debugfs_show, inode->i_private);
 }
 
-static DEVICE_ATTR(state, S_IRUGO, aoedisk_show_state, NULL);
-static DEVICE_ATTR(mac, S_IRUGO, aoedisk_show_mac, NULL);
-static DEVICE_ATTR(netif, S_IRUGO, aoedisk_show_netif, NULL);
+static DEVICE_ATTR(state, 0444, aoedisk_show_state, NULL);
+static DEVICE_ATTR(mac, 0444, aoedisk_show_mac, NULL);
+static DEVICE_ATTR(netif, 0444, aoedisk_show_netif, NULL);
 static struct device_attribute dev_attr_firmware_version = {
-	.attr = { .name = "firmware-version", .mode = S_IRUGO },
+	.attr = { .name = "firmware-version", .mode = 0444 },
 	.show = aoedisk_show_fwver,
 };
-static DEVICE_ATTR(payload, S_IRUGO, aoedisk_show_payload, NULL);
+static DEVICE_ATTR(payload, 0444, aoedisk_show_payload, NULL);
 
 static struct attribute *aoe_attrs[] = {
 	&dev_attr_state.attr,

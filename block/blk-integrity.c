@@ -333,34 +333,34 @@ static ssize_t integrity_device_show(struct blk_integrity *bi, char *page)
 }
 
 static struct integrity_sysfs_entry integrity_format_entry = {
-	.attr = { .name = "format", .mode = S_IRUGO },
+	.attr = { .name = "format", .mode = 0444 },
 	.show = integrity_format_show,
 };
 
 static struct integrity_sysfs_entry integrity_tag_size_entry = {
-	.attr = { .name = "tag_size", .mode = S_IRUGO },
+	.attr = { .name = "tag_size", .mode = 0444 },
 	.show = integrity_tag_size_show,
 };
 
 static struct integrity_sysfs_entry integrity_interval_entry = {
-	.attr = { .name = "protection_interval_bytes", .mode = S_IRUGO },
+	.attr = { .name = "protection_interval_bytes", .mode = 0444 },
 	.show = integrity_interval_show,
 };
 
 static struct integrity_sysfs_entry integrity_verify_entry = {
-	.attr = { .name = "read_verify", .mode = S_IRUGO | S_IWUSR },
+	.attr = { .name = "read_verify", .mode = 0644 },
 	.show = integrity_verify_show,
 	.store = integrity_verify_store,
 };
 
 static struct integrity_sysfs_entry integrity_generate_entry = {
-	.attr = { .name = "write_generate", .mode = S_IRUGO | S_IWUSR },
+	.attr = { .name = "write_generate", .mode = 0644 },
 	.show = integrity_generate_show,
 	.store = integrity_generate_store,
 };
 
 static struct integrity_sysfs_entry integrity_device_entry = {
-	.attr = { .name = "device_is_integrity_capable", .mode = S_IRUGO },
+	.attr = { .name = "device_is_integrity_capable", .mode = 0444 },
 	.show = integrity_device_show,
 };
 

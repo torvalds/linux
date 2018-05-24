@@ -367,7 +367,7 @@ int __init xen_blkif_interface_init(void)
 out:									\
 		return sprintf(buf, format, result);			\
 	}								\
-	static DEVICE_ATTR(name, S_IRUGO, show_##name, NULL)
+	static DEVICE_ATTR(name, 0444, show_##name, NULL)
 
 VBD_SHOW_ALLRING(oo_req,  "%llu\n");
 VBD_SHOW_ALLRING(rd_req,  "%llu\n");
@@ -403,7 +403,7 @@ static const struct attribute_group xen_vbdstat_group = {
 									\
 		return sprintf(buf, format, ##args);			\
 	}								\
-	static DEVICE_ATTR(name, S_IRUGO, show_##name, NULL)
+	static DEVICE_ATTR(name, 0444, show_##name, NULL)
 
 VBD_SHOW(physical_device, "%x:%x\n", be->major, be->minor);
 VBD_SHOW(mode, "%s\n", be->mode);
