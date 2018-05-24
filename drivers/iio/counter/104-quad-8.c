@@ -138,7 +138,7 @@ static int quad8_write_raw(struct iio_dev *indio_dev,
 			outb(val >> (8 * i), base_offset);
 
 		/* Reset Borrow, Carry, Compare, and Sign flags */
-		outb(0x02, base_offset + 1);
+		outb(0x04, base_offset + 1);
 		/* Reset Error flag */
 		outb(0x06, base_offset + 1);
 
