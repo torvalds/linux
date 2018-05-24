@@ -172,7 +172,7 @@ struct hw_sequencer_funcs {
 	void (*set_bandwidth)(
 			struct dc *dc,
 			struct dc_state *context,
-			bool decrease_allowed);
+			bool safe_to_lower);
 
 	void (*set_drr)(struct pipe_ctx **pipe_ctx, int num_pipes,
 			int vmin, int vmax);

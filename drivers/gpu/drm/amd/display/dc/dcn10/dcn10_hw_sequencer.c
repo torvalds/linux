@@ -2219,8 +2219,6 @@ static void dcn10_apply_ctx_for_surface(
 	int i;
 	struct timing_generator *tg;
 	bool removed_pipe[4] = { false };
-	unsigned int ref_clk_mhz = dc->res_pool->ref_clock_inKhz/1000;
-	bool program_water_mark = false;
 	struct pipe_ctx *top_pipe_to_program =
 			find_top_pipe_for_stream(dc, context, stream);
 	DC_LOGGER_INIT(dc->ctx->logger);
@@ -2281,107 +2279,38 @@ static void dcn10_apply_ctx_for_surface(
 	if (num_planes == 0)
 		false_optc_underflow_wa(dc, stream, tg);
 
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *old_pipe_ctx =
-				&dc->current_state->res_ctx.pipe_ctx[i];
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-		if (pipe_ctx->stream == stream &&
-				pipe_ctx->plane_state &&
-			pipe_ctx->plane_state->update_flags.bits.full_update)
-			program_water_mark = true;
-
+	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		if (removed_pipe[i])
-			dcn10_disable_plane(dc, old_pipe_ctx);
-	}
+			dcn10_disable_plane(dc, &dc->current_state->res_ctx.pipe_ctx[i]);
 
-	if (program_water_mark) {
-		if (dc->debug.sanity_checks) {
-			/* pstate stuck check after watermark update */
-			dcn10_verify_allow_pstate_change_high(dc);
-		}
-
-		/* watermark is for all pipes */
-		hubbub1_program_watermarks(dc->res_pool->hubbub,
-				&context->bw.dcn.watermarks, ref_clk_mhz, true);
-
-		if (dc->hwseq->wa.DEGVIDCN10_254)
-			hubbub1_wm_change_req_wa(dc->res_pool->hubbub);
-
-		if (dc->debug.sanity_checks) {
-			/* pstate stuck check after watermark update */
-			dcn10_verify_allow_pstate_change_high(dc);
-		}
-	}
-/*	DC_LOG_BANDWIDTH_CALCS(dc->ctx->logger,
-			"\n============== Watermark parameters ==============\n"
-			"a.urgent_ns: %d \n"
-			"a.cstate_enter_plus_exit: %d \n"
-			"a.cstate_exit: %d \n"
-			"a.pstate_change: %d \n"
-			"a.pte_meta_urgent: %d \n"
-			"b.urgent_ns: %d \n"
-			"b.cstate_enter_plus_exit: %d \n"
-			"b.cstate_exit: %d \n"
-			"b.pstate_change: %d \n"
-			"b.pte_meta_urgent: %d \n",
-			context->bw.dcn.watermarks.a.urgent_ns,
-			context->bw.dcn.watermarks.a.cstate_pstate.cstate_enter_plus_exit_ns,
-			context->bw.dcn.watermarks.a.cstate_pstate.cstate_exit_ns,
-			context->bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns,
-			context->bw.dcn.watermarks.a.pte_meta_urgent_ns,
-			context->bw.dcn.watermarks.b.urgent_ns,
-			context->bw.dcn.watermarks.b.cstate_pstate.cstate_enter_plus_exit_ns,
-			context->bw.dcn.watermarks.b.cstate_pstate.cstate_exit_ns,
-			context->bw.dcn.watermarks.b.cstate_pstate.pstate_change_ns,
-			context->bw.dcn.watermarks.b.pte_meta_urgent_ns
-			);
-	DC_LOG_BANDWIDTH_CALCS(dc->ctx->logger,
-			"\nc.urgent_ns: %d \n"
-			"c.cstate_enter_plus_exit: %d \n"
-			"c.cstate_exit: %d \n"
-			"c.pstate_change: %d \n"
-			"c.pte_meta_urgent: %d \n"
-			"d.urgent_ns: %d \n"
-			"d.cstate_enter_plus_exit: %d \n"
-			"d.cstate_exit: %d \n"
-			"d.pstate_change: %d \n"
-			"d.pte_meta_urgent: %d \n"
-			"========================================================\n",
-			context->bw.dcn.watermarks.c.urgent_ns,
-			context->bw.dcn.watermarks.c.cstate_pstate.cstate_enter_plus_exit_ns,
-			context->bw.dcn.watermarks.c.cstate_pstate.cstate_exit_ns,
-			context->bw.dcn.watermarks.c.cstate_pstate.pstate_change_ns,
-			context->bw.dcn.watermarks.c.pte_meta_urgent_ns,
-			context->bw.dcn.watermarks.d.urgent_ns,
-			context->bw.dcn.watermarks.d.cstate_pstate.cstate_enter_plus_exit_ns,
-			context->bw.dcn.watermarks.d.cstate_pstate.cstate_exit_ns,
-			context->bw.dcn.watermarks.d.cstate_pstate.pstate_change_ns,
-			context->bw.dcn.watermarks.d.pte_meta_urgent_ns
-			);
-*/
+	if (dc->hwseq->wa.DEGVIDCN10_254)
+		hubbub1_wm_change_req_wa(dc->res_pool->hubbub);
 }
 
 static void dcn10_set_bandwidth(
 		struct dc *dc,
 		struct dc_state *context,
-		bool decrease_allowed)
+		bool safe_to_lower)
 {
 	if (dc->debug.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
 
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
-		return;
+	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
+		if (context->stream_count == 0)
+			context->bw.dcn.clk.phyclk_khz = 0;
 
-	if (context->stream_count == 0)
-		context->bw.dcn.clk.phyclk_khz = 0;
+		dc->res_pool->dccg->funcs->update_clocks(
+				dc->res_pool->dccg,
+				&context->bw.dcn.clk,
+				safe_to_lower);
 
-	dc->res_pool->dccg->funcs->update_clocks(
-			dc->res_pool->dccg,
-			&context->bw.dcn.clk,
-			decrease_allowed);
+		dcn10_pplib_apply_display_requirements(dc, context);
+	}
 
-	dcn10_pplib_apply_display_requirements(dc, context);
+	hubbub1_program_watermarks(dc->res_pool->hubbub,
+			&context->bw.dcn.watermarks,
+			dc->res_pool->ref_clock_inKhz / 1000,
+			true);
 
 	if (dc->debug.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
