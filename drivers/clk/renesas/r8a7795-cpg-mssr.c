@@ -133,6 +133,7 @@ static struct mssr_mod_clk r8a7795_mod_clks[] __initdata = {
 	DEF_MOD("sys-dmac2",		 217,	R8A7795_CLK_S0D3),
 	DEF_MOD("sys-dmac1",		 218,	R8A7795_CLK_S0D3),
 	DEF_MOD("sys-dmac0",		 219,	R8A7795_CLK_S0D3),
+	DEF_MOD("sceg-pub",		 229,	R8A7795_CLK_CR),
 	DEF_MOD("cmt3",			 300,	R8A7795_CLK_R),
 	DEF_MOD("cmt2",			 301,	R8A7795_CLK_R),
 	DEF_MOD("cmt1",			 302,	R8A7795_CLK_R),
