@@ -522,7 +522,7 @@ static void enable_slot(struct acpiphp_slot *slot)
 		if (!dev) {
 			/* Do not set SLOT_ENABLED flag if some funcs
 			   are not added. */
-			slot->flags &= (~SLOT_ENABLED);
+			slot->flags &= ~SLOT_ENABLED;
 			continue;
 		}
 	}
@@ -551,7 +551,7 @@ static void disable_slot(struct acpiphp_slot *slot)
 	list_for_each_entry(func, &slot->funcs, sibling)
 		acpi_bus_trim(func_to_acpi_device(func));
 
-	slot->flags &= (~SLOT_ENABLED);
+	slot->flags &= ~SLOT_ENABLED;
 }
 
 static bool slot_no_hotplug(struct acpiphp_slot *slot)
