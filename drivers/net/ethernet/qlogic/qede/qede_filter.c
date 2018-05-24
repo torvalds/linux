@@ -1560,10 +1560,63 @@ static void qede_flow_build_ipv6_hdr(struct qede_arfs_tuple *t,
 	ports[1] = t->dst_port;
 }
 
+/* Validate fields which are set and not accepted by the driver */
+static int qede_flow_spec_validate_unused(struct qede_dev *edev,
+					  struct ethtool_rx_flow_spec *fs)
+{
+	if (fs->flow_type & FLOW_MAC_EXT) {
+		DP_INFO(edev, "Don't support MAC extensions\n");
+		return -EOPNOTSUPP;
+	}
+
+	if ((fs->flow_type & FLOW_EXT) &&
+	    (fs->h_ext.vlan_etype || fs->h_ext.vlan_tci)) {
+		DP_INFO(edev, "Don't support vlan-based classification\n");
+		return -EOPNOTSUPP;
+	}
+
+	if ((fs->flow_type & FLOW_EXT) &&
+	    (fs->h_ext.data[0] || fs->h_ext.data[1])) {
+		DP_INFO(edev, "Don't support user defined data\n");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static int qede_flow_spec_to_tuple_ipv4_common(struct qede_dev *edev,
 					       struct qede_arfs_tuple *t,
 					       struct ethtool_rx_flow_spec *fs)
 {
+	if ((fs->h_u.tcp_ip4_spec.ip4src &
+	     fs->m_u.tcp_ip4_spec.ip4src) != fs->h_u.tcp_ip4_spec.ip4src) {
+		DP_INFO(edev, "Don't support IP-masks\n");
+		return -EOPNOTSUPP;
+	}
+
+	if ((fs->h_u.tcp_ip4_spec.ip4dst &
+	     fs->m_u.tcp_ip4_spec.ip4dst) != fs->h_u.tcp_ip4_spec.ip4dst) {
+		DP_INFO(edev, "Don't support IP-masks\n");
+		return -EOPNOTSUPP;
+	}
+
+	if ((fs->h_u.tcp_ip4_spec.psrc &
+	     fs->m_u.tcp_ip4_spec.psrc) != fs->h_u.tcp_ip4_spec.psrc) {
+		DP_INFO(edev, "Don't support port-masks\n");
+		return -EOPNOTSUPP;
+	}
+
+	if ((fs->h_u.tcp_ip4_spec.pdst &
+	     fs->m_u.tcp_ip4_spec.pdst) != fs->h_u.tcp_ip4_spec.pdst) {
+		DP_INFO(edev, "Don't support port-masks\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (fs->h_u.tcp_ip4_spec.tos) {
+		DP_INFO(edev, "Don't support tos\n");
+		return -EOPNOTSUPP;
+	}
+
 	t->eth_proto = htons(ETH_P_IP);
 	t->src_ipv4 = fs->h_u.tcp_ip4_spec.ip4src;
 	t->dst_ipv4 = fs->h_u.tcp_ip4_spec.ip4dst;
@@ -1619,6 +1672,23 @@ static int qede_flow_spec_to_tuple_ipv6_common(struct qede_dev *edev,
 	p = &zero_addr;
 	memset(p, 0, sizeof(zero_addr));
 
+	if ((fs->h_u.tcp_ip6_spec.psrc &
+	     fs->m_u.tcp_ip6_spec.psrc) != fs->h_u.tcp_ip6_spec.psrc) {
+		DP_INFO(edev, "Don't support port-masks\n");
+		return -EOPNOTSUPP;
+	}
+
+	if ((fs->h_u.tcp_ip6_spec.pdst &
+	     fs->m_u.tcp_ip6_spec.pdst) != fs->h_u.tcp_ip6_spec.pdst) {
+		DP_INFO(edev, "Don't support port-masks\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (fs->h_u.tcp_ip6_spec.tclass) {
+		DP_INFO(edev, "Don't support tclass\n");
+		return -EOPNOTSUPP;
+	}
+
 	t->eth_proto = htons(ETH_P_IPV6);
 	memcpy(&t->src_ipv6, &fs->h_u.tcp_ip6_spec.ip6src,
 	       sizeof(struct in6_addr));
@@ -1672,6 +1742,9 @@ static int qede_flow_spec_to_tuple(struct qede_dev *edev,
 				   struct ethtool_rx_flow_spec *fs)
 {
 	memset(t, 0, sizeof(*t));
+
+	if (qede_flow_spec_validate_unused(edev, fs))
+		return -EOPNOTSUPP;
 
 	switch ((fs->flow_type & ~FLOW_EXT)) {
 	case TCP_V4_FLOW:
