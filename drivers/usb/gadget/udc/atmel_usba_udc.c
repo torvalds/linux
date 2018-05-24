@@ -20,7 +20,6 @@
 #include <linux/ctype.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
-#include <linux/usb/atmel_usba_udc.h>
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/irq.h>
@@ -417,7 +416,7 @@ static inline void usba_int_enb_set(struct usba_udc *udc, u32 val)
 static int vbus_is_present(struct usba_udc *udc)
 {
 	if (udc->vbus_pin)
-		return gpiod_get_value(udc->vbus_pin) ^ udc->vbus_pin_inverted;
+		return gpiod_get_value(udc->vbus_pin);
 
 	/* No Vbus detection: Assume always present */
 	return 1;
@@ -2076,7 +2075,6 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 
 	udc->vbus_pin = devm_gpiod_get_optional(&pdev->dev, "atmel,vbus",
 						GPIOD_IN);
-	udc->vbus_pin_inverted = gpiod_is_active_low(udc->vbus_pin);
 
 	if (fifo_mode == 0) {
 		pp = NULL;
@@ -2279,15 +2277,15 @@ static int usba_udc_probe(struct platform_device *pdev)
 	if (udc->vbus_pin) {
 		irq_set_status_flags(gpiod_to_irq(udc->vbus_pin), IRQ_NOAUTOEN);
 		ret = devm_request_threaded_irq(&pdev->dev,
-					gpiod_to_irq(udc->vbus_pin), NULL,
-					usba_vbus_irq_thread, USBA_VBUS_IRQFLAGS,
-					"atmel_usba_udc", udc);
-			if (ret) {
-				udc->vbus_pin = NULL;
-				dev_warn(&udc->pdev->dev,
-					 "failed to request vbus irq; "
-					 "assuming always on\n");
-			}
+				gpiod_to_irq(udc->vbus_pin), NULL,
+				usba_vbus_irq_thread, USBA_VBUS_IRQFLAGS,
+				"atmel_usba_udc", udc);
+		if (ret) {
+			udc->vbus_pin = NULL;
+			dev_warn(&udc->pdev->dev,
+				 "failed to request vbus irq; "
+				 "assuming always on\n");
+		}
 	}
 
 	ret = usb_add_gadget_udc(&pdev->dev, &udc->gadget);

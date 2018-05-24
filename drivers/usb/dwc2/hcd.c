@@ -597,7 +597,7 @@ u32 dwc2_calc_frame_interval(struct dwc2_hsotg *hsotg)
  * dwc2_read_packet() - Reads a packet from the Rx FIFO into the destination
  * buffer
  *
- * @core_if: Programming view of DWC_otg controller
+ * @hsotg: Programming view of DWC_otg controller
  * @dest:    Destination buffer for the packet
  * @bytes:   Number of bytes to copy to the destination
  */
@@ -4087,7 +4087,6 @@ static struct dwc2_hsotg *dwc2_hcd_to_hsotg(struct usb_hcd *hcd)
  * then the refcount for the structure will go to 0 and we'll free it.
  *
  * @hsotg:     The HCD state structure for the DWC OTG controller.
- * @qh:        The QH structure.
  * @context:   The priv pointer from a struct dwc2_hcd_urb.
  * @mem_flags: Flags for allocating memory.
  * @ttport:    We'll return this device's port number here.  That's used to

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * debugfs.c - Designware USB2 DRD controller debugfs
  *
  * Copyright (C) 2015 Intel Corporation
@@ -16,12 +16,13 @@
 
 #if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || \
 	IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
+
 /**
- * testmode_write - debugfs: change usb test mode
- * @seq: The seq file to write to.
- * @v: Unused parameter.
- *
- * This debugfs entry modify the current usb test mode.
+ * testmode_write() - change usb test mode state.
+ * @file: The  file to write to.
+ * @ubuf: The buffer where user wrote.
+ * @count: The ubuf size.
+ * @ppos: Unused parameter.
  */
 static ssize_t testmode_write(struct file *file, const char __user *ubuf, size_t
 		count, loff_t *ppos)
@@ -55,9 +56,9 @@ static ssize_t testmode_write(struct file *file, const char __user *ubuf, size_t
 }
 
 /**
- * testmode_show - debugfs: show usb test mode state
- * @seq: The seq file to write to.
- * @v: Unused parameter.
+ * testmode_show() - debugfs: show usb test mode state
+ * @s: The seq file to write to.
+ * @unused: Unused parameter.
  *
  * This debugfs entry shows which usb test mode is currently enabled.
  */
@@ -368,7 +369,7 @@ static const struct debugfs_reg32 dwc2_regs[] = {
 	dump_register(GINTSTS),
 	dump_register(GINTMSK),
 	dump_register(GRXSTSR),
-	dump_register(GRXSTSP),
+	/* Omit GRXSTSP */
 	dump_register(GRXFSIZ),
 	dump_register(GNPTXFSIZ),
 	dump_register(GNPTXSTS),
@@ -710,6 +711,7 @@ static int params_show(struct seq_file *seq, void *v)
 	print_param(seq, p, phy_ulpi_ddr);
 	print_param(seq, p, phy_ulpi_ext_vbus);
 	print_param(seq, p, i2c_enable);
+	print_param(seq, p, ipg_isoc_en);
 	print_param(seq, p, ulpi_fs_ls);
 	print_param(seq, p, host_support_fs_ls_low_power);
 	print_param(seq, p, host_ls_low_power_phy_clk);

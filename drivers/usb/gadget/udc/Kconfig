@@ -438,6 +438,8 @@ config USB_GADGET_XILINX
 	  dynamically linked module called "udc-xilinx" and force all
 	  gadget drivers to also be dynamically linked.
 
+source "drivers/usb/gadget/udc/aspeed-vhub/Kconfig"
+
 #
 # LAST -- dummy/emulated controller
 #
