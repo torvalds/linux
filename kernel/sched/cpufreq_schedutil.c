@@ -183,22 +183,21 @@ static void sugov_get_util(struct sugov_cpu *sg_cpu)
 static unsigned long sugov_aggregate_util(struct sugov_cpu *sg_cpu)
 {
 	struct rq *rq = cpu_rq(sg_cpu->cpu);
-	unsigned long util;
 
-	if (rq->rt.rt_nr_running) {
-		util = sg_cpu->max;
-	} else {
-		util = sg_cpu->util_dl;
-		if (rq->cfs.h_nr_running)
-			util += sg_cpu->util_cfs;
-	}
+	if (rq->rt.rt_nr_running)
+		return sg_cpu->max;
 
 	/*
+	 * Utilization required by DEADLINE must always be granted while, for
+	 * FAIR, we use blocked utilization of IDLE CPUs as a mechanism to
+	 * gracefully reduce the frequency when no tasks show up for longer
+	 * periods of time.
+	 *
 	 * Ideally we would like to set util_dl as min/guaranteed freq and
 	 * util_cfs + util_dl as requested freq. However, cpufreq is not yet
 	 * ready for such an interface. So, we only do the latter for now.
 	 */
-	return min(util, sg_cpu->max);
+	return min(sg_cpu->max, (sg_cpu->util_dl + sg_cpu->util_cfs));
 }
 
 static void sugov_set_iowait_boost(struct sugov_cpu *sg_cpu, u64 time, unsigned int flags)
