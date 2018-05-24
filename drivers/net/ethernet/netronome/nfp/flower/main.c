@@ -546,8 +546,20 @@ static int nfp_flower_init(struct nfp_app *app)
 	else
 		app_priv->flower_ext_feats = features;
 
+	/* Tell the firmware that the driver supports lag. */
+	err = nfp_rtsym_write_le(app->pf->rtbl,
+				 "_abi_flower_balance_sync_enable", 1);
+	if (!err)
+		app_priv->flower_ext_feats |= NFP_FL_FEATS_LAG;
+	else if (err == -ENOENT)
+		nfp_warn(app->cpp, "LAG not supported by FW.\n");
+	else
+		goto err_cleanup_metadata;
+
 	return 0;
 
+err_cleanup_metadata:
+	nfp_flower_metadata_cleanup(app);
 err_free_app_priv:
 	vfree(app->priv);
 	return err;
