@@ -1,7 +1,7 @@
 menuconfig BPFILTER
 	bool "BPF based packet filtering framework (BPFILTER)"
 	default n
-	depends on NET && BPF
+	depends on NET && BPF && INET
 	help
 	  This builds experimental bpfilter framework that is aiming to
 	  provide netfilter compatible functionality via BPF
