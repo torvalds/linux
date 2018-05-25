@@ -484,6 +484,8 @@ struct hclge_promisc_param {
 	u8 enable;
 };
 
+#define HCLGE_PROMISC_TX_EN_B	BIT(4)
+#define HCLGE_PROMISC_RX_EN_B	BIT(5)
 #define HCLGE_PROMISC_EN_B	1
 #define HCLGE_PROMISC_EN_ALL	0x7
 #define HCLGE_PROMISC_EN_UC	0x1
