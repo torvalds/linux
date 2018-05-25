@@ -39,6 +39,35 @@ struct eeh_rmv_data {
 	int removed;
 };
 
+static int eeh_result_priority(enum pci_ers_result result)
+{
+	switch (result) {
+	case PCI_ERS_RESULT_NONE:
+		return 1;
+	case PCI_ERS_RESULT_NO_AER_DRIVER:
+		return 2;
+	case PCI_ERS_RESULT_RECOVERED:
+		return 3;
+	case PCI_ERS_RESULT_CAN_RECOVER:
+		return 4;
+	case PCI_ERS_RESULT_DISCONNECT:
+		return 5;
+	case PCI_ERS_RESULT_NEED_RESET:
+		return 6;
+	default:
+		WARN_ONCE(1, "Unknown pci_ers_result value: %d\n", (int)result);
+		return 0;
+	}
+};
+
+static enum pci_ers_result pci_ers_merge_result(enum pci_ers_result old,
+						enum pci_ers_result new)
+{
+	if (eeh_result_priority(new) > eeh_result_priority(old))
+		return new;
+	return old;
+}
+
 /**
  * eeh_pcid_get - Get the PCI device driver
  * @pdev: PCI device
@@ -206,9 +235,7 @@ static void *eeh_report_error(struct eeh_dev *edev, void *userdata)
 
 	rc = driver->err_handler->error_detected(dev, pci_channel_io_frozen);
 
-	/* A driver that needs a reset trumps all others */
-	if (rc == PCI_ERS_RESULT_NEED_RESET) *res = rc;
-	if (*res == PCI_ERS_RESULT_NONE) *res = rc;
+	*res = pci_ers_merge_result(*res, rc);
 
 	edev->in_error = true;
 	pci_uevent_ers(dev, PCI_ERS_RESULT_NONE);
@@ -249,9 +276,7 @@ static void *eeh_report_mmio_enabled(struct eeh_dev *edev, void *userdata)
 
 	rc = driver->err_handler->mmio_enabled(dev);
 
-	/* A driver that needs a reset trumps all others */
-	if (rc == PCI_ERS_RESULT_NEED_RESET) *res = rc;
-	if (*res == PCI_ERS_RESULT_NONE) *res = rc;
+	*res = pci_ers_merge_result(*res, rc);
 
 out:
 	eeh_pcid_put(dev);
@@ -294,10 +319,7 @@ static void *eeh_report_reset(struct eeh_dev *edev, void *userdata)
 		goto out;
 
 	rc = driver->err_handler->slot_reset(dev);
-	if ((*res == PCI_ERS_RESULT_NONE) ||
-	    (*res == PCI_ERS_RESULT_RECOVERED)) *res = rc;
-	if (*res == PCI_ERS_RESULT_DISCONNECT &&
-	     rc == PCI_ERS_RESULT_NEED_RESET) *res = rc;
+	*res = pci_ers_merge_result(*res, rc);
 
 out:
 	eeh_pcid_put(dev);
