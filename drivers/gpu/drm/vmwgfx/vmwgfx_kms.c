@@ -2326,9 +2326,10 @@ int vmw_kms_helper_dirty(struct vmw_private *dev_priv,
 	} else {
 		list_for_each_entry(crtc, &dev_priv->dev->mode_config.crtc_list,
 				    head) {
-			if (crtc->primary->fb != &framebuffer->base)
-				continue;
-			units[num_units++] = vmw_crtc_to_du(crtc);
+			struct drm_plane *plane = crtc->primary;
+
+			if (plane->state->fb == &framebuffer->base)
+				units[num_units++] = vmw_crtc_to_du(crtc);
 		}
 	}
 
