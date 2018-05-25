@@ -137,13 +137,11 @@ struct omap_drm_usergart {
  */
 
 /** get mmap offset */
-static u64 mmap_offset(struct drm_gem_object *obj)
+u64 omap_gem_mmap_offset(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	int ret;
 	size_t size;
-
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
 	/* Make it mmapable */
 	size = omap_gem_mmap_size(obj);
@@ -178,7 +176,7 @@ static void omap_gem_evict_entry(struct drm_gem_object *obj,
 	struct omap_drm_private *priv = obj->dev->dev_private;
 	int n = priv->usergart[fmt].height;
 	size_t size = PAGE_SIZE * n;
-	loff_t off = mmap_offset(obj) +
+	loff_t off = omap_gem_mmap_offset(obj) +
 			(entry->obj_pgoff << PAGE_SHIFT);
 	const int m = DIV_ROUND_UP(omap_obj->width << fmt, PAGE_SIZE);
 
@@ -317,16 +315,6 @@ static void omap_gem_detach_pages(struct drm_gem_object *obj)
 u32 omap_gem_flags(struct drm_gem_object *obj)
 {
 	return to_omap_bo(obj)->flags;
-}
-
-u64 omap_gem_mmap_offset(struct drm_gem_object *obj)
-{
-	u64 offset;
-
-	mutex_lock(&obj->dev->struct_mutex);
-	offset = mmap_offset(obj);
-	mutex_unlock(&obj->dev->struct_mutex);
-	return offset;
 }
 
 /** get mmap size */
