@@ -45,13 +45,10 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/pwm/pwm.h>
 #include "rk3288.dtsi"
+#include "rk3288-linux.dtsi"
 
 / {
 	compatible = "rockchip,rk3288-evb-rk1608", "rockchip,rk3288";
-
-	chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xff690000 swiotlb=1";
-	};
 
 	backlight: backlight {
 		compatible = "pwm-backlight";
