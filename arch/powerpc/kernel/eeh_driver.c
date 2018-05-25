@@ -68,6 +68,17 @@ static enum pci_ers_result pci_ers_merge_result(enum pci_ers_result old,
 	return old;
 }
 
+static bool eeh_dev_removed(struct eeh_dev *edev)
+{
+	return !edev || (edev->mode & EEH_DEV_REMOVED);
+}
+
+static bool eeh_edev_actionable(struct eeh_dev *edev)
+{
+	return (edev->pdev && !eeh_dev_removed(edev) &&
+		!eeh_pe_passed(edev->pe));
+}
+
 /**
  * eeh_pcid_get - Get the PCI device driver
  * @pdev: PCI device
@@ -169,15 +180,6 @@ static void eeh_enable_irq(struct pci_dev *dev)
 	}
 }
 
-static bool eeh_dev_removed(struct eeh_dev *edev)
-{
-	/* EEH device removed ? */
-	if (!edev || (edev->mode & EEH_DEV_REMOVED))
-		return true;
-
-	return false;
-}
-
 static void *eeh_dev_save_state(struct eeh_dev *edev, void *userdata)
 {
 	struct pci_dev *pdev;
@@ -218,7 +220,7 @@ static void *eeh_report_error(struct eeh_dev *edev, void *userdata)
 	enum pci_ers_result rc, *res = userdata;
 	struct pci_driver *driver;
 
-	if (!dev || eeh_dev_removed(edev) || eeh_pe_passed(edev->pe))
+	if (!eeh_edev_actionable(edev))
 		return NULL;
 
 	device_lock(&dev->dev);
@@ -262,7 +264,7 @@ static void *eeh_report_mmio_enabled(struct eeh_dev *edev, void *userdata)
 	enum pci_ers_result rc, *res = userdata;
 	struct pci_driver *driver;
 
-	if (!dev || eeh_dev_removed(edev) || eeh_pe_passed(edev->pe))
+	if (!eeh_edev_actionable(edev))
 		return NULL;
 
 	device_lock(&dev->dev);
@@ -301,7 +303,7 @@ static void *eeh_report_reset(struct eeh_dev *edev, void *userdata)
 	enum pci_ers_result rc, *res = userdata;
 	struct pci_driver *driver;
 
-	if (!dev || eeh_dev_removed(edev) || eeh_pe_passed(edev->pe))
+	if (!eeh_edev_actionable(edev))
 		return NULL;
 
 	device_lock(&dev->dev);
@@ -371,7 +373,7 @@ static void *eeh_report_resume(struct eeh_dev *edev, void *userdata)
 	bool was_in_error;
 	struct pci_driver *driver;
 
-	if (!dev || eeh_dev_removed(edev) || eeh_pe_passed(edev->pe))
+	if (!eeh_edev_actionable(edev))
 		return NULL;
 
 	device_lock(&dev->dev);
@@ -418,7 +420,7 @@ static void *eeh_report_failure(struct eeh_dev *edev, void *userdata)
 	struct pci_dev *dev = eeh_dev_to_pci_dev(edev);
 	struct pci_driver *driver;
 
-	if (!dev || eeh_dev_removed(edev) || eeh_pe_passed(edev->pe))
+	if (!eeh_edev_actionable(edev))
 		return NULL;
 
 	device_lock(&dev->dev);
