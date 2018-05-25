@@ -76,7 +76,7 @@
 			allwinner,pipeline = "de_fe0-de_be0-lcd0-hdmi";
 			clocks = <&ccu CLK_AHB_LCD0>, <&ccu CLK_AHB_HDMI0>,
 				 <&ccu CLK_AHB_DE_BE0>, <&ccu CLK_AHB_DE_FE0>,
-				 <&ccu CLK_DE_BE0>, <&ccu CLK_AHB_DE_FE0>,
+				 <&ccu CLK_DE_BE0>, <&ccu CLK_DE_FE0>,
 				 <&ccu CLK_TCON0_CH1>, <&ccu CLK_HDMI>,
 				 <&ccu CLK_DRAM_DE_FE0>, <&ccu CLK_DRAM_DE_BE0>;
 			status = "disabled";
@@ -88,7 +88,7 @@
 			allwinner,pipeline = "de_fe0-de_be0-lcd0";
 			clocks = <&ccu CLK_AHB_LCD0>, <&ccu CLK_AHB_DE_BE0>,
 				 <&ccu CLK_AHB_DE_FE0>, <&ccu CLK_DE_BE0>,
-				 <&ccu CLK_AHB_DE_FE0>, <&ccu CLK_TCON0_CH0>,
+				 <&ccu CLK_DE_FE0>, <&ccu CLK_TCON0_CH0>,
 				 <&ccu CLK_DRAM_DE_FE0>, <&ccu CLK_DRAM_DE_BE0>;
 			status = "disabled";
 		};
@@ -99,7 +99,7 @@
 			allwinner,pipeline = "de_fe0-de_be0-lcd0-tve0";
 			clocks = <&ccu CLK_AHB_TVE0>, <&ccu CLK_AHB_LCD0>,
 				 <&ccu CLK_AHB_DE_BE0>, <&ccu CLK_AHB_DE_FE0>,
-				 <&ccu CLK_DE_BE0>, <&ccu CLK_AHB_DE_FE0>,
+				 <&ccu CLK_DE_BE0>, <&ccu CLK_DE_FE0>,
 				 <&ccu CLK_TCON0_CH1>, <&ccu CLK_DRAM_TVE0>,
 				 <&ccu CLK_DRAM_DE_FE0>, <&ccu CLK_DRAM_DE_BE0>;
 			status = "disabled";
