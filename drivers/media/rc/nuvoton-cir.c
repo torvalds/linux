@@ -535,6 +535,8 @@ static void nvt_set_cir_iren(struct nvt_dev *nvt)
 
 static void nvt_cir_regs_init(struct nvt_dev *nvt)
 {
+	nvt_enable_logical_dev(nvt, LOGICAL_DEV_CIR);
+
 	/* set sample limit count (PE interrupt raised when reached) */
 	nvt_cir_reg_write(nvt, CIR_RX_LIMIT_COUNT >> 8, CIR_SLCH);
 	nvt_cir_reg_write(nvt, CIR_RX_LIMIT_COUNT & 0xff, CIR_SLCL);
@@ -546,10 +548,14 @@ static void nvt_cir_regs_init(struct nvt_dev *nvt)
 	/* clear hardware rx and tx fifos */
 	nvt_clear_cir_fifo(nvt);
 	nvt_clear_tx_fifo(nvt);
+
+	nvt_disable_logical_dev(nvt, LOGICAL_DEV_CIR);
 }
 
 static void nvt_cir_wake_regs_init(struct nvt_dev *nvt)
 {
+	nvt_enable_logical_dev(nvt, LOGICAL_DEV_CIR_WAKE);
+
 	/*
 	 * Disable RX, set specific carrier on = low, off = high,
 	 * and sample period (currently 50us)
@@ -561,9 +567,6 @@ static void nvt_cir_wake_regs_init(struct nvt_dev *nvt)
 
 	/* clear any and all stray interrupts */
 	nvt_cir_wake_reg_write(nvt, 0xff, CIR_WAKE_IRSTS);
-
-	/* enable the CIR WAKE logical device */
-	nvt_enable_logical_dev(nvt, LOGICAL_DEV_CIR_WAKE);
 }
 
 static void nvt_enable_wake(struct nvt_dev *nvt)
