@@ -38,6 +38,9 @@
 #include "soc15.h"
 #include "vega10_sdma_pkt_open.h"
 
+#include "ivsrcid/sdma0/irqsrcs_sdma0_4_0.h"
+#include "ivsrcid/sdma1/irqsrcs_sdma1_4_0.h"
+
 MODULE_FIRMWARE("amdgpu/vega10_sdma.bin");
 MODULE_FIRMWARE("amdgpu/vega10_sdma1.bin");
 MODULE_FIRMWARE("amdgpu/vega12_sdma.bin");
@@ -1225,13 +1228,13 @@ static int sdma_v4_0_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* SDMA trap event */
-	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_SDMA0, 224,
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_SDMA0, SDMA0_4_0__SRCID__SDMA_TRAP,
 			      &adev->sdma.trap_irq);
 	if (r)
 		return r;
 
 	/* SDMA trap event */
-	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_SDMA1, 224,
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_SDMA1, SDMA1_4_0__SRCID__SDMA_TRAP,
 			      &adev->sdma.trap_irq);
 	if (r)
 		return r;

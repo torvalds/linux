@@ -43,6 +43,8 @@
 #include "gfxhub_v1_0.h"
 #include "mmhub_v1_0.h"
 
+#include "ivsrcid/vmc/irqsrcs_vmc_1_0.h"
+
 /* add these here since we already include dce12 headers and these are for DCN */
 #define mmHUBP0_DCSURF_PRI_VIEWPORT_DIMENSION                                                          0x055d
 #define mmHUBP0_DCSURF_PRI_VIEWPORT_DIMENSION_BASE_IDX                                                 2
@@ -877,9 +879,9 @@ static int gmc_v9_0_sw_init(void *handle)
 	}
 
 	/* This interrupt is VMC page fault.*/
-	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VMC, 0,
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VMC, VMC_1_0__SRCID__VM_FAULT,
 				&adev->gmc.vm_fault);
-	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_UTCL2, 0,
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_UTCL2, UTCL2_1_0__SRCID__FAULT,
 				&adev->gmc.vm_fault);
 
 	if (r)

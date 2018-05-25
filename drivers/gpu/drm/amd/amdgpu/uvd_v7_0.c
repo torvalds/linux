@@ -39,6 +39,7 @@
 #include "hdp/hdp_4_0_offset.h"
 #include "mmhub/mmhub_1_0_offset.h"
 #include "mmhub/mmhub_1_0_sh_mask.h"
+#include "ivsrcid/uvd/irqsrcs_uvd_7_0.h"
 
 #define UVD7_MAX_HW_INSTANCES_VEGA20			2
 
@@ -402,13 +403,13 @@ static int uvd_v7_0_sw_init(void *handle)
 
 	for (j = 0; j < adev->uvd.num_uvd_inst; j++) {
 		/* UVD TRAP */
-		r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_uvds[j], 124, &adev->uvd.inst[j].irq);
+		r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_uvds[j], UVD_7_0__SRCID__UVD_SYSTEM_MESSAGE_INTERRUPT, &adev->uvd.inst[j].irq);
 		if (r)
 			return r;
 
 		/* UVD ENC TRAP */
 		for (i = 0; i < adev->uvd.num_enc_rings; ++i) {
-			r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_uvds[j], i + 119, &adev->uvd.inst[j].irq);
+			r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_uvds[j], i + UVD_7_0__SRCID__UVD_ENC_GEN_PURP, &adev->uvd.inst[j].irq);
 			if (r)
 				return r;
 		}
