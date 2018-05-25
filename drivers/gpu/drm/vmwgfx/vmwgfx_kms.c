@@ -2803,6 +2803,7 @@ void vmw_kms_update_implicit_fb(struct vmw_private *dev_priv,
 				struct drm_crtc *crtc)
 {
 	struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
+	struct drm_plane *plane = crtc->primary;
 	struct vmw_framebuffer *vfb;
 
 	mutex_lock(&dev_priv->global_kms_state_mutex);
@@ -2810,7 +2811,7 @@ void vmw_kms_update_implicit_fb(struct vmw_private *dev_priv,
 	if (!du->is_implicit)
 		goto out_unlock;
 
-	vfb = vmw_framebuffer_to_vfb(crtc->primary->fb);
+	vfb = vmw_framebuffer_to_vfb(plane->state->fb);
 	WARN_ON_ONCE(dev_priv->num_implicit != 1 &&
 		     dev_priv->implicit_fb != vfb);
 
