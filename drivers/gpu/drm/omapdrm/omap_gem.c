@@ -1000,6 +1000,7 @@ int omap_gem_resume(struct drm_device *dev)
 	struct omap_gem_object *omap_obj;
 	int ret = 0;
 
+	mutex_lock(&priv->list_lock);
 	list_for_each_entry(omap_obj, &priv->obj_list, mm_list) {
 		if (omap_obj->block) {
 			struct drm_gem_object *obj = &omap_obj->base;
@@ -1011,12 +1012,14 @@ int omap_gem_resume(struct drm_device *dev)
 					omap_obj->roll, true);
 			if (ret) {
 				dev_err(dev->dev, "could not repin: %d\n", ret);
-				return ret;
+				goto done;
 			}
 		}
 	}
 
-	return 0;
+done:
+	mutex_unlock(&priv->list_lock);
+	return ret;
 }
 #endif
 
@@ -1086,9 +1089,9 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 
 	omap_gem_evict(obj);
 
-	spin_lock(&priv->list_lock);
+	mutex_lock(&priv->list_lock);
 	list_del(&omap_obj->mm_list);
-	spin_unlock(&priv->list_lock);
+	mutex_unlock(&priv->list_lock);
 
 	/*
 	 * We own the sole reference to the object at this point, but to keep
@@ -1218,9 +1221,9 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 			goto err_release;
 	}
 
-	spin_lock(&priv->list_lock);
+	mutex_lock(&priv->list_lock);
 	list_add(&omap_obj->mm_list, &priv->obj_list);
-	spin_unlock(&priv->list_lock);
+	mutex_unlock(&priv->list_lock);
 
 	return obj;
 

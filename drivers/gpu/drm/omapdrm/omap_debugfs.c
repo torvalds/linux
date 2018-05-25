@@ -32,7 +32,9 @@ static int gem_show(struct seq_file *m, void *arg)
 	struct omap_drm_private *priv = dev->dev_private;
 
 	seq_printf(m, "All Objects:\n");
+	mutex_lock(&priv->list_lock);
 	omap_gem_describe_objects(&priv->obj_list, m);
+	mutex_unlock(&priv->list_lock);
 
 	return 0;
 }
