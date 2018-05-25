@@ -93,6 +93,7 @@ source "drivers/iio/potentiometer/Kconfig"
 source "drivers/iio/potentiostat/Kconfig"
 source "drivers/iio/pressure/Kconfig"
 source "drivers/iio/proximity/Kconfig"
+source "drivers/iio/resolver/Kconfig"
 source "drivers/iio/temperature/Kconfig"
 
 endif # IIO

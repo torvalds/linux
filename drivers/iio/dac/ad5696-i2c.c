@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * AD5671R, AD5675R, AD5694, AD5694R, AD5695R, AD5696, AD5696R
+ * AD5671R, AD5675R, AD5691R, AD5692R, AD5693, AD5693R,
+ * AD5694, AD5694R, AD5695R, AD5696, AD5696R
  * Digital to analog converters driver
  *
  * Copyright 2018 Analog Devices Inc.
@@ -72,6 +73,10 @@ static int ad5686_i2c_remove(struct i2c_client *i2c)
 static const struct i2c_device_id ad5686_i2c_id[] = {
 	{"ad5671r", ID_AD5671R},
 	{"ad5675r", ID_AD5675R},
+	{"ad5691r", ID_AD5691R},
+	{"ad5692r", ID_AD5692R},
+	{"ad5693", ID_AD5693},
+	{"ad5693r", ID_AD5693R},
 	{"ad5694", ID_AD5694},
 	{"ad5694r", ID_AD5694R},
 	{"ad5695r", ID_AD5695R},

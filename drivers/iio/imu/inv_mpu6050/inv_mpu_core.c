@@ -798,7 +798,14 @@ static const struct iio_chan_spec inv_mpu_channels[] = {
 	INV_MPU6050_CHAN(IIO_ACCEL, IIO_MOD_Z, INV_MPU6050_SCAN_ACCL_Z),
 };
 
-/* constant IIO attribute */
+/*
+ * The user can choose any frequency between INV_MPU6050_MIN_FIFO_RATE and
+ * INV_MPU6050_MAX_FIFO_RATE, but only these frequencies are matched by the
+ * low-pass filter. Specifically, each of these sampling rates are about twice
+ * the bandwidth of a corresponding low-pass filter, which should eliminate
+ * aliasing following the Nyquist principle. By picking a frequency different
+ * from these, the user risks aliasing effects.
+ */
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("10 20 50 100 200 500");
 static IIO_CONST_ATTR(in_anglvel_scale_available,
 					  "0.000133090 0.000266181 0.000532362 0.001064724");
