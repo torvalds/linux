@@ -124,22 +124,20 @@ static inline void eeh_pcid_put(struct pci_dev *pdev)
  * do real work because EEH should freeze DMA transfers for those PCI
  * devices encountering EEH errors, which includes MSI or MSI-X.
  */
-static void eeh_disable_irq(struct pci_dev *dev)
+static void eeh_disable_irq(struct eeh_dev *edev)
 {
-	struct eeh_dev *edev = pci_dev_to_eeh_dev(dev);
-
 	/* Don't disable MSI and MSI-X interrupts. They are
 	 * effectively disabled by the DMA Stopped state
 	 * when an EEH error occurs.
 	 */
-	if (dev->msi_enabled || dev->msix_enabled)
+	if (edev->pdev->msi_enabled || edev->pdev->msix_enabled)
 		return;
 
-	if (!irq_has_action(dev->irq))
+	if (!irq_has_action(edev->pdev->irq))
 		return;
 
 	edev->mode |= EEH_DEV_IRQ_DISABLED;
-	disable_irq_nosync(dev->irq);
+	disable_irq_nosync(edev->pdev->irq);
 }
 
 /**
@@ -149,10 +147,8 @@ static void eeh_disable_irq(struct pci_dev *dev)
  * This routine must be called to enable interrupt while failed
  * device could be resumed.
  */
-static void eeh_enable_irq(struct pci_dev *dev)
+static void eeh_enable_irq(struct eeh_dev *edev)
 {
-	struct eeh_dev *edev = pci_dev_to_eeh_dev(dev);
-
 	if ((edev->mode) & EEH_DEV_IRQ_DISABLED) {
 		edev->mode &= ~EEH_DEV_IRQ_DISABLED;
 		/*
@@ -175,8 +171,8 @@ static void eeh_enable_irq(struct pci_dev *dev)
 		 *
 		 *	tglx
 		 */
-		if (irqd_irq_disabled(irq_get_irq_data(dev->irq)))
-			enable_irq(dev->irq);
+		if (irqd_irq_disabled(irq_get_irq_data(edev->pdev->irq)))
+			enable_irq(edev->pdev->irq);
 	}
 }
 
@@ -216,6 +212,29 @@ static void eeh_set_channel_state(struct eeh_pe *root, enum pci_channel_state s)
 				edev->pdev->error_state = s;
 }
 
+static void eeh_set_irq_state(struct eeh_pe *root, bool enable)
+{
+	struct eeh_pe *pe;
+	struct eeh_dev *edev, *tmp;
+
+	eeh_for_each_pe(root, pe) {
+		eeh_pe_for_each_dev(pe, edev, tmp) {
+			if (!eeh_edev_actionable(edev))
+				continue;
+
+			if (!eeh_pcid_get(edev->pdev))
+				continue;
+
+			if (enable)
+				eeh_enable_irq(edev);
+			else
+				eeh_disable_irq(edev);
+
+			eeh_pcid_put(edev->pdev);
+		}
+	}
+}
+
 /**
  * eeh_report_error - Report pci error to each device driver
  * @data: eeh device
@@ -238,8 +257,6 @@ static void *eeh_report_error(struct eeh_dev *edev, void *userdata)
 
 	driver = eeh_pcid_get(dev);
 	if (!driver) goto out_no_dev;
-
-	eeh_disable_irq(dev);
 
 	if (!driver->err_handler ||
 	    !driver->err_handler->error_detected)
@@ -321,8 +338,6 @@ static void *eeh_report_reset(struct eeh_dev *edev, void *userdata)
 	driver = eeh_pcid_get(dev);
 	if (!driver) goto out_no_dev;
 
-	eeh_enable_irq(dev);
-
 	if (!driver->err_handler ||
 	    !driver->err_handler->slot_reset ||
 	    (edev->mode & EEH_DEV_NO_HANDLER) ||
@@ -392,7 +407,6 @@ static void *eeh_report_resume(struct eeh_dev *edev, void *userdata)
 
 	was_in_error = edev->in_error;
 	edev->in_error = false;
-	eeh_enable_irq(dev);
 
 	if (!driver->err_handler ||
 	    !driver->err_handler->resume ||
@@ -436,8 +450,6 @@ static void *eeh_report_failure(struct eeh_dev *edev, void *userdata)
 
 	driver = eeh_pcid_get(dev);
 	if (!driver) goto out_no_dev;
-
-	eeh_disable_irq(dev);
 
 	if (!driver->err_handler ||
 	    !driver->err_handler->error_detected)
@@ -810,6 +822,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 	 */
 	pr_info("EEH: Notify device drivers to shutdown\n");
 	eeh_set_channel_state(pe, pci_channel_io_frozen);
+	eeh_set_irq_state(pe, false);
 	eeh_pe_dev_traverse(pe, eeh_report_error, &result);
 	if ((pe->type & EEH_PE_PHB) &&
 	    result != PCI_ERS_RESULT_NONE &&
@@ -901,6 +914,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 			"the completion of reset\n");
 		result = PCI_ERS_RESULT_NONE;
 		eeh_set_channel_state(pe, pci_channel_io_normal);
+		eeh_set_irq_state(pe, true);
 		eeh_pe_dev_traverse(pe, eeh_report_reset, &result);
 	}
 
@@ -923,6 +937,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 	/* Tell all device drivers that they can resume operations */
 	pr_info("EEH: Notify device driver to resume\n");
 	eeh_set_channel_state(pe, pci_channel_io_normal);
+	eeh_set_irq_state(pe, true);
 	eeh_pe_dev_traverse(pe, eeh_report_resume, NULL);
 
 	pr_info("EEH: Recovery successful.\n");
@@ -942,6 +957,7 @@ hard_fail:
 
 	/* Notify all devices that they're about to go down. */
 	eeh_set_channel_state(pe, pci_channel_io_perm_failure);
+	eeh_set_irq_state(pe, false);
 	eeh_pe_dev_traverse(pe, eeh_report_failure, NULL);
 
 	/* Mark the PE to be removed permanently */
