@@ -470,6 +470,10 @@ static int icl_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 		WA_SET_BIT_MASKED(GEN7_ROW_CHICKEN2,
 				  GEN11_TDL_CLOCK_GATING_FIX_DISABLE);
 
+	/* WaEnableStateCacheRedirectToCS:icl */
+	WA_SET_BIT_MASKED(GEN9_SLICE_COMMON_ECO_CHICKEN1,
+			  GEN11_STATE_CACHE_REDIRECT_TO_CS);
+
 	return 0;
 }
 
