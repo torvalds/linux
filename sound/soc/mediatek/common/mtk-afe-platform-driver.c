@@ -126,12 +126,12 @@ POINTER_RETURN_FRAMES:
 	return bytes_to_frames(substream->runtime, pcm_ptr_bytes);
 }
 
-static const struct snd_pcm_ops mtk_afe_pcm_ops = {
+const struct snd_pcm_ops mtk_afe_pcm_ops = {
 	.ioctl = snd_pcm_lib_ioctl,
 	.pointer = mtk_afe_pcm_pointer,
 };
 
-static int mtk_afe_pcm_new(struct snd_soc_pcm_runtime *rtd)
+int mtk_afe_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	size_t size;
 	struct snd_pcm *pcm = rtd->pcm;
@@ -144,7 +144,7 @@ static int mtk_afe_pcm_new(struct snd_soc_pcm_runtime *rtd)
 						     size, size);
 }
 
-static void mtk_afe_pcm_free(struct snd_pcm *pcm)
+void mtk_afe_pcm_free(struct snd_pcm *pcm)
 {
 	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
