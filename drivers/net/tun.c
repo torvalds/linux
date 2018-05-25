@@ -70,6 +70,7 @@
 #include <net/netns/generic.h>
 #include <net/rtnetlink.h>
 #include <net/sock.h>
+#include <net/xdp.h>
 #include <linux/seq_file.h>
 #include <linux/uio.h>
 #include <linux/skb_array.h>
@@ -1290,34 +1291,44 @@ static const struct net_device_ops tun_netdev_ops = {
 	.ndo_get_stats64	= tun_net_get_stats64,
 };
 
-static int tun_xdp_xmit(struct net_device *dev, struct xdp_frame *frame)
+static int tun_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames)
 {
 	struct tun_struct *tun = netdev_priv(dev);
 	struct tun_file *tfile;
 	u32 numqueues;
-	int ret = 0;
+	int drops = 0;
+	int cnt = n;
+	int i;
 
 	rcu_read_lock();
 
 	numqueues = READ_ONCE(tun->numqueues);
 	if (!numqueues) {
-		ret = -ENOSPC;
-		goto out;
+		rcu_read_unlock();
+		return -ENXIO; /* Caller will free/return all frames */
 	}
 
 	tfile = rcu_dereference(tun->tfiles[smp_processor_id() %
 					    numqueues]);
-	/* Encode the XDP flag into lowest bit for consumer to differ
-	 * XDP buffer from sk_buff.
-	 */
-	if (ptr_ring_produce(&tfile->tx_ring, tun_xdp_to_ptr(frame))) {
-		this_cpu_inc(tun->pcpu_stats->tx_dropped);
-		ret = -ENOSPC;
-	}
 
-out:
+	spin_lock(&tfile->tx_ring.producer_lock);
+	for (i = 0; i < n; i++) {
+		struct xdp_frame *xdp = frames[i];
+		/* Encode the XDP flag into lowest bit for consumer to differ
+		 * XDP buffer from sk_buff.
+		 */
+		void *frame = tun_xdp_to_ptr(xdp);
+
+		if (__ptr_ring_produce(&tfile->tx_ring, frame)) {
+			this_cpu_inc(tun->pcpu_stats->tx_dropped);
+			xdp_return_frame_rx_napi(xdp);
+			drops++;
+		}
+	}
+	spin_unlock(&tfile->tx_ring.producer_lock);
+
 	rcu_read_unlock();
-	return ret;
+	return cnt - drops;
 }
 
 static int tun_xdp_tx(struct net_device *dev, struct xdp_buff *xdp)
@@ -1327,7 +1338,7 @@ static int tun_xdp_tx(struct net_device *dev, struct xdp_buff *xdp)
 	if (unlikely(!frame))
 		return -EOVERFLOW;
 
-	return tun_xdp_xmit(dev, frame);
+	return tun_xdp_xmit(dev, 1, &frame);
 }
 
 static void tun_xdp_flush(struct net_device *dev)

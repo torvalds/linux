@@ -578,7 +578,7 @@ static int bq_flush_to_queue(struct bpf_cpu_map_entry *rcpu,
 		err = __ptr_ring_produce(q, xdpf);
 		if (err) {
 			drops++;
-			xdp_return_frame(xdpf);
+			xdp_return_frame_rx_napi(xdpf);
 		}
 		processed++;
 	}

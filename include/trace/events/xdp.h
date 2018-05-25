@@ -138,11 +138,18 @@ DEFINE_EVENT_PRINT(xdp_redirect_template, xdp_redirect_map_err,
 		  __entry->map_id, __entry->map_index)
 );
 
+#ifndef __DEVMAP_OBJ_TYPE
+#define __DEVMAP_OBJ_TYPE
+struct _bpf_dtab_netdev {
+	struct net_device *dev;
+};
+#endif /* __DEVMAP_OBJ_TYPE */
+
 #define devmap_ifindex(fwd, map)				\
 	(!fwd ? 0 :						\
 	 (!map ? 0 :						\
 	  ((map->map_type == BPF_MAP_TYPE_DEVMAP) ?		\
-	   ((struct net_device *)fwd)->ifindex : 0)))
+	   ((struct _bpf_dtab_netdev *)fwd)->dev->ifindex : 0)))
 
 #define _trace_xdp_redirect_map(dev, xdp, fwd, map, idx)		\
 	 trace_xdp_redirect_map(dev, xdp, devmap_ifindex(fwd, map),	\
@@ -220,6 +227,47 @@ TRACE_EVENT(xdp_cpumap_enqueue,
 		  __print_symbolic(__entry->act, __XDP_ACT_SYM_TAB),
 		  __entry->processed, __entry->drops,
 		  __entry->to_cpu)
+);
+
+TRACE_EVENT(xdp_devmap_xmit,
+
+	TP_PROTO(const struct bpf_map *map, u32 map_index,
+		 int sent, int drops,
+		 const struct net_device *from_dev,
+		 const struct net_device *to_dev, int err),
+
+	TP_ARGS(map, map_index, sent, drops, from_dev, to_dev, err),
+
+	TP_STRUCT__entry(
+		__field(int, map_id)
+		__field(u32, act)
+		__field(u32, map_index)
+		__field(int, drops)
+		__field(int, sent)
+		__field(int, from_ifindex)
+		__field(int, to_ifindex)
+		__field(int, err)
+	),
+
+	TP_fast_assign(
+		__entry->map_id		= map->id;
+		__entry->act		= XDP_REDIRECT;
+		__entry->map_index	= map_index;
+		__entry->drops		= drops;
+		__entry->sent		= sent;
+		__entry->from_ifindex	= from_dev->ifindex;
+		__entry->to_ifindex	= to_dev->ifindex;
+		__entry->err		= err;
+	),
+
+	TP_printk("ndo_xdp_xmit"
+		  " map_id=%d map_index=%d action=%s"
+		  " sent=%d drops=%d"
+		  " from_ifindex=%d to_ifindex=%d err=%d",
+		  __entry->map_id, __entry->map_index,
+		  __print_symbolic(__entry->act, __XDP_ACT_SYM_TAB),
+		  __entry->sent, __entry->drops,
+		  __entry->from_ifindex, __entry->to_ifindex, __entry->err)
 );
 
 #endif /* _TRACE_XDP_H */
