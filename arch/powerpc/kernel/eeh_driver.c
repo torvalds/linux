@@ -411,7 +411,6 @@ static void *eeh_report_resume(struct eeh_dev *edev, void *userdata)
 	if (!driver->err_handler ||
 	    !driver->err_handler->resume ||
 	    (edev->mode & EEH_DEV_NO_HANDLER) || !was_in_error) {
-		edev->mode &= ~EEH_DEV_NO_HANDLER;
 		goto out;
 	}
 
@@ -786,6 +785,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 {
 	struct pci_bus *bus;
 	struct eeh_dev *edev, *tmp;
+	struct eeh_pe *tmp_pe;
 	int rc = 0;
 	enum pci_ers_result result = PCI_ERS_RESULT_NONE;
 	struct eeh_rmv_data rmv_data = {LIST_HEAD_INIT(rmv_data.edev_list), 0};
@@ -939,6 +939,10 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 	eeh_set_channel_state(pe, pci_channel_io_normal);
 	eeh_set_irq_state(pe, true);
 	eeh_pe_dev_traverse(pe, eeh_report_resume, NULL);
+
+	eeh_for_each_pe(pe, tmp_pe)
+		eeh_pe_for_each_dev(tmp_pe, edev, tmp)
+			edev->mode &= ~EEH_DEV_NO_HANDLER;
 
 	pr_info("EEH: Recovery successful.\n");
 	goto final;
