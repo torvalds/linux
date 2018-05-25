@@ -49,6 +49,21 @@
 		status = "okay";
 	};
 
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		/* Use external clock power by VCC_RTC */
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_pwr>;
+
+		/*
+		 * On the module itself this is one of these (depending
+		 * on the actual card populated):
+		 * - SDIO_RESET_L_WL_REG_ON
+		 * - PDN (power down when low)
+		 */
+		reset-gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
+	};
+
 	usb_control {
 		compatible = "rockchip,rk3126-usb-control";
 
@@ -111,29 +126,26 @@
 
 	wireless-bluetooth {
 		compatible = "bluetooth-platdata";
-		//wifi-bt-power-toggle;
+
 		keep_bt_power_on;
-		//uart_rts_gpios = <&gpio2 GPIO_D3 GPIO_ACTIVE_LOW>;
-		//pinctrl-names = "default","rts_gpio";
-		//pinctrl-0 = <&uart0_rts>;
-		//pinctrl-1 = <&uart0_rts_gpio>;
+
 		BT,power_gpio = <&gpio3 21 GPIO_ACTIVE_HIGH>;
-		//BT,reset_gpio = <&gpio3 GPIO_A2 GPIO_ACTIVE_HIGH>;
 		BT,wake_gpio = <&gpio3 26 GPIO_ACTIVE_HIGH>;
 		BT,wake_host_irq = <&gpio3 22 GPIO_ACTIVE_HIGH>;
-		status = "okay";
+		/* TODO: disabled because it doesn't work */
+		status = "disabled";
 	};
 
 	wireless-wlan {
 		compatible = "wlan-platdata";
 
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_en>;
+
 		wifi_chip_type = "rtl8723ds";
 		sdio_vref = <1800>; /*1800mv or 3300mv*/
-		/* WIFI_HOST_WAKE = GPIO3_C7 */
 		WIFI,host_wake_irq = <&gpio3 23 GPIO_ACTIVE_HIGH>;
-		/* WIFI_REG_ON  = GPIO3_D3 */
-		WIFI,poweren_gpio  = <&gpio3 27 GPIO_ACTIVE_HIGH>;
-		WIFI,vbat_gpio  = <&gpio1 3 GPIO_ACTIVE_HIGH>;
+		/* WIFI power controller by sdio pwrseq */
 
 		status = "okay";
 	};
@@ -398,13 +410,15 @@
 };
 
 &sdio {
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
 	cap-sdio-irq;
 	clock-frequency = <37500000>;
 	clock-freq-min-max = <200000 37500000>;
 	ignore-pm-notify;
 	keep-power-in-suspend;
+	mmc-pwrseq = <&sdio_pwrseq>;
 	non-removable;
-	supports-highspeed;
 	supports-sdio;
 
 	status = "okay";
@@ -480,6 +494,15 @@
 	lcdc {
 		lcdc_pwr_en: lcdc-pwr-en {
 			rockchip,pins = <1 12 RK_FUNC_GPIO &pcfg_pull_default>;
+		};
+	};
+
+	wifi {
+		wifi_en: wifi-en {
+			rockchip,pins = <3 27 RK_FUNC_GPIO &pcfg_output_high>;
+		};
+		wifi_pwr: wifi-pwr {
+			rockchip,pins = <1 3 RK_FUNC_GPIO &pcfg_pull_default>;
 		};
 	};
 };
