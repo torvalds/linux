@@ -19069,9 +19069,22 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 	struct lpfc_sglq *sglq;
 	union lpfc_wqe128 wqe;
 	uint32_t txq_cnt = 0;
+	struct lpfc_queue *wq;
 
-	pring = lpfc_phba_elsring(phba);
-	if (unlikely(!pring))
+	if (phba->link_flag & LS_MDS_LOOPBACK) {
+		/* MDS WQE are posted only to first WQ*/
+		wq = phba->sli4_hba.fcp_wq[0];
+		if (unlikely(!wq))
+			return 0;
+		pring = wq->pring;
+	} else {
+		wq = phba->sli4_hba.els_wq;
+		if (unlikely(!wq))
+			return 0;
+		pring = lpfc_phba_elsring(phba);
+	}
+
+	if (unlikely(!pring) || list_empty(&pring->txq))
 		return 0;
 
 	spin_lock_irqsave(&pring->ring_lock, iflags);
@@ -19112,7 +19125,7 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 			fail_msg = "to convert bpl to sgl";
 		else if (lpfc_sli4_iocb2wqe(phba, piocbq, &wqe))
 			fail_msg = "to convert iocb to wqe";
-		else if (lpfc_sli4_wq_put(phba->sli4_hba.els_wq, &wqe))
+		else if (lpfc_sli4_wq_put(wq, &wqe))
 			fail_msg = " - Wq is full";
 		else
 			lpfc_sli_ringtxcmpl_put(phba, pring, piocbq);
