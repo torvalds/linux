@@ -13,6 +13,84 @@
 #include "mtk-afe-platform-driver.h"
 #include "mtk-base-afe.h"
 
+int mtk_afe_combine_sub_dai(struct mtk_base_afe *afe)
+{
+	struct snd_soc_dai_driver *sub_dai_drivers;
+	size_t num_dai_drivers = 0, dai_idx = 0;
+	int i;
+
+	if (!afe->sub_dais) {
+		dev_err(afe->dev, "%s(), sub_dais == NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	/* calcualte total dai driver size */
+	for (i = 0; i < afe->num_sub_dais; i++) {
+		if (afe->sub_dais[i].dai_drivers &&
+		    afe->sub_dais[i].num_dai_drivers != 0)
+			num_dai_drivers += afe->sub_dais[i].num_dai_drivers;
+	}
+
+	dev_info(afe->dev, "%s(), num of dai %zd\n", __func__, num_dai_drivers);
+
+	/* combine sub_dais */
+	afe->num_dai_drivers = num_dai_drivers;
+	afe->dai_drivers = devm_kcalloc(afe->dev,
+					num_dai_drivers,
+					sizeof(struct snd_soc_dai_driver),
+					GFP_KERNEL);
+	if (!afe->dai_drivers)
+		return -ENOMEM;
+
+	for (i = 0; i < afe->num_sub_dais; i++) {
+		if (afe->sub_dais[i].dai_drivers &&
+		    afe->sub_dais[i].num_dai_drivers != 0) {
+			sub_dai_drivers = afe->sub_dais[i].dai_drivers;
+			/* dai driver */
+			memcpy(&afe->dai_drivers[dai_idx],
+			       sub_dai_drivers,
+			       afe->sub_dais[i].num_dai_drivers *
+			       sizeof(struct snd_soc_dai_driver));
+			dai_idx += afe->sub_dais[i].num_dai_drivers;
+		}
+	}
+
+	return 0;
+}
+
+int mtk_afe_add_sub_dai_control(struct snd_soc_component *component)
+{
+	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
+	int i;
+
+	if (!afe->sub_dais) {
+		dev_err(afe->dev, "%s(), sub_dais == NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < afe->num_sub_dais; i++) {
+		if (afe->sub_dais[i].controls)
+			snd_soc_add_component_controls(component,
+				afe->sub_dais[i].controls,
+				afe->sub_dais[i].num_controls);
+
+		if (afe->sub_dais[i].dapm_widgets)
+			snd_soc_dapm_new_controls(&component->dapm,
+				afe->sub_dais[i].dapm_widgets,
+				afe->sub_dais[i].num_dapm_widgets);
+
+		if (afe->sub_dais[i].dapm_routes)
+			snd_soc_dapm_add_routes(&component->dapm,
+				afe->sub_dais[i].dapm_routes,
+				afe->sub_dais[i].num_dapm_routes);
+	}
+
+	snd_soc_dapm_new_widgets(component->dapm.card);
+
+	return 0;
+
+}
+
 static snd_pcm_uframes_t mtk_afe_pcm_pointer
 			 (struct snd_pcm_substream *substream)
 {
