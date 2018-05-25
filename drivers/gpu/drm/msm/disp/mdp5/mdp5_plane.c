@@ -1043,8 +1043,6 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 				     src_img_w, src_img_h,
 				     src_x + src_w, src_y, src_w, src_h);
 
-	plane->fb = fb;
-
 	return ret;
 }
 
