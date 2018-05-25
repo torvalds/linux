@@ -1990,6 +1990,11 @@ enum i915_power_well_id {
 						   _ICL_PORT_COMP_DW10_A, \
 						   _ICL_PORT_COMP_DW10_B)
 
+/* ICL PHY DFLEX registers */
+#define PORT_TX_DFLEXDPMLE1		_MMIO(0x1638C0)
+#define   DFLEXDPMLE1_DPMLETC_MASK(n)	(0xf << (4 * (n)))
+#define   DFLEXDPMLE1_DPMLETC(n, x)	((x) << (4 * (n)))
+
 /* BXT PHY Ref registers */
 #define _PORT_REF_DW3_A			0x16218C
 #define _PORT_REF_DW3_BC		0x6C18C
