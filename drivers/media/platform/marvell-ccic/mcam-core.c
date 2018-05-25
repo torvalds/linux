@@ -1720,6 +1720,7 @@ int mccic_irq(struct mcam_camera *cam, unsigned int irqs)
 	}
 	return handled;
 }
+EXPORT_SYMBOL_GPL(mccic_irq);
 
 /* ---------------------------------------------------------------------- */
 /*
@@ -1830,7 +1831,7 @@ out_unregister:
 	v4l2_device_unregister(&cam->v4l2_dev);
 	return ret;
 }
-
+EXPORT_SYMBOL_GPL(mccic_register);
 
 void mccic_shutdown(struct mcam_camera *cam)
 {
@@ -1850,6 +1851,7 @@ void mccic_shutdown(struct mcam_camera *cam)
 	v4l2_ctrl_handler_free(&cam->ctrl_handler);
 	v4l2_device_unregister(&cam->v4l2_dev);
 }
+EXPORT_SYMBOL_GPL(mccic_shutdown);
 
 /*
  * Power management
@@ -1868,6 +1870,7 @@ void mccic_suspend(struct mcam_camera *cam)
 	}
 	mutex_unlock(&cam->s_mutex);
 }
+EXPORT_SYMBOL_GPL(mccic_suspend);
 
 int mccic_resume(struct mcam_camera *cam)
 {
@@ -1898,4 +1901,8 @@ int mccic_resume(struct mcam_camera *cam)
 	}
 	return ret;
 }
+EXPORT_SYMBOL_GPL(mccic_resume);
 #endif /* CONFIG_PM */
+
+MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR("Jonathan Corbet <corbet@lwn.net>");
