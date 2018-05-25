@@ -2085,9 +2085,8 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 
 	prefetch(desc);
 
-	length = le16_to_cpu(desc->rx.pkt_len);
+	length = le16_to_cpu(desc->rx.size);
 	bd_base_info = le32_to_cpu(desc->rx.bd_base_info);
-	l234info = le32_to_cpu(desc->rx.l234_info);
 
 	/* Check valid BD */
 	if (!hnae_get_bit(bd_base_info, HNS3_RXD_VLD_B))
@@ -2120,22 +2119,6 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 	}
 
 	prefetchw(skb->data);
-
-	/* Based on hw strategy, the tag offloaded will be stored at
-	 * ot_vlan_tag in two layer tag case, and stored at vlan_tag
-	 * in one layer tag case.
-	 */
-	if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX) {
-		u16 vlan_tag;
-
-		vlan_tag = le16_to_cpu(desc->rx.ot_vlan_tag);
-		if (!(vlan_tag & VLAN_VID_MASK))
-			vlan_tag = le16_to_cpu(desc->rx.vlan_tag);
-		if (vlan_tag & VLAN_VID_MASK)
-			__vlan_hwaccel_put_tag(skb,
-					       htons(ETH_P_8021Q),
-					       vlan_tag);
-	}
 
 	bnum = 1;
 	if (length <= HNS3_RX_HEAD_SIZE) {
@@ -2172,6 +2155,23 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 	}
 
 	*out_bnum = bnum;
+	/* Based on hw strategy, the tag offloaded will be stored at
+	 * ot_vlan_tag in two layer tag case, and stored at vlan_tag
+	 * in one layer tag case.
+	 */
+	if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX) {
+		u16 vlan_tag;
+
+		vlan_tag = le16_to_cpu(desc->rx.ot_vlan_tag);
+		if (!(vlan_tag & VLAN_VID_MASK))
+			vlan_tag = le16_to_cpu(desc->rx.vlan_tag);
+		if (vlan_tag & VLAN_VID_MASK)
+			__vlan_hwaccel_put_tag(skb,
+					       htons(ETH_P_8021Q),
+					       vlan_tag);
+	}
+
+	l234info = le32_to_cpu(desc->rx.l234_info);
 
 	if (unlikely(!hnae_get_bit(bd_base_info, HNS3_RXD_VLD_B))) {
 		netdev_err(netdev, "no valid bd,%016llx,%016llx\n",
