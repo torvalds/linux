@@ -205,7 +205,7 @@
 		reg-names = "ramoops_mem";
 	};
 
-	ramoops {
+	ramoops: ramoops {
 		compatible = "ramoops";
 		record-size = <0x0 0x30000>;
 		console-size = <0x0 0xc0000>;
