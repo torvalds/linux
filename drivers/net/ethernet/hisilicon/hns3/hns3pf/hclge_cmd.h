@@ -817,21 +817,13 @@ struct hclge_reset_cmd {
 #define HCLGE_NIC_CMQ_DESC_NUM		1024
 #define HCLGE_NIC_CMQ_DESC_NUM_S	3
 
-#define HCLGE_LED_PORT_SPEED_STATE_S	0
-#define HCLGE_LED_PORT_SPEED_STATE_M	GENMASK(5, 0)
-#define HCLGE_LED_ACTIVITY_STATE_S	0
-#define HCLGE_LED_ACTIVITY_STATE_M	GENMASK(1, 0)
-#define HCLGE_LED_LINK_STATE_S		0
-#define HCLGE_LED_LINK_STATE_M		GENMASK(1, 0)
 #define HCLGE_LED_LOCATE_STATE_S	0
 #define HCLGE_LED_LOCATE_STATE_M	GENMASK(1, 0)
 
 struct hclge_set_led_state_cmd {
-	u8 port_speed_led_config;
-	u8 link_led_config;
-	u8 activity_led_config;
+	u8 rsv1[3];
 	u8 locate_led_config;
-	u8 rsv[20];
+	u8 rsv2[20];
 };
 
 int hclge_cmd_init(struct hclge_dev *hdev);
