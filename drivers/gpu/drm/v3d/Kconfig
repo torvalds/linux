@@ -3,6 +3,7 @@ config DRM_V3D
 	depends on ARCH_BCM || ARCH_BCMSTB || COMPILE_TEST
 	depends on DRM
 	depends on COMMON_CLK
+	depends on MMU
 	select DRM_SCHED
 	help
 	  Choose this option if you have a system that has a Broadcom
