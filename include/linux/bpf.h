@@ -69,8 +69,8 @@ struct bpf_map {
 	u32 pages;
 	u32 id;
 	int numa_node;
-	u32 btf_key_id;
-	u32 btf_value_id;
+	u32 btf_key_type_id;
+	u32 btf_value_type_id;
 	struct btf *btf;
 	bool unpriv_array;
 	/* 55 bytes hole */
@@ -463,6 +463,8 @@ int bpf_fd_htab_map_update_elem(struct bpf_map *map, struct file *map_file,
 int bpf_fd_htab_map_lookup_elem(struct bpf_map *map, void *key, u32 *value);
 
 int bpf_get_file_flag(int flags);
+int bpf_check_uarg_tail_zero(void __user *uaddr, size_t expected_size,
+			     size_t actual_size);
 
 /* memcpy that is used with 8-byte aligned pointers, power-of-8 size and
  * forced to use 'long' read/writes to try to atomically copy long counters.
@@ -485,14 +487,17 @@ int bpf_check(struct bpf_prog **fp, union bpf_attr *attr);
 void bpf_patch_call_args(struct bpf_insn *insn, u32 stack_depth);
 
 /* Map specifics */
-struct net_device  *__dev_map_lookup_elem(struct bpf_map *map, u32 key);
+struct xdp_buff;
+
+struct bpf_dtab_netdev *__dev_map_lookup_elem(struct bpf_map *map, u32 key);
 void __dev_map_insert_ctx(struct bpf_map *map, u32 index);
 void __dev_map_flush(struct bpf_map *map);
+int dev_map_enqueue(struct bpf_dtab_netdev *dst, struct xdp_buff *xdp,
+		    struct net_device *dev_rx);
 
 struct bpf_cpu_map_entry *__cpu_map_lookup_elem(struct bpf_map *map, u32 key);
 void __cpu_map_insert_ctx(struct bpf_map *map, u32 index);
 void __cpu_map_flush(struct bpf_map *map);
-struct xdp_buff;
 int cpu_map_enqueue(struct bpf_cpu_map_entry *rcpu, struct xdp_buff *xdp,
 		    struct net_device *dev_rx);
 
@@ -571,6 +576,16 @@ static inline void __dev_map_flush(struct bpf_map *map)
 {
 }
 
+struct xdp_buff;
+struct bpf_dtab_netdev;
+
+static inline
+int dev_map_enqueue(struct bpf_dtab_netdev *dst, struct xdp_buff *xdp,
+		    struct net_device *dev_rx)
+{
+	return 0;
+}
+
 static inline
 struct bpf_cpu_map_entry *__cpu_map_lookup_elem(struct bpf_map *map, u32 key)
 {
@@ -585,7 +600,6 @@ static inline void __cpu_map_flush(struct bpf_map *map)
 {
 }
 
-struct xdp_buff;
 static inline int cpu_map_enqueue(struct bpf_cpu_map_entry *rcpu,
 				  struct xdp_buff *xdp,
 				  struct net_device *dev_rx)

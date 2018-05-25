@@ -216,8 +216,8 @@ struct bpf_map {
 	size_t offset;
 	int map_ifindex;
 	struct bpf_map_def def;
-	uint32_t btf_key_id;
-	uint32_t btf_value_id;
+	uint32_t btf_key_type_id;
+	uint32_t btf_value_type_id;
 	void *priv;
 	bpf_map_clear_priv_t clear_priv;
 };
@@ -1042,8 +1042,8 @@ static int bpf_map_find_btf_info(struct bpf_map *map, const struct btf *btf)
 	}
 
 	if (def->key_size != key_size) {
-		pr_warning("map:%s key_type:%s has BTF type_size:%ld != key_size:%u\n",
-			   map->name, name, key_size, def->key_size);
+		pr_warning("map:%s key_type:%s has BTF type_size:%u != key_size:%u\n",
+			   map->name, name, (unsigned int)key_size, def->key_size);
 		return -EINVAL;
 	}
 
@@ -1069,13 +1069,13 @@ static int bpf_map_find_btf_info(struct bpf_map *map, const struct btf *btf)
 	}
 
 	if (def->value_size != value_size) {
-		pr_warning("map:%s value_type:%s has BTF type_size:%ld != value_size:%u\n",
-			   map->name, name, value_size, def->value_size);
+		pr_warning("map:%s value_type:%s has BTF type_size:%u != value_size:%u\n",
+			   map->name, name, (unsigned int)value_size, def->value_size);
 		return -EINVAL;
 	}
 
-	map->btf_key_id = key_id;
-	map->btf_value_id = value_id;
+	map->btf_key_type_id = key_id;
+	map->btf_value_type_id = value_id;
 
 	return 0;
 }
@@ -1100,24 +1100,24 @@ bpf_object__create_maps(struct bpf_object *obj)
 		create_attr.value_size = def->value_size;
 		create_attr.max_entries = def->max_entries;
 		create_attr.btf_fd = 0;
-		create_attr.btf_key_id = 0;
-		create_attr.btf_value_id = 0;
+		create_attr.btf_key_type_id = 0;
+		create_attr.btf_value_type_id = 0;
 
 		if (obj->btf && !bpf_map_find_btf_info(map, obj->btf)) {
 			create_attr.btf_fd = btf__fd(obj->btf);
-			create_attr.btf_key_id = map->btf_key_id;
-			create_attr.btf_value_id = map->btf_value_id;
+			create_attr.btf_key_type_id = map->btf_key_type_id;
+			create_attr.btf_value_type_id = map->btf_value_type_id;
 		}
 
 		*pfd = bpf_create_map_xattr(&create_attr);
-		if (*pfd < 0 && create_attr.btf_key_id) {
+		if (*pfd < 0 && create_attr.btf_key_type_id) {
 			pr_warning("Error in bpf_create_map_xattr(%s):%s(%d). Retrying without BTF.\n",
 				   map->name, strerror(errno), errno);
 			create_attr.btf_fd = 0;
-			create_attr.btf_key_id = 0;
-			create_attr.btf_value_id = 0;
-			map->btf_key_id = 0;
-			map->btf_value_id = 0;
+			create_attr.btf_key_type_id = 0;
+			create_attr.btf_value_type_id = 0;
+			map->btf_key_type_id = 0;
+			map->btf_value_type_id = 0;
 			*pfd = bpf_create_map_xattr(&create_attr);
 		}
 
@@ -1456,6 +1456,7 @@ static bool bpf_prog_type__needs_kver(enum bpf_prog_type type)
 	case BPF_PROG_TYPE_LWT_IN:
 	case BPF_PROG_TYPE_LWT_OUT:
 	case BPF_PROG_TYPE_LWT_XMIT:
+	case BPF_PROG_TYPE_LWT_SEG6LOCAL:
 	case BPF_PROG_TYPE_SOCK_OPS:
 	case BPF_PROG_TYPE_SK_SKB:
 	case BPF_PROG_TYPE_CGROUP_DEVICE:
@@ -2085,14 +2086,14 @@ const char *bpf_map__name(struct bpf_map *map)
 	return map ? map->name : NULL;
 }
 
-uint32_t bpf_map__btf_key_id(const struct bpf_map *map)
+uint32_t bpf_map__btf_key_type_id(const struct bpf_map *map)
 {
-	return map ? map->btf_key_id : 0;
+	return map ? map->btf_key_type_id : 0;
 }
 
-uint32_t bpf_map__btf_value_id(const struct bpf_map *map)
+uint32_t bpf_map__btf_value_type_id(const struct bpf_map *map)
 {
-	return map ? map->btf_value_id : 0;
+	return map ? map->btf_value_type_id : 0;
 }
 
 int bpf_map__set_priv(struct bpf_map *map, void *priv,

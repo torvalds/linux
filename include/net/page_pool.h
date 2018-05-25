@@ -115,13 +115,14 @@ void page_pool_destroy(struct page_pool *pool);
 void __page_pool_put_page(struct page_pool *pool,
 			  struct page *page, bool allow_direct);
 
-static inline void page_pool_put_page(struct page_pool *pool, struct page *page)
+static inline void page_pool_put_page(struct page_pool *pool,
+				      struct page *page, bool allow_direct)
 {
 	/* When page_pool isn't compiled-in, net/core/xdp.c doesn't
 	 * allow registering MEM_TYPE_PAGE_POOL, but shield linker.
 	 */
 #ifdef CONFIG_PAGE_POOL
-	__page_pool_put_page(pool, page, false);
+	__page_pool_put_page(pool, page, allow_direct);
 #endif
 }
 /* Very limited use-cases allow recycle direct */

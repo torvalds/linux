@@ -72,8 +72,21 @@
 #define OP_BR_ADDR_LO		0x007ffc00000ULL
 #define OP_BR_ADDR_HI		0x10000000000ULL
 
-#define nfp_is_br(_insn)				\
-	(((_insn) & OP_BR_BASE_MASK) == OP_BR_BASE)
+#define OP_BR_BIT_BASE		0x0d000000000ULL
+#define OP_BR_BIT_BASE_MASK	0x0f800080300ULL
+#define OP_BR_BIT_A_SRC		0x000000000ffULL
+#define OP_BR_BIT_B_SRC		0x0000003fc00ULL
+#define OP_BR_BIT_BV		0x00000040000ULL
+#define OP_BR_BIT_SRC_LMEXTN	0x40000000000ULL
+#define OP_BR_BIT_DEFBR		OP_BR_DEFBR
+#define OP_BR_BIT_ADDR_LO	OP_BR_ADDR_LO
+#define OP_BR_BIT_ADDR_HI	OP_BR_ADDR_HI
+
+static inline bool nfp_is_br(u64 insn)
+{
+	return (insn & OP_BR_BASE_MASK) == OP_BR_BASE ||
+	       (insn & OP_BR_BIT_BASE_MASK) == OP_BR_BIT_BASE;
+}
 
 enum br_mask {
 	BR_BEQ = 0x00,
@@ -161,6 +174,7 @@ enum shf_op {
 	SHF_OP_NONE = 0,
 	SHF_OP_AND = 2,
 	SHF_OP_OR = 5,
+	SHF_OP_ASHR = 6,
 };
 
 enum shf_sc {

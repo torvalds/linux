@@ -51,6 +51,7 @@ hostprogs-y += cpustat
 hostprogs-y += xdp_adjust_tail
 hostprogs-y += xdpsock
 hostprogs-y += xdp_fwd
+hostprogs-y += task_fd_query
 
 # Libbpf dependencies
 LIBBPF = $(TOOLS_PATH)/lib/bpf/libbpf.a
@@ -105,6 +106,7 @@ cpustat-objs := bpf_load.o cpustat_user.o
 xdp_adjust_tail-objs := xdp_adjust_tail_user.o
 xdpsock-objs := bpf_load.o xdpsock_user.o
 xdp_fwd-objs := bpf_load.o xdp_fwd_user.o
+task_fd_query-objs := bpf_load.o task_fd_query_user.o $(TRACE_HELPERS)
 
 # Tell kbuild to always build the programs
 always := $(hostprogs-y)
@@ -160,6 +162,7 @@ always += cpustat_kern.o
 always += xdp_adjust_tail_kern.o
 always += xdpsock_kern.o
 always += xdp_fwd_kern.o
+always += task_fd_query_kern.o
 
 HOSTCFLAGS += -I$(objtree)/usr/include
 HOSTCFLAGS += -I$(srctree)/tools/lib/
@@ -175,6 +178,7 @@ HOSTCFLAGS_offwaketime_user.o += -I$(srctree)/tools/lib/bpf/
 HOSTCFLAGS_spintest_user.o += -I$(srctree)/tools/lib/bpf/
 HOSTCFLAGS_trace_event_user.o += -I$(srctree)/tools/lib/bpf/
 HOSTCFLAGS_sampleip_user.o += -I$(srctree)/tools/lib/bpf/
+HOSTCFLAGS_task_fd_query_user.o += -I$(srctree)/tools/lib/bpf/
 
 HOST_LOADLIBES		+= $(LIBBPF) -lelf
 HOSTLOADLIBES_tracex4		+= -lrt

@@ -263,6 +263,8 @@ struct nfp_bpf_reg_state {
  * @func_id: function id for call instructions
  * @arg1: arg1 for call instructions
  * @arg2: arg2 for call instructions
+ * @umin: copy of core verifier umin_value.
+ * @umax: copy of core verifier umax_value.
  * @off: index of first generated machine instruction (in nfp_prog.prog)
  * @n: eBPF instruction number
  * @flags: eBPF instruction extra optimization flags
@@ -297,6 +299,13 @@ struct nfp_insn_meta {
 			u32 func_id;
 			struct bpf_reg_state arg1;
 			struct nfp_bpf_reg_state arg2;
+		};
+		/* We are interested in range info for some operands,
+		 * for example, the shift amount.
+		 */
+		struct {
+			u64 umin;
+			u64 umax;
 		};
 	};
 	unsigned int off;
@@ -373,6 +382,25 @@ static inline bool is_mbpf_classic_store_pkt(const struct nfp_insn_meta *meta)
 static inline bool is_mbpf_xadd(const struct nfp_insn_meta *meta)
 {
 	return (meta->insn.code & ~BPF_SIZE_MASK) == (BPF_STX | BPF_XADD);
+}
+
+static inline bool is_mbpf_indir_shift(const struct nfp_insn_meta *meta)
+{
+	u8 code = meta->insn.code;
+	bool is_alu, is_shift;
+	u8 opclass, opcode;
+
+	opclass = BPF_CLASS(code);
+	is_alu = opclass == BPF_ALU64 || opclass == BPF_ALU;
+	if (!is_alu)
+		return false;
+
+	opcode = BPF_OP(code);
+	is_shift = opcode == BPF_LSH || opcode == BPF_RSH || opcode == BPF_ARSH;
+	if (!is_shift)
+		return false;
+
+	return BPF_SRC(code) == BPF_X;
 }
 
 /**

@@ -523,6 +523,7 @@ static unsigned int smap_do_tx_msg(struct sock *sk,
 	}
 
 	bpf_compute_data_pointers_sg(md);
+	md->sk = sk;
 	rc = (*prog->bpf_func)(md, prog->insnsi);
 	psock->apply_bytes = md->apply_bytes;
 
@@ -1713,7 +1714,7 @@ static int __sock_map_ctx_update_elem(struct bpf_map *map,
 	struct smap_psock_map_entry *e = NULL;
 	struct smap_psock *psock;
 	bool new = false;
-	int err;
+	int err = 0;
 
 	/* 1. If sock map has BPF programs those will be inherited by the
 	 * sock being added. If the sock is already attached to BPF programs
@@ -1823,7 +1824,6 @@ static int __sock_map_ctx_update_elem(struct bpf_map *map,
 	write_unlock_bh(&sock->sk_callback_lock);
 	return err;
 out_free:
-	kfree(e);
 	smap_release_sock(psock, sock);
 out_progs:
 	if (parse && verdict) {

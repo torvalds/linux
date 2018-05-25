@@ -95,7 +95,7 @@ class HeaderParser(object):
         return capture.group(1)
 
     def parse_desc(self):
-        p = re.compile(' \* ?(?:\t| {6,8})Description$')
+        p = re.compile(' \* ?(?:\t| {5,8})Description$')
         capture = p.match(self.line)
         if not capture:
             # Helper can have empty description and we might be parsing another
@@ -109,7 +109,7 @@ class HeaderParser(object):
             if self.line == ' *\n':
                 desc += '\n'
             else:
-                p = re.compile(' \* ?(?:\t| {6,8})(?:\t| {8})(.*)')
+                p = re.compile(' \* ?(?:\t| {5,8})(?:\t| {8})(.*)')
                 capture = p.match(self.line)
                 if capture:
                     desc += capture.group(1) + '\n'
@@ -118,7 +118,7 @@ class HeaderParser(object):
         return desc
 
     def parse_ret(self):
-        p = re.compile(' \* ?(?:\t| {6,8})Return$')
+        p = re.compile(' \* ?(?:\t| {5,8})Return$')
         capture = p.match(self.line)
         if not capture:
             # Helper can have empty retval and we might be parsing another
@@ -132,7 +132,7 @@ class HeaderParser(object):
             if self.line == ' *\n':
                 ret += '\n'
             else:
-                p = re.compile(' \* ?(?:\t| {6,8})(?:\t| {8})(.*)')
+                p = re.compile(' \* ?(?:\t| {5,8})(?:\t| {8})(.*)')
                 capture = p.match(self.line)
                 if capture:
                     ret += capture.group(1) + '\n'

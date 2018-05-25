@@ -89,8 +89,8 @@ int bpf_create_map_xattr(const struct bpf_create_map_attr *create_attr)
 	       min(name_len, BPF_OBJ_NAME_LEN - 1));
 	attr.numa_node = create_attr->numa_node;
 	attr.btf_fd = create_attr->btf_fd;
-	attr.btf_key_id = create_attr->btf_key_id;
-	attr.btf_value_id = create_attr->btf_value_id;
+	attr.btf_key_type_id = create_attr->btf_key_type_id;
+	attr.btf_value_type_id = create_attr->btf_value_type_id;
 	attr.map_ifindex = create_attr->map_ifindex;
 
 	return sys_bpf(BPF_MAP_CREATE, &attr, sizeof(attr));
@@ -642,4 +642,27 @@ retry:
 	}
 
 	return fd;
+}
+
+int bpf_task_fd_query(int pid, int fd, __u32 flags, char *buf, __u32 *buf_len,
+		      __u32 *prog_id, __u32 *fd_type, __u64 *probe_offset,
+		      __u64 *probe_addr)
+{
+	union bpf_attr attr = {};
+	int err;
+
+	attr.task_fd_query.pid = pid;
+	attr.task_fd_query.fd = fd;
+	attr.task_fd_query.flags = flags;
+	attr.task_fd_query.buf = ptr_to_u64(buf);
+	attr.task_fd_query.buf_len = *buf_len;
+
+	err = sys_bpf(BPF_TASK_FD_QUERY, &attr, sizeof(attr));
+	*buf_len = attr.task_fd_query.buf_len;
+	*prog_id = attr.task_fd_query.prog_id;
+	*fd_type = attr.task_fd_query.fd_type;
+	*probe_offset = attr.task_fd_query.probe_offset;
+	*probe_addr = attr.task_fd_query.probe_addr;
+
+	return err;
 }

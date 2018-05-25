@@ -33,7 +33,8 @@ TEST_GEN_FILES = test_pkt_access.o test_xdp.o test_l4lb.o test_tcp_estats.o test
 	sample_map_ret0.o test_tcpbpf_kern.o test_stacktrace_build_id.o \
 	sockmap_tcp_msg_prog.o connect4_prog.o connect6_prog.o test_adjust_tail.o \
 	test_btf_haskv.o test_btf_nokv.o test_sockmap_kern.o test_tunnel_kern.o \
-	test_get_stack_rawtp.o test_sockmap_kern.o test_sockhash_kern.o
+	test_get_stack_rawtp.o test_sockmap_kern.o test_sockhash_kern.o \
+	test_lwt_seg6local.o
 
 # Order correspond to 'make run_tests' order
 TEST_PROGS := test_kmod.sh \
@@ -42,7 +43,8 @@ TEST_PROGS := test_kmod.sh \
 	test_xdp_meta.sh \
 	test_offload.py \
 	test_sock_addr.sh \
-	test_tunnel.sh
+	test_tunnel.sh \
+	test_lwt_seg6local.sh
 
 # Compile but not part of 'make run_tests'
 TEST_GEN_PROGS_EXTENDED = test_libbpf_open test_sock_addr
@@ -84,7 +86,17 @@ else
   CPU ?= generic
 endif
 
+# Get Clang's default includes on this system, as opposed to those seen by
+# '-target bpf'. This fixes "missing" files on some architectures/distros,
+# such as asm/byteorder.h, asm/socket.h, asm/sockios.h, sys/cdefs.h etc.
+#
+# Use '-idirafter': Don't interfere with include mechanics except where the
+# build would have failed anyways.
+CLANG_SYS_INCLUDES := $(shell $(CLANG) -v -E - </dev/null 2>&1 \
+	| sed -n '/<...> search starts here:/,/End of search list./{ s| \(/.*\)|-idirafter \1|p }')
+
 CLANG_FLAGS = -I. -I./include/uapi -I../../../include/uapi \
+	      $(CLANG_SYS_INCLUDES) \
 	      -Wno-compare-distinct-pointer-types
 
 $(OUTPUT)/test_l4lb_noinline.o: CLANG_FLAGS += -fno-inline

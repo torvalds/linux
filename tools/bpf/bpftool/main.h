@@ -119,6 +119,7 @@ int do_prog(int argc, char **arg);
 int do_map(int argc, char **arg);
 int do_event_pipe(int argc, char **argv);
 int do_cgroup(int argc, char **arg);
+int do_perf(int argc, char **arg);
 
 int prog_parse_fd(int *argc, char ***argv);
 int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len);

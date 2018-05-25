@@ -64,6 +64,10 @@
 #include <net/ip_fib.h>
 #include <net/flow.h>
 #include <net/arp.h>
+#include <net/ipv6.h>
+#include <linux/seg6_local.h>
+#include <net/seg6.h>
+#include <net/seg6_local.h>
 
 /**
  *	sk_filter_trim_cap - run a packet through a socket filter
@@ -3042,7 +3046,7 @@ static int __bpf_tx_xdp(struct net_device *dev,
 			u32 index)
 {
 	struct xdp_frame *xdpf;
-	int err;
+	int sent;
 
 	if (!dev->netdev_ops->ndo_xdp_xmit) {
 		return -EOPNOTSUPP;
@@ -3052,9 +3056,9 @@ static int __bpf_tx_xdp(struct net_device *dev,
 	if (unlikely(!xdpf))
 		return -EOVERFLOW;
 
-	err = dev->netdev_ops->ndo_xdp_xmit(dev, xdpf);
-	if (err)
-		return err;
+	sent = dev->netdev_ops->ndo_xdp_xmit(dev, 1, &xdpf);
+	if (sent <= 0)
+		return sent;
 	dev->netdev_ops->ndo_xdp_flush(dev);
 	return 0;
 }
@@ -3068,20 +3072,9 @@ static int __bpf_tx_xdp_map(struct net_device *dev_rx, void *fwd,
 
 	switch (map->map_type) {
 	case BPF_MAP_TYPE_DEVMAP: {
-		struct net_device *dev = fwd;
-		struct xdp_frame *xdpf;
+		struct bpf_dtab_netdev *dst = fwd;
 
-		if (!dev->netdev_ops->ndo_xdp_xmit)
-			return -EOPNOTSUPP;
-
-		xdpf = convert_to_xdp_frame(xdp);
-		if (unlikely(!xdpf))
-			return -EOVERFLOW;
-
-		/* TODO: move to inside map code instead, for bulk support
-		 * err = dev_map_enqueue(dev, xdp);
-		 */
-		err = dev->netdev_ops->ndo_xdp_xmit(dev, xdpf);
+		err = dev_map_enqueue(dst, xdp, dev_rx);
 		if (err)
 			return err;
 		__dev_map_insert_ctx(map, index);
@@ -3369,28 +3362,6 @@ static const struct bpf_func_proto bpf_xdp_redirect_map_proto = {
 	.arg2_type      = ARG_ANYTHING,
 	.arg3_type      = ARG_ANYTHING,
 };
-
-bool bpf_helper_changes_pkt_data(void *func)
-{
-	if (func == bpf_skb_vlan_push ||
-	    func == bpf_skb_vlan_pop ||
-	    func == bpf_skb_store_bytes ||
-	    func == bpf_skb_change_proto ||
-	    func == bpf_skb_change_head ||
-	    func == bpf_skb_change_tail ||
-	    func == bpf_skb_adjust_room ||
-	    func == bpf_skb_pull_data ||
-	    func == bpf_clone_redirect ||
-	    func == bpf_l3_csum_replace ||
-	    func == bpf_l4_csum_replace ||
-	    func == bpf_xdp_adjust_head ||
-	    func == bpf_xdp_adjust_meta ||
-	    func == bpf_msg_pull_data ||
-	    func == bpf_xdp_adjust_tail)
-		return true;
-
-	return false;
-}
 
 static unsigned long bpf_skb_copy(void *dst_buff, const void *skb,
 				  unsigned long off, unsigned long len)
@@ -4096,7 +4067,7 @@ static int bpf_fib_set_fwd_params(struct bpf_fib_lookup *params,
 
 #if IS_ENABLED(CONFIG_INET)
 static int bpf_ipv4_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
-			       u32 flags)
+			       u32 flags, bool check_mtu)
 {
 	struct in_device *in_dev;
 	struct neighbour *neigh;
@@ -4105,6 +4076,7 @@ static int bpf_ipv4_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 	struct fib_nh *nh;
 	struct flowi4 fl4;
 	int err;
+	u32 mtu;
 
 	dev = dev_get_by_index_rcu(net, params->ifindex);
 	if (unlikely(!dev))
@@ -4156,6 +4128,12 @@ static int bpf_ipv4_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 	if (res.fi->fib_nhs > 1)
 		fib_select_path(net, &res, &fl4, NULL);
 
+	if (check_mtu) {
+		mtu = ip_mtu_from_fib_result(&res, params->ipv4_dst);
+		if (params->tot_len > mtu)
+			return 0;
+	}
+
 	nh = &res.fi->fib_nh[res.nh_sel];
 
 	/* do not handle lwt encaps right now */
@@ -4184,7 +4162,7 @@ static int bpf_ipv4_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 
 #if IS_ENABLED(CONFIG_IPV6)
 static int bpf_ipv6_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
-			       u32 flags)
+			       u32 flags, bool check_mtu)
 {
 	struct in6_addr *src = (struct in6_addr *) params->ipv6_src;
 	struct in6_addr *dst = (struct in6_addr *) params->ipv6_dst;
@@ -4195,6 +4173,7 @@ static int bpf_ipv6_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 	struct flowi6 fl6;
 	int strict = 0;
 	int oif;
+	u32 mtu;
 
 	/* link local addresses are never forwarded */
 	if (rt6_need_strict(dst) || rt6_need_strict(src))
@@ -4257,6 +4236,12 @@ static int bpf_ipv6_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 						       fl6.flowi6_oif, NULL,
 						       strict);
 
+	if (check_mtu) {
+		mtu = ipv6_stub->ip6_mtu_from_fib6(f6i, dst, src);
+		if (params->tot_len > mtu)
+			return 0;
+	}
+
 	if (f6i->fib6_nh.nh_lwtstate)
 		return 0;
 
@@ -4289,12 +4274,12 @@ BPF_CALL_4(bpf_xdp_fib_lookup, struct xdp_buff *, ctx,
 #if IS_ENABLED(CONFIG_INET)
 	case AF_INET:
 		return bpf_ipv4_fib_lookup(dev_net(ctx->rxq->dev), params,
-					   flags);
+					   flags, true);
 #endif
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		return bpf_ipv6_fib_lookup(dev_net(ctx->rxq->dev), params,
-					   flags);
+					   flags, true);
 #endif
 	}
 	return 0;
@@ -4313,20 +4298,34 @@ static const struct bpf_func_proto bpf_xdp_fib_lookup_proto = {
 BPF_CALL_4(bpf_skb_fib_lookup, struct sk_buff *, skb,
 	   struct bpf_fib_lookup *, params, int, plen, u32, flags)
 {
+	struct net *net = dev_net(skb->dev);
+	int index = 0;
+
 	if (plen < sizeof(*params))
 		return -EINVAL;
 
 	switch (params->family) {
 #if IS_ENABLED(CONFIG_INET)
 	case AF_INET:
-		return bpf_ipv4_fib_lookup(dev_net(skb->dev), params, flags);
+		index = bpf_ipv4_fib_lookup(net, params, flags, false);
+		break;
 #endif
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
-		return bpf_ipv6_fib_lookup(dev_net(skb->dev), params, flags);
+		index = bpf_ipv6_fib_lookup(net, params, flags, false);
+		break;
 #endif
 	}
-	return -ENOTSUPP;
+
+	if (index > 0) {
+		struct net_device *dev;
+
+		dev = dev_get_by_index_rcu(net, index);
+		if (!is_skb_forwardable(dev, skb))
+			index = 0;
+	}
+
+	return index;
 }
 
 static const struct bpf_func_proto bpf_skb_fib_lookup_proto = {
@@ -4338,6 +4337,264 @@ static const struct bpf_func_proto bpf_skb_fib_lookup_proto = {
 	.arg3_type      = ARG_CONST_SIZE,
 	.arg4_type	= ARG_ANYTHING,
 };
+
+#if IS_ENABLED(CONFIG_IPV6_SEG6_BPF)
+static int bpf_push_seg6_encap(struct sk_buff *skb, u32 type, void *hdr, u32 len)
+{
+	int err;
+	struct ipv6_sr_hdr *srh = (struct ipv6_sr_hdr *)hdr;
+
+	if (!seg6_validate_srh(srh, len))
+		return -EINVAL;
+
+	switch (type) {
+	case BPF_LWT_ENCAP_SEG6_INLINE:
+		if (skb->protocol != htons(ETH_P_IPV6))
+			return -EBADMSG;
+
+		err = seg6_do_srh_inline(skb, srh);
+		break;
+	case BPF_LWT_ENCAP_SEG6:
+		skb_reset_inner_headers(skb);
+		skb->encapsulation = 1;
+		err = seg6_do_srh_encap(skb, srh, IPPROTO_IPV6);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	bpf_compute_data_pointers(skb);
+	if (err)
+		return err;
+
+	ipv6_hdr(skb)->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
+	skb_set_transport_header(skb, sizeof(struct ipv6hdr));
+
+	return seg6_lookup_nexthop(skb, NULL, 0);
+}
+#endif /* CONFIG_IPV6_SEG6_BPF */
+
+BPF_CALL_4(bpf_lwt_push_encap, struct sk_buff *, skb, u32, type, void *, hdr,
+	   u32, len)
+{
+	switch (type) {
+#if IS_ENABLED(CONFIG_IPV6_SEG6_BPF)
+	case BPF_LWT_ENCAP_SEG6:
+	case BPF_LWT_ENCAP_SEG6_INLINE:
+		return bpf_push_seg6_encap(skb, type, hdr, len);
+#endif
+	default:
+		return -EINVAL;
+	}
+}
+
+static const struct bpf_func_proto bpf_lwt_push_encap_proto = {
+	.func		= bpf_lwt_push_encap,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_ANYTHING,
+	.arg3_type	= ARG_PTR_TO_MEM,
+	.arg4_type	= ARG_CONST_SIZE
+};
+
+BPF_CALL_4(bpf_lwt_seg6_store_bytes, struct sk_buff *, skb, u32, offset,
+	   const void *, from, u32, len)
+{
+#if IS_ENABLED(CONFIG_IPV6_SEG6_BPF)
+	struct seg6_bpf_srh_state *srh_state =
+		this_cpu_ptr(&seg6_bpf_srh_states);
+	void *srh_tlvs, *srh_end, *ptr;
+	struct ipv6_sr_hdr *srh;
+	int srhoff = 0;
+
+	if (ipv6_find_hdr(skb, &srhoff, IPPROTO_ROUTING, NULL, NULL) < 0)
+		return -EINVAL;
+
+	srh = (struct ipv6_sr_hdr *)(skb->data + srhoff);
+	srh_tlvs = (void *)((char *)srh + ((srh->first_segment + 1) << 4));
+	srh_end = (void *)((char *)srh + sizeof(*srh) + srh_state->hdrlen);
+
+	ptr = skb->data + offset;
+	if (ptr >= srh_tlvs && ptr + len <= srh_end)
+		srh_state->valid = 0;
+	else if (ptr < (void *)&srh->flags ||
+		 ptr + len > (void *)&srh->segments)
+		return -EFAULT;
+
+	if (unlikely(bpf_try_make_writable(skb, offset + len)))
+		return -EFAULT;
+
+	memcpy(skb->data + offset, from, len);
+	return 0;
+#else /* CONFIG_IPV6_SEG6_BPF */
+	return -EOPNOTSUPP;
+#endif
+}
+
+static const struct bpf_func_proto bpf_lwt_seg6_store_bytes_proto = {
+	.func		= bpf_lwt_seg6_store_bytes,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_ANYTHING,
+	.arg3_type	= ARG_PTR_TO_MEM,
+	.arg4_type	= ARG_CONST_SIZE
+};
+
+BPF_CALL_4(bpf_lwt_seg6_action, struct sk_buff *, skb,
+	   u32, action, void *, param, u32, param_len)
+{
+#if IS_ENABLED(CONFIG_IPV6_SEG6_BPF)
+	struct seg6_bpf_srh_state *srh_state =
+		this_cpu_ptr(&seg6_bpf_srh_states);
+	struct ipv6_sr_hdr *srh;
+	int srhoff = 0;
+	int err;
+
+	if (ipv6_find_hdr(skb, &srhoff, IPPROTO_ROUTING, NULL, NULL) < 0)
+		return -EINVAL;
+	srh = (struct ipv6_sr_hdr *)(skb->data + srhoff);
+
+	if (!srh_state->valid) {
+		if (unlikely((srh_state->hdrlen & 7) != 0))
+			return -EBADMSG;
+
+		srh->hdrlen = (u8)(srh_state->hdrlen >> 3);
+		if (unlikely(!seg6_validate_srh(srh, (srh->hdrlen + 1) << 3)))
+			return -EBADMSG;
+
+		srh_state->valid = 1;
+	}
+
+	switch (action) {
+	case SEG6_LOCAL_ACTION_END_X:
+		if (param_len != sizeof(struct in6_addr))
+			return -EINVAL;
+		return seg6_lookup_nexthop(skb, (struct in6_addr *)param, 0);
+	case SEG6_LOCAL_ACTION_END_T:
+		if (param_len != sizeof(int))
+			return -EINVAL;
+		return seg6_lookup_nexthop(skb, NULL, *(int *)param);
+	case SEG6_LOCAL_ACTION_END_B6:
+		err = bpf_push_seg6_encap(skb, BPF_LWT_ENCAP_SEG6_INLINE,
+					  param, param_len);
+		if (!err)
+			srh_state->hdrlen =
+				((struct ipv6_sr_hdr *)param)->hdrlen << 3;
+		return err;
+	case SEG6_LOCAL_ACTION_END_B6_ENCAP:
+		err = bpf_push_seg6_encap(skb, BPF_LWT_ENCAP_SEG6,
+					  param, param_len);
+		if (!err)
+			srh_state->hdrlen =
+				((struct ipv6_sr_hdr *)param)->hdrlen << 3;
+		return err;
+	default:
+		return -EINVAL;
+	}
+#else /* CONFIG_IPV6_SEG6_BPF */
+	return -EOPNOTSUPP;
+#endif
+}
+
+static const struct bpf_func_proto bpf_lwt_seg6_action_proto = {
+	.func		= bpf_lwt_seg6_action,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_ANYTHING,
+	.arg3_type	= ARG_PTR_TO_MEM,
+	.arg4_type	= ARG_CONST_SIZE
+};
+
+BPF_CALL_3(bpf_lwt_seg6_adjust_srh, struct sk_buff *, skb, u32, offset,
+	   s32, len)
+{
+#if IS_ENABLED(CONFIG_IPV6_SEG6_BPF)
+	struct seg6_bpf_srh_state *srh_state =
+		this_cpu_ptr(&seg6_bpf_srh_states);
+	void *srh_end, *srh_tlvs, *ptr;
+	struct ipv6_sr_hdr *srh;
+	struct ipv6hdr *hdr;
+	int srhoff = 0;
+	int ret;
+
+	if (ipv6_find_hdr(skb, &srhoff, IPPROTO_ROUTING, NULL, NULL) < 0)
+		return -EINVAL;
+	srh = (struct ipv6_sr_hdr *)(skb->data + srhoff);
+
+	srh_tlvs = (void *)((unsigned char *)srh + sizeof(*srh) +
+			((srh->first_segment + 1) << 4));
+	srh_end = (void *)((unsigned char *)srh + sizeof(*srh) +
+			srh_state->hdrlen);
+	ptr = skb->data + offset;
+
+	if (unlikely(ptr < srh_tlvs || ptr > srh_end))
+		return -EFAULT;
+	if (unlikely(len < 0 && (void *)((char *)ptr - len) > srh_end))
+		return -EFAULT;
+
+	if (len > 0) {
+		ret = skb_cow_head(skb, len);
+		if (unlikely(ret < 0))
+			return ret;
+
+		ret = bpf_skb_net_hdr_push(skb, offset, len);
+	} else {
+		ret = bpf_skb_net_hdr_pop(skb, offset, -1 * len);
+	}
+
+	bpf_compute_data_pointers(skb);
+	if (unlikely(ret < 0))
+		return ret;
+
+	hdr = (struct ipv6hdr *)skb->data;
+	hdr->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
+
+	srh_state->hdrlen += len;
+	srh_state->valid = 0;
+	return 0;
+#else /* CONFIG_IPV6_SEG6_BPF */
+	return -EOPNOTSUPP;
+#endif
+}
+
+static const struct bpf_func_proto bpf_lwt_seg6_adjust_srh_proto = {
+	.func		= bpf_lwt_seg6_adjust_srh,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_ANYTHING,
+	.arg3_type	= ARG_ANYTHING,
+};
+
+bool bpf_helper_changes_pkt_data(void *func)
+{
+	if (func == bpf_skb_vlan_push ||
+	    func == bpf_skb_vlan_pop ||
+	    func == bpf_skb_store_bytes ||
+	    func == bpf_skb_change_proto ||
+	    func == bpf_skb_change_head ||
+	    func == bpf_skb_change_tail ||
+	    func == bpf_skb_adjust_room ||
+	    func == bpf_skb_pull_data ||
+	    func == bpf_clone_redirect ||
+	    func == bpf_l3_csum_replace ||
+	    func == bpf_l4_csum_replace ||
+	    func == bpf_xdp_adjust_head ||
+	    func == bpf_xdp_adjust_meta ||
+	    func == bpf_msg_pull_data ||
+	    func == bpf_xdp_adjust_tail ||
+	    func == bpf_lwt_push_encap ||
+	    func == bpf_lwt_seg6_store_bytes ||
+	    func == bpf_lwt_seg6_adjust_srh ||
+	    func == bpf_lwt_seg6_action
+	    )
+		return true;
+
+	return false;
+}
 
 static const struct bpf_func_proto *
 bpf_base_func_proto(enum bpf_func_id func_id)
@@ -4523,33 +4780,6 @@ xdp_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 }
 
 static const struct bpf_func_proto *
-lwt_inout_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
-{
-	switch (func_id) {
-	case BPF_FUNC_skb_load_bytes:
-		return &bpf_skb_load_bytes_proto;
-	case BPF_FUNC_skb_pull_data:
-		return &bpf_skb_pull_data_proto;
-	case BPF_FUNC_csum_diff:
-		return &bpf_csum_diff_proto;
-	case BPF_FUNC_get_cgroup_classid:
-		return &bpf_get_cgroup_classid_proto;
-	case BPF_FUNC_get_route_realm:
-		return &bpf_get_route_realm_proto;
-	case BPF_FUNC_get_hash_recalc:
-		return &bpf_get_hash_recalc_proto;
-	case BPF_FUNC_perf_event_output:
-		return &bpf_skb_event_output_proto;
-	case BPF_FUNC_get_smp_processor_id:
-		return &bpf_get_smp_processor_id_proto;
-	case BPF_FUNC_skb_under_cgroup:
-		return &bpf_skb_under_cgroup_proto;
-	default:
-		return bpf_base_func_proto(func_id);
-	}
-}
-
-static const struct bpf_func_proto *
 sock_ops_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
@@ -4615,6 +4845,44 @@ sk_skb_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 }
 
 static const struct bpf_func_proto *
+lwt_out_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
+{
+	switch (func_id) {
+	case BPF_FUNC_skb_load_bytes:
+		return &bpf_skb_load_bytes_proto;
+	case BPF_FUNC_skb_pull_data:
+		return &bpf_skb_pull_data_proto;
+	case BPF_FUNC_csum_diff:
+		return &bpf_csum_diff_proto;
+	case BPF_FUNC_get_cgroup_classid:
+		return &bpf_get_cgroup_classid_proto;
+	case BPF_FUNC_get_route_realm:
+		return &bpf_get_route_realm_proto;
+	case BPF_FUNC_get_hash_recalc:
+		return &bpf_get_hash_recalc_proto;
+	case BPF_FUNC_perf_event_output:
+		return &bpf_skb_event_output_proto;
+	case BPF_FUNC_get_smp_processor_id:
+		return &bpf_get_smp_processor_id_proto;
+	case BPF_FUNC_skb_under_cgroup:
+		return &bpf_skb_under_cgroup_proto;
+	default:
+		return bpf_base_func_proto(func_id);
+	}
+}
+
+static const struct bpf_func_proto *
+lwt_in_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
+{
+	switch (func_id) {
+	case BPF_FUNC_lwt_push_encap:
+		return &bpf_lwt_push_encap_proto;
+	default:
+		return lwt_out_func_proto(func_id, prog);
+	}
+}
+
+static const struct bpf_func_proto *
 lwt_xmit_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
@@ -4645,7 +4913,22 @@ lwt_xmit_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	case BPF_FUNC_set_hash_invalid:
 		return &bpf_set_hash_invalid_proto;
 	default:
-		return lwt_inout_func_proto(func_id, prog);
+		return lwt_out_func_proto(func_id, prog);
+	}
+}
+
+static const struct bpf_func_proto *
+lwt_seg6local_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
+{
+	switch (func_id) {
+	case BPF_FUNC_lwt_seg6_store_bytes:
+		return &bpf_lwt_seg6_store_bytes_proto;
+	case BPF_FUNC_lwt_seg6_action:
+		return &bpf_lwt_seg6_action_proto;
+	case BPF_FUNC_lwt_seg6_adjust_srh:
+		return &bpf_lwt_seg6_adjust_srh_proto;
+	default:
+		return lwt_out_func_proto(func_id, prog);
 	}
 }
 
@@ -4752,7 +5035,6 @@ static bool lwt_is_valid_access(int off, int size,
 
 	return bpf_skb_is_valid_access(off, size, type, prog, info);
 }
-
 
 /* Attach type specific accesses */
 static bool __sock_filter_check_attach_type(int off,
@@ -5155,17 +5437,22 @@ static bool sk_msg_is_valid_access(int off, int size,
 	switch (off) {
 	case offsetof(struct sk_msg_md, data):
 		info->reg_type = PTR_TO_PACKET;
+		if (size != sizeof(__u64))
+			return false;
 		break;
 	case offsetof(struct sk_msg_md, data_end):
 		info->reg_type = PTR_TO_PACKET_END;
+		if (size != sizeof(__u64))
+			return false;
 		break;
+	default:
+		if (size != sizeof(__u32))
+			return false;
 	}
 
 	if (off < 0 || off >= sizeof(struct sk_msg_md))
 		return false;
 	if (off % size != 0)
-		return false;
-	if (size != sizeof(__u64))
 		return false;
 
 	return true;
@@ -5842,7 +6129,8 @@ static u32 sock_ops_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct bpf_sock_ops, local_ip4):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common, skc_rcv_saddr) != 4);
+		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common,
+					  skc_rcv_saddr) != 4);
 
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(
 					      struct bpf_sock_ops_kern, sk),
@@ -6159,6 +6447,7 @@ static u32 sk_msg_convert_ctx_access(enum bpf_access_type type,
 				     struct bpf_prog *prog, u32 *target_size)
 {
 	struct bpf_insn *insn = insn_buf;
+	int off;
 
 	switch (si->off) {
 	case offsetof(struct sk_msg_md, data):
@@ -6170,6 +6459,107 @@ static u32 sk_msg_convert_ctx_access(enum bpf_access_type type,
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(struct sk_msg_buff, data_end),
 				      si->dst_reg, si->src_reg,
 				      offsetof(struct sk_msg_buff, data_end));
+		break;
+	case offsetof(struct sk_msg_md, family):
+		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common, skc_family) != 2);
+
+		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(
+					      struct sk_msg_buff, sk),
+				      si->dst_reg, si->src_reg,
+				      offsetof(struct sk_msg_buff, sk));
+		*insn++ = BPF_LDX_MEM(BPF_H, si->dst_reg, si->dst_reg,
+				      offsetof(struct sock_common, skc_family));
+		break;
+
+	case offsetof(struct sk_msg_md, remote_ip4):
+		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common, skc_daddr) != 4);
+
+		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(
+						struct sk_msg_buff, sk),
+				      si->dst_reg, si->src_reg,
+				      offsetof(struct sk_msg_buff, sk));
+		*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->dst_reg,
+				      offsetof(struct sock_common, skc_daddr));
+		break;
+
+	case offsetof(struct sk_msg_md, local_ip4):
+		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common,
+					  skc_rcv_saddr) != 4);
+
+		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(
+					      struct sk_msg_buff, sk),
+				      si->dst_reg, si->src_reg,
+				      offsetof(struct sk_msg_buff, sk));
+		*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->dst_reg,
+				      offsetof(struct sock_common,
+					       skc_rcv_saddr));
+		break;
+
+	case offsetof(struct sk_msg_md, remote_ip6[0]) ...
+	     offsetof(struct sk_msg_md, remote_ip6[3]):
+#if IS_ENABLED(CONFIG_IPV6)
+		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common,
+					  skc_v6_daddr.s6_addr32[0]) != 4);
+
+		off = si->off;
+		off -= offsetof(struct sk_msg_md, remote_ip6[0]);
+		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(
+						struct sk_msg_buff, sk),
+				      si->dst_reg, si->src_reg,
+				      offsetof(struct sk_msg_buff, sk));
+		*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->dst_reg,
+				      offsetof(struct sock_common,
+					       skc_v6_daddr.s6_addr32[0]) +
+				      off);
+#else
+		*insn++ = BPF_MOV32_IMM(si->dst_reg, 0);
+#endif
+		break;
+
+	case offsetof(struct sk_msg_md, local_ip6[0]) ...
+	     offsetof(struct sk_msg_md, local_ip6[3]):
+#if IS_ENABLED(CONFIG_IPV6)
+		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common,
+					  skc_v6_rcv_saddr.s6_addr32[0]) != 4);
+
+		off = si->off;
+		off -= offsetof(struct sk_msg_md, local_ip6[0]);
+		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(
+						struct sk_msg_buff, sk),
+				      si->dst_reg, si->src_reg,
+				      offsetof(struct sk_msg_buff, sk));
+		*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->dst_reg,
+				      offsetof(struct sock_common,
+					       skc_v6_rcv_saddr.s6_addr32[0]) +
+				      off);
+#else
+		*insn++ = BPF_MOV32_IMM(si->dst_reg, 0);
+#endif
+		break;
+
+	case offsetof(struct sk_msg_md, remote_port):
+		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common, skc_dport) != 2);
+
+		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(
+						struct sk_msg_buff, sk),
+				      si->dst_reg, si->src_reg,
+				      offsetof(struct sk_msg_buff, sk));
+		*insn++ = BPF_LDX_MEM(BPF_H, si->dst_reg, si->dst_reg,
+				      offsetof(struct sock_common, skc_dport));
+#ifndef __BIG_ENDIAN_BITFIELD
+		*insn++ = BPF_ALU32_IMM(BPF_LSH, si->dst_reg, 16);
+#endif
+		break;
+
+	case offsetof(struct sk_msg_md, local_port):
+		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common, skc_num) != 2);
+
+		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(
+						struct sk_msg_buff, sk),
+				      si->dst_reg, si->src_reg,
+				      offsetof(struct sk_msg_buff, sk));
+		*insn++ = BPF_LDX_MEM(BPF_H, si->dst_reg, si->dst_reg,
+				      offsetof(struct sock_common, skc_num));
 		break;
 	}
 
@@ -6219,13 +6609,23 @@ const struct bpf_prog_ops cg_skb_prog_ops = {
 	.test_run		= bpf_prog_test_run_skb,
 };
 
-const struct bpf_verifier_ops lwt_inout_verifier_ops = {
-	.get_func_proto		= lwt_inout_func_proto,
+const struct bpf_verifier_ops lwt_in_verifier_ops = {
+	.get_func_proto		= lwt_in_func_proto,
 	.is_valid_access	= lwt_is_valid_access,
 	.convert_ctx_access	= bpf_convert_ctx_access,
 };
 
-const struct bpf_prog_ops lwt_inout_prog_ops = {
+const struct bpf_prog_ops lwt_in_prog_ops = {
+	.test_run		= bpf_prog_test_run_skb,
+};
+
+const struct bpf_verifier_ops lwt_out_verifier_ops = {
+	.get_func_proto		= lwt_out_func_proto,
+	.is_valid_access	= lwt_is_valid_access,
+	.convert_ctx_access	= bpf_convert_ctx_access,
+};
+
+const struct bpf_prog_ops lwt_out_prog_ops = {
 	.test_run		= bpf_prog_test_run_skb,
 };
 
@@ -6237,6 +6637,16 @@ const struct bpf_verifier_ops lwt_xmit_verifier_ops = {
 };
 
 const struct bpf_prog_ops lwt_xmit_prog_ops = {
+	.test_run		= bpf_prog_test_run_skb,
+};
+
+const struct bpf_verifier_ops lwt_seg6local_verifier_ops = {
+	.get_func_proto		= lwt_seg6local_func_proto,
+	.is_valid_access	= lwt_is_valid_access,
+	.convert_ctx_access	= bpf_convert_ctx_access,
+};
+
+const struct bpf_prog_ops lwt_seg6local_prog_ops = {
 	.test_run		= bpf_prog_test_run_skb,
 };
 
