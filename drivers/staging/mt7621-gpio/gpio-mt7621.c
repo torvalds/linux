@@ -379,10 +379,4 @@ static struct platform_driver mediatek_gpio_driver = {
 	},
 };
 
-static int __init
-mediatek_gpio_init(void)
-{
-	return platform_driver_register(&mediatek_gpio_driver);
-}
-
-subsys_initcall(mediatek_gpio_init);
+module_platform_driver(mediatek_gpio_driver);
