@@ -39,7 +39,7 @@ Kernel breakdown features by version
 
 |          | 4.4 | 4.9 | 4.14 | 4.16 |
 |----------| --- | --- | --- | --- |
-| PCIe     |  Y  |  Y  |  Y  |  Y?  |
+| PCIe     |  Y  |  Y  |  Y  |  Y  |
 | SATA     |  Y  |  Y  |  Y  |  Y?  |
 | 2 GMAC   |  Y  |  Y  |  N  |  N  |
 | DSA      |  N  |  Y  |  Y  |  Y?  |
@@ -48,22 +48,26 @@ Kernel breakdown features by version
 | HW NAT   |     |  Y  |  Y? |     |
 | HW QOS   |     |  Y  |  Y? |     |
 | Crypto   |  Y  |  Y  |  Y  |  Y?  |
-| WIFI     |     |     |  Y  |  N  |
+| WIFI     |     |     |  Y  |  (Y) |
 | BT       |     |     |     |     |
-| VIDEO    |  Y  |  N  |  N  |  N  |
+| VIDEO    |  Y  |  N  |  N  |  (Y)  |
 | AUDIO    |  Y  |  N  |  N  |  N  |
 ||| other Options |||
 | OpenVPN  |  ?  |  Y  |  Y  |  ?  |
 | iptables |  ?  |  ?  |  Y  |  ?  |
 | LXC / Docker |  ?  |  ?  |  Y  |  ?  |
 
+? = unsure
+
+() = testing (separate Branch wlan/hdmi)
+
 kernel 4.4: https://github.com/frank-w/BPI-R2-4.4
 
 ## Links
 
 * BPI-R2: http://www.banana-pi.org/r2.html
-* Kernel: https://www.kernel.org/
-* linux-mediatek: https://patchwork.kernel.org/project/linux-mediatek/list/
+* Kernel: https://www.kernel.org/ , Stable-RC: https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable-rc.git/
+* linux-mediatek: https://patchwork.kernel.org/project/linux-mediatek/list/, Threaded: http://lists.infradead.org/pipermail/linux-mediatek/
 * kernelci: https://kernelci.org/boot/mt7623n-bananapi-bpi-r2/
 * Forum: http://forum.banana-pi.org/c/Banana-Pi-BPI-R2
 * Wiki: http://www.fw-web.de/dokuwiki/doku.php?id=en/bpi-r2/start
