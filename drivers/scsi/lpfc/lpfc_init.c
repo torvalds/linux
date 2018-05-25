@@ -9545,11 +9545,6 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 		return error;
 	}
 
-	if (pci_read_config_dword(pdev, LPFC_SLI_ASIC_VER,
-				  &phba->sli4_hba.sli_asic_ver.word0)) {
-		return error;
-	}
-
 	/* There is no SLI3 failback for SLI4 devices. */
 	if (bf_get(lpfc_sli_intf_valid, &phba->sli4_hba.sli_intf) !=
 	    LPFC_SLI_INTF_VALID) {
@@ -10711,9 +10706,7 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	if ((bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
 	    LPFC_SLI_INTF_IF_TYPE_2) &&
 	    (bf_get(lpfc_sli_intf_sli_family, &phba->sli4_hba.sli_intf) ==
-		 LPFC_SLI_INTF_FAMILY_LNCR_A0) &&
-	    (bf_get(lpfc_sli_asic_ver, &phba->sli4_hba.sli_asic_ver) ==
-	    LPFC_SLI_ASIC_VER_A))
+		 LPFC_SLI_INTF_FAMILY_LNCR_A0))
 		exp_wqcq_pages = false;
 
 	if ((bf_get(cfg_cqpsize, mbx_sli4_parameters) & LPFC_CQ_16K_PAGE_SZ) &&
