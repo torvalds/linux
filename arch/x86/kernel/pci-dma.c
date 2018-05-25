@@ -73,7 +73,7 @@ void __init pci_iommu_alloc(void)
 	}
 }
 
-bool arch_dma_alloc_attrs(struct device **dev, gfp_t *gfp)
+bool arch_dma_alloc_attrs(struct device **dev)
 {
 	if (!*dev)
 		*dev = &x86_dma_fallback_dev;
