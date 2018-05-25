@@ -11,6 +11,7 @@
 #include <linux/bitops.h>
 #include <linux/clk-provider.h>
 #include <linux/of.h>
+#include <linux/regmap.h>
 #include <linux/types.h>
 
 #define PLL_HAS_CLKMODE			BIT(0) /* PLL has PLLCTL[CLKMODE] */
@@ -94,7 +95,8 @@ struct davinci_pll_obsclk_info {
 struct clk *davinci_pll_clk_register(struct device *dev,
 				     const struct davinci_pll_clk_info *info,
 				     const char *parent_name,
-				     void __iomem *base);
+				     void __iomem *base,
+				     struct regmap *cfgchip);
 struct clk *davinci_pll_auxclk_register(struct device *dev,
 					const char *name,
 					void __iomem *base);
@@ -110,32 +112,24 @@ davinci_pll_sysclk_register(struct device *dev,
 			    const struct davinci_pll_sysclk_info *info,
 			    void __iomem *base);
 
-int of_davinci_pll_init(struct device *dev,
+int of_davinci_pll_init(struct device *dev, struct device_node *node,
 			const struct davinci_pll_clk_info *info,
 			const struct davinci_pll_obsclk_info *obsclk_info,
 			const struct davinci_pll_sysclk_info **div_info,
 			u8 max_sysclk_id,
-			void __iomem *base);
+			void __iomem *base,
+			struct regmap *cfgchip);
 
 /* Platform-specific callbacks */
 
-int da830_pll_init(struct device *dev, void __iomem *base);
+int da850_pll1_init(struct device *dev, void __iomem *base, struct regmap *cfgchip);
+int of_da850_pll0_init(struct device *dev, void __iomem *base, struct regmap *cfgchip);
+int of_da850_pll1_init(struct device *dev, void __iomem *base, struct regmap *cfgchip);
 
-int da850_pll0_init(struct device *dev, void __iomem *base);
-int da850_pll1_init(struct device *dev, void __iomem *base);
-int of_da850_pll0_init(struct device *dev, void __iomem *base);
-int of_da850_pll1_init(struct device *dev, void __iomem *base);
+int dm355_pll2_init(struct device *dev, void __iomem *base, struct regmap *cfgchip);
 
-int dm355_pll1_init(struct device *dev, void __iomem *base);
-int dm355_pll2_init(struct device *dev, void __iomem *base);
+int dm644x_pll2_init(struct device *dev, void __iomem *base, struct regmap *cfgchip);
 
-int dm365_pll1_init(struct device *dev, void __iomem *base);
-int dm365_pll2_init(struct device *dev, void __iomem *base);
-
-int dm644x_pll1_init(struct device *dev, void __iomem *base);
-int dm644x_pll2_init(struct device *dev, void __iomem *base);
-
-int dm646x_pll1_init(struct device *dev, void __iomem *base);
-int dm646x_pll2_init(struct device *dev, void __iomem *base);
+int dm646x_pll2_init(struct device *dev, void __iomem *base, struct regmap *cfgchip);
 
 #endif /* __CLK_DAVINCI_PLL_H___ */
