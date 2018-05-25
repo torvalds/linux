@@ -463,6 +463,13 @@ static int icl_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 	 */
 	WA_SET_BIT_MASKED(ICL_HDC_MODE, HDC_FORCE_NON_COHERENT);
 
+	/* Wa_2006611047:icl (pre-prod)
+	 * Formerly known as WaDisableImprovedTdlClkGating
+	 */
+	if (IS_ICL_REVID(dev_priv, ICL_REVID_A0, ICL_REVID_A0))
+		WA_SET_BIT_MASKED(GEN7_ROW_CHICKEN2,
+				  GEN11_TDL_CLOCK_GATING_FIX_DISABLE);
+
 	return 0;
 }
 
