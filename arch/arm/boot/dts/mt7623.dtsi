@@ -98,6 +98,7 @@
 			compatible = "arm,cortex-a7";
 			reg = <0x1>;
 			operating-points-v2 = <&cpu_opp_table>;
+			#cooling-cells = <2>;
 			clock-frequency = <1300000000>;
 		};
 
@@ -106,6 +107,7 @@
 			compatible = "arm,cortex-a7";
 			reg = <0x2>;
 			operating-points-v2 = <&cpu_opp_table>;
+			#cooling-cells = <2>;
 			clock-frequency = <1300000000>;
 		};
 
@@ -114,6 +116,7 @@
 			compatible = "arm,cortex-a7";
 			reg = <0x3>;
 			operating-points-v2 = <&cpu_opp_table>;
+			#cooling-cells = <2>;
 			clock-frequency = <1300000000>;
 		};
 	};
