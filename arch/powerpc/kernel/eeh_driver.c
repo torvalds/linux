@@ -149,9 +149,8 @@ static bool eeh_dev_removed(struct eeh_dev *edev)
 	return false;
 }
 
-static void *eeh_dev_save_state(void *data, void *userdata)
+static void *eeh_dev_save_state(struct eeh_dev *edev, void *userdata)
 {
-	struct eeh_dev *edev = data;
 	struct pci_dev *pdev;
 
 	if (!edev)
@@ -184,9 +183,8 @@ static void *eeh_dev_save_state(void *data, void *userdata)
  * merge the device driver responses. Cumulative response
  * passed back in "userdata".
  */
-static void *eeh_report_error(void *data, void *userdata)
+static void *eeh_report_error(struct eeh_dev *edev, void *userdata)
 {
-	struct eeh_dev *edev = (struct eeh_dev *)data;
 	struct pci_dev *dev = eeh_dev_to_pci_dev(edev);
 	enum pci_ers_result rc, *res = userdata;
 	struct pci_driver *driver;
@@ -231,9 +229,8 @@ out_no_dev:
  * are now enabled. Collects up and merges the device driver responses.
  * Cumulative response passed back in "userdata".
  */
-static void *eeh_report_mmio_enabled(void *data, void *userdata)
+static void *eeh_report_mmio_enabled(struct eeh_dev *edev, void *userdata)
 {
-	struct eeh_dev *edev = (struct eeh_dev *)data;
 	struct pci_dev *dev = eeh_dev_to_pci_dev(edev);
 	enum pci_ers_result rc, *res = userdata;
 	struct pci_driver *driver;
@@ -273,9 +270,8 @@ out_no_dev:
  * some actions, usually to save data the driver needs so that the
  * driver can work again while the device is recovered.
  */
-static void *eeh_report_reset(void *data, void *userdata)
+static void *eeh_report_reset(struct eeh_dev *edev, void *userdata)
 {
-	struct eeh_dev *edev = (struct eeh_dev *)data;
 	struct pci_dev *dev = eeh_dev_to_pci_dev(edev);
 	enum pci_ers_result rc, *res = userdata;
 	struct pci_driver *driver;
@@ -310,9 +306,8 @@ out_no_dev:
 	return NULL;
 }
 
-static void *eeh_dev_restore_state(void *data, void *userdata)
+static void *eeh_dev_restore_state(struct eeh_dev *edev, void *userdata)
 {
-	struct eeh_dev *edev = data;
 	struct pci_dev *pdev;
 
 	if (!edev)
@@ -348,9 +343,8 @@ static void *eeh_dev_restore_state(void *data, void *userdata)
  * could resume so that the device driver can do some initialization
  * to make the recovered device work again.
  */
-static void *eeh_report_resume(void *data, void *userdata)
+static void *eeh_report_resume(struct eeh_dev *edev, void *userdata)
 {
-	struct eeh_dev *edev = (struct eeh_dev *)data;
 	struct pci_dev *dev = eeh_dev_to_pci_dev(edev);
 	bool was_in_error;
 	struct pci_driver *driver;
@@ -397,9 +391,8 @@ out_no_dev:
  * This informs the device driver that the device is permanently
  * dead, and that no further recovery attempts will be made on it.
  */
-static void *eeh_report_failure(void *data, void *userdata)
+static void *eeh_report_failure(struct eeh_dev *edev, void *userdata)
 {
-	struct eeh_dev *edev = (struct eeh_dev *)data;
 	struct pci_dev *dev = eeh_dev_to_pci_dev(edev);
 	struct pci_driver *driver;
 
@@ -457,10 +450,9 @@ static void *eeh_add_virt_device(void *data, void *userdata)
 	return NULL;
 }
 
-static void *eeh_rmv_device(void *data, void *userdata)
+static void *eeh_rmv_device(struct eeh_dev *edev, void *userdata)
 {
 	struct pci_driver *driver;
-	struct eeh_dev *edev = (struct eeh_dev *)data;
 	struct pci_dev *dev = eeh_dev_to_pci_dev(edev);
 	struct eeh_rmv_data *rmv_data = (struct eeh_rmv_data *)userdata;
 	int *removed = rmv_data ? &rmv_data->removed : NULL;
@@ -532,9 +524,8 @@ static void *eeh_rmv_device(void *data, void *userdata)
 	return NULL;
 }
 
-static void *eeh_pe_detach_dev(void *data, void *userdata)
+static void *eeh_pe_detach_dev(struct eeh_pe *pe, void *userdata)
 {
-	struct eeh_pe *pe = (struct eeh_pe *)data;
 	struct eeh_dev *edev, *tmp;
 
 	eeh_pe_for_each_dev(pe, edev, tmp) {
@@ -555,9 +546,8 @@ static void *eeh_pe_detach_dev(void *data, void *userdata)
  * PE reset (for 3 times), we try to clear the frozen state
  * for 3 times as well.
  */
-static void *__eeh_clear_pe_frozen_state(void *data, void *flag)
+static void *__eeh_clear_pe_frozen_state(struct eeh_pe *pe, void *flag)
 {
-	struct eeh_pe *pe = (struct eeh_pe *)data;
 	bool clear_sw_state = *(bool *)flag;
 	int i, rc = 1;
 

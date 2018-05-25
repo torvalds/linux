@@ -263,9 +263,8 @@ static size_t eeh_dump_dev_log(struct eeh_dev *edev, char *buf, size_t len)
 	return n;
 }
 
-static void *eeh_dump_pe_log(void *data, void *flag)
+static void *eeh_dump_pe_log(struct eeh_pe *pe, void *flag)
 {
-	struct eeh_pe *pe = data;
 	struct eeh_dev *edev, *tmp;
 	size_t *plen = flag;
 
@@ -686,9 +685,9 @@ int eeh_pci_enable(struct eeh_pe *pe, int function)
 	return rc;
 }
 
-static void *eeh_disable_and_save_dev_state(void *data, void *userdata)
+static void *eeh_disable_and_save_dev_state(struct eeh_dev *edev,
+					    void *userdata)
 {
-	struct eeh_dev *edev = data;
 	struct pci_dev *pdev = eeh_dev_to_pci_dev(edev);
 	struct pci_dev *dev = userdata;
 
@@ -714,9 +713,8 @@ static void *eeh_disable_and_save_dev_state(void *data, void *userdata)
 	return NULL;
 }
 
-static void *eeh_restore_dev_state(void *data, void *userdata)
+static void *eeh_restore_dev_state(struct eeh_dev *edev, void *userdata)
 {
-	struct eeh_dev *edev = data;
 	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 	struct pci_dev *pdev = eeh_dev_to_pci_dev(edev);
 	struct pci_dev *dev = userdata;
@@ -856,11 +854,10 @@ int pcibios_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state stat
  * the indicated device and its children so that the bunch of the
  * devices could be reset properly.
  */
-static void *eeh_set_dev_freset(void *data, void *flag)
+static void *eeh_set_dev_freset(struct eeh_dev *edev, void *flag)
 {
 	struct pci_dev *dev;
 	unsigned int *freset = (unsigned int *)flag;
-	struct eeh_dev *edev = (struct eeh_dev *)data;
 
 	dev = eeh_dev_to_pci_dev(edev);
 	if (dev)
