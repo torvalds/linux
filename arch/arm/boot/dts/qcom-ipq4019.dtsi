@@ -272,7 +272,7 @@
                         regulator;
                 };
 
-		serial@78af000 {
+		blsp1_uart1: serial@78af000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x78af000 0x200>;
 			interrupts = <0 107 0>;
