@@ -69,6 +69,8 @@
 
 			interrupt-parent = <&gic>;
 			interrupts = <GIC_SHARED 12 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
 
 			gpio0: bank@0 {
 				reg = <0>;
