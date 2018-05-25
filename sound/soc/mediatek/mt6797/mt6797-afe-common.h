@@ -46,4 +46,7 @@ unsigned int mt6797_general_rate_transform(struct device *dev,
 					   unsigned int rate);
 unsigned int mt6797_rate_transform(struct device *dev,
 				   unsigned int rate, int aud_blk);
+
+/* dai register */
+int mt6797_dai_adda_register(struct mtk_base_afe *afe);
 #endif
