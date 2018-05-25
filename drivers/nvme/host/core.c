@@ -2316,7 +2316,7 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 	if (id->lpa & NVME_CTRL_LPA_CMD_EFFECTS_LOG) {
 		ret = nvme_get_effects_log(ctrl);
 		if (ret < 0)
-			return ret;
+			goto out_free;
 	}
 
 	if (!ctrl->identified) {
