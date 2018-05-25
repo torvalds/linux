@@ -289,11 +289,6 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 
 	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-	if (REG(DP_DB_CNTL))
-		REG_UPDATE(DP_DB_CNTL, DP_DB_DISABLE, 1);
-#endif
-
 	/* set pixel encoding */
 	switch (crtc_timing->pixel_encoding) {
 	case PIXEL_ENCODING_YCBCR422:

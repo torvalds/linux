@@ -257,20 +257,18 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 	uint8_t colorimetry_bpc;
 	uint8_t dynamic_range_rgb = 0; /*full range*/
 	uint8_t dynamic_range_ycbcr = 1; /*bt709*/
+	uint8_t dp_pixel_encoding = 0;
+	uint8_t dp_component_depth = 0;
 
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
-
-	REG_UPDATE(DP_DB_CNTL, DP_DB_DISABLE, 1);
 
 	/* set pixel encoding */
 	switch (crtc_timing->pixel_encoding) {
 	case PIXEL_ENCODING_YCBCR422:
-		REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-				DP_PIXEL_ENCODING_TYPE_YCBCR422);
+		dp_pixel_encoding = DP_PIXEL_ENCODING_TYPE_YCBCR422;
 		break;
 	case PIXEL_ENCODING_YCBCR444:
-		REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-				DP_PIXEL_ENCODING_TYPE_YCBCR444);
+		dp_pixel_encoding = DP_PIXEL_ENCODING_TYPE_YCBCR444;
 
 		if (crtc_timing->flags.Y_ONLY)
 			if (crtc_timing->display_color_depth != COLOR_DEPTH_666)
@@ -278,8 +276,8 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 				 * Color depth of Y-only could be
 				 * 8, 10, 12, 16 bits
 				 */
-				REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-						DP_PIXEL_ENCODING_TYPE_Y_ONLY);
+				dp_pixel_encoding = DP_PIXEL_ENCODING_TYPE_Y_ONLY;
+
 		/* Note: DP_MSA_MISC1 bit 7 is the indicator
 		 * of Y-only mode.
 		 * This bit is set in HW if register
@@ -287,13 +285,11 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 		 */
 		break;
 	case PIXEL_ENCODING_YCBCR420:
-		REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-				DP_PIXEL_ENCODING_TYPE_YCBCR420);
+		dp_pixel_encoding = DP_PIXEL_ENCODING_TYPE_YCBCR420;
 		REG_UPDATE(DP_VID_TIMING, DP_VID_N_MUL, 1);
 		break;
 	default:
-		REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-				DP_PIXEL_ENCODING_TYPE_RGB444);
+		dp_pixel_encoding = DP_PIXEL_ENCODING_TYPE_RGB444;
 		break;
 	}
 
@@ -314,31 +310,29 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 	/* set color depth */
 	switch (crtc_timing->display_color_depth) {
 	case COLOR_DEPTH_666:
-		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				0);
+		dp_component_depth = DP_COMPONENT_PIXEL_DEPTH_6BPC;
 		break;
 	case COLOR_DEPTH_888:
-		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				DP_COMPONENT_PIXEL_DEPTH_8BPC);
+		dp_component_depth = DP_COMPONENT_PIXEL_DEPTH_8BPC;
 		break;
 	case COLOR_DEPTH_101010:
-		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				DP_COMPONENT_PIXEL_DEPTH_10BPC);
-
+		dp_component_depth = DP_COMPONENT_PIXEL_DEPTH_10BPC;
 		break;
 	case COLOR_DEPTH_121212:
-		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				DP_COMPONENT_PIXEL_DEPTH_12BPC);
+		dp_component_depth = DP_COMPONENT_PIXEL_DEPTH_12BPC;
 		break;
 	case COLOR_DEPTH_161616:
-		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				DP_COMPONENT_PIXEL_DEPTH_16BPC);
+		dp_component_depth = DP_COMPONENT_PIXEL_DEPTH_16BPC;
 		break;
 	default:
-		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				DP_COMPONENT_PIXEL_DEPTH_6BPC);
+		dp_component_depth = DP_COMPONENT_PIXEL_DEPTH_6BPC;
 		break;
 	}
+
+	/* Set DP pixel encoding and component depth */
+	REG_UPDATE_2(DP_PIXEL_FORMAT,
+			DP_PIXEL_ENCODING, dp_pixel_encoding,
+			DP_COMPONENT_DEPTH, dp_component_depth);
 
 	/* set dynamic range and YCbCr range */
 
