@@ -625,6 +625,7 @@ int hns3_set_channels(struct net_device *netdev,
 bool hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget);
 int hns3_init_all_ring(struct hns3_nic_priv *priv);
 int hns3_uninit_all_ring(struct hns3_nic_priv *priv);
+int hns3_nic_reset_all_ring(struct hnae3_handle *h);
 netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev);
 int hns3_clean_rx_ring(
 		struct hns3_enet_ring *ring, int budget,

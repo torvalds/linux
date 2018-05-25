@@ -108,6 +108,10 @@ static int hns3_lp_up(struct net_device *ndev, enum hnae3_loop loop_mode)
 	if (!h->ae_algo->ops->start)
 		return -EOPNOTSUPP;
 
+	ret = hns3_nic_reset_all_ring(h);
+	if (ret)
+		return ret;
+
 	ret = h->ae_algo->ops->start(h);
 	if (ret) {
 		netdev_err(ndev,
