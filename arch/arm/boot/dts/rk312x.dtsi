@@ -44,9 +44,11 @@
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/power/rk3128-power.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
+#include <dt-bindings/soc/rockchip-system-status.h>
 #include <dt-bindings/clock/rk3128-cru.h>
 #include <dt-bindings/display/media-bus-format.h>
 #include <dt-bindings/thermal/thermal.h>
+#include "rk3128-dram-default-timing.dtsi"
 
 / {
 	interrupt-parent = <&gic>;
@@ -200,10 +202,59 @@
 		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
 	};
 
+	dfi: dfi {
+		compatible = "rockchip,rk3128-dfi";
+		rockchip,pmu = <&pmu>;
+		rockchip,grf = <&grf>;
+		status = "disabled";
+	};
+
 	display_subsystem: display-subsystem {
 		compatible = "rockchip,display-subsystem";
 		ports = <&vop_out>;
 		status = "disabled";
+	};
+
+	dmc: dmc {
+		compatible = "rockchip,rk3128-dmc";
+		devfreq-events = <&dfi>;
+		clocks = <&cru SCLK_DDRC>;
+		clock-names = "dmc_clk";
+		upthreshold = <55>;
+		downdifferential = <10>;
+		operating-points-v2 = <&dmc_opp_table>;
+		vop-dclk-mode = <0>;
+		min-cpu-freq = <600000>;
+		rockchip,ddr_timing = <&ddr_timing>;
+		system-status-freq = <
+			/*system status		freq(KHz)*/
+			SYS_STATUS_NORMAL	456000
+			SYS_STATUS_SUSPEND	200000
+		>;
+		auto-min-freq = <300000>;
+		auto-freq-en = <0>;
+		status = "disabled";
+	};
+
+	dmc_opp_table: opp_table2 {
+		compatible = "operating-points-v2";
+
+		opp-200000000 {
+			opp-hz = /bits/ 64 <200000000>;
+			opp-microvolt = <950000>;
+		};
+		opp-300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <950000>;
+		};
+		opp-396000000 {
+			opp-hz = /bits/ 64 <396000000>;
+			opp-microvolt = <1100000>;
+		};
+		opp-456000000 {
+			opp-hz = /bits/ 64 <456000000>;
+			opp-microvolt = <1200000>;
+		};
 	};
 
 	psci {

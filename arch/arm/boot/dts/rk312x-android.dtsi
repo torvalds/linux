@@ -40,11 +40,9 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <dt-bindings/soc/rockchip-system-status.h>
 #include <dt-bindings/display/mipi_dsi.h>
 #include <dt-bindings/display/drm_mipi_dsi.h>
 #include <dt-bindings/display/media-bus-format.h>
-#include "rk3128-dram-default-timing.dtsi"
 
 / {
 	chosen {
@@ -55,55 +53,6 @@
 		compatible = "rockchip,cpuinfo";
 		nvmem-cells = <&efuse_id>;
 		nvmem-cell-names = "id";
-	};
-
-	dfi: dfi {
-		compatible = "rockchip,rk3128-dfi";
-		rockchip,pmu = <&pmu>;
-		rockchip,grf = <&grf>;
-		status = "okay";
-	};
-
-	dmc: dmc {
-		compatible = "rockchip,rk3128-dmc";
-		devfreq-events = <&dfi>;
-		clocks = <&cru SCLK_DDRC>;
-		clock-names = "dmc_clk";
-		upthreshold = <55>;
-		downdifferential = <10>;
-		operating-points-v2 = <&dmc_opp_table>;
-		vop-dclk-mode = <0>;
-		min-cpu-freq = <600000>;
-		rockchip,ddr_timing = <&ddr_timing>;
-		system-status-freq = <
-			/*system status		freq(KHz)*/
-			SYS_STATUS_NORMAL	456000
-			SYS_STATUS_SUSPEND	200000
-		>;
-		auto-min-freq = <300000>;
-		auto-freq-en = <0>;
-		status = "okay";
-	};
-
-	dmc_opp_table: opp_table2 {
-		compatible = "operating-points-v2";
-
-		opp-200000000 {
-			opp-hz = /bits/ 64 <200000000>;
-			opp-microvolt = <950000>;
-		};
-		opp-300000000 {
-			opp-hz = /bits/ 64 <300000000>;
-			opp-microvolt = <950000>;
-		};
-		opp-396000000 {
-			opp-hz = /bits/ 64 <396000000>;
-			opp-microvolt = <1100000>;
-		};
-		opp-456000000 {
-			opp-hz = /bits/ 64 <456000000>;
-			opp-microvolt = <1200000>;
-		};
 	};
 
 	fiq-debugger {
@@ -149,6 +98,10 @@
 	};
 };
 
+&dfi {
+	status = "okay";
+};
+
 &display_subsystem {
 	memory-region = <&cma_region>;
 	logo-memory-region = <&drm_logo>;
@@ -173,4 +126,8 @@
 			connect = <&vop_out_lvds>;
 		};
 	};
+};
+
+&dmc {
+	status = "okay";
 };
