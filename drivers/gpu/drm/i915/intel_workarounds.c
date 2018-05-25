@@ -479,6 +479,9 @@ static int icl_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 		WA_SET_BIT_MASKED(GEN11_COMMON_SLICE_CHICKEN3,
 				  GEN11_BLEND_EMB_FIX_DISABLE_IN_RCC);
 
+	/* WaEnableFloatBlendOptimization:icl */
+	WA_SET_BIT_MASKED(GEN10_CACHE_MODE_SS, FLOAT_BLEND_OPTIMIZATION_ENABLE);
+
 	return 0;
 }
 
