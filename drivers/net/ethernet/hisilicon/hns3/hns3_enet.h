@@ -104,6 +104,9 @@ enum hns3_nic_state {
 #define HNS3_RXD_L4ID_S				8
 #define HNS3_RXD_L4ID_M				(0xf << HNS3_RXD_L4ID_S)
 #define HNS3_RXD_FRAG_B				12
+#define HNS3_RXD_STRP_TAGP_S			13
+#define HNS3_RXD_STRP_TAGP_M			(0x3 << HNS3_RXD_STRP_TAGP_S)
+
 #define HNS3_RXD_L2E_B				16
 #define HNS3_RXD_L3E_B				17
 #define HNS3_RXD_L4E_B				18
