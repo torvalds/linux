@@ -207,6 +207,7 @@ struct i40iw_msix_vector {
 	u32 irq;
 	u32 cpu_affinity;
 	u32 ceq_id;
+	cpumask_t mask;
 };
 
 struct l2params_work {

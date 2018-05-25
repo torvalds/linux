@@ -46,7 +46,7 @@
 				compatible = "ethernet-phy-ieee802.3-c22";
 				reg = <0x0>;
 				interrupt-parent = <&gpio>;
-				interrupts = <TEGRA_MAIN_GPIO(M, 5) IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <TEGRA_MAIN_GPIO(M, 5) IRQ_TYPE_LEVEL_LOW>;
 			};
 		};
 	};

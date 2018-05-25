@@ -2121,6 +2121,8 @@ static ssize_t tcmu_qfull_time_out_store(struct config_item *item,
 
 	if (val >= 0) {
 		udev->qfull_time_out = val * MSEC_PER_SEC;
+	} else if (val == -1) {
+		udev->qfull_time_out = val;
 	} else {
 		printk(KERN_ERR "Invalid qfull timeout value %d\n", val);
 		return -EINVAL;

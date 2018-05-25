@@ -1708,7 +1708,7 @@ build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *att
 	rcu_read_unlock();
 
 	if (rq && sched_debug_enabled) {
-		pr_info("span: %*pbl (max cpu_capacity = %lu)\n",
+		pr_info("root domain span: %*pbl (max cpu_capacity = %lu)\n",
 			cpumask_pr_args(cpu_map), rq->rd->max_cpu_capacity);
 	}
 

@@ -1194,11 +1194,13 @@ static void marvell_nfc_hw_ecc_bch_read_chunk(struct nand_chip *chip, int chunk,
 				  NDCB0_CMD2(NAND_CMD_READSTART);
 
 	/*
-	 * Trigger the naked read operation only on the last chunk.
-	 * Otherwise, use monolithic read.
+	 * Trigger the monolithic read on the first chunk, then naked read on
+	 * intermediate chunks and finally a last naked read on the last chunk.
 	 */
-	if (lt->nchunks == 1 || (chunk < lt->nchunks - 1))
+	if (chunk == 0)
 		nfc_op.ndcb[0] |= NDCB0_CMD_XTYPE(XTYPE_MONOLITHIC_RW);
+	else if (chunk < lt->nchunks - 1)
+		nfc_op.ndcb[0] |= NDCB0_CMD_XTYPE(XTYPE_NAKED_RW);
 	else
 		nfc_op.ndcb[0] |= NDCB0_CMD_XTYPE(XTYPE_LAST_NAKED_RW);
 
