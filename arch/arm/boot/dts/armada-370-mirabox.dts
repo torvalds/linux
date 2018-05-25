@@ -108,27 +108,6 @@
 					reg = <0x25>;
 				};
 			};
-
-			nand@d0000 {
-				status = "okay";
-				num-cs = <1>;
-				marvell,nand-keep-config;
-				marvell,nand-enable-arbiter;
-				nand-on-flash-bbt;
-
-				partition@0 {
-					label = "U-Boot";
-					reg = <0 0x400000>;
-				};
-				partition@400000 {
-					label = "Linux";
-					reg = <0x400000 0x400000>;
-				};
-				partition@800000 {
-					label = "Filesystem";
-					reg = <0x800000 0x3f800000>;
-				};
-			};
 		};
 	};
 };
@@ -173,3 +152,33 @@
 	};
 };
 
+&nand_controller {
+	status = "okay";
+
+	nand@0 {
+		reg = <0>;
+		label = "pxa3xx_nand-0";
+		nand-rb = <0>;
+		marvell,nand-keep-config;
+		nand-on-flash-bbt;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "U-Boot";
+				reg = <0 0x400000>;
+			};
+			partition@400000 {
+				label = "Linux";
+				reg = <0x400000 0x400000>;
+			};
+			partition@800000 {
+				label = "Filesystem";
+				reg = <0x800000 0x3f800000>;
+			};
+		};
+	};
+};
