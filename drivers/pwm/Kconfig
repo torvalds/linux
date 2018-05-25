@@ -349,6 +349,13 @@ config PWM_ROCKCHIP
 	  Generic PWM framework driver for the PWM controller found on
 	  Rockchip SoCs.
 
+config PWM_ROCKCHIP_I2S
+	tristate "Rockchip I2S PWM support"
+	depends on ARCH_ROCKCHIP
+	help
+	  Generic PWM framework driver for the I2S controller found on
+	  Rockchip SoCs, use the I2S controller to implement PWM function.
+
 config PWM_SAMSUNG
 	tristate "Samsung PWM support"
 	depends on PLAT_SAMSUNG || ARCH_EXYNOS
