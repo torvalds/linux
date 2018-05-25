@@ -357,6 +357,7 @@ enum dc_transfer_func_type {
 	TF_TYPE_PREDEFINED,
 	TF_TYPE_DISTRIBUTED_POINTS,
 	TF_TYPE_BYPASS,
+	TF_TYPE_HWPWL
 };
 
 struct dc_transfer_func_distributed_points {
@@ -382,12 +383,15 @@ enum dc_transfer_func_predefined {
 
 struct dc_transfer_func {
 	struct kref refcount;
-	struct dc_transfer_func_distributed_points tf_pts;
 	enum dc_transfer_func_type type;
 	enum dc_transfer_func_predefined tf;
 	/* FP16 1.0 reference level in nits, default is 80 nits, only for PQ*/
 	uint32_t sdr_ref_white_level;
 	struct dc_context *ctx;
+	union {
+		struct pwl_params pwl;
+		struct dc_transfer_func_distributed_points tf_pts;
+	};
 };
 
 /*
