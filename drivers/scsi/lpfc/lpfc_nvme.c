@@ -2862,6 +2862,15 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		 * The transport will update it.
 		 */
 		ndlp->upcall_flags |= NLP_WAIT_FOR_UNREG;
+
+		/* Don't let the host nvme transport keep sending keep-alives
+		 * on this remoteport. Vport is unloading, no recovery. The
+		 * return values is ignored.  The upcall is a courtesy to the
+		 * transport.
+		 */
+		if (vport->load_flag & FC_UNLOADING)
+			(void)nvme_fc_set_remoteport_devloss(remoteport, 0);
+
 		ret = nvme_fc_unregister_remoteport(remoteport);
 		if (ret != 0) {
 			lpfc_nlp_put(ndlp);
