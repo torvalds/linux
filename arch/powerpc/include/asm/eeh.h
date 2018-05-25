@@ -106,6 +106,9 @@ struct eeh_pe {
 #define eeh_pe_for_each_dev(pe, edev, tmp) \
 		list_for_each_entry_safe(edev, tmp, &pe->edevs, list)
 
+#define eeh_for_each_pe(root, pe) \
+	for (pe = root; pe; pe = eeh_pe_next(pe, root))
+
 static inline bool eeh_pe_passed(struct eeh_pe *pe)
 {
 	return pe ? !!atomic_read(&pe->pass_dev_cnt) : false;
@@ -267,6 +270,7 @@ typedef void *(*eeh_pe_traverse_func)(struct eeh_pe *pe, void *flag);
 void eeh_set_pe_aux_size(int size);
 int eeh_phb_pe_create(struct pci_controller *phb);
 struct eeh_pe *eeh_phb_pe_get(struct pci_controller *phb);
+struct eeh_pe *eeh_pe_next(struct eeh_pe *pe, struct eeh_pe *root);
 struct eeh_pe *eeh_pe_get(struct pci_controller *phb,
 			  int pe_no, int config_addr);
 int eeh_add_to_parent_pe(struct eeh_dev *edev);

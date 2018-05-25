@@ -142,8 +142,7 @@ struct eeh_pe *eeh_phb_pe_get(struct pci_controller *phb)
  * The function is used to retrieve the next PE in the
  * hierarchy PE tree.
  */
-static struct eeh_pe *eeh_pe_next(struct eeh_pe *pe,
-				  struct eeh_pe *root)
+struct eeh_pe *eeh_pe_next(struct eeh_pe *pe, struct eeh_pe *root)
 {
 	struct list_head *next = pe->child_list.next;
 
@@ -178,7 +177,7 @@ void *eeh_pe_traverse(struct eeh_pe *root,
 	struct eeh_pe *pe;
 	void *ret;
 
-	for (pe = root; pe; pe = eeh_pe_next(pe, root)) {
+	eeh_for_each_pe(root, pe) {
 		ret = fn(pe, flag);
 		if (ret) return ret;
 	}
@@ -209,7 +208,7 @@ void *eeh_pe_dev_traverse(struct eeh_pe *root,
 	}
 
 	/* Traverse root PE */
-	for (pe = root; pe; pe = eeh_pe_next(pe, root)) {
+	eeh_for_each_pe(root, pe) {
 		eeh_pe_for_each_dev(pe, edev, tmp) {
 			ret = fn(edev, flag);
 			if (ret)
