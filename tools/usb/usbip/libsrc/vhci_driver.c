@@ -135,11 +135,11 @@ static int refresh_imported_device_list(void)
 	return 0;
 }
 
-static int get_nports(void)
+static int get_nports(struct udev_device *hc_device)
 {
 	const char *attr_nports;
 
-	attr_nports = udev_device_get_sysattr_value(vhci_driver->hc_device, "nports");
+	attr_nports = udev_device_get_sysattr_value(hc_device, "nports");
 	if (!attr_nports) {
 		err("udev_device_get_sysattr_value nports failed");
 		return -1;
@@ -242,35 +242,41 @@ static int read_record(int rhport, char *host, unsigned long host_len,
 
 int usbip_vhci_driver_open(void)
 {
+	int nports;
+	struct udev_device *hc_device;
+
 	udev_context = udev_new();
 	if (!udev_context) {
 		err("udev_new failed");
 		return -1;
 	}
 
-	vhci_driver = calloc(1, sizeof(struct usbip_vhci_driver));
-
 	/* will be freed in usbip_driver_close() */
-	vhci_driver->hc_device =
+	hc_device =
 		udev_device_new_from_subsystem_sysname(udev_context,
 						       USBIP_VHCI_BUS_TYPE,
 						       USBIP_VHCI_DEVICE_NAME);
-	if (!vhci_driver->hc_device) {
+	if (!hc_device) {
 		err("udev_device_new_from_subsystem_sysname failed");
 		goto err;
 	}
 
-	vhci_driver->nports = get_nports();
-	dbg("available ports: %d", vhci_driver->nports);
-
-	if (vhci_driver->nports <= 0) {
+	nports = get_nports(hc_device);
+	if (nports <= 0) {
 		err("no available ports");
 		goto err;
-	} else if (vhci_driver->nports > MAXNPORT) {
-		err("port number exceeds %d", MAXNPORT);
+	}
+	dbg("available ports: %d", nports);
+
+	vhci_driver = calloc(1, sizeof(struct usbip_vhci_driver) +
+			nports * sizeof(struct usbip_imported_device));
+	if (!vhci_driver) {
+		err("vhci_driver allocation failed");
 		goto err;
 	}
 
+	vhci_driver->nports = nports;
+	vhci_driver->hc_device = hc_device;
 	vhci_driver->ncontrollers = get_ncontrollers();
 	dbg("available controllers: %d", vhci_driver->ncontrollers);
 
@@ -285,7 +291,7 @@ int usbip_vhci_driver_open(void)
 	return 0;
 
 err:
-	udev_device_unref(vhci_driver->hc_device);
+	udev_device_unref(hc_device);
 
 	if (vhci_driver)
 		free(vhci_driver);
