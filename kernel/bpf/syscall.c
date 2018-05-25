@@ -18,7 +18,9 @@
 #include <linux/vmalloc.h>
 #include <linux/mmzone.h>
 #include <linux/anon_inodes.h>
+#include <linux/fdtable.h>
 #include <linux/file.h>
+#include <linux/fs.h>
 #include <linux/license.h>
 #include <linux/filter.h>
 #include <linux/version.h>
@@ -2178,6 +2180,132 @@ static int bpf_btf_get_fd_by_id(const union bpf_attr *attr)
 	return btf_get_fd_by_id(attr->btf_id);
 }
 
+static int bpf_task_fd_query_copy(const union bpf_attr *attr,
+				    union bpf_attr __user *uattr,
+				    u32 prog_id, u32 fd_type,
+				    const char *buf, u64 probe_offset,
+				    u64 probe_addr)
+{
+	char __user *ubuf = u64_to_user_ptr(attr->task_fd_query.buf);
+	u32 len = buf ? strlen(buf) : 0, input_len;
+	int err = 0;
+
+	if (put_user(len, &uattr->task_fd_query.buf_len))
+		return -EFAULT;
+	input_len = attr->task_fd_query.buf_len;
+	if (input_len && ubuf) {
+		if (!len) {
+			/* nothing to copy, just make ubuf NULL terminated */
+			char zero = '\0';
+
+			if (put_user(zero, ubuf))
+				return -EFAULT;
+		} else if (input_len >= len + 1) {
+			/* ubuf can hold the string with NULL terminator */
+			if (copy_to_user(ubuf, buf, len + 1))
+				return -EFAULT;
+		} else {
+			/* ubuf cannot hold the string with NULL terminator,
+			 * do a partial copy with NULL terminator.
+			 */
+			char zero = '\0';
+
+			err = -ENOSPC;
+			if (copy_to_user(ubuf, buf, input_len - 1))
+				return -EFAULT;
+			if (put_user(zero, ubuf + input_len - 1))
+				return -EFAULT;
+		}
+	}
+
+	if (put_user(prog_id, &uattr->task_fd_query.prog_id) ||
+	    put_user(fd_type, &uattr->task_fd_query.fd_type) ||
+	    put_user(probe_offset, &uattr->task_fd_query.probe_offset) ||
+	    put_user(probe_addr, &uattr->task_fd_query.probe_addr))
+		return -EFAULT;
+
+	return err;
+}
+
+#define BPF_TASK_FD_QUERY_LAST_FIELD task_fd_query.probe_addr
+
+static int bpf_task_fd_query(const union bpf_attr *attr,
+			     union bpf_attr __user *uattr)
+{
+	pid_t pid = attr->task_fd_query.pid;
+	u32 fd = attr->task_fd_query.fd;
+	const struct perf_event *event;
+	struct files_struct *files;
+	struct task_struct *task;
+	struct file *file;
+	int err;
+
+	if (CHECK_ATTR(BPF_TASK_FD_QUERY))
+		return -EINVAL;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (attr->task_fd_query.flags != 0)
+		return -EINVAL;
+
+	task = get_pid_task(find_vpid(pid), PIDTYPE_PID);
+	if (!task)
+		return -ENOENT;
+
+	files = get_files_struct(task);
+	put_task_struct(task);
+	if (!files)
+		return -ENOENT;
+
+	err = 0;
+	spin_lock(&files->file_lock);
+	file = fcheck_files(files, fd);
+	if (!file)
+		err = -EBADF;
+	else
+		get_file(file);
+	spin_unlock(&files->file_lock);
+	put_files_struct(files);
+
+	if (err)
+		goto out;
+
+	if (file->f_op == &bpf_raw_tp_fops) {
+		struct bpf_raw_tracepoint *raw_tp = file->private_data;
+		struct bpf_raw_event_map *btp = raw_tp->btp;
+
+		err = bpf_task_fd_query_copy(attr, uattr,
+					     raw_tp->prog->aux->id,
+					     BPF_FD_TYPE_RAW_TRACEPOINT,
+					     btp->tp->name, 0, 0);
+		goto put_file;
+	}
+
+	event = perf_get_event(file);
+	if (!IS_ERR(event)) {
+		u64 probe_offset, probe_addr;
+		u32 prog_id, fd_type;
+		const char *buf;
+
+		err = bpf_get_perf_event_info(event, &prog_id, &fd_type,
+					      &buf, &probe_offset,
+					      &probe_addr);
+		if (!err)
+			err = bpf_task_fd_query_copy(attr, uattr, prog_id,
+						     fd_type, buf,
+						     probe_offset,
+						     probe_addr);
+		goto put_file;
+	}
+
+	err = -ENOTSUPP;
+put_file:
+	fput(file);
+out:
+	return err;
+}
+
 SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, size)
 {
 	union bpf_attr attr = {};
@@ -2263,6 +2391,9 @@ SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, siz
 		break;
 	case BPF_BTF_GET_FD_BY_ID:
 		err = bpf_btf_get_fd_by_id(&attr);
+		break;
+	case BPF_TASK_FD_QUERY:
+		err = bpf_task_fd_query(&attr, uattr);
 		break;
 	default:
 		err = -EINVAL;
