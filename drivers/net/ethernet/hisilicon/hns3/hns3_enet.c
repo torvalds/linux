@@ -3217,9 +3217,6 @@ static void hns3_recover_hw_addr(struct net_device *ndev)
 
 static void hns3_clear_tx_ring(struct hns3_enet_ring *ring)
 {
-	if (!HNAE3_IS_TX_RING(ring))
-		return;
-
 	while (ring->next_to_clean != ring->next_to_use) {
 		hns3_free_buffer_detach(ring, ring->next_to_clean);
 		ring_ptr_move_fw(ring, next_to_clean);
@@ -3228,9 +3225,6 @@ static void hns3_clear_tx_ring(struct hns3_enet_ring *ring)
 
 static void hns3_clear_rx_ring(struct hns3_enet_ring *ring)
 {
-	if (HNAE3_IS_TX_RING(ring))
-		return;
-
 	while (ring->next_to_use != ring->next_to_clean) {
 		/* When a buffer is not reused, it's memory has been
 		 * freed in hns3_handle_rx_bd or will be freed by
