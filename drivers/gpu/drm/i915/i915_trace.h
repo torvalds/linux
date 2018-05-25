@@ -638,9 +638,9 @@ TRACE_EVENT(i915_request_queue,
 			   __entry->flags = flags;
 			   ),
 
-	    TP_printk("dev=%u, hw_id=%u, engine=%u:%u, ctx=%u, seqno=%u, flags=0x%x",
-		      __entry->dev, __entry->hw_id, __entry->class,
-		      __entry->instance, __entry->ctx, __entry->seqno,
+	    TP_printk("dev=%u, engine=%u:%u, hw_id=%u, ctx=%u, seqno=%u, flags=0x%x",
+		      __entry->dev, __entry->class, __entry->instance,
+		      __entry->hw_id, __entry->ctx, __entry->seqno,
 		      __entry->flags)
 );
 
@@ -668,9 +668,9 @@ DECLARE_EVENT_CLASS(i915_request,
 			   __entry->global = rq->global_seqno;
 			   ),
 
-	    TP_printk("dev=%u, hw_id=%u, engine=%u:%u, ctx=%u, seqno=%u, global=%u",
-		      __entry->dev, __entry->hw_id, __entry->class,
-		      __entry->instance, __entry->ctx, __entry->seqno,
+	    TP_printk("dev=%u, engine=%u:%u, hw_id=%u, ctx=%u, seqno=%u, global=%u",
+		      __entry->dev, __entry->class, __entry->instance,
+		      __entry->hw_id, __entry->ctx, __entry->seqno,
 		      __entry->global)
 );
 
@@ -718,9 +718,9 @@ TRACE_EVENT(i915_request_in,
 			   __entry->port = port;
 			   ),
 
-	    TP_printk("dev=%u, hw_id=%u, engine=%u:%u, ctx=%u, seqno=%u, prio=%u, global=%u, port=%u",
-		      __entry->dev, __entry->hw_id, __entry->class,
-		      __entry->instance, __entry->ctx, __entry->seqno,
+	    TP_printk("dev=%u, engine=%u:%u, hw_id=%u, ctx=%u, seqno=%u, prio=%u, global=%u, port=%u",
+		      __entry->dev, __entry->class, __entry->instance,
+		      __entry->hw_id, __entry->ctx, __entry->seqno,
 		      __entry->prio, __entry->global_seqno, __entry->port)
 );
 
@@ -750,9 +750,9 @@ TRACE_EVENT(i915_request_out,
 			   __entry->completed = i915_request_completed(rq);
 			   ),
 
-		    TP_printk("dev=%u, hw_id=%u, engine=%u:%u, ctx=%u, seqno=%u, global=%u, completed?=%u",
-			      __entry->dev, __entry->hw_id, __entry->class,
-			      __entry->instance, __entry->ctx, __entry->seqno,
+		    TP_printk("dev=%u, engine=%u:%u, hw_id=%u, ctx=%u, seqno=%u, global=%u, completed?=%u",
+			      __entry->dev, __entry->class, __entry->instance,
+			      __entry->hw_id, __entry->ctx, __entry->seqno,
 			      __entry->global_seqno, __entry->completed)
 );
 
@@ -842,9 +842,9 @@ TRACE_EVENT(i915_request_wait_begin,
 			   __entry->flags = flags;
 			   ),
 
-	    TP_printk("dev=%u, hw_id=%u, engine=%u:%u, ctx=%u, seqno=%u, global=%u, blocking=%u, flags=0x%x",
-		      __entry->dev, __entry->hw_id, __entry->class,
-		      __entry->instance, __entry->ctx, __entry->seqno,
+	    TP_printk("dev=%u, engine=%u:%u, hw_id=%u, ctx=%u, seqno=%u, global=%u, blocking=%u, flags=0x%x",
+		      __entry->dev, __entry->class, __entry->instance,
+		      __entry->hw_id, __entry->ctx, __entry->seqno,
 		      __entry->global, !!(__entry->flags & I915_WAIT_LOCKED),
 		      __entry->flags)
 );
