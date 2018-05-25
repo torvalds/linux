@@ -347,6 +347,7 @@ void qede_fill_by_demand_stats(struct qede_dev *edev)
 	p_common->rx_bcast_pkts = stats.common.rx_bcast_pkts;
 	p_common->mftag_filter_discards = stats.common.mftag_filter_discards;
 	p_common->mac_filter_discards = stats.common.mac_filter_discards;
+	p_common->gft_filter_drop = stats.common.gft_filter_drop;
 
 	p_common->tx_ucast_bytes = stats.common.tx_ucast_bytes;
 	p_common->tx_mcast_bytes = stats.common.tx_mcast_bytes;
