@@ -252,6 +252,13 @@ void idr_checks(void)
 	idr_remove(&idr, 3);
 	idr_remove(&idr, 0);
 
+	assert(idr_alloc(&idr, DUMMY_PTR, 0, 0, GFP_KERNEL) == 0);
+	idr_remove(&idr, 1);
+	for (i = 1; i < RADIX_TREE_MAP_SIZE; i++)
+		assert(idr_alloc(&idr, DUMMY_PTR, 0, 0, GFP_KERNEL) == i);
+	idr_remove(&idr, 1 << 30);
+	idr_destroy(&idr);
+
 	for (i = INT_MAX - 3UL; i < INT_MAX + 1UL; i++) {
 		struct item *item = item_create(i, 0);
 		assert(idr_alloc(&idr, item, i, i + 10, GFP_KERNEL) == i);
