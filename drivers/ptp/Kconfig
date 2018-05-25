@@ -41,19 +41,19 @@ config PTP_1588_CLOCK_DTE
 	  To compile this driver as a module, choose M here: the module
 	  will be called ptp_dte.
 
-config PTP_1588_CLOCK_GIANFAR
-	tristate "Freescale eTSEC as PTP clock"
+config PTP_1588_CLOCK_QORIQ
+	tristate "Freescale QorIQ 1588 timer as PTP clock"
 	depends on GIANFAR
 	depends on PTP_1588_CLOCK
 	default y
 	help
-	  This driver adds support for using the eTSEC as a PTP
-	  clock. This clock is only useful if your PTP programs are
-	  getting hardware time stamps on the PTP Ethernet packets
-	  using the SO_TIMESTAMPING API.
+	  This driver adds support for using the Freescale QorIQ 1588
+	  timer as a PTP clock. This clock is only useful if your PTP
+	  programs are getting hardware time stamps on the PTP Ethernet
+	  packets using the SO_TIMESTAMPING API.
 
 	  To compile this driver as a module, choose M here: the module
-	  will be called gianfar_ptp.
+	  will be called ptp_qoriq.
 
 config PTP_1588_CLOCK_IXP46X
 	tristate "Intel IXP46x as PTP clock"
