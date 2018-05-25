@@ -3,7 +3,6 @@
  *
  * Inspired by dwc3-of-simple.c
  */
-#define DEBUG
 
 #include <linux/io.h>
 #include <linux/of.h>
