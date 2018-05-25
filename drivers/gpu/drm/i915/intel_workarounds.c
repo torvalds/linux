@@ -474,6 +474,11 @@ static int icl_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 	WA_SET_BIT_MASKED(GEN9_SLICE_COMMON_ECO_CHICKEN1,
 			  GEN11_STATE_CACHE_REDIRECT_TO_CS);
 
+	/* Wa_2006665173:icl (pre-prod) */
+	if (IS_ICL_REVID(dev_priv, ICL_REVID_A0, ICL_REVID_A0))
+		WA_SET_BIT_MASKED(GEN11_COMMON_SLICE_CHICKEN3,
+				  GEN11_BLEND_EMB_FIX_DISABLE_IN_RCC);
+
 	return 0;
 }
 
