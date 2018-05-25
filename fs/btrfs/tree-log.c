@@ -4320,6 +4320,110 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
+/*
+ * Log all prealloc extents beyond the inode's i_size to make sure we do not
+ * lose them after doing a fast fsync and replaying the log. We scan the
+ * subvolume's root instead of iterating the inode's extent map tree because
+ * otherwise we can log incorrect extent items based on extent map conversion.
+ * That can happen due to the fact that extent maps are merged when they
+ * are not in the extent map tree's list of modified extents.
+ */
+static int btrfs_log_prealloc_extents(struct btrfs_trans_handle *trans,
+				      struct btrfs_inode *inode,
+				      struct btrfs_path *path)
+{
+	struct btrfs_root *root = inode->root;
+	struct btrfs_key key;
+	const u64 i_size = i_size_read(&inode->vfs_inode);
+	const u64 ino = btrfs_ino(inode);
+	struct btrfs_path *dst_path = NULL;
+	u64 last_extent = (u64)-1;
+	int ins_nr = 0;
+	int start_slot;
+	int ret;
+
+	if (!(inode->flags & BTRFS_INODE_PREALLOC))
+		return 0;
+
+	key.objectid = ino;
+	key.type = BTRFS_EXTENT_DATA_KEY;
+	key.offset = i_size;
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	if (ret < 0)
+		goto out;
+
+	while (true) {
+		struct extent_buffer *leaf = path->nodes[0];
+		int slot = path->slots[0];
+
+		if (slot >= btrfs_header_nritems(leaf)) {
+			if (ins_nr > 0) {
+				ret = copy_items(trans, inode, dst_path, path,
+						 &last_extent, start_slot,
+						 ins_nr, 1, 0);
+				if (ret < 0)
+					goto out;
+				ins_nr = 0;
+			}
+			ret = btrfs_next_leaf(root, path);
+			if (ret < 0)
+				goto out;
+			if (ret > 0) {
+				ret = 0;
+				break;
+			}
+			continue;
+		}
+
+		btrfs_item_key_to_cpu(leaf, &key, slot);
+		if (key.objectid > ino)
+			break;
+		if (WARN_ON_ONCE(key.objectid < ino) ||
+		    key.type < BTRFS_EXTENT_DATA_KEY ||
+		    key.offset < i_size) {
+			path->slots[0]++;
+			continue;
+		}
+		if (last_extent == (u64)-1) {
+			last_extent = key.offset;
+			/*
+			 * Avoid logging extent items logged in past fsync calls
+			 * and leading to duplicate keys in the log tree.
+			 */
+			do {
+				ret = btrfs_truncate_inode_items(trans,
+							 root->log_root,
+							 &inode->vfs_inode,
+							 i_size,
+							 BTRFS_EXTENT_DATA_KEY);
+			} while (ret == -EAGAIN);
+			if (ret)
+				goto out;
+		}
+		if (ins_nr == 0)
+			start_slot = slot;
+		ins_nr++;
+		path->slots[0]++;
+		if (!dst_path) {
+			dst_path = btrfs_alloc_path();
+			if (!dst_path) {
+				ret = -ENOMEM;
+				goto out;
+			}
+		}
+	}
+	if (ins_nr > 0) {
+		ret = copy_items(trans, inode, dst_path, path, &last_extent,
+				 start_slot, ins_nr, 1, 0);
+		if (ret > 0)
+			ret = 0;
+	}
+out:
+	btrfs_release_path(path);
+	btrfs_free_path(dst_path);
+	return ret;
+}
+
 static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 				     struct btrfs_root *root,
 				     struct btrfs_inode *inode,
@@ -4362,6 +4466,11 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 		if (em->generation <= test_gen)
 			continue;
 
+		/* We log prealloc extents beyond eof later. */
+		if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags) &&
+		    em->start >= i_size_read(&inode->vfs_inode))
+			continue;
+
 		if (em->start < logged_start)
 			logged_start = em->start;
 		if ((em->start + em->len - 1) > logged_end)
@@ -4372,31 +4481,6 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 		set_bit(EXTENT_FLAG_LOGGING, &em->flags);
 		list_add_tail(&em->list, &extents);
 		num++;
-	}
-
-	/*
-	 * Add all prealloc extents beyond the inode's i_size to make sure we
-	 * don't lose them after doing a fast fsync and replaying the log.
-	 */
-	if (inode->flags & BTRFS_INODE_PREALLOC) {
-		struct rb_node *node;
-
-		for (node = rb_last(&tree->map); node; node = rb_prev(node)) {
-			em = rb_entry(node, struct extent_map, rb_node);
-			if (em->start < i_size_read(&inode->vfs_inode))
-				break;
-			if (!list_empty(&em->list))
-				continue;
-			/* Same as above loop. */
-			if (++num > 32768) {
-				list_del_init(&tree->modified_extents);
-				ret = -EFBIG;
-				goto process;
-			}
-			refcount_inc(&em->refs);
-			set_bit(EXTENT_FLAG_LOGGING, &em->flags);
-			list_add_tail(&em->list, &extents);
-		}
 	}
 
 	list_sort(NULL, &extents, extent_cmp);
@@ -4443,6 +4527,9 @@ process:
 	up_write(&inode->dio_sem);
 
 	btrfs_release_path(path);
+	if (!ret)
+		ret = btrfs_log_prealloc_extents(trans, inode, path);
+
 	return ret;
 }
 
@@ -4827,6 +4914,7 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 	struct extent_map_tree *em_tree = &inode->extent_tree;
 	u64 logged_isize = 0;
 	bool need_log_inode_item = true;
+	bool xattrs_logged = false;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -5128,6 +5216,7 @@ next_key:
 	err = btrfs_log_all_xattrs(trans, root, inode, path, dst_path);
 	if (err)
 		goto out_unlock;
+	xattrs_logged = true;
 	if (max_key.type >= BTRFS_EXTENT_DATA_KEY && !fast_search) {
 		btrfs_release_path(path);
 		btrfs_release_path(dst_path);
@@ -5140,6 +5229,11 @@ log_extents:
 	btrfs_release_path(dst_path);
 	if (need_log_inode_item) {
 		err = log_inode_item(trans, log, dst_path, inode);
+		if (!err && !xattrs_logged) {
+			err = btrfs_log_all_xattrs(trans, root, inode, path,
+						   dst_path);
+			btrfs_release_path(path);
+		}
 		if (err)
 			goto out_unlock;
 	}

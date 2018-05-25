@@ -4309,7 +4309,7 @@ F:	Documentation/driver-api/dma-buf.rst
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 DMA GENERIC OFFLOAD ENGINE SUBSYSTEM
-M:	Vinod Koul <vinod.koul@intel.com>
+M:	Vinod Koul <vkoul@kernel.org>
 L:	dmaengine@vger.kernel.org
 Q:	https://patchwork.kernel.org/project/linux-dmaengine/list/
 S:	Maintained
@@ -5388,7 +5388,6 @@ S:	Maintained
 F:	drivers/iommu/exynos-iommu.c
 
 EZchip NPS platform support
-M:	Elad Kanfi <eladkan@mellanox.com>
 M:	Vineet Gupta <vgupta@synopsys.com>
 S:	Supported
 F:	arch/arc/plat-eznps
@@ -7698,6 +7697,7 @@ KERNEL SELFTEST FRAMEWORK
 M:	Shuah Khan <shuah@kernel.org>
 L:	linux-kselftest@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shuah/linux-kselftest.git
+Q:	https://patchwork.kernel.org/project/linux-kselftest/list/
 S:	Maintained
 F:	tools/testing/selftests/
 F:	Documentation/dev-tools/kselftest*
@@ -9021,7 +9021,6 @@ Q:	http://patchwork.ozlabs.org/project/netdev/list/
 F:	drivers/net/ethernet/mellanox/mlx5/core/en_*
 
 MELLANOX ETHERNET INNOVA DRIVER
-M:	Ilan Tayari <ilant@mellanox.com>
 R:	Boris Pismenny <borisp@mellanox.com>
 L:	netdev@vger.kernel.org
 S:	Supported
@@ -9031,7 +9030,6 @@ F:	drivers/net/ethernet/mellanox/mlx5/core/fpga/*
 F:	include/linux/mlx5/mlx5_ifc_fpga.h
 
 MELLANOX ETHERNET INNOVA IPSEC DRIVER
-M:	Ilan Tayari <ilant@mellanox.com>
 R:	Boris Pismenny <borisp@mellanox.com>
 L:	netdev@vger.kernel.org
 S:	Supported
@@ -9087,7 +9085,6 @@ F:	include/uapi/rdma/mlx4-abi.h
 
 MELLANOX MLX5 core VPI driver
 M:	Saeed Mahameed <saeedm@mellanox.com>
-M:	Matan Barak <matanb@mellanox.com>
 M:	Leon Romanovsky <leonro@mellanox.com>
 L:	netdev@vger.kernel.org
 L:	linux-rdma@vger.kernel.org
@@ -9098,7 +9095,6 @@ F:	drivers/net/ethernet/mellanox/mlx5/core/
 F:	include/linux/mlx5/
 
 MELLANOX MLX5 IB driver
-M:	Matan Barak <matanb@mellanox.com>
 M:	Leon Romanovsky <leonro@mellanox.com>
 L:	linux-rdma@vger.kernel.org
 W:	http://www.mellanox.com
@@ -9832,7 +9828,6 @@ F:	net/netfilter/xt_CONNSECMARK.c
 F:	net/netfilter/xt_SECMARK.c
 
 NETWORKING [TLS]
-M:	Ilya Lesokhin <ilyal@mellanox.com>
 M:	Aviad Yehezkel <aviadye@mellanox.com>
 M:	Dave Watson <davejwatson@fb.com>
 L:	netdev@vger.kernel.org
@@ -12221,7 +12216,7 @@ F:	Documentation/s390/vfio-ccw.txt
 F:	include/uapi/linux/vfio_ccw.h
 
 S390 ZCRYPT DRIVER
-M:	Harald Freudenberger <freude@de.ibm.com>
+M:	Harald Freudenberger <freude@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
@@ -13264,6 +13259,12 @@ SRM (Alpha) environment access
 M:	Jan-Benedict Glaw <jbglaw@lug-owl.de>
 S:	Maintained
 F:	arch/alpha/kernel/srm_env.c
+
+ST STM32 I2C/SMBUS DRIVER
+M:	Pierre-Yves MORDRET <pierre-yves.mordret@st.com>
+L:	linux-i2c@vger.kernel.org
+S:	Maintained
+F:	drivers/i2c/busses/i2c-stm32*
 
 STABLE BRANCH
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
