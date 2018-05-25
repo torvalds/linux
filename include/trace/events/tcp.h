@@ -236,7 +236,7 @@ TRACE_EVENT(tcp_probe,
 		__field(__u16, sport)
 		__field(__u16, dport)
 		__field(__u32, mark)
-		__field(__u16, length)
+		__field(__u16, data_len)
 		__field(__u32, snd_nxt)
 		__field(__u32, snd_una)
 		__field(__u32, snd_cwnd)
@@ -261,7 +261,7 @@ TRACE_EVENT(tcp_probe,
 		__entry->dport = ntohs(inet->inet_dport);
 		__entry->mark = skb->mark;
 
-		__entry->length = skb->len;
+		__entry->data_len = skb->len - tcp_hdrlen(skb);
 		__entry->snd_nxt = tp->snd_nxt;
 		__entry->snd_una = tp->snd_una;
 		__entry->snd_cwnd = tp->snd_cwnd;
@@ -272,9 +272,9 @@ TRACE_EVENT(tcp_probe,
 		__entry->sock_cookie = sock_gen_cookie(sk);
 	),
 
-	TP_printk("src=%pISpc dest=%pISpc mark=%#x length=%d snd_nxt=%#x snd_una=%#x snd_cwnd=%u ssthresh=%u snd_wnd=%u srtt=%u rcv_wnd=%u sock_cookie=%llx",
+	TP_printk("src=%pISpc dest=%pISpc mark=%#x data_len=%d snd_nxt=%#x snd_una=%#x snd_cwnd=%u ssthresh=%u snd_wnd=%u srtt=%u rcv_wnd=%u sock_cookie=%llx",
 		  __entry->saddr, __entry->daddr, __entry->mark,
-		  __entry->length, __entry->snd_nxt, __entry->snd_una,
+		  __entry->data_len, __entry->snd_nxt, __entry->snd_una,
 		  __entry->snd_cwnd, __entry->ssthresh, __entry->snd_wnd,
 		  __entry->srtt, __entry->rcv_wnd, __entry->sock_cookie)
 );
