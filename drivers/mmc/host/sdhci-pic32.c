@@ -200,10 +200,8 @@ static int pic32_sdhci_probe(struct platform_device *pdev)
 	}
 
 	ret = sdhci_add_host(host);
-	if (ret) {
-		dev_err(&pdev->dev, "error adding host\n");
+	if (ret)
 		goto err_base_clk;
-	}
 
 	dev_info(&pdev->dev, "Successfully added sdhci host\n");
 	return 0;
