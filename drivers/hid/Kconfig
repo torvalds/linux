@@ -841,6 +841,7 @@ config HID_SPEEDLINK
 config HID_STEAM
 	tristate "Steam Controller support"
 	depends on HID
+	select POWER_SUPPLY
 	---help---
 	Say Y here if you have a Steam Controller if you want to use it
 	without running the Steam Client. It supports both the wired and
