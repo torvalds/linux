@@ -6,6 +6,7 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/clk/davinci.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/init.h>
@@ -86,7 +87,7 @@ static const struct davinci_lpsc_clk_info dm365_psc_info[] = {
 	{ }
 };
 
-static int dm365_psc_init(struct device *dev, void __iomem *base)
+int dm365_psc_init(struct device *dev, void __iomem *base)
 {
 	return davinci_psc_register_clocks(dev, dm365_psc_info, 52, base);
 }

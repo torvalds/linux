@@ -21,4 +21,9 @@ int dm365_pll2_init(struct device *dev, void __iomem *base, struct regmap *cfgch
 int dm644x_pll1_init(struct device *dev, void __iomem *base, struct regmap *cfgchip);
 int dm646x_pll1_init(struct device *dev, void __iomem *base, struct regmap *cfgchip);
 
+int dm355_psc_init(struct device *dev, void __iomem *base);
+int dm365_psc_init(struct device *dev, void __iomem *base);
+int dm644x_psc_init(struct device *dev, void __iomem *base);
+int dm646x_psc_init(struct device *dev, void __iomem *base);
+
 #endif /* __LINUX_CLK_DAVINCI_PLL_H___ */
