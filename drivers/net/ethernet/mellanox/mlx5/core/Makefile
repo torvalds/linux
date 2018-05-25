@@ -15,13 +15,13 @@ mlx5_core-$(CONFIG_MLX5_FPGA) += fpga/cmd.o fpga/core.o fpga/conn.o fpga/sdk.o \
 
 mlx5_core-$(CONFIG_MLX5_CORE_EN) += en_main.o en_common.o en_fs.o en_ethtool.o \
 		en_tx.o en_rx.o en_dim.o en_txrx.o en_stats.o vxlan.o \
-		en_arfs.o en_fs_ethtool.o en_selftest.o
+		en_arfs.o en_fs_ethtool.o en_selftest.o en/port.o
 
 mlx5_core-$(CONFIG_MLX5_MPFS) += lib/mpfs.o
 
 mlx5_core-$(CONFIG_MLX5_ESWITCH) += eswitch.o eswitch_offloads.o en_rep.o en_tc.o
 
-mlx5_core-$(CONFIG_MLX5_CORE_EN_DCB) +=  en_dcbnl.o
+mlx5_core-$(CONFIG_MLX5_CORE_EN_DCB) +=  en_dcbnl.o en/port_buffer.o
 
 mlx5_core-$(CONFIG_MLX5_CORE_IPOIB) += ipoib/ipoib.o ipoib/ethtool.o ipoib/ipoib_vlan.o
 

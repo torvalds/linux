@@ -65,6 +65,7 @@ struct page_pool;
 #define MLX5E_HW2SW_MTU(params, hwmtu) ((hwmtu) - ((params)->hard_mtu))
 #define MLX5E_SW2HW_MTU(params, swmtu) ((swmtu) + ((params)->hard_mtu))
 
+#define MLX5E_MAX_PRIORITY      8
 #define MLX5E_MAX_DSCP          64
 #define MLX5E_MAX_NUM_TC	8
 
@@ -275,6 +276,11 @@ struct mlx5e_dcbx {
 	/* The only setting that cannot be read from FW */
 	u8                         tc_tsa[IEEE_8021QAZ_MAX_TCS];
 	u8                         cap;
+
+	/* Buffer configuration */
+	bool                       manual_buffer;
+	u32                        cable_len;
+	u32                        xoff;
 };
 
 struct mlx5e_dcbx_dp {
@@ -932,8 +938,6 @@ void mlx5e_deactivate_priv_channels(struct mlx5e_priv *priv);
 
 void mlx5e_build_default_indir_rqt(u32 *indirection_rqt, int len,
 				   int num_channels);
-int mlx5e_get_max_linkspeed(struct mlx5_core_dev *mdev, u32 *speed);
-
 void mlx5e_set_tx_cq_mode_params(struct mlx5e_params *params,
 				 u8 cq_period_mode);
 void mlx5e_set_rx_cq_mode_params(struct mlx5e_params *params,

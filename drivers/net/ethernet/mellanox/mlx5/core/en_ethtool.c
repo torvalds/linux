@@ -31,6 +31,7 @@
  */
 
 #include "en.h"
+#include "en/port.h"
 
 void mlx5e_ethtool_get_drvinfo(struct mlx5e_priv *priv,
 			       struct ethtool_drvinfo *drvinfo)
@@ -59,18 +60,16 @@ static void mlx5e_get_drvinfo(struct net_device *dev,
 struct ptys2ethtool_config {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported);
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertised);
-	u32 speed;
 };
 
 static struct ptys2ethtool_config ptys2ethtool_table[MLX5E_LINK_MODES_NUMBER];
 
-#define MLX5_BUILD_PTYS2ETHTOOL_CONFIG(reg_, speed_, ...)               \
+#define MLX5_BUILD_PTYS2ETHTOOL_CONFIG(reg_, ...)                       \
 	({                                                              \
 		struct ptys2ethtool_config *cfg;                        \
 		const unsigned int modes[] = { __VA_ARGS__ };           \
 		unsigned int i;                                         \
 		cfg = &ptys2ethtool_table[reg_];                        \
-		cfg->speed = speed_;                                    \
 		bitmap_zero(cfg->supported,                             \
 			    __ETHTOOL_LINK_MODE_MASK_NBITS);            \
 		bitmap_zero(cfg->advertised,                            \
@@ -83,55 +82,55 @@ static struct ptys2ethtool_config ptys2ethtool_table[MLX5E_LINK_MODES_NUMBER];
 
 void mlx5e_build_ptys2ethtool_map(void)
 {
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_1000BASE_CX_SGMII, SPEED_1000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_1000BASE_CX_SGMII,
 				       ETHTOOL_LINK_MODE_1000baseKX_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_1000BASE_KX, SPEED_1000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_1000BASE_KX,
 				       ETHTOOL_LINK_MODE_1000baseKX_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_10GBASE_CX4, SPEED_10000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_10GBASE_CX4,
 				       ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_10GBASE_KX4, SPEED_10000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_10GBASE_KX4,
 				       ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_10GBASE_KR, SPEED_10000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_10GBASE_KR,
 				       ETHTOOL_LINK_MODE_10000baseKR_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_20GBASE_KR2, SPEED_20000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_20GBASE_KR2,
 				       ETHTOOL_LINK_MODE_20000baseKR2_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_40GBASE_CR4, SPEED_40000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_40GBASE_CR4,
 				       ETHTOOL_LINK_MODE_40000baseCR4_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_40GBASE_KR4, SPEED_40000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_40GBASE_KR4,
 				       ETHTOOL_LINK_MODE_40000baseKR4_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_56GBASE_R4, SPEED_56000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_56GBASE_R4,
 				       ETHTOOL_LINK_MODE_56000baseKR4_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_10GBASE_CR, SPEED_10000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_10GBASE_CR,
 				       ETHTOOL_LINK_MODE_10000baseKR_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_10GBASE_SR, SPEED_10000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_10GBASE_SR,
 				       ETHTOOL_LINK_MODE_10000baseKR_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_10GBASE_ER, SPEED_10000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_10GBASE_ER,
 				       ETHTOOL_LINK_MODE_10000baseKR_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_40GBASE_SR4, SPEED_40000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_40GBASE_SR4,
 				       ETHTOOL_LINK_MODE_40000baseSR4_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_40GBASE_LR4, SPEED_40000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_40GBASE_LR4,
 				       ETHTOOL_LINK_MODE_40000baseLR4_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_50GBASE_SR2, SPEED_50000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_50GBASE_SR2,
 				       ETHTOOL_LINK_MODE_50000baseSR2_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_100GBASE_CR4, SPEED_100000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_100GBASE_CR4,
 				       ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_100GBASE_SR4, SPEED_100000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_100GBASE_SR4,
 				       ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_100GBASE_KR4, SPEED_100000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_100GBASE_KR4,
 				       ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_100GBASE_LR4, SPEED_100000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_100GBASE_LR4,
 				       ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_10GBASE_T, SPEED_10000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_10GBASE_T,
 				       ETHTOOL_LINK_MODE_10000baseT_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_25GBASE_CR, SPEED_25000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_25GBASE_CR,
 				       ETHTOOL_LINK_MODE_25000baseCR_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_25GBASE_KR, SPEED_25000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_25GBASE_KR,
 				       ETHTOOL_LINK_MODE_25000baseKR_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_25GBASE_SR, SPEED_25000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_25GBASE_SR,
 				       ETHTOOL_LINK_MODE_25000baseSR_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_50GBASE_CR2, SPEED_50000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_50GBASE_CR2,
 				       ETHTOOL_LINK_MODE_50000baseCR2_Full_BIT);
-	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_50GBASE_KR2, SPEED_50000,
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_50GBASE_KR2,
 				       ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT);
 }
 
@@ -617,43 +616,24 @@ static void ptys2ethtool_supported_advertised_port(struct ethtool_link_ksettings
 	}
 }
 
-int mlx5e_get_max_linkspeed(struct mlx5_core_dev *mdev, u32 *speed)
-{
-	u32 max_speed = 0;
-	u32 proto_cap;
-	int err;
-	int i;
-
-	err = mlx5_query_port_proto_cap(mdev, &proto_cap, MLX5_PTYS_EN);
-	if (err)
-		return err;
-
-	for (i = 0; i < MLX5E_LINK_MODES_NUMBER; ++i)
-		if (proto_cap & MLX5E_PROT_MASK(i))
-			max_speed = max(max_speed, ptys2ethtool_table[i].speed);
-
-	*speed = max_speed;
-	return 0;
-}
-
 static void get_speed_duplex(struct net_device *netdev,
 			     u32 eth_proto_oper,
 			     struct ethtool_link_ksettings *link_ksettings)
 {
-	int i;
 	u32 speed = SPEED_UNKNOWN;
 	u8 duplex = DUPLEX_UNKNOWN;
 
 	if (!netif_carrier_ok(netdev))
 		goto out;
 
-	for (i = 0; i < MLX5E_LINK_MODES_NUMBER; ++i) {
-		if (eth_proto_oper & MLX5E_PROT_MASK(i)) {
-			speed = ptys2ethtool_table[i].speed;
-			duplex = DUPLEX_FULL;
-			break;
-		}
+	speed = mlx5e_port_ptys2speed(eth_proto_oper);
+	if (!speed) {
+		speed = SPEED_UNKNOWN;
+		goto out;
 	}
+
+	duplex = DUPLEX_FULL;
+
 out:
 	link_ksettings->base.speed = speed;
 	link_ksettings->base.duplex = duplex;
@@ -811,18 +791,6 @@ static u32 mlx5e_ethtool2ptys_adver_link(const unsigned long *link_modes)
 	return ptys_modes;
 }
 
-static u32 mlx5e_ethtool2ptys_speed_link(u32 speed)
-{
-	u32 i, speed_links = 0;
-
-	for (i = 0; i < MLX5E_LINK_MODES_NUMBER; ++i) {
-		if (ptys2ethtool_table[i].speed == speed)
-			speed_links |= MLX5E_PROT_MASK(i);
-	}
-
-	return speed_links;
-}
-
 static int mlx5e_set_link_ksettings(struct net_device *netdev,
 				    const struct ethtool_link_ksettings *link_ksettings)
 {
@@ -842,7 +810,7 @@ static int mlx5e_set_link_ksettings(struct net_device *netdev,
 
 	link_modes = link_ksettings->base.autoneg == AUTONEG_ENABLE ?
 		mlx5e_ethtool2ptys_adver_link(link_ksettings->link_modes.advertising) :
-		mlx5e_ethtool2ptys_speed_link(speed);
+		mlx5e_port_speed2linkmodes(speed);
 
 	err = mlx5_query_port_proto_cap(mdev, &eth_proto_cap, MLX5_PTYS_EN);
 	if (err) {
