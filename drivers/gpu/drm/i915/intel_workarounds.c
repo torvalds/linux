@@ -859,6 +859,13 @@ static void icl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 		   PMFLUSHDONE_LNICRSDROP |
 		   PMFLUSH_GAPL3UNBLOCK |
 		   PMFLUSHDONE_LNEBLK);
+
+	/* Wa_1406463099:icl
+	 * Formerly known as WaGamTlbPendError
+	 */
+	I915_WRITE(GAMT_CHKN_BIT_REG,
+		   I915_READ(GAMT_CHKN_BIT_REG) |
+		   GAMT_CHKN_DISABLE_L3_COH_PIPE);
 }
 
 void intel_gt_workarounds_apply(struct drm_i915_private *dev_priv)
