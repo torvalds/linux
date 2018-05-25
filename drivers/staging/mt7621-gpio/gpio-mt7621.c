@@ -14,7 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 
-#define MTK_MAX_BANK		3
+#define MTK_BANK_CNT		3
 #define MTK_BANK_WIDTH		32
 
 enum mediatek_gpio_reg {
@@ -43,7 +43,7 @@ struct mtk_data {
 	void __iomem *gpio_membase;
 	int gpio_irq;
 	struct irq_domain *gpio_irq_domain;
-	struct mtk_gc *gc_map[MTK_MAX_BANK];
+	struct mtk_gc *gc_map[MTK_BANK_CNT];
 };
 
 static inline struct mtk_gc
@@ -156,7 +156,7 @@ mediatek_gpio_bank_probe(struct platform_device *pdev, struct device_node *bank)
 	struct mtk_gc *rg;
 	int ret;
 
-	if (!id || be32_to_cpu(*id) >= MTK_MAX_BANK)
+	if (!id || be32_to_cpu(*id) >= MTK_BANK_CNT)
 		return -EINVAL;
 
 	rg = devm_kzalloc(&pdev->dev, sizeof(struct mtk_gc), GFP_KERNEL);
@@ -202,7 +202,7 @@ mediatek_gpio_irq_handler(struct irq_desc *desc)
 	struct mtk_data *gpio_data = irq_desc_get_handler_data(desc);
 	int i;
 
-	for (i = 0; i < MTK_MAX_BANK; i++) {
+	for (i = 0; i < MTK_BANK_CNT; i++) {
 		struct mtk_gc *rg = gpio_data->gc_map[i];
 		unsigned long pending;
 		int bit;
@@ -345,7 +345,7 @@ mediatek_gpio_probe(struct platform_device *pdev)
 	gpio_data->gpio_irq = irq_of_parse_and_map(np, 0);
 	if (gpio_data->gpio_irq) {
 		gpio_data->gpio_irq_domain = irq_domain_add_linear(np,
-			MTK_MAX_BANK * MTK_BANK_WIDTH,
+			MTK_BANK_CNT * MTK_BANK_WIDTH,
 			&irq_domain_ops, gpio_data);
 		if (!gpio_data->gpio_irq_domain)
 			dev_err(&pdev->dev, "irq_domain_add_linear failed\n");
