@@ -563,8 +563,6 @@ struct hclge_dev {
 
 	struct hclge_vlan_type_cfg vlan_type_cfg;
 
-	u64 rx_pkts_for_led;
-	u64 tx_pkts_for_led;
 	unsigned long vlan_table[VLAN_N_VID][BITS_TO_LONGS(HCLGE_VPORT_NUM)];
 };
 

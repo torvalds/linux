@@ -39,7 +39,6 @@ static int hclge_set_mta_filter_mode(struct hclge_dev *hdev,
 static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu);
 static int hclge_init_vlan_config(struct hclge_dev *hdev);
 static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev);
-static int hclge_update_led_status(struct hclge_dev *hdev);
 
 static struct hnae3_ae_algo ae_algo;
 
@@ -500,38 +499,6 @@ static int hclge_32_bit_update_stats(struct hclge_dev *hdev)
 			desc_data++;
 		}
 	}
-
-	return 0;
-}
-
-static int hclge_mac_get_traffic_stats(struct hclge_dev *hdev)
-{
-	struct hclge_mac_stats *mac_stats = &hdev->hw_stats.mac_stats;
-	struct hclge_desc desc;
-	__le64 *desc_data;
-	int ret;
-
-	/* for fiber port, need to query the total rx/tx packets statstics,
-	 * used for data transferring checking.
-	 */
-	if (hdev->hw.mac.media_type != HNAE3_MEDIA_TYPE_FIBER)
-		return 0;
-
-	if (test_bit(HCLGE_STATE_STATISTICS_UPDATING, &hdev->state))
-		return 0;
-
-	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_STATS_MAC_TRAFFIC, true);
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"Get MAC total pkt stats fail, ret = %d\n", ret);
-
-		return ret;
-	}
-
-	desc_data = (__le64 *)(&desc.data[0]);
-	mac_stats->mac_tx_total_pkt_num += le64_to_cpu(*desc_data++);
-	mac_stats->mac_rx_total_pkt_num += le64_to_cpu(*desc_data);
 
 	return 0;
 }
@@ -2916,20 +2883,13 @@ static void hclge_service_task(struct work_struct *work)
 	struct hclge_dev *hdev =
 		container_of(work, struct hclge_dev, service_task);
 
-	/* The total rx/tx packets statstics are wanted to be updated
-	 * per second. Both hclge_update_stats_for_all() and
-	 * hclge_mac_get_traffic_stats() can do it.
-	 */
 	if (hdev->hw_stats.stats_timer >= HCLGE_STATS_TIMER_INTERVAL) {
 		hclge_update_stats_for_all(hdev);
 		hdev->hw_stats.stats_timer = 0;
-	} else {
-		hclge_mac_get_traffic_stats(hdev);
 	}
 
 	hclge_update_speed_duplex(hdev);
 	hclge_update_link_status(hdev);
-	hclge_update_led_status(hdev);
 	hclge_service_complete(hdev);
 }
 
@@ -6098,75 +6058,6 @@ static int hclge_set_led_id(struct hnae3_handle *handle,
 	}
 
 	return ret;
-}
-
-enum hclge_led_port_speed {
-	HCLGE_SPEED_LED_FOR_1G,
-	HCLGE_SPEED_LED_FOR_10G,
-	HCLGE_SPEED_LED_FOR_25G,
-	HCLGE_SPEED_LED_FOR_40G,
-	HCLGE_SPEED_LED_FOR_50G,
-	HCLGE_SPEED_LED_FOR_100G,
-};
-
-static u8 hclge_led_get_speed_status(u32 speed)
-{
-	u8 speed_led;
-
-	switch (speed) {
-	case HCLGE_MAC_SPEED_1G:
-		speed_led = HCLGE_SPEED_LED_FOR_1G;
-		break;
-	case HCLGE_MAC_SPEED_10G:
-		speed_led = HCLGE_SPEED_LED_FOR_10G;
-		break;
-	case HCLGE_MAC_SPEED_25G:
-		speed_led = HCLGE_SPEED_LED_FOR_25G;
-		break;
-	case HCLGE_MAC_SPEED_40G:
-		speed_led = HCLGE_SPEED_LED_FOR_40G;
-		break;
-	case HCLGE_MAC_SPEED_50G:
-		speed_led = HCLGE_SPEED_LED_FOR_50G;
-		break;
-	case HCLGE_MAC_SPEED_100G:
-		speed_led = HCLGE_SPEED_LED_FOR_100G;
-		break;
-	default:
-		speed_led = HCLGE_LED_NO_CHANGE;
-	}
-
-	return speed_led;
-}
-
-static int hclge_update_led_status(struct hclge_dev *hdev)
-{
-	u8 port_speed_status, link_status, activity_status;
-	u64 rx_pkts, tx_pkts;
-
-	if (hdev->hw.mac.media_type != HNAE3_MEDIA_TYPE_FIBER)
-		return 0;
-
-	port_speed_status = hclge_led_get_speed_status(hdev->hw.mac.speed);
-
-	rx_pkts = hdev->hw_stats.mac_stats.mac_rx_total_pkt_num;
-	tx_pkts = hdev->hw_stats.mac_stats.mac_tx_total_pkt_num;
-	if (rx_pkts != hdev->rx_pkts_for_led ||
-	    tx_pkts != hdev->tx_pkts_for_led)
-		activity_status = HCLGE_LED_ON;
-	else
-		activity_status = HCLGE_LED_OFF;
-	hdev->rx_pkts_for_led = rx_pkts;
-	hdev->tx_pkts_for_led = tx_pkts;
-
-	if (hdev->hw.mac.link)
-		link_status = HCLGE_LED_ON;
-	else
-		link_status = HCLGE_LED_OFF;
-
-	return hclge_set_led_status_sfp(hdev, port_speed_status,
-					activity_status, link_status,
-					HCLGE_LED_NO_CHANGE);
 }
 
 static void hclge_get_link_mode(struct hnae3_handle *handle,
