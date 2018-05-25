@@ -469,6 +469,7 @@ found:
 	iov->nres = nres;
 	iov->ctrl = ctrl;
 	iov->total_VFs = total;
+	iov->driver_max_VFs = total;
 	pci_read_config_word(dev, pos + PCI_SRIOV_VF_DID, &iov->vf_device);
 	iov->pgsz = pgsz;
 	iov->self = dev;
@@ -827,10 +828,7 @@ int pci_sriov_get_totalvfs(struct pci_dev *dev)
 	if (!dev->is_physfn)
 		return 0;
 
-	if (dev->sriov->driver_max_VFs)
-		return dev->sriov->driver_max_VFs;
-
-	return dev->sriov->total_VFs;
+	return dev->sriov->driver_max_VFs;
 }
 EXPORT_SYMBOL_GPL(pci_sriov_get_totalvfs);
 
