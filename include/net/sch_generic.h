@@ -85,6 +85,8 @@ struct Qdisc {
 	struct net_rate_estimator __rcu *rate_est;
 	struct gnet_stats_basic_cpu __percpu *cpu_bstats;
 	struct gnet_stats_queue	__percpu *cpu_qstats;
+	int			padded;
+	refcount_t		refcnt;
 
 	/*
 	 * For performance sake on SMP, we put highly modified fields at the end
@@ -97,8 +99,6 @@ struct Qdisc {
 	unsigned long		state;
 	struct Qdisc            *next_sched;
 	struct sk_buff_head	skb_bad_txq;
-	int			padded;
-	refcount_t		refcnt;
 
 	spinlock_t		busylock ____cacheline_aligned_in_smp;
 	spinlock_t		seqlock;
