@@ -709,7 +709,7 @@ static struct mac_model mac_data_table[] = {
 		.name		= "PowerBook 520",
 		.adb_type	= MAC_ADB_PB2,
 		.via_type	= MAC_VIA_QUADRA,
-		.scsi_type	= MAC_SCSI_LATE,
+		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_QUADRA,
 		.ether_type	= MAC_ETHER_SONIC,
 		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
@@ -943,18 +943,6 @@ static const struct resource mac_scsi_old_rsrc[] __initconst = {
 	},
 };
 
-static const struct resource mac_scsi_late_rsrc[] __initconst = {
-	{
-		.flags = IORESOURCE_IRQ,
-		.start = IRQ_MAC_SCSI,
-		.end   = IRQ_MAC_SCSI,
-	}, {
-		.flags = IORESOURCE_MEM,
-		.start = 0x50010000,
-		.end   = 0x50011FFF,
-	},
-};
-
 static const struct resource mac_scsi_ccl_rsrc[] __initconst = {
 	{
 		.flags = IORESOURCE_IRQ,
@@ -1063,11 +1051,6 @@ int __init mac_platform_init(void)
 		 */
 		platform_device_register_simple("mac_scsi", 0,
 			mac_scsi_old_rsrc, ARRAY_SIZE(mac_scsi_old_rsrc));
-		break;
-	case MAC_SCSI_LATE:
-		/* XXX PDMA support for PowerBook 500 series needs testing */
-		platform_device_register_simple("mac_scsi", 0,
-			mac_scsi_late_rsrc, ARRAY_SIZE(mac_scsi_late_rsrc));
 		break;
 	case MAC_SCSI_LC:
 		/* Addresses from Mac LC data in Designing Cards & Drivers 3ed.
