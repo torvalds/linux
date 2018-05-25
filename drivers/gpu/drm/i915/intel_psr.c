@@ -247,6 +247,8 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 		return;
 	}
 	dev_priv->psr.sink_support = true;
+	dev_priv->psr.sink_sync_latency =
+		intel_dp_get_sink_sync_latency(intel_dp);
 
 	if (INTEL_GEN(dev_priv) >= 9 &&
 	    (intel_dp->psr_dpcd[0] == DP_PSR2_WITH_Y_COORD_IS_SUPPORTED)) {
@@ -272,8 +274,6 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 		if (dev_priv->psr.sink_psr2_support) {
 			dev_priv->psr.colorimetry_support =
 				intel_dp_get_colorimetry_status(intel_dp);
-			dev_priv->psr.sink_sync_latency =
-				intel_dp_get_sink_sync_latency(intel_dp);
 		}
 	}
 }
@@ -370,21 +370,21 @@ static void hsw_activate_psr1(struct intel_dp *intel_dp)
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	u32 max_sleep_time = 0x1f;
+	u32 val = EDP_PSR_ENABLE;
 
-	uint32_t max_sleep_time = 0x1f;
-	/*
-	 * Let's respect VBT in case VBT asks a higher idle_frame value.
-	 * Let's use 6 as the minimum to cover all known cases including
-	 * the off-by-one issue that HW has in some cases. Also there are
-	 * cases where sink should be able to train
-	 * with the 5 or 6 idle patterns.
+	/* Let's use 6 as the minimum to cover all known cases including the
+	 * off-by-one issue that HW has in some cases.
 	 */
-	uint32_t idle_frames = max(6, dev_priv->vbt.psr.idle_frames);
-	uint32_t val = EDP_PSR_ENABLE;
+	int idle_frames = max(6, dev_priv->vbt.psr.idle_frames);
 
-	val |= max_sleep_time << EDP_PSR_MAX_SLEEP_TIME_SHIFT;
+	/* sink_sync_latency of 8 means source has to wait for more than 8
+	 * frames, we'll go with 9 frames for now
+	 */
+	idle_frames = max(idle_frames, dev_priv->psr.sink_sync_latency + 1);
 	val |= idle_frames << EDP_PSR_IDLE_FRAME_SHIFT;
 
+	val |= max_sleep_time << EDP_PSR_MAX_SLEEP_TIME_SHIFT;
 	if (IS_HASWELL(dev_priv))
 		val |= EDP_PSR_MIN_LINK_ENTRY_TIME_8_LINES;
 
@@ -424,15 +424,15 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	/*
-	 * Let's respect VBT in case VBT asks a higher idle_frame value.
-	 * Let's use 6 as the minimum to cover all known cases including
-	 * the off-by-one issue that HW has in some cases. Also there are
-	 * cases where sink should be able to train
-	 * with the 5 or 6 idle patterns.
+	u32 val;
+
+	/* Let's use 6 as the minimum to cover all known cases including the
+	 * off-by-one issue that HW has in some cases.
 	 */
-	uint32_t idle_frames = max(6, dev_priv->vbt.psr.idle_frames);
-	u32 val = idle_frames << EDP_PSR2_IDLE_FRAME_SHIFT;
+	int idle_frames = max(6, dev_priv->vbt.psr.idle_frames);
+
+	idle_frames = max(idle_frames, dev_priv->psr.sink_sync_latency + 1);
+	val = idle_frames << EDP_PSR2_IDLE_FRAME_SHIFT;
 
 	/* FIXME: selective update is probably totally broken because it doesn't
 	 * mesh at all with our frontbuffer tracking. And the hw alone isn't
