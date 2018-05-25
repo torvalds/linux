@@ -40,20 +40,6 @@ struct eeh_rmv_data {
 };
 
 /**
- * eeh_pcid_name - Retrieve name of PCI device driver
- * @pdev: PCI device
- *
- * This routine is used to retrieve the name of PCI device driver
- * if that's valid.
- */
-static inline const char *eeh_pcid_name(struct pci_dev *pdev)
-{
-	if (pdev && pdev->dev.driver)
-		return pdev->dev.driver->name;
-	return "";
-}
-
-/**
  * eeh_pcid_get - Get the PCI device driver
  * @pdev: PCI device
  *
