@@ -5778,16 +5778,34 @@ static void setcontrast(struct gspca_dev *gspca_dev,
 
 static s32 getexposure(struct gspca_dev *gspca_dev)
 {
-	return (i2c_read(gspca_dev, 0x25) << 9)
-		| (i2c_read(gspca_dev, 0x26) << 1)
-		| (i2c_read(gspca_dev, 0x27) >> 7);
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	switch (sd->sensor) {
+	case SENSOR_HV7131R:
+		return (i2c_read(gspca_dev, 0x25) << 9)
+			| (i2c_read(gspca_dev, 0x26) << 1)
+			| (i2c_read(gspca_dev, 0x27) >> 7);
+	case SENSOR_OV7620:
+		return i2c_read(gspca_dev, 0x10);
+	default:
+		return -1;
+	}
 }
 
 static void setexposure(struct gspca_dev *gspca_dev, s32 val)
 {
-	i2c_write(gspca_dev, 0x25, val >> 9, 0x00);
-	i2c_write(gspca_dev, 0x26, val >> 1, 0x00);
-	i2c_write(gspca_dev, 0x27, val << 7, 0x00);
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	switch (sd->sensor) {
+	case SENSOR_HV7131R:
+		i2c_write(gspca_dev, 0x25, val >> 9, 0x00);
+		i2c_write(gspca_dev, 0x26, val >> 1, 0x00);
+		i2c_write(gspca_dev, 0x27, val << 7, 0x00);
+		break;
+	case SENSOR_OV7620:
+		i2c_write(gspca_dev, 0x10, val, 0x00);
+		break;
+	}
 }
 
 static void setquality(struct gspca_dev *gspca_dev)
@@ -5918,7 +5936,12 @@ static void setlightfreq(struct gspca_dev *gspca_dev, s32 val)
 
 static void setautogain(struct gspca_dev *gspca_dev, s32 val)
 {
-	reg_w(gspca_dev, val ? 0x42 : 0x02, 0x0180);
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->sensor == SENSOR_OV7620)
+		i2c_write(gspca_dev, 0x13, val ? 0xa3 : 0x80, 0x00);
+	else
+		reg_w(gspca_dev, val ? 0x42 : 0x02, 0x0180);
 }
 
 /*
@@ -6439,6 +6462,9 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	if (sd->sensor == SENSOR_HV7131R)
 		sd->exposure = v4l2_ctrl_new_std(hdl, &zcxx_ctrl_ops,
 			V4L2_CID_EXPOSURE, 0x30d, 0x493e, 1, 0x927);
+	else if (sd->sensor == SENSOR_OV7620)
+		sd->exposure = v4l2_ctrl_new_std(hdl, &zcxx_ctrl_ops,
+			V4L2_CID_EXPOSURE, 0, 255, 1, 0x41);
 	sd->autogain = v4l2_ctrl_new_std(hdl, &zcxx_ctrl_ops,
 			V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
 	if (sd->sensor != SENSOR_OV7630C)
@@ -6458,7 +6484,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 		return hdl->error;
 	}
 	v4l2_ctrl_cluster(3, &sd->gamma);
-	if (sd->sensor == SENSOR_HV7131R)
+	if (sd->sensor == SENSOR_HV7131R || sd->sensor == SENSOR_OV7620)
 		v4l2_ctrl_auto_cluster(2, &sd->autogain, 0, true);
 	return 0;
 }
