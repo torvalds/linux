@@ -994,7 +994,7 @@ bool intel_crtc_active(struct intel_crtc *crtc)
 	 * We can ditch the adjusted_mode.crtc_clock check as soon
 	 * as Haswell has gained clock readout/fastboot support.
 	 *
-	 * We can ditch the crtc->primary->fb check as soon as we can
+	 * We can ditch the crtc->primary->state->fb check as soon as we can
 	 * properly reconstruct framebuffers.
 	 *
 	 * FIXME: The intel_crtc->active here should be switched to
@@ -2894,9 +2894,8 @@ valid_fb:
 	if (i915_gem_object_is_tiled(obj))
 		dev_priv->preserve_bios_swizzle = true;
 
-	drm_framebuffer_get(fb);
-	primary->fb = primary->state->fb = fb;
-	primary->crtc = primary->state->crtc = &intel_crtc->base;
+	plane_state->fb = fb;
+	plane_state->crtc = &intel_crtc->base;
 
 	intel_set_plane_visible(to_intel_crtc_state(crtc_state),
 				to_intel_plane_state(plane_state),
