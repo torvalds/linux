@@ -285,11 +285,10 @@ static void stack_map_get_build_id_offset(struct bpf_stack_build_id *id_offs,
 {
 	int i;
 	struct vm_area_struct *vma;
-	bool in_nmi_ctx = in_nmi();
 	bool irq_work_busy = false;
-	struct stack_map_irq_work *work;
+	struct stack_map_irq_work *work = NULL;
 
-	if (in_nmi_ctx) {
+	if (in_nmi()) {
 		work = this_cpu_ptr(&up_read_work);
 		if (work->irq_work.flags & IRQ_WORK_BUSY)
 			/* cannot queue more up_read, fallback */
@@ -328,7 +327,7 @@ static void stack_map_get_build_id_offset(struct bpf_stack_build_id *id_offs,
 		id_offs[i].status = BPF_STACK_BUILD_ID_VALID;
 	}
 
-	if (!in_nmi_ctx) {
+	if (!work) {
 		up_read(&current->mm->mmap_sem);
 	} else {
 		work->sem = &current->mm->mmap_sem;
