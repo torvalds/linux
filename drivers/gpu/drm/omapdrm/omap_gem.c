@@ -222,7 +222,7 @@ static void omap_gem_evict(struct drm_gem_object *obj)
  * Page Management
  */
 
-/** ensure backing pages are allocated */
+/* Ensure backing pages are allocated. */
 static int omap_gem_attach_pages(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
@@ -232,7 +232,12 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 	int i, ret;
 	dma_addr_t *addrs;
 
-	WARN_ON(omap_obj->pages);
+	/*
+	 * If not using shmem (in which case backing pages don't need to be
+	 * allocated) or if pages are already allocated we're done.
+	 */
+	if (!(omap_obj->flags & OMAP_BO_MEM_SHMEM) || omap_obj->pages)
+		return 0;
 
 	pages = drm_gem_get_pages(obj);
 	if (IS_ERR(pages)) {
@@ -286,29 +291,6 @@ free_pages:
 	drm_gem_put_pages(obj, pages, true, false);
 
 	return ret;
-}
-
-/* acquire pages when needed (for example, for DMA where physically
- * contiguous buffer is not required
- */
-static int __omap_gem_get_pages(struct drm_gem_object *obj,
-				struct page ***pages)
-{
-	struct omap_gem_object *omap_obj = to_omap_bo(obj);
-	int ret = 0;
-
-	if ((omap_obj->flags & OMAP_BO_MEM_SHMEM) && !omap_obj->pages) {
-		ret = omap_gem_attach_pages(obj);
-		if (ret) {
-			dev_err(obj->dev->dev, "could not attach pages\n");
-			return ret;
-		}
-	}
-
-	/* TODO: even phys-contig.. we should have a list of pages? */
-	*pages = omap_obj->pages;
-
-	return 0;
 }
 
 /** release backing pages */
@@ -522,7 +504,6 @@ vm_fault_t omap_gem_fault(struct vm_fault *vmf)
 	struct drm_gem_object *obj = vma->vm_private_data;
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	struct drm_device *dev = obj->dev;
-	struct page **pages;
 	int err;
 	vm_fault_t ret;
 
@@ -532,7 +513,7 @@ vm_fault_t omap_gem_fault(struct vm_fault *vmf)
 	mutex_lock(&dev->struct_mutex);
 
 	/* if a shmem backed object, make sure we have pages attached now */
-	err = __omap_gem_get_pages(obj, &pages);
+	err = omap_gem_attach_pages(obj);
 	if (err) {
 		ret = vmf_error(err);
 		goto fail;
@@ -689,12 +670,12 @@ int omap_gem_roll(struct drm_gem_object *obj, u32 roll)
 
 	/* if we aren't mapped yet, we don't need to do anything */
 	if (omap_obj->block) {
-		struct page **pages;
-
-		ret = __omap_gem_get_pages(obj, &pages);
+		ret = omap_gem_attach_pages(obj);
 		if (ret)
 			goto fail;
-		ret = tiler_pin(omap_obj->block, pages, npages, roll, true);
+
+		ret = tiler_pin(omap_obj->block, omap_obj->pages, npages,
+				roll, true);
 		if (ret)
 			dev_err(obj->dev->dev, "could not repin: %d\n", ret);
 	}
@@ -805,14 +786,13 @@ int omap_gem_pin(struct drm_gem_object *obj, dma_addr_t *dma_addr)
 
 	if (!omap_gem_is_contiguous(omap_obj) && priv->has_dmm) {
 		if (omap_obj->dma_addr_cnt == 0) {
-			struct page **pages;
 			u32 npages = obj->size >> PAGE_SHIFT;
 			enum tiler_fmt fmt = gem2fmt(omap_obj->flags);
 			struct tiler_block *block;
 
 			BUG_ON(omap_obj->block);
 
-			ret = __omap_gem_get_pages(obj, &pages);
+			ret = omap_gem_attach_pages(obj);
 			if (ret)
 				goto fail;
 
@@ -832,7 +812,7 @@ int omap_gem_pin(struct drm_gem_object *obj, dma_addr_t *dma_addr)
 			}
 
 			/* TODO: enable async refill.. */
-			ret = tiler_pin(block, pages, npages,
+			ret = tiler_pin(block, omap_obj->pages, npages,
 					omap_obj->roll, true);
 			if (ret) {
 				tiler_release(block);
@@ -941,16 +921,18 @@ int omap_gem_tiled_stride(struct drm_gem_object *obj, u32 orient)
 int omap_gem_get_pages(struct drm_gem_object *obj, struct page ***pages,
 		bool remap)
 {
+	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	int ret;
+
 	if (!remap) {
-		struct omap_gem_object *omap_obj = to_omap_bo(obj);
 		if (!omap_obj->pages)
 			return -ENOMEM;
 		*pages = omap_obj->pages;
 		return 0;
 	}
 	mutex_lock(&obj->dev->struct_mutex);
-	ret = __omap_gem_get_pages(obj, pages);
+	ret = omap_gem_attach_pages(obj);
+	*pages = omap_obj->pages;
 	mutex_unlock(&obj->dev->struct_mutex);
 	return ret;
 }
@@ -975,13 +957,12 @@ void *omap_gem_vaddr(struct drm_gem_object *obj)
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
 	if (!omap_obj->vaddr) {
-		struct page **pages;
 		int ret;
 
-		ret = __omap_gem_get_pages(obj, &pages);
+		ret = omap_gem_attach_pages(obj);
 		if (ret)
 			return ERR_PTR(ret);
-		omap_obj->vaddr = vmap(pages, obj->size >> PAGE_SHIFT,
+		omap_obj->vaddr = vmap(omap_obj->pages, obj->size >> PAGE_SHIFT,
 				VM_MAP, pgprot_writecombine(PAGE_KERNEL));
 	}
 	return omap_obj->vaddr;
