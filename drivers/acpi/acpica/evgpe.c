@@ -634,6 +634,12 @@ acpi_ev_detect_gpe(struct acpi_namespace_node *gpe_device,
 
 	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
 
+	if (!gpe_event_info) {
+		gpe_event_info = acpi_ev_get_gpe_event_info(gpe_device, gpe_number);
+		if (!gpe_event_info)
+			goto error_exit;
+	}
+
 	/* Get the info block for the entire GPE register */
 
 	gpe_register_info = gpe_event_info->register_info;
