@@ -177,6 +177,10 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	if (WARN_ON(config->num_total_plane >= 32))
 		return -EINVAL;
 
+	WARN_ON(drm_drv_uses_atomic_modeset(dev) &&
+		(!funcs->atomic_destroy_state ||
+		 !funcs->atomic_duplicate_state));
+
 	ret = drm_mode_object_add(dev, &plane->base, DRM_MODE_OBJECT_PLANE);
 	if (ret)
 		return ret;

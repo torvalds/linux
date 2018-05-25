@@ -288,6 +288,8 @@ struct drm_plane_funcs {
 	 * cleaned up by calling the @atomic_destroy_state hook in this
 	 * structure.
 	 *
+	 * This callback is mandatory for atomic drivers.
+	 *
 	 * Atomic drivers which don't subclass &struct drm_plane_state should use
 	 * drm_atomic_helper_plane_duplicate_state(). Drivers that subclass the
 	 * state structure to extend it with driver-private state should use
@@ -314,6 +316,8 @@ struct drm_plane_funcs {
 	 *
 	 * Destroy a state duplicated with @atomic_duplicate_state and release
 	 * or unreference all resources it references
+	 *
+	 * This callback is mandatory for atomic drivers.
 	 */
 	void (*atomic_destroy_state)(struct drm_plane *plane,
 				     struct drm_plane_state *state);
