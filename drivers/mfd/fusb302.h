@@ -135,6 +135,17 @@ enum connection_state {
 	attach_try_snk,
 };
 
+enum vdm_state {
+	VDM_STATE_DISCOVERY_ID,
+	VDM_STATE_DISCOVERY_SVID,
+	VDM_STATE_DISCOVERY_MODES,
+	VDM_STATE_ENTER_MODE,
+	VDM_STATE_UPDATE_STATUS,
+	VDM_STATE_DP_CONFIG,
+	VDM_STATE_READY,
+	VDM_STATE_ERR,
+};
+
 enum tcpm_rp_value {
 	TYPEC_RP_USB = 0,
 	TYPEC_RP_1A5 = 1,

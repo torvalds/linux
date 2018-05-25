@@ -46,6 +46,8 @@
 #define PIN_MAP_E		BIT(4)
 #define PIN_MAP_F		BIT(5)
 
+#define PIN_MAP_MF_MASK		0x2a
+
 #define PACKET_IS_CONTROL_MSG(header, type) \
 		(PD_HEADER_CNT(header) == 0 && \
 		 PD_HEADER_TYPE(header) == type)
@@ -53,6 +55,9 @@
 #define PACKET_IS_DATA_MSG(header, type) \
 		(PD_HEADER_CNT(header) != 0 && \
 		 PD_HEADER_TYPE(header) == type)
+
+#define VDM_DP_GET_RECEPTACLE(mode)	((mode >> 6) & 0x1)
+#define VDM_DP_MULTIFUCTION(status)	((status >> 4) & 0x1)
 
 static u8 fusb30x_port_used;
 static struct fusb30x_chip *fusb30x_port_info[256];
@@ -731,7 +736,7 @@ static void tcpm_init(struct fusb30x_chip *chip)
 static void pd_execute_hard_reset(struct fusb30x_chip *chip)
 {
 	chip->msg_id = 0;
-	chip->vdm_state = 0;
+	chip->vdm_state = VDM_STATE_DISCOVERY_ID;
 	if (chip->notify.power_role)
 		set_state(chip, policy_src_transition_default);
 	else
@@ -915,6 +920,8 @@ static void set_mesg(struct fusb30x_chip *chip, int cmd, int is_DMT)
 
 static void set_vdm_mesg(struct fusb30x_chip *chip, int cmd, int type, int mode)
 {
+	u32 tmp, i;
+
 	chip->send_head = (chip->msg_id & 0x7) << 9;
 	chip->send_head |= (chip->notify.power_role & 0x1) << 8;
 
@@ -957,6 +964,19 @@ static void set_vdm_mesg(struct fusb30x_chip *chip, int cmd, int type, int mode)
 	case VDM_DP_CONFIG:
 		chip->send_head |= (2 << 12);
 		chip->send_load[0] |= (1 << 8) | (0xff01 << 16);
+
+		tmp = chip->notify.pin_assignment_support;
+		if (!VDM_DP_MULTIFUCTION(chip->notify.dp_status))
+			tmp &= ~PIN_MAP_MF_MASK;
+
+		for (i = 0; i < 6; i++) {
+			if (!(tmp & 0x20))
+				tmp = tmp << 1;
+			else
+				break;
+		}
+		chip->notify.pin_assignment_def = 0x20 >> i;
+
 		chip->send_load[1] = (chip->notify.pin_assignment_def << 8) |
 				    (1 << 2) | 2;
 		break;
@@ -1031,8 +1051,10 @@ static void process_vdm_msg(struct fusb30x_chip *chip)
 	u32 tmp;
 
 	/* can't procee unstructed vdm msg */
-	if (!GET_VDMHEAD_STRUCT_TYPE(vdm_header))
+	if (!GET_VDMHEAD_STRUCT_TYPE(vdm_header)) {
+		dev_warn(chip->dev, "unknown unstructed vdm message\n");
 		return;
+	}
 
 	switch (GET_VDMHEAD_CMD_TYPE(vdm_header)) {
 	case VDM_TYPE_INIT:
@@ -1042,7 +1064,6 @@ static void process_vdm_msg(struct fusb30x_chip *chip)
 			dev_info(chip->dev, "attention, dp_status %x\n",
 				 chip->rec_load[1]);
 			chip->notify.attention = true;
-			chip->vdm_state = 6;
 			platform_fusb_notify(chip);
 			break;
 		default:
@@ -1086,18 +1107,12 @@ static void process_vdm_msg(struct fusb30x_chip *chip)
 					chip->val_tmp |= 1;
 					break;
 				}
-				chip->notify.pin_assignment_support = 0;
+				tmp = chip->rec_load[1];
 				chip->notify.pin_assignment_def = 0;
 				chip->notify.pin_assignment_support =
-					(chip->rec_load[1] >> 8) & 0x3f;
-				tmp = chip->notify.pin_assignment_support;
-				for (i = 0; i < 6; i++) {
-					if (!(tmp & 0x20))
-						tmp = tmp << 1;
-					else
-						break;
-				}
-				chip->notify.pin_assignment_def = 0x20 >> i;
+					VDM_DP_GET_RECEPTACLE(tmp) ?
+					((chip->rec_load[1] >> 16) & 0x3f) :
+					((chip->rec_load[1] >> 8) & 0x3f);
 				chip->val_tmp |= 1;
 			}
 			break;
@@ -1125,7 +1140,7 @@ static void process_vdm_msg(struct fusb30x_chip *chip)
 			dev_warn(chip->dev, "REC NACK for 0x%x\n",
 				 GET_VDMHEAD_CMD(vdm_header));
 			/* disable vdm */
-			chip->vdm_state = 0xff;
+			chip->vdm_state = VDM_STATE_ERR;
 		break;
 	}
 }
@@ -1150,7 +1165,7 @@ static int vdm_send_discoveryid(struct fusb30x_chip *chip, u32 evt)
 		} else if (tmp == tx_failed) {
 			dev_warn(chip->dev, "VDM_DISCOVERY_ID send failed\n");
 			/* disable auto_vdm_machine */
-			chip->vdm_state = 0xff;
+			chip->vdm_state = VDM_STATE_ERR;
 			return -EPIPE;
 		}
 
@@ -1162,7 +1177,7 @@ static int vdm_send_discoveryid(struct fusb30x_chip *chip, u32 evt)
 			return 0;
 		} else if (evt & EVENT_TIMER_STATE) {
 			dev_warn(chip->dev, "VDM_DISCOVERY_ID time out\n");
-			chip->vdm_state = 0xff;
+			chip->vdm_state = VDM_STATE_ERR;
 			chip->work_continue |= EVENT_WORK_CONTINUE;
 			return -ETIMEDOUT;
 		}
@@ -1192,7 +1207,7 @@ static int vdm_send_discoverysvid(struct fusb30x_chip *chip, u32 evt)
 		} else if (tmp == tx_failed) {
 			dev_warn(chip->dev, "VDM_DISCOVERY_SVIDS send failed\n");
 			/* disable auto_vdm_machine */
-			chip->vdm_state = 0xff;
+			chip->vdm_state = VDM_STATE_ERR;
 			return -EPIPE;
 		}
 
@@ -1204,7 +1219,7 @@ static int vdm_send_discoverysvid(struct fusb30x_chip *chip, u32 evt)
 			return 0;
 		} else if (evt & EVENT_TIMER_STATE) {
 			dev_warn(chip->dev, "VDM_DISCOVERY_SVIDS time out\n");
-			chip->vdm_state = 0xff;
+			chip->vdm_state = VDM_STATE_ERR;
 			chip->work_continue |= EVENT_WORK_CONTINUE;
 			return -ETIMEDOUT;
 		}
@@ -1234,7 +1249,7 @@ static int vdm_send_discoverymodes(struct fusb30x_chip *chip, u32 evt)
 			} else if (tmp == tx_failed) {
 				dev_warn(chip->dev,
 					 "VDM_DISCOVERY_MODES send failed\n");
-				chip->vdm_state = 0xff;
+				chip->vdm_state = VDM_STATE_ERR;
 				return -EPIPE;
 			}
 
@@ -1249,7 +1264,7 @@ static int vdm_send_discoverymodes(struct fusb30x_chip *chip, u32 evt)
 			} else if (evt & EVENT_TIMER_STATE) {
 				dev_warn(chip->dev,
 					 "VDM_DISCOVERY_MODES time out\n");
-				chip->vdm_state = 0xff;
+				chip->vdm_state = VDM_STATE_ERR;
 				chip->work_continue |= EVENT_WORK_CONTINUE;
 				return -ETIMEDOUT;
 			}
@@ -1283,7 +1298,7 @@ static int vdm_send_entermode(struct fusb30x_chip *chip, u32 evt)
 		} else if (tmp == tx_failed) {
 			dev_warn(chip->dev, "VDM_ENTER_MODE send failed\n");
 			/* disable auto_vdm_machine */
-			chip->vdm_state = 0xff;
+			chip->vdm_state = VDM_STATE_ERR;
 			return -EPIPE;
 		}
 
@@ -1296,7 +1311,7 @@ static int vdm_send_entermode(struct fusb30x_chip *chip, u32 evt)
 			return 0;
 		} else if (evt & EVENT_TIMER_STATE) {
 			dev_warn(chip->dev, "VDM_ENTER_MODE time out\n");
-			chip->vdm_state = 0xff;
+			chip->vdm_state = VDM_STATE_ERR;
 			chip->work_continue |= EVENT_WORK_CONTINUE;
 			return -ETIMEDOUT;
 		}
@@ -1325,7 +1340,7 @@ static int vdm_send_getdpstatus(struct fusb30x_chip *chip, u32 evt)
 			dev_warn(chip->dev,
 				 "VDM_DP_STATUS_UPDATE send failed\n");
 			/* disable auto_vdm_machine */
-			chip->vdm_state = 0xff;
+			chip->vdm_state = VDM_STATE_ERR;
 			return -EPIPE;
 		}
 
@@ -1338,7 +1353,7 @@ static int vdm_send_getdpstatus(struct fusb30x_chip *chip, u32 evt)
 			return 0;
 		} else if (evt & EVENT_TIMER_STATE) {
 			dev_warn(chip->dev, "VDM_DP_STATUS_UPDATE time out\n");
-			chip->vdm_state = 0xff;
+			chip->vdm_state = VDM_STATE_ERR;
 			chip->work_continue |= EVENT_WORK_CONTINUE;
 			return -ETIMEDOUT;
 		}
@@ -1366,7 +1381,7 @@ static int vdm_send_dpconfig(struct fusb30x_chip *chip, u32 evt)
 		} else if (tmp == tx_failed) {
 			dev_warn(chip->dev, "vdm_send_dpconfig send failed\n");
 			/* disable auto_vdm_machine */
-			chip->vdm_state = 0xff;
+			chip->vdm_state = VDM_STATE_ERR;
 			return -EPIPE;
 		}
 
@@ -1379,7 +1394,7 @@ static int vdm_send_dpconfig(struct fusb30x_chip *chip, u32 evt)
 			return 0;
 		} else if (evt & EVENT_TIMER_STATE) {
 			dev_warn(chip->dev, "vdm_send_dpconfig time out\n");
-			chip->vdm_state = 0xff;
+			chip->vdm_state = VDM_STATE_ERR;
 			chip->work_continue |= EVENT_WORK_CONTINUE;
 			return -ETIMEDOUT;
 		}
@@ -1397,7 +1412,7 @@ do { \
 		chip->work_continue |= EVENT_WORK_CONTINUE; \
 	} else { \
 		if (conditions != -EINPROGRESS) \
-			chip->vdm_state = 0xff; \
+			chip->vdm_state = VDM_STATE_ERR; \
 	} \
 } while (0)
 
@@ -1406,29 +1421,23 @@ static void auto_vdm_machine(struct fusb30x_chip *chip, u32 evt)
 	int conditions;
 
 	switch (chip->vdm_state) {
-	case 0:
+	case VDM_STATE_DISCOVERY_ID:
 		AUTO_VDM_HANDLE(vdm_send_discoveryid, chip, evt, conditions);
 		break;
-	case 1:
+	case VDM_STATE_DISCOVERY_SVID:
 		AUTO_VDM_HANDLE(vdm_send_discoverysvid, chip, evt, conditions);
 		break;
-	case 2:
+	case VDM_STATE_DISCOVERY_MODES:
 		AUTO_VDM_HANDLE(vdm_send_discoverymodes, chip, evt, conditions);
 		break;
-	case 3:
+	case VDM_STATE_ENTER_MODE:
 		AUTO_VDM_HANDLE(vdm_send_entermode, chip, evt, conditions);
 		break;
-	case 4:
-		AUTO_VDM_HANDLE(vdm_send_dpconfig, chip, evt, conditions);
-		break;
-	case 5:
-		platform_fusb_notify(chip);
-		break;
-	case 6:
-		/* TODO: triggered by user */
+	case VDM_STATE_UPDATE_STATUS:
 		AUTO_VDM_HANDLE(vdm_send_getdpstatus, chip, evt, conditions);
-		if (chip->vdm_state == 7)
-			chip->vdm_state = 5;
+		break;
+	case VDM_STATE_DP_CONFIG:
+		AUTO_VDM_HANDLE(vdm_send_dpconfig, chip, evt, conditions);
 		break;
 	default:
 		platform_fusb_notify(chip);
@@ -1656,7 +1665,7 @@ static void fusb_soft_reset_parameter(struct fusb30x_chip *chip)
 {
 	chip->caps_counter = 0;
 	chip->msg_id = 0;
-	chip->vdm_state = 0;
+	chip->vdm_state = VDM_STATE_DISCOVERY_ID;
 	chip->vdm_substate = 0;
 	chip->vdm_send_state = 0;
 	chip->val_tmp = 0;
@@ -1911,8 +1920,7 @@ static void fusb_state_swap_msg_process(struct fusb30x_chip *chip, u32 evt)
 }
 
 #define VDM_IS_ACTIVE(chip) \
-	(chip->notify.data_role && chip->vdm_state != 5 && \
-	 chip->vdm_state != 0xff)
+	(chip->notify.data_role && chip->vdm_state < VDM_STATE_READY)
 
 static void fusb_state_src_ready(struct fusb30x_chip *chip, u32 evt)
 {
