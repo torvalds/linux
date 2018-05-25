@@ -78,6 +78,10 @@ struct psp_device {
 	struct sev_misc_dev *sev_misc;
 	struct sev_user_data_status status_cmd_buf;
 	struct sev_data_init init_cmd_buf;
+
+	u8 api_major;
+	u8 api_minor;
+	u8 build;
 };
 
 #endif /* __PSP_DEV_H */
