@@ -26,6 +26,7 @@
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 #include <asm/mach/arch.h>
+#include <asm/secure_cntvoff.h>
 #include "common.h"
 #include "rcar-gen2.h"
 
@@ -70,7 +71,7 @@ void __init rcar_gen2_timer_init(void)
 	void __iomem *base;
 	u32 freq;
 
-	shmobile_init_cntvoff();
+	secure_cntvoff_init();
 
 	if (of_machine_is_compatible("renesas,r8a7745") ||
 	    of_machine_is_compatible("renesas,r8a7792") ||
