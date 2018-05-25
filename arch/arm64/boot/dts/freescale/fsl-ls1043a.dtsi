@@ -43,8 +43,8 @@
 			reg = <0x0>;
 			clocks = <&clockgen 1 0>;
 			next-level-cache = <&l2>;
-			#cooling-cells = <2>;
 			cpu-idle-states = <&CPU_PH20>;
+			#cooling-cells = <2>;
 		};
 
 		cpu1: cpu@1 {
@@ -54,6 +54,7 @@
 			clocks = <&clockgen 1 0>;
 			next-level-cache = <&l2>;
 			cpu-idle-states = <&CPU_PH20>;
+			#cooling-cells = <2>;
 		};
 
 		cpu2: cpu@2 {
@@ -63,6 +64,7 @@
 			clocks = <&clockgen 1 0>;
 			next-level-cache = <&l2>;
 			cpu-idle-states = <&CPU_PH20>;
+			#cooling-cells = <2>;
 		};
 
 		cpu3: cpu@3 {
@@ -72,6 +74,7 @@
 			clocks = <&clockgen 1 0>;
 			next-level-cache = <&l2>;
 			cpu-idle-states = <&CPU_PH20>;
+			#cooling-cells = <2>;
 		};
 
 		l2: l2-cache {

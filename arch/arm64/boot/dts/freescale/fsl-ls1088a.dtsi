@@ -40,6 +40,7 @@
 			reg = <0x1>;
 			clocks = <&clockgen 1 0>;
 			cpu-idle-states = <&CPU_PH20>;
+			#cooling-cells = <2>;
 		};
 
 		cpu2: cpu@2 {
@@ -48,6 +49,7 @@
 			reg = <0x2>;
 			clocks = <&clockgen 1 0>;
 			cpu-idle-states = <&CPU_PH20>;
+			#cooling-cells = <2>;
 		};
 
 		cpu3: cpu@3 {
@@ -56,6 +58,7 @@
 			reg = <0x3>;
 			clocks = <&clockgen 1 0>;
 			cpu-idle-states = <&CPU_PH20>;
+			#cooling-cells = <2>;
 		};
 
 		cpu4: cpu@100 {
@@ -73,6 +76,7 @@
 			reg = <0x101>;
 			clocks = <&clockgen 1 1>;
 			cpu-idle-states = <&CPU_PH20>;
+			#cooling-cells = <2>;
 		};
 
 		cpu6: cpu@102 {
@@ -81,6 +85,7 @@
 			reg = <0x102>;
 			clocks = <&clockgen 1 1>;
 			cpu-idle-states = <&CPU_PH20>;
+			#cooling-cells = <2>;
 		};
 
 		cpu7: cpu@103 {
@@ -89,6 +94,7 @@
 			reg = <0x103>;
 			clocks = <&clockgen 1 1>;
 			cpu-idle-states = <&CPU_PH20>;
+			#cooling-cells = <2>;
 		};
 
 		CPU_PH20: cpu-ph20 {
