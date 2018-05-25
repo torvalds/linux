@@ -1786,7 +1786,8 @@ config SECCOMP
 	  defined by each seccomp mode.
 
 config SWIOTLB
-	def_bool y
+	bool "SWIOTLB support"
+	default y
 
 config IOMMU_HELPER
 	def_bool SWIOTLB
