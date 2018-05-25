@@ -89,16 +89,7 @@ static void cpufreq_governor_limits(struct cpufreq_policy *policy);
  * The mutex locks both lists.
  */
 static BLOCKING_NOTIFIER_HEAD(cpufreq_policy_notifier_list);
-static struct srcu_notifier_head cpufreq_transition_notifier_list;
-
-static bool init_cpufreq_transition_notifier_list_called;
-static int __init init_cpufreq_transition_notifier_list(void)
-{
-	srcu_init_notifier_head(&cpufreq_transition_notifier_list);
-	init_cpufreq_transition_notifier_list_called = true;
-	return 0;
-}
-pure_initcall(init_cpufreq_transition_notifier_list);
+SRCU_NOTIFIER_HEAD_STATIC(cpufreq_transition_notifier_list);
 
 static int off __read_mostly;
 static int cpufreq_disabled(void)
@@ -1766,8 +1757,6 @@ int cpufreq_register_notifier(struct notifier_block *nb, unsigned int list)
 
 	if (cpufreq_disabled())
 		return -EINVAL;
-
-	WARN_ON(!init_cpufreq_transition_notifier_list_called);
 
 	switch (list) {
 	case CPUFREQ_TRANSITION_NOTIFIER:
