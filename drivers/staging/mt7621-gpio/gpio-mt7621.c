@@ -231,10 +231,9 @@ mediatek_gpio_irq_unmask(struct irq_data *d)
 	if (!rg)
 		return;
 
+	spin_lock_irqsave(&rg->lock, flags);
 	rise = mtk_gpio_r32(rg, GPIO_REG_REDGE);
 	fall = mtk_gpio_r32(rg, GPIO_REG_FEDGE);
-
-	spin_lock_irqsave(&rg->lock, flags);
 	mtk_gpio_w32(rg, GPIO_REG_REDGE, rise | (PIN_MASK(pin) & rg->rising));
 	mtk_gpio_w32(rg, GPIO_REG_FEDGE, fall | (PIN_MASK(pin) & rg->falling));
 	spin_unlock_irqrestore(&rg->lock, flags);
@@ -253,10 +252,9 @@ mediatek_gpio_irq_mask(struct irq_data *d)
 	if (!rg)
 		return;
 
+	spin_lock_irqsave(&rg->lock, flags);
 	rise = mtk_gpio_r32(rg, GPIO_REG_REDGE);
 	fall = mtk_gpio_r32(rg, GPIO_REG_FEDGE);
-
-	spin_lock_irqsave(&rg->lock, flags);
 	mtk_gpio_w32(rg, GPIO_REG_FEDGE, fall & ~PIN_MASK(pin));
 	mtk_gpio_w32(rg, GPIO_REG_REDGE, rise & ~PIN_MASK(pin));
 	spin_unlock_irqrestore(&rg->lock, flags);
