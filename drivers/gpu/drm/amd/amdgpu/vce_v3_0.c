@@ -39,6 +39,7 @@
 #include "smu/smu_7_1_2_sh_mask.h"
 #include "gca/gfx_8_0_d.h"
 #include "gca/gfx_8_0_sh_mask.h"
+#include "ivsrcid/ivsrcid_vislands30.h"
 
 
 #define GRBM_GFX_INDEX__VCE_INSTANCE__SHIFT	0x04
@@ -422,7 +423,7 @@ static int vce_v3_0_sw_init(void *handle)
 	int r, i;
 
 	/* VCE */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 167, &adev->vce.irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_VCE_TRAP, &adev->vce.irq);
 	if (r)
 		return r;
 
