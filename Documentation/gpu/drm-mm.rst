@@ -496,3 +496,21 @@ DRM Sync Objects
 
 .. kernel-doc:: drivers/gpu/drm/drm_syncobj.c
    :export:
+
+GPU Scheduler
+=============
+
+Overview
+--------
+
+.. kernel-doc:: drivers/gpu/drm/scheduler/gpu_scheduler.c
+   :doc: Overview
+
+Scheduler Function References
+-----------------------------
+
+.. kernel-doc:: include/drm/gpu_scheduler.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/scheduler/gpu_scheduler.c
+   :export:
