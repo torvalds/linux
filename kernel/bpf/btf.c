@@ -749,7 +749,7 @@ static bool env_type_is_resolve_sink(const struct btf_verifier_env *env,
 			!btf_type_is_array(next_type) &&
 			!btf_type_is_struct(next_type);
 	default:
-		BUG_ON(1);
+		BUG();
 	}
 }
 
