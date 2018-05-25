@@ -189,6 +189,7 @@ install_headers:
 	$(call QUIET_INSTALL, headers) \
 		$(call do_install,bpf.h,$(prefix)/include/bpf,644); \
 		$(call do_install,libbpf.h,$(prefix)/include/bpf,644);
+		$(call do_install,btf.h,$(prefix)/include/bpf,644);
 
 install: install_lib
 
