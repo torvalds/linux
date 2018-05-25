@@ -829,11 +829,16 @@
 				<&cmu_disp CLK_ACLK_SMMU_DECON0X>,
 				<&cmu_disp CLK_ACLK_XIU_DECON0X>,
 				<&cmu_disp CLK_PCLK_SMMU_DECON0X>,
+				<&cmu_disp CLK_ACLK_SMMU_DECON1X>,
+				<&cmu_disp CLK_ACLK_XIU_DECON1X>,
+				<&cmu_disp CLK_PCLK_SMMU_DECON1X>,
 				<&cmu_disp CLK_SCLK_DECON_VCLK>,
 				<&cmu_disp CLK_SCLK_DECON_ECLK>;
 			clock-names = "pclk", "aclk_decon", "aclk_smmu_decon0x",
 				"aclk_xiu_decon0x", "pclk_smmu_decon0x",
-				"sclk_decon_vclk", "sclk_decon_eclk";
+				"aclk_smmu_decon1x", "aclk_xiu_decon1x",
+				"pclk_smmu_decon1x", "sclk_decon_vclk",
+				"sclk_decon_eclk";
 			power-domains = <&pd_disp>;
 			interrupt-names = "fifo", "vsync", "lcd_sys";
 			interrupts = <GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>,
@@ -866,11 +871,16 @@
 				 <&cmu_disp CLK_ACLK_SMMU_TV0X>,
 				 <&cmu_disp CLK_ACLK_XIU_TV0X>,
 				 <&cmu_disp CLK_PCLK_SMMU_TV0X>,
+				 <&cmu_disp CLK_ACLK_SMMU_TV1X>,
+				 <&cmu_disp CLK_ACLK_XIU_TV1X>,
+				 <&cmu_disp CLK_PCLK_SMMU_TV1X>,
 				 <&cmu_disp CLK_SCLK_DECON_TV_VCLK>,
 				 <&cmu_disp CLK_SCLK_DECON_TV_ECLK>;
 			clock-names = "pclk", "aclk_decon", "aclk_smmu_decon0x",
 				      "aclk_xiu_decon0x", "pclk_smmu_decon0x",
-				      "sclk_decon_vclk", "sclk_decon_eclk";
+				      "aclk_smmu_decon1x", "aclk_xiu_decon1x",
+				      "pclk_smmu_decon1x", "sclk_decon_vclk",
+				      "sclk_decon_eclk";
 			samsung,disp-sysreg = <&syscon_disp>;
 			power-domains = <&pd_disp>;
 			interrupt-names = "fifo", "vsync", "lcd_sys";
