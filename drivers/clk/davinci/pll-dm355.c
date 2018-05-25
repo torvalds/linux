@@ -62,16 +62,13 @@ static const struct davinci_pll_clk_info dm355_pll2_info = {
 		 PLL_POSTDIV_ALWAYS_ENABLED | PLL_POSTDIV_FIXED_DIV,
 };
 
-SYSCLK(1, pll2_sysclk1, pll2, 5, SYSCLK_FIXED_DIV);
-SYSCLK(2, pll2_sysclk2, pll2, 5, SYSCLK_FIXED_DIV | SYSCLK_ALWAYS_ENABLED);
+SYSCLK(1, pll2_sysclk1, pll2, 5, SYSCLK_FIXED_DIV | SYSCLK_ALWAYS_ENABLED);
 
 int dm355_pll2_init(struct device *dev, void __iomem *base)
 {
 	davinci_pll_clk_register(dev, &dm355_pll2_info, "oscin", base);
 
 	davinci_pll_sysclk_register(dev, &pll2_sysclk1, base);
-
-	davinci_pll_sysclk_register(dev, &pll2_sysclk2, base);
 
 	davinci_pll_sysclkbp_clk_register(dev, "pll2_sysclkbp", base);
 
