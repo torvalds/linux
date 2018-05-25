@@ -13,15 +13,17 @@ Required properties for the top level node:
   - "mediatek,mt7621-gpio" for Mediatek controllers
 - reg : Physical base address and length of the controller's registers
 - interrupt-parent : phandle of the parent interrupt controller.
-- interrupts = Interrupt specifier for the controllers interrupt
+- interrupts : Interrupt specifier for the controllers interrupt.
+- interrupt-controller : Mark the device node as an interrupt controller.
+- #interrupt-cells : Should be 1. The first cell is the GPIO number.
 
 Required properties for the GPIO bank node:
 - compatible:
   - "mediatek,mt7621-gpio-bank" for Mediatek banks
-- #gpio-cells : Should be two.
-  - first cell is the pin number
-  - second cell is used to specify optional parameters (unused)
-- gpio-controller : Marks the device node as a GPIO controller
+- #gpio-cells : Should be two. The first cell is the GPIO pin number and the
+   second cell specifies GPIO flags, as defined in <dt-bindings/gpio/gpio.h>.
+   Only the GPIO_ACTIVE_HIGH and GPIO_ACTIVE_LOW flags are supported.
+- gpio-controller : Marks the device node as a GPIO controller.
 - reg : The id of the bank that the node describes.
 
 Example:
@@ -34,6 +36,8 @@ Example:
 
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SHARED 12 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-controller;
+		#interrupt-cells = <1>;
 
 		gpio0: bank@0 {
 			reg = <0>;
