@@ -3555,6 +3555,9 @@ static int mwifiex_set_rekey_data(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 
+	if (!ISSUPP_FIRMWARE_SUPPLICANT(priv->adapter->fw_cap_info))
+		return -EOPNOTSUPP;
+
 	return mwifiex_send_cmd(priv, HostCmd_CMD_GTK_REKEY_OFFLOAD_CFG,
 				HostCmd_ACT_GEN_SET, 0, data, true);
 }
@@ -4190,6 +4193,16 @@ static const struct wiphy_wowlan_support mwifiex_wowlan_support = {
 	.max_pkt_offset = MWIFIEX_MAX_OFFSET_LEN,
 	.max_nd_match_sets = MWIFIEX_MAX_ND_MATCH_SETS,
 };
+
+static const struct wiphy_wowlan_support mwifiex_wowlan_support_no_gtk = {
+	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT |
+		 WIPHY_WOWLAN_NET_DETECT,
+	.n_patterns = MWIFIEX_MEF_MAX_FILTERS,
+	.pattern_min_len = 1,
+	.pattern_max_len = MWIFIEX_MAX_PATTERN_LEN,
+	.max_pkt_offset = MWIFIEX_MAX_OFFSET_LEN,
+	.max_nd_match_sets = MWIFIEX_MAX_ND_MATCH_SETS,
+};
 #endif
 
 static bool mwifiex_is_valid_alpha2(const char *alpha2)
@@ -4308,7 +4321,10 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 				WIPHY_FLAG_TDLS_EXTERNAL_SETUP;
 
 #ifdef CONFIG_PM
-	wiphy->wowlan = &mwifiex_wowlan_support;
+	if (ISSUPP_FIRMWARE_SUPPLICANT(priv->adapter->fw_cap_info))
+		wiphy->wowlan = &mwifiex_wowlan_support;
+	else
+		wiphy->wowlan = &mwifiex_wowlan_support_no_gtk;
 #endif
 
 	wiphy->coalesce = &mwifiex_coalesce_support;
