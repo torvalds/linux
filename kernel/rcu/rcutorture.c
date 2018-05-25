@@ -62,6 +62,18 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@us.ibm.com> and Josh Triplett <josh@joshtriplett.org>");
 
 
+/* Bits for ->extendables field, extendables param, and related definitions. */
+#define RCUTORTURE_RDR_SHIFT	 8	/* Put SRCU index in upper bits. */
+#define RCUTORTURE_RDR_MASK	 ((1 << RCUTORTURE_RDR_SHIFT) - 1)
+#define RCUTORTURE_RDR_BH	 0x1	/* Extend readers by disabling bh. */
+#define RCUTORTURE_RDR_IRQ	 0x2	/*  ... disabling interrupts. */
+#define RCUTORTURE_RDR_PREEMPT	 0x4	/*  ... disabling preemption. */
+#define RCUTORTURE_RDR_RCU	 0x8	/*  ... entering another RCU reader. */
+#define RCUTORTURE_MAX_EXTEND	 (RCUTORTURE_RDR_BH | RCUTORTURE_RDR_IRQ | \
+				  RCUTORTURE_RDR_PREEMPT)
+#define RCUTORTURE_RDR_MAX_LOOPS 0x7	/* Maximum reader extensions. */
+					/* Must be power of two minus one. */
+
 torture_param(int, cbflood_inter_holdoff, HZ,
 	      "Holdoff between floods (jiffies)");
 torture_param(int, cbflood_intra_holdoff, 1,
@@ -69,6 +81,8 @@ torture_param(int, cbflood_intra_holdoff, 1,
 torture_param(int, cbflood_n_burst, 3, "# bursts in flood, zero to disable");
 torture_param(int, cbflood_n_per_burst, 20000,
 	      "# callbacks per burst in flood");
+torture_param(int, extendables, RCUTORTURE_MAX_EXTEND,
+	      "Extend readers by disabling bh (1), irqs (2), or preempt (4)");
 torture_param(int, fqs_duration, 0,
 	      "Duration of fqs bursts (us), 0 to disable");
 torture_param(int, fqs_holdoff, 0, "Holdoff time within fqs bursts (us)");
@@ -277,6 +291,8 @@ struct rcu_torture_ops {
 	void (*stats)(void);
 	int irq_capable;
 	int can_boost;
+	int extendables;
+	int ext_irq_conflict;
 	const char *name;
 };
 
@@ -452,6 +468,8 @@ static struct rcu_torture_ops rcu_bh_ops = {
 	.fqs		= rcu_bh_force_quiescent_state,
 	.stats		= NULL,
 	.irq_capable	= 1,
+	.extendables	= (RCUTORTURE_RDR_BH | RCUTORTURE_RDR_IRQ),
+	.ext_irq_conflict = RCUTORTURE_RDR_RCU,
 	.name		= "rcu_bh"
 };
 
@@ -622,6 +640,26 @@ static struct rcu_torture_ops srcud_ops = {
 	.name		= "srcud"
 };
 
+/* As above, but broken due to inappropriate reader extension. */
+static struct rcu_torture_ops busted_srcud_ops = {
+	.ttype		= SRCU_FLAVOR,
+	.init		= srcu_torture_init,
+	.cleanup	= srcu_torture_cleanup,
+	.readlock	= srcu_torture_read_lock,
+	.read_delay	= rcu_read_delay,
+	.readunlock	= srcu_torture_read_unlock,
+	.get_gp_seq	= srcu_torture_completed,
+	.deferred_free	= srcu_torture_deferred_free,
+	.sync		= srcu_torture_synchronize,
+	.exp_sync	= srcu_torture_synchronize_expedited,
+	.call		= srcu_torture_call,
+	.cb_barrier	= srcu_torture_barrier,
+	.stats		= srcu_torture_stats,
+	.irq_capable	= 1,
+	.extendables	= RCUTORTURE_MAX_EXTEND,
+	.name		= "busted_srcud"
+};
+
 /*
  * Definitions for sched torture testing.
  */
@@ -660,6 +698,7 @@ static struct rcu_torture_ops sched_ops = {
 	.fqs		= rcu_sched_force_quiescent_state,
 	.stats		= NULL,
 	.irq_capable	= 1,
+	.extendables	= RCUTORTURE_MAX_EXTEND,
 	.name		= "sched"
 };
 
@@ -1090,20 +1129,126 @@ static void rcu_torture_timer_cb(struct rcu_head *rhp)
 }
 
 /*
+ * Do one extension of an RCU read-side critical section using the
+ * current reader state in readstate (set to zero for initial entry
+ * to extended critical section), set the new state as specified by
+ * newstate (set to zero for final exit from extended critical section),
+ * and random-number-generator state in trsp.  If this is neither the
+ * beginning or end of the critical section and if there was actually a
+ * change, do a ->read_delay().
+ */
+static void rcutorture_one_extend(int *readstate, int newstate,
+				  struct torture_random_state *trsp)
+{
+	int idxnew = -1;
+	int idxold = *readstate;
+	int statesnew = ~*readstate & newstate;
+	int statesold = *readstate & ~newstate;
+
+	WARN_ON_ONCE(idxold < 0);
+	WARN_ON_ONCE((idxold >> RCUTORTURE_RDR_SHIFT) > 1);
+
+	/* First, put new protection in place to avoid critical-section gap. */
+	if (statesnew & RCUTORTURE_RDR_BH)
+		local_bh_disable();
+	if (statesnew & RCUTORTURE_RDR_IRQ)
+		local_irq_disable();
+	if (statesnew & RCUTORTURE_RDR_PREEMPT)
+		preempt_disable();
+	if (statesnew & RCUTORTURE_RDR_RCU)
+		idxnew = cur_ops->readlock() << RCUTORTURE_RDR_SHIFT;
+
+	/* Next, remove old protection, irq first due to bh conflict. */
+	if (statesold & RCUTORTURE_RDR_IRQ)
+		local_irq_enable();
+	if (statesold & RCUTORTURE_RDR_BH)
+		local_bh_enable();
+	if (statesold & RCUTORTURE_RDR_PREEMPT)
+		preempt_enable();
+	if (statesold & RCUTORTURE_RDR_RCU)
+		cur_ops->readunlock(idxold >> RCUTORTURE_RDR_SHIFT);
+
+	/* Delay if neither beginning nor end and there was a change. */
+	if ((statesnew || statesold) && *readstate && newstate)
+		cur_ops->read_delay(trsp);
+
+	/* Update the reader state. */
+	if (idxnew == -1)
+		idxnew = idxold & ~RCUTORTURE_RDR_MASK;
+	WARN_ON_ONCE(idxnew < 0);
+	WARN_ON_ONCE((idxnew >> RCUTORTURE_RDR_SHIFT) > 1);
+	*readstate = idxnew | newstate;
+	WARN_ON_ONCE((*readstate >> RCUTORTURE_RDR_SHIFT) < 0);
+	WARN_ON_ONCE((*readstate >> RCUTORTURE_RDR_SHIFT) > 1);
+}
+
+/* Return the biggest extendables mask given current RCU and boot parameters. */
+static int rcutorture_extend_mask_max(void)
+{
+	int mask;
+
+	WARN_ON_ONCE(extendables & ~RCUTORTURE_MAX_EXTEND);
+	mask = extendables & RCUTORTURE_MAX_EXTEND & cur_ops->extendables;
+	mask = mask | RCUTORTURE_RDR_RCU;
+	return mask;
+}
+
+/* Return a random protection state mask, but with at least one bit set. */
+static int
+rcutorture_extend_mask(int oldmask, struct torture_random_state *trsp)
+{
+	int mask = rcutorture_extend_mask_max();
+
+	WARN_ON_ONCE(mask >> RCUTORTURE_RDR_SHIFT);
+	mask = mask & (torture_random(trsp) >> RCUTORTURE_RDR_SHIFT);
+	if ((mask & RCUTORTURE_RDR_IRQ) &&
+	    !(mask & RCUTORTURE_RDR_BH) &&
+	    (oldmask & RCUTORTURE_RDR_BH))
+		mask |= RCUTORTURE_RDR_BH; /* Can't enable bh w/irq disabled. */
+	if ((mask & RCUTORTURE_RDR_IRQ) &&
+	    !(mask & cur_ops->ext_irq_conflict) &&
+	    (oldmask & cur_ops->ext_irq_conflict))
+		mask |= cur_ops->ext_irq_conflict; /* Or if readers object. */
+	return mask ?: RCUTORTURE_RDR_RCU;
+}
+
+/*
+ * Do a randomly selected number of extensions of an existing RCU read-side
+ * critical section.
+ */
+static void rcutorture_loop_extend(int *readstate,
+				   struct torture_random_state *trsp)
+{
+	int i;
+	int mask = rcutorture_extend_mask_max();
+
+	WARN_ON_ONCE(!*readstate); /* -Existing- RCU read-side critsect! */
+	if (!((mask - 1) & mask))
+		return;  /* Current RCU flavor not extendable. */
+	i = (torture_random(trsp) >> 3) & RCUTORTURE_RDR_MAX_LOOPS;
+	while (i--) {
+		mask = rcutorture_extend_mask(*readstate, trsp);
+		rcutorture_one_extend(readstate, mask, trsp);
+	}
+}
+
+/*
  * Do one read-side critical section, returning false if there was
  * no data to read.  Can be invoked both from process context and
  * from a timer handler.
  */
 static bool rcu_torture_one_read(struct torture_random_state *trsp)
 {
-	int idx;
 	unsigned long started;
 	unsigned long completed;
+	int newstate;
 	struct rcu_torture *p;
 	int pipe_count;
+	int readstate = 0;
 	unsigned long long ts;
 
-	idx = cur_ops->readlock();
+	newstate = rcutorture_extend_mask(readstate, trsp);
+	rcutorture_one_extend(&readstate, newstate, trsp);
 	started = cur_ops->get_gp_seq();
 	ts = rcu_trace_clock_local();
 	p = rcu_dereference_check(rcu_torture_current,
@@ -1113,12 +1258,12 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp)
 				  torturing_tasks());
 	if (p == NULL) {
 		/* Wait for rcu_torture_writer to get underway */
-		cur_ops->readunlock(idx);
+		rcutorture_one_extend(&readstate, 0, trsp);
 		return false;
 	}
 	if (p->rtort_mbtest == 0)
 		atomic_inc(&n_rcu_torture_mberror);
-	cur_ops->read_delay(trsp);
+	rcutorture_loop_extend(&readstate, trsp);
 	preempt_disable();
 	pipe_count = p->rtort_pipe_count;
 	if (pipe_count > RCU_TORTURE_PIPE_LEN) {
@@ -1139,7 +1284,8 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp)
 	}
 	__this_cpu_inc(rcu_torture_batch[completed]);
 	preempt_enable();
-	cur_ops->readunlock(idx);
+	rcutorture_one_extend(&readstate, 0, trsp);
+	WARN_ON_ONCE(readstate & RCUTORTURE_RDR_MASK);
 	return true;
 }
 
@@ -1704,7 +1850,7 @@ rcu_torture_init(void)
 	int firsterr = 0;
 	static struct rcu_torture_ops *torture_ops[] = {
 		&rcu_ops, &rcu_bh_ops, &rcu_busted_ops, &srcu_ops, &srcud_ops,
-		&sched_ops, &tasks_ops,
+		&busted_srcud_ops, &sched_ops, &tasks_ops,
 	};
 
 	if (!torture_init_begin(torture_type, verbose))
