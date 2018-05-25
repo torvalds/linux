@@ -704,11 +704,14 @@ struct hclge_vlan_filter_vf_cfg_cmd {
 	u8  vf_bitmap[16];
 };
 
-#define HCLGE_ACCEPT_TAG_B		0
-#define HCLGE_ACCEPT_UNTAG_B		1
+#define HCLGE_ACCEPT_TAG1_B		0
+#define HCLGE_ACCEPT_UNTAG1_B		1
 #define HCLGE_PORT_INS_TAG1_EN_B	2
 #define HCLGE_PORT_INS_TAG2_EN_B	3
 #define HCLGE_CFG_NIC_ROCE_SEL_B	4
+#define HCLGE_ACCEPT_TAG2_B		5
+#define HCLGE_ACCEPT_UNTAG2_B		6
+
 struct hclge_vport_vtag_tx_cfg_cmd {
 	u8 vport_vlan_cfg;
 	u8 vf_offset;

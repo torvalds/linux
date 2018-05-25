@@ -570,8 +570,10 @@ struct hclge_dev {
 
 /* VPort level vlan tag configuration for TX direction */
 struct hclge_tx_vtag_cfg {
-	bool accept_tag;	/* Whether accept tagged packet from host */
-	bool accept_untag;	/* Whether accept untagged packet from host */
+	bool accept_tag1;	/* Whether accept tag1 packet from host */
+	bool accept_untag1;	/* Whether accept untag1 packet from host */
+	bool accept_tag2;
+	bool accept_untag2;
 	bool insert_tag1_en;	/* Whether insert inner vlan tag */
 	bool insert_tag2_en;	/* Whether insert outer vlan tag */
 	u16  default_tag1;	/* The default inner vlan tag to insert */
