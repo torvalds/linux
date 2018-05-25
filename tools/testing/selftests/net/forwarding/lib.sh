@@ -340,6 +340,31 @@ tunnel_destroy()
 	ip link del dev $name
 }
 
+vlan_create()
+{
+	local if_name=$1; shift
+	local vid=$1; shift
+	local vrf=$1; shift
+	local ips=("${@}")
+	local name=$if_name.$vid
+
+	ip link add name $name link $if_name type vlan id $vid
+	if [ "$vrf" != "" ]; then
+		ip link set dev $name master $vrf
+	fi
+	ip link set dev $name up
+	__addr_add_del $name add "${ips[@]}"
+}
+
+vlan_destroy()
+{
+	local if_name=$1; shift
+	local vid=$1; shift
+	local name=$if_name.$vid
+
+	ip link del dev $name
+}
+
 master_name_get()
 {
 	local if_name=$1
@@ -423,26 +448,35 @@ tc_offload_check()
 	return 0
 }
 
-slow_path_trap_install()
+trap_install()
 {
 	local dev=$1; shift
 	local direction=$1; shift
 
+	# For slow-path testing, we need to install a trap to get to
+	# slow path the packets that would otherwise be switched in HW.
+	tc filter add dev $dev $direction pref 1 flower skip_sw action trap
+}
+
+trap_uninstall()
+{
+	local dev=$1; shift
+	local direction=$1; shift
+
+	tc filter del dev $dev $direction pref 1 flower skip_sw
+}
+
+slow_path_trap_install()
+{
 	if [ "${tcflags/skip_hw}" != "$tcflags" ]; then
-		# For slow-path testing, we need to install a trap to get to
-		# slow path the packets that would otherwise be switched in HW.
-		tc filter add dev $dev $direction pref 1 \
-		   flower skip_sw action trap
+		trap_install "$@"
 	fi
 }
 
 slow_path_trap_uninstall()
 {
-	local dev=$1; shift
-	local direction=$1; shift
-
 	if [ "${tcflags/skip_hw}" != "$tcflags" ]; then
-		tc filter del dev $dev $direction pref 1 flower skip_sw
+		trap_uninstall "$@"
 	fi
 }
 

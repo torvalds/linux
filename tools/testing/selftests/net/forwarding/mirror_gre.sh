@@ -72,7 +72,6 @@ test_span_gre_mac()
 	RET=0
 
 	mirror_install $swp1 $direction $tundev "matchall $tcflags"
-	tc qdisc add dev $h3 clsact
 	tc filter add dev $h3 ingress pref 77 prot $prot \
 		flower ip_proto 0x2f src_mac $swp3mac dst_mac $h3mac \
 		action pass
@@ -80,7 +79,6 @@ test_span_gre_mac()
 	mirror_test v$h1 192.0.2.1 192.0.2.2 $h3 77 10
 
 	tc filter del dev $h3 ingress pref 77
-	tc qdisc del dev $h3 clsact
 	mirror_uninstall $swp1 $direction
 
 	log_test "$direction $what: envelope MAC ($tcflags)"
