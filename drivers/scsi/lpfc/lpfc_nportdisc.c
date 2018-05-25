@@ -1982,6 +1982,12 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			if (bf_get_be32(prli_disc, nvpr))
 				ndlp->nlp_type |= NLP_NVME_DISCOVERY;
 
+			/* This node is an NVME target.  Adjust the command
+			 * queue depth on this node to not exceed the available
+			 * xris.
+			 */
+			ndlp->cmd_qdepth = phba->sli4_hba.nvme_xri_max;
+
 			/*
 			 * If prli_fba is set, the Target supports FirstBurst.
 			 * If prli_fb_sz is 0, the FirstBurst size is unlimited,

@@ -973,9 +973,22 @@ lpfc_nvme_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 
 	/* Sanity check on return of outstanding command */
 	if (!lpfc_ncmd || !lpfc_ncmd->nvmeCmd || !lpfc_ncmd->nrport) {
+		if (!lpfc_ncmd) {
+			lpfc_printf_vlog(vport, KERN_ERR,
+					 LOG_NODE | LOG_NVME_IOERR,
+					 "6071 Null lpfc_ncmd pointer. No "
+					 "release, skip completion\n");
+			return;
+		}
+
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE | LOG_NVME_IOERR,
-				 "6071 Completion pointers bad on wqe %p.\n",
-				 wcqe);
+				 "6066 Missing cmpl ptrs: lpfc_ncmd %p, "
+				 "nvmeCmd %p nrport %p\n",
+				 lpfc_ncmd, lpfc_ncmd->nvmeCmd,
+				 lpfc_ncmd->nrport);
+
+		/* Release the lpfc_ncmd regardless of the missing elements. */
+		lpfc_release_nvme_buf(phba, lpfc_ncmd);
 		return;
 	}
 	nCmd = lpfc_ncmd->nvmeCmd;
@@ -1537,8 +1550,10 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	    !expedite) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR,
 				 "6174 Fail IO, ndlp qdepth exceeded: "
-				 "idx %d DID %x\n",
-				 lpfc_queue_info->index, ndlp->nlp_DID);
+				 "idx %d DID %x pend %d qdepth %d\n",
+				 lpfc_queue_info->index, ndlp->nlp_DID,
+				 atomic_read(&ndlp->cmd_pending),
+				 ndlp->cmd_qdepth);
 		atomic_inc(&lport->xmt_fcp_qdepth);
 		ret = -EBUSY;
 		goto out_fail;
