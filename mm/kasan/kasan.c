@@ -811,6 +811,7 @@ static int __meminit kasan_mem_notifier(struct notifier_block *nb,
 		kmemleak_ignore(ret);
 		return NOTIFY_OK;
 	}
+	case MEM_CANCEL_ONLINE:
 	case MEM_OFFLINE: {
 		struct vm_struct *vm;
 
