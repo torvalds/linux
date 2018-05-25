@@ -1536,9 +1536,13 @@ vmw_kms_atomic_check_modeset(struct drm_device *dev,
 		unsigned long requested_bb_mem = 0;
 
 		if (dev_priv->active_display_unit == vmw_du_screen_target) {
-			if (crtc->primary->fb) {
-				int cpp = crtc->primary->fb->pitches[0] /
-					  crtc->primary->fb->width;
+			struct drm_plane *plane = crtc->primary;
+			struct drm_plane_state *plane_state;
+
+			plane_state = drm_atomic_get_new_plane_state(state, plane);
+
+			if (plane_state && plane_state->fb) {
+				int cpp = plane_state->fb->format->cpp[0];
 
 				requested_bb_mem += crtc->mode.hdisplay * cpp *
 						    crtc->mode.vdisplay;
