@@ -129,12 +129,7 @@ static int
 mediatek_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
 	struct mtk_gc *rg = to_mediatek_gpio(chip);
-	unsigned long flags;
-	u32 t;
-
-	spin_lock_irqsave(&rg->lock, flags);
-	t = mtk_gpio_r32(rg, GPIO_REG_CTRL);
-	spin_unlock_irqrestore(&rg->lock, flags);
+	u32 t = mtk_gpio_r32(rg, GPIO_REG_CTRL);
 
 	return (t & BIT(offset)) ? 0 : 1;
 }
