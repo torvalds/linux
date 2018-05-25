@@ -119,6 +119,7 @@ static int sev_cmd_buffer_len(int cmd)
 	case SEV_CMD_RECEIVE_UPDATE_VMSA:	return sizeof(struct sev_data_receive_update_vmsa);
 	case SEV_CMD_LAUNCH_UPDATE_SECRET:	return sizeof(struct sev_data_launch_secret);
 	case SEV_CMD_DOWNLOAD_FIRMWARE:		return sizeof(struct sev_data_download_firmware);
+	case SEV_CMD_GET_ID:			return sizeof(struct sev_data_get_id);
 	default:				return 0;
 	}
 
@@ -510,6 +511,46 @@ e_free:
 	return ret;
 }
 
+static int sev_ioctl_do_get_id(struct sev_issue_cmd *argp)
+{
+	struct sev_data_get_id *data;
+	u64 data_size, user_size;
+	void *id_blob, *mem;
+	int ret;
+
+	/* SEV GET_ID available from SEV API v0.16 and up */
+	if (!SEV_VERSION_GREATER_OR_EQUAL(0, 16))
+		return -ENOTSUPP;
+
+	/* SEV FW expects the buffer it fills with the ID to be
+	 * 8-byte aligned. Memory allocated should be enough to
+	 * hold data structure + alignment padding + memory
+	 * where SEV FW writes the ID.
+	 */
+	data_size = ALIGN(sizeof(struct sev_data_get_id), 8);
+	user_size = sizeof(struct sev_user_data_get_id);
+
+	mem = kzalloc(data_size + user_size, GFP_KERNEL);
+	if (!mem)
+		return -ENOMEM;
+
+	data = mem;
+	id_blob = mem + data_size;
+
+	data->address = __psp_pa(id_blob);
+	data->len = user_size;
+
+	ret = __sev_do_cmd_locked(SEV_CMD_GET_ID, data, &argp->error);
+	if (!ret) {
+		if (copy_to_user((void __user *)argp->data, id_blob, data->len))
+			ret = -EFAULT;
+	}
+
+	kfree(mem);
+
+	return ret;
+}
+
 static int sev_ioctl_do_pdh_export(struct sev_issue_cmd *argp)
 {
 	struct sev_user_data_pdh_cert_export input;
@@ -646,6 +687,9 @@ static long sev_ioctl(struct file *file, unsigned int ioctl, unsigned long arg)
 		break;
 	case SEV_PDH_CERT_EXPORT:
 		ret = sev_ioctl_do_pdh_export(&input);
+		break;
+	case SEV_GET_ID:
+		ret = sev_ioctl_do_get_id(&input);
 		break;
 	default:
 		ret = -EINVAL;

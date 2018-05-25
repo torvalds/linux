@@ -30,6 +30,7 @@ enum {
 	SEV_PDH_GEN,
 	SEV_PDH_CERT_EXPORT,
 	SEV_PEK_CERT_IMPORT,
+	SEV_GET_ID,
 
 	SEV_MAX,
 };
@@ -121,6 +122,17 @@ struct sev_user_data_pdh_cert_export {
 	__u32 pdh_cert_len;			/* In/Out */
 	__u64 cert_chain_address;		/* In */
 	__u32 cert_chain_len;			/* In/Out */
+} __packed;
+
+/**
+ * struct sev_user_data_get_id - GET_ID command parameters
+ *
+ * @socket1: Buffer to pass unique ID of first socket
+ * @socket2: Buffer to pass unique ID of second socket
+ */
+struct sev_user_data_get_id {
+	__u8 socket1[64];			/* Out */
+	__u8 socket2[64];			/* Out */
 } __packed;
 
 /**
