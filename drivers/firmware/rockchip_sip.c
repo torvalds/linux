@@ -153,10 +153,17 @@ struct arm_smccc_res sip_smc_soc_bus_div(u32 arg0, u32 arg1, u32 arg2)
 }
 
 /************************** fiq debugger **************************************/
+/*
+ * AArch32 is not allowed to call SMC64(ATF framework does not support), so we
+ * don't change SIP_UARTDBG_FN to SIP_UARTDBG_CFG64 even when cpu is AArch32
+ * mode. Let ATF support SIP_UARTDBG_CFG, and we just initialize SIP_UARTDBG_FN
+ * depends on compile option(CONFIG_ARM or CONFIG_ARM64).
+ */
 #ifdef CONFIG_ARM64
 #define SIP_UARTDBG_FN		SIP_UARTDBG_CFG64
 #else
 #define SIP_UARTDBG_FN		SIP_UARTDBG_CFG
+static int firmware_64_32bit;
 #endif
 
 static int fiq_sip_enabled;
@@ -174,47 +181,76 @@ static struct pt_regs sip_fiq_debugger_get_pt_regs(void *reg_base,
 						   unsigned long sp_el1)
 {
 	struct pt_regs fiq_pt_regs;
+	__maybe_unused struct sm_nsec_ctx *nsec_ctx = reg_base;
+	__maybe_unused struct gp_regs_ctx *gp_regs = reg_base;
 
 #ifdef CONFIG_ARM64
-	/* copy cpu context */
+	/*
+	 * 64-bit ATF + 64-bit kernel
+	 */
+	/* copy cpu context: x0 ~ spsr_el3 */
 	memcpy(&fiq_pt_regs, reg_base, 8 * 31);
 
-	/* copy pstate */
+	/* copy pstate: spsr_el3 */
 	memcpy(&fiq_pt_regs.pstate, reg_base + 0x110, 8);
 	fiq_pt_regs.sp = sp_el1;
 
-	/* copy pc */
+	/* copy pc: elr_el3 */
 	memcpy(&fiq_pt_regs.pc, reg_base + 0x118, 8);
 #else
-	struct sm_nsec_ctx *nsec_ctx = reg_base;
+	if (firmware_64_32bit == FIRMWARE_ATF_64BIT) {
+		/*
+		 * 64-bit ATF + 32-bit kernel
+		 */
+		fiq_pt_regs.ARM_r0 = gp_regs->x0;
+		fiq_pt_regs.ARM_r1 = gp_regs->x1;
+		fiq_pt_regs.ARM_r2 = gp_regs->x2;
+		fiq_pt_regs.ARM_r3 = gp_regs->x3;
+		fiq_pt_regs.ARM_r4 = gp_regs->x4;
+		fiq_pt_regs.ARM_r5 = gp_regs->x5;
+		fiq_pt_regs.ARM_r6 = gp_regs->x6;
+		fiq_pt_regs.ARM_r7 = gp_regs->x7;
+		fiq_pt_regs.ARM_r8 = gp_regs->x8;
+		fiq_pt_regs.ARM_r9 = gp_regs->x9;
+		fiq_pt_regs.ARM_r10 = gp_regs->x10;
+		fiq_pt_regs.ARM_fp = gp_regs->x11;
+		fiq_pt_regs.ARM_ip = gp_regs->x12;
+		fiq_pt_regs.ARM_sp = gp_regs->x19;	/* aarch32 svc_r13 */
+		fiq_pt_regs.ARM_lr = gp_regs->x18;	/* aarch32 svc_r14 */
+		fiq_pt_regs.ARM_cpsr = gp_regs->spsr_el3;
+		fiq_pt_regs.ARM_pc = gp_regs->elr_el3;
+	} else {
+		/*
+		 * 32-bit tee firmware + 32-bit kernel
+		 */
+		fiq_pt_regs.ARM_r0 = nsec_ctx->r0;
+		fiq_pt_regs.ARM_r1 = nsec_ctx->r1;
+		fiq_pt_regs.ARM_r2 = nsec_ctx->r2;
+		fiq_pt_regs.ARM_r3 = nsec_ctx->r3;
+		fiq_pt_regs.ARM_r4 = nsec_ctx->r4;
+		fiq_pt_regs.ARM_r5 = nsec_ctx->r5;
+		fiq_pt_regs.ARM_r6 = nsec_ctx->r6;
+		fiq_pt_regs.ARM_r7 = nsec_ctx->r7;
+		fiq_pt_regs.ARM_r8 = nsec_ctx->r8;
+		fiq_pt_regs.ARM_r9 = nsec_ctx->r9;
+		fiq_pt_regs.ARM_r10 = nsec_ctx->r10;
+		fiq_pt_regs.ARM_fp = nsec_ctx->r11;
+		fiq_pt_regs.ARM_ip = nsec_ctx->r12;
+		fiq_pt_regs.ARM_sp = nsec_ctx->svc_sp;
+		fiq_pt_regs.ARM_lr = nsec_ctx->svc_lr;
+		fiq_pt_regs.ARM_cpsr = nsec_ctx->mon_spsr;
 
-	fiq_pt_regs.ARM_r0 = nsec_ctx->r0;
-	fiq_pt_regs.ARM_r1 = nsec_ctx->r1;
-	fiq_pt_regs.ARM_r2 = nsec_ctx->r2;
-	fiq_pt_regs.ARM_r3 = nsec_ctx->r3;
-	fiq_pt_regs.ARM_r4 = nsec_ctx->r4;
-	fiq_pt_regs.ARM_r5 = nsec_ctx->r5;
-	fiq_pt_regs.ARM_r6 = nsec_ctx->r6;
-	fiq_pt_regs.ARM_r7 = nsec_ctx->r7;
-	fiq_pt_regs.ARM_r8 = nsec_ctx->r8;
-	fiq_pt_regs.ARM_r9 = nsec_ctx->r9;
-	fiq_pt_regs.ARM_r10 = nsec_ctx->r10;
-	fiq_pt_regs.ARM_fp = nsec_ctx->r11;
-	fiq_pt_regs.ARM_ip = nsec_ctx->r12;
-	fiq_pt_regs.ARM_sp = nsec_ctx->svc_sp;
-	fiq_pt_regs.ARM_lr = nsec_ctx->svc_lr;
-	fiq_pt_regs.ARM_cpsr = nsec_ctx->mon_spsr;
-
-	/*
-	 * 'nsec_ctx->mon_lr' is not the fiq break point's PC, because it will
-	 * be override as 'psci_fiq_debugger_uart_irq_tf_cb' for optee-os to
-	 * jump to fiq_debugger handler.
-	 *
-	 * As 'nsec_ctx->und_lr' is not used for kernel, so optee-os uses it to
-	 * deliver fiq break point's PC.
-	 *
-	 */
-	fiq_pt_regs.ARM_pc = nsec_ctx->und_lr;
+		/*
+		 * 'nsec_ctx->mon_lr' is not the fiq break point's PC, because it will
+		 * be override as 'psci_fiq_debugger_uart_irq_tf_cb' for optee-os to
+		 * jump to fiq_debugger handler.
+		 *
+		 * As 'nsec_ctx->und_lr' is not used for kernel, so optee-os uses it to
+		 * deliver fiq break point's PC.
+		 *
+		 */
+		fiq_pt_regs.ARM_pc = nsec_ctx->und_lr;
+	}
 #endif
 
 	return fiq_pt_regs;
@@ -328,23 +364,47 @@ void sip_fiq_debugger_enable_fiq(bool enable, uint32_t tgt_cpu)
 
 /******************************************************************************/
 #ifdef CONFIG_ARM
-/*
- * optee work on kernel 3.10 and 4.4, and we have different sip
- * implement. We should tell optee the current rockchip sip version.
- */
-static __init int sip_implement_version_init(void)
+static __init int sip_firmware_init(void)
 {
 	struct arm_smccc_res res;
 
 	if (!psci_smp_available())
 		return 0;
 
+	/*
+	 * OP-TEE works on kernel 3.10 and 4.4 and we have different sip
+	 * implement. We should tell OP-TEE the current rockchip sip version.
+	 */
 	res = __invoke_sip_fn_smc(SIP_SIP_VERSION, SIP_IMPLEMENT_V2,
 				  SECURE_REG_WR, 0);
 	if (IS_SIP_ERROR(res.a0))
 		pr_err("%s: set rockchip sip version v2 failed\n", __func__);
 
+	/*
+	 * Currently, we support:
+	 *
+	 *	1. 64-bit ATF + 64-bit kernel;
+	 *	2. 64-bit ATF + 32-bit kernel;
+	 *	3. 32-bit TEE + 32-bit kernel;
+	 *
+	 * We need to detect which case of above and record in firmware_64_32bit
+	 * We get info from cpuid and compare with all supported ARMv7 cpu.
+	 */
+	switch (read_cpuid_part()) {
+	case ARM_CPU_PART_CORTEX_A7:
+	case ARM_CPU_PART_CORTEX_A8:
+	case ARM_CPU_PART_CORTEX_A9:
+	case ARM_CPU_PART_CORTEX_A12:
+	case ARM_CPU_PART_CORTEX_A15:
+	case ARM_CPU_PART_CORTEX_A17:
+		firmware_64_32bit = FIRMWARE_TEE_32BIT;
+		break;
+	default:
+		firmware_64_32bit = FIRMWARE_ATF_64BIT;
+		break;
+	}
+
 	return 0;
 }
-arch_initcall(sip_implement_version_init);
+arch_initcall(sip_firmware_init);
 #endif
