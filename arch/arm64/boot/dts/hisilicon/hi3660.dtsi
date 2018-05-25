@@ -7,6 +7,7 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/hi3660-clock.h>
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	compatible = "hisilicon,hi3660";
@@ -62,6 +63,10 @@
 			next-level-cache = <&A53_L2>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_0>;
 			capacity-dmips-mhz = <592>;
+			clocks = <&stub_clock HI3660_CLK_STUB_CLUSTER0>;
+			operating-points-v2 = <&cluster0_opp>;
+			#cooling-cells = <2>;
+			dynamic-power-coefficient = <110>;
 		};
 
 		cpu1: cpu@1 {
@@ -72,6 +77,8 @@
 			next-level-cache = <&A53_L2>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_0>;
 			capacity-dmips-mhz = <592>;
+			clocks = <&stub_clock HI3660_CLK_STUB_CLUSTER0>;
+			operating-points-v2 = <&cluster0_opp>;
 		};
 
 		cpu2: cpu@2 {
@@ -82,6 +89,8 @@
 			next-level-cache = <&A53_L2>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_0>;
 			capacity-dmips-mhz = <592>;
+			clocks = <&stub_clock HI3660_CLK_STUB_CLUSTER0>;
+			operating-points-v2 = <&cluster0_opp>;
 		};
 
 		cpu3: cpu@3 {
@@ -92,6 +101,8 @@
 			next-level-cache = <&A53_L2>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_0>;
 			capacity-dmips-mhz = <592>;
+			clocks = <&stub_clock HI3660_CLK_STUB_CLUSTER0>;
+			operating-points-v2 = <&cluster0_opp>;
 		};
 
 		cpu4: cpu@100 {
@@ -102,6 +113,10 @@
 			next-level-cache = <&A73_L2>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_1>;
 			capacity-dmips-mhz = <1024>;
+			clocks = <&stub_clock HI3660_CLK_STUB_CLUSTER1>;
+			operating-points-v2 = <&cluster1_opp>;
+			#cooling-cells = <2>;
+			dynamic-power-coefficient = <550>;
 		};
 
 		cpu5: cpu@101 {
@@ -112,6 +127,8 @@
 			next-level-cache = <&A73_L2>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_1>;
 			capacity-dmips-mhz = <1024>;
+			clocks = <&stub_clock HI3660_CLK_STUB_CLUSTER1>;
+			operating-points-v2 = <&cluster1_opp>;
 		};
 
 		cpu6: cpu@102 {
@@ -122,6 +139,8 @@
 			next-level-cache = <&A73_L2>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_1>;
 			capacity-dmips-mhz = <1024>;
+			clocks = <&stub_clock HI3660_CLK_STUB_CLUSTER1>;
+			operating-points-v2 = <&cluster1_opp>;
 		};
 
 		cpu7: cpu@103 {
@@ -132,6 +151,8 @@
 			next-level-cache = <&A73_L2>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_1>;
 			capacity-dmips-mhz = <1024>;
+			clocks = <&stub_clock HI3660_CLK_STUB_CLUSTER1>;
+			operating-points-v2 = <&cluster1_opp>;
 		};
 
 		idle-states {
@@ -171,6 +192,76 @@
 
 		A73_L2: l2-cache1 {
 			compatible = "cache";
+		};
+	};
+
+	cluster0_opp: opp_table0 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp00 {
+			opp-hz = /bits/ 64 <533000000>;
+			opp-microvolt = <700000>;
+			clock-latency-ns = <300000>;
+		};
+
+		opp01 {
+			opp-hz = /bits/ 64 <999000000>;
+			opp-microvolt = <800000>;
+			clock-latency-ns = <300000>;
+		};
+
+		opp02 {
+			opp-hz = /bits/ 64 <1402000000>;
+			opp-microvolt = <900000>;
+			clock-latency-ns = <300000>;
+		};
+
+		opp03 {
+			opp-hz = /bits/ 64 <1709000000>;
+			opp-microvolt = <1000000>;
+			clock-latency-ns = <300000>;
+		};
+
+		opp04 {
+			opp-hz = /bits/ 64 <1844000000>;
+			opp-microvolt = <1100000>;
+			clock-latency-ns = <300000>;
+		};
+	};
+
+	cluster1_opp: opp_table1 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp10 {
+			opp-hz = /bits/ 64 <903000000>;
+			opp-microvolt = <700000>;
+			clock-latency-ns = <300000>;
+		};
+
+		opp11 {
+			opp-hz = /bits/ 64 <1421000000>;
+			opp-microvolt = <800000>;
+			clock-latency-ns = <300000>;
+		};
+
+		opp12 {
+			opp-hz = /bits/ 64 <1805000000>;
+			opp-microvolt = <900000>;
+			clock-latency-ns = <300000>;
+		};
+
+		opp13 {
+			opp-hz = /bits/ 64 <2112000000>;
+			opp-microvolt = <1000000>;
+			clock-latency-ns = <300000>;
+		};
+
+		opp14 {
+			opp-hz = /bits/ 64 <2362000000>;
+			opp-microvolt = <1100000>;
+			clock-latency-ns = <300000>;
 		};
 	};
 
@@ -272,6 +363,21 @@
 			compatible = "hisilicon,hi3660-reset";
 			hisi,rst-syscon = <&iomcu>;
 			#reset-cells = <2>;
+		};
+
+		mailbox: mailbox@e896b000 {
+			compatible = "hisilicon,hi3660-mbox";
+			reg = <0x0 0xe896b000 0x0 0x1000>;
+			interrupts = <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>;
+			#mbox-cells = <3>;
+		};
+
+		stub_clock: stub_clock@e896b500 {
+			compatible = "hisilicon,hi3660-stub-clk";
+			reg = <0x0 0xe896b500 0x0 0x0100>;
+			#clock-cells = <1>;
+			mboxes = <&mailbox 13 3 0>;
 		};
 
 		dual_timer0: timer@fff14000 {
@@ -872,6 +978,8 @@
 				  0x0 0x02000000>;
 			num-lanes = <1>;
 			#interrupt-cells = <1>;
+			interrupts = <0 283 4>;
+			interrupt-names = "msi";
 			interrupt-map-mask = <0xf800 0 0 7>;
 			interrupt-map = <0x0 0 0 1
 					 &gic GIC_SPI 282 IRQ_TYPE_LEVEL_HIGH>,
@@ -971,6 +1079,45 @@
 			reg = <0x0 0xfff30000 0x0 0x1000>;
 			interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>;
 			#thermal-sensor-cells = <1>;
+		};
+
+		thermal-zones {
+
+			cls0: cls0 {
+				polling-delay = <1000>;
+				polling-delay-passive = <100>;
+				sustainable-power = <4500>;
+
+				/* sensor ID */
+				thermal-sensors = <&tsensor 1>;
+
+				trips {
+					threshold: trip-point@0 {
+						temperature = <65000>;
+						hysteresis = <1000>;
+						type = "passive";
+					};
+
+					target: trip-point@1 {
+						temperature = <75000>;
+						hysteresis = <1000>;
+						type = "passive";
+					};
+				};
+
+				cooling-maps {
+					map0 {
+						trip = <&target>;
+						contribution = <1024>;
+						cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					};
+					map1 {
+						trip = <&target>;
+						contribution = <512>;
+						cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					};
+				};
+			};
 		};
 	};
 };
