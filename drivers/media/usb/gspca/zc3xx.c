@@ -3184,7 +3184,6 @@ static const struct usb_action ov7620_InitialScale[] = {	/* 320x240 */
 	{}
 };
 static const struct usb_action ov7620_50HZ[] = {
-	{0xaa, 0x13, 0x00a3},	/* 00,13,a3,aa */
 	{0xdd, 0x00, 0x0100},	/* 00,01,00,dd */
 	{0xaa, 0x2b, 0x0096},	/* 00,2b,96,aa */
 	{0xaa, 0x75, 0x008a},	/* 00,75,8a,aa */
@@ -3195,15 +3194,12 @@ static const struct usb_action ov7620_50HZ[] = {
 	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},	/* 01,95,00,cc */
 	{0xa0, 0x00, ZC3XX_R196_ANTIFLICKERMID},	/* 01,96,00,cc */
 	{0xa0, 0x83, ZC3XX_R197_ANTIFLICKERLOW},	/* 01,97,83,cc */
-	{0xaa, 0x10, 0x0082},				/* 00,10,82,aa */
 	{0xaa, 0x76, 0x0003},				/* 00,76,03,aa */
 /*	{0xa0, 0x40, ZC3XX_R002_CLOCKSELECT},		 * 00,02,40,cc
 							 * if mode0 (640x480) */
 	{}
 };
 static const struct usb_action ov7620_60HZ[] = {
-	{0xaa, 0x13, 0x00a3},			/* 00,13,a3,aa */
-						/* (bug in zs211.inf) */
 	{0xdd, 0x00, 0x0100},			/* 00,01,00,dd */
 	{0xaa, 0x2b, 0x0000},			/* 00,2b,00,aa */
 	{0xaa, 0x75, 0x008a},			/* 00,75,8a,aa */
@@ -3214,7 +3210,6 @@ static const struct usb_action ov7620_60HZ[] = {
 	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH}, /* 01,95,00,cc */
 	{0xa0, 0x00, ZC3XX_R196_ANTIFLICKERMID}, /* 01,96,00,cc */
 	{0xa0, 0x83, ZC3XX_R197_ANTIFLICKERLOW}, /* 01,97,83,cc */
-	{0xaa, 0x10, 0x0020},			/* 00,10,20,aa */
 	{0xaa, 0x76, 0x0003},			/* 00,76,03,aa */
 /*	{0xa0, 0x40, ZC3XX_R002_CLOCKSELECT},	 * 00,02,40,cc
 						 * if mode0 (640x480) */
@@ -3224,8 +3219,6 @@ static const struct usb_action ov7620_60HZ[] = {
 	{}
 };
 static const struct usb_action ov7620_NoFliker[] = {
-	{0xaa, 0x13, 0x00a3},			/* 00,13,a3,aa */
-						/* (bug in zs211.inf) */
 	{0xdd, 0x00, 0x0100},			/* 00,01,00,dd */
 	{0xaa, 0x2b, 0x0000},			/* 00,2b,00,aa */
 	{0xaa, 0x75, 0x008e},			/* 00,75,8e,aa */
