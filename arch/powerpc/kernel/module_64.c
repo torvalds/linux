@@ -823,7 +823,6 @@ static unsigned long create_ftrace_stub(const Elf64_Shdr *sechdrs,
 
 int module_finalize_ftrace(struct module *mod, const Elf_Shdr *sechdrs)
 {
-	mod->arch.toc = my_r2(sechdrs, mod);
 	mod->arch.tramp = create_ftrace_stub(sechdrs, mod,
 					(unsigned long)ftrace_caller);
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
