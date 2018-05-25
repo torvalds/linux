@@ -541,8 +541,12 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 
 		/* Frozen parent PE ? */
 		ret = eeh_ops->get_state(parent_pe, NULL);
-		if (ret > 0 && !eeh_state_active(ret))
+		if (ret > 0 && !eeh_state_active(ret)) {
 			pe = parent_pe;
+			pr_err("EEH: Failure of PHB#%x-PE#%x will be handled at parent PHB#%x-PE#%x.\n",
+			       pe->phb->global_number, pe->addr,
+			       pe->phb->global_number, parent_pe->addr);
+		}
 
 		/* Next parent level */
 		parent_pe = parent_pe->parent;
