@@ -86,6 +86,7 @@ static const char *amdgpu_asic_name[] = {
 	"VEGAM",
 	"VEGA10",
 	"VEGA12",
+	"VEGA20",
 	"RAVEN",
 	"LAST",
 };
@@ -1387,6 +1388,7 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 	case CHIP_KABINI:
 	case CHIP_MULLINS:
 #endif
+	case CHIP_VEGA20:
 	default:
 		return 0;
 	case CHIP_VEGA10:
@@ -1521,6 +1523,7 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 #endif
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
+	case CHIP_VEGA20:
 	case CHIP_RAVEN:
 		if (adev->asic_type == CHIP_RAVEN)
 			adev->family = AMDGPU_FAMILY_RV;
@@ -1715,6 +1718,7 @@ static int amdgpu_device_ip_late_set_cg_state(struct amdgpu_device *adev)
 		/* skip CG for VCE/UVD, it's handled specially */
 		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_UVD &&
 		    adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_VCE &&
+		    adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_VCN &&
 		    adev->ip_blocks[i].version->funcs->set_clockgating_state) {
 			/* enable clockgating to save power */
 			r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
@@ -1814,6 +1818,7 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 
 		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_UVD &&
 			adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_VCE &&
+			adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_VCN &&
 			adev->ip_blocks[i].version->funcs->set_clockgating_state) {
 			/* ungate blocks before hw fini so that we can shutdown the blocks safely */
 			r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
@@ -2155,6 +2160,7 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
 	case CHIP_FIJI:
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
+	case CHIP_VEGA20:
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case CHIP_RAVEN:
 #endif
@@ -3172,7 +3178,6 @@ error:
 int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 			      struct amdgpu_job *job, bool force)
 {
-	struct drm_atomic_state *state = NULL;
 	int i, r, resched;
 
 	if (!force && !amdgpu_device_ip_check_soft_reset(adev)) {
@@ -3194,10 +3199,6 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 
 	/* block TTM */
 	resched = ttm_bo_lock_delayed_workqueue(&adev->mman.bdev);
-
-	/* store modesetting */
-	if (amdgpu_device_has_dc_support(adev))
-		state = drm_atomic_helper_suspend(adev->ddev);
 
 	/* block all schedulers and reset given job's ring */
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
@@ -3238,10 +3239,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 		kthread_unpark(ring->sched.thread);
 	}
 
-	if (amdgpu_device_has_dc_support(adev)) {
-		if (drm_atomic_helper_resume(adev->ddev, state))
-			dev_info(adev->dev, "drm resume failed:%d\n", r);
-	} else {
+	if (!amdgpu_device_has_dc_support(adev)) {
 		drm_helper_resume_force_mode(adev->ddev);
 	}
 

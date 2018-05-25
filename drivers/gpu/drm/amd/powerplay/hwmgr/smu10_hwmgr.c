@@ -600,7 +600,10 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 						data->gfx_min_freq_limit/100);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinFclkByFreq,
+						hwmgr->display_config->num_display > 3 ?
+						SMU10_UMD_PSTATE_PEAK_FCLK :
 						SMU10_UMD_PSTATE_MIN_FCLK);
+
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinSocclkByFreq,
 						SMU10_UMD_PSTATE_MIN_SOCCLK);
@@ -1125,6 +1128,23 @@ static int smu10_set_mmhub_powergating_by_smu(struct pp_hwmgr *hwmgr)
 	return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_PowerGateMmHub);
 }
 
+static void smu10_powergate_vcn(struct pp_hwmgr *hwmgr, bool bgate)
+{
+	if (bgate) {
+		amdgpu_device_ip_set_powergating_state(hwmgr->adev,
+						AMD_IP_BLOCK_TYPE_VCN,
+						AMD_PG_STATE_GATE);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_PowerDownVcn, 0);
+	} else {
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_PowerUpVcn, 0);
+		amdgpu_device_ip_set_powergating_state(hwmgr->adev,
+						AMD_IP_BLOCK_TYPE_VCN,
+						AMD_PG_STATE_UNGATE);
+	}
+}
+
 static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.backend_init = smu10_hwmgr_backend_init,
 	.backend_fini = smu10_hwmgr_backend_fini,
@@ -1133,7 +1153,7 @@ static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.force_dpm_level = smu10_dpm_force_dpm_level,
 	.get_power_state_size = smu10_get_power_state_size,
 	.powerdown_uvd = NULL,
-	.powergate_uvd = NULL,
+	.powergate_uvd = smu10_powergate_vcn,
 	.powergate_vce = NULL,
 	.get_mclk = smu10_dpm_get_mclk,
 	.get_sclk = smu10_dpm_get_sclk,

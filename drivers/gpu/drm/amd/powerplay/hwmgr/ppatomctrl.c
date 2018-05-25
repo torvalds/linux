@@ -320,7 +320,7 @@ int atomctrl_get_memory_pll_dividers_ai(struct pp_hwmgr *hwmgr,
 					pp_atomctrl_memory_clock_param_ai *mpll_param)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
-	COMPUTE_MEMORY_CLOCK_PARAM_PARAMETERS_V2_3 mpll_parameters = {0};
+	COMPUTE_MEMORY_CLOCK_PARAM_PARAMETERS_V2_3 mpll_parameters = {{0}, 0, 0};
 	int result;
 
 	mpll_parameters.ulClock.ulClock = cpu_to_le32(clock_value);
@@ -1104,10 +1104,8 @@ int atomctrl_get_voltage_evv_on_sclk(
 			GetIndexIntoMasterTable(COMMAND, GetVoltageInfo),
 			(uint32_t *)&get_voltage_info_param_space);
 
-	if (0 != result)
-		return result;
-
-	*voltage = le16_to_cpu(((GET_EVV_VOLTAGE_INFO_OUTPUT_PARAMETER_V1_2 *)
+	*voltage = result ? 0 :
+			le16_to_cpu(((GET_EVV_VOLTAGE_INFO_OUTPUT_PARAMETER_V1_2 *)
 				(&get_voltage_info_param_space))->usVoltageLevel);
 
 	return result;
@@ -1312,8 +1310,7 @@ int atomctrl_read_efuse(struct pp_hwmgr *hwmgr, uint16_t start_index,
 	result = amdgpu_atom_execute_table(adev->mode_info.atom_context,
 			GetIndexIntoMasterTable(COMMAND, ReadEfuseValue),
 			(uint32_t *)&efuse_param);
-	if (!result)
-		*efuse = le32_to_cpu(efuse_param.ulEfuseValue) & mask;
+	*efuse = result ? 0 : le32_to_cpu(efuse_param.ulEfuseValue) & mask;
 
 	return result;
 }
@@ -1354,11 +1351,8 @@ int atomctrl_get_voltage_evv_on_sclk_ai(struct pp_hwmgr *hwmgr, uint8_t voltage_
 			GetIndexIntoMasterTable(COMMAND, GetVoltageInfo),
 			(uint32_t *)&get_voltage_info_param_space);
 
-	if (0 != result)
-		return result;
-
-	*voltage = le32_to_cpu(((GET_EVV_VOLTAGE_INFO_OUTPUT_PARAMETER_V1_3 *)
-				(&get_voltage_info_param_space))->ulVoltageLevel);
+	*voltage = result ? 0 :
+		le32_to_cpu(((GET_EVV_VOLTAGE_INFO_OUTPUT_PARAMETER_V1_3 *)(&get_voltage_info_param_space))->ulVoltageLevel);
 
 	return result;
 }
@@ -1552,15 +1546,17 @@ void atomctrl_get_voltage_range(struct pp_hwmgr *hwmgr, uint32_t *max_vddc,
 		case CHIP_FIJI:
 			*max_vddc = le32_to_cpu(((ATOM_ASIC_PROFILING_INFO_V3_3 *)profile)->ulMaxVddc/4);
 			*min_vddc = le32_to_cpu(((ATOM_ASIC_PROFILING_INFO_V3_3 *)profile)->ulMinVddc/4);
-			break;
+			return;
 		case CHIP_POLARIS11:
 		case CHIP_POLARIS10:
 		case CHIP_POLARIS12:
 			*max_vddc = le32_to_cpu(((ATOM_ASIC_PROFILING_INFO_V3_6 *)profile)->ulMaxVddc/100);
 			*min_vddc = le32_to_cpu(((ATOM_ASIC_PROFILING_INFO_V3_6 *)profile)->ulMinVddc/100);
-			break;
-		default:
 			return;
+		default:
+			break;
 		}
 	}
+	*max_vddc = 0;
+	*min_vddc = 0;
 }

@@ -27,6 +27,7 @@
 #include "amdgpu_gfx.h"
 #include "soc15.h"
 #include "soc15d.h"
+#include "amdgpu_atomfirmware.h"
 
 #include "gc/gc_9_0_offset.h"
 #include "gc/gc_9_0_sh_mask.h"
@@ -63,6 +64,13 @@ MODULE_FIRMWARE("amdgpu/vega12_mec.bin");
 MODULE_FIRMWARE("amdgpu/vega12_mec2.bin");
 MODULE_FIRMWARE("amdgpu/vega12_rlc.bin");
 
+MODULE_FIRMWARE("amdgpu/vega20_ce.bin");
+MODULE_FIRMWARE("amdgpu/vega20_pfp.bin");
+MODULE_FIRMWARE("amdgpu/vega20_me.bin");
+MODULE_FIRMWARE("amdgpu/vega20_mec.bin");
+MODULE_FIRMWARE("amdgpu/vega20_mec2.bin");
+MODULE_FIRMWARE("amdgpu/vega20_rlc.bin");
+
 MODULE_FIRMWARE("amdgpu/raven_ce.bin");
 MODULE_FIRMWARE("amdgpu/raven_pfp.bin");
 MODULE_FIRMWARE("amdgpu/raven_me.bin");
@@ -72,29 +80,22 @@ MODULE_FIRMWARE("amdgpu/raven_rlc.bin");
 
 static const struct soc15_reg_golden golden_settings_gc_9_0[] =
 {
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCPC_UTCL1_CNTL, 0x08000000, 0x08000080),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCPF_UTCL1_CNTL, 0x08000000, 0x08000080),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCPG_UTCL1_CNTL, 0x08000000, 0x08000080),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG2, 0xf00fffff, 0x00000420),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_GPU_ID, 0x0000000f, 0x00000000),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmIA_UTCL1_CNTL, 0x08000000, 0x08000080),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_BINNER_EVENT_CNTL_3, 0x00000003, 0x82400024),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_ENHANCE, 0x3fffffff, 0x00000001),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_LINE_STIPPLE_STATE, 0x0000ff0f, 0x00000000),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmRLC_GPM_UTCL1_CNTL_0, 0x08000000, 0x08000080),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmRLC_GPM_UTCL1_CNTL_1, 0x08000000, 0x08000080),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmRLC_GPM_UTCL1_CNTL_2, 0x08000000, 0x08000080),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmRLC_PREWALKER_UTCL1_CNTL, 0x08000000, 0x08000080),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmRLC_SPM_UTCL1_CNTL, 0x08000000, 0x08000080),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSH_MEM_CONFIG, 0x00001000, 0x00001000),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSPI_CONFIG_CNTL_1, 0x0000000f, 0x01000107),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSPI_RESOURCE_RESERVE_CU_0, 0x0007ffff, 0x00000800),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSPI_RESOURCE_RESERVE_CU_1, 0x0007ffff, 0x00000800),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSPI_RESOURCE_RESERVE_EN_CU_0, 0x01ffffff, 0x0000ff87),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSPI_RESOURCE_RESERVE_EN_CU_1, 0x01ffffff, 0x0000ff8f),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSQC_CONFIG, 0x03000000, 0x020a2000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTA_CNTL_AUX, 0xfffffeef, 0x010b0000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTCP_CHAN_STEER_HI, 0xffffffff, 0x4a2c0e68),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTCP_CHAN_STEER_LO, 0xffffffff, 0xb5d3f197),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmVGT_CACHE_INVALIDATION, 0x3fff3af3, 0x19200000),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmVGT_GS_MAX_WAVE_ID, 0x00000fff, 0x000003ff),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmWD_UTCL1_CNTL, 0x08000000, 0x08000080)
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmVGT_GS_MAX_WAVE_ID, 0x00000fff, 0x000003ff)
 };
 
 static const struct soc15_reg_golden golden_settings_gc_9_0_vg10[] =
@@ -106,6 +107,20 @@ static const struct soc15_reg_golden golden_settings_gc_9_0_vg10[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_ENHANCE_1, 0x00008000, 0x00048000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmRMI_UTCL1_CNTL2, 0x00030000, 0x00020000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTD_CNTL, 0x00001800, 0x00000800)
+};
+
+static const struct soc15_reg_golden golden_settings_gc_9_0_vg20[] =
+{
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCB_HW_CONTROL_2, 0x0f000000, 0x0a000000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCB_HW_CONTROL_3, 0x30000000, 0x10000000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_ADDR_CONFIG, 0xf3e777ff, 0x22014042),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_ADDR_CONFIG_READ, 0xf3e777ff, 0x22014042),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG2, 0x00003e00, 0x00000400),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_ENHANCE_1, 0xff840000, 0x04040000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmRMI_UTCL1_CNTL2, 0x00030000, 0x00030000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSPI_CONFIG_CNTL_1, 0xffff010f, 0x01000107),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTA_CNTL_AUX, 0x000b0000, 0x000b0000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTD_CNTL, 0x01000000, 0x01000000)
 };
 
 static const struct soc15_reg_golden golden_settings_gc_9_1[] =
@@ -240,6 +255,14 @@ static void gfx_v9_0_init_golden_registers(struct amdgpu_device *adev)
 		soc15_program_register_sequence(adev,
 						golden_settings_gc_9_2_1_vg12,
 						ARRAY_SIZE(golden_settings_gc_9_2_1_vg12));
+		break;
+	case CHIP_VEGA20:
+		soc15_program_register_sequence(adev,
+						golden_settings_gc_9_0,
+						ARRAY_SIZE(golden_settings_gc_9_0));
+		soc15_program_register_sequence(adev,
+						golden_settings_gc_9_0_vg20,
+						ARRAY_SIZE(golden_settings_gc_9_0_vg20));
 		break;
 	case CHIP_RAVEN:
 		soc15_program_register_sequence(adev,
@@ -467,6 +490,9 @@ static int gfx_v9_0_init_microcode(struct amdgpu_device *adev)
 		break;
 	case CHIP_VEGA12:
 		chip_name = "vega12";
+		break;
+	case CHIP_VEGA20:
+		chip_name = "vega20";
 		break;
 	case CHIP_RAVEN:
 		chip_name = "raven";
@@ -1088,9 +1114,10 @@ static const struct amdgpu_gfx_funcs gfx_v9_0_gfx_funcs = {
 	.select_me_pipe_q = &gfx_v9_0_select_me_pipe_q
 };
 
-static void gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
+static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 {
 	u32 gb_addr_config;
+	int err;
 
 	adev->gfx.funcs = &gfx_v9_0_gfx_funcs;
 
@@ -1111,6 +1138,20 @@ static void gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x4C0;
 		gb_addr_config = VEGA12_GB_ADDR_CONFIG_GOLDEN;
 		DRM_INFO("fix gfx.config for vega12\n");
+		break;
+	case CHIP_VEGA20:
+		adev->gfx.config.max_hw_contexts = 8;
+		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
+		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
+		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
+		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x4C0;
+		gb_addr_config = RREG32_SOC15(GC, 0, mmGB_ADDR_CONFIG);
+		gb_addr_config &= ~0xf3e777ff;
+		gb_addr_config |= 0x22014042;
+		/* check vbios table if gpu info is not available */
+		err = amdgpu_atomfirmware_get_gfx_info(adev);
+		if (err)
+			return err;
 		break;
 	case CHIP_RAVEN:
 		adev->gfx.config.max_hw_contexts = 8;
@@ -1161,6 +1202,8 @@ static void gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 					adev->gfx.config.gb_addr_config,
 					GB_ADDR_CONFIG,
 					PIPE_INTERLEAVE_SIZE));
+
+	return 0;
 }
 
 static int gfx_v9_0_ngg_create_buf(struct amdgpu_device *adev,
@@ -1394,6 +1437,7 @@ static int gfx_v9_0_sw_init(void *handle)
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
+	case CHIP_VEGA20:
 	case CHIP_RAVEN:
 		adev->gfx.mec.num_mec = 2;
 		break;
@@ -1521,7 +1565,9 @@ static int gfx_v9_0_sw_init(void *handle)
 
 	adev->gfx.ce_ram_size = 0x8000;
 
-	gfx_v9_0_gpu_early_init(adev);
+	r = gfx_v9_0_gpu_early_init(adev);
+	if (r)
+		return r;
 
 	r = gfx_v9_0_ngg_init(adev);
 	if (r)
@@ -3688,6 +3734,7 @@ static int gfx_v9_0_set_clockgating_state(void *handle,
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
+	case CHIP_VEGA20:
 	case CHIP_RAVEN:
 		gfx_v9_0_update_gfx_clock_gating(adev,
 						 state == AMD_CG_STATE_GATE ? true : false);
@@ -4680,6 +4727,7 @@ static void gfx_v9_0_set_rlc_funcs(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
+	case CHIP_VEGA20:
 	case CHIP_RAVEN:
 		adev->gfx.rlc.funcs = &gfx_v9_0_rlc_funcs;
 		break;

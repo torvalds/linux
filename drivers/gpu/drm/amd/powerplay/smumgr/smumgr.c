@@ -45,6 +45,7 @@ MODULE_FIRMWARE("amdgpu/vegam_smc.bin");
 MODULE_FIRMWARE("amdgpu/vega10_smc.bin");
 MODULE_FIRMWARE("amdgpu/vega10_acg_smc.bin");
 MODULE_FIRMWARE("amdgpu/vega12_smc.bin");
+MODULE_FIRMWARE("amdgpu/vega20_smc.bin");
 
 int smum_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
 {

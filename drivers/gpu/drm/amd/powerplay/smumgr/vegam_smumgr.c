@@ -1366,9 +1366,11 @@ static int vegam_program_memory_timing_parameters(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *hw_data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct vegam_smumgr *smu_data = (struct vegam_smumgr *)(hwmgr->smu_backend);
-	struct SMU75_Discrete_MCArbDramTimingTable arb_regs = {0};
+	struct SMU75_Discrete_MCArbDramTimingTable arb_regs;
 	uint32_t i, j;
 	int result = 0;
+
+	memset(&arb_regs, 0, sizeof(SMU75_Discrete_MCArbDramTimingTable));
 
 	for (i = 0; i < hw_data->dpm_table.sclk_table.count; i++) {
 		for (j = 0; j < hw_data->dpm_table.mclk_table.count; j++) {
@@ -2377,6 +2379,5 @@ const struct pp_smumgr_func vegam_smu_funcs = {
 	.update_sclk_threshold = vegam_update_sclk_threshold,
 	.is_hw_avfs_present = vegam_is_hw_avfs_present,
 	.thermal_avfs_enable = vegam_thermal_avfs_enable,
-	.is_dpm_running = vegam_is_dpm_running,
 	.thermal_setup_fan_table = vegam_thermal_setup_fan_table,
 };

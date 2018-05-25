@@ -46,6 +46,10 @@ void mod_stats_dump(struct mod_stats *mod_stats);
 
 void mod_stats_reset_data(struct mod_stats *mod_stats);
 
+void mod_stats_update_event(struct mod_stats *mod_stats,
+		char *event_string,
+		unsigned int length);
+
 void mod_stats_update_flip(struct mod_stats *mod_stats,
 		unsigned long timestamp_in_ns);
 

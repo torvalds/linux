@@ -675,6 +675,7 @@ static int gmc_v9_0_late_init(void *handle)
 			DRM_INFO("ECC is active.\n");
 		} else if (r == 0) {
 			DRM_INFO("ECC is not present.\n");
+			adev->df_funcs->enable_ecc_force_par_wr_rmw(adev, false);
 		} else {
 			DRM_ERROR("gmc_v9_0_ecc_available() failed. r: %d\n", r);
 			return r;
@@ -693,10 +694,7 @@ static void gmc_v9_0_vram_gtt_location(struct amdgpu_device *adev,
 	amdgpu_device_vram_location(adev, &adev->gmc, base);
 	amdgpu_device_gart_location(adev, mc);
 	/* base offset of vram pages */
-	if (adev->flags & AMD_IS_APU)
-		adev->vm_manager.vram_base_offset = gfxhub_v1_0_get_mc_fb_offset(adev);
-	else
-		adev->vm_manager.vram_base_offset = 0;
+	adev->vm_manager.vram_base_offset = gfxhub_v1_0_get_mc_fb_offset(adev);
 }
 
 /**
@@ -755,6 +753,7 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 		switch (adev->asic_type) {
 		case CHIP_VEGA10:  /* all engines support GPUVM */
 		case CHIP_VEGA12:  /* all engines support GPUVM */
+		case CHIP_VEGA20:
 		default:
 			adev->gmc.gart_size = 512ULL << 20;
 			break;
@@ -860,6 +859,7 @@ static int gmc_v9_0_sw_init(void *handle)
 		break;
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
+	case CHIP_VEGA20:
 		/*
 		 * To fulfill 4-level page support,
 		 * vm size is 256TB (48bit), maximum size of Vega10,
@@ -977,6 +977,7 @@ static void gmc_v9_0_init_golden_registers(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
+	case CHIP_VEGA20:
 		soc15_program_register_sequence(adev,
 						golden_settings_mmhub_1_0_0,
 						ARRAY_SIZE(golden_settings_mmhub_1_0_0));

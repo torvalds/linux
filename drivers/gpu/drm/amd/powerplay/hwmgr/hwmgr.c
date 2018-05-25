@@ -151,6 +151,7 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 		hwmgr->feature_mask &= ~PP_GFXOFF_MASK;
 		switch (hwmgr->chip_id) {
 		case CHIP_VEGA10:
+		case CHIP_VEGA20:
 			hwmgr->smumgr_funcs = &vega10_smu_funcs;
 			vega10_hwmgr_init(hwmgr);
 			break;

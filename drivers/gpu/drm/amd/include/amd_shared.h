@@ -92,7 +92,7 @@ enum amd_powergating_state {
 #define AMD_CG_SUPPORT_GFX_3D_CGLS		(1 << 21)
 #define AMD_CG_SUPPORT_DRM_MGCG			(1 << 22)
 #define AMD_CG_SUPPORT_DF_MGCG			(1 << 23)
-
+#define AMD_CG_SUPPORT_VCN_MGCG			(1 << 24)
 /* PG flags */
 #define AMD_PG_SUPPORT_GFX_PG			(1 << 0)
 #define AMD_PG_SUPPORT_GFX_SMG			(1 << 1)
@@ -108,6 +108,7 @@ enum amd_powergating_state {
 #define AMD_PG_SUPPORT_GFX_QUICK_MG		(1 << 11)
 #define AMD_PG_SUPPORT_GFX_PIPELINE		(1 << 12)
 #define AMD_PG_SUPPORT_MMHUB			(1 << 13)
+#define AMD_PG_SUPPORT_VCN			(1 << 14)
 
 enum PP_FEATURE_MASK {
 	PP_SCLK_DPM_MASK = 0x1,

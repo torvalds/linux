@@ -229,6 +229,8 @@ struct pp_hwmgr_func {
 				struct pp_power_state  *prequest_ps,
 			const struct pp_power_state *pcurrent_ps);
 
+	int (*apply_clocks_adjust_rules)(struct pp_hwmgr *hwmgr);
+
 	int (*force_dpm_level)(struct pp_hwmgr *hw_mgr,
 					enum amd_dpm_forced_level level);
 
@@ -252,6 +254,7 @@ struct pp_hwmgr_func {
 						const void *state);
 	int (*enable_clock_power_gating)(struct pp_hwmgr *hwmgr);
 	int (*notify_smc_display_config_after_ps_adjustment)(struct pp_hwmgr *hwmgr);
+	int (*pre_display_config_changed)(struct pp_hwmgr *hwmgr);
 	int (*display_config_changed)(struct pp_hwmgr *hwmgr);
 	int (*disable_clock_power_gating)(struct pp_hwmgr *hwmgr);
 	int (*update_clock_gatings)(struct pp_hwmgr *hwmgr,

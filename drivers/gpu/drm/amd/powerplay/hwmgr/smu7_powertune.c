@@ -936,45 +936,49 @@ int smu7_enable_didt_config(struct pp_hwmgr *hwmgr)
 
 			if (hwmgr->chip_id == CHIP_POLARIS10) {
 				result = smu7_program_pt_config_registers(hwmgr, GCCACConfig_Polaris10);
-				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", return result);
+				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", goto error);
 				result = smu7_program_pt_config_registers(hwmgr, DIDTConfig_Polaris10);
-				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", return result);
+				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", goto error);
 			} else if (hwmgr->chip_id == CHIP_POLARIS11) {
 				result = smu7_program_pt_config_registers(hwmgr, GCCACConfig_Polaris11);
-				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", return result);
+				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", goto error);
 				if (hwmgr->is_kicker)
 					result = smu7_program_pt_config_registers(hwmgr, DIDTConfig_Polaris11_Kicker);
 				else
 					result = smu7_program_pt_config_registers(hwmgr, DIDTConfig_Polaris11);
-				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", return result);
+				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", goto error);
 			} else if (hwmgr->chip_id == CHIP_POLARIS12) {
 				result = smu7_program_pt_config_registers(hwmgr, GCCACConfig_Polaris11);
-				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", return result);
+				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", goto error);
 				result = smu7_program_pt_config_registers(hwmgr, DIDTConfig_Polaris12);
-				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", return result);
+				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", goto error);
 			} else if (hwmgr->chip_id == CHIP_VEGAM) {
 				result = smu7_program_pt_config_registers(hwmgr, GCCACConfig_VegaM);
-				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", return result);
+				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", goto error);
 				result = smu7_program_pt_config_registers(hwmgr, DIDTConfig_VegaM);
-				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", return result);
+				PP_ASSERT_WITH_CODE((result == 0), "DIDT Config failed.", goto error);
 			}
 		}
 		cgs_write_register(hwmgr->device, mmGRBM_GFX_INDEX, value2);
 
 		result = smu7_enable_didt(hwmgr, true);
-		PP_ASSERT_WITH_CODE((result == 0), "EnableDiDt failed.", return result);
+		PP_ASSERT_WITH_CODE((result == 0), "EnableDiDt failed.", goto error);
 
 		if (hwmgr->chip_id == CHIP_POLARIS11) {
 			result = smum_send_msg_to_smc(hwmgr,
 						(uint16_t)(PPSMC_MSG_EnableDpmDidt));
 			PP_ASSERT_WITH_CODE((0 == result),
-					"Failed to enable DPM DIDT.", return result);
+					"Failed to enable DPM DIDT.", goto error);
 		}
 		mutex_unlock(&adev->grbm_idx_mutex);
 		adev->gfx.rlc.funcs->exit_safe_mode(adev);
 	}
 
 	return 0;
+error:
+	mutex_unlock(&adev->grbm_idx_mutex);
+	adev->gfx.rlc.funcs->exit_safe_mode(adev);
+	return result;
 }
 
 int smu7_disable_didt_config(struct pp_hwmgr *hwmgr)
@@ -992,17 +996,20 @@ int smu7_disable_didt_config(struct pp_hwmgr *hwmgr)
 		result = smu7_enable_didt(hwmgr, false);
 		PP_ASSERT_WITH_CODE((result == 0),
 				"Post DIDT enable clock gating failed.",
-				return result);
+				goto error);
 		if (hwmgr->chip_id == CHIP_POLARIS11) {
 			result = smum_send_msg_to_smc(hwmgr,
 						(uint16_t)(PPSMC_MSG_DisableDpmDidt));
 			PP_ASSERT_WITH_CODE((0 == result),
-					"Failed to disable DPM DIDT.", return result);
+					"Failed to disable DPM DIDT.", goto error);
 		}
 		adev->gfx.rlc.funcs->exit_safe_mode(adev);
 	}
 
 	return 0;
+error:
+	adev->gfx.rlc.funcs->exit_safe_mode(adev);
+	return result;
 }
 
 int smu7_enable_smc_cac(struct pp_hwmgr *hwmgr)

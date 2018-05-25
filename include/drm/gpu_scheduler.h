@@ -56,7 +56,6 @@ struct drm_sched_entity {
 	spinlock_t			rq_lock;
 	struct drm_gpu_scheduler	*sched;
 
-	spinlock_t			queue_lock;
 	struct spsc_queue		job_queue;
 
 	atomic_t			fence_seq;

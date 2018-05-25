@@ -42,6 +42,8 @@ MODULE_FIRMWARE("amdgpu/vega10_sdma.bin");
 MODULE_FIRMWARE("amdgpu/vega10_sdma1.bin");
 MODULE_FIRMWARE("amdgpu/vega12_sdma.bin");
 MODULE_FIRMWARE("amdgpu/vega12_sdma1.bin");
+MODULE_FIRMWARE("amdgpu/vega20_sdma.bin");
+MODULE_FIRMWARE("amdgpu/vega20_sdma1.bin");
 MODULE_FIRMWARE("amdgpu/raven_sdma.bin");
 
 #define SDMA0_POWER_CNTL__ON_OFF_CONDITION_HOLD_TIME_MASK  0x000000F8L
@@ -107,6 +109,28 @@ static const struct soc15_reg_golden golden_settings_sdma_4_1[] =
 	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_UTCL1_PAGE, 0x000003ff, 0x000003c0)
 };
 
+static const struct soc15_reg_golden golden_settings_sdma_4_2[] =
+{
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_CHICKEN_BITS, 0xfe931f07, 0x02831d07),
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_CLK_CTRL, 0xffffffff, 0x3f000100),
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_GB_ADDR_CONFIG, 0x0000773f, 0x00004002),
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_GB_ADDR_CONFIG_READ, 0x0000773f, 0x00004002),
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_GFX_RB_WPTR_POLL_CNTL, 0xfffffff7, 0x00403000),
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_PAGE_RB_WPTR_POLL_CNTL, 0xfffffff7, 0x00403000),
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_RLC0_RB_WPTR_POLL_CNTL, 0xfffffff0, 0x00403000),
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_RLC1_RB_WPTR_POLL_CNTL, 0xfffffff7, 0x00403000),
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_UTCL1_PAGE, 0x000003ff, 0x000003c0),
+	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_CHICKEN_BITS, 0xfe931f07, 0x02831d07),
+	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_CLK_CTRL, 0xffffffff, 0x3f000100),
+	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_GB_ADDR_CONFIG, 0x0000773f, 0x00004002),
+	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_GB_ADDR_CONFIG_READ, 0x0000773f, 0x00004002),
+	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_GFX_RB_WPTR_POLL_CNTL, 0xfffffff7, 0x00403000),
+	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_PAGE_RB_WPTR_POLL_CNTL, 0xfffffff7, 0x00403000),
+	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_RLC0_RB_WPTR_POLL_CNTL, 0xfffffff7, 0x00403000),
+	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_RLC1_RB_WPTR_POLL_CNTL, 0xfffffff7, 0x00403000),
+	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_UTCL1_PAGE, 0x000003ff, 0x000003c0)
+};
+
 static const struct soc15_reg_golden golden_settings_sdma_rv1[] =
 {
 	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_GB_ADDR_CONFIG, 0x0018773f, 0x00000002),
@@ -138,6 +162,11 @@ static void sdma_v4_0_init_golden_registers(struct amdgpu_device *adev)
 		soc15_program_register_sequence(adev,
 						golden_settings_sdma_vg12,
 						ARRAY_SIZE(golden_settings_sdma_vg12));
+		break;
+	case CHIP_VEGA20:
+		soc15_program_register_sequence(adev,
+						golden_settings_sdma_4_2,
+						ARRAY_SIZE(golden_settings_sdma_4_2));
 		break;
 	case CHIP_RAVEN:
 		soc15_program_register_sequence(adev,
@@ -181,6 +210,9 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 		break;
 	case CHIP_VEGA12:
 		chip_name = "vega12";
+		break;
+	case CHIP_VEGA20:
+		chip_name = "vega20";
 		break;
 	case CHIP_RAVEN:
 		chip_name = "raven";
@@ -1516,6 +1548,7 @@ static int sdma_v4_0_set_clockgating_state(void *handle,
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
+	case CHIP_VEGA20:
 	case CHIP_RAVEN:
 		sdma_v4_0_update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);

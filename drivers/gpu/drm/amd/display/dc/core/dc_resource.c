@@ -79,10 +79,8 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 				ASIC_REV_IS_POLARIS12_V(asic_id.hw_internal_rev)) {
 			dc_version = DCE_VERSION_11_2;
 		}
-#if defined(CONFIG_DRM_AMD_DC_VEGAM)
 		if (ASIC_REV_IS_VEGAM(asic_id.hw_internal_rev))
 			dc_version = DCE_VERSION_11_22;
-#endif
 		break;
 	case FAMILY_AI:
 		dc_version = DCE_VERSION_12_0;
@@ -129,9 +127,7 @@ struct resource_pool *dc_create_resource_pool(
 			num_virtual_links, dc, asic_id);
 		break;
 	case DCE_VERSION_11_2:
-#if defined(CONFIG_DRM_AMD_DC_VEGAM)
 	case DCE_VERSION_11_22:
-#endif
 		res_pool = dce112_create_resource_pool(
 			num_virtual_links, dc);
 		break;
@@ -500,9 +496,9 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 	data->viewport_c.x = data->viewport.x / vpc_div;
 	data->viewport_c.y = data->viewport.y / vpc_div;
 	data->inits.h_c = (data->viewport.x % vpc_div) != 0 ?
-			dal_fixed31_32_half : dal_fixed31_32_zero;
+			dc_fixpt_half : dc_fixpt_zero;
 	data->inits.v_c = (data->viewport.y % vpc_div) != 0 ?
-			dal_fixed31_32_half : dal_fixed31_32_zero;
+			dc_fixpt_half : dc_fixpt_zero;
 	/* Round up, assume original video size always even dimensions */
 	data->viewport_c.width = (data->viewport.width + vpc_div - 1) / vpc_div;
 	data->viewport_c.height = (data->viewport.height + vpc_div - 1) / vpc_div;
@@ -631,10 +627,10 @@ static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
 		rect_swap_helper(&surf_src);
 
-	pipe_ctx->plane_res.scl_data.ratios.horz = dal_fixed31_32_from_fraction(
+	pipe_ctx->plane_res.scl_data.ratios.horz = dc_fixpt_from_fraction(
 					surf_src.width,
 					plane_state->dst_rect.width);
-	pipe_ctx->plane_res.scl_data.ratios.vert = dal_fixed31_32_from_fraction(
+	pipe_ctx->plane_res.scl_data.ratios.vert = dc_fixpt_from_fraction(
 					surf_src.height,
 					plane_state->dst_rect.height);
 
@@ -656,6 +652,14 @@ static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
 		pipe_ctx->plane_res.scl_data.ratios.horz_c.value /= 2;
 		pipe_ctx->plane_res.scl_data.ratios.vert_c.value /= 2;
 	}
+	pipe_ctx->plane_res.scl_data.ratios.horz = dc_fixpt_truncate(
+			pipe_ctx->plane_res.scl_data.ratios.horz, 19);
+	pipe_ctx->plane_res.scl_data.ratios.vert = dc_fixpt_truncate(
+			pipe_ctx->plane_res.scl_data.ratios.vert, 19);
+	pipe_ctx->plane_res.scl_data.ratios.horz_c = dc_fixpt_truncate(
+			pipe_ctx->plane_res.scl_data.ratios.horz_c, 19);
+	pipe_ctx->plane_res.scl_data.ratios.vert_c = dc_fixpt_truncate(
+			pipe_ctx->plane_res.scl_data.ratios.vert_c, 19);
 }
 
 static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *recout_skip)
@@ -692,32 +696,33 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 	 * 	init_bot = init + scaling_ratio
 	 * 	init_c = init + truncated_vp_c_offset(from calculate viewport)
 	 */
-	data->inits.h = dal_fixed31_32_div_int(
-			dal_fixed31_32_add_int(data->ratios.horz, data->taps.h_taps + 1), 2);
+	data->inits.h = dc_fixpt_truncate(dc_fixpt_div_int(
+			dc_fixpt_add_int(data->ratios.horz, data->taps.h_taps + 1), 2), 19);
 
-	data->inits.h_c = dal_fixed31_32_add(data->inits.h_c, dal_fixed31_32_div_int(
-			dal_fixed31_32_add_int(data->ratios.horz_c, data->taps.h_taps_c + 1), 2));
+	data->inits.h_c = dc_fixpt_truncate(dc_fixpt_add(data->inits.h_c, dc_fixpt_div_int(
+			dc_fixpt_add_int(data->ratios.horz_c, data->taps.h_taps_c + 1), 2)), 19);
 
-	data->inits.v = dal_fixed31_32_div_int(
-			dal_fixed31_32_add_int(data->ratios.vert, data->taps.v_taps + 1), 2);
+	data->inits.v = dc_fixpt_truncate(dc_fixpt_div_int(
+			dc_fixpt_add_int(data->ratios.vert, data->taps.v_taps + 1), 2), 19);
 
-	data->inits.v_c = dal_fixed31_32_add(data->inits.v_c, dal_fixed31_32_div_int(
-			dal_fixed31_32_add_int(data->ratios.vert_c, data->taps.v_taps_c + 1), 2));
+	data->inits.v_c = dc_fixpt_truncate(dc_fixpt_add(data->inits.v_c, dc_fixpt_div_int(
+			dc_fixpt_add_int(data->ratios.vert_c, data->taps.v_taps_c + 1), 2)), 19);
+
 
 
 	/* Adjust for viewport end clip-off */
 	if ((data->viewport.x + data->viewport.width) < (src.x + src.width) && !flip_horz_scan_dir) {
 		int vp_clip = src.x + src.width - data->viewport.width - data->viewport.x;
-		int int_part = dal_fixed31_32_floor(
-				dal_fixed31_32_sub(data->inits.h, data->ratios.horz));
+		int int_part = dc_fixpt_floor(
+				dc_fixpt_sub(data->inits.h, data->ratios.horz));
 
 		int_part = int_part > 0 ? int_part : 0;
 		data->viewport.width += int_part < vp_clip ? int_part : vp_clip;
 	}
 	if ((data->viewport.y + data->viewport.height) < (src.y + src.height) && !flip_vert_scan_dir) {
 		int vp_clip = src.y + src.height - data->viewport.height - data->viewport.y;
-		int int_part = dal_fixed31_32_floor(
-				dal_fixed31_32_sub(data->inits.v, data->ratios.vert));
+		int int_part = dc_fixpt_floor(
+				dc_fixpt_sub(data->inits.v, data->ratios.vert));
 
 		int_part = int_part > 0 ? int_part : 0;
 		data->viewport.height += int_part < vp_clip ? int_part : vp_clip;
@@ -725,8 +730,8 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 	if ((data->viewport_c.x + data->viewport_c.width) < (src.x + src.width) / vpc_div && !flip_horz_scan_dir) {
 		int vp_clip = (src.x + src.width) / vpc_div -
 				data->viewport_c.width - data->viewport_c.x;
-		int int_part = dal_fixed31_32_floor(
-				dal_fixed31_32_sub(data->inits.h_c, data->ratios.horz_c));
+		int int_part = dc_fixpt_floor(
+				dc_fixpt_sub(data->inits.h_c, data->ratios.horz_c));
 
 		int_part = int_part > 0 ? int_part : 0;
 		data->viewport_c.width += int_part < vp_clip ? int_part : vp_clip;
@@ -734,8 +739,8 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 	if ((data->viewport_c.y + data->viewport_c.height) < (src.y + src.height) / vpc_div && !flip_vert_scan_dir) {
 		int vp_clip = (src.y + src.height) / vpc_div -
 				data->viewport_c.height - data->viewport_c.y;
-		int int_part = dal_fixed31_32_floor(
-				dal_fixed31_32_sub(data->inits.v_c, data->ratios.vert_c));
+		int int_part = dc_fixpt_floor(
+				dc_fixpt_sub(data->inits.v_c, data->ratios.vert_c));
 
 		int_part = int_part > 0 ? int_part : 0;
 		data->viewport_c.height += int_part < vp_clip ? int_part : vp_clip;
@@ -745,9 +750,9 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 	if (data->viewport.x && !flip_horz_scan_dir) {
 		int int_part;
 
-		data->inits.h = dal_fixed31_32_add(data->inits.h, dal_fixed31_32_mul_int(
+		data->inits.h = dc_fixpt_add(data->inits.h, dc_fixpt_mul_int(
 				data->ratios.horz, recout_skip->width));
-		int_part = dal_fixed31_32_floor(data->inits.h) - data->viewport.x;
+		int_part = dc_fixpt_floor(data->inits.h) - data->viewport.x;
 		if (int_part < data->taps.h_taps) {
 			int int_adj = data->viewport.x >= (data->taps.h_taps - int_part) ?
 						(data->taps.h_taps - int_part) : data->viewport.x;
@@ -760,15 +765,15 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 			int_part = data->taps.h_taps;
 		}
 		data->inits.h.value &= 0xffffffff;
-		data->inits.h = dal_fixed31_32_add_int(data->inits.h, int_part);
+		data->inits.h = dc_fixpt_add_int(data->inits.h, int_part);
 	}
 
 	if (data->viewport_c.x && !flip_horz_scan_dir) {
 		int int_part;
 
-		data->inits.h_c = dal_fixed31_32_add(data->inits.h_c, dal_fixed31_32_mul_int(
+		data->inits.h_c = dc_fixpt_add(data->inits.h_c, dc_fixpt_mul_int(
 				data->ratios.horz_c, recout_skip->width));
-		int_part = dal_fixed31_32_floor(data->inits.h_c) - data->viewport_c.x;
+		int_part = dc_fixpt_floor(data->inits.h_c) - data->viewport_c.x;
 		if (int_part < data->taps.h_taps_c) {
 			int int_adj = data->viewport_c.x >= (data->taps.h_taps_c - int_part) ?
 					(data->taps.h_taps_c - int_part) : data->viewport_c.x;
@@ -781,15 +786,15 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 			int_part = data->taps.h_taps_c;
 		}
 		data->inits.h_c.value &= 0xffffffff;
-		data->inits.h_c = dal_fixed31_32_add_int(data->inits.h_c, int_part);
+		data->inits.h_c = dc_fixpt_add_int(data->inits.h_c, int_part);
 	}
 
 	if (data->viewport.y && !flip_vert_scan_dir) {
 		int int_part;
 
-		data->inits.v = dal_fixed31_32_add(data->inits.v, dal_fixed31_32_mul_int(
+		data->inits.v = dc_fixpt_add(data->inits.v, dc_fixpt_mul_int(
 				data->ratios.vert, recout_skip->height));
-		int_part = dal_fixed31_32_floor(data->inits.v) - data->viewport.y;
+		int_part = dc_fixpt_floor(data->inits.v) - data->viewport.y;
 		if (int_part < data->taps.v_taps) {
 			int int_adj = data->viewport.y >= (data->taps.v_taps - int_part) ?
 						(data->taps.v_taps - int_part) : data->viewport.y;
@@ -802,15 +807,15 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 			int_part = data->taps.v_taps;
 		}
 		data->inits.v.value &= 0xffffffff;
-		data->inits.v = dal_fixed31_32_add_int(data->inits.v, int_part);
+		data->inits.v = dc_fixpt_add_int(data->inits.v, int_part);
 	}
 
 	if (data->viewport_c.y && !flip_vert_scan_dir) {
 		int int_part;
 
-		data->inits.v_c = dal_fixed31_32_add(data->inits.v_c, dal_fixed31_32_mul_int(
+		data->inits.v_c = dc_fixpt_add(data->inits.v_c, dc_fixpt_mul_int(
 				data->ratios.vert_c, recout_skip->height));
-		int_part = dal_fixed31_32_floor(data->inits.v_c) - data->viewport_c.y;
+		int_part = dc_fixpt_floor(data->inits.v_c) - data->viewport_c.y;
 		if (int_part < data->taps.v_taps_c) {
 			int int_adj = data->viewport_c.y >= (data->taps.v_taps_c - int_part) ?
 					(data->taps.v_taps_c - int_part) : data->viewport_c.y;
@@ -823,12 +828,12 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 			int_part = data->taps.v_taps_c;
 		}
 		data->inits.v_c.value &= 0xffffffff;
-		data->inits.v_c = dal_fixed31_32_add_int(data->inits.v_c, int_part);
+		data->inits.v_c = dc_fixpt_add_int(data->inits.v_c, int_part);
 	}
 
 	/* Interlaced inits based on final vert inits */
-	data->inits.v_bot = dal_fixed31_32_add(data->inits.v, data->ratios.vert);
-	data->inits.v_c_bot = dal_fixed31_32_add(data->inits.v_c, data->ratios.vert_c);
+	data->inits.v_bot = dc_fixpt_add(data->inits.v, data->ratios.vert);
+	data->inits.v_c_bot = dc_fixpt_add(data->inits.v_c, data->ratios.vert_c);
 
 	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 ||
 			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270) {

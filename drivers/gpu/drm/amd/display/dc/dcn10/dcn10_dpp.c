@@ -130,7 +130,7 @@ void dpp_set_gamut_remap_bypass(struct dcn10_dpp *dpp)
 	/* Gamut remap in bypass */
 }
 
-#define IDENTITY_RATIO(ratio) (dal_fixed31_32_u2d19(ratio) == (1 << 19))
+#define IDENTITY_RATIO(ratio) (dc_fixpt_u2d19(ratio) == (1 << 19))
 
 
 bool dpp_get_optimal_number_of_taps(
@@ -150,6 +150,11 @@ bool dpp_get_optimal_number_of_taps(
 		scl_data->viewport.height != scl_data->v_active &&
 		dpp->caps->dscl_data_proc_format == DSCL_DATA_PRCESSING_FIXED_FORMAT &&
 		scl_data->format == PIXEL_FORMAT_FP16)
+		return false;
+
+	if (scl_data->viewport.width > scl_data->h_active &&
+		dpp->ctx->dc->debug.max_downscale_src_width != 0 &&
+		scl_data->viewport.width > dpp->ctx->dc->debug.max_downscale_src_width)
 		return false;
 
 	/* TODO: add lb check */

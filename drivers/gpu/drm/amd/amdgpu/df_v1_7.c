@@ -102,6 +102,13 @@ static void df_v1_7_get_clockgating_state(struct amdgpu_device *adev,
 		*flags |= AMD_CG_SUPPORT_DF_MGCG;
 }
 
+static void df_v1_7_enable_ecc_force_par_wr_rmw(struct amdgpu_device *adev,
+						bool enable)
+{
+	WREG32_FIELD15(DF, 0, DF_CS_AON0_CoherentSlaveModeCtrlA0,
+		       ForceParWrRMW, enable);
+}
+
 const struct amdgpu_df_funcs df_v1_7_funcs = {
 	.init = df_v1_7_init,
 	.enable_broadcast_mode = df_v1_7_enable_broadcast_mode,
@@ -109,4 +116,5 @@ const struct amdgpu_df_funcs df_v1_7_funcs = {
 	.get_hbm_channel_number = df_v1_7_get_hbm_channel_number,
 	.update_medium_grain_clock_gating = df_v1_7_update_medium_grain_clock_gating,
 	.get_clockgating_state = df_v1_7_get_clockgating_state,
+	.enable_ecc_force_par_wr_rmw = df_v1_7_enable_ecc_force_par_wr_rmw,
 };

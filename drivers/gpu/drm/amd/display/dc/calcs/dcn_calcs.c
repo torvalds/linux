@@ -873,14 +873,14 @@ bool dcn_validate_bandwidth(
 			}
 
 			if (pipe->plane_state->rotation % 2 == 0) {
-				ASSERT(pipe->plane_res.scl_data.ratios.horz.value != dal_fixed31_32_one.value
+				ASSERT(pipe->plane_res.scl_data.ratios.horz.value != dc_fixpt_one.value
 					|| v->scaler_rec_out_width[input_idx] == v->viewport_width[input_idx]);
-				ASSERT(pipe->plane_res.scl_data.ratios.vert.value != dal_fixed31_32_one.value
+				ASSERT(pipe->plane_res.scl_data.ratios.vert.value != dc_fixpt_one.value
 					|| v->scaler_recout_height[input_idx] == v->viewport_height[input_idx]);
 			} else {
-				ASSERT(pipe->plane_res.scl_data.ratios.horz.value != dal_fixed31_32_one.value
+				ASSERT(pipe->plane_res.scl_data.ratios.horz.value != dc_fixpt_one.value
 					|| v->scaler_recout_height[input_idx] == v->viewport_width[input_idx]);
-				ASSERT(pipe->plane_res.scl_data.ratios.vert.value != dal_fixed31_32_one.value
+				ASSERT(pipe->plane_res.scl_data.ratios.vert.value != dc_fixpt_one.value
 					|| v->scaler_rec_out_width[input_idx] == v->viewport_height[input_idx]);
 			}
 			v->dcc_enable[input_idx] = pipe->plane_state->dcc.enable ? dcn_bw_yes : dcn_bw_no;

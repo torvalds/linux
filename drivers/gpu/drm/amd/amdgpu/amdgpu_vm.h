@@ -168,9 +168,6 @@ struct amdgpu_vm {
 	/* tree of virtual addresses mapped */
 	struct rb_root_cached	va;
 
-	/* protecting invalidated */
-	spinlock_t		status_lock;
-
 	/* BOs who needs a validation */
 	struct list_head	evicted;
 
@@ -179,6 +176,10 @@ struct amdgpu_vm {
 
 	/* BOs moved, but not yet updated in the PT */
 	struct list_head	moved;
+	spinlock_t		moved_lock;
+
+	/* All BOs of this VM not currently in the state machine */
+	struct list_head	idle;
 
 	/* BO mappings freed, but not yet updated in the PT */
 	struct list_head	freed;
@@ -186,9 +187,6 @@ struct amdgpu_vm {
 	/* contains the page directory */
 	struct amdgpu_vm_pt     root;
 	struct dma_fence	*last_update;
-
-	/* protecting freed */
-	spinlock_t		freed_lock;
 
 	/* Scheduler entity for page table updates */
 	struct drm_sched_entity	entity;

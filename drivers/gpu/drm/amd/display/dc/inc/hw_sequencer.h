@@ -83,11 +83,6 @@ struct hw_sequencer_funcs {
 			int num_planes,
 			struct dc_state *context);
 
-	void (*set_plane_config)(
-			const struct dc *dc,
-			struct pipe_ctx *pipe_ctx,
-			struct resource_context *res_ctx);
-
 	void (*program_gamut_remap)(
 			struct pipe_ctx *pipe_ctx);
 

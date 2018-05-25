@@ -911,6 +911,7 @@ amdgpu_dm_update_connector_after_detect(struct amdgpu_dm_connector *aconnector)
 		drm_mode_connector_update_edid_property(connector, NULL);
 		aconnector->num_modes = 0;
 		aconnector->dc_sink = NULL;
+		aconnector->edid = NULL;
 	}
 
 	mutex_unlock(&dev->mode_config.mutex);
@@ -1115,6 +1116,7 @@ static int dce110_register_irq_handlers(struct amdgpu_device *adev)
 
 	if (adev->asic_type == CHIP_VEGA10 ||
 	    adev->asic_type == CHIP_VEGA12 ||
+	    adev->asic_type == CHIP_VEGA20 ||
 	    adev->asic_type == CHIP_RAVEN)
 		client_id = SOC15_IH_CLIENTID_DCE;
 
@@ -1513,11 +1515,10 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS10:
 	case CHIP_POLARIS12:
-#if defined(CONFIG_DRM_AMD_DC_VEGAM)
 	case CHIP_VEGAM:
-#endif
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
+	case CHIP_VEGA20:
 		if (dce110_register_irq_handlers(dm->adev)) {
 			DRM_ERROR("DM: Failed to initialize IRQ\n");
 			goto fail;
@@ -1708,9 +1709,7 @@ static int dm_early_init(void *handle)
 		adev->mode_info.plane_type = dm_plane_type_default;
 		break;
 	case CHIP_POLARIS10:
-#if defined(CONFIG_DRM_AMD_DC_VEGAM)
 	case CHIP_VEGAM:
-#endif
 		adev->mode_info.num_crtc = 6;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 6;
@@ -1718,6 +1717,7 @@ static int dm_early_init(void *handle)
 		break;
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
+	case CHIP_VEGA20:
 		adev->mode_info.num_crtc = 6;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 6;
@@ -1966,6 +1966,7 @@ static int fill_plane_attributes_from_fb(struct amdgpu_device *adev,
 
 	if (adev->asic_type == CHIP_VEGA10 ||
 	    adev->asic_type == CHIP_VEGA12 ||
+	    adev->asic_type == CHIP_VEGA20 ||
 	    adev->asic_type == CHIP_RAVEN) {
 		/* Fill GFX9 params */
 		plane_state->tiling_info.gfx9.num_pipes =
