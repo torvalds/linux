@@ -401,6 +401,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-hummingboard2-som-v15.dtb \
 	imx6dl-icore.dtb \
 	imx6dl-icore-rqs.dtb \
+	imx6dl-mamoj.dtb \
 	imx6dl-nit6xlite.dtb \
 	imx6dl-nitrogen6x.dtb \
 	imx6dl-phytec-mira-rdk-nand.dtb \
@@ -441,6 +442,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-cubox-i-emmc-som-v15.dtb \
 	imx6q-cubox-i-som-v15.dtb \
 	imx6q-dfi-fs700-m60.dtb \
+	imx6q-dhcom-pdk2.dtb \
 	imx6q-display5-tianma-tm070-1280x768.dtb \
 	imx6q-dmo-edmqmx6.dtb \
 	imx6q-dms-ba16.dtb \
@@ -465,9 +467,11 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-hummingboard2-emmc-som-v15.dtb \
 	imx6q-hummingboard2-som-v15.dtb \
 	imx6q-icore.dtb \
+	imx6q-icore-mipi.dtb \
 	imx6q-icore-ofcap10.dtb \
 	imx6q-icore-ofcap12.dtb \
 	imx6q-icore-rqs.dtb \
+	imx6q-kp-tpc.dtb \
 	imx6q-marsboard.dtb \
 	imx6q-mccmon6.dtb \
 	imx6q-nitrogen6x.dtb \
