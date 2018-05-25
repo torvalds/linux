@@ -2332,8 +2332,19 @@ enum netdev_lag_tx_type {
 	NETDEV_LAG_TX_TYPE_HASH,
 };
 
+enum netdev_lag_hash {
+	NETDEV_LAG_HASH_NONE,
+	NETDEV_LAG_HASH_L2,
+	NETDEV_LAG_HASH_L34,
+	NETDEV_LAG_HASH_L23,
+	NETDEV_LAG_HASH_E23,
+	NETDEV_LAG_HASH_E34,
+	NETDEV_LAG_HASH_UNKNOWN,
+};
+
 struct netdev_lag_upper_info {
 	enum netdev_lag_tx_type tx_type;
+	enum netdev_lag_hash hash_type;
 };
 
 struct netdev_lag_lower_state_info {
