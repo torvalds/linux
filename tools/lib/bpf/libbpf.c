@@ -2043,6 +2043,8 @@ static const struct {
 	BPF_SA_PROG_SEC("cgroup/bind6",	BPF_CGROUP_INET6_BIND),
 	BPF_SA_PROG_SEC("cgroup/connect4", BPF_CGROUP_INET4_CONNECT),
 	BPF_SA_PROG_SEC("cgroup/connect6", BPF_CGROUP_INET6_CONNECT),
+	BPF_SA_PROG_SEC("cgroup/sendmsg4", BPF_CGROUP_UDP4_SENDMSG),
+	BPF_SA_PROG_SEC("cgroup/sendmsg6", BPF_CGROUP_UDP6_SENDMSG),
 	BPF_S_PROG_SEC("cgroup/post_bind4", BPF_CGROUP_INET4_POST_BIND),
 	BPF_S_PROG_SEC("cgroup/post_bind6", BPF_CGROUP_INET6_POST_BIND),
 };
