@@ -91,6 +91,7 @@ config MLX5_EN_TLS
 	bool "TLS cryptography-offload accelaration"
 	depends on MLX5_CORE_EN
 	depends on TLS_DEVICE
+	depends on TLS=y || MLX5_CORE=m
 	depends on MLX5_ACCEL
 	default n
 	---help---
