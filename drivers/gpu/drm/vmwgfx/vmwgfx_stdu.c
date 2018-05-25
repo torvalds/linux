@@ -1285,8 +1285,6 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 							 1, 1, NULL, crtc);
 		if (ret)
 			DRM_ERROR("Failed to update STDU.\n");
-
-		crtc->primary->fb = plane->state->fb;
 	} else {
 		crtc = old_state->crtc;
 		stdu = vmw_crtc_to_stdu(crtc);
