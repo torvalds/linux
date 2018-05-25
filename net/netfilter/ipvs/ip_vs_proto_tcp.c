@@ -170,7 +170,7 @@ tcp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 			return 0;
 
 		/* Call application helper if needed */
-		if (!(ret = ip_vs_app_pkt_out(cp, skb)))
+		if (!(ret = ip_vs_app_pkt_out(cp, skb, iph)))
 			return 0;
 		/* ret=2: csum update is needed after payload mangling */
 		if (ret == 1)
@@ -251,7 +251,7 @@ tcp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		 *	Attempt ip_vs_app call.
 		 *	It will fix ip_vs_conn and iph ack_seq stuff
 		 */
-		if (!(ret = ip_vs_app_pkt_in(cp, skb)))
+		if (!(ret = ip_vs_app_pkt_in(cp, skb, iph)))
 			return 0;
 		/* ret=2: csum update is needed after payload mangling */
 		if (ret == 1)
