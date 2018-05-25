@@ -23,6 +23,22 @@
 	compatible = "qcom,ipq4019";
 	interrupt-parent = <&intc>;
 
+	reserved-memory {
+		#address-cells = <0x1>;
+		#size-cells = <0x1>;
+		ranges;
+
+		smem_region: smem@87e00000 {
+			reg = <0x87e00000 0x080000>;
+			no-map;
+		};
+
+		tz@87e80000 {
+			reg = <0x87e80000 0x180000>;
+			no-map;
+		};
+	};
+
 	aliases {
 		spi0 = &spi_0;
 		i2c0 = &i2c_0;

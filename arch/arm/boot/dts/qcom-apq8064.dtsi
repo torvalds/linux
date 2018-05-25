@@ -444,7 +444,7 @@
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
 				reg = <0x12450000 0x100>,
 				      <0x12400000 0x03>;
-				interrupts = <0 193 0x0>;
+				interrupts = <0 193 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI1_UART_CLK>, <&gcc GSBI1_H_CLK>;
 				clock-names = "core", "iface";
 				status = "disabled";
@@ -456,11 +456,12 @@
 				pinctrl-1 = <&i2c1_pins_sleep>;
 				pinctrl-names = "default", "sleep";
 				reg = <0x12460000 0x1000>;
-				interrupts = <0 194 IRQ_TYPE_NONE>;
+				interrupts = <0 194 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI1_QUP_CLK>, <&gcc GSBI1_H_CLK>;
 				clock-names = "core", "iface";
 				#address-cells = <1>;
 				#size-cells = <0>;
+				status = "disabled";
 			};
 
 		};
@@ -484,11 +485,12 @@
 				pinctrl-0 = <&i2c2_pins>;
 				pinctrl-1 = <&i2c2_pins_sleep>;
 				pinctrl-names = "default", "sleep";
-				interrupts = <0 196 IRQ_TYPE_NONE>;
+				interrupts = <0 196 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI2_QUP_CLK>, <&gcc GSBI2_H_CLK>;
 				clock-names = "core", "iface";
 				#address-cells = <1>;
 				#size-cells = <0>;
+				status = "disabled";
 			};
 		};
 
@@ -508,12 +510,13 @@
 				pinctrl-1 = <&i2c3_pins_sleep>;
 				pinctrl-names = "default", "sleep";
 				reg = <0x16280000 0x1000>;
-				interrupts = <GIC_SPI 151 IRQ_TYPE_NONE>;
+				interrupts = <GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI3_QUP_CLK>,
 					 <&gcc GSBI3_H_CLK>;
 				clock-names = "core", "iface";
 				#address-cells = <1>;
 				#size-cells = <0>;
+				status = "disabled";
 			};
 		};
 
@@ -534,10 +537,11 @@
 				pinctrl-1 = <&i2c4_pins_sleep>;
 				pinctrl-names = "default", "sleep";
 				reg = <0x16380000 0x1000>;
-				interrupts = <GIC_SPI 153 IRQ_TYPE_NONE>;
+				interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI4_QUP_CLK>,
 					 <&gcc GSBI4_H_CLK>;
 				clock-names = "core", "iface";
+				status = "disabled";
 			};
 		};
 
@@ -556,7 +560,7 @@
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
 				reg = <0x1a240000 0x100>,
 				      <0x1a200000 0x03>;
-				interrupts = <0 154 0x0>;
+				interrupts = <0 154 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI5_UART_CLK>, <&gcc GSBI5_H_CLK>;
 				clock-names = "core", "iface";
 				status = "disabled";
@@ -565,7 +569,7 @@
 			gsbi5_spi: spi@1a280000 {
 				compatible = "qcom,spi-qup-v1.1.1";
 				reg = <0x1a280000 0x1000>;
-				interrupts = <0 155 0>;
+				interrupts = <0 155 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&spi5_default>;
 				pinctrl-1 = <&spi5_sleep>;
 				pinctrl-names = "default", "sleep";
@@ -592,7 +596,7 @@
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
 				reg = <0x16540000 0x100>,
 				      <0x16500000 0x03>;
-				interrupts = <0 156 0x0>;
+				interrupts = <0 156 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI6_UART_CLK>, <&gcc GSBI6_H_CLK>;
 				clock-names = "core", "iface";
 				status = "disabled";
@@ -604,7 +608,7 @@
 				pinctrl-1 = <&i2c6_pins_sleep>;
 				pinctrl-names = "default", "sleep";
 				reg = <0x16580000 0x1000>;
-				interrupts = <GIC_SPI 157 IRQ_TYPE_NONE>;
+				interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI6_QUP_CLK>,
 					 <&gcc GSBI6_H_CLK>;
 				clock-names = "core", "iface";
@@ -628,7 +632,7 @@
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
 				reg = <0x16640000 0x1000>,
 				      <0x16600000 0x1000>;
-				interrupts = <0 158 0x0>;
+				interrupts = <0 158 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI7_UART_CLK>, <&gcc GSBI7_H_CLK>;
 				clock-names = "core", "iface";
 				status = "disabled";
@@ -640,7 +644,7 @@
 				pinctrl-1 = <&i2c7_pins_sleep>;
 				pinctrl-names = "default", "sleep";
 				reg = <0x16680000 0x1000>;
-				interrupts = <GIC_SPI 159 IRQ_TYPE_NONE>;
+				interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI7_QUP_CLK>,
 					 <&gcc GSBI7_H_CLK>;
 				clock-names = "core", "iface";
@@ -1056,7 +1060,7 @@
 			compatible		= "qcom,apq8064-ahci", "generic-ahci";
 			status			= "disabled";
 			reg			= <0x29000000 0x180>;
-			interrupts		= <GIC_SPI 209 IRQ_TYPE_NONE>;
+			interrupts		= <GIC_SPI 209 IRQ_TYPE_LEVEL_HIGH>;
 
 			clocks			= <&gcc SFAB_SATA_S_H_CLK>,
 						<&gcc SATA_H_CLK>,
@@ -1082,7 +1086,7 @@
 		sdcc1bam:dma@12402000{
 			compatible = "qcom,bam-v1.3.0";
 			reg = <0x12402000 0x8000>;
-			interrupts = <0 98 0>;
+			interrupts = <0 98 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc SDC1_H_CLK>;
 			clock-names = "bam_clk";
 			#dma-cells = <1>;
@@ -1092,7 +1096,7 @@
 		sdcc3bam:dma@12182000{
 			compatible = "qcom,bam-v1.3.0";
 			reg = <0x12182000 0x8000>;
-			interrupts = <0 96 0>;
+			interrupts = <0 96 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc SDC3_H_CLK>;
 			clock-names = "bam_clk";
 			#dma-cells = <1>;
@@ -1102,7 +1106,7 @@
 		sdcc4bam:dma@121c2000{
 			compatible = "qcom,bam-v1.3.0";
 			reg = <0x121c2000 0x8000>;
-			interrupts = <0 95 0>;
+			interrupts = <0 95 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc SDC4_H_CLK>;
 			clock-names = "bam_clk";
 			#dma-cells = <1>;
@@ -1181,7 +1185,7 @@
 			compatible = "qcom,adreno-3xx";
 			reg = <0x04300000 0x20000>;
 			reg-names = "kgsl_3d0_reg_memory";
-			interrupts = <GIC_SPI 80 0>;
+			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "kgsl_3d0_irq";
 			clock-names =
 			    "core_clk",
@@ -1281,7 +1285,7 @@
 			label = "MDSS DSI CTRL->0";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			interrupts = <GIC_SPI 82 0>;
+			interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0x04700000 0x200>;
 			reg-names = "dsi_ctrl";
 
@@ -1350,8 +1354,8 @@
 			    <&mmcc MDP_AXI_CLK>;
 			reg = <0x07500000 0x100000>;
 			interrupts =
-			    <GIC_SPI 63 0>,
-			    <GIC_SPI 64 0>;
+			    <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>,
+			    <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
 			qcom,ncb = <2>;
 		};
 
@@ -1366,8 +1370,8 @@
 			    <&mmcc MDP_AXI_CLK>;
 			reg = <0x07600000 0x100000>;
 			interrupts =
-			    <GIC_SPI 61 0>,
-			    <GIC_SPI 62 0>;
+			    <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>,
+			    <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
 			qcom,ncb = <2>;
 		};
 
@@ -1382,8 +1386,8 @@
 			    <&mmcc GFX3D_AXI_CLK>;
 			reg = <0x07c00000 0x100000>;
 			interrupts =
-			    <GIC_SPI 69 0>,
-			    <GIC_SPI 70 0>;
+			    <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>,
+			    <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
 			qcom,ncb = <3>;
 		};
 
@@ -1398,8 +1402,8 @@
 			    <&mmcc GFX3D_AXI_CLK>;
 			reg = <0x07d00000 0x100000>;
 			interrupts =
-			    <GIC_SPI 210 0>,
-			    <GIC_SPI 211 0>;
+			    <GIC_SPI 210 IRQ_TYPE_LEVEL_HIGH>,
+			    <GIC_SPI 211 IRQ_TYPE_LEVEL_HIGH>;
 			qcom,ncb = <3>;
 		};
 
@@ -1417,8 +1421,8 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 			ranges = <0x81000000 0 0 0x0fe00000 0 0x00100000   /* I/O */
-				  0x82000000 0 0 0x08000000 0 0x07e00000>; /* memory */
-			interrupts = <GIC_SPI 238 IRQ_TYPE_NONE>;
+				  0x82000000 0 0x08000000 0x08000000 0 0x07e00000>; /* memory */
+			interrupts = <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "msi";
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 0x7>;
