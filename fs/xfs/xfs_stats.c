@@ -113,6 +113,7 @@ void xfs_stats_clearall(struct xfsstats __percpu *stats)
 	}
 }
 
+#ifdef CONFIG_PROC_FS
 /* legacy quota interfaces */
 #ifdef CONFIG_XFS_QUOTA
 static int xqm_proc_show(struct seq_file *m, void *v)
@@ -137,7 +138,6 @@ static int xqmstat_proc_show(struct seq_file *m, void *v)
 }
 #endif /* CONFIG_XFS_QUOTA */
 
-#ifdef CONFIG_PROC_FS
 int
 xfs_init_procfs(void)
 {
