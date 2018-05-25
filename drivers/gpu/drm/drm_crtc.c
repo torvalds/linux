@@ -479,8 +479,12 @@ static int __drm_mode_set_config_internal(struct drm_mode_set *set,
 
 	ret = crtc->funcs->set_config(set, ctx);
 	if (ret == 0) {
-		crtc->primary->crtc = fb ? crtc : NULL;
-		crtc->primary->fb = fb;
+		struct drm_plane *plane = crtc->primary;
+
+		if (!plane->state) {
+			plane->crtc = fb ? crtc : NULL;
+			plane->fb = fb;
+		}
 	}
 
 	drm_for_each_crtc(tmp, crtc->dev) {

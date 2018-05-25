@@ -601,9 +601,6 @@ int __must_check
 drm_atomic_add_affected_planes(struct drm_atomic_state *state,
 			       struct drm_crtc *crtc);
 
-void
-drm_atomic_clean_old_fb(struct drm_device *dev, unsigned plane_mask, int ret);
-
 int __must_check drm_atomic_check_only(struct drm_atomic_state *state);
 int __must_check drm_atomic_commit(struct drm_atomic_state *state);
 int __must_check drm_atomic_nonblocking_commit(struct drm_atomic_state *state);

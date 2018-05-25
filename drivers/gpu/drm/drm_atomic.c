@@ -692,6 +692,11 @@ drm_atomic_get_plane_state(struct drm_atomic_state *state,
 
 	WARN_ON(!state->acquire_ctx);
 
+	/* the legacy pointers should never be set */
+	WARN_ON(plane->fb);
+	WARN_ON(plane->old_fb);
+	WARN_ON(plane->crtc);
+
 	plane_state = drm_atomic_get_existing_plane_state(state, plane);
 	if (plane_state)
 		return plane_state;
@@ -2040,45 +2045,6 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
 }
 
 /**
- * drm_atomic_clean_old_fb -- Unset old_fb pointers and set plane->fb pointers.
- *
- * @dev: drm device to check.
- * @plane_mask: plane mask for planes that were updated.
- * @ret: return value, can be -EDEADLK for a retry.
- *
- * Before doing an update &drm_plane.old_fb is set to &drm_plane.fb, but before
- * dropping the locks old_fb needs to be set to NULL and plane->fb updated. This
- * is a common operation for each atomic update, so this call is split off as a
- * helper.
- */
-void drm_atomic_clean_old_fb(struct drm_device *dev,
-			     unsigned plane_mask,
-			     int ret)
-{
-	struct drm_plane *plane;
-
-	/* if succeeded, fixup legacy plane crtc/fb ptrs before dropping
-	 * locks (ie. while it is still safe to deref plane->state).  We
-	 * need to do this here because the driver entry points cannot
-	 * distinguish between legacy and atomic ioctls.
-	 */
-	drm_for_each_plane_mask(plane, dev, plane_mask) {
-		if (ret == 0) {
-			struct drm_framebuffer *new_fb = plane->state->fb;
-			if (new_fb)
-				drm_framebuffer_get(new_fb);
-			plane->fb = new_fb;
-			plane->crtc = plane->state->crtc;
-
-			if (plane->old_fb)
-				drm_framebuffer_put(plane->old_fb);
-		}
-		plane->old_fb = NULL;
-	}
-}
-EXPORT_SYMBOL(drm_atomic_clean_old_fb);
-
-/**
  * DOC: explicit fencing properties
  *
  * Explicit fencing allows userspace to control the buffer synchronization
@@ -2298,9 +2264,7 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 	unsigned int copied_objs, copied_props;
 	struct drm_atomic_state *state;
 	struct drm_modeset_acquire_ctx ctx;
-	struct drm_plane *plane;
 	struct drm_out_fence_state *fence_state;
-	unsigned plane_mask;
 	int ret = 0;
 	unsigned int i, j, num_fences;
 
@@ -2340,7 +2304,6 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 	state->allow_modeset = !!(arg->flags & DRM_MODE_ATOMIC_ALLOW_MODESET);
 
 retry:
-	plane_mask = 0;
 	copied_objs = 0;
 	copied_props = 0;
 	fence_state = NULL;
@@ -2411,12 +2374,6 @@ retry:
 			copied_props++;
 		}
 
-		if (obj->type == DRM_MODE_OBJECT_PLANE && count_props &&
-		    !(arg->flags & DRM_MODE_ATOMIC_TEST_ONLY)) {
-			plane = obj_to_plane(obj);
-			plane_mask |= (1 << drm_plane_index(plane));
-			plane->old_fb = plane->fb;
-		}
 		drm_mode_object_put(obj);
 	}
 
@@ -2437,8 +2394,6 @@ retry:
 	}
 
 out:
-	drm_atomic_clean_old_fb(dev, plane_mask, ret);
-
 	complete_crtc_signaling(dev, state, fence_state, num_fences, !ret);
 
 	if (ret == -EDEADLK) {

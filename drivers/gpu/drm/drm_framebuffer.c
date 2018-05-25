@@ -836,8 +836,6 @@ retry:
 			goto unlock;
 
 		plane_mask |= BIT(drm_plane_index(plane));
-
-		plane->old_fb = plane->fb;
 	}
 
 	/* This list is only filled when disable_crtcs is set. */
@@ -852,9 +850,6 @@ retry:
 		ret = drm_atomic_commit(state);
 
 unlock:
-	if (plane_mask)
-		drm_atomic_clean_old_fb(dev, plane_mask, ret);
-
 	if (ret == -EDEADLK) {
 		drm_atomic_state_clear(state);
 		drm_modeset_backoff(&ctx);

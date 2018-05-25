@@ -502,6 +502,7 @@ EXPORT_SYMBOL(drm_plane_helper_update);
 int drm_plane_helper_disable(struct drm_plane *plane)
 {
 	struct drm_plane_state *plane_state;
+	struct drm_framebuffer *old_fb;
 
 	/* crtc helpers love to call disable functions for already disabled hw
 	 * functions. So cope with that. */
@@ -521,8 +522,9 @@ int drm_plane_helper_disable(struct drm_plane *plane)
 	plane_state->plane = plane;
 
 	plane_state->crtc = NULL;
+	old_fb = plane_state->fb;
 	drm_atomic_set_fb_for_plane(plane_state, NULL);
 
-	return drm_plane_helper_commit(plane, plane_state, plane->fb);
+	return drm_plane_helper_commit(plane, plane_state, old_fb);
 }
 EXPORT_SYMBOL(drm_plane_helper_disable);

@@ -2914,7 +2914,6 @@ static int __drm_atomic_helper_disable_all(struct drm_device *dev,
 	struct drm_plane *plane;
 	struct drm_crtc_state *crtc_state;
 	struct drm_crtc *crtc;
-	unsigned plane_mask = 0;
 	int ret, i;
 
 	state = drm_atomic_state_alloc(dev);
@@ -2957,17 +2956,10 @@ static int __drm_atomic_helper_disable_all(struct drm_device *dev,
 			goto free;
 
 		drm_atomic_set_fb_for_plane(plane_state, NULL);
-
-		if (clean_old_fbs) {
-			plane->old_fb = plane->fb;
-			plane_mask |= BIT(drm_plane_index(plane));
-		}
 	}
 
 	ret = drm_atomic_commit(state);
 free:
-	if (plane_mask)
-		drm_atomic_clean_old_fb(dev, plane_mask, ret);
 	drm_atomic_state_put(state);
 	return ret;
 }
@@ -3129,13 +3121,8 @@ int drm_atomic_helper_commit_duplicated_state(struct drm_atomic_state *state,
 
 	state->acquire_ctx = ctx;
 
-	for_each_new_plane_in_state(state, plane, new_plane_state, i) {
-		WARN_ON(plane->crtc != new_plane_state->crtc);
-		WARN_ON(plane->fb != new_plane_state->fb);
-		WARN_ON(plane->old_fb);
-
+	for_each_new_plane_in_state(state, plane, new_plane_state, i)
 		state->planes[i].old_state = plane->state;
-	}
 
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i)
 		state->crtcs[i].old_state = crtc->state;
