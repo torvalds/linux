@@ -17,34 +17,292 @@
 #include "cgroup_helpers.h"
 #include "bpf_rlimit.h"
 
+#ifndef ARRAY_SIZE
+# define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
+
 #define CG_PATH	"/foo"
 #define CONNECT4_PROG_PATH	"./connect4_prog.o"
 #define CONNECT6_PROG_PATH	"./connect6_prog.o"
 
 #define SERV4_IP		"192.168.1.254"
 #define SERV4_REWRITE_IP	"127.0.0.1"
+#define SRC4_REWRITE_IP		"127.0.0.4"
 #define SERV4_PORT		4040
 #define SERV4_REWRITE_PORT	4444
 
 #define SERV6_IP		"face:b00c:1234:5678::abcd"
 #define SERV6_REWRITE_IP	"::1"
+#define SRC6_REWRITE_IP		"::6"
 #define SERV6_PORT		6060
 #define SERV6_REWRITE_PORT	6666
 
 #define INET_NTOP_BUF	40
 
-typedef int (*load_fn)(enum bpf_attach_type, const char *comment);
+struct sock_addr_test;
+
+typedef int (*load_fn)(const struct sock_addr_test *test);
 typedef int (*info_fn)(int, struct sockaddr *, socklen_t *);
 
-struct program {
-	enum bpf_attach_type type;
-	load_fn	loadfn;
-	int fd;
-	const char *name;
-	enum bpf_attach_type invalid_type;
+char bpf_log_buf[BPF_LOG_BUF_SIZE];
+
+struct sock_addr_test {
+	const char *descr;
+	/* BPF prog properties */
+	load_fn loadfn;
+	enum bpf_attach_type expected_attach_type;
+	enum bpf_attach_type attach_type;
+	/* Socket properties */
+	int domain;
+	int type;
+	/* IP:port pairs for BPF prog to override */
+	const char *requested_ip;
+	unsigned short requested_port;
+	const char *expected_ip;
+	unsigned short expected_port;
+	const char *expected_src_ip;
+	/* Expected test result */
+	enum {
+		LOAD_REJECT,
+		ATTACH_REJECT,
+		SUCCESS,
+	} expected_result;
 };
 
-char bpf_log_buf[BPF_LOG_BUF_SIZE];
+static int bind4_prog_load(const struct sock_addr_test *test);
+static int bind6_prog_load(const struct sock_addr_test *test);
+static int connect4_prog_load(const struct sock_addr_test *test);
+static int connect6_prog_load(const struct sock_addr_test *test);
+
+static struct sock_addr_test tests[] = {
+	/* bind */
+	{
+		"bind4: load prog with wrong expected attach type",
+		bind4_prog_load,
+		BPF_CGROUP_INET6_BIND,
+		BPF_CGROUP_INET4_BIND,
+		AF_INET,
+		SOCK_STREAM,
+		NULL,
+		0,
+		NULL,
+		0,
+		NULL,
+		LOAD_REJECT,
+	},
+	{
+		"bind4: attach prog with wrong attach type",
+		bind4_prog_load,
+		BPF_CGROUP_INET4_BIND,
+		BPF_CGROUP_INET6_BIND,
+		AF_INET,
+		SOCK_STREAM,
+		NULL,
+		0,
+		NULL,
+		0,
+		NULL,
+		ATTACH_REJECT,
+	},
+	{
+		"bind4: rewrite IP & TCP port in",
+		bind4_prog_load,
+		BPF_CGROUP_INET4_BIND,
+		BPF_CGROUP_INET4_BIND,
+		AF_INET,
+		SOCK_STREAM,
+		SERV4_IP,
+		SERV4_PORT,
+		SERV4_REWRITE_IP,
+		SERV4_REWRITE_PORT,
+		NULL,
+		SUCCESS,
+	},
+	{
+		"bind4: rewrite IP & UDP port in",
+		bind4_prog_load,
+		BPF_CGROUP_INET4_BIND,
+		BPF_CGROUP_INET4_BIND,
+		AF_INET,
+		SOCK_DGRAM,
+		SERV4_IP,
+		SERV4_PORT,
+		SERV4_REWRITE_IP,
+		SERV4_REWRITE_PORT,
+		NULL,
+		SUCCESS,
+	},
+	{
+		"bind6: load prog with wrong expected attach type",
+		bind6_prog_load,
+		BPF_CGROUP_INET4_BIND,
+		BPF_CGROUP_INET6_BIND,
+		AF_INET6,
+		SOCK_STREAM,
+		NULL,
+		0,
+		NULL,
+		0,
+		NULL,
+		LOAD_REJECT,
+	},
+	{
+		"bind6: attach prog with wrong attach type",
+		bind6_prog_load,
+		BPF_CGROUP_INET6_BIND,
+		BPF_CGROUP_INET4_BIND,
+		AF_INET,
+		SOCK_STREAM,
+		NULL,
+		0,
+		NULL,
+		0,
+		NULL,
+		ATTACH_REJECT,
+	},
+	{
+		"bind6: rewrite IP & TCP port in",
+		bind6_prog_load,
+		BPF_CGROUP_INET6_BIND,
+		BPF_CGROUP_INET6_BIND,
+		AF_INET6,
+		SOCK_STREAM,
+		SERV6_IP,
+		SERV6_PORT,
+		SERV6_REWRITE_IP,
+		SERV6_REWRITE_PORT,
+		NULL,
+		SUCCESS,
+	},
+	{
+		"bind6: rewrite IP & UDP port in",
+		bind6_prog_load,
+		BPF_CGROUP_INET6_BIND,
+		BPF_CGROUP_INET6_BIND,
+		AF_INET6,
+		SOCK_DGRAM,
+		SERV6_IP,
+		SERV6_PORT,
+		SERV6_REWRITE_IP,
+		SERV6_REWRITE_PORT,
+		NULL,
+		SUCCESS,
+	},
+
+	/* connect */
+	{
+		"connect4: load prog with wrong expected attach type",
+		connect4_prog_load,
+		BPF_CGROUP_INET6_CONNECT,
+		BPF_CGROUP_INET4_CONNECT,
+		AF_INET,
+		SOCK_STREAM,
+		NULL,
+		0,
+		NULL,
+		0,
+		NULL,
+		LOAD_REJECT,
+	},
+	{
+		"connect4: attach prog with wrong attach type",
+		connect4_prog_load,
+		BPF_CGROUP_INET4_CONNECT,
+		BPF_CGROUP_INET6_CONNECT,
+		AF_INET,
+		SOCK_STREAM,
+		NULL,
+		0,
+		NULL,
+		0,
+		NULL,
+		ATTACH_REJECT,
+	},
+	{
+		"connect4: rewrite IP & TCP port",
+		connect4_prog_load,
+		BPF_CGROUP_INET4_CONNECT,
+		BPF_CGROUP_INET4_CONNECT,
+		AF_INET,
+		SOCK_STREAM,
+		SERV4_IP,
+		SERV4_PORT,
+		SERV4_REWRITE_IP,
+		SERV4_REWRITE_PORT,
+		SRC4_REWRITE_IP,
+		SUCCESS,
+	},
+	{
+		"connect4: rewrite IP & UDP port",
+		connect4_prog_load,
+		BPF_CGROUP_INET4_CONNECT,
+		BPF_CGROUP_INET4_CONNECT,
+		AF_INET,
+		SOCK_DGRAM,
+		SERV4_IP,
+		SERV4_PORT,
+		SERV4_REWRITE_IP,
+		SERV4_REWRITE_PORT,
+		SRC4_REWRITE_IP,
+		SUCCESS,
+	},
+	{
+		"connect6: load prog with wrong expected attach type",
+		connect6_prog_load,
+		BPF_CGROUP_INET4_CONNECT,
+		BPF_CGROUP_INET6_CONNECT,
+		AF_INET6,
+		SOCK_STREAM,
+		NULL,
+		0,
+		NULL,
+		0,
+		NULL,
+		LOAD_REJECT,
+	},
+	{
+		"connect6: attach prog with wrong attach type",
+		connect6_prog_load,
+		BPF_CGROUP_INET6_CONNECT,
+		BPF_CGROUP_INET4_CONNECT,
+		AF_INET,
+		SOCK_STREAM,
+		NULL,
+		0,
+		NULL,
+		0,
+		NULL,
+		ATTACH_REJECT,
+	},
+	{
+		"connect6: rewrite IP & TCP port",
+		connect6_prog_load,
+		BPF_CGROUP_INET6_CONNECT,
+		BPF_CGROUP_INET6_CONNECT,
+		AF_INET6,
+		SOCK_STREAM,
+		SERV6_IP,
+		SERV6_PORT,
+		SERV6_REWRITE_IP,
+		SERV6_REWRITE_PORT,
+		SRC6_REWRITE_IP,
+		SUCCESS,
+	},
+	{
+		"connect6: rewrite IP & UDP port",
+		connect6_prog_load,
+		BPF_CGROUP_INET6_CONNECT,
+		BPF_CGROUP_INET6_CONNECT,
+		AF_INET6,
+		SOCK_DGRAM,
+		SERV6_IP,
+		SERV6_PORT,
+		SERV6_REWRITE_IP,
+		SERV6_REWRITE_PORT,
+		SRC6_REWRITE_IP,
+		SUCCESS,
+	},
+};
 
 static int mk_sockaddr(int domain, const char *ip, unsigned short port,
 		       struct sockaddr *addr, socklen_t addr_len)
@@ -84,25 +342,23 @@ static int mk_sockaddr(int domain, const char *ip, unsigned short port,
 	return 0;
 }
 
-static int load_insns(enum bpf_attach_type attach_type,
-		      const struct bpf_insn *insns, size_t insns_cnt,
-		      const char *comment)
+static int load_insns(const struct sock_addr_test *test,
+		      const struct bpf_insn *insns, size_t insns_cnt)
 {
 	struct bpf_load_program_attr load_attr;
 	int ret;
 
 	memset(&load_attr, 0, sizeof(struct bpf_load_program_attr));
 	load_attr.prog_type = BPF_PROG_TYPE_CGROUP_SOCK_ADDR;
-	load_attr.expected_attach_type = attach_type;
+	load_attr.expected_attach_type = test->expected_attach_type;
 	load_attr.insns = insns;
 	load_attr.insns_cnt = insns_cnt;
 	load_attr.license = "GPL";
 
 	ret = bpf_load_program_xattr(&load_attr, bpf_log_buf, BPF_LOG_BUF_SIZE);
-	if (ret < 0 && comment) {
-		log_err(">>> Loading %s program error.\n"
-			">>> Output from verifier:\n%s\n-------\n",
-			comment, bpf_log_buf);
+	if (ret < 0 && test->expected_result != LOAD_REJECT) {
+		log_err(">>> Loading program error.\n"
+			">>> Verifier output:\n%s\n-------\n", bpf_log_buf);
 	}
 
 	return ret;
@@ -119,8 +375,7 @@ static int load_insns(enum bpf_attach_type attach_type,
  * to count jumps properly.
  */
 
-static int bind4_prog_load(enum bpf_attach_type attach_type,
-			   const char *comment)
+static int bind4_prog_load(const struct sock_addr_test *test)
 {
 	union {
 		uint8_t u4_addr8[4];
@@ -186,12 +441,10 @@ static int bind4_prog_load(enum bpf_attach_type attach_type,
 		BPF_EXIT_INSN(),
 	};
 
-	return load_insns(attach_type, insns,
-			  sizeof(insns) / sizeof(struct bpf_insn), comment);
+	return load_insns(test, insns, sizeof(insns) / sizeof(struct bpf_insn));
 }
 
-static int bind6_prog_load(enum bpf_attach_type attach_type,
-			   const char *comment)
+static int bind6_prog_load(const struct sock_addr_test *test)
 {
 	struct sockaddr_in6 addr6_rw;
 	struct in6_addr ip6;
@@ -254,13 +507,10 @@ static int bind6_prog_load(enum bpf_attach_type attach_type,
 		BPF_EXIT_INSN(),
 	};
 
-	return load_insns(attach_type, insns,
-			  sizeof(insns) / sizeof(struct bpf_insn), comment);
+	return load_insns(test, insns, sizeof(insns) / sizeof(struct bpf_insn));
 }
 
-static int connect_prog_load_path(const char *path,
-				  enum bpf_attach_type attach_type,
-				  const char *comment)
+static int load_path(const struct sock_addr_test *test, const char *path)
 {
 	struct bpf_prog_load_attr attr;
 	struct bpf_object *obj;
@@ -269,75 +519,83 @@ static int connect_prog_load_path(const char *path,
 	memset(&attr, 0, sizeof(struct bpf_prog_load_attr));
 	attr.file = path;
 	attr.prog_type = BPF_PROG_TYPE_CGROUP_SOCK_ADDR;
-	attr.expected_attach_type = attach_type;
+	attr.expected_attach_type = test->expected_attach_type;
 
 	if (bpf_prog_load_xattr(&attr, &obj, &prog_fd)) {
-		if (comment)
-			log_err(">>> Loading %s program at %s error.\n",
-				comment, path);
+		if (test->expected_result != LOAD_REJECT)
+			log_err(">>> Loading program (%s) error.\n", path);
 		return -1;
 	}
 
 	return prog_fd;
 }
 
-static int connect4_prog_load(enum bpf_attach_type attach_type,
-			      const char *comment)
+static int connect4_prog_load(const struct sock_addr_test *test)
 {
-	return connect_prog_load_path(CONNECT4_PROG_PATH, attach_type, comment);
+	return load_path(test, CONNECT4_PROG_PATH);
 }
 
-static int connect6_prog_load(enum bpf_attach_type attach_type,
-			      const char *comment)
+static int connect6_prog_load(const struct sock_addr_test *test)
 {
-	return connect_prog_load_path(CONNECT6_PROG_PATH, attach_type, comment);
+	return load_path(test, CONNECT6_PROG_PATH);
 }
 
-static void print_ip_port(int sockfd, info_fn fn, const char *fmt)
+static int cmp_addr(const struct sockaddr_storage *addr1,
+		    const struct sockaddr_storage *addr2, int cmp_port)
 {
-	char addr_buf[INET_NTOP_BUF];
-	struct sockaddr_storage addr;
-	struct sockaddr_in6 *addr6;
-	struct sockaddr_in *addr4;
-	socklen_t addr_len;
-	unsigned short port;
-	void *nip;
+	const struct sockaddr_in *four1, *four2;
+	const struct sockaddr_in6 *six1, *six2;
 
-	addr_len = sizeof(struct sockaddr_storage);
-	memset(&addr, 0, addr_len);
+	if (addr1->ss_family != addr2->ss_family)
+		return -1;
 
-	if (fn(sockfd, (struct sockaddr *)&addr, (socklen_t *)&addr_len) == 0) {
-		if (addr.ss_family == AF_INET) {
-			addr4 = (struct sockaddr_in *)&addr;
-			nip = (void *)&addr4->sin_addr;
-			port = ntohs(addr4->sin_port);
-		} else if (addr.ss_family == AF_INET6) {
-			addr6 = (struct sockaddr_in6 *)&addr;
-			nip = (void *)&addr6->sin6_addr;
-			port = ntohs(addr6->sin6_port);
-		} else {
-			return;
-		}
-		const char *addr_str =
-			inet_ntop(addr.ss_family, nip, addr_buf, INET_NTOP_BUF);
-		printf(fmt, addr_str ? addr_str : "??", port);
+	if (addr1->ss_family == AF_INET) {
+		four1 = (const struct sockaddr_in *)addr1;
+		four2 = (const struct sockaddr_in *)addr2;
+		return !((four1->sin_port == four2->sin_port || !cmp_port) &&
+			 four1->sin_addr.s_addr == four2->sin_addr.s_addr);
+	} else if (addr1->ss_family == AF_INET6) {
+		six1 = (const struct sockaddr_in6 *)addr1;
+		six2 = (const struct sockaddr_in6 *)addr2;
+		return !((six1->sin6_port == six2->sin6_port || !cmp_port) &&
+			 !memcmp(&six1->sin6_addr, &six2->sin6_addr,
+				 sizeof(struct in6_addr)));
 	}
+
+	return -1;
 }
 
-static void print_local_ip_port(int sockfd, const char *fmt)
+static int cmp_sock_addr(info_fn fn, int sock1,
+			 const struct sockaddr_storage *addr2, int cmp_port)
 {
-	print_ip_port(sockfd, getsockname, fmt);
+	struct sockaddr_storage addr1;
+	socklen_t len1 = sizeof(addr1);
+
+	memset(&addr1, 0, len1);
+	if (fn(sock1, (struct sockaddr *)&addr1, (socklen_t *)&len1) != 0)
+		return -1;
+
+	return cmp_addr(&addr1, addr2, cmp_port);
 }
 
-static void print_remote_ip_port(int sockfd, const char *fmt)
+static int cmp_local_ip(int sock1, const struct sockaddr_storage *addr2)
 {
-	print_ip_port(sockfd, getpeername, fmt);
+	return cmp_sock_addr(getsockname, sock1, addr2, /*cmp_port*/ 0);
+}
+
+static int cmp_local_addr(int sock1, const struct sockaddr_storage *addr2)
+{
+	return cmp_sock_addr(getsockname, sock1, addr2, /*cmp_port*/ 1);
+}
+
+static int cmp_peer_addr(int sock1, const struct sockaddr_storage *addr2)
+{
+	return cmp_sock_addr(getpeername, sock1, addr2, /*cmp_port*/ 1);
 }
 
 static int start_server(int type, const struct sockaddr_storage *addr,
 			socklen_t addr_len)
 {
-
 	int fd;
 
 	fd = socket(addr->ss_family, type, 0);
@@ -358,8 +616,6 @@ static int start_server(int type, const struct sockaddr_storage *addr,
 		}
 	}
 
-	print_local_ip_port(fd, "\t   Actual: bind(%s, %d)\n");
-
 	goto out;
 close_out:
 	close(fd);
@@ -372,19 +628,19 @@ static int connect_to_server(int type, const struct sockaddr_storage *addr,
 			     socklen_t addr_len)
 {
 	int domain;
-	int fd;
+	int fd = -1;
 
 	domain = addr->ss_family;
 
 	if (domain != AF_INET && domain != AF_INET6) {
 		log_err("Unsupported address family");
-		return -1;
+		goto err;
 	}
 
 	fd = socket(domain, type, 0);
 	if (fd == -1) {
-		log_err("Failed to creating client socket");
-		return -1;
+		log_err("Failed to create client socket");
+		goto err;
 	}
 
 	if (connect(fd, (const struct sockaddr *)addr, addr_len) == -1) {
@@ -392,162 +648,188 @@ static int connect_to_server(int type, const struct sockaddr_storage *addr,
 		goto err;
 	}
 
-	print_remote_ip_port(fd, "\t   Actual: connect(%s, %d)");
-	print_local_ip_port(fd, " from (%s, %d)\n");
+	goto out;
+err:
+	close(fd);
+	fd = -1;
+out:
+	return fd;
+}
+
+static int init_addrs(const struct sock_addr_test *test,
+		      struct sockaddr_storage *requested_addr,
+		      struct sockaddr_storage *expected_addr,
+		      struct sockaddr_storage *expected_src_addr)
+{
+	socklen_t addr_len = sizeof(struct sockaddr_storage);
+
+	if (mk_sockaddr(test->domain, test->expected_ip, test->expected_port,
+			(struct sockaddr *)expected_addr, addr_len) == -1)
+		goto err;
+
+	if (mk_sockaddr(test->domain, test->requested_ip, test->requested_port,
+			(struct sockaddr *)requested_addr, addr_len) == -1)
+		goto err;
+
+	if (test->expected_src_ip &&
+	    mk_sockaddr(test->domain, test->expected_src_ip, 0,
+			(struct sockaddr *)expected_src_addr, addr_len) == -1)
+		goto err;
 
 	return 0;
 err:
-	close(fd);
 	return -1;
 }
 
-static void print_test_case_num(int domain, int type)
+static int run_bind_test_case(const struct sock_addr_test *test)
 {
-	static int test_num;
-
-	printf("Test case #%d (%s/%s):\n", ++test_num,
-	       (domain == AF_INET ? "IPv4" :
-		domain == AF_INET6 ? "IPv6" :
-		"unknown_domain"),
-	       (type == SOCK_STREAM ? "TCP" :
-		type == SOCK_DGRAM ? "UDP" :
-		"unknown_type"));
-}
-
-static int run_test_case(int domain, int type, const char *ip,
-			 unsigned short port)
-{
-	struct sockaddr_storage addr;
-	socklen_t addr_len = sizeof(addr);
+	socklen_t addr_len = sizeof(struct sockaddr_storage);
+	struct sockaddr_storage requested_addr;
+	struct sockaddr_storage expected_addr;
+	int clientfd = -1;
 	int servfd = -1;
 	int err = 0;
 
-	print_test_case_num(domain, type);
+	if (init_addrs(test, &requested_addr, &expected_addr, NULL))
+		goto err;
 
-	if (mk_sockaddr(domain, ip, port, (struct sockaddr *)&addr,
-			addr_len) == -1)
-		return -1;
-
-	printf("\tRequested: bind(%s, %d) ..\n", ip, port);
-	servfd = start_server(type, &addr, addr_len);
+	servfd = start_server(test->type, &requested_addr, addr_len);
 	if (servfd == -1)
 		goto err;
 
-	printf("\tRequested: connect(%s, %d) from (*, *) ..\n", ip, port);
-	if (connect_to_server(type, &addr, addr_len))
+	if (cmp_local_addr(servfd, &expected_addr))
+		goto err;
+
+	/* Try to connect to server just in case */
+	clientfd = connect_to_server(test->type, &expected_addr, addr_len);
+	if (clientfd == -1)
 		goto err;
 
 	goto out;
 err:
 	err = -1;
 out:
+	close(clientfd);
 	close(servfd);
 	return err;
 }
 
-static void close_progs_fds(struct program *progs, size_t prog_cnt)
+static int run_connect_test_case(const struct sock_addr_test *test)
 {
-	size_t i;
-
-	for (i = 0; i < prog_cnt; ++i) {
-		close(progs[i].fd);
-		progs[i].fd = -1;
-	}
-}
-
-static int load_and_attach_progs(int cgfd, struct program *progs,
-				 size_t prog_cnt)
-{
-	size_t i;
-
-	for (i = 0; i < prog_cnt; ++i) {
-		printf("Load %s with invalid type (can pollute stderr) ",
-		       progs[i].name);
-		fflush(stdout);
-		progs[i].fd = progs[i].loadfn(progs[i].invalid_type, NULL);
-		if (progs[i].fd != -1) {
-			log_err("Load with invalid type accepted for %s",
-				progs[i].name);
-			goto err;
-		}
-		printf("... REJECTED\n");
-
-		printf("Load %s with valid type", progs[i].name);
-		progs[i].fd = progs[i].loadfn(progs[i].type, progs[i].name);
-		if (progs[i].fd == -1) {
-			log_err("Failed to load program %s", progs[i].name);
-			goto err;
-		}
-		printf(" ... OK\n");
-
-		printf("Attach %s with invalid type", progs[i].name);
-		if (bpf_prog_attach(progs[i].fd, cgfd, progs[i].invalid_type,
-				    BPF_F_ALLOW_OVERRIDE) != -1) {
-			log_err("Attach with invalid type accepted for %s",
-				progs[i].name);
-			goto err;
-		}
-		printf(" ... REJECTED\n");
-
-		printf("Attach %s with valid type", progs[i].name);
-		if (bpf_prog_attach(progs[i].fd, cgfd, progs[i].type,
-				    BPF_F_ALLOW_OVERRIDE) == -1) {
-			log_err("Failed to attach program %s", progs[i].name);
-			goto err;
-		}
-		printf(" ... OK\n");
-	}
-
-	return 0;
-err:
-	close_progs_fds(progs, prog_cnt);
-	return -1;
-}
-
-static int run_domain_test(int domain, int cgfd, struct program *progs,
-			   size_t prog_cnt, const char *ip, unsigned short port)
-{
+	socklen_t addr_len = sizeof(struct sockaddr_storage);
+	struct sockaddr_storage expected_src_addr;
+	struct sockaddr_storage requested_addr;
+	struct sockaddr_storage expected_addr;
+	int clientfd = -1;
+	int servfd = -1;
 	int err = 0;
 
-	if (load_and_attach_progs(cgfd, progs, prog_cnt) == -1)
+	if (init_addrs(test, &requested_addr, &expected_addr,
+		       &expected_src_addr))
 		goto err;
 
-	if (run_test_case(domain, SOCK_STREAM, ip, port) == -1)
+	/* Prepare server to connect to */
+	servfd = start_server(test->type, &expected_addr, addr_len);
+	if (servfd == -1)
 		goto err;
 
-	if (run_test_case(domain, SOCK_DGRAM, ip, port) == -1)
+	clientfd = connect_to_server(test->type, &requested_addr, addr_len);
+	if (clientfd == -1)
+		goto err;
+
+	/* Make sure src and dst addrs were overridden properly */
+	if (cmp_peer_addr(clientfd, &expected_addr))
+		goto err;
+
+	if (cmp_local_ip(clientfd, &expected_src_addr))
 		goto err;
 
 	goto out;
 err:
 	err = -1;
 out:
-	close_progs_fds(progs, prog_cnt);
+	close(clientfd);
+	close(servfd);
 	return err;
 }
 
-static int run_test(void)
+static int run_test_case(int cgfd, const struct sock_addr_test *test)
 {
-	size_t inet6_prog_cnt;
-	size_t inet_prog_cnt;
+	int progfd = -1;
+	int err = 0;
+
+	printf("Test case: %s .. ", test->descr);
+
+	progfd = test->loadfn(test);
+	if (test->expected_result == LOAD_REJECT && progfd < 0)
+		goto out;
+	else if (test->expected_result == LOAD_REJECT || progfd < 0)
+		goto err;
+
+	err = bpf_prog_attach(progfd, cgfd, test->attach_type,
+			      BPF_F_ALLOW_OVERRIDE);
+	if (test->expected_result == ATTACH_REJECT && err) {
+		err = 0; /* error was expected, reset it */
+		goto out;
+	} else if (test->expected_result == ATTACH_REJECT || err) {
+		goto err;
+	}
+
+	switch (test->attach_type) {
+	case BPF_CGROUP_INET4_BIND:
+	case BPF_CGROUP_INET6_BIND:
+		err = run_bind_test_case(test);
+		break;
+	case BPF_CGROUP_INET4_CONNECT:
+	case BPF_CGROUP_INET6_CONNECT:
+		err = run_connect_test_case(test);
+		break;
+	default:
+		goto err;
+	}
+
+	if (err || test->expected_result != SUCCESS)
+		goto err;
+
+	goto out;
+err:
+	err = -1;
+out:
+	/* Detaching w/o checking return code: best effort attempt. */
+	if (progfd != -1)
+		bpf_prog_detach(cgfd, test->attach_type);
+	close(progfd);
+	printf("[%s]\n", err ? "FAIL" : "PASS");
+	return err;
+}
+
+static int run_tests(int cgfd)
+{
+	int passes = 0;
+	int fails = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(tests); ++i) {
+		if (run_test_case(cgfd, &tests[i]))
+			++fails;
+		else
+			++passes;
+	}
+	printf("Summary: %d PASSED, %d FAILED\n", passes, fails);
+	return fails ? -1 : 0;
+}
+
+int main(int argc, char **argv)
+{
 	int cgfd = -1;
 	int err = 0;
 
-	struct program inet6_progs[] = {
-		{BPF_CGROUP_INET6_BIND, bind6_prog_load, -1, "bind6",
-		 BPF_CGROUP_INET4_BIND},
-		{BPF_CGROUP_INET6_CONNECT, connect6_prog_load, -1, "connect6",
-		 BPF_CGROUP_INET4_CONNECT},
-	};
-	inet6_prog_cnt = sizeof(inet6_progs) / sizeof(struct program);
-
-	struct program inet_progs[] = {
-		{BPF_CGROUP_INET4_BIND, bind4_prog_load, -1, "bind4",
-		 BPF_CGROUP_INET6_BIND},
-		{BPF_CGROUP_INET4_CONNECT, connect4_prog_load, -1, "connect4",
-		 BPF_CGROUP_INET6_CONNECT},
-	};
-	inet_prog_cnt = sizeof(inet_progs) / sizeof(struct program);
+	if (argc < 2) {
+		fprintf(stderr,
+			"%s has to be run via %s.sh. Skip direct run.\n",
+			argv[0], argv[0]);
+		exit(err);
+	}
 
 	if (setup_cgroup_environment())
 		goto err;
@@ -559,12 +841,7 @@ static int run_test(void)
 	if (join_cgroup(CG_PATH))
 		goto err;
 
-	if (run_domain_test(AF_INET, cgfd, inet_progs, inet_prog_cnt, SERV4_IP,
-			    SERV4_PORT) == -1)
-		goto err;
-
-	if (run_domain_test(AF_INET6, cgfd, inet6_progs, inet6_prog_cnt,
-			    SERV6_IP, SERV6_PORT) == -1)
+	if (run_tests(cgfd))
 		goto err;
 
 	goto out;
@@ -573,17 +850,5 @@ err:
 out:
 	close(cgfd);
 	cleanup_cgroup_environment();
-	printf(err ? "### FAIL\n" : "### SUCCESS\n");
 	return err;
-}
-
-int main(int argc, char **argv)
-{
-	if (argc < 2) {
-		fprintf(stderr,
-			"%s has to be run via %s.sh. Skip direct run.\n",
-			argv[0], argv[0]);
-		exit(0);
-	}
-	return run_test();
 }
