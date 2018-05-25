@@ -6503,9 +6503,15 @@ F:	Documentation/networking/hinic.txt
 F:	drivers/net/ethernet/huawei/hinic/
 
 HUGETLB FILESYSTEM
-M:	Nadia Yvette Chambers <nyc@holomorphy.com>
+M:	Mike Kravetz <mike.kravetz@oracle.com>
+L:	linux-mm@kvack.org
 S:	Maintained
 F:	fs/hugetlbfs/
+F:	mm/hugetlb.c
+F:	include/linux/hugetlb.h
+F:	Documentation/admin-guide/mm/hugetlbpage.rst
+F:	Documentation/vm/hugetlbfs_reserv.rst
+F:	Documentation/ABI/testing/sysfs-kernel-mm-hugepages
 
 HVA ST MEDIA DRIVER
 M:	Jean-Christophe Trotin <jean-christophe.trotin@st.com>
