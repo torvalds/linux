@@ -126,6 +126,29 @@ out:
 	nvmet_req_complete(req, status);
 }
 
+static void nvmet_execute_get_log_changed_ns(struct nvmet_req *req)
+{
+	struct nvmet_ctrl *ctrl = req->sq->ctrl;
+	u16 status = NVME_SC_INTERNAL;
+	size_t len;
+
+	if (req->data_len != NVME_MAX_CHANGED_NAMESPACES * sizeof(__le32))
+		goto out;
+
+	mutex_lock(&ctrl->lock);
+	if (ctrl->nr_changed_ns == U32_MAX)
+		len = sizeof(__le32);
+	else
+		len = ctrl->nr_changed_ns * sizeof(__le32);
+	status = nvmet_copy_to_sgl(req, 0, ctrl->changed_ns_list, len);
+	if (!status)
+		status = nvmet_zero_sgl(req, len, req->data_len - len);
+	ctrl->nr_changed_ns = 0;
+	mutex_unlock(&ctrl->lock);
+out:
+	nvmet_req_complete(req, status);
+}
+
 static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 {
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
@@ -542,6 +565,9 @@ u16 nvmet_parse_admin_cmd(struct nvmet_req *req)
 			 * log page.
 			 */
 			req->execute = nvmet_execute_get_log_page_noop;
+			return 0;
+		case NVME_LOG_CHANGED_NS:
+			req->execute = nvmet_execute_get_log_changed_ns;
 			return 0;
 		}
 		break;

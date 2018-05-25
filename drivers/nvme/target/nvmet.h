@@ -135,6 +135,9 @@ struct nvmet_ctrl {
 
 	const struct nvmet_fabrics_ops *ops;
 
+	__le32			*changed_ns_list;
+	u32			nr_changed_ns;
+
 	char			subsysnqn[NVMF_NQN_FIELD_LEN];
 	char			hostnqn[NVMF_NQN_FIELD_LEN];
 };
