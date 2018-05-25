@@ -354,8 +354,6 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 		fl4.fl4_dport = 0;
 	}
 
-	trace_fib_validate_source(dev, &fl4);
-
 	if (fib_lookup(net, &fl4, &res, 0))
 		goto last_resort;
 	if (res.type != RTN_UNICAST &&

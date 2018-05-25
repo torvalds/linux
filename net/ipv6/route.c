@@ -64,13 +64,18 @@
 #include <net/ip_tunnels.h>
 #include <net/l3mdev.h>
 #include <net/ip.h>
-#include <trace/events/fib6.h>
-
 #include <linux/uaccess.h>
 
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
 #endif
+
+static int ip6_rt_type_to_error(u8 fib6_type);
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/fib6.h>
+EXPORT_TRACEPOINT_SYMBOL_GPL(fib6_table_lookup);
+#undef CREATE_TRACE_POINTS
 
 enum rt6_nud_state {
 	RT6_NUD_FAIL_HARD = -3,
