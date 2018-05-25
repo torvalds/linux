@@ -778,14 +778,13 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 	eeh_pe_update_time_stamp(pe);
 	pe->freeze_count++;
 	if (pe->freeze_count > eeh_max_freezes) {
-		pr_err("EEH: PHB#%x-PE#%x has failed %d times in the\n"
-		       "last hour and has been permanently disabled.\n",
+		pr_err("EEH: PHB#%x-PE#%x has failed %d times in the last hour and has been permanently disabled.\n",
 		       pe->phb->global_number, pe->addr,
 		       pe->freeze_count);
 		goto hard_fail;
 	}
-	pr_warn("EEH: This PCI device has failed %d times in the last hour\n",
-		pe->freeze_count);
+	pr_warn("EEH: This PCI device has failed %d times in the last hour and will be permanently disabled after %d failures.\n",
+		pe->freeze_count, eeh_max_freezes);
 
 	/* Walk the various device drivers attached to this slot through
 	 * a reset sequence, giving each an opportunity to do what it needs
@@ -911,6 +910,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 	pr_info("EEH: Notify device driver to resume\n");
 	eeh_pe_dev_traverse(pe, eeh_report_resume, NULL);
 
+	pr_info("EEH: Recovery successful.\n");
 	goto final;
 
 hard_fail:
