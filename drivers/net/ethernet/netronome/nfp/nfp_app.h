@@ -90,6 +90,9 @@ extern const struct nfp_app_type app_abm;
  * @repr_stop:	representor netdev stop callback
  * @check_mtu:	MTU change request on a netdev (verify it is valid)
  * @repr_change_mtu:	MTU change request on repr (make and verify change)
+ * @port_get_stats:		get extra ethtool statistics for a port
+ * @port_get_stats_count:	get count of extra statistics for a port
+ * @port_get_stats_strings:	get strings for extra statistics
  * @start:	start application logic
  * @stop:	stop application logic
  * @ctrl_msg_rx:    control message handler
@@ -131,6 +134,12 @@ struct nfp_app_type {
 			 int new_mtu);
 	int (*repr_change_mtu)(struct nfp_app *app, struct net_device *netdev,
 			       int new_mtu);
+
+	u64 *(*port_get_stats)(struct nfp_app *app,
+			       struct nfp_port *port, u64 *data);
+	int (*port_get_stats_count)(struct nfp_app *app, struct nfp_port *port);
+	u8 *(*port_get_stats_strings)(struct nfp_app *app,
+				      struct nfp_port *port, u8 *data);
 
 	int (*start)(struct nfp_app *app);
 	void (*stop)(struct nfp_app *app);
@@ -403,6 +412,10 @@ static inline struct net_device *nfp_app_repr_get(struct nfp_app *app, u32 id)
 }
 
 struct nfp_app *nfp_app_from_netdev(struct net_device *netdev);
+
+u64 *nfp_app_port_get_stats(struct nfp_port *port, u64 *data);
+int nfp_app_port_get_stats_count(struct nfp_port *port);
+u8 *nfp_app_port_get_stats_strings(struct nfp_port *port, u8 *data);
 
 struct nfp_reprs *
 nfp_reprs_get_locked(struct nfp_app *app, enum nfp_repr_type type);
