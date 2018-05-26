@@ -889,7 +889,8 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 	}
 
 	/* finally update i_version */
-	ci->i_version = le64_to_cpu(info->version);
+	if (le64_to_cpu(info->version) > ci->i_version)
+		ci->i_version = le64_to_cpu(info->version);
 
 	inode->i_mapping->a_ops = &ceph_aops;
 
