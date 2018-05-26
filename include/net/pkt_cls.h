@@ -781,11 +781,13 @@ struct tc_qopt_offload_stats {
 enum tc_mq_command {
 	TC_MQ_CREATE,
 	TC_MQ_DESTROY,
+	TC_MQ_STATS,
 };
 
 struct tc_mq_qopt_offload {
 	enum tc_mq_command command;
 	u32 handle;
+	struct tc_qopt_offload_stats stats;
 };
 
 enum tc_red_command {
