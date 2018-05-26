@@ -106,6 +106,9 @@ struct nfp_red_qdisc {
  * @vnic:	data vNIC
  * @id:		id of the data vNIC
  * @queue_base:	id of base to host queue within PCIe (not QC idx)
+ * @total_queues:	number of PF queues
+ * @parent:	handle of expected parent, i.e. handle of MQ, or TC_H_ROOT
+ * @num_qdiscs:	number of currently used qdiscs
  * @qdiscs:	array of qdiscs
  */
 struct nfp_abm_link {
@@ -113,16 +116,25 @@ struct nfp_abm_link {
 	struct nfp_net *vnic;
 	unsigned int id;
 	unsigned int queue_base;
-	struct nfp_red_qdisc qdiscs[1];
+	unsigned int total_queues;
+	u32 parent;
+	unsigned int num_qdiscs;
+	struct nfp_red_qdisc *qdiscs;
 };
 
 void nfp_abm_ctrl_read_params(struct nfp_abm_link *alink);
 int nfp_abm_ctrl_find_addrs(struct nfp_abm *abm);
 int nfp_abm_ctrl_set_all_q_lvls(struct nfp_abm_link *alink, u32 val);
+int nfp_abm_ctrl_set_q_lvl(struct nfp_abm_link *alink, unsigned int i,
+			   u32 val);
 int nfp_abm_ctrl_read_stats(struct nfp_abm_link *alink,
 			    struct nfp_alink_stats *stats);
+int nfp_abm_ctrl_read_q_stats(struct nfp_abm_link *alink, unsigned int i,
+			      struct nfp_alink_stats *stats);
 int nfp_abm_ctrl_read_xstats(struct nfp_abm_link *alink,
 			     struct nfp_alink_xstats *xstats);
+int nfp_abm_ctrl_read_q_xstats(struct nfp_abm_link *alink, unsigned int i,
+			       struct nfp_alink_xstats *xstats);
 u64 nfp_abm_ctrl_stat_non_sto(struct nfp_abm_link *alink, unsigned int i);
 u64 nfp_abm_ctrl_stat_sto(struct nfp_abm_link *alink, unsigned int i);
 int nfp_abm_ctrl_qm_enable(struct nfp_abm *abm);

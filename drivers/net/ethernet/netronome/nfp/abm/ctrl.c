@@ -111,8 +111,7 @@ nfp_abm_ctrl_stat_all(struct nfp_abm_link *alink, const struct nfp_rtsym *sym,
 	return 0;
 }
 
-static int
-nfp_abm_ctrl_set_q_lvl(struct nfp_abm_link *alink, unsigned int i, u32 val)
+int nfp_abm_ctrl_set_q_lvl(struct nfp_abm_link *alink, unsigned int i, u32 val)
 {
 	struct nfp_cpp *cpp = alink->abm->app->cpp;
 	u32 muw;
@@ -164,6 +163,37 @@ u64 nfp_abm_ctrl_stat_sto(struct nfp_abm_link *alink, unsigned int i)
 	return val;
 }
 
+int nfp_abm_ctrl_read_q_stats(struct nfp_abm_link *alink, unsigned int i,
+			      struct nfp_alink_stats *stats)
+{
+	int err;
+
+	stats->tx_pkts = nn_readq(alink->vnic, NFP_NET_CFG_RXR_STATS(i));
+	stats->tx_bytes = nn_readq(alink->vnic, NFP_NET_CFG_RXR_STATS(i) + 8);
+
+	err = nfp_abm_ctrl_stat(alink, alink->abm->q_lvls,
+				NFP_QLVL_STRIDE, NFP_QLVL_BLOG_BYTES,
+				i, false, &stats->backlog_bytes);
+	if (err)
+		return err;
+
+	err = nfp_abm_ctrl_stat(alink, alink->abm->q_lvls,
+				NFP_QLVL_STRIDE, NFP_QLVL_BLOG_PKTS,
+				i, false, &stats->backlog_pkts);
+	if (err)
+		return err;
+
+	err = nfp_abm_ctrl_stat(alink, alink->abm->qm_stats,
+				NFP_QMSTAT_STRIDE, NFP_QMSTAT_DROP,
+				i, true, &stats->drops);
+	if (err)
+		return err;
+
+	return nfp_abm_ctrl_stat(alink, alink->abm->qm_stats,
+				 NFP_QMSTAT_STRIDE, NFP_QMSTAT_ECN,
+				 i, true, &stats->overlimits);
+}
+
 int nfp_abm_ctrl_read_stats(struct nfp_abm_link *alink,
 			    struct nfp_alink_stats *stats)
 {
@@ -198,6 +228,22 @@ int nfp_abm_ctrl_read_stats(struct nfp_abm_link *alink,
 	return nfp_abm_ctrl_stat_all(alink, alink->abm->qm_stats,
 				     NFP_QMSTAT_STRIDE, NFP_QMSTAT_ECN,
 				     true, &stats->overlimits);
+}
+
+int nfp_abm_ctrl_read_q_xstats(struct nfp_abm_link *alink, unsigned int i,
+			       struct nfp_alink_xstats *xstats)
+{
+	int err;
+
+	err = nfp_abm_ctrl_stat(alink, alink->abm->qm_stats,
+				NFP_QMSTAT_STRIDE, NFP_QMSTAT_DROP,
+				i, true, &xstats->pdrop);
+	if (err)
+		return err;
+
+	return nfp_abm_ctrl_stat(alink, alink->abm->qm_stats,
+				 NFP_QMSTAT_STRIDE, NFP_QMSTAT_ECN,
+				 i, true, &xstats->ecn_marked);
 }
 
 int nfp_abm_ctrl_read_xstats(struct nfp_abm_link *alink,
