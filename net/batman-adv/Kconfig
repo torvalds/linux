@@ -33,7 +33,7 @@ config BATMAN_ADV
           tools.
 
 config BATMAN_ADV_BATMAN_V
-	bool "B.A.T.M.A.N. V protocol (experimental)"
+	bool "B.A.T.M.A.N. V protocol"
 	depends on BATMAN_ADV && !(CFG80211=m && BATMAN_ADV=y)
 	default y
 	help
