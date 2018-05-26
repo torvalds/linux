@@ -1523,7 +1523,7 @@ out:
 
 	if (!ret && primary_if)
 		*primary_if = hard_iface;
-	else
+	else if (hard_iface)
 		batadv_hardif_put(hard_iface);
 
 	return ret;

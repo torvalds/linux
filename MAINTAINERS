@@ -2332,7 +2332,7 @@ F:	drivers/gpio/gpio-ath79.c
 F:	Documentation/devicetree/bindings/gpio/gpio-ath79.txt
 
 ATHEROS ATH GENERIC UTILITIES
-M:	"Luis R. Rodriguez" <mcgrof@do-not-panic.com>
+M:	Kalle Valo <kvalo@codeaurora.org>
 L:	linux-wireless@vger.kernel.org
 S:	Supported
 F:	drivers/net/wireless/ath/*
@@ -2347,7 +2347,7 @@ S:	Maintained
 F:	drivers/net/wireless/ath/ath5k/
 
 ATHEROS ATH6KL WIRELESS DRIVER
-M:	Kalle Valo <kvalo@qca.qualcomm.com>
+M:	Kalle Valo <kvalo@codeaurora.org>
 L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/en/users/Drivers/ath6kl
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvalo/ath.git
@@ -5386,7 +5386,6 @@ S:	Maintained
 F:	drivers/iommu/exynos-iommu.c
 
 EZchip NPS platform support
-M:	Elad Kanfi <eladkan@mellanox.com>
 M:	Vineet Gupta <vgupta@synopsys.com>
 S:	Supported
 F:	arch/arc/plat-eznps
@@ -6502,9 +6501,15 @@ F:	Documentation/networking/hinic.txt
 F:	drivers/net/ethernet/huawei/hinic/
 
 HUGETLB FILESYSTEM
-M:	Nadia Yvette Chambers <nyc@holomorphy.com>
+M:	Mike Kravetz <mike.kravetz@oracle.com>
+L:	linux-mm@kvack.org
 S:	Maintained
 F:	fs/hugetlbfs/
+F:	mm/hugetlb.c
+F:	include/linux/hugetlb.h
+F:	Documentation/admin-guide/mm/hugetlbpage.rst
+F:	Documentation/vm/hugetlbfs_reserv.rst
+F:	Documentation/ABI/testing/sysfs-kernel-mm-hugepages
 
 HVA ST MEDIA DRIVER
 M:	Jean-Christophe Trotin <jean-christophe.trotin@st.com>
@@ -9020,7 +9025,7 @@ Q:	http://patchwork.ozlabs.org/project/netdev/list/
 F:	drivers/net/ethernet/mellanox/mlx5/core/en_*
 
 MELLANOX ETHERNET INNOVA DRIVERS
-M:	Boris Pismenny <borisp@mellanox.com>
+R:	Boris Pismenny <borisp@mellanox.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 W:	http://www.mellanox.com
@@ -9029,6 +9034,15 @@ F:	drivers/net/ethernet/mellanox/mlx5/core/en_accel/*
 F:	drivers/net/ethernet/mellanox/mlx5/core/accel/*
 F:	drivers/net/ethernet/mellanox/mlx5/core/fpga/*
 F:	include/linux/mlx5/mlx5_ifc_fpga.h
+
+MELLANOX ETHERNET INNOVA IPSEC DRIVER
+R:	Boris Pismenny <borisp@mellanox.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+W:	http://www.mellanox.com
+Q:	http://patchwork.ozlabs.org/project/netdev/list/
+F:	drivers/net/ethernet/mellanox/mlx5/core/en_ipsec/*
+F:	drivers/net/ethernet/mellanox/mlx5/core/ipsec*
 
 MELLANOX ETHERNET SWITCH DRIVERS
 M:	Jiri Pirko <jiri@mellanox.com>
@@ -9077,7 +9091,6 @@ F:	include/uapi/rdma/mlx4-abi.h
 
 MELLANOX MLX5 core VPI driver
 M:	Saeed Mahameed <saeedm@mellanox.com>
-M:	Matan Barak <matanb@mellanox.com>
 M:	Leon Romanovsky <leonro@mellanox.com>
 L:	netdev@vger.kernel.org
 L:	linux-rdma@vger.kernel.org
@@ -9088,7 +9101,6 @@ F:	drivers/net/ethernet/mellanox/mlx5/core/
 F:	include/linux/mlx5/
 
 MELLANOX MLX5 IB driver
-M:	Matan Barak <matanb@mellanox.com>
 M:	Leon Romanovsky <leonro@mellanox.com>
 L:	linux-rdma@vger.kernel.org
 W:	http://www.mellanox.com
@@ -11628,7 +11640,7 @@ S:	Maintained
 F:	drivers/media/tuners/qt1010*
 
 QUALCOMM ATHEROS ATH10K WIRELESS DRIVER
-M:	Kalle Valo <kvalo@qca.qualcomm.com>
+M:	Kalle Valo <kvalo@codeaurora.org>
 L:	ath10k@lists.infradead.org
 W:	http://wireless.kernel.org/en/users/Drivers/ath10k
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvalo/ath.git
@@ -11679,7 +11691,7 @@ S:	Maintained
 F:	drivers/media/platform/qcom/venus/
 
 QUALCOMM WCN36XX WIRELESS DRIVER
-M:	Eugene Krasnikov <k.eugene.e@gmail.com>
+M:	Kalle Valo <kvalo@codeaurora.org>
 L:	wcn36xx@lists.infradead.org
 W:	http://wireless.kernel.org/en/users/Drivers/wcn36xx
 T:	git git://github.com/KrasnikovEugene/wcn36xx.git

@@ -910,7 +910,6 @@ int vmw_fb_init(struct vmw_private *vmw_priv);
 int vmw_fb_close(struct vmw_private *dev_priv);
 int vmw_fb_off(struct vmw_private *vmw_priv);
 int vmw_fb_on(struct vmw_private *vmw_priv);
-void vmw_fb_refresh(struct vmw_private *vmw_priv);
 
 /**
  * Kernel modesetting - vmwgfx_kms.c

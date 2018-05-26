@@ -15817,7 +15817,8 @@ void cfg80211_ft_event(struct net_device *netdev,
 	if (!ft_event->target_ap)
 		return;
 
-	msg = nlmsg_new(100 + ft_event->ric_ies_len, GFP_KERNEL);
+	msg = nlmsg_new(100 + ft_event->ies_len + ft_event->ric_ies_len,
+			GFP_KERNEL);
 	if (!msg)
 		return;
 
