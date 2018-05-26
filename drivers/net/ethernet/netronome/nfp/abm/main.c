@@ -497,6 +497,53 @@ static void nfp_abm_vnic_free(struct nfp_app *app, struct nfp_net *nn)
 	kfree(alink);
 }
 
+static u64 *
+nfp_abm_port_get_stats(struct nfp_app *app, struct nfp_port *port, u64 *data)
+{
+	struct nfp_repr *repr = netdev_priv(port->netdev);
+	struct nfp_abm_link *alink;
+	unsigned int i;
+
+	if (port->type != NFP_PORT_PF_PORT)
+		return data;
+	alink = repr->app_priv;
+	for (i = 0; i < alink->vnic->dp.num_r_vecs; i++) {
+		*data++ = nfp_abm_ctrl_stat_non_sto(alink, i);
+		*data++ = nfp_abm_ctrl_stat_sto(alink, i);
+	}
+	return data;
+}
+
+static int
+nfp_abm_port_get_stats_count(struct nfp_app *app, struct nfp_port *port)
+{
+	struct nfp_repr *repr = netdev_priv(port->netdev);
+	struct nfp_abm_link *alink;
+
+	if (port->type != NFP_PORT_PF_PORT)
+		return 0;
+	alink = repr->app_priv;
+	return alink->vnic->dp.num_r_vecs * 2;
+}
+
+static u8 *
+nfp_abm_port_get_stats_strings(struct nfp_app *app, struct nfp_port *port,
+			       u8 *data)
+{
+	struct nfp_repr *repr = netdev_priv(port->netdev);
+	struct nfp_abm_link *alink;
+	unsigned int i;
+
+	if (port->type != NFP_PORT_PF_PORT)
+		return data;
+	alink = repr->app_priv;
+	for (i = 0; i < alink->vnic->dp.num_r_vecs; i++) {
+		data = nfp_pr_et(data, "q%u_no_wait", i);
+		data = nfp_pr_et(data, "q%u_delayed", i);
+	}
+	return data;
+}
+
 static int nfp_abm_init(struct nfp_app *app)
 {
 	struct nfp_pf *pf = app->pf;
@@ -574,6 +621,10 @@ const struct nfp_app_type app_abm = {
 
 	.vnic_alloc	= nfp_abm_vnic_alloc,
 	.vnic_free	= nfp_abm_vnic_free,
+
+	.port_get_stats		= nfp_abm_port_get_stats,
+	.port_get_stats_count	= nfp_abm_port_get_stats_count,
+	.port_get_stats_strings	= nfp_abm_port_get_stats_strings,
 
 	.setup_tc	= nfp_abm_setup_tc,
 

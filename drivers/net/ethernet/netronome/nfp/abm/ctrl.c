@@ -50,6 +50,8 @@
 
 #define NFP_QMSTAT_SYM_NAME	"_abi_nfdqm%u_stats"
 #define NFP_QMSTAT_STRIDE	32
+#define NFP_QMSTAT_NON_STO	0
+#define NFP_QMSTAT_STO		8
 #define NFP_QMSTAT_DROP		16
 #define NFP_QMSTAT_ECN		24
 
@@ -140,6 +142,26 @@ int nfp_abm_ctrl_set_all_q_lvls(struct nfp_abm_link *alink, u32 val)
 	}
 
 	return 0;
+}
+
+u64 nfp_abm_ctrl_stat_non_sto(struct nfp_abm_link *alink, unsigned int i)
+{
+	u64 val;
+
+	if (nfp_abm_ctrl_stat(alink, alink->abm->qm_stats, NFP_QMSTAT_STRIDE,
+			      NFP_QMSTAT_NON_STO, i, true, &val))
+		return 0;
+	return val;
+}
+
+u64 nfp_abm_ctrl_stat_sto(struct nfp_abm_link *alink, unsigned int i)
+{
+	u64 val;
+
+	if (nfp_abm_ctrl_stat(alink, alink->abm->qm_stats, NFP_QMSTAT_STRIDE,
+			      NFP_QMSTAT_STO, i, true, &val))
+		return 0;
+	return val;
 }
 
 int nfp_abm_ctrl_read_stats(struct nfp_abm_link *alink,
