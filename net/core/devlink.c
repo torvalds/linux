@@ -1826,7 +1826,6 @@ send_done:
 nla_put_failure:
 	err = -EMSGSIZE;
 err_table_put:
-	genlmsg_cancel(skb, hdr);
 	nlmsg_free(skb);
 	return err;
 }
@@ -2032,7 +2031,6 @@ int devlink_dpipe_entry_ctx_prepare(struct devlink_dpipe_dump_ctx *dump_ctx)
 	return 0;
 
 nla_put_failure:
-	genlmsg_cancel(dump_ctx->skb, dump_ctx->hdr);
 	nlmsg_free(dump_ctx->skb);
 	return -EMSGSIZE;
 }
@@ -2249,7 +2247,6 @@ send_done:
 nla_put_failure:
 	err = -EMSGSIZE;
 err_table_put:
-	genlmsg_cancel(skb, hdr);
 	nlmsg_free(skb);
 	return err;
 }
@@ -2551,7 +2548,6 @@ nla_put_failure:
 	err = -EMSGSIZE;
 err_resource_put:
 err_skb_send_alloc:
-	genlmsg_cancel(skb, hdr);
 	nlmsg_free(skb);
 	return err;
 }

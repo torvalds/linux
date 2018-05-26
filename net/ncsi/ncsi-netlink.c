@@ -201,7 +201,6 @@ static int ncsi_pkg_info_nl(struct sk_buff *msg, struct genl_info *info)
 	return genlmsg_reply(skb, info);
 
 err:
-	genlmsg_cancel(skb, hdr);
 	kfree_skb(skb);
 	return rc;
 }
