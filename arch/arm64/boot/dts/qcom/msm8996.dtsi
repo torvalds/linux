@@ -654,8 +654,6 @@
 			clocks = <&rpmcc RPM_SMD_LN_BB_CLK>,
 				 <&gcc GCC_UFS_CLKREF_CLK>;
 			status = "disabled";
-
-			power-domains = <&gcc UFS_GDSC>;
 		};
 
 		ufshc@624000 {
@@ -673,6 +671,8 @@
 			vcc-max-microamp = <600000>;
 			vccq-max-microamp = <450000>;
 			vccq2-max-microamp = <450000>;
+
+			power-domains = <&gcc UFS_GDSC>;
 
 			clock-names =
 				"core_clk_src",

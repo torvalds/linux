@@ -179,19 +179,6 @@
 			pinctrl-0 = <&usb2_vbus_det_gpio>;
 		};
 
-		bt_en: bt-en-1-8v {
-			pinctrl-names = "default";
-			pinctrl-0 = <&bt_en_gpios>;
-			compatible = "regulator-fixed";
-			regulator-name = "bt-en-regulator";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-
-			/* WLAN card specific delay */
-			startup-delay-us = <70000>;
-			enable-active-high;
-		};
-
 		wlan_en: wlan-en-1-8v {
 			pinctrl-names = "default";
 			pinctrl-0 = <&wlan_en_gpios>;
@@ -211,8 +198,7 @@
 			pcie@600000 {
 				status = "okay";
 				perst-gpio = <&msmgpio 35 GPIO_ACTIVE_LOW>;
-				vddpe-supply = <&wlan_en>;
-				vddpe1-supply = <&bt_en>;
+				vddpe-3v3-supply = <&wlan_en>;
 			};
 
 			pcie@608000 {
