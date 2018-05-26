@@ -49,11 +49,13 @@ struct nfp_net;
  * @pf_id:	ID of our PF link
  * @eswitch_mode:	devlink eswitch mode, advanced functions only visible
  *			in switchdev mode
+ * @q_lvls:	queue level control area
  */
 struct nfp_abm {
 	struct nfp_app *app;
 	unsigned int pf_id;
 	enum devlink_eswitch_mode eswitch_mode;
+	const struct nfp_rtsym *q_lvls;
 };
 
 /**
@@ -72,6 +74,7 @@ struct nfp_abm_link {
 
 void nfp_abm_ctrl_read_params(struct nfp_abm_link *alink);
 int nfp_abm_ctrl_find_addrs(struct nfp_abm *abm);
+int nfp_abm_ctrl_set_all_q_lvls(struct nfp_abm_link *alink, u32 val);
 int nfp_abm_ctrl_qm_enable(struct nfp_abm *abm);
 int nfp_abm_ctrl_qm_disable(struct nfp_abm *abm);
 #endif
