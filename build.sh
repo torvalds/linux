@@ -10,6 +10,11 @@ crosscompile=0
 if [[ -z $(cat /proc/cpuinfo | grep -i 'model name.*ArmV7') ]]; then
 	if [[ -z "$(which arm-linux-gnueabihf-gcc)" ]];then echo "please install gcc-arm-linux-gnueabihf";exit 1;fi
 
+	CCVER=$(arm-linux-gnueabihf-gcc --version |grep arm| sed -e 's/^.* \([0-9]\.[0-9-]\).*$/\1/')
+	if [[ $CCVER =~ ^7 ]]; then
+		echo "arm-linux-gnueabihf-gcc version 7 currently not supported";exit 1;
+	fi
+
 	export ARCH=arm;export CROSS_COMPILE='ccache arm-linux-gnueabihf-'
 	crosscompile=1
 fi;
@@ -39,8 +44,15 @@ function pack {
 }
 
 function install {
+
+	imagename="uImage_${kernver}-${gitbranch}"
+	read -e -i $imagename -p "uImage-filename: " input
+	imagename="${input:-$imagename}"
+
+	echo "Name: $imagename"
+
 	if [[ $crosscompile -eq 0 ]]; then
-		kernelfile=/boot/bananapi/bpi-r2/linux/uImage
+		kernelfile=/boot/bananapi/bpi-r2/linux/$imagename
 		if [[ -e $kernelfile ]];then
 			echo "backup of kernel: $kernelfile.bak"
 			cp $kernelfile $kernelfile.bak
@@ -50,15 +62,17 @@ function install {
 			echo "actual Kernel not found...is /boot mounted?"
 		fi
 	else
+		echo "by default this kernel-file will be loaded (uEnv.txt):"
+		grep '^kernel=' /media/${USER}/BPI-BOOT/bananapi/bpi-r2/linux/uEnv.txt|tail -1
 		read -p "Press [enter] to copy data to SD-Card..."
 		if  [[ -d /media/$USER/BPI-BOOT ]]; then
-			kernelfile=/media/$USER/BPI-BOOT/bananapi/bpi-r2/linux/uImage
+			kernelfile=/media/$USER/BPI-BOOT/bananapi/bpi-r2/linux/$imagename
 			if [[ -e $kernelfile ]];then
 				echo "backup of kernel: $kernelfile.bak"
 				cp $kernelfile $kernelfile.bak
 			fi
 			echo "copy new kernel"
-			cp ./uImage /media/$USER/BPI-BOOT/bananapi/bpi-r2/linux/uImage
+			cp ./uImage $kernelfile
 			echo "copy modules (root needed because of ext-fs permission)"
 			export INSTALL_MOD_PATH=/media/$USER/BPI-ROOT/;
 			echo "INSTALL_MOD_PATH: $INSTALL_MOD_PATH"
