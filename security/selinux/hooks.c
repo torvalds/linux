@@ -1568,8 +1568,15 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 			/* Called from d_instantiate or d_splice_alias. */
 			dentry = dget(opt_dentry);
 		} else {
-			/* Called from selinux_complete_init, try to find a dentry. */
+			/*
+			 * Called from selinux_complete_init, try to find a dentry.
+			 * Some filesystems really want a connected one, so try
+			 * that first.  We could split SECURITY_FS_USE_XATTR in
+			 * two, depending upon that...
+			 */
 			dentry = d_find_alias(inode);
+			if (!dentry)
+				dentry = d_find_any_alias(inode);
 		}
 		if (!dentry) {
 			/*
@@ -1674,14 +1681,19 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 		if ((sbsec->flags & SE_SBGENFS) && !S_ISLNK(inode->i_mode)) {
 			/* We must have a dentry to determine the label on
 			 * procfs inodes */
-			if (opt_dentry)
+			if (opt_dentry) {
 				/* Called from d_instantiate or
 				 * d_splice_alias. */
 				dentry = dget(opt_dentry);
-			else
+			} else {
 				/* Called from selinux_complete_init, try to
-				 * find a dentry. */
+				 * find a dentry.  Some filesystems really want
+				 * a connected one, so try that first.
+				 */
 				dentry = d_find_alias(inode);
+				if (!dentry)
+					dentry = d_find_any_alias(inode);
+			}
 			/*
 			 * This can be hit on boot when a file is accessed
 			 * before the policy is loaded.  When we load policy we
