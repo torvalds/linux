@@ -47,6 +47,9 @@ struct omap_gem_object {
 	/** roll applied when mapping to DMM */
 	u32 roll;
 
+	/** protects dma_addr_cnt, block, pages, dma_addrs and vaddr */
+	struct mutex lock;
+
 	/**
 	 * dma_addr contains the buffer DMA address. It is valid for
 	 *
@@ -220,7 +223,10 @@ static void omap_gem_evict(struct drm_gem_object *obj)
  * Page Management
  */
 
-/* Ensure backing pages are allocated. */
+/*
+ * Ensure backing pages are allocated. Must be called with the omap_obj.lock
+ * held.
+ */
 static int omap_gem_attach_pages(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
@@ -229,6 +235,8 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 	int npages = obj->size >> PAGE_SHIFT;
 	int i, ret;
 	dma_addr_t *addrs;
+
+	lockdep_assert_held(&omap_obj->lock);
 
 	/*
 	 * If not using shmem (in which case backing pages don't need to be
@@ -291,12 +299,14 @@ free_pages:
 	return ret;
 }
 
-/** release backing pages */
+/* Release backing pages. Must be called with the omap_obj.lock held. */
 static void omap_gem_detach_pages(struct drm_gem_object *obj)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	unsigned int npages = obj->size >> PAGE_SHIFT;
 	unsigned int i;
+
+	lockdep_assert_held(&omap_obj->lock);
 
 	for (i = 0; i < npages; i++) {
 		if (omap_obj->dma_addrs[i])
@@ -491,14 +501,13 @@ vm_fault_t omap_gem_fault(struct vm_fault *vmf)
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *obj = vma->vm_private_data;
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
-	struct drm_device *dev = obj->dev;
 	int err;
 	vm_fault_t ret;
 
 	/* Make sure we don't parallel update on a fault, nor move or remove
 	 * something from beneath our feet
 	 */
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&omap_obj->lock);
 
 	/* if a shmem backed object, make sure we have pages attached now */
 	err = omap_gem_attach_pages(obj);
@@ -520,7 +529,7 @@ vm_fault_t omap_gem_fault(struct vm_fault *vmf)
 
 
 fail:
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&omap_obj->lock);
 	return ret;
 }
 
@@ -654,7 +663,7 @@ int omap_gem_roll(struct drm_gem_object *obj, u32 roll)
 
 	omap_obj->roll = roll;
 
-	mutex_lock(&obj->dev->struct_mutex);
+	mutex_lock(&omap_obj->lock);
 
 	/* if we aren't mapped yet, we don't need to do anything */
 	if (omap_obj->block) {
@@ -669,7 +678,7 @@ int omap_gem_roll(struct drm_gem_object *obj, u32 roll)
 	}
 
 fail:
-	mutex_unlock(&obj->dev->struct_mutex);
+	mutex_unlock(&omap_obj->lock);
 
 	return ret;
 }
@@ -770,7 +779,7 @@ int omap_gem_pin(struct drm_gem_object *obj, dma_addr_t *dma_addr)
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	int ret = 0;
 
-	mutex_lock(&obj->dev->struct_mutex);
+	mutex_lock(&omap_obj->lock);
 
 	if (!omap_gem_is_contiguous(omap_obj) && priv->has_dmm) {
 		if (omap_obj->dma_addr_cnt == 0) {
@@ -826,7 +835,7 @@ int omap_gem_pin(struct drm_gem_object *obj, dma_addr_t *dma_addr)
 	}
 
 fail:
-	mutex_unlock(&obj->dev->struct_mutex);
+	mutex_unlock(&omap_obj->lock);
 
 	return ret;
 }
@@ -844,7 +853,8 @@ void omap_gem_unpin(struct drm_gem_object *obj)
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	int ret;
 
-	mutex_lock(&obj->dev->struct_mutex);
+	mutex_lock(&omap_obj->lock);
+
 	if (omap_obj->dma_addr_cnt > 0) {
 		omap_obj->dma_addr_cnt--;
 		if (omap_obj->dma_addr_cnt == 0) {
@@ -863,7 +873,7 @@ void omap_gem_unpin(struct drm_gem_object *obj)
 		}
 	}
 
-	mutex_unlock(&obj->dev->struct_mutex);
+	mutex_unlock(&omap_obj->lock);
 }
 
 /* Get rotated scanout address (only valid if already pinned), at the
@@ -876,13 +886,16 @@ int omap_gem_rotated_dma_addr(struct drm_gem_object *obj, u32 orient,
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	int ret = -EINVAL;
 
-	mutex_lock(&obj->dev->struct_mutex);
+	mutex_lock(&omap_obj->lock);
+
 	if ((omap_obj->dma_addr_cnt > 0) && omap_obj->block &&
 			(omap_obj->flags & OMAP_BO_TILED)) {
 		*dma_addr = tiler_tsptr(omap_obj->block, orient, x, y);
 		ret = 0;
 	}
-	mutex_unlock(&obj->dev->struct_mutex);
+
+	mutex_unlock(&omap_obj->lock);
+
 	return ret;
 }
 
@@ -910,18 +923,26 @@ int omap_gem_get_pages(struct drm_gem_object *obj, struct page ***pages,
 		bool remap)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
-	int ret;
+	int ret = 0;
 
-	if (!remap) {
-		if (!omap_obj->pages)
-			return -ENOMEM;
-		*pages = omap_obj->pages;
-		return 0;
+	mutex_lock(&omap_obj->lock);
+
+	if (remap) {
+		ret = omap_gem_attach_pages(obj);
+		if (ret)
+			goto unlock;
 	}
-	mutex_lock(&obj->dev->struct_mutex);
-	ret = omap_gem_attach_pages(obj);
+
+	if (!omap_obj->pages) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
+
 	*pages = omap_obj->pages;
-	mutex_unlock(&obj->dev->struct_mutex);
+
+unlock:
+	mutex_unlock(&omap_obj->lock);
+
 	return ret;
 }
 
@@ -936,24 +957,34 @@ int omap_gem_put_pages(struct drm_gem_object *obj)
 }
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
-/* Get kernel virtual address for CPU access.. this more or less only
- * exists for omap_fbdev.  This should be called with struct_mutex
- * held.
+/*
+ * Get kernel virtual address for CPU access.. this more or less only
+ * exists for omap_fbdev.
  */
 void *omap_gem_vaddr(struct drm_gem_object *obj)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
-	WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
-	if (!omap_obj->vaddr) {
-		int ret;
+	void *vaddr;
+	int ret;
 
+	mutex_lock(&omap_obj->lock);
+
+	if (!omap_obj->vaddr) {
 		ret = omap_gem_attach_pages(obj);
-		if (ret)
-			return ERR_PTR(ret);
+		if (ret) {
+			vaddr = ERR_PTR(ret);
+			goto unlock;
+		}
+
 		omap_obj->vaddr = vmap(omap_obj->pages, obj->size >> PAGE_SHIFT,
 				VM_MAP, pgprot_writecombine(PAGE_KERNEL));
 	}
-	return omap_obj->vaddr;
+
+	vaddr = omap_obj->vaddr;
+
+unlock:
+	mutex_unlock(&omap_obj->lock);
+	return vaddr;
 }
 #endif
 
@@ -1001,6 +1032,8 @@ void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 
 	off = drm_vma_node_start(&obj->vma_node);
 
+	mutex_lock(&omap_obj->lock);
+
 	seq_printf(m, "%08x: %2d (%2d) %08llx %pad (%2d) %p %4d",
 			omap_obj->flags, obj->name, kref_read(&obj->refcount),
 			off, &omap_obj->dma_addr, omap_obj->dma_addr_cnt,
@@ -1017,6 +1050,8 @@ void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 	} else {
 		seq_printf(m, " %zu", obj->size);
 	}
+
+	mutex_unlock(&omap_obj->lock);
 
 	seq_printf(m, "\n");
 }
@@ -1051,15 +1086,19 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 
 	omap_gem_evict(obj);
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
-
 	spin_lock(&priv->list_lock);
 	list_del(&omap_obj->mm_list);
 	spin_unlock(&priv->list_lock);
 
-	/* this means the object is still pinned.. which really should
-	 * not happen.  I think..
+	/*
+	 * We own the sole reference to the object at this point, but to keep
+	 * lockdep happy, we must still take the omap_obj_lock to call
+	 * omap_gem_detach_pages(). This should hardly make any difference as
+	 * there can't be any lock contention.
 	 */
+	mutex_lock(&omap_obj->lock);
+
+	/* The object should not be pinned. */
 	WARN_ON(omap_obj->dma_addr_cnt > 0);
 
 	if (omap_obj->pages) {
@@ -1078,7 +1117,11 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 		drm_prime_gem_destroy(obj, omap_obj->sgt);
 	}
 
+	mutex_unlock(&omap_obj->lock);
+
 	drm_gem_object_release(obj);
+
+	mutex_destroy(&omap_obj->lock);
 
 	kfree(omap_obj);
 }
@@ -1135,6 +1178,7 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 
 	obj = &omap_obj->base;
 	omap_obj->flags = flags;
+	mutex_init(&omap_obj->lock);
 
 	if (flags & OMAP_BO_TILED) {
 		/*
@@ -1199,16 +1243,15 @@ struct drm_gem_object *omap_gem_new_dmabuf(struct drm_device *dev, size_t size,
 	if (sgt->orig_nents != 1 && !priv->has_dmm)
 		return ERR_PTR(-EINVAL);
 
-	mutex_lock(&dev->struct_mutex);
-
 	gsize.bytes = PAGE_ALIGN(size);
 	obj = omap_gem_new(dev, gsize, OMAP_BO_MEM_DMABUF | OMAP_BO_WC);
-	if (!obj) {
-		obj = ERR_PTR(-ENOMEM);
-		goto done;
-	}
+	if (!obj)
+		return ERR_PTR(-ENOMEM);
 
 	omap_obj = to_omap_bo(obj);
+
+	mutex_lock(&omap_obj->lock);
+
 	omap_obj->sgt = sgt;
 
 	if (sgt->orig_nents == 1) {
@@ -1244,7 +1287,7 @@ struct drm_gem_object *omap_gem_new_dmabuf(struct drm_device *dev, size_t size,
 	}
 
 done:
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&omap_obj->lock);
 	return obj;
 }
 
