@@ -85,7 +85,7 @@ struct nvmet_sq {
 /**
  * struct nvmet_port -	Common structure to keep port
  *				information for the target.
- * @entry:		List head for holding a list of these elements.
+ * @entry:		Entry into referrals or transport list.
  * @disc_addr:		Address information is stored in a format defined
  *				for a discovery log page entry.
  * @group:		ConfigFS group for this element's folder.
