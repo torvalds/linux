@@ -44,13 +44,69 @@
 
 #define NFP_QLVL_SYM_NAME	"_abi_nfd_out_q_lvls_%u"
 #define NFP_QLVL_STRIDE		16
+#define NFP_QLVL_BLOG_BYTES	0
+#define NFP_QLVL_BLOG_PKTS	4
 #define NFP_QLVL_THRS		8
+
+#define NFP_QMSTAT_SYM_NAME	"_abi_nfdqm%u_stats"
+#define NFP_QMSTAT_STRIDE	32
+#define NFP_QMSTAT_DROP		16
+#define NFP_QMSTAT_ECN		24
 
 static unsigned long long
 nfp_abm_q_lvl_thrs(struct nfp_abm_link *alink, unsigned int queue)
 {
 	return alink->abm->q_lvls->addr +
 		(alink->queue_base + queue) * NFP_QLVL_STRIDE + NFP_QLVL_THRS;
+}
+
+static int
+nfp_abm_ctrl_stat(struct nfp_abm_link *alink, const struct nfp_rtsym *sym,
+		  unsigned int stride, unsigned int offset, unsigned int i,
+		  bool is_u64, u64 *res)
+{
+	struct nfp_cpp *cpp = alink->abm->app->cpp;
+	u32 val32, mur;
+	u64 val, addr;
+	int err;
+
+	mur = NFP_CPP_ATOMIC_RD(sym->target, sym->domain);
+
+	addr = sym->addr + (alink->queue_base + i) * stride + offset;
+	if (is_u64)
+		err = nfp_cpp_readq(cpp, mur, addr, &val);
+	else
+		err = nfp_cpp_readl(cpp, mur, addr, &val32);
+	if (err) {
+		nfp_err(cpp,
+			"RED offload reading stat failed on vNIC %d queue %d\n",
+			alink->id, i);
+		return err;
+	}
+
+	*res = is_u64 ? val : val32;
+	return 0;
+}
+
+static int
+nfp_abm_ctrl_stat_all(struct nfp_abm_link *alink, const struct nfp_rtsym *sym,
+		      unsigned int stride, unsigned int offset, bool is_u64,
+		      u64 *res)
+{
+	u64 val, sum = 0;
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < alink->vnic->max_rx_rings; i++) {
+		err = nfp_abm_ctrl_stat(alink, sym, stride, offset, i,
+					is_u64, &val);
+		if (err)
+			return err;
+		sum += val;
+	}
+
+	*res = sum;
+	return 0;
 }
 
 static int
@@ -84,6 +140,58 @@ int nfp_abm_ctrl_set_all_q_lvls(struct nfp_abm_link *alink, u32 val)
 	}
 
 	return 0;
+}
+
+int nfp_abm_ctrl_read_stats(struct nfp_abm_link *alink,
+			    struct nfp_alink_stats *stats)
+{
+	u64 pkts = 0, bytes = 0;
+	int i, err;
+
+	for (i = 0; i < alink->vnic->max_rx_rings; i++) {
+		pkts += nn_readq(alink->vnic, NFP_NET_CFG_RXR_STATS(i));
+		bytes += nn_readq(alink->vnic, NFP_NET_CFG_RXR_STATS(i) + 8);
+	}
+	stats->tx_pkts = pkts;
+	stats->tx_bytes = bytes;
+
+	err = nfp_abm_ctrl_stat_all(alink, alink->abm->q_lvls,
+				    NFP_QLVL_STRIDE, NFP_QLVL_BLOG_BYTES,
+				    false, &stats->backlog_bytes);
+	if (err)
+		return err;
+
+	err = nfp_abm_ctrl_stat_all(alink, alink->abm->q_lvls,
+				    NFP_QLVL_STRIDE, NFP_QLVL_BLOG_PKTS,
+				    false, &stats->backlog_pkts);
+	if (err)
+		return err;
+
+	err = nfp_abm_ctrl_stat_all(alink, alink->abm->qm_stats,
+				    NFP_QMSTAT_STRIDE, NFP_QMSTAT_DROP,
+				    true, &stats->drops);
+	if (err)
+		return err;
+
+	return nfp_abm_ctrl_stat_all(alink, alink->abm->qm_stats,
+				     NFP_QMSTAT_STRIDE, NFP_QMSTAT_ECN,
+				     true, &stats->overlimits);
+}
+
+int nfp_abm_ctrl_read_xstats(struct nfp_abm_link *alink,
+			     struct nfp_alink_xstats *xstats)
+{
+	int err;
+
+	err = nfp_abm_ctrl_stat_all(alink, alink->abm->qm_stats,
+				    NFP_QMSTAT_STRIDE, NFP_QMSTAT_DROP,
+				    true, &xstats->pdrop);
+	if (err)
+		return err;
+
+	return nfp_abm_ctrl_stat_all(alink, alink->abm->qm_stats,
+				     NFP_QMSTAT_STRIDE, NFP_QMSTAT_ECN,
+				     true, &xstats->ecn_marked);
 }
 
 int nfp_abm_ctrl_qm_enable(struct nfp_abm *abm)
@@ -146,6 +254,12 @@ int nfp_abm_ctrl_find_addrs(struct nfp_abm *abm)
 	if (IS_ERR(sym))
 		return PTR_ERR(sym);
 	abm->q_lvls = sym;
+
+	snprintf(pf_symbol, sizeof(pf_symbol), NFP_QMSTAT_SYM_NAME, pf_id);
+	sym = nfp_abm_ctrl_find_q_rtsym(pf, pf_symbol, NFP_QMSTAT_STRIDE);
+	if (IS_ERR(sym))
+		return PTR_ERR(sym);
+	abm->qm_stats = sym;
 
 	return 0;
 }
