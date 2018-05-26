@@ -3366,7 +3366,7 @@ static void target_tmr_work(struct work_struct *work)
 		tmr->response = TMR_FUNCTION_REJECTED;
 		break;
 	default:
-		pr_err("Uknown TMR function: 0x%02x.\n",
+		pr_err("Unknown TMR function: 0x%02x.\n",
 				tmr->function);
 		tmr->response = TMR_FUNCTION_REJECTED;
 		break;
