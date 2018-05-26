@@ -778,6 +778,16 @@ struct tc_qopt_offload_stats {
 	struct gnet_stats_queue *qstats;
 };
 
+enum tc_mq_command {
+	TC_MQ_CREATE,
+	TC_MQ_DESTROY,
+};
+
+struct tc_mq_qopt_offload {
+	enum tc_mq_command command;
+	u32 handle;
+};
+
 enum tc_red_command {
 	TC_RED_REPLACE,
 	TC_RED_DESTROY,
