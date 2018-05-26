@@ -10,8 +10,9 @@ int (*bpfilter_process_sockopt)(struct sock *sk, int optname,
 				unsigned int optlen, bool is_set);
 EXPORT_SYMBOL_GPL(bpfilter_process_sockopt);
 
-int bpfilter_mbox_request(struct sock *sk, int optname, char __user *optval,
-			  unsigned int optlen, bool is_set)
+static int bpfilter_mbox_request(struct sock *sk, int optname,
+				 char __user *optval,
+				 unsigned int optlen, bool is_set)
 {
 	if (!bpfilter_process_sockopt) {
 		int err = request_module("bpfilter");
