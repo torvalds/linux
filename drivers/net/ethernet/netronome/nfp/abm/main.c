@@ -280,6 +280,28 @@ nfp_abm_setup_tc_red(struct net_device *netdev, struct nfp_abm_link *alink,
 }
 
 static int
+nfp_abm_mq_stats(struct nfp_abm_link *alink, struct tc_mq_qopt_offload *opt)
+{
+	struct nfp_alink_stats stats;
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < alink->num_qdiscs; i++) {
+		if (alink->qdiscs[i].handle == TC_H_UNSPEC)
+			continue;
+
+		err = nfp_abm_ctrl_read_q_stats(alink, i, &stats);
+		if (err)
+			return err;
+
+		nfp_abm_update_stats(&stats, &alink->qdiscs[i].stats,
+				     &opt->stats);
+	}
+
+	return 0;
+}
+
+static int
 nfp_abm_setup_tc_mq(struct net_device *netdev, struct nfp_abm_link *alink,
 		    struct tc_mq_qopt_offload *opt)
 {
@@ -292,6 +314,8 @@ nfp_abm_setup_tc_mq(struct net_device *netdev, struct nfp_abm_link *alink,
 		if (opt->handle == alink->parent)
 			nfp_abm_reset_root(netdev, alink, TC_H_ROOT, 0);
 		return 0;
+	case TC_MQ_STATS:
+		return nfp_abm_mq_stats(alink, opt);
 	default:
 		return -EOPNOTSUPP;
 	}
