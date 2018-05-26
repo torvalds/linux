@@ -960,4 +960,4 @@ static struct platform_driver mtk_vpu_driver = {
 module_platform_driver(mtk_vpu_driver);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Mediatek Video Prosessor Unit driver");
+MODULE_DESCRIPTION("Mediatek Video Processor Unit driver");
