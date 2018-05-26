@@ -825,7 +825,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_TM)
 #endif
 
 
-EXC_REAL_MASKABLE(decrementer, 0x900, 0x80)
+EXC_REAL_OOL_MASKABLE(decrementer, 0x900, 0x80)
 EXC_VIRT_MASKABLE(decrementer, 0x4900, 0x80, 0x900)
 TRAMP_KVM(PACA_EXGEN, 0x900)
 EXC_COMMON_ASYNC(decrementer_common, 0x900, timer_interrupt)
@@ -901,6 +901,7 @@ EXC_COMMON(trap_0b_common, 0xb00, unknown_exception)
 	mtctr	r13;							\
 	GET_PACA(r13);							\
 	std	r10,PACA_EXGEN+EX_R10(r13);				\
+	INTERRUPT_TO_KERNEL;						\
 	KVMTEST_PR(0xc00); /* uses r10, branch to do_kvm_0xc00_system_call */ \
 	HMT_MEDIUM;							\
 	mfctr	r9;
@@ -909,7 +910,8 @@ EXC_COMMON(trap_0b_common, 0xb00, unknown_exception)
 #define SYSCALL_KVMTEST							\
 	HMT_MEDIUM;							\
 	mr	r9,r13;							\
-	GET_PACA(r13);
+	GET_PACA(r13);							\
+	INTERRUPT_TO_KERNEL;
 #endif
 	
 #define LOAD_SYSCALL_HANDLER(reg)					\
@@ -1433,6 +1435,19 @@ masked_##_H##interrupt:					\
 	##_H##RFI_TO_KERNEL;				\
 	b	.;					\
 	MASKED_DEC_HANDLER(_H)
+
+TRAMP_REAL_BEGIN(stf_barrier_fallback)
+	std	r9,PACA_EXRFI+EX_R9(r13)
+	std	r10,PACA_EXRFI+EX_R10(r13)
+	sync
+	ld	r9,PACA_EXRFI+EX_R9(r13)
+	ld	r10,PACA_EXRFI+EX_R10(r13)
+	ori	31,31,0
+	.rept 14
+	b	1f
+1:
+	.endr
+	blr
 
 TRAMP_REAL_BEGIN(rfi_flush_fallback)
 	SET_SCRATCH0(r13);
