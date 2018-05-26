@@ -1260,12 +1260,16 @@ static void kvm_hv_hypercall_set_result(struct kvm_vcpu *vcpu, u64 result)
 	}
 }
 
+static int kvm_hv_hypercall_complete(struct kvm_vcpu *vcpu, u64 result)
+{
+	kvm_hv_hypercall_set_result(vcpu, result);
+	++vcpu->stat.hypercalls;
+	return kvm_skip_emulated_instruction(vcpu);
+}
+
 static int kvm_hv_hypercall_complete_userspace(struct kvm_vcpu *vcpu)
 {
-	struct kvm_run *run = vcpu->run;
-
-	kvm_hv_hypercall_set_result(vcpu, run->hyperv.u.hcall.result);
-	return kvm_skip_emulated_instruction(vcpu);
+	return kvm_hv_hypercall_complete(vcpu, vcpu->run->hyperv.u.hcall.result);
 }
 
 static u16 kvm_hvcall_signal_event(struct kvm_vcpu *vcpu, bool fast, u64 param)
@@ -1350,7 +1354,7 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 	/* Hypercall continuation is not supported yet */
 	if (rep_cnt || rep_idx) {
 		ret = HV_STATUS_INVALID_HYPERCALL_CODE;
-		goto set_result;
+		goto out;
 	}
 
 	switch (code) {
@@ -1381,9 +1385,8 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 		break;
 	}
 
-set_result:
-	kvm_hv_hypercall_set_result(vcpu, ret);
-	return 1;
+out:
+	return kvm_hv_hypercall_complete(vcpu, ret);
 }
 
 void kvm_hv_init_vm(struct kvm *kvm)

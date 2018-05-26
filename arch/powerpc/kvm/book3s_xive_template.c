@@ -11,6 +11,9 @@
 #define XGLUE(a,b) a##b
 #define GLUE(a,b) XGLUE(a,b)
 
+/* Dummy interrupt used when taking interrupts out of a queue in H_CPPR */
+#define XICS_DUMMY	1
+
 static void GLUE(X_PFX,ack_pending)(struct kvmppc_xive_vcpu *xc)
 {
 	u8 cppr;
@@ -205,6 +208,10 @@ skip_ipi:
 				goto skip_ipi;
 		}
 
+		/* If it's the dummy interrupt, continue searching */
+		if (hirq == XICS_DUMMY)
+			goto skip_ipi;
+
 		/* If fetching, update queue pointers */
 		if (scan_type == scan_fetch) {
 			q->idx = idx;
@@ -385,9 +392,76 @@ static void GLUE(X_PFX,push_pending_to_hw)(struct kvmppc_xive_vcpu *xc)
 	__x_writeb(prio, __x_tima + TM_SPC_SET_OS_PENDING);
 }
 
+static void GLUE(X_PFX,scan_for_rerouted_irqs)(struct kvmppc_xive *xive,
+					       struct kvmppc_xive_vcpu *xc)
+{
+	unsigned int prio;
+
+	/* For each priority that is now masked */
+	for (prio = xc->cppr; prio < KVMPPC_XIVE_Q_COUNT; prio++) {
+		struct xive_q *q = &xc->queues[prio];
+		struct kvmppc_xive_irq_state *state;
+		struct kvmppc_xive_src_block *sb;
+		u32 idx, toggle, entry, irq, hw_num;
+		struct xive_irq_data *xd;
+		__be32 *qpage;
+		u16 src;
+
+		idx = q->idx;
+		toggle = q->toggle;
+		qpage = READ_ONCE(q->qpage);
+		if (!qpage)
+			continue;
+
+		/* For each interrupt in the queue */
+		for (;;) {
+			entry = be32_to_cpup(qpage + idx);
+
+			/* No more ? */
+			if ((entry >> 31) == toggle)
+				break;
+			irq = entry & 0x7fffffff;
+
+			/* Skip dummies and IPIs */
+			if (irq == XICS_DUMMY || irq == XICS_IPI)
+				goto next;
+			sb = kvmppc_xive_find_source(xive, irq, &src);
+			if (!sb)
+				goto next;
+			state = &sb->irq_state[src];
+
+			/* Has it been rerouted ? */
+			if (xc->server_num == state->act_server)
+				goto next;
+
+			/*
+			 * Allright, it *has* been re-routed, kill it from
+			 * the queue.
+			 */
+			qpage[idx] = cpu_to_be32((entry & 0x80000000) | XICS_DUMMY);
+
+			/* Find the HW interrupt */
+			kvmppc_xive_select_irq(state, &hw_num, &xd);
+
+			/* If it's not an LSI, set PQ to 11 the EOI will force a resend */
+			if (!(xd->flags & XIVE_IRQ_FLAG_LSI))
+				GLUE(X_PFX,esb_load)(xd, XIVE_ESB_SET_PQ_11);
+
+			/* EOI the source */
+			GLUE(X_PFX,source_eoi)(hw_num, xd);
+
+		next:
+			idx = (idx + 1) & q->msk;
+			if (idx == 0)
+				toggle ^= 1;
+		}
+	}
+}
+
 X_STATIC int GLUE(X_PFX,h_cppr)(struct kvm_vcpu *vcpu, unsigned long cppr)
 {
 	struct kvmppc_xive_vcpu *xc = vcpu->arch.xive_vcpu;
+	struct kvmppc_xive *xive = vcpu->kvm->arch.xive;
 	u8 old_cppr;
 
 	pr_devel("H_CPPR(cppr=%ld)\n", cppr);
@@ -407,14 +481,34 @@ X_STATIC int GLUE(X_PFX,h_cppr)(struct kvm_vcpu *vcpu, unsigned long cppr)
 	 */
 	smp_mb();
 
-	/*
-	 * We are masking less, we need to look for pending things
-	 * to deliver and set VP pending bits accordingly to trigger
-	 * a new interrupt otherwise we might miss MFRR changes for
-	 * which we have optimized out sending an IPI signal.
-	 */
-	if (cppr > old_cppr)
+	if (cppr > old_cppr) {
+		/*
+		 * We are masking less, we need to look for pending things
+		 * to deliver and set VP pending bits accordingly to trigger
+		 * a new interrupt otherwise we might miss MFRR changes for
+		 * which we have optimized out sending an IPI signal.
+		 */
 		GLUE(X_PFX,push_pending_to_hw)(xc);
+	} else {
+		/*
+		 * We are masking more, we need to check the queue for any
+		 * interrupt that has been routed to another CPU, take
+		 * it out (replace it with the dummy) and retrigger it.
+		 *
+		 * This is necessary since those interrupts may otherwise
+		 * never be processed, at least not until this CPU restores
+		 * its CPPR.
+		 *
+		 * This is in theory racy vs. HW adding new interrupts to
+		 * the queue. In practice this works because the interesting
+		 * cases are when the guest has done a set_xive() to move the
+		 * interrupt away, which flushes the xive, followed by the
+		 * target CPU doing a H_CPPR. So any new interrupt coming into
+		 * the queue must still be routed to us and isn't a source
+		 * of concern.
+		 */
+		GLUE(X_PFX,scan_for_rerouted_irqs)(xive, xc);
+	}
 
 	/* Apply new CPPR */
 	xc->hw_cppr = cppr;
