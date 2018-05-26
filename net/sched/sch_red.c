@@ -191,10 +191,11 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt)
 		child = fifo_create_dflt(sch, &bfifo_qdisc_ops, ctl->limit);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
+
+		/* child is fifo, no need to check for noop_qdisc */
+		qdisc_hash_add(child, true);
 	}
 
-	if (child != &noop_qdisc)
-		qdisc_hash_add(child, true);
 	sch_tree_lock(sch);
 	q->flags = ctl->flags;
 	q->limit = ctl->limit;

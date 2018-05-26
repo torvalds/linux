@@ -1767,7 +1767,13 @@ static void lgdt3306a_release(struct dvb_frontend *fe)
 	struct lgdt3306a_state *state = fe->demodulator_priv;
 
 	dbg_info("\n");
-	kfree(state);
+
+	/*
+	 * If state->muxc is not NULL, then we are an i2c device
+	 * and lgdt3306a_remove will clean up state
+	 */
+	if (!state->muxc)
+		kfree(state);
 }
 
 static const struct dvb_frontend_ops lgdt3306a_ops;
@@ -2168,7 +2174,7 @@ static int lgdt3306a_probe(struct i2c_client *client,
 			sizeof(struct lgdt3306a_config));
 
 	config->i2c_addr = client->addr;
-	fe = lgdt3306a_attach(config, client->adapter);
+	fe = dvb_attach(lgdt3306a_attach, config, client->adapter);
 	if (fe == NULL) {
 		ret = -ENODEV;
 		goto err_fe;

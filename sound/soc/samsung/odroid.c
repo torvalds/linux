@@ -36,23 +36,26 @@ static int odroid_card_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct odroid_priv *priv = snd_soc_card_get_drvdata(rtd->card);
-	unsigned int pll_freq, rclk_freq;
+	unsigned int pll_freq, rclk_freq, rfs;
 	int ret;
 
 	switch (params_rate(params)) {
-	case 32000:
 	case 64000:
-		pll_freq = 131072006U;
+		pll_freq = 196608001U;
+		rfs = 384;
 		break;
 	case 44100:
 	case 88200:
 	case 176400:
 		pll_freq = 180633609U;
+		rfs = 512;
 		break;
+	case 32000:
 	case 48000:
 	case 96000:
 	case 192000:
 		pll_freq = 196608001U;
+		rfs = 512;
 		break;
 	default:
 		return -EINVAL;
@@ -67,7 +70,7 @@ static int odroid_card_hw_params(struct snd_pcm_substream *substream,
 	 *  frequency values due to the EPLL output frequency not being exact
 	 *  multiple of the audio sampling rate.
 	 */
-	rclk_freq = params_rate(params) * 256 + 1;
+	rclk_freq = params_rate(params) * rfs + 1;
 
 	ret = clk_set_rate(priv->sclk_i2s, rclk_freq);
 	if (ret < 0)

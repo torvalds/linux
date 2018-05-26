@@ -2145,7 +2145,7 @@ static int atmel_aes_authenc_setkey(struct crypto_aead *tfm, const u8 *key,
 
 badkey:
 	crypto_aead_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
-	memzero_explicit(&key, sizeof(keys));
+	memzero_explicit(&keys, sizeof(keys));
 	return -EINVAL;
 }
 

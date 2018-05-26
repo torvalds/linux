@@ -504,6 +504,15 @@ void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index)
 		struct vsp1_rwpf *rpf = vsp1->rpf[i];
 		unsigned int j;
 
+		/*
+		 * Make sure we don't accept more inputs than the hardware can
+		 * handle. This is a temporary fix to avoid display stall, we
+		 * need to instead allocate the BRU or BRS to display pipelines
+		 * dynamically based on the number of planes they each use.
+		 */
+		if (pipe->num_inputs >= pipe->bru->source_pad)
+			pipe->inputs[i] = NULL;
+
 		if (!pipe->inputs[i])
 			continue;
 
