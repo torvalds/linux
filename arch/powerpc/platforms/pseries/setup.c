@@ -484,13 +484,13 @@ static void init_cpu_char_feature_flags(struct h_cpu_char_result *result)
 	 * The features below are enabled by default, so we instead look to see
 	 * if firmware has *disabled* them, and clear them if so.
 	 */
-	if (!(result->character & H_CPU_BEHAV_FAVOUR_SECURITY))
+	if (!(result->behaviour & H_CPU_BEHAV_FAVOUR_SECURITY))
 		security_ftr_clear(SEC_FTR_FAVOUR_SECURITY);
 
-	if (!(result->character & H_CPU_BEHAV_L1D_FLUSH_PR))
+	if (!(result->behaviour & H_CPU_BEHAV_L1D_FLUSH_PR))
 		security_ftr_clear(SEC_FTR_L1D_FLUSH_PR);
 
-	if (!(result->character & H_CPU_BEHAV_BNDS_CHK_SPEC_BAR))
+	if (!(result->behaviour & H_CPU_BEHAV_BNDS_CHK_SPEC_BAR))
 		security_ftr_clear(SEC_FTR_BNDS_CHK_SPEC_BAR);
 }
 
