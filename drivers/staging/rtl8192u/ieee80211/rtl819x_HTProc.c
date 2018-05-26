@@ -177,35 +177,35 @@ void HTDebugHTInfo(u8 *InfoIE, u8 *TitleString)
 	IEEE80211_DEBUG(IEEE80211_DL_HT, "\tPrimary channel = %d\n", pHTInfoEle->ControlChl);
 	IEEE80211_DEBUG(IEEE80211_DL_HT, "\tSecondary channel =");
 	switch (pHTInfoEle->ExtChlOffset) {
-		case 0:
-			IEEE80211_DEBUG(IEEE80211_DL_HT, "Not Present\n");
-			break;
-		case 1:
-			IEEE80211_DEBUG(IEEE80211_DL_HT, "Upper channel\n");
-			break;
-		case 2:
-			IEEE80211_DEBUG(IEEE80211_DL_HT, "Reserved. Eooro!!!\n");
-			break;
-		case 3:
-			IEEE80211_DEBUG(IEEE80211_DL_HT, "Lower Channel\n");
-			break;
+	case 0:
+		IEEE80211_DEBUG(IEEE80211_DL_HT, "Not Present\n");
+		break;
+	case 1:
+		IEEE80211_DEBUG(IEEE80211_DL_HT, "Upper channel\n");
+		break;
+	case 2:
+		IEEE80211_DEBUG(IEEE80211_DL_HT, "Reserved. Eooro!!!\n");
+		break;
+	case 3:
+		IEEE80211_DEBUG(IEEE80211_DL_HT, "Lower Channel\n");
+		break;
 	}
 	IEEE80211_DEBUG(IEEE80211_DL_HT, "\tRecommended channel width = %s\n", (pHTInfoEle->RecommemdedTxWidth) ? "20Mhz" : "40Mhz");
 
 	IEEE80211_DEBUG(IEEE80211_DL_HT, "\tOperation mode for protection = ");
 	switch (pHTInfoEle->OptMode) {
-		case 0:
-			IEEE80211_DEBUG(IEEE80211_DL_HT, "No Protection\n");
-			break;
-		case 1:
-			IEEE80211_DEBUG(IEEE80211_DL_HT, "HT non-member protection mode\n");
-			break;
-		case 2:
-			IEEE80211_DEBUG(IEEE80211_DL_HT, "Suggest to open protection\n");
-			break;
-		case 3:
-			IEEE80211_DEBUG(IEEE80211_DL_HT, "HT mixed mode\n");
-			break;
+	case 0:
+		IEEE80211_DEBUG(IEEE80211_DL_HT, "No Protection\n");
+		break;
+	case 1:
+		IEEE80211_DEBUG(IEEE80211_DL_HT, "HT non-member protection mode\n");
+		break;
+	case 2:
+		IEEE80211_DEBUG(IEEE80211_DL_HT, "Suggest to open protection\n");
+		break;
+	case 3:
+		IEEE80211_DEBUG(IEEE80211_DL_HT, "HT mixed mode\n");
+		break;
 	}
 
 	IEEE80211_DEBUG(IEEE80211_DL_HT, "\tBasic MCS Rate Set = [%x][%x][%x][%x][%x]\n", pHTInfoEle->BasicMSC[0],\
