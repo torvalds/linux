@@ -168,6 +168,10 @@ Description:	Specific MJPEG format descriptors
 
 		All attributes read only,
 		except bmaControls and bDefaultFrameIndex:
+		bFormatIndex		- unique id for this format descriptor;
+					only defined after parent header is
+					linked into the streaming class;
+					read-only
 		bmaControls		- this format's data for bmaControls in
 					the streaming header
 		bmInterfaceFlags	- specifies interlace information,
@@ -212,6 +216,10 @@ Date:		Dec 2014
 KernelVersion:	4.0
 Description:	Specific uncompressed format descriptors
 
+		bFormatIndex		- unique id for this format descriptor;
+					only defined after parent header is
+					linked into the streaming class;
+					read-only
 		bmaControls		- this format's data for bmaControls in
 					the streaming header
 		bmInterfaceFlags	- specifies interlace information,
