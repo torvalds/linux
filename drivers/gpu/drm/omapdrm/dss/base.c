@@ -208,6 +208,7 @@ int omapdss_device_connect(struct dss_device *dss,
 	}
 
 	if (src) {
+		WARN_ON(src->dst);
 		dst->src = src;
 		src->dst = dst;
 	}

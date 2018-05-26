@@ -29,28 +29,15 @@ static DEFINE_MUTEX(output_lock);
 int omapdss_output_set_device(struct omap_dss_device *out,
 		struct omap_dss_device *dssdev)
 {
-	int r;
+	int r = 0;
 
 	mutex_lock(&output_lock);
-
-	if (out->dst) {
-		dev_err(out->dev,
-			"output already has device %s connected to it\n",
-			out->dst->name);
-		r = -EINVAL;
-		goto err;
-	}
 
 	if (out->output_type != dssdev->type) {
 		dev_err(out->dev, "output type and display type don't match\n");
 		r = -EINVAL;
-		goto err;
 	}
 
-	mutex_unlock(&output_lock);
-
-	return 0;
-err:
 	mutex_unlock(&output_lock);
 
 	return r;
@@ -59,29 +46,17 @@ EXPORT_SYMBOL(omapdss_output_set_device);
 
 int omapdss_output_unset_device(struct omap_dss_device *out)
 {
-	int r;
+	int r = 0;
 
 	mutex_lock(&output_lock);
-
-	if (!out->dst) {
-		dev_err(out->dev,
-			"output doesn't have a device connected to it\n");
-		r = -EINVAL;
-		goto err;
-	}
 
 	if (out->dst->state != OMAP_DSS_DISPLAY_DISABLED) {
 		dev_err(out->dev,
 			"device %s is not disabled, cannot unset device\n",
 			out->dst->name);
 		r = -EINVAL;
-		goto err;
 	}
 
-	mutex_unlock(&output_lock);
-
-	return 0;
-err:
 	mutex_unlock(&output_lock);
 
 	return r;
