@@ -796,9 +796,11 @@ static int ibmvnic_login(struct net_device *netdev)
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	unsigned long timeout = msecs_to_jiffies(30000);
 	int retry_count = 0;
+	bool retry;
 	int rc;
 
 	do {
+		retry = false;
 		if (retry_count > IBMVNIC_MAX_QUEUES) {
 			netdev_warn(netdev, "Login attempts exceeded\n");
 			return -1;
@@ -822,6 +824,9 @@ static int ibmvnic_login(struct net_device *netdev)
 			retry_count++;
 			release_sub_crqs(adapter, 1);
 
+			retry = true;
+			netdev_dbg(netdev,
+				   "Received partial success, retrying...\n");
 			adapter->init_done_rc = 0;
 			reinit_completion(&adapter->init_done);
 			send_cap_queries(adapter);
@@ -849,7 +854,7 @@ static int ibmvnic_login(struct net_device *netdev)
 			netdev_warn(netdev, "Adapter login failed\n");
 			return -1;
 		}
-	} while (adapter->init_done_rc == PARTIALSUCCESS);
+	} while (retry);
 
 	/* handle pending MAC address changes after successful login */
 	if (adapter->mac_change_pending) {
@@ -2617,18 +2622,21 @@ static int enable_scrq_irq(struct ibmvnic_adapter *adapter,
 {
 	struct device *dev = &adapter->vdev->dev;
 	unsigned long rc;
-	u64 val;
 
 	if (scrq->hw_irq > 0x100000000ULL) {
 		dev_err(dev, "bad hw_irq = %lx\n", scrq->hw_irq);
 		return 1;
 	}
 
-	val = (0xff000000) | scrq->hw_irq;
-	rc = plpar_hcall_norets(H_EOI, val);
-	if (rc)
-		dev_err(dev, "H_EOI FAILED irq 0x%llx. rc=%ld\n",
-			val, rc);
+	if (adapter->resetting &&
+	    adapter->reset_reason == VNIC_RESET_MOBILITY) {
+		u64 val = (0xff000000) | scrq->hw_irq;
+
+		rc = plpar_hcall_norets(H_EOI, val);
+		if (rc)
+			dev_err(dev, "H_EOI FAILED irq 0x%llx. rc=%ld\n",
+				val, rc);
+	}
 
 	rc = plpar_hcall_norets(H_VIOCTL, adapter->vdev->unit_address,
 				H_ENABLE_VIO_INTERRUPT, scrq->hw_irq, 0, 0);

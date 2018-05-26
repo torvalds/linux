@@ -2911,7 +2911,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 		if (unlikely(offset < 0))
 			goto out_free;
 	} else if (reserve) {
-		skb_push(skb, reserve);
+		skb_reserve(skb, -reserve);
 	}
 
 	/* Returns -EFAULT on error */
