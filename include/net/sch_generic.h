@@ -350,14 +350,14 @@ static inline int qdisc_qlen(const struct Qdisc *q)
 
 static inline int qdisc_qlen_sum(const struct Qdisc *q)
 {
-	__u32 qlen = 0;
+	__u32 qlen = q->qstats.qlen;
 	int i;
 
 	if (q->flags & TCQ_F_NOLOCK) {
 		for_each_possible_cpu(i)
 			qlen += per_cpu_ptr(q->cpu_qstats, i)->qlen;
 	} else {
-		qlen = q->q.qlen;
+		qlen += q->q.qlen;
 	}
 
 	return qlen;
