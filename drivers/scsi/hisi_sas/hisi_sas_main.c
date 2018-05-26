@@ -390,7 +390,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 			}
 			n_elem_resp = dma_map_sg(dev, &task->smp_task.smp_resp,
 						 1, DMA_FROM_DEVICE);
-			if (!n_elem_req) {
+			if (!n_elem_resp) {
 				rc = -ENOMEM;
 				goto err_out_dma_unmap;
 			}
