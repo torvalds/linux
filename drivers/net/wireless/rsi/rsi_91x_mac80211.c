@@ -1103,7 +1103,7 @@ static int rsi_mac80211_ampdu_action(struct ieee80211_hw *hw,
 		break;
 
 	default:
-		rsi_dbg(ERR_ZONE, "%s: Uknown AMPDU action\n", __func__);
+		rsi_dbg(ERR_ZONE, "%s: Unknown AMPDU action\n", __func__);
 		break;
 	}
 
