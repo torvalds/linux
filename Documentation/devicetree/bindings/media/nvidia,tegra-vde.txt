@@ -27,8 +27,14 @@ Required properties:
   - sxe
 - clocks : Must include the following entries:
   - vde
-- resets : Must include the following entries:
+- resets : Must contain an entry for each entry in reset-names.
+- reset-names : Should include the following entries:
   - vde
+
+Optional properties:
+- resets : Must contain an entry for each entry in reset-names.
+- reset-names : Must include the following entries:
+  - mc
 
 Example:
 
@@ -51,5 +57,6 @@ video-codec@6001a000 {
 		     <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>; /* SXE interrupt */
 	interrupt-names = "sync-token", "bsev", "sxe";
 	clocks = <&tegra_car TEGRA20_CLK_VDE>;
-	resets = <&tegra_car 61>;
+	reset-names = "vde", "mc";
+	resets = <&tegra_car 61>, <&mc TEGRA20_MC_RESET_VDE>;
 };
