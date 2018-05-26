@@ -38,6 +38,8 @@
 #include <linux/netdevice.h>
 #include <linux/rcupdate.h>
 #include <linux/slab.h>
+#include <net/pkt_cls.h>
+#include <net/pkt_sched.h>
 
 #include "../nfpcore/nfp.h"
 #include "../nfpcore/nfp_cpp.h"
@@ -53,6 +55,84 @@ static u32 nfp_abm_portid(enum nfp_repr_type rtype, unsigned int id)
 {
 	return FIELD_PREP(NFP_ABM_PORTID_TYPE, rtype) |
 	       FIELD_PREP(NFP_ABM_PORTID_ID, id);
+}
+
+static void
+nfp_abm_red_destroy(struct net_device *netdev, struct nfp_abm_link *alink,
+		    u32 handle)
+{
+	struct nfp_port *port = nfp_port_from_netdev(netdev);
+
+	if (handle != alink->qdiscs[0].handle)
+		return;
+
+	alink->qdiscs[0].handle = TC_H_UNSPEC;
+	port->tc_offload_cnt = 0;
+	nfp_abm_ctrl_set_all_q_lvls(alink, ~0);
+}
+
+static int
+nfp_abm_red_replace(struct net_device *netdev, struct nfp_abm_link *alink,
+		    struct tc_red_qopt_offload *opt)
+{
+	struct nfp_port *port = nfp_port_from_netdev(netdev);
+	int err;
+
+	if (opt->set.min != opt->set.max || !opt->set.is_ecn) {
+		nfp_warn(alink->abm->app->cpp,
+			 "RED offload failed - unsupported parameters\n");
+		err = -EINVAL;
+		goto err_destroy;
+	}
+	err = nfp_abm_ctrl_set_all_q_lvls(alink, opt->set.min);
+	if (err)
+		goto err_destroy;
+
+	alink->qdiscs[0].handle = opt->handle;
+	port->tc_offload_cnt = 1;
+
+	return 0;
+err_destroy:
+	if (alink->qdiscs[0].handle != TC_H_UNSPEC)
+		nfp_abm_red_destroy(netdev, alink, alink->qdiscs[0].handle);
+	return err;
+}
+
+static int
+nfp_abm_setup_tc_red(struct net_device *netdev, struct nfp_abm_link *alink,
+		     struct tc_red_qopt_offload *opt)
+{
+	if (opt->parent != TC_H_ROOT)
+		return -EOPNOTSUPP;
+
+	switch (opt->command) {
+	case TC_RED_REPLACE:
+		return nfp_abm_red_replace(netdev, alink, opt);
+	case TC_RED_DESTROY:
+		nfp_abm_red_destroy(netdev, alink, opt->handle);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int
+nfp_abm_setup_tc(struct nfp_app *app, struct net_device *netdev,
+		 enum tc_setup_type type, void *type_data)
+{
+	struct nfp_repr *repr = netdev_priv(netdev);
+	struct nfp_port *port;
+
+	port = nfp_port_from_netdev(netdev);
+	if (!port || port->type != NFP_PORT_PF_PORT)
+		return -EOPNOTSUPP;
+
+	switch (type) {
+	case TC_SETUP_QDISC_RED:
+		return nfp_abm_setup_tc_red(netdev, repr->app_priv, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static struct net_device *nfp_abm_repr_get(struct nfp_app *app, u32 port_id)
@@ -402,6 +482,8 @@ const struct nfp_app_type app_abm = {
 
 	.vnic_alloc	= nfp_abm_vnic_alloc,
 	.vnic_free	= nfp_abm_vnic_free,
+
+	.setup_tc	= nfp_abm_setup_tc,
 
 	.eswitch_mode_get	= nfp_abm_eswitch_mode_get,
 	.eswitch_mode_set	= nfp_abm_eswitch_mode_set,

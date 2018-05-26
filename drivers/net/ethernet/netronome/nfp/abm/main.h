@@ -59,17 +59,27 @@ struct nfp_abm {
 };
 
 /**
+ * struct nfp_red_qdisc - representation of single RED Qdisc
+ * @handle:	handle of currently offloaded RED Qdisc
+ */
+struct nfp_red_qdisc {
+	u32 handle;
+};
+
+/**
  * struct nfp_abm_link - port tuple of a ABM NIC
  * @abm:	back pointer to nfp_abm
  * @vnic:	data vNIC
  * @id:		id of the data vNIC
  * @queue_base:	id of base to host queue within PCIe (not QC idx)
+ * @qdiscs:	array of qdiscs
  */
 struct nfp_abm_link {
 	struct nfp_abm *abm;
 	struct nfp_net *vnic;
 	unsigned int id;
 	unsigned int queue_base;
+	struct nfp_red_qdisc qdiscs[1];
 };
 
 void nfp_abm_ctrl_read_params(struct nfp_abm_link *alink);
