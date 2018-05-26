@@ -13,10 +13,6 @@
 #include <linux/rtc.h>
 #include <linux/platform_device.h>
 
-static int test_mmss64;
-module_param(test_mmss64, int, 0644);
-MODULE_PARM_DESC(test_mmss64, "Test struct rtc_class_ops.set_mmss64().");
-
 static struct platform_device *test0 = NULL, *test1 = NULL;
 
 static int test_rtc_read_alarm(struct device *dev,
@@ -44,12 +40,6 @@ static int test_rtc_set_mmss64(struct device *dev, time64_t secs)
 	return 0;
 }
 
-static int test_rtc_set_mmss(struct device *dev, unsigned long secs)
-{
-	dev_info(dev, "%s, secs = %lu\n", __func__, secs);
-	return 0;
-}
-
 static int test_rtc_proc(struct device *dev, struct seq_file *seq)
 {
 	struct platform_device *plat_dev = to_platform_device(dev);
@@ -65,12 +55,12 @@ static int test_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 	return 0;
 }
 
-static struct rtc_class_ops test_rtc_ops = {
+static const struct rtc_class_ops test_rtc_ops = {
 	.proc = test_rtc_proc,
 	.read_time = test_rtc_read_time,
 	.read_alarm = test_rtc_read_alarm,
 	.set_alarm = test_rtc_set_alarm,
-	.set_mmss = test_rtc_set_mmss,
+	.set_mmss64 = test_rtc_set_mmss64,
 	.alarm_irq_enable = test_rtc_alarm_irq_enable,
 };
 
@@ -109,11 +99,6 @@ static int test_probe(struct platform_device *plat_dev)
 {
 	int err;
 	struct rtc_device *rtc;
-
-	if (test_mmss64) {
-		test_rtc_ops.set_mmss64 = test_rtc_set_mmss64;
-		test_rtc_ops.set_mmss = NULL;
-	}
 
 	rtc = devm_rtc_device_register(&plat_dev->dev, "test",
 				&test_rtc_ops, THIS_MODULE);
