@@ -1082,6 +1082,7 @@ enum {
 enum fsync_mode {
 	FSYNC_MODE_POSIX,	/* fsync follows posix semantics */
 	FSYNC_MODE_STRICT,	/* fsync behaves in line with ext4 */
+	FSYNC_MODE_NOBARRIER,	/* fsync behaves nobarrier based on posix */
 };
 
 #ifdef CONFIG_F2FS_FS_ENCRYPTION
