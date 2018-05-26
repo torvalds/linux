@@ -1324,32 +1324,6 @@ config CRYPTO_SALSA20
 	  The Salsa20 stream cipher algorithm is designed by Daniel J.
 	  Bernstein <djb@cr.yp.to>. See <http://cr.yp.to/snuffle.html>
 
-config CRYPTO_SALSA20_586
-	tristate "Salsa20 stream cipher algorithm (i586)"
-	depends on (X86 || UML_X86) && !64BIT
-	select CRYPTO_BLKCIPHER
-	help
-	  Salsa20 stream cipher algorithm.
-
-	  Salsa20 is a stream cipher submitted to eSTREAM, the ECRYPT
-	  Stream Cipher Project. See <http://www.ecrypt.eu.org/stream/>
-
-	  The Salsa20 stream cipher algorithm is designed by Daniel J.
-	  Bernstein <djb@cr.yp.to>. See <http://cr.yp.to/snuffle.html>
-
-config CRYPTO_SALSA20_X86_64
-	tristate "Salsa20 stream cipher algorithm (x86_64)"
-	depends on (X86 || UML_X86) && 64BIT
-	select CRYPTO_BLKCIPHER
-	help
-	  Salsa20 stream cipher algorithm.
-
-	  Salsa20 is a stream cipher submitted to eSTREAM, the ECRYPT
-	  Stream Cipher Project. See <http://www.ecrypt.eu.org/stream/>
-
-	  The Salsa20 stream cipher algorithm is designed by Daniel J.
-	  Bernstein <djb@cr.yp.to>. See <http://cr.yp.to/snuffle.html>
-
 config CRYPTO_CHACHA20
 	tristate "ChaCha20 cipher algorithm"
 	select CRYPTO_BLKCIPHER
