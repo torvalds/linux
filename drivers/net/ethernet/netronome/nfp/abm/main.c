@@ -255,14 +255,18 @@ nfp_abm_spawn_repr(struct nfp_app *app, struct nfp_abm_link *alink,
 	struct nfp_reprs *reprs;
 	struct nfp_repr *repr;
 	struct nfp_port *port;
+	unsigned int txqs;
 	int err;
 
-	if (ptype == NFP_PORT_PHYS_PORT)
+	if (ptype == NFP_PORT_PHYS_PORT) {
 		rtype = NFP_REPR_TYPE_PHYS_PORT;
-	else
+		txqs = 1;
+	} else {
 		rtype = NFP_REPR_TYPE_PF;
+		txqs = alink->vnic->max_rx_rings;
+	}
 
-	netdev = nfp_repr_alloc(app);
+	netdev = nfp_repr_alloc_mqs(app, txqs, 1);
 	if (!netdev)
 		return -ENOMEM;
 	repr = netdev_priv(netdev);

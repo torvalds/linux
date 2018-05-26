@@ -360,12 +360,13 @@ void nfp_repr_free(struct net_device *netdev)
 	__nfp_repr_free(netdev_priv(netdev));
 }
 
-struct net_device *nfp_repr_alloc(struct nfp_app *app)
+struct net_device *
+nfp_repr_alloc_mqs(struct nfp_app *app, unsigned int txqs, unsigned int rxqs)
 {
 	struct net_device *netdev;
 	struct nfp_repr *repr;
 
-	netdev = alloc_etherdev(sizeof(*repr));
+	netdev = alloc_etherdev_mqs(sizeof(*repr), txqs, rxqs);
 	if (!netdev)
 		return NULL;
 
