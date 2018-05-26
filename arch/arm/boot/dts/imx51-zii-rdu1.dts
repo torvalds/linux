@@ -476,6 +476,17 @@
 	status = "okay";
 };
 
+&gpio1 {
+	unused-sd3-wp-gpio {
+		/*
+		 * See pinctrl_esdhc1 below for more details on this
+		 */
+		gpio-hog;
+		gpios = <1 GPIO_ACTIVE_HIGH>;
+		output-high;
+	};
+};
+
 &i2c2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2>;
@@ -668,6 +679,23 @@
 			MX51_PAD_SD1_DATA1__SD1_DATA1		0x20d5
 			MX51_PAD_SD1_DATA2__SD1_DATA2		0x20d5
 			MX51_PAD_SD1_DATA3__SD1_DATA3		0x20d5
+			/*
+			 * GPIO1_1 is not directly used by eSDHC1 in
+			 * any capacity, but earlier versions of RDU1
+			 * used that pin as WP GPIO for eSDHC3 and
+			 * because of that that pad has an external
+			 * pull-up resistor. This is problematic
+			 * because out of reset the pad is configured
+			 * as ALT0 which serves as SD1_WP, which, when
+			 * pulled high by and external pull-up, will
+			 * inhibit execution of any write request to
+			 * attached eMMC device.
+			 *
+			 * To avoid this problem we configure the pad
+			 * to ALT1/GPIO and avoid driving SD1_WP
+			 * signal high.
+			 */
+			MX51_PAD_GPIO1_1__GPIO1_1		0x0000
 		>;
 	};
 
