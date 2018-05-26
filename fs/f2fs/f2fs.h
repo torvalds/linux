@@ -2965,6 +2965,7 @@ int f2fs_migrate_page(struct address_space *mapping, struct page *newpage,
 			struct page *page, enum migrate_mode mode);
 #endif
 bool f2fs_overwrite_io(struct inode *inode, loff_t pos, size_t len);
+void clear_radix_tree_dirty_tag(struct page *page);
 
 /*
  * gc.c

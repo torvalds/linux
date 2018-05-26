@@ -102,18 +102,10 @@ bool available_free_memory(struct f2fs_sb_info *sbi, int type)
 
 static void clear_node_page_dirty(struct page *page)
 {
-	struct address_space *mapping = page->mapping;
-	unsigned int long flags;
-
 	if (PageDirty(page)) {
-		xa_lock_irqsave(&mapping->i_pages, flags);
-		radix_tree_tag_clear(&mapping->i_pages,
-				page_index(page),
-				PAGECACHE_TAG_DIRTY);
-		xa_unlock_irqrestore(&mapping->i_pages, flags);
-
+		clear_radix_tree_dirty_tag(page);
 		clear_page_dirty_for_io(page);
-		dec_page_count(F2FS_M_SB(mapping), F2FS_DIRTY_NODES);
+		dec_page_count(F2FS_P_SB(page), F2FS_DIRTY_NODES);
 	}
 	ClearPageUptodate(page);
 }

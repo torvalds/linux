@@ -2594,6 +2594,17 @@ const struct address_space_operations f2fs_dblock_aops = {
 #endif
 };
 
+void clear_radix_tree_dirty_tag(struct page *page)
+{
+	struct address_space *mapping = page_mapping(page);
+	unsigned long flags;
+
+	xa_lock_irqsave(&mapping->i_pages, flags);
+	radix_tree_tag_clear(&mapping->i_pages, page_index(page),
+						PAGECACHE_TAG_DIRTY);
+	xa_unlock_irqrestore(&mapping->i_pages, flags);
+}
+
 int __init f2fs_init_post_read_processing(void)
 {
 	bio_post_read_ctx_cache = KMEM_CACHE(bio_post_read_ctx, 0);
