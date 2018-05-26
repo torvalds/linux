@@ -19,6 +19,7 @@
 #include <linux/stm.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
+#include <linux/vmalloc.h>
 #include "stm.h"
 
 #include <uapi/linux/stm.h>
