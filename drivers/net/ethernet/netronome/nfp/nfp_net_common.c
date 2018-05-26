@@ -3286,11 +3286,12 @@ nfp_net_get_phys_port_name(struct net_device *netdev, char *name, size_t len)
 	if (nn->port)
 		return nfp_port_get_phys_port_name(netdev, name, len);
 
-	if (!nn->dp.is_vf) {
-		n = snprintf(name, len, "%d", nn->id);
-		if (n >= len)
-			return -EINVAL;
-	}
+	if (nn->dp.is_vf)
+		return -EOPNOTSUPP;
+
+	n = snprintf(name, len, "%d", nn->id);
+	if (n >= len)
+		return -EINVAL;
 
 	return 0;
 }
