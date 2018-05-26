@@ -26,6 +26,7 @@
  * Copyright (c) 2013, Intel Corporation.
  */
 
+#include <linux/errno.h>
 #include <lustre_errno.h>
 
 /*
