@@ -1197,13 +1197,12 @@ static long aio_read_events_ring(struct kioctx *ctx,
 		if (head == tail)
 			break;
 
-		avail = min(avail, nr - ret);
-		avail = min_t(long, avail, AIO_EVENTS_PER_PAGE -
-			    ((head + AIO_EVENTS_OFFSET) % AIO_EVENTS_PER_PAGE));
-
 		pos = head + AIO_EVENTS_OFFSET;
 		page = ctx->ring_pages[pos / AIO_EVENTS_PER_PAGE];
 		pos %= AIO_EVENTS_PER_PAGE;
+
+		avail = min(avail, nr - ret);
+		avail = min_t(long, avail, AIO_EVENTS_PER_PAGE - pos);
 
 		ev = kmap(page);
 		copy_ret = copy_to_user(event + ret, ev + pos,
