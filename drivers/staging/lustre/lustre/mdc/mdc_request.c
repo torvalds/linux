@@ -40,6 +40,7 @@
 # include <linux/utsname.h>
 # include <linux/file.h>
 # include <linux/kthread.h>
+#include <linux/prefetch.h>
 
 #include <lustre_errno.h>
 #include <cl_object.h>
