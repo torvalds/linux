@@ -36,9 +36,22 @@
 
 #include "../nfpcore/nfp_cpp.h"
 #include "../nfp_app.h"
+#include "../nfp_abi.h"
 #include "../nfp_main.h"
 #include "../nfp_net.h"
 #include "main.h"
+
+int nfp_abm_ctrl_qm_enable(struct nfp_abm *abm)
+{
+	return nfp_mbox_cmd(abm->app->pf, NFP_MBOX_PCIE_ABM_ENABLE,
+			    NULL, 0, NULL, 0);
+}
+
+int nfp_abm_ctrl_qm_disable(struct nfp_abm *abm)
+{
+	return nfp_mbox_cmd(abm->app->pf, NFP_MBOX_PCIE_ABM_DISABLE,
+			    NULL, 0, NULL, 0);
+}
 
 void nfp_abm_ctrl_read_params(struct nfp_abm_link *alink)
 {

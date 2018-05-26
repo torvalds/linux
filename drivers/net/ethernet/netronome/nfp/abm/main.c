@@ -182,6 +182,7 @@ static enum devlink_eswitch_mode nfp_abm_eswitch_mode_get(struct nfp_app *app)
 static int nfp_abm_eswitch_set_legacy(struct nfp_abm *abm)
 {
 	nfp_abm_kill_reprs_all(abm);
+	nfp_abm_ctrl_qm_disable(abm);
 
 	abm->eswitch_mode = DEVLINK_ESWITCH_MODE_LEGACY;
 	return 0;
@@ -200,6 +201,10 @@ static int nfp_abm_eswitch_set_switchdev(struct nfp_abm *abm)
 	struct nfp_net *nn;
 	int err;
 
+	err = nfp_abm_ctrl_qm_enable(abm);
+	if (err)
+		return err;
+
 	list_for_each_entry(nn, &pf->vnics, vnic_list) {
 		struct nfp_abm_link *alink = nn->app_priv;
 
@@ -217,6 +222,7 @@ static int nfp_abm_eswitch_set_switchdev(struct nfp_abm *abm)
 
 err_kill_all_reprs:
 	nfp_abm_kill_reprs_all(abm);
+	nfp_abm_ctrl_qm_disable(abm);
 	return err;
 }
 
@@ -347,6 +353,11 @@ static int nfp_abm_init(struct nfp_app *app)
 	abm->app = app;
 
 	err = nfp_abm_ctrl_find_addrs(abm);
+	if (err)
+		goto err_free_abm;
+
+	/* We start in legacy mode, make sure advanced queuing is disabled */
+	err = nfp_abm_ctrl_qm_disable(abm);
 	if (err)
 		goto err_free_abm;
 

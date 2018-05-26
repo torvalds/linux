@@ -72,4 +72,6 @@ struct nfp_abm_link {
 
 void nfp_abm_ctrl_read_params(struct nfp_abm_link *alink);
 int nfp_abm_ctrl_find_addrs(struct nfp_abm *abm);
+int nfp_abm_ctrl_qm_enable(struct nfp_abm *abm);
+int nfp_abm_ctrl_qm_disable(struct nfp_abm *abm);
 #endif
