@@ -253,8 +253,10 @@ static ssize_t evm_write_xattrs(struct file *file, const char __user *buf,
 out:
 	audit_log_format(ab, " res=%d", err);
 	audit_log_end(ab);
-	kfree(xattr->name);
-	kfree(xattr);
+	if (xattr) {
+		kfree(xattr->name);
+		kfree(xattr);
+	}
 	return err;
 }
 
