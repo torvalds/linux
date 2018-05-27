@@ -158,6 +158,8 @@ static ssize_t evm_read_xattrs(struct file *filp, char __user *buf,
 	mutex_unlock(&xattr_list_mutex);
 	rc = simple_read_from_buffer(buf, count, ppos, temp, strlen(temp));
 
+	kfree(temp);
+
 	return rc;
 }
 
