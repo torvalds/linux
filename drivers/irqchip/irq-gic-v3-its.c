@@ -1440,12 +1440,6 @@ static struct irq_chip its_irq_chip = {
  * freeing is expensive. We assumes that freeing rarely occurs.
  */
 
-/*
- * Compatibility defines until we fully refactor the allocator
- */
-#define IRQS_PER_CHUNK_SHIFT	5
-#define IRQS_PER_CHUNK		(1UL << IRQS_PER_CHUNK_SHIFT)
-
 static DEFINE_MUTEX(lpi_range_lock);
 static LIST_HEAD(lpi_range_list);
 
@@ -1558,30 +1552,27 @@ static int __init its_lpi_init(u32 id_bits)
 	return err;
 }
 
-static unsigned long *its_lpi_alloc_chunks(int nr_irqs, u32 *base, int *nr_ids)
+static unsigned long *its_lpi_alloc(int nr_irqs, u32 *base, int *nr_ids)
 {
 	unsigned long *bitmap = NULL;
 	int err = 0;
-	int nr_lpis;
-
-	nr_lpis = round_up(nr_irqs, IRQS_PER_CHUNK);
 
 	do {
-		err = alloc_lpi_range(nr_lpis, base);
+		err = alloc_lpi_range(nr_irqs, base);
 		if (!err)
 			break;
 
-		nr_lpis -= IRQS_PER_CHUNK;
-	} while (nr_lpis > 0);
+		nr_irqs /= 2;
+	} while (nr_irqs > 0);
 
 	if (err)
 		goto out;
 
-	bitmap = kcalloc(BITS_TO_LONGS(nr_lpis), sizeof (long), GFP_ATOMIC);
+	bitmap = kcalloc(BITS_TO_LONGS(nr_irqs), sizeof (long), GFP_ATOMIC);
 	if (!bitmap)
 		goto out;
 
-	*nr_ids = nr_lpis;
+	*nr_ids = nr_irqs;
 
 out:
 	if (!bitmap)
@@ -1590,7 +1581,7 @@ out:
 	return bitmap;
 }
 
-static void its_lpi_free_chunks(unsigned long *bitmap, u32 base, u32 nr_ids)
+static void its_lpi_free(unsigned long *bitmap, u32 base, u32 nr_ids)
 {
 	WARN_ON(free_lpi_range(base, nr_ids));
 	kfree(bitmap);
@@ -2213,7 +2204,7 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 	sz = max(sz, ITS_ITT_ALIGN) + ITS_ITT_ALIGN - 1;
 	itt = kzalloc(sz, GFP_KERNEL);
 	if (alloc_lpis) {
-		lpi_map = its_lpi_alloc_chunks(nvecs, &lpi_base, &nr_lpis);
+		lpi_map = its_lpi_alloc(nvecs, &lpi_base, &nr_lpis);
 		if (lpi_map)
 			col_map = kcalloc(nr_lpis, sizeof(*col_map),
 					  GFP_KERNEL);
@@ -2448,9 +2439,9 @@ static void its_irq_domain_free(struct irq_domain *domain, unsigned int virq,
 	/* If all interrupts have been freed, start mopping the floor */
 	if (bitmap_empty(its_dev->event_map.lpi_map,
 			 its_dev->event_map.nr_lpis)) {
-		its_lpi_free_chunks(its_dev->event_map.lpi_map,
-				    its_dev->event_map.lpi_base,
-				    its_dev->event_map.nr_lpis);
+		its_lpi_free(its_dev->event_map.lpi_map,
+			     its_dev->event_map.lpi_base,
+			     its_dev->event_map.nr_lpis);
 		kfree(its_dev->event_map.col_map);
 
 		/* Unmap device/itt */
@@ -2849,7 +2840,7 @@ static void its_vpe_irq_domain_free(struct irq_domain *domain,
 	}
 
 	if (bitmap_empty(vm->db_bitmap, vm->nr_db_lpis)) {
-		its_lpi_free_chunks(vm->db_bitmap, vm->db_lpi_base, vm->nr_db_lpis);
+		its_lpi_free(vm->db_bitmap, vm->db_lpi_base, vm->nr_db_lpis);
 		its_free_prop_table(vm->vprop_page);
 	}
 }
@@ -2864,18 +2855,18 @@ static int its_vpe_irq_domain_alloc(struct irq_domain *domain, unsigned int virq
 
 	BUG_ON(!vm);
 
-	bitmap = its_lpi_alloc_chunks(roundup_pow_of_two(nr_irqs), &base, &nr_ids);
+	bitmap = its_lpi_alloc(roundup_pow_of_two(nr_irqs), &base, &nr_ids);
 	if (!bitmap)
 		return -ENOMEM;
 
 	if (nr_ids < nr_irqs) {
-		its_lpi_free_chunks(bitmap, base, nr_ids);
+		its_lpi_free(bitmap, base, nr_ids);
 		return -ENOMEM;
 	}
 
 	vprop_page = its_allocate_prop_table(GFP_KERNEL);
 	if (!vprop_page) {
-		its_lpi_free_chunks(bitmap, base, nr_ids);
+		its_lpi_free(bitmap, base, nr_ids);
 		return -ENOMEM;
 	}
 
@@ -2902,7 +2893,7 @@ static int its_vpe_irq_domain_alloc(struct irq_domain *domain, unsigned int virq
 		if (i > 0)
 			its_vpe_irq_domain_free(domain, virq, i - 1);
 
-		its_lpi_free_chunks(bitmap, base, nr_ids);
+		its_lpi_free(bitmap, base, nr_ids);
 		its_free_prop_table(vprop_page);
 	}
 
