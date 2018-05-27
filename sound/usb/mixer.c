@@ -598,7 +598,8 @@ int snd_usb_mixer_add_control(struct usb_mixer_elem_list *list,
 
 	while (snd_ctl_find_id(mixer->chip->card, &kctl->id))
 		kctl->id.index++;
-	if ((err = snd_ctl_add(mixer->chip->card, kctl)) < 0) {
+	err = snd_ctl_add(mixer->chip->card, kctl);
+	if (err < 0) {
 		usb_audio_dbg(mixer->chip, "cannot add control (err = %d)\n",
 			      err);
 		return err;
@@ -1850,7 +1851,8 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid,
 	}
 
 	/* parse the source unit */
-	if ((err = parse_audio_unit(state, hdr->bSourceID)) < 0)
+	err = parse_audio_unit(state, hdr->bSourceID);
+	if (err < 0)
 		return err;
 
 	/* determine the input source type and name */
@@ -2270,7 +2272,8 @@ static int build_audio_procunit(struct mixer_build *state, int unitid,
 	}
 
 	for (i = 0; i < num_ins; i++) {
-		if ((err = parse_audio_unit(state, desc->baSourceID[i])) < 0)
+		err = parse_audio_unit(state, desc->baSourceID[i]);
+		if (err < 0)
 			return err;
 	}
 
@@ -2483,7 +2486,8 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid,
 	}
 
 	for (i = 0; i < desc->bNrInPins; i++) {
-		if ((err = parse_audio_unit(state, desc->baSourceID[i])) < 0)
+		err = parse_audio_unit(state, desc->baSourceID[i]);
+		if (err < 0)
 			return err;
 	}
 
@@ -3310,11 +3314,16 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
 
 	if (mixer->protocol == UAC_VERSION_3 &&
 			chip->badd_profile >= UAC3_FUNCTION_SUBCLASS_GENERIC_IO) {
-		if ((err = snd_usb_mixer_controls_badd(mixer, ctrlif)) < 0)
+		err = snd_usb_mixer_controls_badd(mixer, ctrlif);
+		if (err < 0)
 			goto _error;
-	} else if ((err = snd_usb_mixer_controls(mixer)) < 0 ||
-			(err = snd_usb_mixer_status_create(mixer)) < 0) {
-		goto _error;
+	} else {
+		err = snd_usb_mixer_controls(mixer);
+		if (err < 0)
+			goto _error;
+		err = snd_usb_mixer_status_create(mixer);
+		if (err < 0)
+			goto _error;
 	}
 	err = create_keep_iface_ctl(mixer);
 	if (err < 0)
