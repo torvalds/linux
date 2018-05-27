@@ -164,7 +164,8 @@ struct omap_dss_device *omapdss_device_get_next(struct omap_dss_device *from,
 		 * Accept display entities if the display type is requested,
 		 * and output entities if the output type is requested.
 		 */
-		if ((type & OMAP_DSS_DEVICE_TYPE_DISPLAY) && dssdev->driver)
+		if ((type & OMAP_DSS_DEVICE_TYPE_DISPLAY) &&
+		    !dssdev->output_type)
 			goto done;
 		if ((type & OMAP_DSS_DEVICE_TYPE_OUTPUT) && dssdev->id &&
 		    dssdev->next)
@@ -223,7 +224,7 @@ void omapdss_device_disconnect(struct omap_dss_device *src,
 	dev_dbg(dst->dev, "disconnect\n");
 
 	if (!dst->id && !omapdss_device_is_connected(dst)) {
-		WARN_ON(!dst->driver);
+		WARN_ON(dst->output_type);
 		return;
 	}
 

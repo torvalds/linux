@@ -406,6 +406,12 @@ struct omap_dss_device {
 	unsigned int alias_id;
 
 	enum omap_display_type type;
+	/*
+	 * DSS output type that this device generates (for DSS internal devices)
+	 * or requires (for external encoders). Must be OMAP_DISPLAY_TYPE_NONE
+	 * for display devices (connectors and panels) and to non-zero value for
+	 * all other devices.
+	 */
 	enum omap_display_type output_type;
 
 	const char *name;
