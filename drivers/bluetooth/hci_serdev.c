@@ -101,14 +101,6 @@ static void hci_uart_write_work(struct work_struct *work)
 
 /* ------- Interface to HCI layer ------ */
 
-/* Initialize device */
-static int hci_uart_open(struct hci_dev *hdev)
-{
-	BT_DBG("%s %p", hdev->name, hdev);
-
-	return 0;
-}
-
 /* Reset device */
 static int hci_uart_flush(struct hci_dev *hdev)
 {
@@ -125,6 +117,17 @@ static int hci_uart_flush(struct hci_dev *hdev)
 
 	if (test_bit(HCI_UART_PROTO_READY, &hu->flags))
 		hu->proto->flush(hu);
+
+	return 0;
+}
+
+/* Initialize device */
+static int hci_uart_open(struct hci_dev *hdev)
+{
+	BT_DBG("%s %p", hdev->name, hdev);
+
+	/* Undo clearing this from hci_uart_close() */
+	hdev->flush = hci_uart_flush;
 
 	return 0;
 }
