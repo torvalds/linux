@@ -2830,20 +2830,9 @@ static int ipv6_mc_config(struct sock *sk, bool join,
  *	Manual configuration of address on an interface
  */
 static int inet6_addr_add(struct net *net, int ifindex,
-			  const struct in6_addr *pfx,
-			  const struct in6_addr *peer_pfx,
-			  unsigned int plen, __u32 ifa_flags,
-			  __u32 prefered_lft, __u32 valid_lft,
+			  struct ifa6_config *cfg,
 			  struct netlink_ext_ack *extack)
 {
-	struct ifa6_config cfg = {
-		.pfx = pfx,
-		.plen = plen,
-		.peer_pfx = peer_pfx,
-		.ifa_flags = ifa_flags,
-		.preferred_lft = prefered_lft,
-		.valid_lft = valid_lft,
-	};
 	struct inet6_ifaddr *ifp;
 	struct inet6_dev *idev;
 	struct net_device *dev;
@@ -2853,14 +2842,14 @@ static int inet6_addr_add(struct net *net, int ifindex,
 
 	ASSERT_RTNL();
 
-	if (plen > 128)
+	if (cfg->plen > 128)
 		return -EINVAL;
 
 	/* check the lifetime */
-	if (!valid_lft || prefered_lft > valid_lft)
+	if (!cfg->valid_lft || cfg->preferred_lft > cfg->valid_lft)
 		return -EINVAL;
 
-	if (ifa_flags & IFA_F_MANAGETEMPADDR && plen != 64)
+	if (cfg->ifa_flags & IFA_F_MANAGETEMPADDR && cfg->plen != 64)
 		return -EINVAL;
 
 	dev = __dev_get_by_index(net, ifindex);
@@ -2871,37 +2860,37 @@ static int inet6_addr_add(struct net *net, int ifindex,
 	if (IS_ERR(idev))
 		return PTR_ERR(idev);
 
-	if (ifa_flags & IFA_F_MCAUTOJOIN) {
+	if (cfg->ifa_flags & IFA_F_MCAUTOJOIN) {
 		int ret = ipv6_mc_config(net->ipv6.mc_autojoin_sk,
-					 true, pfx, ifindex);
+					 true, cfg->pfx, ifindex);
 
 		if (ret < 0)
 			return ret;
 	}
 
-	cfg.scope = ipv6_addr_scope(pfx);
+	cfg->scope = ipv6_addr_scope(cfg->pfx);
 
-	timeout = addrconf_timeout_fixup(valid_lft, HZ);
+	timeout = addrconf_timeout_fixup(cfg->valid_lft, HZ);
 	if (addrconf_finite_timeout(timeout)) {
 		expires = jiffies_to_clock_t(timeout * HZ);
-		valid_lft = timeout;
+		cfg->valid_lft = timeout;
 		flags = RTF_EXPIRES;
 	} else {
 		expires = 0;
 		flags = 0;
-		ifa_flags |= IFA_F_PERMANENT;
+		cfg->ifa_flags |= IFA_F_PERMANENT;
 	}
 
-	timeout = addrconf_timeout_fixup(prefered_lft, HZ);
+	timeout = addrconf_timeout_fixup(cfg->preferred_lft, HZ);
 	if (addrconf_finite_timeout(timeout)) {
 		if (timeout == 0)
-			ifa_flags |= IFA_F_DEPRECATED;
-		prefered_lft = timeout;
+			cfg->ifa_flags |= IFA_F_DEPRECATED;
+		cfg->preferred_lft = timeout;
 	}
 
-	ifp = ipv6_add_addr(idev, &cfg, true, extack);
+	ifp = ipv6_add_addr(idev, cfg, true, extack);
 	if (!IS_ERR(ifp)) {
-		if (!(ifa_flags & IFA_F_NOPREFIXROUTE)) {
+		if (!(cfg->ifa_flags & IFA_F_NOPREFIXROUTE)) {
 			addrconf_prefix_route(&ifp->addr, ifp->prefix_len, dev,
 					      expires, flags, GFP_KERNEL);
 		}
@@ -2917,15 +2906,15 @@ static int inet6_addr_add(struct net *net, int ifindex,
 		 * manually configured addresses
 		 */
 		addrconf_dad_start(ifp);
-		if (ifa_flags & IFA_F_MANAGETEMPADDR)
-			manage_tempaddrs(idev, ifp, valid_lft, prefered_lft,
-					 true, jiffies);
+		if (cfg->ifa_flags & IFA_F_MANAGETEMPADDR)
+			manage_tempaddrs(idev, ifp, cfg->valid_lft,
+					 cfg->preferred_lft, true, jiffies);
 		in6_ifa_put(ifp);
 		addrconf_verify_rtnl();
 		return 0;
-	} else if (ifa_flags & IFA_F_MCAUTOJOIN) {
-		ipv6_mc_config(net->ipv6.mc_autojoin_sk,
-			       false, pfx, ifindex);
+	} else if (cfg->ifa_flags & IFA_F_MCAUTOJOIN) {
+		ipv6_mc_config(net->ipv6.mc_autojoin_sk, false,
+			       cfg->pfx, ifindex);
 	}
 
 	return PTR_ERR(ifp);
@@ -2976,6 +2965,11 @@ static int inet6_addr_del(struct net *net, int ifindex, u32 ifa_flags,
 
 int addrconf_add_ifaddr(struct net *net, void __user *arg)
 {
+	struct ifa6_config cfg = {
+		.ifa_flags = IFA_F_PERMANENT,
+		.preferred_lft = INFINITY_LIFE_TIME,
+		.valid_lft = INFINITY_LIFE_TIME,
+	};
 	struct in6_ifreq ireq;
 	int err;
 
@@ -2985,10 +2979,11 @@ int addrconf_add_ifaddr(struct net *net, void __user *arg)
 	if (copy_from_user(&ireq, arg, sizeof(struct in6_ifreq)))
 		return -EFAULT;
 
+	cfg.pfx = &ireq.ifr6_addr;
+	cfg.plen = ireq.ifr6_prefixlen;
+
 	rtnl_lock();
-	err = inet6_addr_add(net, ireq.ifr6_ifindex, &ireq.ifr6_addr, NULL,
-			     ireq.ifr6_prefixlen, IFA_F_PERMANENT,
-			     INFINITY_LIFE_TIME, INFINITY_LIFE_TIME, NULL);
+	err = inet6_addr_add(net, ireq.ifr6_ifindex, &cfg, NULL);
 	rtnl_unlock();
 	return err;
 }
@@ -4624,12 +4619,11 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct net *net = sock_net(skb->sk);
 	struct ifaddrmsg *ifm;
 	struct nlattr *tb[IFA_MAX+1];
-	struct in6_addr *pfx, *peer_pfx;
+	struct in6_addr *peer_pfx;
 	struct inet6_ifaddr *ifa;
 	struct net_device *dev;
 	struct inet6_dev *idev;
-	u32 valid_lft = INFINITY_LIFE_TIME, preferred_lft = INFINITY_LIFE_TIME;
-	u32 ifa_flags;
+	struct ifa6_config cfg;
 	int err;
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, ifa_ipv6_policy,
@@ -4637,60 +4631,68 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (err < 0)
 		return err;
 
+	memset(&cfg, 0, sizeof(cfg));
+
 	ifm = nlmsg_data(nlh);
-	pfx = extract_addr(tb[IFA_ADDRESS], tb[IFA_LOCAL], &peer_pfx);
-	if (!pfx)
+	cfg.pfx = extract_addr(tb[IFA_ADDRESS], tb[IFA_LOCAL], &peer_pfx);
+	if (!cfg.pfx)
 		return -EINVAL;
+
+	cfg.peer_pfx = peer_pfx;
+	cfg.plen = ifm->ifa_prefixlen;
+	cfg.valid_lft = INFINITY_LIFE_TIME;
+	cfg.preferred_lft = INFINITY_LIFE_TIME;
 
 	if (tb[IFA_CACHEINFO]) {
 		struct ifa_cacheinfo *ci;
 
 		ci = nla_data(tb[IFA_CACHEINFO]);
-		valid_lft = ci->ifa_valid;
-		preferred_lft = ci->ifa_prefered;
-	} else {
-		preferred_lft = INFINITY_LIFE_TIME;
-		valid_lft = INFINITY_LIFE_TIME;
+		cfg.valid_lft = ci->ifa_valid;
+		cfg.preferred_lft = ci->ifa_prefered;
 	}
 
 	dev =  __dev_get_by_index(net, ifm->ifa_index);
 	if (!dev)
 		return -ENODEV;
 
-	ifa_flags = tb[IFA_FLAGS] ? nla_get_u32(tb[IFA_FLAGS]) : ifm->ifa_flags;
+	if (tb[IFA_FLAGS])
+		cfg.ifa_flags = nla_get_u32(tb[IFA_FLAGS]);
+	else
+		cfg.ifa_flags = ifm->ifa_flags;
 
 	/* We ignore other flags so far. */
-	ifa_flags &= IFA_F_NODAD | IFA_F_HOMEADDRESS | IFA_F_MANAGETEMPADDR |
-		     IFA_F_NOPREFIXROUTE | IFA_F_MCAUTOJOIN | IFA_F_OPTIMISTIC;
+	cfg.ifa_flags &= IFA_F_NODAD | IFA_F_HOMEADDRESS |
+			 IFA_F_MANAGETEMPADDR | IFA_F_NOPREFIXROUTE |
+			 IFA_F_MCAUTOJOIN | IFA_F_OPTIMISTIC;
 
 	idev = ipv6_find_idev(dev);
 	if (IS_ERR(idev))
 		return PTR_ERR(idev);
 
 	if (!ipv6_allow_optimistic_dad(net, idev))
-		ifa_flags &= ~IFA_F_OPTIMISTIC;
+		cfg.ifa_flags &= ~IFA_F_OPTIMISTIC;
 
-	if (ifa_flags & IFA_F_NODAD && ifa_flags & IFA_F_OPTIMISTIC) {
+	if (cfg.ifa_flags & IFA_F_NODAD &&
+	    cfg.ifa_flags & IFA_F_OPTIMISTIC) {
 		NL_SET_ERR_MSG(extack, "IFA_F_NODAD and IFA_F_OPTIMISTIC are mutually exclusive");
 		return -EINVAL;
 	}
 
-	ifa = ipv6_get_ifaddr(net, pfx, dev, 1);
+	ifa = ipv6_get_ifaddr(net, cfg.pfx, dev, 1);
 	if (!ifa) {
 		/*
 		 * It would be best to check for !NLM_F_CREATE here but
 		 * userspace already relies on not having to provide this.
 		 */
-		return inet6_addr_add(net, ifm->ifa_index, pfx, peer_pfx,
-				      ifm->ifa_prefixlen, ifa_flags,
-				      preferred_lft, valid_lft, extack);
+		return inet6_addr_add(net, ifm->ifa_index, &cfg, extack);
 	}
 
 	if (nlh->nlmsg_flags & NLM_F_EXCL ||
 	    !(nlh->nlmsg_flags & NLM_F_REPLACE))
 		err = -EEXIST;
 	else
-		err = inet6_addr_modify(ifa, ifa_flags, preferred_lft, valid_lft);
+		err = inet6_addr_modify(ifa, cfg.ifa_flags, cfg.preferred_lft,
+					cfg.valid_lft);
 
 	in6_ifa_put(ifa);
 
