@@ -907,11 +907,11 @@ static int chtls_skb_copy_to_page_nocache(struct sock *sk,
 }
 
 /* Read TLS header to find content type and data length */
-static u16 tls_header_read(struct tls_hdr *thdr, struct iov_iter *from)
+static int tls_header_read(struct tls_hdr *thdr, struct iov_iter *from)
 {
 	if (copy_from_iter(thdr, sizeof(*thdr), from) != sizeof(*thdr))
 		return -EFAULT;
-	return (__force u16)cpu_to_be16(thdr->length);
+	return (__force int)cpu_to_be16(thdr->length);
 }
 
 static int csk_mem_free(struct chtls_dev *cdev, struct sock *sk)
@@ -1083,9 +1083,10 @@ new_buf:
 			int off = TCP_OFF(sk);
 			bool merge;
 
-			if (page)
-				pg_size <<= compound_order(page);
+			if (!page)
+				goto wait_for_memory;
 
+			pg_size <<= compound_order(page);
 			if (off < pg_size &&
 			    skb_can_coalesce(skb, i, page, off)) {
 				merge = 1;
@@ -1492,7 +1493,7 @@ static int chtls_pt_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 			break;
 		chtls_cleanup_rbuf(sk, copied);
 		sk_wait_data(sk, &timeo, NULL);
-			continue;
+		continue;
 found_ok_skb:
 		if (!skb->len) {
 			skb_dst_set(skb, NULL);
