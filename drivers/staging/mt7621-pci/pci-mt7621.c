@@ -194,7 +194,8 @@ static int config_access(unsigned char access_type, struct pci_bus *bus,
 	address_reg = RALINK_PCI_CONFIG_ADDR;
 	data_reg = RALINK_PCI_CONFIG_DATA_VIRTUAL_REG;
 
-	address = (((where&0xF00)>>8)<<24) |(bus->number << 16) | (slot << 11) | (func << 8) | (where & 0xfc) | 0x80000000;
+	address = (((where&0xF00)>>8)<<24) |(bus->number << 16) | (slot << 11) |
+				(func << 8) | (where & 0xfc) | 0x80000000;
 	MV_WRITE(address_reg, address);
 
 	switch(access_type) {
