@@ -65,6 +65,7 @@ struct ifa6_config {
 
 	const struct in6_addr	*peer_pfx;
 
+	u32			rt_priority;
 	u32			ifa_flags;
 	u32			preferred_lft;
 	u32			valid_lft;
