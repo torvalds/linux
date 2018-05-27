@@ -86,8 +86,10 @@ static int its_pci_msi_prepare(struct irq_domain *domain, struct device *dev,
 	/* ITS specific DeviceID, as the core ITS ignores dev. */
 	info->scratchpad[0].ul = pci_msi_domain_get_msi_rid(domain, pdev);
 
-	return msi_info->ops->msi_prepare(domain->parent,
-					  dev, max(nvec, alias_count), info);
+	/* Allocate at least 32 MSIs, and always as a power of 2 */
+	nvec = max(nvec, alias_count);
+	nvec = max_t(int, 32, roundup_pow_of_two(nvec));
+	return msi_info->ops->msi_prepare(domain->parent, dev, nvec, info);
 }
 
 static struct msi_domain_ops its_pci_msi_ops = {

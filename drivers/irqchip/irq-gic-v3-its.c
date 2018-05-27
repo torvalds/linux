@@ -2200,12 +2200,15 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 	if (!its_alloc_device_table(its, dev_id))
 		return NULL;
 
+	if (WARN_ON(!is_power_of_2(nvecs)))
+		nvecs = roundup_pow_of_two(nvecs);
+
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	/*
-	 * We allocate at least one chunk worth of LPIs bet device,
-	 * and thus that many ITEs. The device may require less though.
+	 * Even if the device wants a single LPI, the ITT must be
+	 * sized as a power of two (and you need at least one bit...).
 	 */
-	nr_ites = max(IRQS_PER_CHUNK, roundup_pow_of_two(nvecs));
+	nr_ites = max(2, nvecs);
 	sz = nr_ites * its->ite_size;
 	sz = max(sz, ITS_ITT_ALIGN) + ITS_ITT_ALIGN - 1;
 	itt = kzalloc(sz, GFP_KERNEL);
@@ -2861,7 +2864,7 @@ static int its_vpe_irq_domain_alloc(struct irq_domain *domain, unsigned int virq
 
 	BUG_ON(!vm);
 
-	bitmap = its_lpi_alloc_chunks(nr_irqs, &base, &nr_ids);
+	bitmap = its_lpi_alloc_chunks(roundup_pow_of_two(nr_irqs), &base, &nr_ids);
 	if (!bitmap)
 		return -ENOMEM;
 
