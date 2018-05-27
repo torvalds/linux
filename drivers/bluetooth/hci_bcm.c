@@ -380,10 +380,6 @@ static int bcm_open(struct hci_uart *hu)
 	mutex_lock(&bcm_device_lock);
 
 	if (hu->serdev) {
-		err = serdev_device_open(hu->serdev);
-		if (err)
-			goto err_free;
-
 		bcm->dev = serdev_device_get_drvdata(hu->serdev);
 		goto out;
 	}
@@ -420,13 +416,10 @@ out:
 	return 0;
 
 err_unset_hu:
-	if (hu->serdev)
-		serdev_device_close(hu->serdev);
 #ifdef CONFIG_PM
-	else
+	if (!hu->serdev)
 		bcm->dev->hu = NULL;
 #endif
-err_free:
 	mutex_unlock(&bcm_device_lock);
 	hu->priv = NULL;
 	kfree(bcm);
@@ -445,7 +438,6 @@ static int bcm_close(struct hci_uart *hu)
 	mutex_lock(&bcm_device_lock);
 
 	if (hu->serdev) {
-		serdev_device_close(hu->serdev);
 		bdev = serdev_device_get_drvdata(hu->serdev);
 	} else if (bcm_device_exists(bcm->dev)) {
 		bdev = bcm->dev;
