@@ -149,6 +149,7 @@ struct chtls_dev {
 	struct list_head rcu_node;
 	struct list_head na_node;
 	unsigned int send_page_order;
+	int max_host_sndbuf;
 	struct key_map kmap;
 };
 
