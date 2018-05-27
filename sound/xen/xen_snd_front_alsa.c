@@ -466,13 +466,14 @@ static int alsa_prepare(struct snd_pcm_substream *substream)
 		u8 sndif_format;
 		int ret;
 
-		sndif_format = to_sndif_format(runtime->format);
-		if (sndif_format < 0) {
+		ret = to_sndif_format(runtime->format);
+		if (ret < 0) {
 			dev_err(&stream->front_info->xb_dev->dev,
 				"Unsupported sample format: %d\n",
 				runtime->format);
-			return sndif_format;
+			return ret;
 		}
+		sndif_format = ret;
 
 		ret = xen_snd_front_stream_prepare(&stream->evt_pair->req,
 						   &stream->sh_buf,
