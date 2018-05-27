@@ -44,8 +44,8 @@ static const struct dice_tc_spec konnekt_live = {
 };
 
 static const struct dice_tc_spec studio_konnekt_48 = {
-	.tx_pcm_chs = {{16, 16, 16}, {16, 16, 0} },
-	.rx_pcm_chs = {{16, 16, 16}, {16, 16, 0} },
+	.tx_pcm_chs = {{16, 16, 8}, {16, 16, 7} },
+	.rx_pcm_chs = {{16, 16, 8}, {14, 14, 7} },
 	.has_midi = true,
 };
 
@@ -95,11 +95,9 @@ int snd_dice_detect_tcelectronic_formats(struct snd_dice *dice)
 	memcpy(dice->rx_pcm_chs, entry->spec->rx_pcm_chs,
 	       MAX_STREAMS * SND_DICE_RATE_MODE_COUNT * sizeof(unsigned int));
 
-	for (i = 0; i < MAX_STREAMS; ++i) {
-		if (entry->spec->has_midi) {
-			dice->tx_midi_ports[i] = 1;
-			dice->rx_midi_ports[i] = 1;
-		}
+	if (entry->spec->has_midi) {
+		dice->tx_midi_ports[0] = 1;
+		dice->rx_midi_ports[0] = 1;
 	}
 
 	return 0;
