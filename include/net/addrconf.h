@@ -59,6 +59,18 @@ struct in6_validator_info {
 	struct netlink_ext_ack	*extack;
 };
 
+struct ifa6_config {
+	const struct in6_addr	*pfx;
+	unsigned int		plen;
+
+	const struct in6_addr	*peer_pfx;
+
+	u32			ifa_flags;
+	u32			preferred_lft;
+	u32			valid_lft;
+	u16			scope;
+};
+
 int addrconf_init(void);
 void addrconf_cleanup(void);
 
