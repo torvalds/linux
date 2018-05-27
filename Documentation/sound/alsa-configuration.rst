@@ -2224,6 +2224,13 @@ quirk_alias
     Quirk alias list, pass strings like ``0123abcd:5678beef``, which
     applies the existing quirk for the device 5678:beef to a new
     device 0123:abcd.
+use_vmalloc
+    Use vmalloc() for allocations of the PCM buffers (default: yes).
+    For architectures with non-coherent memory like ARM or MIPS, the
+    mmap access may give inconsistent results with vmalloc'ed
+    buffers.  If mmap is used on such architectures, turn off this
+    option, so that the DMA-coherent buffers are allocated and used
+    instead.
 
 This module supports multiple devices, autoprobe and hotplugging.
 
