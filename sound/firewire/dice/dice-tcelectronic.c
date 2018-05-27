@@ -44,8 +44,8 @@ static const struct dice_tc_spec konnekt_live = {
 };
 
 static const struct dice_tc_spec studio_konnekt_48 = {
-	.tx_pcm_chs = {{16, 16, 16}, {16, 16, 0} },
-	.rx_pcm_chs = {{16, 16, 16}, {16, 16, 0} },
+	.tx_pcm_chs = {{16, 16, 8}, {16, 16, 7} },
+	.rx_pcm_chs = {{16, 16, 8}, {14, 14, 7} },
 	.has_midi = true,
 };
 
