@@ -351,8 +351,6 @@ int xen_snd_front_evtchnl_create_all(struct xen_snd_front_info *front_info,
 			}
 		}
 	}
-	if (ret < 0)
-		goto fail;
 
 	front_info->num_evt_pairs = num_streams;
 	return 0;
