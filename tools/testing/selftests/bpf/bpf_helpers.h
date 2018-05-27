@@ -126,6 +126,11 @@ static int (*bpf_lwt_seg6_action)(void *ctx, unsigned int action, void *param,
 static int (*bpf_lwt_seg6_adjust_srh)(void *ctx, unsigned int offset,
 				      unsigned int len) =
 	(void *) BPF_FUNC_lwt_seg6_adjust_srh;
+static int (*bpf_rc_repeat)(void *ctx) =
+	(void *) BPF_FUNC_rc_repeat;
+static int (*bpf_rc_keydown)(void *ctx, unsigned int protocol,
+			     unsigned long long scancode, unsigned int toggle) =
+	(void *) BPF_FUNC_rc_keydown;
 
 /* llvm builtin functions that eBPF C program may use to
  * emit BPF_LD_ABS and BPF_LD_IND instructions

@@ -17,3 +17,4 @@ test_sock_addr
 urandom_read
 test_btf
 test_sockmap
+test_lirc_mode2_user
