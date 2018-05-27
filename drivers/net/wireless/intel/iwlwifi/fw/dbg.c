@@ -973,6 +973,30 @@ const struct iwl_fw_dump_desc iwl_dump_desc_assert = {
 };
 IWL_EXPORT_SYMBOL(iwl_dump_desc_assert);
 
+void iwl_fw_alive_error_dump(struct iwl_fw_runtime *fwrt)
+{
+	struct iwl_fw_dump_desc *iwl_dump_desc_no_alive =
+		kmalloc(sizeof(*iwl_dump_desc_no_alive), GFP_KERNEL);
+
+	if (!iwl_dump_desc_no_alive)
+		return;
+
+	iwl_dump_desc_no_alive->trig_desc.type =
+		cpu_to_le32(FW_DBG_TRIGGER_NO_ALIVE);
+	iwl_dump_desc_no_alive->len = 0;
+
+	if (WARN_ON(fwrt->dump.desc))
+		iwl_fw_free_dump_desc(fwrt);
+
+	IWL_WARN(fwrt, "Collecting data: trigger %d fired.\n",
+		 FW_DBG_TRIGGER_NO_ALIVE);
+
+	fwrt->dump.desc = iwl_dump_desc_no_alive;
+	iwl_fw_error_dump(fwrt);
+	clear_bit(IWL_FWRT_STATUS_WAIT_ALIVE, &fwrt->status);
+}
+IWL_EXPORT_SYMBOL(iwl_fw_alive_error_dump);
+
 int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 			    const struct iwl_fw_dump_desc *desc,
 			    const struct iwl_fw_dbg_trigger_tlv *trigger)
@@ -998,7 +1022,8 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 	    fwrt->smem_cfg.num_lmacs)
 		return -EIO;
 
-	if (test_and_set_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status))
+	if (test_and_set_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status) ||
+	    test_bit(IWL_FWRT_STATUS_WAIT_ALIVE, &fwrt->status))
 		return -EBUSY;
 
 	if (WARN_ON(fwrt->dump.desc))
