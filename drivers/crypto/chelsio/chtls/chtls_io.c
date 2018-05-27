@@ -1230,9 +1230,8 @@ int chtls_sendpage(struct sock *sk, struct page *page,
 		struct sk_buff *skb = skb_peek_tail(&csk->txq);
 		int copy, i;
 
-		copy = mss - skb->len;
 		if (!skb || (ULP_SKB_CB(skb)->flags & ULPCB_FLAG_NO_APPEND) ||
-		    copy <= 0) {
+		    (copy = mss - skb->len) <= 0) {
 new_buf:
 			if (!csk_mem_free(cdev, sk))
 				goto wait_for_sndbuf;
