@@ -993,6 +993,10 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 			resp.cqe_comp_caps.supported_format =
 				MLX5_IB_CQE_RES_FORMAT_HASH |
 				MLX5_IB_CQE_RES_FORMAT_CSUM;
+
+			if (MLX5_CAP_GEN(dev->mdev, mini_cqe_resp_stride_index))
+				resp.cqe_comp_caps.supported_format |=
+					MLX5_IB_CQE_RES_FORMAT_CSUM_STRIDX;
 		}
 	}
 

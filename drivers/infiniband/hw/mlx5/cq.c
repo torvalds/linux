@@ -742,6 +742,28 @@ static int alloc_cq_frag_buf(struct mlx5_ib_dev *dev,
 	return 0;
 }
 
+enum {
+	MLX5_CQE_RES_FORMAT_HASH = 0,
+	MLX5_CQE_RES_FORMAT_CSUM = 1,
+	MLX5_CQE_RES_FORMAT_CSUM_STRIDX = 3,
+};
+
+static int mini_cqe_res_format_to_hw(struct mlx5_ib_dev *dev, u8 format)
+{
+	switch (format) {
+	case MLX5_IB_CQE_RES_FORMAT_HASH:
+		return MLX5_CQE_RES_FORMAT_HASH;
+	case MLX5_IB_CQE_RES_FORMAT_CSUM:
+		return MLX5_CQE_RES_FORMAT_CSUM;
+	case MLX5_IB_CQE_RES_FORMAT_CSUM_STRIDX:
+		if (MLX5_CAP_GEN(dev->mdev, mini_cqe_resp_stride_index))
+			return MLX5_CQE_RES_FORMAT_CSUM_STRIDX;
+		return -EOPNOTSUPP;
+	default:
+		return -EINVAL;
+	}
+}
+
 static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 			  struct ib_ucontext *context, struct mlx5_ib_cq *cq,
 			  int entries, u32 **cqb,
@@ -807,6 +829,8 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 	*index = to_mucontext(context)->bfregi.sys_pages[0];
 
 	if (ucmd.cqe_comp_en == 1) {
+		int mini_cqe_format;
+
 		if (!((*cqe_size == 128 &&
 		       MLX5_CAP_GEN(dev->mdev, cqe_compression_128)) ||
 		      (*cqe_size == 64  &&
@@ -817,20 +841,18 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 			goto err_cqb;
 		}
 
-		if (unlikely(!ucmd.cqe_comp_res_format ||
-			     !(ucmd.cqe_comp_res_format <
-			       MLX5_IB_CQE_RES_RESERVED) ||
-			     (ucmd.cqe_comp_res_format &
-			      (ucmd.cqe_comp_res_format - 1)))) {
-			err = -EOPNOTSUPP;
-			mlx5_ib_warn(dev, "CQE compression res format %d is not supported!\n",
-				     ucmd.cqe_comp_res_format);
+		mini_cqe_format =
+			mini_cqe_res_format_to_hw(dev,
+						  ucmd.cqe_comp_res_format);
+		if (mini_cqe_format < 0) {
+			err = mini_cqe_format;
+			mlx5_ib_dbg(dev, "CQE compression res format %d error: %d\n",
+				    ucmd.cqe_comp_res_format, err);
 			goto err_cqb;
 		}
 
 		MLX5_SET(cqc, cqc, cqe_comp_en, 1);
-		MLX5_SET(cqc, cqc, mini_cqe_res_format,
-			 ilog2(ucmd.cqe_comp_res_format));
+		MLX5_SET(cqc, cqc, mini_cqe_res_format, mini_cqe_format);
 	}
 
 	if (ucmd.flags & MLX5_IB_CREATE_CQ_FLAGS_CQE_128B_PAD) {
