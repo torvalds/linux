@@ -1818,53 +1818,6 @@ out_put_req:
 	return ret;
 }
 
-static long do_io_submit(aio_context_t ctx_id, long nr,
-			  struct iocb __user *__user *iocbpp, bool compat)
-{
-	struct kioctx *ctx;
-	long ret = 0;
-	int i = 0;
-	struct blk_plug plug;
-
-	if (unlikely(nr < 0))
-		return -EINVAL;
-
-	if (unlikely(nr > LONG_MAX/sizeof(*iocbpp)))
-		nr = LONG_MAX/sizeof(*iocbpp);
-
-	if (unlikely(!access_ok(VERIFY_READ, iocbpp, (nr*sizeof(*iocbpp)))))
-		return -EFAULT;
-
-	ctx = lookup_ioctx(ctx_id);
-	if (unlikely(!ctx)) {
-		pr_debug("EINVAL: invalid context id\n");
-		return -EINVAL;
-	}
-
-	blk_start_plug(&plug);
-
-	/*
-	 * AKPM: should this return a partial result if some of the IOs were
-	 * successfully submitted?
-	 */
-	for (i=0; i<nr; i++) {
-		struct iocb __user *user_iocb;
-
-		if (unlikely(__get_user(user_iocb, iocbpp + i))) {
-			ret = -EFAULT;
-			break;
-		}
-
-		ret = io_submit_one(ctx, user_iocb, compat);
-		if (ret)
-			break;
-	}
-	blk_finish_plug(&plug);
-
-	percpu_ref_put(&ctx->users);
-	return i ? i : ret;
-}
-
 /* sys_io_submit:
  *	Queue the nr iocbs pointed to by iocbpp for processing.  Returns
  *	the number of iocbs queued.  May return -EINVAL if the aio_context
@@ -1880,32 +1833,52 @@ static long do_io_submit(aio_context_t ctx_id, long nr,
 SYSCALL_DEFINE3(io_submit, aio_context_t, ctx_id, long, nr,
 		struct iocb __user * __user *, iocbpp)
 {
-	return do_io_submit(ctx_id, nr, iocbpp, 0);
+	struct kioctx *ctx;
+	long ret = 0;
+	int i = 0;
+	struct blk_plug plug;
+
+	if (unlikely(nr < 0))
+		return -EINVAL;
+
+	if (unlikely(nr > LONG_MAX/sizeof(*iocbpp)))
+		nr = LONG_MAX/sizeof(*iocbpp);
+
+	ctx = lookup_ioctx(ctx_id);
+	if (unlikely(!ctx)) {
+		pr_debug("EINVAL: invalid context id\n");
+		return -EINVAL;
+	}
+
+	blk_start_plug(&plug);
+	for (i = 0; i < nr; i++) {
+		struct iocb __user *user_iocb;
+
+		if (unlikely(get_user(user_iocb, iocbpp + i))) {
+			ret = -EFAULT;
+			break;
+		}
+
+		ret = io_submit_one(ctx, user_iocb, false);
+		if (ret)
+			break;
+	}
+	blk_finish_plug(&plug);
+
+	percpu_ref_put(&ctx->users);
+	return i ? i : ret;
 }
 
 #ifdef CONFIG_COMPAT
-static inline long
-copy_iocb(long nr, u32 __user *ptr32, struct iocb __user * __user *ptr64)
-{
-	compat_uptr_t uptr;
-	int i;
-
-	for (i = 0; i < nr; ++i) {
-		if (get_user(uptr, ptr32 + i))
-			return -EFAULT;
-		if (put_user(compat_ptr(uptr), ptr64 + i))
-			return -EFAULT;
-	}
-	return 0;
-}
-
 #define MAX_AIO_SUBMITS 	(PAGE_SIZE/sizeof(struct iocb *))
 
 COMPAT_SYSCALL_DEFINE3(io_submit, compat_aio_context_t, ctx_id,
-		       int, nr, u32 __user *, iocb)
+		       int, nr, compat_uptr_t __user *, iocbpp)
 {
-	struct iocb __user * __user *iocb64;
-	long ret;
+	struct kioctx *ctx;
+	long ret = 0;
+	int i = 0;
+	struct blk_plug plug;
 
 	if (unlikely(nr < 0))
 		return -EINVAL;
@@ -1913,11 +1886,29 @@ COMPAT_SYSCALL_DEFINE3(io_submit, compat_aio_context_t, ctx_id,
 	if (nr > MAX_AIO_SUBMITS)
 		nr = MAX_AIO_SUBMITS;
 
-	iocb64 = compat_alloc_user_space(nr * sizeof(*iocb64));
-	ret = copy_iocb(nr, iocb, iocb64);
-	if (!ret)
-		ret = do_io_submit(ctx_id, nr, iocb64, 1);
-	return ret;
+	ctx = lookup_ioctx(ctx_id);
+	if (unlikely(!ctx)) {
+		pr_debug("EINVAL: invalid context id\n");
+		return -EINVAL;
+	}
+
+	blk_start_plug(&plug);
+	for (i = 0; i < nr; i++) {
+		compat_uptr_t user_iocb;
+
+		if (unlikely(get_user(user_iocb, iocbpp + i))) {
+			ret = -EFAULT;
+			break;
+		}
+
+		ret = io_submit_one(ctx, compat_ptr(user_iocb), true);
+		if (ret)
+			break;
+	}
+	blk_finish_plug(&plug);
+
+	percpu_ref_put(&ctx->users);
+	return i ? i : ret;
 }
 #endif
 
