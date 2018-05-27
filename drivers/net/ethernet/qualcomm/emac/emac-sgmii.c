@@ -273,6 +273,14 @@ static int emac_sgmii_common_link_change(struct emac_adapter *adpt, bool linkup)
 	return 0;
 }
 
+static struct sgmii_ops fsm9900_ops = {
+	.init = emac_sgmii_init_fsm9900,
+	.open = emac_sgmii_common_open,
+	.close = emac_sgmii_common_close,
+	.link_change = emac_sgmii_common_link_change,
+	.reset = emac_sgmii_common_reset,
+};
+
 static struct sgmii_ops qdf2432_ops = {
 	.init = emac_sgmii_init_qdf2432,
 	.open = emac_sgmii_common_open,
@@ -281,6 +289,7 @@ static struct sgmii_ops qdf2432_ops = {
 	.reset = emac_sgmii_common_reset,
 };
 
+#ifdef CONFIG_ACPI
 static struct sgmii_ops qdf2400_ops = {
 	.init = emac_sgmii_init_qdf2400,
 	.open = emac_sgmii_common_open,
@@ -288,6 +297,7 @@ static struct sgmii_ops qdf2400_ops = {
 	.link_change = emac_sgmii_common_link_change,
 	.reset = emac_sgmii_common_reset,
 };
+#endif
 
 static int emac_sgmii_acpi_match(struct device *dev, void *data)
 {
@@ -335,11 +345,11 @@ static int emac_sgmii_acpi_match(struct device *dev, void *data)
 static const struct of_device_id emac_sgmii_dt_match[] = {
 	{
 		.compatible = "qcom,fsm9900-emac-sgmii",
-		.data = emac_sgmii_init_fsm9900,
+		.data = &fsm9900_ops,
 	},
 	{
 		.compatible = "qcom,qdf2432-emac-sgmii",
-		.data = emac_sgmii_init_qdf2432,
+		.data = &qdf2432_ops,
 	},
 	{}
 };
@@ -386,7 +396,7 @@ int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt)
 			goto error_put_device;
 		}
 
-		phy->sgmii_ops->init = match->data;
+		phy->sgmii_ops = (struct sgmii_ops *)match->data;
 	}
 
 	/* Base address is the first address */
