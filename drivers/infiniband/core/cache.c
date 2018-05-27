@@ -434,7 +434,7 @@ static int __ib_cache_gid_get(struct ib_device *ib_dev, u8 port, int index,
 		return -EINVAL;
 
 	if (table->data_vec[index].props & GID_TABLE_ENTRY_INVALID)
-		return -EAGAIN;
+		return -EINVAL;
 
 	memcpy(gid, &table->data_vec[index].gid, sizeof(*gid));
 	if (attr) {
