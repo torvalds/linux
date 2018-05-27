@@ -58,7 +58,7 @@ static inline void mlxsw_cmd_mbox_zero(char *mbox)
 struct mlxsw_core;
 
 int mlxsw_cmd_exec(struct mlxsw_core *mlxsw_core, u16 opcode, u8 opcode_mod,
-		   u32 in_mod, bool out_mbox_direct,
+		   u32 in_mod, bool out_mbox_direct, bool reset_ok,
 		   char *in_mbox, size_t in_mbox_size,
 		   char *out_mbox, size_t out_mbox_size);
 
@@ -67,7 +67,7 @@ static inline int mlxsw_cmd_exec_in(struct mlxsw_core *mlxsw_core, u16 opcode,
 				    size_t in_mbox_size)
 {
 	return mlxsw_cmd_exec(mlxsw_core, opcode, opcode_mod, in_mod, false,
-			      in_mbox, in_mbox_size, NULL, 0);
+			      false, in_mbox, in_mbox_size, NULL, 0);
 }
 
 static inline int mlxsw_cmd_exec_out(struct mlxsw_core *mlxsw_core, u16 opcode,
@@ -76,7 +76,7 @@ static inline int mlxsw_cmd_exec_out(struct mlxsw_core *mlxsw_core, u16 opcode,
 				     char *out_mbox, size_t out_mbox_size)
 {
 	return mlxsw_cmd_exec(mlxsw_core, opcode, opcode_mod, in_mod,
-			      out_mbox_direct, NULL, 0,
+			      out_mbox_direct, false, NULL, 0,
 			      out_mbox, out_mbox_size);
 }
 
@@ -84,7 +84,7 @@ static inline int mlxsw_cmd_exec_none(struct mlxsw_core *mlxsw_core, u16 opcode,
 				      u8 opcode_mod, u32 in_mod)
 {
 	return mlxsw_cmd_exec(mlxsw_core, opcode, opcode_mod, in_mod, false,
-			      NULL, 0, NULL, 0);
+			      false, NULL, 0, NULL, 0);
 }
 
 enum mlxsw_cmd_opcode {
@@ -179,6 +179,8 @@ enum mlxsw_cmd_status {
 	MLXSW_CMD_STATUS_BAD_INDEX	= 0x0A,
 	/* NVMEM checksum/CRC failed. */
 	MLXSW_CMD_STATUS_BAD_NVMEM	= 0x0B,
+	/* Device is currently running reset */
+	MLXSW_CMD_STATUS_RUNNING_RESET	= 0x26,
 	/* Bad management packet (silently discarded). */
 	MLXSW_CMD_STATUS_BAD_PKT	= 0x30,
 };
@@ -208,6 +210,8 @@ static inline const char *mlxsw_cmd_status_str(u8 status)
 		return "BAD_INDEX";
 	case MLXSW_CMD_STATUS_BAD_NVMEM:
 		return "BAD_NVMEM";
+	case MLXSW_CMD_STATUS_RUNNING_RESET:
+		return "RUNNING_RESET";
 	case MLXSW_CMD_STATUS_BAD_PKT:
 		return "BAD_PKT";
 	default:
@@ -869,10 +873,12 @@ MLXSW_ITEM32(cmd_mbox, config_profile, cqe_version, 0xB0, 0, 8);
  */
 
 static inline int mlxsw_cmd_access_reg(struct mlxsw_core *mlxsw_core,
+				       bool reset_ok,
 				       char *in_mbox, char *out_mbox)
 {
 	return mlxsw_cmd_exec(mlxsw_core, MLXSW_CMD_OPCODE_ACCESS_REG,
-			      0, 0, false, in_mbox, MLXSW_CMD_MBOX_SIZE,
+			      0, 0, false, reset_ok,
+			      in_mbox, MLXSW_CMD_MBOX_SIZE,
 			      out_mbox, MLXSW_CMD_MBOX_SIZE);
 }
 

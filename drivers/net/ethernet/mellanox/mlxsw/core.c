@@ -1480,6 +1480,7 @@ static int mlxsw_core_reg_access_cmd(struct mlxsw_core *mlxsw_core,
 {
 	enum mlxsw_emad_op_tlv_status status;
 	int err, n_retry;
+	bool reset_ok;
 	char *in_mbox, *out_mbox, *tmp;
 
 	dev_dbg(mlxsw_core->bus_info->dev, "Reg cmd access (reg_id=%x(%s),type=%s)\n",
@@ -1501,9 +1502,16 @@ static int mlxsw_core_reg_access_cmd(struct mlxsw_core *mlxsw_core,
 	tmp = in_mbox + MLXSW_EMAD_OP_TLV_LEN * sizeof(u32);
 	mlxsw_emad_pack_reg_tlv(tmp, reg, payload);
 
+	/* There is a special treatment needed for MRSR (reset) register.
+	 * The command interface will return error after the command
+	 * is executed, so tell the lower layer to expect it
+	 * and cope accordingly.
+	 */
+	reset_ok = reg->id == MLXSW_REG_MRSR_ID;
+
 	n_retry = 0;
 retry:
-	err = mlxsw_cmd_access_reg(mlxsw_core, in_mbox, out_mbox);
+	err = mlxsw_cmd_access_reg(mlxsw_core, reset_ok, in_mbox, out_mbox);
 	if (!err) {
 		err = mlxsw_emad_process_status(out_mbox, &status);
 		if (err) {
@@ -1793,7 +1801,7 @@ static void mlxsw_core_buf_dump_dbg(struct mlxsw_core *mlxsw_core,
 }
 
 int mlxsw_cmd_exec(struct mlxsw_core *mlxsw_core, u16 opcode, u8 opcode_mod,
-		   u32 in_mod, bool out_mbox_direct,
+		   u32 in_mod, bool out_mbox_direct, bool reset_ok,
 		   char *in_mbox, size_t in_mbox_size,
 		   char *out_mbox, size_t out_mbox_size)
 {
@@ -1816,7 +1824,15 @@ int mlxsw_cmd_exec(struct mlxsw_core *mlxsw_core, u16 opcode, u8 opcode_mod,
 					in_mbox, in_mbox_size,
 					out_mbox, out_mbox_size, &status);
 
-	if (err == -EIO && status != MLXSW_CMD_STATUS_OK) {
+	if (!err && out_mbox) {
+		dev_dbg(mlxsw_core->bus_info->dev, "Output mailbox:\n");
+		mlxsw_core_buf_dump_dbg(mlxsw_core, out_mbox, out_mbox_size);
+	}
+
+	if (reset_ok && err == -EIO &&
+	    status == MLXSW_CMD_STATUS_RUNNING_RESET) {
+		err = 0;
+	} else if (err == -EIO && status != MLXSW_CMD_STATUS_OK) {
 		dev_err(mlxsw_core->bus_info->dev, "Cmd exec failed (opcode=%x(%s),opcode_mod=%x,in_mod=%x,status=%x(%s))\n",
 			opcode, mlxsw_cmd_opcode_str(opcode), opcode_mod,
 			in_mod, status, mlxsw_cmd_status_str(status));
@@ -1826,10 +1842,6 @@ int mlxsw_cmd_exec(struct mlxsw_core *mlxsw_core, u16 opcode, u8 opcode_mod,
 			in_mod);
 	}
 
-	if (!err && out_mbox) {
-		dev_dbg(mlxsw_core->bus_info->dev, "Output mailbox:\n");
-		mlxsw_core_buf_dump_dbg(mlxsw_core, out_mbox, out_mbox_size);
-	}
 	return err;
 }
 EXPORT_SYMBOL(mlxsw_cmd_exec);
