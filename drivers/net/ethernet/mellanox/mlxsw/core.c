@@ -966,14 +966,12 @@ mlxsw_devlink_sb_occ_tc_port_bind_get(struct devlink_port *devlink_port,
 static int mlxsw_devlink_core_bus_device_reload(struct devlink *devlink)
 {
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
-	const struct mlxsw_bus *mlxsw_bus = mlxsw_core->bus;
 	int err;
 
-	if (!mlxsw_bus->reset)
+	if (!(mlxsw_core->bus->features & MLXSW_BUS_F_RESET))
 		return -EOPNOTSUPP;
 
 	mlxsw_core_bus_device_unregister(mlxsw_core, true);
-	mlxsw_bus->reset(mlxsw_core->bus_priv);
 	err = mlxsw_core_bus_device_register(mlxsw_core->bus_info,
 					     mlxsw_core->bus,
 					     mlxsw_core->bus_priv, true,

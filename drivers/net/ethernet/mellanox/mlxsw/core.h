@@ -337,6 +337,7 @@ u64 mlxsw_core_res_get(struct mlxsw_core *mlxsw_core,
 	mlxsw_core_res_get(mlxsw_core, MLXSW_RES_ID_##short_res_id)
 
 #define MLXSW_BUS_F_TXRX	BIT(0)
+#define MLXSW_BUS_F_RESET	BIT(1)
 
 struct mlxsw_bus {
 	const char *kind;
@@ -344,7 +345,6 @@ struct mlxsw_bus {
 		    const struct mlxsw_config_profile *profile,
 		    struct mlxsw_res *res);
 	void (*fini)(void *bus_priv);
-	void (*reset)(void *bus_priv);
 	bool (*skb_transmit_busy)(void *bus_priv,
 				  const struct mlxsw_tx_info *tx_info);
 	int (*skb_transmit)(void *bus_priv, struct sk_buff *skb,
