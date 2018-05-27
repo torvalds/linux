@@ -643,19 +643,19 @@ static struct platform_device ams_delta_modem_device = {
 	},
 };
 
-static int __init late_init(void)
+static int __init ams_delta_gpio_init(void)
 {
 	int err;
 
-	if (!machine_is_ams_delta())
-		return -ENODEV;
-
 	err = gpio_request_array(latch_gpios, ARRAY_SIZE(latch_gpios));
-	if (err) {
+	if (err)
 		pr_err("Couldn't take over latch1/latch2 GPIO pins\n");
-		return err;
-	}
 
+	return err;
+}
+
+static void __init ams_delta_late_devices(void)
+{
 	platform_add_devices(late_devices, ARRAY_SIZE(late_devices));
 
 	/*
@@ -666,12 +666,23 @@ static int __init late_init(void)
 	ams_delta_nand_gpio_table.dev_id = dev_name(&ams_delta_nand_device.dev);
 
 	gpiod_add_lookup_tables(late_gpio_tables, ARRAY_SIZE(late_gpio_tables));
+}
+
+static int __init modem_nreset_init(void)
+{
+	int err;
 
 	err = platform_device_register(&modem_nreset_device);
-	if (err) {
+	if (err)
 		pr_err("Couldn't register the modem regulator device\n");
-		return err;
-	}
+
+	return err;
+}
+
+
+static int __init ams_delta_modem_init(void)
+{
+	int err;
 
 	omap_cfg_reg(M14_1510_GPIO2);
 	ams_delta_modem_ports[0].irq =
@@ -692,7 +703,28 @@ static int __init late_init(void)
 
 	err = platform_device_register(&ams_delta_modem_device);
 	if (err)
-		goto gpio_free;
+		gpio_free(AMS_DELTA_GPIO_PIN_MODEM_IRQ);
+
+	return err;
+}
+
+static int __init late_init(void)
+{
+	int err;
+
+	err = ams_delta_gpio_init();
+	if (err)
+		return err;
+
+	ams_delta_late_devices();
+
+	err = modem_nreset_init();
+	if (err)
+		return err;
+
+	err = ams_delta_modem_init();
+	if (err)
+		return err;
 
 	/*
 	 * Once the modem device is registered, the modem_nreset
@@ -708,7 +740,6 @@ static int __init late_init(void)
 
 unregister:
 	platform_device_unregister(&ams_delta_modem_device);
-gpio_free:
 	gpio_free(AMS_DELTA_GPIO_PIN_MODEM_IRQ);
 	return err;
 }
