@@ -983,13 +983,17 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	}
 
 	if (field_avail(typeof(resp), cqe_comp_caps, uhw->outlen)) {
-		resp.cqe_comp_caps.max_num =
-			MLX5_CAP_GEN(dev->mdev, cqe_compression) ?
-			MLX5_CAP_GEN(dev->mdev, cqe_compression_max_num) : 0;
-		resp.cqe_comp_caps.supported_format =
-			MLX5_IB_CQE_RES_FORMAT_HASH |
-			MLX5_IB_CQE_RES_FORMAT_CSUM;
 		resp.response_length += sizeof(resp.cqe_comp_caps);
+
+		if (MLX5_CAP_GEN(dev->mdev, cqe_compression)) {
+			resp.cqe_comp_caps.max_num =
+				MLX5_CAP_GEN(dev->mdev,
+					     cqe_compression_max_num);
+
+			resp.cqe_comp_caps.supported_format =
+				MLX5_IB_CQE_RES_FORMAT_HASH |
+				MLX5_IB_CQE_RES_FORMAT_CSUM;
+		}
 	}
 
 	if (field_avail(typeof(resp), packet_pacing_caps, uhw->outlen) &&
