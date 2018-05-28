@@ -109,6 +109,7 @@
 		opp-shared;
 
 		clocks = <&cru PLL_APLL>;
+		rockchip,avs-scale = <4>;
 		rockchip,max-volt = <1350000>;
 		rockchip,evb-irdrop = <25000>;
 		nvmem-cells = <&cpu_leakage>;

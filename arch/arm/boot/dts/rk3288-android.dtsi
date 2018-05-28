@@ -394,6 +394,7 @@
 };
 
 &cpu0_opp_table {
+	rockchip,avs-enable = <1>;
 	clocks = <&cru PLL_APLL>;
 	leakage-scaling-sel = <0   254   25>;
 

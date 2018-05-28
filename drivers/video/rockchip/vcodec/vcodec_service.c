@@ -3289,9 +3289,6 @@ static int vcodec_probe(struct platform_device *pdev)
 	struct devfreq_dev_status *stat;
 	struct vpu_service_info *pservice = NULL;
 	struct vpu_session *session = NULL;
-#define MAX_PROP_NAME_LEN	3
-	char name[MAX_PROP_NAME_LEN];
-	int lkg_volt_sel;
 
 	pservice = devm_kzalloc(dev, sizeof(struct vpu_service_info),
 				GFP_KERNEL);
@@ -3385,21 +3382,12 @@ static int vcodec_probe(struct platform_device *pdev)
 		goto err;
 
 	if (!IS_ERR(pservice->vdd_vcodec)) {
-		lkg_volt_sel = rockchip_of_get_lkg_volt_sel(dev,
-							    "rkvdec_leakage");
-		if (lkg_volt_sel >= 0) {
-			snprintf(name, MAX_PROP_NAME_LEN, "L%d", lkg_volt_sel);
-			ret = dev_pm_opp_set_prop_name(dev, name);
-			if (ret)
-				dev_err(dev, "Failed to set prop name\n");
+		ret = rockchip_init_opp_table(dev, NULL,
+					      "rkvdec_leakage", "vcodec");
+		if (ret) {
+			dev_err(dev, "Failed to init_opp_table (%d)\n", ret);
+			return ret;
 		}
-
-		if (dev_pm_opp_of_add_table(dev)) {
-			dev_err(dev, "Invalid operating-points\n");
-			ret = -EINVAL;
-			goto err;
-		}
-
 		pservice->devfreq = devm_devfreq_add_device(dev, devp,
 							    "userspace", NULL);
 		if (IS_ERR(pservice->devfreq)) {

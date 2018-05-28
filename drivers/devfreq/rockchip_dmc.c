@@ -2933,10 +2933,7 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	int (*init)(struct platform_device *pdev,
 		    struct rockchip_dmcfreq *data);
 	unsigned long opp_rate, opp_volt;
-#define MAX_PROP_NAME_LEN	3
-	char name[MAX_PROP_NAME_LEN];
 	bool is_events_available = false;
-	int lkg_volt_sel, pvtm_volt_sel, volt_sel;
 	int ret;
 
 	data = devm_kzalloc(dev, sizeof(struct rockchip_dmcfreq), GFP_KERNEL);
@@ -2987,22 +2984,11 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	 * We add a devfreq driver to our parent since it has a device tree node
 	 * with operating points.
 	 */
-	lkg_volt_sel = rockchip_of_get_lkg_volt_sel(dev, "ddr_leakage");
-	pvtm_volt_sel = rockchip_of_get_pvtm_volt_sel(dev, NULL, "center");
-
-	volt_sel = max(lkg_volt_sel, pvtm_volt_sel);
-	if (volt_sel >= 0) {
-		snprintf(name, MAX_PROP_NAME_LEN, "L%d", volt_sel);
-		ret = dev_pm_opp_set_prop_name(dev, name);
-		if (ret)
-			dev_err(dev, "Failed to set prop name\n");
+	ret = rockchip_init_opp_table(dev, NULL, "ddr_leakage", "center");
+	if (ret) {
+		dev_err(dev, "Failed to init_opp_table (%d)\n", ret);
+		return ret;
 	}
-
-	if (dev_pm_opp_of_add_table(dev)) {
-		dev_err(dev, "Invalid operating-points in device tree.\n");
-		return -EINVAL;
-	}
-	rockchip_adjust_opp_by_irdrop(dev);
 
 	if (rockchip_dmcfreq_init_freq_table(dev, devp))
 		return -EFAULT;

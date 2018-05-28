@@ -430,24 +430,8 @@ static void kbase_platform_rk_remove_sysfs_files(struct device *dev)
 	device_remove_file(dev, &dev_attr_utilisation);
 }
 
-void kbase_platform_rk_set_opp_info(struct kbase_device *kbdev)
+int kbase_platform_rk_init_opp_table(struct kbase_device *kbdev)
 {
-#define MAX_PROP_NAME_LEN	3
-	char name[MAX_PROP_NAME_LEN];
-	int lkg_volt_sel, pvtm_volt_sel, volt_sel;
-	int err = 0;
-
-	if (!kbdev)
-		return;
-
-	lkg_volt_sel = rockchip_of_get_lkg_volt_sel(kbdev->dev, "gpu_leakage");
-	pvtm_volt_sel = rockchip_of_get_pvtm_volt_sel(kbdev->dev, NULL, "mali");
-
-	volt_sel = max(lkg_volt_sel, pvtm_volt_sel);
-	if (volt_sel >= 0) {
-		snprintf(name, MAX_PROP_NAME_LEN, "L%d", volt_sel);
-		err = dev_pm_opp_set_prop_name(kbdev->dev, name);
-		if (err)
-			dev_err(kbdev->dev, "Failed to set prop name\n");
-	}
+	return rockchip_init_opp_table(kbdev->dev, NULL,
+				       "gpu_leakage", "mali");
 }

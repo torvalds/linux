@@ -697,11 +697,17 @@ unsigned long cpufreq_scale_freq_capacity(struct sched_domain *sd, int cpu);
 unsigned long cpufreq_scale_max_freq_capacity(int cpu);
 #ifdef CONFIG_ARM_ROCKCHIP_CPUFREQ
 unsigned int rockchip_cpufreq_adjust_target(int cpu, unsigned int freq);
+int rockchip_cpufreq_get_scale(int cpu);
 #else
 static inline unsigned int rockchip_cpufreq_adjust_target(int cpu,
 							  unsigned int freq)
 {
 	return freq;
+}
+
+int rockchip_cpufreq_get_scale(int cpu)
+{
+	return -EINVAL;
 }
 #endif
 #endif /* _LINUX_CPUFREQ_H */

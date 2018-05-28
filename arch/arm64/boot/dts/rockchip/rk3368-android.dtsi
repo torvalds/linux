@@ -173,6 +173,10 @@
 	};
 };
 
+&cluster1_opp {
+	rockchip,avs-enable = <1>;
+};
+
 &display_subsystem {
 	status = "okay";
 

@@ -33,7 +33,6 @@
 
 #include "../clk/rockchip/clk.h"
 
-#define MAX_PROP_NAME_LEN	3
 #define LEAKAGE_INVALID		0xff
 #define REBOOT_FREQ		816000 /* kHz */
 
@@ -42,10 +41,9 @@ struct cluster_info {
 	cpumask_t cpus;
 	unsigned int reboot_freq;
 	unsigned int threshold_freq;
-	int leakage;
-	int pvtm;
 	int volt_sel;
-	int soc_version;
+	int scale;
+	int process;
 	bool offline;
 	bool rebooting;
 	bool freq_limit;
@@ -64,68 +62,27 @@ static struct cluster_info *rockchip_cluster_info_lookup(int cpu)
 	return NULL;
 }
 
-static int rockchip_get_efuse_value(struct device_node *np, char *porp_name,
-				    int *value)
+int rockchip_cpufreq_get_scale(int cpu)
 {
-	struct nvmem_cell *cell;
-	unsigned char *buf;
-	size_t len;
+	struct cluster_info *cluster;
 
-	cell = of_nvmem_cell_get(np, porp_name);
-	if (IS_ERR(cell))
-		return PTR_ERR(cell);
-
-	buf = (unsigned char *)nvmem_cell_read(cell, &len);
-
-	nvmem_cell_put(cell);
-
-	if (IS_ERR(buf))
-		return PTR_ERR(buf);
-
-	if (buf[0] == LEAKAGE_INVALID)
-		return -EINVAL;
-
-	*value = buf[0];
-
-	kfree(buf);
-
-	return 0;
-}
-
-static int rk3399_get_soc_version(struct device_node *np, int *soc_version)
-{
-	int ret, version;
-
-	if (of_property_match_string(np, "nvmem-cell-names",
-				     "soc_version") < 0)
+	cluster = rockchip_cluster_info_lookup(cpu);
+	if (!cluster)
 		return 0;
-
-	ret = rockchip_get_efuse_value(np, "soc_version", &version);
-	if (ret)
-		return ret;
-
-	*soc_version = (version & 0xf0) >> 4;
-
-	return 0;
+	else
+		return cluster->scale;
 }
-
-static const struct of_device_id rockchip_cpufreq_of_match[] = {
-	{
-		.compatible = "rockchip,rk3399",
-		.data = (void *)&rk3399_get_soc_version,
-	},
-	{},
-};
+EXPORT_SYMBOL_GPL(rockchip_cpufreq_get_scale);
 
 static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 {
-	int (*get_soc_version)(struct device_node *np, int *soc_version);
-	const struct of_device_id *match;
-	struct device_node *node, *np;
-	struct clk *clk;
+	struct device_node *np;
 	struct device *dev;
-	int lkg_volt_sel, pvtm_volt_sel, lkg_scale_sel;
-	int ret;
+	int ret = 0, bin = -EINVAL;
+
+	cluster->process = -EINVAL;
+	cluster->volt_sel = -EINVAL;
+	cluster->scale = 0;
 
 	dev = get_cpu_device(cpu);
 	if (!dev)
@@ -138,19 +95,9 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 	}
 
 	ret = dev_pm_opp_of_get_sharing_cpus(dev, &cluster->cpus);
-	if (ret)
-		return ret;
-
-	cluster->soc_version = -1;
-	node = of_find_node_by_path("/");
-	match = of_match_node(rockchip_cpufreq_of_match, node);
-	if (match && match->data) {
-		get_soc_version = match->data;
-		ret = get_soc_version(np, &cluster->soc_version);
-		if (ret) {
-			dev_err(dev, "Failed to get chip_version\n");
-			return ret;
-		}
+	if (ret) {
+		dev_err(dev, "Failed to get sharing cpus\n");
+		goto np_err;
 	}
 
 	if (of_property_read_u32(np, "rockchip,reboot-freq",
@@ -160,68 +107,23 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 			     &cluster->threshold_freq);
 	cluster->freq_limit = of_property_read_bool(np, "rockchip,freq-limit");
 
-	lkg_scale_sel = rockchip_of_get_lkg_scale_sel(dev, "cpu_leakage");
-	if (lkg_scale_sel > 0) {
-		clk = of_clk_get_by_name(np, NULL);
-		if (IS_ERR(clk)) {
-			dev_err(dev, "Failed to get opp clk");
-			return PTR_ERR(clk);
-		}
-		ret = rockchip_pll_clk_adaptive_scaling(clk,
-							lkg_scale_sel);
-		if (ret) {
-			dev_err(dev, "Failed to adaptive scaling\n");
-			return ret;
-		}
-	}
-
-	lkg_volt_sel = rockchip_of_get_lkg_volt_sel(dev, "cpu_leakage");
-	pvtm_volt_sel = rockchip_of_get_pvtm_volt_sel(dev, NULL, "cpu");
-
-	cluster->volt_sel = max(lkg_volt_sel, pvtm_volt_sel);
-
-	return 0;
+	rockchip_get_soc_info(dev, NULL, &bin, &cluster->process);
+	rockchip_get_scale_volt_sel(dev, "cpu_leakage", "cpu",
+				    bin, cluster->process,
+				    &cluster->scale, &cluster->volt_sel);
+np_err:
+	of_node_put(np);
+	return ret;
 }
 
 static int rockchip_cpufreq_set_opp_info(int cpu, struct cluster_info *cluster)
 {
-	struct device *dev;
-	char name[MAX_PROP_NAME_LEN];
-	int ret, version;
+	struct device *dev = get_cpu_device(cpu);
 
-	dev = get_cpu_device(cpu);
 	if (!dev)
 		return -ENODEV;
-
-	if (cluster->soc_version >= 0) {
-		if (cluster->volt_sel >= 0)
-			snprintf(name, MAX_PROP_NAME_LEN, "S%d-L%d",
-				 cluster->soc_version, cluster->volt_sel);
-		else
-			snprintf(name, MAX_PROP_NAME_LEN, "S%d",
-				 cluster->soc_version);
-	} else if (cluster->volt_sel >= 0) {
-		snprintf(name, MAX_PROP_NAME_LEN, "L%d", cluster->volt_sel);
-	} else {
-		return 0;
-	}
-
-	ret = dev_pm_opp_set_prop_name(dev, name);
-	if (ret) {
-		dev_err(dev, "Failed to set prop name\n");
-		return ret;
-	}
-
-	if (cluster->soc_version >= 0) {
-		version = BIT(cluster->soc_version);
-		ret = dev_pm_opp_set_supported_hw(dev, &version, 1);
-		if (ret) {
-			dev_err(dev, "Failed to set supported hardware\n");
-			return ret;
-		}
-	}
-
-	return 0;
+	return rockchip_set_opp_info(dev, cluster->process,
+				     cluster->volt_sel);
 }
 
 static int rockchip_hotcpu_notifier(struct notifier_block *nb,

@@ -275,6 +275,7 @@
 	cluster1_opp: opp_table1 {
 		compatible = "operating-points-v2";
 		opp-shared;
+		rockchip,avs-sclae = <36>;
 		rockchip,leakage-scaling-sel = <
 			1   24   36
 			25  254  0

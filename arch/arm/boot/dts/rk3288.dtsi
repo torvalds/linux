@@ -131,6 +131,7 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
+		rockchip,avs-scale = <17>;
 		nvmem-cells = <&cpu_leakage>;
 		nvmem-cell-names = "cpu_leakage";
 

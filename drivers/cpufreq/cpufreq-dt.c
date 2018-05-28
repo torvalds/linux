@@ -161,7 +161,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	unsigned long cur_freq;
 	bool opp_v1 = false;
 	const char *name;
-	int ret;
+	int ret, scale;
 	static int check_init;
 
 	cpu_dev = get_cpu_device(policy->cpu);
@@ -227,7 +227,8 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 				dev_pm_opp_of_remove_table(cpu_dev);
 		}
 	}
-	rockchip_adjust_opp_by_irdrop(cpu_dev);
+	scale = rockchip_cpufreq_get_scale(policy->cpu);
+	rockchip_adjust_power_scale(cpu_dev, scale);
 #else
 	dev_pm_opp_of_cpumask_add_table(policy->cpus);
 #endif
