@@ -905,6 +905,31 @@ enum nft_rt_attributes {
 #define NFTA_RT_MAX		(__NFTA_RT_MAX - 1)
 
 /**
+ * enum nft_socket_attributes - nf_tables socket expression netlink attributes
+ *
+ * @NFTA_SOCKET_KEY: socket key to match
+ * @NFTA_SOCKET_DREG: destination register
+ */
+enum nft_socket_attributes {
+	NFTA_SOCKET_UNSPEC,
+	NFTA_SOCKET_KEY,
+	NFTA_SOCKET_DREG,
+	__NFTA_SOCKET_MAX
+};
+#define NFTA_SOCKET_MAX		(__NFTA_SOCKET_MAX - 1)
+
+/*
+ * enum nft_socket_keys - nf_tables socket expression keys
+ *
+ * @NFT_SOCKET_TRANSPARENT: Value of the IP(V6)_TRANSPARENT socket option_
+ */
+enum nft_socket_keys {
+	NFT_SOCKET_TRANSPARENT,
+	__NFT_SOCKET_MAX
+};
+#define NFT_SOCKET_MAX	(__NFT_SOCKET_MAX - 1)
+
+/**
  * enum nft_ct_keys - nf_tables ct expression keys
  *
  * @NFT_CT_STATE: conntrack state (bitmask of enum ip_conntrack_info)

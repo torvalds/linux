@@ -102,6 +102,7 @@ obj-$(CONFIG_NFT_FIB)		+= nft_fib.o
 obj-$(CONFIG_NFT_FIB_INET)	+= nft_fib_inet.o
 obj-$(CONFIG_NFT_FIB_NETDEV)	+= nft_fib_netdev.o
 obj-$(CONFIG_NF_OSF)		+= nf_osf.o
+obj-$(CONFIG_NFT_SOCKET)	+= nft_socket.o
 
 # nf_tables netdev
 obj-$(CONFIG_NFT_DUP_NETDEV)	+= nft_dup_netdev.o
