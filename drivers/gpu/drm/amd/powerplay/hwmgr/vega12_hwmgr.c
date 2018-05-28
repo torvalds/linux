@@ -804,6 +804,9 @@ static int vega12_init_smc_table(struct pp_hwmgr *hwmgr)
 		data->vbios_boot_state.soc_clock = boot_up_values.ulSocClk;
 		data->vbios_boot_state.dcef_clock = boot_up_values.ulDCEFClk;
 		data->vbios_boot_state.uc_cooling_id = boot_up_values.ucCoolingID;
+		data->vbios_boot_state.eclock = boot_up_values.ulEClk;
+		data->vbios_boot_state.dclock = boot_up_values.ulDClk;
+		data->vbios_boot_state.vclock = boot_up_values.ulVClk;
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetMinDeepSleepDcefclk,
 			(uint32_t)(data->vbios_boot_state.dcef_clock / 100));
