@@ -1650,7 +1650,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 	else
 		*skb_xdp = 0;
 
-	preempt_disable();
+	local_bh_disable();
 	rcu_read_lock();
 	xdp_prog = rcu_dereference(tun->xdp_prog);
 	if (xdp_prog && !*skb_xdp) {
@@ -1675,7 +1675,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 			if (err)
 				goto err_redirect;
 			rcu_read_unlock();
-			preempt_enable();
+			local_bh_enable();
 			return NULL;
 		case XDP_TX:
 			get_page(alloc_frag->page);
@@ -1684,7 +1684,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 				goto err_redirect;
 			tun_xdp_flush(tun->dev);
 			rcu_read_unlock();
-			preempt_enable();
+			local_bh_enable();
 			return NULL;
 		case XDP_PASS:
 			delta = orig_data - xdp.data;
@@ -1703,7 +1703,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 	skb = build_skb(buf, buflen);
 	if (!skb) {
 		rcu_read_unlock();
-		preempt_enable();
+		local_bh_enable();
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -1713,7 +1713,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 	alloc_frag->offset += buflen;
 
 	rcu_read_unlock();
-	preempt_enable();
+	local_bh_enable();
 
 	return skb;
 
@@ -1721,7 +1721,7 @@ err_redirect:
 	put_page(alloc_frag->page);
 err_xdp:
 	rcu_read_unlock();
-	preempt_enable();
+	local_bh_enable();
 	this_cpu_inc(tun->pcpu_stats->rx_dropped);
 	return NULL;
 }
@@ -1917,16 +1917,19 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		struct bpf_prog *xdp_prog;
 		int ret;
 
+		local_bh_disable();
 		rcu_read_lock();
 		xdp_prog = rcu_dereference(tun->xdp_prog);
 		if (xdp_prog) {
 			ret = do_xdp_generic(xdp_prog, skb);
 			if (ret != XDP_PASS) {
 				rcu_read_unlock();
+				local_bh_enable();
 				return total_len;
 			}
 		}
 		rcu_read_unlock();
+		local_bh_enable();
 	}
 
 	rcu_read_lock();
