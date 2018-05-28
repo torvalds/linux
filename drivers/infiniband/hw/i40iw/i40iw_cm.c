@@ -2085,7 +2085,7 @@ static int i40iw_addr_resolve_neigh_ipv6(struct i40iw_device *iwdev,
 	if (netif_is_bond_slave(netdev))
 		netdev = netdev_master_upper_dev_get(netdev);
 
-	neigh = dst_neigh_lookup(dst, &dst_addr);
+	neigh = dst_neigh_lookup(dst, dst_addr.sin6_addr.in6_u.u6_addr32);
 
 	rcu_read_lock();
 	if (neigh) {
