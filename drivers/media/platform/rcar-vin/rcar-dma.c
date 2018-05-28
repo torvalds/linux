@@ -856,7 +856,7 @@ static int rvin_capture_start(struct rvin_dev *vin)
 	/* Continuous Frame Capture Mode */
 	rvin_write(vin, VNFC_C_FRAME, VNFC_REG);
 
-	vin->state = RUNNING;
+	vin->state = STARTING;
 
 	return 0;
 }
@@ -909,6 +909,20 @@ static irqreturn_t rvin_irq(int irq, void *data)
 	/* Prepare for capture and update state */
 	vnms = rvin_read(vin, VNMS_REG);
 	slot = (vnms & VNMS_FBS_MASK) >> VNMS_FBS_SHIFT;
+
+	/*
+	 * To hand buffers back in a known order to userspace start
+	 * to capture first from slot 0.
+	 */
+	if (vin->state == STARTING) {
+		if (slot != 0) {
+			vin_dbg(vin, "Starting sync slot: %d\n", slot);
+			goto done;
+		}
+
+		vin_dbg(vin, "Capture start synced!\n");
+		vin->state = RUNNING;
+	}
 
 	/* Capture frame */
 	if (vin->queue_buf[slot]) {
