@@ -178,6 +178,72 @@ static char *function_expand(const char *name, int argc, char *argv[])
 }
 
 /*
+ * Variables (and user-defined functions)
+ */
+static LIST_HEAD(variable_list);
+
+struct variable {
+	char *name;
+	char *value;
+	struct list_head node;
+};
+
+static struct variable *variable_lookup(const char *name)
+{
+	struct variable *v;
+
+	list_for_each_entry(v, &variable_list, node) {
+		if (!strcmp(name, v->name))
+			return v;
+	}
+
+	return NULL;
+}
+
+static char *variable_expand(const char *name, int argc, char *argv[])
+{
+	struct variable *v;
+
+	v = variable_lookup(name);
+	if (!v)
+		return NULL;
+
+	return expand_string_with_args(v->value, argc, argv);
+}
+
+void variable_add(const char *name, const char *value)
+{
+	struct variable *v;
+
+	v = variable_lookup(name);
+	if (v) {
+		free(v->value);
+	} else {
+		v = xmalloc(sizeof(*v));
+		v->name = xstrdup(name);
+		list_add_tail(&v->node, &variable_list);
+	}
+
+	v->value = xstrdup(value);
+}
+
+static void variable_del(struct variable *v)
+{
+	list_del(&v->node);
+	free(v->name);
+	free(v->value);
+	free(v);
+}
+
+void variable_all_del(void)
+{
+	struct variable *v, *tmp;
+
+	list_for_each_entry_safe(v, tmp, &variable_list, node)
+		variable_del(v);
+}
+
+/*
  * Evaluate a clause with arguments.  argc/argv are arguments from the upper
  * function call.
  *
@@ -185,13 +251,25 @@ static char *function_expand(const char *name, int argc, char *argv[])
  */
 static char *eval_clause(const char *str, size_t len, int argc, char *argv[])
 {
-	char *tmp, *name, *res, *prev, *p;
+	char *tmp, *name, *res, *endptr, *prev, *p;
 	int new_argc = 0;
 	char *new_argv[FUNCTION_MAX_ARGS];
 	int nest = 0;
 	int i;
+	unsigned long n;
 
 	tmp = xstrndup(str, len);
+
+	/*
+	 * If variable name is '1', '2', etc.  It is generally an argument
+	 * from a user-function call (i.e. local-scope variable).  If not
+	 * available, then look-up global-scope variables.
+	 */
+	n = strtoul(tmp, &endptr, 10);
+	if (!*endptr && n > 0 && n <= argc) {
+		res = xstrdup(argv[n - 1]);
+		goto free_tmp;
+	}
 
 	prev = p = tmp;
 
@@ -238,6 +316,11 @@ static char *eval_clause(const char *str, size_t len, int argc, char *argv[])
 		new_argv[i] = expand_string_with_args(new_argv[i + 1],
 						      argc, argv);
 
+	/* Search for variables */
+	res = variable_expand(name, new_argc, new_argv);
+	if (res)
+		goto free;
+
 	/* Look for built-in functions */
 	res = function_expand(name, new_argc, new_argv);
 	if (res)
@@ -255,6 +338,7 @@ free:
 	for (i = 0; i < new_argc; i++)
 		free(new_argv[i]);
 	free(name);
+free_tmp:
 	free(tmp);
 
 	return res;

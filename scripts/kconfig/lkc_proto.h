@@ -50,6 +50,8 @@ const char * prop_get_type_name(enum prop_type type);
 
 /* preprocess.c */
 void env_write_dep(FILE *f, const char *auto_conf_name);
+void variable_add(const char *name, const char *value);
+void variable_all_del(void);
 char *expand_string(const char *in);
 char *expand_dollar(const char **str);
 char *expand_one_token(const char **str);

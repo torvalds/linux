@@ -77,6 +77,9 @@ static struct menu *current_menu, *current_entry;
 %token T_CLOSE_PAREN
 %token T_OPEN_PAREN
 %token T_EOL
+%token <string> T_VARIABLE
+%token T_ASSIGN
+%token <string> T_ASSIGN_VAL
 
 %left T_OR
 %left T_AND
@@ -92,7 +95,7 @@ static struct menu *current_menu, *current_entry;
 %type <id> end
 %type <id> option_name
 %type <menu> if_entry menu_entry choice_entry
-%type <string> symbol_option_arg word_opt
+%type <string> symbol_option_arg word_opt assign_val
 
 %destructor {
 	fprintf(stderr, "%s:%d: missing end statement for this entry\n",
@@ -143,6 +146,7 @@ common_stmt:
 	| config_stmt
 	| menuconfig_stmt
 	| source_stmt
+	| assignment_stmt
 ;
 
 option_error:
@@ -511,6 +515,15 @@ symbol:	  nonconst_symbol
 word_opt: /* empty */			{ $$ = NULL; }
 	| T_WORD
 
+/* assignment statement */
+
+assignment_stmt:  T_VARIABLE T_ASSIGN assign_val T_EOL	{ variable_add($1, $3); free($1); free($3); }
+
+assign_val:
+	/* empty */		{ $$ = xstrdup(""); };
+	| T_ASSIGN_VAL
+;
+
 %%
 
 void conf_parse(const char *name)
@@ -525,6 +538,10 @@ void conf_parse(const char *name)
 	if (getenv("ZCONF_DEBUG"))
 		yydebug = 1;
 	yyparse();
+
+	/* Variables are expanded in the parse phase. We can free them here. */
+	variable_all_del();
+
 	if (yynerrs)
 		exit(1);
 	if (!modules_sym)
