@@ -346,10 +346,8 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
 		ret = -EIO;
 
 	if (ret) {
-		DRM_DEBUG_DRIVER("INTEL_GUC_SEND: Action 0x%X failed;"
-				 " ret=%d status=0x%08X response=0x%08X\n",
-				 action[0], ret, status,
-				 I915_READ(SOFT_SCRATCH(15)));
+		DRM_ERROR("MMIO: GuC action %#x failed with error %d %#x\n",
+			  action[0], ret, status);
 		goto out;
 	}
 
