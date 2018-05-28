@@ -1797,7 +1797,7 @@ static int rk3308_codec_adc_reinit_mics(struct rk3308_codec_priv *rk3308)
 				   RK3308_ADC_CH2_MIC_INIT);
 	}
 
-	usleep_range(2000, 2500);	/* estimated value */
+	usleep_range(200, 250);		/* estimated value */
 
 	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
 		/* vendor step 1 */
