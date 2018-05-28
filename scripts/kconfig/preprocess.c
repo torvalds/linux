@@ -106,8 +106,49 @@ struct function {
 	char *(*func)(int argc, char *argv[]);
 };
 
+static char *do_shell(int argc, char *argv[])
+{
+	FILE *p;
+	char buf[256];
+	char *cmd;
+	size_t nread;
+	int i;
+
+	cmd = argv[0];
+
+	p = popen(cmd, "r");
+	if (!p) {
+		perror(cmd);
+		exit(1);
+	}
+
+	nread = fread(buf, 1, sizeof(buf), p);
+	if (nread == sizeof(buf))
+		nread--;
+
+	/* remove trailing new lines */
+	while (buf[nread - 1] == '\n')
+		nread--;
+
+	buf[nread] = 0;
+
+	/* replace a new line with a space */
+	for (i = 0; i < nread; i++) {
+		if (buf[i] == '\n')
+			buf[i] = ' ';
+	}
+
+	if (pclose(p) == -1) {
+		perror(cmd);
+		exit(1);
+	}
+
+	return xstrdup(buf);
+}
+
 static const struct function function_table[] = {
 	/* Name		MIN	MAX	Function */
+	{ "shell",	1,	1,	do_shell },
 };
 
 #define FUNCTION_MAX_ARGS		16
