@@ -23,9 +23,6 @@ export	TEXTADDR
 # If we have a machine-specific directory, then include it in the build.
 core-y				+= arch/nds32/kernel/ arch/nds32/mm/
 libs-y				+= arch/nds32/lib/
-LIBGCC_PATH     		:= \
-  $(shell $(CC) $(KBUILD_CFLAGS) $(KCFLAGS) -print-libgcc-file-name)
-libs-y				+= $(LIBGCC_PATH)
 
 ifneq '$(CONFIG_NDS32_BUILTIN_DTB)' '""'
 BUILTIN_DTB := y
@@ -35,8 +32,12 @@ endif
 
 ifdef CONFIG_CPU_LITTLE_ENDIAN
 KBUILD_CFLAGS   += $(call cc-option, -EL)
+KBUILD_AFLAGS   += $(call cc-option, -EL)
+LDFLAGS         += $(call cc-option, -EL)
 else
 KBUILD_CFLAGS   += $(call cc-option, -EB)
+KBUILD_AFLAGS   += $(call cc-option, -EB)
+LDFLAGS         += $(call cc-option, -EB)
 endif
 
 boot := arch/nds32/boot
