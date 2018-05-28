@@ -374,6 +374,21 @@
 	};
 
 
+	mipi_dsi_pin: mipi_dsi_pin {
+		pins_cmd_dat {
+			pinmux = <MT7623_PIN_100_MIPI_TDP0_FUNC_TDP0>,
+				 <MT7623_PIN_99_MIPI_TDN0_FUNC_TDN0>,
+				 <MT7623_PIN_98_MIPI_TDP1_FUNC_TDP1>,
+				 <MT7623_PIN_97_MIPI_TDN1_FUNC_TDN1>,
+				 <MT7623_PIN_96_MIPI_TCP_FUNC_TCP>,
+				 <MT7623_PIN_95_MIPI_TCN_FUNC_TCN>,
+				 <MT7623_PIN_94_MIPI_TDP2_FUNC_TDP2>,
+				 <MT7623_PIN_93_MIPI_TDN2_FUNC_TDN2>,
+				 <MT7623_PIN_92_MIPI_TDP3_FUNC_TDP3>,
+				 <MT7623_PIN_91_MIPI_TDN3_FUNC_TDN3>;
+		};
+	};
+
 	mmc0_pins_default: mmc0default {
 		pins_cmd_dat {
 			pinmux = <MT7623_PIN_111_MSDC0_DAT7_FUNC_MSDC0_DAT7>,
