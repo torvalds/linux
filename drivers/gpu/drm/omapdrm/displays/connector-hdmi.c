@@ -10,12 +10,10 @@
  */
 
 #include <linux/gpio/consumer.h>
-#include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/platform_device.h>
-#include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/mutex.h>
+#include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #include <drm/drm_edid.h>
 
@@ -46,7 +44,7 @@ struct panel_drv_data {
 
 	struct videomode vm;
 
-	int hpd_gpio;
+	struct gpio_desc *hpd_gpio;
 };
 
 #define to_panel_data(x) container_of(x, struct panel_drv_data, dssdev)
@@ -143,8 +141,8 @@ static bool hdmic_detect(struct omap_dss_device *dssdev)
 	struct omap_dss_device *src = dssdev->src;
 	bool connected;
 
-	if (gpio_is_valid(ddata->hpd_gpio))
-		connected = gpio_get_value_cansleep(ddata->hpd_gpio);
+	if (ddata->hpd_gpio)
+		connected = gpiod_get_value_cansleep(ddata->hpd_gpio);
 	else
 		connected = src->ops->hdmi.detect(src);
 	if (!connected && src->ops->hdmi.lost_hotplug)
@@ -160,7 +158,7 @@ static int hdmic_register_hpd_cb(struct omap_dss_device *dssdev,
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;
 
-	if (gpio_is_valid(ddata->hpd_gpio)) {
+	if (ddata->hpd_gpio) {
 		mutex_lock(&ddata->hpd_lock);
 		ddata->hpd_cb = cb;
 		ddata->hpd_cb_data = cb_data;
@@ -178,7 +176,7 @@ static void hdmic_unregister_hpd_cb(struct omap_dss_device *dssdev)
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;
 
-	if (gpio_is_valid(ddata->hpd_gpio)) {
+	if (ddata->hpd_gpio) {
 		mutex_lock(&ddata->hpd_lock);
 		ddata->hpd_cb = NULL;
 		ddata->hpd_cb_data = NULL;
@@ -193,7 +191,7 @@ static void hdmic_enable_hpd(struct omap_dss_device *dssdev)
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;
 
-	if (gpio_is_valid(ddata->hpd_gpio)) {
+	if (ddata->hpd_gpio) {
 		mutex_lock(&ddata->hpd_lock);
 		ddata->hpd_enabled = true;
 		mutex_unlock(&ddata->hpd_lock);
@@ -207,7 +205,7 @@ static void hdmic_disable_hpd(struct omap_dss_device *dssdev)
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;
 
-	if (gpio_is_valid(ddata->hpd_gpio)) {
+	if (ddata->hpd_gpio) {
 		mutex_lock(&ddata->hpd_lock);
 		ddata->hpd_enabled = false;
 		mutex_unlock(&ddata->hpd_lock);
@@ -272,26 +270,11 @@ static irqreturn_t hdmic_hpd_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int hdmic_probe_of(struct platform_device *pdev)
-{
-	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct device_node *node = pdev->dev.of_node;
-	int gpio;
-
-	/* HPD GPIO */
-	gpio = of_get_named_gpio(node, "hpd-gpios", 0);
-	if (gpio_is_valid(gpio))
-		ddata->hpd_gpio = gpio;
-	else
-		ddata->hpd_gpio = -ENODEV;
-
-	return 0;
-}
-
 static int hdmic_probe(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata;
 	struct omap_dss_device *dssdev;
+	struct gpio_desc *gpio;
 	int r;
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
@@ -301,20 +284,20 @@ static int hdmic_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ddata);
 	ddata->dev = &pdev->dev;
 
-	r = hdmic_probe_of(pdev);
-	if (r)
-		return r;
-
 	mutex_init(&ddata->hpd_lock);
 
-	if (gpio_is_valid(ddata->hpd_gpio)) {
-		r = devm_gpio_request_one(&pdev->dev, ddata->hpd_gpio,
-				GPIOF_DIR_IN, "hdmi_hpd");
-		if (r)
-			return r;
+	/* HPD GPIO */
+	gpio = devm_gpiod_get_optional(&pdev->dev, "hpd", GPIOD_IN);
+	if (IS_ERR(gpio)) {
+		dev_err(&pdev->dev, "failed to parse HPD gpio\n");
+		return PTR_ERR(gpio);
+	}
 
+	ddata->hpd_gpio = gpio;
+
+	if (ddata->hpd_gpio) {
 		r = devm_request_threaded_irq(&pdev->dev,
-				gpio_to_irq(ddata->hpd_gpio),
+				gpiod_to_irq(ddata->hpd_gpio),
 				NULL, hdmic_hpd_isr,
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING |
 				IRQF_ONESHOT,
