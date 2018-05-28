@@ -217,11 +217,19 @@ struct hns_roce_uar {
 	unsigned long	logic_idx;
 };
 
+struct hns_roce_vma_data {
+	struct list_head list;
+	struct vm_area_struct *vma;
+	struct mutex *vma_list_mutex;
+};
+
 struct hns_roce_ucontext {
 	struct ib_ucontext	ibucontext;
 	struct hns_roce_uar	uar;
 	struct list_head	page_list;
 	struct mutex		page_mutex;
+	struct list_head	vma_list;
+	struct mutex		vma_list_mutex;
 };
 
 struct hns_roce_pd {
