@@ -2879,7 +2879,11 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 done:
 	if (status == 0) {
 		/* TRSTRCY = 10 ms; plus some extra */
-		msleep(10 + 40);
+		if (port_dev->quirks & USB_PORT_QUIRK_FAST_ENUM)
+			usleep_range(10000, 12000);
+		else
+			msleep(10 + 40);
+
 		if (udev) {
 			struct usb_hcd *hcd = bus_to_hcd(udev->bus);
 

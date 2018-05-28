@@ -206,6 +206,10 @@ Description:
 		   using /sys/module/usbcore/parameters/old_scheme_first, but
 		   it is often not desirable as the new scheme was introduced to
 		   increase compatibility with more devices.
+		 - Bit 1 reduces TRSTRCY to the 10 ms that are required by the
+		   USB 2.0 specification, instead of the 50 ms that are normally
+		   used to help make enumeration work better on some high speed
+		   devices.
 
 What:		/sys/bus/usb/devices/.../(hub interface)/portX/over_current_count
 Date:		February 2018

@@ -496,6 +496,9 @@ enum usb_port_connect_type {
 /* For the given port, prefer the old (faster) enumeration scheme. */
 #define USB_PORT_QUIRK_OLD_SCHEME	BIT(0)
 
+/* Decrease TRSTRCY to 10ms during device enumeration. */
+#define USB_PORT_QUIRK_FAST_ENUM	BIT(1)
+
 /*
  * USB 2.0 Link Power Management (LPM) parameters.
  */
