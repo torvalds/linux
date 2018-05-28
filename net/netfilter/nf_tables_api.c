@@ -1298,8 +1298,10 @@ static void nft_chain_stats_replace(struct nft_base_chain *chain,
 		rcu_assign_pointer(chain->stats, newstats);
 		synchronize_rcu();
 		free_percpu(oldstats);
-	} else
+	} else {
 		rcu_assign_pointer(chain->stats, newstats);
+		static_branch_inc(&nft_counters_enabled);
+	}
 }
 
 static void nf_tables_chain_destroy(struct nft_ctx *ctx)
