@@ -1073,14 +1073,6 @@ static void aio_complete(struct aio_kiocb *iocb, long res, long res2)
 	unsigned tail, pos, head;
 	unsigned long	flags;
 
-	if (!list_empty_careful(&iocb->ki_list)) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&ctx->ctx_lock, flags);
-		list_del(&iocb->ki_list);
-		spin_unlock_irqrestore(&ctx->ctx_lock, flags);
-	}
-
 	/*
 	 * Add a completion event to the ring buffer. Must be done holding
 	 * ctx->completion_lock to prevent other code from messing with the tail
@@ -1398,9 +1390,22 @@ SYSCALL_DEFINE1(io_destroy, aio_context_t, ctx)
 	return -EINVAL;
 }
 
+static void aio_remove_iocb(struct aio_kiocb *iocb)
+{
+	struct kioctx *ctx = iocb->ki_ctx;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ctx->ctx_lock, flags);
+	list_del(&iocb->ki_list);
+	spin_unlock_irqrestore(&ctx->ctx_lock, flags);
+}
+
 static void aio_complete_rw(struct kiocb *kiocb, long res, long res2)
 {
 	struct aio_kiocb *iocb = container_of(kiocb, struct aio_kiocb, rw);
+
+	if (!list_empty_careful(&iocb->ki_list))
+		aio_remove_iocb(iocb);
 
 	if (kiocb->ki_flags & IOCB_WRITE) {
 		struct inode *inode = file_inode(kiocb->ki_filp);
@@ -1594,20 +1599,19 @@ static inline bool __aio_poll_remove(struct poll_iocb *req)
 	return true;
 }
 
-static inline void __aio_poll_complete(struct poll_iocb *req, __poll_t mask)
+static inline void __aio_poll_complete(struct aio_kiocb *iocb, __poll_t mask)
 {
-	struct aio_kiocb *iocb = container_of(req, struct aio_kiocb, poll);
-	struct file *file = req->file;
-
+	fput(iocb->poll.file);
 	aio_complete(iocb, mangle_poll(mask), 0);
-	fput(file);
 }
 
 static void aio_poll_work(struct work_struct *work)
 {
-	struct poll_iocb *req = container_of(work, struct poll_iocb, work);
+	struct aio_kiocb *iocb = container_of(work, struct aio_kiocb, poll.work);
 
-	__aio_poll_complete(req, req->events);
+	if (!list_empty_careful(&iocb->ki_list))
+		aio_remove_iocb(iocb);
+	__aio_poll_complete(iocb, iocb->poll.events);
 }
 
 static int aio_poll_cancel(struct kiocb *iocb)
@@ -1658,7 +1662,7 @@ static int aio_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 		list_del_init(&iocb->ki_list);
 		spin_unlock(&iocb->ki_ctx->ctx_lock);
 
-		__aio_poll_complete(req, mask);
+		__aio_poll_complete(iocb, mask);
 	} else {
 		req->events = mask;
 		INIT_WORK(&req->work, aio_poll_work);
@@ -1710,7 +1714,7 @@ static ssize_t aio_poll(struct aio_kiocb *aiocb, struct iocb *iocb)
 	spin_unlock_irq(&ctx->ctx_lock);
 done:
 	if (mask)
-		__aio_poll_complete(req, mask);
+		__aio_poll_complete(aiocb, mask);
 	return -EIOCBQUEUED;
 out_fail:
 	fput(req->file);
