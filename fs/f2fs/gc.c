@@ -603,6 +603,7 @@ static void move_data_block(struct inode *inode, block_t bidx,
 		.op_flags = 0,
 		.encrypted_page = NULL,
 		.in_list = false,
+		.retry = false,
 	};
 	struct dnode_of_data dn;
 	struct f2fs_summary sum;
@@ -697,8 +698,8 @@ static void move_data_block(struct inode *inode, block_t bidx,
 	fio.op = REQ_OP_WRITE;
 	fio.op_flags = REQ_SYNC;
 	fio.new_blkaddr = newaddr;
-	err = f2fs_submit_page_write(&fio);
-	if (err) {
+	f2fs_submit_page_write(&fio);
+	if (fio.retry) {
 		if (PageWriteback(fio.encrypted_page))
 			end_page_writeback(fio.encrypted_page);
 		goto put_page_out;
