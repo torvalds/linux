@@ -11,6 +11,9 @@ Required properties:
 - clock-names: It should be "acodec".
 - resets : Must contain an entry for each entry in reset-names.
 - reset-names : Must include the following entries: "acodec-reset".
+
+Optional properties:
+- rockchip,loopback-grp: It points out the ADC group which is the loopback used.
 - hp-ctl-gpios: The gpio of head phone controller.
 - spk-ctl-gpios: The gpio of speak controller.
 
@@ -24,6 +27,7 @@ acodec: acodec@ff560000 {
 	clock-names = "acodec";
 	resets = <&cru SRST_ACODEC_P>;
 	reset-names = "acodec-reset";
+	rockchip,loopback-grp = <0>;
 	hp-ctl-gpios = <&gpio0 1 GPIO_ACTIVE_HIGH>;
 	spk-ctl-gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
 	status = "okay";
