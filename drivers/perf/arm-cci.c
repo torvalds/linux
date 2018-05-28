@@ -120,9 +120,9 @@ enum cci_models {
 
 static void pmu_write_counters(struct cci_pmu *cci_pmu,
 				 unsigned long *mask);
-static ssize_t cci_pmu_format_show(struct device *dev,
+static ssize_t __maybe_unused cci_pmu_format_show(struct device *dev,
 			struct device_attribute *attr, char *buf);
-static ssize_t cci_pmu_event_show(struct device *dev,
+static ssize_t __maybe_unused cci_pmu_event_show(struct device *dev,
 			struct device_attribute *attr, char *buf);
 
 #define CCI_EXT_ATTR_ENTRY(_name, _func, _config) 				\
@@ -1451,7 +1451,7 @@ static int cci_pmu_offline_cpu(unsigned int cpu)
 	return 0;
 }
 
-static struct cci_pmu_model cci_pmu_models[] = {
+static __maybe_unused struct cci_pmu_model cci_pmu_models[] = {
 #ifdef CONFIG_ARM_CCI400_PMU
 	[CCI400_R0] = {
 		.name = "CCI_400",
