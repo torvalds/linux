@@ -1779,9 +1779,6 @@ static uint32_t get_max_pixel_clock_for_all_paths(
 				pipe_ctx->stream_res.pix_clk_params.requested_pix_clk;
 	}
 
-	if (max_pix_clk == 0)
-		ASSERT(0);
-
 	return max_pix_clk;
 }
 
