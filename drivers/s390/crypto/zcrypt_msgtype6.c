@@ -1084,6 +1084,13 @@ out_free:
 	return rc;
 }
 
+/**
+ * Fetch function code from cprb.
+ * Extracting the fc requires to copy the cprb from userspace.
+ * So this function allocates memory and needs an ap_msg prepared
+ * by the caller with ap_init_message(). Also the caller has to
+ * make sure ap_release_message() is always called even on failure.
+ */
 unsigned int get_cprb_fc(struct ica_xcRB *xcRB,
 				struct ap_message *ap_msg,
 				unsigned int *func_code, unsigned short **dom)
@@ -1091,9 +1098,7 @@ unsigned int get_cprb_fc(struct ica_xcRB *xcRB,
 	struct response_type resp_type = {
 		.type = PCIXCC_RESPONSE_TYPE_XCRB,
 	};
-	int rc;
 
-	ap_init_message(ap_msg);
 	ap_msg->message = kmalloc(MSGTYPE06_MAX_MSG_SIZE, GFP_KERNEL);
 	if (!ap_msg->message)
 		return -ENOMEM;
@@ -1101,17 +1106,10 @@ unsigned int get_cprb_fc(struct ica_xcRB *xcRB,
 	ap_msg->psmid = (((unsigned long long) current->pid) << 32) +
 				atomic_inc_return(&zcrypt_step);
 	ap_msg->private = kmalloc(sizeof(resp_type), GFP_KERNEL);
-	if (!ap_msg->private) {
-		kzfree(ap_msg->message);
+	if (!ap_msg->private)
 		return -ENOMEM;
-	}
 	memcpy(ap_msg->private, &resp_type, sizeof(resp_type));
-	rc = XCRB_msg_to_type6CPRB_msgX(ap_msg, xcRB, func_code, dom);
-	if (rc) {
-		kzfree(ap_msg->message);
-		kzfree(ap_msg->private);
-	}
-	return rc;
+	return XCRB_msg_to_type6CPRB_msgX(ap_msg, xcRB, func_code, dom);
 }
 
 /**
@@ -1139,11 +1137,16 @@ static long zcrypt_msgtype6_send_cprb(struct zcrypt_queue *zq,
 		/* Signal pending. */
 		ap_cancel_message(zq->queue, ap_msg);
 
-	kzfree(ap_msg->message);
-	kzfree(ap_msg->private);
 	return rc;
 }
 
+/**
+ * Fetch function code from ep11 cprb.
+ * Extracting the fc requires to copy the ep11 cprb from userspace.
+ * So this function allocates memory and needs an ap_msg prepared
+ * by the caller with ap_init_message(). Also the caller has to
+ * make sure ap_release_message() is always called even on failure.
+ */
 unsigned int get_ep11cprb_fc(struct ep11_urb *xcrb,
 				    struct ap_message *ap_msg,
 				    unsigned int *func_code)
@@ -1151,9 +1154,7 @@ unsigned int get_ep11cprb_fc(struct ep11_urb *xcrb,
 	struct response_type resp_type = {
 		.type = PCIXCC_RESPONSE_TYPE_EP11,
 	};
-	int rc;
 
-	ap_init_message(ap_msg);
 	ap_msg->message = kmalloc(MSGTYPE06_MAX_MSG_SIZE, GFP_KERNEL);
 	if (!ap_msg->message)
 		return -ENOMEM;
@@ -1161,17 +1162,10 @@ unsigned int get_ep11cprb_fc(struct ep11_urb *xcrb,
 	ap_msg->psmid = (((unsigned long long) current->pid) << 32) +
 				atomic_inc_return(&zcrypt_step);
 	ap_msg->private = kmalloc(sizeof(resp_type), GFP_KERNEL);
-	if (!ap_msg->private) {
-		kzfree(ap_msg->message);
+	if (!ap_msg->private)
 		return -ENOMEM;
-	}
 	memcpy(ap_msg->private, &resp_type, sizeof(resp_type));
-	rc = xcrb_msg_to_type6_ep11cprb_msgx(ap_msg, xcrb, func_code);
-	if (rc) {
-		kzfree(ap_msg->message);
-		kzfree(ap_msg->private);
-	}
-	return rc;
+	return xcrb_msg_to_type6_ep11cprb_msgx(ap_msg, xcrb, func_code);
 }
 
 /**
@@ -1246,8 +1240,6 @@ static long zcrypt_msgtype6_send_ep11_cprb(struct zcrypt_queue *zq,
 		/* Signal pending. */
 		ap_cancel_message(zq->queue, ap_msg);
 
-	kzfree(ap_msg->message);
-	kzfree(ap_msg->private);
 	return rc;
 }
 
@@ -1258,7 +1250,6 @@ unsigned int get_rng_fc(struct ap_message *ap_msg, int *func_code,
 		.type = PCIXCC_RESPONSE_TYPE_XCRB,
 	};
 
-	ap_init_message(ap_msg);
 	ap_msg->message = kmalloc(MSGTYPE06_MAX_MSG_SIZE, GFP_KERNEL);
 	if (!ap_msg->message)
 		return -ENOMEM;
@@ -1266,10 +1257,8 @@ unsigned int get_rng_fc(struct ap_message *ap_msg, int *func_code,
 	ap_msg->psmid = (((unsigned long long) current->pid) << 32) +
 				atomic_inc_return(&zcrypt_step);
 	ap_msg->private = kmalloc(sizeof(resp_type), GFP_KERNEL);
-	if (!ap_msg->private) {
-		kzfree(ap_msg->message);
+	if (!ap_msg->private)
 		return -ENOMEM;
-	}
 	memcpy(ap_msg->private, &resp_type, sizeof(resp_type));
 
 	rng_type6CPRB_msgX(ap_msg, ZCRYPT_RNG_BUFFER_SIZE, domain);
@@ -1313,8 +1302,6 @@ static long zcrypt_msgtype6_rng(struct zcrypt_queue *zq,
 		/* Signal pending. */
 		ap_cancel_message(zq->queue, ap_msg);
 
-	kzfree(ap_msg->message);
-	kzfree(ap_msg->private);
 	return rc;
 }
 

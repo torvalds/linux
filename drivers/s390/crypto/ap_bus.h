@@ -198,11 +198,18 @@ struct ap_message {
  */
 static inline void ap_init_message(struct ap_message *ap_msg)
 {
-	ap_msg->psmid = 0;
-	ap_msg->length = 0;
-	ap_msg->rc = 0;
-	ap_msg->special = 0;
-	ap_msg->receive = NULL;
+	memset(ap_msg, 0, sizeof(*ap_msg));
+}
+
+/**
+ * ap_release_message() - Release ap_message.
+ * Releases all memory used internal within the ap_message struct
+ * Currently this is the message and private field.
+ */
+static inline void ap_release_message(struct ap_message *ap_msg)
+{
+	kzfree(ap_msg->message);
+	kzfree(ap_msg->private);
 }
 
 #define for_each_ap_card(_ac) \
