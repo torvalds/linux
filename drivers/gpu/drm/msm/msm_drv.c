@@ -894,8 +894,15 @@ static struct drm_driver msm_driver = {
 static int msm_pm_suspend(struct device *dev)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct msm_drm_private *priv = ddev->dev_private;
 
 	drm_kms_helper_poll_disable(ddev);
+
+	priv->pm_state = drm_atomic_helper_suspend(ddev);
+	if (IS_ERR(priv->pm_state)) {
+		drm_kms_helper_poll_enable(ddev);
+		return PTR_ERR(priv->pm_state);
+	}
 
 	return 0;
 }
@@ -903,7 +910,9 @@ static int msm_pm_suspend(struct device *dev)
 static int msm_pm_resume(struct device *dev)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct msm_drm_private *priv = ddev->dev_private;
 
+	drm_atomic_helper_resume(ddev, priv->pm_state);
 	drm_kms_helper_poll_enable(ddev);
 
 	return 0;
