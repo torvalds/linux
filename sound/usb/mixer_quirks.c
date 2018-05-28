@@ -1824,7 +1824,8 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 	int err = 0;
 	struct snd_info_entry *entry;
 
-	if ((err = snd_usb_soundblaster_remote_init(mixer)) < 0)
+	err = snd_usb_soundblaster_remote_init(mixer);
+	if (err < 0)
 		return err;
 
 	switch (mixer->chip->usb_id) {
