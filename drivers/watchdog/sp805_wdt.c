@@ -42,6 +42,7 @@
 	/* control register masks */
 	#define	INT_ENABLE	(1 << 0)
 	#define	RESET_ENABLE	(1 << 1)
+	#define	ENABLE_MASK	(INT_ENABLE | RESET_ENABLE)
 #define WDTINTCLR		0x00C
 #define WDTRIS			0x010
 #define WDTMIS			0x014
@@ -73,6 +74,15 @@ static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 		"Set to 1 to keep watchdog running after device release");
+
+/* returns true if wdt is running; otherwise returns false */
+static bool wdt_is_running(struct watchdog_device *wdd)
+{
+	struct sp805_wdt *wdt = watchdog_get_drvdata(wdd);
+	u32 wdtcontrol = readl_relaxed(wdt->base + WDTCONTROL);
+
+	return (wdtcontrol & ENABLE_MASK) == ENABLE_MASK;
+}
 
 /* This routine finds load value that will reset system in required timout */
 static int wdt_setload(struct watchdog_device *wdd, unsigned int timeout)
@@ -252,6 +262,15 @@ sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 	wdt->wdd.timeout = DEFAULT_TIMEOUT;
 	watchdog_init_timeout(&wdt->wdd, 0, &adev->dev);
 	wdt_setload(&wdt->wdd, wdt->wdd.timeout);
+
+	/*
+	 * If HW is already running, enable/reset the wdt and set the running
+	 * bit to tell the wdt subsystem
+	 */
+	if (wdt_is_running(&wdt->wdd)) {
+		wdt_enable(&wdt->wdd);
+		set_bit(WDOG_HW_RUNNING, &wdt->wdd.status);
+	}
 
 	ret = watchdog_register_device(&wdt->wdd);
 	if (ret) {
