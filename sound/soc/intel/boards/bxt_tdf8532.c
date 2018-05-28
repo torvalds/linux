@@ -212,6 +212,7 @@ static struct snd_soc_dai_link broxton_tdf8532_dais[] = {
 	},
 };
 
+#if !IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL)
 static int bxt_add_dai_link(struct snd_soc_card *card,
 			struct snd_soc_dai_link *link)
 {
@@ -219,6 +220,7 @@ static int bxt_add_dai_link(struct snd_soc_card *card,
 	link->nonatomic = 1;
 	return 0;
 }
+#endif
 
 /* broxton audio machine driver for TDF8532 */
 static struct snd_soc_card broxton_tdf8532 = {
@@ -232,7 +234,9 @@ static struct snd_soc_card broxton_tdf8532 = {
 	.dapm_routes = broxton_tdf8532_map,
 	.num_dapm_routes = ARRAY_SIZE(broxton_tdf8532_map),
 	.fully_routed = true,
+#if !IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL)
 	.add_dai_link = bxt_add_dai_link,
+#endif
 };
 
 static int broxton_tdf8532_audio_probe(struct platform_device *pdev)
