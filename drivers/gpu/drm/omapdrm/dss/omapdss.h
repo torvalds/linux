@@ -388,6 +388,18 @@ struct omap_dss_device_ops {
 	};
 };
 
+/**
+ * enum omap_dss_device_ops_flag - Indicates which device ops are supported
+ * @OMAP_DSS_DEVICE_OP_DETECT: The device supports output connection detection
+ * @OMAP_DSS_DEVICE_OP_HPD: The device supports all hot-plug-related operations
+ * @OMAP_DSS_DEVICE_OP_EDID: The device supports readind EDID
+ */
+enum omap_dss_device_ops_flag {
+	OMAP_DSS_DEVICE_OP_DETECT = BIT(0),
+	OMAP_DSS_DEVICE_OP_HPD = BIT(1),
+	OMAP_DSS_DEVICE_OP_EDID = BIT(2),
+};
+
 enum omap_dss_device_type {
 	OMAP_DSS_DEVICE_TYPE_OUTPUT = (1 << 0),
 	OMAP_DSS_DEVICE_TYPE_DISPLAY = (1 << 1),
@@ -421,6 +433,7 @@ struct omap_dss_device {
 
 	const struct omap_dss_driver *driver;
 	const struct omap_dss_device_ops *ops;
+	unsigned long ops_flags;
 
 	/* helper variable for driver suspend/resume */
 	bool activate_after_resume;
