@@ -333,13 +333,7 @@ struct sort_entry sort_sym = {
 
 char *hist_entry__get_srcline(struct hist_entry *he)
 {
-	struct map *map = he->ms.map;
-
-	if (!map)
-		return SRCLINE_UNKNOWN;
-
-	return get_srcline(map->dso, map__rip_2objdump(map, he->ip),
-			   he->ms.sym, true, true, he->ip);
+	return map__srcline(he->ms.map, he->ip, he->ms.sym);
 }
 
 static int64_t
@@ -375,28 +369,14 @@ static int64_t
 sort__srcline_from_cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	if (!left->branch_info->srcline_from) {
-		struct map *map = left->branch_info->from.map;
-		if (!map)
-			left->branch_info->srcline_from = SRCLINE_UNKNOWN;
-		else
-			left->branch_info->srcline_from = get_srcline(map->dso,
-					   map__rip_2objdump(map,
-							     left->branch_info->from.al_addr),
-							 left->branch_info->from.sym,
-							 true, true,
-							 left->branch_info->from.al_addr);
+		left->branch_info->srcline_from = map__srcline(left->branch_info->from.map,
+							       left->branch_info->from.al_addr,
+							       left->branch_info->from.sym);
 	}
 	if (!right->branch_info->srcline_from) {
-		struct map *map = right->branch_info->from.map;
-		if (!map)
-			right->branch_info->srcline_from = SRCLINE_UNKNOWN;
-		else
-			right->branch_info->srcline_from = get_srcline(map->dso,
-					     map__rip_2objdump(map,
-							       right->branch_info->from.al_addr),
-						     right->branch_info->from.sym,
-						     true, true,
-						     right->branch_info->from.al_addr);
+		right->branch_info->srcline_from = map__srcline(right->branch_info->from.map,
+								right->branch_info->from.al_addr,
+								right->branch_info->from.sym);
 	}
 	return strcmp(right->branch_info->srcline_from, left->branch_info->srcline_from);
 }
@@ -420,28 +400,14 @@ static int64_t
 sort__srcline_to_cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	if (!left->branch_info->srcline_to) {
-		struct map *map = left->branch_info->to.map;
-		if (!map)
-			left->branch_info->srcline_to = SRCLINE_UNKNOWN;
-		else
-			left->branch_info->srcline_to = get_srcline(map->dso,
-					   map__rip_2objdump(map,
-							     left->branch_info->to.al_addr),
-							 left->branch_info->from.sym,
-							 true, true,
-							 left->branch_info->to.al_addr);
+		left->branch_info->srcline_to = map__srcline(left->branch_info->to.map,
+							     left->branch_info->to.al_addr,
+							     left->branch_info->to.sym);
 	}
 	if (!right->branch_info->srcline_to) {
-		struct map *map = right->branch_info->to.map;
-		if (!map)
-			right->branch_info->srcline_to = SRCLINE_UNKNOWN;
-		else
-			right->branch_info->srcline_to = get_srcline(map->dso,
-					     map__rip_2objdump(map,
-							       right->branch_info->to.al_addr),
-						     right->branch_info->to.sym,
-						     true, true,
-						     right->branch_info->to.al_addr);
+		right->branch_info->srcline_to = map__srcline(right->branch_info->to.map,
+							      right->branch_info->to.al_addr,
+							      right->branch_info->to.sym);
 	}
 	return strcmp(right->branch_info->srcline_to, left->branch_info->srcline_to);
 }
