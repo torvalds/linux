@@ -536,13 +536,16 @@ config HAVE_CC_STACKPROTECTOR
 	bool
 	help
 	  An arch should select this symbol if:
-	  - its compiler supports the -fstack-protector option
 	  - it has implemented a stack canary (e.g. __stack_chk_guard)
 
-choice
-	prompt "Stack Protector buffer overflow detection"
+config CC_HAS_STACKPROTECTOR_NONE
+	def_bool $(cc-option,-fno-stack-protector)
+
+config CC_STACKPROTECTOR
+	bool "Stack Protector buffer overflow detection"
 	depends on HAVE_CC_STACKPROTECTOR
-	default CC_STACKPROTECTOR_AUTO
+	depends on $(cc-option,-fstack-protector)
+	default y
 	help
 	  This option turns on the "stack-protector" GCC feature. This
 	  feature puts, at the beginning of functions, a canary value on
@@ -552,14 +555,6 @@ choice
 	  overwrite the canary, which gets detected and the attack is then
 	  neutralized via a kernel panic.
 
-config CC_STACKPROTECTOR_NONE
-	bool "None"
-	help
-	  Disable "stack-protector" GCC feature.
-
-config CC_STACKPROTECTOR_REGULAR
-	bool "Regular"
-	help
 	  Functions will have the stack-protector canary logic added if they
 	  have an 8-byte or larger character array on the stack.
 
@@ -571,7 +566,10 @@ config CC_STACKPROTECTOR_REGULAR
 	  by about 0.3%.
 
 config CC_STACKPROTECTOR_STRONG
-	bool "Strong"
+	bool "Strong Stack Protector"
+	depends on CC_STACKPROTECTOR
+	depends on $(cc-option,-fstack-protector-strong)
+	default y
 	help
 	  Functions will have the stack-protector canary logic added in any
 	  of the following conditions:
@@ -588,14 +586,6 @@ config CC_STACKPROTECTOR_STRONG
 	  On an x86 "defconfig" build, this feature adds canary checks to
 	  about 20% of all kernel functions, which increases the kernel code
 	  size by about 2%.
-
-config CC_STACKPROTECTOR_AUTO
-	bool "Automatic"
-	help
-	  If the compiler supports it, the best available stack-protector
-	  option will be chosen.
-
-endchoice
 
 config HAVE_ARCH_WITHIN_STACK_FRAMES
 	bool
