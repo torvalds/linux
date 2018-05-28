@@ -144,7 +144,7 @@ static const struct rockchip_cpuclk_reg_data px30_cpuclk_data = {
 	.pll_name = "pll_apll",
 };
 
-PNAME(mux_pll_p)		= { "xin24m", "clk_rtc32k_pmu" };
+PNAME(mux_pll_p)		= { "xin24m"};
 PNAME(mux_usb480m_p)		= { "xin24m", "usb480m_phy", "clk_rtc32k_pmu" };
 PNAME(mux_armclk_p)		= { "apll_core", "gpll_core" };
 PNAME(mux_ddrphy_p)		= { "dpll_ddr", "gpll_ddr" };
@@ -187,22 +187,23 @@ PNAME(mux_usbphy_ref_p)		= { "xin24m", "clk_ref24m_pmu" };
 PNAME(mux_mipidsiphy_ref_p)	= { "xin24m", "clk_ref24m_pmu" };
 
 static struct rockchip_pll_clock px30_pll_clks[] __initdata = {
-	[apll] = PLL_BOOST(pll_rk3036, PLL_APLL, "apll", mux_pll_p,
+	[apll] = PLL_BOOST(pll_rk3328, PLL_APLL, "apll", mux_pll_p,
 		     0, PX30_PLL_CON(0),
 		     PX30_MODE_CON, 0, 0, 0, px30_pll_rates),
-	[dpll] = PLL(pll_rk3036, PLL_DPLL, "dpll", mux_pll_p,
+	[dpll] = PLL(pll_rk3328, PLL_DPLL, "dpll", mux_pll_p,
 		     0, PX30_PLL_CON(8),
 		     PX30_MODE_CON, 4, 1, 0, NULL),
-	[cpll] = PLL(pll_rk3036, PLL_CPLL, "cpll", mux_pll_p,
+	[cpll] = PLL(pll_rk3328, PLL_CPLL, "cpll", mux_pll_p,
 		     0, PX30_PLL_CON(16),
 		     PX30_MODE_CON, 2, 2, 0, px30_pll_rates),
-	[npll] = PLL(pll_rk3036, PLL_NPLL, "npll", mux_pll_p,
+	[npll] = PLL(pll_rk3328, PLL_NPLL, "npll", mux_pll_p,
 		     0, PX30_PLL_CON(24),
 		     PX30_MODE_CON, 6, 4, 0, px30_pll_rates),
 };
 
 static struct rockchip_pll_clock px30_pmu_pll_clks[] __initdata = {
-	[gpll] = PLL(pll_rk3036, PLL_GPLL, "gpll",  mux_pll_p, 0, PX30_PMU_PLL_CON(0),
+	[gpll] = PLL(pll_rk3328, PLL_GPLL, "gpll",  mux_pll_p,
+		     0, PX30_PMU_PLL_CON(0),
 		     PX30_PMU_MODE, 0, 3, 0, px30_pll_rates),
 };
 
