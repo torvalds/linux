@@ -357,13 +357,14 @@ int symbol__tty_annotate2(struct symbol *sym, struct map *map,
 #ifdef HAVE_SLANG_SUPPORT
 int symbol__tui_annotate(struct symbol *sym, struct map *map,
 			 struct perf_evsel *evsel,
-			 struct hist_browser_timer *hbt);
+			 struct hist_browser_timer *hbt,
+			 struct annotation_options *opts);
 #else
 static inline int symbol__tui_annotate(struct symbol *sym __maybe_unused,
 				struct map *map __maybe_unused,
 				struct perf_evsel *evsel  __maybe_unused,
-				struct hist_browser_timer *hbt
-				__maybe_unused)
+				struct hist_browser_timer *hbt __maybe_unused,
+				struct annotation_options *opts __maybe_unused)
 {
 	return 0;
 }
