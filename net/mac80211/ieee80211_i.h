@@ -2050,13 +2050,6 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 					  const u8 *ssid, size_t ssid_len,
 					  const u8 *ie, size_t ie_len,
 					  u32 flags);
-void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata,
-			      const u8 *src, const u8 *dst,
-			      const u8 *ssid, size_t ssid_len,
-			      const u8 *ie, size_t ie_len,
-			      u32 ratemask, u32 flags, u32 tx_flags,
-			      struct ieee80211_channel *channel, bool scan);
-
 u32 ieee80211_sta_get_rates(struct ieee80211_sub_if_data *sdata,
 			    struct ieee802_11_elems *elems,
 			    enum nl80211_band band, u32 *basic_rates);

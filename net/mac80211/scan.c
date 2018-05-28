@@ -528,6 +528,24 @@ void ieee80211_run_deferred_scan(struct ieee80211_local *local)
 				     round_jiffies_relative(0));
 }
 
+static void ieee80211_send_scan_probe_req(struct ieee80211_sub_if_data *sdata,
+					  const u8 *src, const u8 *dst,
+					  const u8 *ssid, size_t ssid_len,
+					  const u8 *ie, size_t ie_len,
+					  u32 ratemask, u32 flags, u32 tx_flags,
+					  struct ieee80211_channel *channel)
+{
+	struct sk_buff *skb;
+
+	skb = ieee80211_build_probe_req(sdata, src, dst, ratemask, channel,
+					ssid, ssid_len,
+					ie, ie_len, flags);
+	if (skb) {
+		IEEE80211_SKB_CB(skb)->flags |= tx_flags;
+		ieee80211_tx_skb_tid_band(sdata, skb, 7, channel->band);
+	}
+}
+
 static void ieee80211_scan_state_send_probe(struct ieee80211_local *local,
 					    unsigned long *next_delay)
 {
@@ -548,12 +566,12 @@ static void ieee80211_scan_state_send_probe(struct ieee80211_local *local,
 					  lockdep_is_held(&local->mtx));
 
 	for (i = 0; i < scan_req->n_ssids; i++)
-		ieee80211_send_probe_req(
+		ieee80211_send_scan_probe_req(
 			sdata, local->scan_addr, scan_req->bssid,
 			scan_req->ssids[i].ssid, scan_req->ssids[i].ssid_len,
 			scan_req->ie, scan_req->ie_len,
 			scan_req->rates[band], 0,
-			tx_flags, local->hw.conf.chandef.chan, true);
+			tx_flags, local->hw.conf.chandef.chan);
 
 	/*
 	 * After sending probe requests, wait for probe responses
