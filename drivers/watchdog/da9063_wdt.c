@@ -45,8 +45,31 @@ static unsigned int da9063_wdt_timeout_to_sel(unsigned int secs)
 	return DA9063_TWDSCALE_MAX;
 }
 
+static int da9063_wdt_disable_timer(struct da9063 *da9063)
+{
+	return regmap_update_bits(da9063->regmap, DA9063_REG_CONTROL_D,
+				  DA9063_TWDSCALE_MASK,
+				  DA9063_TWDSCALE_DISABLE);
+}
+
 static int _da9063_wdt_set_timeout(struct da9063 *da9063, unsigned int regval)
 {
+	int ret;
+
+	/*
+	 * The watchdog triggers a reboot if a timeout value is already
+	 * programmed because the timeout value combines two functions
+	 * in one: indicating the counter limit and starting the watchdog.
+	 * The watchdog must be disabled to be able to change the timeout
+	 * value if the watchdog is already running. Then we can set the
+	 * new timeout value which enables the watchdog again.
+	 */
+	ret = da9063_wdt_disable_timer(da9063);
+	if (ret)
+		return ret;
+
+	usleep_range(150, 300);
+
 	return regmap_update_bits(da9063->regmap, DA9063_REG_CONTROL_D,
 				  DA9063_TWDSCALE_MASK, regval);
 }
@@ -71,8 +94,7 @@ static int da9063_wdt_stop(struct watchdog_device *wdd)
 	struct da9063 *da9063 = watchdog_get_drvdata(wdd);
 	int ret;
 
-	ret = regmap_update_bits(da9063->regmap, DA9063_REG_CONTROL_D,
-				 DA9063_TWDSCALE_MASK, DA9063_TWDSCALE_DISABLE);
+	ret = da9063_wdt_disable_timer(da9063);
 	if (ret)
 		dev_alert(da9063->dev, "Watchdog failed to stop (err = %d)\n",
 			  ret);
