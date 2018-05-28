@@ -320,24 +320,6 @@ to the following format:
      } video_spu_t;
 
 
-.. c:type:: video_spu_palette
-
-struct video_spu_palette
-========================
-
-The following structure is used to set the SPU palette by calling
-VIDEO_SPU_PALETTE:
-
-
-.. code-block:: c
-
-     typedef
-     struct video_spu_palette {
-	 int length;
-	 uint8_t *palette;
-     } video_spu_palette_t;
-
-
 .. c:type:: video_navi_pack
 
 struct video_navi_pack

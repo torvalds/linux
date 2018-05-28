@@ -186,12 +186,6 @@ typedef struct video_spu {
 } video_spu_t;
 
 
-typedef struct video_spu_palette {      /* SPU Palette information */
-	int length;
-	__u8 __user *palette;
-} video_spu_palette_t;
-
-
 typedef struct video_navi_pack {
 	int length;          /* 0 ... 1024 */
 	__u8 data[1024];
@@ -248,7 +242,6 @@ typedef __u16 video_attributes_t;
 #define VIDEO_SET_SYSTEM           _IO('o', 38)
 #define VIDEO_SET_HIGHLIGHT        _IOW('o', 39, video_highlight_t)
 #define VIDEO_SET_SPU              _IOW('o', 50, video_spu_t)
-#define VIDEO_SET_SPU_PALETTE      _IOW('o', 51, video_spu_palette_t)
 #define VIDEO_GET_NAVI             _IOR('o', 52, video_navi_pack_t)
 #define VIDEO_SET_ATTRIBUTES       _IO('o', 53)
 #define VIDEO_GET_SIZE             _IOR('o', 55, video_size_t)

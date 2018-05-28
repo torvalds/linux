@@ -38,6 +38,5 @@ Video Function Calls
     video-set-system
     video-set-highlight
     video-set-spu
-    video-set-spu-palette
     video-get-navi
     video-set-attributes
