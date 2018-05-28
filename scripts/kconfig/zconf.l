@@ -102,10 +102,10 @@ n	[A-Za-z0-9_-]
 <COMMAND>{
 	{n}+	{
 		const struct kconf_id *id = kconf_id_lookup(yytext, yyleng);
-		BEGIN(PARAM);
 		current_pos.file = current_file;
 		current_pos.lineno = yylineno;
 		if (id && id->flags & TF_COMMAND) {
+			BEGIN(PARAM);
 			yylval.id = id;
 			return id->token;
 		}
