@@ -2267,7 +2267,8 @@ static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 
 		ieee80211_send_probe_req(sdata, sdata->vif.addr, dst,
 					 ssid + 2, ssid_len, NULL,
-					 0, (u32) -1, true, 0,
+					 0, (u32) -1,
+					 IEEE80211_PROBE_FLAG_DIRECTED, 0,
 					 ifmgd->associated->channel, false);
 		rcu_read_unlock();
 	}
@@ -2370,7 +2371,7 @@ struct sk_buff *ieee80211_ap_probereq_get(struct ieee80211_hw *hw,
 	skb = ieee80211_build_probe_req(sdata, sdata->vif.addr, cbss->bssid,
 					(u32) -1, cbss->channel,
 					ssid + 2, ssid_len,
-					NULL, 0, true);
+					NULL, 0, IEEE80211_PROBE_FLAG_DIRECTED);
 	rcu_read_unlock();
 
 	return skb;

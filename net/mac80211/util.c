@@ -1353,7 +1353,7 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_local *local,
 					 enum nl80211_band band,
 					 u32 rate_mask,
 					 struct cfg80211_chan_def *chandef,
-					 size_t *offset)
+					 size_t *offset, u32 flags)
 {
 	struct ieee80211_supported_band *sband;
 	u8 *pos = buffer, *end = buffer + buffer_len;
@@ -1518,7 +1518,8 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 			     struct ieee80211_scan_ies *ie_desc,
 			     const u8 *ie, size_t ie_len,
 			     u8 bands_used, u32 *rate_masks,
-			     struct cfg80211_chan_def *chandef)
+			     struct cfg80211_chan_def *chandef,
+			     u32 flags)
 {
 	size_t pos = 0, old_pos = 0, custom_ie_offset = 0;
 	int i;
@@ -1533,7 +1534,8 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 							     ie, ie_len, i,
 							     rate_masks[i],
 							     chandef,
-							     &custom_ie_offset);
+							     &custom_ie_offset,
+							     flags);
 			ie_desc->ies[i] = buffer + old_pos;
 			ie_desc->len[i] = pos - old_pos;
 			old_pos = pos;
@@ -1561,7 +1563,7 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 					  struct ieee80211_channel *chan,
 					  const u8 *ssid, size_t ssid_len,
 					  const u8 *ie, size_t ie_len,
-					  bool directed)
+					  u32 flags)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct cfg80211_chan_def chandef;
@@ -1577,7 +1579,7 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	 * badly-behaved APs don't respond when this parameter is included.
 	 */
 	chandef.width = sdata->vif.bss_conf.chandef.width;
-	if (directed)
+	if (flags & IEEE80211_PROBE_FLAG_DIRECTED)
 		chandef.chan = NULL;
 	else
 		chandef.chan = chan;
@@ -1591,7 +1593,7 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	ies_len = ieee80211_build_preq_ies(local, skb_tail_pointer(skb),
 					   skb_tailroom(skb), &dummy_ie_desc,
 					   ie, ie_len, BIT(chan->band),
-					   rate_masks, &chandef);
+					   rate_masks, &chandef, flags);
 	skb_put(skb, ies_len);
 
 	if (dst) {
@@ -1609,14 +1611,14 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata,
 			      const u8 *src, const u8 *dst,
 			      const u8 *ssid, size_t ssid_len,
 			      const u8 *ie, size_t ie_len,
-			      u32 ratemask, bool directed, u32 tx_flags,
+			      u32 ratemask, u32 flags, u32 tx_flags,
 			      struct ieee80211_channel *channel, bool scan)
 {
 	struct sk_buff *skb;
 
 	skb = ieee80211_build_probe_req(sdata, src, dst, ratemask, channel,
 					ssid, ssid_len,
-					ie, ie_len, directed);
+					ie, ie_len, flags);
 	if (skb) {
 		IEEE80211_SKB_CB(skb)->flags |= tx_flags;
 		if (scan)

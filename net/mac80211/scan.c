@@ -336,7 +336,7 @@ static bool ieee80211_prep_hw_scan(struct ieee80211_local *local)
 					 local->hw_scan_ies_bufsize,
 					 &local->hw_scan_req->ies,
 					 req->ie, req->ie_len,
-					 bands_used, req->rates, &chandef);
+					 bands_used, req->rates, &chandef, 0);
 	local->hw_scan_req->req.ie_len = ielen;
 	local->hw_scan_req->req.no_cck = req->no_cck;
 	ether_addr_copy(local->hw_scan_req->req.mac_addr, req->mac_addr);
@@ -552,7 +552,7 @@ static void ieee80211_scan_state_send_probe(struct ieee80211_local *local,
 			sdata, local->scan_addr, scan_req->bssid,
 			scan_req->ssids[i].ssid, scan_req->ssids[i].ssid_len,
 			scan_req->ie, scan_req->ie_len,
-			scan_req->rates[band], false,
+			scan_req->rates[band], 0,
 			tx_flags, local->hw.conf.chandef.chan, true);
 
 	/*
@@ -1167,7 +1167,8 @@ int __ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_build_preq_ies(local, ie, num_bands * iebufsz,
 				 &sched_scan_ies, req->ie,
-				 req->ie_len, bands_used, rate_masks, &chandef);
+				 req->ie_len, bands_used, rate_masks, &chandef,
+				 0);
 
 	ret = drv_sched_scan_start(local, sdata, req, &sched_scan_ies);
 	if (ret == 0) {

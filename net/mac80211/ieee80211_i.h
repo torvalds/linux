@@ -2031,24 +2031,30 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 				    const u8 *bssid, u16 stype, u16 reason,
 				    bool send_frame, u8 *frame_buf);
+
+enum {
+	IEEE80211_PROBE_FLAG_DIRECTED		= BIT(0),
+};
+
 int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 			     size_t buffer_len,
 			     struct ieee80211_scan_ies *ie_desc,
 			     const u8 *ie, size_t ie_len,
 			     u8 bands_used, u32 *rate_masks,
-			     struct cfg80211_chan_def *chandef);
+			     struct cfg80211_chan_def *chandef,
+			     u32 flags);
 struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 					  const u8 *src, const u8 *dst,
 					  u32 ratemask,
 					  struct ieee80211_channel *chan,
 					  const u8 *ssid, size_t ssid_len,
 					  const u8 *ie, size_t ie_len,
-					  bool directed);
+					  u32 flags);
 void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata,
 			      const u8 *src, const u8 *dst,
 			      const u8 *ssid, size_t ssid_len,
 			      const u8 *ie, size_t ie_len,
-			      u32 ratemask, bool directed, u32 tx_flags,
+			      u32 ratemask, u32 flags, u32 tx_flags,
 			      struct ieee80211_channel *channel, bool scan);
 
 u32 ieee80211_sta_get_rates(struct ieee80211_sub_if_data *sdata,
