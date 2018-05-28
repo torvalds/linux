@@ -51,7 +51,6 @@ struct annotation_options annotation__default_options = {
 	.offset_level	= ANNOTATION__OFFSET_JUMP_TARGETS,
 };
 
-const char 	*disassembler_style;
 const char	*objdump_path;
 static regex_t	 file_lineno;
 
@@ -1659,8 +1658,8 @@ static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 		 " --stop-address=0x%016" PRIx64
 		 " -l -d %s %s -C \"%s\" 2>/dev/null|grep -v \"%s:\"|expand",
 		 objdump_path ? objdump_path : "objdump",
-		 disassembler_style ? "-M " : "",
-		 disassembler_style ? disassembler_style : "",
+		 opts->disassembler_style ? "-M " : "",
+		 opts->disassembler_style ?: "",
 		 map__rip_2objdump(map, sym->start),
 		 map__rip_2objdump(map, sym->end),
 		 opts->show_asm_raw ? "" : "--no-show-raw",
