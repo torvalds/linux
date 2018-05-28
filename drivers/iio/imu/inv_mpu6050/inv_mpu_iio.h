@@ -125,6 +125,9 @@ struct inv_mpu6050_hw {
  *  @map		regmap pointer.
  *  @irq		interrupt number.
  *  @irq_mask		the int_pin_cfg mask to configure interrupt type.
+ *  @chip_period:	chip internal period estimation (~1kHz).
+ *  @it_timestamp:	timestamp from previous interrupt.
+ *  @data_timestamp:	timestamp for next data sample.
  */
 struct inv_mpu6050_state {
 	struct mutex lock;
@@ -142,6 +145,9 @@ struct inv_mpu6050_state {
 	int irq;
 	u8 irq_mask;
 	unsigned skip_samples;
+	s64 chip_period;
+	s64 it_timestamp;
+	s64 data_timestamp;
 };
 
 /*register and associated bit definition*/
@@ -223,6 +229,8 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_LATCH_INT_EN	0x20
 #define INV_MPU6050_BIT_BYPASS_EN	0x2
 
+/* Allowed timestamp period jitter in percent */
+#define INV_MPU6050_TS_PERIOD_JITTER	4
 
 /* init parameters */
 #define INV_MPU6050_INIT_FIFO_RATE           50

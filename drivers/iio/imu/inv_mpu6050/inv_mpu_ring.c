@@ -20,14 +20,92 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/poll.h>
+#include <linux/math64.h>
 #include <asm/unaligned.h>
 #include "inv_mpu_iio.h"
+
+/**
+ *  inv_mpu6050_update_period() - Update chip internal period estimation
+ *
+ *  @st:		driver state
+ *  @timestamp:		the interrupt timestamp
+ *  @nb:		number of data set in the fifo
+ *
+ *  This function uses interrupt timestamps to estimate the chip period and
+ *  to choose the data timestamp to come.
+ */
+static void inv_mpu6050_update_period(struct inv_mpu6050_state *st,
+				      s64 timestamp, size_t nb)
+{
+	/* Period boundaries for accepting timestamp */
+	const s64 period_min =
+		(NSEC_PER_MSEC * (100 - INV_MPU6050_TS_PERIOD_JITTER)) / 100;
+	const s64 period_max =
+		(NSEC_PER_MSEC * (100 + INV_MPU6050_TS_PERIOD_JITTER)) / 100;
+	const s32 divider = INV_MPU6050_FREQ_DIVIDER(st);
+	s64 delta, interval;
+	bool use_it_timestamp = false;
+
+	if (st->it_timestamp == 0) {
+		/* not initialized, forced to use it_timestamp */
+		use_it_timestamp = true;
+	} else if (nb == 1) {
+		/*
+		 * Validate the use of it timestamp by checking if interrupt
+		 * has been delayed.
+		 * nb > 1 means interrupt was delayed for more than 1 sample,
+		 * so it's obviously not good.
+		 * Compute the chip period between 2 interrupts for validating.
+		 */
+		delta = div_s64(timestamp - st->it_timestamp, divider);
+		if (delta > period_min && delta < period_max) {
+			/* update chip period and use it timestamp */
+			st->chip_period = (st->chip_period + delta) / 2;
+			use_it_timestamp = true;
+		}
+	}
+
+	if (use_it_timestamp) {
+		/*
+		 * Manage case of multiple samples in the fifo (nb > 1):
+		 * compute timestamp corresponding to the first sample using
+		 * estimated chip period.
+		 */
+		interval = (nb - 1) * st->chip_period * divider;
+		st->data_timestamp = timestamp - interval;
+	}
+
+	/* save it timestamp */
+	st->it_timestamp = timestamp;
+}
+
+/**
+ *  inv_mpu6050_get_timestamp() - Return the current data timestamp
+ *
+ *  @st:		driver state
+ *  @return:		current data timestamp
+ *
+ *  This function returns the current data timestamp and prepares for next one.
+ */
+static s64 inv_mpu6050_get_timestamp(struct inv_mpu6050_state *st)
+{
+	s64 ts;
+
+	/* return current data timestamp and increment */
+	ts = st->data_timestamp;
+	st->data_timestamp += st->chip_period * INV_MPU6050_FREQ_DIVIDER(st);
+
+	return ts;
+}
 
 int inv_reset_fifo(struct iio_dev *indio_dev)
 {
 	int result;
 	u8 d;
 	struct inv_mpu6050_state  *st = iio_priv(indio_dev);
+
+	/* reset it timestamp validation */
+	st->it_timestamp = 0;
 
 	/* disable interrupt */
 	result = regmap_write(st->map, st->reg->int_enable, 0);
@@ -97,7 +175,7 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 	int result;
 	u8 data[INV_MPU6050_OUTPUT_DATA_SIZE];
 	u16 fifo_count;
-	s64 timestamp = pf->timestamp;
+	s64 timestamp;
 	int int_status;
 	size_t i, nb;
 
@@ -140,6 +218,7 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 	fifo_count = get_unaligned_be16(&data[0]);
 	/* compute and process all complete datum */
 	nb = fifo_count / bytes_per_datum;
+	inv_mpu6050_update_period(st, pf->timestamp, nb);
 	for (i = 0; i < nb; ++i) {
 		result = regmap_bulk_read(st->map, st->reg->fifo_r_w,
 					  data, bytes_per_datum);
@@ -150,6 +229,7 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 			st->skip_samples--;
 			continue;
 		}
+		timestamp = inv_mpu6050_get_timestamp(st);
 		iio_push_to_buffers_with_timestamp(indio_dev, data, timestamp);
 	}
 

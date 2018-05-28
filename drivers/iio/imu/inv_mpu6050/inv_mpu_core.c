@@ -295,6 +295,13 @@ static int inv_mpu6050_init_config(struct iio_dev *indio_dev)
 	memcpy(&st->chip_config, hw_info[st->chip_type].config,
 	       sizeof(struct inv_mpu6050_chip_config));
 
+	/*
+	 * Internal chip period is 1ms (1kHz).
+	 * Let's use at the beginning the theorical value before measuring
+	 * with interrupt timestamps.
+	 */
+	st->chip_period = NSEC_PER_MSEC;
+
 	return inv_mpu6050_set_power_itg(st, false);
 
 error_power_off:
