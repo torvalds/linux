@@ -1144,7 +1144,7 @@ static int __exchange_data_block(struct inode *src_inode,
 	return 0;
 
 roll_back:
-	__roll_back_blkaddrs(src_inode, src_blkaddr, do_replace, src, len);
+	__roll_back_blkaddrs(src_inode, src_blkaddr, do_replace, src, olen);
 	kvfree(src_blkaddr);
 	kvfree(do_replace);
 	return ret;
