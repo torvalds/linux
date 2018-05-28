@@ -2636,7 +2636,7 @@ static unsigned hub_is_wusb(struct usb_hub *hub)
 #define SET_ADDRESS_TRIES	2
 #define GET_DESCRIPTOR_TRIES	2
 #define SET_CONFIG_TRIES	(2 * (use_both_schemes + 1))
-#define USE_NEW_SCHEME(i)	((i) / 2 == (int)old_scheme_first)
+#define USE_NEW_SCHEME(i, scheme)	((i) / 2 == (int)scheme)
 
 #define HUB_ROOT_RESET_TIME	60	/* times are in msec */
 #define HUB_SHORT_RESET_TIME	10
@@ -2651,12 +2651,16 @@ static unsigned hub_is_wusb(struct usb_hub *hub)
  * enumeration failures, so disable this enumeration scheme for USB3
  * devices.
  */
-static bool use_new_scheme(struct usb_device *udev, int retry)
+static bool use_new_scheme(struct usb_device *udev, int retry,
+			   struct usb_port *port_dev)
 {
+	int old_scheme_first_port =
+		port_dev->quirks & USB_PORT_QUIRK_OLD_SCHEME;
+
 	if (udev->speed >= USB_SPEED_SUPER)
 		return false;
 
-	return USE_NEW_SCHEME(retry);
+	return USE_NEW_SCHEME(retry, old_scheme_first_port || old_scheme_first);
 }
 
 /* Is a USB 3.0 port in the Inactive or Compliance Mode state?
@@ -4392,6 +4396,7 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 {
 	struct usb_device	*hdev = hub->hdev;
 	struct usb_hcd		*hcd = bus_to_hcd(hdev->bus);
+	struct usb_port		*port_dev = hub->ports[port1 - 1];
 	int			retries, operations, retval, i;
 	unsigned		delay = HUB_SHORT_RESET_TIME;
 	enum usb_device_speed	oldspeed = udev->speed;
@@ -4513,7 +4518,7 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 	for (retries = 0; retries < GET_DESCRIPTOR_TRIES; (++retries, msleep(100))) {
 		bool did_new_scheme = false;
 
-		if (use_new_scheme(udev, retry_counter)) {
+		if (use_new_scheme(udev, retry_counter, port_dev)) {
 			struct usb_device_descriptor *buf;
 			int r = 0;
 

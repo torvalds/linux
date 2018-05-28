@@ -490,6 +490,13 @@ enum usb_port_connect_type {
 };
 
 /*
+ * USB port quirks.
+ */
+
+/* For the given port, prefer the old (faster) enumeration scheme. */
+#define USB_PORT_QUIRK_OLD_SCHEME	BIT(0)
+
+/*
  * USB 2.0 Link Power Management (LPM) parameters.
  */
 struct usb2_lpm_parameters {

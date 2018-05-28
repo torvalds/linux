@@ -189,6 +189,24 @@ Description:
 		The file will read "hotplug", "wired" and "not used" if the
 		information is available, and "unknown" otherwise.
 
+What:		/sys/bus/usb/devices/.../(hub interface)/portX/quirks
+Date:		May 2018
+Contact:	Nicolas Boichat <drinkcat@chromium.org>
+Description:
+		In some cases, we care about time-to-active for devices
+		connected on a specific port (e.g. non-standard USB port like
+		pogo pins), where the device to be connected is known in
+		advance, and behaves well according to the specification.
+		This attribute is a bit-field that controls the behavior of
+		a specific port:
+		 - Bit 0 of this field selects the "old" enumeration scheme,
+		   as it is considerably faster (it only causes one USB reset
+		   instead of 2).
+		   The old enumeration scheme can also be selected globally
+		   using /sys/module/usbcore/parameters/old_scheme_first, but
+		   it is often not desirable as the new scheme was introduced to
+		   increase compatibility with more devices.
+
 What:		/sys/bus/usb/devices/.../(hub interface)/portX/over_current_count
 Date:		February 2018
 Contact:	Richard Leitner <richard.leitner@skidata.com>
