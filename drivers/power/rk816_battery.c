@@ -1442,8 +1442,15 @@ static void rk816_bat_set_chrg_param(struct rk816_battery *di,
 			rk816_bat_set_current(di, INPUT_CUR450MA);
 		power_supply_changed(di->usb);
 		break;
-	case USB_TYPE_AC_CHARGER:
 	case USB_TYPE_CDP_CHARGER:
+		di->usb_in = 1;
+		di->ac_in = 0;
+		di->prop_status = POWER_SUPPLY_STATUS_CHARGING;
+		if (di->dc_in == 0)
+			rk816_bat_set_current(di, INPUT_CUR1500MA);
+		power_supply_changed(di->usb);
+		break;
+	case USB_TYPE_AC_CHARGER:
 		di->ac_in = 1;
 		di->usb_in = 0;
 		di->prop_status = POWER_SUPPLY_STATUS_CHARGING;
