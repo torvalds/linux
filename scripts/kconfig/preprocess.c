@@ -229,6 +229,7 @@ struct variable {
 	char *name;
 	char *value;
 	enum variable_flavor flavor;
+	int exp_count;
 	struct list_head node;
 };
 
@@ -253,10 +254,21 @@ static char *variable_expand(const char *name, int argc, char *argv[])
 	if (!v)
 		return NULL;
 
+	if (argc == 0 && v->exp_count)
+		pperror("Recursive variable '%s' references itself (eventually)",
+			name);
+
+	if (v->exp_count > 1000)
+		pperror("Too deep recursive expansion");
+
+	v->exp_count++;
+
 	if (v->flavor == VAR_RECURSIVE)
 		res = expand_string_with_args(v->value, argc, argv);
 	else
 		res = xstrdup(v->value);
+
+	v->exp_count--;
 
 	return res;
 }
@@ -284,6 +296,7 @@ void variable_add(const char *name, const char *value,
 
 		v = xmalloc(sizeof(*v));
 		v->name = xstrdup(name);
+		v->exp_count = 0;
 		list_add_tail(&v->node, &variable_list);
 	}
 
