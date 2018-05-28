@@ -1785,6 +1785,7 @@ static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 		break;
 	case IOCB_CMD_FDSYNC:
 		ret = aio_fsync(&req->fsync, iocb, true);
+		break;
 	case IOCB_CMD_POLL:
 		ret = aio_poll(req, iocb);
 		break;
