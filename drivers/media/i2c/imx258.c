@@ -1114,7 +1114,6 @@ static int imx258_init_controls(struct imx258 *imx258)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&imx258->sd);
 	struct v4l2_ctrl_handler *ctrl_hdlr;
-	s64 exposure_max;
 	s64 vblank_def;
 	s64 vblank_min;
 	s64 pixel_rate_min;
@@ -1168,7 +1167,6 @@ static int imx258_init_controls(struct imx258 *imx258)
 	if (imx258->hblank)
 		imx258->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
-	exposure_max = imx258->cur_mode->vts_def - 8;
 	imx258->exposure = v4l2_ctrl_new_std(
 				ctrl_hdlr, &imx258_ctrl_ops,
 				V4L2_CID_EXPOSURE, IMX258_EXPOSURE_MIN,
