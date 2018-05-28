@@ -132,6 +132,41 @@ rw_attribute(btree_shrinker_disabled);
 rw_attribute(copy_gc_enabled);
 rw_attribute(size);
 
+static ssize_t bch_snprint_string_list(char *buf, size_t size, const char * const list[],
+			    size_t selected)
+{
+	char *out = buf;
+	size_t i;
+
+	for (i = 0; list[i]; i++)
+		out += snprintf(out, buf + size - out,
+				i == selected ? "[%s] " : "%s ", list[i]);
+
+	out[-1] = '\n';
+	return out - buf;
+}
+
+static ssize_t bch_read_string_list(const char *buf, const char * const list[])
+{
+	size_t i;
+	char *s, *d = kstrndup(buf, PAGE_SIZE - 1, GFP_KERNEL);
+	if (!d)
+		return -ENOMEM;
+
+	s = strim(d);
+
+	for (i = 0; list[i]; i++)
+		if (!strcmp(list[i], s))
+			break;
+
+	kfree(d);
+
+	if (!list[i])
+		return -EINVAL;
+
+	return i;
+}
+
 SHOW(__bch_cached_dev)
 {
 	struct cached_dev *dc = container_of(kobj, struct cached_dev,
