@@ -27,7 +27,6 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
-#include <linux/gpio.h>
 
 #include "../dss/omapdss.h"
 
