@@ -6861,6 +6861,16 @@ static bool cfg80211_off_channel_oper_allowed(struct wireless_dev *wdev)
 	return regulatory_pre_cac_allowed(wdev->wiphy);
 }
 
+static bool nl80211_check_scan_feat(struct wiphy *wiphy, u32 flags, u32 flag,
+				    enum nl80211_ext_feature_index feat)
+{
+	if (!(flags & flag))
+		return true;
+	if (wiphy_ext_feature_isset(wiphy, feat))
+		return true;
+	return false;
+}
+
 static int
 nl80211_check_scan_flags(struct wiphy *wiphy, struct wireless_dev *wdev,
 			 void *request, struct nlattr **attrs,
@@ -6895,15 +6905,27 @@ nl80211_check_scan_flags(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	if (((*flags & NL80211_SCAN_FLAG_LOW_PRIORITY) &&
 	     !(wiphy->features & NL80211_FEATURE_LOW_PRIORITY_SCAN)) ||
-	    ((*flags & NL80211_SCAN_FLAG_LOW_SPAN) &&
-	     !wiphy_ext_feature_isset(wiphy,
-				      NL80211_EXT_FEATURE_LOW_SPAN_SCAN)) ||
-	    ((*flags & NL80211_SCAN_FLAG_LOW_POWER) &&
-	     !wiphy_ext_feature_isset(wiphy,
-				      NL80211_EXT_FEATURE_LOW_POWER_SCAN)) ||
-	    ((*flags & NL80211_SCAN_FLAG_HIGH_ACCURACY) &&
-	     !wiphy_ext_feature_isset(wiphy,
-				      NL80211_EXT_FEATURE_HIGH_ACCURACY_SCAN)))
+	    !nl80211_check_scan_feat(wiphy, *flags,
+				     NL80211_SCAN_FLAG_LOW_SPAN,
+				     NL80211_EXT_FEATURE_LOW_SPAN_SCAN) ||
+	    !nl80211_check_scan_feat(wiphy, *flags,
+				     NL80211_SCAN_FLAG_LOW_POWER,
+				     NL80211_EXT_FEATURE_LOW_POWER_SCAN) ||
+	    !nl80211_check_scan_feat(wiphy, *flags,
+				     NL80211_SCAN_FLAG_HIGH_ACCURACY,
+				     NL80211_EXT_FEATURE_HIGH_ACCURACY_SCAN) ||
+	    !nl80211_check_scan_feat(wiphy, *flags,
+				     NL80211_SCAN_FLAG_FILS_MAX_CHANNEL_TIME,
+				     NL80211_EXT_FEATURE_FILS_MAX_CHANNEL_TIME) ||
+	    !nl80211_check_scan_feat(wiphy, *flags,
+				     NL80211_SCAN_FLAG_ACCEPT_BCAST_PROBE_RESP,
+				     NL80211_EXT_FEATURE_ACCEPT_BCAST_PROBE_RESP) ||
+	    !nl80211_check_scan_feat(wiphy, *flags,
+				     NL80211_SCAN_FLAG_OCE_PROBE_REQ_DEFERRAL_SUPPRESSION,
+				     NL80211_EXT_FEATURE_OCE_PROBE_REQ_DEFERRAL_SUPPRESSION) ||
+	    !nl80211_check_scan_feat(wiphy, *flags,
+				     NL80211_SCAN_FLAG_OCE_PROBE_REQ_HIGH_TX_RATE,
+				     NL80211_EXT_FEATURE_OCE_PROBE_REQ_HIGH_TX_RATE))
 		return -EOPNOTSUPP;
 
 	if (*flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
@@ -6917,26 +6939,6 @@ nl80211_check_scan_flags(struct wiphy *wiphy, struct wireless_dev *wdev,
 		if (err)
 			return err;
 	}
-
-	if ((*flags & NL80211_SCAN_FLAG_FILS_MAX_CHANNEL_TIME) &&
-	    !wiphy_ext_feature_isset(wiphy,
-				     NL80211_EXT_FEATURE_FILS_MAX_CHANNEL_TIME))
-		return -EOPNOTSUPP;
-
-	if ((*flags & NL80211_SCAN_FLAG_ACCEPT_BCAST_PROBE_RESP) &&
-	   !wiphy_ext_feature_isset(wiphy,
-				    NL80211_EXT_FEATURE_ACCEPT_BCAST_PROBE_RESP))
-		return -EOPNOTSUPP;
-
-	if ((*flags & NL80211_SCAN_FLAG_OCE_PROBE_REQ_DEFERRAL_SUPPRESSION) &&
-	    !wiphy_ext_feature_isset(wiphy,
-				     NL80211_EXT_FEATURE_OCE_PROBE_REQ_DEFERRAL_SUPPRESSION))
-		return -EOPNOTSUPP;
-
-	if ((*flags & NL80211_SCAN_FLAG_OCE_PROBE_REQ_HIGH_TX_RATE) &&
-	    !wiphy_ext_feature_isset(wiphy,
-				     NL80211_EXT_FEATURE_OCE_PROBE_REQ_HIGH_TX_RATE))
-		return -EOPNOTSUPP;
 
 	return 0;
 }
