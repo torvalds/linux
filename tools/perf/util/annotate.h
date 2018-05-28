@@ -80,6 +80,7 @@ struct annotation_options {
 	int  min_pcnt;
 	int  max_lines;
 	int  context;
+	const char *objdump_path;
 	const char *disassembler_style;
 };
 
