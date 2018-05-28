@@ -28,6 +28,10 @@ Required properties:
 - rockchip,playback-channels: max playback channels, if not set, 8 channels default.
 - rockchip,capture-channels: max capture channels, if not set, 2 channels default.
 - rockchip,bclk-fs: configure the i2s bclk fs.
+- rockchip,no-dmaengine: This is a boolean property. If present, driver will do not
+  register pcm dmaengine, only just register dai. if the dai is part of multi-dais,
+  the property should be present. Please refer to rockchip,multidais.txt about
+  multi-dais usage.
 
 Required properties for controller which support multi channels
 playback/capture:

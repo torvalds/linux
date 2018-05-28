@@ -16,6 +16,10 @@ Required properties:
    - "pdm_clk" : clock for PDM controller
 - resets: a list of phandle + reset-specifer paris, one for each entry in reset-names.
 - reset-names: reset names, should include "pdm-m".
+- rockchip,no-dmaengine: This is a boolean property. If present, driver will do not
+  register pcm dmaengine, only just register dai. if the dai is part of multi-dais,
+  the property should be present. Please refer to rockchip,multidais.txt about
+  multi-dais usage.
 - pinctrl-names: Must contain a "default" entry.
 - pinctrl-N: One property must exist for each entry in
 	     pinctrl-names. See ../pinctrl/pinctrl-bindings.txt
