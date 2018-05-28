@@ -41,6 +41,7 @@ config CHROMEOS_PSTORE
 config CHROMEOS_TBMC
 	tristate "ChromeOS Tablet Switch Controller"
 	depends on ACPI
+	depends on INPUT
 	help
 	  This option adds a driver for the tablet switch on
 	  select Chrome OS systems.
