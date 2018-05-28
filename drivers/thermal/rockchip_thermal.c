@@ -232,13 +232,15 @@ struct rockchip_thermal_data {
 #define GRF_CON_TSADC_CH_INV			(0x10001 << 1)
 
 #define MIN_TEMP				(-40000)
+#define LOWEST_TEMP				(-273000)
 #define MAX_TEMP				(125000)
+#define MAX_ENV_TEMP				(85000)
 
 #define BASE					(1024)
 #define BASE_SHIFT				(10)
 #define START_DEBOUNCE_COUNT			(100)
-#define HIGHER_DEBOUNCE_TEMP			(30)
-#define LOWER_DEBOUNCE_TEMP			(15)
+#define HIGHER_DEBOUNCE_TEMP			(30000)
+#define LOWER_DEBOUNCE_TEMP			(15000)
 
 /**
  * struct tsadc_table - code to temperature conversion table
@@ -724,9 +726,18 @@ static int predict_temp(int temp)
 	int temp_now;
 	int prob_mid;
 	int prob_now;
-	static int temp_last = 25;
-	static int prob_last = 20;
+	static int temp_last = LOWEST_TEMP;
+	static int prob_last = 160;
 	static int bounding_cnt;
+
+	/*
+	 * init temp_last with a more suitable value, which mostly equals to
+	 * temp reading from tsadc, but not higher than MAX_ENV_TEMP. If the
+	 * temp is higher than MAX_ENV_TEMP, it is assumed to be abnormal
+	 * value and temp_last is adjusted to MAX_ENV_TEMP.
+	 */
+	if (temp_last == LOWEST_TEMP)
+		temp_last = min(temp, MAX_ENV_TEMP);
 
 	/*
 	 * Before START_DEBOUNCE_COUNT's samples of temperature, we consider
@@ -753,7 +764,7 @@ static int predict_temp(int temp)
 	gain = (prob_mid * BASE) / (prob_mid + cov_r);
 
 	/* calculate the prediction of temperature */
-	temp_now = temp_mid + (gain * (temp - temp_mid) >> BASE_SHIFT);
+	temp_now = (temp_mid * BASE + gain * (temp - temp_mid)) >> BASE_SHIFT;
 
 	/*
 	 * Base on this time's Kalman Gain, ajust our probability of prediction
@@ -1383,6 +1394,8 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 
 	atomic_notifier_chain_register(&panic_notifier_list,
 				       &rockchip_thermal_panic_block);
+
+	dev_info(&pdev->dev, "tsadc is probed successfully!\n");
 
 	return 0;
 
