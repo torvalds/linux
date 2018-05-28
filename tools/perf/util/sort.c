@@ -365,19 +365,20 @@ struct sort_entry sort_srcline = {
 
 /* --sort srcline_from */
 
+static char *addr_map_symbol__srcline(struct addr_map_symbol *ams)
+{
+	return map__srcline(ams->map, ams->al_addr, ams->sym);
+}
+
 static int64_t
 sort__srcline_from_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	if (!left->branch_info->srcline_from) {
-		left->branch_info->srcline_from = map__srcline(left->branch_info->from.map,
-							       left->branch_info->from.al_addr,
-							       left->branch_info->from.sym);
-	}
-	if (!right->branch_info->srcline_from) {
-		right->branch_info->srcline_from = map__srcline(right->branch_info->from.map,
-								right->branch_info->from.al_addr,
-								right->branch_info->from.sym);
-	}
+	if (!left->branch_info->srcline_from)
+		left->branch_info->srcline_from = addr_map_symbol__srcline(&left->branch_info->from);
+
+	if (!right->branch_info->srcline_from)
+		right->branch_info->srcline_from = addr_map_symbol__srcline(&right->branch_info->from);
+
 	return strcmp(right->branch_info->srcline_from, left->branch_info->srcline_from);
 }
 
@@ -399,16 +400,12 @@ struct sort_entry sort_srcline_from = {
 static int64_t
 sort__srcline_to_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	if (!left->branch_info->srcline_to) {
-		left->branch_info->srcline_to = map__srcline(left->branch_info->to.map,
-							     left->branch_info->to.al_addr,
-							     left->branch_info->to.sym);
-	}
-	if (!right->branch_info->srcline_to) {
-		right->branch_info->srcline_to = map__srcline(right->branch_info->to.map,
-							      right->branch_info->to.al_addr,
-							      right->branch_info->to.sym);
-	}
+	if (!left->branch_info->srcline_to)
+		left->branch_info->srcline_to = addr_map_symbol__srcline(&left->branch_info->to);
+
+	if (!right->branch_info->srcline_to)
+		right->branch_info->srcline_to = addr_map_symbol__srcline(&right->branch_info->to);
+
 	return strcmp(right->branch_info->srcline_to, left->branch_info->srcline_to);
 }
 
