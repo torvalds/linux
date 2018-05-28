@@ -222,11 +222,23 @@ void variable_add(const char *name, const char *value,
 		  enum variable_flavor flavor)
 {
 	struct variable *v;
+	char *new_value;
+	bool append = false;
 
 	v = variable_lookup(name);
 	if (v) {
-		free(v->value);
+		/* For defined variables, += inherits the existing flavor */
+		if (flavor == VAR_APPEND) {
+			flavor = v->flavor;
+			append = true;
+		} else {
+			free(v->value);
+		}
 	} else {
+		/* For undefined variables, += assumes the recursive flavor */
+		if (flavor == VAR_APPEND)
+			flavor = VAR_RECURSIVE;
+
 		v = xmalloc(sizeof(*v));
 		v->name = xstrdup(name);
 		list_add_tail(&v->node, &variable_list);
@@ -235,9 +247,19 @@ void variable_add(const char *name, const char *value,
 	v->flavor = flavor;
 
 	if (flavor == VAR_SIMPLE)
-		v->value = expand_string(value);
+		new_value = expand_string(value);
 	else
-		v->value = xstrdup(value);
+		new_value = xstrdup(value);
+
+	if (append) {
+		v->value = xrealloc(v->value,
+				    strlen(v->value) + strlen(new_value) + 2);
+		strcat(v->value, " ");
+		strcat(v->value, new_value);
+		free(new_value);
+	} else {
+		v->value = new_value;
+	}
 }
 
 static void variable_del(struct variable *v)
