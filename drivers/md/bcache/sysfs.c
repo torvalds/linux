@@ -16,6 +16,24 @@
 #include <linux/sort.h>
 #include <linux/sched/clock.h>
 
+/* Default is -1; we skip past it for struct cached_dev's cache mode */
+static const char * const bch_cache_modes[] = {
+	"default",
+	"writethrough",
+	"writeback",
+	"writearound",
+	"none",
+	NULL
+};
+
+/* Default is -1; we skip past it for stop_when_cache_set_failed */
+static const char * const bch_stop_on_failure_modes[] = {
+	"default",
+	"auto",
+	"always",
+	NULL
+};
+
 static const char * const cache_replacement_policies[] = {
 	"lru",
 	"fifo",
