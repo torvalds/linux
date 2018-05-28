@@ -58,7 +58,7 @@ config SUPERH
 	  <http://www.linux-sh.org/>.
 
 config SUPERH32
-	def_bool ARCH = "sh"
+	def_bool "$(ARCH)" = "sh"
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select HAVE_IOREMAP_PROT if MMU && !X2TLB
@@ -77,7 +77,7 @@ config SUPERH32
 	select HAVE_CC_STACKPROTECTOR
 
 config SUPERH64
-	def_bool ARCH = "sh64"
+	def_bool "$(ARCH)" = "sh64"
 	select HAVE_EXIT_THREAD
 	select KALLSYMS
 

@@ -49,5 +49,11 @@ const char * sym_get_string_value(struct symbol *sym);
 
 const char * prop_get_type_name(enum prop_type type);
 
+/* preprocess.c */
+void env_write_dep(FILE *f, const char *auto_conf_name);
+char *expand_string(const char *in);
+char *expand_dollar(const char **str);
+char *expand_one_token(const char **str);
+
 /* expr.c */
 void expr_print(struct expr *e, void (*fn)(void *, struct symbol *, const char *), void *data, int prevtoken);

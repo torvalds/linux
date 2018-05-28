@@ -33,33 +33,6 @@ struct symbol *sym_defconfig_list;
 struct symbol *modules_sym;
 tristate modules_val;
 
-struct expr *sym_env_list;
-
-static void sym_add_default(struct symbol *sym, const char *def)
-{
-	struct property *prop = prop_alloc(P_DEFAULT, sym);
-
-	prop->expr = expr_alloc_symbol(sym_lookup(def, SYMBOL_CONST));
-}
-
-void sym_init(void)
-{
-	struct symbol *sym;
-	struct utsname uts;
-	static bool inited = false;
-
-	if (inited)
-		return;
-	inited = true;
-
-	uname(&uts);
-
-	sym = sym_lookup("UNAME_RELEASE", 0);
-	sym->type = S_STRING;
-	sym->flags |= SYMBOL_AUTO;
-	sym_add_default(sym, uts.release);
-}
-
 enum symbol_type sym_get_type(struct symbol *sym)
 {
 	enum symbol_type type = sym->type;
@@ -1400,33 +1373,4 @@ const char *prop_get_type_name(enum prop_type type)
 		break;
 	}
 	return "unknown";
-}
-
-static void prop_add_env(const char *env)
-{
-	struct symbol *sym, *sym2;
-	struct property *prop;
-	char *p;
-
-	sym = current_entry->sym;
-	sym->flags |= SYMBOL_AUTO;
-	for_all_properties(sym, prop, P_ENV) {
-		sym2 = prop_get_symbol(prop);
-		if (strcmp(sym2->name, env))
-			menu_warn(current_entry, "redefining environment symbol from %s",
-				  sym2->name);
-		return;
-	}
-
-	prop = prop_alloc(P_ENV, sym);
-	prop->expr = expr_alloc_symbol(sym_lookup(env, SYMBOL_CONST));
-
-	sym_env_list = expr_alloc_one(E_LIST, sym_env_list);
-	sym_env_list->right.sym = sym;
-
-	p = getenv(env);
-	if (p)
-		sym_add_default(sym, p);
-	else
-		menu_warn(current_entry, "environment variable %s undefined", env);
 }
