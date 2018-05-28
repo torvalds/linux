@@ -73,7 +73,9 @@ struct annotation_options {
 	     show_nr_jumps,
 	     show_nr_samples,
 	     show_total_period,
-	     show_minmax_cycle;
+	     show_minmax_cycle,
+	     show_asm_raw,
+	     annotate_src;
 	u8   offset_level;
 	int  min_pcnt;
 	int  max_lines;

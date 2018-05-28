@@ -108,8 +108,6 @@ struct symbol_conf {
 			show_cpu_utilization,
 			initialized,
 			kptr_restrict,
-			annotate_asm_raw,
-			annotate_src,
 			event_group,
 			demangle,
 			demangle_kernel,
