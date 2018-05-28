@@ -346,7 +346,6 @@ static const struct dma_buf_ops vb2_vmalloc_dmabuf_ops = {
 	.map_dma_buf = vb2_vmalloc_dmabuf_ops_map,
 	.unmap_dma_buf = vb2_vmalloc_dmabuf_ops_unmap,
 	.map = vb2_vmalloc_dmabuf_ops_kmap,
-	.map_atomic = vb2_vmalloc_dmabuf_ops_kmap,
 	.vmap = vb2_vmalloc_dmabuf_ops_vmap,
 	.mmap = vb2_vmalloc_dmabuf_ops_mmap,
 	.release = vb2_vmalloc_dmabuf_ops_release,

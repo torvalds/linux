@@ -434,35 +434,6 @@ void drm_gem_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr)
 EXPORT_SYMBOL(drm_gem_dmabuf_vunmap);
 
 /**
- * drm_gem_dmabuf_kmap_atomic - map_atomic implementation for GEM
- * @dma_buf: buffer to be mapped
- * @page_num: page number within the buffer
- *
- * Not implemented. This can be used as the &dma_buf_ops.map_atomic callback.
- */
-void *drm_gem_dmabuf_kmap_atomic(struct dma_buf *dma_buf,
-				 unsigned long page_num)
-{
-	return NULL;
-}
-EXPORT_SYMBOL(drm_gem_dmabuf_kmap_atomic);
-
-/**
- * drm_gem_dmabuf_kunmap_atomic - unmap_atomic implementation for GEM
- * @dma_buf: buffer to be unmapped
- * @page_num: page number within the buffer
- * @addr: virtual address of the buffer
- *
- * Not implemented. This can be used as the &dma_buf_ops.unmap_atomic callback.
- */
-void drm_gem_dmabuf_kunmap_atomic(struct dma_buf *dma_buf,
-				  unsigned long page_num, void *addr)
-{
-
-}
-EXPORT_SYMBOL(drm_gem_dmabuf_kunmap_atomic);
-
-/**
  * drm_gem_dmabuf_kmap - map implementation for GEM
  * @dma_buf: buffer to be mapped
  * @page_num: page number within the buffer
@@ -519,9 +490,7 @@ static const struct dma_buf_ops drm_gem_prime_dmabuf_ops =  {
 	.unmap_dma_buf = drm_gem_unmap_dma_buf,
 	.release = drm_gem_dmabuf_release,
 	.map = drm_gem_dmabuf_kmap,
-	.map_atomic = drm_gem_dmabuf_kmap_atomic,
 	.unmap = drm_gem_dmabuf_kunmap,
-	.unmap_atomic = drm_gem_dmabuf_kunmap_atomic,
 	.mmap = drm_gem_dmabuf_mmap,
 	.vmap = drm_gem_dmabuf_vmap,
 	.vunmap = drm_gem_dmabuf_vunmap,

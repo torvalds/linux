@@ -405,7 +405,6 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 			  || !exp_info->ops->map_dma_buf
 			  || !exp_info->ops->unmap_dma_buf
 			  || !exp_info->ops->release
-			  || !exp_info->ops->map_atomic
 			  || !exp_info->ops->map
 			  || !exp_info->ops->mmap)) {
 		return ERR_PTR(-EINVAL);
@@ -687,25 +686,13 @@ EXPORT_SYMBOL_GPL(dma_buf_unmap_attachment);
  *      void \*dma_buf_kmap(struct dma_buf \*, unsigned long);
  *      void dma_buf_kunmap(struct dma_buf \*, unsigned long, void \*);
  *
- *   There are also atomic variants of these interfaces. Like for kmap they
- *   facilitate non-blocking fast-paths. Neither the importer nor the exporter
- *   (in the callback) is allowed to block when using these.
- *
- *   Interfaces::
- *      void \*dma_buf_kmap_atomic(struct dma_buf \*, unsigned long);
- *      void dma_buf_kunmap_atomic(struct dma_buf \*, unsigned long, void \*);
- *
- *   For importers all the restrictions of using kmap apply, like the limited
- *   supply of kmap_atomic slots. Hence an importer shall only hold onto at
- *   max 2 atomic dma_buf kmaps at the same time (in any given process context).
+ *   Implementing the functions is optional for exporters and for importers all
+ *   the restrictions of using kmap apply.
  *
  *   dma_buf kmap calls outside of the range specified in begin_cpu_access are
  *   undefined. If the range is not PAGE_SIZE aligned, kmap needs to succeed on
  *   the partial chunks at the beginning and end but may return stale or bogus
  *   data outside of the range (in these partial chunks).
- *
- *   Note that these calls need to always succeed. The exporter needs to
- *   complete any preparations that might fail in begin_cpu_access.
  *
  *   For some cases the overhead of kmap can be too high, a vmap interface
  *   is introduced. This interface should be used very carefully, as vmalloc
@@ -858,43 +845,6 @@ int dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dma_buf_end_cpu_access);
-
-/**
- * dma_buf_kmap_atomic - Map a page of the buffer object into kernel address
- * space. The same restrictions as for kmap_atomic and friends apply.
- * @dmabuf:	[in]	buffer to map page from.
- * @page_num:	[in]	page in PAGE_SIZE units to map.
- *
- * This call must always succeed, any necessary preparations that might fail
- * need to be done in begin_cpu_access.
- */
-void *dma_buf_kmap_atomic(struct dma_buf *dmabuf, unsigned long page_num)
-{
-	WARN_ON(!dmabuf);
-
-	if (!dmabuf->ops->map_atomic)
-		return NULL;
-	return dmabuf->ops->map_atomic(dmabuf, page_num);
-}
-EXPORT_SYMBOL_GPL(dma_buf_kmap_atomic);
-
-/**
- * dma_buf_kunmap_atomic - Unmap a page obtained by dma_buf_kmap_atomic.
- * @dmabuf:	[in]	buffer to unmap page from.
- * @page_num:	[in]	page in PAGE_SIZE units to unmap.
- * @vaddr:	[in]	kernel space pointer obtained from dma_buf_kmap_atomic.
- *
- * This call must always succeed.
- */
-void dma_buf_kunmap_atomic(struct dma_buf *dmabuf, unsigned long page_num,
-			   void *vaddr)
-{
-	WARN_ON(!dmabuf);
-
-	if (dmabuf->ops->unmap_atomic)
-		dmabuf->ops->unmap_atomic(dmabuf, page_num, vaddr);
-}
-EXPORT_SYMBOL_GPL(dma_buf_kunmap_atomic);
 
 /**
  * dma_buf_kmap - Map a page of the buffer object into kernel address space. The
