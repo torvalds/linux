@@ -61,26 +61,36 @@ static enum drm_connector_status omap_connector_detect(
 		struct drm_connector *connector, bool force)
 {
 	struct omap_connector *omap_connector = to_omap_connector(connector);
-	struct omap_dss_device *dssdev = omap_connector->dssdev;
-	enum drm_connector_status ret;
+	struct omap_dss_device *dssdev;
+	enum drm_connector_status status;
 
-	if (dssdev->ops->detect) {
-		if (dssdev->ops->detect(dssdev))
-			ret = connector_status_connected;
-		else
-			ret = connector_status_disconnected;
-	} else if (dssdev->type == OMAP_DISPLAY_TYPE_DPI ||
-			dssdev->type == OMAP_DISPLAY_TYPE_DBI ||
-			dssdev->type == OMAP_DISPLAY_TYPE_SDI ||
-			dssdev->type == OMAP_DISPLAY_TYPE_DSI) {
-		ret = connector_status_connected;
-	} else {
-		ret = connector_status_unknown;
+	for (dssdev = omap_connector->dssdev; dssdev; dssdev = dssdev->src) {
+		if (dssdev->ops_flags & OMAP_DSS_DEVICE_OP_DETECT)
+			break;
 	}
 
-	VERB("%s: %d (force=%d)", omap_connector->dssdev->name, ret, force);
+	if (dssdev) {
+		if (dssdev->ops->detect(dssdev))
+			status = connector_status_connected;
+		else
+			status = connector_status_disconnected;
+	} else {
+		switch (omap_connector->dssdev->type) {
+		case OMAP_DISPLAY_TYPE_DPI:
+		case OMAP_DISPLAY_TYPE_DBI:
+		case OMAP_DISPLAY_TYPE_SDI:
+		case OMAP_DISPLAY_TYPE_DSI:
+			status = connector_status_connected;
+			break;
+		default:
+			status = connector_status_unknown;
+			break;
+		}
+	}
 
-	return ret;
+	VERB("%s: %d (force=%d)", omap_connector->dssdev->name, status, force);
+
+	return status;
 }
 
 static void omap_connector_destroy(struct drm_connector *connector)

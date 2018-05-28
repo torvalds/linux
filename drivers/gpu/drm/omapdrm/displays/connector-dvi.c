@@ -372,6 +372,8 @@ static int dvic_probe(struct platform_device *pdev)
 	dssdev->type = OMAP_DISPLAY_TYPE_DVI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);
+	dssdev->ops_flags = ddata->hpd_gpio || ddata->i2c_adapter
+			  ? OMAP_DSS_DEVICE_OP_DETECT : 0;
 
 	omapdss_display_init(dssdev);
 	omapdss_device_register(dssdev);

@@ -132,8 +132,9 @@ static bool tpd_detect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;
-	bool connected = gpiod_get_value_cansleep(ddata->hpd_gpio);
+	bool connected;
 
+	connected = gpiod_get_value_cansleep(ddata->hpd_gpio);
 	if (!connected && src->ops->hdmi.lost_hotplug)
 		src->ops->hdmi.lost_hotplug(src);
 	return connected;
@@ -288,6 +289,7 @@ static int tpd_probe(struct platform_device *pdev)
 	dssdev->output_type = OMAP_DISPLAY_TYPE_HDMI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(1) | BIT(0);
+	dssdev->ops_flags = OMAP_DSS_DEVICE_OP_DETECT;
 
 	dssdev->next = omapdss_of_find_connected_device(pdev->dev.of_node, 1);
 	if (IS_ERR(dssdev->next)) {

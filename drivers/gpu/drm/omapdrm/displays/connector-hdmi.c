@@ -141,10 +141,7 @@ static bool hdmic_detect(struct omap_dss_device *dssdev)
 	struct omap_dss_device *src = dssdev->src;
 	bool connected;
 
-	if (ddata->hpd_gpio)
-		connected = gpiod_get_value_cansleep(ddata->hpd_gpio);
-	else
-		connected = src->ops->detect(src);
+	connected = gpiod_get_value_cansleep(ddata->hpd_gpio);
 	if (!connected && src->ops->hdmi.lost_hotplug)
 		src->ops->hdmi.lost_hotplug(src);
 	return connected;
@@ -317,6 +314,7 @@ static int hdmic_probe(struct platform_device *pdev)
 	dssdev->type = OMAP_DISPLAY_TYPE_HDMI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);
+	dssdev->ops_flags = ddata->hpd_gpio ? OMAP_DSS_DEVICE_OP_DETECT : 0;
 
 	omapdss_display_init(dssdev);
 	omapdss_device_register(dssdev);
