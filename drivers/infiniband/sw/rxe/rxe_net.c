@@ -623,7 +623,6 @@ void rxe_remove_all(void)
 	}
 	spin_unlock_bh(&dev_list_lock);
 }
-EXPORT_SYMBOL(rxe_remove_all);
 
 static void rxe_port_event(struct rxe_dev *rxe,
 			   enum ib_event_type event)
