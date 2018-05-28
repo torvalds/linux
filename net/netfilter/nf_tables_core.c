@@ -23,22 +23,6 @@
 #include <net/netfilter/nf_tables.h>
 #include <net/netfilter/nf_log.h>
 
-static const char *const comments[__NFT_TRACETYPE_MAX] = {
-	[NFT_TRACETYPE_POLICY]	= "policy",
-	[NFT_TRACETYPE_RETURN]	= "return",
-	[NFT_TRACETYPE_RULE]	= "rule",
-};
-
-static const struct nf_loginfo trace_loginfo = {
-	.type = NF_LOG_TYPE_LOG,
-	.u = {
-		.log = {
-			.level = LOGLEVEL_WARNING,
-			.logflags = NF_LOG_DEFAULT_MASK,
-	        },
-	},
-};
-
 static noinline void __nft_trace_packet(struct nft_traceinfo *info,
 					const struct nft_chain *chain,
 					enum nft_trace_types type)
