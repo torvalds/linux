@@ -45,23 +45,23 @@ The per-board settings Gen2 platforms:
 The per-board settings Gen3 platforms:
 
 Gen3 platforms can support both a single connected parallel input source
-from external SoC pins (port0) and/or multiple parallel input sources
-from local SoC CSI-2 receivers (port1) depending on SoC.
+from external SoC pins (port@0) and/or multiple parallel input sources
+from local SoC CSI-2 receivers (port@1) depending on SoC.
 
 - renesas,id - ID number of the VIN, VINx in the documentation.
 - ports
-    - port 0 - sub-node describing a single endpoint connected to the VIN
+    - port@0 - sub-node describing a single endpoint connected to the VIN
       from external SoC pins described in video-interfaces.txt[1].
-      Describing more then one endpoint in port 0 is invalid. Only VIN
-      instances that are connected to external pins should have port 0.
-    - port 1 - sub-nodes describing one or more endpoints connected to
+      Describing more than one endpoint in port@0 is invalid. Only VIN
+      instances that are connected to external pins should have port@0.
+    - port@1 - sub-nodes describing one or more endpoints connected to
       the VIN from local SoC CSI-2 receivers. The endpoint numbers must
       use the following schema.
 
-        - Endpoint 0 - sub-node describing the endpoint connected to CSI20
-        - Endpoint 1 - sub-node describing the endpoint connected to CSI21
-        - Endpoint 2 - sub-node describing the endpoint connected to CSI40
-        - Endpoint 3 - sub-node describing the endpoint connected to CSI41
+        - endpoint@0 - sub-node describing the endpoint connected to CSI20
+        - endpoint@1 - sub-node describing the endpoint connected to CSI21
+        - endpoint@2 - sub-node describing the endpoint connected to CSI40
+        - endpoint@3 - sub-node describing the endpoint connected to CSI41
 
 Device node example for Gen2 platforms
 --------------------------------------
