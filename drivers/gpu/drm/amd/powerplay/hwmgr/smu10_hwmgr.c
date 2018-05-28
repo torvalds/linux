@@ -1000,6 +1000,12 @@ static int smu10_get_clock_by_type_with_voltage(struct pp_hwmgr *hwmgr,
 	case amd_pp_soc_clock:
 		pclk_vol_table = pinfo->vdd_dep_on_socclk;
 		break;
+	case amd_pp_disp_clock:
+		pclk_vol_table = pinfo->vdd_dep_on_dispclk;
+		break;
+	case amd_pp_phy_clock:
+		pclk_vol_table = pinfo->vdd_dep_on_phyclk;
+		break;
 	default:
 		return -EINVAL;
 	}
