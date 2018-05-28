@@ -15,7 +15,7 @@
 #include <asm/x86_init.h>
 #include <asm/iommu_table.h>
 
-static int forbid_dac __read_mostly;
+static bool disable_dac_quirk __read_mostly;
 
 const struct dma_map_ops *dma_ops = &dma_direct_ops;
 EXPORT_SYMBOL(dma_ops);
@@ -126,7 +126,7 @@ static __init int iommu_setup(char *p)
 		if (!strncmp(p, "nodac", 5))
 			pr_warn("nodac option ignored.\n");
 		if (!strncmp(p, "usedac", 6)) {
-			forbid_dac = -1;
+			disable_dac_quirk = true;
 			return 1;
 		}
 #ifdef CONFIG_SWIOTLB
@@ -151,19 +151,6 @@ static __init int iommu_setup(char *p)
 }
 early_param("iommu", iommu_setup);
 
-int arch_dma_supported(struct device *dev, u64 mask)
-{
-#ifdef CONFIG_PCI
-	if (mask > 0xffffffff && forbid_dac > 0) {
-		dev_info(dev, "PCI: Disallowing DAC for device\n");
-		return 0;
-	}
-#endif
-
-	return 1;
-}
-EXPORT_SYMBOL(arch_dma_supported);
-
 static int __init pci_iommu_init(void)
 {
 	struct iommu_table_entry *p;
@@ -186,11 +173,17 @@ rootfs_initcall(pci_iommu_init);
 #ifdef CONFIG_PCI
 /* Many VIA bridges seem to corrupt data for DAC. Disable it here */
 
+static int via_no_dac_cb(struct pci_dev *pdev, void *data)
+{
+	pdev->dev.dma_32bit_limit = true;
+	return 0;
+}
+
 static void via_no_dac(struct pci_dev *dev)
 {
-	if (forbid_dac == 0) {
+	if (!disable_dac_quirk) {
 		dev_info(&dev->dev, "disabling DAC on VIA PCI bridge\n");
-		forbid_dac = 1;
+		pci_walk_bus(dev->subordinate, via_no_dac_cb, NULL);
 	}
 }
 DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_VIA, PCI_ANY_ID,
