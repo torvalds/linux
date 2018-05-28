@@ -510,7 +510,7 @@ static int eld_proc_new(struct hdmi_spec_per_pin *per_pin, int index)
 
 	snd_info_set_text_ops(entry, per_pin, print_eld_info);
 	entry->c.text.write = write_eld_info;
-	entry->mode |= S_IWUSR;
+	entry->mode |= 0200;
 	per_pin->proc_entry = entry;
 
 	return 0;

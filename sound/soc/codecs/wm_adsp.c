@@ -627,22 +627,21 @@ static void wm_adsp2_init_debugfs(struct wm_adsp *dsp,
 	if (!root)
 		goto err;
 
-	if (!debugfs_create_bool("booted", S_IRUGO, root, &dsp->booted))
+	if (!debugfs_create_bool("booted", 0444, root, &dsp->booted))
 		goto err;
 
-	if (!debugfs_create_bool("running", S_IRUGO, root, &dsp->running))
+	if (!debugfs_create_bool("running", 0444, root, &dsp->running))
 		goto err;
 
-	if (!debugfs_create_x32("fw_id", S_IRUGO, root, &dsp->fw_id))
+	if (!debugfs_create_x32("fw_id", 0444, root, &dsp->fw_id))
 		goto err;
 
-	if (!debugfs_create_x32("fw_version", S_IRUGO, root,
-				&dsp->fw_id_version))
+	if (!debugfs_create_x32("fw_version", 0444, root, &dsp->fw_id_version))
 		goto err;
 
 	for (i = 0; i < ARRAY_SIZE(wm_adsp_debugfs_fops); ++i) {
 		if (!debugfs_create_file(wm_adsp_debugfs_fops[i].name,
-					 S_IRUGO, root, dsp,
+					 0444, root, dsp,
 					 &wm_adsp_debugfs_fops[i].fops))
 			goto err;
 	}

@@ -305,7 +305,7 @@ void snd_dice_create_proc(struct snd_dice *dice)
 					  dice->card->proc_root);
 	if (!root)
 		return;
-	root->mode = S_IFDIR | S_IRUGO | S_IXUGO;
+	root->mode = S_IFDIR | 0555;
 	if (snd_info_register(root) < 0) {
 		snd_info_free_entry(root);
 		return;

@@ -17,7 +17,7 @@
 
 static bool use_system_timer;
 MODULE_PARM_DESC(use_system_timer, "Force to use system-timer");
-module_param(use_system_timer, bool, S_IRUGO);
+module_param(use_system_timer, bool, 0444);
 
 struct ct_timer_ops {
 	void (*init)(struct ct_timer_instance *);
