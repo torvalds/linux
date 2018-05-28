@@ -18,7 +18,6 @@
 
 /* Default is -1; we skip past it for struct cached_dev's cache mode */
 static const char * const bch_cache_modes[] = {
-	"default",
 	"writethrough",
 	"writeback",
 	"writearound",
@@ -28,7 +27,6 @@ static const char * const bch_cache_modes[] = {
 
 /* Default is -1; we skip past it for stop_when_cache_set_failed */
 static const char * const bch_stop_on_failure_modes[] = {
-	"default",
 	"auto",
 	"always",
 	NULL
@@ -146,27 +144,6 @@ static ssize_t bch_snprint_string_list(char *buf, size_t size, const char * cons
 	return out - buf;
 }
 
-static ssize_t bch_read_string_list(const char *buf, const char * const list[])
-{
-	size_t i;
-	char *s, *d = kstrndup(buf, PAGE_SIZE - 1, GFP_KERNEL);
-	if (!d)
-		return -ENOMEM;
-
-	s = strim(d);
-
-	for (i = 0; list[i]; i++)
-		if (!strcmp(list[i], s))
-			break;
-
-	kfree(d);
-
-	if (!list[i])
-		return -EINVAL;
-
-	return i;
-}
-
 SHOW(__bch_cached_dev)
 {
 	struct cached_dev *dc = container_of(kobj, struct cached_dev,
@@ -177,12 +154,12 @@ SHOW(__bch_cached_dev)
 
 	if (attr == &sysfs_cache_mode)
 		return bch_snprint_string_list(buf, PAGE_SIZE,
-					       bch_cache_modes + 1,
+					       bch_cache_modes,
 					       BDEV_CACHE_MODE(&dc->sb));
 
 	if (attr == &sysfs_stop_when_cache_set_failed)
 		return bch_snprint_string_list(buf, PAGE_SIZE,
-					       bch_stop_on_failure_modes + 1,
+					       bch_stop_on_failure_modes,
 					       dc->stop_when_cache_set_failed);
 
 
@@ -306,8 +283,7 @@ STORE(__cached_dev)
 		bch_cached_dev_run(dc);
 
 	if (attr == &sysfs_cache_mode) {
-		v = bch_read_string_list(buf, bch_cache_modes + 1);
-
+		v = __sysfs_match_string(bch_cache_modes, -1, buf);
 		if (v < 0)
 			return v;
 
@@ -318,8 +294,7 @@ STORE(__cached_dev)
 	}
 
 	if (attr == &sysfs_stop_when_cache_set_failed) {
-		v = bch_read_string_list(buf, bch_stop_on_failure_modes + 1);
-
+		v = __sysfs_match_string(bch_stop_on_failure_modes, -1, buf);
 		if (v < 0)
 			return v;
 
@@ -688,6 +663,7 @@ SHOW_LOCKED(bch_cache_set)
 STORE(__bch_cache_set)
 {
 	struct cache_set *c = container_of(kobj, struct cache_set, kobj);
+	ssize_t v;
 
 	if (attr == &sysfs_unregister)
 		bch_cache_set_unregister(c);
@@ -751,8 +727,7 @@ STORE(__bch_cache_set)
 		      c->congested_write_threshold_us);
 
 	if (attr == &sysfs_errors) {
-		ssize_t v = bch_read_string_list(buf, error_actions);
-
+		v = __sysfs_match_string(error_actions, -1, buf);
 		if (v < 0)
 			return v;
 
@@ -767,8 +742,7 @@ STORE(__bch_cache_set)
 		c->error_decay = strtoul_or_return(buf) / 88;
 
 	if (attr == &sysfs_io_disable) {
-		int v = strtoul_or_return(buf);
-
+		v = strtoul_or_return(buf);
 		if (v) {
 			if (test_and_set_bit(CACHE_SET_IO_DISABLE,
 					     &c->flags))
@@ -982,6 +956,7 @@ SHOW_LOCKED(bch_cache)
 STORE(__bch_cache)
 {
 	struct cache *ca = container_of(kobj, struct cache, kobj);
+	ssize_t v;
 
 	if (attr == &sysfs_discard) {
 		bool v = strtoul_or_return(buf);
@@ -996,8 +971,7 @@ STORE(__bch_cache)
 	}
 
 	if (attr == &sysfs_cache_replacement_policy) {
-		ssize_t v = bch_read_string_list(buf, cache_replacement_policies);
-
+		v = __sysfs_match_string(cache_replacement_policies, -1, buf);
 		if (v < 0)
 			return v;
 
