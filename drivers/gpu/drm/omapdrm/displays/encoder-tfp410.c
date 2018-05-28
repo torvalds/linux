@@ -13,14 +13,13 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/of_gpio.h>
 
 #include "../dss/omapdss.h"
 
 struct panel_drv_data {
 	struct omap_dss_device dssdev;
 
-	int pd_gpio;
+	struct gpio_desc *pd_gpio;
 
 	struct videomode vm;
 };
@@ -57,8 +56,8 @@ static int tfp410_enable(struct omap_dss_device *dssdev)
 	if (r)
 		return r;
 
-	if (gpio_is_valid(ddata->pd_gpio))
-		gpio_set_value_cansleep(ddata->pd_gpio, 1);
+	if (ddata->pd_gpio)
+		gpiod_set_value_cansleep(ddata->pd_gpio, 0);
 
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
@@ -73,8 +72,8 @@ static void tfp410_disable(struct omap_dss_device *dssdev)
 	if (!omapdss_device_is_enabled(dssdev))
 		return;
 
-	if (gpio_is_valid(ddata->pd_gpio))
-		gpio_set_value_cansleep(ddata->pd_gpio, 0);
+	if (ddata->pd_gpio)
+		gpiod_set_value_cansleep(ddata->pd_gpio, 0);
 
 	src->ops->disable(src);
 
@@ -119,30 +118,11 @@ static const struct omap_dss_device_ops tfp410_ops = {
 	.set_timings	= tfp410_set_timings,
 };
 
-static int tfp410_probe_of(struct platform_device *pdev)
-{
-	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct device_node *node = pdev->dev.of_node;
-	int gpio;
-
-	gpio = of_get_named_gpio(node, "powerdown-gpios", 0);
-
-	if (gpio_is_valid(gpio) || gpio == -ENOENT) {
-		ddata->pd_gpio = gpio;
-	} else {
-		if (gpio != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "failed to parse PD gpio\n");
-		return gpio;
-	}
-
-	return 0;
-}
-
 static int tfp410_probe(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata;
 	struct omap_dss_device *dssdev;
-	int r;
+	struct gpio_desc *gpio;
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
@@ -150,19 +130,14 @@ static int tfp410_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ddata);
 
-	r = tfp410_probe_of(pdev);
-	if (r)
-		return r;
-
-	if (gpio_is_valid(ddata->pd_gpio)) {
-		r = devm_gpio_request_one(&pdev->dev, ddata->pd_gpio,
-				GPIOF_OUT_INIT_LOW, "tfp410 PD");
-		if (r) {
-			dev_err(&pdev->dev, "Failed to request PD GPIO %d\n",
-					ddata->pd_gpio);
-			return r;
-		}
+	/* Powerdown GPIO */
+	gpio = devm_gpiod_get_optional(&pdev->dev, "powerdown", GPIOD_OUT_HIGH);
+	if (IS_ERR(gpio)) {
+		dev_err(&pdev->dev, "failed to parse powerdown gpio\n");
+		return PTR_ERR(gpio);
 	}
+
+	ddata->pd_gpio = gpio;
 
 	dssdev = &ddata->dssdev;
 	dssdev->ops = &tfp410_ops;
