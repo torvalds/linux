@@ -4706,7 +4706,7 @@ static int nf_tables_dump_obj(struct sk_buff *skb, struct netlink_callback *cb)
 			if (idx > s_idx)
 				memset(&cb->args[1], 0,
 				       sizeof(cb->args) - sizeof(cb->args[0]));
-			if (filter && filter->table[0] &&
+			if (filter && filter->table &&
 			    strcmp(filter->table, table->name))
 				goto cont;
 			if (filter &&
@@ -5380,7 +5380,7 @@ static int nf_tables_dump_flowtable(struct sk_buff *skb,
 			if (idx > s_idx)
 				memset(&cb->args[1], 0,
 				       sizeof(cb->args) - sizeof(cb->args[0]));
-			if (filter && filter->table[0] &&
+			if (filter && filter->table &&
 			    strcmp(filter->table, table->name))
 				goto cont;
 
