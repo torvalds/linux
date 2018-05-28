@@ -258,11 +258,75 @@ static ssize_t iwl_dbgfs_timestamp_marker_read(struct iwl_fw_runtime *fwrt,
 
 FWRT_DEBUGFS_READ_WRITE_FILE_OPS(timestamp_marker, 16);
 
+struct hcmd_write_data {
+	__be32 cmd_id;
+	__be32 flags;
+	__be16 length;
+	u8 data[0];
+} __packed;
+
+static ssize_t iwl_dbgfs_send_hcmd_write(struct iwl_fw_runtime *fwrt, char *buf,
+					 size_t count)
+{
+	size_t header_size = (sizeof(u32) * 2 + sizeof(u16)) * 2;
+	size_t data_size = (count - 1) / 2;
+	int ret;
+	struct hcmd_write_data *data;
+	struct iwl_host_cmd hcmd = {
+		.len = { 0, },
+		.data = { NULL, },
+	};
+
+	if (fwrt->ops && fwrt->ops->fw_running &&
+	    !fwrt->ops->fw_running(fwrt->ops_ctx))
+		return -EIO;
+
+	if (count < header_size + 1 || count > 1024 * 4)
+		return -EINVAL;
+
+	data = kmalloc(data_size, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	ret = hex2bin((u8 *)data, buf, data_size);
+	if (ret)
+		goto out;
+
+	hcmd.id = be32_to_cpu(data->cmd_id);
+	hcmd.flags = be32_to_cpu(data->flags);
+	hcmd.len[0] = be16_to_cpu(data->length);
+	hcmd.data[0] = data->data;
+
+	if (count != header_size + hcmd.len[0] * 2 + 1) {
+		IWL_ERR(fwrt,
+			"host command data size does not match header length\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (fwrt->ops && fwrt->ops->send_hcmd)
+		ret = fwrt->ops->send_hcmd(fwrt->ops_ctx, &hcmd);
+	else
+		ret = -EPERM;
+
+	if (ret < 0)
+		goto out;
+
+	if (hcmd.flags & CMD_WANT_SKB)
+		iwl_free_resp(&hcmd);
+out:
+	kfree(data);
+	return ret ?: count;
+}
+
+FWRT_DEBUGFS_WRITE_FILE_OPS(send_hcmd, 512);
+
 int iwl_fwrt_dbgfs_register(struct iwl_fw_runtime *fwrt,
 			    struct dentry *dbgfs_dir)
 {
 	INIT_DELAYED_WORK(&fwrt->timestamp.wk, iwl_fw_timestamp_marker_wk);
 	FWRT_DEBUGFS_ADD_FILE(timestamp_marker, dbgfs_dir, 0200);
+	FWRT_DEBUGFS_ADD_FILE(send_hcmd, dbgfs_dir, 0200);
 	return 0;
 err:
 	IWL_ERR(fwrt, "Can't create the fwrt debugfs directory\n");
