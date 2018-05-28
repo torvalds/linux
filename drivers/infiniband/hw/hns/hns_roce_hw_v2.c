@@ -775,6 +775,9 @@ static int hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 	int ret = 0;
 	int ntc;
 
+	if (hr_dev->is_reset)
+		return 0;
+
 	spin_lock_bh(&csq->lock);
 
 	if (num > hns_roce_cmq_space(csq)) {
@@ -4804,14 +4807,87 @@ static void hns_roce_hw_v2_uninit_instance(struct hnae3_handle *handle,
 {
 	struct hns_roce_dev *hr_dev = (struct hns_roce_dev *)handle->priv;
 
+	if (!hr_dev)
+		return;
+
 	hns_roce_exit(hr_dev);
 	kfree(hr_dev->priv);
 	ib_dealloc_device(&hr_dev->ib_dev);
 }
 
+static int hns_roce_hw_v2_reset_notify_down(struct hnae3_handle *handle)
+{
+	struct hns_roce_dev *hr_dev = (struct hns_roce_dev *)handle->priv;
+	struct ib_event event;
+
+	if (!hr_dev) {
+		dev_err(&handle->pdev->dev,
+			"Input parameter handle->priv is NULL!\n");
+		return -EINVAL;
+	}
+
+	hr_dev->active = false;
+	hr_dev->is_reset = true;
+
+	event.event = IB_EVENT_DEVICE_FATAL;
+	event.device = &hr_dev->ib_dev;
+	event.element.port_num = 1;
+	ib_dispatch_event(&event);
+
+	return 0;
+}
+
+static int hns_roce_hw_v2_reset_notify_init(struct hnae3_handle *handle)
+{
+	int ret;
+
+	ret = hns_roce_hw_v2_init_instance(handle);
+	if (ret) {
+		/* when reset notify type is HNAE3_INIT_CLIENT In reset notify
+		 * callback function, RoCE Engine reinitialize. If RoCE reinit
+		 * failed, we should inform NIC driver.
+		 */
+		handle->priv = NULL;
+		dev_err(&handle->pdev->dev,
+			"In reset process RoCE reinit failed %d.\n", ret);
+	}
+
+	return ret;
+}
+
+static int hns_roce_hw_v2_reset_notify_uninit(struct hnae3_handle *handle)
+{
+	msleep(100);
+	hns_roce_hw_v2_uninit_instance(handle, false);
+	return 0;
+}
+
+static int hns_roce_hw_v2_reset_notify(struct hnae3_handle *handle,
+				       enum hnae3_reset_notify_type type)
+{
+	int ret = 0;
+
+	switch (type) {
+	case HNAE3_DOWN_CLIENT:
+		ret = hns_roce_hw_v2_reset_notify_down(handle);
+		break;
+	case HNAE3_INIT_CLIENT:
+		ret = hns_roce_hw_v2_reset_notify_init(handle);
+		break;
+	case HNAE3_UNINIT_CLIENT:
+		ret = hns_roce_hw_v2_reset_notify_uninit(handle);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
 static const struct hnae3_client_ops hns_roce_hw_v2_ops = {
 	.init_instance = hns_roce_hw_v2_init_instance,
 	.uninit_instance = hns_roce_hw_v2_uninit_instance,
+	.reset_notify = hns_roce_hw_v2_reset_notify,
 };
 
 static struct hnae3_client hns_roce_hw_v2_client = {

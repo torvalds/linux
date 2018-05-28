@@ -774,6 +774,8 @@ struct hns_roce_dev {
 	const char		*irq_names[HNS_ROCE_MAX_IRQ_NUM];
 	spinlock_t		sm_lock;
 	spinlock_t		bt_cmd_lock;
+	bool			active;
+	bool			is_reset;
 	struct hns_roce_ib_iboe iboe;
 
 	struct list_head        pgdir_list;

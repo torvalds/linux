@@ -332,6 +332,9 @@ static struct ib_ucontext *hns_roce_alloc_ucontext(struct ib_device *ib_dev,
 	struct hns_roce_ib_alloc_ucontext_resp resp = {};
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_dev);
 
+	if (!hr_dev->active)
+		return ERR_PTR(-EAGAIN);
+
 	resp.qp_tab_size = hr_dev->caps.num_qps;
 
 	context = kmalloc(sizeof(*context), GFP_KERNEL);
@@ -425,6 +428,7 @@ static void hns_roce_unregister_device(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_ib_iboe *iboe = &hr_dev->iboe;
 
+	hr_dev->active = false;
 	unregister_netdevice_notifier(&iboe->nb);
 	ib_unregister_device(&hr_dev->ib_dev);
 }
@@ -536,6 +540,7 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 		goto error_failed_setup_mtu_mac;
 	}
 
+	hr_dev->active = true;
 	return 0;
 
 error_failed_setup_mtu_mac:
@@ -728,6 +733,7 @@ int hns_roce_init(struct hns_roce_dev *hr_dev)
 			return ret;
 		}
 	}
+	hr_dev->is_reset = false;
 
 	if (hr_dev->hw->cmq_init) {
 		ret = hr_dev->hw->cmq_init(hr_dev);
@@ -827,6 +833,7 @@ EXPORT_SYMBOL_GPL(hns_roce_init);
 void hns_roce_exit(struct hns_roce_dev *hr_dev)
 {
 	hns_roce_unregister_device(hr_dev);
+
 	if (hr_dev->hw->hw_exit)
 		hr_dev->hw->hw_exit(hr_dev);
 	hns_roce_cleanup_bitmap(hr_dev);
