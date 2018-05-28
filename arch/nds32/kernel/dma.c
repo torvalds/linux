@@ -3,17 +3,14 @@
 
 #include <linux/types.h>
 #include <linux/mm.h>
-#include <linux/export.h>
 #include <linux/string.h>
-#include <linux/scatterlist.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-noncoherent.h>
 #include <linux/io.h>
 #include <linux/cache.h>
 #include <linux/highmem.h>
 #include <linux/slab.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
-#include <asm/dma-mapping.h>
 #include <asm/proc-fns.h>
 
 /*
@@ -119,10 +116,8 @@ out:
 	return c;
 }
 
-/* FIXME: attrs is not used. */
-static void *nds32_dma_alloc_coherent(struct device *dev, size_t size,
-				      dma_addr_t * handle, gfp_t gfp,
-				      unsigned long attrs)
+void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
+		gfp_t gfp, unsigned long attrs)
 {
 	struct page *page;
 	struct arch_vm_region *c;
@@ -227,8 +222,8 @@ no_page:
 	return NULL;
 }
 
-static void nds32_dma_free(struct device *dev, size_t size, void *cpu_addr,
-			   dma_addr_t handle, unsigned long attrs)
+void arch_dma_free(struct device *dev, size_t size, void *cpu_addr,
+		dma_addr_t handle, unsigned long attrs)
 {
 	struct arch_vm_region *c;
 	unsigned long flags, addr;
@@ -365,118 +360,32 @@ static inline void cache_op(phys_addr_t paddr, size_t size,
 	} while (left);
 }
 
-static void
-nds32_dma_sync_single_for_device(struct device *dev, dma_addr_t handle,
-				 size_t size, enum dma_data_direction dir)
+void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
+		size_t size, enum dma_data_direction dir)
 {
 	switch (dir) {
 	case DMA_FROM_DEVICE:
 		break;
 	case DMA_TO_DEVICE:
 	case DMA_BIDIRECTIONAL:
-		cache_op(handle, size, cpu_dma_wb_range);
+		cache_op(paddr, size, cpu_dma_wb_range);
 		break;
 	default:
 		BUG();
 	}
 }
 
-static void
-nds32_dma_sync_single_for_cpu(struct device *dev, dma_addr_t handle,
-			      size_t size, enum dma_data_direction dir)
+void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
+		size_t size, enum dma_data_direction dir)
 {
 	switch (dir) {
 	case DMA_TO_DEVICE:
 		break;
 	case DMA_FROM_DEVICE:
 	case DMA_BIDIRECTIONAL:
-		cache_op(handle, size, cpu_dma_inval_range);
+		cache_op(paddr, size, cpu_dma_inval_range);
 		break;
 	default:
 		BUG();
 	}
 }
-
-static dma_addr_t nds32_dma_map_page(struct device *dev, struct page *page,
-				     unsigned long offset, size_t size,
-				     enum dma_data_direction dir,
-				     unsigned long attrs)
-{
-	dma_addr_t dma_addr = page_to_phys(page) + offset;
-
-	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-		nds32_dma_sync_single_for_device(dev, handle, size, dir);
-	return dma_addr;
-}
-
-static void nds32_dma_unmap_page(struct device *dev, dma_addr_t handle,
-				 size_t size, enum dma_data_direction dir,
-				 unsigned long attrs)
-{
-	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-		nds32_dma_sync_single_for_cpu(dev, handle, size, dir);
-}
-
-static void
-nds32_dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
-			     int nents, enum dma_data_direction dir)
-{
-	int i;
-
-	for (i = 0; i < nents; i++, sg++) {
-		nds32_dma_sync_single_for_device(dev, sg_dma_address(sg),
-				sg->length, dir);
-	}
-}
-
-static void
-nds32_dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nents,
-			  enum dma_data_direction dir)
-{
-	int i;
-
-	for (i = 0; i < nents; i++, sg++) {
-		nds32_dma_sync_single_for_cpu(dev, sg_dma_address(sg),
-				sg->length, dir);
-	}
-}
-
-static int nds32_dma_map_sg(struct device *dev, struct scatterlist *sg,
-			    int nents, enum dma_data_direction dir,
-			    unsigned long attrs)
-{
-	int i;
-
-	for (i = 0; i < nents; i++, sg++) {
-		nds32_dma_sync_single_for_device(dev, sg_dma_address(sg),
-				sg->length, dir);
-	}
-	return nents;
-}
-
-static void nds32_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
-			       int nhwentries, enum dma_data_direction dir,
-			       unsigned long attrs)
-{
-	int i;
-
-	for (i = 0; i < nhwentries; i++, sg++) {
-		nds32_dma_sync_single_for_cpu(dev, sg_dma_address(sg),
-				sg->length, dir);
-	}
-}
-
-struct dma_map_ops nds32_dma_ops = {
-	.alloc = nds32_dma_alloc_coherent,
-	.free = nds32_dma_free,
-	.map_page = nds32_dma_map_page,
-	.unmap_page = nds32_dma_unmap_page,
-	.map_sg = nds32_dma_map_sg,
-	.unmap_sg = nds32_dma_unmap_sg,
-	.sync_single_for_device = nds32_dma_sync_single_for_device,
-	.sync_single_for_cpu = nds32_dma_sync_single_for_cpu,
-	.sync_sg_for_cpu = nds32_dma_sync_sg_for_cpu,
-	.sync_sg_for_device = nds32_dma_sync_sg_for_device,
-};
-
-EXPORT_SYMBOL(nds32_dma_ops);
