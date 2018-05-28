@@ -41,6 +41,7 @@ static struct menu *current_menu, *current_entry;
 	struct expr *expr;
 	struct menu *menu;
 	const struct kconf_id *id;
+	enum variable_flavor flavor;
 }
 
 %token <id>T_MAINMENU
@@ -78,7 +79,7 @@ static struct menu *current_menu, *current_entry;
 %token T_OPEN_PAREN
 %token T_EOL
 %token <string> T_VARIABLE
-%token T_ASSIGN
+%token <flavor> T_ASSIGN
 %token <string> T_ASSIGN_VAL
 
 %left T_OR
@@ -517,7 +518,7 @@ word_opt: /* empty */			{ $$ = NULL; }
 
 /* assignment statement */
 
-assignment_stmt:  T_VARIABLE T_ASSIGN assign_val T_EOL	{ variable_add($1, $3); free($1); free($3); }
+assignment_stmt:  T_VARIABLE T_ASSIGN assign_val T_EOL	{ variable_add($1, $3, $2); free($1); free($3); }
 
 assign_val:
 	/* empty */		{ $$ = xstrdup(""); };

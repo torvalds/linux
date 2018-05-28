@@ -185,6 +185,7 @@ static LIST_HEAD(variable_list);
 struct variable {
 	char *name;
 	char *value;
+	enum variable_flavor flavor;
 	struct list_head node;
 };
 
@@ -203,15 +204,22 @@ static struct variable *variable_lookup(const char *name)
 static char *variable_expand(const char *name, int argc, char *argv[])
 {
 	struct variable *v;
+	char *res;
 
 	v = variable_lookup(name);
 	if (!v)
 		return NULL;
 
-	return expand_string_with_args(v->value, argc, argv);
+	if (v->flavor == VAR_RECURSIVE)
+		res = expand_string_with_args(v->value, argc, argv);
+	else
+		res = xstrdup(v->value);
+
+	return res;
 }
 
-void variable_add(const char *name, const char *value)
+void variable_add(const char *name, const char *value,
+		  enum variable_flavor flavor)
 {
 	struct variable *v;
 
@@ -224,7 +232,12 @@ void variable_add(const char *name, const char *value)
 		list_add_tail(&v->node, &variable_list);
 	}
 
-	v->value = xstrdup(value);
+	v->flavor = flavor;
+
+	if (flavor == VAR_SIMPLE)
+		v->value = expand_string(value);
+	else
+		v->value = xstrdup(value);
 }
 
 static void variable_del(struct variable *v)
