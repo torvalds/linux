@@ -285,6 +285,12 @@ config RTC_DRV_DS1672
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1672.
 
+config RTC_DRV_FAKE
+	tristate "FAKE RTC"
+	help
+	  This driver  as a virtual rtc module, if so, the module
+	  will be called "rtc-fake".
+
 config RTC_DRV_HYM8563
 	tristate "Haoyu Microelectronics HYM8563"
 	depends on OF
