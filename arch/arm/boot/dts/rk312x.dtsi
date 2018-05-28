@@ -1126,6 +1126,10 @@
 			bias-pull-pin-default;
 		};
 
+		pcfg_output_high: pcfg-output-high {
+			output-high;
+		};
+
 		pcfg_pull_none: pcfg-pull-none {
 			bias-disable;
 		};
