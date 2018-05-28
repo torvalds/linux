@@ -106,6 +106,21 @@ struct function {
 	char *(*func)(int argc, char *argv[]);
 };
 
+static char *do_error_if(int argc, char *argv[])
+{
+	if (!strcmp(argv[0], "y"))
+		pperror("%s", argv[1]);
+
+	return NULL;
+}
+
+static char *do_info(int argc, char *argv[])
+{
+	printf("%s\n", argv[0]);
+
+	return xstrdup("");
+}
+
 static char *do_shell(int argc, char *argv[])
 {
 	FILE *p;
@@ -146,9 +161,21 @@ static char *do_shell(int argc, char *argv[])
 	return xstrdup(buf);
 }
 
+static char *do_warning_if(int argc, char *argv[])
+{
+	if (!strcmp(argv[0], "y"))
+		fprintf(stderr, "%s:%d: %s\n",
+			current_file->name, yylineno, argv[1]);
+
+	return xstrdup("");
+}
+
 static const struct function function_table[] = {
 	/* Name		MIN	MAX	Function */
+	{ "error-if",	2,	2,	do_error_if },
+	{ "info",	1,	1,	do_info },
 	{ "shell",	1,	1,	do_shell },
+	{ "warning-if",	2,	2,	do_warning_if },
 };
 
 #define FUNCTION_MAX_ARGS		16
