@@ -2,9 +2,9 @@ config DEFCONFIG_LIST
 	string
 	depends on !UML
 	option defconfig_list
-	default "/lib/modules/$(UNAME_RELEASE)/.config"
+	default "/lib/modules/$(shell,uname --release)/.config"
 	default "/etc/kernel-config"
-	default "/boot/config-$(UNAME_RELEASE)"
+	default "/boot/config-$(shell,uname --release)"
 	default ARCH_DEFCONFIG
 	default "arch/$(ARCH)/defconfig"
 
