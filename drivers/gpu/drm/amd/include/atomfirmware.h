@@ -2026,16 +2026,14 @@ enum atom_smu11_syspll_id {
   SMU11_SYSPLL3_1_ID          = 6,
 };
 
-
 enum atom_smu11_syspll0_clock_id {
-  SMU11_SYSPLL0_SOCCLK_ID   = 0,       //	SOCCLK
-  SMU11_SYSPLL0_MP0CLK_ID   = 1,       //	MP0CLK
-  SMU11_SYSPLL0_DCLK_ID     = 2,       //	DCLK
-  SMU11_SYSPLL0_VCLK_ID     = 3,       //	VCLK
-  SMU11_SYSPLL0_ECLK_ID     = 4,       //	ECLK
+  SMU11_SYSPLL0_ECLK_ID     = 0,       //	ECLK
+  SMU11_SYSPLL0_SOCCLK_ID   = 1,       //	SOCCLK
+  SMU11_SYSPLL0_MP0CLK_ID   = 2,       //	MP0CLK
+  SMU11_SYSPLL0_DCLK_ID     = 3,       //	DCLK
+  SMU11_SYSPLL0_VCLK_ID     = 4,       //	VCLK
   SMU11_SYSPLL0_DCEFCLK_ID  = 5,       //	DCEFCLK
 };
-
 
 enum atom_smu11_syspll1_0_clock_id {
   SMU11_SYSPLL1_0_UCLKA_ID   = 0,       // UCLK_a
