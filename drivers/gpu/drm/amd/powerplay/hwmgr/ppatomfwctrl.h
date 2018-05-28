@@ -136,6 +136,9 @@ struct pp_atomfwctrl_bios_boot_up_values {
 	uint32_t   ulUClk;
 	uint32_t   ulSocClk;
 	uint32_t   ulDCEFClk;
+	uint32_t   ulEClk;
+	uint32_t   ulVClk;
+	uint32_t   ulDClk;
 	uint16_t   usVddc;
 	uint16_t   usVddci;
 	uint16_t   usMvddc;
