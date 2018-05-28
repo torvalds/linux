@@ -122,7 +122,6 @@ struct rockchip_clk_frac {
 	const struct clk_ops			*mux_ops;
 	int					mux_frac_idx;
 
-	bool					rate_change_remuxed;
 	int					rate_change_idx;
 };
 
@@ -143,18 +142,6 @@ static int rockchip_clk_frac_notifier_cb(struct notifier_block *nb,
 		frac->rate_change_idx = frac->mux_ops->get_parent(&frac_mux->hw);
 		if (frac->rate_change_idx != frac->mux_frac_idx) {
 			frac->mux_ops->set_parent(&frac_mux->hw, frac->mux_frac_idx);
-			frac->rate_change_remuxed = 1;
-		}
-	} else if (event == POST_RATE_CHANGE) {
-		/*
-		 * The POST_RATE_CHANGE notifier runs directly after the
-		 * divider clock is set in clk_change_rate, so we'll have
-		 * remuxed back to the original parent before clk_change_rate
-		 * reaches the mux itself.
-		 */
-		if (frac->rate_change_remuxed) {
-			frac->mux_ops->set_parent(&frac_mux->hw, frac->rate_change_idx);
-			frac->rate_change_remuxed = 0;
 		}
 	}
 
