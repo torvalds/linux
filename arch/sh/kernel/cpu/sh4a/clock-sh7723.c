@@ -260,7 +260,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("veu1", &mstp_clks[HWBLK_VEU2H1]),
 	CLKDEV_DEV_ID("sh-vou.0", &mstp_clks[HWBLK_VOU]),
 	CLKDEV_CON_ID("beu0", &mstp_clks[HWBLK_BEU]),
-	CLKDEV_DEV_ID("sh_mobile_ceu.0", &mstp_clks[HWBLK_CEU]),
+	CLKDEV_DEV_ID("ceu.0", &mstp_clks[HWBLK_CEU]),
 	CLKDEV_CON_ID("veu0", &mstp_clks[HWBLK_VEU2H0]),
 	CLKDEV_CON_ID("vpu0", &mstp_clks[HWBLK_VPU]),
 
