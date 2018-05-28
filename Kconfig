@@ -5,4 +5,6 @@
 #
 mainmenu "Linux/$(ARCH) $(KERNELVERSION) Kernel Configuration"
 
+comment "Compiler: $(CC_VERSION_TEXT)"
+
 source "arch/$(SRCARCH)/Kconfig"

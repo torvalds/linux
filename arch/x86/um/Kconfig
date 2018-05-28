@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 mainmenu "User Mode Linux/$(SUBARCH) $(KERNELVERSION) Kernel Configuration"
 
+comment "Compiler: $(CC_VERSION_TEXT)"
+
 source "arch/um/Kconfig.common"
 
 menu "UML-specific options"
