@@ -643,6 +643,7 @@ event_trigger_callback(struct event_command *cmd_ops,
 	trigger_data->count = -1;
 	trigger_data->ops = trigger_ops;
 	trigger_data->cmd_ops = cmd_ops;
+	trigger_data->private_data = file;
 	INIT_LIST_HEAD(&trigger_data->list);
 	INIT_LIST_HEAD(&trigger_data->named_list);
 
@@ -1054,7 +1055,12 @@ static void
 snapshot_trigger(struct event_trigger_data *data, void *rec,
 		 struct ring_buffer_event *event)
 {
-	tracing_snapshot();
+	struct trace_event_file *file = data->private_data;
+
+	if (file)
+		tracing_snapshot_instance(file->tr);
+	else
+		tracing_snapshot();
 }
 
 static void
@@ -1077,7 +1083,7 @@ register_snapshot_trigger(char *glob, struct event_trigger_ops *ops,
 {
 	int ret = register_trigger(glob, ops, data, file);
 
-	if (ret > 0 && tracing_alloc_snapshot() != 0) {
+	if (ret > 0 && tracing_alloc_snapshot_instance(file->tr) != 0) {
 		unregister_trigger(glob, ops, data, file);
 		ret = 0;
 	}
