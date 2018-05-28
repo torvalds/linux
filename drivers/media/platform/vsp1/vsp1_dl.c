@@ -43,6 +43,7 @@ struct vsp1_dl_entry {
  * struct vsp1_dl_body - Display list body
  * @list: entry in the display list list of bodies
  * @free: entry in the pool free body list
+ * @refcnt: reference tracking for the body
  * @pool: pool to which this body belongs
  * @vsp1: the VSP1 device
  * @entries: array of entries
