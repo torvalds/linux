@@ -209,7 +209,7 @@ struct vb2_vmalloc_attachment {
 	enum dma_data_direction dma_dir;
 };
 
-static int vb2_vmalloc_dmabuf_ops_attach(struct dma_buf *dbuf, struct device *dev,
+static int vb2_vmalloc_dmabuf_ops_attach(struct dma_buf *dbuf,
 	struct dma_buf_attachment *dbuf_attach)
 {
 	struct vb2_vmalloc_attachment *attach;

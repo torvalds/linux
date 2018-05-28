@@ -40,7 +40,6 @@
  */
 
 static int vmw_prime_map_attach(struct dma_buf *dma_buf,
-				struct device *target_dev,
 				struct dma_buf_attachment *attach)
 {
 	return -ENOSYS;

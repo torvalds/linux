@@ -568,7 +568,7 @@ struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
 	mutex_lock(&dmabuf->lock);
 
 	if (dmabuf->ops->attach) {
-		ret = dmabuf->ops->attach(dmabuf, dev, attach);
+		ret = dmabuf->ops->attach(dmabuf, attach);
 		if (ret)
 			goto err_attach;
 	}

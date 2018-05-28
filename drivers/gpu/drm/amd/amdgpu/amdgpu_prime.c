@@ -127,7 +127,6 @@ error:
 }
 
 static int amdgpu_gem_map_attach(struct dma_buf *dma_buf,
-				 struct device *target_dev,
 				 struct dma_buf_attachment *attach)
 {
 	struct drm_gem_object *obj = dma_buf->priv;
@@ -135,7 +134,7 @@ static int amdgpu_gem_map_attach(struct dma_buf *dma_buf,
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	long r;
 
-	r = drm_gem_map_attach(dma_buf, target_dev, attach);
+	r = drm_gem_map_attach(dma_buf, attach);
 	if (r)
 		return r;
 

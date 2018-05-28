@@ -29,7 +29,6 @@ struct udl_drm_dmabuf_attachment {
 };
 
 static int udl_attach_dma_buf(struct dma_buf *dmabuf,
-			      struct device *dev,
 			      struct dma_buf_attachment *attach)
 {
 	struct udl_drm_dmabuf_attachment *udl_attach;

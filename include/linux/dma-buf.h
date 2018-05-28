@@ -55,11 +55,11 @@ struct dma_buf_ops {
 	 * @attach:
 	 *
 	 * This is called from dma_buf_attach() to make sure that a given
-	 * &device can access the provided &dma_buf. Exporters which support
-	 * buffer objects in special locations like VRAM or device-specific
-	 * carveout areas should check whether the buffer could be move to
-	 * system memory (or directly accessed by the provided device), and
-	 * otherwise need to fail the attach operation.
+	 * &dma_buf_attachment.dev can access the provided &dma_buf. Exporters
+	 * which support buffer objects in special locations like VRAM or
+	 * device-specific carveout areas should check whether the buffer could
+	 * be move to system memory (or directly accessed by the provided
+	 * device), and otherwise need to fail the attach operation.
 	 *
 	 * The exporter should also in general check whether the current
 	 * allocation fullfills the DMA constraints of the new device. If this
@@ -77,8 +77,7 @@ struct dma_buf_ops {
 	 * to signal that backing storage is already allocated and incompatible
 	 * with the requirements of requesting device.
 	 */
-	int (*attach)(struct dma_buf *, struct device *,
-		      struct dma_buf_attachment *);
+	int (*attach)(struct dma_buf *, struct dma_buf_attachment *);
 
 	/**
 	 * @detach:
