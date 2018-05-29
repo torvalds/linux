@@ -248,8 +248,9 @@ TRACE_EVENT(tcp_probe,
 	),
 
 	TP_fast_assign(
-		const struct tcp_sock *tp = tcp_sk(sk);
+		const struct tcphdr *th = (const struct tcphdr *)skb->data;
 		const struct inet_sock *inet = inet_sk(sk);
+		const struct tcp_sock *tp = tcp_sk(sk);
 
 		memset(__entry->saddr, 0, sizeof(struct sockaddr_in6));
 		memset(__entry->daddr, 0, sizeof(struct sockaddr_in6));
@@ -261,7 +262,7 @@ TRACE_EVENT(tcp_probe,
 		__entry->dport = ntohs(inet->inet_dport);
 		__entry->mark = skb->mark;
 
-		__entry->data_len = skb->len - tcp_hdrlen(skb);
+		__entry->data_len = skb->len - __tcp_hdrlen(th);
 		__entry->snd_nxt = tp->snd_nxt;
 		__entry->snd_una = tp->snd_una;
 		__entry->snd_cwnd = tp->snd_cwnd;
