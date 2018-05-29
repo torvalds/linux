@@ -1322,21 +1322,25 @@ static void flush_disk(struct block_device *bdev, bool kill_dirty)
  * check_disk_size_change - checks for disk size change and adjusts bdev size.
  * @disk: struct gendisk to check
  * @bdev: struct bdev to adjust.
+ * @verbose: if %true log a message about a size change if there is any
  *
  * This routine checks to see if the bdev size does not match the disk size
  * and adjusts it if it differs. When shrinking the bdev size, its all caches
  * are freed.
  */
-void check_disk_size_change(struct gendisk *disk, struct block_device *bdev)
+void check_disk_size_change(struct gendisk *disk, struct block_device *bdev,
+		bool verbose)
 {
 	loff_t disk_size, bdev_size;
 
 	disk_size = (loff_t)get_capacity(disk) << 9;
 	bdev_size = i_size_read(bdev->bd_inode);
 	if (disk_size != bdev_size) {
-		printk(KERN_INFO
-		       "%s: detected capacity change from %lld to %lld\n",
-		       disk->disk_name, bdev_size, disk_size);
+		if (verbose) {
+			printk(KERN_INFO
+			       "%s: detected capacity change from %lld to %lld\n",
+			       disk->disk_name, bdev_size, disk_size);
+		}
 		i_size_write(bdev->bd_inode, disk_size);
 		if (bdev_size > disk_size)
 			flush_disk(bdev, false);
@@ -1363,7 +1367,7 @@ int revalidate_disk(struct gendisk *disk)
 		return ret;
 
 	mutex_lock(&bdev->bd_mutex);
-	check_disk_size_change(disk, bdev);
+	check_disk_size_change(disk, bdev, ret == 0);
 	bdev->bd_invalidated = 0;
 	mutex_unlock(&bdev->bd_mutex);
 	bdput(bdev);
