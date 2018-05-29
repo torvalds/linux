@@ -697,8 +697,8 @@ void blk_mq_start_request(struct request *rq)
 	preempt_disable();
 	write_seqcount_begin(&rq->gstate_seq);
 
-	blk_mq_rq_update_state(rq, MQ_RQ_IN_FLIGHT);
 	blk_add_timer(rq);
+	blk_mq_rq_update_state(rq, MQ_RQ_IN_FLIGHT);
 
 	write_seqcount_end(&rq->gstate_seq);
 	preempt_enable();
