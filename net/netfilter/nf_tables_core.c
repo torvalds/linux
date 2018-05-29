@@ -126,15 +126,15 @@ static noinline void nft_update_chain_stats(const struct nft_chain *chain,
 	if (!base_chain->stats)
 		return;
 
+	local_bh_disable();
 	stats = this_cpu_ptr(rcu_dereference(base_chain->stats));
 	if (stats) {
-		local_bh_disable();
 		u64_stats_update_begin(&stats->syncp);
 		stats->pkts++;
 		stats->bytes += pkt->skb->len;
 		u64_stats_update_end(&stats->syncp);
-		local_bh_enable();
 	}
+	local_bh_enable();
 }
 
 struct nft_jumpstack {
