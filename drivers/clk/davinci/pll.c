@@ -878,7 +878,6 @@ static int davinci_pll_debug_init(struct clk_hw *hw, struct dentry *dentry)
 {
 	struct davinci_pll_clk *pll = to_davinci_pll_clk(hw);
 	struct debugfs_regset32 *regset;
-	struct dentry *d;
 
 	regset = kzalloc(sizeof(*regset), GFP_KERNEL);
 	if (!regset)
@@ -888,11 +887,7 @@ static int davinci_pll_debug_init(struct clk_hw *hw, struct dentry *dentry)
 	regset->nregs = ARRAY_SIZE(davinci_pll_regs);
 	regset->base = pll->base;
 
-	d = debugfs_create_regset32("registers", 0400, dentry, regset);
-	if (IS_ERR(d)) {
-		kfree(regset);
-		return PTR_ERR(d);
-	}
+	debugfs_create_regset32("registers", 0400, dentry, regset);
 
 	return 0;
 }
