@@ -6486,7 +6486,9 @@ static u32 sk_msg_convert_ctx_access(enum bpf_access_type type,
 				     struct bpf_prog *prog, u32 *target_size)
 {
 	struct bpf_insn *insn = insn_buf;
+#if IS_ENABLED(CONFIG_IPV6)
 	int off;
+#endif
 
 	switch (si->off) {
 	case offsetof(struct sk_msg_md, data):
