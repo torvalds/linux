@@ -1139,7 +1139,7 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 	struct obd_device *obd;
 	struct dentry *dir;
 	char name[MAX_STRING_SIZE + 1], *ptr;
-	int err, id, len, rc;
+	int err, id, len;
 
 	name[MAX_STRING_SIZE] = '\0';
 
@@ -1165,26 +1165,14 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 	}
 	sbi->ll_debugfs_entry = dir;
 
-	rc = ldebugfs_seq_create(sbi->ll_debugfs_entry, "dump_page_cache", 0444,
-				 &vvp_dump_pgcache_file_ops, sbi);
-	if (rc)
-		CWARN("Error adding the dump_page_cache file\n");
-
-	rc = ldebugfs_seq_create(sbi->ll_debugfs_entry, "extents_stats", 0644,
-				 &ll_rw_extents_stats_fops, sbi);
-	if (rc)
-		CWARN("Error adding the extent_stats file\n");
-
-	rc = ldebugfs_seq_create(sbi->ll_debugfs_entry,
-				 "extents_stats_per_process",
-				 0644, &ll_rw_extents_stats_pp_fops, sbi);
-	if (rc)
-		CWARN("Error adding the extents_stats_per_process file\n");
-
-	rc = ldebugfs_seq_create(sbi->ll_debugfs_entry, "offset_stats", 0644,
-				 &ll_rw_offset_stats_fops, sbi);
-	if (rc)
-		CWARN("Error adding the offset_stats file\n");
+	debugfs_create_file("dump_page_cache", 0444, dir, sbi,
+			    &vvp_dump_pgcache_file_ops);
+	debugfs_create_file("extents_stats", 0644, dir, sbi,
+			    &ll_rw_extents_stats_fops);
+	debugfs_create_file("extents_stats_per_process", 0644,
+			    dir, sbi, &ll_rw_extents_stats_pp_fops);
+	debugfs_create_file("offset_stats", 0644, dir, sbi,
+			    &ll_rw_offset_stats_fops);
 
 	/* File operations stats */
 	sbi->ll_stats = lprocfs_alloc_stats(LPROC_LL_FILE_OPCODES,

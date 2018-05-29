@@ -1099,8 +1099,6 @@ void ptlrpc_ldebugfs_register_service(struct dentry *entry,
 		.release     = lprocfs_seq_release,
 	};
 
-	int rc;
-
 	ptlrpc_ldebugfs_register(entry, svc->srv_name,
 				 "stats", &svc->srv_debugfs_entry,
 				 &svc->srv_stats);
@@ -1110,10 +1108,8 @@ void ptlrpc_ldebugfs_register_service(struct dentry *entry,
 
 	ldebugfs_add_vars(svc->srv_debugfs_entry, lproc_vars, NULL);
 
-	rc = ldebugfs_seq_create(svc->srv_debugfs_entry, "req_history",
-				 0400, &req_history_fops, svc);
-	if (rc)
-		CWARN("Error adding the req_history file\n");
+	debugfs_create_file("req_history", 0400, svc->srv_debugfs_entry, svc,
+			    &req_history_fops);
 }
 
 void ptlrpc_lprocfs_register_obd(struct obd_device *obddev)
