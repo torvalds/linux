@@ -116,33 +116,10 @@ struct ch_t {
 	__u16 head;
 } __attribute__ ((packed));
 
-struct chs_t {
-	__u16 cyl;
-	__u16 head;
-	__u32 sector;
-} __attribute__ ((packed));
-
 struct chr_t {
 	__u16 cyl;
 	__u16 head;
 	__u8 record;
-} __attribute__ ((packed));
-
-struct geom_t {
-	__u16 cyl;
-	__u16 head;
-	__u32 sector;
-} __attribute__ ((packed));
-
-struct eckd_home {
-	__u8 skip_control[14];
-	__u16 cell_number;
-	__u8 physical_addr[3];
-	__u8 flag;
-	struct ch_t track_addr;
-	__u8 reserved;
-	__u8 key_length;
-	__u8 reserved2[2];
 } __attribute__ ((packed));
 
 struct DE_eckd_data {
@@ -572,7 +549,5 @@ int dasd_alias_remove_device(struct dasd_device *);
 struct dasd_device *dasd_alias_get_start_dev(struct dasd_device *);
 void dasd_alias_handle_summary_unit_check(struct work_struct *);
 void dasd_eckd_reset_ccw_to_base_io(struct dasd_ccw_req *);
-void dasd_alias_lcu_setup_complete(struct dasd_device *);
-void dasd_alias_wait_for_lcu_setup(struct dasd_device *);
 int dasd_alias_update_add_device(struct dasd_device *);
 #endif				/* DASD_ECKD_H */
