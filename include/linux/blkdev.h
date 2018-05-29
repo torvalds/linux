@@ -237,14 +237,14 @@ struct request {
 	unsigned short write_hint;
 	unsigned short ioprio;
 
-	unsigned int timeout;
-
 	void *special;		/* opaque pointer available for LLD use */
 
 	unsigned int extra_len;	/* length of alignment and padding */
 
 	enum mq_rq_state state;
 	refcount_t ref;
+
+	unsigned int timeout;
 
 	/* access through blk_rq_set_deadline, blk_rq_deadline */
 	unsigned long __deadline;
