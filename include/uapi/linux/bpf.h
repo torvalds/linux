@@ -1852,10 +1852,10 @@ union bpf_attr {
  *		If lookup is successful and result shows packet is to be
  *		forwarded, the neighbor tables are searched for the nexthop.
  *		If successful (ie., FIB lookup shows forwarding and nexthop
- *		is resolved), the nexthop address is returned in ipv4_dst,
- *		ipv6_dst or mpls_out based on family, smac is set to mac
- *		address of egress device, dmac is set to nexthop mac address,
- *		rt_metric is set to metric from route.
+ *		is resolved), the nexthop address is returned in ipv4_dst
+ *		or ipv6_dst based on family, smac is set to mac address of
+ *		egress device, dmac is set to nexthop mac address, rt_metric
+ *		is set to metric from route (IPv4/IPv6 only).
  *
  *             *plen* argument is the size of the passed in struct.
  *             *flags* argument can be a combination of one or more of the
@@ -2537,8 +2537,10 @@ struct bpf_raw_tracepoint_args {
 #define BPF_FIB_LOOKUP_OUTPUT  BIT(1)
 
 struct bpf_fib_lookup {
-	/* input */
-	__u8	family;   /* network family, AF_INET, AF_INET6, AF_MPLS */
+	/* input:  network family for lookup (AF_INET, AF_INET6)
+	 * output: network family of egress nexthop
+	 */
+	__u8	family;
 
 	/* set if lookup is to consider L4 data - e.g., FIB rules */
 	__u8	l4_protocol;
@@ -2554,22 +2556,20 @@ struct bpf_fib_lookup {
 		__u8	tos;		/* AF_INET  */
 		__be32	flowlabel;	/* AF_INET6 */
 
-		/* output: metric of fib result */
-		__u32 rt_metric;
+		/* output: metric of fib result (IPv4/IPv6 only) */
+		__u32	rt_metric;
 	};
 
 	union {
-		__be32		mpls_in;
 		__be32		ipv4_src;
 		__u32		ipv6_src[4];  /* in6_addr; network order */
 	};
 
-	/* input to bpf_fib_lookup, *dst is destination address.
-	 * output: bpf_fib_lookup sets to gateway address
+	/* input to bpf_fib_lookup, ipv{4,6}_dst is destination address in
+	 * network header. output: bpf_fib_lookup sets to gateway address
+	 * if FIB lookup returns gateway route
 	 */
 	union {
-		/* return for MPLS lookups */
-		__be32		mpls_out[4];  /* support up to 4 labels */
 		__be32		ipv4_dst;
 		__u32		ipv6_dst[4];  /* in6_addr; network order */
 	};
