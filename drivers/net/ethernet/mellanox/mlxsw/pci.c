@@ -1371,6 +1371,51 @@ static void mlxsw_pci_mbox_free(struct mlxsw_pci *mlxsw_pci,
 			    mbox->mapaddr);
 }
 
+static int mlxsw_pci_sw_reset(struct mlxsw_pci *mlxsw_pci,
+			      const struct pci_device_id *id)
+{
+	unsigned long end;
+	char mrsr_pl[MLXSW_REG_MRSR_LEN];
+	int err;
+
+	mlxsw_reg_mrsr_pack(mrsr_pl);
+	err = mlxsw_reg_write(mlxsw_pci->core, MLXSW_REG(mrsr), mrsr_pl);
+	if (err)
+		return err;
+	if (id->device == PCI_DEVICE_ID_MELLANOX_SWITCHX2) {
+		msleep(MLXSW_PCI_SW_RESET_TIMEOUT_MSECS);
+		return 0;
+	}
+
+	/* We must wait for the HW to become responsive once again. */
+	msleep(MLXSW_PCI_SW_RESET_WAIT_MSECS);
+
+	end = jiffies + msecs_to_jiffies(MLXSW_PCI_SW_RESET_TIMEOUT_MSECS);
+	do {
+		u32 val = mlxsw_pci_read32(mlxsw_pci, FW_READY);
+
+		if ((val & MLXSW_PCI_FW_READY_MASK) == MLXSW_PCI_FW_READY_MAGIC)
+			break;
+		cond_resched();
+	} while (time_before(jiffies, end));
+	return 0;
+}
+
+static int mlxsw_pci_alloc_irq_vectors(struct mlxsw_pci *mlxsw_pci)
+{
+	int err;
+
+	err = pci_alloc_irq_vectors(mlxsw_pci->pdev, 1, 1, PCI_IRQ_MSIX);
+	if (err < 0)
+		dev_err(&mlxsw_pci->pdev->dev, "MSI-X init failed\n");
+	return err;
+}
+
+static void mlxsw_pci_free_irq_vectors(struct mlxsw_pci *mlxsw_pci)
+{
+	pci_free_irq_vectors(mlxsw_pci->pdev);
+}
+
 static int mlxsw_pci_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 			  const struct mlxsw_config_profile *profile,
 			  struct mlxsw_res *res)
@@ -1397,6 +1442,16 @@ static int mlxsw_pci_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 	err = mlxsw_pci_mbox_alloc(mlxsw_pci, &mlxsw_pci->cmd.out_mbox);
 	if (err)
 		goto err_out_mbox_alloc;
+
+	err = mlxsw_pci_sw_reset(mlxsw_pci, mlxsw_pci->id);
+	if (err)
+		goto err_sw_reset;
+
+	err = mlxsw_pci_alloc_irq_vectors(mlxsw_pci);
+	if (err < 0) {
+		dev_err(&pdev->dev, "MSI-X init failed\n");
+		goto err_alloc_irq;
+	}
 
 	err = mlxsw_cmd_query_fw(mlxsw_core, mbox);
 	if (err)
@@ -1481,6 +1536,9 @@ err_fw_area_init:
 err_doorbell_page_bar:
 err_iface_rev:
 err_query_fw:
+	mlxsw_pci_free_irq_vectors(mlxsw_pci);
+err_alloc_irq:
+err_sw_reset:
 	mlxsw_pci_mbox_free(mlxsw_pci, &mlxsw_pci->cmd.out_mbox);
 err_out_mbox_alloc:
 	mlxsw_pci_mbox_free(mlxsw_pci, &mlxsw_pci->cmd.in_mbox);
@@ -1496,6 +1554,7 @@ static void mlxsw_pci_fini(void *bus_priv)
 	free_irq(pci_irq_vector(mlxsw_pci->pdev, 0), mlxsw_pci);
 	mlxsw_pci_aqs_fini(mlxsw_pci);
 	mlxsw_pci_fw_area_fini(mlxsw_pci);
+	mlxsw_pci_free_irq_vectors(mlxsw_pci);
 	mlxsw_pci_mbox_free(mlxsw_pci, &mlxsw_pci->cmd.out_mbox);
 	mlxsw_pci_mbox_free(mlxsw_pci, &mlxsw_pci->cmd.in_mbox);
 }
@@ -1677,58 +1736,6 @@ static int mlxsw_pci_cmd_exec(void *bus_priv, u16 opcode, u8 opcode_mod,
 	return err;
 }
 
-static int mlxsw_pci_sw_reset(struct mlxsw_pci *mlxsw_pci,
-			      const struct pci_device_id *id)
-{
-	unsigned long end;
-
-	mlxsw_pci_write32(mlxsw_pci, SW_RESET, MLXSW_PCI_SW_RESET_RST_BIT);
-	if (id->device == PCI_DEVICE_ID_MELLANOX_SWITCHX2) {
-		msleep(MLXSW_PCI_SW_RESET_TIMEOUT_MSECS);
-		return 0;
-	}
-
-	/* Reset needs to be written before we read control register, and
-	 * we must wait for the HW to become responsive once again
-	 */
-	wmb();
-	msleep(MLXSW_PCI_SW_RESET_WAIT_MSECS);
-
-	end = jiffies + msecs_to_jiffies(MLXSW_PCI_SW_RESET_TIMEOUT_MSECS);
-	do {
-		u32 val = mlxsw_pci_read32(mlxsw_pci, FW_READY);
-
-		if ((val & MLXSW_PCI_FW_READY_MASK) == MLXSW_PCI_FW_READY_MAGIC)
-			break;
-		cond_resched();
-	} while (time_before(jiffies, end));
-	return 0;
-}
-
-static void mlxsw_pci_free_irq_vectors(struct mlxsw_pci *mlxsw_pci)
-{
-	pci_free_irq_vectors(mlxsw_pci->pdev);
-}
-
-static int mlxsw_pci_alloc_irq_vectors(struct mlxsw_pci *mlxsw_pci)
-{
-	int err;
-
-	err = pci_alloc_irq_vectors(mlxsw_pci->pdev, 1, 1, PCI_IRQ_MSIX);
-	if (err < 0)
-		dev_err(&mlxsw_pci->pdev->dev, "MSI-X init failed\n");
-	return err;
-}
-
-static void mlxsw_pci_reset(void *bus_priv)
-{
-	struct mlxsw_pci *mlxsw_pci = bus_priv;
-
-	mlxsw_pci_free_irq_vectors(mlxsw_pci);
-	mlxsw_pci_sw_reset(mlxsw_pci, mlxsw_pci->id);
-	mlxsw_pci_alloc_irq_vectors(mlxsw_pci);
-}
-
 static const struct mlxsw_bus mlxsw_pci_bus = {
 	.kind			= "pci",
 	.init			= mlxsw_pci_init,
@@ -1736,8 +1743,7 @@ static const struct mlxsw_bus mlxsw_pci_bus = {
 	.skb_transmit_busy	= mlxsw_pci_skb_transmit_busy,
 	.skb_transmit		= mlxsw_pci_skb_transmit,
 	.cmd_exec		= mlxsw_pci_cmd_exec,
-	.features		= MLXSW_BUS_F_TXRX,
-	.reset			= mlxsw_pci_reset,
+	.features		= MLXSW_BUS_F_TXRX | MLXSW_BUS_F_RESET,
 };
 
 static int mlxsw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -1795,18 +1801,6 @@ static int mlxsw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mlxsw_pci->pdev = pdev;
 	pci_set_drvdata(pdev, mlxsw_pci);
 
-	err = mlxsw_pci_sw_reset(mlxsw_pci, id);
-	if (err) {
-		dev_err(&pdev->dev, "Software reset failed\n");
-		goto err_sw_reset;
-	}
-
-	err = mlxsw_pci_alloc_irq_vectors(mlxsw_pci);
-	if (err < 0) {
-		dev_err(&pdev->dev, "MSI-X init failed\n");
-		goto err_msix_init;
-	}
-
 	mlxsw_pci->bus_info.device_kind = driver_name;
 	mlxsw_pci->bus_info.device_name = pci_name(mlxsw_pci->pdev);
 	mlxsw_pci->bus_info.dev = &pdev->dev;
@@ -1823,9 +1817,6 @@ static int mlxsw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 err_bus_device_register:
-	mlxsw_pci_free_irq_vectors(mlxsw_pci);
-err_msix_init:
-err_sw_reset:
 	iounmap(mlxsw_pci->hw_addr);
 err_ioremap:
 err_pci_resource_len_check:
@@ -1843,7 +1834,6 @@ static void mlxsw_pci_remove(struct pci_dev *pdev)
 	struct mlxsw_pci *mlxsw_pci = pci_get_drvdata(pdev);
 
 	mlxsw_core_bus_device_unregister(mlxsw_pci->core, false);
-	mlxsw_pci_free_irq_vectors(mlxsw_pci);
 	iounmap(mlxsw_pci->hw_addr);
 	pci_release_regions(mlxsw_pci->pdev);
 	pci_disable_device(mlxsw_pci->pdev);
