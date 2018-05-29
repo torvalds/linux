@@ -84,6 +84,10 @@
 
 	fiq-debugger {
 		compatible = "rockchip,fiq-debugger";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart1_xfer>;
+
 		rockchip,serial-id = <1>;
 		rockchip,wake-irq = <0>;
 		/* If enable uart uses irq instead of fiq */
@@ -514,7 +518,8 @@
 };
 
 &uart1 {
-	status = "okay";
+	/* disable uart1 explicitly since fiq-debugger is on uart1 */
+	status = "disabled";
 };
 
 &usb_host_ehci {
