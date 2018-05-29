@@ -124,6 +124,9 @@ extern void radix__mark_rodata_ro(void);
 extern void radix__mark_initmem_nx(void);
 #endif
 
+extern void radix__ptep_set_access_flags(struct mm_struct *mm, pte_t *ptep,
+					 pte_t entry, unsigned long address);
+
 static inline unsigned long __radix_pte_update(pte_t *ptep, unsigned long clr,
 					       unsigned long set)
 {
@@ -188,34 +191,6 @@ static inline pte_t radix__ptep_get_and_clear_full(struct mm_struct *mm,
 		old_pte = radix__pte_update(mm, addr, ptep, ~0ul, 0, 0);
 
 	return __pte(old_pte);
-}
-
-/*
- * Set the dirty and/or accessed bits atomically in a linux PTE, this
- * function doesn't need to invalidate tlb.
- */
-static inline void radix__ptep_set_access_flags(struct mm_struct *mm,
-						pte_t *ptep, pte_t entry,
-						unsigned long address)
-{
-
-	unsigned long set = pte_val(entry) & (_PAGE_DIRTY | _PAGE_ACCESSED |
-					      _PAGE_RW | _PAGE_EXEC);
-
-	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
-
-		unsigned long old_pte, new_pte;
-
-		old_pte = __radix_pte_update(ptep, ~0, 0);
-		/*
-		 * new value of pte
-		 */
-		new_pte = old_pte | set;
-		radix__flush_tlb_pte_p9_dd1(old_pte, mm, address);
-		__radix_pte_update(ptep, 0, new_pte);
-	} else
-		__radix_pte_update(ptep, 0, set);
-	asm volatile("ptesync" : : : "memory");
 }
 
 static inline int radix__pte_same(pte_t pte_a, pte_t pte_b)
