@@ -3538,6 +3538,13 @@ static int vmx_set_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
+	/*
+	 * Don't allow changes to the VMX capability MSRs while the vCPU
+	 * is in VMX operation.
+	 */
+	if (vmx->nested.vmxon)
+		return -EBUSY;
+
 	switch (msr_index) {
 	case MSR_IA32_VMX_BASIC:
 		return vmx_restore_vmx_basic(vmx, data);
