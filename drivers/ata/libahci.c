@@ -2436,6 +2436,8 @@ static void ahci_port_stop(struct ata_port *ap)
 	 * re-enabling INTx.
 	 */
 	writel(1 << ap->port_no, host_mmio + HOST_IRQ_STAT);
+
+	ahci_rpm_put_port(ap);
 }
 
 void ahci_print_info(struct ata_host *host, const char *scc_s)
