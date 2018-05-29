@@ -342,8 +342,9 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
  *
  */
 
-static int snd_usb_audio_free(struct snd_usb_audio *chip)
+static void snd_usb_audio_free(struct snd_card *card)
 {
+	struct snd_usb_audio *chip = card->private_data;
 	struct snd_usb_endpoint *ep, *n;
 
 	list_for_each_entry_safe(ep, n, &chip->ep_list, list)
@@ -352,14 +353,6 @@ static int snd_usb_audio_free(struct snd_usb_audio *chip)
 	mutex_destroy(&chip->mutex);
 	if (!atomic_read(&chip->shutdown))
 		dev_set_drvdata(&chip->dev->dev, NULL);
-	kfree(chip);
-	return 0;
-}
-
-static int snd_usb_audio_dev_free(struct snd_device *device)
-{
-	struct snd_usb_audio *chip = device->device_data;
-	return snd_usb_audio_free(chip);
 }
 
 static void usb_audio_make_shortname(struct usb_device *dev,
@@ -459,9 +452,6 @@ static int snd_usb_audio_create(struct usb_interface *intf,
 	struct snd_usb_audio *chip;
 	int err;
 	char component[14];
-	static struct snd_device_ops ops = {
-		.dev_free =	snd_usb_audio_dev_free,
-	};
 
 	*rchip = NULL;
 
@@ -479,18 +469,13 @@ static int snd_usb_audio_create(struct usb_interface *intf,
 	}
 
 	err = snd_card_new(&intf->dev, index[idx], id[idx], THIS_MODULE,
-			   0, &card);
+			   sizeof(*chip), &card);
 	if (err < 0) {
 		dev_err(&dev->dev, "cannot create card instance %d\n", idx);
 		return err;
 	}
 
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-	if (! chip) {
-		snd_card_free(card);
-		return -ENOMEM;
-	}
-
+	chip = card->private_data;
 	mutex_init(&chip->mutex);
 	init_waitqueue_head(&chip->shutdown_wait);
 	chip->index = idx;
@@ -508,12 +493,7 @@ static int snd_usb_audio_create(struct usb_interface *intf,
 	INIT_LIST_HEAD(&chip->midi_list);
 	INIT_LIST_HEAD(&chip->mixer_list);
 
-	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
-	if (err < 0) {
-		snd_usb_audio_free(chip);
-		snd_card_free(card);
-		return err;
-	}
+	card->private_free = snd_usb_audio_free;
 
 	strcpy(card->driver, "USB-Audio");
 	sprintf(component, "USB%04x:%04x",
