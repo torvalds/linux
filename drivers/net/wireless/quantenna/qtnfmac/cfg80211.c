@@ -649,30 +649,37 @@ qtnf_disconnect(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct qtnf_wmac *mac = wiphy_priv(wiphy);
 	struct qtnf_vif *vif;
-	int ret;
+	int ret = 0;
 
 	vif = qtnf_mac_get_base_vif(mac);
 	if (!vif) {
 		pr_err("MAC%u: primary VIF is not configured\n", mac->macid);
-		return -EFAULT;
+		ret = -EFAULT;
+		goto out;
 	}
 
-	if (vif->wdev.iftype != NL80211_IFTYPE_STATION)
-		return -EOPNOTSUPP;
+	if (vif->wdev.iftype != NL80211_IFTYPE_STATION) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
 
 	qtnf_scan_done(mac, true);
 
 	if (vif->sta_state == QTNF_STA_DISCONNECTED)
-		return 0;
+		goto out;
 
 	ret = qtnf_cmd_send_disconnect(vif, reason_code);
 	if (ret) {
 		pr_err("VIF%u.%u: failed to disconnect\n", mac->macid,
 		       vif->vifid);
-		return ret;
+		goto out;
 	}
 
-	return 0;
+out:
+	if (vif->sta_state == QTNF_STA_CONNECTING)
+		vif->sta_state = QTNF_STA_DISCONNECTED;
+
+	return ret;
 }
 
 static int
