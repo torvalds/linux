@@ -20,7 +20,7 @@
 	"       ATTACH_TYPE := { ingress | egress | sock_create |\n"	       \
 	"                        sock_ops | device | bind4 | bind6 |\n"	       \
 	"                        post_bind4 | post_bind6 | connect4 |\n"       \
-	"                        connect6 }"
+	"                        connect6 | sendmsg4 | sendmsg6 }"
 
 static const char * const attach_type_strings[] = {
 	[BPF_CGROUP_INET_INGRESS] = "ingress",
@@ -34,6 +34,8 @@ static const char * const attach_type_strings[] = {
 	[BPF_CGROUP_INET6_CONNECT] = "connect6",
 	[BPF_CGROUP_INET4_POST_BIND] = "post_bind4",
 	[BPF_CGROUP_INET6_POST_BIND] = "post_bind6",
+	[BPF_CGROUP_UDP4_SENDMSG] = "sendmsg4",
+	[BPF_CGROUP_UDP6_SENDMSG] = "sendmsg6",
 	[__MAX_BPF_ATTACH_TYPE] = NULL,
 };
 
