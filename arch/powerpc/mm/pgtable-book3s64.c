@@ -52,7 +52,6 @@ int pmdp_set_access_flags(struct vm_area_struct *vma, unsigned long address,
 		 */
 		__ptep_set_access_flags(vma, pmdp_ptep(pmdp),
 					pmd_pte(entry), address, MMU_PAGE_2M);
-		flush_pmd_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
 	}
 	return changed;
 }

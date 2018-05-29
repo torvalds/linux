@@ -304,6 +304,8 @@ static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
 	unsigned long old = pte_val(*ptep);
 	*ptep = __pte(old | bits);
 #endif
+
+	flush_tlb_page(vma, address);
 }
 
 #define __HAVE_ARCH_PTE_SAME

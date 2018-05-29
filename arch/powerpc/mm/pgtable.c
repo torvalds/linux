@@ -224,7 +224,6 @@ int ptep_set_access_flags(struct vm_area_struct *vma, unsigned long address,
 		assert_pte_locked(vma->vm_mm, address);
 		__ptep_set_access_flags(vma, ptep, entry,
 					address, mmu_virtual_psize);
-		flush_tlb_page(vma, address);
 	}
 	return changed;
 }
@@ -263,7 +262,6 @@ extern int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 		assert_spin_locked(&vma->vm_mm->page_table_lock);
 #endif
 		__ptep_set_access_flags(vma, ptep, pte, addr, psize);
-		flush_hugetlb_page(vma, addr);
 	}
 	return changed;
 #endif

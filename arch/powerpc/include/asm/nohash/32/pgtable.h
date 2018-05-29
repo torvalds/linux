@@ -266,6 +266,8 @@ static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
 	unsigned long clr = ~pte_val(entry) & (_PAGE_RO | _PAGE_NA);
 
 	pte_update(ptep, clr, set);
+
+	flush_tlb_page(vma, address);
 }
 
 static inline int pte_young(pte_t pte)
