@@ -3591,10 +3591,9 @@ fc_bsg_job_timeout(struct request *req)
 	}
 
 	/* the blk_end_sync_io() doesn't check the error */
-	if (!inflight)
-		return BLK_EH_DONE;
-	else
-		return BLK_EH_HANDLED;
+	if (inflight)
+		blk_mq_complete_request(req);
+	return BLK_EH_DONE;
 }
 
 /**
