@@ -294,52 +294,30 @@ DEFINE_SHOW_ATTRIBUTE(ep);
 static void dwc2_hsotg_create_debug(struct dwc2_hsotg *hsotg)
 {
 	struct dentry *root;
-	struct dentry *file;
 	unsigned int epidx;
 
 	root = hsotg->debug_root;
 
 	/* create general state file */
-
-	file = debugfs_create_file("state", 0444, root, hsotg, &state_fops);
-	if (IS_ERR(file))
-		dev_err(hsotg->dev, "%s: failed to create state\n", __func__);
-
-	file = debugfs_create_file("testmode", 0644, root, hsotg,
-				   &testmode_fops);
-	if (IS_ERR(file))
-		dev_err(hsotg->dev, "%s: failed to create testmode\n",
-			__func__);
-
-	file = debugfs_create_file("fifo", 0444, root, hsotg, &fifo_fops);
-	if (IS_ERR(file))
-		dev_err(hsotg->dev, "%s: failed to create fifo\n", __func__);
+	debugfs_create_file("state", 0444, root, hsotg, &state_fops);
+	debugfs_create_file("testmode", 0644, root, hsotg, &testmode_fops);
+	debugfs_create_file("fifo", 0444, root, hsotg, &fifo_fops);
 
 	/* Create one file for each out endpoint */
 	for (epidx = 0; epidx < hsotg->num_of_eps; epidx++) {
 		struct dwc2_hsotg_ep *ep;
 
 		ep = hsotg->eps_out[epidx];
-		if (ep) {
-			file = debugfs_create_file(ep->name, 0444,
-						   root, ep, &ep_fops);
-			if (IS_ERR(file))
-				dev_err(hsotg->dev, "failed to create %s debug file\n",
-					ep->name);
-		}
+		if (ep)
+			debugfs_create_file(ep->name, 0444, root, ep, &ep_fops);
 	}
 	/* Create one file for each in endpoint. EP0 is handled with out eps */
 	for (epidx = 1; epidx < hsotg->num_of_eps; epidx++) {
 		struct dwc2_hsotg_ep *ep;
 
 		ep = hsotg->eps_in[epidx];
-		if (ep) {
-			file = debugfs_create_file(ep->name, 0444,
-						   root, ep, &ep_fops);
-			if (IS_ERR(file))
-				dev_err(hsotg->dev, "failed to create %s debug file\n",
-					ep->name);
-		}
+		if (ep)
+			debugfs_create_file(ep->name, 0444, root, ep, &ep_fops);
 	}
 }
 #else
@@ -792,32 +770,14 @@ DEFINE_SHOW_ATTRIBUTE(dr_mode);
 int dwc2_debugfs_init(struct dwc2_hsotg *hsotg)
 {
 	int			ret;
-	struct dentry		*file;
+	struct dentry		*root;
 
-	hsotg->debug_root = debugfs_create_dir(dev_name(hsotg->dev), NULL);
-	if (!hsotg->debug_root) {
-		ret = -ENOMEM;
-		goto err0;
-	}
+	root = debugfs_create_dir(dev_name(hsotg->dev), NULL);
+	hsotg->debug_root = root;
 
-	file = debugfs_create_file("params", 0444,
-				   hsotg->debug_root,
-				   hsotg, &params_fops);
-	if (IS_ERR(file))
-		dev_err(hsotg->dev, "%s: failed to create params\n", __func__);
-
-	file = debugfs_create_file("hw_params", 0444,
-				   hsotg->debug_root,
-				   hsotg, &hw_params_fops);
-	if (IS_ERR(file))
-		dev_err(hsotg->dev, "%s: failed to create hw_params\n",
-			__func__);
-
-	file = debugfs_create_file("dr_mode", 0444,
-				   hsotg->debug_root,
-				   hsotg, &dr_mode_fops);
-	if (IS_ERR(file))
-		dev_err(hsotg->dev, "%s: failed to create dr_mode\n", __func__);
+	debugfs_create_file("params", 0444, root, hsotg, &params_fops);
+	debugfs_create_file("hw_params", 0444, root, hsotg, &hw_params_fops);
+	debugfs_create_file("dr_mode", 0444, root, hsotg, &dr_mode_fops);
 
 	/* Add gadget debugfs nodes */
 	dwc2_hsotg_create_debug(hsotg);
@@ -826,24 +786,18 @@ int dwc2_debugfs_init(struct dwc2_hsotg *hsotg)
 								GFP_KERNEL);
 	if (!hsotg->regset) {
 		ret = -ENOMEM;
-		goto err1;
+		goto err;
 	}
 
 	hsotg->regset->regs = dwc2_regs;
 	hsotg->regset->nregs = ARRAY_SIZE(dwc2_regs);
 	hsotg->regset->base = hsotg->regs;
 
-	file = debugfs_create_regset32("regdump", 0444, hsotg->debug_root,
-				       hsotg->regset);
-	if (!file) {
-		ret = -ENOMEM;
-		goto err1;
-	}
+	debugfs_create_regset32("regdump", 0444, root, hsotg->regset);
 
 	return 0;
-err1:
+err:
 	debugfs_remove_recursive(hsotg->debug_root);
-err0:
 	return ret;
 }
 
