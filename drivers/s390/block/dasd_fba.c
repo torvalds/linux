@@ -794,7 +794,7 @@ static void dasd_fba_setup_blk_queue(struct dasd_block *block)
 
 	/* Calculate max_discard_sectors and make it PAGE aligned */
 	max_bytes = USHRT_MAX * logical_block_size;
-	max_bytes = ALIGN(max_bytes, PAGE_SIZE) - PAGE_SIZE;
+	max_bytes = ALIGN_DOWN(max_bytes, PAGE_SIZE);
 	max_discard_sectors = max_bytes / logical_block_size;
 
 	blk_queue_max_discard_sectors(q, max_discard_sectors);
