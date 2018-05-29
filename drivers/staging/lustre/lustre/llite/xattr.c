@@ -145,7 +145,7 @@ static int ll_xattr_set_common(const struct xattr_handler *handler,
 		return -ENOMEM;
 
 	rc = md_setxattr(sbi->ll_md_exp, ll_inode2fid(inode), valid, fullname,
-			 pv, size, 0, flags, ll_i2suppgid(inode), &req);
+			 pv, size, flags, ll_i2suppgid(inode), &req);
 	kfree(fullname);
 	if (rc) {
 		if (rc == -EOPNOTSUPP && handler->flags == XATTR_USER_T) {
@@ -344,8 +344,8 @@ int ll_xattr_list(struct inode *inode, const char *name, int type, void *buffer,
 		}
 	} else {
 getxattr_nocache:
-		rc = md_getxattr(sbi->ll_md_exp, ll_inode2fid(inode),
-				 valid, name, NULL, 0, size, 0, &req);
+		rc = md_getxattr(sbi->ll_md_exp, ll_inode2fid(inode), valid,
+				 name, size, &req);
 		if (rc < 0)
 			goto out_xattr;
 

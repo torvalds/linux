@@ -940,12 +940,11 @@ struct md_ops {
 		      struct ptlrpc_request **);
 
 	int (*setxattr)(struct obd_export *, const struct lu_fid *,
-			u64, const char *, const char *, int, int, int, __u32,
-			struct ptlrpc_request **);
+			u64, const char *, const void *, size_t, unsigned int,
+			u32, struct ptlrpc_request **);
 
 	int (*getxattr)(struct obd_export *, const struct lu_fid *,
-			u64, const char *, const char *, int, int, int,
-			struct ptlrpc_request **);
+			u64, const char *, size_t, struct ptlrpc_request **);
 
 	int (*init_ea_size)(struct obd_export *, u32, u32);
 

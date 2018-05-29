@@ -94,7 +94,7 @@ int ll_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 
 	rc = md_setxattr(sbi->ll_md_exp, ll_inode2fid(inode),
 			 value ? OBD_MD_FLXATTR : OBD_MD_FLXATTRRM,
-			 name, value, value_size, 0, 0, 0, &req);
+			 name, value, value_size, 0, 0, &req);
 
 	ptlrpc_req_finished(req);
 out_value:

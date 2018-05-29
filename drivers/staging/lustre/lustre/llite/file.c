@@ -3323,8 +3323,7 @@ static int ll_layout_fetch(struct inode *inode, struct ldlm_lock *lock)
 	rc = ll_get_default_mdsize(sbi, &lmmsize);
 	if (rc == 0)
 		rc = md_getxattr(sbi->ll_md_exp, ll_inode2fid(inode),
-				 OBD_MD_FLXATTR, XATTR_NAME_LOV, NULL, 0,
-				 lmmsize, 0, &req);
+				 OBD_MD_FLXATTR, XATTR_NAME_LOV, lmmsize, &req);
 	if (rc < 0)
 		return rc;
 

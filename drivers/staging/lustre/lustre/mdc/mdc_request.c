@@ -350,26 +350,30 @@ static int mdc_xattr_common(struct obd_export *exp,
 }
 
 static int mdc_setxattr(struct obd_export *exp, const struct lu_fid *fid,
-			u64 valid, const char *xattr_name,
-			const char *input, int input_size, int output_size,
-			int flags, __u32 suppgid,
-			struct ptlrpc_request **request)
+			u64 obd_md_valid, const char *name,
+			const void *value, size_t value_size,
+			unsigned int xattr_flags, u32 suppgid,
+			struct ptlrpc_request **req)
 {
+	LASSERT(obd_md_valid == OBD_MD_FLXATTR ||
+		obd_md_valid == OBD_MD_FLXATTRRM);
+
 	return mdc_xattr_common(exp, &RQF_MDS_REINT_SETXATTR,
-				fid, MDS_REINT, valid, xattr_name,
-				input, input_size, output_size, flags,
-				suppgid, request);
+				fid, MDS_REINT, obd_md_valid, name,
+				value, value_size, 0, xattr_flags, suppgid,
+				req);
 }
 
 static int mdc_getxattr(struct obd_export *exp, const struct lu_fid *fid,
-			u64 valid, const char *xattr_name,
-			const char *input, int input_size, int output_size,
-			int flags, struct ptlrpc_request **request)
+			u64 obd_md_valid, const char *name, size_t buf_size,
+			struct ptlrpc_request **req)
 {
-	return mdc_xattr_common(exp, &RQF_MDS_GETXATTR,
-				fid, MDS_GETXATTR, valid, xattr_name,
-				input, input_size, output_size, flags,
-				-1, request);
+	LASSERT(obd_md_valid == OBD_MD_FLXATTR ||
+		obd_md_valid == OBD_MD_FLXATTRLS);
+
+	return mdc_xattr_common(exp, &RQF_MDS_GETXATTR, fid, MDS_GETXATTR,
+				obd_md_valid, name, NULL, 0, buf_size, 0, -1,
+				req);
 }
 
 #ifdef CONFIG_FS_POSIX_ACL
