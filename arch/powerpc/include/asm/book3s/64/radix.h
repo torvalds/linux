@@ -124,8 +124,9 @@ extern void radix__mark_rodata_ro(void);
 extern void radix__mark_initmem_nx(void);
 #endif
 
-extern void radix__ptep_set_access_flags(struct mm_struct *mm, pte_t *ptep,
-					 pte_t entry, unsigned long address);
+extern void radix__ptep_set_access_flags(struct vm_area_struct *vma, pte_t *ptep,
+					 pte_t entry, unsigned long address,
+					 int psize);
 
 static inline unsigned long __radix_pte_update(pte_t *ptep, unsigned long clr,
 					       unsigned long set)

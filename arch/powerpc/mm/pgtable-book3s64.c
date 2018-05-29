@@ -46,8 +46,12 @@ int pmdp_set_access_flags(struct vm_area_struct *vma, unsigned long address,
 #endif
 	changed = !pmd_same(*(pmdp), entry);
 	if (changed) {
-		__ptep_set_access_flags(vma->vm_mm, pmdp_ptep(pmdp),
-					pmd_pte(entry), address);
+		/*
+		 * We can use MMU_PAGE_2M here, because only radix
+		 * path look at the psize.
+		 */
+		__ptep_set_access_flags(vma, pmdp_ptep(pmdp),
+					pmd_pte(entry), address, MMU_PAGE_2M);
 		flush_pmd_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
 	}
 	return changed;

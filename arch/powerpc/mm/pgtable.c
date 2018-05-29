@@ -222,7 +222,8 @@ int ptep_set_access_flags(struct vm_area_struct *vma, unsigned long address,
 	changed = !pte_same(*(ptep), entry);
 	if (changed) {
 		assert_pte_locked(vma->vm_mm, address);
-		__ptep_set_access_flags(vma->vm_mm, ptep, entry, address);
+		__ptep_set_access_flags(vma, ptep, entry,
+					address, mmu_virtual_psize);
 		flush_tlb_page(vma, address);
 	}
 	return changed;
@@ -242,15 +243,26 @@ extern int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 	ptep_set_access_flags(vma, addr, ptep, pte, dirty);
 	return 1;
 #else
-	int changed;
+	int changed, psize;
 
 	pte = set_access_flags_filter(pte, vma, dirty);
 	changed = !pte_same(*(ptep), pte);
 	if (changed) {
+
+#ifdef CONFIG_PPC_BOOK3S_64
+		struct hstate *hstate = hstate_file(vma->vm_file);
+		psize = hstate_get_psize(hstate);
+#else
+		/*
+		 * Not used on non book3s64 platforms. But 8xx
+		 * can possibly use tsize derived from hstate.
+		 */
+		psize = 0;
+#endif
 #ifdef CONFIG_DEBUG_VM
 		assert_spin_locked(&vma->vm_mm->page_table_lock);
 #endif
-		__ptep_set_access_flags(vma->vm_mm, ptep, pte, addr);
+		__ptep_set_access_flags(vma, ptep, pte, addr, psize);
 		flush_hugetlb_page(vma, addr);
 	}
 	return changed;
