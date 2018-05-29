@@ -1221,7 +1221,7 @@ static int amdgpu_atom_execute_table_locked(struct atom_context *ctx, int index,
 	ectx.abort = false;
 	ectx.last_jump = 0;
 	if (ws)
-		ectx.ws = kzalloc(4 * ws, GFP_KERNEL);
+		ectx.ws = kzalloc(4 * ws, GFP_ATOMIC);
 	else
 		ectx.ws = NULL;
 
