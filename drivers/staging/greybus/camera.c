@@ -1174,11 +1174,6 @@ static int gb_camera_debugfs_init(struct gb_camera *gcam)
 		 gcam->bundle->id);
 
 	gcam->debugfs.root = debugfs_create_dir(dirname, gb_debugfs_get());
-	if (IS_ERR(gcam->debugfs.root)) {
-		gcam_err(gcam, "debugfs root create failed (%ld)\n",
-			 PTR_ERR(gcam->debugfs.root));
-		return PTR_ERR(gcam->debugfs.root);
-	}
 
 	gcam->debugfs.buffers = vmalloc(sizeof(*gcam->debugfs.buffers) *
 					GB_CAMERA_DEBUGFS_BUFFER_MAX);
@@ -1188,18 +1183,12 @@ static int gb_camera_debugfs_init(struct gb_camera *gcam)
 	for (i = 0; i < ARRAY_SIZE(gb_camera_debugfs_entries); ++i) {
 		const struct gb_camera_debugfs_entry *entry =
 			&gb_camera_debugfs_entries[i];
-		struct dentry *dentry;
 
 		gcam->debugfs.buffers[i].length = 0;
 
-		dentry = debugfs_create_file(entry->name, entry->mask,
-					     gcam->debugfs.root, gcam,
-					     &gb_camera_debugfs_ops);
-		if (IS_ERR(dentry)) {
-			gcam_err(gcam,
-				 "debugfs operation %s create failed (%ld)\n",
-				 entry->name, PTR_ERR(dentry));
-			return PTR_ERR(dentry);
+		debugfs_create_file(entry->name, entry->mask,
+				    gcam->debugfs.root, gcam,
+				    &gb_camera_debugfs_ops);
 		}
 	}
 
