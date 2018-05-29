@@ -4361,7 +4361,7 @@ int btrfs_delete_subvolume(struct inode *dir, struct dentry *dentry)
 		}
 	}
 
-	ret = btrfs_uuid_tree_rem(trans, fs_info, dest->root_item.uuid,
+	ret = btrfs_uuid_tree_remove(trans, dest->root_item.uuid,
 				  BTRFS_UUID_KEY_SUBVOL,
 				  dest->root_key.objectid);
 	if (ret && ret != -ENOENT) {
@@ -4370,7 +4370,7 @@ int btrfs_delete_subvolume(struct inode *dir, struct dentry *dentry)
 		goto out_end_trans;
 	}
 	if (!btrfs_is_empty_uuid(dest->root_item.received_uuid)) {
-		ret = btrfs_uuid_tree_rem(trans, fs_info,
+		ret = btrfs_uuid_tree_remove(trans,
 					  dest->root_item.received_uuid,
 					  BTRFS_UUID_KEY_RECEIVED_SUBVOL,
 					  dest->root_key.objectid);
