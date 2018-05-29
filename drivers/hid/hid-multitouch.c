@@ -598,13 +598,16 @@ static int mt_touch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			hid_map_usage(hi, usage, bit, max,
 				EV_MSC, MSC_TIMESTAMP);
 			input_set_capability(hi->input, EV_MSC, MSC_TIMESTAMP);
-			mt_store_field(usage, td, hi);
 			/* Ignore if indexes are out of bounds. */
 			if (field->index >= field->report->maxfield ||
 			    usage->usage_index >= field->report_count)
 				return 1;
 			td->scantime_index = field->index;
 			td->scantime_val_index = usage->usage_index;
+			/*
+			 * We don't set td->last_slot_field as scan time is
+			 * global to the report.
+			 */
 			return 1;
 		case HID_DG_CONTACTCOUNT:
 			/* Ignore if indexes are out of bounds. */
