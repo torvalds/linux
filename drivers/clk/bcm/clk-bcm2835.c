@@ -398,7 +398,6 @@ static int bcm2835_debugfs_regset(struct bcm2835_cprman *cprman, u32 base,
 				  struct debugfs_reg32 *regs, size_t nregs,
 				  struct dentry *dentry)
 {
-	struct dentry *regdump;
 	struct debugfs_regset32 *regset;
 
 	regset = devm_kzalloc(cprman->dev, sizeof(*regset), GFP_KERNEL);
@@ -409,10 +408,9 @@ static int bcm2835_debugfs_regset(struct bcm2835_cprman *cprman, u32 base,
 	regset->nregs = nregs;
 	regset->base = cprman->regs + base;
 
-	regdump = debugfs_create_regset32("regdump", S_IRUGO, dentry,
-					  regset);
+	debugfs_create_regset32("regdump", S_IRUGO, dentry, regset);
 
-	return regdump ? 0 : -ENOMEM;
+	return 0;
 }
 
 struct bcm2835_pll_data {
