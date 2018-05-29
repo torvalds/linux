@@ -3653,43 +3653,37 @@ static void alc269_fixup_hp_mute_led(struct hda_codec *codec,
 	}
 }
 
-static void alc269_fixup_hp_mute_led_mic1(struct hda_codec *codec,
-				const struct hda_fixup *fix, int action)
+static void alc269_fixup_hp_mute_led_micx(struct hda_codec *codec,
+					  const struct hda_fixup *fix,
+					  int action, hda_nid_t pin)
 {
 	struct alc_spec *spec = codec->spec;
+
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		spec->mute_led_polarity = 0;
-		spec->mute_led_nid = 0x18;
+		spec->mute_led_nid = pin;
 		spec->gen.vmaster_mute.hook = alc269_fixup_mic_mute_hook;
 		spec->gen.vmaster_mute_enum = 1;
 		codec->power_filter = led_power_filter;
 	}
+}
+
+static void alc269_fixup_hp_mute_led_mic1(struct hda_codec *codec,
+				const struct hda_fixup *fix, int action)
+{
+	alc269_fixup_hp_mute_led_micx(codec, fix, action, 0x18);
 }
 
 static void alc269_fixup_hp_mute_led_mic2(struct hda_codec *codec,
 				const struct hda_fixup *fix, int action)
 {
-	struct alc_spec *spec = codec->spec;
-	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
-		spec->mute_led_polarity = 0;
-		spec->mute_led_nid = 0x19;
-		spec->gen.vmaster_mute.hook = alc269_fixup_mic_mute_hook;
-		spec->gen.vmaster_mute_enum = 1;
-		codec->power_filter = led_power_filter;
-	}
+	alc269_fixup_hp_mute_led_micx(codec, fix, action, 0x19);
 }
 
 static void alc269_fixup_hp_mute_led_mic3(struct hda_codec *codec,
 				const struct hda_fixup *fix, int action)
 {
-	struct alc_spec *spec = codec->spec;
-	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
-		spec->mute_led_polarity = 0;
-		spec->mute_led_nid = 0x1b;
-		spec->gen.vmaster_mute.hook = alc269_fixup_mic_mute_hook;
-		spec->gen.vmaster_mute_enum = 1;
-		codec->power_filter = led_power_filter;
-	}
+	alc269_fixup_hp_mute_led_micx(codec, fix, action, 0x1b);
 }
 
 /* update LED status via GPIO */
