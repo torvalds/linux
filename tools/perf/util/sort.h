@@ -153,8 +153,7 @@ struct hist_entry {
 
 static __pure inline bool hist_entry__has_callchains(struct hist_entry *he)
 {
-	const struct perf_evsel *evsel = hists_to_evsel(he->hists);
-	return evsel__has_callchain(evsel);
+	return hists__has_callchains(he->hists);
 }
 
 static inline bool hist_entry__has_pairs(struct hist_entry *he)

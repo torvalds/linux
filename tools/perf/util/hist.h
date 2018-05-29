@@ -220,6 +220,12 @@ static inline struct hists *evsel__hists(struct perf_evsel *evsel)
 	return &hevsel->hists;
 }
 
+static __pure inline bool hists__has_callchains(struct hists *hists)
+{
+	const struct perf_evsel *evsel = hists_to_evsel(hists);
+	return evsel__has_callchain(evsel);
+}
+
 int hists__init(void);
 int __hists__init(struct hists *hists, struct perf_hpp_list *hpp_list);
 
