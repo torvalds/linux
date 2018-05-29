@@ -343,7 +343,7 @@ static ssize_t nfs_idmap_lookup_name(__u32 id, const char *type, char *buf,
 	int id_len;
 	ssize_t ret;
 
-	id_len = snprintf(id_str, sizeof(id_str), "%u", id);
+	id_len = nfs_map_numeric_to_string(id, id_str, sizeof(id_str));
 	ret = nfs_idmap_get_key(id_str, id_len, type, buf, buflen, idmap);
 	if (ret < 0)
 		return -EINVAL;
@@ -627,7 +627,8 @@ static int nfs_idmap_read_and_verify_message(struct idmap_msg *im,
 		if (strcmp(upcall->im_name, im->im_name) != 0)
 			break;
 		/* Note: here we store the NUL terminator too */
-		len = sprintf(id_str, "%d", im->im_id) + 1;
+		len = 1 + nfs_map_numeric_to_string(im->im_id, id_str,
+						    sizeof(id_str));
 		ret = nfs_idmap_instantiate(key, authkey, id_str, len);
 		break;
 	case IDMAP_CONV_IDTONAME:
