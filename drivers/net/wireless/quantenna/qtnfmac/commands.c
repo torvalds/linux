@@ -2339,13 +2339,11 @@ int qtnf_cmd_send_connect(struct qtnf_vif *vif,
 	else
 		eth_zero_addr(cmd->prev_bssid);
 
-	if ((sme->bg_scan_period > 0) &&
-	    (sme->bg_scan_period <= QTNF_MAX_BG_SCAN_PERIOD))
+	if ((sme->bg_scan_period >= 0) &&
+	    (sme->bg_scan_period <= SHRT_MAX))
 		cmd->bg_scan_period = cpu_to_le16(sme->bg_scan_period);
-	else if (sme->bg_scan_period == -1)
-		cmd->bg_scan_period = cpu_to_le16(QTNF_DEFAULT_BG_SCAN_PERIOD);
 	else
-		cmd->bg_scan_period = 0; /* disabled */
+		cmd->bg_scan_period = cpu_to_le16(-1); /* use default value */
 
 	if (sme->flags & ASSOC_REQ_DISABLE_HT)
 		connect_flags |= QLINK_STA_CONNECT_DISABLE_HT;
