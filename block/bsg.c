@@ -649,18 +649,6 @@ static struct bsg_device *bsg_alloc_device(void)
 	return bd;
 }
 
-static void bsg_kref_release_function(struct kref *kref)
-{
-	struct bsg_class_device *bcd =
-		container_of(kref, struct bsg_class_device, ref);
-	struct device *parent = bcd->parent;
-
-	if (bcd->release)
-		bcd->release(bcd->parent);
-
-	put_device(parent);
-}
-
 static int bsg_put_device(struct bsg_device *bd)
 {
 	int ret = 0, do_free;
@@ -693,7 +681,6 @@ static int bsg_put_device(struct bsg_device *bd)
 
 	kfree(bd);
 out:
-	kref_put(&q->bsg_dev.ref, bsg_kref_release_function);
 	if (do_free)
 		blk_put_queue(q);
 	return ret;
@@ -759,8 +746,6 @@ static struct bsg_device *bsg_get_device(struct inode *inode, struct file *file)
 	 */
 	mutex_lock(&bsg_mutex);
 	bcd = idr_find(&bsg_minor_idr, iminor(inode));
-	if (bcd)
-		kref_get(&bcd->ref);
 	mutex_unlock(&bsg_mutex);
 
 	if (!bcd)
@@ -771,8 +756,6 @@ static struct bsg_device *bsg_get_device(struct inode *inode, struct file *file)
 		return bd;
 
 	bd = bsg_add_device(inode, bcd->queue, file);
-	if (IS_ERR(bd))
-		kref_put(&bcd->ref, bsg_kref_release_function);
 
 	return bd;
 }
@@ -912,25 +895,17 @@ void bsg_unregister_queue(struct request_queue *q)
 		sysfs_remove_link(&q->kobj, "bsg");
 	device_unregister(bcd->class_dev);
 	bcd->class_dev = NULL;
-	kref_put(&bcd->ref, bsg_kref_release_function);
 	mutex_unlock(&bsg_mutex);
 }
 EXPORT_SYMBOL_GPL(bsg_unregister_queue);
 
 int bsg_register_queue(struct request_queue *q, struct device *parent,
-		const char *name, const struct bsg_ops *ops,
-		void (*release)(struct device *))
+		const char *name, const struct bsg_ops *ops)
 {
 	struct bsg_class_device *bcd;
 	dev_t dev;
 	int ret;
 	struct device *class_dev = NULL;
-	const char *devname;
-
-	if (name)
-		devname = name;
-	else
-		devname = dev_name(parent);
 
 	/*
 	 * we need a proper transport to send commands, not a stacked device
@@ -954,15 +929,12 @@ int bsg_register_queue(struct request_queue *q, struct device *parent,
 
 	bcd->minor = ret;
 	bcd->queue = q;
-	bcd->parent = get_device(parent);
-	bcd->release = release;
 	bcd->ops = ops;
-	kref_init(&bcd->ref);
 	dev = MKDEV(bsg_major, bcd->minor);
-	class_dev = device_create(bsg_class, parent, dev, NULL, "%s", devname);
+	class_dev = device_create(bsg_class, parent, dev, NULL, "%s", name);
 	if (IS_ERR(class_dev)) {
 		ret = PTR_ERR(class_dev);
-		goto put_dev;
+		goto idr_remove;
 	}
 	bcd->class_dev = class_dev;
 
@@ -977,8 +949,7 @@ int bsg_register_queue(struct request_queue *q, struct device *parent,
 
 unregister_class_dev:
 	device_unregister(class_dev);
-put_dev:
-	put_device(parent);
+idr_remove:
 	idr_remove(&bsg_minor_idr, bcd->minor);
 unlock:
 	mutex_unlock(&bsg_mutex);
@@ -992,7 +963,7 @@ int bsg_scsi_register_queue(struct request_queue *q, struct device *parent)
 		return -EINVAL;
 	}
 
-	return bsg_register_queue(q, parent, NULL, &bsg_scsi_ops, NULL);
+	return bsg_register_queue(q, parent, dev_name(parent), &bsg_scsi_ops);
 }
 EXPORT_SYMBOL_GPL(bsg_scsi_register_queue);
 
