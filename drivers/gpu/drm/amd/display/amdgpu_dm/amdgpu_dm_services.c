@@ -433,8 +433,16 @@ bool dm_pp_apply_clock_for_voltage_request(
 		pp_clock_request.clock_type = amd_pp_dcef_clock;
 		break;
 
+	case DM_PP_CLOCK_TYPE_DCFCLK:
+		pp_clock_request.clock_type = amd_pp_dcf_clock;
+		break;
+
 	case DM_PP_CLOCK_TYPE_PIXELCLK:
 		pp_clock_request.clock_type = amd_pp_pixel_clock;
+		break;
+
+	case DM_PP_CLOCK_TYPE_FCLK:
+		pp_clock_request.clock_type = amd_pp_f_clock;
 		break;
 
 	default:
