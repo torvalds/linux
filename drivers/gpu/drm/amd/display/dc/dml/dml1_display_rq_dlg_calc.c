@@ -239,6 +239,8 @@ void dml1_extract_rq_regs(
 	extract_rq_sizing_regs(mode_lib, &(rq_regs->rq_regs_l), rq_param.sizing.rq_l);
 	if (rq_param.yuv420)
 		extract_rq_sizing_regs(mode_lib, &(rq_regs->rq_regs_c), rq_param.sizing.rq_c);
+	else
+		memset(&(rq_regs->rq_regs_c), 0, sizeof(rq_regs->rq_regs_c));
 
 	rq_regs->rq_regs_l.swath_height = dml_log2(rq_param.dlg.rq_l.swath_height);
 	rq_regs->rq_regs_c.swath_height = dml_log2(rq_param.dlg.rq_c.swath_height);
