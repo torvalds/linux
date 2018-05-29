@@ -96,6 +96,7 @@ static vm_fault_t f2fs_vm_page_mkwrite(struct vm_fault *vmf)
 	if (((loff_t)(page->index + 1) << PAGE_SHIFT) >
 						i_size_read(inode)) {
 		loff_t offset;
+
 		offset = i_size_read(inode) & ~PAGE_MASK;
 		zero_user_segment(page, offset, PAGE_SIZE);
 	}
@@ -413,6 +414,7 @@ static loff_t f2fs_seek_block(struct file *file, loff_t offset, int whence)
 				dn.ofs_in_node++, pgofs++,
 				data_ofs = (loff_t)pgofs << PAGE_SHIFT) {
 			block_t blkaddr;
+
 			blkaddr = datablock_addr(dn.inode,
 					dn.node_page, dn.ofs_in_node);
 
@@ -503,6 +505,7 @@ void f2fs_truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 
 	for (; count > 0; count--, addr++, dn->ofs_in_node++) {
 		block_t blkaddr = le32_to_cpu(*addr);
+
 		if (blkaddr == NULL_ADDR)
 			continue;
 
