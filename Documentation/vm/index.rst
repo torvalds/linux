@@ -13,8 +13,6 @@ various features of the Linux memory management
 .. toctree::
    :maxdepth: 1
 
-   ksm
-   transhuge
    swap_numa
    zswap
 
@@ -36,6 +34,7 @@ descriptions of data structures and algorithms.
    hmm
    hwpoison
    hugetlbfs_reserv
+   ksm
    mmu_notifier
    numa
    overcommit-accounting
@@ -45,6 +44,7 @@ descriptions of data structures and algorithms.
    remap_file_pages
    slub
    split_page_table_lock
+   transhuge
    unevictable-lru
    z3fold
    zsmalloc
