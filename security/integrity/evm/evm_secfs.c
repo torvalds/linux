@@ -209,7 +209,7 @@ static ssize_t evm_write_xattrs(struct file *file, const char __user *buf,
 
 	/* Remove any trailing newline */
 	len = strlen(xattr->name);
-	if (xattr->name[len-1] == '\n')
+	if (len && xattr->name[len-1] == '\n')
 		xattr->name[len-1] = '\0';
 
 	if (strcmp(xattr->name, ".") == 0) {
