@@ -315,6 +315,10 @@ mdc_intent_open_pack(struct obd_export *exp, struct lookup_intent *it,
 	return req;
 }
 
+#define GA_DEFAULT_EA_NAME_LEN	20
+#define GA_DEFAULT_EA_VAL_LEN	250
+#define GA_DEFAULT_EA_NUM	10
+
 static struct ptlrpc_request *
 mdc_intent_getxattr_pack(struct obd_export *exp,
 			 struct lookup_intent *it,
@@ -323,7 +327,6 @@ mdc_intent_getxattr_pack(struct obd_export *exp,
 	struct ptlrpc_request	*req;
 	struct ldlm_intent	*lit;
 	int rc, count = 0;
-	u32 maxdata;
 	LIST_HEAD(cancels);
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
@@ -341,20 +344,20 @@ mdc_intent_getxattr_pack(struct obd_export *exp,
 	lit = req_capsule_client_get(&req->rq_pill, &RMF_LDLM_INTENT);
 	lit->opc = IT_GETXATTR;
 
-	maxdata = class_exp2cliimp(exp)->imp_connect_data.ocd_max_easize;
-
 	/* pack the intended request */
-	mdc_pack_body(req, &op_data->op_fid1, op_data->op_valid, maxdata, -1,
-		      0);
+	mdc_pack_body(req, &op_data->op_fid1, op_data->op_valid,
+		      GA_DEFAULT_EA_NAME_LEN * GA_DEFAULT_EA_NUM, -1, 0);
 
-	req_capsule_set_size(&req->rq_pill, &RMF_EADATA, RCL_SERVER, maxdata);
+	req_capsule_set_size(&req->rq_pill, &RMF_EADATA, RCL_SERVER,
+			     GA_DEFAULT_EA_NAME_LEN * GA_DEFAULT_EA_NUM);
 
-	req_capsule_set_size(&req->rq_pill, &RMF_EAVALS, RCL_SERVER, maxdata);
+	req_capsule_set_size(&req->rq_pill, &RMF_EAVALS, RCL_SERVER,
+			     GA_DEFAULT_EA_NAME_LEN * GA_DEFAULT_EA_NUM);
 
-	req_capsule_set_size(&req->rq_pill, &RMF_EAVALS_LENS,
-			     RCL_SERVER, maxdata);
+	req_capsule_set_size(&req->rq_pill, &RMF_EAVALS_LENS, RCL_SERVER,
+			     sizeof(u32) * GA_DEFAULT_EA_NUM);
 
-	req_capsule_set_size(&req->rq_pill, &RMF_ACL, RCL_SERVER, maxdata);
+	req_capsule_set_size(&req->rq_pill, &RMF_ACL, RCL_SERVER, 0);
 
 	ptlrpc_request_set_replen(req);
 
