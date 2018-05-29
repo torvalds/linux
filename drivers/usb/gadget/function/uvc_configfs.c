@@ -868,6 +868,8 @@ static struct uvcg_streaming_header *to_uvcg_streaming_header(struct config_item
 	return container_of(item, struct uvcg_streaming_header, item);
 }
 
+static void uvcg_format_set_indices(struct config_group *fmt);
+
 static int uvcg_streaming_header_allow_link(struct config_item *src,
 					    struct config_item *target)
 {
@@ -914,6 +916,8 @@ static int uvcg_streaming_header_allow_link(struct config_item *src,
 				  group);
 	if (!target_fmt)
 		goto out;
+
+	uvcg_format_set_indices(to_config_group(target));
 
 	format_ptr = kzalloc(sizeof(*format_ptr), GFP_KERNEL);
 	if (!format_ptr) {
@@ -1146,6 +1150,41 @@ end:									\
 									\
 UVC_ATTR(uvcg_frame_, cname, aname);
 
+static ssize_t uvcg_frame_b_frame_index_show(struct config_item *item,
+					     char *page)
+{
+	struct uvcg_frame *f = to_uvcg_frame(item);
+	struct uvcg_format *fmt;
+	struct f_uvc_opts *opts;
+	struct config_item *opts_item;
+	struct config_item *fmt_item;
+	struct mutex *su_mutex = &f->item.ci_group->cg_subsys->su_mutex;
+	int result;
+
+	mutex_lock(su_mutex); /* for navigating configfs hierarchy */
+
+	fmt_item = f->item.ci_parent;
+	fmt = to_uvcg_format(fmt_item);
+
+	if (!fmt->linked) {
+		result = -EBUSY;
+		goto out;
+	}
+
+	opts_item = fmt_item->ci_parent->ci_parent->ci_parent;
+	opts = to_f_uvc_opts(opts_item);
+
+	mutex_lock(&opts->lock);
+	result = sprintf(page, "%d\n", f->frame.b_frame_index);
+	mutex_unlock(&opts->lock);
+
+out:
+	mutex_unlock(su_mutex);
+	return result;
+}
+
+UVC_ATTR_RO(uvcg_frame_, b_frame_index, bFrameIndex);
+
 #define noop_conversion(x) (x)
 
 UVCG_FRAME_ATTR(bm_capabilities, bmCapabilities, noop_conversion,
@@ -1294,6 +1333,7 @@ end:
 UVC_ATTR(uvcg_frame_, dw_frame_interval, dwFrameInterval);
 
 static struct configfs_attribute *uvcg_frame_attrs[] = {
+	&uvcg_frame_attr_b_frame_index,
 	&uvcg_frame_attr_bm_capabilities,
 	&uvcg_frame_attr_w_width,
 	&uvcg_frame_attr_w_height,
@@ -1371,6 +1411,22 @@ static void uvcg_frame_drop(struct config_group *group, struct config_item *item
 	mutex_unlock(&opts->lock);
 
 	config_item_put(item);
+}
+
+static void uvcg_format_set_indices(struct config_group *fmt)
+{
+	struct config_item *ci;
+	unsigned int i = 1;
+
+	list_for_each_entry(ci, &fmt->cg_children, ci_entry) {
+		struct uvcg_frame *frm;
+
+		if (ci->ci_type != &uvcg_frame_type)
+			continue;
+
+		frm = to_uvcg_frame(ci);
+		frm->frame.b_frame_index = i++;
+	}
 }
 
 /* -----------------------------------------------------------------------------
