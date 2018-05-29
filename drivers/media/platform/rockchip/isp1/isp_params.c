@@ -97,8 +97,13 @@ static void dpcc_config(struct rkisp1_isp_params_vdev *params_vdev,
 			const struct cifisp_dpcc_config *arg)
 {
 	unsigned int i;
+	u32 mode;
 
-	rkisp1_iowrite32(params_vdev, arg->mode, CIF_ISP_DPCC_MODE);
+	/* avoid to override the old enable value */
+	mode = rkisp1_ioread32(params_vdev, CIF_ISP_DPCC_MODE);
+	mode &= CIF_ISP_DPCC_ENA;
+	mode |= arg->mode & ~CIF_ISP_DPCC_ENA;
+	rkisp1_iowrite32(params_vdev, mode, CIF_ISP_DPCC_MODE);
 	rkisp1_iowrite32(params_vdev, arg->output_mode,
 			 CIF_ISP_DPCC_OUTPUT_MODE);
 	rkisp1_iowrite32(params_vdev, arg->set_use, CIF_ISP_DPCC_SET_USE);
@@ -130,8 +135,11 @@ static void dpcc_config(struct rkisp1_isp_params_vdev *params_vdev,
 static void bls_config(struct rkisp1_isp_params_vdev *params_vdev,
 		       const struct cifisp_bls_config *arg)
 {
-	u32 new_control = 0;
+	/* avoid to override the old enable value */
+	u32 new_control;
 
+	new_control = rkisp1_ioread32(params_vdev, CIF_ISP_BLS_CTRL);
+	new_control &= CIF_ISP_BLS_ENA;
 	/* fixed subtraction values */
 	if (!arg->enable_auto) {
 		const struct cifisp_bls_fixed_val *pval = &arg->fixed_val;
@@ -181,7 +189,6 @@ static void bls_config(struct rkisp1_isp_params_vdev *params_vdev,
 			break;
 		}
 
-		new_control = CIF_ISP_BLS_MODE_FIXED;
 	} else {
 		if (arg->en_windows & BIT(1)) {
 			rkisp1_iowrite32(params_vdev, arg->bls_window2.h_offs,
@@ -336,7 +343,7 @@ static void lsc_config(struct rkisp1_isp_params_vdev *params_vdev,
 				 CIF_ISP_LSC_YGRAD_01 + i * 4);
 	}
 
-	/* restore the bls ctrl status */
+	/* restore the lsc ctrl status */
 	if (lsc_ctrl & CIF_ISP_LSC_CTRL_ENA) {
 		isp_param_set_bits(params_vdev,
 				   CIF_ISP_LSC_CTRL,
@@ -352,6 +359,8 @@ static void lsc_config(struct rkisp1_isp_params_vdev *params_vdev,
 static void flt_config(struct rkisp1_isp_params_vdev *params_vdev,
 		       const struct cifisp_flt_config *arg)
 {
+	u32 filt_mode;
+
 	rkisp1_iowrite32(params_vdev, arg->thresh_bl0, CIF_ISP_FILT_THRESH_BL0);
 	rkisp1_iowrite32(params_vdev, arg->thresh_bl1, CIF_ISP_FILT_THRESH_BL1);
 	rkisp1_iowrite32(params_vdev, arg->thresh_sh0, CIF_ISP_FILT_THRESH_SH0);
@@ -368,14 +377,30 @@ static void flt_config(struct rkisp1_isp_params_vdev *params_vdev,
 			 CIF_ISP_FLT_CHROMA_H_MODE(arg->chr_h_mode) |
 			 CIF_ISP_FLT_GREEN_STAGE1(arg->grn_stage1),
 			 CIF_ISP_FILT_MODE);
+
+	/* avoid to override the old enable value */
+	filt_mode = rkisp1_ioread32(params_vdev, CIF_ISP_FILT_MODE);
+	filt_mode &= CIF_ISP_FLT_ENA;
+	if (arg->mode)
+		filt_mode |= CIF_ISP_FLT_MODE_DNR;
+	filt_mode |= CIF_ISP_FLT_CHROMA_V_MODE(arg->chr_v_mode) |
+				 CIF_ISP_FLT_CHROMA_H_MODE(arg->chr_h_mode) |
+				 CIF_ISP_FLT_GREEN_STAGE1(arg->grn_stage1);
+	rkisp1_iowrite32(params_vdev, filt_mode, CIF_ISP_FILT_MODE);
 }
 
 /* ISP demosaic interface function */
 static int bdm_config(struct rkisp1_isp_params_vdev *params_vdev,
 		      const struct cifisp_bdm_config *arg)
 {
+	u32 bdm_th;
+
+	/* avoid to override the old enable value */
+	bdm_th = rkisp1_ioread32(params_vdev, CIF_ISP_DEMOSAIC);
+	bdm_th &= CIF_ISP_DEMOSAIC_BYPASS;
+	bdm_th |= arg->demosaic_th & ~CIF_ISP_DEMOSAIC_BYPASS;
 	/* set demosaic threshold */
-	rkisp1_iowrite32(params_vdev, arg->demosaic_th, CIF_ISP_DEMOSAIC);
+	rkisp1_iowrite32(params_vdev, bdm_th, CIF_ISP_DEMOSAIC);
 	return 0;
 }
 
@@ -538,11 +563,16 @@ static void aec_config(struct rkisp1_isp_params_vdev *params_vdev,
 		       const struct cifisp_aec_config *arg)
 {
 	unsigned int block_hsize, block_vsize;
+	u32 exp_ctrl;
 
-	rkisp1_iowrite32(params_vdev,
-			 ((arg->autostop) ? CIF_ISP_EXP_CTRL_AUTOSTOP : 0) |
-			 ((arg->mode == CIFISP_EXP_MEASURING_MODE_1) ?
-			 CIF_ISP_EXP_CTRL_MEASMODE_1 : 0), CIF_ISP_EXP_CTRL);
+	/* avoid to override the old enable value */
+	exp_ctrl = rkisp1_ioread32(params_vdev, CIF_ISP_EXP_CTRL);
+	exp_ctrl &= CIF_ISP_EXP_ENA;
+	if (arg->autostop)
+		exp_ctrl |= CIF_ISP_EXP_CTRL_AUTOSTOP;
+	if (arg->mode == CIFISP_EXP_MEASURING_MODE_1)
+		exp_ctrl |= CIF_ISP_EXP_CTRL_MEASMODE_1;
+	rkisp1_iowrite32(params_vdev, exp_ctrl, CIF_ISP_EXP_CTRL);
 
 	rkisp1_iowrite32(params_vdev,
 			 arg->meas_window.h_offs, CIF_ISP_EXP_H_OFFSET);
@@ -597,10 +627,13 @@ static void hst_config(struct rkisp1_isp_params_vdev *params_vdev,
 	};
 	int i;
 	const u8 *weight;
+	u32 hist_prop;
 
-	rkisp1_iowrite32(params_vdev,
-			 CIF_ISP_HIST_PREDIV_SET(arg->histogram_predivider),
-			 CIF_ISP_HIST_PROP);
+	/* avoid to override the old enable value */
+	hist_prop = rkisp1_ioread32(params_vdev, CIF_ISP_HIST_PROP);
+	hist_prop &= CIF_ISP_HIST_PROP_MODE_MASK;
+	hist_prop |= CIF_ISP_HIST_PREDIV_SET(arg->histogram_predivider);
+	rkisp1_iowrite32(params_vdev, hist_prop, CIF_ISP_HIST_PROP);
 	rkisp1_iowrite32(params_vdev,
 			arg->meas_window.h_offs,
 			CIF_ISP_HIST_H_OFFS);
@@ -642,8 +675,9 @@ static void afm_config(struct rkisp1_isp_params_vdev *params_vdev,
 	int i;
 	size_t num_of_win = min_t(size_t, ARRAY_SIZE(arg->afm_win),
 				  arg->num_afm_win);
+	u32 afm_ctrl = rkisp1_ioread32(params_vdev, CIF_ISP_AFM_CTRL);
 
-	/* Switch off to configure. Enabled during normal flow in frame isr. */
+	/* Switch off to configure. */
 	isp_param_clear_bits(params_vdev, CIF_ISP_AFM_CTRL, CIF_ISP_AFM_ENA);
 
 	for (i = 0; i < num_of_win; i++) {
@@ -660,6 +694,8 @@ static void afm_config(struct rkisp1_isp_params_vdev *params_vdev,
 	}
 	rkisp1_iowrite32(params_vdev, arg->thres, CIF_ISP_AFM_THRES);
 	rkisp1_iowrite32(params_vdev, arg->var_shift, CIF_ISP_AFM_VAR_SHIFT);
+	/* restore afm status */
+	rkisp1_iowrite32(params_vdev, afm_ctrl, CIF_ISP_AFM_CTRL);
 }
 
 static void ie_config(struct rkisp1_isp_params_vdev *params_vdev,
@@ -730,7 +766,6 @@ static void ie_enable(struct rkisp1_isp_params_vdev *params_vdev, bool en)
 		isp_param_set_bits(params_vdev, CIF_IMG_EFF_CTRL,
 				   CIF_IMG_EFF_CTRL_CFG_UPD);
 	} else {
-		/* Disable measurement */
 		isp_param_clear_bits(params_vdev, CIF_IMG_EFF_CTRL,
 				     CIF_IMG_EFF_CTRL_ENABLE);
 		isp_param_clear_bits(params_vdev, CIF_ICCL, CIF_ICCL_IE_CLK);
