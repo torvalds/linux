@@ -1010,7 +1010,7 @@ static void dcn10_init_hw(struct dc *dc)
 	/* Reset all MPCC muxes */
 	dc->res_pool->mpc->funcs->mpc_init(dc->res_pool->mpc);
 
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+	for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
 		struct timing_generator *tg = dc->res_pool->timing_generators[i];
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 		struct hubp *hubp = dc->res_pool->hubps[i];
