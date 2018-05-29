@@ -777,10 +777,6 @@ static void blk_mq_rq_timed_out(struct request *req, bool reserved)
 		ret = ops->timeout(req, reserved);
 
 	switch (ret) {
-	case BLK_EH_HANDLED:
-		if (blk_mq_rq_state(req) == MQ_RQ_IN_FLIGHT)
-			__blk_mq_complete_request(req);
-		break;
 	case BLK_EH_RESET_TIMER:
 		blk_add_timer(req);
 		break;

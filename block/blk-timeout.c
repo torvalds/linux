@@ -86,9 +86,6 @@ static void blk_rq_timed_out(struct request *req)
 	if (q->rq_timed_out_fn)
 		ret = q->rq_timed_out_fn(req);
 	switch (ret) {
-	case BLK_EH_HANDLED:
-		__blk_complete_request(req);
-		break;
 	case BLK_EH_RESET_TIMER:
 		blk_add_timer(req);
 		blk_clear_rq_complete(req);
