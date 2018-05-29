@@ -602,6 +602,9 @@ asmlinkage void do_divide_error(unsigned long r4)
 	case TRAP_DIVOVF_ERROR:
 		code = FPE_INTOVF;
 		break;
+	default:
+		/* Let gcc know unhandled cases don't make it past here */
+		return;
 	}
 	force_sig_fault(SIGFPE, code, NULL, current);
 }
