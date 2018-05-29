@@ -233,6 +233,8 @@ enable_smccc_arch_workaround_1(const struct arm64_cpu_capabilities *entry)
 #endif	/* CONFIG_HARDEN_BRANCH_PREDICTOR */
 
 #ifdef CONFIG_ARM64_SSBD
+DEFINE_PER_CPU_READ_MOSTLY(u64, arm64_ssbd_callback_required);
+
 void __init arm64_update_smccc_conduit(struct alt_instr *alt,
 				       __le32 *origptr, __le32 *updptr,
 				       int nr_inst)
