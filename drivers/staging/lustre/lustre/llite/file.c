@@ -3030,19 +3030,6 @@ out:
 	return rc;
 }
 
-struct posix_acl *ll_get_acl(struct inode *inode, int type)
-{
-	struct ll_inode_info *lli = ll_i2info(inode);
-	struct posix_acl *acl = NULL;
-
-	spin_lock(&lli->lli_lock);
-	/* VFS' acl_permission_check->check_acl will release the refcount */
-	acl = posix_acl_dup(lli->lli_posix_acl);
-	spin_unlock(&lli->lli_lock);
-
-	return acl;
-}
-
 int ll_inode_permission(struct inode *inode, int mask)
 {
 	struct ll_sb_info *sbi;
