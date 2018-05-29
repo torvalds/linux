@@ -346,9 +346,6 @@ bool sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
 		return false;
 	}
 
-	if (ret && netif_xmit_frozen_or_stopped(txq))
-		return false;
-
 	return true;
 }
 
