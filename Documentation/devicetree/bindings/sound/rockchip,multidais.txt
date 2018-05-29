@@ -1,0 +1,39 @@
+ROCKCHIP multi dais driver
+
+Required properties:
+- compatible: "rockchip,multi-dais"
+- dais: The phandle of sub dais, such i2s, pdm etc.
+- capture,channel-mapping: map channels, one for each in dais,
+  capture,channel-mapping = <2 6> means:
+  i2s 2ch + pdm 6ch --> total 8ch capture.
+- playback,channel-mapping: map channels, one for each in dais.
+  playback,channel-mapping = <4 4> means:
+  i2s 4ch + pdm 4ch --> total 8ch playback.
+
+Example:
+
+multi_dais: multi-dais {
+	status = "okay";
+	compatible = "rockchip,multi-dais";
+	dais = <&i2s_8ch_2>, <&pdm_8ch>;
+	capture,channel-mapping = <2 6>;
+	playback,channel-mapping = <4 4>;
+};
+
+&i2s_8ch_2 {
+	status = "okay";
+	rockchip,no-dmaengine;
+};
+
+&pdm_8ch {
+	status = "okay";
+	rockchip,no-dmaengine;
+};
+
+vad-sound {
+	status = "okay";
+	compatible = "rockchip,multicodecs-card";
+	rockchip,card-name = "rockchip,rk3308-vad";
+	rockchip,cpu = <&multi_dais>;
+	rockchip,codec = <&acodec>, <&vad>;
+};
