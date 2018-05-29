@@ -39,12 +39,12 @@ struct dma_buf_attachment;
 
 /**
  * struct dma_buf_ops - operations possible on struct dma_buf
- * @map_atomic: maps a page from the buffer into kernel address
+ * @map_atomic: [optional] maps a page from the buffer into kernel address
  *		space, users may not block until the subsequent unmap call.
  *		This callback must not sleep.
  * @unmap_atomic: [optional] unmaps a atomically mapped page from the buffer.
  *		  This Callback must not sleep.
- * @map: maps a page from the buffer into kernel address space.
+ * @map: [optional] maps a page from the buffer into kernel address space.
  * @unmap: [optional] unmaps a page from the buffer.
  * @vmap: [optional] creates a virtual mapping for the buffer into kernel
  *	  address space. Same restrictions as for vmap and friends apply.
