@@ -291,8 +291,7 @@ EXPORT_SYMBOL(seq_client_flush);
 
 static void seq_client_debugfs_fini(struct lu_client_seq *seq)
 {
-	if (!IS_ERR_OR_NULL(seq->lcs_debugfs_entry))
-		ldebugfs_remove(&seq->lcs_debugfs_entry);
+	debugfs_remove_recursive(seq->lcs_debugfs_entry);
 }
 
 static void seq_client_debugfs_init(struct lu_client_seq *seq)
@@ -399,8 +398,7 @@ static int __init fid_init(void)
 
 static void __exit fid_exit(void)
 {
-	if (!IS_ERR_OR_NULL(seq_debugfs_dir))
-		ldebugfs_remove(&seq_debugfs_dir);
+	debugfs_remove_recursive(seq_debugfs_dir);
 }
 
 MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");

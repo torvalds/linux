@@ -227,8 +227,7 @@ static void fld_client_debugfs_init(struct lu_client_fld *fld)
 
 void fld_client_debugfs_fini(struct lu_client_fld *fld)
 {
-	if (!IS_ERR_OR_NULL(fld->lcf_debugfs_entry))
-		ldebugfs_remove(&fld->lcf_debugfs_entry);
+	debugfs_remove_recursive(fld->lcf_debugfs_entry);
 }
 EXPORT_SYMBOL(fld_client_debugfs_fini);
 
@@ -435,8 +434,7 @@ static int __init fld_init(void)
 
 static void __exit fld_exit(void)
 {
-	if (!IS_ERR_OR_NULL(fld_debugfs_dir))
-		ldebugfs_remove(&fld_debugfs_dir);
+	debugfs_remove_recursive(fld_debugfs_dir);
 }
 
 MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");

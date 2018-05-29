@@ -1158,8 +1158,7 @@ EXPORT_SYMBOL(ptlrpc_lprocfs_brw);
 
 void ptlrpc_lprocfs_unregister_service(struct ptlrpc_service *svc)
 {
-	if (!IS_ERR_OR_NULL(svc->srv_debugfs_entry))
-		ldebugfs_remove(&svc->srv_debugfs_entry);
+	debugfs_remove_recursive(svc->srv_debugfs_entry);
 
 	if (svc->srv_stats)
 		lprocfs_free_stats(&svc->srv_stats);
@@ -1167,8 +1166,7 @@ void ptlrpc_lprocfs_unregister_service(struct ptlrpc_service *svc)
 
 void ptlrpc_lprocfs_unregister_obd(struct obd_device *obd)
 {
-	if (!IS_ERR_OR_NULL(obd->obd_svc_debugfs_entry))
-		ldebugfs_remove(&obd->obd_svc_debugfs_entry);
+	debugfs_remove_recursive(obd->obd_svc_debugfs_entry);
 
 	if (obd->obd_svc_stats)
 		lprocfs_free_stats(&obd->obd_svc_stats);

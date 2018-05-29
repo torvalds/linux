@@ -166,6 +166,5 @@ void sptlrpc_lproc_init(void)
 
 void sptlrpc_lproc_fini(void)
 {
-	if (!IS_ERR_OR_NULL(sptlrpc_debugfs_dir))
-		ldebugfs_remove(&sptlrpc_debugfs_dir);
+	debugfs_remove_recursive(sptlrpc_debugfs_dir);
 }

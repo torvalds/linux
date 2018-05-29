@@ -640,10 +640,7 @@ static void ldlm_pool_debugfs_fini(struct ldlm_pool *pl)
 		lprocfs_free_stats(&pl->pl_stats);
 		pl->pl_stats = NULL;
 	}
-	if (pl->pl_debugfs_entry) {
-		ldebugfs_remove(&pl->pl_debugfs_entry);
-		pl->pl_debugfs_entry = NULL;
-	}
+	debugfs_remove_recursive(pl->pl_debugfs_entry);
 }
 
 int ldlm_pool_init(struct ldlm_pool *pl, struct ldlm_namespace *ns,

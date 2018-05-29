@@ -1234,7 +1234,7 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 				obd->obd_type->typ_name);
 out:
 	if (err) {
-		ldebugfs_remove(&sbi->ll_debugfs_entry);
+		debugfs_remove_recursive(sbi->ll_debugfs_entry);
 		lprocfs_free_stats(&sbi->ll_ra_stats);
 		lprocfs_free_stats(&sbi->ll_stats);
 	}
@@ -1243,13 +1243,11 @@ out:
 
 void ldebugfs_unregister_mountpoint(struct ll_sb_info *sbi)
 {
-	if (sbi->ll_debugfs_entry) {
-		ldebugfs_remove(&sbi->ll_debugfs_entry);
-		kobject_put(&sbi->ll_kobj);
-		wait_for_completion(&sbi->ll_kobj_unregister);
-		lprocfs_free_stats(&sbi->ll_ra_stats);
-		lprocfs_free_stats(&sbi->ll_stats);
-	}
+	debugfs_remove_recursive(sbi->ll_debugfs_entry);
+	kobject_put(&sbi->ll_kobj);
+	wait_for_completion(&sbi->ll_kobj_unregister);
+	lprocfs_free_stats(&sbi->ll_ra_stats);
+	lprocfs_free_stats(&sbi->ll_stats);
 }
 
 #undef MAX_STRING_SIZE

@@ -410,7 +410,7 @@ out_err:
 	list_del_init(&new_pool->pool_list);
 	lov->lov_pool_count--;
 	spin_unlock(&obd->obd_dev_lock);
-	ldebugfs_remove(&new_pool->pool_debugfs_entry);
+	debugfs_remove_recursive(new_pool->pool_debugfs_entry);
 	lov_ost_pool_free(&new_pool->pool_obds);
 	kfree(new_pool);
 
@@ -435,7 +435,7 @@ int lov_pool_del(struct obd_device *obd, char *poolname)
 	if (!pool)
 		return -ENOENT;
 
-	ldebugfs_remove(&pool->pool_debugfs_entry);
+	debugfs_remove_recursive(pool->pool_debugfs_entry);
 	lov_pool_putref(pool);
 
 	spin_lock(&obd->obd_dev_lock);

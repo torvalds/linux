@@ -328,13 +328,6 @@ void ldebugfs_add_vars(struct dentry *parent, struct lprocfs_vars *list,
 }
 EXPORT_SYMBOL_GPL(ldebugfs_add_vars);
 
-void ldebugfs_remove(struct dentry **entryp)
-{
-	debugfs_remove_recursive(*entryp);
-	*entryp = NULL;
-}
-EXPORT_SYMBOL_GPL(ldebugfs_remove);
-
 /* Generic callbacks */
 static ssize_t uuid_show(struct kobject *kobj, struct attribute *attr,
 			 char *buf)
@@ -1010,8 +1003,7 @@ int lprocfs_obd_cleanup(struct obd_device *obd)
 	if (!obd)
 		return -EINVAL;
 
-	if (!IS_ERR_OR_NULL(obd->obd_debugfs_entry))
-		ldebugfs_remove(&obd->obd_debugfs_entry);
+	debugfs_remove_recursive(obd->obd_debugfs_entry);
 
 	kobject_put(&obd->obd_kobj);
 	wait_for_completion(&obd->obd_kobj_unregister);

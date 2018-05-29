@@ -224,8 +224,7 @@ int class_unregister_type(const char *name)
 	if (type->typ_kobj)
 		kobject_put(type->typ_kobj);
 
-	if (!IS_ERR_OR_NULL(type->typ_debugfs_entry))
-		ldebugfs_remove(&type->typ_debugfs_entry);
+	debugfs_remove_recursive(type->typ_debugfs_entry);
 
 	if (type->typ_lu)
 		lu_device_type_fini(type->typ_lu);

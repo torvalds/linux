@@ -121,18 +121,9 @@ void ldlm_debugfs_setup(void)
 
 void ldlm_debugfs_cleanup(void)
 {
-	if (!IS_ERR_OR_NULL(ldlm_svc_debugfs_dir))
-		ldebugfs_remove(&ldlm_svc_debugfs_dir);
-
-	if (!IS_ERR_OR_NULL(ldlm_ns_debugfs_dir))
-		ldebugfs_remove(&ldlm_ns_debugfs_dir);
-
-	if (!IS_ERR_OR_NULL(ldlm_debugfs_dir))
-		ldebugfs_remove(&ldlm_debugfs_dir);
-
-	ldlm_svc_debugfs_dir = NULL;
-	ldlm_ns_debugfs_dir = NULL;
-	ldlm_debugfs_dir = NULL;
+	debugfs_remove_recursive(ldlm_svc_debugfs_dir);
+	debugfs_remove_recursive(ldlm_ns_debugfs_dir);
+	debugfs_remove_recursive(ldlm_debugfs_dir);
 }
 
 static ssize_t resource_count_show(struct kobject *kobj, struct attribute *attr,
@@ -358,11 +349,7 @@ static struct kobj_type ldlm_ns_ktype = {
 
 static void ldlm_namespace_debugfs_unregister(struct ldlm_namespace *ns)
 {
-	if (IS_ERR_OR_NULL(ns->ns_debugfs_entry))
-		CERROR("dlm namespace %s has no procfs dir?\n",
-		       ldlm_ns_name(ns));
-	else
-		ldebugfs_remove(&ns->ns_debugfs_entry);
+	debugfs_remove_recursive(ns->ns_debugfs_entry);
 
 	if (ns->ns_stats)
 		lprocfs_free_stats(&ns->ns_stats);
