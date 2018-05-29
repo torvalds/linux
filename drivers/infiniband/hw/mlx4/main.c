@@ -1186,7 +1186,6 @@ static const struct vm_operations_struct mlx4_ib_vm_ops = {
 static void mlx4_ib_disassociate_ucontext(struct ib_ucontext *ibcontext)
 {
 	int i;
-	int ret = 0;
 	struct vm_area_struct *vma;
 	struct mlx4_ib_ucontext *context = to_mucontext(ibcontext);
 
@@ -1198,13 +1197,8 @@ static void mlx4_ib_disassociate_ucontext(struct ib_ucontext *ibcontext)
 		if (!vma)
 			continue;
 
-		ret = zap_vma_ptes(context->hw_bar_info[i].vma,
-				   context->hw_bar_info[i].vma->vm_start,
-				   PAGE_SIZE);
-		if (ret) {
-			pr_err("Error: zap_vma_ptes failed for index=%d, ret=%d\n", i, ret);
-			BUG_ON(1);
-		}
+		zap_vma_ptes(context->hw_bar_info[i].vma,
+			     context->hw_bar_info[i].vma->vm_start, PAGE_SIZE);
 
 		context->hw_bar_info[i].vma->vm_flags &=
 			~(VM_SHARED | VM_MAYSHARE);
