@@ -2262,7 +2262,7 @@ done:
 
 		if (!bss) {
 			if (is_scanning_required) {
-				mwifiex_dbg(priv->adapter, WARN,
+				mwifiex_dbg(priv->adapter, MSG,
 					    "assoc: requested bss not found in scan results\n");
 				break;
 			}
