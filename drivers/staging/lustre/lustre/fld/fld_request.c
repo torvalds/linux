@@ -217,25 +217,12 @@ int fld_client_del_target(struct lu_client_fld *fld, __u64 idx)
 
 static struct dentry *fld_debugfs_dir;
 
-static int fld_client_debugfs_init(struct lu_client_fld *fld)
+static void fld_client_debugfs_init(struct lu_client_fld *fld)
 {
-	int rc;
-
 	fld->lcf_debugfs_entry = debugfs_create_dir(fld->lcf_name,
 						    fld_debugfs_dir);
 
-	rc = ldebugfs_add_vars(fld->lcf_debugfs_entry,
-			       fld_client_debugfs_list, fld);
-	if (rc) {
-		CERROR("%s: Can't init FLD debufs, rc %d\n", fld->lcf_name, rc);
-		goto out_cleanup;
-	}
-
-	return 0;
-
-out_cleanup:
-	fld_client_debugfs_fini(fld);
-	return rc;
+	ldebugfs_add_vars(fld->lcf_debugfs_entry, fld_client_debugfs_list, fld);
 }
 
 void fld_client_debugfs_fini(struct lu_client_fld *fld)
@@ -254,7 +241,7 @@ int fld_client_init(struct lu_client_fld *fld,
 		    const char *prefix, int hash)
 {
 	int cache_size, cache_threshold;
-	int rc;
+	int rc = 0;
 
 	snprintf(fld->lcf_name, sizeof(fld->lcf_name),
 		 "cli-%s", prefix);
@@ -284,15 +271,10 @@ int fld_client_init(struct lu_client_fld *fld,
 		goto out;
 	}
 
-	rc = fld_client_debugfs_init(fld);
-	if (rc)
-		goto out;
+	fld_client_debugfs_init(fld);
 out:
-	if (rc)
-		fld_client_fini(fld);
-	else
-		CDEBUG(D_INFO, "%s: Using \"%s\" hash\n",
-		       fld->lcf_name, fld->lcf_hash->fh_name);
+	CDEBUG(D_INFO, "%s: Using \"%s\" hash\n",
+	       fld->lcf_name, fld->lcf_hash->fh_name);
 	return rc;
 }
 EXPORT_SYMBOL(fld_client_init);

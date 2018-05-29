@@ -1185,7 +1185,7 @@ void ldlm_namespace_free_prior(struct ldlm_namespace *ns,
 void ldlm_namespace_free_post(struct ldlm_namespace *ns);
 void ldlm_namespace_get(struct ldlm_namespace *ns);
 void ldlm_namespace_put(struct ldlm_namespace *ns);
-int ldlm_debugfs_setup(void);
+void ldlm_debugfs_setup(void);
 void ldlm_debugfs_cleanup(void);
 
 /* resource.c - internal */

@@ -450,9 +450,8 @@ int lprocfs_exp_cleanup(struct obd_export *exp);
 extern const struct file_operations lprocfs_stats_seq_fops;
 
 /* lprocfs_status.c */
-int ldebugfs_add_vars(struct dentry *parent,
-		      struct lprocfs_vars *var,
-		      void *data);
+void ldebugfs_add_vars(struct dentry *parent, struct lprocfs_vars *var,
+		       void *data);
 
 void ldebugfs_remove(struct dentry **entryp);
 

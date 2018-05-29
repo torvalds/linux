@@ -295,26 +295,12 @@ static void seq_client_debugfs_fini(struct lu_client_seq *seq)
 		ldebugfs_remove(&seq->lcs_debugfs_entry);
 }
 
-static int seq_client_debugfs_init(struct lu_client_seq *seq)
+static void seq_client_debugfs_init(struct lu_client_seq *seq)
 {
-	int rc;
-
 	seq->lcs_debugfs_entry = debugfs_create_dir(seq->lcs_name,
 						    seq_debugfs_dir);
 
-	rc = ldebugfs_add_vars(seq->lcs_debugfs_entry,
-			       seq_client_debugfs_list, seq);
-	if (rc) {
-		CERROR("%s: Can't init sequence manager debugfs, rc %d\n",
-		       seq->lcs_name, rc);
-		goto out_cleanup;
-	}
-
-	return 0;
-
-out_cleanup:
-	seq_client_debugfs_fini(seq);
-	return rc;
+	ldebugfs_add_vars(seq->lcs_debugfs_entry, seq_client_debugfs_list, seq);
 }
 
 static void seq_client_fini(struct lu_client_seq *seq)
@@ -327,13 +313,9 @@ static void seq_client_fini(struct lu_client_seq *seq)
 	}
 }
 
-static int seq_client_init(struct lu_client_seq *seq,
-			   struct obd_export *exp,
-			   enum lu_cli_type type,
-			   const char *prefix)
+static void seq_client_init(struct lu_client_seq *seq, struct obd_export *exp,
+			    enum lu_cli_type type, const char *prefix)
 {
-	int rc;
-
 	LASSERT(seq);
 	LASSERT(prefix);
 
@@ -354,10 +336,7 @@ static int seq_client_init(struct lu_client_seq *seq,
 	snprintf(seq->lcs_name, sizeof(seq->lcs_name),
 		 "cli-%s", prefix);
 
-	rc = seq_client_debugfs_init(seq);
-	if (rc)
-		seq_client_fini(seq);
-	return rc;
+	seq_client_debugfs_init(seq);
 }
 
 int client_fid_init(struct obd_device *obd,
@@ -380,12 +359,10 @@ int client_fid_init(struct obd_device *obd,
 	snprintf(prefix, MAX_OBD_NAME + 5, "cli-%s", obd->obd_name);
 
 	/* Init client side sequence-manager */
-	rc = seq_client_init(cli->cl_seq, exp, type, prefix);
+	seq_client_init(cli->cl_seq, exp, type, prefix);
 	kfree(prefix);
-	if (rc)
-		goto out_free_seq;
 
-	return rc;
+	return 0;
 out_free_seq:
 	kfree(cli->cl_seq);
 	cli->cl_seq = NULL;

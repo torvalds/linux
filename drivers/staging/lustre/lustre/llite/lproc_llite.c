@@ -1210,10 +1210,7 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 	debugfs_create_file("stats", 0644, sbi->ll_debugfs_entry,
 			    sbi->ll_ra_stats, &lprocfs_stats_seq_fops);
 
-	err = ldebugfs_add_vars(sbi->ll_debugfs_entry,
-				lprocfs_llite_obd_vars, sb);
-	if (err)
-		goto out;
+	ldebugfs_add_vars(sbi->ll_debugfs_entry, lprocfs_llite_obd_vars, sb);
 
 	sbi->ll_kobj.kset = llite_kset;
 	init_completion(&sbi->ll_kobj_unregister);

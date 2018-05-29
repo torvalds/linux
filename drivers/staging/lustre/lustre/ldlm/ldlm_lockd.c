@@ -979,9 +979,7 @@ static int ldlm_setup(void)
 		goto out;
 	}
 
-	rc = ldlm_debugfs_setup();
-	if (rc != 0)
-		goto out;
+	ldlm_debugfs_setup();
 
 	memset(&conf, 0, sizeof(conf));
 	conf = (typeof(conf)) {

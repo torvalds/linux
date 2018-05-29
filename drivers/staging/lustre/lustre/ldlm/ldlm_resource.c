@@ -106,10 +106,8 @@ static struct lprocfs_vars ldlm_debugfs_list[] = {
 	{ NULL }
 };
 
-int ldlm_debugfs_setup(void)
+void ldlm_debugfs_setup(void)
 {
-	int rc;
-
 	ldlm_debugfs_dir = debugfs_create_dir(OBD_LDLM_DEVICENAME,
 					      debugfs_lustre_root);
 
@@ -118,22 +116,7 @@ int ldlm_debugfs_setup(void)
 
 	ldlm_svc_debugfs_dir = debugfs_create_dir("services", ldlm_debugfs_dir);
 
-	rc = ldebugfs_add_vars(ldlm_debugfs_dir, ldlm_debugfs_list, NULL);
-	if (rc) {
-		CERROR("LProcFS failed in ldlm-init\n");
-		goto err_svc;
-	}
-
-	return 0;
-
-err_svc:
-	ldebugfs_remove(&ldlm_svc_debugfs_dir);
-	ldebugfs_remove(&ldlm_ns_debugfs_dir);
-	ldebugfs_remove(&ldlm_debugfs_dir);
-	ldlm_svc_debugfs_dir = NULL;
-	ldlm_ns_debugfs_dir = NULL;
-	ldlm_debugfs_dir = NULL;
-	return rc;
+	ldebugfs_add_vars(ldlm_debugfs_dir, ldlm_debugfs_list, NULL);
 }
 
 void ldlm_debugfs_cleanup(void)
