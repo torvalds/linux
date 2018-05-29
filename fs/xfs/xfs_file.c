@@ -1020,7 +1020,7 @@ xfs_file_llseek(
  *       page_lock (MM)
  *         i_lock (XFS - extent map serialisation)
  */
-static int
+static vm_fault_t
 __xfs_filemap_fault(
 	struct vm_fault		*vmf,
 	enum page_entry_size	pe_size,
@@ -1028,7 +1028,7 @@ __xfs_filemap_fault(
 {
 	struct inode		*inode = file_inode(vmf->vma->vm_file);
 	struct xfs_inode	*ip = XFS_I(inode);
-	int			ret;
+	vm_fault_t		ret;
 
 	trace_xfs_filemap_fault(ip, pe_size, write_fault);
 
@@ -1057,7 +1057,7 @@ __xfs_filemap_fault(
 	return ret;
 }
 
-static int
+static vm_fault_t
 xfs_filemap_fault(
 	struct vm_fault		*vmf)
 {
@@ -1067,7 +1067,7 @@ xfs_filemap_fault(
 			(vmf->flags & FAULT_FLAG_WRITE));
 }
 
-static int
+static vm_fault_t
 xfs_filemap_huge_fault(
 	struct vm_fault		*vmf,
 	enum page_entry_size	pe_size)
@@ -1080,7 +1080,7 @@ xfs_filemap_huge_fault(
 			(vmf->flags & FAULT_FLAG_WRITE));
 }
 
-static int
+static vm_fault_t
 xfs_filemap_page_mkwrite(
 	struct vm_fault		*vmf)
 {
@@ -1092,7 +1092,7 @@ xfs_filemap_page_mkwrite(
  * on write faults. In reality, it needs to serialise against truncate and
  * prepare memory for writing so handle is as standard write fault.
  */
-static int
+static vm_fault_t
 xfs_filemap_pfn_mkwrite(
 	struct vm_fault		*vmf)
 {
