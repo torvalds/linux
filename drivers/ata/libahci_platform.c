@@ -257,7 +257,7 @@ static void ahci_platform_put_resources(struct device *dev, void *res)
 	int c;
 
 	if (hpriv->got_runtime_pm) {
-		pm_runtime_put_sync(dev);
+		pm_runtime_allow(dev);
 		pm_runtime_disable(dev);
 	}
 
@@ -475,8 +475,10 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev)
 		if (rc == -EPROBE_DEFER)
 			goto err_out;
 	}
+
+	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
-	pm_runtime_get_sync(dev);
+	pm_runtime_forbid(dev);
 	hpriv->got_runtime_pm = true;
 
 	devres_remove_group(dev, NULL);
@@ -705,17 +707,7 @@ int ahci_platform_resume_host(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(ahci_platform_resume_host);
 
-/**
- * ahci_platform_suspend - Suspend an ahci-platform device
- * @dev: the platform device to suspend
- *
- * This function suspends the host associated with the device, followed by
- * disabling all the resources of the device.
- *
- * RETURNS:
- * 0 on success otherwise a negative error code
- */
-int ahci_platform_suspend(struct device *dev)
+static int _ahci_platform_suspend(struct device *dev)
 {
 	struct ata_host *host = dev_get_drvdata(dev);
 	struct ahci_host_priv *hpriv = host->private_data;
@@ -729,7 +721,57 @@ int ahci_platform_suspend(struct device *dev)
 
 	return 0;
 }
+
+/**
+ * ahci_platform_suspend - Suspend an ahci-platform device
+ * @dev: the platform device to suspend
+ *
+ * This function suspends the host associated with the device, followed by
+ * disabling all the resources of the device.
+ *
+ * RETURNS:
+ * 0 on success otherwise a negative error code
+ */
+int ahci_platform_suspend(struct device *dev)
+{
+	return _ahci_platform_suspend(dev);
+}
 EXPORT_SYMBOL_GPL(ahci_platform_suspend);
+
+/**
+ * ahci_platform_runtime_suspend - Runtime suspend an ahci-platform device
+ * @dev: the platform device to suspend
+ *
+ * This function suspends the host associated with the device, followed by
+ * disabling all the resources of the device.
+ *
+ * RETURNS:
+ * 0 on success otherwise a negative error code
+ */
+int ahci_platform_runtime_suspend(struct device *dev)
+{
+	return _ahci_platform_suspend(dev);
+}
+EXPORT_SYMBOL_GPL(ahci_platform_runtime_suspend);
+
+static int _ahci_platform_resume(struct device *dev)
+{
+	struct ata_host *host = dev_get_drvdata(dev);
+	struct ahci_host_priv *hpriv = host->private_data;
+	int rc;
+
+	rc = ahci_platform_enable_resources(hpriv);
+	if (rc)
+		return rc;
+
+	rc = ahci_platform_resume_host(dev);
+	if (rc) {
+		ahci_platform_disable_resources(hpriv);
+		return rc;
+	}
+
+	return 0;
+}
 
 /**
  * ahci_platform_resume - Resume an ahci-platform device
@@ -743,17 +785,11 @@ EXPORT_SYMBOL_GPL(ahci_platform_suspend);
  */
 int ahci_platform_resume(struct device *dev)
 {
-	struct ata_host *host = dev_get_drvdata(dev);
-	struct ahci_host_priv *hpriv = host->private_data;
 	int rc;
 
-	rc = ahci_platform_enable_resources(hpriv);
+	rc = _ahci_platform_resume(dev);
 	if (rc)
 		return rc;
-
-	rc = ahci_platform_resume_host(dev);
-	if (rc)
-		goto disable_resources;
 
 	/* We resumed so update PM runtime state */
 	pm_runtime_disable(dev);
@@ -761,13 +797,25 @@ int ahci_platform_resume(struct device *dev)
 	pm_runtime_enable(dev);
 
 	return 0;
-
-disable_resources:
-	ahci_platform_disable_resources(hpriv);
-
-	return rc;
 }
 EXPORT_SYMBOL_GPL(ahci_platform_resume);
+
+/**
+ * ahci_platform_runtime_resume - Runtime resume an ahci-platform device
+ * @dev: the platform device to resume
+ *
+ * This function enables all the resources of the device followed by
+ * resuming the host associated with the device.
+ *
+ * RETURNS:
+ * 0 on success otherwise a negative error code
+ */
+int ahci_platform_runtime_resume(struct device *dev)
+{
+	return _ahci_platform_resume(dev);
+}
+EXPORT_SYMBOL_GPL(ahci_platform_runtime_resume);
+
 #endif
 
 MODULE_DESCRIPTION("AHCI SATA platform library");

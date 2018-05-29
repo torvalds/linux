@@ -42,5 +42,7 @@ int ahci_platform_suspend_host(struct device *dev);
 int ahci_platform_resume_host(struct device *dev);
 int ahci_platform_suspend(struct device *dev);
 int ahci_platform_resume(struct device *dev);
+int ahci_platform_runtime_suspend(struct device *dev);
+int ahci_platform_runtime_resume(struct device *dev);
 
 #endif /* _AHCI_PLATFORM_H */

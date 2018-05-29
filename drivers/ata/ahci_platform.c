@@ -68,8 +68,13 @@ disable_resources:
 	return rc;
 }
 
-static SIMPLE_DEV_PM_OPS(ahci_pm_ops, ahci_platform_suspend,
-			 ahci_platform_resume);
+#ifdef CONFIG_PM_SLEEP
+static const struct dev_pm_ops ahci_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(ahci_platform_suspend, ahci_platform_resume)
+	SET_RUNTIME_PM_OPS(ahci_platform_runtime_suspend,
+			ahci_platform_runtime_resume, NULL)
+};
+#endif
 
 static const struct of_device_id ahci_of_match[] = {
 	{ .compatible = "generic-ahci", },
@@ -98,7 +103,9 @@ static struct platform_driver ahci_driver = {
 		.name = DRV_NAME,
 		.of_match_table = ahci_of_match,
 		.acpi_match_table = ahci_acpi_match,
+#ifdef CONFIG_PM_SLEEP
 		.pm = &ahci_pm_ops,
+#endif
 	},
 };
 module_platform_driver(ahci_driver);
