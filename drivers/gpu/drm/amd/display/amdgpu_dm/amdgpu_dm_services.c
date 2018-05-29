@@ -256,9 +256,8 @@ static void pp_to_dc_clock_levels_with_latency(
 
 	for (i = 0; i < clk_level_info->num_levels; i++) {
 		DRM_DEBUG("DM_PPLIB:\t %d\n", pp_clks->data[i].clocks_in_khz);
-		/* translate 10kHz to kHz */
 		clk_level_info->data[i].clocks_in_khz = pp_clks->data[i].clocks_in_khz;
-		clk_level_info->data[i].latency_in_us = pp_clks->data[i].clocks_in_khz;
+		clk_level_info->data[i].latency_in_us = pp_clks->data[i].latency_in_us;
 	}
 }
 
