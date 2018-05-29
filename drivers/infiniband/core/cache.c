@@ -1295,13 +1295,3 @@ void ib_cache_cleanup_one(struct ib_device *device)
 	flush_workqueue(ib_wq);
 	gid_table_cleanup_one(device);
 }
-
-void __init ib_cache_setup(void)
-{
-	roce_gid_mgmt_init();
-}
-
-void __exit ib_cache_cleanup(void)
-{
-	roce_gid_mgmt_cleanup();
-}

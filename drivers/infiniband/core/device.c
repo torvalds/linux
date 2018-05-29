@@ -1225,7 +1225,7 @@ static int __init ib_core_init(void)
 
 	nldev_init();
 	rdma_nl_register(RDMA_NL_LS, ibnl_ls_cb_table);
-	ib_cache_setup();
+	roce_gid_mgmt_init();
 
 	return 0;
 
@@ -1248,7 +1248,7 @@ err:
 
 static void __exit ib_core_cleanup(void)
 {
-	ib_cache_cleanup();
+	roce_gid_mgmt_cleanup();
 	nldev_exit();
 	rdma_nl_unregister(RDMA_NL_LS);
 	unregister_lsm_notifier(&ibdev_lsm_nb);
