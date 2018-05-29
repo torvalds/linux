@@ -114,9 +114,6 @@ void mlx5e_grp_sw_update_stats(struct mlx5e_priv *priv)
 	int i;
 
 	memset(s, 0, sizeof(*s));
-	read_lock(&priv->stats_lock);
-	if (!priv->channels_active)
-		goto out;
 
 	for (i = 0; i < priv->profile->max_nch(priv->mdev); i++) {
 		struct mlx5e_channel_stats *channel_stats =
@@ -177,8 +174,6 @@ void mlx5e_grp_sw_update_stats(struct mlx5e_priv *priv)
 	}
 
 	memcpy(&priv->stats.sw, s, sizeof(*s));
-out:
-	read_unlock(&priv->stats_lock);
 }
 
 static const struct counter_desc q_stats_desc[] = {

@@ -777,8 +777,6 @@ struct mlx5e_priv {
 	struct mutex               state_lock; /* Protects Interface state */
 	struct mlx5e_rq            drop_rq;
 
-	rwlock_t                   stats_lock; /* Protects channels SW stats updates */
-	bool                       channels_active;
 	struct mlx5e_channels      channels;
 	u32                        tisn[MLX5E_MAX_NUM_TC];
 	struct mlx5e_rqt           indir_rqt;

@@ -2669,9 +2669,6 @@ void mlx5e_activate_priv_channels(struct mlx5e_priv *priv)
 
 	mlx5e_build_tx2sq_maps(priv);
 	mlx5e_activate_channels(&priv->channels);
-	write_lock(&priv->stats_lock);
-	priv->channels_active = true;
-	write_unlock(&priv->stats_lock);
 	netif_tx_start_all_queues(priv->netdev);
 
 	if (MLX5_VPORT_MANAGER(priv->mdev))
@@ -2693,9 +2690,6 @@ void mlx5e_deactivate_priv_channels(struct mlx5e_priv *priv)
 	 */
 	netif_tx_stop_all_queues(priv->netdev);
 	netif_tx_disable(priv->netdev);
-	write_lock(&priv->stats_lock);
-	priv->channels_active = false;
-	write_unlock(&priv->stats_lock);
 	mlx5e_deactivate_channels(&priv->channels);
 }
 
@@ -4269,7 +4263,6 @@ static void mlx5e_build_nic_netdev_priv(struct mlx5_core_dev *mdev,
 			       profile->max_nch(mdev), netdev->mtu);
 
 	mutex_init(&priv->state_lock);
-	rwlock_init(&priv->stats_lock);
 
 	INIT_WORK(&priv->update_carrier_work, mlx5e_update_carrier_work);
 	INIT_WORK(&priv->set_rx_mode_work, mlx5e_set_rx_mode_work);
