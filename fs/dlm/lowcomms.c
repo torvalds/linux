@@ -1092,7 +1092,7 @@ static void sctp_connect_to_sock(struct connection *con)
 	kernel_setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,
 			  sizeof(tv));
 	result = sock->ops->connect(sock, (struct sockaddr *)&daddr, addr_len,
-				   O_NONBLOCK);
+				   0);
 	memset(&tv, 0, sizeof(tv));
 	kernel_setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,
 			  sizeof(tv));
