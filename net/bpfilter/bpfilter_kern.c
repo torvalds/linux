@@ -33,7 +33,8 @@ static void shutdown_umh(struct umh_info *info)
 
 static void __stop_umh(void)
 {
-	if (bpfilter_process_sockopt) {
+	if (IS_ENABLED(CONFIG_INET) &&
+	    bpfilter_process_sockopt) {
 		bpfilter_process_sockopt = NULL;
 		shutdown_umh(&info);
 	}
@@ -98,7 +99,9 @@ static int __init load_umh(void)
 		stop_umh();
 		return -EFAULT;
 	}
-	bpfilter_process_sockopt = &__bpfilter_process_sockopt;
+	if (IS_ENABLED(CONFIG_INET))
+		bpfilter_process_sockopt = &__bpfilter_process_sockopt;
+
 	return 0;
 }
 
