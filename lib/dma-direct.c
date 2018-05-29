@@ -34,6 +34,13 @@ check_addr(struct device *dev, dma_addr_t dma_addr, size_t size,
 		const char *caller)
 {
 	if (unlikely(dev && !dma_capable(dev, dma_addr, size))) {
+		if (!dev->dma_mask) {
+			dev_err(dev,
+				"%s: call on device without dma_mask\n",
+				caller);
+			return false;
+		}
+
 		if (*dev->dma_mask >= DMA_BIT_MASK(32)) {
 			dev_err(dev,
 				"%s: overflow %pad+%zu of device mask %llx\n",
