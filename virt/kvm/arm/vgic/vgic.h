@@ -250,8 +250,8 @@ void vgic_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr);
 int vgic_lazy_init(struct kvm *kvm);
 int vgic_init(struct kvm *kvm);
 
-int vgic_debug_init(struct kvm *kvm);
-int vgic_debug_destroy(struct kvm *kvm);
+void vgic_debug_init(struct kvm *kvm);
+void vgic_debug_destroy(struct kvm *kvm);
 
 bool lock_all_vcpus(struct kvm *kvm);
 void unlock_all_vcpus(struct kvm *kvm);

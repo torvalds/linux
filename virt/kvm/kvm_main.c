@@ -590,10 +590,7 @@ static int kvm_create_vm_debugfs(struct kvm *kvm, int fd)
 		return 0;
 
 	snprintf(dir_name, sizeof(dir_name), "%d-%d", task_pid_nr(current), fd);
-	kvm->debugfs_dentry = debugfs_create_dir(dir_name,
-						 kvm_debugfs_dir);
-	if (!kvm->debugfs_dentry)
-		return -ENOMEM;
+	kvm->debugfs_dentry = debugfs_create_dir(dir_name, kvm_debugfs_dir);
 
 	kvm->debugfs_stat_data = kcalloc(kvm_debugfs_num_entries,
 					 sizeof(*kvm->debugfs_stat_data),
@@ -609,11 +606,8 @@ static int kvm_create_vm_debugfs(struct kvm *kvm, int fd)
 		stat_data->kvm = kvm;
 		stat_data->offset = p->offset;
 		kvm->debugfs_stat_data[p - debugfs_entries] = stat_data;
-		if (!debugfs_create_file(p->name, 0644,
-					 kvm->debugfs_dentry,
-					 stat_data,
-					 stat_fops_per_vm[p->kind]))
-			return -ENOMEM;
+		debugfs_create_file(p->name, 0644, kvm->debugfs_dentry,
+				    stat_data, stat_fops_per_vm[p->kind]);
 	}
 	return 0;
 }
@@ -3919,29 +3913,18 @@ static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm)
 	kfree(env);
 }
 
-static int kvm_init_debug(void)
+static void kvm_init_debug(void)
 {
-	int r = -EEXIST;
 	struct kvm_stats_debugfs_item *p;
 
 	kvm_debugfs_dir = debugfs_create_dir("kvm", NULL);
-	if (kvm_debugfs_dir == NULL)
-		goto out;
 
 	kvm_debugfs_num_entries = 0;
 	for (p = debugfs_entries; p->name; ++p, kvm_debugfs_num_entries++) {
-		if (!debugfs_create_file(p->name, 0644, kvm_debugfs_dir,
-					 (void *)(long)p->offset,
-					 stat_fops[p->kind]))
-			goto out_dir;
+		debugfs_create_file(p->name, 0644, kvm_debugfs_dir,
+				    (void *)(long)p->offset,
+				    stat_fops[p->kind]);
 	}
-
-	return 0;
-
-out_dir:
-	debugfs_remove_recursive(kvm_debugfs_dir);
-out:
-	return r;
 }
 
 static int kvm_suspend(void)
@@ -4069,20 +4052,13 @@ int kvm_init(void *opaque, unsigned vcpu_size, unsigned vcpu_align,
 	kvm_preempt_ops.sched_in = kvm_sched_in;
 	kvm_preempt_ops.sched_out = kvm_sched_out;
 
-	r = kvm_init_debug();
-	if (r) {
-		pr_err("kvm: create debugfs files failed\n");
-		goto out_undebugfs;
-	}
+	kvm_init_debug();
 
 	r = kvm_vfio_ops_init();
 	WARN_ON(r);
 
 	return 0;
 
-out_undebugfs:
-	unregister_syscore_ops(&kvm_syscore_ops);
-	misc_deregister(&kvm_dev);
 out_unreg:
 	kvm_async_pf_deinit();
 out_free:
