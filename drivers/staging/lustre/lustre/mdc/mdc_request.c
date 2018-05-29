@@ -184,6 +184,8 @@ static int mdc_getattr(struct obd_export *exp, struct md_op_data *op_data,
 	mdc_pack_body(req, &op_data->op_fid1, op_data->op_valid,
 		      op_data->op_mode, -1, 0);
 
+	req_capsule_set_size(&req->rq_pill, &RMF_ACL, RCL_SERVER,
+			     req->rq_import->imp_connect_data.ocd_max_easize);
 	req_capsule_set_size(&req->rq_pill, &RMF_MDT_MD, RCL_SERVER,
 			     op_data->op_mode);
 	ptlrpc_request_set_replen(req);
@@ -230,6 +232,8 @@ static int mdc_getattr_name(struct obd_export *exp, struct md_op_data *op_data,
 
 	req_capsule_set_size(&req->rq_pill, &RMF_MDT_MD, RCL_SERVER,
 			     op_data->op_mode);
+	req_capsule_set_size(&req->rq_pill, &RMF_ACL, RCL_SERVER,
+			     req->rq_import->imp_connect_data.ocd_max_easize);
 	ptlrpc_request_set_replen(req);
 
 	rc = mdc_getattr_common(exp, req);

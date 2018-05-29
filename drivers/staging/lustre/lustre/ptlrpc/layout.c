@@ -992,9 +992,7 @@ EXPORT_SYMBOL(RMF_EADATA);
 struct req_msg_field RMF_EAVALS = DEFINE_MSGF("eavals", 0, -1, NULL, NULL);
 EXPORT_SYMBOL(RMF_EAVALS);
 
-struct req_msg_field RMF_ACL =
-	DEFINE_MSGF("acl", RMF_F_NO_SIZE_CHECK,
-		    LUSTRE_POSIX_ACL_MAX_SIZE, NULL, NULL);
+struct req_msg_field RMF_ACL = DEFINE_MSGF("acl", 0, -1, NULL, NULL);
 EXPORT_SYMBOL(RMF_ACL);
 
 /* FIXME: this should be made to use RMF_F_STRUCT_ARRAY */

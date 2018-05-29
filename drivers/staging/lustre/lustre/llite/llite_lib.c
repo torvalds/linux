@@ -199,7 +199,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt)
 	if (sbi->ll_flags & LL_SBI_LRU_RESIZE)
 		data->ocd_connect_flags |= OBD_CONNECT_LRU_RESIZE;
 #ifdef CONFIG_FS_POSIX_ACL
-	data->ocd_connect_flags |= OBD_CONNECT_ACL | OBD_CONNECT_UMASK;
+	data->ocd_connect_flags |= OBD_CONNECT_ACL | OBD_CONNECT_UMASK |
+				   OBD_CONNECT_LARGE_ACL;
 #endif
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_MDC_LIGHTWEIGHT))

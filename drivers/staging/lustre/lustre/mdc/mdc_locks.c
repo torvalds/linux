@@ -308,6 +308,8 @@ mdc_intent_open_pack(struct obd_export *exp, struct lookup_intent *it,
 
 	req_capsule_set_size(&req->rq_pill, &RMF_MDT_MD, RCL_SERVER,
 			     obddev->u.cli.cl_max_mds_easize);
+	req_capsule_set_size(&req->rq_pill, &RMF_ACL, RCL_SERVER,
+			     req->rq_import->imp_connect_data.ocd_max_easize);
 
 	ptlrpc_request_set_replen(req);
 	return req;
@@ -351,6 +353,8 @@ mdc_intent_getxattr_pack(struct obd_export *exp,
 
 	req_capsule_set_size(&req->rq_pill, &RMF_EAVALS_LENS,
 			     RCL_SERVER, maxdata);
+
+	req_capsule_set_size(&req->rq_pill, &RMF_ACL, RCL_SERVER, maxdata);
 
 	ptlrpc_request_set_replen(req);
 
@@ -433,6 +437,8 @@ static struct ptlrpc_request *mdc_intent_getattr_pack(struct obd_export *exp,
 	mdc_getattr_pack(req, valid, it->it_flags, op_data, easize);
 
 	req_capsule_set_size(&req->rq_pill, &RMF_MDT_MD, RCL_SERVER, easize);
+	req_capsule_set_size(&req->rq_pill, &RMF_ACL, RCL_SERVER,
+			     req->rq_import->imp_connect_data.ocd_max_easize);
 	ptlrpc_request_set_replen(req);
 	return req;
 }
