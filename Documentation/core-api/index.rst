@@ -27,6 +27,7 @@ Core utilities
    errseq
    printk-formats
    circular-buffers
+   gfp_mask-from-fs-io
 
 Interfaces for kernel debugging
 ===============================
