@@ -394,7 +394,6 @@ int qtnf_core_net_attach(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 	dev = alloc_netdev_mqs(sizeof(struct qtnf_vif *), name,
 			       name_assign_type, ether_setup, 1, 1);
 	if (!dev) {
-		memset(&vif->wdev, 0, sizeof(vif->wdev));
 		vif->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
 		return -ENOMEM;
 	}

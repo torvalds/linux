@@ -177,8 +177,6 @@ int qtnf_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 	vif->netdev->ieee80211_ptr = NULL;
 	vif->netdev = NULL;
 	vif->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
-	eth_zero_addr(vif->mac_addr);
-	eth_zero_addr(vif->bssid);
 
 	return 0;
 }
@@ -216,10 +214,12 @@ static struct wireless_dev *qtnf_add_virtual_intf(struct wiphy *wiphy,
 		}
 
 		eth_zero_addr(vif->mac_addr);
+		eth_zero_addr(vif->bssid);
 		vif->bss_priority = QTNF_DEF_BSS_PRIORITY;
+		vif->sta_state = QTNF_STA_DISCONNECTED;
+		memset(&vif->wdev, 0, sizeof(vif->wdev));
 		vif->wdev.wiphy = wiphy;
 		vif->wdev.iftype = type;
-		vif->sta_state = QTNF_STA_DISCONNECTED;
 		break;
 	default:
 		pr_err("MAC%u: unsupported IF type %d\n", mac->macid, type);
@@ -255,8 +255,6 @@ err_mac:
 	qtnf_cmd_send_del_intf(vif);
 err_cmd:
 	vif->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
-	eth_zero_addr(vif->mac_addr);
-	eth_zero_addr(vif->bssid);
 
 	return ERR_PTR(-EFAULT);
 }
