@@ -149,6 +149,7 @@ static inline int msm_dsi_pll_set_usecase(struct msm_dsi_pll *pll,
 #endif
 
 /* dsi host */
+struct msm_dsi_host;
 int msm_dsi_host_xfer_prepare(struct mipi_dsi_host *host,
 					const struct mipi_dsi_msg *msg);
 void msm_dsi_host_xfer_restore(struct mipi_dsi_host *host,

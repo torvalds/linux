@@ -40,10 +40,22 @@ struct msm_dsi_config {
 	const int num_dsi;
 };
 
+struct msm_dsi_host_cfg_ops {
+	int (*link_clk_enable)(struct msm_dsi_host *msm_host);
+	void (*link_clk_disable)(struct msm_dsi_host *msm_host);
+	int (*clk_init_ver)(struct msm_dsi_host *msm_host);
+	int (*tx_buf_alloc)(struct msm_dsi_host *msm_host, int size);
+	void* (*tx_buf_get)(struct msm_dsi_host *msm_host);
+	void (*tx_buf_put)(struct msm_dsi_host *msm_host);
+	int (*dma_base_get)(struct msm_dsi_host *msm_host, uint64_t *iova);
+	int (*calc_clk_rate)(struct msm_dsi_host *msm_host);
+};
+
 struct msm_dsi_cfg_handler {
 	u32 major;
 	u32 minor;
 	const struct msm_dsi_config *cfg;
+	const struct msm_dsi_host_cfg_ops *ops;
 };
 
 const struct msm_dsi_cfg_handler *msm_dsi_cfg_get(u32 major, u32 minor);
