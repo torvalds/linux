@@ -450,7 +450,7 @@ void hw_phymode_configure(struct ci_hdrc *ci);
 
 void ci_platform_configure(struct ci_hdrc *ci);
 
-int dbg_create_files(struct ci_hdrc *ci);
+void dbg_create_files(struct ci_hdrc *ci);
 
 void dbg_remove_files(struct ci_hdrc *ci);
 #endif	/* __DRIVERS_USB_CHIPIDEA_CI_H */
