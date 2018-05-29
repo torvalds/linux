@@ -1180,6 +1180,7 @@ struct qed_eth_stats_common {
 	u64	tx_mac_mc_packets;
 	u64	tx_mac_bc_packets;
 	u64	tx_mac_ctrl_frames;
+	u64	link_change_count;
 };
 
 struct qed_eth_stats_bb {

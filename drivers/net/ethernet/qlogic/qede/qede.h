@@ -88,6 +88,7 @@ struct qede_stats_common {
 	u64 coalesced_aborts_num;
 	u64 non_coalesced_pkts;
 	u64 coalesced_bytes;
+	u64 link_change_count;
 
 	/* port */
 	u64 rx_64_byte_packets;

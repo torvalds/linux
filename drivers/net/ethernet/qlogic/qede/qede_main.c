@@ -399,6 +399,7 @@ void qede_fill_by_demand_stats(struct qede_dev *edev)
 	p_common->brb_truncates = stats.common.brb_truncates;
 	p_common->brb_discards = stats.common.brb_discards;
 	p_common->tx_mac_ctrl_frames = stats.common.tx_mac_ctrl_frames;
+	p_common->link_change_count = stats.common.link_change_count;
 
 	if (QEDE_IS_BB(edev)) {
 		struct qede_stats_bb *p_bb = &edev->stats.bb;
