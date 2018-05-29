@@ -7557,8 +7557,7 @@ static int ipw_associate(void *data)
 	}
 
 	if (priv->status & STATUS_DISASSOCIATING) {
-		IPW_DEBUG_ASSOC("Not attempting association (in "
-				"disassociating)\n ");
+		IPW_DEBUG_ASSOC("Not attempting association (in disassociating)\n");
 		schedule_work(&priv->associate);
 		return 0;
 	}

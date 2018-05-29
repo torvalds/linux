@@ -2211,7 +2211,7 @@ static int ql_clean_outbound_rx_ring(struct rx_ring *rx_ring)
 	while (prod != rx_ring->cnsmr_idx) {
 
 		netif_printk(qdev, rx_status, KERN_DEBUG, qdev->ndev,
-			     "cq_id = %d, prod = %d, cnsmr = %d.\n.",
+			     "cq_id = %d, prod = %d, cnsmr = %d\n",
 			     rx_ring->cq_id, prod, rx_ring->cnsmr_idx);
 
 		net_rsp = (struct ob_mac_iocb_rsp *)rx_ring->curr_entry;
@@ -2258,7 +2258,7 @@ static int ql_clean_inbound_rx_ring(struct rx_ring *rx_ring, int budget)
 	while (prod != rx_ring->cnsmr_idx) {
 
 		netif_printk(qdev, rx_status, KERN_DEBUG, qdev->ndev,
-			     "cq_id = %d, prod = %d, cnsmr = %d.\n.",
+			     "cq_id = %d, prod = %d, cnsmr = %d\n",
 			     rx_ring->cq_id, prod, rx_ring->cnsmr_idx);
 
 		net_rsp = rx_ring->curr_entry;

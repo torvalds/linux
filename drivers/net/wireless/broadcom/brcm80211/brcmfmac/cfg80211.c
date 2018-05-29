@@ -1264,7 +1264,7 @@ static void brcmf_link_down(struct brcmf_cfg80211_vif *vif, u16 reason)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	if (test_and_clear_bit(BRCMF_VIF_STATUS_CONNECTED, &vif->sme_state)) {
-		brcmf_dbg(INFO, "Call WLC_DISASSOC to stop excess roaming\n ");
+		brcmf_dbg(INFO, "Call WLC_DISASSOC to stop excess roaming\n");
 		err = brcmf_fil_cmd_data_set(vif->ifp,
 					     BRCMF_C_DISASSOC, NULL, 0);
 		if (err) {

@@ -1766,7 +1766,7 @@ static int load_firmware(struct octeon_device *oct)
 
 	ret = request_firmware(&fw, fw_name, &oct->pci_dev->dev);
 	if (ret) {
-		dev_err(&oct->pci_dev->dev, "Request firmware failed. Could not find file %s.\n.",
+		dev_err(&oct->pci_dev->dev, "Request firmware failed. Could not find file %s.\n",
 			fw_name);
 		release_firmware(fw);
 		return ret;
