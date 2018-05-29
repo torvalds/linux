@@ -35,15 +35,9 @@ static ssize_t btmrvl_hscfgcmd_write(struct file *file,
 			const char __user *ubuf, size_t count, loff_t *ppos)
 {
 	struct btmrvl_private *priv = file->private_data;
-	char buf[16];
 	long result, ret;
 
-	memset(buf, 0, sizeof(buf));
-
-	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
-		return -EFAULT;
-
-	ret = kstrtol(buf, 10, &result);
+	ret = kstrtol_from_user(ubuf, count, 10, &result);
 	if (ret)
 		return ret;
 
@@ -81,15 +75,9 @@ static ssize_t btmrvl_pscmd_write(struct file *file, const char __user *ubuf,
 						size_t count, loff_t *ppos)
 {
 	struct btmrvl_private *priv = file->private_data;
-	char buf[16];
 	long result, ret;
 
-	memset(buf, 0, sizeof(buf));
-
-	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
-		return -EFAULT;
-
-	ret = kstrtol(buf, 10, &result);
+	ret = kstrtol_from_user(ubuf, count, 10, &result);
 	if (ret)
 		return ret;
 
@@ -127,15 +115,9 @@ static ssize_t btmrvl_hscmd_write(struct file *file, const char __user *ubuf,
 						size_t count, loff_t *ppos)
 {
 	struct btmrvl_private *priv = file->private_data;
-	char buf[16];
 	long result, ret;
 
-	memset(buf, 0, sizeof(buf));
-
-	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
-		return -EFAULT;
-
-	ret = kstrtol(buf, 10, &result);
+	ret = kstrtol_from_user(ubuf, count, 10, &result);
 	if (ret)
 		return ret;
 
