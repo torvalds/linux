@@ -3040,8 +3040,7 @@ void btrfs_update_root_times(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root);
 
 /* uuid-tree.c */
-int btrfs_uuid_tree_add(struct btrfs_trans_handle *trans,
-			struct btrfs_fs_info *fs_info, u8 *uuid, u8 type,
+int btrfs_uuid_tree_add(struct btrfs_trans_handle *trans, u8 *uuid, u8 type,
 			u64 subid);
 int btrfs_uuid_tree_rem(struct btrfs_trans_handle *trans,
 			struct btrfs_fs_info *fs_info, u8 *uuid, u8 type,
