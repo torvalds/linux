@@ -52,12 +52,16 @@
 #define DASD_ECKD_CCW_RCD		 0xFA
 
 /*
- * Perform Subsystem Function / Sub-Orders
+ * Perform Subsystem Function / Orders
  */
 #define PSF_ORDER_PRSSD			 0x18
 #define PSF_ORDER_CUIR_RESPONSE		 0x1A
-#define PSF_SUBORDER_QHA		 0x1C
 #define PSF_ORDER_SSC			 0x1D
+
+/*
+ * Perform Subsystem Function / Sub-Orders
+ */
+#define PSF_SUBORDER_QHA		 0x1C /* Query Host Access */
 
 /*
  * CUIR response condition codes
