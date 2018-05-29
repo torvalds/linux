@@ -1969,7 +1969,6 @@ static int mlx5_ib_set_vma_data(struct vm_area_struct *vma,
 
 static void mlx5_ib_disassociate_ucontext(struct ib_ucontext *ibcontext)
 {
-	int ret;
 	struct vm_area_struct *vma;
 	struct mlx5_ib_vma_private_data *vma_private, *n;
 	struct mlx5_ib_ucontext *context = to_mucontext(ibcontext);
@@ -1978,9 +1977,7 @@ static void mlx5_ib_disassociate_ucontext(struct ib_ucontext *ibcontext)
 	list_for_each_entry_safe(vma_private, n, &context->vma_private_list,
 				 list) {
 		vma = vma_private->vma;
-		ret = zap_vma_ptes(vma, vma->vm_start,
-				   PAGE_SIZE);
-		WARN_ONCE(ret, "%s: zap_vma_ptes failed", __func__);
+		zap_vma_ptes(vma, vma->vm_start, PAGE_SIZE);
 		/* context going to be destroyed, should
 		 * not access ops any more.
 		 */
