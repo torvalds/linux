@@ -287,9 +287,6 @@ struct usba_ep {
 #ifdef CONFIG_USB_GADGET_DEBUG_FS
 	u32					last_dma_status;
 	struct dentry				*debugfs_dir;
-	struct dentry				*debugfs_queue;
-	struct dentry				*debugfs_dma_status;
-	struct dentry				*debugfs_state;
 #endif
 };
 
@@ -344,7 +341,6 @@ struct usba_udc {
 
 #ifdef CONFIG_USB_GADGET_DEBUG_FS
 	struct dentry *debugfs_root;
-	struct dentry *debugfs_regs;
 #endif
 
 	struct regmap *pmc;

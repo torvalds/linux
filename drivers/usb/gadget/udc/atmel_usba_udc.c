@@ -206,94 +206,45 @@ static void usba_ep_init_debugfs(struct usba_udc *udc,
 	struct dentry *ep_root;
 
 	ep_root = debugfs_create_dir(ep->ep.name, udc->debugfs_root);
-	if (!ep_root)
-		goto err_root;
 	ep->debugfs_dir = ep_root;
 
-	ep->debugfs_queue = debugfs_create_file("queue", 0400, ep_root,
-						ep, &queue_dbg_fops);
-	if (!ep->debugfs_queue)
-		goto err_queue;
-
-	if (ep->can_dma) {
-		ep->debugfs_dma_status
-			= debugfs_create_u32("dma_status", 0400, ep_root,
-					&ep->last_dma_status);
-		if (!ep->debugfs_dma_status)
-			goto err_dma_status;
-	}
-	if (ep_is_control(ep)) {
-		ep->debugfs_state
-			= debugfs_create_u32("state", 0400, ep_root,
-					&ep->state);
-		if (!ep->debugfs_state)
-			goto err_state;
-	}
-
-	return;
-
-err_state:
+	debugfs_create_file("queue", 0400, ep_root, ep, &queue_dbg_fops);
 	if (ep->can_dma)
-		debugfs_remove(ep->debugfs_dma_status);
-err_dma_status:
-	debugfs_remove(ep->debugfs_queue);
-err_queue:
-	debugfs_remove(ep_root);
-err_root:
-	dev_err(&ep->udc->pdev->dev,
-		"failed to create debugfs directory for %s\n", ep->ep.name);
+		debugfs_create_u32("dma_status", 0400, ep_root,
+				   &ep->last_dma_status);
+	if (ep_is_control(ep))
+		debugfs_create_u32("state", 0400, ep_root, &ep->state);
 }
 
 static void usba_ep_cleanup_debugfs(struct usba_ep *ep)
 {
-	debugfs_remove(ep->debugfs_queue);
-	debugfs_remove(ep->debugfs_dma_status);
-	debugfs_remove(ep->debugfs_state);
-	debugfs_remove(ep->debugfs_dir);
-	ep->debugfs_dma_status = NULL;
-	ep->debugfs_dir = NULL;
+	debugfs_remove_recursive(ep->debugfs_dir);
 }
 
 static void usba_init_debugfs(struct usba_udc *udc)
 {
-	struct dentry *root, *regs;
+	struct dentry *root;
 	struct resource *regs_resource;
 
 	root = debugfs_create_dir(udc->gadget.name, NULL);
-	if (IS_ERR(root) || !root)
-		goto err_root;
 	udc->debugfs_root = root;
 
 	regs_resource = platform_get_resource(udc->pdev, IORESOURCE_MEM,
 				CTRL_IOMEM_ID);
 
 	if (regs_resource) {
-		regs = debugfs_create_file_size("regs", 0400, root, udc,
-						&regs_dbg_fops,
-						resource_size(regs_resource));
-		if (!regs)
-			goto err_regs;
-		udc->debugfs_regs = regs;
+		debugfs_create_file_size("regs", 0400, root, udc,
+					 &regs_dbg_fops,
+					 resource_size(regs_resource));
 	}
 
 	usba_ep_init_debugfs(udc, to_usba_ep(udc->gadget.ep0));
-
-	return;
-
-err_regs:
-	debugfs_remove(root);
-err_root:
-	udc->debugfs_root = NULL;
-	dev_err(&udc->pdev->dev, "debugfs is not available\n");
 }
 
 static void usba_cleanup_debugfs(struct usba_udc *udc)
 {
 	usba_ep_cleanup_debugfs(to_usba_ep(udc->gadget.ep0));
-	debugfs_remove(udc->debugfs_regs);
-	debugfs_remove(udc->debugfs_root);
-	udc->debugfs_regs = NULL;
-	udc->debugfs_root = NULL;
+	debugfs_remove_recursive(udc->debugfs_root);
 }
 #else
 static inline void usba_ep_init_debugfs(struct usba_udc *udc,
