@@ -378,10 +378,6 @@ static void ssusb_debugfs_init(struct ssusb_mtk *ssusb)
 	struct dentry *root;
 
 	root = debugfs_create_dir(dev_name(ssusb->dev), usb_debug_root);
-	if (!root) {
-		dev_err(ssusb->dev, "create debugfs root failed\n");
-		return;
-	}
 	ssusb->dbgfs_root = root;
 
 	debugfs_create_file("mode", 0644, root, ssusb, &ssusb_mode_fops);
