@@ -2633,15 +2633,21 @@ static void mlx5e_netdev_set_tcs(struct net_device *netdev)
 		netdev_set_tc_queue(netdev, tc, nch, 0);
 }
 
-static void mlx5e_build_channels_tx_maps(struct mlx5e_priv *priv)
+static void mlx5e_build_tc2txq_maps(struct mlx5e_priv *priv)
+{
+	int max_nch = priv->profile->max_nch(priv->mdev);
+	int i, tc;
+
+	for (i = 0; i < max_nch; i++)
+		for (tc = 0; tc < priv->profile->max_tc; tc++)
+			priv->channel_tc2txq[i][tc] = i + tc * max_nch;
+}
+
+static void mlx5e_build_tx2sq_maps(struct mlx5e_priv *priv)
 {
 	struct mlx5e_channel *c;
 	struct mlx5e_txqsq *sq;
 	int i, tc;
-
-	for (i = 0; i < priv->profile->max_nch(priv->mdev); i++)
-		for (tc = 0; tc < priv->profile->max_tc; tc++)
-			priv->channel_tc2txq[i][tc] = i + tc * priv->channels.num;
 
 	for (i = 0; i < priv->channels.num; i++) {
 		c = priv->channels.c[i];
@@ -2661,7 +2667,7 @@ void mlx5e_activate_priv_channels(struct mlx5e_priv *priv)
 	netif_set_real_num_tx_queues(netdev, num_txqs);
 	netif_set_real_num_rx_queues(netdev, priv->channels.num);
 
-	mlx5e_build_channels_tx_maps(priv);
+	mlx5e_build_tx2sq_maps(priv);
 	mlx5e_activate_channels(&priv->channels);
 	write_lock(&priv->stats_lock);
 	priv->channels_active = true;
@@ -4446,6 +4452,7 @@ static void mlx5e_nic_init(struct mlx5_core_dev *mdev,
 	if (err)
 		mlx5_core_err(mdev, "TLS initialization failed, %d\n", err);
 	mlx5e_build_nic_netdev(netdev);
+	mlx5e_build_tc2txq_maps(priv);
 	mlx5e_vxlan_init(priv);
 }
 

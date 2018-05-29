@@ -1161,9 +1161,6 @@ static int mlx5e_grp_channels_get_num_stats(struct mlx5e_priv *priv)
 {
 	int max_nch = priv->profile->max_nch(priv->mdev);
 
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
-		return 0;
-
 	return (NUM_RQ_STATS * max_nch) +
 	       (NUM_CH_STATS * max_nch) +
 	       (NUM_SQ_STATS * max_nch * priv->max_opened_tc);
@@ -1175,9 +1172,6 @@ static int mlx5e_grp_channels_fill_strings(struct mlx5e_priv *priv, u8 *data,
 	int max_nch = priv->profile->max_nch(priv->mdev);
 	int i, j, tc;
 
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
-		return idx;
-
 	for (i = 0; i < max_nch; i++)
 		for (j = 0; j < NUM_CH_STATS; j++)
 			sprintf(data + (idx++) * ETH_GSTRING_LEN,
@@ -1187,7 +1181,6 @@ static int mlx5e_grp_channels_fill_strings(struct mlx5e_priv *priv, u8 *data,
 		for (j = 0; j < NUM_RQ_STATS; j++)
 			sprintf(data + (idx++) * ETH_GSTRING_LEN, rq_stats_desc[j].format, i);
 
-	/* priv->channel_tc2txq[i][tc] is valid only when device is open */
 	for (tc = 0; tc < priv->max_opened_tc; tc++)
 		for (i = 0; i < max_nch; i++)
 			for (j = 0; j < NUM_SQ_STATS; j++)
@@ -1203,9 +1196,6 @@ static int mlx5e_grp_channels_fill_stats(struct mlx5e_priv *priv, u64 *data,
 {
 	int max_nch = priv->profile->max_nch(priv->mdev);
 	int i, j, tc;
-
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
-		return idx;
 
 	for (i = 0; i < max_nch; i++)
 		for (j = 0; j < NUM_CH_STATS; j++)
