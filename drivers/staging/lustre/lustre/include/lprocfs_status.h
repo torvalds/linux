@@ -454,11 +454,6 @@ int ldebugfs_add_vars(struct dentry *parent,
 		      struct lprocfs_vars *var,
 		      void *data);
 
-struct dentry *ldebugfs_register(const char *name,
-				 struct dentry *parent,
-				 struct lprocfs_vars *list,
-				 void *data);
-
 void ldebugfs_remove(struct dentry **entryp);
 
 int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list,

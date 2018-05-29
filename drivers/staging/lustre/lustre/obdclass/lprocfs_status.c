@@ -338,32 +338,6 @@ void ldebugfs_remove(struct dentry **entryp)
 }
 EXPORT_SYMBOL_GPL(ldebugfs_remove);
 
-struct dentry *ldebugfs_register(const char *name,
-				 struct dentry *parent,
-				 struct lprocfs_vars *list, void *data)
-{
-	struct dentry *entry;
-
-	entry = debugfs_create_dir(name, parent);
-	if (IS_ERR_OR_NULL(entry)) {
-		entry = entry ?: ERR_PTR(-ENOMEM);
-		goto out;
-	}
-
-	if (!IS_ERR_OR_NULL(list)) {
-		int rc;
-
-		rc = ldebugfs_add_vars(entry, list, data);
-		if (rc != 0) {
-			debugfs_remove(entry);
-			entry = ERR_PTR(rc);
-		}
-	}
-out:
-	return entry;
-}
-EXPORT_SYMBOL_GPL(ldebugfs_register);
-
 /* Generic callbacks */
 static ssize_t uuid_show(struct kobject *kobj, struct attribute *attr,
 			 char *buf)
@@ -1026,16 +1000,9 @@ int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list,
 		}
 	}
 
-	obd->obd_debugfs_entry = ldebugfs_register(obd->obd_name,
-						   obd->obd_type->typ_debugfs_entry,
-						   list, obd);
-	if (IS_ERR_OR_NULL(obd->obd_debugfs_entry)) {
-		rc = obd->obd_debugfs_entry ? PTR_ERR(obd->obd_debugfs_entry)
-					    : -ENOMEM;
-		CERROR("error %d setting up lprocfs for %s\n",
-		       rc, obd->obd_name);
-		obd->obd_debugfs_entry = NULL;
-	}
+	obd->obd_debugfs_entry = debugfs_create_dir(obd->obd_name,
+					obd->obd_type->typ_debugfs_entry);
+	ldebugfs_add_vars(obd->obd_debugfs_entry, list, obd);
 
 	return rc;
 }

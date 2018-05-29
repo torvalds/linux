@@ -158,21 +158,10 @@ static struct lprocfs_vars sptlrpc_lprocfs_vars[] = {
 
 static struct dentry *sptlrpc_debugfs_dir;
 
-int sptlrpc_lproc_init(void)
+void sptlrpc_lproc_init(void)
 {
-	int rc;
-
-	LASSERT(!sptlrpc_debugfs_dir);
-
-	sptlrpc_debugfs_dir = ldebugfs_register("sptlrpc", debugfs_lustre_root,
-						sptlrpc_lprocfs_vars, NULL);
-	if (IS_ERR_OR_NULL(sptlrpc_debugfs_dir)) {
-		rc = sptlrpc_debugfs_dir ? PTR_ERR(sptlrpc_debugfs_dir)
-					 : -ENOMEM;
-		sptlrpc_debugfs_dir = NULL;
-		return rc;
-	}
-	return 0;
+	sptlrpc_debugfs_dir = debugfs_create_dir("sptlrpc", debugfs_lustre_root);
+	ldebugfs_add_vars(sptlrpc_debugfs_dir, sptlrpc_lprocfs_vars, NULL);
 }
 
 void sptlrpc_lproc_fini(void)

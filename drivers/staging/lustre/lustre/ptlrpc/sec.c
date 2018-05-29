@@ -2352,14 +2352,10 @@ int sptlrpc_init(void)
 	if (rc)
 		goto out_null;
 
-	rc = sptlrpc_lproc_init();
-	if (rc)
-		goto out_plain;
+	sptlrpc_lproc_init();
 
 	return 0;
 
-out_plain:
-	sptlrpc_plain_fini();
 out_null:
 	sptlrpc_null_fini();
 out_pool:
