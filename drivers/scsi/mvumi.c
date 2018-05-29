@@ -2155,7 +2155,7 @@ static enum blk_eh_timer_return mvumi_timed_out(struct scsi_cmnd *scmd)
 	mvumi_return_cmd(mhba, cmd);
 	spin_unlock_irqrestore(mhba->shost->host_lock, flags);
 
-	return BLK_EH_NOT_HANDLED;
+	return BLK_EH_DONE;
 }
 
 static int

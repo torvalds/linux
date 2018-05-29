@@ -93,7 +93,7 @@ static void blk_rq_timed_out(struct request *req)
 		blk_add_timer(req);
 		blk_clear_rq_complete(req);
 		break;
-	case BLK_EH_NOT_HANDLED:
+	case BLK_EH_DONE:
 		/*
 		 * LLD handles this for now but in the future
 		 * we can send a request msg to abort the command

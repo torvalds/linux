@@ -784,7 +784,7 @@ static void blk_mq_rq_timed_out(struct request *req, bool reserved)
 	case BLK_EH_RESET_TIMER:
 		blk_add_timer(req);
 		break;
-	case BLK_EH_NOT_HANDLED:
+	case BLK_EH_DONE:
 		break;
 	default:
 		printk(KERN_ERR "block: bad eh return: %d\n", ret);

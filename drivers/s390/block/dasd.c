@@ -3053,7 +3053,7 @@ out:
  *
  * Return values:
  * BLK_EH_RESET_TIMER if the request should be left running
- * BLK_EH_NOT_HANDLED if the request is handled or terminated
+ * BLK_EH_DONE if the request is handled or terminated
  *		      by the driver.
  */
 enum blk_eh_timer_return dasd_times_out(struct request *req, bool reserved)
@@ -3065,7 +3065,7 @@ enum blk_eh_timer_return dasd_times_out(struct request *req, bool reserved)
 	int rc = 0;
 
 	if (!cqr)
-		return BLK_EH_NOT_HANDLED;
+		return BLK_EH_DONE;
 
 	spin_lock_irqsave(&cqr->dq->lock, flags);
 	device = cqr->startdev ? cqr->startdev : block->base;
@@ -3124,7 +3124,7 @@ enum blk_eh_timer_return dasd_times_out(struct request *req, bool reserved)
 	spin_unlock(&block->queue_lock);
 	spin_unlock_irqrestore(&cqr->dq->lock, flags);
 
-	return rc ? BLK_EH_RESET_TIMER : BLK_EH_NOT_HANDLED;
+	return rc ? BLK_EH_RESET_TIMER : BLK_EH_DONE;
 }
 
 static int dasd_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,

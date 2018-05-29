@@ -326,7 +326,7 @@ typedef int (init_rq_fn)(struct request_queue *, struct request *, gfp_t);
 typedef void (exit_rq_fn)(struct request_queue *, struct request *);
 
 enum blk_eh_timer_return {
-	BLK_EH_NOT_HANDLED,
+	BLK_EH_DONE,
 	BLK_EH_HANDLED,
 	BLK_EH_RESET_TIMER,
 };

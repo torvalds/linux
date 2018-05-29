@@ -2087,7 +2087,7 @@ fc_eh_timed_out(struct scsi_cmnd *scmd)
 	if (rport->port_state == FC_PORTSTATE_BLOCKED)
 		return BLK_EH_RESET_TIMER;
 
-	return BLK_EH_NOT_HANDLED;
+	return BLK_EH_DONE;
 }
 EXPORT_SYMBOL(fc_eh_timed_out);
 
@@ -3592,7 +3592,7 @@ fc_bsg_job_timeout(struct request *req)
 
 	/* the blk_end_sync_io() doesn't check the error */
 	if (!inflight)
-		return BLK_EH_NOT_HANDLED;
+		return BLK_EH_DONE;
 	else
 		return BLK_EH_HANDLED;
 }
