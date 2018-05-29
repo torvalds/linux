@@ -110,34 +110,13 @@ int ldlm_debugfs_setup(void)
 {
 	int rc;
 
-	ldlm_debugfs_dir = ldebugfs_register(OBD_LDLM_DEVICENAME,
-					     debugfs_lustre_root,
-					     NULL, NULL);
-	if (IS_ERR_OR_NULL(ldlm_debugfs_dir)) {
-		CERROR("LProcFS failed in ldlm-init\n");
-		rc = ldlm_debugfs_dir ? PTR_ERR(ldlm_debugfs_dir) : -ENOMEM;
-		goto err;
-	}
+	ldlm_debugfs_dir = debugfs_create_dir(OBD_LDLM_DEVICENAME,
+					      debugfs_lustre_root);
 
-	ldlm_ns_debugfs_dir = ldebugfs_register("namespaces",
-						ldlm_debugfs_dir,
-						NULL, NULL);
-	if (IS_ERR_OR_NULL(ldlm_ns_debugfs_dir)) {
-		CERROR("LProcFS failed in ldlm-init\n");
-		rc = ldlm_ns_debugfs_dir ? PTR_ERR(ldlm_ns_debugfs_dir)
-					 : -ENOMEM;
-		goto err_type;
-	}
+	ldlm_ns_debugfs_dir = debugfs_create_dir("namespaces",
+						 ldlm_debugfs_dir);
 
-	ldlm_svc_debugfs_dir = ldebugfs_register("services",
-						 ldlm_debugfs_dir,
-						 NULL, NULL);
-	if (IS_ERR_OR_NULL(ldlm_svc_debugfs_dir)) {
-		CERROR("LProcFS failed in ldlm-init\n");
-		rc = ldlm_svc_debugfs_dir ? PTR_ERR(ldlm_svc_debugfs_dir)
-					  : -ENOMEM;
-		goto err_ns;
-	}
+	ldlm_svc_debugfs_dir = debugfs_create_dir("services", ldlm_debugfs_dir);
 
 	rc = ldebugfs_add_vars(ldlm_debugfs_dir, ldlm_debugfs_list, NULL);
 	if (rc) {
@@ -149,11 +128,8 @@ int ldlm_debugfs_setup(void)
 
 err_svc:
 	ldebugfs_remove(&ldlm_svc_debugfs_dir);
-err_ns:
 	ldebugfs_remove(&ldlm_ns_debugfs_dir);
-err_type:
 	ldebugfs_remove(&ldlm_debugfs_dir);
-err:
 	ldlm_svc_debugfs_dir = NULL;
 	ldlm_ns_debugfs_dir = NULL;
 	ldlm_debugfs_dir = NULL;

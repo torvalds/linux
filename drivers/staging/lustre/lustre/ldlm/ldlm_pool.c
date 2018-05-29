@@ -572,14 +572,7 @@ static int ldlm_pool_debugfs_init(struct ldlm_pool *pl)
 		rc = -EINVAL;
 		goto out_free_name;
 	}
-	pl->pl_debugfs_entry = ldebugfs_register("pool", debugfs_ns_parent,
-						 NULL, NULL);
-	if (IS_ERR(pl->pl_debugfs_entry)) {
-		CERROR("LdebugFS failed in ldlm-pool-init\n");
-		rc = PTR_ERR(pl->pl_debugfs_entry);
-		pl->pl_debugfs_entry = NULL;
-		goto out_free_name;
-	}
+	pl->pl_debugfs_entry = debugfs_create_dir("pool", debugfs_ns_parent);
 
 	var_name[MAX_STRING_SIZE] = '\0';
 	memset(pool_vars, 0, sizeof(pool_vars));

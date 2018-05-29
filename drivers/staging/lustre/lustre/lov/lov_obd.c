@@ -809,9 +809,8 @@ int lov_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	debugfs_create_file("target_obd", 0444, obd->obd_debugfs_entry, obd,
 			    &lov_proc_target_fops);
 
-	lov->lov_pool_debugfs_entry = ldebugfs_register("pools",
-						     obd->obd_debugfs_entry,
-						     NULL, NULL);
+	lov->lov_pool_debugfs_entry = debugfs_create_dir("pools",
+							 obd->obd_debugfs_entry);
 	return 0;
 
 out:

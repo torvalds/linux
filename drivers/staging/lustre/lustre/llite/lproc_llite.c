@@ -1157,12 +1157,7 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 	snprintf(name, MAX_STRING_SIZE, "%.*s-%p", len,
 		 lsi->lsi_lmd->lmd_profile, sb);
 
-	dir = ldebugfs_register(name, parent, NULL, NULL);
-	if (IS_ERR_OR_NULL(dir)) {
-		err = dir ? PTR_ERR(dir) : -ENOMEM;
-		sbi->ll_debugfs_entry = NULL;
-		return err;
-	}
+	dir = debugfs_create_dir(name, parent);
 	sbi->ll_debugfs_entry = dir;
 
 	debugfs_create_file("dump_page_cache", 0444, dir, sbi,

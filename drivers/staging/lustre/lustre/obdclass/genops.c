@@ -170,15 +170,8 @@ int class_register_type(struct obd_ops *dt_ops, struct md_ops *md_ops,
 	strcpy(type->typ_name, name);
 	spin_lock_init(&type->obd_type_lock);
 
-	type->typ_debugfs_entry = ldebugfs_register(type->typ_name,
-						    debugfs_lustre_root,
-						    NULL, type);
-	if (IS_ERR_OR_NULL(type->typ_debugfs_entry)) {
-		rc = type->typ_debugfs_entry ? PTR_ERR(type->typ_debugfs_entry)
-					     : -ENOMEM;
-		type->typ_debugfs_entry = NULL;
-		goto failed;
-	}
+	type->typ_debugfs_entry = debugfs_create_dir(type->typ_name,
+						     debugfs_lustre_root);
 
 	type->typ_kobj = kobject_create_and_add(type->typ_name, lustre_kobj);
 	if (!type->typ_kobj) {

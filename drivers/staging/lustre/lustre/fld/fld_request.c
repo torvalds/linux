@@ -221,17 +221,8 @@ static int fld_client_debugfs_init(struct lu_client_fld *fld)
 {
 	int rc;
 
-	fld->lcf_debugfs_entry = ldebugfs_register(fld->lcf_name,
-						   fld_debugfs_dir,
-						   NULL, NULL);
-
-	if (IS_ERR_OR_NULL(fld->lcf_debugfs_entry)) {
-		CERROR("%s: LdebugFS failed in fld-init\n", fld->lcf_name);
-		rc = fld->lcf_debugfs_entry ? PTR_ERR(fld->lcf_debugfs_entry)
-					    : -ENOMEM;
-		fld->lcf_debugfs_entry = NULL;
-		return rc;
-	}
+	fld->lcf_debugfs_entry = debugfs_create_dir(fld->lcf_name,
+						    fld_debugfs_dir);
 
 	rc = ldebugfs_add_vars(fld->lcf_debugfs_entry,
 			       fld_client_debugfs_list, fld);
@@ -455,10 +446,9 @@ static int __init fld_init(void)
 	if (rc)
 		return rc;
 
-	fld_debugfs_dir = ldebugfs_register(LUSTRE_FLD_NAME,
-					    debugfs_lustre_root,
-					    NULL, NULL);
-	return PTR_ERR_OR_ZERO(fld_debugfs_dir);
+	fld_debugfs_dir = debugfs_create_dir(LUSTRE_FLD_NAME,
+					     debugfs_lustre_root);
+	return 0;
 }
 
 static void __exit fld_exit(void)

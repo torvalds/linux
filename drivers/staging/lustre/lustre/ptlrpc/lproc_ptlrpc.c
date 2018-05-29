@@ -197,15 +197,10 @@ ptlrpc_ldebugfs_register(struct dentry *root, char *dir,
 	if (!svc_stats)
 		return;
 
-	if (dir) {
-		svc_debugfs_entry = ldebugfs_register(dir, root, NULL, NULL);
-		if (IS_ERR(svc_debugfs_entry)) {
-			lprocfs_free_stats(&svc_stats);
-			return;
-		}
-	} else {
+	if (dir)
+		svc_debugfs_entry = debugfs_create_dir(dir, root);
+	else
 		svc_debugfs_entry = root;
-	}
 
 	lprocfs_counter_init(svc_stats, PTLRPC_REQWAIT_CNTR,
 			     svc_counter_config, "req_waittime", "usec");
