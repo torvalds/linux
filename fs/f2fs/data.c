@@ -2069,7 +2069,7 @@ continue_unlock:
 	return ret;
 }
 
-int __f2fs_write_data_pages(struct address_space *mapping,
+static int __f2fs_write_data_pages(struct address_space *mapping,
 						struct writeback_control *wbc,
 						enum iostat_type io_type)
 {
