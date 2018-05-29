@@ -213,7 +213,7 @@
 	vdd_arm: vdd-arm-regulator {
 		compatible = "pwm-regulator";
 		rockchip,pwm_id = <1>;
-		rockchip,pwm_voltage = <1200000>;
+		regulator-init-microvolt = <1200000>;
 		pwms = <&pwm1 0 5000 1>;
 		regulator-name = "vdd_arm";
 		regulator-min-microvolt = <950000>;
