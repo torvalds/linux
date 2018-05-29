@@ -566,21 +566,16 @@ DEFINE_SHOW_ATTRIBUTE(tcpm_debug);
 
 static struct dentry *rootdir;
 
-static int tcpm_debugfs_init(struct tcpm_port *port)
+static void tcpm_debugfs_init(struct tcpm_port *port)
 {
 	mutex_init(&port->logbuffer_lock);
 	/* /sys/kernel/debug/tcpm/usbcX */
-	if (!rootdir) {
+	if (!rootdir)
 		rootdir = debugfs_create_dir("tcpm", NULL);
-		if (!rootdir)
-			return -ENOMEM;
-	}
 
 	port->dentry = debugfs_create_file(dev_name(port->dev),
 					   S_IFREG | 0444, rootdir,
 					   port, &tcpm_debug_fops);
-
-	return 0;
 }
 
 static void tcpm_debugfs_exit(struct tcpm_port *port)
@@ -595,7 +590,7 @@ static void tcpm_log(const struct tcpm_port *port, const char *fmt, ...) { }
 __printf(2, 3)
 static void tcpm_log_force(struct tcpm_port *port, const char *fmt, ...) { }
 static void tcpm_log_source_caps(struct tcpm_port *port) { }
-static int tcpm_debugfs_init(const struct tcpm_port *port) { return 0; }
+static void tcpm_debugfs_init(const struct tcpm_port *port) { }
 static void tcpm_debugfs_exit(const struct tcpm_port *port) { }
 
 #endif
