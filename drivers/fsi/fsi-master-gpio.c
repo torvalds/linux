@@ -18,6 +18,7 @@
 
 #define	FSI_GPIO_STD_DLY	1	/* Standard pin delay in nS */
 #define	FSI_ECHO_DELAY_CLOCKS	16	/* Number clocks for echo delay */
+#define	FSI_SEND_DELAY_CLOCKS	16	/* Number clocks for send delay */
 #define	FSI_PRE_BREAK_CLOCKS	50	/* Number clocks to prep for break */
 #define	FSI_BREAK_CLOCKS	256	/* Number of clocks to issue break */
 #define	FSI_POST_BREAK_CLOCKS	16000	/* Number clocks to set up cfam */
@@ -48,7 +49,6 @@
 #define	FSI_GPIO_CRC_SIZE	4
 #define	FSI_GPIO_MSG_ID_SIZE		2
 #define	FSI_GPIO_MSG_RESPID_SIZE	2
-#define	FSI_GPIO_PRIME_SLAVE_CLOCKS	20
 
 #define LAST_ADDR_INVALID		0x1
 
@@ -535,9 +535,12 @@ retry:
 	if (busy_count > 0)
 		trace_fsi_master_gpio_poll_response_busy(master, busy_count);
  fail:
-	/* Clock the slave enough to be ready for next operation */
+	/*
+	 * tSendDelay clocks, avoids signal reflections when switching
+	 * from receive of response back to send of data.
+	 */
 	local_irq_save(flags);
-	clock_zeros(master, FSI_GPIO_PRIME_SLAVE_CLOCKS);
+	clock_zeros(master, FSI_SEND_DELAY_CLOCKS);
 	local_irq_restore(flags);
 
 	return rc;
