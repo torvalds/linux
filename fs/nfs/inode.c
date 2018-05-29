@@ -1633,7 +1633,8 @@ int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	nfs_fattr_set_barrier(fattr);
 	status = nfs_post_op_update_inode_locked(inode, fattr,
 			NFS_INO_INVALID_CHANGE
-			| NFS_INO_INVALID_CTIME);
+			| NFS_INO_INVALID_CTIME
+			| NFS_INO_REVAL_FORCED);
 	spin_unlock(&inode->i_lock);
 
 	return status;
