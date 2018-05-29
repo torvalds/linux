@@ -315,10 +315,6 @@ struct dentry *ldebugfs_add_simple(struct dentry *root,
 	if (fops->write)
 		mode |= 0200;
 	entry = debugfs_create_file(name, mode, root, data, fops);
-	if (IS_ERR_OR_NULL(entry)) {
-		CERROR("LprocFS: No memory to create <debugfs> entry %s\n", name);
-		return entry ?: ERR_PTR(-ENOMEM);
-	}
 	return entry;
 }
 EXPORT_SYMBOL_GPL(ldebugfs_add_simple);
@@ -348,8 +344,6 @@ int ldebugfs_add_vars(struct dentry *parent,
 					    list->data ?: data,
 					    list->fops ?: &lprocfs_generic_fops
 					   );
-		if (IS_ERR_OR_NULL(entry))
-			return entry ? PTR_ERR(entry) : -ENOMEM;
 		list++;
 	}
 	return 0;
@@ -1358,9 +1352,6 @@ int ldebugfs_register_stats(struct dentry *parent, const char *name,
 
 	entry = debugfs_create_file(name, 0644, parent, stats,
 				    &lprocfs_stats_seq_fops);
-	if (IS_ERR_OR_NULL(entry))
-		return entry ? PTR_ERR(entry) : -ENOMEM;
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ldebugfs_register_stats);
@@ -1588,8 +1579,6 @@ int ldebugfs_seq_create(struct dentry *parent, const char *name,
 	LASSERT((!seq_fops->write) == ((mode & 0222) == 0));
 
 	entry = debugfs_create_file(name, mode, parent, data, seq_fops);
-	if (IS_ERR_OR_NULL(entry))
-		return entry ? PTR_ERR(entry) : -ENOMEM;
 
 	return 0;
 }

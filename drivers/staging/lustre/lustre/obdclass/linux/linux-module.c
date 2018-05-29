@@ -481,7 +481,6 @@ static const struct attribute_group lustre_attr_group = {
 int class_procfs_init(void)
 {
 	int rc = -ENOMEM;
-	struct dentry *file;
 
 	lustre_kobj = kobject_create_and_add("lustre", fs_kobj);
 	if (!lustre_kobj)
@@ -495,23 +494,9 @@ int class_procfs_init(void)
 	}
 
 	debugfs_lustre_root = debugfs_create_dir("lustre", NULL);
-	if (IS_ERR_OR_NULL(debugfs_lustre_root)) {
-		rc = debugfs_lustre_root ? PTR_ERR(debugfs_lustre_root)
-					 : -ENOMEM;
-		debugfs_lustre_root = NULL;
-		sysfs_remove_group(lustre_kobj, &lustre_attr_group);
-		kobject_put(lustre_kobj);
-		goto out;
-	}
 
-	file = debugfs_create_file("devices", 0444, debugfs_lustre_root, NULL,
-				   &obd_device_list_fops);
-	if (IS_ERR_OR_NULL(file)) {
-		rc = file ? PTR_ERR(file) : -ENOMEM;
-		sysfs_remove_group(lustre_kobj, &lustre_attr_group);
-		kobject_put(lustre_kobj);
-		goto out;
-	}
+	debugfs_create_file("devices", 0444, debugfs_lustre_root, NULL,
+			    &obd_device_list_fops);
 out:
 	return rc;
 }
