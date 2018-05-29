@@ -21,6 +21,29 @@
  *
  */
 
+/**
+ * DOC: Overview
+ *
+ * The GPU scheduler provides entities which allow userspace to push jobs
+ * into software queues which are then scheduled on a hardware run queue.
+ * The software queues have a priority among them. The scheduler selects the entities
+ * from the run queue using a FIFO. The scheduler provides dependency handling
+ * features among jobs. The driver is supposed to provide callback functions for
+ * backend operations to the scheduler like submitting a job to hardware run queue,
+ * returning the dependencies of a job etc.
+ *
+ * The organisation of the scheduler is the following:
+ *
+ * 1. Each hw run queue has one scheduler
+ * 2. Each scheduler has multiple run queues with different priorities
+ *    (e.g., HIGH_HW,HIGH_SW, KERNEL, NORMAL)
+ * 3. Each scheduler run queue has a queue of entities to schedule
+ * 4. Entities themselves maintain a queue of jobs that will be scheduled on
+ *    the hardware.
+ *
+ * The jobs in a entity are always scheduled in the order that they were pushed.
+ */
+
 #include <linux/kthread.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
@@ -39,7 +62,13 @@ static bool drm_sched_entity_is_ready(struct drm_sched_entity *entity);
 static void drm_sched_wakeup(struct drm_gpu_scheduler *sched);
 static void drm_sched_process_job(struct dma_fence *f, struct dma_fence_cb *cb);
 
-/* Initialize a given run queue struct */
+/**
+ * drm_sched_rq_init - initialize a given run queue struct
+ *
+ * @rq: scheduler run queue
+ *
+ * Initializes a scheduler runqueue.
+ */
 static void drm_sched_rq_init(struct drm_sched_rq *rq)
 {
 	spin_lock_init(&rq->lock);
@@ -47,6 +76,14 @@ static void drm_sched_rq_init(struct drm_sched_rq *rq)
 	rq->current_entity = NULL;
 }
 
+/**
+ * drm_sched_rq_add_entity - add an entity
+ *
+ * @rq: scheduler run queue
+ * @entity: scheduler entity
+ *
+ * Adds a scheduler entity to the run queue.
+ */
 static void drm_sched_rq_add_entity(struct drm_sched_rq *rq,
 				    struct drm_sched_entity *entity)
 {
@@ -57,6 +94,14 @@ static void drm_sched_rq_add_entity(struct drm_sched_rq *rq,
 	spin_unlock(&rq->lock);
 }
 
+/**
+ * drm_sched_rq_remove_entity - remove an entity
+ *
+ * @rq: scheduler run queue
+ * @entity: scheduler entity
+ *
+ * Removes a scheduler entity from the run queue.
+ */
 static void drm_sched_rq_remove_entity(struct drm_sched_rq *rq,
 				       struct drm_sched_entity *entity)
 {
@@ -70,9 +115,9 @@ static void drm_sched_rq_remove_entity(struct drm_sched_rq *rq,
 }
 
 /**
- * Select an entity which could provide a job to run
+ * drm_sched_rq_select_entity - Select an entity which could provide a job to run
  *
- * @rq		The run queue to check.
+ * @rq: scheduler run queue to check.
  *
  * Try to find a ready entity, returns NULL if none found.
  */
@@ -112,15 +157,16 @@ drm_sched_rq_select_entity(struct drm_sched_rq *rq)
 }
 
 /**
- * Init a context entity used by scheduler when submit to HW ring.
+ * drm_sched_entity_init - Init a context entity used by scheduler when
+ * submit to HW ring.
  *
- * @sched	The pointer to the scheduler
- * @entity	The pointer to a valid drm_sched_entity
- * @rq		The run queue this entity belongs
- * @guilty      atomic_t set to 1 when a job on this queue
- *              is found to be guilty causing a timeout
+ * @sched: scheduler instance
+ * @entity: scheduler entity to init
+ * @rq: the run queue this entity belongs
+ * @guilty: atomic_t set to 1 when a job on this queue
+ *          is found to be guilty causing a timeout
  *
- * return 0 if succeed. negative error code on failure
+ * Returns 0 on success or a negative error code on failure.
 */
 int drm_sched_entity_init(struct drm_gpu_scheduler *sched,
 			  struct drm_sched_entity *entity,
@@ -149,10 +195,10 @@ int drm_sched_entity_init(struct drm_gpu_scheduler *sched,
 EXPORT_SYMBOL(drm_sched_entity_init);
 
 /**
- * Query if entity is initialized
+ * drm_sched_entity_is_initialized - Query if entity is initialized
  *
- * @sched       Pointer to scheduler instance
- * @entity	The pointer to a valid scheduler entity
+ * @sched: Pointer to scheduler instance
+ * @entity: The pointer to a valid scheduler entity
  *
  * return true if entity is initialized, false otherwise
 */
@@ -164,11 +210,11 @@ static bool drm_sched_entity_is_initialized(struct drm_gpu_scheduler *sched,
 }
 
 /**
- * Check if entity is idle
+ * drm_sched_entity_is_idle - Check if entity is idle
  *
- * @entity	The pointer to a valid scheduler entity
+ * @entity: scheduler entity
  *
- * Return true if entity don't has any unscheduled jobs.
+ * Returns true if the entity does not have any unscheduled jobs.
  */
 static bool drm_sched_entity_is_idle(struct drm_sched_entity *entity)
 {
@@ -180,9 +226,9 @@ static bool drm_sched_entity_is_idle(struct drm_sched_entity *entity)
 }
 
 /**
- * Check if entity is ready
+ * drm_sched_entity_is_ready - Check if entity is ready
  *
- * @entity	The pointer to a valid scheduler entity
+ * @entity: scheduler entity
  *
  * Return true if entity could provide a job.
  */
@@ -210,12 +256,12 @@ static void drm_sched_entity_kill_jobs_cb(struct dma_fence *f,
 
 
 /**
- * Destroy a context entity
+ * drm_sched_entity_do_release - Destroy a context entity
  *
- * @sched       Pointer to scheduler instance
- * @entity	The pointer to a valid scheduler entity
+ * @sched: scheduler instance
+ * @entity: scheduler entity
  *
- * Splitting drm_sched_entity_fini() into two functions, The first one is does the waiting,
+ * Splitting drm_sched_entity_fini() into two functions, The first one does the waiting,
  * removes the entity from the runqueue and returns an error when the process was killed.
  */
 void drm_sched_entity_do_release(struct drm_gpu_scheduler *sched,
@@ -237,12 +283,13 @@ void drm_sched_entity_do_release(struct drm_gpu_scheduler *sched,
 EXPORT_SYMBOL(drm_sched_entity_do_release);
 
 /**
- * Destroy a context entity
+ * drm_sched_entity_cleanup - Destroy a context entity
  *
- * @sched       Pointer to scheduler instance
- * @entity	The pointer to a valid scheduler entity
+ * @sched: scheduler instance
+ * @entity: scheduler entity
  *
- * The second one then goes over the entity and signals all jobs with an error code.
+ * This should be called after @drm_sched_entity_do_release. It goes over the
+ * entity and signals all jobs with an error code if the process was killed.
  */
 void drm_sched_entity_cleanup(struct drm_gpu_scheduler *sched,
 			   struct drm_sched_entity *entity)
@@ -281,6 +328,14 @@ void drm_sched_entity_cleanup(struct drm_gpu_scheduler *sched,
 }
 EXPORT_SYMBOL(drm_sched_entity_cleanup);
 
+/**
+ * drm_sched_entity_fini - Destroy a context entity
+ *
+ * @sched: scheduler instance
+ * @entity: scheduler entity
+ *
+ * Calls drm_sched_entity_do_release() and drm_sched_entity_cleanup()
+ */
 void drm_sched_entity_fini(struct drm_gpu_scheduler *sched,
 				struct drm_sched_entity *entity)
 {
@@ -306,6 +361,15 @@ static void drm_sched_entity_clear_dep(struct dma_fence *f, struct dma_fence_cb 
 	dma_fence_put(f);
 }
 
+/**
+ * drm_sched_entity_set_rq - Sets the run queue for an entity
+ *
+ * @entity: scheduler entity
+ * @rq: scheduler run queue
+ *
+ * Sets the run queue for an entity and removes the entity from the previous
+ * run queue in which was present.
+ */
 void drm_sched_entity_set_rq(struct drm_sched_entity *entity,
 			     struct drm_sched_rq *rq)
 {
@@ -325,6 +389,14 @@ void drm_sched_entity_set_rq(struct drm_sched_entity *entity,
 }
 EXPORT_SYMBOL(drm_sched_entity_set_rq);
 
+/**
+ * drm_sched_dependency_optimized
+ *
+ * @fence: the dependency fence
+ * @entity: the entity which depends on the above fence
+ *
+ * Returns true if the dependency can be optimized and false otherwise
+ */
 bool drm_sched_dependency_optimized(struct dma_fence* fence,
 				    struct drm_sched_entity *entity)
 {
@@ -413,9 +485,10 @@ drm_sched_entity_pop_job(struct drm_sched_entity *entity)
 }
 
 /**
- * Submit a job to the job queue
+ * drm_sched_entity_push_job - Submit a job to the entity's job queue
  *
- * @sched_job		The pointer to job required to submit
+ * @sched_job: job to submit
+ * @entity: scheduler entity
  *
  * Note: To guarantee that the order of insertion to queue matches
  * the job's fence sequence number this function should be
@@ -506,6 +579,13 @@ static void drm_sched_job_timedout(struct work_struct *work)
 	job->sched->ops->timedout_job(job);
 }
 
+/**
+ * drm_sched_hw_job_reset - stop the scheduler if it contains the bad job
+ *
+ * @sched: scheduler instance
+ * @bad: bad scheduler job
+ *
+ */
 void drm_sched_hw_job_reset(struct drm_gpu_scheduler *sched, struct drm_sched_job *bad)
 {
 	struct drm_sched_job *s_job;
@@ -550,6 +630,12 @@ void drm_sched_hw_job_reset(struct drm_gpu_scheduler *sched, struct drm_sched_jo
 }
 EXPORT_SYMBOL(drm_sched_hw_job_reset);
 
+/**
+ * drm_sched_job_recovery - recover jobs after a reset
+ *
+ * @sched: scheduler instance
+ *
+ */
 void drm_sched_job_recovery(struct drm_gpu_scheduler *sched)
 {
 	struct drm_sched_job *s_job, *tmp;
@@ -599,10 +685,17 @@ void drm_sched_job_recovery(struct drm_gpu_scheduler *sched)
 EXPORT_SYMBOL(drm_sched_job_recovery);
 
 /**
- * Init a sched_job with basic field
+ * drm_sched_job_init - init a scheduler job
  *
- * Note: Refer to drm_sched_entity_push_job documentation
+ * @job: scheduler job to init
+ * @sched: scheduler instance
+ * @entity: scheduler entity to use
+ * @owner: job owner for debugging
+ *
+ * Refer to drm_sched_entity_push_job() documentation
  * for locking considerations.
+ *
+ * Returns 0 for success, negative error code otherwise.
  */
 int drm_sched_job_init(struct drm_sched_job *job,
 		       struct drm_gpu_scheduler *sched,
@@ -626,7 +719,11 @@ int drm_sched_job_init(struct drm_sched_job *job,
 EXPORT_SYMBOL(drm_sched_job_init);
 
 /**
- * Return ture if we can push more jobs to the hw.
+ * drm_sched_ready - is the scheduler ready
+ *
+ * @sched: scheduler instance
+ *
+ * Return true if we can push more jobs to the hw, otherwise false.
  */
 static bool drm_sched_ready(struct drm_gpu_scheduler *sched)
 {
@@ -635,7 +732,10 @@ static bool drm_sched_ready(struct drm_gpu_scheduler *sched)
 }
 
 /**
- * Wake up the scheduler when it is ready
+ * drm_sched_wakeup - Wake up the scheduler when it is ready
+ *
+ * @sched: scheduler instance
+ *
  */
 static void drm_sched_wakeup(struct drm_gpu_scheduler *sched)
 {
@@ -644,8 +744,12 @@ static void drm_sched_wakeup(struct drm_gpu_scheduler *sched)
 }
 
 /**
- * Select next entity to process
-*/
+ * drm_sched_select_entity - Select next entity to process
+ *
+ * @sched: scheduler instance
+ *
+ * Returns the entity to process or NULL if none are found.
+ */
 static struct drm_sched_entity *
 drm_sched_select_entity(struct drm_gpu_scheduler *sched)
 {
@@ -665,6 +769,14 @@ drm_sched_select_entity(struct drm_gpu_scheduler *sched)
 	return entity;
 }
 
+/**
+ * drm_sched_process_job - process a job
+ *
+ * @f: fence
+ * @cb: fence callbacks
+ *
+ * Called after job has finished execution.
+ */
 static void drm_sched_process_job(struct dma_fence *f, struct dma_fence_cb *cb)
 {
 	struct drm_sched_fence *s_fence =
@@ -680,6 +792,13 @@ static void drm_sched_process_job(struct dma_fence *f, struct dma_fence_cb *cb)
 	wake_up_interruptible(&sched->wake_up_worker);
 }
 
+/**
+ * drm_sched_blocked - check if the scheduler is blocked
+ *
+ * @sched: scheduler instance
+ *
+ * Returns true if blocked, otherwise false.
+ */
 static bool drm_sched_blocked(struct drm_gpu_scheduler *sched)
 {
 	if (kthread_should_park()) {
@@ -690,6 +809,13 @@ static bool drm_sched_blocked(struct drm_gpu_scheduler *sched)
 	return false;
 }
 
+/**
+ * drm_sched_main - main scheduler thread
+ *
+ * @param: scheduler instance
+ *
+ * Returns 0.
+ */
 static int drm_sched_main(void *param)
 {
 	struct sched_param sparam = {.sched_priority = 1};
@@ -744,15 +870,17 @@ static int drm_sched_main(void *param)
 }
 
 /**
- * Init a gpu scheduler instance
+ * drm_sched_init - Init a gpu scheduler instance
  *
- * @sched		The pointer to the scheduler
- * @ops			The backend operations for this scheduler.
- * @hw_submissions	Number of hw submissions to do.
- * @name		Name used for debugging
+ * @sched: scheduler instance
+ * @ops: backend operations for this scheduler
+ * @hw_submission: number of hw submissions that can be in flight
+ * @hang_limit: number of times to allow a job to hang before dropping it
+ * @timeout: timeout value in jiffies for the scheduler
+ * @name: name used for debugging
  *
  * Return 0 on success, otherwise error code.
-*/
+ */
 int drm_sched_init(struct drm_gpu_scheduler *sched,
 		   const struct drm_sched_backend_ops *ops,
 		   unsigned hw_submission,
@@ -788,9 +916,11 @@ int drm_sched_init(struct drm_gpu_scheduler *sched,
 EXPORT_SYMBOL(drm_sched_init);
 
 /**
- * Destroy a gpu scheduler
+ * drm_sched_fini - Destroy a gpu scheduler
  *
- * @sched	The pointer to the scheduler
+ * @sched: scheduler instance
+ *
+ * Tears down and cleans up the scheduler.
  */
 void drm_sched_fini(struct drm_gpu_scheduler *sched)
 {
