@@ -1076,7 +1076,7 @@ static int adapter_delete_queue(struct nvme_dev *dev, u8 opcode, u16 id)
 }
 
 static int adapter_alloc_cq(struct nvme_dev *dev, u16 qid,
-						struct nvme_queue *nvmeq)
+		struct nvme_queue *nvmeq, s16 vector)
 {
 	struct nvme_command c;
 	int flags = NVME_QUEUE_PHYS_CONTIG | NVME_CQ_IRQ_ENABLED;
@@ -1091,7 +1091,7 @@ static int adapter_alloc_cq(struct nvme_dev *dev, u16 qid,
 	c.create_cq.cqid = cpu_to_le16(qid);
 	c.create_cq.qsize = cpu_to_le16(nvmeq->q_depth - 1);
 	c.create_cq.cq_flags = cpu_to_le16(flags);
-	c.create_cq.irq_vector = cpu_to_le16(nvmeq->cq_vector);
+	c.create_cq.irq_vector = cpu_to_le16(vector);
 
 	return nvme_submit_sync_cmd(dev->ctrl.admin_q, &c, NULL, 0);
 }
@@ -1462,6 +1462,7 @@ static int nvme_create_queue(struct nvme_queue *nvmeq, int qid)
 {
 	struct nvme_dev *dev = nvmeq->dev;
 	int result;
+	s16 vector;
 
 	if (dev->cmb && use_cmb_sqes && (dev->cmbsz & NVME_CMBSZ_SQS)) {
 		unsigned offset = (qid - 1) * roundup(SQ_SIZE(nvmeq->q_depth),
@@ -1474,15 +1475,21 @@ static int nvme_create_queue(struct nvme_queue *nvmeq, int qid)
 	 * A queue's vector matches the queue identifier unless the controller
 	 * has only one vector available.
 	 */
-	nvmeq->cq_vector = dev->num_vecs == 1 ? 0 : qid;
-	result = adapter_alloc_cq(dev, qid, nvmeq);
+	vector = dev->num_vecs == 1 ? 0 : qid;
+	result = adapter_alloc_cq(dev, qid, nvmeq, vector);
 	if (result < 0)
-		goto release_vector;
+		goto out;
 
 	result = adapter_alloc_sq(dev, qid, nvmeq);
 	if (result < 0)
 		goto release_cq;
 
+	/*
+	 * Set cq_vector after alloc cq/sq, otherwise nvme_suspend_queue will
+	 * invoke free_irq for it and cause a 'Trying to free already-free IRQ
+	 * xxx' warning if the create CQ/SQ command times out.
+	 */
+	nvmeq->cq_vector = vector;
 	nvme_init_queue(nvmeq, qid);
 	result = queue_request_irq(nvmeq);
 	if (result < 0)
@@ -1490,13 +1497,13 @@ static int nvme_create_queue(struct nvme_queue *nvmeq, int qid)
 
 	return result;
 
- release_sq:
+release_sq:
+	nvmeq->cq_vector = -1;
 	dev->online_queues--;
 	adapter_delete_sq(dev, qid);
- release_cq:
+release_cq:
 	adapter_delete_cq(dev, qid);
- release_vector:
-	nvmeq->cq_vector = -1;
+out:
 	return result;
 }
 
@@ -2695,19 +2702,15 @@ static pci_ers_result_t nvme_slot_reset(struct pci_dev *pdev)
 
 	dev_info(dev->ctrl.device, "restart after slot reset\n");
 	pci_restore_state(pdev);
-	nvme_reset_ctrl_sync(&dev->ctrl);
-
-	switch (dev->ctrl.state) {
-	case NVME_CTRL_LIVE:
-	case NVME_CTRL_ADMIN_ONLY:
-		return PCI_ERS_RESULT_RECOVERED;
-	default:
-		return PCI_ERS_RESULT_DISCONNECT;
-	}
+	nvme_reset_ctrl(&dev->ctrl);
+	return PCI_ERS_RESULT_RECOVERED;
 }
 
 static void nvme_error_resume(struct pci_dev *pdev)
 {
+	struct nvme_dev *dev = pci_get_drvdata(pdev);
+
+	flush_work(&dev->ctrl.reset_work);
 	pci_cleanup_aer_uncorrect_error_status(pdev);
 }
 

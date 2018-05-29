@@ -57,7 +57,7 @@ static struct nvmf_host *nvmf_host_add(const char *hostnqn)
 		goto out_unlock;
 
 	kref_init(&host->ref);
-	memcpy(host->nqn, hostnqn, NVMF_NQN_SIZE);
+	strlcpy(host->nqn, hostnqn, NVMF_NQN_SIZE);
 
 	list_add_tail(&host->list, &nvmf_hosts);
 out_unlock:
@@ -689,10 +689,6 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 			opts->discovery_nqn =
 				!(strcmp(opts->subsysnqn,
 					 NVME_DISC_SUBSYS_NAME));
-			if (opts->discovery_nqn) {
-				opts->kato = 0;
-				opts->nr_io_queues = 0;
-			}
 			break;
 		case NVMF_OPT_TRADDR:
 			p = match_strdup(args);
@@ -851,6 +847,11 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 		}
 	}
 
+	if (opts->discovery_nqn) {
+		opts->kato = 0;
+		opts->nr_io_queues = 0;
+		opts->duplicate_connect = true;
+	}
 	if (ctrl_loss_tmo < 0)
 		opts->max_reconnects = -1;
 	else
@@ -981,16 +982,6 @@ nvmf_create_ctrl(struct device *dev, const char *buf, size_t count)
 	if (IS_ERR(ctrl)) {
 		ret = PTR_ERR(ctrl);
 		goto out_module_put;
-	}
-
-	if (strcmp(ctrl->subsys->subnqn, opts->subsysnqn)) {
-		dev_warn(ctrl->device,
-			"controller returned incorrect NQN: \"%s\".\n",
-			ctrl->subsys->subnqn);
-		module_put(ops->module);
-		up_read(&nvmf_transports_rwsem);
-		nvme_delete_ctrl_sync(ctrl);
-		return ERR_PTR(-EINVAL);
 	}
 
 	module_put(ops->module);
