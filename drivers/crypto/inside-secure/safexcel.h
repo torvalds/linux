@@ -327,6 +327,11 @@ struct safexcel_context_record {
 #define CONTEXT_CONTROL_COUNTER_MODE		BIT(10)
 #define CONTEXT_CONTROL_HASH_STORE		BIT(19)
 
+/* The hash counter given to the engine in the context has a granularity of
+ * 64 bits.
+ */
+#define EIP197_COUNTER_BLOCK_SIZE		64
+
 /* EIP197_CS_RAM_CTRL */
 #define EIP197_TRC_ENABLE_0			BIT(4)
 #define EIP197_TRC_ENABLE_1			BIT(5)

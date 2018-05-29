@@ -72,8 +72,7 @@ static void safexcel_hash_token(struct safexcel_command_desc *cdesc,
 static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
 				     struct safexcel_ahash_req *req,
 				     struct safexcel_command_desc *cdesc,
-				     unsigned int digestsize,
-				     unsigned int blocksize)
+				     unsigned int digestsize)
 {
 	int i;
 
@@ -107,7 +106,8 @@ static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
 				ctx->base.ctxr->data[i] = cpu_to_le32(req->state[i]);
 
 			if (req->finish)
-				ctx->base.ctxr->data[i] = cpu_to_le32(req->processed / blocksize);
+				ctx->base.ctxr->data[i] =
+					cpu_to_le32(req->processed / EIP197_COUNTER_BLOCK_SIZE);
 		}
 	} else if (req->digest == CONTEXT_CONTROL_DIGEST_HMAC) {
 		cdesc->control_data.control0 |= CONTEXT_CONTROL_SIZE(2 * req->state_sz / sizeof(u32));
@@ -282,8 +282,7 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 
 send_command:
 	/* Setup the context options */
-	safexcel_context_control(ctx, req, first_cdesc, req->state_sz,
-				 crypto_ahash_blocksize(ahash));
+	safexcel_context_control(ctx, req, first_cdesc, req->state_sz);
 
 	/* Add the token */
 	safexcel_hash_token(first_cdesc, len, req->state_sz);
@@ -335,7 +334,6 @@ static inline bool safexcel_ahash_needs_inv_get(struct ahash_request *areq)
 {
 	struct safexcel_ahash_ctx *ctx = crypto_ahash_ctx(crypto_ahash_reqtfm(areq));
 	struct safexcel_ahash_req *req = ahash_request_ctx(areq);
-	struct crypto_ahash *ahash = crypto_ahash_reqtfm(areq);
 	unsigned int state_w_sz = req->state_sz / sizeof(u32);
 	int i;
 
@@ -344,7 +342,7 @@ static inline bool safexcel_ahash_needs_inv_get(struct ahash_request *areq)
 			return true;
 
 	if (ctx->base.ctxr->data[state_w_sz] !=
-	    cpu_to_le32(req->processed / crypto_ahash_blocksize(ahash)))
+	    cpu_to_le32(req->processed / EIP197_COUNTER_BLOCK_SIZE))
 		return true;
 
 	return false;
