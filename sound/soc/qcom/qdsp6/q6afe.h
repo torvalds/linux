@@ -5,7 +5,7 @@
 
 #include <dt-bindings/sound/qcom,q6afe.h>
 
-#define AFE_PORT_MAX		48
+#define AFE_PORT_MAX		105
 
 #define MSM_AFE_PORT_TYPE_RX 0
 #define MSM_AFE_PORT_TYPE_TX 1
@@ -144,6 +144,8 @@
 /* Clock attribute for invert and no couple case */
 #define Q6AFE_LPASS_CLK_ATTRIBUTE_INVERT_COUPLE_NO	0x4
 
+#define Q6AFE_CMAP_INVALID		0xFFFF
+
 struct q6afe_hdmi_cfg {
 	u16                  datatype;
 	u16                  channel_allocation;
@@ -168,10 +170,25 @@ struct q6afe_i2s_cfg {
 	int fmt;
 };
 
+struct q6afe_tdm_cfg {
+	u16	num_channels;
+	u32	sample_rate;
+	u16	bit_width;
+	u16	data_format;
+	u16	sync_mode;
+	u16	sync_src;
+	u16	nslots_per_frame;
+	u16	slot_width;
+	u16	slot_mask;
+	u32	data_align_type;
+	u16	ch_mapping[AFE_MAX_CHAN_COUNT];
+};
+
 struct q6afe_port_config {
 	struct q6afe_hdmi_cfg hdmi;
 	struct q6afe_slim_cfg slim;
 	struct q6afe_i2s_cfg i2s_cfg;
+	struct q6afe_tdm_cfg tdm;
 };
 
 struct q6afe_port;
@@ -186,6 +203,7 @@ void q6afe_hdmi_port_prepare(struct q6afe_port *port,
 void q6afe_slim_port_prepare(struct q6afe_port *port,
 			  struct q6afe_slim_cfg *cfg);
 int q6afe_i2s_port_prepare(struct q6afe_port *port, struct q6afe_i2s_cfg *cfg);
+void q6afe_tdm_port_prepare(struct q6afe_port *port, struct q6afe_tdm_cfg *cfg);
 
 int q6afe_port_set_sysclk(struct q6afe_port *port, int clk_id,
 			  int clk_src, int clk_root,
