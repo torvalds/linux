@@ -80,7 +80,6 @@ void lov_pool_putref(struct pool_desc *pool)
 	CDEBUG(D_INFO, "pool %p\n", pool);
 	if (atomic_dec_and_test(&pool->pool_refcount)) {
 		LASSERT(list_empty(&pool->pool_list));
-		LASSERT(!pool->pool_debugfs_entry);
 		lov_ost_pool_free(&pool->pool_obds);
 		kfree_rcu(pool, rcu);
 	}
@@ -377,18 +376,11 @@ int lov_pool_new(struct obd_device *obd, char *poolname)
 
 	/* get ref for debugfs file */
 	lov_pool_getref(new_pool);
-	new_pool->pool_debugfs_entry = ldebugfs_add_simple(
+
+	new_pool->pool_debugfs_entry = debugfs_create_file(poolname, 0444,
 						lov->lov_pool_debugfs_entry,
-						poolname, new_pool,
+						new_pool,
 						&pool_proc_operations);
-	if (IS_ERR_OR_NULL(new_pool->pool_debugfs_entry)) {
-		CWARN("Cannot add debugfs pool entry " LOV_POOLNAMEF "\n",
-		      poolname);
-		new_pool->pool_debugfs_entry = NULL;
-		lov_pool_putref(new_pool);
-	}
-	CDEBUG(D_INFO, "pool %p - proc %p\n",
-	       new_pool, new_pool->pool_debugfs_entry);
 
 	spin_lock(&obd->obd_dev_lock);
 	list_add_tail(&new_pool->pool_list, &lov->lov_pool_list);
@@ -443,11 +435,8 @@ int lov_pool_del(struct obd_device *obd, char *poolname)
 	if (!pool)
 		return -ENOENT;
 
-	if (!IS_ERR_OR_NULL(pool->pool_debugfs_entry)) {
-		CDEBUG(D_INFO, "proc entry %p\n", pool->pool_debugfs_entry);
-		ldebugfs_remove(&pool->pool_debugfs_entry);
-		lov_pool_putref(pool);
-	}
+	ldebugfs_remove(&pool->pool_debugfs_entry);
+	lov_pool_putref(pool);
 
 	spin_lock(&obd->obd_dev_lock);
 	list_del_init(&pool->pool_list);

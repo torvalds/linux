@@ -300,25 +300,6 @@ EXPORT_SYMBOL(lprocfs_seq_release);
 
 /* lprocfs API calls */
 
-struct dentry *ldebugfs_add_simple(struct dentry *root,
-				   char *name, void *data,
-				   const struct file_operations *fops)
-{
-	struct dentry *entry;
-	umode_t mode = 0;
-
-	if (!root || !name || !fops)
-		return ERR_PTR(-EINVAL);
-
-	if (fops->read)
-		mode = 0444;
-	if (fops->write)
-		mode |= 0200;
-	entry = debugfs_create_file(name, mode, root, data, fops);
-	return entry;
-}
-EXPORT_SYMBOL_GPL(ldebugfs_add_simple);
-
 static const struct file_operations lprocfs_generic_fops = { };
 
 int ldebugfs_add_vars(struct dentry *parent,
