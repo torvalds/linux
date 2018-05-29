@@ -791,6 +791,7 @@ enum tc_setup_type {
 	TC_SETUP_QDISC_CBS,
 	TC_SETUP_QDISC_RED,
 	TC_SETUP_QDISC_PRIO,
+	TC_SETUP_QDISC_MQ,
 };
 
 /* These structures hold the attributes of bpf state that are being passed

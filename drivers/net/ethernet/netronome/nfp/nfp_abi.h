@@ -59,12 +59,26 @@
  * @NFP_MBOX_POOL_SET:	set shared buffer pool info/config
  * Input  - struct nfp_shared_buf_pool_info_set
  * Output - None
+ *
+ * @NFP_MBOX_PCIE_ABM_ENABLE:	enable PCIe-side advanced buffer management
+ * Enable advanced buffer management of the PCIe block.  If ABM is disabled
+ * PCIe block maintains a very short queue of buffers and does tail drop.
+ * ABM allows more advanced buffering and priority control.
+ * Input  - None
+ * Output - None
+ *
+ * @NFP_MBOX_PCIE_ABM_DISABLE:	disable PCIe-side advanced buffer management
+ * Input  - None
+ * Output - None
  */
 enum nfp_mbox_cmd {
 	NFP_MBOX_NO_CMD			= 0x00,
 
 	NFP_MBOX_POOL_GET		= 0x01,
 	NFP_MBOX_POOL_SET		= 0x02,
+
+	NFP_MBOX_PCIE_ABM_ENABLE	= 0x03,
+	NFP_MBOX_PCIE_ABM_DISABLE	= 0x04,
 };
 
 #define NFP_SHARED_BUF_COUNT_SYM_NAME	"_abi_nfd_pf%u_sb_cnt"

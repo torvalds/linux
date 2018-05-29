@@ -122,6 +122,8 @@ struct nfp_port {
 extern const struct ethtool_ops nfp_port_ethtool_ops;
 extern const struct switchdev_ops nfp_port_switchdev_ops;
 
+__printf(2, 3) u8 *nfp_pr_et(u8 *data, const char *fmt, ...);
+
 int nfp_port_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 		      void *type_data);
 
