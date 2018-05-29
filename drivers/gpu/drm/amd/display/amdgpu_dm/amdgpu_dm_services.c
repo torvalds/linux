@@ -422,31 +422,31 @@ bool dm_pp_apply_clock_for_voltage_request(
 	struct dm_pp_clock_for_voltage_req *clock_for_voltage_req)
 {
 	struct amdgpu_device *adev = ctx->driver_context;
-	struct pp_display_clock_request *pp_clock_request = {0};
+	struct pp_display_clock_request pp_clock_request = {0};
 	int ret = 0;
 	switch (clock_for_voltage_req->clk_type) {
 	case DM_PP_CLOCK_TYPE_DISPLAY_CLK:
-		pp_clock_request->clock_type = amd_pp_disp_clock;
+		pp_clock_request.clock_type = amd_pp_disp_clock;
 		break;
 
 	case DM_PP_CLOCK_TYPE_DCEFCLK:
-		pp_clock_request->clock_type = amd_pp_dcef_clock;
+		pp_clock_request.clock_type = amd_pp_dcef_clock;
 		break;
 
 	case DM_PP_CLOCK_TYPE_PIXELCLK:
-		pp_clock_request->clock_type = amd_pp_pixel_clock;
+		pp_clock_request.clock_type = amd_pp_pixel_clock;
 		break;
 
 	default:
 		return false;
 	}
 
-	pp_clock_request->clock_freq_in_khz = clock_for_voltage_req->clocks_in_khz;
+	pp_clock_request.clock_freq_in_khz = clock_for_voltage_req->clocks_in_khz;
 
 	if (adev->powerplay.pp_funcs->display_clock_voltage_request)
 		ret = adev->powerplay.pp_funcs->display_clock_voltage_request(
 			adev->powerplay.pp_handle,
-			pp_clock_request);
+			&pp_clock_request);
 	if (ret)
 		return false;
 	return true;
@@ -457,19 +457,19 @@ bool dm_pp_get_static_clocks(
 	struct dm_pp_static_clock_info *static_clk_info)
 {
 	struct amdgpu_device *adev = ctx->driver_context;
-	struct amd_pp_clock_info *pp_clk_info = {0};
+	struct amd_pp_clock_info pp_clk_info = {0};
 	int ret = 0;
 
 	if (adev->powerplay.pp_funcs->get_current_clocks)
 		ret = adev->powerplay.pp_funcs->get_current_clocks(
 			adev->powerplay.pp_handle,
-			pp_clk_info);
+			&pp_clk_info);
 	if (ret)
 		return false;
 
-	static_clk_info->max_clocks_state = pp_clk_info->max_clocks_state;
-	static_clk_info->max_mclk_khz = pp_clk_info->max_memory_clock;
-	static_clk_info->max_sclk_khz = pp_clk_info->max_engine_clock;
+	static_clk_info->max_clocks_state = pp_clk_info.max_clocks_state;
+	static_clk_info->max_mclk_khz = pp_clk_info.max_memory_clock;
+	static_clk_info->max_sclk_khz = pp_clk_info.max_engine_clock;
 
 	return true;
 }
