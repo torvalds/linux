@@ -50,6 +50,69 @@ struct cluster_info {
 };
 static LIST_HEAD(cluster_info_list);
 
+static int rk3288_get_soc_info(struct device *dev, struct device_node *np,
+			       int *bin, int *process)
+{
+	int ret = 0, value = -EINVAL;
+
+	if (!bin)
+		goto next;
+	if (of_property_match_string(np, "nvmem-cell-names", "special") >= 0) {
+		ret = rockchip_get_efuse_value(np, "special", &value);
+		if (ret) {
+			dev_err(dev, "Failed to get soc special value\n");
+			goto out;
+		}
+		if (value == 0xc)
+			*bin = 0;
+		else
+			*bin = 1;
+	}
+	if (of_property_match_string(np, "nvmem-cell-names",
+				     "performance") >= 0) {
+		ret = rockchip_get_efuse_value(np, "performance", &value);
+		if (ret) {
+			dev_err(dev, "Failed to get soc performance value\n");
+			goto out;
+		}
+		if (value == 0x2)
+			*bin = 2;
+	}
+	if (*bin >= 0)
+		dev_info(dev, "bin=%d\n", *bin);
+
+next:
+	if (!process)
+		goto out;
+	if (of_property_match_string(np, "nvmem-cell-names",
+				     "process") >= 0) {
+		ret = rockchip_get_efuse_value(np, "process", &value);
+		if (ret) {
+			dev_err(dev, "Failed to get soc process version\n");
+			goto out;
+		}
+		if (value == 0 || value == 1)
+			*process = 0;
+	}
+	if (*process >= 0)
+		dev_info(dev, "process=%d\n", *process);
+
+out:
+	return ret;
+}
+
+static const struct of_device_id rockchip_cpufreq_of_match[] = {
+	{
+		.compatible = "rockchip,rk3288",
+		.data = (void *)&rk3288_get_soc_info,
+	},
+	{
+		.compatible = "rockchip,rk3288w",
+		.data = (void *)&rk3288_get_soc_info,
+	},
+	{},
+};
+
 static struct cluster_info *rockchip_cluster_info_lookup(int cpu)
 {
 	struct cluster_info *cluster;
@@ -107,7 +170,8 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 			     &cluster->threshold_freq);
 	cluster->freq_limit = of_property_read_bool(np, "rockchip,freq-limit");
 
-	rockchip_get_soc_info(dev, NULL, &bin, &cluster->process);
+	rockchip_get_soc_info(dev, rockchip_cpufreq_of_match,
+			      &bin, &cluster->process);
 	rockchip_get_scale_volt_sel(dev, "cpu_leakage", "cpu",
 				    bin, cluster->process,
 				    &cluster->scale, &cluster->volt_sel);
