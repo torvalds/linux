@@ -631,43 +631,42 @@ static void pending_bios_fn(struct btrfs_work *work)
  *		devices.
  */
 static void btrfs_free_stale_devices(const char *path,
-				     struct btrfs_device *skip_dev)
+				     struct btrfs_device *skip_device)
 {
-	struct btrfs_fs_devices *fs_devs, *tmp_fs_devs;
-	struct btrfs_device *dev, *tmp_dev;
+	struct btrfs_fs_devices *fs_devices, *tmp_fs_devices;
+	struct btrfs_device *device, *tmp_device;
 
-	list_for_each_entry_safe(fs_devs, tmp_fs_devs, &fs_uuids, fs_list) {
-
-		if (fs_devs->opened)
+	list_for_each_entry_safe(fs_devices, tmp_fs_devices, &fs_uuids, fs_list) {
+		if (fs_devices->opened)
 			continue;
 
-		list_for_each_entry_safe(dev, tmp_dev,
-					 &fs_devs->devices, dev_list) {
+		list_for_each_entry_safe(device, tmp_device,
+					 &fs_devices->devices, dev_list) {
 			int not_found = 0;
 
-			if (skip_dev && skip_dev == dev)
+			if (skip_device && skip_device == device)
 				continue;
-			if (path && !dev->name)
+			if (path && !device->name)
 				continue;
 
 			rcu_read_lock();
 			if (path)
-				not_found = strcmp(rcu_str_deref(dev->name),
+				not_found = strcmp(rcu_str_deref(device->name),
 						   path);
 			rcu_read_unlock();
 			if (not_found)
 				continue;
 
 			/* delete the stale device */
-			if (fs_devs->num_devices == 1) {
-				btrfs_sysfs_remove_fsid(fs_devs);
-				list_del(&fs_devs->fs_list);
-				free_fs_devices(fs_devs);
+			if (fs_devices->num_devices == 1) {
+				btrfs_sysfs_remove_fsid(fs_devices);
+				list_del(&fs_devices->fs_list);
+				free_fs_devices(fs_devices);
 				break;
 			} else {
-				fs_devs->num_devices--;
-				list_del(&dev->dev_list);
-				btrfs_free_device(dev);
+				fs_devices->num_devices--;
+				list_del(&device->dev_list);
+				btrfs_free_device(device);
 			}
 		}
 	}
