@@ -660,6 +660,8 @@ qtnf_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	if (vif->wdev.iftype != NL80211_IFTYPE_STATION)
 		return -EOPNOTSUPP;
 
+	qtnf_scan_done(mac, true);
+
 	if (vif->sta_state == QTNF_STA_DISCONNECTED)
 		return 0;
 
