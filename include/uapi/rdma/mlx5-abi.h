@@ -163,7 +163,7 @@ struct mlx5_ib_rss_caps {
 enum mlx5_ib_cqe_comp_res_format {
 	MLX5_IB_CQE_RES_FORMAT_HASH	= 1 << 0,
 	MLX5_IB_CQE_RES_FORMAT_CSUM	= 1 << 1,
-	MLX5_IB_CQE_RES_RESERVED	= 1 << 2,
+	MLX5_IB_CQE_RES_FORMAT_CSUM_STRIDX = 1 << 2,
 };
 
 struct mlx5_ib_cqe_comp_caps {
