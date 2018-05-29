@@ -33,6 +33,8 @@ struct fsi_master {
 	int		(*term)(struct fsi_master *, int link, uint8_t id);
 	int		(*send_break)(struct fsi_master *, int link);
 	int		(*link_enable)(struct fsi_master *, int link);
+	int		(*link_config)(struct fsi_master *, int link,
+				       u8 t_send_delay, u8 t_echo_delay);
 };
 
 #define dev_to_fsi_master(d) container_of(d, struct fsi_master, dev)
