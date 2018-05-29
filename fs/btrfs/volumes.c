@@ -747,7 +747,8 @@ error_brelse:
  * error pointer when failed
  */
 static noinline struct btrfs_device *device_list_add(const char *path,
-			   struct btrfs_super_block *disk_super)
+			   struct btrfs_super_block *disk_super,
+			   bool *new_device_added)
 {
 	struct btrfs_device *device;
 	struct btrfs_fs_devices *fs_devices;
@@ -793,7 +794,7 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 		mutex_unlock(&fs_devices->device_list_mutex);
 
 		device->fs_devices = fs_devices;
-		btrfs_free_stale_devices(path, device);
+		*new_device_added = true;
 
 		if (disk_super->label[0])
 			pr_info("BTRFS: device label %s devid %llu transid %llu %s\n",
@@ -1204,6 +1205,7 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 			  struct btrfs_fs_devices **fs_devices_ret)
 {
 	struct btrfs_super_block *disk_super;
+	bool new_device_added = false;
 	struct btrfs_device *device;
 	struct block_device *bdev;
 	struct page *page;
@@ -1229,11 +1231,14 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 	}
 
 	mutex_lock(&uuid_mutex);
-	device = device_list_add(path, disk_super);
-	if (IS_ERR(device))
+	device = device_list_add(path, disk_super, &new_device_added);
+	if (IS_ERR(device)) {
 		ret = PTR_ERR(device);
-	else
+	} else {
 		*fs_devices_ret = device->fs_devices;
+		if (new_device_added)
+			btrfs_free_stale_devices(path, device);
+	}
 	mutex_unlock(&uuid_mutex);
 
 	btrfs_release_disk_super(page);
