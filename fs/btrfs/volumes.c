@@ -637,8 +637,11 @@ static void btrfs_free_stale_devices(const char *path,
 	struct btrfs_device *device, *tmp_device;
 
 	list_for_each_entry_safe(fs_devices, tmp_fs_devices, &fs_uuids, fs_list) {
-		if (fs_devices->opened)
+		mutex_lock(&fs_devices->device_list_mutex);
+		if (fs_devices->opened) {
+			mutex_unlock(&fs_devices->device_list_mutex);
 			continue;
+		}
 
 		list_for_each_entry_safe(device, tmp_device,
 					 &fs_devices->devices, dev_list) {
@@ -658,16 +661,18 @@ static void btrfs_free_stale_devices(const char *path,
 				continue;
 
 			/* delete the stale device */
-			if (fs_devices->num_devices == 1) {
-				btrfs_sysfs_remove_fsid(fs_devices);
-				list_del(&fs_devices->fs_list);
-				free_fs_devices(fs_devices);
+			fs_devices->num_devices--;
+			list_del(&device->dev_list);
+			btrfs_free_device(device);
+
+			if (fs_devices->num_devices == 0)
 				break;
-			} else {
-				fs_devices->num_devices--;
-				list_del(&device->dev_list);
-				btrfs_free_device(device);
-			}
+		}
+		mutex_unlock(&fs_devices->device_list_mutex);
+		if (fs_devices->num_devices == 0) {
+			btrfs_sysfs_remove_fsid(fs_devices);
+			list_del(&fs_devices->fs_list);
+			free_fs_devices(fs_devices);
 		}
 	}
 }
