@@ -185,7 +185,7 @@ ptlrpc_ldebugfs_register(struct dentry *root, char *dir,
 {
 	struct dentry *svc_debugfs_entry;
 	struct lprocfs_stats *svc_stats;
-	int i, rc;
+	int i;
 	unsigned int svc_counter_config = LPROCFS_CNTR_AVGMINMAX |
 					  LPROCFS_CNTR_STDDEV;
 
@@ -241,16 +241,11 @@ ptlrpc_ldebugfs_register(struct dentry *root, char *dir,
 				     ll_opcode2str(opcode), "usec");
 	}
 
-	rc = ldebugfs_register_stats(svc_debugfs_entry, name, svc_stats);
-	if (rc < 0) {
-		if (dir)
-			ldebugfs_remove(&svc_debugfs_entry);
-		lprocfs_free_stats(&svc_stats);
-	} else {
-		if (dir)
-			*debugfs_root_ret = svc_debugfs_entry;
-		*stats_ret = svc_stats;
-	}
+	debugfs_create_file("stats", 0644, svc_debugfs_entry, svc_stats,
+			    &lprocfs_stats_seq_fops);
+	if (dir)
+		*debugfs_root_ret = svc_debugfs_entry;
+	*stats_ret = svc_stats;
 }
 
 static int

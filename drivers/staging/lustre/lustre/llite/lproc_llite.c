@@ -1209,10 +1209,9 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 				     (type & LPROCFS_CNTR_AVGMINMAX),
 				     llite_opcode_table[id].opname, ptr);
 	}
-	err = ldebugfs_register_stats(sbi->ll_debugfs_entry, "stats",
-				      sbi->ll_stats);
-	if (err)
-		goto out;
+
+	debugfs_create_file("stats", 0644, sbi->ll_debugfs_entry, sbi->ll_stats,
+			    &lprocfs_stats_seq_fops);
 
 	sbi->ll_ra_stats = lprocfs_alloc_stats(ARRAY_SIZE(ra_stat_string),
 					       LPROCFS_STATS_FLAG_NONE);
@@ -1225,10 +1224,8 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 		lprocfs_counter_init(sbi->ll_ra_stats, id, 0,
 				     ra_stat_string[id], "pages");
 
-	err = ldebugfs_register_stats(sbi->ll_debugfs_entry, "read_ahead_stats",
-				      sbi->ll_ra_stats);
-	if (err)
-		goto out;
+	debugfs_create_file("stats", 0644, sbi->ll_debugfs_entry,
+			    sbi->ll_ra_stats, &lprocfs_stats_seq_fops);
 
 	err = ldebugfs_add_vars(sbi->ll_debugfs_entry,
 				lprocfs_llite_obd_vars, sb);

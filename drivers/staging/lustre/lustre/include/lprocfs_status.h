@@ -447,9 +447,7 @@ void lprocfs_counter_init(struct lprocfs_stats *stats, int index,
 			  const char *units);
 struct obd_export;
 int lprocfs_exp_cleanup(struct obd_export *exp);
-int ldebugfs_register_stats(struct dentry *parent,
-			    const char *name,
-			    struct lprocfs_stats *stats);
+extern const struct file_operations lprocfs_stats_seq_fops;
 
 /* lprocfs_status.c */
 int ldebugfs_add_vars(struct dentry *parent,

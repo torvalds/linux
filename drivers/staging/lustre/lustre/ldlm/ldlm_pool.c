@@ -627,8 +627,8 @@ static int ldlm_pool_debugfs_init(struct ldlm_pool *pl)
 	lprocfs_counter_init(pl->pl_stats, LDLM_POOL_TIMING_STAT,
 			     LPROCFS_CNTR_AVGMINMAX | LPROCFS_CNTR_STDDEV,
 			     "recalc_timing", "sec");
-	rc = ldebugfs_register_stats(pl->pl_debugfs_entry, "stats",
-				     pl->pl_stats);
+	debugfs_create_file("stats", 0644, pl->pl_debugfs_entry, pl->pl_stats,
+			    &lprocfs_stats_seq_fops);
 
 out_free_name:
 	kfree(var_name);
