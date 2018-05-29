@@ -628,7 +628,7 @@ void qtnf_core_detach(struct qtnf_bus *bus)
 	if (bus->fw_state == QTNF_FW_STATE_ACTIVE)
 		qtnf_cmd_send_deinit_fw(bus);
 
-	bus->fw_state = QTNF_FW_STATE_DEAD;
+	bus->fw_state = QTNF_FW_STATE_DETACHED;
 
 	if (bus->workqueue) {
 		flush_workqueue(bus->workqueue);
