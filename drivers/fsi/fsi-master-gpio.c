@@ -130,9 +130,16 @@ static void set_sda_output(struct fsi_master_gpio *master, int value)
 
 static void clock_zeros(struct fsi_master_gpio *master, int count)
 {
+	trace_fsi_master_gpio_clock_zeros(master, count);
 	set_sda_output(master, 1);
 	clock_toggle(master, count);
 }
+
+static void echo_delay(struct fsi_master_gpio *master)
+{
+	clock_zeros(master, master->t_echo_delay);
+}
+
 
 static void serial_in(struct fsi_master_gpio *master, struct fsi_gpio_msg *msg,
 			uint8_t num_bits)
@@ -279,16 +286,19 @@ static void build_ar_command(struct fsi_master_gpio *master,
 		addr_bits = 2;
 		opcode_bits = 2;
 		opcode = FSI_GPIO_CMD_SAME_AR;
+		trace_fsi_master_gpio_cmd_same_addr(master);
 
 	} else if (check_relative_address(master, id, addr, &rel_addr)) {
 		/* 8 bits plus sign */
 		addr_bits = 9;
 		addr = rel_addr;
 		opcode = FSI_GPIO_CMD_REL_AR;
+		trace_fsi_master_gpio_cmd_rel_addr(master, rel_addr);
 
 	} else {
 		addr_bits = 21;
 		opcode = FSI_GPIO_CMD_ABS_AR;
+		trace_fsi_master_gpio_cmd_abs_addr(master, addr);
 	}
 
 	/*
@@ -335,12 +345,6 @@ static void build_epoll_command(struct fsi_gpio_msg *cmd, uint8_t slave_id)
 	msg_push_bits(cmd, slave_id, 2);
 	msg_push_bits(cmd, FSI_GPIO_CMD_EPOLL, 3);
 	msg_push_crc(cmd);
-}
-
-static void echo_delay(struct fsi_master_gpio *master)
-{
-	set_sda_output(master, 1);
-	clock_toggle(master, master->t_echo_delay);
 }
 
 static void build_term_command(struct fsi_gpio_msg *cmd, uint8_t slave_id)
