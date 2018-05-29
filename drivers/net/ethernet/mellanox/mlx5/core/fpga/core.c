@@ -50,6 +50,11 @@ static const char *const mlx5_fpga_error_strings[] = {
 	"Temperature Critical",
 };
 
+static const char * const mlx5_fpga_qp_error_strings[] = {
+	"Null Syndrome",
+	"Retry Counter Expired",
+	"RNR Expired",
+};
 static struct mlx5_fpga_device *mlx5_fpga_device_alloc(void)
 {
 	struct mlx5_fpga_device *fdev = NULL;
@@ -271,22 +276,37 @@ static const char *mlx5_fpga_syndrome_to_string(u8 syndrome)
 	return "Unknown";
 }
 
+static const char *mlx5_fpga_qp_syndrome_to_string(u8 syndrome)
+{
+	if (syndrome < ARRAY_SIZE(mlx5_fpga_qp_error_strings))
+		return mlx5_fpga_qp_error_strings[syndrome];
+	return "Unknown";
+}
+
 void mlx5_fpga_event(struct mlx5_core_dev *mdev, u8 event, void *data)
 {
 	struct mlx5_fpga_device *fdev = mdev->fpga;
 	const char *event_name;
 	bool teardown = false;
 	unsigned long flags;
+	u32 fpga_qpn;
 	u8 syndrome;
 
-	if (event != MLX5_EVENT_TYPE_FPGA_ERROR) {
+	switch (event) {
+	case MLX5_EVENT_TYPE_FPGA_ERROR:
+		syndrome = MLX5_GET(fpga_error_event, data, syndrome);
+		event_name = mlx5_fpga_syndrome_to_string(syndrome);
+		break;
+	case MLX5_EVENT_TYPE_FPGA_QP_ERROR:
+		syndrome = MLX5_GET(fpga_qp_error_event, data, syndrome);
+		event_name = mlx5_fpga_qp_syndrome_to_string(syndrome);
+		fpga_qpn = MLX5_GET(fpga_qp_error_event, data, fpga_qpn);
+		break;
+	default:
 		mlx5_fpga_warn_ratelimited(fdev, "Unexpected event %u\n",
 					   event);
 		return;
 	}
-
-	syndrome = MLX5_GET(fpga_error_event, data, syndrome);
-	event_name = mlx5_fpga_syndrome_to_string(syndrome);
 
 	spin_lock_irqsave(&fdev->state_lock, flags);
 	switch (fdev->state) {
