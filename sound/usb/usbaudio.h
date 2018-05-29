@@ -127,4 +127,6 @@ struct snd_usb_audio_quirk {
 int snd_usb_lock_shutdown(struct snd_usb_audio *chip);
 void snd_usb_unlock_shutdown(struct snd_usb_audio *chip);
 
+extern bool snd_usb_use_vmalloc;
+
 #endif /* __USBAUDIO_H */
