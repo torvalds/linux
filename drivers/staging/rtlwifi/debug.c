@@ -521,12 +521,9 @@ static const struct file_operations file_ops_common_rw = {
 #define RTL_DEBUGFS_ADD_CORE(name, mode, fopname)			   \
 	do {								   \
 		rtl_debug_priv_ ##name.rtlpriv = rtlpriv;		   \
-		if (!debugfs_create_file(#name, mode,			   \
-					 parent, &rtl_debug_priv_ ##name,  \
-					 &file_ops_ ##fopname))		   \
-			pr_err("Unable to initialize debugfs:%s/%s\n",	   \
-			       rtlpriv->dbg.debugfs_name,		   \
-			       #name);					   \
+		debugfs_create_file(#name, mode, parent,		   \
+				    &rtl_debug_priv_ ##name,		   \
+				    &file_ops_ ##fopname);		   \
 	} while (0)
 
 #define RTL_DEBUGFS_ADD(name)						   \
