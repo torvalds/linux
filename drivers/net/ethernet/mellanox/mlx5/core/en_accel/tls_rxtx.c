@@ -174,7 +174,7 @@ mlx5e_tls_handle_ooo(struct mlx5e_tls_offload_context *context,
 	int headln;
 	int i;
 
-	sq->stats.tls_ooo++;
+	sq->stats->tls_ooo++;
 
 	if (mlx5e_tls_get_sync_data(context, tcp_seq, &info)) {
 		/* We might get here if a retransmission reaches the driver
@@ -220,7 +220,7 @@ mlx5e_tls_handle_ooo(struct mlx5e_tls_offload_context *context,
 	skb_shinfo(nskb)->nr_frags = info.nr_frags;
 	nskb->data_len = info.sync_len;
 	nskb->len += info.sync_len;
-	sq->stats.tls_resync_bytes += nskb->len;
+	sq->stats->tls_resync_bytes += nskb->len;
 	mlx5e_tls_complete_sync_skb(skb, nskb, tcp_seq, headln,
 				    cpu_to_be64(info.rcd_sn));
 	mlx5e_sq_xmit(sq, nskb, *wqe, *pi);

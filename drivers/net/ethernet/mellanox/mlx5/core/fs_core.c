@@ -2495,7 +2495,7 @@ static int init_fdb_root_ns(struct mlx5_flow_steering *steering)
 	if (!steering->fdb_root_ns)
 		return -ENOMEM;
 
-	prio = fs_create_prio(&steering->fdb_root_ns->ns, 0, 1);
+	prio = fs_create_prio(&steering->fdb_root_ns->ns, 0, 2);
 	if (IS_ERR(prio))
 		goto out_err;
 

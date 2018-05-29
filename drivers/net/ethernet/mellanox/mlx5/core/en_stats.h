@@ -97,9 +97,6 @@ struct mlx5e_sw_stats {
 	u64 tx_tls_ooo;
 	u64 tx_tls_resync_bytes;
 #endif
-
-	/* Special handling counters */
-	u64 link_down_events_phy;
 };
 
 struct mlx5e_qcounter_stats {
@@ -241,5 +238,7 @@ struct mlx5e_stats_grp {
 
 extern const struct mlx5e_stats_grp mlx5e_stats_grps[];
 extern const int mlx5e_num_stats_grps;
+
+void mlx5e_grp_sw_update_stats(struct mlx5e_priv *priv);
 
 #endif /* __MLX5_EN_STATS_H__ */

@@ -54,7 +54,7 @@ struct mlx5_fpga_conn {
 	/* CQ */
 	struct {
 		struct mlx5_cqwq wq;
-		struct mlx5_frag_wq_ctrl wq_ctrl;
+		struct mlx5_wq_ctrl wq_ctrl;
 		struct mlx5_core_cq mcq;
 		struct tasklet_struct tasklet;
 	} cq;

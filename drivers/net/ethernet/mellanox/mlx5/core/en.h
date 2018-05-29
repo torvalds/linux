@@ -183,6 +183,7 @@ static inline int mlx5e_get_max_num_channels(struct mlx5_core_dev *mdev)
 struct mlx5e_tx_wqe {
 	struct mlx5_wqe_ctrl_seg ctrl;
 	struct mlx5_wqe_eth_seg  eth;
+	struct mlx5_wqe_data_seg data[0];
 };
 
 struct mlx5e_rx_wqe {
@@ -313,7 +314,7 @@ struct mlx5e_cq {
 
 	/* control */
 	struct mlx5_core_dev      *mdev;
-	struct mlx5_frag_wq_ctrl   wq_ctrl;
+	struct mlx5_wq_ctrl        wq_ctrl;
 } ____cacheline_aligned_in_smp;
 
 struct mlx5e_tx_wqe_info {
@@ -357,7 +358,6 @@ struct mlx5e_txqsq {
 	/* dirtied @xmit */
 	u16                        pc ____cacheline_aligned_in_smp;
 	u32                        dma_fifo_pc;
-	struct mlx5e_sq_stats      stats;
 
 	struct mlx5e_cq            cq;
 
@@ -370,11 +370,11 @@ struct mlx5e_txqsq {
 	/* read only */
 	struct mlx5_wq_cyc         wq;
 	u32                        dma_fifo_mask;
+	struct mlx5e_sq_stats     *stats;
 	void __iomem              *uar_map;
 	struct netdev_queue       *txq;
 	u32                        sqn;
 	u8                         min_inline_mode;
-	u16                        edge;
 	struct device             *pdev;
 	__be32                     mkey_be;
 	unsigned long              state;
@@ -439,7 +439,6 @@ struct mlx5e_icosq {
 	struct mlx5_wq_cyc         wq;
 	void __iomem              *uar_map;
 	u32                        sqn;
-	u16                        edge;
 	unsigned long              state;
 
 	/* control path */
@@ -450,7 +449,7 @@ struct mlx5e_icosq {
 static inline bool
 mlx5e_wqc_has_room_for(struct mlx5_wq_cyc *wq, u16 cc, u16 pc, u16 n)
 {
-	return (((wq->sz_m1 & (cc - pc)) >= n) || (cc == pc));
+	return (mlx5_wq_cyc_ctr2ix(wq, cc - pc) >= n) || (cc == pc);
 }
 
 struct mlx5e_dma_info {
@@ -527,7 +526,7 @@ struct mlx5e_rq {
 	struct mlx5e_channel  *channel;
 	struct device         *pdev;
 	struct net_device     *netdev;
-	struct mlx5e_rq_stats  stats;
+	struct mlx5e_rq_stats *stats;
 	struct mlx5e_cq        cq;
 	struct mlx5e_page_cache page_cache;
 	struct hwtstamp_config *tstamp;
@@ -575,7 +574,7 @@ struct mlx5e_channel {
 
 	/* data path - accessed per napi poll */
 	struct irq_desc *irq_desc;
-	struct mlx5e_ch_stats      stats;
+	struct mlx5e_ch_stats     *stats;
 
 	/* control */
 	struct mlx5e_priv         *priv;
@@ -590,6 +589,12 @@ struct mlx5e_channels {
 	unsigned int           num;
 	struct mlx5e_params    params;
 };
+
+struct mlx5e_channel_stats {
+	struct mlx5e_ch_stats ch;
+	struct mlx5e_sq_stats sq[MLX5E_MAX_NUM_TC];
+	struct mlx5e_rq_stats rq;
+} ____cacheline_aligned_in_smp;
 
 enum mlx5e_traffic_types {
 	MLX5E_TT_IPV4_TCP,
@@ -772,6 +777,8 @@ struct mlx5e_priv {
 	struct mutex               state_lock; /* Protects Interface state */
 	struct mlx5e_rq            drop_rq;
 
+	rwlock_t                   stats_lock; /* Protects channels SW stats updates */
+	bool                       channels_active;
 	struct mlx5e_channels      channels;
 	u32                        tisn[MLX5E_MAX_NUM_TC];
 	struct mlx5e_rqt           indir_rqt;
@@ -792,6 +799,8 @@ struct mlx5e_priv {
 	struct mlx5_core_dev      *mdev;
 	struct net_device         *netdev;
 	struct mlx5e_stats         stats;
+	struct mlx5e_channel_stats channel_stats[MLX5E_MAX_NUM_CHANNELS];
+	u8                         max_opened_tc;
 	struct hwtstamp_config     tstamp;
 	u16                        q_counter;
 	u16                        drop_rq_q_counter;
@@ -956,10 +965,9 @@ static inline void mlx5e_sq_fetch_wqe(struct mlx5e_txqsq *sq,
 				      struct mlx5e_tx_wqe **wqe,
 				      u16 *pi)
 {
-	struct mlx5_wq_cyc *wq;
+	struct mlx5_wq_cyc *wq = &sq->wq;
 
-	wq = &sq->wq;
-	*pi = sq->pc & wq->sz_m1;
+	*pi  = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 	*wqe = mlx5_wq_cyc_get_wqe(wq, *pi);
 	memset(*wqe, 0, sizeof(**wqe));
 }
@@ -967,7 +975,7 @@ static inline void mlx5e_sq_fetch_wqe(struct mlx5e_txqsq *sq,
 static inline
 struct mlx5e_tx_wqe *mlx5e_post_nop(struct mlx5_wq_cyc *wq, u32 sqn, u16 *pc)
 {
-	u16                         pi   = *pc & wq->sz_m1;
+	u16                         pi   = mlx5_wq_cyc_ctr2ix(wq, *pc);
 	struct mlx5e_tx_wqe        *wqe  = mlx5_wq_cyc_get_wqe(wq, pi);
 	struct mlx5_wqe_ctrl_seg   *cseg = &wqe->ctrl;
 
