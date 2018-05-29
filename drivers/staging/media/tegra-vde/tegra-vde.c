@@ -901,15 +901,12 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 	 * the whole system.
 	 */
 	err = reset_control_assert(vde->rst_mc);
-	if (!err) {
-		err = reset_control_assert(vde->rst);
-		if (err)
-			dev_err(dev,
-				"DEC end: Failed to assert HW reset: %d\n",
-				err);
-	} else {
+	if (err)
 		dev_err(dev, "DEC end: Failed to assert MC reset: %d\n", err);
-	}
+
+	err = reset_control_assert(vde->rst);
+	if (err)
+		dev_err(dev, "DEC end: Failed to assert HW reset: %d\n", err);
 
 put_runtime_pm:
 	pm_runtime_mark_last_busy(dev);
