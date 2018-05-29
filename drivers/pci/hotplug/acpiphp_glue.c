@@ -649,6 +649,11 @@ static void trim_stale_devices(struct pci_dev *dev)
 		alive = pci_device_is_present(dev);
 
 	if (!alive) {
+		pci_dev_set_disconnected(dev, NULL);
+		if (pci_has_subordinate(dev))
+			pci_walk_bus(dev->subordinate, pci_dev_set_disconnected,
+				     NULL);
+
 		pci_stop_and_remove_bus_device(dev);
 		if (adev)
 			acpi_bus_trim(adev);
