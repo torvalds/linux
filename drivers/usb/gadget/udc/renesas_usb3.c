@@ -2391,22 +2391,10 @@ static const struct file_operations renesas_usb3_b_device_fops = {
 static void renesas_usb3_debugfs_init(struct renesas_usb3 *usb3,
 				      struct device *dev)
 {
-	struct dentry *root, *file;
+	usb3->dentry = debugfs_create_dir(dev_name(dev), NULL);
 
-	root = debugfs_create_dir(dev_name(dev), NULL);
-	if (IS_ERR_OR_NULL(root)) {
-		dev_info(dev, "%s: Can't create the root\n", __func__);
-		return;
-	}
-
-	file = debugfs_create_file("b_device", 0644, root, usb3,
-				   &renesas_usb3_b_device_fops);
-	if (!file) {
-		dev_info(dev, "%s: Can't create debugfs mode\n", __func__);
-		debugfs_remove_recursive(root);
-	} else {
-		usb3->dentry = root;
-	}
+	debugfs_create_file("b_device", 0644, usb3->dentry, usb3,
+			    &renesas_usb3_b_device_fops);
 }
 
 /*------- platform_driver ------------------------------------------------*/
