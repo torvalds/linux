@@ -3017,7 +3017,10 @@ void mlx4_ib_steer_qp_free(struct mlx4_ib_dev *dev, u32 qpn, int count)
 	    dev->steering_support != MLX4_STEERING_MODE_DEVICE_MANAGED)
 		return;
 
-	BUG_ON(qpn < dev->steer_qpn_base);
+	if (WARN(qpn < dev->steer_qpn_base, "qpn = %u, steer_qpn_base = %u\n",
+		 qpn, dev->steer_qpn_base))
+		/* not supposed to be here */
+		return;
 
 	bitmap_release_region(dev->ib_uc_qpns_bitmap,
 			      qpn - dev->steer_qpn_base,
