@@ -144,38 +144,6 @@ static void q6afe_dai_shutdown(struct snd_pcm_substream *substream,
 
 }
 
-static int q6afe_mi2s_prepare(struct snd_pcm_substream *substream,
-		struct snd_soc_dai *dai)
-{
-	struct q6afe_dai_data *dai_data = dev_get_drvdata(dai->dev);
-	int rc;
-
-	if (dai_data->is_port_started[dai->id]) {
-		/* stop the port and restart with new port config */
-		rc = q6afe_port_stop(dai_data->port[dai->id]);
-		if (rc < 0) {
-			dev_err(dai->dev, "fail to close AFE port (%d)\n", rc);
-			return rc;
-		}
-	}
-
-	rc = q6afe_i2s_port_prepare(dai_data->port[dai->id],
-			       &dai_data->port_config[dai->id].i2s_cfg);
-	if (rc < 0) {
-		dev_err(dai->dev, "fail to prepare AFE port %x\n", dai->id);
-		return rc;
-	}
-
-	rc = q6afe_port_start(dai_data->port[dai->id]);
-	if (rc < 0) {
-		dev_err(dai->dev, "fail to start AFE port %x\n", dai->id);
-		return rc;
-	}
-	dai_data->is_port_started[dai->id] = true;
-
-	return 0;
-}
-
 static int q6afe_dai_prepare(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
@@ -191,12 +159,27 @@ static int q6afe_dai_prepare(struct snd_pcm_substream *substream,
 		}
 	}
 
-	if (dai->id == HDMI_RX)
+	switch (dai->id) {
+	case HDMI_RX:
 		q6afe_hdmi_port_prepare(dai_data->port[dai->id],
 					&dai_data->port_config[dai->id].hdmi);
-	else if (dai->id >= SLIMBUS_0_RX && dai->id <= SLIMBUS_6_TX)
+		break;
+	case SLIMBUS_0_RX ... SLIMBUS_6_TX:
 		q6afe_slim_port_prepare(dai_data->port[dai->id],
 					&dai_data->port_config[dai->id].slim);
+		break;
+	case PRIMARY_MI2S_RX ... QUATERNARY_MI2S_TX:
+		rc = q6afe_i2s_port_prepare(dai_data->port[dai->id],
+			       &dai_data->port_config[dai->id].i2s_cfg);
+		if (rc < 0) {
+			dev_err(dai->dev, "fail to prepare AFE port %x\n",
+				dai->id);
+			return rc;
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	rc = q6afe_port_start(dai_data->port[dai->id]);
 	if (rc < 0) {
@@ -289,7 +272,7 @@ static struct snd_soc_dai_ops q6hdmi_ops = {
 };
 
 static struct snd_soc_dai_ops q6i2s_ops = {
-	.prepare	= q6afe_mi2s_prepare,
+	.prepare	= q6afe_dai_prepare,
 	.hw_params	= q6i2s_hw_params,
 	.set_fmt	= q6i2s_set_fmt,
 	.shutdown	= q6afe_dai_shutdown,
