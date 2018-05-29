@@ -2126,30 +2126,19 @@ static struct visor_driver visornic_driver = {
  */
 static int visornic_init(void)
 {
-	struct dentry *ret;
-	int err = -ENOMEM;
+	int err;
 
 	visornic_debugfs_dir = debugfs_create_dir("visornic", NULL);
-	if (!visornic_debugfs_dir)
-		return err;
 
-	ret = debugfs_create_file("info", 0400, visornic_debugfs_dir, NULL,
-				  &debugfs_info_fops);
-	if (!ret)
-		goto cleanup_debugfs;
-	ret = debugfs_create_file("enable_ints", 0200, visornic_debugfs_dir,
-				  NULL, &debugfs_enable_ints_fops);
-	if (!ret)
-		goto cleanup_debugfs;
+	debugfs_create_file("info", 0400, visornic_debugfs_dir, NULL,
+			    &debugfs_info_fops);
+	debugfs_create_file("enable_ints", 0200, visornic_debugfs_dir, NULL,
+			    &debugfs_enable_ints_fops);
 
 	err = visorbus_register_visor_driver(&visornic_driver);
 	if (err)
-		goto cleanup_debugfs;
+		debugfs_remove_recursive(visornic_debugfs_dir);
 
-	return 0;
-
-cleanup_debugfs:
-	debugfs_remove_recursive(visornic_debugfs_dir);
 	return err;
 }
 
