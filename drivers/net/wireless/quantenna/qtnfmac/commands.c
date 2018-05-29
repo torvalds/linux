@@ -102,6 +102,7 @@ static int qtnf_cmd_send_with_reply(struct qtnf_bus *bus,
 		pr_warn("VIF%u.%u: drop cmd 0x%.4X in fw state %d\n",
 			mac_id, vif_id, le16_to_cpu(cmd->cmd_id),
 			bus->fw_state);
+		dev_kfree_skb(cmd_skb);
 		return -ENODEV;
 	}
 
