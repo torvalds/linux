@@ -313,7 +313,7 @@ static enum signal_type get_basic_signal_type(
  * @brief
  * Check whether there is a dongle on DP connector
  */
-static bool is_dp_sink_present(struct dc_link *link)
+bool dc_link_is_dp_sink_present(struct dc_link *link)
 {
 	enum gpio_result gpio_result;
 	uint32_t clock_pin = 0;
@@ -406,7 +406,7 @@ static enum signal_type link_detect_sink(
 			 * we assume signal is DVI; it could be corrected
 			 * to HDMI after dongle detection
 			 */
-			if (!is_dp_sink_present(link))
+			if (!dm_helpers_is_dp_sink_present(link))
 				result = SIGNAL_TYPE_DVI_SINGLE_LINK;
 		}
 	}

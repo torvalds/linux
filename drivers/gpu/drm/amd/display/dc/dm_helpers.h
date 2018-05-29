@@ -103,6 +103,9 @@ bool dm_helpers_submit_i2c(
 		const struct dc_link *link,
 		struct i2c_command *cmd);
 
+bool dm_helpers_is_dp_sink_present(
+		struct dc_link *link);
+
 enum dc_edid_status dm_helpers_read_local_edid(
 		struct dc_context *ctx,
 		struct dc_link *link,

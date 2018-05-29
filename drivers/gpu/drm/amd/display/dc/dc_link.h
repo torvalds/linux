@@ -210,6 +210,8 @@ bool dc_link_dp_set_test_pattern(
 
 void dc_link_enable_hpd_filter(struct dc_link *link, bool enable);
 
+bool dc_link_is_dp_sink_present(struct dc_link *link);
+
 /*
  * DPCD access interfaces
  */
