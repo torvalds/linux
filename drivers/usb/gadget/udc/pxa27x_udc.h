@@ -476,9 +476,6 @@ struct pxa_udc {
 #endif
 #ifdef CONFIG_USB_GADGET_DEBUG_FS
 	struct dentry				*debugfs_root;
-	struct dentry				*debugfs_state;
-	struct dentry				*debugfs_queues;
-	struct dentry				*debugfs_eps;
 #endif
 };
 #define to_pxa(g)	(container_of((g), struct pxa_udc, gadget))
