@@ -33,6 +33,11 @@ section from a filesystem or I/O point of view. Any allocation from that
 scope will inherently drop __GFP_FS respectively __GFP_IO from the given
 mask so no memory allocation can recurse back in the FS/IO.
 
+.. kernel-doc:: include/linux/sched/mm.h
+   :functions: memalloc_nofs_save memalloc_nofs_restore
+.. kernel-doc:: include/linux/sched/mm.h
+   :functions: memalloc_noio_save memalloc_noio_restore
+
 FS/IO code then simply calls the appropriate save function before
 any critical section with respect to the reclaim is started - e.g.
 lock shared with the reclaim context or when a transaction context
