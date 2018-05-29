@@ -321,48 +321,18 @@ static const struct file_operations musb_softconnect_fops = {
 	.release		= single_release,
 };
 
-int musb_init_debugfs(struct musb *musb)
+void musb_init_debugfs(struct musb *musb)
 {
-	struct dentry		*root;
-	struct dentry		*file;
-	int			ret;
+	struct dentry *root;
 
 	root = debugfs_create_dir(dev_name(musb->controller), NULL);
-	if (!root) {
-		ret = -ENOMEM;
-		goto err0;
-	}
-
-	file = debugfs_create_file("regdump", S_IRUGO, root, musb,
-			&musb_regdump_fops);
-	if (!file) {
-		ret = -ENOMEM;
-		goto err1;
-	}
-
-	file = debugfs_create_file("testmode", S_IRUGO | S_IWUSR,
-			root, musb, &musb_test_mode_fops);
-	if (!file) {
-		ret = -ENOMEM;
-		goto err1;
-	}
-
-	file = debugfs_create_file("softconnect", S_IRUGO | S_IWUSR,
-			root, musb, &musb_softconnect_fops);
-	if (!file) {
-		ret = -ENOMEM;
-		goto err1;
-	}
-
 	musb->debugfs_root = root;
 
-	return 0;
-
-err1:
-	debugfs_remove_recursive(root);
-
-err0:
-	return ret;
+	debugfs_create_file("regdump", S_IRUGO, root, musb, &musb_regdump_fops);
+	debugfs_create_file("testmode", S_IRUGO | S_IWUSR, root, musb,
+			    &musb_test_mode_fops);
+	debugfs_create_file("softconnect", S_IRUGO | S_IWUSR, root, musb,
+			    &musb_softconnect_fops);
 }
 
 void /* __init_or_exit */ musb_exit_debugfs(struct musb *musb)

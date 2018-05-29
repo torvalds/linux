@@ -2387,9 +2387,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	if (status < 0)
 		goto fail3;
 
-	status = musb_init_debugfs(musb);
-	if (status < 0)
-		goto fail4;
+	musb_init_debugfs(musb);
 
 	status = sysfs_create_group(&musb->controller->kobj, &musb_attr_group);
 	if (status)
@@ -2404,7 +2402,6 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 fail5:
 	musb_exit_debugfs(musb);
 
-fail4:
 	musb_gadget_cleanup(musb);
 	musb_host_cleanup(musb);
 

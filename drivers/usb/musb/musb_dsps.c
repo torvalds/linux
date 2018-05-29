@@ -399,24 +399,17 @@ out:
 static int dsps_musb_dbg_init(struct musb *musb, struct dsps_glue *glue)
 {
 	struct dentry *root;
-	struct dentry *file;
 	char buf[128];
 
 	sprintf(buf, "%s.dsps", dev_name(musb->controller));
 	root = debugfs_create_dir(buf, NULL);
-	if (!root)
-		return -ENOMEM;
 	glue->dbgfs_root = root;
 
 	glue->regset.regs = dsps_musb_regs;
 	glue->regset.nregs = ARRAY_SIZE(dsps_musb_regs);
 	glue->regset.base = musb->ctrl_base;
 
-	file = debugfs_create_regset32("regdump", S_IRUGO, root, &glue->regset);
-	if (!file) {
-		debugfs_remove_recursive(root);
-		return -ENOMEM;
-	}
+	debugfs_create_regset32("regdump", S_IRUGO, root, &glue->regset);
 	return 0;
 }
 
