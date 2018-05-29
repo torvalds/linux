@@ -1694,6 +1694,17 @@ static inline unsigned nested_cpu_vmx_misc_cr3_count(struct kvm_vcpu *vcpu)
 	return vmx_misc_cr3_count(to_vmx(vcpu)->nested.msrs.misc_low);
 }
 
+/*
+ * Do the virtual VMX capability MSRs specify that L1 can use VMWRITE
+ * to modify any valid field of the VMCS, or are the VM-exit
+ * information fields read-only?
+ */
+static inline bool nested_cpu_has_vmwrite_any_field(struct kvm_vcpu *vcpu)
+{
+	return to_vmx(vcpu)->nested.msrs.misc_low &
+		MSR_IA32_VMX_MISC_VMWRITE_SHADOW_RO_FIELDS;
+}
+
 static inline bool nested_cpu_has(struct vmcs12 *vmcs12, u32 bit)
 {
 	return vmcs12->cpu_based_vm_exec_control & bit;
@@ -3311,6 +3322,7 @@ static void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, bool apicv)
 		msrs->misc_high);
 	msrs->misc_low &= VMX_MISC_SAVE_EFER_LMA;
 	msrs->misc_low |=
+		MSR_IA32_VMX_MISC_VMWRITE_SHADOW_RO_FIELDS |
 		VMX_MISC_EMULATED_PREEMPTION_TIMER_RATE |
 		VMX_MISC_ACTIVITY_HLT;
 	msrs->misc_high = 0;
@@ -3484,6 +3496,15 @@ static int vmx_restore_vmx_misc(struct vcpu_vmx *vmx, u64 data)
 
 	vmx->nested.msrs.misc_low = data;
 	vmx->nested.msrs.misc_high = data >> 32;
+
+	/*
+	 * If L1 has read-only VM-exit information fields, use the
+	 * less permissive vmx_vmwrite_bitmap to specify write
+	 * permissions for the shadow VMCS.
+	 */
+	if (enable_shadow_vmcs && !nested_cpu_has_vmwrite_any_field(&vmx->vcpu))
+		vmcs_write64(VMWRITE_BITMAP, __pa(vmx_vmwrite_bitmap));
+
 	return 0;
 }
 
@@ -6154,8 +6175,14 @@ static void vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	int i;
 
 	if (enable_shadow_vmcs) {
+		/*
+		 * At vCPU creation, "VMWRITE to any supported field
+		 * in the VMCS" is supported, so use the more
+		 * permissive vmx_vmread_bitmap to specify both read
+		 * and write permissions for the shadow VMCS.
+		 */
 		vmcs_write64(VMREAD_BITMAP, __pa(vmx_vmread_bitmap));
-		vmcs_write64(VMWRITE_BITMAP, __pa(vmx_vmwrite_bitmap));
+		vmcs_write64(VMWRITE_BITMAP, __pa(vmx_vmread_bitmap));
 	}
 	if (cpu_has_vmx_msr_bitmap())
 		vmcs_write64(MSR_BITMAP, __pa(vmx->vmcs01.msr_bitmap));
@@ -8136,23 +8163,42 @@ static inline int vmcs12_write_any(struct kvm_vcpu *vcpu,
 
 }
 
+/*
+ * Copy the writable VMCS shadow fields back to the VMCS12, in case
+ * they have been modified by the L1 guest. Note that the "read-only"
+ * VM-exit information fields are actually writable if the vCPU is
+ * configured to support "VMWRITE to any supported field in the VMCS."
+ */
 static void copy_shadow_to_vmcs12(struct vcpu_vmx *vmx)
 {
-	int i;
+	const u16 *fields[] = {
+		shadow_read_write_fields,
+		shadow_read_only_fields
+	};
+	const int max_fields[] = {
+		max_shadow_read_write_fields,
+		max_shadow_read_only_fields
+	};
+	int i, q;
 	unsigned long field;
 	u64 field_value;
 	struct vmcs *shadow_vmcs = vmx->vmcs01.shadow_vmcs;
-	const u16 *fields = shadow_read_write_fields;
-	const int num_fields = max_shadow_read_write_fields;
 
 	preempt_disable();
 
 	vmcs_load(shadow_vmcs);
 
-	for (i = 0; i < num_fields; i++) {
-		field = fields[i];
-		field_value = __vmcs_readl(field);
-		vmcs12_write_any(&vmx->vcpu, field, field_value);
+	for (q = 0; q < ARRAY_SIZE(fields); q++) {
+		for (i = 0; i < max_fields[q]; i++) {
+			field = fields[q][i];
+			field_value = __vmcs_readl(field);
+			vmcs12_write_any(&vmx->vcpu, field, field_value);
+		}
+		/*
+		 * Skip the VM-exit information fields if they are read-only.
+		 */
+		if (!nested_cpu_has_vmwrite_any_field(&vmx->vcpu))
+			break;
 	}
 
 	vmcs_clear(shadow_vmcs);
@@ -8286,7 +8332,12 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 
 
 	field = kvm_register_readl(vcpu, (((vmx_instruction_info) >> 28) & 0xf));
-	if (vmcs_field_readonly(field)) {
+	/*
+	 * If the vCPU supports "VMWRITE to any supported field in the
+	 * VMCS," then the "read-only" fields are actually read/write.
+	 */
+	if (vmcs_field_readonly(field) &&
+	    !nested_cpu_has_vmwrite_any_field(vcpu)) {
 		nested_vmx_failValid(vcpu,
 			VMXERR_VMWRITE_READ_ONLY_VMCS_COMPONENT);
 		return kvm_skip_emulated_instruction(vcpu);
