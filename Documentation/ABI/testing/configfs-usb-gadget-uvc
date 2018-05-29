@@ -189,6 +189,10 @@ Date:		Dec 2014
 KernelVersion:	4.0
 Description:	Specific MJPEG frame descriptors
 
+		bFrameIndex		- unique id for this framedescriptor;
+					only defined after parent format is
+					linked into the streaming header;
+					read-only
 		dwFrameInterval		- indicates how frame interval can be
 					programmed; a number of values
 					separated by newline can be specified
@@ -240,6 +244,10 @@ Date:		Dec 2014
 KernelVersion:	4.0
 Description:	Specific uncompressed frame descriptors
 
+		bFrameIndex		- unique id for this framedescriptor;
+					only defined after parent format is
+					linked into the streaming header;
+					read-only
 		dwFrameInterval		- indicates how frame interval can be
 					programmed; a number of values
 					separated by newline can be specified
