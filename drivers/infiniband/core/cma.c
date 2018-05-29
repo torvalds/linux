@@ -2130,7 +2130,7 @@ static int cma_iw_handler(struct iw_cm_id *iw_id, struct iw_cm_event *iw_event)
 		event.param.conn.responder_resources = iw_event->ord;
 		break;
 	default:
-		BUG_ON(1);
+		goto out;
 	}
 
 	event.status = iw_event->status;
