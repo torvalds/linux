@@ -144,7 +144,7 @@ static inline struct generic_pm_domain_data *dev_gpd_data(struct device *dev)
 }
 
 int pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev);
-int pm_genpd_remove_device(struct generic_pm_domain *genpd, struct device *dev);
+int pm_genpd_remove_device(struct device *dev);
 int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 			   struct generic_pm_domain *new_subdomain);
 int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
@@ -167,8 +167,7 @@ static inline int pm_genpd_add_device(struct generic_pm_domain *genpd,
 {
 	return -ENOSYS;
 }
-static inline int pm_genpd_remove_device(struct generic_pm_domain *genpd,
-					 struct device *dev)
+static inline int pm_genpd_remove_device(struct device *dev)
 {
 	return -ENOSYS;
 }

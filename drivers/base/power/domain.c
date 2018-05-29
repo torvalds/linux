@@ -1475,13 +1475,13 @@ static int genpd_remove_device(struct generic_pm_domain *genpd,
 
 /**
  * pm_genpd_remove_device - Remove a device from an I/O PM domain.
- * @genpd: PM domain to remove the device from.
  * @dev: Device to be removed.
  */
-int pm_genpd_remove_device(struct generic_pm_domain *genpd,
-			   struct device *dev)
+int pm_genpd_remove_device(struct device *dev)
 {
-	if (!genpd || genpd != genpd_lookup_dev(dev))
+	struct generic_pm_domain *genpd = genpd_lookup_dev(dev);
+
+	if (!genpd)
 		return -EINVAL;
 
 	return genpd_remove_device(genpd, dev);
