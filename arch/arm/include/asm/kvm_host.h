@@ -315,6 +315,18 @@ static inline bool kvm_arm_harden_branch_predictor(void)
 	return false;
 }
 
+#define KVM_SSBD_UNKNOWN		-1
+#define KVM_SSBD_FORCE_DISABLE		0
+#define KVM_SSBD_KERNEL		1
+#define KVM_SSBD_FORCE_ENABLE		2
+#define KVM_SSBD_MITIGATED		3
+
+static inline int kvm_arm_have_ssbd(void)
+{
+	/* No way to detect it yet, pretend it is not there. */
+	return KVM_SSBD_UNKNOWN;
+}
+
 static inline void kvm_vcpu_load_sysregs(struct kvm_vcpu *vcpu) {}
 static inline void kvm_vcpu_put_sysregs(struct kvm_vcpu *vcpu) {}
 
