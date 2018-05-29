@@ -369,11 +369,8 @@ static int safexcel_handle_inv_result(struct safexcel_crypto_priv *priv,
 		dev_err(priv->dev,
 			"hash: invalidate: could not retrieve the result descriptor\n");
 		*ret = PTR_ERR(rdesc);
-	} else if (rdesc->result_data.error_code) {
-		dev_err(priv->dev,
-			"hash: invalidate: result descriptor error (%d)\n",
-			rdesc->result_data.error_code);
-		*ret = -EINVAL;
+	} else {
+		*ret = safexcel_rdesc_check_errors(priv, rdesc);
 	}
 
 	safexcel_complete(priv, ring);
