@@ -15,6 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/arm-smccc.h>
 #include <linux/types.h>
 #include <linux/jump_label.h>
 #include <uapi/linux/psci.h>
@@ -389,6 +390,39 @@ static bool __hyp_text fixup_guest_exit(struct kvm_vcpu *vcpu, u64 *exit_code)
 	return false;
 }
 
+static inline bool __hyp_text __needs_ssbd_off(struct kvm_vcpu *vcpu)
+{
+	if (!cpus_have_const_cap(ARM64_SSBD))
+		return false;
+
+	return !(vcpu->arch.workaround_flags & VCPU_WORKAROUND_2_FLAG);
+}
+
+static void __hyp_text __set_guest_arch_workaround_state(struct kvm_vcpu *vcpu)
+{
+#ifdef CONFIG_ARM64_SSBD
+	/*
+	 * The host runs with the workaround always present. If the
+	 * guest wants it disabled, so be it...
+	 */
+	if (__needs_ssbd_off(vcpu) &&
+	    __hyp_this_cpu_read(arm64_ssbd_callback_required))
+		arm_smccc_1_1_smc(ARM_SMCCC_ARCH_WORKAROUND_2, 0, NULL);
+#endif
+}
+
+static void __hyp_text __set_host_arch_workaround_state(struct kvm_vcpu *vcpu)
+{
+#ifdef CONFIG_ARM64_SSBD
+	/*
+	 * If the guest has disabled the workaround, bring it back on.
+	 */
+	if (__needs_ssbd_off(vcpu) &&
+	    __hyp_this_cpu_read(arm64_ssbd_callback_required))
+		arm_smccc_1_1_smc(ARM_SMCCC_ARCH_WORKAROUND_2, 1, NULL);
+#endif
+}
+
 /* Switch to the guest for VHE systems running in EL2 */
 int kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 {
@@ -409,12 +443,16 @@ int kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 	sysreg_restore_guest_state_vhe(guest_ctxt);
 	__debug_switch_to_guest(vcpu);
 
+	__set_guest_arch_workaround_state(vcpu);
+
 	do {
 		/* Jump in the fire! */
 		exit_code = __guest_enter(vcpu, host_ctxt);
 
 		/* And we're baaack! */
 	} while (fixup_guest_exit(vcpu, &exit_code));
+
+	__set_host_arch_workaround_state(vcpu);
 
 	fp_enabled = fpsimd_enabled_vhe();
 
@@ -465,12 +503,16 @@ int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu)
 	__sysreg_restore_state_nvhe(guest_ctxt);
 	__debug_switch_to_guest(vcpu);
 
+	__set_guest_arch_workaround_state(vcpu);
+
 	do {
 		/* Jump in the fire! */
 		exit_code = __guest_enter(vcpu, host_ctxt);
 
 		/* And we're baaack! */
 	} while (fixup_guest_exit(vcpu, &exit_code));
+
+	__set_host_arch_workaround_state(vcpu);
 
 	fp_enabled = __fpsimd_enabled_nvhe();
 
