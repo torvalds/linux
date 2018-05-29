@@ -1010,7 +1010,6 @@ union bpf_attr {
  * 		::
  *
  * 			# sysctl kernel.perf_event_max_stack=<new value>
- *
  * 	Return
  * 		The positive or null stack id on success, or a negative error
  * 		in case of failure.
@@ -1821,10 +1820,9 @@ union bpf_attr {
  * 		::
  *
  * 			# sysctl kernel.perf_event_max_stack=<new value>
- *
  * 	Return
- * 		a non-negative value equal to or less than size on success, or
- * 		a negative error in case of failure.
+ * 		A non-negative value equal to or less than *size* on success,
+ * 		or a negative error in case of failure.
  *
  * int skb_load_bytes_relative(const struct sk_buff *skb, u32 offset, void *to, u32 len, u32 start_header)
  * 	Description
@@ -1845,7 +1843,6 @@ union bpf_attr {
  * 		in socket filters where *skb*\ **->data** does not always point
  * 		to the start of the mac header and where "direct packet access"
  * 		is not available.
- *
  * 	Return
  * 		0 on success, or a negative error in case of failure.
  *
@@ -1861,16 +1858,18 @@ union bpf_attr {
  *		rt_metric is set to metric from route.
  *
  *             *plen* argument is the size of the passed in struct.
- *             *flags* argument can be one or more BPF_FIB_LOOKUP_ flags:
+ *             *flags* argument can be a combination of one or more of the
+ *             following values:
  *
- *             **BPF_FIB_LOOKUP_DIRECT** means do a direct table lookup vs
- *             full lookup using FIB rules
- *             **BPF_FIB_LOOKUP_OUTPUT** means do lookup from an egress
- *             perspective (default is ingress)
+ *		**BPF_FIB_LOOKUP_DIRECT**
+ *			Do a direct table lookup vs full lookup using FIB
+ *			rules.
+ *		**BPF_FIB_LOOKUP_OUTPUT**
+ *			Perform lookup from an egress perspective (default is
+ *			ingress).
  *
  *             *ctx* is either **struct xdp_md** for XDP programs or
  *             **struct sk_buff** tc cls_act programs.
- *
  *     Return
  *             Egress device index on success, 0 if packet needs to continue
  *             up the stack for further processing or a negative error in case
