@@ -1037,6 +1037,9 @@ static int do_setcontext_tm(struct ucontext __user *ucp,
 }
 #endif
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wattribute-alias"
 #ifdef CONFIG_PPC64
 COMPAT_SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 		       struct ucontext __user *, new_ctx, int, ctx_size)
@@ -1132,6 +1135,7 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 	set_thread_flag(TIF_RESTOREALL);
 	return 0;
 }
+#pragma GCC diagnostic pop
 
 #ifdef CONFIG_PPC64
 COMPAT_SYSCALL_DEFINE0(rt_sigreturn)
@@ -1228,6 +1232,9 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	return 0;
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wattribute-alias"
 #ifdef CONFIG_PPC32
 SYSCALL_DEFINE3(debug_setcontext, struct ucontext __user *, ctx,
 			 int, ndbg, struct sig_dbg_op __user *, dbg)
@@ -1333,6 +1340,7 @@ SYSCALL_DEFINE3(debug_setcontext, struct ucontext __user *, ctx,
 	return 0;
 }
 #endif
+#pragma GCC diagnostic pop
 
 /*
  * OK, we're invoking a handler
