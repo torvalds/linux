@@ -1028,29 +1028,15 @@ static inline void create_debug_files(struct ehci_hcd *ehci)
 	struct usb_bus *bus = &ehci_to_hcd(ehci)->self;
 
 	ehci->debug_dir = debugfs_create_dir(bus->bus_name, ehci_debug_root);
-	if (!ehci->debug_dir)
-		return;
 
-	if (!debugfs_create_file("async", S_IRUGO, ehci->debug_dir, bus,
-						&debug_async_fops))
-		goto file_error;
-
-	if (!debugfs_create_file("bandwidth", S_IRUGO, ehci->debug_dir, bus,
-						&debug_bandwidth_fops))
-		goto file_error;
-
-	if (!debugfs_create_file("periodic", S_IRUGO, ehci->debug_dir, bus,
-						&debug_periodic_fops))
-		goto file_error;
-
-	if (!debugfs_create_file("registers", S_IRUGO, ehci->debug_dir, bus,
-						    &debug_registers_fops))
-		goto file_error;
-
-	return;
-
-file_error:
-	debugfs_remove_recursive(ehci->debug_dir);
+	debugfs_create_file("async", S_IRUGO, ehci->debug_dir, bus,
+			    &debug_async_fops);
+	debugfs_create_file("bandwidth", S_IRUGO, ehci->debug_dir, bus,
+			    &debug_bandwidth_fops);
+	debugfs_create_file("periodic", S_IRUGO, ehci->debug_dir, bus,
+			    &debug_periodic_fops);
+	debugfs_create_file("registers", S_IRUGO, ehci->debug_dir, bus,
+			    &debug_registers_fops);
 }
 
 static inline void remove_debug_files(struct ehci_hcd *ehci)
