@@ -6,7 +6,8 @@
 
 ret=0
 
-TESTS="unregister down carrier nexthop ipv6_rt ipv4_rt"
+# all tests in this script. Can be overridden with -t option
+TESTS="unregister down carrier nexthop ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric"
 VERBOSE=0
 PAUSE_ON_FAIL=no
 PAUSE=no
@@ -642,6 +643,8 @@ check_route6()
 	local rc=0
 
 	out=$($IP -6 ro ls match ${pfx} | sed -e 's/ pref medium//')
+	[ "${out}" = "${expected}" ] && return 0
+
 	if [ -z "${out}" ]; then
 		if [ "$VERBOSE" = "1" ]; then
 			printf "\nNo route entry found\n"
@@ -911,6 +914,98 @@ ipv6_route_test()
 	route_cleanup
 }
 
+ip_addr_metric_check()
+{
+	ip addr help 2>&1 | grep -q metric
+	if [ $? -ne 0 ]; then
+		echo "iproute2 command does not support metric for addresses. Skipping test"
+		return 1
+	fi
+
+	return 0
+}
+
+ipv6_addr_metric_test()
+{
+	local rc
+
+	echo
+	echo "IPv6 prefix route tests"
+
+	ip_addr_metric_check || return 1
+
+	setup
+
+	set -e
+	$IP li add dummy1 type dummy
+	$IP li add dummy2 type dummy
+	$IP li set dummy1 up
+	$IP li set dummy2 up
+
+	# default entry is metric 256
+	run_cmd "$IP -6 addr add dev dummy1 2001:db8:104::1/64"
+	run_cmd "$IP -6 addr add dev dummy2 2001:db8:104::2/64"
+	set +e
+
+	check_route6 "2001:db8:104::/64 dev dummy1 proto kernel metric 256 2001:db8:104::/64 dev dummy2 proto kernel metric 256"
+	log_test $? 0 "Default metric"
+
+	set -e
+	run_cmd "$IP -6 addr flush dev dummy1"
+	run_cmd "$IP -6 addr add dev dummy1 2001:db8:104::1/64 metric 257"
+	set +e
+
+	check_route6 "2001:db8:104::/64 dev dummy2 proto kernel metric 256 2001:db8:104::/64 dev dummy1 proto kernel metric 257"
+	log_test $? 0 "User specified metric on first device"
+
+	set -e
+	run_cmd "$IP -6 addr flush dev dummy2"
+	run_cmd "$IP -6 addr add dev dummy2 2001:db8:104::2/64 metric 258"
+	set +e
+
+	check_route6 "2001:db8:104::/64 dev dummy1 proto kernel metric 257 2001:db8:104::/64 dev dummy2 proto kernel metric 258"
+	log_test $? 0 "User specified metric on second device"
+
+	run_cmd "$IP -6 addr del dev dummy1 2001:db8:104::1/64 metric 257"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route6 "2001:db8:104::/64 dev dummy2 proto kernel metric 258"
+		rc=$?
+	fi
+	log_test $rc 0 "Delete of address on first device"
+
+	run_cmd "$IP -6 addr change dev dummy2 2001:db8:104::2/64 metric 259"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route6 "2001:db8:104::/64 dev dummy2 proto kernel metric 259"
+		rc=$?
+	fi
+	log_test $rc 0 "Modify metric of address"
+
+	# verify prefix route removed on down
+	run_cmd "ip netns exec testns sysctl -qw net.ipv6.conf.all.keep_addr_on_down=1"
+	run_cmd "$IP li set dev dummy2 down"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route6 ""
+		rc=$?
+	fi
+	log_test $rc 0 "Prefix route removed on link down"
+
+	# verify prefix route re-inserted with assigned metric
+	run_cmd "$IP li set dev dummy2 up"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route6 "2001:db8:104::/64 dev dummy2 proto kernel metric 259"
+		rc=$?
+	fi
+	log_test $rc 0 "Prefix route with metric on link up"
+
+	$IP li del dummy1
+	$IP li del dummy2
+	cleanup
+}
+
 # add route for a prefix, flushing any existing routes first
 # expected to be the first step of a test
 add_route()
@@ -955,6 +1050,8 @@ check_route()
 	local rc=0
 
 	out=$($IP ro ls match ${pfx})
+	[ "${out}" = "${expected}" ] && return 0
+
 	if [ -z "${out}" ]; then
 		if [ "$VERBOSE" = "1" ]; then
 			printf "\nNo route entry found\n"
@@ -1181,6 +1278,86 @@ ipv4_route_test()
 	route_cleanup
 }
 
+ipv4_addr_metric_test()
+{
+	local rc
+
+	echo
+	echo "IPv4 prefix route tests"
+
+	ip_addr_metric_check || return 1
+
+	setup
+
+	set -e
+	$IP li add dummy1 type dummy
+	$IP li add dummy2 type dummy
+	$IP li set dummy1 up
+	$IP li set dummy2 up
+
+	# default entry is metric 256
+	run_cmd "$IP addr add dev dummy1 172.16.104.1/24"
+	run_cmd "$IP addr add dev dummy2 172.16.104.2/24"
+	set +e
+
+	check_route "172.16.104.0/24 dev dummy1 proto kernel scope link src 172.16.104.1 172.16.104.0/24 dev dummy2 proto kernel scope link src 172.16.104.2"
+	log_test $? 0 "Default metric"
+
+	set -e
+	run_cmd "$IP addr flush dev dummy1"
+	run_cmd "$IP addr add dev dummy1 172.16.104.1/24 metric 257"
+	set +e
+
+	check_route "172.16.104.0/24 dev dummy2 proto kernel scope link src 172.16.104.2 172.16.104.0/24 dev dummy1 proto kernel scope link src 172.16.104.1 metric 257"
+	log_test $? 0 "User specified metric on first device"
+
+	set -e
+	run_cmd "$IP addr flush dev dummy2"
+	run_cmd "$IP addr add dev dummy2 172.16.104.2/24 metric 258"
+	set +e
+
+	check_route "172.16.104.0/24 dev dummy1 proto kernel scope link src 172.16.104.1 metric 257 172.16.104.0/24 dev dummy2 proto kernel scope link src 172.16.104.2 metric 258"
+	log_test $? 0 "User specified metric on second device"
+
+	run_cmd "$IP addr del dev dummy1 172.16.104.1/24 metric 257"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.104.0/24 dev dummy2 proto kernel scope link src 172.16.104.2 metric 258"
+		rc=$?
+	fi
+	log_test $rc 0 "Delete of address on first device"
+
+	run_cmd "$IP addr change dev dummy2 172.16.104.2/24 metric 259"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.104.0/24 dev dummy2 proto kernel scope link src 172.16.104.2 metric 259"
+		rc=$?
+	fi
+	log_test $rc 0 "Modify metric of address"
+
+	# verify prefix route removed on down
+	run_cmd "$IP li set dev dummy2 down"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route ""
+		rc=$?
+	fi
+	log_test $rc 0 "Prefix route removed on link down"
+
+	# verify prefix route re-inserted with assigned metric
+	run_cmd "$IP li set dev dummy2 up"
+	rc=$?
+	if [ $rc -eq 0 ]; then
+		check_route "172.16.104.0/24 dev dummy2 proto kernel scope link src 172.16.104.2 metric 259"
+		rc=$?
+	fi
+	log_test $rc 0 "Prefix route with metric on link up"
+
+	$IP li del dummy1
+	$IP li del dummy2
+	cleanup
+}
+
 ################################################################################
 # usage
 
@@ -1245,6 +1422,8 @@ do
 	fib_nexthop_test|nexthop)	fib_nexthop_test;;
 	ipv6_route_test|ipv6_rt)	ipv6_route_test;;
 	ipv4_route_test|ipv4_rt)	ipv4_route_test;;
+	ipv6_addr_metric)		ipv6_addr_metric_test;;
+	ipv4_addr_metric)		ipv4_addr_metric_test;;
 
 	help) echo "Test names: $TESTS"; exit 0;;
 	esac
