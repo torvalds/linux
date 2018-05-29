@@ -96,7 +96,8 @@ static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
 			else if (ctx->alg == CONTEXT_CONTROL_CRYPTO_ALG_SHA224 ||
 				 ctx->alg == CONTEXT_CONTROL_CRYPTO_ALG_SHA256)
 				cdesc->control_data.control0 |= CONTEXT_CONTROL_SIZE(9);
-			else if (ctx->alg == CONTEXT_CONTROL_CRYPTO_ALG_SHA512)
+			else if (ctx->alg == CONTEXT_CONTROL_CRYPTO_ALG_SHA384 ||
+				 ctx->alg == CONTEXT_CONTROL_CRYPTO_ALG_SHA512)
 				cdesc->control_data.control0 |= CONTEXT_CONTROL_SIZE(17);
 
 			cdesc->control_data.control1 |= CONTEXT_CONTROL_DIGEST_CNT;
@@ -660,6 +661,9 @@ static int safexcel_ahash_final(struct ahash_request *areq)
 		else if (ctx->alg == CONTEXT_CONTROL_CRYPTO_ALG_SHA256)
 			memcpy(areq->result, sha256_zero_message_hash,
 			       SHA256_DIGEST_SIZE);
+		else if (ctx->alg == CONTEXT_CONTROL_CRYPTO_ALG_SHA384)
+			memcpy(areq->result, sha384_zero_message_hash,
+			       SHA384_DIGEST_SIZE);
 		else if (ctx->alg == CONTEXT_CONTROL_CRYPTO_ALG_SHA512)
 			memcpy(areq->result, sha512_zero_message_hash,
 			       SHA512_DIGEST_SIZE);
@@ -1350,6 +1354,76 @@ struct safexcel_alg_template safexcel_alg_sha512 = {
 				.cra_flags = CRYPTO_ALG_ASYNC |
 					     CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA512_BLOCK_SIZE,
+				.cra_ctxsize = sizeof(struct safexcel_ahash_ctx),
+				.cra_init = safexcel_ahash_cra_init,
+				.cra_exit = safexcel_ahash_cra_exit,
+				.cra_module = THIS_MODULE,
+			},
+		},
+	},
+};
+
+static int safexcel_sha384_init(struct ahash_request *areq)
+{
+	struct safexcel_ahash_ctx *ctx = crypto_ahash_ctx(crypto_ahash_reqtfm(areq));
+	struct safexcel_ahash_req *req = ahash_request_ctx(areq);
+
+	memset(req, 0, sizeof(*req));
+
+	req->state[0] = lower_32_bits(SHA384_H0);
+	req->state[1] = upper_32_bits(SHA384_H0);
+	req->state[2] = lower_32_bits(SHA384_H1);
+	req->state[3] = upper_32_bits(SHA384_H1);
+	req->state[4] = lower_32_bits(SHA384_H2);
+	req->state[5] = upper_32_bits(SHA384_H2);
+	req->state[6] = lower_32_bits(SHA384_H3);
+	req->state[7] = upper_32_bits(SHA384_H3);
+	req->state[8] = lower_32_bits(SHA384_H4);
+	req->state[9] = upper_32_bits(SHA384_H4);
+	req->state[10] = lower_32_bits(SHA384_H5);
+	req->state[11] = upper_32_bits(SHA384_H5);
+	req->state[12] = lower_32_bits(SHA384_H6);
+	req->state[13] = upper_32_bits(SHA384_H6);
+	req->state[14] = lower_32_bits(SHA384_H7);
+	req->state[15] = upper_32_bits(SHA384_H7);
+
+	ctx->alg = CONTEXT_CONTROL_CRYPTO_ALG_SHA384;
+	req->digest = CONTEXT_CONTROL_DIGEST_PRECOMPUTED;
+	req->state_sz = SHA512_DIGEST_SIZE;
+
+	return 0;
+}
+
+static int safexcel_sha384_digest(struct ahash_request *areq)
+{
+	int ret = safexcel_sha384_init(areq);
+
+	if (ret)
+		return ret;
+
+	return safexcel_ahash_finup(areq);
+}
+
+struct safexcel_alg_template safexcel_alg_sha384 = {
+	.type = SAFEXCEL_ALG_TYPE_AHASH,
+	.alg.ahash = {
+		.init = safexcel_sha384_init,
+		.update = safexcel_ahash_update,
+		.final = safexcel_ahash_final,
+		.finup = safexcel_ahash_finup,
+		.digest = safexcel_sha384_digest,
+		.export = safexcel_ahash_export,
+		.import = safexcel_ahash_import,
+		.halg = {
+			.digestsize = SHA384_DIGEST_SIZE,
+			.statesize = sizeof(struct safexcel_ahash_export_state),
+			.base = {
+				.cra_name = "sha384",
+				.cra_driver_name = "safexcel-sha384",
+				.cra_priority = 300,
+				.cra_flags = CRYPTO_ALG_ASYNC |
+					     CRYPTO_ALG_KERN_DRIVER_ONLY,
+				.cra_blocksize = SHA384_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct safexcel_ahash_ctx),
 				.cra_init = safexcel_ahash_cra_init,
 				.cra_exit = safexcel_ahash_cra_exit,
