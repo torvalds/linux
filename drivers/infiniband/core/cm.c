@@ -1707,7 +1707,9 @@ static void cm_process_work(struct cm_id_private *cm_id_priv,
 		spin_lock_irq(&cm_id_priv->lock);
 		work = cm_dequeue_work(cm_id_priv);
 		spin_unlock_irq(&cm_id_priv->lock);
-		BUG_ON(!work);
+		if (!work)
+			return;
+
 		ret = cm_id_priv->id.cm_handler(&cm_id_priv->id,
 						&work->cm_event);
 		cm_free_work(work);
