@@ -32,6 +32,7 @@ andestech	Andes Technology Corporation
 apm	Applied Micro Circuits Corporation (APM)
 aptina	Aptina Imaging
 arasan	Arasan Chip Systems
+archermind ArcherMind Technology (Nanjing) Co., Ltd.
 arctic	Arctic Sand
 aries	Aries Embedded GmbH
 arm	ARM Ltd.
