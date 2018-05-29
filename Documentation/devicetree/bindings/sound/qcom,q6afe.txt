@@ -46,6 +46,53 @@ configuration of each dai. Must contain the following properties.
 	Definition: Must be list of serial data lines used by this dai.
 	should be one or more of the 1-4 sd lines.
 
+ - qcom,tdm-sync-mode:
+	Usage: required for tdm interface
+	Value type: <prop-encoded-array>
+	Definition: Synchronization mode.
+		0 - Short sync bit mode
+		1 - Long sync mode
+		2 - Short sync slot mode
+
+ - qcom,tdm-sync-src:
+	Usage: required for tdm interface
+	Value type: <prop-encoded-array>
+	Definition: Synchronization source.
+		0 - External source
+		1 - Internal source
+
+ - qcom,tdm-data-out:
+	Usage: required for tdm interface
+	Value type: <prop-encoded-array>
+	Definition: Data out signal to drive with other masters.
+		0 - Disable
+		1 - Enable
+
+ - qcom,tdm-invert-sync:
+	Usage: required for tdm interface
+	Value type: <prop-encoded-array>
+	Definition: Invert the sync.
+		0 - Normal
+		1 - Invert
+
+ - qcom,tdm-data-delay:
+	Usage: required for tdm interface
+	Value type: <prop-encoded-array>
+	Definition: Number of bit clock to delay data
+		with respect to sync edge.
+		0 - 0 bit clock cycle
+		1 - 1 bit clock cycle
+		2 - 2 bit clock cycle
+
+ - qcom,tdm-data-align:
+	Usage: required for tdm interface
+	Value type: <prop-encoded-array>
+	Definition: Indicate how data is packed
+		within the slot. For example, 32 slot width in case of
+		sample bit width is 24.
+		0 - MSB
+		1 - LSB
+
 = EXAMPLE
 
 q6afe@4 {
@@ -59,6 +106,27 @@ q6afe@4 {
 
 		hdmi@1 {
 			reg = <1>;
+		};
+
+		tdm@24 {
+			reg = <24>;
+			qcom,tdm-sync-mode = <1>:
+			qcom,tdm-sync-src = <1>;
+			qcom,tdm-data-out = <0>;
+			qcom,tdm-invert-sync = <1>;
+			qcom,tdm-data-delay = <1>;
+			qcom,tdm-data-align = <0>;
+
+		};
+
+		tdm@25 {
+			reg = <25>;
+			qcom,tdm-sync-mode = <1>:
+			qcom,tdm-sync-src = <1>;
+			qcom,tdm-data-out = <0>;
+			qcom,tdm-invert-sync = <1>;
+			qcom,tdm-data-delay <1>:
+			qcom,tdm-data-align = <0>;
 		};
 
 		prim-mi2s-rx@16 {
