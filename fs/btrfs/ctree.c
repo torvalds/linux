@@ -2619,8 +2619,11 @@ static struct extent_buffer *btrfs_search_slot_get_root(struct btrfs_root *root,
 		level = btrfs_header_level(b);
 		if (p->need_commit_sem)
 			up_read(&fs_info->commit_root_sem);
-		if (!p->skip_locking)
-			btrfs_tree_read_lock(b);
+		/*
+		 * Ensure that all callers have set skip_locking when
+		 * p->search_commit_root = 1.
+		 */
+		ASSERT(p->skip_locking == 1);
 
 		goto out;
 	}
