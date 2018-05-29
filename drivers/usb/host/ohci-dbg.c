@@ -762,50 +762,23 @@ static int debug_registers_open(struct inode *inode, struct file *file)
 static inline void create_debug_files (struct ohci_hcd *ohci)
 {
 	struct usb_bus *bus = &ohci_to_hcd(ohci)->self;
+	struct dentry *root;
 
-	ohci->debug_dir = debugfs_create_dir(bus->bus_name, ohci_debug_root);
-	if (!ohci->debug_dir)
-		goto dir_error;
+	root = debugfs_create_dir(bus->bus_name, ohci_debug_root);
+	ohci->debug_dir = root;
 
-	ohci->debug_async = debugfs_create_file("async", S_IRUGO,
-						ohci->debug_dir, ohci,
-						&debug_async_fops);
-	if (!ohci->debug_async)
-		goto async_error;
-
-	ohci->debug_periodic = debugfs_create_file("periodic", S_IRUGO,
-						   ohci->debug_dir, ohci,
-						   &debug_periodic_fops);
-	if (!ohci->debug_periodic)
-		goto periodic_error;
-
-	ohci->debug_registers = debugfs_create_file("registers", S_IRUGO,
-						    ohci->debug_dir, ohci,
-						    &debug_registers_fops);
-	if (!ohci->debug_registers)
-		goto registers_error;
+	debugfs_create_file("async", S_IRUGO, root, ohci, &debug_async_fops);
+	debugfs_create_file("periodic", S_IRUGO, root, ohci,
+			    &debug_periodic_fops);
+	debugfs_create_file("registers", S_IRUGO, root, ohci,
+			    &debug_registers_fops);
 
 	ohci_dbg (ohci, "created debug files\n");
-	return;
-
-registers_error:
-	debugfs_remove(ohci->debug_periodic);
-periodic_error:
-	debugfs_remove(ohci->debug_async);
-async_error:
-	debugfs_remove(ohci->debug_dir);
-dir_error:
-	ohci->debug_periodic = NULL;
-	ohci->debug_async = NULL;
-	ohci->debug_dir = NULL;
 }
 
 static inline void remove_debug_files (struct ohci_hcd *ohci)
 {
-	debugfs_remove(ohci->debug_registers);
-	debugfs_remove(ohci->debug_periodic);
-	debugfs_remove(ohci->debug_async);
-	debugfs_remove(ohci->debug_dir);
+	debugfs_remove_recursive(ohci->debug_dir);
 }
 
 /*-------------------------------------------------------------------------*/
