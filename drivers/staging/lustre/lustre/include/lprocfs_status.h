@@ -465,12 +465,6 @@ int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list,
 		      const struct attribute_group *attrs);
 int lprocfs_obd_cleanup(struct obd_device *obd);
 
-int ldebugfs_obd_seq_create(struct obd_device *dev,
-			    const char *name,
-			    umode_t mode,
-			    const struct file_operations *seq_fops,
-			    void *data);
-
 /* Generic callbacks */
 
 int lprocfs_rd_uint(struct seq_file *m, void *data);

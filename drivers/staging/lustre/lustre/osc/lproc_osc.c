@@ -801,16 +801,12 @@ static ssize_t osc_stats_seq_write(struct file *file,
 
 LPROC_SEQ_FOPS(osc_stats);
 
-int lproc_osc_attach_seqstat(struct obd_device *dev)
+void lproc_osc_attach_seqstat(struct obd_device *dev)
 {
-	int rc;
-
 	debugfs_create_file("osc_stats", 0644, dev->obd_debugfs_entry, dev,
 			    &osc_stats_fops);
-	rc = ldebugfs_obd_seq_create(dev, "rpc_stats", 0644,
-				     &osc_rpc_stats_fops, dev);
-
-	return rc;
+	debugfs_create_file("rpc_stats", 0644, dev->obd_debugfs_entry, dev,
+			    &osc_rpc_stats_fops);
 }
 
 static struct attribute *osc_attrs[] = {

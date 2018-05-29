@@ -1538,17 +1538,6 @@ char *lprocfs_find_named_value(const char *buffer, const char *name,
 }
 EXPORT_SYMBOL(lprocfs_find_named_value);
 
-int ldebugfs_obd_seq_create(struct obd_device *dev,
-			    const char *name,
-			    umode_t mode,
-			    const struct file_operations *seq_fops,
-			    void *data)
-{
-	debugfs_create_file(name, mode, dev->obd_debugfs_entry, data, seq_fops);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(ldebugfs_obd_seq_create);
-
 void lprocfs_oh_tally(struct obd_histogram *oh, unsigned int value)
 {
 	if (value >= OBD_HIST_MAX)
