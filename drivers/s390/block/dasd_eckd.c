@@ -108,6 +108,7 @@ struct check_attention_work_data {
 	__u8 lpum;
 };
 
+static int dasd_eckd_ext_pool_id(struct dasd_device *);
 static int prepare_itcw(struct itcw *, unsigned int, unsigned int, int,
 			struct dasd_device *, struct dasd_device *,
 			unsigned int, int, unsigned int, unsigned int,
@@ -1470,6 +1471,252 @@ static int dasd_eckd_read_features(struct dasd_device *device)
 	return rc;
 }
 
+/* Read Volume Information - Volume Storage Query */
+static int dasd_eckd_read_vol_info(struct dasd_device *device)
+{
+	struct dasd_eckd_private *private = device->private;
+	struct dasd_psf_prssd_data *prssdp;
+	struct dasd_rssd_vsq *vsq;
+	struct dasd_ccw_req *cqr;
+	struct ccw1 *ccw;
+	int rc;
+
+	/* This command cannot be executed on an alias device */
+	if (private->uid.type == UA_BASE_PAV_ALIAS ||
+	    private->uid.type == UA_HYPER_PAV_ALIAS)
+		return 0;
+
+	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, 2 /* PSF + RSSD */,
+				   sizeof(*prssdp) + sizeof(*vsq), device, NULL);
+	if (IS_ERR(cqr)) {
+		DBF_EVENT_DEVID(DBF_WARNING, device->cdev, "%s",
+				"Could not allocate initialization request");
+		return PTR_ERR(cqr);
+	}
+
+	/* Prepare for Read Subsystem Data */
+	prssdp = cqr->data;
+	prssdp->order = PSF_ORDER_PRSSD;
+	prssdp->suborder = PSF_SUBORDER_VSQ;	/* Volume Storage Query */
+	prssdp->lss = private->ned->ID;
+	prssdp->volume = private->ned->unit_addr;
+
+	ccw = cqr->cpaddr;
+	ccw->cmd_code = DASD_ECKD_CCW_PSF;
+	ccw->count = sizeof(*prssdp);
+	ccw->flags |= CCW_FLAG_CC;
+	ccw->cda = (__u32)(addr_t)prssdp;
+
+	/* Read Subsystem Data - Volume Storage Query */
+	vsq = (struct dasd_rssd_vsq *)(prssdp + 1);
+	memset(vsq, 0, sizeof(*vsq));
+
+	ccw++;
+	ccw->cmd_code = DASD_ECKD_CCW_RSSD;
+	ccw->count = sizeof(*vsq);
+	ccw->flags |= CCW_FLAG_SLI;
+	ccw->cda = (__u32)(addr_t)vsq;
+
+	cqr->buildclk = get_tod_clock();
+	cqr->status = DASD_CQR_FILLED;
+	cqr->startdev = device;
+	cqr->memdev = device;
+	cqr->block = NULL;
+	cqr->retries = 256;
+	cqr->expires = device->default_expires * HZ;
+	/* The command might not be supported. Suppress the error output */
+	__set_bit(DASD_CQR_SUPPRESS_CR, &cqr->flags);
+
+	rc = dasd_sleep_on_interruptible(cqr);
+	if (rc == 0) {
+		memcpy(&private->vsq, vsq, sizeof(*vsq));
+	} else {
+		dev_warn(&device->cdev->dev,
+			 "Reading the volume storage information failed with rc=%d\n", rc);
+	}
+
+	dasd_sfree_request(cqr, cqr->memdev);
+
+	return rc;
+}
+
+static int dasd_eckd_is_ese(struct dasd_device *device)
+{
+	struct dasd_eckd_private *private = device->private;
+
+	return private->vsq.vol_info.ese;
+}
+
+static int dasd_eckd_ext_pool_id(struct dasd_device *device)
+{
+	struct dasd_eckd_private *private = device->private;
+
+	return private->vsq.extent_pool_id;
+}
+
+/*
+ * This value represents the total amount of available space. As more space is
+ * allocated by ESE volumes, this value will decrease.
+ * The data for this value is therefore updated on any call.
+ */
+static int dasd_eckd_space_configured(struct dasd_device *device)
+{
+	struct dasd_eckd_private *private = device->private;
+	int rc;
+
+	rc = dasd_eckd_read_vol_info(device);
+
+	return rc ? : private->vsq.space_configured;
+}
+
+/*
+ * The value of space allocated by an ESE volume may have changed and is
+ * therefore updated on any call.
+ */
+static int dasd_eckd_space_allocated(struct dasd_device *device)
+{
+	struct dasd_eckd_private *private = device->private;
+	int rc;
+
+	rc = dasd_eckd_read_vol_info(device);
+
+	return rc ? : private->vsq.space_allocated;
+}
+
+static int dasd_eckd_logical_capacity(struct dasd_device *device)
+{
+	struct dasd_eckd_private *private = device->private;
+
+	return private->vsq.logical_capacity;
+}
+
+static void dasd_eckd_cpy_ext_pool_data(struct dasd_device *device,
+					struct dasd_rssd_lcq *lcq)
+{
+	struct dasd_eckd_private *private = device->private;
+	int pool_id = dasd_eckd_ext_pool_id(device);
+	struct dasd_ext_pool_sum eps;
+	int i;
+
+	for (i = 0; i < lcq->pool_count; i++) {
+		eps = lcq->ext_pool_sum[i];
+		if (eps.pool_id == pool_id) {
+			memcpy(&private->eps, &eps,
+			       sizeof(struct dasd_ext_pool_sum));
+		}
+	}
+}
+
+/* Read Extent Pool Information - Logical Configuration Query */
+static int dasd_eckd_read_ext_pool_info(struct dasd_device *device)
+{
+	struct dasd_eckd_private *private = device->private;
+	struct dasd_psf_prssd_data *prssdp;
+	struct dasd_rssd_lcq *lcq;
+	struct dasd_ccw_req *cqr;
+	struct ccw1 *ccw;
+	int rc;
+
+	/* This command cannot be executed on an alias device */
+	if (private->uid.type == UA_BASE_PAV_ALIAS ||
+	    private->uid.type == UA_HYPER_PAV_ALIAS)
+		return 0;
+
+	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, 2 /* PSF + RSSD */,
+				   sizeof(*prssdp) + sizeof(*lcq), device, NULL);
+	if (IS_ERR(cqr)) {
+		DBF_EVENT_DEVID(DBF_WARNING, device->cdev, "%s",
+				"Could not allocate initialization request");
+		return PTR_ERR(cqr);
+	}
+
+	/* Prepare for Read Subsystem Data */
+	prssdp = cqr->data;
+	memset(prssdp, 0, sizeof(*prssdp));
+	prssdp->order = PSF_ORDER_PRSSD;
+	prssdp->suborder = PSF_SUBORDER_LCQ;	/* Logical Configuration Query */
+
+	ccw = cqr->cpaddr;
+	ccw->cmd_code = DASD_ECKD_CCW_PSF;
+	ccw->count = sizeof(*prssdp);
+	ccw->flags |= CCW_FLAG_CC;
+	ccw->cda = (__u32)(addr_t)prssdp;
+
+	lcq = (struct dasd_rssd_lcq *)(prssdp + 1);
+	memset(lcq, 0, sizeof(*lcq));
+
+	ccw++;
+	ccw->cmd_code = DASD_ECKD_CCW_RSSD;
+	ccw->count = sizeof(*lcq);
+	ccw->flags |= CCW_FLAG_SLI;
+	ccw->cda = (__u32)(addr_t)lcq;
+
+	cqr->buildclk = get_tod_clock();
+	cqr->status = DASD_CQR_FILLED;
+	cqr->startdev = device;
+	cqr->memdev = device;
+	cqr->block = NULL;
+	cqr->retries = 256;
+	cqr->expires = device->default_expires * HZ;
+	/* The command might not be supported. Suppress the error output */
+	__set_bit(DASD_CQR_SUPPRESS_CR, &cqr->flags);
+
+	rc = dasd_sleep_on_interruptible(cqr);
+	if (rc == 0) {
+		dasd_eckd_cpy_ext_pool_data(device, lcq);
+	} else {
+		dev_warn(&device->cdev->dev,
+			 "Reading the logical configuration failed with rc=%d\n", rc);
+	}
+
+	dasd_sfree_request(cqr, cqr->memdev);
+
+	return rc;
+}
+
+/*
+ * Depending on the device type, the extent size is specified either as
+ * cylinders per extent (CKD) or size per extent (FBA)
+ * A 1GB size corresponds to 1113cyl, and 16MB to 21cyl.
+ */
+static int dasd_eckd_ext_size(struct dasd_device *device)
+{
+	struct dasd_eckd_private *private = device->private;
+	struct dasd_ext_pool_sum eps = private->eps;
+
+	if (!eps.flags.extent_size_valid)
+		return 0;
+	if (eps.extent_size.size_1G)
+		return 1113;
+	if (eps.extent_size.size_16M)
+		return 21;
+
+	return 0;
+}
+
+static int dasd_eckd_ext_pool_warn_thrshld(struct dasd_device *device)
+{
+	struct dasd_eckd_private *private = device->private;
+
+	return private->eps.warn_thrshld;
+}
+
+static int dasd_eckd_ext_pool_cap_at_warnlevel(struct dasd_device *device)
+{
+	struct dasd_eckd_private *private = device->private;
+
+	return private->eps.flags.capacity_at_warnlevel;
+}
+
+/*
+ * Extent Pool out of space
+ */
+static int dasd_eckd_ext_pool_oos(struct dasd_device *device)
+{
+	struct dasd_eckd_private *private = device->private;
+
+	return private->eps.flags.pool_oos;
+}
 
 /*
  * Build CP for Perform Subsystem Function - SSC.
@@ -1699,6 +1946,16 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 
 	/* Read Feature Codes */
 	dasd_eckd_read_features(device);
+
+	/* Read Volume Information */
+	rc = dasd_eckd_read_vol_info(device);
+	if (rc)
+		goto out_err3;
+
+	/* Read Extent Pool Information */
+	rc = dasd_eckd_read_ext_pool_info(device);
+	if (rc)
+		goto out_err3;
 
 	/* Read Device Characteristics */
 	rc = dasd_generic_read_dev_chars(device, DASD_ECKD_MAGIC,
@@ -4944,6 +5201,16 @@ static int dasd_eckd_restore_device(struct dasd_device *device)
 	/* Read Feature Codes */
 	dasd_eckd_read_features(device);
 
+	/* Read Volume Information */
+	rc = dasd_eckd_read_vol_info(device);
+	if (rc)
+		goto out_err2;
+
+	/* Read Extent Pool Information */
+	rc = dasd_eckd_read_ext_pool_info(device);
+	if (rc)
+		goto out_err2;
+
 	/* Read Device Characteristics */
 	rc = dasd_generic_read_dev_chars(device, DASD_ECKD_MAGIC,
 					 &temp_rdc_data, 64);
@@ -5785,6 +6052,15 @@ static struct dasd_discipline dasd_eckd_discipline = {
 	.disable_hpf = dasd_eckd_disable_hpf_device,
 	.hpf_enabled = dasd_eckd_hpf_enabled,
 	.reset_path = dasd_eckd_reset_path,
+	.is_ese = dasd_eckd_is_ese,
+	.space_allocated = dasd_eckd_space_allocated,
+	.space_configured = dasd_eckd_space_configured,
+	.logical_capacity = dasd_eckd_logical_capacity,
+	.ext_pool_id = dasd_eckd_ext_pool_id,
+	.ext_size = dasd_eckd_ext_size,
+	.ext_pool_cap_at_warnlevel = dasd_eckd_ext_pool_cap_at_warnlevel,
+	.ext_pool_warn_thrshld = dasd_eckd_ext_pool_warn_thrshld,
+	.ext_pool_oos = dasd_eckd_ext_pool_oos,
 };
 
 static int __init

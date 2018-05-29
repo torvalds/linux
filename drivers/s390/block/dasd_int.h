@@ -367,6 +367,21 @@ struct dasd_discipline {
 	void (*disable_hpf)(struct dasd_device *);
 	int (*hpf_enabled)(struct dasd_device *);
 	void (*reset_path)(struct dasd_device *, __u8);
+
+	/*
+	 * Extent Space Efficient (ESE) relevant functions
+	 */
+	int (*is_ese)(struct dasd_device *);
+	/* Capacity */
+	int (*space_allocated)(struct dasd_device *);
+	int (*space_configured)(struct dasd_device *);
+	int (*logical_capacity)(struct dasd_device *);
+	/* Extent Pool */
+	int (*ext_pool_id)(struct dasd_device *);
+	int (*ext_size)(struct dasd_device *);
+	int (*ext_pool_cap_at_warnlevel)(struct dasd_device *);
+	int (*ext_pool_warn_thrshld)(struct dasd_device *);
+	int (*ext_pool_oos)(struct dasd_device *);
 };
 
 extern struct dasd_discipline *dasd_diag_discipline_pointer;

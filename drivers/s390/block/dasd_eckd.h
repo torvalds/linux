@@ -62,6 +62,8 @@
  * Perform Subsystem Function / Sub-Orders
  */
 #define PSF_SUBORDER_QHA		 0x1C /* Query Host Access */
+#define PSF_SUBORDER_VSQ		 0x52 /* Volume Storage Query */
+#define PSF_SUBORDER_LCQ		 0x53 /* Logical Configuration Query */
 
 /*
  * CUIR response condition codes
@@ -368,6 +370,75 @@ struct dasd_rssd_messages {
 	char messages[4087];
 } __packed;
 
+/*
+ * Read Subsystem Data - Volume Storage Query
+ */
+struct dasd_rssd_vsq {
+	struct {
+		__u8 tse:1;
+		__u8 space_not_available:1;
+		__u8 ese:1;
+		__u8 unused:5;
+	} __packed vol_info;
+	__u8 unused1;
+	__u16 extent_pool_id;
+	__u8 warn_cap_limit;
+	__u8 warn_cap_guaranteed;
+	__u16 unused2;
+	__u32 limit_capacity;
+	__u32 guaranteed_capacity;
+	__u32 space_allocated;
+	__u32 space_configured;
+	__u32 logical_capacity;
+} __packed;
+
+/*
+ * Extent Pool Summary
+ */
+struct dasd_ext_pool_sum {
+	__u16 pool_id;
+	__u8 repo_warn_thrshld;
+	__u8 warn_thrshld;
+	struct {
+		__u8 type:1;			/* 0 - CKD / 1 - FB */
+		__u8 track_space_efficient:1;
+		__u8 extent_space_efficient:1;
+		__u8 standard_volume:1;
+		__u8 extent_size_valid:1;
+		__u8 capacity_at_warnlevel:1;
+		__u8 pool_oos:1;
+		__u8 unused0:1;
+		__u8 unused1;
+	} __packed flags;
+	struct {
+		__u8 reserved0:1;
+		__u8 size_1G:1;
+		__u8 reserved1:5;
+		__u8 size_16M:1;
+	} __packed extent_size;
+	__u8 unused;
+} __packed;
+
+/*
+ * Read Subsystem Data-Response - Logical Configuration Query - Header
+ */
+struct dasd_rssd_lcq {
+	__u16 data_length;		/* Length of data returned */
+	__u16 pool_count;		/* Count of extent pools returned - Max: 448 */
+	struct {
+		__u8 pool_info_valid:1;	/* Detailed Information valid */
+		__u8 pool_id_volume:1;
+		__u8 pool_id_cec:1;
+		__u8 unused0:5;
+		__u8 unused1;
+	} __packed header_flags;
+	char sfi_type[6];		/* Storage Facility Image Type (EBCDIC) */
+	char sfi_model[3];		/* Storage Facility Image Model (EBCDIC) */
+	__u8 sfi_seq_num[10];		/* Storage Facility Image Sequence Number */
+	__u8 reserved[7];
+	struct dasd_ext_pool_sum ext_pool_sum[448];
+} __packed;
+
 struct dasd_cuir_message {
 	__u16 length;
 	__u8 format;
@@ -532,6 +603,8 @@ struct dasd_eckd_private {
 	int uses_cdl;
 	struct attrib_data_t attrib;	/* e.g. cache operations */
 	struct dasd_rssd_features features;
+	struct dasd_rssd_vsq vsq;
+	struct dasd_ext_pool_sum eps;
 	u32 real_cyl;
 
 	/* alias managemnet */
