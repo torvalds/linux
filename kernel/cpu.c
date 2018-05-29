@@ -906,20 +906,19 @@ out:
 	return ret;
 }
 
+static int cpu_down_maps_locked(unsigned int cpu, enum cpuhp_state target)
+{
+	if (cpu_hotplug_disabled)
+		return -EBUSY;
+	return _cpu_down(cpu, 0, target);
+}
+
 static int do_cpu_down(unsigned int cpu, enum cpuhp_state target)
 {
 	int err;
 
 	cpu_maps_update_begin();
-
-	if (cpu_hotplug_disabled) {
-		err = -EBUSY;
-		goto out;
-	}
-
-	err = _cpu_down(cpu, 0, target);
-
-out:
+	err = cpu_down_maps_locked(cpu, target);
 	cpu_maps_update_done();
 	return err;
 }
