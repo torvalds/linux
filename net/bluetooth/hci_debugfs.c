@@ -47,19 +47,15 @@ static ssize_t __name ## _write(struct file *file,			      \
 				 size_t count, loff_t *ppos)		      \
 {									      \
 	struct hci_dev *hdev = file->private_data;			      \
-	char buf[32];							      \
-	size_t buf_size = min(count, (sizeof(buf) - 1));		      \
 	bool enable;							      \
+	int err;							      \
 									      \
 	if (test_bit(HCI_UP, &hdev->flags))				      \
 		return -EBUSY;						      \
 									      \
-	if (copy_from_user(buf, user_buf, buf_size))			      \
-		return -EFAULT;						      \
-									      \
-	buf[buf_size] = '\0';						      \
-	if (strtobool(buf, &enable))					      \
-		return -EINVAL;						      \
+	err = kstrtobool_from_user(user_buf, count, &enable);		      \
+	if (err)							      \
+		return err;						      \
 									      \
 	if (enable == test_bit(__quirk, &hdev->quirks))			      \
 		return -EALREADY;					      \
@@ -658,19 +654,15 @@ static ssize_t force_static_address_write(struct file *file,
 					  size_t count, loff_t *ppos)
 {
 	struct hci_dev *hdev = file->private_data;
-	char buf[32];
-	size_t buf_size = min(count, (sizeof(buf)-1));
 	bool enable;
+	int err;
 
 	if (test_bit(HCI_UP, &hdev->flags))
 		return -EBUSY;
 
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-
-	buf[buf_size] = '\0';
-	if (strtobool(buf, &enable))
-		return -EINVAL;
+	err = kstrtobool_from_user(user_buf, count, &enable);
+	if (err)
+		return err;
 
 	if (enable == hci_dev_test_flag(hdev, HCI_FORCE_STATIC_ADDR))
 		return -EALREADY;
