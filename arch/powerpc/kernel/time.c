@@ -163,12 +163,6 @@ EXPORT_SYMBOL(__cputime_usec_factor);
 void (*dtl_consumer)(struct dtl_entry *, u64);
 #endif
 
-#ifdef CONFIG_PPC64
-#define get_accounting(tsk)	(&get_paca()->accounting)
-#else
-#define get_accounting(tsk)	(&task_thread_info(tsk)->accounting)
-#endif
-
 static void calc_cputime_factors(void)
 {
 	struct div_result res;
@@ -420,21 +414,6 @@ void vtime_flush(struct task_struct *tsk)
 	acct->hardirq_time = 0;
 	acct->softirq_time = 0;
 }
-
-#ifdef CONFIG_PPC32
-/*
- * Called from the context switch with interrupts disabled, to charge all
- * accumulated times to the current process, and to prepare accounting on
- * the next process.
- */
-void arch_vtime_task_switch(struct task_struct *prev)
-{
-	struct cpu_accounting_data *acct = get_accounting(current);
-
-	acct->starttime = get_accounting(prev)->starttime;
-	acct->startspurr = get_accounting(prev)->startspurr;
-}
-#endif /* CONFIG_PPC32 */
 
 #else /* ! CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 #define calc_cputime_factors()
