@@ -1264,15 +1264,15 @@ static irqreturn_t exynos_dsi_irq(int irq, void *dev_id)
 
 	if (status & DSIM_INT_SW_RST_RELEASE) {
 		u32 mask = ~(DSIM_INT_RX_DONE | DSIM_INT_SFR_FIFO_EMPTY |
-			DSIM_INT_SFR_HDR_FIFO_EMPTY | DSIM_INT_FRAME_DONE |
-			DSIM_INT_RX_ECC_ERR | DSIM_INT_SW_RST_RELEASE);
+			DSIM_INT_SFR_HDR_FIFO_EMPTY | DSIM_INT_RX_ECC_ERR |
+			DSIM_INT_SW_RST_RELEASE);
 		exynos_dsi_write(dsi, DSIM_INTMSK_REG, mask);
 		complete(&dsi->completed);
 		return IRQ_HANDLED;
 	}
 
 	if (!(status & (DSIM_INT_RX_DONE | DSIM_INT_SFR_FIFO_EMPTY |
-			DSIM_INT_FRAME_DONE | DSIM_INT_PLL_STABLE)))
+			DSIM_INT_PLL_STABLE)))
 		return IRQ_HANDLED;
 
 	if (exynos_dsi_transfer_finish(dsi))

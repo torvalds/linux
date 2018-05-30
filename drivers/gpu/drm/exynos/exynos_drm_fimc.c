@@ -1200,7 +1200,7 @@ e_clk_free:
 
 int exynos_drm_check_fimc_device(struct device *dev)
 {
-	unsigned int id = of_alias_get_id(dev->of_node, "fimc");
+	int id = of_alias_get_id(dev->of_node, "fimc");
 
 	if (id >= 0 && (BIT(id) & fimc_mask))
 		return 0;
