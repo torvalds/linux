@@ -13,6 +13,18 @@ Required properties:
 - reset-names : Must include the following entries: "acodec-reset".
 
 Optional properties:
+- rockchip,adc-grps: This is a variable length array, that shows the mapping of
+  the configuration adc grp. The following shows the relationship between grp
+  and ADC:
+  * grp 0 -- select ADC1 / ADC2
+  * grp 1 -- select ADC3 / ADC4
+  * grp 2 -- select ADC5 / ADC6
+  * grp 3 -- select ADC7 / ADC8
+  By default, they are all enabled, like using:
+  - rockchip,adc-grps = <0 1 2 3>;
+  If we don't use ADC5 and ADC6, we just use grp 0,1,3 on dts. For example:
+  - rockchip,adc-grps = <0 1 3>;
+
 - rockchip,loopback-grp: It points out the ADC group which is the loopback used.
 - hp-ctl-gpios: The gpio of head phone controller.
 - spk-ctl-gpios: The gpio of speak controller.
