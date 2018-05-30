@@ -114,6 +114,8 @@ static void cifs_debug_tcon(struct seq_file *m, struct cifs_tcon *tcon)
 		seq_printf(m, " type: %d ", dev_type);
 	if (tcon->seal)
 		seq_printf(m, " Encrypted");
+	if (tcon->nocase)
+		seq_printf(m, " nocase");
 	if (tcon->unix_ext)
 		seq_printf(m, " POSIX Extensions");
 	if (tcon->ses->server->ops->dump_share_caps)
