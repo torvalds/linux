@@ -76,8 +76,7 @@ static int ladder_select_state(struct cpuidle_driver *drv,
 	int latency_req = pm_qos_request(PM_QOS_CPU_DMA_LATENCY);
 	int resume_latency = dev_pm_qos_raw_read_value(device);
 
-	if (resume_latency < latency_req &&
-	    resume_latency != PM_QOS_RESUME_LATENCY_NO_CONSTRAINT)
+	if (resume_latency < latency_req)
 		latency_req = resume_latency;
 
 	/* Special case when user has set very strict latency requirement */
