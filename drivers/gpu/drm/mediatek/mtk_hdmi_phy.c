@@ -72,6 +72,7 @@ static int mtk_hdmi_phy_probe(struct platform_device *pdev)
 		return ret;
 	}
 	ref_clk_name = __clk_get_name(ref_clk);
+	printk ("ref_clk_name:%s\n",ref_clk_name);
 
 	ret = of_property_read_string(dev->of_node, "clock-output-names",
 				      &clk_init.name);
