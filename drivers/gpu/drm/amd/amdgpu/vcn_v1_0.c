@@ -1712,7 +1712,7 @@ static const struct amdgpu_ring_funcs vcn_v1_0_jpeg_ring_vm_funcs = {
 	.emit_ib = vcn_v1_0_jpeg_ring_emit_ib,
 	.emit_fence = vcn_v1_0_jpeg_ring_emit_fence,
 	.emit_vm_flush = vcn_v1_0_jpeg_ring_emit_vm_flush,
-	//.test_ring
+	.test_ring = amdgpu_vcn_jpeg_ring_test_ring,
 	//.test_ib
 	.insert_nop = vcn_v1_0_jpeg_ring_nop,
 	.insert_start = vcn_v1_0_jpeg_ring_insert_start,
