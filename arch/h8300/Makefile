@@ -22,6 +22,8 @@ KBUILD_CFLAGS += -DUTS_SYSNAME=\"uClinux\"
 KBUILD_AFLAGS += $(aflags-y)
 LDFLAGS += $(ldflags-y)
 
+CHECKFLAGS += -msize-long
+
 ifeq ($(CROSS_COMPILE),)
 CROSS_COMPILE := h8300-unknown-linux-
 endif
