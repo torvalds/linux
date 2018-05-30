@@ -2447,8 +2447,9 @@ static int abort_on_full_fn(struct ceph_osd_request *req, void *arg)
 	bool *victims = arg;
 
 	if (req->r_abort_on_full &&
+	    (req->r_flags & CEPH_OSD_FLAG_WRITE) &&
 	    (ceph_osdmap_flag(osdc, CEPH_OSDMAP_FULL) ||
-	     pool_full(osdc, req->r_t.target_oloc.pool))) {
+	     pool_full(osdc, req->r_t.base_oloc.pool))) {
 		if (!*victims) {
 			update_epoch_barrier(osdc, osdc->osdmap->epoch);
 			*victims = true;
