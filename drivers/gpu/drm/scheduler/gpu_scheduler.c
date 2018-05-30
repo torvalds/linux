@@ -181,7 +181,6 @@ int drm_sched_entity_init(struct drm_gpu_scheduler *sched,
 	entity->rq = rq;
 	entity->sched = sched;
 	entity->guilty = guilty;
-	entity->fini_status = 0;
 	entity->last_scheduled = NULL;
 
 	spin_lock_init(&entity->rq_lock);
@@ -219,7 +218,8 @@ static bool drm_sched_entity_is_initialized(struct drm_gpu_scheduler *sched,
 static bool drm_sched_entity_is_idle(struct drm_sched_entity *entity)
 {
 	rmb();
-	if (spsc_queue_peek(&entity->job_queue) == NULL)
+
+	if (!entity->rq || spsc_queue_peek(&entity->job_queue) == NULL)
 		return true;
 
 	return false;
@@ -260,25 +260,39 @@ static void drm_sched_entity_kill_jobs_cb(struct dma_fence *f,
  *
  * @sched: scheduler instance
  * @entity: scheduler entity
+ * @timeout: time to wait in for Q to become empty in jiffies.
  *
  * Splitting drm_sched_entity_fini() into two functions, The first one does the waiting,
  * removes the entity from the runqueue and returns an error when the process was killed.
+ *
+ * Returns the remaining time in jiffies left from the input timeout
  */
-void drm_sched_entity_do_release(struct drm_gpu_scheduler *sched,
-			   struct drm_sched_entity *entity)
+long drm_sched_entity_do_release(struct drm_gpu_scheduler *sched,
+			   struct drm_sched_entity *entity, long timeout)
 {
+	long ret = timeout;
+
 	if (!drm_sched_entity_is_initialized(sched, entity))
-		return;
+		return ret;
 	/**
 	 * The client will not queue more IBs during this fini, consume existing
 	 * queued IBs or discard them on SIGKILL
 	*/
-	if ((current->flags & PF_SIGNALED) && current->exit_code == SIGKILL)
-		entity->fini_status = -ERESTARTSYS;
-	else
-		entity->fini_status = wait_event_killable(sched->job_scheduled,
-					drm_sched_entity_is_idle(entity));
-	drm_sched_entity_set_rq(entity, NULL);
+	if (current->flags & PF_EXITING) {
+		if (timeout)
+			ret = wait_event_timeout(
+					sched->job_scheduled,
+					drm_sched_entity_is_idle(entity),
+					timeout);
+	} else
+		wait_event_killable(sched->job_scheduled, drm_sched_entity_is_idle(entity));
+
+
+	/* For killed process disable any more IBs enqueue right now */
+	if ((current->flags & PF_EXITING) && (current->exit_code == SIGKILL))
+		drm_sched_entity_set_rq(entity, NULL);
+
+	return ret;
 }
 EXPORT_SYMBOL(drm_sched_entity_do_release);
 
@@ -290,11 +304,18 @@ EXPORT_SYMBOL(drm_sched_entity_do_release);
  *
  * This should be called after @drm_sched_entity_do_release. It goes over the
  * entity and signals all jobs with an error code if the process was killed.
+ *
  */
 void drm_sched_entity_cleanup(struct drm_gpu_scheduler *sched,
 			   struct drm_sched_entity *entity)
 {
-	if (entity->fini_status) {
+
+	drm_sched_entity_set_rq(entity, NULL);
+
+	/* Consumption of existing IBs wasn't completed. Forcefully
+	 * remove them here.
+	 */
+	if (spsc_queue_peek(&entity->job_queue)) {
 		struct drm_sched_job *job;
 		int r;
 
@@ -314,12 +335,22 @@ void drm_sched_entity_cleanup(struct drm_gpu_scheduler *sched,
 			struct drm_sched_fence *s_fence = job->s_fence;
 			drm_sched_fence_scheduled(s_fence);
 			dma_fence_set_error(&s_fence->finished, -ESRCH);
-			r = dma_fence_add_callback(entity->last_scheduled, &job->finish_cb,
-							drm_sched_entity_kill_jobs_cb);
-			if (r == -ENOENT)
+
+			/*
+			 * When pipe is hanged by older entity, new entity might
+			 * not even have chance to submit it's first job to HW
+			 * and so entity->last_scheduled will remain NULL
+			 */
+			if (!entity->last_scheduled) {
 				drm_sched_entity_kill_jobs_cb(NULL, &job->finish_cb);
-			else if (r)
-				DRM_ERROR("fence add callback failed (%d)\n", r);
+			} else {
+				r = dma_fence_add_callback(entity->last_scheduled, &job->finish_cb,
+								drm_sched_entity_kill_jobs_cb);
+				if (r == -ENOENT)
+					drm_sched_entity_kill_jobs_cb(NULL, &job->finish_cb);
+				else if (r)
+					DRM_ERROR("fence add callback failed (%d)\n", r);
+			}
 		}
 	}
 
@@ -339,7 +370,7 @@ EXPORT_SYMBOL(drm_sched_entity_cleanup);
 void drm_sched_entity_fini(struct drm_gpu_scheduler *sched,
 				struct drm_sched_entity *entity)
 {
-	drm_sched_entity_do_release(sched, entity);
+	drm_sched_entity_do_release(sched, entity, MAX_WAIT_SCHED_ENTITY_Q_EMPTY);
 	drm_sched_entity_cleanup(sched, entity);
 }
 EXPORT_SYMBOL(drm_sched_entity_fini);
