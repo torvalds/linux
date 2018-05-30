@@ -6469,6 +6469,11 @@ static int ixgbe_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
+	if (adapter->xdp_prog) {
+		e_warn(probe, "MTU cannot be changed while XDP program is loaded\n");
+		return -EPERM;
+	}
+
 	/*
 	 * For 82599EB we cannot allow legacy VFs to enable their receive
 	 * paths when MTU greater than 1500 is configured.  So display a
@@ -9406,6 +9411,11 @@ static netdev_features_t ixgbe_fix_features(struct net_device *netdev,
 	/* Turn off LRO if not RSC capable */
 	if (!(adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE))
 		features &= ~NETIF_F_LRO;
+
+	if (adapter->xdp_prog && (features & NETIF_F_LRO)) {
+		e_dev_err("LRO is not supported with XDP\n");
+		features &= ~NETIF_F_LRO;
+	}
 
 	return features;
 }
