@@ -1214,7 +1214,8 @@ static int mxcmci_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused mxcmci_suspend(struct device *dev)
+#ifdef CONFIG_PM_SLEEP
+static int mxcmci_suspend(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct mxcmci_host *host = mmc_priv(mmc);
@@ -1224,7 +1225,7 @@ static int __maybe_unused mxcmci_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused mxcmci_resume(struct device *dev)
+static int mxcmci_resume(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct mxcmci_host *host = mmc_priv(mmc);
@@ -1240,6 +1241,7 @@ static int __maybe_unused mxcmci_resume(struct device *dev)
 
 	return ret;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(mxcmci_pm_ops, mxcmci_suspend, mxcmci_resume);
 
