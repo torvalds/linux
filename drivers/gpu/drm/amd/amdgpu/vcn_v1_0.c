@@ -38,6 +38,7 @@
 static int vcn_v1_0_stop(struct amdgpu_device *adev);
 static void vcn_v1_0_set_dec_ring_funcs(struct amdgpu_device *adev);
 static void vcn_v1_0_set_enc_ring_funcs(struct amdgpu_device *adev);
+static void vcn_v1_0_set_jpeg_ring_funcs(struct amdgpu_device *adev);
 static void vcn_v1_0_set_irq_funcs(struct amdgpu_device *adev);
 
 /**
@@ -55,6 +56,7 @@ static int vcn_v1_0_early_init(void *handle)
 
 	vcn_v1_0_set_dec_ring_funcs(adev);
 	vcn_v1_0_set_enc_ring_funcs(adev);
+	vcn_v1_0_set_jpeg_ring_funcs(adev);
 	vcn_v1_0_set_irq_funcs(adev);
 
 	return 0;
@@ -1559,6 +1561,38 @@ static const struct amdgpu_ring_funcs vcn_v1_0_enc_ring_vm_funcs = {
 	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,
 };
 
+static const struct amdgpu_ring_funcs vcn_v1_0_jpeg_ring_vm_funcs = {
+	.type = AMDGPU_RING_TYPE_VCN_JPEG,
+	.align_mask = 0xf,
+	.nop = PACKET0(0x81ff, 0),
+	.support_64bit_ptrs = false,
+	.vmhub = AMDGPU_MMHUB,
+	.get_rptr = vcn_v1_0_jpeg_ring_get_rptr,
+	.get_wptr = vcn_v1_0_jpeg_ring_get_wptr,
+	.set_wptr = vcn_v1_0_jpeg_ring_set_wptr,
+	.emit_frame_size =
+		6 + 6 + /* hdp invalidate / flush */
+		SOC15_FLUSH_GPU_TLB_NUM_WREG * 6 +
+		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 8 +
+		8 + /* vcn_v1_0_dec_ring_emit_vm_flush */
+		14 + 14 + /* vcn_v1_0_dec_ring_emit_fence x2 vm fence */
+		6,
+	.emit_ib_size = 22, /* vcn_v1_0_dec_ring_emit_ib */
+	.emit_ib = vcn_v1_0_jpeg_ring_emit_ib,
+	.emit_fence = vcn_v1_0_jpeg_ring_emit_fence,
+	.emit_vm_flush = vcn_v1_0_jpeg_ring_emit_vm_flush,
+	//.test_ring
+	//.test_ib
+	.insert_nop = vcn_v1_0_jpeg_ring_nop,
+	.insert_start = vcn_v1_0_jpeg_ring_insert_start,
+	.insert_end = vcn_v1_0_jpeg_ring_insert_end,
+	.pad_ib = amdgpu_ring_generic_pad_ib,
+	.begin_use = amdgpu_vcn_ring_begin_use,
+	.end_use = amdgpu_vcn_ring_end_use,
+	.emit_wreg = vcn_v1_0_jpeg_ring_emit_wreg,
+	.emit_reg_wait = vcn_v1_0_jpeg_ring_emit_reg_wait,
+};
+
 static void vcn_v1_0_set_dec_ring_funcs(struct amdgpu_device *adev)
 {
 	adev->vcn.ring_dec.funcs = &vcn_v1_0_dec_ring_vm_funcs;
@@ -1573,6 +1607,12 @@ static void vcn_v1_0_set_enc_ring_funcs(struct amdgpu_device *adev)
 		adev->vcn.ring_enc[i].funcs = &vcn_v1_0_enc_ring_vm_funcs;
 
 	DRM_INFO("VCN encode is enabled in VM mode\n");
+}
+
+static void vcn_v1_0_set_jpeg_ring_funcs(struct amdgpu_device *adev)
+{
+	adev->vcn.ring_jpeg.funcs = &vcn_v1_0_jpeg_ring_vm_funcs;
+	DRM_INFO("VCN jpeg decode is enabled in VM mode\n");
 }
 
 static const struct amdgpu_irq_src_funcs vcn_v1_0_irq_funcs = {
