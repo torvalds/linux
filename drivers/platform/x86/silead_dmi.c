@@ -141,7 +141,25 @@ static const struct silead_ts_dmi_data pipo_w2s_data = {
 	.properties	= pipo_w2s_props,
 };
 
-static const struct property_entry pov_mobii_wintab_p800w_props[] = {
+static const struct property_entry pov_mobii_wintab_p800w_v20_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-min-x", 32),
+	PROPERTY_ENTRY_U32("touchscreen-min-y", 16),
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1692),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1146),
+	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+	PROPERTY_ENTRY_STRING("firmware-name",
+			      "gsl3680-pov-mobii-wintab-p800w-v20.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct silead_ts_dmi_data pov_mobii_wintab_p800w_v20_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= pov_mobii_wintab_p800w_v20_props,
+};
+
+static const struct property_entry pov_mobii_wintab_p800w_v21_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 1800),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 1150),
 	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
@@ -151,9 +169,9 @@ static const struct property_entry pov_mobii_wintab_p800w_props[] = {
 	{ }
 };
 
-static const struct silead_ts_dmi_data pov_mobii_wintab_p800w_data = {
+static const struct silead_ts_dmi_data pov_mobii_wintab_p800w_v21_data = {
 	.acpi_name	= "MSSL1680:00",
-	.properties	= pov_mobii_wintab_p800w_props,
+	.properties	= pov_mobii_wintab_p800w_v21_props,
 };
 
 static const struct property_entry itworks_tw891_props[] = {
@@ -386,8 +404,19 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 		},
 	},
 	{
-		/* Point of View mobii wintab p800w */
-		.driver_data = (void *)&pov_mobii_wintab_p800w_data,
+		/* Point of View mobii wintab p800w (v2.0) */
+		.driver_data = (void *)&pov_mobii_wintab_p800w_v20_data,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
+			DMI_MATCH(DMI_BOARD_NAME, "Aptio CRB"),
+			DMI_MATCH(DMI_BIOS_VERSION, "3BAIR1014"),
+			/* Above matches are too generic, add bios-date match */
+			DMI_MATCH(DMI_BIOS_DATE, "10/24/2014"),
+		},
+	},
+	{
+		/* Point of View mobii wintab p800w (v2.1) */
+		.driver_data = (void *)&pov_mobii_wintab_p800w_v21_data,
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
 			DMI_MATCH(DMI_BOARD_NAME, "Aptio CRB"),
