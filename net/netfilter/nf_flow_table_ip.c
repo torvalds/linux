@@ -220,7 +220,7 @@ nf_flow_offload_ip_hook(void *priv, struct sk_buff *skb,
 	enum flow_offload_tuple_dir dir;
 	struct flow_offload *flow;
 	struct net_device *outdev;
-	const struct rtable *rt;
+	struct rtable *rt;
 	unsigned int thoff;
 	struct iphdr *iph;
 	__be32 nexthop;
@@ -241,7 +241,7 @@ nf_flow_offload_ip_hook(void *priv, struct sk_buff *skb,
 
 	dir = tuplehash->tuple.dir;
 	flow = container_of(tuplehash, struct flow_offload, tuplehash[dir]);
-	rt = (const struct rtable *)flow->tuplehash[dir].tuple.dst_cache;
+	rt = (struct rtable *)flow->tuplehash[dir].tuple.dst_cache;
 
 	if (unlikely(nf_flow_exceeds_mtu(skb, flow->tuplehash[dir].tuple.mtu)) &&
 	    (ip_hdr(skb)->frag_off & htons(IP_DF)) != 0)
@@ -264,6 +264,7 @@ nf_flow_offload_ip_hook(void *priv, struct sk_buff *skb,
 
 	skb->dev = outdev;
 	nexthop = rt_nexthop(rt, flow->tuplehash[!dir].tuple.src_v4.s_addr);
+	skb_dst_set_noref(skb, &rt->dst);
 	neigh_xmit(NEIGH_ARP_TABLE, outdev, &nexthop, skb);
 
 	return NF_STOLEN;
@@ -480,6 +481,7 @@ nf_flow_offload_ipv6_hook(void *priv, struct sk_buff *skb,
 
 	skb->dev = outdev;
 	nexthop = rt6_nexthop(rt, &flow->tuplehash[!dir].tuple.src_v6);
+	skb_dst_set_noref(skb, &rt->dst);
 	neigh_xmit(NEIGH_ND_TABLE, outdev, nexthop, skb);
 
 	return NF_STOLEN;
