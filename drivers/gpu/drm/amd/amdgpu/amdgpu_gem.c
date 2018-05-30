@@ -236,6 +236,13 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 	/* create a gem object to contain this object in */
 	if (args->in.domains & (AMDGPU_GEM_DOMAIN_GDS |
 	    AMDGPU_GEM_DOMAIN_GWS | AMDGPU_GEM_DOMAIN_OA)) {
+		if (flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID) {
+			/* if gds bo is created from user space, it must be
+			 * passed to bo list
+			 */
+			DRM_ERROR("GDS bo cannot be per-vm-bo\n");
+			return -EINVAL;
+		}
 		flags |= AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
 		if (args->in.domains == AMDGPU_GEM_DOMAIN_GDS)
 			size = size << AMDGPU_GDS_SHIFT;
