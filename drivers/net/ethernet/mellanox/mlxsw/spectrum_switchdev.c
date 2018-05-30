@@ -1697,7 +1697,7 @@ static int mlxsw_sp_port_obj_add(struct net_device *dev,
 		vlan = SWITCHDEV_OBJ_PORT_VLAN(obj);
 		err = mlxsw_sp_port_vlans_add(mlxsw_sp_port, vlan, trans);
 
-		if (switchdev_trans_ph_commit(trans)) {
+		if (switchdev_trans_ph_prepare(trans)) {
 			/* The event is emitted before the changes are actually
 			 * applied to the bridge. Therefore schedule the respin
 			 * call for later, so that the respin logic sees the
