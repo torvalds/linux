@@ -38,6 +38,8 @@ MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_NETFILTER);
 	rcu_dereference_protected(table[(id)].subsys, \
 				  lockdep_nfnl_is_held((id)))
 
+#define NFNL_MAX_ATTR_COUNT	32
+
 static struct {
 	struct mutex				mutex;
 	const struct nfnetlink_subsystem __rcu	*subsys;
@@ -77,6 +79,13 @@ EXPORT_SYMBOL_GPL(lockdep_nfnl_is_held);
 
 int nfnetlink_subsys_register(const struct nfnetlink_subsystem *n)
 {
+	u8 cb_id;
+
+	/* Sanity-check attr_count size to avoid stack buffer overflow. */
+	for (cb_id = 0; cb_id < n->cb_count; cb_id++)
+		if (WARN_ON(n->cb[cb_id].attr_count > NFNL_MAX_ATTR_COUNT))
+			return -EINVAL;
+
 	nfnl_lock(n->subsys_id);
 	if (table[n->subsys_id].subsys) {
 		nfnl_unlock(n->subsys_id);
@@ -186,10 +195,16 @@ replay:
 	{
 		int min_len = nlmsg_total_size(sizeof(struct nfgenmsg));
 		u8 cb_id = NFNL_MSG_TYPE(nlh->nlmsg_type);
-		struct nlattr *cda[ss->cb[cb_id].attr_count + 1];
+		struct nlattr *cda[NFNL_MAX_ATTR_COUNT + 1];
 		struct nlattr *attr = (void *)nlh + min_len;
 		int attrlen = nlh->nlmsg_len - min_len;
 		__u8 subsys_id = NFNL_SUBSYS_ID(type);
+
+		/* Sanity-check NFNL_MAX_ATTR_COUNT */
+		if (ss->cb[cb_id].attr_count > NFNL_MAX_ATTR_COUNT) {
+			rcu_read_unlock();
+			return -ENOMEM;
+		}
 
 		err = nla_parse(cda, ss->cb[cb_id].attr_count, attr, attrlen,
 				ss->cb[cb_id].policy, extack);
@@ -387,9 +402,15 @@ replay:
 		{
 			int min_len = nlmsg_total_size(sizeof(struct nfgenmsg));
 			u8 cb_id = NFNL_MSG_TYPE(nlh->nlmsg_type);
-			struct nlattr *cda[ss->cb[cb_id].attr_count + 1];
+			struct nlattr *cda[NFNL_MAX_ATTR_COUNT + 1];
 			struct nlattr *attr = (void *)nlh + min_len;
 			int attrlen = nlh->nlmsg_len - min_len;
+
+			/* Sanity-check NFTA_MAX_ATTR */
+			if (ss->cb[cb_id].attr_count > NFNL_MAX_ATTR_COUNT) {
+				err = -ENOMEM;
+				goto ack;
+			}
 
 			err = nla_parse(cda, ss->cb[cb_id].attr_count, attr,
 					attrlen, ss->cb[cb_id].policy, NULL);
