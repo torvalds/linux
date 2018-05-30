@@ -1657,13 +1657,11 @@ static void qup_i2c_disable_clocks(struct qup_i2c_dev *qup)
 	clk_disable_unprepare(qup->pclk);
 }
 
-#if IS_ENABLED(CONFIG_ACPI)
 static const struct acpi_device_id qup_i2c_acpi_match[] = {
 	{ "QCOM8010"},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, qup_i2c_acpi_match);
-#endif
 
 static int qup_i2c_probe(struct platform_device *pdev)
 {
