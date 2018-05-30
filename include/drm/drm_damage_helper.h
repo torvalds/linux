@@ -34,8 +34,62 @@
 
 #include <drm/drm_atomic_helper.h>
 
+/**
+ * drm_atomic_for_each_plane_damage - Iterator macro for plane damage.
+ * @iter: The iterator to advance.
+ * @rect: Return a rectangle in fb coordinate clipped to plane src.
+ *
+ * Note that if the first call to iterator macro return false then no need to do
+ * plane update. Iterator will return full plane src when damage is not passed
+ * by user-space.
+ */
+#define drm_atomic_for_each_plane_damage(iter, rect) \
+	while (drm_atomic_helper_damage_iter_next(iter, rect))
+
+/**
+ * struct drm_atomic_helper_damage_iter - Closure structure for damage iterator.
+ *
+ * This structure tracks state needed to walk the list of plane damage clips.
+ */
+struct drm_atomic_helper_damage_iter {
+	/* private: Plane src in whole number. */
+	struct drm_rect plane_src;
+	/* private: Rectangles in plane damage blob. */
+	const struct drm_rect *clips;
+	/* private: Number of rectangles in plane damage blob. */
+	uint32_t num_clips;
+	/* private: Current clip iterator is advancing on. */
+	uint32_t curr_clip;
+	/* private: Whether need full plane update. */
+	bool full_update;
+};
+
 void drm_plane_enable_fb_damage_clips(struct drm_plane *plane);
 void drm_atomic_helper_check_plane_damage(struct drm_atomic_state *state,
 					  struct drm_plane_state *plane_state);
+void
+drm_atomic_helper_damage_iter_init(struct drm_atomic_helper_damage_iter *iter,
+				   const struct drm_plane_state *old_state,
+				   const struct drm_plane_state *new_state);
+bool
+drm_atomic_helper_damage_iter_next(struct drm_atomic_helper_damage_iter *iter,
+				   struct drm_rect *rect);
+
+/**
+ * drm_helper_get_plane_damage_clips - Returns damage clips in &drm_rect.
+ * @state: Plane state.
+ *
+ * Returns plane damage rectangles in internal &drm_rect. Currently &drm_rect
+ * can be obtained by simply typecasting &drm_mode_rect. This is because both
+ * are signed 32 and during drm_atomic_check_only() it is verified that damage
+ * clips are inside fb.
+ *
+ * Return: Clips in plane fb_damage_clips blob property.
+ */
+static inline struct drm_rect *
+drm_helper_get_plane_damage_clips(const struct drm_plane_state *state)
+{
+	return (struct drm_rect *)drm_plane_get_damage_clips(state);
+}
 
 #endif

@@ -65,6 +65,9 @@
  *
  * Drivers that are interested in damage interface for plane should enable
  * FB_DAMAGE_CLIPS property by calling drm_plane_enable_fb_damage_clips().
+ * Drivers implementing damage can use drm_atomic_helper_damage_iter_init() and
+ * drm_atomic_helper_damage_iter_next() helper iterator function to get damage
+ * rectangles clipped to &drm_plane_state.src.
  */
 
 /**
@@ -116,3 +119,90 @@ void drm_atomic_helper_check_plane_damage(struct drm_atomic_state *state,
 	}
 }
 EXPORT_SYMBOL(drm_atomic_helper_check_plane_damage);
+
+/**
+ * drm_atomic_helper_damage_iter_init - Initialize the damage iterator.
+ * @iter: The iterator to initialize.
+ * @old_state: Old plane state for validation.
+ * @new_state: Plane state from which to iterate the damage clips.
+ *
+ * Initialize an iterator, which clips plane damage
+ * &drm_plane_state.fb_damage_clips to plane &drm_plane_state.src. This iterator
+ * returns full plane src in case damage is not present because either
+ * user-space didn't sent or driver discarded it (it want to do full plane
+ * update). Currently this iterator returns full plane src in case plane src
+ * changed but that can be changed in future to return damage.
+ *
+ * For the case when plane is not visible or plane update should not happen the
+ * first call to iter_next will return false. Note that this helper use clipped
+ * &drm_plane_state.src, so driver calling this helper should have called
+ * drm_atomic_helper_check_plane_state() earlier.
+ */
+void
+drm_atomic_helper_damage_iter_init(struct drm_atomic_helper_damage_iter *iter,
+				   const struct drm_plane_state *old_state,
+				   const struct drm_plane_state *state)
+{
+	memset(iter, 0, sizeof(*iter));
+
+	if (!state || !state->crtc || !state->fb || !state->visible)
+		return;
+
+	iter->clips = drm_helper_get_plane_damage_clips(state);
+	iter->num_clips = drm_plane_get_damage_clips_count(state);
+
+	/* Round down for x1/y1 and round up for x2/y2 to catch all pixels */
+	iter->plane_src.x1 = state->src.x1 >> 16;
+	iter->plane_src.y1 = state->src.y1 >> 16;
+	iter->plane_src.x2 = (state->src.x2 >> 16) + !!(state->src.x2 & 0xFFFF);
+	iter->plane_src.y2 = (state->src.y2 >> 16) + !!(state->src.y2 & 0xFFFF);
+
+	if (!iter->clips || !drm_rect_equals(&state->src, &old_state->src)) {
+		iter->clips = 0;
+		iter->num_clips = 0;
+		iter->full_update = true;
+	}
+}
+EXPORT_SYMBOL(drm_atomic_helper_damage_iter_init);
+
+/**
+ * drm_atomic_helper_damage_iter_next - Advance the damage iterator.
+ * @iter: The iterator to advance.
+ * @rect: Return a rectangle in fb coordinate clipped to plane src.
+ *
+ * Since plane src is in 16.16 fixed point and damage clips are whole number,
+ * this iterator round off clips that intersect with plane src. Round down for
+ * x1/y1 and round up for x2/y2 for the intersected coordinate. Similar rounding
+ * off for full plane src, in case it's returned as damage. This iterator will
+ * skip damage clips outside of plane src.
+ *
+ * Return: True if the output is valid, false if reached the end.
+ *
+ * If the first call to iterator next returns false then it means no need to
+ * update the plane.
+ */
+bool
+drm_atomic_helper_damage_iter_next(struct drm_atomic_helper_damage_iter *iter,
+				   struct drm_rect *rect)
+{
+	bool ret = false;
+
+	if (iter->full_update) {
+		*rect = iter->plane_src;
+		iter->full_update = false;
+		return true;
+	}
+
+	while (iter->curr_clip < iter->num_clips) {
+		*rect = iter->clips[iter->curr_clip];
+		iter->curr_clip++;
+
+		if (drm_rect_intersect(rect, &iter->plane_src)) {
+			ret = true;
+			break;
+		}
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(drm_atomic_helper_damage_iter_next);
