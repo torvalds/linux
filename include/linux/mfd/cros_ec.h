@@ -197,6 +197,8 @@ struct cros_ec_dev {
 	u32 features[2];
 };
 
+#define to_cros_ec_dev(dev)  container_of(dev, struct cros_ec_dev, class_dev)
+
 /**
  * cros_ec_suspend - Handle a suspend operation for the ChromeOS EC device
  *
