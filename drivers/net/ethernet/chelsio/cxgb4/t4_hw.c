@@ -3941,6 +3941,7 @@ static fw_port_cap32_t fwcaps16_to_caps32(fw_port_cap16_t caps16)
 	CAP16_TO_CAP32(FC_RX);
 	CAP16_TO_CAP32(FC_TX);
 	CAP16_TO_CAP32(ANEG);
+	CAP16_TO_CAP32(FORCE_PAUSE);
 	CAP16_TO_CAP32(MDIAUTO);
 	CAP16_TO_CAP32(MDISTRAIGHT);
 	CAP16_TO_CAP32(FEC_RS);
@@ -3982,6 +3983,7 @@ static fw_port_cap16_t fwcaps32_to_caps16(fw_port_cap32_t caps32)
 	CAP32_TO_CAP16(802_3_PAUSE);
 	CAP32_TO_CAP16(802_3_ASM_DIR);
 	CAP32_TO_CAP16(ANEG);
+	CAP32_TO_CAP16(FORCE_PAUSE);
 	CAP32_TO_CAP16(MDIAUTO);
 	CAP32_TO_CAP16(MDISTRAIGHT);
 	CAP32_TO_CAP16(FEC_RS);
@@ -4014,6 +4016,8 @@ static inline fw_port_cap32_t cc_to_fwcap_pause(enum cc_pause cc_pause)
 		fw_pause |= FW_PORT_CAP32_FC_RX;
 	if (cc_pause & PAUSE_TX)
 		fw_pause |= FW_PORT_CAP32_FC_TX;
+	if (!(cc_pause & PAUSE_AUTONEG))
+		fw_pause |= FW_PORT_CAP32_FORCE_PAUSE;
 
 	return fw_pause;
 }
@@ -4101,7 +4105,11 @@ int t4_link_l1cfg_core(struct adapter *adapter, unsigned int mbox,
 		rcap = lc->acaps | fw_fc | fw_fec | fw_mdi;
 	}
 
-	if (rcap & ~lc->pcaps) {
+	/* Note that older Firmware doesn't have FW_PORT_CAP32_FORCE_PAUSE, so
+	 * we need to exclude this from this check in order to maintain
+	 * compatibility ...
+	 */
+	if ((rcap & ~lc->pcaps) & ~FW_PORT_CAP32_FORCE_PAUSE) {
 		dev_err(adapter->pdev_dev,
 			"Requested Port Capabilities %#x exceed Physical Port Capabilities %#x\n",
 			rcap, lc->pcaps);
