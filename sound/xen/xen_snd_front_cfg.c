@@ -306,6 +306,7 @@ static int cfg_get_stream_type(const char *path, int index,
 	str = xenbus_read(XBT_NIL, stream_path, XENSND_FIELD_TYPE, NULL);
 	if (IS_ERR(str)) {
 		ret = PTR_ERR(str);
+		str = NULL;
 		goto fail;
 	}
 
@@ -347,6 +348,7 @@ static int cfg_stream(struct xen_snd_front_info *front_info,
 	str = xenbus_read(XBT_NIL, stream_path, XENSND_FIELD_TYPE, NULL);
 	if (IS_ERR(str)) {
 		ret = PTR_ERR(str);
+		str = NULL;
 		goto fail;
 	}
 
