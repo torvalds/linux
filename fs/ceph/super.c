@@ -259,12 +259,12 @@ static int parse_fsopt_token(char *c, void *private)
 		break;
 		/* misc */
 	case Opt_wsize:
-		if (intval < PAGE_SIZE || intval > CEPH_MAX_WRITE_SIZE)
+		if (intval < (int)PAGE_SIZE || intval > CEPH_MAX_WRITE_SIZE)
 			return -EINVAL;
 		fsopt->wsize = ALIGN(intval, PAGE_SIZE);
 		break;
 	case Opt_rsize:
-		if (intval < PAGE_SIZE || intval > CEPH_MAX_READ_SIZE)
+		if (intval < (int)PAGE_SIZE || intval > CEPH_MAX_READ_SIZE)
 			return -EINVAL;
 		fsopt->rsize = ALIGN(intval, PAGE_SIZE);
 		break;
@@ -289,7 +289,7 @@ static int parse_fsopt_token(char *c, void *private)
 		fsopt->max_readdir = intval;
 		break;
 	case Opt_readdir_max_bytes:
-		if (intval < PAGE_SIZE && intval != 0)
+		if (intval < (int)PAGE_SIZE && intval != 0)
 			return -EINVAL;
 		fsopt->max_readdir_bytes = intval;
 		break;
