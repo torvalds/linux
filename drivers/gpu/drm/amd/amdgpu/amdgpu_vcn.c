@@ -119,6 +119,8 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev)
 	for (i = 0; i < adev->vcn.num_enc_rings; ++i)
 		amdgpu_ring_fini(&adev->vcn.ring_enc[i]);
 
+	amdgpu_ring_fini(&adev->vcn.ring_jpeg);
+
 	release_firmware(adev->vcn.fw);
 
 	return 0;
