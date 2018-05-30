@@ -616,7 +616,9 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 		err = PTR_ERR(fsc->client);
 		goto fail;
 	}
+
 	fsc->client->extra_mon_dispatch = extra_mon_dispatch;
+	fsc->client->osdc.abort_on_full = true;
 
 	if (!fsopt->mds_namespace) {
 		ceph_monc_want_map(&fsc->client->monc, CEPH_SUB_MDSMAP,
