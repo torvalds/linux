@@ -995,6 +995,8 @@ void dcn10_link_encoder_disable_output(
 
 	if (!dcn10_is_dig_enabled(enc)) {
 		/* OF_SKIP_POWER_DOWN_INACTIVE_ENCODER */
+	/*in DP_Alt_No_Connect case, we turn off the dig already,
+	after excuation the PHY w/a sequence, not allow touch PHY any more*/
 		return;
 	}
 	/* Power-down RX and disable GPU PHY should be paired.

@@ -197,6 +197,11 @@ enum transmitter_color_depth {
 	TRANSMITTER_COLOR_DEPTH_48       /* 16 bits */
 };
 
+enum dp_alt_mode {
+	DP_Alt_mode__Unknown = 0,
+	DP_Alt_mode__Connect,
+	DP_Alt_mode__NoConnect,
+};
 /*
  *****************************************************************************
  * graphics_object_id struct
