@@ -694,6 +694,7 @@ int uvc_query_buffer(struct uvc_video_queue *queue,
 int uvc_create_buffers(struct uvc_video_queue *queue,
 		       struct v4l2_create_buffers *v4l2_cb);
 int uvc_queue_buffer(struct uvc_video_queue *queue,
+		     struct media_device *mdev,
 		     struct v4l2_buffer *v4l2_buf);
 int uvc_export_buffer(struct uvc_video_queue *queue,
 		      struct v4l2_exportbuffer *exp);

@@ -940,7 +940,7 @@ isp_video_qbuf(struct file *file, void *fh, struct v4l2_buffer *b)
 	int ret;
 
 	mutex_lock(&video->queue_lock);
-	ret = vb2_qbuf(&vfh->queue, b);
+	ret = vb2_qbuf(&vfh->queue, video->video.v4l2_dev->mdev, b);
 	mutex_unlock(&video->queue_lock);
 
 	return ret;

@@ -1338,6 +1338,14 @@ static void vb2_req_queue(struct media_request_object *obj)
 	mutex_unlock(vb->vb2_queue->lock);
 }
 
+static void vb2_req_unbind(struct media_request_object *obj)
+{
+	struct vb2_buffer *vb = container_of(obj, struct vb2_buffer, req_obj);
+
+	if (vb->state == VB2_BUF_STATE_IN_REQUEST)
+		call_void_bufop(vb->vb2_queue, init_buffer, vb);
+}
+
 static void vb2_req_release(struct media_request_object *obj)
 {
 	struct vb2_buffer *vb = container_of(obj, struct vb2_buffer, req_obj);
@@ -1350,6 +1358,7 @@ static const struct media_request_object_ops vb2_core_req_ops = {
 	.prepare = vb2_req_prepare,
 	.unprepare = vb2_req_unprepare,
 	.queue = vb2_req_queue,
+	.unbind = vb2_req_unbind,
 	.release = vb2_req_release,
 };
 
@@ -1481,8 +1490,10 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb,
 
 		vb->state = VB2_BUF_STATE_IN_REQUEST;
 		/* Fill buffer information for the userspace */
-		if (pb)
+		if (pb) {
+			call_void_bufop(q, copy_timestamp, vb, pb);
 			call_void_bufop(q, fill_user_buffer, vb, pb);
+		}
 
 		dprintk(2, "qbuf of buffer %d succeeded\n", vb->index);
 		return 0;

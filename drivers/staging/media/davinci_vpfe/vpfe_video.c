@@ -1425,7 +1425,8 @@ static int vpfe_qbuf(struct file *file, void *priv,
 		return -EACCES;
 	}
 
-	return vb2_qbuf(&video->buffer_queue, p);
+	return vb2_qbuf(&video->buffer_queue,
+			video->video_dev.v4l2_dev->mdev, p);
 }
 
 /*
