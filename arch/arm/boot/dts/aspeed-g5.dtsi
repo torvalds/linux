@@ -189,9 +189,9 @@
 				};
 			};
 
-			rng: hwrng@78 {
+			rng: hwrng@1e6e2078 {
 				compatible = "timeriomem_rng";
-				reg = <0x78 0x4>;
+				reg = <0x1e6e2078 0x4>;
 				period = <1>;
 				quality = <100>;
 			};
