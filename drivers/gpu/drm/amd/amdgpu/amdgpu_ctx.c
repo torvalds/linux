@@ -449,26 +449,28 @@ void amdgpu_ctx_mgr_entity_fini(struct amdgpu_ctx_mgr *mgr)
 	struct amdgpu_ctx *ctx;
 	struct idr *idp;
 	uint32_t id, i;
+	long max_wait = MAX_WAIT_SCHED_ENTITY_Q_EMPTY;
 
 	idp = &mgr->ctx_handles;
 
+	mutex_lock(&mgr->lock);
 	idr_for_each_entry(idp, ctx, id) {
 
-		if (!ctx->adev)
+		if (!ctx->adev) {
+			mutex_unlock(&mgr->lock);
 			return;
+		}
 
 		for (i = 0; i < ctx->adev->num_rings; i++) {
 
 			if (ctx->adev->rings[i] == &ctx->adev->gfx.kiq.ring)
 				continue;
 
-			if (kref_read(&ctx->refcount) == 1)
-				drm_sched_entity_do_release(&ctx->adev->rings[i]->sched,
-						  &ctx->rings[i].entity);
-			else
-				DRM_ERROR("ctx %p is still alive\n", ctx);
+			max_wait = drm_sched_entity_do_release(&ctx->adev->rings[i]->sched,
+					  &ctx->rings[i].entity, max_wait);
 		}
 	}
+	mutex_unlock(&mgr->lock);
 }
 
 void amdgpu_ctx_mgr_entity_cleanup(struct amdgpu_ctx_mgr *mgr)

@@ -855,9 +855,21 @@ static const struct dev_pm_ops amdgpu_pm_ops = {
 	.runtime_idle = amdgpu_pmops_runtime_idle,
 };
 
+static int amdgpu_flush(struct file *f, fl_owner_t id)
+{
+	struct drm_file *file_priv = f->private_data;
+	struct amdgpu_fpriv *fpriv = file_priv->driver_priv;
+
+	amdgpu_ctx_mgr_entity_fini(&fpriv->ctx_mgr);
+
+	return 0;
+}
+
+
 static const struct file_operations amdgpu_driver_kms_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
+	.flush = amdgpu_flush,
 	.release = drm_release,
 	.unlocked_ioctl = amdgpu_drm_ioctl,
 	.mmap = amdgpu_mmap,
