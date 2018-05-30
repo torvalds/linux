@@ -74,7 +74,7 @@ EXPORT_SYMBOL_GPL(fs_dax_get_by_bdev);
 
 /**
  * __bdev_dax_supported() - Check if the device supports dax for filesystem
- * @sb: The superblock of the device
+ * @bdev: block device to check
  * @blocksize: The block size of the device
  *
  * This is a library function for filesystems to check if the block device
@@ -82,33 +82,33 @@ EXPORT_SYMBOL_GPL(fs_dax_get_by_bdev);
  *
  * Return: negative errno if unsupported, 0 if supported.
  */
-int __bdev_dax_supported(struct super_block *sb, int blocksize)
+int __bdev_dax_supported(struct block_device *bdev, int blocksize)
 {
-	struct block_device *bdev = sb->s_bdev;
 	struct dax_device *dax_dev;
 	pgoff_t pgoff;
 	int err, id;
 	void *kaddr;
 	pfn_t pfn;
 	long len;
+	char buf[BDEVNAME_SIZE];
 
 	if (blocksize != PAGE_SIZE) {
-		pr_debug("VFS (%s): error: unsupported blocksize for dax\n",
-				sb->s_id);
+		pr_debug("%s: error: unsupported blocksize for dax\n",
+				bdevname(bdev, buf));
 		return -EINVAL;
 	}
 
 	err = bdev_dax_pgoff(bdev, 0, PAGE_SIZE, &pgoff);
 	if (err) {
-		pr_debug("VFS (%s): error: unaligned partition for dax\n",
-				sb->s_id);
+		pr_debug("%s: error: unaligned partition for dax\n",
+				bdevname(bdev, buf));
 		return err;
 	}
 
 	dax_dev = dax_get_by_host(bdev->bd_disk->disk_name);
 	if (!dax_dev) {
-		pr_debug("VFS (%s): error: device does not support dax\n",
-				sb->s_id);
+		pr_debug("%s: error: device does not support dax\n",
+				bdevname(bdev, buf));
 		return -EOPNOTSUPP;
 	}
 
@@ -119,8 +119,8 @@ int __bdev_dax_supported(struct super_block *sb, int blocksize)
 	put_dax(dax_dev);
 
 	if (len < 1) {
-		pr_debug("VFS (%s): error: dax access failed (%ld)\n",
-				sb->s_id, len);
+		pr_debug("%s: error: dax access failed (%ld)\n",
+				bdevname(bdev, buf), len);
 		return len < 0 ? len : -EIO;
 	}
 
@@ -137,8 +137,8 @@ int __bdev_dax_supported(struct super_block *sb, int blocksize)
 	} else if (pfn_t_devmap(pfn)) {
 		/* pass */;
 	} else {
-		pr_debug("VFS (%s): error: dax support not enabled\n",
-				sb->s_id);
+		pr_debug("%s: error: dax support not enabled\n",
+				bdevname(bdev, buf));
 		return -EOPNOTSUPP;
 	}
 
