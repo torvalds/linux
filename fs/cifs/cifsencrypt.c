@@ -66,11 +66,12 @@ int __cifs_calc_signature(struct smb_rqst *rqst,
 
 	/* now hash over the rq_pages array */
 	for (i = 0; i < rqst->rq_npages; i++) {
-		void *kaddr = kmap(rqst->rq_pages[i]);
-		size_t len = rqst->rq_pagesz;
+		void *kaddr;
+		unsigned int len, offset;
 
-		if (i == rqst->rq_npages - 1)
-			len = rqst->rq_tailsz;
+		rqst_page_get_length(rqst, i, &len, &offset);
+
+		kaddr = (char *) kmap(rqst->rq_pages[i]) + offset;
 
 		crypto_shash_update(shash, kaddr, len);
 
