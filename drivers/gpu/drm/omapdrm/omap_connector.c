@@ -30,6 +30,7 @@
 struct omap_connector {
 	struct drm_connector base;
 	struct omap_dss_device *dssdev;
+	struct omap_dss_device *hpd;
 	bool hdmi_mode;
 };
 
@@ -48,6 +49,25 @@ static void omap_connector_hpd_cb(void *cb_data,
 
 	if (old_status != status)
 		drm_kms_helper_hotplug_event(dev);
+}
+
+void omap_connector_enable_hpd(struct drm_connector *connector)
+{
+	struct omap_connector *omap_connector = to_omap_connector(connector);
+	struct omap_dss_device *hpd = omap_connector->hpd;
+
+	if (hpd)
+		hpd->ops->register_hpd_cb(hpd, omap_connector_hpd_cb,
+					  omap_connector);
+}
+
+void omap_connector_disable_hpd(struct drm_connector *connector)
+{
+	struct omap_connector *omap_connector = to_omap_connector(connector);
+	struct omap_dss_device *hpd = omap_connector->hpd;
+
+	if (hpd)
+		hpd->ops->unregister_hpd_cb(hpd);
 }
 
 bool omap_connector_get_hdmi_mode(struct drm_connector *connector)
@@ -109,14 +129,15 @@ static enum drm_connector_status omap_connector_detect(
 static void omap_connector_destroy(struct drm_connector *connector)
 {
 	struct omap_connector *omap_connector = to_omap_connector(connector);
-	struct omap_dss_device *dssdev;
 
 	DBG("%s", omap_connector->dssdev->name);
 
-	if (connector->polled == DRM_CONNECTOR_POLL_HPD) {
-		dssdev = omap_connector_find_device(connector,
-						    OMAP_DSS_DEVICE_OP_HPD);
-		dssdev->ops->unregister_hpd_cb(dssdev);
+	if (omap_connector->hpd) {
+		struct omap_dss_device *hpd = omap_connector->hpd;
+
+		hpd->ops->unregister_hpd_cb(hpd);
+		omapdss_device_put(hpd);
+		omap_connector->hpd = NULL;
 	}
 
 	drm_connector_unregister(connector);
@@ -298,8 +319,7 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 	 */
 	dssdev = omap_connector_find_device(connector, OMAP_DSS_DEVICE_OP_HPD);
 	if (dssdev) {
-		dssdev->ops->register_hpd_cb(dssdev, omap_connector_hpd_cb,
-					     omap_connector);
+		omap_connector->hpd = omapdss_device_get(dssdev);
 		connector->polled = DRM_CONNECTOR_POLL_HPD;
 	} else {
 		dssdev = omap_connector_find_device(connector,

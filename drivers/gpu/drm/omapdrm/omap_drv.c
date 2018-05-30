@@ -375,12 +375,8 @@ static void omap_modeset_enable_external_hpd(struct drm_device *ddev)
 	struct omap_drm_private *priv = ddev->dev_private;
 	int i;
 
-	for (i = 0; i < priv->num_pipes; i++) {
-		struct omap_dss_device *display = priv->pipes[i].display;
-
-		if (display->ops->enable_hpd)
-			display->ops->enable_hpd(display);
-	}
+	for (i = 0; i < priv->num_pipes; i++)
+		omap_connector_enable_hpd(priv->pipes[i].connector);
 }
 
 /*
@@ -391,12 +387,8 @@ static void omap_modeset_disable_external_hpd(struct drm_device *ddev)
 	struct omap_drm_private *priv = ddev->dev_private;
 	int i;
 
-	for (i = 0; i < priv->num_pipes; i++) {
-		struct omap_dss_device *display = priv->pipes[i].display;
-
-		if (display->ops->disable_hpd)
-			display->ops->disable_hpd(display);
-	}
+	for (i = 0; i < priv->num_pipes; i++)
+		omap_connector_disable_hpd(priv->pipes[i].connector);
 }
 
 /*

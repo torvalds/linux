@@ -23,7 +23,6 @@ struct panel_drv_data {
 	struct omap_dss_device dssdev;
 	void (*hpd_cb)(void *cb_data, enum drm_connector_status status);
 	void *hpd_cb_data;
-	bool hpd_enabled;
 	struct mutex hpd_lock;
 
 	struct gpio_desc *ct_cp_hpd_gpio;
@@ -163,24 +162,6 @@ static void tpd_unregister_hpd_cb(struct omap_dss_device *dssdev)
 	mutex_unlock(&ddata->hpd_lock);
 }
 
-static void tpd_enable_hpd(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-
-	mutex_lock(&ddata->hpd_lock);
-	ddata->hpd_enabled = true;
-	mutex_unlock(&ddata->hpd_lock);
-}
-
-static void tpd_disable_hpd(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-
-	mutex_lock(&ddata->hpd_lock);
-	ddata->hpd_enabled = false;
-	mutex_unlock(&ddata->hpd_lock);
-}
-
 static int tpd_set_infoframe(struct omap_dss_device *dssdev,
 		const struct hdmi_avi_infoframe *avi)
 {
@@ -208,8 +189,6 @@ static const struct omap_dss_device_ops tpd_ops = {
 	.detect			= tpd_detect,
 	.register_hpd_cb	= tpd_register_hpd_cb,
 	.unregister_hpd_cb	= tpd_unregister_hpd_cb,
-	.enable_hpd		= tpd_enable_hpd,
-	.disable_hpd		= tpd_disable_hpd,
 
 	.hdmi = {
 		.set_infoframe		= tpd_set_infoframe,
@@ -222,7 +201,7 @@ static irqreturn_t tpd_hpd_isr(int irq, void *data)
 	struct panel_drv_data *ddata = data;
 
 	mutex_lock(&ddata->hpd_lock);
-	if (ddata->hpd_enabled && ddata->hpd_cb) {
+	if (ddata->hpd_cb) {
 		enum drm_connector_status status;
 
 		if (tpd_detect(&ddata->dssdev))

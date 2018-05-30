@@ -234,30 +234,6 @@ static void dvic_unregister_hpd_cb(struct omap_dss_device *dssdev)
 	mutex_unlock(&ddata->hpd_lock);
 }
 
-static void dvic_enable_hpd(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-
-	if (!ddata->hpd_gpio)
-		return;
-
-	mutex_lock(&ddata->hpd_lock);
-	ddata->hpd_enabled = true;
-	mutex_unlock(&ddata->hpd_lock);
-}
-
-static void dvic_disable_hpd(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-
-	if (!ddata->hpd_gpio)
-		return;
-
-	mutex_lock(&ddata->hpd_lock);
-	ddata->hpd_enabled = false;
-	mutex_unlock(&ddata->hpd_lock);
-}
-
 static const struct omap_dss_device_ops dvic_ops = {
 	.connect	= dvic_connect,
 	.disconnect	= dvic_disconnect,
@@ -274,8 +250,6 @@ static const struct omap_dss_device_ops dvic_ops = {
 
 	.register_hpd_cb	= dvic_register_hpd_cb,
 	.unregister_hpd_cb	= dvic_unregister_hpd_cb,
-	.enable_hpd		= dvic_enable_hpd,
-	.disable_hpd		= dvic_disable_hpd,
 };
 
 static irqreturn_t dvic_hpd_isr(int irq, void *data)
