@@ -1157,7 +1157,6 @@ struct opp_table *dev_pm_opp_set_supported_hw(struct device *dev,
 			const u32 *versions, unsigned int count)
 {
 	struct opp_table *opp_table;
-	int ret;
 
 	opp_table = dev_pm_opp_get_opp_table(dev);
 	if (!opp_table)
@@ -1166,29 +1165,20 @@ struct opp_table *dev_pm_opp_set_supported_hw(struct device *dev,
 	/* Make sure there are no concurrent readers while updating opp_table */
 	WARN_ON(!list_empty(&opp_table->opp_list));
 
-	/* Do we already have a version hierarchy associated with opp_table? */
-	if (opp_table->supported_hw) {
-		dev_err(dev, "%s: Already have supported hardware list\n",
-			__func__);
-		ret = -EBUSY;
-		goto err;
-	}
+	/* Another CPU that shares the OPP table has set the property ? */
+	if (opp_table->supported_hw)
+		return opp_table;
 
 	opp_table->supported_hw = kmemdup(versions, count * sizeof(*versions),
 					GFP_KERNEL);
 	if (!opp_table->supported_hw) {
-		ret = -ENOMEM;
-		goto err;
+		dev_pm_opp_put_opp_table(opp_table);
+		return ERR_PTR(-ENOMEM);
 	}
 
 	opp_table->supported_hw_count = count;
 
 	return opp_table;
-
-err:
-	dev_pm_opp_put_opp_table(opp_table);
-
-	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_set_supported_hw);
 
@@ -1204,12 +1194,6 @@ void dev_pm_opp_put_supported_hw(struct opp_table *opp_table)
 {
 	/* Make sure there are no concurrent readers while updating opp_table */
 	WARN_ON(!list_empty(&opp_table->opp_list));
-
-	if (!opp_table->supported_hw) {
-		pr_err("%s: Doesn't have supported hardware list\n",
-		       __func__);
-		return;
-	}
 
 	kfree(opp_table->supported_hw);
 	opp_table->supported_hw = NULL;
@@ -1232,7 +1216,6 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_put_supported_hw);
 struct opp_table *dev_pm_opp_set_prop_name(struct device *dev, const char *name)
 {
 	struct opp_table *opp_table;
-	int ret;
 
 	opp_table = dev_pm_opp_get_opp_table(dev);
 	if (!opp_table)
@@ -1241,26 +1224,17 @@ struct opp_table *dev_pm_opp_set_prop_name(struct device *dev, const char *name)
 	/* Make sure there are no concurrent readers while updating opp_table */
 	WARN_ON(!list_empty(&opp_table->opp_list));
 
-	/* Do we already have a prop-name associated with opp_table? */
-	if (opp_table->prop_name) {
-		dev_err(dev, "%s: Already have prop-name %s\n", __func__,
-			opp_table->prop_name);
-		ret = -EBUSY;
-		goto err;
-	}
+	/* Another CPU that shares the OPP table has set the property ? */
+	if (opp_table->prop_name)
+		return opp_table;
 
 	opp_table->prop_name = kstrdup(name, GFP_KERNEL);
 	if (!opp_table->prop_name) {
-		ret = -ENOMEM;
-		goto err;
+		dev_pm_opp_put_opp_table(opp_table);
+		return ERR_PTR(-ENOMEM);
 	}
 
 	return opp_table;
-
-err:
-	dev_pm_opp_put_opp_table(opp_table);
-
-	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_set_prop_name);
 
@@ -1276,11 +1250,6 @@ void dev_pm_opp_put_prop_name(struct opp_table *opp_table)
 {
 	/* Make sure there are no concurrent readers while updating opp_table */
 	WARN_ON(!list_empty(&opp_table->opp_list));
-
-	if (!opp_table->prop_name) {
-		pr_err("%s: Doesn't have a prop-name\n", __func__);
-		return;
-	}
 
 	kfree(opp_table->prop_name);
 	opp_table->prop_name = NULL;
@@ -1351,11 +1320,9 @@ struct opp_table *dev_pm_opp_set_regulators(struct device *dev,
 		goto err;
 	}
 
-	/* Already have regulators set */
-	if (opp_table->regulators) {
-		ret = -EBUSY;
-		goto err;
-	}
+	/* Another CPU that shares the OPP table has set the regulators ? */
+	if (opp_table->regulators)
+		return opp_table;
 
 	opp_table->regulators = kmalloc_array(count,
 					      sizeof(*opp_table->regulators),
@@ -1409,10 +1376,8 @@ void dev_pm_opp_put_regulators(struct opp_table *opp_table)
 {
 	int i;
 
-	if (!opp_table->regulators) {
-		pr_err("%s: Doesn't have regulators set\n", __func__);
-		return;
-	}
+	if (!opp_table->regulators)
+		goto put_opp_table;
 
 	/* Make sure there are no concurrent readers while updating opp_table */
 	WARN_ON(!list_empty(&opp_table->opp_list));
@@ -1426,6 +1391,7 @@ void dev_pm_opp_put_regulators(struct opp_table *opp_table)
 	opp_table->regulators = NULL;
 	opp_table->regulator_count = 0;
 
+put_opp_table:
 	dev_pm_opp_put_opp_table(opp_table);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_put_regulators);
@@ -1511,7 +1477,6 @@ struct opp_table *dev_pm_opp_register_set_opp_helper(struct device *dev,
 			int (*set_opp)(struct dev_pm_set_opp_data *data))
 {
 	struct opp_table *opp_table;
-	int ret;
 
 	if (!set_opp)
 		return ERR_PTR(-EINVAL);
@@ -1522,24 +1487,15 @@ struct opp_table *dev_pm_opp_register_set_opp_helper(struct device *dev,
 
 	/* This should be called before OPPs are initialized */
 	if (WARN_ON(!list_empty(&opp_table->opp_list))) {
-		ret = -EBUSY;
-		goto err;
+		dev_pm_opp_put_opp_table(opp_table);
+		return ERR_PTR(-EBUSY);
 	}
 
-	/* Already have custom set_opp helper */
-	if (WARN_ON(opp_table->set_opp)) {
-		ret = -EBUSY;
-		goto err;
-	}
-
-	opp_table->set_opp = set_opp;
+	/* Another CPU that shares the OPP table has set the helper ? */
+	if (!opp_table->set_opp)
+		opp_table->set_opp = set_opp;
 
 	return opp_table;
-
-err:
-	dev_pm_opp_put_opp_table(opp_table);
-
-	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_register_set_opp_helper);
 
@@ -1552,17 +1508,10 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_register_set_opp_helper);
  */
 void dev_pm_opp_unregister_set_opp_helper(struct opp_table *opp_table)
 {
-	if (!opp_table->set_opp) {
-		pr_err("%s: Doesn't have custom set_opp helper set\n",
-		       __func__);
-		return;
-	}
-
 	/* Make sure there are no concurrent readers while updating opp_table */
 	WARN_ON(!list_empty(&opp_table->opp_list));
 
 	opp_table->set_opp = NULL;
-
 	dev_pm_opp_put_opp_table(opp_table);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_unregister_set_opp_helper);

@@ -554,11 +554,24 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table);
 int dev_pm_opp_of_add_table_indexed(struct device *dev, int index)
 {
 	struct device_node *opp_np;
-	int ret;
+	int ret, count;
 
+again:
 	opp_np = _opp_of_get_opp_desc_node(dev->of_node, index);
-	if (!opp_np)
+	if (!opp_np) {
+		/*
+		 * If only one phandle is present, then the same OPP table
+		 * applies for all index requests.
+		 */
+		count = of_count_phandle_with_args(dev->of_node,
+						   "operating-points-v2", NULL);
+		if (count == 1 && index) {
+			index = 0;
+			goto again;
+		}
+
 		return -ENODEV;
+	}
 
 	ret = _of_add_opp_table_v2(dev, opp_np);
 	of_node_put(opp_np);
