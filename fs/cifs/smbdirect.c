@@ -2299,37 +2299,37 @@ static void smbd_mr_recovery_work(struct work_struct *work)
 		if (smbdirect_mr->state == MR_INVALIDATED ||
 			smbdirect_mr->state == MR_ERROR) {
 
-			if (smbdirect_mr->state == MR_INVALIDATED) {
+			/* recover this MR entry */
+			rc = ib_dereg_mr(smbdirect_mr->mr);
+			if (rc) {
+				log_rdma_mr(ERR,
+					"ib_dereg_mr failed rc=%x\n",
+					rc);
+				smbd_disconnect_rdma_connection(info);
+				continue;
+			}
+
+			smbdirect_mr->mr = ib_alloc_mr(
+				info->pd, info->mr_type,
+				info->max_frmr_depth);
+			if (IS_ERR(smbdirect_mr->mr)) {
+				log_rdma_mr(ERR,
+					"ib_alloc_mr failed mr_type=%x "
+					"max_frmr_depth=%x\n",
+					info->mr_type,
+					info->max_frmr_depth);
+				smbd_disconnect_rdma_connection(info);
+				continue;
+			}
+
+			if (smbdirect_mr->state == MR_INVALIDATED)
 				ib_dma_unmap_sg(
 					info->id->device, smbdirect_mr->sgl,
 					smbdirect_mr->sgl_count,
 					smbdirect_mr->dir);
-				smbdirect_mr->state = MR_READY;
-			} else if (smbdirect_mr->state == MR_ERROR) {
 
-				/* recover this MR entry */
-				rc = ib_dereg_mr(smbdirect_mr->mr);
-				if (rc) {
-					log_rdma_mr(ERR,
-						"ib_dereg_mr failed rc=%x\n",
-						rc);
-					smbd_disconnect_rdma_connection(info);
-				}
+			smbdirect_mr->state = MR_READY;
 
-				smbdirect_mr->mr = ib_alloc_mr(
-					info->pd, info->mr_type,
-					info->max_frmr_depth);
-				if (IS_ERR(smbdirect_mr->mr)) {
-					log_rdma_mr(ERR,
-						"ib_alloc_mr failed mr_type=%x "
-						"max_frmr_depth=%x\n",
-						info->mr_type,
-						info->max_frmr_depth);
-					smbd_disconnect_rdma_connection(info);
-				}
-
-				smbdirect_mr->state = MR_READY;
-			}
 			/* smbdirect_mr->state is updated by this function
 			 * and is read and updated by I/O issuing CPUs trying
 			 * to get a MR, the call to atomic_inc_return
@@ -2475,7 +2475,7 @@ again:
  */
 struct smbd_mr *smbd_register_mr(
 	struct smbd_connection *info, struct page *pages[], int num_pages,
-	int tailsz, bool writing, bool need_invalidate)
+	int offset, int tailsz, bool writing, bool need_invalidate)
 {
 	struct smbd_mr *smbdirect_mr;
 	int rc, i;
@@ -2498,17 +2498,31 @@ struct smbd_mr *smbd_register_mr(
 	smbdirect_mr->sgl_count = num_pages;
 	sg_init_table(smbdirect_mr->sgl, num_pages);
 
-	for (i = 0; i < num_pages - 1; i++)
-		sg_set_page(&smbdirect_mr->sgl[i], pages[i], PAGE_SIZE, 0);
+	log_rdma_mr(INFO, "num_pages=0x%x offset=0x%x tailsz=0x%x\n",
+			num_pages, offset, tailsz);
 
+	if (num_pages == 1) {
+		sg_set_page(&smbdirect_mr->sgl[0], pages[0], tailsz, offset);
+		goto skip_multiple_pages;
+	}
+
+	/* We have at least two pages to register */
+	sg_set_page(
+		&smbdirect_mr->sgl[0], pages[0], PAGE_SIZE - offset, offset);
+	i = 1;
+	while (i < num_pages - 1) {
+		sg_set_page(&smbdirect_mr->sgl[i], pages[i], PAGE_SIZE, 0);
+		i++;
+	}
 	sg_set_page(&smbdirect_mr->sgl[i], pages[i],
 		tailsz ? tailsz : PAGE_SIZE, 0);
 
+skip_multiple_pages:
 	dir = writing ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 	smbdirect_mr->dir = dir;
 	rc = ib_dma_map_sg(info->id->device, smbdirect_mr->sgl, num_pages, dir);
 	if (!rc) {
-		log_rdma_mr(INFO, "ib_dma_map_sg num_pages=%x dir=%x rc=%x\n",
+		log_rdma_mr(ERR, "ib_dma_map_sg num_pages=%x dir=%x rc=%x\n",
 			num_pages, dir, rc);
 		goto dma_map_error;
 	}
@@ -2516,8 +2530,8 @@ struct smbd_mr *smbd_register_mr(
 	rc = ib_map_mr_sg(smbdirect_mr->mr, smbdirect_mr->sgl, num_pages,
 		NULL, PAGE_SIZE);
 	if (rc != num_pages) {
-		log_rdma_mr(INFO,
-			"ib_map_mr_sg failed rc = %x num_pages = %x\n",
+		log_rdma_mr(ERR,
+			"ib_map_mr_sg failed rc = %d num_pages = %x\n",
 			rc, num_pages);
 		goto map_mr_error;
 	}
