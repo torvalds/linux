@@ -1610,16 +1610,16 @@ struct compat_ebt_entry_mwt {
 		compat_uptr_t ptr;
 	} u;
 	compat_uint_t match_size;
-	compat_uint_t data[0];
+	compat_uint_t data[0] __attribute__ ((aligned (__alignof__(struct compat_ebt_replace))));
 };
 
 /* account for possible padding between match_size and ->data */
 static int ebt_compat_entry_padsize(void)
 {
-	BUILD_BUG_ON(XT_ALIGN(sizeof(struct ebt_entry_match)) <
-			COMPAT_XT_ALIGN(sizeof(struct compat_ebt_entry_mwt)));
-	return (int) XT_ALIGN(sizeof(struct ebt_entry_match)) -
-			COMPAT_XT_ALIGN(sizeof(struct compat_ebt_entry_mwt));
+	BUILD_BUG_ON(sizeof(struct ebt_entry_match) <
+			sizeof(struct compat_ebt_entry_mwt));
+	return (int) sizeof(struct ebt_entry_match) -
+			sizeof(struct compat_ebt_entry_mwt);
 }
 
 static int ebt_compat_match_offset(const struct xt_match *match,
