@@ -1185,7 +1185,7 @@ struct cifs_readdata {
 	unsigned int			tailsz;
 	unsigned int			credits;
 	unsigned int			nr_pages;
-	struct page			*pages[];
+	struct page			**pages;
 };
 
 struct cifs_writedata;
