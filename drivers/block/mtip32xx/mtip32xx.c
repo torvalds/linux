@@ -2725,14 +2725,10 @@ static void mtip_softirq_done_fn(struct request *rq)
 	blk_mq_end_request(rq, cmd->status);
 }
 
-static void mtip_abort_cmd(struct request *req, void *data,
-							bool reserved)
+static void mtip_abort_cmd(struct request *req, void *data, bool reserved)
 {
 	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(req);
 	struct driver_data *dd = data;
-
-	if (!blk_mq_request_started(req))
-		return;
 
 	dbg_printk(MTIP_DRV_NAME " Aborting request, tag = %d\n", req->tag);
 
@@ -2741,13 +2737,9 @@ static void mtip_abort_cmd(struct request *req, void *data,
 	mtip_softirq_done_fn(req);
 }
 
-static void mtip_queue_cmd(struct request *req, void *data,
-							bool reserved)
+static void mtip_queue_cmd(struct request *req, void *data, bool reserved)
 {
 	struct driver_data *dd = data;
-
-	if (!blk_mq_request_started(req))
-		return;
 
 	set_bit(req->tag, dd->port->cmds_to_issue);
 	blk_abort_request(req);

@@ -676,11 +676,8 @@ static void recv_work(struct work_struct *work)
 
 static void nbd_clear_req(struct request *req, void *data, bool reserved)
 {
-	struct nbd_cmd *cmd;
+	struct nbd_cmd *cmd = blk_mq_rq_to_pdu(req);
 
-	if (!blk_mq_request_started(req))
-		return;
-	cmd = blk_mq_rq_to_pdu(req);
 	cmd->status = BLK_STS_IOERR;
 	blk_mq_complete_request(req);
 }
