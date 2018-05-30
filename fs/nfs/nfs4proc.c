@@ -8692,58 +8692,13 @@ size_t max_response_pages(struct nfs_server *server)
 	return nfs_page_array_len(0, max_resp_sz);
 }
 
-static void nfs4_free_pages(struct page **pages, size_t size)
-{
-	int i;
-
-	if (!pages)
-		return;
-
-	for (i = 0; i < size; i++) {
-		if (!pages[i])
-			break;
-		__free_page(pages[i]);
-	}
-	kfree(pages);
-}
-
-struct page **nfs4_alloc_pages(size_t size, gfp_t gfp_flags)
-{
-	struct page **pages;
-	int i;
-
-	pages = kcalloc(size, sizeof(struct page *), gfp_flags);
-	if (!pages) {
-		dprintk("%s: can't alloc array of %zu pages\n", __func__, size);
-		return NULL;
-	}
-
-	for (i = 0; i < size; i++) {
-		pages[i] = alloc_page(gfp_flags);
-		if (!pages[i]) {
-			dprintk("%s: failed to allocate page\n", __func__);
-			nfs4_free_pages(pages, size);
-			return NULL;
-		}
-	}
-
-	return pages;
-}
-
 static void nfs4_layoutget_release(void *calldata)
 {
 	struct nfs4_layoutget *lgp = calldata;
-	struct inode *inode = lgp->args.inode;
-	size_t max_pages = lgp->args.layout.pglen / PAGE_SIZE;
 
 	dprintk("--> %s\n", __func__);
 	nfs4_sequence_free_slot(&lgp->res.seq_res);
-	nfs4_free_pages(lgp->args.layout.pages, max_pages);
-	if (inode)
-		pnfs_put_layout_hdr(NFS_I(inode)->layout);
-	put_rpccred(lgp->cred);
-	put_nfs_open_context(lgp->args.ctx);
-	kfree(calldata);
+	pnfs_layoutget_free(lgp);
 	dprintk("<-- %s\n", __func__);
 }
 

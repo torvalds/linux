@@ -931,6 +931,44 @@ pnfs_find_server(struct inode *inode, struct nfs_open_context *ctx)
 	return server;
 }
 
+static void nfs4_free_pages(struct page **pages, size_t size)
+{
+	int i;
+
+	if (!pages)
+		return;
+
+	for (i = 0; i < size; i++) {
+		if (!pages[i])
+			break;
+		__free_page(pages[i]);
+	}
+	kfree(pages);
+}
+
+static struct page **nfs4_alloc_pages(size_t size, gfp_t gfp_flags)
+{
+	struct page **pages;
+	int i;
+
+	pages = kcalloc(size, sizeof(struct page *), gfp_flags);
+	if (!pages) {
+		dprintk("%s: can't alloc array of %zu pages\n", __func__, size);
+		return NULL;
+	}
+
+	for (i = 0; i < size; i++) {
+		pages[i] = alloc_page(gfp_flags);
+		if (!pages[i]) {
+			dprintk("%s: failed to allocate page\n", __func__);
+			nfs4_free_pages(pages, size);
+			return NULL;
+		}
+	}
+
+	return pages;
+}
+
 static struct nfs4_layoutget *
 pnfs_alloc_init_layoutget_args(struct inode *ino,
 	   struct nfs_open_context *ctx,
@@ -980,6 +1018,18 @@ pnfs_alloc_init_layoutget_args(struct inode *ino,
 	lgp->gfp_flags = gfp_flags;
 	lgp->cred = get_rpccred(ctx->cred);
 	return lgp;
+}
+
+void pnfs_layoutget_free(struct nfs4_layoutget *lgp)
+{
+	size_t max_pages = lgp->args.layout.pglen / PAGE_SIZE;
+
+	nfs4_free_pages(lgp->args.layout.pages, max_pages);
+	if (lgp->args.inode)
+		pnfs_put_layout_hdr(NFS_I(lgp->args.inode)->layout);
+	put_rpccred(lgp->cred);
+	put_nfs_open_context(lgp->args.ctx);
+	kfree(lgp);
 }
 
 static void pnfs_clear_layoutcommit(struct inode *inode,
