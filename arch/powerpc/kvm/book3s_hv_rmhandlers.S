@@ -795,7 +795,7 @@ END_FTR_SECTION(CPU_FTR_TM | CPU_FTR_P9_TM_HV_ASSIST, 0)
 	/*
 	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS INCLUDING CR
 	 */
-	bl	kvmppc_restore_tm
+	bl	kvmppc_restore_tm_hv
 91:
 #endif
 
@@ -1779,7 +1779,7 @@ END_FTR_SECTION(CPU_FTR_TM | CPU_FTR_P9_TM_HV_ASSIST, 0)
 	/*
 	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS INCLUDING CR
 	 */
-	bl	kvmppc_save_tm
+	bl	kvmppc_save_tm_hv
 91:
 #endif
 
@@ -2683,7 +2683,7 @@ END_FTR_SECTION(CPU_FTR_TM | CPU_FTR_P9_TM_HV_ASSIST, 0)
 	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS INCLUDING CR
 	 */
 	ld	r9, HSTATE_KVM_VCPU(r13)
-	bl	kvmppc_save_tm
+	bl	kvmppc_save_tm_hv
 91:
 #endif
 
@@ -2801,7 +2801,7 @@ END_FTR_SECTION(CPU_FTR_TM | CPU_FTR_P9_TM_HV_ASSIST, 0)
 	/*
 	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS INCLUDING CR
 	 */
-	bl	kvmppc_restore_tm
+	bl	kvmppc_restore_tm_hv
 91:
 #endif
 
@@ -3126,10 +3126,88 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
  * This can modify all checkpointed registers, but
  * restores r1, r2 and r9 (vcpu pointer) before exit.
  */
-kvmppc_save_tm:
+kvmppc_save_tm_hv:
+	/* See if we need to handle fake suspend mode */
+BEGIN_FTR_SECTION
+	b	kvmppc_save_tm
+END_FTR_SECTION_IFCLR(CPU_FTR_P9_TM_HV_ASSIST)
+
+	lbz	r0, HSTATE_FAKE_SUSPEND(r13) /* Were we fake suspended? */
+	cmpwi	r0, 0
+	beq	kvmppc_save_tm
+
+	/* The following code handles the fake_suspend = 1 case */
 	mflr	r0
 	std	r0, PPC_LR_STKOFF(r1)
 	stdu	r1, -PPC_MIN_STKFRM(r1)
+
+	/* Turn on TM. */
+	mfmsr	r8
+	li	r0, 1
+	rldimi	r8, r0, MSR_TM_LG, 63-MSR_TM_LG
+	mtmsrd	r8
+
+	rldicl. r8, r8, 64 - MSR_TS_S_LG, 62 /* Did we actually hrfid? */
+	beq	4f
+BEGIN_FTR_SECTION
+	bl	pnv_power9_force_smt4_catch
+END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_XER_SO_BUG)
+	nop
+
+	std	r1, HSTATE_HOST_R1(r13)
+
+	/* Clear the MSR RI since r1, r13 may be foobar. */
+	li	r5, 0
+	mtmsrd	r5, 1
+
+	/* We have to treclaim here because that's the only way to do S->N */
+	li	r3, TM_CAUSE_KVM_RESCHED
+	TRECLAIM(R3)
+
+	/*
+	 * We were in fake suspend, so we are not going to save the
+	 * register state as the guest checkpointed state (since
+	 * we already have it), therefore we can now use any volatile GPR.
+	 */
+	/* Reload PACA pointer, stack pointer and TOC. */
+	GET_PACA(r13)
+	ld	r1, HSTATE_HOST_R1(r13)
+	ld	r2, PACATOC(r13)
+
+	/* Set MSR RI now we have r1 and r13 back. */
+	li	r5, MSR_RI
+	mtmsrd	r5, 1
+
+	HMT_MEDIUM
+	ld	r6, HSTATE_DSCR(r13)
+	mtspr	SPRN_DSCR, r6
+BEGIN_FTR_SECTION_NESTED(96)
+	bl	pnv_power9_force_smt4_release
+END_FTR_SECTION_NESTED(CPU_FTR_P9_TM_XER_SO_BUG, CPU_FTR_P9_TM_XER_SO_BUG, 96)
+	nop
+
+4:
+	mfspr	r3, SPRN_PSSCR
+	/* PSSCR_FAKE_SUSPEND is a write-only bit, but clear it anyway */
+	li	r0, PSSCR_FAKE_SUSPEND
+	andc	r3, r3, r0
+	mtspr	SPRN_PSSCR, r3
+
+	/* Don't save TEXASR, use value from last exit in real suspend state */
+	ld	r9, HSTATE_KVM_VCPU(r13)
+	mfspr	r5, SPRN_TFHAR
+	mfspr	r6, SPRN_TFIAR
+	std	r5, VCPU_TFHAR(r9)
+	std	r6, VCPU_TFIAR(r9)
+
+	addi	r1, r1, PPC_MIN_STKFRM
+	ld	r0, PPC_LR_STKOFF(r1)
+	mtlr	r0
+	blr
+
+kvmppc_save_tm:
+	mflr	r0
+	std	r0, PPC_LR_STKOFF(r1)
 
 	/* Turn on TM. */
 	mfmsr	r8
@@ -3145,21 +3223,9 @@ kvmppc_save_tm:
 	li	r3, TM_CAUSE_KVM_RESCHED
 
 BEGIN_FTR_SECTION
-	lbz	r0, HSTATE_FAKE_SUSPEND(r13) /* Were we fake suspended? */
-	cmpwi	r0, 0
-	beq	3f
-	rldicl. r8, r8, 64 - MSR_TS_S_LG, 62 /* Did we actually hrfid? */
-	beq	4f
-BEGIN_FTR_SECTION_NESTED(96)
-	bl	pnv_power9_force_smt4_catch
-END_FTR_SECTION_NESTED(CPU_FTR_P9_TM_XER_SO_BUG, CPU_FTR_P9_TM_XER_SO_BUG, 96)
-	nop
-	b	6f
-3:
 	/* Emulation of the treclaim instruction needs TEXASR before treclaim */
 	mfspr	r6, SPRN_TEXASR
 	std	r6, VCPU_ORIG_TEXASR(r9)
-6:
 END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_HV_ASSIST)
 
 	/* Clear the MSR RI since r1, r13 are all going to be foobar. */
@@ -3173,43 +3239,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_HV_ASSIST)
 	SET_SCRATCH0(r13)
 	GET_PACA(r13)
 	std	r9, PACATMSCRATCH(r13)
-
-	/* If doing TM emulation on POWER9 DD2.2, check for fake suspend mode */
-BEGIN_FTR_SECTION
-	lbz	r9, HSTATE_FAKE_SUSPEND(r13)
-	cmpwi	r9, 0
-	beq	2f
-	/*
-	 * We were in fake suspend, so we are not going to save the
-	 * register state as the guest checkpointed state (since
-	 * we already have it), therefore we can now use any volatile GPR.
-	 */
-	/* Reload stack pointer and TOC. */
-	ld	r1, HSTATE_HOST_R1(r13)
-	ld	r2, PACATOC(r13)
-	/* Set MSR RI now we have r1 and r13 back. */
-	li	r5, MSR_RI
-	mtmsrd	r5, 1
-	HMT_MEDIUM
-	ld	r6, HSTATE_DSCR(r13)
-	mtspr	SPRN_DSCR, r6
-BEGIN_FTR_SECTION_NESTED(96)
-	bl	pnv_power9_force_smt4_release
-END_FTR_SECTION_NESTED(CPU_FTR_P9_TM_XER_SO_BUG, CPU_FTR_P9_TM_XER_SO_BUG, 96)
-	nop
-
-4:
-	mfspr	r3, SPRN_PSSCR
-	/* PSSCR_FAKE_SUSPEND is a write-only bit, but clear it anyway */
-	li	r0, PSSCR_FAKE_SUSPEND
-	andc	r3, r3, r0
-	mtspr	SPRN_PSSCR, r3
-	ld	r9, HSTATE_KVM_VCPU(r13)
-	/* Don't save TEXASR, use value from last exit in real suspend state */
-	b	11f
-2:
-END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_HV_ASSIST)
-
 	ld	r9, HSTATE_KVM_VCPU(r13)
 
 	/* Get a few more GPRs free. */
@@ -3288,7 +3317,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_HV_ASSIST)
 	std	r5, VCPU_TFHAR(r9)
 	std	r6, VCPU_TFIAR(r9)
 
-	addi	r1, r1, PPC_MIN_STKFRM
 	ld	r0, PPC_LR_STKOFF(r1)
 	mtlr	r0
 	blr
@@ -3299,6 +3327,61 @@ END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_HV_ASSIST)
  * This potentially modifies all checkpointed registers.
  * It restores r1, r2, r4 from the PACA.
  */
+kvmppc_restore_tm_hv:
+	/*
+	 * If we are doing TM emulation for the guest on a POWER9 DD2,
+	 * then we don't actually do a trechkpt -- we either set up
+	 * fake-suspend mode, or emulate a TM rollback.
+	 */
+BEGIN_FTR_SECTION
+	b	kvmppc_restore_tm
+END_FTR_SECTION_IFCLR(CPU_FTR_P9_TM_HV_ASSIST)
+	mflr	r0
+	std	r0, PPC_LR_STKOFF(r1)
+
+	li	r0, 0
+	stb	r0, HSTATE_FAKE_SUSPEND(r13)
+
+	/* Turn on TM so we can restore TM SPRs */
+	mfmsr	r5
+	li	r0, 1
+	rldimi	r5, r0, MSR_TM_LG, 63-MSR_TM_LG
+	mtmsrd	r5
+
+	/*
+	 * The user may change these outside of a transaction, so they must
+	 * always be context switched.
+	 */
+	ld	r5, VCPU_TFHAR(r4)
+	ld	r6, VCPU_TFIAR(r4)
+	ld	r7, VCPU_TEXASR(r4)
+	mtspr	SPRN_TFHAR, r5
+	mtspr	SPRN_TFIAR, r6
+	mtspr	SPRN_TEXASR, r7
+
+	ld	r5, VCPU_MSR(r4)
+	rldicl. r5, r5, 64 - MSR_TS_S_LG, 62
+	beqlr		/* TM not active in guest */
+
+	/* Make sure the failure summary is set */
+	oris	r7, r7, (TEXASR_FS)@h
+	mtspr	SPRN_TEXASR, r7
+
+	cmpwi	r5, 1		/* check for suspended state */
+	bgt	10f
+	stb	r5, HSTATE_FAKE_SUSPEND(r13)
+	b	9f		/* and return */
+10:	stdu	r1, -PPC_MIN_STKFRM(r1)
+	/* guest is in transactional state, so simulate rollback */
+	mr	r3, r4
+	bl	kvmhv_emulate_tm_rollback
+	nop
+	ld      r4, HSTATE_KVM_VCPU(r13) /* our vcpu pointer has been trashed */
+	addi	r1, r1, PPC_MIN_STKFRM
+9:	ld	r0, PPC_LR_STKOFF(r1)
+	mtlr	r0
+	blr
+
 kvmppc_restore_tm:
 	mflr	r0
 	std	r0, PPC_LR_STKOFF(r1)
@@ -3323,8 +3406,6 @@ kvmppc_restore_tm:
 	mtspr	SPRN_TFIAR, r6
 	mtspr	SPRN_TEXASR, r7
 
-	li	r0, 0
-	stb	r0, HSTATE_FAKE_SUSPEND(r13)
 	ld	r5, VCPU_MSR(r4)
 	rldicl. r5, r5, 64 - MSR_TS_S_LG, 62
 	beqlr		/* TM not active in guest */
@@ -3337,15 +3418,6 @@ kvmppc_restore_tm:
 	 */
 	oris	r7, r7, (TEXASR_FS)@h
 	mtspr	SPRN_TEXASR, r7
-
-	/*
-	 * If we are doing TM emulation for the guest on a POWER9 DD2,
-	 * then we don't actually do a trechkpt -- we either set up
-	 * fake-suspend mode, or emulate a TM rollback.
-	 */
-BEGIN_FTR_SECTION
-	b	.Ldo_tm_fake_load
-END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_HV_ASSIST)
 
 	/*
 	 * We need to load up the checkpointed state for the guest.
@@ -3419,25 +3491,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_HV_ASSIST)
 	/* Set the MSR RI since we have our registers back. */
 	li	r5, MSR_RI
 	mtmsrd	r5, 1
-9:
 	ld	r0, PPC_LR_STKOFF(r1)
 	mtlr	r0
 	blr
-
-.Ldo_tm_fake_load:
-	cmpwi	r5, 1		/* check for suspended state */
-	bgt	10f
-	stb	r5, HSTATE_FAKE_SUSPEND(r13)
-	b	9b		/* and return */
-10:	stdu	r1, -PPC_MIN_STKFRM(r1)
-	/* guest is in transactional state, so simulate rollback */
-	mr	r3, r4
-	bl	kvmhv_emulate_tm_rollback
-	nop
-	ld      r4, HSTATE_KVM_VCPU(r13) /* our vcpu pointer has been trashed */
-	addi	r1, r1, PPC_MIN_STKFRM
-	b	9b
-#endif
+#endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
 /*
  * We come here if we get any exception or interrupt while we are
