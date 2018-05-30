@@ -877,7 +877,7 @@ static struct irq_chip gic_eoimode1_chip = {
 	.flags			= IRQCHIP_SET_TYPE_MASKED,
 };
 
-#define GIC_ID_NR		(1U << gic_data.rdists.id_bits)
+#define GIC_ID_NR	(1U << GICD_TYPER_ID_BITS(gic_data.rdists.gicd_typer))
 
 static int gic_irq_domain_map(struct irq_domain *d, unsigned int irq,
 			      irq_hw_number_t hw)
@@ -1091,7 +1091,7 @@ static int __init gic_init_bases(void __iomem *dist_base,
 	 * The GIC only supports up to 1020 interrupt sources (SGI+PPI+SPI)
 	 */
 	typer = readl_relaxed(gic_data.dist_base + GICD_TYPER);
-	gic_data.rdists.id_bits = GICD_TYPER_ID_BITS(typer);
+	gic_data.rdists.gicd_typer = typer;
 	gic_irqs = GICD_TYPER_IRQS(typer);
 	if (gic_irqs > 1020)
 		gic_irqs = 1020;

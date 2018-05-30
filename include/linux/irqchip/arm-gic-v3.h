@@ -576,8 +576,8 @@ struct rdists {
 		phys_addr_t	phys_base;
 	} __percpu		*rdist;
 	struct page		*prop_page;
-	int			id_bits;
 	u64			flags;
+	u32			gicd_typer;
 	bool			has_vlpis;
 	bool			has_direct_lpi;
 };
