@@ -13,5 +13,7 @@ struct rcar_sysc_ch {
 int rcar_sysc_power_down(const struct rcar_sysc_ch *sysc_ch);
 int rcar_sysc_power_up(const struct rcar_sysc_ch *sysc_ch);
 void rcar_sysc_init(phys_addr_t base, u32 syscier);
+int rcar_sysc_power_down_cpu(unsigned int cpu);
+int rcar_sysc_power_up_cpu(unsigned int cpu);
 
 #endif /* __LINUX_SOC_RENESAS_RCAR_SYSC_H__ */
