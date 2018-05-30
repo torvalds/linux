@@ -137,13 +137,8 @@ static int hdmic_read_edid(struct omap_dss_device *dssdev,
 static bool hdmic_detect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
-	bool connected;
 
-	connected = gpiod_get_value_cansleep(ddata->hpd_gpio);
-	if (!connected && src->ops->hdmi.lost_hotplug)
-		src->ops->hdmi.lost_hotplug(src);
-	return connected;
+	return gpiod_get_value_cansleep(ddata->hpd_gpio);
 }
 
 static void hdmic_register_hpd_cb(struct omap_dss_device *dssdev,
