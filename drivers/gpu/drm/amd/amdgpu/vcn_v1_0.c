@@ -760,6 +760,13 @@ static int vcn_v1_0_start(struct amdgpu_device *adev)
 	WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_WPTR, 0);
 	WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_CNTL, 0x00000002L);
 
+	/* initialize wptr */
+	ring->wptr = RREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_WPTR);
+
+	/* copy patch commands to the jpeg ring */
+	vcn_v1_0_jpeg_ring_set_patch_ring(ring,
+		(ring->wptr + ring->max_dw * amdgpu_sched_hw_submission));
+
 	return 0;
 }
 
