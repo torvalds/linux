@@ -5,7 +5,7 @@
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
 
-if ! /sbin/modprobe -q -r prime_numbers; then
+if ! /sbin/modprobe -q -n prime_numbers; then
 	echo "prime_numbers: module prime_numbers is not found [SKIP]"
 	exit $ksft_skip
 fi
