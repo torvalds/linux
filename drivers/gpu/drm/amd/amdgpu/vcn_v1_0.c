@@ -1126,6 +1126,292 @@ static void vcn_v1_0_enc_ring_emit_wreg(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, val);
 }
 
+
+/**
+ * vcn_v1_0_jpeg_ring_get_rptr - get read pointer
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Returns the current hardware read pointer
+ */
+static uint64_t vcn_v1_0_jpeg_ring_get_rptr(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+
+	return RREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_RPTR);
+}
+
+/**
+ * vcn_v1_0_jpeg_ring_get_wptr - get write pointer
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Returns the current hardware write pointer
+ */
+static uint64_t vcn_v1_0_jpeg_ring_get_wptr(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+
+	return RREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_WPTR);
+}
+
+/**
+ * vcn_v1_0_jpeg_ring_set_wptr - set write pointer
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Commits the write pointer to the hardware
+ */
+static void vcn_v1_0_jpeg_ring_set_wptr(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+
+	WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_WPTR, lower_32_bits(ring->wptr));
+}
+
+/**
+ * vcn_v1_0_jpeg_ring_insert_start - insert a start command
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Write a start command to the ring.
+ */
+static void vcn_v1_0_jpeg_ring_insert_start(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_JRBC_EXTERNAL_REG_BASE), 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, 0x68e04);
+
+	amdgpu_ring_write(ring, PACKETJ(0, 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, 0x80010000);
+}
+
+/**
+ * vcn_v1_0_jpeg_ring_insert_end - insert a end command
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Write a end command to the ring.
+ */
+static void vcn_v1_0_jpeg_ring_insert_end(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_JRBC_EXTERNAL_REG_BASE), 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, 0x68e04);
+
+	amdgpu_ring_write(ring, PACKETJ(0, 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, 0x00010000);
+}
+
+/**
+ * vcn_v1_0_jpeg_ring_emit_fence - emit an fence & trap command
+ *
+ * @ring: amdgpu_ring pointer
+ * @fence: fence to emit
+ *
+ * Write a fence and a trap command to the ring.
+ */
+static void vcn_v1_0_jpeg_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq,
+				     unsigned flags)
+{
+	struct amdgpu_device *adev = ring->adev;
+
+	WARN_ON(flags & AMDGPU_FENCE_FLAG_64BIT);
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_JPEG_GPCOM_DATA0), 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, seq);
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_JPEG_GPCOM_DATA1), 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, seq);
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_JRBC_RB_MEM_WR_64BIT_BAR_LOW), 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, lower_32_bits(addr));
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_JRBC_RB_MEM_WR_64BIT_BAR_HIGH), 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, upper_32_bits(addr));
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_JPEG_GPCOM_CMD), 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, 0x8);
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_JPEG_GPCOM_CMD), 0, PACKETJ_CONDITION_CHECK0, PACKETJ_TYPE4));
+	amdgpu_ring_write(ring, 0);
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_JRBC_RB_COND_RD_TIMER), 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, 0x01400200);
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_JRBC_RB_REF_DATA), 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, seq);
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_JRBC_RB_MEM_RD_64BIT_BAR_LOW), 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, lower_32_bits(addr));
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_JRBC_RB_MEM_RD_64BIT_BAR_HIGH), 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, upper_32_bits(addr));
+
+	amdgpu_ring_write(ring,
+		PACKETJ(0, 0, PACKETJ_CONDITION_CHECK3, PACKETJ_TYPE2));
+	amdgpu_ring_write(ring, 0xffffffff);
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_JRBC_EXTERNAL_REG_BASE), 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, 0x3fbc);
+
+	amdgpu_ring_write(ring,
+		PACKETJ(0, 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, 0x1);
+}
+
+/**
+ * vcn_v1_0_jpeg_ring_emit_ib - execute indirect buffer
+ *
+ * @ring: amdgpu_ring pointer
+ * @ib: indirect buffer to execute
+ *
+ * Write ring commands to execute the indirect buffer.
+ */
+static void vcn_v1_0_jpeg_ring_emit_ib(struct amdgpu_ring *ring,
+				  struct amdgpu_ib *ib,
+				  unsigned vmid, bool ctx_switch)
+{
+	struct amdgpu_device *adev = ring->adev;
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_JRBC_IB_VMID), 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, (vmid | (vmid << 4)));
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_JPEG_VMID), 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, (vmid | (vmid << 4)));
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_JRBC_IB_64BIT_BAR_LOW), 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_JRBC_IB_64BIT_BAR_HIGH), 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, upper_32_bits(ib->gpu_addr));
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_JRBC_IB_SIZE), 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, ib->length_dw);
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_JRBC_RB_MEM_RD_64BIT_BAR_LOW), 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, lower_32_bits(ring->gpu_addr));
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_JRBC_RB_MEM_RD_64BIT_BAR_HIGH), 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, upper_32_bits(ring->gpu_addr));
+
+	amdgpu_ring_write(ring,
+		PACKETJ(0, 0, PACKETJ_CONDITION_CHECK0, PACKETJ_TYPE2));
+	amdgpu_ring_write(ring, 0);
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_JRBC_RB_COND_RD_TIMER), 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, 0x01400200);
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_JRBC_RB_REF_DATA), 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, 0x2);
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_JRBC_STATUS), 0, PACKETJ_CONDITION_CHECK3, PACKETJ_TYPE3));
+	amdgpu_ring_write(ring, 0x2);
+}
+
+static void vcn_v1_0_jpeg_ring_emit_reg_wait(struct amdgpu_ring *ring,
+					    uint32_t reg, uint32_t val,
+					    uint32_t mask)
+{
+	struct amdgpu_device *adev = ring->adev;
+	uint32_t reg_offset = (reg << 2);
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_JRBC_RB_COND_RD_TIMER), 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, 0x01400200);
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_JRBC_RB_REF_DATA), 0, 0, PACKETJ_TYPE0));
+	amdgpu_ring_write(ring, val);
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_JRBC_EXTERNAL_REG_BASE), 0, 0, PACKETJ_TYPE0));
+	if (((reg_offset >= 0x1f800) && (reg_offset <= 0x21fff)) ||
+		((reg_offset >= 0x1e000) && (reg_offset <= 0x1e1ff))) {
+		amdgpu_ring_write(ring, 0);
+		amdgpu_ring_write(ring,
+			PACKETJ((reg_offset >> 2), 0, 0, PACKETJ_TYPE3));
+	} else {
+		amdgpu_ring_write(ring, reg_offset);
+		amdgpu_ring_write(ring,
+			PACKETJ(0, 0, 0, PACKETJ_TYPE3));
+	}
+	amdgpu_ring_write(ring, mask);
+}
+
+static void vcn_v1_0_jpeg_ring_emit_vm_flush(struct amdgpu_ring *ring,
+		unsigned vmid, uint64_t pd_addr)
+{
+	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
+	uint32_t data0, data1, mask;
+
+	pd_addr = amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pd_addr);
+
+	/* wait for register write */
+	data0 = hub->ctx0_ptb_addr_lo32 + vmid * 2;
+	data1 = lower_32_bits(pd_addr);
+	mask = 0xffffffff;
+	vcn_v1_0_jpeg_ring_emit_reg_wait(ring, data0, data1, mask);
+}
+
+static void vcn_v1_0_jpeg_ring_emit_wreg(struct amdgpu_ring *ring,
+					uint32_t reg, uint32_t val)
+{
+	struct amdgpu_device *adev = ring->adev;
+	uint32_t reg_offset = (reg << 2);
+
+	amdgpu_ring_write(ring,
+		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_JRBC_EXTERNAL_REG_BASE), 0, 0, PACKETJ_TYPE0));
+	if (((reg_offset >= 0x1f800) && (reg_offset <= 0x21fff)) ||
+			((reg_offset >= 0x1e000) && (reg_offset <= 0x1e1ff))) {
+		amdgpu_ring_write(ring, 0);
+		amdgpu_ring_write(ring,
+			PACKETJ((reg_offset >> 2), 0, 0, PACKETJ_TYPE0));
+	} else {
+		amdgpu_ring_write(ring, reg_offset);
+		amdgpu_ring_write(ring,
+			PACKETJ(0, 0, 0, PACKETJ_TYPE0));
+	}
+	amdgpu_ring_write(ring, val);
+}
+
+static void vcn_v1_0_jpeg_ring_nop(struct amdgpu_ring *ring, uint32_t count)
+{
+	int i;
+
+	WARN_ON(ring->wptr % 2 || count % 2);
+
+	for (i = 0; i < count / 2; i++) {
+		amdgpu_ring_write(ring, PACKETJ(0, 0, 0, PACKETJ_TYPE6));
+		amdgpu_ring_write(ring, 0);
+	}
+}
+
 static int vcn_v1_0_set_interrupt_state(struct amdgpu_device *adev,
 					struct amdgpu_irq_src *source,
 					unsigned type,
