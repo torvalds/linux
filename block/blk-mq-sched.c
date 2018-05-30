@@ -268,19 +268,16 @@ bool blk_mq_sched_try_merge(struct request_queue *q, struct bio *bio,
 EXPORT_SYMBOL_GPL(blk_mq_sched_try_merge);
 
 /*
- * Reverse check our software queue for entries that we could potentially
- * merge with. Currently includes a hand-wavy stop count of 8, to not spend
- * too much time checking for merges.
+ * Iterate list of requests and see if we can merge this bio with any
+ * of them.
  */
-static bool blk_mq_attempt_merge(struct request_queue *q,
-				 struct blk_mq_ctx *ctx, struct bio *bio)
+bool blk_mq_bio_list_merge(struct request_queue *q, struct list_head *list,
+			   struct bio *bio)
 {
 	struct request *rq;
 	int checked = 8;
 
-	lockdep_assert_held(&ctx->lock);
-
-	list_for_each_entry_reverse(rq, &ctx->rq_list, queuelist) {
+	list_for_each_entry_reverse(rq, list, queuelist) {
 		bool merged = false;
 
 		if (!checked--)
@@ -305,9 +302,26 @@ static bool blk_mq_attempt_merge(struct request_queue *q,
 			continue;
 		}
 
-		if (merged)
-			ctx->rq_merged++;
 		return merged;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(blk_mq_bio_list_merge);
+
+/*
+ * Reverse check our software queue for entries that we could potentially
+ * merge with. Currently includes a hand-wavy stop count of 8, to not spend
+ * too much time checking for merges.
+ */
+static bool blk_mq_attempt_merge(struct request_queue *q,
+				 struct blk_mq_ctx *ctx, struct bio *bio)
+{
+	lockdep_assert_held(&ctx->lock);
+
+	if (blk_mq_bio_list_merge(q, &ctx->rq_list, bio)) {
+		ctx->rq_merged++;
+		return true;
 	}
 
 	return false;
