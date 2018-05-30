@@ -32,6 +32,10 @@ static inline int xfs_repair_notsupported(struct xfs_scrub_context *sc)
 int xfs_repair_attempt(struct xfs_inode *ip, struct xfs_scrub_context *sc,
 		bool *fixed);
 void xfs_repair_failure(struct xfs_mount *mp);
+int xfs_repair_roll_ag_trans(struct xfs_scrub_context *sc);
+bool xfs_repair_ag_has_space(struct xfs_perag *pag, xfs_extlen_t nr_blocks,
+		enum xfs_ag_resv_type type);
+xfs_extlen_t xfs_repair_calc_ag_resblks(struct xfs_scrub_context *sc);
 
 /* Metadata repairers */
 
@@ -48,6 +52,14 @@ static inline int xfs_repair_attempt(
 }
 
 static inline void xfs_repair_failure(struct xfs_mount *mp) {}
+
+static inline xfs_extlen_t
+xfs_repair_calc_ag_resblks(
+	struct xfs_scrub_context	*sc)
+{
+	ASSERT(!(sc->sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR));
+	return 0;
+}
 
 #define xfs_repair_probe		xfs_repair_notsupported
 

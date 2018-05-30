@@ -51,6 +51,7 @@
 #include "scrub/common.h"
 #include "scrub/trace.h"
 #include "scrub/btree.h"
+#include "scrub/repair.h"
 
 /* Common code for the metadata scrubbers. */
 
@@ -590,11 +591,22 @@ xfs_scrub_perag_get(
 /*
  * Grab an empty transaction so that we can re-grab locked buffers if
  * one of our btrees turns out to be cyclic.
+ *
+ * If we're going to repair something, we need to ask for the largest possible
+ * log reservation so that we can handle the worst case scenario for metadata
+ * updates while rebuilding a metadata item.  We also need to reserve as many
+ * blocks in the head transaction as we think we're going to need to rebuild
+ * the metadata object.
  */
 int
 xfs_scrub_trans_alloc(
-	struct xfs_scrub_context	*sc)
+	struct xfs_scrub_context	*sc,
+	uint				resblks)
 {
+	if (sc->sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR)
+		return xfs_trans_alloc(sc->mp, &M_RES(sc->mp)->tr_itruncate,
+				resblks, 0, 0, &sc->tp);
+
 	return xfs_trans_alloc_empty(sc->mp, &sc->tp);
 }
 
@@ -604,7 +616,10 @@ xfs_scrub_setup_fs(
 	struct xfs_scrub_context	*sc,
 	struct xfs_inode		*ip)
 {
-	return xfs_scrub_trans_alloc(sc);
+	uint				resblks;
+
+	resblks = xfs_repair_calc_ag_resblks(sc);
+	return xfs_scrub_trans_alloc(sc, resblks);
 }
 
 /* Set us up with AG headers and btree cursors. */
@@ -734,7 +749,7 @@ xfs_scrub_setup_inode_contents(
 	/* Got the inode, lock it and we're ready to go. */
 	sc->ilock_flags = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
 	xfs_ilock(sc->ip, sc->ilock_flags);
-	error = xfs_scrub_trans_alloc(sc);
+	error = xfs_scrub_trans_alloc(sc, resblks);
 	if (error)
 		goto out;
 	sc->ilock_flags |= XFS_ILOCK_EXCL;

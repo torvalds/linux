@@ -38,7 +38,7 @@ xfs_scrub_should_terminate(
 	return false;
 }
 
-int xfs_scrub_trans_alloc(struct xfs_scrub_context *sc);
+int xfs_scrub_trans_alloc(struct xfs_scrub_context *sc, uint resblks);
 bool xfs_scrub_process_error(struct xfs_scrub_context *sc, xfs_agnumber_t agno,
 		xfs_agblock_t bno, int *error);
 bool xfs_scrub_fblock_process_error(struct xfs_scrub_context *sc, int whichfork,
