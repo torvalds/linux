@@ -2483,7 +2483,7 @@ read_data_into_pages(struct TCP_Server_Info *server, struct page **pages,
 			zero_user(page, len, PAGE_SIZE - len);
 			len = 0;
 		}
-		length = cifs_read_page_from_socket(server, page, n);
+		length = cifs_read_page_from_socket(server, page, 0, n);
 		if (length < 0)
 			return length;
 		server->total_read += length;
