@@ -97,11 +97,6 @@ static void __init r8a7779_smp_prepare_cpus(unsigned int max_cpus)
 	shmobile_smp_scu_prepare_cpus(R8A7779_SCU_BASE, max_cpus);
 
 	r8a7779_pm_init();
-
-	/* power off secondary CPUs */
-	r8a7779_platform_cpu_kill(1);
-	r8a7779_platform_cpu_kill(2);
-	r8a7779_platform_cpu_kill(3);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
