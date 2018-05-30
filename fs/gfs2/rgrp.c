@@ -1490,6 +1490,34 @@ static void rs_insert(struct gfs2_inode *ip)
 }
 
 /**
+ * rgd_free - return the number of free blocks we can allocate.
+ * @rgd: the resource group
+ *
+ * This function returns the number of free blocks for an rgrp.
+ * That's the clone-free blocks (blocks that are free, not including those
+ * still being used for unlinked files that haven't been deleted.)
+ *
+ * It also subtracts any blocks reserved by someone else, but does not
+ * include free blocks that are still part of our current reservation,
+ * because obviously we can (and will) allocate them.
+ */
+static inline u32 rgd_free(struct gfs2_rgrpd *rgd, struct gfs2_blkreserv *rs)
+{
+	u32 tot_reserved, tot_free;
+
+	if (WARN_ON_ONCE(rgd->rd_reserved < rs->rs_free))
+		return 0;
+	tot_reserved = rgd->rd_reserved - rs->rs_free;
+
+	if (rgd->rd_free_clone < tot_reserved)
+		tot_reserved = 0;
+
+	tot_free = rgd->rd_free_clone - tot_reserved;
+
+	return tot_free;
+}
+
+/**
  * rg_mblk_search - find a group of multiple free blocks to form a reservation
  * @rgd: the resource group descriptor
  * @ip: pointer to the inode for which we're reserving blocks
@@ -1504,7 +1532,7 @@ static void rg_mblk_search(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip,
 	u64 goal;
 	struct gfs2_blkreserv *rs = &ip->i_res;
 	u32 extlen;
-	u32 free_blocks = rgd->rd_free_clone - rgd->rd_reserved;
+	u32 free_blocks = rgd_free(rgd, rs);
 	int ret;
 	struct inode *inode = &ip->i_inode;
 
@@ -1985,7 +2013,7 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, struct gfs2_alloc_parms *ap)
 	int error = 0, rg_locked, flags = 0;
 	u64 last_unlinked = NO_BLOCK;
 	int loops = 0;
-	u32 skip = 0;
+	u32 free_blocks, skip = 0;
 
 	if (sdp->sd_args.ar_rgrplvb)
 		flags |= GL_SKIP;
@@ -2056,10 +2084,11 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, struct gfs2_alloc_parms *ap)
 			goto check_rgrp;
 
 		/* If rgrp has enough free space, use it */
-		if (rs->rs_rbm.rgd->rd_free_clone >= ap->target ||
+		free_blocks = rgd_free(rs->rs_rbm.rgd, rs);
+		if (free_blocks >= ap->target ||
 		    (loops == 2 && ap->min_target &&
-		     rs->rs_rbm.rgd->rd_free_clone >= ap->min_target)) {
-			ap->allowed = rs->rs_rbm.rgd->rd_free_clone;
+		     free_blocks >= ap->min_target)) {
+			ap->allowed = free_blocks;
 			return 0;
 		}
 check_rgrp:
