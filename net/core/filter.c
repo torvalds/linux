@@ -4285,7 +4285,7 @@ BPF_CALL_4(bpf_xdp_fib_lookup, struct xdp_buff *, ctx,
 					   flags, true);
 #endif
 	}
-	return 0;
+	return -EAFNOSUPPORT;
 }
 
 static const struct bpf_func_proto bpf_xdp_fib_lookup_proto = {
@@ -4302,7 +4302,7 @@ BPF_CALL_4(bpf_skb_fib_lookup, struct sk_buff *, skb,
 	   struct bpf_fib_lookup *, params, int, plen, u32, flags)
 {
 	struct net *net = dev_net(skb->dev);
-	int index = 0;
+	int index = -EAFNOSUPPORT;
 
 	if (plen < sizeof(*params))
 		return -EINVAL;
