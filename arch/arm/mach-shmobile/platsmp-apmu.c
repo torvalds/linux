@@ -270,21 +270,6 @@ static void shmobile_smp_apmu_cpu_shutdown(unsigned int cpu)
 	/* Do ARM specific CPU shutdown */
 	cpu_enter_lowpower_a15();
 }
-
-static inline void cpu_leave_lowpower(void)
-{
-	unsigned int v;
-
-	asm volatile("mrc    p15, 0, %0, c1, c0, 0\n"
-		     "       orr     %0, %0, %1\n"
-		     "       mcr     p15, 0, %0, c1, c0, 0\n"
-		     "       mrc     p15, 0, %0, c1, c0, 1\n"
-		     "       orr     %0, %0, %2\n"
-		     "       mcr     p15, 0, %0, c1, c0, 1\n"
-		     : "=&r" (v)
-		     : "Ir" (CR_C), "Ir" (0x40)
-		     : "cc");
-}
 #endif
 
 #if defined(CONFIG_HOTPLUG_CPU)
@@ -313,6 +298,21 @@ static int shmobile_smp_apmu_do_suspend(unsigned long cpu)
 	shmobile_smp_apmu_cpu_shutdown(cpu);
 	cpu_do_idle(); /* WFI selects Core Standby */
 	return 1;
+}
+
+static inline void cpu_leave_lowpower(void)
+{
+	unsigned int v;
+
+	asm volatile("mrc    p15, 0, %0, c1, c0, 0\n"
+		     "       orr     %0, %0, %1\n"
+		     "       mcr     p15, 0, %0, c1, c0, 0\n"
+		     "       mrc     p15, 0, %0, c1, c0, 1\n"
+		     "       orr     %0, %0, %2\n"
+		     "       mcr     p15, 0, %0, c1, c0, 1\n"
+		     : "=&r" (v)
+		     : "Ir" (CR_C), "Ir" (0x40)
+		     : "cc");
 }
 
 static int shmobile_smp_apmu_enter_suspend(suspend_state_t state)
