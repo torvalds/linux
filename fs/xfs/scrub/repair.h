@@ -77,6 +77,26 @@ int xfs_repair_reap_btree_extents(struct xfs_scrub_context *sc,
 		struct xfs_repair_extent_list *exlist,
 		struct xfs_owner_info *oinfo, enum xfs_ag_resv_type type);
 
+struct xfs_repair_find_ag_btree {
+	/* in: rmap owner of the btree we're looking for */
+	uint64_t			rmap_owner;
+
+	/* in: buffer ops */
+	const struct xfs_buf_ops	*buf_ops;
+
+	/* in: magic number of the btree */
+	uint32_t			magic;
+
+	/* out: the highest btree block found and the tree height */
+	xfs_agblock_t			root;
+	unsigned int			height;
+};
+
+int xfs_repair_find_ag_btree_roots(struct xfs_scrub_context *sc,
+		struct xfs_buf *agf_bp,
+		struct xfs_repair_find_ag_btree *btree_info,
+		struct xfs_buf *agfl_bp);
+
 /* Metadata repairers */
 
 int xfs_repair_probe(struct xfs_scrub_context *sc);
