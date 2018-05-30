@@ -352,7 +352,7 @@ int dev_map_enqueue(struct bpf_dtab_netdev *dst, struct xdp_buff *xdp,
 static void *dev_map_lookup_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_dtab_netdev *obj = __dev_map_lookup_elem(map, *(u32 *)key);
-	struct net_device *dev = dev = obj ? obj->dev : NULL;
+	struct net_device *dev = obj ? obj->dev : NULL;
 
 	return dev ? &dev->ifindex : NULL;
 }
