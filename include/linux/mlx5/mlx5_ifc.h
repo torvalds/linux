@@ -60,6 +60,7 @@ enum {
 	MLX5_EVENT_TYPE_CODING_COMMAND_INTERFACE_COMPLETION        = 0xa,
 	MLX5_EVENT_TYPE_CODING_PAGE_REQUEST                        = 0xb,
 	MLX5_EVENT_TYPE_CODING_FPGA_ERROR                          = 0x20,
+	MLX5_EVENT_TYPE_CODING_FPGA_QP_ERROR                       = 0x21
 };
 
 enum {
