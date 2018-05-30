@@ -460,6 +460,8 @@ done:
 	} else {
 		ss->abort(net, oskb);
 	}
+	if (ss->cleanup)
+		ss->cleanup(net);
 
 	nfnl_err_deliver(&err_list, oskb);
 	nfnl_unlock(subsys_id);

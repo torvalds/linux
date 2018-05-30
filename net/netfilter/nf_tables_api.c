@@ -28,6 +28,28 @@ static LIST_HEAD(nf_tables_objects);
 static LIST_HEAD(nf_tables_flowtables);
 static u64 table_handle;
 
+enum {
+	NFT_VALIDATE_SKIP	= 0,
+	NFT_VALIDATE_NEED,
+	NFT_VALIDATE_DO,
+};
+
+static void nft_validate_state_update(struct net *net, u8 new_validate_state)
+{
+	switch (net->nft.validate_state) {
+	case NFT_VALIDATE_SKIP:
+		WARN_ON_ONCE(new_validate_state == NFT_VALIDATE_DO);
+		break;
+	case NFT_VALIDATE_NEED:
+		break;
+	case NFT_VALIDATE_DO:
+		if (new_validate_state == NFT_VALIDATE_NEED)
+			return;
+	}
+
+	net->nft.validate_state = new_validate_state;
+}
+
 static void nft_ctx_init(struct nft_ctx *ctx,
 			 struct net *net,
 			 const struct sk_buff *skb,
@@ -1921,19 +1943,7 @@ static int nf_tables_newexpr(const struct nft_ctx *ctx,
 			goto err1;
 	}
 
-	if (ops->validate) {
-		const struct nft_data *data = NULL;
-
-		err = ops->validate(ctx, expr, &data);
-		if (err < 0)
-			goto err2;
-	}
-
 	return 0;
-
-err2:
-	if (ops->destroy)
-		ops->destroy(ctx, expr);
 err1:
 	expr->ops = NULL;
 	return err;
@@ -2299,6 +2309,53 @@ static void nf_tables_rule_release(const struct nft_ctx *ctx,
 	nf_tables_rule_destroy(ctx, rule);
 }
 
+int nft_chain_validate(const struct nft_ctx *ctx, const struct nft_chain *chain)
+{
+	struct nft_expr *expr, *last;
+	const struct nft_data *data;
+	struct nft_rule *rule;
+	int err;
+
+	list_for_each_entry(rule, &chain->rules, list) {
+		if (!nft_is_active_next(ctx->net, rule))
+			continue;
+
+		nft_rule_for_each_expr(expr, last, rule) {
+			if (!expr->ops->validate)
+				continue;
+
+			err = expr->ops->validate(ctx, expr, &data);
+			if (err < 0)
+				return err;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nft_chain_validate);
+
+static int nft_table_validate(struct net *net, const struct nft_table *table)
+{
+	struct nft_chain *chain;
+	struct nft_ctx ctx = {
+		.net	= net,
+		.family	= table->family,
+	};
+	int err;
+
+	list_for_each_entry(chain, &table->chains, list) {
+		if (!nft_is_base_chain(chain))
+			continue;
+
+		ctx.chain = chain;
+		err = nft_chain_validate(&ctx, chain);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
 #define NFT_RULE_MAXEXPRS	128
 
 static struct nft_expr_info *info;
@@ -2426,6 +2483,10 @@ static int nf_tables_newrule(struct net *net, struct sock *nlsk,
 		err = nf_tables_newexpr(&ctx, &info[i], expr);
 		if (err < 0)
 			goto err2;
+
+		if (info[i].ops->validate)
+			nft_validate_state_update(net, NFT_VALIDATE_NEED);
+
 		info[i].ops = NULL;
 		expr = nft_expr_next(expr);
 	}
@@ -2469,8 +2530,11 @@ static int nf_tables_newrule(struct net *net, struct sock *nlsk,
 		}
 	}
 	chain->use++;
-	return 0;
 
+	if (net->nft.validate_state == NFT_VALIDATE_DO)
+		return nft_table_validate(net, table);
+
+	return 0;
 err2:
 	nf_tables_rule_release(&ctx, rule);
 err1:
@@ -4112,6 +4176,12 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 							  d2.type, d2.len);
 			if (err < 0)
 				goto err3;
+
+			if (d2.type == NFT_DATA_VERDICT &&
+			    (data.verdict.code == NFT_GOTO ||
+			     data.verdict.code == NFT_JUMP))
+				nft_validate_state_update(ctx->net,
+							  NFT_VALIDATE_NEED);
 		}
 
 		nft_set_ext_add_length(&tmpl, NFT_SET_EXT_DATA, d2.len);
@@ -4211,7 +4281,7 @@ static int nf_tables_newsetelem(struct net *net, struct sock *nlsk,
 	const struct nlattr *attr;
 	struct nft_set *set;
 	struct nft_ctx ctx;
-	int rem, err = 0;
+	int rem, err;
 
 	if (nla[NFTA_SET_ELEM_LIST_ELEMENTS] == NULL)
 		return -EINVAL;
@@ -4232,9 +4302,13 @@ static int nf_tables_newsetelem(struct net *net, struct sock *nlsk,
 	nla_for_each_nested(attr, nla[NFTA_SET_ELEM_LIST_ELEMENTS], rem) {
 		err = nft_add_set_elem(&ctx, set, attr, nlh->nlmsg_flags);
 		if (err < 0)
-			break;
+			return err;
 	}
-	return err;
+
+	if (net->nft.validate_state == NFT_VALIDATE_DO)
+		return nft_table_validate(net, ctx.table);
+
+	return 0;
 }
 
 /**
@@ -5867,6 +5941,27 @@ static const struct nfnl_callback nf_tables_cb[NFT_MSG_MAX] = {
 	},
 };
 
+static int nf_tables_validate(struct net *net)
+{
+	struct nft_table *table;
+
+	switch (net->nft.validate_state) {
+	case NFT_VALIDATE_SKIP:
+		break;
+	case NFT_VALIDATE_NEED:
+		nft_validate_state_update(net, NFT_VALIDATE_DO);
+		/* fall through */
+	case NFT_VALIDATE_DO:
+		list_for_each_entry(table, &net->nft.tables, list) {
+			if (nft_table_validate(net, table) < 0)
+				return -EAGAIN;
+		}
+		break;
+	}
+
+	return 0;
+}
+
 static void nft_chain_commit_update(struct nft_trans *trans)
 {
 	struct nft_base_chain *basechain;
@@ -6054,6 +6149,10 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 	struct nft_trans_elem *te;
 	struct nft_chain *chain;
 	struct nft_table *table;
+
+	/* 0. Validate ruleset, otherwise roll back for error reporting. */
+	if (nf_tables_validate(net) < 0)
+		return -EAGAIN;
 
 	/* 1.  Allocate space for next generation rules_gen_X[] */
 	list_for_each_entry_safe(trans, next, &net->nft.commit_list, list) {
@@ -6349,6 +6448,11 @@ static int nf_tables_abort(struct net *net, struct sk_buff *skb)
 	return 0;
 }
 
+static void nf_tables_cleanup(struct net *net)
+{
+	nft_validate_state_update(net, NFT_VALIDATE_SKIP);
+}
+
 static bool nf_tables_valid_genid(struct net *net, u32 genid)
 {
 	return net->nft.base_seq == genid;
@@ -6361,6 +6465,7 @@ static const struct nfnetlink_subsystem nf_tables_subsys = {
 	.cb		= nf_tables_cb,
 	.commit		= nf_tables_commit,
 	.abort		= nf_tables_abort,
+	.cleanup	= nf_tables_cleanup,
 	.valid_genid	= nf_tables_valid_genid,
 };
 
@@ -6444,19 +6549,18 @@ static int nf_tables_check_loops(const struct nft_ctx *ctx,
 
 	list_for_each_entry(rule, &chain->rules, list) {
 		nft_rule_for_each_expr(expr, last, rule) {
-			const struct nft_data *data = NULL;
+			struct nft_immediate_expr *priv;
+			const struct nft_data *data;
 			int err;
 
-			if (!expr->ops->validate)
+			if (strcmp(expr->ops->type->name, "immediate"))
 				continue;
 
-			err = expr->ops->validate(ctx, expr, &data);
-			if (err < 0)
-				return err;
-
-			if (data == NULL)
+			priv = nft_expr_priv(expr);
+			if (priv->dreg != NFT_REG_VERDICT)
 				continue;
 
+			data = &priv->data;
 			switch (data->verdict.code) {
 			case NFT_JUMP:
 			case NFT_GOTO:
@@ -6936,6 +7040,8 @@ static int __net_init nf_tables_init_net(struct net *net)
 	INIT_LIST_HEAD(&net->nft.tables);
 	INIT_LIST_HEAD(&net->nft.commit_list);
 	net->nft.base_seq = 1;
+	net->nft.validate_state = NFT_VALIDATE_SKIP;
+
 	return 0;
 }
 

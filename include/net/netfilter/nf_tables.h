@@ -874,6 +874,8 @@ struct nft_chain {
 	struct nft_rule			**rules_next;
 };
 
+int nft_chain_validate(const struct nft_ctx *ctx, const struct nft_chain *chain);
+
 enum nft_chain_types {
 	NFT_CHAIN_T_DEFAULT = 0,
 	NFT_CHAIN_T_ROUTE,
