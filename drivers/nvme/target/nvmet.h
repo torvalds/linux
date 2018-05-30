@@ -139,6 +139,7 @@ struct nvmet_ctrl {
 	u32			kato;
 
 	u32			aen_enabled;
+	unsigned long		aen_masked;
 	struct nvmet_req	*async_event_cmds[NVMET_ASYNC_EVENTS];
 	unsigned int		nr_async_event_cmds;
 	struct list_head	async_events;

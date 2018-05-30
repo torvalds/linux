@@ -144,6 +144,7 @@ static void nvmet_execute_get_log_changed_ns(struct nvmet_req *req)
 	if (!status)
 		status = nvmet_zero_sgl(req, len, req->data_len - len);
 	ctrl->nr_changed_ns = 0;
+	clear_bit(NVME_AEN_CFG_NS_ATTR, &ctrl->aen_masked);
 	mutex_unlock(&ctrl->lock);
 out:
 	nvmet_req_complete(req, status);
