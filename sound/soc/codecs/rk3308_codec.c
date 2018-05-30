@@ -60,6 +60,29 @@
 #define LOOPBACK_NO_USE			255
 #define LOOPBACK_HANDLE_MS		100
 
+#define GRF_SOC_CON1			0x304
+#define GRF_I2S2_8CH_SDI_SFT		0
+#define GRF_I2S3_4CH_SDI_SFT		8
+#define GRF_I2S1_2CH_SDI_SFT		12
+
+#define GRF_I2S2_8CH_SDI_W_MSK(i)	(0x3 << (i * 2 + GRF_I2S2_8CH_SDI_SFT + 16))
+#define GRF_I2S2_8CH_SDI(i, v)		(((v & 0x3) << (i * 2 + GRF_I2S2_8CH_SDI_SFT)) |\
+					 GRF_I2S2_8CH_SDI_W_MSK(i))
+
+#define GRF_I2S3_4CH_SDI_W_MSK(i)	(0x3 << (i * 2 + GRF_I2S3_4CH_SDI_SFT + 16))
+#define GRF_I2S3_4CH_SDI(i, v)		(((v & 0x3) << (i * 2 + GRF_I2S3_4CH_SDI_SFT)) |\
+					 GRF_I2S3_4CH_SDI_W_MSK(i))
+
+#define GRF_I2S1_2CH_SDI_W_MSK		(0x3 << (GRF_I2S1_2CH_SDI_SFT + 16))
+#define GRF_I2S1_2CH_SDI(v)		(((v & 0x3) << GRF_I2S1_2CH_SDI_SFT) |\
+					 GRF_I2S1_2CH_SDI_W_MSK)
+
+enum {
+	ACODEC_TO_I2S2_8CH = 0,
+	ACODEC_TO_I2S3_4CH,
+	ACODEC_TO_I2S1_2CH,
+};
+
 enum {
 	ADC_GRP0_MICIN = 0,
 	ADC_GRP0_LINEIN
@@ -86,6 +109,7 @@ struct rk3308_codec_priv {
 	struct device dev;
 	struct reset_control *reset;
 	struct regmap *regmap;
+	struct regmap *grf;
 	struct clk *pclk;
 	struct clk *mclk_rx;
 	struct clk *mclk_tx;
@@ -105,6 +129,9 @@ struct rk3308_codec_priv {
 	u32 used_grps;
 	/* The ADC group which is used for loop back */
 	u32 loopback_grp;
+	u32 i2s_sdis[ADC_LR_GROUP_MAX];
+	u32 to_i2s_grps;
+	int which_i2s;
 	int irq;
 	int adc_grp0_using_linein;
 	int adc_zerocross;
@@ -1627,6 +1654,127 @@ static int rk3308_codec_check_adc_grps(struct rk3308_codec_priv *rk3308,
 	return 0;
 }
 
+static int rk3308_codec_check_i2s_sdis(struct rk3308_codec_priv *rk3308,
+				       int num)
+{
+	int i, j, ret = 0;
+
+	dev_err(rk3308->plat_dev, "xing_codec: %s, %d\n", __func__, __LINE__);
+
+	switch (num) {
+	case 1:
+		rk3308->which_i2s = ACODEC_TO_I2S1_2CH;
+		break;
+	case 2:
+		rk3308->which_i2s = ACODEC_TO_I2S3_4CH;
+		break;
+	case 4:
+		rk3308->which_i2s = ACODEC_TO_I2S2_8CH;
+		break;
+	default:
+		dev_err(rk3308->plat_dev, "Invalid i2s sdis num: %d\n", num);
+		ret = -EINVAL;
+		goto err;
+	}
+
+	for (i = 0; i < num; i++) {
+		if (rk3308->i2s_sdis[i] > ADC_LR_GROUP_MAX - 1) {
+			dev_err(rk3308->plat_dev,
+				"i2s_sdis[%d]: %d is overflow\n",
+				i, rk3308->i2s_sdis[i]);
+			ret = -EINVAL;
+			goto err;
+		}
+
+		for (j = 0; j < num; j++) {
+			if (i == j)
+				continue;
+
+			if (rk3308->i2s_sdis[i] == rk3308->i2s_sdis[j]) {
+				dev_err(rk3308->plat_dev,
+					"Invalid i2s_sdis: [%d]%d == [%d]%d\n",
+					i, rk3308->i2s_sdis[i],
+					j, rk3308->i2s_sdis[j]);
+				ret = -EINVAL;
+				goto err;
+			}
+		}
+	}
+
+err:
+	return ret;
+}
+
+static int rk3308_codec_adc_grps_route_config(struct rk3308_codec_priv *rk3308)
+{
+	int idx;
+
+	if (rk3308->which_i2s == ACODEC_TO_I2S2_8CH) {
+		for (idx = 0; idx < rk3308->to_i2s_grps; idx++) {
+			regmap_write(rk3308->grf, GRF_SOC_CON1,
+				     GRF_I2S2_8CH_SDI(idx, rk3308->i2s_sdis[idx]));
+		}
+	} else if (rk3308->which_i2s == ACODEC_TO_I2S3_4CH) {
+		for (idx = 0; idx < rk3308->to_i2s_grps; idx++) {
+			regmap_write(rk3308->grf, GRF_SOC_CON1,
+				     GRF_I2S3_4CH_SDI(idx, rk3308->i2s_sdis[idx]));
+		}
+	} else if (rk3308->which_i2s == ACODEC_TO_I2S1_2CH) {
+		regmap_write(rk3308->grf, GRF_SOC_CON1,
+			     GRF_I2S1_2CH_SDI(rk3308->i2s_sdis[idx]));
+	}
+
+	return 0;
+}
+
+static int rk3308_codec_adc_grps_route(struct rk3308_codec_priv *rk3308,
+				       struct device_node *np)
+{
+	int num, ret;
+
+	rk3308->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
+	if (IS_ERR(rk3308->grf)) {
+		dev_err(rk3308->plat_dev, "Missing rockchip,grf property\n");
+		return PTR_ERR(rk3308->grf);
+	}
+
+	num = of_count_phandle_with_args(np, "rockchip,adc-grps-route", NULL);
+	if (num < 0) {
+		if (num == -ENOENT) {
+			/* Not use 'rockchip,adc-grps-route' property here */
+			ret = 0;
+		} else {
+			dev_err(rk3308->plat_dev,
+				"Failed to read 'rockchip,adc-grps-route' num: %d\n",
+				num);
+			ret = num;
+		}
+		return ret;
+	}
+
+	ret = of_property_read_u32_array(np, "rockchip,adc-grps-route",
+					 rk3308->i2s_sdis, num);
+	if (ret < 0) {
+		dev_err(rk3308->plat_dev,
+			"Failed to read 'rockchip,adc-grps-route': %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = rk3308_codec_check_i2s_sdis(rk3308, num);
+	if (ret < 0) {
+		dev_err(rk3308->plat_dev,
+			"Failed to check i2s_sdis: %d\n", ret);
+		return ret;
+	}
+
+	rk3308->to_i2s_grps = num;
+
+	rk3308_codec_adc_grps_route_config(rk3308);
+
+	return 0;
+}
+
 static int check_micbias(int micbias)
 {
 	switch (micbias) {
@@ -2601,6 +2749,78 @@ static ssize_t adc_grps_store(struct device *dev,
 	return count;
 }
 
+static ssize_t adc_grps_route_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct rk3308_codec_priv *rk3308 =
+		container_of(dev, struct rk3308_codec_priv, dev);
+	char which_i2s[32] = {0};
+	int count = 0;
+	u32 grp;
+
+	switch (rk3308->which_i2s) {
+	case ACODEC_TO_I2S1_2CH:
+		strcpy(which_i2s, "i2s1_2ch");
+		break;
+	case ACODEC_TO_I2S3_4CH:
+		strcpy(which_i2s, "i2s3_4ch");
+		break;
+	default:
+		strcpy(which_i2s, "i2s2_8ch");
+		break;
+	}
+
+	count += sprintf(buf + count, "%s from acodec route mapping:\n",
+			 which_i2s);
+	for (grp = 0; grp < rk3308->to_i2s_grps; grp++) {
+		count += sprintf(buf + count, "* sdi_%d <-- sdo_%d\n",
+				 grp, rk3308->i2s_sdis[grp]);
+	}
+
+	return count;
+}
+
+static ssize_t adc_grps_route_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct rk3308_codec_priv *rk3308 =
+		container_of(dev, struct rk3308_codec_priv, dev);
+	int which_i2s, idx, i2s_sdis[ADC_LR_GROUP_MAX];
+
+	sscanf(buf, "%d,%d,%d,%d,%d", &which_i2s,
+	       &i2s_sdis[0], &i2s_sdis[1], &i2s_sdis[2], &i2s_sdis[3]);
+
+	if (which_i2s < ACODEC_TO_I2S2_8CH ||
+	    which_i2s > ACODEC_TO_I2S1_2CH) {
+		dev_err(rk3308->plat_dev, "Invalid i2s type: %d\n", which_i2s);
+		goto err;
+	}
+
+	rk3308->which_i2s = which_i2s;
+
+	switch (rk3308->which_i2s) {
+	case ACODEC_TO_I2S1_2CH:
+		rk3308->to_i2s_grps = 1;
+		break;
+	case ACODEC_TO_I2S3_4CH:
+		rk3308->to_i2s_grps = 2;
+		break;
+	default:
+		rk3308->to_i2s_grps = 4;
+		break;
+	}
+
+	for (idx = 0; idx < rk3308->to_i2s_grps; idx++)
+		rk3308->i2s_sdis[idx] = i2s_sdis[idx];
+
+	rk3308_codec_adc_grps_route_config(rk3308);
+
+err:
+	return count;
+}
+
 static ssize_t adc_grp0_in_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
@@ -2719,6 +2939,7 @@ static ssize_t dac_output_store(struct device *dev,
 
 static const struct device_attribute adc_ch_attrs[] = {
 	__ATTR(adc_grps, 0644, adc_grps_show, adc_grps_store),
+	__ATTR(adc_grps_route, 0644, adc_grps_route_show, adc_grps_route_store),
 	__ATTR(adc_grp0_in, 0644, adc_grp0_in_show, adc_grp0_in_store),
 	__ATTR(adc_zerocross, 0644, adc_zerocross_show, adc_zerocross_store),
 	__ATTR(dac_output, 0644, dac_output_show, dac_output_store),
@@ -2964,6 +3185,13 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 	ret = rk3308_codec_check_adc_grps(rk3308, np);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Invalid ADC group configuration: %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = rk3308_codec_adc_grps_route(rk3308, np);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to route ADC groups: %d\n",
 			ret);
 		return ret;
 	}
