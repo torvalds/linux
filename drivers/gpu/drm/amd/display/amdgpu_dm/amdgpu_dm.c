@@ -4695,15 +4695,16 @@ next_crtc:
 		 * We want to do dc stream updates that do not require a
 		 * full modeset below.
 		 */
-		if (!enable || !aconnector || modereset_required(new_crtc_state))
+		if (!(enable && aconnector && new_crtc_state->enable &&
+		      new_crtc_state->active))
 			continue;
 		/*
 		 * Given above conditions, the dc state cannot be NULL because:
-		 * 1. We're attempting to enable a CRTC. Which has a...
-		 * 2. Valid connector attached, and
-		 * 3. User does not want to reset it (disable or mark inactive,
-		 *    which can happen on a CRTC that's already disabled).
-		 * => It currently exists.
+		 * 1. We're in the process of enabling CRTCs (just been added
+		 *    to the dc context, or already is on the context)
+		 * 2. Has a valid connector attached, and
+		 * 3. Is currently active and enabled.
+		 * => The dc stream state currently exists.
 		 */
 		BUG_ON(dm_new_crtc_state->stream == NULL);
 
