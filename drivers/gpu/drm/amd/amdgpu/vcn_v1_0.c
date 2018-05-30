@@ -88,6 +88,11 @@ static int vcn_v1_0_sw_init(void *handle)
 			return r;
 	}
 
+	/* VCN JPEG TRAP */
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VCN, 126, &adev->vcn.irq);
+	if (r)
+		return r;
+
 	r = amdgpu_vcn_sw_init(adev);
 	if (r)
 		return r;
@@ -1437,6 +1442,9 @@ static int vcn_v1_0_process_interrupt(struct amdgpu_device *adev,
 		break;
 	case 120:
 		amdgpu_fence_process(&adev->vcn.ring_enc[1]);
+		break;
+	case 126:
+		amdgpu_fence_process(&adev->vcn.ring_jpeg);
 		break;
 	default:
 		DRM_ERROR("Unhandled interrupt: %d %d\n",
