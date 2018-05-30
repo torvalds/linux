@@ -66,7 +66,7 @@ struct ww_acquire_ctx;
    3. share memory
    4. semaphore
    5. unix socket(message<send, receive>)
-   6. signal
+   6. signal 
    
 */
 struct mutex {
