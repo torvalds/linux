@@ -5947,7 +5947,6 @@ void btrfs_trans_release_chunk_metadata(struct btrfs_trans_handle *trans)
 int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
 				     struct btrfs_block_rsv *rsv,
 				     int items,
-				     u64 *qgroup_reserved,
 				     bool use_global_rsv)
 {
 	u64 num_bytes;
@@ -5965,8 +5964,6 @@ int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
 		num_bytes = 0;
 	}
 
-	*qgroup_reserved = num_bytes;
-
 	num_bytes = btrfs_calc_trans_metadata_size(fs_info, items);
 	rsv->space_info = __find_space_info(fs_info,
 					    BTRFS_BLOCK_GROUP_METADATA);
@@ -5976,8 +5973,8 @@ int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
 	if (ret == -ENOSPC && use_global_rsv)
 		ret = btrfs_block_rsv_migrate(global_rsv, rsv, num_bytes, 1);
 
-	if (ret && *qgroup_reserved)
-		btrfs_qgroup_free_meta_prealloc(root, *qgroup_reserved);
+	if (ret && num_bytes)
+		btrfs_qgroup_free_meta_prealloc(root, num_bytes);
 
 	return ret;
 }

@@ -569,7 +569,6 @@ static noinline int create_subvol(struct inode *dir,
 	u64 objectid;
 	u64 new_dirid = BTRFS_FIRST_FREE_OBJECTID;
 	u64 index = 0;
-	u64 qgroup_reserved;
 	uuid_le new_uuid;
 
 	root_item = kzalloc(sizeof(*root_item), GFP_KERNEL);
@@ -594,8 +593,7 @@ static noinline int create_subvol(struct inode *dir,
 	 * The same as the snapshot creation, please see the comment
 	 * of create_snapshot().
 	 */
-	ret = btrfs_subvolume_reserve_metadata(root, &block_rsv,
-					       8, &qgroup_reserved, false);
+	ret = btrfs_subvolume_reserve_metadata(root, &block_rsv, 8, false);
 	if (ret)
 		goto fail_free;
 
@@ -803,7 +801,6 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 	 */
 	ret = btrfs_subvolume_reserve_metadata(BTRFS_I(dir)->root,
 					&pending_snapshot->block_rsv, 8,
-					&pending_snapshot->qgroup_reserved,
 					false);
 	if (ret)
 		goto dec_and_free;

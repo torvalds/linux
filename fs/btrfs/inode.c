@@ -4293,7 +4293,6 @@ int btrfs_delete_subvolume(struct inode *dir, struct dentry *dentry)
 	struct btrfs_trans_handle *trans;
 	struct btrfs_block_rsv block_rsv;
 	u64 root_flags;
-	u64 qgroup_reserved;
 	int ret;
 	int err;
 
@@ -4328,8 +4327,7 @@ int btrfs_delete_subvolume(struct inode *dir, struct dentry *dentry)
 	 * two for dir entries,
 	 * two for root ref/backref.
 	 */
-	err = btrfs_subvolume_reserve_metadata(root, &block_rsv,
-					       5, &qgroup_reserved, true);
+	err = btrfs_subvolume_reserve_metadata(root, &block_rsv, 5, true);
 	if (err)
 		goto out_up_write;
 
