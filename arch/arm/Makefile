@@ -398,13 +398,11 @@ endif
 	@echo '  Image:  resource.img (with $*.dtb $(LOGO) $(LOGO_KERNEL)) is ready'
 	$(Q) if [ -x $(srctree)/scripts/mkbootimg ]; then \
 		$(srctree)/scripts/mkbootimg \
-			--base 0 --kernel_offset $(textofs-y) \
 			--kernel $(objtree)/arch/arm/boot/Image \
 			--second resource.img \
 			-o boot.img && \
 		echo '  Image:  boot.img (with Image resource.img) is ready'; \
 		$(srctree)/scripts/mkbootimg \
-			--base 0 --kernel_offset 0 \
 			--kernel $(objtree)/arch/arm/boot/zImage \
 			--second resource.img \
 			-o zboot.img && \
