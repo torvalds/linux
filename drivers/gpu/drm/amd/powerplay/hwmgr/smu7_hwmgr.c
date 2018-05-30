@@ -791,7 +791,8 @@ static int smu7_setup_dpm_tables_v1(struct pp_hwmgr *hwmgr)
 			data->dpm_table.sclk_table.count++;
 		}
 	}
-
+	if (hwmgr->platform_descriptor.overdriveLimit.engineClock == 0)
+		hwmgr->platform_descriptor.overdriveLimit.engineClock = dep_sclk_table->entries[i-1].clk;
 	/* Initialize Mclk DPM table based on allow Mclk values */
 	data->dpm_table.mclk_table.count = 0;
 	for (i = 0; i < dep_mclk_table->count; i++) {
@@ -806,6 +807,8 @@ static int smu7_setup_dpm_tables_v1(struct pp_hwmgr *hwmgr)
 		}
 	}
 
+	if (hwmgr->platform_descriptor.overdriveLimit.memoryClock == 0)
+		hwmgr->platform_descriptor.overdriveLimit.memoryClock = dep_mclk_table->entries[i-1].clk;
 	return 0;
 }
 
