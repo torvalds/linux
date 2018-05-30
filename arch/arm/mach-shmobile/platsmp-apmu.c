@@ -106,38 +106,6 @@ static void apmu_init_cpu(struct resource *res, int cpu, int bit)
 	writel(x, apmu_cpus[cpu].iomem + DBGRCR_OFFS);
 }
 
-static void apmu_parse_cfg(void (*fn)(struct resource *res, int cpu, int bit),
-			   struct rcar_apmu_config *apmu_config, int num)
-{
-	int id;
-	int k;
-	int bit, index;
-	bool is_allowed;
-
-	for (k = 0; k < num; k++) {
-		/* only enable the cluster that includes the boot CPU */
-		is_allowed = false;
-		for (bit = 0; bit < ARRAY_SIZE(apmu_config[k].cpus); bit++) {
-			id = apmu_config[k].cpus[bit];
-			if (id >= 0) {
-				if (id == cpu_logical_map(0))
-					is_allowed = true;
-			}
-		}
-		if (!is_allowed)
-			continue;
-
-		for (bit = 0; bit < ARRAY_SIZE(apmu_config[k].cpus); bit++) {
-			id = apmu_config[k].cpus[bit];
-			if (id >= 0) {
-				index = get_logical_index(id);
-				if (index >= 0)
-					fn(&apmu_config[k].iomem, index, bit);
-			}
-		}
-	}
-}
-
 static const struct of_device_id apmu_ids[] = {
 	{ .compatible = "renesas,apmu" },
 	{ /*sentinel*/ }
@@ -192,14 +160,6 @@ static void __init shmobile_smp_apmu_setup_boot(void)
 	/* install boot code shared by all CPUs */
 	shmobile_boot_fn = __pa_symbol(shmobile_smp_boot);
 	shmobile_boot_fn_gen2 = shmobile_boot_fn;
-}
-
-void __init shmobile_smp_apmu_prepare_cpus(unsigned int max_cpus,
-					   struct rcar_apmu_config *apmu_config,
-					   int num)
-{
-	shmobile_smp_apmu_setup_boot();
-	apmu_parse_cfg(apmu_init_cpu, apmu_config, num);
 }
 
 int shmobile_smp_apmu_boot_secondary(unsigned int cpu, struct task_struct *idle)
