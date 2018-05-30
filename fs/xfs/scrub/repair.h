@@ -70,6 +70,12 @@ void xfs_repair_cancel_btree_extents(struct xfs_scrub_context *sc,
 int xfs_repair_subtract_extents(struct xfs_scrub_context *sc,
 		struct xfs_repair_extent_list *exlist,
 		struct xfs_repair_extent_list *sublist);
+int xfs_repair_fix_freelist(struct xfs_scrub_context *sc, bool can_shrink);
+int xfs_repair_invalidate_blocks(struct xfs_scrub_context *sc,
+		struct xfs_repair_extent_list *btlist);
+int xfs_repair_reap_btree_extents(struct xfs_scrub_context *sc,
+		struct xfs_repair_extent_list *exlist,
+		struct xfs_owner_info *oinfo, enum xfs_ag_resv_type type);
 
 /* Metadata repairers */
 
