@@ -668,11 +668,11 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 		if (max_tmds_clock >= 594000) {
 			*color_depth = 8;
 		} else if (max_tmds_clock > 340000) {
-			if (drm_mode_is_420(info, mode))
+			if (drm_mode_is_420(info, mode) || tmdsclock >= 594000)
 				*color_format = DRM_HDMI_OUTPUT_YCBCR420;
 		} else {
 			*color_depth = 8;
-			if (drm_mode_is_420(info, mode))
+			if (drm_mode_is_420(info, mode) || tmdsclock >= 594000)
 				*color_format = DRM_HDMI_OUTPUT_YCBCR420;
 		}
 	}
