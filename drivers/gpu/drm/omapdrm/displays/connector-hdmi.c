@@ -147,30 +147,22 @@ static bool hdmic_detect(struct omap_dss_device *dssdev)
 	return connected;
 }
 
-static int hdmic_register_hpd_cb(struct omap_dss_device *dssdev,
-				 void (*cb)(void *cb_data,
+static void hdmic_register_hpd_cb(struct omap_dss_device *dssdev,
+				  void (*cb)(void *cb_data,
 					    enum drm_connector_status status),
-				 void *cb_data)
+				  void *cb_data)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-
-	if (!ddata->hpd_gpio)
-		return -ENOTSUPP;
 
 	mutex_lock(&ddata->hpd_lock);
 	ddata->hpd_cb = cb;
 	ddata->hpd_cb_data = cb_data;
 	mutex_unlock(&ddata->hpd_lock);
-
-	return 0;
 }
 
 static void hdmic_unregister_hpd_cb(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-
-	if (!ddata->hpd_gpio)
-		return;
 
 	mutex_lock(&ddata->hpd_lock);
 	ddata->hpd_cb = NULL;

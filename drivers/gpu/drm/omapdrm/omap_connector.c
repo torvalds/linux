@@ -298,19 +298,10 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 	 */
 	dssdev = omap_connector_find_device(connector, OMAP_DSS_DEVICE_OP_HPD);
 	if (dssdev) {
-		int ret;
-
-		ret = dssdev->ops->register_hpd_cb(dssdev,
-						   omap_connector_hpd_cb,
-						   omap_connector);
-		if (ret < 0)
-			DBG("%s: Failed to register HPD callback (%d).",
-			    dssdev->name, ret);
-		else
-			connector->polled = DRM_CONNECTOR_POLL_HPD;
-	}
-
-	if (!connector->polled) {
+		dssdev->ops->register_hpd_cb(dssdev, omap_connector_hpd_cb,
+					     omap_connector);
+		connector->polled = DRM_CONNECTOR_POLL_HPD;
+	} else {
 		dssdev = omap_connector_find_device(connector,
 						    OMAP_DSS_DEVICE_OP_DETECT);
 		if (dssdev)

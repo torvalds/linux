@@ -372,10 +372,10 @@ struct omap_dss_device_ops {
 
 	bool (*detect)(struct omap_dss_device *dssdev);
 
-	int (*register_hpd_cb)(struct omap_dss_device *dssdev,
-			       void (*cb)(void *cb_data,
+	void (*register_hpd_cb)(struct omap_dss_device *dssdev,
+				void (*cb)(void *cb_data,
 					  enum drm_connector_status status),
-			       void *cb_data);
+				void *cb_data);
 	void (*unregister_hpd_cb)(struct omap_dss_device *dssdev);
 	void (*enable_hpd)(struct omap_dss_device *dssdev);
 	void (*disable_hpd)(struct omap_dss_device *dssdev);
