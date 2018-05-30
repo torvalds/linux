@@ -135,6 +135,7 @@ config SAMPLE_VFIO_MDEV_MDPY_FB
 config SAMPLE_VFIO_MDEV_MBOCHS
 	tristate "Build VFIO mdpy example mediated device sample code -- loadable modules only"
 	depends on VFIO_MDEV_DEVICE && m
+	select DMA_SHARED_BUFFER
 	help
 	  Build a virtual display sample driver for use as a VFIO
 	  mediated device.  It supports the region display interface
