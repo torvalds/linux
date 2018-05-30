@@ -292,4 +292,15 @@ static inline enum engine_id dal_graphics_object_id_get_engine_id(
 		return (enum engine_id) id.id;
 	return ENGINE_ID_UNKNOWN;
 }
+
+static inline bool dal_graphics_object_id_equal(
+	struct graphics_object_id id_1,
+	struct graphics_object_id id_2)
+{
+	if ((id_1.id == id_2.id) && (id_1.enum_id == id_2.enum_id) &&
+		(id_1.type == id_2.type)) {
+		return true;
+	}
+	return false;
+}
 #endif
