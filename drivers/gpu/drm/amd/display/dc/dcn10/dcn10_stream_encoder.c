@@ -301,7 +301,7 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 	/* For YCbCr420 and BT2020 Colorimetry Formats, VSC SDP shall be used.
 	 * When MISC1, bit 6, is Set to 1, a Source device uses a VSC SDP to indicate the
 	 * Pixel Encoding/Colorimetry Format and that a Sink device shall ignore MISC1, bit 7,
-	 * and MISC0, bits 7:1 (MISC1, bit 7, and MISC0, bits 7:1, become “don’t care”).
+	 * and MISC0, bits 7:1 (MISC1, bit 7, and MISC0, bits 7:1, become "don't care").
 	 */
 	if ((crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420) ||
 			(output_color_space == COLOR_SPACE_2020_YCBCR) ||
