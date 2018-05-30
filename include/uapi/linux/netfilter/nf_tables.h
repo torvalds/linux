@@ -1260,10 +1260,14 @@ enum nft_dup_attributes {
  * enum nft_fwd_attributes - nf_tables fwd expression netlink attributes
  *
  * @NFTA_FWD_SREG_DEV: source register of output interface (NLA_U32: nft_register)
+ * @NFTA_FWD_SREG_ADDR: source register of destination address (NLA_U32: nft_register)
+ * @NFTA_FWD_NFPROTO: layer 3 family of source register address (NLA_U32: enum nfproto)
  */
 enum nft_fwd_attributes {
 	NFTA_FWD_UNSPEC,
 	NFTA_FWD_SREG_DEV,
+	NFTA_FWD_SREG_ADDR,
+	NFTA_FWD_NFPROTO,
 	__NFTA_FWD_MAX
 };
 #define NFTA_FWD_MAX	(__NFTA_FWD_MAX - 1)
