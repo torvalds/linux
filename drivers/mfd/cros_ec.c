@@ -229,7 +229,7 @@ int cros_ec_suspend(struct cros_ec_device *ec_dev)
 }
 EXPORT_SYMBOL(cros_ec_suspend);
 
-static void cros_ec_drain_events(struct cros_ec_device *ec_dev)
+static void cros_ec_report_events_during_suspend(struct cros_ec_device *ec_dev)
 {
 	while (cros_ec_get_next_event(ec_dev, NULL) > 0)
 		blocking_notifier_call_chain(&ec_dev->event_notifier,
@@ -253,21 +253,16 @@ int cros_ec_resume(struct cros_ec_device *ec_dev)
 		dev_dbg(ec_dev->dev, "Error %d sending resume event to ec",
 			ret);
 
-	/*
-	 * In some cases, we need to distinguish between events that occur
-	 * during suspend if the EC is not a wake source. For example,
-	 * keypresses during suspend should be discarded if it does not wake
-	 * the system.
-	 *
-	 * If the EC is not a wake source, drain the event queue and mark them
-	 * as "queued during suspend".
-	 */
 	if (ec_dev->wake_enabled) {
 		disable_irq_wake(ec_dev->irq);
 		ec_dev->wake_enabled = 0;
-	} else {
-		cros_ec_drain_events(ec_dev);
 	}
+	/*
+	 * Let the mfd devices know about events that occur during
+	 * suspend. This way the clients know what to do with them.
+	 */
+	cros_ec_report_events_during_suspend(ec_dev);
+
 
 	return 0;
 }
