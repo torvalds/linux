@@ -36,6 +36,12 @@ int xfs_repair_roll_ag_trans(struct xfs_scrub_context *sc);
 bool xfs_repair_ag_has_space(struct xfs_perag *pag, xfs_extlen_t nr_blocks,
 		enum xfs_ag_resv_type type);
 xfs_extlen_t xfs_repair_calc_ag_resblks(struct xfs_scrub_context *sc);
+int xfs_repair_alloc_ag_block(struct xfs_scrub_context *sc,
+		struct xfs_owner_info *oinfo, xfs_fsblock_t *fsbno,
+		enum xfs_ag_resv_type resv);
+int xfs_repair_init_btblock(struct xfs_scrub_context *sc, xfs_fsblock_t fsb,
+		struct xfs_buf **bpp, xfs_btnum_t btnum,
+		const struct xfs_buf_ops *ops);
 
 /* Metadata repairers */
 

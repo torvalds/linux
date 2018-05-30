@@ -288,3 +288,83 @@ xfs_repair_calc_ag_resblks(
 
 	return max(max(bnobt_sz, inobt_sz), max(rmapbt_sz, refcbt_sz));
 }
+
+/* Allocate a block in an AG. */
+int
+xfs_repair_alloc_ag_block(
+	struct xfs_scrub_context	*sc,
+	struct xfs_owner_info		*oinfo,
+	xfs_fsblock_t			*fsbno,
+	enum xfs_ag_resv_type		resv)
+{
+	struct xfs_alloc_arg		args = {0};
+	xfs_agblock_t			bno;
+	int				error;
+
+	switch (resv) {
+	case XFS_AG_RESV_AGFL:
+	case XFS_AG_RESV_RMAPBT:
+		error = xfs_alloc_get_freelist(sc->tp, sc->sa.agf_bp, &bno, 1);
+		if (error)
+			return error;
+		if (bno == NULLAGBLOCK)
+			return -ENOSPC;
+		xfs_extent_busy_reuse(sc->mp, sc->sa.agno, bno,
+				1, false);
+		*fsbno = XFS_AGB_TO_FSB(sc->mp, sc->sa.agno, bno);
+		if (resv == XFS_AG_RESV_RMAPBT)
+			xfs_ag_resv_rmapbt_alloc(sc->mp, sc->sa.agno);
+		return 0;
+	default:
+		break;
+	}
+
+	args.tp = sc->tp;
+	args.mp = sc->mp;
+	args.oinfo = *oinfo;
+	args.fsbno = XFS_AGB_TO_FSB(args.mp, sc->sa.agno, 0);
+	args.minlen = 1;
+	args.maxlen = 1;
+	args.prod = 1;
+	args.type = XFS_ALLOCTYPE_THIS_AG;
+	args.resv = resv;
+
+	error = xfs_alloc_vextent(&args);
+	if (error)
+		return error;
+	if (args.fsbno == NULLFSBLOCK)
+		return -ENOSPC;
+	ASSERT(args.len == 1);
+	*fsbno = args.fsbno;
+
+	return 0;
+}
+
+/* Initialize a new AG btree root block with zero entries. */
+int
+xfs_repair_init_btblock(
+	struct xfs_scrub_context	*sc,
+	xfs_fsblock_t			fsb,
+	struct xfs_buf			**bpp,
+	xfs_btnum_t			btnum,
+	const struct xfs_buf_ops	*ops)
+{
+	struct xfs_trans		*tp = sc->tp;
+	struct xfs_mount		*mp = sc->mp;
+	struct xfs_buf			*bp;
+
+	trace_xfs_repair_init_btblock(mp, XFS_FSB_TO_AGNO(mp, fsb),
+			XFS_FSB_TO_AGBNO(mp, fsb), btnum);
+
+	ASSERT(XFS_FSB_TO_AGNO(mp, fsb) == sc->sa.agno);
+	bp = xfs_trans_get_buf(tp, mp->m_ddev_targp, XFS_FSB_TO_DADDR(mp, fsb),
+			XFS_FSB_TO_BB(mp, 1), 0);
+	xfs_buf_zero(bp, 0, BBTOB(bp->b_length));
+	xfs_btree_init_block(mp, bp, btnum, 0, 0, sc->sa.agno, 0);
+	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_BTREE_BUF);
+	xfs_trans_log_buf(tp, bp, 0, bp->b_length);
+	bp->b_ops = ops;
+	*bpp = bp;
+
+	return 0;
+}
