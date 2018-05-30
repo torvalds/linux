@@ -66,6 +66,7 @@ struct amdgpu_vcn {
 	const struct firmware	*fw;	/* VCN firmware */
 	struct amdgpu_ring	ring_dec;
 	struct amdgpu_ring	ring_enc[AMDGPU_VCN_MAX_ENC_RINGS];
+	struct amdgpu_ring	ring_jpeg;
 	struct amdgpu_irq_src	irq;
 	unsigned		num_enc_rings;
 };
