@@ -407,6 +407,11 @@ static int nfs4_do_handle_exception(struct nfs_server *server,
 	switch(errorcode) {
 		case 0:
 			return 0;
+		case -NFS4ERR_BADHANDLE:
+		case -ESTALE:
+			if (inode != NULL && S_ISREG(inode->i_mode))
+				pnfs_destroy_layout(NFS_I(inode));
+			break;
 		case -NFS4ERR_DELEG_REVOKED:
 		case -NFS4ERR_ADMIN_REVOKED:
 		case -NFS4ERR_EXPIRED:

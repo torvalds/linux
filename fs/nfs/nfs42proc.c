@@ -370,6 +370,10 @@ nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 	switch (task->tk_status) {
 	case 0:
 		break;
+	case -NFS4ERR_BADHANDLE:
+	case -ESTALE:
+		pnfs_destroy_layout(NFS_I(inode));
+		break;
 	case -NFS4ERR_EXPIRED:
 	case -NFS4ERR_ADMIN_REVOKED:
 	case -NFS4ERR_DELEG_REVOKED:
