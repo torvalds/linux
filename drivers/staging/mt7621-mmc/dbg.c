@@ -229,7 +229,8 @@ static int msdc_debug_proc_read(struct seq_file *s, void *p)
 }
 
 static ssize_t msdc_debug_proc_write(struct file *file,
-				const char __user *buf, size_t count, loff_t *data)
+				     const char __user *buf,
+				     size_t count, loff_t *data)
 {
 	int ret;
 
