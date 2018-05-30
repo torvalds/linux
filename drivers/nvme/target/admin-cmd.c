@@ -189,7 +189,7 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	id->ver = cpu_to_le32(ctrl->subsys->ver);
 
 	/* XXX: figure out what to do about RTD3R/RTD3 */
-	id->oaes = cpu_to_le32(1 << 8);
+	id->oaes = cpu_to_le32(NVMET_AEN_CFG_OPTIONAL);
 	id->ctratt = cpu_to_le32(1 << 0);
 
 	id->oacs = 0;
@@ -435,6 +435,16 @@ static void nvmet_execute_set_features(struct nvmet_req *req)
 		req->sq->ctrl->kato = DIV_ROUND_UP(val32, 1000);
 		nvmet_set_result(req, req->sq->ctrl->kato);
 		break;
+	case NVME_FEAT_ASYNC_EVENT:
+		val32 = le32_to_cpu(req->cmd->common.cdw10[1]);
+		if (val32 & ~NVMET_AEN_CFG_ALL) {
+			status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+			break;
+		}
+
+		WRITE_ONCE(req->sq->ctrl->aen_enabled, val32);
+		nvmet_set_result(req, val32);
+		break;
 	case NVME_FEAT_HOST_ID:
 		status = NVME_SC_CMD_SEQ_ERROR | NVME_SC_DNR;
 		break;
@@ -473,9 +483,10 @@ static void nvmet_execute_get_features(struct nvmet_req *req)
 		break;
 	case NVME_FEAT_WRITE_ATOMIC:
 		break;
-	case NVME_FEAT_ASYNC_EVENT:
-		break;
 #endif
+	case NVME_FEAT_ASYNC_EVENT:
+		nvmet_set_result(req, READ_ONCE(req->sq->ctrl->aen_enabled));
+		break;
 	case NVME_FEAT_VOLATILE_WC:
 		nvmet_set_result(req, 1);
 		break;
