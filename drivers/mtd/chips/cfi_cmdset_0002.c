@@ -2389,13 +2389,10 @@ static int __xipram do_erase_oneblock(struct map_info *map, struct flchip *chip,
 			chip->erase_suspended = 0;
 		}
 
-		if (chip_good(map, adr, map_word_ff(map))) {
-			xip_enable(map, chip, adr);
+		if (chip_good(map, adr, map_word_ff(map)))
 			break;
-		}
 
 		if (time_after(jiffies, timeo)) {
-			xip_enable(map, chip, adr);
 			printk(KERN_WARNING "MTD %s(): software timeout\n",
 			       __func__);
 			ret = -EIO;
@@ -2418,6 +2415,7 @@ static int __xipram do_erase_oneblock(struct map_info *map, struct flchip *chip,
 	}
 
 	chip->state = FL_READY;
+	xip_enable(map, chip, adr);
 	DISABLE_VPP(map);
 	put_chip(map, chip, adr);
 	mutex_unlock(&chip->mutex);
