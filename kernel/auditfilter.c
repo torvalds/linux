@@ -428,8 +428,6 @@ static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
 	case AUDIT_EXE:
 		if (f->op != Audit_not_equal && f->op != Audit_equal)
 			return -EINVAL;
-		if (entry->rule.listnr != AUDIT_FILTER_EXIT)
-			return -EINVAL;
 		break;
 	}
 	return 0;
@@ -1359,6 +1357,11 @@ int audit_filter(int msgtype, unsigned int listtype)
 					result = security_audit_rule_match(sid,
 							f->type, f->op, f->lsm_rule, NULL);
 				}
+				break;
+			case AUDIT_EXE:
+				result = audit_exe_compare(current, e->rule.exe);
+				if (f->op == Audit_not_equal)
+					result = !result;
 				break;
 			default:
 				goto unlock_and_return;
