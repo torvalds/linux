@@ -551,6 +551,37 @@ bool br_should_learn(struct net_bridge_port *p, struct sk_buff *skb, u16 *vid)
 	return false;
 }
 
+static int br_vlan_add_existing(struct net_bridge *br,
+				struct net_bridge_vlan_group *vg,
+				struct net_bridge_vlan *vlan,
+				u16 flags, bool *changed)
+{
+	int err;
+
+	if (!br_vlan_is_brentry(vlan)) {
+		/* Trying to change flags of non-existent bridge vlan */
+		if (!(flags & BRIDGE_VLAN_INFO_BRENTRY))
+			return -EINVAL;
+		/* It was only kept for port vlans, now make it real */
+		err = br_fdb_insert(br, NULL, br->dev->dev_addr,
+				    vlan->vid);
+		if (err) {
+			br_err(br, "failed to insert local address into bridge forwarding table\n");
+			return err;
+		}
+
+		refcount_inc(&vlan->refcnt);
+		vlan->flags |= BRIDGE_VLAN_INFO_BRENTRY;
+		vg->num_vlans++;
+		*changed = true;
+	}
+
+	if (__vlan_add_flags(vlan, flags))
+		*changed = true;
+
+	return 0;
+}
+
 /* Must be protected by RTNL.
  * Must be called with vid in range from 1 to 4094 inclusive.
  * changed must be true only if the vlan was created or updated
@@ -566,28 +597,8 @@ int br_vlan_add(struct net_bridge *br, u16 vid, u16 flags, bool *changed)
 	*changed = false;
 	vg = br_vlan_group(br);
 	vlan = br_vlan_find(vg, vid);
-	if (vlan) {
-		if (!br_vlan_is_brentry(vlan)) {
-			/* Trying to change flags of non-existent bridge vlan */
-			if (!(flags & BRIDGE_VLAN_INFO_BRENTRY))
-				return -EINVAL;
-			/* It was only kept for port vlans, now make it real */
-			ret = br_fdb_insert(br, NULL, br->dev->dev_addr,
-					    vlan->vid);
-			if (ret) {
-				br_err(br, "failed insert local address into bridge forwarding table\n");
-				return ret;
-			}
-			refcount_inc(&vlan->refcnt);
-			vlan->flags |= BRIDGE_VLAN_INFO_BRENTRY;
-			vg->num_vlans++;
-			*changed = true;
-		}
-		if (__vlan_add_flags(vlan, flags))
-			*changed = true;
-
-		return 0;
-	}
+	if (vlan)
+		return br_vlan_add_existing(br, vg, vlan, flags, changed);
 
 	vlan = kzalloc(sizeof(*vlan), GFP_KERNEL);
 	if (!vlan)
