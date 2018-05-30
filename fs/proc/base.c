@@ -94,6 +94,8 @@
 #include "internal.h"
 #include "fd.h"
 
+#include "../../lib/kstrtox.h"
+
 /* NOTE:
  *	Implementing inode permission operations in /proc is almost
  *	certainly an error.  Permission checks need to happen during
@@ -953,6 +955,7 @@ static ssize_t environ_read(struct file *file, char __user *buf,
 	unsigned long src = *ppos;
 	int ret = 0;
 	struct mm_struct *mm = file->private_data;
+	unsigned long env_start, env_end;
 
 	/* Ensure the process spawned far enough to have an environment. */
 	if (!mm || !mm->env_end)
@@ -965,19 +968,25 @@ static ssize_t environ_read(struct file *file, char __user *buf,
 	ret = 0;
 	if (!atomic_inc_not_zero(&mm->mm_users))
 		goto free;
+
+	down_read(&mm->mmap_sem);
+	env_start = mm->env_start;
+	env_end = mm->env_end;
+	up_read(&mm->mmap_sem);
+
 	while (count > 0) {
 		size_t this_len, max_len;
 		int retval;
 
-		if (src >= (mm->env_end - mm->env_start))
+		if (src >= (env_end - env_start))
 			break;
 
-		this_len = mm->env_end - (mm->env_start + src);
+		this_len = env_end - (env_start + src);
 
 		max_len = min_t(size_t, PAGE_SIZE, count);
 		this_len = min(max_len, this_len);
 
-		retval = access_remote_vm(mm, (mm->env_start + src),
+		retval = access_remote_vm(mm, (env_start + src),
 			page, this_len, 0);
 
 		if (retval <= 0) {
@@ -1829,8 +1838,33 @@ end_instantiate:
 static int dname_to_vma_addr(struct dentry *dentry,
 			     unsigned long *start, unsigned long *end)
 {
-	if (sscanf(dentry->d_name.name, "%lx-%lx", start, end) != 2)
+	const char *str = dentry->d_name.name;
+	unsigned long long sval, eval;
+	unsigned int len;
+
+	len = _parse_integer(str, 16, &sval);
+	if (len & KSTRTOX_OVERFLOW)
 		return -EINVAL;
+	if (sval != (unsigned long)sval)
+		return -EINVAL;
+	str += len;
+
+	if (*str != '-')
+		return -EINVAL;
+	str++;
+
+	len = _parse_integer(str, 16, &eval);
+	if (len & KSTRTOX_OVERFLOW)
+		return -EINVAL;
+	if (eval != (unsigned long)eval)
+		return -EINVAL;
+	str += len;
+
+	if (*str != '\0')
+		return -EINVAL;
+
+	*start = sval;
+	*end = eval;
 
 	return 0;
 }
@@ -3076,6 +3110,44 @@ int proc_pid_readdir(struct file *file, struct dir_context *ctx)
 }
 
 /*
+ * proc_tid_comm_permission is a special permission function exclusively
+ * used for the node /proc/<pid>/task/<tid>/comm.
+ * It bypasses generic permission checks in the case where a task of the same
+ * task group attempts to access the node.
+ * The rationale behind this is that glibc and bionic access this node for
+ * cross thread naming (pthread_set/getname_np(!self)). However, if
+ * PR_SET_DUMPABLE gets set to 0 this node among others becomes uid=0 gid=0,
+ * which locks out the cross thread naming implementation.
+ * This function makes sure that the node is always accessible for members of
+ * same thread group.
+ */
+static int proc_tid_comm_permission(struct inode *inode, int mask)
+{
+	bool is_same_tgroup;
+	struct task_struct *task;
+
+	task = get_proc_task(inode);
+	if (!task)
+		return -ESRCH;
+	is_same_tgroup = same_thread_group(current, task);
+	put_task_struct(task);
+
+	if (likely(is_same_tgroup && !(mask & MAY_EXEC))) {
+		/* This file (/proc/<pid>/task/<tid>/comm) can always be
+		 * read or written by the members of the corresponding
+		 * thread group.
+		 */
+		return 0;
+	}
+
+	return generic_permission(inode, mask);
+}
+
+static const struct inode_operations proc_tid_comm_inode_operations = {
+		.permission = proc_tid_comm_permission,
+};
+
+/*
  * Tasks
  */
 static const struct pid_entry tid_base_stuff[] = {
@@ -3093,7 +3165,9 @@ static const struct pid_entry tid_base_stuff[] = {
 #ifdef CONFIG_SCHED_DEBUG
 	REG("sched",     S_IRUGO|S_IWUSR, proc_pid_sched_operations),
 #endif
-	REG("comm",      S_IRUGO|S_IWUSR, proc_pid_set_comm_operations),
+	NOD("comm",      S_IFREG|S_IRUGO|S_IWUSR,
+			 &proc_tid_comm_inode_operations,
+			 &proc_pid_set_comm_operations, {}),
 #ifdef CONFIG_HAVE_ARCH_TRACEHOOK
 	ONE("syscall",   S_IRUSR, proc_pid_syscall),
 #endif

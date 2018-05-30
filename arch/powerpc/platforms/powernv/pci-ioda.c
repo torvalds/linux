@@ -344,7 +344,7 @@ static void __init pnv_ioda_parse_m64_window(struct pnv_phb *phb)
 		return;
 	}
 
-	if (!firmware_has_feature(FW_FEATURE_OPALv3)) {
+	if (!firmware_has_feature(FW_FEATURE_OPAL)) {
 		pr_info("  Firmware too old to support M64 window\n");
 		return;
 	}
