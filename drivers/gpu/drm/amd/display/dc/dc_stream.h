@@ -302,9 +302,4 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 				 unsigned int *v_pos,
 				 unsigned int *nom_v_pos);
 
-void dc_stream_set_static_screen_events(struct dc *dc,
-					struct dc_stream_state **stream,
-					int num_streams,
-					const struct dc_static_screen_events *events);
-
 #endif /* DC_STREAM_H_ */
