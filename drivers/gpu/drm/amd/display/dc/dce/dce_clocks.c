@@ -103,39 +103,39 @@ static const struct state_dependent_clocks dce120_max_clks_by_state[] = {
 
 /* Starting DID for each range */
 enum dentist_base_divider_id {
-	dentist_base_divider_id_1 = 0x08,
-	dentist_base_divider_id_2 = 0x40,
-	dentist_base_divider_id_3 = 0x60,
-	dentist_max_divider_id    = 0x80
+	DENTIST_BASE_DID_1 = 0x08,
+	DENTIST_BASE_DID_2 = 0x40,
+	DENTIST_BASE_DID_3 = 0x60,
+	DENTIST_MAX_DID    = 0x80
 };
 
 /* Starting point and step size for each divider range.*/
 enum dentist_divider_range {
-	dentist_divider_range_1_start = 8,   /* 2.00  */
-	dentist_divider_range_1_step  = 1,   /* 0.25  */
-	dentist_divider_range_2_start = 64,  /* 16.00 */
-	dentist_divider_range_2_step  = 2,   /* 0.50  */
-	dentist_divider_range_3_start = 128, /* 32.00 */
-	dentist_divider_range_3_step  = 4,   /* 1.00  */
-	dentist_divider_range_scale_factor = 4
+	DENTIST_DIVIDER_RANGE_1_START = 8,   /* 2.00  */
+	DENTIST_DIVIDER_RANGE_1_STEP  = 1,   /* 0.25  */
+	DENTIST_DIVIDER_RANGE_2_START = 64,  /* 16.00 */
+	DENTIST_DIVIDER_RANGE_2_STEP  = 2,   /* 0.50  */
+	DENTIST_DIVIDER_RANGE_3_START = 128, /* 32.00 */
+	DENTIST_DIVIDER_RANGE_3_STEP  = 4,   /* 1.00  */
+	DENTIST_DIVIDER_RANGE_SCALE_FACTOR = 4
 };
 
 static int dentist_get_divider_from_did(int did)
 {
-	if (did < dentist_base_divider_id_1)
-		did = dentist_base_divider_id_1;
-	if (did > dentist_max_divider_id)
-		did = dentist_max_divider_id;
+	if (did < DENTIST_BASE_DID_1)
+		did = DENTIST_BASE_DID_1;
+	if (did > DENTIST_MAX_DID)
+		did = DENTIST_MAX_DID;
 
-	if (did < dentist_base_divider_id_2) {
-		return dentist_divider_range_1_start + dentist_divider_range_1_step
-							* (did - dentist_base_divider_id_1);
-	} else if (did < dentist_base_divider_id_3) {
-		return dentist_divider_range_2_start + dentist_divider_range_2_step
-							* (did - dentist_base_divider_id_2);
+	if (did < DENTIST_BASE_DID_2) {
+		return DENTIST_DIVIDER_RANGE_1_START + DENTIST_DIVIDER_RANGE_1_STEP
+							* (did - DENTIST_BASE_DID_1);
+	} else if (did < DENTIST_BASE_DID_3) {
+		return DENTIST_DIVIDER_RANGE_2_START + DENTIST_DIVIDER_RANGE_2_STEP
+							* (did - DENTIST_BASE_DID_2);
 	} else {
-		return dentist_divider_range_3_start + dentist_divider_range_3_step
-							* (did - dentist_base_divider_id_3);
+		return DENTIST_DIVIDER_RANGE_3_START + DENTIST_DIVIDER_RANGE_3_STEP
+							* (did - DENTIST_BASE_DID_3);
 	}
 }
 
@@ -186,7 +186,7 @@ static int dce_get_dp_ref_freq_khz(struct dccg *clk)
 	target_div = dentist_get_divider_from_did(dprefclk_wdivider);
 
 	/* Calculate the current DFS clock, in kHz.*/
-	dp_ref_clk_khz = (dentist_divider_range_scale_factor
+	dp_ref_clk_khz = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
 		* clk_dce->dentist_vco_freq_khz) / target_div;
 
 	return dccg_adjust_dp_ref_freq_for_ss(clk_dce, dp_ref_clk_khz);
