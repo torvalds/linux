@@ -60,8 +60,6 @@ static void __init r8a7779_smp_prepare_cpus(unsigned int max_cpus)
 
 	/* setup r8a7779 specific SCU bits */
 	shmobile_smp_scu_prepare_cpus(R8A7779_SCU_BASE, max_cpus);
-
-	r8a7779_pm_init();
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
