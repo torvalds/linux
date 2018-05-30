@@ -54,23 +54,6 @@ _GLOBAL(strncmp)
 	blr
 EXPORT_SYMBOL(strncmp)
 
-#ifdef CONFIG_PPC32
-_GLOBAL(memcmp)
-	PPC_LCMPI 0,r5,0
-	beq-	2f
-	mtctr	r5
-	addi	r6,r3,-1
-	addi	r4,r4,-1
-1:	lbzu	r3,1(r6)
-	lbzu	r0,1(r4)
-	subf.	r3,r0,r3
-	bdnzt	2,1b
-	blr
-2:	li	r3,0
-	blr
-EXPORT_SYMBOL(memcmp)
-#endif
-
 _GLOBAL(memchr)
 	PPC_LCMPI 0,r5,0
 	beq-	2f
