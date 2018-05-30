@@ -43,6 +43,34 @@ int xfs_repair_init_btblock(struct xfs_scrub_context *sc, xfs_fsblock_t fsb,
 		struct xfs_buf **bpp, xfs_btnum_t btnum,
 		const struct xfs_buf_ops *ops);
 
+struct xfs_repair_extent {
+	struct list_head		list;
+	xfs_fsblock_t			fsbno;
+	xfs_extlen_t			len;
+};
+
+struct xfs_repair_extent_list {
+	struct list_head		list;
+};
+
+static inline void
+xfs_repair_init_extent_list(
+	struct xfs_repair_extent_list	*exlist)
+{
+	INIT_LIST_HEAD(&exlist->list);
+}
+
+#define for_each_xfs_repair_extent_safe(rbe, n, exlist) \
+	list_for_each_entry_safe((rbe), (n), &(exlist)->list, list)
+int xfs_repair_collect_btree_extent(struct xfs_scrub_context *sc,
+		struct xfs_repair_extent_list *btlist, xfs_fsblock_t fsbno,
+		xfs_extlen_t len);
+void xfs_repair_cancel_btree_extents(struct xfs_scrub_context *sc,
+		struct xfs_repair_extent_list *btlist);
+int xfs_repair_subtract_extents(struct xfs_scrub_context *sc,
+		struct xfs_repair_extent_list *exlist,
+		struct xfs_repair_extent_list *sublist);
+
 /* Metadata repairers */
 
 int xfs_repair_probe(struct xfs_scrub_context *sc);
