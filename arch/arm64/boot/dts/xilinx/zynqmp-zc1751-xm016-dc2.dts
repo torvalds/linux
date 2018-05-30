@@ -123,7 +123,7 @@
 	status = "okay";
 	num-cs = <1>;
 
-	spi0_flash0: flash0@0 {
+	spi0_flash0: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "sst,sst25wf080", "jedec,spi-nor";
@@ -141,7 +141,7 @@
 	status = "okay";
 	num-cs = <1>;
 
-	spi1_flash0: flash0@0 {
+	spi1_flash0: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "atmel,at45db041e", "atmel,at45", "atmel,dataflash";
