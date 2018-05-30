@@ -17,6 +17,7 @@
 #include <linux/highmem.h>
 #include "smbdirect.h"
 #include "cifs_debug.h"
+#include "cifsproto.h"
 
 static struct smbd_response *get_empty_queue_buffer(
 		struct smbd_connection *info);
@@ -2082,7 +2083,7 @@ int smbd_send(struct smbd_connection *info, struct smb_rqst *rqst)
 	struct kvec vec;
 	int nvecs;
 	int size;
-	int buflen = 0, remaining_data_length;
+	unsigned int buflen = 0, remaining_data_length;
 	int start, i, j;
 	int max_iov_size =
 		info->max_send_size - sizeof(struct smbd_data_transfer);
@@ -2113,10 +2114,17 @@ int smbd_send(struct smbd_connection *info, struct smb_rqst *rqst)
 		buflen += iov[i].iov_len;
 	}
 
-	/* add in the page array if there is one */
+	/*
+	 * Add in the page array if there is one. The caller needs to set
+	 * rq_tailsz to PAGE_SIZE when the buffer has multiple pages and
+	 * ends at page boundary
+	 */
 	if (rqst->rq_npages) {
-		buflen += rqst->rq_pagesz * (rqst->rq_npages - 1);
-		buflen += rqst->rq_tailsz;
+		if (rqst->rq_npages == 1)
+			buflen += rqst->rq_tailsz;
+		else
+			buflen += rqst->rq_pagesz * (rqst->rq_npages - 1) -
+					rqst->rq_offset + rqst->rq_tailsz;
 	}
 
 	if (buflen + sizeof(struct smbd_data_transfer) >
@@ -2213,8 +2221,9 @@ int smbd_send(struct smbd_connection *info, struct smb_rqst *rqst)
 
 	/* now sending pages if there are any */
 	for (i = 0; i < rqst->rq_npages; i++) {
-		buflen = (i == rqst->rq_npages-1) ?
-			rqst->rq_tailsz : rqst->rq_pagesz;
+		unsigned int offset;
+
+		rqst_page_get_length(rqst, i, &buflen, &offset);
 		nvecs = (buflen + max_iov_size - 1) / max_iov_size;
 		log_write(INFO, "sending pages buflen=%d nvecs=%d\n",
 			buflen, nvecs);
@@ -2225,9 +2234,11 @@ int smbd_send(struct smbd_connection *info, struct smb_rqst *rqst)
 			remaining_data_length -= size;
 			log_write(INFO, "sending pages i=%d offset=%d size=%d"
 				" remaining_data_length=%d\n",
-				i, j*max_iov_size, size, remaining_data_length);
+				i, j*max_iov_size+offset, size,
+				remaining_data_length);
 			rc = smbd_post_send_page(
-				info, rqst->rq_pages[i], j*max_iov_size,
+				info, rqst->rq_pages[i],
+				j*max_iov_size + offset,
 				size, remaining_data_length);
 			if (rc)
 				goto done;
