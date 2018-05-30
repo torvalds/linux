@@ -50,15 +50,21 @@ int amdgpu_amdkfd_init(void)
 		kgd2kfd = NULL;
 	}
 
+
 #elif defined(CONFIG_HSA_AMD)
+
 	ret = kgd2kfd_init(KFD_INTERFACE_VERSION, &kgd2kfd);
 	if (ret)
 		kgd2kfd = NULL;
 
 #else
+	kgd2kfd = NULL;
 	ret = -ENOENT;
 #endif
+
+#if defined(CONFIG_HSA_AMD_MODULE) || defined(CONFIG_HSA_AMD)
 	amdgpu_amdkfd_gpuvm_init_mem_limits();
+#endif
 
 	return ret;
 }
@@ -97,7 +103,7 @@ void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev)
 		kfd2kgd = amdgpu_amdkfd_gfx_9_0_get_functions();
 		break;
 	default:
-		dev_dbg(adev->dev, "kfd not supported on this ASIC\n");
+		dev_info(adev->dev, "kfd not supported on this ASIC\n");
 		return;
 	}
 
@@ -464,3 +470,44 @@ bool amdgpu_amdkfd_is_kfd_vmid(struct amdgpu_device *adev, u32 vmid)
 
 	return false;
 }
+
+#if !defined(CONFIG_HSA_AMD_MODULE) && !defined(CONFIG_HSA_AMD)
+bool amdkfd_fence_check_mm(struct dma_fence *f, struct mm_struct *mm)
+{
+	return false;
+}
+
+void amdgpu_amdkfd_unreserve_system_memory_limit(struct amdgpu_bo *bo)
+{
+}
+
+void amdgpu_amdkfd_gpuvm_destroy_cb(struct amdgpu_device *adev,
+					struct amdgpu_vm *vm)
+{
+}
+
+struct amdgpu_amdkfd_fence *to_amdgpu_amdkfd_fence(struct dma_fence *f)
+{
+	return NULL;
+}
+
+int amdgpu_amdkfd_evict_userptr(struct kgd_mem *mem, struct mm_struct *mm)
+{
+	return 0;
+}
+
+struct kfd2kgd_calls *amdgpu_amdkfd_gfx_7_get_functions(void)
+{
+	return NULL;
+}
+
+struct kfd2kgd_calls *amdgpu_amdkfd_gfx_8_0_get_functions(void)
+{
+	return NULL;
+}
+
+struct kfd2kgd_calls *amdgpu_amdkfd_gfx_9_0_get_functions(void)
+{
+	return NULL;
+}
+#endif
