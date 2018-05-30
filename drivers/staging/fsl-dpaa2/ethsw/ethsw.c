@@ -719,6 +719,9 @@ static int port_vlans_add(struct net_device *netdev,
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
 	int vid, err;
 
+	if (netif_is_bridge_master(vlan->obj.orig_dev))
+		return -EOPNOTSUPP;
+
 	if (switchdev_trans_ph_prepare(trans))
 		return 0;
 
@@ -872,6 +875,9 @@ static int port_vlans_del(struct net_device *netdev,
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
 	int vid, err;
+
+	if (netif_is_bridge_master(vlan->obj.orig_dev))
+		return -EOPNOTSUPP;
 
 	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
 		err = ethsw_port_del_vlan(port_priv, vid);
