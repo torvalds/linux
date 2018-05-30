@@ -1081,6 +1081,11 @@ enum nft_log_attributes {
 #define NFTA_LOG_MAX		(__NFTA_LOG_MAX - 1)
 
 /**
+ * LOGLEVEL_AUDIT - a pseudo log level enabling audit logging
+ */
+#define LOGLEVEL_AUDIT		8
+
+/**
  * enum nft_queue_attributes - nf_tables queue expression netlink attributes
  *
  * @NFTA_QUEUE_NUM: netlink queue to send messages to (NLA_U16)
