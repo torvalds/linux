@@ -2713,6 +2713,19 @@ static int genpd_devices_show(struct seq_file *s, void *data)
 	return ret;
 }
 
+static int genpd_perf_state_show(struct seq_file *s, void *data)
+{
+	struct generic_pm_domain *genpd = s->private;
+
+	if (genpd_lock_interruptible(genpd))
+		return -ERESTARTSYS;
+
+	seq_printf(s, "%u\n", genpd->performance_state);
+
+	genpd_unlock(genpd);
+	return 0;
+}
+
 #define define_genpd_open_function(name) \
 static int genpd_##name##_open(struct inode *inode, struct file *file) \
 { \
@@ -2726,6 +2739,7 @@ define_genpd_open_function(idle_states);
 define_genpd_open_function(active_time);
 define_genpd_open_function(total_idle_time);
 define_genpd_open_function(devices);
+define_genpd_open_function(perf_state);
 
 #define define_genpd_debugfs_fops(name) \
 static const struct file_operations genpd_##name##_fops = { \
@@ -2742,6 +2756,7 @@ define_genpd_debugfs_fops(idle_states);
 define_genpd_debugfs_fops(active_time);
 define_genpd_debugfs_fops(total_idle_time);
 define_genpd_debugfs_fops(devices);
+define_genpd_debugfs_fops(perf_state);
 
 static int __init genpd_debug_init(void)
 {
@@ -2775,6 +2790,9 @@ static int __init genpd_debug_init(void)
 				d, genpd, &genpd_total_idle_time_fops);
 		debugfs_create_file("devices", 0444,
 				d, genpd, &genpd_devices_fops);
+		if (genpd->set_performance_state)
+			debugfs_create_file("perf_state", 0444,
+					    d, genpd, &genpd_perf_state_fops);
 	}
 
 	return 0;
