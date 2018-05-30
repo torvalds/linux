@@ -623,7 +623,9 @@ struct smb2_tree_disconnect_rsp {
 #define SMB2_CREATE_DURABLE_HANDLE_REQUEST_V2	"DH2Q"
 #define SMB2_CREATE_DURABLE_HANDLE_RECONNECT_V2	"DH2C"
 #define SMB2_CREATE_APP_INSTANCE_ID	0x45BCA66AEFA7F74A9008FA462E144D74
-#define SVHDX_OPEN_DEVICE_CONTEXT	0x83CE6F1AD851E0986E34401CC9BCFCE9
+#define SVHDX_OPEN_DEVICE_CONTEX	0x9CCBCF9E04C1E643980E158DA1F6EC83
+#define SMB2_CREATE_TAG_POSIX		0x93AD25509CB411E7B42383DE968BCD7C
+
 
 struct smb2_create_req {
 	struct smb2_sync_hdr sync_hdr;
@@ -733,6 +735,13 @@ struct create_durable {
 			__u64 VolatileFileId;
 		} Fid;
 	} Data;
+} __packed;
+
+struct create_posix {
+	struct create_context ccontext;
+	__u8	Name[16];
+	__le32  Mode;
+	__u32	Reserved;
 } __packed;
 
 /* See MS-SMB2 2.2.13.2.11 */
