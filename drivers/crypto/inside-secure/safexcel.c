@@ -152,8 +152,8 @@ static int eip197_load_firmwares(struct safexcel_crypto_priv *priv)
 	       EIP197_PE_ICE_SCRATCH_CTRL_CHANGE_ACCESS;
 	writel(val, EIP197_PE(priv) + EIP197_PE_ICE_SCRATCH_CTRL);
 
-	memset(EIP197_PE(priv) + EIP197_PE_ICE_SCRATCH_RAM, 0,
-	       EIP197_NUM_OF_SCRATCH_BLOCKS * sizeof(u32));
+	memset_io(EIP197_PE(priv) + EIP197_PE_ICE_SCRATCH_RAM, 0,
+		  EIP197_NUM_OF_SCRATCH_BLOCKS * sizeof(u32));
 
 	eip197_write_firmware(priv, fw[FW_IFPP], EIP197_PE_ICE_FPP_CTRL,
 			      EIP197_PE_ICE_RAM_CTRL_FPP_PROG_EN);
