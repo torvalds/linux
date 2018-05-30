@@ -246,6 +246,10 @@ static int __vlan_add(struct net_bridge_vlan *v, u16 flags)
 			goto out_filt;
 		v->brvlan = masterv;
 		v->stats = masterv->stats;
+	} else {
+		err = br_switchdev_port_vlan_add(dev, v->vid, flags);
+		if (err && err != -EOPNOTSUPP)
+			goto out;
 	}
 
 	/* Add the dev mac and count the vlan only if it's usable */
@@ -281,6 +285,8 @@ out_filt:
 			br_vlan_put_master(masterv);
 			v->brvlan = NULL;
 		}
+	} else {
+		br_switchdev_port_vlan_del(dev, v->vid);
 	}
 
 	goto out;
@@ -306,6 +312,11 @@ static int __vlan_del(struct net_bridge_vlan *v)
 		err = __vlan_vid_del(p->dev, p->br, v->vid);
 		if (err)
 			goto out;
+	} else {
+		err = br_switchdev_port_vlan_del(v->br->dev, v->vid);
+		if (err && err != -EOPNOTSUPP)
+			goto out;
+		err = 0;
 	}
 
 	if (br_vlan_should_use(v)) {
@@ -558,16 +569,22 @@ static int br_vlan_add_existing(struct net_bridge *br,
 {
 	int err;
 
+	err = br_switchdev_port_vlan_add(br->dev, vlan->vid, flags);
+	if (err && err != -EOPNOTSUPP)
+		return err;
+
 	if (!br_vlan_is_brentry(vlan)) {
 		/* Trying to change flags of non-existent bridge vlan */
-		if (!(flags & BRIDGE_VLAN_INFO_BRENTRY))
-			return -EINVAL;
+		if (!(flags & BRIDGE_VLAN_INFO_BRENTRY)) {
+			err = -EINVAL;
+			goto err_flags;
+		}
 		/* It was only kept for port vlans, now make it real */
 		err = br_fdb_insert(br, NULL, br->dev->dev_addr,
 				    vlan->vid);
 		if (err) {
 			br_err(br, "failed to insert local address into bridge forwarding table\n");
-			return err;
+			goto err_fdb_insert;
 		}
 
 		refcount_inc(&vlan->refcnt);
@@ -580,6 +597,11 @@ static int br_vlan_add_existing(struct net_bridge *br,
 		*changed = true;
 
 	return 0;
+
+err_fdb_insert:
+err_flags:
+	br_switchdev_port_vlan_del(br->dev, vlan->vid);
+	return err;
 }
 
 /* Must be protected by RTNL.
