@@ -1687,6 +1687,17 @@ static int kvm_vm_ioctl_get_smmu_info_pr(struct kvm *kvm,
 
 	return 0;
 }
+
+static int kvm_configure_mmu_pr(struct kvm *kvm, struct kvm_ppc_mmuv3_cfg *cfg)
+{
+	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+		return -ENODEV;
+	/* Require flags and process table base and size to all be zero. */
+	if (cfg->flags || cfg->process_table)
+		return -EINVAL;
+	return 0;
+}
+
 #else
 static int kvm_vm_ioctl_get_smmu_info_pr(struct kvm *kvm,
 					 struct kvm_ppc_smmu_info *info)
@@ -1788,6 +1799,7 @@ static struct kvmppc_ops kvm_ops_pr = {
 	.arch_vm_ioctl  = kvm_arch_vm_ioctl_pr,
 #ifdef CONFIG_PPC_BOOK3S_64
 	.hcall_implemented = kvmppc_hcall_impl_pr,
+	.configure_mmu = kvm_configure_mmu_pr,
 #endif
 	.giveup_ext = kvmppc_giveup_ext,
 };
