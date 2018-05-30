@@ -343,7 +343,7 @@ bool dm_pp_get_clock_levels_by_type_with_latency(
 	struct pp_clock_levels_with_latency pp_clks = { 0 };
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 
-	if (!pp_funcs->get_clock_by_type_with_latency)
+	if (!pp_funcs || !pp_funcs->get_clock_by_type_with_latency)
 		return false;
 
 	if (pp_funcs->get_clock_by_type_with_latency(pp_handle,
