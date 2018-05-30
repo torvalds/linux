@@ -141,4 +141,7 @@ unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip);
 void pnv_power9_force_smt4_catch(void);
 void pnv_power9_force_smt4_release(void);
 
+void tm_enable(void);
+void tm_disable(void);
+void tm_abort(uint8_t cause);
 #endif /* _ASM_POWERPC_ASM_PROTOTYPES_H */

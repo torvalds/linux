@@ -7,9 +7,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 #include <asm/ppc-opcode.h>
+#include <asm/reg.h>
 
-#define CR0_SHIFT	28
-#define CR0_MASK	0xF
 /*
  * Copy/paste instructions:
  *
