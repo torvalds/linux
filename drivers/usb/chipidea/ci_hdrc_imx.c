@@ -291,7 +291,8 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 
 	pdata.usb_phy = data->phy;
 
-	if (of_device_is_compatible(np, "fsl,imx53-usb") && pdata.usb_phy &&
+	if ((of_device_is_compatible(np, "fsl,imx53-usb") ||
+	     of_device_is_compatible(np, "fsl,imx51-usb")) && pdata.usb_phy &&
 	    of_usb_get_phy_mode(np) == USBPHY_INTERFACE_MODE_ULPI) {
 		pdata.flags |= CI_HDRC_OVERRIDE_PHY_CONTROL;
 		data->override_phy_control = true;
