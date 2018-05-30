@@ -414,7 +414,9 @@ out:
 }
 
 static void
-nfs3_proc_unlink_setup(struct rpc_message *msg, struct dentry *dentry)
+nfs3_proc_unlink_setup(struct rpc_message *msg,
+		struct dentry *dentry,
+		struct inode *inode)
 {
 	msg->rpc_proc = &nfs3_procedures[NFS3PROC_REMOVE];
 }

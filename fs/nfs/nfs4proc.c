@@ -4260,11 +4260,12 @@ static int nfs4_proc_rmdir(struct inode *dir, const struct qstr *name)
 	return err;
 }
 
-static void nfs4_proc_unlink_setup(struct rpc_message *msg, struct dentry *dentry)
+static void nfs4_proc_unlink_setup(struct rpc_message *msg,
+		struct dentry *dentry,
+		struct inode *inode)
 {
 	struct nfs_removeargs *args = msg->rpc_argp;
 	struct nfs_removeres *res = msg->rpc_resp;
-	struct inode *inode = d_inode(dentry);
 
 	res->server = NFS_SB(dentry->d_sb);
 	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_REMOVE];
