@@ -115,6 +115,12 @@ static int vcn_v1_0_sw_init(void *handle)
 			return r;
 	}
 
+	ring = &adev->vcn.ring_jpeg;
+	sprintf(ring->name, "vcn_jpeg");
+	r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.irq, 0);
+	if (r)
+		return r;
+
 	return r;
 }
 
@@ -167,6 +173,14 @@ static int vcn_v1_0_hw_init(void *handle)
 			ring->ready = false;
 			goto done;
 		}
+	}
+
+	ring = &adev->vcn.ring_jpeg;
+	ring->ready = true;
+	r = amdgpu_ring_test_ring(ring);
+	if (r) {
+		ring->ready = false;
+		goto done;
 	}
 
 done:
@@ -735,6 +749,15 @@ static int vcn_v1_0_start(struct amdgpu_device *adev)
 	WREG32_SOC15(UVD, 0, mmUVD_RB_BASE_LO2, ring->gpu_addr);
 	WREG32_SOC15(UVD, 0, mmUVD_RB_BASE_HI2, upper_32_bits(ring->gpu_addr));
 	WREG32_SOC15(UVD, 0, mmUVD_RB_SIZE2, ring->ring_size / 4);
+
+	ring = &adev->vcn.ring_jpeg;
+	WREG32_SOC15(UVD, 0, mmUVD_LMI_JRBC_RB_VMID, 0);
+	WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_CNTL, (0x00000001L | 0x00000002L));
+	WREG32_SOC15(UVD, 0, mmUVD_LMI_JRBC_RB_64BIT_BAR_LOW, lower_32_bits(ring->gpu_addr));
+	WREG32_SOC15(UVD, 0, mmUVD_LMI_JRBC_RB_64BIT_BAR_HIGH, upper_32_bits(ring->gpu_addr));
+	WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_RPTR, 0);
+	WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_WPTR, 0);
+	WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_CNTL, 0x00000002L);
 
 	return 0;
 }
