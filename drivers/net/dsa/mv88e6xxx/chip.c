@@ -4389,6 +4389,9 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 	int port;
 	int err;
 
+	if (!np && !pdata)
+		return -EINVAL;
+
 	if (np)
 		compat_info = of_device_get_match_data(dev);
 
