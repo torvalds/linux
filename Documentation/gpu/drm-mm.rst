@@ -395,6 +395,8 @@ VMA Offset Manager
 .. kernel-doc:: drivers/gpu/drm/drm_vma_manager.c
    :export:
 
+.. _prime_buffer_sharing:
+
 PRIME Buffer Sharing
 ====================
 
