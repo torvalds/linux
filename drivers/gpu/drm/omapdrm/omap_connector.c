@@ -57,6 +57,21 @@ bool omap_connector_get_hdmi_mode(struct drm_connector *connector)
 	return omap_connector->hdmi_mode;
 }
 
+static struct omap_dss_device *
+omap_connector_find_device(struct drm_connector *connector,
+			   enum omap_dss_device_ops_flag op)
+{
+	struct omap_connector *omap_connector = to_omap_connector(connector);
+	struct omap_dss_device *dssdev;
+
+	for (dssdev = omap_connector->dssdev; dssdev; dssdev = dssdev->src) {
+		if (dssdev->ops_flags & op)
+			return dssdev;
+	}
+
+	return NULL;
+}
+
 static enum drm_connector_status omap_connector_detect(
 		struct drm_connector *connector, bool force)
 {
@@ -64,10 +79,8 @@ static enum drm_connector_status omap_connector_detect(
 	struct omap_dss_device *dssdev;
 	enum drm_connector_status status;
 
-	for (dssdev = omap_connector->dssdev; dssdev; dssdev = dssdev->src) {
-		if (dssdev->ops_flags & OMAP_DSS_DEVICE_OP_DETECT)
-			break;
-	}
+	dssdev = omap_connector_find_device(connector,
+					    OMAP_DSS_DEVICE_OP_DETECT);
 
 	if (dssdev) {
 		if (dssdev->ops->detect(dssdev))
@@ -96,18 +109,21 @@ static enum drm_connector_status omap_connector_detect(
 static void omap_connector_destroy(struct drm_connector *connector)
 {
 	struct omap_connector *omap_connector = to_omap_connector(connector);
-	struct omap_dss_device *dssdev = omap_connector->dssdev;
+	struct omap_dss_device *dssdev;
 
 	DBG("%s", omap_connector->dssdev->name);
-	if (connector->polled == DRM_CONNECTOR_POLL_HPD &&
-	    dssdev->ops->unregister_hpd_cb) {
+
+	if (connector->polled == DRM_CONNECTOR_POLL_HPD) {
+		dssdev = omap_connector_find_device(connector,
+						    OMAP_DSS_DEVICE_OP_HPD);
 		dssdev->ops->unregister_hpd_cb(dssdev);
 	}
+
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(omap_connector);
 
-	omapdss_device_put(dssdev);
+	omapdss_device_put(omap_connector->dssdev);
 }
 
 #define MAX_EDID  512
@@ -257,45 +273,50 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 {
 	struct drm_connector *connector = NULL;
 	struct omap_connector *omap_connector;
-	bool hpd_supported = false;
 
 	DBG("%s", dssdev->name);
-
-	omapdss_device_get(dssdev);
 
 	omap_connector = kzalloc(sizeof(*omap_connector), GFP_KERNEL);
 	if (!omap_connector)
 		goto fail;
 
-	omap_connector->dssdev = dssdev;
+	omap_connector->dssdev = omapdss_device_get(dssdev);
 
 	connector = &omap_connector->base;
+	connector->interlace_allowed = 1;
+	connector->doublescan_allowed = 0;
 
 	drm_connector_init(dev, connector, &omap_connector_funcs,
 				connector_type);
 	drm_connector_helper_add(connector, &omap_connector_helper_funcs);
 
-	if (dssdev->ops->register_hpd_cb) {
-		int ret = dssdev->ops->register_hpd_cb(dssdev,
-						       omap_connector_hpd_cb,
-						       omap_connector);
-		if (!ret)
-			hpd_supported = true;
-		else if (ret != -ENOTSUPP)
+	/*
+	 * Initialize connector status handling. First try to find a device that
+	 * supports hot-plug reporting. If it fails, fall back to a device that
+	 * support polling. If that fails too, we don't support hot-plug
+	 * detection at all.
+	 */
+	dssdev = omap_connector_find_device(connector, OMAP_DSS_DEVICE_OP_HPD);
+	if (dssdev) {
+		int ret;
+
+		ret = dssdev->ops->register_hpd_cb(dssdev,
+						   omap_connector_hpd_cb,
+						   omap_connector);
+		if (ret < 0)
 			DBG("%s: Failed to register HPD callback (%d).",
 			    dssdev->name, ret);
+		else
+			connector->polled = DRM_CONNECTOR_POLL_HPD;
 	}
 
-	if (hpd_supported)
-		connector->polled = DRM_CONNECTOR_POLL_HPD;
-	else if (dssdev->ops->detect)
-		connector->polled = DRM_CONNECTOR_POLL_CONNECT |
-				    DRM_CONNECTOR_POLL_DISCONNECT;
-	else
-		connector->polled = 0;
-
-	connector->interlace_allowed = 1;
-	connector->doublescan_allowed = 0;
+	if (!connector->polled) {
+		dssdev = omap_connector_find_device(connector,
+						    OMAP_DSS_DEVICE_OP_DETECT);
+		if (dssdev)
+			connector->polled = DRM_CONNECTOR_POLL_CONNECT |
+					    DRM_CONNECTOR_POLL_DISCONNECT;
+	}
 
 	return connector;
 

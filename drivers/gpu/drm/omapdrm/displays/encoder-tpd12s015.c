@@ -289,7 +289,8 @@ static int tpd_probe(struct platform_device *pdev)
 	dssdev->output_type = OMAP_DISPLAY_TYPE_HDMI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(1) | BIT(0);
-	dssdev->ops_flags = OMAP_DSS_DEVICE_OP_DETECT;
+	dssdev->ops_flags = OMAP_DSS_DEVICE_OP_DETECT
+			  | OMAP_DSS_DEVICE_OP_HPD;
 
 	dssdev->next = omapdss_of_find_connected_device(pdev->dev.of_node, 1);
 	if (IS_ERR(dssdev->next)) {
