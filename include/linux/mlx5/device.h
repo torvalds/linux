@@ -314,6 +314,7 @@ enum mlx5_event {
 	MLX5_EVENT_TYPE_PORT_CHANGE	   = 0x09,
 	MLX5_EVENT_TYPE_GPIO_EVENT	   = 0x15,
 	MLX5_EVENT_TYPE_PORT_MODULE_EVENT  = 0x16,
+	MLX5_EVENT_TYPE_TEMP_WARN_EVENT    = 0x17,
 	MLX5_EVENT_TYPE_REMOTE_CONFIG	   = 0x19,
 	MLX5_EVENT_TYPE_GENERAL_EVENT	   = 0x22,
 	MLX5_EVENT_TYPE_PPS_EVENT          = 0x25,
@@ -626,6 +627,11 @@ struct mlx5_eqe_dct {
 	__be32  dctn;
 };
 
+struct mlx5_eqe_temp_warning {
+	__be64 sensor_warning_msb;
+	__be64 sensor_warning_lsb;
+} __packed;
+
 union ev_data {
 	__be32				raw[7];
 	struct mlx5_eqe_cmd		cmd;
@@ -642,6 +648,7 @@ union ev_data {
 	struct mlx5_eqe_port_module	port_module;
 	struct mlx5_eqe_pps		pps;
 	struct mlx5_eqe_dct             dct;
+	struct mlx5_eqe_temp_warning	temp_warning;
 } __packed;
 
 struct mlx5_eqe {

@@ -912,7 +912,7 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         log_max_msg[0x5];
 	u8         reserved_at_1c8[0x4];
 	u8         max_tc[0x4];
-	u8         reserved_at_1d0[0x1];
+	u8         temp_warn_event[0x1];
 	u8         dcbx[0x1];
 	u8         general_notification_event[0x1];
 	u8         reserved_at_1d3[0x2];
