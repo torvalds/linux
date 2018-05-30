@@ -1152,6 +1152,7 @@ drm_atomic_get_private_obj_state(struct drm_atomic_state *state,
 	state->private_objs[index].old_state = obj->state;
 	state->private_objs[index].new_state = obj_state;
 	state->private_objs[index].ptr = obj;
+	obj_state->state = state;
 
 	state->num_private_objs = num_objs;
 
