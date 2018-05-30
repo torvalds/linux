@@ -665,16 +665,25 @@ static enum dc_status bios_parser_crtc_source_select(
 
 void dce110_update_info_frame(struct pipe_ctx *pipe_ctx)
 {
+	bool is_hdmi;
+	bool is_dp;
+
 	ASSERT(pipe_ctx->stream);
 
 	if (pipe_ctx->stream_res.stream_enc == NULL)
 		return;  /* this is not root pipe */
 
-	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
+	is_hdmi = dc_is_hdmi_signal(pipe_ctx->stream->signal);
+	is_dp = dc_is_dp_signal(pipe_ctx->stream->signal);
+
+	if (!is_hdmi && !is_dp)
+		return;
+
+	if (is_hdmi)
 		pipe_ctx->stream_res.stream_enc->funcs->update_hdmi_info_packets(
 			pipe_ctx->stream_res.stream_enc,
 			&pipe_ctx->stream_res.encoder_info_frame);
-	else if (dc_is_dp_signal(pipe_ctx->stream->signal))
+	else
 		pipe_ctx->stream_res.stream_enc->funcs->update_dp_info_packets(
 			pipe_ctx->stream_res.stream_enc,
 			&pipe_ctx->stream_res.encoder_info_frame);
