@@ -96,6 +96,8 @@ int xfs_repair_find_ag_btree_roots(struct xfs_scrub_context *sc,
 		struct xfs_buf *agf_bp,
 		struct xfs_repair_find_ag_btree *btree_info,
 		struct xfs_buf *agfl_bp);
+void xfs_repair_force_quotacheck(struct xfs_scrub_context *sc, uint dqtype);
+int xfs_repair_ino_dqattach(struct xfs_scrub_context *sc);
 
 /* Metadata repairers */
 

@@ -42,6 +42,7 @@
 #include "xfs_extent_busy.h"
 #include "xfs_ag_resv.h"
 #include "xfs_trans_space.h"
+#include "xfs_quota.h"
 #include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
@@ -1023,6 +1024,66 @@ xfs_repair_find_ag_btree_roots(
 	cur = xfs_rmapbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.agno);
 	error = xfs_rmap_query_all(cur, xfs_repair_findroot_rmap, &ri);
 	xfs_btree_del_cursor(cur, error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
+
+	return error;
+}
+
+/* Force a quotacheck the next time we mount. */
+void
+xfs_repair_force_quotacheck(
+	struct xfs_scrub_context	*sc,
+	uint				dqtype)
+{
+	uint				flag;
+
+	flag = xfs_quota_chkd_flag(dqtype);
+	if (!(flag & sc->mp->m_qflags))
+		return;
+
+	sc->mp->m_qflags &= ~flag;
+	spin_lock(&sc->mp->m_sb_lock);
+	sc->mp->m_sb.sb_qflags &= ~flag;
+	spin_unlock(&sc->mp->m_sb_lock);
+	xfs_log_sb(sc->tp);
+}
+
+/*
+ * Attach dquots to this inode, or schedule quotacheck to fix them.
+ *
+ * This function ensures that the appropriate dquots are attached to an inode.
+ * We cannot allow the dquot code to allocate an on-disk dquot block here
+ * because we're already in transaction context with the inode locked.  The
+ * on-disk dquot should already exist anyway.  If the quota code signals
+ * corruption or missing quota information, schedule quotacheck, which will
+ * repair corruptions in the quota metadata.
+ */
+int
+xfs_repair_ino_dqattach(
+	struct xfs_scrub_context	*sc)
+{
+	int				error;
+
+	error = xfs_qm_dqattach_locked(sc->ip, false);
+	switch (error) {
+	case -EFSBADCRC:
+	case -EFSCORRUPTED:
+	case -ENOENT:
+		xfs_err_ratelimited(sc->mp,
+"inode %llu repair encountered quota error %d, quotacheck forced.",
+				(unsigned long long)sc->ip->i_ino, error);
+		if (XFS_IS_UQUOTA_ON(sc->mp) && !sc->ip->i_udquot)
+			xfs_repair_force_quotacheck(sc, XFS_DQ_USER);
+		if (XFS_IS_GQUOTA_ON(sc->mp) && !sc->ip->i_gdquot)
+			xfs_repair_force_quotacheck(sc, XFS_DQ_GROUP);
+		if (XFS_IS_PQUOTA_ON(sc->mp) && !sc->ip->i_pdquot)
+			xfs_repair_force_quotacheck(sc, XFS_DQ_PROJ);
+		/* fall through */
+	case -ESRCH:
+		error = 0;
+		break;
+	default:
+		break;
+	}
 
 	return error;
 }

@@ -48,6 +48,22 @@ struct xfs_trans;
 	 (XFS_IS_PQUOTA_ON(mp) && \
 		(mp->m_sb.sb_qflags & XFS_PQUOTA_CHKD) == 0))
 
+static inline uint
+xfs_quota_chkd_flag(
+	uint		dqtype)
+{
+	switch (dqtype) {
+	case XFS_DQ_USER:
+		return XFS_UQUOTA_CHKD;
+	case XFS_DQ_GROUP:
+		return XFS_GQUOTA_CHKD;
+	case XFS_DQ_PROJ:
+		return XFS_PQUOTA_CHKD;
+	default:
+		return 0;
+	}
+}
+
 /*
  * The structure kept inside the xfs_trans_t keep track of dquot changes
  * within a transaction and apply them later.
