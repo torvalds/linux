@@ -541,6 +541,10 @@ xfs_scrub_ag_free(
 		xfs_trans_brelse(sc->tp, sa->agi_bp);
 		sa->agi_bp = NULL;
 	}
+	if (sa->pag) {
+		xfs_perag_put(sa->pag);
+		sa->pag = NULL;
+	}
 	sa->agno = NULLAGNUMBER;
 }
 
@@ -566,6 +570,19 @@ xfs_scrub_ag_init(
 		return error;
 
 	return xfs_scrub_ag_btcur_init(sc, sa);
+}
+
+/*
+ * Grab the per-ag structure if we haven't already gotten it.  Teardown of the
+ * xfs_scrub_ag will release it for us.
+ */
+void
+xfs_scrub_perag_get(
+	struct xfs_mount	*mp,
+	struct xfs_scrub_ag	*sa)
+{
+	if (!sa->pag)
+		sa->pag = xfs_perag_get(mp, sa->agno);
 }
 
 /* Per-scrubber setup functions */

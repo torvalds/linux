@@ -123,6 +123,7 @@ xfs_scrub_setup_quota(struct xfs_scrub_context *sc, struct xfs_inode *ip)
 void xfs_scrub_ag_free(struct xfs_scrub_context *sc, struct xfs_scrub_ag *sa);
 int xfs_scrub_ag_init(struct xfs_scrub_context *sc, xfs_agnumber_t agno,
 		      struct xfs_scrub_ag *sa);
+void xfs_scrub_perag_get(struct xfs_mount *mp, struct xfs_scrub_ag *sa);
 int xfs_scrub_ag_read_headers(struct xfs_scrub_context *sc, xfs_agnumber_t agno,
 			      struct xfs_buf **agi, struct xfs_buf **agf,
 			      struct xfs_buf **agfl);

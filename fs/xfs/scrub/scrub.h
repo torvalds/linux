@@ -51,6 +51,7 @@ struct xfs_scrub_meta_ops {
 /* Buffer pointers and btree cursors for an entire AG. */
 struct xfs_scrub_ag {
 	xfs_agnumber_t			agno;
+	struct xfs_perag		*pag;
 
 	/* AG btree roots */
 	struct xfs_buf			*agf_bp;
