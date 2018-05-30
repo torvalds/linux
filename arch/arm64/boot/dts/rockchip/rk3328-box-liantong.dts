@@ -82,6 +82,11 @@
 		};
 	};
 
+	rtc-fake {
+		compatible = "rtc-fake";
+		status = "okay";
+	};
+
 	spdif-sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "rockchip,spdif";
