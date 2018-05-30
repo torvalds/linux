@@ -35,6 +35,7 @@
  * Author: Eric Barton <eric@bartonsoftware.com>
  */
 
+#include <linux/highmem.h>
 #include "o2iblnd.h"
 
 #define MAX_CONN_RACES_BEFORE_ABORT 20
