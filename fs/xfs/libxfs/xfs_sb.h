@@ -50,5 +50,8 @@ extern int	xfs_fs_geometry(struct xfs_sb *sbp, struct xfs_fsop_geom *geo,
 extern int	xfs_sb_read_secondary(struct xfs_mount *mp,
 				struct xfs_trans *tp, xfs_agnumber_t agno,
 				struct xfs_buf **bpp);
+extern int	xfs_sb_get_secondary(struct xfs_mount *mp,
+				struct xfs_trans *tp, xfs_agnumber_t agno,
+				struct xfs_buf **bpp);
 
 #endif	/* __XFS_SB_H__ */

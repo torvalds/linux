@@ -102,6 +102,7 @@ int xfs_repair_ino_dqattach(struct xfs_scrub_context *sc);
 /* Metadata repairers */
 
 int xfs_repair_probe(struct xfs_scrub_context *sc);
+int xfs_repair_superblock(struct xfs_scrub_context *sc);
 
 #else
 
@@ -124,6 +125,7 @@ xfs_repair_calc_ag_resblks(
 }
 
 #define xfs_repair_probe		xfs_repair_notsupported
+#define xfs_repair_superblock		xfs_repair_notsupported
 
 #endif /* CONFIG_XFS_ONLINE_REPAIR */
 

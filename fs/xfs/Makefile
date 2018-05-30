@@ -168,6 +168,7 @@ xfs-$(CONFIG_XFS_QUOTA)		+= scrub/quota.o
 # online repair
 ifeq ($(CONFIG_XFS_ONLINE_REPAIR),y)
 xfs-y				+= $(addprefix scrub/, \
+				   agheader_repair.o \
 				   repair.o \
 				   )
 endif
