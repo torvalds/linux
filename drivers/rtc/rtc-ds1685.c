@@ -2043,6 +2043,10 @@ ds1685_rtc_probe(struct platform_device *pdev)
 
 	rtc_dev->ops = &ds1685_rtc_ops;
 
+	/* Century bit is useless because leap year fails in 1900 and 2100 */
+	rtc_dev->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	rtc_dev->range_max = RTC_TIMESTAMP_END_2099;
+
 	/* Maximum periodic rate is 8192Hz (0.122070ms). */
 	rtc_dev->max_user_freq = RTC_MAX_USER_FREQ;
 
