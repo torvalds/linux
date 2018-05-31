@@ -2187,6 +2187,17 @@ struct ib_counters {
 	atomic_t	usecnt;
 };
 
+enum ib_read_counters_flags {
+	/* prefer read values from driver cache */
+	IB_READ_COUNTERS_ATTR_PREFER_CACHED = 1 << 0,
+};
+
+struct ib_counters_read_attr {
+	u64	*counters_buff;
+	u32	ncounters;
+	u32	flags; /* use enum ib_read_counters_flags */
+};
+
 struct uverbs_attr_bundle;
 
 struct ib_device {
@@ -2461,6 +2472,9 @@ struct ib_device {
 	struct ib_counters *	(*create_counters)(struct ib_device *device,
 						   struct uverbs_attr_bundle *attrs);
 	int	(*destroy_counters)(struct ib_counters	*counters);
+	int	(*read_counters)(struct ib_counters *counters,
+				 struct ib_counters_read_attr *counters_read_attr,
+				 struct uverbs_attr_bundle *attrs);
 
 	/**
 	 * rdma netdev operation
