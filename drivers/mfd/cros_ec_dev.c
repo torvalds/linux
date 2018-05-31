@@ -113,9 +113,9 @@ static int cros_ec_check_features(struct cros_ec_dev *ec, int feature)
 			dev_warn(ec->dev, "cannot get EC features: %d/%d\n",
 				 ret, msg->result);
 			memset(ec->features, 0, sizeof(ec->features));
+		} else {
+			memcpy(ec->features, msg->data, sizeof(ec->features));
 		}
-
-		memcpy(ec->features, msg->data, sizeof(ec->features));
 
 		dev_dbg(ec->dev, "EC features %08x %08x\n",
 			ec->features[0], ec->features[1]);
