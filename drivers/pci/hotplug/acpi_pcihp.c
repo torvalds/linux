@@ -83,11 +83,11 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev)
 	 * OSHP within the scope of the hotplug controller and its parents,
 	 * up to the host bridge under which this controller exists.
 	 */
-	host = pci_find_host_bridge(pdev->bus);
-	if (host->native_shpc_hotplug)
+	if (shpchp_is_native(pdev))
 		return 0;
 
 	/* If _OSC exists, we should not evaluate OSHP */
+	host = pci_find_host_bridge(pdev->bus);
 	root = acpi_pci_find_root(ACPI_HANDLE(&host->dev));
 	if (root->osc_support_set)
 		goto no_control;

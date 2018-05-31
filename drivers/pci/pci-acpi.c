@@ -395,6 +395,35 @@ bool pciehp_is_native(struct pci_dev *bridge)
 }
 
 /**
+ * shpchp_is_native - Check whether a hotplug port is handled by the OS
+ * @bridge: Hotplug port to check
+ *
+ * Returns true if the given @bridge is handled by the native SHPC hotplug
+ * driver.
+ */
+bool shpchp_is_native(struct pci_dev *bridge)
+{
+	const struct pci_host_bridge *host;
+
+	if (!IS_ENABLED(CONFIG_HOTPLUG_PCI_SHPC))
+		return false;
+
+	/*
+	 * It is assumed that AMD GOLAM chips support SHPC but they do not
+	 * have SHPC capability.
+	 */
+	if (bridge->vendor == PCI_VENDOR_ID_AMD &&
+	    bridge->device == PCI_DEVICE_ID_AMD_GOLAM_7450)
+		return true;
+
+	if (!pci_find_capability(bridge, PCI_CAP_ID_SHPC))
+		return false;
+
+	host = pci_find_host_bridge(bridge->bus);
+	return host->native_shpc_hotplug;
+}
+
+/**
  * pci_acpi_wake_bus - Root bus wakeup notification fork function.
  * @context: Device wakeup context.
  */
