@@ -481,7 +481,7 @@ static int virtnet_xdp_xmit(struct net_device *dev,
 	int err;
 	int i;
 
-	if (unlikely(flags & ~XDP_XMIT_FLAGS_NONE))
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
 		return -EINVAL;
 
 	qp = vi->curr_queue_pairs - vi->xdp_queue_pairs + smp_processor_id();
@@ -507,6 +507,10 @@ static int virtnet_xdp_xmit(struct net_device *dev,
 			drops++;
 		}
 	}
+
+	if (flags & XDP_XMIT_FLUSH)
+		virtqueue_kick(sq->vq);
+
 	return n - drops;
 }
 
