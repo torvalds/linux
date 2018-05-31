@@ -275,7 +275,7 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_kernel_op_s *new_op;
-	loff_t inode_size, rounded_up_size;
+	loff_t inode_size;
 	int ret, type;
 
 	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: called on inode %pU\n", __func__,
@@ -330,22 +330,19 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 		if (request_mask & STATX_SIZE || new) {
 			inode_size = (loff_t)new_op->
 			    downcall.resp.getattr.attributes.size;
-			rounded_up_size =
-			    (inode_size + (4096 - (inode_size % 4096)));
 			inode->i_size = inode_size;
-			orangefs_inode->blksize =
-			    new_op->downcall.resp.getattr.attributes.blksize;
+			inode->i_blkbits = ffs(new_op->downcall.resp.getattr.
+			    attributes.blksize);
 			spin_lock(&inode->i_lock);
 			inode->i_bytes = inode_size;
 			inode->i_blocks =
-			    (unsigned long)(rounded_up_size / 512);
+			    (inode_size + 512 - inode_size % 512)/512;
 			spin_unlock(&inode->i_lock);
 		}
 		break;
 	case S_IFDIR:
 		if (request_mask & STATX_SIZE || new) {
 			inode->i_size = PAGE_SIZE;
-			orangefs_inode->blksize = i_blocksize(inode);
 			spin_lock(&inode->i_lock);
 			inode_set_bytes(inode, inode->i_size);
 			spin_unlock(&inode->i_lock);
@@ -356,7 +353,6 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 		if (new) {
 			inode->i_size = (loff_t)strlen(new_op->
 			    downcall.resp.getattr.link_target);
-			orangefs_inode->blksize = i_blocksize(inode);
 			ret = strscpy(orangefs_inode->link_target,
 			    new_op->downcall.resp.getattr.link_target,
 			    ORANGEFS_NAME_MAX);

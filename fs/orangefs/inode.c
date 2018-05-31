@@ -20,8 +20,8 @@ static int read_one_page(struct page *page)
 	int max_block;
 	ssize_t bytes_read = 0;
 	struct inode *inode = page->mapping->host;
-	const __u32 blocksize = PAGE_SIZE;	/* inode->i_blksize */
-	const __u32 blockbits = PAGE_SHIFT;	/* inode->i_blkbits */
+	const __u32 blocksize = PAGE_SIZE;
+	const __u32 blockbits = PAGE_SHIFT;
 	struct iov_iter to;
 	struct bio_vec bv = {.bv_page = page, .bv_len = PAGE_SIZE};
 
@@ -262,7 +262,6 @@ int orangefs_getattr(const struct path *path, struct kstat *stat,
 
 		/* override block size reported to stat */
 		orangefs_inode = ORANGEFS_I(inode);
-		stat->blksize = orangefs_inode->blksize;
 
 		if (request_mask & STATX_SIZE)
 			stat->result_mask = STATX_BASIC_STATS;
@@ -325,7 +324,6 @@ static int orangefs_init_iops(struct inode *inode)
 	case S_IFREG:
 		inode->i_op = &orangefs_file_inode_operations;
 		inode->i_fop = &orangefs_file_operations;
-		inode->i_blkbits = PAGE_SHIFT;
 		break;
 	case S_IFLNK:
 		inode->i_op = &orangefs_symlink_inode_operations;

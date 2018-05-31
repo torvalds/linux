@@ -423,8 +423,8 @@ static int orangefs_fill_sb(struct super_block *sb,
 	sb->s_op = &orangefs_s_ops;
 	sb->s_d_op = &orangefs_dentry_operations;
 
-	sb->s_blocksize = orangefs_bufmap_size_query();
-	sb->s_blocksize_bits = orangefs_bufmap_shift_query();
+	sb->s_blocksize = PAGE_SIZE;
+	sb->s_blocksize_bits = PAGE_SHIFT;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 
 	root_object.khandle = ORANGEFS_SB(sb)->root_khandle;
