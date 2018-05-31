@@ -10,8 +10,8 @@
 ALL_TESTS="
 	test_gretap
 	test_ip6gretap
-	test_gretap_forbidden
-	test_ip6gretap_forbidden
+	test_gretap_forbidden_cpu
+	test_ip6gretap_forbidden_cpu
 "
 
 NUM_NETIFS=6
@@ -77,7 +77,7 @@ test_ip6gretap()
 	test_vlan_match gt6 'vlan_id 555 vlan_ethtype ipv6' "mirror to ip6gretap"
 }
 
-test_span_gre_forbidden()
+test_span_gre_forbidden_cpu()
 {
 	local tundev=$1; shift
 	local what=$1; shift
@@ -102,14 +102,14 @@ test_span_gre_forbidden()
 	log_test "$what: vlan forbidden at a bridge ($tcflags)"
 }
 
-test_gretap_forbidden()
+test_gretap_forbidden_cpu()
 {
-	test_span_gre_forbidden gt4 "mirror to gretap"
+	test_span_gre_forbidden_cpu gt4 "mirror to gretap"
 }
 
-test_ip6gretap_forbidden()
+test_ip6gretap_forbidden_cpu()
 {
-	test_span_gre_forbidden gt6 "mirror to ip6gretap"
+	test_span_gre_forbidden_cpu gt6 "mirror to ip6gretap"
 }
 
 test_all()
