@@ -1363,15 +1363,6 @@ static bool bfq_bfqq_update_budg_for_activation(struct bfq_data *bfqd,
 }
 
 /*
- * Return the farthest future time instant according to jiffies
- * macros.
- */
-static unsigned long bfq_greatest_from_now(void)
-{
-	return jiffies + MAX_JIFFY_OFFSET;
-}
-
-/*
  * Return the farthest past time instant according to jiffies
  * macros.
  */
@@ -1515,7 +1506,8 @@ static void bfq_bfqq_handle_idle_busy_switch(struct bfq_data *bfqd,
 	in_burst = bfq_bfqq_in_large_burst(bfqq);
 	soft_rt = bfqd->bfq_wr_max_softrt_rate > 0 &&
 		!in_burst &&
-		time_is_before_jiffies(bfqq->soft_rt_next_start);
+		time_is_before_jiffies(bfqq->soft_rt_next_start) &&
+		bfqq->dispatched == 0;
 	*interactive = !in_burst && idle_for_long_time;
 	wr_or_deserves_wr = bfqd->low_latency &&
 		(bfqq->wr_coeff > 1 ||
@@ -3221,23 +3213,6 @@ void bfq_bfqq_expire(struct bfq_data *bfqd,
 			bfqq->soft_rt_next_start =
 				bfq_bfqq_softrt_next_start(bfqd, bfqq);
 		else {
-			/*
-			 * The application is still waiting for the
-			 * completion of one or more requests:
-			 * prevent it from possibly being incorrectly
-			 * deemed as soft real-time by setting its
-			 * soft_rt_next_start to infinity. In fact,
-			 * without this assignment, the application
-			 * would be incorrectly deemed as soft
-			 * real-time if:
-			 * 1) it issued a new request before the
-			 *    completion of all its in-flight
-			 *    requests, and
-			 * 2) at that time, its soft_rt_next_start
-			 *    happened to be in the past.
-			 */
-			bfqq->soft_rt_next_start =
-				bfq_greatest_from_now();
 			/*
 			 * Schedule an update of soft_rt_next_start to when
 			 * the task may be discovered to be isochronous.
