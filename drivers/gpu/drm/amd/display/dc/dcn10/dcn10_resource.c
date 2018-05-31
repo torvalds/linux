@@ -437,7 +437,7 @@ static const struct dc_debug debug_defaults_drv = {
 		 */
 		.min_disp_clk_khz = 100000,
 
-		.disable_pplib_clock_request = true,
+		.disable_pplib_clock_request = false,
 		.disable_pplib_wm_range = false,
 		.pplib_wm_report_mode = WM_REPORT_DEFAULT,
 		.pipe_split_policy = MPC_SPLIT_AVOID_MULT_DISP,
