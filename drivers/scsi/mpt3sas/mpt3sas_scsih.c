@@ -2365,13 +2365,14 @@ scsih_slave_configure(struct scsi_device *sdev)
 				"connector name( %s)\n", ds,
 				pcie_device->enclosure_level,
 				pcie_device->connector_name);
-		pcie_device_put(pcie_device);
-		spin_unlock_irqrestore(&ioc->pcie_device_lock, flags);
-		scsih_change_queue_depth(sdev, qdepth);
 
 		if (pcie_device->nvme_mdts)
 			blk_queue_max_hw_sectors(sdev->request_queue,
 					pcie_device->nvme_mdts/512);
+
+		pcie_device_put(pcie_device);
+		spin_unlock_irqrestore(&ioc->pcie_device_lock, flags);
+		scsih_change_queue_depth(sdev, qdepth);
 		/* Enable QUEUE_FLAG_NOMERGES flag, so that IOs won't be
 		 ** merged and can eliminate holes created during merging
 		 ** operation.
