@@ -91,7 +91,7 @@ test_tagged_vlan_dir()
 				  192.0.2.17 192.0.2.18
 	mirror_uninstall $swp1 $direction
 
-	log_test "$direction mirror to vlan ($tcflags)"
+	log_test "$direction mirror tagged to vlan ($tcflags)"
 }
 
 test_tagged_vlan()
