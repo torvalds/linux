@@ -100,6 +100,13 @@ struct stmmac_tc_entry {
 	} __packed val;
 };
 
+#define STMMAC_PPS_MAX		4
+struct stmmac_pps_cfg {
+	bool available;
+	struct timespec64 start;
+	struct timespec64 period;
+};
+
 struct stmmac_priv {
 	/* Frequently used values are kept adjacent for cache effect */
 	u32 tx_count_frames;
@@ -160,6 +167,8 @@ struct stmmac_priv {
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_clock_ops;
 	unsigned int default_addend;
+	u32 sub_second_inc;
+	u32 systime_flags;
 	u32 adv_ts;
 	int use_riwt;
 	int irq_wake;
@@ -181,6 +190,9 @@ struct stmmac_priv {
 	unsigned int tc_entries_max;
 	unsigned int tc_off_max;
 	struct stmmac_tc_entry *tc_entries;
+
+	/* Pulse Per Second output */
+	struct stmmac_pps_cfg pps[STMMAC_PPS_MAX];
 };
 
 enum stmmac_state {

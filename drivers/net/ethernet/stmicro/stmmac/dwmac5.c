@@ -8,6 +8,7 @@
 #include "dwmac4.h"
 #include "dwmac5.h"
 #include "stmmac.h"
+#include "stmmac_ptp.h"
 
 struct dwmac5_error_desc {
 	bool valid;
@@ -493,4 +494,58 @@ re_enable:
 	/* Re-enable RX */
 	writel(old_val, ioaddr + GMAC_CONFIG);
 	return ret;
+}
+
+int dwmac5_flex_pps_config(void __iomem *ioaddr, int index,
+			   struct stmmac_pps_cfg *cfg, bool enable,
+			   u32 sub_second_inc, u32 systime_flags)
+{
+	u32 tnsec = readl(ioaddr + MAC_PPSx_TARGET_TIME_NSEC(index));
+	u32 val = readl(ioaddr + MAC_PPS_CONTROL);
+	u64 period;
+
+	if (!cfg->available)
+		return -EINVAL;
+	if (tnsec & TRGTBUSY0)
+		return -EBUSY;
+	if (!sub_second_inc || !systime_flags)
+		return -EINVAL;
+
+	val &= ~PPSx_MASK(index);
+
+	if (!enable) {
+		val |= PPSCMDx(index, 0x5);
+		writel(val, ioaddr + MAC_PPS_CONTROL);
+		return 0;
+	}
+
+	val |= PPSCMDx(index, 0x2);
+	val |= TRGTMODSELx(index, 0x2);
+	val |= PPSEN0;
+
+	writel(cfg->start.tv_sec, ioaddr + MAC_PPSx_TARGET_TIME_SEC(index));
+
+	if (!(systime_flags & PTP_TCR_TSCTRLSSR))
+		cfg->start.tv_nsec = (cfg->start.tv_nsec * 1000) / 465;
+	writel(cfg->start.tv_nsec, ioaddr + MAC_PPSx_TARGET_TIME_NSEC(index));
+
+	period = cfg->period.tv_sec * 1000000000;
+	period += cfg->period.tv_nsec;
+
+	do_div(period, sub_second_inc);
+
+	if (period <= 1)
+		return -EINVAL;
+
+	writel(period - 1, ioaddr + MAC_PPSx_INTERVAL(index));
+
+	period >>= 1;
+	if (period <= 1)
+		return -EINVAL;
+
+	writel(period - 1, ioaddr + MAC_PPSx_WIDTH(index));
+
+	/* Finally, activate it */
+	writel(val, ioaddr + MAC_PPS_CONTROL);
+	return 0;
 }

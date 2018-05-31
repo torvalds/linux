@@ -373,6 +373,8 @@ static void dwmac4_get_hw_feature(void __iomem *ioaddr,
 		((hw_cap & GMAC_HW_FEAT_RXQCNT) >> 0) + 1;
 	dma_cap->number_tx_queues =
 		((hw_cap & GMAC_HW_FEAT_TXQCNT) >> 6) + 1;
+	/* PPS output */
+	dma_cap->pps_out_num = (hw_cap & GMAC_HW_FEAT_PPSOUTNUM) >> 24;
 
 	/* IEEE 1588-2002 */
 	dma_cap->time_stamp = 0;

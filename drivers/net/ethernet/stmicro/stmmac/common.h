@@ -346,6 +346,8 @@ struct dma_features {
 	/* TX and RX number of queues */
 	unsigned int number_rx_queues;
 	unsigned int number_tx_queues;
+	/* PPS output */
+	unsigned int pps_out_num;
 	/* Alternate (enhanced) DESC mode */
 	unsigned int enh_desc;
 	/* TX and RX FIFO sizes */

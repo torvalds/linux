@@ -796,6 +796,7 @@ const struct stmmac_ops dwmac510_ops = {
 	.safety_feat_irq_status = dwmac5_safety_feat_irq_status,
 	.safety_feat_dump = dwmac5_safety_feat_dump,
 	.rxp_config = dwmac5_rxp_config,
+	.flex_pps_config = dwmac5_flex_pps_config,
 };
 
 int dwmac4_setup(struct stmmac_priv *priv)
