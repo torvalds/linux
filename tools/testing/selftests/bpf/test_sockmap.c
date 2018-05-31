@@ -337,7 +337,14 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 		int fd_flags = O_NONBLOCK;
 		struct timeval timeout;
 		float total_bytes;
+		int bytes_cnt = 0;
+		int chunk_sz;
 		fd_set w;
+
+		if (opt->sendpage)
+			chunk_sz = iov_length * cnt;
+		else
+			chunk_sz = iov_length * iov_count;
 
 		fcntl(fd, fd_flags);
 		total_bytes = (float)iov_count * (float)iov_length * (float)cnt;
@@ -393,8 +400,13 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 							errno = -EIO;
 							fprintf(stderr,
 								"detected data corruption @iov[%i]:%i %02x != %02x, %02x ?= %02x\n",
-								i, j, d[j], k - 1, d[j+1], k + 1);
+								i, j, d[j], k - 1, d[j+1], k);
 							goto out_errno;
+						}
+						bytes_cnt++;
+						if (bytes_cnt == chunk_sz) {
+							k = 0;
+							bytes_cnt = 0;
 						}
 						recv--;
 					}
