@@ -399,11 +399,6 @@ struct bfq_io_cq {
 	struct bfq_ttime saved_ttime;
 };
 
-enum bfq_device_speed {
-	BFQ_BFQD_FAST,
-	BFQ_BFQD_SLOW,
-};
-
 /**
  * struct bfq_data - per-device data structure.
  *
@@ -611,12 +606,11 @@ struct bfq_data {
 	/* Max service-rate for a soft real-time queue, in sectors/sec */
 	unsigned int bfq_wr_max_softrt_rate;
 	/*
-	 * Cached value of the product R*T, used for computing the
-	 * maximum duration of weight raising automatically.
+	 * Cached value of the product ref_rate*ref_wr_duration, used
+	 * for computing the maximum duration of weight raising
+	 * automatically.
 	 */
-	u64 RT_prod;
-	/* device-speed class for the low-latency heuristic */
-	enum bfq_device_speed device_speed;
+	u64 rate_dur_prod;
 
 	/* fallback dummy bfqq for extreme OOM conditions */
 	struct bfq_queue oom_bfqq;
