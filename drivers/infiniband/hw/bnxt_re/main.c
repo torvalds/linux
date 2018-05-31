@@ -1240,9 +1240,12 @@ static void bnxt_re_task(struct work_struct *work)
 	switch (re_work->event) {
 	case NETDEV_REGISTER:
 		rc = bnxt_re_ib_reg(rdev);
-		if (rc)
+		if (rc) {
 			dev_err(rdev_to_dev(rdev),
 				"Failed to register with IB: %#x", rc);
+			bnxt_re_remove_one(rdev);
+			bnxt_re_dev_unreg(rdev);
+		}
 		break;
 	case NETDEV_UP:
 		bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1,
@@ -1398,6 +1401,11 @@ static void __exit bnxt_re_mod_exit(void)
 
 	list_for_each_entry(rdev, &to_be_deleted, list) {
 		dev_info(rdev_to_dev(rdev), "Unregistering Device");
+		/*
+		 * Flush out any scheduled tasks before destroying the
+		 * resources
+		 */
+		flush_workqueue(bnxt_re_wq);
 		bnxt_re_dev_stop(rdev);
 		bnxt_re_ib_unreg(rdev, true);
 		bnxt_re_remove_one(rdev);

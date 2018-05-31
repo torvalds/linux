@@ -434,6 +434,9 @@ struct iwl_mvm_vif {
 	bool csa_failed;
 	u16 csa_target_freq;
 
+	/* Indicates that we are waiting for a beacon on a new channel */
+	bool csa_bcn_pending;
+
 	/* TCP Checksum Offload */
 	netdev_features_t features;
 

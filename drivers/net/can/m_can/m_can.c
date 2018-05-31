@@ -25,6 +25,7 @@
 #include <linux/platform_device.h>
 #include <linux/iopoll.h>
 #include <linux/can/dev.h>
+#include <linux/pinctrl/consumer.h>
 
 /* napi related */
 #define M_CAN_NAPI_WEIGHT	64
@@ -246,7 +247,7 @@ enum m_can_mram_cfg {
 
 /* Rx FIFO 0/1 Configuration (RXF0C/RXF1C) */
 #define RXFC_FWM_SHIFT	24
-#define RXFC_FWM_MASK	(0x7f < RXFC_FWM_SHIFT)
+#define RXFC_FWM_MASK	(0x7f << RXFC_FWM_SHIFT)
 #define RXFC_FS_SHIFT	16
 #define RXFC_FS_MASK	(0x7f << RXFC_FS_SHIFT)
 
@@ -1682,6 +1683,8 @@ static __maybe_unused int m_can_suspend(struct device *dev)
 		m_can_clk_stop(priv);
 	}
 
+	pinctrl_pm_select_sleep_state(dev);
+
 	priv->can.state = CAN_STATE_SLEEPING;
 
 	return 0;
@@ -1691,6 +1694,8 @@ static __maybe_unused int m_can_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct m_can_priv *priv = netdev_priv(ndev);
+
+	pinctrl_pm_select_default_state(dev);
 
 	m_can_init_ram(priv);
 

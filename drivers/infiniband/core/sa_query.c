@@ -1291,10 +1291,9 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 
 		resolved_dev = dev_get_by_index(dev_addr.net,
 						dev_addr.bound_dev_if);
-		if (resolved_dev->flags & IFF_LOOPBACK) {
-			dev_put(resolved_dev);
-			resolved_dev = idev;
-			dev_hold(resolved_dev);
+		if (!resolved_dev) {
+			dev_put(idev);
+			return -ENODEV;
 		}
 		ndev = ib_get_ndev_from_path(rec);
 		rcu_read_lock();

@@ -167,9 +167,19 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		NSEC_PER_USEC;
 	policy->shared_type = cpu->shared_type;
 
-	if (policy->shared_type == CPUFREQ_SHARED_TYPE_ANY)
+	if (policy->shared_type == CPUFREQ_SHARED_TYPE_ANY) {
+		int i;
+
 		cpumask_copy(policy->cpus, cpu->shared_cpu_map);
-	else if (policy->shared_type == CPUFREQ_SHARED_TYPE_ALL) {
+
+		for_each_cpu(i, policy->cpus) {
+			if (unlikely(i == policy->cpu))
+				continue;
+
+			memcpy(&all_cpu_data[i]->perf_caps, &cpu->perf_caps,
+			       sizeof(cpu->perf_caps));
+		}
+	} else if (policy->shared_type == CPUFREQ_SHARED_TYPE_ALL) {
 		/* Support only SW_ANY for now. */
 		pr_debug("Unsupported CPU co-ord type\n");
 		return -EFAULT;
@@ -233,8 +243,13 @@ static int __init cppc_cpufreq_init(void)
 	return ret;
 
 out:
-	for_each_possible_cpu(i)
-		kfree(all_cpu_data[i]);
+	for_each_possible_cpu(i) {
+		cpu = all_cpu_data[i];
+		if (!cpu)
+			break;
+		free_cpumask_var(cpu->shared_cpu_map);
+		kfree(cpu);
+	}
 
 	kfree(all_cpu_data);
 	return -ENODEV;

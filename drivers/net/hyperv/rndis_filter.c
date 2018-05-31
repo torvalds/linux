@@ -850,15 +850,19 @@ static void rndis_set_multicast(struct work_struct *w)
 {
 	struct rndis_device *rdev
 		= container_of(w, struct rndis_device, mcast_work);
+	u32 filter = NDIS_PACKET_TYPE_DIRECTED;
+	unsigned int flags = rdev->ndev->flags;
 
-	if (rdev->ndev->flags & IFF_PROMISC)
-		rndis_filter_set_packet_filter(rdev,
-					       NDIS_PACKET_TYPE_PROMISCUOUS);
-	else
-		rndis_filter_set_packet_filter(rdev,
-					       NDIS_PACKET_TYPE_BROADCAST |
-					       NDIS_PACKET_TYPE_ALL_MULTICAST |
-					       NDIS_PACKET_TYPE_DIRECTED);
+	if (flags & IFF_PROMISC) {
+		filter = NDIS_PACKET_TYPE_PROMISCUOUS;
+	} else {
+		if (!netdev_mc_empty(rdev->ndev) || (flags & IFF_ALLMULTI))
+			filter |= NDIS_PACKET_TYPE_ALL_MULTICAST;
+		if (flags & IFF_BROADCAST)
+			filter |= NDIS_PACKET_TYPE_BROADCAST;
+	}
+
+	rndis_filter_set_packet_filter(rdev, filter);
 }
 
 void rndis_filter_update(struct netvsc_device *nvdev)

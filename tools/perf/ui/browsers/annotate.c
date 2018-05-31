@@ -312,6 +312,7 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 	struct map_symbol *ms = ab->b.priv;
 	struct symbol *sym = ms->sym;
 	u8 pcnt_width = annotate_browser__pcnt_width(ab);
+	int width = 0;
 
 	/* PLT symbols contain external offsets */
 	if (strstr(sym->name, "@plt"))
@@ -335,13 +336,17 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 		to = (u64)btarget->idx;
 	}
 
+	if (ab->have_cycles)
+		width = IPC_WIDTH + CYCLES_WIDTH;
+
 	ui_browser__set_color(browser, HE_COLORSET_JUMP_ARROWS);
-	__ui_browser__line_arrow(browser, pcnt_width + 2 + ab->addr_width,
+	__ui_browser__line_arrow(browser,
+				 pcnt_width + 2 + ab->addr_width + width,
 				 from, to);
 
 	if (is_fused(ab, cursor)) {
 		ui_browser__mark_fused(browser,
-				       pcnt_width + 3 + ab->addr_width,
+				       pcnt_width + 3 + ab->addr_width + width,
 				       from - 1,
 				       to > from ? true : false);
 	}

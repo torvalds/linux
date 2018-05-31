@@ -34,6 +34,7 @@
 
 #define WDOG_CONTROL_REG_OFFSET		    0x00
 #define WDOG_CONTROL_REG_WDT_EN_MASK	    0x01
+#define WDOG_CONTROL_REG_RESP_MODE_MASK	    0x02
 #define WDOG_TIMEOUT_RANGE_REG_OFFSET	    0x04
 #define WDOG_TIMEOUT_RANGE_TOPINIT_SHIFT    4
 #define WDOG_CURRENT_COUNT_REG_OFFSET	    0x08
@@ -121,14 +122,23 @@ static int dw_wdt_set_timeout(struct watchdog_device *wdd, unsigned int top_s)
 	return 0;
 }
 
+static void dw_wdt_arm_system_reset(struct dw_wdt *dw_wdt)
+{
+	u32 val = readl(dw_wdt->regs + WDOG_CONTROL_REG_OFFSET);
+
+	/* Disable interrupt mode; always perform system reset. */
+	val &= ~WDOG_CONTROL_REG_RESP_MODE_MASK;
+	/* Enable watchdog. */
+	val |= WDOG_CONTROL_REG_WDT_EN_MASK;
+	writel(val, dw_wdt->regs + WDOG_CONTROL_REG_OFFSET);
+}
+
 static int dw_wdt_start(struct watchdog_device *wdd)
 {
 	struct dw_wdt *dw_wdt = to_dw_wdt(wdd);
 
 	dw_wdt_set_timeout(wdd, wdd->timeout);
-
-	writel(WDOG_CONTROL_REG_WDT_EN_MASK,
-	       dw_wdt->regs + WDOG_CONTROL_REG_OFFSET);
+	dw_wdt_arm_system_reset(dw_wdt);
 
 	return 0;
 }
@@ -152,16 +162,13 @@ static int dw_wdt_restart(struct watchdog_device *wdd,
 			  unsigned long action, void *data)
 {
 	struct dw_wdt *dw_wdt = to_dw_wdt(wdd);
-	u32 val;
 
 	writel(0, dw_wdt->regs + WDOG_TIMEOUT_RANGE_REG_OFFSET);
-	val = readl(dw_wdt->regs + WDOG_CONTROL_REG_OFFSET);
-	if (val & WDOG_CONTROL_REG_WDT_EN_MASK)
+	if (dw_wdt_is_enabled(dw_wdt))
 		writel(WDOG_COUNTER_RESTART_KICK_VALUE,
 		       dw_wdt->regs + WDOG_COUNTER_RESTART_REG_OFFSET);
 	else
-		writel(WDOG_CONTROL_REG_WDT_EN_MASK,
-		       dw_wdt->regs + WDOG_CONTROL_REG_OFFSET);
+		dw_wdt_arm_system_reset(dw_wdt);
 
 	/* wait for reset to assert... */
 	mdelay(500);

@@ -418,11 +418,15 @@ ceph_parse_options(char *options, const char *dev_name,
 				opt->flags |= CEPH_OPT_FSID;
 			break;
 		case Opt_name:
+			kfree(opt->name);
 			opt->name = kstrndup(argstr[0].from,
 					      argstr[0].to-argstr[0].from,
 					      GFP_KERNEL);
 			break;
 		case Opt_secret:
+			ceph_crypto_key_destroy(opt->key);
+			kfree(opt->key);
+
 		        opt->key = kzalloc(sizeof(*opt->key), GFP_KERNEL);
 			if (!opt->key) {
 				err = -ENOMEM;
@@ -433,6 +437,9 @@ ceph_parse_options(char *options, const char *dev_name,
 				goto out;
 			break;
 		case Opt_key:
+			ceph_crypto_key_destroy(opt->key);
+			kfree(opt->key);
+
 		        opt->key = kzalloc(sizeof(*opt->key), GFP_KERNEL);
 			if (!opt->key) {
 				err = -ENOMEM;

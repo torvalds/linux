@@ -26,6 +26,7 @@
 #define AMDGPU_AMDKFD_H_INCLUDED
 
 #include <linux/types.h>
+#include <linux/mm.h>
 #include <linux/mmu_context.h>
 #include <kgd_kfd_interface.h>
 

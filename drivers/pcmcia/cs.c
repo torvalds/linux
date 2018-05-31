@@ -452,17 +452,20 @@ static int socket_insert(struct pcmcia_socket *skt)
 
 static int socket_suspend(struct pcmcia_socket *skt)
 {
-	if (skt->state & SOCKET_SUSPEND)
+	if ((skt->state & SOCKET_SUSPEND) && !(skt->state & SOCKET_IN_RESUME))
 		return -EBUSY;
 
 	mutex_lock(&skt->ops_mutex);
-	skt->suspended_state = skt->state;
+	/* store state on first suspend, but not after spurious wakeups */
+	if (!(skt->state & SOCKET_IN_RESUME))
+		skt->suspended_state = skt->state;
 
 	skt->socket = dead_socket;
 	skt->ops->set_socket(skt, &skt->socket);
 	if (skt->ops->suspend)
 		skt->ops->suspend(skt);
 	skt->state |= SOCKET_SUSPEND;
+	skt->state &= ~SOCKET_IN_RESUME;
 	mutex_unlock(&skt->ops_mutex);
 	return 0;
 }
@@ -475,6 +478,7 @@ static int socket_early_resume(struct pcmcia_socket *skt)
 	skt->ops->set_socket(skt, &skt->socket);
 	if (skt->state & SOCKET_PRESENT)
 		skt->resume_status = socket_setup(skt, resume_delay);
+	skt->state |= SOCKET_IN_RESUME;
 	mutex_unlock(&skt->ops_mutex);
 	return 0;
 }
@@ -484,7 +488,7 @@ static int socket_late_resume(struct pcmcia_socket *skt)
 	int ret = 0;
 
 	mutex_lock(&skt->ops_mutex);
-	skt->state &= ~SOCKET_SUSPEND;
+	skt->state &= ~(SOCKET_SUSPEND | SOCKET_IN_RESUME);
 	mutex_unlock(&skt->ops_mutex);
 
 	if (!(skt->state & SOCKET_PRESENT)) {

@@ -1930,8 +1930,10 @@ static int skb_to_sg_fd(struct dpaa_priv *priv,
 		goto csum_failed;
 	}
 
+	/* SGT[0] is used by the linear part */
 	sgt = (struct qm_sg_entry *)(sgt_buf + priv->tx_headroom);
-	qm_sg_entry_set_len(&sgt[0], skb_headlen(skb));
+	frag_len = skb_headlen(skb);
+	qm_sg_entry_set_len(&sgt[0], frag_len);
 	sgt[0].bpid = FSL_DPAA_BPID_INV;
 	sgt[0].offset = 0;
 	addr = dma_map_single(dev, skb->data,
@@ -1944,9 +1946,9 @@ static int skb_to_sg_fd(struct dpaa_priv *priv,
 	qm_sg_entry_set64(&sgt[0], addr);
 
 	/* populate the rest of SGT entries */
-	frag = &skb_shinfo(skb)->frags[0];
-	frag_len = frag->size;
-	for (i = 1; i <= nr_frags; i++, frag++) {
+	for (i = 0; i < nr_frags; i++) {
+		frag = &skb_shinfo(skb)->frags[i];
+		frag_len = frag->size;
 		WARN_ON(!skb_frag_page(frag));
 		addr = skb_frag_dma_map(dev, frag, 0,
 					frag_len, dma_dir);
@@ -1956,15 +1958,16 @@ static int skb_to_sg_fd(struct dpaa_priv *priv,
 			goto sg_map_failed;
 		}
 
-		qm_sg_entry_set_len(&sgt[i], frag_len);
-		sgt[i].bpid = FSL_DPAA_BPID_INV;
-		sgt[i].offset = 0;
+		qm_sg_entry_set_len(&sgt[i + 1], frag_len);
+		sgt[i + 1].bpid = FSL_DPAA_BPID_INV;
+		sgt[i + 1].offset = 0;
 
 		/* keep the offset in the address */
-		qm_sg_entry_set64(&sgt[i], addr);
-		frag_len = frag->size;
+		qm_sg_entry_set64(&sgt[i + 1], addr);
 	}
-	qm_sg_entry_set_f(&sgt[i - 1], frag_len);
+
+	/* Set the final bit in the last used entry of the SGT */
+	qm_sg_entry_set_f(&sgt[nr_frags], frag_len);
 
 	qm_fd_set_sg(fd, priv->tx_headroom, skb->len);
 

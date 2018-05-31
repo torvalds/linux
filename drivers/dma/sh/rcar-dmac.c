@@ -880,7 +880,7 @@ rcar_dmac_chan_prep_sg(struct rcar_dmac_chan *chan, struct scatterlist *sgl,
 
 	rcar_dmac_chan_configure_desc(chan, desc);
 
-	max_chunk_size = (RCAR_DMATCR_MASK + 1) << desc->xfer_shift;
+	max_chunk_size = RCAR_DMATCR_MASK << desc->xfer_shift;
 
 	/*
 	 * Allocate and fill the transfer chunk descriptors. We own the only
@@ -1264,8 +1264,17 @@ static unsigned int rcar_dmac_chan_get_residue(struct rcar_dmac_chan *chan,
 	 * If the cookie doesn't correspond to the currently running transfer
 	 * then the descriptor hasn't been processed yet, and the residue is
 	 * equal to the full descriptor size.
+	 * Also, a client driver is possible to call this function before
+	 * rcar_dmac_isr_channel_thread() runs. In this case, the "desc.running"
+	 * will be the next descriptor, and the done list will appear. So, if
+	 * the argument cookie matches the done list's cookie, we can assume
+	 * the residue is zero.
 	 */
 	if (cookie != desc->async_tx.cookie) {
+		list_for_each_entry(desc, &chan->desc.done, node) {
+			if (cookie == desc->async_tx.cookie)
+				return 0;
+		}
 		list_for_each_entry(desc, &chan->desc.pending, node) {
 			if (cookie == desc->async_tx.cookie)
 				return desc->size;

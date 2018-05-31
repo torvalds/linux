@@ -321,8 +321,16 @@ void kvm_apic_set_version(struct kvm_vcpu *vcpu)
 	if (!lapic_in_kernel(vcpu))
 		return;
 
+	/*
+	 * KVM emulates 82093AA datasheet (with in-kernel IOAPIC implementation)
+	 * which doesn't have EOI register; Some buggy OSes (e.g. Windows with
+	 * Hyper-V role) disable EOI broadcast in lapic not checking for IOAPIC
+	 * version first and level-triggered interrupts never get EOIed in
+	 * IOAPIC.
+	 */
 	feat = kvm_find_cpuid_entry(apic->vcpu, 0x1, 0);
-	if (feat && (feat->ecx & (1 << (X86_FEATURE_X2APIC & 31))))
+	if (feat && (feat->ecx & (1 << (X86_FEATURE_X2APIC & 31))) &&
+	    !ioapic_in_kernel(vcpu->kvm))
 		v |= APIC_LVR_DIRECTED_EOI;
 	kvm_lapic_set_reg(apic, APIC_LVR, v);
 }
@@ -1467,11 +1475,23 @@ static bool set_target_expiration(struct kvm_lapic *apic)
 
 static void advance_periodic_target_expiration(struct kvm_lapic *apic)
 {
-	apic->lapic_timer.tscdeadline +=
-		nsec_to_cycles(apic->vcpu, apic->lapic_timer.period);
+	ktime_t now = ktime_get();
+	u64 tscl = rdtsc();
+	ktime_t delta;
+
+	/*
+	 * Synchronize both deadlines to the same time source or
+	 * differences in the periods (caused by differences in the
+	 * underlying clocks or numerical approximation errors) will
+	 * cause the two to drift apart over time as the errors
+	 * accumulate.
+	 */
 	apic->lapic_timer.target_expiration =
 		ktime_add_ns(apic->lapic_timer.target_expiration,
 				apic->lapic_timer.period);
+	delta = ktime_sub(apic->lapic_timer.target_expiration, now);
+	apic->lapic_timer.tscdeadline = kvm_read_l1_tsc(apic->vcpu, tscl) +
+		nsec_to_cycles(apic->vcpu, delta);
 }
 
 static void start_sw_period(struct kvm_lapic *apic)

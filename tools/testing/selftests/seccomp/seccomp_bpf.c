@@ -145,6 +145,15 @@ struct seccomp_data {
 #define SECCOMP_FILTER_FLAG_SPEC_ALLOW (1UL << 2)
 #endif
 
+#ifndef PTRACE_SECCOMP_GET_METADATA
+#define PTRACE_SECCOMP_GET_METADATA	0x420d
+
+struct seccomp_metadata {
+	__u64 filter_off;       /* Input: which filter */
+	__u64 flags;             /* Output: filter's flags */
+};
+#endif
+
 #ifndef seccomp
 int seccomp(unsigned int op, unsigned int flags, void *args)
 {
@@ -2859,6 +2868,58 @@ TEST(get_action_avail)
 	ret = seccomp(SECCOMP_GET_ACTION_AVAIL, 0, &unknown_action);
 	EXPECT_EQ(ret, -1);
 	EXPECT_EQ(errno, EOPNOTSUPP);
+}
+
+TEST(get_metadata)
+{
+	pid_t pid;
+	int pipefd[2];
+	char buf;
+	struct seccomp_metadata md;
+
+	ASSERT_EQ(0, pipe(pipefd));
+
+	pid = fork();
+	ASSERT_GE(pid, 0);
+	if (pid == 0) {
+		struct sock_filter filter[] = {
+			BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
+		};
+		struct sock_fprog prog = {
+			.len = (unsigned short)ARRAY_SIZE(filter),
+			.filter = filter,
+		};
+
+		/* one with log, one without */
+		ASSERT_EQ(0, seccomp(SECCOMP_SET_MODE_FILTER,
+				     SECCOMP_FILTER_FLAG_LOG, &prog));
+		ASSERT_EQ(0, seccomp(SECCOMP_SET_MODE_FILTER, 0, &prog));
+
+		ASSERT_EQ(0, close(pipefd[0]));
+		ASSERT_EQ(1, write(pipefd[1], "1", 1));
+		ASSERT_EQ(0, close(pipefd[1]));
+
+		while (1)
+			sleep(100);
+	}
+
+	ASSERT_EQ(0, close(pipefd[1]));
+	ASSERT_EQ(1, read(pipefd[0], &buf, 1));
+
+	ASSERT_EQ(0, ptrace(PTRACE_ATTACH, pid));
+	ASSERT_EQ(pid, waitpid(pid, NULL, 0));
+
+	md.filter_off = 0;
+	ASSERT_EQ(sizeof(md), ptrace(PTRACE_SECCOMP_GET_METADATA, pid, sizeof(md), &md));
+	EXPECT_EQ(md.flags, SECCOMP_FILTER_FLAG_LOG);
+	EXPECT_EQ(md.filter_off, 0);
+
+	md.filter_off = 1;
+	ASSERT_EQ(sizeof(md), ptrace(PTRACE_SECCOMP_GET_METADATA, pid, sizeof(md), &md));
+	EXPECT_EQ(md.flags, 0);
+	EXPECT_EQ(md.filter_off, 1);
+
+	ASSERT_EQ(0, kill(pid, SIGKILL));
 }
 
 /*

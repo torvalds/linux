@@ -180,40 +180,51 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "vpu");
 	regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(regs))
-		return PTR_ERR(regs);
+	if (IS_ERR(regs)) {
+		ret = PTR_ERR(regs);
+		goto free_drm;
+	}
 
 	priv->io_base = regs;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hhi");
 	/* Simply ioremap since it may be a shared register zone */
 	regs = devm_ioremap(dev, res->start, resource_size(res));
-	if (!regs)
-		return -EADDRNOTAVAIL;
+	if (!regs) {
+		ret = -EADDRNOTAVAIL;
+		goto free_drm;
+	}
 
 	priv->hhi = devm_regmap_init_mmio(dev, regs,
 					  &meson_regmap_config);
 	if (IS_ERR(priv->hhi)) {
 		dev_err(&pdev->dev, "Couldn't create the HHI regmap\n");
-		return PTR_ERR(priv->hhi);
+		ret = PTR_ERR(priv->hhi);
+		goto free_drm;
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dmc");
 	/* Simply ioremap since it may be a shared register zone */
 	regs = devm_ioremap(dev, res->start, resource_size(res));
-	if (!regs)
-		return -EADDRNOTAVAIL;
+	if (!regs) {
+		ret = -EADDRNOTAVAIL;
+		goto free_drm;
+	}
 
 	priv->dmc = devm_regmap_init_mmio(dev, regs,
 					  &meson_regmap_config);
 	if (IS_ERR(priv->dmc)) {
 		dev_err(&pdev->dev, "Couldn't create the DMC regmap\n");
-		return PTR_ERR(priv->dmc);
+		ret = PTR_ERR(priv->dmc);
+		goto free_drm;
 	}
 
 	priv->vsync_irq = platform_get_irq(pdev, 0);
 
-	drm_vblank_init(drm, 1);
+	ret = drm_vblank_init(drm, 1);
+	if (ret)
+		goto free_drm;
+
 	drm_mode_config_init(drm);
 	drm->mode_config.max_width = 3840;
 	drm->mode_config.max_height = 2160;

@@ -933,6 +933,35 @@ static int ibmvnic_open(struct net_device *netdev)
 	return rc;
 }
 
+static void clean_rx_pools(struct ibmvnic_adapter *adapter)
+{
+	struct ibmvnic_rx_pool *rx_pool;
+	u64 rx_entries;
+	int rx_scrqs;
+	int i, j;
+
+	if (!adapter->rx_pool)
+		return;
+
+	rx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_rxadd_subcrqs);
+	rx_entries = adapter->req_rx_add_entries_per_subcrq;
+
+	/* Free any remaining skbs in the rx buffer pools */
+	for (i = 0; i < rx_scrqs; i++) {
+		rx_pool = &adapter->rx_pool[i];
+		if (!rx_pool)
+			continue;
+
+		netdev_dbg(adapter->netdev, "Cleaning rx_pool[%d]\n", i);
+		for (j = 0; j < rx_entries; j++) {
+			if (rx_pool->rx_buff[j].skb) {
+				dev_kfree_skb_any(rx_pool->rx_buff[j].skb);
+				rx_pool->rx_buff[j].skb = NULL;
+			}
+		}
+	}
+}
+
 static void clean_tx_pools(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_tx_pool *tx_pool;
@@ -1010,7 +1039,7 @@ static int __ibmvnic_close(struct net_device *netdev)
 			}
 		}
 	}
-
+	clean_rx_pools(adapter);
 	clean_tx_pools(adapter);
 	adapter->state = VNIC_CLOSED;
 	return rc;
@@ -1460,14 +1489,14 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 		return 0;
 	}
 
-	netif_carrier_on(netdev);
-
 	/* kick napi */
 	for (i = 0; i < adapter->req_rx_queues; i++)
 		napi_schedule(&adapter->napi[i]);
 
 	if (adapter->reset_reason != VNIC_RESET_FAILOVER)
 		netdev_notify_peers(netdev);
+
+	netif_carrier_on(netdev);
 
 	return 0;
 }
@@ -1634,6 +1663,12 @@ restart_poll:
 		if (next->rx_comp.rc) {
 			netdev_dbg(netdev, "rx buffer returned with rc %x\n",
 				   be16_to_cpu(next->rx_comp.rc));
+			/* free the entry */
+			next->rx_comp.first = 0;
+			dev_kfree_skb_any(rx_buff->skb);
+			remove_buff_from_pool(adapter, rx_buff);
+			continue;
+		} else if (!rx_buff->skb) {
 			/* free the entry */
 			next->rx_comp.first = 0;
 			remove_buff_from_pool(adapter, rx_buff);
@@ -1927,6 +1962,7 @@ static int reset_one_sub_crq_queue(struct ibmvnic_adapter *adapter,
 	}
 
 	memset(scrq->msgs, 0, 4 * PAGE_SIZE);
+	atomic_set(&scrq->used, 0);
 	scrq->cur = 0;
 
 	rc = h_reg_sub_crq(adapter->vdev->unit_address, scrq->msg_token,

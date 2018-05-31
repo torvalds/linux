@@ -406,8 +406,9 @@
 	wlan_pd_n: wlan-pd-n {
 		compatible = "regulator-fixed";
 		regulator-name = "wlan_pd_n";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlan_module_reset_l>;
 
-		/* Note the wlan_module_reset_l pinctrl */
 		enable-active-high;
 		gpio = <&gpio1 11 GPIO_ACTIVE_HIGH>;
 
@@ -940,12 +941,6 @@ ap_i2c_audio: &i2c8 {
 	pinctrl-0 = <
 		&ap_pwroff	/* AP will auto-assert this when in S3 */
 		&clk_32k	/* This pin is always 32k on gru boards */
-
-		/*
-		 * We want this driven low ASAP; firmware should help us, but
-		 * we can help ourselves too.
-		 */
-		&wlan_module_reset_l
 	>;
 
 	pcfg_output_low: pcfg-output-low {
@@ -1125,12 +1120,7 @@ ap_i2c_audio: &i2c8 {
 		};
 
 		wlan_module_reset_l: wlan-module-reset-l {
-			/*
-			 * We want this driven low ASAP (As {Soon,Strongly} As
-			 * Possible), to avoid leakage through the powered-down
-			 * WiFi.
-			 */
-			rockchip,pins = <1 11 RK_FUNC_GPIO &pcfg_output_low>;
+			rockchip,pins = <1 11 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		bt_host_wake_l: bt-host-wake-l {

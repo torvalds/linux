@@ -456,13 +456,21 @@ static int imx_gpc_probe(struct platform_device *pdev)
 
 static int imx_gpc_remove(struct platform_device *pdev)
 {
+	struct device_node *pgc_node;
 	int ret;
+
+	pgc_node = of_get_child_by_name(pdev->dev.of_node, "pgc");
+
+	/* bail out if DT too old and doesn't provide the necessary info */
+	if (!of_property_read_bool(pdev->dev.of_node, "#power-domain-cells") &&
+	    !pgc_node)
+		return 0;
 
 	/*
 	 * If the old DT binding is used the toplevel driver needs to
 	 * de-register the power domains
 	 */
-	if (!of_get_child_by_name(pdev->dev.of_node, "pgc")) {
+	if (!pgc_node) {
 		of_genpd_del_provider(pdev->dev.of_node);
 
 		ret = pm_genpd_remove(&imx_gpc_domains[GPC_PGC_DOMAIN_PU].base);

@@ -2161,22 +2161,25 @@ batadv_bla_claim_dump_bucket(struct sk_buff *msg, u32 portid, u32 seq,
 {
 	struct batadv_bla_claim *claim;
 	int idx = 0;
+	int ret = 0;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(claim, head, hash_entry) {
 		if (idx++ < *idx_skip)
 			continue;
-		if (batadv_bla_claim_dump_entry(msg, portid, seq,
-						primary_if, claim)) {
+
+		ret = batadv_bla_claim_dump_entry(msg, portid, seq,
+						  primary_if, claim);
+		if (ret) {
 			*idx_skip = idx - 1;
 			goto unlock;
 		}
 	}
 
-	*idx_skip = idx;
+	*idx_skip = 0;
 unlock:
 	rcu_read_unlock();
-	return 0;
+	return ret;
 }
 
 /**
@@ -2391,22 +2394,25 @@ batadv_bla_backbone_dump_bucket(struct sk_buff *msg, u32 portid, u32 seq,
 {
 	struct batadv_bla_backbone_gw *backbone_gw;
 	int idx = 0;
+	int ret = 0;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(backbone_gw, head, hash_entry) {
 		if (idx++ < *idx_skip)
 			continue;
-		if (batadv_bla_backbone_dump_entry(msg, portid, seq,
-						   primary_if, backbone_gw)) {
+
+		ret = batadv_bla_backbone_dump_entry(msg, portid, seq,
+						     primary_if, backbone_gw);
+		if (ret) {
 			*idx_skip = idx - 1;
 			goto unlock;
 		}
 	}
 
-	*idx_skip = idx;
+	*idx_skip = 0;
 unlock:
 	rcu_read_unlock();
-	return 0;
+	return ret;
 }
 
 /**

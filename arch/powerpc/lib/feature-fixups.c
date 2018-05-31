@@ -23,6 +23,7 @@
 #include <asm/page.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
+#include <asm/security_features.h>
 #include <asm/firmware.h>
 
 struct fixup_entry {
@@ -117,6 +118,120 @@ void do_feature_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 }
 
 #ifdef CONFIG_PPC_BOOK3S_64
+void do_stf_entry_barrier_fixups(enum stf_barrier_type types)
+{
+	unsigned int instrs[3], *dest;
+	long *start, *end;
+	int i;
+
+	start = PTRRELOC(&__start___stf_entry_barrier_fixup),
+	end = PTRRELOC(&__stop___stf_entry_barrier_fixup);
+
+	instrs[0] = 0x60000000; /* nop */
+	instrs[1] = 0x60000000; /* nop */
+	instrs[2] = 0x60000000; /* nop */
+
+	i = 0;
+	if (types & STF_BARRIER_FALLBACK) {
+		instrs[i++] = 0x7d4802a6; /* mflr r10		*/
+		instrs[i++] = 0x60000000; /* branch patched below */
+		instrs[i++] = 0x7d4803a6; /* mtlr r10		*/
+	} else if (types & STF_BARRIER_EIEIO) {
+		instrs[i++] = 0x7e0006ac; /* eieio + bit 6 hint */
+	} else if (types & STF_BARRIER_SYNC_ORI) {
+		instrs[i++] = 0x7c0004ac; /* hwsync		*/
+		instrs[i++] = 0xe94d0000; /* ld r10,0(r13)	*/
+		instrs[i++] = 0x63ff0000; /* ori 31,31,0 speculation barrier */
+	}
+
+	for (i = 0; start < end; start++, i++) {
+		dest = (void *)start + *start;
+
+		pr_devel("patching dest %lx\n", (unsigned long)dest);
+
+		patch_instruction(dest, instrs[0]);
+
+		if (types & STF_BARRIER_FALLBACK)
+			patch_branch(dest + 1, (unsigned long)&stf_barrier_fallback,
+				     BRANCH_SET_LINK);
+		else
+			patch_instruction(dest + 1, instrs[1]);
+
+		patch_instruction(dest + 2, instrs[2]);
+	}
+
+	printk(KERN_DEBUG "stf-barrier: patched %d entry locations (%s barrier)\n", i,
+		(types == STF_BARRIER_NONE)                  ? "no" :
+		(types == STF_BARRIER_FALLBACK)              ? "fallback" :
+		(types == STF_BARRIER_EIEIO)                 ? "eieio" :
+		(types == (STF_BARRIER_SYNC_ORI))            ? "hwsync"
+		                                           : "unknown");
+}
+
+void do_stf_exit_barrier_fixups(enum stf_barrier_type types)
+{
+	unsigned int instrs[6], *dest;
+	long *start, *end;
+	int i;
+
+	start = PTRRELOC(&__start___stf_exit_barrier_fixup),
+	end = PTRRELOC(&__stop___stf_exit_barrier_fixup);
+
+	instrs[0] = 0x60000000; /* nop */
+	instrs[1] = 0x60000000; /* nop */
+	instrs[2] = 0x60000000; /* nop */
+	instrs[3] = 0x60000000; /* nop */
+	instrs[4] = 0x60000000; /* nop */
+	instrs[5] = 0x60000000; /* nop */
+
+	i = 0;
+	if (types & STF_BARRIER_FALLBACK || types & STF_BARRIER_SYNC_ORI) {
+		if (cpu_has_feature(CPU_FTR_HVMODE)) {
+			instrs[i++] = 0x7db14ba6; /* mtspr 0x131, r13 (HSPRG1) */
+			instrs[i++] = 0x7db04aa6; /* mfspr r13, 0x130 (HSPRG0) */
+		} else {
+			instrs[i++] = 0x7db243a6; /* mtsprg 2,r13	*/
+			instrs[i++] = 0x7db142a6; /* mfsprg r13,1    */
+	        }
+		instrs[i++] = 0x7c0004ac; /* hwsync		*/
+		instrs[i++] = 0xe9ad0000; /* ld r13,0(r13)	*/
+		instrs[i++] = 0x63ff0000; /* ori 31,31,0 speculation barrier */
+		if (cpu_has_feature(CPU_FTR_HVMODE)) {
+			instrs[i++] = 0x7db14aa6; /* mfspr r13, 0x131 (HSPRG1) */
+		} else {
+			instrs[i++] = 0x7db242a6; /* mfsprg r13,2 */
+		}
+	} else if (types & STF_BARRIER_EIEIO) {
+		instrs[i++] = 0x7e0006ac; /* eieio + bit 6 hint */
+	}
+
+	for (i = 0; start < end; start++, i++) {
+		dest = (void *)start + *start;
+
+		pr_devel("patching dest %lx\n", (unsigned long)dest);
+
+		patch_instruction(dest, instrs[0]);
+		patch_instruction(dest + 1, instrs[1]);
+		patch_instruction(dest + 2, instrs[2]);
+		patch_instruction(dest + 3, instrs[3]);
+		patch_instruction(dest + 4, instrs[4]);
+		patch_instruction(dest + 5, instrs[5]);
+	}
+	printk(KERN_DEBUG "stf-barrier: patched %d exit locations (%s barrier)\n", i,
+		(types == STF_BARRIER_NONE)                  ? "no" :
+		(types == STF_BARRIER_FALLBACK)              ? "fallback" :
+		(types == STF_BARRIER_EIEIO)                 ? "eieio" :
+		(types == (STF_BARRIER_SYNC_ORI))            ? "hwsync"
+		                                           : "unknown");
+}
+
+
+void do_stf_barrier_fixups(enum stf_barrier_type types)
+{
+	do_stf_entry_barrier_fixups(types);
+	do_stf_exit_barrier_fixups(types);
+}
+
 void do_rfi_flush_fixups(enum l1d_flush_type types)
 {
 	unsigned int instrs[3], *dest;
@@ -153,7 +268,14 @@ void do_rfi_flush_fixups(enum l1d_flush_type types)
 		patch_instruction(dest + 2, instrs[2]);
 	}
 
-	printk(KERN_DEBUG "rfi-flush: patched %d locations\n", i);
+	printk(KERN_DEBUG "rfi-flush: patched %d locations (%s flush)\n", i,
+		(types == L1D_FLUSH_NONE)       ? "no" :
+		(types == L1D_FLUSH_FALLBACK)   ? "fallback displacement" :
+		(types &  L1D_FLUSH_ORI)        ? (types & L1D_FLUSH_MTTRIG)
+							? "ori+mttrig type"
+							: "ori type" :
+		(types &  L1D_FLUSH_MTTRIG)     ? "mttrig type"
+						: "unknown");
 }
 #endif /* CONFIG_PPC_BOOK3S_64 */
 

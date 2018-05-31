@@ -12,6 +12,7 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/of_irq.h>
+#include <linux/libfdt.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/of_pci.h>
@@ -200,19 +201,22 @@ static struct of_ioapic_type of_ioapic_type[] =
 static int dt_irqdomain_alloc(struct irq_domain *domain, unsigned int virq,
 			      unsigned int nr_irqs, void *arg)
 {
-	struct of_phandle_args *irq_data = (void *)arg;
+	struct irq_fwspec *fwspec = (struct irq_fwspec *)arg;
 	struct of_ioapic_type *it;
 	struct irq_alloc_info tmp;
+	int type_index;
 
-	if (WARN_ON(irq_data->args_count < 2))
-		return -EINVAL;
-	if (irq_data->args[1] >= ARRAY_SIZE(of_ioapic_type))
+	if (WARN_ON(fwspec->param_count < 2))
 		return -EINVAL;
 
-	it = &of_ioapic_type[irq_data->args[1]];
+	type_index = fwspec->param[1];
+	if (type_index >= ARRAY_SIZE(of_ioapic_type))
+		return -EINVAL;
+
+	it = &of_ioapic_type[type_index];
 	ioapic_set_alloc_attr(&tmp, NUMA_NO_NODE, it->trigger, it->polarity);
 	tmp.ioapic_id = mpc_ioapic_id(mp_irqdomain_ioapic_idx(domain));
-	tmp.ioapic_pin = irq_data->args[0];
+	tmp.ioapic_pin = fwspec->param[0];
 
 	return mp_irqdomain_alloc(domain, virq, nr_irqs, &tmp);
 }
@@ -276,14 +280,15 @@ static void __init x86_flattree_get_config(void)
 
 	map_len = max(PAGE_SIZE - (initial_dtb & ~PAGE_MASK), (u64)128);
 
-	initial_boot_params = dt = early_memremap(initial_dtb, map_len);
-	size = of_get_flat_dt_size();
+	dt = early_memremap(initial_dtb, map_len);
+	size = fdt_totalsize(dt);
 	if (map_len < size) {
 		early_memunmap(dt, map_len);
-		initial_boot_params = dt = early_memremap(initial_dtb, size);
+		dt = early_memremap(initial_dtb, size);
 		map_len = size;
 	}
 
+	early_init_dt_verify(dt);
 	unflatten_and_copy_device_tree();
 	early_memunmap(dt, map_len);
 }

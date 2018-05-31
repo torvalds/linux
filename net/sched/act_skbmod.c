@@ -155,7 +155,7 @@ static int tcf_skbmod_init(struct net *net, struct nlattr *nla,
 	ASSERT_RTNL();
 	p = kzalloc(sizeof(struct tcf_skbmod_params), GFP_KERNEL);
 	if (unlikely(!p)) {
-		if (ovr)
+		if (ret == ACT_P_CREATED)
 			tcf_idr_release(*a, bind);
 		return -ENOMEM;
 	}

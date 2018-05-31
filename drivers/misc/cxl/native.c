@@ -352,8 +352,17 @@ int cxl_data_cache_flush(struct cxl *adapter)
 	u64 reg;
 	unsigned long timeout = jiffies + (HZ * CXL_TIMEOUT);
 
-	pr_devel("Flushing data cache\n");
+	/*
+	 * Do a datacache flush only if datacache is available.
+	 * In case of PSL9D datacache absent hence flush operation.
+	 * would timeout.
+	 */
+	if (adapter->native->no_data_cache) {
+		pr_devel("No PSL data cache. Ignoring cache flush req.\n");
+		return 0;
+	}
 
+	pr_devel("Flushing data cache\n");
 	reg = cxl_p1_read(adapter, CXL_PSL_Control);
 	reg |= CXL_PSL_Control_Fr;
 	cxl_p1_write(adapter, CXL_PSL_Control, reg);

@@ -926,7 +926,7 @@ static void g2d_finish_event(struct g2d_data *g2d, u32 cmdlist_no)
 	struct drm_device *drm_dev = g2d->subdrv.drm_dev;
 	struct g2d_runqueue_node *runqueue_node = g2d->runqueue_node;
 	struct drm_exynos_pending_g2d_event *e;
-	struct timeval now;
+	struct timespec64 now;
 
 	if (list_empty(&runqueue_node->event_list))
 		return;
@@ -934,9 +934,9 @@ static void g2d_finish_event(struct g2d_data *g2d, u32 cmdlist_no)
 	e = list_first_entry(&runqueue_node->event_list,
 			     struct drm_exynos_pending_g2d_event, base.link);
 
-	do_gettimeofday(&now);
+	ktime_get_ts64(&now);
 	e->event.tv_sec = now.tv_sec;
-	e->event.tv_usec = now.tv_usec;
+	e->event.tv_usec = now.tv_nsec / NSEC_PER_USEC;
 	e->event.cmdlist_no = cmdlist_no;
 
 	drm_send_event(drm_dev, &e->base);

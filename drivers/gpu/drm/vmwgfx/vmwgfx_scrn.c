@@ -453,7 +453,11 @@ vmw_sou_primary_plane_cleanup_fb(struct drm_plane *plane,
 				 struct drm_plane_state *old_state)
 {
 	struct vmw_plane_state *vps = vmw_plane_state_to_vps(old_state);
+	struct drm_crtc *crtc = plane->state->crtc ?
+		plane->state->crtc : old_state->crtc;
 
+	if (vps->dmabuf)
+		vmw_dmabuf_unpin(vmw_priv(crtc->dev), vps->dmabuf, false);
 	vmw_dmabuf_unreference(&vps->dmabuf);
 	vps->dmabuf_size = 0;
 
@@ -491,10 +495,17 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 	}
 
 	size = new_state->crtc_w * new_state->crtc_h * 4;
+	dev_priv = vmw_priv(crtc->dev);
 
 	if (vps->dmabuf) {
-		if (vps->dmabuf_size == size)
-			return 0;
+		if (vps->dmabuf_size == size) {
+			/*
+			 * Note that this might temporarily up the pin-count
+			 * to 2, until cleanup_fb() is called.
+			 */
+			return vmw_dmabuf_pin_in_vram(dev_priv, vps->dmabuf,
+						      true);
+		}
 
 		vmw_dmabuf_unreference(&vps->dmabuf);
 		vps->dmabuf_size = 0;
@@ -504,7 +515,6 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 	if (!vps->dmabuf)
 		return -ENOMEM;
 
-	dev_priv = vmw_priv(crtc->dev);
 	vmw_svga_enable(dev_priv);
 
 	/* After we have alloced the backing store might not be able to
@@ -515,13 +525,18 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 			      &vmw_vram_ne_placement,
 			      false, &vmw_dmabuf_bo_free);
 	vmw_overlay_resume_all(dev_priv);
-
-	if (ret != 0)
+	if (ret) {
 		vps->dmabuf = NULL; /* vmw_dmabuf_init frees on error */
-	else
-		vps->dmabuf_size = size;
+		return ret;
+	}
 
-	return ret;
+	vps->dmabuf_size = size;
+
+	/*
+	 * TTM already thinks the buffer is pinned, but make sure the
+	 * pin_count is upped.
+	 */
+	return vmw_dmabuf_pin_in_vram(dev_priv, vps->dmabuf, true);
 }
 
 

@@ -4287,7 +4287,7 @@ static inline void ata_scsi_dump_cdb(struct ata_port *ap,
 #ifdef ATA_DEBUG
 	struct scsi_device *scsidev = cmd->device;
 
-	DPRINTK("CDB (%u:%d,%d,%d) %9ph\n",
+	DPRINTK("CDB (%u:%d,%d,%lld) %9ph\n",
 		ap->print_id,
 		scsidev->channel, scsidev->id, scsidev->lun,
 		cmd->cmnd);

@@ -71,8 +71,7 @@ static int orangefs_create(struct inode *dir,
 		     get_khandle_from_ino(inode),
 		     dentry);
 
-	d_instantiate(dentry, inode);
-	unlock_new_inode(inode);
+	d_instantiate_new(dentry, inode);
 	orangefs_set_timeout(dentry);
 	ORANGEFS_I(inode)->getattr_time = jiffies - 1;
 	ORANGEFS_I(inode)->getattr_mask = STATX_BASIC_STATS;
@@ -320,8 +319,7 @@ static int orangefs_symlink(struct inode *dir,
 		     "Assigned symlink inode new number of %pU\n",
 		     get_khandle_from_ino(inode));
 
-	d_instantiate(dentry, inode);
-	unlock_new_inode(inode);
+	d_instantiate_new(dentry, inode);
 	orangefs_set_timeout(dentry);
 	ORANGEFS_I(inode)->getattr_time = jiffies - 1;
 	ORANGEFS_I(inode)->getattr_mask = STATX_BASIC_STATS;
@@ -385,8 +383,7 @@ static int orangefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 		     "Assigned dir inode new number of %pU\n",
 		     get_khandle_from_ino(inode));
 
-	d_instantiate(dentry, inode);
-	unlock_new_inode(inode);
+	d_instantiate_new(dentry, inode);
 	orangefs_set_timeout(dentry);
 	ORANGEFS_I(inode)->getattr_time = jiffies - 1;
 	ORANGEFS_I(inode)->getattr_mask = STATX_BASIC_STATS;

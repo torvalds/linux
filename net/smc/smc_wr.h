@@ -19,7 +19,6 @@
 #include "smc.h"
 #include "smc_core.h"
 
-#define SMC_WR_MAX_CQE 32768	/* max. # of completion queue elements */
 #define SMC_WR_BUF_CNT 16	/* # of ctrl buffers per link */
 
 #define SMC_WR_TX_WAIT_FREE_SLOT_TIME	(10 * HZ)

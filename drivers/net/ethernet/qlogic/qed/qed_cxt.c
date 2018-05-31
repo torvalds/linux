@@ -2471,7 +2471,10 @@ int qed_cxt_free_proto_ilt(struct qed_hwfn *p_hwfn, enum protocol_type proto)
 	if (rc)
 		return rc;
 
-	/* Free Task CXT */
+	/* Free Task CXT ( Intentionally RoCE as task-id is shared between
+	 * RoCE and iWARP )
+	 */
+	proto = PROTOCOLID_ROCE;
 	rc = qed_cxt_free_ilt_range(p_hwfn, QED_ELEM_TASK, 0,
 				    qed_cxt_get_proto_tid_count(p_hwfn, proto));
 	if (rc)

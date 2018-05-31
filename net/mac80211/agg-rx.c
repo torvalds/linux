@@ -8,6 +8,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
+ * Copyright (C) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -322,9 +323,6 @@ void ___ieee80211_start_rx_ba_session(struct sta_info *sta,
 			 * driver so reject the timeout update.
 			 */
 			status = WLAN_STATUS_REQUEST_DECLINED;
-			ieee80211_send_addba_resp(sta->sdata, sta->sta.addr,
-						  tid, dialog_token, status,
-						  1, buf_size, timeout);
 			goto end;
 		}
 
