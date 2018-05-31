@@ -108,7 +108,7 @@ test_gretap_forbidden()
 
 test_ip6gretap_forbidden()
 {
-	test_span_gre_forbidden gt4 "mirror to ip6gretap"
+	test_span_gre_forbidden gt6 "mirror to ip6gretap"
 }
 
 test_all()
