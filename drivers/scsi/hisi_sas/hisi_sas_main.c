@@ -536,8 +536,13 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	struct device *dev = hisi_hba->dev;
 	struct hisi_sas_dq *dq = NULL;
 
-	if (unlikely(test_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags)))
-		return -EINVAL;
+	if (unlikely(test_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags))) {
+		if (in_softirq())
+			return -EINVAL;
+
+		down(&hisi_hba->sem);
+		up(&hisi_hba->sem);
+	}
 
 	/* protect task_prep and start_delivery sequence */
 	rc = hisi_sas_task_prep(task, &dq, is_tmf, tmf, &pass);
@@ -1383,30 +1388,28 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 		clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
 		up(&hisi_hba->sem);
 		scsi_unblock_requests(shost);
-		goto out;
+		clear_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags);
+		return rc;
 	}
-
-	clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
 
 	/* Init and wait for PHYs to come up and all libsas event finished. */
 	hisi_hba->hw->phys_init(hisi_hba);
 	msleep(1000);
 	hisi_sas_refresh_port_id(hisi_hba);
+	clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
 	up(&hisi_hba->sem);
 
 	if (hisi_hba->reject_stp_links_msk)
 		hisi_sas_terminate_stp_reject(hisi_hba);
 	hisi_sas_reset_init_all_devices(hisi_hba);
 	scsi_unblock_requests(shost);
+	clear_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags);
 
 	state = hisi_hba->hw->get_phys_state(hisi_hba);
 	hisi_sas_rescan_topology(hisi_hba, old_state, state);
 	dev_info(dev, "controller reset complete\n");
 
-out:
-	clear_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags);
-
-	return rc;
+	return 0;
 }
 
 static int hisi_sas_abort_task(struct sas_task *task)
