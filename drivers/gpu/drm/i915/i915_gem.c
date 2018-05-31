@@ -3708,7 +3708,29 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 static int wait_for_timeline(struct i915_timeline *tl, unsigned int flags)
 {
-	return i915_gem_active_wait(&tl->last_request, flags);
+	struct i915_request *rq;
+	long ret;
+
+	rq = i915_gem_active_get_unlocked(&tl->last_request);
+	if (!rq)
+		return 0;
+
+	/*
+	 * "Race-to-idle".
+	 *
+	 * Switching to the kernel context is often used a synchronous
+	 * step prior to idling, e.g. in suspend for flushing all
+	 * current operations to memory before sleeping. These we
+	 * want to complete as quickly as possible to avoid prolonged
+	 * stalls, so allow the gpu to boost to maximum clocks.
+	 */
+	if (flags & I915_WAIT_FOR_IDLE_BOOST)
+		gen6_rps_boost(rq, NULL);
+
+	ret = i915_request_wait(rq, flags, MAX_SCHEDULE_TIMEOUT);
+	i915_request_put(rq);
+
+	return ret < 0 ? ret : 0;
 }
 
 static int wait_for_engines(struct drm_i915_private *i915)
@@ -4983,7 +5005,8 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 
 		ret = i915_gem_wait_for_idle(dev_priv,
 					     I915_WAIT_INTERRUPTIBLE |
-					     I915_WAIT_LOCKED);
+					     I915_WAIT_LOCKED |
+					     I915_WAIT_FOR_IDLE_BOOST);
 		if (ret && ret != -EIO)
 			goto err_unlock;
 
