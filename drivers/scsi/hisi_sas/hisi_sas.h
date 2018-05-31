@@ -16,6 +16,7 @@
 #include <linux/clk.h>
 #include <linux/dmapool.h>
 #include <linux/iopoll.h>
+#include <linux/lcm.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
@@ -199,17 +200,18 @@ struct hisi_sas_slot {
 	int	dlvry_queue_slot;
 	int	cmplt_queue;
 	int	cmplt_queue_slot;
-	int	idx;
 	int	abort;
 	int	ready;
-	void	*buf;
-	dma_addr_t buf_dma;
 	void	*cmd_hdr;
 	dma_addr_t cmd_hdr_dma;
 	struct work_struct abort_slot;
 	struct timer_list internal_abort_timer;
 	bool is_internal;
 	struct hisi_sas_tmf_task *tmf;
+	/* Do not reorder/change members after here */
+	void	*buf;
+	dma_addr_t buf_dma;
+	int	idx;
 };
 
 struct hisi_sas_hw {
@@ -299,7 +301,6 @@ struct hisi_hba {
 
 	int	queue_count;
 
-	struct dma_pool *buffer_pool;
 	struct hisi_sas_device	devices[HISI_SAS_MAX_DEVICES];
 	struct hisi_sas_cmd_hdr	*cmd_hdr[HISI_SAS_MAX_QUEUES];
 	dma_addr_t cmd_hdr_dma[HISI_SAS_MAX_QUEUES];

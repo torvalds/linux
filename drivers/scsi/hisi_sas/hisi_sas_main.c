@@ -242,20 +242,16 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 					     task->data_dir);
 	}
 
-	if (slot->buf)
-		dma_pool_free(hisi_hba->buffer_pool, slot->buf, slot->buf_dma);
 
 	spin_lock_irqsave(&dq->lock, flags);
 	list_del_init(&slot->entry);
 	spin_unlock_irqrestore(&dq->lock, flags);
-	slot->buf = NULL;
-	slot->task = NULL;
-	slot->port = NULL;
+
+	memset(slot, 0, offsetof(struct hisi_sas_slot, buf));
+
 	spin_lock_irqsave(&hisi_hba->lock, flags);
 	hisi_sas_slot_index_free(hisi_hba, slot->idx);
 	spin_unlock_irqrestore(&hisi_hba->lock, flags);
-
-	/* slot memory is fully zeroed when it is reused */
 }
 EXPORT_SYMBOL_GPL(hisi_sas_slot_task_free);
 
@@ -430,21 +426,13 @@ static int hisi_sas_task_prep(struct sas_task *task,
 		goto err_out_dma_unmap;
 
 	slot = &hisi_hba->slot_info[slot_idx];
-	memset(slot, 0, sizeof(struct hisi_sas_slot));
-
-	slot->buf = dma_pool_alloc(hisi_hba->buffer_pool,
-				   GFP_ATOMIC, &slot->buf_dma);
-	if (!slot->buf) {
-		rc = -ENOMEM;
-		goto err_out_tag;
-	}
 
 	spin_lock_irqsave(&dq->lock, flags_dq);
 	wr_q_index = hisi_hba->hw->get_free_slot(hisi_hba, dq);
 	if (wr_q_index < 0) {
 		spin_unlock_irqrestore(&dq->lock, flags_dq);
 		rc = -EAGAIN;
-		goto err_out_buf;
+		goto err_out_tag;
 	}
 
 	list_add_tail(&slot->delivery, &dq->list);
@@ -453,7 +441,6 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	dlvry_queue = dq->id;
 	dlvry_queue_slot = wr_q_index;
 
-	slot->idx = slot_idx;
 	slot->n_elem = n_elem;
 	slot->dlvry_queue = dlvry_queue;
 	slot->dlvry_queue_slot = dlvry_queue_slot;
@@ -500,9 +487,6 @@ static int hisi_sas_task_prep(struct sas_task *task,
 
 	return 0;
 
-err_out_buf:
-	dma_pool_free(hisi_hba->buffer_pool, slot->buf,
-		      slot->buf_dma);
 err_out_tag:
 	spin_lock_irqsave(&hisi_hba->lock, flags);
 	hisi_sas_slot_index_free(hisi_hba, slot_idx);
@@ -1749,21 +1733,13 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 	spin_unlock_irqrestore(&hisi_hba->lock, flags);
 
 	slot = &hisi_hba->slot_info[slot_idx];
-	memset(slot, 0, sizeof(struct hisi_sas_slot));
-
-	slot->buf = dma_pool_alloc(hisi_hba->buffer_pool,
-			GFP_ATOMIC, &slot->buf_dma);
-	if (!slot->buf) {
-		rc = -ENOMEM;
-		goto err_out_tag;
-	}
 
 	spin_lock_irqsave(&dq->lock, flags_dq);
 	wr_q_index = hisi_hba->hw->get_free_slot(hisi_hba, dq);
 	if (wr_q_index < 0) {
 		spin_unlock_irqrestore(&dq->lock, flags_dq);
 		rc = -EAGAIN;
-		goto err_out_buf;
+		goto err_out_tag;
 	}
 	list_add_tail(&slot->delivery, &dq->list);
 	spin_unlock_irqrestore(&dq->lock, flags_dq);
@@ -1771,7 +1747,6 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 	dlvry_queue = dq->id;
 	dlvry_queue_slot = wr_q_index;
 
-	slot->idx = slot_idx;
 	slot->n_elem = n_elem;
 	slot->dlvry_queue = dlvry_queue;
 	slot->dlvry_queue_slot = dlvry_queue_slot;
@@ -1802,9 +1777,6 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 
 	return 0;
 
-err_out_buf:
-	dma_pool_free(hisi_hba->buffer_pool, slot->buf,
-		      slot->buf_dma);
 err_out_tag:
 	spin_lock_irqsave(&hisi_hba->lock, flags);
 	hisi_sas_slot_index_free(hisi_hba, slot_idx);
@@ -2041,7 +2013,9 @@ EXPORT_SYMBOL_GPL(hisi_sas_init_mem);
 int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 {
 	struct device *dev = hisi_hba->dev;
-	int i, s, max_command_entries = hisi_hba->hw->max_command_entries;
+	int i, j, s, max_command_entries = hisi_hba->hw->max_command_entries;
+	int max_command_entries_ru, sz_slot_buf_ru;
+	int blk_cnt, slots_per_blk;
 
 	sema_init(&hisi_hba->sem, 1);
 	spin_lock_init(&hisi_hba->lock);
@@ -2088,11 +2062,6 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 			goto err_out;
 	}
 
-	s = sizeof(struct hisi_sas_slot_buf_table);
-	hisi_hba->buffer_pool = dma_pool_create("dma_buffer", dev, s, 16, 0);
-	if (!hisi_hba->buffer_pool)
-		goto err_out;
-
 	s = HISI_SAS_MAX_ITCT_ENTRIES * sizeof(struct hisi_sas_itct);
 	hisi_hba->itct = dmam_alloc_coherent(dev, s, &hisi_hba->itct_dma,
 					     GFP_KERNEL);
@@ -2105,6 +2074,35 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 					   GFP_KERNEL);
 	if (!hisi_hba->slot_info)
 		goto err_out;
+
+	/* roundup to avoid overly large block size */
+	max_command_entries_ru = roundup(max_command_entries, 64);
+	sz_slot_buf_ru = roundup(sizeof(struct hisi_sas_slot_buf_table), 64);
+	s = lcm(max_command_entries_ru, sz_slot_buf_ru);
+	blk_cnt = (max_command_entries_ru * sz_slot_buf_ru) / s;
+	slots_per_blk = s / sz_slot_buf_ru;
+	for (i = 0; i < blk_cnt; i++) {
+		struct hisi_sas_slot_buf_table *buf;
+		dma_addr_t buf_dma;
+		int slot_index = i * slots_per_blk;
+
+		buf = dmam_alloc_coherent(dev, s, &buf_dma, GFP_KERNEL);
+		if (!buf)
+			goto err_out;
+		memset(buf, 0, s);
+
+		for (j = 0; j < slots_per_blk; j++, slot_index++) {
+			struct hisi_sas_slot *slot;
+
+			slot = &hisi_hba->slot_info[slot_index];
+			slot->buf = buf;
+			slot->buf_dma = buf_dma;
+			slot->idx = slot_index;
+
+			buf++;
+			buf_dma += sizeof(*buf);
+		}
+	}
 
 	s = max_command_entries * sizeof(struct hisi_sas_iost);
 	hisi_hba->iost = dmam_alloc_coherent(dev, s, &hisi_hba->iost_dma,
@@ -2156,8 +2154,6 @@ EXPORT_SYMBOL_GPL(hisi_sas_alloc);
 
 void hisi_sas_free(struct hisi_hba *hisi_hba)
 {
-	dma_pool_destroy(hisi_hba->buffer_pool);
-
 	if (hisi_hba->wq)
 		destroy_workqueue(hisi_hba->wq);
 }
