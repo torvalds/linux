@@ -383,10 +383,6 @@ struct iser_device {
 	bool                         remote_inv_sup;
 };
 
-#define ISER_CHECK_GUARD	0xc0
-#define ISER_CHECK_REFTAG	0x0f
-#define ISER_CHECK_APPTAG	0x30
-
 /**
  * struct iser_reg_resources - Fast registration recources
  *
