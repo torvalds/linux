@@ -1487,7 +1487,6 @@ static int intel_pt_walk_fup_tip(struct intel_pt_decoder *decoder)
 		case INTEL_PT_PSB:
 		case INTEL_PT_TSC:
 		case INTEL_PT_TMA:
-		case INTEL_PT_CBR:
 		case INTEL_PT_MODE_TSX:
 		case INTEL_PT_BAD:
 		case INTEL_PT_PSBEND:
@@ -1495,6 +1494,10 @@ static int intel_pt_walk_fup_tip(struct intel_pt_decoder *decoder)
 			decoder->pkt_state = INTEL_PT_STATE_ERR3;
 			decoder->pkt_step = 0;
 			return -ENOENT;
+
+		case INTEL_PT_CBR:
+			intel_pt_calc_cbr(decoder);
+			break;
 
 		case INTEL_PT_OVF:
 			return intel_pt_overflow(decoder);
