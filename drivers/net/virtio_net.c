@@ -2935,8 +2935,10 @@ static int virtnet_probe(struct virtio_device *vdev)
 
 	if (virtio_has_feature(vdev, VIRTIO_NET_F_STANDBY)) {
 		vi->failover = net_failover_create(vi->dev);
-		if (IS_ERR(vi->failover))
+		if (IS_ERR(vi->failover)) {
+			err = PTR_ERR(vi->failover);
 			goto free_vqs;
+		}
 	}
 
 	err = register_netdev(dev);
