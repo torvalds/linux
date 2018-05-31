@@ -34,7 +34,7 @@ int nvmet_file_ns_enable(struct nvmet_ns *ns)
 			O_RDWR | O_LARGEFILE | O_DIRECT, 0);
 	if (IS_ERR(ns->file)) {
 		pr_err("failed to open file %s: (%ld)\n",
-				ns->device_path, PTR_ERR(ns->bdev));
+				ns->device_path, PTR_ERR(ns->file));
 		return PTR_ERR(ns->file);
 	}
 
