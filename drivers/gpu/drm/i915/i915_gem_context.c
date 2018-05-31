@@ -649,7 +649,7 @@ int i915_gem_switch_to_kernel_context(struct drm_i915_private *i915)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	GEM_TRACE("\n");
+	GEM_TRACE("awake?=%s\n", yesno(i915->gt.awake));
 
 	lockdep_assert_held(&i915->drm.struct_mutex);
 	GEM_BUG_ON(!i915->kernel_context);
