@@ -813,6 +813,16 @@ struct mlx5_memic {
 	DECLARE_BITMAP(memic_alloc_pages, MLX5_MAX_MEMIC_PAGES);
 };
 
+struct mlx5_ib_mcounters {
+	struct ib_counters ibcntrs;
+};
+
+static inline struct mlx5_ib_mcounters *
+to_mcounters(struct ib_counters *ibcntrs)
+{
+	return container_of(ibcntrs, struct mlx5_ib_mcounters, ibcntrs);
+}
+
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
 	struct mlx5_core_dev		*mdev;

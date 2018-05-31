@@ -5006,6 +5006,27 @@ static void depopulate_specs_root(struct mlx5_ib_dev *dev)
 	uverbs_free_spec_tree(dev->ib_dev.specs_root);
 }
 
+static int mlx5_ib_destroy_counters(struct ib_counters *counters)
+{
+	struct mlx5_ib_mcounters *mcounters = to_mcounters(counters);
+
+	kfree(mcounters);
+
+	return 0;
+}
+
+static struct ib_counters *mlx5_ib_create_counters(struct ib_device *device,
+						   struct uverbs_attr_bundle *attrs)
+{
+	struct mlx5_ib_mcounters *mcounters;
+
+	mcounters = kzalloc(sizeof(*mcounters), GFP_KERNEL);
+	if (!mcounters)
+		return ERR_PTR(-ENOMEM);
+
+	return &mcounters->ibcntrs;
+}
+
 void mlx5_ib_stage_init_cleanup(struct mlx5_ib_dev *dev)
 {
 	mlx5_ib_cleanup_multiport_master(dev);
@@ -5249,6 +5270,8 @@ int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 	dev->ib_dev.destroy_flow_action = mlx5_ib_destroy_flow_action;
 	dev->ib_dev.modify_flow_action_esp = mlx5_ib_modify_flow_action_esp;
 	dev->ib_dev.driver_id = RDMA_DRIVER_MLX5;
+	dev->ib_dev.create_counters = mlx5_ib_create_counters;
+	dev->ib_dev.destroy_counters = mlx5_ib_destroy_counters;
 
 	err = init_node_data(dev);
 	if (err)
