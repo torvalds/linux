@@ -34,6 +34,10 @@
 #define UDP_SEGMENT		103
 #endif
 
+#ifndef UDP_MAX_SEGMENTS
+#define UDP_MAX_SEGMENTS	(1 << 6UL)
+#endif
+
 #define CONST_MTU_TEST	1500
 
 #define CONST_HDRLEN_V4		(sizeof(struct iphdr) + sizeof(struct udphdr))
@@ -136,6 +140,38 @@ struct testcase testcases_v4[] = {
 		.tfail = true,
 	},
 	{
+		/* send a single 1B MSS: will fail, see single MSS above */
+		.tlen = 1,
+		.gso_len = 1,
+		.tfail = true,
+		.r_num_mss = 1,
+	},
+	{
+		/* send 2 1B segments */
+		.tlen = 2,
+		.gso_len = 1,
+		.r_num_mss = 2,
+	},
+	{
+		/* send 2B + 2B + 1B segments */
+		.tlen = 5,
+		.gso_len = 2,
+		.r_num_mss = 2,
+		.r_len_last = 1,
+	},
+	{
+		/* send max number of min sized segments */
+		.tlen = UDP_MAX_SEGMENTS - CONST_HDRLEN_V4,
+		.gso_len = 1,
+		.r_num_mss = UDP_MAX_SEGMENTS - CONST_HDRLEN_V4,
+	},
+	{
+		/* send max number + 1 of min sized segments: fail */
+		.tlen = UDP_MAX_SEGMENTS - CONST_HDRLEN_V4 + 1,
+		.gso_len = 1,
+		.tfail = true,
+	},
+	{
 		/* EOL */
 	}
 };
@@ -208,6 +244,38 @@ struct testcase testcases_v6[] = {
 		/* send MAX + 1: fail */
 		.tlen = IP6_MAX_MTU - CONST_HDRLEN_V6 + 1,
 		.gso_len = CONST_MSS_V6,
+		.tfail = true,
+	},
+	{
+		/* send a single 1B MSS: will fail, see single MSS above */
+		.tlen = 1,
+		.gso_len = 1,
+		.tfail = true,
+		.r_num_mss = 1,
+	},
+	{
+		/* send 2 1B segments */
+		.tlen = 2,
+		.gso_len = 1,
+		.r_num_mss = 2,
+	},
+	{
+		/* send 2B + 2B + 1B segments */
+		.tlen = 5,
+		.gso_len = 2,
+		.r_num_mss = 2,
+		.r_len_last = 1,
+	},
+	{
+		/* send max number of min sized segments */
+		.tlen = UDP_MAX_SEGMENTS - CONST_HDRLEN_V6,
+		.gso_len = 1,
+		.r_num_mss = UDP_MAX_SEGMENTS - CONST_HDRLEN_V6,
+	},
+	{
+		/* send max number + 1 of min sized segments: fail */
+		.tlen = UDP_MAX_SEGMENTS - CONST_HDRLEN_V6 + 1,
+		.gso_len = 1,
 		.tfail = true,
 	},
 	{
@@ -375,7 +443,8 @@ static bool __send_one(int fd, struct msghdr *msg, int flags)
 	int ret;
 
 	ret = sendmsg(fd, msg, flags);
-	if (ret == -1 && (errno == EMSGSIZE || errno == ENOMEM))
+	if (ret == -1 &&
+	    (errno == EMSGSIZE || errno == ENOMEM || errno == EINVAL))
 		return false;
 	if (ret == -1)
 		error(1, errno, "sendmsg");
@@ -466,7 +535,11 @@ static void run_one(struct testcase *test, int fdt, int fdr,
 	if (!sent)
 		return;
 
-	mss = addr->sa_family == AF_INET ? CONST_MSS_V4 : CONST_MSS_V6;
+	if (test->gso_len)
+		mss = test->gso_len;
+	else
+		mss = addr->sa_family == AF_INET ? CONST_MSS_V4 : CONST_MSS_V6;
+
 
 	/* Recv all full MSS datagrams */
 	for (i = 0; i < test->r_num_mss; i++) {
