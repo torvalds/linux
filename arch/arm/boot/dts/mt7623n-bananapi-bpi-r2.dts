@@ -75,38 +75,26 @@
 		};
 	};
 
-	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-		consys-reserve-memory {
-			compatible = "mediatek,consys-reserve-memory";
-			no-map;
-			size = <0 0x100000>;
-			alignment = <0 0x100000>;
-		};
-	};
-
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
 		pinctrl-0 = <&led_pins_a>;
 
-		green {
-			label = "bpi-r2:pio:green";
-			gpios = <&pio 241 GPIO_ACTIVE_LOW>;
+		blue {
+			label = "bpi-r2:pio:blue";
+			gpios = <&pio 241 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		blue {
-			label = "bpi-r2:pio:blue";
-			gpios = <&pio 240 GPIO_ACTIVE_LOW>;
+		green {
+			label = "bpi-r2:pio:green";
+			gpios = <&pio 240 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
 		red {
 			label = "bpi-r2:pio:red";
-			gpios = <&pio 239 GPIO_ACTIVE_LOW>;
+			gpios = <&pio 239 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 	};
@@ -114,12 +102,14 @@
 	memory@80000000 {
 		reg = <0 0x80000000 0 0x40000000>;
 	};
+};
 
-	vdd_fixed_vgpu_reg: fixedregulator@0 {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd_fixed_vgpu";
-		regulator-min-microvolt = <1150000>;
-		regulator-max-microvolt = <1150000>;
+&bls {
+	status = "okay";
+	port {
+		bls_out: endpoint {
+			remote-endpoint = <&dpi0_in>;
+		};
 	};
 };
 
@@ -208,12 +198,47 @@
 	};
 };
 
-&hdmi0 {
+&cec {
 	status = "okay";
 };
 
 &hdmi_phy {
+	mediatek,ibias = <0xa>;
+	mediatek,ibias_up = <0x1c>;
 	status = "okay";
+};
+
+&hdmiddc0 {
+	status = "okay";
+};
+
+&dpi0 {
+	status = "okay";
+	port {
+		dpi0_out: endpoint {
+			remote-endpoint = <&hdmi0_in>;
+		};
+
+		dpi0_in: endpoint@1 {
+			remote-endpoint = <&bls_out>;
+		};
+	};
+};
+
+&hdmi0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmi_pin>;
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			hdmi0_in: endpoint {
+				remote-endpoint = <&dpi0_out>;
+			};
+		};
+	};
 };
 
 &i2c0 {
@@ -225,11 +250,6 @@
 &i2c1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pins_a>;
-	status = "okay";
-};
-
-&mali {
-	vdd_g3d-supply = <&vdd_fixed_vgpu_reg>;
 	status = "okay";
 };
 
@@ -289,6 +309,14 @@
 		};
 	};
 
+	hdmi_pin: htplg {
+		pins1 {
+			pinmux = <MT7623_PIN_123_HTPLG_FUNC_HTPLG>;
+			input-enable;
+			bias-pull-down;
+		};
+	};
+
 	i2c0_pins_a: i2c@0 {
 		pins_i2c0 {
 			pinmux = <MT7623_PIN_75_SDA0_FUNC_SDA0>,
@@ -342,6 +370,22 @@
 			pinmux = <MT7623_PIN_239_EXT_SDIO0_FUNC_GPIO239>,
 				 <MT7623_PIN_240_EXT_XCS_FUNC_GPIO240>,
 				 <MT7623_PIN_241_EXT_SCK_FUNC_GPIO241>;
+		};
+	};
+
+
+	mipi_dsi_pin: mipi_dsi_pin {
+		pins_cmd_dat {
+			pinmux = <MT7623_PIN_100_MIPI_TDP0_FUNC_TDP0>,
+				 <MT7623_PIN_99_MIPI_TDN0_FUNC_TDN0>,
+				 <MT7623_PIN_98_MIPI_TDP1_FUNC_TDP1>,
+				 <MT7623_PIN_97_MIPI_TDN1_FUNC_TDN1>,
+				 <MT7623_PIN_96_MIPI_TCP_FUNC_TCP>,
+				 <MT7623_PIN_95_MIPI_TCN_FUNC_TCN>,
+				 <MT7623_PIN_94_MIPI_TDP2_FUNC_TDP2>,
+				 <MT7623_PIN_93_MIPI_TDN2_FUNC_TDN2>,
+				 <MT7623_PIN_92_MIPI_TDP3_FUNC_TDP3>,
+				 <MT7623_PIN_91_MIPI_TDN3_FUNC_TDN3>;
 		};
 	};
 
@@ -448,6 +492,12 @@
 		};
 	};
 
+	pwm_bls_gpio: pwm_bls_gpio {
+		pins_cmd_dat {
+			pinmux = <MT7623_PIN_203_PWM0_FUNC_DISP_PWM>;
+		};
+	};
+
 	pcie_default: pcie_pin_default {
 		pins_cmd_dat {
 			pinmux = <MT7623_PIN_208_AUD_EXT_CK1_FUNC_PCIE0_PERST_N>,
@@ -490,41 +540,11 @@
 		};
 	};
 
-	uart3_pins_a: uart@3 {
+	uart2_pins_a: uart@2 {
 		pins_dat {
-			pinmux = <MT7623_PIN_243_UCTS2_FUNC_URXD3>,
-				 <MT7623_PIN_242_URTS2_FUNC_UTXD3>;
+			pinmux = <MT7623_PIN_14_GPIO14_FUNC_URXD2>,
+				 <MT7623_PIN_15_GPIO15_FUNC_UTXD2>;
 		};
-	};
-
-	consys_pins_default: consys_pins_default {
-		adie {
-			pinmux = <MT7623_PIN_60_WB_RSTB_FUNC_WB_RSTB>,
-				<MT7623_PIN_61_GPIO61_FUNC_TEST_FD>,
-				<MT7623_PIN_62_GPIO62_FUNC_TEST_FC>,
-				<MT7623_PIN_63_WB_SCLK_FUNC_WB_SCLK>,
-				<MT7623_PIN_64_WB_SDATA_FUNC_WB_SDATA>,
-				<MT7623_PIN_65_WB_SEN_FUNC_WB_SEN>,
-				<MT7623_PIN_66_WB_CRTL0_FUNC_WB_CRTL0>,
-				<MT7623_PIN_67_WB_CRTL1_FUNC_WB_CRTL1>,
-				<MT7623_PIN_68_WB_CRTL2_FUNC_WB_CRTL2>,
-				<MT7623_PIN_69_WB_CRTL3_FUNC_WB_CRTL3>,
-				<MT7623_PIN_70_WB_CRTL4_FUNC_WB_CRTL4>,
-				<MT7623_PIN_71_WB_CRTL5_FUNC_WB_CRTL5>;
-			bias-disable;
-		};
-	};
-
-	mipi_dsi_pin: mipi_dsi_pin {
-                pins_cmd_dat {
-                      pinmux = <MT7623_PIN_100_MIPI_TDP0_FUNC_TDP0>,
-                               <MT7623_PIN_99_MIPI_TDN0_FUNC_TDN0>,
-                               <MT7623_PIN_98_MIPI_TDP1_FUNC_TDP1>,
-                               <MT7623_PIN_97_MIPI_TDN1_FUNC_TDN1>,
-                               <MT7623_PIN_96_MIPI_TCP_FUNC_TCP>,
-                               <MT7623_PIN_95_MIPI_TCN_FUNC_TCN>;
-               };
-
 	};
 };
 
@@ -559,256 +579,13 @@
 				default-state = "off";
 			};
 		};
-
-		mt6323regulator: mt6323regulator{
-			compatible = "mediatek,mt6323-regulator";
-
-			mt6323_vproc_reg: buck_vproc{
-				regulator-name = "vproc";
-				regulator-min-microvolt = < 700000>;
-				regulator-max-microvolt = <1350000>;
-				regulator-ramp-delay = <12500>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-
-			mt6323_vsys_reg: buck_vsys{
-				regulator-name = "vsys";
-				regulator-min-microvolt = <1400000>;
-				regulator-max-microvolt = <2987500>;
-				regulator-ramp-delay = <25000>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-
-			mt6323_vpa_reg: buck_vpa{
-				regulator-name = "vpa";
-				regulator-min-microvolt = < 500000>;
-				regulator-max-microvolt = <3650000>;
-			};
-
-			mt6323_vtcxo_reg: ldo_vtcxo{
-				regulator-name = "vtcxo";
-				regulator-min-microvolt = <2800000>;
-				regulator-max-microvolt = <2800000>;
-				regulator-enable-ramp-delay = <90>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-
-			mt6323_vcn28_reg: ldo_vcn28{
-				regulator-name = "vcn28";
-				regulator-min-microvolt = <2800000>;
-				regulator-max-microvolt = <2800000>;
-				regulator-enable-ramp-delay = <185>;
-			};
-
-			mt6323_vcn33_bt_reg: ldo_vcn33_bt{
-				regulator-name = "vcn33_bt";
-				regulator-min-microvolt = <3300000>;
-				regulator-max-microvolt = <3600000>;
-				regulator-enable-ramp-delay = <185>;
-			};
-
-			mt6323_vcn33_wifi_reg: ldo_vcn33_wifi{
-				regulator-name = "vcn33_wifi";
-				regulator-min-microvolt = <3300000>;
-				regulator-max-microvolt = <3600000>;
-				regulator-enable-ramp-delay = <185>;
-			};
-
-			mt6323_va_reg: ldo_va{
-				regulator-name = "va";
-				regulator-min-microvolt = <2800000>;
-				regulator-max-microvolt = <2800000>;
-				regulator-enable-ramp-delay = <216>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-
-			mt6323_vcama_reg: ldo_vcama{
-				regulator-name = "vcama";
-				regulator-min-microvolt = <1500000>;
-				regulator-max-microvolt = <2800000>;
-				regulator-enable-ramp-delay = <216>;
-			};
-
-			mt6323_vio28_reg: ldo_vio28{
-				regulator-name = "vio28";
-				regulator-min-microvolt = <2800000>;
-				regulator-max-microvolt = <2800000>;
-				regulator-enable-ramp-delay = <216>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-
-			mt6323_vusb_reg: ldo_vusb{
-				regulator-name = "vusb";
-				regulator-min-microvolt = <3300000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-enable-ramp-delay = <216>;
-				regulator-boot-on;
-			};
-
-			mt6323_vmc_reg: ldo_vmc{
-				regulator-name = "vmc";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-enable-ramp-delay = <36>;
-				regulator-boot-on;
-			};
-
-			mt6323_vmch_reg: ldo_vmch{
-				regulator-name = "vmch";
-				regulator-min-microvolt = <3000000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-enable-ramp-delay = <36>;
-				regulator-boot-on;
-			};
-
-			mt6323_vemc3v3_reg: ldo_vemc3v3{
-				regulator-name = "vemc3v3";
-				regulator-min-microvolt = <3000000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-enable-ramp-delay = <36>;
-				regulator-boot-on;
-			};
-
-			mt6323_vgp1_reg: ldo_vgp1{
-				regulator-name = "vgp1";
-				regulator-min-microvolt = <1200000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-enable-ramp-delay = <216>;
-			};
-
-			mt6323_vgp2_reg: ldo_vgp2{
-				regulator-name = "vgp2";
-				regulator-min-microvolt = <1200000>;
-				regulator-max-microvolt = <3000000>;
-				regulator-enable-ramp-delay = <216>;
-			};
-
-			mt6323_vgp3_reg: ldo_vgp3{
-				regulator-name = "vgp3";
-				regulator-min-microvolt = <1200000>;
-				regulator-max-microvolt = <1800000>;
-				regulator-enable-ramp-delay = <216>;
-			};
-
-			mt6323_vcn18_reg: ldo_vcn18{
-				regulator-name = "vcn18";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-				regulator-enable-ramp-delay = <216>;
-			};
-
-			mt6323_vsim1_reg: ldo_vsim1{
-				regulator-name = "vsim1";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <3000000>;
-				regulator-enable-ramp-delay = <216>;
-			};
-
-			mt6323_vsim2_reg: ldo_vsim2{
-				regulator-name = "vsim2";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <3000000>;
-				regulator-enable-ramp-delay = <216>;
-			};
-
-			mt6323_vrtc_reg: ldo_vrtc{
-				regulator-name = "vrtc";
-				regulator-min-microvolt = <2800000>;
-				regulator-max-microvolt = <2800000>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-
-			mt6323_vcamaf_reg: ldo_vcamaf{
-				regulator-name = "vcamaf";
-				regulator-min-microvolt = <1200000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-enable-ramp-delay = <216>;
-			};
-
-			mt6323_vibr_reg: ldo_vibr{
-				regulator-name = "vibr";
-				regulator-min-microvolt = <1200000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-enable-ramp-delay = <36>;
-			};
-
-			mt6323_vrf18_reg: ldo_vrf18{
-				regulator-name = "vrf18";
-				regulator-min-microvolt = <1825000>;
-				regulator-max-microvolt = <1825000>;
-				regulator-enable-ramp-delay = <187>;
-			};
-
-			mt6323_vm_reg: ldo_vm{
-				regulator-name = "vm";
-				regulator-min-microvolt = <1200000>;
-				regulator-max-microvolt = <1800000>;
-				regulator-enable-ramp-delay = <216>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-
-			mt6323_vio18_reg: ldo_vio18{
-				regulator-name = "vio18";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-				regulator-enable-ramp-delay = <216>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-
-			mt6323_vcamd_reg: ldo_vcamd{
-				regulator-name = "vcamd";
-				regulator-min-microvolt = <1200000>;
-				regulator-max-microvolt = <1800000>;
-				regulator-enable-ramp-delay = <216>;
-			};
-
-			mt6323_vcamio_reg: ldo_vcamio{
-				regulator-name = "vcamio";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-				regulator-enable-ramp-delay = <216>;
-			};
-		};
-
-		mt6323rtc: rtc {
-			compatible = "mediatek,mt6323-rtc";
-
-			power-off {
-				compatible = "mediatek,mt6323-rtc-poweroff";
-			};
-		};
 	};
-
-};
-
-&consys {       
-	mediatek,pwrap-regmap = <&pwrap>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&consys_pins_default>;
-	vcn18-supply = <&mt6323_vcn18_reg>;
-	vcn28-supply = <&mt6323_vcn28_reg>;
-	vcn33_bt-supply = <&mt6323_vcn33_bt_reg>;
-	vcn33_wifi-supply = <&mt6323_vcn33_wifi_reg>;
-	status = "okay";
 };
 
 &spi0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi0_pins_a>;
 	status = "okay";
-	spidev: spidev@0 {
-		compatible = "rohm,dh2228fv";
-		spi-max-frequency = <1000000>;
-		reg = <0>;
-	};
 };
 
 &uart0 {
@@ -824,12 +601,8 @@
 };
 
 &uart2 {
-	status = "okay";
-};
-
-&uart3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart3_pins_a>;
+	pinctrl-0 = <&uart2_pins_a>;
 	status = "okay";
 };
 
@@ -853,12 +626,3 @@
 	status = "okay";
 };
 
-&watchdog {
-	status = "okay";
-};
-
-&mipi_tx0 {
-        pinctrl-names = "default";
-        pinctrl-0 = <&mipi_dsi_pin>;
-        status = "okay";
-};

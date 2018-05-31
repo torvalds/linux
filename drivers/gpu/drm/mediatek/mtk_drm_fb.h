@@ -19,5 +19,8 @@ int mtk_fb_wait(struct drm_framebuffer *fb);
 struct drm_framebuffer *mtk_drm_mode_fb_create(struct drm_device *dev,
 					       struct drm_file *file,
 					       const struct drm_mode_fb_cmd2 *cmd);
+struct drm_framebuffer *mtk_drm_framebuffer_create(struct drm_device *dev,
+		const struct drm_mode_fb_cmd2 *mode,
+		struct drm_gem_object *obj);
 
 #endif /* MTK_DRM_FB_H */
