@@ -2114,10 +2114,13 @@ isert_set_sig_attrs(struct se_cmd *se_cmd, struct ib_sig_attrs *sig_attrs)
 		return -EINVAL;
 	}
 
-	sig_attrs->check_mask =
-	       (se_cmd->prot_checks & TARGET_DIF_CHECK_GUARD  ? 0xc0 : 0) |
-	       (se_cmd->prot_checks & TARGET_DIF_CHECK_APPTAG ? 0x30 : 0) |
-	       (se_cmd->prot_checks & TARGET_DIF_CHECK_REFTAG ? 0x0f : 0);
+	if (se_cmd->prot_checks & TARGET_DIF_CHECK_GUARD)
+		sig_attrs->check_mask |= IB_SIG_CHECK_GUARD;
+	if (se_cmd->prot_checks & TARGET_DIF_CHECK_APPTAG)
+		sig_attrs->check_mask |= IB_SIG_CHECK_APPTAG;
+	if (se_cmd->prot_checks & TARGET_DIF_CHECK_REFTAG)
+		sig_attrs->check_mask |= IB_SIG_CHECK_REFTAG;
+
 	return 0;
 }
 
