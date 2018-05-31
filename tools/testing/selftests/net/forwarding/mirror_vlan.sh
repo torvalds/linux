@@ -108,7 +108,7 @@ test_all()
 
 	tests_run
 
-	trap_install $h3 ingress
+	trap_uninstall $h3 ingress
 	slow_path_trap_uninstall $swp1 egress
 	slow_path_trap_uninstall $swp1 ingress
 }
