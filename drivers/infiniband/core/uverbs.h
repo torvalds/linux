@@ -263,6 +263,7 @@ struct ib_uverbs_flow_spec {
 		struct ib_uverbs_flow_spec_action_tag	flow_tag;
 		struct ib_uverbs_flow_spec_action_drop	drop;
 		struct ib_uverbs_flow_spec_action_handle action;
+		struct ib_uverbs_flow_spec_action_count flow_count;
 	};
 };
 
