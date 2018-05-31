@@ -13,7 +13,9 @@
 #include <linux/rtc.h>
 #include <linux/platform_device.h>
 
-static struct platform_device *test0 = NULL, *test1 = NULL;
+#define MAX_RTC_TEST 3
+
+struct platform_device *pdev[MAX_RTC_TEST];
 
 static int test_rtc_read_alarm(struct device *dev,
 	struct rtc_wkalrm *alrm)
@@ -122,47 +124,45 @@ static struct platform_driver test_driver = {
 
 static int __init test_init(void)
 {
-	int err;
+	int i, err;
 
 	if ((err = platform_driver_register(&test_driver)))
 		return err;
 
-	if ((test0 = platform_device_alloc("rtc-test", 0)) == NULL) {
-		err = -ENOMEM;
-		goto exit_driver_unregister;
+	err = -ENOMEM;
+	for (i = 0; i < MAX_RTC_TEST; i++) {
+		pdev[i] = platform_device_alloc("rtc-test", i);
+		if (!pdev[i])
+			goto exit_free_mem;
 	}
 
-	if ((test1 = platform_device_alloc("rtc-test", 1)) == NULL) {
-		err = -ENOMEM;
-		goto exit_put_test0;
+	for (i = 0; i < MAX_RTC_TEST; i++) {
+		err = platform_device_add(pdev[i]);
+		if (err)
+			goto exit_device_del;
 	}
-
-	if ((err = platform_device_add(test0)))
-		goto exit_put_test1;
-
-	if ((err = platform_device_add(test1)))
-		goto exit_del_test0;
 
 	return 0;
 
-exit_del_test0:
-	platform_device_del(test0);
+exit_device_del:
+	for (; i > 0; i--)
+		platform_device_del(pdev[i - 1]);
 
-exit_put_test1:
-	platform_device_put(test1);
+exit_free_mem:
+	for (i = 0; i < MAX_RTC_TEST; i++)
+		platform_device_put(pdev[i]);
 
-exit_put_test0:
-	platform_device_put(test0);
-
-exit_driver_unregister:
 	platform_driver_unregister(&test_driver);
 	return err;
 }
 
 static void __exit test_exit(void)
 {
-	platform_device_unregister(test0);
-	platform_device_unregister(test1);
+	int i;
+
+	for (i = 0; i < MAX_RTC_TEST; i++)
+		platform_device_unregister(pdev[i]);
+
 	platform_driver_unregister(&test_driver);
 }
 
