@@ -323,6 +323,7 @@
  * There are twelve Supplemental Reply Post Host Index Registers
  * and each register is at offset 0x10 bytes from the previous one.
  */
+#define MAX_COMBINED_MSIX_VECTORS(gen35) ((gen35 == 1) ? 16 : 8)
 #define MPT3_SUP_REPLY_POST_HOST_INDEX_REG_COUNT_G3	12
 #define MPT3_SUP_REPLY_POST_HOST_INDEX_REG_COUNT_G35	16
 #define MPT3_SUP_REPLY_POST_HOST_INDEX_REG_OFFSET	(0x10)

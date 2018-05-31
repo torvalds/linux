@@ -2952,10 +2952,9 @@ mpt3sas_base_unmap_resources(struct MPT3SAS_ADAPTER *ioc)
 	_base_free_irq(ioc);
 	_base_disable_msix(ioc);
 
-	if (ioc->combined_reply_queue) {
-		kfree(ioc->replyPostRegisterIndex);
-		ioc->replyPostRegisterIndex = NULL;
-	}
+	kfree(ioc->replyPostRegisterIndex);
+	ioc->replyPostRegisterIndex = NULL;
+
 
 	if (ioc->chip_phys) {
 		iounmap(ioc->chip);
@@ -3062,7 +3061,7 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 	/* Use the Combined reply queue feature only for SAS3 C0 & higher
 	 * revision HBAs and also only when reply queue count is greater than 8
 	 */
-	if (ioc->combined_reply_queue && ioc->reply_queue_count > 8) {
+	if (ioc->combined_reply_queue) {
 		/* Determine the Supplemental Reply Post Host Index Registers
 		 * Addresse. Supplemental Reply Post Host Index Registers
 		 * starts at offset MPI25_SUP_REPLY_POST_HOST_INDEX_OFFSET and
@@ -3086,8 +3085,7 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 			     MPI25_SUP_REPLY_POST_HOST_INDEX_OFFSET +
 			     (i * MPT3_SUP_REPLY_POST_HOST_INDEX_REG_OFFSET));
 		}
-	} else
-		ioc->combined_reply_queue = 0;
+	}
 
 	if (ioc->is_warpdrive) {
 		ioc->reply_post_host_index[0] = (resource_size_t __iomem *)
@@ -5705,6 +5703,9 @@ _base_get_ioc_facts(struct MPT3SAS_ADAPTER *ioc)
 	facts->WhoInit = mpi_reply.WhoInit;
 	facts->NumberOfPorts = mpi_reply.NumberOfPorts;
 	facts->MaxMSIxVectors = mpi_reply.MaxMSIxVectors;
+	if (ioc->msix_enable && (facts->MaxMSIxVectors <=
+	    MAX_COMBINED_MSIX_VECTORS(ioc->is_gen35_ioc)))
+		ioc->combined_reply_queue = 0;
 	facts->RequestCredit = le16_to_cpu(mpi_reply.RequestCredit);
 	facts->MaxReplyDescriptorPostQueueDepth =
 	    le16_to_cpu(mpi_reply.MaxReplyDescriptorPostQueueDepth);
