@@ -4,6 +4,7 @@
 snd-soc-mt6797-afe-objs := \
 	mt6797-afe-pcm.o \
 	mt6797-afe-clk.o \
+	mt6797-dai-pcm.o \
 	mt6797-dai-adda.o
 
 obj-$(CONFIG_SND_SOC_MT6797) += snd-soc-mt6797-afe.o

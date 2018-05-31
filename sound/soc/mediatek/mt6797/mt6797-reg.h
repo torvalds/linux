@@ -835,4 +835,181 @@
 #define DL1_HD_ALIGN_SFT                                    0
 #define DL1_HD_ALIGN_MASK                                   0x1
 #define DL1_HD_ALIGN_MASK_SFT                               (0x1 << 0)
+
+/* PCM_INTF_CON1 */
+#define PCM_FIX_VALUE_SEL_SFT                               31
+#define PCM_FIX_VALUE_SEL_MASK                              0x1
+#define PCM_FIX_VALUE_SEL_MASK_SFT                          (0x1 << 31)
+#define PCM_BUFFER_LOOPBACK_SFT                             30
+#define PCM_BUFFER_LOOPBACK_MASK                            0x1
+#define PCM_BUFFER_LOOPBACK_MASK_SFT                        (0x1 << 30)
+#define PCM_PARALLEL_LOOPBACK_SFT                           29
+#define PCM_PARALLEL_LOOPBACK_MASK                          0x1
+#define PCM_PARALLEL_LOOPBACK_MASK_SFT                      (0x1 << 29)
+#define PCM_SERIAL_LOOPBACK_SFT                             28
+#define PCM_SERIAL_LOOPBACK_MASK                            0x1
+#define PCM_SERIAL_LOOPBACK_MASK_SFT                        (0x1 << 28)
+#define PCM_DAI_PCM_LOOPBACK_SFT                            27
+#define PCM_DAI_PCM_LOOPBACK_MASK                           0x1
+#define PCM_DAI_PCM_LOOPBACK_MASK_SFT                       (0x1 << 27)
+#define PCM_I2S_PCM_LOOPBACK_SFT                            26
+#define PCM_I2S_PCM_LOOPBACK_MASK                           0x1
+#define PCM_I2S_PCM_LOOPBACK_MASK_SFT                       (0x1 << 26)
+#define PCM_SYNC_DELSEL_SFT                                 25
+#define PCM_SYNC_DELSEL_MASK                                0x1
+#define PCM_SYNC_DELSEL_MASK_SFT                            (0x1 << 25)
+#define PCM_TX_LR_SWAP_SFT                                  24
+#define PCM_TX_LR_SWAP_MASK                                 0x1
+#define PCM_TX_LR_SWAP_MASK_SFT                             (0x1 << 24)
+#define PCM_SYNC_OUT_INV_SFT                                23
+#define PCM_SYNC_OUT_INV_MASK                               0x1
+#define PCM_SYNC_OUT_INV_MASK_SFT                           (0x1 << 23)
+#define PCM_BCLK_OUT_INV_SFT                                22
+#define PCM_BCLK_OUT_INV_MASK                               0x1
+#define PCM_BCLK_OUT_INV_MASK_SFT                           (0x1 << 22)
+#define PCM_SYNC_IN_INV_SFT                                 21
+#define PCM_SYNC_IN_INV_MASK                                0x1
+#define PCM_SYNC_IN_INV_MASK_SFT                            (0x1 << 21)
+#define PCM_BCLK_IN_INV_SFT                                 20
+#define PCM_BCLK_IN_INV_MASK                                0x1
+#define PCM_BCLK_IN_INV_MASK_SFT                            (0x1 << 20)
+#define PCM_TX_LCH_RPT_SFT                                  19
+#define PCM_TX_LCH_RPT_MASK                                 0x1
+#define PCM_TX_LCH_RPT_MASK_SFT                             (0x1 << 19)
+#define PCM_VBT_16K_MODE_SFT                                18
+#define PCM_VBT_16K_MODE_MASK                               0x1
+#define PCM_VBT_16K_MODE_MASK_SFT                           (0x1 << 18)
+#define PCM_EXT_MODEM_SFT                                   17
+#define PCM_EXT_MODEM_MASK                                  0x1
+#define PCM_EXT_MODEM_MASK_SFT                              (0x1 << 17)
+#define PCM_24BIT_SFT                                       16
+#define PCM_24BIT_MASK                                      0x1
+#define PCM_24BIT_MASK_SFT                                  (0x1 << 16)
+#define PCM_WLEN_SFT                                        14
+#define PCM_WLEN_MASK                                       0x3
+#define PCM_WLEN_MASK_SFT                                   (0x3 << 14)
+#define PCM_SYNC_LENGTH_SFT                                 9
+#define PCM_SYNC_LENGTH_MASK                                0x1f
+#define PCM_SYNC_LENGTH_MASK_SFT                            (0x1f << 9)
+#define PCM_SYNC_TYPE_SFT                                   8
+#define PCM_SYNC_TYPE_MASK                                  0x1
+#define PCM_SYNC_TYPE_MASK_SFT                              (0x1 << 8)
+#define PCM_BT_MODE_SFT                                     7
+#define PCM_BT_MODE_MASK                                    0x1
+#define PCM_BT_MODE_MASK_SFT                                (0x1 << 7)
+#define PCM_BYP_ASRC_SFT                                    6
+#define PCM_BYP_ASRC_MASK                                   0x1
+#define PCM_BYP_ASRC_MASK_SFT                               (0x1 << 6)
+#define PCM_SLAVE_SFT                                       5
+#define PCM_SLAVE_MASK                                      0x1
+#define PCM_SLAVE_MASK_SFT                                  (0x1 << 5)
+#define PCM_MODE_SFT                                        3
+#define PCM_MODE_MASK                                       0x3
+#define PCM_MODE_MASK_SFT                                   (0x3 << 3)
+#define PCM_FMT_SFT                                         1
+#define PCM_FMT_MASK                                        0x3
+#define PCM_FMT_MASK_SFT                                    (0x3 << 1)
+#define PCM_EN_SFT                                          0
+#define PCM_EN_MASK                                         0x1
+#define PCM_EN_MASK_SFT                                     (0x1 << 0)
+
+/* PCM_INTF_CON2 */
+#define PCM1_TX_FIFO_OV_SFT                                 31
+#define PCM1_TX_FIFO_OV_MASK                                0x1
+#define PCM1_TX_FIFO_OV_MASK_SFT                            (0x1 << 31)
+#define PCM1_RX_FIFO_OV_SFT                                 30
+#define PCM1_RX_FIFO_OV_MASK                                0x1
+#define PCM1_RX_FIFO_OV_MASK_SFT                            (0x1 << 30)
+#define PCM2_TX_FIFO_OV_SFT                                 29
+#define PCM2_TX_FIFO_OV_MASK                                0x1
+#define PCM2_TX_FIFO_OV_MASK_SFT                            (0x1 << 29)
+#define PCM2_RX_FIFO_OV_SFT                                 28
+#define PCM2_RX_FIFO_OV_MASK                                0x1
+#define PCM2_RX_FIFO_OV_MASK_SFT                            (0x1 << 28)
+#define PCM1_SYNC_GLITCH_SFT                                27
+#define PCM1_SYNC_GLITCH_MASK                               0x1
+#define PCM1_SYNC_GLITCH_MASK_SFT                           (0x1 << 27)
+#define PCM2_SYNC_GLITCH_SFT                                26
+#define PCM2_SYNC_GLITCH_MASK                               0x1
+#define PCM2_SYNC_GLITCH_MASK_SFT                           (0x1 << 26)
+#define PCM1_PCM2_LOOPBACK_SFT                              15
+#define PCM1_PCM2_LOOPBACK_MASK                             0x1
+#define PCM1_PCM2_LOOPBACK_MASK_SFT                         (0x1 << 15)
+#define DAI_PCM_LOOPBACK_CH_SFT                             13
+#define DAI_PCM_LOOPBACK_CH_MASK                            0x1
+#define DAI_PCM_LOOPBACK_CH_MASK_SFT                        (0x1 << 13)
+#define I2S_PCM_LOOPBACK_CH_SFT                             12
+#define I2S_PCM_LOOPBACK_CH_MASK                            0x1
+#define I2S_PCM_LOOPBACK_CH_MASK_SFT                        (0x1 << 12)
+#define PCM_USE_MD3_SFT                                     8
+#define PCM_USE_MD3_MASK                                    0x1
+#define PCM_USE_MD3_MASK_SFT                                (0x1 << 8)
+#define TX_FIX_VALUE_SFT                                    0
+#define TX_FIX_VALUE_MASK                                   0xff
+#define TX_FIX_VALUE_MASK_SFT                               (0xff << 0)
+
+/* PCM2_INTF_CON */
+#define PCM2_TX_FIX_VALUE_SFT                                24
+#define PCM2_TX_FIX_VALUE_MASK                               0xff
+#define PCM2_TX_FIX_VALUE_MASK_SFT                           (0xff << 24)
+#define PCM2_FIX_VALUE_SEL_SFT                               23
+#define PCM2_FIX_VALUE_SEL_MASK                              0x1
+#define PCM2_FIX_VALUE_SEL_MASK_SFT                          (0x1 << 23)
+#define PCM2_BUFFER_LOOPBACK_SFT                             22
+#define PCM2_BUFFER_LOOPBACK_MASK                            0x1
+#define PCM2_BUFFER_LOOPBACK_MASK_SFT                        (0x1 << 22)
+#define PCM2_PARALLEL_LOOPBACK_SFT                           21
+#define PCM2_PARALLEL_LOOPBACK_MASK                          0x1
+#define PCM2_PARALLEL_LOOPBACK_MASK_SFT                      (0x1 << 21)
+#define PCM2_SERIAL_LOOPBACK_SFT                             20
+#define PCM2_SERIAL_LOOPBACK_MASK                            0x1
+#define PCM2_SERIAL_LOOPBACK_MASK_SFT                        (0x1 << 20)
+#define PCM2_DAI_PCM_LOOPBACK_SFT                            19
+#define PCM2_DAI_PCM_LOOPBACK_MASK                           0x1
+#define PCM2_DAI_PCM_LOOPBACK_MASK_SFT                       (0x1 << 19)
+#define PCM2_I2S_PCM_LOOPBACK_SFT                            18
+#define PCM2_I2S_PCM_LOOPBACK_MASK                           0x1
+#define PCM2_I2S_PCM_LOOPBACK_MASK_SFT                       (0x1 << 18)
+#define PCM2_SYNC_DELSEL_SFT                                 17
+#define PCM2_SYNC_DELSEL_MASK                                0x1
+#define PCM2_SYNC_DELSEL_MASK_SFT                            (0x1 << 17)
+#define PCM2_TX_LR_SWAP_SFT                                  16
+#define PCM2_TX_LR_SWAP_MASK                                 0x1
+#define PCM2_TX_LR_SWAP_MASK_SFT                             (0x1 << 16)
+#define PCM2_SYNC_IN_INV_SFT                                 15
+#define PCM2_SYNC_IN_INV_MASK                                0x1
+#define PCM2_SYNC_IN_INV_MASK_SFT                            (0x1 << 15)
+#define PCM2_BCLK_IN_INV_SFT                                 14
+#define PCM2_BCLK_IN_INV_MASK                                0x1
+#define PCM2_BCLK_IN_INV_MASK_SFT                            (0x1 << 14)
+#define PCM2_TX_LCH_RPT_SFT                                  13
+#define PCM2_TX_LCH_RPT_MASK                                 0x1
+#define PCM2_TX_LCH_RPT_MASK_SFT                             (0x1 << 13)
+#define PCM2_VBT_16K_MODE_SFT                                12
+#define PCM2_VBT_16K_MODE_MASK                               0x1
+#define PCM2_VBT_16K_MODE_MASK_SFT                           (0x1 << 12)
+#define PCM2_LOOPBACK_CH_SEL_SFT                             10
+#define PCM2_LOOPBACK_CH_SEL_MASK                            0x3
+#define PCM2_LOOPBACK_CH_SEL_MASK_SFT                        (0x3 << 10)
+#define PCM2_TX2_BT_MODE_SFT                                 8
+#define PCM2_TX2_BT_MODE_MASK                                0x1
+#define PCM2_TX2_BT_MODE_MASK_SFT                            (0x1 << 8)
+#define PCM2_BT_MODE_SFT                                     7
+#define PCM2_BT_MODE_MASK                                    0x1
+#define PCM2_BT_MODE_MASK_SFT                                (0x1 << 7)
+#define PCM2_AFIFO_SFT                                       6
+#define PCM2_AFIFO_MASK                                      0x1
+#define PCM2_AFIFO_MASK_SFT                                  (0x1 << 6)
+#define PCM2_WLEN_SFT                                        5
+#define PCM2_WLEN_MASK                                       0x1
+#define PCM2_WLEN_MASK_SFT                                   (0x1 << 5)
+#define PCM2_MODE_SFT                                        3
+#define PCM2_MODE_MASK                                       0x3
+#define PCM2_MODE_MASK_SFT                                   (0x3 << 3)
+#define PCM2_FMT_SFT                                         1
+#define PCM2_FMT_MASK                                        0x3
+#define PCM2_FMT_MASK_SFT                                    (0x3 << 1)
+#define PCM2_EN_SFT                                          0
+#define PCM2_EN_MASK                                         0x1
+#define PCM2_EN_MASK_SFT                                     (0x1 << 0)
 #endif
