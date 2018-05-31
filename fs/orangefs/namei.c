@@ -314,6 +314,13 @@ static int orangefs_symlink(struct inode *dir,
 		ret = PTR_ERR(inode);
 		goto out;
 	}
+	/*
+	 * This is necessary because orangefs_inode_getattr will not
+	 * re-read symlink size as it is impossible for it to change.
+	 * Invalidating the cache does not help.  orangefs_new_inode
+	 * does not set the correct size (it does not know symname).
+	 */
+	inode->i_size = strlen(symname);
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "Assigned symlink inode new number of %pU\n",
