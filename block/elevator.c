@@ -263,7 +263,6 @@ int elevator_init(struct request_queue *q, char *name)
 		elevator_put(e);
 	return err;
 }
-EXPORT_SYMBOL(elevator_init);
 
 void elevator_exit(struct request_queue *q, struct elevator_queue *e)
 {
@@ -276,7 +275,6 @@ void elevator_exit(struct request_queue *q, struct elevator_queue *e)
 
 	kobject_put(&e->kobj);
 }
-EXPORT_SYMBOL(elevator_exit);
 
 static inline void __elv_rqhash_del(struct request *rq)
 {
