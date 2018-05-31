@@ -40,7 +40,6 @@
 #undef pr_fmt
 #define pr_fmt(fmt)	KBUILD_MODNAME ": %s: " fmt, __func__
 
-#define QTNF_MAX_SSID_LIST_LENGTH	2
 #define QTNF_MAX_VSIE_LEN		255
 #define QTNF_MAX_INTF			8
 #define QTNF_MAX_EVENT_QUEUE_LEN	255
@@ -145,6 +144,7 @@ struct qtnf_hw_info {
 	u8 total_rx_chain;
 	char fw_version[ETHTOOL_FWVERS_LEN];
 	u32 hw_version;
+	u8 max_scan_ssids;
 };
 
 struct qtnf_vif *qtnf_mac_get_free_vif(struct qtnf_wmac *mac);

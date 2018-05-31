@@ -1092,6 +1092,9 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 		case QTN_TLV_ID_UBOOT_VER:
 			uboot_ver = (const void *)tlv->val;
 			break;
+		case QTN_TLV_ID_MAX_SCAN_SSIDS:
+			hwinfo->max_scan_ssids = *tlv->val;
+			break;
 		default:
 			break;
 		}
@@ -2259,11 +2262,6 @@ int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 	int n_channels;
 	int count = 0;
 	int ret;
-
-	if (scan_req->n_ssids > QTNF_MAX_SSID_LIST_LENGTH) {
-		pr_err("MAC%u: too many SSIDs in scan request\n", mac->macid);
-		return -EINVAL;
-	}
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, QLINK_VIFID_RSVD,
 					    QLINK_CMD_SCAN,

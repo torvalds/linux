@@ -1091,6 +1091,8 @@ struct qlink_event_radar {
  * @QTN_TLV_ID_STA_STATS: per-STA statistics as defined by
  *	&struct qlink_sta_stats. Valid values are marked as such in a bitmap
  *	carried by QTN_TLV_ID_STA_STATS_MAP.
+ * @QTN_TLV_ID_MAX_SCAN_SSIDS: maximum number of SSIDs the device can scan
+ *	for in any given scan.
  */
 enum qlink_tlv_id {
 	QTN_TLV_ID_FRAG_THRESH		= 0x0201,
@@ -1119,6 +1121,7 @@ enum qlink_tlv_id {
 	QTN_TLV_ID_CALIBRATION_VER	= 0x0406,
 	QTN_TLV_ID_UBOOT_VER		= 0x0407,
 	QTN_TLV_ID_RANDOM_MAC_ADDR	= 0x0408,
+	QTN_TLV_ID_MAX_SCAN_SSIDS	= 0x0409,
 };
 
 struct qlink_tlv_hdr {

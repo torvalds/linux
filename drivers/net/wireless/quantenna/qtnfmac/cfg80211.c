@@ -995,7 +995,8 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 	wiphy->retry_long = macinfo->lretry_limit;
 	wiphy->coverage_class = macinfo->coverage_class;
 
-	wiphy->max_scan_ssids = QTNF_MAX_SSID_LIST_LENGTH;
+	wiphy->max_scan_ssids =
+		(hw_info->max_scan_ssids) ? hw_info->max_scan_ssids : 1;
 	wiphy->max_scan_ie_len = QTNF_MAX_VSIE_LEN;
 	wiphy->mgmt_stypes = qtnf_mgmt_stypes;
 	wiphy->max_remain_on_channel_duration = 5000;
