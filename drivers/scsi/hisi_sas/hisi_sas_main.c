@@ -1652,14 +1652,32 @@ out:
 static int hisi_sas_clear_nexus_ha(struct sas_ha_struct *sas_ha)
 {
 	struct hisi_hba *hisi_hba = sas_ha->lldd_ha;
+	struct device *dev = hisi_hba->dev;
 	HISI_SAS_DECLARE_RST_WORK_ON_STACK(r);
+	int rc, i;
 
 	queue_work(hisi_hba->wq, &r.work);
 	wait_for_completion(r.completion);
-	if (r.done)
-		return TMF_RESP_FUNC_COMPLETE;
+	if (!r.done)
+		return TMF_RESP_FUNC_FAILED;
 
-	return TMF_RESP_FUNC_FAILED;
+	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
+		struct hisi_sas_device *sas_dev = &hisi_hba->devices[i];
+		struct domain_device *device = sas_dev->sas_device;
+
+		if ((sas_dev->dev_type == SAS_PHY_UNUSED) || !device ||
+		    DEV_IS_EXPANDER(device->dev_type))
+			continue;
+
+		rc = hisi_sas_debug_I_T_nexus_reset(device);
+		if (rc != TMF_RESP_FUNC_COMPLETE)
+			dev_info(dev, "clear nexus ha: for device[%d] rc=%d\n",
+				 sas_dev->device_id, rc);
+	}
+
+	hisi_sas_release_tasks(hisi_hba);
+
+	return TMF_RESP_FUNC_COMPLETE;
 }
 
 static int hisi_sas_query_task(struct sas_task *task)
