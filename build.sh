@@ -31,6 +31,34 @@ kernver=$(make kernelversion)
 kernbranch=$(git rev-parse --abbrev-ref HEAD)
 gitbranch=$(git rev-parse --abbrev-ref HEAD|sed 's/^4\.[0-9]\+-//')
 
+function increase_kernel {
+        #echo $kernver
+        old_IFS=$IFS
+        IFS='.'
+        read -ra KV <<< "$kernver"
+        IFS=','
+        newkernver=${KV[0]}"."${KV[1]}"."$(( ${KV[2]} +1 ))
+        echo $newkernver
+}
+
+function update_kernel_source {
+        changedfiles=$(git diff --name-only)
+        if [[ -z "$changedfiles" ]]; then
+        git fetch stable
+        ret=$?
+        if [[ $ret -eq 0 ]];then
+                newkernver=$(increase_kernel)
+                echo "newkernver:$newkernver"
+                git merge v$newkernver
+        elif [[ $ret -eq 128 ]];then
+                #repo not found
+                git remote add stable https://git.kernel.org/pub/scm/linux/kern$
+        fi
+        else
+                echo "please first commit/stash modified files: $changedfiles"
+        fi
+}
+
 function pack {
 	prepare_SD
 	echo "pack..."
@@ -238,7 +266,12 @@ if [ -n "$kernver" ]; then
 			git pull
 			;;
 
-  		"umount")
+                "updatesrc")
+                        echo "Update kernel source"
+                        update_kernel_source
+                        ;;
+
+ 		"umount")
 			echo "Umount SD Media"
 			umount /media/$USER/BPI-BOOT
 			umount /media/$USER/BPI-ROOT
