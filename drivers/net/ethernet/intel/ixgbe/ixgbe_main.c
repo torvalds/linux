@@ -10022,6 +10022,15 @@ static int ixgbe_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	}
 }
 
+static void ixgbe_xdp_ring_update_tail(struct ixgbe_ring *ring)
+{
+	/* Force memory writes to complete before letting h/w know there
+	 * are new descriptors to fetch.
+	 */
+	wmb();
+	writel(ring->next_to_use, ring->tail);
+}
+
 static int ixgbe_xdp_xmit(struct net_device *dev, int n,
 			  struct xdp_frame **frames, u32 flags)
 {
@@ -10033,7 +10042,7 @@ static int ixgbe_xdp_xmit(struct net_device *dev, int n,
 	if (unlikely(test_bit(__IXGBE_DOWN, &adapter->state)))
 		return -ENETDOWN;
 
-	if (unlikely(flags & ~XDP_XMIT_FLAGS_NONE))
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
 		return -EINVAL;
 
 	/* During program transitions its possible adapter->xdp_prog is assigned
@@ -10054,6 +10063,9 @@ static int ixgbe_xdp_xmit(struct net_device *dev, int n,
 		}
 	}
 
+	if (unlikely(flags & XDP_XMIT_FLUSH))
+		ixgbe_xdp_ring_update_tail(ring);
+
 	return n - drops;
 }
 
@@ -10072,11 +10084,7 @@ static void ixgbe_xdp_flush(struct net_device *dev)
 	if (unlikely(!ring))
 		return;
 
-	/* Force memory writes to complete before letting h/w know there
-	 * are new descriptors to fetch.
-	 */
-	wmb();
-	writel(ring->next_to_use, ring->tail);
+	ixgbe_xdp_ring_update_tail(ring);
 
 	return;
 }
