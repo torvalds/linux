@@ -2031,8 +2031,10 @@ static int netvsc_probe(struct hv_device *dev,
 	}
 
 	net_device_ctx->failover = failover_register(net, &netvsc_failover_ops);
-	if (IS_ERR(net_device_ctx->failover))
+	if (IS_ERR(net_device_ctx->failover)) {
+		ret = PTR_ERR(net_device_ctx->failover);
 		goto err_failover;
+	}
 
 	return ret;
 
