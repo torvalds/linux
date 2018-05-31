@@ -75,6 +75,21 @@ static const char *mlx5_fpga_image_name(enum mlx5_fpga_image image)
 	}
 }
 
+static const char *mlx5_fpga_device_name(u32 device)
+{
+	switch (device) {
+	case MLX5_FPGA_DEVICE_KU040:
+		return "ku040";
+	case MLX5_FPGA_DEVICE_KU060:
+		return "ku060";
+	case MLX5_FPGA_DEVICE_KU060_2:
+		return "ku060_2";
+	case MLX5_FPGA_DEVICE_UNKNOWN:
+	default:
+		return "unknown";
+	}
+}
+
 static int mlx5_fpga_device_load_check(struct mlx5_fpga_device *fdev)
 {
 	struct mlx5_fpga_query query;
@@ -128,8 +143,9 @@ static int mlx5_fpga_device_brb(struct mlx5_fpga_device *fdev)
 int mlx5_fpga_device_start(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_fpga_device *fdev = mdev->fpga;
-	unsigned long flags;
 	unsigned int max_num_qps;
+	unsigned long flags;
+	u32 fpga_device_id;
 	int err;
 
 	if (!fdev)
@@ -143,12 +159,23 @@ int mlx5_fpga_device_start(struct mlx5_core_dev *mdev)
 	if (err)
 		goto out;
 
-	mlx5_fpga_info(fdev, "device %u; %s image, version %u\n",
-		       MLX5_CAP_FPGA(fdev->mdev, fpga_device),
+	fpga_device_id = MLX5_CAP_FPGA(fdev->mdev, fpga_device);
+	mlx5_fpga_info(fdev, "%s:%u; %s image, version %u; SBU %06x:%04x version %d\n",
+		       mlx5_fpga_device_name(fpga_device_id),
+		       fpga_device_id,
 		       mlx5_fpga_image_name(fdev->last_oper_image),
-		       MLX5_CAP_FPGA(fdev->mdev, image_version));
+		       MLX5_CAP_FPGA(fdev->mdev, image_version),
+		       MLX5_CAP_FPGA(fdev->mdev, ieee_vendor_id),
+		       MLX5_CAP_FPGA(fdev->mdev, sandbox_product_id),
+		       MLX5_CAP_FPGA(fdev->mdev, sandbox_product_version));
 
 	max_num_qps = MLX5_CAP_FPGA(mdev, shell_caps.max_num_qps);
+	if (!max_num_qps) {
+		mlx5_fpga_err(fdev, "FPGA reports 0 QPs in SHELL_CAPS\n");
+		err = -ENOTSUPP;
+		goto out;
+	}
+
 	err = mlx5_core_reserve_gids(mdev, max_num_qps);
 	if (err)
 		goto out;
