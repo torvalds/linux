@@ -110,37 +110,6 @@ static void test_rtc_alarm_handler(struct timer_list *t)
 	rtc_update_irq(rtd->rtc, 1, RTC_AF | RTC_IRQF);
 }
 
-static ssize_t test_irq_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", 42);
-}
-static ssize_t test_irq_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
-{
-	int retval;
-	struct rtc_device *rtc = dev_get_drvdata(dev);
-
-	retval = count;
-	if (strncmp(buf, "tick", 4) == 0 && rtc->pie_enabled)
-		rtc_update_irq(rtc, 1, RTC_PF | RTC_IRQF);
-	else if (strncmp(buf, "alarm", 5) == 0) {
-		struct rtc_wkalrm alrm;
-		int err = rtc_read_alarm(rtc, &alrm);
-
-		if (!err && alrm.enabled)
-			rtc_update_irq(rtc, 1, RTC_AF | RTC_IRQF);
-
-	} else if (strncmp(buf, "update", 6) == 0 && rtc->uie_rtctimer.enabled)
-		rtc_update_irq(rtc, 1, RTC_UF | RTC_IRQF);
-	else
-		retval = -EINVAL;
-
-	return retval;
-}
-static DEVICE_ATTR(irq, S_IRUGO | S_IWUSR, test_irq_show, test_irq_store);
-
 static int test_probe(struct platform_device *plat_dev)
 {
 	struct rtc_test_data *rtd;
@@ -162,16 +131,8 @@ static int test_probe(struct platform_device *plat_dev)
 	return 0;
 }
 
-static int test_remove(struct platform_device *plat_dev)
-{
-	device_remove_file(&plat_dev->dev, &dev_attr_irq);
-
-	return 0;
-}
-
 static struct platform_driver test_driver = {
 	.probe	= test_probe,
-	.remove = test_remove,
 	.driver = {
 		.name = "rtc-test",
 	},
