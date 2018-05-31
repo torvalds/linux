@@ -4959,7 +4959,22 @@ static void assert_kernel_context_is_current(struct drm_i915_private *i915)
 
 void i915_gem_sanitize(struct drm_i915_private *i915)
 {
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	GEM_TRACE("\n");
+
 	mutex_lock(&i915->drm.struct_mutex);
+
+	intel_runtime_pm_get(i915);
+	intel_uncore_forcewake_get(i915, FORCEWAKE_ALL);
+
+	/*
+	 * As we have just resumed the machine and woken the device up from
+	 * deep PCI sleep (presumably D3_cold), assume the HW has been reset
+	 * back to defaults, recovering from whatever wedged state we left it
+	 * in and so worth trying to use the device once more.
+	 */
 	if (i915_terminally_wedged(&i915->gpu_error))
 		i915_gem_unset_wedged(i915);
 
@@ -4973,6 +4988,15 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	 */
 	if (INTEL_GEN(i915) >= 5 && intel_has_gpu_reset(i915))
 		WARN_ON(intel_gpu_reset(i915, ALL_ENGINES));
+
+	/* Reset the submission backend after resume as well as the GPU reset */
+	for_each_engine(engine, i915, id) {
+		if (engine->reset.reset)
+			engine->reset.reset(engine, NULL);
+	}
+
+	intel_uncore_forcewake_put(i915, FORCEWAKE_ALL);
+	intel_runtime_pm_put(i915);
 
 	i915_gem_contexts_lost(i915);
 	mutex_unlock(&i915->drm.struct_mutex);

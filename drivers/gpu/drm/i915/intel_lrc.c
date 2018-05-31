@@ -1788,9 +1788,6 @@ static void enable_execlists(struct intel_engine_cs *engine)
 	I915_WRITE(RING_HWS_PGA(engine->mmio_base),
 		   engine->status_page.ggtt_offset);
 	POSTING_READ(RING_HWS_PGA(engine->mmio_base));
-
-	/* Following the reset, we need to reload the CSB read/write pointers */
-	engine->execlists.csb_head = -1;
 }
 
 static bool unexpected_starting_state(struct intel_engine_cs *engine)
@@ -1961,6 +1958,9 @@ static void execlists_reset(struct intel_engine_cs *engine,
 	spin_lock(&engine->timeline.lock);
 	__unwind_incomplete_requests(engine);
 	spin_unlock(&engine->timeline.lock);
+
+	/* Following the reset, we need to reload the CSB read/write pointers */
+	engine->execlists.csb_head = -1;
 
 	local_irq_restore(flags);
 
@@ -2460,6 +2460,8 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 		engine->execlists.preempt_complete_status =
 			upper_32_bits(ce->lrc_desc);
 	}
+
+	engine->execlists.csb_head = -1;
 
 	return 0;
 
