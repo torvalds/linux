@@ -66,7 +66,7 @@ static int its_pci_msi_prepare(struct irq_domain *domain, struct device *dev,
 {
 	struct pci_dev *pdev, *alias_dev;
 	struct msi_domain_info *msi_info;
-	int alias_count = 0;
+	int alias_count = 0, minnvec = 1;
 
 	if (!dev_is_pci(dev))
 		return -EINVAL;
@@ -86,9 +86,17 @@ static int its_pci_msi_prepare(struct irq_domain *domain, struct device *dev,
 	/* ITS specific DeviceID, as the core ITS ignores dev. */
 	info->scratchpad[0].ul = pci_msi_domain_get_msi_rid(domain, pdev);
 
-	/* Allocate at least 32 MSIs, and always as a power of 2 */
+	/*
+	 * Always allocate a power of 2, and special case device 0 for
+	 * broken systems where the DevID is not wired (and all devices
+	 * appear as DevID 0). For that reason, we generously allocate a
+	 * minimum of 32 MSIs for DevID 0. If you want more because all
+	 * your devices are aliasing to DevID 0, consider fixing your HW.
+	 */
 	nvec = max(nvec, alias_count);
-	nvec = max_t(int, 32, roundup_pow_of_two(nvec));
+	if (!info->scratchpad[0].ul)
+		minnvec = 32;
+	nvec = max_t(int, minnvec, roundup_pow_of_two(nvec));
 	return msi_info->ops->msi_prepare(domain->parent, dev, nvec, info);
 }
 
