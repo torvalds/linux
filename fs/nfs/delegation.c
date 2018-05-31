@@ -495,7 +495,7 @@ restart:
 			if (!nfs_delegation_need_return(delegation))
 				continue;
 			if (!nfs_sb_active(server->super))
-				continue;
+				break; /* continue in outer loop */
 			inode = nfs_delegation_grab_inode(delegation);
 			if (inode == NULL) {
 				rcu_read_unlock();
@@ -887,7 +887,7 @@ restart:
 						&delegation->flags) == 0)
 				continue;
 			if (!nfs_sb_active(server->super))
-				continue;
+				break; /* continue in outer loop */
 			inode = nfs_delegation_grab_inode(delegation);
 			if (inode == NULL) {
 				rcu_read_unlock();
@@ -995,7 +995,7 @@ restart:
 						&delegation->flags) == 0)
 				continue;
 			if (!nfs_sb_active(server->super))
-				continue;
+				break; /* continue in outer loop */
 			inode = nfs_delegation_grab_inode(delegation);
 			if (inode == NULL) {
 				rcu_read_unlock();
