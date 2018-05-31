@@ -2234,6 +2234,22 @@ static void qtnf_cmd_channel_tlv_add(struct sk_buff *cmd_skb,
 	qchan->chan.flags = cpu_to_le32(flags);
 }
 
+static void qtnf_cmd_randmac_tlv_add(struct sk_buff *cmd_skb,
+				     const u8 *mac_addr,
+				     const u8 *mac_addr_mask)
+{
+	struct qlink_random_mac_addr *randmac;
+	struct qlink_tlv_hdr *hdr =
+		skb_put(cmd_skb, sizeof(*hdr) + sizeof(*randmac));
+
+	hdr->type = cpu_to_le16(QTN_TLV_ID_RANDOM_MAC_ADDR);
+	hdr->len = cpu_to_le16(sizeof(*randmac));
+	randmac = (struct qlink_random_mac_addr *)hdr->val;
+
+	memcpy(randmac->mac_addr, mac_addr, ETH_ALEN);
+	memcpy(randmac->mac_addr_mask, mac_addr_mask, ETH_ALEN);
+}
+
 int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 {
 	struct sk_buff *cmd_skb;
@@ -2289,6 +2305,15 @@ int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 			n_channels--;
 			count++;
 		}
+	}
+
+	if (scan_req->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
+		pr_debug("MAC%u: scan with random addr=%pM, mask=%pM\n",
+			 mac->macid,
+			 scan_req->mac_addr, scan_req->mac_addr_mask);
+
+		qtnf_cmd_randmac_tlv_add(cmd_skb, scan_req->mac_addr,
+					 scan_req->mac_addr_mask);
 	}
 
 	ret = qtnf_cmd_send(mac->bus, cmd_skb, &res_code);
