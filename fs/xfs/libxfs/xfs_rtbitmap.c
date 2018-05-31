@@ -1038,8 +1038,11 @@ xfs_rtalloc_query_range(
 
 	if (low_rec->ar_startblock > high_rec->ar_startblock)
 		return -EINVAL;
-	else if (low_rec->ar_startblock == high_rec->ar_startblock)
+	if (low_rec->ar_startblock >= mp->m_sb.sb_rextents ||
+	    low_rec->ar_startblock == high_rec->ar_startblock)
 		return 0;
+	if (high_rec->ar_startblock >= mp->m_sb.sb_rextents)
+		high_rec->ar_startblock = mp->m_sb.sb_rextents - 1;
 
 	/* Iterate the bitmap, looking for discrepancies. */
 	rtstart = low_rec->ar_startblock;
@@ -1083,7 +1086,7 @@ xfs_rtalloc_query_all(
 	struct xfs_rtalloc_rec		keys[2];
 
 	keys[0].ar_startblock = 0;
-	keys[1].ar_startblock = tp->t_mountp->m_sb.sb_rblocks;
+	keys[1].ar_startblock = tp->t_mountp->m_sb.sb_rextents - 1;
 	keys[0].ar_blockcount = keys[1].ar_blockcount = 0;
 
 	return xfs_rtalloc_query_range(tp, &keys[0], &keys[1], fn, priv);
