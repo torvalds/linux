@@ -18,19 +18,49 @@
 struct rtc_test_data {
 	struct rtc_device *rtc;
 	time64_t offset;
+	struct timer_list alarm;
+	bool alarm_en;
 };
 
 struct platform_device *pdev[MAX_RTC_TEST];
 
-static int test_rtc_read_alarm(struct device *dev,
-	struct rtc_wkalrm *alrm)
+static int test_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
+	struct rtc_test_data *rtd = dev_get_drvdata(dev);
+	time64_t alarm;
+
+	alarm = (rtd->alarm.expires - jiffies) / HZ;
+	alarm += ktime_get_real_seconds() + rtd->offset;
+
+	rtc_time64_to_tm(alarm, &alrm->time);
+	alrm->enabled = rtd->alarm_en;
+
 	return 0;
 }
 
-static int test_rtc_set_alarm(struct device *dev,
-	struct rtc_wkalrm *alrm)
+static int test_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
+	struct rtc_test_data *rtd = dev_get_drvdata(dev);
+	ktime_t timeout;
+	u64 expires;
+
+	timeout = rtc_tm_to_time64(&alrm->time) - ktime_get_real_seconds();
+	timeout -= rtd->offset;
+
+	del_timer(&rtd->alarm);
+
+	expires = jiffies + timeout * HZ;
+	if (expires > U32_MAX)
+		expires = U32_MAX;
+
+	pr_err("ABE: %s +%d %s\n", __FILE__, __LINE__, __func__);
+	rtd->alarm.expires = expires;
+
+	if (alrm->enabled)
+		add_timer(&rtd->alarm);
+
+	rtd->alarm_en = alrm->enabled;
+
 	return 0;
 }
 
@@ -54,6 +84,14 @@ static int test_rtc_set_mmss64(struct device *dev, time64_t secs)
 
 static int test_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 {
+	struct rtc_test_data *rtd = dev_get_drvdata(dev);
+
+	rtd->alarm_en = enable;
+	if (enable)
+		add_timer(&rtd->alarm);
+	else
+		del_timer(&rtd->alarm);
+
 	return 0;
 }
 
@@ -64,6 +102,13 @@ static const struct rtc_class_ops test_rtc_ops = {
 	.set_mmss64 = test_rtc_set_mmss64,
 	.alarm_irq_enable = test_rtc_alarm_irq_enable,
 };
+
+static void test_rtc_alarm_handler(struct timer_list *t)
+{
+	struct rtc_test_data *rtd = from_timer(rtd, t, alarm);
+
+	rtc_update_irq(rtd->rtc, 1, RTC_AF | RTC_IRQF);
+}
 
 static ssize_t test_irq_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -110,6 +155,9 @@ static int test_probe(struct platform_device *plat_dev)
 					    &test_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtd->rtc))
 		return PTR_ERR(rtd->rtc);
+
+	timer_setup(&rtd->alarm, test_rtc_alarm_handler, 0);
+	rtd->alarm.expires = 0;
 
 	return 0;
 }
