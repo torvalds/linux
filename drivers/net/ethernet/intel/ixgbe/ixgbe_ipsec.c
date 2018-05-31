@@ -663,7 +663,7 @@ static int ixgbe_ipsec_add_sa(struct xfrm_state *xs)
 
 		/* hash the new entry for faster search in Rx path */
 		hash_add_rcu(ipsec->rx_sa_list, &ipsec->rx_tbl[sa_idx].hlist,
-			     (__force u64)rsa.xs->id.spi);
+			     (__force u32)rsa.xs->id.spi);
 	} else {
 		struct tx_sa tsa;
 
