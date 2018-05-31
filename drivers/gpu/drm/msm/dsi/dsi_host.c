@@ -1066,8 +1066,18 @@ static int dsi_tx_buf_alloc(struct msm_dsi_host *msm_host, int size)
 static void dsi_tx_buf_free(struct msm_dsi_host *msm_host)
 {
 	struct drm_device *dev = msm_host->dev;
-	struct msm_drm_private *priv = dev->dev_private;
+	struct msm_drm_private *priv;
 
+	/*
+	 * This is possible if we're tearing down before we've had a chance to
+	 * fully initialize. A very real possibility if our probe is deferred,
+	 * in which case we'll hit msm_dsi_host_destroy() without having run
+	 * through the dsi_tx_buf_alloc().
+	 */
+	if (!dev)
+		return;
+
+	priv = dev->dev_private;
 	if (msm_host->tx_gem_obj) {
 		msm_gem_put_iova(msm_host->tx_gem_obj, priv->kms->aspace);
 		drm_gem_object_put_unlocked(msm_host->tx_gem_obj);
