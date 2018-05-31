@@ -759,7 +759,8 @@ uint dhd_console_ms = 0;
 module_param(dhd_console_ms, uint, 0644);
 #endif /* defined(DHD_DEBUG) */
 
-uint dhd_slpauto = TRUE;
+//uint dhd_slpauto = TRUE;
+uint dhd_slpauto = FALSE;
 module_param(dhd_slpauto, uint, 0);
 
 #ifdef PKT_FILTER_SUPPORT
@@ -7205,14 +7206,13 @@ bool dhd_update_fw_nv_path(dhd_info_t *dhdinfo)
 	if (nvram_path[0] != '\0')
 		nv = nvram_path;
 
-	if (cis_device == BCM43455_CHIP_ID && cis_chipvendor == 0x81) {
+	if (cis_device == BCM43455_CHIP_ID) {
 		DHD_ERROR(("Adding 43455 firmware and NVRAM path by CIS\n"
 			"\tfirmware path: %s\n"
 			"\tNVRAM path:    %s\n", cis_fw_43455_path, cis_nv_43455_path));
 		fw = cis_fw_43455_path;
 		nv = cis_nv_43455_path;
-	}
-	else if (cis_device == BCM4354_CHIP_ID) {
+	} else if (cis_device == BCM4354_CHIP_ID) {
 		DHD_ERROR(("Adding 4354 firmware and NVRAM path by CIS\n"
 			"\tfirmware path: %s\n"
 			"\tNVRAM path:    %s\n", cis_fw_4354_path, cis_nv_4354_path));
