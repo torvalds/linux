@@ -1420,7 +1420,7 @@ static int smc_setsockopt(struct socket *sock, int level, int optname,
 		return rc;
 
 	if (optlen < sizeof(int))
-		return rc;
+		return -EINVAL;
 	get_user(val, (int __user *)optval);
 
 	lock_sock(sk);
