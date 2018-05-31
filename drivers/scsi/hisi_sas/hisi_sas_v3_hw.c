@@ -131,6 +131,9 @@
 #define SL_CONTROL_NOTIFY_EN_MSK	(0x1 << SL_CONTROL_NOTIFY_EN_OFF)
 #define SL_CTA_OFF		17
 #define SL_CTA_MSK		(0x1 << SL_CTA_OFF)
+#define RX_PRIMS_STATUS			(PORT_BASE + 0x98)
+#define RX_BCAST_CHG_OFF		1
+#define RX_BCAST_CHG_MSK		(0x1 << RX_BCAST_CHG_OFF)
 #define TX_ID_DWORD0			(PORT_BASE + 0x9c)
 #define TX_ID_DWORD1			(PORT_BASE + 0xa0)
 #define TX_ID_DWORD2			(PORT_BASE + 0xa4)
@@ -1256,9 +1259,12 @@ static irqreturn_t phy_bcast_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
+	u32 bcast_status;
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, SL_RX_BCAST_CHK_MSK, 1);
-	sas_ha->notify_port_event(sas_phy, PORTE_BROADCAST_RCVD);
+	bcast_status = hisi_sas_phy_read32(hisi_hba, phy_no, RX_PRIMS_STATUS);
+	if (bcast_status & RX_BCAST_CHG_MSK)
+		sas_ha->notify_port_event(sas_phy, PORTE_BROADCAST_RCVD);
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0,
 			     CHL_INT0_SL_RX_BCST_ACK_MSK);
 	hisi_sas_phy_write32(hisi_hba, phy_no, SL_RX_BCAST_CHK_MSK, 0);
