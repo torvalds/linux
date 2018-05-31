@@ -202,16 +202,15 @@ static void elevator_release(struct kobject *kobj)
 int elevator_init(struct request_queue *q)
 {
 	struct elevator_type *e = NULL;
-	int err;
+	int err = 0;
 
 	/*
 	 * q->sysfs_lock must be held to provide mutual exclusion between
 	 * elevator_switch() and here.
 	 */
-	lockdep_assert_held(&q->sysfs_lock);
-
+	mutex_lock(&q->sysfs_lock);
 	if (unlikely(q->elevator))
-		return 0;
+		goto out_unlock;
 
 	/*
 	 * Use the default elevator specified by config boot param for
@@ -237,7 +236,7 @@ int elevator_init(struct request_queue *q)
 			if (q->nr_hw_queues == 1)
 				e = elevator_get(q, "mq-deadline", false);
 			if (!e)
-				return 0;
+				goto out_unlock;
 		} else
 			e = elevator_get(q, CONFIG_DEFAULT_IOSCHED, false);
 
@@ -255,6 +254,8 @@ int elevator_init(struct request_queue *q)
 		err = e->ops.sq.elevator_init_fn(q, e);
 	if (err)
 		elevator_put(e);
+out_unlock:
+	mutex_unlock(&q->sysfs_lock);
 	return err;
 }
 

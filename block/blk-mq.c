@@ -2573,7 +2573,7 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	if (!(set->flags & BLK_MQ_F_NO_SCHED)) {
 		int ret;
 
-		ret = blk_mq_sched_init(q);
+		ret = elevator_init(q);
 		if (ret)
 			return ERR_PTR(ret);
 	}
