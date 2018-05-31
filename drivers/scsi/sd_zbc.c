@@ -452,7 +452,7 @@ static s64 sd_zbc_check_zone_size(struct scsi_disk *sdkp)
 			} else if (this_zone_blocks != zone_blocks &&
 				   (block + this_zone_blocks < sdkp->capacity
 				    || this_zone_blocks > zone_blocks)) {
-				this_zone_blocks = 0;
+				zone_blocks = 0;
 				goto out;
 			}
 			block += this_zone_blocks;
