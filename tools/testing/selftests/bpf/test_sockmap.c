@@ -429,8 +429,8 @@ static int sendmsg_test(struct sockmap_options *opt)
 	struct msg_stats s = {0};
 	int iov_count = opt->iov_count;
 	int iov_buf = opt->iov_length;
+	int rx_status, tx_status;
 	int cnt = opt->rate;
-	int status;
 
 	errno = 0;
 
@@ -442,7 +442,7 @@ static int sendmsg_test(struct sockmap_options *opt)
 	rxpid = fork();
 	if (rxpid == 0) {
 		if (opt->drop_expected)
-			exit(1);
+			exit(0);
 
 		if (opt->sendpage)
 			iov_count = 1;
@@ -463,7 +463,9 @@ static int sendmsg_test(struct sockmap_options *opt)
 				"rx_sendmsg: TX: %zuB %fB/s %fGB/s RX: %zuB %fB/s %fGB/s\n",
 				s.bytes_sent, sent_Bps, sent_Bps/giga,
 				s.bytes_recvd, recvd_Bps, recvd_Bps/giga);
-		exit(1);
+		if (err && txmsg_cork)
+			err = 0;
+		exit(err ? 1 : 0);
 	} else if (rxpid == -1) {
 		perror("msg_loop_rx: ");
 		return errno;
@@ -491,14 +493,27 @@ static int sendmsg_test(struct sockmap_options *opt)
 				"tx_sendmsg: TX: %zuB %fB/s %f GB/s RX: %zuB %fB/s %fGB/s\n",
 				s.bytes_sent, sent_Bps, sent_Bps/giga,
 				s.bytes_recvd, recvd_Bps, recvd_Bps/giga);
-		exit(1);
+		exit(err ? 1 : 0);
 	} else if (txpid == -1) {
 		perror("msg_loop_tx: ");
 		return errno;
 	}
 
-	assert(waitpid(rxpid, &status, 0) == rxpid);
-	assert(waitpid(txpid, &status, 0) == txpid);
+	assert(waitpid(rxpid, &rx_status, 0) == rxpid);
+	assert(waitpid(txpid, &tx_status, 0) == txpid);
+	if (WIFEXITED(rx_status)) {
+		err = WEXITSTATUS(rx_status);
+		if (err) {
+			fprintf(stderr, "rx thread exited with err %d. ", err);
+			goto out;
+		}
+	}
+	if (WIFEXITED(tx_status)) {
+		err = WEXITSTATUS(tx_status);
+		if (err)
+			fprintf(stderr, "tx thread exited with err %d. ", err);
+	}
+out:
 	return err;
 }
 
