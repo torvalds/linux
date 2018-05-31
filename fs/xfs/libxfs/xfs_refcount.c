@@ -179,7 +179,10 @@ xfs_refcount_insert(
 	cur->bc_rec.rc.rc_blockcount = irec->rc_blockcount;
 	cur->bc_rec.rc.rc_refcount = irec->rc_refcount;
 	error = xfs_btree_insert(cur, i);
+	if (error)
+		goto out_error;
 	XFS_WANT_CORRUPTED_GOTO(cur->bc_mp, *i == 1, out_error);
+
 out_error:
 	if (error)
 		trace_xfs_refcount_insert_error(cur->bc_mp,
