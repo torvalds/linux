@@ -893,8 +893,9 @@
 			status = "disabled";
 		};
 
-		usb2: usb@7600000 {
-			compatible = "qcom,dwc3";
+		usb2: usb@76f8800 {
+			compatible = "qcom,msm8996-dwc3", "qcom,dwc3";
+			reg = <0x76f8800 0x400>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -921,8 +922,9 @@
 			};
 		};
 
-		usb3: usb@6a00000 {
-			compatible = "qcom,dwc3";
+		usb3: usb@6af8800 {
+			compatible = "qcom,msm8996-dwc3", "qcom,dwc3";
+			reg = <0x6af8800 0x400>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
