@@ -215,20 +215,15 @@ DEFINE_SHOW_ATTRIBUTE(fusb302_debug);
 
 static struct dentry *rootdir;
 
-static int fusb302_debugfs_init(struct fusb302_chip *chip)
+static void fusb302_debugfs_init(struct fusb302_chip *chip)
 {
 	mutex_init(&chip->logbuffer_lock);
-	if (!rootdir) {
+	if (!rootdir)
 		rootdir = debugfs_create_dir("fusb302", NULL);
-		if (!rootdir)
-			return -ENOMEM;
-	}
 
 	chip->dentry = debugfs_create_file(dev_name(chip->dev),
 					   S_IFREG | 0444, rootdir,
 					   chip, &fusb302_debug_fops);
-
-	return 0;
 }
 
 static void fusb302_debugfs_exit(struct fusb302_chip *chip)
@@ -241,7 +236,7 @@ static void fusb302_debugfs_exit(struct fusb302_chip *chip)
 
 static void fusb302_log(const struct fusb302_chip *chip,
 			const char *fmt, ...) { }
-static int fusb302_debugfs_init(const struct fusb302_chip *chip) { return 0; }
+static void fusb302_debugfs_init(const struct fusb302_chip *chip) { }
 static void fusb302_debugfs_exit(const struct fusb302_chip *chip) { }
 
 #endif
@@ -1773,9 +1768,7 @@ static int fusb302_probe(struct i2c_client *client,
 			return -EPROBE_DEFER;
 	}
 
-	ret = fusb302_debugfs_init(chip);
-	if (ret < 0)
-		return ret;
+	fusb302_debugfs_init(chip);
 
 	chip->wq = create_singlethread_workqueue(dev_name(chip->dev));
 	if (!chip->wq) {
