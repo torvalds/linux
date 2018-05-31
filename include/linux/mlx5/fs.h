@@ -160,6 +160,7 @@ struct mlx5_flow_act {
 	u32 modify_id;
 	uintptr_t esp_id;
 	struct mlx5_fs_vlan vlan;
+	struct ib_counters *counters;
 };
 
 #define MLX5_DECLARE_FLOW_ACT(name) \

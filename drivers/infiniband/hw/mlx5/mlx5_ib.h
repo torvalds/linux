@@ -175,6 +175,7 @@ struct mlx5_ib_flow_handler {
 	struct ib_flow			ibflow;
 	struct mlx5_ib_flow_prio	*prio;
 	struct mlx5_flow_handle		*rule;
+	struct ib_counters		*ibcounters;
 };
 
 struct mlx5_ib_flow_db {
@@ -813,8 +814,22 @@ struct mlx5_memic {
 	DECLARE_BITMAP(memic_alloc_pages, MLX5_MAX_MEMIC_PAGES);
 };
 
+enum mlx5_ib_counters_type {
+	MLX5_IB_COUNTERS_FLOW,
+};
+
 struct mlx5_ib_mcounters {
 	struct ib_counters ibcntrs;
+	enum mlx5_ib_counters_type type;
+	void *hw_cntrs_hndl;
+	/* max index set as part of create_flow */
+	u32 cntrs_max_index;
+	/* number of counters data entries (<description,index> pair) */
+	u32 ncounters;
+	/* counters data array for descriptions and indexes */
+	struct mlx5_ib_flow_counters_desc *counters_data;
+	/* protects access to mcounters internal data */
+	struct mutex mcntrs_mutex;
 };
 
 static inline struct mlx5_ib_mcounters *

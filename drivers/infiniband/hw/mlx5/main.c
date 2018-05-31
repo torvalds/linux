@@ -2449,6 +2449,7 @@ static void set_tos(void *outer_c, void *outer_v, u8 mask, u8 val)
 #define LAST_TUNNEL_FIELD tunnel_id
 #define LAST_FLOW_TAG_FIELD tag_id
 #define LAST_DROP_FIELD size
+#define LAST_COUNTERS_FIELD counters
 
 /* Field is the last supported field */
 #define FIELDS_NOT_SUPPORTED(filter, field)\
@@ -2721,6 +2722,18 @@ static int parse_flow_attr(struct mlx5_core_dev *mdev, u32 *match_c,
 		if (ret)
 			return ret;
 		break;
+	case IB_FLOW_SPEC_ACTION_COUNT:
+		if (FIELDS_NOT_SUPPORTED(ib_spec->flow_count,
+					 LAST_COUNTERS_FIELD))
+			return -EOPNOTSUPP;
+
+		/* for now support only one counters spec per flow */
+		if (action->action & MLX5_FLOW_CONTEXT_ACTION_COUNT)
+			return -EINVAL;
+
+		action->counters = ib_spec->flow_count.counters;
+		action->action |= MLX5_FLOW_CONTEXT_ACTION_COUNT;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -2868,6 +2881,17 @@ static void put_flow_table(struct mlx5_ib_dev *dev,
 	}
 }
 
+static void counters_clear_description(struct ib_counters *counters)
+{
+	struct mlx5_ib_mcounters *mcounters = to_mcounters(counters);
+
+	mutex_lock(&mcounters->mcntrs_mutex);
+	kfree(mcounters->counters_data);
+	mcounters->counters_data = NULL;
+	mcounters->cntrs_max_index = 0;
+	mutex_unlock(&mcounters->mcntrs_mutex);
+}
+
 static int mlx5_ib_destroy_flow(struct ib_flow *flow_id)
 {
 	struct mlx5_ib_dev *dev = to_mdev(flow_id->qp->device);
@@ -2887,8 +2911,11 @@ static int mlx5_ib_destroy_flow(struct ib_flow *flow_id)
 
 	mlx5_del_flow_rules(handler->rule);
 	put_flow_table(dev, handler->prio, true);
-	mutex_unlock(&dev->flow_db->lock);
+	if (handler->ibcounters &&
+	    atomic_read(&handler->ibcounters->usecnt) == 1)
+		counters_clear_description(handler->ibcounters);
 
+	mutex_unlock(&dev->flow_db->lock);
 	kfree(handler);
 
 	return 0;
@@ -3008,21 +3035,127 @@ static void set_underlay_qp(struct mlx5_ib_dev *dev,
 	}
 }
 
+static int counters_set_description(struct ib_counters *counters,
+				    enum mlx5_ib_counters_type counters_type,
+				    struct mlx5_ib_flow_counters_desc *desc_data,
+				    u32 ncounters)
+{
+	struct mlx5_ib_mcounters *mcounters = to_mcounters(counters);
+	u32 cntrs_max_index = 0;
+	int i;
+
+	if (counters_type != MLX5_IB_COUNTERS_FLOW)
+		return -EINVAL;
+
+	/* init the fields for the object */
+	mcounters->type = counters_type;
+	mcounters->ncounters = ncounters;
+	/* each counter entry have both description and index pair */
+	for (i = 0; i < ncounters; i++) {
+		if (desc_data[i].description > IB_COUNTER_BYTES)
+			return -EINVAL;
+
+		if (cntrs_max_index <= desc_data[i].index)
+			cntrs_max_index = desc_data[i].index + 1;
+	}
+
+	mutex_lock(&mcounters->mcntrs_mutex);
+	mcounters->counters_data = desc_data;
+	mcounters->cntrs_max_index = cntrs_max_index;
+	mutex_unlock(&mcounters->mcntrs_mutex);
+
+	return 0;
+}
+
+#define MAX_COUNTERS_NUM (USHRT_MAX / (sizeof(u32) * 2))
+static int flow_counters_set_data(struct ib_counters *ibcounters,
+				  struct mlx5_ib_create_flow *ucmd)
+{
+	struct mlx5_ib_mcounters *mcounters = to_mcounters(ibcounters);
+	struct mlx5_ib_flow_counters_data *cntrs_data = NULL;
+	struct mlx5_ib_flow_counters_desc *desc_data = NULL;
+	bool hw_hndl = false;
+	int ret = 0;
+
+	if (ucmd && ucmd->ncounters_data != 0) {
+		cntrs_data = ucmd->data;
+		if (cntrs_data->ncounters > MAX_COUNTERS_NUM)
+			return -EINVAL;
+
+		desc_data = kcalloc(cntrs_data->ncounters,
+				    sizeof(*desc_data),
+				    GFP_KERNEL);
+		if (!desc_data)
+			return  -ENOMEM;
+
+		if (copy_from_user(desc_data,
+				   u64_to_user_ptr(cntrs_data->counters_data),
+				   sizeof(*desc_data) * cntrs_data->ncounters)) {
+			ret = -EFAULT;
+			goto free;
+		}
+	}
+
+	if (!mcounters->hw_cntrs_hndl) {
+		mcounters->hw_cntrs_hndl = mlx5_fc_create(
+			to_mdev(ibcounters->device)->mdev, false);
+		if (!mcounters->hw_cntrs_hndl) {
+			ret = -ENOMEM;
+			goto free;
+		}
+		hw_hndl = true;
+	}
+
+	if (desc_data) {
+		/* counters already bound to at least one flow */
+		if (mcounters->cntrs_max_index) {
+			ret = -EINVAL;
+			goto free_hndl;
+		}
+
+		ret = counters_set_description(ibcounters,
+					       MLX5_IB_COUNTERS_FLOW,
+					       desc_data,
+					       cntrs_data->ncounters);
+		if (ret)
+			goto free_hndl;
+
+	} else if (!mcounters->cntrs_max_index) {
+		/* counters not bound yet, must have udata passed */
+		ret = -EINVAL;
+		goto free_hndl;
+	}
+
+	return 0;
+
+free_hndl:
+	if (hw_hndl) {
+		mlx5_fc_destroy(to_mdev(ibcounters->device)->mdev,
+				mcounters->hw_cntrs_hndl);
+		mcounters->hw_cntrs_hndl = NULL;
+	}
+free:
+	kfree(desc_data);
+	return ret;
+}
+
 static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
 						      struct mlx5_ib_flow_prio *ft_prio,
 						      const struct ib_flow_attr *flow_attr,
 						      struct mlx5_flow_destination *dst,
-						      u32 underlay_qpn)
+						      u32 underlay_qpn,
+						      struct mlx5_ib_create_flow *ucmd)
 {
 	struct mlx5_flow_table	*ft = ft_prio->flow_table;
 	struct mlx5_ib_flow_handler *handler;
 	struct mlx5_flow_act flow_act = {.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG};
 	struct mlx5_flow_spec *spec;
-	struct mlx5_flow_destination *rule_dst = dst;
+	struct mlx5_flow_destination dest_arr[2] = {};
+	struct mlx5_flow_destination *rule_dst = dest_arr;
 	const void *ib_flow = (const void *)flow_attr + sizeof(*flow_attr);
 	unsigned int spec_index;
 	int err = 0;
-	int dest_num = 1;
+	int dest_num = 0;
 	bool is_egress = flow_attr->flags & IB_FLOW_ATTR_FLAGS_EGRESS;
 
 	if (!is_valid_attr(dev->mdev, flow_attr))
@@ -3036,6 +3169,10 @@ static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
 	}
 
 	INIT_LIST_HEAD(&handler->list);
+	if (dst) {
+		memcpy(&dest_arr[0], dst, sizeof(*dst));
+		dest_num++;
+	}
 
 	for (spec_index = 0; spec_index < flow_attr->num_of_specs; spec_index++) {
 		err = parse_flow_attr(dev->mdev, spec->match_criteria,
@@ -3070,15 +3207,30 @@ static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
 		goto free;
 	}
 
+	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
+		err = flow_counters_set_data(flow_act.counters, ucmd);
+		if (err)
+			goto free;
+
+		handler->ibcounters = flow_act.counters;
+		dest_arr[dest_num].type =
+			MLX5_FLOW_DESTINATION_TYPE_COUNTER;
+		dest_arr[dest_num].counter =
+			to_mcounters(flow_act.counters)->hw_cntrs_hndl;
+		dest_num++;
+	}
+
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_DROP) {
-		rule_dst = NULL;
-		dest_num = 0;
+		if (!(flow_act.action & MLX5_FLOW_CONTEXT_ACTION_COUNT)) {
+			rule_dst = NULL;
+			dest_num = 0;
+		}
 	} else {
 		if (is_egress)
 			flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_ALLOW;
 		else
 			flow_act.action |=
-				dst ? MLX5_FLOW_CONTEXT_ACTION_FWD_DEST :
+				dest_num ?  MLX5_FLOW_CONTEXT_ACTION_FWD_DEST :
 					MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO;
 	}
 
@@ -3104,8 +3256,12 @@ static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
 
 	ft_prio->flow_table = ft;
 free:
-	if (err)
+	if (err && handler) {
+		if (handler->ibcounters &&
+		    atomic_read(&handler->ibcounters->usecnt) == 1)
+			counters_clear_description(handler->ibcounters);
 		kfree(handler);
+	}
 	kvfree(spec);
 	return err ? ERR_PTR(err) : handler;
 }
@@ -3115,7 +3271,7 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 						     const struct ib_flow_attr *flow_attr,
 						     struct mlx5_flow_destination *dst)
 {
-	return _create_flow_rule(dev, ft_prio, flow_attr, dst, 0);
+	return _create_flow_rule(dev, ft_prio, flow_attr, dst, 0, NULL);
 }
 
 static struct mlx5_ib_flow_handler *create_dont_trap_rule(struct mlx5_ib_dev *dev,
@@ -3255,12 +3411,43 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 	struct mlx5_ib_flow_prio *ft_prio_tx = NULL;
 	struct mlx5_ib_flow_prio *ft_prio;
 	bool is_egress = flow_attr->flags & IB_FLOW_ATTR_FLAGS_EGRESS;
+	struct mlx5_ib_create_flow *ucmd = NULL, ucmd_hdr;
+	size_t min_ucmd_sz, required_ucmd_sz;
 	int err;
 	int underlay_qpn;
 
-	if (udata &&
-	    udata->inlen && !ib_is_udata_cleared(udata, 0, udata->inlen))
-		return ERR_PTR(-EOPNOTSUPP);
+	if (udata && udata->inlen) {
+		min_ucmd_sz = offsetof(typeof(ucmd_hdr), reserved) +
+				sizeof(ucmd_hdr.reserved);
+		if (udata->inlen < min_ucmd_sz)
+			return ERR_PTR(-EOPNOTSUPP);
+
+		err = ib_copy_from_udata(&ucmd_hdr, udata, min_ucmd_sz);
+		if (err)
+			return ERR_PTR(err);
+
+		/* currently supports only one counters data */
+		if (ucmd_hdr.ncounters_data > 1)
+			return ERR_PTR(-EINVAL);
+
+		required_ucmd_sz = min_ucmd_sz +
+			sizeof(struct mlx5_ib_flow_counters_data) *
+			ucmd_hdr.ncounters_data;
+		if (udata->inlen > required_ucmd_sz &&
+		    !ib_is_udata_cleared(udata, required_ucmd_sz,
+					 udata->inlen - required_ucmd_sz))
+			return ERR_PTR(-EOPNOTSUPP);
+
+		ucmd = kzalloc(required_ucmd_sz, GFP_KERNEL);
+		if (!ucmd)
+			return ERR_PTR(-ENOMEM);
+
+		err = ib_copy_from_udata(ucmd, udata, required_ucmd_sz);
+		if (err) {
+			kfree(ucmd);
+			return ERR_PTR(err);
+		}
+	}
 
 	if (flow_attr->priority > MLX5_IB_FLOW_LAST_PRIO)
 		return ERR_PTR(-ENOMEM);
@@ -3315,7 +3502,7 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 			underlay_qpn = (mqp->flags & MLX5_IB_QP_UNDERLAY) ?
 					mqp->underlay_qpn : 0;
 			handler = _create_flow_rule(dev, ft_prio, flow_attr,
-						    dst, underlay_qpn);
+						    dst, underlay_qpn, ucmd);
 		}
 	} else if (flow_attr->type == IB_FLOW_ATTR_ALL_DEFAULT ||
 		   flow_attr->type == IB_FLOW_ATTR_MC_DEFAULT) {
@@ -3336,6 +3523,7 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 
 	mutex_unlock(&dev->flow_db->lock);
 	kfree(dst);
+	kfree(ucmd);
 
 	return &handler->ibflow;
 
@@ -3346,6 +3534,7 @@ destroy_ft:
 unlock:
 	mutex_unlock(&dev->flow_db->lock);
 	kfree(dst);
+	kfree(ucmd);
 	kfree(handler);
 	return ERR_PTR(err);
 }
@@ -5010,6 +5199,11 @@ static int mlx5_ib_destroy_counters(struct ib_counters *counters)
 {
 	struct mlx5_ib_mcounters *mcounters = to_mcounters(counters);
 
+	counters_clear_description(counters);
+	if (mcounters->hw_cntrs_hndl)
+		mlx5_fc_destroy(to_mdev(counters->device)->mdev,
+				mcounters->hw_cntrs_hndl);
+
 	kfree(mcounters);
 
 	return 0;
@@ -5023,6 +5217,8 @@ static struct ib_counters *mlx5_ib_create_counters(struct ib_device *device,
 	mcounters = kzalloc(sizeof(*mcounters), GFP_KERNEL);
 	if (!mcounters)
 		return ERR_PTR(-ENOMEM);
+
+	mutex_init(&mcounters->mcntrs_mutex);
 
 	return &mcounters->ibcntrs;
 }
