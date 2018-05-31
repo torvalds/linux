@@ -12,6 +12,14 @@ ALL_TESTS="
 	test_ip6gretap
 	test_gretap_forbidden_cpu
 	test_ip6gretap_forbidden_cpu
+	test_gretap_forbidden_egress
+	test_ip6gretap_forbidden_egress
+	test_gretap_untagged_egress
+	test_ip6gretap_untagged_egress
+	test_gretap_fdb_roaming
+	test_ip6gretap_fdb_roaming
+	test_gretap_stp
+	test_ip6gretap_stp
 "
 
 NUM_NETIFS=6
@@ -43,12 +51,14 @@ setup_prepare()
 
 	ip link set dev $swp3 master br1
 	bridge vlan add dev $swp3 vid 555
+	bridge vlan add dev $swp2 vid 555
 }
 
 cleanup()
 {
 	pre_cleanup
 
+	ip link set dev $swp2 nomaster
 	ip link set dev $swp3 nomaster
 	vlan_destroy $h3 555
 	vlan_destroy br1 555
@@ -110,6 +120,125 @@ test_gretap_forbidden_cpu()
 test_ip6gretap_forbidden_cpu()
 {
 	test_span_gre_forbidden_cpu gt6 "mirror to ip6gretap"
+}
+
+test_span_gre_forbidden_egress()
+{
+	local tundev=$1; shift
+	local what=$1; shift
+
+	RET=0
+
+	mirror_install $swp1 ingress $tundev "matchall $tcflags"
+	quick_test_span_gre_dir $tundev ingress
+
+	bridge vlan del dev $swp3 vid 555
+	sleep 1
+	fail_test_span_gre_dir $tundev ingress
+
+	bridge vlan add dev $swp3 vid 555
+	# Re-prime FDB
+	arping -I br1.555 192.0.2.130 -fqc 1
+	sleep 1
+	quick_test_span_gre_dir $tundev ingress
+
+	mirror_uninstall $swp1 ingress
+
+	log_test "$what: vlan forbidden at a bridge egress ($tcflags)"
+}
+
+test_gretap_forbidden_egress()
+{
+	test_span_gre_forbidden_egress gt4 "mirror to gretap"
+}
+
+test_ip6gretap_forbidden_egress()
+{
+	test_span_gre_forbidden_egress gt6 "mirror to ip6gretap"
+}
+
+test_span_gre_untagged_egress()
+{
+	local tundev=$1; shift
+	local what=$1; shift
+
+	RET=0
+
+	mirror_install $swp1 ingress $tundev "matchall $tcflags"
+
+	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_vlan_dir $h3 555 ingress
+
+	bridge vlan add dev $swp3 vid 555 pvid untagged
+	sleep 1
+	quick_test_span_gre_dir $tundev ingress
+	fail_test_span_vlan_dir $h3 555 ingress
+
+	bridge vlan add dev $swp3 vid 555
+	sleep 1
+	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_vlan_dir $h3 555 ingress
+
+	mirror_uninstall $swp1 ingress
+
+	log_test "$what: vlan untagged at a bridge egress ($tcflags)"
+}
+
+test_gretap_untagged_egress()
+{
+	test_span_gre_untagged_egress gt4 "mirror to gretap"
+}
+
+test_ip6gretap_untagged_egress()
+{
+	test_span_gre_untagged_egress gt6 "mirror to ip6gretap"
+}
+
+test_span_gre_fdb_roaming()
+{
+	local tundev=$1; shift
+	local what=$1; shift
+	local h3mac=$(mac_get $h3)
+
+	RET=0
+
+	mirror_install $swp1 ingress $tundev "matchall $tcflags"
+	quick_test_span_gre_dir $tundev ingress
+
+	bridge fdb del dev $swp3 $h3mac vlan 555 master
+	bridge fdb add dev $swp2 $h3mac vlan 555 master
+	sleep 1
+	fail_test_span_gre_dir $tundev ingress
+
+	bridge fdb del dev $swp2 $h3mac vlan 555 master
+	# Re-prime FDB
+	arping -I br1.555 192.0.2.130 -fqc 1
+	sleep 1
+	quick_test_span_gre_dir $tundev ingress
+
+	mirror_uninstall $swp1 ingress
+
+	log_test "$what: MAC roaming ($tcflags)"
+}
+
+test_gretap_fdb_roaming()
+{
+	test_span_gre_fdb_roaming gt4 "mirror to gretap"
+}
+
+test_ip6gretap_fdb_roaming()
+{
+	test_span_gre_fdb_roaming gt6 "mirror to ip6gretap"
+}
+
+test_gretap_stp()
+{
+	full_test_span_gre_stp gt4 $swp3 "mirror to gretap"
+}
+
+test_ip6gretap_stp()
+{
+	full_test_span_gre_stp gt6 $swp3 "mirror to ip6gretap"
 }
 
 test_all()
