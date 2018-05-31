@@ -1469,7 +1469,8 @@ static irqreturn_t int_bcast_v1_hw(int irq, void *p)
 		goto end;
 	}
 
-	sha->notify_port_event(sas_phy, PORTE_BROADCAST_RCVD);
+	if (!test_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags))
+		sha->notify_port_event(sas_phy, PORTE_BROADCAST_RCVD);
 
 end:
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT2,

@@ -1927,7 +1927,8 @@ void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy)
 	} else {
 		struct hisi_sas_port *port  = phy->port;
 
-		if (phy->in_reset) {
+		if (test_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags) ||
+		    phy->in_reset) {
 			dev_info(dev, "ignore flutter phy%d down\n", phy_no);
 			return;
 		}
