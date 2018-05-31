@@ -25,6 +25,21 @@ Optional properties:
   If we don't use ADC5 and ADC6, we just use grp 0,1,3 on dts. For example:
   - rockchip,adc-grps = <0 1 3>;
 
+- rockchip,adc-grps-route: This is a variable length array, that shows the
+  mapping route of ACODEC sdo to I2S sdi. By default, they are one-to-one
+  mapping:
+  * sdi_0 <-- sdo_0
+  * sdi_1 <-- sdo_1
+  * sdi_2 <-- sdo_2
+  * sdi_3 <-- sdo_3
+  If you would like to change the route mapping like this:
+  * sdi_0 <-- sdo_3
+  * sdi_1 <-- sdo_0
+  * sdi_2 <-- sdo_2
+  * sdi_3 <-- sdo_1
+  You need to add the property on dts:
+  - rockchip,adc-grps-route = <3 0 2 1>;
+
 - rockchip,loopback-grp: It points out the ADC group which is the loopback used.
 - hp-ctl-gpios: The gpio of head phone controller.
 - spk-ctl-gpios: The gpio of speak controller.
