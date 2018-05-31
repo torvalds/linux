@@ -318,7 +318,7 @@ static int omap_modeset_init(struct drm_device *dev)
 		struct drm_encoder *encoder;
 		struct drm_crtc *crtc;
 
-		encoder = omap_encoder_init(dev, display);
+		encoder = omap_encoder_init(dev, pipe->output, display);
 		if (!encoder)
 			return -ENOMEM;
 

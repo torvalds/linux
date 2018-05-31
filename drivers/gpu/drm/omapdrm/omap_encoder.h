@@ -25,6 +25,7 @@ struct drm_encoder;
 struct omap_dss_device;
 
 struct drm_encoder *omap_encoder_init(struct drm_device *dev,
-		struct omap_dss_device *dssdev);
+				      struct omap_dss_device *output,
+				      struct omap_dss_device *display);
 
 #endif /* __OMAPDRM_ENCODER_H__ */

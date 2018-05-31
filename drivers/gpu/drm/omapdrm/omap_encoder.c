@@ -36,7 +36,8 @@
  */
 struct omap_encoder {
 	struct drm_encoder base;
-	struct omap_dss_device *dssdev;
+	struct omap_dss_device *output;
+	struct omap_dss_device *display;
 };
 
 static void omap_encoder_destroy(struct drm_encoder *encoder)
@@ -57,7 +58,7 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 {
 	struct drm_device *dev = encoder->dev;
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
-	struct omap_dss_device *dssdev = omap_encoder->dssdev;
+	struct omap_dss_device *dssdev = omap_encoder->display;
 	struct drm_connector *connector;
 	bool hdmi_mode;
 	int r;
@@ -86,7 +87,7 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 static void omap_encoder_disable(struct drm_encoder *encoder)
 {
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
-	struct omap_dss_device *dssdev = omap_encoder->dssdev;
+	struct omap_dss_device *dssdev = omap_encoder->display;
 
 	dssdev->ops->disable(dssdev);
 }
@@ -97,7 +98,7 @@ static int omap_encoder_update(struct drm_encoder *encoder,
 {
 	struct drm_device *dev = encoder->dev;
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
-	struct omap_dss_device *dssdev = omap_encoder->dssdev;
+	struct omap_dss_device *dssdev = omap_encoder->display;
 	int ret;
 
 	if (dssdev->ops->check_timings) {
@@ -127,7 +128,7 @@ static int omap_encoder_update(struct drm_encoder *encoder,
 static void omap_encoder_enable(struct drm_encoder *encoder)
 {
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
-	struct omap_dss_device *dssdev = omap_encoder->dssdev;
+	struct omap_dss_device *dssdev = omap_encoder->display;
 	int r;
 
 	omap_encoder_update(encoder, omap_crtc_channel(encoder->crtc),
@@ -156,7 +157,8 @@ static const struct drm_encoder_helper_funcs omap_encoder_helper_funcs = {
 
 /* initialize encoder */
 struct drm_encoder *omap_encoder_init(struct drm_device *dev,
-		struct omap_dss_device *dssdev)
+				      struct omap_dss_device *output,
+				      struct omap_dss_device *display)
 {
 	struct drm_encoder *encoder = NULL;
 	struct omap_encoder *omap_encoder;
@@ -165,7 +167,8 @@ struct drm_encoder *omap_encoder_init(struct drm_device *dev,
 	if (!omap_encoder)
 		goto fail;
 
-	omap_encoder->dssdev = dssdev;
+	omap_encoder->output = output;
+	omap_encoder->display = display;
 
 	encoder = &omap_encoder->base;
 
