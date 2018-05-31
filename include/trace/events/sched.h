@@ -820,6 +820,126 @@ TRACE_EVENT(sched_find_best_target,
 		  __entry->best_idle, __entry->best_active,
 		  __entry->target, __entry->backup)
 );
+
+/*
+ * Tracepoint for accounting CPU  boosted utilization
+ */
+TRACE_EVENT(sched_boost_cpu,
+
+	TP_PROTO(int cpu, unsigned long util, long margin),
+
+	TP_ARGS(cpu, util, margin),
+
+	TP_STRUCT__entry(
+		__field( int,           cpu	)
+		__field( unsigned long, util	)
+		__field(long,           margin	)
+	),
+
+	TP_fast_assign(
+		__entry->cpu    = cpu;
+		__entry->util   = util;
+		__entry->margin = margin;
+	),
+
+	TP_printk("cpu=%d util=%lu margin=%ld",
+		__entry->cpu,
+		__entry->util,
+		__entry->margin)
+);
+
+/*
+ * Tracepoint for schedtune_tasks_update
+ */
+TRACE_EVENT(sched_tune_tasks_update,
+
+	TP_PROTO(struct task_struct *tsk, int cpu, int tasks, int idx,
+		int boost, int max_boost),
+
+	TP_ARGS(tsk, cpu, tasks, idx, boost, max_boost),
+
+	TP_STRUCT__entry(
+		__array( char,  comm,   TASK_COMM_LEN   )
+		__field( pid_t,         pid             )
+		__field( int,           cpu             )
+		__field( int,           tasks           )
+		__field( int,           idx             )
+		__field( int,           boost           )
+		__field( int,           max_boost       )
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__entry->pid            = tsk->pid;
+		__entry->cpu            = cpu;
+		__entry->tasks          = tasks;
+		__entry->idx            = idx;
+		__entry->boost          = boost;
+		__entry->max_boost      = max_boost;
+	),
+
+	TP_printk("pid=%d comm=%s "
+		"cpu=%d tasks=%d idx=%d boost=%d max_boost=%d",
+		__entry->pid, __entry->comm,
+		__entry->cpu, __entry->tasks, __entry->idx,
+		__entry->boost, __entry->max_boost)
+);
+
+/*
+ * Tracepoint for schedtune_boostgroup_update
+ */
+TRACE_EVENT(sched_tune_boostgroup_update,
+
+	TP_PROTO(int cpu, int variation, int max_boost),
+
+	TP_ARGS(cpu, variation, max_boost),
+
+	TP_STRUCT__entry(
+		__field( int,   cpu		)
+		__field( int,   variation	)
+		__field( int,   max_boost	)
+	),
+
+	TP_fast_assign(
+		__entry->cpu            = cpu;
+		__entry->variation      = variation;
+		__entry->max_boost      = max_boost;
+	),
+
+	TP_printk("cpu=%d variation=%d max_boost=%d",
+		__entry->cpu, __entry->variation, __entry->max_boost)
+);
+
+/*
+ * Tracepoint for accounting task boosted utilization
+ */
+TRACE_EVENT(sched_boost_task,
+
+	TP_PROTO(struct task_struct *tsk, unsigned long util, long margin),
+
+	TP_ARGS(tsk, util, margin),
+
+	TP_STRUCT__entry(
+		__array( char,  comm,   TASK_COMM_LEN	)
+		__field( pid_t,         pid		)
+		__field( unsigned long, util		)
+		__field( long,          margin		)
+
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__entry->pid    = tsk->pid;
+		__entry->util   = util;
+		__entry->margin = margin;
+	),
+
+	TP_printk("comm=%s pid=%d util=%lu margin=%ld",
+		__entry->comm, __entry->pid,
+		__entry->util,
+		__entry->margin)
+);
+
 #endif /* CONFIG_SMP */
 #endif /* _TRACE_SCHED_H */
 
