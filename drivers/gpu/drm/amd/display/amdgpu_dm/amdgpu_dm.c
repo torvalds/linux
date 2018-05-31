@@ -4555,8 +4555,8 @@ static int dm_update_crtcs_state(struct dc *dc,
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		struct amdgpu_crtc *acrtc = NULL;
 		struct amdgpu_dm_connector *aconnector = NULL;
-		struct drm_connector_state *new_con_state = NULL;
-		struct dm_connector_state *dm_conn_state = NULL;
+		struct drm_connector_state *drm_new_conn_state = NULL, *drm_old_conn_state = NULL;
+		struct dm_connector_state *dm_new_conn_state = NULL, *dm_old_conn_state = NULL;
 		struct drm_plane_state *new_plane_state = NULL;
 
 		new_stream = NULL;
@@ -4577,19 +4577,23 @@ static int dm_update_crtcs_state(struct dc *dc,
 		/* TODO This hack should go away */
 		if (aconnector && enable) {
 			// Make sure fake sink is created in plug-in scenario
-			new_con_state = drm_atomic_get_connector_state(state,
+			drm_new_conn_state = drm_atomic_get_new_connector_state(state,
  								    &aconnector->base);
+			drm_old_conn_state = drm_atomic_get_old_connector_state(state,
+								    &aconnector->base);
 
-			if (IS_ERR(new_con_state)) {
-				ret = PTR_ERR_OR_ZERO(new_con_state);
+
+			if (IS_ERR(drm_new_conn_state)) {
+				ret = PTR_ERR_OR_ZERO(drm_new_conn_state);
 				break;
 			}
 
-			dm_conn_state = to_dm_connector_state(new_con_state);
+			dm_new_conn_state = to_dm_connector_state(drm_new_conn_state);
+			dm_old_conn_state = to_dm_connector_state(drm_old_conn_state);
 
 			new_stream = create_stream_for_sink(aconnector,
 							     &new_crtc_state->mode,
-							    dm_conn_state);
+							    dm_new_conn_state);
 
 			/*
 			 * we can have no stream on ACTION_SET if a display
@@ -4707,6 +4711,11 @@ next_crtc:
 		 * => The dc stream state currently exists.
 		 */
 		BUG_ON(dm_new_crtc_state->stream == NULL);
+
+		/* Scaling or underscan settings */
+		if (is_scaling_state_different(dm_old_conn_state, dm_new_conn_state))
+			update_stream_scaling_settings(
+				&new_crtc_state->mode, dm_new_conn_state, dm_new_crtc_state->stream);
 
 		/* Color managment settings */
 		if (dm_new_crtc_state->base.color_mgmt_changed) {
