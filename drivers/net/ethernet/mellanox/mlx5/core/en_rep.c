@@ -710,7 +710,7 @@ bool mlx5e_is_uplink_rep(struct mlx5e_priv *priv)
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5_eswitch_rep *rep;
 
-	if (!MLX5_CAP_GEN(priv->mdev, vport_group_manager))
+	if (!MLX5_ESWITCH_MANAGER(priv->mdev))
 		return false;
 
 	rep = rpriv->rep;
