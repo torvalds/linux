@@ -4592,6 +4592,9 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	netdev->features         |= NETIF_F_HIGHDMA;
 	netdev->features         |= NETIF_F_HW_VLAN_STAG_FILTER;
 
+	netdev->features         |= NETIF_F_GSO_UDP_L4;
+	netdev->hw_features      |= NETIF_F_GSO_UDP_L4;
+
 	netdev->priv_flags       |= IFF_UNICAST_FLT;
 
 	mlx5e_set_netdev_dev_addr(netdev);

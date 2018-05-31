@@ -34,12 +34,11 @@
 #ifndef __MLX5E_EN_ACCEL_H__
 #define __MLX5E_EN_ACCEL_H__
 
-#ifdef CONFIG_MLX5_ACCEL
-
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include "en_accel/ipsec_rxtx.h"
 #include "en_accel/tls_rxtx.h"
+#include "en_accel/rxtx.h"
 #include "en.h"
 
 static inline struct sk_buff *mlx5e_accel_handle_tx(struct sk_buff *skb,
@@ -64,9 +63,13 @@ static inline struct sk_buff *mlx5e_accel_handle_tx(struct sk_buff *skb,
 	}
 #endif
 
+	if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4) {
+		skb = mlx5e_udp_gso_handle_tx_skb(dev, sq, skb, wqe, pi);
+		if (unlikely(!skb))
+			return NULL;
+	}
+
 	return skb;
 }
-
-#endif /* CONFIG_MLX5_ACCEL */
 
 #endif /* __MLX5E_EN_ACCEL_H__ */

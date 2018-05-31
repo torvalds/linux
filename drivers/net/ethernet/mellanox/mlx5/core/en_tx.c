@@ -228,7 +228,10 @@ mlx5e_tx_get_gso_ihs(struct mlx5e_txqsq *sq, struct sk_buff *skb)
 		stats->tso_inner_packets++;
 		stats->tso_inner_bytes += skb->len - ihs;
 	} else {
-		ihs = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4)
+			ihs = skb_transport_offset(skb) + sizeof(struct udphdr);
+		else
+			ihs = skb_transport_offset(skb) + tcp_hdrlen(skb);
 		stats->tso_packets++;
 		stats->tso_bytes += skb->len - ihs;
 	}
@@ -443,12 +446,11 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 	sq = priv->txq2sq[skb_get_queue_mapping(skb)];
 	mlx5e_sq_fetch_wqe(sq, &wqe, &pi);
 
-#ifdef CONFIG_MLX5_ACCEL
 	/* might send skbs and update wqe and pi */
 	skb = mlx5e_accel_handle_tx(skb, sq, dev, &wqe, &pi);
 	if (unlikely(!skb))
 		return NETDEV_TX_OK;
-#endif
+
 	return mlx5e_sq_xmit(sq, skb, wqe, pi);
 }
 
