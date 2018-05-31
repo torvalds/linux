@@ -747,18 +747,21 @@ out:
 	put_page(page);
 
 	gfs2_trans_end(sdp);
-	if (pos + len > ip->i_inode.i_size)
-		gfs2_trim_blocks(&ip->i_inode);
-	goto out_trans_fail;
+	if (alloc_required) {
+		gfs2_inplace_release(ip);
+		if (pos + len > ip->i_inode.i_size)
+			gfs2_trim_blocks(&ip->i_inode);
+	}
+	goto out_qunlock;
 
 out_endtrans:
 	gfs2_trans_end(sdp);
 out_trans_fail:
-	if (alloc_required) {
+	if (alloc_required)
 		gfs2_inplace_release(ip);
 out_qunlock:
+	if (alloc_required)
 		gfs2_quota_unlock(ip);
-	}
 out_unlock:
 	if (&ip->i_inode == sdp->sd_rindex) {
 		gfs2_glock_dq(&m_ip->i_gh);
