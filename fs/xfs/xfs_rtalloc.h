@@ -23,9 +23,14 @@
 struct xfs_mount;
 struct xfs_trans;
 
+/*
+ * XXX: Most of the realtime allocation functions deal in units of realtime
+ * extents, not realtime blocks.  This looks funny when paired with the type
+ * name and screams for a larger cleanup.
+ */
 struct xfs_rtalloc_rec {
-	xfs_rtblock_t		ar_startblock;
-	xfs_rtblock_t		ar_blockcount;
+	xfs_rtblock_t		ar_startext;
+	xfs_rtblock_t		ar_extcount;
 };
 
 typedef int (*xfs_rtalloc_query_range_fn)(

@@ -465,10 +465,9 @@ xfs_getfsmap_rtdev_rtbitmap_helper(
 	struct xfs_rmap_irec		irec;
 	xfs_daddr_t			rec_daddr;
 
-	rec_daddr = XFS_FSB_TO_BB(mp, rec->ar_startblock);
-
-	irec.rm_startblock = rec->ar_startblock;
-	irec.rm_blockcount = rec->ar_blockcount;
+	irec.rm_startblock = rec->ar_startext * mp->m_sb.sb_rextsize;
+	rec_daddr = XFS_FSB_TO_BB(mp, irec.rm_startblock);
+	irec.rm_blockcount = rec->ar_extcount * mp->m_sb.sb_rextsize;
 	irec.rm_owner = XFS_RMAP_OWN_NULL;	/* "free" */
 	irec.rm_offset = 0;
 	irec.rm_flags = 0;
@@ -534,8 +533,11 @@ xfs_getfsmap_rtdev_rtbitmap_query(
 
 	xfs_ilock(tp->t_mountp->m_rbmip, XFS_ILOCK_SHARED);
 
-	alow.ar_startblock = info->low.rm_startblock;
-	ahigh.ar_startblock = info->high.rm_startblock;
+	alow.ar_startext = info->low.rm_startblock;
+	ahigh.ar_startext = info->high.rm_startblock;
+	do_div(alow.ar_startext, tp->t_mountp->m_sb.sb_rextsize);
+	if (do_div(ahigh.ar_startext, tp->t_mountp->m_sb.sb_rextsize))
+		ahigh.ar_startext++;
 	error = xfs_rtalloc_query_range(tp, &alow, &ahigh,
 			xfs_getfsmap_rtdev_rtbitmap_helper, info);
 	if (error)

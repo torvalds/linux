@@ -66,11 +66,15 @@ xfs_scrub_rtbitmap_rec(
 	void				*priv)
 {
 	struct xfs_scrub_context	*sc = priv;
+	xfs_rtblock_t			startblock;
+	xfs_rtblock_t			blockcount;
 
-	if (rec->ar_startblock + rec->ar_blockcount <= rec->ar_startblock ||
-	    !xfs_verify_rtbno(sc->mp, rec->ar_startblock) ||
-	    !xfs_verify_rtbno(sc->mp, rec->ar_startblock +
-			rec->ar_blockcount - 1))
+	startblock = rec->ar_startext * tp->t_mountp->m_sb.sb_rextsize;
+	blockcount = rec->ar_extcount * tp->t_mountp->m_sb.sb_rextsize;
+
+	if (startblock + blockcount <= startblock ||
+	    !xfs_verify_rtbno(sc->mp, startblock) ||
+	    !xfs_verify_rtbno(sc->mp, startblock + blockcount - 1))
 		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 	return 0;
 }
@@ -139,14 +143,23 @@ xfs_scrub_xref_is_used_rt_space(
 	xfs_rtblock_t			fsbno,
 	xfs_extlen_t			len)
 {
+	xfs_rtblock_t			startext;
+	xfs_rtblock_t			endext;
+	xfs_rtblock_t			extcount;
 	bool				is_free;
 	int				error;
 
 	if (xfs_scrub_skip_xref(sc->sm))
 		return;
 
+	startext = fsbno;
+	endext = fsbno + len - 1;
+	do_div(startext, sc->mp->m_sb.sb_rextsize);
+	if (do_div(endext, sc->mp->m_sb.sb_rextsize))
+		endext++;
+	extcount = endext - startext;
 	xfs_ilock(sc->mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
-	error = xfs_rtalloc_extent_is_free(sc->mp, sc->tp, fsbno, len,
+	error = xfs_rtalloc_extent_is_free(sc->mp, sc->tp, startext, extcount,
 			&is_free);
 	if (!xfs_scrub_should_check_xref(sc, &error, NULL))
 		goto out_unlock;
