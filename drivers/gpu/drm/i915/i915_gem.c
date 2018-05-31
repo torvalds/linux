@@ -5055,6 +5055,17 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 	if (WARN_ON(!intel_engines_are_idle(dev_priv)))
 		i915_gem_set_wedged(dev_priv); /* no hope, discard everything */
 
+	intel_runtime_pm_put(dev_priv);
+	return 0;
+
+err_unlock:
+	mutex_unlock(&dev->struct_mutex);
+	intel_runtime_pm_put(dev_priv);
+	return ret;
+}
+
+void i915_gem_suspend_late(struct drm_i915_private *i915)
+{
 	/*
 	 * Neither the BIOS, ourselves or any other kernel
 	 * expects the system to be in execlists mode on startup,
@@ -5074,16 +5085,9 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 	 * machines is a good idea, we don't - just in case it leaves the
 	 * machine in an unusable condition.
 	 */
-	intel_uc_sanitize(dev_priv);
-	i915_gem_sanitize(dev_priv);
 
-	intel_runtime_pm_put(dev_priv);
-	return 0;
-
-err_unlock:
-	mutex_unlock(&dev->struct_mutex);
-	intel_runtime_pm_put(dev_priv);
-	return ret;
+	intel_uc_sanitize(i915);
+	i915_gem_sanitize(i915);
 }
 
 void i915_gem_resume(struct drm_i915_private *i915)

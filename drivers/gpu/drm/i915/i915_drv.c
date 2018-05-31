@@ -636,6 +636,8 @@ static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {
 
 static void i915_gem_fini(struct drm_i915_private *dev_priv)
 {
+	i915_gem_suspend_late(dev_priv);
+
 	/* Flush any outstanding unpin_work. */
 	i915_gem_drain_workqueue(dev_priv);
 
@@ -1611,7 +1613,6 @@ static int i915_drm_suspend(struct drm_device *dev)
 	opregion_target_state = suspend_to_idle(dev_priv) ? PCI_D1 : PCI_D3cold;
 	intel_opregion_notify_adapter(dev_priv, opregion_target_state);
 
-	intel_uncore_suspend(dev_priv);
 	intel_opregion_unregister(dev_priv);
 
 	intel_fbdev_set_suspend(dev, FBINFO_STATE_SUSPENDED, true);
@@ -1633,7 +1634,10 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 
 	disable_rpm_wakeref_asserts(dev_priv);
 
+	i915_gem_suspend_late(dev_priv);
+
 	intel_display_set_init_power(dev_priv, false);
+	intel_uncore_suspend(dev_priv);
 
 	/*
 	 * In case of firmware assisted context save/restore don't manually
