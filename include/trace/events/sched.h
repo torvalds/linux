@@ -779,6 +779,47 @@ TRACE_EVENT(sched_util_est_cpu,
 		  __entry->util_avg,
 		  __entry->util_est_enqueued)
 );
+
+/*
+ * Tracepoint for find_best_target
+ */
+TRACE_EVENT(sched_find_best_target,
+
+	TP_PROTO(struct task_struct *tsk, bool prefer_idle,
+		 unsigned long min_util, int best_idle, int best_active,
+		 int target, int backup),
+
+	TP_ARGS(tsk, prefer_idle, min_util, best_idle,
+		best_active, target, backup),
+
+	TP_STRUCT__entry(
+		__array( char,  comm,   TASK_COMM_LEN   )
+		__field( pid_t, pid                     )
+		__field( unsigned long, min_util        )
+		__field( bool,  prefer_idle             )
+		__field( int,   best_idle               )
+		__field( int,   best_active             )
+		__field( int,   target                  )
+		__field( int,   backup                  )
+		),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__entry->pid            = tsk->pid;
+		__entry->min_util       = min_util;
+		__entry->prefer_idle    = prefer_idle;
+		__entry->best_idle      = best_idle;
+		__entry->best_active    = best_active;
+		__entry->target         = target;
+		__entry->backup         = backup;
+		),
+
+	TP_printk("pid=%d comm=%s prefer_idle=%d "
+		  "best_idle=%d best_active=%d target=%d backup=%d",
+		  __entry->pid, __entry->comm, __entry->prefer_idle,
+		  __entry->best_idle, __entry->best_active,
+		  __entry->target, __entry->backup)
+);
 #endif /* CONFIG_SMP */
 #endif /* _TRACE_SCHED_H */
 

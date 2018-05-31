@@ -6789,6 +6789,9 @@ static void find_best_target(struct sched_domain *sd, cpumask_t *cpus,
 target:
 		cpumask_set_cpu(target_cpu, cpus);
 	}
+
+	trace_sched_find_best_target(p, prefer_idle, min_util, best_idle_cpu,
+			             best_active_cpu, target_cpu, backup_cpu);
 }
 
 /*
