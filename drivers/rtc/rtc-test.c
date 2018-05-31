@@ -40,23 +40,12 @@ static int test_rtc_set_mmss64(struct device *dev, time64_t secs)
 	return 0;
 }
 
-static int test_rtc_proc(struct device *dev, struct seq_file *seq)
-{
-	struct platform_device *plat_dev = to_platform_device(dev);
-
-	seq_printf(seq, "test\t\t: yes\n");
-	seq_printf(seq, "id\t\t: %d\n", plat_dev->id);
-
-	return 0;
-}
-
 static int test_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 {
 	return 0;
 }
 
 static const struct rtc_class_ops test_rtc_ops = {
-	.proc = test_rtc_proc,
 	.read_time = test_rtc_read_time,
 	.read_alarm = test_rtc_read_alarm,
 	.set_alarm = test_rtc_set_alarm,
