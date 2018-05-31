@@ -11,6 +11,8 @@
 ALL_TESTS="
 	test_gretap
 	test_ip6gretap
+	test_gretap_stp
+	test_ip6gretap_stp
 "
 
 NUM_NETIFS=6
@@ -78,6 +80,16 @@ test_gretap()
 test_ip6gretap()
 {
 	test_vlan_match gt6 'vlan_id 555 vlan_ethtype ipv6' "mirror to ip6gretap"
+}
+
+test_gretap_stp()
+{
+	full_test_span_gre_stp gt4 $swp3.555 "mirror to gretap"
+}
+
+test_ip6gretap_stp()
+{
+	full_test_span_gre_stp gt6 $swp3.555 "mirror to ip6gretap"
 }
 
 test_all()
