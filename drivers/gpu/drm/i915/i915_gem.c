@@ -3498,6 +3498,22 @@ new_requests_since_last_retire(const struct drm_i915_private *i915)
 		work_pending(&i915->gt.idle_work.work));
 }
 
+static void assert_kernel_context_is_current(struct drm_i915_private *i915)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	if (i915_terminally_wedged(&i915->gpu_error))
+		return;
+
+	GEM_BUG_ON(i915->gt.active_requests);
+	for_each_engine(engine, i915, id) {
+		GEM_BUG_ON(__i915_gem_active_peek(&engine->timeline.last_request));
+		GEM_BUG_ON(engine->last_retired_context !=
+			   to_intel_context(i915->kernel_context, engine));
+	}
+}
+
 static void
 i915_gem_idle_work_handler(struct work_struct *work)
 {
@@ -3559,6 +3575,8 @@ i915_gem_idle_work_handler(struct work_struct *work)
 		goto out_unlock;
 
 	epoch = __i915_gem_park(dev_priv);
+
+	assert_kernel_context_is_current(dev_priv);
 
 	rearm_hangcheck = false;
 out_unlock:
@@ -4942,19 +4960,6 @@ void __i915_gem_object_release_unless_active(struct drm_i915_gem_object *obj)
 		i915_gem_object_set_active_reference(obj);
 	else
 		i915_gem_object_put(obj);
-}
-
-static void assert_kernel_context_is_current(struct drm_i915_private *i915)
-{
-	struct i915_gem_context *kctx = i915->kernel_context;
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	GEM_BUG_ON(i915->gt.active_requests);
-	for_each_engine(engine, i915, id) {
-		GEM_BUG_ON(__i915_gem_active_peek(&engine->timeline.last_request));
-		GEM_BUG_ON(engine->last_retired_context->gem_context != kctx);
-	}
 }
 
 void i915_gem_sanitize(struct drm_i915_private *i915)
