@@ -145,6 +145,14 @@
 		vin-supply = <&vcc_io>;
 	};
 
+	vcc_cvbs_33: vcc-cvbs-33 {
+		compatible = "regulator-fixed";
+		regulator-name= "vcc-cvbs-33";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&pmic_vcc_cvbs_33>;
+	};
+
 	vcc_sys: vcc-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
@@ -171,6 +179,22 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&vcc_io>;
+	};
+
+	dvdd_1v8: dvdd-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "dvdd-1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc_18>;
+	};
+
+	dvdd_3v3: dvdd-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "dvdd-3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_cvbs_33>;
 	};
 
 	wireless-bluetooth {
@@ -231,6 +255,18 @@
 			panel_in_lvds: endpoint {
 				remote-endpoint = <&lvds_out_panel>;
 			};
+		};
+	};
+};
+
+&cif_new {
+	status = "okay";
+
+	port {
+		cif_in: endpoint {
+			remote-endpoint = <&adv7181_out>;
+			vsync-active = <0>;
+			hsync-active = <1>;
 		};
 	};
 };
@@ -415,8 +451,6 @@
 				regulator-name= "pmic-vcc-cvbs-33";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
-				regulator-boot-on;
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -449,7 +483,8 @@
 &i2c2 {
 	status = "okay";
 	clock-frequency = <400000>;
-	ts@14 {
+
+	touchscreen: ts@14 {
 		compatible = "goodix,gt9xx";
 		reg = <0x14>;
 		touch-gpio = <&gpio1 8 IRQ_TYPE_LEVEL_LOW>;
@@ -460,6 +495,26 @@
 		tp-size = <910>;
 		tp-supply = <&pmic_vcc_tp_33>;
 		status = "okay";
+	};
+
+	camera: adv7181@21 {
+		compatible = "adi,adv7181";
+		reg = <0x21>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&cif_rst>;
+
+		dvdd-supply = <&dvdd_1v8>;
+		dvddio-supply = <&dvdd_3v3>;
+		reset-gpios = <&gpio3 11 GPIO_ACTIVE_LOW>;
+
+		status = "okay";
+
+		port {
+			adv7181_out: endpoint {
+				remote-endpoint = <&cif_in>;
+			};
+		};
 	};
 };
 
@@ -543,6 +598,12 @@
 };
 
 &pinctrl {
+	camera {
+		cif_rst: cif-rst {
+			rockchip,pins = <3 11 RK_FUNC_GPIO &pcfg_pull_default>;
+		};
+	};
+
 	pmic {
 		pmic_int_l: pmic-int-l {
 			rockchip,pins = <1 11 RK_FUNC_GPIO &pcfg_pull_default>;
