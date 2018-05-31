@@ -345,8 +345,13 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 		if (err < 0)
 			perror("recv start time: ");
 		while (s->bytes_recvd < total_bytes) {
-			timeout.tv_sec = 0;
-			timeout.tv_usec = 10;
+			if (txmsg_cork) {
+				timeout.tv_sec = 0;
+				timeout.tv_usec = 1000;
+			} else {
+				timeout.tv_sec = 1;
+				timeout.tv_usec = 0;
+			}
 
 			/* FD sets */
 			FD_ZERO(&w);
@@ -1025,14 +1030,14 @@ static int test_send(struct sockmap_options *opt, int cgrp)
 
 	opt->iov_length = 1;
 	opt->iov_count = 1;
-	opt->rate = 1024;
+	opt->rate = 512;
 	err = test_exec(cgrp, opt);
 	if (err)
 		goto out;
 
 	opt->iov_length = 256;
 	opt->iov_count = 1024;
-	opt->rate = 10;
+	opt->rate = 2;
 	err = test_exec(cgrp, opt);
 	if (err)
 		goto out;
