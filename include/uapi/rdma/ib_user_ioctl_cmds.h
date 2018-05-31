@@ -140,9 +140,16 @@ enum uverbs_attrs_destroy_counters_cmd_attr_ids {
 	UVERBS_ATTR_DESTROY_COUNTERS_HANDLE,
 };
 
+enum uverbs_attrs_read_counters_cmd_attr_ids {
+	UVERBS_ATTR_READ_COUNTERS_HANDLE,
+	UVERBS_ATTR_READ_COUNTERS_BUFF,
+	UVERBS_ATTR_READ_COUNTERS_FLAGS,
+};
+
 enum uverbs_methods_actions_counters_ops {
 	UVERBS_METHOD_COUNTERS_CREATE,
 	UVERBS_METHOD_COUNTERS_DESTROY,
+	UVERBS_METHOD_COUNTERS_READ,
 };
 
 #endif
