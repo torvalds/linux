@@ -92,3 +92,38 @@ test_span_dir()
 {
 	test_span_dir_ips "$@" 192.0.2.1 192.0.2.2
 }
+
+do_test_span_vlan_dir_ips()
+{
+	local expect=$1; shift
+	local dev=$1; shift
+	local vid=$1; shift
+	local direction=$1; shift
+	local ip1=$1; shift
+	local ip2=$1; shift
+
+	vlan_capture_install $dev "vlan_id $vid"
+	mirror_test v$h1 $ip1 $ip2 $dev 100 $expect
+	mirror_test v$h2 $ip2 $ip1 $dev 100 $expect
+	vlan_capture_uninstall $dev
+}
+
+quick_test_span_vlan_dir_ips()
+{
+	do_test_span_vlan_dir_ips 10 "$@"
+}
+
+fail_test_span_vlan_dir_ips()
+{
+	do_test_span_vlan_dir_ips 0 "$@"
+}
+
+quick_test_span_vlan_dir()
+{
+	quick_test_span_vlan_dir_ips "$@" 192.0.2.1 192.0.2.2
+}
+
+fail_test_span_vlan_dir()
+{
+	fail_test_span_vlan_dir_ips "$@" 192.0.2.1 192.0.2.2
+}
