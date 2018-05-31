@@ -26,6 +26,7 @@
  *
  * Authors:
  * Deepak Rawat <drawat@vmware.com>
+ * Rob Clark <robdclark@gmail.com>
  *
  **************************************************************************/
 
@@ -69,6 +70,21 @@
  * drm_atomic_helper_damage_iter_next() helper iterator function to get damage
  * rectangles clipped to &drm_plane_state.src.
  */
+
+static void convert_clip_rect_to_rect(const struct drm_clip_rect *src,
+				      struct drm_mode_rect *dest,
+				      uint32_t num_clips, uint32_t src_inc)
+{
+	while (num_clips > 0) {
+		dest->x1 = src->x1;
+		dest->y1 = src->y1;
+		dest->x2 = src->x2;
+		dest->y2 = src->y2;
+		src += src_inc;
+		dest++;
+		num_clips--;
+	}
+}
 
 /**
  * drm_plane_enable_fb_damage_clips - Enables plane fb damage clips property.
@@ -119,6 +135,116 @@ void drm_atomic_helper_check_plane_damage(struct drm_atomic_state *state,
 	}
 }
 EXPORT_SYMBOL(drm_atomic_helper_check_plane_damage);
+
+/**
+ * drm_atomic_helper_dirtyfb - Helper for dirtyfb.
+ * @fb: DRM framebuffer.
+ * @file_priv: Drm file for the ioctl call.
+ * @flags: Dirty fb annotate flags.
+ * @color: Color for annotate fill.
+ * @clips: Dirty region.
+ * @num_clips: Count of clip in clips.
+ *
+ * A helper to implement &drm_framebuffer_funcs.dirty using damage interface
+ * during plane update. If num_clips is 0 then this helper will do a full plane
+ * update. This is the same behaviour expected by DIRTFB IOCTL.
+ *
+ * Note that this helper is blocking implementation. This is what current
+ * drivers and userspace expect in their DIRTYFB IOCTL implementation, as a way
+ * to rate-limit userspace and make sure its rendering doesn't get ahead of
+ * uploading new data too much.
+ *
+ * Return: Zero on success, negative errno on failure.
+ */
+int drm_atomic_helper_dirtyfb(struct drm_framebuffer *fb,
+			      struct drm_file *file_priv, unsigned int flags,
+			      unsigned int color, struct drm_clip_rect *clips,
+			      unsigned int num_clips)
+{
+	struct drm_modeset_acquire_ctx ctx;
+	struct drm_property_blob *damage = NULL;
+	struct drm_mode_rect *rects = NULL;
+	struct drm_atomic_state *state;
+	struct drm_plane *plane;
+	int ret = 0;
+
+	/*
+	 * When called from ioctl, we are interruptable, but not when called
+	 * internally (ie. defio worker)
+	 */
+	drm_modeset_acquire_init(&ctx,
+		file_priv ? DRM_MODESET_ACQUIRE_INTERRUPTIBLE : 0);
+
+	state = drm_atomic_state_alloc(fb->dev);
+	if (!state) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	state->acquire_ctx = &ctx;
+
+	if (clips) {
+		uint32_t inc = 1;
+
+		if (flags & DRM_MODE_FB_DIRTY_ANNOTATE_COPY) {
+			inc = 2;
+			num_clips /= 2;
+		}
+
+		rects = kcalloc(num_clips, sizeof(*rects), GFP_KERNEL);
+		if (!rects) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		convert_clip_rect_to_rect(clips, rects, num_clips, inc);
+		damage = drm_property_create_blob(fb->dev,
+						  num_clips * sizeof(*rects),
+						  rects);
+		if (IS_ERR(damage)) {
+			ret = PTR_ERR(damage);
+			damage = NULL;
+			goto out;
+		}
+	}
+
+retry:
+	drm_for_each_plane(plane, fb->dev) {
+		struct drm_plane_state *plane_state;
+
+		if (plane->state->fb != fb)
+			continue;
+
+		plane_state = drm_atomic_get_plane_state(state, plane);
+		if (IS_ERR(plane_state)) {
+			ret = PTR_ERR(plane_state);
+			goto out;
+		}
+
+		drm_property_replace_blob(&plane_state->fb_damage_clips,
+					  damage);
+	}
+
+	ret = drm_atomic_commit(state);
+
+out:
+	if (ret == -EDEADLK) {
+		drm_atomic_state_clear(state);
+		ret = drm_modeset_backoff(&ctx);
+		if (!ret)
+			goto retry;
+	}
+
+	drm_property_blob_put(damage);
+	kfree(rects);
+	drm_atomic_state_put(state);
+
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+
+	return ret;
+
+}
+EXPORT_SYMBOL(drm_atomic_helper_dirtyfb);
 
 /**
  * drm_atomic_helper_damage_iter_init - Initialize the damage iterator.
