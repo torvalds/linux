@@ -2221,38 +2221,15 @@ static void genpd_dev_pm_sync(struct device *dev)
 	genpd_queue_power_off_work(pd);
 }
 
-/**
- * genpd_dev_pm_attach - Attach a device to its PM domain using DT.
- * @dev: Device to attach.
- *
- * Parse device's OF node to find a PM domain specifier. If such is found,
- * attaches the device to retrieved pm_domain ops.
- *
- * Returns 1 on successfully attached PM domain, 0 when the device don't need a
- * PM domain or when multiple power-domains exists for it, else a negative error
- * code. Note that if a power-domain exists for the device, but it cannot be
- * found or turned on, then return -EPROBE_DEFER to ensure that the device is
- * not probed and to re-try again later.
- */
-int genpd_dev_pm_attach(struct device *dev)
+static int __genpd_dev_pm_attach(struct device *dev, struct device_node *np,
+				 unsigned int index)
 {
 	struct of_phandle_args pd_args;
 	struct generic_pm_domain *pd;
 	int ret;
 
-	if (!dev->of_node)
-		return 0;
-
-	/*
-	 * Devices with multiple PM domains must be attached separately, as we
-	 * can only attach one PM domain per device.
-	 */
-	if (of_count_phandle_with_args(dev->of_node, "power-domains",
-				       "#power-domain-cells") != 1)
-		return 0;
-
-	ret = of_parse_phandle_with_args(dev->of_node, "power-domains",
-					"#power-domain-cells", 0, &pd_args);
+	ret = of_parse_phandle_with_args(np, "power-domains",
+				"#power-domain-cells", index, &pd_args);
 	if (ret < 0)
 		return ret;
 
@@ -2289,6 +2266,35 @@ int genpd_dev_pm_attach(struct device *dev)
 		genpd_remove_device(pd, dev);
 
 	return ret ? -EPROBE_DEFER : 1;
+}
+
+/**
+ * genpd_dev_pm_attach - Attach a device to its PM domain using DT.
+ * @dev: Device to attach.
+ *
+ * Parse device's OF node to find a PM domain specifier. If such is found,
+ * attaches the device to retrieved pm_domain ops.
+ *
+ * Returns 1 on successfully attached PM domain, 0 when the device don't need a
+ * PM domain or when multiple power-domains exists for it, else a negative error
+ * code. Note that if a power-domain exists for the device, but it cannot be
+ * found or turned on, then return -EPROBE_DEFER to ensure that the device is
+ * not probed and to re-try again later.
+ */
+int genpd_dev_pm_attach(struct device *dev)
+{
+	if (!dev->of_node)
+		return 0;
+
+	/*
+	 * Devices with multiple PM domains must be attached separately, as we
+	 * can only attach one PM domain per device.
+	 */
+	if (of_count_phandle_with_args(dev->of_node, "power-domains",
+				       "#power-domain-cells") != 1)
+		return 0;
+
+	return __genpd_dev_pm_attach(dev, dev->of_node, 0);
 }
 EXPORT_SYMBOL_GPL(genpd_dev_pm_attach);
 
