@@ -808,6 +808,8 @@ static void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int phy_no)
 
 	for (i = 0; i < HISI_PHYES_NUM; i++)
 		INIT_WORK(&phy->works[i], hisi_sas_phye_fns[i]);
+
+	spin_lock_init(&phy->lock);
 }
 
 static void hisi_sas_port_notify_formed(struct asd_sas_phy *sas_phy)
