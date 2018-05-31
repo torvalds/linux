@@ -46,7 +46,7 @@ static __init int init_emergency_pool(void)
 
 	ret = bioset_init(&bounce_bio_set, BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS);
 	BUG_ON(ret);
-	if (bioset_integrity_create(bounce_bio_set, BIO_POOL_SIZE))
+	if (bioset_integrity_create(&bounce_bio_set, BIO_POOL_SIZE))
 		BUG_ON(1);
 
 	ret = bioset_init(&bounce_bio_split, BIO_POOL_SIZE, 0, 0);
