@@ -2180,6 +2180,13 @@ struct ib_port_pkey_list {
 	struct list_head              pkey_list;
 };
 
+struct ib_counters {
+	struct ib_device	*device;
+	struct ib_uobject	*uobject;
+	/* num of objects attached */
+	atomic_t	usecnt;
+};
+
 struct uverbs_attr_bundle;
 
 struct ib_device {
@@ -2451,6 +2458,10 @@ struct ib_device {
 	struct ib_mr *             (*reg_dm_mr)(struct ib_pd *pd, struct ib_dm *dm,
 						struct ib_dm_mr_attr *attr,
 						struct uverbs_attr_bundle *attrs);
+	struct ib_counters *	(*create_counters)(struct ib_device *device,
+						   struct uverbs_attr_bundle *attrs);
+	int	(*destroy_counters)(struct ib_counters	*counters);
+
 	/**
 	 * rdma netdev operation
 	 *
