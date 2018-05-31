@@ -7483,6 +7483,10 @@ _scsih_sas_broadcast_primitive_event(struct MPT3SAS_ADAPTER *ioc,
 		if (sas_device_priv_data->sas_target->flags &
 		    MPT_TARGET_FLAGS_VOLUME)
 			continue;
+		 /* skip PCIe devices */
+		if (sas_device_priv_data->sas_target->flags &
+		    MPT_TARGET_FLAGS_PCIE_DEVICE)
+			continue;
 
 		handle = sas_device_priv_data->sas_target->handle;
 		lun = sas_device_priv_data->lun;
