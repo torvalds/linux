@@ -196,8 +196,8 @@ static void mlx5_fpga_tls_flow_to_cmd(void *flow, void *cmd)
 		 MLX5_GET(tls_flow, flow, direction_sx));
 }
 
-void mlx5_fpga_tls_send_teardown_cmd(struct mlx5_core_dev *mdev, void *flow,
-				     u32 swid, gfp_t flags)
+static void mlx5_fpga_tls_send_teardown_cmd(struct mlx5_core_dev *mdev,
+					    void *flow, u32 swid, gfp_t flags)
 {
 	struct mlx5_teardown_stream_context *ctx;
 	struct mlx5_fpga_dma_buf *buf;
