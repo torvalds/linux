@@ -73,6 +73,7 @@
 #define GICD_TYPER_MBIS			(1U << 16)
 
 #define GICD_TYPER_ID_BITS(typer)	((((typer) >> 19) & 0x1f) + 1)
+#define GICD_TYPER_NUM_LPIS(typer)	((((typer) >> 11) & 0x1f) + 1)
 #define GICD_TYPER_IRQS(typer)		((((typer) & 0x1f) + 1) * 32)
 
 #define GICD_IROUTER_SPI_MODE_ONE	(0U << 31)

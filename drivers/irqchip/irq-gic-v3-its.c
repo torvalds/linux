@@ -1541,7 +1541,16 @@ out:
 static int __init its_lpi_init(u32 id_bits)
 {
 	u32 lpis = (1UL << id_bits) - 8192;
+	u32 numlpis;
 	int err;
+
+	numlpis = 1UL << GICD_TYPER_NUM_LPIS(gic_rdists->gicd_typer);
+
+	if (numlpis > 2 && !WARN_ON(numlpis > lpis)) {
+		lpis = numlpis;
+		pr_info("ITS: Using hypervisor restricted LPI range [%u]\n",
+			lpis);
+	}
 
 	/*
 	 * Initializing the allocator is just the same as freeing the
