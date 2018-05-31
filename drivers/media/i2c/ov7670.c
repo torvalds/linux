@@ -1744,14 +1744,12 @@ static int ov7670_parse_dt(struct device *dev,
 		return -EINVAL;
 
 	ret = v4l2_fwnode_endpoint_parse(ep, &bus_cfg);
-	if (ret) {
-		fwnode_handle_put(ep);
+	fwnode_handle_put(ep);
+	if (ret)
 		return ret;
-	}
 
 	if (bus_cfg.bus_type != V4L2_MBUS_PARALLEL) {
 		dev_err(dev, "Unsupported media bus type\n");
-		fwnode_handle_put(ep);
 		return ret;
 	}
 	info->mbus_config = bus_cfg.bus.parallel.flags;
