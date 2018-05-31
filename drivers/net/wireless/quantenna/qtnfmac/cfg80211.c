@@ -843,6 +843,22 @@ static int qtnf_set_mac_acl(struct wiphy *wiphy,
 	return ret;
 }
 
+static int qtnf_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
+			       bool enabled, int timeout)
+{
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
+	int ret;
+
+	ret = qtnf_cmd_send_pm_set(vif, enabled ? QLINK_PM_AUTO_STANDBY :
+				   QLINK_PM_OFF, timeout);
+	if (ret) {
+		pr_err("%s: failed to set PM mode ret=%d\n", dev->name, ret);
+		return ret;
+	}
+
+	return ret;
+}
+
 static struct cfg80211_ops qtn_cfg80211_ops = {
 	.add_virtual_intf	= qtnf_add_virtual_intf,
 	.change_virtual_intf	= qtnf_change_virtual_intf,
@@ -869,6 +885,7 @@ static struct cfg80211_ops qtn_cfg80211_ops = {
 	.channel_switch		= qtnf_channel_switch,
 	.start_radar_detection	= qtnf_start_radar_detection,
 	.set_mac_acl		= qtnf_set_mac_acl,
+	.set_power_mgmt		= qtnf_set_power_mgmt,
 };
 
 static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy_in,
@@ -920,6 +937,9 @@ struct wiphy *qtnf_wiphy_allocate(struct qtnf_bus *bus)
 
 	if (bus->hw_info.hw_capab & QLINK_HW_CAPAB_DFS_OFFLOAD)
 		qtn_cfg80211_ops.start_radar_detection = NULL;
+
+	if (!(bus->hw_info.hw_capab & QLINK_HW_CAPAB_PWR_MGMT))
+		qtn_cfg80211_ops.set_power_mgmt	= NULL;
 
 	wiphy = wiphy_new(&qtn_cfg80211_ops, sizeof(struct qtnf_wmac));
 	if (!wiphy)
@@ -994,6 +1014,7 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
 			WIPHY_FLAG_AP_UAPSD |
 			WIPHY_FLAG_HAS_CHANNEL_SWITCH;
+	wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	if (hw_info->hw_capab & QLINK_HW_CAPAB_DFS_OFFLOAD)
 		wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_DFS_OFFLOAD);

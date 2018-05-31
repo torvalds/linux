@@ -77,6 +77,7 @@ enum qlink_hw_capab {
 	QLINK_HW_CAPAB_STA_INACT_TIMEOUT	= BIT(1),
 	QLINK_HW_CAPAB_DFS_OFFLOAD		= BIT(2),
 	QLINK_HW_CAPAB_SCAN_RANDOM_MAC_ADDR	= BIT(3),
+	QLINK_HW_CAPAB_PWR_MGMT			= BIT(4),
 };
 
 enum qlink_iface_type {
@@ -256,6 +257,7 @@ enum qlink_cmd_type {
 	QLINK_CMD_CHAN_STATS		= 0x0054,
 	QLINK_CMD_CONNECT		= 0x0060,
 	QLINK_CMD_DISCONNECT		= 0x0061,
+	QLINK_CMD_PM_SET		= 0x0062,
 };
 
 /**
@@ -666,6 +668,30 @@ struct qlink_acl_data {
 	__le32 policy;
 	__le32 num_entries;
 	struct qlink_mac_address mac_addrs[0];
+} __packed;
+
+/**
+ * enum qlink_pm_mode - Power Management mode
+ *
+ * @QLINK_PM_OFF: normal mode, no power saving enabled
+ * @QLINK_PM_AUTO_STANDBY: enable auto power save mode
+ */
+enum qlink_pm_mode {
+	QLINK_PM_OFF		= 0,
+	QLINK_PM_AUTO_STANDBY	= 1,
+};
+
+/**
+ * struct qlink_cmd_pm_set - data for QLINK_CMD_PM_SET command
+ *
+ * @pm_standby timer: period of network inactivity in seconds before
+ *	putting a radio in power save mode
+ * @pm_mode: power management mode
+ */
+struct qlink_cmd_pm_set {
+	struct qlink_cmd chdr;
+	__le32 pm_standby_timer;
+	u8 pm_mode;
 } __packed;
 
 /* QLINK Command Responses messages related definitions
