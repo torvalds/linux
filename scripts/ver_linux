@@ -32,11 +32,13 @@ BEGIN {
 	printversion("Nfs-utils", version("showmount --version"))
 
 	while (getline <"/proc/self/maps" > 0) {
-		n = split($0, procmaps, "/")
-		if (/libc.*so$/ && match(procmaps[n], /[0-9]+([.]?[0-9]+)+/)) {
-			ver = substr(procmaps[n], RSTART, RLENGTH)
-			printversion("Linux C Library", ver)
-			break
+		if (/libc.*\.so$/) {
+			n = split($0, procmaps, "/")
+			if (match(procmaps[n], /[0-9]+([.]?[0-9]+)+/)) {
+				ver = substr(procmaps[n], RSTART, RLENGTH)
+				printversion("Linux C Library", ver)
+				break
+			}
 		}
 	}
 
