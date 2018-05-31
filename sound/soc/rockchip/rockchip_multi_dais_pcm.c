@@ -102,9 +102,8 @@ static int dmaengine_mpcm_prepare_and_submit(struct snd_pcm_substream *substream
 	enum dma_transfer_direction direction;
 	unsigned long flags = DMA_CTRL_ACK;
 	unsigned int *maps = prtd->channel_maps;
-	unsigned int channels = runtime->channels;
 	int offset, buffer_bytes, period_bytes;
-	int i, pb, bb;
+	int i;
 	bool callback = false;
 
 	direction = snd_pcm_substream_to_dma_direction(substream);
@@ -118,16 +117,10 @@ static int dmaengine_mpcm_prepare_and_submit(struct snd_pcm_substream *substream
 	for (i = 0; i < prtd->num_chans; i++) {
 		if (!prtd->chans[i])
 			continue;
-		pb = period_bytes;
-		bb = buffer_bytes;
-		if (maps[i]) {
-			pb = pb * maps[i] / channels;
-			bb = bb * maps[i] / channels;
-		}
-		pr_debug("offset: %d, pb: %d, bb: %d\n", offset, pb, bb);
 		desc = dmaengine_prep_dma_cyclic(prtd->chans[i],
 						 runtime->dma_addr + offset,
-						 bb, pb, direction, flags);
+						 buffer_bytes, period_bytes,
+						 direction, flags);
 
 		if (!desc)
 			return -ENOMEM;
