@@ -93,28 +93,24 @@ static struct medusa_kobject_s * memory_fetch(struct medusa_kobject_s * key_obj)
 {
 	int ret;
 	struct task_struct * p;
+	struct memory_kobject* kobj = (struct memory_kobject *) key_obj;
 
-        memset(&key_obj, '\0', sizeof(struct memory_kobject));
-
-	key_obj.pid = ((struct memory_kobject *) key_obj)->pid;
-	key_obj.address = ((struct memory_kobject *) key_obj)->address;
-	key_obj.size = ((struct memory_kobject *) key_obj)->size;
-	read_lock_irq(&tasklist_lock);
+	rcu_read_lock();
 	//p = find_task_by_pid(storage.pid);
-	p = pid_task(find_vpid(key_obj.pid), PIDTYPE_PID);
+	p = pid_task(find_vpid(kobj->pid), PIDTYPE_PID);
 	if (p) {
 		get_task_struct(p);
-		read_unlock_irq(&tasklist_lock);
-		ret = access_process_vm(p, (unsigned long)key_obj.address, key_obj.data, key_obj.size, 0);
+		rcu_read_unlock();
+		ret = access_process_vm(p, (unsigned long)kobj->address, kobj->data, kobj->size, 0);
 		//free_task_struct(p);
 		free_task(p);
-		key_obj.retval = ret;
-		return (struct medusa_kobject_s *)&key_obj;
+		kobj->retval = ret;
+		return key_obj;
 	}
-	read_unlock_irq(&tasklist_lock);
+	rcu_read_unlock();
 	/* subject to change */
-	key_obj.retval = -ESRCH;
-	return (struct medusa_kobject_s *)&key_obj;
+	kobj->retval = -ESRCH;
+	return key_obj;
 }
 
 static medusa_answer_t memory_update(struct medusa_kobject_s * kobj)
@@ -122,12 +118,12 @@ static medusa_answer_t memory_update(struct medusa_kobject_s * kobj)
 	int ret;
 	struct task_struct * p;
 
-	read_lock_irq(&tasklist_lock);
+	rcu_read_lock();
 	//p = find_task_by_pid(((struct memory_kobject *) kobj)->pid);
 	p = pid_task(find_vpid(((struct memory_kobject *) kobj)->pid), PIDTYPE_PID);
 	if (p) {
 		get_task_struct(p);
-		read_unlock_irq(&tasklist_lock);
+		rcu_read_unlock();
 		ret = access_process_vm(p,
 			(unsigned long)
 				((struct memory_kobject *) kobj)->address,
@@ -139,7 +135,7 @@ static medusa_answer_t memory_update(struct medusa_kobject_s * kobj)
 		return (ret == ((struct memory_kobject *) kobj)->size) ?
 			MED_OK : MED_ERR;
 	}
-	read_unlock_irq(&tasklist_lock);
+	rcu_read_unlock();
 	return MED_ERR;
 }
 

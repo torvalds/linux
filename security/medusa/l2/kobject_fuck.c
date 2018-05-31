@@ -125,12 +125,11 @@ static struct medusa_kobject_s * fuck_fetch(struct medusa_kobject_s * kobj)
 		return NULL;
 
 	fuck_inode = path.dentry->d_inode;
-	kobj.ino = fuck_inode->i_ino;
-	kobj.dev = fuck_inode->i_sb->s_dev;
-	memset(kobj.action, '\0', sizeof(kobj.action));
-	strncpy(kobj.path, fkobj->path, PATH_MAX);
+	fkobj->ino = fuck_inode->i_ino;
+	fkobj->dev = fuck_inode->i_sb->s_dev;
+	memset(fkobj->action, '\0', sizeof(fkobj->action));
 
-	return (struct medusa_kobject_s *) &kobj;
+	return (struct medusa_kobject_s *) kobj;
 }
 
 /**

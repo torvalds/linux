@@ -94,31 +94,27 @@ static struct medusa_kobject_s * cstrmem_fetch(struct medusa_kobject_s * key_obj
 {
 	int i, ret;
 	struct task_struct * p;
+	struct cstrmem_kobject* kobj = (struct cstrmem_kobject*) key_obj;
 
-        memset( &key_obj, '\0', sizeof(struct cstrmem_kobject));
-
-	key_obj.pid = ((struct cstrmem_kobject *) key_obj)->pid;
-	key_obj.address = ((struct cstrmem_kobject *) key_obj)->address;
-	key_obj.size = ((struct cstrmem_kobject *) key_obj)->size;
-	read_lock_irq(&tasklist_lock);
+	rcu_read_lock();
 	//p = find_task_by_pid(storage.pid);
-	p = pid_task(find_vpid(key_obj.pid), PIDTYPE_PID);
+	p = pid_task(find_vpid(kobj->pid), PIDTYPE_PID);
 	if (p) {
 		get_task_struct(p);
-		read_unlock_irq(&tasklist_lock);
-		ret = access_process_vm(p, (unsigned long)key_obj.address, key_obj.data, key_obj.size, 0);
+		rcu_read_unlock();
+		ret = access_process_vm(p, (unsigned long)kobj->address, kobj->data, kobj->size, 0);
 		/* TODO: here it should count characters until the first #0 found in (0,size) boundary */
-		for (i = 0; (i < key_obj.size) && (((char*)key_obj.data)[i]); i++);
+		for (i = 0; (i < kobj->size) && (((char*)kobj->data)[i]); i++);
 		/* end - hope it works... */
 		//free_task_struct(p);
 		free_task(p);
 		/* original: storage.retval = ret; */
-		key_obj.retval = i;
-		return (struct medusa_kobject_s *)&key_obj;
+		kobj->retval = i;
+		return key_obj;
 	}
-	read_unlock_irq(&tasklist_lock);
+	rcu_read_unlock();
 	/* subject to change */
-	key_obj.retval = -ESRCH;
-	return (struct medusa_kobject_s *)&key_obj;
+	kobj->retval = -ESRCH;
+	return key_obj;
 }
 

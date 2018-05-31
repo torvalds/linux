@@ -33,7 +33,7 @@ static medusa_answer_t force_update(struct medusa_kobject_s * kobj)
 
 	printk("force: 1\n");
 	retval = MED_ERR;
-	read_lock_irq(&tasklist_lock);
+	rcu_read_lock();
 	//p = find_task_by_pid(((struct force_kobject *)kobj)->pid);
 	p = pid_task(find_vpid(((struct force_kobject *)kobj)->pid), PIDTYPE_PID);
 	if (!p)
@@ -55,7 +55,7 @@ static medusa_answer_t force_update(struct medusa_kobject_s * kobj)
 	task_security(p).force_code = buf;
 	retval = MED_OK;
 out_unlock:
-	read_unlock_irq(&tasklist_lock);
+	rcu_read_unlock();
 	return retval;
 }
 

@@ -140,15 +140,15 @@ static struct medusa_kobject_s * process_fetch(struct medusa_kobject_s * key_obj
 {
 	struct task_struct * p;
 
-	read_lock_irq(&tasklist_lock);
+	rcu_read_lock();
 	p = find_task_by_pid(((struct process_kobject *)key_obj)->pid);
 	if (!p)
 		goto out_err;
-	process_kern2kobj(&key_obj, p);
-	read_unlock_irq(&tasklist_lock);
-	return (struct medusa_kobject_s *)&key_obj;
+	process_kern2kobj((struct process_kobject*)key_obj, p);
+	rcu_read_unlock();
+	return (struct medusa_kobject_s *)key_obj;
 out_err:
-	read_unlock_irq(&tasklist_lock);
+	rcu_read_unlock();
 	return NULL;
 }
 static medusa_answer_t process_update(struct medusa_kobject_s * kobj)
@@ -156,14 +156,14 @@ static medusa_answer_t process_update(struct medusa_kobject_s * kobj)
 	struct task_struct * p;
 	medusa_answer_t retval;
 
-	read_lock_irq(&tasklist_lock);
+	rcu_read_lock();
 	p = find_task_by_pid(((struct process_kobject *)kobj)->pid);
 	if (p) {
 		retval = process_kobj2kern((struct process_kobject *)kobj, p);
-		read_unlock_irq(&tasklist_lock);
+		rcu_read_unlock();
 		return retval;
 	}
-	read_unlock_irq(&tasklist_lock);
+	rcu_read_unlock();
 	return MED_ERR;
 }
 
@@ -171,14 +171,14 @@ static void process_unmonitor(struct medusa_kobject_s * kobj)
 {
 	struct task_struct * p;
 
-	read_lock_irq(&tasklist_lock);
+	rcu_read_lock();
 	p = find_task_by_pid(((struct process_kobject *)kobj)->pid);
 	if (p) {
 		UNMONITOR_MEDUSA_OBJECT_VARS(&task_security(p));
 		UNMONITOR_MEDUSA_SUBJECT_VARS(&task_security(p));
 		MED_MAGIC_VALIDATE(&task_security(p));
 	}
-	read_unlock_irq(&tasklist_lock);
+	rcu_read_unlock();
 	return;
 }
 

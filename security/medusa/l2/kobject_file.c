@@ -174,9 +174,9 @@ static struct medusa_kobject_s * file_fetch(struct medusa_kobject_s * key_obj)
 
 	p = __lookup_inode_by_key((struct file_kobject *)key_obj);
 	if (p) {
-		file_kern2kobj(&key_obj, p);
+		file_kern2kobj((struct file_kobject*)key_obj, p);
 		__unlookup();
-		return (struct medusa_kobject_s *)&key_obj;
+		return (struct medusa_kobject_s *)key_obj;
 	}
 	__unlookup();
 	return NULL;
