@@ -10394,7 +10394,7 @@ scsih_scan_finished(struct Scsi_Host *shost, unsigned long time)
 	}
 
 	if (time >= (300 * HZ)) {
-		ioc->base_cmds.status = MPT3_CMD_NOT_USED;
+		ioc->port_enable_cmds.status = MPT3_CMD_NOT_USED;
 		pr_info(MPT3SAS_FMT
 			"port enable: FAILED with timeout (timeout=300s)\n",
 			ioc->name);
@@ -10416,7 +10416,7 @@ scsih_scan_finished(struct Scsi_Host *shost, unsigned long time)
 	}
 
 	pr_info(MPT3SAS_FMT "port enable: SUCCESS\n", ioc->name);
-	ioc->base_cmds.status = MPT3_CMD_NOT_USED;
+	ioc->port_enable_cmds.status = MPT3_CMD_NOT_USED;
 
 	if (ioc->wait_for_discovery_to_complete) {
 		ioc->wait_for_discovery_to_complete = 0;
