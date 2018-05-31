@@ -861,6 +861,19 @@ enum ib_sig_err_type {
 };
 
 /**
+ * Signature check masks (8 bytes in total) according to the T10-PI standard:
+ *  -------- -------- ------------
+ * | GUARD  | APPTAG |   REFTAG   |
+ * |  2B    |  2B    |    4B      |
+ *  -------- -------- ------------
+ */
+enum {
+	IB_SIG_CHECK_GUARD	= 0xc0,
+	IB_SIG_CHECK_APPTAG	= 0x30,
+	IB_SIG_CHECK_REFTAG	= 0x0f,
+};
+
+/**
  * struct ib_sig_err - signature error descriptor
  */
 struct ib_sig_err {
