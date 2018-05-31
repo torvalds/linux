@@ -2003,9 +2003,9 @@ int cik_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &gmc_v7_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &cik_ih_ip_block);
 		if (amdgpu_dpm == -1)
-			amdgpu_device_ip_block_add(adev, &ci_smu_ip_block);
-		else
 			amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
+		else
+			amdgpu_device_ip_block_add(adev, &ci_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 #if defined(CONFIG_DRM_AMD_DC)
@@ -2024,9 +2024,9 @@ int cik_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &gmc_v7_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &cik_ih_ip_block);
 		if (amdgpu_dpm == -1)
-			amdgpu_device_ip_block_add(adev, &ci_smu_ip_block);
-		else
 			amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
+		else
+			amdgpu_device_ip_block_add(adev, &ci_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 #if defined(CONFIG_DRM_AMD_DC)
