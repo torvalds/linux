@@ -289,9 +289,7 @@ struct dc {
 	bool apply_edp_fast_boot_optimization;
 
 	/* FBC compressor */
-#if defined(CONFIG_DRM_AMD_DC_FBC)
 	struct compressor *fbc_compressor;
-#endif
 };
 
 enum frame_buffer_mode {
