@@ -102,6 +102,34 @@ static int
 _base_get_ioc_facts(struct MPT3SAS_ADAPTER *ioc);
 
 /**
+ * mpt3sas_base_check_cmd_timeout - Function
+ *		to check timeout and command termination due
+ *		to Host reset.
+ *
+ * @ioc:	per adapter object.
+ * @status:	Status of issued command.
+ * @mpi_request:mf request pointer.
+ * @sz:		size of buffer.
+ *
+ * @Returns - 1/0 Reset to be done or Not
+ */
+u8
+mpt3sas_base_check_cmd_timeout(struct MPT3SAS_ADAPTER *ioc,
+		u8 status, void *mpi_request, int sz)
+{
+	u8 issue_reset = 0;
+
+	if (!(status & MPT3_CMD_RESET))
+		issue_reset = 1;
+
+	pr_err(MPT3SAS_FMT "Command %s\n", ioc->name,
+	    ((issue_reset == 0) ? "terminated due to Host Reset" : "Timeout"));
+	_debug_dump_mf(mpi_request, sz);
+
+	return issue_reset;
+}
+
+/**
  * _scsih_set_fwfault_debug - global setting of ioc->fwfault_debug.
  *
  */
@@ -5355,7 +5383,7 @@ mpt3sas_base_sas_iounit_control(struct MPT3SAS_ADAPTER *ioc,
 {
 	u16 smid;
 	u32 ioc_state;
-	bool issue_reset = false;
+	u8 issue_reset = 0;
 	int rc;
 	void *request;
 	u16 wait_state_count;
@@ -5414,12 +5442,10 @@ mpt3sas_base_sas_iounit_control(struct MPT3SAS_ADAPTER *ioc,
 	    ioc->ioc_link_reset_in_progress)
 		ioc->ioc_link_reset_in_progress = 0;
 	if (!(ioc->base_cmds.status & MPT3_CMD_COMPLETE)) {
-		pr_err(MPT3SAS_FMT "%s: timeout\n",
-		    ioc->name, __func__);
-		_debug_dump_mf(mpi_request,
-		    sizeof(Mpi2SasIoUnitControlRequest_t)/4);
-		if (!(ioc->base_cmds.status & MPT3_CMD_RESET))
-			issue_reset = true;
+		issue_reset =
+			mpt3sas_base_check_cmd_timeout(ioc,
+				ioc->base_cmds.status, mpi_request,
+				sizeof(Mpi2SasIoUnitControlRequest_t)/4);
 		goto issue_host_reset;
 	}
 	if (ioc->base_cmds.status & MPT3_CMD_REPLY_VALID)
@@ -5457,7 +5483,7 @@ mpt3sas_base_scsi_enclosure_processor(struct MPT3SAS_ADAPTER *ioc,
 {
 	u16 smid;
 	u32 ioc_state;
-	bool issue_reset = false;
+	u8 issue_reset = 0;
 	int rc;
 	void *request;
 	u16 wait_state_count;
@@ -5510,12 +5536,10 @@ mpt3sas_base_scsi_enclosure_processor(struct MPT3SAS_ADAPTER *ioc,
 	wait_for_completion_timeout(&ioc->base_cmds.done,
 	    msecs_to_jiffies(10000));
 	if (!(ioc->base_cmds.status & MPT3_CMD_COMPLETE)) {
-		pr_err(MPT3SAS_FMT "%s: timeout\n",
-		    ioc->name, __func__);
-		_debug_dump_mf(mpi_request,
-		    sizeof(Mpi2SepRequest_t)/4);
-		if (!(ioc->base_cmds.status & MPT3_CMD_RESET))
-			issue_reset = false;
+		issue_reset =
+			mpt3sas_base_check_cmd_timeout(ioc,
+				ioc->base_cmds.status, mpi_request,
+				sizeof(Mpi2SepRequest_t)/4);
 		goto issue_host_reset;
 	}
 	if (ioc->base_cmds.status & MPT3_CMD_REPLY_VALID)

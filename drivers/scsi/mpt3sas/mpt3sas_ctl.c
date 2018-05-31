@@ -995,11 +995,10 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 		ioc->ignore_loginfos = 0;
 	}
 	if (!(ioc->ctl_cmds.status & MPT3_CMD_COMPLETE)) {
-		pr_err(MPT3SAS_FMT "%s: timeout\n", ioc->name,
-		    __func__);
-		_debug_dump_mf(mpi_request, karg.data_sge_offset);
-		if (!(ioc->ctl_cmds.status & MPT3_CMD_RESET))
-			issue_reset = 1;
+		issue_reset =
+			mpt3sas_base_check_cmd_timeout(ioc,
+				ioc->ctl_cmds.status, mpi_request,
+				karg.data_sge_offset);
 		goto issue_host_reset;
 	}
 
@@ -1621,12 +1620,10 @@ _ctl_diag_register_2(struct MPT3SAS_ADAPTER *ioc,
 	    MPT3_IOCTL_DEFAULT_TIMEOUT*HZ);
 
 	if (!(ioc->ctl_cmds.status & MPT3_CMD_COMPLETE)) {
-		pr_err(MPT3SAS_FMT "%s: timeout\n", ioc->name,
-		    __func__);
-		_debug_dump_mf(mpi_request,
-		    sizeof(Mpi2DiagBufferPostRequest_t)/4);
-		if (!(ioc->ctl_cmds.status & MPT3_CMD_RESET))
-			issue_reset = 1;
+		issue_reset =
+			mpt3sas_base_check_cmd_timeout(ioc,
+				ioc->ctl_cmds.status, mpi_request,
+				sizeof(Mpi2DiagBufferPostRequest_t)/4);
 		goto issue_host_reset;
 	}
 
@@ -1968,12 +1965,9 @@ mpt3sas_send_diag_release(struct MPT3SAS_ADAPTER *ioc, u8 buffer_type,
 	    MPT3_IOCTL_DEFAULT_TIMEOUT*HZ);
 
 	if (!(ioc->ctl_cmds.status & MPT3_CMD_COMPLETE)) {
-		pr_err(MPT3SAS_FMT "%s: timeout\n", ioc->name,
-		    __func__);
-		_debug_dump_mf(mpi_request,
-		    sizeof(Mpi2DiagReleaseRequest_t)/4);
-		if (!(ioc->ctl_cmds.status & MPT3_CMD_RESET))
-			*issue_reset = 1;
+		*issue_reset = mpt3sas_base_check_cmd_timeout(ioc,
+				ioc->ctl_cmds.status, mpi_request,
+				sizeof(Mpi2DiagReleaseRequest_t)/4);
 		rc = -EFAULT;
 		goto out;
 	}
@@ -2235,12 +2229,10 @@ _ctl_diag_read_buffer(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 	    MPT3_IOCTL_DEFAULT_TIMEOUT*HZ);
 
 	if (!(ioc->ctl_cmds.status & MPT3_CMD_COMPLETE)) {
-		pr_err(MPT3SAS_FMT "%s: timeout\n", ioc->name,
-		    __func__);
-		_debug_dump_mf(mpi_request,
-		    sizeof(Mpi2DiagBufferPostRequest_t)/4);
-		if (!(ioc->ctl_cmds.status & MPT3_CMD_RESET))
-			issue_reset = 1;
+		issue_reset =
+			mpt3sas_base_check_cmd_timeout(ioc,
+				ioc->ctl_cmds.status, mpi_request,
+				sizeof(Mpi2DiagBufferPostRequest_t)/4);
 		goto issue_host_reset;
 	}
 

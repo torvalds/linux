@@ -1482,6 +1482,8 @@ int mpt3sas_port_enable(struct MPT3SAS_ADAPTER *ioc);
 void
 mpt3sas_wait_for_commands_to_complete(struct MPT3SAS_ADAPTER *ioc);
 
+u8 mpt3sas_base_check_cmd_timeout(struct MPT3SAS_ADAPTER *ioc,
+	u8 status, void *mpi_request, int sz);
 
 /* scsih shared API */
 struct scsi_cmnd *mpt3sas_scsih_scsi_lookup_get(struct MPT3SAS_ADAPTER *ioc,
