@@ -96,3 +96,35 @@ full_test_span_gre_dir_vlan()
 {
 	full_test_span_gre_dir_vlan_ips "$@" 192.0.2.1 192.0.2.2
 }
+
+full_test_span_gre_stp_ips()
+{
+	local tundev=$1; shift
+	local nbpdev=$1; shift
+	local what=$1; shift
+	local ip1=$1; shift
+	local ip2=$1; shift
+	local h3mac=$(mac_get $h3)
+
+	RET=0
+
+	mirror_install $swp1 ingress $tundev "matchall $tcflags"
+	quick_test_span_gre_dir_ips $tundev ingress $ip1 $ip2
+
+	bridge link set dev $nbpdev state disabled
+	sleep 1
+	fail_test_span_gre_dir_ips $tundev ingress $ip1 $ip2
+
+	bridge link set dev $nbpdev state forwarding
+	sleep 1
+	quick_test_span_gre_dir_ips $tundev ingress $ip1 $ip2
+
+	mirror_uninstall $swp1 ingress
+
+	log_test "$what: STP state ($tcflags)"
+}
+
+full_test_span_gre_stp()
+{
+	full_test_span_gre_stp_ips "$@" 192.0.2.1 192.0.2.2
+}
