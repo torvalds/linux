@@ -178,12 +178,14 @@ Build-Depends: bc, kmod, cpio, bison, flex | flex:native $extra_build_depends
 Homepage: http://www.kernel.org/
 
 Package: $packagename
+Provides: linux-mainline-image
 Architecture: $debarch
 Description: Linux kernel, version $version
  This package contains the Linux kernel, modules and corresponding other
  files, version: $version.
 
 Package: $kernel_headers_packagename
+Provides: linux-mainline-headers
 Architecture: $debarch
 Description: Linux kernel headers for $version on $debarch
  This package provides kernel header files for $version on $debarch
@@ -201,6 +203,7 @@ Description: Linux support headers for userspace development
 Package: $dbg_packagename
 Section: debug
 Architecture: $debarch
+Provides: linux-mainline-image-dbg, linux-mainline-image-rockchip-dbg
 Description: Linux kernel debugging symbols for $version
  This package will come in handy if you need to debug the kernel. It provides
  all the necessary debug symbols for the kernel and its modules.
