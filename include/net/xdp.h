@@ -41,7 +41,6 @@ enum xdp_mem_type {
 };
 
 /* XDP flags for ndo_xdp_xmit */
-#define XDP_XMIT_FLAGS_NONE	0U
 #define XDP_XMIT_FLUSH		(1U << 0)	/* doorbell signal consumer */
 #define XDP_XMIT_FLAGS_MASK	XDP_XMIT_FLUSH
 
