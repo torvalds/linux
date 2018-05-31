@@ -300,12 +300,6 @@ unattached instance are:
 The ioctl calls available on an instance of /dev/ppp attached to a
 channel are:
 
-* PPPIOCDETACH detaches the instance from the channel.  This ioctl is
-  deprecated since the same effect can be achieved by closing the
-  instance.  In order to prevent possible races this ioctl will fail
-  with an EINVAL error if more than one file descriptor refers to this
-  instance (i.e. as a result of dup(), dup2() or fork()).
-
 * PPPIOCCONNECT connects this channel to a PPP interface.  The
   argument should point to an int containing the interface unit
   number.  It will return an EINVAL error if the channel is already

@@ -7598,11 +7598,12 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
 	unsigned long pfn, iter, found;
 
 	/*
-	 * For avoiding noise data, lru_add_drain_all() should be called
-	 * If ZONE_MOVABLE, the zone never contains unmovable pages
+	 * TODO we could make this much more efficient by not checking every
+	 * page in the range if we know all of them are in MOVABLE_ZONE and
+	 * that the movable zone guarantees that pages are migratable but
+	 * the later is not the case right now unfortunatelly. E.g. movablecore
+	 * can still lead to having bootmem allocations in zone_movable.
 	 */
-	if (zone_idx(zone) == ZONE_MOVABLE)
-		return false;
 
 	/*
 	 * CMA allocations (alloc_contig_range) really need to mark isolate
@@ -7623,7 +7624,7 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
 		page = pfn_to_page(check);
 
 		if (PageReserved(page))
-			return true;
+			goto unmovable;
 
 		/*
 		 * Hugepages are not in LRU lists, but they're movable.
@@ -7673,9 +7674,12 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
 		 * page at boot.
 		 */
 		if (found > count)
-			return true;
+			goto unmovable;
 	}
 	return false;
+unmovable:
+	WARN_ON_ONCE(zone_idx(zone) == ZONE_MOVABLE);
+	return true;
 }
 
 bool is_pageblock_removable_nolock(struct page *page)
