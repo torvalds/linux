@@ -1394,7 +1394,9 @@ static inline int _loop_cyclic(struct pl330_dmac *pl330, unsigned dry_run,
 		off += _emit_LPEND(dry_run, &buf[off], &lpend);
 	}
 
-	if (pl330->peripherals_req_type == BURST) {
+	if (pxs->desc->src_interlace_size == 0 &&
+	    pxs->desc->dst_interlace_size == 0 &&
+	    pl330->peripherals_req_type == BURST) {
 		unsigned int ccr = pxs->ccr;
 		unsigned long c = 0;
 
@@ -1495,6 +1497,12 @@ static inline int _setup_xfer_cyclic(struct pl330_dmac *pl330, unsigned dry_run,
 	unsigned long bursts = BYTE_TO_BURST(x->bytes, ccr);
 	int off = 0;
 
+	if (pxs->desc->rqtype == DMA_DEV_TO_MEM)
+		bursts = x->bytes / (BRST_SIZE(ccr) * BRST_LEN(ccr)
+			+ pxs->desc->dst_interlace_size);
+	else if (pxs->desc->rqtype == DMA_MEM_TO_DEV)
+		bursts = x->bytes / (BRST_SIZE(ccr) * BRST_LEN(ccr)
+			+ pxs->desc->src_interlace_size);
 	/* Setup Loop(s) */
 	off += _loop_cyclic(pl330, dry_run, &buf[off], bursts, pxs, ev);
 
@@ -2715,7 +2723,6 @@ static struct dma_async_tx_descriptor *pl330_prep_dma_cyclic(
 	struct dma_pl330_desc *desc = NULL;
 	struct dma_pl330_chan *pch = to_pchan(chan);
 	struct pl330_dmac *pl330 = pch->dmac;
-	unsigned int size = 0;
 	dma_addr_t dst;
 	dma_addr_t src;
 
@@ -2741,14 +2748,12 @@ static struct dma_async_tx_descriptor *pl330_prep_dma_cyclic(
 		desc->rqcfg.dst_inc = 0;
 		src = dma_addr;
 		dst = pch->fifo_addr;
-		size = pch->src_interlace_size;
 		break;
 	case DMA_DEV_TO_MEM:
 		desc->rqcfg.src_inc = 0;
 		desc->rqcfg.dst_inc = 1;
 		src = pch->fifo_addr;
 		dst = dma_addr;
-		size = pch->dst_interlace_size;
 		break;
 	default:
 		break;
@@ -2768,16 +2773,8 @@ static struct dma_async_tx_descriptor *pl330_prep_dma_cyclic(
 	desc->cyclic = true;
 	desc->num_periods = len / period_len;
 	desc->txd.flags = flags;
-
 	desc->src_interlace_size = pch->src_interlace_size;
 	desc->dst_interlace_size = pch->dst_interlace_size;
-	/* refine bytes_requested if interlace_size set */
-	if (size) {
-		size += (pch->burst_len * (1 << pch->burst_sz));
-		size *= desc->bytes_requested;
-		size /= (pch->burst_len * (1 << pch->burst_sz));
-		desc->bytes_requested = size;
-	}
 	return &desc->txd;
 }
 
