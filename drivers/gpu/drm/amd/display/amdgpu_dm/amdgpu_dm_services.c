@@ -267,8 +267,9 @@ static void pp_to_dc_clock_levels_with_latency(
 			DC_DECODE_PP_CLOCK_TYPE(dc_clk_type));
 
 	for (i = 0; i < clk_level_info->num_levels; i++) {
-		DRM_DEBUG("DM_PPLIB:\t %d\n", pp_clks->data[i].clocks_in_khz);
-		clk_level_info->data[i].clocks_in_khz = pp_clks->data[i].clocks_in_khz;
+		DRM_DEBUG("DM_PPLIB:\t %d in 10kHz\n", pp_clks->data[i].clocks_in_khz);
+		/* translate 10kHz to kHz */
+		clk_level_info->data[i].clocks_in_khz = pp_clks->data[i].clocks_in_khz * 10;
 		clk_level_info->data[i].latency_in_us = pp_clks->data[i].latency_in_us;
 	}
 }
@@ -294,8 +295,9 @@ static void pp_to_dc_clock_levels_with_voltage(
 			DC_DECODE_PP_CLOCK_TYPE(dc_clk_type));
 
 	for (i = 0; i < clk_level_info->num_levels; i++) {
-		DRM_INFO("DM_PPLIB:\t %d\n", pp_clks->data[i].clocks_in_khz);
-		clk_level_info->data[i].clocks_in_khz = pp_clks->data[i].clocks_in_khz;
+		DRM_INFO("DM_PPLIB:\t %d in 10kHz\n", pp_clks->data[i].clocks_in_khz);
+		/* translate 10kHz to kHz */
+		clk_level_info->data[i].clocks_in_khz = pp_clks->data[i].clocks_in_khz * 10;
 		clk_level_info->data[i].voltage_in_mv = pp_clks->data[i].voltage_in_mv;
 	}
 }
@@ -471,8 +473,9 @@ bool dm_pp_get_static_clocks(
 		return false;
 
 	static_clk_info->max_clocks_state = pp_clk_info.max_clocks_state;
-	static_clk_info->max_mclk_khz = pp_clk_info.max_memory_clock;
-	static_clk_info->max_sclk_khz = pp_clk_info.max_engine_clock;
+	/* translate 10kHz to kHz */
+	static_clk_info->max_mclk_khz = pp_clk_info.max_memory_clock * 10;
+	static_clk_info->max_sclk_khz = pp_clk_info.max_engine_clock * 10;
 
 	return true;
 }
