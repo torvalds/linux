@@ -876,6 +876,8 @@ static char *test_to_str(int test)
 #define OPTSTRING 60
 static void test_options(char *options)
 {
+	char tstr[OPTSTRING];
+
 	memset(options, 0, OPTSTRING);
 
 	if (txmsg_pass)
@@ -888,14 +890,22 @@ static void test_options(char *options)
 		strncat(options, "redir_noisy,", OPTSTRING);
 	if (txmsg_drop)
 		strncat(options, "drop,", OPTSTRING);
-	if (txmsg_apply)
-		strncat(options, "apply,", OPTSTRING);
-	if (txmsg_cork)
-		strncat(options, "cork,", OPTSTRING);
-	if (txmsg_start)
-		strncat(options, "start,", OPTSTRING);
-	if (txmsg_end)
-		strncat(options, "end,", OPTSTRING);
+	if (txmsg_apply) {
+		snprintf(tstr, OPTSTRING, "apply %d,", txmsg_apply);
+		strncat(options, tstr, OPTSTRING);
+	}
+	if (txmsg_cork) {
+		snprintf(tstr, OPTSTRING, "cork %d,", txmsg_cork);
+		strncat(options, tstr, OPTSTRING);
+	}
+	if (txmsg_start) {
+		snprintf(tstr, OPTSTRING, "start %d,", txmsg_start);
+		strncat(options, tstr, OPTSTRING);
+	}
+	if (txmsg_end) {
+		snprintf(tstr, OPTSTRING, "end %d,", txmsg_end);
+		strncat(options, tstr, OPTSTRING);
+	}
 	if (txmsg_ingress)
 		strncat(options, "ingress,", OPTSTRING);
 	if (txmsg_skb)
@@ -904,7 +914,7 @@ static void test_options(char *options)
 
 static int __test_exec(int cgrp, int test, struct sockmap_options *opt)
 {
-	char *options = calloc(60, sizeof(char));
+	char *options = calloc(OPTSTRING, sizeof(char));
 	int err;
 
 	if (test == SENDPAGE)
