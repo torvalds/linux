@@ -26,6 +26,8 @@ enum {
 	MT6797_DAI_ADDA = MT6797_MEMIF_NUM,
 	MT6797_DAI_PCM_1,
 	MT6797_DAI_PCM_2,
+	MT6797_DAI_HOSTLESS_LPBK,
+	MT6797_DAI_HOSTLESS_SPEECH,
 	MT6797_DAI_NUM,
 };
 
@@ -52,4 +54,5 @@ unsigned int mt6797_rate_transform(struct device *dev,
 /* dai register */
 int mt6797_dai_adda_register(struct mtk_base_afe *afe);
 int mt6797_dai_pcm_register(struct mtk_base_afe *afe);
+int mt6797_dai_hostless_register(struct mtk_base_afe *afe);
 #endif

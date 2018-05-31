@@ -820,6 +820,7 @@ static int mt6797_afe_pcm_dev_probe(struct platform_device *pdev)
 
 	mt6797_dai_adda_register(afe);
 	mt6797_dai_pcm_register(afe);
+	mt6797_dai_hostless_register(afe);
 
 	afe->sub_dais[MT6797_MEMIF_DL1].dai_drivers = mt6797_memif_dai_driver;
 	afe->sub_dais[MT6797_MEMIF_DL1].num_dai_drivers =
