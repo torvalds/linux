@@ -58,7 +58,7 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 {
 	struct drm_device *dev = encoder->dev;
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
-	struct omap_dss_device *dssdev = omap_encoder->display;
+	struct omap_dss_device *dssdev = omap_encoder->output;
 	struct drm_connector *connector;
 	bool hdmi_mode;
 	int r;

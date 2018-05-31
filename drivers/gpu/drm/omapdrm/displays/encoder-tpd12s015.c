@@ -145,22 +145,6 @@ static void tpd_unregister_hpd_cb(struct omap_dss_device *dssdev)
 	mutex_unlock(&ddata->hpd_lock);
 }
 
-static int tpd_set_infoframe(struct omap_dss_device *dssdev,
-		const struct hdmi_avi_infoframe *avi)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	return src->ops->hdmi.set_infoframe(src, avi);
-}
-
-static int tpd_set_hdmi_mode(struct omap_dss_device *dssdev,
-		bool hdmi_mode)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	return src->ops->hdmi.set_hdmi_mode(src, hdmi_mode);
-}
-
 static const struct omap_dss_device_ops tpd_ops = {
 	.connect		= tpd_connect,
 	.disconnect		= tpd_disconnect,
@@ -171,11 +155,6 @@ static const struct omap_dss_device_ops tpd_ops = {
 	.detect			= tpd_detect,
 	.register_hpd_cb	= tpd_register_hpd_cb,
 	.unregister_hpd_cb	= tpd_unregister_hpd_cb,
-
-	.hdmi = {
-		.set_infoframe		= tpd_set_infoframe,
-		.set_hdmi_mode		= tpd_set_hdmi_mode,
-	},
 };
 
 static irqreturn_t tpd_hpd_isr(int irq, void *data)
