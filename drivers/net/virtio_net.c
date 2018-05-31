@@ -468,7 +468,7 @@ static int __virtnet_xdp_tx_xmit(struct virtnet_info *vi,
 }
 
 static int virtnet_xdp_xmit(struct net_device *dev,
-			    int n, struct xdp_frame **frames)
+			    int n, struct xdp_frame **frames, u32 flags)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
 	struct receive_queue *rq = vi->rq;
@@ -480,6 +480,9 @@ static int virtnet_xdp_xmit(struct net_device *dev,
 	int drops = 0;
 	int err;
 	int i;
+
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_NONE))
+		return -EINVAL;
 
 	qp = vi->curr_queue_pairs - vi->xdp_queue_pairs + smp_processor_id();
 	sq = &vi->sq[qp];

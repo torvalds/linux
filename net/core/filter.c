@@ -3056,7 +3056,7 @@ static int __bpf_tx_xdp(struct net_device *dev,
 	if (unlikely(!xdpf))
 		return -EOVERFLOW;
 
-	sent = dev->netdev_ops->ndo_xdp_xmit(dev, 1, &xdpf);
+	sent = dev->netdev_ops->ndo_xdp_xmit(dev, 1, &xdpf, 0);
 	if (sent <= 0)
 		return sent;
 	dev->netdev_ops->ndo_xdp_flush(dev);

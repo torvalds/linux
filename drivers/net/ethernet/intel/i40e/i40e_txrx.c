@@ -3670,7 +3670,8 @@ netdev_tx_t i40e_lan_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
  * For error cases, a negative errno code is returned and no-frames
  * are transmitted (caller must handle freeing frames).
  **/
-int i40e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames)
+int i40e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
+		  u32 flags)
 {
 	struct i40e_netdev_priv *np = netdev_priv(dev);
 	unsigned int queue_index = smp_processor_id();
@@ -3683,6 +3684,9 @@ int i40e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames)
 
 	if (!i40e_enabled_xdp_vsi(vsi) || queue_index >= vsi->num_queue_pairs)
 		return -ENXIO;
+
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_NONE))
+		return -EINVAL;
 
 	for (i = 0; i < n; i++) {
 		struct xdp_frame *xdpf = frames[i];

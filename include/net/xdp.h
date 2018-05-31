@@ -40,6 +40,11 @@ enum xdp_mem_type {
 	MEM_TYPE_MAX,
 };
 
+/* XDP flags for ndo_xdp_xmit */
+#define XDP_XMIT_FLAGS_NONE	0U
+#define XDP_XMIT_FLUSH		(1U << 0)	/* doorbell signal consumer */
+#define XDP_XMIT_FLAGS_MASK	XDP_XMIT_FLUSH
+
 struct xdp_mem_info {
 	u32 type; /* enum xdp_mem_type, but known size type */
 	u32 id;

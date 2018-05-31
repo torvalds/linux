@@ -1285,7 +1285,8 @@ static const struct net_device_ops tun_netdev_ops = {
 	.ndo_get_stats64	= tun_net_get_stats64,
 };
 
-static int tun_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames)
+static int tun_xdp_xmit(struct net_device *dev, int n,
+			struct xdp_frame **frames, u32 flags)
 {
 	struct tun_struct *tun = netdev_priv(dev);
 	struct tun_file *tfile;
@@ -1293,6 +1294,9 @@ static int tun_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames
 	int drops = 0;
 	int cnt = n;
 	int i;
+
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_NONE))
+		return -EINVAL;
 
 	rcu_read_lock();
 
@@ -1332,7 +1336,7 @@ static int tun_xdp_tx(struct net_device *dev, struct xdp_buff *xdp)
 	if (unlikely(!frame))
 		return -EOVERFLOW;
 
-	return tun_xdp_xmit(dev, 1, &frame);
+	return tun_xdp_xmit(dev, 1, &frame, 0);
 }
 
 static void tun_xdp_flush(struct net_device *dev)
