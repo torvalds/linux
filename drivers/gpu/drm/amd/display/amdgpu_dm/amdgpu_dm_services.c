@@ -195,6 +195,21 @@ static enum amd_pp_clock_type dc_to_pp_clock_type(
 	case DM_PP_CLOCK_TYPE_MEMORY_CLK:
 		amd_pp_clk_type = amd_pp_mem_clock;
 		break;
+	case DM_PP_CLOCK_TYPE_DCEFCLK:
+		amd_pp_clk_type  = amd_pp_dcef_clock;
+		break;
+	case DM_PP_CLOCK_TYPE_DCFCLK:
+		amd_pp_clk_type = amd_pp_dcf_clock;
+		break;
+	case DM_PP_CLOCK_TYPE_PIXELCLK:
+		amd_pp_clk_type = amd_pp_pixel_clock;
+		break;
+	case DM_PP_CLOCK_TYPE_FCLK:
+		amd_pp_clk_type = amd_pp_f_clock;
+		break;
+	case DM_PP_CLOCK_TYPE_DISPLAYPHYCLK:
+		amd_pp_clk_type = amd_pp_dpp_clock;
+		break;
 	default:
 		DRM_ERROR("DM_PPLIB: invalid clock type: %d!\n",
 				dm_pp_clk_type);
@@ -424,32 +439,12 @@ bool dm_pp_apply_clock_for_voltage_request(
 	struct amdgpu_device *adev = ctx->driver_context;
 	struct pp_display_clock_request pp_clock_request = {0};
 	int ret = 0;
-	switch (clock_for_voltage_req->clk_type) {
-	case DM_PP_CLOCK_TYPE_DISPLAY_CLK:
-		pp_clock_request.clock_type = amd_pp_disp_clock;
-		break;
 
-	case DM_PP_CLOCK_TYPE_DCEFCLK:
-		pp_clock_request.clock_type = amd_pp_dcef_clock;
-		break;
-
-	case DM_PP_CLOCK_TYPE_DCFCLK:
-		pp_clock_request.clock_type = amd_pp_dcf_clock;
-		break;
-
-	case DM_PP_CLOCK_TYPE_PIXELCLK:
-		pp_clock_request.clock_type = amd_pp_pixel_clock;
-		break;
-
-	case DM_PP_CLOCK_TYPE_FCLK:
-		pp_clock_request.clock_type = amd_pp_f_clock;
-		break;
-
-	default:
-		return false;
-	}
-
+	pp_clock_request.clock_type = dc_to_pp_clock_type(clock_for_voltage_req->clk_type);
 	pp_clock_request.clock_freq_in_khz = clock_for_voltage_req->clocks_in_khz;
+
+	if (!pp_clock_request.clock_type)
+		return false;
 
 	if (adev->powerplay.pp_funcs->display_clock_voltage_request)
 		ret = adev->powerplay.pp_funcs->display_clock_voltage_request(
