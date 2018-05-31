@@ -55,6 +55,7 @@ enum uverbs_default_objects {
 	UVERBS_OBJECT_WQ,
 	UVERBS_OBJECT_FLOW_ACTION,
 	UVERBS_OBJECT_DM,
+	UVERBS_OBJECT_COUNTERS,
 };
 
 enum {
@@ -129,6 +130,19 @@ enum uverbs_attrs_reg_dm_mr_cmd_attr_ids {
 
 enum uverbs_methods_mr {
 	UVERBS_METHOD_DM_MR_REG,
+};
+
+enum uverbs_attrs_create_counters_cmd_attr_ids {
+	UVERBS_ATTR_CREATE_COUNTERS_HANDLE,
+};
+
+enum uverbs_attrs_destroy_counters_cmd_attr_ids {
+	UVERBS_ATTR_DESTROY_COUNTERS_HANDLE,
+};
+
+enum uverbs_methods_actions_counters_ops {
+	UVERBS_METHOD_COUNTERS_CREATE,
+	UVERBS_METHOD_COUNTERS_DESTROY,
 };
 
 #endif
