@@ -757,6 +757,8 @@ static int mvsd_probe(struct platform_device *pdev)
 	if (maxfreq)
 		mmc->f_max = maxfreq;
 
+	mmc->caps |= MMC_CAP_ERASE;
+
 	spin_lock_init(&host->lock);
 
 	host->base = devm_ioremap_resource(&pdev->dev, r);
