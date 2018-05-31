@@ -166,12 +166,6 @@ static int dvic_read_edid(struct omap_dss_device *dssdev,
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	int r, l, bytes_read;
 
-	if (ddata->hpd_gpio && !gpiod_get_value_cansleep(ddata->hpd_gpio))
-		return -ENODEV;
-
-	if (!ddata->i2c_adapter)
-		return -ENODEV;
-
 	l = min(EDID_LENGTH, len);
 	r = dvic_ddc_read(ddata->i2c_adapter, edid, l, 0);
 	if (r)
@@ -341,10 +335,11 @@ static int dvic_probe(struct platform_device *pdev)
 	dssdev->of_ports = BIT(0);
 
 	if (ddata->hpd_gpio)
-		dssdev->ops_flags = OMAP_DSS_DEVICE_OP_DETECT
-				  | OMAP_DSS_DEVICE_OP_HPD;
-	else if (ddata->i2c_adapter)
-		dssdev->ops_flags = OMAP_DSS_DEVICE_OP_DETECT;
+		dssdev->ops_flags |= OMAP_DSS_DEVICE_OP_DETECT
+				  |  OMAP_DSS_DEVICE_OP_HPD;
+	if (ddata->i2c_adapter)
+		dssdev->ops_flags |= OMAP_DSS_DEVICE_OP_DETECT
+				  |  OMAP_DSS_DEVICE_OP_EDID;
 
 	omapdss_display_init(dssdev);
 	omapdss_device_register(dssdev);

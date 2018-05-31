@@ -703,6 +703,7 @@ static int hdmi5_init_output(struct omap_hdmi *hdmi)
 	out->ops = &hdmi_ops;
 	out->owner = THIS_MODULE;
 	out->of_ports = BIT(0);
+	out->ops_flags = OMAP_DSS_DEVICE_OP_EDID;
 
 	out->next = omapdss_of_find_connected_device(out->dev->of_node, 0);
 	if (IS_ERR(out->next)) {

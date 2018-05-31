@@ -170,65 +170,80 @@ static void omap_connector_destroy(struct drm_connector *connector)
 
 #define MAX_EDID  512
 
+static int omap_connector_get_modes_edid(struct drm_connector *connector,
+					 struct omap_dss_device *dssdev)
+{
+	struct omap_connector *omap_connector = to_omap_connector(connector);
+	enum drm_connector_status status;
+	void *edid;
+	int n;
+
+	status = omap_connector_detect(connector, false);
+	if (status != connector_status_connected)
+		goto no_edid;
+
+	edid = kzalloc(MAX_EDID, GFP_KERNEL);
+	if (!edid)
+		goto no_edid;
+
+	if (dssdev->ops->read_edid(dssdev, edid, MAX_EDID) <= 0 ||
+	    !drm_edid_is_valid(edid)) {
+		kfree(edid);
+		goto no_edid;
+	}
+
+	drm_connector_update_edid_property(connector, edid);
+	n = drm_add_edid_modes(connector, edid);
+
+	omap_connector->hdmi_mode = drm_detect_hdmi_monitor(edid);
+
+	kfree(edid);
+	return n;
+
+no_edid:
+	drm_connector_update_edid_property(connector, NULL);
+	return 0;
+}
+
 static int omap_connector_get_modes(struct drm_connector *connector)
 {
 	struct omap_connector *omap_connector = to_omap_connector(connector);
-	struct omap_dss_device *dssdev = omap_connector->dssdev;
-	struct drm_device *dev = connector->dev;
-	int n = 0;
+	struct omap_dss_device *dssdev;
+	struct drm_display_mode *mode;
+	struct videomode vm = {0};
 
 	DBG("%s", omap_connector->dssdev->name);
 
-	/* if display exposes EDID, then we parse that in the normal way to
-	 * build table of supported modes.. otherwise (ie. fixed resolution
+	/*
+	 * If display exposes EDID, then we parse that in the normal way to
+	 * build table of supported modes. Otherwise (ie. fixed resolution
 	 * LCD panels) we just return a single mode corresponding to the
-	 * currently configured timings:
+	 * currently configured timings.
 	 */
-	if (dssdev->ops->read_edid) {
-		void *edid = kzalloc(MAX_EDID, GFP_KERNEL);
+	dssdev = omap_connector_find_device(connector,
+					    OMAP_DSS_DEVICE_OP_EDID);
+	if (dssdev)
+		return omap_connector_get_modes_edid(connector, dssdev);
 
-		if (!edid)
-			return 0;
+	mode = drm_mode_create(connector->dev);
+	if (!mode)
+		return 0;
 
-		if ((dssdev->ops->read_edid(dssdev, edid, MAX_EDID) > 0) &&
-				drm_edid_is_valid(edid)) {
-			drm_connector_update_edid_property(
-					connector, edid);
-			n = drm_add_edid_modes(connector, edid);
+	dssdev = omap_connector->dssdev;
+	dssdev->ops->get_timings(dssdev, &vm);
 
-			omap_connector->hdmi_mode =
-				drm_detect_hdmi_monitor(edid);
-		} else {
-			drm_connector_update_edid_property(
-					connector, NULL);
-		}
+	drm_display_mode_from_videomode(&vm, mode);
 
-		kfree(edid);
-	} else {
-		struct drm_display_mode *mode = drm_mode_create(dev);
-		struct videomode vm = {0};
+	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
+	drm_mode_set_name(mode);
+	drm_mode_probed_add(connector, mode);
 
-		if (!mode)
-			return 0;
-
-		dssdev->ops->get_timings(dssdev, &vm);
-
-		drm_display_mode_from_videomode(&vm, mode);
-
-		mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
-		drm_mode_set_name(mode);
-		drm_mode_probed_add(connector, mode);
-
-		if (dssdev->driver && dssdev->driver->get_size) {
-			dssdev->driver->get_size(dssdev,
+	if (dssdev->driver && dssdev->driver->get_size)
+		dssdev->driver->get_size(dssdev,
 					 &connector->display_info.width_mm,
 					 &connector->display_info.height_mm);
-		}
 
-		n = 1;
-	}
-
-	return n;
+	return 1;
 }
 
 static int omap_connector_mode_valid(struct drm_connector *connector,

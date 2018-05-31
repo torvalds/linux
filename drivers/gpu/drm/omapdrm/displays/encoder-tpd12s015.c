@@ -115,18 +115,6 @@ static int tpd_check_timings(struct omap_dss_device *dssdev,
 	return src->ops->check_timings(src, vm);
 }
 
-static int tpd_read_edid(struct omap_dss_device *dssdev,
-		u8 *edid, int len)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
-
-	if (!gpiod_get_value_cansleep(ddata->hpd_gpio))
-		return -ENODEV;
-
-	return src->ops->read_edid(src, edid, len);
-}
-
 static bool tpd_detect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
@@ -180,7 +168,6 @@ static const struct omap_dss_device_ops tpd_ops = {
 	.disable		= tpd_disable,
 	.check_timings		= tpd_check_timings,
 	.set_timings		= tpd_set_timings,
-	.read_edid		= tpd_read_edid,
 	.detect			= tpd_detect,
 	.register_hpd_cb	= tpd_register_hpd_cb,
 	.unregister_hpd_cb	= tpd_unregister_hpd_cb,

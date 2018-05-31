@@ -15,8 +15,6 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include <drm/drm_edid.h>
-
 #include "../dss/omapdss.h"
 
 static const struct videomode hdmic_default_vm = {
@@ -126,14 +124,6 @@ static int hdmic_check_timings(struct omap_dss_device *dssdev,
 	return src->ops->check_timings(src, vm);
 }
 
-static int hdmic_read_edid(struct omap_dss_device *dssdev,
-		u8 *edid, int len)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	return src->ops->read_edid(src, edid, len);
-}
-
 static bool hdmic_detect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
@@ -190,7 +180,6 @@ static const struct omap_dss_device_ops hdmic_ops = {
 	.get_timings		= hdmic_get_timings,
 	.check_timings		= hdmic_check_timings,
 
-	.read_edid		= hdmic_read_edid,
 	.detect			= hdmic_detect,
 	.register_hpd_cb	= hdmic_register_hpd_cb,
 	.unregister_hpd_cb	= hdmic_unregister_hpd_cb,
