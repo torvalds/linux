@@ -2104,21 +2104,18 @@ static int mlx5_eswitch_query_vport_drop_stats(struct mlx5_core_dev *dev,
 	struct mlx5_vport *vport = &esw->vports[vport_idx];
 	u64 rx_discard_vport_down, tx_discard_vport_down;
 	u64 bytes = 0;
-	u16 idx = 0;
 	int err = 0;
 
 	if (!vport->enabled || esw->mode != SRIOV_LEGACY)
 		return 0;
 
-	if (vport->egress.drop_counter) {
-		idx = vport->egress.drop_counter->id;
-		mlx5_fc_query(dev, idx, &stats->rx_dropped, &bytes);
-	}
+	if (vport->egress.drop_counter)
+		mlx5_fc_query(dev, vport->egress.drop_counter,
+			      &stats->rx_dropped, &bytes);
 
-	if (vport->ingress.drop_counter) {
-		idx = vport->ingress.drop_counter->id;
-		mlx5_fc_query(dev, idx, &stats->tx_dropped, &bytes);
-	}
+	if (vport->ingress.drop_counter)
+		mlx5_fc_query(dev, vport->ingress.drop_counter,
+			      &stats->tx_dropped, &bytes);
 
 	if (!MLX5_CAP_GEN(dev, receive_discard_vport_down) &&
 	    !MLX5_CAP_GEN(dev, transmit_discard_vport_down))
