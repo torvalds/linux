@@ -2037,6 +2037,22 @@ ds1685_rtc_probe(struct platform_device *pdev)
 	rtc->write(rtc, RTC_EXT_CTRL_4B,
 		   (rtc->read(rtc, RTC_EXT_CTRL_4B) | RTC_CTRL_4B_KSE));
 
+	rtc_dev = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(rtc_dev))
+		return PTR_ERR(rtc_dev);
+
+	rtc_dev->ops = &ds1685_rtc_ops;
+
+	/* Maximum periodic rate is 8192Hz (0.122070ms). */
+	rtc_dev->max_user_freq = RTC_MAX_USER_FREQ;
+
+	/* See if the platform doesn't support UIE. */
+	if (pdata->uie_unsupported)
+		rtc_dev->uie_unsupported = 1;
+	rtc->uie_unsupported = pdata->uie_unsupported;
+
+	rtc->dev = rtc_dev;
+
 	/*
 	 * Fetch the IRQ and setup the interrupt handler.
 	 *
@@ -2069,32 +2085,13 @@ ds1685_rtc_probe(struct platform_device *pdev)
 	/* Setup complete. */
 	ds1685_rtc_switch_to_bank0(rtc);
 
-	/* Register the device as an RTC. */
-	rtc_dev = rtc_device_register(pdev->name, &pdev->dev,
-				      &ds1685_rtc_ops, THIS_MODULE);
-
-	/* Success? */
-	if (IS_ERR(rtc_dev))
-		return PTR_ERR(rtc_dev);
-
-	/* Maximum periodic rate is 8192Hz (0.122070ms). */
-	rtc_dev->max_user_freq = RTC_MAX_USER_FREQ;
-
-	/* See if the platform doesn't support UIE. */
-	if (pdata->uie_unsupported)
-		rtc_dev->uie_unsupported = 1;
-	rtc->uie_unsupported = pdata->uie_unsupported;
-
-	rtc->dev = rtc_dev;
-
 #ifdef CONFIG_SYSFS
 	ret = ds1685_rtc_sysfs_register(&pdev->dev);
 	if (ret)
-		rtc_device_unregister(rtc->dev);
+		return ret;
 #endif
 
-	/* Done! */
-	return ret;
+	return rtc_register_device(rtc_dev);
 }
 
 /**
@@ -2109,8 +2106,6 @@ ds1685_rtc_remove(struct platform_device *pdev)
 #ifdef CONFIG_SYSFS
 	ds1685_rtc_sysfs_unregister(&pdev->dev);
 #endif
-
-	rtc_device_unregister(rtc->dev);
 
 	/* Read Ctrl B and clear PIE/AIE/UIE. */
 	rtc->write(rtc, RTC_CTRL_B,
