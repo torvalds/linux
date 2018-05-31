@@ -1179,7 +1179,7 @@ int blk_init_allocated_queue(struct request_queue *q)
 	mutex_lock(&q->sysfs_lock);
 
 	/* init elevator */
-	if (elevator_init(q, NULL)) {
+	if (elevator_init(q)) {
 		mutex_unlock(&q->sysfs_lock);
 		goto out_exit_flush_rq;
 	}

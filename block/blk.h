@@ -231,7 +231,7 @@ static inline void elv_deactivate_rq(struct request_queue *q, struct request *rq
 		e->type->ops.sq.elevator_deactivate_req_fn(q, rq);
 }
 
-int elevator_init(struct request_queue *, char *);
+int elevator_init(struct request_queue *);
 void elevator_exit(struct request_queue *, struct elevator_queue *);
 int elv_register_queue(struct request_queue *q);
 void elv_unregister_queue(struct request_queue *q);

@@ -653,7 +653,7 @@ int blk_mq_sched_init(struct request_queue *q)
 	int ret;
 
 	mutex_lock(&q->sysfs_lock);
-	ret = elevator_init(q, NULL);
+	ret = elevator_init(q);
 	mutex_unlock(&q->sysfs_lock);
 
 	return ret;

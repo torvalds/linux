@@ -199,7 +199,7 @@ static void elevator_release(struct kobject *kobj)
 	kfree(e);
 }
 
-int elevator_init(struct request_queue *q, char *name)
+int elevator_init(struct request_queue *q)
 {
 	struct elevator_type *e = NULL;
 	int err;
@@ -213,19 +213,13 @@ int elevator_init(struct request_queue *q, char *name)
 	if (unlikely(q->elevator))
 		return 0;
 
-	if (name) {
-		e = elevator_get(q, name, true);
-		if (!e)
-			return -EINVAL;
-	}
-
 	/*
 	 * Use the default elevator specified by config boot param for
 	 * non-mq devices, or by config option. Don't try to load modules
 	 * as we could be running off async and request_module() isn't
 	 * allowed from async.
 	 */
-	if (!e && !q->mq_ops && *chosen_elevator) {
+	if (!q->mq_ops && *chosen_elevator) {
 		e = elevator_get(q, chosen_elevator, false);
 		if (!e)
 			printk(KERN_ERR "I/O scheduler %s not found\n",
