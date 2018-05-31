@@ -1143,13 +1143,6 @@ static void dw_mipi_dsi_encoder_disable(struct drm_encoder *encoder)
 	dw_mipi_dsi_post_disable(dsi);
 }
 
-static bool dw_mipi_dsi_encoder_mode_fixup(struct drm_encoder *encoder,
-					const struct drm_display_mode *mode,
-					struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void dw_mipi_dsi_pre_init(struct dw_mipi_dsi *dsi)
 {
 	if (dsi->dphy.phy)
@@ -1277,9 +1270,33 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 	return 0;
 }
 
+static int dw_mipi_dsi_loader_protect(struct dw_mipi_dsi *dsi, bool on)
+{
+	if (on)
+		pm_runtime_get_sync(dsi->dev);
+	else
+		pm_runtime_put(dsi->dev);
+
+	if (dsi->slave)
+		dw_mipi_dsi_loader_protect(dsi->slave, on);
+
+	return 0;
+}
+
+static int dw_mipi_dsi_encoder_loader_protect(struct drm_encoder *encoder,
+					      bool on)
+{
+	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
+
+	if (dsi->panel)
+		drm_panel_loader_protect(dsi->panel, on);
+
+	return dw_mipi_dsi_loader_protect(dsi, on);
+}
+
 static const struct drm_encoder_helper_funcs
 dw_mipi_dsi_encoder_helper_funcs = {
-	.mode_fixup = dw_mipi_dsi_encoder_mode_fixup,
+	.loader_protect = dw_mipi_dsi_encoder_loader_protect,
 	.mode_set = dw_mipi_dsi_encoder_mode_set,
 	.enable = dw_mipi_dsi_encoder_enable,
 	.disable = dw_mipi_dsi_encoder_disable,
@@ -1305,23 +1322,8 @@ static struct drm_encoder *dw_mipi_dsi_connector_best_encoder(
 	return &dsi->encoder;
 }
 
-static int dw_mipi_loader_protect(struct drm_connector *connector, bool on)
-{
-	struct dw_mipi_dsi *dsi = con_to_dsi(connector);
-
-	if (dsi->panel)
-		drm_panel_loader_protect(dsi->panel, on);
-	if (on)
-		pm_runtime_get_sync(dsi->dev);
-	else
-		pm_runtime_put(dsi->dev);
-
-	return 0;
-}
-
 static const struct drm_connector_helper_funcs
 dw_mipi_dsi_connector_helper_funcs = {
-	.loader_protect = dw_mipi_loader_protect,
 	.get_modes = dw_mipi_dsi_connector_get_modes,
 	.best_encoder = dw_mipi_dsi_connector_best_encoder,
 };
