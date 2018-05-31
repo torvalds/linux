@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Sean Wang <sean.wang@mediatek.com>
+ * Copyright 2017-2018 Sean Wang <sean.wang@mediatek.com>
  *
  * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
  */
@@ -75,6 +75,18 @@
 		};
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		consys-reserve-memory {
+			compatible = "mediatek,consys-reserve-memory";
+			no-map;
+			size = <0 0x100000>;
+			alignment = <0 0x100000>;
+		};
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -111,6 +123,10 @@
 			remote-endpoint = <&dpi0_in>;
 		};
 	};
+};
+
+&btif {
+	status = "okay";
 };
 
 &cir {
@@ -546,6 +562,32 @@
 				 <MT7623_PIN_15_GPIO15_FUNC_UTXD2>;
 		};
 	};
+
+	uart3_pins_a: uart@3 {
+		pins_dat {
+			pinmux = <MT7623_PIN_242_URTS2_FUNC_URTS2>,
+				 <MT7623_PIN_243_UCTS2_FUNC_UTXD3>;
+		};
+	};
+
+	consys_pins_default: consys_pins_default {
+		adie {
+			pinmux = <MT7623_PIN_60_WB_RSTB_FUNC_WB_RSTB>,
+				<MT7623_PIN_61_GPIO61_FUNC_TEST_FD>,
+				<MT7623_PIN_62_GPIO62_FUNC_TEST_FC>,
+				<MT7623_PIN_63_WB_SCLK_FUNC_WB_SCLK>,
+				<MT7623_PIN_64_WB_SDATA_FUNC_WB_SDATA>,
+				<MT7623_PIN_65_WB_SEN_FUNC_WB_SEN>,
+				<MT7623_PIN_66_WB_CRTL0_FUNC_WB_CRTL0>,
+				<MT7623_PIN_67_WB_CRTL1_FUNC_WB_CRTL1>,
+				<MT7623_PIN_68_WB_CRTL2_FUNC_WB_CRTL2>,
+				<MT7623_PIN_69_WB_CRTL3_FUNC_WB_CRTL3>,
+				<MT7623_PIN_70_WB_CRTL4_FUNC_WB_CRTL4>,
+				<MT7623_PIN_71_WB_CRTL5_FUNC_WB_CRTL5>;
+			bias-disable;
+		};
+	};
+
 };
 
 &pwm {
@@ -582,6 +624,21 @@
 	};
 };
 
+&consys {
+	mediatek,pwrap-regmap = <&pwrap>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&consys_pins_default>;
+	vcn18-supply = <&mt6323_vcn18_reg>;
+	vcn28-supply = <&mt6323_vcn28_reg>;
+	vcn33_bt-supply = <&mt6323_vcn33_bt_reg>;
+	vcn33_wifi-supply = <&mt6323_vcn33_wifi_reg>;
+	status = "okay";
+};
+
+&watchdog {
+	status = "okay";
+};
+
 &spi0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi0_pins_a>;
@@ -603,6 +660,12 @@
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_pins_a>;
+	status = "okay";
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3_pins_a>;
 	status = "okay";
 };
 

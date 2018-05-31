@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 MediaTek Inc.
+ * Copyright (c) 2017-2018 MediaTek Inc.
  * Author: John Crispin <john@phrozen.org>
  *	   Sean Wang <sean.wang@mediatek.com>
  *
@@ -268,6 +268,8 @@
 		compatible = "mediatek,mt7623-wdt",
 			     "mediatek,mt6589-wdt";
 		reg = <0 0x10007000 0 0x100>;
+		interrupts = <GIC_SPI 88 IRQ_TYPE_EDGE_FALLING>;
+		#reset-cells = <1>;
 	};
 
 	timer: timer@10008000 {
@@ -558,6 +560,29 @@
 		nvmem-cell-names = "calibration-data";
 	};
 
+	btif_tx: btif_tx@11000780 {
+		compatible = "mediatek,btif_tx";
+		reg = <0 0x11000780 0 0x80>;
+		interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_LOW>;
+		status = "okay";
+	};
+
+	btif_rx: btif_rx@11000800 {
+		compatible = "mediatek,btif_rx";
+		reg = <0 0x11000800 0 0x80>;
+		interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_LOW>;
+		status = "okay";
+	};
+
+	btif: btif@1100c000 {
+		compatible = "mediatek,btif";
+		reg = <0 0x1100c000 0 0x1000>;
+		interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&pericfg CLK_PERI_BTIF>, <&pericfg CLK_PERI_AP_DMA>;
+		clock-names = "btifc", "apdmac";
+		status = "okay";
+	};
+
 	nandc: nfi@1100d000 {
 		compatible = "mediatek,mt7623-nfc",
 			     "mediatek,mt2701-nfc";
@@ -580,6 +605,18 @@
 		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&pericfg CLK_PERI_NFI_ECC>;
 		clock-names = "nfiecc_clk";
+		status = "disabled";
+	};
+
+	nor_flash: spi@11014000 {
+		compatible = "mediatek,mt7623-nor",
+			     "mediatek,mt8173-nor";
+		reg = <0 0x11014000 0 0x1000>;
+		clocks = <&pericfg CLK_PERI_FLASH>,
+			 <&topckgen CLK_TOP_FLASH_SEL>;
+		clock-names = "spi", "sf";
+		#address-cells = <1>;
+		#size-cells = <0>;
 		status = "disabled";
 	};
 
@@ -747,6 +784,29 @@
 					"mediatek,mt2701-mmsys";
 		reg = <0 0x14000000 0 0x1000>;
 		power-domains = <&scpsys MT2701_POWER_DOMAIN_DISP>;
+	};
+
+	consys: consys@18070000 {
+		compatible = "mediatek,mt7623-consys";
+		reg = <0 0x18070000 0 0x0200>,  /*CONN_MCU_CONFIG_BASE      */
+			<0 0x10001000 0 0x1600>;  /*TOPCKGEN_BASE             */
+		clocks = <&infracfg CLK_INFRA_CONNMCU>;
+		clock-names = "consysbus";
+		power-domains = <&scpsys MT2701_POWER_DOMAIN_CONN>;
+		interrupts = <GIC_SPI 185 IRQ_TYPE_LEVEL_LOW>,  /* BGF_EINT */
+					<GIC_SPI 163 IRQ_TYPE_LEVEL_LOW>;  /* WDT_EINT */
+		resets = <&watchdog MT2701_TOPRGU_CONN_MCU_RST>;
+		reset-names = "connsys";
+		status="disabled";
+	};
+
+	wifi:wifi@180f0000 {
+		compatible = "mediatek,mt7623-wifi",
+					"mediatek,wifi";
+		reg = <0 0x180f0000 0 0x005c>;
+		interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&pericfg CLK_PERI_AP_DMA>;
+		clock-names = "wifi-dma";
 	};
 
 	ovl@14007000 {
@@ -929,8 +989,8 @@
 
 	hifsys: syscon@1a000000 {
 		compatible = "mediatek,mt7623-hifsys",
-					"mediatek,mt2701-hifsys",
-					"syscon";
+			     "mediatek,mt2701-hifsys",
+			     "syscon";
 		reg = <0 0x1a000000 0 0x1000>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
@@ -1130,6 +1190,16 @@
 		reg = <0 0x1b000000 0 0x1000>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
+	};
+
+	hsdma: dma-controller@1b007000 {
+		compatible = "mediatek,mt7623-hsdma";
+		reg = <0 0x1b007000 0 0x1000>;
+		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&ethsys CLK_ETHSYS_HSDMA>;
+		clock-names = "hsdma";
+		power-domains = <&scpsys MT2701_POWER_DOMAIN_ETH>;
+		#dma-cells = <1>;
 	};
 
 	eth: ethernet@1b100000 {
