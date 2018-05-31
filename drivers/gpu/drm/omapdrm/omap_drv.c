@@ -323,7 +323,8 @@ static int omap_modeset_init(struct drm_device *dev)
 			return -ENOMEM;
 
 		connector = omap_connector_init(dev,
-				get_connector_type(display), display, encoder);
+				get_connector_type(display), pipe->output,
+				display, encoder);
 		if (!connector)
 			return -ENOMEM;
 

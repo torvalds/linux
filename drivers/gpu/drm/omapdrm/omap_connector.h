@@ -28,8 +28,8 @@ struct drm_encoder;
 struct omap_dss_device;
 
 struct drm_connector *omap_connector_init(struct drm_device *dev,
-		int connector_type, struct omap_dss_device *dssdev,
-		struct drm_encoder *encoder);
+		int connector_type, struct omap_dss_device *output,
+		struct omap_dss_device *display, struct drm_encoder *encoder);
 struct drm_encoder *omap_connector_attached_encoder(
 		struct drm_connector *connector);
 bool omap_connector_get_hdmi_mode(struct drm_connector *connector);

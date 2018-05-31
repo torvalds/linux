@@ -29,7 +29,8 @@
 
 struct omap_connector {
 	struct drm_connector base;
-	struct omap_dss_device *dssdev;
+	struct omap_dss_device *output;
+	struct omap_dss_device *display;
 	struct omap_dss_device *hpd;
 	bool hdmi_mode;
 };
@@ -104,7 +105,7 @@ omap_connector_find_device(struct drm_connector *connector,
 	struct omap_connector *omap_connector = to_omap_connector(connector);
 	struct omap_dss_device *dssdev;
 
-	for (dssdev = omap_connector->dssdev; dssdev; dssdev = dssdev->src) {
+	for (dssdev = omap_connector->display; dssdev; dssdev = dssdev->src) {
 		if (dssdev->ops_flags & op)
 			return dssdev;
 	}
@@ -129,7 +130,7 @@ static enum drm_connector_status omap_connector_detect(
 
 		omap_connector_hpd_notify(connector, dssdev->src, status);
 	} else {
-		switch (omap_connector->dssdev->type) {
+		switch (omap_connector->display->type) {
 		case OMAP_DISPLAY_TYPE_DPI:
 		case OMAP_DISPLAY_TYPE_DBI:
 		case OMAP_DISPLAY_TYPE_SDI:
@@ -142,7 +143,7 @@ static enum drm_connector_status omap_connector_detect(
 		}
 	}
 
-	VERB("%s: %d (force=%d)", omap_connector->dssdev->name, status, force);
+	VERB("%s: %d (force=%d)", omap_connector->display->name, status, force);
 
 	return status;
 }
@@ -151,7 +152,7 @@ static void omap_connector_destroy(struct drm_connector *connector)
 {
 	struct omap_connector *omap_connector = to_omap_connector(connector);
 
-	DBG("%s", omap_connector->dssdev->name);
+	DBG("%s", omap_connector->display->name);
 
 	if (omap_connector->hpd) {
 		struct omap_dss_device *hpd = omap_connector->hpd;
@@ -165,7 +166,8 @@ static void omap_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 	kfree(omap_connector);
 
-	omapdss_device_put(omap_connector->dssdev);
+	omapdss_device_put(omap_connector->output);
+	omapdss_device_put(omap_connector->display);
 }
 
 #define MAX_EDID  512
@@ -212,7 +214,7 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 	struct drm_display_mode *mode;
 	struct videomode vm = {0};
 
-	DBG("%s", omap_connector->dssdev->name);
+	DBG("%s", omap_connector->display->name);
 
 	/*
 	 * If display exposes EDID, then we parse that in the normal way to
@@ -229,7 +231,7 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 	if (!mode)
 		return 0;
 
-	dssdev = omap_connector->dssdev;
+	dssdev = omap_connector->display;
 	dssdev->ops->get_timings(dssdev, &vm);
 
 	drm_display_mode_from_videomode(&vm, mode);
@@ -250,7 +252,7 @@ static int omap_connector_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
 	struct omap_connector *omap_connector = to_omap_connector(connector);
-	struct omap_dss_device *dssdev = omap_connector->dssdev;
+	struct omap_dss_device *dssdev = omap_connector->display;
 	struct videomode vm = {0};
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *new_mode;
@@ -325,19 +327,21 @@ static const struct drm_connector_helper_funcs omap_connector_helper_funcs = {
 
 /* initialize connector */
 struct drm_connector *omap_connector_init(struct drm_device *dev,
-		int connector_type, struct omap_dss_device *dssdev,
-		struct drm_encoder *encoder)
+		int connector_type, struct omap_dss_device *output,
+		struct omap_dss_device *display, struct drm_encoder *encoder)
 {
 	struct drm_connector *connector = NULL;
 	struct omap_connector *omap_connector;
+	struct omap_dss_device *dssdev;
 
-	DBG("%s", dssdev->name);
+	DBG("%s", display->name);
 
 	omap_connector = kzalloc(sizeof(*omap_connector), GFP_KERNEL);
 	if (!omap_connector)
 		goto fail;
 
-	omap_connector->dssdev = omapdss_device_get(dssdev);
+	omap_connector->output = omapdss_device_get(output);
+	omap_connector->display = omapdss_device_get(display);
 
 	connector = &omap_connector->base;
 	connector->interlace_allowed = 1;
