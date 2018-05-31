@@ -705,6 +705,7 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 
 	if (ihs) {
 		memcpy(eseg->inline_hdr.start, skb_data, ihs);
+		mlx5e_tx_skb_pull_inline(&skb_data, &skb_len, ihs);
 		eseg->inline_hdr.sz = cpu_to_be16(ihs);
 		dseg += ds_cnt_inl;
 	}
