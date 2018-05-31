@@ -749,6 +749,7 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 						   unsigned int queue_nr)
 {
 	struct intel_pt_params params = { .get_trace = 0, };
+	struct perf_env *env = pt->machine->env;
 	struct intel_pt_queue *ptq;
 
 	ptq = zalloc(sizeof(struct intel_pt_queue));
@@ -829,6 +830,9 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 			params.period = 1;
 		}
 	}
+
+	if (env->cpuid && !strncmp(env->cpuid, "GenuineIntel,6,92,", 18))
+		params.flags |= INTEL_PT_FUP_WITH_NLIP;
 
 	ptq->decoder = intel_pt_decoder_new(&params);
 	if (!ptq->decoder)
