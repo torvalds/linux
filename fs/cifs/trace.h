@@ -335,6 +335,92 @@ DEFINE_EVENT(smb3_enter_exit_class, smb3_##name,  \
 DEFINE_SMB3_ENTER_EXIT_EVENT(enter);
 DEFINE_SMB3_ENTER_EXIT_EVENT(exit_done);
 
+/*
+ * For smb2/smb3 open call
+ */
+DECLARE_EVENT_CLASS(smb3_open_err_class,
+	TP_PROTO(unsigned int xid,
+		__u32	tid,
+		__u64	sesid,
+		int	create_options,
+		int	desired_access,
+		int	rc),
+	TP_ARGS(xid, tid, sesid, create_options, desired_access, rc),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__field(int,   create_options)
+		__field(int, desired_access)
+		__field(int, rc)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__entry->create_options = create_options;
+		__entry->desired_access = desired_access;
+		__entry->rc = rc;
+	),
+	TP_printk("xid=%u sid=0x%llx tid=0x%x cr_opts=0x%x des_access=0x%x rc=%d",
+		__entry->xid, __entry->sesid, __entry->tid,
+		__entry->create_options, __entry->desired_access, __entry->rc)
+)
+
+#define DEFINE_SMB3_OPEN_ERR_EVENT(name)          \
+DEFINE_EVENT(smb3_open_err_class, smb3_##name,    \
+	TP_PROTO(unsigned int xid,		\
+		__u32	tid,			\
+		__u64	sesid,			\
+		int	create_options,		\
+		int	desired_access,		\
+		int	rc),			\
+	TP_ARGS(xid, tid, sesid, create_options, desired_access, rc))
+
+DEFINE_SMB3_OPEN_ERR_EVENT(open_err);
+
+
+DECLARE_EVENT_CLASS(smb3_open_done_class,
+	TP_PROTO(unsigned int xid,
+		__u64	fid,
+		__u32	tid,
+		__u64	sesid,
+		int	create_options,
+		int	desired_access),
+	TP_ARGS(xid, fid, tid, sesid, create_options, desired_access),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(__u64, fid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__field(int, create_options)
+		__field(int, desired_access)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->fid = fid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__entry->create_options = create_options;
+		__entry->desired_access = desired_access;
+	),
+	TP_printk("xid=%u sid=0x%llx tid=0x%x fid=0x%llx cr_opts=0x%x des_access=0x%x",
+		__entry->xid, __entry->sesid, __entry->tid, __entry->fid,
+		__entry->create_options, __entry->desired_access)
+)
+
+#define DEFINE_SMB3_OPEN_DONE_EVENT(name)        \
+DEFINE_EVENT(smb3_open_done_class, smb3_##name,  \
+	TP_PROTO(unsigned int xid,		\
+		__u64	fid,			\
+		__u32	tid,			\
+		__u64	sesid,			\
+		int	create_options,		\
+		int	desired_access),	\
+	TP_ARGS(xid, fid, tid, sesid, create_options, desired_access))
+
+DEFINE_SMB3_OPEN_DONE_EVENT(open_done);
+
 #endif /* _CIFS_TRACE_H */
 
 #undef TRACE_INCLUDE_PATH

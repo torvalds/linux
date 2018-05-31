@@ -1975,8 +1975,13 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 			resp_buftype = CIFS_NO_BUFFER;
 			rsp = NULL;
 		}
+		trace_smb3_open_err(xid, tcon->tid, ses->Suid,
+				    oparms->create_options, oparms->desired_access, rc);
 		goto creat_exit;
-	}
+	} else
+		trace_smb3_open_done(xid, rsp->PersistentFileId, tcon->tid,
+				     ses->Suid, oparms->create_options,
+				     oparms->desired_access);
 
 	oparms->fid->persistent_fid = rsp->PersistentFileId;
 	oparms->fid->volatile_fid = rsp->VolatileFileId;
