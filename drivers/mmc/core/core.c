@@ -887,7 +887,10 @@ void mmc_release_host(struct mmc_host *host)
 		spin_unlock_irqrestore(&host->lock, flags);
 		wake_up(&host->wq);
 		pm_runtime_mark_last_busy(mmc_dev(host));
-		pm_runtime_put_autosuspend(mmc_dev(host));
+		if (host->caps & MMC_CAP_SYNC_RUNTIME_PM)
+			pm_runtime_put_sync_suspend(mmc_dev(host));
+		else
+			pm_runtime_put_autosuspend(mmc_dev(host));
 	}
 }
 EXPORT_SYMBOL(mmc_release_host);
