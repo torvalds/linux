@@ -1344,6 +1344,11 @@ static int __test_suite(char *bpf_file)
 		return cg_fd;
 	}
 
+	if (join_cgroup(CG_PATH)) {
+		fprintf(stderr, "ERROR: failed to join cgroup\n");
+		return -EINVAL;
+	}
+
 	/* Tests basic commands and APIs with range of iov values */
 	txmsg_start = txmsg_end = 0;
 	err = test_txmsg(cg_fd);
