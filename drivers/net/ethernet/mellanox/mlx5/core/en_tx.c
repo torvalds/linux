@@ -653,8 +653,6 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	int num_dma;
 	__be16 mss;
 
-	mlx5i_sq_fetch_wqe(sq, &wqe, &pi);
-
 	/* Calc ihs and ds cnt, no writes to wqe yet */
 	ds_cnt = sizeof(*wqe) / MLX5_SEND_WQE_DS;
 	if (skb_is_gso(skb)) {
@@ -686,9 +684,11 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
 	frag_pi = mlx5_wq_cyc_ctr2fragix(wq, sq->pc);
 	if (unlikely(frag_pi + num_wqebbs > mlx5_wq_cyc_get_frag_size(wq))) {
+		pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 		mlx5e_fill_sq_frag_edge(sq, wq, pi, frag_pi);
-		mlx5i_sq_fetch_wqe(sq, &wqe, &pi);
 	}
+
+	mlx5i_sq_fetch_wqe(sq, &wqe, &pi);
 
 	/* fill wqe */
 	wi       = &sq->db.wqe_info[pi];
