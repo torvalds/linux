@@ -914,7 +914,9 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 
 		hisi_sas_dereg_device(hisi_hba, device);
 
+		down(&hisi_hba->sem);
 		hisi_hba->hw->clear_itct(hisi_hba, sas_dev);
+		up(&hisi_hba->sem);
 		device->lldd_dev = NULL;
 	}
 
@@ -1364,6 +1366,7 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	if (test_and_set_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags))
 		return -1;
 
+	down(&hisi_hba->sem);
 	dev_info(dev, "controller resetting...\n");
 	old_state = hisi_hba->hw->get_phys_state(hisi_hba);
 
@@ -1378,6 +1381,7 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	if (rc) {
 		dev_warn(dev, "controller reset failed (%d)\n", rc);
 		clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
+		up(&hisi_hba->sem);
 		scsi_unblock_requests(shost);
 		goto out;
 	}
@@ -1388,6 +1392,7 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	hisi_hba->hw->phys_init(hisi_hba);
 	msleep(1000);
 	hisi_sas_refresh_port_id(hisi_hba);
+	up(&hisi_hba->sem);
 
 	if (hisi_hba->reject_stp_links_msk)
 		hisi_sas_terminate_stp_reject(hisi_hba);
@@ -2016,6 +2021,7 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 	struct device *dev = hisi_hba->dev;
 	int i, s, max_command_entries = hisi_hba->hw->max_command_entries;
 
+	sema_init(&hisi_hba->sem, 1);
 	spin_lock_init(&hisi_hba->lock);
 	for (i = 0; i < hisi_hba->n_phy; i++) {
 		hisi_sas_phy_init(hisi_hba, i);

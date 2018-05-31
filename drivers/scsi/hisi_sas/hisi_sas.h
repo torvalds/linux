@@ -277,6 +277,7 @@ struct hisi_hba {
 
 	int n_phy;
 	spinlock_t lock;
+	struct semaphore sem;
 
 	struct timer_list timer;
 	struct workqueue_struct *wq;
