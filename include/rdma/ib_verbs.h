@@ -2427,7 +2427,8 @@ struct ib_device {
 	struct ib_flow *	   (*create_flow)(struct ib_qp *qp,
 						  struct ib_flow_attr
 						  *flow_attr,
-						  int domain);
+						  int domain,
+						  struct ib_udata *udata);
 	int			   (*destroy_flow)(struct ib_flow *flow_id);
 	int			   (*check_mr_status)(struct ib_mr *mr, u32 check_mask,
 						      struct ib_mr_status *mr_status);

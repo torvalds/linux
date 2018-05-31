@@ -3513,11 +3513,16 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 		err = -EINVAL;
 		goto err_free;
 	}
-	flow_id = ib_create_flow(qp, flow_attr, IB_FLOW_DOMAIN_USER);
+
+	flow_id = qp->device->create_flow(qp, flow_attr,
+					  IB_FLOW_DOMAIN_USER, uhw);
+
 	if (IS_ERR(flow_id)) {
 		err = PTR_ERR(flow_id);
 		goto err_free;
 	}
+	atomic_inc(&qp->usecnt);
+	flow_id->qp = qp;
 	flow_id->uobject = uobj;
 	uobj->object = flow_id;
 	uflow = container_of(uobj, typeof(*uflow), uobject);
