@@ -213,11 +213,6 @@ int elevator_init(struct request_queue *q, char *name)
 	if (unlikely(q->elevator))
 		return 0;
 
-	INIT_LIST_HEAD(&q->queue_head);
-	q->last_merge = NULL;
-	q->end_sector = 0;
-	q->boundary_rq = NULL;
-
 	if (name) {
 		e = elevator_get(q, name, true);
 		if (!e)
