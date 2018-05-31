@@ -419,12 +419,12 @@ static enum drm_mode_status omap_crtc_mode_valid(struct drm_crtc *crtc,
 static void omap_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	struct omap_dss_device *display = omap_crtc->pipe->display;
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
-	struct omap_drm_private *priv = crtc->dev->dev_private;
 	const u32 flags_mask = DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_DE_LOW |
 		DISPLAY_FLAGS_PIXDATA_POSEDGE | DISPLAY_FLAGS_PIXDATA_NEGEDGE |
 		DISPLAY_FLAGS_SYNC_POSEDGE | DISPLAY_FLAGS_SYNC_NEGEDGE;
-	unsigned int i;
+	struct videomode vm = {0};
 
 	DBG("%s: set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
 	    omap_crtc->name, mode->base.id, mode->name,
@@ -447,25 +447,8 @@ static void omap_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	 * has been changed to the DRM model.
 	 */
 
-	for (i = 0; i < priv->num_pipes; ++i) {
-		struct drm_encoder *encoder = priv->pipes[i].encoder;
-
-		if (encoder->crtc == crtc) {
-			struct omap_dss_device *dssdev;
-
-			dssdev = omap_encoder_get_dssdev(encoder);
-
-			if (dssdev) {
-				struct videomode vm = {0};
-
-				dssdev->ops->get_timings(dssdev, &vm);
-
-				omap_crtc->vm.flags |= vm.flags & flags_mask;
-			}
-
-			break;
-		}
-	}
+	display->ops->get_timings(display, &vm);
+	omap_crtc->vm.flags |= vm.flags & flags_mask;
 }
 
 static int omap_crtc_atomic_check(struct drm_crtc *crtc,

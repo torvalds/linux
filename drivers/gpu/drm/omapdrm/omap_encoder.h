@@ -27,7 +27,4 @@ struct omap_dss_device;
 struct drm_encoder *omap_encoder_init(struct drm_device *dev,
 		struct omap_dss_device *dssdev);
 
-/* map crtc to vblank mask */
-struct omap_dss_device *omap_encoder_get_dssdev(struct drm_encoder *encoder);
-
 #endif /* __OMAPDRM_ENCODER_H__ */
