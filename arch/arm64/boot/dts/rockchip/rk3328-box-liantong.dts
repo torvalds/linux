@@ -116,7 +116,7 @@
 
 	vcc_otg_vbus: otg-vbus-regulator {
 		compatible = "regulator-fixed";
-		gpio = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PA2 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&otg_vbus_drv>;
 		regulator-name = "vcc_otg_vbus";
@@ -328,7 +328,7 @@
 
 		otg_vbus_drv: otg-vbus-drv {
 			rockchip,pins =
-				<0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
