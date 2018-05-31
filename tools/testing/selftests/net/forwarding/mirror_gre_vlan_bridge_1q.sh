@@ -91,12 +91,13 @@ test_span_gre_forbidden()
 	# Now forbid the VLAN at the bridge and see it fail.
 	bridge vlan del dev br1 vid 555 self
 	sleep 1
-
 	fail_test_span_gre_dir $tundev ingress
-	mirror_uninstall $swp1 ingress
 
 	bridge vlan add dev br1 vid 555 self
 	sleep 1
+	quick_test_span_gre_dir $tundev ingress
+
+	mirror_uninstall $swp1 ingress
 
 	log_test "$what: vlan forbidden at a bridge ($tcflags)"
 }
