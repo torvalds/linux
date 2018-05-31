@@ -4717,8 +4717,12 @@ next_crtc:
 			update_stream_scaling_settings(
 				&new_crtc_state->mode, dm_new_conn_state, dm_new_crtc_state->stream);
 
-		/* Color managment settings */
-		if (dm_new_crtc_state->base.color_mgmt_changed) {
+		/*
+		 * Color management settings. We also update color properties
+		 * when a modeset is needed, to ensure it gets reprogrammed.
+		 */
+		if (dm_new_crtc_state->base.color_mgmt_changed ||
+		    drm_atomic_crtc_needs_modeset(new_crtc_state)) {
 			ret = amdgpu_dm_set_regamma_lut(dm_new_crtc_state);
 			if (ret)
 				goto fail;
