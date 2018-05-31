@@ -2609,12 +2609,8 @@ static int virtnet_find_vqs(struct virtnet_info *vi)
 		vi->sq[i].vq = vqs[txq2vq(i)];
 	}
 
-	kfree(names);
-	kfree(callbacks);
-	kfree(vqs);
-	kfree(ctx);
+	/* run here: ret == 0. */
 
-	return 0;
 
 err_find:
 	kfree(ctx);
