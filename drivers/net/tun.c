@@ -1285,6 +1285,14 @@ static const struct net_device_ops tun_netdev_ops = {
 	.ndo_get_stats64	= tun_net_get_stats64,
 };
 
+static void __tun_xdp_flush_tfile(struct tun_file *tfile)
+{
+	/* Notify and wake up reader process */
+	if (tfile->flags & TUN_FASYNC)
+		kill_fasync(&tfile->fasync, SIGIO, POLL_IN);
+	tfile->socket.sk->sk_data_ready(tfile->socket.sk);
+}
+
 static int tun_xdp_xmit(struct net_device *dev, int n,
 			struct xdp_frame **frames, u32 flags)
 {
@@ -1295,7 +1303,7 @@ static int tun_xdp_xmit(struct net_device *dev, int n,
 	int cnt = n;
 	int i;
 
-	if (unlikely(flags & ~XDP_XMIT_FLAGS_NONE))
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
 		return -EINVAL;
 
 	rcu_read_lock();
@@ -1325,6 +1333,9 @@ static int tun_xdp_xmit(struct net_device *dev, int n,
 	}
 	spin_unlock(&tfile->tx_ring.producer_lock);
 
+	if (flags & XDP_XMIT_FLUSH)
+		__tun_xdp_flush_tfile(tfile);
+
 	rcu_read_unlock();
 	return cnt - drops;
 }
@@ -1353,11 +1364,7 @@ static void tun_xdp_flush(struct net_device *dev)
 
 	tfile = rcu_dereference(tun->tfiles[smp_processor_id() %
 					    numqueues]);
-	/* Notify and wake up reader process */
-	if (tfile->flags & TUN_FASYNC)
-		kill_fasync(&tfile->fasync, SIGIO, POLL_IN);
-	tfile->socket.sk->sk_data_ready(tfile->socket.sk);
-
+	__tun_xdp_flush_tfile(tfile);
 out:
 	rcu_read_unlock();
 }
