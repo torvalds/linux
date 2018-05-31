@@ -876,22 +876,26 @@ static unsigned int bfq_wr_duration(struct bfq_data *bfqd)
 	do_div(dur, bfqd->peak_rate);
 
 	/*
-	 * Limit duration between 3 and 13 seconds. Tests show that
-	 * higher values than 13 seconds often yield the opposite of
-	 * the desired result, i.e., worsen responsiveness by letting
-	 * non-interactive and non-soft-real-time applications
-	 * preserve weight raising for a too long time interval.
+	 * Limit duration between 3 and 25 seconds. The upper limit
+	 * has been conservatively set after the following worst case:
+	 * on a QEMU/KVM virtual machine
+	 * - running in a slow PC
+	 * - with a virtual disk stacked on a slow low-end 5400rpm HDD
+	 * - serving a heavy I/O workload, such as the sequential reading
+	 *   of several files
+	 * mplayer took 23 seconds to start, if constantly weight-raised.
+	 *
+	 * As for higher values than that accomodating the above bad
+	 * scenario, tests show that higher values would often yield
+	 * the opposite of the desired result, i.e., would worsen
+	 * responsiveness by allowing non-interactive applications to
+	 * preserve weight raising for too long.
 	 *
 	 * On the other end, lower values than 3 seconds make it
 	 * difficult for most interactive tasks to complete their jobs
 	 * before weight-raising finishes.
 	 */
-	if (dur > msecs_to_jiffies(13000))
-		dur = msecs_to_jiffies(13000);
-	else if (dur < msecs_to_jiffies(3000))
-		dur = msecs_to_jiffies(3000);
-
-	return dur;
+	return clamp_val(dur, msecs_to_jiffies(3000), msecs_to_jiffies(25000));
 }
 
 /* switch back from soft real-time to interactive weight raising */
