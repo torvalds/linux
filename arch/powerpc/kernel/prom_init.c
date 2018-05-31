@@ -87,7 +87,7 @@
 #define OF_WORKAROUNDS	0
 #else
 #define OF_WORKAROUNDS	of_workarounds
-int of_workarounds;
+static int of_workarounds;
 #endif
 
 #define OF_WA_CLAIM	1	/* do phys/virt claim separately, then map */
