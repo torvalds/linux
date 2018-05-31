@@ -652,7 +652,7 @@ static int ncsi_rsp_handler_gc(struct ncsi_request *nr)
 				      NCSI_CAP_VLAN_MASK;
 
 	size = (rsp->uc_cnt + rsp->mc_cnt + rsp->mixed_cnt) * ETH_ALEN;
-	nc->mac_filter.addrs = kzalloc(size, GFP_KERNEL);
+	nc->mac_filter.addrs = kzalloc(size, GFP_ATOMIC);
 	if (!nc->mac_filter.addrs)
 		return -ENOMEM;
 	nc->mac_filter.n_uc = rsp->uc_cnt;
@@ -661,7 +661,7 @@ static int ncsi_rsp_handler_gc(struct ncsi_request *nr)
 
 	nc->vlan_filter.vids = kcalloc(rsp->vlan_cnt,
 				       sizeof(*nc->vlan_filter.vids),
-				       GFP_KERNEL);
+				       GFP_ATOMIC);
 	if (!nc->vlan_filter.vids)
 		return -ENOMEM;
 	/* Set VLAN filters active so they are cleared in the first
