@@ -1042,9 +1042,9 @@ static int sd_set_power_mode(struct rtsx_usb_sdmmc *host,
 
 	if (power_mode == MMC_POWER_OFF) {
 		err = sd_power_off(host);
-		pm_runtime_put(sdmmc_dev(host));
+		pm_runtime_put_noidle(sdmmc_dev(host));
 	} else {
-		pm_runtime_get_sync(sdmmc_dev(host));
+		pm_runtime_get_noresume(sdmmc_dev(host));
 		err = sd_power_on(host);
 	}
 
@@ -1310,7 +1310,7 @@ static void rtsx_usb_update_led(struct work_struct *work)
 
 out:
 	mutex_unlock(&ucr->dev_mutex);
-	pm_runtime_put(sdmmc_dev(host));
+	pm_runtime_put_sync_suspend(sdmmc_dev(host));
 }
 #endif
 
@@ -1324,7 +1324,7 @@ static void rtsx_usb_init_host(struct rtsx_usb_sdmmc *host)
 	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_SD_HIGHSPEED |
 		MMC_CAP_MMC_HIGHSPEED | MMC_CAP_BUS_WIDTH_TEST |
 		MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 | MMC_CAP_UHS_SDR50 |
-		MMC_CAP_NEEDS_POLL | MMC_CAP_ERASE;
+		MMC_CAP_NEEDS_POLL | MMC_CAP_ERASE | MMC_CAP_SYNC_RUNTIME_PM;
 	mmc->caps2 = MMC_CAP2_NO_PRESCAN_POWERUP | MMC_CAP2_FULL_PWR_CYCLE |
 		MMC_CAP2_NO_SDIO;
 
@@ -1367,8 +1367,6 @@ static int rtsx_usb_sdmmc_drv_probe(struct platform_device *pdev)
 
 	mutex_init(&host->host_mutex);
 	rtsx_usb_init_host(host);
-	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
 	pm_runtime_enable(&pdev->dev);
 
 #ifdef RTSX_USB_USE_LEDS_CLASS
@@ -1423,7 +1421,6 @@ static int rtsx_usb_sdmmc_drv_remove(struct platform_device *pdev)
 
 	mmc_free_host(mmc);
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	platform_set_drvdata(pdev, NULL);
 
 	dev_dbg(&(pdev->dev),
