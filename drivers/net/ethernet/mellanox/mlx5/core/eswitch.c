@@ -2000,7 +2000,7 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 		goto abort;
 
 	hash_init(esw->offloads.encap_tbl);
-	hash_init(esw->offloads.mod_hdr_tbl);
+	hash_init(esw->offloads.mod_hdr.hlist);
 	atomic64_set(&esw->offloads.num_flows, 0);
 	mutex_init(&esw->state_lock);
 

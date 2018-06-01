@@ -126,6 +126,10 @@ struct mlx5_flow_destination {
 	};
 };
 
+struct mod_hdr_tbl {
+	DECLARE_HASHTABLE(hlist, 8);
+};
+
 struct mlx5_flow_namespace *
 mlx5_get_fdb_sub_ns(struct mlx5_core_dev *dev, int n);
 struct mlx5_flow_namespace *
