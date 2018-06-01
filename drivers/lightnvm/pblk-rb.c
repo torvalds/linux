@@ -503,45 +503,6 @@ int pblk_rb_may_write_gc(struct pblk_rb *rb, unsigned int nr_entries,
 }
 
 /*
- * The caller of this function must ensure that the backpointer will not
- * overwrite the entries passed on the list.
- */
-unsigned int pblk_rb_read_to_bio_list(struct pblk_rb *rb, struct bio *bio,
-				      struct list_head *list,
-				      unsigned int max)
-{
-	struct pblk_rb_entry *entry, *tentry;
-	struct page *page;
-	unsigned int read = 0;
-	int ret;
-
-	list_for_each_entry_safe(entry, tentry, list, index) {
-		if (read > max) {
-			pr_err("pblk: too many entries on list\n");
-			goto out;
-		}
-
-		page = virt_to_page(entry->data);
-		if (!page) {
-			pr_err("pblk: could not allocate write bio page\n");
-			goto out;
-		}
-
-		ret = bio_add_page(bio, page, rb->seg_size, 0);
-		if (ret != rb->seg_size) {
-			pr_err("pblk: could not add page to write bio\n");
-			goto out;
-		}
-
-		list_del(&entry->index);
-		read++;
-	}
-
-out:
-	return read;
-}
-
-/*
  * Read available entries on rb and add them to the given bio. To avoid a memory
  * copy, a page reference to the write buffer is used to be added to the bio.
  *

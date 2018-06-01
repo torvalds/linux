@@ -128,7 +128,6 @@ struct pblk_pad_rq {
 struct pblk_rec_ctx {
 	struct pblk *pblk;
 	struct nvm_rq *rqd;
-	struct list_head failed;
 	struct work_struct ws_rec;
 };
 
@@ -664,6 +663,9 @@ struct pblk {
 
 	struct list_head compl_list;
 
+	spinlock_t resubmit_lock;	 /* Resubmit list lock */
+	struct list_head resubmit_list; /* Resubmit list for failed writes*/
+
 	mempool_t page_bio_pool;
 	mempool_t gen_ws_pool;
 	mempool_t rec_pool;
@@ -713,9 +715,6 @@ void pblk_rb_sync_l2p(struct pblk_rb *rb);
 unsigned int pblk_rb_read_to_bio(struct pblk_rb *rb, struct nvm_rq *rqd,
 				 unsigned int pos, unsigned int nr_entries,
 				 unsigned int count);
-unsigned int pblk_rb_read_to_bio_list(struct pblk_rb *rb, struct bio *bio,
-				      struct list_head *list,
-				      unsigned int max);
 int pblk_rb_copy_to_bio(struct pblk_rb *rb, struct bio *bio, sector_t lba,
 			struct ppa_addr ppa, int bio_iter, bool advanced_bio);
 unsigned int pblk_rb_read_commit(struct pblk_rb *rb, unsigned int entries);
@@ -848,13 +847,9 @@ int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq);
 /*
  * pblk recovery
  */
-void pblk_submit_rec(struct work_struct *work);
 struct pblk_line *pblk_recov_l2p(struct pblk *pblk);
 int pblk_recov_pad(struct pblk *pblk);
 int pblk_recov_check_emeta(struct pblk *pblk, struct line_emeta *emeta);
-int pblk_recov_setup_rq(struct pblk *pblk, struct pblk_c_ctx *c_ctx,
-			struct pblk_rec_ctx *recovery, u64 *comp_bits,
-			unsigned int comp);
 
 /*
  * pblk gc

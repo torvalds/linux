@@ -426,6 +426,7 @@ static int pblk_core_init(struct pblk *pblk)
 		goto free_r_end_wq;
 
 	INIT_LIST_HEAD(&pblk->compl_list);
+	INIT_LIST_HEAD(&pblk->resubmit_list);
 
 	return 0;
 
@@ -1185,6 +1186,7 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 	pblk->state = PBLK_STATE_RUNNING;
 	pblk->gc.gc_enabled = 0;
 
+	spin_lock_init(&pblk->resubmit_lock);
 	spin_lock_init(&pblk->trans_lock);
 	spin_lock_init(&pblk->lock);
 
