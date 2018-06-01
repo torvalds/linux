@@ -1461,7 +1461,7 @@ static void pblk_line_close_meta_sync(struct pblk *pblk)
 	flush_workqueue(pblk->close_wq);
 }
 
-void pblk_pipeline_stop(struct pblk *pblk)
+void __pblk_pipeline_flush(struct pblk *pblk)
 {
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	int ret;
@@ -1486,12 +1486,23 @@ void pblk_pipeline_stop(struct pblk *pblk)
 
 	flush_workqueue(pblk->bb_wq);
 	pblk_line_close_meta_sync(pblk);
+}
+
+void __pblk_pipeline_stop(struct pblk *pblk)
+{
+	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 
 	spin_lock(&l_mg->free_lock);
 	pblk->state = PBLK_STATE_STOPPED;
 	l_mg->data_line = NULL;
 	l_mg->data_next = NULL;
 	spin_unlock(&l_mg->free_lock);
+}
+
+void pblk_pipeline_stop(struct pblk *pblk)
+{
+	__pblk_pipeline_flush(pblk);
+	__pblk_pipeline_stop(pblk);
 }
 
 struct pblk_line *pblk_line_replace_data(struct pblk *pblk)

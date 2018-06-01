@@ -1118,23 +1118,25 @@ static void pblk_free(struct pblk *pblk)
 	kfree(pblk);
 }
 
-static void pblk_tear_down(struct pblk *pblk)
+static void pblk_tear_down(struct pblk *pblk, bool graceful)
 {
-	pblk_pipeline_stop(pblk);
+	if (graceful)
+		__pblk_pipeline_flush(pblk);
+	__pblk_pipeline_stop(pblk);
 	pblk_writer_stop(pblk);
 	pblk_rb_sync_l2p(&pblk->rwb);
 	pblk_rl_free(&pblk->rl);
 
-	pr_debug("pblk: consistent tear down\n");
+	pr_debug("pblk: consistent tear down (graceful:%d)\n", graceful);
 }
 
-static void pblk_exit(void *private)
+static void pblk_exit(void *private, bool graceful)
 {
 	struct pblk *pblk = private;
 
 	down_write(&pblk_lock);
-	pblk_gc_exit(pblk);
-	pblk_tear_down(pblk);
+	pblk_gc_exit(pblk, graceful);
+	pblk_tear_down(pblk, graceful);
 
 #ifdef CONFIG_NVM_DEBUG
 	pr_info("pblk exit: L2P CRC: %x\n", pblk_l2p_crc(pblk));

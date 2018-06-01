@@ -649,7 +649,7 @@ fail_free_main_kthread:
 	return ret;
 }
 
-void pblk_gc_exit(struct pblk *pblk)
+void pblk_gc_exit(struct pblk *pblk, bool graceful)
 {
 	struct pblk_gc *gc = &pblk->gc;
 
@@ -663,10 +663,12 @@ void pblk_gc_exit(struct pblk *pblk)
 	if (gc->gc_reader_ts)
 		kthread_stop(gc->gc_reader_ts);
 
-	flush_workqueue(gc->gc_reader_wq);
-	destroy_workqueue(gc->gc_reader_wq);
+	if (graceful) {
+		flush_workqueue(gc->gc_reader_wq);
+		flush_workqueue(gc->gc_line_reader_wq);
+	}
 
-	flush_workqueue(gc->gc_line_reader_wq);
+	destroy_workqueue(gc->gc_reader_wq);
 	destroy_workqueue(gc->gc_line_reader_wq);
 
 	if (gc->gc_writer_ts)
