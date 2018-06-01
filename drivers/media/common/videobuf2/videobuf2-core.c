@@ -356,6 +356,8 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
 			vb->planes[plane].length = plane_sizes[plane];
 			vb->planes[plane].min_length = plane_sizes[plane];
 		}
+		call_void_bufop(q, init_buffer, vb);
+
 		q->bufs[vb->index] = vb;
 
 		/* Allocate video buffer memory for the MMAP type */
