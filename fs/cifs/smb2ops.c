@@ -123,7 +123,7 @@ smb2_get_credits_field(struct TCP_Server_Info *server, const int optype)
 static unsigned int
 smb2_get_credits(struct mid_q_entry *mid)
 {
-	struct smb2_sync_hdr *shdr = get_sync_hdr(mid->resp_buf);
+	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)mid->resp_buf;
 
 	return le16_to_cpu(shdr->CreditRequest);
 }
@@ -190,7 +190,7 @@ static struct mid_q_entry *
 smb2_find_mid(struct TCP_Server_Info *server, char *buf)
 {
 	struct mid_q_entry *mid;
-	struct smb2_sync_hdr *shdr = get_sync_hdr(buf);
+	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)buf;
 	__u64 wire_mid = le64_to_cpu(shdr->MessageId);
 
 	if (shdr->ProtocolId == SMB2_TRANSFORM_PROTO_NUM) {
@@ -215,7 +215,7 @@ static void
 smb2_dump_detail(void *buf, struct TCP_Server_Info *server)
 {
 #ifdef CONFIG_CIFS_DEBUG2
-	struct smb2_sync_hdr *shdr = get_sync_hdr(buf);
+	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)buf;
 
 	cifs_dbg(VFS, "Cmd: %d Err: 0x%x Flags: 0x%x Mid: %llu Pid: %d\n",
 		 shdr->Command, shdr->Status, shdr->Flags, shdr->MessageId,
@@ -1303,7 +1303,7 @@ smb2_close_dir(const unsigned int xid, struct cifs_tcon *tcon,
 static bool
 smb2_is_status_pending(char *buf, struct TCP_Server_Info *server, int length)
 {
-	struct smb2_sync_hdr *shdr = get_sync_hdr(buf);
+	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)buf;
 
 	if (shdr->Status != STATUS_PENDING)
 		return false;
@@ -1321,7 +1321,7 @@ smb2_is_status_pending(char *buf, struct TCP_Server_Info *server, int length)
 static bool
 smb2_is_session_expired(char *buf)
 {
-	struct smb2_sync_hdr *shdr = get_sync_hdr(buf);
+	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)buf;
 
 	if (shdr->Status != STATUS_NETWORK_SESSION_EXPIRED &&
 	    shdr->Status != STATUS_USER_SESSION_DELETED)
@@ -2534,7 +2534,7 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 	unsigned int cur_page_idx;
 	unsigned int pad_len;
 	struct cifs_readdata *rdata = mid->callback_data;
-	struct smb2_sync_hdr *shdr = get_sync_hdr(buf);
+	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)buf;
 	struct bio_vec *bvec = NULL;
 	struct iov_iter iter;
 	struct kvec iov;

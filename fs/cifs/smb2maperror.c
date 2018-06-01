@@ -2451,7 +2451,7 @@ smb2_print_status(__le32 status)
 int
 map_smb2_to_linux_error(char *buf, bool log_err)
 {
-	struct smb2_sync_hdr *shdr = get_sync_hdr(buf);
+	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)buf;
 	unsigned int i;
 	int rc = -EIO;
 	__le32 smb2err = shdr->Status;

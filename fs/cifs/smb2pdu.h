@@ -122,15 +122,6 @@ struct smb2_sync_pdu {
 	__le16 StructureSize2; /* size of wct area (varies, request specific) */
 } __packed;
 
-struct smb2_hdr {
-	struct smb2_sync_hdr sync_hdr;
-} __packed;
-
-struct smb2_pdu {
-	struct smb2_hdr hdr;
-	__le16 StructureSize2; /* size of wct area (varies, request specific) */
-} __packed;
-
 #define SMB3_AES128CMM_NONCE 11
 #define SMB3_AES128GCM_NONCE 12
 
@@ -165,7 +156,7 @@ struct smb2_transform_hdr {
 #define SMB2_ERROR_STRUCTURE_SIZE2 cpu_to_le16(9)
 
 struct smb2_err_rsp {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize;
 	__le16 Reserved; /* MBZ */
 	__le32 ByteCount;  /* even if zero, at least one byte follows */
@@ -303,7 +294,7 @@ struct smb2_posix_neg_context {
 } __packed;
 
 struct smb2_negotiate_rsp {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize;	/* Must be 65 */
 	__le16 SecurityMode;
 	__le16 DialectRevision;
@@ -343,7 +334,7 @@ struct smb2_sess_setup_req {
 #define SMB2_SESSION_FLAG_IS_NULL	0x0002
 #define SMB2_SESSION_FLAG_ENCRYPT_DATA	0x0004
 struct smb2_sess_setup_rsp {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize; /* Must be 9 */
 	__le16 SessionFlags;
 	__le16 SecurityBufferOffset;
@@ -358,7 +349,7 @@ struct smb2_logoff_req {
 } __packed;
 
 struct smb2_logoff_rsp {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize;	/* Must be 4 */
 	__le16 Reserved;
 } __packed;
@@ -454,7 +445,7 @@ struct smb2_tree_connect_req_extension {
 } __packed;
 
 struct smb2_tree_connect_rsp {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize;	/* Must be 16 */
 	__u8   ShareType;  /* see below */
 	__u8   Reserved;
@@ -505,7 +496,7 @@ struct smb2_tree_disconnect_req {
 } __packed;
 
 struct smb2_tree_disconnect_rsp {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize;	/* Must be 4 */
 	__le16 Reserved;
 } __packed;
@@ -642,7 +633,7 @@ struct smb2_create_req {
 } __packed;
 
 struct smb2_create_rsp {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize;	/* Must be 89 */
 	__u8   OplockLevel;
 	__u8   Reserved;
@@ -905,7 +896,7 @@ struct smb2_ioctl_req {
 } __packed;
 
 struct smb2_ioctl_rsp {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize;	/* Must be 57 */
 	__u16 Reserved;
 	__le32 CtlCode;
@@ -932,7 +923,7 @@ struct smb2_close_req {
 } __packed;
 
 struct smb2_close_rsp {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize; /* 60 */
 	__le16 Flags;
 	__le32 Reserved;
@@ -955,7 +946,7 @@ struct smb2_flush_req {
 } __packed;
 
 struct smb2_flush_rsp {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize;
 	__le16 Reserved;
 } __packed;
@@ -987,7 +978,7 @@ struct smb2_read_plain_req {
 } __packed;
 
 struct smb2_read_rsp {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize; /* Must be 17 */
 	__u8   DataOffset;
 	__u8   Reserved;
@@ -1018,7 +1009,7 @@ struct smb2_write_req {
 } __packed;
 
 struct smb2_write_rsp {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize; /* Must be 17 */
 	__u8   DataOffset;
 	__u8   Reserved;
@@ -1052,7 +1043,7 @@ struct smb2_lock_req {
 } __packed;
 
 struct smb2_lock_rsp {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize; /* Must be 4 */
 	__le16 Reserved;
 } __packed;
@@ -1064,7 +1055,7 @@ struct smb2_echo_req {
 } __packed;
 
 struct smb2_echo_rsp {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize;	/* Must be 4 */
 	__u16  Reserved;
 } __packed;
@@ -1090,7 +1081,7 @@ struct smb2_query_directory_req {
 } __packed;
 
 struct smb2_query_directory_rsp {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize; /* Must be 9 */
 	__le16 OutputBufferOffset;
 	__le32 OutputBufferLength;
@@ -1139,7 +1130,7 @@ struct smb2_query_info_req {
 } __packed;
 
 struct smb2_query_info_rsp {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize; /* Must be 9 */
 	__le16 OutputBufferOffset;
 	__le32 OutputBufferLength;
@@ -1161,7 +1152,7 @@ struct smb2_set_info_req {
 } __packed;
 
 struct smb2_set_info_rsp {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize; /* Must be 2 */
 } __packed;
 
@@ -1178,7 +1169,7 @@ struct smb2_oplock_break {
 #define SMB2_NOTIFY_BREAK_LEASE_FLAG_ACK_REQUIRED cpu_to_le32(0x01)
 
 struct smb2_lease_break {
-	struct smb2_hdr hdr;
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize; /* Must be 44 */
 	__le16 Reserved;
 	__le32 Flags;

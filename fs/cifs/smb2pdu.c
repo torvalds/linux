@@ -767,7 +767,7 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	server->capabilities |= SMB2_NT_FIND | SMB2_LARGE_FILES;
 
 	security_blob = smb2_get_data_area_len(&blob_offset, &blob_length,
-					       &rsp->hdr.sync_hdr);
+					       (struct smb2_sync_hdr *)rsp);
 	/*
 	 * See MS-SMB2 section 2.2.4: if no blob, client picks default which
 	 * for us will be
@@ -1131,7 +1131,7 @@ SMB2_auth_kerberos(struct SMB2_sess_data *sess_data)
 		goto out_put_spnego_key;
 
 	rsp = (struct smb2_sess_setup_rsp *)sess_data->iov[0].iov_base;
-	ses->Suid = rsp->hdr.sync_hdr.SessionId;
+	ses->Suid = rsp->sync_hdr.SessionId;
 
 	ses->session_flags = le16_to_cpu(rsp->SessionFlags);
 
@@ -1207,7 +1207,7 @@ SMB2_sess_auth_rawntlmssp_negotiate(struct SMB2_sess_data *sess_data)
 
 	/* If true, rc here is expected and not an error */
 	if (sess_data->buf0_type != CIFS_NO_BUFFER &&
-		rsp->hdr.sync_hdr.Status == STATUS_MORE_PROCESSING_REQUIRED)
+		rsp->sync_hdr.Status == STATUS_MORE_PROCESSING_REQUIRED)
 		rc = 0;
 
 	if (rc)
@@ -1228,7 +1228,7 @@ SMB2_sess_auth_rawntlmssp_negotiate(struct SMB2_sess_data *sess_data)
 	cifs_dbg(FYI, "rawntlmssp session setup challenge phase\n");
 
 
-	ses->Suid = rsp->hdr.sync_hdr.SessionId;
+	ses->Suid = rsp->sync_hdr.SessionId;
 	ses->session_flags = le16_to_cpu(rsp->SessionFlags);
 
 out:
@@ -1286,7 +1286,7 @@ SMB2_sess_auth_rawntlmssp_authenticate(struct SMB2_sess_data *sess_data)
 
 	rsp = (struct smb2_sess_setup_rsp *)sess_data->iov[0].iov_base;
 
-	ses->Suid = rsp->hdr.sync_hdr.SessionId;
+	ses->Suid = rsp->sync_hdr.SessionId;
 	ses->session_flags = le16_to_cpu(rsp->SessionFlags);
 
 	rc = SMB2_sess_establish_session(sess_data);
@@ -1535,7 +1535,7 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	tcon->maximal_access = le32_to_cpu(rsp->MaximalAccess);
 	tcon->tidStatus = CifsGood;
 	tcon->need_reconnect = false;
-	tcon->tid = rsp->hdr.sync_hdr.TreeId;
+	tcon->tid = rsp->sync_hdr.TreeId;
 	strlcpy(tcon->treeName, tree, sizeof(tcon->treeName));
 
 	if ((rsp->Capabilities & SMB2_SHARE_CAP_DFS) &&
@@ -1555,7 +1555,7 @@ tcon_exit:
 	return rc;
 
 tcon_error_exit:
-	if (rsp && rsp->hdr.sync_hdr.Status == STATUS_BAD_NETWORK_NAME) {
+	if (rsp && rsp->sync_hdr.Status == STATUS_BAD_NETWORK_NAME) {
 		cifs_dbg(VFS, "BAD_NETWORK_NAME: %s\n", tree);
 	}
 	goto tcon_exit;
@@ -2526,7 +2526,7 @@ smb2_echo_callback(struct mid_q_entry *mid)
 	unsigned int credits_received = 1;
 
 	if (mid->mid_state == MID_RESPONSE_RECEIVED)
-		credits_received = le16_to_cpu(rsp->hdr.sync_hdr.CreditRequest);
+		credits_received = le16_to_cpu(rsp->sync_hdr.CreditRequest);
 
 	DeleteMidQEntry(mid);
 	add_credits(server, credits_received, CIFS_ECHO_OP);
@@ -3006,7 +3006,7 @@ smb2_writev_callback(struct mid_q_entry *mid)
 
 	switch (mid->mid_state) {
 	case MID_RESPONSE_RECEIVED:
-		credits_received = le16_to_cpu(rsp->hdr.sync_hdr.CreditRequest);
+		credits_received = le16_to_cpu(rsp->sync_hdr.CreditRequest);
 		wdata->result = smb2_check_receive(mid, tcon->ses->server, 0);
 		if (wdata->result != 0)
 			break;
@@ -3398,7 +3398,7 @@ SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
 
 	if (rc) {
 		if (rc == -ENODATA &&
-		    rsp->hdr.sync_hdr.Status == STATUS_NO_MORE_FILES) {
+		    rsp->sync_hdr.Status == STATUS_NO_MORE_FILES) {
 			srch_inf->endOfSearch = true;
 			rc = 0;
 		}
@@ -3781,7 +3781,7 @@ SMB2_QFS_info(const unsigned int xid, struct cifs_tcon *tcon,
 	rsp = (struct smb2_query_info_rsp *)rsp_iov.iov_base;
 
 	info = (struct smb2_fs_full_size_info *)(server->vals->header_preamble_size +
-		le16_to_cpu(rsp->OutputBufferOffset) + (char *)&rsp->hdr);
+		le16_to_cpu(rsp->OutputBufferOffset) + (char *)rsp);
 	rc = validate_iov(server,
 			  le16_to_cpu(rsp->OutputBufferOffset),
 			  le32_to_cpu(rsp->OutputBufferLength), &rsp_iov,
@@ -3846,14 +3846,14 @@ SMB2_QFS_attr(const unsigned int xid, struct cifs_tcon *tcon,
 
 	if (level == FS_ATTRIBUTE_INFORMATION)
 		memcpy(&tcon->fsAttrInfo, server->vals->header_preamble_size + offset
-			+ (char *)&rsp->hdr, min_t(unsigned int,
+			+ (char *)rsp, min_t(unsigned int,
 			rsp_len, max_len));
 	else if (level == FS_DEVICE_INFORMATION)
 		memcpy(&tcon->fsDevInfo, server->vals->header_preamble_size + offset
-			+ (char *)&rsp->hdr, sizeof(FILE_SYSTEM_DEVICE_INFO));
+			+ (char *)rsp, sizeof(FILE_SYSTEM_DEVICE_INFO));
 	else if (level == FS_SECTOR_SIZE_INFORMATION) {
 		struct smb3_fs_ss_info *ss_info = (struct smb3_fs_ss_info *)
-			(server->vals->header_preamble_size + offset + (char *)&rsp->hdr);
+			(server->vals->header_preamble_size + offset + (char *)rsp);
 		tcon->ss_flags = le32_to_cpu(ss_info->Flags);
 		tcon->perf_sector_size =
 			le32_to_cpu(ss_info->PhysicalBytesPerSectorForPerf);

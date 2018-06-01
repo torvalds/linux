@@ -716,7 +716,7 @@ smb2_cancelled_close_fid(struct work_struct *work)
 int
 smb2_handle_cancelled_mid(char *buffer, struct TCP_Server_Info *server)
 {
-	struct smb2_sync_hdr *sync_hdr = get_sync_hdr(buffer);
+	struct smb2_sync_hdr *sync_hdr = (struct smb2_sync_hdr *)buffer;
 	struct smb2_create_rsp *rsp = (struct smb2_create_rsp *)buffer;
 	struct cifs_tcon *tcon;
 	struct close_cancelled_open *cancelled;
