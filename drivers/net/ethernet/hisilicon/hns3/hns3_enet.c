@@ -655,6 +655,32 @@ static void hns3_set_l2l3l4_len(struct sk_buff *skb, u8 ol4_proto,
 	}
 }
 
+/* when skb->encapsulation is 0, skb->ip_summed is CHECKSUM_PARTIAL
+ * and it is udp packet, which has a dest port as the IANA assigned.
+ * the hardware is expected to do the checksum offload, but the
+ * hardware will not do the checksum offload when udp dest port is
+ * 4789.
+ */
+static bool hns3_tunnel_csum_bug(struct sk_buff *skb)
+{
+#define IANA_VXLAN_PORT	4789
+	union {
+		struct tcphdr *tcp;
+		struct udphdr *udp;
+		struct gre_base_hdr *gre;
+		unsigned char *hdr;
+	} l4;
+
+	l4.hdr = skb_transport_header(skb);
+
+	if (!(!skb->encapsulation && l4.udp->dest == htons(IANA_VXLAN_PORT)))
+		return false;
+
+	skb_checksum_help(skb);
+
+	return true;
+}
+
 static int hns3_set_l3l4_type_csum(struct sk_buff *skb, u8 ol4_proto,
 				   u8 il4_proto, u32 *type_cs_vlan_tso,
 				   u32 *ol_type_vlan_len_msec)
@@ -743,6 +769,9 @@ static int hns3_set_l3l4_type_csum(struct sk_buff *skb, u8 ol4_proto,
 			       HNS3_L4T_TCP);
 		break;
 	case IPPROTO_UDP:
+		if (hns3_tunnel_csum_bug(skb))
+			break;
+
 		hnae_set_field(*type_cs_vlan_tso,
 			       HNS3_TXD_L4T_M,
 			       HNS3_TXD_L4T_S,
