@@ -113,10 +113,11 @@ static int pblk_submit_read_io(struct pblk *pblk, struct nvm_rq *rqd)
 	return NVM_IO_OK;
 }
 
-static void pblk_read_check_seq(struct pblk *pblk, void *meta_list,
-				sector_t blba, int nr_lbas)
+static void pblk_read_check_seq(struct pblk *pblk, struct nvm_rq *rqd,
+				sector_t blba)
 {
-	struct pblk_sec_meta *meta_lba_list = meta_list;
+	struct pblk_sec_meta *meta_lba_list = rqd->meta_list;
+	int nr_lbas = rqd->nr_ppas;
 	int i;
 
 	for (i = 0; i < nr_lbas; i++) {
@@ -125,17 +126,27 @@ static void pblk_read_check_seq(struct pblk *pblk, void *meta_list,
 		if (lba == ADDR_EMPTY)
 			continue;
 
-		WARN(lba != blba + i, "pblk: corrupted read LBA\n");
+		if (lba != blba + i) {
+#ifdef CONFIG_NVM_DEBUG
+			struct ppa_addr *p;
+
+			p = (nr_lbas == 1) ? &rqd->ppa_list[i] : &rqd->ppa_addr;
+			print_ppa(&pblk->dev->geo, p, "seq", i);
+#endif
+			pr_err("pblk: corrupted read LBA (%llu/%llu)\n",
+							lba, (u64)blba + i);
+			WARN_ON(1);
+		}
 	}
 }
 
 /*
  * There can be holes in the lba list.
  */
-static void pblk_read_check_rand(struct pblk *pblk, void *meta_list,
-				u64 *lba_list, int nr_lbas)
+static void pblk_read_check_rand(struct pblk *pblk, struct nvm_rq *rqd,
+				 u64 *lba_list, int nr_lbas)
 {
-	struct pblk_sec_meta *meta_lba_list = meta_list;
+	struct pblk_sec_meta *meta_lba_list = rqd->meta_list;
 	int i, j;
 
 	for (i = 0, j = 0; i < nr_lbas; i++) {
@@ -145,14 +156,25 @@ static void pblk_read_check_rand(struct pblk *pblk, void *meta_list,
 		if (lba == ADDR_EMPTY)
 			continue;
 
-		meta_lba = le64_to_cpu(meta_lba_list[j++].lba);
+		meta_lba = le64_to_cpu(meta_lba_list[j].lba);
 
 		if (lba != meta_lba) {
+#ifdef CONFIG_NVM_DEBUG
+			struct ppa_addr *p;
+			int nr_ppas = rqd->nr_ppas;
+
+			p = (nr_ppas == 1) ? &rqd->ppa_list[j] : &rqd->ppa_addr;
+			print_ppa(&pblk->dev->geo, p, "seq", j);
+#endif
 			pr_err("pblk: corrupted read LBA (%llu/%llu)\n",
 								lba, meta_lba);
 			WARN_ON(1);
 		}
+
+		j++;
 	}
+
+	WARN_ONCE(j != rqd->nr_ppas, "pblk: corrupted random request\n");
 }
 
 static void pblk_read_put_rqd_kref(struct pblk *pblk, struct nvm_rq *rqd)
@@ -197,7 +219,7 @@ static void __pblk_end_io_read(struct pblk *pblk, struct nvm_rq *rqd,
 		WARN_ONCE(bio->bi_status, "pblk: corrupted read error\n");
 #endif
 
-	pblk_read_check_seq(pblk, rqd->meta_list, r_ctx->lba, rqd->nr_ppas);
+	pblk_read_check_seq(pblk, rqd, r_ctx->lba);
 
 	bio_put(bio);
 	if (r_ctx->private)
@@ -610,7 +632,7 @@ int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq)
 		goto err_free_bio;
 	}
 
-	pblk_read_check_rand(pblk, rqd.meta_list, gc_rq->lba_list, rqd.nr_ppas);
+	pblk_read_check_rand(pblk, &rqd, gc_rq->lba_list, gc_rq->nr_secs);
 
 	atomic_dec(&pblk->inflight_io);
 
