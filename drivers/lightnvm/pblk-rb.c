@@ -349,7 +349,7 @@ void pblk_rb_write_entry_gc(struct pblk_rb *rb, void *data,
 }
 
 static int pblk_rb_flush_point_set(struct pblk_rb *rb, struct bio *bio,
-				  unsigned int pos)
+				   unsigned int pos)
 {
 	struct pblk_rb_entry *entry;
 	unsigned int sync, flush_point;
@@ -419,7 +419,7 @@ void pblk_rb_flush(struct pblk_rb *rb)
 	if (pblk_rb_flush_point_set(rb, NULL, mem))
 		return;
 
-	pblk_write_should_kick(pblk);
+	pblk_write_kick(pblk);
 }
 
 static int pblk_rb_may_write_flush(struct pblk_rb *rb, unsigned int nr_entries,
