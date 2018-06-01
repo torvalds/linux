@@ -485,6 +485,7 @@ struct msr_counter bic[] = {
 #define	BIC_Any_c0	(1ULL << 42)
 #define	BIC_GFX_c0	(1ULL << 43)
 #define	BIC_CPUGFX	(1ULL << 44)
+#define	BIC_Node	(1ULL << 45)
 
 #define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD)
 
@@ -594,6 +595,8 @@ void print_header(char *delim)
 		outp += sprintf(outp, "%sTime_Of_Day_Seconds", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Package))
 		outp += sprintf(outp, "%sPackage", (printed++ ? delim : ""));
+	if (DO_BIC(BIC_Node))
+		outp += sprintf(outp, "%sNode", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Core))
 		outp += sprintf(outp, "%sCore", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_CPU))
@@ -871,6 +874,8 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	if (t == &average.threads) {
 		if (DO_BIC(BIC_Package))
 			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
+		if (DO_BIC(BIC_Node))
+			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
 		if (DO_BIC(BIC_Core))
 			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
 		if (DO_BIC(BIC_CPU))
@@ -881,6 +886,15 @@ int format_counters(struct thread_data *t, struct core_data *c,
 				outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), p->package_id);
 			else
 				outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
+		}
+		if (DO_BIC(BIC_Node)) {
+			if (t)
+				outp += sprintf(outp, "%s%d",
+						(printed++ ? delim : ""),
+					      cpus[t->cpu_id].physical_node_id);
+			else
+				outp += sprintf(outp, "%s-",
+						(printed++ ? delim : ""));
 		}
 		if (DO_BIC(BIC_Core)) {
 			if (c)
@@ -4770,6 +4784,8 @@ void topology_probe()
 	set_node_data();
 	if (debug > 1)
 		fprintf(outf, "nodes_per_pkg %d\n", topo.nodes_per_pkg);
+	if (!summary_only && topo.nodes_per_pkg > 1)
+		BIC_PRESENT(BIC_Node);
 
 	topo.threads_per_core = max_siblings;
 	if (debug > 1)
