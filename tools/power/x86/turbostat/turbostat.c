@@ -217,11 +217,11 @@ struct pkg_data {
 #define EVEN_COUNTERS thread_even, core_even, package_even
 
 #define GET_THREAD(thread_base, thread_no, core_no, pkg_no) \
-	(thread_base + (pkg_no) * topo.num_cores_per_node * \
-		topo.num_threads_per_core + \
-		(core_no) * topo.num_threads_per_core + (thread_no))
+	(thread_base + (pkg_no) * topo.cores_per_node * \
+		topo.threads_per_core + \
+		(core_no) * topo.threads_per_core + (thread_no))
 #define GET_CORE(core_base, core_no, pkg_no) \
-	(core_base + (pkg_no) * topo.num_cores_per_node + (core_no))
+	(core_base + (pkg_no) * topo.cores_per_node + (core_no))
 #define GET_PKG(pkg_base, pkg_no) (pkg_base + pkg_no)
 
 enum counter_scope {SCOPE_CPU, SCOPE_CORE, SCOPE_PACKAGE};
@@ -273,9 +273,9 @@ struct topo_params {
 	int num_cores;
 	int max_cpu_num;
 	int max_node_num;
-	int num_nodes_per_pkg;
-	int num_cores_per_node;
-	int num_threads_per_core;
+	int nodes_per_pkg;
+	int cores_per_node;
+	int threads_per_core;
 } topo;
 
 struct timeval tv_even, tv_odd, tv_delta;
@@ -300,10 +300,9 @@ int for_all_cpus(int (func)(struct thread_data *, struct core_data *, struct pkg
 	int retval, pkg_no, core_no, thread_no;
 
 	for (pkg_no = 0; pkg_no < topo.num_packages; ++pkg_no) {
-		for (core_no = 0; core_no < topo.num_cores_per_node;
-		     ++core_no) {
+		for (core_no = 0; core_no < topo.cores_per_node; ++core_no) {
 			for (thread_no = 0; thread_no <
-				topo.num_threads_per_core; ++thread_no) {
+				topo.threads_per_core; ++thread_no) {
 				struct thread_data *t;
 				struct core_data *c;
 				struct pkg_data *p;
@@ -2401,8 +2400,8 @@ void set_node_data(void)
 	}
 
 	for (pkg = 0; pkg < topo.num_packages; pkg++)
-		if (pni[pkg].count > topo.num_nodes_per_pkg)
-			topo.num_nodes_per_pkg = pni[0].count;
+		if (pni[pkg].count > topo.nodes_per_pkg)
+			topo.nodes_per_pkg = pni[0].count;
 
 	for (cpu = 0; cpu < topo.num_cpus; cpu++) {
 		pkg = cpus[cpu].physical_package_id;
@@ -2492,10 +2491,9 @@ int for_all_cpus_2(int (func)(struct thread_data *, struct core_data *,
 	int retval, pkg_no, core_no, thread_no;
 
 	for (pkg_no = 0; pkg_no < topo.num_packages; ++pkg_no) {
-		for (core_no = 0; core_no < topo.num_cores_per_node;
-		     ++core_no) {
+		for (core_no = 0; core_no < topo.cores_per_node; ++core_no) {
 			for (thread_no = 0; thread_no <
-				topo.num_threads_per_core; ++thread_no) {
+				topo.threads_per_core; ++thread_no) {
 				struct thread_data *t, *t2;
 				struct core_data *c, *c2;
 				struct pkg_data *p, *p2;
@@ -4730,11 +4728,11 @@ void topology_probe()
 				cpus[i].thread_id);
 	}
 
-	topo.num_cores_per_node = max_core_id + 1;
+	topo.cores_per_node = max_core_id + 1;
 	if (debug > 1)
 		fprintf(outf, "max_core_id %d, sizing for %d cores per package\n",
-			max_core_id, topo.num_cores_per_node);
-	if (!summary_only && topo.num_cores_per_node > 1)
+			max_core_id, topo.cores_per_node);
+	if (!summary_only && topo.cores_per_node > 1)
 		BIC_PRESENT(BIC_Core);
 
 	topo.num_packages = max_package_id + 1;
@@ -4746,9 +4744,9 @@ void topology_probe()
 
 	set_node_data();
 	if (debug > 1)
-		fprintf(outf, "num_nodes_per_pkg %d\n", topo.num_nodes_per_pkg);
+		fprintf(outf, "nodes_per_pkg %d\n", topo.nodes_per_pkg);
 
-	topo.num_threads_per_core = max_siblings;
+	topo.threads_per_core = max_siblings;
 	if (debug > 1)
 		fprintf(outf, "max_siblings %d\n", max_siblings);
 }
@@ -4758,21 +4756,21 @@ allocate_counters(struct thread_data **t, struct core_data **c, struct pkg_data 
 {
 	int i;
 
-	*t = calloc(topo.num_threads_per_core * topo.num_cores_per_node *
+	*t = calloc(topo.threads_per_core * topo.cores_per_node *
 		topo.num_packages, sizeof(struct thread_data));
 	if (*t == NULL)
 		goto error;
 
-	for (i = 0; i < topo.num_threads_per_core *
-		topo.num_cores_per_node * topo.num_packages; i++)
+	for (i = 0; i < topo.threads_per_core *
+		topo.cores_per_node * topo.num_packages; i++)
 		(*t)[i].cpu_id = -1;
 
-	*c = calloc(topo.num_cores_per_node * topo.num_packages,
+	*c = calloc(topo.cores_per_node * topo.num_packages,
 		sizeof(struct core_data));
 	if (*c == NULL)
 		goto error;
 
-	for (i = 0; i < topo.num_cores_per_node * topo.num_packages; i++)
+	for (i = 0; i < topo.cores_per_node * topo.num_packages; i++)
 		(*c)[i].core_id = -1;
 
 	*p = calloc(topo.num_packages, sizeof(struct pkg_data));
