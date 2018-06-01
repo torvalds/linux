@@ -4,16 +4,16 @@
  * Copyright (C) 2013 John Crispin <blogic@openwrt.org>
  */
 
-#include <linux/io.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/gpio/driver.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/irqdomain.h>
 #include <linux/module.h>
 #include <linux/of_irq.h>
-#include <linux/spinlock.h>
-#include <linux/irqdomain.h>
-#include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/spinlock.h>
 
 #define MTK_BANK_CNT		3
 #define MTK_BANK_WIDTH		32
