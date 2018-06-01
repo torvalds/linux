@@ -39,6 +39,9 @@
 #include "dm_helpers.h"
 #include "dm_services_types.h"
 #include "amdgpu_dm_mst_types.h"
+#if defined(CONFIG_DEBUG_FS)
+#include "amdgpu_dm_debugfs.h"
+#endif
 
 #include "ivsrcid/ivsrcid_vislands30.h"
 
@@ -3619,6 +3622,13 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
 		&aconnector->base, &aencoder->base);
 
 	drm_connector_register(&aconnector->base);
+#if defined(CONFIG_DEBUG_FS)
+	res = connector_debugfs_init(aconnector);
+	if (res) {
+		DRM_ERROR("Failed to create debugfs for connector");
+		goto out_free;
+	}
+#endif
 
 	if (connector_type == DRM_MODE_CONNECTOR_DisplayPort
 		|| connector_type == DRM_MODE_CONNECTOR_eDP)

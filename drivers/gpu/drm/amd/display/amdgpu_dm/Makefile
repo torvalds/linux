@@ -32,7 +32,7 @@ AMDGPUDM += amdgpu_dm_services.o amdgpu_dm_helpers.o
 endif
 
 ifneq ($(CONFIG_DEBUG_FS),)
-AMDGPUDM += amdgpu_dm_crc.o
+AMDGPUDM += amdgpu_dm_crc.o amdgpu_dm_debugfs.o
 endif
 
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc
