@@ -423,9 +423,13 @@ static void hns3_nic_set_rx_mode(struct net_device *netdev)
 	}
 	if (__dev_uc_sync(netdev, hns3_nic_uc_sync, hns3_nic_uc_unsync))
 		netdev_err(netdev, "sync uc address fail\n");
-	if (netdev->flags & IFF_MULTICAST)
+	if (netdev->flags & IFF_MULTICAST) {
 		if (__dev_mc_sync(netdev, hns3_nic_mc_sync, hns3_nic_mc_unsync))
 			netdev_err(netdev, "sync mc address fail\n");
+
+		if (h->ae_algo->ops->update_mta_status)
+			h->ae_algo->ops->update_mta_status(h);
+	}
 }
 
 static int hns3_set_tso(struct sk_buff *skb, u32 *paylen,

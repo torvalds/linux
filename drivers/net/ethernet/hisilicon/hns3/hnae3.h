@@ -353,6 +353,7 @@ struct hnae3_ae_ops {
 			   const unsigned char *addr);
 	int (*rm_mc_addr)(struct hnae3_handle *handle,
 			  const unsigned char *addr);
+	int (*update_mta_status)(struct hnae3_handle *handle);
 
 	void (*set_tso_stats)(struct hnae3_handle *handle, int enable);
 	void (*update_stats)(struct hnae3_handle *handle,

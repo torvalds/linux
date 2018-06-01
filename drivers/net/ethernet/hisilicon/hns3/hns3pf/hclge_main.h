@@ -61,6 +61,8 @@
 #define HCLGE_RSS_TC_SIZE_6		64
 #define HCLGE_RSS_TC_SIZE_7		128
 
+#define HCLGE_MTA_TBL_SIZE		4096
+
 #define HCLGE_TQP_RESET_TRY_TIMES	10
 
 #define HCLGE_PHY_PAGE_MDIX		0
@@ -559,7 +561,6 @@ struct hclge_dev {
 
 	enum hclge_mta_dmac_sel_type mta_mac_sel_type;
 	bool enable_mta; /* Mutilcast filter enable */
-	bool accept_mta_mc; /* Whether accept mta filter multicast */
 
 	struct hclge_vlan_type_cfg vlan_type_cfg;
 
@@ -620,6 +621,9 @@ struct hclge_vport {
 	struct hclge_dev *back;  /* Back reference to associated dev */
 	struct hnae3_handle nic;
 	struct hnae3_handle roce;
+
+	bool accept_mta_mc; /* whether to accept mta filter multicast */
+	unsigned long mta_shadow[BITS_TO_LONGS(HCLGE_MTA_TBL_SIZE)];
 };
 
 void hclge_promisc_param_init(struct hclge_promisc_param *param, bool en_uc,
@@ -637,6 +641,12 @@ int hclge_rm_mc_addr_common(struct hclge_vport *vport,
 int hclge_cfg_func_mta_filter(struct hclge_dev *hdev,
 			      u8 func_id,
 			      bool enable);
+int hclge_update_mta_status_common(struct hclge_vport *vport,
+				   unsigned long *status,
+				   u16 idx,
+				   u16 count,
+				   bool update_filter);
+
 struct hclge_vport *hclge_get_vport(struct hnae3_handle *handle);
 int hclge_bind_ring_with_vector(struct hclge_vport *vport,
 				int vector_id, bool en,
