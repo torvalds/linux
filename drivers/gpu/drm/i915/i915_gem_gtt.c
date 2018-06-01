@@ -3665,6 +3665,8 @@ void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv)
 				ppgtt = dev_priv->mm.aliasing_ppgtt;
 			else
 				ppgtt = i915_vm_to_ppgtt(vm);
+			if (!ppgtt)
+				continue;
 
 			gen6_write_page_range(ppgtt, 0, ppgtt->base.total);
 		}
