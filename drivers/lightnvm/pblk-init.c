@@ -1047,6 +1047,11 @@ static int pblk_lines_init(struct pblk *pblk)
 		nr_free_chks += pblk_setup_line_meta(pblk, line, chunk_meta, i);
 	}
 
+	if (!nr_free_chks) {
+		pr_err("pblk: too many bad blocks prevent for sane instance\n");
+		return -EINTR;
+	}
+
 	pblk_set_provision(pblk, nr_free_chks);
 
 	kfree(chunk_meta);
