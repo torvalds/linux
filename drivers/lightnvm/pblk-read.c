@@ -102,16 +102,6 @@ next:
 #endif
 }
 
-static int pblk_submit_read_io(struct pblk *pblk, struct nvm_rq *rqd)
-{
-	int err;
-
-	err = pblk_submit_io(pblk, rqd);
-	if (err)
-		return NVM_IO_ERR;
-
-	return NVM_IO_OK;
-}
 
 static void pblk_read_check_seq(struct pblk *pblk, struct nvm_rq *rqd,
 				sector_t blba)
@@ -485,9 +475,9 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 		rqd->bio = int_bio;
 		r_ctx->private = bio;
 
-		ret = pblk_submit_read_io(pblk, rqd);
-		if (ret) {
+		if (pblk_submit_io(pblk, rqd)) {
 			pr_err("pblk: read IO submission failed\n");
+			ret = NVM_IO_ERR;
 			if (int_bio)
 				bio_put(int_bio);
 			goto fail_end_io;
