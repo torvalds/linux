@@ -244,6 +244,7 @@ smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *srvr)
 		 * MacOS server pads after SMB2.1 write response with 3 bytes
 		 * of junk. Other servers match RFC1001 len to actual
 		 * SMB2/SMB3 frame length (header + smb2 response specific data)
+		 * Some windows servers do too when compounding is used.
 		 * Log the server error (once), but allow it and continue
 		 * since the frame is parseable.
 		 */

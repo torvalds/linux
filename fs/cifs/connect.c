@@ -856,6 +856,7 @@ cifs_demultiplex_thread(void *p)
 	int length;
 	struct TCP_Server_Info *server = p;
 	unsigned int pdu_length;
+	unsigned int next_offset;
 	char *buf = NULL;
 	struct task_struct *task_to_wake = NULL;
 	struct mid_q_entry *mid_entry;
@@ -893,17 +894,18 @@ cifs_demultiplex_thread(void *p)
 		 * so we can now interpret the length field.
 		 */
 		pdu_length = get_rfc1002_length(buf);
-		server->pdu_size = pdu_length;
 
 		cifs_dbg(FYI, "RFC1002 header 0x%x\n", pdu_length);
 		if (!is_smb_response(server, buf[0]))
 			continue;
+next_pdu:
+		server->pdu_size = pdu_length;
 
 		/* make sure we have enough to get to the MID */
-		if (pdu_length < HEADER_SIZE(server) - 1 -
+		if (server->pdu_size < HEADER_SIZE(server) - 1 -
 		    server->vals->header_preamble_size) {
 			cifs_dbg(VFS, "SMB response too short (%u bytes)\n",
-				 pdu_length);
+				 server->pdu_size);
 			cifs_reconnect(server);
 			wake_up(&server->response_q);
 			continue;
@@ -917,6 +919,12 @@ cifs_demultiplex_thread(void *p)
 		if (length < 0)
 			continue;
 		server->total_read += length;
+
+		if (server->ops->next_header) {
+			next_offset = server->ops->next_header(buf);
+			if (next_offset)
+				server->pdu_size = next_offset;
+		}
 
 		if (server->ops->is_transform_hdr &&
 		    server->ops->receive_transform &&
@@ -963,7 +971,15 @@ cifs_demultiplex_thread(void *p)
 				server->ops->dump_detail(buf, server);
 			cifs_dump_mids(server);
 #endif /* CIFS_DEBUG2 */
-
+		}
+		if (pdu_length > server->pdu_size) {
+			if (!allocate_buffers(server))
+				continue;
+			pdu_length -= server->pdu_size;
+			server->total_read = 0;
+			server->large_buf = false;
+			buf = server->smallbuf;
+			goto next_pdu;
 		}
 	} /* end while !EXITING */
 
