@@ -2,8 +2,10 @@
 #ifndef __ARCH_H8300_ATOMIC__
 #define __ARCH_H8300_ATOMIC__
 
+#include <linux/compiler.h>
 #include <linux/types.h>
 #include <asm/cmpxchg.h>
+#include <asm/irqflags.h>
 
 /*
  * Atomic operations that C can't guarantee us.  Useful for
@@ -14,8 +16,6 @@
 
 #define atomic_read(v)		READ_ONCE((v)->counter)
 #define atomic_set(v, i)	WRITE_ONCE(((v)->counter), (i))
-
-#include <linux/kernel.h>
 
 #define ATOMIC_OP_RETURN(op, c_op)				\
 static inline int atomic_##op##_return(int i, atomic_t *v)	\
