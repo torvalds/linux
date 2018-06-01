@@ -249,17 +249,19 @@ extern int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 	if (changed) {
 
 #ifdef CONFIG_PPC_BOOK3S_64
-		struct hstate *hstate = hstate_file(vma->vm_file);
-		psize = hstate_get_psize(hstate);
+		struct hstate *h = hstate_vma(vma);
+
+		psize = hstate_get_psize(h);
+#ifdef CONFIG_DEBUG_VM
+		assert_spin_locked(huge_pte_lockptr(h, vma->vm_mm, ptep));
+#endif
+
 #else
 		/*
 		 * Not used on non book3s64 platforms. But 8xx
 		 * can possibly use tsize derived from hstate.
 		 */
 		psize = 0;
-#endif
-#ifdef CONFIG_DEBUG_VM
-		assert_spin_locked(&vma->vm_mm->page_table_lock);
 #endif
 		__ptep_set_access_flags(vma, ptep, pte, addr, psize);
 	}
