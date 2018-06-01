@@ -138,7 +138,7 @@ static int get(struct slot_map *m)
 
 /* used to describe mapped buffers */
 struct orangefs_bufmap_desc {
-	void *uaddr;			/* user space address pointer */
+	void __user *uaddr;		/* user space address pointer */
 	struct page **page_array;	/* array of mapped pages */
 	int array_count;		/* size of above arrays */
 	struct list_head list_link;
