@@ -841,4 +841,14 @@ config INPUT_RAVE_SP_PWRBUTTON
 	  To compile this driver as a module, choose M here: the
 	  module will be called rave-sp-pwrbutton.
 
+config INPUT_SC27XX_VIBRA
+	tristate "Spreadtrum sc27xx vibrator support"
+	depends on MFD_SC27XX_PMIC || COMPILE_TEST
+	select INPUT_FF_MEMLESS
+	help
+	  This option enables support for Spreadtrum sc27xx vibrator driver.
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called sc27xx_vibra.
+
 endif
