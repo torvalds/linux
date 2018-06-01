@@ -5718,16 +5718,17 @@ int i915_gem_freeze(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
-int i915_gem_freeze_late(struct drm_i915_private *dev_priv)
+int i915_gem_freeze_late(struct drm_i915_private *i915)
 {
 	struct drm_i915_gem_object *obj;
 	struct list_head *phases[] = {
-		&dev_priv->mm.unbound_list,
-		&dev_priv->mm.bound_list,
+		&i915->mm.unbound_list,
+		&i915->mm.bound_list,
 		NULL
-	}, **p;
+	}, **phase;
 
-	/* Called just before we write the hibernation image.
+	/*
+	 * Called just before we write the hibernation image.
 	 *
 	 * We need to update the domain tracking to reflect that the CPU
 	 * will be accessing all the pages to create and restore from the
@@ -5741,15 +5742,15 @@ int i915_gem_freeze_late(struct drm_i915_private *dev_priv)
 	 * the objects as well, see i915_gem_freeze()
 	 */
 
-	i915_gem_shrink(dev_priv, -1UL, NULL, I915_SHRINK_UNBOUND);
-	i915_gem_drain_freed_objects(dev_priv);
+	i915_gem_shrink(i915, -1UL, NULL, I915_SHRINK_UNBOUND);
+	i915_gem_drain_freed_objects(i915);
 
-	spin_lock(&dev_priv->mm.obj_lock);
-	for (p = phases; *p; p++) {
-		list_for_each_entry(obj, *p, mm.link)
-			__start_cpu_write(obj);
+	mutex_lock(&i915->drm.struct_mutex);
+	for (phase = phases; *phase; phase++) {
+		list_for_each_entry(obj, *phase, mm.link)
+			WARN_ON(i915_gem_object_set_to_cpu_domain(obj, true));
 	}
-	spin_unlock(&dev_priv->mm.obj_lock);
+	mutex_unlock(&i915->drm.struct_mutex);
 
 	return 0;
 }
