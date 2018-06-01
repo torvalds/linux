@@ -89,12 +89,14 @@ struct pblk_sec_meta {
 /* The number of GC lists and the rate-limiter states go together. This way the
  * rate-limiter can dictate how much GC is needed based on resource utilization.
  */
-#define PBLK_GC_NR_LISTS 3
+#define PBLK_GC_NR_LISTS 4
 
 enum {
-	PBLK_RL_HIGH = 1,
-	PBLK_RL_MID = 2,
-	PBLK_RL_LOW = 3,
+	PBLK_RL_OFF = 0,
+	PBLK_RL_WERR = 1,
+	PBLK_RL_HIGH = 2,
+	PBLK_RL_MID = 3,
+	PBLK_RL_LOW = 4
 };
 
 #define pblk_dma_meta_size (sizeof(struct pblk_sec_meta) * PBLK_MAX_REQ_ADDRS)
@@ -278,6 +280,8 @@ struct pblk_rl {
 	int rb_user_active;
 	int rb_gc_active;
 
+	atomic_t werr_lines;	/* Number of write error lines that needs gc */
+
 	struct timer_list u_timer;
 
 	unsigned long long nr_secs;
@@ -311,6 +315,7 @@ enum {
 	PBLK_LINEGC_MID = 23,
 	PBLK_LINEGC_HIGH = 24,
 	PBLK_LINEGC_FULL = 25,
+	PBLK_LINEGC_WERR = 26
 };
 
 #define PBLK_MAGIC 0x70626c6b /*pblk*/
@@ -412,6 +417,11 @@ struct pblk_smeta {
 	struct line_smeta *buf;		/* smeta buffer in persistent format */
 };
 
+struct pblk_w_err_gc {
+	int has_write_err;
+	__le64 *lba_list;
+};
+
 struct pblk_line {
 	struct pblk *pblk;
 	unsigned int id;		/* Line number corresponds to the
@@ -457,6 +467,8 @@ struct pblk_line {
 
 	struct kref ref;		/* Write buffer L2P references */
 
+	struct pblk_w_err_gc *w_err_gc;	/* Write error gc recovery metadata */
+
 	spinlock_t lock;		/* Necessary for invalid_bitmap only */
 };
 
@@ -487,6 +499,8 @@ struct pblk_line_mgmt {
 	struct list_head gc_high_list;	/* Full lines ready to GC, high isc */
 	struct list_head gc_mid_list;	/* Full lines ready to GC, mid isc */
 	struct list_head gc_low_list;	/* Full lines ready to GC, low isc */
+
+	struct list_head gc_werr_list;  /* Write err recovery list */
 
 	struct list_head gc_full_list;	/* Full lines ready to GC, no valid */
 	struct list_head gc_empty_list;	/* Full lines close, all valid */
@@ -889,6 +903,9 @@ void pblk_rl_free_lines_inc(struct pblk_rl *rl, struct pblk_line *line);
 void pblk_rl_free_lines_dec(struct pblk_rl *rl, struct pblk_line *line,
 			    bool used);
 int pblk_rl_is_limit(struct pblk_rl *rl);
+
+void pblk_rl_werr_line_in(struct pblk_rl *rl);
+void pblk_rl_werr_line_out(struct pblk_rl *rl);
 
 /*
  * pblk sysfs

@@ -136,6 +136,7 @@ static void pblk_map_remaining(struct pblk *pblk, struct ppa_addr *ppa)
 		}
 	}
 
+	line->w_err_gc->has_write_err = 1;
 	spin_unlock(&line->lock);
 }
 
@@ -279,6 +280,7 @@ static void pblk_end_io_write_meta(struct nvm_rq *rqd)
 	if (rqd->error) {
 		pblk_log_write_err(pblk, rqd);
 		pr_err("pblk: metadata I/O failed. Line %d\n", line->id);
+		line->w_err_gc->has_write_err = 1;
 	}
 
 	sync = atomic_add_return(rqd->nr_ppas, &emeta->sync);

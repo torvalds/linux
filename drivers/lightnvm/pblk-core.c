@@ -373,7 +373,13 @@ struct list_head *pblk_line_gc_list(struct pblk *pblk, struct pblk_line *line)
 
 	lockdep_assert_held(&line->lock);
 
-	if (!vsc) {
+	if (line->w_err_gc->has_write_err) {
+		if (line->gc_group != PBLK_LINEGC_WERR) {
+			line->gc_group = PBLK_LINEGC_WERR;
+			move_list = &l_mg->gc_werr_list;
+			pblk_rl_werr_line_in(&pblk->rl);
+		}
+	} else if (!vsc) {
 		if (line->gc_group != PBLK_LINEGC_FULL) {
 			line->gc_group = PBLK_LINEGC_FULL;
 			move_list = &l_mg->gc_full_list;
@@ -1589,8 +1595,13 @@ static void __pblk_line_put(struct pblk *pblk, struct pblk_line *line)
 	line->state = PBLK_LINESTATE_FREE;
 	line->gc_group = PBLK_LINEGC_NONE;
 	pblk_line_free(line);
-	spin_unlock(&line->lock);
 
+	if (line->w_err_gc->has_write_err) {
+		pblk_rl_werr_line_out(&pblk->rl);
+		line->w_err_gc->has_write_err = 0;
+	}
+
+	spin_unlock(&line->lock);
 	atomic_dec(&gc->pipeline_gc);
 
 	spin_lock(&l_mg->free_lock);
@@ -1753,11 +1764,34 @@ void pblk_line_close_meta(struct pblk *pblk, struct pblk_line *line)
 
 	spin_lock(&l_mg->close_lock);
 	spin_lock(&line->lock);
+
+	/* Update the in-memory start address for emeta, in case it has
+	 * shifted due to write errors
+	 */
+	if (line->emeta_ssec != line->cur_sec)
+		line->emeta_ssec = line->cur_sec;
+
 	list_add_tail(&line->list, &l_mg->emeta_list);
 	spin_unlock(&line->lock);
 	spin_unlock(&l_mg->close_lock);
 
 	pblk_line_should_sync_meta(pblk);
+
+
+}
+
+static void pblk_save_lba_list(struct pblk *pblk, struct pblk_line *line)
+{
+	struct pblk_line_meta *lm = &pblk->lm;
+	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
+	unsigned int lba_list_size = lm->emeta_len[2];
+	struct pblk_w_err_gc *w_err_gc = line->w_err_gc;
+	struct pblk_emeta *emeta = line->emeta;
+
+	w_err_gc->lba_list = pblk_malloc(lba_list_size,
+					 l_mg->emeta_alloc_type, GFP_KERNEL);
+	memcpy(w_err_gc->lba_list, emeta_to_lbas(pblk, emeta->buf),
+				lba_list_size);
 }
 
 void pblk_line_close_ws(struct work_struct *work)
@@ -1766,6 +1800,13 @@ void pblk_line_close_ws(struct work_struct *work)
 									ws);
 	struct pblk *pblk = line_ws->pblk;
 	struct pblk_line *line = line_ws->line;
+	struct pblk_w_err_gc *w_err_gc = line->w_err_gc;
+
+	/* Write errors makes the emeta start address stored in smeta invalid,
+	 * so keep a copy of the lba list until we've gc'd the line
+	 */
+	if (w_err_gc->has_write_err)
+		pblk_save_lba_list(pblk, line);
 
 	pblk_line_close(pblk, line);
 	mempool_free(line_ws, &pblk->gen_ws_pool);

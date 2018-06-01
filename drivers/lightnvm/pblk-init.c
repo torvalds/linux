@@ -493,11 +493,17 @@ static void pblk_line_mg_free(struct pblk *pblk)
 	}
 }
 
-static void pblk_line_meta_free(struct pblk_line *line)
+static void pblk_line_meta_free(struct pblk_line_mgmt *l_mg,
+				struct pblk_line *line)
 {
+	struct pblk_w_err_gc *w_err_gc = line->w_err_gc;
+
 	kfree(line->blk_bitmap);
 	kfree(line->erase_bitmap);
 	kfree(line->chks);
+
+	pblk_mfree(w_err_gc->lba_list, l_mg->emeta_alloc_type);
+	kfree(w_err_gc);
 }
 
 static void pblk_lines_free(struct pblk *pblk)
@@ -511,7 +517,7 @@ static void pblk_lines_free(struct pblk *pblk)
 		line = &pblk->lines[i];
 
 		pblk_line_free(line);
-		pblk_line_meta_free(line);
+		pblk_line_meta_free(l_mg, line);
 	}
 	spin_unlock(&l_mg->free_lock);
 
@@ -813,20 +819,28 @@ static int pblk_alloc_line_meta(struct pblk *pblk, struct pblk_line *line)
 		return -ENOMEM;
 
 	line->erase_bitmap = kzalloc(lm->blk_bitmap_len, GFP_KERNEL);
-	if (!line->erase_bitmap) {
-		kfree(line->blk_bitmap);
-		return -ENOMEM;
-	}
+	if (!line->erase_bitmap)
+		goto free_blk_bitmap;
+
 
 	line->chks = kmalloc(lm->blk_per_line * sizeof(struct nvm_chk_meta),
 								GFP_KERNEL);
-	if (!line->chks) {
-		kfree(line->erase_bitmap);
-		kfree(line->blk_bitmap);
-		return -ENOMEM;
-	}
+	if (!line->chks)
+		goto free_erase_bitmap;
+
+	line->w_err_gc = kzalloc(sizeof(struct pblk_w_err_gc), GFP_KERNEL);
+	if (!line->w_err_gc)
+		goto free_chks;
 
 	return 0;
+
+free_chks:
+	kfree(line->chks);
+free_erase_bitmap:
+	kfree(line->erase_bitmap);
+free_blk_bitmap:
+	kfree(line->blk_bitmap);
+	return -ENOMEM;
 }
 
 static int pblk_line_mg_init(struct pblk *pblk)
@@ -851,12 +865,14 @@ static int pblk_line_mg_init(struct pblk *pblk)
 	INIT_LIST_HEAD(&l_mg->gc_mid_list);
 	INIT_LIST_HEAD(&l_mg->gc_low_list);
 	INIT_LIST_HEAD(&l_mg->gc_empty_list);
+	INIT_LIST_HEAD(&l_mg->gc_werr_list);
 
 	INIT_LIST_HEAD(&l_mg->emeta_list);
 
-	l_mg->gc_lists[0] = &l_mg->gc_high_list;
-	l_mg->gc_lists[1] = &l_mg->gc_mid_list;
-	l_mg->gc_lists[2] = &l_mg->gc_low_list;
+	l_mg->gc_lists[0] = &l_mg->gc_werr_list;
+	l_mg->gc_lists[1] = &l_mg->gc_high_list;
+	l_mg->gc_lists[2] = &l_mg->gc_mid_list;
+	l_mg->gc_lists[3] = &l_mg->gc_low_list;
 
 	spin_lock_init(&l_mg->free_lock);
 	spin_lock_init(&l_mg->close_lock);
@@ -1063,7 +1079,7 @@ static int pblk_lines_init(struct pblk *pblk)
 
 fail_free_lines:
 	while (--i >= 0)
-		pblk_line_meta_free(&pblk->lines[i]);
+		pblk_line_meta_free(l_mg, &pblk->lines[i]);
 	kfree(pblk->lines);
 fail_free_chunk_meta:
 	kfree(chunk_meta);
