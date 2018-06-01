@@ -45,7 +45,7 @@ struct mtk_data {
 	void __iomem *gpio_membase;
 	int gpio_irq;
 	struct irq_domain *gpio_irq_domain;
-	struct mtk_gc *gc_map[MTK_BANK_CNT];
+	struct mtk_gc gc_map[MTK_BANK_CNT];
 };
 
 static inline struct mtk_gc *
@@ -152,11 +152,8 @@ mediatek_gpio_bank_probe(struct platform_device *pdev, struct device_node *bank)
 	if (!id || be32_to_cpu(*id) >= MTK_BANK_CNT)
 		return -EINVAL;
 
-	rg = devm_kzalloc(&pdev->dev, sizeof(struct mtk_gc), GFP_KERNEL);
-	if (!rg)
-		return -ENOMEM;
-
-	gpio_data->gc_map[be32_to_cpu(*id)] = rg;
+	rg = &gpio_data->gc_map[be32_to_cpu(*id)];
+	memset(rg, 0, sizeof(*rg));
 
 	spin_lock_init(&rg->lock);
 
@@ -196,7 +193,7 @@ mediatek_gpio_irq_handler(struct irq_desc *desc)
 	int i;
 
 	for (i = 0; i < MTK_BANK_CNT; i++) {
-		struct mtk_gc *rg = gpio_data->gc_map[i];
+		struct mtk_gc *rg = &gpio_data->gc_map[i];
 		unsigned long pending;
 		int bit;
 
@@ -221,7 +218,7 @@ mediatek_gpio_irq_unmask(struct irq_data *d)
 	struct mtk_data *gpio_data = irq_data_get_irq_chip_data(d);
 	int pin = d->hwirq;
 	int bank = pin / MTK_BANK_WIDTH;
-	struct mtk_gc *rg = gpio_data->gc_map[bank];
+	struct mtk_gc *rg = &gpio_data->gc_map[bank];
 	unsigned long flags;
 	u32 rise, fall;
 
@@ -242,7 +239,7 @@ mediatek_gpio_irq_mask(struct irq_data *d)
 	struct mtk_data *gpio_data = irq_data_get_irq_chip_data(d);
 	int pin = d->hwirq;
 	int bank = pin / MTK_BANK_WIDTH;
-	struct mtk_gc *rg = gpio_data->gc_map[bank];
+	struct mtk_gc *rg = &gpio_data->gc_map[bank];
 	unsigned long flags;
 	u32 rise, fall;
 
@@ -263,7 +260,7 @@ mediatek_gpio_irq_type(struct irq_data *d, unsigned int type)
 	struct mtk_data *gpio_data = irq_data_get_irq_chip_data(d);
 	int pin = d->hwirq;
 	int bank = pin / MTK_BANK_WIDTH;
-	struct mtk_gc *rg = gpio_data->gc_map[bank];
+	struct mtk_gc *rg = &gpio_data->gc_map[bank];
 	u32 mask = PIN_MASK(pin);
 
 	if (!rg)
