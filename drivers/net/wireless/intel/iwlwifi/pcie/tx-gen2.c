@@ -416,6 +416,35 @@ out_err:
 	return NULL;
 }
 
+static int iwl_pcie_gen2_tx_add_frags(struct iwl_trans *trans,
+				      struct sk_buff *skb,
+				      struct iwl_tfh_tfd *tfd,
+				      struct iwl_cmd_meta *out_meta)
+{
+	int i;
+
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+		dma_addr_t tb_phys;
+		int tb_idx;
+
+		if (!skb_frag_size(frag))
+			continue;
+
+		tb_phys = skb_frag_dma_map(trans->dev, frag, 0,
+					   skb_frag_size(frag), DMA_TO_DEVICE);
+
+		if (unlikely(dma_mapping_error(trans->dev, tb_phys)))
+			return -ENOMEM;
+		tb_idx = iwl_pcie_gen2_set_tb(trans, tfd, tb_phys,
+					      skb_frag_size(frag));
+
+		out_meta->tbs |= BIT(tb_idx);
+	}
+
+	return 0;
+}
+
 static struct
 iwl_tfh_tfd *iwl_pcie_gen2_build_tx(struct iwl_trans *trans,
 				    struct iwl_txq *txq,
@@ -428,7 +457,7 @@ iwl_tfh_tfd *iwl_pcie_gen2_build_tx(struct iwl_trans *trans,
 	int idx = iwl_pcie_get_cmd_index(txq, txq->write_ptr);
 	struct iwl_tfh_tfd *tfd = iwl_pcie_get_tfd(trans, txq, idx);
 	dma_addr_t tb_phys;
-	int i, len, tb1_len, tb2_len;
+	int len, tb1_len, tb2_len;
 	void *tb1_addr;
 
 	tb_phys = iwl_pcie_get_first_tb_dma(txq, idx);
@@ -467,24 +496,8 @@ iwl_tfh_tfd *iwl_pcie_gen2_build_tx(struct iwl_trans *trans,
 		iwl_pcie_gen2_set_tb(trans, tfd, tb_phys, tb2_len);
 	}
 
-	/* set up the remaining entries to point to the data */
-	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-		int tb_idx;
-
-		if (!skb_frag_size(frag))
-			continue;
-
-		tb_phys = skb_frag_dma_map(trans->dev, frag, 0,
-					   skb_frag_size(frag), DMA_TO_DEVICE);
-
-		if (unlikely(dma_mapping_error(trans->dev, tb_phys)))
-			goto out_err;
-		tb_idx = iwl_pcie_gen2_set_tb(trans, tfd, tb_phys,
-					      skb_frag_size(frag));
-
-		out_meta->tbs |= BIT(tb_idx);
-	}
+	if (iwl_pcie_gen2_tx_add_frags(trans, skb, tfd, out_meta))
+		goto out_err;
 
 	trace_iwlwifi_dev_tx(trans->dev, skb, tfd, sizeof(*tfd), &dev_cmd->hdr,
 			     IWL_FIRST_TB_SIZE + tb1_len, hdr_len);
