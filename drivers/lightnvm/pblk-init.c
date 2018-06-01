@@ -127,10 +127,8 @@ static int pblk_l2p_recover(struct pblk *pblk, bool factory_init)
 	if (!line) {
 		/* Configure next line for user data */
 		line = pblk_line_get_first_data(pblk);
-		if (!line) {
-			pr_err("pblk: line list corrupted\n");
+		if (!line)
 			return -EFAULT;
-		}
 	}
 
 	return 0;
@@ -141,6 +139,7 @@ static int pblk_l2p_init(struct pblk *pblk, bool factory_init)
 	sector_t i;
 	struct ppa_addr ppa;
 	size_t map_size;
+	int ret = 0;
 
 	map_size = pblk_trans_map_size(pblk);
 	pblk->trans_map = vmalloc(map_size);
@@ -152,7 +151,11 @@ static int pblk_l2p_init(struct pblk *pblk, bool factory_init)
 	for (i = 0; i < pblk->rl.nr_secs; i++)
 		pblk_trans_map_set(pblk, i, ppa);
 
-	return pblk_l2p_recover(pblk, factory_init);
+	ret = pblk_l2p_recover(pblk, factory_init);
+	if (ret)
+		vfree(pblk->trans_map);
+
+	return ret;
 }
 
 static void pblk_rwb_free(struct pblk *pblk)
