@@ -146,7 +146,7 @@ static void read_tempreg_nb_f17(struct pci_dev *pdev, u32 *regval)
 		     F17H_M01H_REPORTED_TEMP_CTRL_OFFSET, regval);
 }
 
-unsigned int get_raw_temp(struct k10temp_data *data)
+static unsigned int get_raw_temp(struct k10temp_data *data)
 {
 	unsigned int temp;
 	u32 regval;
