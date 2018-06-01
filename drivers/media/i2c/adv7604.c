@@ -3108,12 +3108,9 @@ static int adv76xx_parse_dt(struct adv76xx_state *state)
 		return -EINVAL;
 
 	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint), &bus_cfg);
-	if (ret) {
-		of_node_put(endpoint);
-		return ret;
-	}
-
 	of_node_put(endpoint);
+	if (ret)
+		return ret;
 
 	if (!of_property_read_u32(np, "default-input", &v))
 		state->pdata.default_input = v;
