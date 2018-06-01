@@ -467,15 +467,12 @@ int pblk_submit_io(struct pblk *pblk, struct nvm_rq *rqd)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 
-#ifdef CONFIG_NVM_DEBUG
-	int ret;
-
-	ret = pblk_check_io(pblk, rqd);
-	if (ret)
-		return ret;
-#endif
-
 	atomic_inc(&pblk->inflight_io);
+
+#ifdef CONFIG_NVM_DEBUG
+	if (pblk_check_io(pblk, rqd))
+		return NVM_IO_ERR;
+#endif
 
 	return nvm_submit_io(dev, rqd);
 }
@@ -484,15 +481,12 @@ int pblk_submit_io_sync(struct pblk *pblk, struct nvm_rq *rqd)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 
-#ifdef CONFIG_NVM_DEBUG
-	int ret;
-
-	ret = pblk_check_io(pblk, rqd);
-	if (ret)
-		return ret;
-#endif
-
 	atomic_inc(&pblk->inflight_io);
+
+#ifdef CONFIG_NVM_DEBUG
+	if (pblk_check_io(pblk, rqd))
+		return NVM_IO_ERR;
+#endif
 
 	return nvm_submit_io_sync(dev, rqd);
 }
