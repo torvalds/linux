@@ -9,3 +9,10 @@ menuconfig GNSS
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called gnss.
+
+if GNSS
+
+config GNSS_SERIAL
+	tristate
+
+endif # GNSS
