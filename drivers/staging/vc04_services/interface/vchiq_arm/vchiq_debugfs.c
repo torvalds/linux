@@ -53,17 +53,15 @@
 
 /* Top-level debug info */
 struct vchiq_debugfs_info {
-	/* one entry per client process */
-	struct dentry *clients;
-
 	/* log categories */
 	struct dentry *log_categories;
 };
 
 static struct vchiq_debugfs_info debugfs_info;
 
-/* Global 'vchiq' debugfs entry used by all instances */
+/* Global 'vchiq' debugfs and clients entry used by all instances */
 struct dentry *vchiq_dbg_dir;
+struct dentry *vchiq_dbg_clients;
 
 /* Log category debugfs entries */
 struct vchiq_debugfs_log_entry {
@@ -80,8 +78,6 @@ static struct vchiq_debugfs_log_entry vchiq_debugfs_log_entries[] = {
 	{ "arm",  &vchiq_arm_log_level },
 };
 static int n_log_entries = ARRAY_SIZE(vchiq_debugfs_log_entries);
-
-static struct dentry *vchiq_clients_top(void);
 
 static int debugfs_log_show(struct seq_file *f, void *offset)
 {
@@ -262,12 +258,11 @@ void vchiq_debugfs_add_instance(VCHIQ_INSTANCE_T instance)
 {
 	char pidstr[16];
 	struct dentry *top;
-	struct dentry *clients = vchiq_clients_top();
 
 	snprintf(pidstr, sizeof(pidstr), "%d",
 		 vchiq_instance_get_pid(instance));
 
-	top = debugfs_create_dir(pidstr, clients);
+	top = debugfs_create_dir(pidstr, vchiq_dbg_clients);
 
 	debugfs_create_file("use_count", 0444, top, instance,
 			    &debugfs_usecount_fops);
@@ -286,7 +281,7 @@ void vchiq_debugfs_remove_instance(VCHIQ_INSTANCE_T instance)
 void vchiq_debugfs_init(void)
 {
 	vchiq_dbg_dir = debugfs_create_dir("vchiq", NULL);
-	debugfs_info.clients = debugfs_create_dir("clients", vchiq_dbg_dir);
+	vchiq_dbg_clients = debugfs_create_dir("clients", vchiq_dbg_dir);
 
 	vchiq_debugfs_create_log_entries(vchiq_dbg_dir);
 }
@@ -295,11 +290,6 @@ void vchiq_debugfs_init(void)
 void vchiq_debugfs_deinit(void)
 {
 	debugfs_remove_recursive(vchiq_dbg_dir);
-}
-
-static struct dentry *vchiq_clients_top(void)
-{
-	return debugfs_info.clients;
 }
 
 #else /* CONFIG_DEBUG_FS */
