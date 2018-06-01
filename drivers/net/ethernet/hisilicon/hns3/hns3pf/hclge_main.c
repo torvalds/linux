@@ -3748,6 +3748,7 @@ static void hclge_ae_stop(struct hnae3_handle *handle)
 
 	del_timer_sync(&hdev->service_timer);
 	cancel_work_sync(&hdev->service_task);
+	clear_bit(HCLGE_STATE_SERVICE_SCHED, &hdev->state);
 
 	if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state))
 		return;
