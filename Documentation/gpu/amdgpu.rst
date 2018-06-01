@@ -18,6 +18,15 @@ Memory Domains
 .. kernel-doc:: include/uapi/drm/amdgpu_drm.h
    :doc: memory domains
 
+Buffer Objects
+--------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_object.c
+   :doc: amdgpu_object
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_object.c
+   :internal:
+
 PRIME Buffer Sharing
 --------------------
 
