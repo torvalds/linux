@@ -3007,6 +3007,15 @@ static void hns3_init_mac_addr(struct net_device *netdev, bool init)
 
 }
 
+static void hns3_uninit_mac_addr(struct net_device *netdev)
+{
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	struct hnae3_handle *h = priv->ae_handle;
+
+	if (h->ae_algo->ops->rm_uc_addr)
+		h->ae_algo->ops->rm_uc_addr(h, netdev->dev_addr);
+}
+
 static void hns3_nic_set_priv_ops(struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
@@ -3134,6 +3143,8 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 	hns3_put_ring_config(priv);
 
 	priv->ring_data = NULL;
+
+	hns3_uninit_mac_addr(netdev);
 
 	free_netdev(netdev);
 }
@@ -3450,6 +3461,8 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 	hns3_put_ring_config(priv);
 
 	priv->ring_data = NULL;
+
+	hns3_uninit_mac_addr(netdev);
 
 	return ret;
 }
