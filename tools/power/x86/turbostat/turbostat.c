@@ -260,7 +260,8 @@ struct system_summary {
 struct cpu_topology {
 	int physical_package_id;
 	int logical_cpu_id;
-	int node_id;
+	int physical_node_id;
+	int logical_node_id;	/* 0-based count within the package */
 	int physical_core_id;
 	cpu_set_t *put_ids; /* Processing Unit/Thread IDs */
 } *cpus;
@@ -270,6 +271,8 @@ struct topo_params {
 	int num_cpus;
 	int num_cores;
 	int max_cpu_num;
+	int max_node_num;
+	int num_nodes_per_pkg;
 	int num_cores_per_pkg;
 	int num_threads_per_core;
 } topo;
@@ -2399,7 +2402,54 @@ int get_core_id(int cpu)
 	return parse_int_file("/sys/devices/system/cpu/cpu%d/topology/core_id", cpu);
 }
 
-int get_node_id(struct cpu_topology *thiscpu)
+void set_node_data(void)
+{
+	char path[80];
+	FILE *filep;
+	int pkg, node, cpu;
+
+	struct pkg_node_info {
+		int count;
+		int min;
+	} *pni;
+
+	pni = calloc(topo.num_packages, sizeof(struct pkg_node_info));
+	if (!pni)
+		err(1, "calloc pkg_node_count");
+
+	for (pkg = 0; pkg < topo.num_packages; pkg++)
+		pni[pkg].min = topo.num_cpus;
+
+	for (node = 0; node <= topo.max_node_num; node++) {
+		/* find the "first" cpu in the node */
+		sprintf(path, "/sys/bus/node/devices/node%d/cpulist", node);
+		filep = fopen(path, "r");
+		if (!filep)
+			continue;
+		fscanf(filep, "%d", &cpu);
+		fclose(filep);
+
+		pkg = cpus[cpu].physical_package_id;
+		pni[pkg].count++;
+
+		if (node < pni[pkg].min)
+			pni[pkg].min = node;
+	}
+
+	for (pkg = 0; pkg < topo.num_packages; pkg++)
+		if (pni[pkg].count > topo.num_nodes_per_pkg)
+			topo.num_nodes_per_pkg = pni[0].count;
+
+	for (cpu = 0; cpu < topo.num_cpus; cpu++) {
+		pkg = cpus[cpu].physical_package_id;
+		node = cpus[cpu].physical_node_id;
+		cpus[cpu].logical_node_id = node - pni[pkg].min;
+	}
+	free(pni);
+
+}
+
+int get_physical_node_id(struct cpu_topology *thiscpu)
 {
 	char path[80];
 	FILE *filep;
@@ -4675,7 +4725,9 @@ void topology_probe()
 			max_package_id = cpus[i].physical_package_id;
 
 		/* get numa node information */
-		cpus[i].node_id = get_node_id(&cpus[i]);
+		cpus[i].physical_node_id = get_physical_node_id(&cpus[i]);
+		if (cpus[i].physical_node_id > topo.max_node_num)
+			topo.max_node_num = cpus[i].physical_node_id;
 
 		/* get core information */
 		cpus[i].physical_core_id = get_core_id(i);
@@ -4690,9 +4742,10 @@ void topology_probe()
 		if (debug > 1)
 			fprintf(outf, "cpu %d pkg %d node %d core %d\n",
 				i, cpus[i].physical_package_id,
-				cpus[i].node_id,
+				cpus[i].physical_node_id,
 				cpus[i].physical_core_id);
 	}
+
 	topo.num_cores_per_pkg = max_core_id + 1;
 	if (debug > 1)
 		fprintf(outf, "max_core_id %d, sizing for %d cores per package\n",
@@ -4706,6 +4759,10 @@ void topology_probe()
 			max_package_id, topo.num_packages);
 	if (!summary_only && topo.num_packages > 1)
 		BIC_PRESENT(BIC_Package);
+
+	set_node_data();
+	if (debug > 1)
+		fprintf(outf, "num_nodes_per_pkg %d\n", topo.num_nodes_per_pkg);
 
 	topo.num_threads_per_core = max_siblings;
 	if (debug > 1)
