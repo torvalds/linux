@@ -152,7 +152,8 @@ pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
 			  pmd_t *pmd)
 {
-	return;
+	if (radix_enabled())
+		prefetch((void *)addr);
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
