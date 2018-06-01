@@ -5071,6 +5071,13 @@ err_unlock:
 
 void i915_gem_suspend_late(struct drm_i915_private *i915)
 {
+	struct drm_i915_gem_object *obj;
+	struct list_head *phases[] = {
+		&i915->mm.unbound_list,
+		&i915->mm.bound_list,
+		NULL
+	}, **phase;
+
 	/*
 	 * Neither the BIOS, ourselves or any other kernel
 	 * expects the system to be in execlists mode on startup,
@@ -5090,6 +5097,13 @@ void i915_gem_suspend_late(struct drm_i915_private *i915)
 	 * machines is a good idea, we don't - just in case it leaves the
 	 * machine in an unusable condition.
 	 */
+
+	mutex_lock(&i915->drm.struct_mutex);
+	for (phase = phases; *phase; phase++) {
+		list_for_each_entry(obj, *phase, mm.link)
+			WARN_ON(i915_gem_object_set_to_gtt_domain(obj, false));
+	}
+	mutex_unlock(&i915->drm.struct_mutex);
 
 	intel_uc_sanitize(i915);
 	i915_gem_sanitize(i915);
