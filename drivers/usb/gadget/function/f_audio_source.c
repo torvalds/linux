@@ -340,13 +340,19 @@ static inline struct audio_dev *func_to_audio(struct usb_function *f)
 static void audio_source_work(struct work_struct *data)
 {
 	struct audio_dev *audio = container_of(data, struct audio_dev, work);
-	char *set_interface[3]	= { "USB_STATE=SET_INTERFACE", NULL, NULL};
+	char buffer[64];
+	char *set_interface[4]	= { "USB_STATE=SET_INTERFACE", NULL, NULL,
+				    NULL };
 	char **uevent_envp = NULL;
 
 	if (audio->alt)
-		set_interface[1] = "1";
+		set_interface[1] = "STREAM_STATE=ON";
 	else
-		set_interface[1] = "0";
+		set_interface[1] = "STREAM_STATE=OFF";
+
+	sprintf(buffer, "SAMPLE_RATE=%lld", audio->sample_rate);
+		set_interface[2] = buffer;
+
 	uevent_envp = set_interface;
 
 	if (uevent_envp) {
