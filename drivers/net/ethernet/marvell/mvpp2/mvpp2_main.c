@@ -141,7 +141,7 @@ void mvpp2_percpu_write_relaxed(struct mvpp2 *priv, int cpu,
 	writel_relaxed(data, priv->swth_base[cpu] + offset);
 }
 
-u32 mvpp2_percpu_read_relaxed(struct mvpp2 *priv, int cpu,
+static u32 mvpp2_percpu_read_relaxed(struct mvpp2 *priv, int cpu,
 				     u32 offset)
 {
 	return readl_relaxed(priv->swth_base[cpu] + offset);
