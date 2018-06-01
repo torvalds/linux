@@ -317,7 +317,7 @@ mediatek_gpio_gpio_map(struct irq_domain *d, unsigned int irq,
 }
 
 static const struct irq_domain_ops irq_domain_ops = {
-	.xlate = irq_domain_xlate_onecell,
+	.xlate = irq_domain_xlate_twocell,
 	.map = mediatek_gpio_gpio_map,
 };
 
