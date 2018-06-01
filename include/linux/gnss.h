@@ -18,6 +18,14 @@
 
 struct gnss_device;
 
+enum gnss_type {
+	GNSS_TYPE_NMEA = 0,
+	GNSS_TYPE_SIRF,
+	GNSS_TYPE_UBX,
+
+	GNSS_TYPE_COUNT
+};
+
 struct gnss_operations {
 	int (*open)(struct gnss_device *gdev);
 	void (*close)(struct gnss_device *gdev);
@@ -30,6 +38,7 @@ struct gnss_device {
 	struct cdev cdev;
 	int id;
 
+	enum gnss_type type;
 	unsigned long flags;
 
 	struct rw_semaphore rwsem;

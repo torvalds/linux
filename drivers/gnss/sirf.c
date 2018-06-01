@@ -267,6 +267,7 @@ static int sirf_probe(struct serdev_device *serdev)
 	if (!gdev)
 		return -ENOMEM;
 
+	gdev->type = GNSS_TYPE_SIRF;
 	gdev->ops = &sirf_gnss_ops;
 	gnss_set_drvdata(gdev, data);
 

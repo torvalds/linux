@@ -77,6 +77,8 @@ static int ubx_probe(struct serdev_device *serdev)
 
 	gserial->ops = &ubx_gserial_ops;
 
+	gserial->gdev->type = GNSS_TYPE_UBX;
+
 	data = gnss_serial_get_drvdata(gserial);
 
 	data->vcc = devm_regulator_get(&serdev->dev, "vcc");
