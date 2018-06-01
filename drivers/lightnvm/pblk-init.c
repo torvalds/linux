@@ -509,7 +509,7 @@ static void pblk_lines_free(struct pblk *pblk)
 	for (i = 0; i < l_mg->nr_lines; i++) {
 		line = &pblk->lines[i];
 
-		pblk_line_free(pblk, line);
+		pblk_line_free(line);
 		pblk_line_meta_free(line);
 	}
 	spin_unlock(&l_mg->free_lock);

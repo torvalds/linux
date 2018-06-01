@@ -1337,7 +1337,7 @@ retry:
 	retry_line->emeta = line->emeta;
 	retry_line->meta_line = line->meta_line;
 
-	pblk_line_free(pblk, line);
+	pblk_line_free(line);
 	l_mg->data_line = retry_line;
 	spin_unlock(&l_mg->free_lock);
 
@@ -1562,7 +1562,7 @@ out:
 	return new;
 }
 
-void pblk_line_free(struct pblk *pblk, struct pblk_line *line)
+void pblk_line_free(struct pblk_line *line)
 {
 	kfree(line->map_bitmap);
 	kfree(line->invalid_bitmap);
@@ -1584,7 +1584,7 @@ static void __pblk_line_put(struct pblk *pblk, struct pblk_line *line)
 	WARN_ON(line->state != PBLK_LINESTATE_GC);
 	line->state = PBLK_LINESTATE_FREE;
 	line->gc_group = PBLK_LINEGC_NONE;
-	pblk_line_free(pblk, line);
+	pblk_line_free(line);
 	spin_unlock(&line->lock);
 
 	atomic_dec(&gc->pipeline_gc);
