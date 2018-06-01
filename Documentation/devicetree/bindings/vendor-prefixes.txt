@@ -384,6 +384,7 @@ tronsmart	Tronsmart
 truly	Truly Semiconductors Limited
 tsd	Theobroma Systems Design und Consulting GmbH
 tyan	Tyan Computer Corporation
+u-blox	u-blox
 ucrobotics	uCRobotics
 ubnt	Ubiquiti Networks
 udoo	Udoo
