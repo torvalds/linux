@@ -475,13 +475,11 @@ static void hns_roce_disassociate_ucontext(struct ib_ucontext *ibcontext)
 	struct hns_roce_ucontext *context = to_hr_ucontext(ibcontext);
 	struct hns_roce_vma_data *vma_data, *n;
 	struct vm_area_struct *vma;
-	int ret;
 
 	mutex_lock(&context->vma_list_mutex);
 	list_for_each_entry_safe(vma_data, n, &context->vma_list, list) {
 		vma = vma_data->vma;
-		ret = zap_vma_ptes(vma, vma->vm_start, PAGE_SIZE);
-		WARN_ONCE(ret, "%s: zap_vma_ptes failed", __func__);
+		zap_vma_ptes(vma, vma->vm_start, PAGE_SIZE);
 
 		vma->vm_flags &= ~(VM_SHARED | VM_MAYSHARE);
 		vma->vm_ops = NULL;
