@@ -84,6 +84,8 @@ unsigned int do_rapl;
 unsigned int do_dts;
 unsigned int do_ptm;
 unsigned long long  gfx_cur_rc6_ms;
+unsigned long long cpuidle_cur_cpu_lpi_us;
+unsigned long long cpuidle_cur_sys_lpi_us;
 unsigned int gfx_cur_mhz;
 unsigned int tcc_activation_temp;
 unsigned int tcc_activation_temp_override;
@@ -188,6 +190,8 @@ struct pkg_data {
 	unsigned long long pc8;
 	unsigned long long pc9;
 	unsigned long long pc10;
+	unsigned long long cpu_lpi;
+	unsigned long long sys_lpi;
 	unsigned long long pkg_wtd_core_c0;
 	unsigned long long pkg_any_core_c0;
 	unsigned long long pkg_any_gfxe_c0;
@@ -377,6 +381,8 @@ struct msr_counter bic[] = {
 	{ 0x0, "Pkg%pc8" },
 	{ 0x0, "Pkg%pc9" },
 	{ 0x0, "Pkg%pc10" },
+	{ 0x0, "CPU%LPI" },
+	{ 0x0, "SYS%LPI" },
 	{ 0x0, "PkgWatt" },
 	{ 0x0, "CorWatt" },
 	{ 0x0, "GFXWatt" },
@@ -396,6 +402,7 @@ struct msr_counter bic[] = {
 	{ 0x0, "Any%C0" },
 	{ 0x0, "GFX%C0" },
 	{ 0x0, "CPUGFX%" },
+	{ 0x0, "Node%" },
 };
 
 
@@ -427,6 +434,8 @@ struct msr_counter bic[] = {
 #define	BIC_Pkgpc8	(1ULL << 23)
 #define	BIC_Pkgpc9	(1ULL << 24)
 #define	BIC_Pkgpc10	(1ULL << 25)
+#define BIC_CPU_LPI	(1ULL << 26)
+#define BIC_SYS_LPI	(1ULL << 27)
 #define	BIC_PkgWatt	(1ULL << 26)
 #define	BIC_CorWatt	(1ULL << 27)
 #define	BIC_GFXWatt	(1ULL << 28)
@@ -653,6 +662,10 @@ void print_header(char *delim)
 		outp += sprintf(outp, "%sPkg%%pc9", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Pkgpc10))
 		outp += sprintf(outp, "%sPk%%pc10", (printed++ ? delim : ""));
+	if (DO_BIC(BIC_CPU_LPI))
+		outp += sprintf(outp, "%sCPU%%LPI", (printed++ ? delim : ""));
+	if (DO_BIC(BIC_SYS_LPI))
+		outp += sprintf(outp, "%sSYS%%LPI", (printed++ ? delim : ""));
 
 	if (do_rapl && !rapl_joules) {
 		if (DO_BIC(BIC_PkgWatt))
@@ -757,6 +770,9 @@ int dump_counters(struct thread_data *t, struct core_data *c,
 		outp += sprintf(outp, "pc8: %016llX\n", p->pc8);
 		outp += sprintf(outp, "pc9: %016llX\n", p->pc9);
 		outp += sprintf(outp, "pc10: %016llX\n", p->pc10);
+		outp += sprintf(outp, "pc10: %016llX\n", p->pc10);
+		outp += sprintf(outp, "cpu_lpi: %016llX\n", p->cpu_lpi);
+		outp += sprintf(outp, "sys_lpi: %016llX\n", p->sys_lpi);
 		outp += sprintf(outp, "Joules PKG: %0X\n", p->energy_pkg);
 		outp += sprintf(outp, "Joules COR: %0X\n", p->energy_cores);
 		outp += sprintf(outp, "Joules GFX: %0X\n", p->energy_gfx);
@@ -981,6 +997,11 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	if (DO_BIC(BIC_Pkgpc10))
 		outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * p->pc10/tsc);
 
+	if (DO_BIC(BIC_CPU_LPI))
+		outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * p->cpu_lpi / 1000000.0 / interval_float);
+	if (DO_BIC(BIC_SYS_LPI))
+		outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * p->sys_lpi / 1000000.0 / interval_float);
+
 	/*
  	 * If measurement interval exceeds minimum RAPL Joule Counter range,
  	 * indicate that results are suspect by printing "**" in fraction place.
@@ -1106,6 +1127,8 @@ delta_package(struct pkg_data *new, struct pkg_data *old)
 	old->pc8 = new->pc8 - old->pc8;
 	old->pc9 = new->pc9 - old->pc9;
 	old->pc10 = new->pc10 - old->pc10;
+	old->cpu_lpi = new->cpu_lpi - old->cpu_lpi;
+	old->sys_lpi = new->sys_lpi - old->sys_lpi;
 	old->pkg_temp_c = new->pkg_temp_c;
 
 	/* flag an error when rc6 counter resets/wraps */
@@ -1297,6 +1320,8 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	p->pc8 = 0;
 	p->pc9 = 0;
 	p->pc10 = 0;
+	p->cpu_lpi = 0;
+	p->sys_lpi = 0;
 
 	p->energy_pkg = 0;
 	p->energy_dram = 0;
@@ -1384,6 +1409,9 @@ int sum_counters(struct thread_data *t, struct core_data *c,
 	average.packages.pc8 += p->pc8;
 	average.packages.pc9 += p->pc9;
 	average.packages.pc10 += p->pc10;
+
+	average.packages.cpu_lpi = p->cpu_lpi;
+	average.packages.sys_lpi = p->sys_lpi;
 
 	average.packages.energy_pkg += p->energy_pkg;
 	average.packages.energy_dram += p->energy_dram;
@@ -1727,6 +1755,11 @@ retry:
 	if (DO_BIC(BIC_Pkgpc10))
 		if (get_msr(cpu, MSR_PKG_C10_RESIDENCY, &p->pc10))
 			return -13;
+
+	if (DO_BIC(BIC_CPU_LPI))
+		p->cpu_lpi = cpuidle_cur_cpu_lpi_us;
+	if (DO_BIC(BIC_SYS_LPI))
+		p->sys_lpi = cpuidle_cur_sys_lpi_us;
 
 	if (do_rapl & RAPL_PKG) {
 		if (get_msr(cpu, MSR_PKG_ENERGY_STATUS, &msr))
@@ -2595,6 +2628,52 @@ int snapshot_gfx_mhz(void)
 }
 
 /*
+ * snapshot_cpu_lpi()
+ *
+ * record snapshot of
+ * /sys/devices/system/cpu/cpuidle/low_power_idle_cpu_residency_us
+ *
+ * return 1 if config change requires a restart, else return 0
+ */
+int snapshot_cpu_lpi_us(void)
+{
+	FILE *fp;
+	int retval;
+
+	fp = fopen_or_die("/sys/devices/system/cpu/cpuidle/low_power_idle_cpu_residency_us", "r");
+
+	retval = fscanf(fp, "%lld", &cpuidle_cur_cpu_lpi_us);
+	if (retval != 1)
+		err(1, "CPU LPI");
+
+	fclose(fp);
+
+	return 0;
+}
+/*
+ * snapshot_sys_lpi()
+ *
+ * record snapshot of
+ * /sys/devices/system/cpu/cpuidle/low_power_idle_system_residency_us
+ *
+ * return 1 if config change requires a restart, else return 0
+ */
+int snapshot_sys_lpi_us(void)
+{
+	FILE *fp;
+	int retval;
+
+	fp = fopen_or_die("/sys/devices/system/cpu/cpuidle/low_power_idle_system_residency_us", "r");
+
+	retval = fscanf(fp, "%lld", &cpuidle_cur_sys_lpi_us);
+	if (retval != 1)
+		err(1, "SYS LPI");
+
+	fclose(fp);
+
+	return 0;
+}
+/*
  * snapshot /proc and /sys files
  *
  * return 1 if configuration restart needed, else return 0
@@ -2610,6 +2689,12 @@ int snapshot_proc_sysfs_files(void)
 
 	if (DO_BIC(BIC_GFXMHz))
 		snapshot_gfx_mhz();
+
+	if (DO_BIC(BIC_CPU_LPI))
+		snapshot_cpu_lpi_us();
+
+	if (DO_BIC(BIC_SYS_LPI))
+		snapshot_sys_lpi_us();
 
 	return 0;
 }
@@ -4405,6 +4490,16 @@ void process_cpuid()
 
 	if (!access("/sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz", R_OK))
 		BIC_PRESENT(BIC_GFXMHz);
+
+	if (!access("/sys/devices/system/cpu/cpuidle/low_power_idle_cpu_residency_us", R_OK))
+		BIC_PRESENT(BIC_CPU_LPI);
+	else
+		BIC_NOT_PRESENT(BIC_CPU_LPI);
+
+	if (!access("/sys/devices/system/cpu/cpuidle/low_power_idle_system_residency_us", R_OK))
+		BIC_PRESENT(BIC_SYS_LPI);
+	else
+		BIC_NOT_PRESENT(BIC_SYS_LPI);
 
 	if (!quiet)
 		decode_misc_feature_control();
