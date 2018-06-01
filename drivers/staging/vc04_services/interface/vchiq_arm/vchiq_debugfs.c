@@ -58,7 +58,7 @@ struct dentry *vchiq_dbg_clients;
 /* Log category debugfs entries */
 struct vchiq_debugfs_log_entry {
 	const char *name;
-	int *plevel;
+	void *plevel;
 	struct dentry *dir;
 };
 
@@ -153,10 +153,10 @@ static void vchiq_debugfs_create_log_entries(struct dentry *top)
 	dir = debugfs_create_dir("log", vchiq_dbg_dir);
 
 	for (i = 0; i < n_log_entries; i++) {
-		void *levp = (void *)vchiq_debugfs_log_entries[i].plevel;
-
 		dir = debugfs_create_file(vchiq_debugfs_log_entries[i].name,
-					  0644, dir, levp, &debugfs_log_fops);
+					  0644, dir,
+					  vchiq_debugfs_log_entries[i].plevel,
+					  &debugfs_log_fops);
 		vchiq_debugfs_log_entries[i].dir = dir;
 	}
 }
