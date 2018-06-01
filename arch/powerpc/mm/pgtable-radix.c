@@ -1115,5 +1115,5 @@ void radix__ptep_set_access_flags(struct vm_area_struct *vma, pte_t *ptep,
 		 * an access fault, which is defined by the architectue.
 		 */
 	}
-	asm volatile("ptesync" : : : "memory");
+	/* See ptesync comment in radix__set_pte_at */
 }
