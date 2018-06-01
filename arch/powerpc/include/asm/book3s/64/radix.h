@@ -180,14 +180,8 @@ static inline pte_t radix__ptep_get_and_clear_full(struct mm_struct *mm,
 	unsigned long old_pte;
 
 	if (full) {
-		/*
-		 * If we are trying to clear the pte, we can skip
-		 * the DD1 pte update sequence and batch the tlb flush. The
-		 * tlb flush batching is done by mmu gather code. We
-		 * still keep the cmp_xchg update to make sure we get
-		 * correct R/C bit which might be updated via Nest MMU.
-		 */
-		old_pte = __radix_pte_update(ptep, ~0ul, 0);
+		old_pte = pte_val(*ptep);
+		*ptep = __pte(0);
 	} else
 		old_pte = radix__pte_update(mm, addr, ptep, ~0ul, 0, 0);
 
