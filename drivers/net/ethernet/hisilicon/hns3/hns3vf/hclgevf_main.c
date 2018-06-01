@@ -739,6 +739,126 @@ static int hclgevf_cfg_func_mta_filter(struct hnae3_handle *handle, bool en)
 				    msg, 1, false, NULL, 0);
 }
 
+static int hclgevf_cfg_func_mta_type(struct hclgevf_dev *hdev)
+{
+	u8 resp_msg = HCLGEVF_MTA_TYPE_SEL_MAX;
+	int ret;
+
+	ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_MULTICAST,
+				   HCLGE_MBX_MAC_VLAN_MTA_TYPE_READ,
+				   NULL, 0, true, &resp_msg, sizeof(u8));
+
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"Read mta type fail, ret=%d.\n", ret);
+		return ret;
+	}
+
+	if (resp_msg > HCLGEVF_MTA_TYPE_SEL_MAX) {
+		dev_err(&hdev->pdev->dev,
+			"Read mta type invalid, resp=%d.\n", resp_msg);
+		return -EINVAL;
+	}
+
+	hdev->mta_mac_sel_type = resp_msg;
+
+	return 0;
+}
+
+static u16 hclgevf_get_mac_addr_to_mta_index(struct hclgevf_dev *hdev,
+					     const u8 *addr)
+{
+	u32 rsh = HCLGEVF_MTA_TYPE_SEL_MAX - hdev->mta_mac_sel_type;
+	u16 high_val = addr[1] | (addr[0] << 8);
+
+	return (high_val >> rsh) & 0xfff;
+}
+
+static int hclgevf_do_update_mta_status(struct hclgevf_dev *hdev,
+					unsigned long *status)
+{
+#define HCLGEVF_MTA_STATUS_MSG_SIZE 13
+#define HCLGEVF_MTA_STATUS_MSG_BITS \
+			(HCLGEVF_MTA_STATUS_MSG_SIZE * BITS_PER_BYTE)
+#define HCLGEVF_MTA_STATUS_MSG_END_BITS \
+			(HCLGEVF_MTA_TBL_SIZE % HCLGEVF_MTA_STATUS_MSG_BITS)
+	u16 tbl_cnt;
+	u16 tbl_idx;
+	u8 msg_cnt;
+	u8 msg_idx;
+	int ret;
+
+	msg_cnt = DIV_ROUND_UP(HCLGEVF_MTA_TBL_SIZE,
+			       HCLGEVF_MTA_STATUS_MSG_BITS);
+	tbl_idx = 0;
+	msg_idx = 0;
+	while (msg_cnt--) {
+		u8 msg[HCLGEVF_MTA_STATUS_MSG_SIZE + 1];
+		u8 *p = &msg[1];
+		u8 msg_ofs;
+		u8 msg_bit;
+
+		memset(msg, 0, sizeof(msg));
+
+		/* set index field */
+		msg[0] = 0x7F & msg_idx;
+
+		/* set end flag field */
+		if (msg_cnt == 0) {
+			msg[0] |= 0x80;
+			tbl_cnt = HCLGEVF_MTA_STATUS_MSG_END_BITS;
+		} else {
+			tbl_cnt = HCLGEVF_MTA_STATUS_MSG_BITS;
+		}
+
+		/* set status field */
+		msg_ofs = 0;
+		msg_bit = 0;
+		while (tbl_cnt--) {
+			if (test_bit(tbl_idx, status))
+				p[msg_ofs] |= BIT(msg_bit);
+
+			tbl_idx++;
+
+			msg_bit++;
+			if (msg_bit == BITS_PER_BYTE) {
+				msg_bit = 0;
+				msg_ofs++;
+			}
+		}
+
+		ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_MULTICAST,
+					   HCLGE_MBX_MAC_VLAN_MTA_STATUS_UPDATE,
+					   msg, sizeof(msg), false, NULL, 0);
+		if (ret)
+			break;
+
+		msg_idx++;
+	}
+
+	return ret;
+}
+
+static int hclgevf_update_mta_status(struct hnae3_handle *handle)
+{
+	unsigned long mta_status[BITS_TO_LONGS(HCLGEVF_MTA_TBL_SIZE)];
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+	struct net_device *netdev = hdev->nic.kinfo.netdev;
+	struct netdev_hw_addr *ha;
+	u16 tbl_idx;
+
+	/* clear status */
+	memset(mta_status, 0, sizeof(mta_status));
+
+	/* update status from mc addr list */
+	netdev_for_each_mc_addr(ha, netdev) {
+		tbl_idx = hclgevf_get_mac_addr_to_mta_index(hdev, ha->addr);
+		set_bit(tbl_idx, mta_status);
+	}
+
+	return hclgevf_do_update_mta_status(hdev, mta_status);
+}
+
 static void hclgevf_get_mac_addr(struct hnae3_handle *handle, u8 *p)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
@@ -1669,12 +1789,11 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 		goto err_config;
 	}
 
-	/* Initialize VF's MTA */
-	hdev->accept_mta_mc = true;
-	ret = hclgevf_cfg_func_mta_filter(&hdev->nic, hdev->accept_mta_mc);
+	/* Initialize mta type for this VF */
+	ret = hclgevf_cfg_func_mta_type(hdev);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
-			"failed(%d) to set mta filter mode\n", ret);
+			"failed(%d) to initialize MTA type\n", ret);
 		goto err_config;
 	}
 
@@ -1829,6 +1948,7 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.rm_uc_addr = hclgevf_rm_uc_addr,
 	.add_mc_addr = hclgevf_add_mc_addr,
 	.rm_mc_addr = hclgevf_rm_mc_addr,
+	.update_mta_status = hclgevf_update_mta_status,
 	.get_stats = hclgevf_get_stats,
 	.update_stats = hclgevf_update_stats,
 	.get_strings = hclgevf_get_strings,
