@@ -18,6 +18,7 @@ struct vm_fault;
 #define IOMAP_DELALLOC	0x02	/* delayed allocation blocks */
 #define IOMAP_MAPPED	0x03	/* blocks allocated at @addr */
 #define IOMAP_UNWRITTEN	0x04	/* blocks allocated at @addr in unwritten state */
+#define IOMAP_INLINE	0x05	/* data inline in the inode */
 
 /*
  * Flags for all iomap mappings:
@@ -34,7 +35,6 @@ struct vm_fault;
  */
 #define IOMAP_F_MERGED		0x10	/* contains multiple blocks/extents */
 #define IOMAP_F_SHARED		0x20	/* block shared with another file */
-#define IOMAP_F_DATA_INLINE	0x40	/* data inline in the inode */
 
 /*
  * Magic value for addr:

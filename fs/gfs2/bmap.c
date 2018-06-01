@@ -680,8 +680,7 @@ static void gfs2_stuffed_iomap(struct inode *inode, struct iomap *iomap)
 		      sizeof(struct gfs2_dinode);
 	iomap->offset = 0;
 	iomap->length = i_size_read(inode);
-	iomap->type = IOMAP_MAPPED;
-	iomap->flags = IOMAP_F_DATA_INLINE;
+	iomap->type = IOMAP_INLINE;
 }
 
 /**

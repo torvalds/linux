@@ -1835,8 +1835,8 @@ int ext4_inline_data_iomap(struct inode *inode, struct iomap *iomap)
 	iomap->offset = 0;
 	iomap->length = min_t(loff_t, ext4_get_inline_size(inode),
 			      i_size_read(inode));
-	iomap->type = 0;
-	iomap->flags = IOMAP_F_DATA_INLINE;
+	iomap->type = IOMAP_INLINE;
+	iomap->flags = 0;
 
 out:
 	up_read(&EXT4_I(inode)->xattr_sem);
