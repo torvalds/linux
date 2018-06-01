@@ -519,6 +519,64 @@ static int smb311_decode_neg_context(struct smb2_negotiate_rsp *rsp,
 	return rc;
 }
 
+static struct create_posix *
+create_posix_buf(umode_t mode)
+{
+	struct create_posix *buf;
+
+	buf = kzalloc(sizeof(struct create_posix),
+			GFP_KERNEL);
+	if (!buf)
+		return NULL;
+
+	buf->ccontext.DataOffset =
+		cpu_to_le16(offsetof(struct create_posix, Mode));
+	buf->ccontext.DataLength = cpu_to_le32(4);
+	buf->ccontext.NameOffset =
+		cpu_to_le16(offsetof(struct create_posix, Name));
+	buf->ccontext.NameLength = cpu_to_le16(16);
+
+	/* SMB2_CREATE_TAG_POSIX is "0x93AD25509CB411E7B42383DE968BCD7C" */
+	buf->Name[0] = 0x93;
+	buf->Name[1] = 0xAD;
+	buf->Name[2] = 0x25;
+	buf->Name[3] = 0x50;
+	buf->Name[4] = 0x9C;
+	buf->Name[5] = 0xB4;
+	buf->Name[6] = 0x11;
+	buf->Name[7] = 0xE7;
+	buf->Name[8] = 0xB4;
+	buf->Name[9] = 0x23;
+	buf->Name[10] = 0x83;
+	buf->Name[11] = 0xDE;
+	buf->Name[12] = 0x96;
+	buf->Name[13] = 0x8B;
+	buf->Name[14] = 0xCD;
+	buf->Name[15] = 0x7C;
+	buf->Mode = cpu_to_le32(mode);
+	cifs_dbg(FYI, "mode on posix create 0%o", mode);
+	return buf;
+}
+
+static int
+add_posix_context(struct kvec *iov, unsigned int *num_iovec, umode_t mode)
+{
+	struct smb2_create_req *req = iov[0].iov_base;
+	unsigned int num = *num_iovec;
+
+	iov[num].iov_base = create_posix_buf(mode);
+	if (iov[num].iov_base == NULL)
+		return -ENOMEM;
+	iov[num].iov_len = sizeof(struct create_posix);
+	if (!req->CreateContextsOffset)
+		req->CreateContextsOffset = cpu_to_le32(
+				sizeof(struct smb2_create_req) +
+				iov[num - 1].iov_len);
+	le32_add_cpu(&req->CreateContextsLength, sizeof(struct create_posix));
+	*num_iovec = num + 1;
+	return 0;
+}
+
 #else
 static void assemble_neg_contexts(struct smb2_negotiate_req *req,
 				  unsigned int *total_len)
@@ -1837,7 +1895,7 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 	struct TCP_Server_Info *server;
 	struct cifs_tcon *tcon = oparms->tcon;
 	struct cifs_ses *ses = tcon->ses;
-	struct kvec iov[4];
+	struct kvec iov[5]; /* make sure at least one for each open context */
 	struct kvec rsp_iov = {NULL, 0};
 	int resp_buftype;
 	int uni_path_len;
@@ -1846,7 +1904,7 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 	int rc = 0;
 	unsigned int n_iov = 2;
 	__u32 file_attributes = 0;
-	char *dhc_buf = NULL, *lc_buf = NULL;
+	char *dhc_buf = NULL, *lc_buf = NULL, *pc_buf = NULL;
 	int flags = 0;
 	unsigned int total_len;
 
@@ -1963,6 +2021,27 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 		dhc_buf = iov[n_iov-1].iov_base;
 	}
 
+#ifdef CONFIG_CIFS_SMB311
+	if (tcon->posix_extensions) {
+		if (n_iov > 2) {
+			struct create_context *ccontext =
+			    (struct create_context *)iov[n_iov-1].iov_base;
+			ccontext->Next =
+				cpu_to_le32(iov[n_iov-1].iov_len);
+		}
+
+		rc = add_posix_context(iov, &n_iov, oparms->mode);
+		if (rc) {
+			cifs_small_buf_release(req);
+			kfree(copy_path);
+			kfree(lc_buf);
+			kfree(dhc_buf);
+			return rc;
+		}
+		pc_buf = iov[n_iov-1].iov_base;
+	}
+#endif /* SMB311 */
+
 	rc = smb2_send_recv(xid, ses, iov, n_iov, &resp_buftype, flags,
 			    &rsp_iov);
 	cifs_small_buf_release(req);
@@ -2004,6 +2083,7 @@ creat_exit:
 	kfree(copy_path);
 	kfree(lc_buf);
 	kfree(dhc_buf);
+	kfree(pc_buf);
 	free_rsp_buf(resp_buftype, rsp);
 	return rc;
 }

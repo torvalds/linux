@@ -3963,6 +3963,12 @@ try_mount_again:
 		goto remote_path_check;
 	}
 
+#ifdef CONFIG_CIFS_SMB311
+	/* if new SMB3.11 POSIX extensions are supported do not remap / and \ */
+	if (tcon->posix_extensions)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_POSIX_PATHS;
+#endif /* SMB3.11 */
+
 	/* tell server which Unix caps we support */
 	if (cap_unix(tcon->ses)) {
 		/* reset of caps checks mount to see if unix extensions
@@ -4424,6 +4430,11 @@ cifs_construct_tcon(struct cifs_sb_info *cifs_sb, kuid_t fsuid)
 		goto out;
 	}
 
+#ifdef CONFIG_CIFS_SMB311
+	/* if new SMB3.11 POSIX extensions are supported do not remap / and \ */
+	if (tcon->posix_extensions)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_POSIX_PATHS;
+#endif /* SMB3.11 */
 	if (cap_unix(ses))
 		reset_cifs_unix_caps(0, tcon, NULL, vol_info);
 

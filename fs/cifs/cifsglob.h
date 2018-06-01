@@ -1082,6 +1082,7 @@ struct cifs_open_parms {
 	int create_options;
 	const char *path;
 	struct cifs_fid *fid;
+	umode_t mode;
 	bool reconnect:1;
 };
 
