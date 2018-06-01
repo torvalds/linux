@@ -123,9 +123,6 @@ struct smb2_sync_pdu {
 } __packed;
 
 struct smb2_hdr {
-	__be32 smb2_buf_length;	/* big endian on wire */
-				/* length is only two or three bytes - with */
-				/* one or two byte type preceding it that MBZ */
 	struct smb2_sync_hdr sync_hdr;
 } __packed;
 
@@ -138,9 +135,6 @@ struct smb2_pdu {
 #define SMB3_AES128GCM_NONCE 12
 
 struct smb2_transform_hdr {
-	__be32 smb2_buf_length;	/* big endian on wire */
-				/* length is only two or three bytes - with
-				 one or two byte type preceding it that MBZ */
 	__le32 ProtocolId;	/* 0xFD 'S' 'M' 'B' */
 	__u8   Signature[16];
 	__u8   Nonce[16];

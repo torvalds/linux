@@ -2144,12 +2144,11 @@ smb2_dir_needs_close(struct cifsFileInfo *cfile)
 }
 
 static void
-fill_transform_hdr(struct TCP_Server_Info *server,
-		   struct smb2_transform_hdr *tr_hdr, struct smb_rqst *old_rq)
+fill_transform_hdr(struct smb2_transform_hdr *tr_hdr, unsigned int orig_len,
+		   struct smb_rqst *old_rq)
 {
 	struct smb2_sync_hdr *shdr =
 			(struct smb2_sync_hdr *)old_rq->rq_iov[1].iov_base;
-	unsigned int orig_len = get_rfc1002_length(old_rq->rq_iov[0].iov_base);
 
 	memset(tr_hdr, 0, sizeof(struct smb2_transform_hdr));
 	tr_hdr->ProtocolId = SMB2_TRANSFORM_PROTO_NUM;
@@ -2157,8 +2156,6 @@ fill_transform_hdr(struct TCP_Server_Info *server,
 	tr_hdr->Flags = cpu_to_le16(0x01);
 	get_random_bytes(&tr_hdr->Nonce, SMB3_AES128CMM_NONCE);
 	memcpy(&tr_hdr->SessionId, &shdr->SessionId, 8);
-	inc_rfc1001_len(tr_hdr, sizeof(struct smb2_transform_hdr) - server->vals->header_preamble_size);
-	inc_rfc1001_len(tr_hdr, orig_len);
 }
 
 /* We can not use the normal sg_set_buf() as we will sometimes pass a
@@ -2170,11 +2167,16 @@ static inline void smb2_sg_set_buf(struct scatterlist *sg, const void *buf,
 	sg_set_page(sg, virt_to_page(buf), buflen, offset_in_page(buf));
 }
 
+/* Assumes:
+ * rqst->rq_iov[0]  is rfc1002 length
+ * rqst->rq_iov[1]  is tranform header
+ * rqst->rq_iov[2+] data to be encrypted/decrypted
+ */
 static struct scatterlist *
 init_sg(struct smb_rqst *rqst, u8 *sign)
 {
-	unsigned int sg_len = rqst->rq_nvec + rqst->rq_npages + 1;
-	unsigned int assoc_data_len = sizeof(struct smb2_transform_hdr) - 24;
+	unsigned int sg_len = rqst->rq_nvec + rqst->rq_npages;
+	unsigned int assoc_data_len = sizeof(struct smb2_transform_hdr) - 20;
 	struct scatterlist *sg;
 	unsigned int i;
 	unsigned int j;
@@ -2184,10 +2186,10 @@ init_sg(struct smb_rqst *rqst, u8 *sign)
 		return NULL;
 
 	sg_init_table(sg, sg_len);
-	smb2_sg_set_buf(&sg[0], rqst->rq_iov[0].iov_base + 24, assoc_data_len);
-	for (i = 1; i < rqst->rq_nvec; i++)
-		smb2_sg_set_buf(&sg[i], rqst->rq_iov[i].iov_base,
-						rqst->rq_iov[i].iov_len);
+	smb2_sg_set_buf(&sg[0], rqst->rq_iov[1].iov_base + 20, assoc_data_len);
+	for (i = 1; i < rqst->rq_nvec - 1; i++)
+		smb2_sg_set_buf(&sg[i], rqst->rq_iov[i+1].iov_base,
+						rqst->rq_iov[i+1].iov_len);
 	for (j = 0; i < sg_len - 1; i++, j++) {
 		unsigned int len = (j < rqst->rq_npages - 1) ? rqst->rq_pagesz
 							: rqst->rq_tailsz;
@@ -2219,9 +2221,10 @@ smb2_get_enc_key(struct TCP_Server_Info *server, __u64 ses_id, int enc, u8 *key)
 }
 /*
  * Encrypt or decrypt @rqst message. @rqst has the following format:
- * iov[0] - transform header (associate data),
- * iov[1-N] and pages - data to encrypt.
- * On success return encrypted data in iov[1-N] and pages, leave iov[0]
+ * iov[0] - rfc1002 length
+ * iov[1] - transform header (associate data),
+ * iov[2-N] and pages - data to encrypt.
+ * On success return encrypted data in iov[2-N] and pages, leave iov[0-1]
  * untouched.
  */
 static int
@@ -2316,6 +2319,10 @@ free_req:
 	return rc;
 }
 
+/*
+ * This is called from smb_send_rqst. At this point we have the rfc1002
+ * header as the first element in the vector.
+ */
 static int
 smb3_init_transform_rq(struct TCP_Server_Info *server, struct smb_rqst *new_rq,
 		       struct smb_rqst *old_rq)
@@ -2324,6 +2331,7 @@ smb3_init_transform_rq(struct TCP_Server_Info *server, struct smb_rqst *new_rq,
 	struct page **pages;
 	struct smb2_transform_hdr *tr_hdr;
 	unsigned int npages = old_rq->rq_npages;
+	unsigned int orig_len = get_rfc1002_length(old_rq->rq_iov[0].iov_base);
 	int i;
 	int rc = -ENOMEM;
 
@@ -2342,24 +2350,34 @@ smb3_init_transform_rq(struct TCP_Server_Info *server, struct smb_rqst *new_rq,
 			goto err_free_pages;
 	}
 
-	iov = kmalloc_array(old_rq->rq_nvec, sizeof(struct kvec), GFP_KERNEL);
+	/* Make space for one extra iov to hold the transform header */
+	iov = kmalloc_array(old_rq->rq_nvec + 1, sizeof(struct kvec),
+			    GFP_KERNEL);
 	if (!iov)
 		goto err_free_pages;
 
 	/* copy all iovs from the old except the 1st one (rfc1002 length) */
-	memcpy(&iov[1], &old_rq->rq_iov[1],
+	memcpy(&iov[2], &old_rq->rq_iov[1],
 				sizeof(struct kvec) * (old_rq->rq_nvec - 1));
+	/* copy the rfc1002 iov */
+	iov[0].iov_base = old_rq->rq_iov[0].iov_base;
+	iov[0].iov_len  = old_rq->rq_iov[0].iov_len;
+
 	new_rq->rq_iov = iov;
-	new_rq->rq_nvec = old_rq->rq_nvec;
+	new_rq->rq_nvec = old_rq->rq_nvec + 1;
 
 	tr_hdr = kmalloc(sizeof(struct smb2_transform_hdr), GFP_KERNEL);
 	if (!tr_hdr)
 		goto err_free_iov;
 
-	/* fill the 1st iov with a transform header */
-	fill_transform_hdr(server, tr_hdr, old_rq);
-	new_rq->rq_iov[0].iov_base = tr_hdr;
-	new_rq->rq_iov[0].iov_len = sizeof(struct smb2_transform_hdr);
+	/* fill the 2nd iov with a transform header */
+	fill_transform_hdr(tr_hdr, orig_len, old_rq);
+	new_rq->rq_iov[1].iov_base = tr_hdr;
+	new_rq->rq_iov[1].iov_len = sizeof(struct smb2_transform_hdr);
+
+	/* Update rfc1002 header */
+	inc_rfc1001_len(new_rq->rq_iov[0].iov_base,
+			sizeof(struct smb2_transform_hdr));
 
 	/* copy pages form the old */
 	for (i = 0; i < npages; i++) {
@@ -2399,7 +2417,7 @@ smb3_free_transform_rq(struct smb_rqst *rqst)
 		put_page(rqst->rq_pages[i]);
 	kfree(rqst->rq_pages);
 	/* free transform header */
-	kfree(rqst->rq_iov[0].iov_base);
+	kfree(rqst->rq_iov[1].iov_base);
 	kfree(rqst->rq_iov);
 }
 
@@ -2416,18 +2434,19 @@ decrypt_raw_data(struct TCP_Server_Info *server, char *buf,
 		 unsigned int buf_data_size, struct page **pages,
 		 unsigned int npages, unsigned int page_data_size)
 {
-	struct kvec iov[2];
+	struct kvec iov[3];
 	struct smb_rqst rqst = {NULL};
-	struct smb2_hdr *hdr;
 	int rc;
 
-	iov[0].iov_base = buf;
-	iov[0].iov_len = sizeof(struct smb2_transform_hdr);
-	iov[1].iov_base = buf + sizeof(struct smb2_transform_hdr);
-	iov[1].iov_len = buf_data_size;
+	iov[0].iov_base = NULL;
+	iov[0].iov_len = 0;
+	iov[1].iov_base = buf;
+	iov[1].iov_len = sizeof(struct smb2_transform_hdr);
+	iov[2].iov_base = buf + sizeof(struct smb2_transform_hdr);
+	iov[2].iov_len = buf_data_size;
 
 	rqst.rq_iov = iov;
-	rqst.rq_nvec = 2;
+	rqst.rq_nvec = 3;
 	rqst.rq_pages = pages;
 	rqst.rq_npages = npages;
 	rqst.rq_pagesz = PAGE_SIZE;
@@ -2439,10 +2458,9 @@ decrypt_raw_data(struct TCP_Server_Info *server, char *buf,
 	if (rc)
 		return rc;
 
-	memmove(buf + server->vals->header_preamble_size, iov[1].iov_base, buf_data_size);
-	hdr = (struct smb2_hdr *)buf;
-	hdr->smb2_buf_length = cpu_to_be32(buf_data_size + page_data_size);
-	server->total_read = buf_data_size + page_data_size + server->vals->header_preamble_size;
+	memmove(buf + server->vals->header_preamble_size, iov[2].iov_base, buf_data_size);
+
+	server->total_read = buf_data_size + page_data_size;
 
 	return rc;
 }
@@ -3196,8 +3214,8 @@ struct smb_version_values smb20_values = {
 	.exclusive_lock_type = SMB2_LOCKFLAG_EXCLUSIVE_LOCK,
 	.shared_lock_type = SMB2_LOCKFLAG_SHARED_LOCK,
 	.unlock_lock_type = SMB2_LOCKFLAG_UNLOCK,
-	.header_size = sizeof(struct smb2_hdr),
-	.header_preamble_size = 4,
+	.header_size = sizeof(struct smb2_sync_hdr),
+	.header_preamble_size = 0,
 	.max_header_size = MAX_SMB2_HDR_SIZE,
 	.read_rsp_size = sizeof(struct smb2_read_rsp) - 1,
 	.lock_cmd = SMB2_LOCK,
@@ -3217,8 +3235,8 @@ struct smb_version_values smb21_values = {
 	.exclusive_lock_type = SMB2_LOCKFLAG_EXCLUSIVE_LOCK,
 	.shared_lock_type = SMB2_LOCKFLAG_SHARED_LOCK,
 	.unlock_lock_type = SMB2_LOCKFLAG_UNLOCK,
-	.header_size = sizeof(struct smb2_hdr),
-	.header_preamble_size = 4,
+	.header_size = sizeof(struct smb2_sync_hdr),
+	.header_preamble_size = 0,
 	.max_header_size = MAX_SMB2_HDR_SIZE,
 	.read_rsp_size = sizeof(struct smb2_read_rsp) - 1,
 	.lock_cmd = SMB2_LOCK,
@@ -3238,8 +3256,8 @@ struct smb_version_values smb3any_values = {
 	.exclusive_lock_type = SMB2_LOCKFLAG_EXCLUSIVE_LOCK,
 	.shared_lock_type = SMB2_LOCKFLAG_SHARED_LOCK,
 	.unlock_lock_type = SMB2_LOCKFLAG_UNLOCK,
-	.header_size = sizeof(struct smb2_hdr),
-	.header_preamble_size = 4,
+	.header_size = sizeof(struct smb2_sync_hdr),
+	.header_preamble_size = 0,
 	.max_header_size = MAX_SMB2_HDR_SIZE,
 	.read_rsp_size = sizeof(struct smb2_read_rsp) - 1,
 	.lock_cmd = SMB2_LOCK,
@@ -3259,8 +3277,8 @@ struct smb_version_values smbdefault_values = {
 	.exclusive_lock_type = SMB2_LOCKFLAG_EXCLUSIVE_LOCK,
 	.shared_lock_type = SMB2_LOCKFLAG_SHARED_LOCK,
 	.unlock_lock_type = SMB2_LOCKFLAG_UNLOCK,
-	.header_size = sizeof(struct smb2_hdr),
-	.header_preamble_size = 4,
+	.header_size = sizeof(struct smb2_sync_hdr),
+	.header_preamble_size = 0,
 	.max_header_size = MAX_SMB2_HDR_SIZE,
 	.read_rsp_size = sizeof(struct smb2_read_rsp) - 1,
 	.lock_cmd = SMB2_LOCK,
@@ -3280,8 +3298,8 @@ struct smb_version_values smb30_values = {
 	.exclusive_lock_type = SMB2_LOCKFLAG_EXCLUSIVE_LOCK,
 	.shared_lock_type = SMB2_LOCKFLAG_SHARED_LOCK,
 	.unlock_lock_type = SMB2_LOCKFLAG_UNLOCK,
-	.header_size = sizeof(struct smb2_hdr),
-	.header_preamble_size = 4,
+	.header_size = sizeof(struct smb2_sync_hdr),
+	.header_preamble_size = 0,
 	.max_header_size = MAX_SMB2_HDR_SIZE,
 	.read_rsp_size = sizeof(struct smb2_read_rsp) - 1,
 	.lock_cmd = SMB2_LOCK,
@@ -3301,8 +3319,8 @@ struct smb_version_values smb302_values = {
 	.exclusive_lock_type = SMB2_LOCKFLAG_EXCLUSIVE_LOCK,
 	.shared_lock_type = SMB2_LOCKFLAG_SHARED_LOCK,
 	.unlock_lock_type = SMB2_LOCKFLAG_UNLOCK,
-	.header_size = sizeof(struct smb2_hdr),
-	.header_preamble_size = 4,
+	.header_size = sizeof(struct smb2_sync_hdr),
+	.header_preamble_size = 0,
 	.max_header_size = MAX_SMB2_HDR_SIZE,
 	.read_rsp_size = sizeof(struct smb2_read_rsp) - 1,
 	.lock_cmd = SMB2_LOCK,
@@ -3323,8 +3341,8 @@ struct smb_version_values smb311_values = {
 	.exclusive_lock_type = SMB2_LOCKFLAG_EXCLUSIVE_LOCK,
 	.shared_lock_type = SMB2_LOCKFLAG_SHARED_LOCK,
 	.unlock_lock_type = SMB2_LOCKFLAG_UNLOCK,
-	.header_size = sizeof(struct smb2_hdr),
-	.header_preamble_size = 4,
+	.header_size = sizeof(struct smb2_sync_hdr),
+	.header_preamble_size = 0,
 	.max_header_size = MAX_SMB2_HDR_SIZE,
 	.read_rsp_size = sizeof(struct smb2_read_rsp) - 1,
 	.lock_cmd = SMB2_LOCK,

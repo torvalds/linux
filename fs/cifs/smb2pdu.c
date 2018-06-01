@@ -465,12 +465,12 @@ static int decode_encrypt_ctx(struct TCP_Server_Info *server,
 }
 
 static int smb311_decode_neg_context(struct smb2_negotiate_rsp *rsp,
-				     struct TCP_Server_Info *server)
+				     struct TCP_Server_Info *server,
+				     unsigned int len_of_smb)
 {
 	struct smb2_neg_context *pctx;
 	unsigned int offset = le32_to_cpu(rsp->NegotiateContextOffset);
 	unsigned int ctxt_cnt = le16_to_cpu(rsp->NegotiateContextCount);
-	unsigned int len_of_smb = be32_to_cpu(rsp->hdr.smb2_buf_length);
 	unsigned int len_of_ctxts, i;
 	int rc = 0;
 
@@ -794,7 +794,8 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 #ifdef CONFIG_CIFS_SMB311
 	if (rsp->DialectRevision == cpu_to_le16(SMB311_PROT_ID)) {
 		if (rsp->NegotiateContextCount)
-			rc = smb311_decode_neg_context(rsp, server);
+			rc = smb311_decode_neg_context(rsp, server,
+						       rsp_iov.iov_len);
 		else
 			cifs_dbg(VFS, "Missing expected negotiate contexts\n");
 	}
@@ -2100,7 +2101,6 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 {
 	struct smb2_ioctl_req *req;
 	struct smb2_ioctl_rsp *rsp;
-	struct smb2_sync_hdr *shdr;
 	struct cifs_ses *ses;
 	struct kvec iov[2];
 	struct kvec rsp_iov;
@@ -2225,7 +2225,7 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 		goto ioctl_exit;
 	}
 
-	if (get_rfc1002_length(rsp) < le32_to_cpu(rsp->OutputOffset) + *plen) {
+	if (rsp_iov.iov_len < le32_to_cpu(rsp->OutputOffset) + *plen) {
 		cifs_dbg(VFS, "Malformed ioctl resp: len %d offset %d\n", *plen,
 			le32_to_cpu(rsp->OutputOffset));
 		*plen = 0;
@@ -2239,8 +2239,7 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 		goto ioctl_exit;
 	}
 
-	shdr = get_sync_hdr(rsp);
-	memcpy(*out_data, (char *)shdr + le32_to_cpu(rsp->OutputOffset), *plen);
+	memcpy(*out_data, (char *)rsp + le32_to_cpu(rsp->OutputOffset), *plen);
 ioctl_exit:
 	free_rsp_buf(resp_buftype, rsp);
 	return rc;
@@ -2781,7 +2780,7 @@ smb2_readv_callback(struct mid_q_entry *mid)
 	struct cifs_tcon *tcon = tlink_tcon(rdata->cfile->tlink);
 	struct TCP_Server_Info *server = tcon->ses->server;
 	struct smb2_sync_hdr *shdr =
-				(struct smb2_sync_hdr *)rdata->iov[1].iov_base;
+				(struct smb2_sync_hdr *)rdata->iov[0].iov_base;
 	unsigned int credits_received = 1;
 	struct smb_rqst rqst = { .rq_iov = rdata->iov,
 				 .rq_nvec = 2,
@@ -2933,7 +2932,6 @@ SMB2_read(const unsigned int xid, struct cifs_io_parms *io_parms,
 	int resp_buftype, rc = -EACCES;
 	struct smb2_read_plain_req *req = NULL;
 	struct smb2_read_rsp *rsp = NULL;
-	struct smb2_sync_hdr *shdr;
 	struct kvec iov[1];
 	struct kvec rsp_iov;
 	unsigned int total_len;
@@ -2980,10 +2978,8 @@ SMB2_read(const unsigned int xid, struct cifs_io_parms *io_parms,
 		*nbytes = 0;
 	}
 
-	shdr = get_sync_hdr(rsp);
-
 	if (*buf) {
-		memcpy(*buf, (char *)shdr + rsp->DataOffset, *nbytes);
+		memcpy(*buf, (char *)rsp + rsp->DataOffset, *nbytes);
 		free_rsp_buf(resp_buftype, rsp_iov.iov_base);
 	} else if (resp_buftype != CIFS_NO_BUFFER) {
 		*buf = rsp_iov.iov_base;
@@ -3426,10 +3422,9 @@ SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
 			cifs_buf_release(srch_inf->ntwrk_buf_start);
 	}
 	srch_inf->ntwrk_buf_start = (char *)rsp;
-	srch_inf->srch_entries_start = srch_inf->last_entry = 4 /* rfclen */ +
-		(char *)&rsp->hdr + le16_to_cpu(rsp->OutputBufferOffset);
-	/* 4 for rfc1002 length field */
-	end_of_smb = get_rfc1002_length(rsp) + 4 + (char *)&rsp->hdr;
+	srch_inf->srch_entries_start = srch_inf->last_entry =
+		(char *)rsp + le16_to_cpu(rsp->OutputBufferOffset);
+	end_of_smb = rsp_iov.iov_len + (char *)rsp;
 	srch_inf->entries_in_buffer =
 			num_entries(srch_inf->srch_entries_start, end_of_smb,
 				    &srch_inf->last_entry, info_buf_size);

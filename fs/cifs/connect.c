@@ -882,7 +882,11 @@ cifs_demultiplex_thread(void *p)
 		length = cifs_read_from_socket(server, buf, pdu_length);
 		if (length < 0)
 			continue;
-		server->total_read = length;
+
+		if (server->vals->header_preamble_size == 0)
+			server->total_read = 0;
+		else
+			server->total_read = length;
 
 		/*
 		 * The right amount was read from socket - 4 bytes,
