@@ -1521,8 +1521,6 @@ smb2_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 	unsigned int sub_offset;
 	unsigned int print_len;
 	unsigned int print_offset;
-	struct cifs_ses *ses = tcon->ses;
-	struct TCP_Server_Info *server = ses->server;
 
 	cifs_dbg(FYI, "%s: path: %s\n", __func__, full_path);
 
@@ -1546,7 +1544,7 @@ smb2_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 
 	err_buf = err_iov.iov_base;
 	if (le32_to_cpu(err_buf->ByteCount) < sizeof(struct smb2_symlink_err_rsp) ||
-	    err_iov.iov_len + server->vals->header_preamble_size < SMB2_SYMLINK_STRUCT_SIZE) {
+	    err_iov.iov_len < SMB2_SYMLINK_STRUCT_SIZE) {
 		kfree(utf16_path);
 		return -ENOENT;
 	}
@@ -1559,14 +1557,13 @@ smb2_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 	print_len = le16_to_cpu(symlink->PrintNameLength);
 	print_offset = le16_to_cpu(symlink->PrintNameOffset);
 
-	if (err_iov.iov_len + server->vals->header_preamble_size <
-			SMB2_SYMLINK_STRUCT_SIZE + sub_offset + sub_len) {
+	if (err_iov.iov_len < SMB2_SYMLINK_STRUCT_SIZE + sub_offset + sub_len) {
 		kfree(utf16_path);
 		return -ENOENT;
 	}
 
-	if (err_iov.iov_len + server->vals->header_preamble_size <
-			SMB2_SYMLINK_STRUCT_SIZE + print_offset + print_len) {
+	if (err_iov.iov_len <
+	    SMB2_SYMLINK_STRUCT_SIZE + print_offset + print_len) {
 		kfree(utf16_path);
 		return -ENOENT;
 	}
@@ -2233,7 +2230,7 @@ crypt_message(struct TCP_Server_Info *server, struct smb_rqst *rqst, int enc)
 {
 	struct smb2_transform_hdr *tr_hdr =
 			(struct smb2_transform_hdr *)rqst->rq_iov[0].iov_base;
-	unsigned int assoc_data_len = sizeof(struct smb2_transform_hdr) - 20 - server->vals->header_preamble_size;
+	unsigned int assoc_data_len = sizeof(struct smb2_transform_hdr) - 20;
 	int rc = 0;
 	struct scatterlist *sg;
 	u8 sign[SMB2_SIGNATURE_SIZE] = {};
@@ -2459,7 +2456,7 @@ decrypt_raw_data(struct TCP_Server_Info *server, char *buf,
 	if (rc)
 		return rc;
 
-	memmove(buf + server->vals->header_preamble_size, iov[2].iov_base, buf_data_size);
+	memmove(buf, iov[2].iov_base, buf_data_size);
 
 	server->total_read = buf_data_size + page_data_size;
 
@@ -2565,7 +2562,7 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 		return 0;
 	}
 
-	data_offset = server->ops->read_data_offset(buf) + server->vals->header_preamble_size;
+	data_offset = server->ops->read_data_offset(buf);
 #ifdef CONFIG_CIFS_SMB_DIRECT
 	use_rdma_mr = rdata->mr;
 #endif
@@ -2661,12 +2658,11 @@ receive_encrypted_read(struct TCP_Server_Info *server, struct mid_q_entry **mid)
 	unsigned int npages;
 	struct page **pages;
 	unsigned int len;
-	unsigned int buflen = server->pdu_size + server->vals->header_preamble_size;
+	unsigned int buflen = server->pdu_size;
 	int rc;
 	int i = 0;
 
-	len = min_t(unsigned int, buflen, server->vals->read_rsp_size -
-		server->vals->header_preamble_size +
+	len = min_t(unsigned int, buflen, server->vals->read_rsp_size +
 		sizeof(struct smb2_transform_hdr)) - HEADER_SIZE(server) + 1;
 
 	rc = cifs_read_from_socket(server, buf + HEADER_SIZE(server) - 1, len);
@@ -2674,8 +2670,7 @@ receive_encrypted_read(struct TCP_Server_Info *server, struct mid_q_entry **mid)
 		return rc;
 	server->total_read += rc;
 
-	len = le32_to_cpu(tr_hdr->OriginalMessageSize) +
-		server->vals->header_preamble_size -
+	len = le32_to_cpu(tr_hdr->OriginalMessageSize) -
 		server->vals->read_rsp_size;
 	npages = DIV_ROUND_UP(len, PAGE_SIZE);
 
@@ -2702,8 +2697,7 @@ receive_encrypted_read(struct TCP_Server_Info *server, struct mid_q_entry **mid)
 	if (rc)
 		goto free_pages;
 
-	rc = decrypt_raw_data(server, buf, server->vals->read_rsp_size -
-			      server->vals->header_preamble_size,
+	rc = decrypt_raw_data(server, buf, server->vals->read_rsp_size,
 			      pages, npages, len);
 	if (rc)
 		goto free_pages;
@@ -2740,7 +2734,7 @@ receive_encrypted_standard(struct TCP_Server_Info *server,
 	struct mid_q_entry *mid_entry;
 
 	/* switch to large buffer if too big for a small one */
-	if (pdu_length + server->vals->header_preamble_size > MAX_CIFS_SMALL_BUFFER_SIZE) {
+	if (pdu_length > MAX_CIFS_SMALL_BUFFER_SIZE) {
 		server->large_buf = true;
 		memcpy(server->bigbuf, buf, server->total_read);
 		buf = server->bigbuf;
@@ -2748,13 +2742,12 @@ receive_encrypted_standard(struct TCP_Server_Info *server,
 
 	/* now read the rest */
 	length = cifs_read_from_socket(server, buf + HEADER_SIZE(server) - 1,
-				pdu_length - HEADER_SIZE(server) + 1 +
-				server->vals->header_preamble_size);
+				pdu_length - HEADER_SIZE(server) + 1);
 	if (length < 0)
 		return length;
 	server->total_read += length;
 
-	buf_size = pdu_length + server->vals->header_preamble_size - sizeof(struct smb2_transform_hdr);
+	buf_size = pdu_length - sizeof(struct smb2_transform_hdr);
 	length = decrypt_raw_data(server, buf, buf_size, NULL, 0, 0);
 	if (length)
 		return length;
@@ -2783,7 +2776,7 @@ smb3_receive_transform(struct TCP_Server_Info *server, struct mid_q_entry **mid)
 	struct smb2_transform_hdr *tr_hdr = (struct smb2_transform_hdr *)buf;
 	unsigned int orig_len = le32_to_cpu(tr_hdr->OriginalMessageSize);
 
-	if (pdu_length + server->vals->header_preamble_size < sizeof(struct smb2_transform_hdr) +
+	if (pdu_length < sizeof(struct smb2_transform_hdr) +
 						sizeof(struct smb2_sync_hdr)) {
 		cifs_dbg(VFS, "Transform message is too small (%u)\n",
 			 pdu_length);
@@ -2792,14 +2785,14 @@ smb3_receive_transform(struct TCP_Server_Info *server, struct mid_q_entry **mid)
 		return -ECONNABORTED;
 	}
 
-	if (pdu_length + server->vals->header_preamble_size < orig_len + sizeof(struct smb2_transform_hdr)) {
+	if (pdu_length < orig_len + sizeof(struct smb2_transform_hdr)) {
 		cifs_dbg(VFS, "Transform message is broken\n");
 		cifs_reconnect(server);
 		wake_up(&server->response_q);
 		return -ECONNABORTED;
 	}
 
-	if (pdu_length + server->vals->header_preamble_size > CIFSMaxBufSize + MAX_HEADER_SIZE(server))
+	if (pdu_length > CIFSMaxBufSize + MAX_HEADER_SIZE(server))
 		return receive_encrypted_read(server, mid);
 
 	return receive_encrypted_standard(server, mid);
@@ -2810,8 +2803,7 @@ smb3_handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 {
 	char *buf = server->large_buf ? server->bigbuf : server->smallbuf;
 
-	return handle_read_data(server, mid, buf, server->pdu_size +
-				server->vals->header_preamble_size,
+	return handle_read_data(server, mid, buf, server->pdu_size,
 				NULL, 0, 0);
 }
 

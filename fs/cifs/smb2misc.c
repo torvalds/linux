@@ -95,8 +95,7 @@ static const __le16 smb2_rsp_struct_sizes[NUMBER_OF_SMB2_COMMANDS] = {
 
 #ifdef CONFIG_CIFS_SMB311
 static __u32 get_neg_ctxt_len(struct smb2_sync_hdr *hdr, __u32 len,
-			      __u32 non_ctxlen,
-				size_t hdr_preamble_size)
+			      __u32 non_ctxlen)
 {
 	__u16 neg_count;
 	__u32 nc_offset, size_of_pad_before_neg_ctxts;
@@ -110,12 +109,11 @@ static __u32 get_neg_ctxt_len(struct smb2_sync_hdr *hdr, __u32 len,
 
 	/* Make sure that negotiate contexts start after gss security blob */
 	nc_offset = le32_to_cpu(pneg_rsp->NegotiateContextOffset);
-	if (nc_offset < non_ctxlen - hdr_preamble_size /* RFC1001 len */) {
+	if (nc_offset < non_ctxlen) {
 		printk_once(KERN_WARNING "invalid negotiate context offset\n");
 		return 0;
 	}
-	size_of_pad_before_neg_ctxts = nc_offset -
-					(non_ctxlen - hdr_preamble_size);
+	size_of_pad_before_neg_ctxts = nc_offset - non_ctxlen;
 
 	/* Verify that at least minimal negotiate contexts fit within frame */
 	if (len < nc_offset + (neg_count * sizeof(struct smb2_neg_context))) {
@@ -134,7 +132,7 @@ static __u32 get_neg_ctxt_len(struct smb2_sync_hdr *hdr, __u32 len,
 int
 smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *srvr)
 {
-	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)(buf + srvr->vals->header_preamble_size);
+	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)buf;
 	struct smb2_sync_pdu *pdu = (struct smb2_sync_pdu *)shdr;
 	__u64 mid;
 	__u32 clc_len;  /* calculated length */
@@ -183,8 +181,7 @@ smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *srvr)
 		}
 		return 1;
 	}
-	if (len > CIFSMaxBufSize + MAX_SMB2_HDR_SIZE -
-	    srvr->vals->header_preamble_size) {
+	if (len > CIFSMaxBufSize + MAX_SMB2_HDR_SIZE) {
 		cifs_dbg(VFS, "SMB length greater than maximum, mid=%llu\n",
 			 mid);
 		return 1;
@@ -227,8 +224,7 @@ smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *srvr)
 
 #ifdef CONFIG_CIFS_SMB311
 	if (shdr->Command == SMB2_NEGOTIATE)
-		clc_len += get_neg_ctxt_len(shdr, len, clc_len,
-					    srvr->vals->header_preamble_size);
+		clc_len += get_neg_ctxt_len(shdr, len, clc_len);
 #endif /* SMB311 */
 	if (len != clc_len) {
 		cifs_dbg(FYI, "Calculated size %u length %u mismatch mid %llu\n",
@@ -253,7 +249,7 @@ smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *srvr)
 		 */
 		if (clc_len < len) {
 			printk_once(KERN_WARNING
-				"SMB2 server sent bad RFC1001 len %d not %u\n",
+				"SMB2 server sent bad RFC1001 len %d not %d\n",
 				len, clc_len);
 			return 0;
 		}
@@ -401,7 +397,7 @@ smb2_calc_size(void *buf, struct TCP_Server_Info *srvr)
 	int offset; /* the offset from the beginning of SMB to data area */
 	int data_length; /* the length of the variable length data area */
 	/* Structure Size has already been checked to make sure it is 64 */
-	int len = srvr->vals->header_preamble_size + le16_to_cpu(shdr->StructureSize);
+	int len = le16_to_cpu(shdr->StructureSize);
 
 	/*
 	 * StructureSize2, ie length of fixed parameter area has already
@@ -422,12 +418,12 @@ smb2_calc_size(void *buf, struct TCP_Server_Info *srvr)
 		 * for some commands, typically those with odd StructureSize,
 		 * so we must add one to the calculation.
 		 */
-		if (offset + srvr->vals->header_preamble_size + 1 < len) {
-			cifs_dbg(VFS, "data area offset %zu overlaps SMB2 header %d\n",
-				 offset + srvr->vals->header_preamble_size + 1, len);
+		if (offset + 1 < len) {
+			cifs_dbg(VFS, "data area offset %d overlaps SMB2 header %d\n",
+				 offset + 1, len);
 			data_length = 0;
 		} else {
-			len = srvr->vals->header_preamble_size + offset + data_length;
+			len = offset + data_length;
 		}
 	}
 calc_size_exit:
