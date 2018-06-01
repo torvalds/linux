@@ -767,7 +767,7 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	server->capabilities |= SMB2_NT_FIND | SMB2_LARGE_FILES;
 
 	security_blob = smb2_get_data_area_len(&blob_offset, &blob_length,
-					       &rsp->hdr);
+					       &rsp->hdr.sync_hdr);
 	/*
 	 * See MS-SMB2 section 2.2.4: if no blob, client picks default which
 	 * for us will be

@@ -295,15 +295,14 @@ static const bool has_smb2_data_area[NUMBER_OF_SMB2_COMMANDS] = {
  * area and the offset to it (from the beginning of the smb are also returned.
  */
 char *
-smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *hdr)
+smb2_get_data_area_len(int *off, int *len, struct smb2_sync_hdr *shdr)
 {
-	struct smb2_sync_hdr *shdr = get_sync_hdr(hdr);
 	*off = 0;
 	*len = 0;
 
 	/* error responses do not have data area */
 	if (shdr->Status && shdr->Status != STATUS_MORE_PROCESSING_REQUIRED &&
-	    (((struct smb2_err_rsp *)hdr)->StructureSize) ==
+	    (((struct smb2_err_rsp *)shdr)->StructureSize) ==
 						SMB2_ERROR_STRUCTURE_SIZE2)
 		return NULL;
 
@@ -315,42 +314,44 @@ smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *hdr)
 	switch (shdr->Command) {
 	case SMB2_NEGOTIATE:
 		*off = le16_to_cpu(
-		    ((struct smb2_negotiate_rsp *)hdr)->SecurityBufferOffset);
+		  ((struct smb2_negotiate_rsp *)shdr)->SecurityBufferOffset);
 		*len = le16_to_cpu(
-		    ((struct smb2_negotiate_rsp *)hdr)->SecurityBufferLength);
+		  ((struct smb2_negotiate_rsp *)shdr)->SecurityBufferLength);
 		break;
 	case SMB2_SESSION_SETUP:
 		*off = le16_to_cpu(
-		    ((struct smb2_sess_setup_rsp *)hdr)->SecurityBufferOffset);
+		  ((struct smb2_sess_setup_rsp *)shdr)->SecurityBufferOffset);
 		*len = le16_to_cpu(
-		    ((struct smb2_sess_setup_rsp *)hdr)->SecurityBufferLength);
+		  ((struct smb2_sess_setup_rsp *)shdr)->SecurityBufferLength);
 		break;
 	case SMB2_CREATE:
 		*off = le32_to_cpu(
-		    ((struct smb2_create_rsp *)hdr)->CreateContextsOffset);
+		    ((struct smb2_create_rsp *)shdr)->CreateContextsOffset);
 		*len = le32_to_cpu(
-		    ((struct smb2_create_rsp *)hdr)->CreateContextsLength);
+		    ((struct smb2_create_rsp *)shdr)->CreateContextsLength);
 		break;
 	case SMB2_QUERY_INFO:
 		*off = le16_to_cpu(
-		    ((struct smb2_query_info_rsp *)hdr)->OutputBufferOffset);
+		    ((struct smb2_query_info_rsp *)shdr)->OutputBufferOffset);
 		*len = le32_to_cpu(
-		    ((struct smb2_query_info_rsp *)hdr)->OutputBufferLength);
+		    ((struct smb2_query_info_rsp *)shdr)->OutputBufferLength);
 		break;
 	case SMB2_READ:
-		*off = ((struct smb2_read_rsp *)hdr)->DataOffset;
-		*len = le32_to_cpu(((struct smb2_read_rsp *)hdr)->DataLength);
+		/* TODO: is this a bug ? */
+		*off = ((struct smb2_read_rsp *)shdr)->DataOffset;
+		*len = le32_to_cpu(((struct smb2_read_rsp *)shdr)->DataLength);
 		break;
 	case SMB2_QUERY_DIRECTORY:
 		*off = le16_to_cpu(
-		  ((struct smb2_query_directory_rsp *)hdr)->OutputBufferOffset);
+		  ((struct smb2_query_directory_rsp *)shdr)->OutputBufferOffset);
 		*len = le32_to_cpu(
-		  ((struct smb2_query_directory_rsp *)hdr)->OutputBufferLength);
+		  ((struct smb2_query_directory_rsp *)shdr)->OutputBufferLength);
 		break;
 	case SMB2_IOCTL:
 		*off = le32_to_cpu(
-		  ((struct smb2_ioctl_rsp *)hdr)->OutputOffset);
-		*len = le32_to_cpu(((struct smb2_ioctl_rsp *)hdr)->OutputCount);
+		  ((struct smb2_ioctl_rsp *)shdr)->OutputOffset);
+		*len = le32_to_cpu(
+		  ((struct smb2_ioctl_rsp *)shdr)->OutputCount);
 		break;
 	case SMB2_CHANGE_NOTIFY:
 	default:
@@ -411,7 +412,7 @@ smb2_calc_size(void *buf, struct TCP_Server_Info *srvr)
 	if (has_smb2_data_area[le16_to_cpu(shdr->Command)] == false)
 		goto calc_size_exit;
 
-	smb2_get_data_area_len(&offset, &data_length, (struct smb2_hdr *)buf);
+	smb2_get_data_area_len(&offset, &data_length, shdr);
 	cifs_dbg(FYI, "SMB2 data length %d offset %d\n", data_length, offset);
 
 	if (data_length > 0) {
