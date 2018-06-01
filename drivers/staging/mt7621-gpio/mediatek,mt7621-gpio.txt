@@ -15,7 +15,13 @@ Required properties for the top level node:
 - interrupt-parent : phandle of the parent interrupt controller.
 - interrupts : Interrupt specifier for the controllers interrupt.
 - interrupt-controller : Mark the device node as an interrupt controller.
-- #interrupt-cells : Should be 1. The first cell is the GPIO number.
+- #interrupt-cells : Should be 2. The first cell defines the interrupt number.
+   The second cell bits[3:0] is used to specify trigger type as follows:
+	- 1 = low-to-high edge triggered.
+	- 2 = high-to-low edge triggered.
+	- 4 = active high level-sensitive.
+	- 8 = active low level-sensitive.
+
 
 Required properties for the GPIO bank node:
 - compatible:
@@ -37,7 +43,7 @@ Example:
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SHARED 12 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-controller;
-		#interrupt-cells = <1>;
+		#interrupt-cells = <2>;
 
 		gpio0: bank@0 {
 			reg = <0>;
