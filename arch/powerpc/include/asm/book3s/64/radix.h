@@ -131,19 +131,20 @@ extern void radix__ptep_set_access_flags(struct vm_area_struct *vma, pte_t *ptep
 static inline unsigned long __radix_pte_update(pte_t *ptep, unsigned long clr,
 					       unsigned long set)
 {
-	pte_t pte;
-	unsigned long old_pte, new_pte;
+	__be64 old_be, tmp_be;
 
-	do {
-		pte = READ_ONCE(*ptep);
-		old_pte = pte_val(pte);
-		new_pte = (old_pte | set) & ~clr;
+	__asm__ __volatile__(
+	"1:	ldarx	%0,0,%3		# pte_update\n"
+	"	andc	%1,%0,%5	\n"
+	"	or	%1,%1,%4	\n"
+	"	stdcx.	%1,0,%3		\n"
+	"	bne-	1b"
+	: "=&r" (old_be), "=&r" (tmp_be), "=m" (*ptep)
+	: "r" (ptep), "r" (cpu_to_be64(set)), "r" (cpu_to_be64(clr))
+	: "cc" );
 
-	} while (!pte_xchg(ptep, __pte(old_pte), __pte(new_pte)));
-
-	return old_pte;
+	return be64_to_cpu(old_be);
 }
-
 
 static inline unsigned long radix__pte_update(struct mm_struct *mm,
 					unsigned long addr,

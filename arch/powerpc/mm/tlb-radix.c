@@ -524,6 +524,11 @@ void radix__flush_tlb_mm(struct mm_struct *mm)
 		return;
 
 	preempt_disable();
+	/*
+	 * Order loads of mm_cpumask vs previous stores to clear ptes before
+	 * the invalidate. See barrier in switch_mm_irqs_off
+	 */
+	smp_mb();
 	if (!mm_is_thread_local(mm)) {
 		if (mm_needs_flush_escalation(mm))
 			_tlbie_pid(pid, RIC_FLUSH_ALL);
@@ -544,6 +549,7 @@ void radix__flush_all_mm(struct mm_struct *mm)
 		return;
 
 	preempt_disable();
+	smp_mb(); /* see radix__flush_tlb_mm */
 	if (!mm_is_thread_local(mm))
 		_tlbie_pid(pid, RIC_FLUSH_ALL);
 	else
@@ -568,6 +574,7 @@ void radix__flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr,
 		return;
 
 	preempt_disable();
+	smp_mb(); /* see radix__flush_tlb_mm */
 	if (!mm_is_thread_local(mm))
 		_tlbie_va(vmaddr, pid, psize, RIC_FLUSH_TLB);
 	else
@@ -630,6 +637,7 @@ void radix__flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 		return;
 
 	preempt_disable();
+	smp_mb(); /* see radix__flush_tlb_mm */
 	if (mm_is_thread_local(mm)) {
 		local = true;
 		full = (end == TLB_FLUSH_ALL ||
@@ -791,6 +799,7 @@ static inline void __radix__flush_tlb_range_psize(struct mm_struct *mm,
 		return;
 
 	preempt_disable();
+	smp_mb(); /* see radix__flush_tlb_mm */
 	if (mm_is_thread_local(mm)) {
 		local = true;
 		full = (end == TLB_FLUSH_ALL ||
@@ -849,7 +858,7 @@ void radix__flush_tlb_collapsed_pmd(struct mm_struct *mm, unsigned long addr)
 
 	/* Otherwise first do the PWC, then iterate the pages. */
 	preempt_disable();
-
+	smp_mb(); /* see radix__flush_tlb_mm */
 	if (mm_is_thread_local(mm)) {
 		_tlbiel_va_range(addr, end, pid, PAGE_SIZE, mmu_virtual_psize, true);
 	} else {
