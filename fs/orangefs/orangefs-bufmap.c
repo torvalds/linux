@@ -215,20 +215,6 @@ int orangefs_bufmap_shift_query(void)
 static DECLARE_WAIT_QUEUE_HEAD(bufmap_waitq);
 static DECLARE_WAIT_QUEUE_HEAD(readdir_waitq);
 
-/*
- * orangefs_get_bufmap_init
- *
- * If bufmap_init is 1, then the shared memory system, including the
- * buffer_index_array, is available.  Otherwise, it is not.
- *
- * returns the value of bufmap_init
- */
-int orangefs_get_bufmap_init(void)
-{
-	return __orangefs_bufmap ? 1 : 0;
-}
-
-
 static struct orangefs_bufmap *
 orangefs_bufmap_alloc(struct ORANGEFS_dev_map_desc *user_desc)
 {
