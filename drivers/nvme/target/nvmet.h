@@ -30,6 +30,21 @@
 #define NVMET_ASYNC_EVENTS		4
 #define NVMET_ERROR_LOG_SLOTS		128
 
+
+/*
+ * Supported optional AENs:
+ */
+#define NVMET_AEN_CFG_OPTIONAL \
+	NVME_AEN_CFG_NS_ATTR
+
+/*
+ * Plus mandatory SMART AENs (we'll never send them, but allow enabling them):
+ */
+#define NVMET_AEN_CFG_ALL \
+	(NVME_SMART_CRIT_SPARE | NVME_SMART_CRIT_TEMPERATURE | \
+	 NVME_SMART_CRIT_RELIABILITY | NVME_SMART_CRIT_MEDIA | \
+	 NVME_SMART_CRIT_VOLATILE_MEMORY | NVMET_AEN_CFG_OPTIONAL)
+
 /* Helper Macros when NVMe error is NVME_SC_CONNECT_INVALID_PARAM
  * The 16 bit shift is to set IATTR bit to 1, which means offending
  * offset starts in the data section of connect()
@@ -85,7 +100,7 @@ struct nvmet_sq {
 /**
  * struct nvmet_port -	Common structure to keep port
  *				information for the target.
- * @entry:		List head for holding a list of these elements.
+ * @entry:		Entry into referrals or transport list.
  * @disc_addr:		Address information is stored in a format defined
  *				for a discovery log page entry.
  * @group:		ConfigFS group for this element's folder.
@@ -123,6 +138,8 @@ struct nvmet_ctrl {
 	u16			cntlid;
 	u32			kato;
 
+	u32			aen_enabled;
+	unsigned long		aen_masked;
 	struct nvmet_req	*async_event_cmds[NVMET_ASYNC_EVENTS];
 	unsigned int		nr_async_event_cmds;
 	struct list_head	async_events;
@@ -134,6 +151,9 @@ struct nvmet_ctrl {
 	struct work_struct	fatal_err_work;
 
 	const struct nvmet_fabrics_ops *ops;
+
+	__le32			*changed_ns_list;
+	u32			nr_changed_ns;
 
 	char			subsysnqn[NVMF_NQN_FIELD_LEN];
 	char			hostnqn[NVMF_NQN_FIELD_LEN];
@@ -330,6 +350,7 @@ u16 nvmet_copy_to_sgl(struct nvmet_req *req, off_t off, const void *buf,
 		size_t len);
 u16 nvmet_copy_from_sgl(struct nvmet_req *req, off_t off, void *buf,
 		size_t len);
+u16 nvmet_zero_sgl(struct nvmet_req *req, off_t off, size_t len);
 
 u32 nvmet_get_log_page_len(struct nvme_command *cmd);
 

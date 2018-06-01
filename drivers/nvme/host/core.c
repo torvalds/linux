@@ -100,6 +100,15 @@ static struct class *nvme_subsys_class;
 static void nvme_ns_remove(struct nvme_ns *ns);
 static int nvme_revalidate_disk(struct gendisk *disk);
 
+static void nvme_queue_scan(struct nvme_ctrl *ctrl)
+{
+	/*
+	 * Only new queue scan work when admin and IO queues are both alive
+	 */
+	if (ctrl->state == NVME_CTRL_LIVE)
+		queue_work(nvme_wq, &ctrl->scan_work);
+}
+
 int nvme_reset_ctrl(struct nvme_ctrl *ctrl)
 {
 	if (!nvme_change_ctrl_state(ctrl, NVME_CTRL_RESETTING))
@@ -1026,6 +1035,21 @@ int nvme_set_queue_count(struct nvme_ctrl *ctrl, int *count)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nvme_set_queue_count);
+
+#define NVME_AEN_SUPPORTED \
+	(NVME_AEN_CFG_NS_ATTR | NVME_AEN_CFG_FW_ACT)
+
+static void nvme_enable_aen(struct nvme_ctrl *ctrl)
+{
+	u32 result;
+	int status;
+
+	status = nvme_set_features(ctrl, NVME_FEAT_ASYNC_EVENT,
+			ctrl->oaes & NVME_AEN_SUPPORTED, NULL, 0, &result);
+	if (status)
+		dev_warn(ctrl->device, "Failed to configure AEN (cfg %x)\n",
+			 ctrl->oaes & NVME_AEN_SUPPORTED);
+}
 
 static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 {
@@ -2344,6 +2368,7 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 
 	ctrl->oacs = le16_to_cpu(id->oacs);
 	ctrl->oncs = le16_to_cpup(&id->oncs);
+	ctrl->oaes = le32_to_cpu(id->oaes);
 	atomic_set(&ctrl->abort_limit, id->acl + 1);
 	ctrl->vwc = id->vwc;
 	ctrl->cntlid = le16_to_cpup(&id->cntlid);
@@ -3166,6 +3191,42 @@ static void nvme_scan_ns_sequential(struct nvme_ctrl *ctrl, unsigned nn)
 	nvme_remove_invalid_namespaces(ctrl, nn);
 }
 
+static bool nvme_scan_changed_ns_log(struct nvme_ctrl *ctrl)
+{
+	size_t log_size = NVME_MAX_CHANGED_NAMESPACES * sizeof(__le32);
+	__le32 *log;
+	int error, i;
+	bool ret = false;
+
+	log = kzalloc(log_size, GFP_KERNEL);
+	if (!log)
+		return false;
+
+	error = nvme_get_log(ctrl, NVME_LOG_CHANGED_NS, log, log_size);
+	if (error) {
+		dev_warn(ctrl->device,
+			"reading changed ns log failed: %d\n", error);
+		goto out_free_log;
+	}
+
+	if (log[0] == cpu_to_le32(0xffffffff))
+		goto out_free_log;
+
+	for (i = 0; i < NVME_MAX_CHANGED_NAMESPACES; i++) {
+		u32 nsid = le32_to_cpu(log[i]);
+
+		if (nsid == 0)
+			break;
+		dev_info(ctrl->device, "rescanning namespace %d.\n", nsid);
+		nvme_validate_ns(ctrl, nsid);
+	}
+	ret = true;
+
+out_free_log:
+	kfree(log);
+	return ret;
+}
+
 static void nvme_scan_work(struct work_struct *work)
 {
 	struct nvme_ctrl *ctrl =
@@ -3178,6 +3239,12 @@ static void nvme_scan_work(struct work_struct *work)
 
 	WARN_ON_ONCE(!ctrl->tagset);
 
+	if (test_and_clear_bit(EVENT_NS_CHANGED, &ctrl->events)) {
+		if (nvme_scan_changed_ns_log(ctrl))
+			goto out_sort_namespaces;
+		dev_info(ctrl->device, "rescanning namespaces.\n");
+	}
+
 	if (nvme_identify_ctrl(ctrl, &id))
 		return;
 
@@ -3185,25 +3252,16 @@ static void nvme_scan_work(struct work_struct *work)
 	if (ctrl->vs >= NVME_VS(1, 1, 0) &&
 	    !(ctrl->quirks & NVME_QUIRK_IDENTIFY_CNS)) {
 		if (!nvme_scan_ns_list(ctrl, nn))
-			goto done;
+			goto out_free_id;
 	}
 	nvme_scan_ns_sequential(ctrl, nn);
- done:
+out_free_id:
+	kfree(id);
+out_sort_namespaces:
 	down_write(&ctrl->namespaces_rwsem);
 	list_sort(NULL, &ctrl->namespaces, ns_cmp);
 	up_write(&ctrl->namespaces_rwsem);
-	kfree(id);
 }
-
-void nvme_queue_scan(struct nvme_ctrl *ctrl)
-{
-	/*
-	 * Only new queue scan work when admin and IO queues are both alive
-	 */
-	if (ctrl->state == NVME_CTRL_LIVE)
-		queue_work(nvme_wq, &ctrl->scan_work);
-}
-EXPORT_SYMBOL_GPL(nvme_queue_scan);
 
 /*
  * This function iterates the namespace list unlocked to allow recovery from
@@ -3318,6 +3376,21 @@ static void nvme_fw_act_work(struct work_struct *work)
 	nvme_get_fw_slot_info(ctrl);
 }
 
+static void nvme_handle_aen_notice(struct nvme_ctrl *ctrl, u32 result)
+{
+	switch ((result & 0xff00) >> 8) {
+	case NVME_AER_NOTICE_NS_CHANGED:
+		set_bit(EVENT_NS_CHANGED, &ctrl->events);
+		nvme_queue_scan(ctrl);
+		break;
+	case NVME_AER_NOTICE_FW_ACT_STARTING:
+		queue_work(nvme_wq, &ctrl->fw_act_work);
+		break;
+	default:
+		dev_warn(ctrl->device, "async event result %08x\n", result);
+	}
+}
+
 void nvme_complete_async_event(struct nvme_ctrl *ctrl, __le16 status,
 		volatile union nvme_result *res)
 {
@@ -3327,6 +3400,9 @@ void nvme_complete_async_event(struct nvme_ctrl *ctrl, __le16 status,
 		return;
 
 	switch (result & 0x7) {
+	case NVME_AER_NOTICE:
+		nvme_handle_aen_notice(ctrl, result);
+		break;
 	case NVME_AER_ERROR:
 	case NVME_AER_SMART:
 	case NVME_AER_CSS:
@@ -3335,18 +3411,6 @@ void nvme_complete_async_event(struct nvme_ctrl *ctrl, __le16 status,
 		break;
 	default:
 		break;
-	}
-
-	switch (result & 0xff07) {
-	case NVME_AER_NOTICE_NS_CHANGED:
-		dev_info(ctrl->device, "rescanning\n");
-		nvme_queue_scan(ctrl);
-		break;
-	case NVME_AER_NOTICE_FW_ACT_STARTING:
-		queue_work(nvme_wq, &ctrl->fw_act_work);
-		break;
-	default:
-		dev_warn(ctrl->device, "async event result %08x\n", result);
 	}
 	queue_work(nvme_wq, &ctrl->async_event_work);
 }
@@ -3370,6 +3434,7 @@ void nvme_start_ctrl(struct nvme_ctrl *ctrl)
 
 	if (ctrl->queue_count > 1) {
 		nvme_queue_scan(ctrl);
+		nvme_enable_aen(ctrl);
 		queue_work(nvme_wq, &ctrl->async_event_work);
 		nvme_start_queues(ctrl);
 	}

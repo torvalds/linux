@@ -176,6 +176,7 @@ struct nvme_ctrl {
 	u16 kas;
 	u8 npss;
 	u8 apsta;
+	u32 oaes;
 	u32 aen_result;
 	unsigned int shutdown_timeout;
 	unsigned int kato;
@@ -188,6 +189,8 @@ struct nvme_ctrl {
 	struct delayed_work ka_work;
 	struct nvme_command ka_cmd;
 	struct work_struct fw_act_work;
+#define EVENT_NS_CHANGED		(1 << 0)
+	unsigned long events;
 
 	/* Power saving configuration */
 	u64 ps_max_latency_us;
@@ -394,7 +397,6 @@ void nvme_stop_ctrl(struct nvme_ctrl *ctrl);
 void nvme_put_ctrl(struct nvme_ctrl *ctrl);
 int nvme_init_identify(struct nvme_ctrl *ctrl);
 
-void nvme_queue_scan(struct nvme_ctrl *ctrl);
 void nvme_remove_namespaces(struct nvme_ctrl *ctrl);
 
 int nvme_sec_submit(void *data, u16 spsp, u8 secp, void *buffer, size_t len,

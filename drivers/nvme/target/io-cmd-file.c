@@ -34,7 +34,7 @@ int nvmet_file_ns_enable(struct nvmet_ns *ns)
 			O_RDWR | O_LARGEFILE | O_DIRECT, 0);
 	if (IS_ERR(ns->file)) {
 		pr_err("failed to open file %s: (%ld)\n",
-				ns->device_path, PTR_ERR(ns->bdev));
+				ns->device_path, PTR_ERR(ns->file));
 		return PTR_ERR(ns->file);
 	}
 
@@ -49,14 +49,18 @@ int nvmet_file_ns_enable(struct nvmet_ns *ns)
 	ns->bvec_cache = kmem_cache_create("nvmet-bvec",
 			NVMET_MAX_MPOOL_BVEC * sizeof(struct bio_vec),
 			0, SLAB_HWCACHE_ALIGN, NULL);
-	if (!ns->bvec_cache)
+	if (!ns->bvec_cache) {
+		ret = -ENOMEM;
 		goto err;
+	}
 
 	ns->bvec_pool = mempool_create(NVMET_MIN_MPOOL_OBJ, mempool_alloc_slab,
 			mempool_free_slab, ns->bvec_cache);
 
-	if (!ns->bvec_pool)
+	if (!ns->bvec_pool) {
+		ret = -ENOMEM;
 		goto err;
+	}
 
 	return ret;
 err:
