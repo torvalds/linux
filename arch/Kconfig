@@ -486,6 +486,7 @@ config GCC_PLUGIN_STRUCTLEAK
 config GCC_PLUGIN_STRUCTLEAK_BYREF_ALL
 	bool "Force initialize all struct type variables passed by reference"
 	depends on GCC_PLUGIN_STRUCTLEAK
+	depends on !COMPILE_TEST
 	help
 	  Zero initialize any struct type local variable that may be passed by
 	  reference without having been initialized.
