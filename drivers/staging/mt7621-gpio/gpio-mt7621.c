@@ -6,6 +6,7 @@
 
 #include <linux/io.h>
 #include <linux/err.h>
+#include <linux/gpio.h>
 #include <linux/gpio/driver.h>
 #include <linux/module.h>
 #include <linux/of_irq.h>
@@ -127,7 +128,7 @@ mediatek_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 	struct mtk_gc *rg = to_mediatek_gpio(chip);
 	u32 t = mtk_gpio_r32(rg, GPIO_REG_CTRL);
 
-	return (t & BIT(offset)) ? 0 : 1;
+	return (t & BIT(offset)) ? GPIOF_DIR_OUT : GPIOF_DIR_IN;
 }
 
 static int
