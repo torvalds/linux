@@ -95,7 +95,7 @@ static int hns3_lp_setup(struct net_device *ndev, enum hnae3_loop loop, bool en)
 	if (ret)
 		return ret;
 
-	h->ae_algo->ops->set_promisc_mode(h, en);
+	h->ae_algo->ops->set_promisc_mode(h, en, en);
 
 	return ret;
 }

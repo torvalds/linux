@@ -415,15 +415,21 @@ static void hns3_nic_set_rx_mode(struct net_device *netdev)
 
 	if (h->ae_algo->ops->set_promisc_mode) {
 		if (netdev->flags & IFF_PROMISC)
-			h->ae_algo->ops->set_promisc_mode(h, 1);
+			h->ae_algo->ops->set_promisc_mode(h, true, true);
+		else if (netdev->flags & IFF_ALLMULTI)
+			h->ae_algo->ops->set_promisc_mode(h, false, true);
 		else
-			h->ae_algo->ops->set_promisc_mode(h, 0);
+			h->ae_algo->ops->set_promisc_mode(h, false, false);
 	}
 	if (__dev_uc_sync(netdev, hns3_nic_uc_sync, hns3_nic_uc_unsync))
 		netdev_err(netdev, "sync uc address fail\n");
-	if (netdev->flags & IFF_MULTICAST)
+	if (netdev->flags & IFF_MULTICAST) {
 		if (__dev_mc_sync(netdev, hns3_nic_mc_sync, hns3_nic_mc_unsync))
 			netdev_err(netdev, "sync mc address fail\n");
+
+		if (h->ae_algo->ops->update_mta_status)
+			h->ae_algo->ops->update_mta_status(h);
+	}
 }
 
 static int hns3_set_tso(struct sk_buff *skb, u32 *paylen,
@@ -653,6 +659,32 @@ static void hns3_set_l2l3l4_len(struct sk_buff *skb, u8 ol4_proto,
 	}
 }
 
+/* when skb->encapsulation is 0, skb->ip_summed is CHECKSUM_PARTIAL
+ * and it is udp packet, which has a dest port as the IANA assigned.
+ * the hardware is expected to do the checksum offload, but the
+ * hardware will not do the checksum offload when udp dest port is
+ * 4789.
+ */
+static bool hns3_tunnel_csum_bug(struct sk_buff *skb)
+{
+#define IANA_VXLAN_PORT	4789
+	union {
+		struct tcphdr *tcp;
+		struct udphdr *udp;
+		struct gre_base_hdr *gre;
+		unsigned char *hdr;
+	} l4;
+
+	l4.hdr = skb_transport_header(skb);
+
+	if (!(!skb->encapsulation && l4.udp->dest == htons(IANA_VXLAN_PORT)))
+		return false;
+
+	skb_checksum_help(skb);
+
+	return true;
+}
+
 static int hns3_set_l3l4_type_csum(struct sk_buff *skb, u8 ol4_proto,
 				   u8 il4_proto, u32 *type_cs_vlan_tso,
 				   u32 *ol_type_vlan_len_msec)
@@ -741,6 +773,9 @@ static int hns3_set_l3l4_type_csum(struct sk_buff *skb, u8 ol4_proto,
 			       HNS3_L4T_TCP);
 		break;
 	case IPPROTO_UDP:
+		if (hns3_tunnel_csum_bug(skb))
+			break;
+
 		hnae_set_field(*type_cs_vlan_tso,
 			       HNS3_TXD_L4T_M,
 			       HNS3_TXD_L4T_S,
@@ -1129,6 +1164,12 @@ static int hns3_nic_net_set_mac_address(struct net_device *netdev, void *p)
 
 	if (!mac_addr || !is_valid_ether_addr((const u8 *)mac_addr->sa_data))
 		return -EADDRNOTAVAIL;
+
+	if (ether_addr_equal(netdev->dev_addr, mac_addr->sa_data)) {
+		netdev_info(netdev, "already using mac address %pM\n",
+			    mac_addr->sa_data);
+		return 0;
+	}
 
 	ret = h->ae_algo->ops->set_mac_addr(h, mac_addr->sa_data, false);
 	if (ret) {
@@ -2999,6 +3040,15 @@ static void hns3_init_mac_addr(struct net_device *netdev, bool init)
 
 }
 
+static void hns3_uninit_mac_addr(struct net_device *netdev)
+{
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	struct hnae3_handle *h = priv->ae_handle;
+
+	if (h->ae_algo->ops->rm_uc_addr)
+		h->ae_algo->ops->rm_uc_addr(h, netdev->dev_addr);
+}
+
 static void hns3_nic_set_priv_ops(struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
@@ -3126,6 +3176,8 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 	hns3_put_ring_config(priv);
 
 	priv->ring_data = NULL;
+
+	hns3_uninit_mac_addr(netdev);
 
 	free_netdev(netdev);
 }
@@ -3442,6 +3494,8 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 	hns3_put_ring_config(priv);
 
 	priv->ring_data = NULL;
+
+	hns3_uninit_mac_addr(netdev);
 
 	return ret;
 }

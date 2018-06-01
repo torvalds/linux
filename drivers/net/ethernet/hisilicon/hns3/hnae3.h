@@ -316,7 +316,8 @@ struct hnae3_ae_ops {
 	int (*set_loopback)(struct hnae3_handle *handle,
 			    enum hnae3_loop loop_mode, bool en);
 
-	void (*set_promisc_mode)(struct hnae3_handle *handle, u32 en);
+	void (*set_promisc_mode)(struct hnae3_handle *handle, bool en_uc_pmc,
+				 bool en_mc_pmc);
 	int (*set_mtu)(struct hnae3_handle *handle, int new_mtu);
 
 	void (*get_pauseparam)(struct hnae3_handle *handle,
@@ -352,6 +353,7 @@ struct hnae3_ae_ops {
 			   const unsigned char *addr);
 	int (*rm_mc_addr)(struct hnae3_handle *handle,
 			  const unsigned char *addr);
+	int (*update_mta_status)(struct hnae3_handle *handle);
 
 	void (*set_tso_stats)(struct hnae3_handle *handle, int enable);
 	void (*update_stats)(struct hnae3_handle *handle,
