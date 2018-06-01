@@ -2408,9 +2408,17 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 						     tb1_len)))
 			goto out_err;
 	} else {
+		struct sk_buff *frag;
+
 		if (unlikely(iwl_fill_data_tbs(trans, skb, txq, hdr_len,
 					       out_meta)))
 			goto out_err;
+
+		skb_walk_frags(skb, frag) {
+			if (unlikely(iwl_fill_data_tbs(trans, frag, txq, 0,
+						       out_meta)))
+				goto out_err;
+		}
 
 		trace_iwlwifi_dev_tx(trans->dev, skb,
 				     iwl_pcie_get_tfd(trans, txq,
