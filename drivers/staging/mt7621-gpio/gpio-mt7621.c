@@ -47,14 +47,10 @@ struct mtk_data {
 	struct mtk_gc *gc_map[MTK_BANK_CNT];
 };
 
-static inline struct mtk_gc
-*to_mediatek_gpio(struct gpio_chip *chip)
+static inline struct mtk_gc *
+to_mediatek_gpio(struct gpio_chip *chip)
 {
-	struct mtk_gc *mgc;
-
-	mgc = container_of(chip, struct mtk_gc, chip);
-
-	return mgc;
+	return container_of(chip, struct mtk_gc, chip);
 }
 
 static inline void
