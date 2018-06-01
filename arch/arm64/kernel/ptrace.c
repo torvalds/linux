@@ -766,9 +766,6 @@ static void sve_init_header_from_task(struct user_sve_header *header,
 	vq = sve_vq_from_vl(header->vl);
 
 	header->max_vl = sve_max_vl;
-	if (WARN_ON(!sve_vl_valid(sve_max_vl)))
-		header->max_vl = header->vl;
-
 	header->size = SVE_PT_SIZE(vq, header->flags);
 	header->max_size = SVE_PT_SIZE(sve_vq_from_vl(header->max_vl),
 				      SVE_PT_REGS_SVE);
