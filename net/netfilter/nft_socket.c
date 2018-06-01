@@ -5,6 +5,7 @@
 #include <net/netfilter/nf_tables_core.h>
 #include <net/netfilter/nf_socket.h>
 #include <net/inet_sock.h>
+#include <net/tcp.h>
 
 struct nft_socket {
 	enum nft_socket_keys		key:8;
@@ -48,7 +49,7 @@ static void nft_socket_eval(const struct nft_expr *expr,
 
 	switch(priv->key) {
 	case NFT_SOCKET_TRANSPARENT:
-		nft_reg_store8(dest, nf_sk_is_transparent(sk));
+		nft_reg_store8(dest, inet_sk_transparent(sk));
 		break;
 	default:
 		WARN_ON(1);

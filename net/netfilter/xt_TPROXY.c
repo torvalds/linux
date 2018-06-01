@@ -42,19 +42,8 @@ enum nf_tproxy_lookup_t {
 
 static bool tproxy_sk_is_transparent(struct sock *sk)
 {
-	switch (sk->sk_state) {
-	case TCP_TIME_WAIT:
-		if (inet_twsk(sk)->tw_transparent)
-			return true;
-		break;
-	case TCP_NEW_SYN_RECV:
-		if (inet_rsk(inet_reqsk(sk))->no_srccheck)
-			return true;
-		break;
-	default:
-		if (inet_sk(sk)->transparent)
-			return true;
-	}
+	if (inet_sk_transparent(sk))
+		return true;
 
 	sock_gen_put(sk);
 	return false;
