@@ -1,0 +1,11 @@
+#
+# GNSS receiver configuration
+#
+
+menuconfig GNSS
+	tristate "GNSS receiver support"
+	---help---
+	  Say Y here if you have a GNSS receiver (e.g. a GPS receiver).
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gnss.
