@@ -3663,7 +3663,7 @@ SMB2_oplock_break(const unsigned int xid, struct cifs_tcon *tcon,
 		  __u8 oplock_level)
 {
 	int rc;
-	struct smb2_oplock_break_req *req = NULL;
+	struct smb2_oplock_break *req = NULL;
 	struct cifs_ses *ses = tcon->ses;
 	int flags = CIFS_OBREAK_OP;
 	unsigned int total_len;
