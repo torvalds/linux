@@ -313,7 +313,7 @@ static int smu10_disable_gfx_off(struct pp_hwmgr *hwmgr)
 
 static int smu10_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
-	return smu10_disable_gfx_off(hwmgr);
+	return 0;
 }
 
 static int smu10_enable_gfx_off(struct pp_hwmgr *hwmgr)
@@ -328,7 +328,7 @@ static int smu10_enable_gfx_off(struct pp_hwmgr *hwmgr)
 
 static int smu10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
-	return smu10_enable_gfx_off(hwmgr);
+	return 0;
 }
 
 static int smu10_gfx_off_control(struct pp_hwmgr *hwmgr, bool enable)

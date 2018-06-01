@@ -245,7 +245,7 @@ static int pp_set_powergating_state(void *handle,
 	}
 
 	if (hwmgr->hwmgr_func->enable_per_cu_power_gating == NULL) {
-		pr_info("%s was not implemented.\n", __func__);
+		pr_debug("%s was not implemented.\n", __func__);
 		return 0;
 	}
 
