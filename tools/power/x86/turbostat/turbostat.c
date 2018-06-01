@@ -154,7 +154,8 @@ char *progname;
 #define CPU_SUBSET_MAXCPUS	1024	/* need to use before probe... */
 cpu_set_t *cpu_present_set, *cpu_affinity_set, *cpu_subset;
 size_t cpu_present_setsize, cpu_affinity_setsize, cpu_subset_size;
-#define MAX_ADDED_COUNTERS 16
+#define MAX_ADDED_COUNTERS 8
+#define MAX_ADDED_THREAD_COUNTERS 24
 
 struct thread_data {
 	struct timeval tv_begin;
@@ -169,7 +170,7 @@ struct thread_data {
 	unsigned int flags;
 #define CPU_IS_FIRST_THREAD_IN_CORE	0x2
 #define CPU_IS_FIRST_CORE_IN_PACKAGE	0x4
-	unsigned long long counter[MAX_ADDED_COUNTERS];
+	unsigned long long counter[MAX_ADDED_THREAD_COUNTERS];
 } *thread_even, *thread_odd;
 
 struct core_data {
@@ -4882,7 +4883,7 @@ int add_counter(unsigned int msr_num, char *path, char *name,
 		msrp->next = sys.tp;
 		sys.tp = msrp;
 		sys.added_thread_counters++;
-		if (sys.added_thread_counters > MAX_ADDED_COUNTERS) {
+		if (sys.added_thread_counters > MAX_ADDED_THREAD_COUNTERS) {
 			fprintf(stderr, "exceeded max %d added thread counters\n",
 				MAX_ADDED_COUNTERS);
 			exit(-1);
@@ -5041,7 +5042,7 @@ void probe_sysfs(void)
 	if (!DO_BIC(BIC_sysfs))
 		return;
 
-	for (state = 10; state > 0; --state) {
+	for (state = 10; state >= 0; --state) {
 
 		sprintf(path, "/sys/devices/system/cpu/cpu%d/cpuidle/state%d/name",
 			base_cpu, state);
@@ -5068,7 +5069,7 @@ void probe_sysfs(void)
 				FORMAT_PERCENT, SYSFS_PERCPU);
 	}
 
-	for (state = 10; state > 0; --state) {
+	for (state = 10; state >= 0; --state) {
 
 		sprintf(path, "/sys/devices/system/cpu/cpu%d/cpuidle/state%d/name",
 			base_cpu, state);
