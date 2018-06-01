@@ -395,9 +395,8 @@ smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *hdr)
 unsigned int
 smb2_calc_size(void *buf, struct TCP_Server_Info *srvr)
 {
-	struct smb2_pdu *pdu = (struct smb2_pdu *)buf;
-	struct smb2_hdr *hdr = &pdu->hdr;
-	struct smb2_sync_hdr *shdr = get_sync_hdr(hdr);
+	struct smb2_sync_pdu *pdu = (struct smb2_sync_pdu *)buf;
+	struct smb2_sync_hdr *shdr = &pdu->sync_hdr;
 	int offset; /* the offset from the beginning of SMB to data area */
 	int data_length; /* the length of the variable length data area */
 	/* Structure Size has already been checked to make sure it is 64 */
@@ -412,7 +411,7 @@ smb2_calc_size(void *buf, struct TCP_Server_Info *srvr)
 	if (has_smb2_data_area[le16_to_cpu(shdr->Command)] == false)
 		goto calc_size_exit;
 
-	smb2_get_data_area_len(&offset, &data_length, hdr);
+	smb2_get_data_area_len(&offset, &data_length, (struct smb2_hdr *)buf);
 	cifs_dbg(FYI, "SMB2 data length %d offset %d\n", data_length, offset);
 
 	if (data_length > 0) {
@@ -420,8 +419,7 @@ smb2_calc_size(void *buf, struct TCP_Server_Info *srvr)
 		 * Check to make sure that data area begins after fixed area,
 		 * Note that last byte of the fixed area is part of data area
 		 * for some commands, typically those with odd StructureSize,
-		 * so we must add one to the calculation (and 4 to account for
-		 * the size of the RFC1001 hdr.
+		 * so we must add one to the calculation.
 		 */
 		if (offset + srvr->vals->header_preamble_size + 1 < len) {
 			cifs_dbg(VFS, "data area offset %zu overlaps SMB2 header %d\n",
