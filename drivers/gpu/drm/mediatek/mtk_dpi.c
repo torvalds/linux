@@ -728,7 +728,7 @@ static int mtk_dpi_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct mtk_dpi *dpi;
 	struct resource *mem;
-	struct device_node *ep, *bridge_node;
+	struct device_node *ep, *bridge_node = NULL;
 	int comp_id;
 	const struct of_device_id *match;
 	int ret;

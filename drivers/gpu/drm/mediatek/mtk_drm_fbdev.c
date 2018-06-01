@@ -58,7 +58,7 @@ static int mtk_fbdev_probe(struct drm_fb_helper *helper,
 	unsigned int bytes_per_pixel;
 	unsigned long offset;
 	size_t size;
-	int err;
+	int err=0;
 
 	bytes_per_pixel = DIV_ROUND_UP(sizes->surface_bpp, 8);
 
