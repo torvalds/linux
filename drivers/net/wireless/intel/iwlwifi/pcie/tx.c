@@ -1977,26 +1977,24 @@ int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 
 static int iwl_fill_data_tbs(struct iwl_trans *trans, struct sk_buff *skb,
 			     struct iwl_txq *txq, u8 hdr_len,
-			     struct iwl_cmd_meta *out_meta,
-			     struct iwl_device_cmd *dev_cmd, u16 tb1_len)
+			     struct iwl_cmd_meta *out_meta)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	u16 tb2_len;
+	u16 head_tb_len;
 	int i;
 
 	/*
 	 * Set up TFD's third entry to point directly to remainder
 	 * of skb's head, if any
 	 */
-	tb2_len = skb_headlen(skb) - hdr_len;
+	head_tb_len = skb_headlen(skb) - hdr_len;
 
-	if (tb2_len > 0) {
-		dma_addr_t tb2_phys = dma_map_single(trans->dev,
-						     skb->data + hdr_len,
-						     tb2_len, DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(trans->dev, tb2_phys)))
+	if (head_tb_len > 0) {
+		dma_addr_t tb_phys = dma_map_single(trans->dev,
+						    skb->data + hdr_len,
+						    head_tb_len, DMA_TO_DEVICE);
+		if (unlikely(dma_mapping_error(trans->dev, tb_phys)))
 			return -EINVAL;
-		iwl_pcie_txq_build_tfd(trans, txq, tb2_phys, tb2_len, false);
+		iwl_pcie_txq_build_tfd(trans, txq, tb_phys, head_tb_len, false);
 	}
 
 	/* set up the remaining entries to point to the data */
@@ -2019,12 +2017,6 @@ static int iwl_fill_data_tbs(struct iwl_trans *trans, struct sk_buff *skb,
 		out_meta->tbs |= BIT(tb_idx);
 	}
 
-	trace_iwlwifi_dev_tx(trans->dev, skb,
-			     iwl_pcie_get_tfd(trans, txq, txq->write_ptr),
-			     trans_pcie->tfd_size,
-			     &dev_cmd->hdr, IWL_FIRST_TB_SIZE + tb1_len,
-			     hdr_len);
-	trace_iwlwifi_dev_tx_data(trans->dev, skb, hdr_len);
 	return 0;
 }
 
@@ -2415,9 +2407,18 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 						     out_meta, dev_cmd,
 						     tb1_len)))
 			goto out_err;
-	} else if (unlikely(iwl_fill_data_tbs(trans, skb, txq, hdr_len,
-				       out_meta, dev_cmd, tb1_len))) {
-		goto out_err;
+	} else {
+		if (unlikely(iwl_fill_data_tbs(trans, skb, txq, hdr_len,
+					       out_meta)))
+			goto out_err;
+
+		trace_iwlwifi_dev_tx(trans->dev, skb,
+				     iwl_pcie_get_tfd(trans, txq,
+						      txq->write_ptr),
+				     trans_pcie->tfd_size,
+				     &dev_cmd->hdr, IWL_FIRST_TB_SIZE + tb1_len,
+				     hdr_len);
+		trace_iwlwifi_dev_tx_data(trans->dev, skb, hdr_len);
 	}
 
 	/* building the A-MSDU might have changed this data, so memcpy it now */
