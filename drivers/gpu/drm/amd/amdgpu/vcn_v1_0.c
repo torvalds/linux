@@ -1690,6 +1690,7 @@ static const struct amdgpu_ring_funcs vcn_v1_0_jpeg_ring_vm_funcs = {
 	.nop = PACKET0(0x81ff, 0),
 	.support_64bit_ptrs = false,
 	.vmhub = AMDGPU_MMHUB,
+	.extra_dw = 64,
 	.get_rptr = vcn_v1_0_jpeg_ring_get_rptr,
 	.get_wptr = vcn_v1_0_jpeg_ring_get_wptr,
 	.set_wptr = vcn_v1_0_jpeg_ring_set_wptr,
