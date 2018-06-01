@@ -53,9 +53,6 @@
 
 /* Top-level debug info */
 struct vchiq_debugfs_info {
-	/* Global 'vchiq' debugfs entry used by all instances */
-	struct dentry *vchiq_cfg_dir;
-
 	/* one entry per client process */
 	struct dentry *clients;
 
@@ -64,6 +61,9 @@ struct vchiq_debugfs_info {
 };
 
 static struct vchiq_debugfs_info debugfs_info;
+
+/* Global 'vchiq' debugfs entry used by all instances */
+struct dentry *vchiq_dbg_dir;
 
 /* Log category debugfs entries */
 struct vchiq_debugfs_log_entry {
@@ -82,7 +82,6 @@ static struct vchiq_debugfs_log_entry vchiq_debugfs_log_entries[] = {
 static int n_log_entries = ARRAY_SIZE(vchiq_debugfs_log_entries);
 
 static struct dentry *vchiq_clients_top(void);
-static struct dentry *vchiq_debugfs_top(void);
 
 static int debugfs_log_show(struct seq_file *f, void *offset)
 {
@@ -163,7 +162,7 @@ static void vchiq_debugfs_create_log_entries(struct dentry *top)
 	struct dentry *dir;
 	size_t i;
 
-	dir = debugfs_create_dir("log", vchiq_debugfs_top());
+	dir = debugfs_create_dir("log", vchiq_dbg_dir);
 	debugfs_info.log_categories = dir;
 
 	for (i = 0; i < n_log_entries; i++) {
@@ -286,28 +285,21 @@ void vchiq_debugfs_remove_instance(VCHIQ_INSTANCE_T instance)
 
 void vchiq_debugfs_init(void)
 {
-	debugfs_info.vchiq_cfg_dir = debugfs_create_dir("vchiq", NULL);
-	debugfs_info.clients = debugfs_create_dir("clients",
-				vchiq_debugfs_top());
+	vchiq_dbg_dir = debugfs_create_dir("vchiq", NULL);
+	debugfs_info.clients = debugfs_create_dir("clients", vchiq_dbg_dir);
 
-	vchiq_debugfs_create_log_entries(vchiq_debugfs_top());
+	vchiq_debugfs_create_log_entries(vchiq_dbg_dir);
 }
 
 /* remove all the debugfs entries */
 void vchiq_debugfs_deinit(void)
 {
-	debugfs_remove_recursive(vchiq_debugfs_top());
+	debugfs_remove_recursive(vchiq_dbg_dir);
 }
 
 static struct dentry *vchiq_clients_top(void)
 {
 	return debugfs_info.clients;
-}
-
-static struct dentry *vchiq_debugfs_top(void)
-{
-	BUG_ON(debugfs_info.vchiq_cfg_dir == NULL);
-	return debugfs_info.vchiq_cfg_dir;
 }
 
 #else /* CONFIG_DEBUG_FS */
