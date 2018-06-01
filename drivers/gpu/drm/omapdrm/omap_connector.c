@@ -62,11 +62,10 @@ static enum drm_connector_status omap_connector_detect(
 {
 	struct omap_connector *omap_connector = to_omap_connector(connector);
 	struct omap_dss_device *dssdev = omap_connector->dssdev;
-	const struct omap_dss_driver *dssdrv = dssdev->driver;
 	enum drm_connector_status ret;
 
-	if (dssdrv->detect) {
-		if (dssdrv->detect(dssdev))
+	if (dssdev->ops->detect) {
+		if (dssdev->ops->detect(dssdev))
 			ret = connector_status_connected;
 		else
 			ret = connector_status_disconnected;
@@ -91,8 +90,8 @@ static void omap_connector_destroy(struct drm_connector *connector)
 
 	DBG("%s", omap_connector->dssdev->name);
 	if (connector->polled == DRM_CONNECTOR_POLL_HPD &&
-	    dssdev->driver->unregister_hpd_cb) {
-		dssdev->driver->unregister_hpd_cb(dssdev);
+	    dssdev->ops->unregister_hpd_cb) {
+		dssdev->ops->unregister_hpd_cb(dssdev);
 	}
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
@@ -107,7 +106,6 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 {
 	struct omap_connector *omap_connector = to_omap_connector(connector);
 	struct omap_dss_device *dssdev = omap_connector->dssdev;
-	const struct omap_dss_driver *dssdrv = dssdev->driver;
 	struct drm_device *dev = connector->dev;
 	int n = 0;
 
@@ -118,13 +116,13 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 	 * LCD panels) we just return a single mode corresponding to the
 	 * currently configured timings:
 	 */
-	if (dssdrv->read_edid) {
+	if (dssdev->ops->read_edid) {
 		void *edid = kzalloc(MAX_EDID, GFP_KERNEL);
 
 		if (!edid)
 			return 0;
 
-		if ((dssdrv->read_edid(dssdev, edid, MAX_EDID) > 0) &&
+		if ((dssdev->ops->read_edid(dssdev, edid, MAX_EDID) > 0) &&
 				drm_edid_is_valid(edid)) {
 			drm_connector_update_edid_property(
 					connector, edid);
@@ -145,7 +143,7 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 		if (!mode)
 			return 0;
 
-		dssdrv->get_timings(dssdev, &vm);
+		dssdev->ops->get_timings(dssdev, &vm);
 
 		drm_display_mode_from_videomode(&vm, mode);
 
@@ -153,8 +151,8 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 		drm_mode_set_name(mode);
 		drm_mode_probed_add(connector, mode);
 
-		if (dssdrv->get_size) {
-			dssdrv->get_size(dssdev,
+		if (dssdev->driver && dssdev->driver->get_size) {
+			dssdev->driver->get_size(dssdev,
 					 &connector->display_info.width_mm,
 					 &connector->display_info.height_mm);
 		}
@@ -170,7 +168,6 @@ static int omap_connector_mode_valid(struct drm_connector *connector,
 {
 	struct omap_connector *omap_connector = to_omap_connector(connector);
 	struct omap_dss_device *dssdev = omap_connector->dssdev;
-	const struct omap_dss_driver *dssdrv = dssdev->driver;
 	struct videomode vm = {0};
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *new_mode;
@@ -184,12 +181,12 @@ static int omap_connector_mode_valid(struct drm_connector *connector,
 	 * a fixed resolution panel, check if the timings match with the
 	 * panel's timings
 	 */
-	if (dssdrv->check_timings) {
-		r = dssdrv->check_timings(dssdev, &vm);
+	if (dssdev->ops->check_timings) {
+		r = dssdev->ops->check_timings(dssdev, &vm);
 	} else {
 		struct videomode t = {0};
 
-		dssdrv->get_timings(dssdev, &t);
+		dssdev->ops->get_timings(dssdev, &t);
 
 		/*
 		 * Ignore the flags, as we don't get them from
@@ -268,10 +265,10 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 				connector_type);
 	drm_connector_helper_add(connector, &omap_connector_helper_funcs);
 
-	if (dssdev->driver->register_hpd_cb) {
-		int ret = dssdev->driver->register_hpd_cb(dssdev,
-							  omap_connector_hpd_cb,
-							  omap_connector);
+	if (dssdev->ops->register_hpd_cb) {
+		int ret = dssdev->ops->register_hpd_cb(dssdev,
+						       omap_connector_hpd_cb,
+						       omap_connector);
 		if (!ret)
 			hpd_supported = true;
 		else if (ret != -ENOTSUPP)
@@ -281,7 +278,7 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 
 	if (hpd_supported)
 		connector->polled = DRM_CONNECTOR_POLL_HPD;
-	else if (dssdev->driver->detect)
+	else if (dssdev->ops->detect)
 		connector->polled = DRM_CONNECTOR_POLL_CONNECT |
 				    DRM_CONNECTOR_POLL_DISCONNECT;
 	else

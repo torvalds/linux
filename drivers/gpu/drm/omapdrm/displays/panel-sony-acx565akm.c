@@ -660,7 +660,7 @@ static int acx565akm_check_timings(struct omap_dss_device *dssdev,
 	return src->ops->check_timings(src, vm);
 }
 
-static const struct omap_dss_driver acx565akm_ops = {
+static const struct omap_dss_device_ops acx565akm_ops = {
 	.connect	= acx565akm_connect,
 	.disconnect	= acx565akm_disconnect,
 
@@ -762,7 +762,7 @@ static int acx565akm_probe(struct spi_device *spi)
 
 	dssdev = &ddata->dssdev;
 	dssdev->dev = &spi->dev;
-	dssdev->driver = &acx565akm_ops;
+	dssdev->ops = &acx565akm_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_SDI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);

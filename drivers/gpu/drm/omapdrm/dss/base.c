@@ -198,11 +198,7 @@ int omapdss_device_connect(struct dss_device *dss,
 
 	dst->dss = dss;
 
-	if (dst->driver)
-		ret = dst->driver->connect(src, dst);
-	else
-		ret = dst->ops->connect(src, dst);
-
+	ret = dst->ops->connect(src, dst);
 	if (ret < 0) {
 		dst->dss = NULL;
 		return ret;
@@ -238,11 +234,7 @@ void omapdss_device_disconnect(struct omap_dss_device *src,
 
 	WARN_ON(dst->state != OMAP_DSS_DISPLAY_DISABLED);
 
-	if (dst->driver)
-		dst->driver->disconnect(src, dst);
-	else
-		dst->ops->disconnect(src, dst);
-
+	dst->ops->disconnect(src, dst);
 	dst->dss = NULL;
 }
 EXPORT_SYMBOL_GPL(omapdss_device_disconnect);

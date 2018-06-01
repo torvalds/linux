@@ -161,7 +161,7 @@ static int sharp_ls_check_timings(struct omap_dss_device *dssdev,
 	return src->ops->check_timings(src, vm);
 }
 
-static const struct omap_dss_driver sharp_ls_ops = {
+static const struct omap_dss_device_ops sharp_ls_ops = {
 	.connect	= sharp_ls_connect,
 	.disconnect	= sharp_ls_disconnect,
 
@@ -247,7 +247,7 @@ static int sharp_ls_probe(struct platform_device *pdev)
 
 	dssdev = &ddata->dssdev;
 	dssdev->dev = &pdev->dev;
-	dssdev->driver = &sharp_ls_ops;
+	dssdev->ops = &sharp_ls_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);

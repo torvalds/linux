@@ -265,7 +265,7 @@ static void dvic_disable_hpd(struct omap_dss_device *dssdev)
 	mutex_unlock(&ddata->hpd_lock);
 }
 
-static const struct omap_dss_driver dvic_driver = {
+static const struct omap_dss_device_ops dvic_ops = {
 	.connect	= dvic_connect,
 	.disconnect	= dvic_disconnect,
 
@@ -367,7 +367,7 @@ static int dvic_probe(struct platform_device *pdev)
 	ddata->vm = dvic_default_vm;
 
 	dssdev = &ddata->dssdev;
-	dssdev->driver = &dvic_driver;
+	dssdev->ops = &dvic_ops;
 	dssdev->dev = &pdev->dev;
 	dssdev->type = OMAP_DISPLAY_TYPE_DVI;
 	dssdev->owner = THIS_MODULE;

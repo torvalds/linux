@@ -77,16 +77,16 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 		}
 	}
 
-	if (dssdev->driver->set_hdmi_mode)
-		dssdev->driver->set_hdmi_mode(dssdev, hdmi_mode);
+	if (dssdev->ops->hdmi.set_hdmi_mode)
+		dssdev->ops->hdmi.set_hdmi_mode(dssdev, hdmi_mode);
 
-	if (hdmi_mode && dssdev->driver->set_hdmi_infoframe) {
+	if (hdmi_mode && dssdev->ops->hdmi.set_infoframe) {
 		struct hdmi_avi_infoframe avi;
 
 		r = drm_hdmi_avi_infoframe_from_display_mode(&avi, adjusted_mode,
 							     false);
 		if (r == 0)
-			dssdev->driver->set_hdmi_infoframe(dssdev, &avi);
+			dssdev->ops->hdmi.set_infoframe(dssdev, &avi);
 	}
 }
 
@@ -94,9 +94,8 @@ static void omap_encoder_disable(struct drm_encoder *encoder)
 {
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
 	struct omap_dss_device *dssdev = omap_encoder->dssdev;
-	const struct omap_dss_driver *dssdrv = dssdev->driver;
 
-	dssdrv->disable(dssdev);
+	dssdev->ops->disable(dssdev);
 }
 
 static int omap_encoder_update(struct drm_encoder *encoder,
@@ -106,15 +105,14 @@ static int omap_encoder_update(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
 	struct omap_dss_device *dssdev = omap_encoder->dssdev;
-	const struct omap_dss_driver *dssdrv = dssdev->driver;
 	int ret;
 
-	if (dssdrv->check_timings) {
-		ret = dssdrv->check_timings(dssdev, vm);
+	if (dssdev->ops->check_timings) {
+		ret = dssdev->ops->check_timings(dssdev, vm);
 	} else {
 		struct videomode t = {0};
 
-		dssdrv->get_timings(dssdev, &t);
+		dssdev->ops->get_timings(dssdev, &t);
 
 		if (memcmp(vm, &t, sizeof(*vm)))
 			ret = -EINVAL;
@@ -127,8 +125,8 @@ static int omap_encoder_update(struct drm_encoder *encoder,
 		return ret;
 	}
 
-	if (dssdrv->set_timings)
-		dssdrv->set_timings(dssdev, vm);
+	if (dssdev->ops->set_timings)
+		dssdev->ops->set_timings(dssdev, vm);
 
 	return 0;
 }
@@ -137,13 +135,12 @@ static void omap_encoder_enable(struct drm_encoder *encoder)
 {
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
 	struct omap_dss_device *dssdev = omap_encoder->dssdev;
-	const struct omap_dss_driver *dssdrv = dssdev->driver;
 	int r;
 
 	omap_encoder_update(encoder, omap_crtc_channel(encoder->crtc),
 			    omap_crtc_timings(encoder->crtc));
 
-	r = dssdrv->enable(dssdev);
+	r = dssdev->ops->enable(dssdev);
 	if (r)
 		dev_err(encoder->dev->dev,
 			"Failed to enable display '%s': %d\n",

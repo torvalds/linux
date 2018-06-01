@@ -1553,7 +1553,7 @@ static void dss_shutdown(struct platform_device *pdev)
 
 	for_each_dss_display(dssdev) {
 		if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
-			dssdev->driver->disable(dssdev);
+			dssdev->ops->disable(dssdev);
 	}
 }
 

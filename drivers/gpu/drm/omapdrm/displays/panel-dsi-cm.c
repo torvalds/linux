@@ -1179,18 +1179,21 @@ static void dsicm_get_size(struct omap_dss_device *dssdev,
 	*height = ddata->height_mm;
 }
 
-static const struct omap_dss_driver dsicm_ops = {
+static const struct omap_dss_device_ops dsicm_ops = {
 	.connect	= dsicm_connect,
 	.disconnect	= dsicm_disconnect,
 
 	.enable		= dsicm_enable,
 	.disable	= dsicm_disable,
 
+	.get_timings	= dsicm_get_timings,
+	.check_timings	= dsicm_check_timings,
+};
+
+static const struct omap_dss_driver dsicm_dss_driver = {
 	.update		= dsicm_update,
 	.sync		= dsicm_sync,
 
-	.get_timings	= dsicm_get_timings,
-	.check_timings	= dsicm_check_timings,
 	.get_size	= dsicm_get_size,
 
 	.enable_te	= dsicm_enable_te,
@@ -1299,7 +1302,8 @@ static int dsicm_probe(struct platform_device *pdev)
 
 	dssdev = &ddata->dssdev;
 	dssdev->dev = dev;
-	dssdev->driver = &dsicm_ops;
+	dssdev->ops = &dsicm_ops;
+	dssdev->driver = &dsicm_dss_driver;
 	dssdev->type = OMAP_DISPLAY_TYPE_DSI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);

@@ -199,7 +199,7 @@ static int lb035q02_check_timings(struct omap_dss_device *dssdev,
 	return src->ops->check_timings(src, vm);
 }
 
-static const struct omap_dss_driver lb035q02_ops = {
+static const struct omap_dss_device_ops lb035q02_ops = {
 	.connect	= lb035q02_connect,
 	.disconnect	= lb035q02_disconnect,
 
@@ -249,7 +249,7 @@ static int lb035q02_panel_spi_probe(struct spi_device *spi)
 
 	dssdev = &ddata->dssdev;
 	dssdev->dev = &spi->dev;
-	dssdev->driver = &lb035q02_ops;
+	dssdev->ops = &lb035q02_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);

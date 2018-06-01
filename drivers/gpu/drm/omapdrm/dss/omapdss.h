@@ -297,18 +297,7 @@ struct omap_dss_writeback_info {
 };
 
 struct omapdss_hdmi_ops {
-	int (*read_edid)(struct omap_dss_device *dssdev, u8 *buf, int len);
 	void (*lost_hotplug)(struct omap_dss_device *dssdev);
-	bool (*detect)(struct omap_dss_device *dssdev);
-
-	int (*register_hpd_cb)(struct omap_dss_device *dssdev,
-			       void (*cb)(void *cb_data,
-					  enum drm_connector_status status),
-			       void *cb_data);
-	void (*unregister_hpd_cb)(struct omap_dss_device *dssdev);
-	void (*enable_hpd)(struct omap_dss_device *dssdev);
-	void (*disable_hpd)(struct omap_dss_device *dssdev);
-
 	int (*set_hdmi_mode)(struct omap_dss_device *dssdev, bool hdmi_mode);
 	int (*set_infoframe)(struct omap_dss_device *dssdev,
 		const struct hdmi_avi_infoframe *avi);
@@ -376,8 +365,22 @@ struct omap_dss_device_ops {
 
 	int (*check_timings)(struct omap_dss_device *dssdev,
 			     struct videomode *vm);
+	void (*get_timings)(struct omap_dss_device *dssdev,
+			    struct videomode *vm);
 	void (*set_timings)(struct omap_dss_device *dssdev,
 			    struct videomode *vm);
+
+	bool (*detect)(struct omap_dss_device *dssdev);
+
+	int (*register_hpd_cb)(struct omap_dss_device *dssdev,
+			       void (*cb)(void *cb_data,
+					  enum drm_connector_status status),
+			       void *cb_data);
+	void (*unregister_hpd_cb)(struct omap_dss_device *dssdev);
+	void (*enable_hpd)(struct omap_dss_device *dssdev);
+	void (*disable_hpd)(struct omap_dss_device *dssdev);
+
+	int (*read_edid)(struct omap_dss_device *dssdev, u8 *buf, int len);
 
 	union {
 		const struct omapdss_hdmi_ops hdmi;
@@ -440,14 +443,6 @@ struct omap_dss_device {
 };
 
 struct omap_dss_driver {
-	int (*connect)(struct omap_dss_device *src,
-		       struct omap_dss_device *dst);
-	void (*disconnect)(struct omap_dss_device *src,
-			   struct omap_dss_device *dst);
-
-	int (*enable)(struct omap_dss_device *display);
-	void (*disable)(struct omap_dss_device *display);
-
 	int (*update)(struct omap_dss_device *dssdev,
 			       u16 x, u16 y, u16 w, u16 h);
 	int (*sync)(struct omap_dss_device *dssdev);
@@ -459,29 +454,8 @@ struct omap_dss_driver {
 			void *buf, size_t size,
 			u16 x, u16 y, u16 w, u16 h);
 
-	int (*check_timings)(struct omap_dss_device *dssdev,
-			     struct videomode *vm);
-	void (*set_timings)(struct omap_dss_device *dssdev,
-			    struct videomode *vm);
-	void (*get_timings)(struct omap_dss_device *dssdev,
-			    struct videomode *vm);
 	void (*get_size)(struct omap_dss_device *dssdev,
 			 unsigned int *width, unsigned int *height);
-
-	int (*read_edid)(struct omap_dss_device *dssdev, u8 *buf, int len);
-	bool (*detect)(struct omap_dss_device *dssdev);
-
-	int (*register_hpd_cb)(struct omap_dss_device *dssdev,
-			       void (*cb)(void *cb_data,
-					  enum drm_connector_status status),
-			       void *cb_data);
-	void (*unregister_hpd_cb)(struct omap_dss_device *dssdev);
-	void (*enable_hpd)(struct omap_dss_device *dssdev);
-	void (*disable_hpd)(struct omap_dss_device *dssdev);
-
-	int (*set_hdmi_mode)(struct omap_dss_device *dssdev, bool hdmi_mode);
-	int (*set_hdmi_infoframe)(struct omap_dss_device *dssdev,
-		const struct hdmi_avi_infoframe *avi);
 };
 
 struct dss_device *omapdss_get_dss(void);

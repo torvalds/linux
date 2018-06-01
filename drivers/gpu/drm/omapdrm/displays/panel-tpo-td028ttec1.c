@@ -330,7 +330,7 @@ static int td028ttec1_panel_check_timings(struct omap_dss_device *dssdev,
 	return src->ops->check_timings(src, vm);
 }
 
-static const struct omap_dss_driver td028ttec1_ops = {
+static const struct omap_dss_device_ops td028ttec1_ops = {
 	.connect	= td028ttec1_panel_connect,
 	.disconnect	= td028ttec1_panel_disconnect,
 
@@ -371,7 +371,7 @@ static int td028ttec1_panel_probe(struct spi_device *spi)
 
 	dssdev = &ddata->dssdev;
 	dssdev->dev = &spi->dev;
-	dssdev->driver = &td028ttec1_ops;
+	dssdev->ops = &td028ttec1_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);

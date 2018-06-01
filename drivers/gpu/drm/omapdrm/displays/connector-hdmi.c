@@ -132,7 +132,7 @@ static int hdmic_read_edid(struct omap_dss_device *dssdev,
 {
 	struct omap_dss_device *src = dssdev->src;
 
-	return src->ops->hdmi.read_edid(src, edid, len);
+	return src->ops->read_edid(src, edid, len);
 }
 
 static bool hdmic_detect(struct omap_dss_device *dssdev)
@@ -144,7 +144,7 @@ static bool hdmic_detect(struct omap_dss_device *dssdev)
 	if (ddata->hpd_gpio)
 		connected = gpiod_get_value_cansleep(ddata->hpd_gpio);
 	else
-		connected = src->ops->hdmi.detect(src);
+		connected = src->ops->detect(src);
 	if (!connected && src->ops->hdmi.lost_hotplug)
 		src->ops->hdmi.lost_hotplug(src);
 	return connected;
@@ -164,8 +164,8 @@ static int hdmic_register_hpd_cb(struct omap_dss_device *dssdev,
 		ddata->hpd_cb_data = cb_data;
 		mutex_unlock(&ddata->hpd_lock);
 		return 0;
-	} else if (src->ops->hdmi.register_hpd_cb) {
-		return src->ops->hdmi.register_hpd_cb(src, cb, cb_data);
+	} else if (src->ops->register_hpd_cb) {
+		return src->ops->register_hpd_cb(src, cb, cb_data);
 	}
 
 	return -ENOTSUPP;
@@ -181,8 +181,8 @@ static void hdmic_unregister_hpd_cb(struct omap_dss_device *dssdev)
 		ddata->hpd_cb = NULL;
 		ddata->hpd_cb_data = NULL;
 		mutex_unlock(&ddata->hpd_lock);
-	} else if (src->ops->hdmi.unregister_hpd_cb) {
-		src->ops->hdmi.unregister_hpd_cb(src);
+	} else if (src->ops->unregister_hpd_cb) {
+		src->ops->unregister_hpd_cb(src);
 	}
 }
 
@@ -195,8 +195,8 @@ static void hdmic_enable_hpd(struct omap_dss_device *dssdev)
 		mutex_lock(&ddata->hpd_lock);
 		ddata->hpd_enabled = true;
 		mutex_unlock(&ddata->hpd_lock);
-	} else if (src->ops->hdmi.enable_hpd) {
-		src->ops->hdmi.enable_hpd(src);
+	} else if (src->ops->enable_hpd) {
+		src->ops->enable_hpd(src);
 	}
 }
 
@@ -209,8 +209,8 @@ static void hdmic_disable_hpd(struct omap_dss_device *dssdev)
 		mutex_lock(&ddata->hpd_lock);
 		ddata->hpd_enabled = false;
 		mutex_unlock(&ddata->hpd_lock);
-	} else if (src->ops->hdmi.disable_hpd) {
-		src->ops->hdmi.disable_hpd(src);
+	} else if (src->ops->disable_hpd) {
+		src->ops->disable_hpd(src);
 	}
 }
 
@@ -229,7 +229,7 @@ static int hdmic_set_infoframe(struct omap_dss_device *dssdev,
 	return src->ops->hdmi.set_infoframe(src, avi);
 }
 
-static const struct omap_dss_driver hdmic_driver = {
+static const struct omap_dss_device_ops hdmic_ops = {
 	.connect		= hdmic_connect,
 	.disconnect		= hdmic_disconnect,
 
@@ -246,8 +246,11 @@ static const struct omap_dss_driver hdmic_driver = {
 	.unregister_hpd_cb	= hdmic_unregister_hpd_cb,
 	.enable_hpd		= hdmic_enable_hpd,
 	.disable_hpd		= hdmic_disable_hpd,
-	.set_hdmi_mode		= hdmic_set_hdmi_mode,
-	.set_hdmi_infoframe	= hdmic_set_infoframe,
+
+	.hdmi = {
+		.set_hdmi_mode	= hdmic_set_hdmi_mode,
+		.set_infoframe	= hdmic_set_infoframe,
+	},
 };
 
 static irqreturn_t hdmic_hpd_isr(int irq, void *data)
@@ -309,7 +312,7 @@ static int hdmic_probe(struct platform_device *pdev)
 	ddata->vm = hdmic_default_vm;
 
 	dssdev = &ddata->dssdev;
-	dssdev->driver = &hdmic_driver;
+	dssdev->ops = &hdmic_ops;
 	dssdev->dev = &pdev->dev;
 	dssdev->type = OMAP_DISPLAY_TYPE_HDMI;
 	dssdev->owner = THIS_MODULE;

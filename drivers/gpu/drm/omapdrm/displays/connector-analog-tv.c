@@ -119,7 +119,7 @@ static int tvc_check_timings(struct omap_dss_device *dssdev,
 	return src->ops->check_timings(src, vm);
 }
 
-static const struct omap_dss_driver tvc_driver = {
+static const struct omap_dss_device_ops tvc_ops = {
 	.connect		= tvc_connect,
 	.disconnect		= tvc_disconnect,
 
@@ -146,7 +146,7 @@ static int tvc_probe(struct platform_device *pdev)
 	ddata->vm = tvc_pal_vm;
 
 	dssdev = &ddata->dssdev;
-	dssdev->driver = &tvc_driver;
+	dssdev->ops = &tvc_ops;
 	dssdev->dev = &pdev->dev;
 	dssdev->type = OMAP_DISPLAY_TYPE_VENC;
 	dssdev->owner = THIS_MODULE;

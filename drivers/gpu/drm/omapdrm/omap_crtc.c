@@ -458,7 +458,7 @@ static void omap_crtc_mode_set_nofb(struct drm_crtc *crtc)
 			if (dssdev) {
 				struct videomode vm = {0};
 
-				dssdev->driver->get_timings(dssdev, &vm);
+				dssdev->ops->get_timings(dssdev, &vm);
 
 				omap_crtc->vm.flags |= vm.flags & flags_mask;
 			}

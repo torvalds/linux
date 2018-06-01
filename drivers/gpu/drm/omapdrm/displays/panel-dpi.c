@@ -122,7 +122,7 @@ static int panel_dpi_check_timings(struct omap_dss_device *dssdev,
 	return src->ops->check_timings(src, vm);
 }
 
-static const struct omap_dss_driver panel_dpi_ops = {
+static const struct omap_dss_device_ops panel_dpi_ops = {
 	.connect	= panel_dpi_connect,
 	.disconnect	= panel_dpi_disconnect,
 
@@ -196,7 +196,7 @@ static int panel_dpi_probe(struct platform_device *pdev)
 
 	dssdev = &ddata->dssdev;
 	dssdev->dev = &pdev->dev;
-	dssdev->driver = &panel_dpi_ops;
+	dssdev->ops = &panel_dpi_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);

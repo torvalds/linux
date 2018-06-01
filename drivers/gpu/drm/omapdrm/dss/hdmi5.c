@@ -505,8 +505,9 @@ static const struct omap_dss_device_ops hdmi_ops = {
 	.check_timings		= hdmi_display_check_timing,
 	.set_timings		= hdmi_display_set_timing,
 
+	.read_edid		= hdmi_read_edid,
+
 	.hdmi = {
-		.read_edid		= hdmi_read_edid,
 		.set_infoframe		= hdmi_set_infoframe,
 		.set_hdmi_mode		= hdmi_set_hdmi_mode,
 	},

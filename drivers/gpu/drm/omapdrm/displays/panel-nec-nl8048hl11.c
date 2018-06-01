@@ -187,7 +187,7 @@ static int nec_8048_check_timings(struct omap_dss_device *dssdev,
 	return src->ops->check_timings(src, vm);
 }
 
-static const struct omap_dss_driver nec_8048_ops = {
+static const struct omap_dss_device_ops nec_8048_ops = {
 	.connect	= nec_8048_connect,
 	.disconnect	= nec_8048_disconnect,
 
@@ -239,7 +239,7 @@ static int nec_8048_probe(struct spi_device *spi)
 
 	dssdev = &ddata->dssdev;
 	dssdev->dev = &spi->dev;
-	dssdev->driver = &nec_8048_ops;
+	dssdev->ops = &nec_8048_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);

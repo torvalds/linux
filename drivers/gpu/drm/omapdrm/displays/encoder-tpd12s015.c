@@ -125,7 +125,7 @@ static int tpd_read_edid(struct omap_dss_device *dssdev,
 	if (!gpiod_get_value_cansleep(ddata->hpd_gpio))
 		return -ENODEV;
 
-	return src->ops->hdmi.read_edid(src, edid, len);
+	return src->ops->read_edid(src, edid, len);
 }
 
 static bool tpd_detect(struct omap_dss_device *dssdev)
@@ -205,14 +205,14 @@ static const struct omap_dss_device_ops tpd_ops = {
 	.disable		= tpd_disable,
 	.check_timings		= tpd_check_timings,
 	.set_timings		= tpd_set_timings,
+	.read_edid		= tpd_read_edid,
+	.detect			= tpd_detect,
+	.register_hpd_cb	= tpd_register_hpd_cb,
+	.unregister_hpd_cb	= tpd_unregister_hpd_cb,
+	.enable_hpd		= tpd_enable_hpd,
+	.disable_hpd		= tpd_disable_hpd,
 
 	.hdmi = {
-		.read_edid		= tpd_read_edid,
-		.detect			= tpd_detect,
-		.register_hpd_cb	= tpd_register_hpd_cb,
-		.unregister_hpd_cb	= tpd_unregister_hpd_cb,
-		.enable_hpd		= tpd_enable_hpd,
-		.disable_hpd		= tpd_disable_hpd,
 		.set_infoframe		= tpd_set_infoframe,
 		.set_hdmi_mode		= tpd_set_hdmi_mode,
 	},

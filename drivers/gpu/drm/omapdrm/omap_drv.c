@@ -378,8 +378,8 @@ static void omap_modeset_enable_external_hpd(struct drm_device *ddev)
 	for (i = 0; i < priv->num_pipes; i++) {
 		struct omap_dss_device *display = priv->pipes[i].display;
 
-		if (display->driver->enable_hpd)
-			display->driver->enable_hpd(display);
+		if (display->ops->enable_hpd)
+			display->ops->enable_hpd(display);
 	}
 }
 
@@ -394,8 +394,8 @@ static void omap_modeset_disable_external_hpd(struct drm_device *ddev)
 	for (i = 0; i < priv->num_pipes; i++) {
 		struct omap_dss_device *display = priv->pipes[i].display;
 
-		if (display->driver->disable_hpd)
-			display->driver->disable_hpd(display);
+		if (display->ops->disable_hpd)
+			display->ops->disable_hpd(display);
 	}
 }
 
@@ -724,7 +724,7 @@ static int omap_drm_suspend_all_displays(struct drm_device *ddev)
 		struct omap_dss_device *display = priv->pipes[i].display;
 
 		if (display->state == OMAP_DSS_DISPLAY_ACTIVE) {
-			display->driver->disable(display);
+			display->ops->disable(display);
 			display->activate_after_resume = true;
 		} else {
 			display->activate_after_resume = false;
@@ -743,7 +743,7 @@ static int omap_drm_resume_all_displays(struct drm_device *ddev)
 		struct omap_dss_device *display = priv->pipes[i].display;
 
 		if (display->activate_after_resume) {
-			display->driver->enable(display);
+			display->ops->enable(display);
 			display->activate_after_resume = false;
 		}
 	}
