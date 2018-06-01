@@ -51,14 +51,6 @@
 #define VCHIQ_LOG_INFO_STR    "info"
 #define VCHIQ_LOG_TRACE_STR   "trace"
 
-/* Top-level debug info */
-struct vchiq_debugfs_info {
-	/* log categories */
-	struct dentry *log_categories;
-};
-
-static struct vchiq_debugfs_info debugfs_info;
-
 /* Global 'vchiq' debugfs and clients entry used by all instances */
 struct dentry *vchiq_dbg_dir;
 struct dentry *vchiq_dbg_clients;
@@ -159,16 +151,12 @@ static void vchiq_debugfs_create_log_entries(struct dentry *top)
 	size_t i;
 
 	dir = debugfs_create_dir("log", vchiq_dbg_dir);
-	debugfs_info.log_categories = dir;
 
 	for (i = 0; i < n_log_entries; i++) {
 		void *levp = (void *)vchiq_debugfs_log_entries[i].plevel;
 
 		dir = debugfs_create_file(vchiq_debugfs_log_entries[i].name,
-					  0644,
-					  debugfs_info.log_categories,
-					  levp,
-					  &debugfs_log_fops);
+					  0644, dir, levp, &debugfs_log_fops);
 		vchiq_debugfs_log_entries[i].dir = dir;
 	}
 }
