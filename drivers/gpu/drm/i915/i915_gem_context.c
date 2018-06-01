@@ -610,7 +610,7 @@ static bool engine_has_kernel_context_barrier(struct intel_engine_cs *engine)
 
 		any_active = true;
 
-		if (rq->gem_context == i915->kernel_context)
+		if (rq->hw_context == ce)
 			continue;
 
 		/*
