@@ -20,6 +20,11 @@
 
 #include "pblk.h"
 
+unsigned int write_buffer_size;
+
+module_param(write_buffer_size, uint, 0644);
+MODULE_PARM_DESC(write_buffer_size, "number of entries in a write buffer");
+
 static struct kmem_cache *pblk_ws_cache, *pblk_rec_cache, *pblk_g_rq_cache,
 				*pblk_w_rq_cache;
 static DECLARE_RWSEM(pblk_lock);
@@ -172,10 +177,15 @@ static int pblk_rwb_init(struct pblk *pblk)
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
 	struct pblk_rb_entry *entries;
-	unsigned long nr_entries;
+	unsigned long nr_entries, buffer_size;
 	unsigned int power_size, power_seg_sz;
 
-	nr_entries = pblk_rb_calculate_size(pblk->pgs_in_buffer);
+	if (write_buffer_size && (write_buffer_size > pblk->pgs_in_buffer))
+		buffer_size = write_buffer_size;
+	else
+		buffer_size = pblk->pgs_in_buffer;
+
+	nr_entries = pblk_rb_calculate_size(buffer_size);
 
 	entries = vzalloc(nr_entries * sizeof(struct pblk_rb_entry));
 	if (!entries)
