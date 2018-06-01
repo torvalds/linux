@@ -298,7 +298,8 @@ static struct reset_controller_dev rst_ctlr = {
 	.of_reset_n_cells = 1,
 };
 
-void __init tegra_add_of_provider(struct device_node *np)
+void __init tegra_add_of_provider(struct device_node *np,
+				  void *clk_src_onecell_get)
 {
 	int i;
 
@@ -314,7 +315,7 @@ void __init tegra_add_of_provider(struct device_node *np)
 
 	clk_data.clks = clks;
 	clk_data.clk_num = clk_num;
-	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
+	of_clk_add_provider(np, clk_src_onecell_get, &clk_data);
 
 	rst_ctlr.of_node = np;
 	rst_ctlr.nr_resets = periph_banks * 32 + num_special_reset;
