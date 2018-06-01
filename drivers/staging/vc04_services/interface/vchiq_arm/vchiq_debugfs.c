@@ -158,15 +158,12 @@ static const struct file_operations debugfs_log_fops = {
 };
 
 /* create an entry under <debugfs>/vchiq/log for each log category */
-static int vchiq_debugfs_create_log_entries(struct dentry *top)
+static void vchiq_debugfs_create_log_entries(struct dentry *top)
 {
 	struct dentry *dir;
 	size_t i;
-	int ret = 0;
 
 	dir = debugfs_create_dir("log", vchiq_debugfs_top());
-	if (!dir)
-		return -ENOMEM;
 	debugfs_info.log_categories = dir;
 
 	for (i = 0; i < n_log_entries; i++) {
@@ -177,14 +174,8 @@ static int vchiq_debugfs_create_log_entries(struct dentry *top)
 					  debugfs_info.log_categories,
 					  levp,
 					  &debugfs_log_fops);
-		if (!dir) {
-			ret = -ENOMEM;
-			break;
-		}
-
 		vchiq_debugfs_log_entries[i].dir = dir;
 	}
-	return ret;
 }
 
 static int debugfs_usecount_show(struct seq_file *f, void *offset)
@@ -268,43 +259,22 @@ static const struct file_operations debugfs_trace_fops = {
 };
 
 /* add an instance (process) to the debugfs entries */
-int vchiq_debugfs_add_instance(VCHIQ_INSTANCE_T instance)
+void vchiq_debugfs_add_instance(VCHIQ_INSTANCE_T instance)
 {
 	char pidstr[16];
-	struct dentry *top, *use_count, *trace;
+	struct dentry *top;
 	struct dentry *clients = vchiq_clients_top();
 
 	snprintf(pidstr, sizeof(pidstr), "%d",
 		 vchiq_instance_get_pid(instance));
 
 	top = debugfs_create_dir(pidstr, clients);
-	if (!top)
-		goto fail_top;
 
-	use_count = debugfs_create_file("use_count",
-					0444, top,
-					instance,
-					&debugfs_usecount_fops);
-	if (!use_count)
-		goto fail_use_count;
-
-	trace = debugfs_create_file("trace",
-				    0644, top,
-				    instance,
-				    &debugfs_trace_fops);
-	if (!trace)
-		goto fail_trace;
+	debugfs_create_file("use_count", 0444, top, instance,
+			    &debugfs_usecount_fops);
+	debugfs_create_file("trace", 0644, top, instance, &debugfs_trace_fops);
 
 	vchiq_instance_get_debugfs_node(instance)->dentry = top;
-
-	return 0;
-
-fail_trace:
-	debugfs_remove(use_count);
-fail_use_count:
-	debugfs_remove(top);
-fail_top:
-	return -ENOMEM;
 }
 
 void vchiq_debugfs_remove_instance(VCHIQ_INSTANCE_T instance)
@@ -314,31 +284,13 @@ void vchiq_debugfs_remove_instance(VCHIQ_INSTANCE_T instance)
 	debugfs_remove_recursive(node->dentry);
 }
 
-int vchiq_debugfs_init(void)
+void vchiq_debugfs_init(void)
 {
-	BUG_ON(debugfs_info.vchiq_cfg_dir != NULL);
-
 	debugfs_info.vchiq_cfg_dir = debugfs_create_dir("vchiq", NULL);
-	if (debugfs_info.vchiq_cfg_dir == NULL)
-		goto fail;
-
 	debugfs_info.clients = debugfs_create_dir("clients",
 				vchiq_debugfs_top());
-	if (!debugfs_info.clients)
-		goto fail;
 
-	if (vchiq_debugfs_create_log_entries(vchiq_debugfs_top()) != 0)
-		goto fail;
-
-	return 0;
-
-fail:
-	vchiq_debugfs_deinit();
-	vchiq_log_error(vchiq_arm_log_level,
-		"%s: failed to create debugfs directory",
-		__func__);
-
-	return -ENOMEM;
+	vchiq_debugfs_create_log_entries(vchiq_debugfs_top());
 }
 
 /* remove all the debugfs entries */
@@ -360,18 +312,16 @@ static struct dentry *vchiq_debugfs_top(void)
 
 #else /* CONFIG_DEBUG_FS */
 
-int vchiq_debugfs_init(void)
+void vchiq_debugfs_init(void)
 {
-	return 0;
 }
 
 void vchiq_debugfs_deinit(void)
 {
 }
 
-int vchiq_debugfs_add_instance(VCHIQ_INSTANCE_T instance)
+void vchiq_debugfs_add_instance(VCHIQ_INSTANCE_T instance)
 {
-	return 0;
 }
 
 void vchiq_debugfs_remove_instance(VCHIQ_INSTANCE_T instance)
