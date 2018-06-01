@@ -1108,7 +1108,12 @@ void radix__ptep_set_access_flags(struct vm_area_struct *vma, pte_t *ptep,
 		__radix_pte_update(ptep, 0, new_pte);
 	} else {
 		__radix_pte_update(ptep, 0, set);
-		radix__flush_tlb_page_psize(mm, address, psize);
+		/*
+		 * Book3S does not require a TLB flush when relaxing access
+		 * restrictions when the address space is not attached to a
+		 * NMMU, because the core MMU will reload the pte after taking
+		 * an access fault, which is defined by the architectue.
+		 */
 	}
 	asm volatile("ptesync" : : : "memory");
 }
