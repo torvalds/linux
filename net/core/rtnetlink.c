@@ -2936,7 +2936,7 @@ replay:
 		}
 
 		if (m_ops) {
-			if (ops->slave_maxtype > RTNL_SLAVE_MAX_TYPE)
+			if (m_ops->slave_maxtype > RTNL_SLAVE_MAX_TYPE)
 				return -EINVAL;
 
 			if (m_ops->slave_maxtype &&
