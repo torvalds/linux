@@ -30,12 +30,11 @@
 #define NVMET_ASYNC_EVENTS		4
 #define NVMET_ERROR_LOG_SLOTS		128
 
-
 /*
  * Supported optional AENs:
  */
 #define NVMET_AEN_CFG_OPTIONAL \
-	NVME_AEN_CFG_NS_ATTR
+	(NVME_AEN_CFG_NS_ATTR | NVME_AEN_CFG_ANA_CHANGE)
 
 /*
  * Plus mandatory SMART AENs (we'll never send them, but allow enabling them):
@@ -99,6 +98,18 @@ struct nvmet_sq {
 	struct completion	confirm_done;
 };
 
+struct nvmet_ana_group {
+	struct config_group	group;
+	struct nvmet_port	*port;
+	u32			grpid;
+};
+
+static inline struct nvmet_ana_group *to_ana_group(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct nvmet_ana_group,
+			group);
+}
+
 /**
  * struct nvmet_port -	Common structure to keep port
  *				information for the target.
@@ -116,6 +127,8 @@ struct nvmet_port {
 	struct list_head		subsystems;
 	struct config_group		referrals_group;
 	struct list_head		referrals;
+	struct config_group		ana_groups_group;
+	struct nvmet_ana_group		ana_default_group;
 	enum nvme_ana_state		*ana_state;
 	void				*priv;
 	bool				enabled;
@@ -126,6 +139,13 @@ static inline struct nvmet_port *to_nvmet_port(struct config_item *item)
 {
 	return container_of(to_config_group(item), struct nvmet_port,
 			group);
+}
+
+static inline struct nvmet_port *ana_groups_to_port(
+		struct config_item *item)
+{
+	return container_of(to_config_group(item), struct nvmet_port,
+			ana_groups_group);
 }
 
 struct nvmet_ctrl {
@@ -345,6 +365,10 @@ void nvmet_ns_disable(struct nvmet_ns *ns);
 struct nvmet_ns *nvmet_ns_alloc(struct nvmet_subsys *subsys, u32 nsid);
 void nvmet_ns_free(struct nvmet_ns *ns);
 
+void nvmet_send_ana_event(struct nvmet_subsys *subsys,
+		struct nvmet_port *port);
+void nvmet_port_send_ana_event(struct nvmet_port *port);
+
 int nvmet_register_transport(const struct nvmet_fabrics_ops *ops);
 void nvmet_unregister_transport(const struct nvmet_fabrics_ops *ops);
 
@@ -378,7 +402,7 @@ u32 nvmet_get_log_page_len(struct nvme_command *cmd);
  * ANA Group 1 exists without manual intervention, has namespaces assigned to it
  * by default, and is available in an optimized state through all ports.
  */
-#define NVMET_MAX_ANAGRPS	1
+#define NVMET_MAX_ANAGRPS	128
 #define NVMET_DEFAULT_ANA_GRPID	1
 
 #define NVMET_KAS		10

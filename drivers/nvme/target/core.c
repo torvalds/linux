@@ -194,6 +194,33 @@ static void nvmet_ns_changed(struct nvmet_subsys *subsys, u32 nsid)
 	}
 }
 
+void nvmet_send_ana_event(struct nvmet_subsys *subsys,
+		struct nvmet_port *port)
+{
+	struct nvmet_ctrl *ctrl;
+
+	mutex_lock(&subsys->lock);
+	list_for_each_entry(ctrl, &subsys->ctrls, subsys_entry) {
+		if (port && ctrl->port != port)
+			continue;
+		if (nvmet_aen_disabled(ctrl, NVME_AEN_CFG_ANA_CHANGE))
+			continue;
+		nvmet_add_async_event(ctrl, NVME_AER_TYPE_NOTICE,
+				NVME_AER_NOTICE_ANA, NVME_LOG_ANA);
+	}
+	mutex_unlock(&subsys->lock);
+}
+
+void nvmet_port_send_ana_event(struct nvmet_port *port)
+{
+	struct nvmet_subsys_link *p;
+
+	down_read(&nvmet_config_sem);
+	list_for_each_entry(p, &port->subsystems, entry)
+		nvmet_send_ana_event(p->subsys, port);
+	up_read(&nvmet_config_sem);
+}
+
 int nvmet_register_transport(const struct nvmet_fabrics_ops *ops)
 {
 	int ret = 0;

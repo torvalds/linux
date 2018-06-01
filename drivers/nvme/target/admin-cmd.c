@@ -235,6 +235,7 @@ static void nvmet_execute_get_log_page_ana(struct nvmet_req *req)
 
 	hdr.chgcnt = cpu_to_le64(nvmet_ana_chgcnt);
 	hdr.ngrps = cpu_to_le16(ngrps);
+	clear_bit(NVME_AEN_CFG_ANA_CHANGE, &req->sq->ctrl->aen_masked);
 	up_read(&nvmet_ana_sem);
 
 	kfree(desc);
