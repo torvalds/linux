@@ -654,7 +654,8 @@ static int hclgevf_put_vector(struct hnae3_handle *handle, int vector)
 	return 0;
 }
 
-static int hclgevf_cmd_set_promisc_mode(struct hclgevf_dev *hdev, u32 en)
+static int hclgevf_cmd_set_promisc_mode(struct hclgevf_dev *hdev,
+					bool en_uc_pmc, bool en_mc_pmc)
 {
 	struct hclge_mbx_vf_to_pf_cmd *req;
 	struct hclgevf_desc desc;
@@ -664,7 +665,8 @@ static int hclgevf_cmd_set_promisc_mode(struct hclgevf_dev *hdev, u32 en)
 
 	hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_MBX_VF_TO_PF, false);
 	req->msg[0] = HCLGE_MBX_SET_PROMISC_MODE;
-	req->msg[1] = en;
+	req->msg[1] = en_uc_pmc ? 1 : 0;
+	req->msg[2] = en_mc_pmc ? 1 : 0;
 
 	status = hclgevf_cmd_send(&hdev->hw, &desc, 1);
 	if (status)
@@ -674,11 +676,12 @@ static int hclgevf_cmd_set_promisc_mode(struct hclgevf_dev *hdev, u32 en)
 	return status;
 }
 
-static void hclgevf_set_promisc_mode(struct hnae3_handle *handle, u32 en)
+static void hclgevf_set_promisc_mode(struct hnae3_handle *handle,
+				     bool en_uc_pmc, bool en_mc_pmc)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 
-	hclgevf_cmd_set_promisc_mode(hdev, en);
+	hclgevf_cmd_set_promisc_mode(hdev, en_uc_pmc, en_mc_pmc);
 }
 
 static int hclgevf_tqp_enable(struct hclgevf_dev *hdev, int tqp_id,

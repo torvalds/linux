@@ -415,9 +415,11 @@ static void hns3_nic_set_rx_mode(struct net_device *netdev)
 
 	if (h->ae_algo->ops->set_promisc_mode) {
 		if (netdev->flags & IFF_PROMISC)
-			h->ae_algo->ops->set_promisc_mode(h, 1);
+			h->ae_algo->ops->set_promisc_mode(h, true, true);
+		else if (netdev->flags & IFF_ALLMULTI)
+			h->ae_algo->ops->set_promisc_mode(h, false, true);
 		else
-			h->ae_algo->ops->set_promisc_mode(h, 0);
+			h->ae_algo->ops->set_promisc_mode(h, false, false);
 	}
 	if (__dev_uc_sync(netdev, hns3_nic_uc_sync, hns3_nic_uc_unsync))
 		netdev_err(netdev, "sync uc address fail\n");
