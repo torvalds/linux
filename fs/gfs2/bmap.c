@@ -683,6 +683,8 @@ static void gfs2_stuffed_iomap(struct inode *inode, struct iomap *iomap)
 	iomap->type = IOMAP_INLINE;
 }
 
+#define IOMAP_F_GFS2_BOUNDARY IOMAP_F_PRIVATE
+
 /**
  * gfs2_iomap_begin - Map blocks from an inode to disk blocks
  * @inode: The inode
@@ -774,7 +776,7 @@ int gfs2_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
 	bh = mp.mp_bh[ip->i_height - 1];
 	len = gfs2_extent_length(bh->b_data, bh->b_size, ptr, lend - lblock, &eob);
 	if (eob)
-		iomap->flags |= IOMAP_F_BOUNDARY;
+		iomap->flags |= IOMAP_F_GFS2_BOUNDARY;
 	iomap->length = (u64)len << inode->i_blkbits;
 
 out_release:
@@ -846,12 +848,12 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 
 	if (iomap.length > bh_map->b_size) {
 		iomap.length = bh_map->b_size;
-		iomap.flags &= ~IOMAP_F_BOUNDARY;
+		iomap.flags &= ~IOMAP_F_GFS2_BOUNDARY;
 	}
 	if (iomap.addr != IOMAP_NULL_ADDR)
 		map_bh(bh_map, inode->i_sb, iomap.addr >> inode->i_blkbits);
 	bh_map->b_size = iomap.length;
-	if (iomap.flags & IOMAP_F_BOUNDARY)
+	if (iomap.flags & IOMAP_F_GFS2_BOUNDARY)
 		set_buffer_boundary(bh_map);
 	if (iomap.flags & IOMAP_F_NEW)
 		set_buffer_new(bh_map);

@@ -27,14 +27,19 @@ struct vm_fault;
  * written data and requires fdatasync to commit them to persistent storage.
  */
 #define IOMAP_F_NEW		0x01	/* blocks have been newly allocated */
-#define IOMAP_F_BOUNDARY	0x02	/* mapping ends at metadata boundary */
-#define IOMAP_F_DIRTY		0x04	/* uncommitted metadata */
+#define IOMAP_F_DIRTY		0x02	/* uncommitted metadata */
 
 /*
  * Flags that only need to be reported for IOMAP_REPORT requests:
  */
 #define IOMAP_F_MERGED		0x10	/* contains multiple blocks/extents */
 #define IOMAP_F_SHARED		0x20	/* block shared with another file */
+
+/*
+ * Flags from 0x1000 up are for file system specific usage:
+ */
+#define IOMAP_F_PRIVATE		0x1000
+
 
 /*
  * Magic value for addr:
