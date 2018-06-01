@@ -13329,15 +13329,6 @@ S:	Odd Fixes
 F:	Documentation/devicetree/bindings/staging/iio/
 F:	drivers/staging/iio/
 
-STAGING - LUSTRE PARALLEL FILESYSTEM
-M:	Oleg Drokin <oleg.drokin@intel.com>
-M:	Andreas Dilger <andreas.dilger@intel.com>
-M:	James Simmons <jsimmons@infradead.org>
-L:	lustre-devel@lists.lustre.org (moderated for non-subscribers)
-W:	http://wiki.lustre.org/
-S:	Maintained
-F:	drivers/staging/lustre
-
 STAGING - NVIDIA COMPLIANT EMBEDDED CONTROLLER INTERFACE (nvec)
 M:	Marc Dietrich <marvin24@gmx.de>
 L:	ac100@lists.launchpad.net (moderated for non-subscribers)
