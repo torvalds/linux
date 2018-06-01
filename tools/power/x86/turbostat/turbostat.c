@@ -2496,6 +2496,20 @@ void re_initialize(void)
 	printf("turbostat: re-initialized with num_cpus %d\n", topo.num_cpus);
 }
 
+void set_max_cpu_num(void)
+{
+	FILE *filep;
+	unsigned long dummy;
+
+	topo.max_cpu_num = 0;
+	filep = fopen_or_die(
+			"/sys/devices/system/cpu/cpu0/topology/thread_siblings",
+			"r");
+	while (fscanf(filep, "%lx,", &dummy) == 1)
+		topo.max_cpu_num += 32;
+	fclose(filep);
+	topo.max_cpu_num--; /* 0 based */
+}
 
 /*
  * count_cpus()
@@ -2503,10 +2517,7 @@ void re_initialize(void)
  */
 int count_cpus(int cpu)
 {
-	if (topo.max_cpu_num < cpu)
-		topo.max_cpu_num = cpu;
-
-	topo.num_cpus += 1;
+	topo.num_cpus++;
 	return 0;
 }
 int mark_cpu_present(int cpu)
@@ -4564,8 +4575,8 @@ void topology_probe()
 	} *cpus;
 
 	/* Initialize num_cpus, max_cpu_num */
+	set_max_cpu_num();
 	topo.num_cpus = 0;
-	topo.max_cpu_num = 0;
 	for_all_proc_cpus(count_cpus);
 	if (!summary_only && topo.num_cpus > 1)
 		BIC_PRESENT(BIC_CPU);
