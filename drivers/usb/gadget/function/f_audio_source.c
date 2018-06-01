@@ -262,8 +262,8 @@ static struct snd_pcm_hardware audio_hw_info = {
 				SNDRV_PCM_INFO_BLOCK_TRANSFER,
 
 	.formats		= SNDRV_PCM_FMTBIT_S16_LE,
-	.channels_min		= 1,
-	.channels_max		= 1,
+	.channels_min		= 2,
+	.channels_max		= 2,
 	.rate_min		= MIN_SAMPLE_RATE,
 	.rate_max		= MAX_SAMPLE_RATE,
 
@@ -930,8 +930,8 @@ static void audio_build_desc(struct audio_dev *audio)
 	u32 rate, i;
 
 	/* Set channel numbers */
-	input_terminal_desc.bNrChannels = 1;
-	as_type_i_desc.bNrChannels = 1;
+	input_terminal_desc.bNrChannels = 2;
+	as_type_i_desc.bNrChannels = 2;
 
 	/* Set sample rates */
 	for (i = 0; i < ARRAY_SIZE(sample_rate_table); i++) {
@@ -1088,7 +1088,7 @@ static int audio_pcm_open(struct snd_pcm_substream *substream)
 	runtime->private_data = audio;
 	runtime->hw = audio_hw_info;
 	snd_pcm_limit_hw_rates(runtime);
-	runtime->hw.channels_max = 1;
+	runtime->hw.channels_max = 2;
 
 	audio->substream = substream;
 
@@ -1122,7 +1122,7 @@ static int audio_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	if (rate > MAX_SAMPLE_RATE || rate < MIN_SAMPLE_RATE)
 		return -EINVAL;
-	if (channels != 1)
+	if (channels != 2)
 		return -EINVAL;
 
 	return snd_pcm_lib_alloc_vmalloc_buffer(substream,
