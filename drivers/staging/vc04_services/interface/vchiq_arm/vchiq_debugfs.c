@@ -59,7 +59,6 @@ struct dentry *vchiq_dbg_clients;
 struct vchiq_debugfs_log_entry {
 	const char *name;
 	void *plevel;
-	struct dentry *dir;
 };
 
 static struct vchiq_debugfs_log_entry vchiq_debugfs_log_entries[] = {
@@ -143,23 +142,6 @@ static const struct file_operations debugfs_log_fops = {
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
-
-/* create an entry under <debugfs>/vchiq/log for each log category */
-static void vchiq_debugfs_create_log_entries(struct dentry *top)
-{
-	struct dentry *dir;
-	size_t i;
-
-	dir = debugfs_create_dir("log", vchiq_dbg_dir);
-
-	for (i = 0; i < n_log_entries; i++) {
-		dir = debugfs_create_file(vchiq_debugfs_log_entries[i].name,
-					  0644, dir,
-					  vchiq_debugfs_log_entries[i].plevel,
-					  &debugfs_log_fops);
-		vchiq_debugfs_log_entries[i].dir = dir;
-	}
-}
 
 static int debugfs_usecount_show(struct seq_file *f, void *offset)
 {
@@ -268,10 +250,19 @@ void vchiq_debugfs_remove_instance(VCHIQ_INSTANCE_T instance)
 
 void vchiq_debugfs_init(void)
 {
+	struct dentry *dir;
+	int i;
+
 	vchiq_dbg_dir = debugfs_create_dir("vchiq", NULL);
 	vchiq_dbg_clients = debugfs_create_dir("clients", vchiq_dbg_dir);
 
-	vchiq_debugfs_create_log_entries(vchiq_dbg_dir);
+	/* create an entry under <debugfs>/vchiq/log for each log category */
+	dir = debugfs_create_dir("log", vchiq_dbg_dir);
+
+	for (i = 0; i < n_log_entries; i++)
+		debugfs_create_file(vchiq_debugfs_log_entries[i].name, 0644,
+				    dir, vchiq_debugfs_log_entries[i].plevel,
+				    &debugfs_log_fops);
 }
 
 /* remove all the debugfs entries */
