@@ -29,7 +29,10 @@ config NF_SOCKET_IPV4
 	tristate "IPv4 socket lookup support"
 	help
 	  This option enables the IPv4 socket lookup infrastructure. This is
-	  is required by the iptables socket match.
+	  is required by the {ip,nf}tables socket match.
+
+config NF_TPROXY_IPV4
+	tristate "IPv4 tproxy support"
 
 if NF_TABLES
 
