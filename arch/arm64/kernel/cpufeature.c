@@ -1618,6 +1618,7 @@ void __init setup_cpu_features(void)
 		pr_info("emulated: Privileged Access Never (PAN) using TTBR0_EL1 switching\n");
 
 	sve_setup();
+	minsigstksz_setup();
 
 	/* Advertise that we have computed the system capabilities */
 	set_sys_caps_initialised();
