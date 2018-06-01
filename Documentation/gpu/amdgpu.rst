@@ -10,6 +10,14 @@ Core Driver Infrastructure
 
 This section covers core driver infrastructure.
 
+.. _amdgpu_memory_domains:
+
+Memory Domains
+--------------
+
+.. kernel-doc:: include/uapi/drm/amdgpu_drm.h
+   :doc: memory domains
+
 PRIME Buffer Sharing
 --------------------
 
