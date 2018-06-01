@@ -751,13 +751,13 @@ static int pblk_setup_line_meta_20(struct pblk *pblk, struct pblk_line *line,
 		chunk->cnlb = chunk_meta->cnlb;
 		chunk->wp = chunk_meta->wp;
 
-		if (!(chunk->state & NVM_CHK_ST_OFFLINE))
-			continue;
-
 		if (chunk->type & NVM_CHK_TP_SZ_SPEC) {
 			WARN_ONCE(1, "pblk: custom-sized chunks unsupported\n");
 			continue;
 		}
+
+		if (!(chunk->state & NVM_CHK_ST_OFFLINE))
+			continue;
 
 		set_bit(pos, line->blk_bitmap);
 		nr_bad_chks++;
