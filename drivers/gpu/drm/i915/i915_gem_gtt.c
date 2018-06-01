@@ -190,19 +190,11 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 	return 1;
 }
 
-static int ppgtt_bind_vma(struct i915_vma *vma,
-			  enum i915_cache_level cache_level,
-			  u32 unused)
+static int gen6_ppgtt_bind_vma(struct i915_vma *vma,
+			       enum i915_cache_level cache_level,
+			       u32 unused)
 {
 	u32 pte_flags;
-	int ret;
-
-	if (!(vma->flags & I915_VMA_LOCAL_BIND)) {
-		ret = vma->vm->allocate_va_range(vma->vm, vma->node.start,
-						 vma->size);
-		if (ret)
-			return ret;
-	}
 
 	/* Currently applicable only to VLV */
 	pte_flags = 0;
@@ -212,6 +204,22 @@ static int ppgtt_bind_vma(struct i915_vma *vma,
 	vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
 
 	return 0;
+}
+
+static int gen8_ppgtt_bind_vma(struct i915_vma *vma,
+			       enum i915_cache_level cache_level,
+			       u32 unused)
+{
+	int ret;
+
+	if (!(vma->flags & I915_VMA_LOCAL_BIND)) {
+		ret = vma->vm->allocate_va_range(vma->vm,
+						 vma->node.start, vma->size);
+		if (ret)
+			return ret;
+	}
+
+	return gen6_ppgtt_bind_vma(vma, cache_level, unused);
 }
 
 static void ppgtt_unbind_vma(struct i915_vma *vma)
@@ -1657,8 +1665,8 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 		gen8_ppgtt_notify_vgt(ppgtt, true);
 
 	ppgtt->base.cleanup = gen8_ppgtt_cleanup;
+	ppgtt->base.bind_vma = gen8_ppgtt_bind_vma;
 	ppgtt->base.unbind_vma = ppgtt_unbind_vma;
-	ppgtt->base.bind_vma = ppgtt_bind_vma;
 	ppgtt->base.set_pages = ppgtt_set_pages;
 	ppgtt->base.clear_pages = clear_pages;
 	ppgtt->debug_dump = gen8_dump_ppgtt;
@@ -2100,8 +2108,8 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 
 	ppgtt->base.clear_range = gen6_ppgtt_clear_range;
 	ppgtt->base.insert_entries = gen6_ppgtt_insert_entries;
+	ppgtt->base.bind_vma = gen6_ppgtt_bind_vma;
 	ppgtt->base.unbind_vma = ppgtt_unbind_vma;
-	ppgtt->base.bind_vma = ppgtt_bind_vma;
 	ppgtt->base.set_pages = ppgtt_set_pages;
 	ppgtt->base.clear_pages = clear_pages;
 	ppgtt->base.cleanup = gen6_ppgtt_cleanup;
