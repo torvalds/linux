@@ -12,6 +12,8 @@
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
 #include <linux/memblock.h>
+#include <linux/mmu_context.h>
+#include <linux/sched/mm.h>
 
 #include <asm/ppc-opcode.h>
 #include <asm/tlb.h>
@@ -504,6 +506,15 @@ void radix__local_flush_tlb_page(struct vm_area_struct *vma, unsigned long vmadd
 }
 EXPORT_SYMBOL(radix__local_flush_tlb_page);
 
+static bool mm_is_singlethreaded(struct mm_struct *mm)
+{
+	if (atomic_read(&mm->context.copros) > 0)
+		return false;
+	if (atomic_read(&mm->mm_users) <= 1 && current->mm == mm)
+		return true;
+	return false;
+}
+
 static bool mm_needs_flush_escalation(struct mm_struct *mm)
 {
 	/*
@@ -511,10 +522,47 @@ static bool mm_needs_flush_escalation(struct mm_struct *mm)
 	 * caching PTEs and not flushing them properly when
 	 * RIC = 0 for a PID/LPID invalidate
 	 */
-	return atomic_read(&mm->context.copros) != 0;
+	if (atomic_read(&mm->context.copros) > 0)
+		return true;
+	return false;
 }
 
 #ifdef CONFIG_SMP
+static void do_exit_flush_lazy_tlb(void *arg)
+{
+	struct mm_struct *mm = arg;
+	unsigned long pid = mm->context.id;
+
+	if (current->mm == mm)
+		return; /* Local CPU */
+
+	if (current->active_mm == mm) {
+		/*
+		 * Must be a kernel thread because sender is single-threaded.
+		 */
+		BUG_ON(current->mm);
+		mmgrab(&init_mm);
+		switch_mm(mm, &init_mm, current);
+		current->active_mm = &init_mm;
+		mmdrop(mm);
+	}
+	_tlbiel_pid(pid, RIC_FLUSH_ALL);
+}
+
+static void exit_flush_lazy_tlbs(struct mm_struct *mm)
+{
+	/*
+	 * Would be nice if this was async so it could be run in
+	 * parallel with our local flush, but generic code does not
+	 * give a good API for it. Could extend the generic code or
+	 * make a special powerpc IPI for flushing TLBs.
+	 * For now it's not too performance critical.
+	 */
+	smp_call_function_many(mm_cpumask(mm), do_exit_flush_lazy_tlb,
+				(void *)mm, 1);
+	mm_reset_thread_local(mm);
+}
+
 void radix__flush_tlb_mm(struct mm_struct *mm)
 {
 	unsigned long pid;
@@ -530,17 +578,24 @@ void radix__flush_tlb_mm(struct mm_struct *mm)
 	 */
 	smp_mb();
 	if (!mm_is_thread_local(mm)) {
+		if (unlikely(mm_is_singlethreaded(mm))) {
+			exit_flush_lazy_tlbs(mm);
+			goto local;
+		}
+
 		if (mm_needs_flush_escalation(mm))
 			_tlbie_pid(pid, RIC_FLUSH_ALL);
 		else
 			_tlbie_pid(pid, RIC_FLUSH_TLB);
-	} else
+	} else {
+local:
 		_tlbiel_pid(pid, RIC_FLUSH_TLB);
+	}
 	preempt_enable();
 }
 EXPORT_SYMBOL(radix__flush_tlb_mm);
 
-void radix__flush_all_mm(struct mm_struct *mm)
+static void __flush_all_mm(struct mm_struct *mm, bool fullmm)
 {
 	unsigned long pid;
 
@@ -550,11 +605,23 @@ void radix__flush_all_mm(struct mm_struct *mm)
 
 	preempt_disable();
 	smp_mb(); /* see radix__flush_tlb_mm */
-	if (!mm_is_thread_local(mm))
+	if (!mm_is_thread_local(mm)) {
+		if (unlikely(mm_is_singlethreaded(mm))) {
+			if (!fullmm) {
+				exit_flush_lazy_tlbs(mm);
+				goto local;
+			}
+		}
 		_tlbie_pid(pid, RIC_FLUSH_ALL);
-	else
+	} else {
+local:
 		_tlbiel_pid(pid, RIC_FLUSH_ALL);
+	}
 	preempt_enable();
+}
+void radix__flush_all_mm(struct mm_struct *mm)
+{
+	__flush_all_mm(mm, false);
 }
 EXPORT_SYMBOL(radix__flush_all_mm);
 
@@ -575,10 +642,16 @@ void radix__flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr,
 
 	preempt_disable();
 	smp_mb(); /* see radix__flush_tlb_mm */
-	if (!mm_is_thread_local(mm))
+	if (!mm_is_thread_local(mm)) {
+		if (unlikely(mm_is_singlethreaded(mm))) {
+			exit_flush_lazy_tlbs(mm);
+			goto local;
+		}
 		_tlbie_va(vmaddr, pid, psize, RIC_FLUSH_TLB);
-	else
+	} else {
+local:
 		_tlbiel_va(vmaddr, pid, psize, RIC_FLUSH_TLB);
+	}
 	preempt_enable();
 }
 
@@ -638,14 +711,21 @@ void radix__flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 
 	preempt_disable();
 	smp_mb(); /* see radix__flush_tlb_mm */
-	if (mm_is_thread_local(mm)) {
-		local = true;
-		full = (end == TLB_FLUSH_ALL ||
-				nr_pages > tlb_local_single_page_flush_ceiling);
-	} else {
+	if (!mm_is_thread_local(mm)) {
+		if (unlikely(mm_is_singlethreaded(mm))) {
+			if (end != TLB_FLUSH_ALL) {
+				exit_flush_lazy_tlbs(mm);
+				goto is_local;
+			}
+		}
 		local = false;
 		full = (end == TLB_FLUSH_ALL ||
 				nr_pages > tlb_single_page_flush_ceiling);
+	} else {
+is_local:
+		local = true;
+		full = (end == TLB_FLUSH_ALL ||
+				nr_pages > tlb_local_single_page_flush_ceiling);
 	}
 
 	if (full) {
@@ -766,7 +846,7 @@ void radix__tlb_flush(struct mmu_gather *tlb)
 	 * See the comment for radix in arch_exit_mmap().
 	 */
 	if (tlb->fullmm) {
-		radix__flush_all_mm(mm);
+		__flush_all_mm(mm, true);
 	} else if ( (psize = radix_get_mmu_psize(page_size)) == -1) {
 		if (!tlb->need_flush_all)
 			radix__flush_tlb_mm(mm);
@@ -800,24 +880,32 @@ static inline void __radix__flush_tlb_range_psize(struct mm_struct *mm,
 
 	preempt_disable();
 	smp_mb(); /* see radix__flush_tlb_mm */
-	if (mm_is_thread_local(mm)) {
-		local = true;
-		full = (end == TLB_FLUSH_ALL ||
-				nr_pages > tlb_local_single_page_flush_ceiling);
-	} else {
+	if (!mm_is_thread_local(mm)) {
+		if (unlikely(mm_is_singlethreaded(mm))) {
+			if (end != TLB_FLUSH_ALL) {
+				exit_flush_lazy_tlbs(mm);
+				goto is_local;
+			}
+		}
 		local = false;
 		full = (end == TLB_FLUSH_ALL ||
 				nr_pages > tlb_single_page_flush_ceiling);
+	} else {
+is_local:
+		local = true;
+		full = (end == TLB_FLUSH_ALL ||
+				nr_pages > tlb_local_single_page_flush_ceiling);
 	}
 
 	if (full) {
-		if (!local && mm_needs_flush_escalation(mm))
-			also_pwc = true;
-
-		if (local)
+		if (local) {
 			_tlbiel_pid(pid, also_pwc ? RIC_FLUSH_ALL : RIC_FLUSH_TLB);
-		else
-			_tlbie_pid(pid, also_pwc ? RIC_FLUSH_ALL: RIC_FLUSH_TLB);
+		} else {
+			if (mm_needs_flush_escalation(mm))
+				also_pwc = true;
+
+			_tlbie_pid(pid, also_pwc ? RIC_FLUSH_ALL : RIC_FLUSH_TLB);
+		}
 	} else {
 		if (local)
 			_tlbiel_va_range(start, end, pid, page_size, psize, also_pwc);
@@ -859,10 +947,16 @@ void radix__flush_tlb_collapsed_pmd(struct mm_struct *mm, unsigned long addr)
 	/* Otherwise first do the PWC, then iterate the pages. */
 	preempt_disable();
 	smp_mb(); /* see radix__flush_tlb_mm */
-	if (mm_is_thread_local(mm)) {
-		_tlbiel_va_range(addr, end, pid, PAGE_SIZE, mmu_virtual_psize, true);
-	} else {
+	if (!mm_is_thread_local(mm)) {
+		if (unlikely(mm_is_singlethreaded(mm))) {
+			exit_flush_lazy_tlbs(mm);
+			goto local;
+		}
 		_tlbie_va_range(addr, end, pid, PAGE_SIZE, mmu_virtual_psize, true);
+		goto local;
+	} else {
+local:
+		_tlbiel_va_range(addr, end, pid, PAGE_SIZE, mmu_virtual_psize, true);
 	}
 
 	preempt_enable();
