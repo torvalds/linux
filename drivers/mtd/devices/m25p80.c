@@ -28,11 +28,9 @@
 #include <linux/spi/flash.h>
 #include <linux/mtd/spi-nor.h>
 
-#define	MAX_CMD_SIZE		6
 struct m25p {
 	struct spi_mem		*spimem;
 	struct spi_nor		spi_nor;
-	u8			command[MAX_CMD_SIZE];
 };
 
 static int m25p80_read_reg(struct spi_nor *nor, u8 code, u8 *val, int len)
