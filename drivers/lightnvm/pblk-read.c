@@ -113,20 +113,45 @@ static int pblk_submit_read_io(struct pblk *pblk, struct nvm_rq *rqd)
 	return NVM_IO_OK;
 }
 
-static void pblk_read_check(struct pblk *pblk, struct nvm_rq *rqd,
-			   sector_t blba)
+static void pblk_read_check_seq(struct pblk *pblk, void *meta_list,
+				sector_t blba, int nr_lbas)
 {
-	struct pblk_sec_meta *meta_list = rqd->meta_list;
-	int nr_lbas = rqd->nr_ppas;
+	struct pblk_sec_meta *meta_lba_list = meta_list;
 	int i;
 
 	for (i = 0; i < nr_lbas; i++) {
-		u64 lba = le64_to_cpu(meta_list[i].lba);
+		u64 lba = le64_to_cpu(meta_lba_list[i].lba);
 
 		if (lba == ADDR_EMPTY)
 			continue;
 
 		WARN(lba != blba + i, "pblk: corrupted read LBA\n");
+	}
+}
+
+/*
+ * There can be holes in the lba list.
+ */
+static void pblk_read_check_rand(struct pblk *pblk, void *meta_list,
+				u64 *lba_list, int nr_lbas)
+{
+	struct pblk_sec_meta *meta_lba_list = meta_list;
+	int i, j;
+
+	for (i = 0, j = 0; i < nr_lbas; i++) {
+		u64 lba = lba_list[i];
+		u64 meta_lba;
+
+		if (lba == ADDR_EMPTY)
+			continue;
+
+		meta_lba = le64_to_cpu(meta_lba_list[j++].lba);
+
+		if (lba != meta_lba) {
+			pr_err("pblk: corrupted read LBA (%llu/%llu)\n",
+								lba, meta_lba);
+			WARN_ON(1);
+		}
 	}
 }
 
@@ -172,7 +197,7 @@ static void __pblk_end_io_read(struct pblk *pblk, struct nvm_rq *rqd,
 		WARN_ONCE(bio->bi_status, "pblk: corrupted read error\n");
 #endif
 
-	pblk_read_check(pblk, rqd, r_ctx->lba);
+	pblk_read_check_seq(pblk, rqd->meta_list, r_ctx->lba, rqd->nr_ppas);
 
 	bio_put(bio);
 	if (r_ctx->private)
@@ -584,6 +609,8 @@ int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq)
 		pr_err("pblk: GC read request failed\n");
 		goto err_free_bio;
 	}
+
+	pblk_read_check_rand(pblk, rqd.meta_list, gc_rq->lba_list, rqd.nr_ppas);
 
 	atomic_dec(&pblk->inflight_io);
 
