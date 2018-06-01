@@ -76,44 +76,6 @@ test_vlan()
 	test_vlan_dir egress 0 8
 }
 
-vlan_capture_add_del()
-{
-	local add_del=$1; shift
-	local pref=$1; shift
-	local dev=$1; shift
-	local filter=$1; shift
-
-	tc filter $add_del dev "$dev" ingress \
-	   proto 802.1q pref $pref \
-	   flower $filter \
-	   action pass
-}
-
-vlan_capture_install()
-{
-	vlan_capture_add_del add 100 "$@"
-}
-
-vlan_capture_uninstall()
-{
-	vlan_capture_add_del del 100 "$@"
-}
-
-do_test_span_vlan_dir_ips()
-{
-	local expect=$1; shift
-	local dev=$1; shift
-	local vid=$1; shift
-	local direction=$1; shift
-	local ip1=$1; shift
-	local ip2=$1; shift
-
-	vlan_capture_install $dev "vlan_id $vid"
-	mirror_test v$h1 $ip1 $ip2 $dev 100 $expect
-	mirror_test v$h2 $ip2 $ip1 $dev 100 $expect
-	vlan_capture_uninstall $dev
-}
-
 test_tagged_vlan_dir()
 {
 	local direction=$1; shift

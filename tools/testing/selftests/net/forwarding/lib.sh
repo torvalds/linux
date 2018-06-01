@@ -514,6 +514,29 @@ icmp6_capture_uninstall()
 	__icmp_capture_add_del del 100 v6 "$@"
 }
 
+__vlan_capture_add_del()
+{
+	local add_del=$1; shift
+	local pref=$1; shift
+	local dev=$1; shift
+	local filter=$1; shift
+
+	tc filter $add_del dev "$dev" ingress \
+	   proto 802.1q pref $pref \
+	   flower $filter \
+	   action pass
+}
+
+vlan_capture_install()
+{
+	__vlan_capture_add_del add 100 "$@"
+}
+
+vlan_capture_uninstall()
+{
+	__vlan_capture_add_del del 100 "$@"
+}
+
 matchall_sink_create()
 {
 	local dev=$1; shift
