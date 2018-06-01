@@ -478,6 +478,7 @@ static void dce12_update_clocks(struct dccg *dccg,
 	}
 }
 
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
 static int dcn1_determine_dppclk_threshold(struct dccg *dccg, struct dc_clocks *new_clocks)
 {
 	bool request_dpp_div = new_clocks->dispclk_khz > new_clocks->dppclk_khz;
@@ -575,7 +576,6 @@ static void dcn1_update_clocks(struct dccg *dccg,
 			|| new_clocks->dcfclk_khz > dccg->clks.dcfclk_khz)
 		send_request_to_increase = true;
 
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
 	/* make sure dcf clk is before dpp clk to
 	 * make sure we have enough voltage to run dpp clk
 	 */
@@ -585,7 +585,6 @@ static void dcn1_update_clocks(struct dccg *dccg,
 		clock_voltage_req.clocks_in_khz = dcn_find_dcfclk_suits_all(dc, new_clocks);
 		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
 	}
-#endif
 
 	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, dccg->clks.dispclk_khz)) {
 		dcn1_ramp_up_dispclk_with_dpp(dccg, new_clocks);
@@ -623,14 +622,12 @@ static void dcn1_update_clocks(struct dccg *dccg,
 		smu_req.min_deep_sleep_dcefclk_mhz = new_clocks->dcfclk_deep_sleep_khz;
 	}
 
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
 	if (!send_request_to_increase && send_request_to_lower) {
 		/*use dcfclk to request voltage*/
 		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
 		clock_voltage_req.clocks_in_khz = dcn_find_dcfclk_suits_all(dc, new_clocks);
 		dm_pp_apply_clock_for_voltage_request(dccg->ctx, &clock_voltage_req);
 	}
-#endif
 
 	if (new_clocks->phyclk_khz)
 		smu_req.display_count = 1;
@@ -642,6 +639,7 @@ static void dcn1_update_clocks(struct dccg *dccg,
 
 	*smu_req_cur = smu_req;
 }
+#endif
 
 static void dce_update_clocks(struct dccg *dccg,
 			struct dc_clocks *new_clocks,
@@ -663,11 +661,13 @@ static void dce_update_clocks(struct dccg *dccg,
 	}
 }
 
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
 static const struct display_clock_funcs dcn1_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.set_dispclk = dce112_set_clock,
 	.update_clocks = dcn1_update_clocks
 };
+#endif
 
 static const struct display_clock_funcs dce120_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
@@ -816,6 +816,7 @@ struct dccg *dce120_dccg_create(struct dc_context *ctx)
 	return &clk_dce->base;
 }
 
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
 struct dccg *dcn1_dccg_create(struct dc_context *ctx)
 {
 	struct dc_debug *debug = &ctx->dc->debug;
@@ -854,6 +855,7 @@ struct dccg *dcn1_dccg_create(struct dc_context *ctx)
 
 	return &clk_dce->base;
 }
+#endif
 
 void dce_dccg_destroy(struct dccg **dccg)
 {
