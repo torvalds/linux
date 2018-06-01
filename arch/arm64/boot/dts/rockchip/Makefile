@@ -61,6 +61,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-gru-kevin-r0.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-gru-kevin-r1.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-mid-818-android-6.0.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-mid-818-android.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-rockpro64.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-rv1-android.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-sapphire-excavator-box-android-6.0.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-sapphire-excavator-box.dtb
