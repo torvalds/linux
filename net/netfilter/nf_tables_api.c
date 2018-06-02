@@ -4046,8 +4046,16 @@ void nft_set_elem_destroy(const struct nft_set *set, void *elem,
 	nft_data_release(nft_set_ext_key(ext), NFT_DATA_VALUE);
 	if (nft_set_ext_exists(ext, NFT_SET_EXT_DATA))
 		nft_data_release(nft_set_ext_data(ext), set->dtype);
-	if (destroy_expr && nft_set_ext_exists(ext, NFT_SET_EXT_EXPR))
-		nf_tables_expr_destroy(&ctx, nft_set_ext_expr(ext));
+	if (destroy_expr && nft_set_ext_exists(ext, NFT_SET_EXT_EXPR)) {
+		struct nft_expr *expr = nft_set_ext_expr(ext);
+
+		if (expr->ops->destroy_clone) {
+			expr->ops->destroy_clone(&ctx, expr);
+			module_put(expr->ops->type->owner);
+		} else {
+			nf_tables_expr_destroy(&ctx, expr);
+		}
+	}
 	if (nft_set_ext_exists(ext, NFT_SET_EXT_OBJREF))
 		(*nft_set_ext_obj(ext))->use--;
 	kfree(elem);

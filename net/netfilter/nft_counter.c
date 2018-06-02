@@ -258,6 +258,7 @@ static const struct nft_expr_ops nft_counter_ops = {
 	.eval		= nft_counter_eval,
 	.init		= nft_counter_init,
 	.destroy	= nft_counter_destroy,
+	.destroy_clone	= nft_counter_destroy,
 	.dump		= nft_counter_dump,
 	.clone		= nft_counter_clone,
 };

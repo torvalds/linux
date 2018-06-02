@@ -745,6 +745,8 @@ struct nft_expr_ops {
 						      const struct nft_expr *expr);
 	void				(*destroy)(const struct nft_ctx *ctx,
 						   const struct nft_expr *expr);
+	void				(*destroy_clone)(const struct nft_ctx *ctx,
+							 const struct nft_expr *expr);
 	int				(*dump)(struct sk_buff *skb,
 						const struct nft_expr *expr);
 	int				(*validate)(const struct nft_ctx *ctx,
