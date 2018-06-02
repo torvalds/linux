@@ -4,38 +4,14 @@
 
 #include <sound/hdaudio.h>
 
-/**
- * hdac_ext_bus: HDAC extended bus for extended HDA caps
- *
- * @bus: hdac bus
- * @num_streams: streams supported
- * @hlink_list: link list of HDA links
- * @lock: lock for link mgmt
- * @cmd_dma_state: state of cmd DMAs: CORB and RIRB
- */
-struct hdac_ext_bus {
-	struct hdac_bus bus;
-	int num_streams;
-	int idx;
-
-	struct list_head hlink_list;
-
-	struct mutex lock;
-	bool cmd_dma_state;
-};
-
-int snd_hdac_ext_bus_init(struct hdac_ext_bus *sbus, struct device *dev,
+int snd_hdac_ext_bus_init(struct hdac_bus *bus, struct device *dev,
 		      const struct hdac_bus_ops *ops,
 		      const struct hdac_io_ops *io_ops);
 
-void snd_hdac_ext_bus_exit(struct hdac_ext_bus *sbus);
-int snd_hdac_ext_bus_device_init(struct hdac_ext_bus *sbus, int addr);
+void snd_hdac_ext_bus_exit(struct hdac_bus *bus);
+int snd_hdac_ext_bus_device_init(struct hdac_bus *bus, int addr);
 void snd_hdac_ext_bus_device_exit(struct hdac_device *hdev);
-void snd_hdac_ext_bus_device_remove(struct hdac_ext_bus *ebus);
-
-#define ebus_to_hbus(ebus)	(&(ebus)->bus)
-#define hbus_to_ebus(_bus) \
-	container_of(_bus, struct hdac_ext_bus, bus)
+void snd_hdac_ext_bus_device_remove(struct hdac_bus *bus);
 
 #define HDA_CODEC_REV_EXT_ENTRY(_vid, _rev, _name, drv_data) \
 	{ .vendor_id = (_vid), .rev_id = (_rev), .name = (_name), \
@@ -44,14 +20,14 @@ void snd_hdac_ext_bus_device_remove(struct hdac_ext_bus *ebus);
 #define HDA_CODEC_EXT_ENTRY(_vid, _revid, _name, _drv_data) \
 	HDA_CODEC_REV_EXT_ENTRY(_vid, _revid, _name, _drv_data)
 
-void snd_hdac_ext_bus_ppcap_enable(struct hdac_ext_bus *chip, bool enable);
-void snd_hdac_ext_bus_ppcap_int_enable(struct hdac_ext_bus *chip, bool enable);
+void snd_hdac_ext_bus_ppcap_enable(struct hdac_bus *chip, bool enable);
+void snd_hdac_ext_bus_ppcap_int_enable(struct hdac_bus *chip, bool enable);
 
-void snd_hdac_ext_stream_spbcap_enable(struct hdac_ext_bus *chip,
+void snd_hdac_ext_stream_spbcap_enable(struct hdac_bus *chip,
 				 bool enable, int index);
 
-int snd_hdac_ext_bus_get_ml_capabilities(struct hdac_ext_bus *bus);
-struct hdac_ext_link *snd_hdac_ext_bus_get_link(struct hdac_ext_bus *bus,
+int snd_hdac_ext_bus_get_ml_capabilities(struct hdac_bus *bus);
+struct hdac_ext_link *snd_hdac_ext_bus_get_link(struct hdac_bus *bus,
 						const char *codec_name);
 
 enum hdac_ext_stream_type {
@@ -100,28 +76,28 @@ struct hdac_ext_stream {
 #define stream_to_hdac_ext_stream(s) \
 	container_of(s, struct hdac_ext_stream, hstream)
 
-void snd_hdac_ext_stream_init(struct hdac_ext_bus *bus,
+void snd_hdac_ext_stream_init(struct hdac_bus *bus,
 				struct hdac_ext_stream *stream, int idx,
 				int direction, int tag);
-int snd_hdac_ext_stream_init_all(struct hdac_ext_bus *ebus, int start_idx,
+int snd_hdac_ext_stream_init_all(struct hdac_bus *bus, int start_idx,
 		int num_stream, int dir);
-void snd_hdac_stream_free_all(struct hdac_ext_bus *ebus);
-void snd_hdac_link_free_all(struct hdac_ext_bus *ebus);
-struct hdac_ext_stream *snd_hdac_ext_stream_assign(struct hdac_ext_bus *bus,
+void snd_hdac_stream_free_all(struct hdac_bus *bus);
+void snd_hdac_link_free_all(struct hdac_bus *bus);
+struct hdac_ext_stream *snd_hdac_ext_stream_assign(struct hdac_bus *bus,
 					   struct snd_pcm_substream *substream,
 					   int type);
 void snd_hdac_ext_stream_release(struct hdac_ext_stream *azx_dev, int type);
-void snd_hdac_ext_stream_decouple(struct hdac_ext_bus *bus,
+void snd_hdac_ext_stream_decouple(struct hdac_bus *bus,
 				struct hdac_ext_stream *azx_dev, bool decouple);
-void snd_hdac_ext_stop_streams(struct hdac_ext_bus *sbus);
+void snd_hdac_ext_stop_streams(struct hdac_bus *bus);
 
-int snd_hdac_ext_stream_set_spib(struct hdac_ext_bus *ebus,
+int snd_hdac_ext_stream_set_spib(struct hdac_bus *bus,
 				 struct hdac_ext_stream *stream, u32 value);
-int snd_hdac_ext_stream_get_spbmaxfifo(struct hdac_ext_bus *ebus,
+int snd_hdac_ext_stream_get_spbmaxfifo(struct hdac_bus *bus,
 				 struct hdac_ext_stream *stream);
-void snd_hdac_ext_stream_drsm_enable(struct hdac_ext_bus *ebus,
+void snd_hdac_ext_stream_drsm_enable(struct hdac_bus *bus,
 				bool enable, int index);
-int snd_hdac_ext_stream_set_dpibr(struct hdac_ext_bus *ebus,
+int snd_hdac_ext_stream_set_dpibr(struct hdac_bus *bus,
 				struct hdac_ext_stream *stream, u32 value);
 int snd_hdac_ext_stream_set_lpib(struct hdac_ext_stream *stream, u32 value);
 
@@ -144,17 +120,15 @@ struct hdac_ext_link {
 
 int snd_hdac_ext_bus_link_power_up(struct hdac_ext_link *link);
 int snd_hdac_ext_bus_link_power_down(struct hdac_ext_link *link);
-int snd_hdac_ext_bus_link_power_up_all(struct hdac_ext_bus *ebus);
-int snd_hdac_ext_bus_link_power_down_all(struct hdac_ext_bus *ebus);
+int snd_hdac_ext_bus_link_power_up_all(struct hdac_bus *bus);
+int snd_hdac_ext_bus_link_power_down_all(struct hdac_bus *bus);
 void snd_hdac_ext_link_set_stream_id(struct hdac_ext_link *link,
 				 int stream);
 void snd_hdac_ext_link_clear_stream_id(struct hdac_ext_link *link,
 				 int stream);
 
-int snd_hdac_ext_bus_link_get(struct hdac_ext_bus *ebus,
-				struct hdac_ext_link *link);
-int snd_hdac_ext_bus_link_put(struct hdac_ext_bus *ebus,
-				struct hdac_ext_link *link);
+int snd_hdac_ext_bus_link_get(struct hdac_bus *bus, struct hdac_ext_link *link);
+int snd_hdac_ext_bus_link_put(struct hdac_bus *bus, struct hdac_ext_link *link);
 
 /* update register macro */
 #define snd_hdac_updatel(addr, reg, mask, val)		\

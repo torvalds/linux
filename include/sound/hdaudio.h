@@ -250,6 +250,11 @@ struct hdac_rb {
  * @mlcap: MultiLink capabilities pointer
  * @gtscap: gts capabilities pointer
  * @drsmcap: dma resume capabilities pointer
+ * @num_streams: streams supported
+ * @idx: HDA link index
+ * @hlink_list: link list of HDA links
+ * @lock: lock for link mgmt
+ * @cmd_dma_state: state of cmd DMAs: CORB and RIRB
  */
 struct hdac_bus {
 	struct device *dev;
@@ -317,6 +322,16 @@ struct hdac_bus {
 	/* i915 component interface */
 	struct i915_audio_component *audio_component;
 	int i915_power_refcount;
+
+	/* parameters required for enhanced capabilities */
+	int num_streams;
+	int idx;
+
+	struct list_head hlink_list;
+
+	struct mutex lock;
+	bool cmd_dma_state;
+
 };
 
 int snd_hdac_bus_init(struct hdac_bus *bus, struct device *dev,
