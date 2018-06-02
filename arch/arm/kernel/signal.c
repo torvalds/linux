@@ -710,3 +710,10 @@ asmlinkage void addr_limit_check_failed(void)
 {
 	addr_limit_user_check();
 }
+
+#ifdef CONFIG_DEBUG_RSEQ
+asmlinkage void do_rseq_syscall(struct pt_regs *regs)
+{
+	rseq_syscall(regs);
+}
+#endif
