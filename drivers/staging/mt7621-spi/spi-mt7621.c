@@ -140,7 +140,7 @@ static int mt7621_spi_prepare(struct spi_device *spi, unsigned int speed)
 		reg |= MT7621_LSB_FIRST;
 
 	reg &= ~(MT7621_CPHA | MT7621_CPOL);
-	switch(spi->mode & (SPI_CPOL | SPI_CPHA)) {
+	switch (spi->mode & (SPI_CPOL | SPI_CPHA)) {
 	case SPI_MODE_0:
 		break;
 	case SPI_MODE_1:
