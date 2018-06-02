@@ -188,6 +188,11 @@ struct hdac_driver {
 	const struct hda_device_id *id_table;
 	int (*match)(struct hdac_device *dev, struct hdac_driver *drv);
 	void (*unsol_event)(struct hdac_device *dev, unsigned int event);
+
+	/* fields used by ext bus APIs */
+	int (*probe)(struct hdac_device *dev);
+	int (*remove)(struct hdac_device *dev);
+	void (*shutdown)(struct hdac_device *dev);
 };
 
 #define drv_to_hdac_driver(_drv) container_of(_drv, struct hdac_driver, driver)

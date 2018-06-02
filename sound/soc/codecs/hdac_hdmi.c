@@ -2186,14 +2186,12 @@ static const struct hda_device_id hdmi_list[] = {
 
 MODULE_DEVICE_TABLE(hdaudio, hdmi_list);
 
-static struct hdac_ext_driver hdmi_driver = {
-	. hdac = {
-		.driver = {
-			.name   = "HDMI HDA Codec",
-			.pm = &hdac_hdmi_pm,
-		},
-		.id_table       = hdmi_list,
+static struct hdac_driver hdmi_driver = {
+	.driver = {
+		.name   = "HDMI HDA Codec",
+		.pm = &hdac_hdmi_pm,
 	},
+	.id_table       = hdmi_list,
 	.probe          = hdac_hdmi_dev_probe,
 	.remove         = hdac_hdmi_dev_remove,
 };
