@@ -327,13 +327,15 @@ static void bpf_map_show_fdinfo(struct seq_file *m, struct file *filp)
 		   "value_size:\t%u\n"
 		   "max_entries:\t%u\n"
 		   "map_flags:\t%#x\n"
-		   "memlock:\t%llu\n",
+		   "memlock:\t%llu\n"
+		   "map_id:\t%u\n",
 		   map->map_type,
 		   map->key_size,
 		   map->value_size,
 		   map->max_entries,
 		   map->map_flags,
-		   map->pages * 1ULL << PAGE_SHIFT);
+		   map->pages * 1ULL << PAGE_SHIFT,
+		   map->id);
 
 	if (owner_prog_type) {
 		seq_printf(m, "owner_prog_type:\t%u\n",
@@ -1070,11 +1072,13 @@ static void bpf_prog_show_fdinfo(struct seq_file *m, struct file *filp)
 		   "prog_type:\t%u\n"
 		   "prog_jited:\t%u\n"
 		   "prog_tag:\t%s\n"
-		   "memlock:\t%llu\n",
+		   "memlock:\t%llu\n"
+		   "prog_id:\t%u\n",
 		   prog->type,
 		   prog->jited,
 		   prog_tag,
-		   prog->pages * 1ULL << PAGE_SHIFT);
+		   prog->pages * 1ULL << PAGE_SHIFT,
+		   prog->aux->id);
 }
 #endif
 
