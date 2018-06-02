@@ -181,48 +181,20 @@ struct hda_dai_map {
 	u32	maxbps;
 };
 
-#define HDA_MAX_NIDS 16
-
-/**
- * struct hdac_ext_device - HDAC Ext device
- *
- * @hdac: hdac core device
- * @nid_list - the dai map which matches the dai-name with the nid
- * @map_cur_idx - the idx in use in dai_map
- * @ops - the hda codec ops common to all codec drivers
- * @pvt_data - private data, for asoc contains asoc codec object
- */
-struct hdac_ext_device {
-	struct hdac_device hdev;
-	struct hdac_ext_bus *ebus;
-
-	/* soc-dai to nid map */
-	struct hda_dai_map nid_list[HDA_MAX_NIDS];
-	unsigned int map_cur_idx;
-
-	/* codec ops */
-	struct hdac_ext_codec_ops ops;
-
-	struct snd_card *card;
-	void *scodec;
-	void *private_data;
-};
-
 struct hdac_ext_dma_params {
 	u32 format;
 	u8 stream_tag;
 };
-#define to_ehdac_device(dev) (container_of((dev), \
-				 struct hdac_ext_device, hdev))
+
 /*
  * HD-audio codec base driver
  */
 struct hdac_ext_driver {
 	struct hdac_driver hdac;
 
-	int	(*probe)(struct hdac_ext_device *dev);
-	int	(*remove)(struct hdac_ext_device *dev);
-	void	(*shutdown)(struct hdac_ext_device *dev);
+	int	(*probe)(struct hdac_device *dev);
+	int	(*remove)(struct hdac_device *dev);
+	void	(*shutdown)(struct hdac_device *dev);
 };
 
 int snd_hda_ext_driver_register(struct hdac_ext_driver *drv);

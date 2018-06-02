@@ -137,17 +137,16 @@ static void default_release(struct device *dev)
  */
 int snd_hdac_ext_bus_device_init(struct hdac_ext_bus *ebus, int addr)
 {
-	struct hdac_ext_device *edev;
 	struct hdac_device *hdev = NULL;
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	char name[15];
 	int ret;
 
-	edev = kzalloc(sizeof(*edev), GFP_KERNEL);
-	if (!edev)
+	hdev = kzalloc(sizeof(*hdev), GFP_KERNEL);
+	if (!hdev)
 		return -ENOMEM;
-	hdev = &edev->hdev;
-	edev->ebus = ebus;
+
+	hdev->bus = bus;
 
 	snprintf(name, sizeof(name), "ehdaudio%dD%d", ebus->idx, addr);
 
@@ -176,10 +175,8 @@ EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_device_init);
  */
 void snd_hdac_ext_bus_device_exit(struct hdac_device *hdev)
 {
-	struct hdac_ext_device *edev = to_ehdac_device(hdev);
-
 	snd_hdac_device_exit(hdev);
-	kfree(edev);
+	kfree(hdev);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_device_exit);
 
@@ -212,27 +209,25 @@ static inline struct hdac_ext_driver *get_edrv(struct device *dev)
 	return edrv;
 }
 
-static inline struct hdac_ext_device *get_edev(struct device *dev)
+static inline struct hdac_device *get_hdev(struct device *dev)
 {
 	struct hdac_device *hdev = dev_to_hdac_dev(dev);
-	struct hdac_ext_device *edev = to_ehdac_device(hdev);
-
-	return edev;
+	return hdev;
 }
 
 static int hda_ext_drv_probe(struct device *dev)
 {
-	return (get_edrv(dev))->probe(get_edev(dev));
+	return (get_edrv(dev))->probe(get_hdev(dev));
 }
 
 static int hdac_ext_drv_remove(struct device *dev)
 {
-	return (get_edrv(dev))->remove(get_edev(dev));
+	return (get_edrv(dev))->remove(get_hdev(dev));
 }
 
 static void hdac_ext_drv_shutdown(struct device *dev)
 {
-	return (get_edrv(dev))->shutdown(get_edev(dev));
+	return (get_edrv(dev))->shutdown(get_hdev(dev));
 }
 
 /**
