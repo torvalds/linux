@@ -1342,6 +1342,11 @@ static s32 btf_array_check_meta(struct btf_verifier_env *env,
 		return -EINVAL;
 	}
 
+	if (t->size) {
+		btf_verifier_log_type(env, t, "size != 0");
+		return -EINVAL;
+	}
+
 	/* Array elem type and index type cannot be in type void,
 	 * so !array->type and !array->index_type are not allowed.
 	 */
