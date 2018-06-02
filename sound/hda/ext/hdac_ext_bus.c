@@ -200,12 +200,10 @@ EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_device_remove);
 #define dev_to_hdac(dev) (container_of((dev), \
 			struct hdac_device, dev))
 
-static inline struct hdac_ext_driver *get_edrv(struct device *dev)
+static inline struct hdac_driver *get_hdrv(struct device *dev)
 {
 	struct hdac_driver *hdrv = drv_to_hdac_driver(dev->driver);
-	struct hdac_ext_driver *edrv = to_ehdac_driver(hdrv);
-
-	return edrv;
+	return hdrv;
 }
 
 static inline struct hdac_device *get_hdev(struct device *dev)
@@ -216,17 +214,17 @@ static inline struct hdac_device *get_hdev(struct device *dev)
 
 static int hda_ext_drv_probe(struct device *dev)
 {
-	return (get_edrv(dev))->probe(get_hdev(dev));
+	return (get_hdrv(dev))->probe(get_hdev(dev));
 }
 
 static int hdac_ext_drv_remove(struct device *dev)
 {
-	return (get_edrv(dev))->remove(get_hdev(dev));
+	return (get_hdrv(dev))->remove(get_hdev(dev));
 }
 
 static void hdac_ext_drv_shutdown(struct device *dev)
 {
-	return (get_edrv(dev))->shutdown(get_hdev(dev));
+	return (get_hdrv(dev))->shutdown(get_hdev(dev));
 }
 
 /**
@@ -234,20 +232,20 @@ static void hdac_ext_drv_shutdown(struct device *dev)
  *
  * @drv: ext hda driver structure
  */
-int snd_hda_ext_driver_register(struct hdac_ext_driver *drv)
+int snd_hda_ext_driver_register(struct hdac_driver *drv)
 {
-	drv->hdac.type = HDA_DEV_ASOC;
-	drv->hdac.driver.bus = &snd_hda_bus_type;
+	drv->type = HDA_DEV_ASOC;
+	drv->driver.bus = &snd_hda_bus_type;
 	/* we use default match */
 
 	if (drv->probe)
-		drv->hdac.driver.probe = hda_ext_drv_probe;
+		drv->driver.probe = hda_ext_drv_probe;
 	if (drv->remove)
-		drv->hdac.driver.remove = hdac_ext_drv_remove;
+		drv->driver.remove = hdac_ext_drv_remove;
 	if (drv->shutdown)
-		drv->hdac.driver.shutdown = hdac_ext_drv_shutdown;
+		drv->driver.shutdown = hdac_ext_drv_shutdown;
 
-	return driver_register(&drv->hdac.driver);
+	return driver_register(&drv->driver);
 }
 EXPORT_SYMBOL_GPL(snd_hda_ext_driver_register);
 
@@ -256,8 +254,8 @@ EXPORT_SYMBOL_GPL(snd_hda_ext_driver_register);
  *
  * @drv: ext hda driver structure
  */
-void snd_hda_ext_driver_unregister(struct hdac_ext_driver *drv)
+void snd_hda_ext_driver_unregister(struct hdac_driver *drv)
 {
-	driver_unregister(&drv->hdac.driver);
+	driver_unregister(&drv->driver);
 }
 EXPORT_SYMBOL_GPL(snd_hda_ext_driver_unregister);
