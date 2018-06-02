@@ -116,6 +116,7 @@ static inline struct gfs2_bitmap *rbm_bi(const struct gfs2_rbm *rbm)
 
 static inline u64 gfs2_rbm_to_block(const struct gfs2_rbm *rbm)
 {
+	BUG_ON(rbm->offset >= rbm->rgd->rd_data);
 	return rbm->rgd->rd_data0 + (rbm_bi(rbm)->bi_start * GFS2_NBBY) +
 		rbm->offset;
 }
