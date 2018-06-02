@@ -464,7 +464,7 @@ static void sh_eth_soft_swap(char *src, int len)
 {
 #ifdef __LITTLE_ENDIAN
 	u32 *p = (u32 *)src;
-	u32 *maxp = p + ((len + sizeof(u32) - 1) / sizeof(u32));
+	u32 *maxp = p + DIV_ROUND_UP(len, sizeof(u32));
 
 	for (; p < maxp; p++)
 		*p = swab32(*p);
