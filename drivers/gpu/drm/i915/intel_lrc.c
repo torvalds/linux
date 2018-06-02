@@ -200,7 +200,7 @@ static inline bool need_preempt(const struct intel_engine_cs *engine,
  *
  *      bits  0-11:    flags, GEN8_CTX_* (cached in ctx->desc_template)
  *      bits 12-31:    LRCA, GTT address of (the HWSP of) this context
- *      bits 32-52:    ctx ID, a globally unique tag
+ *      bits 32-52:    ctx ID, a globally unique tag (highest bit used by GuC)
  *      bits 53-54:    mbz, reserved for use by hardware
  *      bits 55-63:    group ID, currently unused and set to 0
  *
