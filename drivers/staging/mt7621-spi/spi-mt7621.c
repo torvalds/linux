@@ -107,7 +107,7 @@ static void mt7621_spi_set_cs(struct spi_device *spi, int enable)
 	int cs = spi->chip_select;
 	u32 polar = 0;
 
-        mt7621_spi_reset(rs, cs);
+	mt7621_spi_reset(rs, cs);
 	if (enable)
 		polar = BIT(cs);
 	mt7621_spi_write(rs, MT7621_SPI_POLAR, polar);
