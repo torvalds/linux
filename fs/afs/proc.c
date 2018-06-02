@@ -326,6 +326,7 @@ static int afs_proc_servers_show(struct seq_file *m, void *v)
 {
 	struct afs_server *server;
 	struct afs_addr_list *alist;
+	int i;
 
 	if (v == SEQ_START_TOKEN) {
 		seq_puts(m, "UUID                                 USE ADDR\n");
@@ -334,10 +335,15 @@ static int afs_proc_servers_show(struct seq_file *m, void *v)
 
 	server = list_entry(v, struct afs_server, proc_link);
 	alist = rcu_dereference(server->addresses);
-	seq_printf(m, "%pU %3d %pISp\n",
+	seq_printf(m, "%pU %3d %pISpc%s\n",
 		   &server->uuid,
 		   atomic_read(&server->usage),
-		   &alist->addrs[alist->index].transport);
+		   &alist->addrs[0].transport,
+		   alist->index == 0 ? "*" : "");
+	for (i = 1; i < alist->nr_addrs; i++)
+		seq_printf(m, "                                         %pISpc%s\n",
+			   &alist->addrs[i].transport,
+			   alist->index == i ? "*" : "");
 	return 0;
 }
 
