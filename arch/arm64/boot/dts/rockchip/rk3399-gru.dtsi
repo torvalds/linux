@@ -457,7 +457,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&bt_host_wake_l>;
 
-		wake-on-bt {
+		wake_on_bt: wake-on-bt {
 			label = "Wake-on-Bluetooth";
 			gpios = <&gpio0 3 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_WAKEUP>;
@@ -475,7 +475,7 @@
 		status = "okay";
 	};
 
-	sound {
+	sound: sound {
 		compatible = "rockchip,rk3399-gru-sound";
 		rockchip,cpu = <&i2s0 &i2s2>;
 		rockchip,codec = <&max98357a &headsetcodec
@@ -1131,7 +1131,7 @@ ap_i2c_audio: &i2c8 {
 		};
 	};
 
-	wifi {
+	wifi: wifi {
 		wifi_perst_l: wifi-perst-l {
 			rockchip,pins = <2 27 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
