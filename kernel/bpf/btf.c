@@ -1286,8 +1286,27 @@ static struct btf_kind_operations ptr_ops = {
 	.seq_show = btf_ptr_seq_show,
 };
 
+static s32 btf_fwd_check_meta(struct btf_verifier_env *env,
+			      const struct btf_type *t,
+			      u32 meta_left)
+{
+	if (btf_type_vlen(t)) {
+		btf_verifier_log_type(env, t, "vlen != 0");
+		return -EINVAL;
+	}
+
+	if (t->type) {
+		btf_verifier_log_type(env, t, "type != 0");
+		return -EINVAL;
+	}
+
+	btf_verifier_log_type(env, t, NULL);
+
+	return 0;
+}
+
 static struct btf_kind_operations fwd_ops = {
-	.check_meta = btf_ref_type_check_meta,
+	.check_meta = btf_fwd_check_meta,
 	.resolve = btf_df_resolve,
 	.check_member = btf_df_check_member,
 	.log_details = btf_ref_type_log,
