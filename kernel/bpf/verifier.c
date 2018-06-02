@@ -2462,7 +2462,7 @@ static int check_helper_call(struct bpf_verifier_env *env, int func_id, int insn
 
 	/* eBPF programs must be GPL compatible to use GPL-ed functions */
 	if (!env->prog->gpl_compatible && fn->gpl_only) {
-		verbose(env, "cannot call GPL only function from proprietary program\n");
+		verbose(env, "cannot call GPL-restricted function from non-GPL compatible program\n");
 		return -EINVAL;
 	}
 
