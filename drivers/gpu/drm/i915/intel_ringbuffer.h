@@ -122,7 +122,8 @@ struct intel_engine_hangcheck {
 	int deadlock;
 	struct intel_instdone instdone;
 	struct i915_request *active_request;
-	bool stalled;
+	bool stalled:1;
+	bool wedged:1;
 };
 
 struct intel_ring {

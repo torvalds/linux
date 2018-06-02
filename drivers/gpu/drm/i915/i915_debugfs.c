@@ -1359,11 +1359,12 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 		seq_printf(m, "\tseqno = %x [current %x, last %x]\n",
 			   engine->hangcheck.seqno, seqno[id],
 			   intel_engine_last_submit(engine));
-		seq_printf(m, "\twaiters? %s, fake irq active? %s, stalled? %s\n",
+		seq_printf(m, "\twaiters? %s, fake irq active? %s, stalled? %s, wedged? %s\n",
 			   yesno(intel_engine_has_waiter(engine)),
 			   yesno(test_bit(engine->id,
 					  &dev_priv->gpu_error.missed_irq_rings)),
-			   yesno(engine->hangcheck.stalled));
+			   yesno(engine->hangcheck.stalled),
+			   yesno(engine->hangcheck.wedged));
 
 		spin_lock_irq(&b->rb_lock);
 		for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {

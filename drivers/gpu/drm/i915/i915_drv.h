@@ -1006,6 +1006,8 @@ struct i915_gem_mm {
 #define I915_ENGINE_DEAD_TIMEOUT  (4 * HZ)  /* Seqno, head and subunits dead */
 #define I915_SEQNO_DEAD_TIMEOUT   (12 * HZ) /* Seqno dead with active head */
 
+#define I915_ENGINE_WEDGED_TIMEOUT  (60 * HZ)  /* Reset but no recovery? */
+
 enum modeset_restore {
 	MODESET_ON_LID_OPEN,
 	MODESET_DONE,
