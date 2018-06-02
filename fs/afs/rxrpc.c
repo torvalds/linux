@@ -41,6 +41,7 @@ int afs_open_socket(struct afs_net *net)
 {
 	struct sockaddr_rxrpc srx;
 	struct socket *socket;
+	unsigned int min_level;
 	int ret;
 
 	_enter("");
@@ -59,6 +60,12 @@ int afs_open_socket(struct afs_net *net)
 	srx.transport_len		= sizeof(srx.transport.sin6);
 	srx.transport.sin6.sin6_family	= AF_INET6;
 	srx.transport.sin6.sin6_port	= htons(AFS_CM_PORT);
+
+	min_level = RXRPC_SECURITY_ENCRYPT;
+	ret = kernel_setsockopt(socket, SOL_RXRPC, RXRPC_MIN_SECURITY_LEVEL,
+				(void *)&min_level, sizeof(min_level));
+	if (ret < 0)
+		goto error_2;
 
 	ret = kernel_bind(socket, (struct sockaddr *) &srx, sizeof(srx));
 	if (ret == -EADDRINUSE) {
@@ -482,8 +489,12 @@ static void afs_deliver_to_call(struct afs_call *call)
 		state = READ_ONCE(call->state);
 		switch (ret) {
 		case 0:
-			if (state == AFS_CALL_CL_PROC_REPLY)
+			if (state == AFS_CALL_CL_PROC_REPLY) {
+				if (call->cbi)
+					set_bit(AFS_SERVER_FL_MAY_HAVE_CB,
+						&call->cbi->server->flags);
 				goto call_complete;
+			}
 			ASSERTCMP(state, >, AFS_CALL_CL_PROC_REPLY);
 			goto done;
 		case -EINPROGRESS:
@@ -493,11 +504,6 @@ static void afs_deliver_to_call(struct afs_call *call)
 		case -ECONNABORTED:
 			ASSERTCMP(state, ==, AFS_CALL_COMPLETE);
 			goto done;
-		case -ENOTCONN:
-			abort_code = RX_CALL_DEAD;
-			rxrpc_kernel_abort_call(call->net->socket, call->rxcall,
-						abort_code, ret, "KNC");
-			goto local_abort;
 		case -ENOTSUPP:
 			abort_code = RXGEN_OPCODE;
 			rxrpc_kernel_abort_call(call->net->socket, call->rxcall,

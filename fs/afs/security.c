@@ -147,8 +147,7 @@ void afs_cache_permit(struct afs_vnode *vnode, struct key *key,
 					break;
 				}
 
-				if (cb_break != (vnode->cb_break +
-						 vnode->cb_interest->server->cb_s_break)) {
+				if (cb_break != afs_cb_break_sum(vnode, vnode->cb_interest)) {
 					changed = true;
 					break;
 				}
@@ -178,7 +177,7 @@ void afs_cache_permit(struct afs_vnode *vnode, struct key *key,
 		}
 	}
 
-	if (cb_break != (vnode->cb_break + vnode->cb_interest->server->cb_s_break))
+	if (cb_break != afs_cb_break_sum(vnode, vnode->cb_interest))
 		goto someone_else_changed_it;
 
 	/* We need a ref on any permits list we want to copy as we'll have to
@@ -257,7 +256,7 @@ found:
 
 	spin_lock(&vnode->lock);
 	zap = rcu_access_pointer(vnode->permit_cache);
-	if (cb_break == (vnode->cb_break + vnode->cb_interest->server->cb_s_break) &&
+	if (cb_break == afs_cb_break_sum(vnode, vnode->cb_interest) &&
 	    zap == permits)
 		rcu_assign_pointer(vnode->permit_cache, replacement);
 	else
