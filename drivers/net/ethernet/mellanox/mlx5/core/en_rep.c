@@ -130,10 +130,6 @@ static void mlx5e_rep_update_sw_counters(struct mlx5e_priv *priv)
 	struct mlx5e_sq_stats *sq_stats;
 	int i, j;
 
-	read_lock(&priv->stats_lock);
-	if (!priv->channels_active)
-	        goto out;
-
 	memset(s, 0, sizeof(*s));
 	for (i = 0; i < priv->channels.num; i++) {
 		struct mlx5e_channel *c = priv->channels.c[i];
@@ -150,8 +146,6 @@ static void mlx5e_rep_update_sw_counters(struct mlx5e_priv *priv)
 			s->tx_bytes		+= sq_stats->bytes;
 		}
 	}
-out:
-	read_unlock(&priv->stats_lock);
 }
 
 static void mlx5e_rep_get_ethtool_stats(struct net_device *dev,
@@ -906,6 +900,11 @@ static const struct switchdev_ops mlx5e_rep_switchdev_ops = {
 	.switchdev_port_attr_get	= mlx5e_attr_get,
 };
 
+int mlx5e_change_rep_mtu(struct net_device *netdev, int new_mtu)
+{
+	return mlx5e_change_mtu(netdev, new_mtu, NULL);
+}
+
 static const struct net_device_ops mlx5e_netdev_ops_rep = {
 	.ndo_open                = mlx5e_rep_open,
 	.ndo_stop                = mlx5e_rep_close,
@@ -915,6 +914,7 @@ static const struct net_device_ops mlx5e_netdev_ops_rep = {
 	.ndo_get_stats64         = mlx5e_rep_get_stats,
 	.ndo_has_offload_stats	 = mlx5e_has_offload_stats,
 	.ndo_get_offload_stats	 = mlx5e_get_offload_stats,
+	.ndo_change_mtu          = mlx5e_change_rep_mtu,
 };
 
 static void mlx5e_build_rep_params(struct mlx5_core_dev *mdev,
@@ -927,7 +927,7 @@ static void mlx5e_build_rep_params(struct mlx5_core_dev *mdev,
 	params->hard_mtu    = MLX5E_ETH_HARD_MTU;
 	params->sw_mtu      = mtu;
 	params->log_sq_size = MLX5E_REP_PARAMS_LOG_SQ_SIZE;
-	params->rq_wq_type  = MLX5_WQ_TYPE_LINKED_LIST;
+	params->rq_wq_type  = MLX5_WQ_TYPE_CYCLIC;
 	params->log_rq_mtu_frames = MLX5E_REP_PARAMS_LOG_RQ_SIZE;
 
 	params->rx_dim_enabled = MLX5_CAP_GEN(mdev, cq_moderation);
@@ -941,6 +941,10 @@ static void mlx5e_build_rep_params(struct mlx5_core_dev *mdev,
 
 static void mlx5e_build_rep_netdev(struct net_device *netdev)
 {
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u16 max_mtu;
+
 	netdev->netdev_ops = &mlx5e_netdev_ops_rep;
 
 	netdev->watchdog_timeo    = 15 * HZ;
@@ -953,6 +957,10 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev)
 	netdev->hw_features      |= NETIF_F_HW_TC;
 
 	eth_hw_addr_random(netdev);
+
+	netdev->min_mtu = ETH_MIN_MTU;
+	mlx5_query_port_max_mtu(mdev, &max_mtu, 1);
+	netdev->max_mtu = MLX5E_HW2SW_MTU(&priv->channels.params, max_mtu);
 }
 
 static void mlx5e_init_rep(struct mlx5_core_dev *mdev,
