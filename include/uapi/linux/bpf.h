@@ -2054,6 +2054,22 @@ union bpf_attr {
  *
  *	Return
  *		0
+ *
+ * uint64_t bpf_skb_cgroup_id(struct sk_buff *skb)
+ * 	Description
+ * 		Return the cgroup v2 id of the socket associated with the *skb*.
+ * 		This is roughly similar to the **bpf_get_cgroup_classid**\ ()
+ * 		helper for cgroup v1 by providing a tag resp. identifier that
+ * 		can be matched on or used for map lookups e.g. to implement
+ * 		policy. The cgroup v2 id of a given path in the hierarchy is
+ * 		exposed in user space through the f_handle API in order to get
+ * 		to the same 64-bit id.
+ *
+ * 		This helper can be used on TC egress path, but not on ingress,
+ * 		and is available only if the kernel was compiled with the
+ * 		**CONFIG_SOCK_CGROUP_DATA** configuration option.
+ * 	Return
+ * 		The id is returned or 0 in case the id could not be retrieved.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -2134,7 +2150,8 @@ union bpf_attr {
 	FN(lwt_seg6_adjust_srh),	\
 	FN(lwt_seg6_action),		\
 	FN(rc_repeat),			\
-	FN(rc_keydown),
+	FN(rc_keydown),			\
+	FN(skb_cgroup_id),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
