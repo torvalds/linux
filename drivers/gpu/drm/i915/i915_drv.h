@@ -1951,6 +1951,7 @@ struct drm_i915_private {
 
 			struct intel_context *pinned_ctx;
 			u32 specific_ctx_id;
+			u32 specific_ctx_id_mask;
 
 			struct hrtimer poll_check_timer;
 			wait_queue_head_t poll_wq;

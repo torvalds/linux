@@ -233,6 +233,11 @@ intel_lr_context_descriptor_update(struct i915_gem_context *ctx,
 								/* bits 12-31 */
 	GEM_BUG_ON(desc & GENMASK_ULL(63, 32));
 
+	/*
+	 * The following 32bits are copied into the OA reports (dword 2).
+	 * Consider updating oa_get_render_ctx_id in i915_perf.c when changing
+	 * anything below.
+	 */
 	if (INTEL_GEN(ctx->i915) >= 11) {
 		GEM_BUG_ON(ctx->hw_id >= BIT(GEN11_SW_CTX_ID_WIDTH));
 		desc |= (u64)ctx->hw_id << GEN11_SW_CTX_ID_SHIFT;
