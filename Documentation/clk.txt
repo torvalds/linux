@@ -96,7 +96,7 @@ the operations defined in clk-provider.h::
 		int		(*get_phase)(struct clk_hw *hw);
 		int		(*set_phase)(struct clk_hw *hw, int degrees);
 		void		(*init)(struct clk_hw *hw);
-		int		(*debug_init)(struct clk_hw *hw,
+		void		(*debug_init)(struct clk_hw *hw,
 					      struct dentry *dentry);
 	};
 
