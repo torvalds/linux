@@ -166,9 +166,8 @@ static inline int mt7621_spi_wait_till_ready(struct mt7621_spi *rs)
 		u32 status;
 
 		status = mt7621_spi_read(rs, MT7621_SPI_TRANS);
-		if ((status & SPITRANS_BUSY) == 0) {
+		if ((status & SPITRANS_BUSY) == 0)
 			return 0;
-		}
 		cpu_relax();
 		udelay(1);
 	}
