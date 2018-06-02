@@ -1856,7 +1856,7 @@ static int mlxsw_sp_port_obj_del(struct net_device *dev,
 		break;
 	}
 
-	mlxsw_sp_span_respin(mlxsw_sp_port->mlxsw_sp);
+	mlxsw_sp_span_respin_schedule(mlxsw_sp_port->mlxsw_sp);
 
 	return err;
 }
