@@ -66,6 +66,15 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "geekbuying,geekbox", "rockchip,rk3368";
 
+- Google Bob (Asus Chromebook Flip C101PA):
+    Required root node properties:
+	compatible = "google,bob-rev13", "google,bob-rev12",
+		     "google,bob-rev11", "google,bob-rev10",
+		     "google,bob-rev9", "google,bob-rev8",
+		     "google,bob-rev7", "google,bob-rev6",
+		     "google,bob-rev5", "google,bob-rev4",
+		     "google,bob", "google,gru", "rockchip,rk3399";
+
 - Google Brain (dev-board):
     Required root node properties:
       - compatible = "google,veyron-brain-rev0", "google,veyron-brain",
