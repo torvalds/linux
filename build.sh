@@ -11,9 +11,9 @@ if [[ -z $(cat /proc/cpuinfo | grep -i 'model name.*ArmV7') ]]; then
 	if [[ -z "$(which arm-linux-gnueabihf-gcc)" ]];then echo "please install gcc-arm-linux-gnueabihf";exit 1;fi
 
 	CCVER=$(arm-linux-gnueabihf-gcc --version |grep arm| sed -e 's/^.* \([0-9]\.[0-9-]\).*$/\1/')
-	if [[ $CCVER =~ ^7 ]]; then
-		echo "arm-linux-gnueabihf-gcc version 7 currently not supported";exit 1;
-	fi
+#	if [[ $CCVER =~ ^7 ]]; then
+#		echo "arm-linux-gnueabihf-gcc version 7 currently not supported";exit 1;
+#	fi
 
 	export ARCH=arm;export CROSS_COMPILE='ccache arm-linux-gnueabihf-'
 	crosscompile=1
