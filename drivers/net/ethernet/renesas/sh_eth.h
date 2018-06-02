@@ -562,7 +562,7 @@ struct sh_eth_private {
 
 static inline void sh_eth_soft_swap(char *src, int len)
 {
-#ifdef __LITTLE_ENDIAN__
+#ifdef __LITTLE_ENDIAN
 	u32 *p = (u32 *)src;
 	u32 *maxp;
 	maxp = p + ((len + sizeof(u32) - 1) / sizeof(u32));
