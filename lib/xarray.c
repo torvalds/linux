@@ -1111,6 +1111,67 @@ max:
 EXPORT_SYMBOL_GPL(xas_find_marked);
 
 /**
+ * xas_find_conflict() - Find the next present entry in a range.
+ * @xas: XArray operation state.
+ *
+ * The @xas describes both a range and a position within that range.
+ *
+ * Context: Any context.  Expects xa_lock to be held.
+ * Return: The next entry in the range covered by @xas or %NULL.
+ */
+void *xas_find_conflict(struct xa_state *xas)
+{
+	void *curr;
+
+	if (xas_error(xas))
+		return NULL;
+
+	if (!xas->xa_node)
+		return NULL;
+
+	if (xas_top(xas->xa_node)) {
+		curr = xas_start(xas);
+		if (!curr)
+			return NULL;
+		while (xa_is_node(curr)) {
+			struct xa_node *node = xa_to_node(curr);
+			curr = xas_descend(xas, node);
+		}
+		if (curr)
+			return curr;
+	}
+
+	if (xas->xa_node->shift > xas->xa_shift)
+		return NULL;
+
+	for (;;) {
+		if (xas->xa_node->shift == xas->xa_shift) {
+			if ((xas->xa_offset & xas->xa_sibs) == xas->xa_sibs)
+				break;
+		} else if (xas->xa_offset == XA_CHUNK_MASK) {
+			xas->xa_offset = xas->xa_node->offset;
+			xas->xa_node = xa_parent_locked(xas->xa, xas->xa_node);
+			if (!xas->xa_node)
+				break;
+			continue;
+		}
+		curr = xa_entry_locked(xas->xa, xas->xa_node, ++xas->xa_offset);
+		if (xa_is_sibling(curr))
+			continue;
+		while (xa_is_node(curr)) {
+			xas->xa_node = xa_to_node(curr);
+			xas->xa_offset = 0;
+			curr = xa_entry_locked(xas->xa, xas->xa_node, 0);
+		}
+		if (curr)
+			return curr;
+	}
+	xas->xa_offset -= xas->xa_sibs;
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(xas_find_conflict);
+
+/**
  * xa_init_flags() - Initialise an empty XArray with flags.
  * @xa: XArray.
  * @flags: XA_FLAG values.

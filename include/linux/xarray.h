@@ -878,6 +878,7 @@ static inline bool xas_retry(struct xa_state *xas, const void *entry)
 void *xas_load(struct xa_state *);
 void *xas_store(struct xa_state *, void *entry);
 void *xas_find(struct xa_state *, unsigned long max);
+void *xas_find_conflict(struct xa_state *);
 
 bool xas_get_mark(const struct xa_state *, xa_mark_t);
 void xas_set_mark(const struct xa_state *, xa_mark_t);
@@ -1087,6 +1088,22 @@ enum {
 #define xas_for_each_marked(xas, entry, max, mark) \
 	for (entry = xas_find_marked(xas, max, mark); entry; \
 	     entry = xas_next_marked(xas, max, mark))
+
+/**
+ * xas_for_each_conflict() - Iterate over a range of an XArray.
+ * @xas: XArray operation state.
+ * @entry: Entry retrieved from the array.
+ *
+ * The loop body will be executed for each entry in the XArray that lies
+ * within the range specified by @xas.  If the loop completes successfully,
+ * any entries that lie in this range will be replaced by @entry.  The caller
+ * may break out of the loop; if they do so, the contents of the XArray will
+ * be unchanged.  The operation may fail due to an out of memory condition.
+ * The caller may also call xa_set_err() to exit the loop while setting an
+ * error to record the reason.
+ */
+#define xas_for_each_conflict(xas, entry) \
+	while ((entry = xas_find_conflict(xas)))
 
 void *__xas_next(struct xa_state *);
 void *__xas_prev(struct xa_state *);
