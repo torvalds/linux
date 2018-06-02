@@ -9,6 +9,7 @@
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/nf_tables.h>
 #include <linux/u64_stats_sync.h>
+#include <linux/rhashtable.h>
 #include <net/netfilter/nf_flow_table.h>
 #include <net/netlink.h>
 
@@ -860,6 +861,7 @@ enum nft_chain_flags {
  *
  *	@rules: list of rules in the chain
  *	@list: used internally
+ *	@rhlhead: used internally
  *	@table: table that this chain belongs to
  *	@handle: chain handle
  *	@use: number of jump references to this chain
@@ -872,6 +874,7 @@ struct nft_chain {
 	struct nft_rule			*__rcu *rules_gen_1;
 	struct list_head		rules;
 	struct list_head		list;
+	struct rhlist_head		rhlhead;
 	struct nft_table		*table;
 	u64				handle;
 	u32				use;
@@ -965,7 +968,8 @@ unsigned int nft_do_chain(struct nft_pktinfo *pkt, void *priv);
  *	struct nft_table - nf_tables table
  *
  *	@list: used internally
- *	@chains: chains in the table
+ *	@chains_ht: chains in the table
+ *	@chains: same, for stable walks
  *	@sets: sets in the table
  *	@objects: stateful objects in the table
  *	@flowtables: flow tables in the table
@@ -979,6 +983,7 @@ unsigned int nft_do_chain(struct nft_pktinfo *pkt, void *priv);
  */
 struct nft_table {
 	struct list_head		list;
+	struct rhltable			chains_ht;
 	struct list_head		chains;
 	struct list_head		sets;
 	struct list_head		objects;
