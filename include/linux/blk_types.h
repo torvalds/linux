@@ -229,6 +229,8 @@ struct bio {
 				 * throttling rules. Don't do it again. */
 #define BIO_TRACE_COMPLETION 10	/* bio_endio() should trace the final completion
 				 * of this bio. */
+#define BIO_QUEUE_ENTERED 11	/* can use blk_queue_enter_live() */
+
 /* See BVEC_POOL_OFFSET below before adding new flags */
 
 /*
