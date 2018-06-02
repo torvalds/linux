@@ -2221,13 +2221,12 @@ static void crypt_dtr(struct dm_target *ti)
 
 	bioset_exit(&cc->bs);
 
-	if (mempool_initialized(&cc->page_pool))
-		WARN_ON(percpu_counter_sum(&cc->n_allocated_pages) != 0);
-	percpu_counter_destroy(&cc->n_allocated_pages);
-
 	mempool_exit(&cc->page_pool);
 	mempool_exit(&cc->req_pool);
 	mempool_exit(&cc->tag_pool);
+
+	WARN_ON(percpu_counter_sum(&cc->n_allocated_pages) != 0);
+	percpu_counter_destroy(&cc->n_allocated_pages);
 
 	if (cc->iv_gen_ops && cc->iv_gen_ops->dtr)
 		cc->iv_gen_ops->dtr(cc);
