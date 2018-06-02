@@ -2268,7 +2268,7 @@ struct bpf_tunnel_key {
 	};
 	__u8 tunnel_tos;
 	__u8 tunnel_ttl;
-	__u16 tunnel_ext;
+	__u16 tunnel_ext;	/* Padding, future use. */
 	__u32 tunnel_label;
 };
 
@@ -2279,6 +2279,7 @@ struct bpf_xfrm_state {
 	__u32 reqid;
 	__u32 spi;	/* Stored in network byte order */
 	__u16 family;
+	__u16 ext;	/* Padding, future use. */
 	union {
 		__u32 remote_ipv4;	/* Stored in network byte order */
 		__u32 remote_ipv6[4];	/* Stored in network byte order */
