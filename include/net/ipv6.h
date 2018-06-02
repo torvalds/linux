@@ -907,6 +907,11 @@ static inline __be32 ip6_make_flowinfo(unsigned int tclass, __be32 flowlabel)
 	return htonl(tclass << IPV6_TCLASS_SHIFT) | flowlabel;
 }
 
+static inline u32 flowi6_get_flowlabel(const struct flowi6 *fl6)
+{
+	return (__force u32)(fl6->flowlabel & IPV6_FLOWLABEL_MASK);
+}
+
 /*
  *	Prototypes exported by ipv6
  */
