@@ -114,10 +114,7 @@ static int nft_ng_inc_map_init(const struct nft_ctx *ctx,
 					  tb[NFTA_NG_SET_NAME],
 					  tb[NFTA_NG_SET_ID], genmask);
 
-	if (IS_ERR(priv->map))
-		return PTR_ERR(priv->map);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(priv->map);
 }
 
 static int nft_ng_dump(struct sk_buff *skb, enum nft_registers dreg,

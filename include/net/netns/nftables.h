@@ -9,6 +9,7 @@ struct netns_nftables {
 	struct list_head	commit_list;
 	unsigned int		base_seq;
 	u8			gencursor;
+	u8			validate_state;
 };
 
 #endif

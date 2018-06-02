@@ -433,11 +433,7 @@ config NF_NAT_TFTP
 	default NF_NAT && NF_CONNTRACK_TFTP
 
 config NF_NAT_REDIRECT
-        tristate "IPv4/IPv6 redirect support"
-	depends on NF_NAT
-        help
-          This is the kernel functionality to redirect packets to local
-          machine through NAT.
+	bool
 
 config NETFILTER_SYNPROXY
 	tristate
@@ -616,6 +612,15 @@ config NFT_FIB_INET
 	  This option allows using the FIB expression from the inet table.
 	  The lookup will be delegated to the IPv4 or IPv6 FIB depending
 	  on the protocol of the packet.
+
+config NFT_SOCKET
+	tristate "Netfilter nf_tables socket match support"
+	depends on IPV6 || IPV6=n
+	select NF_SOCKET_IPV4
+	select NF_SOCKET_IPV6 if IPV6
+	help
+	  This option allows matching for the presence or absence of a
+	  corresponding socket and its attributes.
 
 if NF_TABLES_NETDEV
 

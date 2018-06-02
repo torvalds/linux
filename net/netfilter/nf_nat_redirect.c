@@ -15,7 +15,6 @@
 #include <linux/inetdevice.h>
 #include <linux/ip.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/netfilter.h>
 #include <linux/types.h>
@@ -124,6 +123,3 @@ nf_nat_redirect_ipv6(struct sk_buff *skb, const struct nf_nat_range2 *range,
 	return nf_nat_setup_info(ct, &newrange, NF_NAT_MANIP_DST);
 }
 EXPORT_SYMBOL_GPL(nf_nat_redirect_ipv6);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");

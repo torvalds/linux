@@ -17,12 +17,6 @@
 #include <net/netfilter/nf_tables_core.h>
 #include <net/netfilter/nf_tables.h>
 
-struct nft_immediate_expr {
-	struct nft_data		data;
-	enum nft_registers	dreg:8;
-	u8			dlen;
-};
-
 static void nft_immediate_eval(const struct nft_expr *expr,
 			       struct nft_regs *regs,
 			       const struct nft_pktinfo *pkt)
@@ -101,12 +95,27 @@ nla_put_failure:
 
 static int nft_immediate_validate(const struct nft_ctx *ctx,
 				  const struct nft_expr *expr,
-				  const struct nft_data **data)
+				  const struct nft_data **d)
 {
 	const struct nft_immediate_expr *priv = nft_expr_priv(expr);
+	const struct nft_data *data;
+	int err;
 
-	if (priv->dreg == NFT_REG_VERDICT)
-		*data = &priv->data;
+	if (priv->dreg != NFT_REG_VERDICT)
+		return 0;
+
+	data = &priv->data;
+
+	switch (data->verdict.code) {
+	case NFT_JUMP:
+	case NFT_GOTO:
+		err = nft_chain_validate(ctx, data->verdict.chain);
+		if (err < 0)
+			return err;
+		break;
+	default:
+		break;
+	}
 
 	return 0;
 }

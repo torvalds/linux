@@ -858,6 +858,8 @@ enum nft_chain_flags {
  *	@name: name of the chain
  */
 struct nft_chain {
+	struct nft_rule			*__rcu *rules_gen_0;
+	struct nft_rule			*__rcu *rules_gen_1;
 	struct list_head		rules;
 	struct list_head		list;
 	struct nft_table		*table;
@@ -867,7 +869,12 @@ struct nft_chain {
 	u8				flags:6,
 					genmask:2;
 	char				*name;
+
+	/* Only used during control plane commit phase: */
+	struct nft_rule			**rules_next;
 };
+
+int nft_chain_validate(const struct nft_ctx *ctx, const struct nft_chain *chain);
 
 enum nft_chain_types {
 	NFT_CHAIN_T_DEFAULT = 0,

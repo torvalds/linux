@@ -2,10 +2,8 @@
 #ifndef _NF_SOCK_H_
 #define _NF_SOCK_H_
 
-struct net_device;
-struct sk_buff;
-struct sock;
-struct net;
+#include <net/sock.h>
+#include <net/inet_timewait_sock.h>
 
 static inline bool nf_sk_is_transparent(struct sock *sk)
 {

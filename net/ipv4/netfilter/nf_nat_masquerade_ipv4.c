@@ -7,7 +7,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/module.h>
 #include <linux/atomic.h>
 #include <linux/inetdevice.h>
 #include <linux/ip.h>
@@ -157,6 +156,3 @@ void nf_nat_masquerade_ipv4_unregister_notifier(void)
 	unregister_inetaddr_notifier(&masq_inet_notifier);
 }
 EXPORT_SYMBOL_GPL(nf_nat_masquerade_ipv4_unregister_notifier);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Rusty Russell <rusty@rustcorp.com.au>");

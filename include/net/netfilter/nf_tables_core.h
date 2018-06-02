@@ -2,6 +2,8 @@
 #ifndef _NET_NF_TABLES_CORE_H
 #define _NET_NF_TABLES_CORE_H
 
+#include <net/netfilter/nf_tables.h>
+
 extern struct nft_expr_type nft_imm_type;
 extern struct nft_expr_type nft_cmp_type;
 extern struct nft_expr_type nft_lookup_type;
@@ -21,6 +23,12 @@ struct nft_cmp_fast_expr {
 	u32			data;
 	enum nft_registers	sreg:8;
 	u8			len;
+};
+
+struct nft_immediate_expr {
+	struct nft_data		data;
+	enum nft_registers	dreg:8;
+	u8			dlen;
 };
 
 /* Calculate the mask for the nft_cmp_fast expression. On big endian the
