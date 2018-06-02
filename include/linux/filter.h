@@ -639,16 +639,34 @@ static inline bool bpf_prog_was_classic(const struct bpf_prog *prog)
 	return prog->type == BPF_PROG_TYPE_UNSPEC;
 }
 
-static inline bool
-bpf_ctx_narrow_access_ok(u32 off, u32 size, const u32 size_default)
+static inline u32 bpf_ctx_off_adjust_machine(u32 size)
 {
-	bool off_ok;
+	const u32 size_machine = sizeof(unsigned long);
+
+	if (size > size_machine && size % size_machine == 0)
+		size = size_machine;
+
+	return size;
+}
+
+static inline bool bpf_ctx_narrow_align_ok(u32 off, u32 size_access,
+					   u32 size_default)
+{
+	size_default = bpf_ctx_off_adjust_machine(size_default);
+	size_access  = bpf_ctx_off_adjust_machine(size_access);
+
 #ifdef __LITTLE_ENDIAN
-	off_ok = (off & (size_default - 1)) == 0;
+	return (off & (size_default - 1)) == 0;
 #else
-	off_ok = (off & (size_default - 1)) + size == size_default;
+	return (off & (size_default - 1)) + size_access == size_default;
 #endif
-	return off_ok && size <= size_default && (size & (size - 1)) == 0;
+}
+
+static inline bool
+bpf_ctx_narrow_access_ok(u32 off, u32 size, u32 size_default)
+{
+	return bpf_ctx_narrow_align_ok(off, size, size_default) &&
+	       size <= size_default && (size & (size - 1)) == 0;
 }
 
 #define bpf_classic_proglen(fprog) (fprog->len * sizeof(fprog->filter[0]))

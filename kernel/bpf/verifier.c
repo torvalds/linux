@@ -5349,6 +5349,7 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 		 */
 		is_narrower_load = size < ctx_field_size;
 		if (is_narrower_load) {
+			u32 size_default = bpf_ctx_off_adjust_machine(ctx_field_size);
 			u32 off = insn->off;
 			u8 size_code;
 
@@ -5363,7 +5364,7 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 			else if (ctx_field_size == 8)
 				size_code = BPF_DW;
 
-			insn->off = off & ~(ctx_field_size - 1);
+			insn->off = off & ~(size_default - 1);
 			insn->code = BPF_LDX | BPF_MEM | size_code;
 		}
 
