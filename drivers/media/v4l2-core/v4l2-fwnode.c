@@ -290,23 +290,17 @@ void v4l2_fwnode_endpoint_free(struct v4l2_fwnode_endpoint *vep)
 		return;
 
 	kfree(vep->link_frequencies);
-	kfree(vep);
 }
 EXPORT_SYMBOL_GPL(v4l2_fwnode_endpoint_free);
 
-struct v4l2_fwnode_endpoint *v4l2_fwnode_endpoint_alloc_parse(
-	struct fwnode_handle *fwnode)
+int v4l2_fwnode_endpoint_alloc_parse(
+	struct fwnode_handle *fwnode, struct v4l2_fwnode_endpoint *vep)
 {
-	struct v4l2_fwnode_endpoint *vep;
 	int rval;
-
-	vep = kzalloc(sizeof(*vep), GFP_KERNEL);
-	if (!vep)
-		return ERR_PTR(-ENOMEM);
 
 	rval = __v4l2_fwnode_endpoint_parse(fwnode, vep);
 	if (rval < 0)
-		goto out_err;
+		return rval;
 
 	rval = fwnode_property_read_u64_array(fwnode, "link-frequencies",
 					      NULL, 0);
@@ -316,18 +310,18 @@ struct v4l2_fwnode_endpoint *v4l2_fwnode_endpoint_alloc_parse(
 		vep->link_frequencies =
 			kmalloc_array(rval, sizeof(*vep->link_frequencies),
 				      GFP_KERNEL);
-		if (!vep->link_frequencies) {
-			rval = -ENOMEM;
-			goto out_err;
-		}
+		if (!vep->link_frequencies)
+			return -ENOMEM;
 
 		vep->nr_of_link_frequencies = rval;
 
 		rval = fwnode_property_read_u64_array(
 			fwnode, "link-frequencies", vep->link_frequencies,
 			vep->nr_of_link_frequencies);
-		if (rval < 0)
-			goto out_err;
+		if (rval < 0) {
+			v4l2_fwnode_endpoint_free(vep);
+			return rval;
+		}
 
 		for (i = 0; i < vep->nr_of_link_frequencies; i++)
 			pr_info("link-frequencies %u value %llu\n", i,
@@ -336,11 +330,7 @@ struct v4l2_fwnode_endpoint *v4l2_fwnode_endpoint_alloc_parse(
 
 	pr_debug("===== end V4L2 endpoint properties\n");
 
-	return vep;
-
-out_err:
-	v4l2_fwnode_endpoint_free(vep);
-	return ERR_PTR(rval);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(v4l2_fwnode_endpoint_alloc_parse);
 
@@ -392,9 +382,9 @@ static int v4l2_async_notifier_fwnode_parse_endpoint(
 			    struct v4l2_fwnode_endpoint *vep,
 			    struct v4l2_async_subdev *asd))
 {
+	struct v4l2_fwnode_endpoint vep = { .bus_type = 0 };
 	struct v4l2_async_subdev *asd;
-	struct v4l2_fwnode_endpoint *vep;
-	int ret = 0;
+	int ret;
 
 	asd = kzalloc(asd_struct_size, GFP_KERNEL);
 	if (!asd)
@@ -409,23 +399,22 @@ static int v4l2_async_notifier_fwnode_parse_endpoint(
 		goto out_err;
 	}
 
-	vep = v4l2_fwnode_endpoint_alloc_parse(endpoint);
-	if (IS_ERR(vep)) {
-		ret = PTR_ERR(vep);
+	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &vep);
+	if (ret) {
 		dev_warn(dev, "unable to parse V4L2 fwnode endpoint (%d)\n",
 			 ret);
 		goto out_err;
 	}
 
-	ret = parse_endpoint ? parse_endpoint(dev, vep, asd) : 0;
+	ret = parse_endpoint ? parse_endpoint(dev, &vep, asd) : 0;
 	if (ret == -ENOTCONN)
-		dev_dbg(dev, "ignoring port@%u/endpoint@%u\n", vep->base.port,
-			vep->base.id);
+		dev_dbg(dev, "ignoring port@%u/endpoint@%u\n", vep.base.port,
+			vep.base.id);
 	else if (ret < 0)
 		dev_warn(dev,
 			 "driver could not parse port@%u/endpoint@%u (%d)\n",
-			 vep->base.port, vep->base.id, ret);
-	v4l2_fwnode_endpoint_free(vep);
+			 vep.base.port, vep.base.id, ret);
+	v4l2_fwnode_endpoint_free(&vep);
 	if (ret < 0)
 		goto out_err;
 

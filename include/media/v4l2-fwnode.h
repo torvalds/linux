@@ -161,6 +161,7 @@ void v4l2_fwnode_endpoint_free(struct v4l2_fwnode_endpoint *vep);
 /**
  * v4l2_fwnode_endpoint_alloc_parse() - parse all fwnode node properties
  * @fwnode: pointer to the endpoint's fwnode handle
+ * @vep: pointer to the V4L2 fwnode data structure
  *
  * All properties are optional. If none are found, we don't set any flags. This
  * means the port has a static configuration and no properties have to be
@@ -170,6 +171,8 @@ void v4l2_fwnode_endpoint_free(struct v4l2_fwnode_endpoint *vep);
  * set the V4L2_MBUS_CSI2_CONTINUOUS_CLOCK flag. The caller should hold a
  * reference to @fwnode.
  *
+ * The caller must set the bus_type field of @vep to zero.
+ *
  * v4l2_fwnode_endpoint_alloc_parse() has two important differences to
  * v4l2_fwnode_endpoint_parse():
  *
@@ -178,11 +181,10 @@ void v4l2_fwnode_endpoint_free(struct v4l2_fwnode_endpoint *vep);
  * 2. The memory it has allocated to store the variable size data must be freed
  *    using v4l2_fwnode_endpoint_free() when no longer needed.
  *
- * Return: Pointer to v4l2_fwnode_endpoint if successful, on an error pointer
- * on error.
+ * Return: 0 on success or a negative error code on failure.
  */
-struct v4l2_fwnode_endpoint *v4l2_fwnode_endpoint_alloc_parse(
-	struct fwnode_handle *fwnode);
+int v4l2_fwnode_endpoint_alloc_parse(
+	struct fwnode_handle *fwnode, struct v4l2_fwnode_endpoint *vep);
 
 /**
  * v4l2_fwnode_parse_link() - parse a link between two endpoints
