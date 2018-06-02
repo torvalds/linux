@@ -342,6 +342,7 @@ struct nft_set_ops {
 						const struct nft_set_desc *desc,
 						const struct nlattr * const nla[]);
 	void				(*destroy)(const struct nft_set *set);
+	void				(*gc_init)(const struct nft_set *set);
 
 	unsigned int			elemsize;
 };
@@ -712,6 +713,7 @@ struct nft_expr_type {
 };
 
 #define NFT_EXPR_STATEFUL		0x1
+#define NFT_EXPR_GC			0x2
 
 /**
  *	struct nft_expr_ops - nf_tables expression operations
@@ -748,6 +750,8 @@ struct nft_expr_ops {
 	int				(*validate)(const struct nft_ctx *ctx,
 						    const struct nft_expr *expr,
 						    const struct nft_data **data);
+	bool				(*gc)(struct net *net,
+					      const struct nft_expr *expr);
 	const struct nft_expr_type	*type;
 	void				*data;
 };
