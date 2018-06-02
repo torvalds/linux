@@ -432,3 +432,6 @@ COND_SYSCALL(setresgid16);
 COND_SYSCALL(setresuid16);
 COND_SYSCALL(setreuid16);
 COND_SYSCALL(setuid16);
+
+/* restartable sequence */
+COND_SYSCALL(rseq);
