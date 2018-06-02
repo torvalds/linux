@@ -289,6 +289,16 @@ struct xdp_buff;
 		.off   = OFF,					\
 		.imm   = 0 })
 
+/* Relative call */
+
+#define BPF_CALL_REL(TGT)					\
+	((struct bpf_insn) {					\
+		.code  = BPF_JMP | BPF_CALL,			\
+		.dst_reg = 0,					\
+		.src_reg = BPF_PSEUDO_CALL,			\
+		.off   = 0,					\
+		.imm   = TGT })
+
 /* Function call */
 
 #define BPF_EMIT_CALL(FUNC)					\
