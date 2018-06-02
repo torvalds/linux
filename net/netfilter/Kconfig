@@ -517,6 +517,15 @@ config NFT_COUNTER
 	  This option adds the "counter" expression that you can use to
 	  include packet and byte counters in a rule.
 
+config NFT_CONNLIMIT
+	tristate "Netfilter nf_tables connlimit module"
+	depends on NF_CONNTRACK
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_CONNCOUNT
+	help
+	  This option adds the "connlimit" expression that you can use to
+	  ratelimit rule matchings per connections.
+
 config NFT_LOG
 	tristate "Netfilter nf_tables log module"
 	help
