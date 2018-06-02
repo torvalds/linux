@@ -214,6 +214,14 @@ struct hdac_bus_ops {
 };
 
 /*
+ * ops used for ASoC HDA codec drivers
+ */
+struct hdac_ext_bus_ops {
+	int (*hdev_attach)(struct hdac_device *hdev);
+	int (*hdev_detach)(struct hdac_device *hdev);
+};
+
+/*
  * Lowlevel I/O operators
  */
 struct hdac_io_ops {
@@ -265,6 +273,7 @@ struct hdac_bus {
 	struct device *dev;
 	const struct hdac_bus_ops *ops;
 	const struct hdac_io_ops *io_ops;
+	const struct hdac_ext_bus_ops *ext_ops;
 
 	/* h/w resources */
 	unsigned long addr;
