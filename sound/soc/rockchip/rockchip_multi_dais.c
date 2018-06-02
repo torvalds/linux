@@ -15,7 +15,11 @@
 
 #include "rockchip_multi_dais.h"
 
-#define DAIS_DRV_NAME "rockchip-mdais"
+#define BITCLOCK_INV_STR	"bitclock-inversion"
+#define FRAME_INV_STR		"frame-inversion"
+#define BITCLOCK_MASTER_STR	"bitclock-master"
+#define FRAME_MASTER_STR	"frame-master"
+#define DAIS_DRV_NAME		"rockchip-mdais"
 
 static inline struct rk_mdais_dev *to_info(struct snd_soc_dai *dai)
 {
@@ -111,11 +115,17 @@ static int rockchip_mdais_set_fmt(struct snd_soc_dai *cpu_dai,
 {
 	struct rk_mdais_dev *mdais = to_info(cpu_dai);
 	struct snd_soc_dai *child;
+	unsigned int dai_fmt;
 	int ret, i = 0;
 
 	for (i = 0; i < mdais->num_dais; i++) {
 		child = mdais->dais[i].dai;
-		ret = snd_soc_dai_set_fmt(child, fmt);
+		dai_fmt = fmt;
+		if (mdais->dais[i].fmt_msk) {
+			dai_fmt &= ~(mdais->dais[i].fmt_msk);
+			dai_fmt |= mdais->dais[i].fmt;
+		}
+		ret = snd_soc_dai_set_fmt(child, dai_fmt);
 		if (ret && ret != -ENOTSUPP)
 			return ret;
 	}
@@ -226,6 +236,83 @@ static int mdais_runtime_resume(struct device *dev)
 	return 0;
 }
 
+static int mdais_read_prop_array(struct device_node *node,
+				 const char *propname,
+				 unsigned int *array, int num)
+{
+	int ret = 0;
+
+	memset(array, 0, sizeof(*array) * num);
+	if (of_property_read_bool(node, propname)) {
+		ret = of_property_read_u32_array(node, propname, array, num);
+		if (ret)
+			ret = -EINVAL;
+	} else {
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+static void mdais_parse_daifmt(struct device_node *node, struct rk_dai *dais,
+			       int num_dai)
+{
+	unsigned int cinv[MAX_DAIS], finv[MAX_DAIS];
+	unsigned int cmst[MAX_DAIS], fmst[MAX_DAIS];
+	unsigned int format = 0, format_mask = 0;
+	int i = 0, ret = 0;
+
+	ret = mdais_read_prop_array(node, BITCLOCK_INV_STR, cinv, num_dai);
+	if (!ret)
+		format_mask |= SND_SOC_DAIFMT_INV_MASK;
+	ret = mdais_read_prop_array(node, FRAME_INV_STR, finv, num_dai);
+	if (!ret)
+		format_mask |= SND_SOC_DAIFMT_INV_MASK;
+	ret = mdais_read_prop_array(node, BITCLOCK_MASTER_STR, cmst, num_dai);
+	if (!ret)
+		format_mask |= SND_SOC_DAIFMT_MASTER_MASK;
+	ret = mdais_read_prop_array(node, FRAME_MASTER_STR, fmst, num_dai);
+	if (!ret)
+		format_mask |= SND_SOC_DAIFMT_MASTER_MASK;
+
+	for (i = 0; i < num_dai; i++) {
+		format = 0;
+
+		switch ((cinv[i] << 4) + finv[i]) {
+		case 0x11:
+			format |= SND_SOC_DAIFMT_IB_IF;
+			break;
+		case 0x10:
+			format |= SND_SOC_DAIFMT_IB_NF;
+			break;
+		case 0x01:
+			format |= SND_SOC_DAIFMT_NB_IF;
+			break;
+		default:
+			/* SND_SOC_DAIFMT_NB_NF is default */
+			break;
+		}
+
+		switch ((cmst[i] << 4) + fmst[i]) {
+		case 0x11:
+			format |= SND_SOC_DAIFMT_CBM_CFM;
+			break;
+		case 0x10:
+			format |= SND_SOC_DAIFMT_CBM_CFS;
+			break;
+		case 0x01:
+			format |= SND_SOC_DAIFMT_CBS_CFM;
+			break;
+		default:
+			format |= SND_SOC_DAIFMT_CBS_CFS;
+			break;
+		}
+
+		dais[i].fmt = format;
+		dais[i].fmt_msk = format_mask;
+	}
+}
+
 static int rockchip_mdais_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -290,6 +377,8 @@ static int rockchip_mdais_probe(struct platform_device *pdev)
 		if (!dais[i].dai)
 			return -EPROBE_DEFER;
 	}
+
+	mdais_parse_daifmt(np, dais, count);
 
 	mdais->dais = dais;
 	mdais->dev = &pdev->dev;

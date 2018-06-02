@@ -15,6 +15,8 @@ struct rk_dai {
 	struct device *dev;
 	struct device_node *of_node;
 	struct snd_soc_dai *dai;
+	unsigned int fmt;
+	unsigned int fmt_msk;
 };
 
 struct rk_mdais_dev {
