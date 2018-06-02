@@ -2421,8 +2421,11 @@ record_func_map(struct bpf_verifier_env *env, struct bpf_call_arg_meta *meta,
 	struct bpf_insn_aux_data *aux = &env->insn_aux_data[insn_idx];
 
 	if (func_id != BPF_FUNC_tail_call &&
-	    func_id != BPF_FUNC_map_lookup_elem)
+	    func_id != BPF_FUNC_map_lookup_elem &&
+	    func_id != BPF_FUNC_map_update_elem &&
+	    func_id != BPF_FUNC_map_delete_elem)
 		return 0;
+
 	if (meta->map_ptr == NULL) {
 		verbose(env, "kernel subsystem misconfigured verifier\n");
 		return -EINVAL;
@@ -5586,6 +5589,7 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 	struct bpf_insn *insn = prog->insnsi;
 	const struct bpf_func_proto *fn;
 	const int insn_cnt = prog->len;
+	const struct bpf_map_ops *ops;
 	struct bpf_insn_aux_data *aux;
 	struct bpf_insn insn_buf[16];
 	struct bpf_prog *new_prog;
@@ -5715,35 +5719,61 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 		}
 
 		/* BPF_EMIT_CALL() assumptions in some of the map_gen_lookup
-		 * handlers are currently limited to 64 bit only.
+		 * and other inlining handlers are currently limited to 64 bit
+		 * only.
 		 */
 		if (prog->jit_requested && BITS_PER_LONG == 64 &&
-		    insn->imm == BPF_FUNC_map_lookup_elem) {
+		    (insn->imm == BPF_FUNC_map_lookup_elem ||
+		     insn->imm == BPF_FUNC_map_update_elem ||
+		     insn->imm == BPF_FUNC_map_delete_elem)) {
 			aux = &env->insn_aux_data[i + delta];
 			if (bpf_map_ptr_poisoned(aux))
 				goto patch_call_imm;
 
 			map_ptr = BPF_MAP_PTR(aux->map_state);
-			if (!map_ptr->ops->map_gen_lookup)
-				goto patch_call_imm;
+			ops = map_ptr->ops;
+			if (insn->imm == BPF_FUNC_map_lookup_elem &&
+			    ops->map_gen_lookup) {
+				cnt = ops->map_gen_lookup(map_ptr, insn_buf);
+				if (cnt == 0 || cnt >= ARRAY_SIZE(insn_buf)) {
+					verbose(env, "bpf verifier is misconfigured\n");
+					return -EINVAL;
+				}
 
-			cnt = map_ptr->ops->map_gen_lookup(map_ptr, insn_buf);
-			if (cnt == 0 || cnt >= ARRAY_SIZE(insn_buf)) {
-				verbose(env, "bpf verifier is misconfigured\n");
-				return -EINVAL;
+				new_prog = bpf_patch_insn_data(env, i + delta,
+							       insn_buf, cnt);
+				if (!new_prog)
+					return -ENOMEM;
+
+				delta    += cnt - 1;
+				env->prog = prog = new_prog;
+				insn      = new_prog->insnsi + i + delta;
+				continue;
 			}
 
-			new_prog = bpf_patch_insn_data(env, i + delta, insn_buf,
-						       cnt);
-			if (!new_prog)
-				return -ENOMEM;
+			BUILD_BUG_ON(!__same_type(ops->map_lookup_elem,
+				     (void *(*)(struct bpf_map *map, void *key))NULL));
+			BUILD_BUG_ON(!__same_type(ops->map_delete_elem,
+				     (int (*)(struct bpf_map *map, void *key))NULL));
+			BUILD_BUG_ON(!__same_type(ops->map_update_elem,
+				     (int (*)(struct bpf_map *map, void *key, void *value,
+					      u64 flags))NULL));
+			switch (insn->imm) {
+			case BPF_FUNC_map_lookup_elem:
+				insn->imm = BPF_CAST_CALL(ops->map_lookup_elem) -
+					    __bpf_call_base;
+				continue;
+			case BPF_FUNC_map_update_elem:
+				insn->imm = BPF_CAST_CALL(ops->map_update_elem) -
+					    __bpf_call_base;
+				continue;
+			case BPF_FUNC_map_delete_elem:
+				insn->imm = BPF_CAST_CALL(ops->map_delete_elem) -
+					    __bpf_call_base;
+				continue;
+			}
 
-			delta += cnt - 1;
-
-			/* keep walking new program and skip insns we just inserted */
-			env->prog = prog = new_prog;
-			insn      = new_prog->insnsi + i + delta;
-			continue;
+			goto patch_call_imm;
 		}
 
 		if (insn->imm == BPF_FUNC_redirect_map) {
