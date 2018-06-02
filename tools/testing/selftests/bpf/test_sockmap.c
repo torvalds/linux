@@ -337,7 +337,14 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 		int fd_flags = O_NONBLOCK;
 		struct timeval timeout;
 		float total_bytes;
+		int bytes_cnt = 0;
+		int chunk_sz;
 		fd_set w;
+
+		if (opt->sendpage)
+			chunk_sz = iov_length * cnt;
+		else
+			chunk_sz = iov_length * iov_count;
 
 		fcntl(fd, fd_flags);
 		total_bytes = (float)iov_count * (float)iov_length * (float)cnt;
@@ -345,8 +352,13 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 		if (err < 0)
 			perror("recv start time: ");
 		while (s->bytes_recvd < total_bytes) {
-			timeout.tv_sec = 0;
-			timeout.tv_usec = 10;
+			if (txmsg_cork) {
+				timeout.tv_sec = 0;
+				timeout.tv_usec = 1000;
+			} else {
+				timeout.tv_sec = 1;
+				timeout.tv_usec = 0;
+			}
 
 			/* FD sets */
 			FD_ZERO(&w);
@@ -388,8 +400,13 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 							errno = -EIO;
 							fprintf(stderr,
 								"detected data corruption @iov[%i]:%i %02x != %02x, %02x ?= %02x\n",
-								i, j, d[j], k - 1, d[j+1], k + 1);
+								i, j, d[j], k - 1, d[j+1], k);
 							goto out_errno;
+						}
+						bytes_cnt++;
+						if (bytes_cnt == chunk_sz) {
+							k = 0;
+							bytes_cnt = 0;
 						}
 						recv--;
 					}
@@ -429,8 +446,8 @@ static int sendmsg_test(struct sockmap_options *opt)
 	struct msg_stats s = {0};
 	int iov_count = opt->iov_count;
 	int iov_buf = opt->iov_length;
+	int rx_status, tx_status;
 	int cnt = opt->rate;
-	int status;
 
 	errno = 0;
 
@@ -442,7 +459,7 @@ static int sendmsg_test(struct sockmap_options *opt)
 	rxpid = fork();
 	if (rxpid == 0) {
 		if (opt->drop_expected)
-			exit(1);
+			exit(0);
 
 		if (opt->sendpage)
 			iov_count = 1;
@@ -463,7 +480,9 @@ static int sendmsg_test(struct sockmap_options *opt)
 				"rx_sendmsg: TX: %zuB %fB/s %fGB/s RX: %zuB %fB/s %fGB/s\n",
 				s.bytes_sent, sent_Bps, sent_Bps/giga,
 				s.bytes_recvd, recvd_Bps, recvd_Bps/giga);
-		exit(1);
+		if (err && txmsg_cork)
+			err = 0;
+		exit(err ? 1 : 0);
 	} else if (rxpid == -1) {
 		perror("msg_loop_rx: ");
 		return errno;
@@ -491,14 +510,27 @@ static int sendmsg_test(struct sockmap_options *opt)
 				"tx_sendmsg: TX: %zuB %fB/s %f GB/s RX: %zuB %fB/s %fGB/s\n",
 				s.bytes_sent, sent_Bps, sent_Bps/giga,
 				s.bytes_recvd, recvd_Bps, recvd_Bps/giga);
-		exit(1);
+		exit(err ? 1 : 0);
 	} else if (txpid == -1) {
 		perror("msg_loop_tx: ");
 		return errno;
 	}
 
-	assert(waitpid(rxpid, &status, 0) == rxpid);
-	assert(waitpid(txpid, &status, 0) == txpid);
+	assert(waitpid(rxpid, &rx_status, 0) == rxpid);
+	assert(waitpid(txpid, &tx_status, 0) == txpid);
+	if (WIFEXITED(rx_status)) {
+		err = WEXITSTATUS(rx_status);
+		if (err) {
+			fprintf(stderr, "rx thread exited with err %d. ", err);
+			goto out;
+		}
+	}
+	if (WIFEXITED(tx_status)) {
+		err = WEXITSTATUS(tx_status);
+		if (err)
+			fprintf(stderr, "tx thread exited with err %d. ", err);
+	}
+out:
 	return err;
 }
 
@@ -844,6 +876,8 @@ static char *test_to_str(int test)
 #define OPTSTRING 60
 static void test_options(char *options)
 {
+	char tstr[OPTSTRING];
+
 	memset(options, 0, OPTSTRING);
 
 	if (txmsg_pass)
@@ -856,14 +890,22 @@ static void test_options(char *options)
 		strncat(options, "redir_noisy,", OPTSTRING);
 	if (txmsg_drop)
 		strncat(options, "drop,", OPTSTRING);
-	if (txmsg_apply)
-		strncat(options, "apply,", OPTSTRING);
-	if (txmsg_cork)
-		strncat(options, "cork,", OPTSTRING);
-	if (txmsg_start)
-		strncat(options, "start,", OPTSTRING);
-	if (txmsg_end)
-		strncat(options, "end,", OPTSTRING);
+	if (txmsg_apply) {
+		snprintf(tstr, OPTSTRING, "apply %d,", txmsg_apply);
+		strncat(options, tstr, OPTSTRING);
+	}
+	if (txmsg_cork) {
+		snprintf(tstr, OPTSTRING, "cork %d,", txmsg_cork);
+		strncat(options, tstr, OPTSTRING);
+	}
+	if (txmsg_start) {
+		snprintf(tstr, OPTSTRING, "start %d,", txmsg_start);
+		strncat(options, tstr, OPTSTRING);
+	}
+	if (txmsg_end) {
+		snprintf(tstr, OPTSTRING, "end %d,", txmsg_end);
+		strncat(options, tstr, OPTSTRING);
+	}
 	if (txmsg_ingress)
 		strncat(options, "ingress,", OPTSTRING);
 	if (txmsg_skb)
@@ -872,7 +914,7 @@ static void test_options(char *options)
 
 static int __test_exec(int cgrp, int test, struct sockmap_options *opt)
 {
-	char *options = calloc(60, sizeof(char));
+	char *options = calloc(OPTSTRING, sizeof(char));
 	int err;
 
 	if (test == SENDPAGE)
@@ -1010,14 +1052,14 @@ static int test_send(struct sockmap_options *opt, int cgrp)
 
 	opt->iov_length = 1;
 	opt->iov_count = 1;
-	opt->rate = 1024;
+	opt->rate = 512;
 	err = test_exec(cgrp, opt);
 	if (err)
 		goto out;
 
 	opt->iov_length = 256;
 	opt->iov_count = 1024;
-	opt->rate = 10;
+	opt->rate = 2;
 	err = test_exec(cgrp, opt);
 	if (err)
 		goto out;
@@ -1327,6 +1369,11 @@ static int __test_suite(char *bpf_file)
 			"ERROR: (%i) open cg path failed: %s\n",
 			cg_fd, optarg);
 		return cg_fd;
+	}
+
+	if (join_cgroup(CG_PATH)) {
+		fprintf(stderr, "ERROR: failed to join cgroup\n");
+		return -EINVAL;
 	}
 
 	/* Tests basic commands and APIs with range of iov values */
