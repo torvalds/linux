@@ -6,7 +6,7 @@
  */
 
 /dts-v1/;
-#include "rk3399-gru.dtsi"
+#include "rk3399-gru-chromebook.dtsi"
 #include <dt-bindings/input/linux-event-codes.h>
 
 /*
@@ -335,12 +335,6 @@ ap_i2c_dig: &i2c2 {
 	pen {
 		cpu1_pen_eject: cpu1-pen-eject {
 			rockchip,pins = <0 13 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-	};
-
-	wifi {
-		wlan_host_wake_l: wlan-host-wake-l {
-			rockchip,pins = <0 8 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
