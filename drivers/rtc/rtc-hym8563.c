@@ -548,6 +548,7 @@ static int hym8563_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	hym8563->client = client;
+	hym8563->valid = true;
 	i2c_set_clientdata(client, hym8563);
 
 	device_set_wakeup_capable(&client->dev, true);
