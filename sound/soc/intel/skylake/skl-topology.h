@@ -458,9 +458,9 @@ enum skl_channel {
 
 static inline struct skl *get_skl_ctx(struct device *dev)
 {
-	struct hdac_ext_bus *ebus = dev_get_drvdata(dev);
+	struct hdac_bus *bus = dev_get_drvdata(dev);
 
-	return ebus_to_skl(ebus);
+	return bus_to_skl(bus);
 }
 
 int skl_tplg_be_update_params(struct snd_soc_dai *dai,
@@ -470,7 +470,7 @@ int skl_dsp_set_dma_control(struct skl_sst *ctx, u32 *caps,
 void skl_tplg_set_be_dmic_config(struct snd_soc_dai *dai,
 	struct skl_pipe_params *params, int stream);
 int skl_tplg_init(struct snd_soc_component *component,
-				struct hdac_ext_bus *ebus);
+				struct hdac_bus *ebus);
 struct skl_module_cfg *skl_tplg_fe_get_cpr_module(
 		struct snd_soc_dai *dai, int stream);
 int skl_tplg_update_pipe_params(struct device *dev,
