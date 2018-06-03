@@ -7112,7 +7112,7 @@ static u32 ipw_qos_get_burst_duration(struct ipw_priv *priv)
 {
 	u32 ret = 0;
 
-	if ((priv == NULL))
+	if (!priv)
 		return 0;
 
 	if (!(priv->ieee->modulation & LIBIPW_OFDM_MODULATION))
