@@ -2030,6 +2030,22 @@ static int pxac_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	return 0;
 }
 
+static int pxac_sensor_set_power(struct pxa_camera_dev *pcdev, int on)
+{
+	int ret;
+
+	ret = sensor_call(pcdev, core, s_power, on);
+	if (ret == -ENOIOCTLCMD)
+		ret = 0;
+	if (ret) {
+		dev_warn(pcdev_to_dev(pcdev),
+			 "Failed to put subdevice in %s mode: %d\n",
+			 on ? "normal operation" : "power saving", ret);
+	}
+
+	return ret;
+}
+
 static int pxac_fops_camera_open(struct file *filp)
 {
 	struct pxa_camera_dev *pcdev = video_drvdata(filp);
@@ -2043,7 +2059,7 @@ static int pxac_fops_camera_open(struct file *filp)
 	if (!v4l2_fh_is_singular_file(filp))
 		goto out;
 
-	ret = sensor_call(pcdev, core, s_power, 1);
+	ret = pxac_sensor_set_power(pcdev, 1);
 	if (ret)
 		v4l2_fh_release(filp);
 out:
@@ -2064,7 +2080,7 @@ static int pxac_fops_camera_release(struct file *filp)
 	ret = _vb2_fop_release(filp, NULL);
 
 	if (fh_singular)
-		ret = sensor_call(pcdev, core, s_power, 0);
+		ret = pxac_sensor_set_power(pcdev, 0);
 
 	mutex_unlock(&pcdev->mlock);
 
@@ -2167,7 +2183,7 @@ static int pxa_camera_sensor_bound(struct v4l2_async_notifier *notifier,
 	pix->pixelformat = pcdev->current_fmt->host_fmt->fourcc;
 	v4l2_fill_mbus_format(mf, pix, pcdev->current_fmt->code);
 
-	err = sensor_call(pcdev, core, s_power, 1);
+	err = pxac_sensor_set_power(pcdev, 1);
 	if (err)
 		goto out;
 
@@ -2194,7 +2210,7 @@ static int pxa_camera_sensor_bound(struct v4l2_async_notifier *notifier,
 	}
 
 out_sensor_poweroff:
-	err = sensor_call(pcdev, core, s_power, 0);
+	err = pxac_sensor_set_power(pcdev, 0);
 out:
 	mutex_unlock(&pcdev->mlock);
 	return err;
@@ -2249,11 +2265,8 @@ static int pxa_camera_suspend(struct device *dev)
 	pcdev->save_cicr[i++] = __raw_readl(pcdev->base + CICR3);
 	pcdev->save_cicr[i++] = __raw_readl(pcdev->base + CICR4);
 
-	if (pcdev->sensor) {
-		ret = sensor_call(pcdev, core, s_power, 0);
-		if (ret == -ENOIOCTLCMD)
-			ret = 0;
-	}
+	if (pcdev->sensor)
+		ret = pxac_sensor_set_power(pcdev, 0);
 
 	return ret;
 }
@@ -2270,9 +2283,7 @@ static int pxa_camera_resume(struct device *dev)
 	__raw_writel(pcdev->save_cicr[i++], pcdev->base + CICR4);
 
 	if (pcdev->sensor) {
-		ret = sensor_call(pcdev, core, s_power, 1);
-		if (ret == -ENOIOCTLCMD)
-			ret = 0;
+		ret = pxac_sensor_set_power(pcdev, 1);
 	}
 
 	/* Restart frame capture if active buffer exists */
