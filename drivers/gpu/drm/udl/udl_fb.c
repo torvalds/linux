@@ -178,7 +178,7 @@ static int udl_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 
 	pos = (unsigned long)info->fix.smem_start + offset;
 
-	pr_notice("mmap() framebuffer addr:%lu size:%lu\n",
+	pr_debug("mmap() framebuffer addr:%lu size:%lu\n",
 		  pos, size);
 
 	/* We don't want the framebuffer to be mapped encrypted */
@@ -236,7 +236,7 @@ static int udl_fb_open(struct fb_info *info, int user)
 	}
 #endif
 
-	pr_notice("open /dev/fb%d user=%d fb_info=%p count=%d\n",
+	pr_debug("open /dev/fb%d user=%d fb_info=%p count=%d\n",
 		  info->node, user, info, ufbdev->fb_count);
 
 	return 0;
@@ -261,7 +261,7 @@ static int udl_fb_release(struct fb_info *info, int user)
 	}
 #endif
 
-	pr_warn("released /dev/fb%d user=%d count=%d\n",
+	pr_debug("released /dev/fb%d user=%d count=%d\n",
 		info->node, user, ufbdev->fb_count);
 
 	return 0;
