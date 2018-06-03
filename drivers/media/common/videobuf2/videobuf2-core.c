@@ -682,7 +682,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 		}
 
 		/*
-		 * Call queue_cancel to clean up any buffers in the PREPARED or
+		 * Call queue_cancel to clean up any buffers in the
 		 * QUEUED state which is possible if buffers were prepared or
 		 * queued without ever calling STREAMON.
 		 */
@@ -921,6 +921,7 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
 		/* sync buffers */
 		for (plane = 0; plane < vb->num_planes; ++plane)
 			call_void_memop(vb, finish, vb->planes[plane].mem_priv);
+		vb->synced = false;
 	}
 
 	spin_lock_irqsave(&q->done_lock, flags);
@@ -1239,6 +1240,7 @@ static void __enqueue_in_driver(struct vb2_buffer *vb)
 static int __buf_prepare(struct vb2_buffer *vb)
 {
 	struct vb2_queue *q = vb->vb2_queue;
+	enum vb2_buffer_state orig_state = vb->state;
 	unsigned int plane;
 	int ret;
 
@@ -1246,6 +1248,10 @@ static int __buf_prepare(struct vb2_buffer *vb)
 		dprintk(1, "fatal error occurred on queue\n");
 		return -EIO;
 	}
+
+	if (vb->prepared)
+		return 0;
+	WARN_ON(vb->synced);
 
 	vb->state = VB2_BUF_STATE_PREPARING;
 
@@ -1262,11 +1268,12 @@ static int __buf_prepare(struct vb2_buffer *vb)
 	default:
 		WARN(1, "Invalid queue type\n");
 		ret = -EINVAL;
+		break;
 	}
 
 	if (ret) {
 		dprintk(1, "buffer preparation failed: %d\n", ret);
-		vb->state = VB2_BUF_STATE_DEQUEUED;
+		vb->state = orig_state;
 		return ret;
 	}
 
@@ -1274,7 +1281,9 @@ static int __buf_prepare(struct vb2_buffer *vb)
 	for (plane = 0; plane < vb->num_planes; ++plane)
 		call_void_memop(vb, prepare, vb->planes[plane].mem_priv);
 
-	vb->state = VB2_BUF_STATE_PREPARED;
+	vb->synced = true;
+	vb->prepared = true;
+	vb->state = orig_state;
 
 	return 0;
 }
@@ -1288,6 +1297,10 @@ int vb2_core_prepare_buf(struct vb2_queue *q, unsigned int index, void *pb)
 	if (vb->state != VB2_BUF_STATE_DEQUEUED) {
 		dprintk(1, "invalid buffer state %d\n",
 			vb->state);
+		return -EINVAL;
+	}
+	if (vb->prepared) {
+		dprintk(1, "buffer already prepared\n");
 		return -EINVAL;
 	}
 
@@ -1381,11 +1394,11 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb)
 
 	switch (vb->state) {
 	case VB2_BUF_STATE_DEQUEUED:
-		ret = __buf_prepare(vb);
-		if (ret)
-			return ret;
-		break;
-	case VB2_BUF_STATE_PREPARED:
+		if (!vb->prepared) {
+			ret = __buf_prepare(vb);
+			if (ret)
+				return ret;
+		}
 		break;
 	case VB2_BUF_STATE_PREPARING:
 		dprintk(1, "buffer still being prepared\n");
@@ -1611,6 +1624,7 @@ int vb2_core_dqbuf(struct vb2_queue *q, unsigned int *pindex, void *pb,
 	}
 
 	call_void_vb_qop(vb, buf_finish, vb);
+	vb->prepared = false;
 
 	if (pindex)
 		*pindex = vb->index;
@@ -1699,18 +1713,18 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 	for (i = 0; i < q->num_buffers; ++i) {
 		struct vb2_buffer *vb = q->bufs[i];
 
-		if (vb->state == VB2_BUF_STATE_PREPARED ||
-		    vb->state == VB2_BUF_STATE_QUEUED) {
+		if (vb->synced) {
 			unsigned int plane;
 
 			for (plane = 0; plane < vb->num_planes; ++plane)
 				call_void_memop(vb, finish,
 						vb->planes[plane].mem_priv);
+			vb->synced = false;
 		}
 
-		if (vb->state != VB2_BUF_STATE_DEQUEUED) {
-			vb->state = VB2_BUF_STATE_PREPARED;
+		if (vb->prepared) {
 			call_void_vb_qop(vb, buf_finish, vb);
+			vb->prepared = false;
 		}
 		__vb2_dqbuf(vb);
 	}

@@ -352,9 +352,13 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b,
 	if (ret)
 		return ret;
 
-	/* Copy relevant information provided by the userspace */
-	memset(vbuf->planes, 0, sizeof(vbuf->planes[0]) * vb->num_planes);
-	return vb2_fill_vb2_v4l2_buffer(vb, b);
+	if (!vb->prepared) {
+		/* Copy relevant information provided by the userspace */
+		memset(vbuf->planes, 0,
+		       sizeof(vbuf->planes[0]) * vb->num_planes);
+		ret = vb2_fill_vb2_v4l2_buffer(vb, b);
+	}
+	return ret;
 }
 
 /*
@@ -443,15 +447,15 @@ static void __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
 	case VB2_BUF_STATE_DONE:
 		b->flags |= V4L2_BUF_FLAG_DONE;
 		break;
-	case VB2_BUF_STATE_PREPARED:
-		b->flags |= V4L2_BUF_FLAG_PREPARED;
-		break;
 	case VB2_BUF_STATE_PREPARING:
 	case VB2_BUF_STATE_DEQUEUED:
 	case VB2_BUF_STATE_REQUEUEING:
 		/* nothing */
 		break;
 	}
+
+	if (vb->state == VB2_BUF_STATE_DEQUEUED && vb->synced && vb->prepared)
+		b->flags |= V4L2_BUF_FLAG_PREPARED;
 
 	if (vb2_buffer_in_use(q, vb))
 		b->flags |= V4L2_BUF_FLAG_MAPPED;
