@@ -3,6 +3,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/clkdev.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/spi/pxa2xx_spi.h>
@@ -477,6 +478,18 @@ struct platform_device pxa_device_ac97 = {
 
 void __init pxa_set_ac97_info(pxa2xx_audio_ops_t *ops)
 {
+	int ret;
+
+	ret = clk_add_alias("ac97_clk", "pxa2xx-ac97:0", "AC97CLK",
+			   &pxa_device_ac97.dev);
+	if (ret)
+		pr_err("PXA AC97 clock1 alias error: %d\n", ret);
+
+	ret = clk_add_alias("ac97_clk", "pxa2xx-ac97:1", "AC97CLK",
+			    &pxa_device_ac97.dev);
+	if (ret)
+		pr_err("PXA AC97 clock2 alias error: %d\n", ret);
+
 	pxa_register_device(&pxa_device_ac97, ops);
 }
 
