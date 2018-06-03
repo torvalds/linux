@@ -854,8 +854,6 @@ struct sk_buff {
 /*
  *	Handling routines are only of interest to the kernel
  */
-#include <linux/slab.h>
-
 
 #define SKB_ALLOC_FCLONE	0x01
 #define SKB_ALLOC_RX		0x02
