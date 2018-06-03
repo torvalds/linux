@@ -4221,7 +4221,7 @@ static int bpf_ipv6_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 		fl6.flowi6_oif = 0;
 		strict = RT6_LOOKUP_F_HAS_SADDR;
 	}
-	fl6.flowlabel = params->flowlabel;
+	fl6.flowlabel = params->flowinfo;
 	fl6.flowi6_scope = 0;
 	fl6.flowi6_flags = 0;
 	fl6.mp_hash = 0;

@@ -88,7 +88,7 @@ static __always_inline int xdp_fwd_flags(struct xdp_md *ctx, u32 flags)
 			return XDP_PASS;
 
 		fib_params.family	= AF_INET6;
-		fib_params.flowlabel	= *(__be32 *)ip6h & IPV6_FLOWINFO_MASK;
+		fib_params.flowinfo	= *(__be32 *)ip6h & IPV6_FLOWINFO_MASK;
 		fib_params.l4_protocol	= ip6h->nexthdr;
 		fib_params.sport	= 0;
 		fib_params.dport	= 0;
