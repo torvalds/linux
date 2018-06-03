@@ -305,9 +305,11 @@ xfs_da3_node_read(
 			type = XFS_BLFT_DIR_LEAFN_BUF;
 			break;
 		default:
-			type = 0;
-			ASSERT(0);
-			break;
+			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW,
+					tp->t_mountp, info);
+			xfs_trans_brelse(tp, *bpp);
+			*bpp = NULL;
+			return -EFSCORRUPTED;
 		}
 		xfs_trans_buf_set_type(tp, *bpp, type);
 	}
