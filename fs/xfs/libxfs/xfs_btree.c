@@ -1896,7 +1896,12 @@ xfs_btree_lookup(
 			high = xfs_btree_get_numrecs(block);
 			if (!high) {
 				/* Block is empty, must be an empty leaf. */
-				ASSERT(level == 0 && cur->bc_nlevels == 1);
+				if (level != 0 || cur->bc_nlevels != 1) {
+					XFS_CORRUPTION_ERROR(__func__,
+							XFS_ERRLEVEL_LOW,
+							cur->bc_mp, block);
+					return -EFSCORRUPTED;
+				}
 
 				cur->bc_ptrs[0] = dir != XFS_LOOKUP_LE;
 				*stat = 0;
