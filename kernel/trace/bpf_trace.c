@@ -880,8 +880,14 @@ static bool pe_prog_is_valid_access(int off, int size, enum bpf_access_type type
 		return false;
 	if (type != BPF_READ)
 		return false;
-	if (off % size != 0)
-		return false;
+	if (off % size != 0) {
+		if (sizeof(unsigned long) != 4)
+			return false;
+		if (size != 8)
+			return false;
+		if (off % size != 4)
+			return false;
+	}
 
 	switch (off) {
 	case bpf_ctx_range(struct bpf_perf_event_data, sample_period):

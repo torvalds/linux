@@ -3445,6 +3445,7 @@ set_compat:
 	to->tunnel_id = be64_to_cpu(info->key.tun_id);
 	to->tunnel_tos = info->key.tos;
 	to->tunnel_ttl = info->key.ttl;
+	to->tunnel_ext = 0;
 
 	if (flags & BPF_F_TUNINFO_IPV6) {
 		memcpy(to->remote_ipv6, &info->key.u.ipv6.src,
@@ -3452,6 +3453,8 @@ set_compat:
 		to->tunnel_label = be32_to_cpu(info->key.label);
 	} else {
 		to->remote_ipv4 = be32_to_cpu(info->key.u.ipv4.src);
+		memset(&to->remote_ipv6[1], 0, sizeof(__u32) * 3);
+		to->tunnel_label = 0;
 	}
 
 	if (unlikely(size != sizeof(struct bpf_tunnel_key)))
@@ -3660,6 +3663,27 @@ static const struct bpf_func_proto bpf_skb_under_cgroup_proto = {
 	.arg2_type	= ARG_CONST_MAP_PTR,
 	.arg3_type	= ARG_ANYTHING,
 };
+
+#ifdef CONFIG_SOCK_CGROUP_DATA
+BPF_CALL_1(bpf_skb_cgroup_id, const struct sk_buff *, skb)
+{
+	struct sock *sk = skb_to_full_sk(skb);
+	struct cgroup *cgrp;
+
+	if (!sk || !sk_fullsock(sk))
+		return 0;
+
+	cgrp = sock_cgroup_ptr(&sk->sk_cgrp_data);
+	return cgrp->kn->id.id;
+}
+
+static const struct bpf_func_proto bpf_skb_cgroup_id_proto = {
+	.func           = bpf_skb_cgroup_id,
+	.gpl_only       = false,
+	.ret_type       = RET_INTEGER,
+	.arg1_type      = ARG_PTR_TO_CTX,
+};
+#endif
 
 static unsigned long bpf_xdp_copy(void *dst_buff, const void *src_buff,
 				  unsigned long off, unsigned long len)
@@ -4026,11 +4050,14 @@ BPF_CALL_5(bpf_skb_get_xfrm_state, struct sk_buff *, skb, u32, index,
 	to->reqid = x->props.reqid;
 	to->spi = x->id.spi;
 	to->family = x->props.family;
+	to->ext = 0;
+
 	if (to->family == AF_INET6) {
 		memcpy(to->remote_ipv6, x->props.saddr.a6,
 		       sizeof(to->remote_ipv6));
 	} else {
 		to->remote_ipv4 = x->props.saddr.a4;
+		memset(&to->remote_ipv6[1], 0, sizeof(__u32) * 3);
 	}
 
 	return 0;
@@ -4747,12 +4774,16 @@ tc_cls_act_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_get_socket_cookie_proto;
 	case BPF_FUNC_get_socket_uid:
 		return &bpf_get_socket_uid_proto;
+	case BPF_FUNC_fib_lookup:
+		return &bpf_skb_fib_lookup_proto;
 #ifdef CONFIG_XFRM
 	case BPF_FUNC_skb_get_xfrm_state:
 		return &bpf_skb_get_xfrm_state_proto;
 #endif
-	case BPF_FUNC_fib_lookup:
-		return &bpf_skb_fib_lookup_proto;
+#ifdef CONFIG_SOCK_CGROUP_DATA
+	case BPF_FUNC_skb_cgroup_id:
+		return &bpf_skb_cgroup_id_proto;
+#endif
 	default:
 		return bpf_base_func_proto(func_id);
 	}

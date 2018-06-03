@@ -356,6 +356,52 @@ static int bpf_fill_maxinsns11(struct bpf_test *self)
 	return __bpf_fill_ja(self, BPF_MAXINSNS, 68);
 }
 
+static int bpf_fill_maxinsns12(struct bpf_test *self)
+{
+	unsigned int len = BPF_MAXINSNS;
+	struct sock_filter *insn;
+	int i = 0;
+
+	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	if (!insn)
+		return -ENOMEM;
+
+	insn[0] = __BPF_JUMP(BPF_JMP | BPF_JA, len - 2, 0, 0);
+
+	for (i = 1; i < len - 1; i++)
+		insn[i] = __BPF_STMT(BPF_LDX | BPF_B | BPF_MSH, 0);
+
+	insn[len - 1] = __BPF_STMT(BPF_RET | BPF_K, 0xabababab);
+
+	self->u.ptr.insns = insn;
+	self->u.ptr.len = len;
+
+	return 0;
+}
+
+static int bpf_fill_maxinsns13(struct bpf_test *self)
+{
+	unsigned int len = BPF_MAXINSNS;
+	struct sock_filter *insn;
+	int i = 0;
+
+	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	if (!insn)
+		return -ENOMEM;
+
+	for (i = 0; i < len - 3; i++)
+		insn[i] = __BPF_STMT(BPF_LDX | BPF_B | BPF_MSH, 0);
+
+	insn[len - 3] = __BPF_STMT(BPF_LD | BPF_IMM, 0xabababab);
+	insn[len - 2] = __BPF_STMT(BPF_ALU | BPF_XOR | BPF_X, 0);
+	insn[len - 1] = __BPF_STMT(BPF_RET | BPF_A, 0);
+
+	self->u.ptr.insns = insn;
+	self->u.ptr.len = len;
+
+	return 0;
+}
+
 static int bpf_fill_ja(struct bpf_test *self)
 {
 	/* Hits exactly 11 passes on x86_64 JIT. */
@@ -5288,6 +5334,23 @@ static struct bpf_test tests[] = {
 		{ { 0, 0xababcbac } },
 		.fill_helper = bpf_fill_maxinsns11,
 		.expected_errcode = -ENOTSUPP,
+	},
+	{
+		"BPF_MAXINSNS: jump over MSH",
+		{ },
+		CLASSIC | FLAG_EXPECTED_FAIL,
+		{ 0xfa, 0xfb, 0xfc, 0xfd, },
+		{ { 4, 0xabababab } },
+		.fill_helper = bpf_fill_maxinsns12,
+		.expected_errcode = -EINVAL,
+	},
+	{
+		"BPF_MAXINSNS: exec all MSH",
+		{ },
+		CLASSIC,
+		{ 0xfa, 0xfb, 0xfc, 0xfd, },
+		{ { 4, 0xababab83 } },
+		.fill_helper = bpf_fill_maxinsns13,
 	},
 	{
 		"BPF_MAXINSNS: ld_abs+get_processor_id",
