@@ -83,12 +83,12 @@ static inline u16 pixel32_to_be16(const uint32_t pixel)
 		((pixel >> 8) & 0xf800));
 }
 
-static inline u16 get_pixel_val16(const uint8_t *pixel, int bpp)
+static inline u16 get_pixel_val16(const uint8_t *pixel, int log_bpp)
 {
-	u16 pixel_val16 = 0;
-	if (bpp == 2)
+	u16 pixel_val16;
+	if (log_bpp == 1)
 		pixel_val16 = *(const uint16_t *)pixel;
-	else if (bpp == 4)
+	else
 		pixel_val16 = pixel32_to_be16(*(const uint32_t *)pixel);
 	return pixel_val16;
 }
@@ -125,8 +125,9 @@ static void udl_compress_hline16(
 	const u8 *const pixel_end,
 	uint32_t *device_address_ptr,
 	uint8_t **command_buffer_ptr,
-	const uint8_t *const cmd_buffer_end, int bpp)
+	const uint8_t *const cmd_buffer_end, int log_bpp)
 {
+	const int bpp = 1 << log_bpp;
 	const u8 *pixel = *pixel_start_ptr;
 	uint32_t dev_addr  = *device_address_ptr;
 	uint8_t *cmd = *command_buffer_ptr;
@@ -153,12 +154,12 @@ static void udl_compress_hline16(
 		raw_pixels_count_byte = cmd++; /*  we'll know this later */
 		raw_pixel_start = pixel;
 
-		cmd_pixel_end = pixel + min3(MAX_CMD_PIXELS + 1UL,
-					(unsigned long)(pixel_end - pixel) / bpp,
-					(unsigned long)(cmd_buffer_end - 1 - cmd) / 2) * bpp;
+		cmd_pixel_end = pixel + (min3(MAX_CMD_PIXELS + 1UL,
+					(unsigned long)(pixel_end - pixel) >> log_bpp,
+					(unsigned long)(cmd_buffer_end - 1 - cmd) / 2) << log_bpp);
 
 		prefetch_range((void *) pixel, cmd_pixel_end - pixel);
-		pixel_val16 = get_pixel_val16(pixel, bpp);
+		pixel_val16 = get_pixel_val16(pixel, log_bpp);
 
 		while (pixel < cmd_pixel_end) {
 			const u8 *const start = pixel;
@@ -170,7 +171,7 @@ static void udl_compress_hline16(
 			pixel += bpp;
 
 			while (pixel < cmd_pixel_end) {
-				pixel_val16 = get_pixel_val16(pixel, bpp);
+				pixel_val16 = get_pixel_val16(pixel, log_bpp);
 				if (pixel_val16 != repeating_pixel_val16)
 					break;
 				pixel += bpp;
@@ -179,10 +180,10 @@ static void udl_compress_hline16(
 			if (unlikely(pixel > start + bpp)) {
 				/* go back and fill in raw pixel count */
 				*raw_pixels_count_byte = (((start -
-						raw_pixel_start) / bpp) + 1) & 0xFF;
+						raw_pixel_start) >> log_bpp) + 1) & 0xFF;
 
 				/* immediately after raw data is repeat byte */
-				*cmd++ = (((pixel - start) / bpp) - 1) & 0xFF;
+				*cmd++ = (((pixel - start) >> log_bpp) - 1) & 0xFF;
 
 				/* Then start another raw pixel span */
 				raw_pixel_start = pixel;
@@ -192,14 +193,14 @@ static void udl_compress_hline16(
 
 		if (pixel > raw_pixel_start) {
 			/* finalize last RAW span */
-			*raw_pixels_count_byte = ((pixel-raw_pixel_start) / bpp) & 0xFF;
+			*raw_pixels_count_byte = ((pixel - raw_pixel_start) >> log_bpp) & 0xFF;
 		} else {
 			/* undo unused byte */
 			cmd--;
 		}
 
-		*cmd_pixels_count_byte = ((pixel - cmd_pixel_start) / bpp) & 0xFF;
-		dev_addr += ((pixel - cmd_pixel_start) / bpp) * 2;
+		*cmd_pixels_count_byte = ((pixel - cmd_pixel_start) >> log_bpp) & 0xFF;
+		dev_addr += ((pixel - cmd_pixel_start) >> log_bpp) * 2;
 	}
 
 	if (cmd_buffer_end <= MIN_RLX_CMD_BYTES + cmd) {
@@ -222,19 +223,19 @@ static void udl_compress_hline16(
  * (that we can only write to, slowly, and can never read), and (optionally)
  * our shadow copy that tracks what's been sent to that hardware buffer.
  */
-int udl_render_hline(struct drm_device *dev, int bpp, struct urb **urb_ptr,
+int udl_render_hline(struct drm_device *dev, int log_bpp, struct urb **urb_ptr,
 		     const char *front, char **urb_buf_ptr,
 		     u32 byte_offset, u32 device_byte_offset,
 		     u32 byte_width,
 		     int *ident_ptr, int *sent_ptr)
 {
 	const u8 *line_start, *line_end, *next_pixel;
-	u32 base16 = 0 + (device_byte_offset / bpp) * 2;
+	u32 base16 = 0 + (device_byte_offset >> log_bpp) * 2;
 	struct urb *urb = *urb_ptr;
 	u8 *cmd = *urb_buf_ptr;
 	u8 *cmd_end = (u8 *) urb->transfer_buffer + urb->transfer_buffer_length;
 
-	BUG_ON(!(bpp == 2 || bpp == 4));
+	BUG_ON(!(log_bpp == 1 || log_bpp == 2));
 
 	line_start = (u8 *) (front + byte_offset);
 	next_pixel = line_start;
@@ -244,7 +245,7 @@ int udl_render_hline(struct drm_device *dev, int bpp, struct urb **urb_ptr,
 
 		udl_compress_hline16(&next_pixel,
 			     line_end, &base16,
-			     (u8 **) &cmd, (u8 *) cmd_end, bpp);
+			     (u8 **) &cmd, (u8 *) cmd_end, log_bpp);
 
 		if (cmd >= cmd_end) {
 			int len = cmd - (u8 *) urb->transfer_buffer;
