@@ -1248,7 +1248,6 @@ xfs_iread_extents(
 
 		num_recs = xfs_btree_get_numrecs(block);
 		if (unlikely(i + num_recs > nextents)) {
-			ASSERT(i + num_recs <= nextents);
 			xfs_warn(ip->i_mount,
 				"corrupt dinode %Lu, (btree extents).",
 				(unsigned long long) ip->i_ino);
