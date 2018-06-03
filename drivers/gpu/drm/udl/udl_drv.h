@@ -110,7 +110,7 @@ udl_fb_user_fb_create(struct drm_device *dev,
 		      struct drm_file *file,
 		      const struct drm_mode_fb_cmd2 *mode_cmd);
 
-int udl_render_hline(struct drm_device *dev, int bpp, struct urb **urb_ptr,
+int udl_render_hline(struct drm_device *dev, int log_bpp, struct urb **urb_ptr,
 		     const char *front, char **urb_buf_ptr,
 		     u32 byte_offset, u32 device_byte_offset, u32 byte_width,
 		     int *ident_ptr, int *sent_ptr);
