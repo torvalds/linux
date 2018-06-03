@@ -342,6 +342,8 @@ void wil_disconnect_worker(struct work_struct *work)
 		/* already disconnected */
 		return;
 
+	memset(&reply, 0, sizeof(reply));
+
 	rc = wmi_call(wil, WMI_DISCONNECT_CMDID, vif->mid, NULL, 0,
 		      WMI_DISCONNECT_EVENTID, &reply, sizeof(reply),
 		      WIL6210_DISCONNECT_TO_MS);

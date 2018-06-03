@@ -189,6 +189,7 @@ enum {
 	MT76_STATE_RUNNING,
 	MT76_SCANNING,
 	MT76_RESET,
+	MT76_OFFCHANNEL,
 };
 
 struct mt76_hw_cap {
@@ -249,6 +250,8 @@ struct mt76_dev {
 	struct mt76_queue q_tx[__MT_TXQ_MAX];
 	struct mt76_queue q_rx[__MT_RXQ_MAX];
 	const struct mt76_queue_ops *queue_ops;
+
+	wait_queue_head_t tx_wait;
 
 	u8 macaddr[ETH_ALEN];
 	u32 rev;
@@ -376,6 +379,8 @@ mt76_channel_state(struct mt76_dev *dev, struct ieee80211_channel *c)
 	return &msband->chan[idx];
 }
 
+struct mt76_dev *mt76_alloc_device(unsigned int size,
+				   const struct ieee80211_ops *ops);
 int mt76_register_device(struct mt76_dev *dev, bool vht,
 			 struct ieee80211_rate *rates, int n_rates);
 void mt76_unregister_device(struct mt76_dev *dev);

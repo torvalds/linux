@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -1950,6 +1951,21 @@ struct wmi_tlv_wow_add_del_event_cmd {
 	__le32 vdev_id;
 	__le32 is_add;
 	__le32 event_bitmap;
+} __packed;
+
+/* Command to set/unset chip in quiet mode */
+struct wmi_tlv_set_quiet_cmd {
+	__le32 vdev_id;
+
+	/* in TUs */
+	__le32 period;
+
+	/* in TUs */
+	__le32 duration;
+
+	/* offset in TUs */
+	__le32 next_start;
+	__le32 enabled;
 } __packed;
 
 struct wmi_tlv_wow_enable_cmd {

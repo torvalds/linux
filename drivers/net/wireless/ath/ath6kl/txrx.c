@@ -353,7 +353,7 @@ fail_ctrl_tx:
 	return status;
 }
 
-int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ath6kl *ar = ath6kl_priv(dev);
 	struct ath6kl_cookie *cookie = NULL;

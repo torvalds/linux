@@ -86,6 +86,10 @@ int wcn36xx_smd_send_beacon(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 			    u16 p2p_off);
 int wcn36xx_smd_switch_channel(struct wcn36xx *wcn,
 			       struct ieee80211_vif *vif, int ch);
+int wcn36xx_smd_process_ptt_msg(struct wcn36xx *wcn,
+				struct ieee80211_vif *vif,
+				void *ptt_msg, size_t len,
+				void **ptt_rsp_msg);
 int wcn36xx_smd_update_proberesp_tmpl(struct wcn36xx *wcn,
 				      struct ieee80211_vif *vif,
 				      struct sk_buff *skb);

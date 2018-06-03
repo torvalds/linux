@@ -277,7 +277,7 @@ ath9k_dfs_process_radar_pulse(struct ath_softc *sc, struct pulse_event *pe)
 	DFS_STAT_INC(sc, pulses_processed);
 	if (pd == NULL)
 		return;
-	if (!pd->add_pulse(pd, pe))
+	if (!pd->add_pulse(pd, pe, NULL))
 		return;
 	DFS_STAT_INC(sc, radar_detected);
 	ieee80211_radar_detected(sc->hw);

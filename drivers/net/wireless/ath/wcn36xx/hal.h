@@ -2236,6 +2236,22 @@ struct wcn36xx_hal_switch_channel_rsp_msg {
 
 } __packed;
 
+struct wcn36xx_hal_process_ptt_msg_req_msg {
+	struct wcn36xx_hal_msg_header header;
+
+	/* Actual FTM Command body */
+	u8 ptt_msg[0];
+} __packed;
+
+struct wcn36xx_hal_process_ptt_msg_rsp_msg {
+	struct wcn36xx_hal_msg_header header;
+
+	/* FTM Command response status */
+	u32 ptt_msg_resp_status;
+	/* Actual FTM Command body */
+	u8 ptt_msg[0];
+} __packed;
+
 struct update_edca_params_req_msg {
 	struct wcn36xx_hal_msg_header header;
 

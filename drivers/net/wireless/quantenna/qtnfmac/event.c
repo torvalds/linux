@@ -211,11 +211,9 @@ qtnf_event_handle_bss_leave(struct qtnf_vif *vif,
 		return -EPROTO;
 	}
 
-	if (vif->sta_state != QTNF_STA_CONNECTED) {
-		pr_err("VIF%u.%u: BSS_LEAVE event when STA is not connected\n",
-		       vif->mac->macid, vif->vifid);
-		return -EPROTO;
-	}
+	if (vif->sta_state != QTNF_STA_CONNECTED)
+		pr_warn("VIF%u.%u: BSS_LEAVE event when STA is not connected\n",
+			vif->mac->macid, vif->vifid);
 
 	pr_debug("VIF%u.%u: disconnected\n", vif->mac->macid, vif->vifid);
 

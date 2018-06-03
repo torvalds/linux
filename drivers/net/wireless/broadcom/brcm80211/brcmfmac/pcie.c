@@ -182,6 +182,7 @@ static const struct brcmf_firmware_mapping brcmf_pcie_fwnames[] = {
 #define BRCMF_D2H_DEV_D3_ACK			0x00000001
 #define BRCMF_D2H_DEV_DS_ENTER_REQ		0x00000002
 #define BRCMF_D2H_DEV_DS_EXIT_NOTE		0x00000004
+#define BRCMF_D2H_DEV_FWHALT			0x10000000
 
 #define BRCMF_H2D_HOST_D3_INFORM		0x00000001
 #define BRCMF_H2D_HOST_DS_ACK			0x00000002
@@ -716,6 +717,10 @@ static void brcmf_pcie_handle_mb_data(struct brcmf_pciedev_info *devinfo)
 		brcmf_dbg(PCIE, "D2H_MB_DATA: D3 ACK\n");
 		devinfo->mbdata_completed = true;
 		wake_up(&devinfo->mbdata_resp_wait);
+	}
+	if (dtoh_mb_data & BRCMF_D2H_DEV_FWHALT) {
+		brcmf_dbg(PCIE, "D2H_MB_DATA: FW HALT\n");
+		brcmf_dev_coredump(&devinfo->pdev->dev);
 	}
 }
 
@@ -2044,6 +2049,7 @@ static struct pci_driver brcmf_pciedrvr = {
 #ifdef CONFIG_PM
 	.driver.pm = &brcmf_pciedrvr_pm,
 #endif
+	.driver.coredump = brcmf_dev_coredump,
 };
 
 

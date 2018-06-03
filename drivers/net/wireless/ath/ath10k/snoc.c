@@ -1385,7 +1385,6 @@ static struct platform_driver ath10k_snoc_driver = {
 		.remove = ath10k_snoc_remove,
 		.driver = {
 			.name   = "ath10k_snoc",
-			.owner = THIS_MODULE,
 			.of_match_table = ath10k_snoc_dt_match,
 		},
 };

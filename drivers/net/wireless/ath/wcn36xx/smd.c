@@ -252,23 +252,29 @@ static int wcn36xx_smd_send_and_wait(struct wcn36xx *wcn, size_t len)
 {
 	int ret = 0;
 	unsigned long start;
+	struct wcn36xx_hal_msg_header *hdr =
+		(struct wcn36xx_hal_msg_header *)wcn->hal_buf;
+	u16 req_type = hdr->msg_type;
+
 	wcn36xx_dbg_dump(WCN36XX_DBG_SMD_DUMP, "HAL >>> ", wcn->hal_buf, len);
 
 	init_completion(&wcn->hal_rsp_compl);
 	start = jiffies;
 	ret = rpmsg_send(wcn->smd_channel, wcn->hal_buf, len);
 	if (ret) {
-		wcn36xx_err("HAL TX failed\n");
+		wcn36xx_err("HAL TX failed for req %d\n", req_type);
 		goto out;
 	}
 	if (wait_for_completion_timeout(&wcn->hal_rsp_compl,
 		msecs_to_jiffies(HAL_MSG_TIMEOUT)) <= 0) {
-		wcn36xx_err("Timeout! No SMD response in %dms\n",
-			    HAL_MSG_TIMEOUT);
+		wcn36xx_err("Timeout! No SMD response to req %d in %dms\n",
+			    req_type, HAL_MSG_TIMEOUT);
 		ret = -ETIME;
 		goto out;
 	}
-	wcn36xx_dbg(WCN36XX_DBG_SMD, "SMD command completed in %dms",
+	wcn36xx_dbg(WCN36XX_DBG_SMD,
+		    "SMD command (req %d, rsp %d) completed in %dms\n",
+		    req_type, hdr->msg_type,
 		    jiffies_to_msecs(jiffies - start));
 out:
 	return ret;
@@ -292,11 +298,25 @@ static void init_hal_msg(struct wcn36xx_hal_msg_header *hdr,
 		msg_body.header.len = sizeof(msg_body);			\
 	} while (0)							\
 
+#define INIT_HAL_PTT_MSG(p_msg_body, ppt_msg_len) \
+	do { \
+		memset(p_msg_body, 0, sizeof(*p_msg_body) + ppt_msg_len); \
+		p_msg_body->header.msg_type = WCN36XX_HAL_PROCESS_PTT_REQ; \
+		p_msg_body->header.msg_version = WCN36XX_HAL_MSG_VERSION0; \
+		p_msg_body->header.len = sizeof(*p_msg_body) + ppt_msg_len; \
+	} while (0)
+
 #define PREPARE_HAL_BUF(send_buf, msg_body) \
 	do {							\
 		memset(send_buf, 0, msg_body.header.len);	\
 		memcpy(send_buf, &msg_body, sizeof(msg_body));	\
 	} while (0)						\
+
+#define PREPARE_HAL_PTT_MSG_BUF(send_buf, p_msg_body) \
+	do {							\
+		memset(send_buf, 0, p_msg_body->header.len); \
+		memcpy(send_buf, p_msg_body, p_msg_body->header.len); \
+	} while (0)
 
 static int wcn36xx_smd_rsp_status_check(void *buf, size_t len)
 {
@@ -750,6 +770,71 @@ int wcn36xx_smd_switch_channel(struct wcn36xx *wcn,
 		goto out;
 	}
 out:
+	mutex_unlock(&wcn->hal_mutex);
+	return ret;
+}
+
+static int wcn36xx_smd_process_ptt_msg_rsp(void *buf, size_t len,
+					   void **p_ptt_rsp_msg)
+{
+	struct wcn36xx_hal_process_ptt_msg_rsp_msg *rsp;
+	int ret;
+
+	ret = wcn36xx_smd_rsp_status_check(buf, len);
+	if (ret)
+		return ret;
+
+	rsp = (struct wcn36xx_hal_process_ptt_msg_rsp_msg *)buf;
+
+	wcn36xx_dbg(WCN36XX_DBG_HAL, "process ptt msg responded with length %d\n",
+		    rsp->header.len);
+	wcn36xx_dbg_dump(WCN36XX_DBG_HAL_DUMP, "HAL_PTT_MSG_RSP:", rsp->ptt_msg,
+			 rsp->header.len - sizeof(rsp->ptt_msg_resp_status));
+
+	if (rsp->header.len > 0) {
+		*p_ptt_rsp_msg = kmalloc(rsp->header.len, GFP_ATOMIC);
+		if (!*p_ptt_rsp_msg)
+			return -ENOMEM;
+		memcpy(*p_ptt_rsp_msg, rsp->ptt_msg, rsp->header.len);
+	}
+	return ret;
+}
+
+int wcn36xx_smd_process_ptt_msg(struct wcn36xx *wcn,
+				struct ieee80211_vif *vif, void *ptt_msg, size_t len,
+		void **ptt_rsp_msg)
+{
+	struct wcn36xx_hal_process_ptt_msg_req_msg *p_msg_body;
+	int ret;
+
+	mutex_lock(&wcn->hal_mutex);
+	p_msg_body = kmalloc(
+		sizeof(struct wcn36xx_hal_process_ptt_msg_req_msg) + len,
+		GFP_ATOMIC);
+	if (!p_msg_body) {
+		ret = -ENOMEM;
+		goto out_nomem;
+	}
+	INIT_HAL_PTT_MSG(p_msg_body, len);
+
+	memcpy(&p_msg_body->ptt_msg, ptt_msg, len);
+
+	PREPARE_HAL_PTT_MSG_BUF(wcn->hal_buf, p_msg_body);
+
+	ret = wcn36xx_smd_send_and_wait(wcn, p_msg_body->header.len);
+	if (ret) {
+		wcn36xx_err("Sending hal_process_ptt_msg failed\n");
+		goto out;
+	}
+	ret = wcn36xx_smd_process_ptt_msg_rsp(wcn->hal_buf, wcn->hal_rsp_len,
+					      ptt_rsp_msg);
+	if (ret) {
+		wcn36xx_err("process_ptt_msg response failed err=%d\n", ret);
+		goto out;
+	}
+out:
+	kfree(p_msg_body);
+out_nomem:
 	mutex_unlock(&wcn->hal_mutex);
 	return ret;
 }
@@ -2390,6 +2475,7 @@ int wcn36xx_smd_rsp_process(struct rpmsg_device *rpdev,
 	case WCN36XX_HAL_JOIN_RSP:
 	case WCN36XX_HAL_UPDATE_SCAN_PARAM_RSP:
 	case WCN36XX_HAL_CH_SWITCH_RSP:
+	case WCN36XX_HAL_PROCESS_PTT_RSP:
 	case WCN36XX_HAL_FEATURE_CAPS_EXCHANGE_RSP:
 	case WCN36XX_HAL_8023_MULTICAST_LIST_RSP:
 	case WCN36XX_HAL_START_SCAN_OFFLOAD_RSP:
@@ -2430,6 +2516,7 @@ int wcn36xx_smd_rsp_process(struct rpmsg_device *rpdev,
 
 	return 0;
 }
+
 static void wcn36xx_ind_smd_work(struct work_struct *work)
 {
 	struct wcn36xx *wcn =
@@ -2494,24 +2581,24 @@ static void wcn36xx_ind_smd_work(struct work_struct *work)
 }
 int wcn36xx_smd_open(struct wcn36xx *wcn)
 {
-	int ret = 0;
 	wcn->hal_ind_wq = create_freezable_workqueue("wcn36xx_smd_ind");
-	if (!wcn->hal_ind_wq) {
-		wcn36xx_err("failed to allocate wq\n");
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!wcn->hal_ind_wq)
+		return -ENOMEM;
+
 	INIT_WORK(&wcn->hal_ind_work, wcn36xx_ind_smd_work);
 	INIT_LIST_HEAD(&wcn->hal_ind_queue);
 	spin_lock_init(&wcn->hal_ind_lock);
 
 	return 0;
-
-out:
-	return ret;
 }
 
 void wcn36xx_smd_close(struct wcn36xx *wcn)
 {
+	struct wcn36xx_hal_ind_msg *msg, *tmp;
+
+	cancel_work_sync(&wcn->hal_ind_work);
 	destroy_workqueue(wcn->hal_ind_wq);
+
+	list_for_each_entry_safe(msg, tmp, &wcn->hal_ind_queue, list)
+		kfree(msg);
 }

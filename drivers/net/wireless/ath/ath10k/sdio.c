@@ -2011,7 +2011,7 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 		ret = -ENODEV;
 		ath10k_err(ar, "unsupported device id %u (0x%x)\n",
 			   dev_id_base, id->device);
-		goto err_core_destroy;
+		goto err_free_wq;
 	}
 
 	ar->id.vendor = id->vendor;

@@ -296,6 +296,9 @@ static int mt76x2_mac_reset(struct mt76x2_dev *dev, bool hard)
 	for (i = 0; i < 256; i++)
 		mt76x2_mac_wcid_setup(dev, i, 0, NULL);
 
+	for (i = 0; i < MT_MAX_VIFS; i++)
+		mt76x2_mac_wcid_setup(dev, MT_VIF_WCID(i), i, NULL);
+
 	for (i = 0; i < 16; i++)
 		for (k = 0; k < 4; k++)
 			mt76x2_mac_shared_key_setup(dev, i, k, NULL);
@@ -373,7 +376,7 @@ void mt76x2_mac_stop(struct mt76x2_dev *dev, bool force)
 		if ((mt76_rr(dev, MT_MAC_STATUS) &
 		     (MT_MAC_STATUS_RX | MT_MAC_STATUS_TX)) ||
 		    mt76_rr(dev, MT_BBP(IBI, 12))) {
-			usleep_range(10, 20);
+			udelay(1);
 			continue;
 		}
 
@@ -482,7 +485,10 @@ void mt76x2_set_tx_ackto(struct mt76x2_dev *dev)
 {
 	u8 ackto, sifs, slottime = dev->slottime;
 
+	/* As defined by IEEE 802.11-2007 17.3.8.6 */
 	slottime += 3 * dev->coverage_class;
+	mt76_rmw_field(dev, MT_BKOFF_SLOT_CFG,
+		       MT_BKOFF_SLOT_CFG_SLOTTIME, slottime);
 
 	sifs = mt76_get_field(dev, MT_XIFS_TIME_CFG,
 			      MT_XIFS_TIME_CFG_OFDM_SIFS);
@@ -632,20 +638,18 @@ struct mt76x2_dev *mt76x2_alloc_device(struct device *pdev)
 		.rx_poll_complete = mt76x2_rx_poll_complete,
 		.sta_ps = mt76x2_sta_ps,
 	};
-	struct ieee80211_hw *hw;
 	struct mt76x2_dev *dev;
+	struct mt76_dev *mdev;
 
-	hw = ieee80211_alloc_hw(sizeof(*dev), &mt76x2_ops);
-	if (!hw)
+	mdev = mt76_alloc_device(sizeof(*dev), &mt76x2_ops);
+	if (!mdev)
 		return NULL;
 
-	dev = hw->priv;
-	dev->mt76.dev = pdev;
-	dev->mt76.hw = hw;
-	dev->mt76.drv = &drv_ops;
+	dev = container_of(mdev, struct mt76x2_dev, mt76);
+	mdev->dev = pdev;
+	mdev->drv = &drv_ops;
 	mutex_init(&dev->mutex);
 	spin_lock_init(&dev->irq_lock);
-	spin_lock_init(&dev->mt76.rx_lock);
 
 	return dev;
 }
