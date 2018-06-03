@@ -326,6 +326,8 @@ static void fl_destroy_sleepable(struct work_struct *work)
 	struct cls_fl_head *head = container_of(to_rcu_work(work),
 						struct cls_fl_head,
 						rwork);
+
+	rhashtable_destroy(&head->ht);
 	kfree(head);
 	module_put(THIS_MODULE);
 }
