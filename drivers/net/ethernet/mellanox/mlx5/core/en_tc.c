@@ -103,6 +103,7 @@ enum {
  *        container_of(helper item, containing struct type, helper field[index])
  */
 struct encap_flow_item {
+	struct mlx5e_encap_entry *e; /* attached encap instance */
 	struct list_head list;
 	int index;
 };
@@ -1433,8 +1434,11 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 
 	list_for_each_entry(e, &nhe->encap_list, encap_list) {
 		struct encap_flow_item *efi, *tmp;
-		if (!(e->flags & MLX5_ENCAP_ENTRY_VALID))
+
+		if (!(e->flags & MLX5_ENCAP_ENTRY_VALID) ||
+		    !mlx5e_encap_take(e))
 			continue;
+
 		list_for_each_entry_safe(efi, tmp, &e->flows, list) {
 			flow = container_of(efi, struct mlx5e_tc_flow,
 					    encaps[efi->index]);
@@ -1453,6 +1457,8 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 
 			mlx5e_flow_put(netdev_priv(e->out_dev), flow);
 		}
+
+		mlx5e_encap_put(netdev_priv(e->out_dev), e);
 		if (neigh_used)
 			break;
 	}
@@ -1472,29 +1478,33 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 	}
 }
 
+void mlx5e_encap_put(struct mlx5e_priv *priv, struct mlx5e_encap_entry *e)
+{
+	if (!refcount_dec_and_test(&e->refcnt))
+		return;
+
+	WARN_ON(!list_empty(&e->flows));
+	mlx5e_rep_encap_entry_detach(netdev_priv(e->out_dev), e);
+
+	if (e->flags & MLX5_ENCAP_ENTRY_VALID)
+		mlx5_packet_reformat_dealloc(priv->mdev, e->encap_id);
+
+	hash_del_rcu(&e->encap_hlist);
+	kfree(e->encap_header);
+	kfree(e);
+}
+
 static void mlx5e_detach_encap(struct mlx5e_priv *priv,
 			       struct mlx5e_tc_flow *flow, int out_index)
 {
-	struct list_head *next = flow->encaps[out_index].list.next;
-
 	/* flow wasn't fully initialized */
-	if (list_empty(&flow->encaps[out_index].list))
+	if (!flow->encaps[out_index].e)
 		return;
 
 	list_del(&flow->encaps[out_index].list);
-	if (list_empty(next)) {
-		struct mlx5e_encap_entry *e;
 
-		e = list_entry(next, struct mlx5e_encap_entry, flows);
-		mlx5e_rep_encap_entry_detach(netdev_priv(e->out_dev), e);
-
-		if (e->flags & MLX5_ENCAP_ENTRY_VALID)
-			mlx5_packet_reformat_dealloc(priv->mdev, e->encap_id);
-
-		hash_del_rcu(&e->encap_hlist);
-		kfree(e->encap_header);
-		kfree(e);
-	}
+	mlx5e_encap_put(priv, flow->encaps[out_index].e);
+	flow->encaps[out_index].e = NULL;
 }
 
 static void __mlx5e_tc_del_fdb_peer_flow(struct mlx5e_tc_flow *flow)
@@ -2817,6 +2827,31 @@ static bool is_merged_eswitch_dev(struct mlx5e_priv *priv,
 
 
 
+bool mlx5e_encap_take(struct mlx5e_encap_entry *e)
+{
+	return refcount_inc_not_zero(&e->refcnt);
+}
+
+static struct mlx5e_encap_entry *
+mlx5e_encap_get(struct mlx5e_priv *priv, struct encap_key *key,
+		uintptr_t hash_key)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct mlx5e_encap_entry *e;
+	struct encap_key e_key;
+
+	hash_for_each_possible_rcu(esw->offloads.encap_tbl, e,
+				   encap_hlist, hash_key) {
+		e_key.ip_tun_key = &e->tun_info->key;
+		e_key.tc_tunnel = e->tunnel;
+		if (!cmp_encap_info(&e_key, key) &&
+		    mlx5e_encap_take(e))
+			return e;
+	}
+
+	return NULL;
+}
+
 static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 			      struct mlx5e_tc_flow *flow,
 			      struct net_device *mirred_dev,
@@ -2829,11 +2864,10 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	const struct ip_tunnel_info *tun_info;
-	struct encap_key key, e_key;
+	struct encap_key key;
 	struct mlx5e_encap_entry *e;
 	unsigned short family;
 	uintptr_t hash_key;
-	bool found = false;
 	int err = 0;
 
 	parse_attr = attr->parse_attr;
@@ -2848,24 +2882,17 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 
 	hash_key = hash_encap_info(&key);
 
-	hash_for_each_possible_rcu(esw->offloads.encap_tbl, e,
-				   encap_hlist, hash_key) {
-		e_key.ip_tun_key = &e->tun_info->key;
-		e_key.tc_tunnel = e->tunnel;
-		if (!cmp_encap_info(&e_key, &key)) {
-			found = true;
-			break;
-		}
-	}
+	e = mlx5e_encap_get(priv, &key, hash_key);
 
 	/* must verify if encap is valid or not */
-	if (found)
+	if (e)
 		goto attach_flow;
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
 	if (!e)
 		return -ENOMEM;
 
+	refcount_set(&e->refcnt, 1);
 	e->tun_info = tun_info;
 	err = mlx5e_tc_tun_init_encap_attr(mirred_dev, priv, e, extack);
 	if (err)
@@ -2884,6 +2911,7 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	hash_add_rcu(esw->offloads.encap_tbl, &e->encap_hlist, hash_key);
 
 attach_flow:
+	flow->encaps[out_index].e = e;
 	list_add(&flow->encaps[out_index].list, &e->flows);
 	flow->encaps[out_index].index = out_index;
 	*encap_dev = e->out_dev;

@@ -613,12 +613,17 @@ static void mlx5e_rep_neigh_update(struct work_struct *work)
 	neigh_connected = (nud_state & NUD_VALID) && !dead;
 
 	list_for_each_entry(e, &nhe->encap_list, encap_list) {
+		if (!mlx5e_encap_take(e))
+			continue;
+
 		encap_connected = !!(e->flags & MLX5_ENCAP_ENTRY_VALID);
 		priv = netdev_priv(e->out_dev);
 
 		if (encap_connected != neigh_connected ||
 		    !ether_addr_equal(e->h_dest, ha))
 			mlx5e_rep_update_flows(priv, e, neigh_connected, ha);
+
+		mlx5e_encap_put(priv, e);
 	}
 	mlx5e_rep_neigh_entry_release(nhe);
 	rtnl_unlock();
