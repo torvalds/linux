@@ -194,6 +194,7 @@ static const struct clk_div_table mc_div_table[] = {
 struct clk *tegra_clk_register_mc(const char *name, const char *parent_name,
 				  void __iomem *reg, spinlock_t *lock)
 {
-	return clk_register_divider_table(NULL, name, parent_name, 0, reg,
-					  16, 1, 0, mc_div_table, lock);
+	return clk_register_divider_table(NULL, name, parent_name,
+					  CLK_IS_CRITICAL, reg, 16, 1, 0,
+					  mc_div_table, lock);
 }
