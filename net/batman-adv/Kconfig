@@ -60,7 +60,7 @@ config BATMAN_ADV_BLA
 config BATMAN_ADV_DAT
 	bool "Distributed ARP Table"
 	depends on BATMAN_ADV && INET
-	default n
+	default y
 	help
 	  This option enables DAT (Distributed ARP Table), a DHT based
 	  mechanism that increases ARP reliability on sparse wireless
