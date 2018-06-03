@@ -1,10 +1,11 @@
 comment "Processor Features"
 
 config CPU_BIG_ENDIAN
-	bool "Big endian"
+	def_bool !CPU_LITTLE_ENDIAN
 
 config CPU_LITTLE_ENDIAN
-        def_bool !CPU_BIG_ENDIAN
+	bool "Little endian"
+	default y
 
 config HWZOL
 	bool "hardware zero overhead loop support"

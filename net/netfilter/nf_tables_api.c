@@ -1336,8 +1336,10 @@ static void nft_chain_stats_replace(struct nft_base_chain *chain,
 		rcu_assign_pointer(chain->stats, newstats);
 		synchronize_rcu();
 		free_percpu(oldstats);
-	} else
+	} else {
 		rcu_assign_pointer(chain->stats, newstats);
+		static_branch_inc(&nft_counters_enabled);
+	}
 }
 
 static void nf_tables_chain_free_chain_rules(struct nft_chain *chain)
@@ -4944,7 +4946,7 @@ static int nf_tables_dump_obj(struct sk_buff *skb, struct netlink_callback *cb)
 			if (idx > s_idx)
 				memset(&cb->args[1], 0,
 				       sizeof(cb->args) - sizeof(cb->args[0]));
-			if (filter && filter->table[0] &&
+			if (filter && filter->table &&
 			    strcmp(filter->table, table->name))
 				goto cont;
 			if (filter &&
@@ -5624,7 +5626,7 @@ static int nf_tables_dump_flowtable(struct sk_buff *skb,
 			if (idx > s_idx)
 				memset(&cb->args[1], 0,
 				       sizeof(cb->args) - sizeof(cb->args[0]));
-			if (filter && filter->table[0] &&
+			if (filter && filter->table &&
 			    strcmp(filter->table, table->name))
 				goto cont;
 

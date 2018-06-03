@@ -4555,8 +4555,8 @@ static int dm_update_crtcs_state(struct dc *dc,
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		struct amdgpu_crtc *acrtc = NULL;
 		struct amdgpu_dm_connector *aconnector = NULL;
-		struct drm_connector_state *new_con_state = NULL;
-		struct dm_connector_state *dm_conn_state = NULL;
+		struct drm_connector_state *drm_new_conn_state = NULL, *drm_old_conn_state = NULL;
+		struct dm_connector_state *dm_new_conn_state = NULL, *dm_old_conn_state = NULL;
 		struct drm_plane_state *new_plane_state = NULL;
 
 		new_stream = NULL;
@@ -4577,19 +4577,23 @@ static int dm_update_crtcs_state(struct dc *dc,
 		/* TODO This hack should go away */
 		if (aconnector && enable) {
 			// Make sure fake sink is created in plug-in scenario
-			new_con_state = drm_atomic_get_connector_state(state,
+			drm_new_conn_state = drm_atomic_get_new_connector_state(state,
  								    &aconnector->base);
+			drm_old_conn_state = drm_atomic_get_old_connector_state(state,
+								    &aconnector->base);
 
-			if (IS_ERR(new_con_state)) {
-				ret = PTR_ERR_OR_ZERO(new_con_state);
+
+			if (IS_ERR(drm_new_conn_state)) {
+				ret = PTR_ERR_OR_ZERO(drm_new_conn_state);
 				break;
 			}
 
-			dm_conn_state = to_dm_connector_state(new_con_state);
+			dm_new_conn_state = to_dm_connector_state(drm_new_conn_state);
+			dm_old_conn_state = to_dm_connector_state(drm_old_conn_state);
 
 			new_stream = create_stream_for_sink(aconnector,
 							     &new_crtc_state->mode,
-							    dm_conn_state);
+							    dm_new_conn_state);
 
 			/*
 			 * we can have no stream on ACTION_SET if a display
@@ -4695,20 +4699,30 @@ next_crtc:
 		 * We want to do dc stream updates that do not require a
 		 * full modeset below.
 		 */
-		if (!enable || !aconnector || modereset_required(new_crtc_state))
+		if (!(enable && aconnector && new_crtc_state->enable &&
+		      new_crtc_state->active))
 			continue;
 		/*
 		 * Given above conditions, the dc state cannot be NULL because:
-		 * 1. We're attempting to enable a CRTC. Which has a...
-		 * 2. Valid connector attached, and
-		 * 3. User does not want to reset it (disable or mark inactive,
-		 *    which can happen on a CRTC that's already disabled).
-		 * => It currently exists.
+		 * 1. We're in the process of enabling CRTCs (just been added
+		 *    to the dc context, or already is on the context)
+		 * 2. Has a valid connector attached, and
+		 * 3. Is currently active and enabled.
+		 * => The dc stream state currently exists.
 		 */
 		BUG_ON(dm_new_crtc_state->stream == NULL);
 
-		/* Color managment settings */
-		if (dm_new_crtc_state->base.color_mgmt_changed) {
+		/* Scaling or underscan settings */
+		if (is_scaling_state_different(dm_old_conn_state, dm_new_conn_state))
+			update_stream_scaling_settings(
+				&new_crtc_state->mode, dm_new_conn_state, dm_new_crtc_state->stream);
+
+		/*
+		 * Color management settings. We also update color properties
+		 * when a modeset is needed, to ensure it gets reprogrammed.
+		 */
+		if (dm_new_crtc_state->base.color_mgmt_changed ||
+		    drm_atomic_crtc_needs_modeset(new_crtc_state)) {
 			ret = amdgpu_dm_set_regamma_lut(dm_new_crtc_state);
 			if (ret)
 				goto fail;
