@@ -231,10 +231,14 @@ xfs_alloc_get_rec(
 	int			error;
 
 	error = xfs_btree_get_rec(cur, &rec, stat);
-	if (!error && *stat == 1) {
-		*bno = be32_to_cpu(rec->alloc.ar_startblock);
-		*len = be32_to_cpu(rec->alloc.ar_blockcount);
-	}
+	if (error || !(*stat))
+		return error;
+	if (rec->alloc.ar_blockcount == 0)
+		return -EFSCORRUPTED;
+
+	*bno = be32_to_cpu(rec->alloc.ar_startblock);
+	*len = be32_to_cpu(rec->alloc.ar_blockcount);
+
 	return error;
 }
 
