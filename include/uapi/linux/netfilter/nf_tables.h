@@ -1043,6 +1043,24 @@ enum nft_limit_attributes {
 };
 #define NFTA_LIMIT_MAX		(__NFTA_LIMIT_MAX - 1)
 
+enum nft_connlimit_flags {
+	NFT_CONNLIMIT_F_INV	= (1 << 0),
+};
+
+/**
+ * enum nft_connlimit_attributes - nf_tables connlimit expression netlink attributes
+ *
+ * @NFTA_CONNLIMIT_COUNT: number of connections (NLA_U32)
+ * @NFTA_CONNLIMIT_FLAGS: flags (NLA_U32: enum nft_connlimit_flags)
+ */
+enum nft_connlimit_attributes {
+	NFTA_CONNLIMIT_UNSPEC,
+	NFTA_CONNLIMIT_COUNT,
+	NFTA_CONNLIMIT_FLAGS,
+	__NFTA_CONNLIMIT_MAX
+};
+#define NFTA_CONNLIMIT_MAX	(__NFTA_CONNLIMIT_MAX - 1)
+
 /**
  * enum nft_counter_attributes - nf_tables counter expression netlink attributes
  *
@@ -1357,7 +1375,8 @@ enum nft_ct_helper_attributes {
 #define NFT_OBJECT_QUOTA	2
 #define NFT_OBJECT_CT_HELPER	3
 #define NFT_OBJECT_LIMIT	4
-#define __NFT_OBJECT_MAX	5
+#define NFT_OBJECT_CONNLIMIT	5
+#define __NFT_OBJECT_MAX	6
 #define NFT_OBJECT_MAX		(__NFT_OBJECT_MAX - 1)
 
 /**

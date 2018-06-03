@@ -9,6 +9,7 @@
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/nf_tables.h>
 #include <linux/u64_stats_sync.h>
+#include <linux/rhashtable.h>
 #include <net/netfilter/nf_flow_table.h>
 #include <net/netlink.h>
 
@@ -342,6 +343,7 @@ struct nft_set_ops {
 						const struct nft_set_desc *desc,
 						const struct nlattr * const nla[]);
 	void				(*destroy)(const struct nft_set *set);
+	void				(*gc_init)(const struct nft_set *set);
 
 	unsigned int			elemsize;
 };
@@ -370,6 +372,8 @@ void nft_unregister_set(struct nft_set_type *type);
  *
  *	@list: table set list node
  *	@bindings: list of set bindings
+ *	@table: table this set belongs to
+ *	@net: netnamespace this set belongs to
  * 	@name: name of the set
  *	@handle: unique handle of the set
  * 	@ktype: key type (numeric type defined by userspace, not used in the kernel)
@@ -393,6 +397,8 @@ void nft_unregister_set(struct nft_set_type *type);
 struct nft_set {
 	struct list_head		list;
 	struct list_head		bindings;
+	struct nft_table		*table;
+	possible_net_t			net;
 	char				*name;
 	u64				handle;
 	u32				ktype;
@@ -708,6 +714,7 @@ struct nft_expr_type {
 };
 
 #define NFT_EXPR_STATEFUL		0x1
+#define NFT_EXPR_GC			0x2
 
 /**
  *	struct nft_expr_ops - nf_tables expression operations
@@ -739,11 +746,15 @@ struct nft_expr_ops {
 						      const struct nft_expr *expr);
 	void				(*destroy)(const struct nft_ctx *ctx,
 						   const struct nft_expr *expr);
+	void				(*destroy_clone)(const struct nft_ctx *ctx,
+							 const struct nft_expr *expr);
 	int				(*dump)(struct sk_buff *skb,
 						const struct nft_expr *expr);
 	int				(*validate)(const struct nft_ctx *ctx,
 						    const struct nft_expr *expr,
 						    const struct nft_data **data);
+	bool				(*gc)(struct net *net,
+					      const struct nft_expr *expr);
 	const struct nft_expr_type	*type;
 	void				*data;
 };
@@ -850,6 +861,7 @@ enum nft_chain_flags {
  *
  *	@rules: list of rules in the chain
  *	@list: used internally
+ *	@rhlhead: used internally
  *	@table: table that this chain belongs to
  *	@handle: chain handle
  *	@use: number of jump references to this chain
@@ -862,6 +874,7 @@ struct nft_chain {
 	struct nft_rule			*__rcu *rules_gen_1;
 	struct list_head		rules;
 	struct list_head		list;
+	struct rhlist_head		rhlhead;
 	struct nft_table		*table;
 	u64				handle;
 	u32				use;
@@ -955,7 +968,8 @@ unsigned int nft_do_chain(struct nft_pktinfo *pkt, void *priv);
  *	struct nft_table - nf_tables table
  *
  *	@list: used internally
- *	@chains: chains in the table
+ *	@chains_ht: chains in the table
+ *	@chains: same, for stable walks
  *	@sets: sets in the table
  *	@objects: stateful objects in the table
  *	@flowtables: flow tables in the table
@@ -969,6 +983,7 @@ unsigned int nft_do_chain(struct nft_pktinfo *pkt, void *priv);
  */
 struct nft_table {
 	struct list_head		list;
+	struct rhltable			chains_ht;
 	struct list_head		chains;
 	struct list_head		sets;
 	struct list_head		objects;
@@ -1070,7 +1085,8 @@ struct nft_object_ops {
 	int				(*init)(const struct nft_ctx *ctx,
 						const struct nlattr *const tb[],
 						struct nft_object *obj);
-	void				(*destroy)(struct nft_object *obj);
+	void				(*destroy)(const struct nft_ctx *ctx,
+						   struct nft_object *obj);
 	int				(*dump)(struct sk_buff *skb,
 						struct nft_object *obj,
 						bool reset);

@@ -311,8 +311,16 @@ static void nft_rhash_gc(struct work_struct *work)
 			continue;
 		}
 
+		if (nft_set_ext_exists(&he->ext, NFT_SET_EXT_EXPR)) {
+			struct nft_expr *expr = nft_set_ext_expr(&he->ext);
+
+			if (expr->ops->gc &&
+			    expr->ops->gc(read_pnet(&set->net), expr))
+				goto gc;
+		}
 		if (!nft_set_elem_expired(&he->ext))
 			continue;
+gc:
 		if (nft_set_elem_mark_busy(&he->ext))
 			continue;
 
@@ -339,6 +347,14 @@ static unsigned int nft_rhash_privsize(const struct nlattr * const nla[],
 	return sizeof(struct nft_rhash);
 }
 
+static void nft_rhash_gc_init(const struct nft_set *set)
+{
+	struct nft_rhash *priv = nft_set_priv(set);
+
+	queue_delayed_work(system_power_efficient_wq, &priv->gc_work,
+			   nft_set_gc_interval(set));
+}
+
 static int nft_rhash_init(const struct nft_set *set,
 			  const struct nft_set_desc *desc,
 			  const struct nlattr * const tb[])
@@ -356,8 +372,8 @@ static int nft_rhash_init(const struct nft_set *set,
 
 	INIT_DEFERRABLE_WORK(&priv->gc_work, nft_rhash_gc);
 	if (set->flags & NFT_SET_TIMEOUT)
-		queue_delayed_work(system_power_efficient_wq, &priv->gc_work,
-				   nft_set_gc_interval(set));
+		nft_rhash_gc_init(set);
+
 	return 0;
 }
 
@@ -647,6 +663,7 @@ static struct nft_set_type nft_rhash_type __read_mostly = {
 		.elemsize	= offsetof(struct nft_rhash_elem, ext),
 		.estimate	= nft_rhash_estimate,
 		.init		= nft_rhash_init,
+		.gc_init	= nft_rhash_gc_init,
 		.destroy	= nft_rhash_destroy,
 		.insert		= nft_rhash_insert,
 		.activate	= nft_rhash_activate,
