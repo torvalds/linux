@@ -877,7 +877,7 @@ static int fl_check_assign_mask(struct cls_fl_head *head,
 			return PTR_ERR(newmask);
 
 		fnew->mask = newmask;
-	} else if (fold && fold->mask == fnew->mask) {
+	} else if (fold && fold->mask != fnew->mask) {
 		return -EINVAL;
 	}
 
