@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/fb.h>
-#include <linux/prefetch.h>
 #include <asm/unaligned.h>
 
 #include <drm/drmP.h>
@@ -50,9 +49,6 @@ static int udl_trim_hline(const u8 *bback, const u8 **bfront, int *width_bytes)
 	int identical = width;
 	int start = width;
 	int end = width;
-
-	prefetch((void *) front);
-	prefetch((void *) back);
 
 	for (j = 0; j < width; j++) {
 		if (back[j] != front[j]) {
@@ -140,8 +136,6 @@ static void udl_compress_hline16(
 		const u8 *cmd_pixel_start, *cmd_pixel_end = NULL;
 		uint16_t pixel_val16;
 
-		prefetchw((void *) cmd); /* pull in one cache line at least */
-
 		*cmd++ = 0xaf;
 		*cmd++ = 0x6b;
 		*cmd++ = (uint8_t) ((dev_addr >> 16) & 0xFF);
@@ -158,7 +152,6 @@ static void udl_compress_hline16(
 					(unsigned long)(pixel_end - pixel) >> log_bpp,
 					(unsigned long)(cmd_buffer_end - 1 - cmd) / 2) << log_bpp);
 
-		prefetch_range((void *) pixel, cmd_pixel_end - pixel);
 		pixel_val16 = get_pixel_val16(pixel, log_bpp);
 
 		while (pixel < cmd_pixel_end) {
