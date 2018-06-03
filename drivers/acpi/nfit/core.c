@@ -1978,19 +1978,8 @@ static ssize_t range_index_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(range_index);
 
-static ssize_t ecc_unit_size_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct nd_region *nd_region = to_nd_region(dev);
-	struct nfit_spa *nfit_spa = nd_region_provider_data(nd_region);
-
-	return sprintf(buf, "%d\n", nfit_spa->clear_err_unit);
-}
-static DEVICE_ATTR_RO(ecc_unit_size);
-
 static struct attribute *acpi_nfit_region_attributes[] = {
 	&dev_attr_range_index.attr,
-	&dev_attr_ecc_unit_size.attr,
 	NULL,
 };
 
