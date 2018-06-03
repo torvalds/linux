@@ -234,16 +234,19 @@ static int uid_time_in_state_seq_show(struct seq_file *m, void *v)
 
 void cpufreq_task_times_init(struct task_struct *p)
 {
-	void *temp;
 	unsigned long flags;
-	unsigned int max_state;
 
 	spin_lock_irqsave(&task_time_in_state_lock, flags);
 	p->time_in_state = NULL;
 	spin_unlock_irqrestore(&task_time_in_state_lock, flags);
 	p->max_state = 0;
+}
 
-	max_state = READ_ONCE(next_offset);
+void cpufreq_task_times_alloc(struct task_struct *p)
+{
+	void *temp;
+	unsigned long flags;
+	unsigned int max_state = READ_ONCE(next_offset);
 
 	/* We use one array to avoid multiple allocs per task */
 	temp = kcalloc(max_state, sizeof(p->time_in_state[0]), GFP_ATOMIC);
