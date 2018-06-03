@@ -242,7 +242,6 @@ xfs_allocbt_init_ptr_from_cur(
 	struct xfs_agf		*agf = XFS_BUF_TO_AGF(cur->bc_private.a.agbp);
 
 	ASSERT(cur->bc_private.a.agno == be32_to_cpu(agf->agf_seqno));
-	ASSERT(agf->agf_roots[cur->bc_btnum] != 0);
 
 	ptr->s = agf->agf_roots[cur->bc_btnum];
 }
