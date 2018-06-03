@@ -65,6 +65,8 @@ qed_roce_async_event(struct qed_hwfn *p_hwfn,
 		     u8 fw_event_code,
 		     u16 echo, union event_ring_data *data, u8 fw_return_code)
 {
+	struct qed_rdma_events events = p_hwfn->p_rdma_info->events;
+
 	if (fw_event_code == ROCE_ASYNC_EVENT_DESTROY_QP_DONE) {
 		u16 icid =
 		    (u16)le32_to_cpu(data->rdma_data.rdma_destroy_qp_data.cid);
@@ -75,11 +77,18 @@ qed_roce_async_event(struct qed_hwfn *p_hwfn,
 		 */
 		qed_roce_free_real_icid(p_hwfn, icid);
 	} else {
-		struct qed_rdma_events *events = &p_hwfn->p_rdma_info->events;
+		if (fw_event_code == ROCE_ASYNC_EVENT_SRQ_EMPTY ||
+		    fw_event_code == ROCE_ASYNC_EVENT_SRQ_LIMIT) {
+			u16 srq_id = (u16)data->rdma_data.async_handle.lo;
 
-		events->affiliated_event(p_hwfn->p_rdma_info->events.context,
-					 fw_event_code,
-				     (void *)&data->rdma_data.async_handle);
+			events.affiliated_event(events.context, fw_event_code,
+						&srq_id);
+		} else {
+			union rdma_eqe_data rdata = data->rdma_data;
+
+			events.affiliated_event(events.context, fw_event_code,
+						(void *)&rdata.async_handle);
+		}
 	}
 
 	return 0;

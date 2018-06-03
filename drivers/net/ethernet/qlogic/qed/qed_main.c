@@ -64,6 +64,7 @@
 
 #define QED_ROCE_QPS			(8192)
 #define QED_ROCE_DPIS			(8)
+#define QED_RDMA_SRQS                   QED_ROCE_QPS
 
 static char version[] =
 	"QLogic FastLinQ 4xxxx Core Module qed " DRV_MODULE_VERSION "\n";
@@ -922,6 +923,7 @@ static void qed_update_pf_params(struct qed_dev *cdev,
 	if (IS_ENABLED(CONFIG_QED_RDMA)) {
 		params->rdma_pf_params.num_qps = QED_ROCE_QPS;
 		params->rdma_pf_params.min_dpis = QED_ROCE_DPIS;
+		params->rdma_pf_params.num_srqs = QED_RDMA_SRQS;
 		/* divide by 3 the MRs to avoid MF ILT overflow */
 		params->rdma_pf_params.gl_pi = QED_ROCE_PROTOCOL_INDEX;
 	}
