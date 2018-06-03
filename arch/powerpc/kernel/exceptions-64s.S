@@ -1498,7 +1498,10 @@ masked_##_H##interrupt:					\
 	mfspr	r10,SPRN_##_H##SRR1;			\
 	xori	r10,r10,MSR_EE; /* clear MSR_EE */	\
 	mtspr	SPRN_##_H##SRR1,r10;			\
-2:	mtcrf	0x80,r9;				\
+	ori	r11,r11,PACA_IRQ_HARD_DIS;		\
+	stb	r11,PACAIRQHAPPENED(r13);		\
+2:	/* done */					\
+	mtcrf	0x80,r9;				\
 	std	r1,PACAR1(r13);				\
 	ld	r9,PACA_EXGEN+EX_R9(r13);		\
 	ld	r10,PACA_EXGEN+EX_R10(r13);		\

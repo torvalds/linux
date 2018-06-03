@@ -949,7 +949,11 @@ kernel_dbg_exc:
 
 .macro masked_interrupt_book3e paca_irq full_mask
 	lbz	r10,PACAIRQHAPPENED(r13)
+	.if \full_mask == 1
+	ori	r10,r10,\paca_irq | PACA_IRQ_HARD_DIS
+	.else
 	ori	r10,r10,\paca_irq
+	.endif
 	stb	r10,PACAIRQHAPPENED(r13)
 
 	.if \full_mask == 1

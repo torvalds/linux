@@ -145,8 +145,20 @@ notrace unsigned int __check_irq_replay(void)
 	trace_hardirqs_on();
 	trace_hardirqs_off();
 
+	/*
+	 * We are always hard disabled here, but PACA_IRQ_HARD_DIS may
+	 * not be set, which means interrupts have only just been hard
+	 * disabled as part of the local_irq_restore or interrupt return
+	 * code. In that case, skip the decrementr check becaus it's
+	 * expensive to read the TB.
+	 *
+	 * HARD_DIS then gets cleared here, but it's reconciled later.
+	 * Either local_irq_disable will replay the interrupt and that
+	 * will reconcile state like other hard interrupts. Or interrupt
+	 * retur will replay the interrupt and in that case it sets
+	 * PACA_IRQ_HARD_DIS by hand (see comments in entry_64.S).
+	 */
 	if (happened & PACA_IRQ_HARD_DIS) {
-		/* Clear bit 0 which we wouldn't clear otherwise */
 		local_paca->irq_happened &= ~PACA_IRQ_HARD_DIS;
 
 		/*
@@ -248,24 +260,26 @@ notrace void arch_local_irq_restore(unsigned long mask)
 	 * cannot have preempted.
 	 */
 	irq_happened = get_irq_happened();
-	if (!irq_happened)
+	if (!irq_happened) {
+#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
+		WARN_ON(!(mfmsr() & MSR_EE));
+#endif
 		return;
+	}
 
 	/*
 	 * We need to hard disable to get a trusted value from
 	 * __check_irq_replay(). We also need to soft-disable
 	 * again to avoid warnings in there due to the use of
 	 * per-cpu variables.
-	 *
-	 * We know that if the value in irq_happened is exactly 0x01
-	 * then we are already hard disabled (there are other less
-	 * common cases that we'll ignore for now), so we skip the
-	 * (expensive) mtmsrd.
 	 */
-	if (unlikely(irq_happened != PACA_IRQ_HARD_DIS))
+	if (!(irq_happened & PACA_IRQ_HARD_DIS)) {
+#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
+		WARN_ON(!(mfmsr() & MSR_EE));
+#endif
 		__hard_irq_disable();
 #ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
-	else {
+	} else {
 		/*
 		 * We should already be hard disabled here. We had bugs
 		 * where that wasn't the case so let's dbl check it and
@@ -274,8 +288,8 @@ notrace void arch_local_irq_restore(unsigned long mask)
 		 */
 		if (WARN_ON(mfmsr() & MSR_EE))
 			__hard_irq_disable();
-	}
 #endif
+	}
 
 	irq_soft_mask_set(IRQS_ALL_DISABLED);
 	trace_hardirqs_off();
