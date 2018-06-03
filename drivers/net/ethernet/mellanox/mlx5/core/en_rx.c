@@ -487,7 +487,7 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 
 	sq->db.ico_wqe[pi].opcode = MLX5_OPCODE_UMR;
 	sq->pc += MLX5E_UMR_WQEBBS;
-	mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, &umr_wqe->ctrl);
+	mlx5e_notify_hw(wq, sq->pc, sq->uar_map, &umr_wqe->ctrl);
 
 	return 0;
 
