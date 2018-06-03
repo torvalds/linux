@@ -246,16 +246,25 @@ xfs_btree_check_ptr(
 	int			level)
 {
 	if (cur->bc_flags & XFS_BTREE_LONG_PTRS) {
-		XFS_WANT_CORRUPTED_RETURN(cur->bc_mp,
-				xfs_btree_check_lptr(cur,
-					be64_to_cpu((&ptr->l)[index]), level));
+		if (xfs_btree_check_lptr(cur, be64_to_cpu((&ptr->l)[index]),
+				level))
+			return 0;
+		xfs_err(cur->bc_mp,
+"Inode %llu fork %d: Corrupt btree %d pointer at level %d index %d.",
+				cur->bc_private.b.ip->i_ino,
+				cur->bc_private.b.whichfork, cur->bc_btnum,
+				level, index);
 	} else {
-		XFS_WANT_CORRUPTED_RETURN(cur->bc_mp,
-				xfs_btree_check_sptr(cur,
-					be32_to_cpu((&ptr->s)[index]), level));
+		if (xfs_btree_check_sptr(cur, be32_to_cpu((&ptr->s)[index]),
+				level))
+			return 0;
+		xfs_err(cur->bc_mp,
+"AG %u: Corrupt btree %d pointer at level %d index %d.",
+				cur->bc_private.a.agno, cur->bc_btnum,
+				level, index);
 	}
 
-	return 0;
+	return -EFSCORRUPTED;
 }
 
 #ifdef DEBUG
