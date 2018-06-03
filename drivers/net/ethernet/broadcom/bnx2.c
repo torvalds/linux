@@ -3285,7 +3285,7 @@ next_rx:
 		sw_cons = BNX2_NEXT_RX_BD(sw_cons);
 		sw_prod = BNX2_NEXT_RX_BD(sw_prod);
 
-		if ((rx_pkt == budget))
+		if (rx_pkt == budget)
 			break;
 
 		/* Refresh hw_cons to see if there is new work */
