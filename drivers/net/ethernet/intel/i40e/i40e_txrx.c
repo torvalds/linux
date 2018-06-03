@@ -3670,11 +3670,13 @@ netdev_tx_t i40e_lan_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
  * For error cases, a negative errno code is returned and no-frames
  * are transmitted (caller must handle freeing frames).
  **/
-int i40e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames)
+int i40e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
+		  u32 flags)
 {
 	struct i40e_netdev_priv *np = netdev_priv(dev);
 	unsigned int queue_index = smp_processor_id();
 	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_ring *xdp_ring;
 	int drops = 0;
 	int i;
 
@@ -3684,16 +3686,24 @@ int i40e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames)
 	if (!i40e_enabled_xdp_vsi(vsi) || queue_index >= vsi->num_queue_pairs)
 		return -ENXIO;
 
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
+		return -EINVAL;
+
+	xdp_ring = vsi->xdp_rings[queue_index];
+
 	for (i = 0; i < n; i++) {
 		struct xdp_frame *xdpf = frames[i];
 		int err;
 
-		err = i40e_xmit_xdp_ring(xdpf, vsi->xdp_rings[queue_index]);
+		err = i40e_xmit_xdp_ring(xdpf, xdp_ring);
 		if (err != I40E_XDP_TX) {
 			xdp_return_frame_rx_napi(xdpf);
 			drops++;
 		}
 	}
+
+	if (unlikely(flags & XDP_XMIT_FLUSH))
+		i40e_xdp_ring_update_tail(xdp_ring);
 
 	return n - drops;
 }

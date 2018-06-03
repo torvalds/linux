@@ -217,7 +217,7 @@ void __dev_map_insert_ctx(struct bpf_map *map, u32 bit)
 }
 
 static int bq_xmit_all(struct bpf_dtab_netdev *obj,
-			 struct xdp_bulk_queue *bq)
+		       struct xdp_bulk_queue *bq, u32 flags)
 {
 	struct net_device *dev = obj->dev;
 	int sent = 0, drops = 0, err = 0;
@@ -232,7 +232,7 @@ static int bq_xmit_all(struct bpf_dtab_netdev *obj,
 		prefetch(xdpf);
 	}
 
-	sent = dev->netdev_ops->ndo_xdp_xmit(dev, bq->count, bq->q);
+	sent = dev->netdev_ops->ndo_xdp_xmit(dev, bq->count, bq->q, flags);
 	if (sent < 0) {
 		err = sent;
 		sent = 0;
@@ -276,7 +276,6 @@ void __dev_map_flush(struct bpf_map *map)
 	for_each_set_bit(bit, bitmap, map->max_entries) {
 		struct bpf_dtab_netdev *dev = READ_ONCE(dtab->netdev_map[bit]);
 		struct xdp_bulk_queue *bq;
-		struct net_device *netdev;
 
 		/* This is possible if the dev entry is removed by user space
 		 * between xdp redirect and flush op.
@@ -287,10 +286,7 @@ void __dev_map_flush(struct bpf_map *map)
 		__clear_bit(bit, bitmap);
 
 		bq = this_cpu_ptr(dev->bulkq);
-		bq_xmit_all(dev, bq);
-		netdev = dev->dev;
-		if (likely(netdev->netdev_ops->ndo_xdp_flush))
-			netdev->netdev_ops->ndo_xdp_flush(netdev);
+		bq_xmit_all(dev, bq, XDP_XMIT_FLUSH);
 	}
 }
 
@@ -320,7 +316,7 @@ static int bq_enqueue(struct bpf_dtab_netdev *obj, struct xdp_frame *xdpf,
 	struct xdp_bulk_queue *bq = this_cpu_ptr(obj->bulkq);
 
 	if (unlikely(bq->count == DEV_MAP_BULK_SIZE))
-		bq_xmit_all(obj, bq);
+		bq_xmit_all(obj, bq, 0);
 
 	/* Ingress dev_rx will be the same for all xdp_frame's in
 	 * bulk_queue, because bq stored per-CPU and must be flushed
@@ -359,8 +355,7 @@ static void *dev_map_lookup_elem(struct bpf_map *map, void *key)
 
 static void dev_map_flush_old(struct bpf_dtab_netdev *dev)
 {
-	if (dev->dev->netdev_ops->ndo_xdp_flush) {
-		struct net_device *fl = dev->dev;
+	if (dev->dev->netdev_ops->ndo_xdp_xmit) {
 		struct xdp_bulk_queue *bq;
 		unsigned long *bitmap;
 
@@ -371,9 +366,7 @@ static void dev_map_flush_old(struct bpf_dtab_netdev *dev)
 			__clear_bit(dev->bit, bitmap);
 
 			bq = per_cpu_ptr(dev->bulkq, cpu);
-			bq_xmit_all(dev, bq);
-
-			fl->netdev_ops->ndo_xdp_flush(dev->dev);
+			bq_xmit_all(dev, bq, XDP_XMIT_FLUSH);
 		}
 	}
 }
