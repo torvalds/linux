@@ -14371,6 +14371,15 @@ S:	Maintained
 F:	drivers/tc/
 F:	include/linux/tc.h
 
+TURBOSTAT UTILITY
+M:	"Len Brown" <lenb@kernel.org>
+L:	linux-pm@vger.kernel.org
+B:	https://bugzilla.kernel.org
+Q:	https://patchwork.kernel.org/project/linux-pm/list/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lenb/linux.git turbostat
+S:	Supported
+F:	tools/power/x86/turbostat/
+
 TW5864 VIDEO4LINUX DRIVER
 M:	Bluecherry Maintainers <maintainers@bluecherrydvr.com>
 M:	Anton Sviridenko <anton@corp.bluecherry.net>
