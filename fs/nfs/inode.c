@@ -1789,6 +1789,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	bool have_writers = nfs_file_has_buffered_writers(nfsi);
 	bool cache_revalidated = true;
 	bool attr_changed = false;
+	bool have_delegation;
 
 	dfprintk(VFS, "NFS: %s(%s/%lu fh_crc=0x%08x ct=%d info=0x%x)\n",
 			__func__, inode->i_sb->s_id, inode->i_ino,
@@ -1823,6 +1824,9 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			!IS_AUTOMOUNT(inode))
 		server->fsid = fattr->fsid;
 
+	/* Save the delegation state before clearing cache_validity */
+	have_delegation = nfs_have_delegated_attributes(inode);
+
 	/*
 	 * Update the read time so we don't revalidate too often.
 	 */
@@ -1845,10 +1849,8 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	/* More cache consistency checks */
 	if (fattr->valid & NFS_ATTR_FATTR_CHANGE) {
 		if (!inode_eq_iversion_raw(inode, fattr->change_attr)) {
-			dprintk("NFS: change_attr change on server for file %s/%ld\n",
-					inode->i_sb->s_id, inode->i_ino);
 			/* Could it be a race with writeback? */
-			if (!have_writers) {
+			if (!(have_writers || have_delegation)) {
 				invalid |= NFS_INO_INVALID_DATA
 					| NFS_INO_INVALID_ACCESS
 					| NFS_INO_INVALID_ACL;
@@ -1859,6 +1861,9 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 					| NFS_INO_INVALID_OTHER;
 				if (S_ISDIR(inode->i_mode))
 					nfs_force_lookup_revalidate(inode);
+				dprintk("NFS: change_attr change on server for file %s/%ld\n",
+						inode->i_sb->s_id,
+						inode->i_ino);
 			}
 			inode_set_iversion_raw(inode, fattr->change_attr);
 			attr_changed = true;
@@ -1893,7 +1898,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	if (fattr->valid & NFS_ATTR_FATTR_SIZE) {
 		new_isize = nfs_size_to_loff_t(fattr->size);
 		cur_isize = i_size_read(inode);
-		if (new_isize != cur_isize) {
+		if (new_isize != cur_isize && !have_delegation) {
 			/* Do we perhaps have any outstanding writes, or has
 			 * the file grown beyond our last write? */
 			if (!nfs_have_writebacks(inode) || new_isize > cur_isize) {
@@ -2022,9 +2027,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode)
 				|| S_ISLNK(inode->i_mode)))
 		invalid &= ~NFS_INO_INVALID_DATA;
-	if (!NFS_PROTO(inode)->have_delegation(inode, FMODE_READ) ||
-			(save_cache_validity & NFS_INO_REVAL_FORCED))
-		nfs_set_cache_invalid(inode, invalid);
+	nfs_set_cache_invalid(inode, invalid);
 
 	return 0;
  out_err:
