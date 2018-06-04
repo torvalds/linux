@@ -644,6 +644,9 @@ static const struct snd_kcontrol_new tscs42xx_snd_controls[] = {
 	/* Input Channel Map */
 	SOC_ENUM("Input Channel Map", ch_map_select_enum),
 
+	/* Mic Bias */
+	SOC_SINGLE("Mic Bias Boost Switch", 0x71, 0x07, 1, 0),
+
 	/* Coefficient Ram */
 	COEFF_RAM_CTL("Cascade1L BiQuad1", BIQUAD_SIZE, 0x00),
 	COEFF_RAM_CTL("Cascade1L BiQuad2", BIQUAD_SIZE, 0x05),
