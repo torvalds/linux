@@ -233,8 +233,6 @@ static inline int qeth_is_ipa_enabled(struct qeth_ipa_info *ipa,
 #define QETH_IDX_FUNC_LEVEL_OSD		 0x0101
 #define QETH_IDX_FUNC_LEVEL_IQD		 0x4108
 
-#define QETH_REAL_CARD		1
-#define QETH_VLAN_CARD		2
 #define QETH_BUFSIZE		4096
 
 /**
@@ -556,16 +554,9 @@ enum qeth_prot_versions {
 	QETH_PROT_IPV6 = 0x0006,
 };
 
-enum qeth_ip_types {
-	QETH_IP_TYPE_NORMAL,
-	QETH_IP_TYPE_VIPA,
-	QETH_IP_TYPE_RXIP,
-};
-
 enum qeth_cmd_buffer_state {
 	BUF_STATE_FREE,
 	BUF_STATE_LOCKED,
-	BUF_STATE_PROCESSED,
 };
 
 enum qeth_cq {
@@ -609,7 +600,6 @@ struct qeth_channel {
 	struct qeth_cmd_buffer iob[QETH_CMD_BUFFER_NO];
 	atomic_t irq_pending;
 	int io_buf_no;
-	int buf_no;
 };
 
 /**

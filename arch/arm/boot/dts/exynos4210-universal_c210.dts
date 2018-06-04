@@ -28,24 +28,6 @@
 		stdout-path = &serial_2;
 	};
 
-	sysram@2020000 {
-		smp-sysram@0 {
-			status = "disabled";
-		};
-
-		smp-sysram@5000 {
-			compatible = "samsung,exynos4210-sysram";
-			reg = <0x5000 0x1000>;
-		};
-
-		smp-sysram@1f000 {
-			status = "disabled";
-		};
-	};
-
-	mct@10050000 {
-		compatible = "none";
-	};
 
 	fixed-rate-clocks {
 		xxti {
@@ -173,45 +155,6 @@
 		};
 	};
 
-	camera {
-		status = "okay";
-
-		pinctrl-names = "default";
-		pinctrl-0 = <>;
-
-		fimc_0: fimc@11800000 {
-			status = "okay";
-			assigned-clocks = <&clock CLK_MOUT_FIMC0>,
-					<&clock CLK_SCLK_FIMC0>;
-			assigned-clock-parents = <&clock CLK_SCLK_MPLL>;
-			assigned-clock-rates = <0>, <160000000>;
-		};
-
-		fimc_1: fimc@11810000 {
-			status = "okay";
-			assigned-clocks = <&clock CLK_MOUT_FIMC1>,
-					<&clock CLK_SCLK_FIMC1>;
-			assigned-clock-parents = <&clock CLK_SCLK_MPLL>;
-			assigned-clock-rates = <0>, <160000000>;
-		};
-
-		fimc_2: fimc@11820000 {
-			status = "okay";
-			assigned-clocks = <&clock CLK_MOUT_FIMC2>,
-					<&clock CLK_SCLK_FIMC2>;
-			assigned-clock-parents = <&clock CLK_SCLK_MPLL>;
-			assigned-clock-rates = <0>, <160000000>;
-		};
-
-		fimc_3: fimc@11830000 {
-			status = "okay";
-			assigned-clocks = <&clock CLK_MOUT_FIMC3>,
-					<&clock CLK_SCLK_FIMC3>;
-			assigned-clock-parents = <&clock CLK_SCLK_MPLL>;
-			assigned-clock-rates = <0>, <160000000>;
-		};
-	};
-
 	hdmi_en: voltage-regulator-hdmi-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "HDMI_5V";
@@ -234,6 +177,13 @@
 	};
 };
 
+&camera {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <>;
+};
+
 &cpu0 {
 	cpu0-supply = <&vdd_arm_reg>;
 };
@@ -248,6 +198,38 @@
 &exynos_usbphy {
 	status = "okay";
 	vbus-supply = <&safeout1_reg>;
+};
+
+&fimc_0 {
+	status = "okay";
+	assigned-clocks = <&clock CLK_MOUT_FIMC0>,
+			  <&clock CLK_SCLK_FIMC0>;
+	assigned-clock-parents = <&clock CLK_SCLK_MPLL>;
+	assigned-clock-rates = <0>, <160000000>;
+};
+
+&fimc_1 {
+	status = "okay";
+	assigned-clocks = <&clock CLK_MOUT_FIMC1>,
+			  <&clock CLK_SCLK_FIMC1>;
+	assigned-clock-parents = <&clock CLK_SCLK_MPLL>;
+	assigned-clock-rates = <0>, <160000000>;
+};
+
+&fimc_2 {
+	status = "okay";
+	assigned-clocks = <&clock CLK_MOUT_FIMC2>,
+			  <&clock CLK_SCLK_FIMC2>;
+	assigned-clock-parents = <&clock CLK_SCLK_MPLL>;
+	assigned-clock-rates = <0>, <160000000>;
+};
+
+&fimc_3 {
+	status = "okay";
+	assigned-clocks = <&clock CLK_MOUT_FIMC3>,
+			  <&clock CLK_SCLK_FIMC3>;
+	assigned-clock-parents = <&clock CLK_SCLK_MPLL>;
+	assigned-clock-rates = <0>, <160000000>;
 };
 
 &fimd {
@@ -501,6 +483,10 @@
 	status = "okay";
 };
 
+&mct {
+	compatible = "none";
+};
+
 &mdma1 {
 	reg = <0x12840000 0x1000>;
 };
@@ -578,4 +564,19 @@
 	status = "okay";
 	/delete-property/dmas;
 	/delete-property/dma-names;
+};
+
+&sysram {
+	smp-sysram@0 {
+		status = "disabled";
+	};
+
+	smp-sysram@5000 {
+		compatible = "samsung,exynos4210-sysram";
+		reg = <0x5000 0x1000>;
+	};
+
+	smp-sysram@1f000 {
+		status = "disabled";
+	};
 };

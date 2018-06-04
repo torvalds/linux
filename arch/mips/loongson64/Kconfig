@@ -7,6 +7,8 @@ choice
 config LEMOTE_FULOONG2E
 	bool "Lemote Fuloong(2e) mini-PC"
 	select ARCH_SPARSEMEM_ENABLE
+	select ARCH_MIGHT_HAVE_PC_PARPORT
+	select ARCH_MIGHT_HAVE_PC_SERIO
 	select CEVT_R4K
 	select CSRC_R4K
 	select SYS_HAS_CPU_LOONGSON2E
@@ -33,6 +35,8 @@ config LEMOTE_FULOONG2E
 config LEMOTE_MACH2F
 	bool "Lemote Loongson 2F family machines"
 	select ARCH_SPARSEMEM_ENABLE
+	select ARCH_MIGHT_HAVE_PC_PARPORT
+	select ARCH_MIGHT_HAVE_PC_SERIO
 	select BOARD_SCACHE
 	select BOOT_ELF32
 	select CEVT_R4K if ! MIPS_EXTERNAL_TIMER
@@ -62,6 +66,8 @@ config LEMOTE_MACH2F
 config LOONGSON_MACH3X
 	bool "Generic Loongson 3 family machines"
 	select ARCH_SPARSEMEM_ENABLE
+	select ARCH_MIGHT_HAVE_PC_PARPORT
+	select ARCH_MIGHT_HAVE_PC_SERIO
 	select GENERIC_ISA_DMA_SUPPORT_BROKEN
 	select BOOT_ELF32
 	select BOARD_SCACHE

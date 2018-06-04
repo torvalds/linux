@@ -78,12 +78,14 @@
 
 /**
  * intel_hpd_port - return port hard associated with certain pin.
+ * @dev_priv: private driver data pointer
  * @pin: the hpd pin to get associated port
  *
  * Return port that is associatade with @pin and PORT_NONE if no port is
  * hard associated with that @pin.
  */
-enum port intel_hpd_pin_to_port(enum hpd_pin pin)
+enum port intel_hpd_pin_to_port(struct drm_i915_private *dev_priv,
+				enum hpd_pin pin)
 {
 	switch (pin) {
 	case HPD_PORT_A:
@@ -95,6 +97,8 @@ enum port intel_hpd_pin_to_port(enum hpd_pin pin)
 	case HPD_PORT_D:
 		return PORT_D;
 	case HPD_PORT_E:
+		if (IS_CNL_WITH_PORT_F(dev_priv))
+			return PORT_F;
 		return PORT_E;
 	default:
 		return PORT_NONE; /* no port for this pin */
@@ -102,13 +106,17 @@ enum port intel_hpd_pin_to_port(enum hpd_pin pin)
 }
 
 /**
- * intel_hpd_pin - return pin hard associated with certain port.
+ * intel_hpd_pin_default - return default pin associated with certain port.
+ * @dev_priv: private driver data pointer
  * @port: the hpd port to get associated pin
+ *
+ * It is only valid and used by digital port encoder.
  *
  * Return pin that is associatade with @port and HDP_NONE if no pin is
  * hard associated with that @port.
  */
-enum hpd_pin intel_hpd_pin(enum port port)
+enum hpd_pin intel_hpd_pin_default(struct drm_i915_private *dev_priv,
+				   enum port port)
 {
 	switch (port) {
 	case PORT_A:
@@ -121,6 +129,9 @@ enum hpd_pin intel_hpd_pin(enum port port)
 		return HPD_PORT_D;
 	case PORT_E:
 		return HPD_PORT_E;
+	case PORT_F:
+		if (IS_CNL_WITH_PORT_F(dev_priv))
+			return HPD_PORT_E;
 	default:
 		MISSING_CASE(port);
 		return HPD_NONE;
@@ -263,24 +274,26 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 	intel_runtime_pm_put(dev_priv);
 }
 
-static bool intel_hpd_irq_event(struct drm_device *dev,
-				struct drm_connector *connector)
+bool intel_encoder_hotplug(struct intel_encoder *encoder,
+			   struct intel_connector *connector)
 {
+	struct drm_device *dev = connector->base.dev;
 	enum drm_connector_status old_status;
 
 	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
-	old_status = connector->status;
+	old_status = connector->base.status;
 
-	connector->status = drm_helper_probe_detect(connector, NULL, false);
+	connector->base.status =
+		drm_helper_probe_detect(&connector->base, NULL, false);
 
-	if (old_status == connector->status)
+	if (old_status == connector->base.status)
 		return false;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %s to %s\n",
-		      connector->base.id,
-		      connector->name,
+		      connector->base.base.id,
+		      connector->base.name,
 		      drm_get_connector_status_name(old_status),
-		      drm_get_connector_status_name(connector->status));
+		      drm_get_connector_status_name(connector->base.status));
 
 	return true;
 }
@@ -370,10 +383,9 @@ static void i915_hotplug_work_func(struct work_struct *work)
 		if (hpd_event_bits & (1 << intel_encoder->hpd_pin)) {
 			DRM_DEBUG_KMS("Connector %s (pin %i) received hotplug event.\n",
 				      connector->name, intel_encoder->hpd_pin);
-			if (intel_encoder->hot_plug)
-				intel_encoder->hot_plug(intel_encoder);
-			if (intel_hpd_irq_event(dev, connector))
-				changed = true;
+
+			changed |= intel_encoder->hotplug(intel_encoder,
+							  intel_connector);
 		}
 	}
 	drm_connector_list_iter_end(&conn_iter);
@@ -417,7 +429,7 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 		if (!(BIT(i) & pin_mask))
 			continue;
 
-		port = intel_hpd_pin_to_port(i);
+		port = intel_hpd_pin_to_port(dev_priv, i);
 		is_dig_port = port != PORT_NONE &&
 			dev_priv->hotplug.irq_port[port];
 

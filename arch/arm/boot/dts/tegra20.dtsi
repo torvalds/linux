@@ -17,7 +17,7 @@
 		#size-cells = <1>;
 		ranges = <0 0x40000000 0x40000>;
 
-		vde_pool: vde {
+		vde_pool: vde@400 {
 			reg = <0x400 0x3fc00>;
 			pool;
 		};

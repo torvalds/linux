@@ -1,0 +1,38 @@
+* Andestech Processor Binding
+
+This binding specifies what properties must be available in the device tree
+representation of a Andestech Processor Core, which is the root node in the
+tree.
+
+Required properties:
+
+	- compatible:
+		Usage: required
+		Value type: <string>
+		Definition: Should be "andestech,<core_name>", "andestech,nds32v3" as fallback.
+		Must contain "andestech,nds32v3" as the most generic value, in addition to
+		one of the following identifiers for a particular CPU core:
+		"andestech,n13"
+		"andestech,n15"
+		"andestech,d15"
+		"andestech,n10"
+		"andestech,d10"
+	- device_type
+		Usage: required
+		Value type: <string>
+		Definition: must be "cpu"
+	- reg: Contains CPU index.
+	- clock-frequency: Contains the clock frequency for CPU, in Hz.
+
+* Examples
+
+/ {
+	cpus {
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "andestech,n13", "andestech,nds32v3";
+			reg = <0x0>;
+			clock-frequency = <60000000>
+		};
+	};
+};

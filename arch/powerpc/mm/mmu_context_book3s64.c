@@ -94,13 +94,6 @@ static int hash__init_new_context(struct mm_struct *mm)
 		return index;
 
 	/*
-	 * In the case of exec, use the default limit,
-	 * otherwise inherit it from the mm we are duplicating.
-	 */
-	if (!mm->context.slb_addr_limit)
-		mm->context.slb_addr_limit = DEFAULT_MAP_WINDOW_USER64;
-
-	/*
 	 * The old code would re-promote on fork, we don't do that when using
 	 * slices as it could cause problem promoting slices that have been
 	 * forced down to 4K.
@@ -115,7 +108,7 @@ static int hash__init_new_context(struct mm_struct *mm)
 	 * check against 0 is OK.
 	 */
 	if (mm->context.id == 0)
-		slice_set_user_psize(mm, mmu_virtual_psize);
+		slice_init_new_context_exec(mm);
 
 	subpage_prot_init_new_context(mm);
 
@@ -173,6 +166,7 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	mm_iommu_init(mm);
 #endif
 	atomic_set(&mm->context.active_cpus, 0);
+	atomic_set(&mm->context.copros, 0);
 
 	return 0;
 }
@@ -184,6 +178,19 @@ void __destroy_context(int context_id)
 	spin_unlock(&mmu_context_lock);
 }
 EXPORT_SYMBOL_GPL(__destroy_context);
+
+static void destroy_contexts(mm_context_t *ctx)
+{
+	int index, context_id;
+
+	spin_lock(&mmu_context_lock);
+	for (index = 0; index < ARRAY_SIZE(ctx->extended_id); index++) {
+		context_id = ctx->extended_id[index];
+		if (context_id)
+			ida_remove(&mmu_context_ida, context_id);
+	}
+	spin_unlock(&mmu_context_lock);
+}
 
 #ifdef CONFIG_PPC_64K_PAGES
 static void destroy_pagetable_page(struct mm_struct *mm)
@@ -223,7 +230,7 @@ void destroy_context(struct mm_struct *mm)
 	else
 		subpage_prot_free(mm);
 	destroy_pagetable_page(mm);
-	__destroy_context(mm->context.id);
+	destroy_contexts(&mm->context);
 	mm->context.id = MMU_NO_CONTEXT;
 }
 

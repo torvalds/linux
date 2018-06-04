@@ -333,6 +333,7 @@ static int rhashtable_rehash_table(struct rhashtable *ht)
 		err = rhashtable_rehash_chain(ht, old_hash);
 		if (err)
 			return err;
+		cond_resched();
 	}
 
 	/* Publish the new table pointer. */
@@ -506,8 +507,10 @@ static void *rhashtable_lookup_one(struct rhashtable *ht,
 		if (!key ||
 		    (ht->p.obj_cmpfn ?
 		     ht->p.obj_cmpfn(&arg, rht_obj(ht, head)) :
-		     rhashtable_compare(&arg, rht_obj(ht, head))))
+		     rhashtable_compare(&arg, rht_obj(ht, head)))) {
+			pprev = &head->next;
 			continue;
+		}
 
 		if (!ht->rhlist)
 			return rht_obj(ht, head);
@@ -1110,6 +1113,7 @@ void rhashtable_free_and_destroy(struct rhashtable *ht,
 		for (i = 0; i < tbl->size; i++) {
 			struct rhash_head *pos, *next;
 
+			cond_resched();
 			for (pos = rht_dereference(*rht_bucket(tbl, i), ht),
 			     next = !rht_is_a_nulls(pos) ?
 					rht_dereference(pos->next, ht) : NULL;

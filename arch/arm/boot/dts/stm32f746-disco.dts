@@ -42,7 +42,9 @@
 
 /dts-v1/;
 #include "stm32f746.dtsi"
+#include "stm32f746-pinctrl.dtsi"
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "STMicroelectronics STM32F746-DISCO board";
@@ -75,10 +77,28 @@
 		regulator-name = "vcc5_host1";
 		regulator-always-on;
 	};
+
+	mmc_vcard: mmc_vcard {
+		compatible = "regulator-fixed";
+		regulator-name = "mmc_vcard";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
 };
 
 &clk_hse {
 	clock-frequency = <25000000>;
+};
+
+&sdio1 {
+	status = "okay";
+	vmmc-supply = <&mmc_vcard>;
+	cd-gpios = <&gpioc 13 GPIO_ACTIVE_HIGH>;
+	cd-inverted;
+	pinctrl-names = "default", "opendrain";
+	pinctrl-0 = <&sdio_pins_a>;
+	pinctrl-1 = <&sdio_pins_od_a>;
+	bus-width = <4>;
 };
 
 &usart1 {

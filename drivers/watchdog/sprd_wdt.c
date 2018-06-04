@@ -154,8 +154,10 @@ static int sprd_wdt_enable(struct sprd_wdt *wdt)
 	if (ret)
 		return ret;
 	ret = clk_prepare_enable(wdt->rtc_enable);
-	if (ret)
+	if (ret) {
+		clk_disable_unprepare(wdt->enable);
 		return ret;
+	}
 
 	sprd_wdt_unlock(wdt->base);
 	val = readl_relaxed(wdt->base + SPRD_WDT_CTRL);

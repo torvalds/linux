@@ -114,7 +114,7 @@ struct hw_sequencer_funcs {
 
 	void (*power_down)(struct dc *dc);
 
-	void (*enable_accelerated_mode)(struct dc *dc);
+	void (*enable_accelerated_mode)(struct dc *dc, struct dc_state *context);
 
 	void (*enable_timing_synchronization)(
 			struct dc *dc,
@@ -149,6 +149,7 @@ struct hw_sequencer_funcs {
 	void (*unblank_stream)(struct pipe_ctx *pipe_ctx,
 			struct dc_link_settings *link_settings);
 
+	void (*blank_stream)(struct pipe_ctx *pipe_ctx);
 	void (*pipe_control_lock)(
 				struct dc *dc,
 				struct pipe_ctx *pipe,
@@ -198,6 +199,8 @@ struct hw_sequencer_funcs {
 			bool enable);
 	void (*edp_wait_for_hpd_ready)(struct dc_link *link, bool power_up);
 
+	void (*set_cursor_position)(struct pipe_ctx *pipe);
+	void (*set_cursor_attribute)(struct pipe_ctx *pipe);
 };
 
 void color_space_to_black_color(

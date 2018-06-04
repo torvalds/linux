@@ -126,7 +126,6 @@ EXPORT_SYMBOL_GPL(musb_get_mode);
 
 /*-------------------------------------------------------------------------*/
 
-#ifndef CONFIG_BLACKFIN
 static int musb_ulpi_read(struct usb_phy *phy, u32 reg)
 {
 	void __iomem *addr = phy->io_priv;
@@ -208,10 +207,6 @@ out:
 
 	return ret;
 }
-#else
-#define musb_ulpi_read		NULL
-#define musb_ulpi_write		NULL
-#endif
 
 static struct usb_phy_io_ops musb_ulpi_access = {
 	.read = musb_ulpi_read,
@@ -1756,6 +1751,7 @@ vbus_show(struct device *dev, struct device_attribute *attr, char *buf)
 	int		vbus;
 	u8		devctl;
 
+	pm_runtime_get_sync(dev);
 	spin_lock_irqsave(&musb->lock, flags);
 	val = musb->a_wait_bcon;
 	vbus = musb_platform_get_vbus_status(musb);
@@ -1769,6 +1765,7 @@ vbus_show(struct device *dev, struct device_attribute *attr, char *buf)
 			vbus = 0;
 	}
 	spin_unlock_irqrestore(&musb->lock, flags);
+	pm_runtime_put_sync(dev);
 
 	return sprintf(buf, "Vbus %s, timeout %lu msec\n",
 			vbus ? "on" : "off", val);
@@ -2171,7 +2168,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	 *   - initializes musb->xceiv, usually by otg_get_phy()
 	 *   - stops powering VBUS
 	 *
-	 * There are various transceiver configurations.  Blackfin,
+	 * There are various transceiver configurations.
 	 * DaVinci, TUSB60x0, and others integrate them.  OMAP3 uses
 	 * external/discrete ones in various flavors (twl4030 family,
 	 * isp1504, non-OTG, etc) mostly hooking up through ULPI.
@@ -2471,11 +2468,11 @@ static int musb_remove(struct platform_device *pdev)
 	musb_disable_interrupts(musb);
 	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 	spin_unlock_irqrestore(&musb->lock, flags);
+	musb_platform_exit(musb);
 
 	pm_runtime_dont_use_autosuspend(musb->controller);
 	pm_runtime_put_sync(musb->controller);
 	pm_runtime_disable(musb->controller);
-	musb_platform_exit(musb);
 	musb_phy_callback = NULL;
 	if (musb->dma_controller)
 		musb_dma_controller_destroy(musb->dma_controller);

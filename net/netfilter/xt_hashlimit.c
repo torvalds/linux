@@ -534,8 +534,7 @@ static u64 user2rate_bytes(u32 user)
 	u64 r;
 
 	r = user ? U32_MAX / user : U32_MAX;
-	r = (r - 1) << XT_HASHLIMIT_BYTE_SHIFT;
-	return r;
+	return (r - 1) << XT_HASHLIMIT_BYTE_SHIFT;
 }
 
 static void rateinfo_recalc(struct dsthash_ent *dh, unsigned long now,
@@ -917,8 +916,9 @@ static int hashlimit_mt_check_v1(const struct xt_mtchk_param *par)
 	struct hashlimit_cfg3 cfg = {};
 	int ret;
 
-	if (info->name[sizeof(info->name) - 1] != '\0')
-		return -EINVAL;
+	ret = xt_check_proc_name(info->name, sizeof(info->name));
+	if (ret)
+		return ret;
 
 	ret = cfg_copy(&cfg, (void *)&info->cfg, 1);
 
@@ -935,8 +935,9 @@ static int hashlimit_mt_check_v2(const struct xt_mtchk_param *par)
 	struct hashlimit_cfg3 cfg = {};
 	int ret;
 
-	if (info->name[sizeof(info->name) - 1] != '\0')
-		return -EINVAL;
+	ret = xt_check_proc_name(info->name, sizeof(info->name));
+	if (ret)
+		return ret;
 
 	ret = cfg_copy(&cfg, (void *)&info->cfg, 2);
 
@@ -950,9 +951,11 @@ static int hashlimit_mt_check_v2(const struct xt_mtchk_param *par)
 static int hashlimit_mt_check(const struct xt_mtchk_param *par)
 {
 	struct xt_hashlimit_mtinfo3 *info = par->matchinfo;
+	int ret;
 
-	if (info->name[sizeof(info->name) - 1] != '\0')
-		return -EINVAL;
+	ret = xt_check_proc_name(info->name, sizeof(info->name));
+	if (ret)
+		return ret;
 
 	return hashlimit_mt_check_common(par, &info->hinfo, &info->cfg,
 					 info->name, 3);

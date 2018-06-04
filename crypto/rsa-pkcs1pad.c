@@ -192,7 +192,7 @@ static int pkcs1pad_encrypt_sign_complete(struct akcipher_request *req, int err)
 	if (likely(!pad_len))
 		goto out;
 
-	out_buf = kzalloc(ctx->key_size, GFP_ATOMIC);
+	out_buf = kzalloc(ctx->key_size, GFP_KERNEL);
 	err = -ENOMEM;
 	if (!out_buf)
 		goto out;

@@ -218,32 +218,32 @@ static void mlxsw_hwmon_attr_add(struct mlxsw_hwmon *mlxsw_hwmon,
 	switch (attr_type) {
 	case MLXSW_HWMON_ATTR_TYPE_TEMP:
 		mlxsw_hwmon_attr->dev_attr.show = mlxsw_hwmon_temp_show;
-		mlxsw_hwmon_attr->dev_attr.attr.mode = S_IRUGO;
+		mlxsw_hwmon_attr->dev_attr.attr.mode = 0444;
 		snprintf(mlxsw_hwmon_attr->name, sizeof(mlxsw_hwmon_attr->name),
 			 "temp%u_input", num + 1);
 		break;
 	case MLXSW_HWMON_ATTR_TYPE_TEMP_MAX:
 		mlxsw_hwmon_attr->dev_attr.show = mlxsw_hwmon_temp_max_show;
-		mlxsw_hwmon_attr->dev_attr.attr.mode = S_IRUGO;
+		mlxsw_hwmon_attr->dev_attr.attr.mode = 0444;
 		snprintf(mlxsw_hwmon_attr->name, sizeof(mlxsw_hwmon_attr->name),
 			 "temp%u_highest", num + 1);
 		break;
 	case MLXSW_HWMON_ATTR_TYPE_TEMP_RST:
 		mlxsw_hwmon_attr->dev_attr.store = mlxsw_hwmon_temp_rst_store;
-		mlxsw_hwmon_attr->dev_attr.attr.mode = S_IWUSR;
+		mlxsw_hwmon_attr->dev_attr.attr.mode = 0200;
 		snprintf(mlxsw_hwmon_attr->name, sizeof(mlxsw_hwmon_attr->name),
 			 "temp%u_reset_history", num + 1);
 		break;
 	case MLXSW_HWMON_ATTR_TYPE_FAN_RPM:
 		mlxsw_hwmon_attr->dev_attr.show = mlxsw_hwmon_fan_rpm_show;
-		mlxsw_hwmon_attr->dev_attr.attr.mode = S_IRUGO;
+		mlxsw_hwmon_attr->dev_attr.attr.mode = 0444;
 		snprintf(mlxsw_hwmon_attr->name, sizeof(mlxsw_hwmon_attr->name),
 			 "fan%u_input", num + 1);
 		break;
 	case MLXSW_HWMON_ATTR_TYPE_PWM:
 		mlxsw_hwmon_attr->dev_attr.show = mlxsw_hwmon_pwm_show;
 		mlxsw_hwmon_attr->dev_attr.store = mlxsw_hwmon_pwm_store;
-		mlxsw_hwmon_attr->dev_attr.attr.mode = S_IWUSR | S_IRUGO;
+		mlxsw_hwmon_attr->dev_attr.attr.mode = 0644;
 		snprintf(mlxsw_hwmon_attr->name, sizeof(mlxsw_hwmon_attr->name),
 			 "pwm%u", num + 1);
 		break;

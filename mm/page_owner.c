@@ -35,7 +35,7 @@ static depot_stack_handle_t early_handle;
 
 static void init_early_allocated_pages(void);
 
-static int early_page_owner_param(char *buf)
+static int __init early_page_owner_param(char *buf)
 {
 	if (!buf)
 		return -EINVAL;
@@ -123,13 +123,13 @@ void __reset_page_owner(struct page *page, unsigned int order)
 static inline bool check_recursive_alloc(struct stack_trace *trace,
 					unsigned long ip)
 {
-	int i, count;
+	int i;
 
 	if (!trace->nr_entries)
 		return false;
 
-	for (i = 0, count = 0; i < trace->nr_entries; i++) {
-		if (trace->entries[i] == ip && ++count == 2)
+	for (i = 0; i < trace->nr_entries; i++) {
+		if (trace->entries[i] == ip)
 			return true;
 	}
 

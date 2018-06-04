@@ -213,12 +213,10 @@ xfs_scrub_block_set_preen(
 void
 xfs_scrub_ino_set_preen(
 	struct xfs_scrub_context	*sc,
-	xfs_ino_t			ino,
-	struct xfs_buf			*bp)
+	xfs_ino_t			ino)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_PREEN;
-	trace_xfs_scrub_ino_preen(sc, ino, bp ? bp->b_bn : 0,
-			__return_address);
+	trace_xfs_scrub_ino_preen(sc, ino, __return_address);
 }
 
 /* Record a corrupt block. */
@@ -249,22 +247,20 @@ xfs_scrub_block_xref_set_corrupt(
 void
 xfs_scrub_ino_set_corrupt(
 	struct xfs_scrub_context	*sc,
-	xfs_ino_t			ino,
-	struct xfs_buf			*bp)
+	xfs_ino_t			ino)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
-	trace_xfs_scrub_ino_error(sc, ino, bp ? bp->b_bn : 0, __return_address);
+	trace_xfs_scrub_ino_error(sc, ino, __return_address);
 }
 
 /* Record a corruption while cross-referencing with an inode. */
 void
 xfs_scrub_ino_xref_set_corrupt(
 	struct xfs_scrub_context	*sc,
-	xfs_ino_t			ino,
-	struct xfs_buf			*bp)
+	xfs_ino_t			ino)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_XCORRUPT;
-	trace_xfs_scrub_ino_error(sc, ino, bp ? bp->b_bn : 0, __return_address);
+	trace_xfs_scrub_ino_error(sc, ino, __return_address);
 }
 
 /* Record corruption in a block indexed by a file fork. */
@@ -296,12 +292,10 @@ xfs_scrub_fblock_xref_set_corrupt(
 void
 xfs_scrub_ino_set_warning(
 	struct xfs_scrub_context	*sc,
-	xfs_ino_t			ino,
-	struct xfs_buf			*bp)
+	xfs_ino_t			ino)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_WARNING;
-	trace_xfs_scrub_ino_warning(sc, ino, bp ? bp->b_bn : 0,
-			__return_address);
+	trace_xfs_scrub_ino_warning(sc, ino, __return_address);
 }
 
 /* Warn about a block indexed by a file fork that needs review. */
@@ -619,7 +613,7 @@ xfs_scrub_checkpoint_log(
 {
 	int			error;
 
-	error = _xfs_log_force(mp, XFS_LOG_SYNC, NULL);
+	error = xfs_log_force(mp, XFS_LOG_SYNC);
 	if (error)
 		return error;
 	xfs_ail_push_all_sync(mp->m_ail);

@@ -192,11 +192,9 @@ out:
  * that to happen you need to do that yourself.
  */
 
-SYSCALL_DEFINE4(kexec_load, unsigned long, entry, unsigned long, nr_segments,
-		struct kexec_segment __user *, segments, unsigned long, flags)
+static inline int kexec_load_check(unsigned long nr_segments,
+				   unsigned long flags)
 {
-	int result;
-
 	/* We only trust the superuser with rebooting the system. */
 	if (!capable(CAP_SYS_BOOT) || kexec_load_disabled)
 		return -EPERM;
@@ -208,15 +206,27 @@ SYSCALL_DEFINE4(kexec_load, unsigned long, entry, unsigned long, nr_segments,
 	if ((flags & KEXEC_FLAGS) != (flags & ~KEXEC_ARCH_MASK))
 		return -EINVAL;
 
-	/* Verify we are on the appropriate architecture */
-	if (((flags & KEXEC_ARCH_MASK) != KEXEC_ARCH) &&
-		((flags & KEXEC_ARCH_MASK) != KEXEC_ARCH_DEFAULT))
-		return -EINVAL;
-
 	/* Put an artificial cap on the number
 	 * of segments passed to kexec_load.
 	 */
 	if (nr_segments > KEXEC_SEGMENT_MAX)
+		return -EINVAL;
+
+	return 0;
+}
+
+SYSCALL_DEFINE4(kexec_load, unsigned long, entry, unsigned long, nr_segments,
+		struct kexec_segment __user *, segments, unsigned long, flags)
+{
+	int result;
+
+	result = kexec_load_check(nr_segments, flags);
+	if (result)
+		return result;
+
+	/* Verify we are on the appropriate architecture */
+	if (((flags & KEXEC_ARCH_MASK) != KEXEC_ARCH) &&
+		((flags & KEXEC_ARCH_MASK) != KEXEC_ARCH_DEFAULT))
 		return -EINVAL;
 
 	/* Because we write directly to the reserved memory
@@ -247,13 +257,14 @@ COMPAT_SYSCALL_DEFINE4(kexec_load, compat_ulong_t, entry,
 	struct kexec_segment out, __user *ksegments;
 	unsigned long i, result;
 
+	result = kexec_load_check(nr_segments, flags);
+	if (result)
+		return result;
+
 	/* Don't allow clients that don't understand the native
 	 * architecture to do anything.
 	 */
 	if ((flags & KEXEC_ARCH_MASK) == KEXEC_ARCH_DEFAULT)
-		return -EINVAL;
-
-	if (nr_segments > KEXEC_SEGMENT_MAX)
 		return -EINVAL;
 
 	ksegments = compat_alloc_user_space(nr_segments * sizeof(out));
@@ -272,6 +283,21 @@ COMPAT_SYSCALL_DEFINE4(kexec_load, compat_ulong_t, entry,
 			return -EFAULT;
 	}
 
-	return sys_kexec_load(entry, nr_segments, ksegments, flags);
+	/* Because we write directly to the reserved memory
+	 * region when loading crash kernels we need a mutex here to
+	 * prevent multiple crash  kernels from attempting to load
+	 * simultaneously, and to prevent a crash kernel from loading
+	 * over the top of a in use crash kernel.
+	 *
+	 * KISS: always take the mutex.
+	 */
+	if (!mutex_trylock(&kexec_mutex))
+		return -EBUSY;
+
+	result = do_kexec_load(entry, nr_segments, ksegments, flags);
+
+	mutex_unlock(&kexec_mutex);
+
+	return result;
 }
 #endif

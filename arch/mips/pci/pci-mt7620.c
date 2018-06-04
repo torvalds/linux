@@ -315,6 +315,7 @@ static int mt7620_pci_probe(struct platform_device *pdev)
 		break;
 
 	case MT762X_SOC_MT7628AN:
+	case MT762X_SOC_MT7688:
 		if (mt7628_pci_hw_init(pdev))
 			return -1;
 		break;

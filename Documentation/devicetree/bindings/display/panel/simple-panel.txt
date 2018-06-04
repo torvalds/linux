@@ -1,4 +1,8 @@
 Simple display panel
+====================
+
+panel node
+----------
 
 Required properties:
 - power-supply: See panel-common.txt

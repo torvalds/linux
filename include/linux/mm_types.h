@@ -22,6 +22,8 @@
 #endif
 #define AT_VECTOR_SIZE (2*(AT_VECTOR_SIZE_ARCH + AT_VECTOR_SIZE_BASE + 1))
 
+typedef int vm_fault_t;
+
 struct address_space;
 struct mem_cgroup;
 struct hmm;

@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Watchdog driver for the UniPhier watchdog timer
  *
  * (c) Copyright 2014 Panasonic Corporation
  * (c) Copyright 2016 Socionext Inc.
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/bitops.h>
@@ -212,11 +204,10 @@ static int uniphier_wdt_probe(struct platform_device *pdev)
 	wdev->wdt_dev.ops = &uniphier_wdt_ops;
 	wdev->wdt_dev.max_timeout = WDT_PERIOD_MAX;
 	wdev->wdt_dev.min_timeout = WDT_PERIOD_MIN;
+	wdev->wdt_dev.timeout = WDT_DEFAULT_TIMEOUT;
 	wdev->wdt_dev.parent = dev;
 
-	if (watchdog_init_timeout(&wdev->wdt_dev, timeout, dev) < 0) {
-		wdev->wdt_dev.timeout = WDT_DEFAULT_TIMEOUT;
-	}
+	watchdog_init_timeout(&wdev->wdt_dev, timeout, dev);
 	watchdog_set_nowayout(&wdev->wdt_dev, nowayout);
 	watchdog_stop_on_reboot(&wdev->wdt_dev);
 

@@ -2,20 +2,14 @@
 #ifndef _ASM_POWERPC_PLPAR_WRAPPERS_H
 #define _ASM_POWERPC_PLPAR_WRAPPERS_H
 
+#ifdef CONFIG_PPC_PSERIES
+
 #include <linux/string.h>
 #include <linux/irqflags.h>
 
 #include <asm/hvcall.h>
 #include <asm/paca.h>
 #include <asm/page.h>
-
-/* Get state of physical CPU from query_cpu_stopped */
-int smp_query_cpu_stopped(unsigned int pcpu);
-#define QCSS_STOPPED 0
-#define QCSS_STOPPING 1
-#define QCSS_NOT_STOPPED 2
-#define QCSS_HARDWARE_ERROR -1
-#define QCSS_HARDWARE_BUSY -2
 
 static inline long poll_pending(void)
 {
@@ -311,17 +305,17 @@ static inline long enable_little_endian_exceptions(void)
 	return plpar_set_mode(1, H_SET_MODE_RESOURCE_LE, 0, 0);
 }
 
-static inline long plapr_set_ciabr(unsigned long ciabr)
+static inline long plpar_set_ciabr(unsigned long ciabr)
 {
 	return plpar_set_mode(0, H_SET_MODE_RESOURCE_SET_CIABR, ciabr, 0);
 }
 
-static inline long plapr_set_watchpoint0(unsigned long dawr0, unsigned long dawrx0)
+static inline long plpar_set_watchpoint0(unsigned long dawr0, unsigned long dawrx0)
 {
 	return plpar_set_mode(0, H_SET_MODE_RESOURCE_SET_DAWR, dawr0, dawrx0);
 }
 
-static inline long plapr_signal_sys_reset(long cpu)
+static inline long plpar_signal_sys_reset(long cpu)
 {
 	return plpar_hcall_norets(H_SIGNAL_SYS_RESET, cpu);
 }
@@ -339,5 +333,13 @@ static inline long plpar_get_cpu_characteristics(struct h_cpu_char_result *p)
 
 	return rc;
 }
+
+#else /* !CONFIG_PPC_PSERIES */
+
+static inline long plpar_set_ciabr(unsigned long ciabr)
+{
+	return 0;
+}
+#endif /* CONFIG_PPC_PSERIES */
 
 #endif /* _ASM_POWERPC_PLPAR_WRAPPERS_H */

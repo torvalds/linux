@@ -163,7 +163,20 @@ __faddr2line() {
 
 		# pass real address to addr2line
 		echo "$func+$offset/$sym_size:"
-		${ADDR2LINE} -fpie $objfile $addr | sed "s; $dir_prefix\(\./\)*; ;"
+		local file_lines=$(${ADDR2LINE} -fpie $objfile $addr | sed "s; $dir_prefix\(\./\)*; ;")
+		[[ -z $file_lines ]] && return
+
+		# show each line with context
+		echo "$file_lines" | while read -r line
+		do
+			echo $line
+			n=$(echo $line | sed 's/.*:\([0-9]\+\).*/\1/g')
+			n1=$[$n-5]
+			n2=$[$n+5]
+			f=$(echo $line | sed 's/.*at \(.\+\):.*/\1/g')
+			awk 'NR>=strtonum("'$n1'") && NR<=strtonum("'$n2'") {printf("%d\t%s\n", NR, $0)}' $f
+		done
+
 		DONE=1
 
 	done < <(${NM} -n $objfile | awk -v fn=$func -v end=$file_end '$3 == fn { found=1; line=$0; start=$1; next } found == 1 { found=0; print line, "0x"$1 } END {if (found == 1) print line, end; }')

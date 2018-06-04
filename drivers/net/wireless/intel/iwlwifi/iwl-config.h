@@ -398,6 +398,7 @@ struct iwl_cfg {
 	u8 ucode_api_max;
 	u8 ucode_api_min;
 	u32 min_umac_error_event_table;
+	u32 extra_phy_cfg_flags;
 };
 
 /*
@@ -477,6 +478,10 @@ extern const struct iwl_cfg iwl9460_2ac_cfg_soc;
 extern const struct iwl_cfg iwl9461_2ac_cfg_soc;
 extern const struct iwl_cfg iwl9462_2ac_cfg_soc;
 extern const struct iwl_cfg iwl9560_2ac_cfg_soc;
+extern const struct iwl_cfg iwl9460_2ac_cfg_shared_clk;
+extern const struct iwl_cfg iwl9461_2ac_cfg_shared_clk;
+extern const struct iwl_cfg iwl9462_2ac_cfg_shared_clk;
+extern const struct iwl_cfg iwl9560_2ac_cfg_shared_clk;
 extern const struct iwl_cfg iwl22000_2ac_cfg_hr;
 extern const struct iwl_cfg iwl22000_2ac_cfg_hr_cdb;
 extern const struct iwl_cfg iwl22000_2ac_cfg_jf;

@@ -93,9 +93,11 @@ struct mlxreg_hotplug_priv_data {
 	bool after_probe;
 };
 
-static int mlxreg_hotplug_device_create(struct device *dev,
+static int mlxreg_hotplug_device_create(struct mlxreg_hotplug_priv_data *priv,
 					struct mlxreg_core_data *data)
 {
+	struct mlxreg_core_hotplug_platform_data *pdata;
+
 	/*
 	 * Return if adapter number is negative. It could be in case hotplug
 	 * event is not associated with hotplug device.
@@ -103,19 +105,21 @@ static int mlxreg_hotplug_device_create(struct device *dev,
 	if (data->hpdev.nr < 0)
 		return 0;
 
-	data->hpdev.adapter = i2c_get_adapter(data->hpdev.nr);
+	pdata = dev_get_platdata(&priv->pdev->dev);
+	data->hpdev.adapter = i2c_get_adapter(data->hpdev.nr +
+					      pdata->shift_nr);
 	if (!data->hpdev.adapter) {
-		dev_err(dev, "Failed to get adapter for bus %d\n",
-			data->hpdev.nr);
+		dev_err(priv->dev, "Failed to get adapter for bus %d\n",
+			data->hpdev.nr + pdata->shift_nr);
 		return -EFAULT;
 	}
 
 	data->hpdev.client = i2c_new_device(data->hpdev.adapter,
 					    data->hpdev.brdinfo);
 	if (!data->hpdev.client) {
-		dev_err(dev, "Failed to create client %s at bus %d at addr 0x%02x\n",
-			data->hpdev.brdinfo->type, data->hpdev.nr,
-			data->hpdev.brdinfo->addr);
+		dev_err(priv->dev, "Failed to create client %s at bus %d at addr 0x%02x\n",
+			data->hpdev.brdinfo->type, data->hpdev.nr +
+			pdata->shift_nr, data->hpdev.brdinfo->addr);
 
 		i2c_put_adapter(data->hpdev.adapter);
 		data->hpdev.adapter = NULL;
@@ -270,10 +274,10 @@ mlxreg_hotplug_work_helper(struct mlxreg_hotplug_priv_data *priv,
 			if (item->inversed)
 				mlxreg_hotplug_device_destroy(data);
 			else
-				mlxreg_hotplug_device_create(priv->dev, data);
+				mlxreg_hotplug_device_create(priv, data);
 		} else {
 			if (item->inversed)
-				mlxreg_hotplug_device_create(priv->dev, data);
+				mlxreg_hotplug_device_create(priv, data);
 			else
 				mlxreg_hotplug_device_destroy(data);
 		}
@@ -319,7 +323,7 @@ mlxreg_hotplug_health_work_helper(struct mlxreg_hotplug_priv_data *priv,
 		if (regval == MLXREG_HOTPLUG_HEALTH_MASK) {
 			if ((data->health_cntr++ == MLXREG_HOTPLUG_RST_CNTR) ||
 			    !priv->after_probe) {
-				mlxreg_hotplug_device_create(priv->dev, data);
+				mlxreg_hotplug_device_create(priv, data);
 				data->attached = true;
 			}
 		} else {
@@ -550,6 +554,7 @@ static int mlxreg_hotplug_probe(struct platform_device *pdev)
 {
 	struct mlxreg_core_hotplug_platform_data *pdata;
 	struct mlxreg_hotplug_priv_data *priv;
+	struct i2c_adapter *deferred_adap;
 	int err;
 
 	pdata = dev_get_platdata(&pdev->dev);
@@ -557,6 +562,12 @@ static int mlxreg_hotplug_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to get platform data.\n");
 		return -EINVAL;
 	}
+
+	/* Defer probing if the necessary adapter is not configured yet. */
+	deferred_adap = i2c_get_adapter(pdata->deferred_nr);
+	if (!deferred_adap)
+		return -EPROBE_DEFER;
+	i2c_put_adapter(deferred_adap);
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)

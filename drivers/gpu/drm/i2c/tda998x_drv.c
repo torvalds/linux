@@ -1600,8 +1600,7 @@ fail:
 	/* if encoder_init fails, the encoder slave is never registered,
 	 * so cleanup here:
 	 */
-	if (priv->cec)
-		i2c_unregister_device(priv->cec);
+	i2c_unregister_device(priv->cec);
 	return -ENXIO;
 }
 

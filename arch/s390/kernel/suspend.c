@@ -153,8 +153,8 @@ int pfn_is_nosave(unsigned long pfn)
 {
 	unsigned long nosave_begin_pfn = PFN_DOWN(__pa(&__nosave_begin));
 	unsigned long nosave_end_pfn = PFN_DOWN(__pa(&__nosave_end));
-	unsigned long end_rodata_pfn = PFN_DOWN(__pa(&__end_rodata)) - 1;
-	unsigned long stext_pfn = PFN_DOWN(__pa(&_stext));
+	unsigned long end_rodata_pfn = PFN_DOWN(__pa(__end_rodata)) - 1;
+	unsigned long stext_pfn = PFN_DOWN(__pa(_stext));
 
 	/* Always save lowcore pages (LC protection might be enabled). */
 	if (pfn <= LC_PAGES)

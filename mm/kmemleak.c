@@ -1187,6 +1187,11 @@ EXPORT_SYMBOL(kmemleak_no_scan);
 /**
  * kmemleak_alloc_phys - similar to kmemleak_alloc but taking a physical
  *			 address argument
+ * @phys:	physical address of the object
+ * @size:	size of the object
+ * @min_count:	minimum number of references to this object.
+ *              See kmemleak_alloc()
+ * @gfp:	kmalloc() flags used for kmemleak internal memory allocations
  */
 void __ref kmemleak_alloc_phys(phys_addr_t phys, size_t size, int min_count,
 			       gfp_t gfp)
@@ -1199,6 +1204,9 @@ EXPORT_SYMBOL(kmemleak_alloc_phys);
 /**
  * kmemleak_free_part_phys - similar to kmemleak_free_part but taking a
  *			     physical address argument
+ * @phys:	physical address if the beginning or inside an object. This
+ *		also represents the start of the range to be freed
+ * @size:	size to be unregistered
  */
 void __ref kmemleak_free_part_phys(phys_addr_t phys, size_t size)
 {
@@ -1210,6 +1218,7 @@ EXPORT_SYMBOL(kmemleak_free_part_phys);
 /**
  * kmemleak_not_leak_phys - similar to kmemleak_not_leak but taking a physical
  *			    address argument
+ * @phys:	physical address of the object
  */
 void __ref kmemleak_not_leak_phys(phys_addr_t phys)
 {
@@ -1221,6 +1230,7 @@ EXPORT_SYMBOL(kmemleak_not_leak_phys);
 /**
  * kmemleak_ignore_phys - similar to kmemleak_ignore but taking a physical
  *			  address argument
+ * @phys:	physical address of the object
  */
 void __ref kmemleak_ignore_phys(phys_addr_t phys)
 {
@@ -1657,8 +1667,7 @@ static void start_scan_thread(void)
 }
 
 /*
- * Stop the automatic memory scanning thread. This function must be called
- * with the scan_mutex held.
+ * Stop the automatic memory scanning thread.
  */
 static void stop_scan_thread(void)
 {
@@ -1921,12 +1930,15 @@ static void kmemleak_do_cleanup(struct work_struct *work)
 {
 	stop_scan_thread();
 
+	mutex_lock(&scan_mutex);
 	/*
-	 * Once the scan thread has stopped, it is safe to no longer track
-	 * object freeing. Ordering of the scan thread stopping and the memory
-	 * accesses below is guaranteed by the kthread_stop() function.
+	 * Once it is made sure that kmemleak_scan has stopped, it is safe to no
+	 * longer track object freeing. Ordering of the scan thread stopping and
+	 * the memory accesses below is guaranteed by the kthread_stop()
+	 * function.
 	 */
 	kmemleak_free_enabled = 0;
+	mutex_unlock(&scan_mutex);
 
 	if (!kmemleak_found_leaks)
 		__kmemleak_do_cleanup();
@@ -1961,7 +1973,7 @@ static void kmemleak_disable(void)
 /*
  * Allow boot-time kmemleak disabling (enabled by default).
  */
-static int kmemleak_boot_config(char *str)
+static int __init kmemleak_boot_config(char *str)
 {
 	if (!str)
 		return -EINVAL;

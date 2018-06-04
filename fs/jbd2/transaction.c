@@ -532,6 +532,7 @@ int jbd2_journal_start_reserved(handle_t *handle, unsigned int type,
 	 */
 	ret = start_this_handle(journal, handle, GFP_NOFS);
 	if (ret < 0) {
+		handle->h_journal = journal;
 		jbd2_journal_free_reserved(handle);
 		return ret;
 	}

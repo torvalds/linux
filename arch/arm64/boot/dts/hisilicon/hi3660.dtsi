@@ -100,11 +100,7 @@
 			reg = <0x0 0x100>;
 			enable-method = "psci";
 			next-level-cache = <&A73_L2>;
-			cpu-idle-states = <
-					&CPU_NAP
-					&CPU_SLEEP
-					&CLUSTER_SLEEP_1
-			>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_1>;
 			capacity-dmips-mhz = <1024>;
 		};
 
@@ -114,11 +110,7 @@
 			reg = <0x0 0x101>;
 			enable-method = "psci";
 			next-level-cache = <&A73_L2>;
-			cpu-idle-states = <
-					&CPU_NAP
-					&CPU_SLEEP
-					&CLUSTER_SLEEP_1
-			>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_1>;
 			capacity-dmips-mhz = <1024>;
 		};
 
@@ -128,11 +120,7 @@
 			reg = <0x0 0x102>;
 			enable-method = "psci";
 			next-level-cache = <&A73_L2>;
-			cpu-idle-states = <
-					&CPU_NAP
-					&CPU_SLEEP
-					&CLUSTER_SLEEP_1
-			>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_1>;
 			capacity-dmips-mhz = <1024>;
 		};
 
@@ -142,24 +130,12 @@
 			reg = <0x0 0x103>;
 			enable-method = "psci";
 			next-level-cache = <&A73_L2>;
-			cpu-idle-states = <
-					&CPU_NAP
-					&CPU_SLEEP
-					&CLUSTER_SLEEP_1
-			>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_1>;
 			capacity-dmips-mhz = <1024>;
 		};
 
 		idle-states {
 			entry-method = "psci";
-
-			CPU_NAP: cpu-nap {
-				compatible = "arm,idle-state";
-				arm,psci-suspend-param = <0x0000001>;
-				entry-latency-us = <7>;
-				exit-latency-us = <2>;
-				min-residency-us = <15>;
-			};
 
 			CPU_SLEEP: cpu-sleep {
 				compatible = "arm,idle-state";
@@ -922,7 +898,6 @@
 			#size-cells = <0>;
 			cd-inverted;
 			compatible = "hisilicon,hi3660-dw-mshc";
-			num-slots = <1>;
 			bus-width = <0x4>;
 			disable-wp;
 			cap-sd-highspeed;
@@ -960,7 +935,6 @@
 			compatible = "hisilicon,hi3660-dw-mshc";
 			reg = <0x0 0xff3ff000 0x0 0x1000>;
 			interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
-			num-slots = <1>;
 			clocks = <&crg_ctrl HI3660_CLK_GATE_SDIO0>,
 				 <&crg_ctrl HI3660_HCLK_GATE_SDIO0>;
 			clock-names = "ciu", "biu";

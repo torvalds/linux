@@ -1,5 +1,5 @@
-#ifndef _DTC_H
-#define _DTC_H
+#ifndef DTC_H
+#define DTC_H
 
 /*
  * (C) Copyright David Gibson <dwg@au1.ibm.com>, IBM Corporation.  2005.
@@ -67,7 +67,8 @@ typedef uint32_t cell_t;
 
 
 #define streq(a, b)	(strcmp((a), (b)) == 0)
-#define strneq(a, b, n)	(strncmp((a), (b), (n)) == 0)
+#define strstarts(s, prefix)	(strncmp((s), (prefix), strlen(prefix)) == 0)
+#define strprefixeq(a, n, b)	(strlen(b) == (n) && (memcmp(a, b, n) == 0))
 
 #define ALIGN(x, a)	(((x) + (a) - 1) & ~((a) - 1))
 
@@ -203,7 +204,7 @@ struct node *build_node_delete(void);
 struct node *name_node(struct node *node, char *name);
 struct node *chain_node(struct node *first, struct node *list);
 struct node *merge_nodes(struct node *old_node, struct node *new_node);
-void add_orphan_node(struct node *old_node, struct node *new_node, char *ref);
+struct node *add_orphan_node(struct node *old_node, struct node *new_node, char *ref);
 
 void add_property(struct node *node, struct property *prop);
 void delete_property_by_name(struct node *node, char *name);
@@ -289,4 +290,4 @@ struct dt_info *dt_from_source(const char *f);
 
 struct dt_info *dt_from_fs(const char *dirname);
 
-#endif /* _DTC_H */
+#endif /* DTC_H */

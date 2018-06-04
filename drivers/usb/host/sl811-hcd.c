@@ -1381,7 +1381,7 @@ static void dump_irq(struct seq_file *s, char *label, u8 mask)
 		(mask & SL11H_INTMASK_DP) ? " dp" : "");
 }
 
-static int sl811h_show(struct seq_file *s, void *unused)
+static int sl811h_debug_show(struct seq_file *s, void *unused)
 {
 	struct sl811		*sl811 = s->private;
 	struct sl811h_ep	*ep;
@@ -1491,25 +1491,14 @@ static int sl811h_show(struct seq_file *s, void *unused)
 
 	return 0;
 }
-
-static int sl811h_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, sl811h_show, inode->i_private);
-}
-
-static const struct file_operations debug_ops = {
-	.open		= sl811h_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(sl811h_debug);
 
 /* expect just one sl811 per system */
 static void create_debug_file(struct sl811 *sl811)
 {
 	sl811->debug_file = debugfs_create_file("sl811h", S_IRUGO,
 						usb_debug_root, sl811,
-						&debug_ops);
+						&sl811h_debug_fops);
 }
 
 static void remove_debug_file(struct sl811 *sl811)

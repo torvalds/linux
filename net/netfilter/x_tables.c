@@ -40,6 +40,7 @@ MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_DESCRIPTION("{ip,ip6,arp,eb}_tables backend module");
 
 #define XT_PCPU_BLOCK_SIZE 4096
+#define XT_MAX_TABLE_SIZE	(512 * 1024 * 1024)
 
 struct compat_delta {
 	unsigned int offset; /* offset in kernel */
@@ -423,6 +424,36 @@ textify_hooks(char *buf, size_t size, unsigned int mask, uint8_t nfproto)
 	return buf;
 }
 
+/**
+ * xt_check_proc_name - check that name is suitable for /proc file creation
+ *
+ * @name: file name candidate
+ * @size: length of buffer
+ *
+ * some x_tables modules wish to create a file in /proc.
+ * This function makes sure that the name is suitable for this
+ * purpose, it checks that name is NUL terminated and isn't a 'special'
+ * name, like "..".
+ *
+ * returns negative number on error or 0 if name is useable.
+ */
+int xt_check_proc_name(const char *name, unsigned int size)
+{
+	if (name[0] == '\0')
+		return -EINVAL;
+
+	if (strnlen(name, size) == size)
+		return -ENAMETOOLONG;
+
+	if (strcmp(name, ".") == 0 ||
+	    strcmp(name, "..") == 0 ||
+	    strchr(name, '/'))
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL(xt_check_proc_name);
+
 int xt_check_match(struct xt_mtchk_param *par,
 		   unsigned int size, u_int8_t proto, bool inv_proto)
 {
@@ -518,19 +549,104 @@ static int xt_check_entry_match(const char *match, const char *target,
 	return 0;
 }
 
+/** xt_check_table_hooks - check hook entry points are sane
+ *
+ * @info xt_table_info to check
+ * @valid_hooks - hook entry points that we can enter from
+ *
+ * Validates that the hook entry and underflows points are set up.
+ *
+ * Return: 0 on success, negative errno on failure.
+ */
+int xt_check_table_hooks(const struct xt_table_info *info, unsigned int valid_hooks)
+{
+	const char *err = "unsorted underflow";
+	unsigned int i, max_uflow, max_entry;
+	bool check_hooks = false;
+
+	BUILD_BUG_ON(ARRAY_SIZE(info->hook_entry) != ARRAY_SIZE(info->underflow));
+
+	max_entry = 0;
+	max_uflow = 0;
+
+	for (i = 0; i < ARRAY_SIZE(info->hook_entry); i++) {
+		if (!(valid_hooks & (1 << i)))
+			continue;
+
+		if (info->hook_entry[i] == 0xFFFFFFFF)
+			return -EINVAL;
+		if (info->underflow[i] == 0xFFFFFFFF)
+			return -EINVAL;
+
+		if (check_hooks) {
+			if (max_uflow > info->underflow[i])
+				goto error;
+
+			if (max_uflow == info->underflow[i]) {
+				err = "duplicate underflow";
+				goto error;
+			}
+			if (max_entry > info->hook_entry[i]) {
+				err = "unsorted entry";
+				goto error;
+			}
+			if (max_entry == info->hook_entry[i]) {
+				err = "duplicate entry";
+				goto error;
+			}
+		}
+		max_entry = info->hook_entry[i];
+		max_uflow = info->underflow[i];
+		check_hooks = true;
+	}
+
+	return 0;
+error:
+	pr_err_ratelimited("%s at hook %d\n", err, i);
+	return -EINVAL;
+}
+EXPORT_SYMBOL(xt_check_table_hooks);
+
+static bool verdict_ok(int verdict)
+{
+	if (verdict > 0)
+		return true;
+
+	if (verdict < 0) {
+		int v = -verdict - 1;
+
+		if (verdict == XT_RETURN)
+			return true;
+
+		switch (v) {
+		case NF_ACCEPT: return true;
+		case NF_DROP: return true;
+		case NF_QUEUE: return true;
+		default:
+			break;
+		}
+
+		return false;
+	}
+
+	return false;
+}
+
+static bool error_tg_ok(unsigned int usersize, unsigned int kernsize,
+			const char *msg, unsigned int msglen)
+{
+	return usersize == kernsize && strnlen(msg, msglen) < msglen;
+}
+
 #ifdef CONFIG_COMPAT
 int xt_compat_add_offset(u_int8_t af, unsigned int offset, int delta)
 {
 	struct xt_af *xp = &xt[af];
 
-	if (!xp->compat_tab) {
-		if (!xp->number)
-			return -EINVAL;
-		xp->compat_tab = vmalloc(sizeof(struct compat_delta) * xp->number);
-		if (!xp->compat_tab)
-			return -ENOMEM;
-		xp->cur = 0;
-	}
+	WARN_ON(!mutex_is_locked(&xt[af].compat_mutex));
+
+	if (WARN_ON(!xp->compat_tab))
+		return -ENOMEM;
 
 	if (xp->cur >= xp->number)
 		return -EINVAL;
@@ -546,6 +662,8 @@ EXPORT_SYMBOL_GPL(xt_compat_add_offset);
 
 void xt_compat_flush_offsets(u_int8_t af)
 {
+	WARN_ON(!mutex_is_locked(&xt[af].compat_mutex));
+
 	if (xt[af].compat_tab) {
 		vfree(xt[af].compat_tab);
 		xt[af].compat_tab = NULL;
@@ -573,10 +691,30 @@ int xt_compat_calc_jump(u_int8_t af, unsigned int offset)
 }
 EXPORT_SYMBOL_GPL(xt_compat_calc_jump);
 
-void xt_compat_init_offsets(u_int8_t af, unsigned int number)
+int xt_compat_init_offsets(u8 af, unsigned int number)
 {
+	size_t mem;
+
+	WARN_ON(!mutex_is_locked(&xt[af].compat_mutex));
+
+	if (!number || number > (INT_MAX / sizeof(struct compat_delta)))
+		return -EINVAL;
+
+	if (WARN_ON(xt[af].compat_tab))
+		return -EINVAL;
+
+	mem = sizeof(struct compat_delta) * number;
+	if (mem > XT_MAX_TABLE_SIZE)
+		return -ENOMEM;
+
+	xt[af].compat_tab = vmalloc(mem);
+	if (!xt[af].compat_tab)
+		return -ENOMEM;
+
 	xt[af].number = number;
 	xt[af].cur = 0;
+
+	return 0;
 }
 EXPORT_SYMBOL(xt_compat_init_offsets);
 
@@ -654,6 +792,11 @@ struct compat_xt_standard_target {
 	compat_uint_t verdict;
 };
 
+struct compat_xt_error_target {
+	struct compat_xt_entry_target t;
+	char errorname[XT_FUNCTION_MAXNAMELEN];
+};
+
 int xt_compat_check_entry_offsets(const void *base, const char *elems,
 				  unsigned int target_offset,
 				  unsigned int next_offset)
@@ -675,9 +818,21 @@ int xt_compat_check_entry_offsets(const void *base, const char *elems,
 	if (target_offset + t->u.target_size > next_offset)
 		return -EINVAL;
 
-	if (strcmp(t->u.user.name, XT_STANDARD_TARGET) == 0 &&
-	    COMPAT_XT_ALIGN(target_offset + sizeof(struct compat_xt_standard_target)) != next_offset)
-		return -EINVAL;
+	if (strcmp(t->u.user.name, XT_STANDARD_TARGET) == 0) {
+		const struct compat_xt_standard_target *st = (const void *)t;
+
+		if (COMPAT_XT_ALIGN(target_offset + sizeof(*st)) != next_offset)
+			return -EINVAL;
+
+		if (!verdict_ok(st->verdict))
+			return -EINVAL;
+	} else if (strcmp(t->u.user.name, XT_ERROR_TARGET) == 0) {
+		const struct compat_xt_error_target *et = (const void *)t;
+
+		if (!error_tg_ok(t->u.target_size, sizeof(*et),
+				 et->errorname, sizeof(et->errorname)))
+			return -EINVAL;
+	}
 
 	/* compat_xt_entry match has less strict alignment requirements,
 	 * otherwise they are identical.  In case of padding differences
@@ -757,9 +912,21 @@ int xt_check_entry_offsets(const void *base,
 	if (target_offset + t->u.target_size > next_offset)
 		return -EINVAL;
 
-	if (strcmp(t->u.user.name, XT_STANDARD_TARGET) == 0 &&
-	    XT_ALIGN(target_offset + sizeof(struct xt_standard_target)) != next_offset)
-		return -EINVAL;
+	if (strcmp(t->u.user.name, XT_STANDARD_TARGET) == 0) {
+		const struct xt_standard_target *st = (const void *)t;
+
+		if (XT_ALIGN(target_offset + sizeof(*st)) != next_offset)
+			return -EINVAL;
+
+		if (!verdict_ok(st->verdict))
+			return -EINVAL;
+	} else if (strcmp(t->u.user.name, XT_ERROR_TARGET) == 0) {
+		const struct xt_error_target *et = (const void *)t;
+
+		if (!error_tg_ok(t->u.target_size, sizeof(*et),
+				 et->errorname, sizeof(et->errorname)))
+			return -EINVAL;
+	}
 
 	return xt_check_entry_match(elems, base + target_offset,
 				    __alignof__(struct xt_entry_match));
@@ -775,6 +942,9 @@ EXPORT_SYMBOL(xt_check_entry_offsets);
  */
 unsigned int *xt_alloc_entry_offsets(unsigned int size)
 {
+	if (size > XT_MAX_TABLE_SIZE / sizeof(unsigned int))
+		return NULL;
+
 	return kvmalloc_array(size, sizeof(unsigned int), GFP_KERNEL | __GFP_ZERO);
 
 }
@@ -999,7 +1169,7 @@ struct xt_table_info *xt_alloc_table_info(unsigned int size)
 	struct xt_table_info *info = NULL;
 	size_t sz = sizeof(*info) + size;
 
-	if (sz < sizeof(*info))
+	if (sz < sizeof(*info) || sz >= XT_MAX_TABLE_SIZE)
 		return NULL;
 
 	/* __GFP_NORETRY is not fully supported by kvmalloc but it should
@@ -1167,6 +1337,21 @@ static int xt_jumpstack_alloc(struct xt_table_info *i)
 
 	return 0;
 }
+
+struct xt_counters *xt_counters_alloc(unsigned int counters)
+{
+	struct xt_counters *mem;
+
+	if (counters == 0 || counters > INT_MAX / sizeof(*mem))
+		return NULL;
+
+	counters *= sizeof(*mem);
+	if (counters > XT_MAX_TABLE_SIZE)
+		return NULL;
+
+	return vzalloc(counters);
+}
+EXPORT_SYMBOL(xt_counters_alloc);
 
 struct xt_table_info *
 xt_replace_table(struct xt_table *table,
@@ -1699,7 +1884,9 @@ EXPORT_SYMBOL_GPL(xt_proto_fini);
  * to fetch the real percpu counter.
  *
  * To speed up allocation and improve data locality, a 4kb block is
- * allocated.
+ * allocated.  Freeing any counter may free an entire block, so all
+ * counters allocated using the same state must be freed at the same
+ * time.
  *
  * xt_percpu_counter_alloc_state contains the base address of the
  * allocated page and the current sub-offset.

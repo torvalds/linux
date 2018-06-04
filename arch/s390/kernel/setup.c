@@ -221,6 +221,8 @@ static void __init conmode_default(void)
 		SET_CONSOLE_SCLP;
 #endif
 	}
+	if (IS_ENABLED(CONFIG_VT) && IS_ENABLED(CONFIG_DUMMY_CONSOLE))
+		conswitchp = &dummy_con;
 }
 
 #ifdef CONFIG_CRASH_DUMP
@@ -413,12 +415,12 @@ static void __init setup_resources(void)
 	struct memblock_region *reg;
 	int j;
 
-	code_resource.start = (unsigned long) &_text;
-	code_resource.end = (unsigned long) &_etext - 1;
-	data_resource.start = (unsigned long) &_etext;
-	data_resource.end = (unsigned long) &_edata - 1;
-	bss_resource.start = (unsigned long) &__bss_start;
-	bss_resource.end = (unsigned long) &__bss_stop - 1;
+	code_resource.start = (unsigned long) _text;
+	code_resource.end = (unsigned long) _etext - 1;
+	data_resource.start = (unsigned long) _etext;
+	data_resource.end = (unsigned long) _edata - 1;
+	bss_resource.start = (unsigned long) __bss_start;
+	bss_resource.end = (unsigned long) __bss_stop - 1;
 
 	for_each_memblock(memory, reg) {
 		res = memblock_virt_alloc(sizeof(*res), 8);
@@ -667,7 +669,7 @@ static void __init check_initrd(void)
  */
 static void __init reserve_kernel(void)
 {
-	unsigned long start_pfn = PFN_UP(__pa(&_end));
+	unsigned long start_pfn = PFN_UP(__pa(_end));
 
 #ifdef CONFIG_DMA_API_DEBUG
 	/*
@@ -819,6 +821,7 @@ static int __init setup_hwcaps(void)
 		strcpy(elf_platform, "z13");
 		break;
 	case 0x3906:
+	case 0x3907:
 		strcpy(elf_platform, "z14");
 		break;
 	}
@@ -888,9 +891,12 @@ void __init setup_arch(char **cmdline_p)
 
 	/* Is init_mm really needed? */
 	init_mm.start_code = PAGE_OFFSET;
-	init_mm.end_code = (unsigned long) &_etext;
-	init_mm.end_data = (unsigned long) &_edata;
-	init_mm.brk = (unsigned long) &_end;
+	init_mm.end_code = (unsigned long) _etext;
+	init_mm.end_data = (unsigned long) _edata;
+	init_mm.brk = (unsigned long) _end;
+
+	if (IS_ENABLED(CONFIG_EXPOLINE_AUTO))
+		nospec_auto_detect();
 
 	parse_early_param();
 #ifdef CONFIG_CRASH_DUMP

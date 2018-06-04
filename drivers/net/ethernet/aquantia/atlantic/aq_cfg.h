@@ -36,6 +36,8 @@
 #define AQ_CFG_TX_FRAME_MAX  (16U * 1024U)
 #define AQ_CFG_RX_FRAME_MAX  (4U * 1024U)
 
+#define AQ_CFG_TX_CLEAN_BUDGET 256U
+
 /* LRO */
 #define AQ_CFG_IS_LRO_DEF           1U
 

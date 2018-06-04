@@ -96,6 +96,7 @@
 /* we only support 64 kB translation table page size */
 #define KVM_ITS_L1E_ADDR_MASK		GENMASK_ULL(51, 16)
 
+/* Requires the irq_lock to be held by the caller. */
 static inline bool irq_is_pending(struct vgic_irq *irq)
 {
 	if (irq->config == VGIC_CONFIG_EDGE)
@@ -107,6 +108,20 @@ static inline bool irq_is_pending(struct vgic_irq *irq)
 static inline bool vgic_irq_is_mapped_level(struct vgic_irq *irq)
 {
 	return irq->config == VGIC_CONFIG_LEVEL && irq->hw;
+}
+
+static inline int vgic_irq_get_lr_count(struct vgic_irq *irq)
+{
+	/* Account for the active state as an interrupt */
+	if (vgic_irq_is_sgi(irq->intid) && irq->source)
+		return hweight8(irq->source) + irq->active;
+
+	return irq_is_pending(irq) || irq->active;
+}
+
+static inline bool vgic_irq_is_multi_sgi(struct vgic_irq *irq)
+{
+	return vgic_irq_get_lr_count(irq) > 1;
 }
 
 /*
@@ -159,6 +174,7 @@ void vgic_v2_fold_lr_state(struct kvm_vcpu *vcpu);
 void vgic_v2_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr);
 void vgic_v2_clear_lr(struct kvm_vcpu *vcpu, int lr);
 void vgic_v2_set_underflow(struct kvm_vcpu *vcpu);
+void vgic_v2_set_npie(struct kvm_vcpu *vcpu);
 int vgic_v2_has_attr_regs(struct kvm_device *dev, struct kvm_device_attr *attr);
 int vgic_v2_dist_uaccess(struct kvm_vcpu *vcpu, bool is_write,
 			 int offset, u32 *val);
@@ -176,6 +192,9 @@ void vgic_v2_init_lrs(void);
 void vgic_v2_load(struct kvm_vcpu *vcpu);
 void vgic_v2_put(struct kvm_vcpu *vcpu);
 
+void vgic_v2_save_state(struct kvm_vcpu *vcpu);
+void vgic_v2_restore_state(struct kvm_vcpu *vcpu);
+
 static inline void vgic_get_irq_kref(struct vgic_irq *irq)
 {
 	if (irq->intid < VGIC_MIN_LPI)
@@ -188,6 +207,7 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu);
 void vgic_v3_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr);
 void vgic_v3_clear_lr(struct kvm_vcpu *vcpu, int lr);
 void vgic_v3_set_underflow(struct kvm_vcpu *vcpu);
+void vgic_v3_set_npie(struct kvm_vcpu *vcpu);
 void vgic_v3_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr);
 void vgic_v3_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr);
 void vgic_v3_enable(struct kvm_vcpu *vcpu);

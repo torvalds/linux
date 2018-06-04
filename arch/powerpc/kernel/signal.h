@@ -49,6 +49,11 @@ extern int handle_rt_signal64(struct ksignal *ksig, sigset_t *set,
 
 #else /* CONFIG_PPC64 */
 
+extern long sys_rt_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
+		     struct pt_regs *regs);
+extern long sys_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
+		       struct pt_regs *regs);
+
 static inline int handle_rt_signal64(struct ksignal *ksig, sigset_t *set,
 				     struct task_struct *tsk)
 {

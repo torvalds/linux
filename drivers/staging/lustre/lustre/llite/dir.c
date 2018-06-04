@@ -885,7 +885,7 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 	switch (cmd) {
 	case Q_SETQUOTA:
 	case Q_SETINFO:
-		if (!capable(CFS_CAP_SYS_ADMIN))
+		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 		break;
 	case Q_GETQUOTA:
@@ -893,7 +893,7 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 		      !uid_eq(current_euid(), make_kuid(&init_user_ns, id))) ||
 		     (type == GRPQUOTA &&
 		      !in_egroup_p(make_kgid(&init_user_ns, id)))) &&
-		      !capable(CFS_CAP_SYS_ADMIN))
+		      !capable(CAP_SYS_ADMIN))
 			return -EPERM;
 		break;
 	case Q_GETINFO:
@@ -1452,7 +1452,7 @@ out_quotactl:
 	}
 	case OBD_IOC_CHANGELOG_SEND:
 	case OBD_IOC_CHANGELOG_CLEAR:
-		if (!capable(CFS_CAP_SYS_ADMIN))
+		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
 		rc = copy_and_ioctl(cmd, sbi->ll_md_exp, (void __user *)arg,
@@ -1497,7 +1497,7 @@ out_quotactl:
 		if (totalsize >= MDS_MAXREQSIZE / 3)
 			return -E2BIG;
 
-		hur = libcfs_kvzalloc(totalsize, GFP_NOFS);
+		hur = kzalloc(totalsize, GFP_NOFS);
 		if (!hur)
 			return -ENOMEM;
 
@@ -1556,7 +1556,7 @@ out_quotactl:
 		return rc;
 	}
 	case LL_IOC_HSM_CT_START:
-		if (!capable(CFS_CAP_SYS_ADMIN))
+		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
 		rc = copy_and_ioctl(cmd, sbi->ll_md_exp, (void __user *)arg,

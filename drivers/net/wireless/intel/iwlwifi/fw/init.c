@@ -77,8 +77,14 @@ void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt, struct iwl_trans *trans,
 }
 IWL_EXPORT_SYMBOL(iwl_fw_runtime_init);
 
-void iwl_fw_runtime_exit(struct iwl_fw_runtime *fwrt)
+void iwl_fw_runtime_suspend(struct iwl_fw_runtime *fwrt)
 {
-	iwl_fw_cancel_timestamp(fwrt);
+	iwl_fw_suspend_timestamp(fwrt);
 }
-IWL_EXPORT_SYMBOL(iwl_fw_runtime_exit);
+IWL_EXPORT_SYMBOL(iwl_fw_runtime_suspend);
+
+void iwl_fw_runtime_resume(struct iwl_fw_runtime *fwrt)
+{
+	iwl_fw_resume_timestamp(fwrt);
+}
+IWL_EXPORT_SYMBOL(iwl_fw_runtime_resume);

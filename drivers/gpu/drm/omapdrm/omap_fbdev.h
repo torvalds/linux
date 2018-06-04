@@ -24,14 +24,13 @@ struct drm_device;
 struct drm_fb_helper;
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
-struct drm_fb_helper *omap_fbdev_init(struct drm_device *dev);
-void omap_fbdev_free(struct drm_device *dev);
+void omap_fbdev_init(struct drm_device *dev);
+void omap_fbdev_fini(struct drm_device *dev);
 #else
-static inline struct drm_fb_helper *omap_fbdev_init(struct drm_device *dev)
+static inline void omap_fbdev_init(struct drm_device *dev)
 {
-	return NULL;
 }
-static inline void omap_fbdev_free(struct drm_device *dev)
+static inline void omap_fbdev_fini(struct drm_device *dev)
 {
 }
 #endif

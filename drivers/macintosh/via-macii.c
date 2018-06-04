@@ -91,13 +91,13 @@ static void macii_poll(void);
 static int macii_reset_bus(void);
 
 struct adb_driver via_macii_driver = {
-	"Mac II",
-	macii_probe,
-	macii_init,
-	macii_send_request,
-	macii_autopoll,
-	macii_poll,
-	macii_reset_bus
+	.name         = "Mac II",
+	.probe        = macii_probe,
+	.init         = macii_init,
+	.send_request = macii_send_request,
+	.autopoll     = macii_autopoll,
+	.poll         = macii_poll,
+	.reset_bus    = macii_reset_bus,
 };
 
 static enum macii_state {

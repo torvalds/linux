@@ -132,12 +132,16 @@ static void sr_set_clk_length(struct omap_sr *sr)
 	struct clk *fck;
 	u32 fclk_speed;
 
-	fck = clk_get(&sr->pdev->dev, "fck");
-
+	/* Try interconnect target module fck first if it already exists */
+	fck = clk_get(sr->pdev->dev.parent, "fck");
 	if (IS_ERR(fck)) {
-		dev_err(&sr->pdev->dev, "%s: unable to get fck for device %s\n",
-			__func__, dev_name(&sr->pdev->dev));
-		return;
+		fck = clk_get(&sr->pdev->dev, "fck");
+		if (IS_ERR(fck)) {
+			dev_err(&sr->pdev->dev,
+				"%s: unable to get fck for device %s\n",
+				__func__, dev_name(&sr->pdev->dev));
+			return;
+		}
 	}
 
 	fclk_speed = clk_get_rate(fck);
@@ -838,7 +842,7 @@ static int omap_sr_autocomp_store(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(pm_sr_fops, omap_sr_autocomp_show,
 			omap_sr_autocomp_store, "%llu\n");
 
-static int __init omap_sr_probe(struct platform_device *pdev)
+static int omap_sr_probe(struct platform_device *pdev)
 {
 	struct omap_sr *sr_info;
 	struct omap_sr_data *pdata = pdev->dev.platform_data;
@@ -897,6 +901,12 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 	sr_set_clk_length(sr_info);
 
 	list_add(&sr_info->node, &sr_list);
+
+	ret = pm_runtime_get_sync(&pdev->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(&pdev->dev);
+		goto err_list_del;
+	}
 
 	/*
 	 * Call into late init to do initializations that require
@@ -966,12 +976,17 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 
 	}
 
+	pm_runtime_put_sync(&pdev->dev);
+
 	return ret;
 
 err_debugfs:
 	debugfs_remove_recursive(sr_info->dbg_dir);
 err_list_del:
 	list_del(&sr_info->node);
+
+	pm_runtime_put_sync(&pdev->dev);
+
 	return ret;
 }
 
@@ -1025,11 +1040,23 @@ static void omap_sr_shutdown(struct platform_device *pdev)
 	return;
 }
 
+static const struct of_device_id omap_sr_match[] = {
+	{ .compatible = "ti,omap3-smartreflex-core", },
+	{ .compatible = "ti,omap3-smartreflex-mpu-iva", },
+	{ .compatible = "ti,omap4-smartreflex-core", },
+	{ .compatible = "ti,omap4-smartreflex-mpu", },
+	{ .compatible = "ti,omap4-smartreflex-iva", },
+	{  },
+};
+MODULE_DEVICE_TABLE(of, omap_sr_match);
+
 static struct platform_driver smartreflex_driver = {
+	.probe		= omap_sr_probe,
 	.remove         = omap_sr_remove,
 	.shutdown	= omap_sr_shutdown,
 	.driver		= {
 		.name	= DRIVER_NAME,
+		.of_match_table	= omap_sr_match,
 	},
 };
 
@@ -1048,7 +1075,7 @@ static int __init sr_init(void)
 	else
 		pr_warn("%s: No PMIC hook to init smartreflex\n", __func__);
 
-	ret = platform_driver_probe(&smartreflex_driver, omap_sr_probe);
+	ret = platform_driver_register(&smartreflex_driver);
 	if (ret) {
 		pr_err("%s: platform driver register failed for SR\n",
 		       __func__);

@@ -267,16 +267,16 @@ static int aq_pci_probe(struct pci_dev *pdev,
 	numvecs = min(numvecs, num_online_cpus());
 	/*enable interrupts */
 #if !AQ_CFG_FORCE_LEGACY_INT
-	err = pci_alloc_irq_vectors(self->pdev, numvecs, numvecs,
-				    PCI_IRQ_MSIX);
+	numvecs = pci_alloc_irq_vectors(self->pdev, 1, numvecs,
+					PCI_IRQ_MSIX | PCI_IRQ_MSI |
+					PCI_IRQ_LEGACY);
 
-	if (err < 0) {
-		err = pci_alloc_irq_vectors(self->pdev, 1, 1,
-					    PCI_IRQ_MSI | PCI_IRQ_LEGACY);
-		if (err < 0)
-			goto err_hwinit;
+	if (numvecs < 0) {
+		err = numvecs;
+		goto err_hwinit;
 	}
 #endif
+	self->irqvecs = numvecs;
 
 	/* net device init */
 	aq_nic_cfg_start(self);
@@ -298,9 +298,9 @@ err_free_aq_hw:
 	kfree(self->aq_hw);
 err_ioremap:
 	free_netdev(ndev);
-err_pci_func:
-	pci_release_regions(pdev);
 err_ndev:
+	pci_release_regions(pdev);
+err_pci_func:
 	pci_disable_device(pdev);
 	return err;
 }
@@ -321,6 +321,20 @@ static void aq_pci_remove(struct pci_dev *pdev)
 	}
 
 	pci_disable_device(pdev);
+}
+
+static void aq_pci_shutdown(struct pci_dev *pdev)
+{
+	struct aq_nic_s *self = pci_get_drvdata(pdev);
+
+	aq_nic_shutdown(self);
+
+	pci_disable_device(pdev);
+
+	if (system_state == SYSTEM_POWER_OFF) {
+		pci_wake_from_d3(pdev, false);
+		pci_set_power_state(pdev, PCI_D3hot);
+	}
 }
 
 static int aq_pci_suspend(struct pci_dev *pdev, pm_message_t pm_msg)
@@ -345,6 +359,7 @@ static struct pci_driver aq_pci_ops = {
 	.remove = aq_pci_remove,
 	.suspend = aq_pci_suspend,
 	.resume = aq_pci_resume,
+	.shutdown = aq_pci_shutdown,
 };
 
 module_pci_driver(aq_pci_ops);

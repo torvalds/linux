@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2009-2017  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2009-2018  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -746,7 +746,7 @@ bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 {
 	struct batadv_neigh_node *neigh_curr = NULL;
 	struct batadv_neigh_node *neigh_old = NULL;
-	struct batadv_orig_node *orig_dst_node;
+	struct batadv_orig_node *orig_dst_node = NULL;
 	struct batadv_gw_node *gw_node = NULL;
 	struct batadv_gw_node *curr_gw = NULL;
 	struct batadv_neigh_ifinfo *curr_ifinfo, *old_ifinfo;
@@ -756,6 +756,9 @@ bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 	unsigned short vid;
 
 	vid = batadv_get_vid(skb, 0);
+
+	if (is_multicast_ether_addr(ethhdr->h_dest))
+		goto out;
 
 	orig_dst_node = batadv_transtable_search(bat_priv, ethhdr->h_source,
 						 ethhdr->h_dest, vid);

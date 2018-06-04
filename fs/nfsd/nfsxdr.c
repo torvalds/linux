@@ -71,22 +71,6 @@ decode_filename(__be32 *p, char **namp, unsigned int *lenp)
 }
 
 static __be32 *
-decode_pathname(__be32 *p, char **namp, unsigned int *lenp)
-{
-	char		*name;
-	unsigned int	i;
-
-	if ((p = xdr_decode_string_inplace(p, namp, lenp, NFS_MAXPATHLEN)) != NULL) {
-		for (i = 0, name = *namp; i < *lenp; i++, name++) {
-			if (*name == '\0')
-				return NULL;
-		}
-	}
-
-	return p;
-}
-
-static __be32 *
 decode_sattr(__be32 *p, struct iattr *iap)
 {
 	u32	tmp, tmp1;
@@ -287,7 +271,6 @@ nfssvc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p)
 	struct nfsd_writeargs *args = rqstp->rq_argp;
 	unsigned int len, hdr, dlen;
 	struct kvec *head = rqstp->rq_arg.head;
-	int v;
 
 	p = decode_fh(p, &args->fh);
 	if (!p)
@@ -323,17 +306,8 @@ nfssvc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p)
 	if (dlen < XDR_QUADLEN(len)*4)
 		return 0;
 
-	rqstp->rq_vec[0].iov_base = (void*)p;
-	rqstp->rq_vec[0].iov_len = head->iov_len - hdr;
-	v = 0;
-	while (len > rqstp->rq_vec[v].iov_len) {
-		len -= rqstp->rq_vec[v].iov_len;
-		v++;
-		rqstp->rq_vec[v].iov_base = page_address(rqstp->rq_pages[v]);
-		rqstp->rq_vec[v].iov_len = PAGE_SIZE;
-	}
-	rqstp->rq_vec[v].iov_len = len;
-	args->vlen = v + 1;
+	args->first.iov_base = (void *)p;
+	args->first.iov_len = head->iov_len - hdr;
 	return 1;
 }
 
@@ -394,14 +368,39 @@ int
 nfssvc_decode_symlinkargs(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd_symlinkargs *args = rqstp->rq_argp;
+	char *base = (char *)p;
+	size_t xdrlen;
 
 	if (   !(p = decode_fh(p, &args->ffh))
-	    || !(p = decode_filename(p, &args->fname, &args->flen))
-	    || !(p = decode_pathname(p, &args->tname, &args->tlen)))
+	    || !(p = decode_filename(p, &args->fname, &args->flen)))
 		return 0;
-	p = decode_sattr(p, &args->attrs);
 
-	return xdr_argsize_check(rqstp, p);
+	args->tlen = ntohl(*p++);
+	if (args->tlen == 0)
+		return 0;
+
+	args->first.iov_base = p;
+	args->first.iov_len = rqstp->rq_arg.head[0].iov_len;
+	args->first.iov_len -= (char *)p - base;
+
+	/* This request is never larger than a page. Therefore,
+	 * transport will deliver either:
+	 * 1. pathname in the pagelist -> sattr is in the tail.
+	 * 2. everything in the head buffer -> sattr is in the head.
+	 */
+	if (rqstp->rq_arg.page_len) {
+		if (args->tlen != rqstp->rq_arg.page_len)
+			return 0;
+		p = rqstp->rq_arg.tail[0].iov_base;
+	} else {
+		xdrlen = XDR_QUADLEN(args->tlen);
+		if (xdrlen > args->first.iov_len - (8 * sizeof(__be32)))
+			return 0;
+		p += xdrlen;
+	}
+	decode_sattr(p, &args->attrs);
+
+	return 1;
 }
 
 int

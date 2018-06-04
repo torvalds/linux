@@ -157,6 +157,7 @@ static struct {
 	{ RAID_LEVEL_5, "raid5" },
 	{ RAID_LEVEL_50, "raid50" },
 	{ RAID_LEVEL_6, "raid6" },
+	{ RAID_LEVEL_JBOD, "jbod" },
 };
 
 static const char *raid_level_name(enum raid_level level)

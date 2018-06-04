@@ -8,6 +8,7 @@ Required Properties:
 - compatible: Should be:
 	- "mediatek,mt7622-ssusbsys", "syscon"
 - #clock-cells: Must be 1
+- #reset-cells: Must be 1
 
 The SSUSBSYS controller uses the common clk binding from
 Documentation/devicetree/bindings/clock/clock-bindings.txt
@@ -19,4 +20,5 @@ ssusbsys: ssusbsys@1a000000 {
 	compatible = "mediatek,mt7622-ssusbsys", "syscon";
 	reg = <0 0x1a000000 0 0x1000>;
 	#clock-cells = <1>;
+	#reset-cells = <1>;
 };

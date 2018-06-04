@@ -212,14 +212,14 @@ static inline void set_dma_ops(struct device *dev,
 }
 #else
 /*
- * Define the dma api to allow compilation but not linking of
- * dma dependent code.  Code that depends on the dma-mapping
- * API needs to set 'depends on HAS_DMA' in its Kconfig
+ * Define the dma api to allow compilation of dma dependent code.
+ * Code that depends on the dma-mapping API needs to set 'depends on HAS_DMA'
+ * in its Kconfig, unless it already depends on <something> || COMPILE_TEST,
+ * where <something> guarantuees the availability of the dma-mapping API.
  */
-extern const struct dma_map_ops bad_dma_ops;
 static inline const struct dma_map_ops *get_dma_ops(struct device *dev)
 {
-	return &bad_dma_ops;
+	return NULL;
 }
 #endif
 
@@ -518,12 +518,8 @@ static inline void *dma_alloc_attrs(struct device *dev, size_t size,
 	if (dma_alloc_from_dev_coherent(dev, size, dma_handle, &cpu_addr))
 		return cpu_addr;
 
-	/*
-	 * Let the implementation decide on the zone to allocate from, and
-	 * decide on the way of zeroing the memory given that the memory
-	 * returned should always be zeroed.
-	 */
-	flag &= ~(__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM | __GFP_ZERO);
+	/* let the implementation decide on the zone to allocate from: */
+	flag &= ~(__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM);
 
 	if (!arch_dma_alloc_attrs(&dev, &flag))
 		return NULL;
@@ -776,10 +772,19 @@ static inline void dma_deconfigure(struct device *dev) {}
 /*
  * Managed DMA API
  */
+#ifdef CONFIG_HAS_DMA
 extern void *dmam_alloc_coherent(struct device *dev, size_t size,
 				 dma_addr_t *dma_handle, gfp_t gfp);
 extern void dmam_free_coherent(struct device *dev, size_t size, void *vaddr,
 			       dma_addr_t dma_handle);
+#else /* !CONFIG_HAS_DMA */
+static inline void *dmam_alloc_coherent(struct device *dev, size_t size,
+					dma_addr_t *dma_handle, gfp_t gfp)
+{ return NULL; }
+static inline void dmam_free_coherent(struct device *dev, size_t size,
+				      void *vaddr, dma_addr_t dma_handle) { }
+#endif /* !CONFIG_HAS_DMA */
+
 extern void *dmam_alloc_attrs(struct device *dev, size_t size,
 			      dma_addr_t *dma_handle, gfp_t gfp,
 			      unsigned long attrs);

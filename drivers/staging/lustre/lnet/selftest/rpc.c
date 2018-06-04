@@ -1604,7 +1604,7 @@ srpc_startup(void)
 
 	/* 1 second pause to avoid timestamp reuse */
 	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(cfs_time_seconds(1));
+	schedule_timeout(HZ);
 	srpc_data.rpc_matchbits = ((__u64)ktime_get_real_seconds()) << 48;
 
 	srpc_data.rpc_state = SRPC_STATE_NONE;

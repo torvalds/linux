@@ -340,7 +340,10 @@ static int efx_poll(struct napi_struct *napi, int budget)
 			efx_update_irq_mod(efx, channel);
 		}
 
-		efx_filter_rfs_expire(channel);
+#ifdef CONFIG_RFS_ACCEL
+		/* Perhaps expire some ARFS filters */
+		schedule_work(&channel->filter_work);
+#endif
 
 		/* There is no race here; although napi_disable() will
 		 * only wait for napi_complete(), this isn't a problem
@@ -470,6 +473,10 @@ efx_alloc_channel(struct efx_nic *efx, int i, struct efx_channel *old_channel)
 		tx_queue->channel = channel;
 	}
 
+#ifdef CONFIG_RFS_ACCEL
+	INIT_WORK(&channel->filter_work, efx_filter_rfs_expire);
+#endif
+
 	rx_queue = &channel->rx_queue;
 	rx_queue->efx = efx;
 	timer_setup(&rx_queue->slow_fill, efx_rx_slow_fill, 0);
@@ -512,6 +519,9 @@ efx_copy_channel(const struct efx_channel *old_channel)
 	rx_queue->buffer = NULL;
 	memset(&rx_queue->rxd, 0, sizeof(rx_queue->rxd));
 	timer_setup(&rx_queue->slow_fill, efx_rx_slow_fill, 0);
+#ifdef CONFIG_RFS_ACCEL
+	INIT_WORK(&channel->filter_work, efx_filter_rfs_expire);
+#endif
 
 	return channel;
 }
@@ -1353,12 +1363,13 @@ static void efx_fini_io(struct efx_nic *efx)
 		pci_disable_device(efx->pci_dev);
 }
 
-void efx_set_default_rx_indir_table(struct efx_nic *efx)
+void efx_set_default_rx_indir_table(struct efx_nic *efx,
+				    struct efx_rss_context *ctx)
 {
 	size_t i;
 
-	for (i = 0; i < ARRAY_SIZE(efx->rx_indir_table); i++)
-		efx->rx_indir_table[i] =
+	for (i = 0; i < ARRAY_SIZE(ctx->rx_indir_table); i++)
+		ctx->rx_indir_table[i] =
 			ethtool_rxfh_indir_default(i, efx->rss_spread);
 }
 
@@ -1739,9 +1750,9 @@ static int efx_probe_nic(struct efx_nic *efx)
 	} while (rc == -EAGAIN);
 
 	if (efx->n_channels > 1)
-		netdev_rss_key_fill(&efx->rx_hash_key,
-				    sizeof(efx->rx_hash_key));
-	efx_set_default_rx_indir_table(efx);
+		netdev_rss_key_fill(efx->rss_context.rx_hash_key,
+				    sizeof(efx->rss_context.rx_hash_key));
+	efx_set_default_rx_indir_table(efx, &efx->rss_context);
 
 	netif_set_real_num_tx_queues(efx->net_dev, efx->n_tx_channels);
 	netif_set_real_num_rx_queues(efx->net_dev, efx->n_rx_channels);
@@ -1772,7 +1783,6 @@ static int efx_probe_filters(struct efx_nic *efx)
 {
 	int rc;
 
-	spin_lock_init(&efx->filter_lock);
 	init_rwsem(&efx->filter_sem);
 	mutex_lock(&efx->mac_lock);
 	down_write(&efx->filter_sem);
@@ -2647,6 +2657,7 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method)
 	efx_disable_interrupts(efx);
 
 	mutex_lock(&efx->mac_lock);
+	mutex_lock(&efx->rss_lock);
 	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE &&
 	    method != RESET_TYPE_DATAPATH)
 		efx->phy_op->fini(efx);
@@ -2700,6 +2711,9 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 			   " VFs may not function\n", rc);
 #endif
 
+	if (efx->type->rx_restore_rss_contexts)
+		efx->type->rx_restore_rss_contexts(efx);
+	mutex_unlock(&efx->rss_lock);
 	down_read(&efx->filter_sem);
 	efx_restore_filters(efx);
 	up_read(&efx->filter_sem);
@@ -2718,6 +2732,7 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 fail:
 	efx->port_initialized = false;
 
+	mutex_unlock(&efx->rss_lock);
 	mutex_unlock(&efx->mac_lock);
 
 	return rc;
@@ -3003,11 +3018,20 @@ static int efx_init_struct(struct efx_nic *efx,
 		efx->type->rx_hash_offset - efx->type->rx_prefix_size;
 	efx->rx_packet_ts_offset =
 		efx->type->rx_ts_offset - efx->type->rx_prefix_size;
+	INIT_LIST_HEAD(&efx->rss_context.list);
+	mutex_init(&efx->rss_lock);
 	spin_lock_init(&efx->stats_lock);
 	efx->vi_stride = EFX_DEFAULT_VI_STRIDE;
 	efx->num_mac_stats = MC_CMD_MAC_NSTATS;
 	BUILD_BUG_ON(MC_CMD_MAC_NSTATS - 1 != MC_CMD_MAC_GENERATION_END);
 	mutex_init(&efx->mac_lock);
+#ifdef CONFIG_RFS_ACCEL
+	mutex_init(&efx->rps_mutex);
+	spin_lock_init(&efx->rps_hash_lock);
+	/* Failure to allocate is not fatal, but may degrade ARFS performance */
+	efx->rps_hash_table = kcalloc(EFX_ARFS_HASH_TABLE_SIZE,
+				      sizeof(*efx->rps_hash_table), GFP_KERNEL);
+#endif
 	efx->phy_op = &efx_dummy_phy_operations;
 	efx->mdio.dev = net_dev;
 	INIT_WORK(&efx->mac_work, efx_mac_work);
@@ -3050,6 +3074,10 @@ static void efx_fini_struct(struct efx_nic *efx)
 {
 	int i;
 
+#ifdef CONFIG_RFS_ACCEL
+	kfree(efx->rps_hash_table);
+#endif
+
 	for (i = 0; i < EFX_MAX_CHANNELS; i++)
 		kfree(efx->channel[i]);
 
@@ -3070,6 +3098,196 @@ void efx_update_sw_stats(struct efx_nic *efx, u64 *stats)
 		n_rx_nodesc_trunc += channel->n_rx_nodesc_trunc;
 	stats[GENERIC_STAT_rx_nodesc_trunc] = n_rx_nodesc_trunc;
 	stats[GENERIC_STAT_rx_noskb_drops] = atomic_read(&efx->n_rx_noskb_drops);
+}
+
+bool efx_filter_spec_equal(const struct efx_filter_spec *left,
+			   const struct efx_filter_spec *right)
+{
+	if ((left->match_flags ^ right->match_flags) |
+	    ((left->flags ^ right->flags) &
+	     (EFX_FILTER_FLAG_RX | EFX_FILTER_FLAG_TX)))
+		return false;
+
+	return memcmp(&left->outer_vid, &right->outer_vid,
+		      sizeof(struct efx_filter_spec) -
+		      offsetof(struct efx_filter_spec, outer_vid)) == 0;
+}
+
+u32 efx_filter_spec_hash(const struct efx_filter_spec *spec)
+{
+	BUILD_BUG_ON(offsetof(struct efx_filter_spec, outer_vid) & 3);
+	return jhash2((const u32 *)&spec->outer_vid,
+		      (sizeof(struct efx_filter_spec) -
+		       offsetof(struct efx_filter_spec, outer_vid)) / 4,
+		      0);
+}
+
+#ifdef CONFIG_RFS_ACCEL
+bool efx_rps_check_rule(struct efx_arfs_rule *rule, unsigned int filter_idx,
+			bool *force)
+{
+	if (rule->filter_id == EFX_ARFS_FILTER_ID_PENDING) {
+		/* ARFS is currently updating this entry, leave it */
+		return false;
+	}
+	if (rule->filter_id == EFX_ARFS_FILTER_ID_ERROR) {
+		/* ARFS tried and failed to update this, so it's probably out
+		 * of date.  Remove the filter and the ARFS rule entry.
+		 */
+		rule->filter_id = EFX_ARFS_FILTER_ID_REMOVING;
+		*force = true;
+		return true;
+	} else if (WARN_ON(rule->filter_id != filter_idx)) { /* can't happen */
+		/* ARFS has moved on, so old filter is not needed.  Since we did
+		 * not mark the rule with EFX_ARFS_FILTER_ID_REMOVING, it will
+		 * not be removed by efx_rps_hash_del() subsequently.
+		 */
+		*force = true;
+		return true;
+	}
+	/* Remove it iff ARFS wants to. */
+	return true;
+}
+
+struct hlist_head *efx_rps_hash_bucket(struct efx_nic *efx,
+				       const struct efx_filter_spec *spec)
+{
+	u32 hash = efx_filter_spec_hash(spec);
+
+	WARN_ON(!spin_is_locked(&efx->rps_hash_lock));
+	if (!efx->rps_hash_table)
+		return NULL;
+	return &efx->rps_hash_table[hash % EFX_ARFS_HASH_TABLE_SIZE];
+}
+
+struct efx_arfs_rule *efx_rps_hash_find(struct efx_nic *efx,
+					const struct efx_filter_spec *spec)
+{
+	struct efx_arfs_rule *rule;
+	struct hlist_head *head;
+	struct hlist_node *node;
+
+	head = efx_rps_hash_bucket(efx, spec);
+	if (!head)
+		return NULL;
+	hlist_for_each(node, head) {
+		rule = container_of(node, struct efx_arfs_rule, node);
+		if (efx_filter_spec_equal(spec, &rule->spec))
+			return rule;
+	}
+	return NULL;
+}
+
+struct efx_arfs_rule *efx_rps_hash_add(struct efx_nic *efx,
+				       const struct efx_filter_spec *spec,
+				       bool *new)
+{
+	struct efx_arfs_rule *rule;
+	struct hlist_head *head;
+	struct hlist_node *node;
+
+	head = efx_rps_hash_bucket(efx, spec);
+	if (!head)
+		return NULL;
+	hlist_for_each(node, head) {
+		rule = container_of(node, struct efx_arfs_rule, node);
+		if (efx_filter_spec_equal(spec, &rule->spec)) {
+			*new = false;
+			return rule;
+		}
+	}
+	rule = kmalloc(sizeof(*rule), GFP_ATOMIC);
+	*new = true;
+	if (rule) {
+		memcpy(&rule->spec, spec, sizeof(rule->spec));
+		hlist_add_head(&rule->node, head);
+	}
+	return rule;
+}
+
+void efx_rps_hash_del(struct efx_nic *efx, const struct efx_filter_spec *spec)
+{
+	struct efx_arfs_rule *rule;
+	struct hlist_head *head;
+	struct hlist_node *node;
+
+	head = efx_rps_hash_bucket(efx, spec);
+	if (WARN_ON(!head))
+		return;
+	hlist_for_each(node, head) {
+		rule = container_of(node, struct efx_arfs_rule, node);
+		if (efx_filter_spec_equal(spec, &rule->spec)) {
+			/* Someone already reused the entry.  We know that if
+			 * this check doesn't fire (i.e. filter_id == REMOVING)
+			 * then the REMOVING mark was put there by our caller,
+			 * because caller is holding a lock on filter table and
+			 * only holders of that lock set REMOVING.
+			 */
+			if (rule->filter_id != EFX_ARFS_FILTER_ID_REMOVING)
+				return;
+			hlist_del(node);
+			kfree(rule);
+			return;
+		}
+	}
+	/* We didn't find it. */
+	WARN_ON(1);
+}
+#endif
+
+/* RSS contexts.  We're using linked lists and crappy O(n) algorithms, because
+ * (a) this is an infrequent control-plane operation and (b) n is small (max 64)
+ */
+struct efx_rss_context *efx_alloc_rss_context_entry(struct efx_nic *efx)
+{
+	struct list_head *head = &efx->rss_context.list;
+	struct efx_rss_context *ctx, *new;
+	u32 id = 1; /* Don't use zero, that refers to the master RSS context */
+
+	WARN_ON(!mutex_is_locked(&efx->rss_lock));
+
+	/* Search for first gap in the numbering */
+	list_for_each_entry(ctx, head, list) {
+		if (ctx->user_id != id)
+			break;
+		id++;
+		/* Check for wrap.  If this happens, we have nearly 2^32
+		 * allocated RSS contexts, which seems unlikely.
+		 */
+		if (WARN_ON_ONCE(!id))
+			return NULL;
+	}
+
+	/* Create the new entry */
+	new = kmalloc(sizeof(struct efx_rss_context), GFP_KERNEL);
+	if (!new)
+		return NULL;
+	new->context_id = EFX_EF10_RSS_CONTEXT_INVALID;
+	new->rx_hash_udp_4tuple = false;
+
+	/* Insert the new entry into the gap */
+	new->user_id = id;
+	list_add_tail(&new->list, &ctx->list);
+	return new;
+}
+
+struct efx_rss_context *efx_find_rss_context_entry(struct efx_nic *efx, u32 id)
+{
+	struct list_head *head = &efx->rss_context.list;
+	struct efx_rss_context *ctx;
+
+	WARN_ON(!mutex_is_locked(&efx->rss_lock));
+
+	list_for_each_entry(ctx, head, list)
+		if (ctx->user_id == id)
+			return ctx;
+	return NULL;
+}
+
+void efx_free_rss_context_entry(struct efx_rss_context *ctx)
+{
+	list_del(&ctx->list);
+	kfree(ctx);
 }
 
 /**************************************************************************

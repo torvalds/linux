@@ -816,9 +816,10 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
 		    (mode == FL_WRITING && (cfip->EraseSuspend & 0x2))))
 			goto sleep;
 
-		/* We could check to see if we're trying to access the sector
-		 * that is currently being erased. However, no user will try
-		 * anything like that so we just wait for the timeout. */
+		/* Do not allow suspend iff read/write to EB address */
+		if ((adr & chip->in_progress_block_mask) ==
+		    chip->in_progress_block_addr)
+			goto sleep;
 
 		/* Erase suspend */
 		/* It's harmless to issue the Erase-Suspend and Erase-Resume
@@ -2267,6 +2268,7 @@ static int __xipram do_erase_chip(struct map_info *map, struct flchip *chip)
 	chip->state = FL_ERASING;
 	chip->erase_suspended = 0;
 	chip->in_progress_block_addr = adr;
+	chip->in_progress_block_mask = ~(map->size - 1);
 
 	INVALIDATE_CACHE_UDELAY(map, chip,
 				adr, map->size,
@@ -2356,6 +2358,7 @@ static int __xipram do_erase_oneblock(struct map_info *map, struct flchip *chip,
 	chip->state = FL_ERASING;
 	chip->erase_suspended = 0;
 	chip->in_progress_block_addr = adr;
+	chip->in_progress_block_mask = ~(len - 1);
 
 	INVALIDATE_CACHE_UDELAY(map, chip,
 				adr, len,
@@ -2415,20 +2418,8 @@ static int __xipram do_erase_oneblock(struct map_info *map, struct flchip *chip,
 
 static int cfi_amdstd_erase_varsize(struct mtd_info *mtd, struct erase_info *instr)
 {
-	unsigned long ofs, len;
-	int ret;
-
-	ofs = instr->addr;
-	len = instr->len;
-
-	ret = cfi_varsize_frob(mtd, do_erase_oneblock, ofs, len, NULL);
-	if (ret)
-		return ret;
-
-	instr->state = MTD_ERASE_DONE;
-	mtd_erase_callback(instr);
-
-	return 0;
+	return cfi_varsize_frob(mtd, do_erase_oneblock, instr->addr,
+				instr->len, NULL);
 }
 
 
@@ -2436,7 +2427,6 @@ static int cfi_amdstd_erase_chip(struct mtd_info *mtd, struct erase_info *instr)
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
-	int ret = 0;
 
 	if (instr->addr != 0)
 		return -EINVAL;
@@ -2444,14 +2434,7 @@ static int cfi_amdstd_erase_chip(struct mtd_info *mtd, struct erase_info *instr)
 	if (instr->len != mtd->size)
 		return -EINVAL;
 
-	ret = do_erase_chip(map, &cfi->chips[0]);
-	if (ret)
-		return ret;
-
-	instr->state = MTD_ERASE_DONE;
-	mtd_erase_callback(instr);
-
-	return 0;
+	return do_erase_chip(map, &cfi->chips[0]);
 }
 
 static int do_atmel_lock(struct map_info *map, struct flchip *chip,

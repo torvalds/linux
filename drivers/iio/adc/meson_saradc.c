@@ -462,8 +462,10 @@ static int meson_sar_adc_lock(struct iio_dev *indio_dev)
 			regmap_read(priv->regmap, MESON_SAR_ADC_DELAY, &val);
 		} while (val & MESON_SAR_ADC_DELAY_BL30_BUSY && timeout--);
 
-		if (timeout < 0)
+		if (timeout < 0) {
+			mutex_unlock(&indio_dev->mlock);
 			return -ETIMEDOUT;
+		}
 	}
 
 	return 0;

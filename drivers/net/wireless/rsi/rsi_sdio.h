@@ -46,6 +46,8 @@ enum sdio_interrupt_type {
 #define PKT_BUFF_AVAILABLE                      1
 #define FW_ASSERT_IND                           2
 
+#define RSI_MASTER_REG_BUF_SIZE			12
+
 #define RSI_DEVICE_BUFFER_STATUS_REGISTER       0xf3
 #define RSI_FN1_INT_REGISTER                    0xf9
 #define RSI_INT_ENABLE_REGISTER			0x04
@@ -105,6 +107,11 @@ struct receive_info {
 	u32 buf_available_counter;
 };
 
+struct rsi_sdio_rx_q {
+	u8 num_rx_pkts;
+	struct sk_buff_head head;
+};
+
 struct rsi_91x_sdiodev {
 	struct sdio_func *pfunction;
 	struct task_struct *sdio_irq_task;
@@ -117,6 +124,8 @@ struct rsi_91x_sdiodev {
 	u16 tx_blk_size;
 	u8 write_fail;
 	bool buff_status_updated;
+	struct rsi_sdio_rx_q rx_q;
+	struct rsi_thread rx_thread;
 };
 
 void rsi_interrupt_handler(struct rsi_hw *adapter);
@@ -131,4 +140,5 @@ int rsi_sdio_master_access_msword(struct rsi_hw *adapter, u16 ms_word);
 void rsi_sdio_ack_intr(struct rsi_hw *adapter, u8 int_bit);
 int rsi_sdio_determine_event_timeout(struct rsi_hw *adapter);
 int rsi_sdio_check_buffer_status(struct rsi_hw *adapter, u8 q_num);
+void rsi_sdio_rx_thread(struct rsi_common *common);
 #endif

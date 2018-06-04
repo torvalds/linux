@@ -115,8 +115,7 @@ int qed_l2_alloc(struct qed_hwfn *p_hwfn)
 
 void qed_l2_setup(struct qed_hwfn *p_hwfn)
 {
-	if (p_hwfn->hw_info.personality != QED_PCI_ETH &&
-	    p_hwfn->hw_info.personality != QED_PCI_ETH_ROCE)
+	if (!QED_IS_L2_PERSONALITY(p_hwfn))
 		return;
 
 	mutex_init(&p_hwfn->p_l2_info->lock);
@@ -126,8 +125,7 @@ void qed_l2_free(struct qed_hwfn *p_hwfn)
 {
 	u32 i;
 
-	if (p_hwfn->hw_info.personality != QED_PCI_ETH &&
-	    p_hwfn->hw_info.personality != QED_PCI_ETH_ROCE)
+	if (!QED_IS_L2_PERSONALITY(p_hwfn))
 		return;
 
 	if (!p_hwfn->p_l2_info)
@@ -1974,7 +1972,7 @@ qed_arfs_mode_to_hsi(enum qed_filter_config_mode mode)
 	if (mode == QED_FILTER_CONFIG_MODE_5_TUPLE)
 		return GFT_PROFILE_TYPE_4_TUPLE;
 	if (mode == QED_FILTER_CONFIG_MODE_IP_DEST)
-		return GFT_PROFILE_TYPE_IP_DST_PORT;
+		return GFT_PROFILE_TYPE_IP_DST_ADDR;
 	return GFT_PROFILE_TYPE_L4_DST_PORT;
 }
 

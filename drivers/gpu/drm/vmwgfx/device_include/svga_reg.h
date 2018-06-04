@@ -372,6 +372,14 @@ SVGAGuestPtr;
  * PA, not biased by the offset.  When the command buffer is finished
  * the guest should not read the offset field as there is no guarantee
  * what it will set to.
+ *
+ * When the SVGA_CAP_HP_CMD_QUEUE cap bit is set a new command queue
+ * SVGA_CB_CONTEXT_1 is available.  Commands submitted to this queue
+ * will be executed as quickly as possible by the SVGA device
+ * potentially before already queued commands on SVGA_CB_CONTEXT_0.
+ * The SVGA device guarantees that any command buffers submitted to
+ * SVGA_CB_CONTEXT_0 will be executed after any _already_ submitted
+ * command buffers to SVGA_CB_CONTEXT_1.
  */
 
 #define SVGA_CB_MAX_SIZE (512 * 1024)  /* 512 KB */
@@ -382,7 +390,8 @@ SVGAGuestPtr;
 typedef enum {
    SVGA_CB_CONTEXT_DEVICE = 0x3f,
    SVGA_CB_CONTEXT_0      = 0x0,
-   SVGA_CB_CONTEXT_MAX    = 0x1,
+   SVGA_CB_CONTEXT_1      = 0x1, /* Supported with SVGA_CAP_HP_CMD_QUEUE */
+   SVGA_CB_CONTEXT_MAX    = 0x2,
 } SVGACBContext;
 
 
@@ -689,6 +698,7 @@ SVGASignedPoint;
 #define SVGA_CAP_CMD_BUFFERS_2      0x04000000
 #define SVGA_CAP_GBOBJECTS          0x08000000
 #define SVGA_CAP_DX                 0x10000000
+#define SVGA_CAP_HP_CMD_QUEUE       0x20000000
 
 #define SVGA_CAP_CMD_RESERVED       0x80000000
 

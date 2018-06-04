@@ -183,16 +183,20 @@ static int
 nfp_fl_set_ipv4_udp_tun(struct nfp_fl_set_ipv4_udp_tun *set_tun,
 			const struct tc_action *action,
 			struct nfp_fl_pre_tunnel *pre_tun,
-			enum nfp_flower_tun_type tun_type)
+			enum nfp_flower_tun_type tun_type,
+			struct net_device *netdev)
 {
 	size_t act_size = sizeof(struct nfp_fl_set_ipv4_udp_tun);
 	struct ip_tunnel_info *ip_tun = tcf_tunnel_info(action);
 	u32 tmp_set_ip_tun_type_index = 0;
 	/* Currently support one pre-tunnel so index is always 0. */
 	int pretun_idx = 0;
+	struct net *net;
 
 	if (ip_tun->options_len)
 		return -EOPNOTSUPP;
+
+	net = dev_net(netdev);
 
 	set_tun->head.jump_id = NFP_FL_ACTION_OPCODE_SET_IPV4_TUNNEL;
 	set_tun->head.len_lw = act_size >> NFP_FL_LW_SIZ;
@@ -204,6 +208,7 @@ nfp_fl_set_ipv4_udp_tun(struct nfp_fl_set_ipv4_udp_tun *set_tun,
 
 	set_tun->tun_type_index = cpu_to_be32(tmp_set_ip_tun_type_index);
 	set_tun->tun_id = ip_tun->key.tun_id;
+	set_tun->ttl = net->ipv4.sysctl_ip_default_ttl;
 
 	/* Complete pre_tunnel action. */
 	pre_tun->ipv4_dst = ip_tun->key.u.ipv4.dst;
@@ -511,7 +516,8 @@ nfp_flower_loop_action(const struct tc_action *a,
 		*a_len += sizeof(struct nfp_fl_pre_tunnel);
 
 		set_tun = (void *)&nfp_fl->action_data[*a_len];
-		err = nfp_fl_set_ipv4_udp_tun(set_tun, a, pre_tun, *tun_type);
+		err = nfp_fl_set_ipv4_udp_tun(set_tun, a, pre_tun, *tun_type,
+					      netdev);
 		if (err)
 			return err;
 		*a_len += sizeof(struct nfp_fl_set_ipv4_udp_tun);

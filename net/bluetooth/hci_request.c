@@ -934,8 +934,8 @@ static bool is_advertising_allowed(struct hci_dev *hdev, bool connectable)
 		/* Slave connection state and connectable mode bit 38
 		 * and scannable bit 21.
 		 */
-		if (connectable && (!(hdev->le_states[4] & 0x01) ||
-				    !(hdev->le_states[2] & 0x40)))
+		if (connectable && (!(hdev->le_states[4] & 0x40) ||
+				    !(hdev->le_states[2] & 0x20)))
 			return false;
 	}
 
@@ -948,7 +948,7 @@ static bool is_advertising_allowed(struct hci_dev *hdev, bool connectable)
 		/* Master connection state and connectable mode bit 35 and
 		 * scannable 19.
 		 */
-		if (connectable && (!(hdev->le_states[4] & 0x10) ||
+		if (connectable && (!(hdev->le_states[4] & 0x08) ||
 				    !(hdev->le_states[2] & 0x08)))
 			return false;
 	}

@@ -269,9 +269,7 @@ static int as5011_probe(struct i2c_client *client,
 	input_dev->id.bustype = BUS_I2C;
 	input_dev->dev.parent = &client->dev;
 
-	__set_bit(EV_KEY, input_dev->evbit);
-	__set_bit(EV_ABS, input_dev->evbit);
-	__set_bit(BTN_JOYSTICK, input_dev->keybit);
+	input_set_capability(input_dev, EV_KEY, BTN_JOYSTICK);
 
 	input_set_abs_params(input_dev, ABS_X,
 		AS5011_MIN_AXIS, AS5011_MAX_AXIS, AS5011_FUZZ, AS5011_FLAT);

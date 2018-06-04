@@ -452,14 +452,21 @@ error:
 	 * done by is_rsvd_bits_set() above.
 	 *
 	 * We set up the value of exit_qualification to inject:
-	 * [2:0] - Derive from [2:0] of real exit_qualification at EPT violation
+	 * [2:0] - Derive from the access bits. The exit_qualification might be
+	 *         out of date if it is serving an EPT misconfiguration.
 	 * [5:3] - Calculated by the page walk of the guest EPT page tables
 	 * [7:8] - Derived from [7:8] of real exit_qualification
 	 *
 	 * The other bits are set to 0.
 	 */
 	if (!(errcode & PFERR_RSVD_MASK)) {
-		vcpu->arch.exit_qualification &= 0x187;
+		vcpu->arch.exit_qualification &= 0x180;
+		if (write_fault)
+			vcpu->arch.exit_qualification |= EPT_VIOLATION_ACC_WRITE;
+		if (user_fault)
+			vcpu->arch.exit_qualification |= EPT_VIOLATION_ACC_READ;
+		if (fetch_fault)
+			vcpu->arch.exit_qualification |= EPT_VIOLATION_ACC_INSTR;
 		vcpu->arch.exit_qualification |= (pte_access & 0x7) << 3;
 	}
 #endif

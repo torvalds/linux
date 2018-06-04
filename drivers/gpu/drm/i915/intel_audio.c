@@ -704,7 +704,7 @@ void intel_init_audio_hooks(struct drm_i915_private *dev_priv)
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		dev_priv->display.audio_codec_enable = ilk_audio_codec_enable;
 		dev_priv->display.audio_codec_disable = ilk_audio_codec_disable;
-	} else if (IS_HASWELL(dev_priv) || INTEL_INFO(dev_priv)->gen >= 8) {
+	} else if (IS_HASWELL(dev_priv) || INTEL_GEN(dev_priv) >= 8) {
 		dev_priv->display.audio_codec_enable = hsw_audio_codec_enable;
 		dev_priv->display.audio_codec_disable = hsw_audio_codec_disable;
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
@@ -729,7 +729,7 @@ static void i915_audio_component_codec_wake_override(struct device *kdev,
 	struct drm_i915_private *dev_priv = kdev_to_i915(kdev);
 	u32 tmp;
 
-	if (!IS_GEN9_BC(dev_priv))
+	if (!IS_GEN9(dev_priv))
 		return;
 
 	i915_audio_component_get_power(kdev);

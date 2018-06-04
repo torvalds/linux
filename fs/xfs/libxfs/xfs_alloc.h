@@ -26,6 +26,8 @@ struct xfs_trans;
 
 extern struct workqueue_struct *xfs_alloc_wq;
 
+unsigned int xfs_agfl_size(struct xfs_mount *mp);
+
 /*
  * Freespace allocation types.  Argument to xfs_alloc_[v]extent.
  */
@@ -114,9 +116,8 @@ xfs_alloc_allow_busy_reuse(int datatype)
 unsigned int xfs_alloc_set_aside(struct xfs_mount *mp);
 unsigned int xfs_alloc_ag_max_usable(struct xfs_mount *mp);
 
-xfs_extlen_t xfs_alloc_longest_free_extent(struct xfs_mount *mp,
-		struct xfs_perag *pag, xfs_extlen_t need,
-		xfs_extlen_t reserved);
+xfs_extlen_t xfs_alloc_longest_free_extent(struct xfs_perag *pag,
+		xfs_extlen_t need, xfs_extlen_t reserved);
 unsigned int xfs_alloc_min_freelist(struct xfs_mount *mp,
 		struct xfs_perag *pag);
 

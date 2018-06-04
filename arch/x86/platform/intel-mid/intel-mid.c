@@ -199,6 +199,12 @@ void __init x86_intel_mid_early_setup(void)
 
 	legacy_pic = &null_legacy_pic;
 
+	/*
+	 * Do nothing for now as everything needed done in
+	 * x86_intel_mid_early_setup() below.
+	 */
+	x86_init.acpi.reduced_hw_early_init = x86_init_noop;
+
 	pm_power_off = intel_mid_power_off;
 	machine_ops.emergency_restart  = intel_mid_reboot;
 

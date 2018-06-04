@@ -279,7 +279,7 @@ static int ov7740_get_register(struct v4l2_subdev *sd,
 	reg->val = val;
 	reg->size = 1;
 
-	return 0;
+	return ret;
 }
 
 static int ov7740_set_register(struct v4l2_subdev *sd,
@@ -624,17 +624,11 @@ err_unlock:
 	return ret;
 }
 
-static int ov7740_get_parm(struct v4l2_subdev *sd,
-			   struct v4l2_streamparm *parms)
+static int ov7740_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *ival)
 {
-	struct v4l2_captureparm *cp = &parms->parm.capture;
-	struct v4l2_fract *tpf = &cp->timeperframe;
+	struct v4l2_fract *tpf = &ival->interval;
 
-	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	memset(cp, 0, sizeof(struct v4l2_captureparm));
-	cp->capability = V4L2_CAP_TIMEPERFRAME;
 
 	tpf->numerator = 1;
 	tpf->denominator = 60;
@@ -642,18 +636,11 @@ static int ov7740_get_parm(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov7740_set_parm(struct v4l2_subdev *sd,
-			   struct v4l2_streamparm *parms)
+static int ov7740_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *ival)
 {
-	struct v4l2_captureparm *cp = &parms->parm.capture;
-	struct v4l2_fract *tpf = &cp->timeperframe;
+	struct v4l2_fract *tpf = &ival->interval;
 
-	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-	if (cp->extendedmode != 0)
-		return -EINVAL;
-
-	cp->capability = V4L2_CAP_TIMEPERFRAME;
 
 	tpf->numerator = 1;
 	tpf->denominator = 60;
@@ -663,8 +650,8 @@ static int ov7740_set_parm(struct v4l2_subdev *sd,
 
 static struct v4l2_subdev_video_ops ov7740_subdev_video_ops = {
 	.s_stream = ov7740_set_stream,
-	.s_parm = ov7740_set_parm,
-	.g_parm = ov7740_get_parm,
+	.s_frame_interval = ov7740_s_frame_interval,
+	.g_frame_interval = ov7740_g_frame_interval,
 };
 
 static const struct reg_sequence ov7740_format_yuyv[] = {

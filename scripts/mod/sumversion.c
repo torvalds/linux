@@ -330,14 +330,7 @@ static int parse_source_files(const char *objfile, struct md4_ctx *md)
 		goto out;
 	}
 
-	/* There will be a line like so:
-		deps_drivers/net/dummy.o := \
-		  drivers/net/dummy.c \
-		    $(wildcard include/config/net/fastroute.h) \
-		  include/linux/module.h \
-
-	   Sum all files in the same dir or subdirs.
-	*/
+	/* Sum all files in the same dir or subdirs. */
 	while ((line = get_next_line(&pos, file, flen)) != NULL) {
 		char* p = line;
 

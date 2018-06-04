@@ -42,17 +42,17 @@ const struct atomisp_in_fmt_conv atomisp_in_fmt_conv[] = {
 	{ MEDIA_BUS_FMT_SGBRG12_1X12, 12, 12, ATOMISP_INPUT_FORMAT_RAW_12, CSS_BAYER_ORDER_GBRG, CSS_FORMAT_RAW_12 },
 	{ MEDIA_BUS_FMT_SGRBG12_1X12, 12, 12, ATOMISP_INPUT_FORMAT_RAW_12, CSS_BAYER_ORDER_GRBG, CSS_FORMAT_RAW_12 },
 	{ MEDIA_BUS_FMT_SRGGB12_1X12, 12, 12, ATOMISP_INPUT_FORMAT_RAW_12, CSS_BAYER_ORDER_RGGB, CSS_FORMAT_RAW_12 },
-	{ MEDIA_BUS_FMT_UYVY8_1X16, 8, 8, ATOMISP_INPUT_FORMAT_YUV422_8, 0, IA_CSS_STREAM_FORMAT_YUV422_8 },
-	{ MEDIA_BUS_FMT_YUYV8_1X16, 8, 8, ATOMISP_INPUT_FORMAT_YUV422_8, 0, IA_CSS_STREAM_FORMAT_YUV422_8 },
-	{ MEDIA_BUS_FMT_JPEG_1X8, 8, 8, CSS_FRAME_FORMAT_BINARY_8, 0, IA_CSS_STREAM_FORMAT_BINARY_8 },
+	{ MEDIA_BUS_FMT_UYVY8_1X16, 8, 8, ATOMISP_INPUT_FORMAT_YUV422_8, 0, ATOMISP_INPUT_FORMAT_YUV422_8 },
+	{ MEDIA_BUS_FMT_YUYV8_1X16, 8, 8, ATOMISP_INPUT_FORMAT_YUV422_8, 0, ATOMISP_INPUT_FORMAT_YUV422_8 },
+	{ MEDIA_BUS_FMT_JPEG_1X8, 8, 8, CSS_FRAME_FORMAT_BINARY_8, 0, ATOMISP_INPUT_FORMAT_BINARY_8 },
 	{ V4L2_MBUS_FMT_CUSTOM_NV12, 12, 12, CSS_FRAME_FORMAT_NV12, 0, CSS_FRAME_FORMAT_NV12 },
 	{ V4L2_MBUS_FMT_CUSTOM_NV21, 12, 12, CSS_FRAME_FORMAT_NV21, 0, CSS_FRAME_FORMAT_NV21 },
-	{ V4L2_MBUS_FMT_CUSTOM_YUV420, 12, 12, ATOMISP_INPUT_FORMAT_YUV420_8_LEGACY, 0, IA_CSS_STREAM_FORMAT_YUV420_8_LEGACY },
+	{ V4L2_MBUS_FMT_CUSTOM_YUV420, 12, 12, ATOMISP_INPUT_FORMAT_YUV420_8_LEGACY, 0, ATOMISP_INPUT_FORMAT_YUV420_8_LEGACY },
 #if 0
-	{ V4L2_MBUS_FMT_CUSTOM_M10MO_RAW, 8, 8, CSS_FRAME_FORMAT_BINARY_8, 0, IA_CSS_STREAM_FORMAT_BINARY_8 },
+	{ V4L2_MBUS_FMT_CUSTOM_M10MO_RAW, 8, 8, CSS_FRAME_FORMAT_BINARY_8, 0, ATOMISP_INPUT_FORMAT_BINARY_8 },
 #endif
 	/* no valid V4L2 MBUS code for metadata format, so leave it 0. */
-	{ 0, 0, 0, ATOMISP_INPUT_FORMAT_EMBEDDED, 0, IA_CSS_STREAM_FORMAT_EMBEDDED },
+	{ 0, 0, 0, ATOMISP_INPUT_FORMAT_EMBEDDED, 0, ATOMISP_INPUT_FORMAT_EMBEDDED },
 	{}
 };
 
@@ -101,7 +101,7 @@ const struct atomisp_in_fmt_conv *atomisp_find_in_fmt_conv(u32 code)
 }
 
 const struct atomisp_in_fmt_conv *atomisp_find_in_fmt_conv_by_atomisp_in_fmt(
-	enum atomisp_css_stream_format atomisp_in_fmt)
+	enum atomisp_input_format atomisp_in_fmt)
 {
 	int i;
 
@@ -819,12 +819,6 @@ static int __atomisp_update_run_mode(struct atomisp_sub_device *asd)
 	struct atomisp_device *isp = asd->isp;
 	struct v4l2_ctrl *ctrl = asd->run_mode;
 	struct v4l2_ctrl *c;
-	struct v4l2_streamparm p = {0};
-	int modes[] = { CI_MODE_NONE,
-			CI_MODE_VIDEO,
-			CI_MODE_STILL_CAPTURE,
-			CI_MODE_CONTINUOUS,
-			CI_MODE_PREVIEW };
 	s32 mode;
 
 	if (ctrl->val != ATOMISP_RUN_MODE_VIDEO &&
@@ -840,11 +834,7 @@ static int __atomisp_update_run_mode(struct atomisp_sub_device *asd)
 	if (c)
 		return v4l2_ctrl_s_ctrl(c, mode);
 
-	/* Fall back to obsolete s_parm */
-	p.parm.capture.capturemode = modes[mode];
-
-	return v4l2_subdev_call(
-		isp->inputs[asd->input_curr].camera, video, s_parm, &p);
+	return 0;
 }
 
 int atomisp_update_run_mode(struct atomisp_sub_device *asd)

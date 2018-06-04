@@ -150,6 +150,8 @@ enum bug_trap_type report_bug(unsigned long bugaddr, struct pt_regs *regs)
 		return BUG_TRAP_TYPE_NONE;
 
 	bug = find_bug(bugaddr);
+	if (!bug)
+		return BUG_TRAP_TYPE_NONE;
 
 	file = NULL;
 	line = 0;
@@ -191,7 +193,7 @@ enum bug_trap_type report_bug(unsigned long bugaddr, struct pt_regs *regs)
 	if (file)
 		pr_crit("kernel BUG at %s:%u!\n", file, line);
 	else
-		pr_crit("Kernel BUG at %p [verbose debug info unavailable]\n",
+		pr_crit("Kernel BUG at %pB [verbose debug info unavailable]\n",
 			(void *)bugaddr);
 
 	return BUG_TRAP_TYPE_BUG;

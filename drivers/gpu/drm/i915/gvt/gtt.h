@@ -39,7 +39,6 @@
 
 struct intel_vgpu_mm;
 
-#define INTEL_GVT_GTT_HASH_BITS 8
 #define INTEL_GVT_INVALID_ADDR (~0UL)
 
 struct intel_gvt_gtt_entry {
@@ -84,15 +83,10 @@ struct intel_gvt_gtt {
 	void (*mm_free_page_table)(struct intel_vgpu_mm *mm);
 	struct list_head oos_page_use_list_head;
 	struct list_head oos_page_free_list_head;
-	struct list_head mm_lru_list_head;
+	struct list_head ppgtt_mm_lru_list_head;
 
 	struct page *scratch_page;
 	unsigned long scratch_mfn;
-};
-
-enum {
-	INTEL_GVT_MM_GGTT = 0,
-	INTEL_GVT_MM_PPGTT,
 };
 
 typedef enum {
@@ -125,66 +119,60 @@ typedef enum {
 	GTT_TYPE_MAX,
 } intel_gvt_gtt_type_t;
 
-struct intel_vgpu_mm {
-	int type;
-	bool initialized;
-	bool shadowed;
-
-	int page_table_entry_type;
-	u32 page_table_entry_size;
-	u32 page_table_entry_cnt;
-	void *virtual_page_table;
-	void *shadow_page_table;
-
-	int page_table_level;
-	bool has_shadow_page_table;
-	u32 pde_base_index;
-
-	struct list_head list;
-	struct kref ref;
-	atomic_t pincount;
-	struct list_head lru_list;
-	struct intel_vgpu *vgpu;
+enum intel_gvt_mm_type {
+	INTEL_GVT_MM_GGTT,
+	INTEL_GVT_MM_PPGTT,
 };
 
-extern int intel_vgpu_mm_get_entry(
-		struct intel_vgpu_mm *mm,
-		void *page_table, struct intel_gvt_gtt_entry *e,
-		unsigned long index);
+#define GVT_RING_CTX_NR_PDPS	GEN8_3LVL_PDPES
 
-extern int intel_vgpu_mm_set_entry(
-		struct intel_vgpu_mm *mm,
-		void *page_table, struct intel_gvt_gtt_entry *e,
-		unsigned long index);
+struct intel_vgpu_mm {
+	enum intel_gvt_mm_type type;
+	struct intel_vgpu *vgpu;
 
-#define ggtt_get_guest_entry(mm, e, index) \
-	intel_vgpu_mm_get_entry(mm, mm->virtual_page_table, e, index)
+	struct kref ref;
+	atomic_t pincount;
 
-#define ggtt_set_guest_entry(mm, e, index) \
-	intel_vgpu_mm_set_entry(mm, mm->virtual_page_table, e, index)
+	union {
+		struct {
+			intel_gvt_gtt_type_t root_entry_type;
+			/*
+			 * The 4 PDPs in ring context. For 48bit addressing,
+			 * only PDP0 is valid and point to PML4. For 32it
+			 * addressing, all 4 are used as true PDPs.
+			 */
+			u64 guest_pdps[GVT_RING_CTX_NR_PDPS];
+			u64 shadow_pdps[GVT_RING_CTX_NR_PDPS];
+			bool shadowed;
 
-#define ggtt_get_shadow_entry(mm, e, index) \
-	intel_vgpu_mm_get_entry(mm, mm->shadow_page_table, e, index)
+			struct list_head list;
+			struct list_head lru_list;
+		} ppgtt_mm;
+		struct {
+			void *virtual_ggtt;
+		} ggtt_mm;
+	};
+};
 
-#define ggtt_set_shadow_entry(mm, e, index) \
-	intel_vgpu_mm_set_entry(mm, mm->shadow_page_table, e, index)
+struct intel_vgpu_mm *intel_vgpu_create_ppgtt_mm(struct intel_vgpu *vgpu,
+		intel_gvt_gtt_type_t root_entry_type, u64 pdps[]);
 
-#define ppgtt_get_guest_root_entry(mm, e, index) \
-	intel_vgpu_mm_get_entry(mm, mm->virtual_page_table, e, index)
+static inline void intel_vgpu_mm_get(struct intel_vgpu_mm *mm)
+{
+	kref_get(&mm->ref);
+}
 
-#define ppgtt_set_guest_root_entry(mm, e, index) \
-	intel_vgpu_mm_set_entry(mm, mm->virtual_page_table, e, index)
+void _intel_vgpu_mm_release(struct kref *mm_ref);
 
-#define ppgtt_get_shadow_root_entry(mm, e, index) \
-	intel_vgpu_mm_get_entry(mm, mm->shadow_page_table, e, index)
+static inline void intel_vgpu_mm_put(struct intel_vgpu_mm *mm)
+{
+	kref_put(&mm->ref, _intel_vgpu_mm_release);
+}
 
-#define ppgtt_set_shadow_root_entry(mm, e, index) \
-	intel_vgpu_mm_set_entry(mm, mm->shadow_page_table, e, index)
-
-extern struct intel_vgpu_mm *intel_vgpu_create_mm(struct intel_vgpu *vgpu,
-		int mm_type, void *virtual_page_table, int page_table_level,
-		u32 pde_base_index);
-extern void intel_vgpu_destroy_mm(struct kref *mm_ref);
+static inline void intel_vgpu_destroy_mm(struct intel_vgpu_mm *mm)
+{
+	intel_vgpu_mm_put(mm);
+}
 
 struct intel_vgpu_guest_page;
 
@@ -196,10 +184,8 @@ struct intel_vgpu_scratch_pt {
 struct intel_vgpu_gtt {
 	struct intel_vgpu_mm *ggtt_mm;
 	unsigned long active_ppgtt_mm_bitmap;
-	struct list_head mm_list_head;
-	DECLARE_HASHTABLE(shadow_page_hash_table, INTEL_GVT_GTT_HASH_BITS);
-	DECLARE_HASHTABLE(tracked_guest_page_hash_table, INTEL_GVT_GTT_HASH_BITS);
-	atomic_t n_tracked_guest_page;
+	struct list_head ppgtt_mm_list_head;
+	struct radix_tree_root spt_tree;
 	struct list_head oos_page_list_head;
 	struct list_head post_shadow_list_head;
 	struct intel_vgpu_scratch_pt scratch_pt[GTT_TYPE_MAX];
@@ -207,7 +193,8 @@ struct intel_vgpu_gtt {
 
 extern int intel_vgpu_init_gtt(struct intel_vgpu *vgpu);
 extern void intel_vgpu_clean_gtt(struct intel_vgpu *vgpu);
-void intel_vgpu_reset_ggtt(struct intel_vgpu *vgpu);
+void intel_vgpu_reset_ggtt(struct intel_vgpu *vgpu, bool invalidate_old);
+void intel_vgpu_invalidate_ppgtt(struct intel_vgpu *vgpu);
 
 extern int intel_gvt_init_gtt(struct intel_gvt *gvt);
 void intel_vgpu_reset_gtt(struct intel_vgpu *vgpu);
@@ -216,32 +203,8 @@ extern void intel_gvt_clean_gtt(struct intel_gvt *gvt);
 extern struct intel_vgpu_mm *intel_gvt_find_ppgtt_mm(struct intel_vgpu *vgpu,
 		int page_table_level, void *root_entry);
 
-struct intel_vgpu_oos_page;
-
-struct intel_vgpu_shadow_page {
-	void *vaddr;
-	struct page *page;
-	int type;
-	struct hlist_node node;
-	unsigned long mfn;
-};
-
-struct intel_vgpu_page_track {
-	struct hlist_node node;
-	bool tracked;
-	unsigned long gfn;
-	int (*handler)(void *, u64, void *, int);
-	void *data;
-};
-
-struct intel_vgpu_guest_page {
-	struct intel_vgpu_page_track track;
-	unsigned long write_cnt;
-	struct intel_vgpu_oos_page *oos_page;
-};
-
 struct intel_vgpu_oos_page {
-	struct intel_vgpu_guest_page *guest_page;
+	struct intel_vgpu_ppgtt_spt *spt;
 	struct list_head list;
 	struct list_head vm_list;
 	int id;
@@ -250,41 +213,32 @@ struct intel_vgpu_oos_page {
 
 #define GTT_ENTRY_NUM_IN_ONE_PAGE 512
 
+/* Represent a vgpu shadow page table. */
 struct intel_vgpu_ppgtt_spt {
-	struct intel_vgpu_shadow_page shadow_page;
-	struct intel_vgpu_guest_page guest_page;
-	int guest_page_type;
 	atomic_t refcount;
 	struct intel_vgpu *vgpu;
+
+	struct {
+		intel_gvt_gtt_type_t type;
+		void *vaddr;
+		struct page *page;
+		unsigned long mfn;
+	} shadow_page;
+
+	struct {
+		intel_gvt_gtt_type_t type;
+		unsigned long gfn;
+		unsigned long write_cnt;
+		struct intel_vgpu_oos_page *oos_page;
+	} guest_page;
+
 	DECLARE_BITMAP(post_shadow_bitmap, GTT_ENTRY_NUM_IN_ONE_PAGE);
 	struct list_head post_shadow_list;
 };
 
-int intel_vgpu_init_page_track(struct intel_vgpu *vgpu,
-		struct intel_vgpu_page_track *t,
-		unsigned long gfn,
-		int (*handler)(void *gp, u64, void *, int),
-		void *data);
-
-void intel_vgpu_clean_page_track(struct intel_vgpu *vgpu,
-		struct intel_vgpu_page_track *t);
-
-struct intel_vgpu_page_track *intel_vgpu_find_tracked_page(
-		struct intel_vgpu *vgpu, unsigned long gfn);
-
 int intel_vgpu_sync_oos_pages(struct intel_vgpu *vgpu);
 
 int intel_vgpu_flush_post_shadow(struct intel_vgpu *vgpu);
-
-static inline void intel_gvt_mm_reference(struct intel_vgpu_mm *mm)
-{
-	kref_get(&mm->ref);
-}
-
-static inline void intel_gvt_mm_unreference(struct intel_vgpu_mm *mm)
-{
-	kref_put(&mm->ref, intel_vgpu_destroy_mm);
-}
 
 int intel_vgpu_pin_mm(struct intel_vgpu_mm *mm);
 
@@ -294,21 +248,17 @@ unsigned long intel_vgpu_gma_to_gpa(struct intel_vgpu_mm *mm,
 		unsigned long gma);
 
 struct intel_vgpu_mm *intel_vgpu_find_ppgtt_mm(struct intel_vgpu *vgpu,
-		int page_table_level, void *root_entry);
+		u64 pdps[]);
 
-int intel_vgpu_g2v_create_ppgtt_mm(struct intel_vgpu *vgpu,
-		int page_table_level);
+struct intel_vgpu_mm *intel_vgpu_get_ppgtt_mm(struct intel_vgpu *vgpu,
+		intel_gvt_gtt_type_t root_entry_type, u64 pdps[]);
 
-int intel_vgpu_g2v_destroy_ppgtt_mm(struct intel_vgpu *vgpu,
-		int page_table_level);
+int intel_vgpu_put_ppgtt_mm(struct intel_vgpu *vgpu, u64 pdps[]);
 
-int intel_vgpu_emulate_gtt_mmio_read(struct intel_vgpu *vgpu,
+int intel_vgpu_emulate_ggtt_mmio_read(struct intel_vgpu *vgpu,
 	unsigned int off, void *p_data, unsigned int bytes);
 
-int intel_vgpu_emulate_gtt_mmio_write(struct intel_vgpu *vgpu,
+int intel_vgpu_emulate_ggtt_mmio_write(struct intel_vgpu *vgpu,
 	unsigned int off, void *p_data, unsigned int bytes);
-
-int intel_vgpu_write_protect_handler(struct intel_vgpu *vgpu, u64 pa,
-				     void *p_data, unsigned int bytes);
 
 #endif /* _GVT_GTT_H_ */

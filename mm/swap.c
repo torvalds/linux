@@ -707,7 +707,6 @@ void lru_add_drain_all(void)
  * release_pages - batched put_page()
  * @pages: array of pages to release
  * @nr: number of pages
- * @cold: whether the pages are cache cold
  *
  * Decrement the reference count on all the pages in @pages.  If it
  * fell to zero, remove the page from the LRU and free it.

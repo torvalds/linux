@@ -175,8 +175,8 @@ static void ata_eh_handle_port_resume(struct ata_port *ap)
 { }
 #endif /* CONFIG_PM */
 
-static void __ata_ehi_pushv_desc(struct ata_eh_info *ehi, const char *fmt,
-				 va_list args)
+static __printf(2, 0) void __ata_ehi_pushv_desc(struct ata_eh_info *ehi,
+				 const char *fmt, va_list args)
 {
 	ehi->desc_len += vscnprintf(ehi->desc + ehi->desc_len,
 				     ATA_EH_DESC_LEN - ehi->desc_len,
@@ -815,7 +815,8 @@ void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 
 	if (ap->pflags & ATA_PFLAG_LOADING)
 		ap->pflags &= ~ATA_PFLAG_LOADING;
-	else if (ap->pflags & ATA_PFLAG_SCSI_HOTPLUG)
+	else if ((ap->pflags & ATA_PFLAG_SCSI_HOTPLUG) &&
+		!(ap->flags & ATA_FLAG_SAS_HOST))
 		schedule_delayed_work(&ap->hotplug_task, 0);
 
 	if (ap->pflags & ATA_PFLAG_RECOVERED)

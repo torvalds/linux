@@ -62,9 +62,8 @@
 #include <linux/delay.h>
 #include <dt-bindings/clock/gxbb-aoclkc.h>
 #include <dt-bindings/reset/gxbb-aoclkc.h>
+#include "clk-regmap.h"
 #include "gxbb-aoclk.h"
-
-static DEFINE_SPINLOCK(gxbb_aoclk_lock);
 
 struct gxbb_aoclk_reset_controller {
 	struct reset_controller_dev reset;
@@ -87,12 +86,14 @@ static const struct reset_control_ops gxbb_aoclk_reset_ops = {
 };
 
 #define GXBB_AO_GATE(_name, _bit)					\
-static struct aoclk_gate_regmap _name##_ao = {				\
-	.bit_idx = (_bit),						\
-	.lock = &gxbb_aoclk_lock,					\
+static struct clk_regmap _name##_ao = {					\
+	.data = &(struct clk_regmap_gate_data) {			\
+		.offset = AO_RTI_GEN_CNTL_REG0,				\
+		.bit_idx = (_bit),					\
+	},								\
 	.hw.init = &(struct clk_init_data) {				\
 		.name = #_name "_ao",					\
-		.ops = &meson_aoclk_gate_regmap_ops,			\
+		.ops = &clk_regmap_gate_ops,				\
 		.parent_names = (const char *[]){ "clk81" },		\
 		.num_parents = 1,					\
 		.flags = (CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED),	\
@@ -107,7 +108,6 @@ GXBB_AO_GATE(uart2, 5);
 GXBB_AO_GATE(ir_blaster, 6);
 
 static struct aoclk_cec_32k cec_32k_ao = {
-	.lock = &gxbb_aoclk_lock,
 	.hw.init = &(struct clk_init_data) {
 		.name = "cec_32k_ao",
 		.ops = &meson_aoclk_cec_32k_ops,
@@ -126,7 +126,7 @@ static unsigned int gxbb_aoclk_reset[] = {
 	[RESET_AO_IR_BLASTER] = 23,
 };
 
-static struct aoclk_gate_regmap *gxbb_aoclk_gate[] = {
+static struct clk_regmap *gxbb_aoclk_gate[] = {
 	[CLKID_AO_REMOTE] = &remote_ao,
 	[CLKID_AO_I2C_MASTER] = &i2c_master_ao,
 	[CLKID_AO_I2C_SLAVE] = &i2c_slave_ao,
@@ -177,10 +177,10 @@ static int gxbb_aoclkc_probe(struct platform_device *pdev)
 	 * Populate regmap and register all clks
 	 */
 	for (clkid = 0; clkid < ARRAY_SIZE(gxbb_aoclk_gate); clkid++) {
-		gxbb_aoclk_gate[clkid]->regmap = regmap;
+		gxbb_aoclk_gate[clkid]->map = regmap;
 
 		ret = devm_clk_hw_register(dev,
-					gxbb_aoclk_onecell_data.hws[clkid]);
+					   gxbb_aoclk_onecell_data.hws[clkid]);
 		if (ret)
 			return ret;
 	}

@@ -1,18 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *	drivers/pci/setup-res.c
+ * Support routines for initializing a PCI subsystem
  *
  * Extruded from code written by
  *      Dave Rusling (david.rusling@reo.mts.dec.com)
  *      David Mosberger (davidm@cs.arizona.edu)
  *	David Miller (davem@redhat.com)
  *
- * Support routines for initializing a PCI subsystem.
- */
-
-/* fixed for multiple pci buses, 1999 Andrea Arcangeli <andrea@suse.de> */
-
-/*
+ * Fixed for multiple PCI buses, 1999 Andrea Arcangeli <andrea@suse.de>
+ *
  * Nov 2000, Ivan Kokshaysky <ink@jurassic.park.msu.ru>
  *	     Resource sorting
  */
@@ -172,8 +168,6 @@ EXPORT_SYMBOL(pci_claim_resource);
 
 void pci_disable_bridge_window(struct pci_dev *dev)
 {
-	pci_info(dev, "disabling bridge mem windows\n");
-
 	/* MMIO Base/Limit */
 	pci_write_config_dword(dev, PCI_MEMORY_BASE, 0x0000fff0);
 

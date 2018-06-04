@@ -50,6 +50,7 @@
  */
 
 #include <linux/io.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -159,7 +160,7 @@ static unsigned int sbsa_gwdt_get_timeleft(struct watchdog_device *wdd)
 	    !(readl(gwdt->control_base + SBSA_GWDT_WCS) & SBSA_GWDT_WCS_WS0))
 		timeleft += readl(gwdt->control_base + SBSA_GWDT_WOR);
 
-	timeleft += readq(gwdt->control_base + SBSA_GWDT_WCV) -
+	timeleft += lo_hi_readq(gwdt->control_base + SBSA_GWDT_WCV) -
 		    arch_counter_get_cntvct();
 
 	do_div(timeleft, gwdt->clk);

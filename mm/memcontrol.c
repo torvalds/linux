@@ -714,9 +714,9 @@ static struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm)
  * invocations for reference counting, or use mem_cgroup_iter_break()
  * to cancel a hierarchy walk before the round-trip is complete.
  *
- * Reclaimers can specify a zone and a priority level in @reclaim to
+ * Reclaimers can specify a node and a priority level in @reclaim to
  * divide up the memcgs in the hierarchy among all concurrent
- * reclaimers operating on the same zone and priority.
+ * reclaimers operating on the same node and priority.
  */
 struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
 				   struct mem_cgroup *prev,
@@ -1485,7 +1485,7 @@ static void memcg_oom_recover(struct mem_cgroup *memcg)
 
 static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
 {
-	if (!current->memcg_may_oom)
+	if (!current->memcg_may_oom || order > PAGE_ALLOC_COSTLY_ORDER)
 		return;
 	/*
 	 * We are in the middle of the charge context here, so we
@@ -1839,7 +1839,7 @@ static int memcg_hotplug_cpu_dead(unsigned int cpu)
 			}
 		}
 
-		for (i = 0; i < MEMCG_NR_EVENTS; i++) {
+		for (i = 0; i < NR_VM_EVENT_ITEMS; i++) {
 			long x;
 
 			x = this_cpu_xchg(memcg->stat_cpu->events[i], 0);
@@ -1858,7 +1858,7 @@ static void reclaim_high(struct mem_cgroup *memcg,
 	do {
 		if (page_counter_read(&memcg->memory) <= memcg->high)
 			continue;
-		mem_cgroup_event(memcg, MEMCG_HIGH);
+		memcg_memory_event(memcg, MEMCG_HIGH);
 		try_to_free_mem_cgroup_pages(memcg, nr_pages, gfp_mask, true);
 	} while ((memcg = parent_mem_cgroup(memcg)));
 }
@@ -1949,7 +1949,7 @@ retry:
 	if (!gfpflags_allow_blocking(gfp_mask))
 		goto nomem;
 
-	mem_cgroup_event(mem_over_limit, MEMCG_MAX);
+	memcg_memory_event(mem_over_limit, MEMCG_MAX);
 
 	nr_reclaimed = try_to_free_mem_cgroup_pages(mem_over_limit, nr_pages,
 						    gfp_mask, may_swap);
@@ -1992,7 +1992,7 @@ retry:
 	if (fatal_signal_pending(current))
 		goto force;
 
-	mem_cgroup_event(mem_over_limit, MEMCG_OOM);
+	memcg_memory_event(mem_over_limit, MEMCG_OOM);
 
 	mem_cgroup_oom(mem_over_limit, gfp_mask,
 		       get_order(nr_pages * PAGE_SIZE));
@@ -2192,7 +2192,7 @@ static void __memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
 {
 	struct memcg_kmem_cache_create_work *cw;
 
-	cw = kmalloc(sizeof(*cw), GFP_NOWAIT);
+	cw = kmalloc(sizeof(*cw), GFP_NOWAIT | __GFP_NOWARN);
 	if (!cw)
 		return;
 
@@ -2299,7 +2299,7 @@ void memcg_kmem_put_cache(struct kmem_cache *cachep)
 }
 
 /**
- * memcg_kmem_charge: charge a kmem page
+ * memcg_kmem_charge_memcg: charge a kmem page
  * @page: page to charge
  * @gfp: reclaim mode
  * @order: allocation order
@@ -2688,10 +2688,10 @@ static void tree_events(struct mem_cgroup *memcg, unsigned long *events)
 	struct mem_cgroup *iter;
 	int i;
 
-	memset(events, 0, sizeof(*events) * MEMCG_NR_EVENTS);
+	memset(events, 0, sizeof(*events) * NR_VM_EVENT_ITEMS);
 
 	for_each_mem_cgroup_tree(iter, memcg) {
-		for (i = 0; i < MEMCG_NR_EVENTS; i++)
+		for (i = 0; i < NR_VM_EVENT_ITEMS; i++)
 			events[i] += memcg_sum_events(iter, i);
 	}
 }
@@ -4108,6 +4108,9 @@ static void free_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)
 {
 	struct mem_cgroup_per_node *pn = memcg->nodeinfo[node];
 
+	if (!pn)
+		return;
+
 	free_percpu(pn->lruvec_stat_cpu);
 	kfree(pn);
 }
@@ -5178,7 +5181,7 @@ static ssize_t memory_max_write(struct kernfs_open_file *of,
 			continue;
 		}
 
-		mem_cgroup_event(memcg, MEMCG_OOM);
+		memcg_memory_event(memcg, MEMCG_OOM);
 		if (!mem_cgroup_out_of_memory(memcg, GFP_KERNEL, 0))
 			break;
 	}
@@ -5191,10 +5194,14 @@ static int memory_events_show(struct seq_file *m, void *v)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
 
-	seq_printf(m, "low %lu\n", memcg_sum_events(memcg, MEMCG_LOW));
-	seq_printf(m, "high %lu\n", memcg_sum_events(memcg, MEMCG_HIGH));
-	seq_printf(m, "max %lu\n", memcg_sum_events(memcg, MEMCG_MAX));
-	seq_printf(m, "oom %lu\n", memcg_sum_events(memcg, MEMCG_OOM));
+	seq_printf(m, "low %lu\n",
+		   atomic_long_read(&memcg->memory_events[MEMCG_LOW]));
+	seq_printf(m, "high %lu\n",
+		   atomic_long_read(&memcg->memory_events[MEMCG_HIGH]));
+	seq_printf(m, "max %lu\n",
+		   atomic_long_read(&memcg->memory_events[MEMCG_MAX]));
+	seq_printf(m, "oom %lu\n",
+		   atomic_long_read(&memcg->memory_events[MEMCG_OOM]));
 	seq_printf(m, "oom_kill %lu\n", memcg_sum_events(memcg, OOM_KILL));
 
 	return 0;
@@ -5204,7 +5211,7 @@ static int memory_stat_show(struct seq_file *m, void *v)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
 	unsigned long stat[MEMCG_NR_STAT];
-	unsigned long events[MEMCG_NR_EVENTS];
+	unsigned long events[NR_VM_EVENT_ITEMS];
 	int i;
 
 	/*
@@ -5967,9 +5974,9 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
 
 	/*
 	 * Interrupts should be disabled here because the caller holds the
-	 * mapping->tree_lock lock which is taken with interrupts-off. It is
+	 * i_pages lock which is taken with interrupts-off. It is
 	 * important here to have the interrupts disabled because it is the
-	 * only synchronisation we have for udpating the per-CPU variables.
+	 * only synchronisation we have for updating the per-CPU variables.
 	 */
 	VM_BUG_ON(!irqs_disabled());
 	mem_cgroup_charge_statistics(memcg, page, PageTransHuge(page),

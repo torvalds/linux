@@ -176,7 +176,7 @@ static int rockchip_sound_da7219_hw_params(struct snd_pcm_substream *substream,
 
 static int rockchip_sound_da7219_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec_dais[0]->codec;
+	struct snd_soc_component *component = rtd->codec_dais[0]->component;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int ret;
 
@@ -215,7 +215,7 @@ static int rockchip_sound_da7219_init(struct snd_soc_pcm_runtime *rtd)
 	snd_jack_set_key(
 		rockchip_sound_jack.jack, SND_JACK_BTN_3, KEY_VOICECOMMAND);
 
-	da7219_aad_jack_det(codec, &rockchip_sound_jack);
+	da7219_aad_jack_det(component, &rockchip_sound_jack);
 
 	return 0;
 }

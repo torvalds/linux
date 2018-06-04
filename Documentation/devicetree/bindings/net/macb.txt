@@ -29,6 +29,7 @@ Optional properties for PHY child node:
 - reset-gpios : Should specify the gpio for phy reset
 - magic-packet : If present, indicates that the hardware supports waking
   up via magic packet.
+- phy-handle : see ethernet.txt file in the same directory
 
 Examples:
 

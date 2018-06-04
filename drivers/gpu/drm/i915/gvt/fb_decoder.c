@@ -245,16 +245,13 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	plane->hw_format = fmt;
 
 	plane->base = vgpu_vreg_t(vgpu, DSPSURF(pipe)) & I915_GTT_PAGE_MASK;
-	if (!intel_gvt_ggtt_validate_range(vgpu, plane->base, 0)) {
-		gvt_vgpu_err("invalid gma address: %lx\n",
-			     (unsigned long)plane->base);
+	if (!intel_gvt_ggtt_validate_range(vgpu, plane->base, 0))
 		return  -EINVAL;
-	}
 
 	plane->base_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm, plane->base);
 	if (plane->base_gpa == INTEL_GVT_INVALID_ADDR) {
-		gvt_vgpu_err("invalid gma address: %lx\n",
-				(unsigned long)plane->base);
+		gvt_vgpu_err("Translate primary plane gma 0x%x to gpa fail\n",
+				plane->base);
 		return  -EINVAL;
 	}
 
@@ -371,16 +368,13 @@ int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 			alpha_plane, alpha_force);
 
 	plane->base = vgpu_vreg_t(vgpu, CURBASE(pipe)) & I915_GTT_PAGE_MASK;
-	if (!intel_gvt_ggtt_validate_range(vgpu, plane->base, 0)) {
-		gvt_vgpu_err("invalid gma address: %lx\n",
-			     (unsigned long)plane->base);
+	if (!intel_gvt_ggtt_validate_range(vgpu, plane->base, 0))
 		return  -EINVAL;
-	}
 
 	plane->base_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm, plane->base);
 	if (plane->base_gpa == INTEL_GVT_INVALID_ADDR) {
-		gvt_vgpu_err("invalid gma address: %lx\n",
-				(unsigned long)plane->base);
+		gvt_vgpu_err("Translate cursor plane gma 0x%x to gpa fail\n",
+				plane->base);
 		return  -EINVAL;
 	}
 
@@ -476,16 +470,13 @@ int intel_vgpu_decode_sprite_plane(struct intel_vgpu *vgpu,
 	plane->drm_format = drm_format;
 
 	plane->base = vgpu_vreg_t(vgpu, SPRSURF(pipe)) & I915_GTT_PAGE_MASK;
-	if (!intel_gvt_ggtt_validate_range(vgpu, plane->base, 0)) {
-		gvt_vgpu_err("invalid gma address: %lx\n",
-			     (unsigned long)plane->base);
+	if (!intel_gvt_ggtt_validate_range(vgpu, plane->base, 0))
 		return  -EINVAL;
-	}
 
 	plane->base_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm, plane->base);
 	if (plane->base_gpa == INTEL_GVT_INVALID_ADDR) {
-		gvt_vgpu_err("invalid gma address: %lx\n",
-				(unsigned long)plane->base);
+		gvt_vgpu_err("Translate sprite plane gma 0x%x to gpa fail\n",
+				plane->base);
 		return  -EINVAL;
 	}
 

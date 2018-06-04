@@ -10,7 +10,7 @@
 
 / {
 	model = "DM8168 EVM";
-	compatible = "ti,dm8168-evm", "ti,dm8168";
+	compatible = "ti,dm8168-evm", "ti,dm8168", "ti,dm816";
 
 	memory@80000000 {
 		device_type = "memory";

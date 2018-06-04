@@ -71,7 +71,7 @@ static void spk_ttyio_ldisc_close(struct tty_struct *tty)
 }
 
 static int spk_ttyio_receive_buf2(struct tty_struct *tty,
-		const unsigned char *cp, char *fp, int count)
+				  const unsigned char *cp, char *fp, int count)
 {
 	struct spk_ldisc_data *ldisc_data = tty->disc_data;
 
@@ -110,6 +110,7 @@ static struct tty_ldisc_ops spk_ttyio_ldisc_ops = {
 };
 
 static int spk_ttyio_out(struct spk_synth *in_synth, const char ch);
+static int spk_ttyio_out_unicode(struct spk_synth *in_synth, u16 ch);
 static void spk_ttyio_send_xchar(char ch);
 static void spk_ttyio_tiocmset(unsigned int set, unsigned int clear);
 static unsigned char spk_ttyio_in(void);
@@ -118,6 +119,7 @@ static void spk_ttyio_flush_buffer(void);
 
 struct spk_io_ops spk_ttyio_ops = {
 	.synth_out = spk_ttyio_out,
+	.synth_out_unicode = spk_ttyio_out_unicode,
 	.send_xchar = spk_ttyio_send_xchar,
 	.tiocmset = spk_ttyio_tiocmset,
 	.synth_in = spk_ttyio_in,
@@ -219,6 +221,23 @@ static int spk_ttyio_out(struct spk_synth *in_synth, const char ch)
 
 	mutex_unlock(&speakup_tty_mutex);
 	return 0;
+}
+
+static int spk_ttyio_out_unicode(struct spk_synth *in_synth, u16 ch)
+{
+	int ret;
+
+	if (ch < 0x80)
+		ret = spk_ttyio_out(in_synth, ch);
+	else if (ch < 0x800) {
+		ret  = spk_ttyio_out(in_synth, 0xc0 | (ch >> 6));
+		ret &= spk_ttyio_out(in_synth, 0x80 | (ch & 0x3f));
+	} else {
+		ret  = spk_ttyio_out(in_synth, 0xe0 | (ch >> 12));
+		ret &= spk_ttyio_out(in_synth, 0x80 | ((ch >> 6) & 0x3f));
+		ret &= spk_ttyio_out(in_synth, 0x80 | (ch & 0x3f));
+	}
+	return ret;
 }
 
 static int check_tty(struct tty_struct *tty)

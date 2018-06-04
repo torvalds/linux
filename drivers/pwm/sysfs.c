@@ -273,7 +273,8 @@ static int pwm_export_child(struct device *parent, struct pwm_device *pwm)
 	ret = device_register(&export->child);
 	if (ret) {
 		clear_bit(PWMF_EXPORTED, &pwm->flags);
-		kfree(export);
+		put_device(&export->child);
+		export = NULL;
 		return ret;
 	}
 

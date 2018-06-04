@@ -161,7 +161,7 @@ static int sel_netport_sid_slow(u8 protocol, u16 pnum, u32 *sid)
 	new = kzalloc(sizeof(*new), GFP_ATOMIC);
 	if (new == NULL)
 		goto out;
-	ret = security_port_sid(protocol, pnum, sid);
+	ret = security_port_sid(&selinux_state, protocol, pnum, sid);
 	if (ret != 0)
 		goto out;
 

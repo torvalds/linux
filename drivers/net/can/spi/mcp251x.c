@@ -220,7 +220,7 @@
 #define DEVICE_NAME "mcp251x"
 
 static int mcp251x_enable_dma; /* Enable SPI DMA. Default: 0 (Off) */
-module_param(mcp251x_enable_dma, int, S_IRUGO);
+module_param(mcp251x_enable_dma, int, 0444);
 MODULE_PARM_DESC(mcp251x_enable_dma, "Enable SPI DMA. Default: 0 (Off)");
 
 static const struct can_bittiming_const mcp251x_bittiming_const = {

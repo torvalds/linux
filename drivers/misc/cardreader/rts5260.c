@@ -388,17 +388,17 @@ static void rts5260_disable_ocp(struct rtsx_pcr *pcr)
 				OC_POWER_DOWN);
 }
 
-int rts5260_get_ocpstat(struct rtsx_pcr *pcr, u8 *val)
+static int rts5260_get_ocpstat(struct rtsx_pcr *pcr, u8 *val)
 {
 	return rtsx_pci_read_register(pcr, REG_OCPSTAT, val);
 }
 
-int rts5260_get_ocpstat2(struct rtsx_pcr *pcr, u8 *val)
+static int rts5260_get_ocpstat2(struct rtsx_pcr *pcr, u8 *val)
 {
 	return rtsx_pci_read_register(pcr, REG_DV3318_OCPSTAT, val);
 }
 
-void rts5260_clear_ocpstat(struct rtsx_pcr *pcr)
+static void rts5260_clear_ocpstat(struct rtsx_pcr *pcr)
 {
 	u8 mask = 0;
 	u8 val = 0;
@@ -418,7 +418,7 @@ void rts5260_clear_ocpstat(struct rtsx_pcr *pcr)
 				DV3318_OCP_INT_CLR | DV3318_OCP_CLR, 0);
 }
 
-void rts5260_process_ocp(struct rtsx_pcr *pcr)
+static void rts5260_process_ocp(struct rtsx_pcr *pcr)
 {
 	if (!pcr->option.ocp_en)
 		return;
@@ -449,7 +449,7 @@ void rts5260_process_ocp(struct rtsx_pcr *pcr)
 	}
 }
 
-int rts5260_init_hw(struct rtsx_pcr *pcr)
+static int rts5260_init_hw(struct rtsx_pcr *pcr)
 {
 	int err;
 
@@ -620,7 +620,7 @@ static int rts5260_extra_init_hw(struct rtsx_pcr *pcr)
 	return 0;
 }
 
-void rts5260_set_aspm(struct rtsx_pcr *pcr, bool enable)
+static void rts5260_set_aspm(struct rtsx_pcr *pcr, bool enable)
 {
 	struct rtsx_cr_option *option = &pcr->option;
 	u8 val = 0;

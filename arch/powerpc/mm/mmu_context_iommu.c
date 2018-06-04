@@ -75,8 +75,7 @@ EXPORT_SYMBOL_GPL(mm_iommu_preregistered);
 /*
  * Taken from alloc_migrate_target with changes to remove CMA allocations
  */
-struct page *new_iommu_non_cma_page(struct page *page, unsigned long private,
-					int **resultp)
+struct page *new_iommu_non_cma_page(struct page *page, unsigned long private)
 {
 	gfp_t gfp_mask = GFP_USER;
 	struct page *new_page;
@@ -112,7 +111,7 @@ static int mm_iommu_move_page_from_cma(struct page *page)
 	put_page(page); /* Drop the gup reference */
 
 	ret = migrate_pages(&cma_migrate_pages, new_iommu_non_cma_page,
-				NULL, 0, MIGRATE_SYNC, MR_CMA);
+				NULL, 0, MIGRATE_SYNC, MR_CONTIG_RANGE);
 	if (ret) {
 		if (!list_empty(&cma_migrate_pages))
 			putback_movable_pages(&cma_migrate_pages);

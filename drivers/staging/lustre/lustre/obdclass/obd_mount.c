@@ -243,7 +243,7 @@ int lustre_start_mgc(struct super_block *sb)
 	libcfs_nid2str_r(nid, nidstr, sizeof(nidstr));
 	mgcname = kasprintf(GFP_NOFS,
 			    "%s%s", LUSTRE_MGC_OBDNAME, nidstr);
-	niduuid = kasprintf(GFP_NOFS, "%s_%x", mgcname, i);
+	niduuid = kasprintf(GFP_NOFS, "%s_%x", mgcname, 0);
 	if (!mgcname || !niduuid) {
 		rc = -ENOMEM;
 		goto out_free;

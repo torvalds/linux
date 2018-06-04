@@ -25,6 +25,9 @@ Optional properties:
   interrupt is to be used to wake system, otherwise "irq" should be used.
 - wakeup-source: Flag to indicate this device can wake system (suspend/resume).
 
+- #clock-cells :  Should be set to '<0>', only one clock source provided;
+- clock-output-names : Name given for DAI clocks output;
+
 - clocks : phandle and clock specifier for codec MCLK.
 - clock-names : Clock name string for 'clocks' attribute, should be "mclk".
 
@@ -82,6 +85,9 @@ Example:
 		VDD-supply = <&reg_audio>;
 		VDDMIC-supply = <&reg_audio>;
 		VDDIO-supply = <&reg_audio>;
+
+		#clock-cells = <0>;
+		clock-output-names = "dai-clks";
 
 		clocks = <&clks 201>;
 		clock-names = "mclk";

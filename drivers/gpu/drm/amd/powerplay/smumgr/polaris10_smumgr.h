@@ -59,7 +59,6 @@ struct polaris10_smumgr {
 	struct SMU74_Discrete_PmFuses  power_tune_table;
 	struct polaris10_range_table                range_table[NUM_SCLK_RANGE];
 	const struct polaris10_pt_defaults       *power_tune_defaults;
-	uint32_t               activity_target[SMU74_MAX_LEVELS_GRAPHICS];
 	uint32_t               bif_sclk_table[SMU74_MAX_LEVELS_LINK];
 };
 

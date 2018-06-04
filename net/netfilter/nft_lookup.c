@@ -71,8 +71,8 @@ static int nft_lookup_init(const struct nft_ctx *ctx,
 	    tb[NFTA_LOOKUP_SREG] == NULL)
 		return -EINVAL;
 
-	set = nft_set_lookup(ctx->net, ctx->table, tb[NFTA_LOOKUP_SET],
-			     tb[NFTA_LOOKUP_SET_ID], genmask);
+	set = nft_set_lookup_global(ctx->net, ctx->table, tb[NFTA_LOOKUP_SET],
+				    tb[NFTA_LOOKUP_SET_ID], genmask);
 	if (IS_ERR(set))
 		return PTR_ERR(set);
 

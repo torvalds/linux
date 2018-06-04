@@ -1295,6 +1295,7 @@ int mthca_register_device(struct mthca_dev *dev)
 
 	mutex_init(&dev->cap_mask_mutex);
 
+	dev->ib_dev.driver_id = RDMA_DRIVER_MTHCA;
 	ret = ib_register_device(&dev->ib_dev, NULL);
 	if (ret)
 		return ret;

@@ -274,11 +274,23 @@ csio_get_host_speed(struct Scsi_Host *shost)
 
 	spin_lock_irq(&hw->lock);
 	switch (hw->pport[ln->portid].link_speed) {
-	case FW_PORT_CAP_SPEED_1G:
+	case FW_PORT_CAP32_SPEED_1G:
 		fc_host_speed(shost) = FC_PORTSPEED_1GBIT;
 		break;
-	case FW_PORT_CAP_SPEED_10G:
+	case FW_PORT_CAP32_SPEED_10G:
 		fc_host_speed(shost) = FC_PORTSPEED_10GBIT;
+		break;
+	case FW_PORT_CAP32_SPEED_25G:
+		fc_host_speed(shost) = FC_PORTSPEED_25GBIT;
+		break;
+	case FW_PORT_CAP32_SPEED_40G:
+		fc_host_speed(shost) = FC_PORTSPEED_40GBIT;
+		break;
+	case FW_PORT_CAP32_SPEED_50G:
+		fc_host_speed(shost) = FC_PORTSPEED_50GBIT;
+		break;
+	case FW_PORT_CAP32_SPEED_100G:
+		fc_host_speed(shost) = FC_PORTSPEED_100GBIT;
 		break;
 	default:
 		fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;

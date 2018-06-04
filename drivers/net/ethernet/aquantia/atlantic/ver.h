@@ -13,7 +13,7 @@
 #define NIC_MAJOR_DRIVER_VERSION           2
 #define NIC_MINOR_DRIVER_VERSION           0
 #define NIC_BUILD_DRIVER_VERSION           2
-#define NIC_REVISION_DRIVER_VERSION        0
+#define NIC_REVISION_DRIVER_VERSION        1
 
 #define AQ_CFG_DRV_VERSION_SUFFIX "-kern"
 

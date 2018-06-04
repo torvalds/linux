@@ -276,22 +276,25 @@ EXPORT_SYMBOL_GPL(pci_epc_map_addr);
  * pci_epc_clear_bar() - reset the BAR
  * @epc: the EPC device for which the BAR has to be cleared
  * @func_no: the endpoint function number in the EPC device
- * @bar: the BAR number that has to be reset
+ * @epf_bar: the struct epf_bar that contains the BAR information
  *
  * Invoke to reset the BAR of the endpoint device.
  */
-void pci_epc_clear_bar(struct pci_epc *epc, u8 func_no, int bar)
+void pci_epc_clear_bar(struct pci_epc *epc, u8 func_no,
+		       struct pci_epf_bar *epf_bar)
 {
 	unsigned long flags;
 
-	if (IS_ERR_OR_NULL(epc) || func_no >= epc->max_functions)
+	if (IS_ERR_OR_NULL(epc) || func_no >= epc->max_functions ||
+	    (epf_bar->barno == BAR_5 &&
+	     epf_bar->flags & PCI_BASE_ADDRESS_MEM_TYPE_64))
 		return;
 
 	if (!epc->ops->clear_bar)
 		return;
 
 	spin_lock_irqsave(&epc->lock, flags);
-	epc->ops->clear_bar(epc, func_no, bar);
+	epc->ops->clear_bar(epc, func_no, epf_bar);
 	spin_unlock_irqrestore(&epc->lock, flags);
 }
 EXPORT_SYMBOL_GPL(pci_epc_clear_bar);
@@ -300,26 +303,31 @@ EXPORT_SYMBOL_GPL(pci_epc_clear_bar);
  * pci_epc_set_bar() - configure BAR in order for host to assign PCI addr space
  * @epc: the EPC device on which BAR has to be configured
  * @func_no: the endpoint function number in the EPC device
- * @bar: the BAR number that has to be configured
- * @size: the size of the addr space
- * @flags: specify memory allocation/io allocation/32bit address/64 bit address
+ * @epf_bar: the struct epf_bar that contains the BAR information
  *
  * Invoke to configure the BAR of the endpoint device.
  */
-int pci_epc_set_bar(struct pci_epc *epc, u8 func_no, enum pci_barno bar,
-		    dma_addr_t bar_phys, size_t size, int flags)
+int pci_epc_set_bar(struct pci_epc *epc, u8 func_no,
+		    struct pci_epf_bar *epf_bar)
 {
 	int ret;
 	unsigned long irq_flags;
+	int flags = epf_bar->flags;
 
-	if (IS_ERR_OR_NULL(epc) || func_no >= epc->max_functions)
+	if (IS_ERR_OR_NULL(epc) || func_no >= epc->max_functions ||
+	    (epf_bar->barno == BAR_5 &&
+	     flags & PCI_BASE_ADDRESS_MEM_TYPE_64) ||
+	    (flags & PCI_BASE_ADDRESS_SPACE_IO &&
+	     flags & PCI_BASE_ADDRESS_IO_MASK) ||
+	    (upper_32_bits(epf_bar->size) &&
+	     !(flags & PCI_BASE_ADDRESS_MEM_TYPE_64)))
 		return -EINVAL;
 
 	if (!epc->ops->set_bar)
 		return 0;
 
 	spin_lock_irqsave(&epc->lock, irq_flags);
-	ret = epc->ops->set_bar(epc, func_no, bar, bar_phys, size, flags);
+	ret = epc->ops->set_bar(epc, func_no, epf_bar);
 	spin_unlock_irqrestore(&epc->lock, irq_flags);
 
 	return ret;

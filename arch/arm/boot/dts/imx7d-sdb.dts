@@ -48,7 +48,7 @@
 	model = "Freescale i.MX7 SabreSD Board";
 	compatible = "fsl,imx7d-sdb", "fsl,imx7d";
 
-	memory {
+	memory@80000000 {
 		reg = <0x80000000 0x80000000>;
 	};
 
@@ -82,7 +82,7 @@
 		enable-active-high;
 	};
 
-	reg_usb_otg2_vbus: regulator-usb-otg1-vbus {
+	reg_usb_otg2_vbus: regulator-usb-otg2-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb_otg2_vbus";
 		regulator-min-microvolt = <5000000>;
@@ -336,6 +336,11 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
+
+	mpl3115@60 {
+		compatible = "fsl,mpl3115";
+		reg = <0x60>;
+	};
 };
 
 &i2c3 {

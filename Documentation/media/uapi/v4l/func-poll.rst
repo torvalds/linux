@@ -39,7 +39,7 @@ When streaming I/O has been negotiated this function waits until a
 buffer has been filled by the capture device and can be dequeued with
 the :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl. For output devices this
 function waits until the device is ready to accept a new buffer to be
-queued up with the :ref:`VIDIOC_QBUF` ioctl for
+queued up with the :ref:`VIDIOC_QBUF <VIDIOC_QBUF>` ioctl for
 display. When buffers are already in the outgoing queue of the driver
 (capture) or the incoming queue isn't full (display) the function
 returns immediately.
@@ -52,11 +52,11 @@ flags in the ``revents`` field, output devices the ``POLLOUT`` and
 ``POLLWRNORM`` flags. When the function timed out it returns a value of
 zero, on failure it returns -1 and the ``errno`` variable is set
 appropriately. When the application did not call
-:ref:`VIDIOC_STREAMON` the :ref:`poll() <func-poll>`
+:ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` the :ref:`poll() <func-poll>`
 function succeeds, but sets the ``POLLERR`` flag in the ``revents``
 field. When the application has called
-:ref:`VIDIOC_STREAMON` for a capture device but
-hasn't yet called :ref:`VIDIOC_QBUF`, the
+:ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` for a capture device but
+hasn't yet called :ref:`VIDIOC_QBUF <VIDIOC_QBUF>`, the
 :ref:`poll() <func-poll>` function succeeds and sets the ``POLLERR`` flag in
 the ``revents`` field. For output devices this same situation will cause
 :ref:`poll() <func-poll>` to succeed as well, but it sets the ``POLLOUT`` and

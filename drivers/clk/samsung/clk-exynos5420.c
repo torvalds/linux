@@ -19,6 +19,7 @@
 
 #include "clk.h"
 #include "clk-cpu.h"
+#include "clk-exynos5-subcmu.h"
 
 #define APLL_LOCK		0x0
 #define APLL_CON0		0x100
@@ -620,7 +621,8 @@ static const struct samsung_mux_clock exynos5420_mux_clks[] __initconst = {
 
 	MUX(CLK_MOUT_MX_MSPLL_CCORE, "mout_mx_mspll_ccore",
 			mout_group5_5800_p, SRC_TOP7, 16, 2),
-	MUX(0, "mout_mau_epll_clk", mout_mau_epll_clk_p, SRC_TOP7, 20, 2),
+	MUX_F(0, "mout_mau_epll_clk", mout_mau_epll_clk_p, SRC_TOP7, 20, 2,
+	      CLK_SET_RATE_PARENT, 0),
 
 	MUX(0, "mout_fimd1", mout_group3_p, SRC_DISP10, 4, 1),
 };
@@ -863,7 +865,6 @@ static const struct samsung_div_clock exynos5x_div_clks[] __initconst = {
 	DIV(0, "dout_mipi1", "mout_mipi1", DIV_DISP10, 16, 8),
 	DIV(0, "dout_dp1", "mout_dp1", DIV_DISP10, 24, 4),
 	DIV(CLK_DOUT_PIXEL, "dout_hdmi_pixel", "mout_pixel", DIV_DISP10, 28, 4),
-	DIV(0, "dout_disp1_blk", "aclk200_disp1", DIV2_RATIO0, 16, 2),
 	DIV(CLK_DOUT_ACLK400_DISP1, "dout_aclk400_disp1",
 			"mout_aclk400_disp1", DIV_TOP2, 4, 3),
 
@@ -912,8 +913,6 @@ static const struct samsung_div_clock exynos5x_div_clks[] __initconst = {
 	DIV(0, "dout_spi1", "mout_spi1", DIV_PERIC1, 24, 4),
 	DIV(0, "dout_spi2", "mout_spi2", DIV_PERIC1, 28, 4),
 
-	/* Mfc Block */
-	DIV(0, "dout_mfc_blk", "mout_user_aclk333", DIV4_RATIO, 0, 2),
 
 	/* PCM */
 	DIV(0, "dout_pcm1", "dout_audio1", DIV_PERIC2, 16, 8),
@@ -932,8 +931,6 @@ static const struct samsung_div_clock exynos5x_div_clks[] __initconst = {
 	DIV(0, "dout_spi2_pre", "dout_spi2", DIV_PERIC4, 24, 8),
 
 	/* GSCL Block */
-	DIV(0, "dout_gscl_blk_300", "mout_user_aclk300_gscl",
-			DIV2_RATIO0, 4, 2),
 	DIV(0, "dout_gscl_blk_333", "aclk333_432_gscl", DIV2_RATIO0, 6, 2),
 
 	/* MSCL Block */
@@ -1190,8 +1187,6 @@ static const struct samsung_gate_clock exynos5x_gate_clks[] __initconst = {
 	GATE(CLK_SCLK_GSCL_WB, "sclk_gscl_wb", "mout_user_aclk333_432_gscl",
 			GATE_TOP_SCLK_GSCL, 7, 0, 0),
 
-	GATE(CLK_GSCL0, "gscl0", "aclk300_gscl", GATE_IP_GSCL0, 0, 0, 0),
-	GATE(CLK_GSCL1, "gscl1", "aclk300_gscl", GATE_IP_GSCL0, 1, 0, 0),
 	GATE(CLK_FIMC_3AA, "fimc_3aa", "aclk333_432_gscl",
 			GATE_IP_GSCL0, 4, 0, 0),
 	GATE(CLK_FIMC_LITE0, "fimc_lite0", "aclk333_432_gscl",
@@ -1205,10 +1200,6 @@ static const struct samsung_gate_clock exynos5x_gate_clks[] __initconst = {
 			GATE_IP_GSCL1, 3, 0, 0),
 	GATE(CLK_SMMU_FIMCL1, "smmu_fimcl1", "dout_gscl_blk_333",
 			GATE_IP_GSCL1, 4, 0, 0),
-	GATE(CLK_SMMU_GSCL0, "smmu_gscl0", "dout_gscl_blk_300",
-			GATE_IP_GSCL1, 6, 0, 0),
-	GATE(CLK_SMMU_GSCL1, "smmu_gscl1", "dout_gscl_blk_300",
-			GATE_IP_GSCL1, 7, 0, 0),
 	GATE(CLK_GSCL_WA, "gscl_wa", "sclk_gscl_wa", GATE_IP_GSCL1, 12, 0, 0),
 	GATE(CLK_GSCL_WB, "gscl_wb", "sclk_gscl_wb", GATE_IP_GSCL1, 13, 0, 0),
 	GATE(CLK_SMMU_FIMCL3, "smmu_fimcl3,", "dout_gscl_blk_333",
@@ -1227,18 +1218,6 @@ static const struct samsung_gate_clock exynos5x_gate_clks[] __initconst = {
 	GATE(CLK_SMMU_MSCL2, "smmu_mscl2", "dout_mscl_blk",
 			GATE_IP_MSCL, 10, 0, 0),
 
-	GATE(CLK_FIMD1, "fimd1", "aclk300_disp1", GATE_IP_DISP1, 0, 0, 0),
-	GATE(CLK_DSIM1, "dsim1", "aclk200_disp1", GATE_IP_DISP1, 3, 0, 0),
-	GATE(CLK_DP1, "dp1", "aclk200_disp1", GATE_IP_DISP1, 4, 0, 0),
-	GATE(CLK_MIXER, "mixer", "aclk200_disp1", GATE_IP_DISP1, 5, 0, 0),
-	GATE(CLK_HDMI, "hdmi", "aclk200_disp1", GATE_IP_DISP1, 6, 0, 0),
-	GATE(CLK_SMMU_FIMD1M0, "smmu_fimd1m0", "dout_disp1_blk",
-			GATE_IP_DISP1, 7, 0, 0),
-	GATE(CLK_SMMU_FIMD1M1, "smmu_fimd1m1", "dout_disp1_blk",
-			GATE_IP_DISP1, 8, 0, 0),
-	GATE(CLK_SMMU_MIXER, "smmu_mixer", "aclk200_disp1",
-			GATE_IP_DISP1, 9, 0, 0),
-
 	/* ISP */
 	GATE(CLK_SCLK_UART_ISP, "sclk_uart_isp", "dout_uart_isp",
 			GATE_TOP_SCLK_ISP, 0, CLK_SET_RATE_PARENT, 0),
@@ -1255,48 +1234,138 @@ static const struct samsung_gate_clock exynos5x_gate_clks[] __initconst = {
 	GATE(CLK_SCLK_ISP_SENSOR2, "sclk_isp_sensor2", "dout_isp_sensor2",
 			GATE_TOP_SCLK_ISP, 12, CLK_SET_RATE_PARENT, 0),
 
-	GATE(CLK_MFC, "mfc", "aclk333", GATE_IP_MFC, 0, 0, 0),
-	GATE(CLK_SMMU_MFCL, "smmu_mfcl", "dout_mfc_blk", GATE_IP_MFC, 1, 0, 0),
-	GATE(CLK_SMMU_MFCR, "smmu_mfcr", "dout_mfc_blk", GATE_IP_MFC, 2, 0, 0),
-
 	GATE(CLK_G3D, "g3d", "mout_user_aclk_g3d", GATE_IP_G3D, 9, 0, 0),
 };
 
+static const struct samsung_div_clock exynos5x_disp_div_clks[] __initconst = {
+	DIV(0, "dout_disp1_blk", "aclk200_disp1", DIV2_RATIO0, 16, 2),
+};
+
+static const struct samsung_gate_clock exynos5x_disp_gate_clks[] __initconst = {
+	GATE(CLK_FIMD1, "fimd1", "aclk300_disp1", GATE_IP_DISP1, 0, 0, 0),
+	GATE(CLK_DSIM1, "dsim1", "aclk200_disp1", GATE_IP_DISP1, 3, 0, 0),
+	GATE(CLK_DP1, "dp1", "aclk200_disp1", GATE_IP_DISP1, 4, 0, 0),
+	GATE(CLK_MIXER, "mixer", "aclk200_disp1", GATE_IP_DISP1, 5, 0, 0),
+	GATE(CLK_HDMI, "hdmi", "aclk200_disp1", GATE_IP_DISP1, 6, 0, 0),
+	GATE(CLK_SMMU_FIMD1M0, "smmu_fimd1m0", "dout_disp1_blk",
+			GATE_IP_DISP1, 7, 0, 0),
+	GATE(CLK_SMMU_FIMD1M1, "smmu_fimd1m1", "dout_disp1_blk",
+			GATE_IP_DISP1, 8, 0, 0),
+	GATE(CLK_SMMU_MIXER, "smmu_mixer", "aclk200_disp1",
+			GATE_IP_DISP1, 9, 0, 0),
+};
+
+static struct exynos5_subcmu_reg_dump exynos5x_disp_suspend_regs[] = {
+	{ GATE_IP_DISP1, 0xffffffff, 0xffffffff }, /* DISP1 gates */
+	{ SRC_TOP5, 0, BIT(0) },	/* MUX mout_user_aclk400_disp1 */
+	{ SRC_TOP5, 0, BIT(24) },	/* MUX mout_user_aclk300_disp1 */
+	{ SRC_TOP3, 0, BIT(8) },	/* MUX mout_user_aclk200_disp1 */
+	{ DIV2_RATIO0, 0, 0x30000 },		/* DIV dout_disp1_blk */
+};
+
+static const struct samsung_div_clock exynos5x_gsc_div_clks[] __initconst = {
+	DIV(0, "dout_gscl_blk_300", "mout_user_aclk300_gscl",
+			DIV2_RATIO0, 4, 2),
+};
+
+static const struct samsung_gate_clock exynos5x_gsc_gate_clks[] __initconst = {
+	GATE(CLK_GSCL0, "gscl0", "aclk300_gscl", GATE_IP_GSCL0, 0, 0, 0),
+	GATE(CLK_GSCL1, "gscl1", "aclk300_gscl", GATE_IP_GSCL0, 1, 0, 0),
+	GATE(CLK_SMMU_GSCL0, "smmu_gscl0", "dout_gscl_blk_300",
+			GATE_IP_GSCL1, 6, 0, 0),
+	GATE(CLK_SMMU_GSCL1, "smmu_gscl1", "dout_gscl_blk_300",
+			GATE_IP_GSCL1, 7, 0, 0),
+};
+
+static struct exynos5_subcmu_reg_dump exynos5x_gsc_suspend_regs[] = {
+	{ GATE_IP_GSCL0, 0x3, 0x3 },	/* GSC gates */
+	{ GATE_IP_GSCL1, 0xc0, 0xc0 },	/* GSC gates */
+	{ SRC_TOP5, 0, BIT(28) },	/* MUX mout_user_aclk300_gscl */
+	{ DIV2_RATIO0, 0, 0x30 },	/* DIV dout_gscl_blk_300 */
+};
+
+static const struct samsung_div_clock exynos5x_mfc_div_clks[] __initconst = {
+	DIV(0, "dout_mfc_blk", "mout_user_aclk333", DIV4_RATIO, 0, 2),
+};
+
+static const struct samsung_gate_clock exynos5x_mfc_gate_clks[] __initconst = {
+	GATE(CLK_MFC, "mfc", "aclk333", GATE_IP_MFC, 0, 0, 0),
+	GATE(CLK_SMMU_MFCL, "smmu_mfcl", "dout_mfc_blk", GATE_IP_MFC, 1, 0, 0),
+	GATE(CLK_SMMU_MFCR, "smmu_mfcr", "dout_mfc_blk", GATE_IP_MFC, 2, 0, 0),
+};
+
+static struct exynos5_subcmu_reg_dump exynos5x_mfc_suspend_regs[] = {
+	{ GATE_IP_MFC, 0xffffffff, 0xffffffff }, /* MFC gates */
+	{ SRC_TOP4, 0, BIT(28) },		/* MUX mout_user_aclk333 */
+	{ DIV4_RATIO, 0, 0x3 },			/* DIV dout_mfc_blk */
+};
+
+static const struct exynos5_subcmu_info exynos5x_subcmus[] = {
+	{
+		.div_clks	= exynos5x_disp_div_clks,
+		.nr_div_clks	= ARRAY_SIZE(exynos5x_disp_div_clks),
+		.gate_clks	= exynos5x_disp_gate_clks,
+		.nr_gate_clks	= ARRAY_SIZE(exynos5x_disp_gate_clks),
+		.suspend_regs	= exynos5x_disp_suspend_regs,
+		.nr_suspend_regs = ARRAY_SIZE(exynos5x_disp_suspend_regs),
+		.pd_name	= "DISP",
+	}, {
+		.div_clks	= exynos5x_gsc_div_clks,
+		.nr_div_clks	= ARRAY_SIZE(exynos5x_gsc_div_clks),
+		.gate_clks	= exynos5x_gsc_gate_clks,
+		.nr_gate_clks	= ARRAY_SIZE(exynos5x_gsc_gate_clks),
+		.suspend_regs	= exynos5x_gsc_suspend_regs,
+		.nr_suspend_regs = ARRAY_SIZE(exynos5x_gsc_suspend_regs),
+		.pd_name	= "GSC",
+	}, {
+		.div_clks	= exynos5x_mfc_div_clks,
+		.nr_div_clks	= ARRAY_SIZE(exynos5x_mfc_div_clks),
+		.gate_clks	= exynos5x_mfc_gate_clks,
+		.nr_gate_clks	= ARRAY_SIZE(exynos5x_mfc_gate_clks),
+		.suspend_regs	= exynos5x_mfc_suspend_regs,
+		.nr_suspend_regs = ARRAY_SIZE(exynos5x_mfc_suspend_regs),
+		.pd_name	= "MFC",
+	},
+};
+
 static const struct samsung_pll_rate_table exynos5420_pll2550x_24mhz_tbl[] __initconst = {
-	PLL_35XX_RATE(2000000000, 250, 3, 0),
-	PLL_35XX_RATE(1900000000, 475, 6, 0),
-	PLL_35XX_RATE(1800000000, 225, 3, 0),
-	PLL_35XX_RATE(1700000000, 425, 6, 0),
-	PLL_35XX_RATE(1600000000, 200, 3, 0),
-	PLL_35XX_RATE(1500000000, 250, 4, 0),
-	PLL_35XX_RATE(1400000000, 175, 3, 0),
-	PLL_35XX_RATE(1300000000, 325, 6, 0),
-	PLL_35XX_RATE(1200000000, 200, 2, 1),
-	PLL_35XX_RATE(1100000000, 275, 3, 1),
-	PLL_35XX_RATE(1000000000, 250, 3, 1),
-	PLL_35XX_RATE(900000000,  150, 2, 1),
-	PLL_35XX_RATE(800000000,  200, 3, 1),
-	PLL_35XX_RATE(700000000,  175, 3, 1),
-	PLL_35XX_RATE(600000000,  200, 2, 2),
-	PLL_35XX_RATE(500000000,  250, 3, 2),
-	PLL_35XX_RATE(400000000,  200, 3, 2),
-	PLL_35XX_RATE(300000000,  200, 2, 3),
-	PLL_35XX_RATE(200000000,  200, 3, 3),
+	PLL_35XX_RATE(24 * MHZ, 2000000000, 250, 3, 0),
+	PLL_35XX_RATE(24 * MHZ, 1900000000, 475, 6, 0),
+	PLL_35XX_RATE(24 * MHZ, 1800000000, 225, 3, 0),
+	PLL_35XX_RATE(24 * MHZ, 1700000000, 425, 6, 0),
+	PLL_35XX_RATE(24 * MHZ, 1600000000, 200, 3, 0),
+	PLL_35XX_RATE(24 * MHZ, 1500000000, 250, 4, 0),
+	PLL_35XX_RATE(24 * MHZ, 1400000000, 175, 3, 0),
+	PLL_35XX_RATE(24 * MHZ, 1300000000, 325, 6, 0),
+	PLL_35XX_RATE(24 * MHZ, 1200000000, 200, 2, 1),
+	PLL_35XX_RATE(24 * MHZ, 1100000000, 275, 3, 1),
+	PLL_35XX_RATE(24 * MHZ, 1000000000, 250, 3, 1),
+	PLL_35XX_RATE(24 * MHZ, 900000000,  150, 2, 1),
+	PLL_35XX_RATE(24 * MHZ, 800000000,  200, 3, 1),
+	PLL_35XX_RATE(24 * MHZ, 700000000,  175, 3, 1),
+	PLL_35XX_RATE(24 * MHZ, 600000000,  200, 2, 2),
+	PLL_35XX_RATE(24 * MHZ, 500000000,  250, 3, 2),
+	PLL_35XX_RATE(24 * MHZ, 400000000,  200, 3, 2),
+	PLL_35XX_RATE(24 * MHZ, 300000000,  200, 2, 3),
+	PLL_35XX_RATE(24 * MHZ, 200000000,  200, 3, 3),
 };
 
 static const struct samsung_pll_rate_table exynos5420_epll_24mhz_tbl[] = {
-	PLL_36XX_RATE(600000000U, 100, 2, 1, 0),
-	PLL_36XX_RATE(400000000U, 200, 3, 2, 0),
-	PLL_36XX_RATE(393216003U, 197, 3, 2, -25690),
-	PLL_36XX_RATE(361267218U, 301, 5, 2, 3671),
-	PLL_36XX_RATE(200000000U, 200, 3, 3, 0),
-	PLL_36XX_RATE(196608001U, 197, 3, 3, -25690),
-	PLL_36XX_RATE(180633609U, 301, 5, 3, 3671),
-	PLL_36XX_RATE(131072006U, 131, 3, 3, 4719),
-	PLL_36XX_RATE(100000000U, 200, 3, 4, 0),
-	PLL_36XX_RATE( 65536003U, 131, 3, 4, 4719),
-	PLL_36XX_RATE( 49152000U, 197, 3, 5, -25690),
-	PLL_36XX_RATE( 32768001U, 131, 3, 5, 4719),
+	PLL_36XX_RATE(24 * MHZ, 600000000U, 100, 2, 1, 0),
+	PLL_36XX_RATE(24 * MHZ, 400000000U, 200, 3, 2, 0),
+	PLL_36XX_RATE(24 * MHZ, 393216003U, 197, 3, 2, -25690),
+	PLL_36XX_RATE(24 * MHZ, 361267218U, 301, 5, 2, 3671),
+	PLL_36XX_RATE(24 * MHZ, 200000000U, 200, 3, 3, 0),
+	PLL_36XX_RATE(24 * MHZ, 196608001U, 197, 3, 3, -25690),
+	PLL_36XX_RATE(24 * MHZ, 180633609U, 301, 5, 3, 3671),
+	PLL_36XX_RATE(24 * MHZ, 131072006U, 131, 3, 3, 4719),
+	PLL_36XX_RATE(24 * MHZ, 100000000U, 200, 3, 4, 0),
+	PLL_36XX_RATE(24 * MHZ,  73728000U, 98, 2, 4, 19923),
+	PLL_36XX_RATE(24 * MHZ,  67737602U, 90, 2, 4, 20762),
+	PLL_36XX_RATE(24 * MHZ,  65536003U, 131, 3, 4, 4719),
+	PLL_36XX_RATE(24 * MHZ,  49152000U, 197, 3, 5, -25690),
+	PLL_36XX_RATE(24 * MHZ,  45158401U, 90, 3, 4, 20762),
+	PLL_36XX_RATE(24 * MHZ,  32768001U, 131, 3, 5, 4719),
 };
 
 static struct samsung_pll_clock exynos5x_plls[nr_plls] __initdata = {
@@ -1472,6 +1541,8 @@ static void __init exynos5x_clk_init(struct device_node *np,
 		exynos5420_kfcclk_d, ARRAY_SIZE(exynos5420_kfcclk_d), 0);
 
 	exynos5420_clk_sleep_init();
+	exynos5_subcmus_init(ctx, ARRAY_SIZE(exynos5x_subcmus),
+			     exynos5x_subcmus);
 
 	samsung_clk_of_add_provider(np, ctx);
 }
@@ -1480,10 +1551,12 @@ static void __init exynos5420_clk_init(struct device_node *np)
 {
 	exynos5x_clk_init(np, EXYNOS5420);
 }
-CLK_OF_DECLARE(exynos5420_clk, "samsung,exynos5420-clock", exynos5420_clk_init);
+CLK_OF_DECLARE_DRIVER(exynos5420_clk, "samsung,exynos5420-clock",
+		      exynos5420_clk_init);
 
 static void __init exynos5800_clk_init(struct device_node *np)
 {
 	exynos5x_clk_init(np, EXYNOS5800);
 }
-CLK_OF_DECLARE(exynos5800_clk, "samsung,exynos5800-clock", exynos5800_clk_init);
+CLK_OF_DECLARE_DRIVER(exynos5800_clk, "samsung,exynos5800-clock",
+		      exynos5800_clk_init);

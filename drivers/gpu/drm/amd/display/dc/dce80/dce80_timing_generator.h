@@ -36,10 +36,4 @@ void dce80_timing_generator_construct(
 	uint32_t instance,
 	const struct dce110_timing_generator_offsets *offsets);
 
-/******** HW programming ************/
-void dce80_timing_generator_enable_advanced_request(
-	struct timing_generator *tg,
-	bool enable,
-	const struct dc_crtc_timing *timing);
-
 #endif /* __DC_TIMING_GENERATOR_DCE80_H__ */

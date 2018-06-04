@@ -1251,7 +1251,7 @@ static void _rtl8822be_get_rate_values_of_tx_power_by_rate(
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
 			 "Invalid reg_addr 0x%x in %s()\n", reg_addr, __func__);
 		break;
-	};
+	}
 }
 
 void rtl8822be_store_tx_power_by_rate(struct ieee80211_hw *hw, u32 band,

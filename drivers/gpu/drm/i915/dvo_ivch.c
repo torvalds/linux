@@ -59,28 +59,28 @@
  * This must not be set while VR01_DVO_BYPASS_ENABLE is set.
  */
 # define VR01_LCD_ENABLE		(1 << 2)
-/** Enables the DVO repeater. */
+/* Enables the DVO repeater. */
 # define VR01_DVO_BYPASS_ENABLE		(1 << 1)
-/** Enables the DVO clock */
+/* Enables the DVO clock */
 # define VR01_DVO_ENABLE		(1 << 0)
-/** Enable dithering for 18bpp panels. Not documented. */
+/* Enable dithering for 18bpp panels. Not documented. */
 # define VR01_DITHER_ENABLE             (1 << 4)
 
 /*
  * LCD Interface Format
  */
 #define VR10		0x10
-/** Enables LVDS output instead of CMOS */
+/* Enables LVDS output instead of CMOS */
 # define VR10_LVDS_ENABLE		(1 << 4)
-/** Enables 18-bit LVDS output. */
+/* Enables 18-bit LVDS output. */
 # define VR10_INTERFACE_1X18		(0 << 2)
-/** Enables 24-bit LVDS or CMOS output */
+/* Enables 24-bit LVDS or CMOS output */
 # define VR10_INTERFACE_1X24		(1 << 2)
-/** Enables 2x18-bit LVDS or CMOS output. */
+/* Enables 2x18-bit LVDS or CMOS output. */
 # define VR10_INTERFACE_2X18		(2 << 2)
-/** Enables 2x24-bit LVDS output */
+/* Enables 2x24-bit LVDS output */
 # define VR10_INTERFACE_2X24		(3 << 2)
-/** Mask that defines the depth of the pipeline */
+/* Mask that defines the depth of the pipeline */
 # define VR10_INTERFACE_DEPTH_MASK      (3 << 2)
 
 /*
@@ -97,7 +97,7 @@
  * Panel power down status
  */
 #define VR30		0x30
-/** Read only bit indicating that the panel is not in a safe poweroff state. */
+/* Read only bit indicating that the panel is not in a safe poweroff state. */
 # define VR30_PANEL_ON			(1 << 15)
 
 #define VR40		0x40
@@ -183,7 +183,7 @@ struct ivch_priv {
 
 
 static void ivch_dump_regs(struct intel_dvo_device *dvo);
-/**
+/*
  * Reads a register on the ivch.
  *
  * Each of the 256 registers are 16 bits long.
@@ -230,7 +230,7 @@ static bool ivch_read(struct intel_dvo_device *dvo, int addr, uint16_t *data)
 	return false;
 }
 
-/** Writes a 16-bit register on the ivch */
+/* Writes a 16-bit register on the ivch */
 static bool ivch_write(struct intel_dvo_device *dvo, int addr, uint16_t data)
 {
 	struct ivch_priv *priv = dvo->dev_priv;
@@ -258,7 +258,7 @@ static bool ivch_write(struct intel_dvo_device *dvo, int addr, uint16_t data)
 	return false;
 }
 
-/** Probes the given bus and slave address for an ivch */
+/* Probes the given bus and slave address for an ivch */
 static bool ivch_init(struct intel_dvo_device *dvo,
 		      struct i2c_adapter *adapter)
 {
@@ -338,7 +338,7 @@ static void ivch_reset(struct intel_dvo_device *dvo)
 		ivch_write(dvo, backup_addresses[i], priv->reg_backup[i]);
 }
 
-/** Sets the power state of the panel connected to the ivch */
+/* Sets the power state of the panel connected to the ivch */
 static void ivch_dpms(struct intel_dvo_device *dvo, bool enable)
 {
 	int i;

@@ -355,7 +355,7 @@ bcm47xx_buttons_luxul_xwr_600_v1[] = {
 
 static const struct gpio_keys_button
 bcm47xx_buttons_luxul_xwr_1750_v1[] = {
-	BCM47XX_GPIO_KEY(14, BTN_TASK),
+	BCM47XX_GPIO_KEY(14, KEY_RESTART),
 };
 
 /* Microsoft */

@@ -607,7 +607,7 @@
 	};
 
 	chosen {
-		linux,stdout-path = "/plb/opb/serial@b0020000";
+		stdout-path = "/plb/opb/serial@b0020000";
 		bootargs = "console=ttyS0,115200 rw log_buf_len=32768 debug";
 	};
 };

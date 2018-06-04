@@ -578,7 +578,7 @@ static enum usb_charger_type mxs_charger_primary_detection(struct mxs_phy *x)
  * It must be called after DP is pulled up, which is used to
  * differentiate DCP and CDP.
  */
-enum usb_charger_type mxs_charger_secondary_detection(struct mxs_phy *x)
+static enum usb_charger_type mxs_charger_secondary_detection(struct mxs_phy *x)
 {
 	struct regmap *regmap = x->regmap_anatop;
 	int val;

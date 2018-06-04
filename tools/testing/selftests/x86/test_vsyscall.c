@@ -450,7 +450,7 @@ static void sigtrap(int sig, siginfo_t *info, void *ctx_void)
 		num_vsyscall_traps++;
 }
 
-static int test_native_vsyscall(void)
+static int test_emulation(void)
 {
 	time_t tmp;
 	bool is_native;
@@ -458,7 +458,7 @@ static int test_native_vsyscall(void)
 	if (!vtime)
 		return 0;
 
-	printf("[RUN]\tchecking for native vsyscall\n");
+	printf("[RUN]\tchecking that vsyscalls are emulated\n");
 	sethandler(SIGTRAP, sigtrap, 0);
 	set_eflags(get_eflags() | X86_EFLAGS_TF);
 	vtime(&tmp);
@@ -474,11 +474,12 @@ static int test_native_vsyscall(void)
 	 */
 	is_native = (num_vsyscall_traps > 1);
 
-	printf("\tvsyscalls are %s (%d instructions in vsyscall page)\n",
+	printf("[%s]\tvsyscalls are %s (%d instructions in vsyscall page)\n",
+	       (is_native ? "FAIL" : "OK"),
 	       (is_native ? "native" : "emulated"),
 	       (int)num_vsyscall_traps);
 
-	return 0;
+	return is_native;
 }
 #endif
 
@@ -498,7 +499,7 @@ int main(int argc, char **argv)
 	nerrs += test_vsys_r();
 
 #ifdef __x86_64__
-	nerrs += test_native_vsyscall();
+	nerrs += test_emulation();
 #endif
 
 	return nerrs ? 1 : 0;

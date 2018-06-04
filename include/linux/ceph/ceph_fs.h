@@ -134,6 +134,7 @@ struct ceph_dir_layout {
 #define CEPH_MSG_CLIENT_LEASE           0x311
 #define CEPH_MSG_CLIENT_SNAP            0x312
 #define CEPH_MSG_CLIENT_CAPRELEASE      0x313
+#define CEPH_MSG_CLIENT_QUOTA           0x314
 
 /* pool ops */
 #define CEPH_MSG_POOLOP_REPLY           48
@@ -806,5 +807,21 @@ struct ceph_mds_snap_realm {
 	__le32 num_prior_parent_snaps;
 } __attribute__ ((packed));
 /* followed by my snap list, then prior parent snap list */
+
+/*
+ * quotas
+ */
+struct ceph_mds_quota {
+	__le64 ino;		/* ino */
+	struct ceph_timespec rctime;
+	__le64 rbytes;		/* dir stats */
+	__le64 rfiles;
+	__le64 rsubdirs;
+	__u8 struct_v;		/* compat */
+	__u8 struct_compat;
+	__le32 struct_len;
+	__le64 max_bytes;	/* quota max. bytes */
+	__le64 max_files;	/* quota max. files */
+} __attribute__ ((packed));
 
 #endif

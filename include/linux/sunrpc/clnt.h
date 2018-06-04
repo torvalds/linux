@@ -217,5 +217,12 @@ void rpc_clnt_xprt_switch_add_xprt(struct rpc_clnt *, struct rpc_xprt *);
 bool rpc_clnt_xprt_switch_has_addr(struct rpc_clnt *clnt,
 			const struct sockaddr *sap);
 void rpc_cleanup_clids(void);
+
+static inline int rpc_reply_expected(struct rpc_task *task)
+{
+	return (task->tk_msg.rpc_proc != NULL) &&
+		(task->tk_msg.rpc_proc->p_decode != NULL);
+}
+
 #endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_CLNT_H */

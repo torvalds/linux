@@ -21,9 +21,10 @@ Required properties:
 	- main controller clock (for both armada-375-pp2 and armada-7k-pp2)
 	- GOP clock (for both armada-375-pp2 and armada-7k-pp2)
 	- MG clock (only for armada-7k-pp2)
+	- MG Core clock (only for armada-7k-pp2)
 	- AXI clock (only for armada-7k-pp2)
-- clock-names: names of used clocks, must be "pp_clk", "gop_clk", "mg_clk"
-  and "axi_clk" (the 2 latter only for armada-7k-pp2).
+- clock-names: names of used clocks, must be "pp_clk", "gop_clk", "mg_clk",
+  "mg_core_clk" and "axi_clk" (the 3 latter only for armada-7k-pp2).
 
 The ethernet ports are represented by subnodes. At least one port is
 required.
@@ -80,8 +81,8 @@ cpm_ethernet: ethernet@0 {
 	compatible = "marvell,armada-7k-pp22";
 	reg = <0x0 0x100000>, <0x129000 0xb000>;
 	clocks = <&cpm_syscon0 1 3>, <&cpm_syscon0 1 9>,
-		 <&cpm_syscon0 1 5>, <&cpm_syscon0 1 18>;
-	clock-names = "pp_clk", "gop_clk", "gp_clk", "axi_clk";
+		 <&cpm_syscon0 1 5>, <&cpm_syscon0 1 6>, <&cpm_syscon0 1 18>;
+	clock-names = "pp_clk", "gop_clk", "mg_clk", "mg_core_clk", "axi_clk";
 
 	eth0: eth0 {
 		interrupts = <ICU_GRP_NSR 39 IRQ_TYPE_LEVEL_HIGH>,

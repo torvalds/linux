@@ -59,7 +59,11 @@
 #include "rxe_verbs.h"
 #include "rxe_loc.h"
 
-#define RXE_UVERBS_ABI_VERSION		(1)
+/*
+ * Version 1 and Version 2 are identical on 64 bit machines, but on 32 bit
+ * machines Version 2 has a different struct layout.
+ */
+#define RXE_UVERBS_ABI_VERSION		2
 
 #define IB_PHYS_STATE_LINK_UP		(5)
 #define IB_PHYS_STATE_LINK_DOWN		(3)

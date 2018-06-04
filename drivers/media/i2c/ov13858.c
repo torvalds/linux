@@ -1,16 +1,5 @@
-/*
- * Copyright (c) 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- */
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (c) 2017 Intel Corporation.
 
 #include <linux/acpi.h>
 #include <linux/i2c.h>
@@ -194,6 +183,7 @@ static const struct ov13858_reg mode_4224x3136_regs[] = {
 	{0x3624, 0x1c},
 	{0x3640, 0x10},
 	{0x3641, 0x70},
+	{0x3660, 0x04},
 	{0x3661, 0x80},
 	{0x3662, 0x12},
 	{0x3664, 0x73},
@@ -384,6 +374,7 @@ static const struct ov13858_reg mode_2112x1568_regs[] = {
 	{0x3624, 0x1c},
 	{0x3640, 0x10},
 	{0x3641, 0x70},
+	{0x3660, 0x04},
 	{0x3661, 0x80},
 	{0x3662, 0x10},
 	{0x3664, 0x73},
@@ -574,6 +565,7 @@ static const struct ov13858_reg mode_2112x1188_regs[] = {
 	{0x3624, 0x1c},
 	{0x3640, 0x10},
 	{0x3641, 0x70},
+	{0x3660, 0x04},
 	{0x3661, 0x80},
 	{0x3662, 0x10},
 	{0x3664, 0x73},
@@ -764,6 +756,7 @@ static const struct ov13858_reg mode_1056x784_regs[] = {
 	{0x3624, 0x1c},
 	{0x3640, 0x10},
 	{0x3641, 0x70},
+	{0x3660, 0x04},
 	{0x3661, 0x80},
 	{0x3662, 0x08},
 	{0x3664, 0x73},
@@ -1057,14 +1050,15 @@ struct ov13858 {
 #define to_ov13858(_sd)	container_of(_sd, struct ov13858, sd)
 
 /* Read registers up to 4 at a time */
-static int ov13858_read_reg(struct ov13858 *ov13858, u16 reg, u32 len, u32 *val)
+static int ov13858_read_reg(struct ov13858 *ov13858, u16 reg, u32 len,
+			    u32 *val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&ov13858->sd);
 	struct i2c_msg msgs[2];
 	u8 *data_be_p;
 	int ret;
-	u32 data_be = 0;
-	u16 reg_addr_be = cpu_to_be16(reg);
+	__be32 data_be = 0;
+	__be16 reg_addr_be = cpu_to_be16(reg);
 
 	if (len > 4)
 		return -EINVAL;
@@ -1092,11 +1086,13 @@ static int ov13858_read_reg(struct ov13858 *ov13858, u16 reg, u32 len, u32 *val)
 }
 
 /* Write registers up to 4 at a time */
-static int ov13858_write_reg(struct ov13858 *ov13858, u16 reg, u32 len, u32 val)
+static int ov13858_write_reg(struct ov13858 *ov13858, u16 reg, u32 len,
+			     u32 __val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&ov13858->sd);
 	int buf_i, val_i;
 	u8 buf[6], *val_p;
+	__be32 val;
 
 	if (len > 4)
 		return -EINVAL;
@@ -1104,7 +1100,7 @@ static int ov13858_write_reg(struct ov13858 *ov13858, u16 reg, u32 len, u32 val)
 	buf[0] = reg >> 8;
 	buf[1] = reg & 0xff;
 
-	val = cpu_to_be32(val);
+	val = cpu_to_be32(__val);
 	val_p = (u8 *)&val;
 	buf_i = 2;
 	val_i = 4 - len;
@@ -1348,39 +1344,6 @@ static int ov13858_get_pad_format(struct v4l2_subdev *sd,
 	return ret;
 }
 
-/*
- * Calculate resolution distance
- */
-static int
-ov13858_get_resolution_dist(const struct ov13858_mode *mode,
-			    struct v4l2_mbus_framefmt *framefmt)
-{
-	return abs(mode->width - framefmt->width) +
-	       abs(mode->height - framefmt->height);
-}
-
-/*
- * Find the closest supported resolution to the requested resolution
- */
-static const struct ov13858_mode *
-ov13858_find_best_fit(struct ov13858 *ov13858,
-		      struct v4l2_subdev_format *fmt)
-{
-	int i, dist, cur_best_fit = 0, cur_best_fit_dist = -1;
-	struct v4l2_mbus_framefmt *framefmt = &fmt->format;
-
-	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
-		dist = ov13858_get_resolution_dist(&supported_modes[i],
-						   framefmt);
-		if (cur_best_fit_dist == -1 || dist < cur_best_fit_dist) {
-			cur_best_fit_dist = dist;
-			cur_best_fit = i;
-		}
-	}
-
-	return &supported_modes[cur_best_fit];
-}
-
 static int
 ov13858_set_pad_format(struct v4l2_subdev *sd,
 		       struct v4l2_subdev_pad_config *cfg,
@@ -1401,7 +1364,10 @@ ov13858_set_pad_format(struct v4l2_subdev *sd,
 	if (fmt->format.code != MEDIA_BUS_FMT_SGRBG10_1X10)
 		fmt->format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
 
-	mode = ov13858_find_best_fit(ov13858, fmt);
+	mode = v4l2_find_nearest_size(supported_modes,
+				      ARRAY_SIZE(supported_modes),
+				      width, height,
+				      fmt->format.width, fmt->format.height);
 	ov13858_update_pad_format(mode, fmt);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		framefmt = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
@@ -1565,7 +1531,7 @@ static int __maybe_unused ov13858_resume(struct device *dev)
 
 error:
 	ov13858_stop_streaming(ov13858);
-	ov13858->streaming = 0;
+	ov13858->streaming = false;
 	return ret;
 }
 

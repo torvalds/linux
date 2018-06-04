@@ -938,7 +938,7 @@ out_release:
 }
 
 static int rose_getname(struct socket *sock, struct sockaddr *uaddr,
-	int *uaddr_len, int peer)
+	int peer)
 {
 	struct full_sockaddr_rose *srose = (struct full_sockaddr_rose *)uaddr;
 	struct sock *sk = sock->sk;
@@ -964,8 +964,7 @@ static int rose_getname(struct socket *sock, struct sockaddr *uaddr,
 			srose->srose_digis[n] = rose->source_digis[n];
 	}
 
-	*uaddr_len = sizeof(struct full_sockaddr_rose);
-	return 0;
+	return sizeof(struct full_sockaddr_rose);
 }
 
 int rose_rx_call_request(struct sk_buff *skb, struct net_device *dev, struct rose_neigh *neigh, unsigned int lci)
@@ -1568,12 +1567,12 @@ static int __init rose_proto_init(void)
 
 	rose_add_loopback_neigh();
 
-	proc_create("rose", S_IRUGO, init_net.proc_net, &rose_info_fops);
-	proc_create("rose_neigh", S_IRUGO, init_net.proc_net,
+	proc_create("rose", 0444, init_net.proc_net, &rose_info_fops);
+	proc_create("rose_neigh", 0444, init_net.proc_net,
 		    &rose_neigh_fops);
-	proc_create("rose_nodes", S_IRUGO, init_net.proc_net,
+	proc_create("rose_nodes", 0444, init_net.proc_net,
 		    &rose_nodes_fops);
-	proc_create("rose_routes", S_IRUGO, init_net.proc_net,
+	proc_create("rose_routes", 0444, init_net.proc_net,
 		    &rose_routes_fops);
 out:
 	return rc;

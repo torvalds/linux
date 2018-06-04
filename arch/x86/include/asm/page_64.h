@@ -11,6 +11,10 @@
 extern unsigned long max_pfn;
 extern unsigned long phys_base;
 
+extern unsigned long page_offset_base;
+extern unsigned long vmalloc_base;
+extern unsigned long vmemmap_base;
+
 static inline unsigned long __phys_addr_nodebug(unsigned long x)
 {
 	unsigned long y = x - __START_KERNEL_map;
@@ -47,7 +51,7 @@ static inline void clear_page(void *page)
 			   clear_page_erms, X86_FEATURE_ERMS,
 			   "=D" (page),
 			   "0" (page)
-			   : "memory", "rax", "rcx");
+			   : "cc", "memory", "rax", "rcx");
 }
 
 void copy_page(void *to, void *from);

@@ -169,6 +169,7 @@
 #define XUSB_PADCTL_UPHY_PLL_CTL2_CAL_EN (1 << 0)
 
 #define XUSB_PADCTL_UPHY_PLL_P0_CTL4 0x36c
+#define XUSB_PADCTL_UPHY_PLL_CTL4_XDIGCLK_EN (1 << 19)
 #define XUSB_PADCTL_UPHY_PLL_CTL4_TXCLKREF_EN (1 << 15)
 #define XUSB_PADCTL_UPHY_PLL_CTL4_TXCLKREF_SEL_SHIFT 12
 #define XUSB_PADCTL_UPHY_PLL_CTL4_TXCLKREF_SEL_MASK 0x3
@@ -537,11 +538,8 @@ static int tegra210_sata_uphy_enable(struct tegra_xusb_padctl *padctl, bool usb)
 		value |= (XUSB_PADCTL_UPHY_PLL_CTL4_TXCLKREF_SEL_SATA_VAL <<
 			  XUSB_PADCTL_UPHY_PLL_CTL4_TXCLKREF_SEL_SHIFT);
 
-	/* XXX PLL0_XDIGCLK_EN */
-	/*
-	value &= ~(1 << 19);
+	value &= ~XUSB_PADCTL_UPHY_PLL_CTL4_XDIGCLK_EN;
 	padctl_writel(padctl, value, XUSB_PADCTL_UPHY_PLL_S0_CTL4);
-	*/
 
 	value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_S0_CTL1);
 	value &= ~((XUSB_PADCTL_UPHY_PLL_CTL1_FREQ_MDIV_MASK <<

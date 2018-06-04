@@ -51,8 +51,8 @@ static unsigned int ip_list_gid __read_mostly;
 module_param(ip_list_tot, uint, 0400);
 module_param(ip_list_hash_size, uint, 0400);
 module_param(ip_list_perms, uint, 0400);
-module_param(ip_list_uid, uint, S_IRUGO | S_IWUSR);
-module_param(ip_list_gid, uint, S_IRUGO | S_IWUSR);
+module_param(ip_list_uid, uint, 0644);
+module_param(ip_list_gid, uint, 0644);
 MODULE_PARM_DESC(ip_list_tot, "number of IPs to remember per list");
 MODULE_PARM_DESC(ip_list_hash_size, "size of hash table used to look up IPs");
 MODULE_PARM_DESC(ip_list_perms, "permissions on /proc/net/xt_recent/* files");
@@ -361,9 +361,9 @@ static int recent_mt_check(const struct xt_mtchk_param *par,
 				    info->hit_count, XT_RECENT_MAX_NSTAMPS - 1);
 		return -EINVAL;
 	}
-	if (info->name[0] == '\0' ||
-	    strnlen(info->name, XT_RECENT_NAME_LEN) == XT_RECENT_NAME_LEN)
-		return -EINVAL;
+	ret = xt_check_proc_name(info->name, sizeof(info->name));
+	if (ret)
+		return ret;
 
 	if (ip_pkt_list_tot && info->hit_count < ip_pkt_list_tot)
 		nstamp_mask = roundup_pow_of_two(ip_pkt_list_tot) - 1;
