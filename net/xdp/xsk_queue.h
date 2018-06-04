@@ -11,6 +11,7 @@
 #include <net/xdp_sock.h>
 
 #define RX_BATCH_SIZE 16
+#define LAZY_UPDATE_THRESHOLD 128
 
 struct xdp_ring {
 	u32 producer ____cacheline_aligned_in_smp;
@@ -61,9 +62,14 @@ static inline u32 xskq_nb_avail(struct xsk_queue *q, u32 dcnt)
 	return (entries > dcnt) ? dcnt : entries;
 }
 
+static inline u32 xskq_nb_free_lazy(struct xsk_queue *q, u32 producer)
+{
+	return q->nentries - (producer - q->cons_tail);
+}
+
 static inline u32 xskq_nb_free(struct xsk_queue *q, u32 producer, u32 dcnt)
 {
-	u32 free_entries = q->nentries - (producer - q->cons_tail);
+	u32 free_entries = xskq_nb_free_lazy(q, producer);
 
 	if (free_entries >= dcnt)
 		return free_entries;
@@ -123,6 +129,9 @@ static inline int xskq_produce_addr(struct xsk_queue *q, u64 addr)
 {
 	struct xdp_umem_ring *ring = (struct xdp_umem_ring *)q->ring;
 
+	if (xskq_nb_free(q, q->prod_tail, LAZY_UPDATE_THRESHOLD) == 0)
+		return -ENOSPC;
+
 	ring->desc[q->prod_tail++ & q->ring_mask] = addr;
 
 	/* Order producer and data */
@@ -130,6 +139,27 @@ static inline int xskq_produce_addr(struct xsk_queue *q, u64 addr)
 
 	WRITE_ONCE(q->ring->producer, q->prod_tail);
 	return 0;
+}
+
+static inline int xskq_produce_addr_lazy(struct xsk_queue *q, u64 addr)
+{
+	struct xdp_umem_ring *ring = (struct xdp_umem_ring *)q->ring;
+
+	if (xskq_nb_free(q, q->prod_head, LAZY_UPDATE_THRESHOLD) == 0)
+		return -ENOSPC;
+
+	ring->desc[q->prod_head++ & q->ring_mask] = addr;
+	return 0;
+}
+
+static inline void xskq_produce_flush_addr_n(struct xsk_queue *q,
+					     u32 nb_entries)
+{
+	/* Order producer and data */
+	smp_wmb();
+
+	q->prod_tail += nb_entries;
+	WRITE_ONCE(q->ring->producer, q->prod_tail);
 }
 
 static inline int xskq_reserve_addr(struct xsk_queue *q)

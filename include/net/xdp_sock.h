@@ -9,6 +9,7 @@
 #include <linux/workqueue.h>
 #include <linux/if_xdp.h>
 #include <linux/mutex.h>
+#include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <net/sock.h>
 
@@ -42,6 +43,8 @@ struct xdp_umem {
 	struct net_device *dev;
 	u16 queue_id;
 	bool zc;
+	spinlock_t xsk_list_lock;
+	struct list_head xsk_list;
 };
 
 struct xdp_sock {
@@ -53,6 +56,8 @@ struct xdp_sock {
 	struct list_head flush_node;
 	u16 queue_id;
 	struct xsk_queue *tx ____cacheline_aligned_in_smp;
+	struct list_head list;
+	bool zc;
 	/* Protects multiple processes in the control path */
 	struct mutex mutex;
 	u64 rx_dropped;
@@ -64,8 +69,12 @@ int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp);
 int xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp);
 void xsk_flush(struct xdp_sock *xs);
 bool xsk_is_setup_for_bpf_map(struct xdp_sock *xs);
+/* Used from netdev driver */
 u64 *xsk_umem_peek_addr(struct xdp_umem *umem, u64 *addr);
 void xsk_umem_discard_addr(struct xdp_umem *umem);
+void xsk_umem_complete_tx(struct xdp_umem *umem, u32 nb_entries);
+bool xsk_umem_consume_tx(struct xdp_umem *umem, dma_addr_t *dma, u32 *len);
+void xsk_umem_consume_tx_done(struct xdp_umem *umem);
 #else
 static inline int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 {

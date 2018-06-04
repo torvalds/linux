@@ -17,6 +17,29 @@
 
 #define XDP_UMEM_MIN_CHUNK_SIZE 2048
 
+void xdp_add_sk_umem(struct xdp_umem *umem, struct xdp_sock *xs)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&umem->xsk_list_lock, flags);
+	list_add_rcu(&xs->list, &umem->xsk_list);
+	spin_unlock_irqrestore(&umem->xsk_list_lock, flags);
+}
+
+void xdp_del_sk_umem(struct xdp_umem *umem, struct xdp_sock *xs)
+{
+	unsigned long flags;
+
+	if (xs->dev) {
+		spin_lock_irqsave(&umem->xsk_list_lock, flags);
+		list_del_rcu(&xs->list);
+		spin_unlock_irqrestore(&umem->xsk_list_lock, flags);
+
+		if (umem->zc)
+			synchronize_net();
+	}
+}
+
 int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
 			u32 queue_id, u16 flags)
 {
@@ -35,7 +58,7 @@ int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
 
 	dev_hold(dev);
 
-	if (dev->netdev_ops->ndo_bpf) {
+	if (dev->netdev_ops->ndo_bpf && dev->netdev_ops->ndo_xsk_async_xmit) {
 		bpf.command = XDP_QUERY_XSK_UMEM;
 
 		rtnl_lock();
@@ -70,7 +93,7 @@ int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
 	return force_zc ? -ENOTSUPP : 0; /* fail or fallback */
 }
 
-void xdp_umem_clear_dev(struct xdp_umem *umem)
+static void xdp_umem_clear_dev(struct xdp_umem *umem)
 {
 	struct netdev_bpf bpf;
 	int err;
@@ -283,6 +306,8 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 	umem->npgs = size / PAGE_SIZE;
 	umem->pgs = NULL;
 	umem->user = NULL;
+	INIT_LIST_HEAD(&umem->xsk_list);
+	spin_lock_init(&umem->xsk_list_lock);
 
 	refcount_set(&umem->users, 1);
 
