@@ -207,7 +207,7 @@ void intel_uc_init_mmio(struct drm_i915_private *i915)
 
 static void guc_capture_load_err_log(struct intel_guc *guc)
 {
-	if (!guc->log.vma || !i915_modparams.guc_log_level)
+	if (!guc->log.vma || !intel_guc_log_get_level(&guc->log))
 		return;
 
 	if (!guc->load_err_log)

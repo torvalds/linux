@@ -475,11 +475,12 @@ int intel_guc_log_create(struct intel_guc_log *log)
 	offset = intel_guc_ggtt_offset(guc, vma) >> PAGE_SHIFT;
 	log->flags = (offset << GUC_LOG_BUF_ADDR_SHIFT) | flags;
 
+	log->level = i915_modparams.guc_log_level;
+
 	return 0;
 
 err:
-	/* logging will be off */
-	i915_modparams.guc_log_level = 0;
+	DRM_ERROR("Failed to allocate GuC log buffer. %d\n", ret);
 	return ret;
 }
 
@@ -488,15 +489,7 @@ void intel_guc_log_destroy(struct intel_guc_log *log)
 	i915_vma_unpin_and_release(&log->vma);
 }
 
-int intel_guc_log_level_get(struct intel_guc_log *log)
-{
-	GEM_BUG_ON(!log->vma);
-	GEM_BUG_ON(i915_modparams.guc_log_level < 0);
-
-	return i915_modparams.guc_log_level;
-}
-
-int intel_guc_log_level_set(struct intel_guc_log *log, u64 val)
+int intel_guc_log_set_level(struct intel_guc_log *log, u32 level)
 {
 	struct intel_guc *guc = log_to_guc(log);
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
@@ -504,33 +497,32 @@ int intel_guc_log_level_set(struct intel_guc_log *log, u64 val)
 
 	BUILD_BUG_ON(GUC_LOG_VERBOSITY_MIN != 0);
 	GEM_BUG_ON(!log->vma);
-	GEM_BUG_ON(i915_modparams.guc_log_level < 0);
 
 	/*
 	 * GuC is recognizing log levels starting from 0 to max, we're using 0
 	 * as indication that logging should be disabled.
 	 */
-	if (val < GUC_LOG_LEVEL_DISABLED || val > GUC_LOG_LEVEL_MAX)
+	if (level < GUC_LOG_LEVEL_DISABLED || level > GUC_LOG_LEVEL_MAX)
 		return -EINVAL;
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
 
-	if (i915_modparams.guc_log_level == val) {
+	if (log->level == level) {
 		ret = 0;
 		goto out_unlock;
 	}
 
 	intel_runtime_pm_get(dev_priv);
-	ret = guc_action_control_log(guc, GUC_LOG_LEVEL_IS_VERBOSE(val),
-				     GUC_LOG_LEVEL_IS_ENABLED(val),
-				     GUC_LOG_LEVEL_TO_VERBOSITY(val));
+	ret = guc_action_control_log(guc, GUC_LOG_LEVEL_IS_VERBOSE(level),
+				     GUC_LOG_LEVEL_IS_ENABLED(level),
+				     GUC_LOG_LEVEL_TO_VERBOSITY(level));
 	intel_runtime_pm_put(dev_priv);
 	if (ret) {
 		DRM_DEBUG_DRIVER("guc_log_control action failed %d\n", ret);
 		goto out_unlock;
 	}
 
-	i915_modparams.guc_log_level = val;
+	log->level = level;
 
 out_unlock:
 	mutex_unlock(&dev_priv->drm.struct_mutex);

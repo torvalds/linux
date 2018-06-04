@@ -203,12 +203,10 @@ void intel_guc_fini(struct intel_guc *guc)
 	guc_shared_data_destroy(guc);
 }
 
-static u32 get_log_control_flags(void)
+static u32 guc_ctl_debug_flags(struct intel_guc *guc)
 {
-	u32 level = i915_modparams.guc_log_level;
+	u32 level = intel_guc_log_get_level(&guc->log);
 	u32 flags = 0;
-
-	GEM_BUG_ON(level < 0);
 
 	if (!GUC_LOG_LEVEL_IS_ENABLED(level))
 		flags |= GUC_LOG_DEFAULT_DISABLED;
@@ -250,7 +248,7 @@ void intel_guc_init_params(struct intel_guc *guc)
 
 	params[GUC_CTL_LOG_PARAMS] = guc->log.flags;
 
-	params[GUC_CTL_DEBUG] = get_log_control_flags();
+	params[GUC_CTL_DEBUG] = guc_ctl_debug_flags(guc);
 
 	/* If GuC submission is enabled, set up additional parameters here */
 	if (USES_GUC_SUBMISSION(dev_priv)) {

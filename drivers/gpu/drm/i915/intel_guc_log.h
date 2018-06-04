@@ -30,6 +30,7 @@
 #include <linux/workqueue.h>
 
 #include "intel_guc_fwif.h"
+#include "i915_gem.h"
 
 struct intel_guc;
 
@@ -58,6 +59,7 @@ struct intel_guc;
 #define GUC_LOG_LEVEL_MAX GUC_VERBOSITY_TO_LOG_LEVEL(GUC_LOG_VERBOSITY_MAX)
 
 struct intel_guc_log {
+	u32 level;
 	u32 flags;
 	struct i915_vma *vma;
 	struct {
@@ -80,13 +82,17 @@ void intel_guc_log_init_early(struct intel_guc_log *log);
 int intel_guc_log_create(struct intel_guc_log *log);
 void intel_guc_log_destroy(struct intel_guc_log *log);
 
-int intel_guc_log_level_get(struct intel_guc_log *log);
-int intel_guc_log_level_set(struct intel_guc_log *log, u64 control_val);
+int intel_guc_log_set_level(struct intel_guc_log *log, u32 level);
 bool intel_guc_log_relay_enabled(const struct intel_guc_log *log);
 int intel_guc_log_relay_open(struct intel_guc_log *log);
 void intel_guc_log_relay_flush(struct intel_guc_log *log);
 void intel_guc_log_relay_close(struct intel_guc_log *log);
 
 void intel_guc_log_handle_flush_event(struct intel_guc_log *log);
+
+static inline u32 intel_guc_log_get_level(struct intel_guc_log *log)
+{
+	return log->level;
+}
 
 #endif
