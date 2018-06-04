@@ -1131,19 +1131,6 @@ static const struct seq_operations ip_vs_conn_seq_ops = {
 	.show  = ip_vs_conn_seq_show,
 };
 
-static int ip_vs_conn_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &ip_vs_conn_seq_ops,
-			    sizeof(struct ip_vs_iter_state));
-}
-
-static const struct file_operations ip_vs_conn_fops = {
-	.open    = ip_vs_conn_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release_net,
-};
-
 static const char *ip_vs_origin_name(unsigned int flags)
 {
 	if (flags & IP_VS_CONN_F_SYNC)
@@ -1207,20 +1194,6 @@ static const struct seq_operations ip_vs_conn_sync_seq_ops = {
 	.stop  = ip_vs_conn_seq_stop,
 	.show  = ip_vs_conn_sync_seq_show,
 };
-
-static int ip_vs_conn_sync_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &ip_vs_conn_sync_seq_ops,
-			    sizeof(struct ip_vs_iter_state));
-}
-
-static const struct file_operations ip_vs_conn_sync_fops = {
-	.open    = ip_vs_conn_sync_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release_net,
-};
-
 #endif
 
 
@@ -1380,9 +1353,11 @@ int __net_init ip_vs_conn_net_init(struct netns_ipvs *ipvs)
 {
 	atomic_set(&ipvs->conn_count, 0);
 
-	proc_create("ip_vs_conn", 0, ipvs->net->proc_net, &ip_vs_conn_fops);
-	proc_create("ip_vs_conn_sync", 0, ipvs->net->proc_net,
-		    &ip_vs_conn_sync_fops);
+	proc_create_net("ip_vs_conn", 0, ipvs->net->proc_net,
+			&ip_vs_conn_seq_ops, sizeof(struct ip_vs_iter_state));
+	proc_create_net("ip_vs_conn_sync", 0, ipvs->net->proc_net,
+			&ip_vs_conn_sync_seq_ops,
+			sizeof(struct ip_vs_iter_state));
 	return 0;
 }
 

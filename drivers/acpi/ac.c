@@ -82,7 +82,6 @@ static SIMPLE_DEV_PM_OPS(acpi_ac_pm, NULL, acpi_ac_resume);
 #ifdef CONFIG_ACPI_PROCFS_POWER
 extern struct proc_dir_entry *acpi_lock_ac_dir(void);
 extern void *acpi_unlock_ac_dir(struct proc_dir_entry *acpi_ac_dir);
-static int acpi_ac_open_fs(struct inode *inode, struct file *file);
 #endif
 
 
@@ -110,16 +109,6 @@ struct acpi_ac {
 };
 
 #define to_acpi_ac(x) power_supply_get_drvdata(x)
-
-#ifdef CONFIG_ACPI_PROCFS_POWER
-static const struct file_operations acpi_ac_fops = {
-	.owner = THIS_MODULE,
-	.open = acpi_ac_open_fs,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-#endif
 
 /* --------------------------------------------------------------------------
                                AC Adapter Management
@@ -209,11 +198,6 @@ static int acpi_ac_seq_show(struct seq_file *seq, void *offset)
 	return 0;
 }
 
-static int acpi_ac_open_fs(struct inode *inode, struct file *file)
-{
-	return single_open(file, acpi_ac_seq_show, PDE_DATA(inode));
-}
-
 static int acpi_ac_add_fs(struct acpi_ac *ac)
 {
 	struct proc_dir_entry *entry = NULL;
@@ -228,9 +212,8 @@ static int acpi_ac_add_fs(struct acpi_ac *ac)
 	}
 
 	/* 'state' [R] */
-	entry = proc_create_data(ACPI_AC_FILE_STATE,
-				 S_IRUGO, acpi_device_dir(ac->device),
-				 &acpi_ac_fops, ac);
+	entry = proc_create_single_data(ACPI_AC_FILE_STATE, S_IRUGO,
+			acpi_device_dir(ac->device), acpi_ac_seq_show, ac);
 	if (!entry)
 		return -ENODEV;
 	return 0;

@@ -3439,22 +3439,10 @@ static const struct seq_operations proto_seq_ops = {
 	.show   = proto_seq_show,
 };
 
-static int proto_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &proto_seq_ops,
-			    sizeof(struct seq_net_private));
-}
-
-static const struct file_operations proto_seq_fops = {
-	.open		= proto_seq_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release_net,
-};
-
 static __net_init int proto_init_net(struct net *net)
 {
-	if (!proc_create("protocols", 0444, net->proc_net, &proto_seq_fops))
+	if (!proc_create_net("protocols", 0444, net->proc_net, &proto_seq_ops,
+			sizeof(struct seq_net_private)))
 		return -ENOMEM;
 
 	return 0;

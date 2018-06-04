@@ -126,18 +126,6 @@ static const struct seq_operations tty_drivers_op = {
 	.show	= show_tty_driver
 };
 
-static int tty_drivers_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &tty_drivers_op);
-}
-
-static const struct file_operations proc_tty_drivers_operations = {
-	.open		= tty_drivers_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 /*
  * This function is called by tty_register_driver() to handle
  * registering the driver's /proc handler into /proc/tty/driver/<foo>
@@ -147,11 +135,11 @@ void proc_tty_register_driver(struct tty_driver *driver)
 	struct proc_dir_entry *ent;
 		
 	if (!driver->driver_name || driver->proc_entry ||
-	    !driver->ops->proc_fops)
+	    !driver->ops->proc_show)
 		return;
 
-	ent = proc_create_data(driver->driver_name, 0, proc_tty_driver,
-			       driver->ops->proc_fops, driver);
+	ent = proc_create_single_data(driver->driver_name, 0, proc_tty_driver,
+			       driver->ops->proc_show, driver);
 	driver->proc_entry = ent;
 }
 
@@ -186,6 +174,6 @@ void __init proc_tty_init(void)
 	 * entry.
 	 */
 	proc_tty_driver = proc_mkdir_mode("tty/driver", S_IRUSR|S_IXUSR, NULL);
-	proc_create("tty/ldiscs", 0, NULL, &tty_ldiscs_proc_fops);
-	proc_create("tty/drivers", 0, NULL, &proc_tty_drivers_operations);
+	proc_create_seq("tty/ldiscs", 0, NULL, &tty_ldiscs_seq_ops);
+	proc_create_seq("tty/drivers", 0, NULL, &tty_drivers_op);
 }

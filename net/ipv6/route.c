@@ -4862,14 +4862,6 @@ static int ip6_route_dev_notify(struct notifier_block *this,
  */
 
 #ifdef CONFIG_PROC_FS
-
-static const struct file_operations ipv6_route_proc_fops = {
-	.open		= ipv6_route_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release_net,
-};
-
 static int rt6_stats_seq_show(struct seq_file *seq, void *v)
 {
 	struct net *net = (struct net *)seq->private;
@@ -4884,18 +4876,6 @@ static int rt6_stats_seq_show(struct seq_file *seq, void *v)
 
 	return 0;
 }
-
-static int rt6_stats_seq_open(struct inode *inode, struct file *file)
-{
-	return single_open_net(inode, file, rt6_stats_seq_show);
-}
-
-static const struct file_operations rt6_stats_seq_fops = {
-	.open	 = rt6_stats_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = single_release_net,
-};
 #endif	/* CONFIG_PROC_FS */
 
 #ifdef CONFIG_SYSCTL
@@ -5100,8 +5080,10 @@ static void __net_exit ip6_route_net_exit(struct net *net)
 static int __net_init ip6_route_net_init_late(struct net *net)
 {
 #ifdef CONFIG_PROC_FS
-	proc_create("ipv6_route", 0, net->proc_net, &ipv6_route_proc_fops);
-	proc_create("rt6_stats", 0444, net->proc_net, &rt6_stats_seq_fops);
+	proc_create_net("ipv6_route", 0, net->proc_net, &ipv6_route_seq_ops,
+			sizeof(struct ipv6_route_iter));
+	proc_create_net_single("rt6_stats", 0444, net->proc_net,
+			rt6_stats_seq_show, NULL);
 #endif
 	return 0;
 }

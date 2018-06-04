@@ -4556,20 +4556,6 @@ static const struct seq_operations packet_seq_ops = {
 	.stop	= packet_seq_stop,
 	.show	= packet_seq_show,
 };
-
-static int packet_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &packet_seq_ops,
-			    sizeof(struct seq_net_private));
-}
-
-static const struct file_operations packet_seq_fops = {
-	.open		= packet_seq_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release_net,
-};
-
 #endif
 
 static int __net_init packet_net_init(struct net *net)
@@ -4577,7 +4563,8 @@ static int __net_init packet_net_init(struct net *net)
 	mutex_init(&net->packet.sklist_lock);
 	INIT_HLIST_HEAD(&net->packet.sklist);
 
-	if (!proc_create("packet", 0, net->proc_net, &packet_seq_fops))
+	if (!proc_create_net("packet", 0, net->proc_net, &packet_seq_ops,
+			sizeof(struct seq_net_private)))
 		return -ENOMEM;
 
 	return 0;

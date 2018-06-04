@@ -218,9 +218,9 @@ extern const struct proc_ns_operations cgroupns_operations;
  * cgroup-v1.c
  */
 extern struct cftype cgroup1_base_files[];
-extern const struct file_operations proc_cgroupstats_operations;
 extern struct kernfs_syscall_ops cgroup1_kf_syscall_ops;
 
+int proc_cgroupstats_show(struct seq_file *m, void *v);
 bool cgroup1_ssid_disabled(int ssid);
 void cgroup1_pidlist_destroy_all(struct cgroup *cgrp);
 void cgroup1_release_agent(struct work_struct *work);

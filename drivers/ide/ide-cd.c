@@ -1426,21 +1426,8 @@ static int idecd_capacity_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int idecd_capacity_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, idecd_capacity_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations idecd_capacity_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= idecd_capacity_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static ide_proc_entry_t idecd_proc[] = {
-	{ "capacity", S_IFREG|S_IRUGO, &idecd_capacity_proc_fops },
+	{ "capacity", S_IFREG|S_IRUGO, idecd_capacity_proc_show },
 	{}
 };
 

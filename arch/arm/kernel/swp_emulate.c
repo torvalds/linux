@@ -91,18 +91,6 @@ static int proc_status_show(struct seq_file *m, void *v)
 		seq_printf(m, "Last process:\t\t%d\n", previous_pid);
 	return 0;
 }
-
-static int proc_status_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, proc_status_show, PDE_DATA(inode));
-}
-
-static const struct file_operations proc_status_fops = {
-	.open		= proc_status_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 #endif
 
 /*
@@ -260,7 +248,8 @@ static int __init swp_emulation_init(void)
 		return 0;
 
 #ifdef CONFIG_PROC_FS
-	if (!proc_create("cpu/swp_emulation", S_IRUGO, NULL, &proc_status_fops))
+	if (!proc_create_single("cpu/swp_emulation", S_IRUGO, NULL,
+			proc_status_show))
 		return -ENOMEM;
 #endif /* CONFIG_PROC_FS */
 

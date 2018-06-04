@@ -961,7 +961,7 @@ __IDE_PROC_DEVSET(_name, _min, _max, NULL, NULL)
 typedef struct {
 	const char	*name;
 	umode_t		mode;
-	const struct file_operations *proc_fops;
+	int (*show)(struct seq_file *, void *);
 } ide_proc_entry_t;
 
 void proc_ide_create(void);
@@ -973,8 +973,8 @@ void ide_proc_unregister_port(ide_hwif_t *);
 void ide_proc_register_driver(ide_drive_t *, struct ide_driver *);
 void ide_proc_unregister_driver(ide_drive_t *, struct ide_driver *);
 
-extern const struct file_operations ide_capacity_proc_fops;
-extern const struct file_operations ide_geometry_proc_fops;
+int ide_capacity_proc_show(struct seq_file *m, void *v);
+int ide_geometry_proc_show(struct seq_file *m, void *v);
 #else
 static inline void proc_ide_create(void) { ; }
 static inline void proc_ide_destroy(void) { ; }

@@ -344,19 +344,6 @@ static int proc_videocodecs_show(struct seq_file *m, void *v)
 
 	return 0;
 }
-
-static int proc_videocodecs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, proc_videocodecs_show, NULL);
-}
-
-static const struct file_operations videocodecs_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= proc_videocodecs_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 #endif
 
 /* ===================== */
@@ -373,7 +360,8 @@ videocodec_init (void)
 	       VIDEOCODEC_VERSION);
 
 #ifdef CONFIG_PROC_FS
-	videocodec_proc_entry = proc_create("videocodecs", 0, NULL, &videocodecs_proc_fops);
+	videocodec_proc_entry = proc_create_single("videocodecs", 0, NULL,
+			proc_videocodecs_show);
 	if (!videocodec_proc_entry) {
 		dprintk(1, KERN_ERR "videocodec: can't init procfs.\n");
 	}

@@ -1051,8 +1051,8 @@ void __rxrpc_queue_peer_error(struct rxrpc_peer *);
 /*
  * proc.c
  */
-extern const struct file_operations rxrpc_call_seq_fops;
-extern const struct file_operations rxrpc_connection_seq_fops;
+extern const struct seq_operations rxrpc_call_seq_ops;
+extern const struct seq_operations rxrpc_connection_seq_ops;
 
 /*
  * recvmsg.c

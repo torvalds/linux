@@ -527,21 +527,9 @@ static int hardware_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int hardware_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, hardware_proc_show, NULL);
-}
-
-static const struct file_operations hardware_proc_fops = {
-	.open		= hardware_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int __init proc_hardware_init(void)
 {
-	proc_create("hardware", 0, NULL, &hardware_proc_fops);
+	proc_create_single("hardware", 0, NULL, hardware_proc_show);
 	return 0;
 }
 module_init(proc_hardware_init);

@@ -6446,38 +6446,12 @@ static int dac960_proc_show(struct seq_file *m, void *v)
   return 0;
 }
 
-static int dac960_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, dac960_proc_show, NULL);
-}
-
-static const struct file_operations dac960_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= dac960_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int dac960_initial_status_proc_show(struct seq_file *m, void *v)
 {
 	DAC960_Controller_T *Controller = (DAC960_Controller_T *)m->private;
 	seq_printf(m, "%.*s", Controller->InitialStatusLength, Controller->CombinedStatusBuffer);
 	return 0;
 }
-
-static int dac960_initial_status_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, dac960_initial_status_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations dac960_initial_status_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= dac960_initial_status_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 
 static int dac960_current_status_proc_show(struct seq_file *m, void *v)
 {
@@ -6511,19 +6485,6 @@ static int dac960_current_status_proc_show(struct seq_file *m, void *v)
 	seq_printf(m, "%.*s", Controller->CurrentStatusLength, Controller->CurrentStatusBuffer);
 	return 0;
 }
-
-static int dac960_current_status_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, dac960_current_status_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations dac960_current_status_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= dac960_current_status_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 
 static int dac960_user_command_proc_show(struct seq_file *m, void *v)
 {
@@ -6579,16 +6540,18 @@ static void DAC960_CreateProcEntries(DAC960_Controller_T *Controller)
 
 	if (DAC960_ProcDirectoryEntry == NULL) {
 		DAC960_ProcDirectoryEntry = proc_mkdir("rd", NULL);
-		proc_create("status", 0, DAC960_ProcDirectoryEntry,
-			    &dac960_proc_fops);
+		proc_create_single("status", 0, DAC960_ProcDirectoryEntry,
+				dac960_proc_show);
 	}
 
 	snprintf(Controller->ControllerName, sizeof(Controller->ControllerName),
 		 "c%d", Controller->ControllerNumber);
 	ControllerProcEntry = proc_mkdir(Controller->ControllerName,
 					 DAC960_ProcDirectoryEntry);
-	proc_create_data("initial_status", 0, ControllerProcEntry, &dac960_initial_status_proc_fops, Controller);
-	proc_create_data("current_status", 0, ControllerProcEntry, &dac960_current_status_proc_fops, Controller);
+	proc_create_single_data("initial_status", 0, ControllerProcEntry,
+			dac960_initial_status_proc_show, Controller);
+	proc_create_single_data("current_status", 0, ControllerProcEntry,
+			dac960_current_status_proc_show, Controller);
 	proc_create_data("user_command", 0600, ControllerProcEntry, &dac960_user_command_proc_fops, Controller);
 	Controller->ControllerProcEntry = ControllerProcEntry;
 }

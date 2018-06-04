@@ -529,22 +529,10 @@ static const struct seq_operations ac6_seq_ops = {
 	.show	=	ac6_seq_show,
 };
 
-static int ac6_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &ac6_seq_ops,
-			    sizeof(struct ac6_iter_state));
-}
-
-static const struct file_operations ac6_seq_fops = {
-	.open		=	ac6_seq_open,
-	.read		=	seq_read,
-	.llseek		=	seq_lseek,
-	.release	=	seq_release_net,
-};
-
 int __net_init ac6_proc_init(struct net *net)
 {
-	if (!proc_create("anycast6", 0444, net->proc_net, &ac6_seq_fops))
+	if (!proc_create_net("anycast6", 0444, net->proc_net, &ac6_seq_ops,
+			sizeof(struct ac6_iter_state)))
 		return -ENOMEM;
 
 	return 0;

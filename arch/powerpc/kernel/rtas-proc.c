@@ -154,18 +154,6 @@ static ssize_t ppc_rtas_tone_volume_write(struct file *file,
 static int ppc_rtas_tone_volume_show(struct seq_file *m, void *v);
 static int ppc_rtas_rmo_buf_show(struct seq_file *m, void *v);
 
-static int sensors_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ppc_rtas_sensors_show, NULL);
-}
-
-static const struct file_operations ppc_rtas_sensors_operations = {
-	.open		= sensors_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int poweron_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, ppc_rtas_poweron_show, NULL);
@@ -231,18 +219,6 @@ static const struct file_operations ppc_rtas_tone_volume_operations = {
 	.release	= single_release,
 };
 
-static int rmo_buf_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ppc_rtas_rmo_buf_show, NULL);
-}
-
-static const struct file_operations ppc_rtas_rmo_buf_ops = {
-	.open		= rmo_buf_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int ppc_rtas_find_all_sensors(void);
 static void ppc_rtas_process_sensor(struct seq_file *m,
 	struct individual_sensor *s, int state, int error, const char *loc);
@@ -267,14 +243,14 @@ static int __init proc_rtas_init(void)
 		    &ppc_rtas_clock_operations);
 	proc_create("powerpc/rtas/poweron", 0644, NULL,
 		    &ppc_rtas_poweron_operations);
-	proc_create("powerpc/rtas/sensors", 0444, NULL,
-		    &ppc_rtas_sensors_operations);
+	proc_create_single("powerpc/rtas/sensors", 0444, NULL,
+			ppc_rtas_sensors_show);
 	proc_create("powerpc/rtas/frequency", 0644, NULL,
 		    &ppc_rtas_tone_freq_operations);
 	proc_create("powerpc/rtas/volume", 0644, NULL,
 		    &ppc_rtas_tone_volume_operations);
-	proc_create("powerpc/rtas/rmo_buffer", 0400, NULL,
-		    &ppc_rtas_rmo_buf_ops);
+	proc_create_single("powerpc/rtas/rmo_buffer", 0400, NULL,
+			ppc_rtas_rmo_buf_show);
 	return 0;
 }
 

@@ -572,23 +572,6 @@ static int iostat_info_seq_show(struct seq_file *seq, void *offset)
 	return 0;
 }
 
-#define F2FS_PROC_FILE_DEF(_name)					\
-static int _name##_open_fs(struct inode *inode, struct file *file)	\
-{									\
-	return single_open(file, _name##_seq_show, PDE_DATA(inode));	\
-}									\
-									\
-static const struct file_operations f2fs_seq_##_name##_fops = {		\
-	.open = _name##_open_fs,					\
-	.read = seq_read,						\
-	.llseek = seq_lseek,						\
-	.release = single_release,					\
-};
-
-F2FS_PROC_FILE_DEF(segment_info);
-F2FS_PROC_FILE_DEF(segment_bits);
-F2FS_PROC_FILE_DEF(iostat_info);
-
 int __init f2fs_init_sysfs(void)
 {
 	int ret;
@@ -632,12 +615,12 @@ int f2fs_register_sysfs(struct f2fs_sb_info *sbi)
 		sbi->s_proc = proc_mkdir(sb->s_id, f2fs_proc_root);
 
 	if (sbi->s_proc) {
-		proc_create_data("segment_info", S_IRUGO, sbi->s_proc,
-				 &f2fs_seq_segment_info_fops, sb);
-		proc_create_data("segment_bits", S_IRUGO, sbi->s_proc,
-				 &f2fs_seq_segment_bits_fops, sb);
-		proc_create_data("iostat_info", S_IRUGO, sbi->s_proc,
-				&f2fs_seq_iostat_info_fops, sb);
+		proc_create_single_data("segment_info", S_IRUGO, sbi->s_proc,
+				segment_info_seq_show, sb);
+		proc_create_single_data("segment_bits", S_IRUGO, sbi->s_proc,
+				segment_bits_seq_show, sb);
+		proc_create_single_data("iostat_info", S_IRUGO, sbi->s_proc,
+				iostat_info_seq_show, sb);
 	}
 	return 0;
 }

@@ -1469,20 +1469,6 @@ static const struct seq_operations nfqnl_seq_ops = {
 	.stop	= seq_stop,
 	.show	= seq_show,
 };
-
-static int nfqnl_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &nfqnl_seq_ops,
-			sizeof(struct iter_state));
-}
-
-static const struct file_operations nfqnl_file_ops = {
-	.open	 = nfqnl_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = seq_release_net,
-};
-
 #endif /* PROC_FS */
 
 static int __net_init nfnl_queue_net_init(struct net *net)
@@ -1496,8 +1482,8 @@ static int __net_init nfnl_queue_net_init(struct net *net)
 	spin_lock_init(&q->instances_lock);
 
 #ifdef CONFIG_PROC_FS
-	if (!proc_create("nfnetlink_queue", 0440,
-			 net->nf.proc_netfilter, &nfqnl_file_ops))
+	if (!proc_create_net("nfnetlink_queue", 0440, net->nf.proc_netfilter,
+			&nfqnl_seq_ops, sizeof(struct iter_state)))
 		return -ENOMEM;
 #endif
 	nf_register_queue_handler(net, &nfqh);

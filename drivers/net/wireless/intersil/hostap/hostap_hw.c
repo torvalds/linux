@@ -2951,19 +2951,6 @@ static int prism2_registers_proc_show(struct seq_file *m, void *v)
 
 	return 0;
 }
-
-static int prism2_registers_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, prism2_registers_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations prism2_registers_proc_fops = {
-	.open		= prism2_registers_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 #endif /* PRISM2_NO_PROCFS_DEBUG */
 
 
@@ -3279,8 +3266,8 @@ static int hostap_hw_ready(struct net_device *dev)
 		}
 		hostap_init_proc(local);
 #ifndef PRISM2_NO_PROCFS_DEBUG
-		proc_create_data("registers", 0, local->proc,
-				 &prism2_registers_proc_fops, local);
+		proc_create_single_data("registers", 0, local->proc,
+				 prism2_registers_proc_show, local);
 #endif /* PRISM2_NO_PROCFS_DEBUG */
 		hostap_init_ap_proc(local);
 		return 0;

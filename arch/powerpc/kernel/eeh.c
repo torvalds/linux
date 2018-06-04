@@ -1775,18 +1775,6 @@ static int proc_eeh_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int proc_eeh_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, proc_eeh_show, NULL);
-}
-
-static const struct file_operations proc_eeh_operations = {
-	.open      = proc_eeh_open,
-	.read      = seq_read,
-	.llseek    = seq_lseek,
-	.release   = single_release,
-};
-
 #ifdef CONFIG_DEBUG_FS
 static int eeh_enable_dbgfs_set(void *data, u64 val)
 {
@@ -1828,7 +1816,7 @@ DEFINE_SIMPLE_ATTRIBUTE(eeh_freeze_dbgfs_ops, eeh_freeze_dbgfs_get,
 static int __init eeh_init_proc(void)
 {
 	if (machine_is(pseries) || machine_is(powernv)) {
-		proc_create("powerpc/eeh", 0, NULL, &proc_eeh_operations);
+		proc_create_single("powerpc/eeh", 0, NULL, proc_eeh_show);
 #ifdef CONFIG_DEBUG_FS
 		debugfs_create_file("eeh_enable", 0600,
                                     powerpc_debugfs_root, NULL,

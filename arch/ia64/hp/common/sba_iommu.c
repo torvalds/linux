@@ -1942,19 +1942,6 @@ static const struct seq_operations ioc_seq_ops = {
 	.show  = ioc_show
 };
 
-static int
-ioc_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &ioc_seq_ops);
-}
-
-static const struct file_operations ioc_fops = {
-	.open    = ioc_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release
-};
-
 static void __init
 ioc_proc_init(void)
 {
@@ -1964,7 +1951,7 @@ ioc_proc_init(void)
 	if (!dir)
 		return;
 
-	proc_create(ioc_list->name, 0, dir, &ioc_fops);
+	proc_create_seq(ioc_list->name, 0, dir, &ioc_seq_ops);
 }
 #endif
 

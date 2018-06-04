@@ -2538,18 +2538,6 @@ static int pkt_seq_show(struct seq_file *m, void *p)
 	return 0;
 }
 
-static int pkt_seq_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pkt_seq_show, PDE_DATA(inode));
-}
-
-static const struct file_operations pkt_proc_fops = {
-	.open	= pkt_seq_open,
-	.read	= seq_read,
-	.llseek	= seq_lseek,
-	.release = single_release
-};
-
 static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 {
 	int i;
@@ -2604,7 +2592,7 @@ static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 		goto out_mem;
 	}
 
-	proc_create_data(pd->name, 0, pkt_proc, &pkt_proc_fops, pd);
+	proc_create_single_data(pd->name, 0, pkt_proc, pkt_seq_show, pd);
 	pkt_dbg(1, pd, "writer mapped to %s\n", bdevname(bdev, b));
 	return 0;
 
