@@ -48,8 +48,10 @@ static int __xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 	if (xs->dev != xdp->rxq->dev || xs->queue_id != xdp->rxq->queue_index)
 		return -EINVAL;
 
-	if (!xskq_peek_id(xs->umem->fq, &id))
+	if (!xskq_peek_id(xs->umem->fq, &id)) {
+		xs->rx_dropped++;
 		return -ENOSPC;
+	}
 
 	buffer = xdp_umem_get_data_with_headroom(xs->umem, id);
 	memcpy(buffer, xdp->data, len);
@@ -57,6 +59,8 @@ static int __xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 				      xs->umem->frame_headroom);
 	if (!err)
 		xskq_discard_id(xs->umem->fq);
+	else
+		xs->rx_dropped++;
 
 	return err;
 }
@@ -68,8 +72,6 @@ int xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 	err = __xsk_rcv(xs, xdp);
 	if (likely(!err))
 		xdp_return_buff(xdp);
-	else
-		xs->rx_dropped++;
 
 	return err;
 }
@@ -87,8 +89,6 @@ int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 	err = __xsk_rcv(xs, xdp);
 	if (!err)
 		xsk_flush(xs);
-	else
-		xs->rx_dropped++;
 
 	return err;
 }
