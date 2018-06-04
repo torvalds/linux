@@ -496,7 +496,6 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 			     struct videomode *vm)
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
-	enum omap_channel channel = dpi->output.dispc_channel;
 	int lck_div, pck_div;
 	unsigned long fck;
 	unsigned long pck;
@@ -504,9 +503,6 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 	bool ok;
 
 	if (vm->hactive % 8 != 0)
-		return -EINVAL;
-
-	if (!dispc_mgr_timings_ok(dpi->dss->dispc, channel, vm))
 		return -EINVAL;
 
 	if (vm->pixelclock == 0)

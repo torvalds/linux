@@ -608,6 +608,9 @@ struct dispc_ops {
 	void (*mgr_set_lcd_config)(struct dispc_device *dispc,
 				   enum omap_channel channel,
 				   const struct dss_lcd_mgr_config *config);
+	int (*mgr_check_timings)(struct dispc_device *dispc,
+				 enum omap_channel channel,
+				 const struct videomode *vm);
 	void (*mgr_set_timings)(struct dispc_device *dispc,
 				enum omap_channel channel,
 				const struct videomode *vm);

@@ -3113,28 +3113,29 @@ static bool _dispc_mgr_pclk_ok(struct dispc_device *dispc,
 		return pclk <= dispc->feat->max_tv_pclk;
 }
 
-bool dispc_mgr_timings_ok(struct dispc_device *dispc, enum omap_channel channel,
-			  const struct videomode *vm)
+static int dispc_mgr_check_timings(struct dispc_device *dispc,
+				   enum omap_channel channel,
+				   const struct videomode *vm)
 {
 	if (!_dispc_mgr_size_ok(dispc, vm->hactive, vm->vactive))
-		return false;
+		return MODE_BAD;
 
 	if (!_dispc_mgr_pclk_ok(dispc, channel, vm->pixelclock))
-		return false;
+		return MODE_BAD;
 
 	if (dss_mgr_is_lcd(channel)) {
 		/* TODO: OMAP4+ supports interlace for LCD outputs */
 		if (vm->flags & DISPLAY_FLAGS_INTERLACED)
-			return false;
+			return MODE_BAD;
 
 		if (!_dispc_lcd_timings_ok(dispc, vm->hsync_len,
 				vm->hfront_porch, vm->hback_porch,
 				vm->vsync_len, vm->vfront_porch,
 				vm->vback_porch))
-			return false;
+			return MODE_BAD;
 	}
 
-	return true;
+	return MODE_OK;
 }
 
 static void _dispc_mgr_set_lcd_timings(struct dispc_device *dispc,
@@ -3236,7 +3237,7 @@ static void dispc_mgr_set_timings(struct dispc_device *dispc,
 
 	DSSDBG("channel %d xres %u yres %u\n", channel, t.hactive, t.vactive);
 
-	if (!dispc_mgr_timings_ok(dispc, channel, &t)) {
+	if (dispc_mgr_check_timings(dispc, channel, &t)) {
 		BUG();
 		return;
 	}
@@ -4733,6 +4734,7 @@ static const struct dispc_ops dispc_ops = {
 	.mgr_go_busy = dispc_mgr_go_busy,
 	.mgr_go = dispc_mgr_go,
 	.mgr_set_lcd_config = dispc_mgr_set_lcd_config,
+	.mgr_check_timings = dispc_mgr_check_timings,
 	.mgr_set_timings = dispc_mgr_set_timings,
 	.mgr_setup = dispc_mgr_setup,
 	.mgr_gamma_size = dispc_mgr_gamma_size,

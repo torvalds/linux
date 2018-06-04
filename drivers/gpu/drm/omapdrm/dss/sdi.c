@@ -237,12 +237,6 @@ static void sdi_set_timings(struct omap_dss_device *dssdev,
 static int sdi_check_timings(struct omap_dss_device *dssdev,
 			     struct videomode *vm)
 {
-	struct sdi_device *sdi = dssdev_to_sdi(dssdev);
-	enum omap_channel channel = dssdev->dispc_channel;
-
-	if (!dispc_mgr_timings_ok(sdi->dss->dispc, channel, vm))
-		return -EINVAL;
-
 	if (vm->pixelclock == 0)
 		return -EINVAL;
 

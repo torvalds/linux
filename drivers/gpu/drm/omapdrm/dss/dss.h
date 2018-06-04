@@ -417,9 +417,6 @@ bool dispc_div_calc(struct dispc_device *dispc, unsigned long dispc_freq,
 		    unsigned long pck_min, unsigned long pck_max,
 		    dispc_div_calc_func func, void *data);
 
-bool dispc_mgr_timings_ok(struct dispc_device *dispc,
-			  enum omap_channel channel,
-			  const struct videomode *vm);
 int dispc_calc_clock_rates(struct dispc_device *dispc,
 			   unsigned long dispc_fclk_rate,
 			   struct dispc_clock_info *cinfo);

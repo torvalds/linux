@@ -165,27 +165,35 @@ static int omap_encoder_atomic_check(struct drm_encoder *encoder,
 				     struct drm_connector_state *conn_state)
 {
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
+	enum omap_channel channel = omap_encoder->output->dispc_channel;
 	struct drm_device *dev = encoder->dev;
+	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_dss_device *dssdev;
 	struct videomode vm = { 0 };
 	int ret;
 
 	drm_display_mode_to_videomode(&crtc_state->mode, &vm);
 
+	ret = priv->dispc_ops->mgr_check_timings(priv->dispc, channel, &vm);
+	if (ret)
+		goto done;
+
 	for (dssdev = omap_encoder->output; dssdev; dssdev = dssdev->next) {
 		if (!dssdev->ops->check_timings)
 			continue;
 
 		ret = dssdev->ops->check_timings(dssdev, &vm);
-		if (ret) {
-			dev_err(dev->dev, "invalid timings: %d\n", ret);
-			return ret;
-		}
+		if (ret)
+			goto done;
 	}
 
 	drm_display_mode_from_videomode(&vm, &crtc_state->adjusted_mode);
 
-	return 0;
+done:
+	if (ret)
+		dev_err(dev->dev, "invalid timings: %d\n", ret);
+
+	return ret;
 }
 
 static const struct drm_encoder_helper_funcs omap_encoder_helper_funcs = {
