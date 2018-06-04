@@ -3751,7 +3751,7 @@ static const struct proto_ops pfkey_ops = {
 
 	/* Now the operations that really occur. */
 	.release	=	pfkey_release,
-	.poll		=	datagram_poll,
+	.poll_mask	=	datagram_poll_mask,
 	.sendmsg	=	pfkey_sendmsg,
 	.recvmsg	=	pfkey_recvmsg,
 };

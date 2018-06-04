@@ -1334,7 +1334,7 @@ void raw6_proc_exit(void)
 }
 #endif	/* CONFIG_PROC_FS */
 
-/* Same as inet6_dgram_ops, sans udp_poll.  */
+/* Same as inet6_dgram_ops, sans udp_poll_mask.  */
 const struct proto_ops inet6_sockraw_ops = {
 	.family		   = PF_INET6,
 	.owner		   = THIS_MODULE,
@@ -1344,7 +1344,7 @@ const struct proto_ops inet6_sockraw_ops = {
 	.socketpair	   = sock_no_socketpair,	/* a do nothing	*/
 	.accept		   = sock_no_accept,		/* a do nothing	*/
 	.getname	   = inet6_getname,
-	.poll		   = datagram_poll,		/* ok		*/
+	.poll_mask	   = datagram_poll_mask,	/* ok		*/
 	.ioctl		   = inet6_ioctl,		/* must change  */
 	.listen		   = sock_no_listen,		/* ok		*/
 	.shutdown	   = inet_shutdown,		/* ok		*/
