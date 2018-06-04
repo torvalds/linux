@@ -2777,7 +2777,7 @@ done:
 	if (dev_debug & (V4L2_DEV_DEBUG_IOCTL | V4L2_DEV_DEBUG_IOCTL_ARG)) {
 		if (!(dev_debug & V4L2_DEV_DEBUG_STREAMING) &&
 		    (cmd == VIDIOC_QBUF || cmd == VIDIOC_DQBUF))
-			return ret;
+			goto unlock;
 
 		v4l_printk_ioctl(video_device_node_name(vfd), cmd);
 		if (ret < 0)
