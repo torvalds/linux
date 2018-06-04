@@ -278,6 +278,21 @@ static inline __be64 *metapointer(unsigned int height, const struct metapath *mp
 	return p + mp->mp_list[height];
 }
 
+static inline const __be64 *metaend(unsigned int height, const struct metapath *mp)
+{
+	const struct buffer_head *bh = mp->mp_bh[height];
+	return (const __be64 *)(bh->b_data + bh->b_size);
+}
+
+static void clone_metapath(struct metapath *clone, struct metapath *mp)
+{
+	unsigned int hgt;
+
+	*clone = *mp;
+	for (hgt = 0; hgt < mp->mp_aheight; hgt++)
+		get_bh(clone->mp_bh[hgt]);
+}
+
 static void gfs2_metapath_ra(struct gfs2_glock *gl, __be64 *start, __be64 *end)
 {
 	const __be64 *t;
@@ -417,6 +432,142 @@ static inline unsigned int gfs2_extent_length(void *start, unsigned int len, __b
 	if (ptr >= end)
 		*eob = 1;
 	return (ptr - first);
+}
+
+typedef const __be64 *(*gfs2_metadata_walker)(
+		struct metapath *mp,
+		const __be64 *start, const __be64 *end,
+		u64 factor, void *data);
+
+#define WALK_STOP ((__be64 *)0)
+#define WALK_NEXT ((__be64 *)1)
+
+static int gfs2_walk_metadata(struct inode *inode, sector_t lblock,
+		u64 len, struct metapath *mp, gfs2_metadata_walker walker,
+		void *data)
+{
+	struct metapath clone;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	const __be64 *start, *end, *ptr;
+	u64 factor = 1;
+	unsigned int hgt;
+	int ret = 0;
+
+	for (hgt = ip->i_height - 1; hgt >= mp->mp_aheight; hgt--)
+		factor *= sdp->sd_inptrs;
+
+	for (;;) {
+		u64 step;
+
+		/* Walk indirect block. */
+		start = metapointer(hgt, mp);
+		end = metaend(hgt, mp);
+
+		step = (end - start) * factor;
+		if (step > len)
+			end = start + DIV_ROUND_UP_ULL(len, factor);
+
+		ptr = walker(mp, start, end, factor, data);
+		if (ptr == WALK_STOP)
+			break;
+		if (step >= len)
+			break;
+		len -= step;
+		if (ptr != WALK_NEXT) {
+			BUG_ON(!*ptr);
+			mp->mp_list[hgt] += ptr - start;
+			goto fill_up_metapath;
+		}
+
+lower_metapath:
+		/* Decrease height of metapath. */
+		if (mp != &clone) {
+			clone_metapath(&clone, mp);
+			mp = &clone;
+		}
+		brelse(mp->mp_bh[hgt]);
+		mp->mp_bh[hgt] = NULL;
+		if (!hgt)
+			break;
+		hgt--;
+		factor *= sdp->sd_inptrs;
+
+		/* Advance in metadata tree. */
+		(mp->mp_list[hgt])++;
+		start = metapointer(hgt, mp);
+		end = metaend(hgt, mp);
+		if (start >= end) {
+			mp->mp_list[hgt] = 0;
+			if (!hgt)
+				break;
+			goto lower_metapath;
+		}
+
+fill_up_metapath:
+		/* Increase height of metapath. */
+		if (mp != &clone) {
+			clone_metapath(&clone, mp);
+			mp = &clone;
+		}
+		ret = fillup_metapath(ip, mp, ip->i_height - 1);
+		if (ret < 0)
+			break;
+		hgt += ret;
+		for (; ret; ret--)
+			do_div(factor, sdp->sd_inptrs);
+		mp->mp_aheight = hgt + 1;
+	}
+	if (mp == &clone)
+		release_metapath(mp);
+	return ret;
+}
+
+struct gfs2_hole_walker_args {
+	u64 blocks;
+};
+
+static const __be64 *gfs2_hole_walker(struct metapath *mp,
+		const __be64 *start, const __be64 *end,
+		u64 factor, void *data)
+{
+	struct gfs2_hole_walker_args *args = data;
+	const __be64 *ptr;
+
+	for (ptr = start; ptr < end; ptr++) {
+		if (*ptr) {
+			args->blocks += (ptr - start) * factor;
+			if (mp->mp_aheight == mp->mp_fheight)
+				return WALK_STOP;
+			return ptr;  /* increase height */
+		}
+	}
+	args->blocks += (end - start) * factor;
+	return WALK_NEXT;
+}
+
+/**
+ * gfs2_hole_size - figure out the size of a hole
+ * @inode: The inode
+ * @lblock: The logical starting block number
+ * @len: How far to look (in blocks)
+ * @mp: The metapath at lblock
+ * @iomap: The iomap to store the hole size in
+ *
+ * This function modifies @mp.
+ *
+ * Returns: errno on error
+ */
+static int gfs2_hole_size(struct inode *inode, sector_t lblock, u64 len,
+			  struct metapath *mp, struct iomap *iomap)
+{
+	struct gfs2_hole_walker_args args = { };
+	int ret = 0;
+
+	ret = gfs2_walk_metadata(inode, lblock, len, mp, gfs2_hole_walker, &args);
+	if (!ret)
+		iomap->length = args.blocks << inode->i_blkbits;
+	return ret;
 }
 
 static inline void bmap_lock(struct gfs2_inode *ip, int create)
@@ -615,62 +766,6 @@ static int gfs2_iomap_alloc(struct inode *inode, struct iomap *iomap,
 	return 0;
 }
 
-/**
- * hole_size - figure out the size of a hole
- * @inode: The inode
- * @lblock: The logical starting block number
- * @mp: The metapath
- *
- * Returns: The hole size in bytes
- *
- */
-static u64 hole_size(struct inode *inode, sector_t lblock, struct metapath *mp)
-{
-	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	struct metapath mp_eof;
-	u64 factor = 1;
-	int hgt;
-	u64 holesz = 0;
-	const __be64 *first, *end, *ptr;
-	const struct buffer_head *bh;
-	u64 lblock_stop = (i_size_read(inode) - 1) >> inode->i_blkbits;
-	int zeroptrs;
-	bool done = false;
-
-	/* Get another metapath, to the very last byte */
-	find_metapath(sdp, lblock_stop, &mp_eof, ip->i_height);
-	for (hgt = ip->i_height - 1; hgt >= 0 && !done; hgt--) {
-		bh = mp->mp_bh[hgt];
-		if (bh) {
-			zeroptrs = 0;
-			first = metapointer(hgt, mp);
-			end = (const __be64 *)(bh->b_data + bh->b_size);
-
-			for (ptr = first; ptr < end; ptr++) {
-				if (*ptr) {
-					done = true;
-					break;
-				} else {
-					zeroptrs++;
-				}
-			}
-		} else {
-			zeroptrs = sdp->sd_inptrs;
-		}
-		if (factor * zeroptrs >= lblock_stop - lblock + 1) {
-			holesz = lblock_stop - lblock + 1;
-			break;
-		}
-		holesz += factor * zeroptrs;
-
-		factor *= sdp->sd_inptrs;
-		if (hgt && (mp->mp_list[hgt - 1] < mp_eof.mp_list[hgt - 1]))
-			(mp->mp_list[hgt - 1])++;
-	}
-	return holesz << inode->i_blkbits;
-}
-
 static void gfs2_stuffed_iomap(struct inode *inode, struct iomap *iomap)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
@@ -726,6 +821,7 @@ int gfs2_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
 
 	lblock = pos >> inode->i_blkbits;
 	lend = (pos + length + sdp->sd_sb.sb_bsize - 1) >> inode->i_blkbits;
+	len = lend - lblock;
 
 	iomap->offset = lblock << inode->i_blkbits;
 	iomap->addr = IOMAP_NULL_ADDR;
@@ -780,7 +876,7 @@ do_alloc:
 		if (pos >= size)
 			ret = -ENOENT;
 		else if (height <= ip->i_height)
-			iomap->length = hole_size(inode, lblock, &mp);
+			ret = gfs2_hole_size(inode, lblock, len, &mp, iomap);
 		else
 			iomap->length = size - pos;
 	}
