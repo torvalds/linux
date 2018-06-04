@@ -1547,7 +1547,7 @@ static int get_wave_state(struct device_queue_manager *dqm,
 			  u32 *ctl_stack_used_size,
 			  u32 *save_area_used_size)
 {
-	struct mqd_manager *mqd;
+	struct mqd_manager *mqd_mgr;
 	int r;
 
 	dqm_lock(dqm);
@@ -1558,19 +1558,19 @@ static int get_wave_state(struct device_queue_manager *dqm,
 		goto dqm_unlock;
 	}
 
-	mqd = dqm->ops.get_mqd_manager(dqm, KFD_MQD_TYPE_COMPUTE);
-	if (!mqd) {
+	mqd_mgr = dqm->ops.get_mqd_manager(dqm, KFD_MQD_TYPE_COMPUTE);
+	if (!mqd_mgr) {
 		r = -ENOMEM;
 		goto dqm_unlock;
 	}
 
-	if (!mqd->get_wave_state) {
+	if (!mqd_mgr->get_wave_state) {
 		r = -EINVAL;
 		goto dqm_unlock;
 	}
 
-	r = mqd->get_wave_state(mqd, q->mqd, ctl_stack, ctl_stack_used_size,
-				save_area_used_size);
+	r = mqd_mgr->get_wave_state(mqd_mgr, q->mqd, ctl_stack,
+			ctl_stack_used_size, save_area_used_size);
 
 dqm_unlock:
 	dqm_unlock(dqm);
