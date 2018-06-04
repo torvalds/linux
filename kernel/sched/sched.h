@@ -983,7 +983,7 @@ static inline void rq_clock_skip_update(struct rq *rq)
 }
 
 /*
- * See rt task throttoling, which is the only time a skip
+ * See rt task throttling, which is the only time a skip
  * request is cancelled.
  */
 static inline void rq_clock_cancel_skipupdate(struct rq *rq)

@@ -185,12 +185,65 @@ static void bnxt_re_shutdown(void *p)
 	bnxt_re_ib_unreg(rdev, false);
 }
 
+static void bnxt_re_stop_irq(void *handle)
+{
+	struct bnxt_re_dev *rdev = (struct bnxt_re_dev *)handle;
+	struct bnxt_qplib_rcfw *rcfw = &rdev->rcfw;
+	struct bnxt_qplib_nq *nq;
+	int indx;
+
+	for (indx = BNXT_RE_NQ_IDX; indx < rdev->num_msix; indx++) {
+		nq = &rdev->nq[indx - 1];
+		bnxt_qplib_nq_stop_irq(nq, false);
+	}
+
+	bnxt_qplib_rcfw_stop_irq(rcfw, false);
+}
+
+static void bnxt_re_start_irq(void *handle, struct bnxt_msix_entry *ent)
+{
+	struct bnxt_re_dev *rdev = (struct bnxt_re_dev *)handle;
+	struct bnxt_msix_entry *msix_ent = rdev->msix_entries;
+	struct bnxt_qplib_rcfw *rcfw = &rdev->rcfw;
+	struct bnxt_qplib_nq *nq;
+	int indx, rc;
+
+	if (!ent) {
+		/* Not setting the f/w timeout bit in rcfw.
+		 * During the driver unload the first command
+		 * to f/w will timeout and that will set the
+		 * timeout bit.
+		 */
+		dev_err(rdev_to_dev(rdev), "Failed to re-start IRQs\n");
+		return;
+	}
+
+	/* Vectors may change after restart, so update with new vectors
+	 * in device sctructure.
+	 */
+	for (indx = 0; indx < rdev->num_msix; indx++)
+		rdev->msix_entries[indx].vector = ent[indx].vector;
+
+	bnxt_qplib_rcfw_start_irq(rcfw, msix_ent[BNXT_RE_AEQ_IDX].vector,
+				  false);
+	for (indx = BNXT_RE_NQ_IDX ; indx < rdev->num_msix; indx++) {
+		nq = &rdev->nq[indx - 1];
+		rc = bnxt_qplib_nq_start_irq(nq, indx - 1,
+					     msix_ent[indx].vector, false);
+		if (rc)
+			dev_warn(rdev_to_dev(rdev),
+				 "Failed to reinit NQ index %d\n", indx - 1);
+	}
+}
+
 static struct bnxt_ulp_ops bnxt_re_ulp_ops = {
 	.ulp_async_notifier = NULL,
 	.ulp_stop = bnxt_re_stop,
 	.ulp_start = bnxt_re_start,
 	.ulp_sriov_config = bnxt_re_sriov_config,
-	.ulp_shutdown = bnxt_re_shutdown
+	.ulp_shutdown = bnxt_re_shutdown,
+	.ulp_irq_stop = bnxt_re_stop_irq,
+	.ulp_irq_restart = bnxt_re_start_irq
 };
 
 /* RoCE -> Net driver */
