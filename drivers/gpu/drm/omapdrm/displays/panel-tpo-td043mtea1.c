@@ -338,8 +338,6 @@ static int tpo_td043_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	src->ops->set_timings(src, &ddata->vm);
-
 	r = src->ops->enable(src);
 	if (r)
 		return r;

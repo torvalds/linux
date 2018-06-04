@@ -66,14 +66,11 @@ static void tpd_disconnect(struct omap_dss_device *src,
 
 static int tpd_enable(struct omap_dss_device *dssdev)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;
 	int r;
 
 	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
 		return 0;
-
-	src->ops->set_timings(src, &ddata->vm);
 
 	r = src->ops->enable(src);
 	if (r)

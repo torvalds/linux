@@ -80,8 +80,6 @@ static int sharp_ls_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	src->ops->set_timings(src, &ddata->vm);
-
 	if (ddata->vcc) {
 		r = regulator_enable(ddata->vcc);
 		if (r != 0)

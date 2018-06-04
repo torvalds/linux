@@ -69,7 +69,6 @@ static void dvic_disconnect(struct omap_dss_device *src,
 
 static int dvic_enable(struct omap_dss_device *dssdev)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;
 	int r;
 
@@ -78,8 +77,6 @@ static int dvic_enable(struct omap_dss_device *dssdev)
 
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
-
-	src->ops->set_timings(src, &ddata->vm);
 
 	r = src->ops->enable(src);
 	if (r)

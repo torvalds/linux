@@ -523,8 +523,6 @@ static int acx565akm_panel_power_on(struct omap_dss_device *dssdev)
 
 	dev_dbg(&ddata->spi->dev, "%s\n", __func__);
 
-	src->ops->set_timings(src, &ddata->vm);
-
 	r = src->ops->enable(src);
 	if (r) {
 		pr_err("%s sdi enable failed\n", __func__);
