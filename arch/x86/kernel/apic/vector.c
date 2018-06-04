@@ -809,11 +809,16 @@ static int apic_retrigger_irq(struct irq_data *irqd)
 	return 1;
 }
 
+void apic_ack_irq(struct irq_data *irqd)
+{
+	irq_move_irq(irqd);
+	ack_APIC_irq();
+}
+
 void apic_ack_edge(struct irq_data *irqd)
 {
 	irq_complete_move(irqd_cfg(irqd));
-	irq_move_irq(irqd);
-	ack_APIC_irq();
+	apic_ack_irq(irqd);
 }
 
 static struct irq_chip lapic_controller = {
