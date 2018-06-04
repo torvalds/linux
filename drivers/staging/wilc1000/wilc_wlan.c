@@ -20,25 +20,14 @@ static inline void release_bus(struct wilc *wilc, enum bus_release release)
 
 static void wilc_wlan_txq_remove(struct wilc *wilc, struct txq_entry_t *tqe)
 {
-	if (tqe == wilc->txq_head) {
-		wilc->txq_head = tqe->next;
-		if (wilc->txq_head)
-			wilc->txq_head->prev = NULL;
-	} else if (tqe == wilc->txq_tail) {
-		wilc->txq_tail = (tqe->prev);
-		if (wilc->txq_tail)
-			wilc->txq_tail->next = NULL;
-	} else {
-		tqe->prev->next = tqe->next;
-		tqe->next->prev = tqe->prev;
-	}
+	list_del(&tqe->list);
 	wilc->txq_entries -= 1;
 }
 
 static struct txq_entry_t *
 wilc_wlan_txq_remove_from_head(struct net_device *dev)
 {
-	struct txq_entry_t *tqe;
+	struct txq_entry_t *tqe = NULL;
 	unsigned long flags;
 	struct wilc_vif *vif;
 	struct wilc *wilc;
@@ -47,15 +36,12 @@ wilc_wlan_txq_remove_from_head(struct net_device *dev)
 	wilc = vif->wilc;
 
 	spin_lock_irqsave(&wilc->txq_spinlock, flags);
-	if (wilc->txq_head) {
-		tqe = wilc->txq_head;
-		wilc->txq_head = tqe->next;
-		if (wilc->txq_head)
-			wilc->txq_head->prev = NULL;
 
+	if (!list_empty(&wilc->txq_head.list)) {
+		tqe = list_first_entry(&wilc->txq_head.list, struct txq_entry_t,
+				       list);
+		list_del(&tqe->list);
 		wilc->txq_entries -= 1;
-	} else {
-		tqe = NULL;
 	}
 	spin_unlock_irqrestore(&wilc->txq_spinlock, flags);
 	return tqe;
@@ -73,17 +59,7 @@ static void wilc_wlan_txq_add_to_tail(struct net_device *dev,
 
 	spin_lock_irqsave(&wilc->txq_spinlock, flags);
 
-	if (!wilc->txq_head) {
-		tqe->next = NULL;
-		tqe->prev = NULL;
-		wilc->txq_head = tqe;
-		wilc->txq_tail = tqe;
-	} else {
-		tqe->next = NULL;
-		tqe->prev = wilc->txq_tail;
-		wilc->txq_tail->next = tqe;
-		wilc->txq_tail = tqe;
-	}
+	list_add_tail(&tqe->list, &wilc->txq_head.list);
 	wilc->txq_entries += 1;
 
 	spin_unlock_irqrestore(&wilc->txq_spinlock, flags);
@@ -101,17 +77,7 @@ static int wilc_wlan_txq_add_to_head(struct wilc_vif *vif,
 
 	spin_lock_irqsave(&wilc->txq_spinlock, flags);
 
-	if (!wilc->txq_head) {
-		tqe->next = NULL;
-		tqe->prev = NULL;
-		wilc->txq_head = tqe;
-		wilc->txq_tail = tqe;
-	} else {
-		tqe->next = wilc->txq_head;
-		tqe->prev = NULL;
-		wilc->txq_head->prev = tqe;
-		wilc->txq_head = tqe;
-	}
+	list_add(&tqe->list, &wilc->txq_head.list);
 	wilc->txq_entries += 1;
 
 	spin_unlock_irqrestore(&wilc->txq_spinlock, flags);
@@ -402,12 +368,14 @@ int wilc_wlan_txq_add_mgmt_pkt(struct net_device *dev, void *priv, u8 *buffer,
 
 static struct txq_entry_t *wilc_wlan_txq_get_first(struct wilc *wilc)
 {
-	struct txq_entry_t *tqe;
+	struct txq_entry_t *tqe = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&wilc->txq_spinlock, flags);
 
-	tqe = wilc->txq_head;
+	if (!list_empty(&wilc->txq_head.list))
+		tqe = list_first_entry(&wilc->txq_head.list, struct txq_entry_t,
+				       list);
 
 	spin_unlock_irqrestore(&wilc->txq_spinlock, flags);
 
@@ -421,7 +389,10 @@ static struct txq_entry_t *wilc_wlan_txq_get_next(struct wilc *wilc,
 
 	spin_lock_irqsave(&wilc->txq_spinlock, flags);
 
-	tqe = tqe->next;
+	if (!list_is_last(&tqe->list, &wilc->txq_head.list))
+		tqe = list_next_entry(tqe, list);
+	else
+		tqe = NULL;
 	spin_unlock_irqrestore(&wilc->txq_spinlock, flags);
 
 	return tqe;

@@ -1118,6 +1118,7 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 	wl->io_type = io_type;
 	wl->gpio = gpio;
 	wl->hif_func = ops;
+	INIT_LIST_HEAD(&wl->txq_head.list);
 
 	register_inetaddr_notifier(&g_dev_notifier);
 
