@@ -26,7 +26,7 @@ ip_no_pmtu_disc - INTEGER
 	discarded. Outgoing frames are handled the same as in mode 1,
 	implicitly setting IP_PMTUDISC_DONT on every created socket.
 
-	Mode 3 is a hardend pmtu discover mode. The kernel will only
+	Mode 3 is a hardened pmtu discover mode. The kernel will only
 	accept fragmentation-needed errors if the underlying protocol
 	can verify them besides a plain socket lookup. Current
 	protocols for which pmtu events will be honored are TCP, SCTP
