@@ -211,35 +211,31 @@ DEFINE_TEST_ARRAY(s64) = {
 	{0, -S64_MAX, -S64_MAX, S64_MAX, 0, false, false, false},
 };
 
+#define check_one_op(t, fmt, op, sym, a, b, r, of) do {		\
+	t _r;							\
+	bool _of;						\
+								\
+	_of = check_ ## op ## _overflow(a, b, &_r);		\
+	if (_of != of) {					\
+		pr_warn("expected "fmt" "sym" "fmt		\
+			" to%s overflow (type %s)\n",		\
+			a, b, of ? "" : " not", #t);		\
+	}							\
+	if (_r != r) {						\
+		pr_warn("expected "fmt" "sym" "fmt" == "	\
+			fmt", got "fmt" (type %s)\n",		\
+			a, b, r, _r, #t);			\
+	}							\
+} while (0)
+
 #define DEFINE_TEST_FUNC(t, fmt)					\
 static void __init do_test_ ## t(const struct test_ ## t *p)		\
 {							   		\
-	t r;								\
-	bool of;							\
-									\
-	of = check_add_overflow(p->a, p->b, &r);			\
-	if (of != p->s_of)						\
-		pr_warn("expected "fmt" + "fmt" to%s overflow (type %s)\n", \
-			p->a, p->b, p->s_of ? "" : " not", #t);		\
-	if (r != p->sum)						\
-		pr_warn("expected "fmt" + "fmt" == "fmt", got "fmt" (type %s)\n", \
-			p->a, p->b, p->sum, r, #t);			\
-									\
-	of = check_sub_overflow(p->a, p->b, &r);			\
-	if (of != p->d_of)						\
-		pr_warn("expected "fmt" - "fmt" to%s overflow (type %s)\n", \
-			p->a, p->b, p->s_of ? "" : " not", #t);		\
-	if (r != p->diff)						\
-		pr_warn("expected "fmt" - "fmt" == "fmt", got "fmt" (type %s)\n", \
-			p->a, p->b, p->diff, r, #t);			\
-									\
-	of = check_mul_overflow(p->a, p->b, &r);			\
-	if (of != p->p_of)						\
-		pr_warn("expected "fmt" * "fmt" to%s overflow (type %s)\n", \
-			p->a, p->b, p->p_of ? "" : " not", #t);		\
-	if (r != p->prod)						\
-		pr_warn("expected "fmt" * "fmt" == "fmt", got "fmt" (type %s)\n", \
-			p->a, p->b, p->prod, r, #t);			\
+	check_one_op(t, fmt, add, "+", p->a, p->b, p->sum, p->s_of);	\
+	check_one_op(t, fmt, add, "+", p->b, p->a, p->sum, p->s_of);	\
+	check_one_op(t, fmt, sub, "-", p->a, p->b, p->diff, p->d_of);	\
+	check_one_op(t, fmt, mul, "*", p->a, p->b, p->prod, p->p_of);	\
+	check_one_op(t, fmt, mul, "*", p->b, p->a, p->prod, p->p_of);	\
 }									\
 									\
 static void __init test_ ## t ## _overflow(void) {			\
