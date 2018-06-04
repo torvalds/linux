@@ -122,9 +122,7 @@ static void deferred_probe_work_func(struct work_struct *work)
 		 * the list is a good order for suspend but deferred
 		 * probe makes that very unsafe.
 		 */
-		device_pm_lock();
-		device_pm_move_last(dev);
-		device_pm_unlock();
+		device_pm_move_to_tail(dev);
 
 		dev_dbg(dev, "Retrying from deferred list\n");
 		if (initcall_debug && !initcalls_done)
@@ -582,7 +580,7 @@ int driver_probe_device(struct device_driver *drv, struct device *dev)
 	pr_debug("bus: '%s': %s: matched device %s with driver %s\n",
 		 drv->bus->name, __func__, dev_name(dev), drv->name);
 
-	pm_runtime_get_suppliers(dev);
+	pm_runtime_resume_suppliers(dev);
 	if (dev->parent)
 		pm_runtime_get_sync(dev->parent);
 
@@ -593,7 +591,6 @@ int driver_probe_device(struct device_driver *drv, struct device *dev)
 	if (dev->parent)
 		pm_runtime_put(dev->parent);
 
-	pm_runtime_put_suppliers(dev);
 	return ret;
 }
 
