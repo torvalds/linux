@@ -190,7 +190,7 @@ static int davinci_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 }
 
 #ifdef CONFIG_DEBUG_FS
-static int davinci_pll_debug_init(struct clk_hw *hw, struct dentry *dentry);
+static void davinci_pll_debug_init(struct clk_hw *hw, struct dentry *dentry);
 #else
 #define davinci_pll_debug_init NULL
 #endif
@@ -874,26 +874,19 @@ static const struct debugfs_reg32 davinci_pll_regs[] = {
 	DEBUG_REG(PLLDIV9),
 };
 
-static int davinci_pll_debug_init(struct clk_hw *hw, struct dentry *dentry)
+static void davinci_pll_debug_init(struct clk_hw *hw, struct dentry *dentry)
 {
 	struct davinci_pll_clk *pll = to_davinci_pll_clk(hw);
 	struct debugfs_regset32 *regset;
-	struct dentry *d;
 
 	regset = kzalloc(sizeof(*regset), GFP_KERNEL);
 	if (!regset)
-		return -ENOMEM;
+		return;
 
 	regset->regs = davinci_pll_regs;
 	regset->nregs = ARRAY_SIZE(davinci_pll_regs);
 	regset->base = pll->base;
 
-	d = debugfs_create_regset32("registers", 0400, dentry, regset);
-	if (IS_ERR(d)) {
-		kfree(regset);
-		return PTR_ERR(d);
-	}
-
-	return 0;
+	debugfs_create_regset32("registers", 0400, dentry, regset);
 }
 #endif

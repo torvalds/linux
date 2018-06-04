@@ -219,7 +219,7 @@ struct clk_ops {
 	int		(*get_phase)(struct clk_hw *hw);
 	int		(*set_phase)(struct clk_hw *hw, int degrees);
 	void		(*init)(struct clk_hw *hw);
-	int		(*debug_init)(struct clk_hw *hw, struct dentry *dentry);
+	void		(*debug_init)(struct clk_hw *hw, struct dentry *dentry);
 };
 
 /**
@@ -981,11 +981,6 @@ static inline void clk_writel(u32 val, u32 __iomem *reg)
 }
 
 #endif	/* platform dependent I/O accessors */
-
-#ifdef CONFIG_DEBUG_FS
-struct dentry *clk_debugfs_add_file(struct clk_hw *hw, char *name, umode_t mode,
-				void *data, const struct file_operations *fops);
-#endif
 
 #endif /* CONFIG_COMMON_CLK */
 #endif /* CLK_PROVIDER_H */
