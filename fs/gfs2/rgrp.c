@@ -372,8 +372,8 @@ static u32 gfs2_free_extlen(const struct gfs2_rbm *rrbm, u32 len)
 		start = bi->bi_bh->b_data;
 		if (bi->bi_clone)
 			start = bi->bi_clone;
-		end = start + bi->bi_bh->b_size;
 		start += bi->bi_offset;
+		end = start + bi->bi_len;
 		BUG_ON(rbm.offset & 3);
 		start += (rbm.offset / GFS2_NBBY);
 		bytes = min_t(u32, len / GFS2_NBBY, (end - start));
