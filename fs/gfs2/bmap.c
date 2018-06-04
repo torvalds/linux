@@ -176,8 +176,8 @@ out:
 /**
  * find_metapath - Find path through the metadata tree
  * @sdp: The superblock
- * @mp: The metapath to return the result in
  * @block: The disk block to look up
+ * @mp: The metapath to return the result in
  * @height: The pre-calculated height of the metadata tree
  *
  *   This routine returns a struct metapath structure that defines a path
@@ -188,8 +188,7 @@ out:
  *   filesystem with a blocksize of 4096.
  *
  *   find_metapath() would return a struct metapath structure set to:
- *   mp_offset = 101342453, mp_height = 3, mp_list[0] = 0, mp_list[1] = 48,
- *   and mp_list[2] = 165.
+ *   mp_fheight = 3, mp_list[0] = 0, mp_list[1] = 48, and mp_list[2] = 165.
  *
  *   That means that in order to get to the block containing the byte at
  *   offset 101342453, we would load the indirect block pointed to by pointer
