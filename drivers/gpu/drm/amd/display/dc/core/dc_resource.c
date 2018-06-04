@@ -1578,6 +1578,20 @@ static bool is_hdr_static_meta_changed(struct dc_stream_state *cur_stream,
 	return false;
 }
 
+static bool is_vsc_info_packet_changed(struct dc_stream_state *cur_stream,
+		struct dc_stream_state *new_stream)
+{
+	if (cur_stream == NULL)
+		return true;
+
+	if (memcmp(&cur_stream->vsc_infopacket,
+			&new_stream->vsc_infopacket,
+			sizeof(struct dc_info_packet)) != 0)
+		return true;
+
+	return false;
+}
+
 static bool is_timing_changed(struct dc_stream_state *cur_stream,
 		struct dc_stream_state *new_stream)
 {
@@ -1616,6 +1630,9 @@ static bool are_stream_backends_same(
 		return false;
 
 	if (stream_a->dpms_off != stream_b->dpms_off)
+		return false;
+
+	if (is_vsc_info_packet_changed(stream_a, stream_b))
 		return false;
 
 	return true;
@@ -2504,43 +2521,10 @@ static void set_vsc_info_packet(
 		struct dc_info_packet *info_packet,
 		struct dc_stream_state *stream)
 {
-	unsigned int vscPacketRevision = 0;
-	unsigned int i;
-
-	/*VSC packet set to 2 when DP revision >= 1.2*/
-	if (stream->psr_version != 0) {
-		vscPacketRevision = 2;
-	}
-
-	/* VSC packet not needed based on the features
-	 * supported by this DP display
-	 */
-	if (vscPacketRevision == 0)
+	if (!stream->vsc_infopacket.valid)
 		return;
 
-	if (vscPacketRevision == 0x2) {
-		/* Secondary-data Packet ID = 0*/
-		info_packet->hb0 = 0x00;
-		/* 07h - Packet Type Value indicating Video
-		 * Stream Configuration packet
-		 */
-		info_packet->hb1 = 0x07;
-		/* 02h = VSC SDP supporting 3D stereo and PSR
-		 * (applies to eDP v1.3 or higher).
-		 */
-		info_packet->hb2 = 0x02;
-		/* 08h = VSC packet supporting 3D stereo + PSR
-		 * (HB2 = 02h).
-		 */
-		info_packet->hb3 = 0x08;
-
-		for (i = 0; i < 28; i++)
-			info_packet->sb[i] = 0;
-
-		info_packet->valid = true;
-	}
-
-	/*TODO: stereo 3D support and extend pixel encoding colorimetry*/
+	*info_packet = stream->vsc_infopacket;
 }
 
 void dc_resource_state_destruct(struct dc_state *context)
@@ -2720,6 +2704,9 @@ bool pipe_need_reprogram(
 		return true;
 
 	if (pipe_ctx_old->stream->dpms_off != pipe_ctx->stream->dpms_off)
+		return true;
+
+	if (is_vsc_info_packet_changed(pipe_ctx_old->stream, pipe_ctx->stream))
 		return true;
 
 	return false;

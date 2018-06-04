@@ -55,6 +55,7 @@ struct dc_stream_state {
 	struct dc_crtc_timing timing;
 	struct dc_crtc_timing_adjust adjust;
 	struct dc_info_packet vrr_infopacket;
+	struct dc_info_packet vsc_infopacket;
 
 	struct rect src; /* composition area */
 	struct rect dst; /* stream addressable area */
