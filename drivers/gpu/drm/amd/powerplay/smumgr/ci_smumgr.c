@@ -1614,37 +1614,6 @@ static int ci_populate_smc_acp_level(struct pp_hwmgr *hwmgr,
 	return result;
 }
 
-static int ci_populate_smc_samu_level(struct pp_hwmgr *hwmgr,
-					SMU7_Discrete_DpmTable *table)
-{
-	int result = -EINVAL;
-	uint8_t count;
-	struct pp_atomctrl_clock_dividers_vi dividers;
-	struct phm_samu_clock_voltage_dependency_table *samu_table =
-				hwmgr->dyn_state.samu_clock_voltage_dependency_table;
-
-	table->SamuBootLevel = 0;
-	table->SamuLevelCount = (uint8_t)(samu_table->count);
-
-	for (count = 0; count < table->SamuLevelCount; count++) {
-		table->SamuLevel[count].Frequency = samu_table->entries[count].samclk;
-		table->SamuLevel[count].MinVoltage = samu_table->entries[count].v * VOLTAGE_SCALE;
-		table->SamuLevel[count].MinPhases = 1;
-
-		/* retrieve divider value for VBIOS */
-		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
-				table->SamuLevel[count].Frequency, &dividers);
-		PP_ASSERT_WITH_CODE((0 == result),
-				"can not find divide id for samu clock", return result);
-
-		table->SamuLevel[count].Divider = (uint8_t)dividers.pll_post_divider;
-
-		CONVERT_FROM_HOST_TO_SMC_UL(table->SamuLevel[count].Frequency);
-		CONVERT_FROM_HOST_TO_SMC_US(table->SamuLevel[count].MinVoltage);
-	}
-	return result;
-}
-
 static int ci_populate_memory_timing_parameters(
 		struct pp_hwmgr *hwmgr,
 		uint32_t engine_clock,
@@ -2025,10 +1994,6 @@ static int ci_init_smc_table(struct pp_hwmgr *hwmgr)
 	result = ci_populate_smc_acp_level(hwmgr, table);
 	PP_ASSERT_WITH_CODE(0 == result,
 		"Failed to initialize ACP Level!", return result);
-
-	result = ci_populate_smc_samu_level(hwmgr, table);
-	PP_ASSERT_WITH_CODE(0 == result,
-		"Failed to initialize SAMU Level!", return result);
 
 	/* Since only the initial state is completely set up at this point (the other states are just copies of the boot state) we only */
 	/* need to populate the  ARB settings for the initial state. */

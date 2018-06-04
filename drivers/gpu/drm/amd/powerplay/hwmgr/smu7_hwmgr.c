@@ -4300,7 +4300,6 @@ static int smu7_init_power_gate_state(struct pp_hwmgr *hwmgr)
 
 	data->uvd_power_gated = false;
 	data->vce_power_gated = false;
-	data->samu_power_gated = false;
 
 	return 0;
 }

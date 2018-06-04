@@ -393,34 +393,6 @@ static int vegam_update_vce_smc_table(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int vegam_update_samu_smc_table(struct pp_hwmgr *hwmgr)
-{
-	struct vegam_smumgr *smu_data = (struct vegam_smumgr *)(hwmgr->smu_backend);
-	uint32_t mm_boot_level_offset, mm_boot_level_value;
-
-
-	smu_data->smc_state_table.SamuBootLevel = 0;
-	mm_boot_level_offset = smu_data->smu7_data.dpm_table_start +
-				offsetof(SMU75_Discrete_DpmTable, SamuBootLevel);
-
-	mm_boot_level_offset /= 4;
-	mm_boot_level_offset *= 4;
-	mm_boot_level_value = cgs_read_ind_register(hwmgr->device,
-			CGS_IND_REG__SMC, mm_boot_level_offset);
-	mm_boot_level_value &= 0xFFFFFF00;
-	mm_boot_level_value |= smu_data->smc_state_table.SamuBootLevel << 0;
-	cgs_write_ind_register(hwmgr->device,
-			CGS_IND_REG__SMC, mm_boot_level_offset, mm_boot_level_value);
-
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_StablePState))
-		smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_SAMUDPM_SetEnabledMask,
-				(uint32_t)(1 << smu_data->smc_state_table.SamuBootLevel));
-	return 0;
-}
-
-
 static int vegam_update_bif_smc_table(struct pp_hwmgr *hwmgr)
 {
 	struct vegam_smumgr *smu_data = (struct vegam_smumgr *)(hwmgr->smu_backend);
@@ -446,9 +418,6 @@ static int vegam_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type)
 		break;
 	case SMU_VCE_TABLE:
 		vegam_update_vce_smc_table(hwmgr);
-		break;
-	case SMU_SAMU_TABLE:
-		vegam_update_samu_smc_table(hwmgr);
 		break;
 	case SMU_BIF_TABLE:
 		vegam_update_bif_smc_table(hwmgr);
@@ -1281,54 +1250,6 @@ static int vegam_populate_smc_vce_level(struct pp_hwmgr *hwmgr,
 	return result;
 }
 
-static int vegam_populate_smc_samu_level(struct pp_hwmgr *hwmgr,
-		SMU75_Discrete_DpmTable *table)
-{
-	int result = -EINVAL;
-	uint8_t count;
-	struct pp_atomctrl_clock_dividers_vi dividers;
-	struct phm_ppt_v1_information *table_info =
-			(struct phm_ppt_v1_information *)(hwmgr->pptable);
-	struct phm_ppt_v1_mm_clock_voltage_dependency_table *mm_table =
-			table_info->mm_dep_table;
-	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	uint32_t vddci;
-
-	table->SamuBootLevel = 0;
-	table->SamuLevelCount = (uint8_t)(mm_table->count);
-
-	for (count = 0; count < table->SamuLevelCount; count++) {
-		/* not sure whether we need evclk or not */
-		table->SamuLevel[count].MinVoltage = 0;
-		table->SamuLevel[count].Frequency = mm_table->entries[count].samclock;
-		table->SamuLevel[count].MinVoltage |= (mm_table->entries[count].vddc *
-				VOLTAGE_SCALE) << VDDC_SHIFT;
-
-		if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->vddci_control)
-			vddci = (uint32_t)phm_find_closest_vddci(&(data->vddci_voltage_table),
-						mm_table->entries[count].vddc - VDDC_VDDCI_DELTA);
-		else if (SMU7_VOLTAGE_CONTROL_BY_SVID2 == data->vddci_control)
-			vddci = mm_table->entries[count].vddc - VDDC_VDDCI_DELTA;
-		else
-			vddci = (data->vbios_boot_state.vddci_bootup_value * VOLTAGE_SCALE) << VDDCI_SHIFT;
-
-		table->SamuLevel[count].MinVoltage |= (vddci * VOLTAGE_SCALE) << VDDCI_SHIFT;
-		table->SamuLevel[count].MinVoltage |= 1 << PHASES_SHIFT;
-
-		/* retrieve divider value for VBIOS */
-		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
-				table->SamuLevel[count].Frequency, &dividers);
-		PP_ASSERT_WITH_CODE((0 == result),
-				"can not find divide id for samu clock", return result);
-
-		table->SamuLevel[count].Divider = (uint8_t)dividers.pll_post_divider;
-
-		CONVERT_FROM_HOST_TO_SMC_UL(table->SamuLevel[count].Frequency);
-		CONVERT_FROM_HOST_TO_SMC_UL(table->SamuLevel[count].MinVoltage);
-	}
-	return result;
-}
-
 static int vegam_populate_memory_timing_parameters(struct pp_hwmgr *hwmgr,
 		int32_t eng_clock, int32_t mem_clock,
 		SMU75_Discrete_MCArbDramTimingTableEntry *arb_regs)
@@ -2062,10 +1983,6 @@ static int vegam_init_smc_table(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE(!result,
 			"Failed to initialize VCE Level!", return result);
 
-	result = vegam_populate_smc_samu_level(hwmgr, table);
-	PP_ASSERT_WITH_CODE(!result,
-			"Failed to initialize SAMU Level!", return result);
-
 	/* Since only the initial state is completely set up at this point
 	 * (the other states are just copies of the boot state) we only
 	 * need to populate the  ARB settings for the initial state.
@@ -2273,8 +2190,6 @@ static uint32_t vegam_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU75_Discrete_DpmTable, UvdBootLevel);
 		case VceBootLevel:
 			return offsetof(SMU75_Discrete_DpmTable, VceBootLevel);
-		case SamuBootLevel:
-			return offsetof(SMU75_Discrete_DpmTable, SamuBootLevel);
 		case LowSclkInterruptThreshold:
 			return offsetof(SMU75_Discrete_DpmTable, LowSclkInterruptThreshold);
 		}
