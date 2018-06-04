@@ -4755,14 +4755,15 @@ megasas_get_ctrl_info(struct megasas_instance *instance)
 				__func__, __LINE__);
 			break;
 		}
+		break;
 	case DCMD_FAILED:
 		megaraid_sas_kill_hba(instance);
 		break;
 
 	}
 
-	megasas_return_cmd(instance, cmd);
-
+	if (ret != DCMD_TIMEOUT)
+		megasas_return_cmd(instance, cmd);
 
 	return ret;
 }
