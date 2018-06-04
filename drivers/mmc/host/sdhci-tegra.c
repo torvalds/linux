@@ -234,17 +234,6 @@ static void tegra_sdhci_set_uhs_signaling(struct sdhci_host *host,
 	sdhci_set_uhs_signaling(host, timing);
 }
 
-static unsigned int tegra_sdhci_get_max_clock(struct sdhci_host *host)
-{
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-
-	/*
-	 * DDR modes require the host to run at double the card frequency, so
-	 * the maximum rate we can support is half of the module input clock.
-	 */
-	return clk_round_rate(pltfm_host->clk, UINT_MAX) / 2;
-}
-
 static void tegra_sdhci_set_tap(struct sdhci_host *host, unsigned int tap)
 {
 	u32 reg;
@@ -309,7 +298,7 @@ static const struct sdhci_ops tegra_sdhci_ops = {
 	.platform_execute_tuning = tegra_sdhci_execute_tuning,
 	.set_uhs_signaling = tegra_sdhci_set_uhs_signaling,
 	.voltage_switch = tegra_sdhci_voltage_switch,
-	.get_max_clock = tegra_sdhci_get_max_clock,
+	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 };
 
 static const struct sdhci_pltfm_data sdhci_tegra20_pdata = {
@@ -357,7 +346,7 @@ static const struct sdhci_ops tegra114_sdhci_ops = {
 	.platform_execute_tuning = tegra_sdhci_execute_tuning,
 	.set_uhs_signaling = tegra_sdhci_set_uhs_signaling,
 	.voltage_switch = tegra_sdhci_voltage_switch,
-	.get_max_clock = tegra_sdhci_get_max_clock,
+	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 };
 
 static const struct sdhci_pltfm_data sdhci_tegra114_pdata = {
