@@ -131,6 +131,7 @@ static ssize_t goldfish_audio_read(struct file *fp, char __user *buf,
 				   size_t count, loff_t *pos)
 {
 	struct goldfish_audio *data = fp->private_data;
+	unsigned long irq_flags;
 	int length;
 	int result = 0;
 
@@ -143,6 +144,10 @@ static ssize_t goldfish_audio_read(struct file *fp, char __user *buf,
 
 		wait_event_interruptible(data->wait, data->buffer_status &
 					 AUDIO_INT_READ_BUFFER_FULL);
+
+		spin_lock_irqsave(&data->lock, irq_flags);
+		data->buffer_status &= ~AUDIO_INT_READ_BUFFER_FULL;
+		spin_unlock_irqrestore(&data->lock, irq_flags);
 
 		length = audio_read(data, AUDIO_READ_BUFFER_AVAILABLE);
 
