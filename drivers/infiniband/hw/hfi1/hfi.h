@@ -245,8 +245,8 @@ struct hfi1_ctxtdata {
 	struct exp_tid_set tid_used_list;
 	struct exp_tid_set tid_full_list;
 
-	/* lock protecting all Expected TID data */
-	struct mutex exp_lock;
+	/* lock protecting all Expected TID data of user contexts */
+	struct mutex exp_mutex;
 	/* per-context configuration flags */
 	unsigned long flags;
 	/* per-context event flags for fileops/intr communication */
