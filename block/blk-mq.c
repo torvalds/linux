@@ -1475,7 +1475,7 @@ static void blk_mq_run_work_fn(struct work_struct *work)
 	 * If we are stopped, don't run the queue.
 	 */
 	if (test_bit(BLK_MQ_S_STOPPED, &hctx->state))
-		clear_bit(BLK_MQ_S_STOPPED, &hctx->state);
+		return;
 
 	__blk_mq_run_hw_queue(hctx);
 }
