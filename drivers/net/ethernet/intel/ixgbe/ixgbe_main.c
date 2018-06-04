@@ -8822,14 +8822,6 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 	} else {
 		netdev_reset_tc(dev);
 
-		/* To support macvlan offload we have to use num_tc to
-		 * restrict the queues that can be used by the device.
-		 * By doing this we can avoid reporting a false number of
-		 * queues.
-		 */
-		if (!tc && adapter->num_rx_pools > 1)
-			netdev_set_num_tc(dev, 1);
-
 		if (adapter->hw.mac.type == ixgbe_mac_82598EB)
 			adapter->hw.fc.requested_mode = adapter->last_lfc_mode;
 
