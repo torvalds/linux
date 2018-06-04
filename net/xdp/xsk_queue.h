@@ -85,14 +85,15 @@ static inline bool xskq_is_valid_id(struct xsk_queue *q, u32 idx)
 	return true;
 }
 
-static inline u32 *xskq_validate_id(struct xsk_queue *q)
+static inline u32 *xskq_validate_id(struct xsk_queue *q, u32 *id)
 {
 	while (q->cons_tail != q->cons_head) {
 		struct xdp_umem_ring *ring = (struct xdp_umem_ring *)q->ring;
 		unsigned int idx = q->cons_tail & q->ring_mask;
 
-		if (xskq_is_valid_id(q, ring->desc[idx]))
-			return &ring->desc[idx];
+		*id = READ_ONCE(ring->desc[idx]);
+		if (xskq_is_valid_id(q, *id))
+			return id;
 
 		q->cons_tail++;
 	}
@@ -100,28 +101,22 @@ static inline u32 *xskq_validate_id(struct xsk_queue *q)
 	return NULL;
 }
 
-static inline u32 *xskq_peek_id(struct xsk_queue *q)
+static inline u32 *xskq_peek_id(struct xsk_queue *q, u32 *id)
 {
-	struct xdp_umem_ring *ring;
-
 	if (q->cons_tail == q->cons_head) {
 		WRITE_ONCE(q->ring->consumer, q->cons_tail);
 		q->cons_head = q->cons_tail + xskq_nb_avail(q, RX_BATCH_SIZE);
 
 		/* Order consumer and data */
 		smp_rmb();
-
-		return xskq_validate_id(q);
 	}
 
-	ring = (struct xdp_umem_ring *)q->ring;
-	return &ring->desc[q->cons_tail & q->ring_mask];
+	return xskq_validate_id(q, id);
 }
 
 static inline void xskq_discard_id(struct xsk_queue *q)
 {
 	q->cons_tail++;
-	(void)xskq_validate_id(q);
 }
 
 static inline int xskq_produce_id(struct xsk_queue *q, u32 id)
@@ -174,11 +169,9 @@ static inline struct xdp_desc *xskq_validate_desc(struct xsk_queue *q,
 		struct xdp_rxtx_ring *ring = (struct xdp_rxtx_ring *)q->ring;
 		unsigned int idx = q->cons_tail & q->ring_mask;
 
-		if (xskq_is_valid_desc(q, &ring->desc[idx])) {
-			if (desc)
-				*desc = ring->desc[idx];
+		*desc = READ_ONCE(ring->desc[idx]);
+		if (xskq_is_valid_desc(q, desc))
 			return desc;
-		}
 
 		q->cons_tail++;
 	}
@@ -189,27 +182,20 @@ static inline struct xdp_desc *xskq_validate_desc(struct xsk_queue *q,
 static inline struct xdp_desc *xskq_peek_desc(struct xsk_queue *q,
 					      struct xdp_desc *desc)
 {
-	struct xdp_rxtx_ring *ring;
-
 	if (q->cons_tail == q->cons_head) {
 		WRITE_ONCE(q->ring->consumer, q->cons_tail);
 		q->cons_head = q->cons_tail + xskq_nb_avail(q, RX_BATCH_SIZE);
 
 		/* Order consumer and data */
 		smp_rmb();
-
-		return xskq_validate_desc(q, desc);
 	}
 
-	ring = (struct xdp_rxtx_ring *)q->ring;
-	*desc = ring->desc[q->cons_tail & q->ring_mask];
-	return desc;
+	return xskq_validate_desc(q, desc);
 }
 
 static inline void xskq_discard_desc(struct xsk_queue *q)
 {
 	q->cons_tail++;
-	(void)xskq_validate_desc(q, NULL);
 }
 
 static inline int xskq_produce_batch_desc(struct xsk_queue *q,

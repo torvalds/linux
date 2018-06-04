@@ -41,20 +41,19 @@ bool xsk_is_setup_for_bpf_map(struct xdp_sock *xs)
 
 static int __xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 {
-	u32 *id, len = xdp->data_end - xdp->data;
+	u32 id, len = xdp->data_end - xdp->data;
 	void *buffer;
-	int err = 0;
+	int err;
 
 	if (xs->dev != xdp->rxq->dev || xs->queue_id != xdp->rxq->queue_index)
 		return -EINVAL;
 
-	id = xskq_peek_id(xs->umem->fq);
-	if (!id)
+	if (!xskq_peek_id(xs->umem->fq, &id))
 		return -ENOSPC;
 
-	buffer = xdp_umem_get_data_with_headroom(xs->umem, *id);
+	buffer = xdp_umem_get_data_with_headroom(xs->umem, id);
 	memcpy(buffer, xdp->data, len);
-	err = xskq_produce_batch_desc(xs->rx, *id, len,
+	err = xskq_produce_batch_desc(xs->rx, id, len,
 				      xs->umem->frame_headroom);
 	if (!err)
 		xskq_discard_id(xs->umem->fq);
