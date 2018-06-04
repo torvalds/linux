@@ -1052,10 +1052,10 @@ static int add_controls(struct oxygen *chip,
 		[CONTROL_CD_CAPTURE_SWITCH] = "CD Capture Switch",
 		[CONTROL_AUX_CAPTURE_SWITCH] = "Aux Capture Switch",
 	};
-	unsigned int i, j;
+	unsigned int i;
 	struct snd_kcontrol_new template;
 	struct snd_kcontrol *ctl;
-	int err;
+	int j, err;
 
 	for (i = 0; i < count; ++i) {
 		template = controls[i];
@@ -1086,11 +1086,11 @@ static int add_controls(struct oxygen *chip,
 		err = snd_ctl_add(chip->card, ctl);
 		if (err < 0)
 			return err;
-		for (j = 0; j < CONTROL_COUNT; ++j)
-			if (!strcmp(ctl->id.name, known_ctl_names[j])) {
-				chip->controls[j] = ctl;
-				ctl->private_free = oxygen_any_ctl_free;
-			}
+		j = match_string(known_ctl_names, CONTROL_COUNT, ctl->id.name);
+		if (j >= 0) {
+			chip->controls[j] = ctl;
+			ctl->private_free = oxygen_any_ctl_free;
+		}
 	}
 	return 0;
 }
