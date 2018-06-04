@@ -453,8 +453,10 @@ cifs_convert_path_to_utf16(const char *from, struct cifs_sb_info *cifs_sb)
 		start_of_path = from + 1;
 #ifdef CONFIG_CIFS_SMB311
 	/* SMB311 POSIX extensions paths do not include leading slash */
-	else if (cifs_sb_master_tcon(cifs_sb)->posix_extensions)
+	else if (cifs_sb_master_tlink(cifs_sb) &&
+		 cifs_sb_master_tcon(cifs_sb)->posix_extensions) {
 		start_of_path = from + 1;
+	}
 #endif /* 311 */
 	else
 		start_of_path = from;

@@ -1019,6 +1019,12 @@ tlink_tcon(struct tcon_link *tlink)
 	return tlink->tl_tcon;
 }
 
+static inline struct tcon_link *
+cifs_sb_master_tlink(struct cifs_sb_info *cifs_sb)
+{
+	return cifs_sb->master_tlink;
+}
+
 extern void cifs_put_tlink(struct tcon_link *tlink);
 
 static inline struct tcon_link *

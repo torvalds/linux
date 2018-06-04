@@ -3116,12 +3116,6 @@ cifs_put_tlink(struct tcon_link *tlink)
 	return;
 }
 
-static inline struct tcon_link *
-cifs_sb_master_tlink(struct cifs_sb_info *cifs_sb)
-{
-	return cifs_sb->master_tlink;
-}
-
 static int
 compare_mount_options(struct super_block *sb, struct cifs_mnt_data *mnt_data)
 {
