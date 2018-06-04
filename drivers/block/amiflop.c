@@ -1758,7 +1758,7 @@ static struct kobject *floppy_find(dev_t dev, int *part, void *data)
 	if (unit[drive].type->code == FD_NODRIVE)
 		return NULL;
 	*part = 0;
-	return get_disk(unit[drive].gendisk);
+	return get_disk_and_module(unit[drive].gendisk);
 }
 
 static int __init amiga_floppy_probe(struct platform_device *pdev)

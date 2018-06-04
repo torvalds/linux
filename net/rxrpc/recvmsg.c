@@ -272,7 +272,7 @@ static int rxrpc_locate_data(struct rxrpc_call *call, struct sk_buff *skb,
 			     unsigned int *_offset, unsigned int *_len)
 {
 	unsigned int offset = sizeof(struct rxrpc_wire_header);
-	unsigned int len = *_len;
+	unsigned int len;
 	int ret;
 	u8 annotation = *_annotation;
 
@@ -517,9 +517,10 @@ try_again:
 			ret = put_cmsg(msg, SOL_RXRPC, RXRPC_USER_CALL_ID,
 				       sizeof(unsigned int), &id32);
 		} else {
+			unsigned long idl = call->user_call_ID;
+
 			ret = put_cmsg(msg, SOL_RXRPC, RXRPC_USER_CALL_ID,
-				       sizeof(unsigned long),
-				       &call->user_call_ID);
+				       sizeof(unsigned long), &idl);
 		}
 		if (ret < 0)
 			goto error_unlock_call;

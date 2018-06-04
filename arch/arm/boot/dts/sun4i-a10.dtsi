@@ -123,8 +123,6 @@
 				624000	1250000
 				>;
 			#cooling-cells = <2>;
-			cooling-min-level = <0>;
-			cooling-max-level = <3>;
 		};
 	};
 

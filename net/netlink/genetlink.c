@@ -1106,7 +1106,7 @@ static int genlmsg_mcast(struct sk_buff *skb, u32 portid, unsigned long group,
 	if (!err)
 		delivered = true;
 	else if (err != -ESRCH)
-		goto error;
+		return err;
 	return delivered ? 0 : -ESRCH;
  error:
 	kfree_skb(skb);

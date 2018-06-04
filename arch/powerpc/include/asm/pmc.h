@@ -31,10 +31,21 @@ void ppc_enable_pmcs(void);
 
 #ifdef CONFIG_PPC_BOOK3S_64
 #include <asm/lppaca.h>
+#include <asm/firmware.h>
 
 static inline void ppc_set_pmu_inuse(int inuse)
 {
-	get_lppaca()->pmcregs_in_use = inuse;
+#if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_KVM_BOOK3S_HV_POSSIBLE)
+	if (firmware_has_feature(FW_FEATURE_LPAR)) {
+#ifdef CONFIG_PPC_PSERIES
+		get_lppaca()->pmcregs_in_use = inuse;
+#endif
+	} else {
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+		get_paca()->pmcregs_in_use = inuse;
+#endif
+	}
+#endif
 }
 
 extern void power4_enable_pmcs(void);

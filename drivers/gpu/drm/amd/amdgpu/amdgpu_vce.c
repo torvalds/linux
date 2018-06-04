@@ -55,6 +55,7 @@
 #define FIRMWARE_POLARIS12         "amdgpu/polaris12_vce.bin"
 
 #define FIRMWARE_VEGA10		"amdgpu/vega10_vce.bin"
+#define FIRMWARE_VEGA12		"amdgpu/vega12_vce.bin"
 
 #ifdef CONFIG_DRM_AMDGPU_CIK
 MODULE_FIRMWARE(FIRMWARE_BONAIRE);
@@ -72,6 +73,7 @@ MODULE_FIRMWARE(FIRMWARE_POLARIS11);
 MODULE_FIRMWARE(FIRMWARE_POLARIS12);
 
 MODULE_FIRMWARE(FIRMWARE_VEGA10);
+MODULE_FIRMWARE(FIRMWARE_VEGA12);
 
 static void amdgpu_vce_idle_work_handler(struct work_struct *work);
 
@@ -127,11 +129,14 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 	case CHIP_POLARIS11:
 		fw_name = FIRMWARE_POLARIS11;
 		break;
+	case CHIP_POLARIS12:
+		fw_name = FIRMWARE_POLARIS12;
+		break;
 	case CHIP_VEGA10:
 		fw_name = FIRMWARE_VEGA10;
 		break;
-	case CHIP_POLARIS12:
-		fw_name = FIRMWARE_POLARIS12;
+	case CHIP_VEGA12:
+		fw_name = FIRMWARE_VEGA12;
 		break;
 
 	default:
@@ -300,9 +305,6 @@ static void amdgpu_vce_idle_work_handler(struct work_struct *work)
 		container_of(work, struct amdgpu_device, vce.idle_work.work);
 	unsigned i, count = 0;
 
-	if (amdgpu_sriov_vf(adev))
-		return;
-
 	for (i = 0; i < adev->vce.num_rings; i++)
 		count += amdgpu_fence_count_emitted(&adev->vce.ring[i]);
 
@@ -362,7 +364,8 @@ void amdgpu_vce_ring_begin_use(struct amdgpu_ring *ring)
  */
 void amdgpu_vce_ring_end_use(struct amdgpu_ring *ring)
 {
-	schedule_delayed_work(&ring->adev->vce.idle_work, VCE_IDLE_TIMEOUT);
+	if (!amdgpu_sriov_vf(ring->adev))
+		schedule_delayed_work(&ring->adev->vce.idle_work, VCE_IDLE_TIMEOUT);
 }
 
 /**

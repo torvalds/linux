@@ -470,4 +470,7 @@ uint32_t dal_fixed31_32_clamp_u0d14(
 uint32_t dal_fixed31_32_clamp_u0d10(
 	struct fixed31_32 arg);
 
+int32_t dal_fixed31_32_s4d19(
+	struct fixed31_32 arg);
+
 #endif

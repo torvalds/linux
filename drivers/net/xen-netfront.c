@@ -2005,7 +2005,10 @@ static void netback_changed(struct xenbus_device *dev,
 	case XenbusStateInitialised:
 	case XenbusStateReconfiguring:
 	case XenbusStateReconfigured:
+		break;
+
 	case XenbusStateUnknown:
+		wake_up_all(&module_unload_q);
 		break;
 
 	case XenbusStateInitWait:
@@ -2110,9 +2113,9 @@ static ssize_t store_rxbuf(struct device *dev,
 	return len;
 }
 
-static DEVICE_ATTR(rxbuf_min, S_IRUGO|S_IWUSR, show_rxbuf, store_rxbuf);
-static DEVICE_ATTR(rxbuf_max, S_IRUGO|S_IWUSR, show_rxbuf, store_rxbuf);
-static DEVICE_ATTR(rxbuf_cur, S_IRUGO, show_rxbuf, NULL);
+static DEVICE_ATTR(rxbuf_min, 0644, show_rxbuf, store_rxbuf);
+static DEVICE_ATTR(rxbuf_max, 0644, show_rxbuf, store_rxbuf);
+static DEVICE_ATTR(rxbuf_cur, 0444, show_rxbuf, NULL);
 
 static struct attribute *xennet_dev_attrs[] = {
 	&dev_attr_rxbuf_min.attr,
@@ -2136,7 +2139,9 @@ static int xennet_remove(struct xenbus_device *dev)
 		xenbus_switch_state(dev, XenbusStateClosing);
 		wait_event(module_unload_q,
 			   xenbus_read_driver_state(dev->otherend) ==
-			   XenbusStateClosing);
+			   XenbusStateClosing ||
+			   xenbus_read_driver_state(dev->otherend) ==
+			   XenbusStateUnknown);
 
 		xenbus_switch_state(dev, XenbusStateClosed);
 		wait_event(module_unload_q,

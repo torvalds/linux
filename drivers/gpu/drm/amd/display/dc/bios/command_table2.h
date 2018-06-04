@@ -96,7 +96,7 @@ struct cmd_tbl {
 		struct bios_parser *bp,
 		struct bp_set_dce_clock_parameters *bp_params);
 	unsigned int (*get_smu_clock_info)(
-			struct bios_parser *bp);
+			struct bios_parser *bp, uint8_t id);
 
 };
 

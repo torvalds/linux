@@ -54,25 +54,21 @@ static struct snd_soc_dai_driver ad73311_dai = {
 		.formats = SNDRV_PCM_FMTBIT_S16_LE, },
 };
 
-static const struct snd_soc_codec_driver soc_codec_dev_ad73311 = {
-	.component_driver = {
-		.dapm_widgets		= ad73311_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(ad73311_dapm_widgets),
-		.dapm_routes		= ad73311_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(ad73311_dapm_routes),
-	},
+static const struct snd_soc_component_driver soc_component_dev_ad73311 = {
+	.dapm_widgets		= ad73311_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(ad73311_dapm_widgets),
+	.dapm_routes		= ad73311_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(ad73311_dapm_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int ad73311_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_codec(&pdev->dev,
-			&soc_codec_dev_ad73311, &ad73311_dai, 1);
-}
-
-static int ad73311_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_codec(&pdev->dev);
-	return 0;
+	return devm_snd_soc_register_component(&pdev->dev,
+			&soc_component_dev_ad73311, &ad73311_dai, 1);
 }
 
 static struct platform_driver ad73311_codec_driver = {
@@ -81,7 +77,6 @@ static struct platform_driver ad73311_codec_driver = {
 	},
 
 	.probe = ad73311_probe,
-	.remove = ad73311_remove,
 };
 
 module_platform_driver(ad73311_codec_driver);

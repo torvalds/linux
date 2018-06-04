@@ -34,7 +34,7 @@ config NF_SOCKET_IPV6
 if NF_TABLES
 
 config NF_TABLES_IPV6
-	tristate "IPv6 nf_tables support"
+	bool "IPv6 nf_tables support"
 	help
 	  This option enables the IPv6 support for nf_tables.
 

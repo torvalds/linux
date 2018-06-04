@@ -814,8 +814,8 @@ void b53_get_strings(struct dsa_switch *ds, int port, uint8_t *data)
 	unsigned int i;
 
 	for (i = 0; i < mib_size; i++)
-		memcpy(data + i * ETH_GSTRING_LEN,
-		       mibs[i].name, ETH_GSTRING_LEN);
+		strlcpy(data + i * ETH_GSTRING_LEN,
+			mibs[i].name, ETH_GSTRING_LEN);
 }
 EXPORT_SYMBOL(b53_get_strings);
 
@@ -852,7 +852,7 @@ void b53_get_ethtool_stats(struct dsa_switch *ds, int port, uint64_t *data)
 }
 EXPORT_SYMBOL(b53_get_ethtool_stats);
 
-int b53_get_sset_count(struct dsa_switch *ds)
+int b53_get_sset_count(struct dsa_switch *ds, int port)
 {
 	struct b53_device *dev = ds->priv;
 

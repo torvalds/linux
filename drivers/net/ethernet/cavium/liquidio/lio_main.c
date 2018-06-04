@@ -91,18 +91,9 @@ static int octeon_console_debug_enabled(u32 console)
  */
 #define LIO_SYNC_OCTEON_TIME_INTERVAL_MS 60000
 
-struct liquidio_if_cfg_context {
-	int octeon_id;
-
-	wait_queue_head_t wc;
-
-	int cond;
-};
-
-struct liquidio_if_cfg_resp {
-	u64 rh;
-	struct liquidio_if_cfg_info cfg_info;
-	u64 status;
+struct lio_trusted_vf_ctx {
+	struct completion complete;
+	int status;
 };
 
 struct liquidio_rx_ctl_context {
@@ -523,148 +514,30 @@ static void liquidio_deinit_pci(void)
 }
 
 /**
- * \brief Stop Tx queues
- * @param netdev network device
- */
-static inline void txqs_stop(struct net_device *netdev)
-{
-	if (netif_is_multiqueue(netdev)) {
-		int i;
-
-		for (i = 0; i < netdev->num_tx_queues; i++)
-			netif_stop_subqueue(netdev, i);
-	} else {
-		netif_stop_queue(netdev);
-	}
-}
-
-/**
- * \brief Start Tx queues
- * @param netdev network device
- */
-static inline void txqs_start(struct net_device *netdev)
-{
-	if (netif_is_multiqueue(netdev)) {
-		int i;
-
-		for (i = 0; i < netdev->num_tx_queues; i++)
-			netif_start_subqueue(netdev, i);
-	} else {
-		netif_start_queue(netdev);
-	}
-}
-
-/**
- * \brief Wake Tx queues
- * @param netdev network device
- */
-static inline void txqs_wake(struct net_device *netdev)
-{
-	struct lio *lio = GET_LIO(netdev);
-
-	if (netif_is_multiqueue(netdev)) {
-		int i;
-
-		for (i = 0; i < netdev->num_tx_queues; i++) {
-			int qno = lio->linfo.txpciq[i %
-				lio->oct_dev->num_iqs].s.q_no;
-
-			if (__netif_subqueue_stopped(netdev, i)) {
-				INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, qno,
-							  tx_restart, 1);
-				netif_wake_subqueue(netdev, i);
-			}
-		}
-	} else {
-		INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, lio->txq,
-					  tx_restart, 1);
-		netif_wake_queue(netdev);
-	}
-}
-
-/**
- * \brief Stop Tx queue
- * @param netdev network device
- */
-static void stop_txq(struct net_device *netdev)
-{
-	txqs_stop(netdev);
-}
-
-/**
- * \brief Start Tx queue
- * @param netdev network device
- */
-static void start_txq(struct net_device *netdev)
-{
-	struct lio *lio = GET_LIO(netdev);
-
-	if (lio->linfo.link.s.link_up) {
-		txqs_start(netdev);
-		return;
-	}
-}
-
-/**
- * \brief Wake a queue
- * @param netdev network device
- * @param q which queue to wake
- */
-static inline void wake_q(struct net_device *netdev, int q)
-{
-	if (netif_is_multiqueue(netdev))
-		netif_wake_subqueue(netdev, q);
-	else
-		netif_wake_queue(netdev);
-}
-
-/**
- * \brief Stop a queue
- * @param netdev network device
- * @param q which queue to stop
- */
-static inline void stop_q(struct net_device *netdev, int q)
-{
-	if (netif_is_multiqueue(netdev))
-		netif_stop_subqueue(netdev, q);
-	else
-		netif_stop_queue(netdev);
-}
-
-/**
  * \brief Check Tx queue status, and take appropriate action
  * @param lio per-network private data
  * @returns 0 if full, number of queues woken up otherwise
  */
 static inline int check_txq_status(struct lio *lio)
 {
+	int numqs = lio->netdev->num_tx_queues;
 	int ret_val = 0;
+	int q, iq;
 
-	if (netif_is_multiqueue(lio->netdev)) {
-		int numqs = lio->netdev->num_tx_queues;
-		int q, iq = 0;
-
-		/* check each sub-queue state */
-		for (q = 0; q < numqs; q++) {
-			iq = lio->linfo.txpciq[q %
-				lio->oct_dev->num_iqs].s.q_no;
-			if (octnet_iq_is_full(lio->oct_dev, iq))
-				continue;
-			if (__netif_subqueue_stopped(lio->netdev, q)) {
-				wake_q(lio->netdev, q);
-				INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, iq,
-							  tx_restart, 1);
-				ret_val++;
-			}
+	/* check each sub-queue state */
+	for (q = 0; q < numqs; q++) {
+		iq = lio->linfo.txpciq[q %
+			lio->oct_dev->num_iqs].s.q_no;
+		if (octnet_iq_is_full(lio->oct_dev, iq))
+			continue;
+		if (__netif_subqueue_stopped(lio->netdev, q)) {
+			netif_wake_subqueue(lio->netdev, q);
+			INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, iq,
+						  tx_restart, 1);
+			ret_val++;
 		}
-	} else {
-		if (octnet_iq_is_full(lio->oct_dev, lio->txq))
-			return 0;
-		wake_q(lio->netdev, lio->txq);
-		INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, lio->txq,
-					  tx_restart, 1);
-		ret_val = 1;
 	}
+
 	return ret_val;
 }
 
@@ -841,8 +714,12 @@ static void octnet_link_status_change(struct work_struct *work)
 	struct cavium_wk *wk = (struct cavium_wk *)work;
 	struct lio *lio = (struct lio *)wk->ctxptr;
 
+	/* lio->linfo.link.s.mtu always contains max MTU of the lio interface.
+	 * this API is invoked only when new max-MTU of the interface is
+	 * less than current MTU.
+	 */
 	rtnl_lock();
-	call_netdevice_notifiers(NETDEV_CHANGEMTU, lio->netdev);
+	dev_set_mtu(lio->netdev, lio->linfo.link.s.mtu);
 	rtnl_unlock();
 }
 
@@ -891,7 +768,11 @@ static inline void update_link_status(struct net_device *netdev,
 {
 	struct lio *lio = GET_LIO(netdev);
 	int changed = (lio->linfo.link.u64 != ls->u64);
+	int current_max_mtu = lio->linfo.link.s.mtu;
+	struct octeon_device *oct = lio->oct_dev;
 
+	dev_dbg(&oct->pci_dev->dev, "%s: lio->linfo.link.u64=%llx, ls->u64=%llx\n",
+		__func__, lio->linfo.link.u64, ls->u64);
 	lio->linfo.link.u64 = ls->u64;
 
 	if ((lio->intf_open) && (changed)) {
@@ -899,11 +780,25 @@ static inline void update_link_status(struct net_device *netdev,
 		lio->link_changes++;
 
 		if (lio->linfo.link.s.link_up) {
+			dev_dbg(&oct->pci_dev->dev, "%s: link_up", __func__);
 			netif_carrier_on(netdev);
-			txqs_wake(netdev);
+			wake_txqs(netdev);
 		} else {
+			dev_dbg(&oct->pci_dev->dev, "%s: link_off", __func__);
 			netif_carrier_off(netdev);
-			stop_txq(netdev);
+			stop_txqs(netdev);
+		}
+		if (lio->linfo.link.s.mtu != current_max_mtu) {
+			netif_info(lio, probe, lio->netdev, "Max MTU changed from %d to %d\n",
+				   current_max_mtu, lio->linfo.link.s.mtu);
+			netdev->max_mtu = lio->linfo.link.s.mtu;
+		}
+		if (lio->linfo.link.s.mtu < netdev->mtu) {
+			dev_warn(&oct->pci_dev->dev,
+				 "Current MTU is higher than new max MTU; Reducing the current mtu from %d to %d\n",
+				     netdev->mtu, lio->linfo.link.s.mtu);
+			queue_delayed_work(lio->link_status_wq.wq,
+					   &lio->link_status_wq.wk.work, 0);
 		}
 	}
 }
@@ -1739,43 +1634,6 @@ static int octeon_pci_os_setup(struct octeon_device *oct)
 	return 0;
 }
 
-static inline int skb_iq(struct lio *lio, struct sk_buff *skb)
-{
-	int q = 0;
-
-	if (netif_is_multiqueue(lio->netdev))
-		q = skb->queue_mapping % lio->linfo.num_txpciq;
-
-	return q;
-}
-
-/**
- * \brief Check Tx queue state for a given network buffer
- * @param lio per-network private data
- * @param skb network buffer
- */
-static inline int check_txq_state(struct lio *lio, struct sk_buff *skb)
-{
-	int q = 0, iq = 0;
-
-	if (netif_is_multiqueue(lio->netdev)) {
-		q = skb->queue_mapping;
-		iq = lio->linfo.txpciq[(q % lio->oct_dev->num_iqs)].s.q_no;
-	} else {
-		iq = lio->txq;
-		q = iq;
-	}
-
-	if (octnet_iq_is_full(lio->oct_dev, iq))
-		return 0;
-
-	if (__netif_subqueue_stopped(lio->netdev, q)) {
-		INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, iq, tx_restart, 1);
-		wake_q(lio->netdev, q);
-	}
-	return 1;
-}
-
 /**
  * \brief Unmap and free network buffer
  * @param buf buffer
@@ -1792,8 +1650,6 @@ static void free_netbuf(void *buf)
 
 	dma_unmap_single(&lio->oct_dev->pci_dev->dev, finfo->dptr, skb->len,
 			 DMA_TO_DEVICE);
-
-	check_txq_state(lio, skb);
 
 	tx_buffer_free(skb);
 }
@@ -1834,8 +1690,6 @@ static void free_netsgbuf(void *buf)
 	spin_lock(&lio->glist_lock[iq]);
 	list_add_tail(&g->list, &lio->glist[iq]);
 	spin_unlock(&lio->glist_lock[iq]);
-
-	check_txq_state(lio, skb);     /* mq support: sub-queue state check */
 
 	tx_buffer_free(skb);
 }
@@ -1882,8 +1736,6 @@ static void free_netsgbuf_with_resp(void *buf)
 	spin_unlock(&lio->glist_lock[iq]);
 
 	/* Don't free the skb yet */
-
-	check_txq_state(lio, skb);
 }
 
 /**
@@ -2211,7 +2063,7 @@ static int liquidio_open(struct net_device *netdev)
 			return -1;
 	}
 
-	start_txq(netdev);
+	start_txqs(netdev);
 
 	/* tell Octeon to start forwarding packets to host */
 	send_rx_ctrl_cmd(lio, 1);
@@ -2231,16 +2083,6 @@ static int liquidio_stop(struct net_device *netdev)
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
 	struct napi_struct *napi, *n;
-
-	if (oct->props[lio->ifidx].napi_enabled) {
-		list_for_each_entry_safe(napi, n, &netdev->napi_list, dev_list)
-			napi_disable(napi);
-
-		oct->props[lio->ifidx].napi_enabled = 0;
-
-		if (OCTEON_CN23XX_PF(oct))
-			oct->droq[0]->ops.poll_mode = 0;
-	}
 
 	ifstate_reset(lio, LIO_IFSTATE_RUNNING);
 
@@ -2265,6 +2107,21 @@ static int liquidio_stop(struct net_device *netdev)
 	if (lio->ptp_clock) {
 		ptp_clock_unregister(lio->ptp_clock);
 		lio->ptp_clock = NULL;
+	}
+
+	/* Wait for any pending Rx descriptors */
+	if (lio_wait_for_clean_oq(oct))
+		netif_info(lio, rx_err, lio->netdev,
+			   "Proceeding with stop interface after partial RX desc processing\n");
+
+	if (oct->props[lio->ifidx].napi_enabled == 1) {
+		list_for_each_entry_safe(napi, n, &netdev->napi_list, dev_list)
+			napi_disable(napi);
+
+		oct->props[lio->ifidx].napi_enabled = 0;
+
+		if (OCTEON_CN23XX_PF(oct))
+			oct->droq[0]->ops.poll_mode = 0;
 	}
 
 	dev_info(&oct->pci_dev->dev, "%s interface is stopped\n", netdev->name);
@@ -2446,38 +2303,6 @@ static struct net_device_stats *liquidio_get_stats(struct net_device *netdev)
 	stats->rx_dropped = drop;
 
 	return stats;
-}
-
-/**
- * \brief Net device change_mtu
- * @param netdev network device
- */
-static int liquidio_change_mtu(struct net_device *netdev, int new_mtu)
-{
-	struct lio *lio = GET_LIO(netdev);
-	struct octeon_device *oct = lio->oct_dev;
-	struct octnic_ctrl_pkt nctrl;
-	int ret = 0;
-
-	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
-
-	nctrl.ncmd.u64 = 0;
-	nctrl.ncmd.s.cmd = OCTNET_CMD_CHANGE_MTU;
-	nctrl.ncmd.s.param1 = new_mtu;
-	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
-	nctrl.netpndev = (u64)netdev;
-	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
-
-	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
-		dev_err(&oct->pci_dev->dev, "Failed to set MTU\n");
-		return -1;
-	}
-
-	lio->mtu = new_mtu;
-
-	return 0;
 }
 
 /**
@@ -2685,14 +2510,9 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	lio = GET_LIO(netdev);
 	oct = lio->oct_dev;
 
-	if (netif_is_multiqueue(netdev)) {
-		q_idx = skb->queue_mapping;
-		q_idx = (q_idx % (lio->linfo.num_txpciq));
-		tag = q_idx;
-		iq_no = lio->linfo.txpciq[q_idx].s.q_no;
-	} else {
-		iq_no = lio->txq;
-	}
+	q_idx = skb_iq(lio, skb);
+	tag = q_idx;
+	iq_no = lio->linfo.txpciq[q_idx].s.q_no;
 
 	stats = &oct->instr_queue[iq_no]->stats;
 
@@ -2723,23 +2543,14 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	ndata.q_no = iq_no;
 
-	if (netif_is_multiqueue(netdev)) {
-		if (octnet_iq_is_full(oct, ndata.q_no)) {
-			/* defer sending if queue is full */
-			netif_info(lio, tx_err, lio->netdev, "Transmit failed iq:%d full\n",
-				   ndata.q_no);
-			stats->tx_iq_busy++;
-			return NETDEV_TX_BUSY;
-		}
-	} else {
-		if (octnet_iq_is_full(oct, lio->txq)) {
-			/* defer sending if queue is full */
-			stats->tx_iq_busy++;
-			netif_info(lio, tx_err, lio->netdev, "Transmit failed iq:%d full\n",
-				   lio->txq);
-			return NETDEV_TX_BUSY;
-		}
+	if (octnet_iq_is_full(oct, ndata.q_no)) {
+		/* defer sending if queue is full */
+		netif_info(lio, tx_err, lio->netdev, "Transmit failed iq:%d full\n",
+			   ndata.q_no);
+		stats->tx_iq_busy++;
+		return NETDEV_TX_BUSY;
 	}
+
 	/* pr_info(" XMIT - valid Qs: %d, 1st Q no: %d, cpu:  %d, q_no:%d\n",
 	 *	lio->linfo.num_txpciq, lio->txq, cpu, ndata.q_no);
 	 */
@@ -2895,7 +2706,7 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	netif_info(lio, tx_queued, lio->netdev, "Transmit queued successfully\n");
 
 	if (status == IQ_SEND_STOP)
-		stop_q(netdev, q_idx);
+		netif_stop_subqueue(netdev, q_idx);
 
 	netif_trans_update(netdev);
 
@@ -2934,7 +2745,7 @@ static void liquidio_tx_timeout(struct net_device *netdev)
 		   "Transmit timeout tx_dropped:%ld, waking up queues now!!\n",
 		   netdev->stats.tx_dropped);
 	netif_trans_update(netdev);
-	txqs_wake(netdev);
+	wake_txqs(netdev);
 }
 
 static int liquidio_vlan_rx_add_vid(struct net_device *netdev,
@@ -3289,7 +3100,117 @@ static int liquidio_get_vf_config(struct net_device *netdev, int vfidx,
 	ether_addr_copy(&ivi->mac[0], macaddr);
 	ivi->vlan = oct->sriov_info.vf_vlantci[vfidx] & VLAN_VID_MASK;
 	ivi->qos = oct->sriov_info.vf_vlantci[vfidx] >> VLAN_PRIO_SHIFT;
+	if (oct->sriov_info.trusted_vf.active &&
+	    oct->sriov_info.trusted_vf.id == vfidx)
+		ivi->trusted = true;
+	else
+		ivi->trusted = false;
 	ivi->linkstate = oct->sriov_info.vf_linkstate[vfidx];
+	return 0;
+}
+
+static void trusted_vf_callback(struct octeon_device *oct_dev,
+				u32 status, void *ptr)
+{
+	struct octeon_soft_command *sc = (struct octeon_soft_command *)ptr;
+	struct lio_trusted_vf_ctx *ctx;
+
+	ctx = (struct lio_trusted_vf_ctx *)sc->ctxptr;
+	ctx->status = status;
+
+	complete(&ctx->complete);
+}
+
+static int liquidio_send_vf_trust_cmd(struct lio *lio, int vfidx, bool trusted)
+{
+	struct octeon_device *oct = lio->oct_dev;
+	struct lio_trusted_vf_ctx *ctx;
+	struct octeon_soft_command *sc;
+	int ctx_size, retval;
+
+	ctx_size = sizeof(struct lio_trusted_vf_ctx);
+	sc = octeon_alloc_soft_command(oct, 0, 0, ctx_size);
+
+	ctx  = (struct lio_trusted_vf_ctx *)sc->ctxptr;
+	init_completion(&ctx->complete);
+
+	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
+
+	/* vfidx is 0 based, but vf_num (param1) is 1 based */
+	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
+				    OPCODE_NIC_SET_TRUSTED_VF, 0, vfidx + 1,
+				    trusted);
+
+	sc->callback = trusted_vf_callback;
+	sc->callback_arg = sc;
+	sc->wait_time = 1000;
+
+	retval = octeon_send_soft_command(oct, sc);
+	if (retval == IQ_SEND_FAILED) {
+		retval = -1;
+	} else {
+		/* Wait for response or timeout */
+		if (wait_for_completion_timeout(&ctx->complete,
+						msecs_to_jiffies(2000)))
+			retval = ctx->status;
+		else
+			retval = -1;
+	}
+
+	octeon_free_soft_command(oct, sc);
+
+	return retval;
+}
+
+static int liquidio_set_vf_trust(struct net_device *netdev, int vfidx,
+				 bool setting)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+
+	if (strcmp(oct->fw_info.liquidio_firmware_version, "1.7.1") < 0) {
+		/* trusted vf is not supported by firmware older than 1.7.1 */
+		return -EOPNOTSUPP;
+	}
+
+	if (vfidx < 0 || vfidx >= oct->sriov_info.num_vfs_alloced) {
+		netif_info(lio, drv, lio->netdev, "Invalid vfidx %d\n", vfidx);
+		return -EINVAL;
+	}
+
+	if (setting) {
+		/* Set */
+
+		if (oct->sriov_info.trusted_vf.active &&
+		    oct->sriov_info.trusted_vf.id == vfidx)
+			return 0;
+
+		if (oct->sriov_info.trusted_vf.active) {
+			netif_info(lio, drv, lio->netdev, "More than one trusted VF is not allowed\n");
+			return -EPERM;
+		}
+	} else {
+		/* Clear */
+
+		if (!oct->sriov_info.trusted_vf.active)
+			return 0;
+	}
+
+	if (!liquidio_send_vf_trust_cmd(lio, vfidx, setting)) {
+		if (setting) {
+			oct->sriov_info.trusted_vf.id = vfidx;
+			oct->sriov_info.trusted_vf.active = true;
+		} else {
+			oct->sriov_info.trusted_vf.active = false;
+		}
+
+		netif_info(lio, drv, lio->netdev, "VF %u is %strusted\n", vfidx,
+			   setting ? "" : "not ");
+	} else {
+		netif_info(lio, drv, lio->netdev, "Failed to set VF trusted\n");
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -3423,6 +3344,7 @@ static const struct net_device_ops lionetdevops = {
 	.ndo_set_vf_mac		= liquidio_set_vf_mac,
 	.ndo_set_vf_vlan	= liquidio_set_vf_vlan,
 	.ndo_get_vf_config	= liquidio_get_vf_config,
+	.ndo_set_vf_trust	= liquidio_set_vf_trust,
 	.ndo_set_vf_link_state  = liquidio_set_vf_link_state,
 };
 

@@ -152,6 +152,11 @@ OCXL_IOCTL_IRQ_SET_FD:
   Associate an event fd to an AFU interrupt so that the user process
   can be notified when the AFU sends an interrupt.
 
+OCXL_IOCTL_GET_METADATA:
+
+  Obtains configuration information from the card, such at the size of
+  MMIO areas, the AFU version, and the PASID for the current context.
+
 
 mmap
 ----

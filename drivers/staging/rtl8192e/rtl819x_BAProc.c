@@ -76,7 +76,7 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 				    u16 StatusCode, u8 type)
 {
 	struct sk_buff *skb = NULL;
-	 struct rtllib_hdr_3addr *BAReq = NULL;
+	struct rtllib_hdr_3addr *BAReq = NULL;
 	u8 *tag = NULL;
 	u16 len = ieee->tx_headroom + 9;
 

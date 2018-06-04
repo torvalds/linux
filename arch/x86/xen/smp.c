@@ -122,6 +122,8 @@ void __init xen_smp_cpus_done(unsigned int max_cpus)
 
 	if (xen_hvm_domain())
 		native_smp_cpus_done(max_cpus);
+	else
+		calculate_max_logical_packages();
 
 	if (xen_have_vcpu_info_placement)
 		return;

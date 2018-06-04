@@ -472,7 +472,7 @@ int cudbg_collect_cim_la(struct cudbg_init *pdbg_init,
 
 	if (is_t6(padap->params.chip)) {
 		size = padap->params.cim_la_size / 10 + 1;
-		size *= 11 * sizeof(u32);
+		size *= 10 * sizeof(u32);
 	} else {
 		size = padap->params.cim_la_size / 8;
 		size *= 8 * sizeof(u32);
@@ -878,6 +878,86 @@ static int cudbg_get_payload_range(struct adapter *padap, u8 mem_type,
 				      &payload->start, &payload->end);
 }
 
+static int cudbg_memory_read(struct cudbg_init *pdbg_init, int win,
+			     int mtype, u32 addr, u32 len, void *hbuf)
+{
+	u32 win_pf, memoffset, mem_aperture, mem_base;
+	struct adapter *adap = pdbg_init->adap;
+	u32 pos, offset, resid;
+	u32 *res_buf;
+	u64 *buf;
+	int ret;
+
+	/* Argument sanity checks ...
+	 */
+	if (addr & 0x3 || (uintptr_t)hbuf & 0x3)
+		return -EINVAL;
+
+	buf = (u64 *)hbuf;
+
+	/* Try to do 64-bit reads.  Residual will be handled later. */
+	resid = len & 0x7;
+	len -= resid;
+
+	ret = t4_memory_rw_init(adap, win, mtype, &memoffset, &mem_base,
+				&mem_aperture);
+	if (ret)
+		return ret;
+
+	addr = addr + memoffset;
+	win_pf = is_t4(adap->params.chip) ? 0 : PFNUM_V(adap->pf);
+
+	pos = addr & ~(mem_aperture - 1);
+	offset = addr - pos;
+
+	/* Set up initial PCI-E Memory Window to cover the start of our
+	 * transfer.
+	 */
+	t4_memory_update_win(adap, win, pos | win_pf);
+
+	/* Transfer data from the adapter */
+	while (len > 0) {
+		*buf++ = le64_to_cpu((__force __le64)
+				     t4_read_reg64(adap, mem_base + offset));
+		offset += sizeof(u64);
+		len -= sizeof(u64);
+
+		/* If we've reached the end of our current window aperture,
+		 * move the PCI-E Memory Window on to the next.
+		 */
+		if (offset == mem_aperture) {
+			pos += mem_aperture;
+			offset = 0;
+			t4_memory_update_win(adap, win, pos | win_pf);
+		}
+	}
+
+	res_buf = (u32 *)buf;
+	/* Read residual in 32-bit multiples */
+	while (resid > sizeof(u32)) {
+		*res_buf++ = le32_to_cpu((__force __le32)
+					 t4_read_reg(adap, mem_base + offset));
+		offset += sizeof(u32);
+		resid -= sizeof(u32);
+
+		/* If we've reached the end of our current window aperture,
+		 * move the PCI-E Memory Window on to the next.
+		 */
+		if (offset == mem_aperture) {
+			pos += mem_aperture;
+			offset = 0;
+			t4_memory_update_win(adap, win, pos | win_pf);
+		}
+	}
+
+	/* Transfer residual < 32-bits */
+	if (resid)
+		t4_memory_rw_residual(adap, resid, mem_base + offset,
+				      (u8 *)res_buf, T4_MEMORY_READ);
+
+	return 0;
+}
+
 #define CUDBG_YIELD_ITERATION 256
 
 static int cudbg_read_fw_mem(struct cudbg_init *pdbg_init,
@@ -937,10 +1017,8 @@ static int cudbg_read_fw_mem(struct cudbg_init *pdbg_init,
 				goto skip_read;
 
 		spin_lock(&padap->win0_lock);
-		rc = t4_memory_rw(padap, MEMWIN_NIC, mem_type,
-				  bytes_read, bytes,
-				  (__be32 *)temp_buff.data,
-				  1);
+		rc = cudbg_memory_read(pdbg_init, MEMWIN_NIC, mem_type,
+				       bytes_read, bytes, temp_buff.data);
 		spin_unlock(&padap->win0_lock);
 		if (rc) {
 			cudbg_err->sys_err = rc;

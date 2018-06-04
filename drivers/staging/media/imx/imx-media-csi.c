@@ -400,6 +400,7 @@ static int csi_idmac_setup_channel(struct csi_priv *priv)
 	case V4L2_PIX_FMT_SGBRG8:
 	case V4L2_PIX_FMT_SGRBG8:
 	case V4L2_PIX_FMT_SRGGB8:
+	case V4L2_PIX_FMT_GREY:
 		burst_size = 16;
 		passthrough = true;
 		passthrough_bits = 8;
@@ -668,11 +669,10 @@ static int csi_setup(struct csi_priv *priv)
 
 static int csi_start(struct csi_priv *priv)
 {
-	struct v4l2_fract *output_fi, *input_fi;
+	struct v4l2_fract *output_fi;
 	int ret;
 
 	output_fi = &priv->frame_interval[priv->active_output_pad];
-	input_fi = &priv->frame_interval[CSI_SINK_PAD];
 
 	if (priv->dest == IPU_CSI_DEST_IDMAC) {
 		ret = csi_idmac_start(priv);
@@ -1005,7 +1005,7 @@ static int csi_link_validate(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_format *sink_fmt)
 {
 	struct csi_priv *priv = v4l2_get_subdevdata(sd);
-	struct v4l2_fwnode_endpoint upstream_ep;
+	struct v4l2_fwnode_endpoint upstream_ep = {};
 	const struct imx_media_pixfmt *incc;
 	bool is_csi2;
 	int ret;
@@ -1715,6 +1715,7 @@ static const struct v4l2_subdev_video_ops csi_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops csi_pad_ops = {
+	.init_cfg = imx_media_init_cfg,
 	.enum_mbus_code = csi_enum_mbus_code,
 	.enum_frame_size = csi_enum_frame_size,
 	.enum_frame_interval = csi_enum_frame_interval,
@@ -1797,6 +1798,13 @@ static int imx_csi_probe(struct platform_device *pdev)
 	 */
 	priv->dev->of_node = pdata->of_node;
 	pinctrl = devm_pinctrl_get_select_default(priv->dev);
+	if (IS_ERR(pinctrl)) {
+		ret = PTR_ERR(priv->vdev);
+		dev_dbg(priv->dev,
+			"devm_pinctrl_get_select_default() failed: %d\n", ret);
+		if (ret != -ENODEV)
+			goto free;
+	}
 
 	ret = v4l2_async_register_subdev(&priv->sd);
 	if (ret)

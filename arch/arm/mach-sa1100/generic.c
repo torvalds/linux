@@ -10,6 +10,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -20,6 +21,8 @@
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 #include <linux/irqchip/irq-sa11x0.h>
 
 #include <video/sa1100fb.h>
@@ -232,10 +235,19 @@ void sa11x0_register_lcd(struct sa1100fb_mach_info *inf)
 	sa11x0_register_device(&sa11x0fb_device, inf);
 }
 
+static bool sa11x0pcmcia_legacy = true;
 static struct platform_device sa11x0pcmcia_device = {
 	.name		= "sa11x0-pcmcia",
 	.id		= -1,
 };
+
+void sa11x0_register_pcmcia(int socket, struct gpiod_lookup_table *table)
+{
+	if (table)
+		gpiod_add_lookup_table(table);
+	platform_device_register_simple("sa11x0-pcmcia", socket, NULL, 0);
+	sa11x0pcmcia_legacy = false;
+}
 
 static struct platform_device sa11x0mtd_device = {
 	.name		= "sa1100-mtd",
@@ -311,7 +323,6 @@ static struct platform_device *sa11x0_devices[] __initdata = {
 	&sa11x0uart1_device,
 	&sa11x0uart3_device,
 	&sa11x0ssp_device,
-	&sa11x0pcmcia_device,
 	&sa11x0rtc_device,
 	&sa11x0dma_device,
 };
@@ -319,6 +330,12 @@ static struct platform_device *sa11x0_devices[] __initdata = {
 static int __init sa1100_init(void)
 {
 	pm_power_off = sa1100_power_off;
+
+	if (sa11x0pcmcia_legacy)
+		platform_device_register(&sa11x0pcmcia_device);
+
+	regulator_has_full_constraints();
+
 	return platform_add_devices(sa11x0_devices, ARRAY_SIZE(sa11x0_devices));
 }
 
@@ -327,6 +344,31 @@ arch_initcall(sa1100_init);
 void __init sa11x0_init_late(void)
 {
 	sa11x0_pm_init();
+}
+
+int __init sa11x0_register_fixed_regulator(int n,
+	struct fixed_voltage_config *cfg,
+	struct regulator_consumer_supply *supplies, unsigned num_supplies)
+{
+	struct regulator_init_data *id;
+
+	cfg->init_data = id = kzalloc(sizeof(*cfg->init_data), GFP_KERNEL);
+	if (!cfg->init_data)
+		return -ENOMEM;
+
+	if (cfg->gpio < 0)
+		id->constraints.always_on = 1;
+	id->constraints.name = cfg->supply_name;
+	id->constraints.min_uV = cfg->microvolts;
+	id->constraints.max_uV = cfg->microvolts;
+	id->constraints.valid_modes_mask = REGULATOR_MODE_NORMAL;
+	id->constraints.valid_ops_mask = REGULATOR_CHANGE_STATUS;
+	id->consumer_supplies = supplies;
+	id->num_consumer_supplies = num_supplies;
+
+	platform_device_register_resndata(NULL, "reg-fixed-voltage", n,
+					  NULL, 0, cfg, sizeof(*cfg));
+	return 0;
 }
 
 /*

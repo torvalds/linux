@@ -1,0 +1,289 @@
+[
+    {
+        "id": "d959",
+        "name": "Add cBPF action with valid bytecode",
+        "category": [
+            "actions",
+            "bpf"
+        ],
+        "setup": [
+            [
+                "$TC action flush action bpf",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC action add action bpf bytecode '4,40 0 0 12,21 0 1 2048,6 0 0 262144,6 0 0 0' index 100",
+        "expExitCode": "0",
+        "verifyCmd": "$TC action get action bpf index 100",
+        "matchPattern": "action order [0-9]*: bpf bytecode '4,40 0 0 12,21 0 1 2048,6 0 0 262144,6 0 0 0' default-action pipe.*index 100 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC action flush action bpf"
+        ]
+    },
+    {
+        "id": "f84a",
+        "name": "Add cBPF action with invalid bytecode",
+        "category": [
+            "actions",
+            "bpf"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action bpf",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC action add action bpf bytecode '4,40 0 0 12,31 0 1 2048,6 0 0 262144,6 0 0 0' index 100",
+        "expExitCode": "255",
+        "verifyCmd": "$TC action get action bpf index 100",
+        "matchPattern": "action order [0-9]*: bpf bytecode '4,40 0 0 12,31 0 1 2048,6 0 0 262144,6 0 0 0' default-action pipe.*index 100 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action bpf"
+        ]
+    },
+    {
+        "id": "e939",
+        "name": "Add eBPF action with valid object-file",
+        "category": [
+            "actions",
+            "bpf"
+        ],
+        "setup": [
+            "printf '#include <linux/bpf.h>\nchar l[] __attribute__((section(\"license\"),used))=\"GPL\"; __attribute__((section(\"action\"),used)) int m(struct __sk_buff *s) { return 2; }' | clang -O2 -x c -c - -target bpf -o _b.o",
+            [
+                "$TC action flush action bpf",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC action add action bpf object-file _b.o index 667",
+        "expExitCode": "0",
+        "verifyCmd": "$TC action get action bpf index 667",
+        "matchPattern": "action order [0-9]*: bpf _b.o:\\[action\\] id [0-9]* tag 3b185187f1855c4c default-action pipe.*index 667 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC action flush action bpf",
+            "rm -f _b.o"
+        ]
+    },
+    {
+        "id": "282d",
+        "name": "Add eBPF action with invalid object-file",
+        "category": [
+            "actions",
+            "bpf"
+        ],
+        "setup": [
+            "printf '#include <linux/bpf.h>\nchar l[] __attribute__((section(\"license\"),used))=\"GPL\"; __attribute__((section(\"action\"),used)) int m(struct __sk_buff *s) { s->data = 0x0; return 2; }' | clang -O2 -x c -c - -target bpf -o _c.o",
+            [
+                "$TC action flush action bpf",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC action add action bpf object-file _c.o index 667",
+        "expExitCode": "255",
+        "verifyCmd": "$TC action get action bpf index 667",
+        "matchPattern": "action order [0-9]*: bpf _b.o:\\[action\\] id [0-9].*index 667 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC action flush action bpf",
+            "rm -f _c.o"
+        ]
+    },
+    {
+        "id": "d819",
+        "name": "Replace cBPF bytecode and action control",
+        "category": [
+            "actions",
+            "bpf"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action bpf",
+                0,
+                1,
+                255
+            ],
+            [
+                "$TC action add action bpf bytecode '4,40 0 0 12,21 0 1 2048,6 0 0 262144,6 0 0 0' index 555",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC action replace action bpf bytecode '4,40 0 0 12,21 0 1 2054,6 0 0 262144,6 0 0 0' drop index 555",
+        "expExitCode": "0",
+        "verifyCmd": "$TC action get action bpf index 555",
+        "matchPattern": "action order [0-9]*: bpf bytecode '4,40 0 0 12,21 0 1 2054,6 0 0 262144,6 0 0 0' default-action drop.*index 555 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC action flush action bpf"
+        ]
+    },
+    {
+        "id": "6ae3",
+        "name": "Delete cBPF action ",
+        "category": [
+            "actions",
+            "bpf"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action bpf",
+                0,
+                1,
+                255
+            ],
+            [
+                "$TC action add action bpf bytecode '4,40 0 0 12,21 0 1 2048,6 0 0 262144,6 0 0 0' index 444",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC action delete action bpf index 444",
+        "expExitCode": "0",
+        "verifyCmd": "$TC action get action bpf index 444",
+        "matchPattern": "action order [0-9]*: bpf bytecode '4,40 0 0 12,21 0 1 2048,6 0 0 262144,6 0 0 0' default-action pipe.*index 444 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC action flush action bpf"
+        ]
+    },
+    {
+        "id": "3e0d",
+        "name": "List cBPF actions",
+        "category": [
+            "actions",
+            "bpf"
+        ],
+        "setup": [
+            [
+                "$TC action flush action bpf",
+                0,
+                1,
+                255
+            ],
+            "$TC action add action bpf bytecode '4,40 0 0 12,21 0 1 2048,6 0 0 262144,6 0 0 0' ok index 101",
+            "$TC action add action bpf bytecode '4,40 0 0 12,21 0 1 2054,6 0 0 262144,6 0 0 0' drop index 102",
+            "$TC action add action bpf bytecode '4,40 0 0 12,21 0 1 33024,6 0 0 262144,6 0 0 0' continue index 103"
+        ],
+        "cmdUnderTest": "$TC action list action bpf",
+        "expExitCode": "0",
+        "verifyCmd": "$TC action list action bpf",
+        "matchPattern": "action order [0-9]*: bpf bytecode",
+        "matchCount": "3",
+        "teardown": [
+            "$TC actions flush action bpf"
+        ]
+    },
+    {
+        "id": "55ce",
+        "name": "Flush BPF actions",
+        "category": [
+            "actions",
+            "bpf"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action bpf",
+                0,
+                1,
+                255
+            ],
+            "$TC action add action bpf bytecode '4,40 0 0 12,21 0 1 2048,6 0 0 262144,6 0 0 0' ok index 101",
+            "$TC action add action bpf bytecode '4,40 0 0 12,21 0 1 2054,6 0 0 262144,6 0 0 0' drop index 102",
+            "$TC action add action bpf bytecode '4,40 0 0 12,21 0 1 33024,6 0 0 262144,6 0 0 0' continue index 103"
+        ],
+        "cmdUnderTest": "$TC action flush action bpf",
+        "expExitCode": "0",
+        "verifyCmd": "$TC action list action bpf",
+        "matchPattern": "action order [0-9]*: bpf bytecode",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action bpf"
+        ]
+    },
+    {
+        "id": "ccc3",
+        "name": "Add cBPF action with duplicate index",
+        "category": [
+            "actions",
+            "bpf"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action bpf",
+                0,
+                1,
+                255
+            ],
+            "$TC action add action bpf bytecode '4,40 0 0 12,21 0 1 2048,6 0 0 262144,6 0 0 0' index 4294967295"
+        ],
+        "cmdUnderTest": "$TC action add action bpf bytecode '4,40 0 0 12,21 0 1 2054,6 0 0 262144,6 0 0 0' index 4294967295",
+        "expExitCode": "255",
+        "verifyCmd": "$TC action get action bpf index 4294967295",
+        "matchPattern": "action order [0-9]*: bpf bytecode '4,40 0 0 12,21 0 1 2048,6 0 0 262144,6 0 0 0' default-action pipe.*index 4294967295",
+        "matchCount": "1",
+        "teardown": [
+            "$TC action flush action bpf"
+        ]
+    },
+    {
+        "id": "89c7",
+        "name": "Add cBPF action with invalid index",
+        "category": [
+            "actions",
+            "bpf"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action bpf",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC action add action bpf bytecode '4,40 0 0 12,21 0 1 2054,6 0 0 262144,6 0 0 0' index 4294967296 cookie 12345",
+        "expExitCode": "255",
+        "verifyCmd": "$TC action ls action bpf",
+        "matchPattern": "action order [0-9]*: bpf bytecode '4,40 0 0 12,21 0 1 2048,6 0 0 262144,6 0 0 0' default-action pipe.*cookie 12345",
+        "matchCount": "0",
+        "teardown": [
+            "$TC action flush action bpf"
+        ]
+    },
+    {
+        "id": "7ab9",
+        "name": "Add cBPF action with cookie",
+        "category": [
+            "actions",
+            "bpf"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action bpf",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC action add action bpf bytecode '4,40 0 0 12,21 0 1 2054,6 0 0 262144,6 0 0 0' cookie d0d0d0d0d0d0d0d0",
+        "expExitCode": "0",
+        "verifyCmd": "$TC action list action bpf",
+        "matchPattern": "action order [0-9]*: bpf.*cookie d0d0d0d0d0d0d0",
+        "matchCount": "1",
+        "teardown": [
+            "$TC action flush action bpf"
+        ]
+    }
+]

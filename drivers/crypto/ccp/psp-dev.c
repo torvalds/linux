@@ -211,7 +211,7 @@ static int __sev_platform_shutdown_locked(int *error)
 {
 	int ret;
 
-	ret = __sev_do_cmd_locked(SEV_CMD_SHUTDOWN, 0, error);
+	ret = __sev_do_cmd_locked(SEV_CMD_SHUTDOWN, NULL, error);
 	if (ret)
 		return ret;
 
@@ -271,7 +271,7 @@ static int sev_ioctl_do_reset(struct sev_issue_cmd *argp)
 			return rc;
 	}
 
-	return __sev_do_cmd_locked(SEV_CMD_FACTORY_RESET, 0, &argp->error);
+	return __sev_do_cmd_locked(SEV_CMD_FACTORY_RESET, NULL, &argp->error);
 }
 
 static int sev_ioctl_do_platform_status(struct sev_issue_cmd *argp)
@@ -299,7 +299,7 @@ static int sev_ioctl_do_pek_pdh_gen(int cmd, struct sev_issue_cmd *argp)
 			return rc;
 	}
 
-	return __sev_do_cmd_locked(cmd, 0, &argp->error);
+	return __sev_do_cmd_locked(cmd, NULL, &argp->error);
 }
 
 static int sev_ioctl_do_pek_csr(struct sev_issue_cmd *argp)
@@ -367,8 +367,6 @@ e_free:
 
 void *psp_copy_user_blob(u64 __user uaddr, u32 len)
 {
-	void *data;
-
 	if (!uaddr || !len)
 		return ERR_PTR(-EINVAL);
 
@@ -376,18 +374,7 @@ void *psp_copy_user_blob(u64 __user uaddr, u32 len)
 	if (len > SEV_FW_BLOB_MAX_SIZE)
 		return ERR_PTR(-EINVAL);
 
-	data = kmalloc(len, GFP_KERNEL);
-	if (!data)
-		return ERR_PTR(-ENOMEM);
-
-	if (copy_from_user(data, (void __user *)(uintptr_t)uaddr, len))
-		goto e_free;
-
-	return data;
-
-e_free:
-	kfree(data);
-	return ERR_PTR(-EFAULT);
+	return memdup_user((void __user *)(uintptr_t)uaddr, len);
 }
 EXPORT_SYMBOL_GPL(psp_copy_user_blob);
 
@@ -624,7 +611,7 @@ EXPORT_SYMBOL_GPL(sev_guest_decommission);
 
 int sev_guest_df_flush(int *error)
 {
-	return sev_do_cmd(SEV_CMD_DF_FLUSH, 0, error);
+	return sev_do_cmd(SEV_CMD_DF_FLUSH, NULL, error);
 }
 EXPORT_SYMBOL_GPL(sev_guest_df_flush);
 

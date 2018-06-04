@@ -117,7 +117,7 @@ struct dmx_ts_feed {
  *		  specified by @filter_value that will be used on the filter
  *		  match logic.
  * @filter_mode:  Contains a 16 bytes (128 bits) filter mode.
- * @parent:	  Pointer to struct dmx_section_feed.
+ * @parent:	  Back-pointer to struct dmx_section_feed.
  * @priv:	  Pointer to private data of the API client.
  *
  *
@@ -130,8 +130,9 @@ struct dmx_section_filter {
 	u8 filter_value[DMX_MAX_FILTER_SIZE];
 	u8 filter_mask[DMX_MAX_FILTER_SIZE];
 	u8 filter_mode[DMX_MAX_FILTER_SIZE];
-	struct dmx_section_feed *parent; /* Back-pointer */
-	void *priv; /* Pointer to private data of the API client */
+	struct dmx_section_feed *parent;
+
+	void *priv;
 };
 
 /**
@@ -193,6 +194,10 @@ struct dmx_section_feed {
  * @buffer2:		Pointer to the tail of the filtered TS packets, or NULL.
  * @buffer2_length:	Length of the TS data in buffer2.
  * @source:		Indicates which TS feed is the source of the callback.
+ * @buffer_flags:	Address where buffer flags are stored. Those are
+ *			used to report discontinuity users via DVB
+ *			memory mapped API, as defined by
+ *			&enum dmx_buffer_flags.
  *
  * This function callback prototype, provided by the client of the demux API,
  * is called from the demux code. The function is only called when filtering
@@ -245,7 +250,8 @@ typedef int (*dmx_ts_cb)(const u8 *buffer1,
 			 size_t buffer1_length,
 			 const u8 *buffer2,
 			 size_t buffer2_length,
-			 struct dmx_ts_feed *source);
+			 struct dmx_ts_feed *source,
+			 u32 *buffer_flags);
 
 /**
  * typedef dmx_section_cb - DVB demux TS filter callback function prototype
@@ -261,6 +267,10 @@ typedef int (*dmx_ts_cb)(const u8 *buffer1,
  *			including headers and CRC.
  * @source:		Indicates which section feed is the source of the
  *			callback.
+ * @buffer_flags:	Address where buffer flags are stored. Those are
+ *			used to report discontinuity users via DVB
+ *			memory mapped API, as defined by
+ *			&enum dmx_buffer_flags.
  *
  * This function callback prototype, provided by the client of the demux API,
  * is called from the demux code. The function is only called when
@@ -286,7 +296,8 @@ typedef int (*dmx_section_cb)(const u8 *buffer1,
 			      size_t buffer1_len,
 			      const u8 *buffer2,
 			      size_t buffer2_len,
-			      struct dmx_section_filter *source);
+			      struct dmx_section_filter *source,
+			      u32 *buffer_flags);
 
 /*
  * DVB Front-End

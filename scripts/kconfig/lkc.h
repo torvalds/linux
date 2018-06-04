@@ -68,6 +68,7 @@ struct kconf_id {
 	enum symbol_type stype;
 };
 
+extern int yylineno;
 void zconfdump(FILE *out);
 void zconf_starthelp(void);
 FILE *zconf_fopen(const char *name);
@@ -115,6 +116,7 @@ int file_write_dep(const char *name);
 void *xmalloc(size_t size);
 void *xcalloc(size_t nmemb, size_t size);
 void *xrealloc(void *p, size_t size);
+char *xstrdup(const char *s);
 
 struct gstr {
 	size_t len;

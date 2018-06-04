@@ -334,7 +334,7 @@ static int cpu_map_kthread_run(void *data)
 static struct bpf_cpu_map_entry *__cpu_map_entry_alloc(u32 qsize, u32 cpu,
 						       int map_id)
 {
-	gfp_t gfp = GFP_ATOMIC|__GFP_NOWARN;
+	gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;
 	struct bpf_cpu_map_entry *rcpu;
 	int numa, err;
 

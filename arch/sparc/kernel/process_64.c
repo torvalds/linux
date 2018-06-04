@@ -670,6 +670,31 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	return 0;
 }
 
+/* TIF_MCDPER in thread info flags for current task is updated lazily upon
+ * a context switch. Update this flag in current task's thread flags
+ * before dup so the dup'd task will inherit the current TIF_MCDPER flag.
+ */
+int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
+{
+	if (adi_capable()) {
+		register unsigned long tmp_mcdper;
+
+		__asm__ __volatile__(
+			".word 0x83438000\n\t"	/* rd  %mcdper, %g1 */
+			"mov %%g1, %0\n\t"
+			: "=r" (tmp_mcdper)
+			:
+			: "g1");
+		if (tmp_mcdper)
+			set_thread_flag(TIF_MCDPER);
+		else
+			clear_thread_flag(TIF_MCDPER);
+	}
+
+	*dst = *src;
+	return 0;
+}
+
 typedef struct {
 	union {
 		unsigned int	pr_regs[32];

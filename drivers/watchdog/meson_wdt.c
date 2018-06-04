@@ -36,7 +36,7 @@
 #define MESON_SEC_TO_TC(s, c)	((s) * (c))
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
-static unsigned int timeout = MESON_WDT_TIMEOUT;
+static unsigned int timeout;
 
 struct meson_wdt_data {
 	unsigned int enable;

@@ -58,6 +58,17 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	hdmi-connector {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi_out_con>;
+			};
+		};
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -93,6 +104,10 @@
 	status = "okay";
 };
 
+&de {
+	status = "okay";
+};
+
 &ehci0 {
 	status = "okay";
 };
@@ -113,6 +128,16 @@
 	};
 };
 
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_out {
+	hdmi_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
+	};
+};
+
 &ir {
 	pinctrl-names = "default";
 	pinctrl-0 = <&ir_pins_a>;
@@ -124,8 +149,7 @@
 	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_i7>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
-	cd-gpios = <&pio 7 22 GPIO_ACTIVE_HIGH>; /* PH22 */
-	cd-inverted;
+	cd-gpios = <&pio 7 22 GPIO_ACTIVE_LOW>; /* PH22 */
 	status = "okay";
 };
 
@@ -158,6 +182,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spdif_pins_a>;
 	spdif-out = "okay";
+	status = "okay";
+};
+
+&tcon0 {
 	status = "okay";
 };
 

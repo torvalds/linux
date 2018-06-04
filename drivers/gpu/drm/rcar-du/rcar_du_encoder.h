@@ -19,28 +19,16 @@
 
 struct drm_panel;
 struct rcar_du_device;
-struct rcar_du_lvdsenc;
 
 struct rcar_du_encoder {
 	struct drm_encoder base;
 	enum rcar_du_output output;
-	struct rcar_du_connector *connector;
-	struct rcar_du_lvdsenc *lvds;
 };
 
 #define to_rcar_encoder(e) \
 	container_of(e, struct rcar_du_encoder, base)
 
 #define rcar_encoder_to_drm_encoder(e)	(&(e)->base)
-
-struct rcar_du_connector {
-	struct drm_connector connector;
-	struct rcar_du_encoder *encoder;
-	struct drm_panel *panel;
-};
-
-#define to_rcar_connector(c) \
-	container_of(c, struct rcar_du_connector, connector)
 
 int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 			 enum rcar_du_output output,

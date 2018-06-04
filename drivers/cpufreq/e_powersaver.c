@@ -184,7 +184,6 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 	struct cpuinfo_x86 *c = &cpu_data(0);
 	struct cpufreq_frequency_table *f_table;
 	int k, step, voltage;
-	int ret;
 	int states;
 #if IS_ENABLED(CONFIG_ACPI_PROCESSOR)
 	unsigned int limit;
@@ -359,12 +358,7 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 	}
 
 	policy->cpuinfo.transition_latency = 140000; /* 844mV -> 700mV in ns */
-
-	ret = cpufreq_table_validate_and_show(policy, &centaur->freq_table[0]);
-	if (ret) {
-		kfree(centaur);
-		return ret;
-	}
+	policy->freq_table = &centaur->freq_table[0];
 
 	return 0;
 }

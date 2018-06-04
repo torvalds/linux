@@ -202,7 +202,7 @@ static int wusb_ccm_mac(struct crypto_skcipher *tfm_cbc,
 	struct scatterlist sg[4], sg_dst;
 	void *dst_buf;
 	size_t dst_size;
-	u8 iv[crypto_skcipher_ivsize(tfm_cbc)];
+	u8 *iv;
 	size_t zero_padding;
 
 	/*
@@ -224,7 +224,9 @@ static int wusb_ccm_mac(struct crypto_skcipher *tfm_cbc,
 	if (!dst_buf)
 		goto error_dst_buf;
 
-	memset(iv, 0, sizeof(iv));
+	iv = kzalloc(crypto_skcipher_ivsize(tfm_cbc), GFP_KERNEL);
+	if (!iv)
+		goto error_iv;
 
 	/* Setup B0 */
 	scratch->b0.flags = 0x59;	/* Format B0 */
@@ -276,6 +278,8 @@ static int wusb_ccm_mac(struct crypto_skcipher *tfm_cbc,
 	bytewise_xor(mic, &scratch->ax, iv, 8);
 	result = 8;
 error_cbc_crypt:
+	kfree(iv);
+error_iv:
 	kfree(dst_buf);
 error_dst_buf:
 	return result;

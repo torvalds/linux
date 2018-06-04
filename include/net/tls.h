@@ -40,6 +40,7 @@
 #include <linux/socket.h>
 #include <linux/tcp.h>
 #include <net/tcp.h>
+#include <net/strparser.h>
 
 #include <uapi/linux/tls.h>
 
@@ -55,10 +56,46 @@
 #define TLS_RECORD_TYPE_DATA		0x17
 
 #define TLS_AAD_SPACE_SIZE		13
+#define TLS_DEVICE_NAME_MAX		32
+
+/*
+ * This structure defines the routines for Inline TLS driver.
+ * The following routines are optional and filled with a
+ * null pointer if not defined.
+ *
+ * @name: Its the name of registered Inline tls device
+ * @dev_list: Inline tls device list
+ * int (*feature)(struct tls_device *device);
+ *     Called to return Inline TLS driver capability
+ *
+ * int (*hash)(struct tls_device *device, struct sock *sk);
+ *     This function sets Inline driver for listen and program
+ *     device specific functioanlity as required
+ *
+ * void (*unhash)(struct tls_device *device, struct sock *sk);
+ *     This function cleans listen state set by Inline TLS driver
+ */
+struct tls_device {
+	char name[TLS_DEVICE_NAME_MAX];
+	struct list_head dev_list;
+	int  (*feature)(struct tls_device *device);
+	int  (*hash)(struct tls_device *device, struct sock *sk);
+	void (*unhash)(struct tls_device *device, struct sock *sk);
+};
 
 struct tls_sw_context {
 	struct crypto_aead *aead_send;
+	struct crypto_aead *aead_recv;
 	struct crypto_wait async_wait;
+
+	/* Receive context */
+	struct strparser strp;
+	void (*saved_data_ready)(struct sock *sk);
+	unsigned int (*sk_poll)(struct file *file, struct socket *sock,
+				struct poll_table_struct *wait);
+	struct sk_buff *recv_pkt;
+	u8 control;
+	bool decrypted;
 
 	/* Sending context */
 	char aad_space[TLS_AAD_SPACE_SIZE];
@@ -81,16 +118,7 @@ enum {
 	TLS_PENDING_CLOSED_RECORD
 };
 
-struct tls_context {
-	union {
-		struct tls_crypto_info crypto_send;
-		struct tls12_crypto_info_aes_gcm_128 crypto_send_aes_gcm_128;
-	};
-
-	void *priv_ctx;
-
-	u8 tx_conf:2;
-
+struct cipher_context {
 	u16 prepend_size;
 	u16 tag_size;
 	u16 overhead_size;
@@ -98,6 +126,24 @@ struct tls_context {
 	char *iv;
 	u16 rec_seq_size;
 	char *rec_seq;
+};
+
+struct tls_context {
+	union {
+		struct tls_crypto_info crypto_send;
+		struct tls12_crypto_info_aes_gcm_128 crypto_send_aes_gcm_128;
+	};
+	union {
+		struct tls_crypto_info crypto_recv;
+		struct tls12_crypto_info_aes_gcm_128 crypto_recv_aes_gcm_128;
+	};
+
+	void *priv_ctx;
+
+	u8 conf:3;
+
+	struct cipher_context tx;
+	struct cipher_context rx;
 
 	struct scatterlist *partially_sent_record;
 	u16 partially_sent_offset;
@@ -115,6 +161,8 @@ struct tls_context {
 	int  (*getsockopt)(struct sock *sk, int level,
 			   int optname, char __user *optval,
 			   int __user *optlen);
+	int  (*hash)(struct sock *sk);
+	void (*unhash)(struct sock *sk);
 };
 
 int wait_on_pending_writer(struct sock *sk, long *timeo);
@@ -124,12 +172,19 @@ int tls_sk_attach(struct sock *sk, int optname, char __user *optval,
 		  unsigned int optlen);
 
 
-int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx);
+int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx);
 int tls_sw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size);
 int tls_sw_sendpage(struct sock *sk, struct page *page,
 		    int offset, size_t size, int flags);
 void tls_sw_close(struct sock *sk, long timeout);
-void tls_sw_free_tx_resources(struct sock *sk);
+void tls_sw_free_resources(struct sock *sk);
+int tls_sw_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
+		   int nonblock, int flags, int *addr_len);
+unsigned int tls_sw_poll(struct file *file, struct socket *sock,
+			 struct poll_table_struct *wait);
+ssize_t tls_sw_splice_read(struct socket *sock, loff_t *ppos,
+			   struct pipe_inode_info *pipe,
+			   size_t len, unsigned int flags);
 
 void tls_sk_destruct(struct sock *sk, struct tls_context *ctx);
 void tls_icsk_clean_acked(struct sock *sk);
@@ -170,9 +225,9 @@ static inline bool tls_is_pending_open_record(struct tls_context *tls_ctx)
 	return tls_ctx->pending_open_record_frags;
 }
 
-static inline void tls_err_abort(struct sock *sk)
+static inline void tls_err_abort(struct sock *sk, int err)
 {
-	sk->sk_err = EBADMSG;
+	sk->sk_err = err;
 	sk->sk_error_report(sk);
 }
 
@@ -190,10 +245,10 @@ static inline bool tls_bigint_increment(unsigned char *seq, int len)
 }
 
 static inline void tls_advance_record_sn(struct sock *sk,
-					 struct tls_context *ctx)
+					 struct cipher_context *ctx)
 {
 	if (tls_bigint_increment(ctx->rec_seq, ctx->rec_seq_size))
-		tls_err_abort(sk);
+		tls_err_abort(sk, EBADMSG);
 	tls_bigint_increment(ctx->iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE,
 			     ctx->iv_size);
 }
@@ -203,9 +258,9 @@ static inline void tls_fill_prepend(struct tls_context *ctx,
 			     size_t plaintext_len,
 			     unsigned char record_type)
 {
-	size_t pkt_len, iv_size = ctx->iv_size;
+	size_t pkt_len, iv_size = ctx->tx.iv_size;
 
-	pkt_len = plaintext_len + iv_size + ctx->tag_size;
+	pkt_len = plaintext_len + iv_size + ctx->tx.tag_size;
 
 	/* we cover nonce explicit here as well, so buf should be of
 	 * size KTLS_DTLS_HEADER_SIZE + KTLS_DTLS_NONCE_EXPLICIT_SIZE
@@ -217,7 +272,7 @@ static inline void tls_fill_prepend(struct tls_context *ctx,
 	buf[3] = pkt_len >> 8;
 	buf[4] = pkt_len & 0xFF;
 	memcpy(buf + TLS_NONCE_OFFSET,
-	       ctx->iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE, iv_size);
+	       ctx->tx.iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE, iv_size);
 }
 
 static inline void tls_make_aad(char *buf,
@@ -256,5 +311,7 @@ static inline struct tls_offload_context *tls_offload_ctx(
 
 int tls_proccess_cmsg(struct sock *sk, struct msghdr *msg,
 		      unsigned char *record_type);
+void tls_register_device(struct tls_device *device);
+void tls_unregister_device(struct tls_device *device);
 
 #endif /* _TLS_OFFLOAD_H */

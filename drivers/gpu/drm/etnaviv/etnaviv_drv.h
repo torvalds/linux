@@ -34,6 +34,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem.h>
 #include <drm/etnaviv_drm.h>
+#include <drm/gpu_scheduler.h>
 
 struct etnaviv_cmdbuf;
 struct etnaviv_gpu;
@@ -42,11 +43,11 @@ struct etnaviv_gem_object;
 struct etnaviv_gem_submit;
 
 struct etnaviv_file_private {
-	/* currently we don't do anything useful with this.. but when
-	 * per-context address spaces are supported we'd keep track of
+	/*
+	 * When per-context address spaces are supported we'd keep track of
 	 * the context's page-tables here.
 	 */
-	int dummy;
+	struct drm_sched_entity		sched_entity[ETNA_MAX_PIPES];
 };
 
 struct etnaviv_drm_private {
@@ -85,6 +86,7 @@ int etnaviv_gem_new_userptr(struct drm_device *dev, struct drm_file *file,
 	uintptr_t ptr, u32 size, u32 flags, u32 *handle);
 u16 etnaviv_buffer_init(struct etnaviv_gpu *gpu);
 u16 etnaviv_buffer_config_mmuv2(struct etnaviv_gpu *gpu, u32 mtlb_addr, u32 safe_addr);
+u16 etnaviv_buffer_config_pta(struct etnaviv_gpu *gpu);
 void etnaviv_buffer_end(struct etnaviv_gpu *gpu);
 void etnaviv_sync_point_queue(struct etnaviv_gpu *gpu, unsigned int event);
 void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, u32 exec_state,

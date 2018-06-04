@@ -12,6 +12,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/syscore_ops.h>
 #include <linux/serial_core.h>
 #include <linux/serial_s3c.h>
@@ -388,30 +389,51 @@ static struct ili9320_platdata jive_lcm_config = {
 /* LCD SPI support */
 
 static struct spi_gpio_platform_data jive_lcd_spi = {
-	.sck		= S3C2410_GPG(8),
-	.mosi		= S3C2410_GPB(8),
-	.miso		= SPI_GPIO_NO_MISO,
+	.num_chipselect	= 1,
 };
 
 static struct platform_device jive_device_lcdspi = {
-	.name		= "spi-gpio",
+	.name		= "spi_gpio",
 	.id		= 1,
 	.dev.platform_data = &jive_lcd_spi,
 };
 
+static struct gpiod_lookup_table jive_lcdspi_gpiod_table = {
+	.dev_id         = "spi_gpio",
+	.table          = {
+		GPIO_LOOKUP("GPIOG", 8,
+			    "sck", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("GPIOB", 8,
+			    "mosi", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("GPIOB", 7,
+			    "cs", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
 
 /* WM8750 audio code SPI definition */
 
 static struct spi_gpio_platform_data jive_wm8750_spi = {
-	.sck		= S3C2410_GPB(4),
-	.mosi		= S3C2410_GPB(9),
-	.miso		= SPI_GPIO_NO_MISO,
+	.num_chipselect	= 1,
 };
 
 static struct platform_device jive_device_wm8750 = {
-	.name		= "spi-gpio",
+	.name		= "spi_gpio",
 	.id		= 2,
 	.dev.platform_data = &jive_wm8750_spi,
+};
+
+static struct gpiod_lookup_table jive_wm8750_gpiod_table = {
+	.dev_id         = "spi_gpio",
+	.table          = {
+		GPIO_LOOKUP("GPIOB", 4,
+			    "gpio-sck", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("GPIOB", 9,
+			    "gpio-mosi", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("GPIOH", 10,
+			    "cs", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 /* JIVE SPI devices. */
@@ -424,14 +446,12 @@ static struct spi_board_info __initdata jive_spi_devs[] = {
 		.mode		= SPI_MODE_3,	/* CPOL=1, CPHA=1 */
 		.max_speed_hz	= 100000,
 		.platform_data	= &jive_lcm_config,
-		.controller_data = (void *)S3C2410_GPB(7),
 	}, {
 		.modalias	= "WM8750",
 		.bus_num	= 2,
 		.chip_select	= 0,
 		.mode		= SPI_MODE_0,	/* CPOL=0, CPHA=0 */
 		.max_speed_hz	= 100000,
-		.controller_data = (void *)S3C2410_GPH(10),
 	},
 };
 
@@ -619,24 +639,11 @@ static void __init jive_machine_init(void)
 	/** TODO - check that this is after the cmdline option! */
 	s3c_nand_set_platdata(&jive_nand_info);
 
-	/* initialise the spi */
-
 	gpio_request(S3C2410_GPG(13), "lcm reset");
 	gpio_direction_output(S3C2410_GPG(13), 0);
 
-	gpio_request(S3C2410_GPB(7), "jive spi");
-	gpio_direction_output(S3C2410_GPB(7), 1);
-
 	gpio_request_one(S3C2410_GPB(6), GPIOF_OUT_INIT_LOW, NULL);
 	gpio_free(S3C2410_GPB(6));
-
-	gpio_request_one(S3C2410_GPG(8), GPIOF_OUT_INIT_HIGH, NULL);
-	gpio_free(S3C2410_GPG(8));
-
-	/* initialise the WM8750 spi */
-
-	gpio_request(S3C2410_GPH(10), "jive wm8750 spi");
-	gpio_direction_output(S3C2410_GPH(10), 1);
 
 	/* Turn off suspend on both USB ports, and switch the
 	 * selectable USB port to USB device mode. */
@@ -655,6 +662,8 @@ static void __init jive_machine_init(void)
 
 	pm_power_off = jive_power_off;
 
+	gpiod_add_lookup_table(&jive_lcdspi_gpiod_table);
+	gpiod_add_lookup_table(&jive_wm8750_gpiod_table);
 	platform_add_devices(jive_devices, ARRAY_SIZE(jive_devices));
 }
 

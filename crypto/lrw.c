@@ -28,13 +28,31 @@
 
 #include <crypto/b128ops.h>
 #include <crypto/gf128mul.h>
-#include <crypto/lrw.h>
 
 #define LRW_BUFFER_SIZE 128u
 
+#define LRW_BLOCK_SIZE 16
+
 struct priv {
 	struct crypto_skcipher *child;
-	struct lrw_table_ctx table;
+
+	/*
+	 * optimizes multiplying a random (non incrementing, as at the
+	 * start of a new sector) value with key2, we could also have
+	 * used 4k optimization tables or no optimization at all. In the
+	 * latter case we would have to store key2 here
+	 */
+	struct gf128mul_64k *table;
+
+	/*
+	 * stores:
+	 *  key2*{ 0,0,...0,0,0,0,1 }, key2*{ 0,0,...0,0,0,1,1 },
+	 *  key2*{ 0,0,...0,0,1,1,1 }, key2*{ 0,0,...0,1,1,1,1 }
+	 *  key2*{ 0,0,...1,1,1,1,1 }, etc
+	 * needed for optimized multiplication of incrementing values
+	 * with key2
+	 */
+	be128 mulinc[128];
 };
 
 struct rctx {
@@ -65,10 +83,24 @@ static inline void setbit128_bbe(void *b, int bit)
 			), b);
 }
 
-int lrw_init_table(struct lrw_table_ctx *ctx, const u8 *tweak)
+static int setkey(struct crypto_skcipher *parent, const u8 *key,
+		  unsigned int keylen)
 {
+	struct priv *ctx = crypto_skcipher_ctx(parent);
+	struct crypto_skcipher *child = ctx->child;
+	int err, bsize = LRW_BLOCK_SIZE;
+	const u8 *tweak = key + keylen - bsize;
 	be128 tmp = { 0 };
 	int i;
+
+	crypto_skcipher_clear_flags(child, CRYPTO_TFM_REQ_MASK);
+	crypto_skcipher_set_flags(child, crypto_skcipher_get_flags(parent) &
+					 CRYPTO_TFM_REQ_MASK);
+	err = crypto_skcipher_setkey(child, key, keylen - bsize);
+	crypto_skcipher_set_flags(parent, crypto_skcipher_get_flags(child) &
+					  CRYPTO_TFM_RES_MASK);
+	if (err)
+		return err;
 
 	if (ctx->table)
 		gf128mul_free_64k(ctx->table);
@@ -86,34 +118,6 @@ int lrw_init_table(struct lrw_table_ctx *ctx, const u8 *tweak)
 	}
 
 	return 0;
-}
-EXPORT_SYMBOL_GPL(lrw_init_table);
-
-void lrw_free_table(struct lrw_table_ctx *ctx)
-{
-	if (ctx->table)
-		gf128mul_free_64k(ctx->table);
-}
-EXPORT_SYMBOL_GPL(lrw_free_table);
-
-static int setkey(struct crypto_skcipher *parent, const u8 *key,
-		  unsigned int keylen)
-{
-	struct priv *ctx = crypto_skcipher_ctx(parent);
-	struct crypto_skcipher *child = ctx->child;
-	int err, bsize = LRW_BLOCK_SIZE;
-	const u8 *tweak = key + keylen - bsize;
-
-	crypto_skcipher_clear_flags(child, CRYPTO_TFM_REQ_MASK);
-	crypto_skcipher_set_flags(child, crypto_skcipher_get_flags(parent) &
-					 CRYPTO_TFM_REQ_MASK);
-	err = crypto_skcipher_setkey(child, key, keylen - bsize);
-	crypto_skcipher_set_flags(parent, crypto_skcipher_get_flags(child) &
-					  CRYPTO_TFM_RES_MASK);
-	if (err)
-		return err;
-
-	return lrw_init_table(&ctx->table, tweak);
 }
 
 static inline void inc(be128 *iv)
@@ -238,7 +242,7 @@ static int pre_crypt(struct skcipher_request *req)
 			/* T <- I*Key2, using the optimization
 			 * discussed in the specification */
 			be128_xor(&rctx->t, &rctx->t,
-				  &ctx->table.mulinc[get_index128(iv)]);
+				  &ctx->mulinc[get_index128(iv)]);
 			inc(iv);
 		} while ((avail -= bs) >= bs);
 
@@ -301,7 +305,7 @@ static int init_crypt(struct skcipher_request *req, crypto_completion_t done)
 	memcpy(&rctx->t, req->iv, sizeof(rctx->t));
 
 	/* T <- I*Key2 */
-	gf128mul_64k_bbe(&rctx->t, ctx->table.table);
+	gf128mul_64k_bbe(&rctx->t, ctx->table);
 
 	return 0;
 }
@@ -313,7 +317,7 @@ static void exit_crypt(struct skcipher_request *req)
 	rctx->left = 0;
 
 	if (rctx->ext)
-		kfree(rctx->ext);
+		kzfree(rctx->ext);
 }
 
 static int do_encrypt(struct skcipher_request *req, int err)
@@ -416,85 +420,6 @@ static int decrypt(struct skcipher_request *req)
 	return do_decrypt(req, init_crypt(req, decrypt_done));
 }
 
-int lrw_crypt(struct blkcipher_desc *desc, struct scatterlist *sdst,
-	      struct scatterlist *ssrc, unsigned int nbytes,
-	      struct lrw_crypt_req *req)
-{
-	const unsigned int bsize = LRW_BLOCK_SIZE;
-	const unsigned int max_blks = req->tbuflen / bsize;
-	struct lrw_table_ctx *ctx = req->table_ctx;
-	struct blkcipher_walk walk;
-	unsigned int nblocks;
-	be128 *iv, *src, *dst, *t;
-	be128 *t_buf = req->tbuf;
-	int err, i;
-
-	BUG_ON(max_blks < 1);
-
-	blkcipher_walk_init(&walk, sdst, ssrc, nbytes);
-
-	err = blkcipher_walk_virt(desc, &walk);
-	nbytes = walk.nbytes;
-	if (!nbytes)
-		return err;
-
-	nblocks = min(walk.nbytes / bsize, max_blks);
-	src = (be128 *)walk.src.virt.addr;
-	dst = (be128 *)walk.dst.virt.addr;
-
-	/* calculate first value of T */
-	iv = (be128 *)walk.iv;
-	t_buf[0] = *iv;
-
-	/* T <- I*Key2 */
-	gf128mul_64k_bbe(&t_buf[0], ctx->table);
-
-	i = 0;
-	goto first;
-
-	for (;;) {
-		do {
-			for (i = 0; i < nblocks; i++) {
-				/* T <- I*Key2, using the optimization
-				 * discussed in the specification */
-				be128_xor(&t_buf[i], t,
-						&ctx->mulinc[get_index128(iv)]);
-				inc(iv);
-first:
-				t = &t_buf[i];
-
-				/* PP <- T xor P */
-				be128_xor(dst + i, t, src + i);
-			}
-
-			/* CC <- E(Key2,PP) */
-			req->crypt_fn(req->crypt_ctx, (u8 *)dst,
-				      nblocks * bsize);
-
-			/* C <- T xor CC */
-			for (i = 0; i < nblocks; i++)
-				be128_xor(dst + i, dst + i, &t_buf[i]);
-
-			src += nblocks;
-			dst += nblocks;
-			nbytes -= nblocks * bsize;
-			nblocks = min(nbytes / bsize, max_blks);
-		} while (nblocks > 0);
-
-		err = blkcipher_walk_done(desc, &walk, nbytes);
-		nbytes = walk.nbytes;
-		if (!nbytes)
-			break;
-
-		nblocks = min(nbytes / bsize, max_blks);
-		src = (be128 *)walk.src.virt.addr;
-		dst = (be128 *)walk.dst.virt.addr;
-	}
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(lrw_crypt);
-
 static int init_tfm(struct crypto_skcipher *tfm)
 {
 	struct skcipher_instance *inst = skcipher_alg_instance(tfm);
@@ -518,7 +443,8 @@ static void exit_tfm(struct crypto_skcipher *tfm)
 {
 	struct priv *ctx = crypto_skcipher_ctx(tfm);
 
-	lrw_free_table(&ctx->table);
+	if (ctx->table)
+		gf128mul_free_64k(ctx->table);
 	crypto_free_skcipher(ctx->child);
 }
 

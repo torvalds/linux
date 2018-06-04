@@ -49,7 +49,7 @@
 
 static int kvmapf = 1;
 
-static int parse_no_kvmapf(char *arg)
+static int __init parse_no_kvmapf(char *arg)
 {
         kvmapf = 0;
         return 0;
@@ -58,7 +58,7 @@ static int parse_no_kvmapf(char *arg)
 early_param("no-kvmapf", parse_no_kvmapf);
 
 static int steal_acc = 1;
-static int parse_no_stealacc(char *arg)
+static int __init parse_no_stealacc(char *arg)
 {
         steal_acc = 0;
         return 0;
@@ -67,7 +67,7 @@ static int parse_no_stealacc(char *arg)
 early_param("no-steal-acc", parse_no_stealacc);
 
 static int kvmclock_vsyscall = 1;
-static int parse_no_kvmclock_vsyscall(char *arg)
+static int __init parse_no_kvmclock_vsyscall(char *arg)
 {
         kvmclock_vsyscall = 0;
         return 0;
@@ -341,10 +341,10 @@ static void kvm_guest_cpu_init(void)
 #endif
 		pa |= KVM_ASYNC_PF_ENABLED;
 
-		/* Async page fault support for L1 hypervisor is optional */
-		if (wrmsr_safe(MSR_KVM_ASYNC_PF_EN,
-			(pa | KVM_ASYNC_PF_DELIVERY_AS_PF_VMEXIT) & 0xffffffff, pa >> 32) < 0)
-			wrmsrl(MSR_KVM_ASYNC_PF_EN, pa);
+		if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF_VMEXIT))
+			pa |= KVM_ASYNC_PF_DELIVERY_AS_PF_VMEXIT;
+
+		wrmsrl(MSR_KVM_ASYNC_PF_EN, pa);
 		__this_cpu_write(apf_reason.enabled, 1);
 		printk(KERN_INFO"KVM setup async PF for cpu %d\n",
 		       smp_processor_id());
@@ -454,6 +454,13 @@ static void __init sev_map_percpu_data(void)
 }
 
 #ifdef CONFIG_SMP
+static void __init kvm_smp_prepare_cpus(unsigned int max_cpus)
+{
+	native_smp_prepare_cpus(max_cpus);
+	if (kvm_para_has_hint(KVM_HINTS_DEDICATED))
+		static_branch_disable(&virt_spin_lock_key);
+}
+
 static void __init kvm_smp_prepare_boot_cpu(void)
 {
 	/*
@@ -545,7 +552,9 @@ static void __init kvm_guest_init(void)
 		pv_time_ops.steal_clock = kvm_steal_clock;
 	}
 
-	if (kvm_para_has_feature(KVM_FEATURE_PV_TLB_FLUSH))
+	if (kvm_para_has_feature(KVM_FEATURE_PV_TLB_FLUSH) &&
+	    !kvm_para_has_hint(KVM_HINTS_DEDICATED) &&
+	    kvm_para_has_feature(KVM_FEATURE_STEAL_TIME))
 		pv_mmu_ops.flush_tlb_others = kvm_flush_tlb_others;
 
 	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
@@ -555,6 +564,7 @@ static void __init kvm_guest_init(void)
 		kvm_setup_vsyscall_timeinfo();
 
 #ifdef CONFIG_SMP
+	smp_ops.smp_prepare_cpus = kvm_smp_prepare_cpus;
 	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
 	if (cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "x86/kvm:online",
 				      kvm_cpu_online, kvm_cpu_down_prepare) < 0)
@@ -604,6 +614,11 @@ unsigned int kvm_arch_para_features(void)
 	return cpuid_eax(kvm_cpuid_base() | KVM_CPUID_FEATURES);
 }
 
+unsigned int kvm_arch_para_hints(void)
+{
+	return cpuid_edx(kvm_cpuid_base() | KVM_CPUID_FEATURES);
+}
+
 static uint32_t __init kvm_detect(void)
 {
 	return kvm_cpuid_base();
@@ -633,7 +648,9 @@ static __init int kvm_setup_pv_tlb_flush(void)
 {
 	int cpu;
 
-	if (kvm_para_has_feature(KVM_FEATURE_PV_TLB_FLUSH)) {
+	if (kvm_para_has_feature(KVM_FEATURE_PV_TLB_FLUSH) &&
+	    !kvm_para_has_hint(KVM_HINTS_DEDICATED) &&
+	    kvm_para_has_feature(KVM_FEATURE_STEAL_TIME)) {
 		for_each_possible_cpu(cpu) {
 			zalloc_cpumask_var_node(per_cpu_ptr(&__pv_tlb_mask, cpu),
 				GFP_KERNEL, cpu_to_node(cpu));
@@ -726,6 +743,9 @@ void __init kvm_spinlock_init(void)
 		return;
 	/* Does host kernel support KVM_FEATURE_PV_UNHALT? */
 	if (!kvm_para_has_feature(KVM_FEATURE_PV_UNHALT))
+		return;
+
+	if (kvm_para_has_hint(KVM_HINTS_DEDICATED))
 		return;
 
 	__pv_init_lock_hash();

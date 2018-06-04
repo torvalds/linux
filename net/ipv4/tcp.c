@@ -453,6 +453,7 @@ void tcp_init_sock(struct sock *sk)
 	sk->sk_rcvbuf = sock_net(sk)->ipv4.sysctl_tcp_rmem[1];
 
 	sk_sockets_allocated_inc(sk);
+	sk->sk_route_forced_caps = NETIF_F_GSO;
 }
 EXPORT_SYMBOL(tcp_init_sock);
 
@@ -482,6 +483,14 @@ static void tcp_tx_timestamp(struct sock *sk, u16 tsflags)
 		if (tsflags & SOF_TIMESTAMPING_TX_RECORD_MASK)
 			shinfo->tskey = TCP_SKB_CB(skb)->seq + skb->len - 1;
 	}
+}
+
+static inline bool tcp_stream_is_readable(const struct tcp_sock *tp,
+					  int target, struct sock *sk)
+{
+	return (tp->rcv_nxt - tp->copied_seq >= target) ||
+		(sk->sk_prot->stream_memory_read ?
+		sk->sk_prot->stream_memory_read(sk) : false);
 }
 
 /*
@@ -553,7 +562,7 @@ __poll_t tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 		    tp->urg_data)
 			target++;
 
-		if (tp->rcv_nxt - tp->copied_seq >= target)
+		if (tcp_stream_is_readable(tp, target, sk))
 			mask |= EPOLLIN | EPOLLRDNORM;
 
 		if (!(sk->sk_shutdown & SEND_SHUTDOWN)) {
@@ -897,7 +906,7 @@ static unsigned int tcp_xmit_size_goal(struct sock *sk, u32 mss_now,
 	struct tcp_sock *tp = tcp_sk(sk);
 	u32 new_size_goal, size_goal;
 
-	if (!large_allowed || !sk_can_gso(sk))
+	if (!large_allowed)
 		return mss_now;
 
 	/* Note : tcp_tso_autosize() will eventually split this later */
@@ -993,7 +1002,9 @@ new_segment:
 			get_page(page);
 			skb_fill_page_desc(skb, i, page, offset, copy);
 		}
-		skb_shinfo(skb)->tx_flags |= SKBTX_SHARED_FRAG;
+
+		if (!(flags & MSG_NO_SHARED_FRAGS))
+			skb_shinfo(skb)->tx_flags |= SKBTX_SHARED_FRAG;
 
 		skb->len += copy;
 		skb->data_len += copy;
@@ -1062,8 +1073,7 @@ EXPORT_SYMBOL_GPL(do_tcp_sendpages);
 int tcp_sendpage_locked(struct sock *sk, struct page *page, int offset,
 			size_t size, int flags)
 {
-	if (!(sk->sk_route_caps & NETIF_F_SG) ||
-	    !sk_check_csum_caps(sk))
+	if (!(sk->sk_route_caps & NETIF_F_SG))
 		return sock_no_sendpage_locked(sk, page, offset, size, flags);
 
 	tcp_rate_check_app_limited(sk);  /* is sending application-limited? */
@@ -1102,27 +1112,11 @@ static int linear_payload_sz(bool first_skb)
 	return 0;
 }
 
-static int select_size(const struct sock *sk, bool sg, bool first_skb, bool zc)
+static int select_size(bool first_skb, bool zc)
 {
-	const struct tcp_sock *tp = tcp_sk(sk);
-	int tmp = tp->mss_cache;
-
-	if (sg) {
-		if (zc)
-			return 0;
-
-		if (sk_can_gso(sk)) {
-			tmp = linear_payload_sz(first_skb);
-		} else {
-			int pgbreak = SKB_MAX_HEAD(MAX_TCP_HEADER);
-
-			if (tmp >= pgbreak &&
-			    tmp <= pgbreak + (MAX_SKB_FRAGS - 1) * PAGE_SIZE)
-				tmp = pgbreak;
-		}
-	}
-
-	return tmp;
+	if (zc)
+		return 0;
+	return linear_payload_sz(first_skb);
 }
 
 void tcp_free_fastopen_req(struct tcp_sock *tp)
@@ -1187,7 +1181,7 @@ int tcp_sendmsg_locked(struct sock *sk, struct msghdr *msg, size_t size)
 	int flags, err, copied = 0;
 	int mss_now = 0, size_goal, copied_syn = 0;
 	bool process_backlog = false;
-	bool sg, zc = false;
+	bool zc = false;
 	long timeo;
 
 	flags = msg->msg_flags;
@@ -1205,7 +1199,7 @@ int tcp_sendmsg_locked(struct sock *sk, struct msghdr *msg, size_t size)
 			goto out_err;
 		}
 
-		zc = sk_check_csum_caps(sk) && sk->sk_route_caps & NETIF_F_SG;
+		zc = sk->sk_route_caps & NETIF_F_SG;
 		if (!zc)
 			uarg->zerocopy = 0;
 	}
@@ -1268,18 +1262,12 @@ restart:
 	if (sk->sk_err || (sk->sk_shutdown & SEND_SHUTDOWN))
 		goto do_error;
 
-	sg = !!(sk->sk_route_caps & NETIF_F_SG);
-
 	while (msg_data_left(msg)) {
 		int copy = 0;
-		int max = size_goal;
 
 		skb = tcp_write_queue_tail(sk);
-		if (skb) {
-			if (skb->ip_summed == CHECKSUM_NONE)
-				max = mss_now;
-			copy = max - skb->len;
-		}
+		if (skb)
+			copy = size_goal - skb->len;
 
 		if (copy <= 0 || !tcp_skb_can_collapse_to(skb)) {
 			bool first_skb;
@@ -1297,22 +1285,17 @@ new_segment:
 				goto restart;
 			}
 			first_skb = tcp_rtx_and_write_queues_empty(sk);
-			linear = select_size(sk, sg, first_skb, zc);
+			linear = select_size(first_skb, zc);
 			skb = sk_stream_alloc_skb(sk, linear, sk->sk_allocation,
 						  first_skb);
 			if (!skb)
 				goto wait_for_memory;
 
 			process_backlog = true;
-			/*
-			 * Check whether we can use HW checksum.
-			 */
-			if (sk_check_csum_caps(sk))
-				skb->ip_summed = CHECKSUM_PARTIAL;
+			skb->ip_summed = CHECKSUM_PARTIAL;
 
 			skb_entail(sk, skb);
 			copy = size_goal;
-			max = size_goal;
 
 			/* All packets are restored as if they have
 			 * already been sent. skb_mstamp isn't set to
@@ -1343,7 +1326,7 @@ new_segment:
 
 			if (!skb_can_coalesce(skb, i, pfrag->page,
 					      pfrag->offset)) {
-				if (i >= sysctl_max_skb_frags || !sg) {
+				if (i >= sysctl_max_skb_frags) {
 					tcp_mark_push(tp, skb);
 					goto new_segment;
 				}
@@ -1396,7 +1379,7 @@ new_segment:
 			goto out;
 		}
 
-		if (skb->len < max || (flags & MSG_OOB) || unlikely(tp->repair))
+		if (skb->len < size_goal || (flags & MSG_OOB) || unlikely(tp->repair))
 			continue;
 
 		if (forced_push(tp)) {
@@ -3058,8 +3041,8 @@ struct sk_buff *tcp_get_timestamping_opt_stats(const struct sock *sk)
 	u32 rate;
 
 	stats = alloc_skb(7 * nla_total_size_64bit(sizeof(u64)) +
-			  3 * nla_total_size(sizeof(u32)) +
-			  2 * nla_total_size(sizeof(u8)), GFP_ATOMIC);
+			  5 * nla_total_size(sizeof(u32)) +
+			  3 * nla_total_size(sizeof(u8)), GFP_ATOMIC);
 	if (!stats)
 		return NULL;
 
@@ -3088,6 +3071,10 @@ struct sk_buff *tcp_get_timestamping_opt_stats(const struct sock *sk)
 
 	nla_put_u8(stats, TCP_NLA_RECUR_RETRANS, inet_csk(sk)->icsk_retransmits);
 	nla_put_u8(stats, TCP_NLA_DELIVERY_RATE_APP_LMT, !!tp->rate_app_limited);
+	nla_put_u32(stats, TCP_NLA_SND_SSTHRESH, tp->snd_ssthresh);
+
+	nla_put_u32(stats, TCP_NLA_SNDQ_SIZE, tp->write_seq - tp->snd_una);
+	nla_put_u8(stats, TCP_NLA_CA_STATE, inet_csk(sk)->icsk_ca_state);
 	return stats;
 }
 
@@ -3566,6 +3553,7 @@ int tcp_abort(struct sock *sk, int err)
 
 	bh_unlock_sock(sk);
 	local_bh_enable();
+	tcp_write_queue_purge(sk);
 	release_sock(sk);
 	return 0;
 }

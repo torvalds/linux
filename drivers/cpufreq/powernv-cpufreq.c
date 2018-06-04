@@ -812,7 +812,7 @@ gpstates_done:
 
 static int powernv_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
-	int base, i, ret;
+	int base, i;
 	struct kernfs_node *kn;
 	struct global_pstate_info *gpstates;
 
@@ -848,15 +848,10 @@ static int powernv_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	gpstates->timer.expires = jiffies +
 				msecs_to_jiffies(GPSTATE_TIMER_INTERVAL);
 	spin_lock_init(&gpstates->gpstate_lock);
-	ret = cpufreq_table_validate_and_show(policy, powernv_freqs);
 
-	if (ret < 0) {
-		kfree(policy->driver_data);
-		return ret;
-	}
-
+	policy->freq_table = powernv_freqs;
 	policy->fast_switch_possible = true;
-	return ret;
+	return 0;
 }
 
 static int powernv_cpufreq_cpu_exit(struct cpufreq_policy *policy)

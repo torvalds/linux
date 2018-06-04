@@ -465,12 +465,12 @@ config NF_TABLES_INET
 	depends on IPV6
 	select NF_TABLES_IPV4
 	select NF_TABLES_IPV6
-	tristate "Netfilter nf_tables mixed IPv4/IPv6 tables support"
+	bool "Netfilter nf_tables mixed IPv4/IPv6 tables support"
 	help
 	  This option enables support for a mixed IPv4/IPv6 "inet" table.
 
 config NF_TABLES_NETDEV
-	tristate "Netfilter nf_tables netdev tables support"
+	bool "Netfilter nf_tables netdev tables support"
 	help
 	  This option enables support for the "netdev" table.
 

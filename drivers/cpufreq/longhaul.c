@@ -775,7 +775,7 @@ static int longhaul_cpu_init(struct cpufreq_policy *policy)
 		break;
 
 	case 7:
-		switch (c->x86_mask) {
+		switch (c->x86_stepping) {
 		case 0:
 			longhaul_version = TYPE_LONGHAUL_V1;
 			cpu_model = CPU_SAMUEL2;
@@ -787,7 +787,7 @@ static int longhaul_cpu_init(struct cpufreq_policy *policy)
 			break;
 		case 1 ... 15:
 			longhaul_version = TYPE_LONGHAUL_V2;
-			if (c->x86_mask < 8) {
+			if (c->x86_stepping < 8) {
 				cpu_model = CPU_SAMUEL2;
 				cpuname = "C3 'Samuel 2' [C5B]";
 			} else {
@@ -814,7 +814,7 @@ static int longhaul_cpu_init(struct cpufreq_policy *policy)
 		numscales = 32;
 		memcpy(mults, nehemiah_mults, sizeof(nehemiah_mults));
 		memcpy(eblcr, nehemiah_eblcr, sizeof(nehemiah_eblcr));
-		switch (c->x86_mask) {
+		switch (c->x86_stepping) {
 		case 0 ... 1:
 			cpu_model = CPU_NEHEMIAH;
 			cpuname = "C3 'Nehemiah A' [C5XLOE]";
@@ -895,8 +895,9 @@ static int longhaul_cpu_init(struct cpufreq_policy *policy)
 		longhaul_setup_voltagescaling();
 
 	policy->transition_delay_us = 200000;	/* usec */
+	policy->freq_table = longhaul_table;
 
-	return cpufreq_table_validate_and_show(policy, longhaul_table);
+	return 0;
 }
 
 static struct cpufreq_driver longhaul_driver = {

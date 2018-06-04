@@ -993,8 +993,7 @@ static int xlr_net_probe(struct platform_device *pdev)
 	/*
 	 * Allocate our adapter data structure and attach it to the device.
 	 */
-	adapter = (struct xlr_adapter *)
-		devm_kzalloc(&pdev->dev, sizeof(*adapter), GFP_KERNEL);
+	adapter = devm_kzalloc(&pdev->dev, sizeof(*adapter), GFP_KERNEL);
 	if (!adapter)
 		return -ENOMEM;
 

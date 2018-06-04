@@ -127,24 +127,6 @@ static const struct dmi_system_id dell_device_table[] __initconst = {
 		},
 	},
 	{
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_CHASSIS_TYPE, "30"), /*Tablet*/
-		},
-	},
-	{
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_CHASSIS_TYPE, "31"), /*Convertible*/
-		},
-	},
-	{
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_CHASSIS_TYPE, "32"), /*Detachable*/
-		},
-	},
-	{
 		.ident = "Dell Computer Corporation",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Computer Corporation"),
@@ -1279,7 +1261,7 @@ static int kbd_get_state(struct kbd_state *state)
 	struct calling_interface_buffer buffer;
 	int ret;
 
-	dell_fill_request(&buffer, 0, 0, 0, 0);
+	dell_fill_request(&buffer, 0x1, 0, 0, 0);
 	ret = dell_send_request(&buffer,
 				CLASS_KBD_BACKLIGHT, SELECT_KBD_BACKLIGHT);
 	if (ret)

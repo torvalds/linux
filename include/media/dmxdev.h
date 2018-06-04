@@ -163,6 +163,7 @@ struct dmxdev_filter {
  * @demux:		pointer to &struct dmx_demux.
  * @filternum:		number of filters.
  * @capabilities:	demux capabilities as defined by &enum dmx_demux_caps.
+ * @may_do_mmap:	flag used to indicate if the device may do mmap.
  * @exit:		flag to indicate that the demux is being released.
  * @dvr_orig_fe:	pointer to &struct dmx_frontend.
  * @dvr_buffer:		embedded &struct dvb_ringbuffer for DVB output.
@@ -180,6 +181,7 @@ struct dmxdev {
 	int filternum;
 	int capabilities;
 
+	unsigned int may_do_mmap:1;
 	unsigned int exit:1;
 #define DMXDEV_CAP_DUPLEX 1
 	struct dmx_frontend *dvr_orig_fe;

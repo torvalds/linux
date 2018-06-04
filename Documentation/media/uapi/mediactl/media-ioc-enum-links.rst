@@ -125,6 +125,15 @@ returned during the enumeration process.
 
        -  Pad flags, see :ref:`media-pad-flag` for more details.
 
+    -  .. row 4
+
+       -  __u32
+
+       -  ``reserved[2]``
+
+       -  Reserved for future extensions. Drivers and applications must set
+          the array to zero.
+
 
 
 .. c:type:: media_link_desc
@@ -160,6 +169,15 @@ returned during the enumeration process.
        -  ``flags``
 
        -  Link flags, see :ref:`media-link-flag` for more details.
+
+    -  .. row 4
+
+       -  __u32
+
+       -  ``reserved[4]``
+
+       -  Reserved for future extensions. Drivers and applications must set
+          the array to zero.
 
 
 Return Value

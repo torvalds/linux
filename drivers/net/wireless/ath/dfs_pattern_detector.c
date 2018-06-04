@@ -115,7 +115,7 @@ static const struct radar_detector_specs jp_radar_ref_types[] = {
 	JP_PATTERN(4, 0, 5, 150, 230, 1, 23, 50, false),
 	JP_PATTERN(5, 6, 10, 200, 500, 1, 16, 50, false),
 	JP_PATTERN(6, 11, 20, 200, 500, 1, 12, 50, false),
-	JP_PATTERN(7, 50, 100, 1000, 2000, 1, 3, 50, false),
+	JP_PATTERN(7, 50, 100, 1000, 2000, 1, 3, 50, true),
 	JP_PATTERN(5, 0, 1, 333, 333, 1, 9, 50, false),
 };
 

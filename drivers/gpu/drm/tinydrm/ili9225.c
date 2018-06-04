@@ -180,7 +180,6 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 {
 	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
 	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
-	struct drm_framebuffer *fb = pipe->plane.fb;
 	struct device *dev = tdev->drm->dev;
 	int ret;
 	u8 am_id;
@@ -269,10 +268,7 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	ili9225_command(mipi, ILI9225_DISPLAY_CONTROL_1, 0x1017);
 
-	mipi->enabled = true;
-
-	if (fb)
-		fb->funcs->dirty(fb, NULL, 0, 0, NULL, 0);
+	mipi_dbi_enable_flush(mipi);
 }
 
 static void ili9225_pipe_disable(struct drm_simple_display_pipe *pipe)

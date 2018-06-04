@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * kirkwood-sheevaplug-common.dtsi - Common parts for Sheevaplugs
  *
  * Copyright (C) 2013 Simon Baatz <gmbnomis@gmail.com>
- *
- * Licensed under GPLv2
  */
 
 #include "kirkwood.dtsi"

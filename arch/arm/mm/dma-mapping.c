@@ -466,6 +466,12 @@ void __init dma_contiguous_early_fixup(phys_addr_t base, unsigned long size)
 void __init dma_contiguous_remap(void)
 {
 	int i;
+
+	if (!dma_mmu_remap_num)
+		return;
+
+	/* call flush_cache_all() since CMA area would be large enough */
+	flush_cache_all();
 	for (i = 0; i < dma_mmu_remap_num; i++) {
 		phys_addr_t start = dma_mmu_remap[i].base;
 		phys_addr_t end = start + dma_mmu_remap[i].size;
@@ -498,7 +504,15 @@ void __init dma_contiguous_remap(void)
 		flush_tlb_kernel_range(__phys_to_virt(start),
 				       __phys_to_virt(end));
 
-		iotable_init(&map, 1);
+		/*
+		 * All the memory in CMA region will be on ZONE_MOVABLE.
+		 * If that zone is considered as highmem, the memory in CMA
+		 * region is also considered as highmem even if it's
+		 * physical address belong to lowmem. In this case,
+		 * re-mapping isn't required.
+		 */
+		if (!is_highmem_idx(ZONE_MOVABLE))
+			iotable_init(&map, 1);
 	}
 }
 

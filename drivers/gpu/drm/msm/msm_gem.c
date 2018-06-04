@@ -470,7 +470,7 @@ int msm_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 
 	*offset = msm_gem_mmap_offset(obj);
 
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 
 fail:
 	return ret;
@@ -798,6 +798,7 @@ void msm_gem_describe_objects(struct list_head *list, struct seq_file *m)
 }
 #endif
 
+/* don't call directly!  Use drm_gem_object_put() and friends */
 void msm_gem_free_object(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
@@ -854,7 +855,7 @@ int msm_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 	ret = drm_gem_handle_create(file, obj, handle);
 
 	/* drop reference from allocate - handle holds it now */
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 
 	return ret;
 }
@@ -974,7 +975,7 @@ static struct drm_gem_object *_msm_gem_new(struct drm_device *dev,
 	return obj;
 
 fail:
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 	return ERR_PTR(ret);
 }
 
@@ -1034,7 +1035,7 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 	return obj;
 
 fail:
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 	return ERR_PTR(ret);
 }
 
@@ -1052,7 +1053,7 @@ static void *_msm_gem_kernel_new(struct drm_device *dev, uint32_t size,
 	if (iova) {
 		ret = msm_gem_get_iova(obj, aspace, iova);
 		if (ret) {
-			drm_gem_object_unreference(obj);
+			drm_gem_object_put(obj);
 			return ERR_PTR(ret);
 		}
 	}
@@ -1060,7 +1061,7 @@ static void *_msm_gem_kernel_new(struct drm_device *dev, uint32_t size,
 	vaddr = msm_gem_get_vaddr(obj);
 	if (IS_ERR(vaddr)) {
 		msm_gem_put_iova(obj, aspace);
-		drm_gem_object_unreference(obj);
+		drm_gem_object_put(obj);
 		return ERR_CAST(vaddr);
 	}
 

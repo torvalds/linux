@@ -51,11 +51,6 @@ struct amdgpu_dm_irq_handler_data {
 	enum dc_irq_source irq_source;
 };
 
-struct amdgpu_dm_timer_handler_data {
-	struct handler_common_data hcd;
-	struct delayed_work d_work;
-};
-
 #define DM_IRQ_TABLE_LOCK(adev, flags) \
 	spin_lock_irqsave(&adev->dm.irq_handler_list_table_lock, flags)
 
@@ -167,62 +162,6 @@ static struct list_head *remove_irq_handler(struct amdgpu_device *adev,
 		ih, int_params->irq_source, int_params->int_context);
 
 	return hnd_list;
-}
-
-/* If 'handler_in == NULL' then remove ALL handlers. */
-static void remove_timer_handler(struct amdgpu_device *adev,
-				 struct amdgpu_dm_timer_handler_data *handler_in)
-{
-	struct amdgpu_dm_timer_handler_data *handler_temp;
-	struct list_head *handler_list;
-	struct list_head *entry, *tmp;
-	unsigned long irq_table_flags;
-	bool handler_removed = false;
-
-	DM_IRQ_TABLE_LOCK(adev, irq_table_flags);
-
-	handler_list = &adev->dm.timer_handler_list;
-
-	list_for_each_safe(entry, tmp, handler_list) {
-		/* Note that list_for_each_safe() guarantees that
-		 * handler_temp is NOT null. */
-		handler_temp = list_entry(entry,
-				struct amdgpu_dm_timer_handler_data, hcd.list);
-
-		if (handler_in == NULL || handler_in == handler_temp) {
-			list_del(&handler_temp->hcd.list);
-			DM_IRQ_TABLE_UNLOCK(adev, irq_table_flags);
-
-			DRM_DEBUG_KMS("DM_IRQ: removing timer handler: %p\n",
-					handler_temp);
-
-			if (handler_in == NULL) {
-				/* Since it is still in the queue, it must
-				 * be cancelled. */
-				cancel_delayed_work_sync(&handler_temp->d_work);
-			}
-
-			kfree(handler_temp);
-			handler_removed = true;
-
-			DM_IRQ_TABLE_LOCK(adev, irq_table_flags);
-		}
-
-		/* Remove ALL handlers. */
-		if (handler_in == NULL)
-			continue;
-
-		/* Remove a SPECIFIC handler.
-		 * Found our handler - we can stop here. */
-		if (handler_in == handler_temp)
-			break;
-	}
-
-	DM_IRQ_TABLE_UNLOCK(adev, irq_table_flags);
-
-	if (handler_in != NULL && handler_removed == false)
-		DRM_ERROR("DM_IRQ: handler: %p is not in the list!\n",
-				handler_in);
 }
 
 static bool
@@ -382,16 +321,6 @@ int amdgpu_dm_irq_init(struct amdgpu_device *adev)
 		INIT_LIST_HEAD(&adev->dm.irq_handler_list_high_tab[src]);
 	}
 
-	INIT_LIST_HEAD(&adev->dm.timer_handler_list);
-
-	/* allocate and initialize the workqueue for DM timer */
-	adev->dm.timer_workqueue = create_singlethread_workqueue(
-			"dm_timer_queue");
-	if (adev->dm.timer_workqueue == NULL) {
-		DRM_ERROR("DM_IRQ: unable to create timer queue!\n");
-		return -1;
-	}
-
 	return 0;
 }
 
@@ -410,11 +339,6 @@ void amdgpu_dm_irq_fini(struct amdgpu_device *adev)
 		lh = &adev->dm.irq_handler_list_low_tab[src];
 		flush_work(&lh->work);
 	}
-
-	/* Cancel ALL timers and release handlers (if any). */
-	remove_timer_handler(adev, NULL);
-	/* Release the queue itself. */
-	destroy_workqueue(adev->dm.timer_workqueue);
 }
 
 int amdgpu_dm_irq_suspend(struct amdgpu_device *adev)
@@ -683,10 +607,8 @@ static const struct amdgpu_irq_src_funcs dm_hpd_irq_funcs = {
 
 void amdgpu_dm_set_irq_funcs(struct amdgpu_device *adev)
 {
-	if (adev->mode_info.num_crtc > 0)
-		adev->crtc_irq.num_types = AMDGPU_CRTC_IRQ_VLINE1 + adev->mode_info.num_crtc;
-	else
-		adev->crtc_irq.num_types = 0;
+
+	adev->crtc_irq.num_types = adev->mode_info.num_crtc;
 	adev->crtc_irq.funcs = &dm_crtc_irq_funcs;
 
 	adev->pageflip_irq.num_types = adev->mode_info.num_crtc;

@@ -439,7 +439,7 @@ static void ksz_disable_port(struct dsa_switch *ds, int port,
 	ksz_port_cfg(dev, port, REG_PORT_CTRL_0, PORT_MAC_LOOPBACK, true);
 }
 
-static int ksz_sset_count(struct dsa_switch *ds)
+static int ksz_sset_count(struct dsa_switch *ds, int port)
 {
 	return TOTAL_SWITCH_COUNTER_NUM;
 }

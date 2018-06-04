@@ -7,6 +7,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
 #include <linux/kernel.h>
@@ -97,9 +98,35 @@ out_unknown:
 	dev_dbg(&device->dev, "unknown event index 0x%x\n", event);
 }
 
+static void detect_tablet_mode(struct platform_device *device)
+{
+	const char *chassis_type = dmi_get_system_info(DMI_CHASSIS_TYPE);
+	struct intel_vbtn_priv *priv = dev_get_drvdata(&device->dev);
+	acpi_handle handle = ACPI_HANDLE(&device->dev);
+	struct acpi_buffer vgbs_output = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj;
+	acpi_status status;
+	int m;
+
+	if (!(chassis_type && strcmp(chassis_type, "31") == 0))
+		goto out;
+
+	status = acpi_evaluate_object(handle, "VGBS", NULL, &vgbs_output);
+	if (ACPI_FAILURE(status))
+		goto out;
+
+	obj = vgbs_output.pointer;
+	if (!(obj && obj->type == ACPI_TYPE_INTEGER))
+		goto out;
+
+	m = !(obj->integer.value & TABLET_MODE_FLAG);
+	input_report_switch(priv->input_dev, SW_TABLET_MODE, m);
+out:
+	kfree(vgbs_output.pointer);
+}
+
 static int intel_vbtn_probe(struct platform_device *device)
 {
-	struct acpi_buffer vgbs_output = { ACPI_ALLOCATE_BUFFER, NULL };
 	acpi_handle handle = ACPI_HANDLE(&device->dev);
 	struct intel_vbtn_priv *priv;
 	acpi_status status;
@@ -122,22 +149,7 @@ static int intel_vbtn_probe(struct platform_device *device)
 		return err;
 	}
 
-	/*
-	 * VGBS being present and returning something means we have
-	 * a tablet mode switch.
-	 */
-	status = acpi_evaluate_object(handle, "VGBS", NULL, &vgbs_output);
-	if (ACPI_SUCCESS(status)) {
-		union acpi_object *obj = vgbs_output.pointer;
-
-		if (obj && obj->type == ACPI_TYPE_INTEGER) {
-			int m = !(obj->integer.value & TABLET_MODE_FLAG);
-
-			input_report_switch(priv->input_dev, SW_TABLET_MODE, m);
-		}
-	}
-
-	kfree(vgbs_output.pointer);
+	detect_tablet_mode(device);
 
 	status = acpi_install_notify_handler(handle,
 					     ACPI_DEVICE_NOTIFY,
@@ -154,6 +166,7 @@ static int intel_vbtn_remove(struct platform_device *device)
 {
 	acpi_handle handle = ACPI_HANDLE(&device->dev);
 
+	device_init_wakeup(&device->dev, false);
 	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY, notify_handler);
 
 	/*

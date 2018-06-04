@@ -109,6 +109,14 @@
 #define ASIC_REV_IS_STONEY(rev) \
 	((rev >= STONEY_A0) && (rev < CZ_UNKNOWN))
 
+/* DCE12 */
+
+#define AI_GREENLAND_P_A0 1
+#define AI_GREENLAND_P_A1 2
+
+#define ASICREV_IS_GREENLAND_M(eChipRev)  (eChipRev < AI_UNKNOWN)
+#define ASICREV_IS_GREENLAND_P(eChipRev)  (eChipRev < AI_UNKNOWN)
+
 /* DCN1_0 */
 #define INTERNAL_REV_RAVEN_A0             0x00    /* First spin of Raven */
 #define RAVEN_A0 0x01

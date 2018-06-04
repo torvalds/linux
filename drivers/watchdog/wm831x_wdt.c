@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Watchdog driver for the wm831x PMICs
  *
  * Copyright (C) 2009 Wolfson Microelectronics
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation
  */
 
 #include <linux/module.h>

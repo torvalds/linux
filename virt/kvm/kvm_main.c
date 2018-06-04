@@ -969,8 +969,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		/* Check for overlaps */
 		r = -EEXIST;
 		kvm_for_each_memslot(slot, __kvm_memslots(kvm, as_id)) {
-			if ((slot->id >= KVM_USER_MEM_SLOTS) ||
-			    (slot->id == id))
+			if (slot->id == id)
 				continue;
 			if (!((base_gfn + npages <= slot->base_gfn) ||
 			      (base_gfn >= slot->base_gfn + slot->npages)))
@@ -3399,21 +3398,6 @@ static int kvm_io_bus_sort_cmp(const void *p1, const void *p2)
 	return kvm_io_bus_cmp(p1, p2);
 }
 
-static int kvm_io_bus_insert_dev(struct kvm_io_bus *bus, struct kvm_io_device *dev,
-			  gpa_t addr, int len)
-{
-	bus->range[bus->dev_count++] = (struct kvm_io_range) {
-		.addr = addr,
-		.len = len,
-		.dev = dev,
-	};
-
-	sort(bus->range, bus->dev_count, sizeof(struct kvm_io_range),
-		kvm_io_bus_sort_cmp, NULL);
-
-	return 0;
-}
-
 static int kvm_io_bus_get_first_dev(struct kvm_io_bus *bus,
 			     gpa_t addr, int len)
 {
@@ -3554,7 +3538,9 @@ int kvm_io_bus_read(struct kvm_vcpu *vcpu, enum kvm_bus bus_idx, gpa_t addr,
 int kvm_io_bus_register_dev(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
 			    int len, struct kvm_io_device *dev)
 {
+	int i;
 	struct kvm_io_bus *new_bus, *bus;
+	struct kvm_io_range range;
 
 	bus = kvm_get_bus(kvm, bus_idx);
 	if (!bus)
@@ -3568,9 +3554,22 @@ int kvm_io_bus_register_dev(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
 			  sizeof(struct kvm_io_range)), GFP_KERNEL);
 	if (!new_bus)
 		return -ENOMEM;
-	memcpy(new_bus, bus, sizeof(*bus) + (bus->dev_count *
-	       sizeof(struct kvm_io_range)));
-	kvm_io_bus_insert_dev(new_bus, dev, addr, len);
+
+	range = (struct kvm_io_range) {
+		.addr = addr,
+		.len = len,
+		.dev = dev,
+	};
+
+	for (i = 0; i < bus->dev_count; i++)
+		if (kvm_io_bus_cmp(&bus->range[i], &range) > 0)
+			break;
+
+	memcpy(new_bus, bus, sizeof(*bus) + i * sizeof(struct kvm_io_range));
+	new_bus->dev_count++;
+	new_bus->range[i] = range;
+	memcpy(new_bus->range + i + 1, bus->range + i,
+		(bus->dev_count - i) * sizeof(struct kvm_io_range));
 	rcu_assign_pointer(kvm->buses[bus_idx], new_bus);
 	synchronize_srcu_expedited(&kvm->srcu);
 	kfree(bus);

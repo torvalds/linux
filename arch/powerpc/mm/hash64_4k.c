@@ -55,7 +55,7 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 	 * need to add in 0x1 if it's a read-only user page
 	 */
 	rflags = htab_convert_pte_flags(new_pte);
-	rpte = __real_pte(__pte(old_pte), ptep);
+	rpte = __real_pte(__pte(old_pte), ptep, PTRS_PER_PTE);
 
 	if (cpu_has_feature(CPU_FTR_NOEXECUTE) &&
 	    !cpu_has_feature(CPU_FTR_COHERENT_ICACHE))
@@ -117,7 +117,7 @@ repeat:
 			return -1;
 		}
 		new_pte = (new_pte & ~_PAGE_HPTEFLAGS) | H_PAGE_HASHPTE;
-		new_pte |= pte_set_hidx(ptep, rpte, 0, slot);
+		new_pte |= pte_set_hidx(ptep, rpte, 0, slot, PTRS_PER_PTE);
 	}
 	*ptep = __pte(new_pte & ~H_PAGE_BUSY);
 	return 0;

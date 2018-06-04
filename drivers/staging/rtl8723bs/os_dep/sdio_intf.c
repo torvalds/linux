@@ -337,7 +337,7 @@ static struct adapter *rtw_sdio_if1_init(struct dvobj_priv *dvobj, const struct 
 	struct adapter *padapter = NULL;
 	PSDIO_DATA psdio = &dvobj->intf_data;
 
-	padapter = (struct adapter *)vzalloc(sizeof(*padapter));
+	padapter = vzalloc(sizeof(*padapter));
 	if (padapter == NULL) {
 		goto exit;
 	}

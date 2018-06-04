@@ -212,6 +212,32 @@ struct dmx_stc {
 };
 
 /**
+ * enum dmx_buffer_flags - DMX memory-mapped buffer flags
+ *
+ * @DMX_BUFFER_FLAG_HAD_CRC32_DISCARD:
+ *	Indicates that the Kernel discarded one or more frames due to wrong
+ *	CRC32 checksum.
+ * @DMX_BUFFER_FLAG_TEI:
+ *	Indicates that the Kernel has detected a Transport Error indicator
+ *	(TEI) on a filtered pid.
+ * @DMX_BUFFER_PKT_COUNTER_MISMATCH:
+ *	Indicates that the Kernel has detected a packet counter mismatch
+ *	on a filtered pid.
+ * @DMX_BUFFER_FLAG_DISCONTINUITY_DETECTED:
+ *	Indicates that the Kernel has detected one or more frame discontinuity.
+ * @DMX_BUFFER_FLAG_DISCONTINUITY_INDICATOR:
+ *	Received at least one packet with a frame discontinuity indicator.
+ */
+
+enum dmx_buffer_flags {
+	DMX_BUFFER_FLAG_HAD_CRC32_DISCARD		= 1 << 0,
+	DMX_BUFFER_FLAG_TEI				= 1 << 1,
+	DMX_BUFFER_PKT_COUNTER_MISMATCH			= 1 << 2,
+	DMX_BUFFER_FLAG_DISCONTINUITY_DETECTED		= 1 << 3,
+	DMX_BUFFER_FLAG_DISCONTINUITY_INDICATOR		= 1 << 4,
+};
+
+/**
  * struct dmx_buffer - dmx buffer info
  *
  * @index:	id number of the buffer
@@ -220,15 +246,24 @@ struct dmx_stc {
  *		offset from the start of the device memory for this plane,
  *		(or a "cookie" that should be passed to mmap() as offset)
  * @length:	size in bytes of the buffer
+ * @flags:	bit array of buffer flags as defined by &enum dmx_buffer_flags.
+ *		Filled only at &DMX_DQBUF.
+ * @count:	monotonic counter for filled buffers. Helps to identify
+ *		data stream loses. Filled only at &DMX_DQBUF.
  *
  * Contains data exchanged by application and driver using one of the streaming
  * I/O methods.
+ *
+ * Please notice that, for &DMX_QBUF, only @index should be filled.
+ * On &DMX_DQBUF calls, all fields will be filled by the Kernel.
  */
 struct dmx_buffer {
 	__u32			index;
 	__u32			bytesused;
 	__u32			offset;
 	__u32			length;
+	__u32			flags;
+	__u32			count;
 };
 
 /**

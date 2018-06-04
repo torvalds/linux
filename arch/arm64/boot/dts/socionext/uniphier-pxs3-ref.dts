@@ -1,11 +1,9 @@
-/*
- * Device Tree Source for UniPhier PXs3 Reference Board
- *
- * Copyright (C) 2017 Socionext Inc.
- *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
- *
- * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
- */
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+//
+// Device Tree Source for UniPhier PXs3 Reference Board
+//
+// Copyright (C) 2017 Socionext Inc.
+//   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
 
 /dts-v1/;
 #include "uniphier-pxs3.dtsi"
@@ -75,6 +73,28 @@
 
 &i2c3 {
 	status = "okay";
+};
+
+&eth0 {
+	status = "okay";
+	phy-handle = <&ethphy0>;
+};
+
+&mdio0 {
+	ethphy0: ethphy@0 {
+		reg = <0>;
+	};
+};
+
+&eth1 {
+	status = "okay";
+	phy-handle = <&ethphy1>;
+};
+
+&mdio1 {
+	ethphy1: ethphy@0 {
+		reg = <0>;
+	};
 };
 
 &nand {

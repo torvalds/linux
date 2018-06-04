@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -121,7 +121,7 @@ static void rmnet_get_stats64(struct net_device *dev,
 	memset(&total_stats, 0, sizeof(struct rmnet_vnd_stats));
 
 	for_each_possible_cpu(cpu) {
-		pcpu_ptr = this_cpu_ptr(priv->pcpu_stats);
+		pcpu_ptr = per_cpu_ptr(priv->pcpu_stats, cpu);
 
 		do {
 			start = u64_stats_fetch_begin_irq(&pcpu_ptr->syncp);

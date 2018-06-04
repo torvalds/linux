@@ -111,8 +111,8 @@ struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 	struct gpio_desc *desc;
 	int ret;
 
-	ret = of_parse_phandle_with_args(np, propname, "#gpio-cells", index,
-					 &gpiospec);
+	ret = of_parse_phandle_with_args_map(np, propname, "gpio", index,
+					     &gpiospec);
 	if (ret) {
 		pr_debug("%s: can't parse '%s' property of node '%pOF[%d]'\n",
 			__func__, propname, np, index);
@@ -241,6 +241,19 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 
 		desc = of_get_named_gpiod_flags(dev->of_node, prop_name, idx,
 						&of_flags);
+		/*
+		 * -EPROBE_DEFER in our case means that we found a
+		 * valid GPIO property, but no controller has been
+		 * registered so far.
+		 *
+		 * This means we don't need to look any further for
+		 * alternate name conventions, and we should really
+		 * preserve the return code for our user to be able to
+		 * retry probing later.
+		 */
+		if (IS_ERR(desc) && PTR_ERR(desc) == -EPROBE_DEFER)
+			return desc;
+
 		if (!IS_ERR(desc) || (PTR_ERR(desc) != -ENOENT))
 			break;
 	}
@@ -250,7 +263,7 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 		desc = of_find_spi_gpio(dev, con_id, &of_flags);
 
 	/* Special handling for regulator GPIOs if used */
-	if (IS_ERR(desc))
+	if (IS_ERR(desc) && PTR_ERR(desc) != -EPROBE_DEFER)
 		desc = of_find_regulator_gpio(dev, con_id, &of_flags);
 
 	if (IS_ERR(desc))
@@ -498,6 +511,28 @@ void of_mm_gpiochip_remove(struct of_mm_gpio_chip *mm_gc)
 }
 EXPORT_SYMBOL(of_mm_gpiochip_remove);
 
+static void of_gpiochip_init_valid_mask(struct gpio_chip *chip)
+{
+	int len, i;
+	u32 start, count;
+	struct device_node *np = chip->of_node;
+
+	len = of_property_count_u32_elems(np,  "gpio-reserved-ranges");
+	if (len < 0 || len % 2 != 0)
+		return;
+
+	for (i = 0; i < len; i += 2) {
+		of_property_read_u32_index(np, "gpio-reserved-ranges",
+					   i, &start);
+		of_property_read_u32_index(np, "gpio-reserved-ranges",
+					   i + 1, &count);
+		if (start >= chip->ngpio || start + count >= chip->ngpio)
+			continue;
+
+		bitmap_clear(chip->valid_mask, start, count);
+	}
+};
+
 #ifdef CONFIG_PINCTRL
 static int of_gpiochip_add_pin_range(struct gpio_chip *chip)
 {
@@ -601,6 +636,8 @@ int of_gpiochip_add(struct gpio_chip *chip)
 
 	if (chip->of_gpio_n_cells > MAX_PHANDLE_ARGS)
 		return -EINVAL;
+
+	of_gpiochip_init_valid_mask(chip);
 
 	status = of_gpiochip_add_pin_range(chip);
 	if (status)

@@ -57,7 +57,7 @@ volatile int gotsig;
 
 void sighandler(int sig, siginfo_t *info, void *ctx)
 {
-	struct ucontext *ucp = ctx;
+	ucontext_t *ucp = ctx;
 
 	if (!testing) {
 		signal(sig, SIG_DFL);

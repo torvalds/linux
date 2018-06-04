@@ -200,7 +200,7 @@ struct i915_execbuffer {
 	struct i915_gem_context *ctx; /** context for building the request */
 	struct i915_address_space *vm; /** GTT and vma for the request */
 
-	struct drm_i915_gem_request *request; /** our request to build */
+	struct i915_request *request; /** our request to build */
 	struct i915_vma *batch; /** identity of the batch obj/vma */
 
 	/** actual size of execobj[] as we may extend it for the cmdparser */
@@ -227,7 +227,7 @@ struct i915_execbuffer {
 		bool has_fence : 1;
 		bool needs_unfenced : 1;
 
-		struct drm_i915_gem_request *rq;
+		struct i915_request *rq;
 		u32 *rq_cmd;
 		unsigned int rq_size;
 	} reloc_cache;
@@ -505,6 +505,8 @@ eb_add_vma(struct i915_execbuffer *eb, unsigned int i, struct i915_vma *vma)
 		list_add_tail(&vma->exec_link, &eb->unbound);
 		if (drm_mm_node_allocated(&vma->node))
 			err = i915_vma_unbind(vma);
+		if (unlikely(err))
+			vma->exec_flags = NULL;
 	}
 	return err;
 }
@@ -884,7 +886,7 @@ static void reloc_gpu_flush(struct reloc_cache *cache)
 	i915_gem_object_unpin_map(cache->rq->batch->obj);
 	i915_gem_chipset_flush(cache->rq->i915);
 
-	__i915_add_request(cache->rq, true);
+	__i915_request_add(cache->rq, true);
 	cache->rq = NULL;
 }
 
@@ -1068,12 +1070,12 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 {
 	struct reloc_cache *cache = &eb->reloc_cache;
 	struct drm_i915_gem_object *obj;
-	struct drm_i915_gem_request *rq;
+	struct i915_request *rq;
 	struct i915_vma *batch;
 	u32 *cmd;
 	int err;
 
-	GEM_BUG_ON(vma->obj->base.write_domain & I915_GEM_DOMAIN_CPU);
+	GEM_BUG_ON(vma->obj->write_domain & I915_GEM_DOMAIN_CPU);
 
 	obj = i915_gem_batch_pool_get(&eb->engine->batch_pool, PAGE_SIZE);
 	if (IS_ERR(obj))
@@ -1101,13 +1103,13 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	if (err)
 		goto err_unmap;
 
-	rq = i915_gem_request_alloc(eb->engine, eb->ctx);
+	rq = i915_request_alloc(eb->engine, eb->ctx);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_unpin;
 	}
 
-	err = i915_gem_request_await_object(rq, vma->obj, true);
+	err = i915_request_await_object(rq, vma->obj, true);
 	if (err)
 		goto err_request;
 
@@ -1139,7 +1141,7 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	return 0;
 
 err_request:
-	i915_add_request(rq);
+	i915_request_add(rq);
 err_unpin:
 	i915_vma_unpin(batch);
 err_unmap:
@@ -1725,7 +1727,7 @@ slow:
 }
 
 static void eb_export_fence(struct i915_vma *vma,
-			    struct drm_i915_gem_request *req,
+			    struct i915_request *rq,
 			    unsigned int flags)
 {
 	struct reservation_object *resv = vma->resv;
@@ -1737,9 +1739,9 @@ static void eb_export_fence(struct i915_vma *vma,
 	 */
 	reservation_object_lock(resv, NULL);
 	if (flags & EXEC_OBJECT_WRITE)
-		reservation_object_add_excl_fence(resv, &req->fence);
+		reservation_object_add_excl_fence(resv, &rq->fence);
 	else if (reservation_object_reserve_shared(resv) == 0)
-		reservation_object_add_shared_fence(resv, &req->fence);
+		reservation_object_add_shared_fence(resv, &rq->fence);
 	reservation_object_unlock(resv);
 }
 
@@ -1755,7 +1757,7 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 		struct drm_i915_gem_object *obj = vma->obj;
 
 		if (flags & EXEC_OBJECT_CAPTURE) {
-			struct i915_gem_capture_list *capture;
+			struct i915_capture_list *capture;
 
 			capture = kmalloc(sizeof(*capture), GFP_KERNEL);
 			if (unlikely(!capture))
@@ -1786,7 +1788,7 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 		if (flags & EXEC_OBJECT_ASYNC)
 			continue;
 
-		err = i915_gem_request_await_object
+		err = i915_request_await_object
 			(eb->request, obj, flags & EXEC_OBJECT_WRITE);
 		if (err)
 			return err;
@@ -1838,13 +1840,13 @@ static bool i915_gem_check_execbuffer(struct drm_i915_gem_execbuffer2 *exec)
 }
 
 void i915_vma_move_to_active(struct i915_vma *vma,
-			     struct drm_i915_gem_request *req,
+			     struct i915_request *rq,
 			     unsigned int flags)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
-	const unsigned int idx = req->engine->id;
+	const unsigned int idx = rq->engine->id;
 
-	lockdep_assert_held(&req->i915->drm.struct_mutex);
+	lockdep_assert_held(&rq->i915->drm.struct_mutex);
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 
 	/*
@@ -1858,35 +1860,35 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 	if (!i915_vma_is_active(vma))
 		obj->active_count++;
 	i915_vma_set_active(vma, idx);
-	i915_gem_active_set(&vma->last_read[idx], req);
+	i915_gem_active_set(&vma->last_read[idx], rq);
 	list_move_tail(&vma->vm_link, &vma->vm->active_list);
 
-	obj->base.write_domain = 0;
+	obj->write_domain = 0;
 	if (flags & EXEC_OBJECT_WRITE) {
-		obj->base.write_domain = I915_GEM_DOMAIN_RENDER;
+		obj->write_domain = I915_GEM_DOMAIN_RENDER;
 
 		if (intel_fb_obj_invalidate(obj, ORIGIN_CS))
-			i915_gem_active_set(&obj->frontbuffer_write, req);
+			i915_gem_active_set(&obj->frontbuffer_write, rq);
 
-		obj->base.read_domains = 0;
+		obj->read_domains = 0;
 	}
-	obj->base.read_domains |= I915_GEM_GPU_DOMAINS;
+	obj->read_domains |= I915_GEM_GPU_DOMAINS;
 
 	if (flags & EXEC_OBJECT_NEEDS_FENCE)
-		i915_gem_active_set(&vma->last_fence, req);
+		i915_gem_active_set(&vma->last_fence, rq);
 }
 
-static int i915_reset_gen7_sol_offsets(struct drm_i915_gem_request *req)
+static int i915_reset_gen7_sol_offsets(struct i915_request *rq)
 {
 	u32 *cs;
 	int i;
 
-	if (!IS_GEN7(req->i915) || req->engine->id != RCS) {
+	if (!IS_GEN7(rq->i915) || rq->engine->id != RCS) {
 		DRM_DEBUG("sol reset is gen7/rcs only\n");
 		return -EINVAL;
 	}
 
-	cs = intel_ring_begin(req, 4 * 2 + 2);
+	cs = intel_ring_begin(rq, 4 * 2 + 2);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
@@ -1896,7 +1898,7 @@ static int i915_reset_gen7_sol_offsets(struct drm_i915_gem_request *req)
 		*cs++ = 0;
 	}
 	*cs++ = MI_NOOP;
-	intel_ring_advance(req, cs);
+	intel_ring_advance(rq, cs);
 
 	return 0;
 }
@@ -1942,10 +1944,10 @@ out:
 }
 
 static void
-add_to_client(struct drm_i915_gem_request *req, struct drm_file *file)
+add_to_client(struct i915_request *rq, struct drm_file *file)
 {
-	req->file_priv = file->driver_priv;
-	list_add_tail(&req->client_link, &req->file_priv->mm.request_list);
+	rq->file_priv = file->driver_priv;
+	list_add_tail(&rq->client_link, &rq->file_priv->mm.request_list);
 }
 
 static int eb_submit(struct i915_execbuffer *eb)
@@ -1973,7 +1975,7 @@ static int eb_submit(struct i915_execbuffer *eb)
 	return 0;
 }
 
-/**
+/*
  * Find one BSD ring to dispatch the corresponding BSD command.
  * The engine index is returned.
  */
@@ -2149,7 +2151,7 @@ await_fence_array(struct i915_execbuffer *eb,
 		if (!fence)
 			return -EINVAL;
 
-		err = i915_gem_request_await_dma_fence(eb->request, fence);
+		err = i915_request_await_dma_fence(eb->request, fence);
 		dma_fence_put(fence);
 		if (err < 0)
 			return err;
@@ -2363,14 +2365,14 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	GEM_BUG_ON(eb.reloc_cache.rq);
 
 	/* Allocate a request for this batch buffer nice and early. */
-	eb.request = i915_gem_request_alloc(eb.engine, eb.ctx);
+	eb.request = i915_request_alloc(eb.engine, eb.ctx);
 	if (IS_ERR(eb.request)) {
 		err = PTR_ERR(eb.request);
 		goto err_batch_unpin;
 	}
 
 	if (in_fence) {
-		err = i915_gem_request_await_dma_fence(eb.request, in_fence);
+		err = i915_request_await_dma_fence(eb.request, in_fence);
 		if (err < 0)
 			goto err_request;
 	}
@@ -2398,10 +2400,10 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	 */
 	eb.request->batch = eb.batch;
 
-	trace_i915_gem_request_queue(eb.request, eb.batch_flags);
+	trace_i915_request_queue(eb.request, eb.batch_flags);
 	err = eb_submit(&eb);
 err_request:
-	__i915_add_request(eb.request, err == 0);
+	__i915_request_add(eb.request, err == 0);
 	add_to_client(eb.request, file);
 
 	if (fences)
@@ -2410,7 +2412,7 @@ err_request:
 	if (out_fence) {
 		if (err == 0) {
 			fd_install(out_fence_fd, out_fence->file);
-			args->rsvd2 &= GENMASK_ULL(0, 31); /* keep in-fence */
+			args->rsvd2 &= GENMASK_ULL(31, 0); /* keep in-fence */
 			args->rsvd2 |= (u64)out_fence_fd << 32;
 			out_fence_fd = -1;
 		} else {
@@ -2463,8 +2465,8 @@ static bool check_buffer_count(size_t count)
  * list array and passes it to the real function.
  */
 int
-i915_gem_execbuffer(struct drm_device *dev, void *data,
-		    struct drm_file *file)
+i915_gem_execbuffer_ioctl(struct drm_device *dev, void *data,
+			  struct drm_file *file)
 {
 	struct drm_i915_gem_execbuffer *args = data;
 	struct drm_i915_gem_execbuffer2 exec2;
@@ -2554,8 +2556,8 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 }
 
 int
-i915_gem_execbuffer2(struct drm_device *dev, void *data,
-		     struct drm_file *file)
+i915_gem_execbuffer2_ioctl(struct drm_device *dev, void *data,
+			   struct drm_file *file)
 {
 	struct drm_i915_gem_execbuffer2 *args = data;
 	struct drm_i915_gem_exec_object2 *exec2_list;

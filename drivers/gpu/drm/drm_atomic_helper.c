@@ -699,7 +699,6 @@ EXPORT_SYMBOL(drm_atomic_helper_check_modeset);
  * drm_atomic_helper_check_plane_state() - Check plane state for validity
  * @plane_state: plane state to check
  * @crtc_state: crtc state to check
- * @clip: integer clipping coordinates
  * @min_scale: minimum @src:@dest scaling factor in 16.16 fixed point
  * @max_scale: maximum @src:@dest scaling factor in 16.16 fixed point
  * @can_position: is it legal to position the plane such that it
@@ -719,7 +718,6 @@ EXPORT_SYMBOL(drm_atomic_helper_check_modeset);
  */
 int drm_atomic_helper_check_plane_state(struct drm_plane_state *plane_state,
 					const struct drm_crtc_state *crtc_state,
-					const struct drm_rect *clip,
 					int min_scale,
 					int max_scale,
 					bool can_position,
@@ -729,6 +727,7 @@ int drm_atomic_helper_check_plane_state(struct drm_plane_state *plane_state,
 	struct drm_rect *src = &plane_state->src;
 	struct drm_rect *dst = &plane_state->dst;
 	unsigned int rotation = plane_state->rotation;
+	struct drm_rect clip = {};
 	int hscale, vscale;
 
 	WARN_ON(plane_state->crtc && plane_state->crtc != crtc_state->crtc);
@@ -764,7 +763,10 @@ int drm_atomic_helper_check_plane_state(struct drm_plane_state *plane_state,
 		return -ERANGE;
 	}
 
-	plane_state->visible = drm_rect_clip_scaled(src, dst, clip, hscale, vscale);
+	if (crtc_state->enable)
+		drm_mode_get_hv_timing(&crtc_state->mode, &clip.x2, &clip.y2);
+
+	plane_state->visible = drm_rect_clip_scaled(src, dst, &clip, hscale, vscale);
 
 	drm_rect_rotate_inv(src, fb->width << 16, fb->height << 16, rotation);
 
@@ -778,10 +780,10 @@ int drm_atomic_helper_check_plane_state(struct drm_plane_state *plane_state,
 		 */
 		return 0;
 
-	if (!can_position && !drm_rect_equals(dst, clip)) {
+	if (!can_position && !drm_rect_equals(dst, &clip)) {
 		DRM_DEBUG_KMS("Plane must cover entire CRTC\n");
 		drm_rect_debug_print("dst: ", dst, false);
-		drm_rect_debug_print("clip: ", clip, false);
+		drm_rect_debug_print("clip: ", &clip, false);
 		return -EINVAL;
 	}
 
@@ -1878,6 +1880,8 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 		new_crtc_state->event->base.completion = &commit->flip_done;
 		new_crtc_state->event->base.completion_release = release_crtc_commit;
 		drm_crtc_commit_get(commit);
+
+		commit->abort_completion = true;
 	}
 
 	for_each_oldnew_connector_in_state(state, conn, old_conn_state, new_conn_state, i) {
@@ -3421,8 +3425,21 @@ EXPORT_SYMBOL(drm_atomic_helper_crtc_duplicate_state);
 void __drm_atomic_helper_crtc_destroy_state(struct drm_crtc_state *state)
 {
 	if (state->commit) {
+		/*
+		 * In the event that a non-blocking commit returns
+		 * -ERESTARTSYS before the commit_tail work is queued, we will
+		 * have an extra reference to the commit object. Release it, if
+		 * the event has not been consumed by the worker.
+		 *
+		 * state->event may be freed, so we can't directly look at
+		 * state->event->base.completion.
+		 */
+		if (state->event && state->commit->abort_completion)
+			drm_crtc_commit_put(state->commit);
+
 		kfree(state->commit->event);
 		state->commit->event = NULL;
+
 		drm_crtc_commit_put(state->commit);
 	}
 
@@ -3801,7 +3818,7 @@ int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
 	}
 
 	/* Prepare GAMMA_LUT with the legacy values. */
-	blob_data = (struct drm_color_lut *) blob->data;
+	blob_data = blob->data;
 	for (i = 0; i < size; i++) {
 		blob_data[i].red = red[i];
 		blob_data[i].green = green[i];

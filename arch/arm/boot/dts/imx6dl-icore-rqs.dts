@@ -42,7 +42,7 @@
 
 /dts-v1/;
 
-#include "imx6q.dtsi"
+#include "imx6dl.dtsi"
 #include "imx6qdl-icore-rqs.dtsi"
 
 / {

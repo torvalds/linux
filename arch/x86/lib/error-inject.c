@@ -7,6 +7,7 @@ asmlinkage void just_return_func(void);
 
 asm(
 	".type just_return_func, @function\n"
+	".globl just_return_func\n"
 	"just_return_func:\n"
 	"	ret\n"
 	".size just_return_func, .-just_return_func\n"

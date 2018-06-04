@@ -827,14 +827,67 @@ MODULE_PARM_DESC(rx_refill_threshold,
 
 #ifdef CONFIG_RFS_ACCEL
 
+/**
+ * struct efx_async_filter_insertion - Request to asynchronously insert a filter
+ * @net_dev: Reference to the netdevice
+ * @spec: The filter to insert
+ * @work: Workitem for this request
+ * @rxq_index: Identifies the channel for which this request was made
+ * @flow_id: Identifies the kernel-side flow for which this request was made
+ */
+struct efx_async_filter_insertion {
+	struct net_device *net_dev;
+	struct efx_filter_spec spec;
+	struct work_struct work;
+	u16 rxq_index;
+	u32 flow_id;
+};
+
+static void efx_filter_rfs_work(struct work_struct *data)
+{
+	struct efx_async_filter_insertion *req = container_of(data, struct efx_async_filter_insertion,
+							      work);
+	struct efx_nic *efx = netdev_priv(req->net_dev);
+	struct efx_channel *channel = efx_get_channel(efx, req->rxq_index);
+	int rc;
+
+	rc = efx->type->filter_insert(efx, &req->spec, false);
+	if (rc >= 0) {
+		/* Remember this so we can check whether to expire the filter
+		 * later.
+		 */
+		mutex_lock(&efx->rps_mutex);
+		channel->rps_flow_id[rc] = req->flow_id;
+		++channel->rfs_filters_added;
+		mutex_unlock(&efx->rps_mutex);
+
+		if (req->spec.ether_type == htons(ETH_P_IP))
+			netif_info(efx, rx_status, efx->net_dev,
+				   "steering %s %pI4:%u:%pI4:%u to queue %u [flow %u filter %d]\n",
+				   (req->spec.ip_proto == IPPROTO_TCP) ? "TCP" : "UDP",
+				   req->spec.rem_host, ntohs(req->spec.rem_port),
+				   req->spec.loc_host, ntohs(req->spec.loc_port),
+				   req->rxq_index, req->flow_id, rc);
+		else
+			netif_info(efx, rx_status, efx->net_dev,
+				   "steering %s [%pI6]:%u:[%pI6]:%u to queue %u [flow %u filter %d]\n",
+				   (req->spec.ip_proto == IPPROTO_TCP) ? "TCP" : "UDP",
+				   req->spec.rem_host, ntohs(req->spec.rem_port),
+				   req->spec.loc_host, ntohs(req->spec.loc_port),
+				   req->rxq_index, req->flow_id, rc);
+	}
+
+	/* Release references */
+	dev_put(req->net_dev);
+	kfree(req);
+}
+
 int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 		   u16 rxq_index, u32 flow_id)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	struct efx_channel *channel;
-	struct efx_filter_spec spec;
+	struct efx_async_filter_insertion *req;
 	struct flow_keys fk;
-	int rc;
 
 	if (flow_id == RPS_FLOW_ID_INVALID)
 		return -EINVAL;
@@ -847,50 +900,39 @@ int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 	if (fk.control.flags & FLOW_DIS_IS_FRAGMENT)
 		return -EPROTONOSUPPORT;
 
-	efx_filter_init_rx(&spec, EFX_FILTER_PRI_HINT,
+	req = kmalloc(sizeof(*req), GFP_ATOMIC);
+	if (!req)
+		return -ENOMEM;
+
+	efx_filter_init_rx(&req->spec, EFX_FILTER_PRI_HINT,
 			   efx->rx_scatter ? EFX_FILTER_FLAG_RX_SCATTER : 0,
 			   rxq_index);
-	spec.match_flags =
+	req->spec.match_flags =
 		EFX_FILTER_MATCH_ETHER_TYPE | EFX_FILTER_MATCH_IP_PROTO |
 		EFX_FILTER_MATCH_LOC_HOST | EFX_FILTER_MATCH_LOC_PORT |
 		EFX_FILTER_MATCH_REM_HOST | EFX_FILTER_MATCH_REM_PORT;
-	spec.ether_type = fk.basic.n_proto;
-	spec.ip_proto = fk.basic.ip_proto;
+	req->spec.ether_type = fk.basic.n_proto;
+	req->spec.ip_proto = fk.basic.ip_proto;
 
 	if (fk.basic.n_proto == htons(ETH_P_IP)) {
-		spec.rem_host[0] = fk.addrs.v4addrs.src;
-		spec.loc_host[0] = fk.addrs.v4addrs.dst;
+		req->spec.rem_host[0] = fk.addrs.v4addrs.src;
+		req->spec.loc_host[0] = fk.addrs.v4addrs.dst;
 	} else {
-		memcpy(spec.rem_host, &fk.addrs.v6addrs.src, sizeof(struct in6_addr));
-		memcpy(spec.loc_host, &fk.addrs.v6addrs.dst, sizeof(struct in6_addr));
+		memcpy(req->spec.rem_host, &fk.addrs.v6addrs.src,
+		       sizeof(struct in6_addr));
+		memcpy(req->spec.loc_host, &fk.addrs.v6addrs.dst,
+		       sizeof(struct in6_addr));
 	}
 
-	spec.rem_port = fk.ports.src;
-	spec.loc_port = fk.ports.dst;
+	req->spec.rem_port = fk.ports.src;
+	req->spec.loc_port = fk.ports.dst;
 
-	rc = efx->type->filter_rfs_insert(efx, &spec);
-	if (rc < 0)
-		return rc;
-
-	/* Remember this so we can check whether to expire the filter later */
-	channel = efx_get_channel(efx, rxq_index);
-	channel->rps_flow_id[rc] = flow_id;
-	++channel->rfs_filters_added;
-
-	if (spec.ether_type == htons(ETH_P_IP))
-		netif_info(efx, rx_status, efx->net_dev,
-			   "steering %s %pI4:%u:%pI4:%u to queue %u [flow %u filter %d]\n",
-			   (spec.ip_proto == IPPROTO_TCP) ? "TCP" : "UDP",
-			   spec.rem_host, ntohs(spec.rem_port), spec.loc_host,
-			   ntohs(spec.loc_port), rxq_index, flow_id, rc);
-	else
-		netif_info(efx, rx_status, efx->net_dev,
-			   "steering %s [%pI6]:%u:[%pI6]:%u to queue %u [flow %u filter %d]\n",
-			   (spec.ip_proto == IPPROTO_TCP) ? "TCP" : "UDP",
-			   spec.rem_host, ntohs(spec.rem_port), spec.loc_host,
-			   ntohs(spec.loc_port), rxq_index, flow_id, rc);
-
-	return rc;
+	dev_hold(req->net_dev = net_dev);
+	INIT_WORK(&req->work, efx_filter_rfs_work);
+	req->rxq_index = rxq_index;
+	req->flow_id = flow_id;
+	schedule_work(&req->work);
+	return 0;
 }
 
 bool __efx_filter_rfs_expire(struct efx_nic *efx, unsigned int quota)
@@ -899,9 +941,8 @@ bool __efx_filter_rfs_expire(struct efx_nic *efx, unsigned int quota)
 	unsigned int channel_idx, index, size;
 	u32 flow_id;
 
-	if (!spin_trylock_bh(&efx->filter_lock))
+	if (!mutex_trylock(&efx->rps_mutex))
 		return false;
-
 	expire_one = efx->type->filter_rfs_expire_one;
 	channel_idx = efx->rps_expire_channel;
 	index = efx->rps_expire_index;
@@ -926,7 +967,7 @@ bool __efx_filter_rfs_expire(struct efx_nic *efx, unsigned int quota)
 	efx->rps_expire_channel = channel_idx;
 	efx->rps_expire_index = index;
 
-	spin_unlock_bh(&efx->filter_lock);
+	mutex_unlock(&efx->rps_mutex);
 	return true;
 }
 

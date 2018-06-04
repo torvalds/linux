@@ -184,7 +184,8 @@ static int meson_gx_pwrc_vpu_probe(struct platform_device *pdev)
 
 	rstc = devm_reset_control_array_get(&pdev->dev, false, false);
 	if (IS_ERR(rstc)) {
-		dev_err(&pdev->dev, "failed to get reset lines\n");
+		if (PTR_ERR(rstc) != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "failed to get reset lines\n");
 		return PTR_ERR(rstc);
 	}
 
@@ -224,7 +225,11 @@ static int meson_gx_pwrc_vpu_probe(struct platform_device *pdev)
 
 static void meson_gx_pwrc_vpu_shutdown(struct platform_device *pdev)
 {
-	meson_gx_pwrc_vpu_power_off(&vpu_hdmi_pd.genpd);
+	bool powered_off;
+
+	powered_off = meson_gx_pwrc_vpu_get_power(&vpu_hdmi_pd);
+	if (!powered_off)
+		meson_gx_pwrc_vpu_power_off(&vpu_hdmi_pd.genpd);
 }
 
 static const struct of_device_id meson_gx_pwrc_vpu_match_table[] = {

@@ -17,6 +17,7 @@
 #include <sys/stat.h>
 #include <sys/utsname.h>
 #include <linux/time64.h>
+#include <dirent.h>
 
 #include "evlist.h"
 #include "evsel.h"
@@ -37,6 +38,7 @@
 #include "asm/bug.h"
 #include "tool.h"
 #include "time-utils.h"
+#include "units.h"
 
 #include "sane_ctype.h"
 
@@ -129,6 +131,25 @@ int do_write(struct feat_fd *ff, const void *buf, size_t size)
 	if (!ff->buf)
 		return __do_write_fd(ff, buf, size);
 	return __do_write_buf(ff, buf, size);
+}
+
+/* Return: 0 if succeded, -ERR if failed. */
+static int do_write_bitmap(struct feat_fd *ff, unsigned long *set, u64 size)
+{
+	u64 *p = (u64 *) set;
+	int i, ret;
+
+	ret = do_write(ff, &size, sizeof(size));
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; (u64) i < BITS_TO_U64(size); i++) {
+		ret = do_write(ff, p + i, sizeof(*p));
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
 }
 
 /* Return: 0 if succeded, -ERR if failed. */
@@ -241,6 +262,38 @@ static char *do_read_string(struct feat_fd *ff)
 
 	free(buf);
 	return NULL;
+}
+
+/* Return: 0 if succeded, -ERR if failed. */
+static int do_read_bitmap(struct feat_fd *ff, unsigned long **pset, u64 *psize)
+{
+	unsigned long *set;
+	u64 size, *p;
+	int i, ret;
+
+	ret = do_read_u64(ff, &size);
+	if (ret)
+		return ret;
+
+	set = bitmap_alloc(size);
+	if (!set)
+		return -ENOMEM;
+
+	bitmap_zero(set, size);
+
+	p = (u64 *) set;
+
+	for (i = 0; (u64) i < BITS_TO_U64(size); i++) {
+		ret = do_read_u64(ff, p + i);
+		if (ret < 0) {
+			free(set);
+			return ret;
+		}
+	}
+
+	*pset  = set;
+	*psize = size;
+	return 0;
 }
 
 static int write_tracing_data(struct feat_fd *ff,
@@ -1196,6 +1249,176 @@ static int write_sample_time(struct feat_fd *ff,
 			sizeof(evlist->last_sample_time));
 }
 
+
+static int memory_node__read(struct memory_node *n, unsigned long idx)
+{
+	unsigned int phys, size = 0;
+	char path[PATH_MAX];
+	struct dirent *ent;
+	DIR *dir;
+
+#define for_each_memory(mem, dir)					\
+	while ((ent = readdir(dir)))					\
+		if (strcmp(ent->d_name, ".") &&				\
+		    strcmp(ent->d_name, "..") &&			\
+		    sscanf(ent->d_name, "memory%u", &mem) == 1)
+
+	scnprintf(path, PATH_MAX,
+		  "%s/devices/system/node/node%lu",
+		  sysfs__mountpoint(), idx);
+
+	dir = opendir(path);
+	if (!dir) {
+		pr_warning("failed: cant' open memory sysfs data\n");
+		return -1;
+	}
+
+	for_each_memory(phys, dir) {
+		size = max(phys, size);
+	}
+
+	size++;
+
+	n->set = bitmap_alloc(size);
+	if (!n->set) {
+		closedir(dir);
+		return -ENOMEM;
+	}
+
+	bitmap_zero(n->set, size);
+	n->node = idx;
+	n->size = size;
+
+	rewinddir(dir);
+
+	for_each_memory(phys, dir) {
+		set_bit(phys, n->set);
+	}
+
+	closedir(dir);
+	return 0;
+}
+
+static int memory_node__sort(const void *a, const void *b)
+{
+	const struct memory_node *na = a;
+	const struct memory_node *nb = b;
+
+	return na->node - nb->node;
+}
+
+static int build_mem_topology(struct memory_node *nodes, u64 size, u64 *cntp)
+{
+	char path[PATH_MAX];
+	struct dirent *ent;
+	DIR *dir;
+	u64 cnt = 0;
+	int ret = 0;
+
+	scnprintf(path, PATH_MAX, "%s/devices/system/node/",
+		  sysfs__mountpoint());
+
+	dir = opendir(path);
+	if (!dir) {
+		pr_warning("failed: can't open node sysfs data\n");
+		return -1;
+	}
+
+	while (!ret && (ent = readdir(dir))) {
+		unsigned int idx;
+		int r;
+
+		if (!strcmp(ent->d_name, ".") ||
+		    !strcmp(ent->d_name, ".."))
+			continue;
+
+		r = sscanf(ent->d_name, "node%u", &idx);
+		if (r != 1)
+			continue;
+
+		if (WARN_ONCE(cnt >= size,
+			      "failed to write MEM_TOPOLOGY, way too many nodes\n"))
+			return -1;
+
+		ret = memory_node__read(&nodes[cnt++], idx);
+	}
+
+	*cntp = cnt;
+	closedir(dir);
+
+	if (!ret)
+		qsort(nodes, cnt, sizeof(nodes[0]), memory_node__sort);
+
+	return ret;
+}
+
+#define MAX_MEMORY_NODES 2000
+
+/*
+ * The MEM_TOPOLOGY holds physical memory map for every
+ * node in system. The format of data is as follows:
+ *
+ *  0 - version          | for future changes
+ *  8 - block_size_bytes | /sys/devices/system/memory/block_size_bytes
+ * 16 - count            | number of nodes
+ *
+ * For each node we store map of physical indexes for
+ * each node:
+ *
+ * 32 - node id          | node index
+ * 40 - size             | size of bitmap
+ * 48 - bitmap           | bitmap of memory indexes that belongs to node
+ */
+static int write_mem_topology(struct feat_fd *ff __maybe_unused,
+			      struct perf_evlist *evlist __maybe_unused)
+{
+	static struct memory_node nodes[MAX_MEMORY_NODES];
+	u64 bsize, version = 1, i, nr;
+	int ret;
+
+	ret = sysfs__read_xll("devices/system/memory/block_size_bytes",
+			      (unsigned long long *) &bsize);
+	if (ret)
+		return ret;
+
+	ret = build_mem_topology(&nodes[0], MAX_MEMORY_NODES, &nr);
+	if (ret)
+		return ret;
+
+	ret = do_write(ff, &version, sizeof(version));
+	if (ret < 0)
+		goto out;
+
+	ret = do_write(ff, &bsize, sizeof(bsize));
+	if (ret < 0)
+		goto out;
+
+	ret = do_write(ff, &nr, sizeof(nr));
+	if (ret < 0)
+		goto out;
+
+	for (i = 0; i < nr; i++) {
+		struct memory_node *n = &nodes[i];
+
+		#define _W(v)						\
+			ret = do_write(ff, &n->v, sizeof(n->v));	\
+			if (ret < 0)					\
+				goto out;
+
+		_W(node)
+		_W(size)
+
+		#undef _W
+
+		ret = do_write_bitmap(ff, n->set, n->size);
+		if (ret < 0)
+			goto out;
+	}
+
+out:
+	return ret;
+}
+
 static void print_hostname(struct feat_fd *ff, FILE *fp)
 {
 	fprintf(fp, "# hostname : %s\n", ff->ph->env.hostname);
@@ -1541,6 +1764,35 @@ static void print_sample_time(struct feat_fd *ff, FILE *fp)
 		session->evlist->first_sample_time) / NSEC_PER_MSEC;
 
 	fprintf(fp, "# sample duration : %10.3f ms\n", d);
+}
+
+static void memory_node__fprintf(struct memory_node *n,
+				 unsigned long long bsize, FILE *fp)
+{
+	char buf_map[100], buf_size[50];
+	unsigned long long size;
+
+	size = bsize * bitmap_weight(n->set, n->size);
+	unit_number__scnprintf(buf_size, 50, size);
+
+	bitmap_scnprintf(n->set, n->size, buf_map, 100);
+	fprintf(fp, "#  %3" PRIu64 " [%s]: %s\n", n->node, buf_size, buf_map);
+}
+
+static void print_mem_topology(struct feat_fd *ff, FILE *fp)
+{
+	struct memory_node *nodes;
+	int i, nr;
+
+	nodes = ff->ph->env.memory_nodes;
+	nr    = ff->ph->env.nr_memory_nodes;
+
+	fprintf(fp, "# memory nodes (nr %d, block size 0x%llx):\n",
+		nr, ff->ph->env.memory_bsize);
+
+	for (i = 0; i < nr; i++) {
+		memory_node__fprintf(&nodes[i], ff->ph->env.memory_bsize, fp);
+	}
 }
 
 static int __event_process_build_id(struct build_id_event *bev,
@@ -2205,6 +2457,58 @@ static int process_sample_time(struct feat_fd *ff, void *data __maybe_unused)
 	return 0;
 }
 
+static int process_mem_topology(struct feat_fd *ff,
+				void *data __maybe_unused)
+{
+	struct memory_node *nodes;
+	u64 version, i, nr, bsize;
+	int ret = -1;
+
+	if (do_read_u64(ff, &version))
+		return -1;
+
+	if (version != 1)
+		return -1;
+
+	if (do_read_u64(ff, &bsize))
+		return -1;
+
+	if (do_read_u64(ff, &nr))
+		return -1;
+
+	nodes = zalloc(sizeof(*nodes) * nr);
+	if (!nodes)
+		return -1;
+
+	for (i = 0; i < nr; i++) {
+		struct memory_node n;
+
+		#define _R(v)				\
+			if (do_read_u64(ff, &n.v))	\
+				goto out;		\
+
+		_R(node)
+		_R(size)
+
+		#undef _R
+
+		if (do_read_bitmap(ff, &n.set, &n.size))
+			goto out;
+
+		nodes[i] = n;
+	}
+
+	ff->ph->env.memory_bsize    = bsize;
+	ff->ph->env.memory_nodes    = nodes;
+	ff->ph->env.nr_memory_nodes = nr;
+	ret = 0;
+
+out:
+	if (ret)
+		free(nodes);
+	return ret;
+}
+
 struct feature_ops {
 	int (*write)(struct feat_fd *ff, struct perf_evlist *evlist);
 	void (*print)(struct feat_fd *ff, FILE *fp);
@@ -2263,6 +2567,7 @@ static const struct feature_ops feat_ops[HEADER_LAST_FEATURE] = {
 	FEAT_OPN(STAT,		stat,		false),
 	FEAT_OPN(CACHE,		cache,		true),
 	FEAT_OPR(SAMPLE_TIME,	sample_time,	false),
+	FEAT_OPR(MEM_TOPOLOGY,	mem_topology,	true),
 };
 
 struct header_print_data {
@@ -2318,7 +2623,12 @@ int perf_header__fprintf_info(struct perf_session *session, FILE *fp, bool full)
 	if (ret == -1)
 		return -1;
 
-	fprintf(fp, "# captured on: %s", ctime(&st.st_ctime));
+	fprintf(fp, "# captured on    : %s", ctime(&st.st_ctime));
+
+	fprintf(fp, "# header version : %u\n", header->version);
+	fprintf(fp, "# data offset    : %" PRIu64 "\n", header->data_offset);
+	fprintf(fp, "# data size      : %" PRIu64 "\n", header->data_size);
+	fprintf(fp, "# feat offset    : %" PRIu64 "\n", header->feat_offset);
 
 	perf_header__process_sections(header, fd, &hd,
 				      perf_file_section__fprintf_info);
@@ -3105,8 +3415,17 @@ int perf_event__synthesize_features(struct perf_tool *tool,
 			return ret;
 		}
 	}
+
+	/* Send HEADER_LAST_FEATURE mark. */
+	fe = ff.buf;
+	fe->feat_id     = HEADER_LAST_FEATURE;
+	fe->header.type = PERF_RECORD_HEADER_FEATURE;
+	fe->header.size = sizeof(*fe);
+
+	ret = process(tool, ff.buf, NULL, NULL);
+
 	free(ff.buf);
-	return 0;
+	return ret;
 }
 
 int perf_event__process_feature(struct perf_tool *tool,

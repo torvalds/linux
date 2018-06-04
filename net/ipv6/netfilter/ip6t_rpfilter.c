@@ -48,12 +48,8 @@ static bool rpfilter_lookup_reverse6(struct net *net, const struct sk_buff *skb,
 	}
 
 	fl6.flowi6_mark = flags & XT_RPFILTER_VALID_MARK ? skb->mark : 0;
-	if ((flags & XT_RPFILTER_LOOSE) == 0) {
-		fl6.flowi6_oif = dev->ifindex;
-		lookup_flags |= RT6_LOOKUP_F_IFACE;
-	}
 
-	rt = (void *) ip6_route_lookup(net, &fl6, lookup_flags);
+	rt = (void *)ip6_route_lookup(net, &fl6, skb, lookup_flags);
 	if (rt->dst.error)
 		goto out;
 
@@ -103,14 +99,14 @@ static int rpfilter_check(const struct xt_mtchk_param *par)
 	unsigned int options = ~XT_RPFILTER_OPTION_MASK;
 
 	if (info->flags & options) {
-		pr_info("unknown options encountered");
+		pr_info_ratelimited("unknown options\n");
 		return -EINVAL;
 	}
 
 	if (strcmp(par->table, "mangle") != 0 &&
 	    strcmp(par->table, "raw") != 0) {
-		pr_info("match only valid in the \'raw\' "
-			"or \'mangle\' tables, not \'%s\'.\n", par->table);
+		pr_info_ratelimited("only valid in \'raw\' or \'mangle\' table, not \'%s\'\n",
+				    par->table);
 		return -EINVAL;
 	}
 

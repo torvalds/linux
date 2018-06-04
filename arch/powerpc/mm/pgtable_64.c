@@ -57,11 +57,6 @@
 
 #include "mmu_decl.h"
 
-#ifdef CONFIG_PPC_BOOK3S_64
-#if TASK_SIZE_USER64 > (1UL << (ESID_BITS + SID_SHIFT))
-#error TASK_SIZE_USER64 exceeds user VSID range
-#endif
-#endif
 
 #ifdef CONFIG_PPC_BOOK3S_64
 /*
@@ -82,6 +77,8 @@ unsigned long __pgd_index_size;
 EXPORT_SYMBOL(__pgd_index_size);
 unsigned long __pmd_cache_index;
 EXPORT_SYMBOL(__pmd_cache_index);
+unsigned long __pud_cache_index;
+EXPORT_SYMBOL(__pud_cache_index);
 unsigned long __pte_table_size;
 EXPORT_SYMBOL(__pte_table_size);
 unsigned long __pmd_table_size;
@@ -471,12 +468,15 @@ void mmu_partition_table_set_entry(unsigned int lpid, unsigned long dw0,
 	if (old & PATB_HR) {
 		asm volatile(PPC_TLBIE_5(%0,%1,2,0,1) : :
 			     "r" (TLBIEL_INVAL_SET_LPID), "r" (lpid));
+		asm volatile(PPC_TLBIE_5(%0,%1,2,1,1) : :
+			     "r" (TLBIEL_INVAL_SET_LPID), "r" (lpid));
 		trace_tlbie(lpid, 0, TLBIEL_INVAL_SET_LPID, lpid, 2, 0, 1);
 	} else {
 		asm volatile(PPC_TLBIE_5(%0,%1,2,0,0) : :
 			     "r" (TLBIEL_INVAL_SET_LPID), "r" (lpid));
 		trace_tlbie(lpid, 0, TLBIEL_INVAL_SET_LPID, lpid, 2, 0, 0);
 	}
+	/* do we need fixup here ?*/
 	asm volatile("eieio; tlbsync; ptesync" : : : "memory");
 }
 EXPORT_SYMBOL_GPL(mmu_partition_table_set_entry);

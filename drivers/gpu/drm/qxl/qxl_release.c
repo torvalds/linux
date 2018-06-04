@@ -458,7 +458,7 @@ void qxl_release_fence_buffer_objects(struct qxl_release *release)
 	trace_dma_fence_emit(&release->base);
 
 	driver = bdev->driver;
-	glob = bo->glob;
+	glob = bdev->glob;
 
 	spin_lock(&glob->lru_lock);
 

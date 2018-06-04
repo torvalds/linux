@@ -537,6 +537,8 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 		init.parent_names = &reg_data->parent;
 		init.num_parents = 1;
 		init.flags = 0;
+		if (reg_data->flags & CLKF_SET_RATE_PARENT)
+			init.flags |= CLK_SET_RATE_PARENT;
 		init.name = kasprintf(GFP_KERNEL, "%s:%s:%04x:%d",
 				      node->parent->name, node->name,
 				      reg_data->offset, 0);

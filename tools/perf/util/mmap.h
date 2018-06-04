@@ -20,6 +20,9 @@ struct perf_mmap {
 	int		 fd;
 	refcount_t	 refcnt;
 	u64		 prev;
+	u64		 start;
+	u64		 end;
+	bool		 overwrite;
 	struct auxtrace_mmap auxtrace_mmap;
 	char		 event_copy[PERF_SAMPLE_MAX_SIZE] __aligned(8);
 };
@@ -63,9 +66,7 @@ void perf_mmap__munmap(struct perf_mmap *map);
 void perf_mmap__get(struct perf_mmap *map);
 void perf_mmap__put(struct perf_mmap *map);
 
-void perf_mmap__consume(struct perf_mmap *map, bool overwrite);
-
-void perf_mmap__read_catchup(struct perf_mmap *md);
+void perf_mmap__consume(struct perf_mmap *map);
 
 static inline u64 perf_mmap__read_head(struct perf_mmap *mm)
 {
@@ -87,11 +88,14 @@ static inline void perf_mmap__write_tail(struct perf_mmap *md, u64 tail)
 }
 
 union perf_event *perf_mmap__read_forward(struct perf_mmap *map);
-union perf_event *perf_mmap__read_backward(struct perf_mmap *map);
 
-int perf_mmap__push(struct perf_mmap *md, bool backward,
-		    void *to, int push(void *to, void *buf, size_t size));
+union perf_event *perf_mmap__read_event(struct perf_mmap *map);
+
+int perf_mmap__push(struct perf_mmap *md, void *to,
+		    int push(void *to, void *buf, size_t size));
 
 size_t perf_mmap__mmap_len(struct perf_mmap *map);
 
+int perf_mmap__read_init(struct perf_mmap *md);
+void perf_mmap__read_done(struct perf_mmap *map);
 #endif /*__PERF_MMAP_H */

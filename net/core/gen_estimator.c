@@ -66,6 +66,7 @@ struct net_rate_estimator {
 static void est_fetch_counters(struct net_rate_estimator *e,
 			       struct gnet_stats_basic_packed *b)
 {
+	memset(b, 0, sizeof(*b));
 	if (e->stats_lock)
 		spin_lock(e->stats_lock);
 

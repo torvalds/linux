@@ -31,7 +31,6 @@
 enum evdev_clock_type {
 	EV_CLK_REAL = 0,
 	EV_CLK_MONO,
-	EV_CLK_BOOT,
 	EV_CLK_MAX
 };
 
@@ -198,11 +197,9 @@ static int evdev_set_clk_type(struct evdev_client *client, unsigned int clkid)
 	case CLOCK_REALTIME:
 		clk_type = EV_CLK_REAL;
 		break;
+	case CLOCK_BOOTTIME:
 	case CLOCK_MONOTONIC:
 		clk_type = EV_CLK_MONO;
-		break;
-	case CLOCK_BOOTTIME:
-		clk_type = EV_CLK_BOOT;
 		break;
 	default:
 		return -EINVAL;
@@ -314,8 +311,6 @@ static void evdev_events(struct input_handle *handle,
 
 	ev_time[EV_CLK_MONO] = ktime_get();
 	ev_time[EV_CLK_REAL] = ktime_mono_to_real(ev_time[EV_CLK_MONO]);
-	ev_time[EV_CLK_BOOT] = ktime_mono_to_any(ev_time[EV_CLK_MONO],
-						 TK_OFFS_BOOT);
 
 	rcu_read_lock();
 

@@ -59,7 +59,6 @@ static int multiblock_erase(int ebnum, int blocks)
 	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 
 	memset(&ei, 0, sizeof(struct erase_info));
-	ei.mtd  = mtd;
 	ei.addr = addr;
 	ei.len  = mtd->erasesize * blocks;
 
@@ -68,12 +67,6 @@ static int multiblock_erase(int ebnum, int blocks)
 		pr_err("error %d while erasing EB %d, blocks %d\n",
 		       err, ebnum, blocks);
 		return err;
-	}
-
-	if (ei.state == MTD_ERASE_FAILED) {
-		pr_err("some erase error occurred at EB %d,"
-		       "blocks %d\n", ebnum, blocks);
-		return -EIO;
 	}
 
 	return 0;

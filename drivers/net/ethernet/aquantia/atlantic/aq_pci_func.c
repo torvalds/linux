@@ -226,6 +226,10 @@ static int aq_pci_probe(struct pci_dev *pdev,
 		goto err_ioremap;
 
 	self->aq_hw = kzalloc(sizeof(*self->aq_hw), GFP_KERNEL);
+	if (!self->aq_hw) {
+		err = -ENOMEM;
+		goto err_ioremap;
+	}
 	self->aq_hw->aq_nic_cfg = aq_nic_get_cfg(self);
 
 	for (bar = 0; bar < 4; ++bar) {
@@ -235,19 +239,19 @@ static int aq_pci_probe(struct pci_dev *pdev,
 			mmio_pa = pci_resource_start(pdev, bar);
 			if (mmio_pa == 0U) {
 				err = -EIO;
-				goto err_ioremap;
+				goto err_free_aq_hw;
 			}
 
 			reg_sz = pci_resource_len(pdev, bar);
 			if ((reg_sz <= 24 /*ATL_REGS_SIZE*/)) {
 				err = -EIO;
-				goto err_ioremap;
+				goto err_free_aq_hw;
 			}
 
 			self->aq_hw->mmio = ioremap_nocache(mmio_pa, reg_sz);
 			if (!self->aq_hw->mmio) {
 				err = -EIO;
-				goto err_ioremap;
+				goto err_free_aq_hw;
 			}
 			break;
 		}
@@ -255,7 +259,7 @@ static int aq_pci_probe(struct pci_dev *pdev,
 
 	if (bar == 4) {
 		err = -EIO;
-		goto err_ioremap;
+		goto err_free_aq_hw;
 	}
 
 	numvecs = min((u8)AQ_CFG_VECS_DEF,
@@ -290,6 +294,8 @@ err_register:
 	aq_pci_free_irq_vectors(self);
 err_hwinit:
 	iounmap(self->aq_hw->mmio);
+err_free_aq_hw:
+	kfree(self->aq_hw);
 err_ioremap:
 	free_netdev(ndev);
 err_pci_func:
@@ -317,6 +323,20 @@ static void aq_pci_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
+static void aq_pci_shutdown(struct pci_dev *pdev)
+{
+	struct aq_nic_s *self = pci_get_drvdata(pdev);
+
+	aq_nic_shutdown(self);
+
+	pci_disable_device(pdev);
+
+	if (system_state == SYSTEM_POWER_OFF) {
+		pci_wake_from_d3(pdev, false);
+		pci_set_power_state(pdev, PCI_D3hot);
+	}
+}
+
 static int aq_pci_suspend(struct pci_dev *pdev, pm_message_t pm_msg)
 {
 	struct aq_nic_s *self = pci_get_drvdata(pdev);
@@ -339,6 +359,7 @@ static struct pci_driver aq_pci_ops = {
 	.remove = aq_pci_remove,
 	.suspend = aq_pci_suspend,
 	.resume = aq_pci_resume,
+	.shutdown = aq_pci_shutdown,
 };
 
 module_pci_driver(aq_pci_ops);

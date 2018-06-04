@@ -86,6 +86,11 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 # define barrier_data(ptr) barrier()
 #endif
 
+/* workaround for GCC PR82365 if needed */
+#ifndef barrier_before_unreachable
+# define barrier_before_unreachable() do { } while (0)
+#endif
+
 /* Unreachable code */
 #ifdef CONFIG_STACK_VALIDATION
 /*
@@ -276,6 +281,10 @@ unsigned long read_word_at_a_time(const void *addr)
 #endif /* __KERNEL__ */
 
 #endif /* __ASSEMBLY__ */
+
+#ifndef __optimize
+# define __optimize(level)
+#endif
 
 /* Compile time object size, -1 for unknown */
 #ifndef __compiletime_object_size

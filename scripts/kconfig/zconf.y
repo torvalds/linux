@@ -127,7 +127,7 @@ no_mainmenu_stmt: /* empty */
 	 * later regardless of whether it comes from the 'prompt' in
 	 * mainmenu_stmt or here
 	 */
-	menu_add_prompt(P_MENU, strdup("Linux Kernel Configuration"), NULL);
+	menu_add_prompt(P_MENU, xstrdup("Linux Kernel Configuration"), NULL);
 };
 
 
@@ -276,6 +276,7 @@ choice: T_CHOICE word_opt T_EOL
 	sym->flags |= SYMBOL_AUTO;
 	menu_add_entry(sym);
 	menu_add_expr(P_CHOICE, NULL, NULL);
+	free($2);
 	printd(DEBUG_PARSE, "%s:%d:choice\n", zconf_curname(), zconf_lineno());
 };
 

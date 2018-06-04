@@ -11,6 +11,12 @@
 #define H_PUD_INDEX_SIZE  9
 #define H_PGD_INDEX_SIZE  9
 
+/*
+ * Each context is 512TB. But on 4k we restrict our max TASK size to 64TB
+ * Hence also limit max EA bits to 64TB.
+ */
+#define MAX_EA_BITS_PER_CONTEXT		46
+
 #ifndef __ASSEMBLY__
 #define H_PTE_TABLE_SIZE	(sizeof(pte_t) << H_PTE_INDEX_SIZE)
 #define H_PMD_TABLE_SIZE	(sizeof(pmd_t) << H_PMD_INDEX_SIZE)
@@ -34,6 +40,14 @@
 #define H_PAGE_COMBO	0x0
 #define H_PTE_FRAG_NR	0
 #define H_PTE_FRAG_SIZE_SHIFT  0
+
+/* memory key bits, only 8 keys supported */
+#define H_PTE_PKEY_BIT0	0
+#define H_PTE_PKEY_BIT1	0
+#define H_PTE_PKEY_BIT2	_RPAGE_RSV3
+#define H_PTE_PKEY_BIT3	_RPAGE_RSV4
+#define H_PTE_PKEY_BIT4	_RPAGE_RSV5
+
 /*
  * On all 4K setups, remap_4k_pfn() equates to remap_pfn_range()
  */
@@ -63,7 +77,8 @@ static inline int hash__hugepd_ok(hugepd_t hpd)
  * keeping the prototype consistent across the two formats.
  */
 static inline unsigned long pte_set_hidx(pte_t *ptep, real_pte_t rpte,
-			unsigned int subpg_index, unsigned long hidx)
+					 unsigned int subpg_index, unsigned long hidx,
+					 int offset)
 {
 	return (hidx << H_PAGE_F_GIX_SHIFT) &
 		(H_PAGE_F_SECOND | H_PAGE_F_GIX);

@@ -79,8 +79,6 @@ xfs_refcountbt_alloc_block(
 	struct xfs_alloc_arg	args;		/* block allocation args */
 	int			error;		/* error return value */
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-
 	memset(&args, 0, sizeof(args));
 	args.tp = cur->bc_tp;
 	args.mp = cur->bc_mp;
@@ -98,7 +96,6 @@ xfs_refcountbt_alloc_block(
 	trace_xfs_refcountbt_alloc_block(cur->bc_mp, cur->bc_private.a.agno,
 			args.agbno, 1);
 	if (args.fsbno == NULLFSBLOCK) {
-		XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 		*stat = 0;
 		return 0;
 	}
@@ -109,12 +106,10 @@ xfs_refcountbt_alloc_block(
 	be32_add_cpu(&agf->agf_refcount_blocks, 1);
 	xfs_alloc_log_agf(cur->bc_tp, agbp, XFS_AGF_REFCOUNT_BLOCKS);
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	*stat = 1;
 	return 0;
 
 out_error:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
 	return error;
 }
 
@@ -378,7 +373,6 @@ xfs_refcountbt_init_cursor(
  */
 int
 xfs_refcountbt_maxrecs(
-	struct xfs_mount	*mp,
 	int			blocklen,
 	bool			leaf)
 {
@@ -395,7 +389,7 @@ void
 xfs_refcountbt_compute_maxlevels(
 	struct xfs_mount		*mp)
 {
-	mp->m_refc_maxlevels = xfs_btree_compute_maxlevels(mp,
+	mp->m_refc_maxlevels = xfs_btree_compute_maxlevels(
 			mp->m_refc_mnr, mp->m_sb.sb_agblocks);
 }
 
@@ -405,7 +399,7 @@ xfs_refcountbt_calc_size(
 	struct xfs_mount	*mp,
 	unsigned long long	len)
 {
-	return xfs_btree_calc_size(mp, mp->m_refc_mnr, len);
+	return xfs_btree_calc_size(mp->m_refc_mnr, len);
 }
 
 /*

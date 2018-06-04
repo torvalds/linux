@@ -1168,7 +1168,7 @@ static void dump_int(struct seq_file *s, char *label, u32 mask)
 		   mask & HCINT_SF ? " sof" : "", mask & HCINT_SO ? " so" : "");
 }
 
-static int isp116x_show_dbg(struct seq_file *s, void *unused)
+static int isp116x_debug_show(struct seq_file *s, void *unused)
 {
 	struct isp116x *isp116x = s->private;
 
@@ -1196,18 +1196,7 @@ static int isp116x_show_dbg(struct seq_file *s, void *unused)
 
 	return 0;
 }
-
-static int isp116x_open_seq(struct inode *inode, struct file *file)
-{
-	return single_open(file, isp116x_show_dbg, inode->i_private);
-}
-
-static const struct file_operations isp116x_debug_fops = {
-	.open = isp116x_open_seq,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(isp116x_debug);
 
 static int create_debug_file(struct isp116x *isp116x)
 {

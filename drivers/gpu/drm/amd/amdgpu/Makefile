@@ -30,7 +30,6 @@ FULL_AMD_DISPLAY_PATH = $(FULL_AMD_PATH)/$(DISPLAY_FOLDER_NAME)
 ccflags-y := -I$(FULL_AMD_PATH)/include/asic_reg \
 	-I$(FULL_AMD_PATH)/include \
 	-I$(FULL_AMD_PATH)/amdgpu \
-	-I$(FULL_AMD_PATH)/scheduler \
 	-I$(FULL_AMD_PATH)/powerplay/inc \
 	-I$(FULL_AMD_PATH)/acp/include \
 	-I$(FULL_AMD_DISPLAY_PATH) \
@@ -63,7 +62,7 @@ amdgpu-$(CONFIG_DRM_AMDGPU_CIK)+= cik.o cik_ih.o kv_smc.o kv_dpm.o \
 amdgpu-$(CONFIG_DRM_AMDGPU_SI)+= si.o gmc_v6_0.o gfx_v6_0.o si_ih.o si_dma.o dce_v6_0.o si_dpm.o si_smc.o
 
 amdgpu-y += \
-	vi.o mxgpu_vi.o nbio_v6_1.o soc15.o mxgpu_ai.o nbio_v7_0.o vega10_reg_init.o
+	vi.o mxgpu_vi.o nbio_v6_1.o soc15.o emu_soc.o mxgpu_ai.o nbio_v7_0.o vega10_reg_init.o
 
 # add GMC block
 amdgpu-y += \
@@ -88,8 +87,7 @@ amdgpu-y += \
 
 # add SMC block
 amdgpu-y += \
-	amdgpu_dpm.o \
-	amdgpu_powerplay.o
+	amdgpu_dpm.o
 
 # add DCE block
 amdgpu-y += \
@@ -130,6 +128,8 @@ amdgpu-y += \
 # add amdkfd interfaces
 amdgpu-y += \
 	 amdgpu_amdkfd.o \
+	 amdgpu_amdkfd_fence.o \
+	 amdgpu_amdkfd_gpuvm.o \
 	 amdgpu_amdkfd_gfx_v8.o
 
 # add cgs

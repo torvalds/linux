@@ -175,7 +175,7 @@ static const struct samsung_retention_data exynos5433_fsys_retention_data __init
  * Samsung pinctrl driver data for Exynos5433 SoC. Exynos5433 SoC includes
  * ten gpio/pin-mux/pinconfig controllers.
  */
-const struct samsung_pin_ctrl exynos5433_pin_ctrl[] __initconst = {
+static const struct samsung_pin_ctrl exynos5433_pin_ctrl[] __initconst = {
 	{
 		/* pin-controller instance 0 data */
 		.pin_banks	= exynos5433_pin_banks0,
@@ -260,6 +260,11 @@ const struct samsung_pin_ctrl exynos5433_pin_ctrl[] __initconst = {
 	},
 };
 
+const struct samsung_pinctrl_of_match_data exynos5433_of_data __initconst = {
+	.ctrl		= exynos5433_pin_ctrl,
+	.num_ctrl	= ARRAY_SIZE(exynos5433_pin_ctrl),
+};
+
 /* pin banks of exynos7 pin-controller - ALIVE */
 static const struct samsung_pin_bank_data exynos7_pin_banks0[] __initconst = {
 	EXYNOS_PIN_BANK_EINTW(8, 0x000, "gpa0", 0x00),
@@ -339,7 +344,7 @@ static const struct samsung_pin_bank_data exynos7_pin_banks9[] __initconst = {
 	EXYNOS_PIN_BANK_EINTG(4, 0x020, "gpz1", 0x04),
 };
 
-const struct samsung_pin_ctrl exynos7_pin_ctrl[] __initconst = {
+static const struct samsung_pin_ctrl exynos7_pin_ctrl[] __initconst = {
 	{
 		/* pin-controller instance 0 Alive data */
 		.pin_banks	= exynos7_pin_banks0,
@@ -391,4 +396,9 @@ const struct samsung_pin_ctrl exynos7_pin_ctrl[] __initconst = {
 		.nr_banks	= ARRAY_SIZE(exynos7_pin_banks9),
 		.eint_gpio_init = exynos_eint_gpio_init,
 	},
+};
+
+const struct samsung_pinctrl_of_match_data exynos7_of_data __initconst = {
+	.ctrl		= exynos7_pin_ctrl,
+	.num_ctrl	= ARRAY_SIZE(exynos7_pin_ctrl),
 };

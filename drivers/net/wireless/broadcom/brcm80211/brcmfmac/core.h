@@ -87,7 +87,6 @@ struct brcmf_rev_info {
 	u32 vendorid;
 	u32 deviceid;
 	u32 radiorev;
-	u32 chiprev;
 	u32 corerev;
 	u32 boardid;
 	u32 boardvendor;
@@ -95,7 +94,7 @@ struct brcmf_rev_info {
 	u32 driverrev;
 	u32 ucoderev;
 	u32 bus;
-	u32 chipnum;
+	char chipname[12];
 	u32 phytype;
 	u32 phyrev;
 	u32 anarev;
@@ -108,6 +107,7 @@ struct brcmf_pub {
 	/* Linkage ponters */
 	struct brcmf_bus *bus_if;
 	struct brcmf_proto *proto;
+	struct wiphy *wiphy;
 	struct brcmf_cfg80211_info *config;
 
 	/* Internal brcmf items */
@@ -181,6 +181,7 @@ enum brcmf_netif_stop_reason {
  * @netif_stop_lock: spinlock for update netif_stop from multiple sources.
  * @pend_8021x_cnt: tracks outstanding number of 802.1x frames.
  * @pend_8021x_wait: used for signalling change in count.
+ * @fwil_fwerr: flag indicating fwil layer should return firmware error codes.
  */
 struct brcmf_if {
 	struct brcmf_pub *drvr;
@@ -198,6 +199,7 @@ struct brcmf_if {
 	wait_queue_head_t pend_8021x_wait;
 	struct in6_addr ipv6_addr_tbl[NDOL_MAX_ENTRIES];
 	u8 ipv6addr_idx;
+	bool fwil_fwerr;
 };
 
 int brcmf_netdev_wait_pend8021x(struct brcmf_if *ifp);

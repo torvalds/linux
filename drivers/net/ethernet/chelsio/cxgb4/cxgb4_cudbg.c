@@ -102,7 +102,7 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 	case CUDBG_CIM_LA:
 		if (is_t6(adap->params.chip)) {
 			len = adap->params.cim_la_size / 10 + 1;
-			len *= 11 * sizeof(u32);
+			len *= 10 * sizeof(u32);
 		} else {
 			len = adap->params.cim_la_size / 8;
 			len *= 8 * sizeof(u32);

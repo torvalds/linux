@@ -56,6 +56,10 @@
 #include "fsl_ssi.h"
 #include "imx-pcm.h"
 
+/* Define RX and TX to index ssi->regvals array; Can be 0 or 1 only */
+#define RX 0
+#define TX 1
+
 /**
  * FSLSSI_I2S_FORMATS: audio formats supported by the SSI
  *
@@ -85,6 +89,16 @@
 	 SNDRV_PCM_FMTBIT_S24_3LE | \
 	 SNDRV_PCM_FMTBIT_S24_LE)
 #endif
+
+/*
+ * In AC97 mode, TXDIR bit is forced to 0 and TFDIR bit is forced to 1:
+ *  - SSI inputs external bit clock and outputs frame sync clock -- CBM_CFS
+ *  - Also have NB_NF to mark these two clocks will not be inverted
+ */
+#define FSLSSI_AC97_DAIFMT \
+	(SND_SOC_DAIFMT_AC97 | \
+	 SND_SOC_DAIFMT_CBM_CFS | \
+	 SND_SOC_DAIFMT_NB_NF)
 
 #define FSLSSI_SIER_DBG_RX_FLAGS \
 	(SSI_SIER_RFF0_EN | \
@@ -201,7 +215,9 @@ struct fsl_ssi_soc_data {
  * @cpu_dai_drv: CPU DAI driver for this device
  *
  * @dai_fmt: DAI configuration this device is currently used with
+ * @streams: Mask of current active streams: BIT(TX) and BIT(RX)
  * @i2s_net: I2S and Network mode configurations of SCR register
+ * @synchronous: Use synchronous mode - both of TX and RX use STCK and SFCK
  * @use_dma: DMA is used or FIQ with stream filter
  * @use_dual_fifo: DMA with support for dual FIFO mode
  * @has_ipg_clk_name: If "ipg" is in the clock name list of device tree
@@ -223,8 +239,12 @@ struct fsl_ssi_soc_data {
  *
  * @fiq_params: FIQ stream filtering parameters
  *
- * @pdev: Pointer to pdev when using fsl-ssi as sound card (ppc only)
- *        TODO: Should be replaced with simple-sound-card
+ * @card_pdev: Platform_device pointer to register a sound card for PowerPC or
+ *             to register a CODEC platform device for AC97
+ * @card_name: Platform_device name to register a sound card for PowerPC or
+ *             to register a CODEC platform device for AC97
+ * @card_idx: The index of SSI to register a sound card for PowerPC or
+ *            to register a CODEC platform device for AC97
  *
  * @dbg_stats: Debugging statistics
  *
@@ -245,7 +265,9 @@ struct fsl_ssi {
 	struct snd_soc_dai_driver cpu_dai_drv;
 
 	unsigned int dai_fmt;
+	u8 streams;
 	u8 i2s_net;
+	bool synchronous;
 	bool use_dma;
 	bool use_dual_fifo;
 	bool has_ipg_clk_name;
@@ -267,7 +289,9 @@ struct fsl_ssi {
 
 	struct imx_pcm_fiq_params fiq_params;
 
-	struct platform_device *pdev;
+	struct platform_device *card_pdev;
+	char card_name[32];
+	u32 card_idx;
 
 	struct fsl_ssi_dbg dbg_stats;
 
@@ -376,181 +400,172 @@ static irqreturn_t fsl_ssi_isr(int irq, void *dev_id)
 }
 
 /**
- * Enable or disable all rx/tx config flags at once
+ * Set SCR, SIER, STCR and SRCR registers with cached values in regvals
+ *
+ * Notes:
+ * 1) For offline_config SoCs, enable all necessary bits of both streams
+ *    when 1st stream starts, even if the opposite stream will not start
+ * 2) It also clears FIFO before setting regvals; SOR is safe to set online
  */
-static void fsl_ssi_rxtx_config(struct fsl_ssi *ssi, bool enable)
+static void fsl_ssi_config_enable(struct fsl_ssi *ssi, bool tx)
 {
-	struct regmap *regs = ssi->regs;
 	struct fsl_ssi_regvals *vals = ssi->regvals;
+	int dir = tx ? TX : RX;
+	u32 sier, srcr, stcr;
 
-	if (enable) {
-		regmap_update_bits(regs, REG_SSI_SIER,
-				   vals[RX].sier | vals[TX].sier,
-				   vals[RX].sier | vals[TX].sier);
-		regmap_update_bits(regs, REG_SSI_SRCR,
-				   vals[RX].srcr | vals[TX].srcr,
-				   vals[RX].srcr | vals[TX].srcr);
-		regmap_update_bits(regs, REG_SSI_STCR,
-				   vals[RX].stcr | vals[TX].stcr,
-				   vals[RX].stcr | vals[TX].stcr);
-	} else {
-		regmap_update_bits(regs, REG_SSI_SRCR,
-				   vals[RX].srcr | vals[TX].srcr, 0);
-		regmap_update_bits(regs, REG_SSI_STCR,
-				   vals[RX].stcr | vals[TX].stcr, 0);
-		regmap_update_bits(regs, REG_SSI_SIER,
-				   vals[RX].sier | vals[TX].sier, 0);
-	}
-}
-
-/**
- * Clear remaining data in the FIFO to avoid dirty data or channel slipping
- */
-static void fsl_ssi_fifo_clear(struct fsl_ssi *ssi, bool is_rx)
-{
-	bool tx = !is_rx;
-
+	/* Clear dirty data in the FIFO; It also prevents channel slipping */
 	regmap_update_bits(ssi->regs, REG_SSI_SOR,
 			   SSI_SOR_xX_CLR(tx), SSI_SOR_xX_CLR(tx));
-}
-
-/**
- * Calculate the bits that have to be disabled for the current stream that is
- * getting disabled. This keeps the bits enabled that are necessary for the
- * second stream to work if 'stream_active' is true.
- *
- * Detailed calculation:
- * These are the values that need to be active after disabling. For non-active
- * second stream, this is 0:
- *	vals_stream * !!stream_active
- *
- * The following computes the overall differences between the setup for the
- * to-disable stream and the active stream, a simple XOR:
- *	vals_disable ^ (vals_stream * !!(stream_active))
- *
- * The full expression adds a mask on all values we care about
- */
-#define fsl_ssi_disable_val(vals_disable, vals_stream, stream_active) \
-	((vals_disable) & \
-	 ((vals_disable) ^ ((vals_stream) * (u32)!!(stream_active))))
-
-/**
- * Enable or disable SSI configuration.
- */
-static void fsl_ssi_config(struct fsl_ssi *ssi, bool enable,
-			   struct fsl_ssi_regvals *vals)
-{
-	struct regmap *regs = ssi->regs;
-	struct fsl_ssi_regvals *avals;
-	int nr_active_streams;
-	u32 scr;
-	int keep_active;
-
-	regmap_read(regs, REG_SSI_SCR, &scr);
-
-	nr_active_streams = !!(scr & SSI_SCR_TE) + !!(scr & SSI_SCR_RE);
-
-	if (nr_active_streams - 1 > 0)
-		keep_active = 1;
-	else
-		keep_active = 0;
-
-	/* Get the opposite direction to keep its values untouched */
-	if (&ssi->regvals[RX] == vals)
-		avals = &ssi->regvals[TX];
-	else
-		avals = &ssi->regvals[RX];
-
-	if (!enable) {
-		/*
-		 * To keep the other stream safe, exclude shared bits between
-		 * both streams, and get safe bits to disable current stream
-		 */
-		u32 scr = fsl_ssi_disable_val(vals->scr, avals->scr,
-					      keep_active);
-		/* Safely disable SCR register for the stream */
-		regmap_update_bits(regs, REG_SSI_SCR, scr, 0);
-	}
 
 	/*
-	 * For cases where online configuration is not supported,
-	 * 1) Enable all necessary bits of both streams when 1st stream starts
-	 *    even if the opposite stream will not start
-	 * 2) Disable all remaining bits of both streams when last stream ends
+	 * On offline_config SoCs, SxCR and SIER are already configured when
+	 * the previous stream started. So skip all SxCR and SIER settings
+	 * to prevent online reconfigurations, then jump to set SCR directly
 	 */
-	if (ssi->soc->offline_config) {
-		if ((enable && !nr_active_streams) || (!enable && !keep_active))
-			fsl_ssi_rxtx_config(ssi, enable);
+	if (ssi->soc->offline_config && ssi->streams)
+		goto enable_scr;
 
-		goto config_done;
+	if (ssi->soc->offline_config) {
+		/*
+		 * Online reconfiguration not supported, so enable all bits for
+		 * both streams at once to avoid necessity of reconfigurations
+		 */
+		srcr = vals[RX].srcr | vals[TX].srcr;
+		stcr = vals[RX].stcr | vals[TX].stcr;
+		sier = vals[RX].sier | vals[TX].sier;
+	} else {
+		/* Otherwise, only set bits for the current stream */
+		srcr = vals[dir].srcr;
+		stcr = vals[dir].stcr;
+		sier = vals[dir].sier;
 	}
 
-	/* Online configure single direction while SSI is running */
-	if (enable) {
-		fsl_ssi_fifo_clear(ssi, vals->scr & SSI_SCR_RE);
+	/* Configure SRCR, STCR and SIER at once */
+	regmap_update_bits(ssi->regs, REG_SSI_SRCR, srcr, srcr);
+	regmap_update_bits(ssi->regs, REG_SSI_STCR, stcr, stcr);
+	regmap_update_bits(ssi->regs, REG_SSI_SIER, sier, sier);
 
-		regmap_update_bits(regs, REG_SSI_SRCR, vals->srcr, vals->srcr);
-		regmap_update_bits(regs, REG_SSI_STCR, vals->stcr, vals->stcr);
-		regmap_update_bits(regs, REG_SSI_SIER, vals->sier, vals->sier);
+enable_scr:
+	/*
+	 * Start DMA before setting TE to avoid FIFO underrun
+	 * which may cause a channel slip or a channel swap
+	 *
+	 * TODO: FIQ cases might also need this upon testing
+	 */
+	if (ssi->use_dma && tx) {
+		int try = 100;
+		u32 sfcsr;
+
+		/* Enable SSI first to send TX DMA request */
+		regmap_update_bits(ssi->regs, REG_SSI_SCR,
+				   SSI_SCR_SSIEN, SSI_SCR_SSIEN);
+
+		/* Busy wait until TX FIFO not empty -- DMA working */
+		do {
+			regmap_read(ssi->regs, REG_SSI_SFCSR, &sfcsr);
+			if (SSI_SFCSR_TFCNT0(sfcsr))
+				break;
+		} while (--try);
+
+		/* FIFO still empty -- something might be wrong */
+		if (!SSI_SFCSR_TFCNT0(sfcsr))
+			dev_warn(ssi->dev, "Timeout waiting TX FIFO filling\n");
+	}
+	/* Enable all remaining bits in SCR */
+	regmap_update_bits(ssi->regs, REG_SSI_SCR,
+			   vals[dir].scr, vals[dir].scr);
+
+	/* Log the enabled stream to the mask */
+	ssi->streams |= BIT(dir);
+}
+
+/**
+ * Exclude bits that are used by the opposite stream
+ *
+ * When both streams are active, disabling some bits for the current stream
+ * might break the other stream if these bits are used by it.
+ *
+ * @vals : regvals of the current stream
+ * @avals: regvals of the opposite stream
+ * @aactive: active state of the opposite stream
+ *
+ *  1) XOR vals and avals to get the differences if the other stream is active;
+ *     Otherwise, return current vals if the other stream is not active
+ *  2) AND the result of 1) with the current vals
+ */
+#define _ssi_xor_shared_bits(vals, avals, aactive) \
+	((vals) ^ ((avals) * (aactive)))
+
+#define ssi_excl_shared_bits(vals, avals, aactive) \
+	((vals) & _ssi_xor_shared_bits(vals, avals, aactive))
+
+/**
+ * Unset SCR, SIER, STCR and SRCR registers with cached values in regvals
+ *
+ * Notes:
+ * 1) For offline_config SoCs, to avoid online reconfigurations, disable all
+ *    bits of both streams at once when the last stream is abort to end
+ * 2) It also clears FIFO after unsetting regvals; SOR is safe to set online
+ */
+static void fsl_ssi_config_disable(struct fsl_ssi *ssi, bool tx)
+{
+	struct fsl_ssi_regvals *vals, *avals;
+	u32 sier, srcr, stcr, scr;
+	int adir = tx ? RX : TX;
+	int dir = tx ? TX : RX;
+	bool aactive;
+
+	/* Check if the opposite stream is active */
+	aactive = ssi->streams & BIT(adir);
+
+	vals = &ssi->regvals[dir];
+
+	/* Get regvals of the opposite stream to keep opposite stream safe */
+	avals = &ssi->regvals[adir];
+
+	/*
+	 * To keep the other stream safe, exclude shared bits between
+	 * both streams, and get safe bits to disable current stream
+	 */
+	scr = ssi_excl_shared_bits(vals->scr, avals->scr, aactive);
+
+	/* Disable safe bits of SCR register for the current stream */
+	regmap_update_bits(ssi->regs, REG_SSI_SCR, scr, 0);
+
+	/* Log the disabled stream to the mask */
+	ssi->streams &= ~BIT(dir);
+
+	/*
+	 * On offline_config SoCs, if the other stream is active, skip
+	 * SxCR and SIER settings to prevent online reconfigurations
+	 */
+	if (ssi->soc->offline_config && aactive)
+		goto fifo_clear;
+
+	if (ssi->soc->offline_config) {
+		/* Now there is only current stream active, disable all bits */
+		srcr = vals->srcr | avals->srcr;
+		stcr = vals->stcr | avals->stcr;
+		sier = vals->sier | avals->sier;
 	} else {
-		u32 sier;
-		u32 srcr;
-		u32 stcr;
-
 		/*
 		 * To keep the other stream safe, exclude shared bits between
 		 * both streams, and get safe bits to disable current stream
 		 */
-		sier = fsl_ssi_disable_val(vals->sier, avals->sier,
-					   keep_active);
-		srcr = fsl_ssi_disable_val(vals->srcr, avals->srcr,
-					   keep_active);
-		stcr = fsl_ssi_disable_val(vals->stcr, avals->stcr,
-					   keep_active);
-
-		/* Safely disable other control registers for the stream */
-		regmap_update_bits(regs, REG_SSI_SRCR, srcr, 0);
-		regmap_update_bits(regs, REG_SSI_STCR, stcr, 0);
-		regmap_update_bits(regs, REG_SSI_SIER, sier, 0);
+		sier = ssi_excl_shared_bits(vals->sier, avals->sier, aactive);
+		srcr = ssi_excl_shared_bits(vals->srcr, avals->srcr, aactive);
+		stcr = ssi_excl_shared_bits(vals->stcr, avals->stcr, aactive);
 	}
 
-config_done:
-	/* Enabling of subunits is done after configuration */
-	if (enable) {
-		/*
-		 * Start DMA before setting TE to avoid FIFO underrun
-		 * which may cause a channel slip or a channel swap
-		 *
-		 * TODO: FIQ cases might also need this upon testing
-		 */
-		if (ssi->use_dma && (vals->scr & SSI_SCR_TE)) {
-			int i;
-			int max_loop = 100;
+	/* Clear configurations of SRCR, STCR and SIER at once */
+	regmap_update_bits(ssi->regs, REG_SSI_SRCR, srcr, 0);
+	regmap_update_bits(ssi->regs, REG_SSI_STCR, stcr, 0);
+	regmap_update_bits(ssi->regs, REG_SSI_SIER, sier, 0);
 
-			/* Enable SSI first to send TX DMA request */
-			regmap_update_bits(regs, REG_SSI_SCR,
-					   SSI_SCR_SSIEN, SSI_SCR_SSIEN);
-
-			/* Busy wait until TX FIFO not empty -- DMA working */
-			for (i = 0; i < max_loop; i++) {
-				u32 sfcsr;
-				regmap_read(regs, REG_SSI_SFCSR, &sfcsr);
-				if (SSI_SFCSR_TFCNT0(sfcsr))
-					break;
-			}
-			if (i == max_loop) {
-				dev_err(ssi->dev,
-					"Timeout waiting TX FIFO filling\n");
-			}
-		}
-		/* Enable all remaining bits */
-		regmap_update_bits(regs, REG_SSI_SCR, vals->scr, vals->scr);
-	}
-}
-
-static void fsl_ssi_rx_config(struct fsl_ssi *ssi, bool enable)
-{
-	fsl_ssi_config(ssi, enable, &ssi->regvals[RX]);
+fifo_clear:
+	/* Clear remaining data in the FIFO */
+	regmap_update_bits(ssi->regs, REG_SSI_SOR,
+			   SSI_SOR_xX_CLR(tx), SSI_SOR_xX_CLR(tx));
 }
 
 static void fsl_ssi_tx_ac97_saccst_setup(struct fsl_ssi *ssi)
@@ -566,21 +581,6 @@ static void fsl_ssi_tx_ac97_saccst_setup(struct fsl_ssi *ssi)
 	}
 }
 
-static void fsl_ssi_tx_config(struct fsl_ssi *ssi, bool enable)
-{
-	/*
-	 * SACCST might be modified via AC Link by a CODEC if it sends
-	 * extra bits in their SLOTREQ requests, which'll accidentally
-	 * send valid data to slots other than normal playback slots.
-	 *
-	 * To be safe, configure SACCST right before TX starts.
-	 */
-	if (enable && fsl_ssi_is_ac97(ssi))
-		fsl_ssi_tx_ac97_saccst_setup(ssi);
-
-	fsl_ssi_config(ssi, enable, &ssi->regvals[TX]);
-}
-
 /**
  * Cache critical bits of SIER, SRCR, STCR and SCR to later set them safely
  */
@@ -588,17 +588,20 @@ static void fsl_ssi_setup_regvals(struct fsl_ssi *ssi)
 {
 	struct fsl_ssi_regvals *vals = ssi->regvals;
 
-	vals[RX].sier = SSI_SIER_RFF0_EN;
+	vals[RX].sier = SSI_SIER_RFF0_EN | FSLSSI_SIER_DBG_RX_FLAGS;
 	vals[RX].srcr = SSI_SRCR_RFEN0;
-	vals[RX].scr = 0;
-	vals[TX].sier = SSI_SIER_TFE0_EN;
+	vals[RX].scr = SSI_SCR_SSIEN | SSI_SCR_RE;
+	vals[TX].sier = SSI_SIER_TFE0_EN | FSLSSI_SIER_DBG_TX_FLAGS;
 	vals[TX].stcr = SSI_STCR_TFEN0;
-	vals[TX].scr = 0;
+	vals[TX].scr = SSI_SCR_SSIEN | SSI_SCR_TE;
 
 	/* AC97 has already enabled SSIEN, RE and TE, so ignore them */
-	if (!fsl_ssi_is_ac97(ssi)) {
-		vals[RX].scr = SSI_SCR_SSIEN | SSI_SCR_RE;
-		vals[TX].scr = SSI_SCR_SSIEN | SSI_SCR_TE;
+	if (fsl_ssi_is_ac97(ssi))
+		vals[RX].scr = vals[TX].scr = 0;
+
+	if (ssi->use_dual_fifo) {
+		vals[RX].srcr |= SSI_SRCR_RFEN1;
+		vals[TX].stcr |= SSI_STCR_TFEN1;
 	}
 
 	if (ssi->use_dma) {
@@ -608,9 +611,6 @@ static void fsl_ssi_setup_regvals(struct fsl_ssi *ssi)
 		vals[RX].sier |= SSI_SIER_RIE;
 		vals[TX].sier |= SSI_SIER_TIE;
 	}
-
-	vals[RX].sier |= FSLSSI_SIER_DBG_RX_FLAGS;
-	vals[TX].sier |= FSLSSI_SIER_DBG_TX_FLAGS;
 }
 
 static void fsl_ssi_setup_ac97(struct fsl_ssi *ssi)
@@ -681,7 +681,6 @@ static int fsl_ssi_set_bclk(struct snd_pcm_substream *substream,
 	bool tx2, tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	struct fsl_ssi *ssi = snd_soc_dai_get_drvdata(dai);
 	struct regmap *regs = ssi->regs;
-	int synchronous = ssi->cpu_dai_drv.symmetric_rates, ret;
 	u32 pm = 999, div2, psr, stccr, mask, afreq, factor, i;
 	unsigned long clkrate, baudrate, tmprate;
 	unsigned int slots = params_channels(hw_params);
@@ -689,6 +688,7 @@ static int fsl_ssi_set_bclk(struct snd_pcm_substream *substream,
 	u64 sub, savesub = 100000;
 	unsigned int freq;
 	bool baudclk_is_used;
+	int ret;
 
 	/* Override slots and slot_width if being specifically set... */
 	if (ssi->slots)
@@ -767,7 +767,7 @@ static int fsl_ssi_set_bclk(struct snd_pcm_substream *substream,
 	mask = SSI_SxCCR_PM_MASK | SSI_SxCCR_DIV2 | SSI_SxCCR_PSR;
 
 	/* STCCR is used for RX in synchronous mode */
-	tx2 = tx || synchronous;
+	tx2 = tx || ssi->synchronous;
 	regmap_update_bits(regs, REG_SSI_SxCCR(tx2), mask, stccr);
 
 	if (!baudclk_is_used) {
@@ -803,11 +803,6 @@ static int fsl_ssi_hw_params(struct snd_pcm_substream *substream,
 	unsigned int sample_size = params_width(hw_params);
 	u32 wl = SSI_SxCCR_WL(sample_size);
 	int ret;
-	u32 scr;
-	int enabled;
-
-	regmap_read(regs, REG_SSI_SCR, &scr);
-	enabled = scr & SSI_SCR_SSIEN;
 
 	/*
 	 * SSI is properly configured if it is enabled and running in
@@ -815,7 +810,7 @@ static int fsl_ssi_hw_params(struct snd_pcm_substream *substream,
 	 * that should set separate configurations for STCCR and SRCCR
 	 * despite running in the synchronous mode.
 	 */
-	if (enabled && ssi->cpu_dai_drv.symmetric_rates)
+	if (ssi->streams && ssi->synchronous)
 		return 0;
 
 	if (fsl_ssi_is_i2s_master(ssi)) {
@@ -834,20 +829,20 @@ static int fsl_ssi_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (!fsl_ssi_is_ac97(ssi)) {
-		u8 i2s_net;
 		/* Normal + Network mode to send 16-bit data in 32-bit frames */
 		if (fsl_ssi_is_i2s_cbm_cfs(ssi) && sample_size == 16)
-			i2s_net = SSI_SCR_I2S_MODE_NORMAL | SSI_SCR_NET;
-		else
-			i2s_net = ssi->i2s_net;
+			ssi->i2s_net = SSI_SCR_I2S_MODE_NORMAL | SSI_SCR_NET;
+
+		/* Use Normal mode to send mono data at 1st slot of 2 slots */
+		if (channels == 1)
+			ssi->i2s_net = SSI_SCR_I2S_MODE_NORMAL;
 
 		regmap_update_bits(regs, REG_SSI_SCR,
-				   SSI_SCR_I2S_NET_MASK,
-				   channels == 1 ? 0 : i2s_net);
+				   SSI_SCR_I2S_NET_MASK, ssi->i2s_net);
 	}
 
 	/* In synchronous mode, the SSI uses STCCR for capture */
-	tx2 = tx || ssi->cpu_dai_drv.symmetric_rates;
+	tx2 = tx || ssi->synchronous;
 	regmap_update_bits(regs, REG_SSI_SxCCR(tx2), SSI_SxCCR_WL_MASK, wl);
 
 	return 0;
@@ -868,45 +863,31 @@ static int fsl_ssi_hw_free(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int _fsl_ssi_set_dai_fmt(struct device *dev,
-				struct fsl_ssi *ssi, unsigned int fmt)
+static int _fsl_ssi_set_dai_fmt(struct fsl_ssi *ssi, unsigned int fmt)
 {
-	struct regmap *regs = ssi->regs;
-	u32 strcr = 0, stcr, srcr, scr, mask;
-	u8 wm;
+	u32 strcr = 0, scr = 0, stcr, srcr, mask;
 
 	ssi->dai_fmt = fmt;
 
-	if (fsl_ssi_is_i2s_master(ssi) && IS_ERR(ssi->baudclk)) {
-		dev_err(dev, "missing baudclk for master mode\n");
-		return -EINVAL;
-	}
-
-	fsl_ssi_setup_regvals(ssi);
-
-	regmap_read(regs, REG_SSI_SCR, &scr);
-	scr &= ~(SSI_SCR_SYN | SSI_SCR_I2S_MODE_MASK);
 	/* Synchronize frame sync clock for TE to avoid data slipping */
 	scr |= SSI_SCR_SYNC_TX_FS;
 
-	mask = SSI_STCR_TXBIT0 | SSI_STCR_TFDIR | SSI_STCR_TXDIR |
-	       SSI_STCR_TSCKP | SSI_STCR_TFSI | SSI_STCR_TFSL | SSI_STCR_TEFS;
-	regmap_read(regs, REG_SSI_STCR, &stcr);
-	regmap_read(regs, REG_SSI_SRCR, &srcr);
-	stcr &= ~mask;
-	srcr &= ~mask;
+	/* Set to default shifting settings: LSB_ALIGNED */
+	strcr |= SSI_STCR_TXBIT0;
 
 	/* Use Network mode as default */
 	ssi->i2s_net = SSI_SCR_NET;
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
-		regmap_update_bits(regs, REG_SSI_STCCR,
-				   SSI_SxCCR_DC_MASK, SSI_SxCCR_DC(2));
-		regmap_update_bits(regs, REG_SSI_SRCCR,
-				   SSI_SxCCR_DC_MASK, SSI_SxCCR_DC(2));
 		switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-		case SND_SOC_DAIFMT_CBM_CFS:
 		case SND_SOC_DAIFMT_CBS_CFS:
+			if (IS_ERR(ssi->baudclk)) {
+				dev_err(ssi->dev,
+					"missing baudclk for master mode\n");
+				return -EINVAL;
+			}
+			/* fall through */
+		case SND_SOC_DAIFMT_CBM_CFS:
 			ssi->i2s_net |= SSI_SCR_I2S_MODE_MASTER;
 			break;
 		case SND_SOC_DAIFMT_CBM_CFM:
@@ -916,30 +897,34 @@ static int _fsl_ssi_set_dai_fmt(struct device *dev,
 			return -EINVAL;
 		}
 
+		regmap_update_bits(ssi->regs, REG_SSI_STCCR,
+				   SSI_SxCCR_DC_MASK, SSI_SxCCR_DC(2));
+		regmap_update_bits(ssi->regs, REG_SSI_SRCCR,
+				   SSI_SxCCR_DC_MASK, SSI_SxCCR_DC(2));
+
 		/* Data on rising edge of bclk, frame low, 1clk before data */
-		strcr |= SSI_STCR_TFSI | SSI_STCR_TSCKP |
-			 SSI_STCR_TXBIT0 | SSI_STCR_TEFS;
+		strcr |= SSI_STCR_TFSI | SSI_STCR_TSCKP | SSI_STCR_TEFS;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
 		/* Data on rising edge of bclk, frame high */
-		strcr |= SSI_STCR_TXBIT0 | SSI_STCR_TSCKP;
+		strcr |= SSI_STCR_TSCKP;
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
 		/* Data on rising edge of bclk, frame high, 1clk before data */
-		strcr |= SSI_STCR_TFSL | SSI_STCR_TSCKP |
-			 SSI_STCR_TXBIT0 | SSI_STCR_TEFS;
+		strcr |= SSI_STCR_TFSL | SSI_STCR_TSCKP | SSI_STCR_TEFS;
 		break;
 	case SND_SOC_DAIFMT_DSP_B:
 		/* Data on rising edge of bclk, frame high */
-		strcr |= SSI_STCR_TFSL | SSI_STCR_TSCKP | SSI_STCR_TXBIT0;
+		strcr |= SSI_STCR_TFSL | SSI_STCR_TSCKP;
 		break;
 	case SND_SOC_DAIFMT_AC97:
 		/* Data on falling edge of bclk, frame high, 1clk before data */
-		ssi->i2s_net |= SSI_SCR_I2S_MODE_NORMAL;
+		strcr |= SSI_STCR_TEFS;
 		break;
 	default:
 		return -EINVAL;
 	}
+
 	scr |= ssi->i2s_net;
 
 	/* DAI clock inversion */
@@ -973,49 +958,33 @@ static int _fsl_ssi_set_dai_fmt(struct device *dev,
 		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
 		/* Input bit or frame sync clocks */
-		scr &= ~SSI_SCR_SYS_CLK_EN;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFS:
 		/* Input bit clock but output frame sync clock */
-		strcr &= ~SSI_STCR_TXDIR;
 		strcr |= SSI_STCR_TFDIR;
-		scr &= ~SSI_SCR_SYS_CLK_EN;
 		break;
 	default:
-		if (!fsl_ssi_is_ac97(ssi))
-			return -EINVAL;
+		return -EINVAL;
 	}
 
-	stcr |= strcr;
-	srcr |= strcr;
+	stcr = strcr;
+	srcr = strcr;
 
 	/* Set SYN mode and clear RXDIR bit when using SYN or AC97 mode */
-	if (ssi->cpu_dai_drv.symmetric_rates || fsl_ssi_is_ac97(ssi)) {
+	if (ssi->synchronous || fsl_ssi_is_ac97(ssi)) {
 		srcr &= ~SSI_SRCR_RXDIR;
 		scr |= SSI_SCR_SYN;
 	}
 
-	regmap_write(regs, REG_SSI_STCR, stcr);
-	regmap_write(regs, REG_SSI_SRCR, srcr);
-	regmap_write(regs, REG_SSI_SCR, scr);
+	mask = SSI_STCR_TFDIR | SSI_STCR_TXDIR | SSI_STCR_TSCKP |
+	       SSI_STCR_TFSL | SSI_STCR_TFSI | SSI_STCR_TEFS | SSI_STCR_TXBIT0;
 
-	wm = ssi->fifo_watermark;
+	regmap_update_bits(ssi->regs, REG_SSI_STCR, mask, stcr);
+	regmap_update_bits(ssi->regs, REG_SSI_SRCR, mask, srcr);
 
-	regmap_write(regs, REG_SSI_SFCSR,
-		     SSI_SFCSR_TFWM0(wm) | SSI_SFCSR_RFWM0(wm) |
-		     SSI_SFCSR_TFWM1(wm) | SSI_SFCSR_RFWM1(wm));
-
-	if (ssi->use_dual_fifo) {
-		regmap_update_bits(regs, REG_SSI_SRCR,
-				   SSI_SRCR_RFEN1, SSI_SRCR_RFEN1);
-		regmap_update_bits(regs, REG_SSI_STCR,
-				   SSI_STCR_TFEN1, SSI_STCR_TFEN1);
-		regmap_update_bits(regs, REG_SSI_SCR,
-				   SSI_SCR_TCH_EN, SSI_SCR_TCH_EN);
-	}
-
-	if ((fmt & SND_SOC_DAIFMT_FORMAT_MASK) == SND_SOC_DAIFMT_AC97)
-		fsl_ssi_setup_ac97(ssi);
+	mask = SSI_SCR_SYNC_TX_FS | SSI_SCR_I2S_MODE_MASK |
+	       SSI_SCR_SYS_CLK_EN | SSI_SCR_SYN;
+	regmap_update_bits(ssi->regs, REG_SSI_SCR, mask, scr);
 
 	return 0;
 }
@@ -1031,7 +1000,7 @@ static int fsl_ssi_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	if (fsl_ssi_is_ac97(ssi))
 		return 0;
 
-	return _fsl_ssi_set_dai_fmt(dai->dev, ssi, fmt);
+	return _fsl_ssi_set_dai_fmt(ssi, fmt);
 }
 
 /**
@@ -1051,9 +1020,7 @@ static int fsl_ssi_set_dai_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask,
 	}
 
 	/* The slot number should be >= 2 if using Network mode or I2S mode */
-	regmap_read(regs, REG_SSI_SCR, &val);
-	val &= SSI_SCR_I2S_MODE_MASK | SSI_SCR_NET;
-	if (val && slots < 2) {
+	if (ssi->i2s_net && slots < 2) {
 		dev_err(dai->dev, "slot number should be >= 2 in I2S or NET\n");
 		return -EINVAL;
 	}
@@ -1063,9 +1030,8 @@ static int fsl_ssi_set_dai_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask,
 	regmap_update_bits(regs, REG_SSI_SRCCR,
 			   SSI_SxCCR_DC_MASK, SSI_SxCCR_DC(slots));
 
-	/* Save SSIEN bit of the SCR register */
+	/* Save the SCR register value */
 	regmap_read(regs, REG_SSI_SCR, &val);
-	val &= SSI_SCR_SSIEN;
 	/* Temporarily enable SSI to allow SxMSKs to be configurable */
 	regmap_update_bits(regs, REG_SSI_SCR, SSI_SCR_SSIEN, SSI_SCR_SSIEN);
 
@@ -1092,37 +1058,32 @@ static int fsl_ssi_trigger(struct snd_pcm_substream *substream, int cmd,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct fsl_ssi *ssi = snd_soc_dai_get_drvdata(rtd->cpu_dai);
-	struct regmap *regs = ssi->regs;
+	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			fsl_ssi_tx_config(ssi, true);
-		else
-			fsl_ssi_rx_config(ssi, true);
+		/*
+		 * SACCST might be modified via AC Link by a CODEC if it sends
+		 * extra bits in their SLOTREQ requests, which'll accidentally
+		 * send valid data to slots other than normal playback slots.
+		 *
+		 * To be safe, configure SACCST right before TX starts.
+		 */
+		if (tx && fsl_ssi_is_ac97(ssi))
+			fsl_ssi_tx_ac97_saccst_setup(ssi);
+		fsl_ssi_config_enable(ssi, tx);
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			fsl_ssi_tx_config(ssi, false);
-		else
-			fsl_ssi_rx_config(ssi, false);
+		fsl_ssi_config_disable(ssi, tx);
 		break;
 
 	default:
 		return -EINVAL;
-	}
-
-	/* Clear corresponding FIFO */
-	if (fsl_ssi_is_ac97(ssi)) {
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			regmap_write(regs, REG_SSI_SOR, SSI_SOR_TX_CLR);
-		else
-			regmap_write(regs, REG_SSI_SOR, SSI_SOR_RX_CLR);
 	}
 
 	return 0;
@@ -1132,10 +1093,9 @@ static int fsl_ssi_dai_probe(struct snd_soc_dai *dai)
 {
 	struct fsl_ssi *ssi = snd_soc_dai_get_drvdata(dai);
 
-	if (ssi->soc->imx && ssi->use_dma) {
-		dai->playback_dma_data = &ssi->dma_params_tx;
-		dai->capture_dma_data = &ssi->dma_params_rx;
-	}
+	if (ssi->soc->imx && ssi->use_dma)
+		snd_soc_dai_init_dma_data(dai, &ssi->dma_params_tx,
+					  &ssi->dma_params_rx);
 
 	return 0;
 }
@@ -1175,6 +1135,7 @@ static const struct snd_soc_component_driver fsl_ssi_component = {
 
 static struct snd_soc_dai_driver fsl_ssi_ac97_dai = {
 	.bus_control = true,
+	.symmetric_channels = 1,
 	.probe = fsl_ssi_dai_probe,
 	.playback = {
 		.stream_name = "AC97 Playback",
@@ -1272,6 +1233,53 @@ static struct snd_ac97_bus_ops fsl_ssi_ac97_ops = {
 };
 
 /**
+ * Initialize SSI registers
+ */
+static int fsl_ssi_hw_init(struct fsl_ssi *ssi)
+{
+	u32 wm = ssi->fifo_watermark;
+
+	/* Initialize regvals */
+	fsl_ssi_setup_regvals(ssi);
+
+	/* Set watermarks */
+	regmap_write(ssi->regs, REG_SSI_SFCSR,
+		     SSI_SFCSR_TFWM0(wm) | SSI_SFCSR_RFWM0(wm) |
+		     SSI_SFCSR_TFWM1(wm) | SSI_SFCSR_RFWM1(wm));
+
+	/* Enable Dual FIFO mode */
+	if (ssi->use_dual_fifo)
+		regmap_update_bits(ssi->regs, REG_SSI_SCR,
+				   SSI_SCR_TCH_EN, SSI_SCR_TCH_EN);
+
+	/* AC97 should start earlier to communicate with CODECs */
+	if (fsl_ssi_is_ac97(ssi)) {
+		_fsl_ssi_set_dai_fmt(ssi, ssi->dai_fmt);
+		fsl_ssi_setup_ac97(ssi);
+	}
+
+	return 0;
+}
+
+/**
+ * Clear SSI registers
+ */
+static void fsl_ssi_hw_clean(struct fsl_ssi *ssi)
+{
+	/* Disable registers for AC97 */
+	if (fsl_ssi_is_ac97(ssi)) {
+		/* Disable TE and RE bits first */
+		regmap_update_bits(ssi->regs, REG_SSI_SCR,
+				   SSI_SCR_TE | SSI_SCR_RE, 0);
+		/* Disable AC97 mode */
+		regmap_write(ssi->regs, REG_SSI_SACNT, 0);
+		/* Unset WAIT bits */
+		regmap_write(ssi->regs, REG_SSI_SOR, 0);
+		/* Disable SSI -- software reset */
+		regmap_update_bits(ssi->regs, REG_SSI_SCR, SSI_SCR_SSIEN, 0);
+	}
+}
+/**
  * Make every character in a string lower-case
  */
 static void make_lowercase(char *s)
@@ -1285,9 +1293,7 @@ static void make_lowercase(char *s)
 static int fsl_ssi_imx_probe(struct platform_device *pdev,
 			     struct fsl_ssi *ssi, void __iomem *iomem)
 {
-	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
-	u32 dmas[4];
 	int ret;
 
 	/* Backward compatible for a DT without ipg clock name assigned */
@@ -1321,14 +1327,8 @@ static int fsl_ssi_imx_probe(struct platform_device *pdev,
 	ssi->dma_params_tx.addr = ssi->ssi_phys + REG_SSI_STX0;
 	ssi->dma_params_rx.addr = ssi->ssi_phys + REG_SSI_SRX0;
 
-	/* Set to dual FIFO mode according to the SDMA sciprt */
-	ret = of_property_read_u32_array(np, "dmas", dmas, 4);
-	if (ssi->use_dma && !ret && dmas[2] == IMX_DMATYPE_SSI_DUAL) {
-		ssi->use_dual_fifo = true;
-		/*
-		 * Use even numbers to avoid channel swap due to SDMA
-		 * script design
-		 */
+	/* Use even numbers to avoid channel swap due to SDMA script design */
+	if (ssi->use_dual_fifo) {
 		ssi->dma_params_tx.maxburst &= ~0x1;
 		ssi->dma_params_rx.maxburst &= ~0x1;
 	}
@@ -1369,40 +1369,108 @@ static void fsl_ssi_imx_clean(struct platform_device *pdev, struct fsl_ssi *ssi)
 		clk_disable_unprepare(ssi->clk);
 }
 
-static int fsl_ssi_probe(struct platform_device *pdev)
+static int fsl_ssi_probe_from_dt(struct fsl_ssi *ssi)
 {
-	struct fsl_ssi *ssi;
-	int ret = 0;
-	struct device_node *np = pdev->dev.of_node;
-	struct device *dev = &pdev->dev;
+	struct device *dev = ssi->dev;
+	struct device_node *np = dev->of_node;
 	const struct of_device_id *of_id;
 	const char *p, *sprop;
-	const uint32_t *iprop;
-	struct resource *res;
-	void __iomem *iomem;
-	char name[64];
-	struct regmap_config regconfig = fsl_ssi_regconfig;
+	const __be32 *iprop;
+	u32 dmas[4];
+	int ret;
 
 	of_id = of_match_device(fsl_ssi_ids, dev);
 	if (!of_id || !of_id->data)
 		return -EINVAL;
 
-	ssi = devm_kzalloc(dev, sizeof(*ssi), GFP_KERNEL);
-	if (!ssi)
-		return -ENOMEM;
-
 	ssi->soc = of_id->data;
-	ssi->dev = dev;
+
+	ret = of_property_match_string(np, "clock-names", "ipg");
+	/* Get error code if not found */
+	ssi->has_ipg_clk_name = ret >= 0;
 
 	/* Check if being used in AC97 mode */
 	sprop = of_get_property(np, "fsl,mode", NULL);
-	if (sprop) {
-		if (!strcmp(sprop, "ac97-slave"))
-			ssi->dai_fmt = SND_SOC_DAIFMT_AC97;
+	if (sprop && !strcmp(sprop, "ac97-slave")) {
+		ssi->dai_fmt = FSLSSI_AC97_DAIFMT;
+
+		ret = of_property_read_u32(np, "cell-index", &ssi->card_idx);
+		if (ret) {
+			dev_err(dev, "failed to get SSI index property\n");
+			return -EINVAL;
+		}
+		strcpy(ssi->card_name, "ac97-codec");
+	} else if (!of_find_property(np, "fsl,ssi-asynchronous", NULL)) {
+		/*
+		 * In synchronous mode, STCK and STFS ports are used by RX
+		 * as well. So the software should limit the sample rates,
+		 * sample bits and channels to be symmetric.
+		 *
+		 * This is exclusive with FSLSSI_AC97_FORMATS as AC97 runs
+		 * in the SSI synchronous mode however it does not have to
+		 * limit symmetric sample rates and sample bits.
+		 */
+		ssi->synchronous = true;
 	}
 
 	/* Select DMA or FIQ */
 	ssi->use_dma = !of_property_read_bool(np, "fsl,fiq-stream-filter");
+
+	/* Fetch FIFO depth; Set to 8 for older DT without this property */
+	iprop = of_get_property(np, "fsl,fifo-depth", NULL);
+	if (iprop)
+		ssi->fifo_depth = be32_to_cpup(iprop);
+	else
+		ssi->fifo_depth = 8;
+
+	/* Use dual FIFO mode depending on the support from SDMA script */
+	ret = of_property_read_u32_array(np, "dmas", dmas, 4);
+	if (ssi->use_dma && !ret && dmas[2] == IMX_DMATYPE_SSI_DUAL)
+		ssi->use_dual_fifo = true;
+
+	/*
+	 * Backward compatible for older bindings by manually triggering the
+	 * machine driver's probe(). Use /compatible property, including the
+	 * address of CPU DAI driver structure, as the name of machine driver
+	 *
+	 * If card_name is set by AC97 earlier, bypass here since it uses a
+	 * different name to register the device.
+	 */
+	if (!ssi->card_name[0] && of_get_property(np, "codec-handle", NULL)) {
+		sprop = of_get_property(of_find_node_by_path("/"),
+					"compatible", NULL);
+		/* Strip "fsl," in the compatible name if applicable */
+		p = strrchr(sprop, ',');
+		if (p)
+			sprop = p + 1;
+		snprintf(ssi->card_name, sizeof(ssi->card_name),
+			 "snd-soc-%s", sprop);
+		make_lowercase(ssi->card_name);
+		ssi->card_idx = 0;
+	}
+
+	return 0;
+}
+
+static int fsl_ssi_probe(struct platform_device *pdev)
+{
+	struct regmap_config regconfig = fsl_ssi_regconfig;
+	struct device *dev = &pdev->dev;
+	struct fsl_ssi *ssi;
+	struct resource *res;
+	void __iomem *iomem;
+	int ret = 0;
+
+	ssi = devm_kzalloc(dev, sizeof(*ssi), GFP_KERNEL);
+	if (!ssi)
+		return -ENOMEM;
+
+	ssi->dev = dev;
+
+	/* Probe from DT */
+	ret = fsl_ssi_probe_from_dt(ssi);
+	if (ret)
+		return ret;
 
 	if (fsl_ssi_is_ac97(ssi)) {
 		memcpy(&ssi->cpu_dai_drv, &fsl_ssi_ac97_dai,
@@ -1427,15 +1495,11 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 			REG_SSI_SRMSK / sizeof(uint32_t) + 1;
 	}
 
-	ret = of_property_match_string(np, "clock-names", "ipg");
-	if (ret < 0) {
-		ssi->has_ipg_clk_name = false;
-		ssi->regs = devm_regmap_init_mmio(dev, iomem, &regconfig);
-	} else {
-		ssi->has_ipg_clk_name = true;
+	if (ssi->has_ipg_clk_name)
 		ssi->regs = devm_regmap_init_mmio_clk(dev, "ipg", iomem,
 						      &regconfig);
-	}
+	else
+		ssi->regs = devm_regmap_init_mmio(dev, iomem, &regconfig);
 	if (IS_ERR(ssi->regs)) {
 		dev_err(dev, "failed to init register map\n");
 		return PTR_ERR(ssi->regs);
@@ -1447,22 +1511,12 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 		return ssi->irq;
 	}
 
-	/* Set software limitations for synchronous mode */
-	if (!of_find_property(np, "fsl,ssi-asynchronous", NULL)) {
-		if (!fsl_ssi_is_ac97(ssi)) {
-			ssi->cpu_dai_drv.symmetric_rates = 1;
-			ssi->cpu_dai_drv.symmetric_samplebits = 1;
-		}
-
+	/* Set software limitations for synchronous mode except AC97 */
+	if (ssi->synchronous && !fsl_ssi_is_ac97(ssi)) {
+		ssi->cpu_dai_drv.symmetric_rates = 1;
 		ssi->cpu_dai_drv.symmetric_channels = 1;
+		ssi->cpu_dai_drv.symmetric_samplebits = 1;
 	}
-
-	/* Fetch FIFO depth; Set to 8 for older DT without this property */
-	iprop = of_get_property(np, "fsl,fifo-depth", NULL);
-	if (iprop)
-		ssi->fifo_depth = be32_to_cpup(iprop);
-	else
-		ssi->fifo_depth = 8;
 
 	/*
 	 * Configure TX and RX DMA watermarks -- when to send a DMA request
@@ -1528,50 +1582,27 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	if (ret)
 		goto error_asoc_register;
 
-	/* Bypass it if using newer DT bindings of ASoC machine drivers */
-	if (!of_get_property(np, "codec-handle", NULL))
-		goto done;
+	/* Initially configures SSI registers */
+	fsl_ssi_hw_init(ssi);
 
-	/*
-	 * Backward compatible for older bindings by manually triggering the
-	 * machine driver's probe(). Use /compatible property, including the
-	 * address of CPU DAI driver structure, as the name of machine driver.
-	 */
-	sprop = of_get_property(of_find_node_by_path("/"), "compatible", NULL);
-	/* Sometimes the compatible name has a "fsl," prefix, so we strip it. */
-	p = strrchr(sprop, ',');
-	if (p)
-		sprop = p + 1;
-	snprintf(name, sizeof(name), "snd-soc-%s", sprop);
-	make_lowercase(name);
+	/* Register a platform device for older bindings or AC97 */
+	if (ssi->card_name[0]) {
+		struct device *parent = dev;
+		/*
+		 * Do not set SSI dev as the parent of AC97 CODEC device since
+		 * it does not have a DT node. Otherwise ASoC core will assume
+		 * CODEC has the same DT node as the SSI, so it may bypass the
+		 * dai_probe() of SSI and then cause NULL DMA data pointers.
+		 */
+		if (fsl_ssi_is_ac97(ssi))
+			parent = NULL;
 
-	ssi->pdev = platform_device_register_data(dev, name, 0, NULL, 0);
-	if (IS_ERR(ssi->pdev)) {
-		ret = PTR_ERR(ssi->pdev);
-		dev_err(dev, "failed to register platform: %d\n", ret);
-		goto error_sound_card;
-	}
-
-done:
-	if (ssi->dai_fmt)
-		_fsl_ssi_set_dai_fmt(dev, ssi, ssi->dai_fmt);
-
-	if (fsl_ssi_is_ac97(ssi)) {
-		u32 ssi_idx;
-
-		ret = of_property_read_u32(np, "cell-index", &ssi_idx);
-		if (ret) {
-			dev_err(dev, "failed to get SSI index property\n");
-			goto error_sound_card;
-		}
-
-		ssi->pdev = platform_device_register_data(NULL, "ac97-codec",
-							  ssi_idx, NULL, 0);
-		if (IS_ERR(ssi->pdev)) {
-			ret = PTR_ERR(ssi->pdev);
-			dev_err(dev,
-				"failed to register AC97 codec platform: %d\n",
-				ret);
+		ssi->card_pdev = platform_device_register_data(parent,
+				ssi->card_name, ssi->card_idx, NULL, 0);
+		if (IS_ERR(ssi->card_pdev)) {
+			ret = PTR_ERR(ssi->card_pdev);
+			dev_err(dev, "failed to register %s: %d\n",
+				ssi->card_name, ret);
 			goto error_sound_card;
 		}
 	}
@@ -1599,8 +1630,11 @@ static int fsl_ssi_remove(struct platform_device *pdev)
 
 	fsl_ssi_debugfs_remove(&ssi->dbg_stats);
 
-	if (ssi->pdev)
-		platform_device_unregister(ssi->pdev);
+	if (ssi->card_pdev)
+		platform_device_unregister(ssi->card_pdev);
+
+	/* Clean up SSI registers */
+	fsl_ssi_hw_clean(ssi);
 
 	if (ssi->soc->imx)
 		fsl_ssi_imx_clean(pdev, ssi);

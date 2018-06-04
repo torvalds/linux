@@ -113,6 +113,7 @@ struct ib_srq *pvrdma_create_srq(struct ib_pd *pd,
 	union pvrdma_cmd_resp rsp;
 	struct pvrdma_cmd_create_srq *cmd = &req.create_srq;
 	struct pvrdma_cmd_create_srq_resp *resp = &rsp.create_srq_resp;
+	struct pvrdma_create_srq_resp srq_resp = {0};
 	struct pvrdma_create_srq ucmd;
 	unsigned long flags;
 	int ret;
@@ -204,12 +205,13 @@ struct ib_srq *pvrdma_create_srq(struct ib_pd *pd,
 	}
 
 	srq->srq_handle = resp->srqn;
+	srq_resp.srqn = resp->srqn;
 	spin_lock_irqsave(&dev->srq_tbl_lock, flags);
 	dev->srq_tbl[srq->srq_handle % dev->dsr->caps.max_srq] = srq;
 	spin_unlock_irqrestore(&dev->srq_tbl_lock, flags);
 
 	/* Copy udata back. */
-	if (ib_copy_to_udata(udata, &srq->srq_handle, sizeof(__u32))) {
+	if (ib_copy_to_udata(udata, &srq_resp, sizeof(srq_resp))) {
 		dev_warn(&dev->pdev->dev, "failed to copy back udata\n");
 		pvrdma_destroy_srq(&srq->ibsrq);
 		return ERR_PTR(-EINVAL);

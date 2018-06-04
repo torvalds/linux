@@ -59,7 +59,7 @@ void *dma_generic_alloc_coherent(struct device *dev, size_t size,
 
 	split_page(pfn_to_page(virt_to_phys(ret) >> PAGE_SHIFT), order);
 
-	*dma_handle = virt_to_phys(ret);
+	*dma_handle = virt_to_phys(ret) - PFN_PHYS(dev->dma_pfn_offset);
 
 	return ret_nocache;
 }
@@ -69,7 +69,7 @@ void dma_generic_free_coherent(struct device *dev, size_t size,
 			       unsigned long attrs)
 {
 	int order = get_order(size);
-	unsigned long pfn = dma_handle >> PAGE_SHIFT;
+	unsigned long pfn = (dma_handle >> PAGE_SHIFT) + dev->dma_pfn_offset;
 	int k;
 
 	for (k = 0; k < (1 << order); k++)

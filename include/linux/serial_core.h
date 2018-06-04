@@ -379,7 +379,7 @@ extern int of_setup_earlycon(const struct earlycon_id *match,
 extern bool earlycon_acpi_spcr_enable __initdata;
 int setup_earlycon(char *buf);
 #else
-static const bool earlycon_acpi_spcr_enable;
+static const bool earlycon_acpi_spcr_enable EARLYCON_USED_OR_UNUSED;
 static inline int setup_earlycon(char *buf) { return 0; }
 #endif
 

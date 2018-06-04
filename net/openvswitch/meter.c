@@ -242,14 +242,20 @@ static struct dp_meter *dp_meter_create(struct nlattr **a)
 
 		band->type = nla_get_u32(attr[OVS_BAND_ATTR_TYPE]);
 		band->rate = nla_get_u32(attr[OVS_BAND_ATTR_RATE]);
+		if (band->rate == 0) {
+			err = -EINVAL;
+			goto exit_free_meter;
+		}
+
 		band->burst_size = nla_get_u32(attr[OVS_BAND_ATTR_BURST]);
 		/* Figure out max delta_t that is enough to fill any bucket.
 		 * Keep max_delta_t size to the bucket units:
 		 * pkts => 1/1000 packets, kilobits => bits.
+		 *
+		 * Start with a full bucket.
 		 */
-		band_max_delta_t = (band->burst_size + band->rate) * 1000;
-		/* Start with a full bucket. */
-		band->bucket = band_max_delta_t;
+		band->bucket = (band->burst_size + band->rate) * 1000;
+		band_max_delta_t = band->bucket / band->rate;
 		if (band_max_delta_t > meter->max_delta_t)
 			meter->max_delta_t = band_max_delta_t;
 		band++;

@@ -57,14 +57,15 @@ static int connlabel_mt_check(const struct xt_mtchk_param *par)
 	int ret;
 
 	if (info->options & ~options) {
-		pr_err("Unknown options in mask %x\n", info->options);
+		pr_info_ratelimited("Unknown options in mask %x\n",
+				    info->options);
 		return -EINVAL;
 	}
 
 	ret = nf_ct_netns_get(par->net, par->family);
 	if (ret < 0) {
-		pr_info("cannot load conntrack support for proto=%u\n",
-							par->family);
+		pr_info_ratelimited("cannot load conntrack support for proto=%u\n",
+				    par->family);
 		return ret;
 	}
 

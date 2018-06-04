@@ -178,7 +178,7 @@ static int gpu_set(struct drm_i915_gem_object *obj,
 		   u32 v)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	struct drm_i915_gem_request *rq;
+	struct i915_request *rq;
 	struct i915_vma *vma;
 	u32 *cs;
 	int err;
@@ -191,7 +191,7 @@ static int gpu_set(struct drm_i915_gem_object *obj,
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
-	rq = i915_gem_request_alloc(i915->engine[RCS], i915->kernel_context);
+	rq = i915_request_alloc(i915->engine[RCS], i915->kernel_context);
 	if (IS_ERR(rq)) {
 		i915_vma_unpin(vma);
 		return PTR_ERR(rq);
@@ -199,7 +199,7 @@ static int gpu_set(struct drm_i915_gem_object *obj,
 
 	cs = intel_ring_begin(rq, 4);
 	if (IS_ERR(cs)) {
-		__i915_add_request(rq, false);
+		__i915_request_add(rq, false);
 		i915_vma_unpin(vma);
 		return PTR_ERR(cs);
 	}
@@ -229,7 +229,7 @@ static int gpu_set(struct drm_i915_gem_object *obj,
 	reservation_object_add_excl_fence(obj->resv, &rq->fence);
 	reservation_object_unlock(obj->resv);
 
-	__i915_add_request(rq, true);
+	__i915_request_add(rq, true);
 
 	return 0;
 }

@@ -570,7 +570,9 @@ your driver if they're helpful, or just use plain hex constants.
 The device IDs are arbitrary hex numbers (vendor controlled) and normally used
 only in a single location, the pci_device_id table.
 
-Please DO submit new vendor/device IDs to http://pciids.sourceforge.net/.
+Please DO submit new vendor/device IDs to http://pci-ids.ucw.cz/.
+There are mirrors of the pci.ids file at http://pciids.sourceforge.net/
+and https://github.com/pciutils/pciids.
 
 
 

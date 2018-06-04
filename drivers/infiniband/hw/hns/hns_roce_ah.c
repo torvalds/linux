@@ -68,11 +68,9 @@ struct ib_ah *hns_roce_create_ah(struct ib_pd *ibpd,
 		return ERR_PTR(ret);
 	}
 
-	if (gid_attr.ndev) {
-		if (is_vlan_dev(gid_attr.ndev))
-			vlan_tag = vlan_dev_vlan_id(gid_attr.ndev);
-		dev_put(gid_attr.ndev);
-	}
+	if (is_vlan_dev(gid_attr.ndev))
+		vlan_tag = vlan_dev_vlan_id(gid_attr.ndev);
+	dev_put(gid_attr.ndev);
 
 	if (vlan_tag < 0x1000)
 		vlan_tag |= (rdma_ah_get_sl(ah_attr) &

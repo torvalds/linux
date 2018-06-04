@@ -631,8 +631,10 @@ static u32 ena_com_reg_bar_read32(struct ena_com_dev *ena_dev, u16 offset)
 	 */
 	wmb();
 
-	writel(mmio_read_reg, ena_dev->reg_bar + ENA_REGS_MMIO_REG_READ_OFF);
+	writel_relaxed(mmio_read_reg,
+		       ena_dev->reg_bar + ENA_REGS_MMIO_REG_READ_OFF);
 
+	mmiowb();
 	for (i = 0; i < timeout; i++) {
 		if (read_resp->req_id == mmio_read->seq_num)
 			break;
@@ -1826,7 +1828,9 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *dev, void *data)
 
 	/* write the aenq doorbell after all AENQ descriptors were read */
 	mb();
-	writel((u32)aenq->head, dev->reg_bar + ENA_REGS_AENQ_HEAD_DB_OFF);
+	writel_relaxed((u32)aenq->head,
+		       dev->reg_bar + ENA_REGS_AENQ_HEAD_DB_OFF);
+	mmiowb();
 }
 
 int ena_com_dev_reset(struct ena_com_dev *ena_dev,

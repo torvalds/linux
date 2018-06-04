@@ -168,23 +168,12 @@ struct bpf_call_arg_meta {
 
 static DEFINE_MUTEX(bpf_verifier_lock);
 
-/* log_level controls verbosity level of eBPF verifier.
- * bpf_verifier_log_write() is used to dump the verification trace to the log,
- * so the user can figure out what's wrong with the program
- */
-__printf(2, 3) void bpf_verifier_log_write(struct bpf_verifier_env *env,
-					   const char *fmt, ...)
+void bpf_verifier_vlog(struct bpf_verifier_log *log, const char *fmt,
+		       va_list args)
 {
-	struct bpf_verifer_log *log = &env->log;
 	unsigned int n;
-	va_list args;
 
-	if (!log->level || !log->ubuf || bpf_verifier_log_full(log))
-		return;
-
-	va_start(args, fmt);
 	n = vscnprintf(log->kbuf, BPF_VERIFIER_TMP_LOG_SIZE, fmt, args);
-	va_end(args);
 
 	WARN_ONCE(n >= BPF_VERIFIER_TMP_LOG_SIZE - 1,
 		  "verifier log line truncated - local buffer too short\n");
@@ -197,14 +186,37 @@ __printf(2, 3) void bpf_verifier_log_write(struct bpf_verifier_env *env,
 	else
 		log->ubuf = NULL;
 }
-EXPORT_SYMBOL_GPL(bpf_verifier_log_write);
-/* Historically bpf_verifier_log_write was called verbose, but the name was too
- * generic for symbol export. The function was renamed, but not the calls in
- * the verifier to avoid complicating backports. Hence the alias below.
+
+/* log_level controls verbosity level of eBPF verifier.
+ * bpf_verifier_log_write() is used to dump the verification trace to the log,
+ * so the user can figure out what's wrong with the program
  */
-static __printf(2, 3) void verbose(struct bpf_verifier_env *env,
-				   const char *fmt, ...)
-	__attribute__((alias("bpf_verifier_log_write")));
+__printf(2, 3) void bpf_verifier_log_write(struct bpf_verifier_env *env,
+					   const char *fmt, ...)
+{
+	va_list args;
+
+	if (!bpf_verifier_log_needed(&env->log))
+		return;
+
+	va_start(args, fmt);
+	bpf_verifier_vlog(&env->log, fmt, args);
+	va_end(args);
+}
+EXPORT_SYMBOL_GPL(bpf_verifier_log_write);
+
+__printf(2, 3) static void verbose(void *private_data, const char *fmt, ...)
+{
+	struct bpf_verifier_env *env = private_data;
+	va_list args;
+
+	if (!bpf_verifier_log_needed(&env->log))
+		return;
+
+	va_start(args, fmt);
+	bpf_verifier_vlog(&env->log, fmt, args);
+	va_end(args);
+}
 
 static bool type_is_pkt_pointer(enum bpf_reg_type type)
 {
@@ -507,10 +519,6 @@ err:
 #define CALLER_SAVED_REGS 6
 static const int caller_saved[CALLER_SAVED_REGS] = {
 	BPF_REG_0, BPF_REG_1, BPF_REG_2, BPF_REG_3, BPF_REG_4, BPF_REG_5
-};
-#define CALLEE_SAVED_REGS 5
-static const int callee_saved[CALLEE_SAVED_REGS] = {
-	BPF_REG_6, BPF_REG_7, BPF_REG_8, BPF_REG_9
 };
 
 static void __mark_reg_not_init(struct bpf_reg_state *reg);
@@ -1252,6 +1260,7 @@ static bool may_access_direct_pkt_data(struct bpf_verifier_env *env,
 	case BPF_PROG_TYPE_XDP:
 	case BPF_PROG_TYPE_LWT_XMIT:
 	case BPF_PROG_TYPE_SK_SKB:
+	case BPF_PROG_TYPE_SK_MSG:
 		if (meta)
 			return meta->pkt_access;
 
@@ -1314,7 +1323,7 @@ static int check_ctx_access(struct bpf_verifier_env *env, int insn_idx, int off,
 	};
 
 	if (env->ops->is_valid_access &&
-	    env->ops->is_valid_access(off, size, t, &info)) {
+	    env->ops->is_valid_access(off, size, t, env->prog, &info)) {
 		/* A non zero info.ctx_field_size indicates that this field is a
 		 * candidate for later verifier transformation to load the whole
 		 * field and then apply a mask when accessed with a narrower
@@ -1354,6 +1363,13 @@ static bool is_ctx_reg(struct bpf_verifier_env *env, int regno)
 	const struct bpf_reg_state *reg = cur_regs(env) + regno;
 
 	return reg->type == PTR_TO_CTX;
+}
+
+static bool is_pkt_reg(struct bpf_verifier_env *env, int regno)
+{
+	const struct bpf_reg_state *reg = cur_regs(env) + regno;
+
+	return type_is_pkt_pointer(reg->type);
 }
 
 static int check_pkt_ptr_alignment(struct bpf_verifier_env *env,
@@ -1416,10 +1432,10 @@ static int check_generic_ptr_alignment(struct bpf_verifier_env *env,
 }
 
 static int check_ptr_alignment(struct bpf_verifier_env *env,
-			       const struct bpf_reg_state *reg,
-			       int off, int size)
+			       const struct bpf_reg_state *reg, int off,
+			       int size, bool strict_alignment_once)
 {
-	bool strict = env->strict_alignment;
+	bool strict = env->strict_alignment || strict_alignment_once;
 	const char *pointer_desc = "";
 
 	switch (reg->type) {
@@ -1576,9 +1592,9 @@ static void coerce_reg_to_size(struct bpf_reg_state *reg, int size)
  * if t==write && value_regno==-1, some unknown value is stored into memory
  * if t==read && value_regno==-1, don't care what we read from memory
  */
-static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regno, int off,
-			    int bpf_size, enum bpf_access_type t,
-			    int value_regno)
+static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regno,
+			    int off, int bpf_size, enum bpf_access_type t,
+			    int value_regno, bool strict_alignment_once)
 {
 	struct bpf_reg_state *regs = cur_regs(env);
 	struct bpf_reg_state *reg = regs + regno;
@@ -1590,7 +1606,7 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 		return size;
 
 	/* alignment checks will add in reg->off themselves */
-	err = check_ptr_alignment(env, reg, off, size);
+	err = check_ptr_alignment(env, reg, off, size, strict_alignment_once);
 	if (err)
 		return err;
 
@@ -1735,21 +1751,23 @@ static int check_xadd(struct bpf_verifier_env *env, int insn_idx, struct bpf_ins
 		return -EACCES;
 	}
 
-	if (is_ctx_reg(env, insn->dst_reg)) {
-		verbose(env, "BPF_XADD stores into R%d context is not allowed\n",
-			insn->dst_reg);
+	if (is_ctx_reg(env, insn->dst_reg) ||
+	    is_pkt_reg(env, insn->dst_reg)) {
+		verbose(env, "BPF_XADD stores into R%d %s is not allowed\n",
+			insn->dst_reg, is_ctx_reg(env, insn->dst_reg) ?
+			"context" : "packet");
 		return -EACCES;
 	}
 
 	/* check whether atomic_add can read the memory */
 	err = check_mem_access(env, insn_idx, insn->dst_reg, insn->off,
-			       BPF_SIZE(insn->code), BPF_READ, -1);
+			       BPF_SIZE(insn->code), BPF_READ, -1, true);
 	if (err)
 		return err;
 
 	/* check whether atomic_add can write into the same memory */
 	return check_mem_access(env, insn_idx, insn->dst_reg, insn->off,
-				BPF_SIZE(insn->code), BPF_WRITE, -1);
+				BPF_SIZE(insn->code), BPF_WRITE, -1, true);
 }
 
 /* when register 'regno' is passed into function that will read 'access_size'
@@ -2066,7 +2084,8 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 	case BPF_MAP_TYPE_SOCKMAP:
 		if (func_id != BPF_FUNC_sk_redirect_map &&
 		    func_id != BPF_FUNC_sock_map_update &&
-		    func_id != BPF_FUNC_map_delete_elem)
+		    func_id != BPF_FUNC_map_delete_elem &&
+		    func_id != BPF_FUNC_msg_redirect_map)
 			goto error;
 		break;
 	default:
@@ -2104,6 +2123,7 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 			goto error;
 		break;
 	case BPF_FUNC_sk_redirect_map:
+	case BPF_FUNC_msg_redirect_map:
 		if (map->map_type != BPF_MAP_TYPE_SOCKMAP)
 			goto error;
 		break;
@@ -2329,7 +2349,7 @@ static int check_helper_call(struct bpf_verifier_env *env, int func_id, int insn
 	}
 
 	if (env->ops->get_func_proto)
-		fn = env->ops->get_func_proto(func_id);
+		fn = env->ops->get_func_proto(func_id, env->prog);
 	if (!fn) {
 		verbose(env, "unknown func %s#%d\n", func_id_name(func_id),
 			func_id);
@@ -2388,7 +2408,8 @@ static int check_helper_call(struct bpf_verifier_env *env, int func_id, int insn
 	 * is inferred from register state.
 	 */
 	for (i = 0; i < meta.access_size; i++) {
-		err = check_mem_access(env, insn_idx, meta.regno, i, BPF_B, BPF_WRITE, -1);
+		err = check_mem_access(env, insn_idx, meta.regno, i, BPF_B,
+				       BPF_WRITE, -1, false);
 		if (err)
 			return err;
 	}
@@ -3866,6 +3887,7 @@ static int check_return_code(struct bpf_verifier_env *env)
 	switch (env->prog->type) {
 	case BPF_PROG_TYPE_CGROUP_SKB:
 	case BPF_PROG_TYPE_CGROUP_SOCK:
+	case BPF_PROG_TYPE_CGROUP_SOCK_ADDR:
 	case BPF_PROG_TYPE_SOCK_OPS:
 	case BPF_PROG_TYPE_CGROUP_DEVICE:
 		break;
@@ -4591,10 +4613,11 @@ static int do_check(struct bpf_verifier_env *env)
 		if (env->log.level) {
 			const struct bpf_insn_cbs cbs = {
 				.cb_print	= verbose,
+				.private_data	= env,
 			};
 
 			verbose(env, "%d: ", insn_idx);
-			print_bpf_insn(&cbs, env, insn, env->allow_ptr_leaks);
+			print_bpf_insn(&cbs, insn, env->allow_ptr_leaks);
 		}
 
 		if (bpf_prog_is_dev_bound(env->prog->aux)) {
@@ -4632,7 +4655,7 @@ static int do_check(struct bpf_verifier_env *env)
 			 */
 			err = check_mem_access(env, insn_idx, insn->src_reg, insn->off,
 					       BPF_SIZE(insn->code), BPF_READ,
-					       insn->dst_reg);
+					       insn->dst_reg, false);
 			if (err)
 				return err;
 
@@ -4684,7 +4707,7 @@ static int do_check(struct bpf_verifier_env *env)
 			/* check that memory (dst_reg + off) is writeable */
 			err = check_mem_access(env, insn_idx, insn->dst_reg, insn->off,
 					       BPF_SIZE(insn->code), BPF_WRITE,
-					       insn->src_reg);
+					       insn->src_reg, false);
 			if (err)
 				return err;
 
@@ -4719,7 +4742,7 @@ static int do_check(struct bpf_verifier_env *env)
 			/* check that memory (dst_reg + off) is writeable */
 			err = check_mem_access(env, insn_idx, insn->dst_reg, insn->off,
 					       BPF_SIZE(insn->code), BPF_WRITE,
-					       -1);
+					       -1, false);
 			if (err)
 				return err;
 
@@ -5550,7 +5573,7 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 			insn      = new_prog->insnsi + i + delta;
 		}
 patch_call_imm:
-		fn = env->ops->get_func_proto(insn->imm);
+		fn = env->ops->get_func_proto(insn->imm, env->prog);
 		/* all functions that have prototype and verifier allowed
 		 * programs to call them, must be real in-kernel functions
 		 */
@@ -5592,7 +5615,7 @@ static void free_states(struct bpf_verifier_env *env)
 int bpf_check(struct bpf_prog **prog, union bpf_attr *attr)
 {
 	struct bpf_verifier_env *env;
-	struct bpf_verifer_log *log;
+	struct bpf_verifier_log *log;
 	int ret = -EINVAL;
 
 	/* no program is valid */

@@ -128,6 +128,10 @@
 #define HSI2C_TIMEOUT_EN			(1u << 31)
 #define HSI2C_TIMEOUT_MASK			0xff
 
+/* I2C_MANUAL_CMD register bits */
+#define HSI2C_CMD_READ_DATA			(1u << 4)
+#define HSI2C_CMD_SEND_STOP			(1u << 2)
+
 /* I2C_TRANS_STATUS register bits */
 #define HSI2C_MASTER_BUSY			(1u << 17)
 #define HSI2C_SLAVE_BUSY			(1u << 16)
@@ -441,12 +445,6 @@ static irqreturn_t exynos5_i2c_irq(int irqno, void *dev_id)
 			i2c->state = -ETIMEDOUT;
 			goto stop;
 		}
-
-		trans_status = readl(i2c->regs + HSI2C_TRANS_STATUS);
-		if ((trans_status & HSI2C_MASTER_ST_MASK) == HSI2C_MASTER_ST_LOSE) {
-			i2c->state = -EAGAIN;
-			goto stop;
-		}
 	} else if (int_status & HSI2C_INT_I2C) {
 		trans_status = readl(i2c->regs + HSI2C_TRANS_STATUS);
 		if (trans_status & HSI2C_NO_DEV_ACK) {
@@ -544,6 +542,57 @@ static int exynos5_i2c_wait_bus_idle(struct exynos5_i2c *i2c)
 	return -EBUSY;
 }
 
+static void exynos5_i2c_bus_recover(struct exynos5_i2c *i2c)
+{
+	u32 val;
+
+	val = readl(i2c->regs + HSI2C_CTL) | HSI2C_RXCHON;
+	writel(val, i2c->regs + HSI2C_CTL);
+	val = readl(i2c->regs + HSI2C_CONF) & ~HSI2C_AUTO_MODE;
+	writel(val, i2c->regs + HSI2C_CONF);
+
+	/*
+	 * Specification says master should send nine clock pulses. It can be
+	 * emulated by sending manual read command (nine pulses for read eight
+	 * bits + one pulse for NACK).
+	 */
+	writel(HSI2C_CMD_READ_DATA, i2c->regs + HSI2C_MANUAL_CMD);
+	exynos5_i2c_wait_bus_idle(i2c);
+	writel(HSI2C_CMD_SEND_STOP, i2c->regs + HSI2C_MANUAL_CMD);
+	exynos5_i2c_wait_bus_idle(i2c);
+
+	val = readl(i2c->regs + HSI2C_CTL) & ~HSI2C_RXCHON;
+	writel(val, i2c->regs + HSI2C_CTL);
+	val = readl(i2c->regs + HSI2C_CONF) | HSI2C_AUTO_MODE;
+	writel(val, i2c->regs + HSI2C_CONF);
+}
+
+static void exynos5_i2c_bus_check(struct exynos5_i2c *i2c)
+{
+	unsigned long timeout;
+
+	if (i2c->variant->hw != HSI2C_EXYNOS7)
+		return;
+
+	/*
+	 * HSI2C_MASTER_ST_LOSE state in EXYNOS7 variant before transaction
+	 * indicates that bus is stuck (SDA is low). In such case bus recovery
+	 * can be performed.
+	 */
+	timeout = jiffies + msecs_to_jiffies(100);
+	for (;;) {
+		u32 st = readl(i2c->regs + HSI2C_TRANS_STATUS);
+
+		if ((st & HSI2C_MASTER_ST_MASK) != HSI2C_MASTER_ST_LOSE)
+			return;
+
+		if (time_is_before_jiffies(timeout))
+			return;
+
+		exynos5_i2c_bus_recover(i2c);
+	}
+}
+
 /*
  * exynos5_i2c_message_start: Configures the bus and starts the xfer
  * i2c: struct exynos5_i2c pointer for the current bus
@@ -597,6 +646,8 @@ static void exynos5_i2c_message_start(struct exynos5_i2c *i2c, int stop)
 
 	writel(fifo_ctl, i2c->regs + HSI2C_FIFO_CTL);
 	writel(i2c_ctl, i2c->regs + HSI2C_CTL);
+
+	exynos5_i2c_bus_check(i2c);
 
 	/*
 	 * Enable interrupts before starting the transfer so that we don't

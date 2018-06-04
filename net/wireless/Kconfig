@@ -34,9 +34,10 @@ config CFG80211
 
 	  When built as a module it will be called cfg80211.
 
+if CFG80211
+
 config NL80211_TESTMODE
 	bool "nl80211 testmode command"
-	depends on CFG80211
 	help
 	  The nl80211 testmode command helps implementing things like
 	  factory calibration or validation tools for wireless chips.
@@ -51,7 +52,6 @@ config NL80211_TESTMODE
 
 config CFG80211_DEVELOPER_WARNINGS
 	bool "enable developer warnings"
-	depends on CFG80211
 	default n
 	help
 	  This option enables some additional warnings that help
@@ -68,7 +68,7 @@ config CFG80211_DEVELOPER_WARNINGS
 
 config CFG80211_CERTIFICATION_ONUS
 	bool "cfg80211 certification onus"
-	depends on CFG80211 && EXPERT
+	depends on EXPERT
 	default n
 	---help---
 	  You should disable this option unless you are both capable
@@ -159,7 +159,6 @@ config CFG80211_REG_RELAX_NO_IR
 
 config CFG80211_DEFAULT_PS
 	bool "enable powersave by default"
-	depends on CFG80211
 	default y
 	help
 	  This option enables powersave mode by default.
@@ -170,7 +169,6 @@ config CFG80211_DEFAULT_PS
 
 config CFG80211_DEBUGFS
 	bool "cfg80211 DebugFS entries"
-	depends on CFG80211
 	depends on DEBUG_FS
 	---help---
 	  You can enable this if you want debugfs entries for cfg80211.
@@ -180,7 +178,6 @@ config CFG80211_DEBUGFS
 config CFG80211_CRDA_SUPPORT
 	bool "support CRDA" if EXPERT
 	default y
-	depends on CFG80211
 	help
 	  You should enable this option unless you know for sure you have no
 	  need for it, for example when using internal regdb (above) or the
@@ -190,7 +187,6 @@ config CFG80211_CRDA_SUPPORT
 
 config CFG80211_WEXT
 	bool "cfg80211 wireless extensions compatibility" if !CFG80211_WEXT_EXPORT
-	depends on CFG80211
 	select WEXT_CORE
 	default y if CFG80211_WEXT_EXPORT
 	help
@@ -199,10 +195,11 @@ config CFG80211_WEXT
 
 config CFG80211_WEXT_EXPORT
 	bool
-	depends on CFG80211
 	help
 	  Drivers should select this option if they require cfg80211's
 	  wext compatibility symbols to be exported.
+
+endif # CFG80211
 
 config LIB80211
 	tristate

@@ -85,8 +85,6 @@ struct amdgpu_display_manager {
 	struct dal *dal;
 	struct dc *dc;
 	struct cgs_device *cgs_device;
-	/* lock to be used when DAL is called from SYNC IRQ context */
-	spinlock_t dal_lock;
 
 	struct amdgpu_device *adev;	/*AMD base driver*/
 	struct drm_device *ddev;	/*DRM base driver*/
@@ -118,17 +116,6 @@ struct amdgpu_display_manager {
 
 	/* this spin lock synchronizes access to 'irq_handler_list_table' */
 	spinlock_t irq_handler_list_table_lock;
-
-	/* Timer-related data. */
-	struct list_head timer_handler_list;
-	struct workqueue_struct *timer_workqueue;
-
-	/* Use dal_mutex for any activity which is NOT syncronized by
-	 * DRM mode setting locks.
-	 * For example: amdgpu_dm_hpd_low_irq() calls into DAL *without*
-	 * DRM mode setting locks being acquired. This is where dal_mutex
-	 * is acquired before calling into DAL. */
-	struct mutex dal_mutex;
 
 	struct backlight_device *backlight_dev;
 
@@ -210,6 +197,9 @@ struct dm_plane_state {
 struct dm_crtc_state {
 	struct drm_crtc_state base;
 	struct dc_stream_state *stream;
+
+	int crc_skip_count;
+	bool crc_enabled;
 };
 
 #define to_dm_crtc_state(x)    container_of(x, struct dm_crtc_state, base)
@@ -267,6 +257,26 @@ void amdgpu_dm_add_sink_to_freesync_module(struct drm_connector *connector,
 
 void
 amdgpu_dm_remove_sink_from_freesync_module(struct drm_connector *connector);
+
+/* amdgpu_dm_crc.c */
+#ifdef CONFIG_DEBUG_FS
+int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name,
+				  size_t *values_cnt);
+void amdgpu_dm_crtc_handle_crc_irq(struct drm_crtc *crtc);
+#else
+#define amdgpu_dm_crtc_set_crc_source NULL
+#define amdgpu_dm_crtc_handle_crc_irq(x)
+#endif
+
+#define MAX_COLOR_LUT_ENTRIES 4096
+/* Legacy gamm LUT users such as X doesn't like large LUT sizes */
+#define MAX_COLOR_LEGACY_LUT_ENTRIES 256
+
+void amdgpu_dm_init_color_mod(void);
+int amdgpu_dm_set_degamma_lut(struct drm_crtc_state *crtc_state,
+			      struct dc_plane_state *dc_plane_state);
+void amdgpu_dm_set_ctm(struct dm_crtc_state *crtc);
+int amdgpu_dm_set_regamma_lut(struct dm_crtc_state *crtc);
 
 extern const struct drm_encoder_helper_funcs amdgpu_dm_encoder_helper_funcs;
 

@@ -47,7 +47,7 @@
 			gpios = <&gpio3 19 GPIO_ACTIVE_LOW>;	/* gpio3_83 */
 			wakeup-source;
 			autorepeat;
-			debounce_interval = <50>;
+			debounce-interval = <50>;
 		};
 	};
 

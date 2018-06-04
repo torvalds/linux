@@ -120,6 +120,9 @@ static u32 __get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		struct drm_crtc *crtc = drm_crtc_from_index(dev, pipe);
 
+		if (WARN_ON(!crtc))
+			return 0;
+
 		if (crtc->funcs->get_vblank_counter)
 			return crtc->funcs->get_vblank_counter(crtc);
 	}
@@ -271,7 +274,7 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 	store_vblank(dev, pipe, diff, t_vblank, cur_vblank);
 }
 
-static u32 drm_vblank_count(struct drm_device *dev, unsigned int pipe)
+static u64 drm_vblank_count(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 
@@ -292,11 +295,11 @@ static u32 drm_vblank_count(struct drm_device *dev, unsigned int pipe)
  * This is mostly useful for hardware that can obtain the scanout position, but
  * doesn't have a hardware frame counter.
  */
-u32 drm_crtc_accurate_vblank_count(struct drm_crtc *crtc)
+u64 drm_crtc_accurate_vblank_count(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	unsigned int pipe = drm_crtc_index(crtc);
-	u32 vblank;
+	u64 vblank;
 	unsigned long flags;
 
 	WARN_ONCE(drm_debug & DRM_UT_VBL && !dev->driver->get_vblank_timestamp,
@@ -317,6 +320,9 @@ static void __disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		struct drm_crtc *crtc = drm_crtc_from_index(dev, pipe);
+
+		if (WARN_ON(!crtc))
+			return;
 
 		if (crtc->funcs->disable_vblank) {
 			crtc->funcs->disable_vblank(crtc);
@@ -347,23 +353,25 @@ void drm_vblank_disable_and_save(struct drm_device *dev, unsigned int pipe)
 	spin_lock_irqsave(&dev->vblank_time_lock, irqflags);
 
 	/*
-	 * Only disable vblank interrupts if they're enabled. This avoids
-	 * calling the ->disable_vblank() operation in atomic context with the
-	 * hardware potentially runtime suspended.
+	 * Update vblank count and disable vblank interrupts only if the
+	 * interrupts were enabled. This avoids calling the ->disable_vblank()
+	 * operation in atomic context with the hardware potentially runtime
+	 * suspended.
 	 */
-	if (vblank->enabled) {
-		__disable_vblank(dev, pipe);
-		vblank->enabled = false;
-	}
+	if (!vblank->enabled)
+		goto out;
 
 	/*
-	 * Always update the count and timestamp to maintain the
+	 * Update the count and timestamp to maintain the
 	 * appearance that the counter has been ticking all along until
 	 * this time. This makes the count account for the entire time
 	 * between drm_crtc_vblank_on() and drm_crtc_vblank_off().
 	 */
 	drm_update_vblank_count(dev, pipe, false);
+	__disable_vblank(dev, pipe);
+	vblank->enabled = false;
 
+out:
 	spin_unlock_irqrestore(&dev->vblank_time_lock, irqflags);
 }
 
@@ -918,6 +926,9 @@ static int __enable_vblank(struct drm_device *dev, unsigned int pipe)
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		struct drm_crtc *crtc = drm_crtc_from_index(dev, pipe);
 
+		if (WARN_ON(!crtc))
+			return 0;
+
 		if (crtc->funcs->enable_vblank)
 			return crtc->funcs->enable_vblank(crtc);
 	}
@@ -1055,7 +1066,7 @@ void drm_wait_one_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 	int ret;
-	u32 last;
+	u64 last;
 
 	if (WARN_ON(pipe >= dev->num_crtcs))
 		return;
@@ -1234,6 +1245,71 @@ void drm_crtc_vblank_on(struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 }
 EXPORT_SYMBOL(drm_crtc_vblank_on);
+
+/**
+ * drm_vblank_restore - estimate missed vblanks and update vblank count.
+ * @dev: DRM device
+ * @pipe: CRTC index
+ *
+ * Power manamement features can cause frame counter resets between vblank
+ * disable and enable. Drivers can use this function in their
+ * &drm_crtc_funcs.enable_vblank implementation to estimate missed vblanks since
+ * the last &drm_crtc_funcs.disable_vblank using timestamps and update the
+ * vblank counter.
+ *
+ * This function is the legacy version of drm_crtc_vblank_restore().
+ */
+void drm_vblank_restore(struct drm_device *dev, unsigned int pipe)
+{
+	ktime_t t_vblank;
+	struct drm_vblank_crtc *vblank;
+	int framedur_ns;
+	u64 diff_ns;
+	u32 cur_vblank, diff = 1;
+	int count = DRM_TIMESTAMP_MAXRETRIES;
+
+	if (WARN_ON(pipe >= dev->num_crtcs))
+		return;
+
+	assert_spin_locked(&dev->vbl_lock);
+	assert_spin_locked(&dev->vblank_time_lock);
+
+	vblank = &dev->vblank[pipe];
+	WARN_ONCE((drm_debug & DRM_UT_VBL) && !vblank->framedur_ns,
+		  "Cannot compute missed vblanks without frame duration\n");
+	framedur_ns = vblank->framedur_ns;
+
+	do {
+		cur_vblank = __get_vblank_counter(dev, pipe);
+		drm_get_last_vbltimestamp(dev, pipe, &t_vblank, false);
+	} while (cur_vblank != __get_vblank_counter(dev, pipe) && --count > 0);
+
+	diff_ns = ktime_to_ns(ktime_sub(t_vblank, vblank->time));
+	if (framedur_ns)
+		diff = DIV_ROUND_CLOSEST_ULL(diff_ns, framedur_ns);
+
+
+	DRM_DEBUG_VBL("missed %d vblanks in %lld ns, frame duration=%d ns, hw_diff=%d\n",
+		      diff, diff_ns, framedur_ns, cur_vblank - vblank->last);
+	store_vblank(dev, pipe, diff, t_vblank, cur_vblank);
+}
+EXPORT_SYMBOL(drm_vblank_restore);
+
+/**
+ * drm_crtc_vblank_restore - estimate missed vblanks and update vblank count.
+ * @crtc: CRTC in question
+ *
+ * Power manamement features can cause frame counter resets between vblank
+ * disable and enable. Drivers can use this function in their
+ * &drm_crtc_funcs.enable_vblank implementation to estimate missed vblanks since
+ * the last &drm_crtc_funcs.disable_vblank using timestamps and update the
+ * vblank counter.
+ */
+void drm_crtc_vblank_restore(struct drm_crtc *crtc)
+{
+	drm_vblank_restore(crtc->dev, drm_crtc_index(crtc));
+}
+EXPORT_SYMBOL(drm_crtc_vblank_restore);
 
 static void drm_legacy_vblank_pre_modeset(struct drm_device *dev,
 					  unsigned int pipe)

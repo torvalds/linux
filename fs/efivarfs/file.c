@@ -8,6 +8,7 @@
  */
 
 #include <linux/efi.h>
+#include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/mount.h>
@@ -73,6 +74,11 @@ static ssize_t efivarfs_file_read(struct file *file, char __user *userbuf,
 	void *data;
 	ssize_t size = 0;
 	int err;
+
+	while (!__ratelimit(&file->f_cred->user->ratelimit)) {
+		if (!msleep_interruptible(50))
+			return -EINTR;
+	}
 
 	err = efivar_entry_size(var, &datasize);
 

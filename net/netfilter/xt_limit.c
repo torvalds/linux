@@ -46,7 +46,7 @@ MODULE_ALIAS("ip6t_limit");
 
    See Alexey's formal explanation in net/sched/sch_tbf.c.
 
-   To get the maxmum range, we multiply by this factor (ie. you get N
+   To get the maximum range, we multiply by this factor (ie. you get N
    credits per jiffy).  We want to allow a rate as low as 1 per day
    (slowest userspace tool allows), which means
    CREDITS_PER_JIFFY*HZ*60*60*24 < 2^32. ie. */
@@ -106,8 +106,8 @@ static int limit_mt_check(const struct xt_mtchk_param *par)
 	/* Check for overflow. */
 	if (r->burst == 0
 	    || user2credits(r->avg * r->burst) < user2credits(r->avg)) {
-		pr_info("Overflow, try lower: %u/%u\n",
-			r->avg, r->burst);
+		pr_info_ratelimited("Overflow, try lower: %u/%u\n",
+				    r->avg, r->burst);
 		return -ERANGE;
 	}
 

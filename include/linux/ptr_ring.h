@@ -296,13 +296,14 @@ static inline void *__ptr_ring_consume(struct ptr_ring *r)
 {
 	void *ptr;
 
+	/* The READ_ONCE in __ptr_ring_peek guarantees that anyone
+	 * accessing data through the pointer is up to date. Pairs
+	 * with smp_wmb in __ptr_ring_produce.
+	 */
 	ptr = __ptr_ring_peek(r);
 	if (ptr)
 		__ptr_ring_discard_one(r);
 
-	/* Make sure anyone accessing data through the pointer is up to date. */
-	/* Pairs with smp_wmb in __ptr_ring_produce. */
-	smp_read_barrier_depends();
 	return ptr;
 }
 
@@ -469,7 +470,7 @@ static inline int ptr_ring_consume_batched_bh(struct ptr_ring *r,
  */
 static inline void **__ptr_ring_init_queue_alloc(unsigned int size, gfp_t gfp)
 {
-	if (size * sizeof(void *) > KMALLOC_MAX_SIZE)
+	if (size > KMALLOC_MAX_SIZE / sizeof(void *))
 		return NULL;
 	return kvmalloc_array(size, sizeof(void *), gfp | __GFP_ZERO);
 }

@@ -176,6 +176,7 @@ config PCIE_ARTPEC6_EP
 config PCIE_KIRIN
 	depends on OF && ARM64
 	bool "HiSilicon Kirin series SoCs PCIe controllers"
+	depends on PCI_MSI_IRQ_DOMAIN
 	depends on PCI
 	select PCIEPORTBUS
 	select PCIE_DW_HOST

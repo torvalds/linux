@@ -217,7 +217,7 @@ bool xfrm_dev_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
 		if (skb->len <= mtu)
 			goto ok;
 
-		if (skb_is_gso(skb) && skb_gso_validate_mtu(skb, mtu))
+		if (skb_is_gso(skb) && skb_gso_validate_network_len(skb, mtu))
 			goto ok;
 	}
 
@@ -350,7 +350,7 @@ static struct notifier_block xfrm_dev_notifier = {
 	.notifier_call	= xfrm_dev_event,
 };
 
-void __net_init xfrm_dev_init(void)
+void __init xfrm_dev_init(void)
 {
 	register_netdevice_notifier(&xfrm_dev_notifier);
 }

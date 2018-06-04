@@ -214,13 +214,13 @@
 			};
 
 			eeprom@0x54{
-				compatible = "24c01";
+				compatible = "atmel,24c01";
 				reg = <0x54>;
 				pagesize = <0x8>;
 			};
 
 			eeprom@0x57{
-				compatible = "24c04";
+				compatible = "atmel,24c04";
 				reg = <0x57>;
 				pagesize = <0x8>;
 			};

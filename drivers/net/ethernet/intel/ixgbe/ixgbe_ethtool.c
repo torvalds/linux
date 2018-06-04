@@ -97,6 +97,7 @@ static const struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"tx_heartbeat_errors", IXGBE_NETDEV_STAT(tx_heartbeat_errors)},
 	{"tx_timeout_count", IXGBE_STAT(tx_timeout_count)},
 	{"tx_restart_queue", IXGBE_STAT(restart_queue)},
+	{"rx_length_errors", IXGBE_STAT(stats.rlec)},
 	{"rx_long_length_errors", IXGBE_STAT(stats.roc)},
 	{"rx_short_length_errors", IXGBE_STAT(stats.ruc)},
 	{"tx_flow_control_xon", IXGBE_STAT(stats.lxontxc)},
@@ -3059,6 +3060,8 @@ static int ixgbe_set_rxfh(struct net_device *netdev, const u32 *indir,
 
 		for (i = 0; i < reta_entries; i++)
 			adapter->rss_indir_tbl[i] = indir[i];
+
+		ixgbe_store_reta(adapter);
 	}
 
 	/* Fill out the rss hash key */
@@ -3066,8 +3069,6 @@ static int ixgbe_set_rxfh(struct net_device *netdev, const u32 *indir,
 		memcpy(adapter->rss_key, key, ixgbe_get_rxfh_key_size(netdev));
 		ixgbe_store_key(adapter);
 	}
-
-	ixgbe_store_reta(adapter);
 
 	return 0;
 }

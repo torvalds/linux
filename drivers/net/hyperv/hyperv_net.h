@@ -173,6 +173,7 @@ struct rndis_device {
 	struct list_head req_list;
 
 	struct work_struct mcast_work;
+	u32 filter;
 
 	bool link_state;        /* 0 - link up, 1 - link down */
 
@@ -211,7 +212,6 @@ void netvsc_channel_cb(void *context);
 int netvsc_poll(struct napi_struct *napi, int budget);
 
 void rndis_set_subchannel(struct work_struct *w);
-bool rndis_filter_opened(const struct netvsc_device *nvdev);
 int rndis_filter_open(struct netvsc_device *nvdev);
 int rndis_filter_close(struct netvsc_device *nvdev);
 struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
@@ -793,6 +793,7 @@ struct netvsc_device {
 
 	/* Receive buffer allocated by us but manages by NetVSP */
 	void *recv_buf;
+	u32 recv_buf_size; /* allocated bytes */
 	u32 recv_buf_gpadl_handle;
 	u32 recv_section_cnt;
 	u32 recv_section_size;

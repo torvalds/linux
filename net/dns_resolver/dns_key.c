@@ -38,7 +38,7 @@ MODULE_AUTHOR("Wang Lei");
 MODULE_LICENSE("GPL");
 
 unsigned int dns_resolver_debug;
-module_param_named(debug, dns_resolver_debug, uint, S_IWUSR | S_IRUGO);
+module_param_named(debug, dns_resolver_debug, uint, 0644);
 MODULE_PARM_DESC(debug, "DNS Resolver debugging mask");
 
 const struct cred *dns_resolver_cache;

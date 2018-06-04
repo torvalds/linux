@@ -1335,12 +1335,6 @@ int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 		return ret;
 	}
 
-	/* Clear out any old resources being used by the filter before
-	 * we start constructing the new filter.
-	 */
-	if (f->valid)
-		clear_filter(adapter, f);
-
 	if (is_t6(adapter->params.chip) && fs->type &&
 	    ipv6_addr_type((const struct in6_addr *)fs->val.lip) !=
 	    IPV6_ADDR_ANY) {

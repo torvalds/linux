@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Copyright (c) 2017 Martin Blumenstingl <martin.blumenstingl@googlemail.com>.
  * Copyright (c) 2017 BayLibre, SAS
  * Author: Neil Armstrong <narmstrong@baylibre.com>
- *
- * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
  */
 
 /dts-v1/;
@@ -59,8 +58,6 @@
 				      1 1
 				      2 2
 				      3 3>;
-		cooling-min-level = <0>;
-		cooling-max-level = <3>;
 		#cooling-cells = <2>;
 	};
 
@@ -209,14 +206,10 @@
 };
 
 &cpu0 {
-	cooling-min-level = <0>;
-	cooling-max-level = <6>;
 	#cooling-cells = <2>;
 };
 
 &cpu4 {
-	cooling-min-level = <0>;
-	cooling-max-level = <4>;
 	#cooling-cells = <2>;
 };
 

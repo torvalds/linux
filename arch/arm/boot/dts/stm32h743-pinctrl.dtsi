@@ -49,6 +49,8 @@
 			#size-cells = <1>;
 			compatible = "st,stm32h743-pinctrl";
 			ranges = <0 0x58020000 0x3000>;
+			interrupt-parent = <&exti>;
+			st,syscfg = <&syscfg 0x8>;
 			pins-are-numbered;
 
 			gpioa: gpio@58020000 {
@@ -57,6 +59,8 @@
 				reg = <0x0 0x400>;
 				clocks = <&rcc GPIOA_CK>;
 				st,bank-name = "GPIOA";
+				interrupt-controller;
+				#interrupt-cells = <2>;
 			};
 
 			gpiob: gpio@58020400 {
@@ -65,6 +69,8 @@
 				reg = <0x400 0x400>;
 				clocks = <&rcc GPIOB_CK>;
 				st,bank-name = "GPIOB";
+				interrupt-controller;
+				#interrupt-cells = <2>;
 			};
 
 			gpioc: gpio@58020800 {
@@ -73,6 +79,8 @@
 				reg = <0x800 0x400>;
 				clocks = <&rcc GPIOC_CK>;
 				st,bank-name = "GPIOC";
+				interrupt-controller;
+				#interrupt-cells = <2>;
 			};
 
 			gpiod: gpio@58020c00 {
@@ -81,6 +89,8 @@
 				reg = <0xc00 0x400>;
 				clocks = <&rcc GPIOD_CK>;
 				st,bank-name = "GPIOD";
+				interrupt-controller;
+				#interrupt-cells = <2>;
 			};
 
 			gpioe: gpio@58021000 {
@@ -89,6 +99,8 @@
 				reg = <0x1000 0x400>;
 				clocks = <&rcc GPIOE_CK>;
 				st,bank-name = "GPIOE";
+				interrupt-controller;
+				#interrupt-cells = <2>;
 			};
 
 			gpiof: gpio@58021400 {
@@ -97,6 +109,8 @@
 				reg = <0x1400 0x400>;
 				clocks = <&rcc GPIOF_CK>;
 				st,bank-name = "GPIOF";
+				interrupt-controller;
+				#interrupt-cells = <2>;
 			};
 
 			gpiog: gpio@58021800 {
@@ -105,6 +119,8 @@
 				reg = <0x1800 0x400>;
 				clocks = <&rcc GPIOG_CK>;
 				st,bank-name = "GPIOG";
+				interrupt-controller;
+				#interrupt-cells = <2>;
 			};
 
 			gpioh: gpio@58021c00 {
@@ -113,6 +129,8 @@
 				reg = <0x1c00 0x400>;
 				clocks = <&rcc GPIOH_CK>;
 				st,bank-name = "GPIOH";
+				interrupt-controller;
+				#interrupt-cells = <2>;
 			};
 
 			gpioi: gpio@58022000 {
@@ -121,6 +139,8 @@
 				reg = <0x2000 0x400>;
 				clocks = <&rcc GPIOI_CK>;
 				st,bank-name = "GPIOI";
+				interrupt-controller;
+				#interrupt-cells = <2>;
 			};
 
 			gpioj: gpio@58022400 {
@@ -129,6 +149,8 @@
 				reg = <0x2400 0x400>;
 				clocks = <&rcc GPIOJ_CK>;
 				st,bank-name = "GPIOJ";
+				interrupt-controller;
+				#interrupt-cells = <2>;
 			};
 
 			gpiok: gpio@58022800 {
@@ -137,6 +159,8 @@
 				reg = <0x2800 0x400>;
 				clocks = <&rcc GPIOK_CK>;
 				st,bank-name = "GPIOK";
+				interrupt-controller;
+				#interrupt-cells = <2>;
 			};
 
 			usart1_pins: usart1@0 {
@@ -162,6 +186,26 @@
 				pins2 {
 					pinmux = <STM32_PINMUX('D', 6, AF7)>; /* USART2_RX */
 					bias-disable;
+				};
+			};
+
+			usbotg_hs_pins_a: usbotg-hs@0 {
+				pins {
+					pinmux = <STM32_PINMUX('H', 4, AF10)>,	/* ULPI_NXT */
+							 <STM32_PINMUX('I', 11, AF10)>, /* ULPI_DIR> */
+							 <STM32_PINMUX('C', 0, AF10)>,	/* ULPI_STP> */
+							 <STM32_PINMUX('A', 5, AF10)>,	/* ULPI_CK> */
+							 <STM32_PINMUX('A', 3, AF10)>,	/* ULPI_D0> */
+							 <STM32_PINMUX('B', 0, AF10)>,	/* ULPI_D1> */
+							 <STM32_PINMUX('B', 1, AF10)>,	/* ULPI_D2> */
+							 <STM32_PINMUX('B', 10, AF10)>, /* ULPI_D3> */
+							 <STM32_PINMUX('B', 11, AF10)>, /* ULPI_D4> */
+							 <STM32_PINMUX('B', 12, AF10)>, /* ULPI_D5> */
+							 <STM32_PINMUX('B', 13, AF10)>, /* ULPI_D6> */
+							 <STM32_PINMUX('B', 5, AF10)>;	/* ULPI_D7> */
+					bias-disable;
+					drive-push-pull;
+					slew-rate = <2>;
 				};
 			};
 		};

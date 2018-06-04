@@ -235,7 +235,7 @@ static int safexcel_hw_setup_rdesc_rings(struct safexcel_crypto_priv *priv)
 		/* Configure DMA tx control */
 		val = EIP197_HIA_xDR_CFG_WR_CACHE(WR_CACHE_3BITS);
 		val |= EIP197_HIA_xDR_CFG_RD_CACHE(RD_CACHE_3BITS);
-		val |= EIP197_HIA_xDR_WR_RES_BUF | EIP197_HIA_xDR_WR_CTRL_BUG;
+		val |= EIP197_HIA_xDR_WR_RES_BUF | EIP197_HIA_xDR_WR_CTRL_BUF;
 		writel(val,
 		       EIP197_HIA_RDR(priv, i) + EIP197_HIA_xDR_DMA_CFG);
 
@@ -332,7 +332,7 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 	val = EIP197_HIA_DSE_CFG_DIS_DEBUG;
 	val |= EIP197_HIA_DxE_CFG_MIN_DATA_SIZE(7) | EIP197_HIA_DxE_CFG_MAX_DATA_SIZE(8);
 	val |= EIP197_HIA_DxE_CFG_DATA_CACHE_CTRL(WR_CACHE_3BITS);
-	val |= EIP197_HIA_DSE_CFG_ALLWAYS_BUFFERABLE;
+	val |= EIP197_HIA_DSE_CFG_ALWAYS_BUFFERABLE;
 	/* FIXME: instability issues can occur for EIP97 but disabling it impact
 	 * performances.
 	 */
@@ -354,7 +354,7 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 	val |= EIP197_PROTOCOL_ENCRYPT_ONLY | EIP197_PROTOCOL_HASH_ONLY;
 	val |= EIP197_ALG_AES_ECB | EIP197_ALG_AES_CBC;
 	val |= EIP197_ALG_SHA1 | EIP197_ALG_HMAC_SHA1;
-	val |= EIP197_ALG_SHA2;
+	val |= EIP197_ALG_SHA2 | EIP197_ALG_HMAC_SHA2;
 	writel(val, EIP197_PE(priv) + EIP197_PE_EIP96_FUNCTION_EN);
 
 	/* Command Descriptor Rings prepare */
@@ -432,20 +432,18 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 }
 
 /* Called with ring's lock taken */
-static int safexcel_try_push_requests(struct safexcel_crypto_priv *priv,
-				      int ring, int reqs)
+static void safexcel_try_push_requests(struct safexcel_crypto_priv *priv,
+				       int ring)
 {
-	int coal = min_t(int, reqs, EIP197_MAX_BATCH_SZ);
+	int coal = min_t(int, priv->ring[ring].requests, EIP197_MAX_BATCH_SZ);
 
 	if (!coal)
-		return 0;
+		return;
 
 	/* Configure when we want an interrupt */
 	writel(EIP197_HIA_RDR_THRESH_PKT_MODE |
 	       EIP197_HIA_RDR_THRESH_PROC_PKT(coal),
 	       EIP197_HIA_RDR(priv, ring) + EIP197_HIA_xDR_THRESH);
-
-	return coal;
 }
 
 void safexcel_dequeue(struct safexcel_crypto_priv *priv, int ring)
@@ -490,6 +488,15 @@ handle_req:
 		if (backlog)
 			backlog->complete(backlog, -EINPROGRESS);
 
+		/* In case the send() helper did not issue any command to push
+		 * to the engine because the input data was cached, continue to
+		 * dequeue other requests as this is valid and not an error.
+		 */
+		if (!commands && !results) {
+			kfree(request);
+			continue;
+		}
+
 		spin_lock_bh(&priv->ring[ring].egress_lock);
 		list_add_tail(&request->list, &priv->ring[ring].list);
 		spin_unlock_bh(&priv->ring[ring].egress_lock);
@@ -512,13 +519,12 @@ finalize:
 
 	spin_lock_bh(&priv->ring[ring].egress_lock);
 
-	if (!priv->ring[ring].busy) {
-		nreq -= safexcel_try_push_requests(priv, ring, nreq);
-		if (nreq)
-			priv->ring[ring].busy = true;
-	}
+	priv->ring[ring].requests += nreq;
 
-	priv->ring[ring].requests_left += nreq;
+	if (!priv->ring[ring].busy) {
+		safexcel_try_push_requests(priv, ring);
+		priv->ring[ring].busy = true;
+	}
 
 	spin_unlock_bh(&priv->ring[ring].egress_lock);
 
@@ -529,25 +535,6 @@ finalize:
 	/* let the CDR know we have pending descriptors */
 	writel((cdesc * priv->config.cd_offset) << 2,
 	       EIP197_HIA_CDR(priv, ring) + EIP197_HIA_xDR_PREP_COUNT);
-}
-
-void safexcel_free_context(struct safexcel_crypto_priv *priv,
-			   struct crypto_async_request *req,
-			   int result_sz)
-{
-	struct safexcel_context *ctx = crypto_tfm_ctx(req->tfm);
-
-	if (ctx->result_dma)
-		dma_unmap_single(priv->dev, ctx->result_dma, result_sz,
-				 DMA_FROM_DEVICE);
-
-	if (ctx->cache) {
-		dma_unmap_single(priv->dev, ctx->cache_dma, ctx->cache_sz,
-				 DMA_TO_DEVICE);
-		kfree(ctx->cache);
-		ctx->cache = NULL;
-		ctx->cache_sz = 0;
-	}
 }
 
 void safexcel_complete(struct safexcel_crypto_priv *priv, int ring)
@@ -623,7 +610,7 @@ static inline void safexcel_handle_result_descriptor(struct safexcel_crypto_priv
 {
 	struct safexcel_request *sreq;
 	struct safexcel_context *ctx;
-	int ret, i, nreq, ndesc, tot_descs, done;
+	int ret, i, nreq, ndesc, tot_descs, handled = 0;
 	bool should_complete;
 
 handle_results:
@@ -659,6 +646,7 @@ handle_results:
 
 		kfree(sreq);
 		tot_descs += ndesc;
+		handled++;
 	}
 
 acknowledge:
@@ -677,11 +665,10 @@ acknowledge:
 requests_left:
 	spin_lock_bh(&priv->ring[ring].egress_lock);
 
-	done = safexcel_try_push_requests(priv, ring,
-					  priv->ring[ring].requests_left);
+	priv->ring[ring].requests -= handled;
+	safexcel_try_push_requests(priv, ring);
 
-	priv->ring[ring].requests_left -= done;
-	if (!done && !priv->ring[ring].requests_left)
+	if (!priv->ring[ring].requests)
 		priv->ring[ring].busy = false;
 
 	spin_unlock_bh(&priv->ring[ring].egress_lock);
@@ -781,6 +768,8 @@ static struct safexcel_alg_template *safexcel_algs[] = {
 	&safexcel_alg_sha224,
 	&safexcel_alg_sha256,
 	&safexcel_alg_hmac_sha1,
+	&safexcel_alg_hmac_sha224,
+	&safexcel_alg_hmac_sha256,
 };
 
 static int safexcel_register_algorithms(struct safexcel_crypto_priv *priv)
@@ -894,29 +883,44 @@ static int safexcel_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->base);
 	}
 
-	priv->clk = of_clk_get(dev->of_node, 0);
-	if (!IS_ERR(priv->clk)) {
+	priv->clk = devm_clk_get(&pdev->dev, NULL);
+	ret = PTR_ERR_OR_ZERO(priv->clk);
+	/* The clock isn't mandatory */
+	if  (ret != -ENOENT) {
+		if (ret)
+			return ret;
+
 		ret = clk_prepare_enable(priv->clk);
 		if (ret) {
 			dev_err(dev, "unable to enable clk (%d)\n", ret);
 			return ret;
 		}
-	} else {
-		/* The clock isn't mandatory */
-		if (PTR_ERR(priv->clk) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
+	}
+
+	priv->reg_clk = devm_clk_get(&pdev->dev, "reg");
+	ret = PTR_ERR_OR_ZERO(priv->reg_clk);
+	/* The clock isn't mandatory */
+	if  (ret != -ENOENT) {
+		if (ret)
+			goto err_core_clk;
+
+		ret = clk_prepare_enable(priv->reg_clk);
+		if (ret) {
+			dev_err(dev, "unable to enable reg clk (%d)\n", ret);
+			goto err_core_clk;
+		}
 	}
 
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (ret)
-		goto err_clk;
+		goto err_reg_clk;
 
 	priv->context_pool = dmam_pool_create("safexcel-context", dev,
 					      sizeof(struct safexcel_context_record),
 					      1, 0);
 	if (!priv->context_pool) {
 		ret = -ENOMEM;
-		goto err_clk;
+		goto err_reg_clk;
 	}
 
 	safexcel_configure(priv);
@@ -931,12 +935,12 @@ static int safexcel_probe(struct platform_device *pdev)
 						     &priv->ring[i].cdr,
 						     &priv->ring[i].rdr);
 		if (ret)
-			goto err_clk;
+			goto err_reg_clk;
 
 		ring_irq = devm_kzalloc(dev, sizeof(*ring_irq), GFP_KERNEL);
 		if (!ring_irq) {
 			ret = -ENOMEM;
-			goto err_clk;
+			goto err_reg_clk;
 		}
 
 		ring_irq->priv = priv;
@@ -948,7 +952,7 @@ static int safexcel_probe(struct platform_device *pdev)
 						ring_irq);
 		if (irq < 0) {
 			ret = irq;
-			goto err_clk;
+			goto err_reg_clk;
 		}
 
 		priv->ring[i].work_data.priv = priv;
@@ -959,10 +963,10 @@ static int safexcel_probe(struct platform_device *pdev)
 		priv->ring[i].workqueue = create_singlethread_workqueue(wq_name);
 		if (!priv->ring[i].workqueue) {
 			ret = -ENOMEM;
-			goto err_clk;
+			goto err_reg_clk;
 		}
 
-		priv->ring[i].requests_left = 0;
+		priv->ring[i].requests = 0;
 		priv->ring[i].busy = false;
 
 		crypto_init_queue(&priv->ring[i].queue,
@@ -980,18 +984,20 @@ static int safexcel_probe(struct platform_device *pdev)
 	ret = safexcel_hw_init(priv);
 	if (ret) {
 		dev_err(dev, "EIP h/w init failed (%d)\n", ret);
-		goto err_clk;
+		goto err_reg_clk;
 	}
 
 	ret = safexcel_register_algorithms(priv);
 	if (ret) {
 		dev_err(dev, "Failed to register algorithms (%d)\n", ret);
-		goto err_clk;
+		goto err_reg_clk;
 	}
 
 	return 0;
 
-err_clk:
+err_reg_clk:
+	clk_disable_unprepare(priv->reg_clk);
+err_core_clk:
 	clk_disable_unprepare(priv->clk);
 	return ret;
 }

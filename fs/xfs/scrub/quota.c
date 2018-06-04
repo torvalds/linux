@@ -219,7 +219,7 @@ xfs_scrub_quota(
 	/* Look for problem extents. */
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	if (ip->i_d.di_flags & XFS_DIFLAG_REALTIME) {
-		xfs_scrub_ino_set_corrupt(sc, sc->ip->i_ino, NULL);
+		xfs_scrub_ino_set_corrupt(sc, sc->ip->i_ino);
 		goto out_unlock_inode;
 	}
 	max_dqid_off = ((xfs_dqid_t)-1) / qi->qi_dqperchunk;

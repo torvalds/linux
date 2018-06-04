@@ -46,7 +46,7 @@ void closure_sub(struct closure *cl, int v)
 }
 EXPORT_SYMBOL(closure_sub);
 
-/**
+/*
  * closure_put - decrement a closure's refcount
  */
 void closure_put(struct closure *cl)
@@ -55,7 +55,7 @@ void closure_put(struct closure *cl)
 }
 EXPORT_SYMBOL(closure_put);
 
-/**
+/*
  * closure_wake_up - wake up all closures on a wait list, without memory barrier
  */
 void __closure_wake_up(struct closure_waitlist *wait_list)
@@ -79,9 +79,9 @@ EXPORT_SYMBOL(__closure_wake_up);
 
 /**
  * closure_wait - add a closure to a waitlist
- *
- * @waitlist will own a ref on @cl, which will be released when
+ * @waitlist: will own a ref on @cl, which will be released when
  * closure_wake_up() is called on @waitlist.
+ * @cl: closure pointer.
  *
  */
 bool closure_wait(struct closure_waitlist *waitlist, struct closure *cl)
@@ -157,7 +157,7 @@ void closure_debug_destroy(struct closure *cl)
 }
 EXPORT_SYMBOL(closure_debug_destroy);
 
-static struct dentry *debug;
+static struct dentry *closure_debug;
 
 static int debug_seq_show(struct seq_file *f, void *data)
 {
@@ -199,11 +199,12 @@ static const struct file_operations debug_ops = {
 	.release	= single_release
 };
 
-void __init closure_debug_init(void)
+int __init closure_debug_init(void)
 {
-	debug = debugfs_create_file("closures", 0400, NULL, NULL, &debug_ops);
+	closure_debug = debugfs_create_file("closures",
+				0400, bcache_debug, NULL, &debug_ops);
+	return IS_ERR_OR_NULL(closure_debug);
 }
-
 #endif
 
 MODULE_AUTHOR("Kent Overstreet <koverstreet@google.com>");

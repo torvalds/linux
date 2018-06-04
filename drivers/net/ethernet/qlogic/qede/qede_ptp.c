@@ -485,7 +485,7 @@ int qede_ptp_enable(struct qede_dev *edev, bool init_tc)
 	ptp->clock = ptp_clock_register(&ptp->clock_info, &edev->pdev->dev);
 	if (IS_ERR(ptp->clock)) {
 		rc = -EINVAL;
-		DP_ERR(edev, "PTP clock registeration failed\n");
+		DP_ERR(edev, "PTP clock registration failed\n");
 		goto err2;
 	}
 

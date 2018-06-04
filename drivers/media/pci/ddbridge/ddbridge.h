@@ -276,6 +276,7 @@ struct ddb_port {
 	struct ddb_input      *input[2];
 	struct ddb_output     *output;
 	struct dvb_ca_en50221 *en;
+	u8                     en_freedata;
 	struct ddb_dvb         dvb[2];
 	u32                    gap;
 	u32                    obr;

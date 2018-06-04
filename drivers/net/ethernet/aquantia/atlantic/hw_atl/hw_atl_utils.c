@@ -21,6 +21,10 @@
 
 #define HW_ATL_UCP_0X370_REG    0x0370U
 
+#define HW_ATL_MIF_CMD          0x0200U
+#define HW_ATL_MIF_ADDR         0x0208U
+#define HW_ATL_MIF_VAL          0x020CU
+
 #define HW_ATL_FW_SM_RAM        0x2U
 #define HW_ATL_MPI_FW_VERSION	0x18
 #define HW_ATL_MPI_CONTROL_ADR  0x0368U
@@ -44,6 +48,8 @@
 #define FORCE_FLASHLESS 0
 
 static int hw_atl_utils_ver_match(u32 ver_expected, u32 ver_actual);
+static int hw_atl_utils_mpi_set_state(struct aq_hw_s *self,
+				      enum hal_atl_utils_fw_state_e state);
 
 int hw_atl_utils_initfw(struct aq_hw_s *self, const struct aq_fw_ops **fw_ops)
 {
@@ -79,16 +85,15 @@ int hw_atl_utils_initfw(struct aq_hw_s *self, const struct aq_fw_ops **fw_ops)
 
 static int hw_atl_utils_soft_reset_flb(struct aq_hw_s *self)
 {
+	u32 gsr, val;
 	int k = 0;
-	u32 gsr;
 
 	aq_hw_write_reg(self, 0x404, 0x40e1);
 	AQ_HW_SLEEP(50);
 
 	/* Cleanup SPI */
-	aq_hw_write_reg(self, 0x534, 0xA0);
-	aq_hw_write_reg(self, 0x100, 0x9F);
-	aq_hw_write_reg(self, 0x100, 0x809F);
+	val = aq_hw_read_reg(self, 0x53C);
+	aq_hw_write_reg(self, 0x53C, val | 0x10);
 
 	gsr = aq_hw_read_reg(self, HW_ATL_GLB_SOFT_RES_ADR);
 	aq_hw_write_reg(self, HW_ATL_GLB_SOFT_RES_ADR, (gsr & 0xBFFF) | 0x8000);
@@ -97,7 +102,14 @@ static int hw_atl_utils_soft_reset_flb(struct aq_hw_s *self)
 	aq_hw_write_reg(self, 0x404, 0x80e0);
 	aq_hw_write_reg(self, 0x32a8, 0x0);
 	aq_hw_write_reg(self, 0x520, 0x1);
+
+	/* Reset SPI again because of possible interrupted SPI burst */
+	val = aq_hw_read_reg(self, 0x53C);
+	aq_hw_write_reg(self, 0x53C, val | 0x10);
 	AQ_HW_SLEEP(10);
+	/* Clear SPI reset state */
+	aq_hw_write_reg(self, 0x53C, val & ~0x10);
+
 	aq_hw_write_reg(self, 0x404, 0x180e0);
 
 	for (k = 0; k < 1000; k++) {
@@ -141,13 +153,15 @@ static int hw_atl_utils_soft_reset_flb(struct aq_hw_s *self)
 		aq_pr_err("FW kickstart failed\n");
 		return -EIO;
 	}
+	/* Old FW requires fixed delay after init */
+	AQ_HW_SLEEP(15);
 
 	return 0;
 }
 
 static int hw_atl_utils_soft_reset_rbl(struct aq_hw_s *self)
 {
-	u32 gsr, rbl_status;
+	u32 gsr, val, rbl_status;
 	int k;
 
 	aq_hw_write_reg(self, 0x404, 0x40e1);
@@ -156,6 +170,10 @@ static int hw_atl_utils_soft_reset_rbl(struct aq_hw_s *self)
 
 	/* Alter RBL status */
 	aq_hw_write_reg(self, 0x388, 0xDEAD);
+
+	/* Cleanup SPI */
+	val = aq_hw_read_reg(self, 0x53C);
+	aq_hw_write_reg(self, 0x53C, val | 0x10);
 
 	/* Global software reset*/
 	hw_atl_rx_rx_reg_res_dis_set(self, 0U);
@@ -204,6 +222,8 @@ static int hw_atl_utils_soft_reset_rbl(struct aq_hw_s *self)
 		aq_pr_err("FW kickstart failed\n");
 		return -EIO;
 	}
+	/* Old FW requires fixed delay after init */
+	AQ_HW_SLEEP(15);
 
 	return 0;
 }
@@ -228,6 +248,20 @@ int hw_atl_utils_soft_reset(struct aq_hw_s *self)
 	}
 
 	self->rbl_enabled = (boot_exit_code != 0);
+
+	/* FW 1.x may bootup in an invalid POWER state (WOL feature).
+	 * We should work around this by forcing its state back to DEINIT
+	 */
+	if (!hw_atl_utils_ver_match(HW_ATL_FW_VER_1X,
+				    aq_hw_read_reg(self,
+						   HW_ATL_MPI_FW_VERSION))) {
+		int err = 0;
+
+		hw_atl_utils_mpi_set_state(self, MPI_DEINIT);
+		AQ_HW_WAIT_FOR((aq_hw_read_reg(self, HW_ATL_MPI_STATE_ADR) &
+			       HW_ATL_MPI_STATE_MSK) == MPI_DEINIT,
+			       10, 1000U);
+	}
 
 	if (self->rbl_enabled)
 		return hw_atl_utils_soft_reset_rbl(self);
@@ -255,18 +289,22 @@ int hw_atl_utils_fw_downld_dwords(struct aq_hw_s *self, u32 a,
 		}
 	}
 
-	aq_hw_write_reg(self, 0x00000208U, a);
+	aq_hw_write_reg(self, HW_ATL_MIF_ADDR, a);
 
-	for (++cnt; --cnt;) {
-		u32 i = 0U;
+	for (++cnt; --cnt && !err;) {
+		aq_hw_write_reg(self, HW_ATL_MIF_CMD, 0x00008000U);
 
-		aq_hw_write_reg(self, 0x00000200U, 0x00008000U);
+		if (IS_CHIP_FEATURE(REVISION_B1))
+			AQ_HW_WAIT_FOR(a != aq_hw_read_reg(self,
+							   HW_ATL_MIF_ADDR),
+				       1, 1000U);
+		else
+			AQ_HW_WAIT_FOR(!(0x100 & aq_hw_read_reg(self,
+							   HW_ATL_MIF_CMD)),
+				       1, 1000U);
 
-		for (i = 1024U;
-			(0x100U & aq_hw_read_reg(self, 0x00000200U)) && --i;) {
-		}
-
-		*(p++) = aq_hw_read_reg(self, 0x0000020CU);
+		*(p++) = aq_hw_read_reg(self, HW_ATL_MIF_VAL);
+		a += 4;
 	}
 
 	hw_atl_reg_glb_cpu_sem_set(self, 1U, HW_ATL_FW_SM_RAM);
@@ -483,7 +521,7 @@ void hw_atl_utils_mpi_read_stats(struct aq_hw_s *self,
 err_exit:;
 }
 
-int hw_atl_utils_mpi_set_speed(struct aq_hw_s *self, u32 speed)
+static int hw_atl_utils_mpi_set_speed(struct aq_hw_s *self, u32 speed)
 {
 	u32 val = aq_hw_read_reg(self, HW_ATL_MPI_CONTROL_ADR);
 
@@ -662,14 +700,18 @@ void hw_atl_utils_hw_chip_features_init(struct aq_hw_s *self, u32 *p)
 	u32 val = hw_atl_reg_glb_mif_id_get(self);
 	u32 mif_rev = val & 0xFFU;
 
-	if ((3U & mif_rev) == 1U) {
-		chip_features |=
-			HAL_ATLANTIC_UTILS_CHIP_REVISION_A0 |
+	if ((0xFU & mif_rev) == 1U) {
+		chip_features |= HAL_ATLANTIC_UTILS_CHIP_REVISION_A0 |
 			HAL_ATLANTIC_UTILS_CHIP_MPI_AQ |
 			HAL_ATLANTIC_UTILS_CHIP_MIPS;
-	} else if ((3U & mif_rev) == 2U) {
-		chip_features |=
-			HAL_ATLANTIC_UTILS_CHIP_REVISION_B0 |
+	} else if ((0xFU & mif_rev) == 2U) {
+		chip_features |= HAL_ATLANTIC_UTILS_CHIP_REVISION_B0 |
+			HAL_ATLANTIC_UTILS_CHIP_MPI_AQ |
+			HAL_ATLANTIC_UTILS_CHIP_MIPS |
+			HAL_ATLANTIC_UTILS_CHIP_TPO2 |
+			HAL_ATLANTIC_UTILS_CHIP_RPF2;
+	} else if ((0xFU & mif_rev) == 0xAU) {
+		chip_features |= HAL_ATLANTIC_UTILS_CHIP_REVISION_B1 |
 			HAL_ATLANTIC_UTILS_CHIP_MPI_AQ |
 			HAL_ATLANTIC_UTILS_CHIP_MIPS |
 			HAL_ATLANTIC_UTILS_CHIP_TPO2 |

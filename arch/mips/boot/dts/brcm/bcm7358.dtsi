@@ -217,6 +217,13 @@
 			status = "disabled";
 		};
 
+		watchdog: watchdog@4066a8 {
+			clocks = <&upg_clk>;
+			compatible = "brcm,bcm7038-wdt";
+			reg = <0x4066a8 0x14>;
+			status = "disabled";
+		};
+
 		aon_pm_l2_intc: interrupt-controller@408240 {
 			compatible = "brcm,l2-intc";
 			reg = <0x408240 0x30>;
@@ -360,6 +367,16 @@
 			interrupts = <0x14>;
 			interrupt-parent = <&upg_aon_irq0_intc>;
 			interrupt-names = "mspi_done";
+			status = "disabled";
+		};
+
+		waketimer: waketimer@408e80 {
+			compatible = "brcm,brcmstb-waketimer";
+			reg = <0x408e80 0x14>;
+			interrupts = <0x3>;
+			interrupt-parent = <&aon_pm_l2_intc>;
+			interrupt-names = "timer";
+			clocks = <&upg_clk>;
 			status = "disabled";
 		};
 	};

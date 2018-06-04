@@ -362,7 +362,6 @@ void sun4v_data_access_exception(struct pt_regs *regs, unsigned long addr, unsig
 {
 	unsigned short type = (type_ctx >> 16);
 	unsigned short ctx  = (type_ctx & 0xffff);
-	siginfo_t info;
 
 	if (notify_die(DIE_TRAP, "data access exception", regs,
 		       0, 0x8, SIGTRAP) == NOTIFY_STOP)
@@ -397,12 +396,29 @@ void sun4v_data_access_exception(struct pt_regs *regs, unsigned long addr, unsig
 	if (is_no_fault_exception(regs))
 		return;
 
-	info.si_signo = SIGSEGV;
-	info.si_errno = 0;
-	info.si_code = SEGV_MAPERR;
-	info.si_addr = (void __user *) addr;
-	info.si_trapno = 0;
-	force_sig_info(SIGSEGV, &info, current);
+	/* MCD (Memory Corruption Detection) disabled trap (TT=0x19) in HV
+	 * is vectored thorugh data access exception trap with fault type
+	 * set to HV_FAULT_TYPE_MCD_DIS. Check for MCD disabled trap.
+	 * Accessing an address with invalid ASI for the address, for
+	 * example setting an ADI tag on an address with ASI_MCD_PRIMARY
+	 * when TTE.mcd is not set for the VA, is also vectored into
+	 * kerbel by HV as data access exception with fault type set to
+	 * HV_FAULT_TYPE_INV_ASI.
+	 */
+	switch (type) {
+	case HV_FAULT_TYPE_INV_ASI:
+		force_sig_fault(SIGILL, ILL_ILLADR, (void __user *)addr, 0,
+				current);
+		break;
+	case HV_FAULT_TYPE_MCD_DIS:
+		force_sig_fault(SIGSEGV, SEGV_ACCADI, (void __user *)addr, 0,
+				current);
+		break;
+	default:
+		force_sig_fault(SIGSEGV, SEGV_MAPERR, (void __user *)addr, 0,
+				current);
+		break;
+	}
 }
 
 void sun4v_data_access_exception_tl1(struct pt_regs *regs, unsigned long addr, unsigned long type_ctx)
@@ -1847,6 +1863,7 @@ struct sun4v_error_entry {
 #define SUN4V_ERR_ATTRS_ASI		0x00000080
 #define SUN4V_ERR_ATTRS_PRIV_REG	0x00000100
 #define SUN4V_ERR_ATTRS_SPSTATE_MSK	0x00000600
+#define SUN4V_ERR_ATTRS_MCD		0x00000800
 #define SUN4V_ERR_ATTRS_SPSTATE_SHFT	9
 #define SUN4V_ERR_ATTRS_MODE_MSK	0x03000000
 #define SUN4V_ERR_ATTRS_MODE_SHFT	24
@@ -2044,6 +2061,50 @@ static void sun4v_log_error(struct pt_regs *regs, struct sun4v_error_entry *ent,
 	}
 }
 
+/* Handle memory corruption detected error which is vectored in
+ * through resumable error trap.
+ */
+void do_mcd_err(struct pt_regs *regs, struct sun4v_error_entry ent)
+{
+	if (notify_die(DIE_TRAP, "MCD error", regs, 0, 0x34,
+		       SIGSEGV) == NOTIFY_STOP)
+		return;
+
+	if (regs->tstate & TSTATE_PRIV) {
+		/* MCD exception could happen because the task was
+		 * running a system call with MCD enabled and passed a
+		 * non-versioned pointer or pointer with bad version
+		 * tag to the system call. In such cases, hypervisor
+		 * places the address of offending instruction in the
+		 * resumable error report. This is a deferred error,
+		 * so the read/write that caused the trap was potentially
+		 * retired long time back and we may have no choice
+		 * but to send SIGSEGV to the process.
+		 */
+		const struct exception_table_entry *entry;
+
+		entry = search_exception_tables(regs->tpc);
+		if (entry) {
+			/* Looks like a bad syscall parameter */
+#ifdef DEBUG_EXCEPTIONS
+			pr_emerg("Exception: PC<%016lx> faddr<UNKNOWN>\n",
+				 regs->tpc);
+			pr_emerg("EX_TABLE: insn<%016lx> fixup<%016lx>\n",
+				 ent.err_raddr, entry->fixup);
+#endif
+			regs->tpc = entry->fixup;
+			regs->tnpc = regs->tpc + 4;
+			return;
+		}
+	}
+
+	/* Send SIGSEGV to the userspace process with the right signal
+	 * code
+	 */
+	force_sig_fault(SIGSEGV, SEGV_ADIDERR, (void __user *)ent.err_raddr,
+			0, current);
+}
+
 /* We run with %pil set to PIL_NORMAL_MAX and PSTATE_IE enabled in %pstate.
  * Log the event and clear the first word of the entry.
  */
@@ -2079,6 +2140,14 @@ void sun4v_resum_error(struct pt_regs *regs, unsigned long offset)
 			local_copy.err_secs);
 		orderly_poweroff(true);
 		goto out;
+	}
+
+	/* If this is a memory corruption detected error vectored in
+	 * by HV through resumable error trap, call the handler
+	 */
+	if (local_copy.err_attrs & SUN4V_ERR_ATTRS_MCD) {
+		do_mcd_err(regs, local_copy);
+		return;
 	}
 
 	sun4v_log_error(regs, &local_copy, cpu,
@@ -2654,6 +2723,53 @@ void sun4v_do_mna(struct pt_regs *regs, unsigned long addr, unsigned long type_c
 	info.si_addr = (void __user *) addr;
 	info.si_trapno = 0;
 	force_sig_info(SIGBUS, &info, current);
+}
+
+/* sun4v_mem_corrupt_detect_precise() - Handle precise exception on an ADI
+ * tag mismatch.
+ *
+ * ADI version tag mismatch on a load from memory always results in a
+ * precise exception. Tag mismatch on a store to memory will result in
+ * precise exception if MCDPER or PMCDPER is set to 1.
+ */
+void sun4v_mem_corrupt_detect_precise(struct pt_regs *regs, unsigned long addr,
+				      unsigned long context)
+{
+	if (notify_die(DIE_TRAP, "memory corruption precise exception", regs,
+		       0, 0x8, SIGSEGV) == NOTIFY_STOP)
+		return;
+
+	if (regs->tstate & TSTATE_PRIV) {
+		/* MCD exception could happen because the task was running
+		 * a system call with MCD enabled and passed a non-versioned
+		 * pointer or pointer with bad version tag to  the system
+		 * call.
+		 */
+		const struct exception_table_entry *entry;
+
+		entry = search_exception_tables(regs->tpc);
+		if (entry) {
+			/* Looks like a bad syscall parameter */
+#ifdef DEBUG_EXCEPTIONS
+			pr_emerg("Exception: PC<%016lx> faddr<UNKNOWN>\n",
+				 regs->tpc);
+			pr_emerg("EX_TABLE: insn<%016lx> fixup<%016lx>\n",
+				 regs->tpc, entry->fixup);
+#endif
+			regs->tpc = entry->fixup;
+			regs->tnpc = regs->tpc + 4;
+			return;
+		}
+		pr_emerg("%s: ADDR[%016lx] CTX[%lx], going.\n",
+			 __func__, addr, context);
+		die_if_kernel("MCD precise", regs);
+	}
+
+	if (test_thread_flag(TIF_32BIT)) {
+		regs->tpc &= 0xffffffff;
+		regs->tnpc &= 0xffffffff;
+	}
+	force_sig_fault(SIGSEGV, SEGV_ADIPERR, (void __user *)addr, 0, current);
 }
 
 void do_privop(struct pt_regs *regs)

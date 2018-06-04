@@ -256,6 +256,12 @@ static inline void eeh_serialize_unlock(unsigned long flags)
 	raw_spin_unlock_irqrestore(&confirm_error_lock, flags);
 }
 
+static inline bool eeh_state_active(int state)
+{
+	return (state & (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE))
+	== (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
+}
+
 typedef void *(*eeh_traverse_func)(void *data, void *flag);
 void eeh_set_pe_aux_size(int size);
 int eeh_phb_pe_create(struct pci_controller *phb);

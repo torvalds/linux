@@ -209,7 +209,7 @@ struct drm_property_blob {
 	struct list_head head_global;
 	struct list_head head_file;
 	size_t length;
-	unsigned char data[];
+	void *data;
 };
 
 struct drm_prop_enum_list {
@@ -237,27 +237,29 @@ static inline bool drm_property_type_is(struct drm_property *property,
 	return property->flags & type;
 }
 
-struct drm_property *drm_property_create(struct drm_device *dev, int flags,
-					 const char *name, int num_values);
-struct drm_property *drm_property_create_enum(struct drm_device *dev, int flags,
-					      const char *name,
+struct drm_property *drm_property_create(struct drm_device *dev,
+					 u32 flags, const char *name,
+					 int num_values);
+struct drm_property *drm_property_create_enum(struct drm_device *dev,
+					      u32 flags, const char *name,
 					      const struct drm_prop_enum_list *props,
 					      int num_values);
 struct drm_property *drm_property_create_bitmask(struct drm_device *dev,
-						 int flags, const char *name,
+						 u32 flags, const char *name,
 						 const struct drm_prop_enum_list *props,
 						 int num_props,
 						 uint64_t supported_bits);
-struct drm_property *drm_property_create_range(struct drm_device *dev, int flags,
-					       const char *name,
+struct drm_property *drm_property_create_range(struct drm_device *dev,
+					       u32 flags, const char *name,
 					       uint64_t min, uint64_t max);
 struct drm_property *drm_property_create_signed_range(struct drm_device *dev,
-						      int flags, const char *name,
+						      u32 flags, const char *name,
 						      int64_t min, int64_t max);
 struct drm_property *drm_property_create_object(struct drm_device *dev,
-						int flags, const char *name, uint32_t type);
-struct drm_property *drm_property_create_bool(struct drm_device *dev, int flags,
-					      const char *name);
+						u32 flags, const char *name,
+						uint32_t type);
+struct drm_property *drm_property_create_bool(struct drm_device *dev,
+					      u32 flags, const char *name);
 int drm_property_add_enum(struct drm_property *property, int index,
 			  uint64_t value, const char *name);
 void drm_property_destroy(struct drm_device *dev, struct drm_property *property);

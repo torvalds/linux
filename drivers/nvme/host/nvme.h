@@ -21,6 +21,7 @@
 #include <linux/blk-mq.h>
 #include <linux/lightnvm.h>
 #include <linux/sed-opal.h>
+#include <linux/fault-inject.h>
 
 extern unsigned int nvme_io_timeout;
 #define NVME_IO_TIMEOUT	(nvme_io_timeout * HZ)
@@ -104,6 +105,7 @@ struct nvme_request {
 
 enum {
 	NVME_REQ_CANCELLED		= (1 << 0),
+	NVME_REQ_USERCMD		= (1 << 1),
 };
 
 static inline struct nvme_request *nvme_req(struct request *req)
@@ -123,7 +125,7 @@ enum nvme_ctrl_state {
 	NVME_CTRL_LIVE,
 	NVME_CTRL_ADMIN_ONLY,    /* Only admin queue live */
 	NVME_CTRL_RESETTING,
-	NVME_CTRL_RECONNECTING,
+	NVME_CTRL_CONNECTING,
 	NVME_CTRL_DELETING,
 	NVME_CTRL_DEAD,
 };
@@ -140,7 +142,7 @@ struct nvme_ctrl {
 	struct blk_mq_tag_set *tagset;
 	struct blk_mq_tag_set *admin_tagset;
 	struct list_head namespaces;
-	struct mutex namespaces_mutex;
+	struct rw_semaphore namespaces_rwsem;
 	struct device ctrl_device;
 	struct device *device;	/* char device */
 	struct cdev cdev;
@@ -183,6 +185,7 @@ struct nvme_ctrl {
 	struct work_struct scan_work;
 	struct work_struct async_event_work;
 	struct delayed_work ka_work;
+	struct nvme_command ka_cmd;
 	struct work_struct fw_act_work;
 
 	/* Power saving configuration */
@@ -260,6 +263,15 @@ struct nvme_ns_head {
 	int			instance;
 };
 
+#ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
+struct nvme_fault_inject {
+	struct fault_attr attr;
+	struct dentry *parent;
+	bool dont_retry;	/* DNR, do not retry */
+	u16 status;		/* status code */
+};
+#endif
+
 struct nvme_ns {
 	struct list_head list;
 
@@ -281,6 +293,11 @@ struct nvme_ns {
 #define NVME_NS_REMOVING 0
 #define NVME_NS_DEAD     1
 	u16 noiob;
+
+#ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
+	struct nvme_fault_inject fault_inject;
+#endif
+
 };
 
 struct nvme_ctrl_ops {
@@ -297,7 +314,18 @@ struct nvme_ctrl_ops {
 	void (*delete_ctrl)(struct nvme_ctrl *ctrl);
 	int (*get_address)(struct nvme_ctrl *ctrl, char *buf, int size);
 	int (*reinit_request)(void *data, struct request *rq);
+	void (*stop_ctrl)(struct nvme_ctrl *ctrl);
 };
+
+#ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
+void nvme_fault_inject_init(struct nvme_ns *ns);
+void nvme_fault_inject_fini(struct nvme_ns *ns);
+void nvme_should_fail(struct request *req);
+#else
+static inline void nvme_fault_inject_init(struct nvme_ns *ns) {}
+static inline void nvme_fault_inject_fini(struct nvme_ns *ns) {}
+static inline void nvme_should_fail(struct request *req) {}
+#endif
 
 static inline bool nvme_ctrl_ready(struct nvme_ctrl *ctrl)
 {
@@ -335,6 +363,8 @@ static inline void nvme_end_request(struct request *req, __le16 status,
 
 	rq->status = le16_to_cpu(status) >> 1;
 	rq->result = result;
+	/* inject error when permitted by fault injection framework */
+	nvme_should_fail(req);
 	blk_mq_complete_request(req);
 }
 
@@ -393,12 +423,14 @@ int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 		unsigned timeout, int qid, int at_head,
 		blk_mq_req_flags_t flags);
 int nvme_set_queue_count(struct nvme_ctrl *ctrl, int *count);
-void nvme_start_keep_alive(struct nvme_ctrl *ctrl);
 void nvme_stop_keep_alive(struct nvme_ctrl *ctrl);
 int nvme_reset_ctrl(struct nvme_ctrl *ctrl);
 int nvme_reset_ctrl_sync(struct nvme_ctrl *ctrl);
 int nvme_delete_ctrl(struct nvme_ctrl *ctrl);
 int nvme_delete_ctrl_sync(struct nvme_ctrl *ctrl);
+
+int nvme_get_log_ext(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
+		u8 log_page, void *log, size_t size, u64 offset);
 
 extern const struct attribute_group nvme_ns_id_attr_group;
 extern const struct block_device_operations nvme_ns_head_ops;
@@ -409,9 +441,7 @@ bool nvme_req_needs_failover(struct request *req, blk_status_t error);
 void nvme_kick_requeue_lists(struct nvme_ctrl *ctrl);
 int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl,struct nvme_ns_head *head);
 void nvme_mpath_add_disk(struct nvme_ns_head *head);
-void nvme_mpath_add_disk_links(struct nvme_ns *ns);
 void nvme_mpath_remove_disk(struct nvme_ns_head *head);
-void nvme_mpath_remove_disk_links(struct nvme_ns *ns);
 
 static inline void nvme_mpath_clear_current_path(struct nvme_ns *ns)
 {
@@ -453,12 +483,6 @@ static inline void nvme_mpath_add_disk(struct nvme_ns_head *head)
 static inline void nvme_mpath_remove_disk(struct nvme_ns_head *head)
 {
 }
-static inline void nvme_mpath_add_disk_links(struct nvme_ns *ns)
-{
-}
-static inline void nvme_mpath_remove_disk_links(struct nvme_ns *ns)
-{
-}
 static inline void nvme_mpath_clear_current_path(struct nvme_ns *ns)
 {
 }
@@ -468,12 +492,14 @@ static inline void nvme_mpath_check_last_path(struct nvme_ns *ns)
 #endif /* CONFIG_NVME_MULTIPATH */
 
 #ifdef CONFIG_NVM
+void nvme_nvm_update_nvm_info(struct nvme_ns *ns);
 int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int node);
 void nvme_nvm_unregister(struct nvme_ns *ns);
 int nvme_nvm_register_sysfs(struct nvme_ns *ns);
 void nvme_nvm_unregister_sysfs(struct nvme_ns *ns);
 int nvme_nvm_ioctl(struct nvme_ns *ns, unsigned int cmd, unsigned long arg);
 #else
+static inline void nvme_nvm_update_nvm_info(struct nvme_ns *ns) {};
 static inline int nvme_nvm_register(struct nvme_ns *ns, char *disk_name,
 				    int node)
 {

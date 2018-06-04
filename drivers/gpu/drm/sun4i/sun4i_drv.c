@@ -23,6 +23,7 @@
 #include <drm/drm_of.h>
 
 #include "sun4i_drv.h"
+#include "sun4i_frontend.h"
 #include "sun4i_framebuffer.h"
 #include "sun4i_tcon.h"
 
@@ -91,6 +92,7 @@ static int sun4i_drv_bind(struct device *dev)
 		goto free_drm;
 	}
 	drm->dev_private = drv;
+	INIT_LIST_HEAD(&drv->frontend_list);
 	INIT_LIST_HEAD(&drv->engine_list);
 	INIT_LIST_HEAD(&drv->tcon_list);
 
@@ -111,7 +113,7 @@ static int sun4i_drv_bind(struct device *dev)
 	/* drm_vblank_init calls kcalloc, which can fail */
 	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (ret)
-		goto free_mem_region;
+		goto cleanup_mode_config;
 
 	drm->irq_enabled = true;
 
@@ -139,7 +141,6 @@ finish_poll:
 	sun4i_framebuffer_free(drm);
 cleanup_mode_config:
 	drm_mode_config_cleanup(drm);
-free_mem_region:
 	of_reserved_mem_device_release(dev);
 free_drm:
 	drm_dev_unref(drm);
@@ -174,7 +175,21 @@ static bool sun4i_drv_node_is_frontend(struct device_node *node)
 		of_device_is_compatible(node, "allwinner,sun5i-a13-display-frontend") ||
 		of_device_is_compatible(node, "allwinner,sun6i-a31-display-frontend") ||
 		of_device_is_compatible(node, "allwinner,sun7i-a20-display-frontend") ||
-		of_device_is_compatible(node, "allwinner,sun8i-a33-display-frontend");
+		of_device_is_compatible(node, "allwinner,sun8i-a33-display-frontend") ||
+		of_device_is_compatible(node, "allwinner,sun9i-a80-display-frontend");
+}
+
+static bool sun4i_drv_node_is_deu(struct device_node *node)
+{
+	return of_device_is_compatible(node, "allwinner,sun9i-a80-deu");
+}
+
+static bool sun4i_drv_node_is_supported_frontend(struct device_node *node)
+{
+	if (IS_ENABLED(CONFIG_DRM_SUN4I_BACKEND))
+		return !!of_match_node(sun4i_frontend_of_table, node);
+
+	return false;
 }
 
 static bool sun4i_drv_node_is_tcon(struct device_node *node)
@@ -225,9 +240,11 @@ static int sun4i_drv_add_endpoints(struct device *dev,
 	int count = 0;
 
 	/*
-	 * We don't support the frontend for now, so we will never
-	 * have a device bound. Just skip over it, but we still want
-	 * the rest our pipeline to be added.
+	 * The frontend has been disabled in some of our old device
+	 * trees. If we find a node that is the frontend and is
+	 * disabled, we should just follow through and parse its
+	 * child, but without adding it to the component list.
+	 * Otherwise, we obviously want to add it to the list.
 	 */
 	if (!sun4i_drv_node_is_frontend(node) &&
 	    !of_device_is_available(node))
@@ -240,7 +257,15 @@ static int sun4i_drv_add_endpoints(struct device *dev,
 	if (sun4i_drv_node_is_connector(node))
 		return 0;
 
-	if (!sun4i_drv_node_is_frontend(node)) {
+	/*
+	 * If the device is either just a regular device, or an
+	 * enabled frontend supported by the driver, we add it to our
+	 * component list.
+	 */
+	if (!(sun4i_drv_node_is_frontend(node) ||
+	      sun4i_drv_node_is_deu(node)) ||
+	    (sun4i_drv_node_is_supported_frontend(node) &&
+	     of_device_is_available(node))) {
 		/* Add current component */
 		DRM_DEBUG_DRIVER("Adding component %pOF\n", node);
 		drm_of_component_match_add(dev, match, compare_of, node);
@@ -340,7 +365,9 @@ static const struct of_device_id sun4i_drv_of_table[] = {
 	{ .compatible = "allwinner,sun7i-a20-display-engine" },
 	{ .compatible = "allwinner,sun8i-a33-display-engine" },
 	{ .compatible = "allwinner,sun8i-a83t-display-engine" },
+	{ .compatible = "allwinner,sun8i-h3-display-engine" },
 	{ .compatible = "allwinner,sun8i-v3s-display-engine" },
+	{ .compatible = "allwinner,sun9i-a80-display-engine" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sun4i_drv_of_table);

@@ -15,7 +15,7 @@
 #include <linux/hardirq.h>
 #include <linux/log2.h>
 #include <linux/kprobes.h>
-#include <linux/slab.h>
+#include <linux/kmemleak.h>
 #include <linux/time.h>
 #include <linux/module.h>
 #include <linux/sched/signal.h>

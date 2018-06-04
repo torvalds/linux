@@ -28,7 +28,7 @@ struct stackframe {
 	unsigned long fp;
 	unsigned long pc;
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	unsigned int graph;
+	int graph;
 #endif
 };
 

@@ -467,6 +467,8 @@ static struct z3fold_pool *z3fold_create_pool(const char *name, gfp_t gfp,
 	spin_lock_init(&pool->lock);
 	spin_lock_init(&pool->stale_lock);
 	pool->unbuddied = __alloc_percpu(sizeof(struct list_head)*NCHUNKS, 2);
+	if (!pool->unbuddied)
+		goto out_pool;
 	for_each_possible_cpu(cpu) {
 		struct list_head *unbuddied =
 				per_cpu_ptr(pool->unbuddied, cpu);
@@ -479,7 +481,7 @@ static struct z3fold_pool *z3fold_create_pool(const char *name, gfp_t gfp,
 	pool->name = name;
 	pool->compact_wq = create_singlethread_workqueue(pool->name);
 	if (!pool->compact_wq)
-		goto out;
+		goto out_unbuddied;
 	pool->release_wq = create_singlethread_workqueue(pool->name);
 	if (!pool->release_wq)
 		goto out_wq;
@@ -489,8 +491,11 @@ static struct z3fold_pool *z3fold_create_pool(const char *name, gfp_t gfp,
 
 out_wq:
 	destroy_workqueue(pool->compact_wq);
-out:
+out_unbuddied:
+	free_percpu(pool->unbuddied);
+out_pool:
 	kfree(pool);
+out:
 	return NULL;
 }
 
@@ -533,7 +538,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
 	struct z3fold_header *zhdr = NULL;
 	struct page *page = NULL;
 	enum buddy bud;
-	bool can_sleep = (gfp & __GFP_RECLAIM) == __GFP_RECLAIM;
+	bool can_sleep = gfpflags_allow_blocking(gfp);
 
 	if (!size || (gfp & __GFP_HIGHMEM))
 		return -EINVAL;
@@ -620,24 +625,27 @@ lookup:
 		bud = FIRST;
 	}
 
-	spin_lock(&pool->stale_lock);
-	zhdr = list_first_entry_or_null(&pool->stale,
-					struct z3fold_header, buddy);
-	/*
-	 * Before allocating a page, let's see if we can take one from the
-	 * stale pages list. cancel_work_sync() can sleep so we must make
-	 * sure it won't be called in case we're in atomic context.
-	 */
-	if (zhdr && (can_sleep || !work_pending(&zhdr->work))) {
-		list_del(&zhdr->buddy);
-		spin_unlock(&pool->stale_lock);
-		if (can_sleep)
+	page = NULL;
+	if (can_sleep) {
+		spin_lock(&pool->stale_lock);
+		zhdr = list_first_entry_or_null(&pool->stale,
+						struct z3fold_header, buddy);
+		/*
+		 * Before allocating a page, let's see if we can take one from
+		 * the stale pages list. cancel_work_sync() can sleep so we
+		 * limit this case to the contexts where we can sleep
+		 */
+		if (zhdr) {
+			list_del(&zhdr->buddy);
+			spin_unlock(&pool->stale_lock);
 			cancel_work_sync(&zhdr->work);
-		page = virt_to_page(zhdr);
-	} else {
-		spin_unlock(&pool->stale_lock);
-		page = alloc_page(gfp);
+			page = virt_to_page(zhdr);
+		} else {
+			spin_unlock(&pool->stale_lock);
+		}
 	}
+	if (!page)
+		page = alloc_page(gfp);
 
 	if (!page)
 		return -ENOMEM;

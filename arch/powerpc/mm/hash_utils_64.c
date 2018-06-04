@@ -132,9 +132,10 @@ EXPORT_SYMBOL(mmu_hash_ops);
  * is provided by the firmware.
  */
 
-/* Pre-POWER4 CPUs (4k pages only)
+/*
+ * Fallback (4k pages only)
  */
-static struct mmu_psize_def mmu_psize_defaults_old[] = {
+static struct mmu_psize_def mmu_psize_defaults[] = {
 	[MMU_PAGE_4K] = {
 		.shift	= 12,
 		.sllp	= 0,
@@ -554,8 +555,8 @@ static void __init htab_scan_page_sizes(void)
 	mmu_psize_set_default_penc();
 
 	/* Default to 4K pages only */
-	memcpy(mmu_psize_defs, mmu_psize_defaults_old,
-	       sizeof(mmu_psize_defaults_old));
+	memcpy(mmu_psize_defs, mmu_psize_defaults,
+	       sizeof(mmu_psize_defaults));
 
 	/*
 	 * Try to find the available page sizes in the device-tree
@@ -781,7 +782,7 @@ void resize_hpt_for_hotplug(unsigned long new_mem_size)
 	}
 }
 
-int hash__create_section_mapping(unsigned long start, unsigned long end)
+int hash__create_section_mapping(unsigned long start, unsigned long end, int nid)
 {
 	int rc = htab_bolt_mapping(start, end, __pa(start),
 				   pgprot_val(PAGE_KERNEL), mmu_linear_psize,
@@ -875,6 +876,12 @@ static void __init htab_initialize(void)
 		/* Using a hypervisor which owns the htab */
 		htab_address = NULL;
 		_SDR1 = 0; 
+		/*
+		 * On POWER9, we need to do a H_REGISTER_PROC_TBL hcall
+		 * to inform the hypervisor that we wish to use the HPT.
+		 */
+		if (cpu_has_feature(CPU_FTR_ARCH_300))
+			register_process_table(0, 0, 0);
 #ifdef CONFIG_FA_DUMP
 		/*
 		 * If firmware assisted dump is active firmware preserves
@@ -1008,6 +1015,7 @@ void __init hash__early_init_mmu(void)
 	__pmd_index_size = H_PMD_INDEX_SIZE;
 	__pud_index_size = H_PUD_INDEX_SIZE;
 	__pgd_index_size = H_PGD_INDEX_SIZE;
+	__pud_cache_index = H_PUD_CACHE_INDEX;
 	__pmd_cache_index = H_PMD_CACHE_INDEX;
 	__pte_table_size = H_PTE_TABLE_SIZE;
 	__pmd_table_size = H_PMD_TABLE_SIZE;
@@ -1109,19 +1117,18 @@ unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap)
 #ifdef CONFIG_PPC_MM_SLICES
 static unsigned int get_paca_psize(unsigned long addr)
 {
-	u64 lpsizes;
-	unsigned char *hpsizes;
+	unsigned char *psizes;
 	unsigned long index, mask_index;
 
 	if (addr < SLICE_LOW_TOP) {
-		lpsizes = get_paca()->mm_ctx_low_slices_psize;
+		psizes = get_paca()->mm_ctx_low_slices_psize;
 		index = GET_LOW_SLICE_INDEX(addr);
-		return (lpsizes >> (index * 4)) & 0xF;
+	} else {
+		psizes = get_paca()->mm_ctx_high_slices_psize;
+		index = GET_HIGH_SLICE_INDEX(addr);
 	}
-	hpsizes = get_paca()->mm_ctx_high_slices_psize;
-	index = GET_HIGH_SLICE_INDEX(addr);
 	mask_index = index & 0x1;
-	return (hpsizes[index >> 1] >> (mask_index * 4)) & 0xF;
+	return (psizes[index >> 1] >> (mask_index * 4)) & 0xF;
 }
 
 #else
@@ -1261,7 +1268,7 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 		}
 		psize = get_slice_psize(mm, ea);
 		ssize = user_segment_size(ea);
-		vsid = get_vsid(mm->context.id, ea, ssize);
+		vsid = get_user_vsid(&mm->context, ea, ssize);
 		break;
 	case VMALLOC_REGION_ID:
 		vsid = get_kernel_vsid(ea, mmu_kernel_ssize);
@@ -1526,7 +1533,7 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 
 	/* Get VSID */
 	ssize = user_segment_size(ea);
-	vsid = get_vsid(mm->context.id, ea, ssize);
+	vsid = get_user_vsid(&mm->context, ea, ssize);
 	if (!vsid)
 		return;
 	/*

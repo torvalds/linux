@@ -23,6 +23,8 @@
 #include "smc_wr.h"
 #include "smc.h"
 
+#define SMC_MAX_CQE 32766	/* max. # of completion queue elements */
+
 #define SMC_QP_MIN_RNR_TIMER		5
 #define SMC_QP_TIMEOUT			15 /* 4096 * 2 ** timeout usec */
 #define SMC_QP_RETRY_CNT			7 /* 7: infinite */
@@ -438,9 +440,15 @@ out:
 long smc_ib_setup_per_ibdev(struct smc_ib_device *smcibdev)
 {
 	struct ib_cq_init_attr cqattr =	{
-		.cqe = SMC_WR_MAX_CQE, .comp_vector = 0 };
+		.cqe = SMC_MAX_CQE, .comp_vector = 0 };
+	int cqe_size_order, smc_order;
 	long rc;
 
+	/* the calculated number of cq entries fits to mlx5 cq allocation */
+	cqe_size_order = cache_line_size() == 128 ? 7 : 6;
+	smc_order = MAX_ORDER - cqe_size_order - 1;
+	if (SMC_MAX_CQE + 2 > (0x00000001 << smc_order) * PAGE_SIZE)
+		cqattr.cqe = (0x00000001 << smc_order) * PAGE_SIZE - 2;
 	smcibdev->roce_cq_send = ib_create_cq(smcibdev->ibdev,
 					      smc_wr_tx_cq_handler, NULL,
 					      smcibdev, &cqattr);

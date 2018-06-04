@@ -30,7 +30,7 @@ struct perf_sample_id {
 	u64			period;
 };
 
-struct cgroup_sel;
+struct cgroup;
 
 /*
  * The 'struct perf_evsel_config_term' is used to pass event
@@ -107,7 +107,7 @@ struct perf_evsel {
 	struct perf_stat_evsel  *stats;
 	void			*priv;
 	u64			db_id;
-	struct cgroup_sel	*cgrp;
+	struct cgroup		*cgrp;
 	void			*handler;
 	struct cpu_map		*cpus;
 	struct cpu_map		*own_cpus;
@@ -125,6 +125,7 @@ struct perf_evsel {
 	bool			per_pkg;
 	bool			precise_max;
 	bool			ignore_missing_thread;
+	bool			forced_leader;
 	/* parse modifier helper */
 	int			exclude_GH;
 	int			nr_members;
@@ -142,12 +143,27 @@ struct perf_evsel {
 	struct perf_evsel	**metric_events;
 	bool			collect_stat;
 	bool			weak_group;
+	const char		*pmu_name;
 };
 
 union u64_swap {
 	u64 val64;
 	u32 val32[2];
 };
+
+struct perf_missing_features {
+	bool sample_id_all;
+	bool exclude_guest;
+	bool mmap2;
+	bool cloexec;
+	bool clockid;
+	bool clockid_wrong;
+	bool lbr_flags;
+	bool write_backward;
+	bool group_read;
+};
+
+extern struct perf_missing_features perf_missing_features;
 
 struct cpu_map;
 struct target;
