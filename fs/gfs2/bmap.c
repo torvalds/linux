@@ -89,10 +89,12 @@ static int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
 		map_bh(bh, inode->i_sb, block);
 
 	set_buffer_uptodate(bh);
-	if (!gfs2_is_jdata(ip))
-		mark_buffer_dirty(bh);
-	if (!gfs2_is_writeback(ip))
+	if (gfs2_is_jdata(ip))
 		gfs2_trans_add_data(ip->i_gl, bh);
+	else {
+		mark_buffer_dirty(bh);
+		gfs2_ordered_add_inode(ip);
+	}
 
 	if (release) {
 		unlock_page(page);
@@ -1028,8 +1030,10 @@ static int gfs2_block_zero_range(struct inode *inode, loff_t from,
 		err = 0;
 	}
 
-	if (!gfs2_is_writeback(ip))
+	if (gfs2_is_jdata(ip))
 		gfs2_trans_add_data(ip->i_gl, bh);
+	else
+		gfs2_ordered_add_inode(ip);
 
 	zero_user(page, offset, length);
 	mark_buffer_dirty(bh);

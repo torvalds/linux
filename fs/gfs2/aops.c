@@ -54,8 +54,7 @@ static void gfs2_page_add_databufs(struct gfs2_inode *ip, struct page *page,
 			continue;
 		if (start >= to)
 			break;
-		if (gfs2_is_jdata(ip))
-			set_buffer_uptodate(bh);
+		set_buffer_uptodate(bh);
 		gfs2_trans_add_data(ip->i_gl, bh);
 	}
 }
@@ -894,8 +893,10 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 		goto out2;
 	}
 
-	if (!gfs2_is_writeback(ip))
+	if (gfs2_is_jdata(ip))
 		gfs2_page_add_databufs(ip, page, pos & ~PAGE_MASK, len);
+	else
+		gfs2_ordered_add_inode(ip);
 
 	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
 	page = NULL;
