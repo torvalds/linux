@@ -219,11 +219,12 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 	struct wilc *wilc;
 	u32 i = 0;
 	u32 dropped = 0;
+	unsigned long flags;
 
 	vif = netdev_priv(dev);
 	wilc = vif->wilc;
 
-	spin_lock_irqsave(&wilc->txq_spinlock, wilc->txq_spinlock_flags);
+	spin_lock_irqsave(&wilc->txq_spinlock, flags);
 	for (i = pending_base; i < (pending_base + pending_acks); i++) {
 		u32 session_index;
 		u32 bigger_ack_num;
@@ -261,7 +262,7 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(struct net_device *dev)
 	else
 		pending_base = 0;
 
-	spin_unlock_irqrestore(&wilc->txq_spinlock, wilc->txq_spinlock_flags);
+	spin_unlock_irqrestore(&wilc->txq_spinlock, flags);
 
 	while (dropped > 0) {
 		wait_for_completion_timeout(&wilc->txq_event,
