@@ -1203,8 +1203,6 @@ static void cdns_uart_console_write(struct console *co, const char *s,
 			CDNS_UART_SR_TXEMPTY)
 		cpu_relax();
 
-	writel(ctrl, port->membase + CDNS_UART_CR);
-
 	/* restore interrupt state */
 	writel(imr, port->membase + CDNS_UART_IER);
 
