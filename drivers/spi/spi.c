@@ -356,11 +356,12 @@ static int spi_drv_probe(struct device *dev)
 	}
 
 	ret = dev_pm_domain_attach(dev, true);
-	if (ret != -EPROBE_DEFER) {
-		ret = sdrv->probe(spi);
-		if (ret)
-			dev_pm_domain_detach(dev, true);
-	}
+	if (ret)
+		return ret;
+
+	ret = sdrv->probe(spi);
+	if (ret)
+		dev_pm_domain_detach(dev, true);
 
 	return ret;
 }

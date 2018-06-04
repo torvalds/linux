@@ -98,17 +98,21 @@ EXPORT_SYMBOL_GPL(dev_pm_put_subsys_data);
  * Callers must ensure proper synchronization of this function with power
  * management callbacks.
  *
- * Returns 0 on successfully attached PM domain or negative error code.
+ * Returns 0 on successfully attached PM domain, or when it is found that the
+ * device doesn't need a PM domain, else a negative error code.
  */
 int dev_pm_domain_attach(struct device *dev, bool power_on)
 {
 	int ret;
 
+	if (dev->pm_domain)
+		return 0;
+
 	ret = acpi_dev_pm_attach(dev, power_on);
-	if (ret)
+	if (!ret)
 		ret = genpd_dev_pm_attach(dev);
 
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 EXPORT_SYMBOL_GPL(dev_pm_domain_attach);
 

@@ -1377,7 +1377,7 @@ static int genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 			    struct gpd_timing_data *td)
 {
 	struct generic_pm_domain_data *gpd_data;
-	int ret = 0;
+	int ret;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
@@ -1389,11 +1389,6 @@ static int genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 		return PTR_ERR(gpd_data);
 
 	genpd_lock(genpd);
-
-	if (genpd->prepared_count > 0) {
-		ret = -EAGAIN;
-		goto out;
-	}
 
 	ret = genpd->attach_dev ? genpd->attach_dev(genpd, dev) : 0;
 	if (ret)
@@ -2185,31 +2180,25 @@ static void genpd_dev_pm_sync(struct device *dev)
  * Parse device's OF node to find a PM domain specifier. If such is found,
  * attaches the device to retrieved pm_domain ops.
  *
- * Both generic and legacy Samsung-specific DT bindings are supported to keep
- * backwards compatibility with existing DTBs.
- *
- * Returns 0 on successfully attached PM domain or negative error code. Note
- * that if a power-domain exists for the device, but it cannot be found or
- * turned on, then return -EPROBE_DEFER to ensure that the device is not
- * probed and to re-try again later.
+ * Returns 1 on successfully attached PM domain, 0 when the device don't need a
+ * PM domain or a negative error code in case of failures. Note that if a
+ * power-domain exists for the device, but it cannot be found or turned on,
+ * then return -EPROBE_DEFER to ensure that the device is not probed and to
+ * re-try again later.
  */
 int genpd_dev_pm_attach(struct device *dev)
 {
 	struct of_phandle_args pd_args;
 	struct generic_pm_domain *pd;
-	unsigned int i;
 	int ret;
 
 	if (!dev->of_node)
-		return -ENODEV;
-
-	if (dev->pm_domain)
-		return -EEXIST;
+		return 0;
 
 	ret = of_parse_phandle_with_args(dev->of_node, "power-domains",
 					"#power-domain-cells", 0, &pd_args);
 	if (ret < 0)
-		return ret;
+		return 0;
 
 	mutex_lock(&gpd_list_lock);
 	pd = genpd_get_from_provider(&pd_args);
@@ -2223,21 +2212,14 @@ int genpd_dev_pm_attach(struct device *dev)
 
 	dev_dbg(dev, "adding to PM domain %s\n", pd->name);
 
-	for (i = 1; i < GENPD_RETRY_MAX_MS; i <<= 1) {
-		ret = genpd_add_device(pd, dev, NULL);
-		if (ret != -EAGAIN)
-			break;
-
-		mdelay(i);
-		cond_resched();
-	}
+	ret = genpd_add_device(pd, dev, NULL);
 	mutex_unlock(&gpd_list_lock);
 
 	if (ret < 0) {
 		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "failed to add to PM domain %s: %d",
 				pd->name, ret);
-		goto out;
+		return ret;
 	}
 
 	dev->pm_domain->detach = genpd_dev_pm_detach;
@@ -2246,8 +2228,11 @@ int genpd_dev_pm_attach(struct device *dev)
 	genpd_lock(pd);
 	ret = genpd_power_on(pd, 0);
 	genpd_unlock(pd);
-out:
-	return ret ? -EPROBE_DEFER : 0;
+
+	if (ret)
+		genpd_remove_device(pd, dev);
+
+	return ret ? -EPROBE_DEFER : 1;
 }
 EXPORT_SYMBOL_GPL(genpd_dev_pm_attach);
 
