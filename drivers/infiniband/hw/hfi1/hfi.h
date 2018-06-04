@@ -1136,8 +1136,6 @@ struct hfi1_devdata {
 
 	/* these are the "32 bit" regs */
 
-	/* value we put in kr_rcvhdrsize */
-	u32 rcvhdrsize;
 	/* number of receive contexts the chip supports */
 	u32 chip_rcv_contexts;
 	/* number of receive array entries */

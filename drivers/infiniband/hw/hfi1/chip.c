@@ -15216,8 +15216,6 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	 */
 	aspm_init(dd);
 
-	dd->rcvhdrsize = DEFAULT_RCVHDRSIZE;
-
 	ret = init_pervl_scs(dd);
 	if (ret)
 		goto bail_cleanup;
