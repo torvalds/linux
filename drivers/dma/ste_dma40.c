@@ -2889,8 +2889,7 @@ static int __init d40_dmaengine_init(struct d40_base *base,
 #ifdef CONFIG_PM_SLEEP
 static int dma40_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct d40_base *base = platform_get_drvdata(pdev);
+	struct d40_base *base = dev_get_drvdata(dev);
 	int ret;
 
 	ret = pm_runtime_force_suspend(dev);
@@ -2904,8 +2903,7 @@ static int dma40_suspend(struct device *dev)
 
 static int dma40_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct d40_base *base = platform_get_drvdata(pdev);
+	struct d40_base *base = dev_get_drvdata(dev);
 	int ret = 0;
 
 	if (base->lcpa_regulator) {
@@ -2970,8 +2968,7 @@ static void d40_save_restore_registers(struct d40_base *base, bool save)
 
 static int dma40_runtime_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct d40_base *base = platform_get_drvdata(pdev);
+	struct d40_base *base = dev_get_drvdata(dev);
 
 	d40_save_restore_registers(base, true);
 
@@ -2985,8 +2982,7 @@ static int dma40_runtime_suspend(struct device *dev)
 
 static int dma40_runtime_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct d40_base *base = platform_get_drvdata(pdev);
+	struct d40_base *base = dev_get_drvdata(dev);
 
 	d40_save_restore_registers(base, false);
 
