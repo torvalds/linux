@@ -1443,8 +1443,8 @@ static int aio_prep_rw(struct kiocb *req, struct iocb *iocb)
 		 */
 		ret = ioprio_check_cap(iocb->aio_reqprio);
 		if (ret) {
-			pr_debug("aio ioprio check cap error\n");
-			return -EINVAL;
+			pr_debug("aio ioprio check cap error: %d\n", ret);
+			return ret;
 		}
 
 		req->ki_ioprio = iocb->aio_reqprio;
