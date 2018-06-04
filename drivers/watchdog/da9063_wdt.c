@@ -64,8 +64,10 @@ static int da9063_wdt_disable_timer(struct da9063 *da9063)
 				  DA9063_TWDSCALE_DISABLE);
 }
 
-static int da9063_wdt_update_timeout(struct da9063 *da9063, unsigned int regval)
+static int
+da9063_wdt_update_timeout(struct da9063 *da9063, unsigned int timeout)
 {
+	unsigned int regval;
 	int ret;
 
 	/*
@@ -81,6 +83,7 @@ static int da9063_wdt_update_timeout(struct da9063 *da9063, unsigned int regval)
 		return ret;
 
 	usleep_range(150, 300);
+	regval = da9063_wdt_timeout_to_sel(timeout);
 
 	return regmap_update_bits(da9063->regmap, DA9063_REG_CONTROL_D,
 				  DA9063_TWDSCALE_MASK, regval);
@@ -89,11 +92,9 @@ static int da9063_wdt_update_timeout(struct da9063 *da9063, unsigned int regval)
 static int da9063_wdt_start(struct watchdog_device *wdd)
 {
 	struct da9063 *da9063 = watchdog_get_drvdata(wdd);
-	unsigned int selector;
 	int ret;
 
-	selector = da9063_wdt_timeout_to_sel(wdd->timeout);
-	ret = da9063_wdt_update_timeout(da9063, selector);
+	ret = da9063_wdt_update_timeout(da9063, wdd->timeout);
 	if (ret)
 		dev_err(da9063->dev, "Watchdog failed to start (err = %d)\n",
 			ret);
@@ -132,10 +133,7 @@ static int da9063_wdt_set_timeout(struct watchdog_device *wdd,
 				  unsigned int timeout)
 {
 	struct da9063 *da9063 = watchdog_get_drvdata(wdd);
-	unsigned int selector;
 	int ret = 0;
-
-	selector = da9063_wdt_timeout_to_sel(timeout);
 
 	/*
 	 * There are two cases when a set_timeout() will be called:
@@ -148,13 +146,13 @@ static int da9063_wdt_set_timeout(struct watchdog_device *wdd,
 	 * enabling the watchdog, so the timeout must be buffered by the driver.
 	 */
 	if (watchdog_active(wdd))
-		ret = da9063_wdt_update_timeout(da9063, selector);
+		ret = da9063_wdt_update_timeout(da9063, timeout);
 
 	if (ret)
 		dev_err(da9063->dev, "Failed to set watchdog timeout (err = %d)\n",
 			ret);
 	else
-		wdd->timeout = wdt_timeout[selector];
+		wdd->timeout = wdt_timeout[da9063_wdt_timeout_to_sel(timeout)];
 
 	return ret;
 }
@@ -220,10 +218,7 @@ static int da9063_wdt_probe(struct platform_device *pdev)
 
 	/* Change the timeout to the default value if the watchdog is running */
 	if (da9063_wdt_is_running(da9063)) {
-		unsigned int timeout;
-
-		timeout = da9063_wdt_timeout_to_sel(DA9063_WDG_TIMEOUT);
-		da9063_wdt_update_timeout(da9063, timeout);
+		da9063_wdt_update_timeout(da9063, DA9063_WDG_TIMEOUT);
 		set_bit(WDOG_HW_RUNNING, &wdd->status);
 	}
 
