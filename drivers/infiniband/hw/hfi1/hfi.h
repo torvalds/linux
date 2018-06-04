@@ -191,6 +191,7 @@ struct exp_tid_set {
 	u32 count;
 };
 
+typedef int (*rhf_rcv_function_ptr)(struct hfi1_packet *packet);
 struct hfi1_ctxtdata {
 	/* shadow the ctxt's RcvCtrl register */
 	u64 rcvctrl;
@@ -259,6 +260,8 @@ struct hfi1_ctxtdata {
 	char comm[TASK_COMM_LEN];
 	/* so file ops can get at unit */
 	struct hfi1_devdata *dd;
+	/* per context recv functions */
+	const rhf_rcv_function_ptr *rhf_rcv_function_map;
 	/* so functions that need physical port can get it easily */
 	struct hfi1_pportdata *ppd;
 	/* associated msix interrupt */
@@ -897,12 +900,11 @@ struct hfi1_pportdata {
 	u64 vl_xmit_flit_cnt[C_VL_COUNT + 1];
 };
 
-typedef int (*rhf_rcv_function_ptr)(struct hfi1_packet *packet);
-
 typedef void (*opcode_handler)(struct hfi1_packet *packet);
 typedef void (*hfi1_make_req)(struct rvt_qp *qp,
 			      struct hfi1_pkt_state *ps,
 			      struct rvt_swqe *wqe);
+extern const rhf_rcv_function_ptr normal_rhf_rcv_functions[];
 
 
 /* return values for the RHF receive functions */
@@ -1289,8 +1291,6 @@ struct hfi1_devdata {
 	u64 sw_cce_err_status_aggregate;
 	/* Software counter that aggregates all bypass packet rcv errors */
 	u64 sw_rcv_bypass_packet_errors;
-	/* receive interrupt function */
-	rhf_rcv_function_ptr normal_rhf_rcv_functions[8];
 
 	/* Save the enabled LCB error bits */
 	u64 lcb_err_en;
@@ -1329,8 +1329,6 @@ struct hfi1_devdata {
 	/* seqlock for sc2vl */
 	seqlock_t sc2vl_lock ____cacheline_aligned_in_smp;
 	u64 sc2vl[4];
-	/* receive interrupt functions */
-	rhf_rcv_function_ptr *rhf_rcv_function_map;
 	u64 __percpu *rcv_limit;
 	u16 rhf_offset; /* offset of RHF within receive header entry */
 	/* adding a new field here would make it part of this cacheline */
@@ -2021,12 +2019,6 @@ static inline void flush_wc(void)
 }
 
 void handle_eflags(struct hfi1_packet *packet);
-int process_receive_ib(struct hfi1_packet *packet);
-int process_receive_bypass(struct hfi1_packet *packet);
-int process_receive_error(struct hfi1_packet *packet);
-int kdeth_process_expected(struct hfi1_packet *packet);
-int kdeth_process_eager(struct hfi1_packet *packet);
-int process_receive_invalid(struct hfi1_packet *packet);
 void seqfile_dump_rcd(struct seq_file *s, struct hfi1_ctxtdata *rcd);
 
 /* global module parameter variables */
