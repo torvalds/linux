@@ -152,6 +152,40 @@ Rockchip platforms device tree bindings
       - compatible = "google,veyron-pinky-rev2", "google,veyron-pinky",
 		     "google,veyron", "rockchip,rk3288";
 
+- Google Scarlet - with display from Kingdisplay
+    Required root node properties:
+      - compatible = "google,scarlet-rev15-sku7", "google,scarlet-rev15",
+		     "google,scarlet-rev14-sku7", "google,scarlet-rev14",
+		     "google,scarlet-rev13-sku7", "google,scarlet-rev13",
+		     "google,scarlet-rev12-sku7", "google,scarlet-rev12",
+		     "google,scarlet-rev11-sku7", "google,scarlet-rev11",
+		     "google,scarlet-rev10-sku7", "google,scarlet-rev10",
+		     "google,scarlet-rev9-sku7",  "google,scarlet-rev9",
+		     "google,scarlet-rev8-sku7",  "google,scarlet-rev8",
+		     "google,scarlet-rev7-sku7",  "google,scarlet-rev7",
+		     "google,scarlet-rev6-sku7",  "google,scarlet-rev6",
+		     "google,scarlet-rev5-sku7",  "google,scarlet-rev5",
+		     "google,scarlet-rev4-sku7",  "google,scarlet-rev4",
+		     "google,scarlet-rev3-sku7",  "google,scarlet-rev3",
+		     "google,scarlet", "google,gru", "rockchip,rk3399";
+
+- Google Scarlet - with display from Innolux
+    Required root node properties:
+      - compatible = "google,scarlet-rev15-sku6", "google,scarlet-rev15",
+		     "google,scarlet-rev14-sku6", "google,scarlet-rev14",
+		     "google,scarlet-rev13-sku6", "google,scarlet-rev13",
+		     "google,scarlet-rev12-sku6", "google,scarlet-rev12",
+		     "google,scarlet-rev11-sku6", "google,scarlet-rev11",
+		     "google,scarlet-rev10-sku6", "google,scarlet-rev10",
+		     "google,scarlet-rev9-sku6",  "google,scarlet-rev9",
+		     "google,scarlet-rev8-sku6",  "google,scarlet-rev8",
+		     "google,scarlet-rev7-sku6",  "google,scarlet-rev7",
+		     "google,scarlet-rev6-sku6",  "google,scarlet-rev6",
+		     "google,scarlet-rev5-sku6",  "google,scarlet-rev5",
+		     "google,scarlet-rev4-sku6",  "google,scarlet-rev4",
+		     "google,scarlet", "google,gru", "rockchip,rk3399";
+
+
 - Google Speedy (Asus C201 Chromebook):
     Required root node properties:
       - compatible = "google,veyron-speedy-rev9", "google,veyron-speedy-rev8",
