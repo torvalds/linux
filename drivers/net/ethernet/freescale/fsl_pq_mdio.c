@@ -382,13 +382,20 @@ static int fsl_pq_mdio_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *id =
 		of_match_device(fsl_pq_mdio_match, &pdev->dev);
-	const struct fsl_pq_mdio_data *data = id->data;
+	const struct fsl_pq_mdio_data *data;
 	struct device_node *np = pdev->dev.of_node;
 	struct resource res;
 	struct device_node *tbi;
 	struct fsl_pq_mdio_priv *priv;
 	struct mii_bus *new_bus;
 	int err;
+
+	if (!id) {
+		dev_err(&pdev->dev, "Failed to match device\n");
+		return -ENODEV;
+	}
+
+	data = id->data;
 
 	dev_dbg(&pdev->dev, "found %s compatible node\n", id->compatible);
 

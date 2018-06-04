@@ -46,6 +46,15 @@ config CPU_FREQ_STAT_DETAILS
 
 	  If in doubt, say N.
 
+config CPU_FREQ_TIMES
+       bool "CPU frequency time-in-state statistics"
+       default y
+       help
+         This driver exports CPU time-in-state information through procfs file
+         system.
+
+         If in doubt, say N.
+
 choice
 	prompt "Default CPUFreq governor"
 	default CPU_FREQ_DEFAULT_GOV_USERSPACE if ARM_SA1100_CPUFREQ || ARM_SA1110_CPUFREQ

@@ -414,7 +414,7 @@ ssize_t sdcardfs_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 		fsstack_copy_inode_size(inode, file_inode(lower_file));
 		fsstack_copy_attr_times(inode, file_inode(lower_file));
 		if (sizeof(loff_t) > sizeof(long))
-			inode_lock(inode);
+			inode_unlock(inode);
 	}
 out:
 	return err;

@@ -7657,11 +7657,13 @@ static bool nested_vmx_exit_handled_cr(struct kvm_vcpu *vcpu,
 {
 	unsigned long exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 	int cr = exit_qualification & 15;
-	int reg = (exit_qualification >> 8) & 15;
-	unsigned long val = kvm_register_readl(vcpu, reg);
+	int reg;
+	unsigned long val;
 
 	switch ((exit_qualification >> 4) & 3) {
 	case 0: /* mov to cr */
+		reg = (exit_qualification >> 8) & 15;
+		val = kvm_register_readl(vcpu, reg);
 		switch (cr) {
 		case 0:
 			if (vmcs12->cr0_guest_host_mask &
@@ -7716,6 +7718,7 @@ static bool nested_vmx_exit_handled_cr(struct kvm_vcpu *vcpu,
 		 * lmsw can change bits 1..3 of cr0, and only set bit 0 of
 		 * cr0. Other attempted changes are ignored, with no exit.
 		 */
+		val = (exit_qualification >> LMSW_SOURCE_DATA_SHIFT) & 0x0f;
 		if (vmcs12->cr0_guest_host_mask & 0xe &
 		    (val ^ vmcs12->cr0_read_shadow))
 			return true;

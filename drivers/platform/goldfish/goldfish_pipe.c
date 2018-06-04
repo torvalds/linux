@@ -35,8 +35,10 @@
 #define PIPE_REG_ADDRESS		0x10  /* write: physical address */
 #define PIPE_REG_ADDRESS_HIGH	        0x34  /* write: physical address */
 #define PIPE_REG_WAKES			0x14  /* read: wake flags */
-#define PIPE_REG_PARAMS_ADDR_LOW	0x18  /* read/write: batch data address */
-#define PIPE_REG_PARAMS_ADDR_HIGH	0x1c  /* read/write: batch data address */
+#define PIPE_REG_PARAMS_ADDR_LOW	0x18  /* read/write: batch data address
+					       */
+#define PIPE_REG_PARAMS_ADDR_HIGH	0x1c  /* read/write: batch data address
+					       */
 #define PIPE_REG_ACCESS_PARAMS		0x20  /* write: batch access */
 #define PIPE_REG_VERSION		0x24  /* read: device version */
 
@@ -53,12 +55,16 @@
 /* The following commands are related to write operations */
 #define CMD_WRITE_BUFFER	4  /* send a user buffer to the emulator */
 #define CMD_WAKE_ON_WRITE	5  /* tell the emulator to wake us when writing
-				     is possible */
+				    * is possible
+				    */
 #define CMD_READ_BUFFER        6  /* receive a user buffer from the emulator */
 #define CMD_WAKE_ON_READ       7  /* tell the emulator to wake us when reading
-				   * is possible */
+				   * is possible
+				   */
 
-/* Possible status values used to signal errors - see goldfish_pipe_error_convert */
+/* Possible status values used to signal errors -
+ * see goldfish_pipe_error_convert
+ */
 #define PIPE_ERROR_INVAL       -1
 #define PIPE_ERROR_AGAIN       -2
 #define PIPE_ERROR_NOMEM       -3
@@ -70,14 +76,6 @@
 #define PIPE_WAKE_WRITE        (1 << 2)  /* pipe can now be written to */
 
 #define MAX_PAGES_TO_GRAB 32
-
-#define DEBUG 0
-
-#if DEBUG
-#define DPRINT(...) { printk(KERN_ERR __VA_ARGS__); }
-#else
-#define DPRINT(...)
-#endif
 
 /* This data type models a given pipe instance */
 struct goldfish_pipe {
@@ -158,6 +156,7 @@ static int valid_batchbuffer_addr(struct goldfish_pipe_dev *dev,
 {
 	u32 aph, apl;
 	u64 paddr;
+
 	aph = readl(dev->base + PIPE_REG_PARAMS_ADDR_HIGH);
 	apl = readl(dev->base + PIPE_REG_PARAMS_ADDR_LOW);
 
@@ -174,7 +173,8 @@ static int setup_access_params_addr(struct platform_device *pdev,
 	u64 paddr;
 	struct access_params *aps;
 
-	aps = devm_kzalloc(&pdev->dev, sizeof(struct access_params), GFP_KERNEL);
+	aps = devm_kzalloc(&pdev->dev, sizeof(struct access_params),
+		GFP_KERNEL);
 	if (!aps)
 		return -1;
 
@@ -226,7 +226,7 @@ static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
 	struct goldfish_pipe *pipe = filp->private_data;
 	struct goldfish_pipe_dev *dev = pipe->dev;
 	unsigned long address, address_end;
-	struct page* pages[MAX_PAGES_TO_GRAB] = {};
+	struct page *pages[MAX_PAGES_TO_GRAB] = {};
 	int count = 0, ret = -EINVAL;
 
 	/* If the emulator already closed the pipe, no need to go further */
@@ -268,17 +268,17 @@ static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
 		ret = get_user_pages_fast(first_page, requested_pages,
 				!is_write, pages);
 
-		DPRINT("%s: requested pages: %d %d %p\n", __FUNCTION__,
-			ret, requested_pages, first_page);
+		pr_debug("%s: requested pages: %d %ld %p\n", __func__, ret,
+			requested_pages, (void*)first_page);
 		if (ret == 0) {
-			DPRINT("%s: error: (requested pages == 0) (wanted %d)\n",
-					__FUNCTION__, requested_pages);
+			pr_err("%s: error: (requested pages == 0) (wanted %ld)\n",
+					__func__, requested_pages);
 			mutex_unlock(&pipe->lock);
 			return ret;
 		}
 		if (ret < 0) {
-			DPRINT("%s: (requested pages < 0) %d \n",
-				 	__FUNCTION__, requested_pages);
+			pr_err("%s: (requested pages < 0) %ld \n",
+				 	__func__, requested_pages);
 			mutex_unlock(&pipe->lock);
 			return ret;
 		}
@@ -293,8 +293,8 @@ static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
 				xaddr_prev = xaddr_i;
 				num_contiguous_pages++;
 			} else {
-				DPRINT("%s: discontinuous page boundary: %d pages instead\n",
-						__FUNCTION__, page_i);
+				pr_err("%s: discontinuous page boundary: %d pages instead\n",
+						__func__, page_i);
 				break;
 			}
 		}
@@ -345,8 +345,8 @@ static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
 			 * ABI relies on this behavior.
 			 */
 			if (status != PIPE_ERROR_AGAIN)
-				pr_info_ratelimited("goldfish_pipe: backend returned error %d on %s\n",
-						status, is_write ? "write" : "read");
+				pr_err_ratelimited("goldfish_pipe: backend returned error %d on %s\n",
+					status, is_write ? "write" : "read");
 			ret = 0;
 			break;
 		}
@@ -506,7 +506,7 @@ static irqreturn_t goldfish_pipe_interrupt(int irq, void *dev_id)
 static int goldfish_pipe_open(struct inode *inode, struct file *file)
 {
 	struct goldfish_pipe *pipe;
-	struct goldfish_pipe_dev *dev = pipe_dev;
+	struct goldfish_pipe_dev *dev = &goldfish_pipe_dev;
 	int32_t status;
 
 	/* Allocate new pipe kernel object */
@@ -516,8 +516,9 @@ static int goldfish_pipe_open(struct inode *inode, struct file *file)
 
 	pipe->dev = dev;
 	mutex_init(&pipe->lock);
-	DPRINT("%s: call. pipe_dev pipe_dev=0x%lx new_pipe_addr=0x%lx file=0x%lx\n", __FUNCTION__, pipe_dev, pipe, file);
-	// spin lock init, write head of list, i guess
+	pr_debug("%s: call. pipe_dev dev=%p new_pipe_addr=%p file=%p\n",
+		__func__, dev, pipe, file);
+	/* spin lock init, write head of list, i guess */
 	init_waitqueue_head(&pipe->wake_queue);
 
 	/*
@@ -540,7 +541,7 @@ static int goldfish_pipe_release(struct inode *inode, struct file *filp)
 {
 	struct goldfish_pipe *pipe = filp->private_data;
 
-	DPRINT("%s: call. pipe=0x%lx file=0x%lx\n", __FUNCTION__, pipe, filp);
+	pr_debug("%s: call. pipe=%p file=%p\n", __func__, pipe, filp);
 	/* The guest is closing the channel, so tell the emulator right now */
 	goldfish_cmd(pipe, CMD_CLOSE);
 	kfree(pipe);
@@ -557,7 +558,7 @@ static const struct file_operations goldfish_pipe_fops = {
 	.release = goldfish_pipe_release,
 };
 
-static struct miscdevice goldfish_pipe_dev = {
+static struct miscdevice goldfish_pipe_miscdev = {
 	.minor = MISC_DYNAMIC_MINOR,
 	.name = "goldfish_pipe",
 	.fops = &goldfish_pipe_fops,
@@ -565,15 +566,16 @@ static struct miscdevice goldfish_pipe_dev = {
 
 int goldfish_pipe_device_init_v1(struct platform_device *pdev)
 {
-	struct goldfish_pipe_dev *dev = pipe_dev;
-	int err = devm_request_irq(&pdev->dev, dev->irq, goldfish_pipe_interrupt,
-				IRQF_SHARED, "goldfish_pipe", dev);
+	struct goldfish_pipe_dev *dev = &goldfish_pipe_dev;
+	int err = devm_request_irq(&pdev->dev, dev->irq,
+		goldfish_pipe_interrupt, IRQF_SHARED, "goldfish_pipe", dev);
+
 	if (err) {
 		dev_err(&pdev->dev, "unable to allocate IRQ for v1\n");
 		return err;
 	}
 
-	err = misc_register(&goldfish_pipe_dev);
+	err = misc_register(&goldfish_pipe_miscdev);
 	if (err) {
 		dev_err(&pdev->dev, "unable to register v1 device\n");
 		return err;
@@ -585,5 +587,5 @@ int goldfish_pipe_device_init_v1(struct platform_device *pdev)
 
 void goldfish_pipe_device_deinit_v1(struct platform_device *pdev)
 {
-    misc_deregister(&goldfish_pipe_dev);
+	misc_deregister(&goldfish_pipe_miscdev);
 }

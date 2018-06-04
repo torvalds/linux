@@ -1,14 +1,19 @@
 #ifndef __LINUX_GOLDFISH_H
 #define __LINUX_GOLDFISH_H
 
+#include <linux/types.h>
+#include <linux/io.h>
+
 /* Helpers for Goldfish virtual platform */
 
 static inline void gf_write_ptr(const void *ptr, void __iomem *portl,
 				void __iomem *porth)
 {
-	writel((u32)(unsigned long)ptr, portl);
+	const uintptr_t addr = (uintptr_t)ptr;
+
+	writel((u32)addr, portl);
 #ifdef CONFIG_64BIT
-	writel((unsigned long)ptr >> 32, porth);
+	writel(addr >> 32, porth);
 #endif
 }
 

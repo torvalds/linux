@@ -2823,7 +2823,7 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 		if (!g) {
 			netif_info(lio, tx_err, lio->netdev,
 				   "Transmit scatter gather: glist null!\n");
-			goto lio_xmit_dma_failed;
+			goto lio_xmit_failed;
 		}
 
 		cmdsetup.s.gather = 1;

@@ -102,7 +102,7 @@ const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder);
 
 unsigned char *intel_pt_find_overlap(unsigned char *buf_a, size_t len_a,
 				     unsigned char *buf_b, size_t len_b,
-				     bool have_tsc);
+				     bool have_tsc, bool *consecutive);
 
 int intel_pt__strerror(int code, char *buf, size_t buflen);
 

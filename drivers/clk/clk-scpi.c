@@ -71,15 +71,15 @@ static const struct clk_ops scpi_clk_ops = {
 };
 
 /* find closest match to given frequency in OPP table */
-static int __scpi_dvfs_round_rate(struct scpi_clk *clk, unsigned long rate)
+static long __scpi_dvfs_round_rate(struct scpi_clk *clk, unsigned long rate)
 {
 	int idx;
-	u32 fmin = 0, fmax = ~0, ftmp;
+	unsigned long fmin = 0, fmax = ~0, ftmp;
 	const struct scpi_opp *opp = clk->info->opps;
 
 	for (idx = 0; idx < clk->info->count; idx++, opp++) {
 		ftmp = opp->freq;
-		if (ftmp >= (u32)rate) {
+		if (ftmp >= rate) {
 			if (ftmp <= fmax)
 				fmax = ftmp;
 			break;

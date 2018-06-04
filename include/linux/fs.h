@@ -20,6 +20,7 @@
 #include <linux/rwsem.h>
 #include <linux/capability.h>
 #include <linux/semaphore.h>
+#include <linux/fcntl.h>
 #include <linux/fiemap.h>
 #include <linux/rculist_bl.h>
 #include <linux/atomic.h>
@@ -142,6 +143,9 @@ typedef void (dax_iodone_t)(struct buffer_head *bh_map, int uptodate);
 
 /* File was opened by fanotify and shouldn't generate fanotify events */
 #define FMODE_NONOTIFY		((__force fmode_t)0x4000000)
+
+/* File is capable of returning -EAGAIN if I/O will block */
+#define FMODE_NOWAIT		((__force fmode_t)0x8000000)
 
 /*
  * Flag for rw_copy_check_uvector and compat_rw_copy_check_uvector
@@ -319,9 +323,22 @@ struct page;
 struct address_space;
 struct writeback_control;
 
+/*
+ * Write life time hint values.
+ */
+enum rw_hint {
+	WRITE_LIFE_NOT_SET	= 0,
+	WRITE_LIFE_NONE		= RWH_WRITE_LIFE_NONE,
+	WRITE_LIFE_SHORT	= RWH_WRITE_LIFE_SHORT,
+	WRITE_LIFE_MEDIUM	= RWH_WRITE_LIFE_MEDIUM,
+	WRITE_LIFE_LONG		= RWH_WRITE_LIFE_LONG,
+	WRITE_LIFE_EXTREME	= RWH_WRITE_LIFE_EXTREME,
+};
+
 #define IOCB_EVENTFD		(1 << 0)
 #define IOCB_APPEND		(1 << 1)
 #define IOCB_DIRECT		(1 << 2)
+#define IOCB_NOWAIT		(1 << 7)
 
 struct kiocb {
 	struct file		*ki_filp;
@@ -329,6 +346,7 @@ struct kiocb {
 	void (*ki_complete)(struct kiocb *iocb, long ret, long ret2);
 	void			*private;
 	int			ki_flags;
+	enum rw_hint		ki_hint;
 };
 
 static inline bool is_sync_kiocb(struct kiocb *kiocb)
@@ -625,6 +643,7 @@ struct inode {
 	spinlock_t		i_lock;	/* i_blocks, i_bytes, maybe i_size */
 	unsigned short          i_bytes;
 	unsigned int		i_blkbits;
+	enum rw_hint		i_write_hint;
 	blkcnt_t		i_blocks;
 
 #ifdef __NEED_I_SIZE_ORDERED
@@ -1058,8 +1077,6 @@ struct file_lock_context {
 #define OFFSET_MAX	INT_LIMIT(loff_t)
 #define OFFT_OFFSET_MAX	INT_LIMIT(off_t)
 #endif
-
-#include <linux/fcntl.h>
 
 extern void send_sigio(struct fown_struct *fown, int fd, int band);
 

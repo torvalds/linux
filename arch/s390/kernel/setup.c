@@ -63,6 +63,8 @@
 #include <asm/sclp.h>
 #include <asm/sysinfo.h>
 #include <asm/numa.h>
+#include <asm/alternative.h>
+#include <asm/nospec-branch.h>
 #include "entry.h"
 
 /*
@@ -333,7 +335,9 @@ static void __init setup_lowcore(void)
 	lc->machine_flags = S390_lowcore.machine_flags;
 	lc->stfl_fac_list = S390_lowcore.stfl_fac_list;
 	memcpy(lc->stfle_fac_list, S390_lowcore.stfle_fac_list,
-	       MAX_FACILITY_BIT/8);
+	       sizeof(lc->stfle_fac_list));
+	memcpy(lc->alt_stfle_fac_list, S390_lowcore.alt_stfle_fac_list,
+	       sizeof(lc->alt_stfle_fac_list));
 	if (MACHINE_HAS_VX)
 		lc->vector_save_area_addr =
 			(unsigned long) &lc->vector_save_area;
@@ -370,6 +374,7 @@ static void __init setup_lowcore(void)
 #ifdef CONFIG_SMP
 	lc->spinlock_lockval = arch_spin_lockval(0);
 #endif
+	lc->br_r1_trampoline = 0x07f1;	/* br %r1 */
 
 	set_prefix((u32)(unsigned long) lc);
 	lowcore_ptr[0] = lc;
@@ -841,6 +846,9 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.end_data = (unsigned long) &_edata;
 	init_mm.brk = (unsigned long) &_end;
 
+	if (IS_ENABLED(CONFIG_EXPOLINE_AUTO))
+		nospec_auto_detect();
+
 	parse_early_param();
 	os_info_init();
 	setup_ipl();
@@ -892,6 +900,10 @@ void __init setup_arch(char **cmdline_p)
         /* Setup default console */
 	conmode_default();
 	set_preferred_console();
+
+	apply_alternative_instructions();
+	if (IS_ENABLED(CONFIG_EXPOLINE))
+		nospec_init_branches();
 
 	/* Setup zfcpdump support */
 	setup_zfcpdump();

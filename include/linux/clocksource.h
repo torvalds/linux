@@ -110,7 +110,7 @@ struct clocksource {
 #define CLOCK_SOURCE_RESELECT			0x100
 
 /* simplify initialization of mask field */
-#define CLOCKSOURCE_MASK(bits) (cycle_t)((bits) < 64 ? ((1ULL<<(bits))-1) : -1)
+#define CLOCKSOURCE_MASK(bits) GENMASK_ULL((bits) - 1, 0)
 
 /**
  * clocksource_khz2mult - calculates mult from khz and shift

@@ -951,6 +951,26 @@ out:
 	return sk;
 }
 
+void llc_sk_stop_all_timers(struct sock *sk, bool sync)
+{
+	struct llc_sock *llc = llc_sk(sk);
+
+	if (sync) {
+		del_timer_sync(&llc->pf_cycle_timer.timer);
+		del_timer_sync(&llc->ack_timer.timer);
+		del_timer_sync(&llc->rej_sent_timer.timer);
+		del_timer_sync(&llc->busy_state_timer.timer);
+	} else {
+		del_timer(&llc->pf_cycle_timer.timer);
+		del_timer(&llc->ack_timer.timer);
+		del_timer(&llc->rej_sent_timer.timer);
+		del_timer(&llc->busy_state_timer.timer);
+	}
+
+	llc->ack_must_be_send = 0;
+	llc->ack_pf = 0;
+}
+
 /**
  *	llc_sk_free - Frees a LLC socket
  *	@sk - socket to free
@@ -963,7 +983,7 @@ void llc_sk_free(struct sock *sk)
 
 	llc->state = LLC_CONN_OUT_OF_SVC;
 	/* Stop all (possibly) running timers */
-	llc_conn_ac_stop_all_timers(sk, NULL);
+	llc_sk_stop_all_timers(sk, true);
 #ifdef DEBUG_LLC_CONN_ALLOC
 	printk(KERN_INFO "%s: unackq=%d, txq=%d\n", __func__,
 		skb_queue_len(&llc->pdu_unack_q),

@@ -1082,6 +1082,13 @@ static int elan_probe(struct i2c_client *client,
 		return error;
 	}
 
+	/* Make sure there is something at this address */
+	error = i2c_smbus_read_byte(client);
+	if (error < 0) {
+		dev_dbg(&client->dev, "nothing at this address: %d\n", error);
+		return -ENXIO;
+	}
+
 	/* Initialize the touchpad. */
 	error = elan_initialize(data);
 	if (error)

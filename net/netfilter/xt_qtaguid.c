@@ -968,8 +968,8 @@ static void iface_stat_create(struct net_device *net_dev,
 			IF_DEBUG("qtaguid: iface_stat: create(%s): "
 				 "ifa=%p ifa_label=%s\n",
 				 ifname, ifa,
-				 ifa->ifa_label ? ifa->ifa_label : "(null)");
-			if (ifa->ifa_label && !strcmp(ifname, ifa->ifa_label))
+				 ifa->ifa_label);
+			if (!strcmp(ifname, ifa->ifa_label))
 				break;
 		}
 	}
@@ -1189,11 +1189,6 @@ static void get_dev_and_dir(const struct sk_buff *skb,
 		*direction = IFS_TX;
 	} else {
 		pr_err("qtaguid[%d]: %s(): no par->in/out?!!\n",
-		       par->hooknum, __func__);
-		BUG();
-	}
-	if (unlikely(!(*el_dev)->name)) {
-		pr_err("qtaguid[%d]: %s(): no dev->name?!!\n",
 		       par->hooknum, __func__);
 		BUG();
 	}

@@ -1473,9 +1473,9 @@ at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	for (retry = 0; retry < AT_XDMAC_RESIDUE_MAX_RETRIES; retry++) {
 		check_nda = at_xdmac_chan_read(atchan, AT_XDMAC_CNDA) & 0xfffffffc;
 		rmb();
-		initd = !!(at_xdmac_chan_read(atchan, AT_XDMAC_CC) & AT_XDMAC_CC_INITD);
-		rmb();
 		cur_ubc = at_xdmac_chan_read(atchan, AT_XDMAC_CUBC);
+		rmb();
+		initd = !!(at_xdmac_chan_read(atchan, AT_XDMAC_CC) & AT_XDMAC_CC_INITD);
 		rmb();
 		cur_nda = at_xdmac_chan_read(atchan, AT_XDMAC_CNDA) & 0xfffffffc;
 		rmb();

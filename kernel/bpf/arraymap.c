@@ -102,7 +102,7 @@ static void *array_map_lookup_elem(struct bpf_map *map, void *key)
 static int array_map_get_next_key(struct bpf_map *map, void *key, void *next_key)
 {
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
-	u32 index = *(u32 *)key;
+	u32 index = key ? *(u32 *)key : U32_MAX;
 	u32 *next = (u32 *)next_key;
 
 	if (index >= array->map.max_entries) {

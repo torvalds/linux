@@ -41,8 +41,6 @@ void sdcardfs_destroy_dentry_cache(void)
 
 void free_dentry_private_data(struct dentry *dentry)
 {
-	if (!dentry || !dentry->d_fsdata)
-		return;
 	kmem_cache_free(sdcardfs_dentry_cachep, dentry->d_fsdata);
 	dentry->d_fsdata = NULL;
 }

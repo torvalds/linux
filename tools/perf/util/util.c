@@ -162,7 +162,7 @@ int copyfile_offset(int ifd, loff_t off_in, int ofd, loff_t off_out, u64 size)
 
 		size -= ret;
 		off_in += ret;
-		off_out -= ret;
+		off_out += ret;
 	}
 	munmap(ptr, off_in + size);
 

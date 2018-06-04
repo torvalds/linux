@@ -76,13 +76,14 @@ static int gc_thread_func(void *data)
 		 * invalidated soon after by user update or deletion.
 		 * So, I'd like to wait some time to collect dirty segments.
 		 */
-		if (!mutex_trylock(&sbi->gc_mutex))
-			goto next;
-
 		if (gc_th->gc_urgent) {
 			wait_ms = gc_th->urgent_sleep_time;
+			mutex_lock(&sbi->gc_mutex);
 			goto do_gc;
 		}
+
+		if (!mutex_trylock(&sbi->gc_mutex))
+			goto next;
 
 		if (!is_idle(sbi)) {
 			increase_sleep_time(gc_th, &wait_ms);
@@ -161,12 +162,17 @@ static int select_gc_type(struct f2fs_gc_kthread *gc_th, int gc_type)
 {
 	int gc_mode = (gc_type == BG_GC) ? GC_CB : GC_GREEDY;
 
-	if (gc_th && gc_th->gc_idle) {
+	if (!gc_th)
+		return gc_mode;
+
+	if (gc_th->gc_idle) {
 		if (gc_th->gc_idle == 1)
 			gc_mode = GC_CB;
 		else if (gc_th->gc_idle == 2)
 			gc_mode = GC_GREEDY;
 	}
+	if (gc_th->gc_urgent)
+		gc_mode = GC_GREEDY;
 	return gc_mode;
 }
 
@@ -188,11 +194,14 @@ static void select_policy(struct f2fs_sb_info *sbi, int gc_type,
 	}
 
 	/* we need to check every dirty segments in the FG_GC case */
-	if (gc_type != FG_GC && p->max_search > sbi->max_victim_search)
+	if (gc_type != FG_GC &&
+			(sbi->gc_thread && !sbi->gc_thread->gc_urgent) &&
+			p->max_search > sbi->max_victim_search)
 		p->max_search = sbi->max_victim_search;
 
-	/* let's select beginning hot/small space first */
-	if (type == CURSEG_HOT_DATA || IS_NODESEG(type))
+	/* let's select beginning hot/small space first in no_heap mode*/
+	if (test_opt(sbi, NOHEAP) &&
+		(type == CURSEG_HOT_DATA || IS_NODESEG(type)))
 		p->offset = 0;
 	else
 		p->offset = SIT_I(sbi)->last_victim[p->gc_mode];
@@ -684,6 +693,7 @@ static void move_data_block(struct inode *inode, block_t bidx,
 		dec_page_count(fio.sbi, F2FS_DIRTY_META);
 
 	set_page_writeback(fio.encrypted_page);
+	ClearPageError(page);
 
 	/* allocate block address */
 	f2fs_wait_on_page_writeback(dn.node_page, NODE, true);
@@ -841,8 +851,8 @@ next_step:
 			if (IS_ERR(inode) || is_bad_inode(inode))
 				continue;
 
-			/* if encrypted inode, let's go phase 3 */
-			if (f2fs_encrypted_file(inode)) {
+			/* if inode uses special I/O path, let's go phase 3 */
+			if (f2fs_post_read_required(inode)) {
 				add_gc_inode(gc_list, inode);
 				continue;
 			}
@@ -890,7 +900,7 @@ next_step:
 
 			start_bidx = start_bidx_of_node(nofs, inode)
 								+ ofs_in_node;
-			if (f2fs_encrypted_file(inode))
+			if (f2fs_post_read_required(inode))
 				move_data_block(inode, start_bidx, segno, off);
 			else
 				move_data_page(inode, start_bidx, gc_type,

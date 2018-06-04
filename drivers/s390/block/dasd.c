@@ -1881,8 +1881,12 @@ static int __dasd_device_is_unusable(struct dasd_device *device,
 {
 	int mask = ~(DASD_STOPPED_DC_WAIT | DASD_UNRESUMED_PM);
 
-	if (test_bit(DASD_FLAG_OFFLINE, &device->flags)) {
-		/* dasd is being set offline. */
+	if (test_bit(DASD_FLAG_OFFLINE, &device->flags) &&
+	    !test_bit(DASD_FLAG_SAFE_OFFLINE_RUNNING, &device->flags)) {
+		/*
+		 * dasd is being set offline
+		 * but it is no safe offline where we have to allow I/O
+		 */
 		return 1;
 	}
 	if (device->stopped) {

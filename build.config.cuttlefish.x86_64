@@ -1,0 +1,15 @@
+ARCH=x86_64
+BRANCH=android-4.4
+CLANG_TRIPLE=x86_64-linux-gnu-
+CROSS_COMPILE=x86_64-linux-androidkernel-
+DEFCONFIG=x86_64_cuttlefish_defconfig
+EXTRA_CMDS=''
+KERNEL_DIR=common
+POST_DEFCONFIG_CMDS="check_defconfig"
+CLANG_PREBUILT_BIN=prebuilts/clang/host/linux-x86/clang-4630689/bin
+LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9/bin
+FILES="
+arch/x86/boot/bzImage
+vmlinux
+System.map
+"

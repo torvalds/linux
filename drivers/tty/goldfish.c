@@ -26,20 +26,25 @@
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 #include <linux/serial_core.h>
+#include <linux/of.h>
 
 /* Goldfish tty register's offsets */
-#define	GOLDFISH_TTY_REG_BYTES_READY	0x04
-#define	GOLDFISH_TTY_REG_CMD		0x08
-#define	GOLDFISH_TTY_REG_DATA_PTR	0x10
-#define	GOLDFISH_TTY_REG_DATA_LEN	0x14
-#define	GOLDFISH_TTY_REG_DATA_PTR_HIGH	0x18
-#define	GOLDFISH_TTY_REG_VERSION	0x20
+enum {
+	GOLDFISH_TTY_REG_BYTES_READY	= 0x04,
+	GOLDFISH_TTY_REG_CMD		= 0x08,
+	GOLDFISH_TTY_REG_DATA_PTR	= 0x10,
+	GOLDFISH_TTY_REG_DATA_LEN	= 0x14,
+	GOLDFISH_TTY_REG_DATA_PTR_HIGH	= 0x18,
+	GOLDFISH_TTY_REG_VERSION	= 0x20,
+};
 
 /* Goldfish tty commands */
-#define	GOLDFISH_TTY_CMD_INT_DISABLE	0
-#define	GOLDFISH_TTY_CMD_INT_ENABLE	1
-#define	GOLDFISH_TTY_CMD_WRITE_BUFFER	2
-#define	GOLDFISH_TTY_CMD_READ_BUFFER	3
+enum {
+	GOLDFISH_TTY_CMD_INT_DISABLE	= 0,
+	GOLDFISH_TTY_CMD_INT_ENABLE	= 1,
+	GOLDFISH_TTY_CMD_WRITE_BUFFER	= 2,
+	GOLDFISH_TTY_CMD_READ_BUFFER	= 3,
+};
 
 struct goldfish_tty {
 	struct tty_port port;
@@ -82,32 +87,35 @@ static void do_rw_io(struct goldfish_tty *qtty,
 }
 
 static void goldfish_tty_rw(struct goldfish_tty *qtty,
-			    unsigned long addr,
+			    const void *address_ptr,
 			    unsigned int count,
 			    int is_write)
 {
 	dma_addr_t dma_handle;
 	enum dma_data_direction dma_dir;
+	uintptr_t address;
 
+	address = (uintptr_t)address_ptr;
 	dma_dir = (is_write ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+
 	if (qtty->version > 0) {
 		/*
 		 * Goldfish TTY for Ranchu platform uses
 		 * physical addresses and DMA for read/write operations
 		 */
-		unsigned long addr_end = addr + count;
+		uintptr_t address_end = address + count;
 
-		while (addr < addr_end) {
-			unsigned long pg_end = (addr & PAGE_MASK) + PAGE_SIZE;
-			unsigned long next =
-					pg_end < addr_end ? pg_end : addr_end;
-			unsigned long avail = next - addr;
+		while (address < address_end) {
+			uintptr_t page_end = (address & PAGE_MASK) + PAGE_SIZE;
+			uintptr_t next     = page_end < address_end ?
+						page_end : address_end;
+			uintptr_t avail    = next - address;
 
 			/*
 			 * Map the buffer's virtual address to the DMA address
 			 * so the buffer can be accessed by the device.
 			 */
-			dma_handle = dma_map_single(qtty->dev, (void *)addr,
+			dma_handle = dma_map_single(qtty->dev, (void *)address,
 						    avail, dma_dir);
 
 			if (dma_mapping_error(qtty->dev, dma_handle)) {
@@ -122,31 +130,30 @@ static void goldfish_tty_rw(struct goldfish_tty *qtty,
 			 */
 			dma_unmap_single(qtty->dev, dma_handle, avail, dma_dir);
 
-			addr += avail;
+			address += avail;
 		}
 	} else {
 		/*
 		 * Old style Goldfish TTY used on the Goldfish platform
 		 * uses virtual addresses.
 		 */
-		do_rw_io(qtty, addr, count, is_write);
+		do_rw_io(qtty, address, count, is_write);
 	}
+
 }
 
 static void goldfish_tty_do_write(int line, const char *buf,
 				  unsigned int count)
 {
 	struct goldfish_tty *qtty = &goldfish_ttys[line];
-	unsigned long address = (unsigned long)(void *)buf;
 
-	goldfish_tty_rw(qtty, address, count, 1);
+	goldfish_tty_rw(qtty, buf, count, 1);
 }
 
 static irqreturn_t goldfish_tty_interrupt(int irq, void *dev_id)
 {
 	struct goldfish_tty *qtty = dev_id;
 	void __iomem *base = qtty->base;
-	unsigned long address;
 	unsigned char *buf;
 	u32 count;
 
@@ -155,9 +162,7 @@ static irqreturn_t goldfish_tty_interrupt(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	count = tty_prepare_flip_string(&qtty->port, &buf, count);
-
-	address = (unsigned long)(void *)buf;
-	goldfish_tty_rw(qtty, address, count, 0);
+	goldfish_tty_rw(qtty, buf, count, 0);
 
 	tty_schedule_flip(&qtty->port);
 	return IRQ_HANDLED;
@@ -181,6 +186,7 @@ static void goldfish_tty_shutdown(struct tty_port *port)
 static int goldfish_tty_open(struct tty_struct *tty, struct file *filp)
 {
 	struct goldfish_tty *qtty = &goldfish_ttys[tty->index];
+
 	return tty_port_open(&qtty->port, tty, filp);
 }
 
@@ -210,6 +216,7 @@ static int goldfish_tty_chars_in_buffer(struct tty_struct *tty)
 {
 	struct goldfish_tty *qtty = &goldfish_ttys[tty->index];
 	void __iomem *base = qtty->base;
+
 	return readl(base + GOLDFISH_TTY_REG_BYTES_READY);
 }
 
