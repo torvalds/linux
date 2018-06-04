@@ -234,7 +234,6 @@ xfs_btree_check_sptr(
 	return xfs_verify_agbno(cur->bc_mp, cur->bc_private.a.agno, agbno);
 }
 
-#ifdef DEBUG
 /*
  * Check that a given (indexed) btree pointer at a certain level of a
  * btree is valid and doesn't point past where it should.
@@ -258,6 +257,11 @@ xfs_btree_check_ptr(
 
 	return 0;
 }
+
+#ifdef DEBUG
+# define xfs_btree_debug_check_ptr	xfs_btree_check_ptr
+#else
+# define xfs_btree_debug_check_ptr(...)	(0)
 #endif
 
 /*
@@ -1951,11 +1955,10 @@ xfs_btree_lookup(
 				keyno = 1;
 			pp = xfs_btree_ptr_addr(cur, keyno, block);
 
-#ifdef DEBUG
-			error = xfs_btree_check_ptr(cur, pp, 0, level);
+			error = xfs_btree_debug_check_ptr(cur, pp, 0, level);
 			if (error)
 				goto error0;
-#endif
+
 			cur->bc_ptrs[level] = keyno;
 		}
 	}
@@ -2359,11 +2362,11 @@ xfs_btree_lshift(
 
 		lpp = xfs_btree_ptr_addr(cur, lrecs, left);
 		rpp = xfs_btree_ptr_addr(cur, 1, right);
-#ifdef DEBUG
-		error = xfs_btree_check_ptr(cur, rpp, 0, level);
+
+		error = xfs_btree_debug_check_ptr(cur, rpp, 0, level);
 		if (error)
 			goto error0;
-#endif
+
 		xfs_btree_copy_keys(cur, lkp, rkp, 1);
 		xfs_btree_copy_ptrs(cur, lpp, rpp, 1);
 
@@ -2398,15 +2401,14 @@ xfs_btree_lshift(
 	XFS_BTREE_STATS_ADD(cur, moves, rrecs - 1);
 	if (level > 0) {
 		/* It's a nonleaf. operate on keys and ptrs */
-#ifdef DEBUG
 		int			i;		/* loop index */
 
 		for (i = 0; i < rrecs; i++) {
-			error = xfs_btree_check_ptr(cur, rpp, i + 1, level);
+			error = xfs_btree_debug_check_ptr(cur, rpp, i + 1, level);
 			if (error)
 				goto error0;
 		}
-#endif
+
 		xfs_btree_shift_keys(cur,
 				xfs_btree_key_addr(cur, 2, right),
 				-1, rrecs);
@@ -2546,22 +2548,18 @@ xfs_btree_rshift(
 		rkp = xfs_btree_key_addr(cur, 1, right);
 		rpp = xfs_btree_ptr_addr(cur, 1, right);
 
-#ifdef DEBUG
 		for (i = rrecs - 1; i >= 0; i--) {
-			error = xfs_btree_check_ptr(cur, rpp, i, level);
+			error = xfs_btree_debug_check_ptr(cur, rpp, i, level);
 			if (error)
 				goto error0;
 		}
-#endif
 
 		xfs_btree_shift_keys(cur, rkp, 1, rrecs);
 		xfs_btree_shift_ptrs(cur, rpp, 1, rrecs);
 
-#ifdef DEBUG
-		error = xfs_btree_check_ptr(cur, lpp, 0, level);
+		error = xfs_btree_debug_check_ptr(cur, lpp, 0, level);
 		if (error)
 			goto error0;
-#endif
 
 		/* Now put the new data in, and log it. */
 		xfs_btree_copy_keys(cur, rkp, lkp, 1);
@@ -2666,9 +2664,7 @@ __xfs_btree_split(
 	int			rrecs;
 	int			src_index;
 	int			error;		/* error return value */
-#ifdef DEBUG
 	int			i;
-#endif
 
 	XFS_BTREE_STATS_INC(cur, split);
 
@@ -2734,13 +2730,11 @@ __xfs_btree_split(
 		rkp = xfs_btree_key_addr(cur, 1, right);
 		rpp = xfs_btree_ptr_addr(cur, 1, right);
 
-#ifdef DEBUG
 		for (i = src_index; i < rrecs; i++) {
-			error = xfs_btree_check_ptr(cur, lpp, i, level);
+			error = xfs_btree_debug_check_ptr(cur, lpp, i, level);
 			if (error)
 				goto error0;
 		}
-#endif
 
 		/* Copy the keys & pointers to the new block. */
 		xfs_btree_copy_keys(cur, rkp, lkp, rrecs);
@@ -2928,9 +2922,7 @@ xfs_btree_new_iroot(
 	union xfs_btree_ptr	nptr;		/* new block addr */
 	int			level;		/* btree level */
 	int			error;		/* error return code */
-#ifdef DEBUG
 	int			i;		/* loop counter */
-#endif
 
 	XFS_BTREE_STATS_INC(cur, newroot);
 
@@ -2977,20 +2969,18 @@ xfs_btree_new_iroot(
 	xfs_btree_copy_keys(cur, ckp, kp, xfs_btree_get_numrecs(cblock));
 
 	cpp = xfs_btree_ptr_addr(cur, 1, cblock);
-#ifdef DEBUG
 	for (i = 0; i < be16_to_cpu(cblock->bb_numrecs); i++) {
-		error = xfs_btree_check_ptr(cur, pp, i, level);
+		error = xfs_btree_debug_check_ptr(cur, pp, i, level);
 		if (error)
 			goto error0;
 	}
-#endif
+
 	xfs_btree_copy_ptrs(cur, cpp, pp, xfs_btree_get_numrecs(cblock));
 
-#ifdef DEBUG
-	error = xfs_btree_check_ptr(cur, &nptr, 0, level);
+	error = xfs_btree_debug_check_ptr(cur, &nptr, 0, level);
 	if (error)
 		goto error0;
-#endif
+
 	xfs_btree_copy_ptrs(cur, pp, &nptr, 1);
 
 	xfs_iroot_realloc(cur->bc_private.b.ip,
@@ -3234,9 +3224,7 @@ xfs_btree_insrec(
 	int			ptr;	/* key/record index */
 	int			numrecs;/* number of records */
 	int			error;	/* error return value */
-#ifdef DEBUG
 	int			i;
-#endif
 	xfs_daddr_t		old_bn;
 
 	ncur = NULL;
@@ -3326,22 +3314,18 @@ xfs_btree_insrec(
 		kp = xfs_btree_key_addr(cur, ptr, block);
 		pp = xfs_btree_ptr_addr(cur, ptr, block);
 
-#ifdef DEBUG
 		for (i = numrecs - ptr; i >= 0; i--) {
-			error = xfs_btree_check_ptr(cur, pp, i, level);
+			error = xfs_btree_debug_check_ptr(cur, pp, i, level);
 			if (error)
 				return error;
 		}
-#endif
 
 		xfs_btree_shift_keys(cur, kp, 1, numrecs - ptr + 1);
 		xfs_btree_shift_ptrs(cur, pp, 1, numrecs - ptr + 1);
 
-#ifdef DEBUG
-		error = xfs_btree_check_ptr(cur, ptrp, 0, level);
+		error = xfs_btree_debug_check_ptr(cur, ptrp, 0, level);
 		if (error)
 			goto error0;
-#endif
 
 		/* Now put the new data in, bump numrecs and log it. */
 		xfs_btree_copy_keys(cur, kp, key, 1);
@@ -3529,8 +3513,8 @@ xfs_btree_kill_iroot(
 	int			error;
 #ifdef DEBUG
 	union xfs_btree_ptr	ptr;
-	int			i;
 #endif
+	int			i;
 
 	ASSERT(cur->bc_flags & XFS_BTREE_ROOT_IN_INODE);
 	ASSERT(cur->bc_nlevels > 1);
@@ -3586,13 +3570,13 @@ xfs_btree_kill_iroot(
 
 	pp = xfs_btree_ptr_addr(cur, 1, block);
 	cpp = xfs_btree_ptr_addr(cur, 1, cblock);
-#ifdef DEBUG
+
 	for (i = 0; i < numrecs; i++) {
-		error = xfs_btree_check_ptr(cur, cpp, i, level - 1);
+		error = xfs_btree_debug_check_ptr(cur, cpp, i, level - 1);
 		if (error)
 			return error;
 	}
-#endif
+
 	xfs_btree_copy_ptrs(cur, pp, cpp, numrecs);
 
 	error = xfs_btree_free_block(cur, cbp);
@@ -3726,13 +3710,11 @@ xfs_btree_delrec(
 		lkp = xfs_btree_key_addr(cur, ptr + 1, block);
 		lpp = xfs_btree_ptr_addr(cur, ptr + 1, block);
 
-#ifdef DEBUG
 		for (i = 0; i < numrecs - ptr; i++) {
-			error = xfs_btree_check_ptr(cur, lpp, i, level);
+			error = xfs_btree_debug_check_ptr(cur, lpp, i, level);
 			if (error)
 				goto error0;
 		}
-#endif
 
 		if (ptr < numrecs) {
 			xfs_btree_shift_keys(cur, lkp, -1, numrecs - ptr);
@@ -4065,13 +4047,13 @@ xfs_btree_delrec(
 		lpp = xfs_btree_ptr_addr(cur, lrecs + 1, left);
 		rkp = xfs_btree_key_addr(cur, 1, right);
 		rpp = xfs_btree_ptr_addr(cur, 1, right);
-#ifdef DEBUG
+
 		for (i = 1; i < rrecs; i++) {
-			error = xfs_btree_check_ptr(cur, rpp, i, level);
+			error = xfs_btree_debug_check_ptr(cur, rpp, i, level);
 			if (error)
 				goto error0;
 		}
-#endif
+
 		xfs_btree_copy_keys(cur, lkp, rkp, rrecs);
 		xfs_btree_copy_ptrs(cur, lpp, rpp, rrecs);
 
