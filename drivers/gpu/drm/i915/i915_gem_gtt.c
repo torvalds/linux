@@ -773,53 +773,6 @@ static void gen8_initialize_pml4(struct i915_address_space *vm,
 	memset_p((void **)pml4->pdps, vm->scratch_pdp, GEN8_PML4ES_PER_PML4);
 }
 
-/* Broadwell Page Directory Pointer Descriptors */
-static int gen8_write_pdp(struct i915_request *rq,
-			  unsigned entry,
-			  dma_addr_t addr)
-{
-	struct intel_engine_cs *engine = rq->engine;
-	u32 *cs;
-
-	BUG_ON(entry >= 4);
-
-	cs = intel_ring_begin(rq, 6);
-	if (IS_ERR(cs))
-		return PTR_ERR(cs);
-
-	*cs++ = MI_LOAD_REGISTER_IMM(1);
-	*cs++ = i915_mmio_reg_offset(GEN8_RING_PDP_UDW(engine, entry));
-	*cs++ = upper_32_bits(addr);
-	*cs++ = MI_LOAD_REGISTER_IMM(1);
-	*cs++ = i915_mmio_reg_offset(GEN8_RING_PDP_LDW(engine, entry));
-	*cs++ = lower_32_bits(addr);
-	intel_ring_advance(rq, cs);
-
-	return 0;
-}
-
-static int gen8_mm_switch_3lvl(struct i915_hw_ppgtt *ppgtt,
-			       struct i915_request *rq)
-{
-	int i, ret;
-
-	for (i = GEN8_3LVL_PDPES - 1; i >= 0; i--) {
-		const dma_addr_t pd_daddr = i915_page_dir_dma_addr(ppgtt, i);
-
-		ret = gen8_write_pdp(rq, i, pd_daddr);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-static int gen8_mm_switch_4lvl(struct i915_hw_ppgtt *ppgtt,
-			       struct i915_request *rq)
-{
-	return gen8_write_pdp(rq, 0, px_dma(&ppgtt->pml4));
-}
-
 /* PDE TLBs are a pain to invalidate on GEN8+. When we modify
  * the page table structures, we mark them dirty so that
  * context switching/execlist queuing code takes extra steps
@@ -1638,7 +1591,6 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 
 		gen8_initialize_pml4(&ppgtt->base, &ppgtt->pml4);
 
-		ppgtt->switch_mm = gen8_mm_switch_4lvl;
 		ppgtt->base.allocate_va_range = gen8_ppgtt_alloc_4lvl;
 		ppgtt->base.insert_entries = gen8_ppgtt_insert_4lvl;
 		ppgtt->base.clear_range = gen8_ppgtt_clear_4lvl;
@@ -1655,7 +1607,6 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 			}
 		}
 
-		ppgtt->switch_mm = gen8_mm_switch_3lvl;
 		ppgtt->base.allocate_va_range = gen8_ppgtt_alloc_3lvl;
 		ppgtt->base.insert_entries = gen8_ppgtt_insert_3lvl;
 		ppgtt->base.clear_range = gen8_ppgtt_clear_3lvl;
