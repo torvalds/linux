@@ -716,13 +716,13 @@
 };
 
 &soc_crit {
-	temperature = <100000>; /* millicelsius */
+	temperature = <115000>; /* millicelsius */
 };
 
 &tsadc {
 	rockchip,hw-tshut-mode = <1>; /* tshut mode 0:CRU 1:GPIO */
 	rockchip,hw-tshut-polarity = <1>; /* tshut polarity 0:LOW 1:HIGH */
-	rockchip,hw-tshut-temp = <110000>;
+	rockchip,hw-tshut-temp = <120000>;
 	status = "okay";
 };
 

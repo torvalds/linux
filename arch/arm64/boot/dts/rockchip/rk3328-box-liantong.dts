@@ -536,7 +536,7 @@
 };
 
 &soc_crit {
-	temperature = <110000>; /* millicelsius */
+	temperature = <115000>; /* millicelsius */
 };
 
 &tsadc {

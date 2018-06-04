@@ -291,7 +291,7 @@
 					type = "passive";
 				};
 				soc_crit: soc-crit {
-					temperature = <100000>;
+					temperature = <115000>;
 					hysteresis = <2000>;
 					type = "critical";
 				};

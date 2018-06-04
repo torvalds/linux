@@ -541,7 +541,7 @@
 };
 
 &soc_crit {
-	temperature = <105000>;
+	temperature = <115000>;
 };
 
 &tcphy0 {
@@ -558,7 +558,7 @@
 	rockchip,hw-tshut-mode = <1>;
 	/* tshut polarity 0:LOW 1:HIGH */
 	rockchip,hw-tshut-polarity = <1>;
-	rockchip,hw-tshut-temp = <110000>;
+	rockchip,hw-tshut-temp = <120000>;
 	status = "okay";
 };
 

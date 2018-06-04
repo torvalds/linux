@@ -725,7 +725,7 @@
 					type = "passive";
 				};
 				soc_crit: soc-crit {
-					temperature = <95000>; /* millicelsius */
+					temperature = <115000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "critical";
 				};
