@@ -91,7 +91,7 @@ test_tagged_vlan_dir()
 				  192.0.2.17 192.0.2.18
 	mirror_uninstall $swp1 $direction
 
-	log_test "$direction mirror to vlan ($tcflags)"
+	log_test "$direction mirror tagged to vlan ($tcflags)"
 }
 
 test_tagged_vlan()
@@ -108,7 +108,7 @@ test_all()
 
 	tests_run
 
-	trap_install $h3 ingress
+	trap_uninstall $h3 ingress
 	slow_path_trap_uninstall $swp1 egress
 	slow_path_trap_uninstall $swp1 ingress
 }
