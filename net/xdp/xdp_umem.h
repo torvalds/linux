@@ -18,35 +18,20 @@ struct xdp_umem {
 	struct xsk_queue *cq;
 	struct page **pgs;
 	struct xdp_umem_props props;
-	u32 npgs;
-	u32 frame_headroom;
-	u32 nfpp_mask;
-	u32 nfpplog2;
-	u32 frame_size_log2;
+	u32 headroom;
+	u32 chunk_size_nohr;
 	struct user_struct *user;
 	struct pid *pid;
 	unsigned long address;
-	size_t size;
 	refcount_t users;
 	struct work_struct work;
+	u32 npgs;
 };
 
-static inline char *xdp_umem_get_data(struct xdp_umem *umem, u32 idx)
+static inline char *xdp_umem_get_data(struct xdp_umem *umem, u64 addr)
 {
-	u64 pg, off;
-	char *data;
-
-	pg = idx >> umem->nfpplog2;
-	off = (idx & umem->nfpp_mask) << umem->frame_size_log2;
-
-	data = page_address(umem->pgs[pg]);
-	return data + off;
-}
-
-static inline char *xdp_umem_get_data_with_headroom(struct xdp_umem *umem,
-						    u32 idx)
-{
-	return xdp_umem_get_data(umem, idx) + umem->frame_headroom;
+	return page_address(umem->pgs[addr >> PAGE_SHIFT]) +
+		(addr & (PAGE_SIZE - 1));
 }
 
 bool xdp_umem_validate_queues(struct xdp_umem *umem);

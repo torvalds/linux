@@ -7,8 +7,8 @@
 #define XDP_UMEM_PROPS_H_
 
 struct xdp_umem_props {
-	u32 frame_size;
-	u32 nframes;
+	u64 chunk_mask;
+	u64 size;
 };
 
 #endif /* XDP_UMEM_PROPS_H_ */
