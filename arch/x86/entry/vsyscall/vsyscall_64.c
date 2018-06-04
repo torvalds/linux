@@ -107,7 +107,7 @@ static bool write_ok_or_segv(unsigned long ptr, size_t size)
 		thread->cr2		= ptr;
 		thread->trap_nr		= X86_TRAP_PF;
 
-		memset(&info, 0, sizeof(info));
+		clear_siginfo(&info);
 		info.si_signo		= SIGSEGV;
 		info.si_errno		= 0;
 		info.si_code		= SEGV_MAPERR;
