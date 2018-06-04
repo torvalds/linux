@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/pm_opp.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_qos.h>
@@ -1315,7 +1316,6 @@ EXPORT_SYMBOL_GPL(pm_genpd_syscore_poweron);
 #endif /* CONFIG_PM_SLEEP */
 
 static struct generic_pm_domain_data *genpd_alloc_dev_data(struct device *dev,
-					struct generic_pm_domain *genpd,
 					struct gpd_timing_data *td)
 {
 	struct generic_pm_domain_data *gpd_data;
@@ -1384,7 +1384,7 @@ static int genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 	if (IS_ERR_OR_NULL(genpd) || IS_ERR_OR_NULL(dev))
 		return -EINVAL;
 
-	gpd_data = genpd_alloc_dev_data(dev, genpd, td);
+	gpd_data = genpd_alloc_dev_data(dev, td);
 	if (IS_ERR(gpd_data))
 		return PTR_ERR(gpd_data);
 
@@ -1413,23 +1413,21 @@ static int genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 }
 
 /**
- * __pm_genpd_add_device - Add a device to an I/O PM domain.
+ * pm_genpd_add_device - Add a device to an I/O PM domain.
  * @genpd: PM domain to add the device to.
  * @dev: Device to be added.
- * @td: Set of PM QoS timing parameters to attach to the device.
  */
-int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
-			  struct gpd_timing_data *td)
+int pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev)
 {
 	int ret;
 
 	mutex_lock(&gpd_list_lock);
-	ret = genpd_add_device(genpd, dev, td);
+	ret = genpd_add_device(genpd, dev, NULL);
 	mutex_unlock(&gpd_list_lock);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(__pm_genpd_add_device);
+EXPORT_SYMBOL_GPL(pm_genpd_add_device);
 
 static int genpd_remove_device(struct generic_pm_domain *genpd,
 			       struct device *dev)
@@ -1476,13 +1474,13 @@ static int genpd_remove_device(struct generic_pm_domain *genpd,
 
 /**
  * pm_genpd_remove_device - Remove a device from an I/O PM domain.
- * @genpd: PM domain to remove the device from.
  * @dev: Device to be removed.
  */
-int pm_genpd_remove_device(struct generic_pm_domain *genpd,
-			   struct device *dev)
+int pm_genpd_remove_device(struct device *dev)
 {
-	if (!genpd || genpd != genpd_lookup_dev(dev))
+	struct generic_pm_domain *genpd = genpd_lookup_dev(dev);
+
+	if (!genpd)
 		return -EINVAL;
 
 	return genpd_remove_device(genpd, dev);
@@ -1691,6 +1689,9 @@ int pm_genpd_init(struct generic_pm_domain *genpd,
 			return ret;
 	}
 
+	device_initialize(&genpd->dev);
+	dev_set_name(&genpd->dev, "%s", genpd->name);
+
 	mutex_lock(&gpd_list_lock);
 	list_add(&genpd->gpd_list_node, &gpd_list);
 	mutex_unlock(&gpd_list_lock);
@@ -1887,14 +1888,33 @@ int of_genpd_add_provider_simple(struct device_node *np,
 
 	mutex_lock(&gpd_list_lock);
 
-	if (genpd_present(genpd)) {
-		ret = genpd_add_provider(np, genpd_xlate_simple, genpd);
-		if (!ret) {
-			genpd->provider = &np->fwnode;
-			genpd->has_provider = true;
+	if (!genpd_present(genpd))
+		goto unlock;
+
+	genpd->dev.of_node = np;
+
+	/* Parse genpd OPP table */
+	if (genpd->set_performance_state) {
+		ret = dev_pm_opp_of_add_table(&genpd->dev);
+		if (ret) {
+			dev_err(&genpd->dev, "Failed to add OPP table: %d\n",
+				ret);
+			goto unlock;
 		}
 	}
 
+	ret = genpd_add_provider(np, genpd_xlate_simple, genpd);
+	if (ret) {
+		if (genpd->set_performance_state)
+			dev_pm_opp_of_remove_table(&genpd->dev);
+
+		goto unlock;
+	}
+
+	genpd->provider = &np->fwnode;
+	genpd->has_provider = true;
+
+unlock:
 	mutex_unlock(&gpd_list_lock);
 
 	return ret;
@@ -1909,6 +1929,7 @@ EXPORT_SYMBOL_GPL(of_genpd_add_provider_simple);
 int of_genpd_add_provider_onecell(struct device_node *np,
 				  struct genpd_onecell_data *data)
 {
+	struct generic_pm_domain *genpd;
 	unsigned int i;
 	int ret = -EINVAL;
 
@@ -1921,13 +1942,27 @@ int of_genpd_add_provider_onecell(struct device_node *np,
 		data->xlate = genpd_xlate_onecell;
 
 	for (i = 0; i < data->num_domains; i++) {
-		if (!data->domains[i])
+		genpd = data->domains[i];
+
+		if (!genpd)
 			continue;
-		if (!genpd_present(data->domains[i]))
+		if (!genpd_present(genpd))
 			goto error;
 
-		data->domains[i]->provider = &np->fwnode;
-		data->domains[i]->has_provider = true;
+		genpd->dev.of_node = np;
+
+		/* Parse genpd OPP table */
+		if (genpd->set_performance_state) {
+			ret = dev_pm_opp_of_add_table_indexed(&genpd->dev, i);
+			if (ret) {
+				dev_err(&genpd->dev, "Failed to add OPP table for index %d: %d\n",
+					i, ret);
+				goto error;
+			}
+		}
+
+		genpd->provider = &np->fwnode;
+		genpd->has_provider = true;
 	}
 
 	ret = genpd_add_provider(np, data->xlate, data);
@@ -1940,10 +1975,16 @@ int of_genpd_add_provider_onecell(struct device_node *np,
 
 error:
 	while (i--) {
-		if (!data->domains[i])
+		genpd = data->domains[i];
+
+		if (!genpd)
 			continue;
-		data->domains[i]->provider = NULL;
-		data->domains[i]->has_provider = false;
+
+		genpd->provider = NULL;
+		genpd->has_provider = false;
+
+		if (genpd->set_performance_state)
+			dev_pm_opp_of_remove_table(&genpd->dev);
 	}
 
 	mutex_unlock(&gpd_list_lock);
@@ -1970,9 +2011,16 @@ void of_genpd_del_provider(struct device_node *np)
 			 * provider, set the 'has_provider' to false
 			 * so that the PM domain can be safely removed.
 			 */
-			list_for_each_entry(gpd, &gpd_list, gpd_list_node)
-				if (gpd->provider == &np->fwnode)
+			list_for_each_entry(gpd, &gpd_list, gpd_list_node) {
+				if (gpd->provider == &np->fwnode) {
 					gpd->has_provider = false;
+
+					if (!gpd->set_performance_state)
+						continue;
+
+					dev_pm_opp_of_remove_table(&gpd->dev);
+				}
+			}
 
 			list_del(&cp->link);
 			of_node_put(cp->node);
@@ -2346,6 +2394,55 @@ int of_genpd_parse_idle_states(struct device_node *dn,
 }
 EXPORT_SYMBOL_GPL(of_genpd_parse_idle_states);
 
+/**
+ * of_genpd_opp_to_performance_state- Gets performance state of device's
+ * power domain corresponding to a DT node's "required-opps" property.
+ *
+ * @dev: Device for which the performance-state needs to be found.
+ * @opp_node: DT node where the "required-opps" property is present. This can be
+ *	the device node itself (if it doesn't have an OPP table) or a node
+ *	within the OPP table of a device (if device has an OPP table).
+ * @state: Pointer to return performance state.
+ *
+ * Returns performance state corresponding to the "required-opps" property of
+ * a DT node. This calls platform specific genpd->opp_to_performance_state()
+ * callback to translate power domain OPP to performance state.
+ *
+ * Returns performance state on success and 0 on failure.
+ */
+unsigned int of_genpd_opp_to_performance_state(struct device *dev,
+					       struct device_node *opp_node)
+{
+	struct generic_pm_domain *genpd;
+	struct dev_pm_opp *opp;
+	int state = 0;
+
+	genpd = dev_to_genpd(dev);
+	if (IS_ERR(genpd))
+		return 0;
+
+	if (unlikely(!genpd->set_performance_state))
+		return 0;
+
+	genpd_lock(genpd);
+
+	opp = of_dev_pm_opp_find_required_opp(&genpd->dev, opp_node);
+	if (IS_ERR(opp)) {
+		dev_err(dev, "Failed to find required OPP: %ld\n",
+			PTR_ERR(opp));
+		goto unlock;
+	}
+
+	state = genpd->opp_to_performance_state(genpd, opp);
+	dev_pm_opp_put(opp);
+
+unlock:
+	genpd_unlock(genpd);
+
+	return state;
+}
+EXPORT_SYMBOL_GPL(of_genpd_opp_to_performance_state);
+
 #endif /* CONFIG_PM_GENERIC_DOMAINS_OF */
 
 
@@ -2613,6 +2710,19 @@ static int genpd_devices_show(struct seq_file *s, void *data)
 	return ret;
 }
 
+static int genpd_perf_state_show(struct seq_file *s, void *data)
+{
+	struct generic_pm_domain *genpd = s->private;
+
+	if (genpd_lock_interruptible(genpd))
+		return -ERESTARTSYS;
+
+	seq_printf(s, "%u\n", genpd->performance_state);
+
+	genpd_unlock(genpd);
+	return 0;
+}
+
 #define define_genpd_open_function(name) \
 static int genpd_##name##_open(struct inode *inode, struct file *file) \
 { \
@@ -2626,6 +2736,7 @@ define_genpd_open_function(idle_states);
 define_genpd_open_function(active_time);
 define_genpd_open_function(total_idle_time);
 define_genpd_open_function(devices);
+define_genpd_open_function(perf_state);
 
 #define define_genpd_debugfs_fops(name) \
 static const struct file_operations genpd_##name##_fops = { \
@@ -2642,6 +2753,7 @@ define_genpd_debugfs_fops(idle_states);
 define_genpd_debugfs_fops(active_time);
 define_genpd_debugfs_fops(total_idle_time);
 define_genpd_debugfs_fops(devices);
+define_genpd_debugfs_fops(perf_state);
 
 static int __init genpd_debug_init(void)
 {
@@ -2675,6 +2787,9 @@ static int __init genpd_debug_init(void)
 				d, genpd, &genpd_total_idle_time_fops);
 		debugfs_create_file("devices", 0444,
 				d, genpd, &genpd_devices_fops);
+		if (genpd->set_performance_state)
+			debugfs_create_file("perf_state", 0444,
+					    d, genpd, &genpd_perf_state_fops);
 	}
 
 	return 0;
