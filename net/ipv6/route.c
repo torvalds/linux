@@ -4412,13 +4412,17 @@ static int ip6_route_multipath_add(struct fib6_config *cfg,
 
 	err_nh = NULL;
 	list_for_each_entry(nh, &rt6_nh_list, next) {
-		rt_last = nh->fib6_info;
 		err = __ip6_ins_rt(nh->fib6_info, info, extack);
 		fib6_info_release(nh->fib6_info);
 
-		/* save reference to first route for notification */
-		if (!rt_notif && !err)
-			rt_notif = nh->fib6_info;
+		if (!err) {
+			/* save reference to last route successfully inserted */
+			rt_last = nh->fib6_info;
+
+			/* save reference to first route for notification */
+			if (!rt_notif)
+				rt_notif = nh->fib6_info;
+		}
 
 		/* nh->fib6_info is used or freed at this point, reset to NULL*/
 		nh->fib6_info = NULL;
