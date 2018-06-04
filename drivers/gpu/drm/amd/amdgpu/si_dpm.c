@@ -3480,7 +3480,7 @@ static void si_apply_state_adjust_rules(struct amdgpu_device *adev,
 		disable_sclk_switching = true;
 	}
 
-	if (adev->pm.dpm.ac_power)
+	if (adev->pm.ac_power)
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_ac;
 	else
 		max_limits = &adev->pm.dpm.dyn_state.max_clock_voltage_on_dc;
@@ -3489,7 +3489,7 @@ static void si_apply_state_adjust_rules(struct amdgpu_device *adev,
 		if (ps->performance_levels[i].vddc > ps->performance_levels[i+1].vddc)
 			ps->performance_levels[i].vddc = ps->performance_levels[i+1].vddc;
 	}
-	if (adev->pm.dpm.ac_power == false) {
+	if (adev->pm.ac_power == false) {
 		for (i = 0; i < ps->performance_level_count; i++) {
 			if (ps->performance_levels[i].mclk > max_limits->mclk)
 				ps->performance_levels[i].mclk = max_limits->mclk;

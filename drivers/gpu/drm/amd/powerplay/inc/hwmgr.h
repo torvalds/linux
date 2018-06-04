@@ -26,7 +26,6 @@
 #include <linux/seq_file.h>
 #include "amd_powerplay.h"
 #include "hardwaremanager.h"
-#include "pp_power_source.h"
 #include "hwmgr_ppt.h"
 #include "ppatomctrl.h"
 #include "hwmgr_ppt.h"
@@ -741,7 +740,6 @@ struct pp_hwmgr {
 	const struct pp_table_func *pptable_func;
 
 	struct pp_power_state    *ps;
-	enum pp_power_source  power_source;
 	uint32_t num_ps;
 	struct pp_thermal_controller_info thermal_controller;
 	bool fan_ctrl_is_in_default_mode;

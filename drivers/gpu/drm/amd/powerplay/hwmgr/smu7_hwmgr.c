@@ -2877,7 +2877,7 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 				struct pp_power_state *request_ps,
 			const struct pp_power_state *current_ps)
 {
-
+	struct amdgpu_device *adev = hwmgr->adev;
 	struct smu7_power_state *smu7_ps =
 				cast_phw_smu7_power_state(&request_ps->hardware);
 	uint32_t sclk;
@@ -2900,12 +2900,12 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 				 "VI should always have 2 performance levels",
 				);
 
-	max_limits = (PP_PowerSource_AC == hwmgr->power_source) ?
+	max_limits = adev->pm.ac_power ?
 			&(hwmgr->dyn_state.max_clock_voltage_on_ac) :
 			&(hwmgr->dyn_state.max_clock_voltage_on_dc);
 
 	/* Cap clock DPM tables at DC MAX if it is in DC. */
-	if (PP_PowerSource_DC == hwmgr->power_source) {
+	if (!adev->pm.ac_power) {
 		for (i = 0; i < smu7_ps->performance_level_count; i++) {
 			if (smu7_ps->performance_levels[i].memory_clock > max_limits->mclk)
 				smu7_ps->performance_levels[i].memory_clock = max_limits->mclk;

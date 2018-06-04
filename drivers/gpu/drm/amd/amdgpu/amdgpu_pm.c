@@ -68,11 +68,11 @@ void amdgpu_pm_acpi_event_handler(struct amdgpu_device *adev)
 	if (adev->pm.dpm_enabled) {
 		mutex_lock(&adev->pm.mutex);
 		if (power_supply_is_system_supplied() > 0)
-			adev->pm.dpm.ac_power = true;
+			adev->pm.ac_power = true;
 		else
-			adev->pm.dpm.ac_power = false;
+			adev->pm.ac_power = false;
 		if (adev->powerplay.pp_funcs->enable_bapm)
-			amdgpu_dpm_enable_bapm(adev, adev->pm.dpm.ac_power);
+			amdgpu_dpm_enable_bapm(adev, adev->pm.ac_power);
 		mutex_unlock(&adev->pm.mutex);
 	}
 }
@@ -1907,6 +1907,14 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 			amdgpu_fence_wait_empty(ring);
 	}
 
+	mutex_lock(&adev->pm.mutex);
+	/* update battery/ac status */
+	if (power_supply_is_system_supplied() > 0)
+		adev->pm.ac_power = true;
+	else
+		adev->pm.ac_power = false;
+	mutex_unlock(&adev->pm.mutex);
+
 	if (adev->powerplay.pp_funcs->dispatch_tasks) {
 		if (!amdgpu_device_has_dc_support(adev)) {
 			mutex_lock(&adev->pm.mutex);
@@ -1927,14 +1935,7 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 	} else {
 		mutex_lock(&adev->pm.mutex);
 		amdgpu_dpm_get_active_displays(adev);
-		/* update battery/ac status */
-		if (power_supply_is_system_supplied() > 0)
-			adev->pm.dpm.ac_power = true;
-		else
-			adev->pm.dpm.ac_power = false;
-
 		amdgpu_dpm_change_power_state_locked(adev);
-
 		mutex_unlock(&adev->pm.mutex);
 	}
 }

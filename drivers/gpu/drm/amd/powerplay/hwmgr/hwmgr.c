@@ -81,7 +81,6 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 		return -EINVAL;
 
 	hwmgr->usec_timeout = AMD_MAX_USEC_TIMEOUT;
-	hwmgr->power_source = PP_PowerSource_AC;
 	hwmgr->pp_table_version = PP_TABLE_V1;
 	hwmgr->dpm_level = AMD_DPM_FORCED_LEVEL_AUTO;
 	hwmgr->request_dpm_level = AMD_DPM_FORCED_LEVEL_AUTO;
