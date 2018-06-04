@@ -4108,7 +4108,8 @@ megasas_tm_response_code(struct megasas_instance *instance,
  */
 static int
 megasas_issue_tm(struct megasas_instance *instance, u16 device_handle,
-	uint channel, uint id, u16 smid_task, u8 type)
+	uint channel, uint id, u16 smid_task, u8 type,
+	struct MR_PRIV_DEVICE *mr_device_priv_data)
 {
 	struct MR_TASK_MANAGE_REQUEST *mr_request;
 	struct MPI2_SCSI_TASK_MANAGE_REQUEST *mpi_request;
@@ -4119,6 +4120,7 @@ megasas_issue_tm(struct megasas_instance *instance, u16 device_handle,
 	struct fusion_context *fusion = NULL;
 	struct megasas_cmd_fusion *scsi_lookup;
 	int rc;
+	int timeout = MEGASAS_DEFAULT_TM_TIMEOUT;
 	struct MPI2_SCSI_TASK_MANAGE_REPLY *mpi_reply;
 
 	fusion = instance->ctrl_context;
@@ -4170,7 +4172,16 @@ megasas_issue_tm(struct megasas_instance *instance, u16 device_handle,
 	init_completion(&cmd_fusion->done);
 	megasas_fire_cmd_fusion(instance, req_desc);
 
-	timeleft = wait_for_completion_timeout(&cmd_fusion->done, 50 * HZ);
+	switch (type) {
+	case MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK:
+		timeout = mr_device_priv_data->task_abort_tmo;
+		break;
+	case MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET:
+		timeout = mr_device_priv_data->target_reset_tmo;
+		break;
+	}
+
+	timeleft = wait_for_completion_timeout(&cmd_fusion->done, timeout * HZ);
 
 	if (!timeleft) {
 		dev_err(&instance->pdev->dev,
@@ -4363,7 +4374,8 @@ int megasas_task_abort_fusion(struct scsi_cmnd *scmd)
 	mr_device_priv_data->tm_busy = 1;
 	ret = megasas_issue_tm(instance, devhandle,
 			scmd->device->channel, scmd->device->id, smid,
-			MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK);
+			MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK,
+			mr_device_priv_data);
 	mr_device_priv_data->tm_busy = 0;
 
 	mutex_unlock(&instance->reset_mutex);
@@ -4435,7 +4447,8 @@ int megasas_reset_target_fusion(struct scsi_cmnd *scmd)
 	mr_device_priv_data->tm_busy = 1;
 	ret = megasas_issue_tm(instance, devhandle,
 			scmd->device->channel, scmd->device->id, 0,
-			MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET);
+			MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET,
+			mr_device_priv_data);
 	mr_device_priv_data->tm_busy = 0;
 	mutex_unlock(&instance->reset_mutex);
 out:
@@ -4490,6 +4503,8 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 	u32 io_timeout_in_crash_mode = 0;
 	struct scsi_cmnd *scmd_local = NULL;
 	struct scsi_device *sdev;
+	int ret_target_prop = DCMD_FAILED;
+	bool is_target_prop = false;
 
 	instance = (struct megasas_instance *)shost->hostdata;
 	fusion = instance->ctrl_context;
@@ -4661,9 +4676,6 @@ transition_to_ready:
 
 			megasas_setup_jbod_map(instance);
 
-			shost_for_each_device(sdev, shost)
-				megasas_set_dynamic_target_properties(sdev);
-
 			/* reset stream detection array */
 			if (instance->adapter_type == VENTURA_SERIES) {
 				for (j = 0; j < MAX_LOGICAL_DRIVES_EXT; ++j) {
@@ -4677,6 +4689,16 @@ transition_to_ready:
 			clear_bit(MEGASAS_FUSION_IN_RESET,
 				  &instance->reset_flags);
 			instance->instancet->enable_intr(instance);
+
+			shost_for_each_device(sdev, shost) {
+				if ((instance->tgt_prop) &&
+				    (instance->nvme_page_size))
+					ret_target_prop = megasas_get_target_prop(instance, sdev);
+
+				is_target_prop = (ret_target_prop == DCMD_SUCCESS) ? true : false;
+				megasas_set_dynamic_target_properties(sdev, is_target_prop);
+			}
+
 			atomic_set(&instance->adprecovery, MEGASAS_HBA_OPERATIONAL);
 
 			dev_info(&instance->pdev->dev, "Interrupts are enabled and"
