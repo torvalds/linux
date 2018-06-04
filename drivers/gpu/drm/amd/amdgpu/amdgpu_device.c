@@ -25,6 +25,7 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
+#include <linux/power_supply.h>
 #include <linux/kthread.h>
 #include <linux/console.h>
 #include <linux/slab.h>
@@ -2292,6 +2293,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 
 	INIT_DELAYED_WORK(&adev->late_init_work,
 			  amdgpu_device_ip_late_init_func_handler);
+
+	adev->pm.ac_power = power_supply_is_system_supplied() > 0 ? true : false;
 
 	/* Registers mapping */
 	/* TODO: block userspace mapping of io register */
