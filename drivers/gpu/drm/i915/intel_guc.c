@@ -217,6 +217,13 @@ static u32 guc_ctl_debug_flags(struct intel_guc *guc)
 		flags |= GUC_LOG_LEVEL_TO_VERBOSITY(level) <<
 			 GUC_LOG_VERBOSITY_SHIFT;
 
+	if (USES_GUC_SUBMISSION(guc_to_i915(guc))) {
+		u32 ads = intel_guc_ggtt_offset(guc, guc->ads_vma)
+			>> PAGE_SHIFT;
+
+		flags |= ads << GUC_ADS_ADDR_SHIFT | GUC_ADS_ENABLED;
+	}
+
 	return flags;
 }
 
@@ -252,13 +259,8 @@ void intel_guc_init_params(struct intel_guc *guc)
 
 	/* If GuC submission is enabled, set up additional parameters here */
 	if (USES_GUC_SUBMISSION(dev_priv)) {
-		u32 ads = intel_guc_ggtt_offset(guc,
-						guc->ads_vma) >> PAGE_SHIFT;
 		u32 pgs = intel_guc_ggtt_offset(guc, guc->stage_desc_pool);
 		u32 ctx_in_16 = GUC_MAX_STAGE_DESCRIPTORS / 16;
-
-		params[GUC_CTL_DEBUG] |= ads << GUC_ADS_ADDR_SHIFT;
-		params[GUC_CTL_DEBUG] |= GUC_ADS_ENABLED;
 
 		pgs >>= PAGE_SHIFT;
 		params[GUC_CTL_CTXINFO] = (pgs << GUC_CTL_BASE_ADDR_SHIFT) |
