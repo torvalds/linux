@@ -230,7 +230,7 @@ static void sdi_display_disable(struct omap_dss_device *dssdev)
 }
 
 static void sdi_set_timings(struct omap_dss_device *dssdev,
-			    struct videomode *vm)
+			    const struct videomode *vm)
 {
 	struct sdi_device *sdi = dssdev_to_sdi(dssdev);
 

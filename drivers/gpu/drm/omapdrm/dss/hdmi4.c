@@ -263,7 +263,7 @@ static int hdmi_display_check_timings(struct omap_dss_device *dssdev,
 }
 
 static void hdmi_display_set_timings(struct omap_dss_device *dssdev,
-				     struct videomode *vm)
+				     const struct videomode *vm)
 {
 	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
 

@@ -304,7 +304,7 @@ static void td028ttec1_panel_disable(struct omap_dss_device *dssdev)
 }
 
 static void td028ttec1_panel_set_timings(struct omap_dss_device *dssdev,
-					 struct videomode *vm)
+					 const struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;

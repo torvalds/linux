@@ -368,7 +368,7 @@ struct omap_dss_device_ops {
 	void (*get_timings)(struct omap_dss_device *dssdev,
 			    struct videomode *vm);
 	void (*set_timings)(struct omap_dss_device *dssdev,
-			    struct videomode *vm);
+			    const struct videomode *vm);
 
 	bool (*detect)(struct omap_dss_device *dssdev);
 

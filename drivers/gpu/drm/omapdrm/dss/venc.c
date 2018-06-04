@@ -569,7 +569,7 @@ static void venc_display_disable(struct omap_dss_device *dssdev)
 }
 
 static void venc_set_timings(struct omap_dss_device *dssdev,
-			     struct videomode *vm)
+			     const struct videomode *vm)
 {
 	struct venc_device *venc = dssdev_to_venc(dssdev);
 	struct videomode actual_vm;

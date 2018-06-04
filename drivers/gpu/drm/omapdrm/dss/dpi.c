@@ -479,7 +479,7 @@ static void dpi_display_disable(struct omap_dss_device *dssdev)
 }
 
 static void dpi_set_timings(struct omap_dss_device *dssdev,
-			    struct videomode *vm)
+			    const struct videomode *vm)
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
 
