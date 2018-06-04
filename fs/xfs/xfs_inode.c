@@ -2090,10 +2090,15 @@ xfs_iunlink_remove(
 	 * list this inode will go on.
 	 */
 	agino = XFS_INO_TO_AGINO(mp, ip->i_ino);
-	ASSERT(agino != 0);
+	if (!xfs_verify_agino(mp, agno, agino))
+		return -EFSCORRUPTED;
 	bucket_index = agino % XFS_AGI_UNLINKED_BUCKETS;
-	ASSERT(agi->agi_unlinked[bucket_index] != cpu_to_be32(NULLAGINO));
-	ASSERT(agi->agi_unlinked[bucket_index]);
+	if (!xfs_verify_agino(mp, agno,
+			be32_to_cpu(agi->agi_unlinked[bucket_index]))) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+				agi, sizeof(*agi));
+		return -EFSCORRUPTED;
+	}
 
 	if (be32_to_cpu(agi->agi_unlinked[bucket_index]) == agino) {
 		/*
@@ -2171,8 +2176,12 @@ xfs_iunlink_remove(
 
 			last_offset = imap.im_boffset;
 			next_agino = be32_to_cpu(last_dip->di_next_unlinked);
-			ASSERT(next_agino != NULLAGINO);
-			ASSERT(next_agino != 0);
+			if (!xfs_verify_agino(mp, agno, next_agino)) {
+				XFS_CORRUPTION_ERROR(__func__,
+						XFS_ERRLEVEL_LOW, mp,
+						last_dip, sizeof(*last_dip));
+				return -EFSCORRUPTED;
+			}
 		}
 
 		/*
