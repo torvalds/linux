@@ -60,7 +60,6 @@ struct intel_guc;
 
 struct intel_guc_log {
 	u32 level;
-	u32 flags;
 	struct i915_vma *vma;
 	struct {
 		void *buf_addr;

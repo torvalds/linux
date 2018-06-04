@@ -240,6 +240,22 @@ static u32 guc_ctl_feature_flags(struct intel_guc *guc)
 
 	return flags;
 }
+
+static u32 guc_ctl_log_params_flags(struct intel_guc *guc)
+{
+	u32 offset = intel_guc_ggtt_offset(guc, guc->log.vma) >> PAGE_SHIFT;
+	u32 flags;
+
+	/* each allocated unit is a page */
+	flags = GUC_LOG_VALID | GUC_LOG_NOTIFY_ON_HALF_FULL |
+		(GUC_LOG_CRASH_PAGES << GUC_LOG_CRASH_SHIFT) |
+		(GUC_LOG_DPC_PAGES << GUC_LOG_DPC_SHIFT) |
+		(GUC_LOG_ISR_PAGES << GUC_LOG_ISR_SHIFT) |
+		(offset << GUC_LOG_BUF_ADDR_SHIFT);
+
+	return flags;
+}
+
 /*
  * Initialise the GuC parameter block before starting the firmware
  * transfer. These parameters are read by the firmware on startup
@@ -264,8 +280,7 @@ void intel_guc_init_params(struct intel_guc *guc)
 	params[GUC_CTL_WA] |= GUC_CTL_WA_UK_BY_DRIVER;
 
 	params[GUC_CTL_FEATURE] = guc_ctl_feature_flags(guc);
-	params[GUC_CTL_LOG_PARAMS] = guc->log.flags;
-
+	params[GUC_CTL_LOG_PARAMS]  = guc_ctl_log_params_flags(guc);
 	params[GUC_CTL_DEBUG] = guc_ctl_debug_flags(guc);
 
 	/* If GuC submission is enabled, set up additional parameters here */

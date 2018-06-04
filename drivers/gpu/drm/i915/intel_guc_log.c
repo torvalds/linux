@@ -452,8 +452,6 @@ int intel_guc_log_create(struct intel_guc_log *log)
 {
 	struct intel_guc *guc = log_to_guc(log);
 	struct i915_vma *vma;
-	unsigned long offset;
-	u32 flags;
 	int ret;
 
 	GEM_BUG_ON(log->vma);
@@ -465,15 +463,6 @@ int intel_guc_log_create(struct intel_guc_log *log)
 	}
 
 	log->vma = vma;
-
-	/* each allocated unit is a page */
-	flags = GUC_LOG_VALID | GUC_LOG_NOTIFY_ON_HALF_FULL |
-		(GUC_LOG_DPC_PAGES << GUC_LOG_DPC_SHIFT) |
-		(GUC_LOG_ISR_PAGES << GUC_LOG_ISR_SHIFT) |
-		(GUC_LOG_CRASH_PAGES << GUC_LOG_CRASH_SHIFT);
-
-	offset = intel_guc_ggtt_offset(guc, vma) >> PAGE_SHIFT;
-	log->flags = (offset << GUC_LOG_BUF_ADDR_SHIFT) | flags;
 
 	log->level = i915_modparams.guc_log_level;
 
