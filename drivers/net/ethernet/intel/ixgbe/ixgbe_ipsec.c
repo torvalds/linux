@@ -1001,13 +1001,6 @@ void ixgbe_init_ipsec_offload(struct ixgbe_adapter *adapter)
 
 	adapter->netdev->xfrmdev_ops = &ixgbe_xfrmdev_ops;
 
-#define IXGBE_ESP_FEATURES	(NETIF_F_HW_ESP | \
-				 NETIF_F_HW_ESP_TX_CSUM | \
-				 NETIF_F_GSO_ESP)
-
-	adapter->netdev->features |= IXGBE_ESP_FEATURES;
-	adapter->netdev->hw_enc_features |= IXGBE_ESP_FEATURES;
-
 	return;
 
 err2:
