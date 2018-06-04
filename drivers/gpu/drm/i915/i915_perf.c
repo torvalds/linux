@@ -1279,9 +1279,12 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 			i915->perf.oa.specific_ctx_id_mask =
 				(1U << (GEN8_CTX_ID_WIDTH - 1)) - 1;
 		} else {
-			i915->perf.oa.specific_ctx_id = stream->ctx->hw_id;
 			i915->perf.oa.specific_ctx_id_mask =
 				(1U << GEN8_CTX_ID_WIDTH) - 1;
+			i915->perf.oa.specific_ctx_id =
+				upper_32_bits(ce->lrc_desc);
+			i915->perf.oa.specific_ctx_id &=
+				i915->perf.oa.specific_ctx_id_mask;
 		}
 		break;
 
