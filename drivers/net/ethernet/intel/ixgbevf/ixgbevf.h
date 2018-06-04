@@ -76,6 +76,7 @@ enum ixgbevf_ring_state_t {
 	__IXGBEVF_TX_DETECT_HANG,
 	__IXGBEVF_HANG_CHECK_ARMED,
 	__IXGBEVF_TX_XDP_RING,
+	__IXGBEVF_TX_XDP_RING_PRIMED,
 };
 
 #define ring_is_xdp(ring) \
