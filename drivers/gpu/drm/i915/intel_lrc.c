@@ -1811,7 +1811,6 @@ static bool unexpected_starting_state(struct intel_engine_cs *engine)
 
 static int gen8_init_common_ring(struct intel_engine_cs *engine)
 {
-	struct intel_engine_execlists * const execlists = &engine->execlists;
 	int ret;
 
 	ret = intel_mocs_init_engine(engine);
@@ -1828,10 +1827,6 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 	}
 
 	enable_execlists(engine);
-
-	/* After a GPU reset, we may have requests to replay */
-	if (execlists->first)
-		tasklet_schedule(&execlists->tasklet);
 
 	return 0;
 }
@@ -2015,6 +2010,12 @@ static void execlists_reset(struct intel_engine_cs *engine,
 
 static void execlists_reset_finish(struct intel_engine_cs *engine)
 {
+	struct intel_engine_execlists * const execlists = &engine->execlists;
+
+	/* After a GPU reset, we may have requests to replay */
+	if (execlists->first)
+		tasklet_schedule(&execlists->tasklet);
+
 	/*
 	 * Flush the tasklet while we still have the forcewake to be sure
 	 * that it is not allowed to sleep before we restart and reload a
@@ -2024,7 +2025,7 @@ static void execlists_reset_finish(struct intel_engine_cs *engine)
 	 * serialising multiple attempts to reset so that we know that we
 	 * are the only one manipulating tasklet state.
 	 */
-	__tasklet_enable_sync_once(&engine->execlists.tasklet);
+	__tasklet_enable_sync_once(&execlists->tasklet);
 
 	GEM_TRACE("%s\n", engine->name);
 }
