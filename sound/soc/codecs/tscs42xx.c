@@ -647,6 +647,12 @@ static const struct snd_kcontrol_new tscs42xx_snd_controls[] = {
 	/* Mic Bias */
 	SOC_SINGLE("Mic Bias Boost Switch", 0x71, 0x07, 1, 0),
 
+	/* Headphone Auto Switching */
+	SOC_SINGLE("Headphone Auto Switching Switch",
+			R_CTL, FB_CTL_HPSWEN, 1, 0),
+	SOC_SINGLE("Headphone Detect Polarity Toggle Switch",
+			R_CTL, FB_CTL_HPSWPOL, 1, 0),
+
 	/* Coefficient Ram */
 	COEFF_RAM_CTL("Cascade1L BiQuad1", BIQUAD_SIZE, 0x00),
 	COEFF_RAM_CTL("Cascade1L BiQuad2", BIQUAD_SIZE, 0x05),
