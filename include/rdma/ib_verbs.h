@@ -1859,9 +1859,10 @@ enum ib_flow_spec_type {
 	IB_FLOW_SPEC_ACTION_TAG         = 0x1000,
 	IB_FLOW_SPEC_ACTION_DROP        = 0x1001,
 	IB_FLOW_SPEC_ACTION_HANDLE	= 0x1002,
+	IB_FLOW_SPEC_ACTION_COUNT       = 0x1003,
 };
 #define IB_FLOW_SPEC_LAYER_MASK	0xF0
-#define IB_FLOW_SPEC_SUPPORT_LAYERS 8
+#define IB_FLOW_SPEC_SUPPORT_LAYERS 10
 
 /* Flow steering rule priority is set according to it's domain.
  * Lower domain value means higher priority.
@@ -2041,6 +2042,17 @@ struct ib_flow_spec_action_handle {
 	struct ib_flow_action	     *act;
 };
 
+enum ib_counters_description {
+	IB_COUNTER_PACKETS,
+	IB_COUNTER_BYTES,
+};
+
+struct ib_flow_spec_action_count {
+	enum ib_flow_spec_type type;
+	u16 size;
+	struct ib_counters *counters;
+};
+
 union ib_flow_spec {
 	struct {
 		u32			type;
@@ -2058,6 +2070,7 @@ union ib_flow_spec {
 	struct ib_flow_spec_action_tag  flow_tag;
 	struct ib_flow_spec_action_drop drop;
 	struct ib_flow_spec_action_handle action;
+	struct ib_flow_spec_action_count flow_count;
 };
 
 struct ib_flow_attr {
@@ -2210,6 +2223,24 @@ struct ib_port_pkey_list {
 	/* Lock to hold while modifying the list. */
 	spinlock_t                    list_lock;
 	struct list_head              pkey_list;
+};
+
+struct ib_counters {
+	struct ib_device	*device;
+	struct ib_uobject	*uobject;
+	/* num of objects attached */
+	atomic_t	usecnt;
+};
+
+enum ib_read_counters_flags {
+	/* prefer read values from driver cache */
+	IB_READ_COUNTERS_ATTR_PREFER_CACHED = 1 << 0,
+};
+
+struct ib_counters_read_attr {
+	u64	*counters_buff;
+	u32	ncounters;
+	u32	flags; /* use enum ib_read_counters_flags */
 };
 
 struct uverbs_attr_bundle;
@@ -2441,7 +2472,8 @@ struct ib_device {
 	struct ib_flow *	   (*create_flow)(struct ib_qp *qp,
 						  struct ib_flow_attr
 						  *flow_attr,
-						  int domain);
+						  int domain,
+						  struct ib_udata *udata);
 	int			   (*destroy_flow)(struct ib_flow *flow_id);
 	int			   (*check_mr_status)(struct ib_mr *mr, u32 check_mask,
 						      struct ib_mr_status *mr_status);
@@ -2483,6 +2515,13 @@ struct ib_device {
 	struct ib_mr *             (*reg_dm_mr)(struct ib_pd *pd, struct ib_dm *dm,
 						struct ib_dm_mr_attr *attr,
 						struct uverbs_attr_bundle *attrs);
+	struct ib_counters *	(*create_counters)(struct ib_device *device,
+						   struct uverbs_attr_bundle *attrs);
+	int	(*destroy_counters)(struct ib_counters	*counters);
+	int	(*read_counters)(struct ib_counters *counters,
+				 struct ib_counters_read_attr *counters_read_attr,
+				 struct uverbs_attr_bundle *attrs);
+
 	/**
 	 * rdma netdev operation
 	 *

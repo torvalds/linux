@@ -998,6 +998,19 @@ struct ib_uverbs_flow_spec_action_handle {
 	__u32			      reserved1;
 };
 
+struct ib_uverbs_flow_spec_action_count {
+	union {
+		struct ib_uverbs_flow_spec_hdr hdr;
+		struct {
+			__u32 type;
+			__u16 size;
+			__u16 reserved;
+		};
+	};
+	__u32			      handle;
+	__u32			      reserved1;
+};
+
 struct ib_uverbs_flow_tunnel_filter {
 	__be32 tunnel_id;
 };
