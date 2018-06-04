@@ -257,6 +257,8 @@ struct kfd_dev {
 
 	/* xGMI */
 	uint64_t hive_id;
+
+	bool pci_atomic_requested;
 };
 
 /* KGD2KFD callbacks */

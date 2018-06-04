@@ -366,6 +366,10 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 		return NULL;
 	}
 
+	kfd = kzalloc(sizeof(*kfd), GFP_KERNEL);
+	if (!kfd)
+		return NULL;
+
 	/* Allow BIF to recode atomics to PCIe 3.0 AtomicOps.
 	 * 32 and 64-bit requests are possible and must be
 	 * supported.
@@ -377,12 +381,10 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 		dev_info(kfd_device,
 			 "skipped device %x:%x, PCI rejects atomics\n",
 			 pdev->vendor, pdev->device);
+		kfree(kfd);
 		return NULL;
-	}
-
-	kfd = kzalloc(sizeof(*kfd), GFP_KERNEL);
-	if (!kfd)
-		return NULL;
+	} else if (!ret)
+		kfd->pci_atomic_requested = true;
 
 	kfd->kgd = kgd;
 	kfd->device_info = device_info;
