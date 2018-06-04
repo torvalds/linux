@@ -73,6 +73,14 @@ config PHY_ROCKCHIP_INNO_HDMI_PHY
 	help
 	  Enable this to support the Rockchip HDMI PHY with Innosilicon IP block.
 
+config PHY_ROCKCHIP_INNO_VIDEO_PHY
+	tristate "Rockchip INNO LVDS/TTL PHY driver"
+	depends on ARCH_ROCKCHIP && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support the Rockchip LVDS/TTL PHY with
+	  Innosilicon IP block.
+
 config PHY_ROCKCHIP_INNO_VIDEO_COMBO_PHY
 	tristate "Rockchip INNO MIPI/LVDS/TTL PHY driver"
 	depends on ARCH_ROCKCHIP && OF
