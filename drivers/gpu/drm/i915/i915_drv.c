@@ -636,28 +636,6 @@ static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {
 	.can_switch = i915_switcheroo_can_switch,
 };
 
-static void i915_gem_fini(struct drm_i915_private *dev_priv)
-{
-	i915_gem_suspend_late(dev_priv);
-
-	/* Flush any outstanding unpin_work. */
-	i915_gem_drain_workqueue(dev_priv);
-
-	mutex_lock(&dev_priv->drm.struct_mutex);
-	intel_uc_fini_hw(dev_priv);
-	intel_uc_fini(dev_priv);
-	i915_gem_cleanup_engines(dev_priv);
-	i915_gem_contexts_fini(dev_priv);
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-
-	intel_uc_fini_misc(dev_priv);
-	i915_gem_cleanup_userptr(dev_priv);
-
-	i915_gem_drain_freed_objects(dev_priv);
-
-	WARN_ON(!list_empty(&dev_priv->contexts.list));
-}
-
 static int i915_load_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
