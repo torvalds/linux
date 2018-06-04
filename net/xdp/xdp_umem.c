@@ -17,6 +17,81 @@
 
 #define XDP_UMEM_MIN_CHUNK_SIZE 2048
 
+int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
+			u32 queue_id, u16 flags)
+{
+	bool force_zc, force_copy;
+	struct netdev_bpf bpf;
+	int err;
+
+	force_zc = flags & XDP_ZEROCOPY;
+	force_copy = flags & XDP_COPY;
+
+	if (force_zc && force_copy)
+		return -EINVAL;
+
+	if (force_copy)
+		return 0;
+
+	dev_hold(dev);
+
+	if (dev->netdev_ops->ndo_bpf) {
+		bpf.command = XDP_QUERY_XSK_UMEM;
+
+		rtnl_lock();
+		err = dev->netdev_ops->ndo_bpf(dev, &bpf);
+		rtnl_unlock();
+
+		if (err) {
+			dev_put(dev);
+			return force_zc ? -ENOTSUPP : 0;
+		}
+
+		bpf.command = XDP_SETUP_XSK_UMEM;
+		bpf.xsk.umem = umem;
+		bpf.xsk.queue_id = queue_id;
+
+		rtnl_lock();
+		err = dev->netdev_ops->ndo_bpf(dev, &bpf);
+		rtnl_unlock();
+
+		if (err) {
+			dev_put(dev);
+			return force_zc ? err : 0; /* fail or fallback */
+		}
+
+		umem->dev = dev;
+		umem->queue_id = queue_id;
+		umem->zc = true;
+		return 0;
+	}
+
+	dev_put(dev);
+	return force_zc ? -ENOTSUPP : 0; /* fail or fallback */
+}
+
+void xdp_umem_clear_dev(struct xdp_umem *umem)
+{
+	struct netdev_bpf bpf;
+	int err;
+
+	if (umem->dev) {
+		bpf.command = XDP_SETUP_XSK_UMEM;
+		bpf.xsk.umem = NULL;
+		bpf.xsk.queue_id = umem->queue_id;
+
+		rtnl_lock();
+		err = umem->dev->netdev_ops->ndo_bpf(umem->dev, &bpf);
+		rtnl_unlock();
+
+		if (err)
+			WARN(1, "failed to disable umem!\n");
+
+		dev_put(umem->dev);
+		umem->dev = NULL;
+	}
+}
+
 static void xdp_umem_unpin_pages(struct xdp_umem *umem)
 {
 	unsigned int i;
@@ -42,6 +117,8 @@ static void xdp_umem_release(struct xdp_umem *umem)
 {
 	struct task_struct *task;
 	struct mm_struct *mm;
+
+	xdp_umem_clear_dev(umem);
 
 	if (umem->fq) {
 		xskq_destroy(umem->fq);

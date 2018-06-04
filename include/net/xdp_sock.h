@@ -22,6 +22,7 @@ struct xdp_umem_props {
 
 struct xdp_umem_page {
 	void *addr;
+	dma_addr_t dma;
 };
 
 struct xdp_umem {
@@ -38,6 +39,9 @@ struct xdp_umem {
 	struct work_struct work;
 	struct page **pgs;
 	u32 npgs;
+	struct net_device *dev;
+	u16 queue_id;
+	bool zc;
 };
 
 struct xdp_sock {
@@ -60,6 +64,8 @@ int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp);
 int xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp);
 void xsk_flush(struct xdp_sock *xs);
 bool xsk_is_setup_for_bpf_map(struct xdp_sock *xs);
+u64 *xsk_umem_peek_addr(struct xdp_umem *umem, u64 *addr);
+void xsk_umem_discard_addr(struct xdp_umem *umem);
 #else
 static inline int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 {
