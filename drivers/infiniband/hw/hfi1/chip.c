@@ -14640,7 +14640,9 @@ static void init_rxe(struct hfi1_devdata *dd)
 
 	/* Have 16 bytes (4DW) of bypass header available in header queue */
 	val = read_csr(dd, RCV_BYPASS);
-	val |= (4ull << 16);
+	val &= ~RCV_BYPASS_HDR_SIZE_SMASK;
+	val |= ((4ull & RCV_BYPASS_HDR_SIZE_MASK) <<
+		RCV_BYPASS_HDR_SIZE_SHIFT);
 	write_csr(dd, RCV_BYPASS, val);
 }
 
