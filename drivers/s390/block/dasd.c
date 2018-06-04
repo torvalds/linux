@@ -1222,51 +1222,6 @@ static void dasd_hosts_init(struct dentry *base_dentry,
 		device->hosts_dentry = pde;
 }
 
-/*
- * Allocate memory for a channel program with 'cplength' channel
- * command words and 'datasize' additional space. There are two
- * variantes: 1) dasd_kmalloc_request uses kmalloc to get the needed
- * memory and 2) dasd_smalloc_request uses the static ccw memory
- * that gets allocated for each device.
- */
-struct dasd_ccw_req *dasd_kmalloc_request(int magic, int cplength,
-					  int datasize,
-					  struct dasd_device *device)
-{
-	struct dasd_ccw_req *cqr;
-
-	/* Sanity checks */
-	BUG_ON(datasize > PAGE_SIZE ||
-	     (cplength*sizeof(struct ccw1)) > PAGE_SIZE);
-
-	cqr = kzalloc(sizeof(struct dasd_ccw_req), GFP_ATOMIC);
-	if (cqr == NULL)
-		return ERR_PTR(-ENOMEM);
-	cqr->cpaddr = NULL;
-	if (cplength > 0) {
-		cqr->cpaddr = kcalloc(cplength, sizeof(struct ccw1),
-				      GFP_ATOMIC | GFP_DMA);
-		if (cqr->cpaddr == NULL) {
-			kfree(cqr);
-			return ERR_PTR(-ENOMEM);
-		}
-	}
-	cqr->data = NULL;
-	if (datasize > 0) {
-		cqr->data = kzalloc(datasize, GFP_ATOMIC | GFP_DMA);
-		if (cqr->data == NULL) {
-			kfree(cqr->cpaddr);
-			kfree(cqr);
-			return ERR_PTR(-ENOMEM);
-		}
-	}
-	cqr->magic =  magic;
-	set_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
-	dasd_get_device(device);
-	return cqr;
-}
-EXPORT_SYMBOL(dasd_kmalloc_request);
-
 struct dasd_ccw_req *dasd_smalloc_request(int magic, int cplength, int datasize,
 					  struct dasd_device *device,
 					  struct dasd_ccw_req *cqr)
@@ -1308,27 +1263,6 @@ struct dasd_ccw_req *dasd_smalloc_request(int magic, int cplength, int datasize,
 	return cqr;
 }
 EXPORT_SYMBOL(dasd_smalloc_request);
-
-/*
- * Free memory of a channel program. This function needs to free all the
- * idal lists that might have been created by dasd_set_cda and the
- * struct dasd_ccw_req itself.
- */
-void dasd_kfree_request(struct dasd_ccw_req *cqr, struct dasd_device *device)
-{
-	struct ccw1 *ccw;
-
-	/* Clear any idals used for the request. */
-	ccw = cqr->cpaddr;
-	do {
-		clear_normalized_cda(ccw);
-	} while (ccw++->flags & (CCW_FLAG_CC | CCW_FLAG_DC));
-	kfree(cqr->cpaddr);
-	kfree(cqr->data);
-	kfree(cqr);
-	dasd_put_device(device);
-}
-EXPORT_SYMBOL(dasd_kfree_request);
 
 void dasd_sfree_request(struct dasd_ccw_req *cqr, struct dasd_device *device)
 {

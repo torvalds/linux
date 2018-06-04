@@ -707,10 +707,7 @@ extern const struct block_device_operations dasd_device_operations;
 extern struct kmem_cache *dasd_page_cache;
 
 struct dasd_ccw_req *
-dasd_kmalloc_request(int , int, int, struct dasd_device *);
-struct dasd_ccw_req *
 dasd_smalloc_request(int, int, int, struct dasd_device *, struct dasd_ccw_req *);
-void dasd_kfree_request(struct dasd_ccw_req *, struct dasd_device *);
 void dasd_sfree_request(struct dasd_ccw_req *, struct dasd_device *);
 void dasd_wakeup_cb(struct dasd_ccw_req *, void *);
 
