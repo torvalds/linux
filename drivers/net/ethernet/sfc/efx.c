@@ -1289,9 +1289,8 @@ static int efx_init_io(struct efx_nic *efx)
 
 	pci_set_master(pci_dev);
 
-	/* Set the PCI DMA mask.  Try all possibilities from our
-	 * genuine mask down to 32 bits, because some architectures
-	 * (e.g. x86_64 with iommu_sac_force set) will allow 40 bit
+	/* Set the PCI DMA mask.  Try all possibilities from our genuine mask
+	 * down to 32 bits, because some architectures will allow 40 bit
 	 * masks event though they reject 46 bit masks.
 	 */
 	while (dma_mask > 0x7fffffffUL) {

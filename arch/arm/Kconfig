@@ -60,7 +60,6 @@ config ARM
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_DEBUG_KMEMLEAK
-	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_CONTIGUOUS if MMU
 	select HAVE_DYNAMIC_FTRACE if (!XIP_KERNEL) && !CPU_ENDIAN_BE32 && MMU
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS if HAVE_DYNAMIC_FTRACE
@@ -96,6 +95,7 @@ config ARM
 	select HAVE_VIRT_CPU_ACCOUNTING_GEN
 	select IRQ_FORCED_THREADING
 	select MODULES_USE_ELF_REL
+	select NEED_DMA_MAP_STATE
 	select NO_BOOTMEM
 	select OF_EARLY_FLATTREE if OF
 	select OF_RESERVED_MEM if OF
@@ -117,9 +117,6 @@ config ARM
 
 config ARM_HAS_SG_CHAIN
 	select ARCH_HAS_SG_CHAIN
-	bool
-
-config NEED_SG_DMA_LENGTH
 	bool
 
 config ARM_DMA_USE_IOMMU
@@ -223,9 +220,6 @@ config ARCH_MAY_HAVE_PC_FDC
 
 config ZONE_DMA
 	bool
-
-config NEED_DMA_MAP_STATE
-       def_bool y
 
 config ARCH_SUPPORTS_UPROBES
 	def_bool y
@@ -1778,12 +1772,6 @@ config SECCOMP
 	  and the task is only allowed to execute a few safe syscalls
 	  defined by each seccomp mode.
 
-config SWIOTLB
-	def_bool y
-
-config IOMMU_HELPER
-	def_bool SWIOTLB
-
 config PARAVIRT
 	bool "Enable paravirtualization code"
 	help
@@ -1815,6 +1803,7 @@ config XEN
 	depends on MMU
 	select ARCH_DMA_ADDR_T_64BIT
 	select ARM_PSCI
+	select SWIOTLB
 	select SWIOTLB_XEN
 	select PARAVIRT
 	help

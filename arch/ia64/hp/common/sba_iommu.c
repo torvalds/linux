@@ -1845,9 +1845,6 @@ static void ioc_init(unsigned long hpa, struct ioc *ioc)
 	ioc_resource_init(ioc);
 	ioc_sac_init(ioc);
 
-	if ((long) ~iovp_mask > (long) ia64_max_iommu_merge_mask)
-		ia64_max_iommu_merge_mask = ~iovp_mask;
-
 	printk(KERN_INFO PFX
 		"%s %d.%d HPA 0x%lx IOVA space %dMb at 0x%lx\n",
 		ioc->name, (ioc->rev >> 4) & 0xF, ioc->rev & 0xF,

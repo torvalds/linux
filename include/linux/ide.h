@@ -1508,8 +1508,6 @@ static inline void ide_set_hwifdata (ide_hwif_t * hwif, void *data)
 	hwif->hwif_data = data;
 }
 
-extern void ide_toggle_bounce(ide_drive_t *drive, int on);
-
 u64 ide_get_lba_addr(struct ide_cmd *, int);
 u8 ide_dump_status(ide_drive_t *, const char *, u8);
 

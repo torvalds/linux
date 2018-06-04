@@ -105,7 +105,6 @@ config ARM64
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_DEBUG_BUGVERBOSE
 	select HAVE_DEBUG_KMEMLEAK
-	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
@@ -133,6 +132,8 @@ config ARM64
 	select IRQ_FORCED_THREADING
 	select MODULES_USE_ELF_RELA
 	select MULTI_IRQ_HANDLER
+	select NEED_DMA_MAP_STATE
+	select NEED_SG_DMA_LENGTH
 	select NO_BOOTMEM
 	select OF
 	select OF_EARLY_FLATTREE
@@ -142,15 +143,13 @@ config ARM64
 	select POWER_SUPPLY
 	select REFCOUNT_FULL
 	select SPARSE_IRQ
+	select SWIOTLB
 	select SYSCTL_EXCEPTION_TRACE
 	select THREAD_INFO_IN_TASK
 	help
 	  ARM 64-bit (AArch64) Linux support.
 
 config 64BIT
-	def_bool y
-
-config ARCH_PHYS_ADDR_T_64BIT
 	def_bool y
 
 config MMU
@@ -237,23 +236,8 @@ config ZONE_DMA32
 config HAVE_GENERIC_GUP
 	def_bool y
 
-config ARCH_DMA_ADDR_T_64BIT
-	def_bool y
-
-config NEED_DMA_MAP_STATE
-	def_bool y
-
-config NEED_SG_DMA_LENGTH
-	def_bool y
-
 config SMP
 	def_bool y
-
-config SWIOTLB
-	def_bool y
-
-config IOMMU_HELPER
-	def_bool SWIOTLB
 
 config KERNEL_MODE_NEON
 	def_bool y

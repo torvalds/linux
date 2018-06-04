@@ -208,7 +208,6 @@ const struct dma_map_ops hexagon_dma_ops = {
 	.sync_single_for_cpu = hexagon_sync_single_for_cpu,
 	.sync_single_for_device = hexagon_sync_single_for_device,
 	.mapping_error	= hexagon_mapping_error,
-	.is_phys	= 1,
 };
 
 void __init hexagon_dma_init(void)
