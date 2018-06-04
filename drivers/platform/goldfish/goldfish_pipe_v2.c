@@ -993,7 +993,6 @@ static int goldfish_dma_mmap_locked(
 				dma->phys_begin >> PAGE_SHIFT,
 				sz_requested,
 				vma->vm_page_prot);
-
 	if (status < 0) {
 		dev_err(pdev_dev, "Cannot remap pfn range....\n");
 		return -EAGAIN;
@@ -1022,7 +1021,6 @@ static int goldfish_dma_mmap(struct file *filp, struct vm_area_struct *vma)
 	status = goldfish_dma_mmap_locked(pipe, vma);
 	mutex_unlock(&pipe->lock);
 	return status;
-
 }
 
 static int goldfish_pipe_dma_create_region(
