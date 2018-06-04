@@ -829,7 +829,7 @@ static int cdns_uart_startup(struct uart_port *port)
 	 * the receiver.
 	 */
 	status = readl(port->membase + CDNS_UART_CR);
-	status &= CDNS_UART_CR_RX_DIS;
+	status &= ~CDNS_UART_CR_RX_DIS;
 	status |= CDNS_UART_CR_RX_EN;
 	writel(status, port->membase + CDNS_UART_CR);
 
