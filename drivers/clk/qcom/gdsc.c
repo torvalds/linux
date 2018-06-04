@@ -291,6 +291,14 @@ static int gdsc_init(struct gdsc *sc)
 	if ((sc->flags & VOTABLE) && on)
 		gdsc_enable(&sc->pd);
 
+	/* If ALWAYS_ON GDSCs are not ON, turn them ON */
+	if (sc->flags & ALWAYS_ON) {
+		if (!on)
+			gdsc_enable(&sc->pd);
+		on = true;
+		sc->pd.flags |= GENPD_FLAG_ALWAYS_ON;
+	}
+
 	if (on || (sc->pwrsts & PWRSTS_RET))
 		gdsc_force_mem_on(sc);
 	else
