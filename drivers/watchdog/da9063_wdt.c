@@ -64,7 +64,7 @@ static int da9063_wdt_disable_timer(struct da9063 *da9063)
 				  DA9063_TWDSCALE_DISABLE);
 }
 
-static int _da9063_wdt_set_timeout(struct da9063 *da9063, unsigned int regval)
+static int da9063_wdt_update_timeout(struct da9063 *da9063, unsigned int regval)
 {
 	int ret;
 
@@ -93,7 +93,7 @@ static int da9063_wdt_start(struct watchdog_device *wdd)
 	int ret;
 
 	selector = da9063_wdt_timeout_to_sel(wdd->timeout);
-	ret = _da9063_wdt_set_timeout(da9063, selector);
+	ret = da9063_wdt_update_timeout(da9063, selector);
 	if (ret)
 		dev_err(da9063->dev, "Watchdog failed to start (err = %d)\n",
 			ret);
@@ -148,7 +148,7 @@ static int da9063_wdt_set_timeout(struct watchdog_device *wdd,
 	 * enabling the watchdog, so the timeout must be buffered by the driver.
 	 */
 	if (watchdog_active(wdd))
-		ret = _da9063_wdt_set_timeout(da9063, selector);
+		ret = da9063_wdt_update_timeout(da9063, selector);
 
 	if (ret)
 		dev_err(da9063->dev, "Failed to set watchdog timeout (err = %d)\n",
@@ -223,7 +223,7 @@ static int da9063_wdt_probe(struct platform_device *pdev)
 		unsigned int timeout;
 
 		timeout = da9063_wdt_timeout_to_sel(DA9063_WDG_TIMEOUT);
-		_da9063_wdt_set_timeout(da9063, timeout);
+		da9063_wdt_update_timeout(da9063, timeout);
 		set_bit(WDOG_HW_RUNNING, &wdd->status);
 	}
 
