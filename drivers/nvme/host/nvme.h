@@ -453,7 +453,6 @@ extern const struct block_device_operations nvme_ns_head_ops;
 void nvme_set_disk_name(char *disk_name, struct nvme_ns *ns,
 			struct nvme_ctrl *ctrl, int *flags);
 void nvme_failover_req(struct request *req);
-bool nvme_req_needs_failover(struct request *req, blk_status_t error);
 void nvme_kick_requeue_lists(struct nvme_ctrl *ctrl);
 int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl,struct nvme_ns_head *head);
 void nvme_mpath_add_disk(struct nvme_ns_head *head);
@@ -489,11 +488,6 @@ static inline void nvme_set_disk_name(char *disk_name, struct nvme_ns *ns,
 
 static inline void nvme_failover_req(struct request *req)
 {
-}
-static inline bool nvme_req_needs_failover(struct request *req,
-					   blk_status_t error)
-{
-	return false;
 }
 static inline void nvme_kick_requeue_lists(struct nvme_ctrl *ctrl)
 {

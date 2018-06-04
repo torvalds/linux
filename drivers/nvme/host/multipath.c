@@ -56,13 +56,6 @@ void nvme_failover_req(struct request *req)
 	kblockd_schedule_work(&ns->head->requeue_work);
 }
 
-bool nvme_req_needs_failover(struct request *req, blk_status_t error)
-{
-	if (!(req->cmd_flags & REQ_NVME_MPATH))
-		return false;
-	return blk_path_error(error);
-}
-
 void nvme_kick_requeue_lists(struct nvme_ctrl *ctrl)
 {
 	struct nvme_ns *ns;
