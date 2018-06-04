@@ -206,7 +206,9 @@ struct hfi1_ctxtdata {
 	/* number of rcvhdrq entries */
 	u16 rcvhdrq_cnt;
 	/* size of each of the rcvhdrq entries */
-	u16 rcvhdrqentsize;
+	u8 rcvhdrqentsize;
+	/* offset of RHF within receive header entry */
+	u8 rhf_offset;
 	/* mmap of hdrq, must fit in 44 bits */
 	dma_addr_t rcvhdrq_dma;
 	dma_addr_t rcvhdrqtailaddr_dma;
@@ -1330,7 +1332,6 @@ struct hfi1_devdata {
 	seqlock_t sc2vl_lock ____cacheline_aligned_in_smp;
 	u64 sc2vl[4];
 	u64 __percpu *rcv_limit;
-	u16 rhf_offset; /* offset of RHF within receive header entry */
 	/* adding a new field here would make it part of this cacheline */
 
 	/* OUI comes from the HW. Used everywhere as 3 separate bytes. */
@@ -1469,7 +1470,7 @@ void hfi1_make_ud_req_16B(struct rvt_qp *qp,
 /* calculate the current RHF address */
 static inline __le32 *get_rhf_addr(struct hfi1_ctxtdata *rcd)
 {
-	return (__le32 *)rcd->rcvhdrq + rcd->head + rcd->dd->rhf_offset;
+	return (__le32 *)rcd->rcvhdrq + rcd->head + rcd->rhf_offset;
 }
 
 int hfi1_reset_device(int);

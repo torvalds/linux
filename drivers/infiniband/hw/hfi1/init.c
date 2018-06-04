@@ -405,6 +405,8 @@ int hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, int numa,
 
 		rcd->rcvhdrq_cnt = rcvhdrcnt;
 		rcd->rcvhdrqentsize = hfi1_hdrq_entsize;
+		rcd->rhf_offset =
+			rcd->rcvhdrqentsize - sizeof(u64) / sizeof(u32);
 		/*
 		 * Simple Eager buffer allocation: we have already pre-allocated
 		 * the number of RcvArray entry groups. Each ctxtdata structure

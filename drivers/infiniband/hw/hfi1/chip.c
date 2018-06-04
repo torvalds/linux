@@ -15217,11 +15217,6 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	aspm_init(dd);
 
 	dd->rcvhdrsize = DEFAULT_RCVHDRSIZE;
-	/*
-	 * rcd[0] is guaranteed to be valid by this point. Also, all
-	 * context are using the same value, as per the module parameter.
-	 */
-	dd->rhf_offset = dd->rcd[0]->rcvhdrqentsize - sizeof(u64) / sizeof(u32);
 
 	ret = init_pervl_scs(dd);
 	if (ret)
