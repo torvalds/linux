@@ -20,10 +20,14 @@ struct xdp_umem_props {
 	u64 size;
 };
 
+struct xdp_umem_page {
+	void *addr;
+};
+
 struct xdp_umem {
 	struct xsk_queue *fq;
 	struct xsk_queue *cq;
-	struct page **pgs;
+	struct xdp_umem_page *pages;
 	struct xdp_umem_props props;
 	u32 headroom;
 	u32 chunk_size_nohr;
@@ -32,6 +36,7 @@ struct xdp_umem {
 	unsigned long address;
 	refcount_t users;
 	struct work_struct work;
+	struct page **pgs;
 	u32 npgs;
 };
 

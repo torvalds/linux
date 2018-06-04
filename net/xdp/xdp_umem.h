@@ -10,8 +10,7 @@
 
 static inline char *xdp_umem_get_data(struct xdp_umem *umem, u64 addr)
 {
-	return page_address(umem->pgs[addr >> PAGE_SHIFT]) +
-		(addr & (PAGE_SIZE - 1));
+	return umem->pages[addr >> PAGE_SHIFT].addr + (addr & (PAGE_SIZE - 1));
 }
 
 bool xdp_umem_validate_queues(struct xdp_umem *umem);

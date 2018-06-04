@@ -65,6 +65,9 @@ static void xdp_umem_release(struct xdp_umem *umem)
 		goto out;
 
 	mmput(mm);
+	kfree(umem->pages);
+	umem->pages = NULL;
+
 	xdp_umem_unaccount_pages(umem);
 out:
 	kfree(umem);
@@ -155,7 +158,7 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 	u32 chunk_size = mr->chunk_size, headroom = mr->headroom;
 	unsigned int chunks, chunks_per_page;
 	u64 addr = mr->addr, size = mr->len;
-	int size_chk, err;
+	int size_chk, err, i;
 
 	if (chunk_size < XDP_UMEM_MIN_CHUNK_SIZE || chunk_size > PAGE_SIZE) {
 		/* Strictly speaking we could support this, if:
@@ -213,6 +216,16 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 	err = xdp_umem_pin_pages(umem);
 	if (err)
 		goto out_account;
+
+	umem->pages = kcalloc(umem->npgs, sizeof(*umem->pages), GFP_KERNEL);
+	if (!umem->pages) {
+		err = -ENOMEM;
+		goto out_account;
+	}
+
+	for (i = 0; i < umem->npgs; i++)
+		umem->pages[i].addr = page_address(umem->pgs[i]);
+
 	return 0;
 
 out_account:
