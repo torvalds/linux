@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015 - 2017 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -194,7 +194,7 @@ static void ruc_loopback(struct rvt_qp *sqp)
 	spin_lock_irqsave(&sqp->s_lock, flags);
 
 	/* Return if we are already busy processing a work request. */
-	if ((sqp->s_flags & (RVT_S_BUSY | RVT_S_ANY_WAIT)) ||
+	if ((sqp->s_flags & (RVT_S_BUSY | HFI1_S_ANY_WAIT)) ||
 	    !(ib_rvt_state_ops[sqp->state] & RVT_PROCESS_OR_FLUSH_SEND))
 		goto unlock;
 
@@ -533,9 +533,9 @@ static inline void build_ahg(struct rvt_qp *qp, u32 npsn)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 
-	if (unlikely(qp->s_flags & RVT_S_AHG_CLEAR))
+	if (unlikely(qp->s_flags & HFI1_S_AHG_CLEAR))
 		clear_ahg(qp);
-	if (!(qp->s_flags & RVT_S_AHG_VALID)) {
+	if (!(qp->s_flags & HFI1_S_AHG_VALID)) {
 		/* first middle that needs copy  */
 		if (qp->s_ahgidx < 0)
 			qp->s_ahgidx = sdma_ahg_alloc(priv->s_sde);
@@ -544,7 +544,7 @@ static inline void build_ahg(struct rvt_qp *qp, u32 npsn)
 			priv->s_ahg->tx_flags |= SDMA_TXREQ_F_AHG_COPY;
 			/* save to protect a change in another thread */
 			priv->s_ahg->ahgidx = qp->s_ahgidx;
-			qp->s_flags |= RVT_S_AHG_VALID;
+			qp->s_flags |= HFI1_S_AHG_VALID;
 		}
 	} else {
 		/* subsequent middle after valid */
@@ -650,7 +650,7 @@ static inline void hfi1_make_ruc_header_16B(struct rvt_qp *qp,
 	if (middle)
 		build_ahg(qp, bth2);
 	else
-		qp->s_flags &= ~RVT_S_AHG_VALID;
+		qp->s_flags &= ~HFI1_S_AHG_VALID;
 
 	bth0 |= pkey;
 	bth0 |= extra_bytes << 20;
@@ -727,7 +727,7 @@ static inline void hfi1_make_ruc_header_9B(struct rvt_qp *qp,
 	if (middle)
 		build_ahg(qp, bth2);
 	else
-		qp->s_flags &= ~RVT_S_AHG_VALID;
+		qp->s_flags &= ~HFI1_S_AHG_VALID;
 
 	bth0 |= pkey;
 	bth0 |= extra_bytes << 20;

@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -241,7 +241,7 @@ bail:
 	smp_wmb();
 	qp->s_flags &= ~(RVT_S_RESP_PENDING
 				| RVT_S_ACK_PENDING
-				| RVT_S_AHG_VALID);
+				| HFI1_S_AHG_VALID);
 	return 0;
 }
 
@@ -1024,7 +1024,7 @@ done:
 	if ((cmp_psn(qp->s_psn, qp->s_sending_hpsn) <= 0) &&
 	    (cmp_psn(qp->s_sending_psn, qp->s_sending_hpsn) <= 0))
 		qp->s_flags |= RVT_S_WAIT_PSN;
-	qp->s_flags &= ~RVT_S_AHG_VALID;
+	qp->s_flags &= ~HFI1_S_AHG_VALID;
 }
 
 /*

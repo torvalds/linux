@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015-2017 Intel Corporation.
+ * Copyright(c) 2015-2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -1618,11 +1618,11 @@ static void sc_piobufavail(struct send_context *sc)
 	/* Wake up the most starved one first */
 	if (n)
 		hfi1_qp_wakeup(qps[max_idx],
-			       RVT_S_WAIT_PIO | RVT_S_WAIT_PIO_DRAIN);
+			       RVT_S_WAIT_PIO | HFI1_S_WAIT_PIO_DRAIN);
 	for (i = 0; i < n; i++)
 		if (i != max_idx)
 			hfi1_qp_wakeup(qps[i],
-				       RVT_S_WAIT_PIO | RVT_S_WAIT_PIO_DRAIN);
+				       RVT_S_WAIT_PIO | HFI1_S_WAIT_PIO_DRAIN);
 }
 
 /* translate a send credit update to a bit code of reasons */

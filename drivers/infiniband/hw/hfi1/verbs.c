@@ -1007,7 +1007,7 @@ static int pio_wait(struct rvt_qp *qp,
 			int was_empty;
 
 			dev->n_piowait += !!(flag & RVT_S_WAIT_PIO);
-			dev->n_piodrain += !!(flag & RVT_S_WAIT_PIO_DRAIN);
+			dev->n_piodrain += !!(flag & HFI1_S_WAIT_PIO_DRAIN);
 			qp->s_flags |= flag;
 			was_empty = list_empty(&sc->piowait);
 			iowait_queue(ps->pkts_sent, &priv->s_iowait,
@@ -1376,7 +1376,7 @@ int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		return pio_wait(qp,
 				ps->s_txreq->psc,
 				ps,
-				RVT_S_WAIT_PIO_DRAIN);
+				HFI1_S_WAIT_PIO_DRAIN);
 	return sr(qp, ps, 0);
 }
 

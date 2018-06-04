@@ -2,7 +2,7 @@
 #define DEF_RDMAVT_INCQP_H
 
 /*
- * Copyright(c) 2016, 2017 Intel Corporation.
+ * Copyright(c) 2016 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -91,6 +91,7 @@
  * RVT_S_WAIT_ACK - waiting for an ACK packet before sending more requests
  * RVT_S_SEND_ONE - send one packet, request ACK, then wait for ACK
  * RVT_S_ECN - a BECN was queued to the send engine
+ * RVT_S_MAX_BIT_MASK - The max bit that can be used by rdmavt
  */
 #define RVT_S_SIGNAL_REQ_WR	0x0001
 #define RVT_S_BUSY		0x0002
@@ -103,23 +104,26 @@
 #define RVT_S_WAIT_SSN_CREDIT	0x0100
 #define RVT_S_WAIT_DMA		0x0200
 #define RVT_S_WAIT_PIO		0x0400
-#define RVT_S_WAIT_PIO_DRAIN    0x0800
-#define RVT_S_WAIT_TX		0x1000
-#define RVT_S_WAIT_DMA_DESC	0x2000
-#define RVT_S_WAIT_KMEM		0x4000
-#define RVT_S_WAIT_PSN		0x8000
-#define RVT_S_WAIT_ACK		0x10000
-#define RVT_S_SEND_ONE		0x20000
-#define RVT_S_UNLIMITED_CREDIT	0x40000
-#define RVT_S_AHG_VALID		0x80000
-#define RVT_S_AHG_CLEAR		0x100000
-#define RVT_S_ECN		0x200000
+#define RVT_S_WAIT_TX		0x0800
+#define RVT_S_WAIT_DMA_DESC	0x1000
+#define RVT_S_WAIT_KMEM		0x2000
+#define RVT_S_WAIT_PSN		0x4000
+#define RVT_S_WAIT_ACK		0x8000
+#define RVT_S_SEND_ONE		0x10000
+#define RVT_S_UNLIMITED_CREDIT	0x20000
+#define RVT_S_ECN		0x40000
+#define RVT_S_MAX_BIT_MASK	0x800000
+
+/*
+ * Drivers should use s_flags starting with bit 31 down to the bit next to
+ * RVT_S_MAX_BIT_MASK
+ */
 
 /*
  * Wait flags that would prevent any packet type from being sent.
  */
 #define RVT_S_ANY_WAIT_IO \
-	(RVT_S_WAIT_PIO | RVT_S_WAIT_PIO_DRAIN | RVT_S_WAIT_TX | \
+	(RVT_S_WAIT_PIO | RVT_S_WAIT_TX | \
 	 RVT_S_WAIT_DMA_DESC | RVT_S_WAIT_KMEM)
 
 /*
