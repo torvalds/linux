@@ -33,7 +33,7 @@ static dma_addr_t tegra_bo_pin(struct host1x_bo *bo, struct sg_table **sgt)
 
 	*sgt = obj->sgt;
 
-	return obj->paddr;
+	return obj->iova;
 }
 
 static void tegra_bo_unpin(struct host1x_bo *bo, struct sg_table *sgt)
@@ -133,9 +133,9 @@ static int tegra_bo_iommu_map(struct tegra_drm *tegra, struct tegra_bo *bo)
 		goto unlock;
 	}
 
-	bo->paddr = bo->mm->start;
+	bo->iova = bo->mm->start;
 
-	bo->size = iommu_map_sg(tegra->domain, bo->paddr, bo->sgt->sgl,
+	bo->size = iommu_map_sg(tegra->domain, bo->iova, bo->sgt->sgl,
 				bo->sgt->nents, prot);
 	if (!bo->size) {
 		dev_err(tegra->drm->dev, "failed to map buffer\n");
@@ -161,7 +161,7 @@ static int tegra_bo_iommu_unmap(struct tegra_drm *tegra, struct tegra_bo *bo)
 		return 0;
 
 	mutex_lock(&tegra->mm_lock);
-	iommu_unmap(tegra->domain, bo->paddr, bo->size);
+	iommu_unmap(tegra->domain, bo->iova, bo->size);
 	drm_mm_remove_node(bo->mm);
 	mutex_unlock(&tegra->mm_lock);
 
@@ -209,7 +209,7 @@ static void tegra_bo_free(struct drm_device *drm, struct tegra_bo *bo)
 		sg_free_table(bo->sgt);
 		kfree(bo->sgt);
 	} else if (bo->vaddr) {
-		dma_free_wc(drm->dev, bo->gem.size, bo->vaddr, bo->paddr);
+		dma_free_wc(drm->dev, bo->gem.size, bo->vaddr, bo->iova);
 	}
 }
 
@@ -264,7 +264,7 @@ static int tegra_bo_alloc(struct drm_device *drm, struct tegra_bo *bo)
 	} else {
 		size_t size = bo->gem.size;
 
-		bo->vaddr = dma_alloc_wc(drm->dev, size, &bo->paddr,
+		bo->vaddr = dma_alloc_wc(drm->dev, size, &bo->iova,
 					 GFP_KERNEL | __GFP_NOWARN);
 		if (!bo->vaddr) {
 			dev_err(drm->dev,
@@ -365,7 +365,7 @@ static struct tegra_bo *tegra_bo_import(struct drm_device *drm,
 			goto detach;
 		}
 
-		bo->paddr = sg_dma_address(bo->sgt->sgl);
+		bo->iova = sg_dma_address(bo->sgt->sgl);
 	}
 
 	bo->gem.import_attach = attach;
@@ -461,7 +461,7 @@ int __tegra_gem_mmap(struct drm_gem_object *gem, struct vm_area_struct *vma)
 		vma->vm_flags &= ~VM_PFNMAP;
 		vma->vm_pgoff = 0;
 
-		err = dma_mmap_wc(gem->dev->dev, vma, bo->vaddr, bo->paddr,
+		err = dma_mmap_wc(gem->dev->dev, vma, bo->vaddr, bo->iova,
 				  gem->size);
 		if (err < 0) {
 			drm_gem_vm_close(vma);
@@ -523,7 +523,7 @@ tegra_gem_prime_map_dma_buf(struct dma_buf_attachment *attach,
 		if (sg_alloc_table(sgt, 1, GFP_KERNEL))
 			goto free;
 
-		sg_dma_address(sgt->sgl) = bo->paddr;
+		sg_dma_address(sgt->sgl) = bo->iova;
 		sg_dma_len(sgt->sgl) = gem->size;
 	}
 

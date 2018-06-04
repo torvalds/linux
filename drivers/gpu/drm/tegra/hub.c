@@ -457,7 +457,7 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 	tegra_plane_writel(p, 0, DC_WINBUF_CDE_CONTROL);
 
 	bo = tegra_fb_get_plane(fb, 0);
-	base = bo->paddr;
+	base = bo->iova;
 
 	tegra_plane_writel(p, state->format, DC_WIN_COLOR_DEPTH);
 	tegra_plane_writel(p, 0, DC_WIN_PRECOMP_WGRP_PARAMS);

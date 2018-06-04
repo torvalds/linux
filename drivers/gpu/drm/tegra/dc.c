@@ -717,7 +717,7 @@ static void tegra_plane_atomic_update(struct drm_plane *plane,
 	for (i = 0; i < fb->format->num_planes; i++) {
 		struct tegra_bo *bo = tegra_fb_get_plane(fb, i);
 
-		window.base[i] = bo->paddr + fb->offsets[i];
+		window.base[i] = bo->iova + fb->offsets[i];
 
 		/*
 		 * Tegra uses a shared stride for UV planes. Framebuffers are
@@ -869,11 +869,11 @@ static void tegra_cursor_atomic_update(struct drm_plane *plane,
 		return;
 	}
 
-	value |= (bo->paddr >> 10) & 0x3fffff;
+	value |= (bo->iova >> 10) & 0x3fffff;
 	tegra_dc_writel(dc, value, DC_DISP_CURSOR_START_ADDR);
 
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	value = (bo->paddr >> 32) & 0x3;
+	value = (bo->iova >> 32) & 0x3;
 	tegra_dc_writel(dc, value, DC_DISP_CURSOR_START_ADDR_HI);
 #endif
 
