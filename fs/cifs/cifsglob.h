@@ -176,6 +176,7 @@ struct smb_rqst {
 	struct kvec	*rq_iov;	/* array of kvecs */
 	unsigned int	rq_nvec;	/* number of kvecs in array */
 	struct page	**rq_pages;	/* pointer to array of page ptrs */
+	unsigned int	rq_offset;	/* the offset to the 1st page */
 	unsigned int	rq_npages;	/* number pages in array */
 	unsigned int	rq_pagesz;	/* page size to use */
 	unsigned int	rq_tailsz;	/* length of last page */
@@ -244,7 +245,7 @@ struct smb_version_operations {
 	int (*map_error)(char *, bool);
 	/* find mid corresponding to the response message */
 	struct mid_q_entry * (*find_mid)(struct TCP_Server_Info *, char *);
-	void (*dump_detail)(void *);
+	void (*dump_detail)(void *buf, struct TCP_Server_Info *ptcp_info);
 	void (*clear_stats)(struct cifs_tcon *);
 	void (*print_stats)(struct seq_file *m, struct cifs_tcon *);
 	void (*dump_share_caps)(struct seq_file *, struct cifs_tcon *);
@@ -372,7 +373,7 @@ struct smb_version_operations {
 	int (*close_dir)(const unsigned int, struct cifs_tcon *,
 			 struct cifs_fid *);
 	/* calculate a size of SMB message */
-	unsigned int (*calc_smb_size)(void *);
+	unsigned int (*calc_smb_size)(void *buf, struct TCP_Server_Info *ptcpi);
 	/* check for STATUS_PENDING and process it in a positive case */
 	bool (*is_status_pending)(char *, struct TCP_Server_Info *, int);
 	/* check for STATUS_NETWORK_SESSION_EXPIRED */
@@ -417,7 +418,7 @@ struct smb_version_operations {
 	/* create lease context buffer for CREATE request */
 	char * (*create_lease_buf)(u8 *, u8);
 	/* parse lease context buffer and return oplock/epoch info */
-	__u8 (*parse_lease_buf)(void *, unsigned int *);
+	__u8 (*parse_lease_buf)(void *buf, unsigned int *epoch, char *lkey);
 	ssize_t (*copychunk_range)(const unsigned int,
 			struct cifsFileInfo *src_file,
 			struct cifsFileInfo *target_file,
@@ -457,7 +458,7 @@ struct smb_version_operations {
 				 struct mid_q_entry **);
 	enum securityEnum (*select_sectype)(struct TCP_Server_Info *,
 			    enum securityEnum);
-
+	int (*next_header)(char *);
 };
 
 struct smb_version_values {
@@ -521,10 +522,12 @@ struct smb_vol {
 	bool sfu_remap:1;  /* remap seven reserved chars ala SFU */
 	bool posix_paths:1; /* unset to not ask for posix pathnames. */
 	bool no_linux_ext:1;
+	bool linux_ext:1;
 	bool sfu_emul:1;
 	bool nullauth:1;   /* attempt to authenticate with null user */
 	bool nocase:1;     /* request case insensitive filenames */
 	bool nobrl:1;      /* disable sending byte range locks to srv */
+	bool nohandlecache:1; /* disable caching dir handles if srvr probs */
 	bool mand_lock:1;  /* send mandatory not posix byte range lock reqs */
 	bool seal:1;       /* request transport encryption on share */
 	bool nodfs:1;      /* Do not request DFS, even if available */
@@ -630,7 +633,7 @@ struct TCP_Server_Info {
 	bool oplocks:1; /* enable oplocks */
 	unsigned int maxReq;	/* Clients should submit no more */
 	/* than maxReq distinct unanswered SMBs to the server when using  */
-	/* multiplexed reads or writes */
+	/* multiplexed reads or writes (for SMB1/CIFS only, not SMB2/SMB3) */
 	unsigned int maxBuf;	/* maxBuf specifies the maximum */
 	/* message size the server can send or receive for non-raw SMBs */
 	/* maxBuf is returned by SMB NegotiateProtocol so maxBuf is only 0 */
@@ -681,6 +684,7 @@ struct TCP_Server_Info {
 	__le16	cipher_type;
 	 /* save initital negprot hash */
 	__u8	preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
+	bool	posix_ext_supported;
 #endif /* 3.1.1 */
 	struct delayed_work reconnect; /* reconnect workqueue job */
 	struct mutex reconnect_mutex; /* prevent simultaneous reconnects */
@@ -953,9 +957,13 @@ struct cifs_tcon {
 	bool print:1; /* set if connection to printer share */
 	bool retry:1;
 	bool nocase:1;
+	bool nohandlecache:1; /* if strange server resource prob can turn off */
 	bool seal:1;      /* transport encryption for this mounted share */
 	bool unix_ext:1;  /* if false disable Linux extensions to CIFS protocol
 				for this mount even if server would support */
+#ifdef CONFIG_CIFS_SMB311
+	bool posix_extensions; /* if true SMB3.11 posix extensions enabled */
+#endif /* CIFS_311 */
 	bool local_lease:1; /* check leases (only) on local system not remote */
 	bool broken_posix_open; /* e.g. Samba server versions < 3.3.2, 3.2.9 */
 	bool broken_sparse_sup; /* if server or share does not support sparse */
@@ -979,6 +987,9 @@ struct cifs_tcon {
 	struct fscache_cookie *fscache;	/* cookie for share */
 #endif
 	struct list_head pending_opens;	/* list of incomplete opens */
+	bool valid_root_fid:1;	/* Do we have a useable root fid */
+	struct mutex prfid_mutex; /* prevents reopen race after dead ses*/
+	struct cifs_fid *prfid;	/* handle to the directory at top of share */
 	/* BB add field for back pointer to sb struct(s)? */
 };
 
@@ -1071,6 +1082,7 @@ struct cifs_open_parms {
 	int create_options;
 	const char *path;
 	struct cifs_fid *fid;
+	umode_t mode;
 	bool reconnect:1;
 };
 
@@ -1169,10 +1181,11 @@ struct cifs_readdata {
 	struct smbd_mr			*mr;
 #endif
 	unsigned int			pagesz;
+	unsigned int			page_offset;
 	unsigned int			tailsz;
 	unsigned int			credits;
 	unsigned int			nr_pages;
-	struct page			*pages[];
+	struct page			**pages;
 };
 
 struct cifs_writedata;
@@ -1194,10 +1207,11 @@ struct cifs_writedata {
 	struct smbd_mr			*mr;
 #endif
 	unsigned int			pagesz;
+	unsigned int			page_offset;
 	unsigned int			tailsz;
 	unsigned int			credits;
 	unsigned int			nr_pages;
-	struct page			*pages[];
+	struct page			**pages;
 };
 
 /*
@@ -1692,16 +1706,17 @@ GLOBAL_EXTERN atomic_t smBufAllocCount;
 GLOBAL_EXTERN atomic_t midCount;
 
 /* Misc globals */
-GLOBAL_EXTERN bool enable_oplocks; /* enable or disable oplocks */
-GLOBAL_EXTERN bool lookupCacheEnabled;
-GLOBAL_EXTERN unsigned int global_secflags;	/* if on, session setup sent
+extern bool enable_oplocks; /* enable or disable oplocks */
+extern bool lookupCacheEnabled;
+extern unsigned int global_secflags;	/* if on, session setup sent
 				with more secure ntlmssp2 challenge/resp */
-GLOBAL_EXTERN unsigned int sign_CIFS_PDUs;  /* enable smb packet signing */
-GLOBAL_EXTERN bool linuxExtEnabled;/*enable Linux/Unix CIFS extensions*/
-GLOBAL_EXTERN unsigned int CIFSMaxBufSize;  /* max size not including hdr */
-GLOBAL_EXTERN unsigned int cifs_min_rcv;    /* min size of big ntwrk buf pool */
-GLOBAL_EXTERN unsigned int cifs_min_small;  /* min size of small buf pool */
-GLOBAL_EXTERN unsigned int cifs_max_pending; /* MAX requests at once to server*/
+extern unsigned int sign_CIFS_PDUs;  /* enable smb packet signing */
+extern bool linuxExtEnabled;/*enable Linux/Unix CIFS extensions*/
+extern unsigned int CIFSMaxBufSize;  /* max size not including hdr */
+extern unsigned int cifs_min_rcv;    /* min size of big ntwrk buf pool */
+extern unsigned int cifs_min_small;  /* min size of small buf pool */
+extern unsigned int cifs_max_pending; /* MAX requests at once to server*/
+extern bool disable_legacy_dialects;  /* forbid vers=1.0 and vers=2.0 mounts */
 
 #ifdef CONFIG_CIFS_ACL
 GLOBAL_EXTERN struct rb_root uidtree;

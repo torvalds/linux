@@ -480,7 +480,7 @@ smb2_verify_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	unsigned int rc;
 	char server_response_sig[16];
 	struct smb2_sync_hdr *shdr =
-			(struct smb2_sync_hdr *)rqst->rq_iov[1].iov_base;
+			(struct smb2_sync_hdr *)rqst->rq_iov[0].iov_base;
 
 	if ((shdr->Command == SMB2_NEGOTIATE) ||
 	    (shdr->Command == SMB2_SESSION_SETUP) ||
@@ -605,14 +605,12 @@ smb2_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 		   bool log_error)
 {
 	unsigned int len = mid->resp_buf_size;
-	struct kvec iov[2];
+	struct kvec iov[1];
 	struct smb_rqst rqst = { .rq_iov = iov,
-				 .rq_nvec = 2 };
+				 .rq_nvec = 1 };
 
 	iov[0].iov_base = (char *)mid->resp_buf;
-	iov[0].iov_len = 4;
-	iov[1].iov_base = (char *)mid->resp_buf + 4;
-	iov[1].iov_len = len;
+	iov[0].iov_len = len;
 
 	dump_smb(mid->resp_buf, min_t(u32, 80, len));
 	/* convert the length into a more usable form */

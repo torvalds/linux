@@ -117,6 +117,8 @@ tconInfoAlloc(void)
 		INIT_LIST_HEAD(&ret_buf->openFileList);
 		INIT_LIST_HEAD(&ret_buf->tcon_list);
 		spin_lock_init(&ret_buf->open_file_lock);
+		mutex_init(&ret_buf->prfid_mutex);
+		ret_buf->prfid = kzalloc(sizeof(struct cifs_fid), GFP_KERNEL);
 #ifdef CONFIG_CIFS_STATS
 		spin_lock_init(&ret_buf->stat_lock);
 #endif
@@ -134,6 +136,7 @@ tconInfoFree(struct cifs_tcon *buf_to_free)
 	atomic_dec(&tconInfoAllocCount);
 	kfree(buf_to_free->nativeFileSystem);
 	kzfree(buf_to_free->password);
+	kfree(buf_to_free->prfid);
 	kfree(buf_to_free);
 }
 
@@ -145,7 +148,7 @@ cifs_buf_get(void)
 	 * SMB2 header is bigger than CIFS one - no problems to clean some
 	 * more bytes for CIFS.
 	 */
-	size_t buf_size = sizeof(struct smb2_hdr);
+	size_t buf_size = sizeof(struct smb2_sync_hdr);
 
 	/*
 	 * We could use negotiated size instead of max_msgsize -
@@ -339,7 +342,7 @@ checkSMB(char *buf, unsigned int total_read, struct TCP_Server_Info *server)
 	/* otherwise, there is enough to get to the BCC */
 	if (check_smb_hdr(smb))
 		return -EIO;
-	clc_len = smbCalcSize(smb);
+	clc_len = smbCalcSize(smb, server);
 
 	if (4 + rfclen != total_read) {
 		cifs_dbg(VFS, "Length read does not match RFC1001 length %d\n",

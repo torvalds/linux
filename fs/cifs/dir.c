@@ -369,7 +369,7 @@ cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 	oparms.path = full_path;
 	oparms.fid = fid;
 	oparms.reconnect = false;
-
+	oparms.mode = mode;
 	rc = server->ops->open(xid, &oparms, oplock, buf);
 	if (rc) {
 		cifs_dbg(FYI, "cifs_create returned 0x%x\n", rc);

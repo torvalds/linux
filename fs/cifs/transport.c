@@ -800,8 +800,8 @@ cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
 #ifdef CONFIG_CIFS_SMB311
 	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP)) {
 		struct kvec iov = {
-			.iov_base = buf + 4,
-			.iov_len = get_rfc1002_length(buf)
+			.iov_base = buf,
+			.iov_len = midQ->resp_buf_size
 		};
 		smb311_update_preauth_hash(ses, &iov, 1);
 	}
