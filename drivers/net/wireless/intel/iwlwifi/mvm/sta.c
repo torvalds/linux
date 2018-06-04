@@ -67,6 +67,14 @@
 #include "sta.h"
 #include "rs.h"
 
+static int iwl_mvm_set_fw_key_idx(struct iwl_mvm *mvm);
+
+static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
+				u32 sta_id,
+				struct ieee80211_key_conf *key, bool mcast,
+				u32 tkip_iv32, u16 *tkip_p1k, u32 cmd_flags,
+				u8 key_offset, bool mfp);
+
 /*
  * New version of ADD_STA_sta command added new fields at the end of the
  * structure, so sending the size of the relevant API's structure is enough to
@@ -2095,6 +2103,19 @@ int iwl_mvm_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 			       IWL_UCODE_TLV_API_STA_TYPE))
 		iwl_mvm_enable_txq(mvm, vif->cab_queue, vif->cab_queue, 0,
 				   &cfg, timeout);
+
+	if (mvmvif->ap_wep_key) {
+		u8 key_offset = iwl_mvm_set_fw_key_idx(mvm);
+
+		if (key_offset == STA_KEY_IDX_INVALID)
+			return -ENOSPC;
+
+		ret = iwl_mvm_send_sta_key(mvm, mvmvif->mcast_sta.sta_id,
+					   mvmvif->ap_wep_key, 1, 0, NULL, 0,
+					   key_offset, 0);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
