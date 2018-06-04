@@ -191,7 +191,9 @@ mlxsw_sp_span_entry_bridge_8021q(const struct net_device *br_dev,
 
 	if (br_vlan_get_info(edev, vid, &vinfo))
 		return NULL;
-	if (!(vinfo.flags & BRIDGE_VLAN_INFO_UNTAGGED))
+	if (vinfo.flags & BRIDGE_VLAN_INFO_UNTAGGED)
+		*p_vid = 0;
+	else
 		*p_vid = vid;
 	return edev;
 }
