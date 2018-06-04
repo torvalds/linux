@@ -9862,6 +9862,19 @@ F:	net/ipv6/calipso.c
 F:	net/netfilter/xt_CONNSECMARK.c
 F:	net/netfilter/xt_SECMARK.c
 
+NETWORKING [TCP]
+M:	Eric Dumazet <edumazet@google.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	net/ipv4/tcp*.c
+F:	net/ipv4/syncookies.c
+F:	net/ipv6/tcp*.c
+F:	net/ipv6/syncookies.c
+F:	include/uapi/linux/tcp.h
+F:	include/net/tcp.h
+F:	include/linux/tcp.h
+F:	include/trace/events/tcp.h
+
 NETWORKING [TLS]
 M:	Boris Pismenny <borisp@mellanox.com>
 M:	Aviad Yehezkel <aviadye@mellanox.com>
