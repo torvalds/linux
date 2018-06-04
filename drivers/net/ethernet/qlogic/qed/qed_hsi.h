@@ -11996,6 +11996,7 @@ struct public_port {
 #define EEE_REMOTE_TW_RX_MASK   0xffff0000
 #define EEE_REMOTE_TW_RX_OFFSET 16
 
+	u32 reserved1;
 	u32 oem_cfg_port;
 #define OEM_CFG_CHANNEL_TYPE_MASK                       0x00000003
 #define OEM_CFG_CHANNEL_TYPE_OFFSET                     0

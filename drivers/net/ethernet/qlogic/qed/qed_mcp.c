@@ -1514,9 +1514,10 @@ void qed_mcp_read_ufp_config(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	}
 
 	qed_mcp_get_shmem_func(p_hwfn, p_ptt, &shmem_info, MCP_PF_ID(p_hwfn));
-	val = (port_cfg & OEM_CFG_FUNC_TC_MASK) >> OEM_CFG_FUNC_TC_OFFSET;
+	val = (shmem_info.oem_cfg_func & OEM_CFG_FUNC_TC_MASK) >>
+		OEM_CFG_FUNC_TC_OFFSET;
 	p_hwfn->ufp_info.tc = (u8)val;
-	val = (port_cfg & OEM_CFG_FUNC_HOST_PRI_CTRL_MASK) >>
+	val = (shmem_info.oem_cfg_func & OEM_CFG_FUNC_HOST_PRI_CTRL_MASK) >>
 		OEM_CFG_FUNC_HOST_PRI_CTRL_OFFSET;
 	if (val == OEM_CFG_FUNC_HOST_PRI_CTRL_VNIC) {
 		p_hwfn->ufp_info.pri_type = QED_UFP_PRI_VNIC;
