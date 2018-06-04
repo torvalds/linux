@@ -131,6 +131,8 @@ static int (*bpf_rc_repeat)(void *ctx) =
 static int (*bpf_rc_keydown)(void *ctx, unsigned int protocol,
 			     unsigned long long scancode, unsigned int toggle) =
 	(void *) BPF_FUNC_rc_keydown;
+static unsigned long long (*bpf_get_current_cgroup_id)(void) =
+	(void *) BPF_FUNC_get_current_cgroup_id;
 
 /* llvm builtin functions that eBPF C program may use to
  * emit BPF_LD_ABS and BPF_LD_IND instructions

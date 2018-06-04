@@ -179,3 +179,18 @@ const struct bpf_func_proto bpf_get_current_comm_proto = {
 	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,
 	.arg2_type	= ARG_CONST_SIZE,
 };
+
+#ifdef CONFIG_CGROUPS
+BPF_CALL_0(bpf_get_current_cgroup_id)
+{
+	struct cgroup *cgrp = task_dfl_cgroup(current);
+
+	return cgrp->kn->id.id;
+}
+
+const struct bpf_func_proto bpf_get_current_cgroup_id_proto = {
+	.func		= bpf_get_current_cgroup_id,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+};
+#endif
