@@ -41,23 +41,29 @@ bool xsk_is_setup_for_bpf_map(struct xdp_sock *xs)
 
 static int __xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 {
-	u32 *id, len = xdp->data_end - xdp->data;
+	u32 len = xdp->data_end - xdp->data;
 	void *buffer;
-	int err = 0;
+	u64 addr;
+	int err;
 
 	if (xs->dev != xdp->rxq->dev || xs->queue_id != xdp->rxq->queue_index)
 		return -EINVAL;
 
-	id = xskq_peek_id(xs->umem->fq);
-	if (!id)
+	if (!xskq_peek_addr(xs->umem->fq, &addr) ||
+	    len > xs->umem->chunk_size_nohr) {
+		xs->rx_dropped++;
 		return -ENOSPC;
+	}
 
-	buffer = xdp_umem_get_data_with_headroom(xs->umem, *id);
+	addr += xs->umem->headroom;
+
+	buffer = xdp_umem_get_data(xs->umem, addr);
 	memcpy(buffer, xdp->data, len);
-	err = xskq_produce_batch_desc(xs->rx, *id, len,
-				      xs->umem->frame_headroom);
+	err = xskq_produce_batch_desc(xs->rx, addr, len);
 	if (!err)
-		xskq_discard_id(xs->umem->fq);
+		xskq_discard_addr(xs->umem->fq);
+	else
+		xs->rx_dropped++;
 
 	return err;
 }
@@ -69,8 +75,6 @@ int xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 	err = __xsk_rcv(xs, xdp);
 	if (likely(!err))
 		xdp_return_buff(xdp);
-	else
-		xs->rx_dropped++;
 
 	return err;
 }
@@ -88,18 +92,16 @@ int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 	err = __xsk_rcv(xs, xdp);
 	if (!err)
 		xsk_flush(xs);
-	else
-		xs->rx_dropped++;
 
 	return err;
 }
 
 static void xsk_destruct_skb(struct sk_buff *skb)
 {
-	u32 id = (u32)(long)skb_shinfo(skb)->destructor_arg;
+	u64 addr = (u64)(long)skb_shinfo(skb)->destructor_arg;
 	struct xdp_sock *xs = xdp_sk(skb->sk);
 
-	WARN_ON_ONCE(xskq_produce_id(xs->umem->cq, id));
+	WARN_ON_ONCE(xskq_produce_addr(xs->umem->cq, addr));
 
 	sock_wfree(skb);
 }
@@ -124,14 +126,15 @@ static int xsk_generic_xmit(struct sock *sk, struct msghdr *m,
 
 	while (xskq_peek_desc(xs->tx, &desc)) {
 		char *buffer;
-		u32 id, len;
+		u64 addr;
+		u32 len;
 
 		if (max_batch-- == 0) {
 			err = -EAGAIN;
 			goto out;
 		}
 
-		if (xskq_reserve_id(xs->umem->cq)) {
+		if (xskq_reserve_addr(xs->umem->cq)) {
 			err = -EAGAIN;
 			goto out;
 		}
@@ -154,8 +157,8 @@ static int xsk_generic_xmit(struct sock *sk, struct msghdr *m,
 		}
 
 		skb_put(skb, len);
-		id = desc.idx;
-		buffer = xdp_umem_get_data(xs->umem, id) + desc.offset;
+		addr = desc.addr;
+		buffer = xdp_umem_get_data(xs->umem, addr);
 		err = skb_store_bits(skb, 0, buffer, len);
 		if (unlikely(err)) {
 			kfree_skb(skb);
@@ -165,7 +168,7 @@ static int xsk_generic_xmit(struct sock *sk, struct msghdr *m,
 		skb->dev = xs->dev;
 		skb->priority = sk->sk_priority;
 		skb->mark = sk->sk_mark;
-		skb_shinfo(skb)->destructor_arg = (void *)(long)id;
+		skb_shinfo(skb)->destructor_arg = (void *)(long)addr;
 		skb->destructor = xsk_destruct_skb;
 
 		err = dev_direct_xmit(skb, xs->queue_id);

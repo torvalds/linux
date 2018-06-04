@@ -14,7 +14,7 @@
 
 #include "xdp_umem.h"
 
-#define XDP_UMEM_MIN_FRAME_SIZE 2048
+#define XDP_UMEM_MIN_CHUNK_SIZE 2048
 
 static void xdp_umem_unpin_pages(struct xdp_umem *umem)
 {
@@ -151,12 +151,12 @@ static int xdp_umem_account_pages(struct xdp_umem *umem)
 
 static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 {
-	u32 frame_size = mr->frame_size, frame_headroom = mr->frame_headroom;
+	u32 chunk_size = mr->chunk_size, headroom = mr->headroom;
+	unsigned int chunks, chunks_per_page;
 	u64 addr = mr->addr, size = mr->len;
-	unsigned int nframes, nfpp;
 	int size_chk, err;
 
-	if (frame_size < XDP_UMEM_MIN_FRAME_SIZE || frame_size > PAGE_SIZE) {
+	if (chunk_size < XDP_UMEM_MIN_CHUNK_SIZE || chunk_size > PAGE_SIZE) {
 		/* Strictly speaking we could support this, if:
 		 * - huge pages, or*
 		 * - using an IOMMU, or
@@ -166,7 +166,7 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 		return -EINVAL;
 	}
 
-	if (!is_power_of_2(frame_size))
+	if (!is_power_of_2(chunk_size))
 		return -EINVAL;
 
 	if (!PAGE_ALIGNED(addr)) {
@@ -179,33 +179,30 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 	if ((addr + size) < addr)
 		return -EINVAL;
 
-	nframes = (unsigned int)div_u64(size, frame_size);
-	if (nframes == 0 || nframes > UINT_MAX)
+	chunks = (unsigned int)div_u64(size, chunk_size);
+	if (chunks == 0)
 		return -EINVAL;
 
-	nfpp = PAGE_SIZE / frame_size;
-	if (nframes < nfpp || nframes % nfpp)
+	chunks_per_page = PAGE_SIZE / chunk_size;
+	if (chunks < chunks_per_page || chunks % chunks_per_page)
 		return -EINVAL;
 
-	frame_headroom = ALIGN(frame_headroom, 64);
+	headroom = ALIGN(headroom, 64);
 
-	size_chk = frame_size - frame_headroom - XDP_PACKET_HEADROOM;
+	size_chk = chunk_size - headroom - XDP_PACKET_HEADROOM;
 	if (size_chk < 0)
 		return -EINVAL;
 
 	umem->pid = get_task_pid(current, PIDTYPE_PID);
-	umem->size = (size_t)size;
 	umem->address = (unsigned long)addr;
-	umem->props.frame_size = frame_size;
-	umem->props.nframes = nframes;
-	umem->frame_headroom = frame_headroom;
+	umem->props.chunk_mask = ~((u64)chunk_size - 1);
+	umem->props.size = size;
+	umem->headroom = headroom;
+	umem->chunk_size_nohr = chunk_size - headroom;
 	umem->npgs = size / PAGE_SIZE;
 	umem->pgs = NULL;
 	umem->user = NULL;
 
-	umem->frame_size_log2 = ilog2(frame_size);
-	umem->nfpp_mask = nfpp - 1;
-	umem->nfpplog2 = ilog2(nfpp);
 	refcount_set(&umem->users, 1);
 
 	err = xdp_umem_account_pages(umem);

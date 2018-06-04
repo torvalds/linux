@@ -48,8 +48,8 @@ struct xdp_mmap_offsets {
 struct xdp_umem_reg {
 	__u64 addr; /* Start of packet data area */
 	__u64 len; /* Length of packet data area */
-	__u32 frame_size; /* Frame size */
-	__u32 frame_headroom; /* Frame head room */
+	__u32 chunk_size;
+	__u32 headroom;
 };
 
 struct xdp_statistics {
@@ -66,13 +66,11 @@ struct xdp_statistics {
 
 /* Rx/Tx descriptor */
 struct xdp_desc {
-	__u32 idx;
+	__u64 addr;
 	__u32 len;
-	__u16 offset;
-	__u8 flags;
-	__u8 padding[5];
+	__u32 options;
 };
 
-/* UMEM descriptor is __u32 */
+/* UMEM descriptor is __u64 */
 
 #endif /* _LINUX_IF_XDP_H */
