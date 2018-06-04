@@ -184,6 +184,7 @@ struct dasd_ccw_req {
 	struct irb irb;			/* device status in case of an error */
 	struct dasd_ccw_req *refers;	/* ERP-chain queueing. */
 	void *function; 		/* originating ERP action */
+	void *mem_chunk;
 
 	/* these are for statistics only */
 	unsigned long buildclk;		/* TOD-clock of request generation */
@@ -716,7 +717,7 @@ extern struct kmem_cache *dasd_page_cache;
 struct dasd_ccw_req *
 dasd_kmalloc_request(int , int, int, struct dasd_device *);
 struct dasd_ccw_req *
-dasd_smalloc_request(int , int, int, struct dasd_device *);
+dasd_smalloc_request(int, int, int, struct dasd_device *, struct dasd_ccw_req *);
 void dasd_kfree_request(struct dasd_ccw_req *, struct dasd_device *);
 void dasd_sfree_request(struct dasd_ccw_req *, struct dasd_device *);
 void dasd_wakeup_cb(struct dasd_ccw_req *, void *);
