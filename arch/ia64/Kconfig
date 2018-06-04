@@ -381,7 +381,7 @@ config ARCH_DISCONTIGMEM_ENABLE
 	  Say Y to support efficient handling of discontiguous physical memory,
 	  for architectures which are either NUMA (Non-Uniform Memory Access)
 	  or have huge holes in the physical address space for other reasons.
- 	  See <file:Documentation/vm/numa> for more.
+	  See <file:Documentation/vm/numa.rst> for more.
 
 config ARCH_FLATMEM_ENABLE
 	def_bool y

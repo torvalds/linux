@@ -677,7 +677,7 @@ static void dax_mapping_entry_mkclean(struct address_space *mapping,
 		 * downgrading page table protection not changing it to point
 		 * to a new page.
 		 *
-		 * See Documentation/vm/mmu_notifier.txt
+		 * See Documentation/vm/mmu_notifier.rst
 		 */
 		if (pmdp) {
 #ifdef CONFIG_FS_DAX_PMD

@@ -937,7 +937,7 @@ static inline void clear_soft_dirty(struct vm_area_struct *vma,
 	/*
 	 * The soft-dirty tracker uses #PF-s to catch writes
 	 * to pages, so write-protect the pte as well. See the
-	 * Documentation/vm/soft-dirty.txt for full description
+	 * Documentation/admin-guide/mm/soft-dirty.rst for full description
 	 * of how soft-dirty works.
 	 */
 	pte_t ptent = *pte;
@@ -1421,7 +1421,7 @@ static int pagemap_hugetlb_range(pte_t *ptep, unsigned long hmask,
  * Bits 0-54  page frame number (PFN) if present
  * Bits 0-4   swap type if swapped
  * Bits 5-54  swap offset if swapped
- * Bit  55    pte is soft-dirty (see Documentation/vm/soft-dirty.txt)
+ * Bit  55    pte is soft-dirty (see Documentation/admin-guide/mm/soft-dirty.rst)
  * Bit  56    page exclusively mapped
  * Bits 57-60 zero
  * Bit  61    page is file-page or shared-anon
