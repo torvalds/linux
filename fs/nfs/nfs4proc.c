@@ -4114,7 +4114,7 @@ static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry
 	};
 	int status = 0;
 
-	if (!nfs_have_delegated_attributes(inode)) {
+	if (!nfs4_have_delegation(inode, FMODE_READ)) {
 		res.fattr = nfs_alloc_fattr();
 		if (res.fattr == NULL)
 			return -ENOMEM;
