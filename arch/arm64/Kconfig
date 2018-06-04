@@ -158,10 +158,6 @@ config ARM64_CONT_SHIFT
 config NO_IOPORT_MAP
 	def_bool y if !PCI
 
-config ILLEGAL_POINTER_VALUE
-	hex
-	default 0xdead000000000000
-
 config STACKTRACE_SUPPORT
 	def_bool y
 
