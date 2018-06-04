@@ -227,6 +227,19 @@ static u32 guc_ctl_debug_flags(struct intel_guc *guc)
 	return flags;
 }
 
+static u32 guc_ctl_feature_flags(struct intel_guc *guc)
+{
+	u32 flags = 0;
+
+	flags |=  GUC_CTL_VCS2_ENABLED;
+
+	if (USES_GUC_SUBMISSION(guc_to_i915(guc)))
+		flags |= GUC_CTL_KERNEL_SUBMISSIONS;
+	else
+		flags |= GUC_CTL_DISABLE_SCHEDULER;
+
+	return flags;
+}
 /*
  * Initialise the GuC parameter block before starting the firmware
  * transfer. These parameters are read by the firmware on startup
@@ -250,9 +263,7 @@ void intel_guc_init_params(struct intel_guc *guc)
 
 	params[GUC_CTL_WA] |= GUC_CTL_WA_UK_BY_DRIVER;
 
-	params[GUC_CTL_FEATURE] |= GUC_CTL_DISABLE_SCHEDULER |
-			GUC_CTL_VCS2_ENABLED;
-
+	params[GUC_CTL_FEATURE] = guc_ctl_feature_flags(guc);
 	params[GUC_CTL_LOG_PARAMS] = guc->log.flags;
 
 	params[GUC_CTL_DEBUG] = guc_ctl_debug_flags(guc);
@@ -265,11 +276,6 @@ void intel_guc_init_params(struct intel_guc *guc)
 		pgs >>= PAGE_SHIFT;
 		params[GUC_CTL_CTXINFO] = (pgs << GUC_CTL_BASE_ADDR_SHIFT) |
 			(ctx_in_16 << GUC_CTL_CTXNUM_IN16_SHIFT);
-
-		params[GUC_CTL_FEATURE] |= GUC_CTL_KERNEL_SUBMISSIONS;
-
-		/* Unmask this bit to enable the GuC's internal scheduler */
-		params[GUC_CTL_FEATURE] &= ~GUC_CTL_DISABLE_SCHEDULER;
 	}
 
 	/*
