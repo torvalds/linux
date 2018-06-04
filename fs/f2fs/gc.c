@@ -473,11 +473,15 @@ static void gc_node_segment(struct f2fs_sb_info *sbi,
 	block_t start_addr;
 	int off;
 	int phase = 0;
+	bool fggc = (gc_type == FG_GC);
 
 	start_addr = START_BLOCK(sbi, segno);
 
 next_step:
 	entry = sum;
+
+	if (fggc && phase == 2)
+		atomic_inc(&sbi->wb_sync_req[NODE]);
 
 	for (off = 0; off < sbi->blocks_per_seg; off++, entry++) {
 		nid_t nid = le32_to_cpu(entry->nid);
@@ -525,6 +529,9 @@ next_step:
 
 	if (++phase < 3)
 		goto next_step;
+
+	if (fggc)
+		atomic_dec(&sbi->wb_sync_req[NODE]);
 }
 
 /*
