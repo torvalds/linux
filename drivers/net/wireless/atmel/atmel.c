@@ -2646,14 +2646,9 @@ static int atmel_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 			break;
 		}
 
-		if (!(new_firmware = kmalloc(com.len, GFP_KERNEL))) {
-			rc = -ENOMEM;
-			break;
-		}
-
-		if (copy_from_user(new_firmware, com.data, com.len)) {
-			kfree(new_firmware);
-			rc = -EFAULT;
+		new_firmware = memdup_user(com.data, com.len);
+		if (IS_ERR(new_firmware)) {
+			rc = PTR_ERR(new_firmware);
 			break;
 		}
 
