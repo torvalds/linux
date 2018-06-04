@@ -802,8 +802,8 @@
 					type = "passive";
 				};
 				soc_crit: soc-crit {
-					temperature = <95000>;
-					hysteresis = <2000>;
+					temperature = <115000>; /* millicelsius */
+					hysteresis = <2000>; /* millicelsius */
 					type = "critical";
 				};
 			};
@@ -849,7 +849,7 @@
 		resets = <&cru SRST_TSADC>;
 		reset-names = "tsadc-apb";
 		rockchip,grf = <&grf>;
-		rockchip,hw-tshut-temp = <95000>;
+		rockchip,hw-tshut-temp = <120000>;
 		pinctrl-names = "init", "default", "sleep";
 		pinctrl-0 = <&otp_gpio>;
 		pinctrl-1 = <&otp_out>;

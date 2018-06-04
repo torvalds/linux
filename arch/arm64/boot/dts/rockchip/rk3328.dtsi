@@ -536,7 +536,7 @@
 					type = "passive";
 				};
 				soc_crit: soc-crit {
-					temperature = <95000>;
+					temperature = <115000>;
 					hysteresis = <2000>;
 					type = "critical";
 				};
@@ -583,7 +583,7 @@
 		resets = <&cru SRST_TSADC>;
 		reset-names = "tsadc-apb";
 		rockchip,grf = <&grf>;
-		rockchip,hw-tshut-temp = <100000>;
+		rockchip,hw-tshut-temp = <120000>;
 		#thermal-sensor-cells = <1>;
 		status = "disabled";
 	};

@@ -497,8 +497,8 @@
 					hysteresis = <2000>; /* millicelsius */
 					type = "passive";
 				};
-				cpu_crit: cpu_crit {
-					temperature = <90000>; /* millicelsius */
+				soc_crit: soc-crit {
+					temperature = <115000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "critical";
 				};
@@ -560,7 +560,8 @@
 		pinctrl-1 = <&otp_out>;
 		pinctrl-2 = <&otp_gpio>;
 		#thermal-sensor-cells = <1>;
-		rockchip,hw-tshut-temp = <95000>;
+		rockchip,hw-tshut-temp = <120000>;
+		rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
 		status = "disabled";
 	};
 
