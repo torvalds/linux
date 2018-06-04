@@ -937,14 +937,13 @@ static int qed_cxt_src_t2_alloc(struct qed_hwfn *p_hwfn)
 		u32 size = min_t(u32, total_size, psz);
 		void **p_virt = &p_mngr->t2[i].p_virt;
 
-		*p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
-					     size,
-					     &p_mngr->t2[i].p_phys, GFP_KERNEL);
+		*p_virt = dma_zalloc_coherent(&p_hwfn->cdev->pdev->dev,
+					      size, &p_mngr->t2[i].p_phys,
+					      GFP_KERNEL);
 		if (!p_mngr->t2[i].p_virt) {
 			rc = -ENOMEM;
 			goto t2_fail;
 		}
-		memset(*p_virt, 0, size);
 		p_mngr->t2[i].size = size;
 		total_size -= size;
 	}
