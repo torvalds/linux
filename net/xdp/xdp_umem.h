@@ -6,27 +6,7 @@
 #ifndef XDP_UMEM_H_
 #define XDP_UMEM_H_
 
-#include <linux/mm.h>
-#include <linux/if_xdp.h>
-#include <linux/workqueue.h>
-
-#include "xsk_queue.h"
-#include "xdp_umem_props.h"
-
-struct xdp_umem {
-	struct xsk_queue *fq;
-	struct xsk_queue *cq;
-	struct page **pgs;
-	struct xdp_umem_props props;
-	u32 headroom;
-	u32 chunk_size_nohr;
-	struct user_struct *user;
-	struct pid *pid;
-	unsigned long address;
-	refcount_t users;
-	struct work_struct work;
-	u32 npgs;
-};
+#include <net/xdp_sock.h>
 
 static inline char *xdp_umem_get_data(struct xdp_umem *umem, u64 addr)
 {
