@@ -1274,7 +1274,7 @@ static int tc_del_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 			       prio, false);
 	if (!tp || IS_ERR(tp)) {
 		NL_SET_ERR_MSG(extack, "Filter with specified priority/protocol not found");
-		err = PTR_ERR(tp);
+		err = tp ? PTR_ERR(tp) : -ENOENT;
 		goto errout;
 	} else if (tca[TCA_KIND] && nla_strcmp(tca[TCA_KIND], tp->ops->kind)) {
 		NL_SET_ERR_MSG(extack, "Specified filter kind does not match existing one");
@@ -1374,7 +1374,7 @@ static int tc_get_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 			       prio, false);
 	if (!tp || IS_ERR(tp)) {
 		NL_SET_ERR_MSG(extack, "Filter with specified priority/protocol not found");
-		err = PTR_ERR(tp);
+		err = tp ? PTR_ERR(tp) : -ENOENT;
 		goto errout;
 	} else if (tca[TCA_KIND] && nla_strcmp(tca[TCA_KIND], tp->ops->kind)) {
 		NL_SET_ERR_MSG(extack, "Specified filter kind does not match existing one");
