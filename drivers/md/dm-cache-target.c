@@ -447,9 +447,9 @@ struct cache {
 	struct work_struct migration_worker;
 	struct delayed_work waker;
 	struct dm_bio_prison_v2 *prison;
-	struct bio_set *bs;
+	struct bio_set bs;
 
-	mempool_t *migration_pool;
+	mempool_t migration_pool;
 
 	struct dm_cache_policy *policy;
 	unsigned policy_nr_args;
@@ -550,7 +550,7 @@ static struct dm_cache_migration *alloc_migration(struct cache *cache)
 {
 	struct dm_cache_migration *mg;
 
-	mg = mempool_alloc(cache->migration_pool, GFP_NOWAIT);
+	mg = mempool_alloc(&cache->migration_pool, GFP_NOWAIT);
 	if (!mg)
 		return NULL;
 
@@ -569,7 +569,7 @@ static void free_migration(struct dm_cache_migration *mg)
 	if (atomic_dec_and_test(&cache->nr_allocated_migrations))
 		wake_up(&cache->migration_wait);
 
-	mempool_free(mg, cache->migration_pool);
+	mempool_free(mg, &cache->migration_pool);
 }
 
 /*----------------------------------------------------------------*/
@@ -924,7 +924,7 @@ static void issue_op(struct bio *bio, void *context)
 static void remap_to_origin_and_cache(struct cache *cache, struct bio *bio,
 				      dm_oblock_t oblock, dm_cblock_t cblock)
 {
-	struct bio *origin_bio = bio_clone_fast(bio, GFP_NOIO, cache->bs);
+	struct bio *origin_bio = bio_clone_fast(bio, GFP_NOIO, &cache->bs);
 
 	BUG_ON(!origin_bio);
 
@@ -2011,7 +2011,7 @@ static void destroy(struct cache *cache)
 {
 	unsigned i;
 
-	mempool_destroy(cache->migration_pool);
+	mempool_exit(&cache->migration_pool);
 
 	if (cache->prison)
 		dm_bio_prison_destroy_v2(cache->prison);
@@ -2047,8 +2047,7 @@ static void destroy(struct cache *cache)
 		kfree(cache->ctr_args[i]);
 	kfree(cache->ctr_args);
 
-	if (cache->bs)
-		bioset_free(cache->bs);
+	bioset_exit(&cache->bs);
 
 	kfree(cache);
 }
@@ -2498,8 +2497,8 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 	cache->features = ca->features;
 	if (writethrough_mode(cache)) {
 		/* Create bioset for writethrough bios issued to origin */
-		cache->bs = bioset_create(BIO_POOL_SIZE, 0, 0);
-		if (!cache->bs)
+		r = bioset_init(&cache->bs, BIO_POOL_SIZE, 0, 0);
+		if (r)
 			goto bad;
 	}
 
@@ -2630,9 +2629,9 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 		goto bad;
 	}
 
-	cache->migration_pool = mempool_create_slab_pool(MIGRATION_POOL_SIZE,
-							 migration_cache);
-	if (!cache->migration_pool) {
+	r = mempool_init_slab_pool(&cache->migration_pool, MIGRATION_POOL_SIZE,
+				   migration_cache);
+	if (r) {
 		*error = "Error creating cache's migration mempool";
 		goto bad;
 	}

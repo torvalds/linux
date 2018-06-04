@@ -5192,7 +5192,7 @@ static int raid5_read_one_chunk(struct mddev *mddev, struct bio *raid_bio)
 	/*
 	 * use bio_clone_fast to make a copy of the bio
 	 */
-	align_bi = bio_clone_fast(raid_bio, GFP_NOIO, mddev->bio_set);
+	align_bi = bio_clone_fast(raid_bio, GFP_NOIO, &mddev->bio_set);
 	if (!align_bi)
 		return 0;
 	/*
@@ -5277,7 +5277,7 @@ static struct bio *chunk_aligned_read(struct mddev *mddev, struct bio *raid_bio)
 
 	if (sectors < bio_sectors(raid_bio)) {
 		struct r5conf *conf = mddev->private;
-		split = bio_split(raid_bio, sectors, GFP_NOIO, conf->bio_split);
+		split = bio_split(raid_bio, sectors, GFP_NOIO, &conf->bio_split);
 		bio_chain(split, raid_bio);
 		generic_make_request(raid_bio);
 		raid_bio = split;
@@ -6773,8 +6773,7 @@ static void free_conf(struct r5conf *conf)
 		if (conf->disks[i].extra_page)
 			put_page(conf->disks[i].extra_page);
 	kfree(conf->disks);
-	if (conf->bio_split)
-		bioset_free(conf->bio_split);
+	bioset_exit(&conf->bio_split);
 	kfree(conf->stripe_hashtbl);
 	kfree(conf->pending_data);
 	kfree(conf);
@@ -6853,6 +6852,7 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 	int i;
 	int group_cnt, worker_cnt_per_group;
 	struct r5worker_group *new_group;
+	int ret;
 
 	if (mddev->new_level != 5
 	    && mddev->new_level != 4
@@ -6950,8 +6950,8 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 			goto abort;
 	}
 
-	conf->bio_split = bioset_create(BIO_POOL_SIZE, 0, 0);
-	if (!conf->bio_split)
+	ret = bioset_init(&conf->bio_split, BIO_POOL_SIZE, 0, 0);
+	if (ret)
 		goto abort;
 	conf->mddev = mddev;
 

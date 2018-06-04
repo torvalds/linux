@@ -16,97 +16,6 @@
 
 #include "pblk.h"
 
-void pblk_submit_rec(struct work_struct *work)
-{
-	struct pblk_rec_ctx *recovery =
-			container_of(work, struct pblk_rec_ctx, ws_rec);
-	struct pblk *pblk = recovery->pblk;
-	struct nvm_rq *rqd = recovery->rqd;
-	struct pblk_c_ctx *c_ctx = nvm_rq_to_pdu(rqd);
-	struct bio *bio;
-	unsigned int nr_rec_secs;
-	unsigned int pgs_read;
-	int ret;
-
-	nr_rec_secs = bitmap_weight((unsigned long int *)&rqd->ppa_status,
-								NVM_MAX_VLBA);
-
-	bio = bio_alloc(GFP_KERNEL, nr_rec_secs);
-
-	bio->bi_iter.bi_sector = 0;
-	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
-	rqd->bio = bio;
-	rqd->nr_ppas = nr_rec_secs;
-
-	pgs_read = pblk_rb_read_to_bio_list(&pblk->rwb, bio, &recovery->failed,
-								nr_rec_secs);
-	if (pgs_read != nr_rec_secs) {
-		pr_err("pblk: could not read recovery entries\n");
-		goto err;
-	}
-
-	if (pblk_setup_w_rec_rq(pblk, rqd, c_ctx)) {
-		pr_err("pblk: could not setup recovery request\n");
-		goto err;
-	}
-
-#ifdef CONFIG_NVM_DEBUG
-	atomic_long_add(nr_rec_secs, &pblk->recov_writes);
-#endif
-
-	ret = pblk_submit_io(pblk, rqd);
-	if (ret) {
-		pr_err("pblk: I/O submission failed: %d\n", ret);
-		goto err;
-	}
-
-	mempool_free(recovery, pblk->rec_pool);
-	return;
-
-err:
-	bio_put(bio);
-	pblk_free_rqd(pblk, rqd, PBLK_WRITE);
-}
-
-int pblk_recov_setup_rq(struct pblk *pblk, struct pblk_c_ctx *c_ctx,
-			struct pblk_rec_ctx *recovery, u64 *comp_bits,
-			unsigned int comp)
-{
-	struct nvm_rq *rec_rqd;
-	struct pblk_c_ctx *rec_ctx;
-	int nr_entries = c_ctx->nr_valid + c_ctx->nr_padded;
-
-	rec_rqd = pblk_alloc_rqd(pblk, PBLK_WRITE);
-	rec_ctx = nvm_rq_to_pdu(rec_rqd);
-
-	/* Copy completion bitmap, but exclude the first X completed entries */
-	bitmap_shift_right((unsigned long int *)&rec_rqd->ppa_status,
-				(unsigned long int *)comp_bits,
-				comp, NVM_MAX_VLBA);
-
-	/* Save the context for the entries that need to be re-written and
-	 * update current context with the completed entries.
-	 */
-	rec_ctx->sentry = pblk_rb_wrap_pos(&pblk->rwb, c_ctx->sentry + comp);
-	if (comp >= c_ctx->nr_valid) {
-		rec_ctx->nr_valid = 0;
-		rec_ctx->nr_padded = nr_entries - comp;
-
-		c_ctx->nr_padded = comp - c_ctx->nr_valid;
-	} else {
-		rec_ctx->nr_valid = c_ctx->nr_valid - comp;
-		rec_ctx->nr_padded = c_ctx->nr_padded;
-
-		c_ctx->nr_valid = comp;
-		c_ctx->nr_padded = 0;
-	}
-
-	recovery->rqd = rec_rqd;
-	recovery->pblk = pblk;
-
-	return 0;
-}
-
 int pblk_recov_check_emeta(struct pblk *pblk, struct line_emeta *emeta_buf)
 {
 	u32 crc;
@@ -865,18 +774,30 @@ static void pblk_recov_wa_counters(struct pblk *pblk,
 }
 
 static int pblk_line_was_written(struct pblk_line *line,
-			    struct pblk_line_meta *lm)
+			    struct pblk *pblk)
 {
 
-	int i;
-	int state_mask = NVM_CHK_ST_OFFLINE | NVM_CHK_ST_FREE;
+	struct pblk_line_meta *lm = &pblk->lm;
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
+	struct nvm_chk_meta *chunk;
+	struct ppa_addr bppa;
+	int smeta_blk;
 
-	for (i = 0; i < lm->blk_per_line; i++) {
-		if (!(line->chks[i].state & state_mask))
-			return 1;
-	}
+	if (line->state == PBLK_LINESTATE_BAD)
+		return 0;
 
-	return 0;
+	smeta_blk = find_first_zero_bit(line->blk_bitmap, lm->blk_per_line);
+	if (smeta_blk >= lm->blk_per_line)
+		return 0;
+
+	bppa = pblk->luns[smeta_blk].bppa;
+	chunk = &line->chks[pblk_ppa_to_pos(geo, bppa)];
+
+	if (chunk->state & NVM_CHK_ST_FREE)
+		return 0;
+
+	return 1;
 }
 
 struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
@@ -915,7 +836,7 @@ struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 		line->lun_bitmap = ((void *)(smeta_buf)) +
 						sizeof(struct line_smeta);
 
-		if (!pblk_line_was_written(line, lm))
+		if (!pblk_line_was_written(line, pblk))
 			continue;
 
 		/* Lines that cannot be read are assumed as not written here */

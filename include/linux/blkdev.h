@@ -125,14 +125,21 @@ typedef __u32 __bitwise req_flags_t;
 #define RQF_SPECIAL_PAYLOAD	((__force req_flags_t)(1 << 18))
 /* The per-zone write lock is held for this request */
 #define RQF_ZONE_WRITE_LOCKED	((__force req_flags_t)(1 << 19))
-/* timeout is expired */
-#define RQF_MQ_TIMEOUT_EXPIRED	((__force req_flags_t)(1 << 20))
 /* already slept for hybrid poll */
-#define RQF_MQ_POLL_SLEPT	((__force req_flags_t)(1 << 21))
+#define RQF_MQ_POLL_SLEPT	((__force req_flags_t)(1 << 20))
 
 /* flags that prevent us from merging requests: */
 #define RQF_NOMERGE_FLAGS \
 	(RQF_STARTED | RQF_SOFTBARRIER | RQF_FLUSH_SEQ | RQF_SPECIAL_PAYLOAD)
+
+/*
+ * Request state for blk-mq.
+ */
+enum mq_rq_state {
+	MQ_RQ_IDLE		= 0,
+	MQ_RQ_IN_FLIGHT		= 1,
+	MQ_RQ_COMPLETE		= 2,
+};
 
 /*
  * Try to put the fields that are referenced together in the same cacheline.
@@ -205,9 +212,20 @@ struct request {
 
 	struct gendisk *rq_disk;
 	struct hd_struct *part;
-	unsigned long start_time;
-	struct blk_issue_stat issue_stat;
-	/* Number of scatter-gather DMA addr+len pairs after
+	/* Time that I/O was submitted to the kernel. */
+	u64 start_time_ns;
+	/* Time that I/O was submitted to the device. */
+	u64 io_start_time_ns;
+
+#ifdef CONFIG_BLK_WBT
+	unsigned short wbt_flags;
+#endif
+#ifdef CONFIG_BLK_DEV_THROTTLING_LOW
+	unsigned short throtl_size;
+#endif
+
+	/*
+	 * Number of scatter-gather DMA addr+len pairs after
 	 * physical address coalescing is performed.
 	 */
 	unsigned short nr_phys_segments;
@@ -219,32 +237,14 @@ struct request {
 	unsigned short write_hint;
 	unsigned short ioprio;
 
-	unsigned int timeout;
-
 	void *special;		/* opaque pointer available for LLD use */
 
 	unsigned int extra_len;	/* length of alignment and padding */
 
-	/*
-	 * On blk-mq, the lower bits of ->gstate (generation number and
-	 * state) carry the MQ_RQ_* state value and the upper bits the
-	 * generation number which is monotonically incremented and used to
-	 * distinguish the reuse instances.
-	 *
-	 * ->gstate_seq allows updates to ->gstate and other fields
-	 * (currently ->deadline) during request start to be read
-	 * atomically from the timeout path, so that it can operate on a
-	 * coherent set of information.
-	 */
-	seqcount_t gstate_seq;
-	u64 gstate;
+	enum mq_rq_state state;
+	refcount_t ref;
 
-	/*
-	 * ->aborted_gstate is used by the timeout to claim a specific
-	 * recycle instance of this request.  See blk_mq_timeout_work().
-	 */
-	struct u64_stats_sync aborted_gstate_sync;
-	u64 aborted_gstate;
+	unsigned int timeout;
 
 	/* access through blk_rq_set_deadline, blk_rq_deadline */
 	unsigned long __deadline;
@@ -267,8 +267,6 @@ struct request {
 
 #ifdef CONFIG_BLK_CGROUP
 	struct request_list *rl;		/* rl this rq is alloced from */
-	unsigned long long start_time_ns;
-	unsigned long long io_start_time_ns;    /* when passed to hardware */
 #endif
 };
 
@@ -328,9 +326,8 @@ typedef int (init_rq_fn)(struct request_queue *, struct request *, gfp_t);
 typedef void (exit_rq_fn)(struct request_queue *, struct request *);
 
 enum blk_eh_timer_return {
-	BLK_EH_NOT_HANDLED,
-	BLK_EH_HANDLED,
-	BLK_EH_RESET_TIMER,
+	BLK_EH_DONE,		/* drivers has completed the command */
+	BLK_EH_RESET_TIMER,	/* reset timer and try again */
 };
 
 typedef enum blk_eh_timer_return (rq_timed_out_fn)(struct request *);
@@ -655,7 +652,7 @@ struct request_queue {
 
 	struct blk_mq_tag_set	*tag_set;
 	struct list_head	tag_set_list;
-	struct bio_set		*bio_split;
+	struct bio_set		bio_split;
 
 #ifdef CONFIG_BLK_DEBUG_FS
 	struct dentry		*debugfs_dir;
@@ -967,11 +964,8 @@ extern void blk_rq_init(struct request_queue *q, struct request *rq);
 extern void blk_init_request_from_bio(struct request *req, struct bio *bio);
 extern void blk_put_request(struct request *);
 extern void __blk_put_request(struct request_queue *, struct request *);
-extern struct request *blk_get_request_flags(struct request_queue *,
-					     unsigned int op,
-					     blk_mq_req_flags_t flags);
 extern struct request *blk_get_request(struct request_queue *, unsigned int op,
-				       gfp_t gfp_mask);
+				       blk_mq_req_flags_t flags);
 extern void blk_requeue_request(struct request_queue *, struct request *);
 extern int blk_lld_busy(struct request_queue *q);
 extern int blk_rq_prep_clone(struct request *rq, struct request *rq_src,
@@ -1787,48 +1781,6 @@ static inline bool req_gap_front_merge(struct request *req, struct bio *bio)
 int kblockd_schedule_work(struct work_struct *work);
 int kblockd_schedule_work_on(int cpu, struct work_struct *work);
 int kblockd_mod_delayed_work_on(int cpu, struct delayed_work *dwork, unsigned long delay);
-
-#ifdef CONFIG_BLK_CGROUP
-/*
- * This should not be using sched_clock(). A real patch is in progress
- * to fix this up, until that is in place we need to disable preemption
- * around sched_clock() in this function and set_io_start_time_ns().
- */
-static inline void set_start_time_ns(struct request *req)
-{
-	preempt_disable();
-	req->start_time_ns = sched_clock();
-	preempt_enable();
-}
-
-static inline void set_io_start_time_ns(struct request *req)
-{
-	preempt_disable();
-	req->io_start_time_ns = sched_clock();
-	preempt_enable();
-}
-
-static inline uint64_t rq_start_time_ns(struct request *req)
-{
-        return req->start_time_ns;
-}
-
-static inline uint64_t rq_io_start_time_ns(struct request *req)
-{
-        return req->io_start_time_ns;
-}
-#else
-static inline void set_start_time_ns(struct request *req) {}
-static inline void set_io_start_time_ns(struct request *req) {}
-static inline uint64_t rq_start_time_ns(struct request *req)
-{
-	return 0;
-}
-static inline uint64_t rq_io_start_time_ns(struct request *req)
-{
-	return 0;
-}
-#endif
 
 #define MODULE_ALIAS_BLOCKDEV(major,minor) \
 	MODULE_ALIAS("block-major-" __stringify(major) "-" __stringify(minor))

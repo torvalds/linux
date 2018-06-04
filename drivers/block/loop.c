@@ -732,7 +732,7 @@ static ssize_t loop_attr_do_show_##_name(struct device *d,		\
 	return loop_attr_show(d, b, loop_attr_##_name##_show);		\
 }									\
 static struct device_attribute loop_attr_##_name =			\
-	__ATTR(_name, S_IRUGO, loop_attr_do_show_##_name, NULL);
+	__ATTR(_name, 0444, loop_attr_do_show_##_name, NULL);
 
 static ssize_t loop_attr_backing_file_show(struct loop_device *lo, char *buf)
 {
@@ -809,16 +809,17 @@ static struct attribute_group loop_attribute_group = {
 	.attrs= loop_attrs,
 };
 
-static int loop_sysfs_init(struct loop_device *lo)
+static void loop_sysfs_init(struct loop_device *lo)
 {
-	return sysfs_create_group(&disk_to_dev(lo->lo_disk)->kobj,
-				  &loop_attribute_group);
+	lo->sysfs_inited = !sysfs_create_group(&disk_to_dev(lo->lo_disk)->kobj,
+						&loop_attribute_group);
 }
 
 static void loop_sysfs_exit(struct loop_device *lo)
 {
-	sysfs_remove_group(&disk_to_dev(lo->lo_disk)->kobj,
-			   &loop_attribute_group);
+	if (lo->sysfs_inited)
+		sysfs_remove_group(&disk_to_dev(lo->lo_disk)->kobj,
+				   &loop_attribute_group);
 }
 
 static void loop_config_discard(struct loop_device *lo)
@@ -1677,9 +1678,9 @@ static const struct block_device_operations lo_fops = {
  * And now the modules code and kernel interface.
  */
 static int max_loop;
-module_param(max_loop, int, S_IRUGO);
+module_param(max_loop, int, 0444);
 MODULE_PARM_DESC(max_loop, "Maximum number of loop devices");
-module_param(max_part, int, S_IRUGO);
+module_param(max_part, int, 0444);
 MODULE_PARM_DESC(max_part, "Maximum number of partitions per loop device");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_BLOCKDEV_MAJOR(LOOP_MAJOR);

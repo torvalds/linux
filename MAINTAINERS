@@ -9700,7 +9700,7 @@ S:	Maintained
 F:	drivers/net/ethernet/netronome/
 
 NETWORK BLOCK DEVICE (NBD)
-M:	Josef Bacik <jbacik@fb.com>
+M:	Josef Bacik <josef@toxicpanda.com>
 S:	Maintained
 L:	linux-block@vger.kernel.org
 L:	nbd@other.debian.org

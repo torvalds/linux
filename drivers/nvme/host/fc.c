@@ -1686,16 +1686,6 @@ done:
 		goto check_error;
 	}
 
-	/*
-	 * Force failures of commands if we're killing the controller
-	 * or have an error on a command used to create an new association
-	 */
-	if (status &&
-	    (blk_queue_dying(rq->q) ||
-	     ctrl->ctrl.state == NVME_CTRL_NEW ||
-	     ctrl->ctrl.state == NVME_CTRL_CONNECTING))
-		status |= cpu_to_le16(NVME_SC_DNR << 1);
-
 	__nvme_fc_fcpop_chk_teardowns(ctrl, op, opstate);
 	nvme_end_request(rq, status, result);
 
@@ -2402,9 +2392,6 @@ nvme_fc_terminate_exchange(struct request *req, void *data, bool reserved)
 	struct nvme_ctrl *nctrl = data;
 	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(nctrl);
 	struct nvme_fc_fcp_op *op = blk_mq_rq_to_pdu(req);
-
-	if (!blk_mq_request_started(req))
-		return;
 
 	__nvme_fc_abort_op(ctrl, op);
 }
@@ -3284,6 +3271,8 @@ nvme_fc_create_ctrl(struct device *dev, struct nvmf_ctrl_options *opts)
 	}
 	spin_unlock_irqrestore(&nvme_fc_lock, flags);
 
+	pr_warn("%s: %s - %s combination not found\n",
+		__func__, opts->traddr, opts->host_traddr);
 	return ERR_PTR(-ENOENT);
 }
 

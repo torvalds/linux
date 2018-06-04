@@ -431,7 +431,7 @@ int ide_raw_taskfile(ide_drive_t *drive, struct ide_cmd *cmd, u8 *buf,
 
 	rq = blk_get_request(drive->queue,
 		(cmd->tf_flags & IDE_TFLAG_WRITE) ?
-			REQ_OP_DRV_OUT : REQ_OP_DRV_IN, __GFP_RECLAIM);
+			REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
 	ide_req(rq)->type = ATA_PRIV_TASKFILE;
 
 	/*
@@ -442,7 +442,7 @@ int ide_raw_taskfile(ide_drive_t *drive, struct ide_cmd *cmd, u8 *buf,
 	 */
 	if (nsect) {
 		error = blk_rq_map_kern(drive->queue, rq, buf,
-					nsect * SECTOR_SIZE, __GFP_RECLAIM);
+					nsect * SECTOR_SIZE, GFP_NOIO);
 		if (error)
 			goto put_req;
 	}

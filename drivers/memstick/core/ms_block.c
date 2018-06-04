@@ -2094,13 +2094,8 @@ static const struct block_device_operations msb_bdops = {
 static int msb_init_disk(struct memstick_dev *card)
 {
 	struct msb_data *msb = memstick_get_drvdata(card);
-	struct memstick_host *host = card->host;
 	int rc;
-	u64 limit = BLK_BOUNCE_HIGH;
 	unsigned long capacity;
-
-	if (host->dev.dma_mask && *(host->dev.dma_mask))
-		limit = *(host->dev.dma_mask);
 
 	mutex_lock(&msb_disk_lock);
 	msb->disk_id = idr_alloc(&msb_disk_idr, card, 0, 256, GFP_KERNEL);
@@ -2123,7 +2118,6 @@ static int msb_init_disk(struct memstick_dev *card)
 
 	msb->queue->queuedata = card;
 
-	blk_queue_bounce_limit(msb->queue, limit);
 	blk_queue_max_hw_sectors(msb->queue, MS_BLOCK_MAX_PAGES);
 	blk_queue_max_segments(msb->queue, MS_BLOCK_MAX_SEGS);
 	blk_queue_max_segment_size(msb->queue,

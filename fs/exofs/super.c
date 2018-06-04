@@ -229,7 +229,7 @@ void exofs_make_credential(u8 cred_a[OSD_CAP_LEN], const struct osd_obj_id *obj)
 static int exofs_read_kern(struct osd_dev *od, u8 *cred, struct osd_obj_id *obj,
 		    u64 offset, void *p, unsigned length)
 {
-	struct osd_request *or = osd_start_request(od, GFP_KERNEL);
+	struct osd_request *or = osd_start_request(od);
 /*	struct osd_sense_info osi = {.key = 0};*/
 	int ret;
 

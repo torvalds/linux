@@ -854,7 +854,7 @@ static int idetape_queue_rw_tail(ide_drive_t *drive, int cmd, int size)
 	BUG_ON(cmd != REQ_IDETAPE_READ && cmd != REQ_IDETAPE_WRITE);
 	BUG_ON(size < 0 || size % tape->blk_size);
 
-	rq = blk_get_request(drive->queue, REQ_OP_DRV_IN, __GFP_RECLAIM);
+	rq = blk_get_request(drive->queue, REQ_OP_DRV_IN, 0);
 	ide_req(rq)->type = ATA_PRIV_MISC;
 	scsi_req(rq)->cmd[13] = cmd;
 	rq->rq_disk = tape->disk;
@@ -862,7 +862,7 @@ static int idetape_queue_rw_tail(ide_drive_t *drive, int cmd, int size)
 
 	if (size) {
 		ret = blk_rq_map_kern(drive->queue, rq, tape->buf, size,
-				      __GFP_RECLAIM);
+				      GFP_NOIO);
 		if (ret)
 			goto out_put;
 	}

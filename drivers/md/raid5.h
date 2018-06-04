@@ -669,7 +669,7 @@ struct r5conf {
 	int			pool_size; /* number of disks in stripeheads in pool */
 	spinlock_t		device_lock;
 	struct disk_info	*disks;
-	struct bio_set		*bio_split;
+	struct bio_set		bio_split;
 
 	/* When taking over an array from a different personality, we store
 	 * the new thread here until we fully activate the array.

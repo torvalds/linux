@@ -1929,7 +1929,7 @@ static enum blk_eh_timer_return mptsas_eh_timed_out(struct scsi_cmnd *sc)
 	MPT_SCSI_HOST *hd;
 	MPT_ADAPTER   *ioc;
 	VirtDevice    *vdevice;
-	enum blk_eh_timer_return rc = BLK_EH_NOT_HANDLED;
+	enum blk_eh_timer_return rc = BLK_EH_DONE;
 
 	hd = shost_priv(sc->device->host);
 	if (hd == NULL) {
