@@ -560,18 +560,6 @@ struct sh_eth_private {
 	unsigned wol_enabled:1;
 };
 
-static inline void sh_eth_soft_swap(char *src, int len)
-{
-#ifdef __LITTLE_ENDIAN__
-	u32 *p = (u32 *)src;
-	u32 *maxp;
-	maxp = p + ((len + sizeof(u32) - 1) / sizeof(u32));
-
-	for (; p < maxp; p++)
-		*p = swab32(*p);
-#endif
-}
-
 static inline void *sh_eth_tsu_get_offset(struct sh_eth_private *mdp,
 					  int enum_index)
 {

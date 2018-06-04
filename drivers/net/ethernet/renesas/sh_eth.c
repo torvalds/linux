@@ -460,6 +460,17 @@ static u32 sh_eth_tsu_read(struct sh_eth_private *mdp, int enum_index)
 	return ioread32(mdp->tsu_addr + offset);
 }
 
+static void sh_eth_soft_swap(char *src, int len)
+{
+#ifdef __LITTLE_ENDIAN
+	u32 *p = (u32 *)src;
+	u32 *maxp = p + DIV_ROUND_UP(len, sizeof(u32));
+
+	for (; p < maxp; p++)
+		*p = swab32(*p);
+#endif
+}
+
 static void sh_eth_select_mii(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
