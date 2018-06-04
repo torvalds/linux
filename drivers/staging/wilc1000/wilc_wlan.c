@@ -398,16 +398,14 @@ static struct txq_entry_t *wilc_wlan_txq_get_next(struct wilc *wilc,
 	return tqe;
 }
 
-static int wilc_wlan_rxq_add(struct wilc *wilc, struct rxq_entry_t *rqe)
+static void wilc_wlan_rxq_add(struct wilc *wilc, struct rxq_entry_t *rqe)
 {
 	if (wilc->quit)
-		return 0;
+		return;
 
 	mutex_lock(&wilc->rxq_cs);
 	list_add_tail(&rqe->list, &wilc->rxq_head.list);
-	wilc->rxq_entries += 1;
 	mutex_unlock(&wilc->rxq_cs);
-	return wilc->rxq_entries;
 }
 
 static struct rxq_entry_t *wilc_wlan_rxq_remove(struct wilc *wilc)
@@ -419,7 +417,6 @@ static struct rxq_entry_t *wilc_wlan_rxq_remove(struct wilc *wilc)
 		rqe = list_first_entry(&wilc->rxq_head.list, struct rxq_entry_t,
 				       list);
 		list_del(&rqe->list);
-		wilc->rxq_entries -= 1;
 	}
 	mutex_unlock(&wilc->rxq_cs);
 	return rqe;
