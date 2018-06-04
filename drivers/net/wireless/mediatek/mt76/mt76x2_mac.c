@@ -439,15 +439,13 @@ mt76x2_mac_fill_tx_status(struct mt76x2_dev *dev,
 	if (last_rate < IEEE80211_TX_MAX_RATES - 1)
 		rate[last_rate + 1].idx = -1;
 
-	cur_idx = rate[last_rate].idx + st->retry;
+	cur_idx = rate[last_rate].idx + last_rate;
 	for (i = 0; i <= last_rate; i++) {
 		rate[i].flags = rate[last_rate].flags;
 		rate[i].idx = max_t(int, 0, cur_idx - i);
 		rate[i].count = 1;
 	}
-
-	if (last_rate > 0)
-		rate[last_rate - 1].count = st->retry + 1 - last_rate;
+	rate[last_rate].count = st->retry + 1 - last_rate;
 
 	info->status.ampdu_len = n_frames;
 	info->status.ampdu_ack_len = st->success ? n_frames : 0;
