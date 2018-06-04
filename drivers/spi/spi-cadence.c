@@ -319,7 +319,7 @@ static void cdns_spi_fill_tx_fifo(struct cdns_spi *xspi)
 		 */
 		if (cdns_spi_read(xspi, CDNS_SPI_ISR) &
 		    CDNS_SPI_IXR_TXFULL)
-			usleep_range(10, 20);
+			udelay(10);
 
 		if (xspi->txbuf)
 			cdns_spi_write(xspi, CDNS_SPI_TXD, *xspi->txbuf++);
