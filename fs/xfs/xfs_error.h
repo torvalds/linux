@@ -24,8 +24,9 @@ extern void xfs_error_report(const char *tag, int level, struct xfs_mount *mp,
 			const char *filename, int linenum,
 			xfs_failaddr_t failaddr);
 extern void xfs_corruption_error(const char *tag, int level,
-			struct xfs_mount *mp, void *p, const char *filename,
-			int linenum, xfs_failaddr_t failaddr);
+			struct xfs_mount *mp, void *buf, size_t bufsize,
+			const char *filename, int linenum,
+			xfs_failaddr_t failaddr);
 extern void xfs_buf_verifier_error(struct xfs_buf *bp, int error,
 			const char *name, void *buf, size_t bufsz,
 			xfs_failaddr_t failaddr);
@@ -37,8 +38,8 @@ extern void xfs_inode_verifier_error(struct xfs_inode *ip, int error,
 
 #define	XFS_ERROR_REPORT(e, lvl, mp)	\
 	xfs_error_report(e, lvl, mp, __FILE__, __LINE__, __return_address)
-#define	XFS_CORRUPTION_ERROR(e, lvl, mp, mem)	\
-	xfs_corruption_error(e, lvl, mp, mem, \
+#define	XFS_CORRUPTION_ERROR(e, lvl, mp, buf, bufsize)	\
+	xfs_corruption_error(e, lvl, mp, buf, bufsize, \
 			     __FILE__, __LINE__, __return_address)
 
 #define XFS_ERRLEVEL_OFF	0

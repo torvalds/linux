@@ -139,7 +139,8 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 		    ((char *)sfe >= ((char *)sf + dp->i_afp->if_bytes)))) {
 			XFS_CORRUPTION_ERROR("xfs_attr_shortform_list",
 					     XFS_ERRLEVEL_LOW,
-					     context->dp->i_mount, sfe);
+					     context->dp->i_mount, sfe,
+					     sizeof(*sfe));
 			kmem_free(sbuf);
 			return -EFSCORRUPTED;
 		}
@@ -241,7 +242,7 @@ xfs_attr_node_list_lookup(
 		if (magic != XFS_DA_NODE_MAGIC &&
 		    magic != XFS_DA3_NODE_MAGIC) {
 			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
-					node);
+					node, sizeof(*node));
 			goto out_corruptbuf;
 		}
 

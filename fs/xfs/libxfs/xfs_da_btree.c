@@ -306,7 +306,7 @@ xfs_da3_node_read(
 			break;
 		default:
 			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW,
-					tp->t_mountp, info);
+					tp->t_mountp, info, sizeof(*info));
 			xfs_trans_brelse(tp, *bpp);
 			*bpp = NULL;
 			return -EFSCORRUPTED;

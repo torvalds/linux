@@ -1932,7 +1932,8 @@ xfs_btree_lookup(
 				if (level != 0 || cur->bc_nlevels != 1) {
 					XFS_CORRUPTION_ERROR(__func__,
 							XFS_ERRLEVEL_LOW,
-							cur->bc_mp, block);
+							cur->bc_mp, block,
+							sizeof(*block));
 					return -EFSCORRUPTED;
 				}
 

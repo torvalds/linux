@@ -251,7 +251,8 @@ xfs_dir3_data_check(
 	if (!fa)
 		return;
 	xfs_corruption_error(__func__, XFS_ERRLEVEL_LOW, dp->i_mount,
-			bp->b_addr, __FILE__, __LINE__, fa);
+			bp->b_addr, BBTOB(bp->b_length), __FILE__, __LINE__,
+			fa);
 	ASSERT(0);
 }
 #endif
@@ -1157,7 +1158,7 @@ xfs_dir2_data_use_free(
 	return 0;
 corrupt:
 	xfs_corruption_error(__func__, XFS_ERRLEVEL_LOW, args->dp->i_mount,
-			hdr, __FILE__, __LINE__, fa);
+			hdr, sizeof(*hdr), __FILE__, __LINE__, fa);
 	return -EFSCORRUPTED;
 }
 
