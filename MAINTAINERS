@@ -11654,6 +11654,13 @@ F:	Documentation/devicetree/bindings/media/qcom,camss.txt
 F:	Documentation/media/v4l-drivers/qcom_camss.rst
 F:	drivers/media/platform/qcom/camss-8x16/
 
+QUALCOMM CPUFREQ DRIVER MSM8996/APQ8096
+M:  Ilia Lin <ilia.lin@gmail.com>
+L:  linux-pm@vger.kernel.org
+S:  Maintained
+F:  Documentation/devicetree/bindings/opp/kryo-cpufreq.txt
+F:  drivers/cpufreq/qcom-cpufreq-kryo.c
+
 QUALCOMM EMAC GIGABIT ETHERNET DRIVER
 M:	Timur Tabi <timur@codeaurora.org>
 L:	netdev@vger.kernel.org

@@ -1939,13 +1939,51 @@ static int intel_cpufreq_verify_policy(struct cpufreq_policy *policy)
 	return 0;
 }
 
+/* Use of trace in passive mode:
+ *
+ * In passive mode the trace core_busy field (also known as the
+ * performance field, and lablelled as such on the graphs; also known as
+ * core_avg_perf) is not needed and so is re-assigned to indicate if the
+ * driver call was via the normal or fast switch path. Various graphs
+ * output from the intel_pstate_tracer.py utility that include core_busy
+ * (or performance or core_avg_perf) have a fixed y-axis from 0 to 100%,
+ * so we use 10 to indicate the the normal path through the driver, and
+ * 90 to indicate the fast switch path through the driver.
+ * The scaled_busy field is not used, and is set to 0.
+ */
+
+#define	INTEL_PSTATE_TRACE_TARGET 10
+#define	INTEL_PSTATE_TRACE_FAST_SWITCH 90
+
+static void intel_cpufreq_trace(struct cpudata *cpu, unsigned int trace_type, int old_pstate)
+{
+	struct sample *sample;
+
+	if (!trace_pstate_sample_enabled())
+		return;
+
+	if (!intel_pstate_sample(cpu, ktime_get()))
+		return;
+
+	sample = &cpu->sample;
+	trace_pstate_sample(trace_type,
+		0,
+		old_pstate,
+		cpu->pstate.current_pstate,
+		sample->mperf,
+		sample->aperf,
+		sample->tsc,
+		get_avg_frequency(cpu),
+		fp_toint(cpu->iowait_boost * 100));
+}
+
 static int intel_cpufreq_target(struct cpufreq_policy *policy,
 				unsigned int target_freq,
 				unsigned int relation)
 {
 	struct cpudata *cpu = all_cpu_data[policy->cpu];
 	struct cpufreq_freqs freqs;
-	int target_pstate;
+	int target_pstate, old_pstate;
 
 	update_turbo_state();
 
@@ -1965,12 +2003,14 @@ static int intel_cpufreq_target(struct cpufreq_policy *policy,
 		break;
 	}
 	target_pstate = intel_pstate_prepare_request(cpu, target_pstate);
+	old_pstate = cpu->pstate.current_pstate;
 	if (target_pstate != cpu->pstate.current_pstate) {
 		cpu->pstate.current_pstate = target_pstate;
 		wrmsrl_on_cpu(policy->cpu, MSR_IA32_PERF_CTL,
 			      pstate_funcs.get_val(cpu, target_pstate));
 	}
 	freqs.new = target_pstate * cpu->pstate.scaling;
+	intel_cpufreq_trace(cpu, INTEL_PSTATE_TRACE_TARGET, old_pstate);
 	cpufreq_freq_transition_end(policy, &freqs, false);
 
 	return 0;
@@ -1980,13 +2020,15 @@ static unsigned int intel_cpufreq_fast_switch(struct cpufreq_policy *policy,
 					      unsigned int target_freq)
 {
 	struct cpudata *cpu = all_cpu_data[policy->cpu];
-	int target_pstate;
+	int target_pstate, old_pstate;
 
 	update_turbo_state();
 
 	target_pstate = DIV_ROUND_UP(target_freq, cpu->pstate.scaling);
 	target_pstate = intel_pstate_prepare_request(cpu, target_pstate);
+	old_pstate = cpu->pstate.current_pstate;
 	intel_pstate_update_pstate(cpu, target_pstate);
+	intel_cpufreq_trace(cpu, INTEL_PSTATE_TRACE_FAST_SWITCH, old_pstate);
 	return target_pstate * cpu->pstate.scaling;
 }
 
