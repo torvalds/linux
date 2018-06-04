@@ -5618,13 +5618,16 @@ nfs4_init_nonuniform_client_string(struct nfs_client *clp)
 		return 0;
 
 	rcu_read_lock();
-	len = 14 + strlen(clp->cl_ipaddr) + 1 +
+	len = 14 +
+		strlen(clp->cl_rpcclient->cl_nodename) +
+		1 +
 		strlen(rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_ADDR)) +
 		1 +
 		strlen(rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_PROTO)) +
 		1;
 	rcu_read_unlock();
-
+	if (nfs4_client_id_uniquifier[0] != '\0')
+		len += strlen(nfs4_client_id_uniquifier) + 1;
 	if (len > NFS4_OPAQUE_LIMIT + 1)
 		return -EINVAL;
 
@@ -5638,10 +5641,21 @@ nfs4_init_nonuniform_client_string(struct nfs_client *clp)
 		return -ENOMEM;
 
 	rcu_read_lock();
-	scnprintf(str, len, "Linux NFSv4.0 %s/%s %s",
-			clp->cl_ipaddr,
-			rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_ADDR),
-			rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_PROTO));
+	if (nfs4_client_id_uniquifier[0] != '\0')
+		scnprintf(str, len, "Linux NFSv4.0 %s/%s/%s %s",
+			  clp->cl_rpcclient->cl_nodename,
+			  nfs4_client_id_uniquifier,
+			  rpc_peeraddr2str(clp->cl_rpcclient,
+					   RPC_DISPLAY_ADDR),
+			  rpc_peeraddr2str(clp->cl_rpcclient,
+					   RPC_DISPLAY_PROTO));
+	else
+		scnprintf(str, len, "Linux NFSv4.0 %s/%s %s",
+			  clp->cl_rpcclient->cl_nodename,
+			  rpc_peeraddr2str(clp->cl_rpcclient,
+					   RPC_DISPLAY_ADDR),
+			  rpc_peeraddr2str(clp->cl_rpcclient,
+					   RPC_DISPLAY_PROTO));
 	rcu_read_unlock();
 
 	clp->cl_owner_id = str;
