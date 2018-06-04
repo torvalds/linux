@@ -241,6 +241,23 @@ static u32 guc_ctl_feature_flags(struct intel_guc *guc)
 	return flags;
 }
 
+static u32 guc_ctl_ctxinfo_flags(struct intel_guc *guc)
+{
+	u32 flags = 0;
+
+	if (USES_GUC_SUBMISSION(guc_to_i915(guc))) {
+		u32 ctxnum, base;
+
+		base = intel_guc_ggtt_offset(guc, guc->stage_desc_pool);
+		ctxnum = GUC_MAX_STAGE_DESCRIPTORS / 16;
+
+		base >>= PAGE_SHIFT;
+		flags |= (base << GUC_CTL_BASE_ADDR_SHIFT) |
+			(ctxnum << GUC_CTL_CTXNUM_IN16_SHIFT);
+	}
+	return flags;
+}
+
 static u32 guc_ctl_log_params_flags(struct intel_guc *guc)
 {
 	u32 offset = intel_guc_ggtt_offset(guc, guc->log.vma) >> PAGE_SHIFT;
@@ -282,16 +299,7 @@ void intel_guc_init_params(struct intel_guc *guc)
 	params[GUC_CTL_FEATURE] = guc_ctl_feature_flags(guc);
 	params[GUC_CTL_LOG_PARAMS]  = guc_ctl_log_params_flags(guc);
 	params[GUC_CTL_DEBUG] = guc_ctl_debug_flags(guc);
-
-	/* If GuC submission is enabled, set up additional parameters here */
-	if (USES_GUC_SUBMISSION(dev_priv)) {
-		u32 pgs = intel_guc_ggtt_offset(guc, guc->stage_desc_pool);
-		u32 ctx_in_16 = GUC_MAX_STAGE_DESCRIPTORS / 16;
-
-		pgs >>= PAGE_SHIFT;
-		params[GUC_CTL_CTXINFO] = (pgs << GUC_CTL_BASE_ADDR_SHIFT) |
-			(ctx_in_16 << GUC_CTL_CTXNUM_IN16_SHIFT);
-	}
+	params[GUC_CTL_CTXINFO] = guc_ctl_ctxinfo_flags(guc);
 
 	/*
 	 * All SOFT_SCRATCH registers are in FORCEWAKE_BLITTER domain and
