@@ -1459,8 +1459,24 @@ static void print_cmdline(struct feat_fd *ff, FILE *fp)
 
 	fprintf(fp, "# cmdline : ");
 
-	for (i = 0; i < nr; i++)
-		fprintf(fp, "%s ", ff->ph->env.cmdline_argv[i]);
+	for (i = 0; i < nr; i++) {
+		char *argv_i = strdup(ff->ph->env.cmdline_argv[i]);
+		if (!argv_i) {
+			fprintf(fp, "%s ", ff->ph->env.cmdline_argv[i]);
+		} else {
+			char *mem = argv_i;
+			do {
+				char *quote = strchr(argv_i, '\'');
+				if (!quote)
+					break;
+				*quote++ = '\0';
+				fprintf(fp, "%s\\\'", argv_i);
+				argv_i = quote;
+			} while (1);
+			fprintf(fp, "%s ", argv_i);
+			free(mem);
+		}
+	}
 	fputc('\n', fp);
 }
 
