@@ -161,8 +161,7 @@ struct wilc {
 	int txq_entries;
 	int txq_exit;
 
-	struct rxq_entry_t *rxq_head;
-	struct rxq_entry_t *rxq_tail;
+	struct rxq_entry_t rxq_head;
 	int rxq_entries;
 	int rxq_exit;
 
