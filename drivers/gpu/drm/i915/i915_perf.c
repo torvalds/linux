@@ -1289,16 +1289,13 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 		break;
 
 	case 11: {
-		struct intel_engine_cs *engine = i915->engine[RCS];
-
-		i915->perf.oa.specific_ctx_id =
-			stream->ctx->hw_id << (GEN11_SW_CTX_ID_SHIFT - 32) |
-			engine->instance << (GEN11_ENGINE_INSTANCE_SHIFT - 32) |
-			engine->class << (GEN11_ENGINE_INSTANCE_SHIFT - 32);
 		i915->perf.oa.specific_ctx_id_mask =
 			((1U << GEN11_SW_CTX_ID_WIDTH) - 1) << (GEN11_SW_CTX_ID_SHIFT - 32) |
 			((1U << GEN11_ENGINE_INSTANCE_WIDTH) - 1) << (GEN11_ENGINE_INSTANCE_SHIFT - 32) |
 			((1 << GEN11_ENGINE_CLASS_WIDTH) - 1) << (GEN11_ENGINE_CLASS_SHIFT - 32);
+		i915->perf.oa.specific_ctx_id = upper_32_bits(ce->lrc_desc);
+		i915->perf.oa.specific_ctx_id &=
+			i915->perf.oa.specific_ctx_id_mask;
 		break;
 	}
 
