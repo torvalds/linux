@@ -28,6 +28,7 @@
 #include <linux/mmc/sd.h>
 #include <linux/mmc/card.h>
 #include <linux/scatterlist.h>
+#include <linux/pm.h>
 #include <linux/pm_runtime.h>
 
 #include <linux/rtsx_usb.h>
@@ -1324,7 +1325,7 @@ static void rtsx_usb_init_host(struct rtsx_usb_sdmmc *host)
 	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_SD_HIGHSPEED |
 		MMC_CAP_MMC_HIGHSPEED | MMC_CAP_BUS_WIDTH_TEST |
 		MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 | MMC_CAP_UHS_SDR50 |
-		MMC_CAP_NEEDS_POLL | MMC_CAP_ERASE | MMC_CAP_SYNC_RUNTIME_PM;
+		MMC_CAP_ERASE | MMC_CAP_SYNC_RUNTIME_PM;
 	mmc->caps2 = MMC_CAP2_NO_PRESCAN_POWERUP | MMC_CAP2_FULL_PWR_CYCLE |
 		MMC_CAP2_NO_SDIO;
 
@@ -1429,6 +1430,31 @@ static int rtsx_usb_sdmmc_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int rtsx_usb_sdmmc_runtime_suspend(struct device *dev)
+{
+	struct rtsx_usb_sdmmc *host = dev_get_drvdata(dev);
+
+	host->mmc->caps &= ~MMC_CAP_NEEDS_POLL;
+	return 0;
+}
+
+static int rtsx_usb_sdmmc_runtime_resume(struct device *dev)
+{
+	struct rtsx_usb_sdmmc *host = dev_get_drvdata(dev);
+
+	host->mmc->caps |= MMC_CAP_NEEDS_POLL;
+	if (sdmmc_get_cd(host->mmc) == 1)
+		mmc_detect_change(host->mmc, 0);
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops rtsx_usb_sdmmc_dev_pm_ops = {
+	SET_RUNTIME_PM_OPS(rtsx_usb_sdmmc_runtime_suspend,
+			   rtsx_usb_sdmmc_runtime_resume, NULL)
+};
+
 static const struct platform_device_id rtsx_usb_sdmmc_ids[] = {
 	{
 		.name = "rtsx_usb_sdmmc",
@@ -1444,6 +1470,7 @@ static struct platform_driver rtsx_usb_sdmmc_driver = {
 	.id_table       = rtsx_usb_sdmmc_ids,
 	.driver		= {
 		.name	= "rtsx_usb_sdmmc",
+		.pm	= &rtsx_usb_sdmmc_dev_pm_ops,
 	},
 };
 module_platform_driver(rtsx_usb_sdmmc_driver);
