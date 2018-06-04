@@ -733,7 +733,7 @@ static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
 	struct gfs2_inode *ip = GFS2_I(inode);
 	loff_t end = offset + len;
 	struct buffer_head *dibh;
-	struct iomap iomap;
+	struct iomap iomap = { };
 	int error;
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
@@ -749,8 +749,8 @@ static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
 	}
 
 	while (offset < end) {
-		error = gfs2_iomap_begin(inode, offset, end - offset,
-					 IOMAP_WRITE, &iomap);
+		error = gfs2_iomap_get_alloc(inode, offset, end - offset,
+					     &iomap);
 		if (error)
 			goto out;
 		offset = iomap.offset + iomap.length;
