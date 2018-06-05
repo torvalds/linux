@@ -715,7 +715,6 @@ EXPORT_SYMBOL(rdma_find_gid_by_port);
  *
  * rdma_find_gid_by_filter() searches for the specified GID value
  * of which the filter function returns true in the port's GID table.
- * This function is only supported on RoCE ports.
  *
  */
 const struct ib_gid_attr *rdma_find_gid_by_filter(
@@ -729,28 +728,24 @@ const struct ib_gid_attr *rdma_find_gid_by_filter(
 	unsigned long flags;
 	unsigned int i;
 
-	if (!rdma_is_port_valid(ib_dev, port) ||
-	    !rdma_protocol_roce(ib_dev, port))
-		return ERR_PTR(-EPROTONOSUPPORT);
+	if (!rdma_is_port_valid(ib_dev, port))
+		return ERR_PTR(-EINVAL);
 
 	table = rdma_gid_table(ib_dev, port);
 
 	read_lock_irqsave(&table->rwlock, flags);
 	for (i = 0; i < table->sz; i++) {
-		struct ib_gid_attr attr;
+		struct ib_gid_table_entry *entry = table->data_vec[i];
 
-		if (!is_gid_entry_valid(table->data_vec[i]))
+		if (!is_gid_entry_valid(entry))
 			continue;
 
-		if (memcmp(gid, &table->data_vec[i]->attr.gid,
-			   sizeof(*gid)))
+		if (memcmp(gid, &entry->attr.gid, sizeof(*gid)))
 			continue;
 
-		memcpy(&attr, &table->data_vec[i]->attr, sizeof(attr));
-
-		if (filter(gid, &attr, context)) {
-			get_gid_entry(table->data_vec[i]);
-			res = &table->data_vec[i]->attr;
+		if (filter(gid, &entry->attr, context)) {
+			get_gid_entry(entry);
+			res = &entry->attr;
 			break;
 		}
 	}
@@ -1098,10 +1093,6 @@ int ib_find_gid_by_filter(struct ib_device *device,
 			  void *context, u16 *index)
 {
 	const struct ib_gid_attr *res;
-
-	/* Only RoCE GID table supports filter function */
-	if (!rdma_protocol_roce(device, port_num) && filter)
-		return -EPROTONOSUPPORT;
 
 	res = rdma_find_gid_by_filter(device, gid, port_num, filter,
 				      context);
