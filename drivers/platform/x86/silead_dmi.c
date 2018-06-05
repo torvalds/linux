@@ -484,6 +484,15 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 		},
 	},
 	{
+		/* Chuwi Hi8 (H1D_S806_206) */
+		.driver_data = (void *)&chuwi_hi8_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "BayTrail"),
+			DMI_MATCH(DMI_BIOS_VERSION, "H1D_S806_206"),
+		},
+	},
+	{
 		/* Chuwi Vi8 (CWI506) */
 		.driver_data = (void *)&chuwi_vi8_data,
 		.matches = {
