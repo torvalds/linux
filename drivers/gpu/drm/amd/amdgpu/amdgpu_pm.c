@@ -1729,10 +1729,10 @@ static void amdgpu_dpm_change_power_state_locked(struct amdgpu_device *adev)
 
 void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable)
 {
-	if (adev->powerplay.pp_funcs->powergate_uvd) {
+	if (adev->powerplay.pp_funcs->set_powergating_by_smu) {
 		/* enable/disable UVD */
 		mutex_lock(&adev->pm.mutex);
-		amdgpu_dpm_powergate_uvd(adev, !enable);
+		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_UVD, !enable);
 		mutex_unlock(&adev->pm.mutex);
 	} else {
 		if (enable) {
@@ -1751,10 +1751,10 @@ void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable)
 
 void amdgpu_dpm_enable_vce(struct amdgpu_device *adev, bool enable)
 {
-	if (adev->powerplay.pp_funcs->powergate_vce) {
+	if (adev->powerplay.pp_funcs->set_powergating_by_smu) {
 		/* enable/disable VCE */
 		mutex_lock(&adev->pm.mutex);
-		amdgpu_dpm_powergate_vce(adev, !enable);
+		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_VCE, !enable);
 		mutex_unlock(&adev->pm.mutex);
 	} else {
 		if (enable) {

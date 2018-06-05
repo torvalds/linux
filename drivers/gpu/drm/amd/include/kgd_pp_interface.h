@@ -232,13 +232,13 @@ struct amd_pm_funcs {
 	void (*debugfs_print_current_performance_level)(void *handle, struct seq_file *m);
 	int (*switch_power_profile)(void *handle, enum PP_SMC_POWER_PROFILE type, bool en);
 /* export to amdgpu */
-	void (*powergate_uvd)(void *handle, bool gate);
-	void (*powergate_vce)(void *handle, bool gate);
 	struct amd_vce_state *(*get_vce_clock_state)(void *handle, u32 idx);
 	int (*dispatch_tasks)(void *handle, enum amd_pp_task task_id,
 			enum amd_pm_state_type *user_state);
 	int (*load_firmware)(void *handle);
 	int (*wait_for_fw_loading_complete)(void *handle);
+	int (*set_powergating_by_smu)(void *handle,
+				uint32_t block_type, bool gate);
 	int (*set_clockgating_by_smu)(void *handle, uint32_t msg_id);
 	int (*set_power_limit)(void *handle, uint32_t n);
 	int (*get_power_limit)(void *handle, uint32_t *limit, bool default_limit);
@@ -269,7 +269,6 @@ struct amd_pm_funcs {
 	int (*get_power_profile_mode)(void *handle, char *buf);
 	int (*set_power_profile_mode)(void *handle, long *input, uint32_t size);
 	int (*odn_edit_dpm_table)(void *handle, uint32_t type, long *input, uint32_t size);
-	int (*powergate_mmhub)(void *handle);
 };
 
 #endif
