@@ -51,7 +51,7 @@ struct dm_io_client *dm_io_client_create(void)
 	unsigned min_ios = dm_get_reserved_bio_based_ios();
 	int ret;
 
-	client = kmalloc(sizeof(*client), GFP_KERNEL);
+	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (!client)
 		return ERR_PTR(-ENOMEM);
 
