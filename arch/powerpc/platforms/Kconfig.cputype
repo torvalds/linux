@@ -325,6 +325,7 @@ config PPC_BOOK3E_MMU
 config PPC_MM_SLICES
 	bool
 	default y if PPC_STD_MMU_64
+	default y if PPC_8xx && HUGETLB_PAGE
 	default n
 
 config PPC_HAVE_PMU_SUPPORT

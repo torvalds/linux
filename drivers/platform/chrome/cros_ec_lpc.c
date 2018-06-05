@@ -54,7 +54,6 @@ static int ec_response_timed_out(void)
 static int cros_ec_pkt_xfer_lpc(struct cros_ec_device *ec,
 				struct cros_ec_command *msg)
 {
-	struct ec_host_request *request;
 	struct ec_host_response response;
 	u8 sum;
 	int ret = 0;
@@ -64,8 +63,6 @@ static int cros_ec_pkt_xfer_lpc(struct cros_ec_device *ec,
 
 	/* Write buffer */
 	cros_ec_lpc_write_bytes(EC_LPC_ADDR_HOST_PACKET, ret, ec->dout);
-
-	request = (struct ec_host_request *)ec->dout;
 
 	/* Here we go */
 	sum = EC_COMMAND_PROTOCOL_3;

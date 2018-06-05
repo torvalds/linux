@@ -162,7 +162,7 @@ int smu7_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 				AMD_CG_STATE_UNGATE);
 		cgs_set_powergating_state(hwmgr->device,
 						AMD_IP_BLOCK_TYPE_UVD,
-						AMD_CG_STATE_UNGATE);
+						AMD_PG_STATE_UNGATE);
 		smu7_update_uvd_dpm(hwmgr, false);
 	}
 

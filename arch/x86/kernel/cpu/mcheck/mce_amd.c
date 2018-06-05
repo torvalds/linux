@@ -94,6 +94,11 @@ static struct smca_bank_name smca_names[] = {
 	[SMCA_SMU]	= { "smu",		"System Management Unit" },
 };
 
+static u32 smca_bank_addrs[MAX_NR_BANKS][NR_BLOCKS] __ro_after_init =
+{
+	[0 ... MAX_NR_BANKS - 1] = { [0 ... NR_BLOCKS - 1] = -1 }
+};
+
 const char *smca_get_name(enum smca_bank_types t)
 {
 	if (t >= N_SMCA_BANK_TYPES)
@@ -429,6 +434,41 @@ static void deferred_error_interrupt_enable(struct cpuinfo_x86 *c)
 	wrmsr(MSR_CU_DEF_ERR, low, high);
 }
 
+static u32 smca_get_block_address(unsigned int cpu, unsigned int bank,
+				  unsigned int block)
+{
+	u32 low, high;
+	u32 addr = 0;
+
+	if (smca_get_bank_type(bank) == SMCA_RESERVED)
+		return addr;
+
+	if (!block)
+		return MSR_AMD64_SMCA_MCx_MISC(bank);
+
+	/* Check our cache first: */
+	if (smca_bank_addrs[bank][block] != -1)
+		return smca_bank_addrs[bank][block];
+
+	/*
+	 * For SMCA enabled processors, BLKPTR field of the first MISC register
+	 * (MCx_MISC0) indicates presence of additional MISC regs set (MISC1-4).
+	 */
+	if (rdmsr_safe_on_cpu(cpu, MSR_AMD64_SMCA_MCx_CONFIG(bank), &low, &high))
+		goto out;
+
+	if (!(low & MCI_CONFIG_MCAX))
+		goto out;
+
+	if (!rdmsr_safe_on_cpu(cpu, MSR_AMD64_SMCA_MCx_MISC(bank), &low, &high) &&
+	    (low & MASK_BLKPTR_LO))
+		addr = MSR_AMD64_SMCA_MCx_MISCy(bank, block - 1);
+
+out:
+	smca_bank_addrs[bank][block] = addr;
+	return addr;
+}
+
 static u32 get_block_address(unsigned int cpu, u32 current_addr, u32 low, u32 high,
 			     unsigned int bank, unsigned int block)
 {
@@ -437,44 +477,8 @@ static u32 get_block_address(unsigned int cpu, u32 current_addr, u32 low, u32 hi
 	if ((bank >= mca_cfg.banks) || (block >= NR_BLOCKS))
 		return addr;
 
-	/* Get address from already initialized block. */
-	if (per_cpu(threshold_banks, cpu)) {
-		struct threshold_bank *bankp = per_cpu(threshold_banks, cpu)[bank];
-
-		if (bankp && bankp->blocks) {
-			struct threshold_block *blockp = &bankp->blocks[block];
-
-			if (blockp)
-				return blockp->address;
-		}
-	}
-
-	if (mce_flags.smca) {
-		if (smca_get_bank_type(bank) == SMCA_RESERVED)
-			return addr;
-
-		if (!block) {
-			addr = MSR_AMD64_SMCA_MCx_MISC(bank);
-		} else {
-			/*
-			 * For SMCA enabled processors, BLKPTR field of the
-			 * first MISC register (MCx_MISC0) indicates presence of
-			 * additional MISC register set (MISC1-4).
-			 */
-			u32 low, high;
-
-			if (rdmsr_safe_on_cpu(cpu, MSR_AMD64_SMCA_MCx_CONFIG(bank), &low, &high))
-				return addr;
-
-			if (!(low & MCI_CONFIG_MCAX))
-				return addr;
-
-			if (!rdmsr_safe_on_cpu(cpu, MSR_AMD64_SMCA_MCx_MISC(bank), &low, &high) &&
-			    (low & MASK_BLKPTR_LO))
-				addr = MSR_AMD64_SMCA_MCx_MISCy(bank, block - 1);
-		}
-		return addr;
-	}
+	if (mce_flags.smca)
+		return smca_get_block_address(cpu, bank, block);
 
 	/* Fall back to method we used for older processors: */
 	switch (block) {

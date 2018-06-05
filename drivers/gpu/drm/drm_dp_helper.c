@@ -1139,6 +1139,7 @@ int drm_dp_psr_setup_time(const u8 psr_cap[EDP_PSR_RECEIVER_CAP_SIZE])
 	static const u16 psr_setup_time_us[] = {
 		PSR_SETUP_TIME(330),
 		PSR_SETUP_TIME(275),
+		PSR_SETUP_TIME(220),
 		PSR_SETUP_TIME(165),
 		PSR_SETUP_TIME(110),
 		PSR_SETUP_TIME(55),
