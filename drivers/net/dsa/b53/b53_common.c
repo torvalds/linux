@@ -684,7 +684,8 @@ static int b53_switch_reset(struct b53_device *dev)
 	 * still use this driver as a library and need to perform the reset
 	 * earlier.
 	 */
-	if (dev->chip_id == BCM58XX_DEVICE_ID) {
+	if (dev->chip_id == BCM58XX_DEVICE_ID ||
+	    dev->chip_id == BCM583XX_DEVICE_ID) {
 		b53_read8(dev, B53_CTRL_PAGE, B53_SOFTRESET, &reg);
 		reg |= SW_RST | EN_SW_RST | EN_CH_RST;
 		b53_write8(dev, B53_CTRL_PAGE, B53_SOFTRESET, reg);
@@ -1928,6 +1929,18 @@ static const struct b53_chip_data b53_switch_chips[] = {
 		.dev_name = "BCM585xx/586xx/88312",
 		.vlans	= 4096,
 		.enabled_ports = 0x1ff,
+		.arl_entries = 4,
+		.cpu_port = B53_CPU_PORT,
+		.vta_regs = B53_VTA_REGS,
+		.duplex_reg = B53_DUPLEX_STAT_GE,
+		.jumbo_pm_reg = B53_JUMBO_PORT_MASK,
+		.jumbo_size_reg = B53_JUMBO_MAX_SIZE,
+	},
+	{
+		.chip_id = BCM583XX_DEVICE_ID,
+		.dev_name = "BCM583xx/11360",
+		.vlans = 4096,
+		.enabled_ports = 0x103,
 		.arl_entries = 4,
 		.cpu_port = B53_CPU_PORT,
 		.vta_regs = B53_VTA_REGS,
