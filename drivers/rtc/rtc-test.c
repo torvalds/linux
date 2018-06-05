@@ -95,6 +95,12 @@ static int test_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 	return 0;
 }
 
+static const struct rtc_class_ops test_rtc_ops_noalm = {
+	.read_time = test_rtc_read_time,
+	.set_mmss64 = test_rtc_set_mmss64,
+	.alarm_irq_enable = test_rtc_alarm_irq_enable,
+};
+
 static const struct rtc_class_ops test_rtc_ops = {
 	.read_time = test_rtc_read_time,
 	.read_alarm = test_rtc_read_alarm,
@@ -124,7 +130,13 @@ static int test_probe(struct platform_device *plat_dev)
 	if (IS_ERR(rtd->rtc))
 		return PTR_ERR(rtd->rtc);
 
-	rtd->rtc->ops = &test_rtc_ops;
+	switch (plat_dev->id) {
+	case 0:
+		rtd->rtc->ops = &test_rtc_ops_noalm;
+		break;
+	default:
+		rtd->rtc->ops = &test_rtc_ops;
+	}
 
 	timer_setup(&rtd->alarm, test_rtc_alarm_handler, 0);
 	rtd->alarm.expires = 0;
