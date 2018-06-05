@@ -4,7 +4,7 @@
  * Contact: support@caviumnetworks.com
  * This file is part of the OCTEON SDK
  *
- * Copyright (c) 2003-2008 Cavium Networks
+ * Copyright (C) 2003-2018 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -39,11 +39,8 @@
 
 #include <asm/octeon/cvmx-pko-defs.h>
 #include <asm/octeon/cvmx-gmxx-defs.h>
+#include <asm/octeon/cvmx-pcsx-defs.h>
 #include <asm/octeon/cvmx-pcsxx-defs.h>
-
-void __cvmx_interrupt_gmxx_enable(int interface);
-void __cvmx_interrupt_pcsx_intx_en_reg_enable(int index, int block);
-void __cvmx_interrupt_pcsxx_int_en_reg_enable(int index);
 
 int __cvmx_helper_xaui_enumerate(int interface)
 {
