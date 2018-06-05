@@ -53,6 +53,12 @@ struct cif_isp10_img_src_ops {
 		void *img_src,
 		unsigned int cmd,
 		void *arg);
+	int (*s_frame_interval)(
+		void *img_src,
+		struct cif_isp10_frm_intrvl *frm_intrvl);
+	int (*g_frame_interval)(
+		void *img_src,
+		struct cif_isp10_frm_intrvl *frm_intrvl);
 };
 
 const struct {
@@ -81,7 +87,11 @@ const struct {
 			.s_ext_ctrls =
 				cif_isp10_img_src_v4l2_subdev_s_ext_ctrls,
 			.ioctl =
-				cif_isp10_img_src_v4l2_subdev_ioctl
+				cif_isp10_img_src_v4l2_subdev_ioctl,
+			.s_frame_interval =
+				cif_isp10_img_src_v4l2_subdev_s_frame_interval,
+			.g_frame_interval =
+				cif_isp10_img_src_v4l2_subdev_g_frame_interval,
 		}
 	},
 };

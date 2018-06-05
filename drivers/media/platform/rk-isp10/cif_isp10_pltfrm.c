@@ -29,7 +29,7 @@
 #include "cif_isp10.h"
 #include <linux/platform_data/rk_isp10_platform.h>
 #include "cif_isp10_regs.h"
-#ifndef CONFIG_DEBUG_FS
+#ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
 #include <linux/fs.h>
 #include <media/v4l2-controls_rockchip.h>
@@ -67,12 +67,8 @@ struct cif_isp10_pltfrm_data {
 		int mis;
 		int (*isr)(unsigned int mis, void *cntxt);
 	} irq_handlers[4];
-	struct list_head csi0_configs;
-	struct list_head csi1_configs;
-	s32 exp_time;
-	u16 gain;
 
-#ifndef CONFIG_DEBUG_FS
+#ifdef CONFIG_DEBUG_FS
 	struct {
 		struct dentry *dir;
 		struct dentry *cif_isp10_file;
@@ -91,7 +87,7 @@ void cif_isp10_pltfrm_debug_register_print_cb(
 	struct device *dev,
 	void (*print)(void *cntxt, const char *block),
 	void *cntxt) {
-#ifndef CONFIG_DEBUG_FS
+#ifdef CONFIG_DEBUG_FS
 	struct cif_isp10_pltfrm_data *pdata = dev->platform_data;
 
 	pdata->dbgfs.print_cntxt = cntxt;
@@ -99,334 +95,9 @@ void cif_isp10_pltfrm_debug_register_print_cb(
 #endif
 }
 
-#ifndef CONFIG_DEBUG_FS
+#ifdef CONFIG_DEBUG_FS
 #define CIF_ISP10_DBGFS_BUF_SIZE 1024
 static char cif_isp10_dbgfs_buf[CIF_ISP10_DBGFS_BUF_SIZE];
-
-static int cif_isp10_dbgfs_fill_csi_config_from_string(
-	struct device *dev,
-	struct cif_isp10_csi_config *csi_config,
-	char *strp)
-{
-	char *token;
-
-	token = strsep(&strp, " ");
-	if (IS_ERR_OR_NULL(token))
-		goto missing_token;
-	if (IS_ERR_VALUE(kstrtou32(token, 10,
-			&csi_config->vc)))
-		goto wrong_token_format;
-	token = strsep(&strp, " ");
-	if (IS_ERR_OR_NULL(token))
-		goto missing_token;
-	if (IS_ERR_VALUE(kstrtou32(token, 10,
-			&csi_config->nb_lanes)))
-		goto wrong_token_format;
-	token = strsep(&strp, " ");
-	if (IS_ERR_OR_NULL(token))
-		goto missing_token;
-	if (IS_ERR_VALUE(kstrtou32(token, 16,
-			&csi_config->dphy1)))
-		goto wrong_token_format;
-	token = strsep(&strp, " ");
-	if (IS_ERR_OR_NULL(token))
-		goto missing_token;
-	if (IS_ERR_VALUE(kstrtou32(token, 16,
-			&csi_config->dphy2)))
-		goto wrong_token_format;
-	token = strsep(&strp, " ");
-	if (!IS_ERR_OR_NULL(token)) {
-		if (IS_ERR_VALUE(kstrtou32(token, 10,
-				&csi_config->ana_bandgab_bias)))
-			goto wrong_token_format;
-	} else {
-		csi_config->ana_bandgab_bias = (u32)-1;
-	}
-
-	return 0;
-missing_token:
-	cif_isp10_pltfrm_pr_err(dev,
-		"missing token, command format is 'push <pps> <vc> <#lanes> <HEX dphy1> <HEX dphy2> <analog bandgap bias>'\n");
-	return -EINVAL;
-wrong_token_format:
-	cif_isp10_pltfrm_pr_err(dev,
-		"wrong token format, command format is 'push <pps> <vc> <#lanes> <HEX dphy1> <HEX dphy2> <analog bandgap bias>'\n");
-	return -EINVAL;
-}
-
-static int cif_isp10_dbgfs_csi_configs_init(
-	struct device *dev,
-	enum cif_isp10_inp inp,
-	struct list_head *csi_configs)
-{
-	int ret = 0;
-	struct device *img_src_dev = NULL;
-	struct device_node *parent_node = NULL;
-	struct device_node *child_node = NULL, *prev_node = NULL;
-	struct cif_isp10_pltfrm_csi_config *cfg = NULL;
-	u32 pps;
-
-	img_src_dev = cif_isp10_pltfrm_get_img_src_device(dev, inp);
-	if (IS_ERR_OR_NULL(img_src_dev)) {
-		ret = -EFAULT;
-		goto err;
-	}
-	parent_node = of_node_get(img_src_dev->of_node);
-	put_device(img_src_dev);
-	img_src_dev = NULL;
-
-	while (!IS_ERR_OR_NULL(child_node =
-		of_get_next_child(parent_node, prev_node))) {
-		if (!strncasecmp(child_node->name,
-			"intel,camera-module-csi-config",
-			strlen("intel,camera-module-csi-config"))) {
-			ret = of_property_read_u32(child_node,
-				"intel,csi-pixels-per-second", &pps);
-			if (IS_ERR_VALUE(ret)) {
-				cif_isp10_pltfrm_pr_err(dev,
-					"reading property 'intel,csi-pixels-per-second'\n");
-				goto err;
-			}
-			cfg = kmalloc(
-				sizeof(struct cif_isp10_pltfrm_csi_config),
-			GFP_KERNEL);
-			if (!cfg) {
-				cif_isp10_pltfrm_pr_err(dev,
-					"memory allocation failed\n");
-				ret = -ENOMEM;
-				goto err;
-			}
-			cfg->pps = pps;
-			ret = cif_isp10_pltfrm_fill_csi_config_from_node(
-					dev, &cfg->csi_config, child_node);
-			if (IS_ERR_VALUE(ret))
-				goto err;
-			list_add_tail(&cfg->list, csi_configs);
-			cfg = NULL;
-		}
-		of_node_put(prev_node);
-		prev_node = child_node;
-	}
-	of_node_put(prev_node);
-	of_node_put(parent_node);
-
-	return 0;
-err:
-	of_node_put(prev_node);
-	of_node_put(child_node);
-	of_node_put(parent_node);
-	kfree(cfg);
-	if (!IS_ERR_OR_NULL(img_src_dev))
-		put_device(img_src_dev);
-	return ret;
-}
-
-static ssize_t cif_isp10_dbgfs_csi_read(
-	struct file *f,
-	char __user *out,
-	size_t count,
-	loff_t *pos)
-{
-	u32 out_size = 0;
-	u32 str_len;
-	struct cif_isp10_pltfrm_csi_config *cfg;
-	u32 index = 0;
-	struct list_head *list_pos;
-	struct device *dev = f->f_inode->i_private;
-	struct cif_isp10_pltfrm_data *pdata = dev->platform_data;
-	struct list_head *csi_configs;
-	enum cif_isp10_inp inp;
-
-	if (f->f_inode == pdata->dbgfs.csi0_file->d_inode) {
-		csi_configs = &pdata->csi0_configs;
-		inp = CIF_ISP10_INP_CSI_0;
-	} else if (f->f_inode == pdata->dbgfs.csi1_file->d_inode) {
-		csi_configs = &pdata->csi1_configs;
-		inp = CIF_ISP10_INP_CSI_1;
-	} else {
-		cif_isp10_pltfrm_pr_err(dev, "wrong file handle\n");
-		return -EINVAL;
-	}
-
-	if (list_empty(csi_configs))
-		if (IS_ERR_VALUE(cif_isp10_dbgfs_csi_configs_init(
-		dev, inp, csi_configs)))
-			return -EFAULT;
-
-	if (*pos)
-		return 0;
-
-	list_for_each(list_pos, csi_configs) {
-		cfg = list_entry(list_pos,
-			struct cif_isp10_pltfrm_csi_config, list);
-		sprintf(cif_isp10_dbgfs_buf,
-			"csi-config-%d:\n"
-			"   pps = %d\n"
-			"   vc = %d\n"
-			"   nb_lanes = %d\n"
-			"   dphy1 = 0x%08x\n"
-			"   dphy2 = 0x%08x\n"
-			"   ana_bandgap_bias = %d\n",
-			index,
-			cfg->pps, cfg->csi_config.vc, cfg->csi_config.nb_lanes,
-			cfg->csi_config.dphy1, cfg->csi_config.dphy2,
-			cfg->csi_config.ana_bandgab_bias);
-		index++;
-		str_len = strnlen(cif_isp10_dbgfs_buf,
-			CIF_ISP10_DBGFS_BUF_SIZE);
-		if (str_len > count) {
-			*pos += out_size;
-			return 0;
-		}
-		*pos = 0;
-		if (IS_ERR_VALUE(simple_read_from_buffer(
-			out + out_size, str_len, pos,
-			cif_isp10_dbgfs_buf, str_len)))
-			break;
-		out_size += strnlen(cif_isp10_dbgfs_buf,
-			CIF_ISP10_DBGFS_BUF_SIZE);
-		count -= str_len;
-	}
-
-	*pos += out_size;
-	return out_size;
-}
-
-static ssize_t cif_isp10_dbgfs_csi_write(
-	struct file *f,
-	const char __user *in,
-	size_t count,
-	loff_t *pos)
-{
-	ssize_t ret;
-	char *strp = cif_isp10_dbgfs_buf;
-	char *token;
-	struct device *dev = f->f_inode->i_private;
-	struct cif_isp10_pltfrm_data *pdata = dev->platform_data;
-	struct list_head *csi_configs;
-	enum cif_isp10_inp inp;
-
-	if (count > CIF_ISP10_DBGFS_BUF_SIZE) {
-		cif_isp10_pltfrm_pr_err(dev, "command line too large\n");
-		return -EINVAL;
-	}
-
-	if (f->f_inode == pdata->dbgfs.csi0_file->d_inode) {
-		csi_configs = &pdata->csi0_configs;
-		inp = CIF_ISP10_INP_CSI_0;
-	} else if (f->f_inode == pdata->dbgfs.csi1_file->d_inode) {
-		csi_configs = &pdata->csi1_configs;
-		inp = CIF_ISP10_INP_CSI_1;
-	} else {
-		cif_isp10_pltfrm_pr_err(dev, "wrong file handle\n");
-		return -EINVAL;
-	}
-
-	if (list_empty(csi_configs))
-		if (IS_ERR_VALUE(cif_isp10_dbgfs_csi_configs_init(
-		dev, inp, csi_configs)))
-			return -EFAULT;
-
-	memset(cif_isp10_dbgfs_buf, 0, CIF_ISP10_DBGFS_BUF_SIZE);
-	ret = simple_write_to_buffer(strp,
-		CIF_ISP10_DBGFS_BUF_SIZE, pos, in, count);
-	if (IS_ERR_VALUE(ret))
-		return ret;
-
-	token = strsep(&strp, " ");
-	if (!strcmp(token, "push")) {
-		struct cif_isp10_pltfrm_csi_config cfg;
-
-		token = strsep(&strp, " ");
-		if (IS_ERR_OR_NULL(token)) {
-			cif_isp10_pltfrm_pr_err(dev,
-				"missing token, command format is 'push <pps> <vc> <#lanes> <HEX dphy1> <HEX dphy2> <analog bandgap bias>'\n");
-			return -EINVAL;
-		}
-		if (IS_ERR_VALUE(kstrtou32(token, 10,
-				&cfg.pps))) {
-			cif_isp10_pltfrm_pr_err(dev,
-				"missing token, command format is 'push <pps> <vc> <#lanes> <HEX dphy1> <HEX dphy2> <analog bandgap bias>'\n");
-			return -EINVAL;
-		}
-		ret = cif_isp10_dbgfs_fill_csi_config_from_string(
-			dev, &cfg.csi_config, strp);
-		if (IS_ERR_VALUE(ret))
-			return ret;
-		ret = cif_isp10_pltfrm_l_s_csi_config(
-			dev, inp, cfg.pps, &cfg.csi_config);
-		if (IS_ERR_VALUE(ret))
-			return ret;
-	} else if (!strncmp(token, "reset", 5)) {
-	} else {
-		cif_isp10_pltfrm_pr_err(dev, "unknown command %s\n", token);
-		return -EINVAL;
-	}
-
-	return count;
-}
-
-void cif_isp10_dbgfs_fill_sensor_aec_para(
-	struct cif_isp10_device *cif_isp10_dev,
-	s32 exp_time,
-	u16 gain)
-{
-	struct cif_isp10_pltfrm_data *pdata;
-
-	pdata = (struct cif_isp10_pltfrm_data *)
-			cif_isp10_dev->dev->platform_data;
-	pdata->exp_time = exp_time;
-	pdata->gain = gain;
-}
-
-static ssize_t cif_isp10_dbgfs_sensor_read(
-	struct file *f,
-	char __user *out,
-	size_t count,
-	loff_t *pos)
-{
-	u32 out_size = 0;
-	u32 str_len;
-	struct device *dev = f->f_inode->i_private;
-	struct cif_isp10_pltfrm_data *pdata = dev->platform_data;
-
-	if (*pos)
-		return 0;
-
-	sprintf(cif_isp10_dbgfs_buf,
-		"sensor current exp_time: %d\n"
-		"               gain = %d\n",
-		pdata->exp_time,
-		pdata->gain);
-	str_len = strnlen(cif_isp10_dbgfs_buf,
-			  CIF_ISP10_DBGFS_BUF_SIZE);
-	if (str_len > count) {
-		*pos += out_size;
-		return 0;
-	}
-	*pos = 0;
-	if (IS_ERR_VALUE(simple_read_from_buffer(
-		out + out_size, str_len, pos,
-		cif_isp10_dbgfs_buf, str_len)))
-		goto ERR;
-	out_size += strnlen(cif_isp10_dbgfs_buf,
-		CIF_ISP10_DBGFS_BUF_SIZE);
-	count -= str_len;
-
-	*pos += out_size;
-ERR:
-	return out_size;
-}
-
-static ssize_t cif_isp10_dbgfs_sensor_write(
-	struct file *f,
-	const char __user *in,
-	size_t count,
-	loff_t *pos)
-{
-	return 0;
-}
-
 static ssize_t cif_isp10_dbgfs_write(
 	struct file *f,
 	const char __user *in,
@@ -497,7 +168,7 @@ static ssize_t cif_isp10_dbgfs_write(
 		}
 		if (!strncmp(token, "on", 2)) {
 			if (IS_ERR_VALUE(cif_isp10_pltfrm_pm_set_state(dev,
-				CIF_ISP10_PM_STATE_SW_STNDBY, NULL)))
+				CIF_ISP10_PM_STATE_SW_STNDBY)))
 				cif_isp10_pltfrm_pr_err(dev,
 					"power on failed\n");
 			else
@@ -505,7 +176,7 @@ static ssize_t cif_isp10_dbgfs_write(
 					"switched on\n");
 		} else if (!strncmp(token, "off", 3)) {
 			if (IS_ERR_VALUE(cif_isp10_pltfrm_pm_set_state(dev,
-				CIF_ISP10_PM_STATE_OFF, NULL)))
+				CIF_ISP10_PM_STATE_OFF)))
 				cif_isp10_pltfrm_pr_err(dev,
 					"power off failed\n");
 			else
@@ -556,18 +227,8 @@ static ssize_t cif_isp10_dbgfs_write(
 	return count;
 }
 
-static const struct file_operations cif_isp10_dbgfs_csi_fops = {
-	.read = cif_isp10_dbgfs_csi_read,
-	.write = cif_isp10_dbgfs_csi_write
-};
-
 static const struct file_operations cif_isp10_dbgfs_fops = {
 	.write = cif_isp10_dbgfs_write
-};
-
-static const struct file_operations cif_isp10_dbgfs_sensor_fops = {
-	.read = cif_isp10_dbgfs_sensor_read,
-	.write = cif_isp10_dbgfs_sensor_write
 };
 
 #ifdef CONFIG_CIF_ISP10_REG_TRACE
@@ -614,7 +275,7 @@ static inline int cif_isp10_pltfrm_trace_printf(
 	return i;
 }
 
-inline int cif_isp10_pltfrm_rtrace_printf(
+int cif_isp10_pltfrm_rtrace_printf(
 	struct device *dev,
 	const char *fmt,
 	...)
@@ -629,7 +290,7 @@ inline int cif_isp10_pltfrm_rtrace_printf(
 	return i;
 }
 
-inline int cif_isp10_pltfrm_ftrace_printf(
+int cif_isp10_pltfrm_ftrace_printf(
 	struct device *dev,
 	const char *fmt,
 	...)
@@ -1290,35 +951,15 @@ int cif_isp10_pltfrm_dev_init(
 
 	dev->platform_data = pdata;
 
-	INIT_LIST_HEAD(&pdata->csi0_configs);
-	INIT_LIST_HEAD(&pdata->csi1_configs);
-
-#ifndef CONFIG_DEBUG_FS
+#ifdef CONFIG_DEBUG_FS
 	pdata->dbgfs.dir = debugfs_create_dir("cif_isp10", NULL);
-	pdata->dbgfs.csi0_file = debugfs_create_file(
-		"csi-0",
-		0644,
-		pdata->dbgfs.dir,
-		dev,
-		&cif_isp10_dbgfs_csi_fops);
-	pdata->dbgfs.csi1_file = debugfs_create_file(
-		"csi-1",
-		0644,
-		pdata->dbgfs.dir,
-		dev,
-		&cif_isp10_dbgfs_csi_fops);
 	pdata->dbgfs.cif_isp10_file = debugfs_create_file(
 		"cif_isp20",
 		0200,
 		pdata->dbgfs.dir,
 		dev,
 		&cif_isp10_dbgfs_fops);
-	pdata->dbgfs.cif_isp10_file = debugfs_create_file(
-		"sensor",
-		0644,
-		pdata->dbgfs.dir,
-		dev,
-		&cif_isp10_dbgfs_sensor_fops);
+
 #ifdef CONFIG_CIF_ISP10_REG_TRACE
 	pdata->dbgfs.reg_trace_file = debugfs_create_file(
 		"reg_trace",
@@ -1450,7 +1091,7 @@ int cif_isp10_pltfrm_g_interface_config(
 			PLTFRM_CIFCAM_G_ITF_CFG, (void *)cam_itf);
 	if (IS_ERR_VALUE(ret)) {
 		cif_isp10_pltfrm_pr_err(
-			dev,
+			NULL,
 			"cif_isp10_img_src_ioctl PLTFRM_CIFCAM_G_ITF_CFG failed!\n");
 		return ret;
 	}
@@ -1669,8 +1310,6 @@ int cif_isp10_pltfrm_get_img_src_device(
 					array_len);
 				break;
 			}
-		} else {
-			continue;
 		}
 	}
 
@@ -1691,7 +1330,7 @@ void cif_isp10_pltfrm_dev_release(
 		cif_isp10_drm_iommu_cb(dev, cif_isp10_dev, false);
 #endif
 
-#ifndef CONFIG_DEBUG_FS
+#ifdef CONFIG_DEBUG_FS
 	{
 		struct cif_isp10_pltfrm_data *pdata =
 			dev->platform_data;

@@ -23,6 +23,7 @@ struct cif_isp10_strm_fmt;
 struct cif_isp10_csi_config;
 enum cif_isp10_pix_fmt;
 
+struct cif_isp10_frm_intrvl;
 struct cif_isp10_img_src;
 struct pltfrm_soc_cfg;
 
@@ -79,5 +80,16 @@ long cif_isp10_img_src_ioctl(
 	struct cif_isp10_img_src *img_src,
 	unsigned int cmd,
 	void *arg);
+
+void *cif_isp10_img_src_g_img_src(
+	struct cif_isp10_img_src *img_src);
+
+int cif_isp10_img_src_s_frame_interval(
+	struct cif_isp10_img_src *img_src,
+	struct cif_isp10_frm_intrvl *frm_intrvl);
+
+int cif_isp10_img_src_g_frame_interval(
+	struct cif_isp10_img_src *img_src,
+	struct cif_isp10_frm_intrvl *frm_intrvl);
 
 #endif

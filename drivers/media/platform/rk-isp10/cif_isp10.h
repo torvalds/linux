@@ -246,6 +246,7 @@ enum cif_isp10_pix_fmt {
 	/* YUV */
 	CIF_YUV400			= 0x10008000,
 	CIF_YVU400			= 0x10008004,
+	CIF_Y10				= 0x1000a000,
 
 	CIF_YUV420I			= 0x1000c220,
 	CIF_YUV420SP			= 0x1000c221,	/* NV12 */
@@ -469,6 +470,7 @@ struct cif_isp10_buffer {
 struct cif_isp10_metadata_s {
 	unsigned int cnt;
 	unsigned int vmas;
+	spinlock_t spinlock;
 	unsigned char *d;
 };
 
@@ -552,7 +554,7 @@ struct cif_isp10_mi_state {
 
 struct cif_isp10_img_src_exp {
 	struct list_head list;
-	struct cif_isp10_img_src_ext_ctrl *exp;
+	struct cif_isp10_img_src_ext_ctrl exp;
 };
 
 struct cif_isp10_img_src_data {
@@ -566,11 +568,12 @@ struct cif_isp10_img_src_exps {
 
 	struct mutex mutex;	/* protect frm_exp */
 	struct cif_isp10_img_src_data data[2];
-	unsigned char exp_valid_frms;
+	unsigned char exp_valid_frms[2];
 };
 
 enum cif_isp10_isp_vs_cmd {
-	CIF_ISP10_VS_EXP = 0,
+	CIF_ISP10_VS_EXIT = 0,
+	CIF_ISP10_VS_EXP = 1
 };
 
 struct cif_isp10_isp_vs_work {
@@ -778,17 +781,9 @@ int cif_isp10_s_ctrl(
 	const enum cif_isp10_cid id,
 	int val);
 
-void cif_isp10_dbgfs_fill_sensor_aec_para(
-	struct cif_isp10_device *cif_isp10_dev,
-	s32 exp_time,
-	u16 gain);
-
-int cif_isp10_s_isp_metadata(
+int cif_isp10_s_vb_metadata(
 	struct cif_isp10_device *dev,
-	struct cif_isp10_isp_readout_work *readout_work,
-	struct cifisp_isp_other_cfg *new_other,
-	struct cifisp_isp_meas_cfg *new_meas,
-	struct cifisp_stat_buffer *new_stats);
+	struct cif_isp10_isp_readout_work *readout_work);
 
 int cif_isp10_s_exp(
 	struct cif_isp10_device *dev,

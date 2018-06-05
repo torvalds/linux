@@ -64,6 +64,10 @@ static enum cif_isp10_pix_fmt img_src_v4l2_subdev_pix_fmt2cif_isp10_pix_fmt(
 	int img_src_pix_fmt)
 {
 	switch (img_src_pix_fmt) {
+	case MEDIA_BUS_FMT_Y8_1X8:
+		return CIF_YUV400;
+	case MEDIA_BUS_FMT_Y10_1X10:
+		return CIF_Y10;
 	case MEDIA_BUS_FMT_YUYV8_1_5X8:
 	case MEDIA_BUS_FMT_YUYV8_2X8:
 	case MEDIA_BUS_FMT_YUYV10_2X10:
@@ -136,6 +140,10 @@ static int cif_isp10_pix_fmt2img_src_v4l2_subdev_pix_fmt(
 	enum cif_isp10_pix_fmt cif_isp10_pix_fmt)
 {
 	switch (cif_isp10_pix_fmt) {
+	case CIF_Y10:
+		return MEDIA_BUS_FMT_Y10_1X10;
+	case CIF_YUV400:
+		return MEDIA_BUS_FMT_Y8_1X8;
 	case CIF_YUV422I:
 		return MEDIA_BUS_FMT_YUYV8_2X8;
 	case CIF_YVU422I:
@@ -460,6 +468,8 @@ long cif_isp10_img_src_v4l2_subdev_ioctl(
 	switch (cmd) {
 	case RK_VIDIOC_SENSOR_MODE_DATA:
 	case RK_VIDIOC_CAMERA_MODULEINFO:
+	case RK_VIDIOC_SENSOR_CONFIGINFO:
+	case RK_VIDIOC_SENSOR_REG_ACCESS:
 
 	case PLTFRM_CIFCAM_G_ITF_CFG:
 	case PLTFRM_CIFCAM_G_DEFRECT:
@@ -484,3 +494,49 @@ long cif_isp10_img_src_v4l2_subdev_ioctl(
 
 	return ret;
 }
+
+int cif_isp10_img_src_v4l2_subdev_s_frame_interval(
+	void *img_src,
+	struct cif_isp10_frm_intrvl *frm_intrvl)
+{
+	int ret = 0;
+	struct v4l2_subdev *subdev = img_src;
+	struct v4l2_subdev_frame_interval interval;
+
+	interval.interval.numerator = frm_intrvl->numerator;
+	interval.interval.denominator = frm_intrvl->denominator;
+
+	ret = v4l2_subdev_call(subdev, video, s_frame_interval, &interval);
+	if (IS_ERR_VALUE(ret))
+		goto err;
+
+	return 0;
+err:
+	pr_err("img_src.%s ERR: failed with error %d\n", __func__, ret);
+	return ret;
+}
+
+int cif_isp10_img_src_v4l2_subdev_g_frame_interval(
+	void *img_src,
+	struct cif_isp10_frm_intrvl *frm_intrvl)
+{
+	int ret = 0;
+	struct v4l2_subdev *subdev = img_src;
+	struct v4l2_subdev_frame_interval interval;
+
+	interval.interval.numerator = 0;
+	interval.interval.denominator = 0;
+
+	ret = v4l2_subdev_call(subdev, video, g_frame_interval, &interval);
+	if (IS_ERR_VALUE(ret))
+		goto err;
+
+	frm_intrvl->denominator = interval.interval.denominator;
+	frm_intrvl->numerator = interval.interval.numerator;
+
+	return 0;
+err:
+	pr_err("img_src.%s ERR: failed with error %d\n", __func__, ret);
+	return ret;
+}
+

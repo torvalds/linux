@@ -18,24 +18,47 @@
 
 #include <media/v4l2-config_rockchip.h>
 
-#define CIFISP_MODULE_DPCC              BIT(0)
-#define CIFISP_MODULE_BLS               BIT(1)
-#define CIFISP_MODULE_SDG               BIT(2)
-#define CIFISP_MODULE_HST               BIT(3)
-#define CIFISP_MODULE_LSC               BIT(4)
-#define CIFISP_MODULE_AWB_GAIN          BIT(5)
-#define CIFISP_MODULE_FLT               BIT(6)
-#define CIFISP_MODULE_BDM               BIT(7)
-#define CIFISP_MODULE_CTK               BIT(8)
-#define CIFISP_MODULE_GOC               BIT(9)
-#define CIFISP_MODULE_CPROC             BIT(10)
-#define CIFISP_MODULE_AFC               BIT(11)
-#define CIFISP_MODULE_AWB               BIT(12)
-#define CIFISP_MODULE_IE                BIT(13)
-#define CIFISP_MODULE_AEC               BIT(14)
-#define CIFISP_MODULE_WDR               BIT(15)
-#define CIFISP_MODULE_DPF               BIT(16)
-#define CIFISP_MODULE_DPF_STRENGTH      BIT(17)
+#define CIFISP_MODULE_MAX 18
+/* ISP Other module ID */
+#define CIFISP_DPCC_ID                 0
+#define CIFISP_BLS_ID                  1
+#define CIFISP_SDG_ID                  2
+#define CIFISP_LSC_ID                  3
+#define CIFISP_AWB_GAIN_ID             4
+#define CIFISP_FLT_ID                  5
+#define CIFISP_BDM_ID                  6
+#define CIFISP_CTK_ID                  7
+#define CIFISP_GOC_ID                  8
+#define CIFISP_CPROC_ID                9
+#define CIFISP_IE_ID                   10
+#define CIFISP_WDR_ID                  11
+#define CIFISP_DPF_ID                  12
+#define CIFISP_DPF_STRENGTH_ID         13
+/* ISP Meas module ID, It must be after other id */
+#define CIFISP_MEAS_ID                 14
+#define CIFISP_AEC_ID                  (CIFISP_MEAS_ID + 0)
+#define CIFISP_AFC_ID                  (CIFISP_MEAS_ID + 1)
+#define CIFISP_AWB_ID                  (CIFISP_MEAS_ID + 2)
+#define CIFISP_HST_ID                  (CIFISP_MEAS_ID + 3)
+
+#define CIFISP_MODULE_DPCC             (1 << CIFISP_DPCC_ID)
+#define CIFISP_MODULE_BLS              (1 << CIFISP_BLS_ID)
+#define CIFISP_MODULE_SDG              (1 << CIFISP_SDG_ID)
+#define CIFISP_MODULE_HST              (1 << CIFISP_HST_ID)
+#define CIFISP_MODULE_LSC              (1 << CIFISP_LSC_ID)
+#define CIFISP_MODULE_AWB_GAIN         (1 << CIFISP_AWB_GAIN_ID)
+#define CIFISP_MODULE_FLT              (1 << CIFISP_FLT_ID)
+#define CIFISP_MODULE_BDM              (1 << CIFISP_BDM_ID)
+#define CIFISP_MODULE_CTK              (1 << CIFISP_CTK_ID)
+#define CIFISP_MODULE_GOC              (1 << CIFISP_GOC_ID)
+#define CIFISP_MODULE_CPROC            (1 << CIFISP_CPROC_ID)
+#define CIFISP_MODULE_AFC              (1 << CIFISP_AFC_ID)
+#define CIFISP_MODULE_AWB              (1 << CIFISP_AWB_ID)
+#define CIFISP_MODULE_IE               (1 << CIFISP_IE_ID)
+#define CIFISP_MODULE_AEC              (1 << CIFISP_AEC_ID)
+#define CIFISP_MODULE_WDR              (1 << CIFISP_WDR_ID)
+#define CIFISP_MODULE_DPF              (1 << CIFISP_DPF_ID)
+#define CIFISP_MODULE_DPF_STRENGTH     (1 << CIFISP_DPF_STRENGTH_ID)
 
 #define CIFISP_CTK_COEFF_MAX            0x100
 #define CIFISP_CTK_OFFSET_MAX           0x800

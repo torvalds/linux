@@ -103,8 +103,11 @@
  *5. modify for af function.
  *6. add module parameter for dumpsys.
  *
+ *v0.1.0xf
+ *1. merge modification from rv1108 project.
+ *
  */
 
-#define CONFIG_CIFISP10_DRIVER_VERSION KERNEL_VERSION(0, 1, 0xe)
+#define CONFIG_CIFISP10_DRIVER_VERSION KERNEL_VERSION(0, 1, 0xf)
 
 #endif

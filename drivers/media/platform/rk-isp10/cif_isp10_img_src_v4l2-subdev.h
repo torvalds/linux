@@ -62,4 +62,12 @@ long cif_isp10_img_src_v4l2_subdev_ioctl(
 	unsigned int cmd,
 	void *arg);
 
+int cif_isp10_img_src_v4l2_subdev_s_frame_interval(
+	void *img_src,
+	struct cif_isp10_frm_intrvl *frm_intrvl);
+
+int cif_isp10_img_src_v4l2_subdev_g_frame_interval(
+	void *img_src,
+	struct cif_isp10_frm_intrvl *frm_intrvl);
+
 #endif

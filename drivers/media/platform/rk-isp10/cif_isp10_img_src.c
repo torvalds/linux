@@ -173,3 +173,35 @@ const char *cif_isp10_img_src_g_name(
 	return img_src->ops->g_name(img_src->img_src);
 }
 
+void *cif_isp10_img_src_g_img_src(
+	struct cif_isp10_img_src *img_src)
+{
+	if (img_src) {
+		return img_src->img_src;
+	}
+
+	return NULL;
+}
+
+int cif_isp10_img_src_s_frame_interval(
+       struct cif_isp10_img_src *img_src,
+       struct cif_isp10_frm_intrvl *frm_intrvl)
+{
+	if (img_src)
+		return img_src->ops->s_frame_interval(
+			img_src->img_src,
+			frm_intrvl);
+	return -EINVAL;
+}
+
+int cif_isp10_img_src_g_frame_interval(
+       struct cif_isp10_img_src *img_src,
+       struct cif_isp10_frm_intrvl *frm_intrvl)
+{
+	if (img_src)
+		return img_src->ops->g_frame_interval(
+			img_src->img_src,
+			frm_intrvl);
+	return -EINVAL;
+}
+
