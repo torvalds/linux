@@ -92,7 +92,7 @@
 #include <linux/rodata_test.h>
 #include <linux/jump_label.h>
 #include <linux/mem_encrypt.h>
-
+// asm files
 #include <asm/io.h>
 #include <asm/bugs.h>
 #include <asm/setup.h>
@@ -116,7 +116,6 @@ extern void radix_tree_init(void);
  * flag is set.
  */
 bool early_boot_irqs_disabled __read_mostly;
-
 enum system_states system_state __read_mostly;
 EXPORT_SYMBOL(system_state);
 
@@ -224,6 +223,7 @@ static int __init quiet_kernel(char *str)
 }
 
 early_param("debug", debug_kernel);
+
 early_param("quiet", quiet_kernel);
 
 static int __init loglevel(char *str)
@@ -1091,11 +1091,10 @@ static int __ref kernel_init(void *unused)
 		panic("Requested init %s failed (error %d).",
 		      execute_command, ret);
 	}
-	if (!try_to_run_init_process("/sbin/init") ||
-	    !try_to_run_init_process("/etc/init") ||
-	    !try_to_run_init_process("/bin/init") ||
-	    !try_to_run_init_process("/bin/sh"))
+	if (!try_to_run_init_process("/sbin/init") || !try_to_run_init_process("/etc/init") || !try_to_run_init_process("/bin/init") || !try_to_run_init_process("/bin/sh"))
+	{
 		return 0;
+	}
 
 	panic("No working init found.  Try passing init= option to kernel. "
 	      "See Linux Documentation/admin-guide/init.rst for guidance.");
@@ -1146,10 +1145,12 @@ static noinline void __init kernel_init_freeable(void)
 	 */
 
 	if (!ramdisk_execute_command)
+	{
 		ramdisk_execute_command = "/init";
-
-	if (ksys_access((const char __user *)
-			ramdisk_execute_command, 0) != 0) {
+	}
+	
+	if (ksys_access((const char __user *)ramdisk_execute_command, 0) != 0) 
+	{
 		ramdisk_execute_command = NULL;
 		prepare_namespace();
 	}
@@ -1162,7 +1163,6 @@ static noinline void __init kernel_init_freeable(void)
 	 * rootfs is available now, try loading the public keys
 	 * and default modules
 	 */
-
 	integrity_load_keys();
 	load_default_modules();
 }
