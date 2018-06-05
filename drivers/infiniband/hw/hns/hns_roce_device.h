@@ -736,7 +736,7 @@ struct hns_roce_hw {
 			 u16 token, int event);
 	int (*chk_mbox)(struct hns_roce_dev *hr_dev, unsigned long timeout);
 	int (*set_gid)(struct hns_roce_dev *hr_dev, u8 port, int gid_index,
-		       union ib_gid *gid, const struct ib_gid_attr *attr);
+		       const union ib_gid *gid, const struct ib_gid_attr *attr);
 	int (*set_mac)(struct hns_roce_dev *hr_dev, u8 phy_port, u8 *addr);
 	void (*set_mtu)(struct hns_roce_dev *hr_dev, u8 phy_port,
 			enum ib_mtu mtu);

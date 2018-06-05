@@ -246,9 +246,7 @@ static int mlx4_ib_update_gids(struct gid_entry *gids,
 	return mlx4_ib_update_gids_v1(gids, ibdev, port_num);
 }
 
-static int mlx4_ib_add_gid(const union ib_gid *gid,
-			   const struct ib_gid_attr *attr,
-			   void **context)
+static int mlx4_ib_add_gid(const struct ib_gid_attr *attr, void **context)
 {
 	struct mlx4_ib_dev *ibdev = to_mdev(attr->device);
 	struct mlx4_ib_iboe *iboe = &ibdev->iboe;
@@ -271,8 +269,9 @@ static int mlx4_ib_add_gid(const union ib_gid *gid,
 	port_gid_table = &iboe->gids[attr->port_num - 1];
 	spin_lock_bh(&iboe->lock);
 	for (i = 0; i < MLX4_MAX_PORT_GIDS; ++i) {
-		if (!memcmp(&port_gid_table->gids[i].gid, gid, sizeof(*gid)) &&
-		    (port_gid_table->gids[i].gid_type == attr->gid_type))  {
+		if (!memcmp(&port_gid_table->gids[i].gid,
+			    &attr->gid, sizeof(attr->gid)) &&
+		    port_gid_table->gids[i].gid_type == attr->gid_type)  {
 			found = i;
 			break;
 		}
@@ -289,7 +288,8 @@ static int mlx4_ib_add_gid(const union ib_gid *gid,
 				ret = -ENOMEM;
 			} else {
 				*context = port_gid_table->gids[free].ctx;
-				memcpy(&port_gid_table->gids[free].gid, gid, sizeof(*gid));
+				memcpy(&port_gid_table->gids[free].gid,
+				       &attr->gid, sizeof(attr->gid));
 				port_gid_table->gids[free].gid_type = attr->gid_type;
 				port_gid_table->gids[free].ctx->real_index = free;
 				port_gid_table->gids[free].ctx->refcount = 1;

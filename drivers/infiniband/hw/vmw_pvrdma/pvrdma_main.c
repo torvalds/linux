@@ -62,9 +62,7 @@ static DEFINE_MUTEX(pvrdma_device_list_lock);
 static LIST_HEAD(pvrdma_device_list);
 static struct workqueue_struct *event_wq;
 
-static int pvrdma_add_gid(const union ib_gid *gid,
-			  const struct ib_gid_attr *attr,
-			  void **context);
+static int pvrdma_add_gid(const struct ib_gid_attr *attr, void **context);
 static int pvrdma_del_gid(const struct ib_gid_attr *attr, void **context);
 
 static ssize_t show_hca(struct device *device, struct device_attribute *attr,
@@ -650,13 +648,11 @@ static int pvrdma_add_gid_at_index(struct pvrdma_dev *dev,
 	return 0;
 }
 
-static int pvrdma_add_gid(const union ib_gid *gid,
-			  const struct ib_gid_attr *attr,
-			  void **context)
+static int pvrdma_add_gid(const struct ib_gid_attr *attr, void **context)
 {
 	struct pvrdma_dev *dev = to_vdev(attr->device);
 
-	return pvrdma_add_gid_at_index(dev, gid,
+	return pvrdma_add_gid_at_index(dev, &attr->gid,
 				       ib_gid_type_to_pvrdma(attr->gid_type),
 				       attr->index);
 }

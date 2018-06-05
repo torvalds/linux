@@ -2342,8 +2342,7 @@ struct ib_device {
 	 * concurrently for different ports. This function is only called when
 	 * roce_gid_table is used.
 	 */
-	int		           (*add_gid)(const union ib_gid *gid,
-					      const struct ib_gid_attr *attr,
+	int		           (*add_gid)(const struct ib_gid_attr *attr,
 					      void **context);
 	/* When calling del_gid, the HW vendor's driver should delete the
 	 * gid of device @device at gid index gid_index of port port_num

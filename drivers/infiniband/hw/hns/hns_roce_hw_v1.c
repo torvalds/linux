@@ -1728,7 +1728,7 @@ static int hns_roce_v1_chk_mbox(struct hns_roce_dev *hr_dev,
 }
 
 static int hns_roce_v1_set_gid(struct hns_roce_dev *hr_dev, u8 port,
-			       int gid_index, union ib_gid *gid,
+			       int gid_index, const union ib_gid *gid,
 			       const struct ib_gid_attr *attr)
 {
 	u32 *p = NULL;

@@ -303,7 +303,7 @@ static int add_roce_gid(struct ib_gid_table_entry *entry)
 		return -EINVAL;
 	}
 	if (rdma_cap_roce_gid_table(attr->device, attr->port_num)) {
-		ret = attr->device->add_gid(&attr->gid, attr, &entry->context);
+		ret = attr->device->add_gid(attr, &entry->context);
 		if (ret) {
 			pr_err("%s GID add failed device=%s port=%d index=%d\n",
 			       __func__, attr->device->name, attr->port_num,
