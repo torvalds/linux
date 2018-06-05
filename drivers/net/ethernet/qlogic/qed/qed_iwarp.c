@@ -1159,7 +1159,6 @@ int qed_iwarp_connect(void *rdma_cxt,
 	struct qed_iwarp_info *iwarp_info;
 	struct qed_iwarp_ep *ep;
 	u8 mpa_data_size = 0;
-	u8 ts_hdr_size = 0;
 	u32 cid;
 	int rc;
 
@@ -1218,10 +1217,7 @@ int qed_iwarp_connect(void *rdma_cxt,
 	       iparams->cm_info.private_data,
 	       iparams->cm_info.private_data_len);
 
-	if (p_hwfn->p_rdma_info->iwarp.tcp_flags & QED_IWARP_TS_EN)
-		ts_hdr_size = TIMESTAMP_HEADER_SIZE;
-
-	ep->mss = iparams->mss - ts_hdr_size;
+	ep->mss = iparams->mss;
 	ep->mss = min_t(u16, QED_IWARP_MAX_FW_MSS, ep->mss);
 
 	ep->event_cb = iparams->event_cb;
@@ -2337,7 +2333,6 @@ qed_iwarp_ll2_comp_syn_pkt(void *cxt, struct qed_ll2_comp_rx_data *data)
 	u8 local_mac_addr[ETH_ALEN];
 	struct qed_iwarp_ep *ep;
 	int tcp_start_offset;
-	u8 ts_hdr_size = 0;
 	u8 ll2_syn_handle;
 	int payload_len;
 	u32 hdr_size;
@@ -2415,11 +2410,7 @@ qed_iwarp_ll2_comp_syn_pkt(void *cxt, struct qed_ll2_comp_rx_data *data)
 
 	memcpy(&ep->cm_info, &cm_info, sizeof(ep->cm_info));
 
-	if (p_hwfn->p_rdma_info->iwarp.tcp_flags & QED_IWARP_TS_EN)
-		ts_hdr_size = TIMESTAMP_HEADER_SIZE;
-
-	hdr_size = ((cm_info.ip_version == QED_TCP_IPV4) ? 40 : 60) +
-		   ts_hdr_size;
+	hdr_size = ((cm_info.ip_version == QED_TCP_IPV4) ? 40 : 60);
 	ep->mss = p_hwfn->p_rdma_info->iwarp.max_mtu - hdr_size;
 	ep->mss = min_t(u16, QED_IWARP_MAX_FW_MSS, ep->mss);
 

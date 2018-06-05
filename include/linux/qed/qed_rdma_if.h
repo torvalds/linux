@@ -65,8 +65,7 @@ enum qed_roce_qp_state {
 enum qed_rdma_tid_type {
 	QED_RDMA_TID_REGISTERED_MR,
 	QED_RDMA_TID_FMR,
-	QED_RDMA_TID_MW_TYPE1,
-	QED_RDMA_TID_MW_TYPE2A
+	QED_RDMA_TID_MW
 };
 
 struct qed_rdma_events {
@@ -280,7 +279,6 @@ struct qed_rdma_register_tid_in_params {
 
 	bool dif_enabled;
 	u64 dif_error_addr;
-	u64 dif_runt_addr;
 };
 
 struct qed_rdma_create_cq_in_params {

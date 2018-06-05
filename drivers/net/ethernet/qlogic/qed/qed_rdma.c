@@ -1508,11 +1508,8 @@ qed_rdma_register_tid(void *rdma_cxt,
 	case QED_RDMA_TID_FMR:
 		tid_type = RDMA_TID_FMR;
 		break;
-	case QED_RDMA_TID_MW_TYPE1:
-		tid_type = RDMA_TID_MW_TYPE1;
-		break;
-	case QED_RDMA_TID_MW_TYPE2A:
-		tid_type = RDMA_TID_MW_TYPE2A;
+	case QED_RDMA_TID_MW:
+		tid_type = RDMA_TID_MW;
 		break;
 	default:
 		rc = -EINVAL;
@@ -1544,7 +1541,6 @@ qed_rdma_register_tid(void *rdma_cxt,
 			  RDMA_REGISTER_TID_RAMROD_DATA_DIF_ON_HOST_FLG, 1);
 		DMA_REGPAIR_LE(p_ramrod->dif_error_addr,
 			       params->dif_error_addr);
-		DMA_REGPAIR_LE(p_ramrod->dif_runt_addr, params->dif_runt_addr);
 	}
 
 	rc = qed_spq_post(p_hwfn, p_ent, &fw_return_code);

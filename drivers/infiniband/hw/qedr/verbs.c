@@ -3276,7 +3276,7 @@ int qedr_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 				SET_FIELD(flags, RDMA_RQ_SGE_NUM_SGES,
 					  wr->num_sge);
 
-			SET_FIELD(flags, RDMA_RQ_SGE_L_KEY,
+			SET_FIELD(flags, RDMA_RQ_SGE_L_KEY_LO,
 				  wr->sg_list[i].lkey);
 
 			RQ_SGE_SET(rqe, wr->sg_list[i].addr,
@@ -3295,7 +3295,7 @@ int qedr_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 			/* First one must include the number
 			 * of SGE in the list
 			 */
-			SET_FIELD(flags, RDMA_RQ_SGE_L_KEY, 0);
+			SET_FIELD(flags, RDMA_RQ_SGE_L_KEY_LO, 0);
 			SET_FIELD(flags, RDMA_RQ_SGE_NUM_SGES, 1);
 
 			RQ_SGE_SET(rqe, 0, 0, flags);

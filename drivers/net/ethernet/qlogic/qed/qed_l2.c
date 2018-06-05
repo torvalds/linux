@@ -586,6 +586,9 @@ qed_sp_update_accept_mode(struct qed_hwfn *p_hwfn,
 		SET_FIELD(state, ETH_VPORT_RX_MODE_BCAST_ACCEPT_ALL,
 			  !!(accept_filter & QED_ACCEPT_BCAST));
 
+		SET_FIELD(state, ETH_VPORT_RX_MODE_ACCEPT_ANY_VNI,
+			  !!(accept_filter & QED_ACCEPT_ANY_VNI));
+
 		p_ramrod->rx_mode.state = cpu_to_le16(state);
 		DP_VERBOSE(p_hwfn, QED_MSG_SP,
 			   "p_ramrod->rx_mode.state = 0x%x\n", state);

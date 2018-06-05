@@ -471,13 +471,7 @@ static u16 qedi_calc_mss(u16 pmtu, u8 is_ipv6, u8 tcp_ts_en, u8 vlan_en)
 	else
 		hdrs += IPV4_HDR_LEN;
 
-	if (vlan_en)
-		hdrs += VLAN_LEN;
-
 	mss = pmtu - hdrs;
-
-	if (tcp_ts_en)
-		mss -= TCP_OPTION_LEN;
 
 	if (!mss)
 		mss = DEF_MSS;

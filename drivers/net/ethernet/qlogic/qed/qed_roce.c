@@ -681,7 +681,6 @@ static int qed_roce_sp_modify_requester(struct qed_hwfn *p_hwfn,
 
 static int qed_roce_sp_destroy_qp_responder(struct qed_hwfn *p_hwfn,
 					    struct qed_rdma_qp *qp,
-					    u32 *num_invalidated_mw,
 					    u32 *cq_prod)
 {
 	struct roce_destroy_qp_resp_output_params *p_ramrod_res;
@@ -692,8 +691,6 @@ static int qed_roce_sp_destroy_qp_responder(struct qed_hwfn *p_hwfn,
 	int rc;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "icid = %08x\n", qp->icid);
-
-	*num_invalidated_mw = 0;
 	*cq_prod = qp->cq_prod;
 
 	if (!qp->resp_offloaded) {
@@ -742,7 +739,6 @@ static int qed_roce_sp_destroy_qp_responder(struct qed_hwfn *p_hwfn,
 	if (rc)
 		goto err;
 
-	*num_invalidated_mw = le32_to_cpu(p_ramrod_res->num_invalidated_mw);
 	*cq_prod = le32_to_cpu(p_ramrod_res->cq_prod);
 	qp->cq_prod = *cq_prod;
 
@@ -764,8 +760,7 @@ err:
 }
 
 static int qed_roce_sp_destroy_qp_requester(struct qed_hwfn *p_hwfn,
-					    struct qed_rdma_qp *qp,
-					    u32 *num_bound_mw)
+					    struct qed_rdma_qp *qp)
 {
 	struct roce_destroy_qp_req_output_params *p_ramrod_res;
 	struct roce_destroy_qp_req_ramrod_data *p_ramrod;
@@ -807,7 +802,6 @@ static int qed_roce_sp_destroy_qp_requester(struct qed_hwfn *p_hwfn,
 	if (rc)
 		goto err;
 
-	*num_bound_mw = le32_to_cpu(p_ramrod_res->num_bound_mw);
 
 	/* Free ORQ - only if ramrod succeeded, in case FW is still using it */
 	dma_free_coherent(&p_hwfn->cdev->pdev->dev,
@@ -968,8 +962,6 @@ err_resp:
 
 int qed_roce_destroy_qp(struct qed_hwfn *p_hwfn, struct qed_rdma_qp *qp)
 {
-	u32 num_invalidated_mw = 0;
-	u32 num_bound_mw = 0;
 	u32 cq_prod;
 	int rc;
 
@@ -984,22 +976,14 @@ int qed_roce_destroy_qp(struct qed_hwfn *p_hwfn, struct qed_rdma_qp *qp)
 
 	if (qp->cur_state != QED_ROCE_QP_STATE_RESET) {
 		rc = qed_roce_sp_destroy_qp_responder(p_hwfn, qp,
-						      &num_invalidated_mw,
 						      &cq_prod);
 		if (rc)
 			return rc;
 
 		/* Send destroy requester ramrod */
-		rc = qed_roce_sp_destroy_qp_requester(p_hwfn, qp,
-						      &num_bound_mw);
+		rc = qed_roce_sp_destroy_qp_requester(p_hwfn, qp);
 		if (rc)
 			return rc;
-
-		if (num_invalidated_mw != num_bound_mw) {
-			DP_NOTICE(p_hwfn,
-				  "number of invalidate memory windows is different from bounded ones\n");
-			return -EINVAL;
-		}
 	}
 
 	return 0;
@@ -1010,7 +994,6 @@ int qed_roce_modify_qp(struct qed_hwfn *p_hwfn,
 		       enum qed_roce_qp_state prev_state,
 		       struct qed_rdma_modify_qp_in_params *params)
 {
-	u32 num_invalidated_mw = 0, num_bound_mw = 0;
 	int rc = 0;
 
 	/* Perform additional operations according to the current state and the
@@ -1090,7 +1073,6 @@ int qed_roce_modify_qp(struct qed_hwfn *p_hwfn,
 		/* Send destroy responder ramrod */
 		rc = qed_roce_sp_destroy_qp_responder(p_hwfn,
 						      qp,
-						      &num_invalidated_mw,
 						      &cq_prod);
 
 		if (rc)
@@ -1098,14 +1080,7 @@ int qed_roce_modify_qp(struct qed_hwfn *p_hwfn,
 
 		qp->cq_prod = cq_prod;
 
-		rc = qed_roce_sp_destroy_qp_requester(p_hwfn, qp,
-						      &num_bound_mw);
-
-		if (num_invalidated_mw != num_bound_mw) {
-			DP_NOTICE(p_hwfn,
-				  "number of invalidate memory windows is different from bounded ones\n");
-			return -EINVAL;
-		}
+		rc = qed_roce_sp_destroy_qp_requester(p_hwfn, qp);
 	} else {
 		DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "0\n");
 	}
