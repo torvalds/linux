@@ -264,7 +264,7 @@ static inline struct audit_entry *audit_to_entry_common(struct audit_rule_data *
 	case AUDIT_FILTER_TASK:
 #endif
 	case AUDIT_FILTER_USER:
-	case AUDIT_FILTER_TYPE:
+	case AUDIT_FILTER_EXCLUDE:
 	case AUDIT_FILTER_FS:
 		;
 	}
@@ -337,7 +337,7 @@ static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
 {
 	switch(f->type) {
 	case AUDIT_MSGTYPE:
-		if (entry->rule.listnr != AUDIT_FILTER_TYPE &&
+		if (entry->rule.listnr != AUDIT_FILTER_EXCLUDE &&
 		    entry->rule.listnr != AUDIT_FILTER_USER)
 			return -EINVAL;
 		break;
@@ -929,7 +929,7 @@ static inline int audit_add_rule(struct audit_entry *entry)
 	/* If any of these, don't count towards total */
 	switch(entry->rule.listnr) {
 	case AUDIT_FILTER_USER:
-	case AUDIT_FILTER_TYPE:
+	case AUDIT_FILTER_EXCLUDE:
 	case AUDIT_FILTER_FS:
 		dont_count = 1;
 	}
@@ -1011,7 +1011,7 @@ int audit_del_rule(struct audit_entry *entry)
 	/* If any of these, don't count towards total */
 	switch(entry->rule.listnr) {
 	case AUDIT_FILTER_USER:
-	case AUDIT_FILTER_TYPE:
+	case AUDIT_FILTER_EXCLUDE:
 	case AUDIT_FILTER_FS:
 		dont_count = 1;
 	}
@@ -1372,7 +1372,7 @@ int audit_filter(int msgtype, unsigned int listtype)
 				break;
 		}
 		if (result > 0) {
-			if (e->rule.action == AUDIT_NEVER || listtype == AUDIT_FILTER_TYPE)
+			if (e->rule.action == AUDIT_NEVER || listtype == AUDIT_FILTER_EXCLUDE)
 				ret = 0;
 			break;
 		}
