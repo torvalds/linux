@@ -236,13 +236,13 @@ static int pp_set_powergating_state(void *handle,
 			pr_err("gfx off control failed!\n");
 	}
 
-	if (hwmgr->hwmgr_func->enable_per_cu_power_gating == NULL) {
-		pr_debug("%s was not implemented.\n", __func__);
+	if (hwmgr->hwmgr_func->powergate_gfx == NULL) {
+		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
 
 	/* Enable/disable GFX per cu powergating through SMU */
-	return hwmgr->hwmgr_func->enable_per_cu_power_gating(hwmgr,
+	return hwmgr->hwmgr_func->powergate_gfx(hwmgr,
 			state == AMD_PG_STATE_GATE);
 }
 

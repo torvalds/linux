@@ -302,7 +302,7 @@ struct pp_hwmgr_func {
 	int (*power_off_asic)(struct pp_hwmgr *hwmgr);
 	int (*force_clock_level)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, uint32_t mask);
 	int (*print_clock_levels)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, char *buf);
-	int (*enable_per_cu_power_gating)(struct pp_hwmgr *hwmgr, bool enable);
+	int (*powergate_gfx)(struct pp_hwmgr *hwmgr, bool enable);
 	int (*get_sclk_od)(struct pp_hwmgr *hwmgr);
 	int (*set_sclk_od)(struct pp_hwmgr *hwmgr, uint32_t value);
 	int (*get_mclk_od)(struct pp_hwmgr *hwmgr);
