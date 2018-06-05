@@ -80,6 +80,9 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <sys/wait.h>
 
 #include "sane_ctype.h"
 
@@ -175,6 +178,8 @@ static int			output_fd;
 static int			print_free_counters_hint;
 static int			print_mixed_hw_group_error;
 static u64			*walltime_run;
+static bool			ru_display			= false;
+static struct rusage		ru_data;
 
 struct perf_stat {
 	bool			 record;
@@ -726,7 +731,7 @@ try_again:
 					break;
 			}
 		}
-		waitpid(child_pid, &status, 0);
+		wait4(child_pid, &status, 0, &ru_data);
 
 		if (workload_exec_errno) {
 			const char *emsg = str_error_r(workload_exec_errno, msg, sizeof(msg));
@@ -1804,6 +1809,11 @@ static void print_table(FILE *output, int precision, double avg)
 	fprintf(output, "\n%*s# Final result:\n", indent, "");
 }
 
+static double timeval2double(struct timeval *t)
+{
+	return t->tv_sec + (double) t->tv_usec/USEC_PER_SEC;
+}
+
 static void print_footer(void)
 {
 	double avg = avg_stats(&walltime_nsecs_stats) / NSEC_PER_SEC;
@@ -1815,6 +1825,15 @@ static void print_footer(void)
 
 	if (run_count == 1) {
 		fprintf(output, " %17.9f seconds time elapsed", avg);
+
+		if (ru_display) {
+			double ru_utime = timeval2double(&ru_data.ru_utime);
+			double ru_stime = timeval2double(&ru_data.ru_stime);
+
+			fprintf(output, "\n\n");
+			fprintf(output, " %17.9f seconds user\n", ru_utime);
+			fprintf(output, " %17.9f seconds sys\n", ru_stime);
+		}
 	} else {
 		double sd = stddev_stats(&walltime_nsecs_stats) / NSEC_PER_SEC;
 		/*
@@ -2949,6 +2968,13 @@ int cmd_stat(int argc, const char **argv)
 		big_num = false;
 
 	setup_system_wide(argc);
+
+	/*
+	 * Display user/system times only for single
+	 * run and when there's specified tracee.
+	 */
+	if ((run_count == 1) && target__none(&target))
+		ru_display = true;
 
 	if (run_count < 0) {
 		pr_err("Run count must be a positive number\n");
