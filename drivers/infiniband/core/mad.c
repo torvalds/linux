@@ -1896,8 +1896,8 @@ static inline int rcv_has_same_gid(const struct ib_mad_agent_private *mad_agent_
 			const struct ib_global_route *grh =
 					rdma_ah_read_grh(&attr);
 
-			if (ib_get_cached_gid(device, port_num,
-					      grh->sgid_index, &sgid, NULL))
+			if (rdma_query_gid(device, port_num,
+					   grh->sgid_index, &sgid))
 				return 0;
 			return !memcmp(sgid.raw, rwc->recv_buf.grh->dgid.raw,
 				       16);

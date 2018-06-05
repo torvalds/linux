@@ -516,10 +516,8 @@ static int ib_resolve_unicast_gid_dmac(struct ib_device *device,
 
 	grh = rdma_ah_retrieve_grh(ah_attr);
 
-	ret = ib_query_gid(device,
-			   rdma_ah_get_port_num(ah_attr),
-			   grh->sgid_index,
-			   &sgid, &sgid_attr);
+	ret = ib_get_cached_gid(device, rdma_ah_get_port_num(ah_attr),
+				grh->sgid_index, &sgid, &sgid_attr);
 	if (ret || !sgid_attr.ndev) {
 		if (!ret)
 			ret = -ENXIO;

@@ -1646,7 +1646,7 @@ static void cm_opa_to_ib_sgid(struct cm_work *work,
 	    (ib_is_opa_gid(&path->sgid))) {
 		union ib_gid sgid;
 
-		if (ib_get_cached_gid(dev, port_num, 0, &sgid, NULL)) {
+		if (rdma_query_gid(dev, port_num, 0, &sgid)) {
 			dev_warn(&dev->dev,
 				 "Error updating sgid in CM request\n");
 			return;
@@ -1997,10 +1997,9 @@ static int cm_req_handler(struct cm_work *work)
 	if (ret) {
 		int err;
 
-		err = ib_get_cached_gid(work->port->cm_dev->ib_device,
-					work->port->port_num, 0,
-					&work->path[0].sgid,
-					NULL);
+		err = rdma_query_gid(work->port->cm_dev->ib_device,
+				     work->port->port_num, 0,
+				     &work->path[0].sgid);
 		if (err)
 			ib_send_cm_rej(cm_id, IB_CM_REJ_INVALID_GID,
 				       NULL, 0, NULL, 0);

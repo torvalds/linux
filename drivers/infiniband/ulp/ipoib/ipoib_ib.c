@@ -40,6 +40,7 @@
 
 #include <linux/ip.h>
 #include <linux/tcp.h>
+#include <rdma/ib_cache.h>
 
 #include "ipoib.h"
 
@@ -1069,7 +1070,7 @@ static bool ipoib_dev_addr_changed_valid(struct ipoib_dev_priv *priv)
 	bool ret = false;
 
 	netdev_gid = (union ib_gid *)(priv->dev->dev_addr + 4);
-	if (ib_query_gid(priv->ca, priv->port, 0, &gid0, NULL))
+	if (rdma_query_gid(priv->ca, priv->port, 0, &gid0))
 		return false;
 
 	netif_addr_lock_bh(priv->dev);

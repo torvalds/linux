@@ -2287,9 +2287,9 @@ static struct net_device *ipoib_add_port(const char *format,
 	priv->dev->broadcast[8] = priv->pkey >> 8;
 	priv->dev->broadcast[9] = priv->pkey & 0xff;
 
-	result = ib_query_gid(hca, port, 0, &priv->local_gid, NULL);
+	result = rdma_query_gid(hca, port, 0, &priv->local_gid);
 	if (result) {
-		pr_warn("%s: ib_query_gid port %d failed (ret = %d)\n",
+		pr_warn("%s: rdma_query_gid port %d failed (ret = %d)\n",
 			hca->name, port, result);
 		goto device_init_failed;
 	}

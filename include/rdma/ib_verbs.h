@@ -3046,10 +3046,6 @@ static inline bool rdma_cap_read_inv(struct ib_device *dev, u32 port_num)
 	return rdma_protocol_iwarp(dev, port_num);
 }
 
-int ib_query_gid(struct ib_device *device,
-		 u8 port_num, int index, union ib_gid *gid,
-		 struct ib_gid_attr *attr);
-
 int ib_set_vf_link_state(struct ib_device *device, int vf, u8 port,
 			 int state);
 int ib_get_vf_config(struct ib_device *device, int vf, u8 port,

@@ -3843,7 +3843,7 @@ static ssize_t srp_create_target(struct device *dev,
 	INIT_WORK(&target->tl_err_work, srp_tl_err_work);
 	INIT_WORK(&target->remove_work, srp_remove_work);
 	spin_lock_init(&target->lock);
-	ret = ib_query_gid(ibdev, host->port, 0, &target->sgid, NULL);
+	ret = rdma_query_gid(ibdev, host->port, 0, &target->sgid);
 	if (ret)
 		goto out;
 
