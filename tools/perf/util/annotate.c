@@ -819,6 +819,11 @@ static int __symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 
 	offset = addr - sym->start;
 	h = annotated_source__histogram(src, evidx);
+	if (h == NULL) {
+		pr_debug("%s(%d): ENOMEM! sym->name=%s, start=%#" PRIx64 ", addr=%#" PRIx64 ", end=%#" PRIx64 ", func: %d\n",
+			 __func__, __LINE__, sym->name, sym->start, addr, sym->end, sym->type == STT_FUNC);
+		return -ENOMEM;
+	}
 	h->nr_samples++;
 	h->addr[offset].nr_samples++;
 	h->period += sample->period;
