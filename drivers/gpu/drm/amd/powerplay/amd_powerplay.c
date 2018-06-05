@@ -221,23 +221,7 @@ static int pp_sw_reset(void *handle)
 static int pp_set_powergating_state(void *handle,
 				    enum amd_powergating_state state)
 {
-	struct amdgpu_device *adev = handle;
-	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
-	int ret;
-
-	if (!hwmgr || !hwmgr->pm_en)
-		return 0;
-
-	if (hwmgr->hwmgr_func->gfx_off_control) {
-		/* Enable/disable GFX off through SMU */
-		ret = hwmgr->hwmgr_func->gfx_off_control(hwmgr,
-							 state == AMD_PG_STATE_GATE);
-		if (ret)
-			pr_err("gfx off control failed!\n");
-	}
-
 	return 0;
-
 }
 
 static int pp_suspend(void *handle)

@@ -1730,16 +1730,11 @@ static int amdgpu_device_ip_late_set_cg_state(struct amdgpu_device *adev)
 		}
 	}
 
-	if (adev->powerplay.pp_feature & PP_GFXOFF_MASK) {
+	if (adev->powerplay.pp_feature & PP_GFXOFF_MASK)
 		/* enable gfx powergating */
 		amdgpu_device_ip_set_powergating_state(adev,
 						       AMD_IP_BLOCK_TYPE_GFX,
 						       AMD_PG_STATE_GATE);
-		/* enable gfxoff */
-		amdgpu_device_ip_set_powergating_state(adev,
-						       AMD_IP_BLOCK_TYPE_SMC,
-						       AMD_PG_STATE_GATE);
-	}
 
 	return 0;
 }
@@ -1812,6 +1807,8 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 					  adev->ip_blocks[i].version->funcs->name, r);
 				return r;
 			}
+			if (adev->powerplay.pp_funcs->set_powergating_by_smu)
+				amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_GFX, false);
 			r = adev->ip_blocks[i].version->funcs->hw_fini((void *)adev);
 			/* XXX handle errors */
 			if (r) {
@@ -1921,18 +1918,16 @@ int amdgpu_device_ip_suspend(struct amdgpu_device *adev)
 	if (amdgpu_sriov_vf(adev))
 		amdgpu_virt_request_full_gpu(adev, false);
 
-	/* ungate SMC block powergating */
-	if (adev->powerplay.pp_feature & PP_GFXOFF_MASK)
-		amdgpu_device_ip_set_powergating_state(adev,
-						       AMD_IP_BLOCK_TYPE_SMC,
-						       AMD_PG_STATE_UNGATE);
-
 	/* ungate SMC block first */
 	r = amdgpu_device_ip_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_SMC,
 						   AMD_CG_STATE_UNGATE);
 	if (r) {
 		DRM_ERROR("set_clockgating_state(ungate) SMC failed %d\n", r);
 	}
+
+	/* call smu to disable gfx off feature first when suspend */
+	if (adev->powerplay.pp_funcs->set_powergating_by_smu)
+		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_GFX, false);
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_blocks[i].status.valid)
