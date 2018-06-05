@@ -948,7 +948,8 @@ static int goldfish_pipe_dma_alloc_locked(struct goldfish_pipe *pipe)
 				dma->dma_size,
 				&dma->phys_begin,
 				GFP_KERNEL);
-	return -ENOMEM;
+	if (!dma->dma_vaddr)
+		return -ENOMEM;
 
 	dma->phys_end = dma->phys_begin + dma->dma_size;
 	pipe->dev->dma_alloc_total += dma->dma_size;
