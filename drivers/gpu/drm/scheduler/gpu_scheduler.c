@@ -256,7 +256,7 @@ static void drm_sched_entity_kill_jobs_cb(struct dma_fence *f,
 
 
 /**
- * drm_sched_entity_do_release - Destroy a context entity
+ * drm_sched_entity_flush - Flush a context entity
  *
  * @sched: scheduler instance
  * @entity: scheduler entity
@@ -267,7 +267,7 @@ static void drm_sched_entity_kill_jobs_cb(struct dma_fence *f,
  *
  * Returns the remaining time in jiffies left from the input timeout
  */
-long drm_sched_entity_do_release(struct drm_gpu_scheduler *sched,
+long drm_sched_entity_flush(struct drm_gpu_scheduler *sched,
 			   struct drm_sched_entity *entity, long timeout)
 {
 	long ret = timeout;
@@ -294,7 +294,7 @@ long drm_sched_entity_do_release(struct drm_gpu_scheduler *sched,
 
 	return ret;
 }
-EXPORT_SYMBOL(drm_sched_entity_do_release);
+EXPORT_SYMBOL(drm_sched_entity_flush);
 
 /**
  * drm_sched_entity_cleanup - Destroy a context entity
@@ -306,7 +306,7 @@ EXPORT_SYMBOL(drm_sched_entity_do_release);
  * entity and signals all jobs with an error code if the process was killed.
  *
  */
-void drm_sched_entity_cleanup(struct drm_gpu_scheduler *sched,
+void drm_sched_entity_fini(struct drm_gpu_scheduler *sched,
 			   struct drm_sched_entity *entity)
 {
 
@@ -357,7 +357,7 @@ void drm_sched_entity_cleanup(struct drm_gpu_scheduler *sched,
 	dma_fence_put(entity->last_scheduled);
 	entity->last_scheduled = NULL;
 }
-EXPORT_SYMBOL(drm_sched_entity_cleanup);
+EXPORT_SYMBOL(drm_sched_entity_fini);
 
 /**
  * drm_sched_entity_fini - Destroy a context entity
@@ -367,13 +367,13 @@ EXPORT_SYMBOL(drm_sched_entity_cleanup);
  *
  * Calls drm_sched_entity_do_release() and drm_sched_entity_cleanup()
  */
-void drm_sched_entity_fini(struct drm_gpu_scheduler *sched,
+void drm_sched_entity_destroy(struct drm_gpu_scheduler *sched,
 				struct drm_sched_entity *entity)
 {
-	drm_sched_entity_do_release(sched, entity, MAX_WAIT_SCHED_ENTITY_Q_EMPTY);
-	drm_sched_entity_cleanup(sched, entity);
+	drm_sched_entity_flush(sched, entity, MAX_WAIT_SCHED_ENTITY_Q_EMPTY);
+	drm_sched_entity_fini(sched, entity);
 }
-EXPORT_SYMBOL(drm_sched_entity_fini);
+EXPORT_SYMBOL(drm_sched_entity_destroy);
 
 static void drm_sched_entity_wakeup(struct dma_fence *f, struct dma_fence_cb *cb)
 {

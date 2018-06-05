@@ -470,7 +470,7 @@ static int uvd_v6_0_sw_fini(void *handle)
 		return r;
 
 	if (uvd_v6_0_enc_support(adev)) {
-		drm_sched_entity_fini(&adev->uvd.inst->ring_enc[0].sched, &adev->uvd.inst->entity_enc);
+		drm_sched_entity_destroy(&adev->uvd.inst->ring_enc[0].sched, &adev->uvd.inst->entity_enc);
 
 		for (i = 0; i < adev->uvd.num_enc_rings; ++i)
 			amdgpu_ring_fini(&adev->uvd.inst->ring_enc[i]);

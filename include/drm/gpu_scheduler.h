@@ -284,11 +284,11 @@ int drm_sched_entity_init(struct drm_gpu_scheduler *sched,
 			  struct drm_sched_entity *entity,
 			  struct drm_sched_rq *rq,
 			  atomic_t *guilty);
-long drm_sched_entity_do_release(struct drm_gpu_scheduler *sched,
+long drm_sched_entity_flush(struct drm_gpu_scheduler *sched,
 			   struct drm_sched_entity *entity, long timeout);
-void drm_sched_entity_cleanup(struct drm_gpu_scheduler *sched,
-			   struct drm_sched_entity *entity);
 void drm_sched_entity_fini(struct drm_gpu_scheduler *sched,
+			   struct drm_sched_entity *entity);
+void drm_sched_entity_destroy(struct drm_gpu_scheduler *sched,
 			   struct drm_sched_entity *entity);
 void drm_sched_entity_push_job(struct drm_sched_job *sched_job,
 			       struct drm_sched_entity *entity);

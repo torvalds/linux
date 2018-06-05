@@ -309,7 +309,7 @@ int amdgpu_uvd_sw_fini(struct amdgpu_device *adev)
 	for (j = 0; j < adev->uvd.num_uvd_inst; ++j) {
 		kfree(adev->uvd.inst[j].saved_bo);
 
-		drm_sched_entity_fini(&adev->uvd.inst[j].ring.sched, &adev->uvd.inst[j].entity);
+		drm_sched_entity_destroy(&adev->uvd.inst[j].ring.sched, &adev->uvd.inst[j].entity);
 
 		amdgpu_bo_free_kernel(&adev->uvd.inst[j].vcpu_bo,
 				      &adev->uvd.inst[j].gpu_addr,
