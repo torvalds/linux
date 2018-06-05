@@ -970,14 +970,16 @@ xfs_sync_sb_buf(
 	struct xfs_mount	*mp)
 {
 	struct xfs_trans	*tp;
+	struct xfs_buf		*bp;
 	int			error;
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_sb, 0, 0, 0, &tp);
 	if (error)
 		return error;
 
+	bp = xfs_trans_getsb(tp, mp, 0);
 	xfs_log_sb(tp);
-	xfs_trans_bhold(tp, mp->m_sb_bp);
+	xfs_trans_bhold(tp, bp);
 	xfs_trans_set_sync(tp);
 	error = xfs_trans_commit(tp);
 	if (error)
@@ -985,9 +987,9 @@ xfs_sync_sb_buf(
 	/*
 	 * write out the sb buffer to get the changes to disk
 	 */
-	error = xfs_bwrite(mp->m_sb_bp);
+	error = xfs_bwrite(bp);
 out:
-	xfs_buf_relse(mp->m_sb_bp);
+	xfs_buf_relse(bp);
 	return error;
 }
 
