@@ -33,6 +33,8 @@
  * properly updating/freeing them
  */
 
+#define AA_FIRST_SECID 1
+
 static DEFINE_IDR(aa_secids);
 static DEFINE_SPINLOCK(secid_lock);
 
@@ -120,20 +122,31 @@ void apparmor_release_secctx(char *secdata, u32 seclen)
 
 /**
  * aa_alloc_secid - allocate a new secid for a profile
+ * @label: the label to allocate a secid for
+ * @gfp: memory allocation flags
+ *
+ * Returns: 0 with @label->secid initialized
+ *          <0 returns error with @label->secid set to AA_SECID_INVALID
  */
-u32 aa_alloc_secid(struct aa_label *label, gfp_t gfp)
+int aa_alloc_secid(struct aa_label *label, gfp_t gfp)
 {
 	unsigned long flags;
-	u32 secid;
+	int ret;
 
 	idr_preload(gfp);
 	spin_lock_irqsave(&secid_lock, flags);
-	secid = idr_alloc(&aa_secids, label, 0, 0, GFP_ATOMIC);
-	/* XXX: Can return -ENOMEM */
+	ret = idr_alloc(&aa_secids, label, AA_FIRST_SECID, 0, GFP_ATOMIC);
 	spin_unlock_irqrestore(&secid_lock, flags);
 	idr_preload_end();
 
-	return secid;
+	if (ret < 0) {
+		label->secid = AA_SECID_INVALID;
+		return ret;
+	}
+
+	AA_BUG(ret == AA_SECID_INVALID);
+	label->secid = ret;
+	return 0;
 }
 
 /**
@@ -147,4 +160,9 @@ void aa_free_secid(u32 secid)
 	spin_lock_irqsave(&secid_lock, flags);
 	idr_remove(&aa_secids, secid);
 	spin_unlock_irqrestore(&secid_lock, flags);
+}
+
+void aa_secids_init(void)
+{
+	idr_init_base(&aa_secids, AA_FIRST_SECID);
 }
