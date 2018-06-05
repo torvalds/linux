@@ -2530,6 +2530,9 @@ extern int ext4_alloc_flex_bg_array(struct super_block *sb,
 				    ext4_group_t ngroup);
 extern const char *ext4_decode_error(struct super_block *sb, int errno,
 				     char nbuf[16]);
+extern void ext4_mark_group_bitmap_corrupted(struct super_block *sb,
+					     ext4_group_t block_group,
+					     unsigned int flags);
 
 extern __printf(4, 5)
 void __ext4_error(struct super_block *, const char *, unsigned int,
@@ -2857,6 +2860,10 @@ struct ext4_group_info {
 #define EXT4_GROUP_INFO_WAS_TRIMMED_BIT		1
 #define EXT4_GROUP_INFO_BBITMAP_CORRUPT_BIT	2
 #define EXT4_GROUP_INFO_IBITMAP_CORRUPT_BIT	3
+#define EXT4_GROUP_INFO_BBITMAP_CORRUPT		\
+	(1 << EXT4_GROUP_INFO_BBITMAP_CORRUPT_BIT)
+#define EXT4_GROUP_INFO_IBITMAP_CORRUPT		\
+	(1 << EXT4_GROUP_INFO_IBITMAP_CORRUPT_BIT)
 
 #define EXT4_MB_GRP_NEED_INIT(grp)	\
 	(test_bit(EXT4_GROUP_INFO_NEED_INIT_BIT, &((grp)->bb_state)))

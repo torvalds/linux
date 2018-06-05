@@ -114,7 +114,7 @@ void __jbd2_debug(int level, const char *file, const char *func,
 	va_start(args, fmt);
 	vaf.fmt = fmt;
 	vaf.va = &args;
-	printk(KERN_DEBUG "%s: (%s, %u): %pV\n", file, func, line, &vaf);
+	printk(KERN_DEBUG "%s: (%s, %u): %pV", file, func, line, &vaf);
 	va_end(args);
 }
 EXPORT_SYMBOL(__jbd2_debug);
@@ -2302,8 +2302,7 @@ static void jbd2_journal_destroy_slabs(void)
 	int i;
 
 	for (i = 0; i < JBD2_MAX_SLABS; i++) {
-		if (jbd2_slab[i])
-			kmem_cache_destroy(jbd2_slab[i]);
+		kmem_cache_destroy(jbd2_slab[i]);
 		jbd2_slab[i] = NULL;
 	}
 }
@@ -2404,10 +2403,8 @@ static int jbd2_journal_init_journal_head_cache(void)
 
 static void jbd2_journal_destroy_journal_head_cache(void)
 {
-	if (jbd2_journal_head_cache) {
-		kmem_cache_destroy(jbd2_journal_head_cache);
-		jbd2_journal_head_cache = NULL;
-	}
+	kmem_cache_destroy(jbd2_journal_head_cache);
+	jbd2_journal_head_cache = NULL;
 }
 
 /*
@@ -2665,11 +2662,10 @@ static int __init jbd2_journal_init_handle_cache(void)
 
 static void jbd2_journal_destroy_handle_cache(void)
 {
-	if (jbd2_handle_cache)
-		kmem_cache_destroy(jbd2_handle_cache);
-	if (jbd2_inode_cache)
-		kmem_cache_destroy(jbd2_inode_cache);
-
+	kmem_cache_destroy(jbd2_handle_cache);
+	jbd2_handle_cache = NULL;
+	kmem_cache_destroy(jbd2_inode_cache);
+	jbd2_inode_cache = NULL;
 }
 
 /*
