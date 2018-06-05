@@ -36,6 +36,7 @@
 
 MODULE_FIRMWARE("amdgpu/raven_asd.bin");
 MODULE_FIRMWARE("amdgpu/picasso_asd.bin");
+MODULE_FIRMWARE("amdgpu/raven2_asd.bin");
 
 static int
 psp_v10_0_get_fw_type(struct amdgpu_firmware_info *ucode, enum psp_gfx_fw_type *type)
@@ -118,7 +119,10 @@ static int psp_v10_0_init_microcode(struct psp_context *psp)
 
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
-		chip_name = "raven";
+		if (adev->rev_id >= 0x8)
+			chip_name = "raven2";
+		else
+			chip_name = "raven";
 		break;
 	case CHIP_PICASSO:
 		chip_name = "picasso";
