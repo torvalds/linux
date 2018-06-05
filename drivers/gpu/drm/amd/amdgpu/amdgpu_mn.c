@@ -28,6 +28,21 @@
  *    Christian König <christian.koenig@amd.com>
  */
 
+/**
+ * DOC: MMU Notifier
+ *
+ * For coherent userptr handling registers an MMU notifier to inform the driver
+ * about updates on the page tables of a process.
+ *
+ * When somebody tries to invalidate the page tables we block the update until
+ * all operations on the pages in question are completed, then those pages are
+ * marked as accessed and also dirty if it wasn't a read only access.
+ *
+ * New command submissions using the userptrs in question are delayed until all
+ * page table invalidation are completed and we once more see a coherent process
+ * address space.
+ */
+
 #include <linux/firmware.h>
 #include <linux/module.h>
 #include <linux/mmu_notifier.h>
@@ -38,6 +53,21 @@
 #include "amdgpu.h"
 #include "amdgpu_amdkfd.h"
 
+/**
+ * struct amdgpu_mn
+ *
+ * @adev: amdgpu device pointer
+ * @mm: process address space
+ * @mn: MMU notifier structur
+ * @work: destrution work item
+ * @node: hash table node to find structure by adev and mn
+ * @lock: rw semaphore protecting the notifier nodes
+ * @objects: interval tree containing amdgpu_mn_nodes
+ * @read_lock: mutex for recursive locking of @lock
+ * @recursion: depth of recursion
+ *
+ * Data for each amdgpu device and process address space.
+ */
 struct amdgpu_mn {
 	/* constant after initialisation */
 	struct amdgpu_device	*adev;
@@ -58,13 +88,21 @@ struct amdgpu_mn {
 	atomic_t		recursion;
 };
 
+/**
+ * struct amdgpu_mn_node
+ *
+ * @it: interval node defining start-last of the affected address range
+ * @bos: list of all BOs in the affected address range
+ *
+ * Manages all BOs which are affected of a certain range of address space.
+ */
 struct amdgpu_mn_node {
 	struct interval_tree_node	it;
 	struct list_head		bos;
 };
 
 /**
- * amdgpu_mn_destroy - destroy the amn
+ * amdgpu_mn_destroy - destroy the MMU notifier
  *
  * @work: previously sheduled work item
  *
@@ -98,7 +136,7 @@ static void amdgpu_mn_destroy(struct work_struct *work)
  * amdgpu_mn_release - callback to notify about mm destruction
  *
  * @mn: our notifier
- * @mn: the mm this callback is about
+ * @mm: the mm this callback is about
  *
  * Shedule a work item to lazy destroy our notifier.
  */
@@ -106,13 +144,16 @@ static void amdgpu_mn_release(struct mmu_notifier *mn,
 			      struct mm_struct *mm)
 {
 	struct amdgpu_mn *amn = container_of(mn, struct amdgpu_mn, mn);
+
 	INIT_WORK(&amn->work, amdgpu_mn_destroy);
 	schedule_work(&amn->work);
 }
 
 
 /**
- * amdgpu_mn_lock - take the write side lock for this mn
+ * amdgpu_mn_lock - take the write side lock for this notifier
+ *
+ * @mn: our notifier
  */
 void amdgpu_mn_lock(struct amdgpu_mn *mn)
 {
@@ -121,7 +162,9 @@ void amdgpu_mn_lock(struct amdgpu_mn *mn)
 }
 
 /**
- * amdgpu_mn_unlock - drop the write side lock for this mn
+ * amdgpu_mn_unlock - drop the write side lock for this notifier
+ *
+ * @mn: our notifier
  */
 void amdgpu_mn_unlock(struct amdgpu_mn *mn)
 {
@@ -130,11 +173,9 @@ void amdgpu_mn_unlock(struct amdgpu_mn *mn)
 }
 
 /**
- * amdgpu_mn_read_lock - take the amn read lock
+ * amdgpu_mn_read_lock - take the read side lock for this notifier
  *
  * @amn: our notifier
- *
- * Take the amn read side lock.
  */
 static void amdgpu_mn_read_lock(struct amdgpu_mn *amn)
 {
@@ -145,11 +186,9 @@ static void amdgpu_mn_read_lock(struct amdgpu_mn *amn)
 }
 
 /**
- * amdgpu_mn_read_unlock - drop the amn read lock
+ * amdgpu_mn_read_unlock - drop the read side lock for this notifier
  *
  * @amn: our notifier
- *
- * Drop the amn read side lock.
  */
 static void amdgpu_mn_read_unlock(struct amdgpu_mn *amn)
 {
@@ -161,9 +200,11 @@ static void amdgpu_mn_read_unlock(struct amdgpu_mn *amn)
  * amdgpu_mn_invalidate_node - unmap all BOs of a node
  *
  * @node: the node with the BOs to unmap
+ * @start: start of address range affected
+ * @end: end of address range affected
  *
- * We block for all BOs and unmap them by move them
- * into system domain again.
+ * Block for operations on BOs to finish and mark pages as accessed and
+ * potentially dirty.
  */
 static void amdgpu_mn_invalidate_node(struct amdgpu_mn_node *node,
 				      unsigned long start,
@@ -190,12 +231,12 @@ static void amdgpu_mn_invalidate_node(struct amdgpu_mn_node *node,
  * amdgpu_mn_invalidate_range_start_gfx - callback to notify about mm change
  *
  * @mn: our notifier
- * @mn: the mm this callback is about
+ * @mm: the mm this callback is about
  * @start: start of updated range
  * @end: end of updated range
  *
- * We block for all BOs between start and end to be idle and
- * unmap them by move them into system domain again.
+ * Block for operations on BOs to finish and mark pages as accessed and
+ * potentially dirty.
  */
 static void amdgpu_mn_invalidate_range_start_gfx(struct mmu_notifier *mn,
 						 struct mm_struct *mm,
@@ -268,7 +309,7 @@ static void amdgpu_mn_invalidate_range_start_hsa(struct mmu_notifier *mn,
  * amdgpu_mn_invalidate_range_end - callback to notify about mm change
  *
  * @mn: our notifier
- * @mn: the mm this callback is about
+ * @mm: the mm this callback is about
  * @start: start of updated range
  * @end: end of updated range
  *
@@ -456,6 +497,7 @@ void amdgpu_mn_unregister(struct amdgpu_bo *bo)
 
 	if (list_empty(head)) {
 		struct amdgpu_mn_node *node;
+
 		node = container_of(head, struct amdgpu_mn_node, bos);
 		interval_tree_remove(&node->it, &amn->objects);
 		kfree(node);

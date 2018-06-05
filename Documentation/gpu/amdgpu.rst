@@ -35,3 +35,12 @@ PRIME Buffer Sharing
 
 .. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_prime.c
    :internal:
+
+MMU Notifier
+------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
+   :doc: MMU Notifier
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
+   :internal:
