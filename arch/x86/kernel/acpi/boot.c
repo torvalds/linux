@@ -181,7 +181,8 @@ static int acpi_register_lapic(int id, u32 acpiid, u8 enabled)
 	}
 
 	if (!enabled) {
-		++disabled_cpus;
+		if (!apic_id_disabled(id))
+			++disabled_cpus;
 		return -EINVAL;
 	}
 
