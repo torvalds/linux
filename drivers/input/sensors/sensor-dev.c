@@ -966,6 +966,7 @@ static long compass_dev_ioctl(struct file *file,
 			  unsigned int cmd, unsigned long arg)
 {
 	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_COMPASS];
+	struct i2c_client *client = sensor->client;
 	void __user *argp = (void __user *)arg;
 	int result = 0;
 	short flag;
@@ -1008,6 +1009,13 @@ static long compass_dev_ioctl(struct file *file,
 		break;
 	case ECS_IOCTL_APP_SET_DELAY:
 		sensor->flags.delay = flag;
+		mutex_lock(&sensor->operation_mutex);
+		result = sensor_reset_rate(client, flag);
+		if (result < 0) {
+			mutex_unlock(&sensor->operation_mutex);
+			return result;
+		}
+		mutex_unlock(&sensor->operation_mutex);
 		break;
 	case ECS_IOCTL_APP_GET_DELAY:
 		flag = sensor->flags.delay;

@@ -339,6 +339,8 @@ static int compass_akm_set_mode(struct i2c_client *client, char mode)
 		case AK8975_MODE_FUSE_ACCESS:
 			if(sensor->status_cur == SENSOR_OFF)
 			{
+				sensor->stop_work = 0;
+				sensor->status_cur = SENSOR_ON;
 				if(sensor->pdata->irq_enable)
 				{
 					//DBG("%s:enable irq=%d\n",__func__,client->irq);
@@ -348,8 +350,6 @@ static int compass_akm_set_mode(struct i2c_client *client, char mode)
 				{
 					schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
 				}
-
-				sensor->status_cur = SENSOR_ON;
 			}
 
 			break;
@@ -357,6 +357,7 @@ static int compass_akm_set_mode(struct i2c_client *client, char mode)
 		case AK8975_MODE_POWERDOWN:
 			if(sensor->status_cur == SENSOR_ON)
 			{
+				sensor->stop_work = 1;
 				if(sensor->pdata->irq_enable)
 				{
 					//DBG("%s:disable irq=%d\n",__func__,client->irq);
