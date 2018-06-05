@@ -470,7 +470,7 @@ set_target_v3_checkentry(const struct xt_tgchk_param *par)
 		}
 		if (((info->flags & IPSET_FLAG_MAP_SKBPRIO) |
 		     (info->flags & IPSET_FLAG_MAP_SKBQUEUE)) &&
-		     !(par->hook_mask & (1 << NF_INET_FORWARD |
+		     (par->hook_mask & ~(1 << NF_INET_FORWARD |
 					 1 << NF_INET_LOCAL_OUT |
 					 1 << NF_INET_POST_ROUTING))) {
 			pr_info_ratelimited("mapping of prio or/and queue is allowed only from OUTPUT/FORWARD/POSTROUTING chains\n");
