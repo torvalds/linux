@@ -221,6 +221,10 @@ void rmnet_vnd_setup(struct net_device *rmnet_dev)
 
 	rmnet_dev->needs_free_netdev = true;
 	rmnet_dev->ethtool_ops = &rmnet_ethtool_ops;
+
+	/* This perm addr will be used as interface identifier by IPv6 */
+	rmnet_dev->addr_assign_type = NET_ADDR_RANDOM;
+	eth_random_addr(rmnet_dev->perm_addr);
 }
 
 /* Exposed API */
