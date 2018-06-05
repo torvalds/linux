@@ -75,6 +75,7 @@ static int opt_queue;
 static int opt_poll;
 static int opt_shared_packet_buffer;
 static int opt_interval = 1;
+static u32 opt_xdp_bind_flags;
 
 struct xdp_umem_uqueue {
 	u32 cached_prod;
@@ -541,9 +542,12 @@ static struct xdpsock *xsk_configure(struct xdp_umem *umem)
 	sxdp.sxdp_family = PF_XDP;
 	sxdp.sxdp_ifindex = opt_ifindex;
 	sxdp.sxdp_queue_id = opt_queue;
+
 	if (shared) {
 		sxdp.sxdp_flags = XDP_SHARED_UMEM;
 		sxdp.sxdp_shared_umem_fd = umem->fd;
+	} else {
+		sxdp.sxdp_flags = opt_xdp_bind_flags;
 	}
 
 	lassert(bind(sfd, (struct sockaddr *)&sxdp, sizeof(sxdp)) == 0);
@@ -699,6 +703,7 @@ static void parse_command_line(int argc, char **argv)
 			break;
 		case 'S':
 			opt_xdp_flags |= XDP_FLAGS_SKB_MODE;
+			opt_xdp_bind_flags |= XDP_COPY;
 			break;
 		case 'N':
 			opt_xdp_flags |= XDP_FLAGS_DRV_MODE;

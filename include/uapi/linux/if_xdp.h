@@ -13,7 +13,9 @@
 #include <linux/types.h>
 
 /* Options for the sxdp_flags field */
-#define XDP_SHARED_UMEM 1
+#define XDP_SHARED_UMEM	(1 << 0)
+#define XDP_COPY	(1 << 1) /* Force copy-mode */
+#define XDP_ZEROCOPY	(1 << 2) /* Force zero-copy mode */
 
 struct sockaddr_xdp {
 	__u16 sxdp_family;

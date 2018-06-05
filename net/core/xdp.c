@@ -31,6 +31,7 @@ struct xdp_mem_allocator {
 	union {
 		void *allocator;
 		struct page_pool *page_pool;
+		struct zero_copy_allocator *zc_alloc;
 	};
 	struct rhash_head node;
 	struct rcu_head rcu;
@@ -261,7 +262,7 @@ int xdp_rxq_info_reg_mem_model(struct xdp_rxq_info *xdp_rxq,
 	xdp_rxq->mem.type = type;
 
 	if (!allocator) {
-		if (type == MEM_TYPE_PAGE_POOL)
+		if (type == MEM_TYPE_PAGE_POOL || type == MEM_TYPE_ZERO_COPY)
 			return -EINVAL; /* Setup time check page_pool req */
 		return 0;
 	}
@@ -314,7 +315,8 @@ EXPORT_SYMBOL_GPL(xdp_rxq_info_reg_mem_model);
  * is used for those calls sites.  Thus, allowing for faster recycling
  * of xdp_frames/pages in those cases.
  */
-static void __xdp_return(void *data, struct xdp_mem_info *mem, bool napi_direct)
+static void __xdp_return(void *data, struct xdp_mem_info *mem, bool napi_direct,
+			 unsigned long handle)
 {
 	struct xdp_mem_allocator *xa;
 	struct page *page;
@@ -338,6 +340,13 @@ static void __xdp_return(void *data, struct xdp_mem_info *mem, bool napi_direct)
 		page = virt_to_page(data); /* Assumes order0 page*/
 		put_page(page);
 		break;
+	case MEM_TYPE_ZERO_COPY:
+		/* NB! Only valid from an xdp_buff! */
+		rcu_read_lock();
+		/* mem->id is valid, checked in xdp_rxq_info_reg_mem_model() */
+		xa = rhashtable_lookup(mem_id_ht, &mem->id, mem_id_rht_params);
+		xa->zc_alloc->free(xa->zc_alloc, handle);
+		rcu_read_unlock();
 	default:
 		/* Not possible, checked in xdp_rxq_info_reg_mem_model() */
 		break;
@@ -346,18 +355,18 @@ static void __xdp_return(void *data, struct xdp_mem_info *mem, bool napi_direct)
 
 void xdp_return_frame(struct xdp_frame *xdpf)
 {
-	__xdp_return(xdpf->data, &xdpf->mem, false);
+	__xdp_return(xdpf->data, &xdpf->mem, false, 0);
 }
 EXPORT_SYMBOL_GPL(xdp_return_frame);
 
 void xdp_return_frame_rx_napi(struct xdp_frame *xdpf)
 {
-	__xdp_return(xdpf->data, &xdpf->mem, true);
+	__xdp_return(xdpf->data, &xdpf->mem, true, 0);
 }
 EXPORT_SYMBOL_GPL(xdp_return_frame_rx_napi);
 
 void xdp_return_buff(struct xdp_buff *xdp)
 {
-	__xdp_return(xdp->data, &xdp->rxq->mem, true);
+	__xdp_return(xdp->data, &xdp->rxq->mem, true, xdp->handle);
 }
 EXPORT_SYMBOL_GPL(xdp_return_buff);
