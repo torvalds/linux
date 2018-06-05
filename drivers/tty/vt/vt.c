@@ -1178,15 +1178,8 @@ static void csi_J(struct vc_data *vc, int vpar)
 			count = ((vc->vc_pos - vc->vc_origin) >> 1) + 1;
 			start = (unsigned short *)vc->vc_origin;
 			break;
-		case 3: /* erase scroll-back buffer (and whole display) */
-			scr_memsetw(vc->vc_screenbuf, vc->vc_video_erase_char,
-				    vc->vc_screenbuf_size);
-			flush_scrollback(vc);
-			set_origin(vc);
-			if (con_is_visible(vc))
-				update_screen(vc);
-			/* fall through */
 		case 2: /* erase whole display */
+		case 3: /* (and scrollback buffer later) */
 			count = vc->vc_cols * vc->vc_rows;
 			start = (unsigned short *)vc->vc_origin;
 			break;
@@ -1194,7 +1187,12 @@ static void csi_J(struct vc_data *vc, int vpar)
 			return;
 	}
 	scr_memsetw(start, vc->vc_video_erase_char, 2 * count);
-	if (con_should_update(vc))
+	if (vpar == 3) {
+		set_origin(vc);
+		flush_scrollback(vc);
+		if (con_is_visible(vc))
+			update_screen(vc);
+	} else if (con_should_update(vc))
 		do_update_region(vc, (unsigned long) start, count);
 	vc->vc_need_wrap = 0;
 }
