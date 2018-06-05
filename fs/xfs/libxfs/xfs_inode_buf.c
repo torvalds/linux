@@ -201,11 +201,6 @@ xfs_imap_to_bp(
 			ASSERT(buf_flags & XBF_TRYLOCK);
 			return error;
 		}
-
-		if (error == -EFSCORRUPTED &&
-		    (iget_flags & XFS_IGET_UNTRUSTED))
-			return -EINVAL;
-
 		xfs_warn(mp, "%s: xfs_trans_read_buf() returned error %d.",
 			__func__, error);
 		return error;

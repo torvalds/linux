@@ -140,15 +140,24 @@ xfs_nfs_get_inode(
 	 */
 	error = xfs_iget(mp, NULL, ino, XFS_IGET_UNTRUSTED, 0, &ip);
 	if (error) {
+
 		/*
 		 * EINVAL means the inode cluster doesn't exist anymore.
-		 * This implies the filehandle is stale, so we should
-		 * translate it here.
+		 * EFSCORRUPTED means the metadata pointing to the inode cluster
+		 * or the inode cluster itself is corrupt.  This implies the
+		 * filehandle is stale, so we should translate it here.
 		 * We don't use ESTALE directly down the chain to not
 		 * confuse applications using bulkstat that expect EINVAL.
 		 */
-		if (error == -EINVAL || error == -ENOENT)
+		switch (error) {
+		case -EINVAL:
+		case -ENOENT:
+		case -EFSCORRUPTED:
 			error = -ESTALE;
+			break;
+		default:
+			break;
+		}
 		return ERR_PTR(error);
 	}
 
