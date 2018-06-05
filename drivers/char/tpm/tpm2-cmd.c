@@ -27,10 +27,6 @@ enum tpm2_session_attributes {
 	TPM2_SA_CONTINUE_SESSION	= BIT(0),
 };
 
-struct tpm2_startup_in {
-	__be16	startup_type;
-} __packed;
-
 struct tpm2_get_tpm_pt_in {
 	__be32	cap_id;
 	__be32	property_id;
@@ -55,7 +51,6 @@ struct tpm2_get_random_out {
 } __packed;
 
 union tpm2_cmd_params {
-	struct	tpm2_startup_in		startup_in;
 	struct	tpm2_get_tpm_pt_in	get_tpm_pt_in;
 	struct	tpm2_get_tpm_pt_out	get_tpm_pt_out;
 	struct	tpm2_get_random_in	getrandom_in;
@@ -762,40 +757,28 @@ ssize_t tpm2_get_tpm_pt(struct tpm_chip *chip, u32 property_id,  u32 *value,
 }
 EXPORT_SYMBOL_GPL(tpm2_get_tpm_pt);
 
-#define TPM2_SHUTDOWN_IN_SIZE \
-	(sizeof(struct tpm_input_header) + \
-	 sizeof(struct tpm2_startup_in))
-
-static const struct tpm_input_header tpm2_shutdown_header = {
-	.tag = cpu_to_be16(TPM2_ST_NO_SESSIONS),
-	.length = cpu_to_be32(TPM2_SHUTDOWN_IN_SIZE),
-	.ordinal = cpu_to_be32(TPM2_CC_SHUTDOWN)
-};
-
 /**
- * tpm2_shutdown() - send shutdown command to the TPM chip
+ * tpm2_shutdown() - send a TPM shutdown command
  *
- * @chip:		TPM chip to use.
- * @shutdown_type:	shutdown type. The value is either
- *			TPM_SU_CLEAR or TPM_SU_STATE.
+ * Sends a TPM shutdown command. The shutdown command is used in call
+ * sites where the system is going down. If it fails, there is not much
+ * that can be done except print an error message.
+ *
+ * @chip:		a &tpm_chip instance
+ * @shutdown_type:	TPM_SU_CLEAR or TPM_SU_STATE.
  */
 void tpm2_shutdown(struct tpm_chip *chip, u16 shutdown_type)
 {
-	struct tpm2_cmd cmd;
+	struct tpm_buf buf;
 	int rc;
 
-	cmd.header.in = tpm2_shutdown_header;
-	cmd.params.startup_in.startup_type = cpu_to_be16(shutdown_type);
-
-	rc = tpm_transmit_cmd(chip, NULL, &cmd, sizeof(cmd), 0, 0,
-			      "stopping the TPM");
-
-	/* In places where shutdown command is sent there's no much we can do
-	 * except print the error code on a system failure.
-	 */
-	if (rc < 0 && rc != -EPIPE)
-		dev_warn(&chip->dev, "transmit returned %d while stopping the TPM",
-			 rc);
+	rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_SHUTDOWN);
+	if (rc)
+		return;
+	tpm_buf_append_u16(&buf, shutdown_type);
+	tpm_transmit_cmd(chip, NULL, buf.data, PAGE_SIZE, 0, 0,
+			 "stopping the TPM");
+	tpm_buf_destroy(&buf);
 }
 
 /*
