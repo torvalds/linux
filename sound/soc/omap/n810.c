@@ -231,8 +231,8 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Ext Spk", NULL, "LLOUT"},
 	{"Ext Spk", NULL, "RLOUT"},
 
-	{"DMic Rate 64", NULL, "Mic Bias"},
-	{"Mic Bias", NULL, "DMic"},
+	{"DMic Rate 64", NULL, "DMic"},
+	{"DMic", NULL, "Mic Bias"},
 };
 
 static const char *spk_function[] = {"Off", "On"};
@@ -257,9 +257,9 @@ static const struct snd_kcontrol_new aic33_n810_controls[] = {
 static struct snd_soc_dai_link n810_dai = {
 	.name = "TLV320AIC33",
 	.stream_name = "AIC33",
-	.cpu_dai_name = "omap-mcbsp.2",
-	.platform_name = "omap-mcbsp.2",
-	.codec_name = "tlv320aic3x-codec.2-0018",
+	.cpu_dai_name = "48076000.mcbsp",
+	.platform_name = "48076000.mcbsp",
+	.codec_name = "tlv320aic3x-codec.1-0018",
 	.codec_dai_name = "tlv320aic3x-hifi",
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		   SND_SOC_DAIFMT_CBM_CFM,
