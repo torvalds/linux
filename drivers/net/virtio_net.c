@@ -413,18 +413,6 @@ static struct sk_buff *page_to_skb(struct virtnet_info *vi,
 	return skb;
 }
 
-static void virtnet_xdp_flush(struct net_device *dev)
-{
-	struct virtnet_info *vi = netdev_priv(dev);
-	struct send_queue *sq;
-	unsigned int qp;
-
-	qp = vi->curr_queue_pairs - vi->xdp_queue_pairs + smp_processor_id();
-	sq = &vi->sq[qp];
-
-	virtqueue_kick(sq->vq);
-}
-
 static int __virtnet_xdp_xmit_one(struct virtnet_info *vi,
 				   struct send_queue *sq,
 				   struct xdp_frame *xdpf)
@@ -474,7 +462,7 @@ static int __virtnet_xdp_tx_xmit(struct virtnet_info *vi,
 }
 
 static int virtnet_xdp_xmit(struct net_device *dev,
-			    int n, struct xdp_frame **frames)
+			    int n, struct xdp_frame **frames, u32 flags)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
 	struct receive_queue *rq = vi->rq;
@@ -486,6 +474,9 @@ static int virtnet_xdp_xmit(struct net_device *dev,
 	int drops = 0;
 	int err;
 	int i;
+
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
+		return -EINVAL;
 
 	qp = vi->curr_queue_pairs - vi->xdp_queue_pairs + smp_processor_id();
 	sq = &vi->sq[qp];
@@ -510,6 +501,10 @@ static int virtnet_xdp_xmit(struct net_device *dev,
 			drops++;
 		}
 	}
+
+	if (flags & XDP_XMIT_FLUSH)
+		virtqueue_kick(sq->vq);
+
 	return n - drops;
 }
 
@@ -2377,7 +2372,6 @@ static const struct net_device_ops virtnet_netdev = {
 #endif
 	.ndo_bpf		= virtnet_xdp,
 	.ndo_xdp_xmit		= virtnet_xdp_xmit,
-	.ndo_xdp_flush		= virtnet_xdp_flush,
 	.ndo_features_check	= passthru_features_check,
 	.ndo_get_phys_port_name	= virtnet_get_phys_port_name,
 };

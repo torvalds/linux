@@ -407,7 +407,7 @@ _bpftool()
                 attach|detach)
                     local ATTACH_TYPES='ingress egress sock_create sock_ops \
                         device bind4 bind6 post_bind4 post_bind6 connect4 \
-                        connect6'
+                        connect6 sendmsg4 sendmsg6'
                     local ATTACH_FLAGS='multi override'
                     local PROG_TYPE='id pinned tag'
                     case $prev in
@@ -416,7 +416,8 @@ _bpftool()
                             return 0
                             ;;
                         ingress|egress|sock_create|sock_ops|device|bind4|bind6|\
-                        post_bind4|post_bind6|connect4|connect6)
+                        post_bind4|post_bind6|connect4|connect6|sendmsg4|\
+                        sendmsg6)
                             COMPREPLY=( $( compgen -W "$PROG_TYPE" -- \
                                 "$cur" ) )
                             return 0

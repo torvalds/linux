@@ -50,7 +50,7 @@
 
 #define MAX_INSNS	BPF_MAXINSNS
 #define MAX_FIXUPS	8
-#define MAX_NR_MAPS	4
+#define MAX_NR_MAPS	7
 #define POINTER_VALUE	0xcafe4all
 #define TEST_DATA_LEN	64
 
@@ -66,7 +66,9 @@ struct bpf_test {
 	int fixup_map1[MAX_FIXUPS];
 	int fixup_map2[MAX_FIXUPS];
 	int fixup_map3[MAX_FIXUPS];
-	int fixup_prog[MAX_FIXUPS];
+	int fixup_map4[MAX_FIXUPS];
+	int fixup_prog1[MAX_FIXUPS];
+	int fixup_prog2[MAX_FIXUPS];
 	int fixup_map_in_map[MAX_FIXUPS];
 	const char *errstr;
 	const char *errstr_unpriv;
@@ -2769,7 +2771,7 @@ static struct bpf_test tests[] = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_EXIT_INSN(),
 		},
-		.fixup_prog = { 1 },
+		.fixup_prog1 = { 1 },
 		.errstr_unpriv = "R3 leaks addr into helper",
 		.result_unpriv = REJECT,
 		.result = ACCEPT,
@@ -2856,7 +2858,7 @@ static struct bpf_test tests[] = {
 			BPF_MOV64_IMM(BPF_REG_0, 1),
 			BPF_EXIT_INSN(),
 		},
-		.fixup_prog = { 1 },
+		.fixup_prog1 = { 1 },
 		.result = ACCEPT,
 		.retval = 42,
 	},
@@ -2870,7 +2872,7 @@ static struct bpf_test tests[] = {
 			BPF_MOV64_IMM(BPF_REG_0, 1),
 			BPF_EXIT_INSN(),
 		},
-		.fixup_prog = { 1 },
+		.fixup_prog1 = { 1 },
 		.result = ACCEPT,
 		.retval = 41,
 	},
@@ -2884,7 +2886,7 @@ static struct bpf_test tests[] = {
 			BPF_MOV64_IMM(BPF_REG_0, 1),
 			BPF_EXIT_INSN(),
 		},
-		.fixup_prog = { 1 },
+		.fixup_prog1 = { 1 },
 		.result = ACCEPT,
 		.retval = 1,
 	},
@@ -2898,7 +2900,7 @@ static struct bpf_test tests[] = {
 			BPF_MOV64_IMM(BPF_REG_0, 2),
 			BPF_EXIT_INSN(),
 		},
-		.fixup_prog = { 1 },
+		.fixup_prog1 = { 1 },
 		.result = ACCEPT,
 		.retval = 2,
 	},
@@ -2912,7 +2914,7 @@ static struct bpf_test tests[] = {
 			BPF_MOV64_IMM(BPF_REG_0, 2),
 			BPF_EXIT_INSN(),
 		},
-		.fixup_prog = { 1 },
+		.fixup_prog1 = { 1 },
 		.result = ACCEPT,
 		.retval = 2,
 	},
@@ -2926,7 +2928,7 @@ static struct bpf_test tests[] = {
 			BPF_MOV64_IMM(BPF_REG_0, 2),
 			BPF_EXIT_INSN(),
 		},
-		.fixup_prog = { 2 },
+		.fixup_prog1 = { 2 },
 		.result = ACCEPT,
 		.retval = 42,
 	},
@@ -11682,6 +11684,112 @@ static struct bpf_test tests[] = {
 		.prog_type = BPF_PROG_TYPE_XDP,
 	},
 	{
+		"calls: two calls returning different map pointers for lookup (hash, array)",
+		.insns = {
+			/* main prog */
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_1, 0, 2),
+			BPF_CALL_REL(11),
+			BPF_JMP_IMM(BPF_JA, 0, 0, 1),
+			BPF_CALL_REL(12),
+			BPF_MOV64_REG(BPF_REG_1, BPF_REG_0),
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 2),
+			BPF_ST_MEM(BPF_DW, BPF_REG_0, 0,
+				   offsetof(struct test_val, foo)),
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+			/* subprog 1 */
+			BPF_LD_MAP_FD(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+			/* subprog 2 */
+			BPF_LD_MAP_FD(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+		.fixup_map2 = { 13 },
+		.fixup_map4 = { 16 },
+		.result = ACCEPT,
+		.retval = 1,
+	},
+	{
+		"calls: two calls returning different map pointers for lookup (hash, map in map)",
+		.insns = {
+			/* main prog */
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_1, 0, 2),
+			BPF_CALL_REL(11),
+			BPF_JMP_IMM(BPF_JA, 0, 0, 1),
+			BPF_CALL_REL(12),
+			BPF_MOV64_REG(BPF_REG_1, BPF_REG_0),
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 2),
+			BPF_ST_MEM(BPF_DW, BPF_REG_0, 0,
+				   offsetof(struct test_val, foo)),
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+			/* subprog 1 */
+			BPF_LD_MAP_FD(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+			/* subprog 2 */
+			BPF_LD_MAP_FD(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+		.fixup_map_in_map = { 16 },
+		.fixup_map4 = { 13 },
+		.result = REJECT,
+		.errstr = "R0 invalid mem access 'map_ptr'",
+	},
+	{
+		"cond: two branches returning different map pointers for lookup (tail, tail)",
+		.insns = {
+			BPF_LDX_MEM(BPF_W, BPF_REG_6, BPF_REG_1,
+				    offsetof(struct __sk_buff, mark)),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_6, 0, 3),
+			BPF_LD_MAP_FD(BPF_REG_2, 0),
+			BPF_JMP_IMM(BPF_JA, 0, 0, 2),
+			BPF_LD_MAP_FD(BPF_REG_2, 0),
+			BPF_MOV64_IMM(BPF_REG_3, 7),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_tail_call),
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_prog1 = { 5 },
+		.fixup_prog2 = { 2 },
+		.result_unpriv = REJECT,
+		.errstr_unpriv = "tail_call abusing map_ptr",
+		.result = ACCEPT,
+		.retval = 42,
+	},
+	{
+		"cond: two branches returning same map pointers for lookup (tail, tail)",
+		.insns = {
+			BPF_LDX_MEM(BPF_W, BPF_REG_6, BPF_REG_1,
+				    offsetof(struct __sk_buff, mark)),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_6, 0, 3),
+			BPF_LD_MAP_FD(BPF_REG_2, 0),
+			BPF_JMP_IMM(BPF_JA, 0, 0, 2),
+			BPF_LD_MAP_FD(BPF_REG_2, 0),
+			BPF_MOV64_IMM(BPF_REG_3, 7),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_tail_call),
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_prog2 = { 2, 5 },
+		.result_unpriv = ACCEPT,
+		.result = ACCEPT,
+		.retval = 42,
+	},
+	{
 		"search pruning: all branches should be verified (nop operation)",
 		.insns = {
 			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -12162,12 +12270,13 @@ static int probe_filter_length(const struct bpf_insn *fp)
 	return len + 1;
 }
 
-static int create_map(uint32_t size_value, uint32_t max_elem)
+static int create_map(uint32_t type, uint32_t size_key,
+		      uint32_t size_value, uint32_t max_elem)
 {
 	int fd;
 
-	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(long long),
-			    size_value, max_elem, BPF_F_NO_PREALLOC);
+	fd = bpf_create_map(type, size_key, size_value, max_elem,
+			    type == BPF_MAP_TYPE_HASH ? BPF_F_NO_PREALLOC : 0);
 	if (fd < 0)
 		printf("Failed to create hash map '%s'!\n", strerror(errno));
 
@@ -12200,13 +12309,13 @@ static int create_prog_dummy2(int mfd, int idx)
 				ARRAY_SIZE(prog), "GPL", 0, NULL, 0);
 }
 
-static int create_prog_array(void)
+static int create_prog_array(uint32_t max_elem, int p1key)
 {
-	int p1key = 0, p2key = 1;
+	int p2key = 1;
 	int mfd, p1fd, p2fd;
 
 	mfd = bpf_create_map(BPF_MAP_TYPE_PROG_ARRAY, sizeof(int),
-			     sizeof(int), 4, 0);
+			     sizeof(int), max_elem, 0);
 	if (mfd < 0) {
 		printf("Failed to create prog array '%s'!\n", strerror(errno));
 		return -1;
@@ -12261,7 +12370,9 @@ static void do_test_fixup(struct bpf_test *test, struct bpf_insn *prog,
 	int *fixup_map1 = test->fixup_map1;
 	int *fixup_map2 = test->fixup_map2;
 	int *fixup_map3 = test->fixup_map3;
-	int *fixup_prog = test->fixup_prog;
+	int *fixup_map4 = test->fixup_map4;
+	int *fixup_prog1 = test->fixup_prog1;
+	int *fixup_prog2 = test->fixup_prog2;
 	int *fixup_map_in_map = test->fixup_map_in_map;
 
 	if (test->fill_helper)
@@ -12272,7 +12383,8 @@ static void do_test_fixup(struct bpf_test *test, struct bpf_insn *prog,
 	 * that really matters is value size in this case.
 	 */
 	if (*fixup_map1) {
-		map_fds[0] = create_map(sizeof(long long), 1);
+		map_fds[0] = create_map(BPF_MAP_TYPE_HASH, sizeof(long long),
+					sizeof(long long), 1);
 		do {
 			prog[*fixup_map1].imm = map_fds[0];
 			fixup_map1++;
@@ -12280,7 +12392,8 @@ static void do_test_fixup(struct bpf_test *test, struct bpf_insn *prog,
 	}
 
 	if (*fixup_map2) {
-		map_fds[1] = create_map(sizeof(struct test_val), 1);
+		map_fds[1] = create_map(BPF_MAP_TYPE_HASH, sizeof(long long),
+					sizeof(struct test_val), 1);
 		do {
 			prog[*fixup_map2].imm = map_fds[1];
 			fixup_map2++;
@@ -12288,25 +12401,43 @@ static void do_test_fixup(struct bpf_test *test, struct bpf_insn *prog,
 	}
 
 	if (*fixup_map3) {
-		map_fds[1] = create_map(sizeof(struct other_val), 1);
+		map_fds[2] = create_map(BPF_MAP_TYPE_HASH, sizeof(long long),
+					sizeof(struct other_val), 1);
 		do {
-			prog[*fixup_map3].imm = map_fds[1];
+			prog[*fixup_map3].imm = map_fds[2];
 			fixup_map3++;
 		} while (*fixup_map3);
 	}
 
-	if (*fixup_prog) {
-		map_fds[2] = create_prog_array();
+	if (*fixup_map4) {
+		map_fds[3] = create_map(BPF_MAP_TYPE_ARRAY, sizeof(int),
+					sizeof(struct test_val), 1);
 		do {
-			prog[*fixup_prog].imm = map_fds[2];
-			fixup_prog++;
-		} while (*fixup_prog);
+			prog[*fixup_map4].imm = map_fds[3];
+			fixup_map4++;
+		} while (*fixup_map4);
+	}
+
+	if (*fixup_prog1) {
+		map_fds[4] = create_prog_array(4, 0);
+		do {
+			prog[*fixup_prog1].imm = map_fds[4];
+			fixup_prog1++;
+		} while (*fixup_prog1);
+	}
+
+	if (*fixup_prog2) {
+		map_fds[5] = create_prog_array(8, 7);
+		do {
+			prog[*fixup_prog2].imm = map_fds[5];
+			fixup_prog2++;
+		} while (*fixup_prog2);
 	}
 
 	if (*fixup_map_in_map) {
-		map_fds[3] = create_map_in_map();
+		map_fds[6] = create_map_in_map();
 		do {
-			prog[*fixup_map_in_map].imm = map_fds[3];
+			prog[*fixup_map_in_map].imm = map_fds[6];
 			fixup_map_in_map++;
 		} while (*fixup_map_in_map);
 	}

@@ -12,7 +12,7 @@ packet processing.
 
 This document assumes that the reader is familiar with BPF and XDP. If
 not, the Cilium project has an excellent reference guide at
-http://cilium.readthedocs.io/en/doc-1.0/bpf/.
+http://cilium.readthedocs.io/en/latest/bpf/.
 
 Using the XDP_REDIRECT action from an XDP program, the program can
 redirect ingress frames to other XDP enabled netdevs, using the
@@ -33,22 +33,22 @@ for a while due to a possible retransmit, the descriptor that points
 to that packet can be changed to point to another and reused right
 away. This again avoids copying data.
 
-The UMEM consists of a number of equally size frames and each frame
-has a unique frame id. A descriptor in one of the rings references a
-frame by referencing its frame id. The user space allocates memory for
-this UMEM using whatever means it feels is most appropriate (malloc,
-mmap, huge pages, etc). This memory area is then registered with the
-kernel using the new setsockopt XDP_UMEM_REG. The UMEM also has two
-rings: the FILL ring and the COMPLETION ring. The fill ring is used by
-the application to send down frame ids for the kernel to fill in with
-RX packet data. References to these frames will then appear in the RX
-ring once each packet has been received. The completion ring, on the
-other hand, contains frame ids that the kernel has transmitted
-completely and can now be used again by user space, for either TX or
-RX. Thus, the frame ids appearing in the completion ring are ids that
-were previously transmitted using the TX ring. In summary, the RX and
-FILL rings are used for the RX path and the TX and COMPLETION rings
-are used for the TX path.
+The UMEM consists of a number of equally sized chunks. A descriptor in
+one of the rings references a frame by referencing its addr. The addr
+is simply an offset within the entire UMEM region. The user space
+allocates memory for this UMEM using whatever means it feels is most
+appropriate (malloc, mmap, huge pages, etc). This memory area is then
+registered with the kernel using the new setsockopt XDP_UMEM_REG. The
+UMEM also has two rings: the FILL ring and the COMPLETION ring. The
+fill ring is used by the application to send down addr for the kernel
+to fill in with RX packet data. References to these frames will then
+appear in the RX ring once each packet has been received. The
+completion ring, on the other hand, contains frame addr that the
+kernel has transmitted completely and can now be used again by user
+space, for either TX or RX. Thus, the frame addrs appearing in the
+completion ring are addrs that were previously transmitted using the
+TX ring. In summary, the RX and FILL rings are used for the RX path
+and the TX and COMPLETION rings are used for the TX path.
 
 The socket is then finally bound with a bind() call to a device and a
 specific queue id on that device, and it is not until bind is
@@ -59,13 +59,13 @@ wants to do this, it simply skips the registration of the UMEM and its
 corresponding two rings, sets the XDP_SHARED_UMEM flag in the bind
 call and submits the XSK of the process it would like to share UMEM
 with as well as its own newly created XSK socket. The new process will
-then receive frame id references in its own RX ring that point to this
-shared UMEM. Note that since the ring structures are single-consumer /
-single-producer (for performance reasons), the new process has to
-create its own socket with associated RX and TX rings, since it cannot
-share this with the other process. This is also the reason that there
-is only one set of FILL and COMPLETION rings per UMEM. It is the
-responsibility of a single process to handle the UMEM.
+then receive frame addr references in its own RX ring that point to
+this shared UMEM. Note that since the ring structures are
+single-consumer / single-producer (for performance reasons), the new
+process has to create its own socket with associated RX and TX rings,
+since it cannot share this with the other process. This is also the
+reason that there is only one set of FILL and COMPLETION rings per
+UMEM. It is the responsibility of a single process to handle the UMEM.
 
 How is then packets distributed from an XDP program to the XSKs? There
 is a BPF map called XSKMAP (or BPF_MAP_TYPE_XSKMAP in full). The
@@ -102,10 +102,10 @@ UMEM
 
 UMEM is a region of virtual contiguous memory, divided into
 equal-sized frames. An UMEM is associated to a netdev and a specific
-queue id of that netdev. It is created and configured (frame size,
-frame headroom, start address and size) by using the XDP_UMEM_REG
-setsockopt system call. A UMEM is bound to a netdev and queue id, via
-the bind() system call.
+queue id of that netdev. It is created and configured (chunk size,
+headroom, start address and size) by using the XDP_UMEM_REG setsockopt
+system call. A UMEM is bound to a netdev and queue id, via the bind()
+system call.
 
 An AF_XDP is socket linked to a single UMEM, but one UMEM can have
 multiple AF_XDP sockets. To share an UMEM created via one socket A,
@@ -147,13 +147,17 @@ UMEM Fill Ring
 ~~~~~~~~~~~~~~
 
 The Fill ring is used to transfer ownership of UMEM frames from
-user-space to kernel-space. The UMEM indicies are passed in the
-ring. As an example, if the UMEM is 64k and each frame is 4k, then the
-UMEM has 16 frames and can pass indicies between 0 and 15.
+user-space to kernel-space. The UMEM addrs are passed in the ring. As
+an example, if the UMEM is 64k and each chunk is 4k, then the UMEM has
+16 chunks and can pass addrs between 0 and 64k.
 
 Frames passed to the kernel are used for the ingress path (RX rings).
 
-The user application produces UMEM indicies to this ring.
+The user application produces UMEM addrs to this ring. Note that the
+kernel will mask the incoming addr. E.g. for a chunk size of 2k, the
+log2(2048) LSB of the addr will be masked off, meaning that 2048, 2050
+and 3000 refers to the same chunk.
+
 
 UMEM Completetion Ring
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -165,16 +169,15 @@ used.
 Frames passed from the kernel to user-space are frames that has been
 sent (TX ring) and can be used by user-space again.
 
-The user application consumes UMEM indicies from this ring.
+The user application consumes UMEM addrs from this ring.
 
 
 RX Ring
 ~~~~~~~
 
 The RX ring is the receiving side of a socket. Each entry in the ring
-is a struct xdp_desc descriptor. The descriptor contains UMEM index
-(idx), the length of the data (len), the offset into the frame
-(offset).
+is a struct xdp_desc descriptor. The descriptor contains UMEM offset
+(addr) and the length of the data (len).
 
 If no frames have been passed to kernel via the Fill ring, no
 descriptors will (or can) appear on the RX ring.
@@ -221,38 +224,50 @@ side is xdpsock_user.c and the XDP side xdpsock_kern.c.
 
 Naive ring dequeue and enqueue could look like this::
 
+    // struct xdp_rxtx_ring {
+    // 	__u32 *producer;
+    // 	__u32 *consumer;
+    // 	struct xdp_desc *desc;
+    // };
+
+    // struct xdp_umem_ring {
+    // 	__u32 *producer;
+    // 	__u32 *consumer;
+    // 	__u64 *desc;
+    // };
+
     // typedef struct xdp_rxtx_ring RING;
     // typedef struct xdp_umem_ring RING;
 
     // typedef struct xdp_desc RING_TYPE;
-    // typedef __u32 RING_TYPE;
+    // typedef __u64 RING_TYPE;
 
     int dequeue_one(RING *ring, RING_TYPE *item)
     {
-        __u32 entries = ring->ptrs.producer - ring->ptrs.consumer;
+        __u32 entries = *ring->producer - *ring->consumer;
 
         if (entries == 0)
             return -1;
 
         // read-barrier!
 
-        *item = ring->desc[ring->ptrs.consumer & (RING_SIZE - 1)];
-        ring->ptrs.consumer++;
+        *item = ring->desc[*ring->consumer & (RING_SIZE - 1)];
+        (*ring->consumer)++;
         return 0;
     }
 
     int enqueue_one(RING *ring, const RING_TYPE *item)
     {
-        u32 free_entries = RING_SIZE - (ring->ptrs.producer - ring->ptrs.consumer);
+        u32 free_entries = RING_SIZE - (*ring->producer - *ring->consumer);
 
         if (free_entries == 0)
             return -1;
 
-        ring->desc[ring->ptrs.producer & (RING_SIZE - 1)] = *item;
+        ring->desc[*ring->producer & (RING_SIZE - 1)] = *item;
 
         // write-barrier!
 
-        ring->ptrs.producer++;
+        (*ring->producer)++;
         return 0;
     }
 

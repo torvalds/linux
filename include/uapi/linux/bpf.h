@@ -143,6 +143,7 @@ enum bpf_prog_type {
 	BPF_PROG_TYPE_RAW_TRACEPOINT,
 	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
 	BPF_PROG_TYPE_LWT_SEG6LOCAL,
+	BPF_PROG_TYPE_LIRC_MODE2,
 };
 
 enum bpf_attach_type {
@@ -160,6 +161,9 @@ enum bpf_attach_type {
 	BPF_CGROUP_INET6_CONNECT,
 	BPF_CGROUP_INET4_POST_BIND,
 	BPF_CGROUP_INET6_POST_BIND,
+	BPF_CGROUP_UDP4_SENDMSG,
+	BPF_CGROUP_UDP6_SENDMSG,
+	BPF_LIRC_MODE2,
 	__MAX_BPF_ATTACH_TYPE
 };
 
@@ -1008,7 +1012,6 @@ union bpf_attr {
  * 		::
  *
  * 			# sysctl kernel.perf_event_max_stack=<new value>
- *
  * 	Return
  * 		The positive or null stack id on success, or a negative error
  * 		in case of failure.
@@ -1819,10 +1822,9 @@ union bpf_attr {
  * 		::
  *
  * 			# sysctl kernel.perf_event_max_stack=<new value>
- *
  * 	Return
- * 		a non-negative value equal to or less than size on success, or
- * 		a negative error in case of failure.
+ * 		A non-negative value equal to or less than *size* on success,
+ * 		or a negative error in case of failure.
  *
  * int skb_load_bytes_relative(const struct sk_buff *skb, u32 offset, void *to, u32 len, u32 start_header)
  * 	Description
@@ -1843,7 +1845,6 @@ union bpf_attr {
  * 		in socket filters where *skb*\ **->data** does not always point
  * 		to the start of the mac header and where "direct packet access"
  * 		is not available.
- *
  * 	Return
  * 		0 on success, or a negative error in case of failure.
  *
@@ -1853,22 +1854,24 @@ union bpf_attr {
  *		If lookup is successful and result shows packet is to be
  *		forwarded, the neighbor tables are searched for the nexthop.
  *		If successful (ie., FIB lookup shows forwarding and nexthop
- *		is resolved), the nexthop address is returned in ipv4_dst,
- *		ipv6_dst or mpls_out based on family, smac is set to mac
- *		address of egress device, dmac is set to nexthop mac address,
- *		rt_metric is set to metric from route.
+ *		is resolved), the nexthop address is returned in ipv4_dst
+ *		or ipv6_dst based on family, smac is set to mac address of
+ *		egress device, dmac is set to nexthop mac address, rt_metric
+ *		is set to metric from route (IPv4/IPv6 only).
  *
  *             *plen* argument is the size of the passed in struct.
- *             *flags* argument can be one or more BPF_FIB_LOOKUP_ flags:
+ *             *flags* argument can be a combination of one or more of the
+ *             following values:
  *
- *             **BPF_FIB_LOOKUP_DIRECT** means do a direct table lookup vs
- *             full lookup using FIB rules
- *             **BPF_FIB_LOOKUP_OUTPUT** means do lookup from an egress
- *             perspective (default is ingress)
+ *		**BPF_FIB_LOOKUP_DIRECT**
+ *			Do a direct table lookup vs full lookup using FIB
+ *			rules.
+ *		**BPF_FIB_LOOKUP_OUTPUT**
+ *			Perform lookup from an egress perspective (default is
+ *			ingress).
  *
  *             *ctx* is either **struct xdp_md** for XDP programs or
  *             **struct sk_buff** tc cls_act programs.
- *
  *     Return
  *             Egress device index on success, 0 if packet needs to continue
  *             up the stack for further processing or a negative error in case
@@ -2004,6 +2007,74 @@ union bpf_attr {
  * 		direct packet access.
  *	Return
  * 		0 on success, or a negative error in case of failure.
+ *
+ * int bpf_rc_keydown(void *ctx, u32 protocol, u64 scancode, u32 toggle)
+ *	Description
+ *		This helper is used in programs implementing IR decoding, to
+ *		report a successfully decoded key press with *scancode*,
+ *		*toggle* value in the given *protocol*. The scancode will be
+ *		translated to a keycode using the rc keymap, and reported as
+ *		an input key down event. After a period a key up event is
+ *		generated. This period can be extended by calling either
+ *		**bpf_rc_keydown** () again with the same values, or calling
+ *		**bpf_rc_repeat** ().
+ *
+ *		Some protocols include a toggle bit, in case the button	was
+ *		released and pressed again between consecutive scancodes.
+ *
+ *		The *ctx* should point to the lirc sample as passed into
+ *		the program.
+ *
+ *		The *protocol* is the decoded protocol number (see
+ *		**enum rc_proto** for some predefined values).
+ *
+ *		This helper is only available is the kernel was compiled with
+ *		the **CONFIG_BPF_LIRC_MODE2** configuration option set to
+ *		"**y**".
+ *
+ *	Return
+ *		0
+ *
+ * int bpf_rc_repeat(void *ctx)
+ *	Description
+ *		This helper is used in programs implementing IR decoding, to
+ *		report a successfully decoded repeat key message. This delays
+ *		the generation of a key up event for previously generated
+ *		key down event.
+ *
+ *		Some IR protocols like NEC have a special IR message for
+ *		repeating last button, for when a button is held down.
+ *
+ *		The *ctx* should point to the lirc sample as passed into
+ *		the program.
+ *
+ *		This helper is only available is the kernel was compiled with
+ *		the **CONFIG_BPF_LIRC_MODE2** configuration option set to
+ *		"**y**".
+ *
+ *	Return
+ *		0
+ *
+ * uint64_t bpf_skb_cgroup_id(struct sk_buff *skb)
+ * 	Description
+ * 		Return the cgroup v2 id of the socket associated with the *skb*.
+ * 		This is roughly similar to the **bpf_get_cgroup_classid**\ ()
+ * 		helper for cgroup v1 by providing a tag resp. identifier that
+ * 		can be matched on or used for map lookups e.g. to implement
+ * 		policy. The cgroup v2 id of a given path in the hierarchy is
+ * 		exposed in user space through the f_handle API in order to get
+ * 		to the same 64-bit id.
+ *
+ * 		This helper can be used on TC egress path, but not on ingress,
+ * 		and is available only if the kernel was compiled with the
+ * 		**CONFIG_SOCK_CGROUP_DATA** configuration option.
+ * 	Return
+ * 		The id is returned or 0 in case the id could not be retrieved.
+ *
+ * u64 bpf_get_current_cgroup_id(void)
+ * 	Return
+ * 		A 64-bit integer containing the current cgroup id based
+ * 		on the cgroup within which the current task is running.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -2082,7 +2153,11 @@ union bpf_attr {
 	FN(lwt_push_encap),		\
 	FN(lwt_seg6_store_bytes),	\
 	FN(lwt_seg6_adjust_srh),	\
-	FN(lwt_seg6_action),
+	FN(lwt_seg6_action),		\
+	FN(rc_repeat),			\
+	FN(rc_keydown),			\
+	FN(skb_cgroup_id),		\
+	FN(get_current_cgroup_id),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
@@ -2199,7 +2274,7 @@ struct bpf_tunnel_key {
 	};
 	__u8 tunnel_tos;
 	__u8 tunnel_ttl;
-	__u16 tunnel_ext;
+	__u16 tunnel_ext;	/* Padding, future use. */
 	__u32 tunnel_label;
 };
 
@@ -2210,6 +2285,7 @@ struct bpf_xfrm_state {
 	__u32 reqid;
 	__u32 spi;	/* Stored in network byte order */
 	__u16 family;
+	__u16 ext;	/* Padding, future use. */
 	union {
 		__u32 remote_ipv4;	/* Stored in network byte order */
 		__u32 remote_ipv6[4];	/* Stored in network byte order */
@@ -2364,6 +2440,12 @@ struct bpf_sock_addr {
 	__u32 family;		/* Allows 4-byte read, but no write */
 	__u32 type;		/* Allows 4-byte read, but no write */
 	__u32 protocol;		/* Allows 4-byte read, but no write */
+	__u32 msg_src_ip4;	/* Allows 1,2,4-byte read an 4-byte write.
+				 * Stored in network byte order.
+				 */
+	__u32 msg_src_ip6[4];	/* Allows 1,2,4-byte read an 4-byte write.
+				 * Stored in network byte order.
+				 */
 };
 
 /* User bpf_sock_ops struct to access socket values and specify request ops
@@ -2531,8 +2613,10 @@ struct bpf_raw_tracepoint_args {
 #define BPF_FIB_LOOKUP_OUTPUT  BIT(1)
 
 struct bpf_fib_lookup {
-	/* input */
-	__u8	family;   /* network family, AF_INET, AF_INET6, AF_MPLS */
+	/* input:  network family for lookup (AF_INET, AF_INET6)
+	 * output: network family of egress nexthop
+	 */
+	__u8	family;
 
 	/* set if lookup is to consider L4 data - e.g., FIB rules */
 	__u8	l4_protocol;
@@ -2546,24 +2630,22 @@ struct bpf_fib_lookup {
 	union {
 		/* inputs to lookup */
 		__u8	tos;		/* AF_INET  */
-		__be32	flowlabel;	/* AF_INET6 */
+		__be32	flowinfo;	/* AF_INET6, flow_label + priority */
 
-		/* output: metric of fib result */
-		__u32 rt_metric;
+		/* output: metric of fib result (IPv4/IPv6 only) */
+		__u32	rt_metric;
 	};
 
 	union {
-		__be32		mpls_in;
 		__be32		ipv4_src;
 		__u32		ipv6_src[4];  /* in6_addr; network order */
 	};
 
-	/* input to bpf_fib_lookup, *dst is destination address.
-	 * output: bpf_fib_lookup sets to gateway address
+	/* input to bpf_fib_lookup, ipv{4,6}_dst is destination address in
+	 * network header. output: bpf_fib_lookup sets to gateway address
+	 * if FIB lookup returns gateway route
 	 */
 	union {
-		/* return for MPLS lookups */
-		__be32		mpls_out[4];  /* support up to 4 labels */
 		__be32		ipv4_dst;
 		__u32		ipv6_dst[4];  /* in6_addr; network order */
 	};

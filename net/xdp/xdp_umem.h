@@ -6,52 +6,25 @@
 #ifndef XDP_UMEM_H_
 #define XDP_UMEM_H_
 
-#include <linux/mm.h>
-#include <linux/if_xdp.h>
-#include <linux/workqueue.h>
+#include <net/xdp_sock.h>
 
-#include "xsk_queue.h"
-#include "xdp_umem_props.h"
-
-struct xdp_umem {
-	struct xsk_queue *fq;
-	struct xsk_queue *cq;
-	struct page **pgs;
-	struct xdp_umem_props props;
-	u32 npgs;
-	u32 frame_headroom;
-	u32 nfpp_mask;
-	u32 nfpplog2;
-	u32 frame_size_log2;
-	struct user_struct *user;
-	struct pid *pid;
-	unsigned long address;
-	size_t size;
-	refcount_t users;
-	struct work_struct work;
-};
-
-static inline char *xdp_umem_get_data(struct xdp_umem *umem, u32 idx)
+static inline char *xdp_umem_get_data(struct xdp_umem *umem, u64 addr)
 {
-	u64 pg, off;
-	char *data;
-
-	pg = idx >> umem->nfpplog2;
-	off = (idx & umem->nfpp_mask) << umem->frame_size_log2;
-
-	data = page_address(umem->pgs[pg]);
-	return data + off;
+	return umem->pages[addr >> PAGE_SHIFT].addr + (addr & (PAGE_SIZE - 1));
 }
 
-static inline char *xdp_umem_get_data_with_headroom(struct xdp_umem *umem,
-						    u32 idx)
+static inline dma_addr_t xdp_umem_get_dma(struct xdp_umem *umem, u64 addr)
 {
-	return xdp_umem_get_data(umem, idx) + umem->frame_headroom;
+	return umem->pages[addr >> PAGE_SHIFT].dma + (addr & (PAGE_SIZE - 1));
 }
 
+int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
+			u32 queue_id, u16 flags);
 bool xdp_umem_validate_queues(struct xdp_umem *umem);
 void xdp_get_umem(struct xdp_umem *umem);
 void xdp_put_umem(struct xdp_umem *umem);
+void xdp_add_sk_umem(struct xdp_umem *umem, struct xdp_sock *xs);
+void xdp_del_sk_umem(struct xdp_umem *umem, struct xdp_sock *xs);
 struct xdp_umem *xdp_umem_create(struct xdp_umem_reg *mr);
 
 #endif /* XDP_UMEM_H_ */

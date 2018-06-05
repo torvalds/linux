@@ -1179,6 +1179,29 @@ static struct btf_raw_test raw_tests[] = {
 },
 
 {
+	.descr = "array test. t->size != 0\"",
+	.raw_types = {
+		/* int */				/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),
+		/* int[16] */				/* [2] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_ARRAY, 0, 0), 1),
+		BTF_ARRAY_ENC(1, 1, 16),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "array_test_map",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "size != 0",
+},
+
+{
 	.descr = "int test. invalid int_data",
 	.raw_types = {
 		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_INT, 0, 0), 4),
@@ -1217,6 +1240,28 @@ static struct btf_raw_test raw_tests[] = {
 	.max_entries = 4,
 	.btf_load_err = true,
 	.err_str = "Invalid btf_info",
+},
+
+{
+	.descr = "fwd test. t->type != 0\"",
+	.raw_types = {
+		/* int */				/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),
+		/* fwd type */				/* [2] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_FWD, 0, 0), 1),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "fwd_test_map",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "type != 0",
 },
 
 }; /* struct btf_raw_test raw_tests[] */

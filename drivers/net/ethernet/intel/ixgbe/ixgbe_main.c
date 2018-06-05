@@ -10023,8 +10023,17 @@ static int ixgbe_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	}
 }
 
+static void ixgbe_xdp_ring_update_tail(struct ixgbe_ring *ring)
+{
+	/* Force memory writes to complete before letting h/w know there
+	 * are new descriptors to fetch.
+	 */
+	wmb();
+	writel(ring->next_to_use, ring->tail);
+}
+
 static int ixgbe_xdp_xmit(struct net_device *dev, int n,
-			  struct xdp_frame **frames)
+			  struct xdp_frame **frames, u32 flags)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	struct ixgbe_ring *ring;
@@ -10033,6 +10042,9 @@ static int ixgbe_xdp_xmit(struct net_device *dev, int n,
 
 	if (unlikely(test_bit(__IXGBE_DOWN, &adapter->state)))
 		return -ENETDOWN;
+
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
+		return -EINVAL;
 
 	/* During program transitions its possible adapter->xdp_prog is assigned
 	 * but ring has not been configured yet. In this case simply abort xmit.
@@ -10052,31 +10064,10 @@ static int ixgbe_xdp_xmit(struct net_device *dev, int n,
 		}
 	}
 
+	if (unlikely(flags & XDP_XMIT_FLUSH))
+		ixgbe_xdp_ring_update_tail(ring);
+
 	return n - drops;
-}
-
-static void ixgbe_xdp_flush(struct net_device *dev)
-{
-	struct ixgbe_adapter *adapter = netdev_priv(dev);
-	struct ixgbe_ring *ring;
-
-	/* Its possible the device went down between xdp xmit and flush so
-	 * we need to ensure device is still up.
-	 */
-	if (unlikely(test_bit(__IXGBE_DOWN, &adapter->state)))
-		return;
-
-	ring = adapter->xdp_prog ? adapter->xdp_ring[smp_processor_id()] : NULL;
-	if (unlikely(!ring))
-		return;
-
-	/* Force memory writes to complete before letting h/w know there
-	 * are new descriptors to fetch.
-	 */
-	wmb();
-	writel(ring->next_to_use, ring->tail);
-
-	return;
 }
 
 static const struct net_device_ops ixgbe_netdev_ops = {
@@ -10126,7 +10117,6 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_features_check	= ixgbe_features_check,
 	.ndo_bpf		= ixgbe_xdp,
 	.ndo_xdp_xmit		= ixgbe_xdp_xmit,
-	.ndo_xdp_flush		= ixgbe_xdp_flush,
 };
 
 /**
