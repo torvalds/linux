@@ -1570,11 +1570,11 @@ static void capture_pinned_buffers(struct i915_gpu_state *error)
 	int count_inactive, count_active;
 
 	count_inactive = 0;
-	list_for_each_entry(vma, &vm->active_list, vm_link)
+	list_for_each_entry(vma, &vm->inactive_list, vm_link)
 		count_inactive++;
 
 	count_active = 0;
-	list_for_each_entry(vma, &vm->inactive_list, vm_link)
+	list_for_each_entry(vma, &vm->active_list, vm_link)
 		count_active++;
 
 	bo = NULL;
