@@ -792,7 +792,6 @@ static void gid_table_reserve_default(struct ib_device *ib_dev, u8 port,
 	unsigned int i;
 	unsigned long roce_gid_type_mask;
 	unsigned int num_default_gids;
-	unsigned int current_gid = 0;
 
 	roce_gid_type_mask = roce_gid_type_mask_support(ib_dev, port);
 	num_default_gids = hweight_long(roce_gid_type_mask);
@@ -800,10 +799,6 @@ static void gid_table_reserve_default(struct ib_device *ib_dev, u8 port,
 		struct ib_gid_table_entry *entry = &table->data_vec[i];
 
 		entry->props |= GID_TABLE_ENTRY_DEFAULT;
-		current_gid = find_next_bit(&roce_gid_type_mask,
-					    BITS_PER_LONG,
-					    current_gid);
-		entry->attr.gid_type = current_gid++;
 	}
 }
 
