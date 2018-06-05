@@ -1193,20 +1193,14 @@ static void intel_ring_context_destroy(struct intel_context *ce)
 		__i915_gem_object_release_unless_active(ce->state->obj);
 }
 
-static void intel_ring_context_unpin(struct intel_context *ce)
-{
-	if (ce->state) {
-		ce->state->obj->pin_global--;
-		i915_vma_unpin(ce->state);
-	}
-
-	i915_gem_context_put(ce->gem_context);
-}
-
 static int __context_pin(struct intel_context *ce)
 {
-	struct i915_vma *vma = ce->state;
-	int ret;
+	struct i915_vma *vma;
+	int err;
+
+	vma = ce->state;
+	if (!vma)
+		return 0;
 
 	/*
 	 * Clear this page out of any CPU caches for coherent swap-in/out.
@@ -1214,13 +1208,42 @@ static int __context_pin(struct intel_context *ce)
 	 * on an active context (which by nature is already on the GPU).
 	 */
 	if (!(vma->flags & I915_VMA_GLOBAL_BIND)) {
-		ret = i915_gem_object_set_to_gtt_domain(vma->obj, true);
-		if (ret)
-			return ret;
+		err = i915_gem_object_set_to_gtt_domain(vma->obj, true);
+		if (err)
+			return err;
 	}
 
-	return i915_vma_pin(vma, 0, I915_GTT_MIN_ALIGNMENT,
-			    PIN_GLOBAL | PIN_HIGH);
+	err = i915_vma_pin(vma, 0, I915_GTT_MIN_ALIGNMENT,
+			   PIN_GLOBAL | PIN_HIGH);
+	if (err)
+		return err;
+
+	/*
+	 * And mark is as a globally pinned object to let the shrinker know
+	 * it cannot reclaim the object until we release it.
+	 */
+	vma->obj->pin_global++;
+
+	return 0;
+}
+
+static void __context_unpin(struct intel_context *ce)
+{
+	struct i915_vma *vma;
+
+	vma = ce->state;
+	if (!vma)
+		return;
+
+	vma->obj->pin_global--;
+	i915_vma_unpin(vma);
+}
+
+static void intel_ring_context_unpin(struct intel_context *ce)
+{
+	__context_unpin(ce);
+
+	i915_gem_context_put(ce->gem_context);
 }
 
 static struct i915_vma *
@@ -1311,13 +1334,9 @@ __ring_context_pin(struct intel_engine_cs *engine,
 		ce->state = vma;
 	}
 
-	if (ce->state) {
-		err = __context_pin(ce);
-		if (err)
-			goto err;
-
-		ce->state->obj->pin_global++;
-	}
+	err = __context_pin(ce);
+	if (err)
+		goto err;
 
 	i915_gem_context_get(ctx);
 
