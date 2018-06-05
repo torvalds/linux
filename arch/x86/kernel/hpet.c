@@ -975,8 +975,7 @@ int __init hpet_enable(void)
 	cfg &= ~(HPET_CFG_ENABLE | HPET_CFG_LEGACY);
 	hpet_writel(cfg, HPET_CFG);
 	if (cfg)
-		pr_warn("HPET: Unrecognized bits %#x set in global cfg\n",
-			cfg);
+		pr_warn("Unrecognized bits %#x set in global cfg\n", cfg);
 
 	for (i = 0; i <= last; ++i) {
 		cfg = hpet_readl(HPET_Tn_CFG(i));
@@ -988,7 +987,7 @@ int __init hpet_enable(void)
 			 | HPET_TN_64BIT_CAP | HPET_TN_32BIT | HPET_TN_ROUTE
 			 | HPET_TN_FSB | HPET_TN_FSB_CAP);
 		if (cfg)
-			pr_warn("HPET: Unrecognized bits %#x set in cfg#%u\n",
+			pr_warn("Unrecognized bits %#x set in cfg#%u\n",
 				cfg, i);
 	}
 	hpet_print_config();
