@@ -147,7 +147,8 @@ out:
 	return err;
 }
 
-static int nsim_devlink_reload(struct devlink *devlink)
+static int nsim_devlink_reload(struct devlink *devlink,
+			       struct netlink_ext_ack *extack)
 {
 	enum nsim_resource_id res_ids[] = {
 		NSIM_RESOURCE_IPV4_FIB, NSIM_RESOURCE_IPV4_FIB_RULES,

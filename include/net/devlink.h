@@ -296,12 +296,13 @@ struct devlink_resource {
 #define DEVLINK_RESOURCE_ID_PARENT_TOP 0
 
 struct devlink_ops {
-	int (*reload)(struct devlink *devlink);
+	int (*reload)(struct devlink *devlink, struct netlink_ext_ack *extack);
 	int (*port_type_set)(struct devlink_port *devlink_port,
 			     enum devlink_port_type port_type);
 	int (*port_split)(struct devlink *devlink, unsigned int port_index,
-			  unsigned int count);
-	int (*port_unsplit)(struct devlink *devlink, unsigned int port_index);
+			  unsigned int count, struct netlink_ext_ack *extack);
+	int (*port_unsplit)(struct devlink *devlink, unsigned int port_index,
+			    struct netlink_ext_ack *extack);
 	int (*sb_pool_get)(struct devlink *devlink, unsigned int sb_index,
 			   u16 pool_index,
 			   struct devlink_sb_pool_info *pool_info);
