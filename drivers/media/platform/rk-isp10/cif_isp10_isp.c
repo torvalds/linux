@@ -443,7 +443,7 @@ static int cifisp_dpcc_param(struct cif_isp10_isp_dev *isp_dev,
 		goto end;
 	}
 
-	method = &arg->methods[i];
+	method = &arg->methods[0];
 	for (i = 0; i < CIFISP_DPCC_METHODS_MAX; i++) {
 		if ((method->method &
 		    CIFISP_DPCC_METHODS_SET_RESERVED) ||
