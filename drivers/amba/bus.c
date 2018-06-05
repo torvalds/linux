@@ -102,8 +102,8 @@ static ssize_t driver_override_store(struct device *_dev,
 	if (strlen(driver_override)) {
 		dev->driver_override = driver_override;
 	} else {
-	       kfree(driver_override);
-	       dev->driver_override = NULL;
+		kfree(driver_override);
+		dev->driver_override = NULL;
 	}
 	device_unlock(_dev);
 

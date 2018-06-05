@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * FPGA Region - Device Tree support for FPGA programming under Linux
  *
  *  Copyright (C) 2013-2016 Altera Corporation
  *  Copyright (C) 2017 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include <linux/fpga/fpga-bridge.h>
 #include <linux/fpga/fpga-mgr.h>
 #include <linux/fpga/fpga-region.h>
@@ -422,27 +410,25 @@ static int of_fpga_region_probe(struct platform_device *pdev)
 	if (IS_ERR(mgr))
 		return -EPROBE_DEFER;
 
-	region = devm_kzalloc(dev, sizeof(*region), GFP_KERNEL);
+	region = fpga_region_create(dev, mgr, of_fpga_region_get_bridges);
 	if (!region) {
 		ret = -ENOMEM;
 		goto eprobe_mgr_put;
 	}
 
-	region->mgr = mgr;
-
-	/* Specify how to get bridges for this type of region. */
-	region->get_bridges = of_fpga_region_get_bridges;
-
-	ret = fpga_region_register(dev, region);
+	ret = fpga_region_register(region);
 	if (ret)
-		goto eprobe_mgr_put;
+		goto eprobe_free;
 
 	of_platform_populate(np, fpga_region_of_match, NULL, &region->dev);
+	dev_set_drvdata(dev, region);
 
 	dev_info(dev, "FPGA Region probed\n");
 
 	return 0;
 
+eprobe_free:
+	fpga_region_free(region);
 eprobe_mgr_put:
 	fpga_mgr_put(mgr);
 	return ret;

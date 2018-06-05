@@ -111,6 +111,9 @@ static struct sdw_intel_ctx
 		link->res.shim = res->mmio_base + SDW_SHIM_BASE;
 		link->res.alh = res->mmio_base + SDW_ALH_BASE;
 
+		link->res.ops = res->ops;
+		link->res.arg = res->arg;
+
 		memset(&pdevinfo, 0, sizeof(pdevinfo));
 
 		pdevinfo.parent = res->parent;

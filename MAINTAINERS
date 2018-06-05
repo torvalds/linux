@@ -5586,6 +5586,7 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/atull/linux-fpga.git
 Q:	http://patchwork.kernel.org/project/linux-fpga/list/
 F:	Documentation/fpga/
+F:	Documentation/driver-api/fpga/
 F:	Documentation/devicetree/bindings/fpga/
 F:	drivers/fpga/
 F:	include/linux/fpga/
@@ -6772,6 +6773,12 @@ M:	Tyrel Datwyler <tyreld@linux.vnet.ibm.com>
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/ibmvscsi/ibmvfc*
+
+IBM Power Virtual Management Channel Driver
+M:	Bryant G. Ly <bryantly@linux.vnet.ibm.com>
+M:	Steven Royer <seroyer@linux.vnet.ibm.com>
+S:	Supported
+F:	drivers/misc/ibmvmc.*
 
 IBM Power Virtual SCSI Device Drivers
 M:	Tyrel Datwyler <tyreld@linux.vnet.ibm.com>
@@ -13136,7 +13143,7 @@ F:	include/uapi/sound/
 F:	sound/
 
 SOUND - COMPRESSED AUDIO
-M:	Vinod Koul <vinod.koul@intel.com>
+M:	Vinod Koul <vkoul@kernel.org>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git
 S:	Supported

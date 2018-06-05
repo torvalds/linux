@@ -45,6 +45,78 @@ struct sdw_msg {
 	bool page;
 };
 
+#define SDW_DOUBLE_RATE_FACTOR		2
+
+extern int rows[SDW_FRAME_ROWS];
+extern int cols[SDW_FRAME_COLS];
+
+/**
+ * sdw_port_runtime: Runtime port parameters for Master or Slave
+ *
+ * @num: Port number. For audio streams, valid port number ranges from
+ * [1,14]
+ * @ch_mask: Channel mask
+ * @transport_params: Transport parameters
+ * @port_params: Port parameters
+ * @port_node: List node for Master or Slave port_list
+ *
+ * SoundWire spec has no mention of ports for Master interface but the
+ * concept is logically extended.
+ */
+struct sdw_port_runtime {
+	int num;
+	int ch_mask;
+	struct sdw_transport_params transport_params;
+	struct sdw_port_params port_params;
+	struct list_head port_node;
+};
+
+/**
+ * sdw_slave_runtime: Runtime Stream parameters for Slave
+ *
+ * @slave: Slave handle
+ * @direction: Data direction for Slave
+ * @ch_count: Number of channels handled by the Slave for
+ * this stream
+ * @m_rt_node: sdw_master_runtime list node
+ * @port_list: List of Slave Ports configured for this stream
+ */
+struct sdw_slave_runtime {
+	struct sdw_slave *slave;
+	enum sdw_data_direction direction;
+	unsigned int ch_count;
+	struct list_head m_rt_node;
+	struct list_head port_list;
+};
+
+/**
+ * sdw_master_runtime: Runtime stream parameters for Master
+ *
+ * @bus: Bus handle
+ * @stream: Stream runtime handle
+ * @direction: Data direction for Master
+ * @ch_count: Number of channels handled by the Master for
+ * this stream, can be zero.
+ * @slave_rt_list: Slave runtime list
+ * @port_list: List of Master Ports configured for this stream, can be zero.
+ * @bus_node: sdw_bus m_rt_list node
+ */
+struct sdw_master_runtime {
+	struct sdw_bus *bus;
+	struct sdw_stream_runtime *stream;
+	enum sdw_data_direction direction;
+	unsigned int ch_count;
+	struct list_head slave_rt_list;
+	struct list_head port_list;
+	struct list_head bus_node;
+};
+
+struct sdw_dpn_prop *sdw_get_slave_dpn_prop(struct sdw_slave *slave,
+				enum sdw_data_direction direction,
+				unsigned int port_num);
+int sdw_configure_dpn_intr(struct sdw_slave *slave, int port,
+					bool enable, int mask);
+
 int sdw_transfer(struct sdw_bus *bus, struct sdw_msg *msg);
 int sdw_transfer_defer(struct sdw_bus *bus, struct sdw_msg *msg,
 				struct sdw_defer *defer);
