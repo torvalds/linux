@@ -263,7 +263,13 @@ static u32 guc_ctl_log_params_flags(struct intel_guc *guc)
 	u32 offset = intel_guc_ggtt_offset(guc, guc->log.vma) >> PAGE_SHIFT;
 	u32 flags;
 
+	#if (((CRASH_BUFFER_SIZE) % SZ_1M) == 0)
+	#define UNIT SZ_1M
+	#define FLAG GUC_LOG_ALLOC_IN_MEGABYTE
+	#else
 	#define UNIT SZ_4K
+	#define FLAG 0
+	#endif
 
 	BUILD_BUG_ON(!CRASH_BUFFER_SIZE);
 	BUILD_BUG_ON(!IS_ALIGNED(CRASH_BUFFER_SIZE, UNIT));
@@ -281,12 +287,14 @@ static u32 guc_ctl_log_params_flags(struct intel_guc *guc)
 
 	flags = GUC_LOG_VALID |
 		GUC_LOG_NOTIFY_ON_HALF_FULL |
+		FLAG |
 		((CRASH_BUFFER_SIZE / UNIT - 1) << GUC_LOG_CRASH_SHIFT) |
 		((DPC_BUFFER_SIZE / UNIT - 1) << GUC_LOG_DPC_SHIFT) |
 		((ISR_BUFFER_SIZE / UNIT - 1) << GUC_LOG_ISR_SHIFT) |
 		(offset << GUC_LOG_BUF_ADDR_SHIFT);
 
 	#undef UNIT
+	#undef FLAG
 
 	return flags;
 }

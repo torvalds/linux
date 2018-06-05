@@ -34,9 +34,15 @@
 
 struct intel_guc;
 
+#ifdef CONFIG_DRM_I915_DEBUG_GUC
+#define CRASH_BUFFER_SIZE	SZ_2M
+#define DPC_BUFFER_SIZE		SZ_8M
+#define ISR_BUFFER_SIZE		SZ_8M
+#else
 #define CRASH_BUFFER_SIZE	SZ_8K
 #define DPC_BUFFER_SIZE		SZ_32K
 #define ISR_BUFFER_SIZE		SZ_32K
+#endif
 
 /*
  * While we're using plain log level in i915, GuC controls are much more...
