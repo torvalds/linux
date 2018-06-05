@@ -68,7 +68,6 @@ enum gid_attr_find_mask {
 
 enum gid_table_entry_props {
 	GID_TABLE_ENTRY_INVALID		= 1UL << 0,
-	GID_TABLE_ENTRY_DEFAULT		= 1UL << 1,
 };
 
 struct ib_gid_table_entry {
@@ -79,7 +78,7 @@ struct ib_gid_table_entry {
 };
 
 struct ib_gid_table {
-	int                  sz;
+	int				sz;
 	/* In RoCE, adding a GID to the table requires:
 	 * (a) Find if this GID is already exists.
 	 * (b) Find a free space.
@@ -94,10 +93,12 @@ struct ib_gid_table {
 	 * rwlock. readers must hold only rwlock. All writers must be in a
 	 * sleepable context.
 	 */
-	struct mutex         lock;
+	struct mutex			lock;
 	/* rwlock protects data_vec[ix]->props. */
-	rwlock_t	     rwlock;
-	struct ib_gid_table_entry *data_vec;
+	rwlock_t			rwlock;
+	/* bit field, each bit indicates the index of default GID */
+	u32				default_gid_indices;
+	struct ib_gid_table_entry	*data_vec;
 };
 
 static void dispatch_gid_change_event(struct ib_device *ib_dev, u8 port)
@@ -134,6 +135,19 @@ bool rdma_is_zero_gid(const union ib_gid *gid)
 	return !memcmp(gid, &zgid, sizeof(*gid));
 }
 EXPORT_SYMBOL(rdma_is_zero_gid);
+
+/** is_gid_index_default - Check if a given index belongs to
+ * reserved default GIDs or not.
+ * @table:	GID table pointer
+ * @index:	Index to check in GID table
+ * Returns true if index is one of the reserved default GID index otherwise
+ * returns false.
+ */
+static bool is_gid_index_default(const struct ib_gid_table *table,
+				 unsigned int index)
+{
+	return index < 32 && (BIT(index) & table->default_gid_indices);
+}
 
 int ib_cache_gid_parse_type_str(const char *buf)
 {
@@ -308,7 +322,7 @@ static int find_gid(struct ib_gid_table *table, const union ib_gid *gid,
 		if (pempty && empty < 0) {
 			if (data->props & GID_TABLE_ENTRY_INVALID &&
 			    (default_gid ==
-			     !!(data->props & GID_TABLE_ENTRY_DEFAULT))) {
+				is_gid_index_default(table, curr_index))) {
 				/*
 				 * Found an invalid (free) entry; allocate it.
 				 * If default GID is requested, then our
@@ -346,8 +360,7 @@ static int find_gid(struct ib_gid_table *table, const union ib_gid *gid,
 			continue;
 
 		if (mask & GID_ATTR_FIND_MASK_DEFAULT &&
-		    !!(data->props & GID_TABLE_ENTRY_DEFAULT) !=
-		    default_gid)
+		    is_gid_index_default(table, curr_index) != default_gid)
 			continue;
 
 		found = curr_index;
@@ -795,11 +808,9 @@ static void gid_table_reserve_default(struct ib_device *ib_dev, u8 port,
 
 	roce_gid_type_mask = roce_gid_type_mask_support(ib_dev, port);
 	num_default_gids = hweight_long(roce_gid_type_mask);
-	for (i = 0; i < num_default_gids && i < table->sz; i++) {
-		struct ib_gid_table_entry *entry = &table->data_vec[i];
-
-		entry->props |= GID_TABLE_ENTRY_DEFAULT;
-	}
+	/* Reserve starting indices for default GIDs */
+	for (i = 0; i < num_default_gids && i < table->sz; i++)
+		table->default_gid_indices |= BIT(i);
 }
 
 
