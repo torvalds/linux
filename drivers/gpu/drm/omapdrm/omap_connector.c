@@ -325,10 +325,33 @@ static const struct drm_connector_helper_funcs omap_connector_helper_funcs = {
 	.mode_valid = omap_connector_mode_valid,
 };
 
+static int omap_connector_get_type(struct omap_dss_device *display)
+{
+	switch (display->type) {
+	case OMAP_DISPLAY_TYPE_HDMI:
+		return DRM_MODE_CONNECTOR_HDMIA;
+	case OMAP_DISPLAY_TYPE_DVI:
+		return DRM_MODE_CONNECTOR_DVID;
+	case OMAP_DISPLAY_TYPE_DSI:
+		return DRM_MODE_CONNECTOR_DSI;
+	case OMAP_DISPLAY_TYPE_DPI:
+	case OMAP_DISPLAY_TYPE_DBI:
+		return DRM_MODE_CONNECTOR_DPI;
+	case OMAP_DISPLAY_TYPE_VENC:
+		/* TODO: This could also be composite */
+		return DRM_MODE_CONNECTOR_SVIDEO;
+	case OMAP_DISPLAY_TYPE_SDI:
+		return DRM_MODE_CONNECTOR_LVDS;
+	default:
+		return DRM_MODE_CONNECTOR_Unknown;
+	}
+}
+
 /* initialize connector */
 struct drm_connector *omap_connector_init(struct drm_device *dev,
-		int connector_type, struct omap_dss_device *output,
-		struct omap_dss_device *display, struct drm_encoder *encoder)
+					  struct omap_dss_device *output,
+					  struct omap_dss_device *display,
+					  struct drm_encoder *encoder)
 {
 	struct drm_connector *connector = NULL;
 	struct omap_connector *omap_connector;
@@ -348,7 +371,7 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 	connector->doublescan_allowed = 0;
 
 	drm_connector_init(dev, connector, &omap_connector_funcs,
-				connector_type);
+			   omap_connector_get_type(display));
 	drm_connector_helper_add(connector, &omap_connector_helper_funcs);
 
 	/*
