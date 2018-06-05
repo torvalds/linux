@@ -83,6 +83,11 @@ sviluppatori che contribuiscono ogni anno. Come in ogni grande comunità,
 sapere come le cose vengono fatte renderà il processo di integrazione delle
 vostre modifiche molto più semplice
 
+.. toctree::
+   :maxdepth: 2
+
+   doc-guide/index
+
 .. warning::
 
     TODO ancora da tradurre
