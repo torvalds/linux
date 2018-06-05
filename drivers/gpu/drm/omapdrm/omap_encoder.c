@@ -101,21 +101,9 @@ static int omap_encoder_update(struct drm_encoder *encoder,
 	struct omap_dss_device *dssdev = omap_encoder->display;
 	int ret;
 
-	if (dssdev->ops->check_timings) {
-		ret = dssdev->ops->check_timings(dssdev, vm);
-	} else {
-		struct videomode t = {0};
-
-		dssdev->ops->get_timings(dssdev, &t);
-
-		if (memcmp(vm, &t, sizeof(*vm)))
-			ret = -EINVAL;
-		else
-			ret = 0;
-	}
-
+	ret = dssdev->ops->check_timings(dssdev, vm);
 	if (ret) {
-		dev_err(dev->dev, "could not set timings: %d\n", ret);
+		dev_err(dev->dev, "invalid timings: %d\n", ret);
 		return ret;
 	}
 

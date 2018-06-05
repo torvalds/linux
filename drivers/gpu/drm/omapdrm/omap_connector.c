@@ -261,30 +261,7 @@ static int omap_connector_mode_valid(struct drm_connector *connector,
 	drm_display_mode_to_videomode(mode, &vm);
 	mode->vrefresh = drm_mode_vrefresh(mode);
 
-	/*
-	 * if the panel driver doesn't have a check_timings, it's most likely
-	 * a fixed resolution panel, check if the timings match with the
-	 * panel's timings
-	 */
-	if (dssdev->ops->check_timings) {
-		r = dssdev->ops->check_timings(dssdev, &vm);
-	} else {
-		struct videomode t = {0};
-
-		dssdev->ops->get_timings(dssdev, &t);
-
-		/*
-		 * Ignore the flags, as we don't get them from
-		 * drm_display_mode_to_videomode.
-		 */
-		t.flags = 0;
-
-		if (memcmp(&vm, &t, sizeof(vm)))
-			r = -EINVAL;
-		else
-			r = 0;
-	}
-
+	r = dssdev->ops->check_timings(dssdev, &vm);
 	if (!r) {
 		/* check if vrefresh is still valid */
 		new_mode = drm_mode_duplicate(dev, mode);
