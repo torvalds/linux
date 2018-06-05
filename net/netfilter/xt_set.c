@@ -372,8 +372,8 @@ set_target_v2(struct sk_buff *skb, const struct xt_action_param *par)
 
 	/* Normalize to fit into jiffies */
 	if (add_opt.ext.timeout != IPSET_NO_TIMEOUT &&
-	    add_opt.ext.timeout > UINT_MAX / MSEC_PER_SEC)
-		add_opt.ext.timeout = UINT_MAX / MSEC_PER_SEC;
+	    add_opt.ext.timeout > IPSET_MAX_TIMEOUT)
+		add_opt.ext.timeout = IPSET_MAX_TIMEOUT;
 	if (info->add_set.index != IPSET_INVALID_ID)
 		ip_set_add(info->add_set.index, skb, par, &add_opt);
 	if (info->del_set.index != IPSET_INVALID_ID)
@@ -407,8 +407,8 @@ set_target_v3(struct sk_buff *skb, const struct xt_action_param *par)
 
 	/* Normalize to fit into jiffies */
 	if (add_opt.ext.timeout != IPSET_NO_TIMEOUT &&
-	    add_opt.ext.timeout > UINT_MAX / MSEC_PER_SEC)
-		add_opt.ext.timeout = UINT_MAX / MSEC_PER_SEC;
+	    add_opt.ext.timeout > IPSET_MAX_TIMEOUT)
+		add_opt.ext.timeout = IPSET_MAX_TIMEOUT;
 	if (info->add_set.index != IPSET_INVALID_ID)
 		ip_set_add(info->add_set.index, skb, par, &add_opt);
 	if (info->del_set.index != IPSET_INVALID_ID)
