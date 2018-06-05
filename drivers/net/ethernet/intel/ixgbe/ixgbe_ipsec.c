@@ -158,7 +158,16 @@ static void ixgbe_ipsec_stop_data(struct ixgbe_adapter *adapter)
 	reg |= IXGBE_SECRXCTRL_RX_DIS;
 	IXGBE_WRITE_REG(hw, IXGBE_SECRXCTRL, reg);
 
-	IXGBE_WRITE_FLUSH(hw);
+	/* If both Tx and Rx are ready there are no packets
+	 * that we need to flush so the loopback configuration
+	 * below is not necessary.
+	 */
+	t_rdy = IXGBE_READ_REG(hw, IXGBE_SECTXSTAT) &
+		IXGBE_SECTXSTAT_SECTX_RDY;
+	r_rdy = IXGBE_READ_REG(hw, IXGBE_SECRXSTAT) &
+		IXGBE_SECRXSTAT_SECRX_RDY;
+	if (t_rdy && r_rdy)
+		return;
 
 	/* If the tx fifo doesn't have link, but still has data,
 	 * we can't clear the tx sec block.  Set the MAC loopback
@@ -185,7 +194,7 @@ static void ixgbe_ipsec_stop_data(struct ixgbe_adapter *adapter)
 			IXGBE_SECTXSTAT_SECTX_RDY;
 		r_rdy = IXGBE_READ_REG(hw, IXGBE_SECRXSTAT) &
 			IXGBE_SECRXSTAT_SECRX_RDY;
-	} while (!t_rdy && !r_rdy && limit--);
+	} while (!(t_rdy && r_rdy) && limit--);
 
 	/* undo loopback if we played with it earlier */
 	if (!link) {
