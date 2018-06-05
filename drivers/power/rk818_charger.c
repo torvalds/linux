@@ -598,8 +598,18 @@ static void rk818_cg_set_chrg_param(struct rk818_charger *cg,
 		power_supply_changed(cg->usb_psy);
 		power_supply_changed(cg->ac_psy);
 		break;
-	case USB_TYPE_AC_CHARGER:
 	case USB_TYPE_CDP_CHARGER:
+		cg->usb_in = 1;
+		cg->ac_in = 0;
+		cg->prop_status = POWER_SUPPLY_STATUS_CHARGING;
+		if (cg->dc_in == 0) {
+			rk818_cg_set_chrg_current(cg, cg->chrg_current);
+			rk818_cg_set_input_current(cg, INPUT_CUR1500MA);
+		}
+		power_supply_changed(cg->usb_psy);
+		power_supply_changed(cg->ac_psy);
+		break;
+	case USB_TYPE_AC_CHARGER:
 		cg->ac_in = 1;
 		cg->usb_in = 0;
 		cg->prop_status = POWER_SUPPLY_STATUS_CHARGING;
