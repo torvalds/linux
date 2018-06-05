@@ -16,11 +16,6 @@ typedef __u64 timeu64_t;
 
 #include <uapi/linux/time.h>
 
-#if __BITS_PER_LONG == 64
-/* this trick allows us to optimize out timespec64_to_timespec */
-# define timespec64 timespec
-#define itimerspec64 itimerspec
-#else
 struct timespec64 {
 	time64_t	tv_sec;			/* seconds */
 	long		tv_nsec;		/* nanoseconds */
@@ -30,8 +25,6 @@ struct itimerspec64 {
 	struct timespec64 it_interval;
 	struct timespec64 it_value;
 };
-
-#endif
 
 /* Parameters used to convert the timespec values: */
 #define MSEC_PER_SEC	1000L
