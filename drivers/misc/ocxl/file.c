@@ -139,8 +139,10 @@ static long afu_ioctl_enable_p9_wait(struct ocxl_context *ctx,
 		// Locks both status & tidr
 		mutex_lock(&ctx->status_mutex);
 		if (!ctx->tidr) {
-			if (set_thread_tidr(current))
+			if (set_thread_tidr(current)) {
+				mutex_unlock(&ctx->status_mutex);
 				return -ENOENT;
+			}
 
 			ctx->tidr = current->thread.tidr;
 		}
