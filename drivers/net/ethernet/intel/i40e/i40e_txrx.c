@@ -3707,22 +3707,3 @@ int i40e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 
 	return n - drops;
 }
-
-/**
- * i40e_xdp_flush - Implements ndo_xdp_flush
- * @dev: netdev
- **/
-void i40e_xdp_flush(struct net_device *dev)
-{
-	struct i40e_netdev_priv *np = netdev_priv(dev);
-	unsigned int queue_index = smp_processor_id();
-	struct i40e_vsi *vsi = np->vsi;
-
-	if (test_bit(__I40E_VSI_DOWN, vsi->state))
-		return;
-
-	if (!i40e_enabled_xdp_vsi(vsi) || queue_index >= vsi->num_queue_pairs)
-		return;
-
-	i40e_xdp_ring_update_tail(vsi->xdp_rings[queue_index]);
-}
