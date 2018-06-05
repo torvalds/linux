@@ -83,9 +83,6 @@
 #define AUDIT_INITIALIZED	1
 static int	audit_initialized;
 
-#define AUDIT_OFF	0
-#define AUDIT_ON	1
-#define AUDIT_LOCKED	2
 u32		audit_enabled = AUDIT_OFF;
 bool		audit_ever_enabled = !!AUDIT_OFF;
 
