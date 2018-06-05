@@ -269,7 +269,7 @@ struct amd_pm_funcs {
 	int (*get_power_profile_mode)(void *handle, char *buf);
 	int (*set_power_profile_mode)(void *handle, long *input, uint32_t size);
 	int (*odn_edit_dpm_table)(void *handle, uint32_t type, long *input, uint32_t size);
-	int (*set_mmhub_powergating_by_smu)(void *handle);
+	int (*powergate_mmhub)(void *handle);
 };
 
 #endif

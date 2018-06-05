@@ -359,8 +359,8 @@ enum amdgpu_pcie_gen {
 		((adev)->powerplay.pp_funcs->odn_edit_dpm_table(\
 			(adev)->powerplay.pp_handle, type, parameter, size))
 
-#define amdgpu_dpm_set_mmhub_powergating_by_smu(adev) \
-		((adev)->powerplay.pp_funcs->set_mmhub_powergating_by_smu( \
+#define amdgpu_dpm_powergate_mmhub(adev) \
+		((adev)->powerplay.pp_funcs->powergate_mmhub( \
 		(adev)->powerplay.pp_handle))
 
 struct amdgpu_dpm {
