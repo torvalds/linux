@@ -36,6 +36,7 @@
 #define DEFAULT_MCLK_FS	256
 
 struct multicodecs_data {
+	struct snd_soc_card snd_card;
 	unsigned int mclk_fs;
 	bool codec_hp_det;
 };
@@ -104,18 +105,11 @@ static struct snd_soc_dai_link rk_dailink = {
 		SND_SOC_DAIFMT_CBS_CFS,
 };
 
-static struct snd_soc_card snd_soc_card_rk = {
-	.name = "rk-multicodecs-sound",
-	.dai_link = &rk_dailink,
-	.num_links = 1,
-	.num_aux_devs = 0,
-};
-
 static int rk_multicodecs_probe(struct platform_device *pdev)
 {
-	struct snd_soc_card *card = &snd_soc_card_rk;
+	struct snd_soc_card *card;
 	struct device_node *np = pdev->dev.of_node;
-	struct snd_soc_dai_link *link = card->dai_link;
+	struct snd_soc_dai_link *link;
 	struct snd_soc_dai_link_component *codecs;
 	struct multicodecs_data *mc_data;
 	struct of_phandle_args args;
@@ -124,6 +118,11 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 	int count;
 	int ret = 0, i = 0, idx = 0;
 
+	mc_data = devm_kzalloc(&pdev->dev, sizeof(*mc_data), GFP_KERNEL);
+	if (!mc_data)
+		return -ENOMEM;
+
+	card = &mc_data->snd_card;
 	card->dev = &pdev->dev;
 
 	/* Parse the card name from DT */
@@ -131,9 +130,10 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	mc_data = devm_kzalloc(&pdev->dev, sizeof(*mc_data), GFP_KERNEL);
-	if (!mc_data)
-		return -ENOMEM;
+	link = &rk_dailink;
+	card->dai_link = &rk_dailink;
+	card->num_links = 1;
+	card->num_aux_devs = 0;
 
 	count = of_count_phandle_with_args(np, "rockchip,codec", NULL);
 	if (count < 0 || count > MAX_CODECS)
