@@ -1192,9 +1192,6 @@ struct dev_ifalias {
  *	that got dropped are freed/returned via xdp_return_frame().
  *	Returns negative number, means general error invoking ndo, meaning
  *	no frames were xmit'ed and core-caller will free all frames.
- * void (*ndo_xdp_flush)(struct net_device *dev);
- *	This function is used to inform the driver to flush a particular
- *	xdp tx queue. Must be called on same CPU as xdp_xmit.
  */
 struct net_device_ops {
 	int			(*ndo_init)(struct net_device *dev);
@@ -1382,7 +1379,6 @@ struct net_device_ops {
 	int			(*ndo_xdp_xmit)(struct net_device *dev, int n,
 						struct xdp_frame **xdp,
 						u32 flags);
-	void			(*ndo_xdp_flush)(struct net_device *dev);
 };
 
 /**
