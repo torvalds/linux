@@ -874,9 +874,12 @@ xfs_mountfs(
 	 * Get and sanity-check the root inode.
 	 * Save the pointer to it in the mount structure.
 	 */
-	error = xfs_iget(mp, NULL, sbp->sb_rootino, 0, XFS_ILOCK_EXCL, &rip);
+	error = xfs_iget(mp, NULL, sbp->sb_rootino, XFS_IGET_UNTRUSTED,
+			 XFS_ILOCK_EXCL, &rip);
 	if (error) {
-		xfs_warn(mp, "failed to read root inode");
+		xfs_warn(mp,
+			"Failed to read root inode 0x%llx, error %d",
+			sbp->sb_rootino, -error);
 		goto out_log_dealloc;
 	}
 
