@@ -505,6 +505,7 @@ static void split_stream_across_pipes(
 	resource_build_scaling_params(secondary_pipe);
 }
 
+#if 0
 static void calc_wm_sets_and_perf_params(
 		struct dc_state *context,
 		struct dcn_bw_internal_vars *v)
@@ -586,6 +587,7 @@ static void calc_wm_sets_and_perf_params(
 	if (v->voltage_level >= 3)
 		context->bw.dcn.watermarks.d = context->bw.dcn.watermarks.a;
 }
+#endif
 
 static bool dcn_bw_apply_registry_override(struct dc *dc)
 {
@@ -980,7 +982,24 @@ bool dcn_validate_bandwidth(
 				bw_consumed = v->fabric_and_dram_bandwidth;
 
 		display_pipe_configuration(v);
-		calc_wm_sets_and_perf_params(context, v);
+		/*calc_wm_sets_and_perf_params(context, v);*/
+		/* Only 1 set is used by dcn since no noticeable
+		 * performance improvement was measured and due to hw bug DEGVIDCN10-254
+		 */
+		dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performance_calculation(v);
+
+		context->bw.dcn.watermarks.a.cstate_pstate.cstate_exit_ns =
+			v->stutter_exit_watermark * 1000;
+		context->bw.dcn.watermarks.a.cstate_pstate.cstate_enter_plus_exit_ns =
+				v->stutter_enter_plus_exit_watermark * 1000;
+		context->bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns =
+				v->dram_clock_change_watermark * 1000;
+		context->bw.dcn.watermarks.a.pte_meta_urgent_ns = v->ptemeta_urgent_watermark * 1000;
+		context->bw.dcn.watermarks.a.urgent_ns = v->urgent_watermark * 1000;
+		context->bw.dcn.watermarks.b = context->bw.dcn.watermarks.a;
+		context->bw.dcn.watermarks.c = context->bw.dcn.watermarks.a;
+		context->bw.dcn.watermarks.d = context->bw.dcn.watermarks.a;
+
 		context->bw.dcn.clk.fclk_khz = (int)(bw_consumed * 1000000 /
 				(ddr4_dram_factor_single_Channel * v->number_of_channels));
 		if (bw_consumed == v->fabric_and_dram_bandwidth_vmin0p65) {
