@@ -770,27 +770,35 @@ static void mlxsw_core_driver_put(const char *kind)
 
 static int mlxsw_devlink_port_split(struct devlink *devlink,
 				    unsigned int port_index,
-				    unsigned int count)
+				    unsigned int count,
+				    struct netlink_ext_ack *extack)
 {
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
 
-	if (port_index >= mlxsw_core->max_ports)
+	if (port_index >= mlxsw_core->max_ports) {
+		NL_SET_ERR_MSG_MOD(extack, "Port index exceeds maximum number of ports");
 		return -EINVAL;
+	}
 	if (!mlxsw_core->driver->port_split)
 		return -EOPNOTSUPP;
-	return mlxsw_core->driver->port_split(mlxsw_core, port_index, count);
+	return mlxsw_core->driver->port_split(mlxsw_core, port_index, count,
+					      extack);
 }
 
 static int mlxsw_devlink_port_unsplit(struct devlink *devlink,
-				      unsigned int port_index)
+				      unsigned int port_index,
+				      struct netlink_ext_ack *extack)
 {
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
 
-	if (port_index >= mlxsw_core->max_ports)
+	if (port_index >= mlxsw_core->max_ports) {
+		NL_SET_ERR_MSG_MOD(extack, "Port index exceeds maximum number of ports");
 		return -EINVAL;
+	}
 	if (!mlxsw_core->driver->port_unsplit)
 		return -EOPNOTSUPP;
-	return mlxsw_core->driver->port_unsplit(mlxsw_core, port_index);
+	return mlxsw_core->driver->port_unsplit(mlxsw_core, port_index,
+						extack);
 }
 
 static int
@@ -963,7 +971,8 @@ mlxsw_devlink_sb_occ_tc_port_bind_get(struct devlink_port *devlink_port,
 						     pool_type, p_cur, p_max);
 }
 
-static int mlxsw_devlink_core_bus_device_reload(struct devlink *devlink)
+static int mlxsw_devlink_core_bus_device_reload(struct devlink *devlink,
+						struct netlink_ext_ack *extack)
 {
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
 	int err;

@@ -92,7 +92,7 @@ nfp_devlink_set_lanes(struct nfp_pf *pf, unsigned int idx, unsigned int lanes)
 
 static int
 nfp_devlink_port_split(struct devlink *devlink, unsigned int port_index,
-		       unsigned int count)
+		       unsigned int count, struct netlink_ext_ack *extack)
 {
 	struct nfp_pf *pf = devlink_priv(devlink);
 	struct nfp_eth_table_port eth_port;
@@ -123,7 +123,8 @@ out:
 }
 
 static int
-nfp_devlink_port_unsplit(struct devlink *devlink, unsigned int port_index)
+nfp_devlink_port_unsplit(struct devlink *devlink, unsigned int port_index,
+			 struct netlink_ext_ack *extack)
 {
 	struct nfp_pf *pf = devlink_priv(devlink);
 	struct nfp_eth_table_port eth_port;

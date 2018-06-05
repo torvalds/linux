@@ -274,8 +274,9 @@ struct mlxsw_driver {
 	int (*port_type_set)(struct mlxsw_core *mlxsw_core, u8 local_port,
 			     enum devlink_port_type new_type);
 	int (*port_split)(struct mlxsw_core *mlxsw_core, u8 local_port,
-			  unsigned int count);
-	int (*port_unsplit)(struct mlxsw_core *mlxsw_core, u8 local_port);
+			  unsigned int count, struct netlink_ext_ack *extack);
+	int (*port_unsplit)(struct mlxsw_core *mlxsw_core, u8 local_port,
+			    struct netlink_ext_ack *extack);
 	int (*sb_pool_get)(struct mlxsw_core *mlxsw_core,
 			   unsigned int sb_index, u16 pool_index,
 			   struct devlink_sb_pool_info *pool_info);

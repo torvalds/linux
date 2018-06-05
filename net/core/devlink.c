@@ -702,12 +702,13 @@ static int devlink_nl_cmd_port_set_doit(struct sk_buff *skb,
 	return 0;
 }
 
-static int devlink_port_split(struct devlink *devlink,
-			      u32 port_index, u32 count)
+static int devlink_port_split(struct devlink *devlink, u32 port_index,
+			      u32 count, struct netlink_ext_ack *extack)
 
 {
 	if (devlink->ops && devlink->ops->port_split)
-		return devlink->ops->port_split(devlink, port_index, count);
+		return devlink->ops->port_split(devlink, port_index, count,
+						extack);
 	return -EOPNOTSUPP;
 }
 
@@ -724,14 +725,15 @@ static int devlink_nl_cmd_port_split_doit(struct sk_buff *skb,
 
 	port_index = nla_get_u32(info->attrs[DEVLINK_ATTR_PORT_INDEX]);
 	count = nla_get_u32(info->attrs[DEVLINK_ATTR_PORT_SPLIT_COUNT]);
-	return devlink_port_split(devlink, port_index, count);
+	return devlink_port_split(devlink, port_index, count, info->extack);
 }
 
-static int devlink_port_unsplit(struct devlink *devlink, u32 port_index)
+static int devlink_port_unsplit(struct devlink *devlink, u32 port_index,
+				struct netlink_ext_ack *extack)
 
 {
 	if (devlink->ops && devlink->ops->port_unsplit)
-		return devlink->ops->port_unsplit(devlink, port_index);
+		return devlink->ops->port_unsplit(devlink, port_index, extack);
 	return -EOPNOTSUPP;
 }
 
@@ -745,7 +747,7 @@ static int devlink_nl_cmd_port_unsplit_doit(struct sk_buff *skb,
 		return -EINVAL;
 
 	port_index = nla_get_u32(info->attrs[DEVLINK_ATTR_PORT_INDEX]);
-	return devlink_port_unsplit(devlink, port_index);
+	return devlink_port_unsplit(devlink, port_index, info->extack);
 }
 
 static int devlink_nl_sb_fill(struct sk_buff *msg, struct devlink *devlink,
@@ -2599,7 +2601,7 @@ static int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info)
 		NL_SET_ERR_MSG_MOD(info->extack, "resources size validation failed");
 		return err;
 	}
-	return devlink->ops->reload(devlink);
+	return devlink->ops->reload(devlink, info->extack);
 }
 
 static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {

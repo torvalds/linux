@@ -3092,7 +3092,8 @@ static void mlxsw_sp_port_unsplit_create(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int mlxsw_sp_port_split(struct mlxsw_core *mlxsw_core, u8 local_port,
-			       unsigned int count)
+			       unsigned int count,
+			       struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 	struct mlxsw_sp_port *mlxsw_sp_port;
@@ -3104,6 +3105,7 @@ static int mlxsw_sp_port_split(struct mlxsw_core *mlxsw_core, u8 local_port,
 	if (!mlxsw_sp_port) {
 		dev_err(mlxsw_sp->bus_info->dev, "Port number \"%d\" does not exist\n",
 			local_port);
+		NL_SET_ERR_MSG_MOD(extack, "Port number does not exist");
 		return -EINVAL;
 	}
 
@@ -3112,11 +3114,13 @@ static int mlxsw_sp_port_split(struct mlxsw_core *mlxsw_core, u8 local_port,
 
 	if (count != 2 && count != 4) {
 		netdev_err(mlxsw_sp_port->dev, "Port can only be split into 2 or 4 ports\n");
+		NL_SET_ERR_MSG_MOD(extack, "Port can only be split into 2 or 4 ports");
 		return -EINVAL;
 	}
 
 	if (cur_width != MLXSW_PORT_MODULE_MAX_WIDTH) {
 		netdev_err(mlxsw_sp_port->dev, "Port cannot be split further\n");
+		NL_SET_ERR_MSG_MOD(extack, "Port cannot be split further");
 		return -EINVAL;
 	}
 
@@ -3125,6 +3129,7 @@ static int mlxsw_sp_port_split(struct mlxsw_core *mlxsw_core, u8 local_port,
 		base_port = local_port;
 		if (mlxsw_sp->ports[base_port + 1]) {
 			netdev_err(mlxsw_sp_port->dev, "Invalid split configuration\n");
+			NL_SET_ERR_MSG_MOD(extack, "Invalid split configuration");
 			return -EINVAL;
 		}
 	} else {
@@ -3132,6 +3137,7 @@ static int mlxsw_sp_port_split(struct mlxsw_core *mlxsw_core, u8 local_port,
 		if (mlxsw_sp->ports[base_port + 1] ||
 		    mlxsw_sp->ports[base_port + 3]) {
 			netdev_err(mlxsw_sp_port->dev, "Invalid split configuration\n");
+			NL_SET_ERR_MSG_MOD(extack, "Invalid split configuration");
 			return -EINVAL;
 		}
 	}
@@ -3153,7 +3159,8 @@ err_port_split_create:
 	return err;
 }
 
-static int mlxsw_sp_port_unsplit(struct mlxsw_core *mlxsw_core, u8 local_port)
+static int mlxsw_sp_port_unsplit(struct mlxsw_core *mlxsw_core, u8 local_port,
+				 struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 	struct mlxsw_sp_port *mlxsw_sp_port;
@@ -3165,11 +3172,13 @@ static int mlxsw_sp_port_unsplit(struct mlxsw_core *mlxsw_core, u8 local_port)
 	if (!mlxsw_sp_port) {
 		dev_err(mlxsw_sp->bus_info->dev, "Port number \"%d\" does not exist\n",
 			local_port);
+		NL_SET_ERR_MSG_MOD(extack, "Port number does not exist");
 		return -EINVAL;
 	}
 
 	if (!mlxsw_sp_port->split) {
-		netdev_err(mlxsw_sp_port->dev, "Port wasn't split\n");
+		netdev_err(mlxsw_sp_port->dev, "Port was not split\n");
+		NL_SET_ERR_MSG_MOD(extack, "Port was not split");
 		return -EINVAL;
 	}
 
