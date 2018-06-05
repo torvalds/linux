@@ -36,9 +36,9 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
-#include <sound/omap-pcm.h>
 
 #include "edma-pcm.h"
+#include "../omap/sdma-pcm.h"
 #include "davinci-mcasp.h"
 
 #define MCASP_MAX_AFIFO_DEPTH	64
@@ -789,7 +789,7 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 					rx_ser < max_active_serializers) {
 			mcasp_clr_bits(mcasp, DAVINCI_MCASP_PDIR_REG, AXR(i));
 			rx_ser++;
-		} else {
+		} else if (mcasp->serial_dir[i] == INACTIVE_MODE) {
 			mcasp_mod_bits(mcasp, DAVINCI_MCASP_XRSRCTL_REG(i),
 				       SRMOD_INACTIVE, SRMOD_MASK);
 		}
@@ -2048,10 +2048,10 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 #endif
 		break;
 	case PCM_SDMA:
-#if IS_BUILTIN(CONFIG_SND_OMAP_SOC) || \
+#if IS_BUILTIN(CONFIG_SND_SDMA_SOC) || \
 	(IS_MODULE(CONFIG_SND_DAVINCI_SOC_MCASP) && \
-	 IS_MODULE(CONFIG_SND_OMAP_SOC))
-		ret = omap_pcm_platform_register(&pdev->dev);
+	 IS_MODULE(CONFIG_SND_SDMA_SOC))
+		ret = sdma_pcm_platform_register(&pdev->dev, NULL, NULL);
 #else
 		dev_err(&pdev->dev, "Missing SND_SDMA_SOC\n");
 		ret = -EINVAL;
