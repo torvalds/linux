@@ -6,6 +6,8 @@
 hostprogs-y := bpfilter_umh
 bpfilter_umh-objs := main.o
 HOSTCFLAGS += -I. -Itools/include/ -Itools/include/uapi
+HOSTCC := $(CC)
+
 ifeq ($(CONFIG_BPFILTER_UMH), y)
 # builtin bpfilter_umh should be compiled with -static
 # since rootfs isn't mounted at the time of __init
