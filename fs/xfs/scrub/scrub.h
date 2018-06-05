@@ -38,6 +38,9 @@ struct xfs_scrub_meta_ops {
 	/* Examine metadata for errors. */
 	int		(*scrub)(struct xfs_scrub_context *);
 
+	/* Repair or optimize the metadata. */
+	int		(*repair)(struct xfs_scrub_context *);
+
 	/* Decide if we even have this piece of metadata. */
 	bool		(*has)(struct xfs_sb *);
 
@@ -48,6 +51,7 @@ struct xfs_scrub_meta_ops {
 /* Buffer pointers and btree cursors for an entire AG. */
 struct xfs_scrub_ag {
 	xfs_agnumber_t			agno;
+	struct xfs_perag		*pag;
 
 	/* AG btree roots */
 	struct xfs_buf			*agf_bp;
@@ -73,6 +77,7 @@ struct xfs_scrub_context {
 	void				*buf;
 	uint				ilock_flags;
 	bool				try_harder;
+	bool				has_quotaofflock;
 
 	/* State tracking for single-AG operations. */
 	struct xfs_scrub_ag		sa;

@@ -28,6 +28,7 @@ xfs-y				+= xfs_trace.o
 
 # build the libxfs code first
 xfs-y				+= $(addprefix libxfs/, \
+				   xfs_ag.o \
 				   xfs_alloc.o \
 				   xfs_alloc_btree.o \
 				   xfs_attr.o \
@@ -163,4 +164,12 @@ xfs-y				+= $(addprefix scrub/, \
 
 xfs-$(CONFIG_XFS_RT)		+= scrub/rtbitmap.o
 xfs-$(CONFIG_XFS_QUOTA)		+= scrub/quota.o
+
+# online repair
+ifeq ($(CONFIG_XFS_ONLINE_REPAIR),y)
+xfs-y				+= $(addprefix scrub/, \
+				   agheader_repair.o \
+				   repair.o \
+				   )
+endif
 endif

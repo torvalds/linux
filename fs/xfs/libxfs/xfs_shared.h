@@ -57,21 +57,6 @@ extern const struct xfs_buf_ops xfs_sb_quiet_buf_ops;
 extern const struct xfs_buf_ops xfs_symlink_buf_ops;
 extern const struct xfs_buf_ops xfs_rtbuf_ops;
 
-/*
- * This structure is used to track log items associated with
- * a transaction.  It points to the log item and keeps some
- * flags to track the state of the log item.  It also tracks
- * the amount of space needed to log the item it describes
- * once we get to commit processing (see xfs_trans_commit()).
- */
-struct xfs_log_item_desc {
-	struct xfs_log_item	*lid_item;
-	struct list_head	lid_trans;
-	unsigned char		lid_flags;
-};
-
-#define XFS_LID_DIRTY		0x1
-
 /* log size calculation functions */
 int	xfs_log_calc_unit_res(struct xfs_mount *mp, int unit_bytes);
 int	xfs_log_calc_minimum_size(struct xfs_mount *);
@@ -127,6 +112,7 @@ void	xfs_log_get_max_trans_res(struct xfs_mount *mp,
 #define	XFS_ATTR_BTREE_REF	1
 #define	XFS_DQUOT_REF		1
 #define	XFS_REFC_BTREE_REF	1
+#define	XFS_SSB_REF		0
 
 /*
  * Flags for xfs_trans_ichgtime().

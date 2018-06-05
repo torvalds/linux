@@ -27,7 +27,6 @@ struct xfs_efi_log_item;
 struct xfs_inode;
 struct xfs_item_ops;
 struct xfs_log_iovec;
-struct xfs_log_item_desc;
 struct xfs_mount;
 struct xfs_trans;
 struct xfs_trans_res;
@@ -43,12 +42,12 @@ struct xfs_bud_log_item;
 
 typedef struct xfs_log_item {
 	struct list_head		li_ail;		/* AIL pointers */
+	struct list_head		li_trans;	/* transaction list */
 	xfs_lsn_t			li_lsn;		/* last on-disk lsn */
-	struct xfs_log_item_desc	*li_desc;	/* ptr to current desc*/
 	struct xfs_mount		*li_mountp;	/* ptr to fs mount */
 	struct xfs_ail			*li_ailp;	/* ptr to AIL */
 	uint				li_type;	/* item type */
-	uint				li_flags;	/* misc flags */
+	unsigned long			li_flags;	/* misc flags */
 	struct xfs_buf			*li_buf;	/* real buffer pointer */
 	struct list_head		li_bio_list;	/* buffer item list */
 	void				(*li_cb)(struct xfs_buf *,
@@ -64,14 +63,21 @@ typedef struct xfs_log_item {
 	xfs_lsn_t			li_seq;		/* CIL commit seq */
 } xfs_log_item_t;
 
-#define	XFS_LI_IN_AIL	0x1
-#define	XFS_LI_ABORTED	0x2
-#define	XFS_LI_FAILED	0x4
+/*
+ * li_flags use the (set/test/clear)_bit atomic interfaces because updates can
+ * race with each other and we don't want to have to use the AIL lock to
+ * serialise all updates.
+ */
+#define	XFS_LI_IN_AIL	0
+#define	XFS_LI_ABORTED	1
+#define	XFS_LI_FAILED	2
+#define	XFS_LI_DIRTY	3	/* log item dirty in transaction */
 
 #define XFS_LI_FLAGS \
-	{ XFS_LI_IN_AIL,	"IN_AIL" }, \
-	{ XFS_LI_ABORTED,	"ABORTED" }, \
-	{ XFS_LI_FAILED,	"FAILED" }
+	{ (1 << XFS_LI_IN_AIL),		"IN_AIL" }, \
+	{ (1 << XFS_LI_ABORTED),	"ABORTED" }, \
+	{ (1 << XFS_LI_FAILED),		"FAILED" }, \
+	{ (1 << XFS_LI_DIRTY),		"DIRTY" }
 
 struct xfs_item_ops {
 	void (*iop_size)(xfs_log_item_t *, int *, int *);
@@ -111,6 +117,7 @@ typedef struct xfs_trans {
 	struct xlog_ticket	*t_ticket;	/* log mgr ticket */
 	struct xfs_mount	*t_mountp;	/* ptr to fs mount struct */
 	struct xfs_dquot_acct   *t_dqinfo;	/* acctg info for dquots */
+	struct xfs_defer_ops	*t_agfl_dfops;	/* optional agfl fixup dfops */
 	unsigned int		t_flags;	/* misc flags */
 	int64_t			t_icount_delta;	/* superblock icount change */
 	int64_t			t_ifree_delta;	/* superblock ifree change */
@@ -228,7 +235,8 @@ struct xfs_efd_log_item	*xfs_trans_get_efd(struct xfs_trans *,
 				  uint);
 int		xfs_trans_free_extent(struct xfs_trans *,
 				      struct xfs_efd_log_item *, xfs_fsblock_t,
-				      xfs_extlen_t, struct xfs_owner_info *);
+				      xfs_extlen_t, struct xfs_owner_info *,
+				      bool);
 int		xfs_trans_commit(struct xfs_trans *);
 int		xfs_trans_roll(struct xfs_trans **);
 int		xfs_trans_roll_inode(struct xfs_trans **, struct xfs_inode *);
@@ -242,7 +250,6 @@ void		xfs_trans_buf_copy_type(struct xfs_buf *dst_bp,
 					struct xfs_buf *src_bp);
 
 extern kmem_zone_t	*xfs_trans_zone;
-extern kmem_zone_t	*xfs_log_item_desc_zone;
 
 /* rmap updates */
 enum xfs_rmap_intent_type;

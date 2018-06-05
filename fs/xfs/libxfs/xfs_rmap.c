@@ -1374,6 +1374,8 @@ xfs_rmap_convert_shared(
 	 */
 	error = xfs_rmap_lookup_le_range(cur, bno, owner, offset, flags,
 			&PREV, &i);
+	if (error)
+		goto done;
 	XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
 
 	ASSERT(PREV.rm_offset <= offset);
@@ -2030,6 +2032,34 @@ out_error:
 	return error;
 }
 
+/* Insert a raw rmap into the rmapbt. */
+int
+xfs_rmap_map_raw(
+	struct xfs_btree_cur	*cur,
+	struct xfs_rmap_irec	*rmap)
+{
+	struct xfs_owner_info	oinfo;
+
+	oinfo.oi_owner = rmap->rm_owner;
+	oinfo.oi_offset = rmap->rm_offset;
+	oinfo.oi_flags = 0;
+	if (rmap->rm_flags & XFS_RMAP_ATTR_FORK)
+		oinfo.oi_flags |= XFS_OWNER_INFO_ATTR_FORK;
+	if (rmap->rm_flags & XFS_RMAP_BMBT_BLOCK)
+		oinfo.oi_flags |= XFS_OWNER_INFO_BMBT_BLOCK;
+
+	if (rmap->rm_flags || XFS_RMAP_NON_INODE_OWNER(rmap->rm_owner))
+		return xfs_rmap_map(cur, rmap->rm_startblock,
+				rmap->rm_blockcount,
+				rmap->rm_flags & XFS_RMAP_UNWRITTEN,
+				&oinfo);
+
+	return xfs_rmap_map_shared(cur, rmap->rm_startblock,
+			rmap->rm_blockcount,
+			rmap->rm_flags & XFS_RMAP_UNWRITTEN,
+			&oinfo);
+}
+
 struct xfs_rmap_query_range_info {
 	xfs_rmap_query_range_fn	fn;
 	void				*priv;
@@ -2452,4 +2482,57 @@ xfs_rmap_record_exists(
 	*has_rmap = (irec.rm_owner == owner && irec.rm_startblock <= bno &&
 		     irec.rm_startblock + irec.rm_blockcount >= bno + len);
 	return 0;
+}
+
+struct xfs_rmap_key_state {
+	uint64_t			owner;
+	uint64_t			offset;
+	unsigned int			flags;
+	bool				has_rmap;
+};
+
+/* For each rmap given, figure out if it doesn't match the key we want. */
+STATIC int
+xfs_rmap_has_other_keys_helper(
+	struct xfs_btree_cur		*cur,
+	struct xfs_rmap_irec		*rec,
+	void				*priv)
+{
+	struct xfs_rmap_key_state	*rks = priv;
+
+	if (rks->owner == rec->rm_owner && rks->offset == rec->rm_offset &&
+	    ((rks->flags & rec->rm_flags) & XFS_RMAP_KEY_FLAGS) == rks->flags)
+		return 0;
+	rks->has_rmap = true;
+	return XFS_BTREE_QUERY_RANGE_ABORT;
+}
+
+/*
+ * Given an extent and some owner info, can we find records overlapping
+ * the extent whose owner info does not match the given owner?
+ */
+int
+xfs_rmap_has_other_keys(
+	struct xfs_btree_cur		*cur,
+	xfs_agblock_t			bno,
+	xfs_extlen_t			len,
+	struct xfs_owner_info		*oinfo,
+	bool				*has_rmap)
+{
+	struct xfs_rmap_irec		low = {0};
+	struct xfs_rmap_irec		high;
+	struct xfs_rmap_key_state	rks;
+	int				error;
+
+	xfs_owner_info_unpack(oinfo, &rks.owner, &rks.offset, &rks.flags);
+	rks.has_rmap = false;
+
+	low.rm_startblock = bno;
+	memset(&high, 0xFF, sizeof(high));
+	high.rm_startblock = bno + len - 1;
+
+	error = xfs_rmap_query_range(cur, &low, &high,
+			xfs_rmap_has_other_keys_helper, &rks);
+	*has_rmap = rks.has_rmap;
+	return error;
 }

@@ -168,7 +168,7 @@ STATIC void
 xfs_efi_item_unlock(
 	struct xfs_log_item	*lip)
 {
-	if (lip->li_flags & XFS_LI_ABORTED)
+	if (test_bit(XFS_LI_ABORTED, &lip->li_flags))
 		xfs_efi_release(EFI_ITEM(lip));
 }
 
@@ -402,7 +402,7 @@ xfs_efd_item_unlock(
 {
 	struct xfs_efd_log_item	*efdp = EFD_ITEM(lip);
 
-	if (lip->li_flags & XFS_LI_ABORTED) {
+	if (test_bit(XFS_LI_ABORTED, &lip->li_flags)) {
 		xfs_efi_release(efdp->efd_efip);
 		xfs_efd_item_free(efdp);
 	}
@@ -542,7 +542,7 @@ xfs_efi_recover(
 	for (i = 0; i < efip->efi_format.efi_nextents; i++) {
 		extp = &efip->efi_format.efi_extents[i];
 		error = xfs_trans_free_extent(tp, efdp, extp->ext_start,
-					      extp->ext_len, &oinfo);
+					      extp->ext_len, &oinfo, false);
 		if (error)
 			goto abort_error;
 

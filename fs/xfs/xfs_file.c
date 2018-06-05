@@ -414,6 +414,12 @@ xfs_dio_write_end_io(
 	if (size <= 0)
 		return size;
 
+	/*
+	 * Capture amount written on completion as we can't reliably account
+	 * for it on submission.
+	 */
+	XFS_STATS_ADD(ip->i_mount, xs_write_bytes, size);
+
 	if (flags & IOMAP_DIO_COW) {
 		error = xfs_reflink_end_cow(ip, offset, size);
 		if (error)
@@ -599,7 +605,16 @@ xfs_file_dax_write(
 	}
 out:
 	xfs_iunlock(ip, iolock);
-	return error ? error : ret;
+	if (error)
+		return error;
+
+	if (ret > 0) {
+		XFS_STATS_ADD(ip->i_mount, xs_write_bytes, ret);
+
+		/* Handle various SYNC-type writes */
+		ret = generic_write_sync(iocb, ret);
+	}
+	return ret;
 }
 
 STATIC ssize_t
@@ -669,6 +684,12 @@ write_retry:
 out:
 	if (iolock)
 		xfs_iunlock(ip, iolock);
+
+	if (ret > 0) {
+		XFS_STATS_ADD(ip->i_mount, xs_write_bytes, ret);
+		/* Handle various SYNC-type writes */
+		ret = generic_write_sync(iocb, ret);
+	}
 	return ret;
 }
 
@@ -693,8 +714,9 @@ xfs_file_write_iter(
 		return -EIO;
 
 	if (IS_DAX(inode))
-		ret = xfs_file_dax_write(iocb, from);
-	else if (iocb->ki_flags & IOCB_DIRECT) {
+		return xfs_file_dax_write(iocb, from);
+
+	if (iocb->ki_flags & IOCB_DIRECT) {
 		/*
 		 * Allow a directio write to fall back to a buffered
 		 * write *only* in the case that we're doing a reflink
@@ -702,20 +724,11 @@ xfs_file_write_iter(
 		 * allow an operation to fall back to buffered mode.
 		 */
 		ret = xfs_file_dio_aio_write(iocb, from);
-		if (ret == -EREMCHG)
-			goto buffered;
-	} else {
-buffered:
-		ret = xfs_file_buffered_aio_write(iocb, from);
+		if (ret != -EREMCHG)
+			return ret;
 	}
 
-	if (ret > 0) {
-		XFS_STATS_ADD(ip->i_mount, xs_write_bytes, ret);
-
-		/* Handle various SYNC-type writes */
-		ret = generic_write_sync(iocb, ret);
-	}
-	return ret;
+	return xfs_file_buffered_aio_write(iocb, from);
 }
 
 #define	XFS_FALLOC_FL_SUPPORTED						\
@@ -1007,7 +1020,7 @@ xfs_file_llseek(
  *       page_lock (MM)
  *         i_lock (XFS - extent map serialisation)
  */
-static int
+static vm_fault_t
 __xfs_filemap_fault(
 	struct vm_fault		*vmf,
 	enum page_entry_size	pe_size,
@@ -1015,7 +1028,7 @@ __xfs_filemap_fault(
 {
 	struct inode		*inode = file_inode(vmf->vma->vm_file);
 	struct xfs_inode	*ip = XFS_I(inode);
-	int			ret;
+	vm_fault_t		ret;
 
 	trace_xfs_filemap_fault(ip, pe_size, write_fault);
 
@@ -1044,7 +1057,7 @@ __xfs_filemap_fault(
 	return ret;
 }
 
-static int
+static vm_fault_t
 xfs_filemap_fault(
 	struct vm_fault		*vmf)
 {
@@ -1054,7 +1067,7 @@ xfs_filemap_fault(
 			(vmf->flags & FAULT_FLAG_WRITE));
 }
 
-static int
+static vm_fault_t
 xfs_filemap_huge_fault(
 	struct vm_fault		*vmf,
 	enum page_entry_size	pe_size)
@@ -1067,7 +1080,7 @@ xfs_filemap_huge_fault(
 			(vmf->flags & FAULT_FLAG_WRITE));
 }
 
-static int
+static vm_fault_t
 xfs_filemap_page_mkwrite(
 	struct vm_fault		*vmf)
 {
@@ -1079,7 +1092,7 @@ xfs_filemap_page_mkwrite(
  * on write faults. In reality, it needs to serialise against truncate and
  * prepare memory for writing so handle is as standard write fault.
  */
-static int
+static vm_fault_t
 xfs_filemap_pfn_mkwrite(
 	struct vm_fault		*vmf)
 {

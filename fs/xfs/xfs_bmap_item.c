@@ -160,7 +160,7 @@ STATIC void
 xfs_bui_item_unlock(
 	struct xfs_log_item	*lip)
 {
-	if (lip->li_flags & XFS_LI_ABORTED)
+	if (test_bit(XFS_LI_ABORTED, &lip->li_flags))
 		xfs_bui_release(BUI_ITEM(lip));
 }
 
@@ -305,7 +305,7 @@ xfs_bud_item_unlock(
 {
 	struct xfs_bud_log_item	*budp = BUD_ITEM(lip);
 
-	if (lip->li_flags & XFS_LI_ABORTED) {
+	if (test_bit(XFS_LI_ABORTED, &lip->li_flags)) {
 		xfs_bui_release(budp->bud_buip);
 		kmem_zone_free(xfs_bud_zone, budp);
 	}

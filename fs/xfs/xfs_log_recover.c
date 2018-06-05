@@ -2702,7 +2702,7 @@ xlog_recover_do_reg_buffer(
 				goto next;
 			}
 			fa = xfs_dquot_verify(mp, item->ri_buf[i].i_addr,
-					       -1, 0, 0);
+					       -1, 0);
 			if (fa) {
 				xfs_alert(mp,
 	"dquot corrupt at %pS trying to replay into block 0x%llx",
@@ -3348,7 +3348,7 @@ xlog_recover_dquot_pass2(
 	 */
 	dq_f = item->ri_buf[0].i_addr;
 	ASSERT(dq_f);
-	fa = xfs_dquot_verify(mp, recddq, dq_f->qlf_id, 0, 0);
+	fa = xfs_dquot_verify(mp, recddq, dq_f->qlf_id, 0);
 	if (fa) {
 		xfs_alert(mp, "corrupt dquot ID 0x%x in log at %pS",
 				dq_f->qlf_id, fa);

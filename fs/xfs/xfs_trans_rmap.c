@@ -117,7 +117,7 @@ xfs_trans_log_finish_rmap_update(
 	 * 2.) shuts down the filesystem
 	 */
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	rudp->rud_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+	set_bit(XFS_LI_DIRTY, &rudp->rud_item.li_flags);
 
 	return error;
 }
@@ -175,7 +175,7 @@ xfs_rmap_update_log_item(
 	rmap = container_of(item, struct xfs_rmap_intent, ri_list);
 
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	ruip->rui_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+	set_bit(XFS_LI_DIRTY, &ruip->rui_item.li_flags);
 
 	/*
 	 * atomic_inc_return gives us the value after the increment;

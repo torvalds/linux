@@ -305,7 +305,7 @@ xfs_reflink_reserve_cow(
 	 * Fork all the shared blocks from our write offset until the end of
 	 * the extent.
 	 */
-	error = xfs_qm_dqattach_locked(ip, 0);
+	error = xfs_qm_dqattach_locked(ip, false);
 	if (error)
 		return error;
 
@@ -431,7 +431,7 @@ retry:
 		if (error)
 			return error;
 
-		error = xfs_qm_dqattach_locked(ip, 0);
+		error = xfs_qm_dqattach_locked(ip, false);
 		if (error)
 			goto out;
 		goto retry;
@@ -552,6 +552,9 @@ xfs_reflink_trim_irec_to_next_cow(
  *
  * If cancel_real is true this function cancels all COW fork extents for the
  * inode; if cancel_real is false, real extents are not cleared.
+ *
+ * Caller must have already joined the inode to the current transaction. The
+ * inode will be joined to the transaction returned to the caller.
  */
 int
 xfs_reflink_cancel_cow_blocks(
@@ -592,7 +595,6 @@ xfs_reflink_cancel_cow_blocks(
 			if (error)
 				break;
 		} else if (del.br_state == XFS_EXT_UNWRITTEN || cancel_real) {
-			xfs_trans_ijoin(*tpp, ip, 0);
 			xfs_defer_init(&dfops, &firstfsb);
 
 			/* Free the CoW orphan record. */
@@ -1359,7 +1361,7 @@ xfs_reflink_remap_range(
 		goto out_unlock;
 
 	/* Attach dquots to dest inode before changing block map */
-	ret = xfs_qm_dqattach(dest, 0);
+	ret = xfs_qm_dqattach(dest);
 	if (ret)
 		goto out_unlock;
 
@@ -1551,7 +1553,12 @@ next:
 	return 0;
 }
 
-/* Clear the inode reflink flag if there are no shared extents. */
+/*
+ * Clear the inode reflink flag if there are no shared extents.
+ *
+ * The caller is responsible for joining the inode to the transaction passed in.
+ * The inode will be joined to the transaction that is returned to the caller.
+ */
 int
 xfs_reflink_clear_inode_flag(
 	struct xfs_inode	*ip,
@@ -1578,7 +1585,6 @@ xfs_reflink_clear_inode_flag(
 	trace_xfs_reflink_unset_inode_flag(ip);
 	ip->i_d.di_flags2 &= ~XFS_DIFLAG2_REFLINK;
 	xfs_inode_clear_cowblocks_tag(ip);
-	xfs_trans_ijoin(*tpp, ip, 0);
 	xfs_trans_log_inode(*tpp, ip, XFS_ILOG_CORE);
 
 	return error;

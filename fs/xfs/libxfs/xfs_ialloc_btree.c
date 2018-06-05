@@ -296,7 +296,7 @@ xfs_inobt_verify(
 	case cpu_to_be32(XFS_FIBT_MAGIC):
 		break;
 	default:
-		return NULL;
+		return __this_address;
 	}
 
 	/* level verification */
@@ -607,4 +607,13 @@ xfs_finobt_calc_reserves(
 	*ask += xfs_inobt_max_size(mp);
 	*used += tree_len;
 	return 0;
+}
+
+/* Calculate the inobt btree size for some records. */
+xfs_extlen_t
+xfs_iallocbt_calc_size(
+	struct xfs_mount	*mp,
+	unsigned long long	len)
+{
+	return xfs_btree_calc_size(mp->m_inobt_mnr, len);
 }

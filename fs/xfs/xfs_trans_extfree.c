@@ -68,7 +68,8 @@ xfs_trans_free_extent(
 	struct xfs_efd_log_item	*efdp,
 	xfs_fsblock_t		start_block,
 	xfs_extlen_t		ext_len,
-	struct xfs_owner_info	*oinfo)
+	struct xfs_owner_info	*oinfo,
+	bool			skip_discard)
 {
 	struct xfs_mount	*mp = tp->t_mountp;
 	uint			next_extent;
@@ -79,9 +80,8 @@ xfs_trans_free_extent(
 
 	trace_xfs_bmap_free_deferred(tp->t_mountp, agno, 0, agbno, ext_len);
 
-	error = xfs_free_extent(tp, start_block, ext_len, oinfo,
-			XFS_AG_RESV_NONE);
-
+	error = __xfs_free_extent(tp, start_block, ext_len,
+				  oinfo, XFS_AG_RESV_NONE, skip_discard);
 	/*
 	 * Mark the transaction dirty, even on error. This ensures the
 	 * transaction is aborted, which:
@@ -90,7 +90,7 @@ xfs_trans_free_extent(
 	 * 2.) shuts down the filesystem
 	 */
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	efdp->efd_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+	set_bit(XFS_LI_DIRTY, &efdp->efd_item.li_flags);
 
 	next_extent = efdp->efd_next_extent;
 	ASSERT(next_extent < efdp->efd_format.efd_nextents);
@@ -155,7 +155,7 @@ xfs_extent_free_log_item(
 	free = container_of(item, struct xfs_extent_free_item, xefi_list);
 
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	efip->efi_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+	set_bit(XFS_LI_DIRTY, &efip->efi_item.li_flags);
 
 	/*
 	 * atomic_inc_return gives us the value after the increment;
@@ -195,7 +195,7 @@ xfs_extent_free_finish_item(
 	error = xfs_trans_free_extent(tp, done_item,
 			free->xefi_startblock,
 			free->xefi_blockcount,
-			&free->xefi_oinfo);
+			&free->xefi_oinfo, free->xefi_skip_discard);
 	kmem_free(free);
 	return error;
 }
@@ -231,9 +231,79 @@ static const struct xfs_defer_op_type xfs_extent_free_defer_type = {
 	.cancel_item	= xfs_extent_free_cancel_item,
 };
 
+/*
+ * AGFL blocks are accounted differently in the reserve pools and are not
+ * inserted into the busy extent list.
+ */
+STATIC int
+xfs_agfl_free_finish_item(
+	struct xfs_trans		*tp,
+	struct xfs_defer_ops		*dop,
+	struct list_head		*item,
+	void				*done_item,
+	void				**state)
+{
+	struct xfs_mount		*mp = tp->t_mountp;
+	struct xfs_efd_log_item		*efdp = done_item;
+	struct xfs_extent_free_item	*free;
+	struct xfs_extent		*extp;
+	struct xfs_buf			*agbp;
+	int				error;
+	xfs_agnumber_t			agno;
+	xfs_agblock_t			agbno;
+	uint				next_extent;
+
+	free = container_of(item, struct xfs_extent_free_item, xefi_list);
+	ASSERT(free->xefi_blockcount == 1);
+	agno = XFS_FSB_TO_AGNO(mp, free->xefi_startblock);
+	agbno = XFS_FSB_TO_AGBNO(mp, free->xefi_startblock);
+
+	trace_xfs_agfl_free_deferred(mp, agno, 0, agbno, free->xefi_blockcount);
+
+	error = xfs_alloc_read_agf(mp, tp, agno, 0, &agbp);
+	if (!error)
+		error = xfs_free_agfl_block(tp, agno, agbno, agbp,
+					    &free->xefi_oinfo);
+
+	/*
+	 * Mark the transaction dirty, even on error. This ensures the
+	 * transaction is aborted, which:
+	 *
+	 * 1.) releases the EFI and frees the EFD
+	 * 2.) shuts down the filesystem
+	 */
+	tp->t_flags |= XFS_TRANS_DIRTY;
+	set_bit(XFS_LI_DIRTY, &efdp->efd_item.li_flags);
+
+	next_extent = efdp->efd_next_extent;
+	ASSERT(next_extent < efdp->efd_format.efd_nextents);
+	extp = &(efdp->efd_format.efd_extents[next_extent]);
+	extp->ext_start = free->xefi_startblock;
+	extp->ext_len = free->xefi_blockcount;
+	efdp->efd_next_extent++;
+
+	kmem_free(free);
+	return error;
+}
+
+
+/* sub-type with special handling for AGFL deferred frees */
+static const struct xfs_defer_op_type xfs_agfl_free_defer_type = {
+	.type		= XFS_DEFER_OPS_TYPE_AGFL_FREE,
+	.max_items	= XFS_EFI_MAX_FAST_EXTENTS,
+	.diff_items	= xfs_extent_free_diff_items,
+	.create_intent	= xfs_extent_free_create_intent,
+	.abort_intent	= xfs_extent_free_abort_intent,
+	.log_item	= xfs_extent_free_log_item,
+	.create_done	= xfs_extent_free_create_done,
+	.finish_item	= xfs_agfl_free_finish_item,
+	.cancel_item	= xfs_extent_free_cancel_item,
+};
+
 /* Register the deferred op type. */
 void
 xfs_extent_free_init_defer_op(void)
 {
 	xfs_defer_init_op_type(&xfs_extent_free_defer_type);
+	xfs_defer_init_op_type(&xfs_agfl_free_defer_type);
 }
