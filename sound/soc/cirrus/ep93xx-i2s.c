@@ -35,7 +35,11 @@
 
 #define EP93XX_I2S_TXCLKCFG		0x00
 #define EP93XX_I2S_RXCLKCFG		0x04
+#define EP93XX_I2S_GLSTS		0x08
 #define EP93XX_I2S_GLCTRL		0x0C
+
+#define EP93XX_I2S_I2STX0LFT		0x10
+#define EP93XX_I2S_I2STX0RT		0x14
 
 #define EP93XX_I2S_TXLINCTRLDATA	0x28
 #define EP93XX_I2S_TXCTRL		0x2C
@@ -55,11 +59,21 @@
 
 #define EP93XX_I2S_TXLINCTRLDATA_R_JUST	BIT(2) /* Right justify */
 
+/*
+ * Transmit empty interrupt level select:
+ * 0 - Generate interrupt when FIFO is half empty
+ * 1 - Generate interrupt when FIFO is empty
+ */
+#define EP93XX_I2S_TXCTRL_TXEMPTY_LVL	BIT(0)
+#define EP93XX_I2S_TXCTRL_TXUFIE	BIT(1) /* Transmit interrupt enable */
+
 #define EP93XX_I2S_CLKCFG_LRS		(1 << 0) /* lrclk polarity */
 #define EP93XX_I2S_CLKCFG_CKP		(1 << 1) /* Bit clock polarity */
 #define EP93XX_I2S_CLKCFG_REL		(1 << 2) /* First bit transition */
 #define EP93XX_I2S_CLKCFG_MASTER	(1 << 3) /* Master mode */
 #define EP93XX_I2S_CLKCFG_NBCG		(1 << 4) /* Not bit clock gating */
+
+#define EP93XX_I2S_GLSTS_TX0_FIFO_FULL	BIT(12)
 
 struct ep93xx_i2s_info {
 	struct clk			*mclk;
@@ -98,7 +112,6 @@ static inline unsigned ep93xx_i2s_read_reg(struct ep93xx_i2s_info *info,
 static void ep93xx_i2s_enable(struct ep93xx_i2s_info *info, int stream)
 {
 	unsigned base_reg;
-	int i;
 
 	if ((ep93xx_i2s_read_reg(info, EP93XX_I2S_TX0EN) & 0x1) == 0 &&
 	    (ep93xx_i2s_read_reg(info, EP93XX_I2S_RX0EN) & 0x1) == 0) {
@@ -111,27 +124,36 @@ static void ep93xx_i2s_enable(struct ep93xx_i2s_info *info, int stream)
 		ep93xx_i2s_write_reg(info, EP93XX_I2S_GLCTRL, 1);
 	}
 
-	/* Enable fifos */
+	/* Enable fifo */
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
 		base_reg = EP93XX_I2S_TX0EN;
 	else
 		base_reg = EP93XX_I2S_RX0EN;
-	for (i = 0; i < 3; i++)
-		ep93xx_i2s_write_reg(info, base_reg + (i * 4), 1);
+	ep93xx_i2s_write_reg(info, base_reg, 1);
+
+	/* Enable TX IRQs (FIFO empty or underflow) */
+	if (IS_ENABLED(CONFIG_SND_EP93XX_SOC_I2S_WATCHDOG) &&
+	    stream == SNDRV_PCM_STREAM_PLAYBACK)
+		ep93xx_i2s_write_reg(info, EP93XX_I2S_TXCTRL,
+				     EP93XX_I2S_TXCTRL_TXEMPTY_LVL |
+				     EP93XX_I2S_TXCTRL_TXUFIE);
 }
 
 static void ep93xx_i2s_disable(struct ep93xx_i2s_info *info, int stream)
 {
 	unsigned base_reg;
-	int i;
 
-	/* Disable fifos */
+	/* Disable IRQs */
+	if (IS_ENABLED(CONFIG_SND_EP93XX_SOC_I2S_WATCHDOG) &&
+	    stream == SNDRV_PCM_STREAM_PLAYBACK)
+		ep93xx_i2s_write_reg(info, EP93XX_I2S_TXCTRL, 0);
+
+	/* Disable fifo */
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
 		base_reg = EP93XX_I2S_TX0EN;
 	else
 		base_reg = EP93XX_I2S_RX0EN;
-	for (i = 0; i < 3; i++)
-		ep93xx_i2s_write_reg(info, base_reg + (i * 4), 0);
+	ep93xx_i2s_write_reg(info, base_reg, 0);
 
 	if ((ep93xx_i2s_read_reg(info, EP93XX_I2S_TX0EN) & 0x1) == 0 &&
 	    (ep93xx_i2s_read_reg(info, EP93XX_I2S_RX0EN) & 0x1) == 0) {
@@ -143,6 +165,37 @@ static void ep93xx_i2s_disable(struct ep93xx_i2s_info *info, int stream)
 		clk_disable(info->sclk);
 		clk_disable(info->mclk);
 	}
+}
+
+/*
+ * According to documentation I2S controller can handle underflow conditions
+ * just fine, but in reality the state machine is sometimes confused so that
+ * the whole stream is shifted by one byte. The watchdog below disables the TX
+ * FIFO, fills the buffer with zeroes and re-enables the FIFO. State machine
+ * is being reset and by filling the buffer we get some time before next
+ * underflow happens.
+ */
+static irqreturn_t ep93xx_i2s_interrupt(int irq, void *dev_id)
+{
+	struct ep93xx_i2s_info *info = dev_id;
+
+	/* Disable FIFO */
+	ep93xx_i2s_write_reg(info, EP93XX_I2S_TX0EN, 0);
+	/*
+	 * Fill TX FIFO with zeroes, this way we can defer next IRQs as much as
+	 * possible and get more time for DMA to catch up. Actually there are
+	 * only 8 samples in this FIFO, so even on 8kHz maximum deferral here is
+	 * 1ms.
+	 */
+	while (!(ep93xx_i2s_read_reg(info, EP93XX_I2S_GLSTS) &
+		 EP93XX_I2S_GLSTS_TX0_FIFO_FULL)) {
+		ep93xx_i2s_write_reg(info, EP93XX_I2S_I2STX0LFT, 0);
+		ep93xx_i2s_write_reg(info, EP93XX_I2S_I2STX0RT, 0);
+	}
+	/* Re-enable FIFO */
+	ep93xx_i2s_write_reg(info, EP93XX_I2S_TX0EN, 1);
+
+	return IRQ_HANDLED;
 }
 
 static int ep93xx_i2s_dai_probe(struct snd_soc_dai *dai)
@@ -393,6 +446,17 @@ static int ep93xx_i2s_probe(struct platform_device *pdev)
 	info->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(info->regs))
 		return PTR_ERR(info->regs);
+
+	if (IS_ENABLED(CONFIG_SND_EP93XX_SOC_I2S_WATCHDOG)) {
+		int irq = platform_get_irq(pdev, 0);
+		if (irq <= 0)
+			return irq < 0 ? irq : -ENODEV;
+
+		err = devm_request_irq(&pdev->dev, irq, ep93xx_i2s_interrupt, 0,
+				       pdev->name, info);
+		if (err)
+			return err;
+	}
 
 	info->mclk = clk_get(&pdev->dev, "mclk");
 	if (IS_ERR(info->mclk)) {

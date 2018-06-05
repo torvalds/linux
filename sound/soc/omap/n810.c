@@ -80,9 +80,9 @@ static void n810_ext_control(struct snd_soc_dapm_context *dapm)
 	else
 		snd_soc_dapm_disable_pin_unlocked(dapm, "Headphone Jack");
 	if (line1l)
-		snd_soc_dapm_enable_pin_unlocked(dapm, "LINE1L");
+		snd_soc_dapm_enable_pin_unlocked(dapm, "HS Mic");
 	else
-		snd_soc_dapm_disable_pin_unlocked(dapm, "LINE1L");
+		snd_soc_dapm_disable_pin_unlocked(dapm, "HS Mic");
 
 	if (n810_dmic_func)
 		snd_soc_dapm_enable_pin_unlocked(dapm, "DMic");
@@ -222,6 +222,7 @@ static const struct snd_soc_dapm_widget aic33_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("Ext Spk", n810_spk_event),
 	SND_SOC_DAPM_HP("Headphone Jack", n810_jack_event),
 	SND_SOC_DAPM_MIC("DMic", NULL),
+	SND_SOC_DAPM_MIC("HS Mic", NULL),
 };
 
 static const struct snd_soc_dapm_route audio_map[] = {
@@ -233,6 +234,12 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 	{"DMic Rate 64", NULL, "DMic"},
 	{"DMic", NULL, "Mic Bias"},
+
+	/*
+	 * Note that the mic bias is coming from Retu/Vilma and we don't have
+	 * control over it atm. The analog HS mic is not working. <- TODO
+	 */
+	{"LINE1L", NULL, "HS Mic"},
 };
 
 static const char *spk_function[] = {"Off", "On"};
