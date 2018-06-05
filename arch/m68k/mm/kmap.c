@@ -126,6 +126,10 @@ void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cachefla
 			return (void __iomem *)physaddr;
 	}
 #endif
+#ifdef CONFIG_COLDFIRE
+	if (__cf_internalio(physaddr))
+		return (void __iomem *) physaddr;
+#endif
 
 #ifdef DEBUG
 	printk("ioremap: 0x%lx,0x%lx(%d) - ", physaddr, size, cacheflag);
@@ -236,6 +240,10 @@ void iounmap(void __iomem *addr)
 	     ((unsigned long)addr > 0x60000000)))
 			free_io_area((__force void *)addr);
 #else
+#ifdef CONFIG_COLDFIRE
+	if (cf_internalio(addr))
+		return;
+#endif
 	free_io_area((__force void *)addr);
 #endif
 }
