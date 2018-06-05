@@ -444,7 +444,7 @@ void amdgpu_ctx_mgr_init(struct amdgpu_ctx_mgr *mgr)
 	idr_init(&mgr->ctx_handles);
 }
 
-void amdgpu_ctx_mgr_entity_fini(struct amdgpu_ctx_mgr *mgr)
+void amdgpu_ctx_mgr_entity_flush(struct amdgpu_ctx_mgr *mgr)
 {
 	struct amdgpu_ctx *ctx;
 	struct idr *idp;
@@ -473,7 +473,7 @@ void amdgpu_ctx_mgr_entity_fini(struct amdgpu_ctx_mgr *mgr)
 	mutex_unlock(&mgr->lock);
 }
 
-void amdgpu_ctx_mgr_entity_cleanup(struct amdgpu_ctx_mgr *mgr)
+void amdgpu_ctx_mgr_entity_fini(struct amdgpu_ctx_mgr *mgr)
 {
 	struct amdgpu_ctx *ctx;
 	struct idr *idp;
@@ -506,7 +506,7 @@ void amdgpu_ctx_mgr_fini(struct amdgpu_ctx_mgr *mgr)
 	struct idr *idp;
 	uint32_t id;
 
-	amdgpu_ctx_mgr_entity_cleanup(mgr);
+	amdgpu_ctx_mgr_entity_fini(mgr);
 
 	idp = &mgr->ctx_handles;
 

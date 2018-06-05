@@ -860,7 +860,7 @@ static int amdgpu_flush(struct file *f, fl_owner_t id)
 	struct drm_file *file_priv = f->private_data;
 	struct amdgpu_fpriv *fpriv = file_priv->driver_priv;
 
-	amdgpu_ctx_mgr_entity_fini(&fpriv->ctx_mgr);
+	amdgpu_ctx_mgr_entity_flush(&fpriv->ctx_mgr);
 
 	return 0;
 }
