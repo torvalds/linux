@@ -1394,6 +1394,12 @@ static void rk818_cg_init_charger_state(struct rk818_charger *cg)
 	rk818_cg_init_finish_sig(cg);
 	rk818_cg_set_chrg_param(cg, cg->dc_charger);
 	rk818_cg_set_chrg_param(cg, cg->usb_charger);
+
+	if (cg->otg_in && cg->dc_in && cg->pdata->power_dc2otg) {
+		CG_INFO("otg power from dc adapter\n");
+		rk818_cg_set_otg_power(cg, USB_OTG_POWER_OFF);
+	}
+
 	CG_INFO("ac=%d, usb=%d, dc=%d, otg=%d, 5v=%d\n",
 		cg->ac_in, cg->usb_in, cg->dc_in, cg->otg_in, cg->otg_pmic5v);
 }
