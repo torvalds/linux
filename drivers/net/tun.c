@@ -1347,26 +1347,7 @@ static int tun_xdp_tx(struct net_device *dev, struct xdp_buff *xdp)
 	if (unlikely(!frame))
 		return -EOVERFLOW;
 
-	return tun_xdp_xmit(dev, 1, &frame, 0);
-}
-
-static void tun_xdp_flush(struct net_device *dev)
-{
-	struct tun_struct *tun = netdev_priv(dev);
-	struct tun_file *tfile;
-	u32 numqueues;
-
-	rcu_read_lock();
-
-	numqueues = READ_ONCE(tun->numqueues);
-	if (!numqueues)
-		goto out;
-
-	tfile = rcu_dereference(tun->tfiles[smp_processor_id() %
-					    numqueues]);
-	__tun_xdp_flush_tfile(tfile);
-out:
-	rcu_read_unlock();
+	return tun_xdp_xmit(dev, 1, &frame, XDP_XMIT_FLUSH);
 }
 
 static const struct net_device_ops tap_netdev_ops = {
@@ -1387,7 +1368,6 @@ static const struct net_device_ops tap_netdev_ops = {
 	.ndo_get_stats64	= tun_net_get_stats64,
 	.ndo_bpf		= tun_xdp,
 	.ndo_xdp_xmit		= tun_xdp_xmit,
-	.ndo_xdp_flush		= tun_xdp_flush,
 };
 
 static void tun_flow_init(struct tun_struct *tun)
@@ -1706,7 +1686,6 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 			alloc_frag->offset += buflen;
 			if (tun_xdp_tx(tun->dev, &xdp))
 				goto err_redirect;
-			tun_xdp_flush(tun->dev);
 			rcu_read_unlock();
 			preempt_enable();
 			return NULL;
