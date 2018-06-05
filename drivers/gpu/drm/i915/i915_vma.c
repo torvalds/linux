@@ -459,6 +459,18 @@ bool i915_gem_valid_gtt_space(struct i915_vma *vma, unsigned long cache_level)
 	return true;
 }
 
+static void assert_bind_count(const struct drm_i915_gem_object *obj)
+{
+	/*
+	 * Combine the assertion that the object is bound and that we have
+	 * pinned its pages. But we should never have bound the object
+	 * more than we have pinned its pages. (For complete accuracy, we
+	 * assume that no else is pinning the pages, but as a rough assertion
+	 * that we will not run into problems later, this will do!)
+	 */
+	GEM_BUG_ON(atomic_read(&obj->mm.pages_pin_count) < obj->bind_count);
+}
+
 /**
  * i915_vma_insert - finds a slot for the vma in its address space
  * @vma: the vma
@@ -595,7 +607,7 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	obj->bind_count++;
 	spin_unlock(&dev_priv->mm.obj_lock);
 
-	GEM_BUG_ON(atomic_read(&obj->mm.pages_pin_count) < obj->bind_count);
+	assert_bind_count(obj);
 
 	return 0;
 
@@ -633,7 +645,7 @@ i915_vma_remove(struct i915_vma *vma)
 	 * reaped by the shrinker.
 	 */
 	i915_gem_object_unpin_pages(obj);
-	GEM_BUG_ON(atomic_read(&obj->mm.pages_pin_count) < obj->bind_count);
+	assert_bind_count(obj);
 }
 
 int __i915_vma_do_pin(struct i915_vma *vma,
