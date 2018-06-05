@@ -120,15 +120,16 @@ static int test_probe(struct platform_device *plat_dev)
 
 	platform_set_drvdata(plat_dev, rtd);
 
-	rtd->rtc = devm_rtc_device_register(&plat_dev->dev, "test",
-					    &test_rtc_ops, THIS_MODULE);
+	rtd->rtc = devm_rtc_allocate_device(&plat_dev->dev);
 	if (IS_ERR(rtd->rtc))
 		return PTR_ERR(rtd->rtc);
+
+	rtd->rtc->ops = &test_rtc_ops;
 
 	timer_setup(&rtd->alarm, test_rtc_alarm_handler, 0);
 	rtd->alarm.expires = 0;
 
-	return 0;
+	return rtc_register_device(rtd->rtc);
 }
 
 static struct platform_driver test_driver = {
