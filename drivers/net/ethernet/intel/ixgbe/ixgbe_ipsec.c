@@ -975,10 +975,22 @@ void ixgbe_ipsec_rx(struct ixgbe_ring *rx_ring,
  **/
 void ixgbe_init_ipsec_offload(struct ixgbe_adapter *adapter)
 {
+	struct ixgbe_hw *hw = &adapter->hw;
 	struct ixgbe_ipsec *ipsec;
+	u32 t_dis, r_dis;
 	size_t size;
 
-	if (adapter->hw.mac.type == ixgbe_mac_82598EB)
+	if (hw->mac.type == ixgbe_mac_82598EB)
+		return;
+
+	/* If there is no support for either Tx or Rx offload
+	 * we should not be advertising support for IPsec.
+	 */
+	t_dis = IXGBE_READ_REG(hw, IXGBE_SECTXSTAT) &
+		IXGBE_SECTXSTAT_SECTX_OFF_DIS;
+	r_dis = IXGBE_READ_REG(hw, IXGBE_SECRXSTAT) &
+		IXGBE_SECRXSTAT_SECRX_OFF_DIS;
+	if (t_dis || r_dis)
 		return;
 
 	ipsec = kzalloc(sizeof(*ipsec), GFP_KERNEL);
