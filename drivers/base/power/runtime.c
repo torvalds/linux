@@ -1563,37 +1563,16 @@ void pm_runtime_clean_up_links(struct device *dev)
 }
 
 /**
- * pm_runtime_get_suppliers - Resume and reference-count supplier devices.
+ * pm_runtime_resume_suppliers - Resume supplier devices.
  * @dev: Consumer device.
  */
-void pm_runtime_get_suppliers(struct device *dev)
+void pm_runtime_resume_suppliers(struct device *dev)
 {
-	struct device_link *link;
 	int idx;
 
 	idx = device_links_read_lock();
 
-	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node)
-		if (link->flags & DL_FLAG_PM_RUNTIME)
-			pm_runtime_get_sync(link->supplier);
-
-	device_links_read_unlock(idx);
-}
-
-/**
- * pm_runtime_put_suppliers - Drop references to supplier devices.
- * @dev: Consumer device.
- */
-void pm_runtime_put_suppliers(struct device *dev)
-{
-	struct device_link *link;
-	int idx;
-
-	idx = device_links_read_lock();
-
-	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node)
-		if (link->flags & DL_FLAG_PM_RUNTIME)
-			pm_runtime_put(link->supplier);
+	rpm_get_suppliers(dev);
 
 	device_links_read_unlock(idx);
 }
@@ -1607,6 +1586,8 @@ void pm_runtime_new_link(struct device *dev)
 
 void pm_runtime_drop_link(struct device *dev)
 {
+	rpm_put_suppliers(dev);
+
 	spin_lock_irq(&dev->power.lock);
 	WARN_ON(dev->power.links_count == 0);
 	dev->power.links_count--;

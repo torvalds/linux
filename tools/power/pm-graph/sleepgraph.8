@@ -168,6 +168,7 @@ Create a summary page of all tests in \fIindir\fR. Creates summary.html
 in the current folder. The output page is a table of tests with
 suspend and resume values sorted by suspend mode, host, and kernel.
 Includes test averages by mode and links to the test html files.
+Use -genhtml to include tests with missing html.
 .TP
 \fB-modes\fR
 List available suspend modes.
@@ -178,6 +179,9 @@ with any options you intend to use to see if they will work.
 .TP
 \fB-fpdt\fR
 Print out the contents of the ACPI Firmware Performance Data Table.
+.TP
+\fB-battery\fR
+Print out battery status and current charge.
 .TP
 \fB-sysinfo\fR
 Print out system info extracted from BIOS. Reads /dev/mem directly instead of going through dmidecode.

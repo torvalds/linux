@@ -251,7 +251,7 @@ static int amba_probe(struct device *dev)
 			break;
 
 		ret = dev_pm_domain_attach(dev, true);
-		if (ret == -EPROBE_DEFER)
+		if (ret)
 			break;
 
 		ret = amba_get_enable_pclk(pcdev);
@@ -378,7 +378,7 @@ static int amba_device_try_add(struct amba_device *dev, struct resource *parent)
 	}
 
 	ret = dev_pm_domain_attach(&dev->dev, true);
-	if (ret == -EPROBE_DEFER) {
+	if (ret) {
 		iounmap(tmp);
 		goto err_release;
 	}
