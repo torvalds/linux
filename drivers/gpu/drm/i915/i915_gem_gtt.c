@@ -3569,7 +3569,7 @@ void i915_ggtt_disable_guc(struct drm_i915_private *i915)
 void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	struct drm_i915_gem_object *obj, *on;
+	struct i915_vma *vma, *vn;
 
 	i915_check_and_clear_faults(dev_priv);
 
@@ -3579,21 +3579,18 @@ void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv)
 	ggtt->base.closed = true; /* skip rewriting PTE on VMA unbind */
 
 	/* clflush objects bound into the GGTT and rebind them. */
-	list_for_each_entry_safe(obj, on, &dev_priv->mm.bound_list, mm.link) {
-		bool ggtt_bound = false;
-		struct i915_vma *vma;
+	GEM_BUG_ON(!list_empty(&ggtt->base.active_list));
+	list_for_each_entry_safe(vma, vn, &ggtt->base.inactive_list, vm_link) {
+		struct drm_i915_gem_object *obj = vma->obj;
 
-		for_each_ggtt_vma(vma, obj) {
-			if (!i915_vma_unbind(vma))
-				continue;
+		if (!(vma->flags & I915_VMA_GLOBAL_BIND))
+			continue;
 
-			WARN_ON(i915_vma_bind(vma, obj->cache_level,
-					      PIN_UPDATE));
-			ggtt_bound = true;
-		}
+		if (!i915_vma_unbind(vma))
+			continue;
 
-		if (ggtt_bound)
-			WARN_ON(i915_gem_object_set_to_gtt_domain(obj, false));
+		WARN_ON(i915_vma_bind(vma, obj->cache_level, PIN_UPDATE));
+		WARN_ON(i915_gem_object_set_to_gtt_domain(obj, false));
 	}
 
 	ggtt->base.closed = false;
