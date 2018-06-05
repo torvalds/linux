@@ -143,7 +143,7 @@ static void wait_for_fbc_state_changed(
 	struct dce110_compressor *cp110,
 	bool enabled)
 {
-	uint16_t counter = 0;
+	uint32_t counter = 0;
 	uint32_t addr = mmFBC_STATUS;
 	uint32_t value;
 
@@ -158,7 +158,7 @@ static void wait_for_fbc_state_changed(
 		counter++;
 	}
 
-	if (counter == 10) {
+	if (counter == 1000) {
 		DC_LOG_WARNING("%s: wait counter exceeded, changes to HW not applied",
 			__func__);
 	} else {
