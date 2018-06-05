@@ -278,6 +278,22 @@ xfs_mount_validate_sb(
 		return -EFSCORRUPTED;
 	}
 
+	if (sbp->sb_unit) {
+		if (!xfs_sb_version_hasdalign(sbp) ||
+		    sbp->sb_unit > sbp->sb_width ||
+		    (sbp->sb_width % sbp->sb_unit) != 0) {
+			xfs_notice(mp, "SB stripe unit sanity check failed");
+			return -EFSCORRUPTED;
+		}
+	} else if (xfs_sb_version_hasdalign(sbp)) {
+		xfs_notice(mp, "SB stripe alignment sanity check failed");
+		return -EFSCORRUPTED;
+	} else if (sbp->sb_width) {
+		xfs_notice(mp, "SB stripe width sanity check failed");
+		return -EFSCORRUPTED;
+	}
+
+
 	if (xfs_sb_version_hascrc(&mp->m_sb) &&
 	    sbp->sb_blocksize < XFS_MIN_CRC_BLOCKSIZE) {
 		xfs_notice(mp, "v5 SB sanity check failed");
