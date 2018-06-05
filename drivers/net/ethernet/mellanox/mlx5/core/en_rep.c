@@ -900,7 +900,7 @@ static const struct switchdev_ops mlx5e_rep_switchdev_ops = {
 	.switchdev_port_attr_get	= mlx5e_attr_get,
 };
 
-int mlx5e_change_rep_mtu(struct net_device *netdev, int new_mtu)
+static int mlx5e_change_rep_mtu(struct net_device *netdev, int new_mtu)
 {
 	return mlx5e_change_mtu(netdev, new_mtu, NULL);
 }
