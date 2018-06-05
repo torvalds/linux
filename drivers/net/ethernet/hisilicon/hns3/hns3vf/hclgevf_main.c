@@ -728,17 +728,6 @@ static void hclgevf_reset_tqp_stats(struct hnae3_handle *handle)
 	}
 }
 
-static int hclgevf_cfg_func_mta_filter(struct hnae3_handle *handle, bool en)
-{
-	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
-	u8 msg[2] = {0};
-
-	msg[0] = en;
-	return hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_MULTICAST,
-				    HCLGE_MBX_MAC_VLAN_MC_FUNC_MTA_ENABLE,
-				    msg, 1, false, NULL, 0);
-}
-
 static int hclgevf_cfg_func_mta_type(struct hclgevf_dev *hdev)
 {
 	u8 resp_msg = HCLGEVF_MTA_TYPE_SEL_MAX;
