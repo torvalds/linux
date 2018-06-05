@@ -648,14 +648,6 @@ static void acx565akm_get_timings(struct omap_dss_device *dssdev,
 	*vm = ddata->vm;
 }
 
-static int acx565akm_check_timings(struct omap_dss_device *dssdev,
-				   struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	return src->ops->check_timings(src, vm);
-}
-
 static const struct omap_dss_device_ops acx565akm_ops = {
 	.connect	= acx565akm_connect,
 	.disconnect	= acx565akm_disconnect,
@@ -665,7 +657,6 @@ static const struct omap_dss_device_ops acx565akm_ops = {
 
 	.set_timings	= acx565akm_set_timings,
 	.get_timings	= acx565akm_get_timings,
-	.check_timings	= acx565akm_check_timings,
 };
 
 static int acx565akm_probe(struct spi_device *spi)

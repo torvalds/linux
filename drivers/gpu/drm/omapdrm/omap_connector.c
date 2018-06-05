@@ -252,7 +252,7 @@ static int omap_connector_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
 	struct omap_connector *omap_connector = to_omap_connector(connector);
-	struct omap_dss_device *dssdev = omap_connector->display;
+	struct omap_dss_device *dssdev;
 	struct videomode vm = {0};
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *new_mode;
@@ -261,21 +261,27 @@ static int omap_connector_mode_valid(struct drm_connector *connector,
 	drm_display_mode_to_videomode(mode, &vm);
 	mode->vrefresh = drm_mode_vrefresh(mode);
 
-	r = dssdev->ops->check_timings(dssdev, &vm);
-	if (!r) {
-		/* check if vrefresh is still valid */
-		new_mode = drm_mode_duplicate(dev, mode);
+	for (dssdev = omap_connector->output; dssdev; dssdev = dssdev->next) {
+		if (!dssdev->ops->check_timings)
+			continue;
 
-		if (!new_mode)
-			return MODE_BAD;
-
-		new_mode->clock = vm.pixelclock / 1000;
-		new_mode->vrefresh = 0;
-		if (mode->vrefresh == drm_mode_vrefresh(new_mode))
-			ret = MODE_OK;
-		drm_mode_destroy(dev, new_mode);
+		r = dssdev->ops->check_timings(dssdev, &vm);
+		if (r)
+			goto done;
 	}
 
+	/* check if vrefresh is still valid */
+	new_mode = drm_mode_duplicate(dev, mode);
+	if (!new_mode)
+		return MODE_BAD;
+
+	new_mode->clock = vm.pixelclock / 1000;
+	new_mode->vrefresh = 0;
+	if (mode->vrefresh == drm_mode_vrefresh(new_mode))
+		ret = MODE_OK;
+	drm_mode_destroy(dev, new_mode);
+
+done:
 	DBG("connector: mode %s: "
 			"%d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
 			(ret == MODE_OK) ? "valid" : "invalid",

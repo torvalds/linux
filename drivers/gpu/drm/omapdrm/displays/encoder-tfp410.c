@@ -84,20 +84,11 @@ static void tfp410_set_timings(struct omap_dss_device *dssdev,
 	src->ops->set_timings(src, vm);
 }
 
-static int tfp410_check_timings(struct omap_dss_device *dssdev,
-				struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	return src->ops->check_timings(src, vm);
-}
-
 static const struct omap_dss_device_ops tfp410_ops = {
 	.connect	= tfp410_connect,
 	.disconnect	= tfp410_disconnect,
 	.enable		= tfp410_enable,
 	.disable	= tfp410_disable,
-	.check_timings	= tfp410_check_timings,
 	.set_timings	= tfp410_set_timings,
 };
 

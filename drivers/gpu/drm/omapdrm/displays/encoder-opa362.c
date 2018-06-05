@@ -95,22 +95,11 @@ static void opa362_set_timings(struct omap_dss_device *dssdev,
 	src->ops->set_timings(src, vm);
 }
 
-static int opa362_check_timings(struct omap_dss_device *dssdev,
-				struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	dev_dbg(dssdev->dev, "check_timings\n");
-
-	return src->ops->check_timings(src, vm);
-}
-
 static const struct omap_dss_device_ops opa362_ops = {
 	.connect	= opa362_connect,
 	.disconnect	= opa362_disconnect,
 	.enable		= opa362_enable,
 	.disable	= opa362_disable,
-	.check_timings	= opa362_check_timings,
 	.set_timings	= opa362_set_timings,
 };
 

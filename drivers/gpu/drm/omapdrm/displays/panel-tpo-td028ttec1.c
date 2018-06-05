@@ -314,14 +314,6 @@ static void td028ttec1_panel_get_timings(struct omap_dss_device *dssdev,
 	*vm = ddata->vm;
 }
 
-static int td028ttec1_panel_check_timings(struct omap_dss_device *dssdev,
-					  struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	return src->ops->check_timings(src, vm);
-}
-
 static const struct omap_dss_device_ops td028ttec1_ops = {
 	.connect	= td028ttec1_panel_connect,
 	.disconnect	= td028ttec1_panel_disconnect,
@@ -331,7 +323,6 @@ static const struct omap_dss_device_ops td028ttec1_ops = {
 
 	.set_timings	= td028ttec1_panel_set_timings,
 	.get_timings	= td028ttec1_panel_get_timings,
-	.check_timings	= td028ttec1_panel_check_timings,
 };
 
 static int td028ttec1_panel_probe(struct spi_device *spi)

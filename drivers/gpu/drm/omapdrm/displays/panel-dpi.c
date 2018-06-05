@@ -112,14 +112,6 @@ static void panel_dpi_get_timings(struct omap_dss_device *dssdev,
 	*vm = ddata->vm;
 }
 
-static int panel_dpi_check_timings(struct omap_dss_device *dssdev,
-				   struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	return src->ops->check_timings(src, vm);
-}
-
 static const struct omap_dss_device_ops panel_dpi_ops = {
 	.connect	= panel_dpi_connect,
 	.disconnect	= panel_dpi_disconnect,
@@ -129,7 +121,6 @@ static const struct omap_dss_device_ops panel_dpi_ops = {
 
 	.set_timings	= panel_dpi_set_timings,
 	.get_timings	= panel_dpi_get_timings,
-	.check_timings	= panel_dpi_check_timings,
 };
 
 static int panel_dpi_probe_of(struct platform_device *pdev)

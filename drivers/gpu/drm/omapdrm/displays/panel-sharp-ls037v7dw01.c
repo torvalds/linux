@@ -145,14 +145,6 @@ static void sharp_ls_get_timings(struct omap_dss_device *dssdev,
 	*vm = ddata->vm;
 }
 
-static int sharp_ls_check_timings(struct omap_dss_device *dssdev,
-				  struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	return src->ops->check_timings(src, vm);
-}
-
 static const struct omap_dss_device_ops sharp_ls_ops = {
 	.connect	= sharp_ls_connect,
 	.disconnect	= sharp_ls_disconnect,
@@ -162,7 +154,6 @@ static const struct omap_dss_device_ops sharp_ls_ops = {
 
 	.set_timings	= sharp_ls_set_timings,
 	.get_timings	= sharp_ls_get_timings,
-	.check_timings	= sharp_ls_check_timings,
 };
 
 static  int sharp_ls_get_gpio_of(struct device *dev, int index, int val,

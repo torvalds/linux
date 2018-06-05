@@ -182,14 +182,6 @@ static void lb035q02_get_timings(struct omap_dss_device *dssdev,
 	*vm = ddata->vm;
 }
 
-static int lb035q02_check_timings(struct omap_dss_device *dssdev,
-				  struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	return src->ops->check_timings(src, vm);
-}
-
 static const struct omap_dss_device_ops lb035q02_ops = {
 	.connect	= lb035q02_connect,
 	.disconnect	= lb035q02_disconnect,
@@ -199,7 +191,6 @@ static const struct omap_dss_device_ops lb035q02_ops = {
 
 	.set_timings	= lb035q02_set_timings,
 	.get_timings	= lb035q02_get_timings,
-	.check_timings	= lb035q02_check_timings,
 };
 
 static int lb035q02_probe_of(struct spi_device *spi)

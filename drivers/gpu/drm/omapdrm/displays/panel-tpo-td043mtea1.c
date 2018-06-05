@@ -388,14 +388,6 @@ static void tpo_td043_get_timings(struct omap_dss_device *dssdev,
 	*vm = ddata->vm;
 }
 
-static int tpo_td043_check_timings(struct omap_dss_device *dssdev,
-				   struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	return src->ops->check_timings(src, vm);
-}
-
 static const struct omap_dss_device_ops tpo_td043_ops = {
 	.connect	= tpo_td043_connect,
 	.disconnect	= tpo_td043_disconnect,
@@ -405,7 +397,6 @@ static const struct omap_dss_device_ops tpo_td043_ops = {
 
 	.set_timings	= tpo_td043_set_timings,
 	.get_timings	= tpo_td043_get_timings,
-	.check_timings	= tpo_td043_check_timings,
 };
 
 static int tpo_td043_probe(struct spi_device *spi)

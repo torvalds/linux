@@ -98,17 +98,23 @@ static int omap_encoder_update(struct drm_encoder *encoder,
 {
 	struct drm_device *dev = encoder->dev;
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
-	struct omap_dss_device *dssdev = omap_encoder->display;
+	struct omap_dss_device *display = omap_encoder->display;
+	struct omap_dss_device *dssdev;
 	int ret;
 
-	ret = dssdev->ops->check_timings(dssdev, vm);
-	if (ret) {
-		dev_err(dev->dev, "invalid timings: %d\n", ret);
-		return ret;
+	for (dssdev = omap_encoder->output; dssdev; dssdev = dssdev->next) {
+		if (!dssdev->ops->check_timings)
+			continue;
+
+		ret = dssdev->ops->check_timings(dssdev, vm);
+		if (ret) {
+			dev_err(dev->dev, "invalid timings: %d\n", ret);
+			return ret;
+		}
 	}
 
-	if (dssdev->ops->set_timings)
-		dssdev->ops->set_timings(dssdev, vm);
+	if (display->ops->set_timings)
+		display->ops->set_timings(display, vm);
 
 	return 0;
 }

@@ -175,14 +175,6 @@ static void nec_8048_get_timings(struct omap_dss_device *dssdev,
 	*vm = ddata->vm;
 }
 
-static int nec_8048_check_timings(struct omap_dss_device *dssdev,
-				  struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	return src->ops->check_timings(src, vm);
-}
-
 static const struct omap_dss_device_ops nec_8048_ops = {
 	.connect	= nec_8048_connect,
 	.disconnect	= nec_8048_disconnect,
@@ -192,7 +184,6 @@ static const struct omap_dss_device_ops nec_8048_ops = {
 
 	.set_timings	= nec_8048_set_timings,
 	.get_timings	= nec_8048_get_timings,
-	.check_timings	= nec_8048_check_timings,
 };
 
 static int nec_8048_probe(struct spi_device *spi)

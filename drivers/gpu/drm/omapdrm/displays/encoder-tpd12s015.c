@@ -99,14 +99,6 @@ static void tpd_set_timings(struct omap_dss_device *dssdev,
 	src->ops->set_timings(src, vm);
 }
 
-static int tpd_check_timings(struct omap_dss_device *dssdev,
-			     struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	return src->ops->check_timings(src, vm);
-}
-
 static bool tpd_detect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
@@ -142,7 +134,6 @@ static const struct omap_dss_device_ops tpd_ops = {
 	.disconnect		= tpd_disconnect,
 	.enable			= tpd_enable,
 	.disable		= tpd_disable,
-	.check_timings		= tpd_check_timings,
 	.set_timings		= tpd_set_timings,
 	.detect			= tpd_detect,
 	.register_hpd_cb	= tpd_register_hpd_cb,

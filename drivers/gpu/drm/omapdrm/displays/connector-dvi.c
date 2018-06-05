@@ -116,14 +116,6 @@ static void dvic_get_timings(struct omap_dss_device *dssdev,
 	*vm = ddata->vm;
 }
 
-static int dvic_check_timings(struct omap_dss_device *dssdev,
-			      struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	return src->ops->check_timings(src, vm);
-}
-
 static int dvic_ddc_read(struct i2c_adapter *adapter,
 		unsigned char *buf, u16 count, u8 offset)
 {
@@ -232,7 +224,6 @@ static const struct omap_dss_device_ops dvic_ops = {
 
 	.set_timings	= dvic_set_timings,
 	.get_timings	= dvic_get_timings,
-	.check_timings	= dvic_check_timings,
 
 	.read_edid	= dvic_read_edid,
 	.detect		= dvic_detect,

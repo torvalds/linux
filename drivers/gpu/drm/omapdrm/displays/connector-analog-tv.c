@@ -109,14 +109,6 @@ static void tvc_get_timings(struct omap_dss_device *dssdev,
 	*vm = ddata->vm;
 }
 
-static int tvc_check_timings(struct omap_dss_device *dssdev,
-			     struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	return src->ops->check_timings(src, vm);
-}
-
 static const struct omap_dss_device_ops tvc_ops = {
 	.connect		= tvc_connect,
 	.disconnect		= tvc_disconnect,
@@ -126,7 +118,6 @@ static const struct omap_dss_device_ops tvc_ops = {
 
 	.set_timings		= tvc_set_timings,
 	.get_timings		= tvc_get_timings,
-	.check_timings		= tvc_check_timings,
 };
 
 static int tvc_probe(struct platform_device *pdev)
