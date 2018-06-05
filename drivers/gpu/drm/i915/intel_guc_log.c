@@ -215,11 +215,11 @@ static unsigned int guc_get_log_buffer_size(enum guc_log_buffer_type type)
 {
 	switch (type) {
 	case GUC_ISR_LOG_BUFFER:
-		return (GUC_LOG_ISR_PAGES + 1) * PAGE_SIZE;
+		return ISR_BUFFER_SIZE;
 	case GUC_DPC_LOG_BUFFER:
-		return (GUC_LOG_DPC_PAGES + 1) * PAGE_SIZE;
+		return DPC_BUFFER_SIZE;
 	case GUC_CRASH_DUMP_LOG_BUFFER:
-		return (GUC_LOG_CRASH_PAGES + 1) * PAGE_SIZE;
+		return CRASH_BUFFER_SIZE;
 	default:
 		MISSING_CASE(type);
 	}
@@ -397,7 +397,7 @@ static int guc_log_relay_create(struct intel_guc_log *log)
 	lockdep_assert_held(&log->relay.lock);
 
 	 /* Keep the size of sub buffers same as shared log buffer */
-	subbuf_size = GUC_LOG_SIZE;
+	subbuf_size = log->vma->size;
 
 	/*
 	 * Store up to 8 snapshots, which is large enough to buffer sufficient
@@ -452,11 +452,34 @@ int intel_guc_log_create(struct intel_guc_log *log)
 {
 	struct intel_guc *guc = log_to_guc(log);
 	struct i915_vma *vma;
+	u32 guc_log_size;
 	int ret;
 
 	GEM_BUG_ON(log->vma);
 
-	vma = intel_guc_allocate_vma(guc, GUC_LOG_SIZE);
+	/*
+	 *  GuC Log buffer Layout
+	 *
+	 *  +===============================+ 00B
+	 *  |    Crash dump state header    |
+	 *  +-------------------------------+ 32B
+	 *  |       DPC state header        |
+	 *  +-------------------------------+ 64B
+	 *  |       ISR state header        |
+	 *  +-------------------------------+ 96B
+	 *  |                               |
+	 *  +===============================+ PAGE_SIZE (4KB)
+	 *  |        Crash Dump logs        |
+	 *  +===============================+ + CRASH_SIZE
+	 *  |           DPC logs            |
+	 *  +===============================+ + DPC_SIZE
+	 *  |           ISR logs            |
+	 *  +===============================+ + ISR_SIZE
+	 */
+	guc_log_size = PAGE_SIZE + CRASH_BUFFER_SIZE + DPC_BUFFER_SIZE +
+			ISR_BUFFER_SIZE;
+
+	vma = intel_guc_allocate_vma(guc, guc_log_size);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto err;

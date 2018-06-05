@@ -34,12 +34,9 @@
 
 struct intel_guc;
 
-/*
- * The first page is to save log buffer state. Allocate one
- * extra page for others in case for overlap
- */
-#define GUC_LOG_SIZE	((1 + GUC_LOG_DPC_PAGES + 1 + GUC_LOG_ISR_PAGES + \
-			  1 + GUC_LOG_CRASH_PAGES + 1) << PAGE_SHIFT)
+#define CRASH_BUFFER_SIZE	SZ_8K
+#define DPC_BUFFER_SIZE		SZ_32K
+#define ISR_BUFFER_SIZE		SZ_32K
 
 /*
  * While we're using plain log level in i915, GuC controls are much more...
