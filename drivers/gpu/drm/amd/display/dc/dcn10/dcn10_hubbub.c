@@ -190,6 +190,12 @@ static uint32_t convert_and_clamp(
 }
 
 
+void hubbub1_wm_change_req_wa(struct hubbub *hubbub)
+{
+	REG_UPDATE_SEQ(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL,
+			DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST, 0, 1);
+}
+
 void hubbub1_program_watermarks(
 		struct hubbub *hubbub,
 		struct dcn_watermark_set *watermarks,
@@ -203,8 +209,6 @@ void hubbub1_program_watermarks(
 	 */
 	uint32_t prog_wm_value;
 
-	REG_UPDATE(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL,
-			DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST, 0);
 
 	/* Repeat for water mark set A, B, C and D. */
 	/* clock state A */
@@ -458,9 +462,6 @@ void hubbub1_program_watermarks(
 			"HW register value = 0x%x\n\n",
 			watermarks->d.cstate_pstate.pstate_change_ns, prog_wm_value);
 	}
-
-	REG_UPDATE(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL,
-			DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST, 1);
 
 	REG_UPDATE(DCHUBBUB_ARB_SAT_LEVEL,
 			DCHUBBUB_ARB_SAT_LEVEL, 60 * refclk_mhz);

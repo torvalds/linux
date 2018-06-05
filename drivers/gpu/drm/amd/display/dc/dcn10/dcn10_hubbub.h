@@ -195,6 +195,8 @@ void hubbub1_update_dchub(
 bool hubbub1_verify_allow_pstate_change_high(
 	struct hubbub *hubbub);
 
+void hubbub1_wm_change_req_wa(struct hubbub *hubbub);
+
 void hubbub1_program_watermarks(
 		struct hubbub *hubbub,
 		struct dcn_watermark_set *watermarks,

@@ -44,6 +44,7 @@ struct dce_hwseq_wa {
 	bool blnd_crtc_trigger;
 	bool DEGVIDCN10_253;
 	bool false_optc_underflow;
+	bool DEGVIDCN10_254;
 };
 
 struct hwseq_wa_state {

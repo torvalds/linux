@@ -2305,6 +2305,9 @@ static void dcn10_apply_ctx_for_surface(
 		hubbub1_program_watermarks(dc->res_pool->hubbub,
 				&context->bw.dcn.watermarks, ref_clk_mhz, true);
 
+		if (dc->hwseq->wa.DEGVIDCN10_254)
+			hubbub1_wm_change_req_wa(dc->res_pool->hubbub);
+
 		if (dc->debug.sanity_checks) {
 			/* pstate stuck check after watermark update */
 			dcn10_verify_allow_pstate_change_high(dc);
