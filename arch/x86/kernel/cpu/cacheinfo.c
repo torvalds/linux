@@ -20,6 +20,8 @@
 #include <asm/amd_nb.h>
 #include <asm/smp.h>
 
+#include "cpu.h"
+
 #define LVL_1_INST	1
 #define LVL_1_DATA	2
 #define LVL_2		3
@@ -637,6 +639,45 @@ static int find_num_cache_leaves(struct cpuinfo_x86 *c)
 	return i;
 }
 
+void cacheinfo_amd_init_llc_id(struct cpuinfo_x86 *c, int cpu, u8 node_id)
+{
+	/*
+	 * We may have multiple LLCs if L3 caches exist, so check if we
+	 * have an L3 cache by looking at the L3 cache CPUID leaf.
+	 */
+	if (!cpuid_edx(0x80000006))
+		return;
+
+	if (c->x86 < 0x17) {
+		/* LLC is at the node level. */
+		per_cpu(cpu_llc_id, cpu) = node_id;
+	} else if (c->x86 == 0x17 &&
+		   c->x86_model >= 0 && c->x86_model <= 0x1F) {
+		/*
+		 * LLC is at the core complex level.
+		 * Core complex ID is ApicId[3] for these processors.
+		 */
+		per_cpu(cpu_llc_id, cpu) = c->apicid >> 3;
+	} else {
+		/*
+		 * LLC ID is calculated from the number of threads sharing the
+		 * cache.
+		 * */
+		u32 eax, ebx, ecx, edx, num_sharing_cache = 0;
+		u32 llc_index = find_num_cache_leaves(c) - 1;
+
+		cpuid_count(0x8000001d, llc_index, &eax, &ebx, &ecx, &edx);
+		if (eax)
+			num_sharing_cache = ((eax >> 14) & 0xfff) + 1;
+
+		if (num_sharing_cache) {
+			int bits = get_count_order(num_sharing_cache) - 1;
+
+			per_cpu(cpu_llc_id, cpu) = c->apicid >> bits;
+		}
+	}
+}
+
 void init_amd_cacheinfo(struct cpuinfo_x86 *c)
 {
 
@@ -650,7 +691,7 @@ void init_amd_cacheinfo(struct cpuinfo_x86 *c)
 	}
 }
 
-unsigned int init_intel_cacheinfo(struct cpuinfo_x86 *c)
+void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 {
 	/* Cache sizes */
 	unsigned int trace = 0, l1i = 0, l1d = 0, l2 = 0, l3 = 0;
@@ -802,7 +843,8 @@ unsigned int init_intel_cacheinfo(struct cpuinfo_x86 *c)
 
 	c->x86_cache_size = l3 ? l3 : (l2 ? l2 : (l1i+l1d));
 
-	return l2;
+	if (!l2)
+		cpu_detect_cache_sizes(c);
 }
 
 static int __cache_amd_cpumap_setup(unsigned int cpu, int index,

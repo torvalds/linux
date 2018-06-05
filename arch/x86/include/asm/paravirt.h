@@ -574,14 +574,14 @@ static inline void __set_pgd(pgd_t *pgdp, pgd_t pgd)
 }
 
 #define set_pgd(pgdp, pgdval) do {					\
-	if (pgtable_l5_enabled)						\
+	if (pgtable_l5_enabled())						\
 		__set_pgd(pgdp, pgdval);				\
 	else								\
 		set_p4d((p4d_t *)(pgdp), (p4d_t) { (pgdval).pgd });	\
 } while (0)
 
 #define pgd_clear(pgdp) do {						\
-	if (pgtable_l5_enabled)						\
+	if (pgtable_l5_enabled())						\
 		set_pgd(pgdp, __pgd(0));				\
 } while (0)
 
