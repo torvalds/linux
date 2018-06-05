@@ -423,6 +423,10 @@ static void dcn_bw_calc_rq_dlg_ttu(
 	int total_flip_bytes = 0;
 	int i;
 
+	memset(dlg_regs, 0, sizeof(*dlg_regs));
+	memset(ttu_regs, 0, sizeof(*ttu_regs));
+	memset(rq_regs, 0, sizeof(*rq_regs));
+
 	for (i = 0; i < number_of_planes; i++) {
 		total_active_bw += v->read_bandwidth[i];
 		total_prefetch_bw += v->prefetch_bandwidth[i];
