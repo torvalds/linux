@@ -566,8 +566,10 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 			kvzalloc_node((wq_sz << rq->wqe.info.log_num_frags) *
 				      sizeof(*rq->wqe.frags),
 				      GFP_KERNEL, cpu_to_node(c->cpu));
-		if (!rq->wqe.frags)
+		if (!rq->wqe.frags) {
+			err = -ENOMEM;
 			goto err_free;
+		}
 
 		err = mlx5e_init_di_list(rq, params, wq_sz, c->cpu);
 		if (err)
