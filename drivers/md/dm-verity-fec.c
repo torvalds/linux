@@ -570,7 +570,7 @@ static void *fec_rs_alloc(gfp_t gfp_mask, void *pool_data)
 {
 	struct dm_verity *v = (struct dm_verity *)pool_data;
 
-	return init_rs(8, 0x11d, 0, 1, v->fec->roots);
+	return init_rs_gfp(8, 0x11d, 0, 1, v->fec->roots, gfp_mask);
 }
 
 static void fec_rs_free(void *element, void *pool_data)
