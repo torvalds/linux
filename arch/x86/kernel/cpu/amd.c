@@ -841,10 +841,6 @@ static void init_amd(struct cpuinfo_x86 *c)
 		srat_detect_node(c);
 	}
 
-#ifdef CONFIG_X86_32
-	detect_ht(c);
-#endif
-
 	init_amd_cacheinfo(c);
 
 	if (c->x86 >= 0xf)
