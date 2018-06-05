@@ -5286,9 +5286,15 @@ int i915_gem_init_hw(struct drm_i915_private *dev_priv)
 
 	/* Only when the HW is re-initialised, can we replay the requests */
 	ret = __i915_gem_restart_engines(dev_priv);
+	if (ret)
+		goto cleanup_uc;
 out:
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 	return ret;
+
+cleanup_uc:
+	intel_uc_fini_hw(dev_priv);
+	goto out;
 }
 
 static int __intel_engines_record_defaults(struct drm_i915_private *i915)
