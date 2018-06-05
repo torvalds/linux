@@ -64,7 +64,7 @@ int hv_init(void)
 		return -ENOMEM;
 
 	direct_mode_enabled = ms_hyperv.misc_features &
-			HV_X64_STIMER_DIRECT_MODE_AVAILABLE;
+			HV_STIMER_DIRECT_MODE_AVAILABLE;
 	return 0;
 }
 
@@ -302,7 +302,7 @@ int hv_synic_init(unsigned int cpu)
 
 	shared_sint.vector = HYPERVISOR_CALLBACK_VECTOR;
 	shared_sint.masked = false;
-	if (ms_hyperv.hints & HV_X64_DEPRECATING_AEOI_RECOMMENDED)
+	if (ms_hyperv.hints & HV_DEPRECATING_AEOI_RECOMMENDED)
 		shared_sint.auto_eoi = false;
 	else
 		shared_sint.auto_eoi = true;
@@ -320,7 +320,7 @@ int hv_synic_init(unsigned int cpu)
 	/*
 	 * Register the per-cpu clockevent source.
 	 */
-	if (ms_hyperv.features & HV_X64_MSR_SYNTIMER_AVAILABLE)
+	if (ms_hyperv.features & HV_MSR_SYNTIMER_AVAILABLE)
 		clockevents_config_and_register(hv_cpu->clk_evt,
 						HV_TIMER_FREQUENCY,
 						HV_MIN_DELTA_TICKS,
@@ -335,7 +335,7 @@ void hv_synic_clockevents_cleanup(void)
 {
 	int cpu;
 
-	if (!(ms_hyperv.features & HV_X64_MSR_SYNTIMER_AVAILABLE))
+	if (!(ms_hyperv.features & HV_MSR_SYNTIMER_AVAILABLE))
 		return;
 
 	if (direct_mode_enabled)
@@ -394,7 +394,7 @@ int hv_synic_cleanup(unsigned int cpu)
 		return -EBUSY;
 
 	/* Turn off clockevent device */
-	if (ms_hyperv.features & HV_X64_MSR_SYNTIMER_AVAILABLE) {
+	if (ms_hyperv.features & HV_MSR_SYNTIMER_AVAILABLE) {
 		struct hv_per_cpu_context *hv_cpu
 			= this_cpu_ptr(hv_context.cpu_context);
 
