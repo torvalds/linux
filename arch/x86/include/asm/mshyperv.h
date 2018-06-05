@@ -75,8 +75,10 @@ static inline void vmbus_signal_eom(struct hv_message *msg, u32 old_msg_type)
 	}
 }
 
-#define hv_init_timer(timer, tick) wrmsrl(timer, tick)
-#define hv_init_timer_config(config, val) wrmsrl(config, val)
+#define hv_init_timer(timer, tick) \
+	wrmsrl(HV_X64_MSR_STIMER0_COUNT + (2*timer), tick)
+#define hv_init_timer_config(timer, val) \
+	wrmsrl(HV_X64_MSR_STIMER0_CONFIG + (2*timer), val)
 
 #define hv_get_simp(val) rdmsrl(HV_X64_MSR_SIMP, val)
 #define hv_set_simp(val) wrmsrl(HV_X64_MSR_SIMP, val)
@@ -89,8 +91,10 @@ static inline void vmbus_signal_eom(struct hv_message *msg, u32 old_msg_type)
 
 #define hv_get_vp_index(index) rdmsrl(HV_X64_MSR_VP_INDEX, index)
 
-#define hv_get_synint_state(int_num, val) rdmsrl(int_num, val)
-#define hv_set_synint_state(int_num, val) wrmsrl(int_num, val)
+#define hv_get_synint_state(int_num, val) \
+	rdmsrl(HV_X64_MSR_SINT0 + int_num, val)
+#define hv_set_synint_state(int_num, val) \
+	wrmsrl(HV_X64_MSR_SINT0 + int_num, val)
 
 void hyperv_callback_vector(void);
 void hyperv_reenlightenment_vector(void);
