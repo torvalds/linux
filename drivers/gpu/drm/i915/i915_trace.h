@@ -621,9 +621,9 @@ TRACE_EVENT(i915_request_queue,
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
 			     __field(u32, hw_id)
+			     __field(u64, ctx)
 			     __field(u16, class)
 			     __field(u16, instance)
-			     __field(u32, ctx)
 			     __field(u32, seqno)
 			     __field(u32, flags)
 			     ),
@@ -638,7 +638,7 @@ TRACE_EVENT(i915_request_queue,
 			   __entry->flags = flags;
 			   ),
 
-	    TP_printk("dev=%u, engine=%u:%u, hw_id=%u, ctx=%u, seqno=%u, flags=0x%x",
+	    TP_printk("dev=%u, engine=%u:%u, hw_id=%u, ctx=%llu, seqno=%u, flags=0x%x",
 		      __entry->dev, __entry->class, __entry->instance,
 		      __entry->hw_id, __entry->ctx, __entry->seqno,
 		      __entry->flags)
@@ -651,9 +651,9 @@ DECLARE_EVENT_CLASS(i915_request,
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
 			     __field(u32, hw_id)
+			     __field(u64, ctx)
 			     __field(u16, class)
 			     __field(u16, instance)
-			     __field(u32, ctx)
 			     __field(u32, seqno)
 			     __field(u32, global)
 			     ),
@@ -668,7 +668,7 @@ DECLARE_EVENT_CLASS(i915_request,
 			   __entry->global = rq->global_seqno;
 			   ),
 
-	    TP_printk("dev=%u, engine=%u:%u, hw_id=%u, ctx=%u, seqno=%u, global=%u",
+	    TP_printk("dev=%u, engine=%u:%u, hw_id=%u, ctx=%llu, seqno=%u, global=%u",
 		      __entry->dev, __entry->class, __entry->instance,
 		      __entry->hw_id, __entry->ctx, __entry->seqno,
 		      __entry->global)
@@ -697,9 +697,9 @@ TRACE_EVENT(i915_request_in,
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
 			     __field(u32, hw_id)
+			     __field(u64, ctx)
 			     __field(u16, class)
 			     __field(u16, instance)
-			     __field(u32, ctx)
 			     __field(u32, seqno)
 			     __field(u32, global_seqno)
 			     __field(u32, port)
@@ -718,7 +718,7 @@ TRACE_EVENT(i915_request_in,
 			   __entry->port = port;
 			   ),
 
-	    TP_printk("dev=%u, engine=%u:%u, hw_id=%u, ctx=%u, seqno=%u, prio=%u, global=%u, port=%u",
+	    TP_printk("dev=%u, engine=%u:%u, hw_id=%u, ctx=%llu, seqno=%u, prio=%u, global=%u, port=%u",
 		      __entry->dev, __entry->class, __entry->instance,
 		      __entry->hw_id, __entry->ctx, __entry->seqno,
 		      __entry->prio, __entry->global_seqno, __entry->port)
@@ -731,9 +731,9 @@ TRACE_EVENT(i915_request_out,
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
 			     __field(u32, hw_id)
+			     __field(u64, ctx)
 			     __field(u16, class)
 			     __field(u16, instance)
-			     __field(u32, ctx)
 			     __field(u32, seqno)
 			     __field(u32, global_seqno)
 			     __field(u32, completed)
@@ -750,7 +750,7 @@ TRACE_EVENT(i915_request_out,
 			   __entry->completed = i915_request_completed(rq);
 			   ),
 
-		    TP_printk("dev=%u, engine=%u:%u, hw_id=%u, ctx=%u, seqno=%u, global=%u, completed?=%u",
+		    TP_printk("dev=%u, engine=%u:%u, hw_id=%u, ctx=%llu, seqno=%u, global=%u, completed?=%u",
 			      __entry->dev, __entry->class, __entry->instance,
 			      __entry->hw_id, __entry->ctx, __entry->seqno,
 			      __entry->global_seqno, __entry->completed)
@@ -817,9 +817,9 @@ TRACE_EVENT(i915_request_wait_begin,
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
 			     __field(u32, hw_id)
+			     __field(u64, ctx)
 			     __field(u16, class)
 			     __field(u16, instance)
-			     __field(u32, ctx)
 			     __field(u32, seqno)
 			     __field(u32, global)
 			     __field(unsigned int, flags)
@@ -842,7 +842,7 @@ TRACE_EVENT(i915_request_wait_begin,
 			   __entry->flags = flags;
 			   ),
 
-	    TP_printk("dev=%u, engine=%u:%u, hw_id=%u, ctx=%u, seqno=%u, global=%u, blocking=%u, flags=0x%x",
+	    TP_printk("dev=%u, engine=%u:%u, hw_id=%u, ctx=%llu, seqno=%u, global=%u, blocking=%u, flags=0x%x",
 		      __entry->dev, __entry->class, __entry->instance,
 		      __entry->hw_id, __entry->ctx, __entry->seqno,
 		      __entry->global, !!(__entry->flags & I915_WAIT_LOCKED),
