@@ -106,7 +106,7 @@ size_t pci_get_rom_size(struct pci_dev *pdev, void __iomem *rom, size_t size)
 		length = readw(pds + 16);
 		image += length * 512;
 		/* Avoid iterating through memory outside the resource window */
-		if (image > rom + size)
+		if (image >= rom + size)
 			break;
 	} while (length && !last_image);
 
