@@ -973,8 +973,7 @@ i915_error_object_create(struct drm_i915_private *i915,
 		void __iomem *s;
 		int ret;
 
-		ggtt->base.insert_page(&ggtt->base, dma, slot,
-				       I915_CACHE_NONE, 0);
+		ggtt->vm.insert_page(&ggtt->vm, dma, slot, I915_CACHE_NONE, 0);
 
 		s = io_mapping_map_atomic_wc(&ggtt->iomap, slot);
 		ret = compress_page(&compress, (void  __force *)s, dst);
@@ -993,7 +992,7 @@ unwind:
 
 out:
 	compress_fini(&compress, dst);
-	ggtt->base.clear_range(&ggtt->base, slot, PAGE_SIZE);
+	ggtt->vm.clear_range(&ggtt->vm, slot, PAGE_SIZE);
 	return dst;
 }
 
@@ -1466,7 +1465,7 @@ static void gem_record_rings(struct i915_gpu_state *error)
 			struct i915_gem_context *ctx = request->gem_context;
 			struct intel_ring *ring;
 
-			ee->vm = ctx->ppgtt ? &ctx->ppgtt->base : &ggtt->base;
+			ee->vm = ctx->ppgtt ? &ctx->ppgtt->vm : &ggtt->vm;
 
 			record_context(&ee->context, ctx);
 
@@ -1564,7 +1563,7 @@ static void capture_active_buffers(struct i915_gpu_state *error)
 
 static void capture_pinned_buffers(struct i915_gpu_state *error)
 {
-	struct i915_address_space *vm = &error->i915->ggtt.base;
+	struct i915_address_space *vm = &error->i915->ggtt.vm;
 	struct drm_i915_error_buffer *bo;
 	struct i915_vma *vma;
 	int count_inactive, count_active;

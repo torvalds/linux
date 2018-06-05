@@ -107,8 +107,8 @@ static int emit_recurse_batch(struct hang *h,
 	struct drm_i915_private *i915 = h->i915;
 	struct i915_address_space *vm =
 		rq->gem_context->ppgtt ?
-		&rq->gem_context->ppgtt->base :
-		&i915->ggtt.base;
+		&rq->gem_context->ppgtt->vm :
+		&i915->ggtt.vm;
 	struct i915_vma *hws, *vma;
 	unsigned int flags;
 	u32 *batch;

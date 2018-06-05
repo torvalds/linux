@@ -197,7 +197,7 @@ static void context_close(struct i915_gem_context *ctx)
 	 */
 	lut_close(ctx);
 	if (ctx->ppgtt)
-		i915_ppgtt_close(&ctx->ppgtt->base);
+		i915_ppgtt_close(&ctx->ppgtt->vm);
 
 	ctx->file_priv = ERR_PTR(-EBADF);
 	i915_gem_context_put(ctx);
@@ -249,7 +249,7 @@ static u32 default_desc_template(const struct drm_i915_private *i915,
 	desc = GEN8_CTX_VALID | GEN8_CTX_PRIVILEGE;
 
 	address_mode = INTEL_LEGACY_32B_CONTEXT;
-	if (ppgtt && i915_vm_is_48bit(&ppgtt->base))
+	if (ppgtt && i915_vm_is_48bit(&ppgtt->vm))
 		address_mode = INTEL_LEGACY_64B_CONTEXT;
 	desc |= address_mode << GEN8_CTX_ADDRESSING_MODE_SHIFT;
 
@@ -810,11 +810,11 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 		break;
 	case I915_CONTEXT_PARAM_GTT_SIZE:
 		if (ctx->ppgtt)
-			args->value = ctx->ppgtt->base.total;
+			args->value = ctx->ppgtt->vm.total;
 		else if (to_i915(dev)->mm.aliasing_ppgtt)
-			args->value = to_i915(dev)->mm.aliasing_ppgtt->base.total;
+			args->value = to_i915(dev)->mm.aliasing_ppgtt->vm.total;
 		else
-			args->value = to_i915(dev)->ggtt.base.total;
+			args->value = to_i915(dev)->ggtt.vm.total;
 		break;
 	case I915_CONTEXT_PARAM_NO_ERROR_CAPTURE:
 		args->value = i915_gem_context_no_error_capture(ctx);

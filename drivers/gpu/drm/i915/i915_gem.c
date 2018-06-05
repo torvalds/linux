@@ -65,7 +65,7 @@ insert_mappable_node(struct i915_ggtt *ggtt,
                      struct drm_mm_node *node, u32 size)
 {
 	memset(node, 0, sizeof(*node));
-	return drm_mm_insert_node_in_range(&ggtt->base.mm, node,
+	return drm_mm_insert_node_in_range(&ggtt->vm.mm, node,
 					   size, 0, I915_COLOR_UNEVICTABLE,
 					   0, ggtt->mappable_end,
 					   DRM_MM_INSERT_LOW);
@@ -249,17 +249,17 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 	struct i915_vma *vma;
 	u64 pinned;
 
-	pinned = ggtt->base.reserved;
+	pinned = ggtt->vm.reserved;
 	mutex_lock(&dev->struct_mutex);
-	list_for_each_entry(vma, &ggtt->base.active_list, vm_link)
+	list_for_each_entry(vma, &ggtt->vm.active_list, vm_link)
 		if (i915_vma_is_pinned(vma))
 			pinned += vma->node.size;
-	list_for_each_entry(vma, &ggtt->base.inactive_list, vm_link)
+	list_for_each_entry(vma, &ggtt->vm.inactive_list, vm_link)
 		if (i915_vma_is_pinned(vma))
 			pinned += vma->node.size;
 	mutex_unlock(&dev->struct_mutex);
 
-	args->aper_size = ggtt->base.total;
+	args->aper_size = ggtt->vm.total;
 	args->aper_available_size = args->aper_size - pinned;
 
 	return 0;
@@ -1223,9 +1223,9 @@ i915_gem_gtt_pread(struct drm_i915_gem_object *obj,
 		page_length = remain < page_length ? remain : page_length;
 		if (node.allocated) {
 			wmb();
-			ggtt->base.insert_page(&ggtt->base,
-					       i915_gem_object_get_dma_address(obj, offset >> PAGE_SHIFT),
-					       node.start, I915_CACHE_NONE, 0);
+			ggtt->vm.insert_page(&ggtt->vm,
+					     i915_gem_object_get_dma_address(obj, offset >> PAGE_SHIFT),
+					     node.start, I915_CACHE_NONE, 0);
 			wmb();
 		} else {
 			page_base += offset & PAGE_MASK;
@@ -1246,8 +1246,7 @@ i915_gem_gtt_pread(struct drm_i915_gem_object *obj,
 out_unpin:
 	if (node.allocated) {
 		wmb();
-		ggtt->base.clear_range(&ggtt->base,
-				       node.start, node.size);
+		ggtt->vm.clear_range(&ggtt->vm, node.start, node.size);
 		remove_mappable_node(&node);
 	} else {
 		i915_vma_unpin(vma);
@@ -1426,9 +1425,9 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_gem_object *obj,
 		page_length = remain < page_length ? remain : page_length;
 		if (node.allocated) {
 			wmb(); /* flush the write before we modify the GGTT */
-			ggtt->base.insert_page(&ggtt->base,
-					       i915_gem_object_get_dma_address(obj, offset >> PAGE_SHIFT),
-					       node.start, I915_CACHE_NONE, 0);
+			ggtt->vm.insert_page(&ggtt->vm,
+					     i915_gem_object_get_dma_address(obj, offset >> PAGE_SHIFT),
+					     node.start, I915_CACHE_NONE, 0);
 			wmb(); /* flush modifications to the GGTT (insert_page) */
 		} else {
 			page_base += offset & PAGE_MASK;
@@ -1455,8 +1454,7 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_gem_object *obj,
 out_unpin:
 	if (node.allocated) {
 		wmb();
-		ggtt->base.clear_range(&ggtt->base,
-				       node.start, node.size);
+		ggtt->vm.clear_range(&ggtt->vm, node.start, node.size);
 		remove_mappable_node(&node);
 	} else {
 		i915_vma_unpin(vma);
@@ -4374,7 +4372,7 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			 u64 flags)
 {
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-	struct i915_address_space *vm = &dev_priv->ggtt.base;
+	struct i915_address_space *vm = &dev_priv->ggtt.vm;
 	struct i915_vma *vma;
 	int ret;
 

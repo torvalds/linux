@@ -536,7 +536,7 @@ static void guc_add_request(struct intel_guc *guc, struct i915_request *rq)
  */
 static void flush_ggtt_writes(struct i915_vma *vma)
 {
-	struct drm_i915_private *dev_priv = to_i915(vma->obj->base.dev);
+	struct drm_i915_private *dev_priv = vma->vm->i915;
 
 	if (i915_vma_is_map_and_fenceable(vma))
 		POSTING_READ_FW(GUC_STATUS);
