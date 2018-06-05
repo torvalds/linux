@@ -1704,6 +1704,7 @@ config ARCH_WANT_GENERAL_HUGETLB
 config ARM_MODULE_PLTS
 	bool "Use PLTs to allow module memory to spill over into vmalloc area"
 	depends on MODULES
+	default y
 	help
 	  Allocate PLTs when loading modules so that jumps and calls whose
 	  targets are too far away for their relative offsets to be encoded
@@ -1714,7 +1715,8 @@ config ARM_MODULE_PLTS
 	  rounding up to page size, the actual memory footprint is usually
 	  the same.
 
-	  Say y if you are getting out of memory errors while loading modules
+	  Disabling this is usually safe for small single-platform
+	  configurations. If unsure, say y.
 
 source "mm/Kconfig"
 

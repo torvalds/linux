@@ -12,6 +12,7 @@
 #include <asm/cache.h>
 #include <asm/thread_info.h>
 #include <asm/memory.h>
+#include <asm/mpu.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 
@@ -54,6 +55,9 @@ SECTIONS
 	. = ALIGN(1<<SECTION_SHIFT);
 #endif
 
+#ifdef CONFIG_ARM_MPU
+	. = ALIGN(PMSAv8_MINALIGN);
+#endif
 	.text : {			/* Real text segment		*/
 		_stext = .;		/* Text and read-only data	*/
 		ARM_TEXT
@@ -143,6 +147,9 @@ SECTIONS
 	_edata = .;
 
 	BSS_SECTION(0, 0, 0)
+#ifdef CONFIG_ARM_MPU
+	. = ALIGN(PMSAv8_MINALIGN);
+#endif
 	_end = .;
 
 	STABS_DEBUG
