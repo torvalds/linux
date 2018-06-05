@@ -2636,7 +2636,7 @@ static unsigned hub_is_wusb(struct usb_hub *hub)
 #define SET_ADDRESS_TRIES	2
 #define GET_DESCRIPTOR_TRIES	2
 #define SET_CONFIG_TRIES	(2 * (use_both_schemes + 1))
-#define USE_NEW_SCHEME(i)	((i) / 2 == (int)old_scheme_first)
+#define USE_NEW_SCHEME(i, scheme)	((i) / 2 == (int)scheme)
 
 #define HUB_ROOT_RESET_TIME	60	/* times are in msec */
 #define HUB_SHORT_RESET_TIME	10
@@ -2651,12 +2651,16 @@ static unsigned hub_is_wusb(struct usb_hub *hub)
  * enumeration failures, so disable this enumeration scheme for USB3
  * devices.
  */
-static bool use_new_scheme(struct usb_device *udev, int retry)
+static bool use_new_scheme(struct usb_device *udev, int retry,
+			   struct usb_port *port_dev)
 {
+	int old_scheme_first_port =
+		port_dev->quirks & USB_PORT_QUIRK_OLD_SCHEME;
+
 	if (udev->speed >= USB_SPEED_SUPER)
 		return false;
 
-	return USE_NEW_SCHEME(retry);
+	return USE_NEW_SCHEME(retry, old_scheme_first_port || old_scheme_first);
 }
 
 /* Is a USB 3.0 port in the Inactive or Compliance Mode state?
@@ -2751,6 +2755,14 @@ static int hub_port_wait_reset(struct usb_hub *hub, int port1,
 	if (!udev)
 		return 0;
 
+	if (hub_is_superspeedplus(hub->hdev)) {
+		/* extended portstatus Rx and Tx lane count are zero based */
+		udev->rx_lanes = USB_EXT_PORT_RX_LANES(ext_portstatus) + 1;
+		udev->tx_lanes = USB_EXT_PORT_TX_LANES(ext_portstatus) + 1;
+	} else {
+		udev->rx_lanes = 1;
+		udev->tx_lanes = 1;
+	}
 	if (hub_is_wusb(hub))
 		udev->speed = USB_SPEED_WIRELESS;
 	else if (hub_is_superspeedplus(hub->hdev) &&
@@ -2867,7 +2879,11 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 done:
 	if (status == 0) {
 		/* TRSTRCY = 10 ms; plus some extra */
-		msleep(10 + 40);
+		if (port_dev->quirks & USB_PORT_QUIRK_FAST_ENUM)
+			usleep_range(10000, 12000);
+		else
+			msleep(10 + 40);
+
 		if (udev) {
 			struct usb_hcd *hcd = bus_to_hcd(udev->bus);
 
@@ -3376,6 +3392,10 @@ static int wait_for_connected(struct usb_device *udev,
 	while (delay_ms < 2000) {
 		if (status || *portstatus & USB_PORT_STAT_CONNECTION)
 			break;
+		if (!port_is_power_on(hub, *portstatus)) {
+			status = -ENODEV;
+			break;
+		}
 		msleep(20);
 		delay_ms += 20;
 		status = hub_port_status(hub, *port1, portstatus, portchange);
@@ -4380,6 +4400,7 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 {
 	struct usb_device	*hdev = hub->hdev;
 	struct usb_hcd		*hcd = bus_to_hcd(hdev->bus);
+	struct usb_port		*port_dev = hub->ports[port1 - 1];
 	int			retries, operations, retval, i;
 	unsigned		delay = HUB_SHORT_RESET_TIME;
 	enum usb_device_speed	oldspeed = udev->speed;
@@ -4501,7 +4522,7 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 	for (retries = 0; retries < GET_DESCRIPTOR_TRIES; (++retries, msleep(100))) {
 		bool did_new_scheme = false;
 
-		if (use_new_scheme(udev, retry_counter)) {
+		if (use_new_scheme(udev, retry_counter, port_dev)) {
 			struct usb_device_descriptor *buf;
 			int r = 0;
 
@@ -4551,7 +4572,9 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 				 * reset. But only on the first attempt,
 				 * lest we get into a time out/reset loop
 				 */
-				if (r == 0  || (r == -ETIMEDOUT && retries == 0))
+				if (r == 0 || (r == -ETIMEDOUT &&
+						retries == 0 &&
+						udev->speed > USB_SPEED_FULL))
 					break;
 			}
 			udev->descriptor.bMaxPacketSize0 =
@@ -4598,9 +4621,12 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 			if (udev->speed >= USB_SPEED_SUPER) {
 				devnum = udev->devnum;
 				dev_info(&udev->dev,
-						"%s SuperSpeed%s USB device number %d using %s\n",
+						"%s SuperSpeed%s%s USB device number %d using %s\n",
 						(udev->config) ? "reset" : "new",
-					 (udev->speed == USB_SPEED_SUPER_PLUS) ? "Plus" : "",
+					 (udev->speed == USB_SPEED_SUPER_PLUS) ?
+							"Plus Gen 2" : " Gen 1",
+					 (udev->rx_lanes == 2 && udev->tx_lanes == 2) ?
+							"x2" : "",
 					 devnum, driver_name);
 			}
 

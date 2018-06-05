@@ -197,6 +197,11 @@ struct usb_port_status {
 #define USB_EXT_PORT_STAT_RX_LANES	0x00000f00
 #define USB_EXT_PORT_STAT_TX_LANES	0x0000f000
 
+#define USB_EXT_PORT_RX_LANES(p) \
+			(((p) & USB_EXT_PORT_STAT_RX_LANES) >> 8)
+#define USB_EXT_PORT_TX_LANES(p) \
+			(((p) & USB_EXT_PORT_STAT_TX_LANES) >> 12)
+
 /*
  * wHubCharacteristics (masks)
  * See USB 2.0 spec Table 11-13, offset 3
