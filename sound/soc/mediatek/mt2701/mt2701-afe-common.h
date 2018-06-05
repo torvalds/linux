@@ -1,17 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * mt2701-afe-common.h  --  Mediatek 2701 audio driver definitions
  *
  * Copyright (c) 2016 MediaTek Inc.
  * Author: Garlic Tseng <garlic.tseng@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _MT_2701_AFE_COMMON_H_
@@ -23,10 +15,8 @@
 #include "mt2701-reg.h"
 #include "../common/mtk-base-afe.h"
 
-#define MT2701_STREAM_DIR_NUM (SNDRV_PCM_STREAM_LAST + 1)
 #define MT2701_PLL_DOMAIN_0_RATE	98304000
 #define MT2701_PLL_DOMAIN_1_RATE	90316800
-#define MT2701_I2S_NUM	4
 
 enum {
 	MT2701_MEMIF_DL1,
@@ -100,30 +90,30 @@ struct mt2701_i2s_data {
 	int i2s_asrc_fs_mask;
 };
 
-enum mt2701_i2s_dir {
-	I2S_OUT,
-	I2S_IN,
-	I2S_DIR_NUM,
-};
-
 struct mt2701_i2s_path {
-	int dai_id;
 	int mclk_rate;
-	int on[I2S_DIR_NUM];
-	int occupied[I2S_DIR_NUM];
-	const struct mt2701_i2s_data *i2s_data[I2S_DIR_NUM];
-	struct clk *hop_ck[I2S_DIR_NUM];
+	int on[MTK_STREAM_NUM];
+	int occupied[MTK_STREAM_NUM];
+	const struct mt2701_i2s_data *i2s_data[MTK_STREAM_NUM];
+	struct clk *hop_ck[MTK_STREAM_NUM];
 	struct clk *sel_ck;
 	struct clk *div_ck;
 	struct clk *mclk_ck;
 	struct clk *asrco_ck;
 };
 
+struct mt2701_soc_variants {
+	bool has_one_heart_mode;
+	int i2s_num;
+};
+
 struct mt2701_afe_private {
-	struct mt2701_i2s_path i2s_path[MT2701_I2S_NUM];
+	struct mt2701_i2s_path *i2s_path;
 	struct clk *base_ck[MT2701_BASE_CLK_NUM];
 	struct clk *mrgif_ck;
-	bool mrg_enable[MT2701_STREAM_DIR_NUM];
+	bool mrg_enable[MTK_STREAM_NUM];
+
+	const struct mt2701_soc_variants *soc;
 };
 
 #endif

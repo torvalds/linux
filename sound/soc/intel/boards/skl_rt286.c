@@ -527,7 +527,7 @@ static int skylake_audio_probe(struct platform_device *pdev)
 {
 	struct skl_rt286_private *ctx;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_ATOMIC);
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
