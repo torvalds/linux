@@ -88,7 +88,6 @@
 	| ATTR_MTIME_SET)
 
 struct nfs4_opendata;
-static void nfs4_layoutget_release(void *calldata);
 static int _nfs4_recover_proc_open(struct nfs4_opendata *data);
 static int nfs4_do_fsinfo(struct nfs_server *, struct nfs_fh *, struct nfs_fsinfo *);
 static void nfs_fixup_referral_attributes(struct nfs_fattr *fattr);
@@ -906,10 +905,6 @@ nfs4_sequence_process_interrupted(struct nfs_client *client,
 }
 
 #else	/* !CONFIG_NFS_V4_1 */
-
-static void nfs4_layoutget_release(void *calldata)
-{
-}
 
 static int nfs4_sequence_process(struct rpc_task *task, struct nfs4_sequence_res *res)
 {
