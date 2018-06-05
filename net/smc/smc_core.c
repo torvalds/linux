@@ -16,6 +16,7 @@
 #include <net/tcp.h>
 #include <net/sock.h>
 #include <rdma/ib_verbs.h>
+#include <rdma/ib_cache.h>
 
 #include "smc.h"
 #include "smc_clc.h"
@@ -450,8 +451,7 @@ out:
 static int smc_link_determine_gid(struct smc_link_group *lgr)
 {
 	struct smc_link *lnk = &lgr->lnk[SMC_SINGLE_LINK];
-	struct ib_gid_attr gattr;
-	union ib_gid gid;
+	const struct ib_gid_attr *gattr;
 	int i;
 
 	if (!lgr->vlan_id) {
@@ -461,18 +461,18 @@ static int smc_link_determine_gid(struct smc_link_group *lgr)
 
 	for (i = 0; i < lnk->smcibdev->pattr[lnk->ibport - 1].gid_tbl_len;
 	     i++) {
-		if (ib_query_gid(lnk->smcibdev->ibdev, lnk->ibport, i, &gid,
-				 &gattr))
+		gattr = rdma_get_gid_attr(lnk->smcibdev->ibdev, lnk->ibport, i);
+		if (IS_ERR(gattr))
 			continue;
-		if (gattr.ndev) {
-			if (is_vlan_dev(gattr.ndev) &&
-			    vlan_dev_vlan_id(gattr.ndev) == lgr->vlan_id) {
-				lnk->gid = gid;
-				dev_put(gattr.ndev);
+		if (gattr->ndev) {
+			if (is_vlan_dev(gattr->ndev) &&
+			    vlan_dev_vlan_id(gattr->ndev) == lgr->vlan_id) {
+				lnk->gid = gattr->gid;
+				rdma_put_gid_attr(gattr);
 				return 0;
 			}
-			dev_put(gattr.ndev);
 		}
+		rdma_put_gid_attr(gattr);
 	}
 	return -ENODEV;
 }

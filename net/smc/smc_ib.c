@@ -16,6 +16,7 @@
 #include <linux/workqueue.h>
 #include <linux/scatterlist.h>
 #include <rdma/ib_verbs.h>
+#include <rdma/ib_cache.h>
 
 #include "smc_pnet.h"
 #include "smc_ib.h"
@@ -372,17 +373,21 @@ void smc_ib_buf_unmap_sg(struct smc_ib_device *smcibdev,
 
 static int smc_ib_fill_gid_and_mac(struct smc_ib_device *smcibdev, u8 ibport)
 {
-	struct ib_gid_attr gattr;
-	int rc;
+	const struct ib_gid_attr *gattr;
+	int rc = 0;
 
-	rc = ib_query_gid(smcibdev->ibdev, ibport, 0,
-			  &smcibdev->gid[ibport - 1], &gattr);
-	if (rc || !gattr.ndev)
-		return -ENODEV;
-
-	memcpy(smcibdev->mac[ibport - 1], gattr.ndev->dev_addr, ETH_ALEN);
-	dev_put(gattr.ndev);
-	return 0;
+	gattr = rdma_get_gid_attr(smcibdev->ibdev, ibport, 0);
+	if (IS_ERR(gattr))
+		return PTR_ERR(gattr);
+	if (!gattr->ndev) {
+		rc = -ENODEV;
+		goto done;
+	}
+	smcibdev->gid[ibport - 1] = gattr->gid;
+	memcpy(smcibdev->mac[ibport - 1], gattr->ndev->dev_addr, ETH_ALEN);
+done:
+	rdma_put_gid_attr(gattr);
+	return rc;
 }
 
 /* Create an identifier unique for this instance of SMC-R.
