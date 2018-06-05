@@ -467,7 +467,7 @@ enum perf_addr_filter_action_t {
  */
 struct perf_addr_filter {
 	struct list_head	entry;
-	struct inode		*inode;
+	struct path		path;
 	unsigned long		offset;
 	unsigned long		size;
 	enum perf_addr_filter_action_t	action;
@@ -1014,6 +1014,14 @@ static inline bool is_sampling_event(struct perf_event *event)
 static inline int is_software_event(struct perf_event *event)
 {
 	return event->event_caps & PERF_EV_CAP_SOFTWARE;
+}
+
+/*
+ * Return 1 for event in sw context, 0 for event in hw context
+ */
+static inline int in_software_context(struct perf_event *event)
+{
+	return event->ctx->pmu->task_ctx_nr == perf_sw_context;
 }
 
 extern struct static_key perf_swevent_enabled[PERF_COUNT_SW_MAX];

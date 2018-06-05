@@ -153,8 +153,8 @@ static struct {
 		.fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID |
 			      PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
 			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_IP |
-			      PERF_OUTPUT_SYM | PERF_OUTPUT_DSO |
-			      PERF_OUTPUT_PERIOD,
+			      PERF_OUTPUT_SYM | PERF_OUTPUT_SYMOFFSET |
+			      PERF_OUTPUT_DSO | PERF_OUTPUT_PERIOD,
 
 		.invalid_fields = PERF_OUTPUT_TRACE | PERF_OUTPUT_BPF_OUTPUT,
 	},
@@ -165,8 +165,9 @@ static struct {
 		.fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID |
 			      PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
 			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_IP |
-			      PERF_OUTPUT_SYM | PERF_OUTPUT_DSO |
-			      PERF_OUTPUT_PERIOD | PERF_OUTPUT_BPF_OUTPUT,
+			      PERF_OUTPUT_SYM | PERF_OUTPUT_SYMOFFSET |
+			      PERF_OUTPUT_DSO | PERF_OUTPUT_PERIOD |
+			      PERF_OUTPUT_BPF_OUTPUT,
 
 		.invalid_fields = PERF_OUTPUT_TRACE,
 	},
@@ -185,10 +186,10 @@ static struct {
 		.fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID |
 			      PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
 			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_IP |
-			      PERF_OUTPUT_SYM | PERF_OUTPUT_DSO |
-			      PERF_OUTPUT_PERIOD |  PERF_OUTPUT_ADDR |
-			      PERF_OUTPUT_DATA_SRC | PERF_OUTPUT_WEIGHT |
-			      PERF_OUTPUT_PHYS_ADDR,
+			      PERF_OUTPUT_SYM | PERF_OUTPUT_SYMOFFSET |
+			      PERF_OUTPUT_DSO | PERF_OUTPUT_PERIOD |
+			      PERF_OUTPUT_ADDR | PERF_OUTPUT_DATA_SRC |
+			      PERF_OUTPUT_WEIGHT | PERF_OUTPUT_PHYS_ADDR,
 
 		.invalid_fields = PERF_OUTPUT_TRACE | PERF_OUTPUT_BPF_OUTPUT,
 	},
@@ -199,8 +200,8 @@ static struct {
 		.fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID |
 			      PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
 			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_IP |
-			      PERF_OUTPUT_SYM | PERF_OUTPUT_DSO |
-			      PERF_OUTPUT_PERIOD,
+			      PERF_OUTPUT_SYM | PERF_OUTPUT_SYMOFFSET |
+			      PERF_OUTPUT_DSO | PERF_OUTPUT_PERIOD,
 
 		.invalid_fields = PERF_OUTPUT_TRACE | PERF_OUTPUT_BPF_OUTPUT,
 	},
@@ -211,8 +212,8 @@ static struct {
 		.fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID |
 			      PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
 			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_IP |
-			      PERF_OUTPUT_SYM | PERF_OUTPUT_DSO |
-			      PERF_OUTPUT_SYNTH,
+			      PERF_OUTPUT_SYM | PERF_OUTPUT_SYMOFFSET |
+			      PERF_OUTPUT_DSO | PERF_OUTPUT_SYNTH,
 
 		.invalid_fields = PERF_OUTPUT_TRACE | PERF_OUTPUT_BPF_OUTPUT,
 	},
@@ -544,6 +545,7 @@ static int perf_session__check_output_opt(struct perf_session *session)
 			if (attr->sample_type & PERF_SAMPLE_CALLCHAIN) {
 				output[j].fields |= PERF_OUTPUT_IP;
 				output[j].fields |= PERF_OUTPUT_SYM;
+				output[j].fields |= PERF_OUTPUT_SYMOFFSET;
 				output[j].fields |= PERF_OUTPUT_DSO;
 				set_print_ip_opts(attr);
 				goto out;
@@ -717,8 +719,8 @@ static int perf_sample__fprintf_brstack(struct perf_sample *sample,
 		if (PRINT_FIELD(DSO)) {
 			memset(&alf, 0, sizeof(alf));
 			memset(&alt, 0, sizeof(alt));
-			thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, from, &alf);
-			thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, to, &alt);
+			thread__find_map(thread, sample->cpumode, from, &alf);
+			thread__find_map(thread, sample->cpumode, to, &alt);
 		}
 
 		printed += fprintf(fp, " 0x%"PRIx64, from);
@@ -764,13 +766,8 @@ static int perf_sample__fprintf_brstacksym(struct perf_sample *sample,
 		from = br->entries[i].from;
 		to   = br->entries[i].to;
 
-		thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, from, &alf);
-		if (alf.map)
-			alf.sym = map__find_symbol(alf.map, alf.addr);
-
-		thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, to, &alt);
-		if (alt.map)
-			alt.sym = map__find_symbol(alt.map, alt.addr);
+		thread__find_symbol(thread, sample->cpumode, from, &alf);
+		thread__find_symbol(thread, sample->cpumode, to, &alt);
 
 		printed += symbol__fprintf_symname_offs(alf.sym, &alf, fp);
 		if (PRINT_FIELD(DSO)) {
@@ -814,12 +811,12 @@ static int perf_sample__fprintf_brstackoff(struct perf_sample *sample,
 		from = br->entries[i].from;
 		to   = br->entries[i].to;
 
-		thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, from, &alf);
-		if (alf.map && !alf.map->dso->adjust_symbols)
+		if (thread__find_map(thread, sample->cpumode, from, &alf) &&
+		    !alf.map->dso->adjust_symbols)
 			from = map__map_ip(alf.map, from);
 
-		thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, to, &alt);
-		if (alt.map && !alt.map->dso->adjust_symbols)
+		if (thread__find_map(thread, sample->cpumode, to, &alt) &&
+		    !alt.map->dso->adjust_symbols)
 			to = map__map_ip(alt.map, to);
 
 		printed += fprintf(fp, " 0x%"PRIx64, from);
@@ -882,8 +879,7 @@ static int grab_bb(u8 *buffer, u64 start, u64 end,
 		return 0;
 	}
 
-	thread__find_addr_map(thread, *cpumode, MAP__FUNCTION, start, &al);
-	if (!al.map || !al.map->dso) {
+	if (!thread__find_map(thread, *cpumode, start, &al) || !al.map->dso) {
 		pr_debug("\tcannot resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
 		return 0;
 	}
@@ -933,10 +929,8 @@ static int ip__fprintf_sym(uint64_t addr, struct thread *thread,
 
 	memset(&al, 0, sizeof(al));
 
-	thread__find_addr_map(thread, cpumode, MAP__FUNCTION, addr, &al);
-	if (!al.map)
-		thread__find_addr_map(thread, cpumode, MAP__VARIABLE,
-				      addr, &al);
+	thread__find_map(thread, cpumode, addr, &al);
+
 	if ((*lastsym) && al.addr >= (*lastsym)->start && al.addr < (*lastsym)->end)
 		return 0;
 

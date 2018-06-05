@@ -203,7 +203,7 @@ static void uncore_assign_hw_event(struct intel_uncore_box *box,
 	hwc->idx = idx;
 	hwc->last_tag = ++box->tags[idx];
 
-	if (hwc->idx == UNCORE_PMC_IDX_FIXED) {
+	if (uncore_pmc_fixed(hwc->idx)) {
 		hwc->event_base = uncore_fixed_ctr(box);
 		hwc->config_base = uncore_fixed_ctl(box);
 		return;
@@ -218,7 +218,9 @@ void uncore_perf_event_update(struct intel_uncore_box *box, struct perf_event *e
 	u64 prev_count, new_count, delta;
 	int shift;
 
-	if (event->hw.idx >= UNCORE_PMC_IDX_FIXED)
+	if (uncore_pmc_freerunning(event->hw.idx))
+		shift = 64 - uncore_freerunning_bits(box, event);
+	else if (uncore_pmc_fixed(event->hw.idx))
 		shift = 64 - uncore_fixed_ctr_bits(box);
 	else
 		shift = 64 - uncore_perf_ctr_bits(box);
@@ -449,15 +451,30 @@ static int uncore_assign_events(struct intel_uncore_box *box, int assign[], int 
 	return ret ? -EINVAL : 0;
 }
 
-static void uncore_pmu_event_start(struct perf_event *event, int flags)
+void uncore_pmu_event_start(struct perf_event *event, int flags)
 {
 	struct intel_uncore_box *box = uncore_event_to_box(event);
 	int idx = event->hw.idx;
 
-	if (WARN_ON_ONCE(!(event->hw.state & PERF_HES_STOPPED)))
+	if (WARN_ON_ONCE(idx == -1 || idx >= UNCORE_PMC_IDX_MAX))
 		return;
 
-	if (WARN_ON_ONCE(idx == -1 || idx >= UNCORE_PMC_IDX_MAX))
+	/*
+	 * Free running counter is read-only and always active.
+	 * Use the current counter value as start point.
+	 * There is no overflow interrupt for free running counter.
+	 * Use hrtimer to periodically poll the counter to avoid overflow.
+	 */
+	if (uncore_pmc_freerunning(event->hw.idx)) {
+		list_add_tail(&event->active_entry, &box->active_list);
+		local64_set(&event->hw.prev_count,
+			    uncore_read_counter(box, event));
+		if (box->n_active++ == 0)
+			uncore_pmu_start_hrtimer(box);
+		return;
+	}
+
+	if (WARN_ON_ONCE(!(event->hw.state & PERF_HES_STOPPED)))
 		return;
 
 	event->hw.state = 0;
@@ -474,10 +491,19 @@ static void uncore_pmu_event_start(struct perf_event *event, int flags)
 	}
 }
 
-static void uncore_pmu_event_stop(struct perf_event *event, int flags)
+void uncore_pmu_event_stop(struct perf_event *event, int flags)
 {
 	struct intel_uncore_box *box = uncore_event_to_box(event);
 	struct hw_perf_event *hwc = &event->hw;
+
+	/* Cannot disable free running counter which is read-only */
+	if (uncore_pmc_freerunning(hwc->idx)) {
+		list_del(&event->active_entry);
+		if (--box->n_active == 0)
+			uncore_pmu_cancel_hrtimer(box);
+		uncore_perf_event_update(box, event);
+		return;
+	}
 
 	if (__test_and_clear_bit(hwc->idx, box->active_mask)) {
 		uncore_disable_event(box, event);
@@ -502,7 +528,7 @@ static void uncore_pmu_event_stop(struct perf_event *event, int flags)
 	}
 }
 
-static int uncore_pmu_event_add(struct perf_event *event, int flags)
+int uncore_pmu_event_add(struct perf_event *event, int flags)
 {
 	struct intel_uncore_box *box = uncore_event_to_box(event);
 	struct hw_perf_event *hwc = &event->hw;
@@ -511,6 +537,17 @@ static int uncore_pmu_event_add(struct perf_event *event, int flags)
 
 	if (!box)
 		return -ENODEV;
+
+	/*
+	 * The free funning counter is assigned in event_init().
+	 * The free running counter event and free running counter
+	 * are 1:1 mapped. It doesn't need to be tracked in event_list.
+	 */
+	if (uncore_pmc_freerunning(hwc->idx)) {
+		if (flags & PERF_EF_START)
+			uncore_pmu_event_start(event, 0);
+		return 0;
+	}
 
 	ret = n = uncore_collect_events(box, event, false);
 	if (ret < 0)
@@ -563,12 +600,20 @@ static int uncore_pmu_event_add(struct perf_event *event, int flags)
 	return 0;
 }
 
-static void uncore_pmu_event_del(struct perf_event *event, int flags)
+void uncore_pmu_event_del(struct perf_event *event, int flags)
 {
 	struct intel_uncore_box *box = uncore_event_to_box(event);
 	int i;
 
 	uncore_pmu_event_stop(event, PERF_EF_UPDATE);
+
+	/*
+	 * The event for free running counter is not tracked by event_list.
+	 * It doesn't need to force event->hw.idx = -1 to reassign the counter.
+	 * Because the event and the free running counter are 1:1 mapped.
+	 */
+	if (uncore_pmc_freerunning(event->hw.idx))
+		return;
 
 	for (i = 0; i < box->n_events; i++) {
 		if (event == box->event_list[i]) {
@@ -602,6 +647,10 @@ static int uncore_validate_group(struct intel_uncore_pmu *pmu,
 	struct perf_event *leader = event->group_leader;
 	struct intel_uncore_box *fake_box;
 	int ret = -EINVAL, n;
+
+	/* The free running counter is always active. */
+	if (uncore_pmc_freerunning(event->hw.idx))
+		return 0;
 
 	fake_box = uncore_alloc_box(pmu->type, NUMA_NO_NODE);
 	if (!fake_box)
@@ -690,6 +739,17 @@ static int uncore_pmu_event_init(struct perf_event *event)
 
 		/* fixed counters have event field hardcoded to zero */
 		hwc->config = 0ULL;
+	} else if (is_freerunning_event(event)) {
+		if (!check_valid_freerunning_event(box, event))
+			return -EINVAL;
+		event->hw.idx = UNCORE_PMC_IDX_FREERUNNING;
+		/*
+		 * The free running counter event and free running counter
+		 * are always 1:1 mapped.
+		 * The free running counter is always active.
+		 * Assign the free running counter here.
+		 */
+		event->hw.event_base = uncore_freerunning_counter(box, event);
 	} else {
 		hwc->config = event->attr.config &
 			      (pmu->type->event_mask | ((u64)pmu->type->event_mask_ext << 32));

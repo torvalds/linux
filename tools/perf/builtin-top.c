@@ -742,7 +742,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 "Kernel address maps (/proc/{kallsyms,modules}) are restricted.\n\n"
 "Check /proc/sys/kernel/kptr_restrict.\n\n"
 "Kernel%s samples will not be resolved.\n",
-			  al.map && !RB_EMPTY_ROOT(&al.map->dso->symbols[MAP__FUNCTION]) ?
+			  al.map && map__has_symbols(al.map) ?
 			  " modules" : "");
 			if (use_browser <= 0)
 				sleep(5);
@@ -750,7 +750,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 		machine->kptr_restrict_warned = true;
 	}
 
-	if (al.sym == NULL) {
+	if (al.sym == NULL && al.map != NULL) {
 		const char *msg = "Kernel samples will not be resolved.\n";
 		/*
 		 * As we do lazy loading of symtabs we only will know if the
@@ -764,8 +764,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 		 * invalid --vmlinux ;-)
 		 */
 		if (!machine->kptr_restrict_warned && !top->vmlinux_warned &&
-		    al.map == machine->vmlinux_maps[MAP__FUNCTION] &&
-		    RB_EMPTY_ROOT(&al.map->dso->symbols[MAP__FUNCTION])) {
+		    __map__is_kernel(al.map) && map__has_symbols(al.map)) {
 			if (symbol_conf.vmlinux_name) {
 				char serr[256];
 				dso__strerror_load(al.map->dso, serr, sizeof(serr));
@@ -1265,7 +1264,7 @@ int cmd_top(int argc, const char **argv)
 			.proc_map_timeout    = 500,
 			.overwrite	= 1,
 		},
-		.max_stack	     = sysctl_perf_event_max_stack,
+		.max_stack	     = sysctl__max_stack(),
 		.sym_pcnt_filter     = 5,
 		.nr_threads_synthesize = UINT_MAX,
 	};

@@ -116,6 +116,22 @@ Do not aggregate counts across all monitored CPUs.
 print counts using a CSV-style output to make it easy to import directly into
 spreadsheets. Columns are separated by the string specified in SEP.
 
+--table:: Display time for each run (-r option), in a table format, e.g.:
+
+  $ perf stat --null -r 5 --table perf bench sched pipe
+
+   Performance counter stats for 'perf bench sched pipe' (5 runs):
+
+             # Table of individual measurements:
+             5.189 (-0.293) #
+             5.189 (-0.294) #
+             5.186 (-0.296) #
+             5.663 (+0.181) ##
+             6.186 (+0.703) ####
+
+             # Final result:
+             5.483 +- 0.198 seconds time elapsed  ( +-  3.62% )
+
 -G name::
 --cgroup name::
 monitor only in the container (cgroup) called "name". This option is available only
