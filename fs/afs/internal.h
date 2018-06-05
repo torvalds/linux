@@ -871,11 +871,19 @@ extern int afs_get_ipv4_interfaces(struct afs_net *, struct afs_interface *,
 /*
  * proc.c
  */
+#ifdef CONFIG_PROC_FS
 extern int __net_init afs_proc_init(struct afs_net *);
 extern void __net_exit afs_proc_cleanup(struct afs_net *);
 extern int afs_proc_cell_setup(struct afs_cell *);
 extern void afs_proc_cell_remove(struct afs_cell *);
 extern void afs_put_sysnames(struct afs_sysnames *);
+#else
+static inline int afs_proc_init(struct afs_net *net) { return 0; }
+static inline void afs_proc_cleanup(struct afs_net *net) {}
+static inline int afs_proc_cell_setup(struct afs_cell *cell) { return 0; }
+static inline void afs_proc_cell_remove(struct afs_cell *cell) {}
+static inline void afs_put_sysnames(struct afs_sysnames *sysnames) {}
+#endif
 
 /*
  * rotate.c
