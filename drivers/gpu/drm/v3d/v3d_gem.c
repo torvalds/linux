@@ -654,17 +654,14 @@ void
 v3d_gem_destroy(struct drm_device *dev)
 {
 	struct v3d_dev *v3d = to_v3d_dev(dev);
-	enum v3d_queue q;
 
 	v3d_sched_fini(v3d);
 
 	/* Waiting for exec to finish would need to be done before
 	 * unregistering V3D.
 	 */
-	for (q = 0; q < V3D_MAX_QUEUES; q++) {
-		WARN_ON(v3d->queue[q].emit_seqno !=
-			v3d->queue[q].finished_seqno);
-	}
+	WARN_ON(v3d->bin_job);
+	WARN_ON(v3d->render_job);
 
 	drm_mm_takedown(&v3d->mm);
 

@@ -25,7 +25,6 @@ struct v3d_queue_state {
 
 	u64 fence_context;
 	u64 emit_seqno;
-	u64 finished_seqno;
 };
 
 struct v3d_dev {
