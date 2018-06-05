@@ -108,6 +108,12 @@ size_t pci_get_rom_size(struct pci_dev *pdev, void __iomem *rom, size_t size)
 		/* Avoid iterating through memory outside the resource window */
 		if (image >= rom + size)
 			break;
+		if (!last_image) {
+			if (readw(image) != 0xAA55) {
+				pci_info(pdev, "No more image in the PCI ROM\n");
+				break;
+			}
+		}
 	} while (length && !last_image);
 
 	/* never return a size larger than the PCI resource window */
