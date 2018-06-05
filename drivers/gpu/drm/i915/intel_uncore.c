@@ -2093,21 +2093,25 @@ static int gen8_reset_engines(struct drm_i915_private *dev_priv,
 {
 	struct intel_engine_cs *engine;
 	unsigned int tmp;
+	int ret;
 
-	for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
-		if (gen8_reset_engine_start(engine))
+	for_each_engine_masked(engine, dev_priv, engine_mask, tmp) {
+		if (gen8_reset_engine_start(engine)) {
+			ret = -EIO;
 			goto not_ready;
+		}
+	}
 
 	if (INTEL_GEN(dev_priv) >= 11)
-		return gen11_reset_engines(dev_priv, engine_mask);
+		ret = gen11_reset_engines(dev_priv, engine_mask);
 	else
-		return gen6_reset_engines(dev_priv, engine_mask);
+		ret = gen6_reset_engines(dev_priv, engine_mask);
 
 not_ready:
 	for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
 		gen8_reset_engine_cancel(engine);
 
-	return -EIO;
+	return ret;
 }
 
 typedef int (*reset_func)(struct drm_i915_private *, unsigned engine_mask);
