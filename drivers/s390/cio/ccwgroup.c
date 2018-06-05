@@ -561,6 +561,12 @@ static struct bus_type ccwgroup_bus_type = {
 	.pm = &ccwgroup_pm_ops,
 };
 
+bool dev_is_ccwgroup(struct device *dev)
+{
+	return dev->bus == &ccwgroup_bus_type;
+}
+EXPORT_SYMBOL(dev_is_ccwgroup);
+
 /**
  * ccwgroup_driver_register() - register a ccw group driver
  * @cdriver: driver to be registered
