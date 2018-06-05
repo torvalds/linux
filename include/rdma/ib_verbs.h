@@ -94,6 +94,7 @@ enum ib_gid_type {
 struct ib_gid_attr {
 	struct net_device	*ndev;
 	struct ib_device	*device;
+	union ib_gid		gid;
 	enum ib_gid_type	gid_type;
 	u16			index;
 	u8			port_num;
