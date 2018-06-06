@@ -47,8 +47,16 @@
 	};
 };
 
+&ehci0 {
+	status = "okay";
+};
+
 &extal_clk {
 	clock-frequency = <48000000>;
+};
+
+&ohci0 {
+	status = "okay";
 };
 
 &pfc {
@@ -58,6 +66,11 @@
 			function = "avb";
 		};
 	};
+
+	usb0_pins: usb {
+		groups = "usb0_b";
+		function = "usb0";
+	};
 };
 
 &rwdt {
@@ -66,5 +79,12 @@
 };
 
 &scif2 {
+	status = "okay";
+};
+
+&usb2_phy0 {
+	pinctrl-0 = <&usb0_pins>;
+	pinctrl-names = "default";
+
 	status = "okay";
 };
