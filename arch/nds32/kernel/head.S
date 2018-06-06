@@ -57,14 +57,32 @@ _nodtb:
 	isb
 	mtsr    $r4, $L1_PPTB       ! load page table pointer\n"
 
-/* set NTC0 cacheable/writeback, mutliple page size in use */
-	mfsr    $r3, $MMU_CTL
-	li      $r0, #~MMU_CTL_mskNTC0
-	and     $r3, $r3, $r0
-#ifdef CONFIG_ANDES_PAGE_SIZE_4KB
-	ori     $r3, $r3, #(MMU_CTL_mskMPZIU|(MMU_CTL_CACHEABLE_WB << MMU_CTL_offNTC0))
+#ifdef CONFIG_CPU_DCACHE_DISABLE
+	#define MMU_CTL_NTCC MMU_CTL_CACHEABLE_NON
 #else
-	ori     $r3, $r3, #(MMU_CTL_mskMPZIU|(MMU_CTL_CACHEABLE_WB << MMU_CTL_offNTC0)|MMU_CTL_D8KB)
+	#ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
+		#define MMU_CTL_NTCC MMU_CTL_CACHEABLE_WT
+	#else
+		#define MMU_CTL_NTCC MMU_CTL_CACHEABLE_WB
+	#endif
+#endif
+
+/* set NTC cacheability, mutliple page size in use */
+	mfsr    $r3, $MMU_CTL
+#if CONFIG_MEMORY_START >= 0xc0000000
+	ori     $r3, $r3, (MMU_CTL_NTCC << MMU_CTL_offNTC3)
+#elif CONFIG_MEMORY_START >= 0x80000000
+	ori     $r3, $r3, (MMU_CTL_NTCC << MMU_CTL_offNTC2)
+#elif CONFIG_MEMORY_START >= 0x40000000
+	ori     $r3, $r3, (MMU_CTL_NTCC << MMU_CTL_offNTC1)
+#else
+	ori     $r3, $r3, (MMU_CTL_NTCC << MMU_CTL_offNTC0)
+#endif
+
+#ifdef CONFIG_ANDES_PAGE_SIZE_4KB
+	ori     $r3, $r3, #(MMU_CTL_mskMPZIU)
+#else
+	ori     $r3, $r3, #(MMU_CTL_mskMPZIU|MMU_CTL_D8KB)
 #endif
 #ifdef CONFIG_HW_SUPPORT_UNALIGNMENT_ACCESS
 	li      $r0, #MMU_CTL_UNA

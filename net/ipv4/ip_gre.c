@@ -722,10 +722,12 @@ static netdev_tx_t erspan_xmit(struct sk_buff *skb,
 		erspan_build_header(skb, ntohl(tunnel->parms.o_key),
 				    tunnel->index,
 				    truncate, true);
-	else
+	else if (tunnel->erspan_ver == 2)
 		erspan_build_header_v2(skb, ntohl(tunnel->parms.o_key),
 				       tunnel->dir, tunnel->hwid,
 				       truncate, true);
+	else
+		goto free_skb;
 
 	tunnel->parms.o_flags &= ~TUNNEL_KEY;
 	__gre_xmit(skb, dev, &tunnel->parms.iph, htons(ETH_P_ERSPAN));

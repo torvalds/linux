@@ -67,8 +67,12 @@
 
 #define bio_multiple_segments(bio)				\
 	((bio)->bi_iter.bi_size != bio_iovec(bio).bv_len)
-#define bio_sectors(bio)	((bio)->bi_iter.bi_size >> 9)
-#define bio_end_sector(bio)	((bio)->bi_iter.bi_sector + bio_sectors((bio)))
+
+#define bvec_iter_sectors(iter)	((iter).bi_size >> 9)
+#define bvec_iter_end_sector(iter) ((iter).bi_sector + bvec_iter_sectors((iter)))
+
+#define bio_sectors(bio)	bvec_iter_sectors((bio)->bi_iter)
+#define bio_end_sector(bio)	bvec_iter_end_sector((bio)->bi_iter)
 
 /*
  * Return the data direction, READ or WRITE.
@@ -121,6 +125,11 @@ static inline void *bio_data(struct bio *bio)
 		return page_address(bio_page(bio)) + bio_offset(bio);
 
 	return NULL;
+}
+
+static inline bool bio_full(struct bio *bio)
+{
+	return bio->bi_vcnt >= bio->bi_max_vecs;
 }
 
 /*
@@ -406,13 +415,13 @@ static inline struct bio *bio_next_split(struct bio *bio, int sectors,
 	return bio_split(bio, sectors, gfp, bs);
 }
 
-extern struct bio_set *bioset_create(unsigned int, unsigned int, int flags);
 enum {
 	BIOSET_NEED_BVECS = BIT(0),
 	BIOSET_NEED_RESCUER = BIT(1),
 };
-extern void bioset_free(struct bio_set *);
-extern mempool_t *biovec_create_pool(int pool_entries);
+extern int bioset_init(struct bio_set *, unsigned int, unsigned int, int flags);
+extern void bioset_exit(struct bio_set *);
+extern int biovec_init_pool(mempool_t *pool, int pool_entries);
 
 extern struct bio *bio_alloc_bioset(gfp_t, unsigned int, struct bio_set *);
 extern void bio_put(struct bio *);
@@ -421,11 +430,11 @@ extern void __bio_clone_fast(struct bio *, struct bio *);
 extern struct bio *bio_clone_fast(struct bio *, gfp_t, struct bio_set *);
 extern struct bio *bio_clone_bioset(struct bio *, gfp_t, struct bio_set *bs);
 
-extern struct bio_set *fs_bio_set;
+extern struct bio_set fs_bio_set;
 
 static inline struct bio *bio_alloc(gfp_t gfp_mask, unsigned int nr_iovecs)
 {
-	return bio_alloc_bioset(gfp_mask, nr_iovecs, fs_bio_set);
+	return bio_alloc_bioset(gfp_mask, nr_iovecs, &fs_bio_set);
 }
 
 static inline struct bio *bio_kmalloc(gfp_t gfp_mask, unsigned int nr_iovecs)
@@ -470,6 +479,10 @@ void bio_chain(struct bio *, struct bio *);
 extern int bio_add_page(struct bio *, struct page *, unsigned int,unsigned int);
 extern int bio_add_pc_page(struct request_queue *, struct bio *, struct page *,
 			   unsigned int, unsigned int);
+bool __bio_try_merge_page(struct bio *bio, struct page *page,
+		unsigned int len, unsigned int off);
+void __bio_add_page(struct bio *bio, struct page *page,
+		unsigned int len, unsigned int off);
 int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter);
 struct rq_map_data;
 extern struct bio *bio_map_user_iov(struct request_queue *,
@@ -499,7 +512,10 @@ static inline void bio_flush_dcache_pages(struct bio *bi)
 }
 #endif
 
+extern void bio_copy_data_iter(struct bio *dst, struct bvec_iter *dst_iter,
+			       struct bio *src, struct bvec_iter *src_iter);
 extern void bio_copy_data(struct bio *dst, struct bio *src);
+extern void bio_list_copy_data(struct bio *dst, struct bio *src);
 extern void bio_free_pages(struct bio *bio);
 
 extern struct bio *bio_copy_user_iov(struct request_queue *,
@@ -507,7 +523,13 @@ extern struct bio *bio_copy_user_iov(struct request_queue *,
 				     struct iov_iter *,
 				     gfp_t);
 extern int bio_uncopy_user(struct bio *);
-void zero_fill_bio(struct bio *bio);
+void zero_fill_bio_iter(struct bio *bio, struct bvec_iter iter);
+
+static inline void zero_fill_bio(struct bio *bio)
+{
+	zero_fill_bio_iter(bio, bio->bi_iter);
+}
+
 extern struct bio_vec *bvec_alloc(gfp_t, int, unsigned long *, mempool_t *);
 extern void bvec_free(mempool_t *, struct bio_vec *, unsigned int);
 extern unsigned int bvec_nr_vecs(unsigned short idx);
@@ -722,11 +744,11 @@ struct bio_set {
 	struct kmem_cache *bio_slab;
 	unsigned int front_pad;
 
-	mempool_t *bio_pool;
-	mempool_t *bvec_pool;
+	mempool_t bio_pool;
+	mempool_t bvec_pool;
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
-	mempool_t *bio_integrity_pool;
-	mempool_t *bvec_integrity_pool;
+	mempool_t bio_integrity_pool;
+	mempool_t bvec_integrity_pool;
 #endif
 
 	/*
@@ -744,6 +766,11 @@ struct biovec_slab {
 	char *name;
 	struct kmem_cache *slab;
 };
+
+static inline bool bioset_initialized(struct bio_set *bs)
+{
+	return bs->bio_slab != NULL;
+}
 
 /*
  * a small number of entries is fine, not going to be performance critical.

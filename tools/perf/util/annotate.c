@@ -46,6 +46,7 @@
 struct annotation_options annotation__default_options = {
 	.use_offset     = true,
 	.jump_arrows    = true,
+	.offset_level	= ANNOTATION__OFFSET_JUMP_TARGETS,
 };
 
 const char 	*disassembler_style;
@@ -759,6 +760,15 @@ static int __symbol__account_cycles(struct annotation *notes,
 	ch[offset].num_aggr++;
 	ch[offset].cycles_aggr += cycles;
 
+	if (cycles > ch[offset].cycles_max)
+		ch[offset].cycles_max = cycles;
+
+	if (ch[offset].cycles_min) {
+		if (cycles && cycles < ch[offset].cycles_min)
+			ch[offset].cycles_min = cycles;
+	} else
+		ch[offset].cycles_min = cycles;
+
 	if (!have_start && ch[offset].have_start)
 		return 0;
 	if (ch[offset].num) {
@@ -952,8 +962,11 @@ void annotation__compute_ipc(struct annotation *notes, size_t size)
 			if (ch->have_start)
 				annotation__count_and_fill(notes, ch->start, offset, ch);
 			al = notes->offsets[offset];
-			if (al && ch->num_aggr)
+			if (al && ch->num_aggr) {
 				al->cycles = ch->cycles_aggr / ch->num_aggr;
+				al->cycles_max = ch->cycles_max;
+				al->cycles_min = ch->cycles_min;
+			}
 			notes->have_cycles = true;
 		}
 	}
@@ -1261,6 +1274,9 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 			if (sample->percent > max_percent)
 				max_percent = sample->percent;
 		}
+
+		if (al->samples_nr > nr_percent)
+			nr_percent = al->samples_nr;
 
 		if (max_percent < min_pcnt)
 			return -1;
@@ -1949,6 +1965,7 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 	u64 len;
 	int width = symbol_conf.show_total_period ? 12 : 8;
 	int graph_dotted_len;
+	char buf[512];
 
 	filename = strdup(dso->long_name);
 	if (!filename)
@@ -1961,8 +1978,11 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 
 	len = symbol__size(sym);
 
-	if (perf_evsel__is_group_event(evsel))
+	if (perf_evsel__is_group_event(evsel)) {
 		width *= evsel->nr_members;
+		perf_evsel__group_desc(evsel, buf, sizeof(buf));
+		evsel_name = buf;
+	}
 
 	graph_dotted_len = printf(" %-*.*s|	Source code & Disassembly of %s for %s (%" PRIu64 " samples)\n",
 				  width, width, symbol_conf.show_total_period ? "Period" :
@@ -2482,13 +2502,38 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 		else
 			obj__printf(obj, "%*s ", ANNOTATION__IPC_WIDTH - 1, "IPC");
 
-		if (al->cycles)
-			obj__printf(obj, "%*" PRIu64 " ",
+		if (!notes->options->show_minmax_cycle) {
+			if (al->cycles)
+				obj__printf(obj, "%*" PRIu64 " ",
 					   ANNOTATION__CYCLES_WIDTH - 1, al->cycles);
-		else if (!show_title)
-			obj__printf(obj, "%*s", ANNOTATION__CYCLES_WIDTH, " ");
-		else
-			obj__printf(obj, "%*s ", ANNOTATION__CYCLES_WIDTH - 1, "Cycle");
+			else if (!show_title)
+				obj__printf(obj, "%*s",
+					    ANNOTATION__CYCLES_WIDTH, " ");
+			else
+				obj__printf(obj, "%*s ",
+					    ANNOTATION__CYCLES_WIDTH - 1,
+					    "Cycle");
+		} else {
+			if (al->cycles) {
+				char str[32];
+
+				scnprintf(str, sizeof(str),
+					"%" PRIu64 "(%" PRIu64 "/%" PRIu64 ")",
+					al->cycles, al->cycles_min,
+					al->cycles_max);
+
+				obj__printf(obj, "%*s ",
+					    ANNOTATION__MINMAX_CYCLES_WIDTH - 1,
+					    str);
+			} else if (!show_title)
+				obj__printf(obj, "%*s",
+					    ANNOTATION__MINMAX_CYCLES_WIDTH,
+					    " ");
+			else
+				obj__printf(obj, "%*s ",
+					    ANNOTATION__MINMAX_CYCLES_WIDTH - 1,
+					    "Cycle(min/max)");
+		}
 	}
 
 	obj__printf(obj, " ");
@@ -2512,7 +2557,8 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 		if (!notes->options->use_offset) {
 			printed = scnprintf(bf, sizeof(bf), "%" PRIx64 ": ", addr);
 		} else {
-			if (al->jump_sources) {
+			if (al->jump_sources &&
+			    notes->options->offset_level >= ANNOTATION__OFFSET_JUMP_TARGETS) {
 				if (notes->options->show_nr_jumps) {
 					int prev;
 					printed = scnprintf(bf, sizeof(bf), "%*d ",
@@ -2523,9 +2569,14 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 					obj__printf(obj, bf);
 					obj__set_color(obj, prev);
 				}
-
+print_addr:
 				printed = scnprintf(bf, sizeof(bf), "%*" PRIx64 ": ",
 						    notes->widths.target, addr);
+			} else if (ins__is_call(&disasm_line(al)->ins) &&
+				   notes->options->offset_level >= ANNOTATION__OFFSET_CALL) {
+				goto print_addr;
+			} else if (notes->options->offset_level == ANNOTATION__MAX_OFFSET_LEVEL) {
+				goto print_addr;
 			} else {
 				printed = scnprintf(bf, sizeof(bf), "%-*s  ",
 						    notes->widths.addr, " ");
@@ -2642,10 +2693,11 @@ int __annotation__scnprintf_samples_period(struct annotation *notes,
  */
 static struct annotation_config {
 	const char *name;
-	bool *value;
+	void *value;
 } annotation__configs[] = {
 	ANNOTATION__CFG(hide_src_code),
 	ANNOTATION__CFG(jump_arrows),
+	ANNOTATION__CFG(offset_level),
 	ANNOTATION__CFG(show_linenr),
 	ANNOTATION__CFG(show_nr_jumps),
 	ANNOTATION__CFG(show_nr_samples),
@@ -2677,8 +2729,16 @@ static int annotation__config(const char *var, const char *value,
 
 	if (cfg == NULL)
 		pr_debug("%s variable unknown, ignoring...", var);
-	else
-		*cfg->value = perf_config_bool(name, value);
+	else if (strcmp(var, "annotate.offset_level") == 0) {
+		perf_config_int(cfg->value, name, value);
+
+		if (*(int *)cfg->value > ANNOTATION__MAX_OFFSET_LEVEL)
+			*(int *)cfg->value = ANNOTATION__MAX_OFFSET_LEVEL;
+		else if (*(int *)cfg->value < ANNOTATION__MIN_OFFSET_LEVEL)
+			*(int *)cfg->value = ANNOTATION__MIN_OFFSET_LEVEL;
+	} else {
+		*(bool *)cfg->value = perf_config_bool(name, value);
+	}
 	return 0;
 }
 

@@ -234,6 +234,15 @@ static int uverbs_validate_kernel_mandatory(const struct uverbs_method_spec *met
 			return -EINVAL;
 	}
 
+	for (; i < method_spec->num_buckets; i++) {
+		struct uverbs_attr_spec_hash *attr_spec_bucket =
+			method_spec->attr_buckets[i];
+
+		if (!bitmap_empty(attr_spec_bucket->mandatory_attrs_bitmask,
+				  attr_spec_bucket->num_attrs))
+			return -EINVAL;
+	}
+
 	return 0;
 }
 

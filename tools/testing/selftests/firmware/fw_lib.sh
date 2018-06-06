@@ -154,11 +154,13 @@ test_finish()
 	if [ "$HAS_FW_LOADER_USER_HELPER" = "yes" ]; then
 		echo "$OLD_TIMEOUT" >/sys/class/firmware/timeout
 	fi
-	if [ "$OLD_FWPATH" = "" ]; then
-		OLD_FWPATH=" "
-	fi
 	if [ "$TEST_REQS_FW_SET_CUSTOM_PATH" = "yes" ]; then
-		echo -n "$OLD_FWPATH" >/sys/module/firmware_class/parameters/path
+		if [ "$OLD_FWPATH" = "" ]; then
+			# A zero-length write won't work; write a null byte
+			printf '\000' >/sys/module/firmware_class/parameters/path
+		else
+			echo -n "$OLD_FWPATH" >/sys/module/firmware_class/parameters/path
+		fi
 	fi
 	if [ -f $FW ]; then
 		rm -f "$FW"

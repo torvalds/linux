@@ -942,7 +942,7 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
 		 * downgrading page table protection not changing it to point
 		 * to a new page.
 		 *
-		 * See Documentation/vm/mmu_notifier.txt
+		 * See Documentation/vm/mmu_notifier.rst
 		 */
 		if (ret)
 			(*cleaned)++;
@@ -1374,9 +1374,6 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 		if (!pvmw.pte && (flags & TTU_MIGRATION)) {
 			VM_BUG_ON_PAGE(PageHuge(page) || !PageTransCompound(page), page);
 
-			if (!PageAnon(page))
-				continue;
-
 			set_pmd_migration_entry(&pvmw, page);
 			continue;
 		}
@@ -1602,7 +1599,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 			 * point at new page while a device still is using this
 			 * page.
 			 *
-			 * See Documentation/vm/mmu_notifier.txt
+			 * See Documentation/vm/mmu_notifier.rst
 			 */
 			dec_mm_counter(mm, mm_counter_file(page));
 		}
@@ -1612,7 +1609,7 @@ discard:
 		 * done above for all cases requiring it to happen under page
 		 * table lock before mmu_notifier_invalidate_range_end()
 		 *
-		 * See Documentation/vm/mmu_notifier.txt
+		 * See Documentation/vm/mmu_notifier.rst
 		 */
 		page_remove_rmap(subpage, PageHuge(page));
 		put_page(page);

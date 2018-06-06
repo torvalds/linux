@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // tuner-xc2028
 //
-// Copyright (c) 2007-2008 Mauro Carvalho Chehab (mchehab@infradead.org)
+// Copyright (c) 2007-2008 Mauro Carvalho Chehab <mchehab@kernel.org>
 //
 // Copyright (c) 2007 Michel Ludwig (michel.ludwig@gmail.com)
 //       - frontend interface
@@ -1518,7 +1518,7 @@ EXPORT_SYMBOL(xc2028_attach);
 
 MODULE_DESCRIPTION("Xceive xc2028/xc3028 tuner driver");
 MODULE_AUTHOR("Michel Ludwig <michel.ludwig@gmail.com>");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
+MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@kernel.org>");
 MODULE_LICENSE("GPL v2");
 MODULE_FIRMWARE(XC2028_DEFAULT_FIRMWARE);
 MODULE_FIRMWARE(XC3028L_DEFAULT_FIRMWARE);

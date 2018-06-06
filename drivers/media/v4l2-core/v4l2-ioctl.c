@@ -9,7 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  *
  * Authors:	Alan Cox, <alan@lxorguk.ukuu.org.uk> (version 1)
- *              Mauro Carvalho Chehab <mchehab@infradead.org> (version 2)
+ *              Mauro Carvalho Chehab <mchehab@kernel.org> (version 2)
  */
 
 #include <linux/mm.h>

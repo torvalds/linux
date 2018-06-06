@@ -142,7 +142,7 @@ struct dm_integrity_c {
 	unsigned tag_size;
 	__s8 log2_tag_size;
 	sector_t start;
-	mempool_t *journal_io_mempool;
+	mempool_t journal_io_mempool;
 	struct dm_io_client *io;
 	struct dm_bufio_client *bufio;
 	struct workqueue_struct *metadata_wq;
@@ -1817,7 +1817,7 @@ static void complete_copy_from_journal(unsigned long error, void *context)
 	struct journal_completion *comp = io->comp;
 	struct dm_integrity_c *ic = comp->ic;
 	remove_range(ic, &io->range);
-	mempool_free(io, ic->journal_io_mempool);
+	mempool_free(io, &ic->journal_io_mempool);
 	if (unlikely(error != 0))
 		dm_integrity_io_error(ic, "copying from journal", -EIO);
 	complete_journal_op(comp);
@@ -1886,7 +1886,7 @@ static void do_journal_write(struct dm_integrity_c *ic, unsigned write_start,
 			}
 			next_loop = k - 1;
 
-			io = mempool_alloc(ic->journal_io_mempool, GFP_NOIO);
+			io = mempool_alloc(&ic->journal_io_mempool, GFP_NOIO);
 			io->comp = &comp;
 			io->range.logical_sector = sec;
 			io->range.n_sectors = (k - j) << ic->sb->log2_sectors_per_block;
@@ -1918,7 +1918,7 @@ static void do_journal_write(struct dm_integrity_c *ic, unsigned write_start,
 				if (j == k) {
 					remove_range_unlocked(ic, &io->range);
 					spin_unlock_irq(&ic->endio_wait.lock);
-					mempool_free(io, ic->journal_io_mempool);
+					mempool_free(io, &ic->journal_io_mempool);
 					goto skip_io;
 				}
 				for (l = j; l < k; l++) {
@@ -2440,7 +2440,7 @@ static void dm_integrity_free_journal_scatterlist(struct dm_integrity_c *ic, str
 	unsigned i;
 	for (i = 0; i < ic->journal_sections; i++)
 		kvfree(sl[i]);
-	kfree(sl);
+	kvfree(sl);
 }
 
 static struct scatterlist **dm_integrity_alloc_journal_scatterlist(struct dm_integrity_c *ic, struct page_list *pl)
@@ -2980,9 +2980,8 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		goto bad;
 	}
 
-	ic->journal_io_mempool = mempool_create_slab_pool(JOURNAL_IO_MEMPOOL, journal_io_cache);
-	if (!ic->journal_io_mempool) {
-		r = -ENOMEM;
+	r = mempool_init_slab_pool(&ic->journal_io_mempool, JOURNAL_IO_MEMPOOL, journal_io_cache);
+	if (r) {
 		ti->error = "Cannot allocate mempool";
 		goto bad;
 	}
@@ -3196,7 +3195,7 @@ static void dm_integrity_dtr(struct dm_target *ti)
 		destroy_workqueue(ic->writer_wq);
 	if (ic->bufio)
 		dm_bufio_client_destroy(ic->bufio);
-	mempool_destroy(ic->journal_io_mempool);
+	mempool_exit(&ic->journal_io_mempool);
 	if (ic->io)
 		dm_io_client_destroy(ic->io);
 	if (ic->dev)

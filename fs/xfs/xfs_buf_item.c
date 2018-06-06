@@ -438,7 +438,7 @@ xfs_buf_item_unpin(
 			 * xfs_trans_uncommit() will try to reference the
 			 * buffer which we no longer have a hold on.
 			 */
-			if (lip->li_desc)
+			if (!list_empty(&lip->li_trans))
 				xfs_trans_del_item(lip);
 
 			/*
@@ -568,12 +568,14 @@ xfs_buf_item_unlock(
 {
 	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
 	struct xfs_buf		*bp = bip->bli_buf;
-	bool			aborted = !!(lip->li_flags & XFS_LI_ABORTED);
+	bool			aborted;
 	bool			hold = !!(bip->bli_flags & XFS_BLI_HOLD);
 	bool			dirty = !!(bip->bli_flags & XFS_BLI_DIRTY);
 #if defined(DEBUG) || defined(XFS_WARN)
 	bool			ordered = !!(bip->bli_flags & XFS_BLI_ORDERED);
 #endif
+
+	aborted = test_bit(XFS_LI_ABORTED, &lip->li_flags);
 
 	/* Clear the buffer's association with this transaction. */
 	bp->b_transp = NULL;
@@ -743,8 +745,10 @@ xfs_buf_item_init(
 	 * nothing to do here so return.
 	 */
 	ASSERT(bp->b_target->bt_mount == mp);
-	if (bip != NULL) {
+	if (bip) {
 		ASSERT(bip->bli_item.li_type == XFS_LI_BUF);
+		ASSERT(!bp->b_transp);
+		ASSERT(bip->bli_buf == bp);
 		return 0;
 	}
 

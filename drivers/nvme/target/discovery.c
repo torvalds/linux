@@ -187,8 +187,6 @@ u16 nvmet_parse_discovery_cmd(struct nvmet_req *req)
 {
 	struct nvme_command *cmd = req->cmd;
 
-	req->ns = NULL;
-
 	if (unlikely(!(req->sq->ctrl->csts & NVME_CSTS_RDY))) {
 		pr_err("got cmd %d while not ready\n",
 		       cmd->common.opcode);

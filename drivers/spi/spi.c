@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/spi-mem.h>
 #include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_domain.h>
@@ -45,6 +46,8 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/spi.h>
+
+#include "internals.h"
 
 static DEFINE_IDR(spi_master_idr);
 
@@ -356,11 +359,12 @@ static int spi_drv_probe(struct device *dev)
 	}
 
 	ret = dev_pm_domain_attach(dev, true);
-	if (ret != -EPROBE_DEFER) {
-		ret = sdrv->probe(spi);
-		if (ret)
-			dev_pm_domain_detach(dev, true);
-	}
+	if (ret)
+		return ret;
+
+	ret = sdrv->probe(spi);
+	if (ret)
+		dev_pm_domain_detach(dev, true);
 
 	return ret;
 }
@@ -740,9 +744,9 @@ static void spi_set_cs(struct spi_device *spi, bool enable)
 }
 
 #ifdef CONFIG_HAS_DMA
-static int spi_map_buf(struct spi_controller *ctlr, struct device *dev,
-		       struct sg_table *sgt, void *buf, size_t len,
-		       enum dma_data_direction dir)
+int spi_map_buf(struct spi_controller *ctlr, struct device *dev,
+		struct sg_table *sgt, void *buf, size_t len,
+		enum dma_data_direction dir)
 {
 	const bool vmalloced_buf = is_vmalloc_addr(buf);
 	unsigned int max_seg_size = dma_get_max_seg_size(dev);
@@ -821,8 +825,8 @@ static int spi_map_buf(struct spi_controller *ctlr, struct device *dev,
 	return 0;
 }
 
-static void spi_unmap_buf(struct spi_controller *ctlr, struct device *dev,
-			  struct sg_table *sgt, enum dma_data_direction dir)
+void spi_unmap_buf(struct spi_controller *ctlr, struct device *dev,
+		   struct sg_table *sgt, enum dma_data_direction dir)
 {
 	if (sgt->orig_nents) {
 		dma_unmap_sg(dev, sgt->sgl, sgt->orig_nents, dir);
@@ -907,19 +911,6 @@ static int __spi_unmap_msg(struct spi_controller *ctlr, struct spi_message *msg)
 	return 0;
 }
 #else /* !CONFIG_HAS_DMA */
-static inline int spi_map_buf(struct spi_controller *ctlr, struct device *dev,
-			      struct sg_table *sgt, void *buf, size_t len,
-			      enum dma_data_direction dir)
-{
-	return -EINVAL;
-}
-
-static inline void spi_unmap_buf(struct spi_controller *ctlr,
-				 struct device *dev, struct sg_table *sgt,
-				 enum dma_data_direction dir)
-{
-}
-
 static inline int __spi_map_msg(struct spi_controller *ctlr,
 				struct spi_message *msg)
 {
@@ -1222,6 +1213,7 @@ static void __spi_pump_messages(struct spi_controller *ctlr, bool in_kthread)
 	if (!was_busy && ctlr->auto_runtime_pm) {
 		ret = pm_runtime_get_sync(ctlr->dev.parent);
 		if (ret < 0) {
+			pm_runtime_put_noidle(ctlr->dev.parent);
 			dev_err(&ctlr->dev, "Failed to power device: %d\n",
 				ret);
 			mutex_unlock(&ctlr->io_mutex);
@@ -1531,6 +1523,22 @@ err_start_queue:
 	spi_destroy_queue(ctlr);
 err_init_queue:
 	return ret;
+}
+
+/**
+ * spi_flush_queue - Send all pending messages in the queue from the callers'
+ *		     context
+ * @ctlr: controller to process queue for
+ *
+ * This should be used when one wants to ensure all pending messages have been
+ * sent before doing something. Is used by the spi-mem code to make sure SPI
+ * memory operations do not preempt regular SPI transfers that have been queued
+ * before the spi-mem operation.
+ */
+void spi_flush_queue(struct spi_controller *ctlr)
+{
+	if (ctlr->transfer == spi_queued_transfer)
+		__spi_pump_messages(ctlr, false);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -2063,6 +2071,26 @@ static int of_spi_register_master(struct spi_controller *ctlr)
 }
 #endif
 
+static int spi_controller_check_ops(struct spi_controller *ctlr)
+{
+	/*
+	 * The controller may implement only the high-level SPI-memory like
+	 * operations if it does not support regular SPI transfers, and this is
+	 * valid use case.
+	 * If ->mem_ops is NULL, we request that at least one of the
+	 * ->transfer_xxx() method be implemented.
+	 */
+	if (ctlr->mem_ops) {
+		if (!ctlr->mem_ops->exec_op)
+			return -EINVAL;
+	} else if (!ctlr->transfer && !ctlr->transfer_one &&
+		   !ctlr->transfer_one_message) {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /**
  * spi_register_controller - register SPI master or slave controller
  * @ctlr: initialized master, originally from spi_alloc_master() or
@@ -2095,6 +2123,14 @@ int spi_register_controller(struct spi_controller *ctlr)
 
 	if (!dev)
 		return -ENODEV;
+
+	/*
+	 * Make sure all necessary hooks are implemented before registering
+	 * the SPI controller.
+	 */
+	status = spi_controller_check_ops(ctlr);
+	if (status)
+		return status;
 
 	if (!spi_controller_is_slave(ctlr)) {
 		status = of_spi_register_master(ctlr);
@@ -2161,10 +2197,14 @@ int spi_register_controller(struct spi_controller *ctlr)
 			spi_controller_is_slave(ctlr) ? "slave" : "master",
 			dev_name(&ctlr->dev));
 
-	/* If we're using a queued driver, start the queue */
-	if (ctlr->transfer)
+	/*
+	 * If we're using a queued driver, start the queue. Note that we don't
+	 * need the queueing logic if the driver is only supporting high-level
+	 * memory operations.
+	 */
+	if (ctlr->transfer) {
 		dev_info(dev, "controller is unqueued, this is deprecated\n");
-	else {
+	} else if (ctlr->transfer_one || ctlr->transfer_one_message) {
 		status = spi_controller_initialize_queue(ctlr);
 		if (status) {
 			device_del(&ctlr->dev);
@@ -2894,6 +2934,13 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
 {
 	struct spi_controller *ctlr = spi->controller;
 
+	/*
+	 * Some controllers do not support doing regular SPI transfers. Return
+	 * ENOTSUPP when this is the case.
+	 */
+	if (!ctlr->transfer)
+		return -ENOTSUPP;
+
 	message->spi = spi;
 
 	SPI_STATISTICS_INCREMENT_FIELD(&ctlr->statistics, spi_async);
@@ -3009,63 +3056,6 @@ int spi_async_locked(struct spi_device *spi, struct spi_message *message)
 
 }
 EXPORT_SYMBOL_GPL(spi_async_locked);
-
-
-int spi_flash_read(struct spi_device *spi,
-		   struct spi_flash_read_message *msg)
-
-{
-	struct spi_controller *master = spi->controller;
-	struct device *rx_dev = NULL;
-	int ret;
-
-	if ((msg->opcode_nbits == SPI_NBITS_DUAL ||
-	     msg->addr_nbits == SPI_NBITS_DUAL) &&
-	    !(spi->mode & (SPI_TX_DUAL | SPI_TX_QUAD)))
-		return -EINVAL;
-	if ((msg->opcode_nbits == SPI_NBITS_QUAD ||
-	     msg->addr_nbits == SPI_NBITS_QUAD) &&
-	    !(spi->mode & SPI_TX_QUAD))
-		return -EINVAL;
-	if (msg->data_nbits == SPI_NBITS_DUAL &&
-	    !(spi->mode & (SPI_RX_DUAL | SPI_RX_QUAD)))
-		return -EINVAL;
-	if (msg->data_nbits == SPI_NBITS_QUAD &&
-	    !(spi->mode &  SPI_RX_QUAD))
-		return -EINVAL;
-
-	if (master->auto_runtime_pm) {
-		ret = pm_runtime_get_sync(master->dev.parent);
-		if (ret < 0) {
-			dev_err(&master->dev, "Failed to power device: %d\n",
-				ret);
-			return ret;
-		}
-	}
-
-	mutex_lock(&master->bus_lock_mutex);
-	mutex_lock(&master->io_mutex);
-	if (master->dma_rx && master->spi_flash_can_dma(spi, msg)) {
-		rx_dev = master->dma_rx->device->dev;
-		ret = spi_map_buf(master, rx_dev, &msg->rx_sg,
-				  msg->buf, msg->len,
-				  DMA_FROM_DEVICE);
-		if (!ret)
-			msg->cur_msg_mapped = true;
-	}
-	ret = master->spi_flash_read(spi, msg);
-	if (msg->cur_msg_mapped)
-		spi_unmap_buf(master, rx_dev, &msg->rx_sg,
-			      DMA_FROM_DEVICE);
-	mutex_unlock(&master->io_mutex);
-	mutex_unlock(&master->bus_lock_mutex);
-
-	if (master->auto_runtime_pm)
-		pm_runtime_put(master->dev.parent);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(spi_flash_read);
 
 /*-------------------------------------------------------------------------*/
 

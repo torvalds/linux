@@ -661,6 +661,7 @@ config ARM_LPAE
 	bool "Support for the Large Physical Address Extension"
 	depends on MMU && CPU_32v7 && !CPU_32v6 && !CPU_32v5 && \
 		!CPU_32v4 && !CPU_32v3
+	select PHYS_ADDR_T_64BIT
 	help
 	  Say Y if you have an ARMv7 processor supporting the LPAE page
 	  table format and you would like to access memory beyond the
@@ -672,12 +673,6 @@ config ARM_LPAE
 config ARM_PV_FIXUP
 	def_bool y
 	depends on ARM_LPAE && ARM_PATCH_PHYS_VIRT && ARCH_KEYSTONE
-
-config ARCH_PHYS_ADDR_T_64BIT
-	def_bool ARM_LPAE
-
-config ARCH_DMA_ADDR_T_64BIT
-	bool
 
 config ARM_THUMB
 	bool "Support Thumb user binaries" if !CPU_THUMBONLY && EXPERT

@@ -7,6 +7,9 @@
 
 struct blk_mq_tag_set;
 
+/**
+ * struct blk_mq_ctx - State for a software queue facing the submitting CPUs
+ */
 struct blk_mq_ctx {
 	struct {
 		spinlock_t		lock;
@@ -26,20 +29,6 @@ struct blk_mq_ctx {
 	struct request_queue	*queue;
 	struct kobject		kobj;
 } ____cacheline_aligned_in_smp;
-
-/*
- * Bits for request->gstate.  The lower two bits carry MQ_RQ_* state value
- * and the upper bits the generation number.
- */
-enum mq_rq_state {
-	MQ_RQ_IDLE		= 0,
-	MQ_RQ_IN_FLIGHT		= 1,
-	MQ_RQ_COMPLETE		= 2,
-
-	MQ_RQ_STATE_BITS	= 2,
-	MQ_RQ_STATE_MASK	= (1 << MQ_RQ_STATE_BITS) - 1,
-	MQ_RQ_GEN_INC		= 1 << MQ_RQ_STATE_BITS,
-};
 
 void blk_mq_freeze_queue(struct request_queue *q);
 void blk_mq_free_queue(struct request_queue *q);
@@ -104,33 +93,9 @@ void blk_mq_release(struct request_queue *q);
  * blk_mq_rq_state() - read the current MQ_RQ_* state of a request
  * @rq: target request.
  */
-static inline int blk_mq_rq_state(struct request *rq)
+static inline enum mq_rq_state blk_mq_rq_state(struct request *rq)
 {
-	return READ_ONCE(rq->gstate) & MQ_RQ_STATE_MASK;
-}
-
-/**
- * blk_mq_rq_update_state() - set the current MQ_RQ_* state of a request
- * @rq: target request.
- * @state: new state to set.
- *
- * Set @rq's state to @state.  The caller is responsible for ensuring that
- * there are no other updaters.  A request can transition into IN_FLIGHT
- * only from IDLE and doing so increments the generation number.
- */
-static inline void blk_mq_rq_update_state(struct request *rq,
-					  enum mq_rq_state state)
-{
-	u64 old_val = READ_ONCE(rq->gstate);
-	u64 new_val = (old_val & ~MQ_RQ_STATE_MASK) | state;
-
-	if (state == MQ_RQ_IN_FLIGHT) {
-		WARN_ON_ONCE((old_val & MQ_RQ_STATE_MASK) != MQ_RQ_IDLE);
-		new_val += MQ_RQ_GEN_INC;
-	}
-
-	/* avoid exposing interim values */
-	WRITE_ONCE(rq->gstate, new_val);
+	return READ_ONCE(rq->state);
 }
 
 static inline struct blk_mq_ctx *__blk_mq_get_ctx(struct request_queue *q,
@@ -185,7 +150,9 @@ static inline bool blk_mq_hw_queue_mapped(struct blk_mq_hw_ctx *hctx)
 }
 
 void blk_mq_in_flight(struct request_queue *q, struct hd_struct *part,
-			unsigned int inflight[2]);
+		      unsigned int inflight[2]);
+void blk_mq_in_flight_rw(struct request_queue *q, struct hd_struct *part,
+			 unsigned int inflight[2]);
 
 static inline void blk_mq_put_dispatch_budget(struct blk_mq_hw_ctx *hctx)
 {

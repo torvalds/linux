@@ -9,11 +9,11 @@ config SUPERH
 	select HAVE_IDE if HAS_IOPORT_MAP
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
+	select NO_BOOTMEM
 	select ARCH_DISCARD_MEMBLOCK
 	select HAVE_OPROFILE
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_ARCH_TRACEHOOK
-	select HAVE_DMA_API_DEBUG
 	select HAVE_PERF_EVENTS
 	select HAVE_DEBUG_BUGVERBOSE
 	select ARCH_HAVE_CUSTOM_GPIO_H
@@ -50,6 +50,9 @@ config SUPERH
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_FUTEX_CMPXCHG if FUTEX
 	select HAVE_NMI
+	select NEED_DMA_MAP_STATE
+	select NEED_SG_DMA_LENGTH
+
 	help
 	  The SuperH is a RISC processor targeted for use in embedded systems
 	  and consumer electronics; it was also used in the Sega Dreamcast
@@ -159,12 +162,6 @@ config DMA_COHERENT
 
 config DMA_NONCOHERENT
 	def_bool !DMA_COHERENT
-
-config NEED_DMA_MAP_STATE
-	def_bool DMA_NONCOHERENT
-
-config NEED_SG_DMA_LENGTH
-	def_bool y
 
 config PGTABLE_LEVELS
 	default 3 if X2TLB

@@ -53,7 +53,7 @@ static struct pvclock_wall_clock *wall_clock;
  * have elapsed since the hypervisor wrote the data. So we try to account for
  * that with system time
  */
-static void kvm_get_wallclock(struct timespec *now)
+static void kvm_get_wallclock(struct timespec64 *now)
 {
 	struct pvclock_vcpu_time_info *vcpu_time;
 	int low, high;
@@ -72,7 +72,7 @@ static void kvm_get_wallclock(struct timespec *now)
 	put_cpu();
 }
 
-static int kvm_set_wallclock(const struct timespec *now)
+static int kvm_set_wallclock(const struct timespec64 *now)
 {
 	return -ENODEV;
 }

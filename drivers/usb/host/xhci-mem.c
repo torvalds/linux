@@ -33,8 +33,9 @@ static struct xhci_segment *xhci_segment_alloc(struct xhci_hcd *xhci,
 	struct xhci_segment *seg;
 	dma_addr_t	dma;
 	int		i;
+	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
 
-	seg = kzalloc(sizeof *seg, flags);
+	seg = kzalloc_node(sizeof(*seg), flags, dev_to_node(dev));
 	if (!seg)
 		return NULL;
 
@@ -45,7 +46,8 @@ static struct xhci_segment *xhci_segment_alloc(struct xhci_hcd *xhci,
 	}
 
 	if (max_packet) {
-		seg->bounce_buf = kzalloc(max_packet, flags);
+		seg->bounce_buf = kzalloc_node(max_packet, flags,
+					dev_to_node(dev));
 		if (!seg->bounce_buf) {
 			dma_pool_free(xhci->segment_pool, seg->trbs, dma);
 			kfree(seg);
@@ -363,8 +365,9 @@ struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
 {
 	struct xhci_ring	*ring;
 	int ret;
+	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
 
-	ring = kzalloc(sizeof *(ring), flags);
+	ring = kzalloc_node(sizeof(*ring), flags, dev_to_node(dev));
 	if (!ring)
 		return NULL;
 
@@ -458,11 +461,12 @@ struct xhci_container_ctx *xhci_alloc_container_ctx(struct xhci_hcd *xhci,
 						    int type, gfp_t flags)
 {
 	struct xhci_container_ctx *ctx;
+	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
 
 	if ((type != XHCI_CTX_TYPE_DEVICE) && (type != XHCI_CTX_TYPE_INPUT))
 		return NULL;
 
-	ctx = kzalloc(sizeof(*ctx), flags);
+	ctx = kzalloc_node(sizeof(*ctx), flags, dev_to_node(dev));
 	if (!ctx)
 		return NULL;
 
@@ -615,6 +619,7 @@ struct xhci_stream_info *xhci_alloc_stream_info(struct xhci_hcd *xhci,
 	struct xhci_ring *cur_ring;
 	u64 addr;
 	int ret;
+	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
 
 	xhci_dbg(xhci, "Allocating %u streams and %u "
 			"stream context array entries.\n",
@@ -625,7 +630,8 @@ struct xhci_stream_info *xhci_alloc_stream_info(struct xhci_hcd *xhci,
 	}
 	xhci->cmd_ring_reserved_trbs++;
 
-	stream_info = kzalloc(sizeof(struct xhci_stream_info), mem_flags);
+	stream_info = kzalloc_node(sizeof(*stream_info), mem_flags,
+			dev_to_node(dev));
 	if (!stream_info)
 		goto cleanup_trbs;
 
@@ -633,9 +639,9 @@ struct xhci_stream_info *xhci_alloc_stream_info(struct xhci_hcd *xhci,
 	stream_info->num_stream_ctxs = num_stream_ctxs;
 
 	/* Initialize the array of virtual pointers to stream rings. */
-	stream_info->stream_rings = kzalloc(
-			sizeof(struct xhci_ring *)*num_streams,
-			mem_flags);
+	stream_info->stream_rings = kcalloc_node(
+			num_streams, sizeof(struct xhci_ring *), mem_flags,
+			dev_to_node(dev));
 	if (!stream_info->stream_rings)
 		goto cleanup_info;
 
@@ -831,6 +837,7 @@ int xhci_alloc_tt_info(struct xhci_hcd *xhci,
 	struct xhci_tt_bw_info		*tt_info;
 	unsigned int			num_ports;
 	int				i, j;
+	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
 
 	if (!tt->multi)
 		num_ports = 1;
@@ -840,7 +847,8 @@ int xhci_alloc_tt_info(struct xhci_hcd *xhci,
 	for (i = 0; i < num_ports; i++, tt_info++) {
 		struct xhci_interval_bw_table *bw_table;
 
-		tt_info = kzalloc(sizeof(*tt_info), mem_flags);
+		tt_info = kzalloc_node(sizeof(*tt_info), mem_flags,
+				dev_to_node(dev));
 		if (!tt_info)
 			goto free_tts;
 		INIT_LIST_HEAD(&tt_info->tt_list);
@@ -1054,8 +1062,7 @@ void xhci_copy_ep0_dequeue_into_input_ctx(struct xhci_hcd *xhci,
 
 /*
  * The xHCI roothub may have ports of differing speeds in any order in the port
- * status registers.  xhci->port_array provides an array of the port speed for
- * each offset into the port status registers.
+ * status registers.
  *
  * The xHCI hardware wants to know the roothub port number that the USB device
  * is attached to (or the roothub port its ancestor hub is attached to).  All we
@@ -1642,7 +1649,8 @@ static int scratchpad_alloc(struct xhci_hcd *xhci, gfp_t flags)
 	if (!num_sp)
 		return 0;
 
-	xhci->scratchpad = kzalloc(sizeof(*xhci->scratchpad), flags);
+	xhci->scratchpad = kzalloc_node(sizeof(*xhci->scratchpad), flags,
+				dev_to_node(dev));
 	if (!xhci->scratchpad)
 		goto fail_sp;
 
@@ -1652,7 +1660,8 @@ static int scratchpad_alloc(struct xhci_hcd *xhci, gfp_t flags)
 	if (!xhci->scratchpad->sp_array)
 		goto fail_sp2;
 
-	xhci->scratchpad->sp_buffers = kzalloc(sizeof(void *) * num_sp, flags);
+	xhci->scratchpad->sp_buffers = kcalloc_node(num_sp, sizeof(void *),
+					flags, dev_to_node(dev));
 	if (!xhci->scratchpad->sp_buffers)
 		goto fail_sp3;
 
@@ -1720,14 +1729,16 @@ struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
 		bool allocate_completion, gfp_t mem_flags)
 {
 	struct xhci_command *command;
+	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
 
-	command = kzalloc(sizeof(*command), mem_flags);
+	command = kzalloc_node(sizeof(*command), mem_flags, dev_to_node(dev));
 	if (!command)
 		return NULL;
 
 	if (allocate_completion) {
 		command->completion =
-			kzalloc(sizeof(struct completion), mem_flags);
+			kzalloc_node(sizeof(struct completion), mem_flags,
+				dev_to_node(dev));
 		if (!command->completion) {
 			kfree(command);
 			return NULL;
@@ -1890,18 +1901,18 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 
 no_bw:
 	xhci->cmd_ring_reserved_trbs = 0;
-	xhci->num_usb2_ports = 0;
-	xhci->num_usb3_ports = 0;
+	xhci->usb2_rhub.num_ports = 0;
+	xhci->usb3_rhub.num_ports = 0;
 	xhci->num_active_eps = 0;
-	kfree(xhci->usb2_ports);
-	kfree(xhci->usb3_ports);
-	kfree(xhci->port_array);
+	kfree(xhci->usb2_rhub.ports);
+	kfree(xhci->usb3_rhub.ports);
+	kfree(xhci->hw_ports);
 	kfree(xhci->rh_bw);
 	kfree(xhci->ext_caps);
 
-	xhci->usb2_ports = NULL;
-	xhci->usb3_ports = NULL;
-	xhci->port_array = NULL;
+	xhci->usb2_rhub.ports = NULL;
+	xhci->usb3_rhub.ports = NULL;
+	xhci->hw_ports = NULL;
 	xhci->rh_bw = NULL;
 	xhci->ext_caps = NULL;
 
@@ -2100,6 +2111,7 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 	int i;
 	u8 major_revision, minor_revision;
 	struct xhci_hub *rhub;
+	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
 
 	temp = readl(addr);
 	major_revision = XHCI_EXT_PORT_MAJOR(temp);
@@ -2136,8 +2148,8 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 
 	rhub->psi_count = XHCI_EXT_PORT_PSIC(temp);
 	if (rhub->psi_count) {
-		rhub->psi = kcalloc(rhub->psi_count, sizeof(*rhub->psi),
-				    GFP_KERNEL);
+		rhub->psi = kcalloc_node(rhub->psi_count, sizeof(*rhub->psi),
+				    GFP_KERNEL, dev_to_node(dev));
 		if (!rhub->psi)
 			rhub->psi_count = 0;
 
@@ -2186,34 +2198,51 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 
 	port_offset--;
 	for (i = port_offset; i < (port_offset + port_count); i++) {
+		struct xhci_port *hw_port = &xhci->hw_ports[i];
 		/* Duplicate entry.  Ignore the port if the revisions differ. */
-		if (xhci->port_array[i] != 0) {
+		if (hw_port->rhub) {
 			xhci_warn(xhci, "Duplicate port entry, Ext Cap %p,"
 					" port %u\n", addr, i);
 			xhci_warn(xhci, "Port was marked as USB %u, "
 					"duplicated as USB %u\n",
-					xhci->port_array[i], major_revision);
+					hw_port->rhub->maj_rev, major_revision);
 			/* Only adjust the roothub port counts if we haven't
 			 * found a similar duplicate.
 			 */
-			if (xhci->port_array[i] != major_revision &&
-				xhci->port_array[i] != DUPLICATE_ENTRY) {
-				if (xhci->port_array[i] == 0x03)
-					xhci->num_usb3_ports--;
-				else
-					xhci->num_usb2_ports--;
-				xhci->port_array[i] = DUPLICATE_ENTRY;
+			if (hw_port->rhub != rhub &&
+				 hw_port->hcd_portnum != DUPLICATE_ENTRY) {
+				hw_port->rhub->num_ports--;
+				hw_port->hcd_portnum = DUPLICATE_ENTRY;
 			}
-			/* FIXME: Should we disable the port? */
 			continue;
 		}
-		xhci->port_array[i] = major_revision;
-		if (major_revision == 0x03)
-			xhci->num_usb3_ports++;
-		else
-			xhci->num_usb2_ports++;
+		hw_port->rhub = rhub;
+		rhub->num_ports++;
 	}
 	/* FIXME: Should we disable ports not in the Extended Capabilities? */
+}
+
+static void xhci_create_rhub_port_array(struct xhci_hcd *xhci,
+					struct xhci_hub *rhub, gfp_t flags)
+{
+	int port_index = 0;
+	int i;
+	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
+
+	if (!rhub->num_ports)
+		return;
+	rhub->ports = kcalloc_node(rhub->num_ports, sizeof(rhub->ports), flags,
+			dev_to_node(dev));
+	for (i = 0; i < HCS_MAX_PORTS(xhci->hcs_params1); i++) {
+		if (xhci->hw_ports[i].rhub != rhub ||
+		    xhci->hw_ports[i].hcd_portnum == DUPLICATE_ENTRY)
+			continue;
+		xhci->hw_ports[i].hcd_portnum = port_index;
+		rhub->ports[port_index] = &xhci->hw_ports[i];
+		port_index++;
+		if (port_index == rhub->num_ports)
+			break;
+	}
 }
 
 /*
@@ -2228,16 +2257,25 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 	void __iomem *base;
 	u32 offset;
 	unsigned int num_ports;
-	int i, j, port_index;
+	int i, j;
 	int cap_count = 0;
 	u32 cap_start;
+	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
 
 	num_ports = HCS_MAX_PORTS(xhci->hcs_params1);
-	xhci->port_array = kzalloc(sizeof(*xhci->port_array)*num_ports, flags);
-	if (!xhci->port_array)
+	xhci->hw_ports = kcalloc_node(num_ports, sizeof(*xhci->hw_ports),
+				flags, dev_to_node(dev));
+	if (!xhci->hw_ports)
 		return -ENOMEM;
 
-	xhci->rh_bw = kzalloc(sizeof(*xhci->rh_bw)*num_ports, flags);
+	for (i = 0; i < num_ports; i++) {
+		xhci->hw_ports[i].addr = &xhci->op_regs->port_status_base +
+			NUM_PORT_REGS * i;
+		xhci->hw_ports[i].hw_portnum = i;
+	}
+
+	xhci->rh_bw = kzalloc_node(sizeof(*xhci->rh_bw)*num_ports, flags,
+			dev_to_node(dev));
 	if (!xhci->rh_bw)
 		return -ENOMEM;
 	for (i = 0; i < num_ports; i++) {
@@ -2264,7 +2302,8 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 						      XHCI_EXT_CAPS_PROTOCOL);
 	}
 
-	xhci->ext_caps = kzalloc(sizeof(*xhci->ext_caps) * cap_count, flags);
+	xhci->ext_caps = kcalloc_node(cap_count, sizeof(*xhci->ext_caps),
+				flags, dev_to_node(dev));
 	if (!xhci->ext_caps)
 		return -ENOMEM;
 
@@ -2272,86 +2311,44 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 
 	while (offset) {
 		xhci_add_in_port(xhci, num_ports, base + offset, cap_count);
-		if (xhci->num_usb2_ports + xhci->num_usb3_ports == num_ports)
+		if (xhci->usb2_rhub.num_ports + xhci->usb3_rhub.num_ports ==
+		    num_ports)
 			break;
 		offset = xhci_find_next_ext_cap(base, offset,
 						XHCI_EXT_CAPS_PROTOCOL);
 	}
-
-	if (xhci->num_usb2_ports == 0 && xhci->num_usb3_ports == 0) {
+	if (xhci->usb2_rhub.num_ports == 0 && xhci->usb3_rhub.num_ports == 0) {
 		xhci_warn(xhci, "No ports on the roothubs?\n");
 		return -ENODEV;
 	}
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
-			"Found %u USB 2.0 ports and %u USB 3.0 ports.",
-			xhci->num_usb2_ports, xhci->num_usb3_ports);
+		       "Found %u USB 2.0 ports and %u USB 3.0 ports.",
+		       xhci->usb2_rhub.num_ports, xhci->usb3_rhub.num_ports);
 
 	/* Place limits on the number of roothub ports so that the hub
 	 * descriptors aren't longer than the USB core will allocate.
 	 */
-	if (xhci->num_usb3_ports > USB_SS_MAXPORTS) {
+	if (xhci->usb3_rhub.num_ports > USB_SS_MAXPORTS) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 				"Limiting USB 3.0 roothub ports to %u.",
 				USB_SS_MAXPORTS);
-		xhci->num_usb3_ports = USB_SS_MAXPORTS;
+		xhci->usb3_rhub.num_ports = USB_SS_MAXPORTS;
 	}
-	if (xhci->num_usb2_ports > USB_MAXCHILDREN) {
+	if (xhci->usb2_rhub.num_ports > USB_MAXCHILDREN) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 				"Limiting USB 2.0 roothub ports to %u.",
 				USB_MAXCHILDREN);
-		xhci->num_usb2_ports = USB_MAXCHILDREN;
+		xhci->usb2_rhub.num_ports = USB_MAXCHILDREN;
 	}
 
 	/*
 	 * Note we could have all USB 3.0 ports, or all USB 2.0 ports.
 	 * Not sure how the USB core will handle a hub with no ports...
 	 */
-	if (xhci->num_usb2_ports) {
-		xhci->usb2_ports = kmalloc(sizeof(*xhci->usb2_ports)*
-				xhci->num_usb2_ports, flags);
-		if (!xhci->usb2_ports)
-			return -ENOMEM;
 
-		port_index = 0;
-		for (i = 0; i < num_ports; i++) {
-			if (xhci->port_array[i] == 0x03 ||
-					xhci->port_array[i] == 0 ||
-					xhci->port_array[i] == DUPLICATE_ENTRY)
-				continue;
+	xhci_create_rhub_port_array(xhci, &xhci->usb2_rhub, flags);
+	xhci_create_rhub_port_array(xhci, &xhci->usb3_rhub, flags);
 
-			xhci->usb2_ports[port_index] =
-				&xhci->op_regs->port_status_base +
-				NUM_PORT_REGS*i;
-			xhci_dbg_trace(xhci, trace_xhci_dbg_init,
-					"USB 2.0 port at index %u, "
-					"addr = %p", i,
-					xhci->usb2_ports[port_index]);
-			port_index++;
-			if (port_index == xhci->num_usb2_ports)
-				break;
-		}
-	}
-	if (xhci->num_usb3_ports) {
-		xhci->usb3_ports = kmalloc(sizeof(*xhci->usb3_ports)*
-				xhci->num_usb3_ports, flags);
-		if (!xhci->usb3_ports)
-			return -ENOMEM;
-
-		port_index = 0;
-		for (i = 0; i < num_ports; i++)
-			if (xhci->port_array[i] == 0x03) {
-				xhci->usb3_ports[port_index] =
-					&xhci->op_regs->port_status_base +
-					NUM_PORT_REGS*i;
-				xhci_dbg_trace(xhci, trace_xhci_dbg_init,
-						"USB 3.0 port at index %u, "
-						"addr = %p", i,
-						xhci->usb3_ports[port_index]);
-				port_index++;
-				if (port_index == xhci->num_usb3_ports)
-					break;
-			}
-	}
 	return 0;
 }
 

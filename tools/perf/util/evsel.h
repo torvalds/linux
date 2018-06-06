@@ -115,6 +115,7 @@ struct perf_evsel {
 	unsigned int		sample_size;
 	int			id_pos;
 	int			is_pos;
+	bool			uniquified_name;
 	bool			snapshot;
 	bool 			supported;
 	bool 			needs_swap;
@@ -126,6 +127,7 @@ struct perf_evsel {
 	bool			precise_max;
 	bool			ignore_missing_thread;
 	bool			forced_leader;
+	bool			use_uncore_alias;
 	/* parse modifier helper */
 	int			exclude_GH;
 	int			nr_members;

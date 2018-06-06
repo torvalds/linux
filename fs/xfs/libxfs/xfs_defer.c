@@ -220,7 +220,7 @@ xfs_defer_trans_abort(
 {
 	struct xfs_defer_pending	*dfp;
 
-	trace_xfs_defer_trans_abort(tp->t_mountp, dop);
+	trace_xfs_defer_trans_abort(tp->t_mountp, dop, _RET_IP_);
 
 	/* Abort intent items that don't have a done item. */
 	list_for_each_entry(dfp, &dop->dop_pending, dfp_list) {
@@ -253,7 +253,7 @@ xfs_defer_trans_roll(
 	for (i = 0; i < XFS_DEFER_OPS_NR_BUFS && dop->dop_bufs[i]; i++)
 		xfs_trans_dirty_buf(*tp, dop->dop_bufs[i]);
 
-	trace_xfs_defer_trans_roll((*tp)->t_mountp, dop);
+	trace_xfs_defer_trans_roll((*tp)->t_mountp, dop, _RET_IP_);
 
 	/* Roll the transaction. */
 	error = xfs_trans_roll(tp);
@@ -352,10 +352,21 @@ xfs_defer_finish(
 	void				*state;
 	int				error = 0;
 	void				(*cleanup_fn)(struct xfs_trans *, void *, int);
+	struct xfs_defer_ops		*orig_dop;
 
 	ASSERT((*tp)->t_flags & XFS_TRANS_PERM_LOG_RES);
 
-	trace_xfs_defer_finish((*tp)->t_mountp, dop);
+	trace_xfs_defer_finish((*tp)->t_mountp, dop, _RET_IP_);
+
+	/*
+	 * Attach dfops to the transaction during deferred ops processing. This
+	 * explicitly causes calls into the allocator to defer AGFL block frees.
+	 * Note that this code can go away once all dfops users attach to the
+	 * associated tp.
+	 */
+	ASSERT(!(*tp)->t_agfl_dfops || ((*tp)->t_agfl_dfops == dop));
+	orig_dop = (*tp)->t_agfl_dfops;
+	(*tp)->t_agfl_dfops = dop;
 
 	/* Until we run out of pending work to finish... */
 	while (xfs_defer_has_unfinished_work(dop)) {
@@ -428,10 +439,11 @@ xfs_defer_finish(
 	}
 
 out:
+	(*tp)->t_agfl_dfops = orig_dop;
 	if (error)
 		trace_xfs_defer_finish_error((*tp)->t_mountp, dop, error);
 	else
-		trace_xfs_defer_finish_done((*tp)->t_mountp, dop);
+		trace_xfs_defer_finish_done((*tp)->t_mountp, dop, _RET_IP_);
 	return error;
 }
 
@@ -447,7 +459,7 @@ xfs_defer_cancel(
 	struct list_head		*pwi;
 	struct list_head		*n;
 
-	trace_xfs_defer_cancel(NULL, dop);
+	trace_xfs_defer_cancel(NULL, dop, _RET_IP_);
 
 	/*
 	 * Free the pending items.  Caller should already have arranged
@@ -532,5 +544,5 @@ xfs_defer_init(
 	*fbp = NULLFSBLOCK;
 	INIT_LIST_HEAD(&dop->dop_intake);
 	INIT_LIST_HEAD(&dop->dop_pending);
-	trace_xfs_defer_init(NULL, dop);
+	trace_xfs_defer_init(NULL, dop, _RET_IP_);
 }

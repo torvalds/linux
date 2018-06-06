@@ -25,7 +25,7 @@
  * The frequency change is necessary since the card never seems to be
  * completely silent.
  *
- * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@infradead.org>
+ * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@kernel.org>
  */
 
 #include <linux/module.h>	/* Modules                        */

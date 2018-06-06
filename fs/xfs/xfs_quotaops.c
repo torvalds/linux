@@ -239,8 +239,7 @@ xfs_fs_get_dqblk(
 		return -ESRCH;
 
 	id = from_kqid(&init_user_ns, qid);
-	return xfs_qm_scall_getquota(mp, &id,
-				      xfs_quota_type(qid.type), qdq, 0);
+	return xfs_qm_scall_getquota(mp, id, xfs_quota_type(qid.type), qdq);
 }
 
 /* Return quota info for active quota >= this qid */
@@ -260,9 +259,8 @@ xfs_fs_get_nextdqblk(
 		return -ESRCH;
 
 	id = from_kqid(&init_user_ns, *qid);
-	ret = xfs_qm_scall_getquota(mp, &id,
-				    xfs_quota_type(qid->type), qdq,
-				    XFS_QMOPT_DQNEXT);
+	ret = xfs_qm_scall_getquota_next(mp, &id, xfs_quota_type(qid->type),
+			qdq);
 	if (ret)
 		return ret;
 

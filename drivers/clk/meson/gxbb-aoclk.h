@@ -17,8 +17,6 @@
 #define AO_RTC_ALT_CLK_CNTL0	0x94
 #define AO_RTC_ALT_CLK_CNTL1	0x98
 
-extern const struct clk_ops meson_aoclk_gate_regmap_ops;
-
 struct aoclk_cec_32k {
 	struct clk_hw hw;
 	struct regmap *regmap;

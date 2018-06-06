@@ -157,23 +157,23 @@ enum {
 };
 
 static int g_no_sched;
-module_param_named(no_sched, g_no_sched, int, S_IRUGO);
+module_param_named(no_sched, g_no_sched, int, 0444);
 MODULE_PARM_DESC(no_sched, "No io scheduler");
 
 static int g_submit_queues = 1;
-module_param_named(submit_queues, g_submit_queues, int, S_IRUGO);
+module_param_named(submit_queues, g_submit_queues, int, 0444);
 MODULE_PARM_DESC(submit_queues, "Number of submission queues");
 
 static int g_home_node = NUMA_NO_NODE;
-module_param_named(home_node, g_home_node, int, S_IRUGO);
+module_param_named(home_node, g_home_node, int, 0444);
 MODULE_PARM_DESC(home_node, "Home node for the device");
 
 #ifdef CONFIG_BLK_DEV_NULL_BLK_FAULT_INJECTION
 static char g_timeout_str[80];
-module_param_string(timeout, g_timeout_str, sizeof(g_timeout_str), S_IRUGO);
+module_param_string(timeout, g_timeout_str, sizeof(g_timeout_str), 0444);
 
 static char g_requeue_str[80];
-module_param_string(requeue, g_requeue_str, sizeof(g_requeue_str), S_IRUGO);
+module_param_string(requeue, g_requeue_str, sizeof(g_requeue_str), 0444);
 #endif
 
 static int g_queue_mode = NULL_Q_MQ;
@@ -203,27 +203,27 @@ static const struct kernel_param_ops null_queue_mode_param_ops = {
 	.get	= param_get_int,
 };
 
-device_param_cb(queue_mode, &null_queue_mode_param_ops, &g_queue_mode, S_IRUGO);
+device_param_cb(queue_mode, &null_queue_mode_param_ops, &g_queue_mode, 0444);
 MODULE_PARM_DESC(queue_mode, "Block interface to use (0=bio,1=rq,2=multiqueue)");
 
 static int g_gb = 250;
-module_param_named(gb, g_gb, int, S_IRUGO);
+module_param_named(gb, g_gb, int, 0444);
 MODULE_PARM_DESC(gb, "Size in GB");
 
 static int g_bs = 512;
-module_param_named(bs, g_bs, int, S_IRUGO);
+module_param_named(bs, g_bs, int, 0444);
 MODULE_PARM_DESC(bs, "Block size (in bytes)");
 
 static int nr_devices = 1;
-module_param(nr_devices, int, S_IRUGO);
+module_param(nr_devices, int, 0444);
 MODULE_PARM_DESC(nr_devices, "Number of devices to register");
 
 static bool g_blocking;
-module_param_named(blocking, g_blocking, bool, S_IRUGO);
+module_param_named(blocking, g_blocking, bool, 0444);
 MODULE_PARM_DESC(blocking, "Register as a blocking blk-mq driver device");
 
 static bool shared_tags;
-module_param(shared_tags, bool, S_IRUGO);
+module_param(shared_tags, bool, 0444);
 MODULE_PARM_DESC(shared_tags, "Share tag set between devices for blk-mq");
 
 static int g_irqmode = NULL_IRQ_SOFTIRQ;
@@ -239,19 +239,19 @@ static const struct kernel_param_ops null_irqmode_param_ops = {
 	.get	= param_get_int,
 };
 
-device_param_cb(irqmode, &null_irqmode_param_ops, &g_irqmode, S_IRUGO);
+device_param_cb(irqmode, &null_irqmode_param_ops, &g_irqmode, 0444);
 MODULE_PARM_DESC(irqmode, "IRQ completion handler. 0-none, 1-softirq, 2-timer");
 
 static unsigned long g_completion_nsec = 10000;
-module_param_named(completion_nsec, g_completion_nsec, ulong, S_IRUGO);
+module_param_named(completion_nsec, g_completion_nsec, ulong, 0444);
 MODULE_PARM_DESC(completion_nsec, "Time in ns to complete a request in hardware. Default: 10,000ns");
 
 static int g_hw_queue_depth = 64;
-module_param_named(hw_queue_depth, g_hw_queue_depth, int, S_IRUGO);
+module_param_named(hw_queue_depth, g_hw_queue_depth, int, 0444);
 MODULE_PARM_DESC(hw_queue_depth, "Queue depth for each hardware queue. Default: 64");
 
 static bool g_use_per_node_hctx;
-module_param_named(use_per_node_hctx, g_use_per_node_hctx, bool, S_IRUGO);
+module_param_named(use_per_node_hctx, g_use_per_node_hctx, bool, 0444);
 MODULE_PARM_DESC(use_per_node_hctx, "Use per-node allocation for hardware context queues. Default: false");
 
 static struct nullb_device *null_alloc_dev(void);
@@ -1365,7 +1365,8 @@ static blk_qc_t null_queue_bio(struct request_queue *q, struct bio *bio)
 static enum blk_eh_timer_return null_rq_timed_out_fn(struct request *rq)
 {
 	pr_info("null: rq %p timed out\n", rq);
-	return BLK_EH_HANDLED;
+	blk_mq_complete_request(rq);
+	return BLK_EH_DONE;
 }
 
 static int null_rq_prep_fn(struct request_queue *q, struct request *req)
@@ -1427,7 +1428,8 @@ static void null_request_fn(struct request_queue *q)
 static enum blk_eh_timer_return null_timeout_rq(struct request *rq, bool res)
 {
 	pr_info("null: rq %p timed out\n", rq);
-	return BLK_EH_HANDLED;
+	blk_mq_complete_request(rq);
+	return BLK_EH_DONE;
 }
 
 static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,

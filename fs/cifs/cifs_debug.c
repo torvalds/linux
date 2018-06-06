@@ -42,7 +42,7 @@ cifs_dump_mem(char *label, void *data, int length)
 		       data, length, true);
 }
 
-void cifs_dump_detail(void *buf)
+void cifs_dump_detail(void *buf, struct TCP_Server_Info *server)
 {
 #ifdef CONFIG_CIFS_DEBUG2
 	struct smb_hdr *smb = (struct smb_hdr *)buf;
@@ -50,7 +50,8 @@ void cifs_dump_detail(void *buf)
 	cifs_dbg(VFS, "Cmd: %d Err: 0x%x Flags: 0x%x Flgs2: 0x%x Mid: %d Pid: %d\n",
 		 smb->Command, smb->Status.CifsError,
 		 smb->Flags, smb->Flags2, smb->Mid, smb->Pid);
-	cifs_dbg(VFS, "smb buf %p len %u\n", smb, smbCalcSize(smb));
+	cifs_dbg(VFS, "smb buf %p len %u\n", smb,
+		 server->ops->calc_smb_size(smb, server));
 #endif /* CONFIG_CIFS_DEBUG2 */
 }
 
@@ -83,7 +84,7 @@ void cifs_dump_mids(struct TCP_Server_Info *server)
 		cifs_dbg(VFS, "IsMult: %d IsEnd: %d\n",
 			 mid_entry->multiRsp, mid_entry->multiEnd);
 		if (mid_entry->resp_buf) {
-			cifs_dump_detail(mid_entry->resp_buf);
+			cifs_dump_detail(mid_entry->resp_buf, server);
 			cifs_dump_mem("existing buf: ",
 				mid_entry->resp_buf, 62);
 		}
@@ -113,6 +114,8 @@ static void cifs_debug_tcon(struct seq_file *m, struct cifs_tcon *tcon)
 		seq_printf(m, " type: %d ", dev_type);
 	if (tcon->seal)
 		seq_printf(m, " Encrypted");
+	if (tcon->nocase)
+		seq_printf(m, " nocase");
 	if (tcon->unix_ext)
 		seq_printf(m, " POSIX Extensions");
 	if (tcon->ses->server->ops->dump_share_caps)
@@ -237,6 +240,10 @@ skip_rdma:
 			server->credits,  server->dialect);
 		if (server->sign)
 			seq_printf(m, " signed");
+#ifdef CONFIG_CIFS_SMB311
+		if (server->posix_ext_supported)
+			seq_printf(m, " posix");
+#endif /* 3.1.1 */
 		i++;
 		list_for_each(tmp2, &server->smb_ses_list) {
 			ses = list_entry(tmp2, struct cifs_ses,
@@ -313,18 +320,6 @@ skip_rdma:
 	/* BB add code to dump additional info such as TCP session info now */
 	return 0;
 }
-
-static int cifs_debug_data_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, cifs_debug_data_proc_show, NULL);
-}
-
-static const struct file_operations cifs_debug_data_proc_fops = {
-	.open		= cifs_debug_data_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 
 #ifdef CONFIG_CIFS_STATS
 static ssize_t cifs_stats_proc_write(struct file *file,
@@ -497,35 +492,36 @@ cifs_proc_init(void)
 	if (proc_fs_cifs == NULL)
 		return;
 
-	proc_create("DebugData", 0, proc_fs_cifs, &cifs_debug_data_proc_fops);
+	proc_create_single("DebugData", 0, proc_fs_cifs,
+			cifs_debug_data_proc_show);
 
 #ifdef CONFIG_CIFS_STATS
-	proc_create("Stats", 0, proc_fs_cifs, &cifs_stats_proc_fops);
+	proc_create("Stats", 0644, proc_fs_cifs, &cifs_stats_proc_fops);
 #endif /* STATS */
-	proc_create("cifsFYI", 0, proc_fs_cifs, &cifsFYI_proc_fops);
-	proc_create("traceSMB", 0, proc_fs_cifs, &traceSMB_proc_fops);
-	proc_create("LinuxExtensionsEnabled", 0, proc_fs_cifs,
+	proc_create("cifsFYI", 0644, proc_fs_cifs, &cifsFYI_proc_fops);
+	proc_create("traceSMB", 0644, proc_fs_cifs, &traceSMB_proc_fops);
+	proc_create("LinuxExtensionsEnabled", 0644, proc_fs_cifs,
 		    &cifs_linux_ext_proc_fops);
-	proc_create("SecurityFlags", 0, proc_fs_cifs,
+	proc_create("SecurityFlags", 0644, proc_fs_cifs,
 		    &cifs_security_flags_proc_fops);
-	proc_create("LookupCacheEnabled", 0, proc_fs_cifs,
+	proc_create("LookupCacheEnabled", 0644, proc_fs_cifs,
 		    &cifs_lookup_cache_proc_fops);
 #ifdef CONFIG_CIFS_SMB_DIRECT
-	proc_create("rdma_readwrite_threshold", 0, proc_fs_cifs,
+	proc_create("rdma_readwrite_threshold", 0644, proc_fs_cifs,
 		&cifs_rdma_readwrite_threshold_proc_fops);
-	proc_create("smbd_max_frmr_depth", 0, proc_fs_cifs,
+	proc_create("smbd_max_frmr_depth", 0644, proc_fs_cifs,
 		&cifs_smbd_max_frmr_depth_proc_fops);
-	proc_create("smbd_keep_alive_interval", 0, proc_fs_cifs,
+	proc_create("smbd_keep_alive_interval", 0644, proc_fs_cifs,
 		&cifs_smbd_keep_alive_interval_proc_fops);
-	proc_create("smbd_max_receive_size", 0, proc_fs_cifs,
+	proc_create("smbd_max_receive_size", 0644, proc_fs_cifs,
 		&cifs_smbd_max_receive_size_proc_fops);
-	proc_create("smbd_max_fragmented_recv_size", 0, proc_fs_cifs,
+	proc_create("smbd_max_fragmented_recv_size", 0644, proc_fs_cifs,
 		&cifs_smbd_max_fragmented_recv_size_proc_fops);
-	proc_create("smbd_max_send_size", 0, proc_fs_cifs,
+	proc_create("smbd_max_send_size", 0644, proc_fs_cifs,
 		&cifs_smbd_max_send_size_proc_fops);
-	proc_create("smbd_send_credit_target", 0, proc_fs_cifs,
+	proc_create("smbd_send_credit_target", 0644, proc_fs_cifs,
 		&cifs_smbd_send_credit_target_proc_fops);
-	proc_create("smbd_receive_credit_max", 0, proc_fs_cifs,
+	proc_create("smbd_receive_credit_max", 0644, proc_fs_cifs,
 		&cifs_smbd_receive_credit_max_proc_fops);
 #endif
 }
@@ -583,6 +579,8 @@ static ssize_t cifsFYI_proc_write(struct file *file, const char __user *buffer,
 		cifsFYI = bv;
 	else if ((c[0] > '1') && (c[0] <= '9'))
 		cifsFYI = (int) (c[0] - '0'); /* see cifs_debug.h for meanings */
+	else
+		return -EINVAL;
 
 	return count;
 }

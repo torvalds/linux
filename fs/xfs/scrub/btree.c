@@ -442,7 +442,7 @@ xfs_scrub_btree_check_owner(
 	 */
 	if (cur->bc_btnum == XFS_BTNUM_BNO || cur->bc_btnum == XFS_BTNUM_RMAP) {
 		co = kmem_alloc(sizeof(struct check_owner),
-				KM_MAYFAIL | KM_NOFS);
+				KM_MAYFAIL);
 		if (!co)
 			return -ENOMEM;
 		co->level = level;
@@ -452,6 +452,44 @@ xfs_scrub_btree_check_owner(
 	}
 
 	return xfs_scrub_btree_check_block_owner(bs, level, XFS_BUF_ADDR(bp));
+}
+
+/*
+ * Check that this btree block has at least minrecs records or is one of the
+ * special blocks that don't require that.
+ */
+STATIC void
+xfs_scrub_btree_check_minrecs(
+	struct xfs_scrub_btree	*bs,
+	int			level,
+	struct xfs_btree_block	*block)
+{
+	unsigned int		numrecs;
+	int			ok_level;
+
+	numrecs = be16_to_cpu(block->bb_numrecs);
+
+	/* More records than minrecs means the block is ok. */
+	if (numrecs >= bs->cur->bc_ops->get_minrecs(bs->cur, level))
+		return;
+
+	/*
+	 * Certain btree blocks /can/ have fewer than minrecs records.  Any
+	 * level greater than or equal to the level of the highest dedicated
+	 * btree block are allowed to violate this constraint.
+	 *
+	 * For a btree rooted in a block, the btree root can have fewer than
+	 * minrecs records.  If the btree is rooted in an inode and does not
+	 * store records in the root, the direct children of the root and the
+	 * root itself can have fewer than minrecs records.
+	 */
+	ok_level = bs->cur->bc_nlevels - 1;
+	if (bs->cur->bc_flags & XFS_BTREE_ROOT_IN_INODE)
+		ok_level--;
+	if (level >= ok_level)
+		return;
+
+	xfs_scrub_btree_set_corrupt(bs->sc, bs->cur, level);
 }
 
 /*
@@ -490,6 +528,8 @@ xfs_scrub_btree_get_block(
 	}
 	if (*pbp)
 		xfs_scrub_buffer_recheck(bs->sc, *pbp);
+
+	xfs_scrub_btree_check_minrecs(bs, level, *pblock);
 
 	/*
 	 * Check the block's owner; this function absorbs error codes

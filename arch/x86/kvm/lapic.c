@@ -1463,23 +1463,6 @@ static void start_sw_tscdeadline(struct kvm_lapic *apic)
 	local_irq_restore(flags);
 }
 
-static void start_sw_period(struct kvm_lapic *apic)
-{
-	if (!apic->lapic_timer.period)
-		return;
-
-	if (apic_lvtt_oneshot(apic) &&
-	    ktime_after(ktime_get(),
-			apic->lapic_timer.target_expiration)) {
-		apic_timer_expired(apic);
-		return;
-	}
-
-	hrtimer_start(&apic->lapic_timer.timer,
-		apic->lapic_timer.target_expiration,
-		HRTIMER_MODE_ABS_PINNED);
-}
-
 static void update_target_expiration(struct kvm_lapic *apic, uint32_t old_divisor)
 {
 	ktime_t now, remaining;
@@ -1539,11 +1522,43 @@ static bool set_target_expiration(struct kvm_lapic *apic)
 
 static void advance_periodic_target_expiration(struct kvm_lapic *apic)
 {
-	apic->lapic_timer.tscdeadline +=
-		nsec_to_cycles(apic->vcpu, apic->lapic_timer.period);
+	ktime_t now = ktime_get();
+	u64 tscl = rdtsc();
+	ktime_t delta;
+
+	/*
+	 * Synchronize both deadlines to the same time source or
+	 * differences in the periods (caused by differences in the
+	 * underlying clocks or numerical approximation errors) will
+	 * cause the two to drift apart over time as the errors
+	 * accumulate.
+	 */
 	apic->lapic_timer.target_expiration =
 		ktime_add_ns(apic->lapic_timer.target_expiration,
 				apic->lapic_timer.period);
+	delta = ktime_sub(apic->lapic_timer.target_expiration, now);
+	apic->lapic_timer.tscdeadline = kvm_read_l1_tsc(apic->vcpu, tscl) +
+		nsec_to_cycles(apic->vcpu, delta);
+}
+
+static void start_sw_period(struct kvm_lapic *apic)
+{
+	if (!apic->lapic_timer.period)
+		return;
+
+	if (ktime_after(ktime_get(),
+			apic->lapic_timer.target_expiration)) {
+		apic_timer_expired(apic);
+
+		if (apic_lvtt_oneshot(apic))
+			return;
+
+		advance_periodic_target_expiration(apic);
+	}
+
+	hrtimer_start(&apic->lapic_timer.timer,
+		apic->lapic_timer.target_expiration,
+		HRTIMER_MODE_ABS_PINNED);
 }
 
 bool kvm_lapic_hv_timer_in_use(struct kvm_vcpu *vcpu)

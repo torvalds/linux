@@ -63,18 +63,6 @@ void die(struct pt_regs *regs, const char *str)
 		do_exit(SIGSEGV);
 }
 
-static inline void do_trap_siginfo(int signo, int code,
-	unsigned long addr, struct task_struct *tsk)
-{
-	siginfo_t info;
-
-	info.si_signo = signo;
-	info.si_errno = 0;
-	info.si_code = code;
-	info.si_addr = (void __user *)addr;
-	force_sig_info(signo, &info, tsk);
-}
-
 void do_trap(struct pt_regs *regs, int signo, int code,
 	unsigned long addr, struct task_struct *tsk)
 {
@@ -87,7 +75,7 @@ void do_trap(struct pt_regs *regs, int signo, int code,
 		show_regs(regs);
 	}
 
-	do_trap_siginfo(signo, code, addr, tsk);
+	force_sig_fault(signo, code, (void __user *)addr, tsk);
 }
 
 static void do_trap_error(struct pt_regs *regs, int signo, int code,
@@ -149,7 +137,7 @@ asmlinkage void do_trap_break(struct pt_regs *regs)
 	}
 #endif /* CONFIG_GENERIC_BUG */
 
-	do_trap_siginfo(SIGTRAP, TRAP_BRKPT, regs->sepc, current);
+	force_sig_fault(SIGTRAP, TRAP_BRKPT, (void __user *)(regs->sepc), current);
 	regs->sepc += 0x4;
 }
 

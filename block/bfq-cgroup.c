@@ -55,13 +55,13 @@ BFQG_FLAG_FNS(empty)
 /* This should be called with the scheduler lock held. */
 static void bfqg_stats_update_group_wait_time(struct bfqg_stats *stats)
 {
-	unsigned long long now;
+	u64 now;
 
 	if (!bfqg_stats_waiting(stats))
 		return;
 
-	now = sched_clock();
-	if (time_after64(now, stats->start_group_wait_time))
+	now = ktime_get_ns();
+	if (now > stats->start_group_wait_time)
 		blkg_stat_add(&stats->group_wait_time,
 			      now - stats->start_group_wait_time);
 	bfqg_stats_clear_waiting(stats);
@@ -77,20 +77,20 @@ static void bfqg_stats_set_start_group_wait_time(struct bfq_group *bfqg,
 		return;
 	if (bfqg == curr_bfqg)
 		return;
-	stats->start_group_wait_time = sched_clock();
+	stats->start_group_wait_time = ktime_get_ns();
 	bfqg_stats_mark_waiting(stats);
 }
 
 /* This should be called with the scheduler lock held. */
 static void bfqg_stats_end_empty_time(struct bfqg_stats *stats)
 {
-	unsigned long long now;
+	u64 now;
 
 	if (!bfqg_stats_empty(stats))
 		return;
 
-	now = sched_clock();
-	if (time_after64(now, stats->start_empty_time))
+	now = ktime_get_ns();
+	if (now > stats->start_empty_time)
 		blkg_stat_add(&stats->empty_time,
 			      now - stats->start_empty_time);
 	bfqg_stats_clear_empty(stats);
@@ -116,7 +116,7 @@ void bfqg_stats_set_start_empty_time(struct bfq_group *bfqg)
 	if (bfqg_stats_empty(stats))
 		return;
 
-	stats->start_empty_time = sched_clock();
+	stats->start_empty_time = ktime_get_ns();
 	bfqg_stats_mark_empty(stats);
 }
 
@@ -125,9 +125,9 @@ void bfqg_stats_update_idle_time(struct bfq_group *bfqg)
 	struct bfqg_stats *stats = &bfqg->stats;
 
 	if (bfqg_stats_idling(stats)) {
-		unsigned long long now = sched_clock();
+		u64 now = ktime_get_ns();
 
-		if (time_after64(now, stats->start_idle_time))
+		if (now > stats->start_idle_time)
 			blkg_stat_add(&stats->idle_time,
 				      now - stats->start_idle_time);
 		bfqg_stats_clear_idling(stats);
@@ -138,7 +138,7 @@ void bfqg_stats_set_start_idle_time(struct bfq_group *bfqg)
 {
 	struct bfqg_stats *stats = &bfqg->stats;
 
-	stats->start_idle_time = sched_clock();
+	stats->start_idle_time = ktime_get_ns();
 	bfqg_stats_mark_idling(stats);
 }
 
@@ -171,18 +171,18 @@ void bfqg_stats_update_io_merged(struct bfq_group *bfqg, unsigned int op)
 	blkg_rwstat_add(&bfqg->stats.merged, op, 1);
 }
 
-void bfqg_stats_update_completion(struct bfq_group *bfqg, uint64_t start_time,
-				  uint64_t io_start_time, unsigned int op)
+void bfqg_stats_update_completion(struct bfq_group *bfqg, u64 start_time_ns,
+				  u64 io_start_time_ns, unsigned int op)
 {
 	struct bfqg_stats *stats = &bfqg->stats;
-	unsigned long long now = sched_clock();
+	u64 now = ktime_get_ns();
 
-	if (time_after64(now, io_start_time))
+	if (now > io_start_time_ns)
 		blkg_rwstat_add(&stats->service_time, op,
-				now - io_start_time);
-	if (time_after64(io_start_time, start_time))
+				now - io_start_time_ns);
+	if (io_start_time_ns > start_time_ns)
 		blkg_rwstat_add(&stats->wait_time, op,
-				io_start_time - start_time);
+				io_start_time_ns - start_time_ns);
 }
 
 #else /* CONFIG_BFQ_GROUP_IOSCHED && CONFIG_DEBUG_BLK_CGROUP */
@@ -191,8 +191,8 @@ void bfqg_stats_update_io_add(struct bfq_group *bfqg, struct bfq_queue *bfqq,
 			      unsigned int op) { }
 void bfqg_stats_update_io_remove(struct bfq_group *bfqg, unsigned int op) { }
 void bfqg_stats_update_io_merged(struct bfq_group *bfqg, unsigned int op) { }
-void bfqg_stats_update_completion(struct bfq_group *bfqg, uint64_t start_time,
-				  uint64_t io_start_time, unsigned int op) { }
+void bfqg_stats_update_completion(struct bfq_group *bfqg, u64 start_time_ns,
+				  u64 io_start_time_ns, unsigned int op) { }
 void bfqg_stats_update_dequeue(struct bfq_group *bfqg) { }
 void bfqg_stats_set_start_empty_time(struct bfq_group *bfqg) { }
 void bfqg_stats_update_idle_time(struct bfq_group *bfqg) { }

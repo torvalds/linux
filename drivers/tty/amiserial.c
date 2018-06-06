@@ -1566,19 +1566,6 @@ static int rs_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int rs_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, rs_proc_show, NULL);
-}
-
-static const struct file_operations rs_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= rs_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 /*
  * ---------------------------------------------------------------------
  * rs_init() and friends
@@ -1620,7 +1607,7 @@ static const struct tty_operations serial_ops = {
 	.tiocmget = rs_tiocmget,
 	.tiocmset = rs_tiocmset,
 	.get_icount = rs_get_icount,
-	.proc_fops = &rs_proc_fops,
+	.proc_show = rs_proc_show,
 };
 
 static int amiga_carrier_raised(struct tty_port *port)

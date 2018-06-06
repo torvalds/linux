@@ -542,13 +542,20 @@ struct xfs_scrub_metadata {
 /* o: Metadata object looked funny but isn't corrupt. */
 #define XFS_SCRUB_OFLAG_WARNING		(1 << 6)
 
+/*
+ * o: IFLAG_REPAIR was set but metadata object did not need fixing or
+ *    optimization and has therefore not been altered.
+ */
+#define XFS_SCRUB_OFLAG_NO_REPAIR_NEEDED (1 << 7)
+
 #define XFS_SCRUB_FLAGS_IN	(XFS_SCRUB_IFLAG_REPAIR)
 #define XFS_SCRUB_FLAGS_OUT	(XFS_SCRUB_OFLAG_CORRUPT | \
 				 XFS_SCRUB_OFLAG_PREEN | \
 				 XFS_SCRUB_OFLAG_XFAIL | \
 				 XFS_SCRUB_OFLAG_XCORRUPT | \
 				 XFS_SCRUB_OFLAG_INCOMPLETE | \
-				 XFS_SCRUB_OFLAG_WARNING)
+				 XFS_SCRUB_OFLAG_WARNING | \
+				 XFS_SCRUB_OFLAG_NO_REPAIR_NEEDED)
 #define XFS_SCRUB_FLAGS_ALL	(XFS_SCRUB_FLAGS_IN | XFS_SCRUB_FLAGS_OUT)
 
 /*

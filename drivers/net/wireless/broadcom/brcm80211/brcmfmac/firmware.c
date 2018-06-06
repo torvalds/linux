@@ -459,7 +459,7 @@ static void brcmf_fw_free_request(struct brcmf_fw_request *req)
 	kfree(req);
 }
 
-static void brcmf_fw_request_nvram_done(const struct firmware *fw, void *ctx)
+static int brcmf_fw_request_nvram_done(const struct firmware *fw, void *ctx)
 {
 	struct brcmf_fw *fwctx = ctx;
 	struct brcmf_fw_item *cur;
@@ -498,13 +498,10 @@ static void brcmf_fw_request_nvram_done(const struct firmware *fw, void *ctx)
 	brcmf_dbg(TRACE, "nvram %p len %d\n", nvram, nvram_length);
 	cur->nv_data.data = nvram;
 	cur->nv_data.len = nvram_length;
-	return;
+	return 0;
 
 fail:
-	brcmf_dbg(TRACE, "failed: dev=%s\n", dev_name(fwctx->dev));
-	fwctx->done(fwctx->dev, -ENOENT, NULL);
-	brcmf_fw_free_request(fwctx->req);
-	kfree(fwctx);
+	return -ENOENT;
 }
 
 static int brcmf_fw_request_next_item(struct brcmf_fw *fwctx, bool async)
@@ -553,19 +550,26 @@ static void brcmf_fw_request_done(const struct firmware *fw, void *ctx)
 	brcmf_dbg(TRACE, "enter: firmware %s %sfound\n", cur->path,
 		  fw ? "" : "not ");
 
-	if (fw) {
-		if (cur->type == BRCMF_FW_TYPE_BINARY)
-			cur->binary = fw;
-		else if (cur->type == BRCMF_FW_TYPE_NVRAM)
-			brcmf_fw_request_nvram_done(fw, fwctx);
-		else
-			release_firmware(fw);
-	} else if (cur->type == BRCMF_FW_TYPE_NVRAM) {
-		brcmf_fw_request_nvram_done(NULL, fwctx);
-	} else if (!(cur->flags & BRCMF_FW_REQF_OPTIONAL)) {
+	if (!fw)
 		ret = -ENOENT;
+
+	switch (cur->type) {
+	case BRCMF_FW_TYPE_NVRAM:
+		ret = brcmf_fw_request_nvram_done(fw, fwctx);
+		break;
+	case BRCMF_FW_TYPE_BINARY:
+		cur->binary = fw;
+		break;
+	default:
+		/* something fishy here so bail out early */
+		brcmf_err("unknown fw type: %d\n", cur->type);
+		release_firmware(fw);
+		ret = -EINVAL;
 		goto fail;
 	}
+
+	if (ret < 0 && !(cur->flags & BRCMF_FW_REQF_OPTIONAL))
+		goto fail;
 
 	do {
 		if (++fwctx->curpos == fwctx->req->n_items) {

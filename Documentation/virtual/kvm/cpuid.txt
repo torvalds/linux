@@ -72,8 +72,8 @@ KVM_FEATURE_CLOCKSOURCE_STABLE_BIT ||    24 || host will warn if no guest-side
 
 flag                               || value || meaning
 ==================================================================================
-KVM_HINTS_DEDICATED                ||     0 || guest checks this feature bit to
-                                   ||       || determine if there is vCPU pinning
-                                   ||       || and there is no vCPU over-commitment,
+KVM_HINTS_REALTIME                 ||     0 || guest checks this feature bit to
+                                   ||       || determine that vCPUs are never
+                                   ||       || preempted for an unlimited time,
                                    ||       || allowing optimizations
 ----------------------------------------------------------------------------------

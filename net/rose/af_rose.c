@@ -1453,18 +1453,6 @@ static const struct seq_operations rose_info_seqops = {
 	.stop = rose_info_stop,
 	.show = rose_info_show,
 };
-
-static int rose_info_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &rose_info_seqops);
-}
-
-static const struct file_operations rose_info_fops = {
-	.open = rose_info_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release,
-};
 #endif	/* CONFIG_PROC_FS */
 
 static const struct net_proto_family rose_family_ops = {
@@ -1482,7 +1470,7 @@ static const struct proto_ops rose_proto_ops = {
 	.socketpair	=	sock_no_socketpair,
 	.accept		=	rose_accept,
 	.getname	=	rose_getname,
-	.poll		=	datagram_poll,
+	.poll_mask	=	datagram_poll_mask,
 	.ioctl		=	rose_ioctl,
 	.listen		=	rose_listen,
 	.shutdown	=	sock_no_shutdown,
@@ -1567,13 +1555,13 @@ static int __init rose_proto_init(void)
 
 	rose_add_loopback_neigh();
 
-	proc_create("rose", 0444, init_net.proc_net, &rose_info_fops);
-	proc_create("rose_neigh", 0444, init_net.proc_net,
-		    &rose_neigh_fops);
-	proc_create("rose_nodes", 0444, init_net.proc_net,
-		    &rose_nodes_fops);
-	proc_create("rose_routes", 0444, init_net.proc_net,
-		    &rose_routes_fops);
+	proc_create_seq("rose", 0444, init_net.proc_net, &rose_info_seqops);
+	proc_create_seq("rose_neigh", 0444, init_net.proc_net,
+		    &rose_neigh_seqops);
+	proc_create_seq("rose_nodes", 0444, init_net.proc_net,
+		    &rose_node_seqops);
+	proc_create_seq("rose_routes", 0444, init_net.proc_net,
+		    &rose_route_seqops);
 out:
 	return rc;
 fail:

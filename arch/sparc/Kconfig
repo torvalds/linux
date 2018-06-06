@@ -25,7 +25,6 @@ config SPARC
 	select RTC_CLASS
 	select RTC_DRV_M48T59
 	select RTC_SYSTOHC
-	select HAVE_DMA_API_DEBUG
 	select HAVE_ARCH_JUMP_LABEL if SPARC64
 	select GENERIC_IRQ_SHOW
 	select ARCH_WANT_IPC_PARSE_VERSION
@@ -44,6 +43,8 @@ config SPARC
 	select ARCH_HAS_SG_CHAIN
 	select CPU_NO_EFFICIENT_FFS
 	select LOCKDEP_SMALL if LOCKDEP
+	select NEED_DMA_MAP_STATE
+	select NEED_SG_DMA_LENGTH
 
 config SPARC32
 	def_bool !64BIT
@@ -67,6 +68,7 @@ config SPARC64
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_DEBUG_KMEMLEAK
+	select IOMMU_HELPER
 	select SPARSE_IRQ
 	select RTC_DRV_CMOS
 	select RTC_DRV_BQ4802
@@ -99,14 +101,6 @@ config CPU_BIG_ENDIAN
 	def_bool y
 
 config ARCH_ATU
-	bool
-	default y if SPARC64
-
-config ARCH_DMA_ADDR_T_64BIT
-	bool
-	default y if ARCH_ATU
-
-config IOMMU_HELPER
 	bool
 	default y if SPARC64
 
@@ -145,12 +139,6 @@ config HIGHMEM
 config ZONE_DMA
 	bool
 	default y if SPARC32
-
-config NEED_DMA_MAP_STATE
-	def_bool y
-
-config NEED_SG_DMA_LENGTH
-	def_bool y
 
 config GENERIC_ISA_DMA
 	bool

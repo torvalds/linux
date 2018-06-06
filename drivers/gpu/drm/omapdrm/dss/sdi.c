@@ -82,7 +82,7 @@ static int sdi_calc_clock_div(struct sdi_device *sdi, unsigned long pclk,
 			      struct dispc_clock_info *dispc_cinfo)
 {
 	int i;
-	struct sdi_clk_calc_ctx ctx = { .sdi = sdi };
+	struct sdi_clk_calc_ctx ctx;
 
 	/*
 	 * DSS fclk gives us very few possibilities, so finding a good pixel
@@ -95,6 +95,9 @@ static int sdi_calc_clock_div(struct sdi_device *sdi, unsigned long pclk,
 		bool ok;
 
 		memset(&ctx, 0, sizeof(ctx));
+
+		ctx.sdi = sdi;
+
 		if (pclk > 1000 * i * i * i)
 			ctx.pck_min = max(pclk - 1000 * i * i * i, 0lu);
 		else

@@ -476,6 +476,7 @@ enum rxrpc_call_flag {
 	RXRPC_CALL_SEND_PING,		/* A ping will need to be sent */
 	RXRPC_CALL_PINGING,		/* Ping in process */
 	RXRPC_CALL_RETRANS_TIMEOUT,	/* Retransmission due to timeout occurred */
+	RXRPC_CALL_BEGAN_RX_TIMER,	/* We began the expect_rx_by timer */
 };
 
 /*
@@ -1050,8 +1051,8 @@ void __rxrpc_queue_peer_error(struct rxrpc_peer *);
 /*
  * proc.c
  */
-extern const struct file_operations rxrpc_call_seq_fops;
-extern const struct file_operations rxrpc_connection_seq_fops;
+extern const struct seq_operations rxrpc_call_seq_ops;
+extern const struct seq_operations rxrpc_connection_seq_ops;
 
 /*
  * recvmsg.c

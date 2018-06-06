@@ -19,7 +19,7 @@
 
 struct dm_bio_prison {
 	spinlock_t lock;
-	mempool_t *cell_pool;
+	mempool_t cell_pool;
 	struct rb_root cells;
 };
 
@@ -33,15 +33,16 @@ static struct kmem_cache *_cell_cache;
  */
 struct dm_bio_prison *dm_bio_prison_create(void)
 {
-	struct dm_bio_prison *prison = kmalloc(sizeof(*prison), GFP_KERNEL);
+	struct dm_bio_prison *prison = kzalloc(sizeof(*prison), GFP_KERNEL);
+	int ret;
 
 	if (!prison)
 		return NULL;
 
 	spin_lock_init(&prison->lock);
 
-	prison->cell_pool = mempool_create_slab_pool(MIN_CELLS, _cell_cache);
-	if (!prison->cell_pool) {
+	ret = mempool_init_slab_pool(&prison->cell_pool, MIN_CELLS, _cell_cache);
+	if (ret) {
 		kfree(prison);
 		return NULL;
 	}
@@ -54,21 +55,21 @@ EXPORT_SYMBOL_GPL(dm_bio_prison_create);
 
 void dm_bio_prison_destroy(struct dm_bio_prison *prison)
 {
-	mempool_destroy(prison->cell_pool);
+	mempool_exit(&prison->cell_pool);
 	kfree(prison);
 }
 EXPORT_SYMBOL_GPL(dm_bio_prison_destroy);
 
 struct dm_bio_prison_cell *dm_bio_prison_alloc_cell(struct dm_bio_prison *prison, gfp_t gfp)
 {
-	return mempool_alloc(prison->cell_pool, gfp);
+	return mempool_alloc(&prison->cell_pool, gfp);
 }
 EXPORT_SYMBOL_GPL(dm_bio_prison_alloc_cell);
 
 void dm_bio_prison_free_cell(struct dm_bio_prison *prison,
 			     struct dm_bio_prison_cell *cell)
 {
-	mempool_free(cell, prison->cell_pool);
+	mempool_free(cell, &prison->cell_pool);
 }
 EXPORT_SYMBOL_GPL(dm_bio_prison_free_cell);
 

@@ -87,7 +87,7 @@ struct dm_snapshot {
 	 */
 	struct list_head out_of_order_list;
 
-	mempool_t *pending_pool;
+	mempool_t pending_pool;
 
 	struct dm_exception_table pending;
 	struct dm_exception_table complete;
@@ -682,7 +682,7 @@ static void free_completed_exception(struct dm_exception *e)
 
 static struct dm_snap_pending_exception *alloc_pending_exception(struct dm_snapshot *s)
 {
-	struct dm_snap_pending_exception *pe = mempool_alloc(s->pending_pool,
+	struct dm_snap_pending_exception *pe = mempool_alloc(&s->pending_pool,
 							     GFP_NOIO);
 
 	atomic_inc(&s->pending_exceptions_count);
@@ -695,7 +695,7 @@ static void free_pending_exception(struct dm_snap_pending_exception *pe)
 {
 	struct dm_snapshot *s = pe->snap;
 
-	mempool_free(pe, s->pending_pool);
+	mempool_free(pe, &s->pending_pool);
 	smp_mb__before_atomic();
 	atomic_dec(&s->pending_exceptions_count);
 }
@@ -1120,7 +1120,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		origin_mode = FMODE_WRITE;
 	}
 
-	s = kmalloc(sizeof(*s), GFP_KERNEL);
+	s = kzalloc(sizeof(*s), GFP_KERNEL);
 	if (!s) {
 		ti->error = "Cannot allocate private snapshot structure";
 		r = -ENOMEM;
@@ -1196,10 +1196,9 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad_kcopyd;
 	}
 
-	s->pending_pool = mempool_create_slab_pool(MIN_IOS, pending_cache);
-	if (!s->pending_pool) {
+	r = mempool_init_slab_pool(&s->pending_pool, MIN_IOS, pending_cache);
+	if (r) {
 		ti->error = "Could not allocate mempool for pending exceptions";
-		r = -ENOMEM;
 		goto bad_pending_pool;
 	}
 
@@ -1259,7 +1258,7 @@ bad_read_metadata:
 	unregister_snapshot(s);
 
 bad_load_and_register:
-	mempool_destroy(s->pending_pool);
+	mempool_exit(&s->pending_pool);
 
 bad_pending_pool:
 	dm_kcopyd_client_destroy(s->kcopyd_client);
@@ -1355,7 +1354,7 @@ static void snapshot_dtr(struct dm_target *ti)
 	while (atomic_read(&s->pending_exceptions_count))
 		msleep(1);
 	/*
-	 * Ensure instructions in mempool_destroy aren't reordered
+	 * Ensure instructions in mempool_exit aren't reordered
 	 * before atomic_read.
 	 */
 	smp_mb();
@@ -1367,7 +1366,7 @@ static void snapshot_dtr(struct dm_target *ti)
 
 	__free_exceptions(s);
 
-	mempool_destroy(s->pending_pool);
+	mempool_exit(&s->pending_pool);
 
 	dm_exception_store_destroy(s->store);
 

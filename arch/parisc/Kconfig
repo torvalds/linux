@@ -51,6 +51,8 @@ config PARISC
 	select GENERIC_CLOCKEVENTS
 	select ARCH_NO_COHERENT_DMA_MMAP
 	select CPU_NO_EFFICIENT_FFS
+	select NEED_DMA_MAP_STATE
+	select NEED_SG_DMA_LENGTH
 
 	help
 	  The PA-RISC microprocessor is designed by Hewlett-Packard and used
@@ -109,12 +111,6 @@ config PM
 	bool
 
 config STACKTRACE_SUPPORT
-	def_bool y
-
-config NEED_DMA_MAP_STATE
-	def_bool y
-
-config NEED_SG_DMA_LENGTH
 	def_bool y
 
 config ISA_DMA_API

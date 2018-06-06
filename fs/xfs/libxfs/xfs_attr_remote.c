@@ -620,7 +620,7 @@ xfs_attr_rmtval_remove(
 		/*
 		 * If the "remote" value is in the cache, remove it.
 		 */
-		bp = xfs_incore(mp->m_ddev_targp, dblkno, dblkcnt, XBF_TRYLOCK);
+		bp = xfs_buf_incore(mp->m_ddev_targp, dblkno, dblkcnt, XBF_TRYLOCK);
 		if (bp) {
 			xfs_buf_stale(bp);
 			xfs_buf_relse(bp);

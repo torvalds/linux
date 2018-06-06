@@ -377,6 +377,7 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 
 			hr_cq->set_ci_db = hr_cq->db.db_record;
 			*hr_cq->set_ci_db = 0;
+			hr_cq->db_en = 1;
 		}
 
 		/* Init mmt table and write buff address to mtt table */

@@ -40,7 +40,7 @@ xfs_trans_buf_item_match(
 	struct xfs_buf_map	*map,
 	int			nmaps)
 {
-	struct xfs_log_item_desc *lidp;
+	struct xfs_log_item	*lip;
 	struct xfs_buf_log_item	*blip;
 	int			len = 0;
 	int			i;
@@ -48,8 +48,8 @@ xfs_trans_buf_item_match(
 	for (i = 0; i < nmaps; i++)
 		len += map[i].bm_len;
 
-	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
-		blip = (struct xfs_buf_log_item *)lidp->lid_item;
+	list_for_each_entry(lip, &tp->t_items, li_trans) {
+		blip = (struct xfs_buf_log_item *)lip;
 		if (blip->bli_item.li_type == XFS_LI_BUF &&
 		    blip->bli_buf->b_target == target &&
 		    XFS_BUF_ADDR(blip->bli_buf) == map[0].bm_bn &&
@@ -100,14 +100,10 @@ _xfs_trans_bjoin(
 	atomic_inc(&bip->bli_refcount);
 
 	/*
-	 * Get a log_item_desc to point at the new item.
+	 * Attach the item to the transaction so we can find it in
+	 * xfs_trans_get_buf() and friends.
 	 */
 	xfs_trans_add_item(tp, &bip->bli_item);
-
-	/*
-	 * Initialize b_fsprivate2 so we can find it with incore_match()
-	 * in xfs_trans_get_buf() and friends above.
-	 */
 	bp->b_transp = tp;
 
 }
@@ -391,7 +387,7 @@ xfs_trans_brelse(
 	 * If the buffer is dirty within this transaction, we can't
 	 * release it until we commit.
 	 */
-	if (bip->bli_item.li_desc->lid_flags & XFS_LID_DIRTY)
+	if (test_bit(XFS_LI_DIRTY, &bip->bli_item.li_flags))
 		return;
 
 	/*
@@ -442,7 +438,7 @@ xfs_trans_brelse(
 		ASSERT(bp->b_pincount == 0);
 ***/
 		ASSERT(atomic_read(&bip->bli_refcount) == 0);
-		ASSERT(!(bip->bli_item.li_flags & XFS_LI_IN_AIL));
+		ASSERT(!test_bit(XFS_LI_IN_AIL, &bip->bli_item.li_flags));
 		ASSERT(!(bip->bli_flags & XFS_BLI_INODE_ALLOC_BUF));
 		xfs_buf_item_relse(bp);
 	}
@@ -542,7 +538,7 @@ xfs_trans_dirty_buf(
 	bip->bli_flags |= XFS_BLI_DIRTY | XFS_BLI_LOGGED;
 
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	bip->bli_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+	set_bit(XFS_LI_DIRTY, &bip->bli_item.li_flags);
 }
 
 /*
@@ -626,7 +622,7 @@ xfs_trans_binval(
 		ASSERT(!(bip->__bli_format.blf_flags & XFS_BLF_INODE_BUF));
 		ASSERT(!(bip->__bli_format.blf_flags & XFS_BLFT_MASK));
 		ASSERT(bip->__bli_format.blf_flags & XFS_BLF_CANCEL);
-		ASSERT(bip->bli_item.li_desc->lid_flags & XFS_LID_DIRTY);
+		ASSERT(test_bit(XFS_LI_DIRTY, &bip->bli_item.li_flags));
 		ASSERT(tp->t_flags & XFS_TRANS_DIRTY);
 		return;
 	}
@@ -642,7 +638,7 @@ xfs_trans_binval(
 		memset(bip->bli_formats[i].blf_data_map, 0,
 		       (bip->bli_formats[i].blf_map_size * sizeof(uint)));
 	}
-	bip->bli_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+	set_bit(XFS_LI_DIRTY, &bip->bli_item.li_flags);
 	tp->t_flags |= XFS_TRANS_DIRTY;
 }
 

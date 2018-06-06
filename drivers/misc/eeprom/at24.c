@@ -518,7 +518,7 @@ static int at24_get_pdata(struct device *dev, struct at24_platform_data *pdata)
 	if (of_node && of_match_device(at24_of_match, dev))
 		cdata = of_device_get_match_data(dev);
 	else if (id)
-		cdata = (void *)&id->driver_data;
+		cdata = (void *)id->driver_data;
 	else
 		cdata = acpi_device_get_match_data(dev);
 

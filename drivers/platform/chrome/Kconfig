@@ -38,6 +38,17 @@ config CHROMEOS_PSTORE
 	  If you have a supported Chromebook, choose Y or M here.
 	  The module will be called chromeos_pstore.
 
+config CHROMEOS_TBMC
+	tristate "ChromeOS Tablet Switch Controller"
+	depends on ACPI
+	depends on INPUT
+	help
+	  This option adds a driver for the tablet switch on
+	  select Chrome OS systems.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called chromeos_tbmc.
+
 config CROS_EC_CTL
         tristate
 

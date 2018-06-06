@@ -222,6 +222,7 @@ config PTE_64BIT
 config PHYS_64BIT
 	bool 'Large physical address support' if E500 || PPC_86xx
 	depends on (44x || E500 || PPC_86xx) && !PPC_83xx && !PPC_82xx
+	select PHYS_ADDR_T_64BIT
 	---help---
 	  This option enables kernel support for larger than 32-bit physical
 	  addresses.  This feature may not be available on all cores.

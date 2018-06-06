@@ -622,8 +622,10 @@ snd_hda_check_power_state(struct hda_codec *codec, hda_nid_t nid,
 {
 	return snd_hdac_check_power_state(&codec->core, nid, target_state);
 }
-static inline bool snd_hda_sync_power_state(struct hda_codec *codec,
-			   hda_nid_t nid, unsigned int target_state)
+
+static inline unsigned int snd_hda_sync_power_state(struct hda_codec *codec,
+						    hda_nid_t nid,
+						    unsigned int target_state)
 {
 	return snd_hdac_sync_power_state(&codec->core, nid, target_state);
 }

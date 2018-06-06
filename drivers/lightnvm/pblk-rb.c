@@ -142,10 +142,9 @@ static void clean_wctx(struct pblk_w_ctx *w_ctx)
 {
 	int flags;
 
-try:
 	flags = READ_ONCE(w_ctx->flags);
-	if (!(flags & PBLK_SUBMITTED_ENTRY))
-		goto try;
+	WARN_ONCE(!(flags & PBLK_SUBMITTED_ENTRY),
+			"pblk: overwriting unsubmitted data\n");
 
 	/* Release flags on context. Protect from writes and reads */
 	smp_store_release(&w_ctx->flags, PBLK_WRITABLE_ENTRY);
@@ -350,7 +349,7 @@ void pblk_rb_write_entry_gc(struct pblk_rb *rb, void *data,
 }
 
 static int pblk_rb_flush_point_set(struct pblk_rb *rb, struct bio *bio,
-				  unsigned int pos)
+				   unsigned int pos)
 {
 	struct pblk_rb_entry *entry;
 	unsigned int sync, flush_point;
@@ -420,7 +419,7 @@ void pblk_rb_flush(struct pblk_rb *rb)
 	if (pblk_rb_flush_point_set(rb, NULL, mem))
 		return;
 
-	pblk_write_should_kick(pblk);
+	pblk_write_kick(pblk);
 }
 
 static int pblk_rb_may_write_flush(struct pblk_rb *rb, unsigned int nr_entries,
@@ -501,45 +500,6 @@ int pblk_rb_may_write_gc(struct pblk_rb *rb, unsigned int nr_entries,
 	spin_unlock(&rb->w_lock);
 
 	return 1;
-}
-
-/*
- * The caller of this function must ensure that the backpointer will not
- * overwrite the entries passed on the list.
- */
-unsigned int pblk_rb_read_to_bio_list(struct pblk_rb *rb, struct bio *bio,
-				      struct list_head *list,
-				      unsigned int max)
-{
-	struct pblk_rb_entry *entry, *tentry;
-	struct page *page;
-	unsigned int read = 0;
-	int ret;
-
-	list_for_each_entry_safe(entry, tentry, list, index) {
-		if (read > max) {
-			pr_err("pblk: too many entries on list\n");
-			goto out;
-		}
-
-		page = virt_to_page(entry->data);
-		if (!page) {
-			pr_err("pblk: could not allocate write bio page\n");
-			goto out;
-		}
-
-		ret = bio_add_page(bio, page, rb->seg_size, 0);
-		if (ret != rb->seg_size) {
-			pr_err("pblk: could not add page to write bio\n");
-			goto out;
-		}
-
-		list_del(&entry->index);
-		read++;
-	}
-
-out:
-	return read;
 }
 
 /*

@@ -293,6 +293,57 @@ static void __do_kernel_fault(unsigned long addr, unsigned int esr,
 static void __do_user_fault(struct siginfo *info, unsigned int esr)
 {
 	current->thread.fault_address = (unsigned long)info->si_addr;
+
+	/*
+	 * If the faulting address is in the kernel, we must sanitize the ESR.
+	 * From userspace's point of view, kernel-only mappings don't exist
+	 * at all, so we report them as level 0 translation faults.
+	 * (This is not quite the way that "no mapping there at all" behaves:
+	 * an alignment fault not caused by the memory type would take
+	 * precedence over translation fault for a real access to empty
+	 * space. Unfortunately we can't easily distinguish "alignment fault
+	 * not caused by memory type" from "alignment fault caused by memory
+	 * type", so we ignore this wrinkle and just return the translation
+	 * fault.)
+	 */
+	if (current->thread.fault_address >= TASK_SIZE) {
+		switch (ESR_ELx_EC(esr)) {
+		case ESR_ELx_EC_DABT_LOW:
+			/*
+			 * These bits provide only information about the
+			 * faulting instruction, which userspace knows already.
+			 * We explicitly clear bits which are architecturally
+			 * RES0 in case they are given meanings in future.
+			 * We always report the ESR as if the fault was taken
+			 * to EL1 and so ISV and the bits in ISS[23:14] are
+			 * clear. (In fact it always will be a fault to EL1.)
+			 */
+			esr &= ESR_ELx_EC_MASK | ESR_ELx_IL |
+				ESR_ELx_CM | ESR_ELx_WNR;
+			esr |= ESR_ELx_FSC_FAULT;
+			break;
+		case ESR_ELx_EC_IABT_LOW:
+			/*
+			 * Claim a level 0 translation fault.
+			 * All other bits are architecturally RES0 for faults
+			 * reported with that DFSC value, so we clear them.
+			 */
+			esr &= ESR_ELx_EC_MASK | ESR_ELx_IL;
+			esr |= ESR_ELx_FSC_FAULT;
+			break;
+		default:
+			/*
+			 * This should never happen (entry.S only brings us
+			 * into this code for insn and data aborts from a lower
+			 * exception level). Fail safe by not providing an ESR
+			 * context record at all.
+			 */
+			WARN(1, "ESR 0x%x is not DABT or IABT from EL0\n", esr);
+			esr = 0;
+			break;
+		}
+	}
+
 	current->thread.fault_code = esr;
 	arm64_force_sig_info(info, esr_to_fault_info(esr)->name, current);
 }
@@ -305,11 +356,12 @@ static void do_bad_area(unsigned long addr, unsigned int esr, struct pt_regs *re
 	 */
 	if (user_mode(regs)) {
 		const struct fault_info *inf = esr_to_fault_info(esr);
-		struct siginfo si = {
-			.si_signo	= inf->sig,
-			.si_code	= inf->code,
-			.si_addr	= (void __user *)addr,
-		};
+		struct siginfo si;
+
+		clear_siginfo(&si);
+		si.si_signo	= inf->sig;
+		si.si_code	= inf->code;
+		si.si_addr	= (void __user *)addr;
 
 		__do_user_fault(&si, esr);
 	} else {
@@ -583,6 +635,7 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 			nmi_exit();
 	}
 
+	clear_siginfo(&info);
 	info.si_signo = inf->sig;
 	info.si_errno = 0;
 	info.si_code  = inf->code;
@@ -687,6 +740,7 @@ asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
 		show_pte(addr);
 	}
 
+	clear_siginfo(&info);
 	info.si_signo = inf->sig;
 	info.si_errno = 0;
 	info.si_code  = inf->code;
@@ -729,6 +783,7 @@ asmlinkage void __exception do_sp_pc_abort(unsigned long addr,
 		local_irq_enable();
 	}
 
+	clear_siginfo(&info);
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code  = BUS_ADRALN;
@@ -772,7 +827,6 @@ asmlinkage int __exception do_debug_exception(unsigned long addr,
 					      struct pt_regs *regs)
 {
 	const struct fault_info *inf = debug_fault_info + DBG_ESR_EVT(esr);
-	struct siginfo info;
 	int rv;
 
 	/*
@@ -788,6 +842,9 @@ asmlinkage int __exception do_debug_exception(unsigned long addr,
 	if (!inf->fn(addr, esr, regs)) {
 		rv = 1;
 	} else {
+		struct siginfo info;
+
+		clear_siginfo(&info);
 		info.si_signo = inf->sig;
 		info.si_errno = 0;
 		info.si_code  = inf->code;

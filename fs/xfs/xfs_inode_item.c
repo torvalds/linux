@@ -518,7 +518,7 @@ xfs_inode_item_push(
 	 * The buffer containing this item failed to be written back
 	 * previously. Resubmit the buffer for IO.
 	 */
-	if (lip->li_flags & XFS_LI_FAILED) {
+	if (test_bit(XFS_LI_FAILED, &lip->li_flags)) {
 		if (!xfs_buf_trylock(bp))
 			return XFS_ITEM_LOCKED;
 
@@ -729,14 +729,14 @@ xfs_iflush_done(
 		 */
 		iip = INODE_ITEM(blip);
 		if ((iip->ili_logged && blip->li_lsn == iip->ili_flush_lsn) ||
-		    (blip->li_flags & XFS_LI_FAILED))
+		    test_bit(XFS_LI_FAILED, &blip->li_flags))
 			need_ail++;
 	}
 
 	/* make sure we capture the state of the initial inode. */
 	iip = INODE_ITEM(lip);
 	if ((iip->ili_logged && lip->li_lsn == iip->ili_flush_lsn) ||
-	    lip->li_flags & XFS_LI_FAILED)
+	    test_bit(XFS_LI_FAILED, &lip->li_flags))
 		need_ail++;
 
 	/*
@@ -803,7 +803,7 @@ xfs_iflush_abort(
 	xfs_inode_log_item_t	*iip = ip->i_itemp;
 
 	if (iip) {
-		if (iip->ili_item.li_flags & XFS_LI_IN_AIL) {
+		if (test_bit(XFS_LI_IN_AIL, &iip->ili_item.li_flags)) {
 			xfs_trans_ail_remove(&iip->ili_item,
 					     stale ? SHUTDOWN_LOG_IO_ERROR :
 						     SHUTDOWN_CORRUPT_INCORE);

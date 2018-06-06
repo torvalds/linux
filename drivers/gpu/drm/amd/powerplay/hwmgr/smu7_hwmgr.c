@@ -79,12 +79,13 @@
 #define PCIE_BUS_CLK                10000
 #define TCLK                        (PCIE_BUS_CLK / 10)
 
-static const struct profile_mode_setting smu7_profiling[5] =
+static const struct profile_mode_setting smu7_profiling[6] =
 					{{1, 0, 100, 30, 1, 0, 100, 10},
 					 {1, 10, 0, 30, 0, 0, 0, 0},
 					 {0, 0, 0, 0, 1, 10, 16, 31},
 					 {1, 0, 11, 50, 1, 0, 100, 10},
 					 {1, 0, 5, 30, 0, 0, 0, 0},
+					 {0, 0, 0, 0, 0, 0, 0, 0},
 					};
 
 /** Values for the CG_THERMAL_CTRL::DPM_EVENT_SRC field. */
@@ -4743,23 +4744,27 @@ static void smu7_check_dpm_table_updated(struct pp_hwmgr *hwmgr)
 
 	for (i=0; i < dep_table->count; i++) {
 		if (dep_table->entries[i].vddc != odn_dep_table->entries[i].vddc) {
-			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_VDDC;
-			break;
+			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_VDDC | DPMTABLE_OD_UPDATE_MCLK;
+			return;
 		}
 	}
-	if (i == dep_table->count)
+	if (i == dep_table->count && data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_VDDC) {
 		data->need_update_smu7_dpm_table &= ~DPMTABLE_OD_UPDATE_VDDC;
+		data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_MCLK;
+	}
 
 	dep_table = table_info->vdd_dep_on_sclk;
 	odn_dep_table = (struct phm_ppt_v1_clock_voltage_dependency_table *)&(odn_table->vdd_dependency_on_sclk);
 	for (i=0; i < dep_table->count; i++) {
 		if (dep_table->entries[i].vddc != odn_dep_table->entries[i].vddc) {
-			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_VDDC;
-			break;
+			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_VDDC | DPMTABLE_OD_UPDATE_SCLK;
+			return;
 		}
 	}
-	if (i == dep_table->count)
+	if (i == dep_table->count && data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_VDDC) {
 		data->need_update_smu7_dpm_table &= ~DPMTABLE_OD_UPDATE_VDDC;
+		data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_SCLK;
+	}
 }
 
 static int smu7_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
@@ -4860,6 +4865,17 @@ static int smu7_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 	len = sizeof(smu7_profiling) / sizeof(struct profile_mode_setting);
 
 	for (i = 0; i < len; i++) {
+		if (i == hwmgr->power_profile_mode) {
+			size += sprintf(buf + size, "%3d %14s %s: %8d %16d %16d %16d %16d %16d\n",
+			i, profile_name[i], "*",
+			data->current_profile_setting.sclk_up_hyst,
+			data->current_profile_setting.sclk_down_hyst,
+			data->current_profile_setting.sclk_activity,
+			data->current_profile_setting.mclk_up_hyst,
+			data->current_profile_setting.mclk_down_hyst,
+			data->current_profile_setting.mclk_activity);
+			continue;
+		}
 		if (smu7_profiling[i].bupdate_sclk)
 			size += sprintf(buf + size, "%3d %16s: %8d %16d %16d ",
 			i, profile_name[i], smu7_profiling[i].sclk_up_hyst,
@@ -4878,24 +4894,6 @@ static int smu7_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 			size += sprintf(buf + size, "%16s %16s %16s\n",
 			"-", "-", "-");
 	}
-
-	size += sprintf(buf + size, "%3d %16s: %8d %16d %16d %16d %16d %16d\n",
-			i, profile_name[i],
-			data->custom_profile_setting.sclk_up_hyst,
-			data->custom_profile_setting.sclk_down_hyst,
-			data->custom_profile_setting.sclk_activity,
-			data->custom_profile_setting.mclk_up_hyst,
-			data->custom_profile_setting.mclk_down_hyst,
-			data->custom_profile_setting.mclk_activity);
-
-	size += sprintf(buf + size, "%3s %16s: %8d %16d %16d %16d %16d %16d\n",
-			"*", "CURRENT",
-			data->current_profile_setting.sclk_up_hyst,
-			data->current_profile_setting.sclk_down_hyst,
-			data->current_profile_setting.sclk_activity,
-			data->current_profile_setting.mclk_up_hyst,
-			data->current_profile_setting.mclk_down_hyst,
-			data->current_profile_setting.mclk_activity);
 
 	return size;
 }
@@ -4935,16 +4933,16 @@ static int smu7_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, uint
 		if (size < 8)
 			return -EINVAL;
 
-		data->custom_profile_setting.bupdate_sclk = input[0];
-		data->custom_profile_setting.sclk_up_hyst = input[1];
-		data->custom_profile_setting.sclk_down_hyst = input[2];
-		data->custom_profile_setting.sclk_activity = input[3];
-		data->custom_profile_setting.bupdate_mclk = input[4];
-		data->custom_profile_setting.mclk_up_hyst = input[5];
-		data->custom_profile_setting.mclk_down_hyst = input[6];
-		data->custom_profile_setting.mclk_activity = input[7];
-		if (!smum_update_dpm_settings(hwmgr, &data->custom_profile_setting)) {
-			memcpy(&data->current_profile_setting, &data->custom_profile_setting, sizeof(struct profile_mode_setting));
+		tmp.bupdate_sclk = input[0];
+		tmp.sclk_up_hyst = input[1];
+		tmp.sclk_down_hyst = input[2];
+		tmp.sclk_activity = input[3];
+		tmp.bupdate_mclk = input[4];
+		tmp.mclk_up_hyst = input[5];
+		tmp.mclk_down_hyst = input[6];
+		tmp.mclk_activity = input[7];
+		if (!smum_update_dpm_settings(hwmgr, &tmp)) {
+			memcpy(&data->current_profile_setting, &tmp, sizeof(struct profile_mode_setting));
 			hwmgr->power_profile_mode = mode;
 		}
 		break;

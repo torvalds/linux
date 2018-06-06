@@ -118,6 +118,7 @@ static struct test generic_tests[] = {
 	{
 		.desc = "Breakpoint accounting",
 		.func = test__bp_accounting,
+		.is_supported = test__bp_signal_is_supported,
 	},
 	{
 		.desc = "Number of exit events of a simple workload",
@@ -653,6 +654,15 @@ static int perf_test__list(int argc, const char **argv)
 			continue;
 
 		pr_info("%2d: %s\n", i, t->desc);
+
+		if (t->subtest.get_nr) {
+			int subn = t->subtest.get_nr();
+			int subi;
+
+			for (subi = 0; subi < subn; subi++)
+				pr_info("%2d:%1d: %s\n", i, subi + 1,
+					t->subtest.get_desc(subi));
+		}
 	}
 
 	perf_test__list_shell(argc, argv, i);

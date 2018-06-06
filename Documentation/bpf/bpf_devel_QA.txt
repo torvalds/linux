@@ -557,6 +557,14 @@ A: Although LLVM IR generation and optimization try to stay architecture
        pulls in some header files containing file scope host assembly codes.
      - You can add "-fno-jump-tables" to work around the switch table issue.
 
-   Otherwise, you can use bpf target.
+   Otherwise, you can use bpf target. Additionally, you _must_ use bpf target
+   when:
+
+     - Your program uses data structures with pointer or long / unsigned long
+       types that interface with BPF helpers or context data structures. Access
+       into these structures is verified by the BPF verifier and may result
+       in verification failures if the native architecture is not aligned with
+       the BPF architecture, e.g. 64-bit. An example of this is
+       BPF_PROG_TYPE_SK_MSG require '-target bpf'
 
 Happy BPF hacking!

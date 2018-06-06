@@ -232,7 +232,10 @@ static inline int ip_vs_conn_unhash(struct ip_vs_conn *cp)
 static inline bool ip_vs_conn_unlink(struct ip_vs_conn *cp)
 {
 	unsigned int hash;
-	bool ret;
+	bool ret = false;
+
+	if (cp->flags & IP_VS_CONN_F_ONE_PACKET)
+		return refcount_dec_if_one(&cp->refcnt);
 
 	hash = ip_vs_conn_hashkey_conn(cp);
 
@@ -240,15 +243,13 @@ static inline bool ip_vs_conn_unlink(struct ip_vs_conn *cp)
 	spin_lock(&cp->lock);
 
 	if (cp->flags & IP_VS_CONN_F_HASHED) {
-		ret = false;
 		/* Decrease refcnt and unlink conn only if we are last user */
 		if (refcount_dec_if_one(&cp->refcnt)) {
 			hlist_del_rcu(&cp->c_list);
 			cp->flags &= ~IP_VS_CONN_F_HASHED;
 			ret = true;
 		}
-	} else
-		ret = refcount_read(&cp->refcnt) ? false : true;
+	}
 
 	spin_unlock(&cp->lock);
 	ct_write_unlock_bh(hash);
@@ -454,12 +455,6 @@ ip_vs_conn_out_get_proto(struct netns_ipvs *ipvs, int af,
 }
 EXPORT_SYMBOL_GPL(ip_vs_conn_out_get_proto);
 
-static void __ip_vs_conn_put_notimer(struct ip_vs_conn *cp)
-{
-	__ip_vs_conn_put(cp);
-	ip_vs_conn_expire(&cp->timer);
-}
-
 /*
  *      Put back the conn and restart its timer with its timeout
  */
@@ -478,7 +473,7 @@ void ip_vs_conn_put(struct ip_vs_conn *cp)
 	    (refcount_read(&cp->refcnt) == 1) &&
 	    !timer_pending(&cp->timer))
 		/* expire connection immediately */
-		__ip_vs_conn_put_notimer(cp);
+		ip_vs_conn_expire(&cp->timer);
 	else
 		__ip_vs_conn_put_timer(cp);
 }
@@ -1136,19 +1131,6 @@ static const struct seq_operations ip_vs_conn_seq_ops = {
 	.show  = ip_vs_conn_seq_show,
 };
 
-static int ip_vs_conn_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &ip_vs_conn_seq_ops,
-			    sizeof(struct ip_vs_iter_state));
-}
-
-static const struct file_operations ip_vs_conn_fops = {
-	.open    = ip_vs_conn_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release_net,
-};
-
 static const char *ip_vs_origin_name(unsigned int flags)
 {
 	if (flags & IP_VS_CONN_F_SYNC)
@@ -1212,20 +1194,6 @@ static const struct seq_operations ip_vs_conn_sync_seq_ops = {
 	.stop  = ip_vs_conn_seq_stop,
 	.show  = ip_vs_conn_sync_seq_show,
 };
-
-static int ip_vs_conn_sync_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &ip_vs_conn_sync_seq_ops,
-			    sizeof(struct ip_vs_iter_state));
-}
-
-static const struct file_operations ip_vs_conn_sync_fops = {
-	.open    = ip_vs_conn_sync_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release_net,
-};
-
 #endif
 
 
@@ -1385,9 +1353,11 @@ int __net_init ip_vs_conn_net_init(struct netns_ipvs *ipvs)
 {
 	atomic_set(&ipvs->conn_count, 0);
 
-	proc_create("ip_vs_conn", 0, ipvs->net->proc_net, &ip_vs_conn_fops);
-	proc_create("ip_vs_conn_sync", 0, ipvs->net->proc_net,
-		    &ip_vs_conn_sync_fops);
+	proc_create_net("ip_vs_conn", 0, ipvs->net->proc_net,
+			&ip_vs_conn_seq_ops, sizeof(struct ip_vs_iter_state));
+	proc_create_net("ip_vs_conn_sync", 0, ipvs->net->proc_net,
+			&ip_vs_conn_sync_seq_ops,
+			sizeof(struct ip_vs_iter_state));
 	return 0;
 }
 

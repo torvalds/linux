@@ -1829,18 +1829,6 @@ static int mtd_proc_show(struct seq_file *m, void *v)
 	mutex_unlock(&mtd_table_mutex);
 	return 0;
 }
-
-static int mtd_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mtd_proc_show, NULL);
-}
-
-static const struct file_operations mtd_proc_ops = {
-	.open		= mtd_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 #endif /* CONFIG_PROC_FS */
 
 /*====================================================================*/
@@ -1883,7 +1871,7 @@ static int __init init_mtd(void)
 		goto err_bdi;
 	}
 
-	proc_mtd = proc_create("mtd", 0, NULL, &mtd_proc_ops);
+	proc_mtd = proc_create_single("mtd", 0, NULL, mtd_proc_show);
 
 	ret = init_mtdchar();
 	if (ret)

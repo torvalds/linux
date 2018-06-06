@@ -61,6 +61,7 @@
 #define RFC1001_PORT 139
 
 extern mempool_t *cifs_req_poolp;
+extern bool disable_legacy_dialects;
 
 /* FIXME: should these be tunable? */
 #define TLINK_ERROR_EXPIRE	(1 * HZ)
@@ -76,9 +77,10 @@ enum {
 	Opt_mapposix, Opt_nomapposix,
 	Opt_mapchars, Opt_nomapchars, Opt_sfu,
 	Opt_nosfu, Opt_nodfs, Opt_posixpaths,
-	Opt_noposixpaths, Opt_nounix,
+	Opt_noposixpaths, Opt_nounix, Opt_unix,
 	Opt_nocase,
 	Opt_brl, Opt_nobrl,
+	Opt_handlecache, Opt_nohandlecache,
 	Opt_forcemandatorylock, Opt_setuidfromacl, Opt_setuids,
 	Opt_nosetuids, Opt_dynperm, Opt_nodynperm,
 	Opt_nohard, Opt_nosoft,
@@ -144,10 +146,16 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_noposixpaths, "noposixpaths" },
 	{ Opt_nounix, "nounix" },
 	{ Opt_nounix, "nolinux" },
+	{ Opt_nounix, "noposix" },
+	{ Opt_unix, "unix" },
+	{ Opt_unix, "linux" },
+	{ Opt_unix, "posix" },
 	{ Opt_nocase, "nocase" },
 	{ Opt_nocase, "ignorecase" },
 	{ Opt_brl, "brl" },
 	{ Opt_nobrl, "nobrl" },
+	{ Opt_handlecache, "handlecache" },
+	{ Opt_nohandlecache, "nohandlecache" },
 	{ Opt_nobrl, "nolock" },
 	{ Opt_forcemandatorylock, "forcemandatorylock" },
 	{ Opt_forcemandatorylock, "forcemand" },
@@ -591,10 +599,11 @@ cifs_read_from_socket(struct TCP_Server_Info *server, char *buf,
 
 int
 cifs_read_page_from_socket(struct TCP_Server_Info *server, struct page *page,
-		      unsigned int to_read)
+	unsigned int page_offset, unsigned int to_read)
 {
 	struct msghdr smb_msg;
-	struct bio_vec bv = {.bv_page = page, .bv_len = to_read};
+	struct bio_vec bv = {
+		.bv_page = page, .bv_len = to_read, .bv_offset = page_offset};
 	iov_iter_bvec(&smb_msg.msg_iter, READ | ITER_BVEC, &bv, 1, to_read);
 	return cifs_readv_from_socket(server, &smb_msg);
 }
@@ -848,6 +857,7 @@ cifs_demultiplex_thread(void *p)
 	int length;
 	struct TCP_Server_Info *server = p;
 	unsigned int pdu_length;
+	unsigned int next_offset;
 	char *buf = NULL;
 	struct task_struct *task_to_wake = NULL;
 	struct mid_q_entry *mid_entry;
@@ -874,24 +884,29 @@ cifs_demultiplex_thread(void *p)
 		length = cifs_read_from_socket(server, buf, pdu_length);
 		if (length < 0)
 			continue;
-		server->total_read = length;
+
+		if (server->vals->header_preamble_size == 0)
+			server->total_read = 0;
+		else
+			server->total_read = length;
 
 		/*
 		 * The right amount was read from socket - 4 bytes,
 		 * so we can now interpret the length field.
 		 */
 		pdu_length = get_rfc1002_length(buf);
-		server->pdu_size = pdu_length;
 
 		cifs_dbg(FYI, "RFC1002 header 0x%x\n", pdu_length);
 		if (!is_smb_response(server, buf[0]))
 			continue;
+next_pdu:
+		server->pdu_size = pdu_length;
 
 		/* make sure we have enough to get to the MID */
-		if (pdu_length < HEADER_SIZE(server) - 1 -
+		if (server->pdu_size < HEADER_SIZE(server) - 1 -
 		    server->vals->header_preamble_size) {
 			cifs_dbg(VFS, "SMB response too short (%u bytes)\n",
-				 pdu_length);
+				 server->pdu_size);
 			cifs_reconnect(server);
 			wake_up(&server->response_q);
 			continue;
@@ -905,6 +920,12 @@ cifs_demultiplex_thread(void *p)
 		if (length < 0)
 			continue;
 		server->total_read += length;
+
+		if (server->ops->next_header) {
+			next_offset = server->ops->next_header(buf);
+			if (next_offset)
+				server->pdu_size = next_offset;
+		}
 
 		if (server->ops->is_transform_hdr &&
 		    server->ops->receive_transform &&
@@ -948,10 +969,18 @@ cifs_demultiplex_thread(void *p)
 				      HEADER_SIZE(server));
 #ifdef CONFIG_CIFS_DEBUG2
 			if (server->ops->dump_detail)
-				server->ops->dump_detail(buf);
+				server->ops->dump_detail(buf, server);
 			cifs_dump_mids(server);
 #endif /* CIFS_DEBUG2 */
-
+		}
+		if (pdu_length > server->pdu_size) {
+			if (!allocate_buffers(server))
+				continue;
+			pdu_length -= server->pdu_size;
+			server->total_read = 0;
+			server->large_buf = false;
+			buf = server->smallbuf;
+			goto next_pdu;
 		}
 	} /* end while !EXITING */
 
@@ -1143,10 +1172,18 @@ cifs_parse_smb_version(char *value, struct smb_vol *vol)
 
 	switch (match_token(value, cifs_smb_version_tokens, args)) {
 	case Smb_1:
+		if (disable_legacy_dialects) {
+			cifs_dbg(VFS, "mount with legacy dialect disabled\n");
+			return 1;
+		}
 		vol->ops = &smb1_operations;
 		vol->vals = &smb1_values;
 		break;
 	case Smb_20:
+		if (disable_legacy_dialects) {
+			cifs_dbg(VFS, "mount with legacy dialect disabled\n");
+			return 1;
+		}
 		vol->ops = &smb20_operations;
 		vol->vals = &smb20_values;
 		break;
@@ -1426,7 +1463,16 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			vol->posix_paths = 0;
 			break;
 		case Opt_nounix:
+			if (vol->linux_ext)
+				cifs_dbg(VFS,
+					"conflicting unix mount options\n");
 			vol->no_linux_ext = 1;
+			break;
+		case Opt_unix:
+			if (vol->no_linux_ext)
+				cifs_dbg(VFS,
+					"conflicting unix mount options\n");
+			vol->linux_ext = 1;
 			break;
 		case Opt_nocase:
 			vol->nocase = 1;
@@ -1444,6 +1490,12 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			if (vol->file_mode ==
 				(S_IALLUGO & ~(S_ISUID | S_IXGRP)))
 				vol->file_mode = S_IALLUGO;
+			break;
+		case Opt_nohandlecache:
+			vol->nohandlecache = 1;
+			break;
+		case Opt_handlecache:
+			vol->nohandlecache = 0;
 			break;
 		case Opt_forcemandatorylock:
 			vol->mand_lock = 1;
@@ -1976,14 +2028,6 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 		cifs_dbg(VFS, "SMB Direct requires Version >=3.0\n");
 		goto cifs_parse_mount_err;
 	}
-
-#ifdef CONFIG_CIFS_SMB_DIRECT
-	if (vol->rdma && vol->sign) {
-		cifs_dbg(VFS, "Currently SMB direct doesn't support signing."
-			" This is being fixed\n");
-		goto cifs_parse_mount_err;
-	}
-#endif
 
 #ifndef CONFIG_KEYS
 	/* Muliuser mounts require CONFIG_KEYS support */
@@ -2959,6 +3003,29 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 		}
 	}
 
+	if (volume_info->seal) {
+		if (ses->server->vals->protocol_id == 0) {
+			cifs_dbg(VFS,
+				 "SMB3 or later required for encryption\n");
+			rc = -EOPNOTSUPP;
+			goto out_fail;
+		} else if (tcon->ses->server->capabilities &
+					SMB2_GLOBAL_CAP_ENCRYPTION)
+			tcon->seal = true;
+		else {
+			cifs_dbg(VFS, "Encryption is not supported on share\n");
+			rc = -EOPNOTSUPP;
+			goto out_fail;
+		}
+	}
+
+#ifdef CONFIG_CIFS_SMB311
+	if ((volume_info->linux_ext) && (ses->server->posix_ext_supported)) {
+		if (ses->server->vals->protocol_id == SMB311_PROT_ID)
+			tcon->posix_extensions = true;
+	}
+#endif /* 311 */
+
 	/*
 	 * BB Do we need to wrap session_mutex around this TCon call and Unix
 	 * SetFS as we do on SessSetup and reconnect?
@@ -3007,22 +3074,6 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 		tcon->use_resilient = true;
 	}
 
-	if (volume_info->seal) {
-		if (ses->server->vals->protocol_id == 0) {
-			cifs_dbg(VFS,
-				 "SMB3 or later required for encryption\n");
-			rc = -EOPNOTSUPP;
-			goto out_fail;
-		} else if (tcon->ses->server->capabilities &
-					SMB2_GLOBAL_CAP_ENCRYPTION)
-			tcon->seal = true;
-		else {
-			cifs_dbg(VFS, "Encryption is not supported on share\n");
-			rc = -EOPNOTSUPP;
-			goto out_fail;
-		}
-	}
-
 	/*
 	 * We can have only one retry value for a connection to a share so for
 	 * resources mounted more than once to the same server share the last
@@ -3030,6 +3081,7 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 	 */
 	tcon->retry = volume_info->retry;
 	tcon->nocase = volume_info->nocase;
+	tcon->nohandlecache = volume_info->nohandlecache;
 	tcon->local_lease = volume_info->local_lease;
 	INIT_LIST_HEAD(&tcon->pending_opens);
 
@@ -3588,6 +3640,8 @@ int cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_UNX_EMUL;
 	if (pvolume_info->nobrl)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_BRL;
+	if (pvolume_info->nohandlecache)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_HANDLE_CACHE;
 	if (pvolume_info->nostrictsync)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NOSSYNC;
 	if (pvolume_info->mand_lock)
@@ -3929,6 +3983,12 @@ try_mount_again:
 
 		goto remote_path_check;
 	}
+
+#ifdef CONFIG_CIFS_SMB311
+	/* if new SMB3.11 POSIX extensions are supported do not remap / and \ */
+	if (tcon->posix_extensions)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_POSIX_PATHS;
+#endif /* SMB3.11 */
 
 	/* tell server which Unix caps we support */
 	if (cap_unix(tcon->ses)) {
@@ -4361,6 +4421,7 @@ cifs_construct_tcon(struct cifs_sb_info *cifs_sb, kuid_t fsuid)
 	vol_info->UNC = master_tcon->treeName;
 	vol_info->retry = master_tcon->retry;
 	vol_info->nocase = master_tcon->nocase;
+	vol_info->nohandlecache = master_tcon->nohandlecache;
 	vol_info->local_lease = master_tcon->local_lease;
 	vol_info->no_linux_ext = !master_tcon->unix_ext;
 	vol_info->sectype = master_tcon->ses->sectype;
@@ -4390,8 +4451,14 @@ cifs_construct_tcon(struct cifs_sb_info *cifs_sb, kuid_t fsuid)
 		goto out;
 	}
 
+#ifdef CONFIG_CIFS_SMB311
+	/* if new SMB3.11 POSIX extensions are supported do not remap / and \ */
+	if (tcon->posix_extensions)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_POSIX_PATHS;
+#endif /* SMB3.11 */
 	if (cap_unix(ses))
 		reset_cifs_unix_caps(0, tcon, NULL, vol_info);
+
 out:
 	kfree(vol_info->username);
 	kzfree(vol_info->password);

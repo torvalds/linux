@@ -62,6 +62,9 @@ struct pn533_usb_phy {
 	struct urb *out_urb;
 	struct urb *in_urb;
 
+	struct urb *ack_urb;
+	u8 *ack_buffer;
+
 	struct pn533 *priv;
 };
 
@@ -150,13 +153,16 @@ static int pn533_usb_send_ack(struct pn533 *dev, gfp_t flags)
 	struct pn533_usb_phy *phy = dev->phy;
 	static const u8 ack[6] = {0x00, 0x00, 0xff, 0x00, 0xff, 0x00};
 	/* spec 7.1.1.3:  Preamble, SoPC (2), ACK Code (2), Postamble */
-	int rc;
 
-	phy->out_urb->transfer_buffer = (u8 *)ack;
-	phy->out_urb->transfer_buffer_length = sizeof(ack);
-	rc = usb_submit_urb(phy->out_urb, flags);
+	if (!phy->ack_buffer) {
+		phy->ack_buffer = kmemdup(ack, sizeof(ack), flags);
+		if (!phy->ack_buffer)
+			return -ENOMEM;
+	}
 
-	return rc;
+	phy->ack_urb->transfer_buffer = phy->ack_buffer;
+	phy->ack_urb->transfer_buffer_length = sizeof(ack);
+	return usb_submit_urb(phy->ack_urb, flags);
 }
 
 static int pn533_usb_send_frame(struct pn533 *dev,
@@ -375,11 +381,17 @@ static int pn533_acr122_poweron_rdr(struct pn533_usb_phy *phy)
 	/* Power on th reader (CCID cmd) */
 	u8 cmd[10] = {PN533_ACR122_PC_TO_RDR_ICCPOWERON,
 		      0, 0, 0, 0, 0, 0, 3, 0, 0};
+	char *buffer;
+	int transferred;
 	int rc;
 	void *cntx;
 	struct pn533_acr122_poweron_rdr_arg arg;
 
 	dev_dbg(&phy->udev->dev, "%s\n", __func__);
+
+	buffer = kmemdup(cmd, sizeof(cmd), GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
 
 	init_completion(&arg.done);
 	cntx = phy->in_urb->context;  /* backup context */
@@ -387,14 +399,13 @@ static int pn533_acr122_poweron_rdr(struct pn533_usb_phy *phy)
 	phy->in_urb->complete = pn533_acr122_poweron_rdr_resp;
 	phy->in_urb->context = &arg;
 
-	phy->out_urb->transfer_buffer = cmd;
-	phy->out_urb->transfer_buffer_length = sizeof(cmd);
-
 	print_hex_dump_debug("ACR122 TX: ", DUMP_PREFIX_NONE, 16, 1,
 		       cmd, sizeof(cmd), false);
 
-	rc = usb_submit_urb(phy->out_urb, GFP_KERNEL);
-	if (rc) {
+	rc = usb_bulk_msg(phy->udev, phy->out_urb->pipe, buffer, sizeof(cmd),
+			  &transferred, 0);
+	kfree(buffer);
+	if (rc || (transferred != sizeof(cmd))) {
 		nfc_err(&phy->udev->dev,
 			"Reader power on cmd error %d\n", rc);
 		return rc;
@@ -490,8 +501,9 @@ static int pn533_usb_probe(struct usb_interface *interface,
 
 	phy->in_urb = usb_alloc_urb(0, GFP_KERNEL);
 	phy->out_urb = usb_alloc_urb(0, GFP_KERNEL);
+	phy->ack_urb = usb_alloc_urb(0, GFP_KERNEL);
 
-	if (!phy->in_urb || !phy->out_urb)
+	if (!phy->in_urb || !phy->out_urb || !phy->ack_urb)
 		goto error;
 
 	usb_fill_bulk_urb(phy->in_urb, phy->udev,
@@ -501,7 +513,9 @@ static int pn533_usb_probe(struct usb_interface *interface,
 	usb_fill_bulk_urb(phy->out_urb, phy->udev,
 			  usb_sndbulkpipe(phy->udev, out_endpoint),
 			  NULL, 0, pn533_send_complete, phy);
-
+	usb_fill_bulk_urb(phy->ack_urb, phy->udev,
+			  usb_sndbulkpipe(phy->udev, out_endpoint),
+			  NULL, 0, pn533_send_complete, phy);
 
 	switch (id->driver_info) {
 	case PN533_DEVICE_STD:
@@ -554,6 +568,7 @@ static int pn533_usb_probe(struct usb_interface *interface,
 error:
 	usb_free_urb(phy->in_urb);
 	usb_free_urb(phy->out_urb);
+	usb_free_urb(phy->ack_urb);
 	usb_put_dev(phy->udev);
 	kfree(in_buf);
 
@@ -573,10 +588,13 @@ static void pn533_usb_disconnect(struct usb_interface *interface)
 
 	usb_kill_urb(phy->in_urb);
 	usb_kill_urb(phy->out_urb);
+	usb_kill_urb(phy->ack_urb);
 
 	kfree(phy->in_urb->transfer_buffer);
 	usb_free_urb(phy->in_urb);
 	usb_free_urb(phy->out_urb);
+	usb_free_urb(phy->ack_urb);
+	kfree(phy->ack_buffer);
 
 	nfc_info(&interface->dev, "NXP PN533 NFC device disconnected\n");
 }

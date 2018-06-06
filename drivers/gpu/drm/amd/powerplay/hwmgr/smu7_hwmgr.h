@@ -325,7 +325,6 @@ struct smu7_hwmgr {
 	uint16_t                              mem_latency_high;
 	uint16_t                              mem_latency_low;
 	uint32_t                              vr_config;
-	struct profile_mode_setting           custom_profile_setting;
 	struct profile_mode_setting           current_profile_setting;
 };
 

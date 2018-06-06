@@ -17,18 +17,77 @@
 
 #include "internal.h"
 
+#ifdef CONFIG_RTC_MC146818_LIB
+#include <linux/mc146818rtc.h>
+
+/*
+ * There are several systems where the WDAT table is accessing RTC SRAM to
+ * store persistent information. This does not work well with the Linux RTC
+ * driver so on those systems we skip WDAT driver and prefer iTCO_wdt
+ * instead.
+ *
+ * See also https://bugzilla.kernel.org/show_bug.cgi?id=199033.
+ */
+static bool acpi_watchdog_uses_rtc(const struct acpi_table_wdat *wdat)
+{
+	const struct acpi_wdat_entry *entries;
+	int i;
+
+	entries = (struct acpi_wdat_entry *)(wdat + 1);
+	for (i = 0; i < wdat->entries; i++) {
+		const struct acpi_generic_address *gas;
+
+		gas = &entries[i].register_region;
+		if (gas->space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
+			switch (gas->address) {
+			case RTC_PORT(0):
+			case RTC_PORT(1):
+			case RTC_PORT(2):
+			case RTC_PORT(3):
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+#else
+static bool acpi_watchdog_uses_rtc(const struct acpi_table_wdat *wdat)
+{
+	return false;
+}
+#endif
+
+static const struct acpi_table_wdat *acpi_watchdog_get_wdat(void)
+{
+	const struct acpi_table_wdat *wdat = NULL;
+	acpi_status status;
+
+	if (acpi_disabled)
+		return NULL;
+
+	status = acpi_get_table(ACPI_SIG_WDAT, 0,
+				(struct acpi_table_header **)&wdat);
+	if (ACPI_FAILURE(status)) {
+		/* It is fine if there is no WDAT */
+		return NULL;
+	}
+
+	if (acpi_watchdog_uses_rtc(wdat)) {
+		pr_info("Skipping WDAT on this system because it uses RTC SRAM\n");
+		return NULL;
+	}
+
+	return wdat;
+}
+
 /**
  * Returns true if this system should prefer ACPI based watchdog instead of
  * the native one (which are typically the same hardware).
  */
 bool acpi_has_watchdog(void)
 {
-	struct acpi_table_header hdr;
-
-	if (acpi_disabled)
-		return false;
-
-	return ACPI_SUCCESS(acpi_get_table_header(ACPI_SIG_WDAT, 0, &hdr));
+	return !!acpi_watchdog_get_wdat();
 }
 EXPORT_SYMBOL_GPL(acpi_has_watchdog);
 
@@ -41,12 +100,10 @@ void __init acpi_watchdog_init(void)
 	struct platform_device *pdev;
 	struct resource *resources;
 	size_t nresources = 0;
-	acpi_status status;
 	int i;
 
-	status = acpi_get_table(ACPI_SIG_WDAT, 0,
-				(struct acpi_table_header **)&wdat);
-	if (ACPI_FAILURE(status)) {
+	wdat = acpi_watchdog_get_wdat();
+	if (!wdat) {
 		/* It is fine if there is no WDAT */
 		return;
 	}

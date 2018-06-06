@@ -4,7 +4,7 @@
  *
  * (c) 2003 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
  *
- * (c) 2005-2006 Mauro Carvalho Chehab <mchehab@infradead.org>
+ * (c) 2005-2006 Mauro Carvalho Chehab <mchehab@kernel.org>
  *     - Multituner support
  *     - video_ioctl2 conversion
  *     - PAL/M fixes

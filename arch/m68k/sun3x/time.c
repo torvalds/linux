@@ -52,8 +52,8 @@ int sun3x_hwclk(int set, struct rtc_time *t)
 		h->hour = bin2bcd(t->tm_hour);
 		h->wday = bin2bcd(t->tm_wday);
 		h->mday = bin2bcd(t->tm_mday);
-		h->month = bin2bcd(t->tm_mon);
-		h->year = bin2bcd(t->tm_year);
+		h->month = bin2bcd(t->tm_mon + 1);
+		h->year = bin2bcd(t->tm_year % 100);
 		h->csr &= ~C_WRITE;
 	} else {
 		h->csr |= C_READ;
@@ -62,9 +62,11 @@ int sun3x_hwclk(int set, struct rtc_time *t)
 		t->tm_hour = bcd2bin(h->hour);
 		t->tm_wday = bcd2bin(h->wday);
 		t->tm_mday = bcd2bin(h->mday);
-		t->tm_mon = bcd2bin(h->month);
+		t->tm_mon = bcd2bin(h->month) - 1;
 		t->tm_year = bcd2bin(h->year);
 		h->csr &= ~C_READ;
+		if (t->tm_year < 70)
+			t->tm_year += 100;
 	}
 
 	local_irq_restore(flags);

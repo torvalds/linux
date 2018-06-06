@@ -466,12 +466,6 @@ void __init dma_contiguous_early_fixup(phys_addr_t base, unsigned long size)
 void __init dma_contiguous_remap(void)
 {
 	int i;
-
-	if (!dma_mmu_remap_num)
-		return;
-
-	/* call flush_cache_all() since CMA area would be large enough */
-	flush_cache_all();
 	for (i = 0; i < dma_mmu_remap_num; i++) {
 		phys_addr_t start = dma_mmu_remap[i].base;
 		phys_addr_t end = start + dma_mmu_remap[i].size;
@@ -504,15 +498,7 @@ void __init dma_contiguous_remap(void)
 		flush_tlb_kernel_range(__phys_to_virt(start),
 				       __phys_to_virt(end));
 
-		/*
-		 * All the memory in CMA region will be on ZONE_MOVABLE.
-		 * If that zone is considered as highmem, the memory in CMA
-		 * region is also considered as highmem even if it's
-		 * physical address belong to lowmem. In this case,
-		 * re-mapping isn't required.
-		 */
-		if (!is_highmem_idx(ZONE_MOVABLE))
-			iotable_init(&map, 1);
+		iotable_init(&map, 1);
 	}
 }
 
@@ -1164,15 +1150,6 @@ int arm_dma_supported(struct device *dev, u64 mask)
 {
 	return __dma_supported(dev, mask, false);
 }
-
-#define PREALLOC_DMA_DEBUG_ENTRIES	4096
-
-static int __init dma_debug_do_init(void)
-{
-	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
-	return 0;
-}
-core_initcall(dma_debug_do_init);
 
 #ifdef CONFIG_ARM_DMA_USE_IOMMU
 

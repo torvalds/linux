@@ -2437,19 +2437,6 @@ static int gigaset_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int gigaset_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, gigaset_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations gigaset_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= gigaset_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 /**
  * gigaset_isdn_regdev() - register device to LL
  * @cs:		device descriptor structure.
@@ -2479,7 +2466,7 @@ int gigaset_isdn_regdev(struct cardstate *cs, const char *isdnid)
 	iif->ctr.release_appl  = gigaset_release_appl;
 	iif->ctr.send_message  = gigaset_send_message;
 	iif->ctr.procinfo      = gigaset_procinfo;
-	iif->ctr.proc_fops = &gigaset_proc_fops;
+	iif->ctr.proc_show     = gigaset_proc_show,
 	INIT_LIST_HEAD(&iif->appls);
 	skb_queue_head_init(&iif->sendqueue);
 	atomic_set(&iif->sendqlen, 0);

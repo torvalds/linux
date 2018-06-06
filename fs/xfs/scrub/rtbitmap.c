@@ -66,11 +66,15 @@ xfs_scrub_rtbitmap_rec(
 	void				*priv)
 {
 	struct xfs_scrub_context	*sc = priv;
+	xfs_rtblock_t			startblock;
+	xfs_rtblock_t			blockcount;
 
-	if (rec->ar_startblock + rec->ar_blockcount <= rec->ar_startblock ||
-	    !xfs_verify_rtbno(sc->mp, rec->ar_startblock) ||
-	    !xfs_verify_rtbno(sc->mp, rec->ar_startblock +
-			rec->ar_blockcount - 1))
+	startblock = rec->ar_startext * tp->t_mountp->m_sb.sb_rextsize;
+	blockcount = rec->ar_extcount * tp->t_mountp->m_sb.sb_rextsize;
+
+	if (startblock + blockcount <= startblock ||
+	    !xfs_verify_rtbno(sc->mp, startblock) ||
+	    !xfs_verify_rtbno(sc->mp, startblock + blockcount - 1))
 		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 	return 0;
 }
@@ -81,6 +85,11 @@ xfs_scrub_rtbitmap(
 	struct xfs_scrub_context	*sc)
 {
 	int				error;
+
+	/* Invoke the fork scrubber. */
+	error = xfs_scrub_metadata_inode_forks(sc);
+	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
+		return error;
 
 	error = xfs_rtalloc_query_all(sc->tp, xfs_scrub_rtbitmap_rec, sc);
 	if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, 0, &error))
@@ -95,8 +104,35 @@ int
 xfs_scrub_rtsummary(
 	struct xfs_scrub_context	*sc)
 {
+	struct xfs_inode		*rsumip = sc->mp->m_rsumip;
+	struct xfs_inode		*old_ip = sc->ip;
+	uint				old_ilock_flags = sc->ilock_flags;
+	int				error = 0;
+
+	/*
+	 * We ILOCK'd the rt bitmap ip in the setup routine, now lock the
+	 * rt summary ip in compliance with the rt inode locking rules.
+	 *
+	 * Since we switch sc->ip to rsumip we have to save the old ilock
+	 * flags so that we don't mix up the inode state that @sc tracks.
+	 */
+	sc->ip = rsumip;
+	sc->ilock_flags = XFS_ILOCK_EXCL | XFS_ILOCK_RTSUM;
+	xfs_ilock(sc->ip, sc->ilock_flags);
+
+	/* Invoke the fork scrubber. */
+	error = xfs_scrub_metadata_inode_forks(sc);
+	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
+		goto out;
+
 	/* XXX: implement this some day */
-	return -ENOENT;
+	xfs_scrub_set_incomplete(sc);
+out:
+	/* Switch back to the rtbitmap inode and lock flags. */
+	xfs_iunlock(sc->ip, sc->ilock_flags);
+	sc->ilock_flags = old_ilock_flags;
+	sc->ip = old_ip;
+	return error;
 }
 
 
@@ -107,11 +143,23 @@ xfs_scrub_xref_is_used_rt_space(
 	xfs_rtblock_t			fsbno,
 	xfs_extlen_t			len)
 {
+	xfs_rtblock_t			startext;
+	xfs_rtblock_t			endext;
+	xfs_rtblock_t			extcount;
 	bool				is_free;
 	int				error;
 
+	if (xfs_scrub_skip_xref(sc->sm))
+		return;
+
+	startext = fsbno;
+	endext = fsbno + len - 1;
+	do_div(startext, sc->mp->m_sb.sb_rextsize);
+	if (do_div(endext, sc->mp->m_sb.sb_rextsize))
+		endext++;
+	extcount = endext - startext;
 	xfs_ilock(sc->mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
-	error = xfs_rtalloc_extent_is_free(sc->mp, sc->tp, fsbno, len,
+	error = xfs_rtalloc_extent_is_free(sc->mp, sc->tp, startext, extcount,
 			&is_free);
 	if (!xfs_scrub_should_check_xref(sc, &error, NULL))
 		goto out_unlock;

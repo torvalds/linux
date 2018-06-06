@@ -749,12 +749,13 @@ static int kfd_ioctl_get_clock_counters(struct file *filep,
 	struct timespec64 time;
 
 	dev = kfd_device_by_id(args->gpu_id);
-	if (dev == NULL)
-		return -EINVAL;
-
-	/* Reading GPU clock counter from KGD */
-	args->gpu_clock_counter =
-		dev->kfd2kgd->get_gpu_clock_counter(dev->kgd);
+	if (dev)
+		/* Reading GPU clock counter from KGD */
+		args->gpu_clock_counter =
+			dev->kfd2kgd->get_gpu_clock_counter(dev->kgd);
+	else
+		/* Node without GPU resource */
+		args->gpu_clock_counter = 0;
 
 	/* No access to rdtsc. Using raw monotonic time */
 	getrawmonotonic64(&time);
@@ -1147,7 +1148,7 @@ err_unlock:
 	return ret;
 }
 
-bool kfd_dev_is_large_bar(struct kfd_dev *dev)
+static bool kfd_dev_is_large_bar(struct kfd_dev *dev)
 {
 	struct kfd_local_mem_info mem_info;
 
@@ -1421,7 +1422,7 @@ static int kfd_ioctl_unmap_memory_from_gpu(struct file *filep,
 
 	pdd = kfd_get_process_device_data(dev, p);
 	if (!pdd) {
-		err = PTR_ERR(pdd);
+		err = -EINVAL;
 		goto bind_process_to_device_failed;
 	}
 

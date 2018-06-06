@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
+#include <linux/highmem.h>
 
 #include <asm/pgtable.h>
 
@@ -334,16 +335,16 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr,
 			   pgprotval_t eff_in, unsigned long P)
 {
 	int i;
-	pte_t *start;
+	pte_t *pte;
 	pgprotval_t prot, eff;
 
-	start = (pte_t *)pmd_page_vaddr(addr);
 	for (i = 0; i < PTRS_PER_PTE; i++) {
-		prot = pte_flags(*start);
-		eff = effective_prot(eff_in, prot);
 		st->current_address = normalize_addr(P + i * PTE_LEVEL_MULT);
+		pte = pte_offset_map(&addr, st->current_address);
+		prot = pte_flags(*pte);
+		eff = effective_prot(eff_in, prot);
 		note_page(m, st, __pgprot(prot), eff, 5);
-		start++;
+		pte_unmap(pte);
 	}
 }
 #ifdef CONFIG_KASAN
@@ -359,7 +360,7 @@ static inline bool kasan_page_table(struct seq_file *m, struct pg_state *st,
 				void *pt)
 {
 	if (__pa(pt) == __pa(kasan_zero_pmd) ||
-	    (pgtable_l5_enabled && __pa(pt) == __pa(kasan_zero_p4d)) ||
+	    (pgtable_l5_enabled() && __pa(pt) == __pa(kasan_zero_p4d)) ||
 	    __pa(pt) == __pa(kasan_zero_pud)) {
 		pgprotval_t prot = pte_flags(kasan_zero_pte[0]);
 		note_page(m, st, __pgprot(prot), 0, 5);
@@ -475,8 +476,8 @@ static void walk_p4d_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
 	}
 }
 
-#define pgd_large(a) (pgtable_l5_enabled ? pgd_large(a) : p4d_large(__p4d(pgd_val(a))))
-#define pgd_none(a)  (pgtable_l5_enabled ? pgd_none(a) : p4d_none(__p4d(pgd_val(a))))
+#define pgd_large(a) (pgtable_l5_enabled() ? pgd_large(a) : p4d_large(__p4d(pgd_val(a))))
+#define pgd_none(a)  (pgtable_l5_enabled() ? pgd_none(a) : p4d_none(__p4d(pgd_val(a))))
 
 static inline bool is_hypervisor_range(int idx)
 {

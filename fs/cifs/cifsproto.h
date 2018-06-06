@@ -21,6 +21,7 @@
 #ifndef _CIFSPROTO_H
 #define _CIFSPROTO_H
 #include <linux/nls.h>
+#include "trace.h"
 
 struct statfs;
 struct smb_vol;
@@ -47,6 +48,7 @@ extern void _free_xid(unsigned int);
 	cifs_dbg(FYI, "CIFS VFS: in %s as Xid: %u with uid: %d\n",	\
 		 __func__, __xid,					\
 		 from_kuid(&init_user_ns, current_fsuid()));		\
+	trace_smb3_enter(__xid, __func__);			\
 	__xid;							\
 })
 
@@ -54,7 +56,11 @@ extern void _free_xid(unsigned int);
 do {								\
 	_free_xid(curr_xid);					\
 	cifs_dbg(FYI, "CIFS VFS: leaving %s (xid = %u) rc = %d\n",	\
-		 __func__, curr_xid, (int)rc);				\
+		 __func__, curr_xid, (int)rc);			\
+	if (rc)							\
+		trace_smb3_exit_err(curr_xid, __func__, (int)rc);	\
+	else							\
+		trace_smb3_exit_done(curr_xid, __func__);	\
 } while (0)
 extern int init_cifs_idmap(void);
 extern void exit_cifs_idmap(void);
@@ -124,7 +130,7 @@ extern void cifs_update_eof(struct cifsInodeInfo *cifsi, loff_t offset,
 			    unsigned int bytes_written);
 extern struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *, bool);
 extern struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *, bool);
-extern unsigned int smbCalcSize(void *buf);
+extern unsigned int smbCalcSize(void *buf, struct TCP_Server_Info *server);
 extern int decode_negTokenInit(unsigned char *security_blob, int length,
 			struct TCP_Server_Info *server);
 extern int cifs_convert_address(struct sockaddr *dst, const char *src, int len);
@@ -197,7 +203,9 @@ extern void dequeue_mid(struct mid_q_entry *mid, bool malformed);
 extern int cifs_read_from_socket(struct TCP_Server_Info *server, char *buf,
 			         unsigned int to_read);
 extern int cifs_read_page_from_socket(struct TCP_Server_Info *server,
-				      struct page *page, unsigned int to_read);
+					struct page *page,
+					unsigned int page_offset,
+					unsigned int to_read);
 extern int cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 			       struct cifs_sb_info *cifs_sb);
 extern int cifs_match_super(struct super_block *, void *);
@@ -524,6 +532,8 @@ int cifs_async_writev(struct cifs_writedata *wdata,
 		      void (*release)(struct kref *kref));
 void cifs_writev_complete(struct work_struct *work);
 struct cifs_writedata *cifs_writedata_alloc(unsigned int nr_pages,
+						work_func_t complete);
+struct cifs_writedata *cifs_writedata_direct_alloc(struct page **pages,
 						work_func_t complete);
 void cifs_writedata_release(struct kref *refcount);
 int cifs_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,

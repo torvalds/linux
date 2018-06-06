@@ -76,8 +76,6 @@ void user_enable_single_step(struct task_struct *task)
 	set_tsk_thread_flag(task, TIF_SINGLESTEP);
 
 	if (pa_psw(task)->n) {
-		struct siginfo si;
-
 		/* Nullified, just crank over the queue. */
 		task_regs(task)->iaoq[0] = task_regs(task)->iaoq[1];
 		task_regs(task)->iasq[0] = task_regs(task)->iasq[1];
@@ -90,11 +88,9 @@ void user_enable_single_step(struct task_struct *task)
 		ptrace_disable(task);
 		/* Don't wake up the task, but let the
 		   parent know something happened. */
-		si.si_code = TRAP_TRACE;
-		si.si_addr = (void __user *) (task_regs(task)->iaoq[0] & ~3);
-		si.si_signo = SIGTRAP;
-		si.si_errno = 0;
-		force_sig_info(SIGTRAP, &si, task);
+		force_sig_fault(SIGTRAP, TRAP_TRACE,
+				(void __user *) (task_regs(task)->iaoq[0] & ~3),
+				task);
 		/* notify_parent(task, SIGCHLD); */
 		return;
 	}

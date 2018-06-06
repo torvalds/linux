@@ -486,7 +486,7 @@ static int kirin_pcie_probe(struct platform_device *pdev)
 		return ret;
 
 	kirin_pcie->gpio_id_reset = of_get_named_gpio(dev->of_node,
-						      "reset-gpio", 0);
+						      "reset-gpios", 0);
 	if (kirin_pcie->gpio_id_reset < 0)
 		return -ENODEV;
 

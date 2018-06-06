@@ -265,7 +265,7 @@ int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 	struct scsi_request *rq;
 	int ret = DRIVER_ERROR << 24;
 
-	req = blk_get_request_flags(sdev->request_queue,
+	req = blk_get_request(sdev->request_queue,
 			data_direction == DMA_TO_DEVICE ?
 			REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN, BLK_MQ_REQ_PREEMPT);
 	if (IS_ERR(req))
@@ -273,7 +273,7 @@ int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 	rq = scsi_req(req);
 
 	if (bufflen &&	blk_rq_map_kern(sdev->request_queue, req,
-					buffer, bufflen, __GFP_RECLAIM))
+					buffer, bufflen, GFP_NOIO))
 		goto out;
 
 	rq->cmd_len = COMMAND_SIZE(cmd[0]);
@@ -2149,27 +2149,6 @@ static int scsi_map_queues(struct blk_mq_tag_set *set)
 	return blk_mq_map_queues(set);
 }
 
-static u64 scsi_calculate_bounce_limit(struct Scsi_Host *shost)
-{
-	struct device *host_dev;
-	u64 bounce_limit = 0xffffffff;
-
-	if (shost->unchecked_isa_dma)
-		return BLK_BOUNCE_ISA;
-	/*
-	 * Platforms with virtual-DMA translation
-	 * hardware have no practical limit.
-	 */
-	if (!PCI_DMA_BUS_IS_PHYS)
-		return BLK_BOUNCE_ANY;
-
-	host_dev = scsi_get_device(shost);
-	if (host_dev && host_dev->dma_mask)
-		bounce_limit = (u64)dma_max_pfn(host_dev) << PAGE_SHIFT;
-
-	return bounce_limit;
-}
-
 void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
 {
 	struct device *dev = shost->dma_dev;
@@ -2189,7 +2168,8 @@ void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
 	}
 
 	blk_queue_max_hw_sectors(q, shost->max_sectors);
-	blk_queue_bounce_limit(q, scsi_calculate_bounce_limit(shost));
+	if (shost->unchecked_isa_dma)
+		blk_queue_bounce_limit(q, BLK_BOUNCE_ISA);
 	blk_queue_segment_boundary(q, shost->dma_boundary);
 	dma_set_seg_boundary(dev, shost->dma_boundary);
 

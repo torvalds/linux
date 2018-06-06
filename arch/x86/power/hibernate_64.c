@@ -72,7 +72,7 @@ static int set_up_temporary_text_mapping(pgd_t *pgd)
 	 * tables used by the image kernel.
 	 */
 
-	if (pgtable_l5_enabled) {
+	if (pgtable_l5_enabled()) {
 		p4d = (p4d_t *)get_safe_page(GFP_ATOMIC);
 		if (!p4d)
 			return -ENOMEM;
@@ -98,7 +98,7 @@ static int set_up_temporary_text_mapping(pgd_t *pgd)
 		set_pgd(pgd + pgd_index(restore_jump_address), new_pgd);
 	} else {
 		/* No p4d for 4-level paging: point the pgd to the pud page table */
-		pgd_t new_pgd = __pgd(__pa(p4d) | pgprot_val(pgtable_prot));
+		pgd_t new_pgd = __pgd(__pa(pud) | pgprot_val(pgtable_prot));
 		set_pgd(pgd + pgd_index(restore_jump_address), new_pgd);
 	}
 

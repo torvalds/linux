@@ -740,10 +740,7 @@ static int do_dma_request(struct mport_dma_req *req,
 	tx->callback = dma_xfer_callback;
 	tx->callback_param = req;
 
-	req->dmach = chan;
-	req->sync = sync;
 	req->status = DMA_IN_PROGRESS;
-	init_completion(&req->req_comp);
 	kref_get(&req->refcount);
 
 	cookie = dmaengine_submit(tx);
@@ -831,13 +828,20 @@ rio_dma_transfer(struct file *filp, u32 transfer_mode,
 	if (!req)
 		return -ENOMEM;
 
-	kref_init(&req->refcount);
-
 	ret = get_dma_channel(priv);
 	if (ret) {
 		kfree(req);
 		return ret;
 	}
+	chan = priv->dmach;
+
+	kref_init(&req->refcount);
+	init_completion(&req->req_comp);
+	req->dir = dir;
+	req->filp = filp;
+	req->priv = priv;
+	req->dmach = chan;
+	req->sync = sync;
 
 	/*
 	 * If parameter loc_addr != NULL, we are transferring data from/to
@@ -924,11 +928,6 @@ rio_dma_transfer(struct file *filp, u32 transfer_mode,
 			   map->virt_addr + (baddr - map->phys_addr) +
 				xfer->offset, xfer->length);
 	}
-
-	req->dir = dir;
-	req->filp = filp;
-	req->priv = priv;
-	chan = priv->dmach;
 
 	nents = dma_map_sg(chan->device->dev,
 			   req->sgt.sgl, req->sgt.nents, dir);

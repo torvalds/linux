@@ -1047,6 +1047,7 @@ xfs_log_item_init(
 	INIT_LIST_HEAD(&item->li_ail);
 	INIT_LIST_HEAD(&item->li_cil);
 	INIT_LIST_HEAD(&item->li_bio_list);
+	INIT_LIST_HEAD(&item->li_trans);
 }
 
 /*
@@ -2110,10 +2111,10 @@ xlog_print_tic_res(
  */
 void
 xlog_print_trans(
-	struct xfs_trans		*tp)
+	struct xfs_trans	*tp)
 {
-	struct xfs_mount		*mp = tp->t_mountp;
-	struct xfs_log_item_desc	*lidp;
+	struct xfs_mount	*mp = tp->t_mountp;
+	struct xfs_log_item	*lip;
 
 	/* dump core transaction and ticket info */
 	xfs_warn(mp, "transaction summary:");
@@ -2124,15 +2125,14 @@ xlog_print_trans(
 	xlog_print_tic_res(mp, tp->t_ticket);
 
 	/* dump each log item */
-	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
-		struct xfs_log_item	*lip = lidp->lid_item;
+	list_for_each_entry(lip, &tp->t_items, li_trans) {
 		struct xfs_log_vec	*lv = lip->li_lv;
 		struct xfs_log_iovec	*vec;
 		int			i;
 
 		xfs_warn(mp, "log item: ");
 		xfs_warn(mp, "  type	= 0x%x", lip->li_type);
-		xfs_warn(mp, "  flags	= 0x%x", lip->li_flags);
+		xfs_warn(mp, "  flags	= 0x%lx", lip->li_flags);
 		if (!lv)
 			continue;
 		xfs_warn(mp, "  niovecs	= %d", lv->lv_niovecs);

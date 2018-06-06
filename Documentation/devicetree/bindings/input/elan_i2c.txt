@@ -14,6 +14,7 @@ Optional properties:
 - pinctrl-0: a phandle pointing to the pin settings for the device (see
   pinctrl binding [1]).
 - vcc-supply: a phandle for the regulator supplying 3.3V power.
+- elan,trackpoint: touchpad can support a trackpoint (boolean)
 
 [0]: Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
 [1]: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt

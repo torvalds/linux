@@ -196,7 +196,7 @@ config HUGETLBFS
 	help
 	  hugetlbfs is a filesystem backing for HugeTLB pages, based on
 	  ramfs. For architectures that support it, say Y here and read
-	  <file:Documentation/vm/hugetlbpage.txt> for details.
+	  <file:Documentation/admin-guide/mm/hugetlbpage.rst> for details.
 
 	  If unsure, say N.
 

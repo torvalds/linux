@@ -97,6 +97,9 @@ struct tls_sw_context {
 	u8 control;
 	bool decrypted;
 
+	char rx_aad_ciphertext[TLS_AAD_SPACE_SIZE];
+	char rx_aad_plaintext[TLS_AAD_SPACE_SIZE];
+
 	/* Sending context */
 	char aad_space[TLS_AAD_SPACE_SIZE];
 
@@ -148,6 +151,7 @@ struct tls_context {
 	struct scatterlist *partially_sent_record;
 	u16 partially_sent_offset;
 	unsigned long flags;
+	bool in_tcp_sendpages;
 
 	u16 pending_open_record_frags;
 	int (*push_pending_record)(struct sock *sk, int flags);

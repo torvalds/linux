@@ -396,6 +396,7 @@ struct afs_server {
 #define AFS_SERVER_FL_PROBED	5		/* The fileserver has been probed */
 #define AFS_SERVER_FL_PROBING	6		/* Fileserver is being probed */
 #define AFS_SERVER_FL_NO_IBULK	7		/* Fileserver doesn't support FS.InlineBulkStatus */
+#define AFS_SERVER_FL_MAY_HAVE_CB 8		/* May have callbacks on this fileserver */
 	atomic_t		usage;
 	u32			addr_version;	/* Address list version */
 
@@ -433,6 +434,7 @@ struct afs_server_list {
 	unsigned short		index;		/* Server currently in use */
 	unsigned short		vnovol_mask;	/* Servers to be skipped due to VNOVOL */
 	unsigned int		seq;		/* Set to ->servers_seq when installed */
+	rwlock_t		lock;
 	struct afs_server_entry	servers[];
 };
 
@@ -458,6 +460,9 @@ struct afs_volume {
 	struct afs_server_list	*servers;	/* List of servers on which volume resides */
 	rwlock_t		servers_lock;	/* Lock for ->servers */
 	unsigned int		servers_seq;	/* Incremented each time ->servers changes */
+
+	unsigned		cb_v_break;	/* Break-everything counter. */
+	rwlock_t		cb_break_lock;
 
 	afs_voltype_t		type;		/* type of volume */
 	short			error;
@@ -494,7 +499,7 @@ struct afs_vnode {
 #endif
 	struct afs_permits __rcu *permit_cache;	/* cache of permits so far obtained */
 	struct mutex		io_lock;	/* Lock for serialising I/O on this mutex */
-	struct mutex		validate_lock;	/* lock for validating this vnode */
+	struct rw_semaphore	validate_lock;	/* lock for validating this vnode */
 	spinlock_t		wb_lock;	/* lock for wb_keys */
 	spinlock_t		lock;		/* waitqueue/flags lock */
 	unsigned long		flags;
@@ -519,6 +524,7 @@ struct afs_vnode {
 	/* outstanding callback notification on this file */
 	struct afs_cb_interest	*cb_interest;	/* Server on which this resides */
 	unsigned int		cb_s_break;	/* Mass break counter on ->server */
+	unsigned int		cb_v_break;	/* Mass break counter on ->volume */
 	unsigned int		cb_break;	/* Break counter on vnode */
 	seqlock_t		cb_lock;	/* Lock for ->cb_interest, ->status, ->cb_*break */
 
@@ -648,14 +654,27 @@ extern void afs_init_callback_state(struct afs_server *);
 extern void afs_break_callback(struct afs_vnode *);
 extern void afs_break_callbacks(struct afs_server *, size_t, struct afs_callback_break*);
 
-extern int afs_register_server_cb_interest(struct afs_vnode *, struct afs_server_entry *);
+extern int afs_register_server_cb_interest(struct afs_vnode *,
+					   struct afs_server_list *, unsigned int);
 extern void afs_put_cb_interest(struct afs_net *, struct afs_cb_interest *);
 extern void afs_clear_callback_interests(struct afs_net *, struct afs_server_list *);
 
 static inline struct afs_cb_interest *afs_get_cb_interest(struct afs_cb_interest *cbi)
 {
-	refcount_inc(&cbi->usage);
+	if (cbi)
+		refcount_inc(&cbi->usage);
 	return cbi;
+}
+
+static inline unsigned int afs_calc_vnode_cb_break(struct afs_vnode *vnode)
+{
+	return vnode->cb_break + vnode->cb_s_break + vnode->cb_v_break;
+}
+
+static inline unsigned int afs_cb_break_sum(struct afs_vnode *vnode,
+					    struct afs_cb_interest *cbi)
+{
+	return vnode->cb_break + cbi->server->cb_s_break + vnode->volume->cb_v_break;
 }
 
 /*

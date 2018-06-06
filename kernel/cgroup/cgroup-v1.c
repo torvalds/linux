@@ -682,7 +682,7 @@ struct cftype cgroup1_base_files[] = {
 };
 
 /* Display information about each subsystem and each hierarchy */
-static int proc_cgroupstats_show(struct seq_file *m, void *v)
+int proc_cgroupstats_show(struct seq_file *m, void *v)
 {
 	struct cgroup_subsys *ss;
 	int i;
@@ -704,18 +704,6 @@ static int proc_cgroupstats_show(struct seq_file *m, void *v)
 	mutex_unlock(&cgroup_mutex);
 	return 0;
 }
-
-static int cgroupstats_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, proc_cgroupstats_show, NULL);
-}
-
-const struct file_operations proc_cgroupstats_operations = {
-	.open = cgroupstats_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
 
 /**
  * cgroupstats_build - build and fill cgroupstats

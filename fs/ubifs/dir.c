@@ -214,7 +214,7 @@ static struct dentry *ubifs_lookup(struct inode *dir, struct dentry *dentry,
 	int err;
 	union ubifs_key key;
 	struct inode *inode = NULL;
-	struct ubifs_dent_node *dent;
+	struct ubifs_dent_node *dent = NULL;
 	struct ubifs_info *c = dir->i_sb->s_fs_info;
 	struct fscrypt_name nm;
 
@@ -229,14 +229,14 @@ static struct dentry *ubifs_lookup(struct inode *dir, struct dentry *dentry,
 		return ERR_PTR(err);
 
 	if (fname_len(&nm) > UBIFS_MAX_NLEN) {
-		err = -ENAMETOOLONG;
-		goto out_fname;
+		inode = ERR_PTR(-ENAMETOOLONG);
+		goto done;
 	}
 
 	dent = kmalloc(UBIFS_MAX_DENT_NODE_SZ, GFP_NOFS);
 	if (!dent) {
-		err = -ENOMEM;
-		goto out_fname;
+		inode = ERR_PTR(-ENOMEM);
+		goto done;
 	}
 
 	if (nm.hash) {
@@ -250,16 +250,16 @@ static struct dentry *ubifs_lookup(struct inode *dir, struct dentry *dentry,
 	}
 
 	if (err) {
-		if (err == -ENOENT) {
+		if (err == -ENOENT)
 			dbg_gen("not found");
-			goto done;
-		}
-		goto out_dent;
+		else
+			inode = ERR_PTR(err);
+		goto done;
 	}
 
 	if (dbg_check_name(c, dent, &nm)) {
-		err = -EINVAL;
-		goto out_dent;
+		inode = ERR_PTR(-EINVAL);
+		goto done;
 	}
 
 	inode = ubifs_iget(dir->i_sb, le64_to_cpu(dent->inum));
@@ -272,7 +272,7 @@ static struct dentry *ubifs_lookup(struct inode *dir, struct dentry *dentry,
 		ubifs_err(c, "dead directory entry '%pd', error %d",
 			  dentry, err);
 		ubifs_ro_mode(c, err);
-		goto out_dent;
+		goto done;
 	}
 
 	if (ubifs_crypt_is_encrypted(dir) &&
@@ -280,27 +280,14 @@ static struct dentry *ubifs_lookup(struct inode *dir, struct dentry *dentry,
 	    !fscrypt_has_permitted_context(dir, inode)) {
 		ubifs_warn(c, "Inconsistent encryption contexts: %lu/%lu",
 			   dir->i_ino, inode->i_ino);
-		err = -EPERM;
-		goto out_inode;
+		iput(inode);
+		inode = ERR_PTR(-EPERM);
 	}
 
 done:
 	kfree(dent);
 	fscrypt_free_filename(&nm);
-	/*
-	 * Note, d_splice_alias() would be required instead if we supported
-	 * NFS.
-	 */
-	d_add(dentry, inode);
-	return NULL;
-
-out_inode:
-	iput(inode);
-out_dent:
-	kfree(dent);
-out_fname:
-	fscrypt_free_filename(&nm);
-	return ERR_PTR(err);
+	return d_splice_alias(inode, dentry);
 }
 
 static int ubifs_create(struct inode *dir, struct dentry *dentry, umode_t mode,

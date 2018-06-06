@@ -867,12 +867,18 @@ struct nand_op_instr {
  * tBERS (during an erase) which all of them are u64 values that cannot be
  * divided by usual kernel macros and must be handled with the special
  * DIV_ROUND_UP_ULL() macro.
+ *
+ * Cast to type of dividend is needed here to guarantee that the result won't
+ * be an unsigned long long when the dividend is an unsigned long (or smaller),
+ * which is what the compiler does when it sees ternary operator with 2
+ * different return types (picks the largest type to make sure there's no
+ * loss).
  */
-#define __DIVIDE(dividend, divisor) ({					\
-	sizeof(dividend) == sizeof(u32) ?				\
-		DIV_ROUND_UP(dividend, divisor) :			\
-		DIV_ROUND_UP_ULL(dividend, divisor);			\
-		})
+#define __DIVIDE(dividend, divisor) ({						\
+	(__typeof__(dividend))(sizeof(dividend) <= sizeof(unsigned long) ?	\
+			       DIV_ROUND_UP(dividend, divisor) :		\
+			       DIV_ROUND_UP_ULL(dividend, divisor)); 		\
+	})
 #define PSEC_TO_NSEC(x) __DIVIDE(x, 1000)
 #define PSEC_TO_MSEC(x) __DIVIDE(x, 1000000000)
 

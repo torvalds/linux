@@ -129,13 +129,12 @@ static const struct block_device_operations xlvbd_block_fops;
  */
 
 static unsigned int xen_blkif_max_segments = 32;
-module_param_named(max_indirect_segments, xen_blkif_max_segments, uint,
-		   S_IRUGO);
+module_param_named(max_indirect_segments, xen_blkif_max_segments, uint, 0444);
 MODULE_PARM_DESC(max_indirect_segments,
 		 "Maximum amount of segments in indirect requests (default is 32)");
 
 static unsigned int xen_blkif_max_queues = 4;
-module_param_named(max_queues, xen_blkif_max_queues, uint, S_IRUGO);
+module_param_named(max_queues, xen_blkif_max_queues, uint, 0444);
 MODULE_PARM_DESC(max_queues, "Maximum number of hardware queues/rings used per virtual disk");
 
 /*
@@ -143,7 +142,7 @@ MODULE_PARM_DESC(max_queues, "Maximum number of hardware queues/rings used per v
  * backend, 4KB page granularity is used.
  */
 static unsigned int xen_blkif_max_ring_order;
-module_param_named(max_ring_page_order, xen_blkif_max_ring_order, int, S_IRUGO);
+module_param_named(max_ring_page_order, xen_blkif_max_ring_order, int, 0444);
 MODULE_PARM_DESC(max_ring_page_order, "Maximum order of pages to be used for the shared ring");
 
 #define BLK_RING_SIZE(info)	\

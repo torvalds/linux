@@ -276,7 +276,7 @@ int udp_init_sock(struct sock *sk);
 int udp_pre_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len);
 int __udp_disconnect(struct sock *sk, int flags);
 int udp_disconnect(struct sock *sk, int flags);
-__poll_t udp_poll(struct file *file, struct socket *sock, poll_table *wait);
+__poll_t udp_poll_mask(struct socket *sock, __poll_t events);
 struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
 				       netdev_features_t features,
 				       bool is_ipv6);
@@ -408,31 +408,27 @@ do {									\
 #define __UDPX_INC_STATS(sk, field) __UDP_INC_STATS(sock_net(sk), field, 0)
 #endif
 
-/* /proc */
-int udp_seq_open(struct inode *inode, struct file *file);
-
+#ifdef CONFIG_PROC_FS
 struct udp_seq_afinfo {
-	char				*name;
 	sa_family_t			family;
 	struct udp_table		*udp_table;
-	const struct file_operations	*seq_fops;
-	struct seq_operations		seq_ops;
 };
 
 struct udp_iter_state {
 	struct seq_net_private  p;
-	sa_family_t		family;
 	int			bucket;
-	struct udp_table	*udp_table;
 };
 
-#ifdef CONFIG_PROC_FS
-int udp_proc_register(struct net *net, struct udp_seq_afinfo *afinfo);
-void udp_proc_unregister(struct net *net, struct udp_seq_afinfo *afinfo);
+void *udp_seq_start(struct seq_file *seq, loff_t *pos);
+void *udp_seq_next(struct seq_file *seq, void *v, loff_t *pos);
+void udp_seq_stop(struct seq_file *seq, void *v);
+
+extern const struct seq_operations udp_seq_ops;
+extern const struct seq_operations udp6_seq_ops;
 
 int udp4_proc_init(void);
 void udp4_proc_exit(void);
-#endif
+#endif /* CONFIG_PROC_FS */
 
 int udpv4_offload_init(void);
 

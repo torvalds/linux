@@ -45,6 +45,7 @@ struct perf_annotate {
 	bool	   print_line;
 	bool	   skip_missing;
 	bool	   has_br_stack;
+	bool	   group_set;
 	const char *sym_hist_filter;
 	const char *cpu_list;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
@@ -228,7 +229,7 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 		 */
 		if (al->sym != NULL) {
 			rb_erase(&al->sym->rb_node,
-				 &al->map->dso->symbols[al->map->type]);
+				 &al->map->dso->symbols);
 			symbol__delete(al->sym);
 			dso__reset_find_symbol_cache(al->map->dso);
 		}
@@ -508,6 +509,9 @@ int cmd_annotate(int argc, const char **argv)
 		    "Don't shorten the displayed pathnames"),
 	OPT_BOOLEAN(0, "skip-missing", &annotate.skip_missing,
 		    "Skip symbols that cannot be annotated"),
+	OPT_BOOLEAN_SET(0, "group", &symbol_conf.event_group,
+			&annotate.group_set,
+			"Show event group information together"),
 	OPT_STRING('C', "cpu", &annotate.cpu_list, "cpu", "list of cpus to profile"),
 	OPT_CALLBACK(0, "symfs", NULL, "directory",
 		     "Look for files with symbols relative to this directory",
@@ -569,6 +573,9 @@ int cmd_annotate(int argc, const char **argv)
 
 	annotate.has_br_stack = perf_header__has_feat(&annotate.session->header,
 						      HEADER_BRANCH_STACK);
+
+	if (annotate.group_set)
+		perf_evlist__force_leader(annotate.session->evlist);
 
 	ret = symbol__annotation_init();
 	if (ret < 0)

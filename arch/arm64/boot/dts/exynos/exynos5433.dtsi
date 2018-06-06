@@ -1317,7 +1317,7 @@
 			reg = <0x14d60000 0x100>;
 			dmas = <&pdma0 31 &pdma0 30>;
 			dma-names = "tx", "rx";
-			interrupts = <GIC_SPI 435 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 435 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cmu_peric CLK_PCLK_I2S1>,
 				 <&cmu_peric CLK_PCLK_I2S1>,
 				 <&cmu_peric CLK_SCLK_I2S1>;

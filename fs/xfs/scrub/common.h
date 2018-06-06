@@ -38,19 +38,7 @@ xfs_scrub_should_terminate(
 	return false;
 }
 
-/*
- * Grab an empty transaction so that we can re-grab locked buffers if
- * one of our btrees turns out to be cyclic.
- */
-static inline int
-xfs_scrub_trans_alloc(
-	struct xfs_scrub_metadata	*sm,
-	struct xfs_mount		*mp,
-	struct xfs_trans		**tpp)
-{
-	return xfs_trans_alloc_empty(mp, tpp);
-}
-
+int xfs_scrub_trans_alloc(struct xfs_scrub_context *sc, uint resblks);
 bool xfs_scrub_process_error(struct xfs_scrub_context *sc, xfs_agnumber_t agno,
 		xfs_agblock_t bno, int *error);
 bool xfs_scrub_fblock_process_error(struct xfs_scrub_context *sc, int whichfork,
@@ -135,16 +123,13 @@ xfs_scrub_setup_quota(struct xfs_scrub_context *sc, struct xfs_inode *ip)
 void xfs_scrub_ag_free(struct xfs_scrub_context *sc, struct xfs_scrub_ag *sa);
 int xfs_scrub_ag_init(struct xfs_scrub_context *sc, xfs_agnumber_t agno,
 		      struct xfs_scrub_ag *sa);
+void xfs_scrub_perag_get(struct xfs_mount *mp, struct xfs_scrub_ag *sa);
 int xfs_scrub_ag_read_headers(struct xfs_scrub_context *sc, xfs_agnumber_t agno,
 			      struct xfs_buf **agi, struct xfs_buf **agf,
 			      struct xfs_buf **agfl);
 void xfs_scrub_ag_btcur_free(struct xfs_scrub_ag *sa);
 int xfs_scrub_ag_btcur_init(struct xfs_scrub_context *sc,
 			    struct xfs_scrub_ag *sa);
-int xfs_scrub_walk_agfl(struct xfs_scrub_context *sc,
-			int (*fn)(struct xfs_scrub_context *, xfs_agblock_t bno,
-				  void *),
-			void *priv);
 int xfs_scrub_count_rmap_ownedby_ag(struct xfs_scrub_context *sc,
 				    struct xfs_btree_cur *cur,
 				    struct xfs_owner_info *oinfo,
@@ -156,5 +141,18 @@ int xfs_scrub_get_inode(struct xfs_scrub_context *sc, struct xfs_inode *ip_in);
 int xfs_scrub_setup_inode_contents(struct xfs_scrub_context *sc,
 				   struct xfs_inode *ip, unsigned int resblks);
 void xfs_scrub_buffer_recheck(struct xfs_scrub_context *sc, struct xfs_buf *bp);
+
+/*
+ * Don't bother cross-referencing if we already found corruption or cross
+ * referencing discrepancies.
+ */
+static inline bool xfs_scrub_skip_xref(struct xfs_scrub_metadata *sm)
+{
+	return sm->sm_flags & (XFS_SCRUB_OFLAG_CORRUPT |
+			       XFS_SCRUB_OFLAG_XCORRUPT);
+}
+
+int xfs_scrub_metadata_inode_forks(struct xfs_scrub_context *sc);
+int xfs_scrub_ilock_inverted(struct xfs_inode *ip, uint lock_mode);
 
 #endif	/* __XFS_SCRUB_COMMON_H__ */

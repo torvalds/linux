@@ -1338,18 +1338,6 @@ static const struct seq_operations nr_info_seqops = {
 	.stop = nr_info_stop,
 	.show = nr_info_show,
 };
-
-static int nr_info_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &nr_info_seqops);
-}
-
-static const struct file_operations nr_info_fops = {
-	.open = nr_info_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release,
-};
 #endif	/* CONFIG_PROC_FS */
 
 static const struct net_proto_family nr_family_ops = {
@@ -1367,7 +1355,7 @@ static const struct proto_ops nr_proto_ops = {
 	.socketpair	=	sock_no_socketpair,
 	.accept		=	nr_accept,
 	.getname	=	nr_getname,
-	.poll		=	datagram_poll,
+	.poll_mask	=	datagram_poll_mask,
 	.ioctl		=	nr_ioctl,
 	.listen		=	nr_listen,
 	.shutdown	=	sock_no_shutdown,
@@ -1450,9 +1438,9 @@ static int __init nr_proto_init(void)
 
 	nr_loopback_init();
 
-	proc_create("nr", 0444, init_net.proc_net, &nr_info_fops);
-	proc_create("nr_neigh", 0444, init_net.proc_net, &nr_neigh_fops);
-	proc_create("nr_nodes", 0444, init_net.proc_net, &nr_nodes_fops);
+	proc_create_seq("nr", 0444, init_net.proc_net, &nr_info_seqops);
+	proc_create_seq("nr_neigh", 0444, init_net.proc_net, &nr_neigh_seqops);
+	proc_create_seq("nr_nodes", 0444, init_net.proc_net, &nr_node_seqops);
 out:
 	return rc;
 fail:

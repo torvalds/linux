@@ -5,10 +5,19 @@
 
 config NDS32
         def_bool y
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select ARCH_WANT_FRAME_POINTERS if FTRACE
 	select CLKSRC_MMIO
 	select CLONE_BACKWARDS
 	select COMMON_CLK
+	select DMA_NONCOHERENT_OPS
+	select GENERIC_ASHLDI3
+	select GENERIC_ASHRDI3
+	select GENERIC_LSHRDI3
+	select GENERIC_CMPDI2
+	select GENERIC_MULDI3
+	select GENERIC_UCMPDI2
 	select GENERIC_ATOMIC64
 	select GENERIC_CPU_DEVICES
 	select GENERIC_CLOCKEVENTS
@@ -82,6 +91,7 @@ endmenu
 
 menu "Kernel Features"
 source "kernel/Kconfig.preempt"
+source "kernel/Kconfig.freezer"
 source "mm/Kconfig"
 source "kernel/Kconfig.hz"
 endmenu

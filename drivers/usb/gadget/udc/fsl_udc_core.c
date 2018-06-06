@@ -253,6 +253,7 @@ static int dr_controller_setup(struct fsl_udc *udc)
 		portctrl |= PORTSCX_PTW_16BIT;
 		/* fall through */
 	case FSL_USB2_PHY_UTMI:
+	case FSL_USB2_PHY_UTMI_DUAL:
 		if (udc->pdata->have_sysif_regs) {
 			if (udc->pdata->controller_ver) {
 				/* controller version 1.6 or above */
@@ -2207,22 +2208,8 @@ static int fsl_proc_read(struct seq_file *m, void *v)
 	return 0;
 }
 
-/*
- * seq_file wrappers for procfile show routines.
- */
-static int fsl_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, fsl_proc_read, NULL);
-}
-
-static const struct file_operations fsl_proc_fops = {
-	.open		= fsl_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-#define create_proc_file()	proc_create(proc_filename, 0, NULL, &fsl_proc_fops)
+#define create_proc_file() \
+	proc_create_single(proc_filename, 0, NULL, fsl_proc_read)
 #define remove_proc_file()	remove_proc_entry(proc_filename, NULL)
 
 #else				/* !CONFIG_USB_GADGET_DEBUG_FILES */

@@ -198,23 +198,16 @@ befs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 
 	if (ret == BEFS_BT_NOT_FOUND) {
 		befs_debug(sb, "<--- %s %pd not found", __func__, dentry);
-		d_add(dentry, NULL);
-		return ERR_PTR(-ENOENT);
-
+		inode = NULL;
 	} else if (ret != BEFS_OK || offset == 0) {
 		befs_error(sb, "<--- %s Error", __func__);
-		return ERR_PTR(-ENODATA);
+		inode = ERR_PTR(-ENODATA);
+	} else {
+		inode = befs_iget(dir->i_sb, (ino_t) offset);
 	}
-
-	inode = befs_iget(dir->i_sb, (ino_t) offset);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-
-	d_add(dentry, inode);
-
 	befs_debug(sb, "<--- %s", __func__);
 
-	return NULL;
+	return d_splice_alias(inode, dentry);
 }
 
 static int

@@ -42,7 +42,6 @@ config MIPS
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DEBUG_STACKOVERFLOW
-	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_EXIT_THREAD
@@ -132,7 +131,7 @@ config MIPS_GENERIC
 
 config MIPS_ALCHEMY
 	bool "Alchemy processor based machines"
-	select ARCH_PHYS_ADDR_T_64BIT
+	select PHYS_ADDR_T_64BIT
 	select CEVT_R4K
 	select CSRC_R4K
 	select IRQ_MIPS_CPU
@@ -890,7 +889,7 @@ config CAVIUM_OCTEON_SOC
 	bool "Cavium Networks Octeon SoC based boards"
 	select CEVT_R4K
 	select ARCH_HAS_PHYS_TO_DMA
-	select ARCH_PHYS_ADDR_T_64BIT
+	select PHYS_ADDR_T_64BIT
 	select DMA_COHERENT
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
@@ -912,6 +911,7 @@ config CAVIUM_OCTEON_SOC
 	select MIPS_NR_CPU_NR_MAP_1024
 	select BUILTIN_DTB
 	select MTD_COMPLEX_MAPPINGS
+	select SWIOTLB
 	select SYS_SUPPORTS_RELOCATABLE
 	help
 	  This option supports all of the Octeon reference boards from Cavium
@@ -936,7 +936,7 @@ config NLM_XLR_BOARD
 	select SWAP_IO_SPACE
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
-	select ARCH_PHYS_ADDR_T_64BIT
+	select PHYS_ADDR_T_64BIT
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
 	select DMA_COHERENT
@@ -962,7 +962,7 @@ config NLM_XLP_BOARD
 	select HW_HAS_PCI
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
-	select ARCH_PHYS_ADDR_T_64BIT
+	select PHYS_ADDR_T_64BIT
 	select GPIOLIB
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
@@ -1101,9 +1101,6 @@ config GPIO_TXX9
 config FW_CFE
 	bool
 
-config ARCH_DMA_ADDR_T_64BIT
-	def_bool (HIGHMEM && ARCH_PHYS_ADDR_T_64BIT) || 64BIT
-
 config ARCH_SUPPORTS_UPROBES
 	bool
 
@@ -1121,9 +1118,6 @@ config DMA_COHERENT
 config DMA_NONCOHERENT
 	bool
 	select NEED_DMA_MAP_STATE
-
-config NEED_DMA_MAP_STATE
-	bool
 
 config SYS_HAS_EARLY_PRINTK
 	bool
@@ -1373,6 +1367,7 @@ config CPU_LOONGSON3
 	select MIPS_PGD_C0_CONTEXT
 	select MIPS_L1_CACHE_SHIFT_6
 	select GPIOLIB
+	select SWIOTLB
 	help
 		The Loongson 3 processor implements the MIPS64R2 instruction
 		set with many extensions.
@@ -1770,7 +1765,7 @@ config CPU_MIPS32_R5_XPA
 	depends on SYS_SUPPORTS_HIGHMEM
 	select XPA
 	select HIGHMEM
-	select ARCH_PHYS_ADDR_T_64BIT
+	select PHYS_ADDR_T_64BIT
 	default n
 	help
 	  Choose this option if you want to enable the Extended Physical
@@ -2402,9 +2397,6 @@ config SB1_PASS_2_1_WORKAROUNDS
 	default y
 
 
-config ARCH_PHYS_ADDR_T_64BIT
-       bool
-
 choice
 	prompt "SmartMIPS or microMIPS ASE support"
 
@@ -2556,7 +2548,7 @@ config ARCH_DISCONTIGMEM_ENABLE
 	  Say Y to support efficient handling of discontiguous physical memory,
 	  for architectures which are either NUMA (Non-Uniform Memory Access)
 	  or have huge holes in the physical address space for other reasons.
-	  See <file:Documentation/vm/numa> for more.
+	  See <file:Documentation/vm/numa.rst> for more.
 
 config ARCH_SPARSEMEM_ENABLE
 	bool

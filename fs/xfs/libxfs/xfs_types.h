@@ -30,7 +30,7 @@ typedef int64_t		xfs_fsize_t;	/* bytes in a file */
 typedef uint64_t	xfs_ufsize_t;	/* unsigned bytes in a file */
 
 typedef int32_t		xfs_suminfo_t;	/* type of bitmap summary info */
-typedef int32_t		xfs_rtword_t;	/* word type for bitmap manipulations */
+typedef uint32_t	xfs_rtword_t;	/* word type for bitmap manipulations */
 
 typedef int64_t		xfs_lsn_t;	/* log sequence number */
 typedef int32_t		xfs_tid_t;	/* transaction identifier */

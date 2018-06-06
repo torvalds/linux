@@ -87,6 +87,7 @@ static long vbg_misc_device_ioctl(struct file *filp, unsigned int req,
 	struct vbg_session *session = filp->private_data;
 	size_t returned_size, size;
 	struct vbg_ioctl_hdr hdr;
+	bool is_vmmdev_req;
 	int ret = 0;
 	void *buf;
 
@@ -106,12 +107,23 @@ static long vbg_misc_device_ioctl(struct file *filp, unsigned int req,
 	if (size > SZ_16M)
 		return -E2BIG;
 
-	/* __GFP_DMA32 because IOCTL_VMMDEV_REQUEST passes this to the host */
-	buf = kmalloc(size, GFP_KERNEL | __GFP_DMA32);
+	/*
+	 * IOCTL_VMMDEV_REQUEST needs the buffer to be below 4G to avoid
+	 * the need for a bounce-buffer and another copy later on.
+	 */
+	is_vmmdev_req = (req & ~IOCSIZE_MASK) == VBG_IOCTL_VMMDEV_REQUEST(0) ||
+			 req == VBG_IOCTL_VMMDEV_REQUEST_BIG;
+
+	if (is_vmmdev_req)
+		buf = vbg_req_alloc(size, VBG_IOCTL_HDR_TYPE_DEFAULT);
+	else
+		buf = kmalloc(size, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
-	if (copy_from_user(buf, (void *)arg, hdr.size_in)) {
+	*((struct vbg_ioctl_hdr *)buf) = hdr;
+	if (copy_from_user(buf + sizeof(hdr), (void *)arg + sizeof(hdr),
+			   hdr.size_in - sizeof(hdr))) {
 		ret = -EFAULT;
 		goto out;
 	}
@@ -132,7 +144,10 @@ static long vbg_misc_device_ioctl(struct file *filp, unsigned int req,
 		ret = -EFAULT;
 
 out:
-	kfree(buf);
+	if (is_vmmdev_req)
+		vbg_req_free(buf, size);
+	else
+		kfree(buf);
 
 	return ret;
 }

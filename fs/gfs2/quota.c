@@ -735,7 +735,10 @@ static int gfs2_write_buf_to_page(struct gfs2_inode *ip, unsigned long index,
 			if (!buffer_uptodate(bh))
 				goto unlock_out;
 		}
-		gfs2_trans_add_data(ip->i_gl, bh);
+		if (gfs2_is_jdata(ip))
+			gfs2_trans_add_data(ip->i_gl, bh);
+		else
+			gfs2_ordered_add_inode(ip);
 
 		/* If we need to write to the next block as well */
 		if (to_write > (bsize - boff)) {

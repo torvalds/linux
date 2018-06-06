@@ -1,12 +1,7 @@
-/*
- * Copyright 2016 Freescale Semiconductor, Inc.
- * Copyright 2017 NXP
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2016 Freescale Semiconductor, Inc.
+// Copyright 2017 NXP
 
 #include <linux/clk.h>
 #include <linux/clockchips.h>
@@ -114,7 +109,7 @@ static int tpm_set_next_event(unsigned long delta,
 	 * of writing CNT registers which may cause the min_delta event got
 	 * missed, so we need add a ETIME check here in case it happened.
 	 */
-	return (int)((next - now) <= 0) ? -ETIME : 0;
+	return (int)(next - now) <= 0 ? -ETIME : 0;
 }
 
 static int tpm_set_state_oneshot(struct clock_event_device *evt)

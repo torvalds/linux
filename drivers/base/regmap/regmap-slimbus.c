@@ -41,7 +41,7 @@ static struct regmap_bus regmap_slimbus_bus = {
 static const struct regmap_bus *regmap_get_slimbus(struct slim_device *slim,
 					const struct regmap_config *config)
 {
-	if (config->val_bits == 8 && config->reg_bits == 8)
+	if (config->val_bits == 8 && config->reg_bits == 16)
 		return &regmap_slimbus_bus;
 
 	return ERR_PTR(-ENOTSUPP);

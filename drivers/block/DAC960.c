@@ -1179,7 +1179,6 @@ static bool DAC960_V1_EnableMemoryMailboxInterface(DAC960_Controller_T
 
   if (pci_set_dma_mask(Controller->PCIDevice, DMA_BIT_MASK(32)))
 	return DAC960_Failure(Controller, "DMA mask out of range");
-  Controller->BounceBufferLimit = DMA_BIT_MASK(32);
 
   if ((hw_type == DAC960_PD_Controller) || (hw_type == DAC960_P_Controller)) {
     CommandMailboxesSize =  0;
@@ -1380,11 +1379,8 @@ static bool DAC960_V2_EnableMemoryMailboxInterface(DAC960_Controller_T
   dma_addr_t	CommandMailboxDMA;
   DAC960_V2_CommandStatus_T CommandStatus;
 
-	if (!pci_set_dma_mask(Controller->PCIDevice, DMA_BIT_MASK(64)))
-		Controller->BounceBufferLimit = DMA_BIT_MASK(64);
-	else if (!pci_set_dma_mask(Controller->PCIDevice, DMA_BIT_MASK(32)))
-		Controller->BounceBufferLimit = DMA_BIT_MASK(32);
-	else
+	if (pci_set_dma_mask(Controller->PCIDevice, DMA_BIT_MASK(64)) &&
+	    pci_set_dma_mask(Controller->PCIDevice, DMA_BIT_MASK(32)))
 		return DAC960_Failure(Controller, "DMA mask out of range");
 
   /* This is a temporary dma mapping, used only in the scope of this function */
@@ -2540,7 +2536,6 @@ static bool DAC960_RegisterBlockDevice(DAC960_Controller_T *Controller)
 		continue;
   	}
   	Controller->RequestQueue[n] = RequestQueue;
-  	blk_queue_bounce_limit(RequestQueue, Controller->BounceBufferLimit);
   	RequestQueue->queuedata = Controller;
 	blk_queue_max_segments(RequestQueue, Controller->DriverScatterGatherLimit);
 	blk_queue_max_hw_sectors(RequestQueue, Controller->MaxBlocksPerCommand);
@@ -6451,38 +6446,12 @@ static int dac960_proc_show(struct seq_file *m, void *v)
   return 0;
 }
 
-static int dac960_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, dac960_proc_show, NULL);
-}
-
-static const struct file_operations dac960_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= dac960_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int dac960_initial_status_proc_show(struct seq_file *m, void *v)
 {
 	DAC960_Controller_T *Controller = (DAC960_Controller_T *)m->private;
 	seq_printf(m, "%.*s", Controller->InitialStatusLength, Controller->CombinedStatusBuffer);
 	return 0;
 }
-
-static int dac960_initial_status_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, dac960_initial_status_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations dac960_initial_status_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= dac960_initial_status_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 
 static int dac960_current_status_proc_show(struct seq_file *m, void *v)
 {
@@ -6516,19 +6485,6 @@ static int dac960_current_status_proc_show(struct seq_file *m, void *v)
 	seq_printf(m, "%.*s", Controller->CurrentStatusLength, Controller->CurrentStatusBuffer);
 	return 0;
 }
-
-static int dac960_current_status_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, dac960_current_status_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations dac960_current_status_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= dac960_current_status_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 
 static int dac960_user_command_proc_show(struct seq_file *m, void *v)
 {
@@ -6584,17 +6540,19 @@ static void DAC960_CreateProcEntries(DAC960_Controller_T *Controller)
 
 	if (DAC960_ProcDirectoryEntry == NULL) {
 		DAC960_ProcDirectoryEntry = proc_mkdir("rd", NULL);
-		proc_create("status", 0, DAC960_ProcDirectoryEntry,
-			    &dac960_proc_fops);
+		proc_create_single("status", 0, DAC960_ProcDirectoryEntry,
+				dac960_proc_show);
 	}
 
 	snprintf(Controller->ControllerName, sizeof(Controller->ControllerName),
 		 "c%d", Controller->ControllerNumber);
 	ControllerProcEntry = proc_mkdir(Controller->ControllerName,
 					 DAC960_ProcDirectoryEntry);
-	proc_create_data("initial_status", 0, ControllerProcEntry, &dac960_initial_status_proc_fops, Controller);
-	proc_create_data("current_status", 0, ControllerProcEntry, &dac960_current_status_proc_fops, Controller);
-	proc_create_data("user_command", S_IWUSR | S_IRUSR, ControllerProcEntry, &dac960_user_command_proc_fops, Controller);
+	proc_create_single_data("initial_status", 0, ControllerProcEntry,
+			dac960_initial_status_proc_show, Controller);
+	proc_create_single_data("current_status", 0, ControllerProcEntry,
+			dac960_current_status_proc_show, Controller);
+	proc_create_data("user_command", 0600, ControllerProcEntry, &dac960_user_command_proc_fops, Controller);
 	Controller->ControllerProcEntry = ControllerProcEntry;
 }
 

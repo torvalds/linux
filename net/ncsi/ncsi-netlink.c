@@ -215,7 +215,7 @@ err:
 static int ncsi_pkg_info_all_nl(struct sk_buff *skb,
 				struct netlink_callback *cb)
 {
-	struct nlattr *attrs[NCSI_ATTR_MAX];
+	struct nlattr *attrs[NCSI_ATTR_MAX + 1];
 	struct ncsi_package *np, *package;
 	struct ncsi_dev_priv *ndp;
 	unsigned int package_id;

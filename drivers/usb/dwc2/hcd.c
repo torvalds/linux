@@ -358,9 +358,14 @@ static void dwc2_gusbcfg_init(struct dwc2_hsotg *hsotg)
 
 static int dwc2_vbus_supply_init(struct dwc2_hsotg *hsotg)
 {
+	int ret;
+
 	hsotg->vbus_supply = devm_regulator_get_optional(hsotg->dev, "vbus");
-	if (IS_ERR(hsotg->vbus_supply))
-		return 0;
+	if (IS_ERR(hsotg->vbus_supply)) {
+		ret = PTR_ERR(hsotg->vbus_supply);
+		hsotg->vbus_supply = NULL;
+		return ret == -ENODEV ? 0 : ret;
+	}
 
 	return regulator_enable(hsotg->vbus_supply);
 }
@@ -592,7 +597,7 @@ u32 dwc2_calc_frame_interval(struct dwc2_hsotg *hsotg)
  * dwc2_read_packet() - Reads a packet from the Rx FIFO into the destination
  * buffer
  *
- * @core_if: Programming view of DWC_otg controller
+ * @hsotg: Programming view of DWC_otg controller
  * @dest:    Destination buffer for the packet
  * @bytes:   Number of bytes to copy to the destination
  */
@@ -4082,7 +4087,6 @@ static struct dwc2_hsotg *dwc2_hcd_to_hsotg(struct usb_hcd *hcd)
  * then the refcount for the structure will go to 0 and we'll free it.
  *
  * @hsotg:     The HCD state structure for the DWC OTG controller.
- * @qh:        The QH structure.
  * @context:   The priv pointer from a struct dwc2_hcd_urb.
  * @mem_flags: Flags for allocating memory.
  * @ttport:    We'll return this device's port number here.  That's used to
@@ -4342,9 +4346,7 @@ static int _dwc2_hcd_start(struct usb_hcd *hcd)
 
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 
-	dwc2_vbus_supply_init(hsotg);
-
-	return 0;
+	return dwc2_vbus_supply_init(hsotg);
 }
 
 /*

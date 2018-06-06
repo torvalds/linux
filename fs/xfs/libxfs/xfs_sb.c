@@ -888,6 +888,109 @@ xfs_sync_sb(
 	return xfs_trans_commit(tp);
 }
 
+/*
+ * Update all the secondary superblocks to match the new state of the primary.
+ * Because we are completely overwriting all the existing fields in the
+ * secondary superblock buffers, there is no need to read them in from disk.
+ * Just get a new buffer, stamp it and write it.
+ *
+ * The sb buffers need to be cached here so that we serialise against other
+ * operations that access the secondary superblocks, but we don't want to keep
+ * them in memory once it is written so we mark it as a one-shot buffer.
+ */
+int
+xfs_update_secondary_sbs(
+	struct xfs_mount	*mp)
+{
+	xfs_agnumber_t		agno;
+	int			saved_error = 0;
+	int			error = 0;
+	LIST_HEAD		(buffer_list);
+
+	/* update secondary superblocks. */
+	for (agno = 1; agno < mp->m_sb.sb_agcount; agno++) {
+		struct xfs_buf		*bp;
+
+		bp = xfs_buf_get(mp->m_ddev_targp,
+				 XFS_AG_DADDR(mp, agno, XFS_SB_DADDR),
+				 XFS_FSS_TO_BB(mp, 1), 0);
+		/*
+		 * If we get an error reading or writing alternate superblocks,
+		 * continue.  xfs_repair chooses the "best" superblock based
+		 * on most matches; if we break early, we'll leave more
+		 * superblocks un-updated than updated, and xfs_repair may
+		 * pick them over the properly-updated primary.
+		 */
+		if (!bp) {
+			xfs_warn(mp,
+		"error allocating secondary superblock for ag %d",
+				agno);
+			if (!saved_error)
+				saved_error = -ENOMEM;
+			continue;
+		}
+
+		bp->b_ops = &xfs_sb_buf_ops;
+		xfs_buf_oneshot(bp);
+		xfs_buf_zero(bp, 0, BBTOB(bp->b_length));
+		xfs_sb_to_disk(XFS_BUF_TO_SBP(bp), &mp->m_sb);
+		xfs_buf_delwri_queue(bp, &buffer_list);
+		xfs_buf_relse(bp);
+
+		/* don't hold too many buffers at once */
+		if (agno % 16)
+			continue;
+
+		error = xfs_buf_delwri_submit(&buffer_list);
+		if (error) {
+			xfs_warn(mp,
+		"write error %d updating a secondary superblock near ag %d",
+				error, agno);
+			if (!saved_error)
+				saved_error = error;
+			continue;
+		}
+	}
+	error = xfs_buf_delwri_submit(&buffer_list);
+	if (error) {
+		xfs_warn(mp,
+		"write error %d updating a secondary superblock near ag %d",
+			error, agno);
+	}
+
+	return saved_error ? saved_error : error;
+}
+
+/*
+ * Same behavior as xfs_sync_sb, except that it is always synchronous and it
+ * also writes the superblock buffer to disk sector 0 immediately.
+ */
+int
+xfs_sync_sb_buf(
+	struct xfs_mount	*mp)
+{
+	struct xfs_trans	*tp;
+	int			error;
+
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_sb, 0, 0, 0, &tp);
+	if (error)
+		return error;
+
+	xfs_log_sb(tp);
+	xfs_trans_bhold(tp, mp->m_sb_bp);
+	xfs_trans_set_sync(tp);
+	error = xfs_trans_commit(tp);
+	if (error)
+		goto out;
+	/*
+	 * write out the sb buffer to get the changes to disk
+	 */
+	error = xfs_bwrite(mp->m_sb_bp);
+out:
+	xfs_buf_relse(mp->m_sb_bp);
+	return error;
+}
+
 int
 xfs_fs_geometry(
 	struct xfs_sb		*sbp,
@@ -970,5 +1073,49 @@ xfs_fs_geometry(
 
 	geo->logsunit = sbp->sb_logsunit;
 
+	return 0;
+}
+
+/* Read a secondary superblock. */
+int
+xfs_sb_read_secondary(
+	struct xfs_mount	*mp,
+	struct xfs_trans	*tp,
+	xfs_agnumber_t		agno,
+	struct xfs_buf		**bpp)
+{
+	struct xfs_buf		*bp;
+	int			error;
+
+	ASSERT(agno != 0 && agno != NULLAGNUMBER);
+	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
+			XFS_AG_DADDR(mp, agno, XFS_SB_BLOCK(mp)),
+			XFS_FSS_TO_BB(mp, 1), 0, &bp, &xfs_sb_buf_ops);
+	if (error)
+		return error;
+	xfs_buf_set_ref(bp, XFS_SSB_REF);
+	*bpp = bp;
+	return 0;
+}
+
+/* Get an uninitialised secondary superblock buffer. */
+int
+xfs_sb_get_secondary(
+	struct xfs_mount	*mp,
+	struct xfs_trans	*tp,
+	xfs_agnumber_t		agno,
+	struct xfs_buf		**bpp)
+{
+	struct xfs_buf		*bp;
+
+	ASSERT(agno != 0 && agno != NULLAGNUMBER);
+	bp = xfs_trans_get_buf(tp, mp->m_ddev_targp,
+			XFS_AG_DADDR(mp, agno, XFS_SB_BLOCK(mp)),
+			XFS_FSS_TO_BB(mp, 1), 0);
+	if (!bp)
+		return -ENOMEM;
+	bp->b_ops = &xfs_sb_buf_ops;
+	xfs_buf_oneshot(bp);
+	*bpp = bp;
 	return 0;
 }

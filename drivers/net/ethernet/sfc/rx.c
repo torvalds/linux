@@ -827,31 +827,38 @@ MODULE_PARM_DESC(rx_refill_threshold,
 
 #ifdef CONFIG_RFS_ACCEL
 
-/**
- * struct efx_async_filter_insertion - Request to asynchronously insert a filter
- * @net_dev: Reference to the netdevice
- * @spec: The filter to insert
- * @work: Workitem for this request
- * @rxq_index: Identifies the channel for which this request was made
- * @flow_id: Identifies the kernel-side flow for which this request was made
- */
-struct efx_async_filter_insertion {
-	struct net_device *net_dev;
-	struct efx_filter_spec spec;
-	struct work_struct work;
-	u16 rxq_index;
-	u32 flow_id;
-};
-
 static void efx_filter_rfs_work(struct work_struct *data)
 {
 	struct efx_async_filter_insertion *req = container_of(data, struct efx_async_filter_insertion,
 							      work);
 	struct efx_nic *efx = netdev_priv(req->net_dev);
 	struct efx_channel *channel = efx_get_channel(efx, req->rxq_index);
+	int slot_idx = req - efx->rps_slot;
+	struct efx_arfs_rule *rule;
+	u16 arfs_id = 0;
 	int rc;
 
-	rc = efx->type->filter_insert(efx, &req->spec, false);
+	rc = efx->type->filter_insert(efx, &req->spec, true);
+	if (rc >= 0)
+		rc %= efx->type->max_rx_ip_filters;
+	if (efx->rps_hash_table) {
+		spin_lock_bh(&efx->rps_hash_lock);
+		rule = efx_rps_hash_find(efx, &req->spec);
+		/* The rule might have already gone, if someone else's request
+		 * for the same spec was already worked and then expired before
+		 * we got around to our work.  In that case we have nothing
+		 * tying us to an arfs_id, meaning that as soon as the filter
+		 * is considered for expiry it will be removed.
+		 */
+		if (rule) {
+			if (rc < 0)
+				rule->filter_id = EFX_ARFS_FILTER_ID_ERROR;
+			else
+				rule->filter_id = rc;
+			arfs_id = rule->arfs_id;
+		}
+		spin_unlock_bh(&efx->rps_hash_lock);
+	}
 	if (rc >= 0) {
 		/* Remember this so we can check whether to expire the filter
 		 * later.
@@ -863,23 +870,23 @@ static void efx_filter_rfs_work(struct work_struct *data)
 
 		if (req->spec.ether_type == htons(ETH_P_IP))
 			netif_info(efx, rx_status, efx->net_dev,
-				   "steering %s %pI4:%u:%pI4:%u to queue %u [flow %u filter %d]\n",
+				   "steering %s %pI4:%u:%pI4:%u to queue %u [flow %u filter %d id %u]\n",
 				   (req->spec.ip_proto == IPPROTO_TCP) ? "TCP" : "UDP",
 				   req->spec.rem_host, ntohs(req->spec.rem_port),
 				   req->spec.loc_host, ntohs(req->spec.loc_port),
-				   req->rxq_index, req->flow_id, rc);
+				   req->rxq_index, req->flow_id, rc, arfs_id);
 		else
 			netif_info(efx, rx_status, efx->net_dev,
-				   "steering %s [%pI6]:%u:[%pI6]:%u to queue %u [flow %u filter %d]\n",
+				   "steering %s [%pI6]:%u:[%pI6]:%u to queue %u [flow %u filter %d id %u]\n",
 				   (req->spec.ip_proto == IPPROTO_TCP) ? "TCP" : "UDP",
 				   req->spec.rem_host, ntohs(req->spec.rem_port),
 				   req->spec.loc_host, ntohs(req->spec.loc_port),
-				   req->rxq_index, req->flow_id, rc);
+				   req->rxq_index, req->flow_id, rc, arfs_id);
 	}
 
 	/* Release references */
+	clear_bit(slot_idx, &efx->rps_slot_map);
 	dev_put(req->net_dev);
-	kfree(req);
 }
 
 int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
@@ -887,23 +894,39 @@ int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_async_filter_insertion *req;
+	struct efx_arfs_rule *rule;
 	struct flow_keys fk;
+	int slot_idx;
+	bool new;
+	int rc;
 
-	if (flow_id == RPS_FLOW_ID_INVALID)
-		return -EINVAL;
+	/* find a free slot */
+	for (slot_idx = 0; slot_idx < EFX_RPS_MAX_IN_FLIGHT; slot_idx++)
+		if (!test_and_set_bit(slot_idx, &efx->rps_slot_map))
+			break;
+	if (slot_idx >= EFX_RPS_MAX_IN_FLIGHT)
+		return -EBUSY;
 
-	if (!skb_flow_dissect_flow_keys(skb, &fk, 0))
-		return -EPROTONOSUPPORT;
+	if (flow_id == RPS_FLOW_ID_INVALID) {
+		rc = -EINVAL;
+		goto out_clear;
+	}
 
-	if (fk.basic.n_proto != htons(ETH_P_IP) && fk.basic.n_proto != htons(ETH_P_IPV6))
-		return -EPROTONOSUPPORT;
-	if (fk.control.flags & FLOW_DIS_IS_FRAGMENT)
-		return -EPROTONOSUPPORT;
+	if (!skb_flow_dissect_flow_keys(skb, &fk, 0)) {
+		rc = -EPROTONOSUPPORT;
+		goto out_clear;
+	}
 
-	req = kmalloc(sizeof(*req), GFP_ATOMIC);
-	if (!req)
-		return -ENOMEM;
+	if (fk.basic.n_proto != htons(ETH_P_IP) && fk.basic.n_proto != htons(ETH_P_IPV6)) {
+		rc = -EPROTONOSUPPORT;
+		goto out_clear;
+	}
+	if (fk.control.flags & FLOW_DIS_IS_FRAGMENT) {
+		rc = -EPROTONOSUPPORT;
+		goto out_clear;
+	}
 
+	req = efx->rps_slot + slot_idx;
 	efx_filter_init_rx(&req->spec, EFX_FILTER_PRI_HINT,
 			   efx->rx_scatter ? EFX_FILTER_FLAG_RX_SCATTER : 0,
 			   rxq_index);
@@ -927,12 +950,45 @@ int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 	req->spec.rem_port = fk.ports.src;
 	req->spec.loc_port = fk.ports.dst;
 
+	if (efx->rps_hash_table) {
+		/* Add it to ARFS hash table */
+		spin_lock(&efx->rps_hash_lock);
+		rule = efx_rps_hash_add(efx, &req->spec, &new);
+		if (!rule) {
+			rc = -ENOMEM;
+			goto out_unlock;
+		}
+		if (new)
+			rule->arfs_id = efx->rps_next_id++ % RPS_NO_FILTER;
+		rc = rule->arfs_id;
+		/* Skip if existing or pending filter already does the right thing */
+		if (!new && rule->rxq_index == rxq_index &&
+		    rule->filter_id >= EFX_ARFS_FILTER_ID_PENDING)
+			goto out_unlock;
+		rule->rxq_index = rxq_index;
+		rule->filter_id = EFX_ARFS_FILTER_ID_PENDING;
+		spin_unlock(&efx->rps_hash_lock);
+	} else {
+		/* Without an ARFS hash table, we just use arfs_id 0 for all
+		 * filters.  This means if multiple flows hash to the same
+		 * flow_id, all but the most recently touched will be eligible
+		 * for expiry.
+		 */
+		rc = 0;
+	}
+
+	/* Queue the request */
 	dev_hold(req->net_dev = net_dev);
 	INIT_WORK(&req->work, efx_filter_rfs_work);
 	req->rxq_index = rxq_index;
 	req->flow_id = flow_id;
 	schedule_work(&req->work);
-	return 0;
+	return rc;
+out_unlock:
+	spin_unlock(&efx->rps_hash_lock);
+out_clear:
+	clear_bit(slot_idx, &efx->rps_slot_map);
+	return rc;
 }
 
 bool __efx_filter_rfs_expire(struct efx_nic *efx, unsigned int quota)

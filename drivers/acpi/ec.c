@@ -1034,6 +1034,12 @@ void acpi_ec_unblock_transactions(void)
 		acpi_ec_start(first_ec, true);
 }
 
+void acpi_ec_dispatch_gpe(void)
+{
+	if (first_ec)
+		acpi_dispatch_gpe(NULL, first_ec->gpe);
+}
+
 /* --------------------------------------------------------------------------
                                 Event Management
    -------------------------------------------------------------------------- */

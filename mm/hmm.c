@@ -37,7 +37,7 @@
 
 #if defined(CONFIG_DEVICE_PRIVATE) || defined(CONFIG_DEVICE_PUBLIC)
 /*
- * Device private memory see HMM (Documentation/vm/hmm.txt) or hmm.h
+ * Device private memory see HMM (Documentation/vm/hmm.rst) or hmm.h
  */
 DEFINE_STATIC_KEY_FALSE(device_private_key);
 EXPORT_SYMBOL(device_private_key);

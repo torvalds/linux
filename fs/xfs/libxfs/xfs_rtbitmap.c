@@ -90,6 +90,9 @@ xfs_rtbuf_get(
 	if (error)
 		return error;
 
+	if (nmap == 0 || !xfs_bmap_is_real_extent(&map))
+		return -EFSCORRUPTED;
+
 	ASSERT(map.br_startblock != NULLFSBLOCK);
 	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
 				   XFS_FSB_TO_DADDR(mp, map.br_startblock),
@@ -1033,14 +1036,17 @@ xfs_rtalloc_query_range(
 	int				is_free;
 	int				error = 0;
 
-	if (low_rec->ar_startblock > high_rec->ar_startblock)
+	if (low_rec->ar_startext > high_rec->ar_startext)
 		return -EINVAL;
-	else if (low_rec->ar_startblock == high_rec->ar_startblock)
+	if (low_rec->ar_startext >= mp->m_sb.sb_rextents ||
+	    low_rec->ar_startext == high_rec->ar_startext)
 		return 0;
+	if (high_rec->ar_startext >= mp->m_sb.sb_rextents)
+		high_rec->ar_startext = mp->m_sb.sb_rextents - 1;
 
 	/* Iterate the bitmap, looking for discrepancies. */
-	rtstart = low_rec->ar_startblock;
-	rem = high_rec->ar_startblock - rtstart;
+	rtstart = low_rec->ar_startext;
+	rem = high_rec->ar_startext - rtstart;
 	while (rem) {
 		/* Is the first block free? */
 		error = xfs_rtcheck_range(mp, tp, rtstart, 1, 1, &rtend,
@@ -1050,13 +1056,13 @@ xfs_rtalloc_query_range(
 
 		/* How long does the extent go for? */
 		error = xfs_rtfind_forw(mp, tp, rtstart,
-				high_rec->ar_startblock - 1, &rtend);
+				high_rec->ar_startext - 1, &rtend);
 		if (error)
 			break;
 
 		if (is_free) {
-			rec.ar_startblock = rtstart;
-			rec.ar_blockcount = rtend - rtstart + 1;
+			rec.ar_startext = rtstart;
+			rec.ar_extcount = rtend - rtstart + 1;
 
 			error = fn(tp, &rec, priv);
 			if (error)
@@ -1079,9 +1085,9 @@ xfs_rtalloc_query_all(
 {
 	struct xfs_rtalloc_rec		keys[2];
 
-	keys[0].ar_startblock = 0;
-	keys[1].ar_startblock = tp->t_mountp->m_sb.sb_rblocks;
-	keys[0].ar_blockcount = keys[1].ar_blockcount = 0;
+	keys[0].ar_startext = 0;
+	keys[1].ar_startext = tp->t_mountp->m_sb.sb_rextents - 1;
+	keys[0].ar_extcount = keys[1].ar_extcount = 0;
 
 	return xfs_rtalloc_query_range(tp, &keys[0], &keys[1], fn, priv);
 }

@@ -226,7 +226,6 @@ int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
 #ifndef CONFIG_ARCH_NO_COHERENT_DMA_MMAP
 	unsigned long user_count = vma_pages(vma);
 	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
-	unsigned long pfn = page_to_pfn(virt_to_page(cpu_addr));
 	unsigned long off = vma->vm_pgoff;
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
@@ -234,12 +233,11 @@ int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
 	if (dma_mmap_from_dev_coherent(dev, vma, cpu_addr, size, &ret))
 		return ret;
 
-	if (off < count && user_count <= (count - off)) {
+	if (off < count && user_count <= (count - off))
 		ret = remap_pfn_range(vma, vma->vm_start,
-				      pfn + off,
+				      page_to_pfn(virt_to_page(cpu_addr)) + off,
 				      user_count << PAGE_SHIFT,
 				      vma->vm_page_prot);
-	}
 #endif	/* !CONFIG_ARCH_NO_COHERENT_DMA_MMAP */
 
 	return ret;
@@ -331,36 +329,13 @@ void dma_common_free_remap(void *cpu_addr, size_t size, unsigned long vm_flags)
 #endif
 
 /*
- * Common configuration to enable DMA API use for a device
+ * enables DMA API use for a device
  */
-#include <linux/pci.h>
-
 int dma_configure(struct device *dev)
 {
-	struct device *bridge = NULL, *dma_dev = dev;
-	enum dev_dma_attr attr;
-	int ret = 0;
-
-	if (dev_is_pci(dev)) {
-		bridge = pci_get_host_bridge_device(to_pci_dev(dev));
-		dma_dev = bridge;
-		if (IS_ENABLED(CONFIG_OF) && dma_dev->parent &&
-		    dma_dev->parent->of_node)
-			dma_dev = dma_dev->parent;
-	}
-
-	if (dma_dev->of_node) {
-		ret = of_dma_configure(dev, dma_dev->of_node);
-	} else if (has_acpi_companion(dma_dev)) {
-		attr = acpi_get_dma_attr(to_acpi_device_node(dma_dev->fwnode));
-		if (attr != DEV_DMA_NOT_SUPPORTED)
-			ret = acpi_dma_configure(dev, attr);
-	}
-
-	if (bridge)
-		pci_put_host_bridge_device(bridge);
-
-	return ret;
+	if (dev->bus->dma_configure)
+		return dev->bus->dma_configure(dev);
+	return 0;
 }
 
 void dma_deconfigure(struct device *dev)
