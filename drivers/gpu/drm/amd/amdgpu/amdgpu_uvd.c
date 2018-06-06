@@ -208,10 +208,21 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 
 	hdr = (const struct common_firmware_header *)adev->uvd.fw->data;
 	family_id = le32_to_cpu(hdr->ucode_version) & 0xff;
-	version_major = (le32_to_cpu(hdr->ucode_version) >> 24) & 0xff;
-	version_minor = (le32_to_cpu(hdr->ucode_version) >> 8) & 0xff;
-	DRM_INFO("Found UVD firmware Version: %hu.%hu Family ID: %hu\n",
-		version_major, version_minor, family_id);
+
+	if (adev->asic_type < CHIP_VEGA20) {
+		version_major = (le32_to_cpu(hdr->ucode_version) >> 24) & 0xff;
+		version_minor = (le32_to_cpu(hdr->ucode_version) >> 8) & 0xff;
+		DRM_INFO("Found UVD firmware Version: %hu.%hu Family ID: %hu\n",
+			version_major, version_minor, family_id);
+	} else {
+		unsigned int enc_major, enc_minor, dec_minor;
+
+		dec_minor = (le32_to_cpu(hdr->ucode_version) >> 8) & 0xff;
+		enc_minor = (le32_to_cpu(hdr->ucode_version) >> 24) & 0x3f;
+		enc_major = (le32_to_cpu(hdr->ucode_version) >> 30) & 0x3;
+		DRM_INFO("Found UVD firmware ENC: %hu.%hu DEC: .%hu Family ID: %hu\n",
+			enc_major, enc_minor, dec_minor, family_id);
+	}
 
 	/*
 	 * Limit the number of UVD handles depending on microcode major
@@ -219,7 +230,7 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	 * instances support is 1.80. So all subsequent versions should
 	 * also have the same support.
 	 */
-	if ((version_major > 0x01) ||
+	if (adev->asic_type >= CHIP_VEGA20 || (version_major > 0x01) ||
 	    ((version_major == 0x01) && (version_minor >= 0x50)))
 		adev->uvd.max_handles = AMDGPU_MAX_UVD_HANDLES;
 
