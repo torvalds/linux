@@ -413,6 +413,7 @@
 			phy-names = "usb2-phy";
 			resets = <&rst USB0_RESET>, <&rst USB0_OCP_RESET>;
 			reset-names = "dwc2", "dwc2-ecc";
+			clocks = <&clkmgr STRATIX10_USB_CLK>;
 			status = "disabled";
 		};
 
@@ -424,6 +425,7 @@
 			phy-names = "usb2-phy";
 			resets = <&rst USB1_RESET>, <&rst USB1_OCP_RESET>;
 			reset-names = "dwc2", "dwc2-ecc";
+			clocks = <&clkmgr STRATIX10_USB_CLK>;
 			status = "disabled";
 		};
 
@@ -432,6 +434,7 @@
 			reg = <0xffd00200 0x100>;
 			interrupts = <0 117 4>;
 			resets = <&rst WATCHDOG0_RESET>;
+			clocks = <&clkmgr STRATIX10_L4_SYS_FREE_CLK>;
 			status = "disabled";
 		};
 
@@ -440,6 +443,7 @@
 			reg = <0xffd00300 0x100>;
 			interrupts = <0 118 4>;
 			resets = <&rst WATCHDOG1_RESET>;
+			clocks = <&clkmgr STRATIX10_L4_SYS_FREE_CLK>;
 			status = "disabled";
 		};
 
@@ -448,6 +452,7 @@
 			reg = <0xffd00400 0x100>;
 			interrupts = <0 125 4>;
 			resets = <&rst WATCHDOG2_RESET>;
+			clocks = <&clkmgr STRATIX10_L4_SYS_FREE_CLK>;
 			status = "disabled";
 		};
 
@@ -456,6 +461,7 @@
 			reg = <0xffd00500 0x100>;
 			interrupts = <0 126 4>;
 			resets = <&rst WATCHDOG3_RESET>;
+			clocks = <&clkmgr STRATIX10_L4_SYS_FREE_CLK>;
 			status = "disabled";
 		};
 
