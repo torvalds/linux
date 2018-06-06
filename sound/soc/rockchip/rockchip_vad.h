@@ -45,7 +45,7 @@
 #define SRC_ADDR_MODE_FIXED		BIT(14)
 #define INCR_BURST_LEN_SHIFT		10
 #define INCR_BURST_LEN_MASK		GENMASK(13, 10)
-#define INCR_BURST_LEN(x)		((x) << INCR_BURST_LEN_SHIFT)
+#define INCR_BURST_LEN(x)		((x - 1) << INCR_BURST_LEN_SHIFT)
 #define SRC_BURST_NUM_SHIFT		7
 #define SRC_BURST_NUM_MASK		GENMASK(9, 7)
 #define SRC_BURST_NUM(x)		((x - 1) << SRC_BURST_NUM_SHIFT)
@@ -110,6 +110,7 @@
 #define NOISE_LEVEL_SHIFT		12
 #define NOISE_LEVEL_MASK		GENMASK(14, 12)
 #define NOISE_LEVEL(x)			((x) << NOISE_LEVEL_SHIFT)
+#define GAIN_SHIFT			0
 #define GAIN_MASK			GENMASK(9, 0)
 #define GAIN(x)				(x)
 

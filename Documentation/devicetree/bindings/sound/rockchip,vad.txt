@@ -9,6 +9,7 @@ Required properties:
 - clock-names: should contain following:
 - interrupts: should contain the vad interrupt.
 - rockchip,audio-src: the audio src for vad.
+- rockchip,buffer-time-ms: vad sram buffer time msec.
 - rockchip,det-channel: the channel(0~7) is used for detection.
 - rockchip,mode: vad work mode.
   - 0: begin to store the data after voice detected.
