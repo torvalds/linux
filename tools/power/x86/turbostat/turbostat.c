@@ -381,19 +381,23 @@ int get_msr(int cpu, off_t offset, unsigned long long *msr)
 }
 
 /*
- * Each string in this array is compared in --show and --hide cmdline.
- * Thus, strings that are proper sub-sets must follow their more specific peers.
+ * This list matches the column headers, except
+ * 1. built-in only, the sysfs counters are not here -- we learn of those at run-time
+ * 2. Core and CPU are moved to the end, we can't have strings that contain them
+ *    matching on them for --show and --hide.
  */
 struct msr_counter bic[] = {
 	{ 0x0, "usec" },
 	{ 0x0, "Time_Of_Day_Seconds" },
 	{ 0x0, "Package" },
+	{ 0x0, "Node" },
 	{ 0x0, "Avg_MHz" },
+	{ 0x0, "Busy%" },
 	{ 0x0, "Bzy_MHz" },
 	{ 0x0, "TSC_MHz" },
 	{ 0x0, "IRQ" },
 	{ 0x0, "SMI", "", 32, 0, FORMAT_DELTA, NULL},
-	{ 0x0, "Busy%" },
+	{ 0x0, "sysfs" },
 	{ 0x0, "CPU%c1" },
 	{ 0x0, "CPU%c3" },
 	{ 0x0, "CPU%c6" },
@@ -424,15 +428,13 @@ struct msr_counter bic[] = {
 	{ 0x0, "Cor_J" },
 	{ 0x0, "GFX_J" },
 	{ 0x0, "RAM_J" },
-	{ 0x0, "Core" },
-	{ 0x0, "CPU" },
 	{ 0x0, "Mod%c6" },
-	{ 0x0, "sysfs" },
 	{ 0x0, "Totl%C0" },
 	{ 0x0, "Any%C0" },
 	{ 0x0, "GFX%C0" },
 	{ 0x0, "CPUGFX%" },
-	{ 0x0, "Node%" },
+	{ 0x0, "Core" },
+	{ 0x0, "CPU" },
 };
 
 
@@ -441,51 +443,51 @@ struct msr_counter bic[] = {
 #define	BIC_USEC	(1ULL << 0)
 #define	BIC_TOD		(1ULL << 1)
 #define	BIC_Package	(1ULL << 2)
-#define	BIC_Avg_MHz	(1ULL << 3)
-#define	BIC_Bzy_MHz	(1ULL << 4)
-#define	BIC_TSC_MHz	(1ULL << 5)
-#define	BIC_IRQ		(1ULL << 6)
-#define	BIC_SMI		(1ULL << 7)
-#define	BIC_Busy	(1ULL << 8)
-#define	BIC_CPU_c1	(1ULL << 9)
-#define	BIC_CPU_c3	(1ULL << 10)
-#define	BIC_CPU_c6	(1ULL << 11)
-#define	BIC_CPU_c7	(1ULL << 12)
-#define	BIC_ThreadC	(1ULL << 13)
-#define	BIC_CoreTmp	(1ULL << 14)
-#define	BIC_CoreCnt	(1ULL << 15)
-#define	BIC_PkgTmp	(1ULL << 16)
-#define	BIC_GFX_rc6	(1ULL << 17)
-#define	BIC_GFXMHz	(1ULL << 18)
-#define	BIC_Pkgpc2	(1ULL << 19)
-#define	BIC_Pkgpc3	(1ULL << 20)
-#define	BIC_Pkgpc6	(1ULL << 21)
-#define	BIC_Pkgpc7	(1ULL << 22)
-#define	BIC_Pkgpc8	(1ULL << 23)
-#define	BIC_Pkgpc9	(1ULL << 24)
-#define	BIC_Pkgpc10	(1ULL << 25)
-#define BIC_CPU_LPI	(1ULL << 26)
-#define BIC_SYS_LPI	(1ULL << 27)
-#define	BIC_PkgWatt	(1ULL << 26)
-#define	BIC_CorWatt	(1ULL << 27)
-#define	BIC_GFXWatt	(1ULL << 28)
-#define	BIC_PkgCnt	(1ULL << 29)
-#define	BIC_RAMWatt	(1ULL << 30)
-#define	BIC_PKG__	(1ULL << 31)
-#define	BIC_RAM__	(1ULL << 32)
-#define	BIC_Pkg_J	(1ULL << 33)
-#define	BIC_Cor_J	(1ULL << 34)
-#define	BIC_GFX_J	(1ULL << 35)
-#define	BIC_RAM_J	(1ULL << 36)
-#define	BIC_Core	(1ULL << 37)
-#define	BIC_CPU		(1ULL << 38)
-#define	BIC_Mod_c6	(1ULL << 39)
-#define	BIC_sysfs	(1ULL << 40)
-#define	BIC_Totl_c0	(1ULL << 41)
-#define	BIC_Any_c0	(1ULL << 42)
-#define	BIC_GFX_c0	(1ULL << 43)
-#define	BIC_CPUGFX	(1ULL << 44)
-#define	BIC_Node	(1ULL << 45)
+#define	BIC_Node	(1ULL << 3)
+#define	BIC_Avg_MHz	(1ULL << 4)
+#define	BIC_Busy	(1ULL << 5)
+#define	BIC_Bzy_MHz	(1ULL << 6)
+#define	BIC_TSC_MHz	(1ULL << 7)
+#define	BIC_IRQ		(1ULL << 8)
+#define	BIC_SMI		(1ULL << 9)
+#define	BIC_sysfs	(1ULL << 10)
+#define	BIC_CPU_c1	(1ULL << 11)
+#define	BIC_CPU_c3	(1ULL << 12)
+#define	BIC_CPU_c6	(1ULL << 13)
+#define	BIC_CPU_c7	(1ULL << 14)
+#define	BIC_ThreadC	(1ULL << 15)
+#define	BIC_CoreTmp	(1ULL << 16)
+#define	BIC_CoreCnt	(1ULL << 17)
+#define	BIC_PkgTmp	(1ULL << 18)
+#define	BIC_GFX_rc6	(1ULL << 19)
+#define	BIC_GFXMHz	(1ULL << 20)
+#define	BIC_Pkgpc2	(1ULL << 21)
+#define	BIC_Pkgpc3	(1ULL << 22)
+#define	BIC_Pkgpc6	(1ULL << 23)
+#define	BIC_Pkgpc7	(1ULL << 24)
+#define	BIC_Pkgpc8	(1ULL << 25)
+#define	BIC_Pkgpc9	(1ULL << 26)
+#define	BIC_Pkgpc10	(1ULL << 27)
+#define BIC_CPU_LPI	(1ULL << 28)
+#define BIC_SYS_LPI	(1ULL << 29)
+#define	BIC_PkgWatt	(1ULL << 30)
+#define	BIC_CorWatt	(1ULL << 31)
+#define	BIC_GFXWatt	(1ULL << 32)
+#define	BIC_PkgCnt	(1ULL << 33)
+#define	BIC_RAMWatt	(1ULL << 34)
+#define	BIC_PKG__	(1ULL << 35)
+#define	BIC_RAM__	(1ULL << 36)
+#define	BIC_Pkg_J	(1ULL << 37)
+#define	BIC_Cor_J	(1ULL << 38)
+#define	BIC_GFX_J	(1ULL << 39)
+#define	BIC_RAM_J	(1ULL << 40)
+#define	BIC_Mod_c6	(1ULL << 41)
+#define	BIC_Totl_c0	(1ULL << 42)
+#define	BIC_Any_c0	(1ULL << 43)
+#define	BIC_GFX_c0	(1ULL << 44)
+#define	BIC_CPUGFX	(1ULL << 45)
+#define	BIC_Core	(1ULL << 46)
+#define	BIC_CPU		(1ULL << 47)
 
 #define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD)
 
