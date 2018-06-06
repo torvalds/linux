@@ -490,6 +490,7 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 	qcom->dwc3 = of_find_device_by_node(dwc3_np);
 	if (!qcom->dwc3) {
 		dev_err(&pdev->dev, "failed to get dwc3 platform device\n");
+		ret = -ENODEV;
 		goto depopulate;
 	}
 
