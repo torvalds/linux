@@ -2849,7 +2849,7 @@ static int snd_cs46xx_proc_init(struct snd_card *card, struct snd_cs46xx *chip)
 			entry->private_data = chip;
 			entry->c.ops = &snd_cs46xx_proc_io_ops;
 			entry->size = region->size;
-			entry->mode = S_IFREG | S_IRUSR;
+			entry->mode = S_IFREG | 0400;
 		}
 	}
 #ifdef CONFIG_SND_CS46XX_NEW_DSP

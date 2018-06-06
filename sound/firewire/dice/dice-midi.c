@@ -101,27 +101,18 @@ int snd_dice_create_midi(struct snd_dice *dice)
 		.close		= midi_close,
 		.trigger	= midi_playback_trigger,
 	};
-	__be32 reg;
 	struct snd_rawmidi *rmidi;
 	struct snd_rawmidi_str *str;
 	unsigned int midi_in_ports, midi_out_ports;
+	int i;
 	int err;
 
-	/*
-	 * Use the number of MIDI conformant data channel at current sampling
-	 * transfer frequency.
-	 */
-	err = snd_dice_transaction_read_tx(dice, TX_NUMBER_MIDI,
-					   &reg, sizeof(reg));
-	if (err < 0)
-		return err;
-	midi_in_ports = be32_to_cpu(reg);
-
-	err = snd_dice_transaction_read_rx(dice, RX_NUMBER_MIDI,
-					   &reg, sizeof(reg));
-	if (err < 0)
-		return err;
-	midi_out_ports = be32_to_cpu(reg);
+	midi_in_ports = 0;
+	midi_out_ports = 0;
+	for (i = 0; i < MAX_STREAMS; ++i) {
+		midi_in_ports = max(midi_in_ports, dice->tx_midi_ports[i]);
+		midi_out_ports = max(midi_out_ports, dice->rx_midi_ports[i]);
+	}
 
 	if (midi_in_ports + midi_out_ports == 0)
 		return 0;

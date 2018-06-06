@@ -2518,7 +2518,7 @@ static void snd_dbri_proc(struct snd_card *card)
 #ifdef DBRI_DEBUG
 	if (!snd_card_proc_new(card, "debug", &entry)) {
 		snd_info_set_text_ops(entry, dbri, dbri_debug_read);
-		entry->mode = S_IFREG | S_IRUGO;	/* Readable only. */
+		entry->mode = S_IFREG | 0444;	/* Readable only. */
 	}
 #endif
 }
@@ -2542,7 +2542,7 @@ static int snd_dbri_create(struct snd_card *card,
 	dbri->irq = irq;
 
 	dbri->dma = dma_zalloc_coherent(&op->dev, sizeof(struct dbri_dma),
-					&dbri->dma_dvma, GFP_ATOMIC);
+					&dbri->dma_dvma, GFP_KERNEL);
 	if (!dbri->dma)
 		return -ENOMEM;
 

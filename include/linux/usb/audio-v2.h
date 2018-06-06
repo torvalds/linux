@@ -189,6 +189,13 @@ struct uac2_iso_endpoint_descriptor {
 #define UAC2_CONTROL_DATA_OVERRUN	(3 << 2)
 #define UAC2_CONTROL_DATA_UNDERRUN	(3 << 4)
 
+/* 5.2.5.4.2 Connector Control Parameter Block */
+struct uac2_connectors_ctl_blk {
+	__u8 bNrChannels;
+	__le32 bmChannelConfig;
+	__u8 iChannelNames;
+} __attribute__((packed));
+
 /* 6.1 Interrupt Data Message */
 
 #define UAC2_INTERRUPT_DATA_MSG_VENDOR	(1 << 0)
