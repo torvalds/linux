@@ -96,10 +96,7 @@ static void panel_dpi_disable(struct omap_dss_device *dssdev)
 static void panel_dpi_set_timings(struct omap_dss_device *dssdev,
 				  const struct videomode *vm)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;
-
-	ddata->vm = *vm;
 
 	src->ops->set_timings(src, vm);
 }
