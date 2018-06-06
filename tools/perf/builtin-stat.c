@@ -1008,10 +1008,7 @@ static void print_metric_only(void *ctx, const char *color, const char *fmt,
 	if (!valid_only_metric(unit))
 		return;
 	unit = fixunit(buf, os->evsel, unit);
-	if (color)
-		n = color_fprintf(out, color, fmt, val);
-	else
-		n = fprintf(out, fmt, val);
+	n = color_fprintf(out, color ?: "", fmt, val);
 	if (n > METRIC_ONLY_LEN)
 		n = METRIC_ONLY_LEN;
 	if (mlen < strlen(unit))
