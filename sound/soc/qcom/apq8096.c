@@ -140,6 +140,7 @@ static int apq8096_bind(struct device *dev)
 
 	component_bind_all(dev, card);
 	card->dev = dev;
+	dev_set_drvdata(dev, card);
 	ret = apq8096_sbc_parse_of(card);
 	if (ret) {
 		dev_err(dev, "Error parsing OF data\n");
