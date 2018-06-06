@@ -294,6 +294,7 @@ static const struct snd_soc_dapm_route byt_rt5651_ssp0_aif2_map[] = {
 };
 
 static const struct snd_soc_dapm_route byt_rt5651_ssp2_aif1_map[] = {
+#if !IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL)
 	{"ssp2 Tx", NULL, "codec_out0"},
 	{"ssp2 Tx", NULL, "codec_out1"},
 	{"codec_in0", NULL, "ssp2 Rx"},
@@ -301,6 +302,7 @@ static const struct snd_soc_dapm_route byt_rt5651_ssp2_aif1_map[] = {
 
 	{"AIF1 Playback", NULL, "ssp2 Tx"},
 	{"ssp2 Rx", NULL, "AIF1 Capture"},
+#endif
 };
 
 static const struct snd_soc_dapm_route byt_rt5651_ssp2_aif2_map[] = {
@@ -708,6 +710,7 @@ static char byt_rt5651_codec_aif_name[12]; /*  = "rt5651-aif[1|2]" */
 static char byt_rt5651_cpu_dai_name[10]; /*  = "ssp[0|2]-port" */
 static char byt_rt5651_long_name[40]; /* = "bytcr-rt5651-*-spk-*-mic" */
 
+#if !IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL)
 static bool is_valleyview(void)
 {
 	static const struct x86_cpu_id cpu_ids[] = {
@@ -719,6 +722,7 @@ static bool is_valleyview(void)
 		return false;
 	return true;
 }
+#endif
 
 struct acpi_chan_package {   /* ACPICA seems to require 64 bit integers */
 	u64 aif_value;       /* 1: AIF1, 2: AIF2 */
@@ -767,6 +771,7 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 		"%s%s", "i2c-", i2c_name);
 	byt_rt5651_dais[dai_index].codec_name = byt_rt5651_codec_name;
 
+#if !IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL)
 	/*
 	 * swap SSP0 if bytcr is detected
 	 * (will be overridden if DMI quirk is detected)
@@ -825,6 +830,7 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 			byt_rt5651_quirk |= BYT_RT5651_SSP0_AIF2;
 		}
 	}
+#endif
 
 	/* check quirks before creating card */
 	dmi_check_system(byt_rt5651_quirk_table);
