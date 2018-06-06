@@ -807,6 +807,10 @@ static int tcf_block_cb_call(struct tcf_block *block, enum tc_setup_type type,
 	int ok_count = 0;
 	int err;
 
+	/* Make sure all netdevs sharing this block are offload-capable. */
+	if (block->nooffloaddevcnt && err_stop)
+		return -EOPNOTSUPP;
+
 	list_for_each_entry(block_cb, &block->cb_list, list) {
 		err = block_cb->cb(type, type_data, block_cb->cb_priv);
 		if (err) {
@@ -1725,30 +1729,20 @@ static int tc_exts_setup_cb_egdev_call(struct tcf_exts *exts,
 int tc_setup_cb_call(struct tcf_block *block, struct tcf_exts *exts,
 		     enum tc_setup_type type, void *type_data, bool err_stop)
 {
-	int ok_count = 0;
+	int ok_count;
 	int ret;
 
-	if (!block->nooffloaddevcnt) {
-		ret = tcf_block_cb_call(block, type, type_data, err_stop);
-		if (ret < 0)
-			return ret;
-		ok_count = ret;
-	}
+	ret = tcf_block_cb_call(block, type, type_data, err_stop);
+	if (ret < 0)
+		return ret;
+	ok_count = ret;
 
 	if (!exts || ok_count)
-		goto skip_egress;
-
+		return ok_count;
 	ret = tc_exts_setup_cb_egdev_call(exts, type, type_data, err_stop);
 	if (ret < 0)
 		return ret;
 	ok_count += ret;
-
-skip_egress:
-	/* if one of the netdevs sharing this block are not offload-capable
-	 * make sure we succeeded in egress instead.
-	 */
-	if (block->nooffloaddevcnt && !ok_count && err_stop)
-		return -EOPNOTSUPP;
 
 	return ok_count;
 }
