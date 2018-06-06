@@ -421,6 +421,11 @@
 			status = "disabled";
 		};
 
+		rng: rng@18032000 {
+			compatible = "brcm,iproc-rng200";
+			reg = <0x18032000 0x28>;
+		};
+
 		sdhci0: sdhci@18041000 {
 			compatible = "brcm,sdhci-iproc-cygnus";
 			reg = <0x18041000 0x100>;
