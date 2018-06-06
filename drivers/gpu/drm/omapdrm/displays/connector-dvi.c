@@ -19,27 +19,8 @@
 
 #include "../dss/omapdss.h"
 
-static const struct videomode dvic_default_vm = {
-	.hactive	= 640,
-	.vactive	= 480,
-
-	.pixelclock	= 23500000,
-
-	.hfront_porch	= 48,
-	.hsync_len	= 32,
-	.hback_porch	= 80,
-
-	.vfront_porch	= 3,
-	.vsync_len	= 4,
-	.vback_porch	= 7,
-
-	.flags		= DISPLAY_FLAGS_HSYNC_HIGH | DISPLAY_FLAGS_VSYNC_HIGH,
-};
-
 struct panel_drv_data {
 	struct omap_dss_device dssdev;
-
-	struct videomode vm;
 
 	struct i2c_adapter *i2c_adapter;
 
@@ -100,20 +81,9 @@ static void dvic_disable(struct omap_dss_device *dssdev)
 static void dvic_set_timings(struct omap_dss_device *dssdev,
 			     const struct videomode *vm)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;
 
-	ddata->vm = *vm;
-
 	src->ops->set_timings(src, vm);
-}
-
-static void dvic_get_timings(struct omap_dss_device *dssdev,
-			     struct videomode *vm)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-
-	*vm = ddata->vm;
 }
 
 static int dvic_ddc_read(struct i2c_adapter *adapter,
@@ -223,7 +193,6 @@ static const struct omap_dss_device_ops dvic_ops = {
 	.disable	= dvic_disable,
 
 	.set_timings	= dvic_set_timings,
-	.get_timings	= dvic_get_timings,
 
 	.read_edid	= dvic_read_edid,
 	.detect		= dvic_detect,
@@ -310,8 +279,6 @@ static int dvic_probe(struct platform_device *pdev)
 	r = dvic_probe_of(pdev);
 	if (r)
 		return r;
-
-	ddata->vm = dvic_default_vm;
 
 	dssdev = &ddata->dssdev;
 	dssdev->ops = &dvic_ops;

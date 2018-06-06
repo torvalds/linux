@@ -17,20 +17,6 @@
 
 #include "../dss/omapdss.h"
 
-static const struct videomode hdmic_default_vm = {
-	.hactive	= 640,
-	.vactive	= 480,
-	.pixelclock	= 25175000,
-	.hsync_len	= 96,
-	.hfront_porch	= 16,
-	.hback_porch	= 48,
-	.vsync_len	= 2,
-	.vfront_porch	= 11,
-	.vback_porch	= 31,
-
-	.flags		= DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW,
-};
-
 struct panel_drv_data {
 	struct omap_dss_device dssdev;
 	void (*hpd_cb)(void *cb_data, enum drm_connector_status status);
@@ -38,8 +24,6 @@ struct panel_drv_data {
 	struct mutex hpd_lock;
 
 	struct device *dev;
-
-	struct videomode vm;
 
 	struct gpio_desc *hpd_gpio;
 };
@@ -98,20 +82,9 @@ static void hdmic_disable(struct omap_dss_device *dssdev)
 static void hdmic_set_timings(struct omap_dss_device *dssdev,
 			      const struct videomode *vm)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;
 
-	ddata->vm = *vm;
-
 	src->ops->set_timings(src, vm);
-}
-
-static void hdmic_get_timings(struct omap_dss_device *dssdev,
-			      struct videomode *vm)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-
-	*vm = ddata->vm;
 }
 
 static bool hdmic_detect(struct omap_dss_device *dssdev)
@@ -152,7 +125,6 @@ static const struct omap_dss_device_ops hdmic_ops = {
 	.disable		= hdmic_disable,
 
 	.set_timings		= hdmic_set_timings,
-	.get_timings		= hdmic_get_timings,
 
 	.detect			= hdmic_detect,
 	.register_hpd_cb	= hdmic_register_hpd_cb,
@@ -214,8 +186,6 @@ static int hdmic_probe(struct platform_device *pdev)
 		if (r)
 			return r;
 	}
-
-	ddata->vm = hdmic_default_vm;
 
 	dssdev = &ddata->dssdev;
 	dssdev->ops = &hdmic_ops;
