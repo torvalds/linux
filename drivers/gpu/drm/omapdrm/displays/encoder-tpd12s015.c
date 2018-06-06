@@ -28,8 +28,6 @@ struct panel_drv_data {
 	struct gpio_desc *ct_cp_hpd_gpio;
 	struct gpio_desc *ls_oe_gpio;
 	struct gpio_desc *hpd_gpio;
-
-	struct videomode vm;
 };
 
 #define to_panel_data(x) container_of(x, struct panel_drv_data, dssdev)
@@ -96,10 +94,7 @@ static void tpd_disable(struct omap_dss_device *dssdev)
 static void tpd_set_timings(struct omap_dss_device *dssdev,
 			    const struct videomode *vm)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;
-
-	ddata->vm = *vm;
 
 	src->ops->set_timings(src, vm);
 }
