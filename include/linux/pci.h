@@ -217,6 +217,7 @@ enum pci_bus_flags {
 	PCI_BUS_FLAGS_NO_MSI	= (__force pci_bus_flags_t) 1,
 	PCI_BUS_FLAGS_NO_MMRBC	= (__force pci_bus_flags_t) 2,
 	PCI_BUS_FLAGS_NO_AERSID	= (__force pci_bus_flags_t) 4,
+	PCI_BUS_FLAGS_NO_EXTCFG	= (__force pci_bus_flags_t) 8,
 };
 
 /* Values from Link Status register, PCIe r3.1, sec 7.8.8 */
@@ -1080,8 +1081,6 @@ int pcie_get_readrq(struct pci_dev *dev);
 int pcie_set_readrq(struct pci_dev *dev, int rq);
 int pcie_get_mps(struct pci_dev *dev);
 int pcie_set_mps(struct pci_dev *dev, int mps);
-int pcie_get_minimum_link(struct pci_dev *dev, enum pci_bus_speed *speed,
-			  enum pcie_link_width *width);
 u32 pcie_bandwidth_available(struct pci_dev *dev, struct pci_dev **limiting_dev,
 			     enum pci_bus_speed *speed,
 			     enum pcie_link_width *width);
