@@ -231,3 +231,38 @@ Example:
 				     <48 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};
+
+Stratix10 SoCFPGA ECC Manager
+The Stratix10 SoC ECC Manager handles the IRQs for each peripheral
+in a shared register similar to the Arria10. However, ECC requires
+access to registers that can only be read from Secure Monitor with
+SMC calls. Therefore the device tree is slightly different.
+
+Required Properties:
+- compatible : Should be "altr,socfpga-s10-ecc-manager"
+- interrupts : Should be single bit error interrupt, then double bit error
+	interrupt.
+- interrupt-controller : boolean indicator that ECC Manager is an interrupt controller
+- #interrupt-cells : must be set to 2.
+
+Subcomponents:
+
+SDRAM ECC
+Required Properties:
+- compatible : Should be "altr,sdram-edac-s10"
+- interrupts : Should be single bit error interrupt, then double bit error
+	interrupt, in this order.
+
+Example:
+
+	eccmgr {
+		compatible = "altr,socfpga-s10-ecc-manager";
+		interrupts = <0 15 4>, <0 95 4>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		sdramedac {
+			compatible = "altr,sdram-edac-s10";
+			interrupts = <16 4>, <48 4>;
+		};
+	};
