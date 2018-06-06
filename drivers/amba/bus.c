@@ -205,6 +205,7 @@ struct bus_type amba_bustype = {
 	.dma_configure	= platform_dma_configure,
 	.pm		= &amba_pm,
 };
+EXPORT_SYMBOL_GPL(amba_bustype);
 
 static int __init amba_init(void)
 {
