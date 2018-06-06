@@ -62,11 +62,6 @@ struct mlx5_lag {
 	struct lag_tracker        tracker;
 	struct delayed_work       bond_work;
 	struct notifier_block     nb;
-
-	/* Admin state. Allow lag only if allowed is true
-	 * even if network conditions for lag were met
-	 */
-	bool                      allowed;
 };
 
 /* General purpose, use for short periods of time.
@@ -254,6 +249,16 @@ static void mlx5_deactivate_lag(struct mlx5_lag *ldev)
 			      err);
 }
 
+static bool mlx5_lag_check_prereq(struct mlx5_lag *ldev)
+{
+	if (ldev->pf[0].dev &&
+	    ldev->pf[1].dev &&
+	    mlx5_esw_lag_prereq(ldev->pf[0].dev, ldev->pf[1].dev))
+		return true;
+	else
+		return false;
+}
+
 static void mlx5_do_bond(struct mlx5_lag *ldev)
 {
 	struct mlx5_core_dev *dev0 = ldev->pf[0].dev;
@@ -271,7 +276,7 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 	tracker = ldev->tracker;
 	mutex_unlock(&lag_mutex);
 
-	do_bond = tracker.is_bonded && ldev->allowed;
+	do_bond = tracker.is_bonded && mlx5_lag_check_prereq(ldev);
 
 	if (do_bond && !mlx5_lag_is_bonded(ldev)) {
 		if (!sriov_enabled)
@@ -449,15 +454,6 @@ static int mlx5_lag_netdev_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static bool mlx5_lag_check_prereq(struct mlx5_lag *ldev)
-{
-	if ((ldev->pf[0].dev && mlx5_sriov_is_enabled(ldev->pf[0].dev)) ||
-	    (ldev->pf[1].dev && mlx5_sriov_is_enabled(ldev->pf[1].dev)))
-		return false;
-	else
-		return true;
-}
-
 static struct mlx5_lag *mlx5_lag_dev_alloc(void)
 {
 	struct mlx5_lag *ldev;
@@ -467,7 +463,6 @@ static struct mlx5_lag *mlx5_lag_dev_alloc(void)
 		return NULL;
 
 	INIT_DELAYED_WORK(&ldev->bond_work, mlx5_do_bond_work);
-	ldev->allowed = mlx5_lag_check_prereq(ldev);
 
 	return ldev;
 }
@@ -492,7 +487,6 @@ static void mlx5_lag_dev_add_pf(struct mlx5_lag *ldev,
 	ldev->tracker.netdev_state[fn].link_up = 0;
 	ldev->tracker.netdev_state[fn].tx_enabled = 0;
 
-	ldev->allowed = mlx5_lag_check_prereq(ldev);
 	dev->priv.lag = ldev;
 
 	mutex_unlock(&lag_mutex);
@@ -514,7 +508,6 @@ static void mlx5_lag_dev_remove_pf(struct mlx5_lag *ldev,
 	memset(&ldev->pf[i], 0, sizeof(*ldev->pf));
 
 	dev->priv.lag = NULL;
-	ldev->allowed = mlx5_lag_check_prereq(ldev);
 	mutex_unlock(&lag_mutex);
 }
 
@@ -593,42 +586,19 @@ bool mlx5_lag_is_active(struct mlx5_core_dev *dev)
 }
 EXPORT_SYMBOL(mlx5_lag_is_active);
 
-static int mlx5_lag_set_state(struct mlx5_core_dev *dev, bool allow)
+void mlx5_lag_update(struct mlx5_core_dev *dev)
 {
 	struct mlx5_lag *ldev;
-	int ret = 0;
-	bool lag_active;
 
 	mlx5_dev_list_lock();
-
 	ldev = mlx5_lag_dev_get(dev);
-	if (!ldev) {
-		ret = -ENODEV;
+	if (!ldev)
 		goto unlock;
-	}
-	lag_active = mlx5_lag_is_bonded(ldev);
-	if (!mlx5_lag_check_prereq(ldev) && allow) {
-		ret = -EINVAL;
-		goto unlock;
-	}
-	if (ldev->allowed == allow)
-		goto unlock;
-	ldev->allowed = allow;
-	if ((lag_active && !allow) || allow)
-		mlx5_do_bond(ldev);
+
+	mlx5_do_bond(ldev);
+
 unlock:
 	mlx5_dev_list_unlock();
-	return ret;
-}
-
-int mlx5_lag_forbid(struct mlx5_core_dev *dev)
-{
-	return mlx5_lag_set_state(dev, false);
-}
-
-int mlx5_lag_allow(struct mlx5_core_dev *dev)
-{
-	return mlx5_lag_set_state(dev, true);
 }
 
 struct net_device *mlx5_lag_get_roce_netdev(struct mlx5_core_dev *dev)
