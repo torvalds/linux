@@ -218,20 +218,41 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 
 	/*
 	 * If display exposes EDID, then we parse that in the normal way to
-	 * build table of supported modes. Otherwise (ie. fixed resolution
-	 * LCD panels) we just return a single mode corresponding to the
-	 * currently configured timings.
+	 * build table of supported modes.
 	 */
 	dssdev = omap_connector_find_device(connector,
 					    OMAP_DSS_DEVICE_OP_EDID);
 	if (dssdev)
 		return omap_connector_get_modes_edid(connector, dssdev);
 
+	/*
+	 * Otherwise we have either a fixed resolution panel or an output that
+	 * doesn't support modes discovery (e.g. DVI or VGA with the DDC bus
+	 * unconnected, or analog TV). Start by querying the size.
+	 */
+	dssdev = omap_connector->display;
+	if (dssdev->driver && dssdev->driver->get_size)
+		dssdev->driver->get_size(dssdev,
+					 &connector->display_info.width_mm,
+					 &connector->display_info.height_mm);
+
+	/*
+	 * Iterate over the pipeline to find the first device that can provide
+	 * timing information. If we can't find any, we just let the KMS core
+	 * add the default modes.
+	 */
+	for (dssdev = omap_connector->display; dssdev; dssdev = dssdev->src) {
+		if (dssdev->ops->get_timings)
+			break;
+	}
+	if (!dssdev)
+		return 0;
+
+	/* Add a single mode corresponding to the fixed panel timings. */
 	mode = drm_mode_create(connector->dev);
 	if (!mode)
 		return 0;
 
-	dssdev = omap_connector->display;
 	dssdev->ops->get_timings(dssdev, &vm);
 
 	drm_display_mode_from_videomode(&vm, mode);
@@ -239,11 +260,6 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
 	drm_mode_set_name(mode);
 	drm_mode_probed_add(connector, mode);
-
-	if (dssdev->driver && dssdev->driver->get_size)
-		dssdev->driver->get_size(dssdev,
-					 &connector->display_info.width_mm,
-					 &connector->display_info.height_mm);
 
 	return 1;
 }
