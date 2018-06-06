@@ -287,11 +287,12 @@ static acpi_status acpiphp_add_context(acpi_handle handle, u32 lvl, void *data,
 	/*
 	 * Expose slots to user space for functions that have _EJ0 or _RMV or
 	 * are located in dock stations.  Do not expose them for devices handled
-	 * by the native PCIe hotplug (PCIeHP), becuase that code is supposed to
-	 * expose slots to user space in those cases.
+	 * by the native PCIe hotplug (PCIeHP) or standard PCI hotplug
+	 * (SHPCHP), because that code is supposed to expose slots to user
+	 * space in those cases.
 	 */
 	if ((acpi_pci_check_ejectable(pbus, handle) || is_dock_device(adev))
-	    && !(pdev && pdev->is_hotplug_bridge && pciehp_is_native(pdev))) {
+	    && !(pdev && hotplug_is_native(pdev))) {
 		unsigned long long sun;
 		int retval;
 
@@ -430,6 +431,29 @@ static int acpiphp_rescan_slot(struct acpiphp_slot *slot)
 	return pci_scan_slot(slot->bus, PCI_DEVFN(slot->device, 0));
 }
 
+static void acpiphp_native_scan_bridge(struct pci_dev *bridge)
+{
+	struct pci_bus *bus = bridge->subordinate;
+	struct pci_dev *dev;
+	int max;
+
+	if (!bus)
+		return;
+
+	max = bus->busn_res.start;
+	/* Scan already configured non-hotplug bridges */
+	for_each_pci_bridge(dev, bus) {
+		if (!hotplug_is_native(dev))
+			max = pci_scan_bridge(bus, dev, max, 0);
+	}
+
+	/* Scan non-hotplug bridges that need to be reconfigured */
+	for_each_pci_bridge(dev, bus) {
+		if (!hotplug_is_native(dev))
+			max = pci_scan_bridge(bus, dev, max, 1);
+	}
+}
+
 /**
  * enable_slot - enable, configure a slot
  * @slot: slot to be enabled
@@ -442,25 +466,42 @@ static void enable_slot(struct acpiphp_slot *slot)
 	struct pci_dev *dev;
 	struct pci_bus *bus = slot->bus;
 	struct acpiphp_func *func;
-	int max, pass;
-	LIST_HEAD(add_list);
 
-	acpiphp_rescan_slot(slot);
-	max = acpiphp_max_busnr(bus);
-	for (pass = 0; pass < 2; pass++) {
+	if (bus->self && hotplug_is_native(bus->self)) {
+		/*
+		 * If native hotplug is used, it will take care of hotplug
+		 * slot management and resource allocation for hotplug
+		 * bridges. However, ACPI hotplug may still be used for
+		 * non-hotplug bridges to bring in additional devices such
+		 * as a Thunderbolt host controller.
+		 */
 		for_each_pci_bridge(dev, bus) {
-			if (PCI_SLOT(dev->devfn) != slot->device)
-				continue;
+			if (PCI_SLOT(dev->devfn) == slot->device)
+				acpiphp_native_scan_bridge(dev);
+		}
+		pci_assign_unassigned_bridge_resources(bus->self);
+	} else {
+		LIST_HEAD(add_list);
+		int max, pass;
 
-			max = pci_scan_bridge(bus, dev, max, pass);
-			if (pass && dev->subordinate) {
-				check_hotplug_bridge(slot, dev);
-				pcibios_resource_survey_bus(dev->subordinate);
-				__pci_bus_size_bridges(dev->subordinate, &add_list);
+		acpiphp_rescan_slot(slot);
+		max = acpiphp_max_busnr(bus);
+		for (pass = 0; pass < 2; pass++) {
+			for_each_pci_bridge(dev, bus) {
+				if (PCI_SLOT(dev->devfn) != slot->device)
+					continue;
+
+				max = pci_scan_bridge(bus, dev, max, pass);
+				if (pass && dev->subordinate) {
+					check_hotplug_bridge(slot, dev);
+					pcibios_resource_survey_bus(dev->subordinate);
+					__pci_bus_size_bridges(dev->subordinate,
+							       &add_list);
+				}
 			}
 		}
+		__pci_bus_assign_resources(bus, &add_list, NULL);
 	}
-	__pci_bus_assign_resources(bus, &add_list, NULL);
 
 	acpiphp_sanitize_bus(bus);
 	pcie_bus_configure_settings(bus);
@@ -481,7 +522,7 @@ static void enable_slot(struct acpiphp_slot *slot)
 		if (!dev) {
 			/* Do not set SLOT_ENABLED flag if some funcs
 			   are not added. */
-			slot->flags &= (~SLOT_ENABLED);
+			slot->flags &= ~SLOT_ENABLED;
 			continue;
 		}
 	}
@@ -510,7 +551,7 @@ static void disable_slot(struct acpiphp_slot *slot)
 	list_for_each_entry(func, &slot->funcs, sibling)
 		acpi_bus_trim(func_to_acpi_device(func));
 
-	slot->flags &= (~SLOT_ENABLED);
+	slot->flags &= ~SLOT_ENABLED;
 }
 
 static bool slot_no_hotplug(struct acpiphp_slot *slot)
@@ -608,6 +649,11 @@ static void trim_stale_devices(struct pci_dev *dev)
 		alive = pci_device_is_present(dev);
 
 	if (!alive) {
+		pci_dev_set_disconnected(dev, NULL);
+		if (pci_has_subordinate(dev))
+			pci_walk_bus(dev->subordinate, pci_dev_set_disconnected,
+				     NULL);
+
 		pci_stop_and_remove_bus_device(dev);
 		if (adev)
 			acpi_bus_trim(adev);
