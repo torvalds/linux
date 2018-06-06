@@ -1,20 +1,12 @@
-config ARCH
-	string
-	option env="ARCH"
-
-config KERNELVERSION
-	string
-	option env="KERNELVERSION"
-
 config DEFCONFIG_LIST
 	string
 	depends on !UML
 	option defconfig_list
-	default "/lib/modules/$UNAME_RELEASE/.config"
+	default "/lib/modules/$(shell,uname --release)/.config"
 	default "/etc/kernel-config"
-	default "/boot/config-$UNAME_RELEASE"
-	default "$ARCH_DEFCONFIG"
-	default "arch/$ARCH/defconfig"
+	default "/boot/config-$(shell,uname --release)"
+	default ARCH_DEFCONFIG
+	default "arch/$(ARCH)/defconfig"
 
 config CONSTRUCTORS
 	bool
@@ -53,15 +45,6 @@ config INIT_ENV_ARG_LIMIT
 	help
 	  Maximum of each of the number of arguments and environment
 	  variables passed to init from the kernel command line.
-
-
-config CROSS_COMPILE
-	string "Cross-compiler tool prefix"
-	help
-	  Same as running 'make CROSS_COMPILE=prefix-' but stored for
-	  default make runs in this kernel build directory.  You don't
-	  need to set this unless you want the configured kernel build
-	  directory to select the cross-compiler automatically.
 
 config COMPILE_TEST
 	bool "Compile also drivers which will not load"

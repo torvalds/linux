@@ -1,6 +1,6 @@
 config 64BIT
-	bool "64-bit kernel" if ARCH = "sparc"
-	default ARCH = "sparc64"
+	bool "64-bit kernel" if "$(ARCH)" = "sparc"
+	default "$(ARCH)" = "sparc64"
 	help
 	  SPARC is a family of RISC microprocessors designed and marketed by
 	  Sun Microsystems, incorporated.  They are very widely found in Sun
