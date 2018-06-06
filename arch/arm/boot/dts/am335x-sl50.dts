@@ -732,3 +732,11 @@
 &lcdc {
 	status = "okay";
 };
+
+&tscadc {
+	status = "okay";
+};
+
+&am335x_adc {
+	ti,adc-channels = <0 1 2 3 4 5 6 7>;
+};
