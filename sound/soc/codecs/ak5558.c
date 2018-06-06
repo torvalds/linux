@@ -322,13 +322,13 @@ static int __maybe_unused ak5558_runtime_resume(struct device *dev)
 	return regcache_sync(ak5558->regmap);
 }
 
-const struct dev_pm_ops ak5558_pm = {
+static const struct dev_pm_ops ak5558_pm = {
 	SET_RUNTIME_PM_OPS(ak5558_runtime_suspend, ak5558_runtime_resume, NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				pm_runtime_force_resume)
 };
 
-struct snd_soc_component_driver soc_codec_dev_ak5558 = {
+static const struct snd_soc_component_driver soc_codec_dev_ak5558 = {
 	.probe			= ak5558_probe,
 	.remove			= ak5558_remove,
 	.controls		= ak5558_snd_controls,
