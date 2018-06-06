@@ -92,7 +92,7 @@ the loading file.
 
 The firmware device used to help load firmware using sysfs is only created if
 direct firmware loading fails and if the fallback mechanism is enabled for your
-firmware request, this is set up with fw_load_from_user_helper().  It is
+firmware request, this is set up with :c:func:`firmware_fallback_sysfs`. It is
 important to re-iterate that no device is created if a direct filesystem lookup
 succeeded.
 
@@ -107,6 +107,11 @@ for the firmware in PAGE_SIZE increments to hold the image as it comes in.
 firmware_data_read() and firmware_loading_show() are just provided for the
 test_firmware driver for testing, they are not called in normal use or
 expected to be used regularly by userspace.
+
+firmware_fallback_sysfs
+-----------------------
+.. kernel-doc:: drivers/base/firmware_loader/fallback.c
+   :functions: firmware_fallback_sysfs
 
 Firmware kobject uevent fallback mechanism
 ==========================================
