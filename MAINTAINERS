@@ -4872,7 +4872,7 @@ DRM DRIVERS FOR RENESAS
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	dri-devel@lists.freedesktop.org
 L:	linux-renesas-soc@vger.kernel.org
-T:	git git://linuxtv.org/pinchartl/fbdev
+T:	git git://linuxtv.org/pinchartl/media drm/du/next
 S:	Supported
 F:	drivers/gpu/drm/rcar-du/
 F:	drivers/gpu/drm/shmobile/
