@@ -10,7 +10,7 @@ if ANDROID
 
 config ANDROID_BINDER_IPC
 	bool "Android Binder IPC Driver"
-	depends on MMU && !M68K
+	depends on MMU
 	default n
 	---help---
 	  Binder is used in Android for both communication between processes,
