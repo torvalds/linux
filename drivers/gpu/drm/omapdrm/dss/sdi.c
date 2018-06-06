@@ -151,9 +151,6 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_get_dispc;
 
-	/* 15.5.9.1.2 */
-	vm->flags |= DISPLAY_FLAGS_PIXDATA_POSEDGE | DISPLAY_FLAGS_SYNC_POSEDGE;
-
 	r = sdi_calc_clock_div(sdi, vm->pixelclock, &fck, &dispc_cinfo);
 	if (r)
 		goto err_calc_clock_div;
@@ -298,6 +295,8 @@ static int sdi_init_output(struct sdi_device *sdi)
 	out->of_ports = BIT(1);
 	out->ops = &sdi_ops;
 	out->owner = THIS_MODULE;
+	out->bus_flags = DRM_BUS_FLAG_PIXDATA_POSEDGE	/* 15.5.9.1.2 */
+		       | DRM_BUS_FLAG_SYNC_POSEDGE;
 
 	out->next = omapdss_of_find_connected_device(out->dev->of_node, 1);
 	if (IS_ERR(out->next)) {

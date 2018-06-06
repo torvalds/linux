@@ -33,9 +33,7 @@ static const struct videomode dvic_default_vm = {
 	.vsync_len	= 4,
 	.vback_porch	= 7,
 
-	.flags		= DISPLAY_FLAGS_HSYNC_HIGH | DISPLAY_FLAGS_VSYNC_HIGH |
-			  DISPLAY_FLAGS_SYNC_NEGEDGE | DISPLAY_FLAGS_DE_HIGH |
-			  DISPLAY_FLAGS_PIXDATA_POSEDGE,
+	.flags		= DISPLAY_FLAGS_HSYNC_HIGH | DISPLAY_FLAGS_VSYNC_HIGH,
 };
 
 struct panel_drv_data {

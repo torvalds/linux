@@ -81,13 +81,7 @@ static const struct videomode tpo_td043_vm = {
 	.vfront_porch	= 39,
 	.vback_porch	= 34,
 
-	.flags		= DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
-			  DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_SYNC_POSEDGE |
-			  DISPLAY_FLAGS_PIXDATA_NEGEDGE,
-	/*
-	 * Note: According to the panel documentation:
-	 * SYNC needs to be driven on the FALLING edge
-	 */
+	.flags		= DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW,
 };
 
 #define to_panel_data(p) container_of(p, struct panel_drv_data, dssdev)
@@ -471,6 +465,13 @@ static int tpo_td043_probe(struct spi_device *spi)
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);
+
+	/*
+	 * Note: According to the panel documentation:
+	 * SYNC needs to be driven on the FALLING edge
+	 */
+	dssdev->bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_SYNC_POSEDGE
+			  | DRM_BUS_FLAG_PIXDATA_NEGEDGE;
 
 	omapdss_display_init(dssdev);
 	omapdss_device_register(dssdev);

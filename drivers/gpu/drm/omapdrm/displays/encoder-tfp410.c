@@ -76,12 +76,6 @@ static void tfp410_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void tfp410_fix_timings(struct videomode *vm)
-{
-	vm->flags |= DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_PIXDATA_POSEDGE |
-		     DISPLAY_FLAGS_SYNC_POSEDGE;
-}
-
 static void tfp410_set_timings(struct omap_dss_device *dssdev,
 			       const struct videomode *vm)
 {
@@ -94,8 +88,6 @@ static int tfp410_check_timings(struct omap_dss_device *dssdev,
 				struct videomode *vm)
 {
 	struct omap_dss_device *src = dssdev->src;
-
-	tfp410_fix_timings(vm);
 
 	return src->ops->check_timings(src, vm);
 }
@@ -137,6 +129,8 @@ static int tfp410_probe(struct platform_device *pdev)
 	dssdev->output_type = OMAP_DISPLAY_TYPE_DVI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(1) | BIT(0);
+	dssdev->bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_SYNC_POSEDGE
+			  | DRM_BUS_FLAG_PIXDATA_POSEDGE;
 
 	dssdev->next = omapdss_of_find_connected_device(pdev->dev.of_node, 1);
 	if (IS_ERR(dssdev->next)) {

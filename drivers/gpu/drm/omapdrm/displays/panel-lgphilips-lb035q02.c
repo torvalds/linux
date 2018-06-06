@@ -33,14 +33,7 @@ static const struct videomode lb035q02_vm = {
 	.vfront_porch	= 4,
 	.vback_porch	= 18,
 
-	.flags		= DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
-			  DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_SYNC_NEGEDGE |
-			  DISPLAY_FLAGS_PIXDATA_POSEDGE,
-	/*
-	 * Note: According to the panel documentation:
-	 * DE is active LOW
-	 * DATA needs to be driven on the FALLING edge
-	 */
+	.flags		= DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW,
 };
 
 struct panel_drv_data {
@@ -251,6 +244,14 @@ static int lb035q02_panel_spi_probe(struct spi_device *spi)
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);
+
+	/*
+	 * Note: According to the panel documentation:
+	 * DE is active LOW
+	 * DATA needs to be driven on the FALLING edge
+	 */
+	dssdev->bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_SYNC_NEGEDGE
+			  | DRM_BUS_FLAG_PIXDATA_POSEDGE;
 
 	omapdss_display_init(dssdev);
 	omapdss_device_register(dssdev);

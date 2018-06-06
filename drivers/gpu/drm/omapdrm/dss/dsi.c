@@ -4053,12 +4053,6 @@ static int dsi_display_init_dispc(struct dsi_data *dsi)
 	dsi->vm.flags |= DISPLAY_FLAGS_HSYNC_HIGH;
 	dsi->vm.flags &= ~DISPLAY_FLAGS_VSYNC_LOW;
 	dsi->vm.flags |= DISPLAY_FLAGS_VSYNC_HIGH;
-	dsi->vm.flags &= ~DISPLAY_FLAGS_PIXDATA_NEGEDGE;
-	dsi->vm.flags |= DISPLAY_FLAGS_PIXDATA_POSEDGE;
-	dsi->vm.flags &= ~DISPLAY_FLAGS_DE_LOW;
-	dsi->vm.flags |= DISPLAY_FLAGS_DE_HIGH;
-	dsi->vm.flags &= ~DISPLAY_FLAGS_SYNC_POSEDGE;
-	dsi->vm.flags |= DISPLAY_FLAGS_SYNC_NEGEDGE;
 
 	dss_mgr_set_timings(&dsi->output, &dsi->vm);
 
@@ -5142,6 +5136,9 @@ static int dsi_init_output(struct dsi_data *dsi)
 	out->ops = &dsi_ops;
 	out->owner = THIS_MODULE;
 	out->of_ports = BIT(0);
+	out->bus_flags = DRM_BUS_FLAG_PIXDATA_POSEDGE
+		       | DRM_BUS_FLAG_DE_HIGH
+		       | DRM_BUS_FLAG_SYNC_NEGEDGE;
 
 	out->next = omapdss_of_find_connected_device(out->dev->of_node, 0);
 	if (IS_ERR(out->next)) {

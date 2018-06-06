@@ -419,12 +419,9 @@ static enum drm_mode_status omap_crtc_mode_valid(struct drm_crtc *crtc,
 static void omap_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	struct omap_dss_device *display = omap_crtc->pipe->display;
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
-	const u32 flags_mask = DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_DE_LOW |
-		DISPLAY_FLAGS_PIXDATA_POSEDGE | DISPLAY_FLAGS_PIXDATA_NEGEDGE |
-		DISPLAY_FLAGS_SYNC_POSEDGE | DISPLAY_FLAGS_SYNC_NEGEDGE;
-	struct videomode vm = {0};
+	struct videomode *vm = &omap_crtc->vm;
+	struct omap_dss_device *dssdev;
 
 	DBG("%s: set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
 	    omap_crtc->name, mode->base.id, mode->name,
@@ -433,7 +430,7 @@ static void omap_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	    mode->vdisplay, mode->vsync_start, mode->vsync_end, mode->vtotal,
 	    mode->type, mode->flags);
 
-	drm_display_mode_to_videomode(mode, &omap_crtc->vm);
+	drm_display_mode_to_videomode(mode, vm);
 
 	/*
 	 * HACK: This fixes the vm flags.
@@ -442,13 +439,36 @@ static void omap_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	 * struct drm_display_mode and struct videomode. The hack below
 	 * goes and fetches the missing flags from the panel drivers.
 	 *
-	 * Correct solution would be to use DRM's bus-flags, but that's not
-	 * easily possible before the omapdrm's panel/encoder driver model
-	 * has been changed to the DRM model.
+	 * A better solution is to use DRM's bus-flags through the whole driver.
 	 */
 
-	display->ops->get_timings(display, &vm);
-	omap_crtc->vm.flags |= vm.flags & flags_mask;
+	for (dssdev = omap_crtc->pipe->output; dssdev; dssdev = dssdev->next) {
+		unsigned long bus_flags = dssdev->bus_flags;
+
+		if (!(vm->flags & (DISPLAY_FLAGS_DE_LOW |
+				   DISPLAY_FLAGS_DE_HIGH))) {
+			if (bus_flags & DRM_BUS_FLAG_DE_LOW)
+				vm->flags |= DISPLAY_FLAGS_DE_LOW;
+			else if (bus_flags & DRM_BUS_FLAG_DE_HIGH)
+				vm->flags |= DISPLAY_FLAGS_DE_HIGH;
+		}
+
+		if (!(vm->flags & (DISPLAY_FLAGS_PIXDATA_POSEDGE |
+				   DISPLAY_FLAGS_PIXDATA_NEGEDGE))) {
+			if (bus_flags & DRM_BUS_FLAG_PIXDATA_POSEDGE)
+				vm->flags |= DISPLAY_FLAGS_PIXDATA_POSEDGE;
+			else if (bus_flags & DRM_BUS_FLAG_PIXDATA_NEGEDGE)
+				vm->flags |= DISPLAY_FLAGS_PIXDATA_NEGEDGE;
+		}
+
+		if (!(vm->flags & (DISPLAY_FLAGS_SYNC_POSEDGE |
+				   DISPLAY_FLAGS_SYNC_NEGEDGE))) {
+			if (bus_flags & DRM_BUS_FLAG_SYNC_POSEDGE)
+				vm->flags |= DISPLAY_FLAGS_SYNC_POSEDGE;
+			else if (bus_flags & DRM_BUS_FLAG_SYNC_NEGEDGE)
+				vm->flags |= DISPLAY_FLAGS_SYNC_NEGEDGE;
+		}
+	}
 }
 
 static int omap_crtc_atomic_check(struct drm_crtc *crtc,
