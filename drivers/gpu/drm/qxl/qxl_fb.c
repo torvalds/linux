@@ -185,8 +185,6 @@ static int qxlfb_framebuffer_dirty(struct drm_framebuffer *fb,
 	/*
 	 * we are using a shadow draw buffer, at qdev->surface0_shadow
 	 */
-	qxl_io_log(qdev, "dirty x[%d, %d], y[%d, %d]\n", clips->x1, clips->x2,
-		   clips->y1, clips->y2);
 	image->dx = clips->x1;
 	image->dy = clips->y1;
 	image->width = clips->x2 - clips->x1;

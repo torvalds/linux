@@ -260,7 +260,7 @@ struct drm_property *drm_property_create_object(struct drm_device *dev,
 						uint32_t type);
 struct drm_property *drm_property_create_bool(struct drm_device *dev,
 					      u32 flags, const char *name);
-int drm_property_add_enum(struct drm_property *property, int index,
+int drm_property_add_enum(struct drm_property *property,
 			  uint64_t value, const char *name);
 void drm_property_destroy(struct drm_device *dev, struct drm_property *property);
 
@@ -279,32 +279,6 @@ bool drm_property_replace_blob(struct drm_property_blob **blob,
 			       struct drm_property_blob *new_blob);
 struct drm_property_blob *drm_property_blob_get(struct drm_property_blob *blob);
 void drm_property_blob_put(struct drm_property_blob *blob);
-
-/**
- * drm_property_reference_blob - acquire a blob property reference
- * @blob: DRM blob property
- *
- * This is a compatibility alias for drm_property_blob_get() and should not be
- * used by new code.
- */
-static inline struct drm_property_blob *
-drm_property_reference_blob(struct drm_property_blob *blob)
-{
-	return drm_property_blob_get(blob);
-}
-
-/**
- * drm_property_unreference_blob - release a blob property reference
- * @blob: DRM blob property
- *
- * This is a compatibility alias for drm_property_blob_put() and should not be
- * used by new code.
- */
-static inline void
-drm_property_unreference_blob(struct drm_property_blob *blob)
-{
-	drm_property_blob_put(blob);
-}
 
 /**
  * drm_property_find - find property object

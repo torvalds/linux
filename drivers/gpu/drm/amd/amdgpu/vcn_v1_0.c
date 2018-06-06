@@ -35,7 +35,6 @@
 #include "mmhub/mmhub_9_1_offset.h"
 #include "mmhub/mmhub_9_1_sh_mask.h"
 
-static int vcn_v1_0_start(struct amdgpu_device *adev);
 static int vcn_v1_0_stop(struct amdgpu_device *adev);
 static void vcn_v1_0_set_dec_ring_funcs(struct amdgpu_device *adev);
 static void vcn_v1_0_set_enc_ring_funcs(struct amdgpu_device *adev);
@@ -146,10 +145,6 @@ static int vcn_v1_0_hw_init(void *handle)
 	struct amdgpu_ring *ring = &adev->vcn.ring_dec;
 	int i, r;
 
-	r = vcn_v1_0_start(adev);
-	if (r)
-		goto done;
-
 	ring->ready = true;
 	r = amdgpu_ring_test_ring(ring);
 	if (r) {
@@ -185,11 +180,9 @@ static int vcn_v1_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_ring *ring = &adev->vcn.ring_dec;
-	int r;
 
-	r = vcn_v1_0_stop(adev);
-	if (r)
-		return r;
+	if (RREG32_SOC15(VCN, 0, mmUVD_STATUS))
+		vcn_v1_0_stop(adev);
 
 	ring->ready = false;
 
@@ -288,14 +281,14 @@ static void vcn_v1_0_mc_resume(struct amdgpu_device *adev)
  *
  * Disable clock gating for VCN block
  */
-static void vcn_v1_0_disable_clock_gating(struct amdgpu_device *adev, bool sw)
+static void vcn_v1_0_disable_clock_gating(struct amdgpu_device *adev)
 {
 	uint32_t data;
 
 	/* JPEG disable CGC */
 	data = RREG32_SOC15(VCN, 0, mmJPEG_CGC_CTRL);
 
-	if (sw)
+	if (adev->cg_flags & AMD_CG_SUPPORT_VCN_MGCG)
 		data |= 1 << JPEG_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
 	else
 		data &= ~JPEG_CGC_CTRL__DYN_CLOCK_MODE_MASK;
@@ -310,7 +303,7 @@ static void vcn_v1_0_disable_clock_gating(struct amdgpu_device *adev, bool sw)
 
 	/* UVD disable CGC */
 	data = RREG32_SOC15(VCN, 0, mmUVD_CGC_CTRL);
-	if (sw)
+	if (adev->cg_flags & AMD_CG_SUPPORT_VCN_MGCG)
 		data |= 1 << UVD_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
 	else
 		data &= ~ UVD_CGC_CTRL__DYN_CLOCK_MODE_MASK;
@@ -415,13 +408,13 @@ static void vcn_v1_0_disable_clock_gating(struct amdgpu_device *adev, bool sw)
  *
  * Enable clock gating for VCN block
  */
-static void vcn_v1_0_enable_clock_gating(struct amdgpu_device *adev, bool sw)
+static void vcn_v1_0_enable_clock_gating(struct amdgpu_device *adev)
 {
 	uint32_t data = 0;
 
 	/* enable JPEG CGC */
 	data = RREG32_SOC15(VCN, 0, mmJPEG_CGC_CTRL);
-	if (sw)
+	if (adev->cg_flags & AMD_CG_SUPPORT_VCN_MGCG)
 		data |= 1 << JPEG_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
 	else
 		data |= 0 << JPEG_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
@@ -435,7 +428,7 @@ static void vcn_v1_0_enable_clock_gating(struct amdgpu_device *adev, bool sw)
 
 	/* enable UVD CGC */
 	data = RREG32_SOC15(VCN, 0, mmUVD_CGC_CTRL);
-	if (sw)
+	if (adev->cg_flags & AMD_CG_SUPPORT_VCN_MGCG)
 		data |= 1 << UVD_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
 	else
 		data |= 0 << UVD_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
@@ -480,6 +473,94 @@ static void vcn_v1_0_enable_clock_gating(struct amdgpu_device *adev, bool sw)
 	WREG32_SOC15(VCN, 0, mmUVD_SUVD_CGC_CTRL, data);
 }
 
+static void vcn_1_0_disable_static_power_gating(struct amdgpu_device *adev)
+{
+	uint32_t data = 0;
+	int ret;
+
+	if (adev->pg_flags & AMD_PG_SUPPORT_VCN) {
+		data = (1 << UVD_PGFSM_CONFIG__UVDM_PWR_CONFIG__SHIFT
+			| 1 << UVD_PGFSM_CONFIG__UVDU_PWR_CONFIG__SHIFT
+			| 2 << UVD_PGFSM_CONFIG__UVDF_PWR_CONFIG__SHIFT
+			| 2 << UVD_PGFSM_CONFIG__UVDC_PWR_CONFIG__SHIFT
+			| 2 << UVD_PGFSM_CONFIG__UVDB_PWR_CONFIG__SHIFT
+			| 2 << UVD_PGFSM_CONFIG__UVDIL_PWR_CONFIG__SHIFT
+			| 2 << UVD_PGFSM_CONFIG__UVDIR_PWR_CONFIG__SHIFT
+			| 2 << UVD_PGFSM_CONFIG__UVDTD_PWR_CONFIG__SHIFT
+			| 2 << UVD_PGFSM_CONFIG__UVDTE_PWR_CONFIG__SHIFT
+			| 2 << UVD_PGFSM_CONFIG__UVDE_PWR_CONFIG__SHIFT
+			| 2 << UVD_PGFSM_CONFIG__UVDW_PWR_CONFIG__SHIFT);
+
+		WREG32_SOC15(VCN, 0, mmUVD_PGFSM_CONFIG, data);
+		SOC15_WAIT_ON_RREG(VCN, 0, mmUVD_PGFSM_STATUS, UVD_PGFSM_STATUS__UVDM_UVDU_PWR_ON, 0xFFFFFF, ret);
+	} else {
+		data = (1 << UVD_PGFSM_CONFIG__UVDM_PWR_CONFIG__SHIFT
+			| 1 << UVD_PGFSM_CONFIG__UVDU_PWR_CONFIG__SHIFT
+			| 1 << UVD_PGFSM_CONFIG__UVDF_PWR_CONFIG__SHIFT
+			| 1 << UVD_PGFSM_CONFIG__UVDC_PWR_CONFIG__SHIFT
+			| 1 << UVD_PGFSM_CONFIG__UVDB_PWR_CONFIG__SHIFT
+			| 1 << UVD_PGFSM_CONFIG__UVDIL_PWR_CONFIG__SHIFT
+			| 1 << UVD_PGFSM_CONFIG__UVDIR_PWR_CONFIG__SHIFT
+			| 1 << UVD_PGFSM_CONFIG__UVDTD_PWR_CONFIG__SHIFT
+			| 1 << UVD_PGFSM_CONFIG__UVDTE_PWR_CONFIG__SHIFT
+			| 1 << UVD_PGFSM_CONFIG__UVDE_PWR_CONFIG__SHIFT
+			| 1 << UVD_PGFSM_CONFIG__UVDW_PWR_CONFIG__SHIFT);
+		WREG32_SOC15(VCN, 0, mmUVD_PGFSM_CONFIG, data);
+		SOC15_WAIT_ON_RREG(VCN, 0, mmUVD_PGFSM_STATUS, 0,  0xFFFFFFFF, ret);
+	}
+
+	/* polling UVD_PGFSM_STATUS to confirm UVDM_PWR_STATUS , UVDU_PWR_STATUS are 0 (power on) */
+
+	data = RREG32_SOC15(VCN, 0, mmUVD_POWER_STATUS);
+	data &= ~0x103;
+	if (adev->pg_flags & AMD_PG_SUPPORT_VCN)
+		data |= UVD_PGFSM_CONFIG__UVDM_UVDU_PWR_ON | UVD_POWER_STATUS__UVD_PG_EN_MASK;
+
+	WREG32_SOC15(VCN, 0, mmUVD_POWER_STATUS, data);
+}
+
+static void vcn_1_0_enable_static_power_gating(struct amdgpu_device *adev)
+{
+	uint32_t data = 0;
+	int ret;
+
+	if (adev->pg_flags & AMD_PG_SUPPORT_VCN) {
+		/* Before power off, this indicator has to be turned on */
+		data = RREG32_SOC15(VCN, 0, mmUVD_POWER_STATUS);
+		data &= ~UVD_POWER_STATUS__UVD_POWER_STATUS_MASK;
+		data |= UVD_POWER_STATUS__UVD_POWER_STATUS_TILES_OFF;
+		WREG32_SOC15(VCN, 0, mmUVD_POWER_STATUS, data);
+
+
+		data = (2 << UVD_PGFSM_CONFIG__UVDM_PWR_CONFIG__SHIFT
+			| 2 << UVD_PGFSM_CONFIG__UVDU_PWR_CONFIG__SHIFT
+			| 2 << UVD_PGFSM_CONFIG__UVDF_PWR_CONFIG__SHIFT
+			| 2 << UVD_PGFSM_CONFIG__UVDC_PWR_CONFIG__SHIFT
+			| 2 << UVD_PGFSM_CONFIG__UVDB_PWR_CONFIG__SHIFT
+			| 2 << UVD_PGFSM_CONFIG__UVDIL_PWR_CONFIG__SHIFT
+			| 2 << UVD_PGFSM_CONFIG__UVDIR_PWR_CONFIG__SHIFT
+			| 2 << UVD_PGFSM_CONFIG__UVDTD_PWR_CONFIG__SHIFT
+			| 2 << UVD_PGFSM_CONFIG__UVDTE_PWR_CONFIG__SHIFT
+			| 2 << UVD_PGFSM_CONFIG__UVDE_PWR_CONFIG__SHIFT
+			| 2 << UVD_PGFSM_CONFIG__UVDW_PWR_CONFIG__SHIFT);
+
+		WREG32_SOC15(VCN, 0, mmUVD_PGFSM_CONFIG, data);
+
+		data = (2 << UVD_PGFSM_STATUS__UVDM_PWR_STATUS__SHIFT
+			| 2 << UVD_PGFSM_STATUS__UVDU_PWR_STATUS__SHIFT
+			| 2 << UVD_PGFSM_STATUS__UVDF_PWR_STATUS__SHIFT
+			| 2 << UVD_PGFSM_STATUS__UVDC_PWR_STATUS__SHIFT
+			| 2 << UVD_PGFSM_STATUS__UVDB_PWR_STATUS__SHIFT
+			| 2 << UVD_PGFSM_STATUS__UVDIL_PWR_STATUS__SHIFT
+			| 2 << UVD_PGFSM_STATUS__UVDIR_PWR_STATUS__SHIFT
+			| 2 << UVD_PGFSM_STATUS__UVDTD_PWR_STATUS__SHIFT
+			| 2 << UVD_PGFSM_STATUS__UVDTE_PWR_STATUS__SHIFT
+			| 2 << UVD_PGFSM_STATUS__UVDE_PWR_STATUS__SHIFT
+			| 2 << UVD_PGFSM_STATUS__UVDW_PWR_STATUS__SHIFT);
+		SOC15_WAIT_ON_RREG(VCN, 0, mmUVD_PGFSM_STATUS, data, 0xFFFFFFFF, ret);
+	}
+}
+
 /**
  * vcn_v1_0_start - start VCN block
  *
@@ -499,8 +580,9 @@ static int vcn_v1_0_start(struct amdgpu_device *adev)
 
 	vcn_v1_0_mc_resume(adev);
 
+	vcn_1_0_disable_static_power_gating(adev);
 	/* disable clock gating */
-	vcn_v1_0_disable_clock_gating(adev, true);
+	vcn_v1_0_disable_clock_gating(adev);
 
 	/* disable interupt */
 	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_MASTINT_EN), 0,
@@ -680,16 +762,45 @@ static int vcn_v1_0_stop(struct amdgpu_device *adev)
 	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_CTRL2), 0,
 			~UVD_LMI_CTRL2__STALL_ARB_UMC_MASK);
 
-	/* enable clock gating */
-	vcn_v1_0_enable_clock_gating(adev, true);
+	WREG32_SOC15(VCN, 0, mmUVD_STATUS, 0);
 
+	vcn_v1_0_enable_clock_gating(adev);
+	vcn_1_0_enable_static_power_gating(adev);
 	return 0;
+}
+
+bool vcn_v1_0_is_idle(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	return (RREG32_SOC15(VCN, 0, mmUVD_STATUS) == 0x2);
+}
+
+int vcn_v1_0_wait_for_idle(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int ret = 0;
+
+	SOC15_WAIT_ON_RREG(VCN, 0, mmUVD_STATUS, 0x2, 0x2, ret);
+
+	return ret;
 }
 
 static int vcn_v1_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
-	/* needed for driver unload*/
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
+
+	if (enable) {
+		/* wait for STATUS to clear */
+		if (vcn_v1_0_is_idle(handle))
+			return -EBUSY;
+		vcn_v1_0_enable_clock_gating(adev);
+	} else {
+		/* disable HW gating and enable Sw gating */
+		vcn_v1_0_disable_clock_gating(adev);
+	}
 	return 0;
 }
 
@@ -1048,16 +1159,36 @@ static int vcn_v1_0_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
-static void vcn_v1_0_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
+static void vcn_v1_0_dec_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
 {
-	int i;
 	struct amdgpu_device *adev = ring->adev;
+	int i;
 
-	for (i = 0; i < count; i++)
+	WARN_ON(ring->wptr % 2 || count % 2);
+
+	for (i = 0; i < count / 2; i++) {
 		amdgpu_ring_write(ring, PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_NO_OP), 0));
-
+		amdgpu_ring_write(ring, 0);
+	}
 }
 
+static int vcn_v1_0_set_powergating_state(void *handle,
+					  enum amd_powergating_state state)
+{
+	/* This doesn't actually powergate the VCN block.
+	 * That's done in the dpm code via the SMC.  This
+	 * just re-inits the block as necessary.  The actual
+	 * gating still happens in the dpm code.  We should
+	 * revisit this when there is a cleaner line between
+	 * the smc and the hw blocks
+	 */
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (state == AMD_PG_STATE_GATE)
+		return vcn_v1_0_stop(adev);
+	else
+		return vcn_v1_0_start(adev);
+}
 
 static const struct amd_ip_funcs vcn_v1_0_ip_funcs = {
 	.name = "vcn_v1_0",
@@ -1069,20 +1200,19 @@ static const struct amd_ip_funcs vcn_v1_0_ip_funcs = {
 	.hw_fini = vcn_v1_0_hw_fini,
 	.suspend = vcn_v1_0_suspend,
 	.resume = vcn_v1_0_resume,
-	.is_idle = NULL /* vcn_v1_0_is_idle */,
-	.wait_for_idle = NULL /* vcn_v1_0_wait_for_idle */,
+	.is_idle = vcn_v1_0_is_idle,
+	.wait_for_idle = vcn_v1_0_wait_for_idle,
 	.check_soft_reset = NULL /* vcn_v1_0_check_soft_reset */,
 	.pre_soft_reset = NULL /* vcn_v1_0_pre_soft_reset */,
 	.soft_reset = NULL /* vcn_v1_0_soft_reset */,
 	.post_soft_reset = NULL /* vcn_v1_0_post_soft_reset */,
 	.set_clockgating_state = vcn_v1_0_set_clockgating_state,
-	.set_powergating_state = NULL /* vcn_v1_0_set_powergating_state */,
+	.set_powergating_state = vcn_v1_0_set_powergating_state,
 };
 
 static const struct amdgpu_ring_funcs vcn_v1_0_dec_ring_vm_funcs = {
 	.type = AMDGPU_RING_TYPE_VCN_DEC,
 	.align_mask = 0xf,
-	.nop = PACKET0(0x81ff, 0),
 	.support_64bit_ptrs = false,
 	.vmhub = AMDGPU_MMHUB,
 	.get_rptr = vcn_v1_0_dec_ring_get_rptr,
@@ -1101,7 +1231,7 @@ static const struct amdgpu_ring_funcs vcn_v1_0_dec_ring_vm_funcs = {
 	.emit_vm_flush = vcn_v1_0_dec_ring_emit_vm_flush,
 	.test_ring = amdgpu_vcn_dec_ring_test_ring,
 	.test_ib = amdgpu_vcn_dec_ring_test_ib,
-	.insert_nop = vcn_v1_0_ring_insert_nop,
+	.insert_nop = vcn_v1_0_dec_ring_insert_nop,
 	.insert_start = vcn_v1_0_dec_ring_insert_start,
 	.insert_end = vcn_v1_0_dec_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
@@ -1109,6 +1239,7 @@ static const struct amdgpu_ring_funcs vcn_v1_0_dec_ring_vm_funcs = {
 	.end_use = amdgpu_vcn_ring_end_use,
 	.emit_wreg = vcn_v1_0_dec_ring_emit_wreg,
 	.emit_reg_wait = vcn_v1_0_dec_ring_emit_reg_wait,
+	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,
 };
 
 static const struct amdgpu_ring_funcs vcn_v1_0_enc_ring_vm_funcs = {
@@ -1139,6 +1270,7 @@ static const struct amdgpu_ring_funcs vcn_v1_0_enc_ring_vm_funcs = {
 	.end_use = amdgpu_vcn_ring_end_use,
 	.emit_wreg = vcn_v1_0_enc_ring_emit_wreg,
 	.emit_reg_wait = vcn_v1_0_enc_ring_emit_reg_wait,
+	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,
 };
 
 static void vcn_v1_0_set_dec_ring_funcs(struct amdgpu_device *adev)

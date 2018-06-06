@@ -47,3 +47,16 @@ gf119_disp_chan_uevent = {
 	.init = gf119_disp_chan_uevent_init,
 	.fini = gf119_disp_chan_uevent_fini,
 };
+
+void
+gf119_disp_chan_intr(struct nv50_disp_chan *chan, bool en)
+{
+	struct nvkm_device *device = chan->disp->base.engine.subdev.device;
+	const u64 mask = 0x00000001 << chan->chid.user;
+	if (!en) {
+		nvkm_mask(device, 0x610090, mask, 0x00000000);
+		nvkm_mask(device, 0x6100a0, mask, 0x00000000);
+	} else {
+		nvkm_mask(device, 0x6100a0, mask, mask);
+	}
+}

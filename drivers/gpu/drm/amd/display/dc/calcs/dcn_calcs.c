@@ -873,14 +873,14 @@ bool dcn_validate_bandwidth(
 			}
 
 			if (pipe->plane_state->rotation % 2 == 0) {
-				ASSERT(pipe->plane_res.scl_data.ratios.horz.value != dal_fixed31_32_one.value
+				ASSERT(pipe->plane_res.scl_data.ratios.horz.value != dc_fixpt_one.value
 					|| v->scaler_rec_out_width[input_idx] == v->viewport_width[input_idx]);
-				ASSERT(pipe->plane_res.scl_data.ratios.vert.value != dal_fixed31_32_one.value
+				ASSERT(pipe->plane_res.scl_data.ratios.vert.value != dc_fixpt_one.value
 					|| v->scaler_recout_height[input_idx] == v->viewport_height[input_idx]);
 			} else {
-				ASSERT(pipe->plane_res.scl_data.ratios.horz.value != dal_fixed31_32_one.value
+				ASSERT(pipe->plane_res.scl_data.ratios.horz.value != dc_fixpt_one.value
 					|| v->scaler_recout_height[input_idx] == v->viewport_width[input_idx]);
-				ASSERT(pipe->plane_res.scl_data.ratios.vert.value != dal_fixed31_32_one.value
+				ASSERT(pipe->plane_res.scl_data.ratios.vert.value != dc_fixpt_one.value
 					|| v->scaler_rec_out_width[input_idx] == v->viewport_height[input_idx]);
 			}
 			v->dcc_enable[input_idx] = pipe->plane_state->dcc.enable ? dcn_bw_yes : dcn_bw_no;
@@ -1459,39 +1459,39 @@ void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc)
 void dcn_bw_sync_calcs_and_dml(struct dc *dc)
 {
 	kernel_fpu_begin();
-	DC_LOG_BANDWIDTH_CALCS("sr_exit_time: %d ns\n"
-			"sr_enter_plus_exit_time: %d ns\n"
-			"urgent_latency: %d ns\n"
-			"write_back_latency: %d ns\n"
-			"percent_of_ideal_drambw_received_after_urg_latency: %d %\n"
+	DC_LOG_BANDWIDTH_CALCS("sr_exit_time: %f ns\n"
+			"sr_enter_plus_exit_time: %f ns\n"
+			"urgent_latency: %f ns\n"
+			"write_back_latency: %f ns\n"
+			"percent_of_ideal_drambw_received_after_urg_latency: %f %%\n"
 			"max_request_size: %d bytes\n"
-			"dcfclkv_max0p9: %d kHz\n"
-			"dcfclkv_nom0p8: %d kHz\n"
-			"dcfclkv_mid0p72: %d kHz\n"
-			"dcfclkv_min0p65: %d kHz\n"
-			"max_dispclk_vmax0p9: %d kHz\n"
-			"max_dispclk_vnom0p8: %d kHz\n"
-			"max_dispclk_vmid0p72: %d kHz\n"
-			"max_dispclk_vmin0p65: %d kHz\n"
-			"max_dppclk_vmax0p9: %d kHz\n"
-			"max_dppclk_vnom0p8: %d kHz\n"
-			"max_dppclk_vmid0p72: %d kHz\n"
-			"max_dppclk_vmin0p65: %d kHz\n"
-			"socclk: %d kHz\n"
-			"fabric_and_dram_bandwidth_vmax0p9: %d MB/s\n"
-			"fabric_and_dram_bandwidth_vnom0p8: %d MB/s\n"
-			"fabric_and_dram_bandwidth_vmid0p72: %d MB/s\n"
-			"fabric_and_dram_bandwidth_vmin0p65: %d MB/s\n"
-			"phyclkv_max0p9: %d kHz\n"
-			"phyclkv_nom0p8: %d kHz\n"
-			"phyclkv_mid0p72: %d kHz\n"
-			"phyclkv_min0p65: %d kHz\n"
-			"downspreading: %d %\n"
+			"dcfclkv_max0p9: %f kHz\n"
+			"dcfclkv_nom0p8: %f kHz\n"
+			"dcfclkv_mid0p72: %f kHz\n"
+			"dcfclkv_min0p65: %f kHz\n"
+			"max_dispclk_vmax0p9: %f kHz\n"
+			"max_dispclk_vnom0p8: %f kHz\n"
+			"max_dispclk_vmid0p72: %f kHz\n"
+			"max_dispclk_vmin0p65: %f kHz\n"
+			"max_dppclk_vmax0p9: %f kHz\n"
+			"max_dppclk_vnom0p8: %f kHz\n"
+			"max_dppclk_vmid0p72: %f kHz\n"
+			"max_dppclk_vmin0p65: %f kHz\n"
+			"socclk: %f kHz\n"
+			"fabric_and_dram_bandwidth_vmax0p9: %f MB/s\n"
+			"fabric_and_dram_bandwidth_vnom0p8: %f MB/s\n"
+			"fabric_and_dram_bandwidth_vmid0p72: %f MB/s\n"
+			"fabric_and_dram_bandwidth_vmin0p65: %f MB/s\n"
+			"phyclkv_max0p9: %f kHz\n"
+			"phyclkv_nom0p8: %f kHz\n"
+			"phyclkv_mid0p72: %f kHz\n"
+			"phyclkv_min0p65: %f kHz\n"
+			"downspreading: %f %%\n"
 			"round_trip_ping_latency_cycles: %d DCFCLK Cycles\n"
 			"urgent_out_of_order_return_per_channel: %d Bytes\n"
 			"number_of_channels: %d\n"
 			"vmm_page_size: %d Bytes\n"
-			"dram_clock_change_latency: %d ns\n"
+			"dram_clock_change_latency: %f ns\n"
 			"return_bus_width: %d Bytes\n",
 			dc->dcn_soc->sr_exit_time * 1000,
 			dc->dcn_soc->sr_enter_plus_exit_time * 1000,
@@ -1527,11 +1527,11 @@ void dcn_bw_sync_calcs_and_dml(struct dc *dc)
 			dc->dcn_soc->vmm_page_size,
 			dc->dcn_soc->dram_clock_change_latency * 1000,
 			dc->dcn_soc->return_bus_width);
-	DC_LOG_BANDWIDTH_CALCS("rob_buffer_size_in_kbyte: %d\n"
-			"det_buffer_size_in_kbyte: %d\n"
-			"dpp_output_buffer_pixels: %d\n"
-			"opp_output_buffer_lines: %d\n"
-			"pixel_chunk_size_in_kbyte: %d\n"
+	DC_LOG_BANDWIDTH_CALCS("rob_buffer_size_in_kbyte: %f\n"
+			"det_buffer_size_in_kbyte: %f\n"
+			"dpp_output_buffer_pixels: %f\n"
+			"opp_output_buffer_lines: %f\n"
+			"pixel_chunk_size_in_kbyte: %f\n"
 			"pte_enable: %d\n"
 			"pte_chunk_size: %d kbytes\n"
 			"meta_chunk_size: %d kbytes\n"
@@ -1550,13 +1550,13 @@ void dcn_bw_sync_calcs_and_dml(struct dc *dc)
 			"max_pscl_tolb_throughput: %d pixels/dppclk\n"
 			"max_lb_tovscl_throughput: %d pixels/dppclk\n"
 			"max_vscl_tohscl_throughput: %d pixels/dppclk\n"
-			"max_hscl_ratio: %d\n"
-			"max_vscl_ratio: %d\n"
+			"max_hscl_ratio: %f\n"
+			"max_vscl_ratio: %f\n"
 			"max_hscl_taps: %d\n"
 			"max_vscl_taps: %d\n"
 			"pte_buffer_size_in_requests: %d\n"
-			"dispclk_ramping_margin: %d %\n"
-			"under_scan_factor: %d %\n"
+			"dispclk_ramping_margin: %f %%\n"
+			"under_scan_factor: %f %%\n"
 			"max_inter_dcn_tile_repeaters: %d\n"
 			"can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one: %d\n"
 			"bug_forcing_luma_and_chroma_request_to_same_size_fixed: %d\n"

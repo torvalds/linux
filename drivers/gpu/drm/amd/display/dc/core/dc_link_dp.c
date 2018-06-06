@@ -1378,8 +1378,8 @@ static uint32_t bandwidth_in_kbps_from_timing(
 {
 	uint32_t bits_per_channel = 0;
 	uint32_t kbps;
-	switch (timing->display_color_depth) {
 
+	switch (timing->display_color_depth) {
 	case COLOR_DEPTH_666:
 		bits_per_channel = 6;
 		break;
@@ -1401,14 +1401,20 @@ static uint32_t bandwidth_in_kbps_from_timing(
 	default:
 		break;
 	}
+
 	ASSERT(bits_per_channel != 0);
 
 	kbps = timing->pix_clk_khz;
 	kbps *= bits_per_channel;
 
-	if (timing->flags.Y_ONLY != 1)
+	if (timing->flags.Y_ONLY != 1) {
 		/*Only YOnly make reduce bandwidth by 1/3 compares to RGB*/
 		kbps *= 3;
+		if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
+			kbps /= 2;
+		else if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR422)
+			kbps = kbps * 2 / 3;
+	}
 
 	return kbps;
 
@@ -2278,6 +2284,8 @@ static bool retrieve_link_cap(struct dc_link *link)
 	union edp_configuration_cap edp_config_cap;
 	union dp_downstream_port_present ds_port = { 0 };
 	enum dc_status status = DC_ERROR_UNEXPECTED;
+	uint32_t read_dpcd_retry_cnt = 3;
+	int i;
 
 	memset(dpcd_data, '\0', sizeof(dpcd_data));
 	memset(&down_strm_port_count,
@@ -2285,11 +2293,15 @@ static bool retrieve_link_cap(struct dc_link *link)
 	memset(&edp_config_cap, '\0',
 		sizeof(union edp_configuration_cap));
 
-	status = core_link_read_dpcd(
-			link,
-			DP_DPCD_REV,
-			dpcd_data,
-			sizeof(dpcd_data));
+	for (i = 0; i < read_dpcd_retry_cnt; i++) {
+		status = core_link_read_dpcd(
+				link,
+				DP_DPCD_REV,
+				dpcd_data,
+				sizeof(dpcd_data));
+		if (status == DC_OK)
+			break;
+	}
 
 	if (status != DC_OK) {
 		dm_error("%s: Read dpcd data failed.\n", __func__);
@@ -2376,6 +2388,10 @@ bool detect_dp_sink_caps(struct dc_link *link)
 void detect_edp_sink_caps(struct dc_link *link)
 {
 	retrieve_link_cap(link);
+
+	if (link->reported_link_cap.link_rate == LINK_RATE_UNKNOWN)
+		link->reported_link_cap.link_rate = LINK_RATE_HIGH2;
+
 	link->verified_link_cap = link->reported_link_cap;
 }
 

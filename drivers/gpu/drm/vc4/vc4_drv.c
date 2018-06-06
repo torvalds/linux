@@ -176,7 +176,8 @@ static struct drm_driver vc4_drm_driver = {
 			    DRIVER_GEM |
 			    DRIVER_HAVE_IRQ |
 			    DRIVER_RENDER |
-			    DRIVER_PRIME),
+			    DRIVER_PRIME |
+			    DRIVER_SYNCOBJ),
 	.lastclose = drm_fb_helper_lastclose,
 	.open = vc4_open,
 	.postclose = vc4_close,
@@ -319,14 +320,16 @@ dev_unref:
 
 static void vc4_drm_unbind(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct drm_device *drm = platform_get_drvdata(pdev);
+	struct drm_device *drm = dev_get_drvdata(dev);
+	struct vc4_dev *vc4 = to_vc4_dev(drm);
 
 	drm_dev_unregister(drm);
 
 	drm_fb_cma_fbdev_fini(drm);
 
 	drm_mode_config_cleanup(drm);
+
+	drm_atomic_private_obj_fini(&vc4->ctm_manager);
 
 	drm_dev_unref(drm);
 }

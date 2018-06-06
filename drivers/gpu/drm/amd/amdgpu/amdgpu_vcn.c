@@ -105,7 +105,7 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 	ring = &adev->vcn.ring_dec;
 	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
 	r = drm_sched_entity_init(&ring->sched, &adev->vcn.entity_dec,
-				  rq, amdgpu_sched_jobs, NULL);
+				  rq, NULL);
 	if (r != 0) {
 		DRM_ERROR("Failed setting up VCN dec run queue.\n");
 		return r;
@@ -114,7 +114,7 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 	ring = &adev->vcn.ring_enc[0];
 	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
 	r = drm_sched_entity_init(&ring->sched, &adev->vcn.entity_enc,
-				  rq, amdgpu_sched_jobs, NULL);
+				  rq, NULL);
 	if (r != 0) {
 		DRM_ERROR("Failed setting up VCN enc run queue.\n");
 		return r;
@@ -205,13 +205,18 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 	struct amdgpu_device *adev =
 		container_of(work, struct amdgpu_device, vcn.idle_work.work);
 	unsigned fences = amdgpu_fence_count_emitted(&adev->vcn.ring_dec);
+	unsigned i;
+
+	for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
+		fences += amdgpu_fence_count_emitted(&adev->vcn.ring_enc[i]);
+	}
 
 	if (fences == 0) {
-		if (adev->pm.dpm_enabled) {
-			/* might be used when with pg/cg
+		if (adev->pm.dpm_enabled)
 			amdgpu_dpm_enable_uvd(adev, false);
-			*/
-		}
+		else
+			amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCN,
+							       AMD_PG_STATE_GATE);
 	} else {
 		schedule_delayed_work(&adev->vcn.idle_work, VCN_IDLE_TIMEOUT);
 	}
@@ -223,9 +228,11 @@ void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
 	bool set_clocks = !cancel_delayed_work_sync(&adev->vcn.idle_work);
 
 	if (set_clocks && adev->pm.dpm_enabled) {
-		/* might be used when with pg/cg
-		amdgpu_dpm_enable_uvd(adev, true);
-		*/
+		if (adev->pm.dpm_enabled)
+			amdgpu_dpm_enable_uvd(adev, true);
+		else
+			amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCN,
+							       AMD_PG_STATE_UNGATE);
 	}
 }
 

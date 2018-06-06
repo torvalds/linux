@@ -46,7 +46,7 @@ int psm_init_power_state_table(struct pp_hwmgr *hwmgr)
 					  sizeof(struct pp_power_state);
 
 	if (table_entries == 0 || size == 0) {
-		pr_warn("Please check whether power state management is suppported on this asic\n");
+		pr_warn("Please check whether power state management is supported on this asic\n");
 		return 0;
 	}
 
@@ -264,6 +264,15 @@ int psm_adjust_power_state_dynamic(struct pp_hwmgr *hwmgr, bool skip,
 
 	if (skip)
 		return 0;
+
+	if (!hwmgr->ps)
+		/*
+		 * for vega12/vega20 which does not support power state manager
+		 * DAL clock limits should also be honoured
+		 */
+		phm_apply_clock_adjust_rules(hwmgr);
+
+	phm_pre_display_configuration_changed(hwmgr);
 
 	phm_display_configuration_changed(hwmgr);
 

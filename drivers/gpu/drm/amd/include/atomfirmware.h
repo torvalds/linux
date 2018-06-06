@@ -1219,6 +1219,41 @@ struct  atom_gfx_info_v2_3 {
   uint32_t rm21_sram_vmin_value;
 };
 
+struct  atom_gfx_info_v2_4 {
+  struct  atom_common_table_header  table_header;
+  uint8_t gfxip_min_ver;
+  uint8_t gfxip_max_ver;
+  uint8_t gc_num_se;
+  uint8_t max_tile_pipes;
+  uint8_t gc_num_cu_per_sh;
+  uint8_t gc_num_sh_per_se;
+  uint8_t gc_num_rb_per_se;
+  uint8_t gc_num_tccs;
+  uint32_t regaddr_cp_dma_src_addr;
+  uint32_t regaddr_cp_dma_src_addr_hi;
+  uint32_t regaddr_cp_dma_dst_addr;
+  uint32_t regaddr_cp_dma_dst_addr_hi;
+  uint32_t regaddr_cp_dma_command;
+  uint32_t regaddr_cp_status;
+  uint32_t regaddr_rlc_gpu_clock_32;
+  uint32_t rlc_gpu_timer_refclk;
+  uint8_t active_cu_per_sh;
+  uint8_t active_rb_per_se;
+  uint16_t gcgoldenoffset;
+  uint16_t gc_num_gprs;
+  uint16_t gc_gsprim_buff_depth;
+  uint16_t gc_parameter_cache_depth;
+  uint16_t gc_wave_size;
+  uint16_t gc_max_waves_per_simd;
+  uint16_t gc_lds_size;
+  uint8_t gc_num_max_gs_thds;
+  uint8_t gc_gs_table_depth;
+  uint8_t gc_double_offchip_lds_buffer;
+  uint8_t gc_max_scratch_slots_per_cu;
+  uint32_t sram_rm_fuses_val;
+  uint32_t sram_custom_rm_fuses_val;
+};
+
 /* 
   ***************************************************************************
     Data Table smu_info  structure

@@ -26,27 +26,10 @@
 #include "dc_bios_types.h"
 #include "dce_stream_encoder.h"
 #include "reg_helper.h"
+#include "hw_shared.h"
+
 #define DC_LOGGER \
 		enc110->base.ctx->logger
-enum DP_PIXEL_ENCODING {
-DP_PIXEL_ENCODING_RGB444                 = 0x00000000,
-DP_PIXEL_ENCODING_YCBCR422               = 0x00000001,
-DP_PIXEL_ENCODING_YCBCR444               = 0x00000002,
-DP_PIXEL_ENCODING_RGB_WIDE_GAMUT         = 0x00000003,
-DP_PIXEL_ENCODING_Y_ONLY                 = 0x00000004,
-DP_PIXEL_ENCODING_YCBCR420               = 0x00000005,
-DP_PIXEL_ENCODING_RESERVED               = 0x00000006,
-};
-
-
-enum DP_COMPONENT_DEPTH {
-DP_COMPONENT_DEPTH_6BPC                  = 0x00000000,
-DP_COMPONENT_DEPTH_8BPC                  = 0x00000001,
-DP_COMPONENT_DEPTH_10BPC                 = 0x00000002,
-DP_COMPONENT_DEPTH_12BPC                 = 0x00000003,
-DP_COMPONENT_DEPTH_16BPC                 = 0x00000004,
-DP_COMPONENT_DEPTH_RESERVED              = 0x00000005,
-};
 
 
 #define REG(reg)\
@@ -80,7 +63,7 @@ enum {
 static void dce110_update_generic_info_packet(
 	struct dce110_stream_encoder *enc110,
 	uint32_t packet_index,
-	const struct encoder_info_packet *info_packet)
+	const struct dc_info_packet *info_packet)
 {
 	uint32_t regval;
 	/* TODOFPGA Figure out a proper number for max_retries polling for lock
@@ -196,7 +179,7 @@ static void dce110_update_generic_info_packet(
 static void dce110_update_hdmi_info_packet(
 	struct dce110_stream_encoder *enc110,
 	uint32_t packet_index,
-	const struct encoder_info_packet *info_packet)
+	const struct dc_info_packet *info_packet)
 {
 	uint32_t cont, send, line;
 
@@ -314,11 +297,11 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 	switch (crtc_timing->pixel_encoding) {
 	case PIXEL_ENCODING_YCBCR422:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-				DP_PIXEL_ENCODING_YCBCR422);
+				DP_PIXEL_ENCODING_TYPE_YCBCR422);
 		break;
 	case PIXEL_ENCODING_YCBCR444:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-				DP_PIXEL_ENCODING_YCBCR444);
+				DP_PIXEL_ENCODING_TYPE_YCBCR444);
 
 		if (crtc_timing->flags.Y_ONLY)
 			if (crtc_timing->display_color_depth != COLOR_DEPTH_666)
@@ -326,7 +309,7 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 				 * Color depth of Y-only could be
 				 * 8, 10, 12, 16 bits */
 				REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-						DP_PIXEL_ENCODING_Y_ONLY);
+						DP_PIXEL_ENCODING_TYPE_Y_ONLY);
 		/* Note: DP_MSA_MISC1 bit 7 is the indicator
 		 * of Y-only mode.
 		 * This bit is set in HW if register
@@ -334,7 +317,7 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 		break;
 	case PIXEL_ENCODING_YCBCR420:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-				DP_PIXEL_ENCODING_YCBCR420);
+				DP_PIXEL_ENCODING_TYPE_YCBCR420);
 		if (enc110->se_mask->DP_VID_M_DOUBLE_VALUE_EN)
 			REG_UPDATE(DP_VID_TIMING, DP_VID_M_DOUBLE_VALUE_EN, 1);
 
@@ -345,7 +328,7 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 		break;
 	default:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-				DP_PIXEL_ENCODING_RGB444);
+				DP_PIXEL_ENCODING_TYPE_RGB444);
 		break;
 	}
 
@@ -363,20 +346,20 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 		break;
 	case COLOR_DEPTH_888:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				DP_COMPONENT_DEPTH_8BPC);
+				DP_COMPONENT_PIXEL_DEPTH_8BPC);
 		break;
 	case COLOR_DEPTH_101010:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				DP_COMPONENT_DEPTH_10BPC);
+				DP_COMPONENT_PIXEL_DEPTH_10BPC);
 
 		break;
 	case COLOR_DEPTH_121212:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				DP_COMPONENT_DEPTH_12BPC);
+				DP_COMPONENT_PIXEL_DEPTH_12BPC);
 		break;
 	default:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				DP_COMPONENT_DEPTH_6BPC);
+				DP_COMPONENT_PIXEL_DEPTH_6BPC);
 		break;
 	}
 
@@ -700,11 +683,11 @@ static void dce110_stream_encoder_set_mst_bandwidth(
 	struct fixed31_32 avg_time_slots_per_mtp)
 {
 	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
-	uint32_t x = dal_fixed31_32_floor(
+	uint32_t x = dc_fixpt_floor(
 		avg_time_slots_per_mtp);
-	uint32_t y = dal_fixed31_32_ceil(
-		dal_fixed31_32_shl(
-			dal_fixed31_32_sub_int(
+	uint32_t y = dc_fixpt_ceil(
+		dc_fixpt_shl(
+			dc_fixpt_sub_int(
 				avg_time_slots_per_mtp,
 				x),
 			26));
@@ -836,7 +819,7 @@ static void dce110_stream_encoder_update_dp_info_packets(
 	const struct encoder_info_frame *info_frame)
 {
 	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
-	uint32_t value = REG_READ(DP_SEC_CNTL);
+	uint32_t value = 0;
 
 	if (info_frame->vsc.valid)
 		dce110_update_generic_info_packet(
@@ -870,6 +853,7 @@ static void dce110_stream_encoder_update_dp_info_packets(
 	* Therefore we need to enable master bit
 	* if at least on of the fields is not 0
 	*/
+	value = REG_READ(DP_SEC_CNTL);
 	if (value)
 		REG_UPDATE(DP_SEC_CNTL, DP_SEC_STREAM_ENABLE, 1);
 }
@@ -879,7 +863,7 @@ static void dce110_stream_encoder_stop_dp_info_packets(
 {
 	/* stop generic packets on DP */
 	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
-	uint32_t value = REG_READ(DP_SEC_CNTL);
+	uint32_t value = 0;
 
 	if (enc110->se_mask->DP_SEC_AVI_ENABLE) {
 		REG_SET_7(DP_SEC_CNTL, 0,
@@ -892,25 +876,10 @@ static void dce110_stream_encoder_stop_dp_info_packets(
 			DP_SEC_STREAM_ENABLE, 0);
 	}
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-	if (enc110->se_mask->DP_SEC_GSP7_ENABLE) {
-		REG_SET_10(DP_SEC_CNTL, 0,
-			DP_SEC_GSP0_ENABLE, 0,
-			DP_SEC_GSP1_ENABLE, 0,
-			DP_SEC_GSP2_ENABLE, 0,
-			DP_SEC_GSP3_ENABLE, 0,
-			DP_SEC_GSP4_ENABLE, 0,
-			DP_SEC_GSP5_ENABLE, 0,
-			DP_SEC_GSP6_ENABLE, 0,
-			DP_SEC_GSP7_ENABLE, 0,
-			DP_SEC_MPG_ENABLE, 0,
-			DP_SEC_STREAM_ENABLE, 0);
-	}
-#endif
 	/* this register shared with audio info frame.
 	 * therefore we need to keep master enabled
 	 * if at least one of the fields is not 0 */
-
+	value = REG_READ(DP_SEC_CNTL);
 	if (value)
 		REG_UPDATE(DP_SEC_CNTL, DP_SEC_STREAM_ENABLE, 1);
 
@@ -1513,7 +1482,7 @@ static void dce110_se_disable_dp_audio(
 	struct stream_encoder *enc)
 {
 	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
-	uint32_t value = REG_READ(DP_SEC_CNTL);
+	uint32_t value = 0;
 
 	/* Disable Audio packets */
 	REG_UPDATE_5(DP_SEC_CNTL,
@@ -1525,6 +1494,7 @@ static void dce110_se_disable_dp_audio(
 
 	/* This register shared with encoder info frame. Therefore we need to
 	keep master enabled if at least on of the fields is not 0 */
+	value = REG_READ(DP_SEC_CNTL);
 	if (value != 0)
 		REG_UPDATE(DP_SEC_CNTL, DP_SEC_STREAM_ENABLE, 1);
 

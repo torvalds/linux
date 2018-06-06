@@ -28,6 +28,7 @@
 #include "dc.h"
 #include "core_types.h"
 #include "dal_asic_id.h"
+#include "calcs_logger.h"
 
 /*
  * NOTE:
@@ -52,11 +53,14 @@ static enum bw_calcs_version bw_calcs_version_from_asic_id(struct hw_asic_id asi
 		return BW_CALCS_VERSION_CARRIZO;
 
 	case FAMILY_VI:
+		if (ASIC_REV_IS_POLARIS12_V(asic_id.hw_internal_rev))
+			return BW_CALCS_VERSION_POLARIS12;
 		if (ASIC_REV_IS_POLARIS10_P(asic_id.hw_internal_rev))
 			return BW_CALCS_VERSION_POLARIS10;
-		if (ASIC_REV_IS_POLARIS11_M(asic_id.hw_internal_rev) ||
-				ASIC_REV_IS_POLARIS12_V(asic_id.hw_internal_rev))
+		if (ASIC_REV_IS_POLARIS11_M(asic_id.hw_internal_rev))
 			return BW_CALCS_VERSION_POLARIS11;
+		if (ASIC_REV_IS_VEGAM(asic_id.hw_internal_rev))
+			return BW_CALCS_VERSION_VEGAM;
 		return BW_CALCS_VERSION_INVALID;
 
 	case FAMILY_AI:
@@ -2145,6 +2149,9 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 		dceip.mcifwr_all_surfaces_burst_time = bw_int_to_fixed(0); /* todo: this is a bug*/
 		break;
 	case BW_CALCS_VERSION_POLARIS10:
+		/* TODO: Treat VEGAM the same as P10 for now
+		 * Need to tune the para for VEGAM if needed */
+	case BW_CALCS_VERSION_VEGAM:
 		vbios.memory_type = bw_def_gddr5;
 		vbios.dram_channel_width_in_bits = 32;
 		vbios.number_of_dram_channels = asic_id.vram_width / vbios.dram_channel_width_in_bits;
@@ -2310,6 +2317,122 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 		dceip.number_of_underlay_pipes = 0;
 		dceip.low_power_tiling_mode = 0;
 		dceip.display_write_back_supported = false;
+		dceip.argb_compression_support = true;
+		dceip.underlay_vscaler_efficiency6_bit_per_component =
+			bw_frc_to_fixed(35556, 10000);
+		dceip.underlay_vscaler_efficiency8_bit_per_component =
+			bw_frc_to_fixed(34286, 10000);
+		dceip.underlay_vscaler_efficiency10_bit_per_component =
+			bw_frc_to_fixed(32, 10);
+		dceip.underlay_vscaler_efficiency12_bit_per_component =
+			bw_int_to_fixed(3);
+		dceip.graphics_vscaler_efficiency6_bit_per_component =
+			bw_frc_to_fixed(35, 10);
+		dceip.graphics_vscaler_efficiency8_bit_per_component =
+			bw_frc_to_fixed(34286, 10000);
+		dceip.graphics_vscaler_efficiency10_bit_per_component =
+			bw_frc_to_fixed(32, 10);
+		dceip.graphics_vscaler_efficiency12_bit_per_component =
+			bw_int_to_fixed(3);
+		dceip.alpha_vscaler_efficiency = bw_int_to_fixed(3);
+		dceip.max_dmif_buffer_allocated = 4;
+		dceip.graphics_dmif_size = 12288;
+		dceip.underlay_luma_dmif_size = 19456;
+		dceip.underlay_chroma_dmif_size = 23552;
+		dceip.pre_downscaler_enabled = true;
+		dceip.underlay_downscale_prefetch_enabled = true;
+		dceip.lb_write_pixels_per_dispclk = bw_int_to_fixed(1);
+		dceip.lb_size_per_component444 = bw_int_to_fixed(245952);
+		dceip.graphics_lb_nodownscaling_multi_line_prefetching = true;
+		dceip.stutter_and_dram_clock_state_change_gated_before_cursor =
+			bw_int_to_fixed(1);
+		dceip.underlay420_luma_lb_size_per_component = bw_int_to_fixed(
+			82176);
+		dceip.underlay420_chroma_lb_size_per_component =
+			bw_int_to_fixed(164352);
+		dceip.underlay422_lb_size_per_component = bw_int_to_fixed(
+			82176);
+		dceip.cursor_chunk_width = bw_int_to_fixed(64);
+		dceip.cursor_dcp_buffer_lines = bw_int_to_fixed(4);
+		dceip.underlay_maximum_width_efficient_for_tiling =
+			bw_int_to_fixed(1920);
+		dceip.underlay_maximum_height_efficient_for_tiling =
+			bw_int_to_fixed(1080);
+		dceip.peak_pte_request_to_eviction_ratio_limiting_multiple_displays_or_single_rotated_display =
+			bw_frc_to_fixed(3, 10);
+		dceip.peak_pte_request_to_eviction_ratio_limiting_single_display_no_rotation =
+			bw_int_to_fixed(25);
+		dceip.minimum_outstanding_pte_request_limit = bw_int_to_fixed(
+			2);
+		dceip.maximum_total_outstanding_pte_requests_allowed_by_saw =
+			bw_int_to_fixed(128);
+		dceip.limit_excessive_outstanding_dmif_requests = true;
+		dceip.linear_mode_line_request_alternation_slice =
+			bw_int_to_fixed(64);
+		dceip.scatter_gather_lines_of_pte_prefetching_in_linear_mode =
+			32;
+		dceip.display_write_back420_luma_mcifwr_buffer_size = 12288;
+		dceip.display_write_back420_chroma_mcifwr_buffer_size = 8192;
+		dceip.request_efficiency = bw_frc_to_fixed(8, 10);
+		dceip.dispclk_per_request = bw_int_to_fixed(2);
+		dceip.dispclk_ramping_factor = bw_frc_to_fixed(105, 100);
+		dceip.display_pipe_throughput_factor = bw_frc_to_fixed(105, 100);
+		dceip.scatter_gather_pte_request_rows_in_tiling_mode = 2;
+		dceip.mcifwr_all_surfaces_burst_time = bw_int_to_fixed(0);
+		break;
+	case BW_CALCS_VERSION_POLARIS12:
+		vbios.memory_type = bw_def_gddr5;
+		vbios.dram_channel_width_in_bits = 32;
+		vbios.number_of_dram_channels = asic_id.vram_width / vbios.dram_channel_width_in_bits;
+		vbios.number_of_dram_banks = 8;
+		vbios.high_yclk = bw_int_to_fixed(6000);
+		vbios.mid_yclk = bw_int_to_fixed(3200);
+		vbios.low_yclk = bw_int_to_fixed(1000);
+		vbios.low_sclk = bw_int_to_fixed(678);
+		vbios.mid1_sclk = bw_int_to_fixed(864);
+		vbios.mid2_sclk = bw_int_to_fixed(900);
+		vbios.mid3_sclk = bw_int_to_fixed(920);
+		vbios.mid4_sclk = bw_int_to_fixed(940);
+		vbios.mid5_sclk = bw_int_to_fixed(960);
+		vbios.mid6_sclk = bw_int_to_fixed(980);
+		vbios.high_sclk = bw_int_to_fixed(1049);
+		vbios.low_voltage_max_dispclk = bw_int_to_fixed(459);
+		vbios.mid_voltage_max_dispclk = bw_int_to_fixed(654);
+		vbios.high_voltage_max_dispclk = bw_int_to_fixed(1108);
+		vbios.low_voltage_max_phyclk = bw_int_to_fixed(540);
+		vbios.mid_voltage_max_phyclk = bw_int_to_fixed(810);
+		vbios.high_voltage_max_phyclk = bw_int_to_fixed(810);
+		vbios.data_return_bus_width = bw_int_to_fixed(32);
+		vbios.trc = bw_int_to_fixed(48);
+		if (vbios.number_of_dram_channels == 2) // 64-bit
+			vbios.dmifmc_urgent_latency = bw_int_to_fixed(4);
+		else
+			vbios.dmifmc_urgent_latency = bw_int_to_fixed(3);
+		vbios.stutter_self_refresh_exit_latency = bw_int_to_fixed(5);
+		vbios.stutter_self_refresh_entry_latency = bw_int_to_fixed(0);
+		vbios.nbp_state_change_latency = bw_int_to_fixed(250);
+		vbios.mcifwrmc_urgent_latency = bw_int_to_fixed(10);
+		vbios.scatter_gather_enable = false;
+		vbios.down_spread_percentage = bw_frc_to_fixed(5, 10);
+		vbios.cursor_width = 32;
+		vbios.average_compression_rate = 4;
+		vbios.number_of_request_slots_gmc_reserves_for_dmif_per_channel = 256;
+		vbios.blackout_duration = bw_int_to_fixed(0); /* us */
+		vbios.maximum_blackout_recovery_time = bw_int_to_fixed(0);
+
+		dceip.max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation = 100;
+		dceip.max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation = 100;
+		dceip.percent_of_ideal_port_bw_received_after_urgent_latency = 100;
+		dceip.large_cursor = false;
+		dceip.dmif_request_buffer_size = bw_int_to_fixed(768);
+		dceip.dmif_pipe_en_fbc_chunk_tracker = false;
+		dceip.cursor_max_outstanding_group_num = 1;
+		dceip.lines_interleaved_into_lb = 2;
+		dceip.chunk_width = 256;
+		dceip.number_of_graphics_pipes = 5;
+		dceip.number_of_underlay_pipes = 0;
+		dceip.low_power_tiling_mode = 0;
+		dceip.display_write_back_supported = true;
 		dceip.argb_compression_support = true;
 		dceip.underlay_vscaler_efficiency6_bit_per_component =
 			bw_frc_to_fixed(35556, 10000);
@@ -2815,6 +2938,19 @@ static void populate_initial_data(
 				data->bytes_per_pixel[num_displays + 4] = 4;
 				break;
 			}
+		} else if (pipe[i].stream->dst.width != 0 &&
+					pipe[i].stream->dst.height != 0 &&
+					pipe[i].stream->src.width != 0 &&
+					pipe[i].stream->src.height != 0) {
+			data->src_width[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->src.width);
+			data->pitch_in_pixels[num_displays + 4] = data->src_width[num_displays + 4];
+			data->src_height[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->src.height);
+			data->h_taps[num_displays + 4] = pipe[i].stream->src.width == pipe[i].stream->dst.width ? bw_int_to_fixed(1) : bw_int_to_fixed(2);
+			data->v_taps[num_displays + 4] = pipe[i].stream->src.height == pipe[i].stream->dst.height ? bw_int_to_fixed(1) : bw_int_to_fixed(2);
+			data->h_scale_ratio[num_displays + 4] = bw_frc_to_fixed(pipe[i].stream->src.width, pipe[i].stream->dst.width);
+			data->v_scale_ratio[num_displays + 4] = bw_frc_to_fixed(pipe[i].stream->src.height, pipe[i].stream->dst.height);
+			data->rotation_angle[num_displays + 4] = bw_int_to_fixed(0);
+			data->bytes_per_pixel[num_displays + 4] = 4;
 		} else {
 			data->src_width[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->timing.h_addressable);
 			data->pitch_in_pixels[num_displays + 4] = data->src_width[num_displays + 4];
@@ -2873,6 +3009,11 @@ bool bw_calcs(struct dc_context *ctx,
 		struct bw_fixed mid_yclk = vbios->mid_yclk;
 		struct bw_fixed low_yclk = vbios->low_yclk;
 
+		if (ctx->dc->debug.bandwidth_calcs_trace) {
+			print_bw_calcs_dceip(ctx->logger, dceip);
+			print_bw_calcs_vbios(ctx->logger, vbios);
+			print_bw_calcs_data(ctx->logger, data);
+		}
 		calculate_bandwidth(dceip, vbios, data);
 
 		yclk_lvl = data->y_clk_level;
@@ -2968,7 +3109,33 @@ bool bw_calcs(struct dc_context *ctx,
 			bw_fixed_to_int(bw_mul(data->
 				stutter_exit_watermark[9], bw_int_to_fixed(1000)));
 
-
+		calcs_output->stutter_entry_wm_ns[0].a_mark =
+			bw_fixed_to_int(bw_mul(data->
+				stutter_entry_watermark[4], bw_int_to_fixed(1000)));
+		calcs_output->stutter_entry_wm_ns[1].a_mark =
+			bw_fixed_to_int(bw_mul(data->
+				stutter_entry_watermark[5], bw_int_to_fixed(1000)));
+		calcs_output->stutter_entry_wm_ns[2].a_mark =
+			bw_fixed_to_int(bw_mul(data->
+				stutter_entry_watermark[6], bw_int_to_fixed(1000)));
+		if (ctx->dc->caps.max_slave_planes) {
+			calcs_output->stutter_entry_wm_ns[3].a_mark =
+				bw_fixed_to_int(bw_mul(data->
+					stutter_entry_watermark[0], bw_int_to_fixed(1000)));
+			calcs_output->stutter_entry_wm_ns[4].a_mark =
+				bw_fixed_to_int(bw_mul(data->
+					stutter_entry_watermark[1], bw_int_to_fixed(1000)));
+		} else {
+			calcs_output->stutter_entry_wm_ns[3].a_mark =
+				bw_fixed_to_int(bw_mul(data->
+					stutter_entry_watermark[7], bw_int_to_fixed(1000)));
+			calcs_output->stutter_entry_wm_ns[4].a_mark =
+				bw_fixed_to_int(bw_mul(data->
+					stutter_entry_watermark[8], bw_int_to_fixed(1000)));
+		}
+		calcs_output->stutter_entry_wm_ns[5].a_mark =
+			bw_fixed_to_int(bw_mul(data->
+				stutter_entry_watermark[9], bw_int_to_fixed(1000)));
 
 		calcs_output->urgent_wm_ns[0].a_mark =
 			bw_fixed_to_int(bw_mul(data->
@@ -3063,7 +3230,33 @@ bool bw_calcs(struct dc_context *ctx,
 				bw_fixed_to_int(bw_mul(data->
 					stutter_exit_watermark[9], bw_int_to_fixed(1000)));
 
-
+		calcs_output->stutter_entry_wm_ns[0].b_mark =
+			bw_fixed_to_int(bw_mul(data->
+				stutter_entry_watermark[4], bw_int_to_fixed(1000)));
+		calcs_output->stutter_entry_wm_ns[1].b_mark =
+			bw_fixed_to_int(bw_mul(data->
+				stutter_entry_watermark[5], bw_int_to_fixed(1000)));
+		calcs_output->stutter_entry_wm_ns[2].b_mark =
+			bw_fixed_to_int(bw_mul(data->
+				stutter_entry_watermark[6], bw_int_to_fixed(1000)));
+		if (ctx->dc->caps.max_slave_planes) {
+			calcs_output->stutter_entry_wm_ns[3].b_mark =
+				bw_fixed_to_int(bw_mul(data->
+					stutter_entry_watermark[0], bw_int_to_fixed(1000)));
+			calcs_output->stutter_entry_wm_ns[4].b_mark =
+				bw_fixed_to_int(bw_mul(data->
+					stutter_entry_watermark[1], bw_int_to_fixed(1000)));
+		} else {
+			calcs_output->stutter_entry_wm_ns[3].b_mark =
+				bw_fixed_to_int(bw_mul(data->
+					stutter_entry_watermark[7], bw_int_to_fixed(1000)));
+			calcs_output->stutter_entry_wm_ns[4].b_mark =
+				bw_fixed_to_int(bw_mul(data->
+					stutter_entry_watermark[8], bw_int_to_fixed(1000)));
+		}
+		calcs_output->stutter_entry_wm_ns[5].b_mark =
+			bw_fixed_to_int(bw_mul(data->
+				stutter_entry_watermark[9], bw_int_to_fixed(1000)));
 
 			calcs_output->urgent_wm_ns[0].b_mark =
 				bw_fixed_to_int(bw_mul(data->
@@ -3155,6 +3348,34 @@ bool bw_calcs(struct dc_context *ctx,
 			calcs_output->stutter_exit_wm_ns[5].c_mark =
 				bw_fixed_to_int(bw_mul(data->
 					stutter_exit_watermark[9], bw_int_to_fixed(1000)));
+
+		calcs_output->stutter_entry_wm_ns[0].c_mark =
+			bw_fixed_to_int(bw_mul(data->
+				stutter_entry_watermark[4], bw_int_to_fixed(1000)));
+		calcs_output->stutter_entry_wm_ns[1].c_mark =
+			bw_fixed_to_int(bw_mul(data->
+				stutter_entry_watermark[5], bw_int_to_fixed(1000)));
+		calcs_output->stutter_entry_wm_ns[2].c_mark =
+			bw_fixed_to_int(bw_mul(data->
+				stutter_entry_watermark[6], bw_int_to_fixed(1000)));
+		if (ctx->dc->caps.max_slave_planes) {
+			calcs_output->stutter_entry_wm_ns[3].c_mark =
+				bw_fixed_to_int(bw_mul(data->
+					stutter_entry_watermark[0], bw_int_to_fixed(1000)));
+			calcs_output->stutter_entry_wm_ns[4].c_mark =
+				bw_fixed_to_int(bw_mul(data->
+					stutter_entry_watermark[1], bw_int_to_fixed(1000)));
+		} else {
+			calcs_output->stutter_entry_wm_ns[3].c_mark =
+				bw_fixed_to_int(bw_mul(data->
+					stutter_entry_watermark[7], bw_int_to_fixed(1000)));
+			calcs_output->stutter_entry_wm_ns[4].c_mark =
+				bw_fixed_to_int(bw_mul(data->
+					stutter_entry_watermark[8], bw_int_to_fixed(1000)));
+		}
+		calcs_output->stutter_entry_wm_ns[5].c_mark =
+			bw_fixed_to_int(bw_mul(data->
+				stutter_entry_watermark[9], bw_int_to_fixed(1000)));
 
 			calcs_output->urgent_wm_ns[0].c_mark =
 				bw_fixed_to_int(bw_mul(data->
@@ -3260,6 +3481,33 @@ bool bw_calcs(struct dc_context *ctx,
 			bw_fixed_to_int(bw_mul(data->
 				stutter_exit_watermark[9], bw_int_to_fixed(1000)));
 
+		calcs_output->stutter_entry_wm_ns[0].d_mark =
+			bw_fixed_to_int(bw_mul(data->
+				stutter_entry_watermark[4], bw_int_to_fixed(1000)));
+		calcs_output->stutter_entry_wm_ns[1].d_mark =
+			bw_fixed_to_int(bw_mul(data->
+				stutter_entry_watermark[5], bw_int_to_fixed(1000)));
+		calcs_output->stutter_entry_wm_ns[2].d_mark =
+			bw_fixed_to_int(bw_mul(data->
+				stutter_entry_watermark[6], bw_int_to_fixed(1000)));
+		if (ctx->dc->caps.max_slave_planes) {
+			calcs_output->stutter_entry_wm_ns[3].d_mark =
+				bw_fixed_to_int(bw_mul(data->
+					stutter_entry_watermark[0], bw_int_to_fixed(1000)));
+			calcs_output->stutter_entry_wm_ns[4].d_mark =
+				bw_fixed_to_int(bw_mul(data->
+					stutter_entry_watermark[1], bw_int_to_fixed(1000)));
+		} else {
+			calcs_output->stutter_entry_wm_ns[3].d_mark =
+				bw_fixed_to_int(bw_mul(data->
+					stutter_entry_watermark[7], bw_int_to_fixed(1000)));
+			calcs_output->stutter_entry_wm_ns[4].d_mark =
+				bw_fixed_to_int(bw_mul(data->
+					stutter_entry_watermark[8], bw_int_to_fixed(1000)));
+		}
+		calcs_output->stutter_entry_wm_ns[5].d_mark =
+			bw_fixed_to_int(bw_mul(data->
+				stutter_entry_watermark[9], bw_int_to_fixed(1000)));
 
 		calcs_output->urgent_wm_ns[0].d_mark =
 			bw_fixed_to_int(bw_mul(data->

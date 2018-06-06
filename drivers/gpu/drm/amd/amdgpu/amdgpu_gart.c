@@ -113,12 +113,17 @@ int amdgpu_gart_table_vram_alloc(struct amdgpu_device *adev)
 	int r;
 
 	if (adev->gart.robj == NULL) {
-		r = amdgpu_bo_create(adev, adev->gart.table_size, PAGE_SIZE,
-				     AMDGPU_GEM_DOMAIN_VRAM,
-				     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-				     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-				     ttm_bo_type_kernel, NULL,
-				     &adev->gart.robj);
+		struct amdgpu_bo_param bp;
+
+		memset(&bp, 0, sizeof(bp));
+		bp.size = adev->gart.table_size;
+		bp.byte_align = PAGE_SIZE;
+		bp.domain = AMDGPU_GEM_DOMAIN_VRAM;
+		bp.flags = AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
+			AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
+		bp.type = ttm_bo_type_kernel;
+		bp.resv = NULL;
+		r = amdgpu_bo_create(adev, &bp, &adev->gart.robj);
 		if (r) {
 			return r;
 		}

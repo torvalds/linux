@@ -34,13 +34,20 @@
 #include "rv_ppsmc.h"
 #include "smu10_hwmgr.h"
 #include "power_state.h"
-#include "pp_soc15.h"
+#include "soc15_common.h"
 
 #define SMU10_MAX_DEEPSLEEP_DIVIDER_ID     5
 #define SMU10_MINIMUM_ENGINE_CLOCK         800   /* 8Mhz, the low boundary of engine clock allowed on this chip */
 #define SCLK_MIN_DIV_INTV_SHIFT         12
 #define SMU10_DISPCLK_BYPASS_THRESHOLD     10000 /* 100Mhz */
 #define SMC_RAM_END                     0x40000
+
+#define mmPWR_MISC_CNTL_STATUS					0x0183
+#define mmPWR_MISC_CNTL_STATUS_BASE_IDX				0
+#define PWR_MISC_CNTL_STATUS__PWR_GFX_RLC_CGPG_EN__SHIFT	0x0
+#define PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS__SHIFT		0x1
+#define PWR_MISC_CNTL_STATUS__PWR_GFX_RLC_CGPG_EN_MASK		0x00000001L
+#define PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS_MASK		0x00000006L
 
 static const unsigned long SMU10_Magic = (unsigned long) PHM_Rv_Magic;
 
@@ -74,10 +81,14 @@ static int smu10_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 	smu10_data->thermal_auto_throttling_treshold = 0;
 	smu10_data->is_nb_dpm_enabled = 1;
 	smu10_data->dpm_flags = 1;
-	smu10_data->gfx_off_controled_by_driver = false;
 	smu10_data->need_min_deep_sleep_dcefclk = true;
 	smu10_data->num_active_display = 0;
 	smu10_data->deep_sleep_dcefclk = 0;
+
+	if (hwmgr->feature_mask & PP_GFXOFF_MASK)
+		smu10_data->gfx_off_controled_by_driver = true;
+	else
+		smu10_data->gfx_off_controled_by_driver = false;
 
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_SclkDeepSleep);
@@ -161,7 +172,7 @@ static int smu10_set_clock_limit(struct pp_hwmgr *hwmgr, const void *input)
 	struct PP_Clocks clocks = {0};
 	struct pp_display_clock_request clock_req;
 
-	clocks.dcefClock = hwmgr->display_config.min_dcef_set_clk;
+	clocks.dcefClock = hwmgr->display_config->min_dcef_set_clk;
 	clock_req.clock_type = amd_pp_dcf_clock;
 	clock_req.clock_freq_in_khz = clocks.dcefClock * 10;
 
@@ -206,12 +217,18 @@ static int smu10_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input
 static int smu10_init_power_gate_state(struct pp_hwmgr *hwmgr)
 {
 	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	smu10_data->vcn_power_gated = true;
 	smu10_data->isp_tileA_power_gated = true;
 	smu10_data->isp_tileB_power_gated = true;
 
-	return 0;
+	if (adev->pg_flags & AMD_PG_SUPPORT_GFX_PG)
+		return smum_send_msg_to_smc_with_parameter(hwmgr,
+							   PPSMC_MSG_SetGfxCGPG,
+							   true);
+	else
+		return 0;
 }
 
 
@@ -237,12 +254,30 @@ static int smu10_power_off_asic(struct pp_hwmgr *hwmgr)
 	return smu10_reset_cc6_data(hwmgr);
 }
 
+static bool smu10_is_gfx_on(struct pp_hwmgr *hwmgr)
+{
+	uint32_t reg;
+	struct amdgpu_device *adev = hwmgr->adev;
+
+	reg = RREG32_SOC15(PWR, 0, mmPWR_MISC_CNTL_STATUS);
+	if ((reg & PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS_MASK) ==
+	    (0x2 << PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS__SHIFT))
+		return true;
+
+	return false;
+}
+
 static int smu10_disable_gfx_off(struct pp_hwmgr *hwmgr)
 {
 	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
 
-	if (smu10_data->gfx_off_controled_by_driver)
+	if (smu10_data->gfx_off_controled_by_driver) {
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_DisableGfxOff);
+
+		/* confirm gfx is back to "on" state */
+		while (!smu10_is_gfx_on(hwmgr))
+			msleep(1);
+	}
 
 	return 0;
 }
@@ -265,6 +300,14 @@ static int smu10_enable_gfx_off(struct pp_hwmgr *hwmgr)
 static int smu10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
 	return smu10_enable_gfx_off(hwmgr);
+}
+
+static int smu10_gfx_off_control(struct pp_hwmgr *hwmgr, bool enable)
+{
+	if (enable)
+		return smu10_enable_gfx_off(hwmgr);
+	else
+		return smu10_disable_gfx_off(hwmgr);
 }
 
 static int smu10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
@@ -340,7 +383,7 @@ static int smu10_get_clock_voltage_dependency_table(struct pp_hwmgr *hwmgr,
 
 static int smu10_populate_clock_table(struct pp_hwmgr *hwmgr)
 {
-	int result;
+	uint32_t result;
 
 	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
 	DpmClocks_t  *table = &(smu10_data->clock_table);
@@ -386,11 +429,11 @@ static int smu10_populate_clock_table(struct pp_hwmgr *hwmgr)
 
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMinGfxclkFrequency);
 	result = smum_get_argument(hwmgr);
-	smu10_data->gfx_min_freq_limit = result * 100;
+	smu10_data->gfx_min_freq_limit = result / 10 * 1000;
 
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxGfxclkFrequency);
 	result = smum_get_argument(hwmgr);
-	smu10_data->gfx_max_freq_limit = result * 100;
+	smu10_data->gfx_max_freq_limit = result / 10 * 1000;
 
 	return 0;
 }
@@ -436,8 +479,8 @@ static int smu10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	hwmgr->platform_descriptor.minimumClocksReductionPercentage = 50;
 
-	hwmgr->pstate_sclk = SMU10_UMD_PSTATE_GFXCLK;
-	hwmgr->pstate_mclk = SMU10_UMD_PSTATE_FCLK;
+	hwmgr->pstate_sclk = SMU10_UMD_PSTATE_GFXCLK * 100;
+	hwmgr->pstate_mclk = SMU10_UMD_PSTATE_FCLK * 100;
 
 	return result;
 }
@@ -472,6 +515,8 @@ static int smu10_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 				enum amd_dpm_forced_level level)
 {
+	struct smu10_hwmgr *data = hwmgr->backend;
+
 	if (hwmgr->smu_version < 0x1E3700) {
 		pr_info("smu firmware version too old, can not set dpm level\n");
 		return 0;
@@ -482,7 +527,7 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinGfxClk,
-						SMU10_UMD_PSTATE_PEAK_GFXCLK);
+						data->gfx_max_freq_limit/100);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinFclkByFreq,
 						SMU10_UMD_PSTATE_PEAK_FCLK);
@@ -495,7 +540,7 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetSoftMaxGfxClk,
-						SMU10_UMD_PSTATE_PEAK_GFXCLK);
+						data->gfx_max_freq_limit/100);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetSoftMaxFclkByFreq,
 						SMU10_UMD_PSTATE_PEAK_FCLK);
@@ -509,10 +554,10 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinGfxClk,
-						SMU10_UMD_PSTATE_MIN_GFXCLK);
+						data->gfx_min_freq_limit/100);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetSoftMaxGfxClk,
-						SMU10_UMD_PSTATE_MIN_GFXCLK);
+						data->gfx_min_freq_limit/100);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
 		smum_send_msg_to_smc_with_parameter(hwmgr,
@@ -552,10 +597,13 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 	case AMD_DPM_FORCED_LEVEL_AUTO:
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinGfxClk,
-						SMU10_UMD_PSTATE_MIN_GFXCLK);
+						data->gfx_min_freq_limit/100);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinFclkByFreq,
+						hwmgr->display_config->num_display > 3 ?
+						SMU10_UMD_PSTATE_PEAK_FCLK :
 						SMU10_UMD_PSTATE_MIN_FCLK);
+
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinSocclkByFreq,
 						SMU10_UMD_PSTATE_MIN_SOCCLK);
@@ -565,7 +613,7 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetSoftMaxGfxClk,
-						SMU10_UMD_PSTATE_PEAK_GFXCLK);
+						data->gfx_max_freq_limit/100);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetSoftMaxFclkByFreq,
 						SMU10_UMD_PSTATE_PEAK_FCLK);
@@ -579,10 +627,10 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 	case AMD_DPM_FORCED_LEVEL_LOW:
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinGfxClk,
-						SMU10_UMD_PSTATE_MIN_GFXCLK);
+						data->gfx_min_freq_limit/100);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetSoftMaxGfxClk,
-						SMU10_UMD_PSTATE_MIN_GFXCLK);
+						data->gfx_min_freq_limit/100);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetHardMinFclkByFreq,
 						SMU10_UMD_PSTATE_MIN_FCLK);
@@ -699,6 +747,16 @@ static int smu10_set_cpu_power_state(struct pp_hwmgr *hwmgr)
 static int smu10_store_cc6_data(struct pp_hwmgr *hwmgr, uint32_t separation_time,
 			bool cc6_disable, bool pstate_disable, bool pstate_switch_disable)
 {
+	struct smu10_hwmgr *data = (struct smu10_hwmgr *)(hwmgr->backend);
+
+	if (separation_time != data->separation_time ||
+			cc6_disable != data->cc6_disable ||
+			pstate_disable != data->pstate_disable) {
+		data->separation_time = separation_time;
+		data->cc6_disable = cc6_disable;
+		data->pstate_disable = pstate_disable;
+		data->cc6_setting_changed = true;
+	}
 	return 0;
 }
 
@@ -711,6 +769,51 @@ static int smu10_get_dal_power_level(struct pp_hwmgr *hwmgr,
 static int smu10_force_clock_level(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, uint32_t mask)
 {
+	struct smu10_hwmgr *data = hwmgr->backend;
+	struct smu10_voltage_dependency_table *mclk_table =
+					data->clock_vol_info.vdd_dep_on_fclk;
+	uint32_t low, high;
+
+	low = mask ? (ffs(mask) - 1) : 0;
+	high = mask ? (fls(mask) - 1) : 0;
+
+	switch (type) {
+	case PP_SCLK:
+		if (low > 2 || high > 2) {
+			pr_info("Currently sclk only support 3 levels on RV\n");
+			return -EINVAL;
+		}
+
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetHardMinGfxClk,
+						low == 2 ? data->gfx_max_freq_limit/100 :
+						low == 1 ? SMU10_UMD_PSTATE_GFXCLK :
+						data->gfx_min_freq_limit/100);
+
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetSoftMaxGfxClk,
+						high == 0 ? data->gfx_min_freq_limit/100 :
+						high == 1 ? SMU10_UMD_PSTATE_GFXCLK :
+						data->gfx_max_freq_limit/100);
+		break;
+
+	case PP_MCLK:
+		if (low > mclk_table->count - 1 || high > mclk_table->count - 1)
+			return -EINVAL;
+
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetHardMinFclkByFreq,
+						mclk_table->entries[low].clk/100);
+
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetSoftMaxFclkByFreq,
+						mclk_table->entries[high].clk/100);
+		break;
+
+	case PP_PCIE:
+	default:
+		break;
+	}
 	return 0;
 }
 
@@ -720,21 +823,30 @@ static int smu10_print_clock_levels(struct pp_hwmgr *hwmgr,
 	struct smu10_hwmgr *data = (struct smu10_hwmgr *)(hwmgr->backend);
 	struct smu10_voltage_dependency_table *mclk_table =
 			data->clock_vol_info.vdd_dep_on_fclk;
-	int i, now, size = 0;
+	uint32_t i, now, size = 0;
 
 	switch (type) {
 	case PP_SCLK:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetGfxclkFrequency);
 		now = smum_get_argument(hwmgr);
 
+	/* driver only know min/max gfx_clk, Add level 1 for all other gfx clks */
+		if (now == data->gfx_max_freq_limit/100)
+			i = 2;
+		else if (now == data->gfx_min_freq_limit/100)
+			i = 0;
+		else
+			i = 1;
+
 		size += sprintf(buf + size, "0: %uMhz %s\n",
-				data->gfx_min_freq_limit / 100,
-				((data->gfx_min_freq_limit / 100)
-				 == now) ? "*" : "");
+					data->gfx_min_freq_limit/100,
+					i == 0 ? "*" : "");
 		size += sprintf(buf + size, "1: %uMhz %s\n",
-				data->gfx_max_freq_limit / 100,
-				((data->gfx_max_freq_limit / 100)
-				 == now) ? "*" : "");
+					i == 1 ? now : SMU10_UMD_PSTATE_GFXCLK,
+					i == 1 ? "*" : "");
+		size += sprintf(buf + size, "2: %uMhz %s\n",
+					data->gfx_max_freq_limit/100,
+					i == 2 ? "*" : "");
 		break;
 	case PP_MCLK:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetFclkFrequency);
@@ -947,9 +1059,8 @@ static int smu10_get_max_high_clocks(struct pp_hwmgr *hwmgr, struct amd_pp_simpl
 
 static int smu10_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 {
-	uint32_t reg_offset = soc15_get_register_offset(THM_HWID, 0,
-			mmTHM_TCON_CUR_TMP_BASE_IDX, mmTHM_TCON_CUR_TMP);
-	uint32_t reg_value = cgs_read_register(hwmgr->device, reg_offset);
+	struct amdgpu_device *adev = hwmgr->adev;
+	uint32_t reg_value = RREG32_SOC15(THM, 0, mmTHM_TCON_CUR_TMP);
 	int cur_temp =
 		(reg_value & THM_TCON_CUR_TMP__CUR_TEMP_MASK) >> THM_TCON_CUR_TMP__CUR_TEMP__SHIFT;
 
@@ -993,9 +1104,45 @@ static int smu10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 	return ret;
 }
 
+static int smu10_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
+		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges)
+{
+	struct smu10_hwmgr *data = hwmgr->backend;
+	Watermarks_t *table = &(data->water_marks_table);
+	int result = 0;
+
+	smu_set_watermarks_for_clocks_ranges(table,wm_with_clock_ranges);
+	smum_smc_table_manager(hwmgr, (uint8_t *)table, (uint16_t)SMU10_WMTABLE, false);
+	data->water_marks_exist = true;
+	return result;
+}
+
+static int smu10_smus_notify_pwe(struct pp_hwmgr *hwmgr)
+{
+
+	return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_SetRccPfcPmeRestoreRegister);
+}
+
 static int smu10_set_mmhub_powergating_by_smu(struct pp_hwmgr *hwmgr)
 {
 	return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_PowerGateMmHub);
+}
+
+static void smu10_powergate_vcn(struct pp_hwmgr *hwmgr, bool bgate)
+{
+	if (bgate) {
+		amdgpu_device_ip_set_powergating_state(hwmgr->adev,
+						AMD_IP_BLOCK_TYPE_VCN,
+						AMD_PG_STATE_GATE);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_PowerDownVcn, 0);
+	} else {
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_PowerUpVcn, 0);
+		amdgpu_device_ip_set_powergating_state(hwmgr->adev,
+						AMD_IP_BLOCK_TYPE_VCN,
+						AMD_PG_STATE_UNGATE);
+	}
 }
 
 static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
@@ -1006,7 +1153,7 @@ static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.force_dpm_level = smu10_dpm_force_dpm_level,
 	.get_power_state_size = smu10_get_power_state_size,
 	.powerdown_uvd = NULL,
-	.powergate_uvd = NULL,
+	.powergate_uvd = smu10_powergate_vcn,
 	.powergate_vce = NULL,
 	.get_mclk = smu10_dpm_get_mclk,
 	.get_sclk = smu10_dpm_get_sclk,
@@ -1022,6 +1169,7 @@ static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.get_current_shallow_sleep_clocks = smu10_get_current_shallow_sleep_clocks,
 	.get_clock_by_type_with_latency = smu10_get_clock_by_type_with_latency,
 	.get_clock_by_type_with_voltage = smu10_get_clock_by_type_with_voltage,
+	.set_watermarks_for_clocks_ranges = smu10_set_watermarks_for_clocks_ranges,
 	.get_max_high_clocks = smu10_get_max_high_clocks,
 	.read_sensor = smu10_read_sensor,
 	.set_active_display_count = smu10_set_active_display_count,
@@ -1032,6 +1180,8 @@ static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.power_state_set = smu10_set_power_state_tasks,
 	.dynamic_state_management_disable = smu10_disable_dpm_tasks,
 	.set_mmhub_powergating_by_smu = smu10_set_mmhub_powergating_by_smu,
+	.smus_notify_pwe = smu10_smus_notify_pwe,
+	.gfx_off_control = smu10_gfx_off_control,
 };
 
 int smu10_init_function_pointers(struct pp_hwmgr *hwmgr)

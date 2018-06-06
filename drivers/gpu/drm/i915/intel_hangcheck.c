@@ -246,9 +246,8 @@ engine_stuck(struct intel_engine_cs *engine, u64 acthd)
 	 */
 	tmp = I915_READ_CTL(engine);
 	if (tmp & RING_WAIT) {
-		i915_handle_error(dev_priv, BIT(engine->id),
-				  "Kicking stuck wait on %s",
-				  engine->name);
+		i915_handle_error(dev_priv, BIT(engine->id), 0,
+				  "stuck wait on %s", engine->name);
 		I915_WRITE_CTL(engine, tmp);
 		return ENGINE_WAIT_KICK;
 	}
@@ -258,8 +257,8 @@ engine_stuck(struct intel_engine_cs *engine, u64 acthd)
 		default:
 			return ENGINE_DEAD;
 		case 1:
-			i915_handle_error(dev_priv, ALL_ENGINES,
-					  "Kicking stuck semaphore on %s",
+			i915_handle_error(dev_priv, ALL_ENGINES, 0,
+					  "stuck semaphore on %s",
 					  engine->name);
 			I915_WRITE_CTL(engine, tmp);
 			return ENGINE_WAIT_KICK;
@@ -357,7 +356,7 @@ static void hangcheck_accumulate_sample(struct intel_engine_cs *engine,
 		break;
 
 	case ENGINE_DEAD:
-		if (drm_debug & DRM_UT_DRIVER) {
+		if (GEM_SHOW_DEBUG()) {
 			struct drm_printer p = drm_debug_printer("hangcheck");
 			intel_engine_dump(engine, &p, "%s\n", engine->name);
 		}
@@ -386,13 +385,13 @@ static void hangcheck_declare_hang(struct drm_i915_private *i915,
 	if (stuck != hung)
 		hung &= ~stuck;
 	len = scnprintf(msg, sizeof(msg),
-			"%s on ", stuck == hung ? "No progress" : "Hang");
+			"%s on ", stuck == hung ? "no progress" : "hang");
 	for_each_engine_masked(engine, i915, hung, tmp)
 		len += scnprintf(msg + len, sizeof(msg) - len,
 				 "%s, ", engine->name);
 	msg[len-2] = '\0';
 
-	return i915_handle_error(i915, hung, "%s", msg);
+	return i915_handle_error(i915, hung, I915_ERROR_CAPTURE, "%s", msg);
 }
 
 /*
@@ -453,6 +452,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 void intel_engine_init_hangcheck(struct intel_engine_cs *engine)
 {
 	memset(&engine->hangcheck, 0, sizeof(engine->hangcheck));
+	engine->hangcheck.action_timestamp = jiffies;
 }
 
 void intel_hangcheck_init(struct drm_i915_private *i915)

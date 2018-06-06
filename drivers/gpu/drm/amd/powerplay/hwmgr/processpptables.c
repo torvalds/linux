@@ -837,7 +837,7 @@ static const ATOM_PPLIB_POWERPLAYTABLE *get_powerplay_table(
 			hwmgr->soft_pp_table = &soft_dummy_pp_table[0];
 			hwmgr->soft_pp_table_size = sizeof(soft_dummy_pp_table);
 		} else {
-			table_addr = cgs_atom_get_data_table(hwmgr->device,
+			table_addr = smu_atom_get_data_table(hwmgr->adev,
 					GetIndexIntoMasterTable(DATA, PowerPlayInfo),
 					&size, &frev, &crev);
 			hwmgr->soft_pp_table = table_addr;
@@ -1058,7 +1058,7 @@ static int init_overdrive_limits(struct pp_hwmgr *hwmgr,
 		return 0;
 
 	/* We assume here that fw_info is unchanged if this call fails.*/
-	fw_info = cgs_atom_get_data_table(hwmgr->device,
+	fw_info = smu_atom_get_data_table(hwmgr->adev,
 			 GetIndexIntoMasterTable(DATA, FirmwareInfo),
 			 &size, &frev, &crev);
 
