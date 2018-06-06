@@ -1784,6 +1784,34 @@ static const unsigned int scif_clk_b_mux[] = {
 	SCIF_CLK_B_MARK,
 };
 
+/* - USB0 ------------------------------------------------------------------- */
+static const unsigned int usb0_a_pins[] = {
+	/* PWEN, OVC */
+	RCAR_GP_PIN(6, 17), RCAR_GP_PIN(6, 9),
+};
+
+static const unsigned int usb0_a_mux[] = {
+	USB0_PWEN_A_MARK, USB0_OVC_A_MARK,
+};
+
+static const unsigned int usb0_b_pins[] = {
+	/* PWEN, OVC */
+	RCAR_GP_PIN(6, 11), RCAR_GP_PIN(6, 12),
+};
+
+static const unsigned int usb0_b_mux[] = {
+	USB0_PWEN_B_MARK, USB0_OVC_B_MARK,
+};
+
+static const unsigned int usb0_id_pins[] = {
+	/* ID */
+	RCAR_GP_PIN(5, 0)
+};
+
+static const unsigned int usb0_id_mux[] = {
+	USB0_ID_MARK,
+};
+
 static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(avb_link),
 	SH_PFC_PIN_GROUP(avb_magic),
@@ -1837,6 +1865,9 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(scif5_data_c),
 	SH_PFC_PIN_GROUP(scif_clk_a),
 	SH_PFC_PIN_GROUP(scif_clk_b),
+	SH_PFC_PIN_GROUP(usb0_a),
+	SH_PFC_PIN_GROUP(usb0_b),
+	SH_PFC_PIN_GROUP(usb0_id),
 };
 
 static const char * const avb_groups[] = {
@@ -1933,6 +1964,12 @@ static const char * const scif_clk_groups[] = {
 	"scif_clk_b",
 };
 
+static const char * const usb0_groups[] = {
+	"usb0_a",
+	"usb0_b",
+	"usb0_id",
+};
+
 static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(avb),
 	SH_PFC_FUNCTION(i2c1),
@@ -1948,6 +1985,7 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(scif4),
 	SH_PFC_FUNCTION(scif5),
 	SH_PFC_FUNCTION(scif_clk),
+	SH_PFC_FUNCTION(usb0),
 };
 
 static const struct pinmux_cfg_reg pinmux_config_regs[] = {
