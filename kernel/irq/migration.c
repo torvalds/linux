@@ -91,7 +91,7 @@ void irq_move_masked_irq(struct irq_data *idata)
 	cpumask_clear(desc->pending_mask);
 }
 
-void irq_move_irq(struct irq_data *idata)
+void __irq_move_irq(struct irq_data *idata)
 {
 	bool masked;
 
@@ -101,9 +101,6 @@ void irq_move_irq(struct irq_data *idata)
 	 * disabled. So we avoid an "#ifdef CONFIG_IRQ_DOMAIN_HIERARCHY" here.
 	 */
 	idata = irq_desc_get_irq_data(irq_data_to_desc(idata));
-
-	if (likely(!irqd_is_setaffinity_pending(idata)))
-		return;
 
 	if (unlikely(irqd_irq_disabled(idata)))
 		return;
