@@ -267,8 +267,8 @@ void btrfs_print_leaf(struct extent_buffer *l)
 					    struct btrfs_file_extent_item);
 			if (btrfs_file_extent_type(l, fi) ==
 			    BTRFS_FILE_EXTENT_INLINE) {
-				pr_info("\t\tinline extent data size %u\n",
-				       btrfs_file_extent_inline_len(l, i, fi));
+				pr_info("\t\tinline extent data size %llu\n",
+				       btrfs_file_extent_ram_bytes(l, fi));
 				break;
 			}
 			pr_info("\t\textent data disk bytenr %llu nr %llu\n",
