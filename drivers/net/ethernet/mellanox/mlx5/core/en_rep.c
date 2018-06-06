@@ -297,17 +297,31 @@ static const struct ethtool_ops mlx5e_rep_ethtool_ops = {
 int mlx5e_attr_get(struct net_device *dev, struct switchdev_attr *attr)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	struct mlx5e_rep_priv *rpriv = priv->ppriv;
-	struct mlx5_eswitch_rep *rep = rpriv->rep;
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct net_device *uplink_upper = NULL;
+	struct mlx5e_priv *uplink_priv = NULL;
+	struct net_device *uplink_dev;
 
 	if (esw->mode == SRIOV_NONE)
 		return -EOPNOTSUPP;
 
+	uplink_dev = mlx5_eswitch_uplink_get_proto_dev(esw, REP_ETH);
+	if (uplink_dev) {
+		uplink_upper = netdev_master_upper_dev_get(uplink_dev);
+		uplink_priv = netdev_priv(uplink_dev);
+	}
+
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_ID_PORT_PARENT_ID:
 		attr->u.ppid.id_len = ETH_ALEN;
-		ether_addr_copy(attr->u.ppid.id, rep->hw_id);
+		if (uplink_upper && mlx5_lag_is_active(uplink_priv->mdev)) {
+			ether_addr_copy(attr->u.ppid.id, uplink_upper->dev_addr);
+		} else {
+			struct mlx5e_rep_priv *rpriv = priv->ppriv;
+			struct mlx5_eswitch_rep *rep = rpriv->rep;
+
+			ether_addr_copy(attr->u.ppid.id, rep->hw_id);
+		}
 		break;
 	default:
 		return -EOPNOTSUPP;
