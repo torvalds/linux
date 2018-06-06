@@ -29,7 +29,7 @@
 
 &vad {
 	status = "disabled";
-	rockchip,audio-src = <2>;
+	rockchip,audio-src = <&i2s_8ch_2>;
 	rockchip,mode = <1>;
 	#sound-dai-cells = <0>;
 };

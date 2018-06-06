@@ -12,8 +12,16 @@
 	model = "Rockchip RK3308 evb digital-pdm mic board";
 	compatible = "rockchip,rk3308-evb-dmic-pdm-v10", "rockchip,rk3308";
 
-	pdm-mic-array {
+	pdm_i2s_dais: pdm-i2s-dais {
 		status = "okay";
+		compatible = "rockchip,multi-dais";
+		dais = <&pdm_8ch>, <&i2s_8ch_2>;
+		capture,channel-mapping = <6 2>;
+		playback,channel-mapping = <0 0>;
+	};
+
+	pdm-mic-array {
+		status = "disabled";
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "rockchip,pdm-mic-array";
 		simple-audio-card,cpu {
@@ -25,26 +33,27 @@
 	};
 
 	vad-sound {
-		status = "disabled";
+		status = "okay";
 		compatible = "rockchip,multicodecs-card";
 		rockchip,card-name = "rockchip,rk3308-vad";
-		rockchip,cpu = <&pdm_8ch>;
-		rockchip,codec = <&dummy_codec>, <&vad>;
+		rockchip,cpu = <&pdm_i2s_dais>;
+		rockchip,codec = <&acodec>, <&vad>;
 	};
 };
 
 &acodec_sound {
-	status = "okay";
+	status = "disabled";
 };
 
 &dummy_codec {
-	status = "okay";
+	status = "disabled";
 	#sound-dai-cells = <0>;
 };
 
 &pdm_8ch {
 	status = "okay";
 	#sound-dai-cells = <0>;
+	rockchip,no-dmaengine;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pdm_m2_clk
 		     &pdm_m2_clkm
@@ -55,9 +64,21 @@
 };
 
 &vad {
-	status = "disabled";
-	rockchip,audio-src = <4>;
+	status = "okay";
+	rockchip,audio-src = <&pdm_8ch>;
+	rockchip,buffer-time-ms = <200>;
 	rockchip,det-channel = <2>;
 	rockchip,mode = <1>;
+	#sound-dai-cells = <0>;
+};
+
+&pdm_i2s_dais {
+	status = "okay";
+	#sound-dai-cells = <0>;
+};
+
+&i2s_8ch_2 {
+	status = "okay";
+	rockchip,no-dmaengine;
 	#sound-dai-cells = <0>;
 };
