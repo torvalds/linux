@@ -1336,7 +1336,7 @@ static void hdmi_video_csc(struct dw_hdmi *hdmi)
 	if (is_color_space_interpolation(hdmi))
 		interpolation = HDMI_CSC_CFG_INTMODE_CHROMA_INT_FORMULA1;
 	else if (is_color_space_decimation(hdmi))
-		decimation = HDMI_CSC_CFG_DECMODE_CHROMA_INT_FORMULA3;
+		decimation = HDMI_CSC_CFG_DECMODE_CHROMA_INT_FORMULA1;
 
 	switch (hdmi_bus_fmt_color_depth(hdmi->hdmi_data.enc_out_bus_format)) {
 	case 8:
