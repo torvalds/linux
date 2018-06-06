@@ -109,6 +109,7 @@ unsigned int has_hwp_activity_window;	/* IA32_HWP_REQUEST[bits 41:32] */
 unsigned int has_hwp_epp;		/* IA32_HWP_REQUEST[bits 31:24] */
 unsigned int has_hwp_pkg;		/* IA32_HWP_REQUEST_PKG */
 unsigned int has_misc_feature_control;
+unsigned int first_counter_read = 1;
 
 #define RAPL_PKG		(1 << 0)
 					/* 0x610 MSR_PKG_POWER_LIMIT */
@@ -170,6 +171,8 @@ struct thread_data {
 	unsigned long long  irq_count;
 	unsigned int smi_count;
 	unsigned int cpu_id;
+	unsigned int apic_id;
+	unsigned int x2apic_id;
 	unsigned int flags;
 #define CPU_IS_FIRST_THREAD_IN_CORE	0x2
 #define CPU_IS_FIRST_CORE_IN_PACKAGE	0x4
@@ -435,9 +438,9 @@ struct msr_counter bic[] = {
 	{ 0x0, "CPUGFX%" },
 	{ 0x0, "Core" },
 	{ 0x0, "CPU" },
+	{ 0x0, "APIC" },
+	{ 0x0, "X2APIC" },
 };
-
-
 
 #define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
 #define	BIC_USEC	(1ULL << 0)
@@ -488,11 +491,13 @@ struct msr_counter bic[] = {
 #define	BIC_CPUGFX	(1ULL << 45)
 #define	BIC_Core	(1ULL << 46)
 #define	BIC_CPU		(1ULL << 47)
+#define	BIC_APIC	(1ULL << 48)
+#define	BIC_X2APIC	(1ULL << 49)
 
-#define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD)
+#define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD | BIC_APIC | BIC_X2APIC)
 
 unsigned long long bic_enabled = (0xFFFFFFFFFFFFFFFFULL & ~BIC_DISABLED_BY_DEFAULT);
-unsigned long long bic_present = BIC_USEC | BIC_TOD | BIC_sysfs;
+unsigned long long bic_present = BIC_USEC | BIC_TOD | BIC_sysfs | BIC_APIC | BIC_X2APIC;
 
 #define DO_BIC(COUNTER_NAME) (bic_enabled & bic_present & COUNTER_NAME)
 #define ENABLE_BIC(COUNTER_NAME) (bic_enabled |= COUNTER_NAME)
@@ -603,6 +608,10 @@ void print_header(char *delim)
 		outp += sprintf(outp, "%sCore", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_CPU))
 		outp += sprintf(outp, "%sCPU", (printed++ ? delim : ""));
+	if (DO_BIC(BIC_APIC))
+		outp += sprintf(outp, "%sAPIC", (printed++ ? delim : ""));
+	if (DO_BIC(BIC_X2APIC))
+		outp += sprintf(outp, "%sX2APIC", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Avg_MHz))
 		outp += sprintf(outp, "%sAvg_MHz", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Busy))
@@ -882,6 +891,10 @@ int format_counters(struct thread_data *t, struct core_data *c,
 			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
 		if (DO_BIC(BIC_CPU))
 			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
+		if (DO_BIC(BIC_APIC))
+			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
+		if (DO_BIC(BIC_X2APIC))
+			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
 	} else {
 		if (DO_BIC(BIC_Package)) {
 			if (p)
@@ -906,6 +919,10 @@ int format_counters(struct thread_data *t, struct core_data *c,
 		}
 		if (DO_BIC(BIC_CPU))
 			outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), t->cpu_id);
+		if (DO_BIC(BIC_APIC))
+			outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), t->apic_id);
+		if (DO_BIC(BIC_X2APIC))
+			outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), t->x2apic_id);
 	}
 
 	if (DO_BIC(BIC_Avg_MHz))
@@ -1233,6 +1250,12 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 	int i;
 	struct msr_counter *mp;
 
+	/* we run cpuid just the 1st time, copy the results */
+	if (DO_BIC(BIC_APIC))
+		new->apic_id = old->apic_id;
+	if (DO_BIC(BIC_X2APIC))
+		new->x2apic_id = old->x2apic_id;
+
 	/*
 	 * the timestamps from start of measurement interval are in "old"
 	 * the timestamp from end of measurement interval are in "new"
@@ -1394,6 +1417,12 @@ int sum_counters(struct thread_data *t, struct core_data *c,
 {
 	int i;
 	struct msr_counter *mp;
+
+	/* copy un-changing apic_id's */
+	if (DO_BIC(BIC_APIC))
+		average.threads.apic_id = t->apic_id;
+	if (DO_BIC(BIC_X2APIC))
+		average.threads.x2apic_id = t->x2apic_id;
 
 	/* remember first tv_begin */
 	if (average.threads.tv_begin.tv_sec == 0)
@@ -1621,6 +1650,34 @@ int get_mp(int cpu, struct msr_counter *mp, unsigned long long *counterp)
 	return 0;
 }
 
+void get_apic_id(struct thread_data *t)
+{
+	unsigned int eax, ebx, ecx, edx, max_level;
+
+	eax = ebx = ecx = edx = 0;
+
+	if (!genuine_intel)
+		return;
+
+	__cpuid(0, max_level, ebx, ecx, edx);
+
+	__cpuid(1, eax, ebx, ecx, edx);
+	t->apic_id = (ebx >> 24) & 0xf;
+
+	if (max_level < 0xb)
+		return;
+
+	if (!DO_BIC(BIC_X2APIC))
+		return;
+
+	ecx = 0;
+	__cpuid(0xb, eax, ebx, ecx, edx);
+	t->x2apic_id = edx;
+
+	if (debug && (t->apic_id != t->x2apic_id))
+		fprintf(stderr, "cpu%d: apic 0x%x x2apic 0x%x\n", t->cpu_id, t->apic_id, t->x2apic_id);
+}
+
 /*
  * get_counters(...)
  * migrate to cpu
@@ -1634,7 +1691,6 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	struct msr_counter *mp;
 	int i;
 
-
 	gettimeofday(&t->tv_begin, (struct timezone *)NULL);
 
 	if (cpu_migrate(cpu)) {
@@ -1642,6 +1698,8 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		return -1;
 	}
 
+	if (first_counter_read)
+		get_apic_id(t);
 retry:
 	t->tsc = rdtsc();	/* we are running on local CPU of interest */
 
@@ -2881,6 +2939,7 @@ void do_sleep(void)
 	}
 }
 
+
 void turbostat_loop()
 {
 	int retval;
@@ -2894,6 +2953,7 @@ restart:
 
 	snapshot_proc_sysfs_files();
 	retval = for_all_cpus(get_counters, EVEN_COUNTERS);
+	first_counter_read = 0;
 	if (retval < -1) {
 		exit(retval);
 	} else if (retval == -1) {
@@ -4655,7 +4715,6 @@ void process_cpuid()
 	return;
 }
 
-
 /*
  * in /dev/cpu/ return success for names that are numbers
  * ie. filter out ".", "..", "microcode".
@@ -4949,6 +5008,7 @@ int fork_it(char **argv)
 
 	snapshot_proc_sysfs_files();
 	status = for_all_cpus(get_counters, EVEN_COUNTERS);
+	first_counter_read = 0;
 	if (status)
 		exit(status);
 	/* clear affinity side-effect of get_counters() */
@@ -5384,7 +5444,7 @@ void cmdline(int argc, char **argv)
 			break;
 		case 'e':
 			/* --enable specified counter */
-			bic_enabled |= bic_lookup(optarg, SHOW_LIST);
+			bic_enabled = bic_enabled | bic_lookup(optarg, SHOW_LIST);
 			break;
 		case 'd':
 			debug++;
@@ -5468,7 +5528,6 @@ void cmdline(int argc, char **argv)
 int main(int argc, char **argv)
 {
 	outf = stderr;
-
 	cmdline(argc, argv);
 
 	if (!quiet)
