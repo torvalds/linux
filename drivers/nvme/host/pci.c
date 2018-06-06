@@ -42,7 +42,7 @@ static int use_threaded_interrupts;
 module_param(use_threaded_interrupts, int, 0);
 
 static bool use_cmb_sqes = true;
-module_param(use_cmb_sqes, bool, 0644);
+module_param(use_cmb_sqes, bool, 0444);
 MODULE_PARM_DESC(use_cmb_sqes, "use controller's memory buffer for I/O SQes");
 
 static unsigned int max_host_mem_size_mb = 128;
