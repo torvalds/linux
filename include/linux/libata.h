@@ -125,9 +125,8 @@ enum {
 	LIBATA_MAX_PRD		= ATA_MAX_PRD / 2,
 	LIBATA_DUMB_MAX_PRD	= ATA_MAX_PRD / 4,	/* Worst case */
 	ATA_DEF_QUEUE		= 1,
-	/* tag ATA_MAX_QUEUE - 1 is reserved for internal commands */
 	ATA_MAX_QUEUE		= 32,
-	ATA_TAG_INTERNAL	= ATA_MAX_QUEUE - 1,
+	ATA_TAG_INTERNAL	= ATA_MAX_QUEUE,
 	ATA_SHORT_PAUSE		= 16,
 
 	ATAPI_MAX_DRAIN		= 16 << 10,
@@ -637,7 +636,8 @@ struct ata_queued_cmd {
 	u8			cdb[ATAPI_CDB_LEN];
 
 	unsigned long		flags;		/* ATA_QCFLAG_xxx */
-	unsigned int		tag;
+	unsigned int		tag;		/* libata core tag */
+	unsigned int		hw_tag;		/* driver tag */
 	unsigned int		n_elem;
 	unsigned int		orig_n_elem;
 
@@ -849,9 +849,9 @@ struct ata_port {
 	unsigned int		udma_mask;
 	unsigned int		cbl;	/* cable type; ATA_CBL_xxx */
 
-	struct ata_queued_cmd	qcmd[ATA_MAX_QUEUE];
+	struct ata_queued_cmd	qcmd[ATA_MAX_QUEUE + 1];
 	unsigned long		sas_tag_allocated; /* for sas tag allocation only */
-	unsigned int		qc_active;
+	u64			qc_active;
 	int			nr_active_links; /* #links with active qcs */
 	unsigned int		sas_last_tag;	/* track next tag hw expects */
 
@@ -1183,7 +1183,7 @@ extern void ata_id_c_string(const u16 *id, unsigned char *s,
 extern unsigned int ata_do_dev_read_id(struct ata_device *dev,
 					struct ata_taskfile *tf, u16 *id);
 extern void ata_qc_complete(struct ata_queued_cmd *qc);
-extern int ata_qc_complete_multiple(struct ata_port *ap, u32 qc_active);
+extern int ata_qc_complete_multiple(struct ata_port *ap, u64 qc_active);
 extern void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd);
 extern int ata_std_bios_param(struct scsi_device *sdev,
 			      struct block_device *bdev,
@@ -1483,14 +1483,14 @@ extern void ata_port_pbar_desc(struct ata_port *ap, int bar, ssize_t offset,
 			       const char *name);
 #endif
 
-static inline unsigned int ata_tag_valid(unsigned int tag)
-{
-	return (tag < ATA_MAX_QUEUE) ? 1 : 0;
-}
-
-static inline unsigned int ata_tag_internal(unsigned int tag)
+static inline bool ata_tag_internal(unsigned int tag)
 {
 	return tag == ATA_TAG_INTERNAL;
+}
+
+static inline bool ata_tag_valid(unsigned int tag)
+{
+	return tag < ATA_MAX_QUEUE || ata_tag_internal(tag);
 }
 
 /*
@@ -1653,7 +1653,7 @@ static inline void ata_qc_set_polling(struct ata_queued_cmd *qc)
 static inline struct ata_queued_cmd *__ata_qc_from_tag(struct ata_port *ap,
 						       unsigned int tag)
 {
-	if (likely(ata_tag_valid(tag)))
+	if (ata_tag_valid(tag))
 		return &ap->qcmd[tag];
 	return NULL;
 }
