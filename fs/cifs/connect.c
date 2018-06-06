@@ -320,7 +320,7 @@ static int generic_ip_connect(struct TCP_Server_Info *server);
 static void tlink_rb_insert(struct rb_root *root, struct tcon_link *new_tlink);
 static void cifs_prune_tlinks(struct work_struct *work);
 static int cifs_setup_volume_info(struct smb_vol *volume_info, char *mount_data,
-					const char *devname);
+					const char *devname, bool is_smb3);
 
 /*
  * cifs tcp session reconnection
@@ -1166,7 +1166,7 @@ cifs_parse_cache_flavor(char *value, struct smb_vol *vol)
 }
 
 static int
-cifs_parse_smb_version(char *value, struct smb_vol *vol)
+cifs_parse_smb_version(char *value, struct smb_vol *vol, bool is_smb3)
 {
 	substring_t args[MAX_OPT_ARGS];
 
@@ -1176,12 +1176,20 @@ cifs_parse_smb_version(char *value, struct smb_vol *vol)
 			cifs_dbg(VFS, "mount with legacy dialect disabled\n");
 			return 1;
 		}
+		if (is_smb3) {
+			cifs_dbg(VFS, "vers=1.0 (cifs) not permitted when mounting with smb3\n");
+			return 1;
+		}
 		vol->ops = &smb1_operations;
 		vol->vals = &smb1_values;
 		break;
 	case Smb_20:
 		if (disable_legacy_dialects) {
 			cifs_dbg(VFS, "mount with legacy dialect disabled\n");
+			return 1;
+		}
+		if (is_smb3) {
+			cifs_dbg(VFS, "vers=2.0 not permitted when mounting with smb3\n");
 			return 1;
 		}
 		vol->ops = &smb20_operations;
@@ -1272,7 +1280,7 @@ cifs_parse_devname(const char *devname, struct smb_vol *vol)
 
 static int
 cifs_parse_mount_options(const char *mountdata, const char *devname,
-			 struct smb_vol *vol)
+			 struct smb_vol *vol, bool is_smb3)
 {
 	char *data, *end;
 	char *mountdata_copy = NULL, *options;
@@ -1985,7 +1993,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			if (string == NULL)
 				goto out_nomem;
 
-			if (cifs_parse_smb_version(string, vol) != 0)
+			if (cifs_parse_smb_version(string, vol, is_smb3) != 0)
 				goto cifs_parse_mount_err;
 			got_version = true;
 			break;
@@ -3797,7 +3805,7 @@ expand_dfs_referral(const unsigned int xid, struct cifs_ses *ses,
 		} else {
 			cleanup_volume_info_contents(volume_info);
 			rc = cifs_setup_volume_info(volume_info, mdata,
-							fake_devname);
+							fake_devname, false);
 		}
 		kfree(fake_devname);
 		kfree(cifs_sb->mountdata);
@@ -3810,11 +3818,11 @@ expand_dfs_referral(const unsigned int xid, struct cifs_ses *ses,
 
 static int
 cifs_setup_volume_info(struct smb_vol *volume_info, char *mount_data,
-			const char *devname)
+			const char *devname, bool is_smb3)
 {
 	int rc = 0;
 
-	if (cifs_parse_mount_options(mount_data, devname, volume_info))
+	if (cifs_parse_mount_options(mount_data, devname, volume_info, is_smb3))
 		return -EINVAL;
 
 	if (volume_info->nullauth) {
@@ -3848,7 +3856,7 @@ cifs_setup_volume_info(struct smb_vol *volume_info, char *mount_data,
 }
 
 struct smb_vol *
-cifs_get_volume_info(char *mount_data, const char *devname)
+cifs_get_volume_info(char *mount_data, const char *devname, bool is_smb3)
 {
 	int rc;
 	struct smb_vol *volume_info;
@@ -3857,7 +3865,7 @@ cifs_get_volume_info(char *mount_data, const char *devname)
 	if (!volume_info)
 		return ERR_PTR(-ENOMEM);
 
-	rc = cifs_setup_volume_info(volume_info, mount_data, devname);
+	rc = cifs_setup_volume_info(volume_info, mount_data, devname, is_smb3);
 	if (rc) {
 		cifs_cleanup_volume_info(volume_info);
 		volume_info = ERR_PTR(rc);
