@@ -2224,14 +2224,6 @@ static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 	nvme_stop_queues(&dev->ctrl);
 
 	if (!dead && dev->ctrl.queue_count > 0) {
-		/*
-		 * If the controller is still alive tell it to stop using the
-		 * host memory buffer.  In theory the shutdown / reset should
-		 * make sure that it doesn't access the host memoery anymore,
-		 * but I'd rather be safe than sorry..
-		 */
-		if (dev->host_mem_descs)
-			nvme_set_host_mem(dev, 0);
 		nvme_disable_io_queues(dev);
 		nvme_disable_admin_queue(dev, shutdown);
 	}
