@@ -4394,7 +4394,7 @@ void process_cpuid()
 	if (!quiet) {
 		fprintf(outf, "%d CPUID levels; family:model:stepping 0x%x:%x:%x (%d:%d:%d)\n",
 			max_level, family, model, stepping, family, model, stepping);
-		fprintf(outf, "CPUID(1): %s %s %s %s %s %s %s %s %s\n",
+		fprintf(outf, "CPUID(1): %s %s %s %s %s %s %s %s %s %s\n",
 			ecx & (1 << 0) ? "SSE3" : "-",
 			ecx & (1 << 3) ? "MONITOR" : "-",
 			ecx & (1 << 6) ? "SMX" : "-",
@@ -4403,6 +4403,7 @@ void process_cpuid()
 			edx & (1 << 4) ? "TSC" : "-",
 			edx & (1 << 5) ? "MSR" : "-",
 			edx & (1 << 22) ? "ACPI-TM" : "-",
+			edx & (1 << 28) ? "HT" : "-",
 			edx & (1 << 29) ? "TM" : "-");
 	}
 
