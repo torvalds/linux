@@ -67,6 +67,7 @@ bool __i915_inject_load_failure(const char *func, int line)
 	if (++i915_load_fail_count == i915_modparams.inject_load_failure) {
 		DRM_INFO("Injecting failure at checkpoint %u [%s:%d]\n",
 			 i915_modparams.inject_load_failure, func, line);
+		i915_modparams.inject_load_failure = 0;
 		return true;
 	}
 
@@ -117,16 +118,15 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 static bool i915_error_injected(struct drm_i915_private *dev_priv)
 {
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
-	return i915_modparams.inject_load_failure &&
-	       i915_load_fail_count == i915_modparams.inject_load_failure;
+	return i915_load_fail_count && !i915_modparams.inject_load_failure;
 #else
 	return false;
 #endif
 }
 
-#define i915_load_error(dev_priv, fmt, ...)				     \
-	__i915_printk(dev_priv,						     \
-		      i915_error_injected(dev_priv) ? KERN_DEBUG : KERN_ERR, \
+#define i915_load_error(i915, fmt, ...)					 \
+	__i915_printk(i915,						 \
+		      i915_error_injected(i915) ? KERN_DEBUG : KERN_ERR, \
 		      fmt, ##__VA_ARGS__)
 
 /* Map PCH device id to PCH type, or PCH_NONE if unknown. */
