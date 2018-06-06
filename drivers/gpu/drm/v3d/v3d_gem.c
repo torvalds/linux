@@ -550,6 +550,7 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto fail;
 
+	mutex_lock(&v3d->sched_lock);
 	if (exec->bin.start != exec->bin.end) {
 		ret = drm_sched_job_init(&exec->bin.base,
 					 &v3d->queue[V3D_BIN].sched,
@@ -576,6 +577,7 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	kref_get(&exec->refcount); /* put by scheduler job completion */
 	drm_sched_entity_push_job(&exec->render.base,
 				  &v3d_priv->sched_entity[V3D_RENDER]);
+	mutex_unlock(&v3d->sched_lock);
 
 	v3d_attach_object_fences(exec);
 
@@ -594,6 +596,7 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	return 0;
 
 fail_unreserve:
+	mutex_unlock(&v3d->sched_lock);
 	v3d_unlock_bo_reservations(dev, exec, &acquire_ctx);
 fail:
 	v3d_exec_put(exec);
@@ -615,6 +618,7 @@ v3d_gem_init(struct drm_device *dev)
 	spin_lock_init(&v3d->job_lock);
 	mutex_init(&v3d->bo_lock);
 	mutex_init(&v3d->reset_lock);
+	mutex_init(&v3d->sched_lock);
 
 	/* Note: We don't allocate address 0.  Various bits of HW
 	 * treat 0 as special, such as the occlusion query counters

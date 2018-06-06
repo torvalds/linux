@@ -85,6 +85,11 @@ struct v3d_dev {
 	 */
 	struct mutex reset_lock;
 
+	/* Lock taken when creating and pushing the GPU scheduler
+	 * jobs, to keep the sched-fence seqnos in order.
+	 */
+	struct mutex sched_lock;
+
 	struct {
 		u32 num_allocated;
 		u32 pages_allocated;
