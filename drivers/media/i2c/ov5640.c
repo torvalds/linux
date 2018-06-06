@@ -30,7 +30,7 @@
 
 /* min/typical/max system clock (xclk) frequencies */
 #define OV5640_XCLK_MIN  6000000
-#define OV5640_XCLK_MAX 24000000
+#define OV5640_XCLK_MAX 54000000
 
 #define OV5640_DEFAULT_SLAVE_ID 0x3c
 
