@@ -36,25 +36,25 @@
 		pinctrl-0 = <&led_pins>;
 
 		led0 {
-			label = "sl50:green:usr0";
+			label = "sl50:red:usr0";
 			gpios = <&gpio1 21 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		led1 {
-			label = "sl50:red:usr1";
+			label = "sl50:green:usr1";
 			gpios = <&gpio1 22 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		led2 {
-			label = "sl50:green:usr2";
+			label = "sl50:red:usr2";
 			gpios = <&gpio1 23 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		led3 {
-			label = "sl50:red:usr3";
+			label = "sl50:green:usr3";
 			gpios = <&gpio1 24 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
@@ -433,6 +433,12 @@
 			/* PDI Bus - Battery system */
 			AM33XX_IOPAD(0x840, PIN_INPUT_PULLUP | MUX_MODE7)	/* nBattReset  gpmc_a0.gpio1_16 */
 			AM33XX_IOPAD(0x83c, PIN_INPUT_PULLUP | MUX_MODE7)	/* BattPDIData gpmc_ad15.gpio1_15 */
+			/* FPGA */
+			AM33XX_IOPAD(0x820, PIN_INPUT_PULLUP | MUX_MODE7)	/* FPGA_DONE - gpmc_ad8.gpio0_22 */
+			AM33XX_IOPAD(0x840, PIN_INPUT_PULLUP | MUX_MODE7)	/* FPGA_NRST - gpmc_a0.gpio1_16 */
+			AM33XX_IOPAD(0x844, PIN_INPUT_PULLDOWN | MUX_MODE7)	/* FPGA_RUN - gpmc_a1.gpio1_17 */
+			AM33XX_IOPAD(0x864, PIN_INPUT_PULLUP | MUX_MODE7)	/* ENFPGA - gpmc_a9.gpio1_25 */
+			AM33XX_IOPAD(0x868, PIN_INPUT_PULLDOWN | MUX_MODE7)	/* FPGA_PROGRAM - gpmc_a10.gpio1_26 */
 		>;
 	};
 };
