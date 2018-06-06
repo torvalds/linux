@@ -365,6 +365,11 @@
 				bias-pull-up;
 			};
 
+			pwm_pin: pwm_pin {
+				pins = "PD22";
+				function = "pwm";
+			};
+
 			rmii_pins: rmii_pins {
 				pins = "PD10", "PD11", "PD13", "PD14", "PD17",
 				       "PD18", "PD19", "PD20", "PD22", "PD23";
@@ -630,6 +635,17 @@
 			#interrupt-cells = <3>;
 		};
 
+		pwm: pwm@1c21400 {
+			compatible = "allwinner,sun50i-a64-pwm",
+				     "allwinner,sun5i-a13-pwm";
+			reg = <0x01c21400 0x400>;
+			clocks = <&osc24M>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pwm_pin>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
 		rtc: rtc@1f00000 {
 			compatible = "allwinner,sun6i-a31-rtc";
 			reg = <0x01f00000 0x54>;
@@ -671,6 +687,17 @@
 			#size-cells = <0>;
 		};
 
+		r_pwm: pwm@1f03800 {
+			compatible = "allwinner,sun50i-a64-pwm",
+				     "allwinner,sun5i-a13-pwm";
+			reg = <0x01f03800 0x400>;
+			clocks = <&osc24M>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&r_pwm_pin>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
 		r_pio: pinctrl@1f02c00 {
 			compatible = "allwinner,sun50i-a64-r-pinctrl";
 			reg = <0x01f02c00 0x400>;
@@ -685,6 +712,11 @@
 			r_i2c_pins_a: i2c-a {
 				pins = "PL8", "PL9";
 				function = "s_i2c";
+			};
+
+			r_pwm_pin: pwm {
+				pins = "PL10";
+				function = "s_pwm";
 			};
 
 			r_rsb_pins: rsb {
