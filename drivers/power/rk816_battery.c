@@ -4089,6 +4089,10 @@ static int rk816_bat_init_charger(struct rk816_battery *di)
 
 	dc_charger = rk816_bat_init_dc_det(di);
 	rk816_bat_set_chrg_param(di, dc_charger);
+	if (di->dc_in && di->otg_in && di->pdata->power_dc2otg) {
+		BAT_INFO("otg power from dc adapter\n");
+		rk816_bat_set_otg_power(di, USB_OTG_POWER_OFF);
+	}
 
 	return 0;
 }
