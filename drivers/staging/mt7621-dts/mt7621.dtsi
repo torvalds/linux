@@ -38,8 +38,8 @@
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
 
-		/* FIXME: there should be way to detect this */
-		clock-frequency = <50000000>;
+		/* This is normally 1/4 of cpuclock */
+		clock-frequency = <220000000>;
 	};
 
 	palmbus: palmbus@1E000000 {
