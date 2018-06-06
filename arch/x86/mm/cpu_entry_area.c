@@ -3,6 +3,7 @@
 #include <linux/spinlock.h>
 #include <linux/percpu.h>
 #include <linux/kallsyms.h>
+#include <linux/kcore.h>
 
 #include <asm/cpu_entry_area.h>
 #include <asm/pgtable.h>
@@ -14,6 +15,7 @@ static DEFINE_PER_CPU_PAGE_ALIGNED(struct entry_stack_page, entry_stack_storage)
 #ifdef CONFIG_X86_64
 static DEFINE_PER_CPU_PAGE_ALIGNED(char, exception_stacks
 	[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_STKSZ]);
+static DEFINE_PER_CPU(struct kcore_list, kcore_entry_trampoline);
 #endif
 
 struct cpu_entry_area *get_cpu_entry_area(int cpu)
@@ -147,6 +149,14 @@ static void __init setup_cpu_entry_area(int cpu)
 
 	cea_set_pte(&get_cpu_entry_area(cpu)->entry_trampoline,
 		     __pa_symbol(_entry_trampoline), PAGE_KERNEL_RX);
+	/*
+	 * The cpu_entry_area alias addresses are not in the kernel binary
+	 * so they do not show up in /proc/kcore normally.  This adds entries
+	 * for them manually.
+	 */
+	kclist_add_remap(&per_cpu(kcore_entry_trampoline, cpu),
+			 _entry_trampoline,
+			 &get_cpu_entry_area(cpu)->entry_trampoline, PAGE_SIZE);
 #endif
 	percpu_setup_debug_store(cpu);
 }
