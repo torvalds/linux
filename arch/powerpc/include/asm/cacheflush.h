@@ -23,10 +23,9 @@
 #define flush_cache_range(vma, start, end)	do { } while (0)
 #define flush_cache_page(vma, vmaddr, pfn)	do { } while (0)
 #define flush_icache_page(vma, page)		do { } while (0)
-#define flush_cache_vmap(start, end)		do { } while (0)
 #define flush_cache_vunmap(start, end)		do { } while (0)
 
-#ifdef CONFIG_BOOK3S_64
+#ifdef CONFIG_PPC_BOOK3S_64
 /*
  * Book3s has no ptesync after setting a pte, so without this ptesync it's
  * possible for a kernel virtual mapping access to return a spurious fault
@@ -34,7 +33,7 @@
  * not expect this type of fault. flush_cache_vmap is not exactly the right
  * place to put this, but it seems to work well enough.
  */
-#define flush_cache_vmap(start, end)		do { asm volatile("ptesync"); } while (0)
+#define flush_cache_vmap(start, end)		do { asm volatile("ptesync" ::: "memory"); } while (0)
 #else
 #define flush_cache_vmap(start, end)		do { } while (0)
 #endif
