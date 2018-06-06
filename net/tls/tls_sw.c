@@ -735,7 +735,7 @@ static bool tls_sw_advance_skb(struct sock *sk, struct sk_buff *skb,
 	/* Finished with message */
 	ctx->recv_pkt = NULL;
 	kfree_skb(skb);
-	strp_unpause(&ctx->strp);
+	__strp_unpause(&ctx->strp);
 
 	return true;
 }
