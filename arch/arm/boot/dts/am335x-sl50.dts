@@ -9,6 +9,7 @@
 
 #include "am33xx.dtsi"
 #include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "Toby Churchill SL50 Series";
@@ -377,6 +378,12 @@
 		>;
 	};
 
+	rtc0_irq_pins: pinmux_rtc0_irq_pins {
+		pinctrl-single,pins = <
+			AM33XX_IOPAD(0x824, PIN_INPUT_PULLUP | MUX_MODE7)     /* gpmc_ad9.gpio0_23 */
+		>;
+	};
+
 	spi0_pins: pinmux_spi0_pins {
 		pinctrl-single,pins = <
 			AM33XX_IOPAD(0x954, PIN_INPUT_PULLUP | MUX_MODE0)	/* SPI0_MOSI - spi0_d0.spi0_d0 */
@@ -411,9 +418,14 @@
 		reg = <0x24>;
 	};
 
-	bq32000: rtc@68 {
-		compatible = "ti,bq32000";
-		trickle-resistor-ohms = <1120>;
+	rtc0: rtc@68 {
+		compatible = "dallas,ds1339";
+		pinctrl-names = "default";
+		pinctrl-0 = <&rtc0_irq_pins>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <23 IRQ_TYPE_EDGE_FALLING>; /* gpio 23 */
+		wakeup-source;
+		trickle-resistor-ohms = <2000>;
 		reg = <0x68>;
 	};
 
