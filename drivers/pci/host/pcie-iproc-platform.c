@@ -16,6 +16,7 @@
 #include <linux/of_platform.h>
 #include <linux/phy/phy.h>
 
+#include "../pci.h"
 #include "pcie-iproc.h"
 
 static const struct of_device_id iproc_pcie_of_match_table[] = {

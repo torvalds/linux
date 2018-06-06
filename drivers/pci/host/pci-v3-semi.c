@@ -33,6 +33,8 @@
 #include <linux/regmap.h>
 #include <linux/clk.h>
 
+#include "../pci.h"
+
 #define V3_PCI_VENDOR			0x00000000
 #define V3_PCI_DEVICE			0x00000002
 #define V3_PCI_CMD			0x00000004

@@ -22,6 +22,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 
+#include "../pci.h"
+
 /* PCIe shared registers */
 #define PCIE_SYS_CFG		0x00
 #define PCIE_INT_ENABLE		0x0c

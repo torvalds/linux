@@ -28,6 +28,8 @@
 #include <linux/irq.h>
 #include <linux/clk.h>
 
+#include "../pci.h"
+
 /*
  * Special configuration registers directly in the first few words
  * in I/O space.

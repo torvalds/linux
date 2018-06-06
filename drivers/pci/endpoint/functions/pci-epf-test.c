@@ -435,6 +435,13 @@ static int pci_epf_test_bind(struct pci_epf *epf)
 	if (WARN_ON_ONCE(!epc))
 		return -EINVAL;
 
+	if (epc->features & EPC_FEATURE_NO_LINKUP_NOTIFIER)
+		epf_test->linkup_notifier = false;
+	else
+		epf_test->linkup_notifier = true;
+
+	epf_test->test_reg_bar = EPC_FEATURE_GET_BAR(epc->features);
+
 	ret = pci_epc_write_header(epc, epf->func_no, header);
 	if (ret) {
 		dev_err(dev, "configuration header write failed\n");

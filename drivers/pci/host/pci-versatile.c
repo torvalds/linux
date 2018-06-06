@@ -15,6 +15,8 @@
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 
+#include "../pci.h"
+
 static void __iomem *versatile_pci_base;
 static void __iomem *versatile_cfg_base[2];
 
