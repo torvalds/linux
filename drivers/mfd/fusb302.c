@@ -1439,8 +1439,11 @@ static void auto_vdm_machine(struct fusb30x_chip *chip, u32 evt)
 	case VDM_STATE_DP_CONFIG:
 		AUTO_VDM_HANDLE(vdm_send_dpconfig, chip, evt, conditions);
 		break;
-	default:
+	case VDM_STATE_NOTIFY:
 		platform_fusb_notify(chip);
+		chip->vdm_state = VDM_STATE_READY;
+		break;
+	default:
 		break;
 	}
 }
