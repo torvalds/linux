@@ -920,11 +920,9 @@ static inline void nvme_ring_cq_doorbell(struct nvme_queue *nvmeq)
 {
 	u16 head = nvmeq->cq_head;
 
-	if (likely(nvmeq->cq_vector >= 0)) {
-		if (nvme_dbbuf_update_and_check_event(head, nvmeq->dbbuf_cq_db,
-						      nvmeq->dbbuf_cq_ei))
-			writel(head, nvmeq->q_db + nvmeq->dev->db_stride);
-	}
+	if (nvme_dbbuf_update_and_check_event(head, nvmeq->dbbuf_cq_db,
+					      nvmeq->dbbuf_cq_ei))
+		writel(head, nvmeq->q_db + nvmeq->dev->db_stride);
 }
 
 static inline void nvme_handle_cqe(struct nvme_queue *nvmeq, u16 idx)
