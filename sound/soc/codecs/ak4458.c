@@ -558,7 +558,7 @@ static int __maybe_unused ak4458_runtime_resume(struct device *dev)
 }
 #endif /* CONFIG_PM */
 
-struct snd_soc_component_driver soc_codec_dev_ak4458 = {
+static const struct snd_soc_component_driver soc_codec_dev_ak4458 = {
 	.probe			= ak4458_probe,
 	.remove			= ak4458_remove,
 	.controls		= ak4458_snd_controls,
