@@ -7,6 +7,9 @@
 devdummy="test-dummy0"
 ret=0
 
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
 # set global exit status, but never reset nonzero one.
 check_err()
 {
@@ -333,7 +336,7 @@ kci_test_vrf()
 	ip link show type vrf 2>/dev/null
 	if [ $? -ne 0 ]; then
 		echo "SKIP: vrf: iproute2 too old"
-		return 0
+		return $ksft_skip
 	fi
 
 	ip link add "$vrfname" type vrf table 10
@@ -409,7 +412,7 @@ kci_test_encap_fou()
 	ip fou help 2>&1 |grep -q 'Usage: ip fou'
 	if [ $? -ne 0 ];then
 		echo "SKIP: fou: iproute2 too old"
-		return 1
+		return $ksft_skip
 	fi
 
 	ip netns exec "$testns" ip fou add port 7777 ipproto 47 2>/dev/null
@@ -444,7 +447,7 @@ kci_test_encap()
 	ip netns add "$testns"
 	if [ $? -ne 0 ]; then
 		echo "SKIP encap tests: cannot add net namespace $testns"
-		return 1
+		return $ksft_skip
 	fi
 
 	ip netns exec "$testns" ip link set lo up
@@ -469,7 +472,7 @@ kci_test_macsec()
 	ip macsec help 2>&1 | grep -q "^Usage: ip macsec"
 	if [ $? -ne 0 ]; then
 		echo "SKIP: macsec: iproute2 too old"
-		return 0
+		return $ksft_skip
 	fi
 
 	ip link add link "$devdummy" "$msname" type macsec port 42 encrypt on
@@ -511,14 +514,14 @@ kci_test_gretap()
 	ip netns add "$testns"
 	if [ $? -ne 0 ]; then
 		echo "SKIP gretap tests: cannot add net namespace $testns"
-		return 1
+		return $ksft_skip
 	fi
 
 	ip link help gretap 2>&1 | grep -q "^Usage:"
 	if [ $? -ne 0 ];then
 		echo "SKIP: gretap: iproute2 too old"
 		ip netns del "$testns"
-		return 1
+		return $ksft_skip
 	fi
 
 	# test native tunnel
@@ -561,14 +564,14 @@ kci_test_ip6gretap()
 	ip netns add "$testns"
 	if [ $? -ne 0 ]; then
 		echo "SKIP ip6gretap tests: cannot add net namespace $testns"
-		return 1
+		return $ksft_skip
 	fi
 
 	ip link help ip6gretap 2>&1 | grep -q "^Usage:"
 	if [ $? -ne 0 ];then
 		echo "SKIP: ip6gretap: iproute2 too old"
 		ip netns del "$testns"
-		return 1
+		return $ksft_skip
 	fi
 
 	# test native tunnel
@@ -611,13 +614,13 @@ kci_test_erspan()
 	ip link help erspan 2>&1 | grep -q "^Usage:"
 	if [ $? -ne 0 ];then
 		echo "SKIP: erspan: iproute2 too old"
-		return 1
+		return $ksft_skip
 	fi
 
 	ip netns add "$testns"
 	if [ $? -ne 0 ]; then
 		echo "SKIP erspan tests: cannot add net namespace $testns"
-		return 1
+		return $ksft_skip
 	fi
 
 	# test native tunnel erspan v1
@@ -676,13 +679,13 @@ kci_test_ip6erspan()
 	ip link help ip6erspan 2>&1 | grep -q "^Usage:"
 	if [ $? -ne 0 ];then
 		echo "SKIP: ip6erspan: iproute2 too old"
-		return 1
+		return $ksft_skip
 	fi
 
 	ip netns add "$testns"
 	if [ $? -ne 0 ]; then
 		echo "SKIP ip6erspan tests: cannot add net namespace $testns"
-		return 1
+		return $ksft_skip
 	fi
 
 	# test native tunnel ip6erspan v1
@@ -762,14 +765,14 @@ kci_test_rtnl()
 #check for needed privileges
 if [ "$(id -u)" -ne 0 ];then
 	echo "SKIP: Need root privileges"
-	exit 0
+	exit $ksft_skip
 fi
 
 for x in ip tc;do
 	$x -Version 2>/dev/null >/dev/null
 	if [ $? -ne 0 ];then
 		echo "SKIP: Could not run test without the $x tool"
-		exit 0
+		exit $ksft_skip
 	fi
 done
 
