@@ -249,7 +249,7 @@ static int send_trespass_cmd(struct scsi_device *sdev,
 			    struct clariion_dh_data *csdev)
 {
 	unsigned char *page22;
-	unsigned char cdb[COMMAND_SIZE(MODE_SELECT)];
+	unsigned char cdb[MAX_COMMAND_SIZE];
 	int err, res = SCSI_DH_OK, len;
 	struct scsi_sense_hdr sshdr;
 	u64 req_flags = REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT |

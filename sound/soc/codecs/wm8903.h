@@ -15,7 +15,7 @@
 
 #include <linux/i2c.h>
 
-extern int wm8903_mic_detect(struct snd_soc_codec *codec,
+extern int wm8903_mic_detect(struct snd_soc_component *component,
 			     struct snd_soc_jack *jack,
 			     int det, int shrt);
 

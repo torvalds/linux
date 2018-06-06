@@ -788,7 +788,7 @@ octeon_droq_process_packets(struct octeon_device *oct,
  * called before calling this routine.
  */
 
-static int
+int
 octeon_droq_process_poll_pkts(struct octeon_device *oct,
 			      struct octeon_droq *droq, u32 budget)
 {
@@ -835,71 +835,46 @@ octeon_droq_process_poll_pkts(struct octeon_device *oct,
 	return total_pkts_processed;
 }
 
+/* Enable Pkt Interrupt */
 int
-octeon_process_droq_poll_cmd(struct octeon_device *oct, u32 q_no, int cmd,
-			     u32 arg)
+octeon_enable_irq(struct octeon_device *oct, u32 q_no)
 {
-	struct octeon_droq *droq;
-
-	droq = oct->droq[q_no];
-
-	if (cmd == POLL_EVENT_PROCESS_PKTS)
-		return octeon_droq_process_poll_pkts(oct, droq, arg);
-
-	if (cmd == POLL_EVENT_PENDING_PKTS) {
-		u32 pkt_cnt = atomic_read(&droq->pkts_pending);
-
-		return  octeon_droq_process_packets(oct, droq, pkt_cnt);
-	}
-
-	if (cmd == POLL_EVENT_ENABLE_INTR) {
-		u32 value;
+	switch (oct->chip_id) {
+	case OCTEON_CN66XX:
+	case OCTEON_CN68XX: {
+		struct octeon_cn6xxx *cn6xxx =
+			(struct octeon_cn6xxx *)oct->chip;
 		unsigned long flags;
+		u32 value;
 
-		/* Enable Pkt Interrupt */
-		switch (oct->chip_id) {
-		case OCTEON_CN66XX:
-		case OCTEON_CN68XX: {
-			struct octeon_cn6xxx *cn6xxx =
-				(struct octeon_cn6xxx *)oct->chip;
-			spin_lock_irqsave
-				(&cn6xxx->lock_for_droq_int_enb_reg, flags);
-			value =
-				octeon_read_csr(oct,
-						CN6XXX_SLI_PKT_TIME_INT_ENB);
-			value |= (1 << q_no);
-			octeon_write_csr(oct,
-					 CN6XXX_SLI_PKT_TIME_INT_ENB,
-					 value);
-			value =
-				octeon_read_csr(oct,
-						CN6XXX_SLI_PKT_CNT_INT_ENB);
-			value |= (1 << q_no);
-			octeon_write_csr(oct,
-					 CN6XXX_SLI_PKT_CNT_INT_ENB,
-					 value);
+		spin_lock_irqsave
+			(&cn6xxx->lock_for_droq_int_enb_reg, flags);
+		value = octeon_read_csr(oct, CN6XXX_SLI_PKT_TIME_INT_ENB);
+		value |= (1 << q_no);
+		octeon_write_csr(oct, CN6XXX_SLI_PKT_TIME_INT_ENB, value);
+		value = octeon_read_csr(oct, CN6XXX_SLI_PKT_CNT_INT_ENB);
+		value |= (1 << q_no);
+		octeon_write_csr(oct, CN6XXX_SLI_PKT_CNT_INT_ENB, value);
 
-			/* don't bother flushing the enables */
+		/* don't bother flushing the enables */
 
-			spin_unlock_irqrestore
-				(&cn6xxx->lock_for_droq_int_enb_reg, flags);
-			return 0;
-		}
+		spin_unlock_irqrestore
+			(&cn6xxx->lock_for_droq_int_enb_reg, flags);
+	}
 		break;
-		case OCTEON_CN23XX_PF_VID: {
-			lio_enable_irq(oct->droq[q_no], oct->instr_queue[q_no]);
-		}
+	case OCTEON_CN23XX_PF_VID:
+		lio_enable_irq(oct->droq[q_no], oct->instr_queue[q_no]);
 		break;
 
-		case OCTEON_CN23XX_VF_VID:
-			lio_enable_irq(oct->droq[q_no], oct->instr_queue[q_no]);
+	case OCTEON_CN23XX_VF_VID:
+		lio_enable_irq(oct->droq[q_no], oct->instr_queue[q_no]);
 		break;
-		}
-		return 0;
+	default:
+		dev_err(&oct->pci_dev->dev, "%s Unknown Chip\n", __func__);
+		return 1;
 	}
 
-	dev_err(&oct->pci_dev->dev, "%s Unknown command: %d\n", __func__, cmd);
-	return -EINVAL;
+	return 0;
 }
 
 int octeon_register_droq_ops(struct octeon_device *oct, u32 q_no,

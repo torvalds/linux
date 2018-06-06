@@ -12,3 +12,6 @@ test_tcpbpf_user
 test_verifier_log
 feature
 test_libbpf_open
+test_sock
+test_sock_addr
+urandom_read

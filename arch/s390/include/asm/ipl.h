@@ -15,8 +15,6 @@
 
 #define NSS_NAME_SIZE	8
 
-#define IPL_PARMBLOCK_ORIGIN	0x2000
-
 #define IPL_PARM_BLK_FCP_LEN (sizeof(struct ipl_list_hdr) + \
 			      sizeof(struct ipl_block_fcp))
 
@@ -28,10 +26,6 @@
 #define IPL_PARM_BLK0_CCW_LEN (sizeof(struct ipl_block_ccw) + 16)
 
 #define IPL_MAX_SUPPORTED_VERSION (0)
-
-#define IPL_PARMBLOCK_START	((struct ipl_parameter_block *) \
-				 IPL_PARMBLOCK_ORIGIN)
-#define IPL_PARMBLOCK_SIZE	(IPL_PARMBLOCK_START->hdr.len)
 
 struct ipl_list_hdr {
 	u32 len;
@@ -83,13 +77,9 @@ struct ipl_parameter_block {
 	union {
 		struct ipl_block_fcp fcp;
 		struct ipl_block_ccw ccw;
+		char raw[PAGE_SIZE - sizeof(struct ipl_list_hdr)];
 	} ipl_info;
 } __packed __aligned(PAGE_SIZE);
-
-/*
- * IPL validity flags
- */
-extern u32 ipl_flags;
 
 struct save_area;
 struct save_area * __init save_area_alloc(bool is_boot_cpu);
@@ -97,18 +87,10 @@ struct save_area * __init save_area_boot_cpu(void);
 void __init save_area_add_regs(struct save_area *, void *regs);
 void __init save_area_add_vxrs(struct save_area *, __vector128 *vxrs);
 
-extern void do_reipl(void);
-extern void do_halt(void);
-extern void do_poff(void);
-extern void ipl_verify_parameters(void);
-extern void ipl_update_parameters(void);
+extern void s390_reset_system(void);
+extern void ipl_store_parameters(void);
 extern size_t append_ipl_vmparm(char *, size_t);
 extern size_t append_ipl_scpdata(char *, size_t);
-
-enum {
-	IPL_DEVNO_VALID		= 1,
-	IPL_PARMBLOCK_VALID	= 2,
-};
 
 enum ipl_type {
 	IPL_TYPE_UNKNOWN	= 1,
@@ -138,6 +120,7 @@ struct ipl_info
 
 extern struct ipl_info ipl_info;
 extern void setup_ipl(void);
+extern void set_os_info_reipl_block(void);
 
 /*
  * DIAG 308 support

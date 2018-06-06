@@ -13,6 +13,13 @@ Required properties:
 Optional properties:
 - sram:	Phandle to the ocmcram node
 
+am335x and am437x only:
+- pm-sram: Phandles to ocmcram nodes to be used for power management.
+	   First should be type 'protect-exec' for the driver to use to copy
+	   and run PM functions, second should be regular pool to be used for
+	   data region for code. See Documentation/devicetree/bindings/sram/sram.txt
+	   for more details.
+
 Examples:
 
 - For an OMAP5 SMP system:
@@ -35,4 +42,13 @@ mpu {
 mpu {
     compatible = "ti,omap3-mpu";
     ti,hwmods = "mpu";
+};
+
+- For an AM335x system:
+
+mpu {
+	compatible = "ti,omap3-mpu";
+	ti,hwmods = "mpu";
+	pm-sram = <&pm_sram_code
+		   &pm_sram_data>;
 };

@@ -113,16 +113,16 @@ static const char *const bpf_jmp_string[16] = {
 };
 
 static void print_bpf_end_insn(bpf_insn_print_t verbose,
-			       struct bpf_verifier_env *env,
+			       void *private_data,
 			       const struct bpf_insn *insn)
 {
-	verbose(env, "(%02x) r%d = %s%d r%d\n", insn->code, insn->dst_reg,
+	verbose(private_data, "(%02x) r%d = %s%d r%d\n",
+		insn->code, insn->dst_reg,
 		BPF_SRC(insn->code) == BPF_TO_BE ? "be" : "le",
 		insn->imm, insn->dst_reg);
 }
 
 void print_bpf_insn(const struct bpf_insn_cbs *cbs,
-		    struct bpf_verifier_env *env,
 		    const struct bpf_insn *insn,
 		    bool allow_ptr_leaks)
 {
@@ -132,23 +132,23 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 	if (class == BPF_ALU || class == BPF_ALU64) {
 		if (BPF_OP(insn->code) == BPF_END) {
 			if (class == BPF_ALU64)
-				verbose(env, "BUG_alu64_%02x\n", insn->code);
+				verbose(cbs->private_data, "BUG_alu64_%02x\n", insn->code);
 			else
-				print_bpf_end_insn(verbose, env, insn);
+				print_bpf_end_insn(verbose, cbs->private_data, insn);
 		} else if (BPF_OP(insn->code) == BPF_NEG) {
-			verbose(env, "(%02x) r%d = %s-r%d\n",
+			verbose(cbs->private_data, "(%02x) r%d = %s-r%d\n",
 				insn->code, insn->dst_reg,
 				class == BPF_ALU ? "(u32) " : "",
 				insn->dst_reg);
 		} else if (BPF_SRC(insn->code) == BPF_X) {
-			verbose(env, "(%02x) %sr%d %s %sr%d\n",
+			verbose(cbs->private_data, "(%02x) %sr%d %s %sr%d\n",
 				insn->code, class == BPF_ALU ? "(u32) " : "",
 				insn->dst_reg,
 				bpf_alu_string[BPF_OP(insn->code) >> 4],
 				class == BPF_ALU ? "(u32) " : "",
 				insn->src_reg);
 		} else {
-			verbose(env, "(%02x) %sr%d %s %s%d\n",
+			verbose(cbs->private_data, "(%02x) %sr%d %s %s%d\n",
 				insn->code, class == BPF_ALU ? "(u32) " : "",
 				insn->dst_reg,
 				bpf_alu_string[BPF_OP(insn->code) >> 4],
@@ -157,46 +157,46 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 		}
 	} else if (class == BPF_STX) {
 		if (BPF_MODE(insn->code) == BPF_MEM)
-			verbose(env, "(%02x) *(%s *)(r%d %+d) = r%d\n",
+			verbose(cbs->private_data, "(%02x) *(%s *)(r%d %+d) = r%d\n",
 				insn->code,
 				bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
 				insn->dst_reg,
 				insn->off, insn->src_reg);
 		else if (BPF_MODE(insn->code) == BPF_XADD)
-			verbose(env, "(%02x) lock *(%s *)(r%d %+d) += r%d\n",
+			verbose(cbs->private_data, "(%02x) lock *(%s *)(r%d %+d) += r%d\n",
 				insn->code,
 				bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
 				insn->dst_reg, insn->off,
 				insn->src_reg);
 		else
-			verbose(env, "BUG_%02x\n", insn->code);
+			verbose(cbs->private_data, "BUG_%02x\n", insn->code);
 	} else if (class == BPF_ST) {
 		if (BPF_MODE(insn->code) != BPF_MEM) {
-			verbose(env, "BUG_st_%02x\n", insn->code);
+			verbose(cbs->private_data, "BUG_st_%02x\n", insn->code);
 			return;
 		}
-		verbose(env, "(%02x) *(%s *)(r%d %+d) = %d\n",
+		verbose(cbs->private_data, "(%02x) *(%s *)(r%d %+d) = %d\n",
 			insn->code,
 			bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
 			insn->dst_reg,
 			insn->off, insn->imm);
 	} else if (class == BPF_LDX) {
 		if (BPF_MODE(insn->code) != BPF_MEM) {
-			verbose(env, "BUG_ldx_%02x\n", insn->code);
+			verbose(cbs->private_data, "BUG_ldx_%02x\n", insn->code);
 			return;
 		}
-		verbose(env, "(%02x) r%d = *(%s *)(r%d %+d)\n",
+		verbose(cbs->private_data, "(%02x) r%d = *(%s *)(r%d %+d)\n",
 			insn->code, insn->dst_reg,
 			bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
 			insn->src_reg, insn->off);
 	} else if (class == BPF_LD) {
 		if (BPF_MODE(insn->code) == BPF_ABS) {
-			verbose(env, "(%02x) r0 = *(%s *)skb[%d]\n",
+			verbose(cbs->private_data, "(%02x) r0 = *(%s *)skb[%d]\n",
 				insn->code,
 				bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
 				insn->imm);
 		} else if (BPF_MODE(insn->code) == BPF_IND) {
-			verbose(env, "(%02x) r0 = *(%s *)skb[r%d + %d]\n",
+			verbose(cbs->private_data, "(%02x) r0 = *(%s *)skb[r%d + %d]\n",
 				insn->code,
 				bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
 				insn->src_reg, insn->imm);
@@ -212,12 +212,12 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 			if (map_ptr && !allow_ptr_leaks)
 				imm = 0;
 
-			verbose(env, "(%02x) r%d = %s\n",
+			verbose(cbs->private_data, "(%02x) r%d = %s\n",
 				insn->code, insn->dst_reg,
 				__func_imm_name(cbs, insn, imm,
 						tmp, sizeof(tmp)));
 		} else {
-			verbose(env, "BUG_ld_%02x\n", insn->code);
+			verbose(cbs->private_data, "BUG_ld_%02x\n", insn->code);
 			return;
 		}
 	} else if (class == BPF_JMP) {
@@ -227,35 +227,35 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 			char tmp[64];
 
 			if (insn->src_reg == BPF_PSEUDO_CALL) {
-				verbose(env, "(%02x) call pc%s\n",
+				verbose(cbs->private_data, "(%02x) call pc%s\n",
 					insn->code,
 					__func_get_name(cbs, insn,
 							tmp, sizeof(tmp)));
 			} else {
 				strcpy(tmp, "unknown");
-				verbose(env, "(%02x) call %s#%d\n", insn->code,
+				verbose(cbs->private_data, "(%02x) call %s#%d\n", insn->code,
 					__func_get_name(cbs, insn,
 							tmp, sizeof(tmp)),
 					insn->imm);
 			}
 		} else if (insn->code == (BPF_JMP | BPF_JA)) {
-			verbose(env, "(%02x) goto pc%+d\n",
+			verbose(cbs->private_data, "(%02x) goto pc%+d\n",
 				insn->code, insn->off);
 		} else if (insn->code == (BPF_JMP | BPF_EXIT)) {
-			verbose(env, "(%02x) exit\n", insn->code);
+			verbose(cbs->private_data, "(%02x) exit\n", insn->code);
 		} else if (BPF_SRC(insn->code) == BPF_X) {
-			verbose(env, "(%02x) if r%d %s r%d goto pc%+d\n",
+			verbose(cbs->private_data, "(%02x) if r%d %s r%d goto pc%+d\n",
 				insn->code, insn->dst_reg,
 				bpf_jmp_string[BPF_OP(insn->code) >> 4],
 				insn->src_reg, insn->off);
 		} else {
-			verbose(env, "(%02x) if r%d %s 0x%x goto pc%+d\n",
+			verbose(cbs->private_data, "(%02x) if r%d %s 0x%x goto pc%+d\n",
 				insn->code, insn->dst_reg,
 				bpf_jmp_string[BPF_OP(insn->code) >> 4],
 				insn->imm, insn->off);
 		}
 	} else {
-		verbose(env, "(%02x) %s\n",
+		verbose(cbs->private_data, "(%02x) %s\n",
 			insn->code, bpf_class_string[class]);
 	}
 }

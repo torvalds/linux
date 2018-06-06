@@ -635,7 +635,8 @@ enum ddc_result dal_ddc_service_read_dpcd_data(
 	enum i2c_mot_mode mot,
 	uint32_t address,
 	uint8_t *data,
-	uint32_t len)
+	uint32_t len,
+	uint32_t *read)
 {
 	struct aux_payload read_payload = {
 		.i2c_over_aux = i2c,
@@ -652,6 +653,8 @@ enum ddc_result dal_ddc_service_read_dpcd_data(
 		.mot = mot
 	};
 
+	*read = 0;
+
 	if (len > DEFAULT_AUX_MAX_DATA_SIZE) {
 		BREAK_TO_DEBUGGER();
 		return DDC_RESULT_FAILED_INVALID_OPERATION;
@@ -660,8 +663,10 @@ enum ddc_result dal_ddc_service_read_dpcd_data(
 	if (dal_i2caux_submit_aux_command(
 		ddc->ctx->i2caux,
 		ddc->ddc_pin,
-		&command))
+		&command)) {
+		*read = command.payloads->length;
 		return DDC_RESULT_SUCESSFULL;
+	}
 
 	return DDC_RESULT_FAILED_OPERATION;
 }

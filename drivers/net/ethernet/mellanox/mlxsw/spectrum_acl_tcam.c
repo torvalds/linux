@@ -228,10 +228,6 @@ mlxsw_sp_acl_tcam_group_add(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
-	err = mlxsw_sp_acl_tcam_group_update(mlxsw_sp, group);
-	if (err)
-		goto err_group_update;
-
 	err = rhashtable_init(&group->chunk_ht,
 			      &mlxsw_sp_acl_tcam_chunk_ht_params);
 	if (err)
@@ -240,7 +236,6 @@ mlxsw_sp_acl_tcam_group_add(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 
 err_rhashtable_init:
-err_group_update:
 	mlxsw_sp_acl_tcam_group_id_put(tcam, group->id);
 	return err;
 }

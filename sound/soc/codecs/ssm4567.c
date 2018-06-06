@@ -199,8 +199,8 @@ static const struct snd_soc_dapm_route ssm4567_routes[] = {
 static int ssm4567_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct ssm4567 *ssm4567 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct ssm4567 *ssm4567 = snd_soc_component_get_drvdata(component);
 	unsigned int rate = params_rate(params);
 	unsigned int dacfs;
 
@@ -223,7 +223,7 @@ static int ssm4567_hw_params(struct snd_pcm_substream *substream,
 
 static int ssm4567_mute(struct snd_soc_dai *dai, int mute)
 {
-	struct ssm4567 *ssm4567 = snd_soc_codec_get_drvdata(dai->codec);
+	struct ssm4567 *ssm4567 = snd_soc_component_get_drvdata(dai->component);
 	unsigned int val;
 
 	val = mute ? SSM4567_DAC_MUTE : 0;
@@ -366,10 +366,10 @@ static int ssm4567_set_power(struct ssm4567 *ssm4567, bool enable)
 	return ret;
 }
 
-static int ssm4567_set_bias_level(struct snd_soc_codec *codec,
+static int ssm4567_set_bias_level(struct snd_soc_component *component,
 	enum snd_soc_bias_level level)
 {
-	struct ssm4567 *ssm4567 = snd_soc_codec_get_drvdata(codec);
+	struct ssm4567 *ssm4567 = snd_soc_component_get_drvdata(component);
 	int ret = 0;
 
 	switch (level) {
@@ -378,7 +378,7 @@ static int ssm4567_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF)
+		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF)
 			ret = ssm4567_set_power(ssm4567, true);
 		break;
 	case SND_SOC_BIAS_OFF:
@@ -417,18 +417,17 @@ static struct snd_soc_dai_driver ssm4567_dai = {
 	.ops = &ssm4567_dai_ops,
 };
 
-static const struct snd_soc_codec_driver ssm4567_codec_driver = {
-	.set_bias_level = ssm4567_set_bias_level,
-	.idle_bias_off = true,
-
-	.component_driver = {
-		.controls		= ssm4567_snd_controls,
-		.num_controls		= ARRAY_SIZE(ssm4567_snd_controls),
-		.dapm_widgets		= ssm4567_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(ssm4567_dapm_widgets),
-		.dapm_routes		= ssm4567_routes,
-		.num_dapm_routes	= ARRAY_SIZE(ssm4567_routes),
-	},
+static const struct snd_soc_component_driver ssm4567_component_driver = {
+	.set_bias_level		= ssm4567_set_bias_level,
+	.controls		= ssm4567_snd_controls,
+	.num_controls		= ARRAY_SIZE(ssm4567_snd_controls),
+	.dapm_widgets		= ssm4567_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(ssm4567_dapm_widgets),
+	.dapm_routes		= ssm4567_routes,
+	.num_dapm_routes	= ARRAY_SIZE(ssm4567_routes),
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config ssm4567_regmap_config = {
@@ -469,14 +468,8 @@ static int ssm4567_i2c_probe(struct i2c_client *i2c,
 	if (ret)
 		return ret;
 
-	return snd_soc_register_codec(&i2c->dev, &ssm4567_codec_driver,
+	return devm_snd_soc_register_component(&i2c->dev, &ssm4567_component_driver,
 			&ssm4567_dai, 1);
-}
-
-static int ssm4567_i2c_remove(struct i2c_client *client)
-{
-	snd_soc_unregister_codec(&client->dev);
-	return 0;
 }
 
 static const struct i2c_device_id ssm4567_i2c_ids[] = {
@@ -510,7 +503,6 @@ static struct i2c_driver ssm4567_driver = {
 		.acpi_match_table = ACPI_PTR(ssm4567_acpi_match),
 	},
 	.probe = ssm4567_i2c_probe,
-	.remove = ssm4567_i2c_remove,
 	.id_table = ssm4567_i2c_ids,
 };
 module_i2c_driver(ssm4567_driver);

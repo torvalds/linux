@@ -579,8 +579,15 @@ static enum qman_cb_dqrr_result caam_rsp_fq_dqrr_cb(struct qman_portal *p,
 
 	fd = &dqrr->fd;
 	status = be32_to_cpu(fd->status);
-	if (unlikely(status))
-		dev_err(qidev, "Error: %#x in CAAM response FD\n", status);
+	if (unlikely(status)) {
+		u32 ssrc = status & JRSTA_SSRC_MASK;
+		u8 err_id = status & JRSTA_CCBERR_ERRID_MASK;
+
+		if (ssrc != JRSTA_SSRC_CCB_ERROR ||
+		    err_id != JRSTA_CCBERR_ERRID_ICVCHK)
+			dev_err(qidev, "Error: %#x in CAAM response FD\n",
+				status);
+	}
 
 	if (unlikely(qm_fd_get_format(fd) != qm_fd_compound)) {
 		dev_err(qidev, "Non-compound FD from CAAM\n");

@@ -441,7 +441,6 @@ static int mce_handle_ierror(struct pt_regs *regs,
 					if (pfn != ULONG_MAX) {
 						*phys_addr =
 							(pfn << PAGE_SHIFT);
-						handled = 1;
 					}
 				}
 			}
@@ -532,9 +531,7 @@ static int mce_handle_derror(struct pt_regs *regs,
 			 * kernel/exception-64s.h
 			 */
 			if (get_paca()->in_mce < MAX_MCE_DEPTH)
-				if (!mce_find_instr_ea_and_pfn(regs, addr,
-								phys_addr))
-					handled = 1;
+				mce_find_instr_ea_and_pfn(regs, addr, phys_addr);
 		}
 		found = 1;
 	}
@@ -572,7 +569,7 @@ static long mce_handle_error(struct pt_regs *regs,
 		const struct mce_ierror_table itable[])
 {
 	struct mce_error_info mce_err = { 0 };
-	uint64_t addr, phys_addr;
+	uint64_t addr, phys_addr = ULONG_MAX;
 	uint64_t srr1 = regs->msr;
 	long handled;
 

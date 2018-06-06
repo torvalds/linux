@@ -12,10 +12,56 @@
 #define pr_fmt(fmt) "ACPI: watchdog: " fmt
 
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 
 #include "internal.h"
+
+static const struct dmi_system_id acpi_watchdog_skip[] = {
+	{
+		/*
+		 * On Lenovo Z50-70 there are two issues with the WDAT
+		 * table. First some of the instructions use RTC SRAM
+		 * to store persistent information. This does not work well
+		 * with Linux RTC driver. Second, more important thing is
+		 * that the instructions do not actually reset the system.
+		 *
+		 * On this particular system iTCO_wdt seems to work just
+		 * fine so we prefer that over WDAT for now.
+		 *
+		 * See also https://bugzilla.kernel.org/show_bug.cgi?id=199033.
+		 */
+		.ident = "Lenovo Z50-70",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "20354"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Z50-70"),
+		},
+	},
+	{}
+};
+
+static const struct acpi_table_wdat *acpi_watchdog_get_wdat(void)
+{
+	const struct acpi_table_wdat *wdat = NULL;
+	acpi_status status;
+
+	if (acpi_disabled)
+		return NULL;
+
+	if (dmi_check_system(acpi_watchdog_skip))
+		return NULL;
+
+	status = acpi_get_table(ACPI_SIG_WDAT, 0,
+				(struct acpi_table_header **)&wdat);
+	if (ACPI_FAILURE(status)) {
+		/* It is fine if there is no WDAT */
+		return NULL;
+	}
+
+	return wdat;
+}
 
 /**
  * Returns true if this system should prefer ACPI based watchdog instead of
@@ -23,12 +69,7 @@
  */
 bool acpi_has_watchdog(void)
 {
-	struct acpi_table_header hdr;
-
-	if (acpi_disabled)
-		return false;
-
-	return ACPI_SUCCESS(acpi_get_table_header(ACPI_SIG_WDAT, 0, &hdr));
+	return !!acpi_watchdog_get_wdat();
 }
 EXPORT_SYMBOL_GPL(acpi_has_watchdog);
 
@@ -41,12 +82,10 @@ void __init acpi_watchdog_init(void)
 	struct platform_device *pdev;
 	struct resource *resources;
 	size_t nresources = 0;
-	acpi_status status;
 	int i;
 
-	status = acpi_get_table(ACPI_SIG_WDAT, 0,
-				(struct acpi_table_header **)&wdat);
-	if (ACPI_FAILURE(status)) {
+	wdat = acpi_watchdog_get_wdat();
+	if (!wdat) {
 		/* It is fine if there is no WDAT */
 		return;
 	}

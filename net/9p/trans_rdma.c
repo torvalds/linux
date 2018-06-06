@@ -68,8 +68,6 @@
  * @pd: Protection Domain pointer
  * @qp: Queue Pair pointer
  * @cq: Completion Queue pointer
- * @dm_mr: DMA Memory Region pointer
- * @lkey: The local access only memory region key
  * @timeout: Number of uSecs to wait for connection management events
  * @privport: Whether a privileged port may be used
  * @port: The port to use
@@ -632,7 +630,7 @@ static int p9_rdma_bind_privport(struct p9_trans_rdma *rdma)
 }
 
 /**
- * trans_create_rdma - Transport method for creating atransport instance
+ * rdma_create_trans - Transport method for creating a transport instance
  * @client: client instance
  * @addr: IP address string
  * @args: Mount options string

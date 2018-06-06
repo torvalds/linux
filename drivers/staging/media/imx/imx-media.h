@@ -172,6 +172,8 @@ int imx_media_enum_ipu_format(u32 *code, u32 index, enum codespace_sel cs_sel);
 int imx_media_init_mbus_fmt(struct v4l2_mbus_framefmt *mbus,
 			    u32 width, u32 height, u32 code, u32 field,
 			    const struct imx_media_pixfmt **cc);
+int imx_media_init_cfg(struct v4l2_subdev *sd,
+		       struct v4l2_subdev_pad_config *cfg);
 void imx_media_fill_default_mbus_fields(struct v4l2_mbus_framefmt *tryfmt,
 					struct v4l2_mbus_framefmt *fmt,
 					bool ic_route);

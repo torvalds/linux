@@ -38,11 +38,6 @@ static int pcm179x_spi_probe(struct spi_device *spi)
 	return pcm179x_common_init(&spi->dev, regmap);
 }
 
-static int pcm179x_spi_remove(struct spi_device *spi)
-{
-	return pcm179x_common_exit(&spi->dev);
-}
-
 static const struct of_device_id pcm179x_of_match[] = {
 	{ .compatible = "ti,pcm1792a", },
 	{ }
@@ -62,7 +57,6 @@ static struct spi_driver pcm179x_spi_driver = {
 	},
 	.id_table = pcm179x_spi_ids,
 	.probe = pcm179x_spi_probe,
-	.remove = pcm179x_spi_remove,
 };
 
 module_spi_driver(pcm179x_spi_driver);

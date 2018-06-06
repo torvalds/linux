@@ -3173,13 +3173,6 @@ xlog_recover_inode_pass2(
 	/* recover the log dinode inode into the on disk inode */
 	xfs_log_dinode_to_disk(ldip, dip);
 
-	/* the rest is in on-disk format */
-	if (item->ri_buf[1].i_len > isize) {
-		memcpy((char *)dip + isize,
-			item->ri_buf[1].i_addr + isize,
-			item->ri_buf[1].i_len - isize);
-	}
-
 	fields = in_f->ilf_fields;
 	if (fields & XFS_ILOG_DEV)
 		xfs_dinode_put_rdev(dip, in_f->ilf_u.ilfu_rdev);
@@ -3252,7 +3245,9 @@ xlog_recover_inode_pass2(
 	}
 
 out_owner_change:
-	if (in_f->ilf_fields & (XFS_ILOG_DOWNER|XFS_ILOG_AOWNER))
+	/* Recover the swapext owner change unless inode has been deleted */
+	if ((in_f->ilf_fields & (XFS_ILOG_DOWNER|XFS_ILOG_AOWNER)) &&
+	    (dip->di_mode != 0))
 		error = xfs_recover_inode_owner_change(mp, dip, in_f,
 						       buffer_list);
 	/* re-generate the checksum. */
@@ -3434,7 +3429,7 @@ xlog_recover_efi_pass2(
 	}
 	atomic_set(&efip->efi_next_extent, efi_formatp->efi_nextents);
 
-	spin_lock(&log->l_ailp->xa_lock);
+	spin_lock(&log->l_ailp->ail_lock);
 	/*
 	 * The EFI has two references. One for the EFD and one for EFI to ensure
 	 * it makes it into the AIL. Insert the EFI into the AIL directly and
@@ -3477,7 +3472,7 @@ xlog_recover_efd_pass2(
 	 * Search for the EFI with the id in the EFD format structure in the
 	 * AIL.
 	 */
-	spin_lock(&ailp->xa_lock);
+	spin_lock(&ailp->ail_lock);
 	lip = xfs_trans_ail_cursor_first(ailp, &cur, 0);
 	while (lip != NULL) {
 		if (lip->li_type == XFS_LI_EFI) {
@@ -3487,9 +3482,9 @@ xlog_recover_efd_pass2(
 				 * Drop the EFD reference to the EFI. This
 				 * removes the EFI from the AIL and frees it.
 				 */
-				spin_unlock(&ailp->xa_lock);
+				spin_unlock(&ailp->ail_lock);
 				xfs_efi_release(efip);
-				spin_lock(&ailp->xa_lock);
+				spin_lock(&ailp->ail_lock);
 				break;
 			}
 		}
@@ -3497,7 +3492,7 @@ xlog_recover_efd_pass2(
 	}
 
 	xfs_trans_ail_cursor_done(&cur);
-	spin_unlock(&ailp->xa_lock);
+	spin_unlock(&ailp->ail_lock);
 
 	return 0;
 }
@@ -3530,7 +3525,7 @@ xlog_recover_rui_pass2(
 	}
 	atomic_set(&ruip->rui_next_extent, rui_formatp->rui_nextents);
 
-	spin_lock(&log->l_ailp->xa_lock);
+	spin_lock(&log->l_ailp->ail_lock);
 	/*
 	 * The RUI has two references. One for the RUD and one for RUI to ensure
 	 * it makes it into the AIL. Insert the RUI into the AIL directly and
@@ -3570,7 +3565,7 @@ xlog_recover_rud_pass2(
 	 * Search for the RUI with the id in the RUD format structure in the
 	 * AIL.
 	 */
-	spin_lock(&ailp->xa_lock);
+	spin_lock(&ailp->ail_lock);
 	lip = xfs_trans_ail_cursor_first(ailp, &cur, 0);
 	while (lip != NULL) {
 		if (lip->li_type == XFS_LI_RUI) {
@@ -3580,9 +3575,9 @@ xlog_recover_rud_pass2(
 				 * Drop the RUD reference to the RUI. This
 				 * removes the RUI from the AIL and frees it.
 				 */
-				spin_unlock(&ailp->xa_lock);
+				spin_unlock(&ailp->ail_lock);
 				xfs_rui_release(ruip);
-				spin_lock(&ailp->xa_lock);
+				spin_lock(&ailp->ail_lock);
 				break;
 			}
 		}
@@ -3590,7 +3585,7 @@ xlog_recover_rud_pass2(
 	}
 
 	xfs_trans_ail_cursor_done(&cur);
-	spin_unlock(&ailp->xa_lock);
+	spin_unlock(&ailp->ail_lock);
 
 	return 0;
 }
@@ -3646,7 +3641,7 @@ xlog_recover_cui_pass2(
 	}
 	atomic_set(&cuip->cui_next_extent, cui_formatp->cui_nextents);
 
-	spin_lock(&log->l_ailp->xa_lock);
+	spin_lock(&log->l_ailp->ail_lock);
 	/*
 	 * The CUI has two references. One for the CUD and one for CUI to ensure
 	 * it makes it into the AIL. Insert the CUI into the AIL directly and
@@ -3687,7 +3682,7 @@ xlog_recover_cud_pass2(
 	 * Search for the CUI with the id in the CUD format structure in the
 	 * AIL.
 	 */
-	spin_lock(&ailp->xa_lock);
+	spin_lock(&ailp->ail_lock);
 	lip = xfs_trans_ail_cursor_first(ailp, &cur, 0);
 	while (lip != NULL) {
 		if (lip->li_type == XFS_LI_CUI) {
@@ -3697,9 +3692,9 @@ xlog_recover_cud_pass2(
 				 * Drop the CUD reference to the CUI. This
 				 * removes the CUI from the AIL and frees it.
 				 */
-				spin_unlock(&ailp->xa_lock);
+				spin_unlock(&ailp->ail_lock);
 				xfs_cui_release(cuip);
-				spin_lock(&ailp->xa_lock);
+				spin_lock(&ailp->ail_lock);
 				break;
 			}
 		}
@@ -3707,7 +3702,7 @@ xlog_recover_cud_pass2(
 	}
 
 	xfs_trans_ail_cursor_done(&cur);
-	spin_unlock(&ailp->xa_lock);
+	spin_unlock(&ailp->ail_lock);
 
 	return 0;
 }
@@ -3765,7 +3760,7 @@ xlog_recover_bui_pass2(
 	}
 	atomic_set(&buip->bui_next_extent, bui_formatp->bui_nextents);
 
-	spin_lock(&log->l_ailp->xa_lock);
+	spin_lock(&log->l_ailp->ail_lock);
 	/*
 	 * The RUI has two references. One for the RUD and one for RUI to ensure
 	 * it makes it into the AIL. Insert the RUI into the AIL directly and
@@ -3806,7 +3801,7 @@ xlog_recover_bud_pass2(
 	 * Search for the BUI with the id in the BUD format structure in the
 	 * AIL.
 	 */
-	spin_lock(&ailp->xa_lock);
+	spin_lock(&ailp->ail_lock);
 	lip = xfs_trans_ail_cursor_first(ailp, &cur, 0);
 	while (lip != NULL) {
 		if (lip->li_type == XFS_LI_BUI) {
@@ -3816,9 +3811,9 @@ xlog_recover_bud_pass2(
 				 * Drop the BUD reference to the BUI. This
 				 * removes the BUI from the AIL and frees it.
 				 */
-				spin_unlock(&ailp->xa_lock);
+				spin_unlock(&ailp->ail_lock);
 				xfs_bui_release(buip);
-				spin_lock(&ailp->xa_lock);
+				spin_lock(&ailp->ail_lock);
 				break;
 			}
 		}
@@ -3826,7 +3821,7 @@ xlog_recover_bud_pass2(
 	}
 
 	xfs_trans_ail_cursor_done(&cur);
-	spin_unlock(&ailp->xa_lock);
+	spin_unlock(&ailp->ail_lock);
 
 	return 0;
 }
@@ -4659,9 +4654,9 @@ xlog_recover_process_efi(
 	if (test_bit(XFS_EFI_RECOVERED, &efip->efi_flags))
 		return 0;
 
-	spin_unlock(&ailp->xa_lock);
+	spin_unlock(&ailp->ail_lock);
 	error = xfs_efi_recover(mp, efip);
-	spin_lock(&ailp->xa_lock);
+	spin_lock(&ailp->ail_lock);
 
 	return error;
 }
@@ -4677,9 +4672,9 @@ xlog_recover_cancel_efi(
 
 	efip = container_of(lip, struct xfs_efi_log_item, efi_item);
 
-	spin_unlock(&ailp->xa_lock);
+	spin_unlock(&ailp->ail_lock);
 	xfs_efi_release(efip);
-	spin_lock(&ailp->xa_lock);
+	spin_lock(&ailp->ail_lock);
 }
 
 /* Recover the RUI if necessary. */
@@ -4699,9 +4694,9 @@ xlog_recover_process_rui(
 	if (test_bit(XFS_RUI_RECOVERED, &ruip->rui_flags))
 		return 0;
 
-	spin_unlock(&ailp->xa_lock);
+	spin_unlock(&ailp->ail_lock);
 	error = xfs_rui_recover(mp, ruip);
-	spin_lock(&ailp->xa_lock);
+	spin_lock(&ailp->ail_lock);
 
 	return error;
 }
@@ -4717,9 +4712,9 @@ xlog_recover_cancel_rui(
 
 	ruip = container_of(lip, struct xfs_rui_log_item, rui_item);
 
-	spin_unlock(&ailp->xa_lock);
+	spin_unlock(&ailp->ail_lock);
 	xfs_rui_release(ruip);
-	spin_lock(&ailp->xa_lock);
+	spin_lock(&ailp->ail_lock);
 }
 
 /* Recover the CUI if necessary. */
@@ -4740,9 +4735,9 @@ xlog_recover_process_cui(
 	if (test_bit(XFS_CUI_RECOVERED, &cuip->cui_flags))
 		return 0;
 
-	spin_unlock(&ailp->xa_lock);
+	spin_unlock(&ailp->ail_lock);
 	error = xfs_cui_recover(mp, cuip, dfops);
-	spin_lock(&ailp->xa_lock);
+	spin_lock(&ailp->ail_lock);
 
 	return error;
 }
@@ -4758,9 +4753,9 @@ xlog_recover_cancel_cui(
 
 	cuip = container_of(lip, struct xfs_cui_log_item, cui_item);
 
-	spin_unlock(&ailp->xa_lock);
+	spin_unlock(&ailp->ail_lock);
 	xfs_cui_release(cuip);
-	spin_lock(&ailp->xa_lock);
+	spin_lock(&ailp->ail_lock);
 }
 
 /* Recover the BUI if necessary. */
@@ -4781,9 +4776,9 @@ xlog_recover_process_bui(
 	if (test_bit(XFS_BUI_RECOVERED, &buip->bui_flags))
 		return 0;
 
-	spin_unlock(&ailp->xa_lock);
+	spin_unlock(&ailp->ail_lock);
 	error = xfs_bui_recover(mp, buip, dfops);
-	spin_lock(&ailp->xa_lock);
+	spin_lock(&ailp->ail_lock);
 
 	return error;
 }
@@ -4799,9 +4794,9 @@ xlog_recover_cancel_bui(
 
 	buip = container_of(lip, struct xfs_bui_log_item, bui_item);
 
-	spin_unlock(&ailp->xa_lock);
+	spin_unlock(&ailp->ail_lock);
 	xfs_bui_release(buip);
-	spin_lock(&ailp->xa_lock);
+	spin_lock(&ailp->ail_lock);
 }
 
 /* Is this log item a deferred action intent? */
@@ -4889,7 +4884,7 @@ xlog_recover_process_intents(
 #endif
 
 	ailp = log->l_ailp;
-	spin_lock(&ailp->xa_lock);
+	spin_lock(&ailp->ail_lock);
 	lip = xfs_trans_ail_cursor_first(ailp, &cur, 0);
 #if defined(DEBUG) || defined(XFS_WARN)
 	last_lsn = xlog_assign_lsn(log->l_curr_cycle, log->l_curr_block);
@@ -4943,7 +4938,7 @@ xlog_recover_process_intents(
 	}
 out:
 	xfs_trans_ail_cursor_done(&cur);
-	spin_unlock(&ailp->xa_lock);
+	spin_unlock(&ailp->ail_lock);
 	if (error)
 		xfs_defer_cancel(&dfops);
 	else
@@ -4966,7 +4961,7 @@ xlog_recover_cancel_intents(
 	struct xfs_ail		*ailp;
 
 	ailp = log->l_ailp;
-	spin_lock(&ailp->xa_lock);
+	spin_lock(&ailp->ail_lock);
 	lip = xfs_trans_ail_cursor_first(ailp, &cur, 0);
 	while (lip != NULL) {
 		/*
@@ -5000,7 +4995,7 @@ xlog_recover_cancel_intents(
 	}
 
 	xfs_trans_ail_cursor_done(&cur);
-	spin_unlock(&ailp->xa_lock);
+	spin_unlock(&ailp->ail_lock);
 	return error;
 }
 
@@ -5127,15 +5122,8 @@ xlog_recover_process_iunlinks(
 	xfs_agino_t	agino;
 	int		bucket;
 	int		error;
-	uint		mp_dmevmask;
 
 	mp = log->l_mp;
-
-	/*
-	 * Prevent any DMAPI event from being sent while in this function.
-	 */
-	mp_dmevmask = mp->m_dmevmask;
-	mp->m_dmevmask = 0;
 
 	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
 		/*
@@ -5172,8 +5160,6 @@ xlog_recover_process_iunlinks(
 		}
 		xfs_buf_rele(agibp);
 	}
-
-	mp->m_dmevmask = mp_dmevmask;
 }
 
 STATIC int

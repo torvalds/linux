@@ -1,6 +1,6 @@
 /*
  * drivers/net/ethernet/mellanox/mlxsw/spectrum_acl_flex_actions.c
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017, 2018 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2017 Jiri Pirko <jiri@mellanox.com>
  * Copyright (c) 2017 Yotam Gigi <yotamg@mellanox.com>
  *
@@ -35,6 +35,7 @@
 
 #include "spectrum_acl_flex_actions.h"
 #include "core_acl_flex_actions.h"
+#include "spectrum_span.h"
 
 #define MLXSW_SP_KVDL_ACT_EXT_SIZE 1
 
@@ -125,40 +126,23 @@ mlxsw_sp_act_counter_index_put(void *priv, unsigned int counter_index)
 }
 
 static int
-mlxsw_sp_act_mirror_add(void *priv, u8 local_in_port, u8 local_out_port,
+mlxsw_sp_act_mirror_add(void *priv, u8 local_in_port,
+			const struct net_device *out_dev,
 			bool ingress, int *p_span_id)
 {
-	struct mlxsw_sp_port *in_port, *out_port;
-	struct mlxsw_sp_span_entry *span_entry;
+	struct mlxsw_sp_port *in_port;
 	struct mlxsw_sp *mlxsw_sp = priv;
 	enum mlxsw_sp_span_type type;
-	int err;
 
 	type = ingress ? MLXSW_SP_SPAN_INGRESS : MLXSW_SP_SPAN_EGRESS;
-	out_port = mlxsw_sp->ports[local_out_port];
 	in_port = mlxsw_sp->ports[local_in_port];
 
-	err = mlxsw_sp_span_mirror_add(in_port, out_port, type, false);
-	if (err)
-		return err;
-
-	span_entry = mlxsw_sp_span_entry_find(mlxsw_sp, local_out_port);
-	if (!span_entry) {
-		err = -ENOENT;
-		goto err_span_entry_find;
-	}
-
-	*p_span_id = span_entry->id;
-	return 0;
-
-err_span_entry_find:
-	mlxsw_sp_span_mirror_del(in_port, local_out_port, type, false);
-	return err;
+	return mlxsw_sp_span_mirror_add(in_port, out_dev, type,
+					false, p_span_id);
 }
 
 static void
-mlxsw_sp_act_mirror_del(void *priv, u8 local_in_port, u8 local_out_port,
-			bool ingress)
+mlxsw_sp_act_mirror_del(void *priv, u8 local_in_port, int span_id, bool ingress)
 {
 	struct mlxsw_sp *mlxsw_sp = priv;
 	struct mlxsw_sp_port *in_port;
@@ -167,7 +151,7 @@ mlxsw_sp_act_mirror_del(void *priv, u8 local_in_port, u8 local_out_port,
 	type = ingress ? MLXSW_SP_SPAN_INGRESS : MLXSW_SP_SPAN_EGRESS;
 	in_port = mlxsw_sp->ports[local_in_port];
 
-	mlxsw_sp_span_mirror_del(in_port, local_out_port, type, false);
+	mlxsw_sp_span_mirror_del(in_port, span_id, type, false);
 }
 
 static const struct mlxsw_afa_ops mlxsw_sp_act_afa_ops = {

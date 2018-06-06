@@ -490,7 +490,6 @@ ia_css_binary_get_shading_info_type_1(const struct ia_css_binary *binary,	/* [in
 	struct sh_css_shading_table_bayer_origin_compute_results res;
 #else
 	struct sh_css_binary_sc_requirements scr;
-	struct ia_css_shading_info default_shading_info_type_1 = DEFAULT_SHADING_INFO_TYPE_1;
 #endif
 
 #ifndef ISP2401
@@ -542,7 +541,7 @@ ia_css_binary_get_shading_info_type_1(const struct ia_css_binary *binary,	/* [in
 		&res);
 	if (err != IA_CSS_SUCCESS)
 #else
-	*shading_info = default_shading_info_type_1;
+	*shading_info = DEFAULT_SHADING_INFO_TYPE_1;
 
 	err = sh_css_binary_get_sc_requirements(binary, required_bds_factor, stream_config, &scr);
 	if (err != IA_CSS_SUCCESS) {
@@ -862,7 +861,7 @@ binary_supports_output_format(const struct ia_css_binary_xinfo *info,
 #ifdef ISP2401
 static bool
 binary_supports_input_format(const struct ia_css_binary_xinfo *info,
-			     enum ia_css_stream_format format)
+			     enum atomisp_input_format format)
 {
 
 	assert(info != NULL);
@@ -1089,7 +1088,7 @@ enum ia_css_err
 ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 		 bool online,
 		 bool two_ppc,
-		 enum ia_css_stream_format stream_format,
+		 enum atomisp_input_format stream_format,
 		 const struct ia_css_frame_info *in_info, /* can be NULL */
 		 const struct ia_css_frame_info *bds_out_info, /* can be NULL */
 		 const struct ia_css_frame_info *out_info[], /* can be NULL */
@@ -1383,7 +1382,7 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
 	int mode;
 	bool online;
 	bool two_ppc;
-	enum ia_css_stream_format stream_format;
+	enum atomisp_input_format stream_format;
 	const struct ia_css_frame_info *req_in_info,
 				       *req_bds_out_info,
 				       *req_out_info[IA_CSS_BINARY_MAX_OUTPUT_PORTS],

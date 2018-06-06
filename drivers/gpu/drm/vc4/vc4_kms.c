@@ -215,6 +215,7 @@ int vc4_kms_load(struct drm_device *dev)
 	dev->mode_config.funcs = &vc4_mode_funcs;
 	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.async_page_flip = true;
+	dev->mode_config.allow_fb_modifiers = true;
 
 	drm_mode_config_reset(dev);
 

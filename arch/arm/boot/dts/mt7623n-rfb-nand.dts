@@ -81,13 +81,13 @@
 
 &pio {
 	nand_pins_default: nanddefault {
-		pins_ale {
+		pins-ale {
 			pinmux = <MT7623_PIN_116_MSDC0_CMD_FUNC_NALE>;
 			drive-strength = <MTK_DRIVE_8mA>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
 		};
 
-		pins_dat {
+		pins-dat {
 			pinmux = <MT7623_PIN_111_MSDC0_DAT7_FUNC_NLD7>,
 				 <MT7623_PIN_112_MSDC0_DAT6_FUNC_NLD6>,
 				 <MT7623_PIN_114_MSDC0_DAT4_FUNC_NLD4>,
@@ -102,7 +102,7 @@
 			bias-pull-up;
 		};
 
-		pins_we {
+		pins-we {
 			pinmux = <MT7623_PIN_117_MSDC0_CLK_FUNC_NWEB>;
 			drive-strength = <MTK_DRIVE_8mA>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_10>;

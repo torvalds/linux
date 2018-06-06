@@ -1847,9 +1847,9 @@ ixgbe_setup_mac_link_sfp_x550a(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 			 (IXGBE_CS4227_EDC_MODE_SR << 1));
 
 	if (setup_linear)
-		reg_phy_ext = (IXGBE_CS4227_EDC_MODE_CX1 << 1) | 1;
+		reg_phy_ext |= (IXGBE_CS4227_EDC_MODE_CX1 << 1) | 1;
 	else
-		reg_phy_ext = (IXGBE_CS4227_EDC_MODE_SR << 1) | 1;
+		reg_phy_ext |= (IXGBE_CS4227_EDC_MODE_SR << 1) | 1;
 
 	ret_val = hw->phy.ops.write_reg(hw, reg_slice,
 					IXGBE_MDIO_ZERO_DEV_TYPE, reg_phy_ext);
@@ -3426,6 +3426,9 @@ static s32 ixgbe_reset_hw_X550em(struct ixgbe_hw *hw)
 		status = hw->mac.ops.setup_sfp(hw);
 		hw->phy.sfp_setup_needed = false;
 	}
+
+	if (status == IXGBE_ERR_SFP_NOT_SUPPORTED)
+		return status;
 
 	/* Reset PHY */
 	if (!hw->phy.reset_disable && hw->phy.ops.reset)

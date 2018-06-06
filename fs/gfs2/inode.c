@@ -1326,19 +1326,11 @@ static int gfs2_ok_to_move(struct gfs2_inode *this, struct gfs2_inode *to)
 static int update_moved_ino(struct gfs2_inode *ip, struct gfs2_inode *ndip,
 			    int dir_rename)
 {
-	int error;
-	struct buffer_head *dibh;
-
 	if (dir_rename)
 		return gfs2_dir_mvino(ip, &gfs2_qdotdot, ndip, DT_DIR);
 
-	error = gfs2_meta_inode_buffer(ip, &dibh);
-	if (error)
-		return error;
 	ip->i_inode.i_ctime = current_time(&ip->i_inode);
-	gfs2_trans_add_meta(ip->i_gl, dibh);
-	gfs2_dinode_out(ip, dibh->b_data);
-	brelse(dibh);
+	mark_inode_dirty_sync(&ip->i_inode);
 	return 0;
 }
 

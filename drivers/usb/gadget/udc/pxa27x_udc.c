@@ -131,6 +131,7 @@ static int state_dbg_show(struct seq_file *s, void *p)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(state_dbg);
 
 static int queues_dbg_show(struct seq_file *s, void *p)
 {
@@ -163,6 +164,7 @@ static int queues_dbg_show(struct seq_file *s, void *p)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(queues_dbg);
 
 static int eps_dbg_show(struct seq_file *s, void *p)
 {
@@ -199,45 +201,7 @@ static int eps_dbg_show(struct seq_file *s, void *p)
 
 	return 0;
 }
-
-static int eps_dbg_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, eps_dbg_show, inode->i_private);
-}
-
-static int queues_dbg_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, queues_dbg_show, inode->i_private);
-}
-
-static int state_dbg_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, state_dbg_show, inode->i_private);
-}
-
-static const struct file_operations state_dbg_fops = {
-	.owner		= THIS_MODULE,
-	.open		= state_dbg_open,
-	.llseek		= seq_lseek,
-	.read		= seq_read,
-	.release	= single_release,
-};
-
-static const struct file_operations queues_dbg_fops = {
-	.owner		= THIS_MODULE,
-	.open		= queues_dbg_open,
-	.llseek		= seq_lseek,
-	.read		= seq_read,
-	.release	= single_release,
-};
-
-static const struct file_operations eps_dbg_fops = {
-	.owner		= THIS_MODULE,
-	.open		= eps_dbg_open,
-	.llseek		= seq_lseek,
-	.read		= seq_read,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(eps_dbg);
 
 static void pxa_init_debugfs(struct pxa_udc *udc)
 {

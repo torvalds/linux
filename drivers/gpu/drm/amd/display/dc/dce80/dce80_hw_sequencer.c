@@ -70,47 +70,11 @@ static const struct dce80_hw_seq_reg_offsets reg_offsets[] = {
 
 /***************************PIPE_CONTROL***********************************/
 
-static bool dce80_enable_display_power_gating(
-	struct dc *dc,
-	uint8_t controller_id,
-	struct dc_bios *dcb,
-	enum pipe_gating_control power_gating)
-{
-	enum bp_result bp_result = BP_RESULT_OK;
-	enum bp_pipe_control_action cntl;
-	struct dc_context *ctx = dc->ctx;
-
-	if (power_gating == PIPE_GATING_CONTROL_INIT)
-		cntl = ASIC_PIPE_INIT;
-	else if (power_gating == PIPE_GATING_CONTROL_ENABLE)
-		cntl = ASIC_PIPE_ENABLE;
-	else
-		cntl = ASIC_PIPE_DISABLE;
-
-	if (!(power_gating == PIPE_GATING_CONTROL_INIT && controller_id != 0)){
-
-		bp_result = dcb->funcs->enable_disp_power_gating(
-						dcb, controller_id + 1, cntl);
-
-		/* Revert MASTER_UPDATE_MODE to 0 because bios sets it 2
-		 * by default when command table is called
-		 */
-		dm_write_reg(ctx,
-			HW_REG_CRTC(mmMASTER_UPDATE_MODE, controller_id),
-			0);
-	}
-
-	if (bp_result == BP_RESULT_OK)
-		return true;
-	else
-		return false;
-}
-
 void dce80_hw_sequencer_construct(struct dc *dc)
 {
 	dce110_hw_sequencer_construct(dc);
 
-	dc->hwss.enable_display_power_gating = dce80_enable_display_power_gating;
+	dc->hwss.enable_display_power_gating = dce100_enable_display_power_gating;
 	dc->hwss.pipe_control_lock = dce_pipe_control_lock;
 	dc->hwss.set_bandwidth = dce100_set_bandwidth;
 }

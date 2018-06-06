@@ -72,6 +72,7 @@ fmr_op_init_mr(struct rpcrdma_ia *ia, struct rpcrdma_mr *mr)
 	if (IS_ERR(mr->fmr.fm_mr))
 		goto out_fmr_err;
 
+	INIT_LIST_HEAD(&mr->mr_list);
 	return 0;
 
 out_fmr_err:
@@ -101,10 +102,6 @@ fmr_op_release_mr(struct rpcrdma_mr *mr)
 {
 	LIST_HEAD(unmap_list);
 	int rc;
-
-	/* Ensure MW is not on any rl_registered list */
-	if (!list_empty(&mr->mr_list))
-		list_del(&mr->mr_list);
 
 	kfree(mr->fmr.fm_physaddrs);
 	kfree(mr->mr_sg);
@@ -191,7 +188,7 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 
 	mr = rpcrdma_mr_get(r_xprt);
 	if (!mr)
-		return ERR_PTR(-ENOBUFS);
+		return ERR_PTR(-EAGAIN);
 
 	pageoff = offset_in_page(seg1->mr_offset);
 	seg1->mr_offset -= pageoff;	/* start of page */
@@ -251,6 +248,16 @@ out_maperr:
 	return ERR_PTR(-EIO);
 }
 
+/* Post Send WR containing the RPC Call message.
+ */
+static int
+fmr_op_send(struct rpcrdma_ia *ia, struct rpcrdma_req *req)
+{
+	struct ib_send_wr *bad_wr;
+
+	return ib_post_send(ia->ri_id->qp, &req->rl_sendctx->sc_wr, &bad_wr);
+}
+
 /* Invalidate all memory regions that were registered for "req".
  *
  * Sleeps until it is safe for the host CPU to access the
@@ -305,6 +312,7 @@ out_reset:
 
 const struct rpcrdma_memreg_ops rpcrdma_fmr_memreg_ops = {
 	.ro_map				= fmr_op_map,
+	.ro_send			= fmr_op_send,
 	.ro_unmap_sync			= fmr_op_unmap_sync,
 	.ro_recover_mr			= fmr_op_recover_mr,
 	.ro_open			= fmr_op_open,

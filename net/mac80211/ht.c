@@ -466,6 +466,21 @@ void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
 		__ieee80211_stop_tx_ba_session(sta, tid, AGG_STOP_PEER_REQUEST);
 }
 
+enum nl80211_smps_mode
+ieee80211_smps_mode_to_smps_mode(enum ieee80211_smps_mode smps)
+{
+	switch (smps) {
+	case IEEE80211_SMPS_OFF:
+		return NL80211_SMPS_OFF;
+	case IEEE80211_SMPS_STATIC:
+		return NL80211_SMPS_STATIC;
+	case IEEE80211_SMPS_DYNAMIC:
+		return NL80211_SMPS_DYNAMIC;
+	default:
+		return NL80211_SMPS_OFF;
+	}
+}
+
 int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 			       enum ieee80211_smps_mode smps, const u8 *da,
 			       const u8 *bssid)

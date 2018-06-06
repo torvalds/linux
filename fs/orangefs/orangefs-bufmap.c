@@ -71,9 +71,9 @@ static void put(struct slot_map *m, int slot)
 	spin_lock(&m->q.lock);
 	__clear_bit(slot, m->map);
 	v = ++m->c;
-	if (unlikely(v == 1))	/* no free slots -> one free slot */
+	if (v > 0)
 		wake_up_locked(&m->q);
-	else if (unlikely(v == -1))	/* finished dying */
+	if (unlikely(v == -1))     /* finished dying */
 		wake_up_all_locked(&m->q);
 	spin_unlock(&m->q.lock);
 }

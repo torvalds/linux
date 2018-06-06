@@ -94,6 +94,9 @@ typedef struct siginfo {
 			unsigned int _flags;	/* see ia64 si_flags */
 			unsigned long _isr;	/* isr */
 #endif
+
+#define __ADDR_BND_PKEY_PAD  (__alignof__(void *) < sizeof(short) ? \
+			      sizeof(short) : __alignof__(void *))
 			union {
 				/*
 				 * used when si_code=BUS_MCEERR_AR or
@@ -102,13 +105,13 @@ typedef struct siginfo {
 				short _addr_lsb; /* LSB of the reported address */
 				/* used when si_code=SEGV_BNDERR */
 				struct {
-					void *_dummy_bnd;
+					char _dummy_bnd[__ADDR_BND_PKEY_PAD];
 					void __user *_lower;
 					void __user *_upper;
 				} _addr_bnd;
 				/* used when si_code=SEGV_PKUERR */
 				struct {
-					void *_dummy_pkey;
+					char _dummy_pkey[__ADDR_BND_PKEY_PAD];
 					__u32 _pkey;
 				} _addr_pkey;
 			};
@@ -179,33 +182,16 @@ typedef struct siginfo {
  * SIGILL si_codes
  */
 #define ILL_ILLOPC	1	/* illegal opcode */
-#ifdef __bfin__
-# define ILL_ILLPARAOP	2	/* illegal opcode combine */
-#endif
 #define ILL_ILLOPN	2	/* illegal operand */
 #define ILL_ILLADR	3	/* illegal addressing mode */
 #define ILL_ILLTRP	4	/* illegal trap */
-#ifdef __bfin__
-# define ILL_ILLEXCPT	4	/* unrecoverable exception */
-#endif
 #define ILL_PRVOPC	5	/* privileged opcode */
 #define ILL_PRVREG	6	/* privileged register */
 #define ILL_COPROC	7	/* coprocessor error */
 #define ILL_BADSTK	8	/* internal stack error */
-#ifdef __bfin__
-# define ILL_CPLB_VI	9	/* D/I CPLB protect violation */
-# define ILL_CPLB_MISS	10	/* D/I CPLB miss */
-# define ILL_CPLB_MULHIT 11	/* D/I CPLB multiple hit */
-#endif
-#ifdef __tile__
-# define ILL_DBLFLT	9	/* double fault */
-# define ILL_HARDWALL	10	/* user networks hardwall violation */
-#endif
-#ifdef __ia64__
-# define ILL_BADIADDR	9	/* unimplemented instruction address */
-# define __ILL_BREAK	10	/* illegal break */
-# define __ILL_BNDMOD	11	/* bundle-update (modification) in progress */
-#endif
+#define ILL_BADIADDR	9	/* unimplemented instruction address */
+#define __ILL_BREAK	10	/* illegal break */
+#define __ILL_BNDMOD	11	/* bundle-update (modification) in progress */
 #define NSIGILL		11
 
 /*
@@ -219,34 +205,30 @@ typedef struct siginfo {
 #define FPE_FLTRES	6	/* floating point inexact result */
 #define FPE_FLTINV	7	/* floating point invalid operation */
 #define FPE_FLTSUB	8	/* subscript out of range */
-#ifdef __frv__
-# define FPE_MDAOVF	9	/* media overflow */
-#endif
-#ifdef __ia64__
-# define __FPE_DECOVF	9	/* decimal overflow */
-# define __FPE_DECDIV	10	/* decimal division by zero */
-# define __FPE_DECERR	11	/* packed decimal error */
-# define __FPE_INVASC	12	/* invalid ASCII digit */
-# define __FPE_INVDEC	13	/* invalid decimal digit */
-#endif
-#define NSIGFPE		13
+#define __FPE_DECOVF	9	/* decimal overflow */
+#define __FPE_DECDIV	10	/* decimal division by zero */
+#define __FPE_DECERR	11	/* packed decimal error */
+#define __FPE_INVASC	12	/* invalid ASCII digit */
+#define __FPE_INVDEC	13	/* invalid decimal digit */
+#define FPE_FLTUNK	14	/* undiagnosed floating-point exception */
+#define FPE_CONDTRAP	15	/* trap on condition */
+#define NSIGFPE		15
 
 /*
  * SIGSEGV si_codes
  */
 #define SEGV_MAPERR	1	/* address not mapped to object */
 #define SEGV_ACCERR	2	/* invalid permissions for mapped object */
-#ifdef __bfin__
-# define SEGV_STACKFLOW	3	/* stack overflow */
-#else
-# define SEGV_BNDERR	3	/* failed address bound checks */
-#endif
+#define SEGV_BNDERR	3	/* failed address bound checks */
 #ifdef __ia64__
 # define __SEGV_PSTKOVF	4	/* paragraph stack overflow */
 #else
 # define SEGV_PKUERR	4	/* failed protection key checks */
 #endif
-#define NSIGSEGV	4
+#define SEGV_ACCADI	5	/* ADI not enabled for mapped object */
+#define SEGV_ADIDERR	6	/* Disrupting MCD error */
+#define SEGV_ADIPERR	7	/* Precise MCD exception */
+#define NSIGSEGV	7
 
 /*
  * SIGBUS si_codes
@@ -254,12 +236,8 @@ typedef struct siginfo {
 #define BUS_ADRALN	1	/* invalid address alignment */
 #define BUS_ADRERR	2	/* non-existent physical address */
 #define BUS_OBJERR	3	/* object specific hardware error */
-#ifdef __bfin__
-# define BUS_OPFETCH	4	/* error from instruction fetch */
-#else
 /* hardware memory error consumed on a machine check: action required */
-# define BUS_MCEERR_AR	4
-#endif
+#define BUS_MCEERR_AR	4
 /* hardware memory error detected in process but not consumed: action optional*/
 #define BUS_MCEERR_AO	5
 #define NSIGBUS		5
@@ -271,12 +249,6 @@ typedef struct siginfo {
 #define TRAP_TRACE	2	/* process trace trap */
 #define TRAP_BRANCH     3	/* process taken branch trap */
 #define TRAP_HWBKPT     4	/* hardware breakpoint/watchpoint */
-#ifdef __bfin__
-# define TRAP_STEP	1	/* single-step breakpoint */
-# define TRAP_TRACEFLOW	2	/* trace buffer overflow */
-# define TRAP_WATCHPT	3	/* watchpoint match */
-# define TRAP_ILLTRAP	4	/* illegal trap */
-#endif
 #define NSIGTRAP	4
 
 /*

@@ -587,7 +587,7 @@ static void atp_complete_geyser_1_2(struct urb *urb)
 		/* Perform size detection, if not done already */
 		if (unlikely(!dev->size_detect_done)) {
 			atp_detect_size(dev);
-			dev->size_detect_done = 1;
+			dev->size_detect_done = true;
 			goto exit;
 		}
 	}
@@ -813,7 +813,7 @@ static int atp_open(struct input_dev *input)
 	if (usb_submit_urb(dev->urb, GFP_ATOMIC))
 		return -EIO;
 
-	dev->open = 1;
+	dev->open = true;
 	return 0;
 }
 
@@ -823,7 +823,7 @@ static void atp_close(struct input_dev *input)
 
 	usb_kill_urb(dev->urb);
 	cancel_work_sync(&dev->work);
-	dev->open = 0;
+	dev->open = false;
 }
 
 static int atp_handle_geyser(struct atp *dev)

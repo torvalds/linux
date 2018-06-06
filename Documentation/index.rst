@@ -64,6 +64,7 @@ merged much easier.
    dev-tools/index
    doc-guide/index
    kernel-hacking/index
+   trace/index
    maintainer/index
 
 Kernel API documentation

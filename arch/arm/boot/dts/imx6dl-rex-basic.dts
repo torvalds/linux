@@ -16,7 +16,7 @@
 	model = "Rex Basic i.MX6 Dual Lite Board";
 	compatible = "rex,imx6dl-rex-basic", "fsl,imx6dl";
 
-	memory {
+	memory@10000000 {
 		reg = <0x10000000 0x20000000>;
 	};
 };

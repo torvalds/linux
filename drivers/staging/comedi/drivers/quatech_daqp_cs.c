@@ -248,7 +248,7 @@ static irqreturn_t daqp_interrupt(int irq, void *dev_id)
 
 	if (loop_limit <= 0) {
 		dev_warn(dev->class_dev,
-			 "loop_limit reached in daqp_interrupt()\n");
+			 "loop_limit reached in %s()\n", __func__);
 		s->async->events |= COMEDI_CB_ERROR;
 	}
 

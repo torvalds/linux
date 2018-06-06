@@ -6,7 +6,7 @@ communicating in English you can also ask the Chinese maintainer for
 help.  Contact the Chinese maintainer if this translation is outdated
 or if there is a problem with the translation.
 
-Maintainer: Mauro Carvalho Chehab <mchehab@infradead.org>
+Maintainer: Mauro Carvalho Chehab <mchehab@kernel.org>
 Chinese maintainer: Fu Wei <tekkamanninja@gmail.com>
 ---------------------------------------------------------------------
 Documentation/video4linux/v4l2-framework.txt 的中文翻译
@@ -14,7 +14,7 @@ Documentation/video4linux/v4l2-framework.txt 的中文翻译
 如果想评论或更新本文的内容，请直接联系原文档的维护者。如果你使用英文
 交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻
 译存在问题，请联系中文版维护者。
-英文版维护者： Mauro Carvalho Chehab <mchehab@infradead.org>
+英文版维护者： Mauro Carvalho Chehab <mchehab@kernel.org>
 中文版维护者： 傅炜 Fu Wei <tekkamanninja@gmail.com>
 中文版翻译者： 傅炜 Fu Wei <tekkamanninja@gmail.com>
 中文版校译者： 傅炜 Fu Wei <tekkamanninja@gmail.com>

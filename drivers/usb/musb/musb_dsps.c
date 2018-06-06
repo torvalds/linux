@@ -451,7 +451,6 @@ static int dsps_musb_init(struct musb *musb)
 	if (!rev)
 		return -ENODEV;
 
-	usb_phy_init(musb->xceiv);
 	if (IS_ERR(musb->phy))  {
 		musb->phy = NULL;
 	} else {
@@ -501,7 +500,6 @@ static int dsps_musb_exit(struct musb *musb)
 	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
 
 	del_timer_sync(&musb->dev_timer);
-	usb_phy_shutdown(musb->xceiv);
 	phy_power_off(musb->phy);
 	phy_exit(musb->phy);
 	debugfs_remove_recursive(glue->dbgfs_root);

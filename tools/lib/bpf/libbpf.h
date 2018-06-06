@@ -248,6 +248,14 @@ int bpf_map__pin(struct bpf_map *map, const char *path);
 
 long libbpf_get_error(const void *ptr);
 
+struct bpf_prog_load_attr {
+	const char *file;
+	enum bpf_prog_type prog_type;
+	enum bpf_attach_type expected_attach_type;
+};
+
+int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
+			struct bpf_object **pobj, int *prog_fd);
 int bpf_prog_load(const char *file, enum bpf_prog_type type,
 		  struct bpf_object **pobj, int *prog_fd);
 

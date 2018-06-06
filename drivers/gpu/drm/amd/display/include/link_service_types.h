@@ -58,11 +58,14 @@ enum {
 
 enum link_training_result {
 	LINK_TRAINING_SUCCESS,
-	LINK_TRAINING_CR_FAIL,
+	LINK_TRAINING_CR_FAIL_LANE0,
+	LINK_TRAINING_CR_FAIL_LANE1,
+	LINK_TRAINING_CR_FAIL_LANE23,
 	/* CR DONE bit is cleared during EQ step */
 	LINK_TRAINING_EQ_FAIL_CR,
 	/* other failure during EQ step */
 	LINK_TRAINING_EQ_FAIL_EQ,
+	LINK_TRAINING_LQA_FAIL,
 };
 
 struct link_training_settings {

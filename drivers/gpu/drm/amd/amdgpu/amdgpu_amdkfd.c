@@ -30,6 +30,8 @@
 const struct kgd2kfd_calls *kgd2kfd;
 bool (*kgd2kfd_init_p)(unsigned int, const struct kgd2kfd_calls**);
 
+static const unsigned int compute_vmid_bitmap = 0xFF00;
+
 int amdgpu_amdkfd_init(void)
 {
 	int ret;
@@ -56,6 +58,7 @@ int amdgpu_amdkfd_init(void)
 #else
 	ret = -ENOENT;
 #endif
+	amdgpu_amdkfd_gpuvm_init_mem_limits();
 
 	return ret;
 }
@@ -78,10 +81,15 @@ void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 #ifdef CONFIG_DRM_AMDGPU_CIK
 	case CHIP_KAVERI:
+	case CHIP_HAWAII:
 		kfd2kgd = amdgpu_amdkfd_gfx_7_get_functions();
 		break;
 #endif
 	case CHIP_CARRIZO:
+	case CHIP_TONGA:
+	case CHIP_FIJI:
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
 		kfd2kgd = amdgpu_amdkfd_gfx_8_0_get_functions();
 		break;
 	default:
@@ -132,9 +140,13 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 	int last_valid_bit;
 	if (adev->kfd) {
 		struct kgd2kfd_shared_resources gpu_resources = {
-			.compute_vmid_bitmap = 0xFF00,
+			.compute_vmid_bitmap = compute_vmid_bitmap,
 			.num_pipe_per_mec = adev->gfx.mec.num_pipe_per_mec,
-			.num_queue_per_pipe = adev->gfx.mec.num_queue_per_pipe
+			.num_queue_per_pipe = adev->gfx.mec.num_queue_per_pipe,
+			.gpuvm_size = min(adev->vm_manager.max_pfn
+					  << AMDGPU_GPU_PAGE_SHIFT,
+					  AMDGPU_VA_HOLE_START),
+			.drm_render_minor = adev->ddev->render->index
 		};
 
 		/* this is going to have a few of the MSBs set that we need to
@@ -204,20 +216,14 @@ int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 			void **cpu_ptr)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
-	struct kgd_mem **mem = (struct kgd_mem **) mem_obj;
+	struct amdgpu_bo *bo = NULL;
 	int r;
+	uint64_t gpu_addr_tmp = 0;
+	void *cpu_ptr_tmp = NULL;
 
-	BUG_ON(kgd == NULL);
-	BUG_ON(gpu_addr == NULL);
-	BUG_ON(cpu_ptr == NULL);
-
-	*mem = kmalloc(sizeof(struct kgd_mem), GFP_KERNEL);
-	if ((*mem) == NULL)
-		return -ENOMEM;
-
-	r = amdgpu_bo_create(adev, size, PAGE_SIZE, true, AMDGPU_GEM_DOMAIN_GTT,
-			     AMDGPU_GEM_CREATE_CPU_GTT_USWC, NULL, NULL, 0,
-			     &(*mem)->bo);
+	r = amdgpu_bo_create(adev, size, PAGE_SIZE, AMDGPU_GEM_DOMAIN_GTT,
+			     AMDGPU_GEM_CREATE_CPU_GTT_USWC, ttm_bo_type_kernel,
+			     NULL, &bo);
 	if (r) {
 		dev_err(adev->dev,
 			"failed to allocate BO for amdkfd (%d)\n", r);
@@ -225,54 +231,53 @@ int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 	}
 
 	/* map the buffer */
-	r = amdgpu_bo_reserve((*mem)->bo, true);
+	r = amdgpu_bo_reserve(bo, true);
 	if (r) {
 		dev_err(adev->dev, "(%d) failed to reserve bo for amdkfd\n", r);
 		goto allocate_mem_reserve_bo_failed;
 	}
 
-	r = amdgpu_bo_pin((*mem)->bo, AMDGPU_GEM_DOMAIN_GTT,
-				&(*mem)->gpu_addr);
+	r = amdgpu_bo_pin(bo, AMDGPU_GEM_DOMAIN_GTT,
+				&gpu_addr_tmp);
 	if (r) {
 		dev_err(adev->dev, "(%d) failed to pin bo for amdkfd\n", r);
 		goto allocate_mem_pin_bo_failed;
 	}
-	*gpu_addr = (*mem)->gpu_addr;
 
-	r = amdgpu_bo_kmap((*mem)->bo, &(*mem)->cpu_ptr);
+	r = amdgpu_bo_kmap(bo, &cpu_ptr_tmp);
 	if (r) {
 		dev_err(adev->dev,
 			"(%d) failed to map bo to kernel for amdkfd\n", r);
 		goto allocate_mem_kmap_bo_failed;
 	}
-	*cpu_ptr = (*mem)->cpu_ptr;
 
-	amdgpu_bo_unreserve((*mem)->bo);
+	*mem_obj = bo;
+	*gpu_addr = gpu_addr_tmp;
+	*cpu_ptr = cpu_ptr_tmp;
+
+	amdgpu_bo_unreserve(bo);
 
 	return 0;
 
 allocate_mem_kmap_bo_failed:
-	amdgpu_bo_unpin((*mem)->bo);
+	amdgpu_bo_unpin(bo);
 allocate_mem_pin_bo_failed:
-	amdgpu_bo_unreserve((*mem)->bo);
+	amdgpu_bo_unreserve(bo);
 allocate_mem_reserve_bo_failed:
-	amdgpu_bo_unref(&(*mem)->bo);
+	amdgpu_bo_unref(&bo);
 
 	return r;
 }
 
 void free_gtt_mem(struct kgd_dev *kgd, void *mem_obj)
 {
-	struct kgd_mem *mem = (struct kgd_mem *) mem_obj;
+	struct amdgpu_bo *bo = (struct amdgpu_bo *) mem_obj;
 
-	BUG_ON(mem == NULL);
-
-	amdgpu_bo_reserve(mem->bo, true);
-	amdgpu_bo_kunmap(mem->bo);
-	amdgpu_bo_unpin(mem->bo);
-	amdgpu_bo_unreserve(mem->bo);
-	amdgpu_bo_unref(&(mem->bo));
-	kfree(mem);
+	amdgpu_bo_reserve(bo, true);
+	amdgpu_bo_kunmap(bo);
+	amdgpu_bo_unpin(bo);
+	amdgpu_bo_unreserve(bo);
+	amdgpu_bo_unref(&(bo));
 }
 
 void get_local_mem_info(struct kgd_dev *kgd,
@@ -281,23 +286,28 @@ void get_local_mem_info(struct kgd_dev *kgd,
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 	uint64_t address_mask = adev->dev->dma_mask ? ~*adev->dev->dma_mask :
 					     ~((1ULL << 32) - 1);
-	resource_size_t aper_limit = adev->mc.aper_base + adev->mc.aper_size;
+	resource_size_t aper_limit = adev->gmc.aper_base + adev->gmc.aper_size;
 
 	memset(mem_info, 0, sizeof(*mem_info));
-	if (!(adev->mc.aper_base & address_mask || aper_limit & address_mask)) {
-		mem_info->local_mem_size_public = adev->mc.visible_vram_size;
-		mem_info->local_mem_size_private = adev->mc.real_vram_size -
-				adev->mc.visible_vram_size;
+	if (!(adev->gmc.aper_base & address_mask || aper_limit & address_mask)) {
+		mem_info->local_mem_size_public = adev->gmc.visible_vram_size;
+		mem_info->local_mem_size_private = adev->gmc.real_vram_size -
+				adev->gmc.visible_vram_size;
 	} else {
 		mem_info->local_mem_size_public = 0;
-		mem_info->local_mem_size_private = adev->mc.real_vram_size;
+		mem_info->local_mem_size_private = adev->gmc.real_vram_size;
 	}
-	mem_info->vram_width = adev->mc.vram_width;
+	mem_info->vram_width = adev->gmc.vram_width;
 
 	pr_debug("Address base: %pap limit %pap public 0x%llx private 0x%llx\n",
-			&adev->mc.aper_base, &aper_limit,
+			&adev->gmc.aper_base, &aper_limit,
 			mem_info->local_mem_size_public,
 			mem_info->local_mem_size_private);
+
+	if (amdgpu_emu_mode == 1) {
+		mem_info->mem_clk_max = 100;
+		return;
+	}
 
 	if (amdgpu_sriov_vf(adev))
 		mem_info->mem_clk_max = adev->clock.default_mclk / 100;
@@ -319,6 +329,9 @@ uint32_t get_max_engine_clock_in_mhz(struct kgd_dev *kgd)
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 
 	/* the sclk is in quantas of 10kHz */
+	if (amdgpu_emu_mode == 1)
+		return 100;
+
 	if (amdgpu_sriov_vf(adev))
 		return adev->clock.default_sclk / 100;
 
@@ -353,4 +366,69 @@ uint64_t amdgpu_amdkfd_get_vram_usage(struct kgd_dev *kgd)
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 
 	return amdgpu_vram_mgr_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
+}
+
+int amdgpu_amdkfd_submit_ib(struct kgd_dev *kgd, enum kgd_engine_type engine,
+				uint32_t vmid, uint64_t gpu_addr,
+				uint32_t *ib_cmd, uint32_t ib_len)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+	struct amdgpu_job *job;
+	struct amdgpu_ib *ib;
+	struct amdgpu_ring *ring;
+	struct dma_fence *f = NULL;
+	int ret;
+
+	switch (engine) {
+	case KGD_ENGINE_MEC1:
+		ring = &adev->gfx.compute_ring[0];
+		break;
+	case KGD_ENGINE_SDMA1:
+		ring = &adev->sdma.instance[0].ring;
+		break;
+	case KGD_ENGINE_SDMA2:
+		ring = &adev->sdma.instance[1].ring;
+		break;
+	default:
+		pr_err("Invalid engine in IB submission: %d\n", engine);
+		ret = -EINVAL;
+		goto err;
+	}
+
+	ret = amdgpu_job_alloc(adev, 1, &job, NULL);
+	if (ret)
+		goto err;
+
+	ib = &job->ibs[0];
+	memset(ib, 0, sizeof(struct amdgpu_ib));
+
+	ib->gpu_addr = gpu_addr;
+	ib->ptr = ib_cmd;
+	ib->length_dw = ib_len;
+	/* This works for NO_HWS. TODO: need to handle without knowing VMID */
+	job->vmid = vmid;
+
+	ret = amdgpu_ib_schedule(ring, 1, ib, job, &f);
+	if (ret) {
+		DRM_ERROR("amdgpu: failed to schedule IB.\n");
+		goto err_ib_sched;
+	}
+
+	ret = dma_fence_wait(f, false);
+
+err_ib_sched:
+	dma_fence_put(f);
+	amdgpu_job_free(job);
+err:
+	return ret;
+}
+
+bool amdgpu_amdkfd_is_kfd_vmid(struct amdgpu_device *adev, u32 vmid)
+{
+	if (adev->kfd) {
+		if ((1 << vmid) & compute_vmid_bitmap)
+			return true;
+	}
+
+	return false;
 }

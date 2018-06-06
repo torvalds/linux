@@ -37,6 +37,8 @@ struct qcom_rmtfs_mem {
 	phys_addr_t size;
 
 	unsigned int client_id;
+
+	unsigned int perms;
 };
 
 static ssize_t qcom_rmtfs_mem_show(struct device *dev,
@@ -151,9 +153,11 @@ static void qcom_rmtfs_mem_release_device(struct device *dev)
 static int qcom_rmtfs_mem_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
+	struct qcom_scm_vmperm perms[2];
 	struct reserved_mem *rmem;
 	struct qcom_rmtfs_mem *rmtfs_mem;
 	u32 client_id;
+	u32 vmid;
 	int ret;
 
 	rmem = of_reserved_mem_lookup(node);
@@ -204,10 +208,31 @@ static int qcom_rmtfs_mem_probe(struct platform_device *pdev)
 
 	rmtfs_mem->dev.release = qcom_rmtfs_mem_release_device;
 
+	ret = of_property_read_u32(node, "qcom,vmid", &vmid);
+	if (ret < 0 && ret != -EINVAL) {
+		dev_err(&pdev->dev, "failed to parse qcom,vmid\n");
+		goto remove_cdev;
+	} else if (!ret) {
+		perms[0].vmid = QCOM_SCM_VMID_HLOS;
+		perms[0].perm = QCOM_SCM_PERM_RW;
+		perms[1].vmid = vmid;
+		perms[1].perm = QCOM_SCM_PERM_RW;
+
+		rmtfs_mem->perms = BIT(QCOM_SCM_VMID_HLOS);
+		ret = qcom_scm_assign_mem(rmtfs_mem->addr, rmtfs_mem->size,
+					  &rmtfs_mem->perms, perms, 2);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "assign memory failed\n");
+			goto remove_cdev;
+		}
+	}
+
 	dev_set_drvdata(&pdev->dev, rmtfs_mem);
 
 	return 0;
 
+remove_cdev:
+	cdev_device_del(&rmtfs_mem->cdev, &rmtfs_mem->dev);
 put_device:
 	put_device(&rmtfs_mem->dev);
 
@@ -217,6 +242,15 @@ put_device:
 static int qcom_rmtfs_mem_remove(struct platform_device *pdev)
 {
 	struct qcom_rmtfs_mem *rmtfs_mem = dev_get_drvdata(&pdev->dev);
+	struct qcom_scm_vmperm perm;
+
+	if (rmtfs_mem->perms) {
+		perm.vmid = QCOM_SCM_VMID_HLOS;
+		perm.perm = QCOM_SCM_PERM_RW;
+
+		qcom_scm_assign_mem(rmtfs_mem->addr, rmtfs_mem->size,
+				    &rmtfs_mem->perms, &perm, 1);
+	}
 
 	cdev_device_del(&rmtfs_mem->cdev, &rmtfs_mem->dev);
 	put_device(&rmtfs_mem->dev);

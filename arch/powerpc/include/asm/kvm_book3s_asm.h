@@ -119,6 +119,7 @@ struct kvmppc_host_state {
 	u8 host_ipi;
 	u8 ptid;		/* thread number within subcore when split */
 	u8 tid;			/* thread number within whole core */
+	u8 fake_suspend;
 	struct kvm_vcpu *kvm_vcpu;
 	struct kvmppc_vcore *kvm_vcore;
 	void __iomem *xics_phys;

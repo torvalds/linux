@@ -188,6 +188,7 @@ struct cmd_nums {
 	#define HWRM_STAT_CTX_FREE                        0xb1UL
 	#define HWRM_STAT_CTX_QUERY                       0xb2UL
 	#define HWRM_STAT_CTX_CLR_STATS                   0xb3UL
+	#define HWRM_PORT_QSTATS_EXT                      0xb4UL
 	#define HWRM_FW_RESET                             0xc0UL
 	#define HWRM_FW_QSTATUS                           0xc1UL
 	#define HWRM_FW_SET_TIME                          0xc8UL
@@ -199,6 +200,7 @@ struct cmd_nums {
 	#define HWRM_REJECT_FWD_RESP                      0xd1UL
 	#define HWRM_FWD_RESP                             0xd2UL
 	#define HWRM_FWD_ASYNC_EVENT_CMPL                 0xd3UL
+	#define HWRM_OEM_CMD                              0xd4UL
 	#define HWRM_TEMP_MONITOR_QUERY                   0xe0UL
 	#define HWRM_WOL_FILTER_ALLOC                     0xf0UL
 	#define HWRM_WOL_FILTER_FREE                      0xf1UL
@@ -271,6 +273,7 @@ struct cmd_nums {
 	#define HWRM_SELFTEST_EXEC                        0x201UL
 	#define HWRM_SELFTEST_IRQ                         0x202UL
 	#define HWRM_SELFTEST_RETRIEVE_SERDES_DATA        0x203UL
+	#define HWRM_PCIE_QSTATS                          0x204UL
 	#define HWRM_DBG_READ_DIRECT                      0xff10UL
 	#define HWRM_DBG_READ_INDIRECT                    0xff11UL
 	#define HWRM_DBG_WRITE_DIRECT                     0xff12UL
@@ -341,9 +344,9 @@ struct hwrm_err_output {
 #define HWRM_RESP_VALID_KEY 1
 #define HWRM_VERSION_MAJOR 1
 #define HWRM_VERSION_MINOR 9
-#define HWRM_VERSION_UPDATE 0
-#define HWRM_VERSION_RSVD 0
-#define HWRM_VERSION_STR "1.9.0.0"
+#define HWRM_VERSION_UPDATE 1
+#define HWRM_VERSION_RSVD 15
+#define HWRM_VERSION_STR "1.9.1.15"
 
 /* hwrm_ver_get_input (size:192b/24B) */
 struct hwrm_ver_get_input {
@@ -616,30 +619,6 @@ struct hwrm_async_event_cmpl_link_speed_cfg_change {
 	#define ASYNC_EVENT_CMPL_LINK_SPEED_CFG_CHANGE_EVENT_DATA1_ILLEGAL_LINK_SPEED_CFG           0x20000UL
 };
 
-/* hwrm_async_event_cmpl_pf_drvr_unload (size:128b/16B) */
-struct hwrm_async_event_cmpl_pf_drvr_unload {
-	__le16	type;
-	#define ASYNC_EVENT_CMPL_PF_DRVR_UNLOAD_TYPE_MASK            0x3fUL
-	#define ASYNC_EVENT_CMPL_PF_DRVR_UNLOAD_TYPE_SFT             0
-	#define ASYNC_EVENT_CMPL_PF_DRVR_UNLOAD_TYPE_HWRM_ASYNC_EVENT  0x2eUL
-	#define ASYNC_EVENT_CMPL_PF_DRVR_UNLOAD_TYPE_LAST             ASYNC_EVENT_CMPL_PF_DRVR_UNLOAD_TYPE_HWRM_ASYNC_EVENT
-	__le16	event_id;
-	#define ASYNC_EVENT_CMPL_PF_DRVR_UNLOAD_EVENT_ID_PF_DRVR_UNLOAD 0x20UL
-	#define ASYNC_EVENT_CMPL_PF_DRVR_UNLOAD_EVENT_ID_LAST          ASYNC_EVENT_CMPL_PF_DRVR_UNLOAD_EVENT_ID_PF_DRVR_UNLOAD
-	__le32	event_data2;
-	u8	opaque_v;
-	#define ASYNC_EVENT_CMPL_PF_DRVR_UNLOAD_V          0x1UL
-	#define ASYNC_EVENT_CMPL_PF_DRVR_UNLOAD_OPAQUE_MASK 0xfeUL
-	#define ASYNC_EVENT_CMPL_PF_DRVR_UNLOAD_OPAQUE_SFT 1
-	u8	timestamp_lo;
-	__le16	timestamp_hi;
-	__le32	event_data1;
-	#define ASYNC_EVENT_CMPL_PF_DRVR_UNLOAD_EVENT_DATA1_FUNC_ID_MASK 0xffffUL
-	#define ASYNC_EVENT_CMPL_PF_DRVR_UNLOAD_EVENT_DATA1_FUNC_ID_SFT 0
-	#define ASYNC_EVENT_CMPL_PF_DRVR_UNLOAD_EVENT_DATA1_PORT_MASK   0x70000UL
-	#define ASYNC_EVENT_CMPL_PF_DRVR_UNLOAD_EVENT_DATA1_PORT_SFT    16
-};
-
 /* hwrm_async_event_cmpl_vf_cfg_change (size:128b/16B) */
 struct hwrm_async_event_cmpl_vf_cfg_change {
 	__le16	type;
@@ -854,6 +833,7 @@ struct hwrm_func_qcaps_output {
 	#define FUNC_QCAPS_RESP_FLAGS_NVGRE_TUN_FLAGS_SUPPORTED      0x2000UL
 	#define FUNC_QCAPS_RESP_FLAGS_GRE_TUN_FLAGS_SUPPORTED        0x4000UL
 	#define FUNC_QCAPS_RESP_FLAGS_MPLS_TUN_FLAGS_SUPPORTED       0x8000UL
+	#define FUNC_QCAPS_RESP_FLAGS_PCIE_STATS_SUPPORTED           0x10000UL
 	u8	mac_address[6];
 	__le16	max_rsscos_ctx;
 	__le16	max_cmpl_rings;
@@ -966,10 +946,14 @@ struct hwrm_func_qcfg_output {
 	#define FUNC_QCFG_RESP_EVB_MODE_VEB    0x1UL
 	#define FUNC_QCFG_RESP_EVB_MODE_VEPA   0x2UL
 	#define FUNC_QCFG_RESP_EVB_MODE_LAST  FUNC_QCFG_RESP_EVB_MODE_VEPA
-	u8	cache_linesize;
-	#define FUNC_QCFG_RESP_CACHE_LINESIZE_CACHE_LINESIZE_64  0x0UL
-	#define FUNC_QCFG_RESP_CACHE_LINESIZE_CACHE_LINESIZE_128 0x1UL
-	#define FUNC_QCFG_RESP_CACHE_LINESIZE_LAST              FUNC_QCFG_RESP_CACHE_LINESIZE_CACHE_LINESIZE_128
+	u8	options;
+	#define FUNC_QCFG_RESP_OPTIONS_CACHE_LINESIZE_MASK    0x3UL
+	#define FUNC_QCFG_RESP_OPTIONS_CACHE_LINESIZE_SFT     0
+	#define FUNC_QCFG_RESP_OPTIONS_CACHE_LINESIZE_SIZE_64   0x0UL
+	#define FUNC_QCFG_RESP_OPTIONS_CACHE_LINESIZE_SIZE_128  0x1UL
+	#define FUNC_QCFG_RESP_OPTIONS_CACHE_LINESIZE_LAST     FUNC_QCFG_RESP_OPTIONS_CACHE_LINESIZE_SIZE_128
+	#define FUNC_QCFG_RESP_OPTIONS_RSVD_MASK              0xfcUL
+	#define FUNC_QCFG_RESP_OPTIONS_RSVD_SFT               2
 	__le16	alloc_vfs;
 	__le32	alloc_mcast_filters;
 	__le32	alloc_hw_ring_grps;
@@ -1124,10 +1108,14 @@ struct hwrm_func_cfg_input {
 	#define FUNC_CFG_REQ_EVB_MODE_VEB    0x1UL
 	#define FUNC_CFG_REQ_EVB_MODE_VEPA   0x2UL
 	#define FUNC_CFG_REQ_EVB_MODE_LAST  FUNC_CFG_REQ_EVB_MODE_VEPA
-	u8	cache_linesize;
-	#define FUNC_CFG_REQ_CACHE_LINESIZE_CACHE_LINESIZE_64  0x0UL
-	#define FUNC_CFG_REQ_CACHE_LINESIZE_CACHE_LINESIZE_128 0x1UL
-	#define FUNC_CFG_REQ_CACHE_LINESIZE_LAST              FUNC_CFG_REQ_CACHE_LINESIZE_CACHE_LINESIZE_128
+	u8	options;
+	#define FUNC_CFG_REQ_OPTIONS_CACHE_LINESIZE_MASK    0x3UL
+	#define FUNC_CFG_REQ_OPTIONS_CACHE_LINESIZE_SFT     0
+	#define FUNC_CFG_REQ_OPTIONS_CACHE_LINESIZE_SIZE_64   0x0UL
+	#define FUNC_CFG_REQ_OPTIONS_CACHE_LINESIZE_SIZE_128  0x1UL
+	#define FUNC_CFG_REQ_OPTIONS_CACHE_LINESIZE_LAST     FUNC_CFG_REQ_OPTIONS_CACHE_LINESIZE_SIZE_128
+	#define FUNC_CFG_REQ_OPTIONS_RSVD_MASK              0xfcUL
+	#define FUNC_CFG_REQ_OPTIONS_RSVD_SFT               2
 	__le16	num_mcast_filters;
 };
 
@@ -1248,7 +1236,7 @@ struct hwrm_func_vf_vnic_ids_query_output {
 	u8	valid;
 };
 
-/* hwrm_func_drv_rgtr_input (size:832b/104B) */
+/* hwrm_func_drv_rgtr_input (size:896b/112B) */
 struct hwrm_func_drv_rgtr_input {
 	__le16	req_type;
 	__le16	cmpl_ring;
@@ -1256,8 +1244,9 @@ struct hwrm_func_drv_rgtr_input {
 	__le16	target_id;
 	__le64	resp_addr;
 	__le32	flags;
-	#define FUNC_DRV_RGTR_REQ_FLAGS_FWD_ALL_MODE      0x1UL
-	#define FUNC_DRV_RGTR_REQ_FLAGS_FWD_NONE_MODE     0x2UL
+	#define FUNC_DRV_RGTR_REQ_FLAGS_FWD_ALL_MODE       0x1UL
+	#define FUNC_DRV_RGTR_REQ_FLAGS_FWD_NONE_MODE      0x2UL
+	#define FUNC_DRV_RGTR_REQ_FLAGS_16BIT_VER_MODE     0x4UL
 	__le32	enables;
 	#define FUNC_DRV_RGTR_REQ_ENABLES_OS_TYPE             0x1UL
 	#define FUNC_DRV_RGTR_REQ_ENABLES_VER                 0x2UL
@@ -1277,14 +1266,18 @@ struct hwrm_func_drv_rgtr_input {
 	#define FUNC_DRV_RGTR_REQ_OS_TYPE_WIN2012R2 0x74UL
 	#define FUNC_DRV_RGTR_REQ_OS_TYPE_UEFI      0x8000UL
 	#define FUNC_DRV_RGTR_REQ_OS_TYPE_LAST     FUNC_DRV_RGTR_REQ_OS_TYPE_UEFI
-	u8	ver_maj;
-	u8	ver_min;
-	u8	ver_upd;
+	u8	ver_maj_8b;
+	u8	ver_min_8b;
+	u8	ver_upd_8b;
 	u8	unused_0[3];
 	__le32	timestamp;
 	u8	unused_1[4];
 	__le32	vf_req_fwd[8];
 	__le32	async_event_fwd[8];
+	__le16	ver_maj;
+	__le16	ver_min;
+	__le16	ver_upd;
+	__le16	ver_patch;
 };
 
 /* hwrm_func_drv_rgtr_output (size:128b/16B) */
@@ -1379,7 +1372,7 @@ struct hwrm_func_drv_qver_input {
 	u8	unused_0[2];
 };
 
-/* hwrm_func_drv_qver_output (size:128b/16B) */
+/* hwrm_func_drv_qver_output (size:192b/24B) */
 struct hwrm_func_drv_qver_output {
 	__le16	error_code;
 	__le16	req_type;
@@ -1398,11 +1391,15 @@ struct hwrm_func_drv_qver_output {
 	#define FUNC_DRV_QVER_RESP_OS_TYPE_WIN2012R2 0x74UL
 	#define FUNC_DRV_QVER_RESP_OS_TYPE_UEFI      0x8000UL
 	#define FUNC_DRV_QVER_RESP_OS_TYPE_LAST     FUNC_DRV_QVER_RESP_OS_TYPE_UEFI
-	u8	ver_maj;
-	u8	ver_min;
-	u8	ver_upd;
+	u8	ver_maj_8b;
+	u8	ver_min_8b;
+	u8	ver_upd_8b;
 	u8	unused_0[2];
 	u8	valid;
+	__le16	ver_maj;
+	__le16	ver_min;
+	__le16	ver_upd;
+	__le16	ver_patch;
 };
 
 /* hwrm_func_resource_qcaps_input (size:192b/24B) */
@@ -1416,7 +1413,7 @@ struct hwrm_func_resource_qcaps_input {
 	u8	unused_0[6];
 };
 
-/* hwrm_func_resource_qcaps_output (size:384b/48B) */
+/* hwrm_func_resource_qcaps_output (size:448b/56B) */
 struct hwrm_func_resource_qcaps_output {
 	__le16	error_code;
 	__le16	req_type;
@@ -1425,9 +1422,10 @@ struct hwrm_func_resource_qcaps_output {
 	__le16	max_vfs;
 	__le16	max_msix;
 	__le16	vf_reservation_strategy;
-	#define FUNC_RESOURCE_QCAPS_RESP_VF_RESERVATION_STRATEGY_MAXIMAL 0x0UL
-	#define FUNC_RESOURCE_QCAPS_RESP_VF_RESERVATION_STRATEGY_MINIMAL 0x1UL
-	#define FUNC_RESOURCE_QCAPS_RESP_VF_RESERVATION_STRATEGY_LAST   FUNC_RESOURCE_QCAPS_RESP_VF_RESERVATION_STRATEGY_MINIMAL
+	#define FUNC_RESOURCE_QCAPS_RESP_VF_RESERVATION_STRATEGY_MAXIMAL        0x0UL
+	#define FUNC_RESOURCE_QCAPS_RESP_VF_RESERVATION_STRATEGY_MINIMAL        0x1UL
+	#define FUNC_RESOURCE_QCAPS_RESP_VF_RESERVATION_STRATEGY_MINIMAL_STATIC 0x2UL
+	#define FUNC_RESOURCE_QCAPS_RESP_VF_RESERVATION_STRATEGY_LAST          FUNC_RESOURCE_QCAPS_RESP_VF_RESERVATION_STRATEGY_MINIMAL_STATIC
 	__le16	min_rsscos_ctx;
 	__le16	max_rsscos_ctx;
 	__le16	min_cmpl_rings;
@@ -1444,7 +1442,8 @@ struct hwrm_func_resource_qcaps_output {
 	__le16	max_stat_ctx;
 	__le16	min_hw_ring_grps;
 	__le16	max_hw_ring_grps;
-	u8	unused_0;
+	__le16	max_tx_scheduler_inputs;
+	u8	unused_0[7];
 	u8	valid;
 };
 
@@ -1625,6 +1624,16 @@ struct hwrm_port_phy_cfg_output {
 	__le16	resp_len;
 	u8	unused_0[7];
 	u8	valid;
+};
+
+/* hwrm_port_phy_cfg_cmd_err (size:64b/8B) */
+struct hwrm_port_phy_cfg_cmd_err {
+	u8	code;
+	#define PORT_PHY_CFG_CMD_ERR_CODE_UNKNOWN       0x0UL
+	#define PORT_PHY_CFG_CMD_ERR_CODE_ILLEGAL_SPEED 0x1UL
+	#define PORT_PHY_CFG_CMD_ERR_CODE_RETRY         0x2UL
+	#define PORT_PHY_CFG_CMD_ERR_CODE_LAST         PORT_PHY_CFG_CMD_ERR_CODE_RETRY
+	u8	unused_0[7];
 };
 
 /* hwrm_port_phy_qcfg_input (size:192b/24B) */
@@ -2020,6 +2029,33 @@ struct hwrm_port_qstats_input {
 
 /* hwrm_port_qstats_output (size:128b/16B) */
 struct hwrm_port_qstats_output {
+	__le16	error_code;
+	__le16	req_type;
+	__le16	seq_id;
+	__le16	resp_len;
+	__le16	tx_stat_size;
+	__le16	rx_stat_size;
+	u8	unused_0[3];
+	u8	valid;
+};
+
+/* hwrm_port_qstats_ext_input (size:320b/40B) */
+struct hwrm_port_qstats_ext_input {
+	__le16	req_type;
+	__le16	cmpl_ring;
+	__le16	seq_id;
+	__le16	target_id;
+	__le64	resp_addr;
+	__le16	port_id;
+	__le16	tx_stat_size;
+	__le16	rx_stat_size;
+	u8	unused_0[2];
+	__le64	tx_stat_host_addr;
+	__le64	rx_stat_host_addr;
+};
+
+/* hwrm_port_qstats_ext_output (size:128b/16B) */
+struct hwrm_port_qstats_ext_output {
 	__le16	error_code;
 	__le16	req_type;
 	__le16	seq_id;
@@ -2552,7 +2588,11 @@ struct hwrm_queue_qportcfg_input {
 	#define QUEUE_QPORTCFG_REQ_FLAGS_PATH_RX    0x1UL
 	#define QUEUE_QPORTCFG_REQ_FLAGS_PATH_LAST QUEUE_QPORTCFG_REQ_FLAGS_PATH_RX
 	__le16	port_id;
-	u8	unused_0[2];
+	u8	drv_qmap_cap;
+	#define QUEUE_QPORTCFG_REQ_DRV_QMAP_CAP_DISABLED 0x0UL
+	#define QUEUE_QPORTCFG_REQ_DRV_QMAP_CAP_ENABLED  0x1UL
+	#define QUEUE_QPORTCFG_REQ_DRV_QMAP_CAP_LAST    QUEUE_QPORTCFG_REQ_DRV_QMAP_CAP_ENABLED
+	u8	unused_0;
 };
 
 /* hwrm_queue_qportcfg_output (size:256b/32B) */
@@ -2571,52 +2611,68 @@ struct hwrm_queue_qportcfg_output {
 	u8	queue_cos2bw_cfg_allowed;
 	u8	queue_id0;
 	u8	queue_id0_service_profile;
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID0_SERVICE_PROFILE_LOSSY    0x0UL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID0_SERVICE_PROFILE_LOSSLESS 0x1UL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID0_SERVICE_PROFILE_UNKNOWN  0xffUL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID0_SERVICE_PROFILE_LAST    QUEUE_QPORTCFG_RESP_QUEUE_ID0_SERVICE_PROFILE_UNKNOWN
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID0_SERVICE_PROFILE_LOSSY          0x0UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID0_SERVICE_PROFILE_LOSSLESS_ROCE  0x1UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID0_SERVICE_PROFILE_LOSSY_ROCE_CNP 0x2UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID0_SERVICE_PROFILE_LOSSLESS_NIC   0x3UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID0_SERVICE_PROFILE_UNKNOWN        0xffUL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID0_SERVICE_PROFILE_LAST          QUEUE_QPORTCFG_RESP_QUEUE_ID0_SERVICE_PROFILE_UNKNOWN
 	u8	queue_id1;
 	u8	queue_id1_service_profile;
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID1_SERVICE_PROFILE_LOSSY    0x0UL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID1_SERVICE_PROFILE_LOSSLESS 0x1UL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID1_SERVICE_PROFILE_UNKNOWN  0xffUL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID1_SERVICE_PROFILE_LAST    QUEUE_QPORTCFG_RESP_QUEUE_ID1_SERVICE_PROFILE_UNKNOWN
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID1_SERVICE_PROFILE_LOSSY          0x0UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID1_SERVICE_PROFILE_LOSSLESS_ROCE  0x1UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID1_SERVICE_PROFILE_LOSSY_ROCE_CNP 0x2UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID1_SERVICE_PROFILE_LOSSLESS_NIC   0x3UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID1_SERVICE_PROFILE_UNKNOWN        0xffUL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID1_SERVICE_PROFILE_LAST          QUEUE_QPORTCFG_RESP_QUEUE_ID1_SERVICE_PROFILE_UNKNOWN
 	u8	queue_id2;
 	u8	queue_id2_service_profile;
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID2_SERVICE_PROFILE_LOSSY    0x0UL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID2_SERVICE_PROFILE_LOSSLESS 0x1UL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID2_SERVICE_PROFILE_UNKNOWN  0xffUL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID2_SERVICE_PROFILE_LAST    QUEUE_QPORTCFG_RESP_QUEUE_ID2_SERVICE_PROFILE_UNKNOWN
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID2_SERVICE_PROFILE_LOSSY          0x0UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID2_SERVICE_PROFILE_LOSSLESS_ROCE  0x1UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID2_SERVICE_PROFILE_LOSSY_ROCE_CNP 0x2UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID2_SERVICE_PROFILE_LOSSLESS_NIC   0x3UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID2_SERVICE_PROFILE_UNKNOWN        0xffUL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID2_SERVICE_PROFILE_LAST          QUEUE_QPORTCFG_RESP_QUEUE_ID2_SERVICE_PROFILE_UNKNOWN
 	u8	queue_id3;
 	u8	queue_id3_service_profile;
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID3_SERVICE_PROFILE_LOSSY    0x0UL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID3_SERVICE_PROFILE_LOSSLESS 0x1UL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID3_SERVICE_PROFILE_UNKNOWN  0xffUL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID3_SERVICE_PROFILE_LAST    QUEUE_QPORTCFG_RESP_QUEUE_ID3_SERVICE_PROFILE_UNKNOWN
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID3_SERVICE_PROFILE_LOSSY          0x0UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID3_SERVICE_PROFILE_LOSSLESS_ROCE  0x1UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID3_SERVICE_PROFILE_LOSSY_ROCE_CNP 0x2UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID3_SERVICE_PROFILE_LOSSLESS_NIC   0x3UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID3_SERVICE_PROFILE_UNKNOWN        0xffUL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID3_SERVICE_PROFILE_LAST          QUEUE_QPORTCFG_RESP_QUEUE_ID3_SERVICE_PROFILE_UNKNOWN
 	u8	queue_id4;
 	u8	queue_id4_service_profile;
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID4_SERVICE_PROFILE_LOSSY    0x0UL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID4_SERVICE_PROFILE_LOSSLESS 0x1UL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID4_SERVICE_PROFILE_UNKNOWN  0xffUL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID4_SERVICE_PROFILE_LAST    QUEUE_QPORTCFG_RESP_QUEUE_ID4_SERVICE_PROFILE_UNKNOWN
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID4_SERVICE_PROFILE_LOSSY          0x0UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID4_SERVICE_PROFILE_LOSSLESS_ROCE  0x1UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID4_SERVICE_PROFILE_LOSSY_ROCE_CNP 0x2UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID4_SERVICE_PROFILE_LOSSLESS_NIC   0x3UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID4_SERVICE_PROFILE_UNKNOWN        0xffUL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID4_SERVICE_PROFILE_LAST          QUEUE_QPORTCFG_RESP_QUEUE_ID4_SERVICE_PROFILE_UNKNOWN
 	u8	queue_id5;
 	u8	queue_id5_service_profile;
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID5_SERVICE_PROFILE_LOSSY    0x0UL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID5_SERVICE_PROFILE_LOSSLESS 0x1UL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID5_SERVICE_PROFILE_UNKNOWN  0xffUL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID5_SERVICE_PROFILE_LAST    QUEUE_QPORTCFG_RESP_QUEUE_ID5_SERVICE_PROFILE_UNKNOWN
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID5_SERVICE_PROFILE_LOSSY          0x0UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID5_SERVICE_PROFILE_LOSSLESS_ROCE  0x1UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID5_SERVICE_PROFILE_LOSSY_ROCE_CNP 0x2UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID5_SERVICE_PROFILE_LOSSLESS_NIC   0x3UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID5_SERVICE_PROFILE_UNKNOWN        0xffUL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID5_SERVICE_PROFILE_LAST          QUEUE_QPORTCFG_RESP_QUEUE_ID5_SERVICE_PROFILE_UNKNOWN
 	u8	queue_id6;
 	u8	queue_id6_service_profile;
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID6_SERVICE_PROFILE_LOSSY    0x0UL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID6_SERVICE_PROFILE_LOSSLESS 0x1UL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID6_SERVICE_PROFILE_UNKNOWN  0xffUL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID6_SERVICE_PROFILE_LAST    QUEUE_QPORTCFG_RESP_QUEUE_ID6_SERVICE_PROFILE_UNKNOWN
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID6_SERVICE_PROFILE_LOSSY          0x0UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID6_SERVICE_PROFILE_LOSSLESS_ROCE  0x1UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID6_SERVICE_PROFILE_LOSSY_ROCE_CNP 0x2UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID6_SERVICE_PROFILE_LOSSLESS_NIC   0x3UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID6_SERVICE_PROFILE_UNKNOWN        0xffUL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID6_SERVICE_PROFILE_LAST          QUEUE_QPORTCFG_RESP_QUEUE_ID6_SERVICE_PROFILE_UNKNOWN
 	u8	queue_id7;
 	u8	queue_id7_service_profile;
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID7_SERVICE_PROFILE_LOSSY    0x0UL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID7_SERVICE_PROFILE_LOSSLESS 0x1UL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID7_SERVICE_PROFILE_UNKNOWN  0xffUL
-	#define QUEUE_QPORTCFG_RESP_QUEUE_ID7_SERVICE_PROFILE_LAST    QUEUE_QPORTCFG_RESP_QUEUE_ID7_SERVICE_PROFILE_UNKNOWN
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID7_SERVICE_PROFILE_LOSSY          0x0UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID7_SERVICE_PROFILE_LOSSLESS_ROCE  0x1UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID7_SERVICE_PROFILE_LOSSY_ROCE_CNP 0x2UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID7_SERVICE_PROFILE_LOSSLESS_NIC   0x3UL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID7_SERVICE_PROFILE_UNKNOWN        0xffUL
+	#define QUEUE_QPORTCFG_RESP_QUEUE_ID7_SERVICE_PROFILE_LAST          QUEUE_QPORTCFG_RESP_QUEUE_ID7_SERVICE_PROFILE_UNKNOWN
 	u8	valid;
 };
 
@@ -5180,6 +5236,29 @@ struct hwrm_stat_ctx_clr_stats_output {
 	u8	valid;
 };
 
+/* hwrm_pcie_qstats_input (size:256b/32B) */
+struct hwrm_pcie_qstats_input {
+	__le16	req_type;
+	__le16	cmpl_ring;
+	__le16	seq_id;
+	__le16	target_id;
+	__le64	resp_addr;
+	__le16	pcie_stat_size;
+	u8	unused_0[6];
+	__le64	pcie_stat_host_addr;
+};
+
+/* hwrm_pcie_qstats_output (size:128b/16B) */
+struct hwrm_pcie_qstats_output {
+	__le16	error_code;
+	__le16	req_type;
+	__le16	seq_id;
+	__le16	resp_len;
+	__le16	pcie_stat_size;
+	u8	unused_0[5];
+	u8	valid;
+};
+
 /* tx_port_stats (size:3264b/408B) */
 struct tx_port_stats {
 	__le64	tx_64b_frames;
@@ -5305,6 +5384,30 @@ struct rx_port_stats {
 	__le64	rx_stat_err;
 };
 
+/* rx_port_stats_ext (size:320b/40B) */
+struct rx_port_stats_ext {
+	__le64	link_down_events;
+	__le64	continuous_pause_events;
+	__le64	resume_pause_events;
+	__le64	continuous_roce_pause_events;
+	__le64	resume_roce_pause_events;
+};
+
+/* pcie_ctx_hw_stats (size:768b/96B) */
+struct pcie_ctx_hw_stats {
+	__le64	pcie_pl_signal_integrity;
+	__le64	pcie_dl_signal_integrity;
+	__le64	pcie_tl_signal_integrity;
+	__le64	pcie_link_integrity;
+	__le64	pcie_tx_traffic_rate;
+	__le64	pcie_rx_traffic_rate;
+	__le64	pcie_tx_dllp_statistics;
+	__le64	pcie_rx_dllp_statistics;
+	__le64	pcie_equalization_time;
+	__le32	pcie_ltssm_histogram[4];
+	__le64	pcie_recovery_histogram;
+};
+
 /* hwrm_fw_reset_input (size:192b/24B) */
 struct hwrm_fw_reset_input {
 	__le16	req_type;
@@ -5313,14 +5416,15 @@ struct hwrm_fw_reset_input {
 	__le16	target_id;
 	__le64	resp_addr;
 	u8	embedded_proc_type;
-	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_BOOT    0x0UL
-	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_MGMT    0x1UL
-	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_NETCTRL 0x2UL
-	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_ROCE    0x3UL
-	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_HOST    0x4UL
-	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_AP      0x5UL
-	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_CHIP    0x6UL
-	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_LAST   FW_RESET_REQ_EMBEDDED_PROC_TYPE_CHIP
+	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_BOOT                 0x0UL
+	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_MGMT                 0x1UL
+	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_NETCTRL              0x2UL
+	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_ROCE                 0x3UL
+	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_HOST                 0x4UL
+	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_AP                   0x5UL
+	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_CHIP                 0x6UL
+	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_HOST_RESOURCE_REINIT 0x7UL
+	#define FW_RESET_REQ_EMBEDDED_PROC_TYPE_LAST                FW_RESET_REQ_EMBEDDED_PROC_TYPE_HOST_RESOURCE_REINIT
 	u8	selfrst_status;
 	#define FW_RESET_REQ_SELFRST_STATUS_SELFRSTNONE    0x0UL
 	#define FW_RESET_REQ_SELFRST_STATUS_SELFRSTASAP    0x1UL
@@ -6253,8 +6357,7 @@ struct hwrm_selftest_exec_input {
 	#define SELFTEST_EXEC_REQ_FLAGS_MEMORY_TEST              0x8UL
 	#define SELFTEST_EXEC_REQ_FLAGS_PCIE_SERDES_TEST         0x10UL
 	#define SELFTEST_EXEC_REQ_FLAGS_ETHERNET_SERDES_TEST     0x20UL
-	u8	pcie_lane_num;
-	u8	unused_0[6];
+	u8	unused_0[7];
 };
 
 /* hwrm_selftest_exec_output (size:128b/16B) */

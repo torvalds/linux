@@ -123,7 +123,7 @@ CPUMF_EVENT_ATTR(cf_zec12, L1I_OFFBOOK_L3_SOURCED_WRITES_IV, 0x00a1);
 CPUMF_EVENT_ATTR(cf_zec12, TX_NC_TABORT, 0x00b1);
 CPUMF_EVENT_ATTR(cf_zec12, TX_C_TABORT_NO_SPECIAL, 0x00b2);
 CPUMF_EVENT_ATTR(cf_zec12, TX_C_TABORT_SPECIAL, 0x00b3);
-CPUMF_EVENT_ATTR(cf_z13, L1D_WRITES_RO_EXCL, 0x0080);
+CPUMF_EVENT_ATTR(cf_z13, L1D_RO_EXCL_WRITES, 0x0080);
 CPUMF_EVENT_ATTR(cf_z13, DTLB1_WRITES, 0x0081);
 CPUMF_EVENT_ATTR(cf_z13, DTLB1_MISSES, 0x0082);
 CPUMF_EVENT_ATTR(cf_z13, DTLB1_HPAGE_WRITES, 0x0083);
@@ -179,7 +179,7 @@ CPUMF_EVENT_ATTR(cf_z13, TX_C_TABORT_NO_SPECIAL, 0x00db);
 CPUMF_EVENT_ATTR(cf_z13, TX_C_TABORT_SPECIAL, 0x00dc);
 CPUMF_EVENT_ATTR(cf_z13, MT_DIAG_CYCLES_ONE_THR_ACTIVE, 0x01c0);
 CPUMF_EVENT_ATTR(cf_z13, MT_DIAG_CYCLES_TWO_THR_ACTIVE, 0x01c1);
-CPUMF_EVENT_ATTR(cf_z14, L1D_WRITES_RO_EXCL, 0x0080);
+CPUMF_EVENT_ATTR(cf_z14, L1D_RO_EXCL_WRITES, 0x0080);
 CPUMF_EVENT_ATTR(cf_z14, DTLB2_WRITES, 0x0081);
 CPUMF_EVENT_ATTR(cf_z14, DTLB2_MISSES, 0x0082);
 CPUMF_EVENT_ATTR(cf_z14, DTLB2_HPAGE_WRITES, 0x0083);
@@ -371,7 +371,7 @@ static struct attribute *cpumcf_zec12_pmu_event_attr[] __initdata = {
 };
 
 static struct attribute *cpumcf_z13_pmu_event_attr[] __initdata = {
-	CPUMF_EVENT_PTR(cf_z13, L1D_WRITES_RO_EXCL),
+	CPUMF_EVENT_PTR(cf_z13, L1D_RO_EXCL_WRITES),
 	CPUMF_EVENT_PTR(cf_z13, DTLB1_WRITES),
 	CPUMF_EVENT_PTR(cf_z13, DTLB1_MISSES),
 	CPUMF_EVENT_PTR(cf_z13, DTLB1_HPAGE_WRITES),
@@ -431,7 +431,7 @@ static struct attribute *cpumcf_z13_pmu_event_attr[] __initdata = {
 };
 
 static struct attribute *cpumcf_z14_pmu_event_attr[] __initdata = {
-	CPUMF_EVENT_PTR(cf_z14, L1D_WRITES_RO_EXCL),
+	CPUMF_EVENT_PTR(cf_z14, L1D_RO_EXCL_WRITES),
 	CPUMF_EVENT_PTR(cf_z14, DTLB2_WRITES),
 	CPUMF_EVENT_PTR(cf_z14, DTLB2_MISSES),
 	CPUMF_EVENT_PTR(cf_z14, DTLB2_HPAGE_WRITES),
@@ -583,6 +583,7 @@ __init const struct attribute_group **cpumf_cf_event_group(void)
 		model = cpumcf_z13_pmu_event_attr;
 		break;
 	case 0x3906:
+	case 0x3907:
 		model = cpumcf_z14_pmu_event_attr;
 		break;
 	default:

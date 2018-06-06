@@ -15,21 +15,26 @@
 
 #define QETH_SNIFF_AVAIL	0x0008
 
+enum qeth_ip_types {
+	QETH_IP_TYPE_NORMAL,
+	QETH_IP_TYPE_VIPA,
+	QETH_IP_TYPE_RXIP,
+};
+
 struct qeth_ipaddr {
 	struct hlist_node hnode;
 	enum qeth_ip_types type;
-	enum qeth_ipa_setdelip_flags set_flags;
-	enum qeth_ipa_setdelip_flags del_flags;
+	unsigned char mac[ETH_ALEN];
 	u8 is_multicast:1;
 	u8 in_progress:1;
 	u8 disp_flag:2;
+	u8 ipato:1;			/* ucast only */
 
 	/* is changed only for normal ip addresses
 	 * for non-normal addresses it always is  1
 	 */
 	int  ref_counter;
 	enum qeth_prot_versions proto;
-	unsigned char mac[ETH_ALEN];
 	union {
 		struct {
 			unsigned int addr;
@@ -41,6 +46,16 @@ struct qeth_ipaddr {
 		} a6;
 	} u;
 };
+
+static inline void qeth_l3_init_ipaddr(struct qeth_ipaddr *addr,
+				       enum qeth_ip_types type,
+				       enum qeth_prot_versions proto)
+{
+	memset(addr, 0, sizeof(*addr));
+	addr->type = type;
+	addr->proto = proto;
+	addr->disp_flag = QETH_DISP_ADDR_DO_NOTHING;
+}
 
 static inline bool qeth_l3_addr_match_ip(struct qeth_ipaddr *a1,
 					 struct qeth_ipaddr *a2)
@@ -109,15 +124,10 @@ int qeth_l3_add_ipato_entry(struct qeth_card *, struct qeth_ipato_entry *);
 int qeth_l3_del_ipato_entry(struct qeth_card *card,
 			    enum qeth_prot_versions proto, u8 *addr,
 			    int mask_bits);
-int qeth_l3_add_vipa(struct qeth_card *, enum qeth_prot_versions, const u8 *);
-int qeth_l3_del_vipa(struct qeth_card *card, enum qeth_prot_versions proto,
-		     const u8 *addr);
-int qeth_l3_add_rxip(struct qeth_card *, enum qeth_prot_versions, const u8 *);
-int qeth_l3_del_rxip(struct qeth_card *card, enum qeth_prot_versions proto,
-		     const u8 *addr);
 void qeth_l3_update_ipato(struct qeth_card *card);
-struct qeth_ipaddr *qeth_l3_get_addr_buffer(enum qeth_prot_versions);
-int qeth_l3_add_ip(struct qeth_card *, struct qeth_ipaddr *);
-int qeth_l3_delete_ip(struct qeth_card *, struct qeth_ipaddr *);
+int qeth_l3_modify_hsuid(struct qeth_card *card, bool add);
+int qeth_l3_modify_rxip_vipa(struct qeth_card *card, bool add, const u8 *ip,
+			     enum qeth_ip_types type,
+			     enum qeth_prot_versions proto);
 
 #endif /* __QETH_L3_H__ */

@@ -75,16 +75,16 @@ static const struct malidp_format_id malidp550_de_formats[] = {
 };
 
 static const struct malidp_layer malidp500_layers[] = {
-	{ DE_VIDEO1, MALIDP500_DE_LV_BASE, MALIDP500_DE_LV_PTR_BASE, MALIDP_DE_LV_STRIDE0 },
-	{ DE_GRAPHICS1, MALIDP500_DE_LG1_BASE, MALIDP500_DE_LG1_PTR_BASE, MALIDP_DE_LG_STRIDE },
-	{ DE_GRAPHICS2, MALIDP500_DE_LG2_BASE, MALIDP500_DE_LG2_PTR_BASE, MALIDP_DE_LG_STRIDE },
+	{ DE_VIDEO1, MALIDP500_DE_LV_BASE, MALIDP500_DE_LV_PTR_BASE, MALIDP_DE_LV_STRIDE0, MALIDP500_LV_YUV2RGB },
+	{ DE_GRAPHICS1, MALIDP500_DE_LG1_BASE, MALIDP500_DE_LG1_PTR_BASE, MALIDP_DE_LG_STRIDE, 0 },
+	{ DE_GRAPHICS2, MALIDP500_DE_LG2_BASE, MALIDP500_DE_LG2_PTR_BASE, MALIDP_DE_LG_STRIDE, 0 },
 };
 
 static const struct malidp_layer malidp550_layers[] = {
-	{ DE_VIDEO1, MALIDP550_DE_LV1_BASE, MALIDP550_DE_LV1_PTR_BASE, MALIDP_DE_LV_STRIDE0 },
-	{ DE_GRAPHICS1, MALIDP550_DE_LG_BASE, MALIDP550_DE_LG_PTR_BASE, MALIDP_DE_LG_STRIDE },
-	{ DE_VIDEO2, MALIDP550_DE_LV2_BASE, MALIDP550_DE_LV2_PTR_BASE, MALIDP_DE_LV_STRIDE0 },
-	{ DE_SMART, MALIDP550_DE_LS_BASE, MALIDP550_DE_LS_PTR_BASE, MALIDP550_DE_LS_R1_STRIDE },
+	{ DE_VIDEO1, MALIDP550_DE_LV1_BASE, MALIDP550_DE_LV1_PTR_BASE, MALIDP_DE_LV_STRIDE0, MALIDP550_LV_YUV2RGB },
+	{ DE_GRAPHICS1, MALIDP550_DE_LG_BASE, MALIDP550_DE_LG_PTR_BASE, MALIDP_DE_LG_STRIDE, 0 },
+	{ DE_VIDEO2, MALIDP550_DE_LV2_BASE, MALIDP550_DE_LV2_PTR_BASE, MALIDP_DE_LV_STRIDE0, MALIDP550_LV_YUV2RGB },
+	{ DE_SMART, MALIDP550_DE_LS_BASE, MALIDP550_DE_LS_PTR_BASE, MALIDP550_DE_LS_R1_STRIDE, 0 },
 };
 
 #define SE_N_SCALING_COEFFS	96
@@ -782,9 +782,15 @@ static irqreturn_t malidp_de_irq(int irq, void *arg)
 	/* first handle the config valid IRQ */
 	dc_status = malidp_hw_read(hwdev, hw->map.dc_base + MALIDP_REG_STATUS);
 	if (dc_status & hw->map.dc_irq_map.vsync_irq) {
-		/* we have a page flip event */
-		atomic_set(&malidp->config_valid, 1);
 		malidp_hw_clear_irq(hwdev, MALIDP_DC_BLOCK, dc_status);
+		/* do we have a page flip event? */
+		if (malidp->event != NULL) {
+			spin_lock(&drm->event_lock);
+			drm_crtc_send_vblank_event(&malidp->crtc, malidp->event);
+			malidp->event = NULL;
+			spin_unlock(&drm->event_lock);
+		}
+		atomic_set(&malidp->config_valid, 1);
 		ret = IRQ_WAKE_THREAD;
 	}
 
@@ -794,7 +800,7 @@ static irqreturn_t malidp_de_irq(int irq, void *arg)
 
 	mask = malidp_hw_read(hwdev, MALIDP_REG_MASKIRQ);
 	status &= mask;
-	if (status & de->vsync_irq)
+	if ((status & de->vsync_irq) && malidp->crtc.enabled)
 		drm_crtc_handle_vblank(&malidp->crtc);
 
 	malidp_hw_clear_irq(hwdev, MALIDP_DE_BLOCK, status);

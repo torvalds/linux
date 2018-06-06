@@ -55,7 +55,15 @@ extern void __init chrdev_init(void);
 extern int user_path_mountpoint_at(int, const char __user *, unsigned int, struct path *);
 extern int vfs_path_lookup(struct dentry *, struct vfsmount *,
 			   const char *, unsigned int, struct path *);
+long do_mknodat(int dfd, const char __user *filename, umode_t mode,
+		unsigned int dev);
+long do_mkdirat(int dfd, const char __user *pathname, umode_t mode);
+long do_rmdir(int dfd, const char __user *pathname);
 long do_unlinkat(int dfd, struct filename *name);
+long do_symlinkat(const char __user *oldname, int newdfd,
+		  const char __user *newname);
+int do_linkat(int olddfd, const char __user *oldname, int newdfd,
+	      const char __user *newname, int flags);
 
 /*
  * namespace.c
@@ -110,6 +118,12 @@ extern struct file *do_filp_open(int dfd, struct filename *pathname,
 		const struct open_flags *op);
 extern struct file *do_file_open_root(struct dentry *, struct vfsmount *,
 		const char *, const struct open_flags *);
+
+long do_sys_ftruncate(unsigned int fd, loff_t length, int small);
+long do_faccessat(int dfd, const char __user *filename, int mode);
+int do_fchmodat(int dfd, const char __user *filename, umode_t mode);
+int do_fchownat(int dfd, const char __user *filename, uid_t user, gid_t group,
+		int flag);
 
 extern int open_check_o_direct(struct file *f);
 extern int vfs_open(const struct path *, struct file *, const struct cred *);

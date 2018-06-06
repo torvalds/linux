@@ -63,7 +63,6 @@ undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
 			bool skip_hwpoisoned_pages);
 
-struct page *alloc_migrate_target(struct page *page, unsigned long private,
-				int **resultp);
+struct page *alloc_migrate_target(struct page *page, unsigned long private);
 
 #endif

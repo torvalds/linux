@@ -92,7 +92,7 @@ static void amdgpu_irq_reset_work_func(struct work_struct *work)
 }
 
 /* Disable *all* interrupts */
-static void amdgpu_irq_disable_all(struct amdgpu_device *adev)
+void amdgpu_irq_disable_all(struct amdgpu_device *adev)
 {
 	unsigned long irqflags;
 	unsigned i, j, k;
@@ -120,55 +120,6 @@ static void amdgpu_irq_disable_all(struct amdgpu_device *adev)
 		}
 	}
 	spin_unlock_irqrestore(&adev->irq.lock, irqflags);
-}
-
-/**
- * amdgpu_irq_preinstall - drm irq preinstall callback
- *
- * @dev: drm dev pointer
- *
- * Gets the hw ready to enable irqs (all asics).
- * This function disables all interrupt sources on the GPU.
- */
-void amdgpu_irq_preinstall(struct drm_device *dev)
-{
-	struct amdgpu_device *adev = dev->dev_private;
-
-	/* Disable *all* interrupts */
-	amdgpu_irq_disable_all(adev);
-	/* Clear bits */
-	amdgpu_ih_process(adev);
-}
-
-/**
- * amdgpu_irq_postinstall - drm irq preinstall callback
- *
- * @dev: drm dev pointer
- *
- * Handles stuff to be done after enabling irqs (all asics).
- * Returns 0 on success.
- */
-int amdgpu_irq_postinstall(struct drm_device *dev)
-{
-	dev->max_vblank_count = 0x00ffffff;
-	return 0;
-}
-
-/**
- * amdgpu_irq_uninstall - drm irq uninstall callback
- *
- * @dev: drm dev pointer
- *
- * This function disables all interrupt sources on the GPU (all asics).
- */
-void amdgpu_irq_uninstall(struct drm_device *dev)
-{
-	struct amdgpu_device *adev = dev->dev_private;
-
-	if (adev == NULL) {
-		return;
-	}
-	amdgpu_irq_disable_all(adev);
 }
 
 /**
@@ -262,6 +213,7 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 		cancel_work_sync(&adev->reset_work);
 		return r;
 	}
+	adev->ddev->max_vblank_count = 0x00ffffff;
 
 	DRM_DEBUG("amdgpu: irq initialized.\n");
 	return 0;
@@ -307,6 +259,7 @@ void amdgpu_irq_fini(struct amdgpu_device *adev)
 			}
 		}
 		kfree(adev->irq.client[i].sources);
+		adev->irq.client[i].sources = NULL;
 	}
 }
 

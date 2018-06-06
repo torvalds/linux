@@ -60,7 +60,6 @@ static atomic_t vp_pinned = ATOMIC_INIT(0);
 
 /**
  * struct virtio_chan - per-instance transport information
- * @initialized: whether the channel is initialized
  * @inuse: whether the channel is in use
  * @lock: protects multiple elements within this structure
  * @client: client instance
@@ -385,8 +384,8 @@ static int p9_get_mapped_pages(struct virtio_chan *chan,
  * @uidata: user bffer that should be ued for zero copy read
  * @uodata: user buffer that shoud be user for zero copy write
  * @inlen: read buffer size
- * @olen: write buffer size
- * @hdrlen: reader header size, This is the size of response protocol data
+ * @outlen: write buffer size
+ * @in_hdr_len: reader header size, This is the size of response protocol data
  *
  */
 static int

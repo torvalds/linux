@@ -66,8 +66,6 @@ struct rtable {
 	u32			rt_mtu_locked:1,
 				rt_pmtu:31;
 
-	u32			rt_table_id;
-
 	struct list_head	rt_uncached;
 	struct uncached_list	*rt_uncached_list;
 };

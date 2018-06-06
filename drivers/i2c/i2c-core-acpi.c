@@ -445,10 +445,17 @@ static int acpi_gsb_i2c_read_bytes(struct i2c_client *client,
 	msgs[1].buf = buffer;
 
 	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
-	if (ret < 0)
-		dev_err(&client->adapter->dev, "i2c read failed\n");
-	else
+	if (ret < 0) {
+		/* Getting a NACK is unfortunately normal with some DSTDs */
+		if (ret == -EREMOTEIO)
+			dev_dbg(&client->adapter->dev, "i2c read %d bytes from client@%#x starting at reg %#x failed, error: %d\n",
+				data_len, client->addr, cmd, ret);
+		else
+			dev_err(&client->adapter->dev, "i2c read %d bytes from client@%#x starting at reg %#x failed, error: %d\n",
+				data_len, client->addr, cmd, ret);
+	} else {
 		memcpy(data, buffer, data_len);
+	}
 
 	kfree(buffer);
 	return ret;

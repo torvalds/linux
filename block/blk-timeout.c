@@ -57,12 +57,10 @@ ssize_t part_timeout_store(struct device *dev, struct device_attribute *attr,
 		char *p = (char *) buf;
 
 		val = simple_strtoul(p, &p, 10);
-		spin_lock_irq(q->queue_lock);
 		if (val)
-			queue_flag_set(QUEUE_FLAG_FAIL_IO, q);
+			blk_queue_flag_set(QUEUE_FLAG_FAIL_IO, q);
 		else
-			queue_flag_clear(QUEUE_FLAG_FAIL_IO, q);
-		spin_unlock_irq(q->queue_lock);
+			blk_queue_flag_clear(QUEUE_FLAG_FAIL_IO, q);
 	}
 
 	return count;
@@ -165,7 +163,7 @@ void blk_abort_request(struct request *req)
 		 * No need for fancy synchronizations.
 		 */
 		blk_rq_set_deadline(req, jiffies);
-		mod_timer(&req->q->timeout, 0);
+		kblockd_schedule_work(&req->q->timeout_work);
 	} else {
 		if (blk_mark_rq_complete(req))
 			return;
