@@ -2557,6 +2557,15 @@ static void hclge_clear_event_cause(struct hclge_dev *hdev, u32 event_type,
 	}
 }
 
+static void hclge_clear_all_event_cause(struct hclge_dev *hdev)
+{
+	hclge_clear_event_cause(hdev, HCLGE_VECTOR0_EVENT_RST,
+				BIT(HCLGE_VECTOR0_GLOBALRESET_INT_B) |
+				BIT(HCLGE_VECTOR0_CORERESET_INT_B) |
+				BIT(HCLGE_VECTOR0_IMPRESET_INT_B));
+	hclge_clear_event_cause(hdev, HCLGE_VECTOR0_EVENT_MBX, 0);
+}
+
 static void hclge_enable_vector(struct hclge_misc_vector *vector, bool enable)
 {
 	writel(enable ? 1 : 0, vector->addr);
@@ -5688,6 +5697,8 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	INIT_WORK(&hdev->rst_service_task, hclge_reset_service_task);
 	INIT_WORK(&hdev->mbx_service_task, hclge_mailbox_service_task);
 
+	hclge_clear_all_event_cause(hdev);
+
 	/* Enable MISC vector(vector0) */
 	hclge_enable_vector(&hdev->misc_vector, true);
 
@@ -5817,6 +5828,8 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 
 	/* Disable MISC vector(vector0) */
 	hclge_enable_vector(&hdev->misc_vector, false);
+	synchronize_irq(hdev->misc_vector.vector_irq);
+
 	hclge_destroy_cmd_queue(&hdev->hw);
 	hclge_misc_irq_uninit(hdev);
 	hclge_pci_uninit(hdev);
