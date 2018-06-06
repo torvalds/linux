@@ -155,9 +155,8 @@ static int mt7621_spi_prepare(struct spi_device *spi, unsigned int speed)
 	return 0;
 }
 
-static inline int mt7621_spi_wait_till_ready(struct spi_device *spi)
+static inline int mt7621_spi_wait_till_ready(struct mt7621_spi *rs)
 {
-	struct mt7621_spi *rs = spidev_to_mt7621_spi(spi);
 	int i;
 
 	for (i = 0; i < RALINK_SPI_WAIT_MAX_LOOP; i++) {
@@ -187,7 +186,7 @@ static int mt7621_spi_transfer_half_duplex(struct spi_master *master,
 	u32 data[9] = { 0 };
 	u32 val;
 
-	mt7621_spi_wait_till_ready(spi);
+	mt7621_spi_wait_till_ready(rs);
 
 	list_for_each_entry(t, &m->transfers, transfer_list) {
 		const u8 *buf = t->tx_buf;
@@ -238,7 +237,7 @@ static int mt7621_spi_transfer_half_duplex(struct spi_master *master,
 	val |= SPI_CTL_START;
 	mt7621_spi_write(rs, MT7621_SPI_TRANS, val);
 
-	mt7621_spi_wait_till_ready(spi);
+	mt7621_spi_wait_till_ready(rs);
 
 	mt7621_spi_set_cs(spi, 0);
 
@@ -278,7 +277,7 @@ static int mt7621_spi_transfer_full_duplex(struct spi_master *master,
 	u32 data[9] = { 0 };
 	u32 val = 0;
 
-	mt7621_spi_wait_till_ready(spi);
+	mt7621_spi_wait_till_ready(rs);
 
 	list_for_each_entry(t, &m->transfers, transfer_list) {
 		const u8 *buf = t->tx_buf;
@@ -323,7 +322,7 @@ static int mt7621_spi_transfer_full_duplex(struct spi_master *master,
 	val |= SPI_CTL_START;
 	mt7621_spi_write(rs, MT7621_SPI_TRANS, val);
 
-	mt7621_spi_wait_till_ready(spi);
+	mt7621_spi_wait_till_ready(rs);
 
 	mt7621_spi_set_cs(spi, 0);
 
