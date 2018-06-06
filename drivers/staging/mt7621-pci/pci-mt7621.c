@@ -55,6 +55,7 @@
 #include <linux/platform_device.h>
 
 #include <ralink_regs.h>
+#include <mt7621.h>
 
 /*
  * These functions and structures provide the BIOS scan and mapping of the PCI
@@ -72,7 +73,6 @@
 #define RALINK_PCIE0_RST		(1<<24)
 #define RALINK_PCIE1_RST		(1<<25)
 #define RALINK_PCIE2_RST		(1<<26)
-#define RALINK_SYSCTL_BASE		0xBE000000
 
 #define RALINK_PCI_PCICFG_ADDR		*(volatile u32 *)(RALINK_PCI_BASE + 0x0000)
 #define RALINK_PCI_PCIMSK_ADDR		*(volatile u32 *)(RALINK_PCI_BASE + 0x000C)
@@ -133,31 +133,28 @@
 #define RALINK_PCI_MM_MAP_BASE		0x60000000
 #define RALINK_PCI_IO_MAP_BASE		0x1e160000
 
-#define RALINK_SYSTEM_CONTROL_BASE	0xbe000000
-
 #define ASSERT_SYSRST_PCIE(val)		\
 	do {								\
-		if (*(unsigned int *)(0xbe00000c) == 0x00030101)	\
-			RALINK_RSTCTRL |= val;				\
+		if (rt_sysc_r32(SYSC_REG_CHIP_REV) == 0x00030101)	\
+			rt_sysc_m32(0, val, RALINK_RSTCTRL);		\
 		else							\
-			RALINK_RSTCTRL &= ~val;				\
+			rt_sysc_m32(val, 0, RALINK_RSTCTRL);		\
 	} while(0)
 #define DEASSERT_SYSRST_PCIE(val)	\
 	do {								\
-		if (*(unsigned int *)(0xbe00000c) == 0x00030101)	\
-			RALINK_RSTCTRL &= ~val;				\
+		if (rt_sysc_r32(SYSC_REG_CHIP_REV) == 0x00030101)	\
+			rt_sysc_m32(val, 0, RALINK_RSTCTRL);		\
 		else							\
-			RALINK_RSTCTRL |= val;				\
+			rt_sysc_m32(0, val, RALINK_RSTCTRL);		\
 	} while(0)
-#define RALINK_SYSCFG1			*(unsigned int *)(RALINK_SYSTEM_CONTROL_BASE + 0x14)
-#define RALINK_CLKCFG1			*(unsigned int *)(RALINK_SYSTEM_CONTROL_BASE + 0x30)
-#define RALINK_RSTCTRL			*(unsigned int *)(RALINK_SYSTEM_CONTROL_BASE + 0x34)
-#define RALINK_GPIOMODE			*(unsigned int *)(RALINK_SYSTEM_CONTROL_BASE + 0x60)
-#define RALINK_PCIE_CLK_GEN		*(unsigned int *)(RALINK_SYSTEM_CONTROL_BASE + 0x7c)
-#define RALINK_PCIE_CLK_GEN1		*(unsigned int *)(RALINK_SYSTEM_CONTROL_BASE + 0x80)
-#define PPLL_CFG1			*(unsigned int *)(RALINK_SYSTEM_CONTROL_BASE + 0x9c)
-#define PPLL_DRV			*(unsigned int *)(RALINK_SYSTEM_CONTROL_BASE + 0xa0)
-//RALINK_SYSCFG1 bit
+#define RALINK_CLKCFG1			0x30
+#define RALINK_RSTCTRL			0x34
+#define RALINK_GPIOMODE			0x60
+#define RALINK_PCIE_CLK_GEN		0x7c
+#define RALINK_PCIE_CLK_GEN1		0x80
+#define PPLL_CFG1			0x9c
+#define PPLL_DRV			0xa0
+/* SYSC_REG_SYSTEM_CONFIG1 bits */
 #define RALINK_PCI_HOST_MODE_EN		(1<<7)
 #define RALINK_PCIE_RC_MODE_EN		(1<<8)
 //RALINK_RSTCTRL bit
@@ -383,7 +380,7 @@ bypass_pipe_rst(void)
 void
 set_phy_for_ssc(void)
 {
-	unsigned long reg = (*(volatile u32 *)(RALINK_SYSCTL_BASE + 0x10));
+	unsigned long reg = rt_sysc_r32(SYSC_REG_SYSTEM_CONFIG0);
 
 	reg = (reg >> 6) & 0x7;
 	/* Set PCIe Port0 & Port1 PHY to disable SSC */
@@ -521,15 +518,15 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	read_config(0, 2, 0, 0x70c, &val);
 	printk("Port 2 N_FTS = %x\n", (unsigned int)val);
 
-	RALINK_RSTCTRL = (RALINK_RSTCTRL | RALINK_PCIE_RST);
-	RALINK_SYSCFG1 &= ~(0x30);
-	RALINK_SYSCFG1 |= (2<<4);
-	RALINK_PCIE_CLK_GEN &= 0x7fffffff;
-	RALINK_PCIE_CLK_GEN1 &= 0x80ffffff;
-	RALINK_PCIE_CLK_GEN1 |= 0xa << 24;
-	RALINK_PCIE_CLK_GEN |= 0x80000000;
+	rt_sysc_m32(0, RALINK_PCIE_RST, RALINK_RSTCTRL);
+	rt_sysc_m32(0x30, 2 << 4, SYSC_REG_SYSTEM_CONFIG1);
+
+	rt_sysc_m32(0x80000000, 0, RALINK_PCIE_CLK_GEN);
+	rt_sysc_m32(0x7f000000, 0xa << 24, RALINK_PCIE_CLK_GEN1);
+	rt_sysc_m32(0, 0x80000000, RALINK_PCIE_CLK_GEN);
+
 	mdelay(50);
-	RALINK_RSTCTRL = (RALINK_RSTCTRL & ~RALINK_PCIE_RST);
+	rt_sysc_m32(RALINK_PCIE_RST, 0, RALINK_RSTCTRL);
 
 	/* Use GPIO control instead of PERST_N */
 	*(unsigned int *)(0xbe000620) |= 0x1<<19 | 0x1<<8 | 0x1<<7;		// set DATA
@@ -539,7 +536,7 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	{
 		printk("PCIE0 no card, disable it(RST&CLK)\n");
 		ASSERT_SYSRST_PCIE(RALINK_PCIE0_RST);
-		RALINK_CLKCFG1 = (RALINK_CLKCFG1 & ~RALINK_PCIE0_CLK_EN);
+		rt_sysc_m32(RALINK_PCIE0_CLK_EN, 0, RALINK_CLKCFG1);
 		pcie_link_status &= ~(1<<0);
 	} else {
 		pcie_link_status |= 1<<0;
@@ -550,7 +547,7 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	{
 		printk("PCIE1 no card, disable it(RST&CLK)\n");
 		ASSERT_SYSRST_PCIE(RALINK_PCIE1_RST);
-		RALINK_CLKCFG1 = (RALINK_CLKCFG1 & ~RALINK_PCIE1_CLK_EN);
+		rt_sysc_m32(RALINK_PCIE1_CLK_EN, 0, RALINK_CLKCFG1);
 		pcie_link_status &= ~(1<<1);
 	} else {
 		pcie_link_status |= 1<<1;
@@ -560,7 +557,7 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	if (( RALINK_PCI2_STATUS & 0x1) == 0) {
 		printk("PCIE2 no card, disable it(RST&CLK)\n");
 		ASSERT_SYSRST_PCIE(RALINK_PCIE2_RST);
-		RALINK_CLKCFG1 = (RALINK_CLKCFG1 & ~RALINK_PCIE2_CLK_EN);
+		rt_sysc_m32(RALINK_PCIE2_CLK_EN, 0, RALINK_CLKCFG1);
 		pcie_link_status &= ~(1<<2);
 	} else {
 		pcie_link_status |= 1<<2;
