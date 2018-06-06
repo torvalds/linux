@@ -5514,8 +5514,12 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	 * driver doesn't explode during runtime.
 	 */
 err_init_hw:
-	i915_gem_wait_for_idle(dev_priv, I915_WAIT_LOCKED);
-	i915_gem_contexts_lost(dev_priv);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
+
+	WARN_ON(i915_gem_suspend(dev_priv));
+	i915_gem_suspend_late(dev_priv);
+
+	mutex_lock(&dev_priv->drm.struct_mutex);
 	intel_uc_fini_hw(dev_priv);
 err_uc_init:
 	intel_uc_fini(dev_priv);
