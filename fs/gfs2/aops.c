@@ -508,9 +508,13 @@ static int __gfs2_readpage(void *file, struct page *page)
 {
 	struct gfs2_inode *ip = GFS2_I(page->mapping->host);
 	struct gfs2_sbd *sdp = GFS2_SB(page->mapping->host);
+
 	int error;
 
-	if (gfs2_is_stuffed(ip)) {
+	if (i_blocksize(page->mapping->host) == PAGE_SIZE &&
+	    !page_has_buffers(page)) {
+		error = iomap_readpage(page, &gfs2_iomap_ops);
+	} else if (gfs2_is_stuffed(ip)) {
 		error = stuffed_readpage(ip, page);
 		unlock_page(page);
 	} else {
