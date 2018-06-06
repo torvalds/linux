@@ -409,5 +409,5 @@ module_platform_driver(cros_ec_rtc_driver);
 
 MODULE_DESCRIPTION("RTC driver for Chrome OS ECs");
 MODULE_AUTHOR("Stephen Barber <smbarber@chromium.org>");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:" DRV_NAME);
