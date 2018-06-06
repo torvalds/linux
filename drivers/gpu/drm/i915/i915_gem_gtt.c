@@ -528,8 +528,8 @@ static void cleanup_page_dma(struct i915_address_space *vm,
 
 #define setup_px(vm, px) setup_page_dma((vm), px_base(px))
 #define cleanup_px(vm, px) cleanup_page_dma((vm), px_base(px))
-#define fill_px(ppgtt, px, v) fill_page_dma((vm), px_base(px), (v))
-#define fill32_px(ppgtt, px, v) fill_page_dma_32((vm), px_base(px), (v))
+#define fill_px(vm, px, v) fill_page_dma((vm), px_base(px), (v))
+#define fill32_px(vm, px, v) fill_page_dma_32((vm), px_base(px), (v))
 
 static void fill_page_dma(struct i915_address_space *vm,
 			  struct i915_page_dma *p,
