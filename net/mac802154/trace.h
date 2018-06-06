@@ -33,7 +33,7 @@
 
 /* Tracing for driver callbacks */
 
-DECLARE_EVENT_CLASS(local_only_evt,
+DECLARE_EVENT_CLASS(local_only_evt4,
 	TP_PROTO(struct ieee802154_local *local),
 	TP_ARGS(local),
 	TP_STRUCT__entry(
@@ -45,7 +45,7 @@ DECLARE_EVENT_CLASS(local_only_evt,
 	TP_printk(LOCAL_PR_FMT, LOCAL_PR_ARG)
 );
 
-DEFINE_EVENT(local_only_evt, 802154_drv_return_void,
+DEFINE_EVENT(local_only_evt4, 802154_drv_return_void,
 	TP_PROTO(struct ieee802154_local *local),
 	TP_ARGS(local)
 );
@@ -65,12 +65,12 @@ TRACE_EVENT(802154_drv_return_int,
 		  __entry->ret)
 );
 
-DEFINE_EVENT(local_only_evt, 802154_drv_start,
+DEFINE_EVENT(local_only_evt4, 802154_drv_start,
 	TP_PROTO(struct ieee802154_local *local),
 	TP_ARGS(local)
 );
 
-DEFINE_EVENT(local_only_evt, 802154_drv_stop,
+DEFINE_EVENT(local_only_evt4, 802154_drv_stop,
 	TP_PROTO(struct ieee802154_local *local),
 	TP_ARGS(local)
 );

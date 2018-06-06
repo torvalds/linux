@@ -1007,7 +1007,7 @@ static void lan9303_get_ethtool_stats(struct dsa_switch *ds, int port,
 	}
 }
 
-static int lan9303_get_sset_count(struct dsa_switch *ds)
+static int lan9303_get_sset_count(struct dsa_switch *ds, int port)
 {
 	return ARRAY_SIZE(lan9303_mib);
 }

@@ -809,7 +809,7 @@ static int dib7000p_set_dds(struct dib7000p_state *state, s32 offset_khz)
 {
 	u32 internal = dib7000p_get_internal_freq(state);
 	s32 unit_khz_dds_val;
-	u32 abs_offset_khz = ABS(offset_khz);
+	u32 abs_offset_khz = abs(offset_khz);
 	u32 dds = state->cfg.bw->ifreq & 0x1ffffff;
 	u8 invert = !!(state->cfg.bw->ifreq & (1 << 25));
 	if (internal == 0) {

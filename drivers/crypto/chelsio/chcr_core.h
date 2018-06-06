@@ -54,8 +54,12 @@
 #define MAC_ERROR_BIT		0
 #define CHK_MAC_ERR_BIT(x)	(((x) >> MAC_ERROR_BIT) & 1)
 #define MAX_SALT                4
-#define WR_MIN_LEN (sizeof(struct chcr_wr) + \
+#define CIP_WR_MIN_LEN (sizeof(struct chcr_wr) + \
 		    sizeof(struct cpl_rx_phys_dsgl) + \
+		    sizeof(struct ulptx_sgl))
+
+#define HASH_WR_MIN_LEN (sizeof(struct chcr_wr) + \
+			DUMMY_BYTES + \
 		    sizeof(struct ulptx_sgl))
 
 #define padap(dev) pci_get_drvdata(dev->u_ctx->lldi.pdev)
@@ -65,9 +69,57 @@ struct uld_ctx;
 struct _key_ctx {
 	__be32 ctx_hdr;
 	u8 salt[MAX_SALT];
-	__be64 reserverd;
+	__be64 iv_to_auth;
 	unsigned char key[0];
 };
+
+#define KEYCTX_TX_WR_IV_S  55
+#define KEYCTX_TX_WR_IV_M  0x1ffULL
+#define KEYCTX_TX_WR_IV_V(x) ((x) << KEYCTX_TX_WR_IV_S)
+#define KEYCTX_TX_WR_IV_G(x) \
+	(((x) >> KEYCTX_TX_WR_IV_S) & KEYCTX_TX_WR_IV_M)
+
+#define KEYCTX_TX_WR_AAD_S 47
+#define KEYCTX_TX_WR_AAD_M 0xffULL
+#define KEYCTX_TX_WR_AAD_V(x) ((x) << KEYCTX_TX_WR_AAD_S)
+#define KEYCTX_TX_WR_AAD_G(x) (((x) >> KEYCTX_TX_WR_AAD_S) & \
+				KEYCTX_TX_WR_AAD_M)
+
+#define KEYCTX_TX_WR_AADST_S 39
+#define KEYCTX_TX_WR_AADST_M 0xffULL
+#define KEYCTX_TX_WR_AADST_V(x) ((x) << KEYCTX_TX_WR_AADST_S)
+#define KEYCTX_TX_WR_AADST_G(x) \
+	(((x) >> KEYCTX_TX_WR_AADST_S) & KEYCTX_TX_WR_AADST_M)
+
+#define KEYCTX_TX_WR_CIPHER_S 30
+#define KEYCTX_TX_WR_CIPHER_M 0x1ffULL
+#define KEYCTX_TX_WR_CIPHER_V(x) ((x) << KEYCTX_TX_WR_CIPHER_S)
+#define KEYCTX_TX_WR_CIPHER_G(x) \
+	(((x) >> KEYCTX_TX_WR_CIPHER_S) & KEYCTX_TX_WR_CIPHER_M)
+
+#define KEYCTX_TX_WR_CIPHERST_S 23
+#define KEYCTX_TX_WR_CIPHERST_M 0x7f
+#define KEYCTX_TX_WR_CIPHERST_V(x) ((x) << KEYCTX_TX_WR_CIPHERST_S)
+#define KEYCTX_TX_WR_CIPHERST_G(x) \
+	(((x) >> KEYCTX_TX_WR_CIPHERST_S) & KEYCTX_TX_WR_CIPHERST_M)
+
+#define KEYCTX_TX_WR_AUTH_S 14
+#define KEYCTX_TX_WR_AUTH_M 0x1ff
+#define KEYCTX_TX_WR_AUTH_V(x) ((x) << KEYCTX_TX_WR_AUTH_S)
+#define KEYCTX_TX_WR_AUTH_G(x) \
+	(((x) >> KEYCTX_TX_WR_AUTH_S) & KEYCTX_TX_WR_AUTH_M)
+
+#define KEYCTX_TX_WR_AUTHST_S 7
+#define KEYCTX_TX_WR_AUTHST_M 0x7f
+#define KEYCTX_TX_WR_AUTHST_V(x) ((x) << KEYCTX_TX_WR_AUTHST_S)
+#define KEYCTX_TX_WR_AUTHST_G(x) \
+	(((x) >> KEYCTX_TX_WR_AUTHST_S) & KEYCTX_TX_WR_AUTHST_M)
+
+#define KEYCTX_TX_WR_AUTHIN_S 0
+#define KEYCTX_TX_WR_AUTHIN_M 0x7f
+#define KEYCTX_TX_WR_AUTHIN_V(x) ((x) << KEYCTX_TX_WR_AUTHIN_S)
+#define KEYCTX_TX_WR_AUTHIN_G(x) \
+	(((x) >> KEYCTX_TX_WR_AUTHIN_S) & KEYCTX_TX_WR_AUTHIN_M)
 
 struct chcr_wr {
 	struct fw_crypto_lookaside_wr wreq;
@@ -88,6 +140,11 @@ struct uld_ctx {
 	struct list_head entry;
 	struct cxgb4_lld_info lldi;
 	struct chcr_dev *dev;
+};
+
+struct sge_opaque_hdr {
+	void *dev;
+	dma_addr_t addr[MAX_SKB_FRAGS + 1];
 };
 
 struct chcr_ipsec_req {

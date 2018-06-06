@@ -50,7 +50,7 @@
 	model = "Uniwest Evi";
 	compatible = "uniwest,imx6q-evi", "fsl,imx6q";
 
-	memory {
+	memory@10000000 {
 		reg = <0x10000000 0x40000000>;
 	};
 

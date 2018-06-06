@@ -97,12 +97,10 @@ flags	- flags of the cpufreq driver
 ==================================================================
 For details about OPP, see Documentation/power/opp.txt
 
-dev_pm_opp_init_cpufreq_table - cpufreq framework typically is initialized with
-	cpufreq_table_validate_and_show() which is provided with the list of
-	frequencies that are available for operation. This function provides
-	a ready to use conversion routine to translate the OPP layer's internal
-	information about the available frequencies into a format readily
-	providable to cpufreq.
+dev_pm_opp_init_cpufreq_table -
+	This function provides a ready to use conversion routine to translate
+	the OPP layer's internal information about the available frequencies
+	into a format readily providable to cpufreq.
 
 	WARNING: Do not use this function in interrupt context.
 
@@ -112,7 +110,7 @@ dev_pm_opp_init_cpufreq_table - cpufreq framework typically is initialized with
 		/* Do things */
 		r = dev_pm_opp_init_cpufreq_table(dev, &freq_table);
 		if (!r)
-			cpufreq_table_validate_and_show(policy, freq_table);
+			policy->freq_table = freq_table;
 		/* Do other things */
 	 }
 

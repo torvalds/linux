@@ -3,10 +3,15 @@ config COMMON_CLK_AMLOGIC
 	depends on OF
 	depends on ARCH_MESON || COMPILE_TEST
 
+config COMMON_CLK_REGMAP_MESON
+	bool
+	select REGMAP
+
 config COMMON_CLK_MESON8B
 	bool
 	depends on COMMON_CLK_AMLOGIC
 	select RESET_CONTROLLER
+	select COMMON_CLK_REGMAP_MESON
 	help
 	  Support for the clock controller on AmLogic S802 (Meson8),
 	  S805 (Meson8b) and S812 (Meson8m2) devices. Say Y if you
@@ -16,6 +21,8 @@ config COMMON_CLK_GXBB
 	bool
 	depends on COMMON_CLK_AMLOGIC
 	select RESET_CONTROLLER
+	select COMMON_CLK_REGMAP_MESON
+	select MFD_SYSCON
 	help
 	  Support for the clock controller on AmLogic S905 devices, aka gxbb.
 	  Say Y if you want peripherals and CPU frequency scaling to work.
@@ -24,6 +31,8 @@ config COMMON_CLK_AXG
 	bool
 	depends on COMMON_CLK_AMLOGIC
 	select RESET_CONTROLLER
+	select COMMON_CLK_REGMAP_MESON
+	select MFD_SYSCON
 	help
 	  Support for the clock controller on AmLogic A113D devices, aka axg.
 	  Say Y if you want peripherals and CPU frequency scaling to work.

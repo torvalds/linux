@@ -22,7 +22,7 @@
 	 * Also for U-Boot there must be a pre-existing /memory node.
 	 */
 	chosen {};
-	memory { device_type = "memory"; reg = <0 0>; };
+	memory { device_type = "memory"; };
 
 	aliases {
 		can0 = &flexcan1;
@@ -188,6 +188,7 @@
 				 <&clks IMX6SX_CLK_GPU>,
 				 <&clks IMX6SX_CLK_GPU>;
 			clock-names = "bus", "core", "shader";
+			power-domains = <&pd_pu>;
 		};
 
 		dma_apbh: dma-apbh@1804000 {
@@ -766,6 +767,18 @@
 				pgc {
 					#address-cells = <1>;
 					#size-cells = <0>;
+
+					power-domain@0 {
+						reg = <0>;
+						#power-domain-cells = <0>;
+					};
+
+					pd_pu: power-domain@1 {
+						reg = <1>;
+						#power-domain-cells = <0>;
+						power-supply = <&reg_soc>;
+						clocks = <&clks IMX6SX_CLK_GPU>;
+					};
 
 					pd_pci: power-domain@3 {
 						reg = <3>;
@@ -1354,10 +1367,5 @@
 			power-domains = <&pd_pci>;
 			status = "disabled";
 		};
-	};
-
-	gpu-subsystem {
-		compatible = "fsl,imx-gpu-subsystem";
-		cores = <&gpu>;
 	};
 };

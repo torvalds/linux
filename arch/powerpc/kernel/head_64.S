@@ -392,19 +392,20 @@ generic_secondary_common_init:
 	 * physical cpu id in r24, we need to search the pacas to find
 	 * which logical id maps to our physical one.
 	 */
-	LOAD_REG_ADDR(r13, paca)	/* Load paca pointer		 */
-	ld	r13,0(r13)		/* Get base vaddr of paca array	 */
 #ifndef CONFIG_SMP
-	addi	r13,r13,PACA_SIZE	/* know r13 if used accidentally */
 	b	kexec_wait		/* wait for next kernel if !SMP	 */
 #else
+	LOAD_REG_ADDR(r8, paca_ptrs)	/* Load paca_ptrs pointe	 */
+	ld	r8,0(r8)		/* Get base vaddr of array	 */
 	LOAD_REG_ADDR(r7, nr_cpu_ids)	/* Load nr_cpu_ids address       */
 	lwz	r7,0(r7)		/* also the max paca allocated 	 */
 	li	r5,0			/* logical cpu id                */
-1:	lhz	r6,PACAHWCPUID(r13)	/* Load HW procid from paca      */
+1:
+	sldi	r9,r5,3			/* get paca_ptrs[] index from cpu id */
+	ldx	r13,r9,r8		/* r13 = paca_ptrs[cpu id]       */
+	lhz	r6,PACAHWCPUID(r13)	/* Load HW procid from paca      */
 	cmpw	r6,r24			/* Compare to our id             */
 	beq	2f
-	addi	r13,r13,PACA_SIZE	/* Loop to next PACA on miss     */
 	addi	r5,r5,1
 	cmpw	r5,r7			/* Check if more pacas exist     */
 	blt	1b
@@ -756,10 +757,10 @@ _GLOBAL(pmac_secondary_start)
 	mtmsrd	r3			/* RI on */
 
 	/* Set up a paca value for this processor. */
-	LOAD_REG_ADDR(r4,paca)		/* Load paca pointer		*/
-	ld	r4,0(r4)		/* Get base vaddr of paca array	*/
-	mulli	r13,r24,PACA_SIZE	/* Calculate vaddr of right paca */
-	add	r13,r13,r4		/* for this processor.		*/
+	LOAD_REG_ADDR(r4,paca_ptrs)	/* Load paca pointer		*/
+	ld	r4,0(r4)		/* Get base vaddr of paca_ptrs array */
+	sldi	r5,r24,3		/* get paca_ptrs[] index from cpu id */
+	ldx	r13,r5,r4		/* r13 = paca_ptrs[cpu id]       */
 	SET_PACA(r13)			/* Save vaddr of paca in an SPRG*/
 
 	/* Mark interrupts soft and hard disabled (they might be enabled

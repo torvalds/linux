@@ -291,11 +291,11 @@ static inline void identical_pvr_fixup(unsigned long node)
 
 static void __init check_cpu_feature_properties(unsigned long node)
 {
-	unsigned long i;
+	int i;
 	struct feature_property *fp = feature_properties;
 	const __be32 *prop;
 
-	for (i = 0; i < ARRAY_SIZE(feature_properties); ++i, ++fp) {
+	for (i = 0; i < (int)ARRAY_SIZE(feature_properties); ++i, ++fp) {
 		prop = of_get_flat_dt_prop(node, fp->name, NULL);
 		if (prop && be32_to_cpup(prop) >= fp->min_value) {
 			cur_cpu_spec->cpu_features |= fp->cpu_feature;
@@ -365,7 +365,6 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	DBG("boot cpu: logical %d physical %d\n", found,
 	    be32_to_cpu(intserv[found_thread]));
 	boot_cpuid = found;
-	set_hard_smp_processor_id(found, be32_to_cpu(intserv[found_thread]));
 
 	/*
 	 * PAPR defines "logical" PVR values for cpus that
@@ -403,7 +402,9 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 		cur_cpu_spec->cpu_features &= ~CPU_FTR_SMT;
 	else if (!dt_cpu_ftrs_in_use())
 		cur_cpu_spec->cpu_features |= CPU_FTR_SMT;
+	allocate_paca(boot_cpuid);
 #endif
+	set_hard_smp_processor_id(found, be32_to_cpu(intserv[found_thread]));
 
 	return 0;
 }
@@ -744,7 +745,7 @@ void __init early_init_devtree(void *params)
 	 * FIXME .. and the initrd too? */
 	move_device_tree();
 
-	allocate_pacas();
+	allocate_paca_ptrs();
 
 	DBG("Scanning CPUs ...\n");
 
@@ -874,5 +875,15 @@ EXPORT_SYMBOL(cpu_to_chip_id);
 
 bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
 {
+#ifdef CONFIG_SMP
+	/*
+	 * Early firmware scanning must use this rather than
+	 * get_hard_smp_processor_id because we don't have pacas allocated
+	 * until memory topology is discovered.
+	 */
+	if (cpu_to_phys_id != NULL)
+		return (int)phys_id == cpu_to_phys_id[cpu];
+#endif
+
 	return (int)phys_id == get_hard_smp_processor_id(cpu);
 }

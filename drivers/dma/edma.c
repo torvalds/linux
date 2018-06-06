@@ -1876,6 +1876,11 @@ static void edma_dma_init(struct edma_cc *ecc, bool legacy_mode)
 
 	if (memcpy_channels) {
 		m_ddev = devm_kzalloc(ecc->dev, sizeof(*m_ddev), GFP_KERNEL);
+		if (!m_ddev) {
+			dev_warn(ecc->dev, "memcpy is disabled due to OoM\n");
+			memcpy_channels = NULL;
+			goto ch_setup;
+		}
 		ecc->dma_memcpy = m_ddev;
 
 		dma_cap_zero(m_ddev->cap_mask);
@@ -1903,6 +1908,7 @@ static void edma_dma_init(struct edma_cc *ecc, bool legacy_mode)
 		dev_info(ecc->dev, "memcpy is disabled\n");
 	}
 
+ch_setup:
 	for (i = 0; i < ecc->num_channels; i++) {
 		struct edma_chan *echan = &ecc->slave_chans[i];
 		echan->ch_num = EDMA_CTLR_CHAN(ecc->id, i);

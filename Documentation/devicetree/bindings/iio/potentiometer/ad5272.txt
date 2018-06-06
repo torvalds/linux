@@ -1,0 +1,27 @@
+* Analog Devices AD5272 digital potentiometer
+
+The node for this device must be a child node of a I2C controller, hence
+all mandatory properties for your controller must be specified. See directory:
+
+        Documentation/devicetree/bindings/i2c
+
+for more details.
+
+Required properties:
+	- compatible:  	Must be one of the following, depending on the model:
+			adi,ad5272-020
+			adi,ad5272-050
+			adi,ad5272-100
+			adi,ad5274-020
+			adi,ad5274-100
+
+Optional properties:
+ - reset-gpios: GPIO specification for the RESET input. This is an
+		active low signal to the AD5272.
+
+Example:
+ad5272: potentiometer@2f {
+	reg = <0x2F>;
+	compatible = "adi,ad5272-020";
+	reset-gpios = <&gpio3 6 GPIO_ACTIVE_HIGH>;
+};

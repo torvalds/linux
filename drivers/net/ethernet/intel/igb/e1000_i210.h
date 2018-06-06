@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Intel(R) Gigabit Ethernet Linux driver
  * Copyright(c) 2007-2014 Intel Corporation.
  *

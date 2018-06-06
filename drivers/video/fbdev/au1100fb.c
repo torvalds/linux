@@ -410,18 +410,15 @@ static int au1100fb_setup(struct au1100fb_device *fbdev)
 
 static int au1100fb_drv_probe(struct platform_device *dev)
 {
-	struct au1100fb_device *fbdev = NULL;
+	struct au1100fb_device *fbdev;
 	struct resource *regs_res;
 	unsigned long page;
 	struct clk *c;
 
 	/* Allocate new device private */
-	fbdev = devm_kzalloc(&dev->dev, sizeof(struct au1100fb_device),
-			     GFP_KERNEL);
-	if (!fbdev) {
-		print_err("fail to allocate device private record");
+	fbdev = devm_kzalloc(&dev->dev, sizeof(*fbdev), GFP_KERNEL);
+	if (!fbdev)
 		return -ENOMEM;
-	}
 
 	if (au1100fb_setup(fbdev))
 		goto failed;

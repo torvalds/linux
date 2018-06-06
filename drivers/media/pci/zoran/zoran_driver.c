@@ -241,8 +241,8 @@ static int v4l_fbuffer_alloc(struct zoran_fh *fh)
 			SetPageReserved(virt_to_page(mem + off));
 		dprintk(4,
 			KERN_INFO
-			"%s: %s - V4L frame %d mem 0x%lx (bus: 0x%llx)\n",
-			ZR_DEVNAME(zr), __func__, i, (unsigned long) mem,
+			"%s: %s - V4L frame %d mem %p (bus: 0x%llx)\n",
+			ZR_DEVNAME(zr), __func__, i, mem,
 			(unsigned long long)virt_to_bus(mem));
 	}
 

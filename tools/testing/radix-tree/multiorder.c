@@ -16,6 +16,7 @@
 #include <linux/radix-tree.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
+#include <pthread.h>
 
 #include "test.h"
 
@@ -624,6 +625,67 @@ static void multiorder_account(void)
 	item_kill_tree(&tree);
 }
 
+bool stop_iteration = false;
+
+static void *creator_func(void *ptr)
+{
+	/* 'order' is set up to ensure we have sibling entries */
+	unsigned int order = RADIX_TREE_MAP_SHIFT - 1;
+	struct radix_tree_root *tree = ptr;
+	int i;
+
+	for (i = 0; i < 10000; i++) {
+		item_insert_order(tree, 0, order);
+		item_delete_rcu(tree, 0);
+	}
+
+	stop_iteration = true;
+	return NULL;
+}
+
+static void *iterator_func(void *ptr)
+{
+	struct radix_tree_root *tree = ptr;
+	struct radix_tree_iter iter;
+	struct item *item;
+	void **slot;
+
+	while (!stop_iteration) {
+		rcu_read_lock();
+		radix_tree_for_each_slot(slot, tree, &iter, 0) {
+			item = radix_tree_deref_slot(slot);
+
+			if (!item)
+				continue;
+			if (radix_tree_deref_retry(item)) {
+				slot = radix_tree_iter_retry(&iter);
+				continue;
+			}
+
+			item_sanity(item, iter.index);
+		}
+		rcu_read_unlock();
+	}
+	return NULL;
+}
+
+static void multiorder_iteration_race(void)
+{
+	const int num_threads = sysconf(_SC_NPROCESSORS_ONLN);
+	pthread_t worker_thread[num_threads];
+	RADIX_TREE(tree, GFP_KERNEL);
+	int i;
+
+	pthread_create(&worker_thread[0], NULL, &creator_func, &tree);
+	for (i = 1; i < num_threads; i++)
+		pthread_create(&worker_thread[i], NULL, &iterator_func, &tree);
+
+	for (i = 0; i < num_threads; i++)
+		pthread_join(worker_thread[i], NULL);
+
+	item_kill_tree(&tree);
+}
+
 void multiorder_checks(void)
 {
 	int i;
@@ -644,6 +706,7 @@ void multiorder_checks(void)
 	multiorder_join();
 	multiorder_split();
 	multiorder_account();
+	multiorder_iteration_race();
 
 	radix_tree_cpu_dead(0);
 }

@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2008 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/kernel.h>
@@ -458,7 +445,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 			break;
 
 		rcu_read_lock();
-		page = radix_tree_lookup(&mapping->page_tree, pg_index);
+		page = radix_tree_lookup(&mapping->i_pages, pg_index);
 		rcu_read_unlock();
 		if (page && !radix_tree_exceptional_entry(page)) {
 			misses++;
@@ -1133,7 +1120,7 @@ int btrfs_decompress(int type, unsigned char *data_in, struct page *dest_page,
 	return ret;
 }
 
-void btrfs_exit_compress(void)
+void __cold btrfs_exit_compress(void)
 {
 	free_workspaces();
 }

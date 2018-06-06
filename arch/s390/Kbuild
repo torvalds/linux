@@ -8,3 +8,4 @@ obj-$(CONFIG_APPLDATA_BASE)	+= appldata/
 obj-y				+= net/
 obj-$(CONFIG_PCI)		+= pci/
 obj-$(CONFIG_NUMA)		+= numa/
+obj-$(CONFIG_ARCH_HAS_KEXEC_PURGATORY) += purgatory/

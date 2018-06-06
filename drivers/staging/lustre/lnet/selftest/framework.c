@@ -187,7 +187,7 @@ sfw_del_session_timer(void)
 		return 0;
 	}
 
-	return EBUSY; /* racing with sfw_session_expired() */
+	return -EBUSY; /* racing with sfw_session_expired() */
 }
 
 static void

@@ -106,13 +106,6 @@ static asmlinkage struct job_sha1* (*sha1_job_mgr_flush)
 static asmlinkage struct job_sha1* (*sha1_job_mgr_get_comp_job)
 						(struct sha1_mb_mgr *state);
 
-static inline void sha1_init_digest(uint32_t *digest)
-{
-	static const uint32_t initial_digest[SHA1_DIGEST_LENGTH] = {SHA1_H0,
-					SHA1_H1, SHA1_H2, SHA1_H3, SHA1_H4 };
-	memcpy(digest, initial_digest, sizeof(initial_digest));
-}
-
 static inline uint32_t sha1_pad(uint8_t padblock[SHA1_BLOCK_SIZE * 2],
 			 uint64_t total_len)
 {
@@ -244,11 +237,8 @@ static struct sha1_hash_ctx *sha1_ctx_mgr_submit(struct sha1_ctx_mgr *mgr,
 					  uint32_t len,
 					  int flags)
 {
-	if (flags & (~HASH_ENTIRE)) {
-		/*
-		 * User should not pass anything other than FIRST, UPDATE, or
-		 * LAST
-		 */
+	if (flags & ~(HASH_UPDATE | HASH_LAST)) {
+		/* User should not pass anything other than UPDATE or LAST */
 		ctx->error = HASH_CTX_ERROR_INVALID_FLAGS;
 		return ctx;
 	}
@@ -259,22 +249,10 @@ static struct sha1_hash_ctx *sha1_ctx_mgr_submit(struct sha1_ctx_mgr *mgr,
 		return ctx;
 	}
 
-	if ((ctx->status & HASH_CTX_STS_COMPLETE) && !(flags & HASH_FIRST)) {
+	if (ctx->status & HASH_CTX_STS_COMPLETE) {
 		/* Cannot update a finished job. */
 		ctx->error = HASH_CTX_ERROR_ALREADY_COMPLETED;
 		return ctx;
-	}
-
-
-	if (flags & HASH_FIRST) {
-		/* Init digest */
-		sha1_init_digest(ctx->job.result_digest);
-
-		/* Reset byte counter */
-		ctx->total_length = 0;
-
-		/* Clear extra blocks */
-		ctx->partial_block_buffer_length = 0;
 	}
 
 	/*

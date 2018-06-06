@@ -80,7 +80,7 @@ struct dpaa2_io *dpaa2_io_service_select(int cpu);
  * Used when a FQDAN/CDAN registration is made by drivers.
  */
 struct dpaa2_io_notification_ctx {
-	void (*cb)(struct dpaa2_io_notification_ctx *);
+	void (*cb)(struct dpaa2_io_notification_ctx *ctx);
 	int is_cdan;
 	u32 id;
 	int desired_cpu;

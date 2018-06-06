@@ -304,7 +304,7 @@ static struct platform_driver ti_cpufreq_driver = {
 		.name = "ti-cpufreq",
 	},
 };
-module_platform_driver(ti_cpufreq_driver);
+builtin_platform_driver(ti_cpufreq_driver);
 
 MODULE_DESCRIPTION("TI CPUFreq/OPP hw-supported driver");
 MODULE_AUTHOR("Dave Gerlach <d-gerlach@ti.com>");

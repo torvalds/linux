@@ -37,12 +37,6 @@ struct rpc_buffer {
 	char	data[];
 };
 
-static inline int rpc_reply_expected(struct rpc_task *task)
-{
-	return (task->tk_msg.rpc_proc != NULL) &&
-		(task->tk_msg.rpc_proc->p_decode != NULL);
-}
-
 static inline int sock_is_loopback(struct sock *sk)
 {
 	struct dst_entry *dst;

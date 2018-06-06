@@ -109,6 +109,13 @@ void release_thread(struct task_struct *);
 #define TASK_SIZE_64TB  (0x0000400000000000UL)
 #define TASK_SIZE_128TB (0x0000800000000000UL)
 #define TASK_SIZE_512TB (0x0002000000000000UL)
+#define TASK_SIZE_1PB   (0x0004000000000000UL)
+#define TASK_SIZE_2PB   (0x0008000000000000UL)
+/*
+ * With 52 bits in the address we can support
+ * upto 4PB of range.
+ */
+#define TASK_SIZE_4PB   (0x0010000000000000UL)
 
 /*
  * For now 512TB is only supported with book3s and 64K linux page size.
@@ -117,11 +124,17 @@ void release_thread(struct task_struct *);
 /*
  * Max value currently used:
  */
-#define TASK_SIZE_USER64		TASK_SIZE_512TB
+#define TASK_SIZE_USER64		TASK_SIZE_4PB
 #define DEFAULT_MAP_WINDOW_USER64	TASK_SIZE_128TB
+#define TASK_CONTEXT_SIZE		TASK_SIZE_512TB
 #else
 #define TASK_SIZE_USER64		TASK_SIZE_64TB
 #define DEFAULT_MAP_WINDOW_USER64	TASK_SIZE_64TB
+/*
+ * We don't need to allocate extended context ids for 4K page size, because
+ * we limit the max effective address on this config to 64TB.
+ */
+#define TASK_CONTEXT_SIZE		TASK_SIZE_64TB
 #endif
 
 /*
@@ -505,6 +518,7 @@ extern int powersave_nap;	/* set if nap mode can be used in idle loop */
 extern unsigned long power7_idle_insn(unsigned long type); /* PNV_THREAD_NAP/etc*/
 extern void power7_idle_type(unsigned long type);
 extern unsigned long power9_idle_stop(unsigned long psscr_val);
+extern unsigned long power9_offline_stop(unsigned long psscr_val);
 extern void power9_idle_type(unsigned long stop_psscr_val,
 			      unsigned long stop_psscr_mask);
 

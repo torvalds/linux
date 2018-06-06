@@ -8,7 +8,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
 #include "sched.h"
 
 DEFINE_PER_CPU(struct update_util_data *, cpufreq_update_util_data);

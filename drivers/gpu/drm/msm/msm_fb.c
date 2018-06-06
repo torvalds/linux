@@ -53,7 +53,7 @@ static void msm_framebuffer_destroy(struct drm_framebuffer *fb)
 	for (i = 0; i < n; i++) {
 		struct drm_gem_object *bo = msm_fb->planes[i];
 
-		drm_gem_object_unreference_unlocked(bo);
+		drm_gem_object_put_unlocked(bo);
 	}
 
 	kfree(msm_fb);
@@ -160,7 +160,7 @@ struct drm_framebuffer *msm_framebuffer_create(struct drm_device *dev,
 
 out_unref:
 	for (i = 0; i < n; i++)
-		drm_gem_object_unreference_unlocked(bos[i]);
+		drm_gem_object_put_unlocked(bos[i]);
 	return ERR_PTR(ret);
 }
 
@@ -183,7 +183,8 @@ static struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 	hsub = drm_format_horz_chroma_subsampling(mode_cmd->pixel_format);
 	vsub = drm_format_vert_chroma_subsampling(mode_cmd->pixel_format);
 
-	format = kms->funcs->get_format(kms, mode_cmd->pixel_format);
+	format = kms->funcs->get_format(kms, mode_cmd->pixel_format,
+			mode_cmd->modifier[0]);
 	if (!format) {
 		dev_err(dev->dev, "unsupported pixel format: %4.4s\n",
 				(char *)&mode_cmd->pixel_format);
@@ -274,7 +275,7 @@ msm_alloc_stolen_fb(struct drm_device *dev, int w, int h, int p, uint32_t format
 		/* note: if fb creation failed, we can't rely on fb destroy
 		 * to unref the bo:
 		 */
-		drm_gem_object_unreference_unlocked(bo);
+		drm_gem_object_put_unlocked(bo);
 		return ERR_CAST(fb);
 	}
 

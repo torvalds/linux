@@ -67,5 +67,6 @@
 #define CLKID_AO_I2C				58
 #define CLKID_SD_EMMC_B_CLK0			59
 #define CLKID_SD_EMMC_C_CLK0			60
+#define CLKID_HIFI_PLL				69
 
 #endif /* __AXG_CLKC_H */

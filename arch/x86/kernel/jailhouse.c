@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL2.0
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Jailhouse paravirt_ops implementation
  *
@@ -123,6 +123,14 @@ static int __init jailhouse_pci_arch_init(void)
 	 */
 	if (pcibios_last_bus < 0)
 		pcibios_last_bus = 0xff;
+
+#ifdef CONFIG_PCI_MMCONFIG
+	if (setup_data.pci_mmconfig_base) {
+		pci_mmconfig_add(0, 0, pcibios_last_bus,
+				 setup_data.pci_mmconfig_base);
+		pci_mmcfg_arch_init();
+	}
+#endif
 
 	return 0;
 }

@@ -33,6 +33,10 @@ Optional Properties:
   Select (AKA RS1) output gpio signal (SFP+ only), low: low Tx rate, high:
   high Tx rate. Must not be present for SFF modules
 
+- maximum-power-milliwatt : Maximum module power consumption
+  Specifies the maximum power consumption allowable by a module in the
+  slot, in milli-Watts.  Presently, modules can be up to 1W, 1.5W or 2W.
+
 Example #1: Direct serdes to SFP connection
 
 sfp_eth3: sfp-eth3 {
@@ -40,6 +44,7 @@ sfp_eth3: sfp-eth3 {
 	i2c-bus = <&sfp_1g_i2c>;
 	los-gpios = <&cpm_gpio2 22 GPIO_ACTIVE_HIGH>;
 	mod-def0-gpios = <&cpm_gpio2 21 GPIO_ACTIVE_LOW>;
+	maximum-power-milliwatt = <1000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&cpm_sfp_1g_pins &cps_sfp_1g_pins>;
 	tx-disable-gpios = <&cps_gpio1 24 GPIO_ACTIVE_HIGH>;

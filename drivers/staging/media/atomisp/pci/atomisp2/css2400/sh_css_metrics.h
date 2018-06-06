@@ -24,16 +24,6 @@ struct sh_css_pc_histogram {
 	unsigned *msink;
 };
 
-#if !defined(__USE_DESIGNATED_INITIALISERS__)
-#define DEFAULT_PC_HISTOGRAM \
-{ \
-	0, \
-	NULL, \
-	NULL, \
-	NULL \
-}
-#endif
-
 struct sh_css_binary_metrics {
 	unsigned mode;
 	unsigned id;
@@ -41,17 +31,6 @@ struct sh_css_binary_metrics {
 	struct sh_css_pc_histogram sp_histogram;
 	struct sh_css_binary_metrics *next;
 };
-
-#if !defined(__USE_DESIGNATED_INITIALISERS__)
-#define DEFAULT_BINARY_METRICS \
-{ \
-	0, \
-	0, \
-	DEFAULT_PC_HISTOGRAM, \
-	DEFAULT_PC_HISTOGRAM, \
-	NULL \
-}
-#endif
 
 struct ia_css_frame_metrics {
 	unsigned num_frames;

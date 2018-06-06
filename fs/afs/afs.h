@@ -67,10 +67,14 @@ typedef enum {
 } afs_callback_type_t;
 
 struct afs_callback {
-	struct afs_fid		fid;		/* file identifier */
-	unsigned		version;	/* callback version */
-	unsigned		expiry;		/* time at which expires */
-	afs_callback_type_t	type;		/* type of callback */
+	unsigned		version;	/* Callback version */
+	unsigned		expiry;		/* Time at which expires */
+	afs_callback_type_t	type;		/* Type of callback */
+};
+
+struct afs_callback_break {
+	struct afs_fid		fid;		/* File identifier */
+	struct afs_callback	cb;		/* Callback details */
 };
 
 #define AFSCBMAX 50	/* maximum callbacks transferred per bulk op */
@@ -123,21 +127,20 @@ typedef u32 afs_access_t;
  * AFS file status information
  */
 struct afs_file_status {
-	unsigned		if_version;	/* interface version */
-#define AFS_FSTATUS_VERSION	1
+	u64			size;		/* file size */
+	afs_dataversion_t	data_version;	/* current data version */
+	time_t			mtime_client;	/* last time client changed data */
+	time_t			mtime_server;	/* last time server changed data */
+	unsigned		abort_code;	/* Abort if bulk-fetching this failed */
 
 	afs_file_type_t		type;		/* file type */
 	unsigned		nlink;		/* link count */
-	u64			size;		/* file size */
-	afs_dataversion_t	data_version;	/* current data version */
 	u32			author;		/* author ID */
-	kuid_t			owner;		/* owner ID */
-	kgid_t			group;		/* group ID */
+	u32			owner;		/* owner ID */
+	u32			group;		/* group ID */
 	afs_access_t		caller_access;	/* access rights for authenticated caller */
 	afs_access_t		anon_access;	/* access rights for unauthenticated caller */
 	umode_t			mode;		/* UNIX mode */
-	time_t			mtime_client;	/* last time client changed data */
-	time_t			mtime_server;	/* last time server changed data */
 	s32			lock_count;	/* file lock count (0=UNLK -1=WRLCK +ve=#RDLCK */
 };
 

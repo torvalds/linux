@@ -752,7 +752,7 @@ static struct lu_device *echo_device_free(const struct lu_env *env,
 		spin_unlock(&ec->ec_lock);
 		CERROR("echo_client still has objects at cleanup time, wait for 1 second\n");
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(cfs_time_seconds(1));
+		schedule_timeout(HZ);
 		lu_site_purge(env, ed->ed_site, -1);
 		spin_lock(&ec->ec_lock);
 	}
@@ -1502,7 +1502,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 
 	switch (cmd) {
 	case OBD_IOC_CREATE:		    /* may create echo object */
-		if (!capable(CFS_CAP_SYS_ADMIN)) {
+		if (!capable(CAP_SYS_ADMIN)) {
 			rc = -EPERM;
 			goto out;
 		}
@@ -1511,7 +1511,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		goto out;
 
 	case OBD_IOC_DESTROY:
-		if (!capable(CFS_CAP_SYS_ADMIN)) {
+		if (!capable(CAP_SYS_ADMIN)) {
 			rc = -EPERM;
 			goto out;
 		}
@@ -1534,7 +1534,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		goto out;
 
 	case OBD_IOC_SETATTR:
-		if (!capable(CFS_CAP_SYS_ADMIN)) {
+		if (!capable(CAP_SYS_ADMIN)) {
 			rc = -EPERM;
 			goto out;
 		}
@@ -1547,7 +1547,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		goto out;
 
 	case OBD_IOC_BRW_WRITE:
-		if (!capable(CFS_CAP_SYS_ADMIN)) {
+		if (!capable(CAP_SYS_ADMIN)) {
 			rc = -EPERM;
 			goto out;
 		}

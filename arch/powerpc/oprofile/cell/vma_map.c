@@ -69,8 +69,8 @@ vma_map_add(struct vma_to_fileoffset_map *map, unsigned int vma,
 	    unsigned int size, unsigned int offset, unsigned int guard_ptr,
 	    unsigned int guard_val)
 {
-	struct vma_to_fileoffset_map *new =
-		kzalloc(sizeof(struct vma_to_fileoffset_map), GFP_KERNEL);
+	struct vma_to_fileoffset_map *new = kzalloc(sizeof(*new), GFP_KERNEL);
+
 	if (!new) {
 		printk(KERN_ERR "SPU_PROF: %s, line %d: malloc failed\n",
 		       __func__, __LINE__);

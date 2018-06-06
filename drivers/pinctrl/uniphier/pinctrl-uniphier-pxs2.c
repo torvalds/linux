@@ -728,6 +728,20 @@ static const struct pinctrl_pin_desc uniphier_pxs2_pins[] = {
 			     234, UNIPHIER_PIN_PULL_DOWN),
 };
 
+static const unsigned ain1_pins[] = {161, 162, 173, 174};
+static const int ain1_muxvals[] = {8, 8, 8, 8};
+static const unsigned ain2_pins[] = {98, 99, 100, 101, 102, 103, 104};
+static const int ain2_muxvals[] = {8, 8, 8, 8, 8, 8, 8};
+static const unsigned ainiec1_pins[] = {91};
+static const int ainiec1_muxvals[] = {11};
+static const unsigned aout2_pins[] = {175, 176, 177, 178, 183, 184, 185};
+static const int aout2_muxvals[] = {8, 8, 8, 8, 9, 9, 9};
+static const unsigned aout3_pins[] = {105, 106, 107, 108};
+static const int aout3_muxvals[] = {8, 8, 8, 8};
+static const unsigned aoutiec1_pins[] = {95};
+static const int aoutiec1_muxvals[] = {11};
+static const unsigned aoutiec2_pins[] = {97};
+static const int aoutiec2_muxvals[] = {8};
 static const unsigned emmc_pins[] = {36, 37, 38, 39, 40, 41, 42};
 static const int emmc_muxvals[] = {9, 9, 9, 9, 9, 9, 9};
 static const unsigned emmc_dat8_pins[] = {43, 44, 45, 46};
@@ -774,6 +788,8 @@ static const unsigned uart0_pins[] = {217, 218};
 static const int uart0_muxvals[] = {8, 8};
 static const unsigned uart0b_pins[] = {179, 180};
 static const int uart0b_muxvals[] = {10, 10};
+static const unsigned uart0b_ctsrts_pins[] = {176, 177, 178, 183, 184, 185};
+static const int uart0b_ctsrts_muxvals[] = {10, 10, 10, 10, 10, 10};
 static const unsigned uart1_pins[] = {115, 116};
 static const int uart1_muxvals[] = {8, 8};
 static const unsigned uart2_pins[] = {113, 114};
@@ -824,6 +840,13 @@ static const unsigned int gpio_range1_pins[] = {
 };
 
 static const struct uniphier_pinctrl_group uniphier_pxs2_groups[] = {
+	UNIPHIER_PINCTRL_GROUP(ain1),
+	UNIPHIER_PINCTRL_GROUP(ain2),
+	UNIPHIER_PINCTRL_GROUP(ainiec1),
+	UNIPHIER_PINCTRL_GROUP(aout2),
+	UNIPHIER_PINCTRL_GROUP(aout3),
+	UNIPHIER_PINCTRL_GROUP(aoutiec1),
+	UNIPHIER_PINCTRL_GROUP(aoutiec2),
 	UNIPHIER_PINCTRL_GROUP(emmc),
 	UNIPHIER_PINCTRL_GROUP(emmc_dat8),
 	UNIPHIER_PINCTRL_GROUP(ether_mii),
@@ -842,6 +865,7 @@ static const struct uniphier_pinctrl_group uniphier_pxs2_groups[] = {
 	UNIPHIER_PINCTRL_GROUP(system_bus_cs1),
 	UNIPHIER_PINCTRL_GROUP(uart0),
 	UNIPHIER_PINCTRL_GROUP(uart0b),
+	UNIPHIER_PINCTRL_GROUP(uart0b_ctsrts),
 	UNIPHIER_PINCTRL_GROUP(uart1),
 	UNIPHIER_PINCTRL_GROUP(uart2),
 	UNIPHIER_PINCTRL_GROUP(uart3),
@@ -854,6 +878,13 @@ static const struct uniphier_pinctrl_group uniphier_pxs2_groups[] = {
 	UNIPHIER_PINCTRL_GROUP_GPIO(gpio_range1),
 };
 
+static const char * const ain1_groups[] = {"ain1"};
+static const char * const ain2_groups[] = {"ain2"};
+static const char * const ainiec1_groups[] = {"ainiec1"};
+static const char * const aout2_groups[] = {"aout2"};
+static const char * const aout3_groups[] = {"aout3"};
+static const char * const aoutiec1_groups[] = {"aoutiec1"};
+static const char * const aoutiec2_groups[] = {"aoutiec2"};
 static const char * const emmc_groups[] = {"emmc", "emmc_dat8"};
 static const char * const ether_mii_groups[] = {"ether_mii"};
 static const char * const ether_rgmii_groups[] = {"ether_rgmii"};
@@ -868,7 +899,7 @@ static const char * const nand_groups[] = {"nand", "nand_cs1"};
 static const char * const sd_groups[] = {"sd"};
 static const char * const system_bus_groups[] = {"system_bus",
 						 "system_bus_cs1"};
-static const char * const uart0_groups[] = {"uart0", "uart0b"};
+static const char * const uart0_groups[] = {"uart0", "uart0b", "uart0b_ctsrts"};
 static const char * const uart1_groups[] = {"uart1"};
 static const char * const uart2_groups[] = {"uart2"};
 static const char * const uart3_groups[] = {"uart3", "uart3b"};
@@ -878,6 +909,13 @@ static const char * const usb2_groups[] = {"usb2"};
 static const char * const usb3_groups[] = {"usb3"};
 
 static const struct uniphier_pinmux_function uniphier_pxs2_functions[] = {
+	UNIPHIER_PINMUX_FUNCTION(ain1),
+	UNIPHIER_PINMUX_FUNCTION(ain2),
+	UNIPHIER_PINMUX_FUNCTION(ainiec1),
+	UNIPHIER_PINMUX_FUNCTION(aout2),
+	UNIPHIER_PINMUX_FUNCTION(aout3),
+	UNIPHIER_PINMUX_FUNCTION(aoutiec1),
+	UNIPHIER_PINMUX_FUNCTION(aoutiec2),
 	UNIPHIER_PINMUX_FUNCTION(emmc),
 	UNIPHIER_PINMUX_FUNCTION(ether_mii),
 	UNIPHIER_PINMUX_FUNCTION(ether_rgmii),

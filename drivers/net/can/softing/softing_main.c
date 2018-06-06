@@ -601,8 +601,8 @@ static ssize_t store_output(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static const DEVICE_ATTR(chip, S_IRUGO, show_chip, NULL);
-static const DEVICE_ATTR(output, S_IRUGO | S_IWUSR, show_output, store_output);
+static const DEVICE_ATTR(chip, 0444, show_chip, NULL);
+static const DEVICE_ATTR(output, 0644, show_output, store_output);
 
 static const struct attribute *const netdev_sysfs_attrs[] = {
 	&dev_attr_chip.attr,

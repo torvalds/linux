@@ -310,6 +310,8 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
  *	fields should be ignored (use %__ETHTOOL_LINK_MODE_MASK_NBITS
  *	instead of the latter), any change to them will be overwritten
  *	by kernel. Returns a negative error code or zero.
+ * @get_fecparam: Get the network device Forward Error Correction parameters.
+ * @set_fecparam: Set the network device Forward Error Correction parameters.
  *
  * All operations are optional (i.e. the function pointer may be set
  * to %NULL) and callers must take this into account.  Callers must
@@ -371,6 +373,11 @@ struct ethtool_ops {
 			    u8 *hfunc);
 	int	(*set_rxfh)(struct net_device *, const u32 *indir,
 			    const u8 *key, const u8 hfunc);
+	int	(*get_rxfh_context)(struct net_device *, u32 *indir, u8 *key,
+				    u8 *hfunc, u32 rss_context);
+	int	(*set_rxfh_context)(struct net_device *, const u32 *indir,
+				    const u8 *key, const u8 hfunc,
+				    u32 *rss_context, bool delete);
 	void	(*get_channels)(struct net_device *, struct ethtool_channels *);
 	int	(*set_channels)(struct net_device *, struct ethtool_channels *);
 	int	(*get_dump_flag)(struct net_device *, struct ethtool_dump *);

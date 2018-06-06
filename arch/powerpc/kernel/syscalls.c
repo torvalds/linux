@@ -48,7 +48,7 @@ static inline long do_mmap2(unsigned long addr, size_t len,
 {
 	long ret = -EINVAL;
 
-	if (!arch_validate_prot(prot))
+	if (!arch_validate_prot(prot, addr))
 		goto out;
 
 	if (shift) {
@@ -57,7 +57,7 @@ static inline long do_mmap2(unsigned long addr, size_t len,
 		off >>= shift;
 	}
 
-	ret = sys_mmap_pgoff(addr, len, prot, flags, fd, off);
+	ret = ksys_mmap_pgoff(addr, len, prot, flags, fd, off);
 out:
 	return ret;
 }
@@ -119,8 +119,8 @@ long ppc64_personality(unsigned long personality)
 long ppc_fadvise64_64(int fd, int advice, u32 offset_high, u32 offset_low,
 		      u32 len_high, u32 len_low)
 {
-	return sys_fadvise64(fd, (u64)offset_high << 32 | offset_low,
-			     (u64)len_high << 32 | len_low, advice);
+	return ksys_fadvise64_64(fd, (u64)offset_high << 32 | offset_low,
+				 (u64)len_high << 32 | len_low, advice);
 }
 
 long sys_switch_endian(void)

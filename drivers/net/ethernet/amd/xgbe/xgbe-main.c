@@ -131,7 +131,7 @@ MODULE_VERSION(XGBE_DRV_VERSION);
 MODULE_DESCRIPTION(XGBE_DRV_DESC);
 
 static int debug = -1;
-module_param(debug, int, S_IWUSR | S_IRUGO);
+module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, " Network interface message level setting");
 
 static const u32 default_msg_level = (NETIF_MSG_LINK | NETIF_MSG_IFDOWN |
@@ -349,6 +349,7 @@ int xgbe_config_netdev(struct xgbe_prv_data *pdata)
 	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, UDP4TE, 1);
 
 	/* Call MDIO/PHY initialization routine */
+	pdata->debugfs_an_cdr_workaround = pdata->vdata->an_cdr_workaround;
 	ret = pdata->phy_if.phy_init(pdata);
 	if (ret)
 		return ret;

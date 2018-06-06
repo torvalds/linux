@@ -2899,6 +2899,14 @@ static irqreturn_t sdhci_thread_irq(int irq, void *dev_id)
 \*****************************************************************************/
 
 #ifdef CONFIG_PM
+
+static bool sdhci_cd_irq_can_wakeup(struct sdhci_host *host)
+{
+	return mmc_card_is_removable(host->mmc) &&
+	       !(host->quirks & SDHCI_QUIRK_BROKEN_CARD_DETECTION) &&
+	       !mmc_can_gpio_cd(host->mmc);
+}
+
 /*
  * To enable wakeup events, the corresponding events have to be enabled in
  * the Interrupt Status Enable register too. See 'Table 1-6: Wakeup Signal
@@ -2915,13 +2923,18 @@ static bool sdhci_enable_irq_wakeups(struct sdhci_host *host)
 	u8 wake_val = 0;
 	u8 val;
 
-	if (!(host->quirks & SDHCI_QUIRK_BROKEN_CARD_DETECTION)) {
+	if (sdhci_cd_irq_can_wakeup(host)) {
 		wake_val |= SDHCI_WAKE_ON_INSERT | SDHCI_WAKE_ON_REMOVE;
 		irq_val |= SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE;
 	}
 
-	wake_val |= SDHCI_WAKE_ON_INT;
-	irq_val |= SDHCI_INT_CARD_INT;
+	if (mmc_card_wake_sdio_irq(host->mmc)) {
+		wake_val |= SDHCI_WAKE_ON_INT;
+		irq_val |= SDHCI_INT_CARD_INT;
+	}
+
+	if (!irq_val)
+		return false;
 
 	val = sdhci_readb(host, SDHCI_WAKE_UP_CONTROL);
 	val &= ~mask;

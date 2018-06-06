@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*******************************************************************************
 
   Intel(R) 82576 Virtual Function Linux driver

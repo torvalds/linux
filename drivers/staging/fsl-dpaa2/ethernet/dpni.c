@@ -32,7 +32,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include "../../fsl-mc/include/mc.h"
+#include <linux/fsl/mc.h>
 #include "dpni.h"
 #include "dpni-cmd.h"
 
@@ -122,7 +122,7 @@ int dpni_open(struct fsl_mc_io *mc_io,
 	      int dpni_id,
 	      u16 *token)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_open *cmd_params;
 
 	int err;
@@ -160,7 +160,7 @@ int dpni_close(struct fsl_mc_io *mc_io,
 	       u32 cmd_flags,
 	       u16 token)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPNI_CMDID_CLOSE,
@@ -188,7 +188,7 @@ int dpni_set_pools(struct fsl_mc_io *mc_io,
 		   u16 token,
 		   const struct dpni_pools_cfg *cfg)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_set_pools *cmd_params;
 	int i;
 
@@ -222,7 +222,7 @@ int dpni_enable(struct fsl_mc_io *mc_io,
 		u32 cmd_flags,
 		u16 token)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPNI_CMDID_ENABLE,
@@ -245,7 +245,7 @@ int dpni_disable(struct fsl_mc_io *mc_io,
 		 u32 cmd_flags,
 		 u16 token)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPNI_CMDID_DISABLE,
@@ -270,7 +270,7 @@ int dpni_is_enabled(struct fsl_mc_io *mc_io,
 		    u16 token,
 		    int *en)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_rsp_is_enabled *rsp_params;
 	int err;
 
@@ -303,7 +303,7 @@ int dpni_reset(struct fsl_mc_io *mc_io,
 	       u32 cmd_flags,
 	       u16 token)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPNI_CMDID_RESET,
@@ -335,7 +335,7 @@ int dpni_set_irq_enable(struct fsl_mc_io *mc_io,
 			u8 irq_index,
 			u8 en)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_set_irq_enable *cmd_params;
 
 	/* prepare command */
@@ -366,7 +366,7 @@ int dpni_get_irq_enable(struct fsl_mc_io *mc_io,
 			u8 irq_index,
 			u8 *en)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_get_irq_enable *cmd_params;
 	struct dpni_rsp_get_irq_enable *rsp_params;
 
@@ -413,7 +413,7 @@ int dpni_set_irq_mask(struct fsl_mc_io *mc_io,
 		      u8 irq_index,
 		      u32 mask)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_set_irq_mask *cmd_params;
 
 	/* prepare command */
@@ -447,7 +447,7 @@ int dpni_get_irq_mask(struct fsl_mc_io *mc_io,
 		      u8 irq_index,
 		      u32 *mask)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_get_irq_mask *cmd_params;
 	struct dpni_rsp_get_irq_mask *rsp_params;
 	int err;
@@ -489,7 +489,7 @@ int dpni_get_irq_status(struct fsl_mc_io *mc_io,
 			u8 irq_index,
 			u32 *status)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_get_irq_status *cmd_params;
 	struct dpni_rsp_get_irq_status *rsp_params;
 	int err;
@@ -532,7 +532,7 @@ int dpni_clear_irq_status(struct fsl_mc_io *mc_io,
 			  u8 irq_index,
 			  u32 status)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_clear_irq_status *cmd_params;
 
 	/* prepare command */
@@ -561,7 +561,7 @@ int dpni_get_attributes(struct fsl_mc_io *mc_io,
 			u16 token,
 			struct dpni_attr *attr)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_rsp_get_attr *rsp_params;
 
 	int err;
@@ -609,7 +609,7 @@ int dpni_set_errors_behavior(struct fsl_mc_io *mc_io,
 			     u16 token,
 			     struct dpni_error_cfg *cfg)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_set_errors_behavior *cmd_params;
 
 	/* prepare command */
@@ -641,7 +641,7 @@ int dpni_get_buffer_layout(struct fsl_mc_io *mc_io,
 			   enum dpni_queue_type qtype,
 			   struct dpni_buffer_layout *layout)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_get_buffer_layout *cmd_params;
 	struct dpni_rsp_get_buffer_layout *rsp_params;
 	int err;
@@ -689,7 +689,7 @@ int dpni_set_buffer_layout(struct fsl_mc_io *mc_io,
 			   enum dpni_queue_type qtype,
 			   const struct dpni_buffer_layout *layout)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_set_buffer_layout *cmd_params;
 
 	/* prepare command */
@@ -731,7 +731,7 @@ int dpni_set_offload(struct fsl_mc_io *mc_io,
 		     enum dpni_offload type,
 		     u32 config)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_set_offload *cmd_params;
 
 	cmd.header = mc_encode_cmd_header(DPNI_CMDID_SET_OFFLOAD,
@@ -750,7 +750,7 @@ int dpni_get_offload(struct fsl_mc_io *mc_io,
 		     enum dpni_offload type,
 		     u32 *config)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_get_offload *cmd_params;
 	struct dpni_rsp_get_offload *rsp_params;
 	int err;
@@ -792,7 +792,7 @@ int dpni_get_qdid(struct fsl_mc_io *mc_io,
 		  enum dpni_queue_type qtype,
 		  u16 *qdid)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_get_qdid *cmd_params;
 	struct dpni_rsp_get_qdid *rsp_params;
 	int err;
@@ -830,7 +830,7 @@ int dpni_get_tx_data_offset(struct fsl_mc_io *mc_io,
 			    u16 token,
 			    u16 *data_offset)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_rsp_get_tx_data_offset *rsp_params;
 	int err;
 
@@ -865,7 +865,7 @@ int dpni_set_link_cfg(struct fsl_mc_io *mc_io,
 		      u16 token,
 		      const struct dpni_link_cfg *cfg)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_set_link_cfg *cmd_params;
 
 	/* prepare command */
@@ -894,7 +894,7 @@ int dpni_get_link_state(struct fsl_mc_io *mc_io,
 			u16 token,
 			struct dpni_link_state *state)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_rsp_get_link_state *rsp_params;
 	int err;
 
@@ -933,7 +933,7 @@ int dpni_set_max_frame_length(struct fsl_mc_io *mc_io,
 			      u16 token,
 			      u16 max_frame_length)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_set_max_frame_length *cmd_params;
 
 	/* prepare command */
@@ -963,7 +963,7 @@ int dpni_get_max_frame_length(struct fsl_mc_io *mc_io,
 			      u16 token,
 			      u16 *max_frame_length)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_rsp_get_max_frame_length *rsp_params;
 	int err;
 
@@ -998,7 +998,7 @@ int dpni_set_multicast_promisc(struct fsl_mc_io *mc_io,
 			       u16 token,
 			       int en)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_set_multicast_promisc *cmd_params;
 
 	/* prepare command */
@@ -1026,7 +1026,7 @@ int dpni_get_multicast_promisc(struct fsl_mc_io *mc_io,
 			       u16 token,
 			       int *en)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_rsp_get_multicast_promisc *rsp_params;
 	int err;
 
@@ -1061,7 +1061,7 @@ int dpni_set_unicast_promisc(struct fsl_mc_io *mc_io,
 			     u16 token,
 			     int en)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_set_unicast_promisc *cmd_params;
 
 	/* prepare command */
@@ -1089,7 +1089,7 @@ int dpni_get_unicast_promisc(struct fsl_mc_io *mc_io,
 			     u16 token,
 			     int *en)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_rsp_get_unicast_promisc *rsp_params;
 	int err;
 
@@ -1124,7 +1124,7 @@ int dpni_set_primary_mac_addr(struct fsl_mc_io *mc_io,
 			      u16 token,
 			      const u8 mac_addr[6])
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_set_primary_mac_addr *cmd_params;
 	int i;
 
@@ -1154,7 +1154,7 @@ int dpni_get_primary_mac_addr(struct fsl_mc_io *mc_io,
 			      u16 token,
 			      u8 mac_addr[6])
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_rsp_get_primary_mac_addr *rsp_params;
 	int i, err;
 
@@ -1193,7 +1193,7 @@ int dpni_get_port_mac_addr(struct fsl_mc_io *mc_io,
 			   u16 token,
 			   u8 mac_addr[6])
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_rsp_get_port_mac_addr *rsp_params;
 	int i, err;
 
@@ -1229,7 +1229,7 @@ int dpni_add_mac_addr(struct fsl_mc_io *mc_io,
 		      u16 token,
 		      const u8 mac_addr[6])
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_add_mac_addr *cmd_params;
 	int i;
 
@@ -1259,7 +1259,7 @@ int dpni_remove_mac_addr(struct fsl_mc_io *mc_io,
 			 u16 token,
 			 const u8 mac_addr[6])
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_remove_mac_addr *cmd_params;
 	int i;
 
@@ -1293,7 +1293,7 @@ int dpni_clear_mac_filters(struct fsl_mc_io *mc_io,
 			   int unicast,
 			   int multicast)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_clear_mac_filters *cmd_params;
 
 	/* prepare command */
@@ -1327,7 +1327,7 @@ int dpni_set_rx_tc_dist(struct fsl_mc_io *mc_io,
 			u8 tc_id,
 			const struct dpni_rx_tc_dist_cfg *cfg)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_set_rx_tc_dist *cmd_params;
 
 	/* prepare command */
@@ -1371,7 +1371,7 @@ int dpni_set_queue(struct fsl_mc_io *mc_io,
 		   u8 options,
 		   const struct dpni_queue *queue)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_set_queue *cmd_params;
 
 	/* prepare command */
@@ -1419,7 +1419,7 @@ int dpni_get_queue(struct fsl_mc_io *mc_io,
 		   struct dpni_queue *queue,
 		   struct dpni_queue_id *qid)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_get_queue *cmd_params;
 	struct dpni_rsp_get_queue *rsp_params;
 	int err;
@@ -1473,7 +1473,7 @@ int dpni_get_statistics(struct fsl_mc_io *mc_io,
 			u8 page,
 			union dpni_statistics *stat)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_get_statistics *cmd_params;
 	struct dpni_rsp_get_statistics *rsp_params;
 	int i, err;
@@ -1522,7 +1522,7 @@ int dpni_set_taildrop(struct fsl_mc_io *mc_io,
 		      u8 index,
 		      struct dpni_taildrop *taildrop)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_set_taildrop *cmd_params;
 
 	/* prepare command */
@@ -1566,7 +1566,7 @@ int dpni_get_taildrop(struct fsl_mc_io *mc_io,
 		      u8 index,
 		      struct dpni_taildrop *taildrop)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dpni_cmd_get_taildrop *cmd_params;
 	struct dpni_rsp_get_taildrop *rsp_params;
 	int err;
@@ -1610,7 +1610,7 @@ int dpni_get_api_version(struct fsl_mc_io *mc_io,
 			 u16 *minor_ver)
 {
 	struct dpni_rsp_get_api_version *rsp_params;
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	int err;
 
 	cmd.header = mc_encode_cmd_header(DPNI_CMDID_GET_API_VERSION,

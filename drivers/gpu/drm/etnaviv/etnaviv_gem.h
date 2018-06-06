@@ -94,6 +94,9 @@ struct etnaviv_gem_submit_bo {
 	u32 flags;
 	struct etnaviv_gem_object *obj;
 	struct etnaviv_vram_mapping *mapping;
+	struct dma_fence *excl;
+	unsigned int nr_shared;
+	struct dma_fence **shared;
 };
 
 /* Created per submit-ioctl, to track bo's and cmdstream bufs, etc,
@@ -101,9 +104,11 @@ struct etnaviv_gem_submit_bo {
  * make it easier to unwind when things go wrong, etc).
  */
 struct etnaviv_gem_submit {
+	struct drm_sched_job sched_job;
 	struct kref refcount;
 	struct etnaviv_gpu *gpu;
 	struct dma_fence *out_fence, *in_fence;
+	int out_fence_id;
 	struct list_head node; /* GPU active submit list */
 	struct etnaviv_cmdbuf cmdbuf;
 	bool runtime_resumed;

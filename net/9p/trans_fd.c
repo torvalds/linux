@@ -1092,8 +1092,8 @@ static struct p9_trans_module p9_fd_trans = {
 };
 
 /**
- * p9_poll_proc - poll worker thread
- * @a: thread state and arguments
+ * p9_poll_workfn - poll worker thread
+ * @work: work queue
  *
  * polls all v9fs transports for new events and queues the appropriate
  * work to the work queue

@@ -328,7 +328,7 @@ int osc_object_is_contended(struct osc_object *obj)
 	 * ll_file_is_contended.
 	 */
 	retry_time = cfs_time_add(obj->oo_contention_time,
-				  cfs_time_seconds(osc_contention_time));
+				  osc_contention_time * HZ);
 	if (cfs_time_after(cur_time, retry_time)) {
 		osc_object_clear_contended(obj);
 		return 0;
@@ -454,12 +454,10 @@ struct lu_object *osc_object_alloc(const struct lu_env *env,
 
 int osc_object_invalidate(const struct lu_env *env, struct osc_object *osc)
 {
-	struct l_wait_info lwi = { 0 };
-
 	CDEBUG(D_INODE, "Invalidate osc object: %p, # of active IOs: %d\n",
 	       osc, atomic_read(&osc->oo_nr_ios));
 
-	l_wait_event(osc->oo_io_waitq, !atomic_read(&osc->oo_nr_ios), &lwi);
+	wait_event_idle(osc->oo_io_waitq, !atomic_read(&osc->oo_nr_ios));
 
 	/* Discard all dirty pages of this object. */
 	osc_cache_truncate_start(env, osc, 0, NULL);

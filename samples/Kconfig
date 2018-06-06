@@ -62,6 +62,16 @@ config SAMPLE_KDB
 	  Build an example of how to dynamically add the hello
 	  command to the kdb shell.
 
+config SAMPLE_QMI_CLIENT
+	tristate "Build qmi client sample -- loadable modules only"
+	depends on m
+	depends on ARCH_QCOM
+	depends on NET
+	select QCOM_QMI_HELPERS
+	help
+	  Build an QMI client sample driver, which demonstrates how to
+	  communicate with a remote QRTR service, using QMI encoded messages.
+
 config SAMPLE_RPMSG_CLIENT
 	tristate "Build rpmsg client sample -- loadable modules only"
 	depends on RPMSG && m
@@ -97,12 +107,6 @@ config SAMPLE_SECCOMP
 	help
 	  Build samples of seccomp filters using various methods of
 	  BPF filter construction.
-
-config SAMPLE_BLACKFIN_GPTIMERS
-	tristate "Build blackfin gptimers sample code -- loadable modules only"
-	depends on BLACKFIN && BFIN_GPTIMERS && m
-	help
-	  Build samples of blackfin gptimers sample module.
 
 config SAMPLE_VFIO_MDEV_MTTY
 	tristate "Build VFIO mtty example mediated device sample code -- loadable modules only"

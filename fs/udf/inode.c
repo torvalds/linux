@@ -1275,6 +1275,7 @@ static int udf_read_inode(struct inode *inode, bool hidden_inode)
 	unsigned int indirections = 0;
 	int bs = inode->i_sb->s_blocksize;
 	int ret = -EIO;
+	uint32_t uid, gid;
 
 reread:
 	if (iloc->partitionReferenceNum >= sbi->s_partitions) {
@@ -1400,17 +1401,19 @@ reread:
 
 	ret = -EIO;
 	read_lock(&sbi->s_cred_lock);
-	i_uid_write(inode, le32_to_cpu(fe->uid));
-	if (!uid_valid(inode->i_uid) ||
-	    UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_UID_IGNORE) ||
+	uid = le32_to_cpu(fe->uid);
+	if (uid == UDF_INVALID_ID ||
 	    UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_UID_SET))
-		inode->i_uid = UDF_SB(inode->i_sb)->s_uid;
+		inode->i_uid = sbi->s_uid;
+	else
+		i_uid_write(inode, uid);
 
-	i_gid_write(inode, le32_to_cpu(fe->gid));
-	if (!gid_valid(inode->i_gid) ||
-	    UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_GID_IGNORE) ||
+	gid = le32_to_cpu(fe->gid);
+	if (gid == UDF_INVALID_ID ||
 	    UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_GID_SET))
-		inode->i_gid = UDF_SB(inode->i_sb)->s_gid;
+		inode->i_gid = sbi->s_gid;
+	else
+		i_gid_write(inode, gid);
 
 	if (fe->icbTag.fileType != ICBTAG_FILE_TYPE_DIRECTORY &&
 			sbi->s_fmode != UDF_INVALID_MODE)
@@ -1655,12 +1658,12 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 	}
 
 	if (UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_UID_FORGET))
-		fe->uid = cpu_to_le32(-1);
+		fe->uid = cpu_to_le32(UDF_INVALID_ID);
 	else
 		fe->uid = cpu_to_le32(i_uid_read(inode));
 
 	if (UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_GID_FORGET))
-		fe->gid = cpu_to_le32(-1);
+		fe->gid = cpu_to_le32(UDF_INVALID_ID);
 	else
 		fe->gid = cpu_to_le32(i_gid_read(inode));
 

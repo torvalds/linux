@@ -289,32 +289,38 @@
 			clocks = <&clkosr>;
 		};
 
-		dspgpio0: keystone_dsp_gpio@2620240 {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x240>;
-		};
+		devctrl: device-state-control@2620000 {
+			dspgpio0: keystone_dsp_gpio@240 {
+				compatible = "ti,keystone-dsp-gpio";
+				reg = <0x240 0x4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio,syscon-dev = <&devctrl 0x240>;
+			};
 
-		dspgpio1: keystone_dsp_gpio@2620244 {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x244>;
-		};
+			dspgpio1: keystone_dsp_gpio@244 {
+				compatible = "ti,keystone-dsp-gpio";
+				reg = <0x244 0x4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio,syscon-dev = <&devctrl 0x244>;
+			};
 
-		dspgpio2: keystone_dsp_gpio@2620248 {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x248>;
-		};
+			dspgpio2: keystone_dsp_gpio@248 {
+				compatible = "ti,keystone-dsp-gpio";
+				reg = <0x248 0x4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio,syscon-dev = <&devctrl 0x248>;
+			};
 
-		dspgpio3: keystone_dsp_gpio@262024c {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x24c>;
+			dspgpio3: keystone_dsp_gpio@24c {
+				compatible = "ti,keystone-dsp-gpio";
+				reg = <0x24c 0x4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio,syscon-dev = <&devctrl 0x24c>;
+			};
 		};
 
 		dsp0: dsp@10800000 {

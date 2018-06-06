@@ -276,7 +276,7 @@ static int __init libipw_init(void)
 				" proc directory\n");
 		return -EIO;
 	}
-	e = proc_create("debug_level", S_IRUGO | S_IWUSR, libipw_proc,
+	e = proc_create("debug_level", 0644, libipw_proc,
 			&debug_level_proc_fops);
 	if (!e) {
 		remove_proc_entry(DRV_PROCNAME, init_net.proc_net);

@@ -52,7 +52,6 @@
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/sunrpc/addr.h>
-#include <linux/smp.h>
 
 #include "xprt_rdma.h"
 
@@ -237,8 +236,6 @@ rpcrdma_connect_worker(struct work_struct *work)
 	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
 
 	spin_lock_bh(&xprt->transport_lock);
-	if (++xprt->connect_cookie == 0)	/* maintain a reserved value */
-		++xprt->connect_cookie;
 	if (ep->rep_connected > 0) {
 		if (!xprt_test_and_set_connected(xprt))
 			xprt_wake_pending_tasks(xprt, 0);
@@ -540,29 +537,6 @@ xprt_rdma_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 	}
 }
 
-/* Allocate a fixed-size buffer in which to construct and send the
- * RPC-over-RDMA header for this request.
- */
-static bool
-rpcrdma_get_rdmabuf(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
-		    gfp_t flags)
-{
-	size_t size = RPCRDMA_HDRBUF_SIZE;
-	struct rpcrdma_regbuf *rb;
-
-	if (req->rl_rdmabuf)
-		return true;
-
-	rb = rpcrdma_alloc_regbuf(size, DMA_TO_DEVICE, flags);
-	if (IS_ERR(rb))
-		return false;
-
-	r_xprt->rx_stats.hardway_register_count += size;
-	req->rl_rdmabuf = rb;
-	xdr_buf_init(&req->rl_hdrbuf, rb->rg_base, rdmab_length(rb));
-	return true;
-}
-
 static bool
 rpcrdma_get_sendbuf(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 		    size_t size, gfp_t flags)
@@ -644,15 +618,11 @@ xprt_rdma_allocate(struct rpc_task *task)
 	if (RPC_IS_SWAPPER(task))
 		flags = __GFP_MEMALLOC | GFP_NOWAIT | __GFP_NOWARN;
 
-	if (!rpcrdma_get_rdmabuf(r_xprt, req, flags))
-		goto out_fail;
 	if (!rpcrdma_get_sendbuf(r_xprt, req, rqst->rq_callsize, flags))
 		goto out_fail;
 	if (!rpcrdma_get_recvbuf(r_xprt, req, rqst->rq_rcvsize, flags))
 		goto out_fail;
 
-	req->rl_cpu = smp_processor_id();
-	req->rl_connect_cookie = 0;	/* our reserved value */
 	rpcrdma_set_xprtdata(rqst, req);
 	rqst->rq_buffer = req->rl_sendbuf->rg_base;
 	rqst->rq_rbuffer = req->rl_recvbuf->rg_base;
@@ -694,7 +664,8 @@ xprt_rdma_free(struct rpc_task *task)
  * Returns:
  *	%0 if the RPC message has been sent
  *	%-ENOTCONN if the caller should reconnect and call again
- *	%-ENOBUFS if the caller should call again later
+ *	%-EAGAIN if the caller should call again
+ *	%-ENOBUFS if the caller should call again after a delay
  *	%-EIO if a permanent error occurred and the request was not
  *		sent. Do not try to send this message again.
  */
@@ -723,9 +694,9 @@ xprt_rdma_send_request(struct rpc_task *task)
 		rpcrdma_recv_buffer_get(req);
 
 	/* Must suppress retransmit to maintain credits */
-	if (req->rl_connect_cookie == xprt->connect_cookie)
+	if (rqst->rq_connect_cookie == xprt->connect_cookie)
 		goto drop_connection;
-	req->rl_connect_cookie = xprt->connect_cookie;
+	rqst->rq_xtime = ktime_get();
 
 	__set_bit(RPCRDMA_REQ_F_PENDING, &req->rl_flags);
 	if (rpcrdma_ep_post(&r_xprt->rx_ia, &r_xprt->rx_ep, req))
@@ -733,6 +704,12 @@ xprt_rdma_send_request(struct rpc_task *task)
 
 	rqst->rq_xmit_bytes_sent += rqst->rq_snd_buf.len;
 	rqst->rq_bytes_sent = 0;
+
+	/* An RPC with no reply will throw off credit accounting,
+	 * so drop the connection to reset the credit grant.
+	 */
+	if (!rpc_reply_expected(task))
+		goto drop_connection;
 	return 0;
 
 failed_marshal:

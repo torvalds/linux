@@ -9,7 +9,7 @@
 #include <linux/module.h>
 
 /* Encore ENLTV2-FM  - silver plastic - "Wand Media" written at the botton
-    Mauro Carvalho Chehab <mchehab@infradead.org> */
+    Mauro Carvalho Chehab <mchehab@kernel.org> */
 
 static struct rc_map_table encore_enltv2[] = {
 	{ 0x4c, KEY_POWER2 },

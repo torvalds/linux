@@ -20,6 +20,7 @@ Required properties :
 		- "allwinner,sun50i-a64-ccu"
 		- "allwinner,sun50i-a64-r-ccu"
 		- "allwinner,sun50i-h5-ccu"
+		- "allwinner,sun50i-h6-ccu"
 		- "nextthing,gr8-ccu"
 
 - reg: Must contain the registers base address and length
@@ -30,6 +31,9 @@ Required properties :
 - clock-names: Must contain the clock names described just above
 - #clock-cells : must contain 1
 - #reset-cells : must contain 1
+
+For the main CCU on H6, one more clock is needed:
+- "iosc": the SoC's internal frequency oscillator
 
 For the PRCM CCUs on A83T/H3/A64, two more clocks are needed:
 - "pll-periph": the SoC's peripheral PLL from the main CCU

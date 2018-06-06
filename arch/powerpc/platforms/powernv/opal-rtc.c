@@ -48,10 +48,12 @@ unsigned long __init opal_get_boot_time(void)
 
 	while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
 		rc = opal_rtc_read(&__y_m_d, &__h_m_s_ms);
-		if (rc == OPAL_BUSY_EVENT)
+		if (rc == OPAL_BUSY_EVENT) {
+			mdelay(OPAL_BUSY_DELAY_MS);
 			opal_poll_events(NULL);
-		else if (rc == OPAL_BUSY)
-			mdelay(10);
+		} else if (rc == OPAL_BUSY) {
+			mdelay(OPAL_BUSY_DELAY_MS);
+		}
 	}
 	if (rc != OPAL_SUCCESS)
 		return 0;

@@ -55,12 +55,14 @@ describing all planes of that format.
       - ``pixelformat``
       - The pixel format. Both single- and multi-planar four character
 	codes can be used.
-    * - enum :c:type:`v4l2_field`
+    * - __u32
       - ``field``
-      - See struct :c:type:`v4l2_pix_format`.
-    * - enum :c:type:`v4l2_colorspace`
+      - Field order, from enum :c:type:`v4l2_field`.
+        See struct :c:type:`v4l2_pix_format`.
+    * - __u32
       - ``colorspace``
-      - See struct :c:type:`v4l2_pix_format`.
+      - Colorspace encoding, from enum :c:type:`v4l2_colorspace`.
+        See struct :c:type:`v4l2_pix_format`.
     * - struct :c:type:`v4l2_plane_pix_format`
       - ``plane_fmt[VIDEO_MAX_PLANES]``
       - An array of structures describing format of each plane this pixel
@@ -73,24 +75,34 @@ describing all planes of that format.
     * - __u8
       - ``flags``
       - Flags set by the application or driver, see :ref:`format-flags`.
-    * - enum :c:type:`v4l2_ycbcr_encoding`
+    * - union {
+      - (anonymous)
+      -
+    * - __u8
       - ``ycbcr_enc``
-      - This information supplements the ``colorspace`` and must be set by
+      - Y'CbCr encoding, from enum :c:type:`v4l2_ycbcr_encoding`.
+        This information supplements the ``colorspace`` and must be set by
 	the driver for capture streams and by the application for output
 	streams, see :ref:`colorspaces`.
-    * - enum :c:type:`v4l2_hsv_encoding`
+    * - __u8
       - ``hsv_enc``
-      - This information supplements the ``colorspace`` and must be set by
+      - HSV encoding, from enum :c:type:`v4l2_hsv_encoding`.
+        This information supplements the ``colorspace`` and must be set by
 	the driver for capture streams and by the application for output
 	streams, see :ref:`colorspaces`.
-    * - enum :c:type:`v4l2_quantization`
+    * - }
+      -
+      -
+    * - __u8
       - ``quantization``
-      - This information supplements the ``colorspace`` and must be set by
+      - Quantization range, from enum :c:type:`v4l2_quantization`.
+        This information supplements the ``colorspace`` and must be set by
 	the driver for capture streams and by the application for output
 	streams, see :ref:`colorspaces`.
-    * - enum :c:type:`v4l2_xfer_func`
+    * - __u8
       - ``xfer_func``
-      - This information supplements the ``colorspace`` and must be set by
+      - Transfer function, from enum :c:type:`v4l2_xfer_func`.
+        This information supplements the ``colorspace`` and must be set by
 	the driver for capture streams and by the application for output
 	streams, see :ref:`colorspaces`.
     * - __u8

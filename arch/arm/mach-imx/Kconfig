@@ -32,18 +32,6 @@ config MXC_DEBUG_BOARD
 	  data/address de-multiplexing and decode, signal level shift,
 	  interrupt control and various board functions.
 
-config HAVE_EPIT
-	bool
-
-config MXC_USE_EPIT
-	bool "Use EPIT instead of GPT"
-	depends on HAVE_EPIT
-	help
-	  Use EPIT as the system timer on systems that have it. Normally you
-	  don't have a reason to do so as the EPIT has the same features and
-	  uses the same clocks as the GPT. Anyway, on some systems the GPT
-	  may be in use for other purposes.
-
 config HAVE_IMX_ANATOP
 	bool
 
@@ -85,7 +73,6 @@ config SOC_IMX31
 config SOC_IMX35
 	bool
 	select ARCH_MXC_IOMUX_V3
-	select HAVE_EPIT
 	select MXC_AVIC
 	select PINCTRL_IMX35
 
@@ -482,7 +469,7 @@ config	SOC_IMX53
 
 config SOC_IMX6
 	bool
-	select ARM_CPU_SUSPEND if PM
+	select ARM_CPU_SUSPEND if (PM || CPU_IDLE)
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
 	select ARM_GIC
@@ -511,6 +498,13 @@ config SOC_IMX6SL
 
 	help
 	  This enables support for Freescale i.MX6 SoloLite processor.
+
+config SOC_IMX6SLL
+	bool "i.MX6 SoloLiteLite support"
+	select SOC_IMX6
+
+	help
+	  This enables support for Freescale i.MX6 SoloLiteLite processor.
 
 config SOC_IMX6SX
 	bool "i.MX6 SoloX support"

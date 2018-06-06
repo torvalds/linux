@@ -43,7 +43,7 @@ void mock_device_flush(struct drm_i915_private *i915)
 	for_each_engine(engine, i915, id)
 		mock_engine_flush(engine);
 
-	i915_gem_retire_requests(i915);
+	i915_retire_requests(i915);
 }
 
 static void mock_device_release(struct drm_device *dev)
@@ -243,16 +243,10 @@ struct drm_i915_private *mock_gem_device(void)
 	if (!i915->kernel_context)
 		goto err_engine;
 
-	i915->preempt_context = mock_context(i915, NULL);
-	if (!i915->preempt_context)
-		goto err_kernel_context;
-
 	WARN_ON(i915_gemfs_init(i915));
 
 	return i915;
 
-err_kernel_context:
-	i915_gem_context_put(i915->kernel_context);
 err_engine:
 	for_each_engine(engine, i915, id)
 		mock_engine_free(engine);

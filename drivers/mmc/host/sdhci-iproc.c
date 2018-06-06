@@ -33,6 +33,8 @@ struct sdhci_iproc_host {
 	const struct sdhci_iproc_data *data;
 	u32 shadow_cmd;
 	u32 shadow_blk;
+	bool is_cmd_shadowed;
+	bool is_blk_shadowed;
 };
 
 #define REG_OFFSET_IN_BITS(reg) ((reg) << 3 & 0x18)
@@ -48,8 +50,22 @@ static inline u32 sdhci_iproc_readl(struct sdhci_host *host, int reg)
 
 static u16 sdhci_iproc_readw(struct sdhci_host *host, int reg)
 {
-	u32 val = sdhci_iproc_readl(host, (reg & ~3));
-	u16 word = val >> REG_OFFSET_IN_BITS(reg) & 0xffff;
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_iproc_host *iproc_host = sdhci_pltfm_priv(pltfm_host);
+	u32 val;
+	u16 word;
+
+	if ((reg == SDHCI_TRANSFER_MODE) && iproc_host->is_cmd_shadowed) {
+		/* Get the saved transfer mode */
+		val = iproc_host->shadow_cmd;
+	} else if ((reg == SDHCI_BLOCK_SIZE || reg == SDHCI_BLOCK_COUNT) &&
+		   iproc_host->is_blk_shadowed) {
+		/* Get the saved block info */
+		val = iproc_host->shadow_blk;
+	} else {
+		val = sdhci_iproc_readl(host, (reg & ~3));
+	}
+	word = val >> REG_OFFSET_IN_BITS(reg) & 0xffff;
 	return word;
 }
 
@@ -105,13 +121,15 @@ static void sdhci_iproc_writew(struct sdhci_host *host, u16 val, int reg)
 
 	if (reg == SDHCI_COMMAND) {
 		/* Write the block now as we are issuing a command */
-		if (iproc_host->shadow_blk != 0) {
+		if (iproc_host->is_blk_shadowed) {
 			sdhci_iproc_writel(host, iproc_host->shadow_blk,
 				SDHCI_BLOCK_SIZE);
-			iproc_host->shadow_blk = 0;
+			iproc_host->is_blk_shadowed = false;
 		}
 		oldval = iproc_host->shadow_cmd;
-	} else if (reg == SDHCI_BLOCK_SIZE || reg == SDHCI_BLOCK_COUNT) {
+		iproc_host->is_cmd_shadowed = false;
+	} else if ((reg == SDHCI_BLOCK_SIZE || reg == SDHCI_BLOCK_COUNT) &&
+		   iproc_host->is_blk_shadowed) {
 		/* Block size and count are stored in shadow reg */
 		oldval = iproc_host->shadow_blk;
 	} else {
@@ -123,9 +141,11 @@ static void sdhci_iproc_writew(struct sdhci_host *host, u16 val, int reg)
 	if (reg == SDHCI_TRANSFER_MODE) {
 		/* Save the transfer mode until the command is issued */
 		iproc_host->shadow_cmd = newval;
+		iproc_host->is_cmd_shadowed = true;
 	} else if (reg == SDHCI_BLOCK_SIZE || reg == SDHCI_BLOCK_COUNT) {
 		/* Save the block info until the command is issued */
 		iproc_host->shadow_blk = newval;
+		iproc_host->is_blk_shadowed = true;
 	} else {
 		/* Command or other regular 32-bit write */
 		sdhci_iproc_writel(host, newval, reg & ~3);
@@ -166,7 +186,7 @@ static const struct sdhci_ops sdhci_iproc_32only_ops = {
 
 static const struct sdhci_pltfm_data sdhci_iproc_cygnus_pltfm_data = {
 	.quirks = SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK,
-	.quirks2 = SDHCI_QUIRK2_ACMD23_BROKEN,
+	.quirks2 = SDHCI_QUIRK2_ACMD23_BROKEN | SDHCI_QUIRK2_HOST_OFF_CARD_ON,
 	.ops = &sdhci_iproc_32only_ops,
 };
 
@@ -206,7 +226,6 @@ static const struct sdhci_iproc_data iproc_data = {
 	.caps1 = SDHCI_DRIVER_TYPE_C |
 		 SDHCI_DRIVER_TYPE_D |
 		 SDHCI_SUPPORT_DDR50,
-	.mmc_caps = MMC_CAP_1_8V_DDR,
 };
 
 static const struct sdhci_pltfm_data sdhci_bcm2835_pltfm_data = {
@@ -214,6 +233,7 @@ static const struct sdhci_pltfm_data sdhci_bcm2835_pltfm_data = {
 		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
 		  SDHCI_QUIRK_MISSING_CAPS |
 		  SDHCI_QUIRK_NO_HISPD_BIT,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 	.ops = &sdhci_iproc_32only_ops,
 };
 

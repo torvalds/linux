@@ -1,4 +1,4 @@
-Version 2.04 September 13, 2017
+Version 2.11 September 13, 2017
 
 A Partial List of Missing Features
 ==================================
@@ -8,10 +8,10 @@ for visible, important contributions to this module.  Here
 is a partial list of the known problems and missing features:
 
 a) SMB3 (and SMB3.02) missing optional features:
-   - RDMA (started)
-   - multichannel (started)
+   - multichannel (started), integration with RDMA
    - directory leases (improved metadata caching)
-   - T10 copy offload (copy chunk is only mechanism supported)
+   - T10 copy offload (copy chunk, and "Duplicate Extents" ioctl
+     currently the only two server side copy mechanisms supported)
 
 b) improved sparse file support
 
@@ -21,9 +21,8 @@ using Directory Leases
 d) quota support (needs minor kernel change since quota calls
 to make it to network filesystems or deviceless filesystems)
 
-e) Better optimize open to reduce redundant opens (using reference
-counts more) and to improve use of compounding in SMB3 to reduce
-number of roundtrips.
+e) Compounding (in progress) to reduce number of roundtrips, and also
+better optimize open to reduce redundant opens (using reference counts more).
 
 f) Finish inotify support so kde and gnome file list windows
 will autorefresh (partially complete by Asser). Needs minor kernel
@@ -35,7 +34,8 @@ the CIFS statistics (started)
 h) implement support for security and trusted categories of xattrs
 (requires minor protocol extension) to enable better support for SELINUX
 
-i) Implement O_DIRECT flag on open (already supported on mount)
+i) Add support for tree connect contexts (see MS-SMB2) a new SMB3.1.1 protocol
+   feature (may be especially useful for virtualization).
 
 j) Create UID mapping facility so server UIDs can be mapped on a per
 mount or a per server basis to client UIDs or nobody if no mapping
@@ -53,13 +53,16 @@ viewing them.
 
 o) mount helper GUI (to simplify the various configuration options on mount)
 
-p) autonegotiation of dialects (offering more than one dialect ie SMB3.02,
-SMB3, SMB2.1 not just SMB3).
+p) Add support for witness protocol (perhaps ioctl to cifs.ko from user space
+   tool listening on witness protocol RPC) to allow for notification of share
+   move, server failover, and server adapter changes.  And also improve other
+   failover scenarios, e.g. when client knows multiple DFS entries point to
+   different servers, and the server we are connected to has gone down.
 
 q) Allow mount.cifs to be more verbose in reporting errors with dialect
 or unsupported feature errors.
 
-r) updating cifs documentation, and user guid.
+r) updating cifs documentation, and user guide.
 
 s) Addressing bugs found by running a broader set of xfstests in standard
 file system xfstest suite.

@@ -248,6 +248,14 @@ offset_store(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RW(offset);
 
+static ssize_t
+range_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "[%lld,%llu]\n", to_rtc_device(dev)->range_min,
+		       to_rtc_device(dev)->range_max);
+}
+static DEVICE_ATTR_RO(range);
+
 static struct attribute *rtc_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_date.attr,
@@ -257,6 +265,7 @@ static struct attribute *rtc_attrs[] = {
 	&dev_attr_hctosys.attr,
 	&dev_attr_wakealarm.attr,
 	&dev_attr_offset.attr,
+	&dev_attr_range.attr,
 	NULL,
 };
 
@@ -285,6 +294,9 @@ static umode_t rtc_attr_is_visible(struct kobject *kobj,
 			mode = 0;
 	} else if (attr == &dev_attr_offset.attr) {
 		if (!rtc->ops->set_offset)
+			mode = 0;
+	} else if (attr == &dev_attr_range.attr) {
+		if (!(rtc->range_max - rtc->range_min))
 			mode = 0;
 	}
 

@@ -56,6 +56,17 @@ config VIDEO_TDA9840
 	  To compile this driver as a module, choose M here: the
 	  module will be called tda9840.
 
+config VIDEO_TDA1997X
+	tristate "NXP TDA1997x HDMI receiver"
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	depends on SND_SOC
+	select SND_PCM
+	---help---
+	  V4L2 subdevice driver for the NXP TDA1997x HDMI receivers.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tda1997x.
+
 config VIDEO_TEA6415C
 	tristate "Philips TEA6415C audio processor"
 	depends on I2C
@@ -423,6 +434,15 @@ config VIDEO_TW9906
 	  To compile this driver as a module, choose M here: the
 	  module will be called tw9906.
 
+config VIDEO_TW9910
+	tristate "Techwell TW9910 video decoder"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  Support for Techwell TW9910 NTSC/PAL/SECAM video decoder.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tw9910.
+
 config VIDEO_VPX3220
 	tristate "vpx3220a, vpx3216b & vpx3214c video decoders"
 	depends on VIDEO_V4L2 && I2C
@@ -586,6 +606,18 @@ config VIDEO_OV2659
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov2659.
 
+config VIDEO_OV2685
+	tristate "OmniVision OV2685 sensor support"
+	depends on VIDEO_V4L2 && I2C && MEDIA_CONTROLLER
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the OmniVision
+	  OV2685 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov2685.
+
 config VIDEO_OV5640
 	tristate "OmniVision OV5640 sensor support"
 	depends on OF
@@ -645,6 +677,28 @@ config VIDEO_OV5670
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov5670.
 
+config VIDEO_OV5695
+	tristate "OmniVision OV5695 sensor support"
+	depends on I2C && VIDEO_V4L2
+	depends on MEDIA_CAMERA_SUPPORT
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the OmniVision
+	  OV5695 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov5695.
+
+config VIDEO_OV772X
+	tristate "OmniVision OV772x sensor support"
+	depends on I2C && VIDEO_V4L2
+	depends on MEDIA_CAMERA_SUPPORT
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the OmniVision
+	  OV772x camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov772x.
+
 config VIDEO_OV7640
 	tristate "OmniVision OV7640 sensor support"
 	depends on I2C && VIDEO_V4L2
@@ -660,6 +714,7 @@ config VIDEO_OV7670
 	tristate "OmniVision OV7670 sensor support"
 	depends on I2C && VIDEO_V4L2
 	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the OmniVision
 	  OV7670 VGA camera.  It currently only works with the M88ALP01
@@ -732,6 +787,17 @@ config VIDEO_MT9T001
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the Aptina
 	  (Micron) mt0t001 3 Mpixel camera.
+
+config VIDEO_MT9T112
+	tristate "Aptina MT9T111/MT9T112 support"
+	depends on I2C && VIDEO_V4L2
+	depends on MEDIA_CAMERA_SUPPORT
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the Aptina
+	  (Micron) MT9T111 and MT9T112 3 Mpixel camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mt9t112.
 
 config VIDEO_MT9V011
 	tristate "Micron mt9v011 sensor support"

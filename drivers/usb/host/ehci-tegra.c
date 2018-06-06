@@ -461,6 +461,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		goto cleanup_clk_en;
 	}
 	hcd->usb_phy = u_phy;
+	hcd->skip_phy_initialization = 1;
 
 	tegra->needs_double_reset = of_property_read_bool(pdev->dev.of_node,
 		"nvidia,needs-double-reset");

@@ -183,10 +183,10 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 {
 	int ret;
 	struct snd_soc_dai *codec_dai = runtime->codec_dai;
-	struct snd_soc_codec *codec = codec_dai->codec;
+	struct snd_soc_component *component = codec_dai->component;
 	struct cht_mc_private *ctx = snd_soc_card_get_drvdata(runtime->card);
 
-	if (devm_acpi_dev_add_driver_gpios(codec->dev, cht_rt5672_gpios))
+	if (devm_acpi_dev_add_driver_gpios(component->dev, cht_rt5672_gpios))
 		dev_warn(runtime->dev, "Unable to add GPIO mapping table\n");
 
 	/* TDM 4 slots 24 bit, set Rx & Tx bitmask to 4 active slots */
@@ -201,7 +201,7 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 	 * be supported by RT5672. Otherwise, ASRC will be disabled and cause
 	 * noise.
 	 */
-	rt5670_sel_asrc_clk_src(codec,
+	rt5670_sel_asrc_clk_src(component,
 				RT5670_DA_STEREO_FILTER
 				| RT5670_DA_MONO_L_FILTER
 				| RT5670_DA_MONO_R_FILTER
@@ -219,7 +219,7 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
         if (ret)
                 return ret;
 
-	rt5670_set_jack_detect(codec, &ctx->headset);
+	rt5670_set_jack_detect(component, &ctx->headset);
 	if (ctx->mclk) {
 		/*
 		 * The firmware might enable the clock at
@@ -333,10 +333,9 @@ static int cht_suspend_pre(struct snd_soc_card *card)
 	list_for_each_entry(component, &card->component_dev_list, card_list) {
 		if (!strncmp(component->name,
 			     ctx->codec_name, sizeof(ctx->codec_name))) {
-			struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
 
-			dev_dbg(codec->dev, "disabling jack detect before going to suspend.\n");
-			rt5670_jack_suspend(codec);
+			dev_dbg(component->dev, "disabling jack detect before going to suspend.\n");
+			rt5670_jack_suspend(component);
 			break;
 		}
 	}
@@ -351,10 +350,9 @@ static int cht_resume_post(struct snd_soc_card *card)
 	list_for_each_entry(component, &card->component_dev_list, card_list) {
 		if (!strncmp(component->name,
 			     ctx->codec_name, sizeof(ctx->codec_name))) {
-			struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
 
-			dev_dbg(codec->dev, "enabling jack detect for resume.\n");
-			rt5670_jack_resume(codec);
+			dev_dbg(component->dev, "enabling jack detect for resume.\n");
+			rt5670_jack_resume(component);
 			break;
 		}
 	}

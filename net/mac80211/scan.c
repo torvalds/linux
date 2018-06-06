@@ -73,7 +73,9 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	bool signal_valid;
 	struct ieee80211_sub_if_data *scan_sdata;
 
-	if (ieee80211_hw_check(&local->hw, SIGNAL_DBM))
+	if (rx_status->flag & RX_FLAG_NO_SIGNAL_VAL)
+		bss_meta.signal = 0; /* invalid signal indication */
+	else if (ieee80211_hw_check(&local->hw, SIGNAL_DBM))
 		bss_meta.signal = rx_status->signal * 100;
 	else if (ieee80211_hw_check(&local->hw, SIGNAL_UNSPEC))
 		bss_meta.signal = (rx_status->signal * 100) / local->hw.max_signal;

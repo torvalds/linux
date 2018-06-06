@@ -43,15 +43,10 @@ struct aa_buffers {
 
 DECLARE_PER_CPU(struct aa_buffers, aa_buffers);
 
-#define COUNT_ARGS(X...) COUNT_ARGS_HELPER(, ##X, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
-#define COUNT_ARGS_HELPER(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, n, X...) n
-#define CONCAT(X, Y) X ## Y
-#define CONCAT_AFTER(X, Y) CONCAT(X, Y)
-
 #define ASSIGN(FN, X, N) ((X) = FN(N))
 #define EVAL1(FN, X) ASSIGN(FN, X, 0) /*X = FN(0)*/
 #define EVAL2(FN, X, Y...) do { ASSIGN(FN, X, 1);  EVAL1(FN, Y); } while (0)
-#define EVAL(FN, X...) CONCAT_AFTER(EVAL, COUNT_ARGS(X))(FN, X)
+#define EVAL(FN, X...) CONCATENATE(EVAL, COUNT_ARGS(X))(FN, X)
 
 #define for_each_cpu_buffer(I) for ((I) = 0; (I) < MAX_PATH_BUFFERS; (I)++)
 
