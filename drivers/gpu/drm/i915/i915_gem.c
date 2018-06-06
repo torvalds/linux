@@ -1995,7 +1995,7 @@ compute_partial_view(struct drm_i915_gem_object *obj,
  * The current feature set supported by i915_gem_fault() and thus GTT mmaps
  * is exposed via I915_PARAM_MMAP_GTT_VERSION (see i915_gem_mmap_gtt_version).
  */
-int i915_gem_fault(struct vm_fault *vmf)
+vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 {
 #define MIN_CHUNK_PAGES (SZ_1M >> PAGE_SHIFT)
 	struct vm_area_struct *area = vmf->vma;
@@ -2112,10 +2112,8 @@ err:
 		 * fail). But any other -EIO isn't ours (e.g. swap in failure)
 		 * and so needs to be reported.
 		 */
-		if (!i915_terminally_wedged(&dev_priv->gpu_error)) {
-			ret = VM_FAULT_SIGBUS;
-			break;
-		}
+		if (!i915_terminally_wedged(&dev_priv->gpu_error))
+			return VM_FAULT_SIGBUS;
 	case -EAGAIN:
 		/*
 		 * EAGAIN means the gpu is hung and we'll wait for the error
@@ -2130,21 +2128,16 @@ err:
 		 * EBUSY is ok: this just means that another thread
 		 * already did the job.
 		 */
-		ret = VM_FAULT_NOPAGE;
-		break;
+		return VM_FAULT_NOPAGE;
 	case -ENOMEM:
-		ret = VM_FAULT_OOM;
-		break;
+		return VM_FAULT_OOM;
 	case -ENOSPC:
 	case -EFAULT:
-		ret = VM_FAULT_SIGBUS;
-		break;
+		return VM_FAULT_SIGBUS;
 	default:
 		WARN_ONCE(ret, "unhandled error in i915_gem_fault: %i\n", ret);
-		ret = VM_FAULT_SIGBUS;
-		break;
+		return VM_FAULT_SIGBUS;
 	}
-	return ret;
 }
 
 static void __i915_gem_object_release_mmap(struct drm_i915_gem_object *obj)
