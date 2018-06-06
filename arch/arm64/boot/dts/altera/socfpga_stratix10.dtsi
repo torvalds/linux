@@ -133,8 +133,8 @@
 			interrupts = <0 90 4>;
 			interrupt-names = "macirq";
 			mac-address = [00 00 00 00 00 00];
-			resets = <&rst EMAC0_RESET>;
-			reset-names = "stmmaceth";
+			resets = <&rst EMAC0_RESET>, <&rst EMAC0_OCP_RESET>;
+			reset-names = "stmmaceth", "stmmaceth-ocp";
 			clocks = <&clkmgr STRATIX10_EMAC0_CLK>;
 			clock-names = "stmmaceth";
 			status = "disabled";
@@ -146,8 +146,8 @@
 			interrupts = <0 91 4>;
 			interrupt-names = "macirq";
 			mac-address = [00 00 00 00 00 00];
-			resets = <&rst EMAC1_RESET>;
-			reset-names = "stmmaceth";
+			resets = <&rst EMAC1_RESET>, <&rst EMAC1_OCP_RESET>;
+			reset-names = "stmmaceth", "stmmaceth-ocp";
 			clocks = <&clkmgr STRATIX10_EMAC1_CLK>;
 			clock-names = "stmmaceth";
 			status = "disabled";
@@ -159,8 +159,8 @@
 			interrupts = <0 92 4>;
 			interrupt-names = "macirq";
 			mac-address = [00 00 00 00 00 00];
-			resets = <&rst EMAC2_RESET>;
-			reset-names = "stmmaceth";
+			resets = <&rst EMAC2_RESET>, <&rst EMAC2_OCP_RESET>;
+			reset-names = "stmmaceth", "stmmaceth-ocp";
 			clocks = <&clkmgr STRATIX10_EMAC2_CLK>;
 			clock-names = "stmmaceth";
 			status = "disabled";
