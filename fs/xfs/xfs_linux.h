@@ -26,6 +26,7 @@ typedef __u32			xfs_nlink_t;
 
 #include <linux/semaphore.h>
 #include <linux/mm.h>
+#include <linux/sched/mm.h>
 #include <linux/kernel.h>
 #include <linux/blkdev.h>
 #include <linux/slab.h>

@@ -531,8 +531,19 @@ xfs_submit_ioend(
 {
 	/* Convert CoW extents to regular */
 	if (!status && ioend->io_type == XFS_IO_COW) {
+		/*
+		 * Yuk. This can do memory allocation, but is not a
+		 * transactional operation so everything is done in GFP_KERNEL
+		 * context. That can deadlock, because we hold pages in
+		 * writeback state and GFP_KERNEL allocations can block on them.
+		 * Hence we must operate in nofs conditions here.
+		 */
+		unsigned nofs_flag;
+
+		nofs_flag = memalloc_nofs_save();
 		status = xfs_reflink_convert_cow(XFS_I(ioend->io_inode),
 				ioend->io_offset, ioend->io_size);
+		memalloc_nofs_restore(nofs_flag);
 	}
 
 	/* Reserve log space if we might write beyond the on-disk inode size. */
