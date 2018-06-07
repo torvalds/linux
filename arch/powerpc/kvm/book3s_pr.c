@@ -2041,13 +2041,9 @@ static int kvmppc_core_check_processor_compat_pr(void)
 	 * PR KVM can work on POWER9 inside a guest partition
 	 * running in HPT mode.  It can't work if we are using
 	 * radix translation (because radix provides no way for
-	 * a process to have unique translations in quadrant 3)
-	 * or in a bare-metal HPT-mode host (because POWER9
-	 * uses a modified HPTE format which the PR KVM code
-	 * has not been adapted to use).
+	 * a process to have unique translations in quadrant 3).
 	 */
-	if (cpu_has_feature(CPU_FTR_ARCH_300) &&
-	    (radix_enabled() || cpu_has_feature(CPU_FTR_HVMODE)))
+	if (cpu_has_feature(CPU_FTR_ARCH_300) && radix_enabled())
 		return -EIO;
 	return 0;
 }
