@@ -728,24 +728,20 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		pte.may_execute = !data;
 	}
 
-	if (page_found == -ENOENT) {
-		/* Page not found in guest PTE entries */
-		u64 ssrr1 = vcpu->arch.shadow_srr1;
-		u64 msr = kvmppc_get_msr(vcpu);
-		kvmppc_set_dar(vcpu, kvmppc_get_fault_dar(vcpu));
-		kvmppc_set_dsisr(vcpu, vcpu->arch.fault_dsisr);
-		kvmppc_set_msr_fast(vcpu, msr | (ssrr1 & 0xf8000000ULL));
-		kvmppc_book3s_queue_irqprio(vcpu, vec);
-	} else if (page_found == -EPERM) {
-		/* Storage protection */
-		u32 dsisr = vcpu->arch.fault_dsisr;
-		u64 ssrr1 = vcpu->arch.shadow_srr1;
-		u64 msr = kvmppc_get_msr(vcpu);
-		kvmppc_set_dar(vcpu, kvmppc_get_fault_dar(vcpu));
-		dsisr = (dsisr & ~DSISR_NOHPTE) | DSISR_PROTFAULT;
-		kvmppc_set_dsisr(vcpu, dsisr);
-		kvmppc_set_msr_fast(vcpu, msr | (ssrr1 & 0xf8000000ULL));
-		kvmppc_book3s_queue_irqprio(vcpu, vec);
+	if (page_found == -ENOENT || page_found == -EPERM) {
+		/* Page not found in guest PTE entries, or protection fault */
+		u64 flags;
+
+		if (page_found == -EPERM)
+			flags = DSISR_PROTFAULT;
+		else
+			flags = DSISR_NOHPTE;
+		if (data) {
+			flags |= vcpu->arch.fault_dsisr & DSISR_ISSTORE;
+			kvmppc_core_queue_data_storage(vcpu, eaddr, flags);
+		} else {
+			kvmppc_core_queue_inst_storage(vcpu, flags);
+		}
 	} else if (page_found == -EINVAL) {
 		/* Page not found in guest SLB */
 		kvmppc_set_dar(vcpu, kvmppc_get_fault_dar(vcpu));
@@ -1178,10 +1174,8 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			kvmppc_mmu_pte_flush(vcpu, kvmppc_get_pc(vcpu), ~0xFFFUL);
 			r = RESUME_GUEST;
 		} else {
-			u64 msr = kvmppc_get_msr(vcpu);
-			msr |= shadow_srr1 & 0x58000000;
-			kvmppc_set_msr_fast(vcpu, msr);
-			kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
+			kvmppc_core_queue_inst_storage(vcpu,
+						shadow_srr1 & 0x58000000);
 			r = RESUME_GUEST;
 		}
 		break;
@@ -1220,9 +1214,7 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			r = kvmppc_handle_pagefault(run, vcpu, dar, exit_nr);
 			srcu_read_unlock(&vcpu->kvm->srcu, idx);
 		} else {
-			kvmppc_set_dar(vcpu, dar);
-			kvmppc_set_dsisr(vcpu, fault_dsisr);
-			kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
+			kvmppc_core_queue_data_storage(vcpu, dar, fault_dsisr);
 			r = RESUME_GUEST;
 		}
 		break;
