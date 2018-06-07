@@ -867,7 +867,7 @@ xfs_scrub_agi(
 	}
 
 	/* Check inode counters */
-	xfs_ialloc_agino_range(mp, agno, &first_agino, &last_agino);
+	xfs_agino_range(mp, agno, &first_agino, &last_agino);
 	icount = be32_to_cpu(agi->agi_count);
 	if (icount > last_agino - first_agino + 1 ||
 	    icount < be32_to_cpu(agi->agi_freecount))

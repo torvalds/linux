@@ -147,4 +147,23 @@ typedef struct xfs_bmbt_irec
 	xfs_exntst_t	br_state;	/* extent state */
 } xfs_bmbt_irec_t;
 
+/*
+ * Type verifier functions
+ */
+struct xfs_mount;
+
+xfs_agblock_t xfs_ag_block_count(struct xfs_mount *mp, xfs_agnumber_t agno);
+bool xfs_verify_agbno(struct xfs_mount *mp, xfs_agnumber_t agno,
+		xfs_agblock_t agbno);
+bool xfs_verify_fsbno(struct xfs_mount *mp, xfs_fsblock_t fsbno);
+
+void xfs_agino_range(struct xfs_mount *mp, xfs_agnumber_t agno,
+		xfs_agino_t *first, xfs_agino_t *last);
+bool xfs_verify_agino(struct xfs_mount *mp, xfs_agnumber_t agno,
+		xfs_agino_t agino);
+bool xfs_verify_ino(struct xfs_mount *mp, xfs_ino_t ino);
+bool xfs_internal_inum(struct xfs_mount *mp, xfs_ino_t ino);
+bool xfs_verify_dir_ino(struct xfs_mount *mp, xfs_ino_t ino);
+bool xfs_verify_rtbno(struct xfs_mount *mp, xfs_rtblock_t rtbno);
+
 #endif	/* __XFS_TYPES_H__ */
