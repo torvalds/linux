@@ -572,7 +572,6 @@ static int udf_parse_options(char *options, struct udf_options *uopt,
 		case Opt_utf8:
 			uopt->flags |= (1 << UDF_FLAG_UTF8);
 			break;
-#ifdef CONFIG_UDF_NLS
 		case Opt_iocharset:
 			if (!remount) {
 				if (uopt->nls_map)
@@ -581,7 +580,6 @@ static int udf_parse_options(char *options, struct udf_options *uopt,
 				uopt->flags |= (1 << UDF_FLAG_NLS_MAP);
 			}
 			break;
-#endif
 		case Opt_uforget:
 			uopt->flags |= (1 << UDF_FLAG_UID_FORGET);
 			break;
@@ -892,14 +890,14 @@ static int udf_load_pvoldesc(struct super_block *sb, sector_t block)
 #endif
 	}
 
-	ret = udf_dstrCS0toUTF8(outstr, 31, pvoldesc->volIdent, 32);
+	ret = udf_dstrCS0toChar(sb, outstr, 31, pvoldesc->volIdent, 32);
 	if (ret < 0)
 		goto out_bh;
 
 	strncpy(UDF_SB(sb)->s_volume_ident, outstr, ret);
 	udf_debug("volIdent[] = '%s'\n", UDF_SB(sb)->s_volume_ident);
 
-	ret = udf_dstrCS0toUTF8(outstr, 127, pvoldesc->volSetIdent, 128);
+	ret = udf_dstrCS0toChar(sb, outstr, 127, pvoldesc->volSetIdent, 128);
 	if (ret < 0)
 		goto out_bh;
 
@@ -2117,7 +2115,6 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 		udf_err(sb, "utf8 cannot be combined with iocharset\n");
 		goto parse_options_failure;
 	}
-#ifdef CONFIG_UDF_NLS
 	if ((uopt.flags & (1 << UDF_FLAG_NLS_MAP)) && !uopt.nls_map) {
 		uopt.nls_map = load_nls_default();
 		if (!uopt.nls_map)
@@ -2125,7 +2122,6 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 		else
 			udf_debug("Using default NLS map\n");
 	}
-#endif
 	if (!(uopt.flags & (1 << UDF_FLAG_NLS_MAP)))
 		uopt.flags |= (1 << UDF_FLAG_UTF8);
 
@@ -2279,10 +2275,8 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 error_out:
 	iput(sbi->s_vat_inode);
 parse_options_failure:
-#ifdef CONFIG_UDF_NLS
 	if (uopt.nls_map)
 		unload_nls(uopt.nls_map);
-#endif
 	if (lvid_open)
 		udf_close_lvid(sb);
 	brelse(sbi->s_lvid_bh);
@@ -2332,10 +2326,8 @@ static void udf_put_super(struct super_block *sb)
 	sbi = UDF_SB(sb);
 
 	iput(sbi->s_vat_inode);
-#ifdef CONFIG_UDF_NLS
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP))
 		unload_nls(sbi->s_nls_map);
-#endif
 	if (!sb_rdonly(sb))
 		udf_close_lvid(sb);
 	brelse(sbi->s_lvid_bh);
