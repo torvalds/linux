@@ -702,6 +702,7 @@ int dsi_calc_clk_rate_v2(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 	u8 lanes = msm_host->lanes;
 	u32 bpp = dsi_get_bpp(msm_host->format);
 	u32 pclk_rate;
+	u64 pclk_bpp;
 	unsigned int esc_mhz, esc_div;
 	unsigned long byte_mhz;
 
@@ -716,13 +717,15 @@ int dsi_calc_clk_rate_v2(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 	if (is_dual_dsi)
 		pclk_rate /= 2;
 
+	pclk_bpp = pclk_rate * bpp;
 	if (lanes > 0) {
-		msm_host->byte_clk_rate = (pclk_rate * bpp) / (8 * lanes);
+		do_div(pclk_bpp, (8 * lanes));
 	} else {
 		pr_err("%s: forcing mdss_dsi lanes to 1\n", __func__);
-		msm_host->byte_clk_rate = (pclk_rate * bpp) / 8;
+		do_div(pclk_bpp, 8);
 	}
 	msm_host->pixel_clk_rate = pclk_rate;
+	msm_host->byte_clk_rate = pclk_bpp;
 
 	DBG("pclk=%d, bclk=%d", msm_host->pixel_clk_rate,
 				msm_host->byte_clk_rate);
