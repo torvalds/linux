@@ -1053,7 +1053,7 @@ static irqreturn_t mma8452_interrupt(int irq, void *p)
 	if (src < 0)
 		return IRQ_NONE;
 
-	if (!(src & data->chip_info->enabled_events))
+	if (!(src & (data->chip_info->enabled_events | MMA8452_INT_DRDY)))
 		return IRQ_NONE;
 
 	if (src & MMA8452_INT_DRDY) {
