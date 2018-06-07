@@ -206,6 +206,35 @@
 &dmc {
 	center-supply = <&vdd_logic>;
 	status = "okay";
+	system-status-freq = <
+		/*system status         freq(KHz)*/
+		SYS_STATUS_NORMAL       786000
+		SYS_STATUS_REBOOT       786000
+		SYS_STATUS_SUSPEND      786000
+		SYS_STATUS_VIDEO_1080P  786000
+		SYS_STATUS_VIDEO_4K     786000
+		SYS_STATUS_VIDEO_4K_10B 786000
+		SYS_STATUS_PERFORMANCE  786000
+		SYS_STATUS_BOOST        786000
+	>;
+};
+
+&dmc_opp_table {
+	opp-800000000 {
+		status = "disabled";
+	};
+
+	opp-850000000 {
+		status = "disabled";
+	};
+
+	opp-933000000 {
+		status = "disabled";
+	};
+
+	opp-1066000000 {
+		status = "disabled";
+	};
 };
 
 &emmc {
