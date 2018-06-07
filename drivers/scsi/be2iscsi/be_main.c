@@ -1,11 +1,22 @@
 /*
- * Copyright 2017 Broadcom. All Rights Reserved.
- * The term "Broadcom" refers to Broadcom Limited and/or its subsidiaries.
+ * This file is part of the Emulex Linux Device Driver for Enterprise iSCSI
+ * Host Bus Adapters. Refer to the README file included with this package
+ * for driver version and adapter compatibility.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation. The full GNU General
- * Public License is included in this distribution in the file called COPYING.
+ * Copyright (c) 2018 Broadcom. All Rights Reserved.
+ * The term “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as published
+ * by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful. ALL EXPRESS
+ * OR IMPLIED CONDITIONS, REPRESENTATIONS AND WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTY OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE,
+ * OR NON-INFRINGEMENT, ARE DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH
+ * DISCLAIMERS ARE HELD TO BE LEGALLY INVALID.
+ * See the GNU General Public License for more details, a copy of which
+ * can be found in the file COPYING included with this package.
  *
  * Contact Information:
  * linux-drivers@broadcom.com
