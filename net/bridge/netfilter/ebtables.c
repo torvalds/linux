@@ -696,6 +696,8 @@ ebt_check_entry(struct ebt_entry *e, struct net *net,
 	}
 	i = 0;
 
+	memset(&mtpar, 0, sizeof(mtpar));
+	memset(&tgpar, 0, sizeof(tgpar));
 	mtpar.net	= tgpar.net       = net;
 	mtpar.table     = tgpar.table     = name;
 	mtpar.entryinfo = tgpar.entryinfo = e;
