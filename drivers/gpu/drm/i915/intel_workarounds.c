@@ -666,6 +666,19 @@ static void kbl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
 		   I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
 		   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
+
+	/* WaKBLVECSSemaphoreWaitPoll:kbl */
+	if (IS_KBL_REVID(dev_priv, KBL_REVID_A0, KBL_REVID_E0)) {
+		struct intel_engine_cs *engine;
+		unsigned int tmp;
+
+		for_each_engine(engine, dev_priv, tmp) {
+			if (engine->id == RCS)
+				continue;
+
+			I915_WRITE(RING_SEMA_WAIT_POLL(engine->mmio_base), 1);
+		}
+	}
 }
 
 static void glk_gt_workarounds_apply(struct drm_i915_private *dev_priv)

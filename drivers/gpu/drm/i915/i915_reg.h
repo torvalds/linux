@@ -2242,6 +2242,7 @@ enum i915_power_well_id {
 #define RING_RESET_CTL(base)	_MMIO((base)+0xd0)
 #define   RESET_CTL_REQUEST_RESET  (1 << 0)
 #define   RESET_CTL_READY_TO_RESET (1 << 1)
+#define RING_SEMA_WAIT_POLL(base) _MMIO((base) + 0x24c)
 
 #define HSW_GTT_CACHE_EN	_MMIO(0x4024)
 #define   GTT_CACHE_EN_ALL	0xF0007FFF

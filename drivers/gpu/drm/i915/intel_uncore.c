@@ -2174,6 +2174,8 @@ int intel_gpu_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
 		 * Thus assume it is best to stop engines on all gens
 		 * where we have a gpu reset.
 		 *
+		 * WaKBLVECSSemaphoreWaitPoll:kbl (on ALL_ENGINES)
+		 *
 		 * WaMediaResetMainRingCleanup:ctg,elk (presumably)
 		 *
 		 * FIXME: Wa for more modern gens needs to be validated
