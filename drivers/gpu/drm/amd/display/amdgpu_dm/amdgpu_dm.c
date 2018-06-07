@@ -3081,17 +3081,6 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 		}
 	}
 
-	/* It's a hack for s3 since in 4.9 kernel filter out cursor buffer
-	 * prepare and cleanup in drm_atomic_helper_prepare_planes
-	 * and drm_atomic_helper_cleanup_planes because fb doens't in s3.
-	 * IN 4.10 kernel this code should be removed and amdgpu_device_suspend
-	 * code touching fram buffers should be avoided for DC.
-	 */
-	if (plane->type == DRM_PLANE_TYPE_CURSOR) {
-		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(new_state->crtc);
-
-		acrtc->cursor_bo = obj;
-	}
 	return 0;
 }
 
