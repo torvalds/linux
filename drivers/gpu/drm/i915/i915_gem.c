@@ -5491,6 +5491,8 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	}
 
 	if (i915_inject_load_failure()) {
+		DRM_DEBUG_DRIVER("Marking the driver as wedged\n");
+		i915_gem_set_wedged(dev_priv);  /* Fail silently! */
 		ret = -EIO;
 		goto err_init_hw;
 	}
