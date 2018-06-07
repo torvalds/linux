@@ -52,4 +52,12 @@ AMDGPU Virtual Memory
    :doc: GPUVM
 
 .. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c
+
+Interrupt Handling
+------------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_irq.c
+   :doc: Interrupt Handling
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_irq.c
    :internal:
