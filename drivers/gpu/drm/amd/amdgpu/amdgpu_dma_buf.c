@@ -451,7 +451,71 @@ error:
 	return ERR_PTR(ret);
 }
 
+/**
+ * amdgpu_dma_buf_move_notify - &attach.move_notify implementation
+ *
+ * @attach: the DMA-buf attachment
+ *
+ * Invalidate the DMA-buf attachment, making sure that the we re-create the
+ * mapping before the next use.
+ */
+static void
+amdgpu_dma_buf_move_notify(struct dma_buf_attachment *attach)
+{
+	struct drm_gem_object *obj = attach->importer_priv;
+	struct ww_acquire_ctx *ticket = dma_resv_locking_ctx(obj->resv);
+	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
+	struct ttm_operation_ctx ctx = { false, false };
+	struct ttm_placement placement = {};
+	struct amdgpu_vm_bo_base *bo_base;
+	int r;
+
+	if (bo->tbo.mem.mem_type == TTM_PL_SYSTEM)
+		return;
+
+	r = ttm_bo_validate(&bo->tbo, &placement, &ctx);
+	if (r) {
+		DRM_ERROR("Failed to invalidate DMA-buf import (%d))\n", r);
+		return;
+	}
+
+	for (bo_base = bo->vm_bo; bo_base; bo_base = bo_base->next) {
+		struct amdgpu_vm *vm = bo_base->vm;
+		struct dma_resv *resv = vm->root.base.bo->tbo.base.resv;
+
+		if (ticket) {
+			/* When we get an error here it means that somebody
+			 * else is holding the VM lock and updating page tables
+			 * So we can just continue here.
+			 */
+			r = dma_resv_lock(resv, ticket);
+			if (r)
+				continue;
+
+		} else {
+			/* TODO: This is more problematic and we actually need
+			 * to allow page tables updates without holding the
+			 * lock.
+			 */
+			if (!dma_resv_trylock(resv))
+				continue;
+		}
+
+		r = amdgpu_vm_clear_freed(adev, vm, NULL);
+		if (!r)
+			r = amdgpu_vm_handle_moved(adev, vm);
+
+		if (r && r != -EBUSY)
+			DRM_ERROR("Failed to invalidate VM page tables (%d))\n",
+				  r);
+
+		dma_resv_unlock(resv);
+	}
+}
+
 static const struct dma_buf_attach_ops amdgpu_dma_buf_attach_ops = {
+	.move_notify = amdgpu_dma_buf_move_notify
 };
 
 /**
@@ -487,7 +551,7 @@ struct drm_gem_object *amdgpu_gem_prime_import(struct drm_device *dev,
 		return obj;
 
 	attach = dma_buf_dynamic_attach(dma_buf, dev->dev,
-					&amdgpu_dma_buf_attach_ops, NULL);
+					&amdgpu_dma_buf_attach_ops, obj);
 	if (IS_ERR(attach)) {
 		drm_gem_object_put(obj);
 		return ERR_CAST(attach);

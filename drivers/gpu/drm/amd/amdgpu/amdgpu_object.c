@@ -926,6 +926,9 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 		return 0;
 	}
 
+	if (bo->tbo.base.import_attach)
+		dma_buf_pin(bo->tbo.base.import_attach);
+
 	bo->flags |= AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
 	/* force to pin into visible video ram */
 	if (!(bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS))
@@ -1008,6 +1011,9 @@ int amdgpu_bo_unpin(struct amdgpu_bo *bo)
 		return 0;
 
 	amdgpu_bo_subtract_pin_size(bo);
+
+	if (bo->tbo.base.import_attach)
+		dma_buf_unpin(bo->tbo.base.import_attach);
 
 	for (i = 0; i < bo->placement.num_placement; i++) {
 		bo->placements[i].lpfn = 0;
