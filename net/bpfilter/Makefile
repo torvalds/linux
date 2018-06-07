@@ -21,7 +21,7 @@ endif
 # which bpfilter_kern.c passes further into umh blob loader at run-time
 quiet_cmd_copy_umh = GEN $@
       cmd_copy_umh = echo ':' > $(obj)/.bpfilter_umh.o.cmd; \
-      $(OBJCOPY) -I binary -O $(CONFIG_OUTPUT_FORMAT) \
+      $(OBJCOPY) -I binary -O `$(OBJDUMP) -f $<|grep format|cut -d' ' -f8` \
       -B `$(OBJDUMP) -f $<|grep architecture|cut -d, -f1|cut -d' ' -f2` \
       --rename-section .data=.init.rodata $< $@
 
