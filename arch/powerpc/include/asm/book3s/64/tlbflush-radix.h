@@ -51,4 +51,11 @@ extern void radix__flush_tlb_all(void);
 extern void radix__flush_tlb_pte_p9_dd1(unsigned long old_pte, struct mm_struct *mm,
 					unsigned long address);
 
+extern void radix__flush_tlb_lpid_page(unsigned int lpid,
+					unsigned long addr,
+					unsigned long page_size);
+extern void radix__flush_pwc_lpid(unsigned int lpid);
+extern void radix__local_flush_tlb_lpid(unsigned int lpid);
+extern void radix__local_flush_tlb_lpid_guest(unsigned int lpid);
+
 #endif

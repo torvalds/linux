@@ -274,7 +274,7 @@ int __init find_via_pmu(void)
 	u64 taddr;
 	const u32 *reg;
 
-	if (via != 0)
+	if (via)
 		return 1;
 	vias = of_find_node_by_name(NULL, "via-pmu");
 	if (vias == NULL)
@@ -1115,7 +1115,7 @@ pmu_queue_request(struct adb_request *req)
 	req->complete = 0;
 
 	spin_lock_irqsave(&pmu_lock, flags);
-	if (current_req != 0) {
+	if (current_req) {
 		last_req->next = req;
 		last_req = req;
 	} else {
@@ -1190,7 +1190,7 @@ pmu_start(void)
 	/* assert pmu_state == idle */
 	/* get the packet to send */
 	req = current_req;
-	if (req == 0 || pmu_state != idle
+	if (!req || pmu_state != idle
 	    || (/*req->reply_expected && */req_awaiting_reply))
 		return;
 
@@ -1345,7 +1345,7 @@ next:
 	if ((1 << pirq) & PMU_INT_ADB) {
 		if ((data[0] & PMU_INT_ADB_AUTO) == 0) {
 			struct adb_request *req = req_awaiting_reply;
-			if (req == 0) {
+			if (!req) {
 				printk(KERN_ERR "PMU: extra ADB reply\n");
 				return;
 			}
@@ -1712,7 +1712,7 @@ pmu_shutdown(void)
 int
 pmu_present(void)
 {
-	return via != 0;
+	return via != NULL;
 }
 
 #if defined(CONFIG_SUSPEND) && defined(CONFIG_PPC32)
@@ -2044,7 +2044,7 @@ pmu_open(struct inode *inode, struct file *file)
 	unsigned long flags;
 
 	pp = kmalloc(sizeof(struct pmu_private), GFP_KERNEL);
-	if (pp == 0)
+	if (!pp)
 		return -ENOMEM;
 	pp->rb_get = pp->rb_put = 0;
 	spin_lock_init(&pp->lock);
@@ -2070,7 +2070,7 @@ pmu_read(struct file *file, char __user *buf,
 	unsigned long flags;
 	int ret = 0;
 
-	if (count < 1 || pp == 0)
+	if (count < 1 || !pp)
 		return -EINVAL;
 	if (!access_ok(VERIFY_WRITE, buf, count))
 		return -EFAULT;
@@ -2127,7 +2127,7 @@ pmu_fpoll(struct file *filp, poll_table *wait)
 	__poll_t mask = 0;
 	unsigned long flags;
 	
-	if (pp == 0)
+	if (!pp)
 		return 0;
 	poll_wait(filp, &pp->wait, wait);
 	spin_lock_irqsave(&pp->lock, flags);
@@ -2143,7 +2143,7 @@ pmu_release(struct inode *inode, struct file *file)
 	struct pmu_private *pp = file->private_data;
 	unsigned long flags;
 
-	if (pp != 0) {
+	if (pp) {
 		file->private_data = NULL;
 		spin_lock_irqsave(&all_pvt_lock, flags);
 		list_del(&pp->list);

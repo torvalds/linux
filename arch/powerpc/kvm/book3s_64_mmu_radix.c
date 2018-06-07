@@ -200,6 +200,7 @@ void kvmppc_radix_set_pte_at(struct kvm *kvm, unsigned long addr,
 }
 
 static struct kmem_cache *kvm_pte_cache;
+static struct kmem_cache *kvm_pmd_cache;
 
 static pte_t *kvmppc_pte_alloc(void)
 {
@@ -215,6 +216,16 @@ static void kvmppc_pte_free(pte_t *ptep)
 static inline int pmd_is_leaf(pmd_t pmd)
 {
 	return !!(pmd_val(pmd) & _PAGE_PTE);
+}
+
+static pmd_t *kvmppc_pmd_alloc(void)
+{
+	return kmem_cache_alloc(kvm_pmd_cache, GFP_KERNEL);
+}
+
+static void kvmppc_pmd_free(pmd_t *pmdp)
+{
+	kmem_cache_free(kvm_pmd_cache, pmdp);
 }
 
 static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
@@ -239,7 +250,7 @@ static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 	if (pud && pud_present(*pud) && !pud_huge(*pud))
 		pmd = pmd_offset(pud, gpa);
 	else if (level <= 1)
-		new_pmd = pmd_alloc_one(kvm->mm, gpa);
+		new_pmd = kvmppc_pmd_alloc();
 
 	if (level == 0 && !(pmd && pmd_present(*pmd) && !pmd_is_leaf(*pmd)))
 		new_ptep = kvmppc_pte_alloc();
@@ -382,7 +393,7 @@ static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 	if (new_pud)
 		pud_free(kvm->mm, new_pud);
 	if (new_pmd)
-		pmd_free(kvm->mm, new_pmd);
+		kvmppc_pmd_free(new_pmd);
 	if (new_ptep)
 		kvmppc_pte_free(new_ptep);
 	return ret;
@@ -758,7 +769,7 @@ void kvmppc_free_radix(struct kvm *kvm)
 				kvmppc_pte_free(pte);
 				pmd_clear(pmd);
 			}
-			pmd_free(kvm->mm, pmd_offset(pud, 0));
+			kvmppc_pmd_free(pmd_offset(pud, 0));
 			pud_clear(pud);
 		}
 		pud_free(kvm->mm, pud_offset(pgd, 0));
@@ -770,20 +781,35 @@ void kvmppc_free_radix(struct kvm *kvm)
 
 static void pte_ctor(void *addr)
 {
-	memset(addr, 0, PTE_TABLE_SIZE);
+	memset(addr, 0, RADIX_PTE_TABLE_SIZE);
+}
+
+static void pmd_ctor(void *addr)
+{
+	memset(addr, 0, RADIX_PMD_TABLE_SIZE);
 }
 
 int kvmppc_radix_init(void)
 {
-	unsigned long size = sizeof(void *) << PTE_INDEX_SIZE;
+	unsigned long size = sizeof(void *) << RADIX_PTE_INDEX_SIZE;
 
 	kvm_pte_cache = kmem_cache_create("kvm-pte", size, size, 0, pte_ctor);
 	if (!kvm_pte_cache)
 		return -ENOMEM;
+
+	size = sizeof(void *) << RADIX_PMD_INDEX_SIZE;
+
+	kvm_pmd_cache = kmem_cache_create("kvm-pmd", size, size, 0, pmd_ctor);
+	if (!kvm_pmd_cache) {
+		kmem_cache_destroy(kvm_pte_cache);
+		return -ENOMEM;
+	}
+
 	return 0;
 }
 
 void kvmppc_radix_exit(void)
 {
 	kmem_cache_destroy(kvm_pte_cache);
+	kmem_cache_destroy(kvm_pmd_cache);
 }

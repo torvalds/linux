@@ -459,10 +459,9 @@ static void mmio_launch_invalidate(struct mmio_atsd_reg *mmio_atsd_reg,
 	struct npu *npu = mmio_atsd_reg->npu;
 	int reg = mmio_atsd_reg->reg;
 
-	__raw_writeq(cpu_to_be64(va),
-		npu->mmio_atsd_regs[reg] + XTS_ATSD_AVA);
+	__raw_writeq_be(va, npu->mmio_atsd_regs[reg] + XTS_ATSD_AVA);
 	eieio();
-	__raw_writeq(cpu_to_be64(launch), npu->mmio_atsd_regs[reg]);
+	__raw_writeq_be(launch, npu->mmio_atsd_regs[reg]);
 }
 
 static void mmio_invalidate_pid(struct mmio_atsd_reg mmio_atsd_reg[NV_MAX_NPUS],
