@@ -53,15 +53,68 @@ static const struct drm_encoder_funcs omap_encoder_funcs = {
 };
 
 static void omap_encoder_mode_set(struct drm_encoder *encoder,
-				struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode)
+				  struct drm_display_mode *mode,
+				  struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
-	struct omap_dss_device *dssdev = omap_encoder->output;
+	struct omap_dss_device *display = omap_encoder->display;
 	struct drm_connector *connector;
+	struct omap_dss_device *dssdev;
+	struct videomode vm = { 0 };
 	bool hdmi_mode;
 	int r;
+
+	drm_display_mode_to_videomode(adjusted_mode, &vm);
+
+	/*
+	 * HACK: This fixes the vm flags.
+	 * struct drm_display_mode does not contain the VSYNC/HSYNC/DE flags and
+	 * they get lost when converting back and forth between struct
+	 * drm_display_mode and struct videomode. The hack below goes and
+	 * fetches the missing flags.
+	 *
+	 * A better solution is to use DRM's bus-flags through the whole driver.
+	 */
+	for (dssdev = omap_encoder->output; dssdev; dssdev = dssdev->next) {
+		unsigned long bus_flags = dssdev->bus_flags;
+
+		if (!(vm.flags & (DISPLAY_FLAGS_DE_LOW |
+				  DISPLAY_FLAGS_DE_HIGH))) {
+			if (bus_flags & DRM_BUS_FLAG_DE_LOW)
+				vm.flags |= DISPLAY_FLAGS_DE_LOW;
+			else if (bus_flags & DRM_BUS_FLAG_DE_HIGH)
+				vm.flags |= DISPLAY_FLAGS_DE_HIGH;
+		}
+
+		if (!(vm.flags & (DISPLAY_FLAGS_PIXDATA_POSEDGE |
+				  DISPLAY_FLAGS_PIXDATA_NEGEDGE))) {
+			if (bus_flags & DRM_BUS_FLAG_PIXDATA_POSEDGE)
+				vm.flags |= DISPLAY_FLAGS_PIXDATA_POSEDGE;
+			else if (bus_flags & DRM_BUS_FLAG_PIXDATA_NEGEDGE)
+				vm.flags |= DISPLAY_FLAGS_PIXDATA_NEGEDGE;
+		}
+
+		if (!(vm.flags & (DISPLAY_FLAGS_SYNC_POSEDGE |
+				  DISPLAY_FLAGS_SYNC_NEGEDGE))) {
+			if (bus_flags & DRM_BUS_FLAG_SYNC_POSEDGE)
+				vm.flags |= DISPLAY_FLAGS_SYNC_POSEDGE;
+			else if (bus_flags & DRM_BUS_FLAG_SYNC_NEGEDGE)
+				vm.flags |= DISPLAY_FLAGS_SYNC_NEGEDGE;
+		}
+	}
+
+	/*
+	 * HACK: Call the .set_timings() operation if available, this will
+	 * eventually store timings in the CRTC. Otherwise (for DSI outputs)
+	 * store the timings directly.
+	 *
+	 * All outputs should be brought in sync to operate similarly.
+	 */
+	if (display->ops->set_timings)
+		display->ops->set_timings(display, &vm);
+	else
+		*omap_crtc_timings(encoder->crtc) = vm;
 
 	hdmi_mode = false;
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -70,6 +123,8 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 			break;
 		}
 	}
+
+	dssdev = omap_encoder->output;
 
 	if (dssdev->ops->hdmi.set_hdmi_mode)
 		dssdev->ops->hdmi.set_hdmi_mode(dssdev, hdmi_mode);
@@ -92,77 +147,11 @@ static void omap_encoder_disable(struct drm_encoder *encoder)
 	dssdev->ops->disable(dssdev);
 }
 
-static int omap_encoder_update(struct drm_encoder *encoder,
-			       enum omap_channel channel,
-			       struct videomode *vm)
-{
-	struct drm_device *dev = encoder->dev;
-	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
-	struct omap_dss_device *display = omap_encoder->display;
-	struct omap_dss_device *dssdev;
-	int ret;
-
-	for (dssdev = omap_encoder->output; dssdev; dssdev = dssdev->next) {
-		unsigned long bus_flags = dssdev->bus_flags;
-
-		if (dssdev->ops->check_timings) {
-			ret = dssdev->ops->check_timings(dssdev, vm);
-			if (ret) {
-				dev_err(dev->dev, "invalid timings: %d\n", ret);
-				return ret;
-			}
-		}
-
-		/*
-		 * HACK: This fixes the vm flags.
-		 * struct drm_display_mode does not contain the VSYNC/HSYNC/DE
-		 * flags and they get lost when converting back and forth
-		 * between struct drm_display_mode and struct videomode. The
-		 * hack below goes and fetches the missing flags.
-		 *
-		 * A better solution is to use DRM's bus-flags through the whole
-		 * driver.
-		 */
-
-		if (!(vm->flags & (DISPLAY_FLAGS_DE_LOW |
-				   DISPLAY_FLAGS_DE_HIGH))) {
-			if (bus_flags & DRM_BUS_FLAG_DE_LOW)
-				vm->flags |= DISPLAY_FLAGS_DE_LOW;
-			else if (bus_flags & DRM_BUS_FLAG_DE_HIGH)
-				vm->flags |= DISPLAY_FLAGS_DE_HIGH;
-		}
-
-		if (!(vm->flags & (DISPLAY_FLAGS_PIXDATA_POSEDGE |
-				   DISPLAY_FLAGS_PIXDATA_NEGEDGE))) {
-			if (bus_flags & DRM_BUS_FLAG_PIXDATA_POSEDGE)
-				vm->flags |= DISPLAY_FLAGS_PIXDATA_POSEDGE;
-			else if (bus_flags & DRM_BUS_FLAG_PIXDATA_NEGEDGE)
-				vm->flags |= DISPLAY_FLAGS_PIXDATA_NEGEDGE;
-		}
-
-		if (!(vm->flags & (DISPLAY_FLAGS_SYNC_POSEDGE |
-				   DISPLAY_FLAGS_SYNC_NEGEDGE))) {
-			if (bus_flags & DRM_BUS_FLAG_SYNC_POSEDGE)
-				vm->flags |= DISPLAY_FLAGS_SYNC_POSEDGE;
-			else if (bus_flags & DRM_BUS_FLAG_SYNC_NEGEDGE)
-				vm->flags |= DISPLAY_FLAGS_SYNC_NEGEDGE;
-		}
-	}
-
-	if (display->ops->set_timings)
-		display->ops->set_timings(display, vm);
-
-	return 0;
-}
-
 static void omap_encoder_enable(struct drm_encoder *encoder)
 {
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
 	struct omap_dss_device *dssdev = omap_encoder->display;
 	int r;
-
-	omap_encoder_update(encoder, omap_crtc_channel(encoder->crtc),
-			    omap_crtc_timings(encoder->crtc));
 
 	r = dssdev->ops->enable(dssdev);
 	if (r)
@@ -175,6 +164,27 @@ static int omap_encoder_atomic_check(struct drm_encoder *encoder,
 				     struct drm_crtc_state *crtc_state,
 				     struct drm_connector_state *conn_state)
 {
+	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
+	struct drm_device *dev = encoder->dev;
+	struct omap_dss_device *dssdev;
+	struct videomode vm = { 0 };
+	int ret;
+
+	drm_display_mode_to_videomode(&crtc_state->mode, &vm);
+
+	for (dssdev = omap_encoder->output; dssdev; dssdev = dssdev->next) {
+		if (!dssdev->ops->check_timings)
+			continue;
+
+		ret = dssdev->ops->check_timings(dssdev, &vm);
+		if (ret) {
+			dev_err(dev->dev, "invalid timings: %d\n", ret);
+			return ret;
+		}
+	}
+
+	drm_display_mode_from_videomode(&vm, &crtc_state->adjusted_mode);
+
 	return 0;
 }
 
