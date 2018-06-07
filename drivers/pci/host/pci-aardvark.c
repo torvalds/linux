@@ -19,6 +19,8 @@
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
 
+#include "../pci.h"
+
 /* PCIe core registers */
 #define PCIE_CORE_CMD_STATUS_REG				0x4
 #define     PCIE_CORE_CMD_IO_ACCESS_EN				BIT(0)
@@ -822,14 +824,13 @@ static int advk_pcie_parse_request_of_pci_ranges(struct advk_pcie *pcie)
 {
 	int err, res_valid = 0;
 	struct device *dev = &pcie->pdev->dev;
-	struct device_node *np = dev->of_node;
 	struct resource_entry *win, *tmp;
 	resource_size_t iobase;
 
 	INIT_LIST_HEAD(&pcie->resources);
 
-	err = of_pci_get_host_bridge_resources(np, 0, 0xff, &pcie->resources,
-					       &iobase);
+	err = devm_of_pci_get_host_bridge_resources(dev, 0, 0xff,
+						    &pcie->resources, &iobase);
 	if (err)
 		return err;
 

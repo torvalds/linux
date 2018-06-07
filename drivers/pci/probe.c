@@ -526,12 +526,14 @@ static void devm_pci_release_host_bridge_dev(struct device *dev)
 
 	if (bridge->release_fn)
 		bridge->release_fn(bridge);
+
+	pci_free_resource_list(&bridge->windows);
 }
 
 static void pci_release_host_bridge_dev(struct device *dev)
 {
 	devm_pci_release_host_bridge_dev(dev);
-	pci_free_host_bridge(to_pci_host_bridge(dev));
+	kfree(to_pci_host_bridge(dev));
 }
 
 struct pci_host_bridge *pci_alloc_host_bridge(size_t priv)
@@ -552,8 +554,10 @@ struct pci_host_bridge *pci_alloc_host_bridge(size_t priv)
 	 * OS from interfering.
 	 */
 	bridge->native_aer = 1;
-	bridge->native_hotplug = 1;
+	bridge->native_pcie_hotplug = 1;
+	bridge->native_shpc_hotplug = 1;
 	bridge->native_pme = 1;
+	bridge->native_ltr = 1;
 
 	return bridge;
 }
@@ -882,6 +886,45 @@ free:
 	return err;
 }
 
+static bool pci_bridge_child_ext_cfg_accessible(struct pci_dev *bridge)
+{
+	int pos;
+	u32 status;
+
+	/*
+	 * If extended config space isn't accessible on a bridge's primary
+	 * bus, we certainly can't access it on the secondary bus.
+	 */
+	if (bridge->bus->bus_flags & PCI_BUS_FLAGS_NO_EXTCFG)
+		return false;
+
+	/*
+	 * PCIe Root Ports and switch ports are PCIe on both sides, so if
+	 * extended config space is accessible on the primary, it's also
+	 * accessible on the secondary.
+	 */
+	if (pci_is_pcie(bridge) &&
+	    (pci_pcie_type(bridge) == PCI_EXP_TYPE_ROOT_PORT ||
+	     pci_pcie_type(bridge) == PCI_EXP_TYPE_UPSTREAM ||
+	     pci_pcie_type(bridge) == PCI_EXP_TYPE_DOWNSTREAM))
+		return true;
+
+	/*
+	 * For the other bridge types:
+	 *   - PCI-to-PCI bridges
+	 *   - PCIe-to-PCI/PCI-X forward bridges
+	 *   - PCI/PCI-X-to-PCIe reverse bridges
+	 * extended config space on the secondary side is only accessible
+	 * if the bridge supports PCI-X Mode 2.
+	 */
+	pos = pci_find_capability(bridge, PCI_CAP_ID_PCIX);
+	if (!pos)
+		return false;
+
+	pci_read_config_dword(bridge, pos + PCI_X_STATUS, &status);
+	return status & (PCI_X_STATUS_266MHZ | PCI_X_STATUS_533MHZ);
+}
+
 static struct pci_bus *pci_alloc_child_bus(struct pci_bus *parent,
 					   struct pci_dev *bridge, int busnr)
 {
@@ -922,6 +965,16 @@ static struct pci_bus *pci_alloc_child_bus(struct pci_bus *parent,
 	child->dev.parent = child->bridge;
 	pci_set_bus_of_node(child);
 	pci_set_bus_speed(child);
+
+	/*
+	 * Check whether extended config space is accessible on the child
+	 * bus.  Note that we currently assume it is always accessible on
+	 * the root bus.
+	 */
+	if (!pci_bridge_child_ext_cfg_accessible(bridge)) {
+		child->bus_flags |= PCI_BUS_FLAGS_NO_EXTCFG;
+		pci_info(child, "extended config space not accessible\n");
+	}
 
 	/* Set up default resource pointers and names */
 	for (i = 0; i < PCI_BRIDGE_RESOURCE_NUM; i++) {
@@ -998,6 +1051,8 @@ static unsigned int pci_scan_child_bus_extend(struct pci_bus *bus,
  * already configured by the BIOS and after we are done with all of
  * them, we proceed to assigning numbers to the remaining buses in
  * order to avoid overlaps between old and new bus numbers.
+ *
+ * Return: New subordinate number covering all buses behind this bridge.
  */
 static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 				  int max, unsigned int available_buses,
@@ -1188,20 +1243,15 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 		(is_cardbus ? "PCI CardBus %04x:%02x" : "PCI Bus %04x:%02x"),
 		pci_domain_nr(bus), child->number);
 
-	/* Has only triggered on CardBus, fixup is in yenta_socket */
+	/* Check that all devices are accessible */
 	while (bus->parent) {
 		if ((child->busn_res.end > bus->busn_res.end) ||
 		    (child->number > bus->busn_res.end) ||
 		    (child->number < bus->number) ||
 		    (child->busn_res.end < bus->number)) {
-			dev_info(&child->dev, "%pR %s hidden behind%s bridge %s %pR\n",
-				&child->busn_res,
-				(bus->number > child->busn_res.end &&
-				 bus->busn_res.end < child->number) ?
-					"wholly" : "partially",
-				bus->self->transparent ? " transparent" : "",
-				dev_name(&bus->dev),
-				&bus->busn_res);
+			dev_info(&dev->dev, "devices behind bridge are unusable because %pR cannot be assigned for them\n",
+				 &child->busn_res);
+			break;
 		}
 		bus = bus->parent;
 	}
@@ -1230,6 +1280,8 @@ out:
  * already configured by the BIOS and after we are done with all of
  * them, we proceed to assigning numbers to the remaining buses in
  * order to avoid overlaps between old and new bus numbers.
+ *
+ * Return: New subordinate number covering all buses behind this bridge.
  */
 int pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max, int pass)
 {
@@ -1392,6 +1444,9 @@ int pci_cfg_space_size(struct pci_dev *dev)
 	int pos;
 	u32 status;
 	u16 class;
+
+	if (dev->bus->bus_flags & PCI_BUS_FLAGS_NO_EXTCFG)
+		return PCI_CFG_SPACE_SIZE;
 
 	class = dev->class >> 8;
 	if (class == PCI_CLASS_BRIDGE_HOST)
@@ -1954,8 +2009,12 @@ static void pci_configure_relaxed_ordering(struct pci_dev *dev)
 static void pci_configure_ltr(struct pci_dev *dev)
 {
 #ifdef CONFIG_PCIEASPM
+	struct pci_host_bridge *host = pci_find_host_bridge(dev->bus);
 	u32 cap;
 	struct pci_dev *bridge;
+
+	if (!host->native_ltr)
+		return;
 
 	if (!pci_is_pcie(dev))
 		return;
@@ -2638,7 +2697,14 @@ static unsigned int pci_scan_child_bus_extend(struct pci_bus *bus,
 	for_each_pci_bridge(dev, bus) {
 		cmax = max;
 		max = pci_scan_bridge_extend(bus, dev, max, 0, 0);
-		used_buses += cmax - max;
+
+		/*
+		 * Reserve one bus for each bridge now to avoid extending
+		 * hotplug bridges too much during the second scan below.
+		 */
+		used_buses++;
+		if (cmax - max > 1)
+			used_buses += cmax - max - 1;
 	}
 
 	/* Scan bridges that need to be reconfigured */
@@ -2661,12 +2727,14 @@ static unsigned int pci_scan_child_bus_extend(struct pci_bus *bus,
 			 * bridges if any.
 			 */
 			buses = available_buses / hotplug_bridges;
-			buses = min(buses, available_buses - used_buses);
+			buses = min(buses, available_buses - used_buses + 1);
 		}
 
 		cmax = max;
 		max = pci_scan_bridge_extend(bus, dev, cmax, buses, 1);
-		used_buses += max - cmax;
+		/* One bus is already accounted so don't add it again */
+		if (max - cmax > 1)
+			used_buses += max - cmax - 1;
 	}
 
 	/*

@@ -15,6 +15,8 @@
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 
+#include "../pci.h"
+
 static void __iomem *versatile_pci_base;
 static void __iomem *versatile_cfg_base[2];
 
@@ -64,11 +66,10 @@ static int versatile_pci_parse_request_of_pci_ranges(struct device *dev,
 						     struct list_head *res)
 {
 	int err, mem = 1, res_valid = 0;
-	struct device_node *np = dev->of_node;
 	resource_size_t iobase;
 	struct resource_entry *win, *tmp;
 
-	err = of_pci_get_host_bridge_resources(np, 0, 0xff, res, &iobase);
+	err = devm_of_pci_get_host_bridge_resources(dev, 0, 0xff, res, &iobase);
 	if (err)
 		return err;
 

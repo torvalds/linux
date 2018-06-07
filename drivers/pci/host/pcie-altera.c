@@ -17,6 +17,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
+#include "../pci.h"
+
 #define RP_TX_REG0			0x2000
 #define RP_TX_REG1			0x2004
 #define RP_TX_CNTRL			0x2008
@@ -488,11 +490,10 @@ static int altera_pcie_parse_request_of_pci_ranges(struct altera_pcie *pcie)
 {
 	int err, res_valid = 0;
 	struct device *dev = &pcie->pdev->dev;
-	struct device_node *np = dev->of_node;
 	struct resource_entry *win;
 
-	err = of_pci_get_host_bridge_resources(np, 0, 0xff, &pcie->resources,
-					       NULL);
+	err = devm_of_pci_get_host_bridge_resources(dev, 0, 0xff,
+						    &pcie->resources, NULL);
 	if (err)
 		return err;
 

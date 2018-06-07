@@ -58,7 +58,7 @@ struct aer_err_source {
 };
 
 struct aer_rpc {
-	struct pcie_device *rpd;	/* Root Port device */
+	struct pci_dev *rpd;		/* Root Port device */
 	struct work_struct dpc_handler;
 	struct aer_err_source e_sources[AER_ERROR_SOURCES_MAX];
 	struct aer_err_info e_info;
@@ -75,36 +75,6 @@ struct aer_rpc {
 					 * root port hierarchy
 					 */
 };
-
-struct aer_broadcast_data {
-	enum pci_channel_state state;
-	enum pci_ers_result result;
-};
-
-static inline pci_ers_result_t merge_result(enum pci_ers_result orig,
-		enum pci_ers_result new)
-{
-	if (new == PCI_ERS_RESULT_NO_AER_DRIVER)
-		return PCI_ERS_RESULT_NO_AER_DRIVER;
-
-	if (new == PCI_ERS_RESULT_NONE)
-		return orig;
-
-	switch (orig) {
-	case PCI_ERS_RESULT_CAN_RECOVER:
-	case PCI_ERS_RESULT_RECOVERED:
-		orig = new;
-		break;
-	case PCI_ERS_RESULT_DISCONNECT:
-		if (new == PCI_ERS_RESULT_NEED_RESET)
-			orig = PCI_ERS_RESULT_NEED_RESET;
-		break;
-	default:
-		break;
-	}
-
-	return orig;
-}
 
 extern struct bus_type pcie_port_bus_type;
 void aer_isr(struct work_struct *work);

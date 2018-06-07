@@ -16,6 +16,7 @@
 #include <linux/of_platform.h>
 #include <linux/phy/phy.h>
 
+#include "../pci.h"
 #include "pcie-iproc.h"
 
 static const struct of_device_id iproc_pcie_of_match_table[] = {
@@ -99,8 +100,8 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 		pcie->phy = NULL;
 	}
 
-	ret = of_pci_get_host_bridge_resources(np, 0, 0xff, &resources,
-					       &iobase);
+	ret = devm_of_pci_get_host_bridge_resources(dev, 0, 0xff, &resources,
+						    &iobase);
 	if (ret) {
 		dev_err(dev, "unable to get PCI host bridge resources\n");
 		return ret;

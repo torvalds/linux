@@ -24,6 +24,28 @@
 #define VMD_MEMBAR1	2
 #define VMD_MEMBAR2	4
 
+#define PCI_REG_VMCAP		0x40
+#define BUS_RESTRICT_CAP(vmcap)	(vmcap & 0x1)
+#define PCI_REG_VMCONFIG	0x44
+#define BUS_RESTRICT_CFG(vmcfg)	((vmcfg >> 8) & 0x3)
+#define PCI_REG_VMLOCK		0x70
+#define MB2_SHADOW_EN(vmlock)	(vmlock & 0x2)
+
+enum vmd_features {
+	/*
+	 * Device may contain registers which hint the physical location of the
+	 * membars, in order to allow proper address translation during
+	 * resource assignment to enable guest virtualization
+	 */
+	VMD_FEAT_HAS_MEMBAR_SHADOW	= (1 << 0),
+
+	/*
+	 * Device may provide root port configuration information which limits
+	 * bus numbering
+	 */
+	VMD_FEAT_HAS_BUS_RESTRICTIONS	= (1 << 1),
+};
+
 /*
  * Lock for manipulating VMD IRQ lists.
  */
@@ -546,7 +568,7 @@ static int vmd_find_free_domain(void)
 	return domain + 1;
 }
 
-static int vmd_enable_domain(struct vmd_dev *vmd)
+static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 {
 	struct pci_sysdata *sd = &vmd->sysdata;
 	struct fwnode_handle *fn;
@@ -554,12 +576,57 @@ static int vmd_enable_domain(struct vmd_dev *vmd)
 	u32 upper_bits;
 	unsigned long flags;
 	LIST_HEAD(resources);
+	resource_size_t offset[2] = {0};
+	resource_size_t membar2_offset = 0x2000, busn_start = 0;
+
+	/*
+	 * Shadow registers may exist in certain VMD device ids which allow
+	 * guests to correctly assign host physical addresses to the root ports
+	 * and child devices. These registers will either return the host value
+	 * or 0, depending on an enable bit in the VMD device.
+	 */
+	if (features & VMD_FEAT_HAS_MEMBAR_SHADOW) {
+		u32 vmlock;
+		int ret;
+
+		membar2_offset = 0x2018;
+		ret = pci_read_config_dword(vmd->dev, PCI_REG_VMLOCK, &vmlock);
+		if (ret || vmlock == ~0)
+			return -ENODEV;
+
+		if (MB2_SHADOW_EN(vmlock)) {
+			void __iomem *membar2;
+
+			membar2 = pci_iomap(vmd->dev, VMD_MEMBAR2, 0);
+			if (!membar2)
+				return -ENOMEM;
+			offset[0] = vmd->dev->resource[VMD_MEMBAR1].start -
+						readq(membar2 + 0x2008);
+			offset[1] = vmd->dev->resource[VMD_MEMBAR2].start -
+						readq(membar2 + 0x2010);
+			pci_iounmap(vmd->dev, membar2);
+		}
+	}
+
+	/*
+	 * Certain VMD devices may have a root port configuration option which
+	 * limits the bus range to between 0-127 or 128-255
+	 */
+	if (features & VMD_FEAT_HAS_BUS_RESTRICTIONS) {
+		u32 vmcap, vmconfig;
+
+		pci_read_config_dword(vmd->dev, PCI_REG_VMCAP, &vmcap);
+		pci_read_config_dword(vmd->dev, PCI_REG_VMCONFIG, &vmconfig);
+		if (BUS_RESTRICT_CAP(vmcap) &&
+		    (BUS_RESTRICT_CFG(vmconfig) == 0x1))
+			busn_start = 128;
+	}
 
 	res = &vmd->dev->resource[VMD_CFGBAR];
 	vmd->resources[0] = (struct resource) {
 		.name  = "VMD CFGBAR",
-		.start = 0,
-		.end   = (resource_size(res) >> 20) - 1,
+		.start = busn_start,
+		.end   = busn_start + (resource_size(res) >> 20) - 1,
 		.flags = IORESOURCE_BUS | IORESOURCE_PCI_FIXED,
 	};
 
@@ -600,7 +667,7 @@ static int vmd_enable_domain(struct vmd_dev *vmd)
 		flags &= ~IORESOURCE_MEM_64;
 	vmd->resources[2] = (struct resource) {
 		.name  = "VMD MEMBAR2",
-		.start = res->start + 0x2000,
+		.start = res->start + membar2_offset,
 		.end   = res->end,
 		.flags = flags,
 		.parent = res,
@@ -624,10 +691,11 @@ static int vmd_enable_domain(struct vmd_dev *vmd)
 		return -ENODEV;
 
 	pci_add_resource(&resources, &vmd->resources[0]);
-	pci_add_resource(&resources, &vmd->resources[1]);
-	pci_add_resource(&resources, &vmd->resources[2]);
-	vmd->bus = pci_create_root_bus(&vmd->dev->dev, 0, &vmd_ops, sd,
-				       &resources);
+	pci_add_resource_offset(&resources, &vmd->resources[1], offset[0]);
+	pci_add_resource_offset(&resources, &vmd->resources[2], offset[1]);
+
+	vmd->bus = pci_create_root_bus(&vmd->dev->dev, busn_start, &vmd_ops,
+				       sd, &resources);
 	if (!vmd->bus) {
 		pci_free_resource_list(&resources);
 		irq_domain_remove(vmd->irq_domain);
@@ -713,7 +781,7 @@ static int vmd_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	spin_lock_init(&vmd->cfg_lock);
 	pci_set_drvdata(dev, vmd);
-	err = vmd_enable_domain(vmd);
+	err = vmd_enable_domain(vmd, (unsigned long) id->driver_data);
 	if (err)
 		return err;
 
@@ -778,7 +846,10 @@ static int vmd_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(vmd_dev_pm_ops, vmd_suspend, vmd_resume);
 
 static const struct pci_device_id vmd_ids[] = {
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x201d),},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_VMD_201D),},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_VMD_28C0),
+		.driver_data = VMD_FEAT_HAS_MEMBAR_SHADOW |
+				VMD_FEAT_HAS_BUS_RESTRICTIONS,},
 	{0,}
 };
 MODULE_DEVICE_TABLE(pci, vmd_ids);

@@ -22,6 +22,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
+#include "../pci.h"
+
 #define PCIECORE_CTLANDSTATUS		0x50
 #define PIM1_1L				0x80
 #define IBAR2				0x98
@@ -632,7 +634,8 @@ static int xgene_pcie_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = of_pci_get_host_bridge_resources(dn, 0, 0xff, &res, &iobase);
+	ret = devm_of_pci_get_host_bridge_resources(dev, 0, 0xff, &res,
+						    &iobase);
 	if (ret)
 		return ret;
 

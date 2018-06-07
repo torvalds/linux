@@ -20,8 +20,6 @@
 
 #define pcibios_assign_all_busses()	0
 
-extern struct pci_controller* pcibios_alloc_controller(void);
-
 /* Assume some values. (We should revise them, if necessary) */
 
 #define PCIBIOS_MIN_IO		0x2000

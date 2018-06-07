@@ -23,6 +23,8 @@
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 
+#include "../pci.h"
+
 /* Register definitions */
 #define XILINX_PCIE_REG_BIR		0x00000130
 #define XILINX_PCIE_REG_IDR		0x00000138
@@ -643,8 +645,8 @@ static int xilinx_pcie_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	err = of_pci_get_host_bridge_resources(dev->of_node, 0, 0xff, &res,
-					       &iobase);
+	err = devm_of_pci_get_host_bridge_resources(dev, 0, 0xff, &res,
+						    &iobase);
 	if (err) {
 		dev_err(dev, "Getting bridge resources failed\n");
 		return err;

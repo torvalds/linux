@@ -21,6 +21,8 @@
 #include <linux/platform_device.h>
 #include <linux/irqchip/chained_irq.h>
 
+#include "../pci.h"
+
 /* Bridge core config registers */
 #define BRCFG_PCIE_RX0			0x00000000
 #define BRCFG_INTERRUPT			0x00000010
@@ -825,7 +827,6 @@ static const struct of_device_id nwl_pcie_of_match[] = {
 static int nwl_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
 	struct nwl_pcie *pcie;
 	struct pci_bus *bus;
 	struct pci_bus *child;
@@ -855,7 +856,8 @@ static int nwl_pcie_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	err = of_pci_get_host_bridge_resources(node, 0, 0xff, &res, &iobase);
+	err = devm_of_pci_get_host_bridge_resources(dev, 0, 0xff, &res,
+						    &iobase);
 	if (err) {
 		dev_err(dev, "Getting bridge resources failed\n");
 		return err;
