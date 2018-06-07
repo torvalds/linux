@@ -105,7 +105,7 @@ static void vgt_deballoon_space(struct i915_ggtt *ggtt,
 			 node->start + node->size,
 			 node->size / 1024);
 
-	ggtt->base.reserved -= node->size;
+	ggtt->vm.reserved -= node->size;
 	drm_mm_remove_node(node);
 }
 
@@ -141,11 +141,11 @@ static int vgt_balloon_space(struct i915_ggtt *ggtt,
 
 	DRM_INFO("balloon space: range [ 0x%lx - 0x%lx ] %lu KiB.\n",
 		 start, end, size / 1024);
-	ret = i915_gem_gtt_reserve(&ggtt->base, node,
+	ret = i915_gem_gtt_reserve(&ggtt->vm, node,
 				   size, start, I915_COLOR_UNEVICTABLE,
 				   0);
 	if (!ret)
-		ggtt->base.reserved += size;
+		ggtt->vm.reserved += size;
 
 	return ret;
 }
@@ -197,7 +197,7 @@ static int vgt_balloon_space(struct i915_ggtt *ggtt,
 int intel_vgt_balloon(struct drm_i915_private *dev_priv)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	unsigned long ggtt_end = ggtt->base.total;
+	unsigned long ggtt_end = ggtt->vm.total;
 
 	unsigned long mappable_base, mappable_size, mappable_end;
 	unsigned long unmappable_base, unmappable_size, unmappable_end;

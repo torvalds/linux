@@ -113,7 +113,7 @@ static int igt_gem_huge(void *arg)
 
 	obj = huge_gem_object(i915,
 			      nreal * PAGE_SIZE,
-			      i915->ggtt.base.total + PAGE_SIZE);
+			      i915->ggtt.vm.total + PAGE_SIZE);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
@@ -311,7 +311,7 @@ static int igt_partial_tiling(void *arg)
 
 	obj = huge_gem_object(i915,
 			      nreal << PAGE_SHIFT,
-			      (1 + next_prime_number(i915->ggtt.base.total >> PAGE_SHIFT)) << PAGE_SHIFT);
+			      (1 + next_prime_number(i915->ggtt.vm.total >> PAGE_SHIFT)) << PAGE_SHIFT);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
@@ -440,7 +440,7 @@ static int make_obj_busy(struct drm_i915_gem_object *obj)
 	struct i915_vma *vma;
 	int err;
 
-	vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);
+	vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 

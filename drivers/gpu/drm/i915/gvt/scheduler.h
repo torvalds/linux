@@ -83,7 +83,6 @@ struct intel_vgpu_workload {
 	struct i915_request *req;
 	/* if this workload has been dispatched to i915? */
 	bool dispatched;
-	bool shadowed;
 	int status;
 
 	struct intel_vgpu_mm *shadow_mm;

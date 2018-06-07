@@ -151,14 +151,14 @@ static int igt_ppgtt_alloc(void *arg)
 	if (err)
 		goto err_ppgtt;
 
-	if (!ppgtt->base.allocate_va_range)
+	if (!ppgtt->vm.allocate_va_range)
 		goto err_ppgtt_cleanup;
 
 	/* Check we can allocate the entire range */
 	for (size = 4096;
-	     size <= ppgtt->base.total;
+	     size <= ppgtt->vm.total;
 	     size <<= 2) {
-		err = ppgtt->base.allocate_va_range(&ppgtt->base, 0, size);
+		err = ppgtt->vm.allocate_va_range(&ppgtt->vm, 0, size);
 		if (err) {
 			if (err == -ENOMEM) {
 				pr_info("[1] Ran out of memory for va_range [0 + %llx] [bit %d]\n",
@@ -168,15 +168,15 @@ static int igt_ppgtt_alloc(void *arg)
 			goto err_ppgtt_cleanup;
 		}
 
-		ppgtt->base.clear_range(&ppgtt->base, 0, size);
+		ppgtt->vm.clear_range(&ppgtt->vm, 0, size);
 	}
 
 	/* Check we can incrementally allocate the entire range */
 	for (last = 0, size = 4096;
-	     size <= ppgtt->base.total;
+	     size <= ppgtt->vm.total;
 	     last = size, size <<= 2) {
-		err = ppgtt->base.allocate_va_range(&ppgtt->base,
-						    last, size - last);
+		err = ppgtt->vm.allocate_va_range(&ppgtt->vm,
+						  last, size - last);
 		if (err) {
 			if (err == -ENOMEM) {
 				pr_info("[2] Ran out of memory for va_range [%llx + %llx] [bit %d]\n",
@@ -188,7 +188,7 @@ static int igt_ppgtt_alloc(void *arg)
 	}
 
 err_ppgtt_cleanup:
-	ppgtt->base.cleanup(&ppgtt->base);
+	ppgtt->vm.cleanup(&ppgtt->vm);
 err_ppgtt:
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	kfree(ppgtt);
@@ -987,12 +987,12 @@ static int exercise_ppgtt(struct drm_i915_private *dev_priv,
 		err = PTR_ERR(ppgtt);
 		goto out_unlock;
 	}
-	GEM_BUG_ON(offset_in_page(ppgtt->base.total));
-	GEM_BUG_ON(ppgtt->base.closed);
+	GEM_BUG_ON(offset_in_page(ppgtt->vm.total));
+	GEM_BUG_ON(ppgtt->vm.closed);
 
-	err = func(dev_priv, &ppgtt->base, 0, ppgtt->base.total, end_time);
+	err = func(dev_priv, &ppgtt->vm, 0, ppgtt->vm.total, end_time);
 
-	i915_ppgtt_close(&ppgtt->base);
+	i915_ppgtt_close(&ppgtt->vm);
 	i915_ppgtt_put(ppgtt);
 out_unlock:
 	mutex_unlock(&dev_priv->drm.struct_mutex);
@@ -1061,18 +1061,18 @@ static int exercise_ggtt(struct drm_i915_private *i915,
 
 	mutex_lock(&i915->drm.struct_mutex);
 restart:
-	list_sort(NULL, &ggtt->base.mm.hole_stack, sort_holes);
-	drm_mm_for_each_hole(node, &ggtt->base.mm, hole_start, hole_end) {
+	list_sort(NULL, &ggtt->vm.mm.hole_stack, sort_holes);
+	drm_mm_for_each_hole(node, &ggtt->vm.mm, hole_start, hole_end) {
 		if (hole_start < last)
 			continue;
 
-		if (ggtt->base.mm.color_adjust)
-			ggtt->base.mm.color_adjust(node, 0,
-						   &hole_start, &hole_end);
+		if (ggtt->vm.mm.color_adjust)
+			ggtt->vm.mm.color_adjust(node, 0,
+						 &hole_start, &hole_end);
 		if (hole_start >= hole_end)
 			continue;
 
-		err = func(i915, &ggtt->base, hole_start, hole_end, end_time);
+		err = func(i915, &ggtt->vm, hole_start, hole_end, end_time);
 		if (err)
 			break;
 
@@ -1134,7 +1134,7 @@ static int igt_ggtt_page(void *arg)
 		goto out_free;
 
 	memset(&tmp, 0, sizeof(tmp));
-	err = drm_mm_insert_node_in_range(&ggtt->base.mm, &tmp,
+	err = drm_mm_insert_node_in_range(&ggtt->vm.mm, &tmp,
 					  count * PAGE_SIZE, 0,
 					  I915_COLOR_UNEVICTABLE,
 					  0, ggtt->mappable_end,
@@ -1147,9 +1147,9 @@ static int igt_ggtt_page(void *arg)
 	for (n = 0; n < count; n++) {
 		u64 offset = tmp.start + n * PAGE_SIZE;
 
-		ggtt->base.insert_page(&ggtt->base,
-				       i915_gem_object_get_dma_address(obj, 0),
-				       offset, I915_CACHE_NONE, 0);
+		ggtt->vm.insert_page(&ggtt->vm,
+				     i915_gem_object_get_dma_address(obj, 0),
+				     offset, I915_CACHE_NONE, 0);
 	}
 
 	order = i915_random_order(count, &prng);
@@ -1188,7 +1188,7 @@ static int igt_ggtt_page(void *arg)
 
 	kfree(order);
 out_remove:
-	ggtt->base.clear_range(&ggtt->base, tmp.start, tmp.size);
+	ggtt->vm.clear_range(&ggtt->vm, tmp.start, tmp.size);
 	intel_runtime_pm_put(i915);
 	drm_mm_remove_node(&tmp);
 out_unpin:
@@ -1229,7 +1229,7 @@ static int exercise_mock(struct drm_i915_private *i915,
 	ppgtt = ctx->ppgtt;
 	GEM_BUG_ON(!ppgtt);
 
-	err = func(i915, &ppgtt->base, 0, ppgtt->base.total, end_time);
+	err = func(i915, &ppgtt->vm, 0, ppgtt->vm.total, end_time);
 
 	mock_context_close(ctx);
 	return err;
@@ -1270,7 +1270,7 @@ static int igt_gtt_reserve(void *arg)
 
 	/* Start by filling the GGTT */
 	for (total = 0;
-	     total + 2*I915_GTT_PAGE_SIZE <= i915->ggtt.base.total;
+	     total + 2*I915_GTT_PAGE_SIZE <= i915->ggtt.vm.total;
 	     total += 2*I915_GTT_PAGE_SIZE) {
 		struct i915_vma *vma;
 
@@ -1288,20 +1288,20 @@ static int igt_gtt_reserve(void *arg)
 
 		list_add(&obj->st_link, &objects);
 
-		vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);
+		vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
 		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
 			goto out;
 		}
 
-		err = i915_gem_gtt_reserve(&i915->ggtt.base, &vma->node,
+		err = i915_gem_gtt_reserve(&i915->ggtt.vm, &vma->node,
 					   obj->base.size,
 					   total,
 					   obj->cache_level,
 					   0);
 		if (err) {
 			pr_err("i915_gem_gtt_reserve (pass 1) failed at %llu/%llu with err=%d\n",
-			       total, i915->ggtt.base.total, err);
+			       total, i915->ggtt.vm.total, err);
 			goto out;
 		}
 		track_vma_bind(vma);
@@ -1319,7 +1319,7 @@ static int igt_gtt_reserve(void *arg)
 
 	/* Now we start forcing evictions */
 	for (total = I915_GTT_PAGE_SIZE;
-	     total + 2*I915_GTT_PAGE_SIZE <= i915->ggtt.base.total;
+	     total + 2*I915_GTT_PAGE_SIZE <= i915->ggtt.vm.total;
 	     total += 2*I915_GTT_PAGE_SIZE) {
 		struct i915_vma *vma;
 
@@ -1337,20 +1337,20 @@ static int igt_gtt_reserve(void *arg)
 
 		list_add(&obj->st_link, &objects);
 
-		vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);
+		vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
 		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
 			goto out;
 		}
 
-		err = i915_gem_gtt_reserve(&i915->ggtt.base, &vma->node,
+		err = i915_gem_gtt_reserve(&i915->ggtt.vm, &vma->node,
 					   obj->base.size,
 					   total,
 					   obj->cache_level,
 					   0);
 		if (err) {
 			pr_err("i915_gem_gtt_reserve (pass 2) failed at %llu/%llu with err=%d\n",
-			       total, i915->ggtt.base.total, err);
+			       total, i915->ggtt.vm.total, err);
 			goto out;
 		}
 		track_vma_bind(vma);
@@ -1371,7 +1371,7 @@ static int igt_gtt_reserve(void *arg)
 		struct i915_vma *vma;
 		u64 offset;
 
-		vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);
+		vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
 		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
 			goto out;
@@ -1383,18 +1383,18 @@ static int igt_gtt_reserve(void *arg)
 			goto out;
 		}
 
-		offset = random_offset(0, i915->ggtt.base.total,
+		offset = random_offset(0, i915->ggtt.vm.total,
 				       2*I915_GTT_PAGE_SIZE,
 				       I915_GTT_MIN_ALIGNMENT);
 
-		err = i915_gem_gtt_reserve(&i915->ggtt.base, &vma->node,
+		err = i915_gem_gtt_reserve(&i915->ggtt.vm, &vma->node,
 					   obj->base.size,
 					   offset,
 					   obj->cache_level,
 					   0);
 		if (err) {
 			pr_err("i915_gem_gtt_reserve (pass 3) failed at %llu/%llu with err=%d\n",
-			       total, i915->ggtt.base.total, err);
+			       total, i915->ggtt.vm.total, err);
 			goto out;
 		}
 		track_vma_bind(vma);
@@ -1429,8 +1429,8 @@ static int igt_gtt_insert(void *arg)
 		u64 start, end;
 	} invalid_insert[] = {
 		{
-			i915->ggtt.base.total + I915_GTT_PAGE_SIZE, 0,
-			0, i915->ggtt.base.total,
+			i915->ggtt.vm.total + I915_GTT_PAGE_SIZE, 0,
+			0, i915->ggtt.vm.total,
 		},
 		{
 			2*I915_GTT_PAGE_SIZE, 0,
@@ -1460,7 +1460,7 @@ static int igt_gtt_insert(void *arg)
 
 	/* Check a couple of obviously invalid requests */
 	for (ii = invalid_insert; ii->size; ii++) {
-		err = i915_gem_gtt_insert(&i915->ggtt.base, &tmp,
+		err = i915_gem_gtt_insert(&i915->ggtt.vm, &tmp,
 					  ii->size, ii->alignment,
 					  I915_COLOR_UNEVICTABLE,
 					  ii->start, ii->end,
@@ -1475,7 +1475,7 @@ static int igt_gtt_insert(void *arg)
 
 	/* Start by filling the GGTT */
 	for (total = 0;
-	     total + I915_GTT_PAGE_SIZE <= i915->ggtt.base.total;
+	     total + I915_GTT_PAGE_SIZE <= i915->ggtt.vm.total;
 	     total += I915_GTT_PAGE_SIZE) {
 		struct i915_vma *vma;
 
@@ -1493,15 +1493,15 @@ static int igt_gtt_insert(void *arg)
 
 		list_add(&obj->st_link, &objects);
 
-		vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);
+		vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
 		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
 			goto out;
 		}
 
-		err = i915_gem_gtt_insert(&i915->ggtt.base, &vma->node,
+		err = i915_gem_gtt_insert(&i915->ggtt.vm, &vma->node,
 					  obj->base.size, 0, obj->cache_level,
-					  0, i915->ggtt.base.total,
+					  0, i915->ggtt.vm.total,
 					  0);
 		if (err == -ENOSPC) {
 			/* maxed out the GGTT space */
@@ -1510,7 +1510,7 @@ static int igt_gtt_insert(void *arg)
 		}
 		if (err) {
 			pr_err("i915_gem_gtt_insert (pass 1) failed at %llu/%llu with err=%d\n",
-			       total, i915->ggtt.base.total, err);
+			       total, i915->ggtt.vm.total, err);
 			goto out;
 		}
 		track_vma_bind(vma);
@@ -1522,7 +1522,7 @@ static int igt_gtt_insert(void *arg)
 	list_for_each_entry(obj, &objects, st_link) {
 		struct i915_vma *vma;
 
-		vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);
+		vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
 		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
 			goto out;
@@ -1542,7 +1542,7 @@ static int igt_gtt_insert(void *arg)
 		struct i915_vma *vma;
 		u64 offset;
 
-		vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);
+		vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
 		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
 			goto out;
@@ -1557,13 +1557,13 @@ static int igt_gtt_insert(void *arg)
 			goto out;
 		}
 
-		err = i915_gem_gtt_insert(&i915->ggtt.base, &vma->node,
+		err = i915_gem_gtt_insert(&i915->ggtt.vm, &vma->node,
 					  obj->base.size, 0, obj->cache_level,
-					  0, i915->ggtt.base.total,
+					  0, i915->ggtt.vm.total,
 					  0);
 		if (err) {
 			pr_err("i915_gem_gtt_insert (pass 2) failed at %llu/%llu with err=%d\n",
-			       total, i915->ggtt.base.total, err);
+			       total, i915->ggtt.vm.total, err);
 			goto out;
 		}
 		track_vma_bind(vma);
@@ -1579,7 +1579,7 @@ static int igt_gtt_insert(void *arg)
 
 	/* And then force evictions */
 	for (total = 0;
-	     total + 2*I915_GTT_PAGE_SIZE <= i915->ggtt.base.total;
+	     total + 2*I915_GTT_PAGE_SIZE <= i915->ggtt.vm.total;
 	     total += 2*I915_GTT_PAGE_SIZE) {
 		struct i915_vma *vma;
 
@@ -1597,19 +1597,19 @@ static int igt_gtt_insert(void *arg)
 
 		list_add(&obj->st_link, &objects);
 
-		vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);
+		vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
 		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
 			goto out;
 		}
 
-		err = i915_gem_gtt_insert(&i915->ggtt.base, &vma->node,
+		err = i915_gem_gtt_insert(&i915->ggtt.vm, &vma->node,
 					  obj->base.size, 0, obj->cache_level,
-					  0, i915->ggtt.base.total,
+					  0, i915->ggtt.vm.total,
 					  0);
 		if (err) {
 			pr_err("i915_gem_gtt_insert (pass 3) failed at %llu/%llu with err=%d\n",
-			       total, i915->ggtt.base.total, err);
+			       total, i915->ggtt.vm.total, err);
 			goto out;
 		}
 		track_vma_bind(vma);
@@ -1669,7 +1669,7 @@ int i915_gem_gtt_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_ggtt_page),
 	};
 
-	GEM_BUG_ON(offset_in_page(i915->ggtt.base.total));
+	GEM_BUG_ON(offset_in_page(i915->ggtt.vm.total));
 
 	return i915_subtests(tests, i915);
 }

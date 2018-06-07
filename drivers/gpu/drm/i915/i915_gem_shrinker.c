@@ -480,7 +480,7 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 
 	/* We also want to clear any cached iomaps as they wrap vmap */
 	list_for_each_entry_safe(vma, next,
-				 &i915->ggtt.base.inactive_list, vm_link) {
+				 &i915->ggtt.vm.inactive_list, vm_link) {
 		unsigned long count = vma->node.size >> PAGE_SHIFT;
 		if (vma->iomap && i915_vma_unbind(vma) == 0)
 			freed_pages += count;

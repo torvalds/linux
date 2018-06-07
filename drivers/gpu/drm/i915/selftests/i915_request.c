@@ -430,7 +430,7 @@ static struct i915_vma *empty_batch(struct drm_i915_private *i915)
 	if (err)
 		goto err;
 
-	vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);
+	vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);
 		goto err;
@@ -555,7 +555,8 @@ out_unlock:
 static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
 {
 	struct i915_gem_context *ctx = i915->kernel_context;
-	struct i915_address_space *vm = ctx->ppgtt ? &ctx->ppgtt->base : &i915->ggtt.base;
+	struct i915_address_space *vm =
+		ctx->ppgtt ? &ctx->ppgtt->vm : &i915->ggtt.vm;
 	struct drm_i915_gem_object *obj;
 	const int gen = INTEL_GEN(i915);
 	struct i915_vma *vma;

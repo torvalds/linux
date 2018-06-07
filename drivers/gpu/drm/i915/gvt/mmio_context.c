@@ -446,9 +446,9 @@ static void switch_mocs(struct intel_vgpu *pre, struct intel_vgpu *next,
 
 #define CTX_CONTEXT_CONTROL_VAL	0x03
 
-bool is_inhibit_context(struct i915_gem_context *ctx, int ring_id)
+bool is_inhibit_context(struct intel_context *ce)
 {
-	u32 *reg_state = ctx->__engine[ring_id].lrc_reg_state;
+	const u32 *reg_state = ce->lrc_reg_state;
 	u32 inhibit_mask =
 		_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
 
@@ -501,7 +501,7 @@ static void switch_mmio(struct intel_vgpu *pre,
 			 * itself.
 			 */
 			if (mmio->in_context &&
-			    !is_inhibit_context(s->shadow_ctx, ring_id))
+			    !is_inhibit_context(&s->shadow_ctx->__engine[ring_id]))
 				continue;
 
 			if (mmio->mask)

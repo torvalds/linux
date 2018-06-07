@@ -846,8 +846,9 @@ static void cancel_fake_irq(struct intel_engine_cs *engine)
 void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine)
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
+	unsigned long flags;
 
-	spin_lock_irq(&b->irq_lock);
+	spin_lock_irqsave(&b->irq_lock, flags);
 
 	/*
 	 * Leave the fake_irq timer enabled (if it is running), but clear the
@@ -871,7 +872,7 @@ void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine)
 	 */
 	clear_bit(ENGINE_IRQ_BREADCRUMB, &engine->irq_posted);
 
-	spin_unlock_irq(&b->irq_lock);
+	spin_unlock_irqrestore(&b->irq_lock, flags);
 }
 
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine)

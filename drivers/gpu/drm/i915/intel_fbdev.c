@@ -47,7 +47,7 @@
 
 static void intel_fbdev_invalidate(struct intel_fbdev *ifbdev)
 {
-	struct drm_i915_gem_object *obj = ifbdev->fb->obj;
+	struct drm_i915_gem_object *obj = intel_fb_obj(&ifbdev->fb->base);
 	unsigned int origin =
 		ifbdev->vma_flags & PLANE_HAS_FENCE ? ORIGIN_GTT : ORIGIN_CPU;
 
@@ -193,7 +193,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		drm_framebuffer_put(&intel_fb->base);
 		intel_fb = ifbdev->fb = NULL;
 	}
-	if (!intel_fb || WARN_ON(!intel_fb->obj)) {
+	if (!intel_fb || WARN_ON(!intel_fb_obj(&intel_fb->base))) {
 		DRM_DEBUG_KMS("no BIOS fb, allocating a new one\n");
 		ret = intelfb_alloc(helper, sizes);
 		if (ret)
@@ -265,7 +265,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	 * If the object is stolen however, it will be full of whatever
 	 * garbage was left in there.
 	 */
-	if (intel_fb->obj->stolen && !prealloc)
+	if (intel_fb_obj(fb)->stolen && !prealloc)
 		memset_io(info->screen_base, 0, info->screen_size);
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
@@ -792,7 +792,8 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 	 * been restored from swap. If the object is stolen however, it will be
 	 * full of whatever garbage was left in there.
 	 */
-	if (state == FBINFO_STATE_RUNNING && ifbdev->fb->obj->stolen)
+	if (state == FBINFO_STATE_RUNNING &&
+	    intel_fb_obj(&ifbdev->fb->base)->stolen)
 		memset_io(info->screen_base, 0, info->screen_size);
 
 	drm_fb_helper_set_suspend(&ifbdev->helper, state);

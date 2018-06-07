@@ -973,8 +973,7 @@ i915_error_object_create(struct drm_i915_private *i915,
 		void __iomem *s;
 		int ret;
 
-		ggtt->base.insert_page(&ggtt->base, dma, slot,
-				       I915_CACHE_NONE, 0);
+		ggtt->vm.insert_page(&ggtt->vm, dma, slot, I915_CACHE_NONE, 0);
 
 		s = io_mapping_map_atomic_wc(&ggtt->iomap, slot);
 		ret = compress_page(&compress, (void  __force *)s, dst);
@@ -993,7 +992,7 @@ unwind:
 
 out:
 	compress_fini(&compress, dst);
-	ggtt->base.clear_range(&ggtt->base, slot, PAGE_SIZE);
+	ggtt->vm.clear_range(&ggtt->vm, slot, PAGE_SIZE);
 	return dst;
 }
 
@@ -1287,9 +1286,11 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 static void record_request(struct i915_request *request,
 			   struct drm_i915_error_request *erq)
 {
-	erq->context = request->ctx->hw_id;
+	struct i915_gem_context *ctx = request->gem_context;
+
+	erq->context = ctx->hw_id;
 	erq->sched_attr = request->sched.attr;
-	erq->ban_score = atomic_read(&request->ctx->ban_score);
+	erq->ban_score = atomic_read(&ctx->ban_score);
 	erq->seqno = request->global_seqno;
 	erq->jiffies = request->emitted_jiffies;
 	erq->start = i915_ggtt_offset(request->ring->vma);
@@ -1297,7 +1298,7 @@ static void record_request(struct i915_request *request,
 	erq->tail = request->tail;
 
 	rcu_read_lock();
-	erq->pid = request->ctx->pid ? pid_nr(request->ctx->pid) : 0;
+	erq->pid = ctx->pid ? pid_nr(ctx->pid) : 0;
 	rcu_read_unlock();
 }
 
@@ -1461,12 +1462,12 @@ static void gem_record_rings(struct i915_gpu_state *error)
 
 		request = i915_gem_find_active_request(engine);
 		if (request) {
+			struct i915_gem_context *ctx = request->gem_context;
 			struct intel_ring *ring;
 
-			ee->vm = request->ctx->ppgtt ?
-				&request->ctx->ppgtt->base : &ggtt->base;
+			ee->vm = ctx->ppgtt ? &ctx->ppgtt->vm : &ggtt->vm;
 
-			record_context(&ee->context, request->ctx);
+			record_context(&ee->context, ctx);
 
 			/* We need to copy these to an anonymous buffer
 			 * as the simplest method to avoid being overwritten
@@ -1483,11 +1484,10 @@ static void gem_record_rings(struct i915_gpu_state *error)
 
 			ee->ctx =
 				i915_error_object_create(i915,
-							 to_intel_context(request->ctx,
-									  engine)->state);
+							 request->hw_context->state);
 
 			error->simulated |=
-				i915_gem_context_no_error_capture(request->ctx);
+				i915_gem_context_no_error_capture(ctx);
 
 			ee->rq_head = request->head;
 			ee->rq_post = request->postfix;
@@ -1563,17 +1563,17 @@ static void capture_active_buffers(struct i915_gpu_state *error)
 
 static void capture_pinned_buffers(struct i915_gpu_state *error)
 {
-	struct i915_address_space *vm = &error->i915->ggtt.base;
+	struct i915_address_space *vm = &error->i915->ggtt.vm;
 	struct drm_i915_error_buffer *bo;
 	struct i915_vma *vma;
 	int count_inactive, count_active;
 
 	count_inactive = 0;
-	list_for_each_entry(vma, &vm->active_list, vm_link)
+	list_for_each_entry(vma, &vm->inactive_list, vm_link)
 		count_inactive++;
 
 	count_active = 0;
-	list_for_each_entry(vma, &vm->inactive_list, vm_link)
+	list_for_each_entry(vma, &vm->active_list, vm_link)
 		count_active++;
 
 	bo = NULL;
@@ -1667,7 +1667,16 @@ static void capture_reg_state(struct i915_gpu_state *error)
 	}
 
 	/* 4: Everything else */
-	if (INTEL_GEN(dev_priv) >= 8) {
+	if (INTEL_GEN(dev_priv) >= 11) {
+		error->ier = I915_READ(GEN8_DE_MISC_IER);
+		error->gtier[0] = I915_READ(GEN11_RENDER_COPY_INTR_ENABLE);
+		error->gtier[1] = I915_READ(GEN11_VCS_VECS_INTR_ENABLE);
+		error->gtier[2] = I915_READ(GEN11_GUC_SG_INTR_ENABLE);
+		error->gtier[3] = I915_READ(GEN11_GPM_WGBOXPERF_INTR_ENABLE);
+		error->gtier[4] = I915_READ(GEN11_CRYPTO_RSVD_INTR_ENABLE);
+		error->gtier[5] = I915_READ(GEN11_GUNIT_CSME_INTR_ENABLE);
+		error->ngtier = 6;
+	} else if (INTEL_GEN(dev_priv) >= 8) {
 		error->ier = I915_READ(GEN8_DE_MISC_IER);
 		for (i = 0; i < 4; i++)
 			error->gtier[i] = I915_READ(GEN8_GT_IER(i));

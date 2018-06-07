@@ -336,5 +336,7 @@ void intel_shared_dpll_init(struct drm_device *dev);
 
 void intel_dpll_dump_hw_state(struct drm_i915_private *dev_priv,
 			      struct intel_dpll_hw_state *hw_state);
+int icl_calc_dp_combo_pll_link(struct drm_i915_private *dev_priv,
+			       uint32_t pll_id);
 
 #endif /* _INTEL_DPLL_MGR_H_ */

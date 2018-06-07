@@ -83,7 +83,7 @@ static int emit_recurse_batch(struct spinner *spin,
 			      struct i915_request *rq,
 			      u32 arbitration_command)
 {
-	struct i915_address_space *vm = &rq->ctx->ppgtt->base;
+	struct i915_address_space *vm = &rq->gem_context->ppgtt->vm;
 	struct i915_vma *hws, *vma;
 	u32 *batch;
 	int err;

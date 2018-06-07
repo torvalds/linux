@@ -67,6 +67,7 @@ bool __i915_inject_load_failure(const char *func, int line)
 	if (++i915_load_fail_count == i915_modparams.inject_load_failure) {
 		DRM_INFO("Injecting failure at checkpoint %u [%s:%d]\n",
 			 i915_modparams.inject_load_failure, func, line);
+		i915_modparams.inject_load_failure = 0;
 		return true;
 	}
 
@@ -117,16 +118,15 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 static bool i915_error_injected(struct drm_i915_private *dev_priv)
 {
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
-	return i915_modparams.inject_load_failure &&
-	       i915_load_fail_count == i915_modparams.inject_load_failure;
+	return i915_load_fail_count && !i915_modparams.inject_load_failure;
 #else
 	return false;
 #endif
 }
 
-#define i915_load_error(dev_priv, fmt, ...)				     \
-	__i915_printk(dev_priv,						     \
-		      i915_error_injected(dev_priv) ? KERN_DEBUG : KERN_ERR, \
+#define i915_load_error(i915, fmt, ...)					 \
+	__i915_printk(i915,						 \
+		      i915_error_injected(i915) ? KERN_DEBUG : KERN_ERR, \
 		      fmt, ##__VA_ARGS__)
 
 /* Map PCH device id to PCH type, or PCH_NONE if unknown. */
@@ -233,6 +233,8 @@ intel_virt_detect_pch(const struct drm_i915_private *dev_priv)
 		id = INTEL_PCH_SPT_DEVICE_ID_TYPE;
 	else if (IS_COFFEELAKE(dev_priv) || IS_CANNONLAKE(dev_priv))
 		id = INTEL_PCH_CNP_DEVICE_ID_TYPE;
+	else if (IS_ICELAKE(dev_priv))
+		id = INTEL_PCH_ICP_DEVICE_ID_TYPE;
 
 	if (id)
 		DRM_DEBUG_KMS("Assuming PCH ID %04x\n", id);
@@ -633,26 +635,6 @@ static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {
 	.reprobe = NULL,
 	.can_switch = i915_switcheroo_can_switch,
 };
-
-static void i915_gem_fini(struct drm_i915_private *dev_priv)
-{
-	/* Flush any outstanding unpin_work. */
-	i915_gem_drain_workqueue(dev_priv);
-
-	mutex_lock(&dev_priv->drm.struct_mutex);
-	intel_uc_fini_hw(dev_priv);
-	intel_uc_fini(dev_priv);
-	i915_gem_cleanup_engines(dev_priv);
-	i915_gem_contexts_fini(dev_priv);
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-
-	intel_uc_fini_misc(dev_priv);
-	i915_gem_cleanup_userptr(dev_priv);
-
-	i915_gem_drain_freed_objects(dev_priv);
-
-	WARN_ON(!list_empty(&dev_priv->contexts.list));
-}
 
 static int i915_load_modeset_init(struct drm_device *dev)
 {
@@ -1553,12 +1535,30 @@ static bool suspend_to_idle(struct drm_i915_private *dev_priv)
 	return false;
 }
 
+static int i915_drm_prepare(struct drm_device *dev)
+{
+	struct drm_i915_private *i915 = to_i915(dev);
+	int err;
+
+	/*
+	 * NB intel_display_suspend() may issue new requests after we've
+	 * ostensibly marked the GPU as ready-to-sleep here. We need to
+	 * split out that work and pull it forward so that after point,
+	 * the GPU is not woken again.
+	 */
+	err = i915_gem_suspend(i915);
+	if (err)
+		dev_err(&i915->drm.pdev->dev,
+			"GEM idle failed, suspend/resume might fail\n");
+
+	return err;
+}
+
 static int i915_drm_suspend(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	pci_power_t opregion_target_state;
-	int error;
 
 	/* ignore lid events during suspend */
 	mutex_lock(&dev_priv->modeset_restore_lock);
@@ -1574,13 +1574,6 @@ static int i915_drm_suspend(struct drm_device *dev)
 	drm_kms_helper_poll_disable(dev);
 
 	pci_save_state(pdev);
-
-	error = i915_gem_suspend(dev_priv);
-	if (error) {
-		dev_err(&pdev->dev,
-			"GEM idle failed, resume might fail\n");
-		goto out;
-	}
 
 	intel_display_suspend(dev);
 
@@ -1600,7 +1593,6 @@ static int i915_drm_suspend(struct drm_device *dev)
 	opregion_target_state = suspend_to_idle(dev_priv) ? PCI_D1 : PCI_D3cold;
 	intel_opregion_notify_adapter(dev_priv, opregion_target_state);
 
-	intel_uncore_suspend(dev_priv);
 	intel_opregion_unregister(dev_priv);
 
 	intel_fbdev_set_suspend(dev, FBINFO_STATE_SUSPENDED, true);
@@ -1609,10 +1601,9 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	intel_csr_ucode_suspend(dev_priv);
 
-out:
 	enable_rpm_wakeref_asserts(dev_priv);
 
-	return error;
+	return 0;
 }
 
 static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
@@ -1623,7 +1614,10 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 
 	disable_rpm_wakeref_asserts(dev_priv);
 
+	i915_gem_suspend_late(dev_priv);
+
 	intel_display_set_init_power(dev_priv, false);
+	intel_uncore_suspend(dev_priv);
 
 	/*
 	 * In case of firmware assisted context save/restore don't manually
@@ -2079,6 +2073,22 @@ int i915_reset_engine(struct intel_engine_cs *engine, const char *msg)
 out:
 	i915_gem_reset_finish_engine(engine);
 	return ret;
+}
+
+static int i915_pm_prepare(struct device *kdev)
+{
+	struct pci_dev *pdev = to_pci_dev(kdev);
+	struct drm_device *dev = pci_get_drvdata(pdev);
+
+	if (!dev) {
+		dev_err(kdev, "DRM not initialized, aborting suspend.\n");
+		return -ENODEV;
+	}
+
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+		return 0;
+
+	return i915_drm_prepare(dev);
 }
 
 static int i915_pm_suspend(struct device *kdev)
@@ -2731,6 +2741,7 @@ const struct dev_pm_ops i915_pm_ops = {
 	 * S0ix (via system suspend) and S3 event handlers [PMSG_SUSPEND,
 	 * PMSG_RESUME]
 	 */
+	.prepare = i915_pm_prepare,
 	.suspend = i915_pm_suspend,
 	.suspend_late = i915_pm_suspend_late,
 	.resume_early = i915_pm_resume_early,

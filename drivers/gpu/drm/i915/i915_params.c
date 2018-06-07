@@ -130,9 +130,6 @@ i915_param_named_unsafe(invert_brightness, int, 0600,
 i915_param_named(disable_display, bool, 0400,
 	"Disable display (default: false)");
 
-i915_param_named_unsafe(enable_cmd_parser, bool, 0400,
-	"Enable command parsing (true=enabled [default], false=disabled)");
-
 i915_param_named(mmio_debug, int, 0600,
 	"Enable the MMIO debug code for the first N failures (default: off). "
 	"This may negatively affect performance.");
