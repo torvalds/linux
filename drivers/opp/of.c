@@ -73,6 +73,147 @@ struct opp_table *_managed_opp(struct device *dev, int index)
 	return managed_table;
 }
 
+/* The caller must call dev_pm_opp_put() after the OPP is used */
+static struct dev_pm_opp *_find_opp_of_np(struct opp_table *opp_table,
+					  struct device_node *opp_np)
+{
+	struct dev_pm_opp *opp;
+
+	lockdep_assert_held(&opp_table_lock);
+
+	mutex_lock(&opp_table->lock);
+
+	list_for_each_entry(opp, &opp_table->opp_list, node) {
+		if (opp->np == opp_np) {
+			dev_pm_opp_get(opp);
+			mutex_unlock(&opp_table->lock);
+			return opp;
+		}
+	}
+
+	mutex_unlock(&opp_table->lock);
+
+	return NULL;
+}
+
+static struct device_node *of_parse_required_opp(struct device_node *np,
+						 int index)
+{
+	struct device_node *required_np;
+
+	required_np = of_parse_phandle(np, "required-opps", index);
+	if (unlikely(!required_np)) {
+		pr_err("%s: Unable to parse required-opps: %pOF, index: %d\n",
+		       __func__, np, index);
+	}
+
+	return required_np;
+}
+
+/* The caller must call dev_pm_opp_put_opp_table() after the table is used */
+static struct opp_table *_find_table_of_opp_np(struct device_node *opp_np)
+{
+	struct opp_table *opp_table;
+	struct dev_pm_opp *opp;
+
+	lockdep_assert_held(&opp_table_lock);
+
+	list_for_each_entry(opp_table, &opp_tables, node) {
+		opp = _find_opp_of_np(opp_table, opp_np);
+		if (opp) {
+			dev_pm_opp_put(opp);
+			_get_opp_table_kref(opp_table);
+			return opp_table;
+		}
+	}
+
+	return ERR_PTR(-ENODEV);
+}
+
+/* Free resources previously acquired by _opp_table_alloc_required_tables() */
+static void _opp_table_free_required_tables(struct opp_table *opp_table)
+{
+	struct opp_table **required_opp_tables = opp_table->required_opp_tables;
+	int i;
+
+	if (!required_opp_tables)
+		return;
+
+	for (i = 0; i < opp_table->required_opp_count; i++) {
+		if (IS_ERR_OR_NULL(required_opp_tables[i]))
+			break;
+
+		dev_pm_opp_put_opp_table(required_opp_tables[i]);
+	}
+
+	kfree(required_opp_tables);
+
+	opp_table->required_opp_count = 0;
+	opp_table->required_opp_tables = NULL;
+}
+
+/*
+ * Populate all devices and opp tables which are part of "required-opps" list.
+ * Checking only the first OPP node should be enough.
+ */
+static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
+					     struct device *dev,
+					     struct device_node *opp_np)
+{
+	struct opp_table **required_opp_tables;
+	struct device_node *required_np, *np;
+	int count, i;
+
+	/* Traversing the first OPP node is all we need */
+	np = of_get_next_available_child(opp_np, NULL);
+	if (!np) {
+		dev_err(dev, "Empty OPP table\n");
+		return;
+	}
+
+	count = of_count_phandle_with_args(np, "required-opps", NULL);
+	if (!count)
+		goto put_np;
+
+	required_opp_tables = kcalloc(count, sizeof(*required_opp_tables),
+				      GFP_KERNEL);
+	if (!required_opp_tables)
+		goto put_np;
+
+	opp_table->required_opp_tables = required_opp_tables;
+	opp_table->required_opp_count = count;
+
+	for (i = 0; i < count; i++) {
+		required_np = of_parse_required_opp(np, i);
+		if (!required_np)
+			goto free_required_tables;
+
+		required_opp_tables[i] = _find_table_of_opp_np(required_np);
+		of_node_put(required_np);
+
+		if (IS_ERR(required_opp_tables[i]))
+			goto free_required_tables;
+
+		/*
+		 * We only support genpd's OPPs in the "required-opps" for now,
+		 * as we don't know how much about other cases. Error out if the
+		 * required OPP doesn't belong to a genpd.
+		 */
+		if (!required_opp_tables[i]->is_genpd) {
+			dev_err(dev, "required-opp doesn't belong to genpd: %pOF\n",
+				required_np);
+			goto free_required_tables;
+		}
+	}
+
+	goto put_np;
+
+free_required_tables:
+	_opp_table_free_required_tables(opp_table);
+put_np:
+	of_node_put(np);
+}
+
 void _of_init_opp_table(struct opp_table *opp_table, struct device *dev,
 			int index)
 {
@@ -109,7 +250,13 @@ void _of_init_opp_table(struct opp_table *opp_table, struct device *dev,
 
 	opp_table->np = opp_np;
 
+	_opp_table_alloc_required_tables(opp_table, dev, opp_np);
 	of_node_put(opp_np);
+}
+
+void _of_clear_opp_table(struct opp_table *opp_table)
+{
+	_opp_table_free_required_tables(opp_table);
 }
 
 static bool _opp_is_supported(struct device *dev, struct opp_table *opp_table,
