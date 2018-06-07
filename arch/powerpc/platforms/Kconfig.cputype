@@ -139,6 +139,21 @@ config E6500_CPU
 
 endchoice
 
+config TARGET_CPU_BOOL
+	bool
+	default !GENERIC_CPU
+
+config TARGET_CPU
+	string
+	depends on TARGET_CPU_BOOL
+	default "cell" if CELL_CPU
+	default "power5" if POWER5_CPU
+	default "power6" if POWER6_CPU
+	default "power7" if POWER7_CPU
+	default "power8" if POWER8_CPU
+	default "power9" if POWER9_CPU
+	default "860" if PPC_8xx
+
 config PPC_BOOK3S
 	def_bool y
 	depends on PPC_BOOK3S_32 || PPC_BOOK3S_64
