@@ -27,13 +27,12 @@
 #include <linux/param.h>
 #include <linux/pci.h>
 #include <linux/cache.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/dma-mapping.h>
 #include <asm/cacheflush.h>
 #include <asm/entry.h>
 #include <asm/cpuinfo.h>
 
-#include <asm/prom.h>
 #include <asm/pgtable.h>
 
 DEFINE_PER_CPU(unsigned int, KSP);	/* Saved kernel stack pointer */
@@ -54,6 +53,9 @@ void __init setup_arch(char **cmdline_p)
 {
 	*cmdline_p = boot_command_line;
 
+	setup_memory();
+	parse_early_param();
+
 	console_verbose();
 
 	unflatten_device_tree();
@@ -61,13 +63,6 @@ void __init setup_arch(char **cmdline_p)
 	setup_cpuinfo();
 
 	microblaze_cache_init();
-
-	setup_memory();
-
-#ifdef CONFIG_EARLY_PRINTK
-	/* remap early console to virtual address */
-	remap_early_printk();
-#endif
 
 	xilinx_pci_init();
 
@@ -132,10 +127,6 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 
 /* initialize device tree for usage in early_printk */
 	early_init_devtree(_fdt_start);
-
-#ifdef CONFIG_EARLY_PRINTK
-	setup_early_printk(NULL);
-#endif
 
 	/* setup kernel_tlb after BSS cleaning
 	 * Maybe worth to move to asm code */
