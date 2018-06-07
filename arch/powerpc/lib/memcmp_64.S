@@ -404,8 +404,27 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 #ifdef CONFIG_ALTIVEC
 .Lsameoffset_vmx_cmp:
 	/* Enter with src/dst addrs has the same offset with 8 bytes
-	 * align boundary
+	 * align boundary.
+	 *
+	 * There is an optimization based on following fact: memcmp()
+	 * prones to fail early at the first 32 bytes.
+	 * Before applying VMX instructions which will lead to 32x128bits
+	 * VMX regs load/restore penalty, we compare the first 32 bytes
+	 * so that we can catch the ~80% fail cases.
 	 */
+
+	li	r0,4
+	mtctr	r0
+.Lsameoffset_prechk_32B_loop:
+	LD	rA,0,r3
+	LD	rB,0,r4
+	cmpld	cr0,rA,rB
+	addi	r3,r3,8
+	addi	r4,r4,8
+	bne     cr0,.LcmpAB_lightweight
+	addi	r5,r5,-8
+	bdnz	.Lsameoffset_prechk_32B_loop
+
 	ENTER_VMX_OPS
 	beq     cr1,.Llong_novmx_cmp
 
@@ -482,16 +501,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 #endif
 
 .Ldiffoffset_8bytes_make_align_start:
-#ifdef CONFIG_ALTIVEC
-BEGIN_FTR_SECTION
-	/* only do vmx ops when the size equal or greater than 4K bytes */
-	cmpdi	cr5,r5,VMX_THRESH
-	bge	cr5,.Ldiffoffset_vmx_cmp
-END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
-
-.Ldiffoffset_novmx_cmp:
-#endif
-
 	/* now try to align s1 with 8 bytes */
 	rlwinm  r6,r3,3,26,28
 	beq     .Ldiffoffset_align_s1_8bytes
@@ -515,6 +524,17 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 
 .Ldiffoffset_align_s1_8bytes:
 	/* now s1 is aligned with 8 bytes. */
+#ifdef CONFIG_ALTIVEC
+BEGIN_FTR_SECTION
+	/* only do vmx ops when the size equal or greater than 4K bytes */
+	cmpdi	cr5,r5,VMX_THRESH
+	bge	cr5,.Ldiffoffset_vmx_cmp
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
+
+.Ldiffoffset_novmx_cmp:
+#endif
+
+
 	cmpdi   cr5,r5,31
 	ble	cr5,.Lcmp_lt32bytes
 
@@ -526,6 +546,21 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 
 #ifdef CONFIG_ALTIVEC
 .Ldiffoffset_vmx_cmp:
+	/* perform a 32 bytes pre-checking before
+	 * enable VMX operations.
+	 */
+	li	r0,4
+	mtctr	r0
+.Ldiffoffset_prechk_32B_loop:
+	LD	rA,0,r3
+	LD	rB,0,r4
+	cmpld	cr0,rA,rB
+	addi	r3,r3,8
+	addi	r4,r4,8
+	bne     cr0,.LcmpAB_lightweight
+	addi	r5,r5,-8
+	bdnz	.Ldiffoffset_prechk_32B_loop
+
 	ENTER_VMX_OPS
 	beq     cr1,.Ldiffoffset_novmx_cmp
 
