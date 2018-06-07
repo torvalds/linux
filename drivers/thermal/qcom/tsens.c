@@ -112,7 +112,6 @@ static int tsens_probe(struct platform_device *pdev)
 	int ret, i;
 	struct device *dev;
 	struct device_node *np;
-	struct tsens_sensor *s;
 	struct tsens_device *tmdev;
 	const struct tsens_data *data;
 	const struct of_device_id *id;
@@ -135,8 +134,9 @@ static int tsens_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	tmdev = devm_kzalloc(dev, sizeof(*tmdev) +
-			     data->num_sensors * sizeof(*s), GFP_KERNEL);
+	tmdev = devm_kzalloc(dev,
+			     struct_size(tmdev, sensor, data->num_sensors),
+			     GFP_KERNEL);
 	if (!tmdev)
 		return -ENOMEM;
 

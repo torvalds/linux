@@ -2060,9 +2060,8 @@ static int stm32_rcc_init(struct device_node *np,
 
 	max_binding =  data->maxbinding;
 
-	clk_data = kzalloc(sizeof(*clk_data) +
-				  sizeof(*clk_data->hws) * max_binding,
-				  GFP_KERNEL);
+	clk_data = kzalloc(struct_size(clk_data, hws, max_binding),
+			   GFP_KERNEL);
 	if (!clk_data)
 		return -ENOMEM;
 

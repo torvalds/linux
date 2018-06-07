@@ -584,8 +584,7 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 		req = kmem_cache_alloc(ceph_osd_request_cache, gfp_flags);
 	} else {
 		BUG_ON(num_ops > CEPH_OSD_MAX_OPS);
-		req = kmalloc(sizeof(*req) + num_ops * sizeof(req->r_ops[0]),
-			      gfp_flags);
+		req = kmalloc(struct_size(req, r_ops, num_ops), gfp_flags);
 	}
 	if (unlikely(!req))
 		return NULL;

@@ -626,8 +626,7 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 	pmu_info = match->data;
 
 	pmu = devm_kzalloc(dev,
-			   sizeof(*pmu) +
-				pmu_info->num_domains * sizeof(pmu->domains[0]),
+			   struct_size(pmu, domains, pmu_info->num_domains),
 			   GFP_KERNEL);
 	if (!pmu)
 		return -ENOMEM;
