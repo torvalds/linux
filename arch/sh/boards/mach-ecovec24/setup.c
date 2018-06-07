@@ -633,6 +633,7 @@ static struct regulator_init_data cn12_power_init_data = {
 static struct fixed_voltage_config cn12_power_info = {
 	.supply_name = "CN12 SD/MMC Vdd",
 	.microvolts = 3300000,
+	.gpio = GPIO_PTB7,
 	.enable_high = 1,
 	.init_data = &cn12_power_init_data,
 };
@@ -642,16 +643,6 @@ static struct platform_device cn12_power = {
 	.id   = 0,
 	.dev  = {
 		.platform_data = &cn12_power_info,
-	},
-};
-
-static struct gpiod_lookup_table cn12_power_gpiod_table = {
-	.dev_id = "reg-fixed-voltage.0",
-	.table = {
-		/* Offset 7 on port B */
-		GPIO_LOOKUP("sh7724_pfc", GPIO_PTB7,
-			    "enable", GPIO_ACTIVE_HIGH),
-		{ },
 	},
 };
 
@@ -674,6 +665,7 @@ static struct regulator_init_data sdhi0_power_init_data = {
 static struct fixed_voltage_config sdhi0_power_info = {
 	.supply_name = "CN11 SD/MMC Vdd",
 	.microvolts = 3300000,
+	.gpio = GPIO_PTB6,
 	.enable_high = 1,
 	.init_data = &sdhi0_power_init_data,
 };
@@ -683,16 +675,6 @@ static struct platform_device sdhi0_power = {
 	.id   = 1,
 	.dev  = {
 		.platform_data = &sdhi0_power_info,
-	},
-};
-
-static struct gpiod_lookup_table sdhi0_power_gpiod_table = {
-	.dev_id = "reg-fixed-voltage.1",
-	.table = {
-		/* Offset 6 on port B */
-		GPIO_LOOKUP("sh7724_pfc", GPIO_PTB6,
-			    "enable", GPIO_ACTIVE_HIGH),
-		{ },
 	},
 };
 

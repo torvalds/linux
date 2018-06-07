@@ -17,7 +17,6 @@
 #include <linux/irq.h>
 #include <linux/pm.h>
 #include <linux/gpio.h>
-#include <linux/gpio/machine.h>
 #include <linux/serial_8250.h>
 #include <linux/dm9000.h>
 #include <linux/mmc/host.h>
@@ -411,6 +410,7 @@ static struct regulator_init_data can_regulator_init_data = {
 static struct fixed_voltage_config can_regulator_pdata = {
 	.supply_name	= "CAN_SHDN",
 	.microvolts	= 3300000,
+	.gpio		= ZEUS_CAN_SHDN_GPIO,
 	.init_data	= &can_regulator_init_data,
 };
 
@@ -419,15 +419,6 @@ static struct platform_device can_regulator_device = {
 	.id	= 0,
 	.dev	= {
 		.platform_data	= &can_regulator_pdata,
-	},
-};
-
-static struct gpiod_lookup_table can_regulator_gpiod_table = {
-	.dev_id = "reg-fixed-voltage.0",
-	.table = {
-		GPIO_LOOKUP("gpio-pxa", ZEUS_CAN_SHDN_GPIO,
-			    "enable", GPIO_ACTIVE_HIGH),
-		{ },
 	},
 };
 
@@ -547,6 +538,7 @@ static struct regulator_init_data zeus_ohci_regulator_data = {
 static struct fixed_voltage_config zeus_ohci_regulator_config = {
 	.supply_name		= "vbus2",
 	.microvolts		= 5000000, /* 5.0V */
+	.gpio			= ZEUS_USB2_PWREN_GPIO,
 	.enable_high		= 1,
 	.startup_delay		= 0,
 	.init_data		= &zeus_ohci_regulator_data,
@@ -557,15 +549,6 @@ static struct platform_device zeus_ohci_regulator_device = {
 	.id		= 1,
 	.dev = {
 		.platform_data = &zeus_ohci_regulator_config,
-	},
-};
-
-static struct gpiod_lookup_table zeus_ohci_regulator_gpiod_table = {
-	.dev_id = "reg-fixed-voltage.0",
-	.table = {
-		GPIO_LOOKUP("gpio-pxa", ZEUS_USB2_PWREN_GPIO,
-			    "enable", GPIO_ACTIVE_HIGH),
-		{ },
 	},
 };
 
@@ -872,8 +855,6 @@ static void __init zeus_init(void)
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(zeus_pin_config));
 
-	gpiod_add_lookup_table(&can_regulator_gpiod_table);
-	gpiod_add_lookup_table(&zeus_ohci_regulator_gpiod_table);
 	platform_add_devices(zeus_devices, ARRAY_SIZE(zeus_devices));
 
 	zeus_register_ohci();

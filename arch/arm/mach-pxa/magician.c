@@ -18,7 +18,6 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
-#include <linux/gpio/machine.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/mfd/htc-pasic3.h>
@@ -657,6 +656,7 @@ static struct gpio_regulator_state bq24022_states[] = {
 static struct gpio_regulator_config bq24022_info = {
 	.supply_name		= "bq24022",
 
+	.enable_gpio		= GPIO30_MAGICIAN_BQ24022_nCHARGE_EN,
 	.enable_high		= 0,
 	.enabled_at_boot	= 1,
 
@@ -678,15 +678,6 @@ static struct platform_device bq24022 = {
 	},
 };
 
-static struct gpiod_lookup_table bq24022_gpiod_table = {
-	.dev_id = "gpio-regulator",
-	.table = {
-		GPIO_LOOKUP("gpio-pxa", GPIO30_MAGICIAN_BQ24022_nCHARGE_EN,
-			    "enable", GPIO_ACTIVE_HIGH),
-		{ },
-	},
-};
-
 /*
  * fixed regulator for ads7846
  */
@@ -705,6 +696,7 @@ static struct regulator_init_data vads7846_regulator = {
 static struct fixed_voltage_config vads7846 = {
 	.supply_name	= "vads7846",
 	.microvolts	= 3300000, /* probably */
+	.gpio		= -EINVAL,
 	.startup_delay	= 0,
 	.init_data	= &vads7846_regulator,
 };
@@ -1015,7 +1007,6 @@ static void __init magician_init(void)
 	regulator_register_always_on(0, "power", pwm_backlight_supply,
 		ARRAY_SIZE(pwm_backlight_supply), 5000000);
 
-	gpiod_add_lookup_table(&bq24022_gpiod_table);
 	platform_add_devices(ARRAY_AND_SIZE(devices));
 }
 

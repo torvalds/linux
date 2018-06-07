@@ -12,7 +12,6 @@
  * published by the Free Software Foundation.
  */
 #include <linux/gpio/driver.h>
-#include <linux/gpio/machine.h>
 #include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -204,7 +203,6 @@ static struct resource latch2_resources[] = {
 };
 
 static struct bgpio_pdata latch2_pdata = {
-	.label	= "ams-delta-latch2",
 	.base	= AMS_DELTA_LATCH2_GPIO_BASE,
 	.ngpio	= AMS_DELTA_LATCH2_NGPIO,
 };
@@ -274,6 +272,7 @@ static struct regulator_init_data modem_nreset_data = {
 static struct fixed_voltage_config modem_nreset_config = {
 	.supply_name		= "modem_nreset",
 	.microvolts		= 3300000,
+	.gpio			= AMS_DELTA_GPIO_PIN_MODEM_NRESET,
 	.startup_delay		= 25000,
 	.enable_high		= 1,
 	.enabled_at_boot	= 1,
@@ -285,16 +284,6 @@ static struct platform_device modem_nreset_device = {
 	.id	= -1,
 	.dev	= {
 		.platform_data	= &modem_nreset_config,
-	},
-};
-
-static struct gpiod_lookup_table modem_nreset_gpiod_table = {
-	.dev_id = "reg-fixed-voltage",
-	.table = {
-		/* The AMS_DELTA_GPIO_PIN_MODEM_NRESET is at offset 12 */
-		GPIO_LOOKUP("ams-delta-latch2", 12,
-			    "enable", GPIO_ACTIVE_HIGH),
-		{ },
 	},
 };
 
@@ -581,7 +570,6 @@ static int __init late_init(void)
 
 	platform_add_devices(late_devices, ARRAY_SIZE(late_devices));
 
-	gpiod_add_lookup_table(&modem_nreset_gpiod_table);
 	err = platform_device_register(&modem_nreset_device);
 	if (err) {
 		pr_err("Couldn't register the modem regulator device\n");

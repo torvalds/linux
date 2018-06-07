@@ -31,7 +31,6 @@
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/gpio-regulator.h>
 #include <linux/gpio.h>
-#include <linux/gpio/consumer.h>
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
@@ -162,6 +161,10 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np,
 
 	of_property_read_u32(np, "startup-delay-us", &config->startup_delay);
 
+	config->enable_gpio = of_get_named_gpio(np, "enable-gpio", 0);
+	if (config->enable_gpio < 0 && config->enable_gpio != -ENOENT)
+		return ERR_PTR(config->enable_gpio);
+
 	/* Fetch GPIOs. - optional property*/
 	ret = of_gpio_count(np);
 	if ((ret < 0) && (ret != -ENOENT))
@@ -252,7 +255,6 @@ static int gpio_regulator_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct gpio_regulator_data *drvdata;
 	struct regulator_config cfg = { };
-	enum gpiod_flags gflags;
 	int ptr, ret, state;
 
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct gpio_regulator_data),
@@ -338,22 +340,21 @@ static int gpio_regulator_probe(struct platform_device *pdev)
 	cfg.driver_data = drvdata;
 	cfg.of_node = np;
 
+	if (gpio_is_valid(config->enable_gpio)) {
+		cfg.ena_gpio = config->enable_gpio;
+		cfg.ena_gpio_initialized = true;
+	}
 	cfg.ena_gpio_invert = !config->enable_high;
 	if (config->enabled_at_boot) {
 		if (config->enable_high)
-			gflags = GPIOD_OUT_HIGH;
+			cfg.ena_gpio_flags |= GPIOF_OUT_INIT_HIGH;
 		else
-			gflags = GPIOD_OUT_LOW;
+			cfg.ena_gpio_flags |= GPIOF_OUT_INIT_LOW;
 	} else {
 		if (config->enable_high)
-			gflags = GPIOD_OUT_LOW;
+			cfg.ena_gpio_flags |= GPIOF_OUT_INIT_LOW;
 		else
-			gflags = GPIOD_OUT_HIGH;
-	}
-	cfg.ena_gpiod = devm_gpiod_get_optional(&pdev->dev, "enable", gflags);
-	if (IS_ERR(cfg.ena_gpiod)) {
-		ret = PTR_ERR(cfg.ena_gpiod);
-		goto err_stategpio;
+			cfg.ena_gpio_flags |= GPIOF_OUT_INIT_HIGH;
 	}
 
 	drvdata->dev = regulator_register(&drvdata->desc, &cfg);

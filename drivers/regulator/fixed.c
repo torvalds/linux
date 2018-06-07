@@ -24,9 +24,10 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/fixed.h>
-#include <linux/gpio/consumer.h>
+#include <linux/gpio.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/machine.h>
 
@@ -77,6 +78,10 @@ of_get_fixed_voltage_config(struct device *dev,
 	if (init_data->constraints.boot_on)
 		config->enabled_at_boot = true;
 
+	config->gpio = of_get_named_gpio(np, "gpio", 0);
+	if ((config->gpio < 0) && (config->gpio != -ENOENT))
+		return ERR_PTR(config->gpio);
+
 	of_property_read_u32(np, "startup-delay-us", &config->startup_delay);
 
 	config->enable_high = of_property_read_bool(np, "enable-active-high");
@@ -97,7 +102,6 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 	struct fixed_voltage_config *config;
 	struct fixed_voltage_data *drvdata;
 	struct regulator_config cfg = { };
-	enum gpiod_flags gflags;
 	int ret;
 
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct fixed_voltage_data),
@@ -146,28 +150,25 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 
 	drvdata->desc.fixed_uV = config->microvolts;
 
+	if (gpio_is_valid(config->gpio)) {
+		cfg.ena_gpio = config->gpio;
+		if (pdev->dev.of_node)
+			cfg.ena_gpio_initialized = true;
+	}
 	cfg.ena_gpio_invert = !config->enable_high;
 	if (config->enabled_at_boot) {
 		if (config->enable_high)
-			gflags = GPIOD_OUT_HIGH;
+			cfg.ena_gpio_flags |= GPIOF_OUT_INIT_HIGH;
 		else
-			gflags = GPIOD_OUT_LOW;
+			cfg.ena_gpio_flags |= GPIOF_OUT_INIT_LOW;
 	} else {
 		if (config->enable_high)
-			gflags = GPIOD_OUT_LOW;
+			cfg.ena_gpio_flags |= GPIOF_OUT_INIT_LOW;
 		else
-			gflags = GPIOD_OUT_HIGH;
+			cfg.ena_gpio_flags |= GPIOF_OUT_INIT_HIGH;
 	}
-	if (config->gpio_is_open_drain) {
-		if (gflags == GPIOD_OUT_HIGH)
-			gflags = GPIOD_OUT_HIGH_OPEN_DRAIN;
-		else
-			gflags = GPIOD_OUT_LOW_OPEN_DRAIN;
-	}
-
-	cfg.ena_gpiod = devm_gpiod_get_optional(&pdev->dev, NULL, gflags);
-	if (IS_ERR(cfg.ena_gpiod))
-		return PTR_ERR(cfg.ena_gpiod);
+	if (config->gpio_is_open_drain)
+		cfg.ena_gpio_flags |= GPIOF_OPEN_DRAIN;
 
 	cfg.dev = &pdev->dev;
 	cfg.init_data = config->init_data;

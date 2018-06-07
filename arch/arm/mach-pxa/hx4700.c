@@ -20,7 +20,6 @@
 #include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/gpio.h>
-#include <linux/gpio/machine.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/input/navpoint.h>
@@ -712,6 +711,7 @@ static struct gpio_regulator_state bq24022_states[] = {
 static struct gpio_regulator_config bq24022_info = {
 	.supply_name = "bq24022",
 
+	.enable_gpio = GPIO72_HX4700_BQ24022_nCHARGE_EN,
 	.enable_high = 0,
 	.enabled_at_boot = 0,
 
@@ -730,15 +730,6 @@ static struct platform_device bq24022 = {
 	.id   = -1,
 	.dev  = {
 		.platform_data = &bq24022_info,
-	},
-};
-
-static struct gpiod_lookup_table bq24022_gpiod_table = {
-	.dev_id = "gpio-regulator",
-	.table = {
-		GPIO_LOOKUP("gpio-pxa", GPIO72_HX4700_BQ24022_nCHARGE_EN,
-			    "enable", GPIO_ACTIVE_HIGH),
-		{ },
 	},
 };
 
@@ -884,7 +875,6 @@ static void __init hx4700_init(void)
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
 
-	gpiod_add_lookup_table(&bq24022_gpiod_table);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	pwm_add_table(hx4700_pwm_lookup, ARRAY_SIZE(hx4700_pwm_lookup));
 

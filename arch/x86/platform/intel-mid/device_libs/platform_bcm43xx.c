@@ -10,7 +10,7 @@
  * of the License.
  */
 
-#include <linux/gpio/machine.h>
+#include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
@@ -43,6 +43,7 @@ static struct fixed_voltage_config bcm43xx_vmmc = {
 	 * real voltage and signaling are still 1.8V.
 	 */
 	.microvolts		= 2000000,		/* 1.8V */
+	.gpio			= -EINVAL,
 	.startup_delay		= 250 * 1000,		/* 250ms */
 	.enable_high		= 1,			/* active high */
 	.enabled_at_boot	= 0,			/* disabled at boot */
@@ -57,23 +58,11 @@ static struct platform_device bcm43xx_vmmc_regulator = {
 	},
 };
 
-static struct gpiod_lookup_table bcm43xx_vmmc_gpio_table = {
-	.dev_id	= "reg-fixed-voltage.0",
-	.table	= {
-		GPIO_LOOKUP("0000:00:0c.0", -1, "enable", GPIO_ACTIVE_LOW),
-		{}
-	},
-};
-
 static int __init bcm43xx_regulator_register(void)
 {
-	struct gpiod_lookup_table *table = &bcm43xx_vmmc_gpio_table;
-	struct gpiod_lookup *lookup = table->table;
 	int ret;
 
-	lookup[0].chip_hwnum = get_gpio_by_name(WLAN_SFI_GPIO_ENABLE_NAME);
-	gpiod_add_lookup_table(table);
-
+	bcm43xx_vmmc.gpio = get_gpio_by_name(WLAN_SFI_GPIO_ENABLE_NAME);
 	ret = platform_device_register(&bcm43xx_vmmc_regulator);
 	if (ret) {
 		pr_err("%s: vmmc regulator register failed\n", __func__);
