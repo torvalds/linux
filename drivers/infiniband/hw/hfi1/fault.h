@@ -1,5 +1,7 @@
+#ifndef _HFI1_FAULT_H
+#define _HFI1_FAULT_H
 /*
- * Copyright(c) 2017 Intel Corporation.
+ * Copyright(c) 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -44,80 +46,64 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+#include <linux/fault-inject.h>
+#include <linux/dcache.h>
+#include <linux/bitops.h>
+#include <linux/kernel.h>
+#include <rdma/rdma_vt.h>
 
-#include "exp_rcv.h"
-#include "trace.h"
+#include "hfi.h"
 
-/**
- * exp_tid_group_init - initialize exp_tid_set
- * @set - the set
- */
-static void hfi1_exp_tid_set_init(struct exp_tid_set *set)
+struct hfi1_ibdev;
+
+#if defined(CONFIG_FAULT_INJECTION) && defined(CONFIG_FAULT_INJECTION_DEBUG_FS)
+struct fault {
+	struct fault_attr attr;
+	struct dentry *dir;
+	u64 n_rxfaults[(1U << BITS_PER_BYTE)];
+	u64 n_txfaults[(1U << BITS_PER_BYTE)];
+	u64 fault_skip;
+	u64 skip;
+	u64 fault_skip_usec;
+	unsigned long skip_usec;
+	unsigned long opcodes[(1U << BITS_PER_BYTE) / BITS_PER_LONG];
+	bool enable;
+	bool suppress_err;
+	bool opcode;
+	u8 direction;
+};
+
+int hfi1_fault_init_debugfs(struct hfi1_ibdev *ibd);
+bool hfi1_dbg_should_fault_tx(struct rvt_qp *qp, u32 opcode);
+bool hfi1_dbg_should_fault_rx(struct hfi1_packet *packet);
+bool hfi1_dbg_fault_suppress_err(struct hfi1_ibdev *ibd);
+void hfi1_fault_exit_debugfs(struct hfi1_ibdev *ibd);
+
+#else
+
+static inline int hfi1_fault_init_debugfs(struct hfi1_ibdev *ibd)
 {
-	INIT_LIST_HEAD(&set->list);
-	set->count = 0;
-}
-
-/**
- * hfi1_exp_tid_group_init - initialize rcd expected receive
- * @rcd - the rcd
- */
-void hfi1_exp_tid_group_init(struct hfi1_ctxtdata *rcd)
-{
-	hfi1_exp_tid_set_init(&rcd->tid_group_list);
-	hfi1_exp_tid_set_init(&rcd->tid_used_list);
-	hfi1_exp_tid_set_init(&rcd->tid_full_list);
-}
-
-/**
- * alloc_ctxt_rcv_groups - initialize expected receive groups
- * @rcd - the context to add the groupings to
- */
-int hfi1_alloc_ctxt_rcv_groups(struct hfi1_ctxtdata *rcd)
-{
-	struct hfi1_devdata *dd = rcd->dd;
-	u32 tidbase;
-	struct tid_group *grp;
-	int i;
-	u32 ngroups;
-
-	ngroups = rcd->expected_count / dd->rcv_entries.group_size;
-	rcd->groups =
-		kcalloc_node(ngroups, sizeof(*rcd->groups),
-			     GFP_KERNEL, rcd->numa_id);
-	if (!rcd->groups)
-		return -ENOMEM;
-	tidbase = rcd->expected_base;
-	for (i = 0; i < ngroups; i++) {
-		grp = &rcd->groups[i];
-		grp->size = dd->rcv_entries.group_size;
-		grp->base = tidbase;
-		tid_group_add_tail(grp, &rcd->tid_group_list);
-		tidbase += dd->rcv_entries.group_size;
-	}
-
 	return 0;
 }
 
-/**
- * free_ctxt_rcv_groups - free  expected receive groups
- * @rcd - the context to free
- *
- * The routine dismantles the expect receive linked
- * list and clears any tids associated with the receive
- * context.
- *
- * This should only be called for kernel contexts and the
- * a base user context.
- */
-void hfi1_free_ctxt_rcv_groups(struct hfi1_ctxtdata *rcd)
+static inline bool hfi1_dbg_should_fault_rx(struct hfi1_packet *packet)
 {
-	WARN_ON(!EXP_TID_SET_EMPTY(rcd->tid_full_list));
-	WARN_ON(!EXP_TID_SET_EMPTY(rcd->tid_used_list));
-
-	kfree(rcd->groups);
-	rcd->groups = NULL;
-	hfi1_exp_tid_group_init(rcd);
-
-	hfi1_clear_tids(rcd);
+	return false;
 }
+
+static inline bool hfi1_dbg_should_fault_tx(struct rvt_qp *qp,
+					    u32 opcode)
+{
+	return false;
+}
+
+static inline bool hfi1_dbg_fault_suppress_err(struct hfi1_ibdev *ibd)
+{
+	return false;
+}
+
+static inline void hfi1_fault_exit_debugfs(struct hfi1_ibdev *ibd)
+{
+}
+#endif
+#endif /* _HFI1_FAULT_H */

@@ -163,7 +163,7 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	} else {
 		int ret;
 
-		ret = hfi1_rvt_get_rwqe(qp, 0);
+		ret = rvt_get_rwqe(qp, false);
 		if (ret < 0) {
 			rvt_rc_error(qp, IB_WC_LOC_QP_OP_ERR);
 			goto bail_unlock;
@@ -399,16 +399,30 @@ void hfi1_make_ud_req_16B(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	struct hfi1_pportdata *ppd;
 	struct hfi1_ibport *ibp;
 	u32 dlid, slid, nwords, extra_bytes;
+	u32 dest_qp = wqe->ud_wr.remote_qpn;
+	u32 src_qp = qp->ibqp.qp_num;
 	u16 len, pkey;
 	u8 l4, sc5;
+	bool is_mgmt = false;
 
 	ibp = to_iport(qp->ibqp.device, qp->port_num);
 	ppd = ppd_from_ibp(ibp);
 	ah_attr = &ibah_to_rvtah(wqe->ud_wr.ah)->attr;
-	/* header size in dwords 16B LRH+BTH+DETH = (16+12+8)/4. */
-	ps->s_txreq->hdr_dwords = 9;
-	if (wqe->wr.opcode == IB_WR_SEND_WITH_IMM)
-		ps->s_txreq->hdr_dwords++;
+
+	/*
+	 * Build 16B Management Packet if either the destination
+	 * or source queue pair number is 0 or 1.
+	 */
+	if (dest_qp == 0 || src_qp == 0 || dest_qp == 1 || src_qp == 1) {
+		/* header size in dwords 16B LRH+L4_FM = (16+8)/4. */
+		ps->s_txreq->hdr_dwords = 6;
+		is_mgmt = true;
+	} else {
+		/* header size in dwords 16B LRH+BTH+DETH = (16+12+8)/4. */
+		ps->s_txreq->hdr_dwords = 9;
+		if (wqe->wr.opcode == IB_WR_SEND_WITH_IMM)
+			ps->s_txreq->hdr_dwords++;
+	}
 
 	/* SW provides space for CRC and LT for bypass packets. */
 	extra_bytes = hfi1_get_16b_padding((ps->s_txreq->hdr_dwords << 2),
@@ -453,7 +467,14 @@ void hfi1_make_ud_req_16B(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 		slid = ppd->lid | (rdma_ah_get_path_bits(ah_attr) &
 			   ((1 << ppd->lmc) - 1));
 
-	hfi1_make_bth_deth(qp, wqe, ohdr, &pkey, extra_bytes, true);
+	if (is_mgmt) {
+		l4 = OPA_16B_L4_FM;
+		pkey = hfi1_get_pkey(ibp, wqe->ud_wr.pkey_index);
+		hfi1_16B_set_qpn(&ps->s_txreq->phdr.hdr.opah.u.mgmt,
+				 dest_qp, src_qp);
+	} else {
+		hfi1_make_bth_deth(qp, wqe, ohdr, &pkey, extra_bytes, true);
+	}
 	/* Convert dwords to flits */
 	len = (ps->s_txreq->hdr_dwords + nwords) >> 1;
 
@@ -845,10 +866,8 @@ static int opa_smp_check(struct hfi1_ibport *ibp, u16 pkey, u8 sc5,
  */
 void hfi1_ud_rcv(struct hfi1_packet *packet)
 {
-	struct ib_other_headers *ohdr = packet->ohdr;
 	u32 hdrsize = packet->hlen;
 	struct ib_wc wc;
-	u32 qkey;
 	u32 src_qp;
 	u16 pkey;
 	int mgmt_pkey_idx = -1;
@@ -864,26 +883,34 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	u32 dlid = packet->dlid;
 	u32 slid = packet->slid;
 	u8 extra_bytes;
+	u8 l4 = 0;
 	bool dlid_is_permissive;
 	bool slid_is_permissive;
+	bool solicited = false;
 
 	extra_bytes = packet->pad + packet->extra_byte + (SIZE_OF_CRC << 2);
-	qkey = ib_get_qkey(ohdr);
-	src_qp = ib_get_sqpn(ohdr);
 
 	if (packet->etype == RHF_RCV_TYPE_BYPASS) {
 		u32 permissive_lid =
 			opa_get_lid(be32_to_cpu(OPA_LID_PERMISSIVE), 16B);
 
+		l4 = hfi1_16B_get_l4(packet->hdr);
 		pkey = hfi1_16B_get_pkey(packet->hdr);
 		dlid_is_permissive = (dlid == permissive_lid);
 		slid_is_permissive = (slid == permissive_lid);
 	} else {
-		pkey = ib_bth_get_pkey(ohdr);
+		pkey = ib_bth_get_pkey(packet->ohdr);
 		dlid_is_permissive = (dlid == be16_to_cpu(IB_LID_PERMISSIVE));
 		slid_is_permissive = (slid == be16_to_cpu(IB_LID_PERMISSIVE));
 	}
 	sl_from_sc = ibp->sc_to_sl[sc5];
+
+	if (likely(l4 != OPA_16B_L4_FM)) {
+		src_qp = ib_get_sqpn(packet->ohdr);
+		solicited = ib_bth_is_solicited(packet->ohdr);
+	} else {
+		src_qp = hfi1_16B_get_src_qpn(packet->mgmt);
+	}
 
 	process_ecn(qp, packet, (opcode != IB_OPCODE_CNP));
 	/*
@@ -922,8 +949,9 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 			if (mgmt_pkey_idx < 0)
 				goto drop;
 		}
-		if (unlikely(qkey != qp->qkey)) /* Silent drop */
-			return;
+		if (unlikely(l4 != OPA_16B_L4_FM &&
+			     ib_get_qkey(packet->ohdr) != qp->qkey))
+			return; /* Silent drop */
 
 		/* Drop invalid MAD packets (see 13.5.3.1). */
 		if (unlikely(qp->ibqp.qp_num == 1 &&
@@ -950,7 +978,7 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 
 	if (qp->ibqp.qp_num > 1 &&
 	    opcode == IB_OPCODE_UD_SEND_ONLY_WITH_IMMEDIATE) {
-		wc.ex.imm_data = ohdr->u.ud.imm_data;
+		wc.ex.imm_data = packet->ohdr->u.ud.imm_data;
 		wc.wc_flags = IB_WC_WITH_IMM;
 		tlen -= sizeof(u32);
 	} else if (opcode == IB_OPCODE_UD_SEND_ONLY) {
@@ -974,7 +1002,7 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	} else {
 		int ret;
 
-		ret = hfi1_rvt_get_rwqe(qp, 0);
+		ret = rvt_get_rwqe(qp, false);
 		if (ret < 0) {
 			rvt_rc_error(qp, IB_WC_LOC_QP_OP_ERR);
 			return;
@@ -1047,8 +1075,7 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 		dlid & ((1 << ppd_from_ibp(ibp)->lmc) - 1);
 	wc.port_num = qp->port_num;
 	/* Signal completion event if the solicited bit is set. */
-	rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc,
-		     ib_bth_is_solicited(ohdr));
+	rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc, solicited);
 	return;
 
 drop:

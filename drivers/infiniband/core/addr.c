@@ -56,7 +56,6 @@ struct addr_req {
 	struct sockaddr_storage src_addr;
 	struct sockaddr_storage dst_addr;
 	struct rdma_dev_addr *addr;
-	struct rdma_addr_client *client;
 	void *context;
 	void (*callback)(int status, struct sockaddr *src_addr,
 			 struct rdma_dev_addr *addr, void *context);
@@ -68,11 +67,8 @@ struct addr_req {
 
 static atomic_t ib_nl_addr_request_seq = ATOMIC_INIT(0);
 
-static void process_req(struct work_struct *work);
-
-static DEFINE_MUTEX(lock);
+static DEFINE_SPINLOCK(lock);
 static LIST_HEAD(req_list);
-static DECLARE_DELAYED_WORK(work, process_req);
 static struct workqueue_struct *addr_wq;
 
 static const struct nla_policy ib_nl_addr_policy[LS_NLA_TYPE_MAX] = {
@@ -112,7 +108,7 @@ static void ib_nl_process_good_ip_rsep(const struct nlmsghdr *nlh)
 			memcpy(&gid, nla_data(curr), nla_len(curr));
 	}
 
-	mutex_lock(&lock);
+	spin_lock_bh(&lock);
 	list_for_each_entry(req, &req_list, list) {
 		if (nlh->nlmsg_seq != req->seq)
 			continue;
@@ -122,7 +118,7 @@ static void ib_nl_process_good_ip_rsep(const struct nlmsghdr *nlh)
 		found = 1;
 		break;
 	}
-	mutex_unlock(&lock);
+	spin_unlock_bh(&lock);
 
 	if (!found)
 		pr_info("Couldn't find request waiting for DGID: %pI6\n",
@@ -223,28 +219,6 @@ int rdma_addr_size_kss(struct __kernel_sockaddr_storage *addr)
 }
 EXPORT_SYMBOL(rdma_addr_size_kss);
 
-static struct rdma_addr_client self;
-
-void rdma_addr_register_client(struct rdma_addr_client *client)
-{
-	atomic_set(&client->refcount, 1);
-	init_completion(&client->comp);
-}
-EXPORT_SYMBOL(rdma_addr_register_client);
-
-static inline void put_client(struct rdma_addr_client *client)
-{
-	if (atomic_dec_and_test(&client->refcount))
-		complete(&client->comp);
-}
-
-void rdma_addr_unregister_client(struct rdma_addr_client *client)
-{
-	put_client(client);
-	wait_for_completion(&client->comp);
-}
-EXPORT_SYMBOL(rdma_addr_unregister_client);
-
 void rdma_copy_addr(struct rdma_dev_addr *dev_addr,
 		    const struct net_device *dev,
 		    const unsigned char *dst_dev_addr)
@@ -302,7 +276,7 @@ int rdma_translate_ip(const struct sockaddr *addr,
 }
 EXPORT_SYMBOL(rdma_translate_ip);
 
-static void set_timeout(struct delayed_work *delayed_work, unsigned long time)
+static void set_timeout(struct addr_req *req, unsigned long time)
 {
 	unsigned long delay;
 
@@ -310,23 +284,15 @@ static void set_timeout(struct delayed_work *delayed_work, unsigned long time)
 	if ((long)delay < 0)
 		delay = 0;
 
-	mod_delayed_work(addr_wq, delayed_work, delay);
+	mod_delayed_work(addr_wq, &req->work, delay);
 }
 
 static void queue_req(struct addr_req *req)
 {
-	struct addr_req *temp_req;
-
-	mutex_lock(&lock);
-	list_for_each_entry_reverse(temp_req, &req_list, list) {
-		if (time_after_eq(req->timeout, temp_req->timeout))
-			break;
-	}
-
-	list_add(&req->list, &temp_req->list);
-
-	set_timeout(&req->work, req->timeout);
-	mutex_unlock(&lock);
+	spin_lock_bh(&lock);
+	list_add_tail(&req->list, &req_list);
+	set_timeout(req, req->timeout);
+	spin_unlock_bh(&lock);
 }
 
 static int ib_nl_fetch_ha(const struct dst_entry *dst,
@@ -584,7 +550,6 @@ static void process_one_req(struct work_struct *_work)
 	struct addr_req *req;
 	struct sockaddr *src_in, *dst_in;
 
-	mutex_lock(&lock);
 	req = container_of(_work, struct addr_req, work.work);
 
 	if (req->status == -ENODATA) {
@@ -596,72 +561,33 @@ static void process_one_req(struct work_struct *_work)
 			req->status = -ETIMEDOUT;
 		} else if (req->status == -ENODATA) {
 			/* requeue the work for retrying again */
-			set_timeout(&req->work, req->timeout);
-			mutex_unlock(&lock);
+			spin_lock_bh(&lock);
+			if (!list_empty(&req->list))
+				set_timeout(req, req->timeout);
+			spin_unlock_bh(&lock);
 			return;
 		}
 	}
-	list_del(&req->list);
-	mutex_unlock(&lock);
-
-	/*
-	 * Although the work will normally have been canceled by the
-	 * workqueue, it can still be requeued as long as it is on the
-	 * req_list, so it could have been requeued before we grabbed &lock.
-	 * We need to cancel it after it is removed from req_list to really be
-	 * sure it is safe to free.
-	 */
-	cancel_delayed_work(&req->work);
 
 	req->callback(req->status, (struct sockaddr *)&req->src_addr,
 		req->addr, req->context);
-	put_client(req->client);
-	kfree(req);
-}
+	req->callback = NULL;
 
-static void process_req(struct work_struct *work)
-{
-	struct addr_req *req, *temp_req;
-	struct sockaddr *src_in, *dst_in;
-	struct list_head done_list;
-
-	INIT_LIST_HEAD(&done_list);
-
-	mutex_lock(&lock);
-	list_for_each_entry_safe(req, temp_req, &req_list, list) {
-		if (req->status == -ENODATA) {
-			src_in = (struct sockaddr *) &req->src_addr;
-			dst_in = (struct sockaddr *) &req->dst_addr;
-			req->status = addr_resolve(src_in, dst_in, req->addr,
-						   true, req->seq);
-			if (req->status && time_after_eq(jiffies, req->timeout))
-				req->status = -ETIMEDOUT;
-			else if (req->status == -ENODATA) {
-				set_timeout(&req->work, req->timeout);
-				continue;
-			}
-		}
-		list_move_tail(&req->list, &done_list);
-	}
-
-	mutex_unlock(&lock);
-
-	list_for_each_entry_safe(req, temp_req, &done_list, list) {
-		list_del(&req->list);
-		/* It is safe to cancel other work items from this work item
-		 * because at a time there can be only one work item running
-		 * with this single threaded work queue.
+	spin_lock_bh(&lock);
+	if (!list_empty(&req->list)) {
+		/*
+		 * Although the work will normally have been canceled by the
+		 * workqueue, it can still be requeued as long as it is on the
+		 * req_list.
 		 */
 		cancel_delayed_work(&req->work);
-		req->callback(req->status, (struct sockaddr *) &req->src_addr,
-			req->addr, req->context);
-		put_client(req->client);
+		list_del_init(&req->list);
 		kfree(req);
 	}
+	spin_unlock_bh(&lock);
 }
 
-int rdma_resolve_ip(struct rdma_addr_client *client,
-		    struct sockaddr *src_addr, struct sockaddr *dst_addr,
+int rdma_resolve_ip(struct sockaddr *src_addr, struct sockaddr *dst_addr,
 		    struct rdma_dev_addr *addr, int timeout_ms,
 		    void (*callback)(int status, struct sockaddr *src_addr,
 				     struct rdma_dev_addr *addr, void *context),
@@ -693,8 +619,6 @@ int rdma_resolve_ip(struct rdma_addr_client *client,
 	req->addr = addr;
 	req->callback = callback;
 	req->context = context;
-	req->client = client;
-	atomic_inc(&client->refcount);
 	INIT_DELAYED_WORK(&req->work, process_one_req);
 	req->seq = (u32)atomic_inc_return(&ib_nl_addr_request_seq);
 
@@ -710,7 +634,6 @@ int rdma_resolve_ip(struct rdma_addr_client *client,
 		break;
 	default:
 		ret = req->status;
-		atomic_dec(&client->refcount);
 		goto err;
 	}
 	return ret;
@@ -742,18 +665,36 @@ int rdma_resolve_ip_route(struct sockaddr *src_addr,
 void rdma_addr_cancel(struct rdma_dev_addr *addr)
 {
 	struct addr_req *req, *temp_req;
+	struct addr_req *found = NULL;
 
-	mutex_lock(&lock);
+	spin_lock_bh(&lock);
 	list_for_each_entry_safe(req, temp_req, &req_list, list) {
 		if (req->addr == addr) {
-			req->status = -ECANCELED;
-			req->timeout = jiffies;
-			list_move(&req->list, &req_list);
-			set_timeout(&req->work, req->timeout);
+			/*
+			 * Removing from the list means we take ownership of
+			 * the req
+			 */
+			list_del_init(&req->list);
+			found = req;
 			break;
 		}
 	}
-	mutex_unlock(&lock);
+	spin_unlock_bh(&lock);
+
+	if (!found)
+		return;
+
+	/*
+	 * sync canceling the work after removing it from the req_list
+	 * guarentees no work is running and none will be started.
+	 */
+	cancel_delayed_work_sync(&found->work);
+
+	if (found->callback)
+		found->callback(-ECANCELED, (struct sockaddr *)&found->src_addr,
+			      found->addr, found->context);
+
+	kfree(found);
 }
 EXPORT_SYMBOL(rdma_addr_cancel);
 
@@ -791,8 +732,8 @@ int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 	dev_addr.net = &init_net;
 
 	init_completion(&ctx.comp);
-	ret = rdma_resolve_ip(&self, &sgid_addr._sockaddr, &dgid_addr._sockaddr,
-			&dev_addr, 1000, resolve_cb, &ctx);
+	ret = rdma_resolve_ip(&sgid_addr._sockaddr, &dgid_addr._sockaddr,
+			      &dev_addr, 1000, resolve_cb, &ctx);
 	if (ret)
 		return ret;
 
@@ -810,11 +751,17 @@ int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 static int netevent_callback(struct notifier_block *self, unsigned long event,
 	void *ctx)
 {
+	struct addr_req *req;
+
 	if (event == NETEVENT_NEIGH_UPDATE) {
 		struct neighbour *neigh = ctx;
 
-		if (neigh->nud_state & NUD_VALID)
-			set_timeout(&work, jiffies);
+		if (neigh->nud_state & NUD_VALID) {
+			spin_lock_bh(&lock);
+			list_for_each_entry(req, &req_list, list)
+				set_timeout(req, jiffies);
+			spin_unlock_bh(&lock);
+		}
 	}
 	return 0;
 }
@@ -830,14 +777,13 @@ int addr_init(void)
 		return -ENOMEM;
 
 	register_netevent_notifier(&nb);
-	rdma_addr_register_client(&self);
 
 	return 0;
 }
 
 void addr_cleanup(void)
 {
-	rdma_addr_unregister_client(&self);
 	unregister_netevent_notifier(&nb);
 	destroy_workqueue(addr_wq);
+	WARN_ON(!list_empty(&req_list));
 }

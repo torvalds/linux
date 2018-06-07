@@ -1983,7 +1983,7 @@ struct ib_flow *ib_create_flow(struct ib_qp *qp,
 	if (!qp->device->create_flow)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	flow_id = qp->device->create_flow(qp, flow_attr, domain);
+	flow_id = qp->device->create_flow(qp, flow_attr, domain, NULL);
 	if (!IS_ERR(flow_id)) {
 		atomic_inc(&qp->usecnt);
 		flow_id->qp = qp;

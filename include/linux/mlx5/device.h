@@ -1002,6 +1002,18 @@ enum mlx5_wol_mode {
 	MLX5_WOL_PHY_ACTIVITY   = 1 << 7,
 };
 
+enum mlx5_mpls_supported_fields {
+	MLX5_FIELD_SUPPORT_MPLS_LABEL = 1 << 0,
+	MLX5_FIELD_SUPPORT_MPLS_EXP   = 1 << 1,
+	MLX5_FIELD_SUPPORT_MPLS_S_BOS = 1 << 2,
+	MLX5_FIELD_SUPPORT_MPLS_TTL   = 1 << 3
+};
+
+enum mlx5_flex_parser_protos {
+	MLX5_FLEX_PROTO_CW_MPLS_GRE   = 1 << 4,
+	MLX5_FLEX_PROTO_CW_MPLS_UDP   = 1 << 5,
+};
+
 /* MLX5 DEV CAPs */
 
 /* TODO: EAT.ME */

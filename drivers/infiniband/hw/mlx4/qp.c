@@ -3078,7 +3078,7 @@ static int fill_gid_by_hw_index(struct mlx4_ib_dev *ibdev, u8 port_num,
 	memcpy(gid, &port_gid_table->gids[index].gid, sizeof(*gid));
 	*gid_type = port_gid_table->gids[index].gid_type;
 	spin_unlock_irqrestore(&iboe->lock, flags);
-	if (!memcmp(gid, &zgid, sizeof(*gid)))
+	if (rdma_is_zero_gid(gid))
 		return -ENOENT;
 
 	return 0;
