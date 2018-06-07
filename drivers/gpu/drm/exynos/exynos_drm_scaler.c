@@ -30,6 +30,7 @@
 #define scaler_write(cfg, offset)	writel(cfg, scaler->regs + (offset))
 #define SCALER_MAX_CLK			4
 #define SCALER_AUTOSUSPEND_DELAY	2000
+#define SCALER_RESET_WAIT_RETRIES	100
 
 struct scaler_data {
 	const char	*clk_name[SCALER_MAX_CLK];
@@ -98,6 +99,23 @@ static u32 scaler_get_format(u32 drm_fmt)
 	}
 
 	return 0;
+}
+
+static inline int scaler_reset(struct scaler_context *scaler)
+{
+	int retry = SCALER_RESET_WAIT_RETRIES;
+
+	scaler_write(SCALER_CFG_SOFT_RESET, SCALER_CFG);
+	do {
+		cpu_relax();
+	} while (retry > 1 &&
+		 scaler_read(SCALER_CFG) & SCALER_CFG_SOFT_RESET);
+	do {
+		cpu_relax();
+		scaler_write(1, SCALER_INT_EN);
+	} while (retry > 0 && scaler_read(SCALER_INT_EN) != 1);
+
+	return retry ? 0 : -EIO;
 }
 
 static inline void scaler_enable_int(struct scaler_context *scaler)
@@ -354,9 +372,13 @@ static int scaler_commit(struct exynos_drm_ipp *ipp,
 	u32 dst_fmt = scaler_get_format(task->dst.buf.fourcc);
 	struct drm_exynos_ipp_task_rect *dst_pos = &task->dst.rect;
 
-	scaler->task = task;
-
 	pm_runtime_get_sync(scaler->dev);
+	if (scaler_reset(scaler)) {
+		pm_runtime_put(scaler->dev);
+		return -EIO;
+	}
+
+	scaler->task = task;
 
 	scaler_set_src_fmt(scaler, src_fmt);
 	scaler_set_src_base(scaler, &task->src);
@@ -394,7 +416,11 @@ static inline void scaler_disable_int(struct scaler_context *scaler)
 
 static inline u32 scaler_get_int_status(struct scaler_context *scaler)
 {
-	return scaler_read(SCALER_INT_STATUS);
+	u32 val = scaler_read(SCALER_INT_STATUS);
+
+	scaler_write(val, SCALER_INT_STATUS);
+
+	return val;
 }
 
 static inline int scaler_task_done(u32 val)
