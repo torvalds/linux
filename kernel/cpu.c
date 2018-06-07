@@ -1344,6 +1344,11 @@ static struct cpuhp_step cpuhp_hp_states[] = {
 		.startup.single		= perf_event_init_cpu,
 		.teardown.single	= perf_event_exit_cpu,
 	},
+	[CPUHP_AP_WATCHDOG_ONLINE] = {
+		.name			= "lockup_detector:online",
+		.startup.single		= lockup_detector_online_cpu,
+		.teardown.single	= lockup_detector_offline_cpu,
+	},
 	[CPUHP_AP_WORKQUEUE_ONLINE] = {
 		.name			= "workqueue:online",
 		.startup.single		= workqueue_online_cpu,
