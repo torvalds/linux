@@ -261,7 +261,7 @@ static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win,
 	unsigned long val;
 
 	val = readl(ctx->addr + DECON_WINCONx(win));
-	val &= ~WINCONx_BPPMODE_MASK;
+	val &= WINCONx_ENWIN_F;
 
 	switch (fb->format->format) {
 	case DRM_FORMAT_XRGB1555:
