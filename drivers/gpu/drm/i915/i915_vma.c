@@ -95,6 +95,7 @@ vma_create(struct drm_i915_gem_object *obj,
 		init_request_active(&vma->last_read[i], i915_vma_retire);
 	init_request_active(&vma->last_fence, NULL);
 	vma->vm = vm;
+	vma->ops = &vm->vma_ops;
 	vma->obj = obj;
 	vma->resv = obj->resv;
 	vma->size = obj->base.size;
@@ -280,7 +281,7 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 	GEM_BUG_ON(!vma->pages);
 
 	trace_i915_vma_bind(vma, bind_flags);
-	ret = vma->vm->bind_vma(vma, cache_level, bind_flags);
+	ret = vma->ops->bind_vma(vma, cache_level, bind_flags);
 	if (ret)
 		return ret;
 
@@ -543,7 +544,7 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 
 	GEM_BUG_ON(vma->pages);
 
-	ret = vma->vm->set_pages(vma);
+	ret = vma->ops->set_pages(vma);
 	if (ret)
 		goto err_unpin;
 
@@ -622,7 +623,7 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	return 0;
 
 err_clear:
-	vma->vm->clear_pages(vma);
+	vma->ops->clear_pages(vma);
 err_unpin:
 	if (vma->obj)
 		i915_gem_object_unpin_pages(vma->obj);
@@ -637,7 +638,7 @@ i915_vma_remove(struct i915_vma *vma)
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 	GEM_BUG_ON(vma->flags & (I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND));
 
-	vma->vm->clear_pages(vma);
+	vma->ops->clear_pages(vma);
 
 	drm_mm_remove_node(&vma->node);
 	list_move_tail(&vma->vm_link, &vma->vm->unbound_list);
@@ -906,7 +907,7 @@ int i915_vma_unbind(struct i915_vma *vma)
 
 	if (likely(!vma->vm->closed)) {
 		trace_i915_vma_unbind(vma);
-		vma->vm->unbind_vma(vma);
+		vma->ops->unbind_vma(vma);
 	}
 	vma->flags &= ~(I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND);
 

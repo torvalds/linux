@@ -1616,11 +1616,12 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 		gen8_ppgtt_notify_vgt(ppgtt, true);
 
 	ppgtt->vm.cleanup = gen8_ppgtt_cleanup;
-	ppgtt->vm.bind_vma = gen8_ppgtt_bind_vma;
-	ppgtt->vm.unbind_vma = ppgtt_unbind_vma;
-	ppgtt->vm.set_pages = ppgtt_set_pages;
-	ppgtt->vm.clear_pages = clear_pages;
 	ppgtt->debug_dump = gen8_dump_ppgtt;
+
+	ppgtt->vm.vma_ops.bind_vma    = gen8_ppgtt_bind_vma;
+	ppgtt->vm.vma_ops.unbind_vma  = ppgtt_unbind_vma;
+	ppgtt->vm.vma_ops.set_pages   = ppgtt_set_pages;
+	ppgtt->vm.vma_ops.clear_pages = clear_pages;
 
 	return 0;
 
@@ -2059,12 +2060,13 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 
 	ppgtt->vm.clear_range = gen6_ppgtt_clear_range;
 	ppgtt->vm.insert_entries = gen6_ppgtt_insert_entries;
-	ppgtt->vm.bind_vma = gen6_ppgtt_bind_vma;
-	ppgtt->vm.unbind_vma = ppgtt_unbind_vma;
-	ppgtt->vm.set_pages = ppgtt_set_pages;
-	ppgtt->vm.clear_pages = clear_pages;
 	ppgtt->vm.cleanup = gen6_ppgtt_cleanup;
 	ppgtt->debug_dump = gen6_dump_ppgtt;
+
+	ppgtt->vm.vma_ops.bind_vma    = gen6_ppgtt_bind_vma;
+	ppgtt->vm.vma_ops.unbind_vma  = ppgtt_unbind_vma;
+	ppgtt->vm.vma_ops.set_pages   = ppgtt_set_pages;
+	ppgtt->vm.vma_ops.clear_pages = clear_pages;
 
 	DRM_DEBUG_DRIVER("Allocated pde space (%lldM) at GTT entry: %llx\n",
 			 ppgtt->node.size >> 20,
@@ -2793,11 +2795,11 @@ int i915_gem_init_aliasing_ppgtt(struct drm_i915_private *i915)
 
 	i915->mm.aliasing_ppgtt = ppgtt;
 
-	GEM_BUG_ON(ggtt->vm.bind_vma != ggtt_bind_vma);
-	ggtt->vm.bind_vma = aliasing_gtt_bind_vma;
+	GEM_BUG_ON(ggtt->vm.vma_ops.bind_vma != ggtt_bind_vma);
+	ggtt->vm.vma_ops.bind_vma = aliasing_gtt_bind_vma;
 
-	GEM_BUG_ON(ggtt->vm.unbind_vma != ggtt_unbind_vma);
-	ggtt->vm.unbind_vma = aliasing_gtt_unbind_vma;
+	GEM_BUG_ON(ggtt->vm.vma_ops.unbind_vma != ggtt_unbind_vma);
+	ggtt->vm.vma_ops.unbind_vma = aliasing_gtt_unbind_vma;
 
 	return 0;
 
@@ -2817,8 +2819,8 @@ void i915_gem_fini_aliasing_ppgtt(struct drm_i915_private *i915)
 
 	i915_ppgtt_put(ppgtt);
 
-	ggtt->vm.bind_vma = ggtt_bind_vma;
-	ggtt->vm.unbind_vma = ggtt_unbind_vma;
+	ggtt->vm.vma_ops.bind_vma   = ggtt_bind_vma;
+	ggtt->vm.vma_ops.unbind_vma = ggtt_unbind_vma;
 }
 
 int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
@@ -3310,10 +3312,6 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 
 	ggtt->vm.total = (size / sizeof(gen8_pte_t)) << PAGE_SHIFT;
 	ggtt->vm.cleanup = gen6_gmch_remove;
-	ggtt->vm.bind_vma = ggtt_bind_vma;
-	ggtt->vm.unbind_vma = ggtt_unbind_vma;
-	ggtt->vm.set_pages = ggtt_set_pages;
-	ggtt->vm.clear_pages = clear_pages;
 	ggtt->vm.insert_page = gen8_ggtt_insert_page;
 	ggtt->vm.clear_range = nop_clear_range;
 	if (!USES_FULL_PPGTT(dev_priv) || intel_scanout_needs_vtd_wa(dev_priv))
@@ -3330,6 +3328,11 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	}
 
 	ggtt->invalidate = gen6_ggtt_invalidate;
+
+	ggtt->vm.vma_ops.bind_vma    = ggtt_bind_vma;
+	ggtt->vm.vma_ops.unbind_vma  = ggtt_unbind_vma;
+	ggtt->vm.vma_ops.set_pages   = ggtt_set_pages;
+	ggtt->vm.vma_ops.clear_pages = clear_pages;
 
 	setup_private_pat(dev_priv);
 
@@ -3370,10 +3373,6 @@ static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 	ggtt->vm.clear_range = gen6_ggtt_clear_range;
 	ggtt->vm.insert_page = gen6_ggtt_insert_page;
 	ggtt->vm.insert_entries = gen6_ggtt_insert_entries;
-	ggtt->vm.bind_vma = ggtt_bind_vma;
-	ggtt->vm.unbind_vma = ggtt_unbind_vma;
-	ggtt->vm.set_pages = ggtt_set_pages;
-	ggtt->vm.clear_pages = clear_pages;
 	ggtt->vm.cleanup = gen6_gmch_remove;
 
 	ggtt->invalidate = gen6_ggtt_invalidate;
@@ -3388,6 +3387,11 @@ static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 		ggtt->vm.pte_encode = ivb_pte_encode;
 	else
 		ggtt->vm.pte_encode = snb_pte_encode;
+
+	ggtt->vm.vma_ops.bind_vma    = ggtt_bind_vma;
+	ggtt->vm.vma_ops.unbind_vma  = ggtt_unbind_vma;
+	ggtt->vm.vma_ops.set_pages   = ggtt_set_pages;
+	ggtt->vm.vma_ops.clear_pages = clear_pages;
 
 	return ggtt_probe_common(ggtt, size);
 }
@@ -3419,13 +3423,14 @@ static int i915_gmch_probe(struct i915_ggtt *ggtt)
 	ggtt->vm.insert_page = i915_ggtt_insert_page;
 	ggtt->vm.insert_entries = i915_ggtt_insert_entries;
 	ggtt->vm.clear_range = i915_ggtt_clear_range;
-	ggtt->vm.bind_vma = ggtt_bind_vma;
-	ggtt->vm.unbind_vma = ggtt_unbind_vma;
-	ggtt->vm.set_pages = ggtt_set_pages;
-	ggtt->vm.clear_pages = clear_pages;
 	ggtt->vm.cleanup = i915_gmch_remove;
 
 	ggtt->invalidate = gmch_ggtt_invalidate;
+
+	ggtt->vm.vma_ops.bind_vma    = ggtt_bind_vma;
+	ggtt->vm.vma_ops.unbind_vma  = ggtt_unbind_vma;
+	ggtt->vm.vma_ops.set_pages   = ggtt_set_pages;
+	ggtt->vm.vma_ops.clear_pages = clear_pages;
 
 	if (unlikely(ggtt->do_idle_maps))
 		DRM_INFO("applying Ironlake quirks for intel_iommu\n");
