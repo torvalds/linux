@@ -33,17 +33,6 @@
 #include "../pinctrl-utils.h"
 #include "pinctrl-tegra.h"
 
-struct tegra_pmx {
-	struct device *dev;
-	struct pinctrl_dev *pctl;
-
-	const struct tegra_pinctrl_soc_data *soc;
-	const char **group_pins;
-
-	int nbanks;
-	void __iomem **regs;
-};
-
 static inline u32 pmx_readl(struct tegra_pmx *pmx, u32 bank, u32 reg)
 {
 	return readl(pmx->regs[bank] + reg);

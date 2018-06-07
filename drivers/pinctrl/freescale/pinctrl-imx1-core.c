@@ -1,19 +1,14 @@
-/*
- * Core driver for the imx pin controller in imx1/21/27
- *
- * Copyright (C) 2013 Pengutronix
- * Author: Markus Pargmann <mpa@pengutronix.de>
- *
- * Based on pinctrl-imx.c:
- *	Author: Dong Aisheng <dong.aisheng@linaro.org>
- *	Copyright (C) 2012 Freescale Semiconductor, Inc.
- *	Copyright (C) 2012 Linaro Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Core driver for the imx pin controller in imx1/21/27
+//
+// Copyright (C) 2013 Pengutronix
+// Author: Markus Pargmann <mpa@pengutronix.de>
+//
+// Based on pinctrl-imx.c:
+//	Author: Dong Aisheng <dong.aisheng@linaro.org>
+//	Copyright (C) 2012 Freescale Semiconductor, Inc.
+//	Copyright (C) 2012 Linaro Ltd.
 
 #include <linux/bitops.h>
 #include <linux/err.h>
