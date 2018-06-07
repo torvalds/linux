@@ -350,7 +350,8 @@ static void update_upstream_irq(struct intel_vgpu *vgpu,
 			clear_bits |= (1 << bit);
 	}
 
-	WARN_ON(!up_irq_info);
+	if (WARN_ON(!up_irq_info))
+		return;
 
 	if (up_irq_info->group == INTEL_GVT_IRQ_INFO_MASTER) {
 		u32 isr = i915_mmio_reg_offset(up_irq_info->reg_base);
