@@ -502,8 +502,8 @@ xfs_dir2_block_addname(
 			if (mid - lowstale)
 				memmove(&blp[lowstale], &blp[lowstale + 1],
 					(mid - lowstale) * sizeof(*blp));
-			lfloglow = MIN(lowstale, lfloglow);
-			lfloghigh = MAX(mid, lfloghigh);
+			lfloglow = min(lowstale, lfloglow);
+			lfloghigh = max(mid, lfloghigh);
 		}
 		/*
 		 * Move entries toward the high-numbered stale entry.
@@ -514,8 +514,8 @@ xfs_dir2_block_addname(
 			if (highstale - mid)
 				memmove(&blp[mid + 1], &blp[mid],
 					(highstale - mid) * sizeof(*blp));
-			lfloglow = MIN(mid, lfloglow);
-			lfloghigh = MAX(highstale, lfloghigh);
+			lfloglow = min(mid, lfloglow);
+			lfloghigh = max(highstale, lfloghigh);
 		}
 		be32_add_cpu(&btp->stale, -1);
 	}

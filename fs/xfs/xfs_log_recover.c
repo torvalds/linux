@@ -1804,7 +1804,7 @@ xlog_clear_stale_blocks(
 	 * we don't waste all day writing from the head to the tail
 	 * for no reason.
 	 */
-	max_distance = MIN(max_distance, tail_distance);
+	max_distance = min(max_distance, tail_distance);
 
 	if ((head_block + max_distance) <= log->l_logBBsize) {
 		/*
@@ -2872,14 +2872,14 @@ xlog_recover_buffer_pass2(
 	 * buffers in the log can be a different size if the log was generated
 	 * by an older kernel using unclustered inode buffers or a newer kernel
 	 * running with a different inode cluster size.  Regardless, if the
-	 * the inode buffer size isn't MAX(blocksize, mp->m_inode_cluster_size)
+	 * the inode buffer size isn't max(blocksize, mp->m_inode_cluster_size)
 	 * for *our* value of mp->m_inode_cluster_size, then we need to keep
 	 * the buffer out of the buffer cache so that the buffer won't
 	 * overlap with future reads of those inodes.
 	 */
 	if (XFS_DINODE_MAGIC ==
 	    be16_to_cpu(*((__be16 *)xfs_buf_offset(bp, 0))) &&
-	    (BBTOB(bp->b_io_length) != MAX(log->l_mp->m_sb.sb_blocksize,
+	    (BBTOB(bp->b_io_length) != max(log->l_mp->m_sb.sb_blocksize,
 			(uint32_t)log->l_mp->m_inode_cluster_size))) {
 		xfs_buf_stale(bp);
 		error = xfs_bwrite(bp);

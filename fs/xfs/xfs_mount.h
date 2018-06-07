@@ -271,7 +271,7 @@ xfs_preferred_iosize(xfs_mount_t *mp)
 	return (mp->m_swidth ?
 		(mp->m_swidth << mp->m_sb.sb_blocklog) :
 		((mp->m_flags & XFS_MOUNT_DFLT_IOSIZE) ?
-			(1 << (int)MAX(mp->m_readio_log, mp->m_writeio_log)) :
+			(1 << (int)max(mp->m_readio_log, mp->m_writeio_log)) :
 			PAGE_SIZE));
 }
 

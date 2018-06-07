@@ -830,7 +830,7 @@ xfs_buf_item_log_segment(
 	 * of the last bit to be set in this word plus one.
 	 */
 	if (bit) {
-		end_bit = MIN(bit + bits_to_set, (uint)NBWORD);
+		end_bit = min(bit + bits_to_set, (uint)NBWORD);
 		mask = ((1U << (end_bit - bit)) - 1) << bit;
 		*wordp |= mask;
 		wordp++;

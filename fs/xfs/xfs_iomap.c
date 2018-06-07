@@ -188,7 +188,7 @@ xfs_iomap_write_direct(
 			goto out_unlock;
 	} else {
 		if (nmaps && (imap->br_startblock == HOLESTARTBLOCK))
-			last_fsb = MIN(last_fsb, (xfs_fileoff_t)
+			last_fsb = min(last_fsb, (xfs_fileoff_t)
 					imap->br_blockcount +
 					imap->br_startoff);
 	}
@@ -476,8 +476,8 @@ xfs_iomap_prealloc_size(
 	 * The shift throttle value is set to the maximum value as determined by
 	 * the global low free space values and per-quota low free space values.
 	 */
-	alloc_blocks = MIN(alloc_blocks, qblocks);
-	shift = MAX(shift, qshift);
+	alloc_blocks = min(alloc_blocks, qblocks);
+	shift = max(shift, qshift);
 
 	if (shift)
 		alloc_blocks >>= shift;

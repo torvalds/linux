@@ -140,8 +140,6 @@ typedef __u32			xfs_nlink_t;
 
 #define XFS_PROJID_DEFAULT	0
 
-#define MIN(a,b)	(min(a,b))
-#define MAX(a,b)	(max(a,b))
 #define howmany(x, y)	(((x)+((y)-1))/(y))
 
 static inline void delay(long ticks)

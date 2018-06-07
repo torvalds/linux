@@ -559,7 +559,7 @@ xfs_inumbers(
 	    *lastino != XFS_AGINO_TO_INO(mp, agno, agino))
 		return error;
 
-	bcount = MIN(left, (int)(PAGE_SIZE / sizeof(*buffer)));
+	bcount = min(left, (int)(PAGE_SIZE / sizeof(*buffer)));
 	buffer = kmem_zalloc(bcount * sizeof(*buffer), KM_SLEEP);
 	do {
 		struct xfs_inobt_rec_incore	r;
