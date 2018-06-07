@@ -1972,7 +1972,7 @@ static int alloc_scratch_pages(struct intel_vgpu *vgpu,
 	 * GTT_TYPE_PPGTT_PDE_PT level pt, that means this scratch_pt it self
 	 * is GTT_TYPE_PPGTT_PTE_PT, and full filled by scratch page mfn.
 	 */
-	if (type > GTT_TYPE_PPGTT_PTE_PT && type < GTT_TYPE_MAX) {
+	if (type > GTT_TYPE_PPGTT_PTE_PT) {
 		struct intel_gvt_gtt_entry se;
 
 		memset(&se, 0, sizeof(struct intel_gvt_gtt_entry));
