@@ -75,7 +75,9 @@ static int rk3288_get_soc_info(struct device *dev, struct device_node *np,
 			dev_err(dev, "Failed to get soc performance value\n");
 			goto out;
 		}
-		if (value == 0x2)
+		if (value & 0x2)
+			*bin = 3;
+		else if (value & 0x01)
 			*bin = 2;
 	}
 	if (*bin >= 0)

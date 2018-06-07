@@ -141,7 +141,8 @@
 		rockchip,bin-scaling-sel = <
 			0               17
 			1               25
-			2               31
+			2               27
+			3               31
 		>;
 		rockchip,pvtm-voltage-sel = <
 			0        14300   0
@@ -234,8 +235,8 @@
 		};
 		opp-1416000000 {
 			opp-hz = /bits/ 64 <1416000000>;
-			opp-microvolt = <1350000 1350000 1350000>;
-			opp-microvolt-L0 = <1350000 1350000 1350000>;
+			opp-microvolt = <1300000 1300000 1350000>;
+			opp-microvolt-L0 = <1300000 1300000 1350000>;
 			opp-microvolt-L1 = <1250000 1250000 1350000>;
 			opp-microvolt-L2 = <1200000 1200000 1350000>;
 			opp-microvolt-L3 = <1150000 1150000 1350000>;
@@ -1729,8 +1730,8 @@
 			opp-hz = /bits/ 64 <400000000>;
 			opp-microvolt = <1100000>;
 		};
-		opp-480000000 {
-			opp-hz = /bits/ 64 <480000000>;
+		opp-500000000 {
+			opp-hz = /bits/ 64 <500000000>;
 			opp-microvolt = <1200000>;
 		};
 	};
