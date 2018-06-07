@@ -131,6 +131,8 @@ enum iwl_tx_queue_cfg_actions {
 	TX_QUEUE_CFG_TFD_SHORT_FORMAT		= BIT(1),
 };
 
+#define IWL_DEFAULT_QUEUE_SIZE 256
+#define IWL_MGMT_QUEUE_SIZE 16
 /**
  * struct iwl_tx_queue_cfg_cmd - txq hw scheduler config command
  * @sta_id: station id

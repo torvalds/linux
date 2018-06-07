@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -35,6 +36,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -76,9 +78,7 @@
 #include "fw/acpi.h"
 
 /* Default NVM size to read */
-#define IWL_NVM_DEFAULT_CHUNK_SIZE (2*1024)
-#define IWL_MAX_NVM_SECTION_SIZE	0x1b58
-#define IWL_MAX_EXT_NVM_SECTION_SIZE	0x1ffc
+#define IWL_NVM_DEFAULT_CHUNK_SIZE (2 * 1024)
 
 #define NVM_WRITE_OPCODE 1
 #define NVM_READ_OPCODE 0
@@ -229,19 +229,6 @@ static int iwl_nvm_write_section(struct iwl_mvm *mvm, u16 section,
 	return 0;
 }
 
-static void iwl_mvm_nvm_fixups(struct iwl_mvm *mvm, unsigned int section,
-			       u8 *data, unsigned int len)
-{
-#define IWL_4165_DEVICE_ID	0x5501
-#define NVM_SKU_CAP_MIMO_DISABLE BIT(5)
-
-	if (section == NVM_SECTION_TYPE_PHY_SKU &&
-	    mvm->trans->hw_id == IWL_4165_DEVICE_ID && data && len >= 5 &&
-	    (data[4] & NVM_SKU_CAP_MIMO_DISABLE))
-		/* OTP 0x52 bug work around: it's a 1x1 device */
-		data[3] = ANT_B | (ANT_B << 4);
-}
-
 /*
  * Reads an NVM section completely.
  * NICs prior to 7000 family doesn't have a real NVM, but just read
@@ -282,7 +269,7 @@ static int iwl_nvm_read_section(struct iwl_mvm *mvm, u16 section,
 		offset += ret;
 	}
 
-	iwl_mvm_nvm_fixups(mvm, section, data, offset);
+	iwl_nvm_fixups(mvm->trans->hw_id, section, data, offset);
 
 	IWL_DEBUG_EEPROM(mvm->trans->dev,
 			 "NVM section %d read completed\n", section);
@@ -355,184 +342,6 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 				  lar_enabled);
 }
 
-#define MAX_NVM_FILE_LEN	16384
-
-/*
- * Reads external NVM from a file into mvm->nvm_sections
- *
- * HOW TO CREATE THE NVM FILE FORMAT:
- * ------------------------------
- * 1. create hex file, format:
- *      3800 -> header
- *      0000 -> header
- *      5a40 -> data
- *
- *   rev - 6 bit (word1)
- *   len - 10 bit (word1)
- *   id - 4 bit (word2)
- *   rsv - 12 bit (word2)
- *
- * 2. flip 8bits with 8 bits per line to get the right NVM file format
- *
- * 3. create binary file from the hex file
- *
- * 4. save as "iNVM_xxx.bin" under /lib/firmware
- */
-int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
-{
-	int ret, section_size;
-	u16 section_id;
-	const struct firmware *fw_entry;
-	const struct {
-		__le16 word1;
-		__le16 word2;
-		u8 data[];
-	} *file_sec;
-	const u8 *eof;
-	u8 *temp;
-	int max_section_size;
-	const __le32 *dword_buff;
-
-#define NVM_WORD1_LEN(x) (8 * (x & 0x03FF))
-#define NVM_WORD2_ID(x) (x >> 12)
-#define EXT_NVM_WORD2_LEN(x) (2 * (((x) & 0xFF) << 8 | (x) >> 8))
-#define EXT_NVM_WORD1_ID(x) ((x) >> 4)
-#define NVM_HEADER_0	(0x2A504C54)
-#define NVM_HEADER_1	(0x4E564D2A)
-#define NVM_HEADER_SIZE	(4 * sizeof(u32))
-
-	IWL_DEBUG_EEPROM(mvm->trans->dev, "Read from external NVM\n");
-
-	/* Maximal size depends on NVM version */
-	if (mvm->trans->cfg->nvm_type != IWL_NVM_EXT)
-		max_section_size = IWL_MAX_NVM_SECTION_SIZE;
-	else
-		max_section_size = IWL_MAX_EXT_NVM_SECTION_SIZE;
-
-	/*
-	 * Obtain NVM image via request_firmware. Since we already used
-	 * request_firmware_nowait() for the firmware binary load and only
-	 * get here after that we assume the NVM request can be satisfied
-	 * synchronously.
-	 */
-	ret = request_firmware(&fw_entry, mvm->nvm_file_name,
-			       mvm->trans->dev);
-	if (ret) {
-		IWL_ERR(mvm, "ERROR: %s isn't available %d\n",
-			mvm->nvm_file_name, ret);
-		return ret;
-	}
-
-	IWL_INFO(mvm, "Loaded NVM file %s (%zu bytes)\n",
-		 mvm->nvm_file_name, fw_entry->size);
-
-	if (fw_entry->size > MAX_NVM_FILE_LEN) {
-		IWL_ERR(mvm, "NVM file too large\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	eof = fw_entry->data + fw_entry->size;
-	dword_buff = (__le32 *)fw_entry->data;
-
-	/* some NVM file will contain a header.
-	 * The header is identified by 2 dwords header as follow:
-	 * dword[0] = 0x2A504C54
-	 * dword[1] = 0x4E564D2A
-	 *
-	 * This header must be skipped when providing the NVM data to the FW.
-	 */
-	if (fw_entry->size > NVM_HEADER_SIZE &&
-	    dword_buff[0] == cpu_to_le32(NVM_HEADER_0) &&
-	    dword_buff[1] == cpu_to_le32(NVM_HEADER_1)) {
-		file_sec = (void *)(fw_entry->data + NVM_HEADER_SIZE);
-		IWL_INFO(mvm, "NVM Version %08X\n", le32_to_cpu(dword_buff[2]));
-		IWL_INFO(mvm, "NVM Manufacturing date %08X\n",
-			 le32_to_cpu(dword_buff[3]));
-
-		/* nvm file validation, dword_buff[2] holds the file version */
-		if (mvm->trans->cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
-		    CSR_HW_REV_STEP(mvm->trans->hw_rev) == SILICON_C_STEP &&
-		    le32_to_cpu(dword_buff[2]) < 0xE4A) {
-			ret = -EFAULT;
-			goto out;
-		}
-	} else {
-		file_sec = (void *)fw_entry->data;
-	}
-
-	while (true) {
-		if (file_sec->data > eof) {
-			IWL_ERR(mvm,
-				"ERROR - NVM file too short for section header\n");
-			ret = -EINVAL;
-			break;
-		}
-
-		/* check for EOF marker */
-		if (!file_sec->word1 && !file_sec->word2) {
-			ret = 0;
-			break;
-		}
-
-		if (mvm->trans->cfg->nvm_type != IWL_NVM_EXT) {
-			section_size =
-				2 * NVM_WORD1_LEN(le16_to_cpu(file_sec->word1));
-			section_id = NVM_WORD2_ID(le16_to_cpu(file_sec->word2));
-		} else {
-			section_size = 2 * EXT_NVM_WORD2_LEN(
-						le16_to_cpu(file_sec->word2));
-			section_id = EXT_NVM_WORD1_ID(
-						le16_to_cpu(file_sec->word1));
-		}
-
-		if (section_size > max_section_size) {
-			IWL_ERR(mvm, "ERROR - section too large (%d)\n",
-				section_size);
-			ret = -EINVAL;
-			break;
-		}
-
-		if (!section_size) {
-			IWL_ERR(mvm, "ERROR - section empty\n");
-			ret = -EINVAL;
-			break;
-		}
-
-		if (file_sec->data + section_size > eof) {
-			IWL_ERR(mvm,
-				"ERROR - NVM file too short for section (%d bytes)\n",
-				section_size);
-			ret = -EINVAL;
-			break;
-		}
-
-		if (WARN(section_id >= NVM_MAX_NUM_SECTIONS,
-			 "Invalid NVM section ID %d\n", section_id)) {
-			ret = -EINVAL;
-			break;
-		}
-
-		temp = kmemdup(file_sec->data, section_size, GFP_KERNEL);
-		if (!temp) {
-			ret = -ENOMEM;
-			break;
-		}
-
-		iwl_mvm_nvm_fixups(mvm, section_id, temp, section_size);
-
-		kfree(mvm->nvm_sections[section_id].data);
-		mvm->nvm_sections[section_id].data = temp;
-		mvm->nvm_sections[section_id].length = section_size;
-
-		/* advance to the next section */
-		file_sec = (void *)(file_sec->data + section_size);
-	}
-out:
-	release_firmware(fw_entry);
-	return ret;
-}
-
 /* Loads the NVM data stored in mvm->nvm_sections into the NIC */
 int iwl_mvm_load_nvm_to_nic(struct iwl_mvm *mvm)
 {
@@ -585,7 +394,7 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 			break;
 		}
 
-		iwl_mvm_nvm_fixups(mvm, section, temp, ret);
+		iwl_nvm_fixups(mvm->trans->hw_id, section, temp, ret);
 
 		mvm->nvm_sections[section].data = temp;
 		mvm->nvm_sections[section].length = ret;
@@ -624,14 +433,17 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 	/* Only if PNVM selected in the mod param - load external NVM  */
 	if (mvm->nvm_file_name) {
 		/* read External NVM file from the mod param */
-		ret = iwl_mvm_read_external_nvm(mvm);
+		ret = iwl_read_external_nvm(mvm->trans, mvm->nvm_file_name,
+					    mvm->nvm_sections);
 		if (ret) {
 			mvm->nvm_file_name = nvm_file_C;
 
 			if ((ret == -EFAULT || ret == -ENOENT) &&
 			    mvm->nvm_file_name) {
 				/* in case nvm file was failed try again */
-				ret = iwl_mvm_read_external_nvm(mvm);
+				ret = iwl_read_external_nvm(mvm->trans,
+							    mvm->nvm_file_name,
+							    mvm->nvm_sections);
 				if (ret)
 					return ret;
 			} else {

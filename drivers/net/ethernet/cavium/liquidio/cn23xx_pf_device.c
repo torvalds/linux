@@ -1245,7 +1245,7 @@ static void cn23xx_setup_reg_address(struct octeon_device *oct)
 	    CN23XX_SLI_MAC_PF_INT_ENB64(oct->pcie_port, oct->pf_num);
 }
 
-static int cn23xx_sriov_config(struct octeon_device *oct)
+int cn23xx_sriov_config(struct octeon_device *oct)
 {
 	struct octeon_cn23xx_pf *cn23xx = (struct octeon_cn23xx_pf *)oct->chip;
 	u32 max_rings, total_rings, max_vfs, rings_per_vf;
@@ -1269,8 +1269,8 @@ static int cn23xx_sriov_config(struct octeon_device *oct)
 		break;
 	}
 
-	if (max_rings <= num_present_cpus())
-		num_pf_rings = 1;
+	if (oct->sriov_info.num_pf_rings)
+		num_pf_rings = oct->sriov_info.num_pf_rings;
 	else
 		num_pf_rings = num_present_cpus();
 
@@ -1496,4 +1496,58 @@ void cn23xx_tell_vf_its_macaddr_changed(struct octeon_device *oct, int vfidx,
 		mbox_cmd.q_no = vfidx * oct->sriov_info.rings_per_vf;
 		octeon_mbox_write(oct, &mbox_cmd);
 	}
+}
+
+static void
+cn23xx_get_vf_stats_callback(struct octeon_device *oct,
+			     struct octeon_mbox_cmd *cmd, void *arg)
+{
+	struct oct_vf_stats_ctx *ctx = arg;
+
+	memcpy(ctx->stats, cmd->data, sizeof(struct oct_vf_stats));
+	atomic_set(&ctx->status, 1);
+}
+
+int cn23xx_get_vf_stats(struct octeon_device *oct, int vfidx,
+			struct oct_vf_stats *stats)
+{
+	u32 timeout = HZ; // 1sec
+	struct octeon_mbox_cmd mbox_cmd;
+	struct oct_vf_stats_ctx ctx;
+	u32 count = 0, ret;
+
+	if (!(oct->sriov_info.vf_drv_loaded_mask & (1ULL << vfidx)))
+		return -1;
+
+	if (sizeof(struct oct_vf_stats) > sizeof(mbox_cmd.data))
+		return -1;
+
+	mbox_cmd.msg.u64 = 0;
+	mbox_cmd.msg.s.type = OCTEON_MBOX_REQUEST;
+	mbox_cmd.msg.s.resp_needed = 1;
+	mbox_cmd.msg.s.cmd = OCTEON_GET_VF_STATS;
+	mbox_cmd.msg.s.len = 1;
+	mbox_cmd.q_no = vfidx * oct->sriov_info.rings_per_vf;
+	mbox_cmd.recv_len = 0;
+	mbox_cmd.recv_status = 0;
+	mbox_cmd.fn = (octeon_mbox_callback_t)cn23xx_get_vf_stats_callback;
+	ctx.stats = stats;
+	atomic_set(&ctx.status, 0);
+	mbox_cmd.fn_arg = (void *)&ctx;
+	memset(mbox_cmd.data, 0, sizeof(mbox_cmd.data));
+	octeon_mbox_write(oct, &mbox_cmd);
+
+	do {
+		schedule_timeout_uninterruptible(1);
+	} while ((atomic_read(&ctx.status) == 0) && (count++ < timeout));
+
+	ret = atomic_read(&ctx.status);
+	if (ret == 0) {
+		octeon_mbox_cancel(oct, 0);
+		dev_err(&oct->pci_dev->dev, "Unable to get stats from VF-%d, timedout\n",
+			vfidx);
+		return -1;
+	}
+
+	return 0;
 }

@@ -260,7 +260,6 @@ static struct rtl_hal_ops rtl8723e_hal_ops = {
 	.bt_coex_off_before_lps =
 		rtl8723e_dm_bt_turn_off_bt_coexist_before_enter_lps,
 	.get_btc_status = rtl8723e_get_btc_status,
-	.rx_command_packet = rtl8723e_rx_command_packet,
 	.is_fw_header = is_fw_header,
 };
 

@@ -301,14 +301,14 @@ void t4_os_link_changed(struct adapter *adapter, int port_id, int link_stat)
 	}
 }
 
-void t4_os_portmod_changed(const struct adapter *adap, int port_id)
+void t4_os_portmod_changed(struct adapter *adap, int port_id)
 {
 	static const char *mod_str[] = {
 		NULL, "LR", "SR", "ER", "passive DA", "active DA", "LRM"
 	};
 
-	const struct net_device *dev = adap->port[port_id];
-	const struct port_info *pi = netdev_priv(dev);
+	struct net_device *dev = adap->port[port_id];
+	struct port_info *pi = netdev_priv(dev);
 
 	if (pi->mod_type == FW_PORT_MOD_TYPE_NONE)
 		netdev_info(dev, "port module unplugged\n");
@@ -325,6 +325,11 @@ void t4_os_portmod_changed(const struct adapter *adap, int port_id)
 	else
 		netdev_info(dev, "%s: unknown module type %d inserted\n",
 			    dev->name, pi->mod_type);
+
+	/* If the interface is running, then we'll need any "sticky" Link
+	 * Parameters redone with a new Transceiver Module.
+	 */
+	pi->link_cfg.redo_l1cfg = netif_running(dev);
 }
 
 int dbfifo_int_thresh = 10; /* 10 == 640 entry threshold */
@@ -460,7 +465,7 @@ static int link_start(struct net_device *dev)
 				    &pi->link_cfg);
 	if (ret == 0) {
 		local_bh_disable();
-		ret = t4_enable_vi_params(pi->adapter, mb, pi->viid, true,
+		ret = t4_enable_pi_params(pi->adapter, mb, pi, true,
 					  true, CXGB4_DCB_ENABLED);
 		local_bh_enable();
 	}
@@ -2339,7 +2344,8 @@ static int cxgb_close(struct net_device *dev)
 
 	netif_tx_stop_all_queues(dev);
 	netif_carrier_off(dev);
-	ret = t4_enable_vi(adapter, adapter->pf, pi->viid, false, false);
+	ret = t4_enable_pi_params(adapter, adapter->pf, pi,
+				  false, false, false);
 #ifdef CONFIG_CHELSIO_T4_DCB
 	cxgb4_dcb_reset(dev);
 	dcb_tx_queue_prio_enable(dev, false);
@@ -2886,13 +2892,13 @@ static int cxgb_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 	}
 
 	/* Convert from Mbps to Kbps */
-	req_rate = rate << 10;
+	req_rate = rate * 1000;
 
 	/* Max rate is 100 Gbps */
-	if (req_rate >= SCHED_MAX_RATE_KBPS) {
+	if (req_rate > SCHED_MAX_RATE_KBPS) {
 		dev_err(adap->pdev_dev,
 			"Invalid rate %u Mbps, Max rate is %u Mbps\n",
-			rate, SCHED_MAX_RATE_KBPS >> 10);
+			rate, SCHED_MAX_RATE_KBPS / 1000);
 		return -ERANGE;
 	}
 
@@ -3081,7 +3087,7 @@ static void cxgb_del_udp_tunnel(struct net_device *netdev,
 					   match_all_mac, match_all_mac,
 					   adapter->rawf_start +
 					    pi->port_id,
-					   1, pi->port_id, true);
+					   1, pi->port_id, false);
 		if (ret < 0) {
 			netdev_info(netdev, "Failed to free mac filter entry, for port %d\n",
 				    i);
@@ -3169,7 +3175,7 @@ static void cxgb_add_udp_tunnel(struct net_device *netdev,
 					    match_all_mac,
 					    adapter->rawf_start +
 					    pi->port_id,
-					    1, pi->port_id, true);
+					    1, pi->port_id, false);
 		if (ret < 0) {
 			netdev_info(netdev, "Failed to allocate a mac filter entry, not adding port %d\n",
 				    be16_to_cpu(ti->port));
@@ -4135,6 +4141,10 @@ static int adap_init0(struct adapter *adap)
 		 * card
 		 */
 		card_fw = kvzalloc(sizeof(*card_fw), GFP_KERNEL);
+		if (!card_fw) {
+			ret = -ENOMEM;
+			goto bye;
+		}
 
 		/* Get FW from from /lib/firmware/ */
 		ret = request_firmware(&fw, fw_info->fw_mod_name,
@@ -4275,6 +4285,20 @@ static int adap_init0(struct adapter *adap)
 	adap->tids.ftid_base = val[3];
 	adap->tids.nftids = val[4] - val[3] + 1;
 	adap->sge.ingr_start = val[5];
+
+	if (CHELSIO_CHIP_VERSION(adap->params.chip) > CHELSIO_T5) {
+		/* Read the raw mps entries. In T6, the last 2 tcam entries
+		 * are reserved for raw mac addresses (rawf = 2, one per port).
+		 */
+		params[0] = FW_PARAM_PFVF(RAWF_START);
+		params[1] = FW_PARAM_PFVF(RAWF_END);
+		ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 2,
+				      params, val);
+		if (ret == 0) {
+			adap->rawf_start = val[0];
+			adap->rawf_cnt = val[1] - val[0] + 1;
+		}
+	}
 
 	/* qids (ingress/egress) returned from firmware can be anywhere
 	 * in the range from EQ(IQFLINT)_START to EQ(IQFLINT)_END.
@@ -5181,6 +5205,7 @@ static void free_some_resources(struct adapter *adapter)
 {
 	unsigned int i;
 
+	kvfree(adapter->mps_encap);
 	kvfree(adapter->smt);
 	kvfree(adapter->l2t);
 	kvfree(adapter->srq);
@@ -5216,14 +5241,11 @@ static void free_some_resources(struct adapter *adapter)
 		   NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA)
 #define SEGMENT_SIZE 128
 
-static int get_chip_type(struct pci_dev *pdev, u32 pl_rev)
+static int t4_get_chip_type(struct adapter *adap, int ver)
 {
-	u16 device_id;
+	u32 pl_rev = REV_G(t4_read_reg(adap, PL_REV_A));
 
-	/* Retrieve adapter's device ID */
-	pci_read_config_word(pdev, PCI_DEVICE_ID, &device_id);
-
-	switch (device_id >> 12) {
+	switch (ver) {
 	case CHELSIO_T4:
 		return CHELSIO_CHIP_CODE(CHELSIO_T4, pl_rev);
 	case CHELSIO_T5:
@@ -5231,8 +5253,7 @@ static int get_chip_type(struct pci_dev *pdev, u32 pl_rev)
 	case CHELSIO_T6:
 		return CHELSIO_CHIP_CODE(CHELSIO_T6, pl_rev);
 	default:
-		dev_err(&pdev->dev, "Device %d is not supported\n",
-			device_id);
+		break;
 	}
 	return -EINVAL;
 }
@@ -5261,13 +5282,9 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 	u32 pcie_fw;
 
 	pcie_fw = readl(adap->regs + PCIE_FW_A);
-	/* Check if cxgb4 is the MASTER and fw is initialized */
-	if (num_vfs &&
-	    (!(pcie_fw & PCIE_FW_INIT_F) ||
-	    !(pcie_fw & PCIE_FW_MASTER_VLD_F) ||
-	    PCIE_FW_MASTER_G(pcie_fw) != CXGB4_UNIFIED_PF)) {
-		dev_warn(&pdev->dev,
-			 "cxgb4 driver needs to be MASTER to support SRIOV\n");
+	/* Check if fw is initialized */
+	if (!(pcie_fw & PCIE_FW_INIT_F)) {
+		dev_warn(&pdev->dev, "Device not initialized\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -5406,15 +5423,18 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 
 static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	int func, i, err, s_qpp, qpp, num_seg;
+	struct net_device *netdev;
+	struct adapter *adapter;
+	static int adap_idx = 1;
+	int s_qpp, qpp, num_seg;
 	struct port_info *pi;
 	bool highdma = false;
-	struct adapter *adapter = NULL;
-	struct net_device *netdev;
-	void __iomem *regs;
-	u32 whoami, pl_rev;
 	enum chip_type chip;
-	static int adap_idx = 1;
+	void __iomem *regs;
+	int func, chip_ver;
+	u16 device_id;
+	int i, err;
+	u32 whoami;
 
 	printk_once(KERN_INFO "%s - version %s\n", DRV_DESC, DRV_VERSION);
 
@@ -5450,11 +5470,17 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_free_adapter;
 
 	/* We control everything through one PF */
-	whoami = readl(regs + PL_WHOAMI_A);
-	pl_rev = REV_G(readl(regs + PL_REV_A));
-	chip = get_chip_type(pdev, pl_rev);
-	func = CHELSIO_CHIP_VERSION(chip) <= CHELSIO_T5 ?
-		SOURCEPF_G(whoami) : T6_SOURCEPF_G(whoami);
+	whoami = t4_read_reg(adapter, PL_WHOAMI_A);
+	pci_read_config_word(pdev, PCI_DEVICE_ID, &device_id);
+	chip = t4_get_chip_type(adapter, CHELSIO_PCI_ID_VER(device_id));
+	if (chip < 0) {
+		dev_err(&pdev->dev, "Device %d is not supported\n", device_id);
+		err = chip;
+		goto out_free_adapter;
+	}
+	chip_ver = CHELSIO_CHIP_VERSION(chip);
+	func = chip_ver <= CHELSIO_T5 ?
+	       SOURCEPF_G(whoami) : T6_SOURCEPF_G(whoami);
 
 	adapter->pdev = pdev;
 	adapter->pdev_dev = &pdev->dev;
@@ -5543,6 +5569,16 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto out_free_adapter;
 
+	if (is_kdump_kernel()) {
+		/* Collect hardware state and append to /proc/vmcore */
+		err = cxgb4_cudbg_vmcore_add_dump(adapter);
+		if (err) {
+			dev_warn(adapter->pdev_dev,
+				 "Fail collecting vmcore device dump, err: %d. Continuing\n",
+				 err);
+			err = 0;
+		}
+	}
 
 	if (!is_t4(adapter->params.chip)) {
 		s_qpp = (QUEUESPERPAGEPF0_S +
@@ -5610,8 +5646,15 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
 			NETIF_F_HW_TC;
 
-		if (CHELSIO_CHIP_VERSION(chip) > CHELSIO_T5)
+		if (chip_ver > CHELSIO_T5) {
+			netdev->hw_enc_features |= NETIF_F_IP_CSUM |
+						   NETIF_F_IPV6_CSUM |
+						   NETIF_F_RXCSUM |
+						   NETIF_F_GSO_UDP_TUNNEL |
+						   NETIF_F_TSO | NETIF_F_TSO6;
+
 			netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL;
+		}
 
 		if (highdma)
 			netdev->hw_features |= NETIF_F_HIGHDMA;
@@ -5676,8 +5719,14 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		adapter->params.offload = 0;
 	}
 
+	adapter->mps_encap = kvzalloc(sizeof(struct mps_encap_entry) *
+					  adapter->params.arch.mps_tcam_size,
+				      GFP_KERNEL);
+	if (!adapter->mps_encap)
+		dev_warn(&pdev->dev, "could not allocate MPS Encap entries, continuing\n");
+
 #if IS_ENABLED(CONFIG_IPV6)
-	if ((CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5) &&
+	if (chip_ver <= CHELSIO_T5 &&
 	    (!(t4_read_reg(adapter, LE_DB_CONFIG_A) & ASLIPCOMPEN_F))) {
 		/* CLIP functionality is not present in hardware,
 		 * hence disable all offload features

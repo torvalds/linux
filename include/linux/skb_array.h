@@ -97,6 +97,11 @@ static inline bool skb_array_empty_any(struct skb_array *a)
 	return ptr_ring_empty_any(&a->ring);
 }
 
+static inline struct sk_buff *__skb_array_consume(struct skb_array *a)
+{
+	return __ptr_ring_consume(&a->ring);
+}
+
 static inline struct sk_buff *skb_array_consume(struct skb_array *a)
 {
 	return ptr_ring_consume(&a->ring);

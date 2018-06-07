@@ -338,3 +338,62 @@ u64 nfp_resource_size(struct nfp_resource *res)
 {
 	return res->size;
 }
+
+/**
+ * nfp_resource_table_init() - Run initial checks on the resource table
+ * @cpp:	NFP CPP handle
+ *
+ * Start-of-day init procedure for resource table.  Must be called before
+ * any local resource table users may exist.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+int nfp_resource_table_init(struct nfp_cpp *cpp)
+{
+	struct nfp_cpp_mutex *dev_mutex;
+	int i, err;
+
+	err = nfp_cpp_mutex_reclaim(cpp, NFP_RESOURCE_TBL_TARGET,
+				    NFP_RESOURCE_TBL_BASE);
+	if (err < 0) {
+		nfp_err(cpp, "Error: failed to reclaim resource table mutex\n");
+		return err;
+	}
+	if (err)
+		nfp_warn(cpp, "Warning: busted main resource table mutex\n");
+
+	dev_mutex = nfp_cpp_mutex_alloc(cpp, NFP_RESOURCE_TBL_TARGET,
+					NFP_RESOURCE_TBL_BASE,
+					NFP_RESOURCE_TBL_KEY);
+	if (!dev_mutex)
+		return -ENOMEM;
+
+	if (nfp_cpp_mutex_lock(dev_mutex)) {
+		nfp_err(cpp, "Error: failed to claim resource table mutex\n");
+		nfp_cpp_mutex_free(dev_mutex);
+		return -EINVAL;
+	}
+
+	/* Resource 0 is the dev_mutex, start from 1 */
+	for (i = 1; i < NFP_RESOURCE_TBL_ENTRIES; i++) {
+		u64 addr = NFP_RESOURCE_TBL_BASE +
+			sizeof(struct nfp_resource_entry) * i;
+
+		err = nfp_cpp_mutex_reclaim(cpp, NFP_RESOURCE_TBL_TARGET, addr);
+		if (err < 0) {
+			nfp_err(cpp,
+				"Error: failed to reclaim resource %d mutex\n",
+				i);
+			goto err_unlock;
+		}
+		if (err)
+			nfp_warn(cpp, "Warning: busted resource %d mutex\n", i);
+	}
+
+	err = 0;
+err_unlock:
+	nfp_cpp_mutex_unlock(dev_mutex);
+	nfp_cpp_mutex_free(dev_mutex);
+
+	return err;
+}

@@ -396,7 +396,6 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 	ieee80211_hw_set(hw, SIGNAL_DBM);
 	ieee80211_hw_set(hw, RX_INCLUDES_FCS);
 	ieee80211_hw_set(hw, AMPDU_AGGREGATION);
-	ieee80211_hw_set(hw, CONNECTION_MONITOR);
 	ieee80211_hw_set(hw, MFP_CAPABLE);
 	ieee80211_hw_set(hw, REPORTS_TX_ACK_STATUS);
 	ieee80211_hw_set(hw, SUPPORTS_AMSDU_IN_AMPDU);
@@ -572,8 +571,9 @@ int rtl_init_core(struct ieee80211_hw *hw)
 	spin_lock_init(&rtlpriv->locks.iqk_lock);
 	/* <5> init list */
 	INIT_LIST_HEAD(&rtlpriv->entry_list);
-	INIT_LIST_HEAD(&rtlpriv->c2hcmd_list);
 	INIT_LIST_HEAD(&rtlpriv->scan_list.list);
+	skb_queue_head_init(&rtlpriv->tx_report.queue);
+	skb_queue_head_init(&rtlpriv->c2hcmd_queue);
 
 	rtlmac->link_state = MAC80211_NOLINK;
 
@@ -585,11 +585,14 @@ int rtl_init_core(struct ieee80211_hw *hw)
 EXPORT_SYMBOL_GPL(rtl_init_core);
 
 static void rtl_free_entries_from_scan_list(struct ieee80211_hw *hw);
+static void rtl_free_entries_from_ack_queue(struct ieee80211_hw *hw,
+					    bool timeout);
 
 void rtl_deinit_core(struct ieee80211_hw *hw)
 {
 	rtl_c2hcmd_launcher(hw, 0);
 	rtl_free_entries_from_scan_list(hw);
+	rtl_free_entries_from_ack_queue(hw, false);
 }
 EXPORT_SYMBOL_GPL(rtl_deinit_core);
 
@@ -1575,22 +1578,52 @@ end:
 }
 EXPORT_SYMBOL_GPL(rtl_is_special_data);
 
+void rtl_tx_ackqueue(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_tx_report *tx_report = &rtlpriv->tx_report;
+
+	__skb_queue_tail(&tx_report->queue, skb);
+}
+EXPORT_SYMBOL_GPL(rtl_tx_ackqueue);
+
+static void rtl_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
+			  bool ack)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct ieee80211_tx_info *info;
+
+	info = IEEE80211_SKB_CB(skb);
+	ieee80211_tx_info_clear_status(info);
+	if (ack) {
+		RT_TRACE(rtlpriv, COMP_TX_REPORT, DBG_LOUD,
+			 "tx report: ack\n");
+		info->flags |= IEEE80211_TX_STAT_ACK;
+	} else {
+		RT_TRACE(rtlpriv, COMP_TX_REPORT, DBG_LOUD,
+			 "tx report: not ack\n");
+		info->flags &= ~IEEE80211_TX_STAT_ACK;
+	}
+	ieee80211_tx_status_irqsafe(hw, skb);
+}
+
 bool rtl_is_tx_report_skb(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	u16 ether_type;
 	const u8 *ether_type_ptr;
+	__le16 fc = rtl_get_fc(skb);
 
 	ether_type_ptr = rtl_skb_ether_type_ptr(hw, skb, true);
 	ether_type = be16_to_cpup((__be16 *)ether_type_ptr);
 
-	/* EAPOL */
-	if (ether_type == ETH_P_PAE)
+	if (ether_type == ETH_P_PAE || ieee80211_is_nullfunc(fc))
 		return true;
 
 	return false;
 }
 
-static u16 rtl_get_tx_report_sn(struct ieee80211_hw *hw)
+static u16 rtl_get_tx_report_sn(struct ieee80211_hw *hw,
+				struct rtlwifi_tx_info *tx_info)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_tx_report *tx_report = &rtlpriv->tx_report;
@@ -1604,29 +1637,33 @@ static u16 rtl_get_tx_report_sn(struct ieee80211_hw *hw)
 
 	tx_report->last_sent_sn = sn;
 	tx_report->last_sent_time = jiffies;
-
+	tx_info->sn = sn;
+	tx_info->send_time = tx_report->last_sent_time;
 	RT_TRACE(rtlpriv, COMP_TX_REPORT, DBG_DMESG,
 		 "Send TX-Report sn=0x%X\n", sn);
 
 	return sn;
 }
 
-void rtl_get_tx_report(struct rtl_tcb_desc *ptcb_desc, u8 *pdesc,
-		       struct ieee80211_hw *hw)
+void rtl_set_tx_report(struct rtl_tcb_desc *ptcb_desc, u8 *pdesc,
+		       struct ieee80211_hw *hw, struct rtlwifi_tx_info *tx_info)
 {
 	if (ptcb_desc->use_spe_rpt) {
-		u16 sn = rtl_get_tx_report_sn(hw);
+		u16 sn = rtl_get_tx_report_sn(hw, tx_info);
 
 		SET_TX_DESC_SPE_RPT(pdesc, 1);
 		SET_TX_DESC_SW_DEFINE(pdesc, sn);
 	}
 }
-EXPORT_SYMBOL_GPL(rtl_get_tx_report);
+EXPORT_SYMBOL_GPL(rtl_set_tx_report);
 
 void rtl_tx_report_handler(struct ieee80211_hw *hw, u8 *tmp_buf, u8 c2h_cmd_len)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_tx_report *tx_report = &rtlpriv->tx_report;
+	struct rtlwifi_tx_info *tx_info;
+	struct sk_buff_head *queue = &tx_report->queue;
+	struct sk_buff *skb;
 	u16 sn;
 	u8 st, retry;
 
@@ -1642,6 +1679,14 @@ void rtl_tx_report_handler(struct ieee80211_hw *hw, u8 *tmp_buf, u8 c2h_cmd_len)
 
 	tx_report->last_recv_sn = sn;
 
+	skb_queue_walk(queue, skb) {
+		tx_info = rtl_tx_skb_cb_info(skb);
+		if (tx_info->sn == sn) {
+			skb_unlink(skb, queue);
+			rtl_tx_status(hw, skb, st == 0);
+			break;
+		}
+	}
 	RT_TRACE(rtlpriv, COMP_TX_REPORT, DBG_DMESG,
 		 "Recv TX-Report st=0x%02X sn=0x%X retry=0x%X\n",
 		 st, sn, retry);
@@ -1909,6 +1954,25 @@ static void rtl_free_entries_from_scan_list(struct ieee80211_hw *hw)
 	}
 }
 
+static void rtl_free_entries_from_ack_queue(struct ieee80211_hw *hw,
+					    bool chk_timeout)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_tx_report *tx_report = &rtlpriv->tx_report;
+	struct sk_buff_head *queue = &tx_report->queue;
+	struct sk_buff *skb, *tmp;
+	struct rtlwifi_tx_info *tx_info;
+
+	skb_queue_walk_safe(queue, skb, tmp) {
+		tx_info = rtl_tx_skb_cb_info(skb);
+		if (chk_timeout &&
+		    time_after(tx_info->send_time + HZ, jiffies))
+			continue;
+		skb_unlink(skb, queue);
+		rtl_tx_status(hw, skb, false);
+	}
+}
+
 void rtl_scan_list_expire(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -2173,6 +2237,9 @@ label_lps_done:
 
 	/* <6> scan list */
 	rtl_scan_list_expire(hw);
+
+	/* <7> check ack queue */
+	rtl_free_entries_from_ack_queue(hw, true);
 }
 
 void rtl_watch_dog_timer_callback(struct timer_list *t)
@@ -2195,81 +2262,122 @@ void rtl_fwevt_wq_callback(void *data)
 	rtlpriv->cfg->ops->c2h_command_handle(hw);
 }
 
-void rtl_c2hcmd_enqueue(struct ieee80211_hw *hw, u8 tag, u8 len, u8 *val)
+static void rtl_c2h_content_parsing(struct ieee80211_hw *hw,
+				    struct sk_buff *skb);
+
+static bool rtl_c2h_fast_cmd(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	u8 cmd_id = GET_C2H_CMD_ID(skb->data);
+
+	switch (cmd_id) {
+	case C2H_BT_MP:
+		return true;
+	default:
+		break;
+	}
+
+	return false;
+}
+
+void rtl_c2hcmd_enqueue(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	unsigned long flags;
-	struct rtl_c2hcmd *c2hcmd;
 
-	c2hcmd = kmalloc(sizeof(*c2hcmd),
-			 in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
-
-	if (!c2hcmd)
-		goto label_err;
-
-	c2hcmd->val = kmalloc(len,
-			      in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
-
-	if (!c2hcmd->val)
-		goto label_err2;
-
-	/* fill data */
-	c2hcmd->tag = tag;
-	c2hcmd->len = len;
-	memcpy(c2hcmd->val, val, len);
+	if (rtl_c2h_fast_cmd(hw, skb)) {
+		rtl_c2h_content_parsing(hw, skb);
+		return;
+	}
 
 	/* enqueue */
 	spin_lock_irqsave(&rtlpriv->locks.c2hcmd_lock, flags);
 
-	list_add_tail(&c2hcmd->list, &rtlpriv->c2hcmd_list);
+	__skb_queue_tail(&rtlpriv->c2hcmd_queue, skb);
 
 	spin_unlock_irqrestore(&rtlpriv->locks.c2hcmd_lock, flags);
 
 	/* wake up wq */
 	queue_delayed_work(rtlpriv->works.rtl_wq, &rtlpriv->works.c2hcmd_wq, 0);
-
-	return;
-
-label_err2:
-	kfree(c2hcmd);
-
-label_err:
-	RT_TRACE(rtlpriv, COMP_CMD, DBG_WARNING,
-		 "C2H cmd enqueue fail.\n");
 }
 EXPORT_SYMBOL(rtl_c2hcmd_enqueue);
+
+static void rtl_c2h_content_parsing(struct ieee80211_hw *hw,
+				    struct sk_buff *skb)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_hal_ops *hal_ops = rtlpriv->cfg->ops;
+	const struct rtl_btc_ops *btc_ops = rtlpriv->btcoexist.btc_ops;
+	u8 cmd_id, cmd_seq, cmd_len;
+	u8 *cmd_buf = NULL;
+
+	cmd_id = GET_C2H_CMD_ID(skb->data);
+	cmd_seq = GET_C2H_SEQ(skb->data);
+	cmd_len = skb->len - C2H_DATA_OFFSET;
+	cmd_buf = GET_C2H_DATA_PTR(skb->data);
+
+	switch (cmd_id) {
+	case C2H_DBG:
+		RT_TRACE(rtlpriv, COMP_FW, DBG_LOUD, "[C2H], C2H_DBG!!\n");
+		break;
+	case C2H_TXBF:
+		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
+			 "[C2H], C2H_TXBF!!\n");
+		break;
+	case C2H_TX_REPORT:
+		rtl_tx_report_handler(hw, cmd_buf, cmd_len);
+		break;
+	case C2H_RA_RPT:
+		if (hal_ops->c2h_ra_report_handler)
+			hal_ops->c2h_ra_report_handler(hw, cmd_buf, cmd_len);
+		break;
+	case C2H_BT_INFO:
+		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
+			 "[C2H], C2H_BT_INFO!!\n");
+		if (rtlpriv->cfg->ops->get_btc_status())
+			btc_ops->btc_btinfo_notify(rtlpriv, cmd_buf, cmd_len);
+		break;
+	case C2H_BT_MP:
+		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
+			 "[C2H], C2H_BT_MP!!\n");
+		if (rtlpriv->cfg->ops->get_btc_status())
+			btc_ops->btc_btmpinfo_notify(rtlpriv, cmd_buf, cmd_len);
+		break;
+	default:
+		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
+			 "[C2H], Unknown packet!! cmd_id(%#X)!\n", cmd_id);
+		break;
+	}
+}
 
 void rtl_c2hcmd_launcher(struct ieee80211_hw *hw, int exec)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct sk_buff *skb;
 	unsigned long flags;
-	struct rtl_c2hcmd *c2hcmd;
 	int i;
 
 	for (i = 0; i < 200; i++) {
 		/* dequeue a task */
 		spin_lock_irqsave(&rtlpriv->locks.c2hcmd_lock, flags);
 
-		c2hcmd = list_first_entry_or_null(&rtlpriv->c2hcmd_list,
-						  struct rtl_c2hcmd, list);
-
-		if (c2hcmd)
-			list_del(&c2hcmd->list);
+		skb = __skb_dequeue(&rtlpriv->c2hcmd_queue);
 
 		spin_unlock_irqrestore(&rtlpriv->locks.c2hcmd_lock, flags);
 
 		/* do it */
-		if (!c2hcmd)
+		if (!skb)
 			break;
 
-		if (rtlpriv->cfg->ops->c2h_content_parsing && exec)
-			rtlpriv->cfg->ops->c2h_content_parsing(hw,
-					c2hcmd->tag, c2hcmd->len, c2hcmd->val);
+		RT_TRACE(rtlpriv, COMP_FW, DBG_DMESG, "C2H rx_desc_shift=%d\n",
+			 *((u8 *)skb->cb));
+		RT_PRINT_DATA(rtlpriv, COMP_FW, DBG_DMESG,
+			      "C2H data: ", skb->data, skb->len);
+
+		if (exec)
+			rtl_c2h_content_parsing(hw, skb);
 
 		/* free */
-		kfree(c2hcmd->val);
-
-		kfree(c2hcmd);
+		dev_kfree_skb_any(skb);
 	}
 }
 

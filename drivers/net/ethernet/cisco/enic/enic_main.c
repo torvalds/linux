@@ -2320,16 +2320,24 @@ static int enic_set_rss_nic_cfg(struct enic *enic)
 {
 	struct device *dev = enic_get_dev(enic);
 	const u8 rss_default_cpu = 0;
-	u8 rss_hash_type = NIC_CFG_RSS_HASH_TYPE_IPV4 |
-		NIC_CFG_RSS_HASH_TYPE_TCP_IPV4 |
-		NIC_CFG_RSS_HASH_TYPE_IPV6 |
-		NIC_CFG_RSS_HASH_TYPE_TCP_IPV6;
 	const u8 rss_hash_bits = 7;
 	const u8 rss_base_cpu = 0;
+	u8 rss_hash_type;
+	int res;
 	u8 rss_enable = ENIC_SETTING(enic, RSS) && (enic->rq_count > 1);
 
-	if (vnic_dev_capable_udp_rss(enic->vdev))
-		rss_hash_type |= NIC_CFG_RSS_HASH_TYPE_UDP;
+	spin_lock_bh(&enic->devcmd_lock);
+	res = vnic_dev_capable_rss_hash_type(enic->vdev, &rss_hash_type);
+	spin_unlock_bh(&enic->devcmd_lock);
+	if (res) {
+		/* defaults for old adapters
+		 */
+		rss_hash_type = NIC_CFG_RSS_HASH_TYPE_IPV4	|
+				NIC_CFG_RSS_HASH_TYPE_TCP_IPV4	|
+				NIC_CFG_RSS_HASH_TYPE_IPV6	|
+				NIC_CFG_RSS_HASH_TYPE_TCP_IPV6;
+	}
+
 	if (rss_enable) {
 		if (!enic_set_rsskey(enic)) {
 			if (enic_set_rsscpu(enic, rss_hash_bits)) {

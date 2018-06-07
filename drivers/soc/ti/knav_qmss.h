@@ -292,6 +292,11 @@ struct knav_queue {
 	struct list_head		list;
 };
 
+enum qmss_version {
+	QMSS,
+	QMSS_66AK2G,
+};
+
 struct knav_device {
 	struct device				*dev;
 	unsigned				base_id;
@@ -305,6 +310,7 @@ struct knav_device {
 	struct list_head			pools;
 	struct list_head			pdsps;
 	struct list_head			qmgrs;
+	enum qmss_version			version;
 };
 
 struct knav_range_ops {

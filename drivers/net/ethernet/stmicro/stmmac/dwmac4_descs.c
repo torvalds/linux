@@ -189,9 +189,12 @@ static void dwmac4_set_tx_owner(struct dma_desc *p)
 	p->des3 |= cpu_to_le32(TDES3_OWN);
 }
 
-static void dwmac4_set_rx_owner(struct dma_desc *p)
+static void dwmac4_set_rx_owner(struct dma_desc *p, int disable_rx_ic)
 {
-	p->des3 |= cpu_to_le32(RDES3_OWN);
+	p->des3 = cpu_to_le32(RDES3_OWN | RDES3_BUFFER1_VALID_ADDR);
+
+	if (!disable_rx_ic)
+		p->des3 |= cpu_to_le32(RDES3_INT_ON_COMPLETION_EN);
 }
 
 static int dwmac4_get_tx_ls(struct dma_desc *p)
@@ -223,7 +226,7 @@ static int dwmac4_wrback_get_tx_timestamp_status(struct dma_desc *p)
 	return 0;
 }
 
-static inline u64 dwmac4_get_timestamp(void *desc, u32 ats)
+static inline void dwmac4_get_timestamp(void *desc, u32 ats, u64 *ts)
 {
 	struct dma_desc *p = (struct dma_desc *)desc;
 	u64 ns;
@@ -232,7 +235,7 @@ static inline u64 dwmac4_get_timestamp(void *desc, u32 ats)
 	/* convert high/sec time stamp value to nanosecond */
 	ns += le32_to_cpu(p->des1) * 1000000000ULL;
 
-	return ns;
+	*ts = ns;
 }
 
 static int dwmac4_rx_check_timestamp(void *desc)
@@ -292,10 +295,7 @@ exit:
 static void dwmac4_rd_init_rx_desc(struct dma_desc *p, int disable_rx_ic,
 				   int mode, int end)
 {
-	p->des3 = cpu_to_le32(RDES3_OWN | RDES3_BUFFER1_VALID_ADDR);
-
-	if (!disable_rx_ic)
-		p->des3 |= cpu_to_le32(RDES3_INT_ON_COMPLETION_EN);
+	dwmac4_set_rx_owner(p, disable_rx_ic);
 }
 
 static void dwmac4_rd_init_tx_desc(struct dma_desc *p, int mode, int end)
@@ -424,6 +424,25 @@ static void dwmac4_set_mss_ctxt(struct dma_desc *p, unsigned int mss)
 	p->des3 = cpu_to_le32(TDES3_CONTEXT_TYPE | TDES3_CTXT_TCMSSV);
 }
 
+static void dwmac4_get_addr(struct dma_desc *p, unsigned int *addr)
+{
+	*addr = le32_to_cpu(p->des0);
+}
+
+static void dwmac4_set_addr(struct dma_desc *p, dma_addr_t addr)
+{
+	p->des0 = cpu_to_le32(addr);
+	p->des1 = 0;
+}
+
+static void dwmac4_clear(struct dma_desc *p)
+{
+	p->des0 = 0;
+	p->des1 = 0;
+	p->des2 = 0;
+	p->des3 = 0;
+}
+
 const struct stmmac_desc_ops dwmac4_desc_ops = {
 	.tx_status = dwmac4_wrback_get_tx_status,
 	.rx_status = dwmac4_wrback_get_rx_status,
@@ -445,6 +464,9 @@ const struct stmmac_desc_ops dwmac4_desc_ops = {
 	.init_tx_desc = dwmac4_rd_init_tx_desc,
 	.display_ring = dwmac4_display_ring,
 	.set_mss = dwmac4_set_mss_ctxt,
+	.get_addr = dwmac4_get_addr,
+	.set_addr = dwmac4_set_addr,
+	.clear = dwmac4_clear,
 };
 
 const struct stmmac_mode_ops dwmac4_ring_mode_ops = { };

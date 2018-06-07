@@ -156,7 +156,7 @@ nf_conntrack_timestamp - BOOLEAN
 nf_conntrack_udp_timeout - INTEGER (seconds)
 	default 30
 
-nf_conntrack_udp_timeout_stream2 - INTEGER (seconds)
+nf_conntrack_udp_timeout_stream - INTEGER (seconds)
 	default 180
 
 	This extended timeout will be used in case there is an UDP stream

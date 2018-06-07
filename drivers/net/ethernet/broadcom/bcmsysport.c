@@ -654,7 +654,7 @@ static int bcm_sysport_set_coalesce(struct net_device *dev,
 	pkts = priv->rx_max_coalesced_frames;
 
 	if (ec->use_adaptive_rx_coalesce && !priv->dim.use_dim) {
-		moder = net_dim_get_def_profile(priv->dim.dim.mode);
+		moder = net_dim_get_def_rx_moderation(priv->dim.dim.mode);
 		usecs = moder.usec;
 		pkts = moder.pkts;
 	}
@@ -1064,7 +1064,7 @@ static void bcm_sysport_dim_work(struct work_struct *work)
 	struct bcm_sysport_priv *priv =
 			container_of(ndim, struct bcm_sysport_priv, dim);
 	struct net_dim_cq_moder cur_profile =
-				net_dim_get_profile(dim->mode, dim->profile_ix);
+			net_dim_get_rx_moderation(dim->mode, dim->profile_ix);
 
 	bcm_sysport_set_rx_coalesce(priv, cur_profile.usec, cur_profile.pkts);
 	dim->state = NET_DIM_START_MEASURE;
@@ -1437,7 +1437,7 @@ static void bcm_sysport_init_rx_coalesce(struct bcm_sysport_priv *priv)
 
 	/* If DIM was enabled, re-apply default parameters */
 	if (dim->use_dim) {
-		moder = net_dim_get_def_profile(dim->dim.mode);
+		moder = net_dim_get_def_rx_moderation(dim->dim.mode);
 		usecs = moder.usec;
 		pkts = moder.pkts;
 	}

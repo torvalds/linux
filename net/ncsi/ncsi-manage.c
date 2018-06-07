@@ -27,125 +27,6 @@
 LIST_HEAD(ncsi_dev_list);
 DEFINE_SPINLOCK(ncsi_dev_lock);
 
-static inline int ncsi_filter_size(int table)
-{
-	int sizes[] = { 2, 6, 6, 6 };
-
-	BUILD_BUG_ON(ARRAY_SIZE(sizes) != NCSI_FILTER_MAX);
-	if (table < NCSI_FILTER_BASE || table >= NCSI_FILTER_MAX)
-		return -EINVAL;
-
-	return sizes[table];
-}
-
-u32 *ncsi_get_filter(struct ncsi_channel *nc, int table, int index)
-{
-	struct ncsi_channel_filter *ncf;
-	int size;
-
-	ncf = nc->filters[table];
-	if (!ncf)
-		return NULL;
-
-	size = ncsi_filter_size(table);
-	if (size < 0)
-		return NULL;
-
-	return ncf->data + size * index;
-}
-
-/* Find the first active filter in a filter table that matches the given
- * data parameter. If data is NULL, this returns the first active filter.
- */
-int ncsi_find_filter(struct ncsi_channel *nc, int table, void *data)
-{
-	struct ncsi_channel_filter *ncf;
-	void *bitmap;
-	int index, size;
-	unsigned long flags;
-
-	ncf = nc->filters[table];
-	if (!ncf)
-		return -ENXIO;
-
-	size = ncsi_filter_size(table);
-	if (size < 0)
-		return size;
-
-	spin_lock_irqsave(&nc->lock, flags);
-	bitmap = (void *)&ncf->bitmap;
-	index = -1;
-	while ((index = find_next_bit(bitmap, ncf->total, index + 1))
-	       < ncf->total) {
-		if (!data || !memcmp(ncf->data + size * index, data, size)) {
-			spin_unlock_irqrestore(&nc->lock, flags);
-			return index;
-		}
-	}
-	spin_unlock_irqrestore(&nc->lock, flags);
-
-	return -ENOENT;
-}
-
-int ncsi_add_filter(struct ncsi_channel *nc, int table, void *data)
-{
-	struct ncsi_channel_filter *ncf;
-	int index, size;
-	void *bitmap;
-	unsigned long flags;
-
-	size = ncsi_filter_size(table);
-	if (size < 0)
-		return size;
-
-	index = ncsi_find_filter(nc, table, data);
-	if (index >= 0)
-		return index;
-
-	ncf = nc->filters[table];
-	if (!ncf)
-		return -ENODEV;
-
-	spin_lock_irqsave(&nc->lock, flags);
-	bitmap = (void *)&ncf->bitmap;
-	do {
-		index = find_next_zero_bit(bitmap, ncf->total, 0);
-		if (index >= ncf->total) {
-			spin_unlock_irqrestore(&nc->lock, flags);
-			return -ENOSPC;
-		}
-	} while (test_and_set_bit(index, bitmap));
-
-	memcpy(ncf->data + size * index, data, size);
-	spin_unlock_irqrestore(&nc->lock, flags);
-
-	return index;
-}
-
-int ncsi_remove_filter(struct ncsi_channel *nc, int table, int index)
-{
-	struct ncsi_channel_filter *ncf;
-	int size;
-	void *bitmap;
-	unsigned long flags;
-
-	size = ncsi_filter_size(table);
-	if (size < 0)
-		return size;
-
-	ncf = nc->filters[table];
-	if (!ncf || index >= ncf->total)
-		return -ENODEV;
-
-	spin_lock_irqsave(&nc->lock, flags);
-	bitmap = (void *)&ncf->bitmap;
-	if (test_and_clear_bit(index, bitmap))
-		memset(ncf->data + size * index, 0, size);
-	spin_unlock_irqrestore(&nc->lock, flags);
-
-	return 0;
-}
-
 static void ncsi_report_link(struct ncsi_dev_priv *ndp, bool force_down)
 {
 	struct ncsi_dev *nd = &ndp->ndev;
@@ -339,20 +220,13 @@ struct ncsi_channel *ncsi_add_channel(struct ncsi_package *np, unsigned char id)
 static void ncsi_remove_channel(struct ncsi_channel *nc)
 {
 	struct ncsi_package *np = nc->package;
-	struct ncsi_channel_filter *ncf;
 	unsigned long flags;
-	int i;
+
+	spin_lock_irqsave(&nc->lock, flags);
 
 	/* Release filters */
-	spin_lock_irqsave(&nc->lock, flags);
-	for (i = 0; i < NCSI_FILTER_MAX; i++) {
-		ncf = nc->filters[i];
-		if (!ncf)
-			continue;
-
-		nc->filters[i] = NULL;
-		kfree(ncf);
-	}
+	kfree(nc->mac_filter.addrs);
+	kfree(nc->vlan_filter.vids);
 
 	nc->state = NCSI_CHANNEL_INACTIVE;
 	spin_unlock_irqrestore(&nc->lock, flags);
@@ -670,32 +544,26 @@ error:
 static int clear_one_vid(struct ncsi_dev_priv *ndp, struct ncsi_channel *nc,
 			 struct ncsi_cmd_arg *nca)
 {
+	struct ncsi_channel_vlan_filter *ncf;
+	unsigned long flags;
+	void *bitmap;
 	int index;
-	u32 *data;
 	u16 vid;
 
-	index = ncsi_find_filter(nc, NCSI_FILTER_VLAN, NULL);
-	if (index < 0) {
-		/* Filter table empty */
+	ncf = &nc->vlan_filter;
+	bitmap = &ncf->bitmap;
+
+	spin_lock_irqsave(&nc->lock, flags);
+	index = find_next_bit(bitmap, ncf->n_vids, 0);
+	if (index >= ncf->n_vids) {
+		spin_unlock_irqrestore(&nc->lock, flags);
 		return -1;
 	}
+	vid = ncf->vids[index];
 
-	data = ncsi_get_filter(nc, NCSI_FILTER_VLAN, index);
-	if (!data) {
-		netdev_err(ndp->ndev.dev,
-			   "NCSI: failed to retrieve filter %d\n", index);
-		/* Set the VLAN id to 0 - this will still disable the entry in
-		 * the filter table, but we won't know what it was.
-		 */
-		vid = 0;
-	} else {
-		vid = *(u16 *)data;
-	}
-
-	netdev_printk(KERN_DEBUG, ndp->ndev.dev,
-		      "NCSI: removed vlan tag %u at index %d\n",
-		      vid, index + 1);
-	ncsi_remove_filter(nc, NCSI_FILTER_VLAN, index);
+	clear_bit(index, bitmap);
+	ncf->vids[index] = 0;
+	spin_unlock_irqrestore(&nc->lock, flags);
 
 	nca->type = NCSI_PKT_CMD_SVF;
 	nca->words[1] = vid;
@@ -711,45 +579,55 @@ static int clear_one_vid(struct ncsi_dev_priv *ndp, struct ncsi_channel *nc,
 static int set_one_vid(struct ncsi_dev_priv *ndp, struct ncsi_channel *nc,
 		       struct ncsi_cmd_arg *nca)
 {
+	struct ncsi_channel_vlan_filter *ncf;
 	struct vlan_vid *vlan = NULL;
-	int index = 0;
+	unsigned long flags;
+	int i, index;
+	void *bitmap;
+	u16 vid;
 
+	if (list_empty(&ndp->vlan_vids))
+		return -1;
+
+	ncf = &nc->vlan_filter;
+	bitmap = &ncf->bitmap;
+
+	spin_lock_irqsave(&nc->lock, flags);
+
+	rcu_read_lock();
 	list_for_each_entry_rcu(vlan, &ndp->vlan_vids, list) {
-		index = ncsi_find_filter(nc, NCSI_FILTER_VLAN, &vlan->vid);
-		if (index < 0) {
-			/* New tag to add */
-			netdev_printk(KERN_DEBUG, ndp->ndev.dev,
-				      "NCSI: new vlan id to set: %u\n",
-				      vlan->vid);
+		vid = vlan->vid;
+		for (i = 0; i < ncf->n_vids; i++)
+			if (ncf->vids[i] == vid) {
+				vid = 0;
+				break;
+			}
+		if (vid)
 			break;
-		}
-		netdev_printk(KERN_DEBUG, ndp->ndev.dev,
-			      "vid %u already at filter pos %d\n",
-			      vlan->vid, index);
 	}
+	rcu_read_unlock();
 
-	if (!vlan || index >= 0) {
-		netdev_printk(KERN_DEBUG, ndp->ndev.dev,
-			      "no vlan ids left to set\n");
+	if (!vid) {
+		/* No VLAN ID is not set */
+		spin_unlock_irqrestore(&nc->lock, flags);
 		return -1;
 	}
 
-	index = ncsi_add_filter(nc, NCSI_FILTER_VLAN, &vlan->vid);
-	if (index < 0) {
+	index = find_next_zero_bit(bitmap, ncf->n_vids, 0);
+	if (index < 0 || index >= ncf->n_vids) {
 		netdev_err(ndp->ndev.dev,
-			   "Failed to add new VLAN tag, error %d\n", index);
-		if (index == -ENOSPC)
-			netdev_err(ndp->ndev.dev,
-				   "Channel %u already has all VLAN filters set\n",
-				   nc->id);
+			   "Channel %u already has all VLAN filters set\n",
+			   nc->id);
+		spin_unlock_irqrestore(&nc->lock, flags);
 		return -1;
 	}
 
-	netdev_printk(KERN_DEBUG, ndp->ndev.dev,
-		      "NCSI: set vid %u in packet, index %u\n",
-		      vlan->vid, index + 1);
+	ncf->vids[index] = vid;
+	set_bit(index, bitmap);
+	spin_unlock_irqrestore(&nc->lock, flags);
+
 	nca->type = NCSI_PKT_CMD_SVF;
-	nca->words[1] = vlan->vid;
+	nca->words[1] = vid;
 	/* HW filter index starts at 1 */
 	nca->bytes[6] = index + 1;
 	nca->bytes[7] = 0x01;

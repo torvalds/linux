@@ -3,6 +3,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -12,10 +13,6 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
@@ -651,9 +648,10 @@ static void rs_tl_turn_on_agg(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 	}
 
 	tid_data = &mvmsta->tid_data[tid];
-	if ((tid_data->state == IWL_AGG_OFF) &&
+	if (mvmsta->sta_state >= IEEE80211_STA_AUTHORIZED &&
+	    tid_data->state == IWL_AGG_OFF &&
 	    (lq_sta->tx_agg_tid_en & BIT(tid)) &&
-	    (tid_data->tx_count_last >= IWL_MVM_RS_AGG_START_THRESHOLD)) {
+	    tid_data->tx_count_last >= IWL_MVM_RS_AGG_START_THRESHOLD) {
 		IWL_DEBUG_RATE(mvm, "try to aggregate tid %d\n", tid);
 		if (rs_tl_turn_on_agg_for_tid(mvm, lq_sta, tid, sta) == 0)
 			tid_data->state = IWL_AGG_QUEUED;
@@ -1257,7 +1255,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		       (unsigned long)(lq_sta->last_tx +
 				       (IWL_MVM_RS_IDLE_TIMEOUT * HZ)))) {
 		IWL_DEBUG_RATE(mvm, "Tx idle for too long. reinit rs\n");
-		iwl_mvm_rs_rate_init(mvm, sta, info->band, false);
+		iwl_mvm_rs_rate_init(mvm, sta, info->band);
 		return;
 	}
 	lq_sta->last_tx = jiffies;
@@ -1715,12 +1713,18 @@ static void rs_set_amsdu_len(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
+	/*
+	 * In case TLC offload is not active amsdu_enabled is either 0xFFFF
+	 * or 0, since there is no per-TID alg.
+	 */
 	if ((!is_vht(&tbl->rate) && !is_ht(&tbl->rate)) ||
 	    tbl->rate.index < IWL_RATE_MCS_5_INDEX ||
 	    scale_action == RS_ACTION_DOWNSCALE)
-		mvmsta->tlc_amsdu = false;
+		mvmsta->amsdu_enabled = 0;
 	else
-		mvmsta->tlc_amsdu = true;
+		mvmsta->amsdu_enabled = 0xFFFF;
+
+	mvmsta->max_amsdu_len = sta->max_amsdu_len;
 }
 
 /*
@@ -2684,9 +2688,9 @@ static void rs_get_initial_rate(struct iwl_mvm *mvm,
 				struct ieee80211_sta *sta,
 				struct iwl_lq_sta *lq_sta,
 				enum nl80211_band band,
-				struct rs_rate *rate,
-				bool init)
+				struct rs_rate *rate)
 {
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	int i, nentries;
 	unsigned long active_rate;
 	s8 best_rssi = S8_MIN;
@@ -2748,7 +2752,8 @@ static void rs_get_initial_rate(struct iwl_mvm *mvm,
 		 * bandwidth rate, and after authorization, when the phy context
 		 * is already up-to-date, re-init rs with the correct bw.
 		 */
-		u32 bw = init ? RATE_MCS_CHAN_WIDTH_20 : rs_bw_from_sta_bw(sta);
+		u32 bw = mvmsta->sta_state < IEEE80211_STA_AUTHORIZED ?
+				RATE_MCS_CHAN_WIDTH_20 : rs_bw_from_sta_bw(sta);
 
 		switch (bw) {
 		case RATE_MCS_CHAN_WIDTH_40:
@@ -2833,9 +2838,9 @@ void rs_update_last_rssi(struct iwl_mvm *mvm,
 static void rs_initialize_lq(struct iwl_mvm *mvm,
 			     struct ieee80211_sta *sta,
 			     struct iwl_lq_sta *lq_sta,
-			     enum nl80211_band band,
-			     bool init)
+			     enum nl80211_band band)
 {
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_scale_tbl_info *tbl;
 	struct rs_rate *rate;
 	u8 active_tbl = 0;
@@ -2851,7 +2856,7 @@ static void rs_initialize_lq(struct iwl_mvm *mvm,
 	tbl = &(lq_sta->lq_info[active_tbl]);
 	rate = &tbl->rate;
 
-	rs_get_initial_rate(mvm, sta, lq_sta, band, rate, init);
+	rs_get_initial_rate(mvm, sta, lq_sta, band, rate);
 	rs_init_optimal_rate(mvm, sta, lq_sta);
 
 	WARN_ONCE(rate->ant != ANT_A && rate->ant != ANT_B,
@@ -2864,7 +2869,8 @@ static void rs_initialize_lq(struct iwl_mvm *mvm,
 	rs_set_expected_tpt_table(lq_sta, tbl);
 	rs_fill_lq_cmd(mvm, sta, lq_sta, rate);
 	/* TODO restore station should remember the lq cmd */
-	iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq, init);
+	iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq,
+			    mvmsta->sta_state < IEEE80211_STA_AUTHORIZED);
 }
 
 static void rs_drv_get_rate(void *mvm_r, struct ieee80211_sta *sta,
@@ -3117,7 +3123,7 @@ void iwl_mvm_update_frame_stats(struct iwl_mvm *mvm, u32 rate, bool agg)
  * Called after adding a new station to initialize rate scaling
  */
 static void rs_drv_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-			     enum nl80211_band band, bool init)
+			     enum nl80211_band band)
 {
 	int i, j;
 	struct ieee80211_hw *hw = mvm->hw;
@@ -3134,7 +3140,8 @@ static void rs_drv_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	sband = hw->wiphy->bands[band];
 
 	lq_sta->lq.sta_id = mvmsta->sta_id;
-	mvmsta->tlc_amsdu = false;
+	mvmsta->amsdu_enabled = 0;
+	mvmsta->max_amsdu_len = sta->max_amsdu_len;
 
 	for (j = 0; j < LQ_SIZE; j++)
 		rs_rate_scale_clear_tbl_windows(mvm, &lq_sta->lq_info[j]);
@@ -3196,7 +3203,7 @@ static void rs_drv_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	iwl_mvm_reset_frame_stats(mvm);
 #endif
-	rs_initialize_lq(mvm, sta, lq_sta, band, init);
+	rs_initialize_lq(mvm, sta, lq_sta, band);
 }
 
 static void rs_drv_rate_update(void *mvm_r,
@@ -3216,7 +3223,7 @@ static void rs_drv_rate_update(void *mvm_r,
 	for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++)
 		ieee80211_stop_tx_ba_session(sta, tid);
 
-	iwl_mvm_rs_rate_init(mvm, sta, sband->band, false);
+	iwl_mvm_rs_rate_init(mvm, sta, sband->band);
 }
 
 #ifdef CONFIG_MAC80211_DEBUGFS
@@ -3744,7 +3751,7 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 				(rate->sgi) ? "SGI" : "NGI",
 				(rate->ldpc) ? "LDPC" : "BCC",
 				(lq_sta->is_agg) ? "AGG on" : "",
-				(mvmsta->tlc_amsdu) ? "AMSDU on" : "");
+				(mvmsta->amsdu_enabled) ? "AMSDU on" : "");
 	}
 	desc += scnprintf(buff + desc, bufsz - desc, "last tx rate=0x%X\n",
 			lq_sta->last_rate_n_flags);
@@ -4062,12 +4069,12 @@ static const struct rate_control_ops rs_mvm_ops_drv = {
 };
 
 void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-			  enum nl80211_band band, bool init)
+			  enum nl80211_band band)
 {
 	if (iwl_mvm_has_tlc_offload(mvm))
 		rs_fw_rate_init(mvm, sta, band);
 	else
-		rs_drv_rate_init(mvm, sta, band, init);
+		rs_drv_rate_init(mvm, sta, band);
 }
 
 int iwl_mvm_rate_control_register(void)

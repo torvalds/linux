@@ -90,8 +90,12 @@ struct mlx5_flow_destination {
 	union {
 		u32			tir_num;
 		struct mlx5_flow_table	*ft;
-		u32			vport_num;
 		struct mlx5_fc		*counter;
+		struct {
+			u16		num;
+			u16		vhca_id;
+			bool		vhca_id_valid;
+		} vport;
 	};
 };
 

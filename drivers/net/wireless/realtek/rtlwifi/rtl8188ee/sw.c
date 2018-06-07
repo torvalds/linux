@@ -263,8 +263,6 @@ static struct rtl_hal_ops rtl8188ee_hal_ops = {
 	.get_rfreg = rtl88e_phy_query_rf_reg,
 	.set_rfreg = rtl88e_phy_set_rf_reg,
 	.get_btc_status = rtl88e_get_btc_status,
-	.rx_command_packet = rtl88ee_rx_command_packet,
-
 };
 
 static struct rtl_mod_params rtl88ee_mod_params = {

@@ -477,6 +477,7 @@ enum rxrpc_call_flag {
 	RXRPC_CALL_PINGING,		/* Ping in process */
 	RXRPC_CALL_RETRANS_TIMEOUT,	/* Retransmission due to timeout occurred */
 	RXRPC_CALL_BEGAN_RX_TIMER,	/* We began the expect_rx_by timer */
+	RXRPC_CALL_RX_HEARD,		/* The peer responded at least once to this call */
 };
 
 /*
@@ -624,6 +625,7 @@ struct rxrpc_call {
 						 */
 	rxrpc_seq_t		rx_top;		/* Highest Rx slot allocated. */
 	rxrpc_seq_t		rx_expect_next;	/* Expected next packet sequence number */
+	rxrpc_serial_t		rx_serial;	/* Highest serial received for this call */
 	u8			rx_winsize;	/* Size of Rx window */
 	u8			tx_winsize;	/* Maximum size of Tx window */
 	bool			tx_phase;	/* T if transmission phase, F if receive phase */

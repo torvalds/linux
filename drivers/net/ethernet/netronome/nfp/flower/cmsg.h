@@ -92,6 +92,7 @@
 #define NFP_FL_ACTION_OPCODE_SET_IPV6_DST	12
 #define NFP_FL_ACTION_OPCODE_SET_UDP		14
 #define NFP_FL_ACTION_OPCODE_SET_TCP		15
+#define NFP_FL_ACTION_OPCODE_PRE_LAG		16
 #define NFP_FL_ACTION_OPCODE_PRE_TUNNEL		17
 #define NFP_FL_ACTION_OPCODE_NUM		32
 
@@ -102,6 +103,9 @@
 #define NFP_FL_PUSH_VLAN_PRIO		GENMASK(15, 13)
 #define NFP_FL_PUSH_VLAN_CFI		BIT(12)
 #define NFP_FL_PUSH_VLAN_VID		GENMASK(11, 0)
+
+/* LAG ports */
+#define NFP_FL_LAG_OUT			0xC0DE0000
 
 /* Tunnel ports */
 #define NFP_FL_PORT_TYPE_TUN		0x50000000
@@ -176,6 +180,15 @@ struct nfp_fl_pop_vlan {
 	struct nfp_fl_act_head head;
 	__be16 reserved;
 };
+
+struct nfp_fl_pre_lag {
+	struct nfp_fl_act_head head;
+	__be16 group_id;
+	u8 lag_version[3];
+	u8 instance;
+};
+
+#define NFP_FL_PRE_LAG_VER_OFF	8
 
 struct nfp_fl_pre_tunnel {
 	struct nfp_fl_act_head head;
@@ -366,6 +379,7 @@ struct nfp_flower_cmsg_hdr {
 enum nfp_flower_cmsg_type_port {
 	NFP_FLOWER_CMSG_TYPE_FLOW_ADD =		0,
 	NFP_FLOWER_CMSG_TYPE_FLOW_DEL =		2,
+	NFP_FLOWER_CMSG_TYPE_LAG_CONFIG =	4,
 	NFP_FLOWER_CMSG_TYPE_PORT_REIFY =	6,
 	NFP_FLOWER_CMSG_TYPE_MAC_REPR =		7,
 	NFP_FLOWER_CMSG_TYPE_PORT_MOD =		8,

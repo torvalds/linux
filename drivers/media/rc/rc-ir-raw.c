@@ -14,7 +14,7 @@
 static LIST_HEAD(ir_raw_client_list);
 
 /* Used to handle IR raw handler extensions */
-static DEFINE_MUTEX(ir_raw_handler_lock);
+DEFINE_MUTEX(ir_raw_handler_lock);
 static LIST_HEAD(ir_raw_handler_list);
 static atomic64_t available_protocols = ATOMIC64_INIT(0);
 
@@ -621,9 +621,17 @@ void ir_raw_event_unregister(struct rc_dev *dev)
 	list_for_each_entry(handler, &ir_raw_handler_list, list)
 		if (handler->raw_unregister)
 			handler->raw_unregister(dev);
-	mutex_unlock(&ir_raw_handler_lock);
+
+	lirc_bpf_free(dev);
 
 	ir_raw_event_free(dev);
+
+	/*
+	 * A user can be calling bpf(BPF_PROG_{QUERY|ATTACH|DETACH}), so
+	 * ensure that the raw member is null on unlock; this is how
+	 * "device gone" is checked.
+	 */
+	mutex_unlock(&ir_raw_handler_lock);
 }
 
 /*

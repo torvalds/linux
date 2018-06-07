@@ -439,7 +439,6 @@ qedf_dbg_offload_stats_open(struct inode *inode, struct file *file)
 	return single_open(file, qedf_offload_stats_show, qedf);
 }
 
-
 const struct file_operations qedf_dbg_fops[] = {
 	qedf_dbg_fileops(qedf, fp_int),
 	qedf_dbg_fileops_seq(qedf, io_trace),

@@ -693,7 +693,7 @@ __vxge_hw_device_is_privilaged(u32 host_type, u32 func_id)
 		VXGE_HW_DEVICE_ACCESS_RIGHT_MRPCIM)
 		return VXGE_HW_OK;
 	else
-		return VXGE_HW_ERR_PRIVILAGED_OPEARATION;
+		return VXGE_HW_ERR_PRIVILEGED_OPERATION;
 }
 
 /*
@@ -1920,7 +1920,7 @@ enum vxge_hw_status vxge_hw_device_getpause_data(struct __vxge_hw_device *hldev,
 	}
 
 	if (!(hldev->access_rights & VXGE_HW_DEVICE_ACCESS_RIGHT_MRPCIM)) {
-		status = VXGE_HW_ERR_PRIVILAGED_OPEARATION;
+		status = VXGE_HW_ERR_PRIVILEGED_OPERATION;
 		goto exit;
 	}
 
@@ -3153,7 +3153,7 @@ vxge_hw_mgmt_reg_read(struct __vxge_hw_device *hldev,
 	case vxge_hw_mgmt_reg_type_mrpcim:
 		if (!(hldev->access_rights &
 			VXGE_HW_DEVICE_ACCESS_RIGHT_MRPCIM)) {
-			status = VXGE_HW_ERR_PRIVILAGED_OPEARATION;
+			status = VXGE_HW_ERR_PRIVILEGED_OPERATION;
 			break;
 		}
 		if (offset > sizeof(struct vxge_hw_mrpcim_reg) - 8) {
@@ -3165,7 +3165,7 @@ vxge_hw_mgmt_reg_read(struct __vxge_hw_device *hldev,
 	case vxge_hw_mgmt_reg_type_srpcim:
 		if (!(hldev->access_rights &
 			VXGE_HW_DEVICE_ACCESS_RIGHT_SRPCIM)) {
-			status = VXGE_HW_ERR_PRIVILAGED_OPEARATION;
+			status = VXGE_HW_ERR_PRIVILEGED_OPERATION;
 			break;
 		}
 		if (index > VXGE_HW_TITAN_SRPCIM_REG_SPACES - 1) {
@@ -3279,7 +3279,7 @@ vxge_hw_mgmt_reg_write(struct __vxge_hw_device *hldev,
 	case vxge_hw_mgmt_reg_type_mrpcim:
 		if (!(hldev->access_rights &
 			VXGE_HW_DEVICE_ACCESS_RIGHT_MRPCIM)) {
-			status = VXGE_HW_ERR_PRIVILAGED_OPEARATION;
+			status = VXGE_HW_ERR_PRIVILEGED_OPERATION;
 			break;
 		}
 		if (offset > sizeof(struct vxge_hw_mrpcim_reg) - 8) {
@@ -3291,7 +3291,7 @@ vxge_hw_mgmt_reg_write(struct __vxge_hw_device *hldev,
 	case vxge_hw_mgmt_reg_type_srpcim:
 		if (!(hldev->access_rights &
 			VXGE_HW_DEVICE_ACCESS_RIGHT_SRPCIM)) {
-			status = VXGE_HW_ERR_PRIVILAGED_OPEARATION;
+			status = VXGE_HW_ERR_PRIVILEGED_OPERATION;
 			break;
 		}
 		if (index > VXGE_HW_TITAN_SRPCIM_REG_SPACES - 1) {
