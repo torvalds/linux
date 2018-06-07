@@ -1481,12 +1481,12 @@ static int __init doc_probe(unsigned long physadr)
 		WriteDOC(tmp, virtadr, Mplus_DOCControl);
 		WriteDOC(~tmp, virtadr, Mplus_CtrlConfirm);
 
-		mdelay(1);
+		usleep_range(1000, 2000);
 		/* Enable the Millennium Plus ASIC */
 		tmp = DOC_MODE_NORMAL | DOC_MODE_MDWREN | DOC_MODE_RST_LAT | DOC_MODE_BDECT;
 		WriteDOC(tmp, virtadr, Mplus_DOCControl);
 		WriteDOC(~tmp, virtadr, Mplus_CtrlConfirm);
-		mdelay(1);
+		usleep_range(1000, 2000);
 
 		ChipID = ReadDOC(virtadr, ChipID);
 
