@@ -138,6 +138,7 @@ static void kvmppc_emulate_treclaim(struct kvm_vcpu *vcpu, int ra_val)
 {
 	unsigned long guest_msr = kvmppc_get_msr(vcpu);
 	int fc_val = ra_val ? ra_val : 1;
+	uint64_t texasr;
 
 	/* CR0 = 0 | MSR[TS] | 0 */
 	vcpu->arch.cr = (vcpu->arch.cr & ~(CR0_MASK << CR0_SHIFT)) |
@@ -145,25 +146,26 @@ static void kvmppc_emulate_treclaim(struct kvm_vcpu *vcpu, int ra_val)
 		 << CR0_SHIFT);
 
 	preempt_disable();
+	tm_enable();
+	texasr = mfspr(SPRN_TEXASR);
 	kvmppc_save_tm_pr(vcpu);
 	kvmppc_copyfrom_vcpu_tm(vcpu);
 
-	tm_enable();
-	vcpu->arch.texasr = mfspr(SPRN_TEXASR);
 	/* failure recording depends on Failure Summary bit */
-	if (!(vcpu->arch.texasr & TEXASR_FS)) {
-		vcpu->arch.texasr &= ~TEXASR_FC;
-		vcpu->arch.texasr |= ((u64)fc_val << TEXASR_FC_LG);
+	if (!(texasr & TEXASR_FS)) {
+		texasr &= ~TEXASR_FC;
+		texasr |= ((u64)fc_val << TEXASR_FC_LG) | TEXASR_FS;
 
-		vcpu->arch.texasr &= ~(TEXASR_PR | TEXASR_HV);
+		texasr &= ~(TEXASR_PR | TEXASR_HV);
 		if (kvmppc_get_msr(vcpu) & MSR_PR)
-			vcpu->arch.texasr |= TEXASR_PR;
+			texasr |= TEXASR_PR;
 
 		if (kvmppc_get_msr(vcpu) & MSR_HV)
-			vcpu->arch.texasr |= TEXASR_HV;
+			texasr |= TEXASR_HV;
 
+		vcpu->arch.texasr = texasr;
 		vcpu->arch.tfiar = kvmppc_get_pc(vcpu);
-		mtspr(SPRN_TEXASR, vcpu->arch.texasr);
+		mtspr(SPRN_TEXASR, texasr);
 		mtspr(SPRN_TFIAR, vcpu->arch.tfiar);
 	}
 	tm_disable();
