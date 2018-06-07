@@ -65,8 +65,7 @@
 		regulator-always-on;
 	};
 
-
-	reg_2p5v: regulator-3p3v {
+	reg_2p5v: regulator-2p5v {
 		compatible = "regulator-fixed";
 		regulator-name = "2P5V";
 		regulator-min-microvolt = <2500000>;
