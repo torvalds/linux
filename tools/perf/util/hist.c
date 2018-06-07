@@ -621,9 +621,11 @@ __hists__add_entry(struct hists *hists,
 		.raw_data = sample->raw_data,
 		.raw_size = sample->raw_size,
 		.ops = ops,
-	};
+	}, *he = hists__findnew_entry(hists, &entry, al, sample_self);
 
-	return hists__findnew_entry(hists, &entry, al, sample_self);
+	if (!hists->has_callchains && he && he->callchain_size != 0)
+		hists->has_callchains = true;
+	return he;
 }
 
 struct hist_entry *hists__add_entry(struct hists *hists,
