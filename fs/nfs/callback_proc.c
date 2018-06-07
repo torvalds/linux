@@ -128,7 +128,6 @@ static struct inode *nfs_layout_find_inode_by_stateid(struct nfs_client *clp,
 	struct inode *inode;
 	struct pnfs_layout_hdr *lo;
 
-restart:
 	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
 		list_for_each_entry(lo, &server->layouts, plh_layouts) {
 			if (stateid != NULL &&
@@ -136,20 +135,20 @@ restart:
 				continue;
 			inode = igrab(lo->plh_inode);
 			if (!inode)
-				continue;
+				return ERR_PTR(-EAGAIN);
 			if (!nfs_sb_active(inode->i_sb)) {
 				rcu_read_unlock();
 				spin_unlock(&clp->cl_lock);
 				iput(inode);
 				spin_lock(&clp->cl_lock);
 				rcu_read_lock();
-				goto restart;
+				return ERR_PTR(-EAGAIN);
 			}
 			return inode;
 		}
 	}
 
-	return NULL;
+	return ERR_PTR(-ENOENT);
 }
 
 /*
@@ -166,7 +165,6 @@ static struct inode *nfs_layout_find_inode_by_fh(struct nfs_client *clp,
 	struct inode *inode;
 	struct pnfs_layout_hdr *lo;
 
-restart:
 	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
 		list_for_each_entry(lo, &server->layouts, plh_layouts) {
 			nfsi = NFS_I(lo->plh_inode);
@@ -176,20 +174,20 @@ restart:
 				continue;
 			inode = igrab(lo->plh_inode);
 			if (!inode)
-				continue;
+				return ERR_PTR(-EAGAIN);
 			if (!nfs_sb_active(inode->i_sb)) {
 				rcu_read_unlock();
 				spin_unlock(&clp->cl_lock);
 				iput(inode);
 				spin_lock(&clp->cl_lock);
 				rcu_read_lock();
-				goto restart;
+				return ERR_PTR(-EAGAIN);
 			}
 			return inode;
 		}
 	}
 
-	return NULL;
+	return ERR_PTR(-ENOENT);
 }
 
 static struct inode *nfs_layout_find_inode(struct nfs_client *clp,
@@ -201,7 +199,7 @@ static struct inode *nfs_layout_find_inode(struct nfs_client *clp,
 	spin_lock(&clp->cl_lock);
 	rcu_read_lock();
 	inode = nfs_layout_find_inode_by_stateid(clp, stateid);
-	if (!inode)
+	if (inode == ERR_PTR(-ENOENT))
 		inode = nfs_layout_find_inode_by_fh(clp, fh);
 	rcu_read_unlock();
 	spin_unlock(&clp->cl_lock);
@@ -256,8 +254,11 @@ static u32 initiate_file_draining(struct nfs_client *clp,
 	LIST_HEAD(free_me_list);
 
 	ino = nfs_layout_find_inode(clp, &args->cbl_fh, &args->cbl_stateid);
-	if (!ino)
-		goto out;
+	if (IS_ERR(ino)) {
+		if (ino == ERR_PTR(-EAGAIN))
+			rv = NFS4ERR_DELAY;
+		goto out_noput;
+	}
 
 	pnfs_layoutcommit_inode(ino, false);
 
@@ -303,9 +304,10 @@ unlock:
 	nfs_commit_inode(ino, 0);
 	pnfs_put_layout_hdr(lo);
 out:
+	nfs_iput_and_deactive(ino);
+out_noput:
 	trace_nfs4_cb_layoutrecall_file(clp, &args->cbl_fh, ino,
 			&args->cbl_stateid, -rv);
-	nfs_iput_and_deactive(ino);
 	return rv;
 }
 
