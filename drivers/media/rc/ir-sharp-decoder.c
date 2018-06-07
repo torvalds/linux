@@ -226,6 +226,7 @@ static struct ir_raw_handler sharp_handler = {
 	.decode		= ir_sharp_decode,
 	.encode		= ir_sharp_encode,
 	.carrier	= 38000,
+	.min_timeout	= SHARP_ECHO_SPACE + SHARP_ECHO_SPACE / 4,
 };
 
 static int __init ir_sharp_decode_init(void)

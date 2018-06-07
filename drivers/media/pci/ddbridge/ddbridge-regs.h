@@ -17,6 +17,9 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+#ifndef __DDBRIDGE_REGS_H__
+#define __DDBRIDGE_REGS_H__
+
 /* ------------------------------------------------------------------------- */
 /* SPI Controller */
 
@@ -154,3 +157,4 @@
 #define LNB_BUF_LEVEL(i)		(LNB_BASE + (i) * 0x20 + 0x10)
 #define LNB_BUF_WRITE(i)		(LNB_BASE + (i) * 0x20 + 0x14)
 
+#endif /* __DDBRIDGE_REGS_H__ */

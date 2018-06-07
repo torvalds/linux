@@ -3642,7 +3642,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		int size, l;
 
 		l = gspca_dev->image_len;
-		size = gspca_dev->frsz;
+		size = gspca_dev->pixfmt.sizeimage;
 		if (len > size - l)
 			len = size - l;
 	}

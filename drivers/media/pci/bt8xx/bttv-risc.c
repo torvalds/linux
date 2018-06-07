@@ -189,20 +189,21 @@ bttv_risc_planar(struct bttv *btv, struct btcx_riscmem *risc,
 				yoffset -= sg_dma_len(ysg);
 				ysg = sg_next(ysg);
 			}
-			while (uoffset && uoffset >= sg_dma_len(usg)) {
-				uoffset -= sg_dma_len(usg);
-				usg = sg_next(usg);
-			}
-			while (voffset && voffset >= sg_dma_len(vsg)) {
-				voffset -= sg_dma_len(vsg);
-				vsg = sg_next(vsg);
-			}
 
 			/* calculate max number of bytes we can write */
 			ylen = todo;
 			if (yoffset + ylen > sg_dma_len(ysg))
 				ylen = sg_dma_len(ysg) - yoffset;
 			if (chroma) {
+				while (uoffset && uoffset >= sg_dma_len(usg)) {
+					uoffset -= sg_dma_len(usg);
+					usg = sg_next(usg);
+				}
+				while (voffset && voffset >= sg_dma_len(vsg)) {
+					voffset -= sg_dma_len(vsg);
+					vsg = sg_next(vsg);
+				}
+
 				if (uoffset + (ylen>>hshift) > sg_dma_len(usg))
 					ylen = (sg_dma_len(usg) - uoffset) << hshift;
 				if (voffset + (ylen>>hshift) > sg_dma_len(vsg))

@@ -38,6 +38,7 @@ struct ir_raw_handler {
 	int (*encode)(enum rc_proto protocol, u32 scancode,
 		      struct ir_raw_event *events, unsigned int max);
 	u32 carrier;
+	u32 min_timeout;
 
 	/* These two should only be used by the mce kbd decoder */
 	int (*raw_register)(struct rc_dev *dev);
@@ -110,6 +111,8 @@ struct ir_raw_event_ctrl {
 	} sharp;
 	struct mce_kbd_dec {
 		struct input_dev *idev;
+		/* locks key up timer */
+		spinlock_t keylock;
 		struct timer_list rx_timeout;
 		char name[64];
 		char phys[64];
@@ -129,6 +132,9 @@ struct ir_raw_event_ctrl {
 		int count;
 		int last_chk;
 		unsigned int bits;
+		bool stick_keyboard;
+		struct input_dev *idev;
+		char name[64];
 	} imon;
 };
 

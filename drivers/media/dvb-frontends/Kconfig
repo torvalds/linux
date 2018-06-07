@@ -903,7 +903,7 @@ comment "Common Interface (EN50221) controller drivers"
 	depends on DVB_CORE
 
 config DVB_CXD2099
-	tristate "CXD2099AR Common Interface driver"
+	tristate "Sony CXD2099AR Common Interface driver"
 	depends on DVB_CORE && I2C
 	select REGMAP_I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT

@@ -2,15 +2,15 @@
 
 .. _selection-api:
 
-API for cropping, composing and scaling
-=======================================
+Cropping, composing and scaling -- the SELECTION API
+====================================================
 
 
 .. toctree::
     :maxdepth: 1
 
-    selection-api-002
-    selection-api-003
-    selection-api-004
-    selection-api-005
-    selection-api-006
+    selection-api-intro.rst
+    selection-api-targets.rst
+    selection-api-configuration.rst
+    selection-api-vs-crop-api.rst
+    selection-api-examples.rst

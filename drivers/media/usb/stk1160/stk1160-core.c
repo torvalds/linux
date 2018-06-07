@@ -167,6 +167,8 @@ static void stk1160_release(struct v4l2_device *v4l2_dev)
 
 	v4l2_ctrl_handler_free(&dev->ctrl_handler);
 	v4l2_device_unregister(&dev->v4l2_dev);
+	mutex_destroy(&dev->v4l_lock);
+	mutex_destroy(&dev->vb_queue_lock);
 	kfree(dev->alt_max_pkt_size);
 	kfree(dev);
 }
@@ -423,7 +425,7 @@ static void stk1160_disconnect(struct usb_interface *interface)
 
 	/*
 	 * This calls stk1160_release if it's the last reference.
-	 * therwise, release is posponed until there are no users left.
+	 * Otherwise, release is posponed until there are no users left.
 	 */
 	v4l2_device_put(&dev->v4l2_dev);
 }

@@ -582,8 +582,15 @@ static long ir_lirc_ioctl(struct file *file, unsigned int cmd,
 		}
 		break;
 
-	case LIRC_SET_REC_TIMEOUT_REPORTS:
+	case LIRC_GET_REC_TIMEOUT:
 		if (!dev->timeout)
+			ret = -ENOTTY;
+		else
+			val = DIV_ROUND_UP(dev->timeout, 1000);
+		break;
+
+	case LIRC_SET_REC_TIMEOUT_REPORTS:
+		if (dev->driver_type != RC_DRIVER_IR_RAW)
 			ret = -ENOTTY;
 		else
 			fh->send_timeout_reports = !!val;
@@ -742,6 +749,7 @@ static void lirc_release_device(struct device *ld)
 
 int ir_lirc_register(struct rc_dev *dev)
 {
+	const char *rx_type, *tx_type;
 	int err, minor;
 
 	minor = ida_simple_get(&lirc_ida, 0, RC_DEV_MAX, GFP_KERNEL);
@@ -766,8 +774,25 @@ int ir_lirc_register(struct rc_dev *dev)
 
 	get_device(&dev->dev);
 
-	dev_info(&dev->dev, "lirc_dev: driver %s registered at minor = %d",
-		 dev->driver_name, minor);
+	switch (dev->driver_type) {
+	case RC_DRIVER_SCANCODE:
+		rx_type = "scancode";
+		break;
+	case RC_DRIVER_IR_RAW:
+		rx_type = "raw IR";
+		break;
+	default:
+		rx_type = "no";
+		break;
+	}
+
+	if (dev->tx_ir)
+		tx_type = "raw IR";
+	else
+		tx_type = "no";
+
+	dev_info(&dev->dev, "lirc_dev: driver %s registered at minor = %d, %s receiver, %s transmitter",
+		 dev->driver_name, minor, rx_type, tx_type);
 
 	return 0;
 
