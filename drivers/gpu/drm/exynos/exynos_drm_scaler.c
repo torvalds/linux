@@ -52,9 +52,9 @@ struct scaler_context {
 static u32 scaler_get_format(u32 drm_fmt)
 {
 	switch (drm_fmt) {
-	case DRM_FORMAT_NV21:
-		return SCALER_YUV420_2P_UV;
 	case DRM_FORMAT_NV12:
+		return SCALER_YUV420_2P_UV;
+	case DRM_FORMAT_NV21:
 		return SCALER_YUV420_2P_VU;
 	case DRM_FORMAT_YUV420:
 		return SCALER_YUV420_3P;
@@ -64,15 +64,15 @@ static u32 scaler_get_format(u32 drm_fmt)
 		return SCALER_YUV422_1P_UYVY;
 	case DRM_FORMAT_YVYU:
 		return SCALER_YUV422_1P_YVYU;
-	case DRM_FORMAT_NV61:
-		return SCALER_YUV422_2P_UV;
 	case DRM_FORMAT_NV16:
+		return SCALER_YUV422_2P_UV;
+	case DRM_FORMAT_NV61:
 		return SCALER_YUV422_2P_VU;
 	case DRM_FORMAT_YUV422:
 		return SCALER_YUV422_3P;
-	case DRM_FORMAT_NV42:
-		return SCALER_YUV444_2P_UV;
 	case DRM_FORMAT_NV24:
+		return SCALER_YUV444_2P_UV;
+	case DRM_FORMAT_NV42:
 		return SCALER_YUV444_2P_VU;
 	case DRM_FORMAT_YUV444:
 		return SCALER_YUV444_3P;
