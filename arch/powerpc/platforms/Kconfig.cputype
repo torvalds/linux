@@ -85,7 +85,6 @@ endchoice
 
 choice
 	prompt "CPU selection"
-	depends on PPC64
 	default GENERIC_CPU
 	help
 	  This will create a kernel which is optimised for a particular CPU.
@@ -95,12 +94,16 @@ choice
 
 config GENERIC_CPU
 	bool "Generic (POWER4 and above)"
-	depends on !CPU_LITTLE_ENDIAN
+	depends on PPC64 && !CPU_LITTLE_ENDIAN
 
 config GENERIC_CPU
 	bool "Generic (POWER8 and above)"
-	depends on CPU_LITTLE_ENDIAN
+	depends on PPC64 && CPU_LITTLE_ENDIAN
 	select ARCH_HAS_FAST_MULTIPLIER
+
+config GENERIC_CPU
+	bool "Generic 32 bits powerpc"
+	depends on PPC32 && !PPC_8xx
 
 config CELL_CPU
 	bool "Cell Broadband Engine"
@@ -137,6 +140,10 @@ config E6500_CPU
 	bool "Freescale e6500"
 	depends on E500
 
+config 860_CPU
+	bool "8xx family"
+	depends on PPC_8xx
+
 endchoice
 
 config TARGET_CPU_BOOL
@@ -152,7 +159,7 @@ config TARGET_CPU
 	default "power7" if POWER7_CPU
 	default "power8" if POWER8_CPU
 	default "power9" if POWER9_CPU
-	default "860" if PPC_8xx
+	default "860" if 860_CPU
 
 config PPC_BOOK3S
 	def_bool y
