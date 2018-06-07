@@ -42,20 +42,6 @@
 #endif				/* PRINTK_HEADER */
 #define PRINTK_HEADER "dasd(eckd):"
 
-#define ECKD_C0(i) (i->home_bytes)
-#define ECKD_F(i) (i->formula)
-#define ECKD_F1(i) (ECKD_F(i)==0x01?(i->factors.f_0x01.f1):\
-		    (i->factors.f_0x02.f1))
-#define ECKD_F2(i) (ECKD_F(i)==0x01?(i->factors.f_0x01.f2):\
-		    (i->factors.f_0x02.f2))
-#define ECKD_F3(i) (ECKD_F(i)==0x01?(i->factors.f_0x01.f3):\
-		    (i->factors.f_0x02.f3))
-#define ECKD_F4(i) (ECKD_F(i)==0x02?(i->factors.f_0x02.f4):0)
-#define ECKD_F5(i) (ECKD_F(i)==0x02?(i->factors.f_0x02.f5):0)
-#define ECKD_F6(i) (i->factor6)
-#define ECKD_F7(i) (i->factor7)
-#define ECKD_F8(i) (i->factor8)
-
 /*
  * raw track access always map to 64k in memory
  * so it maps to 16 blocks of 4k per track
@@ -159,13 +145,6 @@ static const int sizes_trk0[] = { 28, 148, 84 };
 /* head and record addresses of count_area read in analysis ccw */
 static const int count_area_head[] = { 0, 0, 0, 0, 2 };
 static const int count_area_rec[] = { 1, 2, 3, 4, 1 };
-
-static inline unsigned int
-round_up_multiple(unsigned int no, unsigned int mult)
-{
-	int rem = no % mult;
-	return (rem ? no - rem + mult : no);
-}
 
 static inline unsigned int
 ceil_quot(unsigned int d1, unsigned int d2)
