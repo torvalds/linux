@@ -456,6 +456,10 @@ static void kvmppc_set_msr_pr(struct kvm_vcpu *vcpu, u64 msr)
 {
 	ulong old_msr;
 
+	/* For PAPR guest, make sure MSR reflects guest mode */
+	if (vcpu->arch.papr_enabled)
+		msr = (msr & ~MSR_HV) | MSR_ME;
+
 #ifdef EXIT_DEBUG
 	printk(KERN_INFO "KVM: Set MSR to 0x%llx\n", msr);
 #endif
