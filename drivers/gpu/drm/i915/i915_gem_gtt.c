@@ -3588,8 +3588,11 @@ void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv)
 		if (!i915_vma_unbind(vma))
 			continue;
 
-		WARN_ON(i915_vma_bind(vma, obj->cache_level, PIN_UPDATE));
-		WARN_ON(i915_gem_object_set_to_gtt_domain(obj, false));
+		WARN_ON(i915_vma_bind(vma,
+				      obj ? obj->cache_level : 0,
+				      PIN_UPDATE));
+		if (obj)
+			WARN_ON(i915_gem_object_set_to_gtt_domain(obj, false));
 	}
 
 	ggtt->vm.closed = false;

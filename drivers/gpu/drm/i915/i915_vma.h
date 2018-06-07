@@ -407,7 +407,7 @@ static inline void __i915_vma_unpin_fence(struct i915_vma *vma)
 static inline void
 i915_vma_unpin_fence(struct i915_vma *vma)
 {
-	lockdep_assert_held(&vma->obj->base.dev->struct_mutex);
+	/* lockdep_assert_held(&vma->vm->i915->drm.struct_mutex); */
 	if (vma->fence)
 		__i915_vma_unpin_fence(vma);
 }
