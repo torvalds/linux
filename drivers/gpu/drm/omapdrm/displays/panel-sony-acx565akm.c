@@ -629,14 +629,6 @@ static void acx565akm_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void acx565akm_set_timings(struct omap_dss_device *dssdev,
-				  const struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	src->ops->set_timings(src, vm);
-}
-
 static void acx565akm_get_timings(struct omap_dss_device *dssdev,
 				  struct videomode *vm)
 {
@@ -652,7 +644,6 @@ static const struct omap_dss_device_ops acx565akm_ops = {
 	.enable		= acx565akm_enable,
 	.disable	= acx565akm_disable,
 
-	.set_timings	= acx565akm_set_timings,
 	.get_timings	= acx565akm_get_timings,
 };
 

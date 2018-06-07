@@ -163,14 +163,6 @@ static void lb035q02_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void lb035q02_set_timings(struct omap_dss_device *dssdev,
-				 const struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	src->ops->set_timings(src, vm);
-}
-
 static void lb035q02_get_timings(struct omap_dss_device *dssdev,
 				 struct videomode *vm)
 {
@@ -186,7 +178,6 @@ static const struct omap_dss_device_ops lb035q02_ops = {
 	.enable		= lb035q02_enable,
 	.disable	= lb035q02_disable,
 
-	.set_timings	= lb035q02_set_timings,
 	.get_timings	= lb035q02_get_timings,
 };
 

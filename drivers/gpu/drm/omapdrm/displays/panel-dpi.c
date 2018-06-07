@@ -93,14 +93,6 @@ static void panel_dpi_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void panel_dpi_set_timings(struct omap_dss_device *dssdev,
-				  const struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	src->ops->set_timings(src, vm);
-}
-
 static void panel_dpi_get_timings(struct omap_dss_device *dssdev,
 				  struct videomode *vm)
 {
@@ -116,7 +108,6 @@ static const struct omap_dss_device_ops panel_dpi_ops = {
 	.enable		= panel_dpi_enable,
 	.disable	= panel_dpi_disable,
 
-	.set_timings	= panel_dpi_set_timings,
 	.get_timings	= panel_dpi_get_timings,
 };
 

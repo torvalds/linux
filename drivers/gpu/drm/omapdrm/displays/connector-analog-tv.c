@@ -73,22 +73,12 @@ static void tvc_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void tvc_set_timings(struct omap_dss_device *dssdev,
-			    const struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	src->ops->set_timings(src, vm);
-}
-
 static const struct omap_dss_device_ops tvc_ops = {
 	.connect		= tvc_connect,
 	.disconnect		= tvc_disconnect,
 
 	.enable			= tvc_enable,
 	.disable		= tvc_disable,
-
-	.set_timings		= tvc_set_timings,
 };
 
 static int tvc_probe(struct platform_device *pdev)

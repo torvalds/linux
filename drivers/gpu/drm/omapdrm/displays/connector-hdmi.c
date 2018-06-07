@@ -79,14 +79,6 @@ static void hdmic_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void hdmic_set_timings(struct omap_dss_device *dssdev,
-			      const struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	src->ops->set_timings(src, vm);
-}
-
 static bool hdmic_detect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
@@ -123,8 +115,6 @@ static const struct omap_dss_device_ops hdmic_ops = {
 
 	.enable			= hdmic_enable,
 	.disable		= hdmic_disable,
-
-	.set_timings		= hdmic_set_timings,
 
 	.detect			= hdmic_detect,
 	.register_hpd_cb	= hdmic_register_hpd_cb,

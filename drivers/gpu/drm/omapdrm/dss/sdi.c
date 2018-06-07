@@ -218,8 +218,6 @@ static void sdi_set_timings(struct omap_dss_device *dssdev,
 	struct sdi_device *sdi = dssdev_to_sdi(dssdev);
 
 	sdi->vm = *vm;
-
-	dss_mgr_set_timings(&sdi->output, vm);
 }
 
 static int sdi_check_timings(struct omap_dss_device *dssdev,

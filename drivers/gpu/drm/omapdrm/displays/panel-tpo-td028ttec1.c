@@ -295,14 +295,6 @@ static void td028ttec1_panel_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void td028ttec1_panel_set_timings(struct omap_dss_device *dssdev,
-					 const struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	src->ops->set_timings(src, vm);
-}
-
 static void td028ttec1_panel_get_timings(struct omap_dss_device *dssdev,
 					 struct videomode *vm)
 {
@@ -318,7 +310,6 @@ static const struct omap_dss_device_ops td028ttec1_ops = {
 	.enable		= td028ttec1_panel_enable,
 	.disable	= td028ttec1_panel_disable,
 
-	.set_timings	= td028ttec1_panel_set_timings,
 	.get_timings	= td028ttec1_panel_get_timings,
 };
 

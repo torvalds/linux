@@ -156,14 +156,6 @@ static void nec_8048_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void nec_8048_set_timings(struct omap_dss_device *dssdev,
-				 const struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	src->ops->set_timings(src, vm);
-}
-
 static void nec_8048_get_timings(struct omap_dss_device *dssdev,
 				 struct videomode *vm)
 {
@@ -179,7 +171,6 @@ static const struct omap_dss_device_ops nec_8048_ops = {
 	.enable		= nec_8048_enable,
 	.disable	= nec_8048_disable,
 
-	.set_timings	= nec_8048_set_timings,
 	.get_timings	= nec_8048_get_timings,
 };
 

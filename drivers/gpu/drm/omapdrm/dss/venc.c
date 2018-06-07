@@ -593,8 +593,6 @@ static void venc_set_timings(struct omap_dss_device *dssdev,
 
 	dispc_set_tv_pclk(venc->dss->dispc, 13500000);
 
-	dss_mgr_set_timings(&venc->output, vm);
-
 	mutex_unlock(&venc->venc_lock);
 }
 

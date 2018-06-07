@@ -126,14 +126,6 @@ static void sharp_ls_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void sharp_ls_set_timings(struct omap_dss_device *dssdev,
-				 const struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	src->ops->set_timings(src, vm);
-}
-
 static void sharp_ls_get_timings(struct omap_dss_device *dssdev,
 				 struct videomode *vm)
 {
@@ -149,7 +141,6 @@ static const struct omap_dss_device_ops sharp_ls_ops = {
 	.enable		= sharp_ls_enable,
 	.disable	= sharp_ls_disable,
 
-	.set_timings	= sharp_ls_set_timings,
 	.get_timings	= sharp_ls_get_timings,
 };
 

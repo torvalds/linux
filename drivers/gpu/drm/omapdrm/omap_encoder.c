@@ -58,7 +58,6 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 {
 	struct drm_device *dev = encoder->dev;
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
-	struct omap_dss_device *display = omap_encoder->display;
 	struct drm_connector *connector;
 	struct omap_dss_device *dssdev;
 	struct videomode vm = { 0 };
@@ -104,18 +103,15 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 		}
 	}
 
-	/*
-	 * HACK: Call the .set_timings() operation if available, this will
-	 * eventually store timings in the CRTC. Otherwise (for DSI outputs)
-	 * store the timings directly.
-	 *
-	 * All outputs should be brought in sync to operate similarly.
-	 */
-	if (display->ops->set_timings)
-		display->ops->set_timings(display, &vm);
-	else
-		*omap_crtc_timings(encoder->crtc) = vm;
+	/* Set timings for all devices in the display pipeline. */
+	dss_mgr_set_timings(omap_encoder->output, &vm);
 
+	for (dssdev = omap_encoder->output; dssdev; dssdev = dssdev->next) {
+		if (dssdev->ops->set_timings)
+			dssdev->ops->set_timings(dssdev, &vm);
+	}
+
+	/* Set the HDMI mode and HDMI infoframe if applicable. */
 	hdmi_mode = false;
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (connector->encoder == encoder) {

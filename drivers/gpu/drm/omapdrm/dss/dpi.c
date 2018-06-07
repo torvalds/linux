@@ -477,8 +477,6 @@ static void dpi_set_timings(struct omap_dss_device *dssdev,
 
 	dpi->vm = *vm;
 
-	dss_mgr_set_timings(&dpi->output, vm);
-
 	mutex_unlock(&dpi->lock);
 }
 

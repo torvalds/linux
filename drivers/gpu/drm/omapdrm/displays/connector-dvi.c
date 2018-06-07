@@ -78,14 +78,6 @@ static void dvic_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void dvic_set_timings(struct omap_dss_device *dssdev,
-			     const struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	src->ops->set_timings(src, vm);
-}
-
 static int dvic_ddc_read(struct i2c_adapter *adapter,
 		unsigned char *buf, u16 count, u8 offset)
 {
@@ -191,8 +183,6 @@ static const struct omap_dss_device_ops dvic_ops = {
 
 	.enable		= dvic_enable,
 	.disable	= dvic_disable,
-
-	.set_timings	= dvic_set_timings,
 
 	.read_edid	= dvic_read_edid,
 	.detect		= dvic_detect,

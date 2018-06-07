@@ -369,14 +369,6 @@ static void tpo_td043_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void tpo_td043_set_timings(struct omap_dss_device *dssdev,
-				  const struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	src->ops->set_timings(src, vm);
-}
-
 static void tpo_td043_get_timings(struct omap_dss_device *dssdev,
 				  struct videomode *vm)
 {
@@ -392,7 +384,6 @@ static const struct omap_dss_device_ops tpo_td043_ops = {
 	.enable		= tpo_td043_enable,
 	.disable	= tpo_td043_disable,
 
-	.set_timings	= tpo_td043_set_timings,
 	.get_timings	= tpo_td043_get_timings,
 };
 

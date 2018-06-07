@@ -85,22 +85,11 @@ static void opa362_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void opa362_set_timings(struct omap_dss_device *dssdev,
-			       const struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	dev_dbg(dssdev->dev, "set_timings\n");
-
-	src->ops->set_timings(src, vm);
-}
-
 static const struct omap_dss_device_ops opa362_ops = {
 	.connect	= opa362_connect,
 	.disconnect	= opa362_disconnect,
 	.enable		= opa362_enable,
 	.disable	= opa362_disable,
-	.set_timings	= opa362_set_timings,
 };
 
 static int opa362_probe(struct platform_device *pdev)

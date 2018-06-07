@@ -259,8 +259,6 @@ static void hdmi_display_set_timings(struct omap_dss_device *dssdev,
 
 	dispc_set_tv_pclk(hdmi->dss->dispc, vm->pixelclock);
 
-	dss_mgr_set_timings(&hdmi->output, vm);
-
 	mutex_unlock(&hdmi->lock);
 }
 
