@@ -24,17 +24,19 @@ static void shutdown_umh(struct umh_info *info)
 {
 	struct task_struct *tsk;
 
+	if (!info->pid)
+		return;
 	tsk = pid_task(find_vpid(info->pid), PIDTYPE_PID);
 	if (tsk)
 		force_sig(SIGKILL, tsk);
 	fput(info->pipe_to_umh);
 	fput(info->pipe_from_umh);
+	info->pid = 0;
 }
 
 static void __stop_umh(void)
 {
-	if (IS_ENABLED(CONFIG_INET) &&
-	    bpfilter_process_sockopt) {
+	if (IS_ENABLED(CONFIG_INET)) {
 		bpfilter_process_sockopt = NULL;
 		shutdown_umh(&info);
 	}
@@ -55,7 +57,7 @@ static int __bpfilter_process_sockopt(struct sock *sk, int optname,
 	struct mbox_reply reply;
 	loff_t pos;
 	ssize_t n;
-	int ret;
+	int ret = -EFAULT;
 
 	req.is_set = is_set;
 	req.pid = current->pid;
@@ -63,6 +65,8 @@ static int __bpfilter_process_sockopt(struct sock *sk, int optname,
 	req.addr = (long)optval;
 	req.len = optlen;
 	mutex_lock(&bpfilter_lock);
+	if (!info.pid)
+		goto out;
 	n = __kernel_write(info.pipe_to_umh, &req, sizeof(req), &pos);
 	if (n != sizeof(req)) {
 		pr_err("write fail %zd\n", n);
