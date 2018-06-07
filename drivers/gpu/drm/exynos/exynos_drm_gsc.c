@@ -1341,7 +1341,7 @@ static const struct drm_exynos_ipp_limit gsc_5420_limits[] = {
 };
 
 static const struct drm_exynos_ipp_limit gsc_5433_limits[] = {
-	{ IPP_SIZE_LIMIT(BUFFER, .h = { 32, 8191, 2 }, .v = { 16, 8191, 2 }) },
+	{ IPP_SIZE_LIMIT(BUFFER, .h = { 32, 8191, 16 }, .v = { 16, 8191, 2 }) },
 	{ IPP_SIZE_LIMIT(AREA, .h = { 16, 4800, 1 }, .v = { 8, 3344, 1 }) },
 	{ IPP_SIZE_LIMIT(ROTATED, .h = { 32, 2047 }, .v = { 8, 8191 }) },
 	{ IPP_SCALE_LIMIT(.h = { (1 << 16) / 16, (1 << 16) * 8 },
