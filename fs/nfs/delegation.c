@@ -856,12 +856,14 @@ nfs_delegation_find_inode_server(struct nfs_server *server,
 		if (delegation->inode != NULL &&
 		    nfs_compare_fh(fhandle, &NFS_I(delegation->inode)->fh) == 0) {
 			res = igrab(delegation->inode);
+			spin_unlock(&delegation->lock);
+			if (res != NULL)
+				return res;
+			return ERR_PTR(-EAGAIN);
 		}
 		spin_unlock(&delegation->lock);
-		if (res != NULL)
-			break;
 	}
-	return res;
+	return ERR_PTR(-ENOENT);
 }
 
 /**
@@ -876,16 +878,16 @@ struct inode *nfs_delegation_find_inode(struct nfs_client *clp,
 					const struct nfs_fh *fhandle)
 {
 	struct nfs_server *server;
-	struct inode *res = NULL;
+	struct inode *res;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
 		res = nfs_delegation_find_inode_server(server, fhandle);
-		if (res != NULL)
-			break;
+		if (res != ERR_PTR(-ENOENT))
+			return res;
 	}
 	rcu_read_unlock();
-	return res;
+	return ERR_PTR(-ENOENT);
 }
 
 static void nfs_delegation_mark_reclaim_server(struct nfs_server *server)

@@ -40,7 +40,9 @@ __be32 nfs4_callback_getattr(void *argp, void *resp,
 		rpc_peeraddr2str(cps->clp->cl_rpcclient, RPC_DISPLAY_ADDR));
 
 	inode = nfs_delegation_find_inode(cps->clp, &args->fh);
-	if (inode == NULL) {
+	if (IS_ERR(inode)) {
+		if (inode == ERR_PTR(-EAGAIN))
+			res->status = htonl(NFS4ERR_DELAY);
 		trace_nfs4_cb_getattr(cps->clp, &args->fh, NULL,
 				-ntohl(res->status));
 		goto out;
@@ -86,7 +88,9 @@ __be32 nfs4_callback_recall(void *argp, void *resp,
 
 	res = htonl(NFS4ERR_BADHANDLE);
 	inode = nfs_delegation_find_inode(cps->clp, &args->fh);
-	if (inode == NULL) {
+	if (IS_ERR(inode)) {
+		if (inode == ERR_PTR(-EAGAIN))
+			res = htonl(NFS4ERR_DELAY);
 		trace_nfs4_cb_recall(cps->clp, &args->fh, NULL,
 				&args->stateid, -ntohl(res));
 		goto out;
