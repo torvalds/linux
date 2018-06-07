@@ -188,7 +188,7 @@ static int get_transport_options(struct arglist *def)
 	if (strncmp(transport, TRANS_TAP, TRANS_TAP_LEN) == 0)
 		return (vec_rx | VECTOR_BPF);
 	if (strncmp(transport, TRANS_RAW, TRANS_RAW_LEN) == 0)
-		return (vec_rx | vec_tx);
+		return (vec_rx | vec_tx | VECTOR_QDISC_BYPASS);
 	return (vec_rx | vec_tx);
 }
 
@@ -1241,9 +1241,8 @@ static int vector_net_open(struct net_device *dev)
 
 	if ((vp->options & VECTOR_QDISC_BYPASS) != 0) {
 		if (!uml_raw_enable_qdisc_bypass(vp->fds->rx_fd))
-			vp->options = vp->options | VECTOR_BPF;
+			vp->options |= VECTOR_BPF;
 	}
-
 	if ((vp->options & VECTOR_BPF) != 0)
 		vp->bpf = uml_vector_default_bpf(vp->fds->rx_fd, dev->dev_addr);
 
