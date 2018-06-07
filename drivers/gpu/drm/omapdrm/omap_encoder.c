@@ -103,13 +103,49 @@ static int omap_encoder_update(struct drm_encoder *encoder,
 	int ret;
 
 	for (dssdev = omap_encoder->output; dssdev; dssdev = dssdev->next) {
-		if (!dssdev->ops->check_timings)
-			continue;
+		unsigned long bus_flags = dssdev->bus_flags;
 
-		ret = dssdev->ops->check_timings(dssdev, vm);
-		if (ret) {
-			dev_err(dev->dev, "invalid timings: %d\n", ret);
-			return ret;
+		if (dssdev->ops->check_timings) {
+			ret = dssdev->ops->check_timings(dssdev, vm);
+			if (ret) {
+				dev_err(dev->dev, "invalid timings: %d\n", ret);
+				return ret;
+			}
+		}
+
+		/*
+		 * HACK: This fixes the vm flags.
+		 * struct drm_display_mode does not contain the VSYNC/HSYNC/DE
+		 * flags and they get lost when converting back and forth
+		 * between struct drm_display_mode and struct videomode. The
+		 * hack below goes and fetches the missing flags.
+		 *
+		 * A better solution is to use DRM's bus-flags through the whole
+		 * driver.
+		 */
+
+		if (!(vm->flags & (DISPLAY_FLAGS_DE_LOW |
+				   DISPLAY_FLAGS_DE_HIGH))) {
+			if (bus_flags & DRM_BUS_FLAG_DE_LOW)
+				vm->flags |= DISPLAY_FLAGS_DE_LOW;
+			else if (bus_flags & DRM_BUS_FLAG_DE_HIGH)
+				vm->flags |= DISPLAY_FLAGS_DE_HIGH;
+		}
+
+		if (!(vm->flags & (DISPLAY_FLAGS_PIXDATA_POSEDGE |
+				   DISPLAY_FLAGS_PIXDATA_NEGEDGE))) {
+			if (bus_flags & DRM_BUS_FLAG_PIXDATA_POSEDGE)
+				vm->flags |= DISPLAY_FLAGS_PIXDATA_POSEDGE;
+			else if (bus_flags & DRM_BUS_FLAG_PIXDATA_NEGEDGE)
+				vm->flags |= DISPLAY_FLAGS_PIXDATA_NEGEDGE;
+		}
+
+		if (!(vm->flags & (DISPLAY_FLAGS_SYNC_POSEDGE |
+				   DISPLAY_FLAGS_SYNC_NEGEDGE))) {
+			if (bus_flags & DRM_BUS_FLAG_SYNC_POSEDGE)
+				vm->flags |= DISPLAY_FLAGS_SYNC_POSEDGE;
+			else if (bus_flags & DRM_BUS_FLAG_SYNC_NEGEDGE)
+				vm->flags |= DISPLAY_FLAGS_SYNC_NEGEDGE;
 		}
 	}
 
