@@ -162,6 +162,8 @@ struct mlx5e_hairpin_entry {
 	/* a node of a hash table which keeps all the  hairpin entries */
 	struct hlist_node hairpin_hlist;
 
+	/* protects flows list */
+	spinlock_t flows_lock;
 	/* flows sharing the same hairpin */
 	struct list_head flows;
 
@@ -735,6 +737,7 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 	if (!hpe)
 		return -ENOMEM;
 
+	spin_lock_init(&hpe->flows_lock);
 	INIT_LIST_HEAD(&hpe->flows);
 	hpe->peer_vhca_id = peer_id;
 	hpe->prio = match_prio;
@@ -782,7 +785,9 @@ attach_flow:
 		flow->nic_attr->hairpin_tirn = hpe->hp->tirn;
 	}
 	flow->hpe = hpe;
+	spin_lock(&hpe->flows_lock);
 	list_add(&flow->hairpin, &hpe->flows);
+	spin_unlock(&hpe->flows_lock);
 
 	return 0;
 
@@ -798,7 +803,10 @@ static void mlx5e_hairpin_flow_del(struct mlx5e_priv *priv,
 	if (!flow->hpe)
 		return;
 
+	spin_lock(&flow->hpe->flows_lock);
 	list_del(&flow->hairpin);
+	spin_unlock(&flow->hpe->flows_lock);
+
 	mlx5e_hairpin_put(priv, flow->hpe);
 	flow->hpe = NULL;
 }
