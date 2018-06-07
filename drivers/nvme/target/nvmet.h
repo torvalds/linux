@@ -140,6 +140,8 @@ struct nvmet_ctrl {
 	u16			cntlid;
 	u32			kato;
 
+	struct nvmet_port	*port;
+
 	u32			aen_enabled;
 	unsigned long		aen_masked;
 	struct nvmet_req	*async_event_cmds[NVMET_ASYNC_EVENTS];
