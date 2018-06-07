@@ -140,6 +140,10 @@ struct rk3308_codec_priv {
 	int adc_path_state;
 	int dac_path_state;
 
+	/* Only hpout do fade-in and fade-out */
+	unsigned int hpout_l_dgain;
+	unsigned int hpout_r_dgain;
+
 	bool enable_all_adcs;
 	bool hp_plugged;
 	struct delayed_work hpdet_work;
@@ -174,6 +178,15 @@ static const DECLARE_TLV_DB_RANGE(rk3308_codec_adc_3_8_mic_gain_tlv,
 	2, 2, TLV_DB_MINMAX_ITEM(1300, 1300),
 	3, 3, TLV_DB_MINMAX_ITEM(2000, 2000),
 );
+
+static int rk3308_codec_hpout_l_get_tlv(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol);
+static int rk3308_codec_hpout_l_put_tlv(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol);
+static int rk3308_codec_hpout_r_get_tlv(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol);
+static int rk3308_codec_hpout_r_put_tlv(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol);
 
 static const struct snd_kcontrol_new rk3308_codec_dapm_controls[] = {
 	/* ALC AGC Group */
@@ -448,16 +461,22 @@ static const struct snd_kcontrol_new rk3308_codec_dapm_controls[] = {
 		       0, rk3308_codec_dac_lineout_gain_tlv),
 
 	/* DAC HPOUT */
-	SOC_SINGLE_TLV("DAC HPOUT Left Volume",
-		       RK3308_DAC_ANA_CON05,
-		       RK3308_DAC_L_HPOUT_GAIN_SFT,
-		       RK3308_DAC_L_HPOUT_GAIN_MAX,
-		       0, rk3308_codec_dac_hpout_gain_tlv),
-	SOC_SINGLE_TLV("DAC HPOUT Right Volume",
-		       RK3308_DAC_ANA_CON06,
-		       RK3308_DAC_R_HPOUT_GAIN_SFT,
-		       RK3308_DAC_R_HPOUT_GAIN_MAX,
-		       0, rk3308_codec_dac_hpout_gain_tlv),
+	SOC_SINGLE_EXT_TLV("DAC HPOUT Left Volume",
+			   RK3308_DAC_ANA_CON05,
+			   RK3308_DAC_L_HPOUT_GAIN_SFT,
+			   RK3308_DAC_L_HPOUT_GAIN_MAX,
+			   0,
+			   rk3308_codec_hpout_l_get_tlv,
+			   rk3308_codec_hpout_l_put_tlv,
+			   rk3308_codec_dac_hpout_gain_tlv),
+	SOC_SINGLE_EXT_TLV("DAC HPOUT Right Volume",
+			   RK3308_DAC_ANA_CON06,
+			   RK3308_DAC_R_HPOUT_GAIN_SFT,
+			   RK3308_DAC_R_HPOUT_GAIN_MAX,
+			   0,
+			   rk3308_codec_hpout_r_get_tlv,
+			   rk3308_codec_hpout_r_put_tlv,
+			   rk3308_codec_dac_hpout_gain_tlv),
 
 	/* DAC HPMIX */
 	SOC_SINGLE_RANGE_TLV("DAC HPMIX Left Volume",
@@ -473,6 +492,54 @@ static const struct snd_kcontrol_new rk3308_codec_dapm_controls[] = {
 			     RK3308_DAC_R_HPMIX_GAIN_MAX,
 			     0, rk3308_codec_dac_hpmix_gain_tlv),
 };
+
+static int rk3308_codec_hpout_l_get_tlv(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	return snd_soc_get_volsw_range(kcontrol, ucontrol);
+}
+
+static int rk3308_codec_hpout_l_put_tlv(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
+	unsigned int dgain = ucontrol->value.integer.value[0];
+
+	if (dgain > RK3308_DAC_L_HPOUT_GAIN_MAX) {
+		dev_err(rk3308->plat_dev, "%s: invalid l_dgain: %d\n",
+			__func__, dgain);
+		return -EINVAL;
+	}
+
+	rk3308->hpout_l_dgain = dgain;
+
+	return snd_soc_put_volsw_range(kcontrol, ucontrol);
+}
+
+static int rk3308_codec_hpout_r_get_tlv(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	return snd_soc_get_volsw_range(kcontrol, ucontrol);
+}
+
+static int rk3308_codec_hpout_r_put_tlv(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
+	unsigned int dgain = ucontrol->value.integer.value[0];
+
+	if (dgain > RK3308_DAC_R_HPOUT_GAIN_MAX) {
+		dev_err(rk3308->plat_dev, "%s: invalid r_dgain: %d\n",
+			__func__, dgain);
+		return -EINVAL;
+	}
+
+	rk3308->hpout_r_dgain = dgain;
+
+	return snd_soc_put_volsw_range(kcontrol, ucontrol);
+}
 
 static bool adc_for_each_grp(struct rk3308_codec_priv *rk3308,
 			     int type, int idx, u32 *grp)
@@ -901,6 +968,84 @@ static int rk3308_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 	return 0;
 }
 
+static int rk3308_codec_digital_fadein(struct rk3308_codec_priv *rk3308)
+{
+	unsigned int dgain, dgain_ref;
+
+	if (rk3308->hpout_l_dgain != rk3308->hpout_r_dgain) {
+		pr_warn("HPOUT l_dgain: 0x%x != r_dgain: 0x%x\n",
+			rk3308->hpout_l_dgain, rk3308->hpout_r_dgain);
+		dgain_ref = min(rk3308->hpout_l_dgain, rk3308->hpout_r_dgain);
+	} else {
+		dgain_ref = rk3308->hpout_l_dgain;
+	}
+
+	/*
+	 * We'd better change the gain of the left and right channels
+	 * at the same time to avoid different listening
+	 */
+	for (dgain = RK3308_DAC_L_HPOUT_GAIN_NDB_39;
+	     dgain <= dgain_ref; dgain++) {
+		/* Step 02 decrease dgains for de-pop */
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON05,
+				   RK3308_DAC_L_HPOUT_GAIN_MSK,
+				   dgain);
+
+		/* Step 02 decrease dgains for de-pop */
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON06,
+				   RK3308_DAC_R_HPOUT_GAIN_MSK,
+				   dgain);
+	}
+
+	return 0;
+}
+
+static int rk3308_codec_digital_fadeout(struct rk3308_codec_priv *rk3308)
+{
+	unsigned int l_dgain, r_dgain;
+
+	/*
+	 * Note. In the step2, adjusting the register step by step to
+	 * the appropriate value and taking 20ms as time step
+	 */
+	regmap_read(rk3308->regmap, RK3308_DAC_ANA_CON05, &l_dgain);
+	l_dgain &= RK3308_DAC_L_HPOUT_GAIN_MSK;
+
+	regmap_read(rk3308->regmap, RK3308_DAC_ANA_CON06, &r_dgain);
+	r_dgain &= RK3308_DAC_R_HPOUT_GAIN_MSK;
+
+	if (l_dgain != r_dgain) {
+		pr_warn("HPOUT l_dgain: 0x%x != r_dgain: 0x%x\n",
+			l_dgain, r_dgain);
+		l_dgain = min(l_dgain, r_dgain);
+	}
+
+	/*
+	 * We'd better change the gain of the left and right channels
+	 * at the same time to avoid different listening
+	 */
+	while (l_dgain >= RK3308_DAC_L_HPOUT_GAIN_NDB_39) {
+		/* Step 02 decrease dgains for de-pop */
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON05,
+				   RK3308_DAC_L_HPOUT_GAIN_MSK,
+				   l_dgain);
+
+		/* Step 02 decrease dgains for de-pop */
+		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON06,
+				   RK3308_DAC_R_HPOUT_GAIN_MSK,
+				   l_dgain);
+
+		usleep_range(200, 300);  /* estimated value */
+
+		if (l_dgain == RK3308_DAC_L_HPOUT_GAIN_NDB_39)
+			break;
+
+		l_dgain--;
+	}
+
+	return 0;
+}
+
 static int rk3308_codec_dac_lineout_enable(struct rk3308_codec_priv *rk3308)
 {
 	/* Step 06 */
@@ -1245,15 +1390,6 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 
 	udelay(20);
 
-	/* Step 15 */
-	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON12,
-			   RK3308_DAC_L_HPMIX_GAIN_MSK |
-			   RK3308_DAC_R_HPMIX_GAIN_MSK,
-			   RK3308_DAC_L_HPMIX_GAIN_NDB_6 |
-			   RK3308_DAC_R_HPMIX_GAIN_NDB_6);
-
-	udelay(20);
-
 	if (rk3308->dac_output == DAC_HPOUT ||
 	    rk3308->dac_output == DAC_LINEOUT_HPOUT) {
 		/* Step 16 */
@@ -1280,76 +1416,11 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 	if (rk3308->dac_output == DAC_HPOUT ||
 	    rk3308->dac_output == DAC_LINEOUT_HPOUT) {
 		/* Step 18 */
-		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON05,
-				   RK3308_DAC_L_HPOUT_GAIN_MSK,
-				   RK3308_DAC_L_HPOUT_GAIN_NDB_39);
-
-		/* Step 18 */
-		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON06,
-				   RK3308_DAC_R_HPOUT_GAIN_MSK,
-				   RK3308_DAC_R_HPOUT_GAIN_NDB_39);
-
-		udelay(20);
-	}
-
-	if (rk3308->dac_output == DAC_LINEOUT ||
-	    rk3308->dac_output == DAC_LINEOUT_HPOUT) {
 		/* Step 19 */
-		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON04,
-				   RK3308_DAC_L_LINEOUT_GAIN_MSK |
-				   RK3308_DAC_R_LINEOUT_GAIN_MSK,
-				   RK3308_DAC_L_LINEOUT_GAIN_NDB_6 |
-				   RK3308_DAC_R_LINEOUT_GAIN_NDB_6);
-
-		udelay(20);
+		rk3308_codec_digital_fadein(rk3308);
 	}
 
 	/* TODO: TRY TO TEST DRIVE STRENGTH */
-
-	return 0;
-}
-
-static int rk3308_codec_digital_fadeout(struct rk3308_codec_priv *rk3308)
-{
-	unsigned int l_dgain, r_dgain;
-
-	/*
-	 * Note. In the step2, adjusting the register step by step to
-	 * the appropriate value and taking 20ms as time step
-	 */
-	regmap_read(rk3308->regmap, RK3308_DAC_ANA_CON05, &l_dgain);
-	l_dgain &= RK3308_DAC_L_HPOUT_GAIN_MSK;
-
-	regmap_read(rk3308->regmap, RK3308_DAC_ANA_CON06, &r_dgain);
-	r_dgain &= RK3308_DAC_R_HPOUT_GAIN_MSK;
-
-	if (l_dgain != r_dgain)
-		pr_warn("HPOUT l_dgain: 0x%x != r_dgain: 0x%x\n",
-			l_dgain, r_dgain);
-
-	/*
-	 * We'd better change the gain of the left and right channels
-	 * at the same time to avoid different listening
-	 */
-	while (l_dgain >= RK3308_DAC_L_HPOUT_GAIN_NDB_39) {
-		/* Step 02 decrease dgains for de-pop */
-		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON05,
-				   RK3308_DAC_L_HPOUT_GAIN_MSK,
-				   l_dgain);
-
-		/* Step 02 decrease dgains for de-pop */
-		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON06,
-				   RK3308_DAC_R_HPOUT_GAIN_MSK,
-				   r_dgain);
-
-		usleep_range(200, 300);  /* estimated value */
-
-		if (l_dgain == RK3308_DAC_L_HPOUT_GAIN_NDB_39)
-			break;
-
-		l_dgain--;
-		r_dgain--;
-	}
 
 	return 0;
 }
@@ -1359,11 +1430,6 @@ static int rk3308_codec_dac_disable(struct rk3308_codec_priv *rk3308)
 	/* Step 00, the min digital gain for mute */
 
 	/* Step 01 */
-	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON04,
-			   RK3308_DAC_L_LINEOUT_GAIN_MSK |
-			   RK3308_DAC_R_LINEOUT_GAIN_MSK,
-			   RK3308_DAC_L_LINEOUT_GAIN_NDB_6 |
-			   RK3308_DAC_R_LINEOUT_GAIN_NDB_6);
 
 	/* Step 02 */
 	rk3308_codec_digital_fadeout(rk3308);
@@ -1476,13 +1542,6 @@ static int rk3308_codec_dac_disable(struct rk3308_codec_priv *rk3308)
 			   RK3308_DAC_R_HPMIX_WORK,
 			   RK3308_DAC_L_HPMIX_INIT |
 			   RK3308_DAC_R_HPMIX_INIT);
-
-	/* Step 19 */
-	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON12,
-			   RK3308_DAC_L_HPMIX_GAIN_MSK |
-			   RK3308_DAC_R_HPMIX_GAIN_MSK,
-			   RK3308_DAC_L_HPMIX_GAIN_NDB_6 |
-			   RK3308_DAC_R_HPMIX_GAIN_NDB_6);
 
 	/*
 	 * Note2. If the ACODEC_DAC_ANA_CON12[7] or ACODEC_DAC_ANA_CON12[3]
@@ -2078,7 +2137,6 @@ static int rk3308_codec_adc_reinit_mics(struct rk3308_codec_priv *rk3308,
 static int rk3308_codec_adc_ana_enable(struct rk3308_codec_priv *rk3308,
 				       int type)
 {
-	unsigned int adc_aif1 = 0, adc_aif2 = 0;
 	unsigned int agc_func_en;
 	int idx, grp;
 
@@ -2216,24 +2274,8 @@ static int rk3308_codec_adc_ana_enable(struct rk3308_codec_priv *rk3308,
 	}
 
 	/* vendor step 12 */
-	adc_aif1 = RK3308_ADC_CH1_MIC_GAIN_0DB;
-	adc_aif2 = RK3308_ADC_CH2_MIC_GAIN_0DB;
-	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
-		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON01(grp),
-				   RK3308_ADC_CH1_MIC_GAIN_MSK |
-				   RK3308_ADC_CH2_MIC_GAIN_MSK,
-				   adc_aif1 | adc_aif2);
-	}
 
 	/* vendor step 13 */
-	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
-		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON03(grp),
-				   RK3308_ADC_CH1_ALC_GAIN_MSK,
-				   RK3308_ADC_CH1_ALC_GAIN_0DB);
-		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON04(grp),
-				   RK3308_ADC_CH2_ALC_GAIN_MSK,
-				   RK3308_ADC_CH2_ALC_GAIN_0DB);
-	}
 
 	/* vendor step 14 */
 	for (idx = 0; adc_for_each_grp(rk3308, type, idx, &grp); idx++) {
@@ -2527,11 +2569,65 @@ static int rk3308_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static int rk3308_codec_default_gains(struct rk3308_codec_priv *rk3308)
+{
+	int grp;
+
+	/* Prepare ADC gains */
+	/* vendor step 12, set MIC PGA default gains */
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON01(grp),
+				   RK3308_ADC_CH1_MIC_GAIN_MSK |
+				   RK3308_ADC_CH2_MIC_GAIN_MSK,
+				   RK3308_ADC_CH1_MIC_GAIN_0DB |
+				   RK3308_ADC_CH2_MIC_GAIN_0DB);
+	}
+
+	/* vendor step 13, set ALC default gains */
+	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++) {
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON03(grp),
+				   RK3308_ADC_CH1_ALC_GAIN_MSK,
+				   RK3308_ADC_CH1_ALC_GAIN_0DB);
+		regmap_update_bits(rk3308->regmap, RK3308_ADC_ANA_CON04(grp),
+				   RK3308_ADC_CH2_ALC_GAIN_MSK,
+				   RK3308_ADC_CH2_ALC_GAIN_0DB);
+	}
+
+	/* Prepare DAC gains */
+	/* Step 15, set HPMIX default gains */
+	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON12,
+			   RK3308_DAC_L_HPMIX_GAIN_MSK |
+			   RK3308_DAC_R_HPMIX_GAIN_MSK,
+			   RK3308_DAC_L_HPMIX_GAIN_NDB_6 |
+			   RK3308_DAC_R_HPMIX_GAIN_NDB_6);
+
+	/* Step 18, set HPOUT default gains */
+	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON05,
+			   RK3308_DAC_L_HPOUT_GAIN_MSK,
+			   RK3308_DAC_L_HPOUT_GAIN_NDB_39);
+	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON06,
+			   RK3308_DAC_R_HPOUT_GAIN_MSK,
+			   RK3308_DAC_R_HPOUT_GAIN_NDB_39);
+
+	/* Using the same gain to HPOUT LR channels */
+	rk3308->hpout_l_dgain = RK3308_DAC_L_HPOUT_GAIN_NDB_39;
+
+	/* Step 19, set LINEOUT default gains */
+	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON04,
+			   RK3308_DAC_L_LINEOUT_GAIN_MSK |
+			   RK3308_DAC_R_LINEOUT_GAIN_MSK,
+			   RK3308_DAC_L_LINEOUT_GAIN_NDB_6 |
+			   RK3308_DAC_R_LINEOUT_GAIN_NDB_6);
+
+	return 0;
+}
+
 static int rk3308_codec_prepare(struct rk3308_codec_priv *rk3308)
 {
 	/* Clear registers for ADC and DAC */
 	rk3308_codec_close_playback(rk3308);
 	rk3308_codec_close_capture(rk3308);
+	rk3308_codec_default_gains(rk3308);
 
 	return 0;
 }
