@@ -523,30 +523,30 @@ static void gsc_src_set_transf(struct gsc_context *ctx, unsigned int rotation)
 
 	switch (degree) {
 	case DRM_MODE_ROTATE_0:
-		if (rotation & DRM_MODE_REFLECT_Y)
-			cfg |= GSC_IN_ROT_XFLIP;
 		if (rotation & DRM_MODE_REFLECT_X)
+			cfg |= GSC_IN_ROT_XFLIP;
+		if (rotation & DRM_MODE_REFLECT_Y)
 			cfg |= GSC_IN_ROT_YFLIP;
 		break;
 	case DRM_MODE_ROTATE_90:
 		cfg |= GSC_IN_ROT_90;
-		if (rotation & DRM_MODE_REFLECT_Y)
-			cfg |= GSC_IN_ROT_XFLIP;
 		if (rotation & DRM_MODE_REFLECT_X)
+			cfg |= GSC_IN_ROT_XFLIP;
+		if (rotation & DRM_MODE_REFLECT_Y)
 			cfg |= GSC_IN_ROT_YFLIP;
 		break;
 	case DRM_MODE_ROTATE_180:
 		cfg |= GSC_IN_ROT_180;
-		if (rotation & DRM_MODE_REFLECT_Y)
-			cfg &= ~GSC_IN_ROT_XFLIP;
 		if (rotation & DRM_MODE_REFLECT_X)
+			cfg &= ~GSC_IN_ROT_XFLIP;
+		if (rotation & DRM_MODE_REFLECT_Y)
 			cfg &= ~GSC_IN_ROT_YFLIP;
 		break;
 	case DRM_MODE_ROTATE_270:
 		cfg |= GSC_IN_ROT_270;
-		if (rotation & DRM_MODE_REFLECT_Y)
-			cfg &= ~GSC_IN_ROT_XFLIP;
 		if (rotation & DRM_MODE_REFLECT_X)
+			cfg &= ~GSC_IN_ROT_XFLIP;
+		if (rotation & DRM_MODE_REFLECT_Y)
 			cfg &= ~GSC_IN_ROT_YFLIP;
 		break;
 	}
