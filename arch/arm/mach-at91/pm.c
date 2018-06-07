@@ -559,15 +559,20 @@ static const struct pmc_info pmc_infos[] __initconst = {
 	{ .uhp_udp_mask = AT91RM9200_PMC_UHP | AT91RM9200_PMC_UDP },
 	{ .uhp_udp_mask = AT91SAM926x_PMC_UHP | AT91SAM926x_PMC_UDP },
 	{ .uhp_udp_mask = AT91SAM926x_PMC_UHP },
+	{ .uhp_udp_mask = 0 },
 };
 
 static const struct of_device_id atmel_pmc_ids[] __initconst = {
 	{ .compatible = "atmel,at91rm9200-pmc", .data = &pmc_infos[0] },
 	{ .compatible = "atmel,at91sam9260-pmc", .data = &pmc_infos[1] },
+	{ .compatible = "atmel,at91sam9261-pmc", .data = &pmc_infos[1] },
+	{ .compatible = "atmel,at91sam9263-pmc", .data = &pmc_infos[1] },
 	{ .compatible = "atmel,at91sam9g45-pmc", .data = &pmc_infos[2] },
 	{ .compatible = "atmel,at91sam9n12-pmc", .data = &pmc_infos[1] },
+	{ .compatible = "atmel,at91sam9rl-pmc", .data = &pmc_infos[3] },
 	{ .compatible = "atmel,at91sam9x5-pmc", .data = &pmc_infos[1] },
 	{ .compatible = "atmel,sama5d3-pmc", .data = &pmc_infos[1] },
+	{ .compatible = "atmel,sama5d4-pmc", .data = &pmc_infos[1] },
 	{ .compatible = "atmel,sama5d2-pmc", .data = &pmc_infos[1] },
 	{ /* sentinel */ },
 };
