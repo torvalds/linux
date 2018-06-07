@@ -67,9 +67,10 @@ static int codec_fixup(struct snd_soc_pcm_runtime *rtd,
 static int aif1_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_component *codec = rtd->codec_dai->component;
 
-	snd_soc_update_bits(codec, PCM512x_GPIO_CONTROL_1, 0x08, 0x08);
+	snd_soc_component_update_bits(codec, PCM512x_GPIO_CONTROL_1,
+				      0x08, 0x08);
 
 	return snd_pcm_hw_constraint_single(substream->runtime,
 			SNDRV_PCM_HW_PARAM_RATE, 48000);
@@ -78,18 +79,20 @@ static int aif1_startup(struct snd_pcm_substream *substream)
 static void aif1_shutdown(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_component *codec = rtd->codec_dai->component;
 
-	snd_soc_update_bits(codec, PCM512x_GPIO_CONTROL_1, 0x08, 0x00);
+	snd_soc_component_update_bits(codec, PCM512x_GPIO_CONTROL_1,
+				      0x08, 0x00);
 }
 
 static int init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_component *codec = rtd->codec_dai->component;
 
-	snd_soc_update_bits(codec, PCM512x_GPIO_EN, 0x08, 0x08);
-	snd_soc_update_bits(codec, PCM512x_GPIO_OUTPUT_4, 0x0f, 0x02);
-	snd_soc_update_bits(codec, PCM512x_GPIO_CONTROL_1, 0x08, 0x08);
+	snd_soc_component_update_bits(codec, PCM512x_GPIO_EN, 0x08, 0x08);
+	snd_soc_component_update_bits(codec, PCM512x_GPIO_OUTPUT_4, 0x0f, 0x02);
+	snd_soc_component_update_bits(codec, PCM512x_GPIO_CONTROL_1,
+				      0x08, 0x08);
 
 	return 0;
 }
