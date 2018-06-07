@@ -45,11 +45,10 @@ static void set_context_pdp_root_pointer(
 		struct execlist_ring_context *ring_context,
 		u32 pdp[8])
 {
-	struct execlist_mmio_pair *pdp_pair = &ring_context->pdp3_UDW;
 	int i;
 
 	for (i = 0; i < 8; i++)
-		pdp_pair[i].val = pdp[7 - i];
+		ring_context->pdps[i].val = pdp[7 - i];
 }
 
 static void update_shadow_pdps(struct intel_vgpu_workload *workload)
@@ -1230,7 +1229,7 @@ static void read_guest_pdps(struct intel_vgpu *vgpu,
 	u64 gpa;
 	int i;
 
-	gpa = ring_context_gpa + RING_CTX_OFF(pdp3_UDW.val);
+	gpa = ring_context_gpa + RING_CTX_OFF(pdps[0].val);
 
 	for (i = 0; i < 8; i++)
 		intel_gvt_hypervisor_read_gpa(vgpu,
