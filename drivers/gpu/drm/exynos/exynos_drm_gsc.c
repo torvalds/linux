@@ -577,7 +577,7 @@ static void gsc_src_set_size(struct gsc_context *ctx,
 	cfg &= ~(GSC_SRCIMG_HEIGHT_MASK |
 		GSC_SRCIMG_WIDTH_MASK);
 
-	cfg |= (GSC_SRCIMG_WIDTH(buf->buf.width) |
+	cfg |= (GSC_SRCIMG_WIDTH(buf->buf.pitch[0] / buf->format->cpp[0]) |
 		GSC_SRCIMG_HEIGHT(buf->buf.height));
 
 	gsc_write(cfg, GSC_SRCIMG_SIZE);
@@ -868,7 +868,7 @@ static void gsc_dst_set_size(struct gsc_context *ctx,
 	/* original size */
 	cfg = gsc_read(GSC_DSTIMG_SIZE);
 	cfg &= ~(GSC_DSTIMG_HEIGHT_MASK | GSC_DSTIMG_WIDTH_MASK);
-	cfg |= GSC_DSTIMG_WIDTH(buf->buf.width) |
+	cfg |= GSC_DSTIMG_WIDTH(buf->buf.pitch[0] / buf->format->cpp[0]) |
 	       GSC_DSTIMG_HEIGHT(buf->buf.height);
 	gsc_write(cfg, GSC_DSTIMG_SIZE);
 
