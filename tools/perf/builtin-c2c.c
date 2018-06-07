@@ -1976,7 +1976,7 @@ static int filter_cb(struct hist_entry *he)
 	c2c_he = container_of(he, struct c2c_hist_entry, he);
 
 	if (c2c.show_src && !he->srcline)
-		he->srcline = hist_entry__get_srcline(he);
+		he->srcline = hist_entry__srcline(he);
 
 	calc_width(c2c_he);
 

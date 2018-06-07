@@ -499,7 +499,7 @@ static int test__checkevent_pmu_partial_time_callgraph(struct perf_evlist *evlis
 	 * while this test executes only parse events method.
 	 */
 	TEST_ASSERT_VAL("wrong period",     0 == evsel->attr.sample_period);
-	TEST_ASSERT_VAL("wrong callgraph",  !(PERF_SAMPLE_CALLCHAIN & evsel->attr.sample_type));
+	TEST_ASSERT_VAL("wrong callgraph",  !evsel__has_callchain(evsel));
 	TEST_ASSERT_VAL("wrong time",  !(PERF_SAMPLE_TIME & evsel->attr.sample_type));
 
 	/* cpu/config=2,call-graph=no,time=0,period=2000/ */
@@ -512,7 +512,7 @@ static int test__checkevent_pmu_partial_time_callgraph(struct perf_evlist *evlis
 	 * while this test executes only parse events method.
 	 */
 	TEST_ASSERT_VAL("wrong period",     0 == evsel->attr.sample_period);
-	TEST_ASSERT_VAL("wrong callgraph",  !(PERF_SAMPLE_CALLCHAIN & evsel->attr.sample_type));
+	TEST_ASSERT_VAL("wrong callgraph",  !evsel__has_callchain(evsel));
 	TEST_ASSERT_VAL("wrong time",  !(PERF_SAMPLE_TIME & evsel->attr.sample_type));
 
 	return 0;

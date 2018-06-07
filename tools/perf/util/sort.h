@@ -151,6 +151,11 @@ struct hist_entry {
 	struct callchain_root	callchain[0]; /* must be last member */
 };
 
+static __pure inline bool hist_entry__has_callchains(struct hist_entry *he)
+{
+	return hists__has_callchains(he->hists);
+}
+
 static inline bool hist_entry__has_pairs(struct hist_entry *he)
 {
 	return !list_empty(&he->pairs.node);
@@ -292,5 +297,5 @@ int64_t
 sort__daddr_cmp(struct hist_entry *left, struct hist_entry *right);
 int64_t
 sort__dcacheline_cmp(struct hist_entry *left, struct hist_entry *right);
-char *hist_entry__get_srcline(struct hist_entry *he);
+char *hist_entry__srcline(struct hist_entry *he);
 #endif	/* __PERF_SORT_H */
