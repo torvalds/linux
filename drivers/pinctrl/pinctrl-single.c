@@ -1595,19 +1595,19 @@ static int pcs_save_context(struct pcs_device *pcs)
 
 	switch (pcs->width) {
 	case 64:
-		regsl = (u64 *)pcs->saved_vals;
-		for (i = 0; i < pcs->size / mux_bytes; i++)
-			regsl[i] = pcs->read(pcs->base + i * mux_bytes);
+		regsl = pcs->saved_vals;
+		for (i = 0; i < pcs->size; i += mux_bytes)
+			*regsl++ = pcs->read(pcs->base + i);
 		break;
 	case 32:
-		regsw = (u32 *)pcs->saved_vals;
-		for (i = 0; i < pcs->size / mux_bytes; i++)
-			regsw[i] = pcs->read(pcs->base + i * mux_bytes);
+		regsw = pcs->saved_vals;
+		for (i = 0; i < pcs->size; i += mux_bytes)
+			*regsw++ = pcs->read(pcs->base + i);
 		break;
 	case 16:
-		regshw = (u16 *)pcs->saved_vals;
-		for (i = 0; i < pcs->size / mux_bytes; i++)
-			regshw[i] = pcs->read(pcs->base + i * mux_bytes);
+		regshw = pcs->saved_vals;
+		for (i = 0; i < pcs->size; i += mux_bytes)
+			*regshw++ = pcs->read(pcs->base + i);
 		break;
 	}
 
@@ -1625,19 +1625,19 @@ static void pcs_restore_context(struct pcs_device *pcs)
 
 	switch (pcs->width) {
 	case 64:
-		regsl = (u64 *)pcs->saved_vals;
-		for (i = 0; i < pcs->size / mux_bytes; i++)
-			pcs->write(regsl[i], pcs->base + i * mux_bytes);
+		regsl = pcs->saved_vals;
+		for (i = 0; i < pcs->size; i += mux_bytes)
+			pcs->write(*regsl++, pcs->base + i);
 		break;
 	case 32:
-		regsw = (u32 *)pcs->saved_vals;
-		for (i = 0; i < pcs->size / mux_bytes; i++)
-			pcs->write(regsw[i], pcs->base + i * mux_bytes);
+		regsw = pcs->saved_vals;
+		for (i = 0; i < pcs->size; i += mux_bytes)
+			pcs->write(*regsw++, pcs->base + i);
 		break;
 	case 16:
-		regshw = (u16 *)pcs->saved_vals;
-		for (i = 0; i < pcs->size / mux_bytes; i++)
-			pcs->write(regshw[i], pcs->base + i * mux_bytes);
+		regshw = pcs->saved_vals;
+		for (i = 0; i < pcs->size; i += mux_bytes)
+			pcs->write(*regshw++, pcs->base + i);
 		break;
 	}
 }
