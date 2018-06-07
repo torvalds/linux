@@ -48,8 +48,8 @@ void __trace_opal_exit(long opcode, unsigned long retval);
 /* VMX copying */
 int enter_vmx_usercopy(void);
 int exit_vmx_usercopy(void);
-int enter_vmx_copy(void);
-void * exit_vmx_copy(void *dest);
+int enter_vmx_ops(void);
+void *exit_vmx_ops(void *dest);
 
 /* Traps */
 long machine_check_early(struct pt_regs *regs);
