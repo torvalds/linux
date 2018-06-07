@@ -3199,8 +3199,8 @@ static int flow_counters_set_data(struct ib_counters *ibcounters,
 	if (!mcounters->hw_cntrs_hndl) {
 		mcounters->hw_cntrs_hndl = mlx5_fc_create(
 			to_mdev(ibcounters->device)->mdev, false);
-		if (!mcounters->hw_cntrs_hndl) {
-			ret = -ENOMEM;
+		if (IS_ERR(mcounters->hw_cntrs_hndl)) {
+			ret = PTR_ERR(mcounters->hw_cntrs_hndl);
 			goto free;
 		}
 		hw_hndl = true;
