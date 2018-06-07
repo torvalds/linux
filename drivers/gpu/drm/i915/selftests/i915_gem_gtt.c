@@ -147,12 +147,16 @@ static int igt_ppgtt_alloc(void *arg)
 		return -ENOMEM;
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
-	err = __hw_ppgtt_init(ppgtt, dev_priv);
-	if (err)
-		goto err_ppgtt;
+	ppgtt = __hw_ppgtt_create(dev_priv);
+	if (IS_ERR(ppgtt)) {
+		err = PTR_ERR(ppgtt);
+		goto err_unlock;
+	}
 
-	if (!ppgtt->vm.allocate_va_range)
+	if (!ppgtt->vm.allocate_va_range) {
+		err = 0;
 		goto err_ppgtt_cleanup;
+	}
 
 	/* Check we can allocate the entire range */
 	for (size = 4096;
@@ -189,9 +193,9 @@ static int igt_ppgtt_alloc(void *arg)
 
 err_ppgtt_cleanup:
 	ppgtt->vm.cleanup(&ppgtt->vm);
-err_ppgtt:
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 	kfree(ppgtt);
+err_unlock:
+	mutex_unlock(&dev_priv->drm.struct_mutex);
 	return err;
 }
 

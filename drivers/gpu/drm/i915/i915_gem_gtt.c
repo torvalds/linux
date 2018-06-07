@@ -1562,32 +1562,36 @@ unwind:
  * space.
  *
  */
-static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
+static struct i915_hw_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 {
-	struct i915_address_space *vm = &ppgtt->vm;
-	struct drm_i915_private *dev_priv = vm->i915;
-	int ret;
+	struct i915_hw_ppgtt *ppgtt;
+	int err;
 
-	ppgtt->vm.total = USES_FULL_48BIT_PPGTT(dev_priv) ?
+	ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
+	if (!ppgtt)
+		return ERR_PTR(-ENOMEM);
+
+	ppgtt->vm.i915 = i915;
+	ppgtt->vm.dma = &i915->drm.pdev->dev;
+
+	ppgtt->vm.total = USES_FULL_48BIT_PPGTT(i915) ?
 		1ULL << 48 :
 		1ULL << 32;
 
 	/* There are only few exceptions for gen >=6. chv and bxt.
 	 * And we are not sure about the latter so play safe for now.
 	 */
-	if (IS_CHERRYVIEW(dev_priv) || IS_BROXTON(dev_priv))
+	if (IS_CHERRYVIEW(i915) || IS_BROXTON(i915))
 		ppgtt->vm.pt_kmap_wc = true;
 
-	ret = gen8_init_scratch(&ppgtt->vm);
-	if (ret) {
-		ppgtt->vm.total = 0;
-		return ret;
-	}
+	err = gen8_init_scratch(&ppgtt->vm);
+	if (err)
+		goto err_free;
 
-	if (use_4lvl(vm)) {
-		ret = setup_px(&ppgtt->vm, &ppgtt->pml4);
-		if (ret)
-			goto free_scratch;
+	if (use_4lvl(&ppgtt->vm)) {
+		err = setup_px(&ppgtt->vm, &ppgtt->pml4);
+		if (err)
+			goto err_scratch;
 
 		gen8_initialize_pml4(&ppgtt->vm, &ppgtt->pml4);
 
@@ -1595,15 +1599,15 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 		ppgtt->vm.insert_entries = gen8_ppgtt_insert_4lvl;
 		ppgtt->vm.clear_range = gen8_ppgtt_clear_4lvl;
 	} else {
-		ret = __pdp_init(&ppgtt->vm, &ppgtt->pdp);
-		if (ret)
-			goto free_scratch;
+		err = __pdp_init(&ppgtt->vm, &ppgtt->pdp);
+		if (err)
+			goto err_scratch;
 
-		if (intel_vgpu_active(dev_priv)) {
-			ret = gen8_preallocate_top_level_pdp(ppgtt);
-			if (ret) {
+		if (intel_vgpu_active(i915)) {
+			err = gen8_preallocate_top_level_pdp(ppgtt);
+			if (err) {
 				__pdp_fini(&ppgtt->pdp);
-				goto free_scratch;
+				goto err_scratch;
 			}
 		}
 
@@ -1612,7 +1616,7 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 		ppgtt->vm.clear_range = gen8_ppgtt_clear_3lvl;
 	}
 
-	if (intel_vgpu_active(dev_priv))
+	if (intel_vgpu_active(i915))
 		gen8_ppgtt_notify_vgt(ppgtt, true);
 
 	ppgtt->vm.cleanup = gen8_ppgtt_cleanup;
@@ -1623,11 +1627,13 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	ppgtt->vm.vma_ops.set_pages   = ppgtt_set_pages;
 	ppgtt->vm.vma_ops.clear_pages = clear_pages;
 
-	return 0;
+	return ppgtt;
 
-free_scratch:
+err_scratch:
 	gen8_free_scratch(&ppgtt->vm);
-	return ret;
+err_free:
+	kfree(ppgtt);
+	return ERR_PTR(err);
 }
 
 static void gen6_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
@@ -1638,8 +1644,7 @@ static void gen6_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 	u32 pd_entry, pte, pde;
 	u32 start = 0, length = ppgtt->vm.total;
 
-	scratch_pte = vm->pte_encode(vm->scratch_page.daddr,
-				     I915_CACHE_LLC, 0);
+	scratch_pte = vm->pte_encode(vm->scratch_page.daddr, I915_CACHE_LLC, 0);
 
 	gen6_for_each_pde(unused, &ppgtt->pd, start, length, pde) {
 		u32 expected;
@@ -2027,36 +2032,41 @@ static void gen6_scratch_va_range(struct i915_hw_ppgtt *ppgtt,
 		ppgtt->pd.page_table[pde] = ppgtt->vm.scratch_pt;
 }
 
-static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
+static struct i915_hw_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 {
-	struct drm_i915_private *dev_priv = ppgtt->vm.i915;
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	int ret;
+	struct i915_ggtt * const ggtt = &i915->ggtt;
+	struct i915_hw_ppgtt *ppgtt;
+	int err;
+
+	ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
+	if (!ppgtt)
+		return ERR_PTR(-ENOMEM);
+
+	ppgtt->vm.i915 = i915;
+	ppgtt->vm.dma = &i915->drm.pdev->dev;
 
 	ppgtt->vm.pte_encode = ggtt->vm.pte_encode;
-	if (intel_vgpu_active(dev_priv) || IS_GEN6(dev_priv))
+	if (intel_vgpu_active(i915) || IS_GEN6(i915))
 		ppgtt->switch_mm = gen6_mm_switch;
-	else if (IS_HASWELL(dev_priv))
+	else if (IS_HASWELL(i915))
 		ppgtt->switch_mm = hsw_mm_switch;
-	else if (IS_GEN7(dev_priv))
+	else if (IS_GEN7(i915))
 		ppgtt->switch_mm = gen7_mm_switch;
 	else
 		BUG();
 
-	ret = gen6_ppgtt_alloc(ppgtt);
-	if (ret)
-		return ret;
+	err = gen6_ppgtt_alloc(ppgtt);
+	if (err)
+		goto err_free;
 
 	ppgtt->vm.total = I915_PDES * GEN6_PTES * PAGE_SIZE;
 
 	gen6_scratch_va_range(ppgtt, 0, ppgtt->vm.total);
 	gen6_write_page_range(ppgtt, 0, ppgtt->vm.total);
 
-	ret = gen6_alloc_va_range(&ppgtt->vm, 0, ppgtt->vm.total);
-	if (ret) {
-		gen6_ppgtt_cleanup(&ppgtt->vm);
-		return ret;
-	}
+	err = gen6_alloc_va_range(&ppgtt->vm, 0, ppgtt->vm.total);
+	if (err)
+		goto err_cleanup;
 
 	ppgtt->vm.clear_range = gen6_ppgtt_clear_range;
 	ppgtt->vm.insert_entries = gen6_ppgtt_insert_entries;
@@ -2075,19 +2085,13 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	DRM_DEBUG_DRIVER("Adding PPGTT at offset %x\n",
 			 ppgtt->pd.base.ggtt_offset << 10);
 
-	return 0;
-}
+	return ppgtt;
 
-static int __hw_ppgtt_init(struct i915_hw_ppgtt *ppgtt,
-			   struct drm_i915_private *dev_priv)
-{
-	ppgtt->vm.i915 = dev_priv;
-	ppgtt->vm.dma = &dev_priv->drm.pdev->dev;
-
-	if (INTEL_GEN(dev_priv) < 8)
-		return gen6_ppgtt_init(ppgtt);
-	else
-		return gen8_ppgtt_init(ppgtt);
+err_cleanup:
+	gen6_ppgtt_cleanup(&ppgtt->vm);
+err_free:
+	kfree(ppgtt);
+	return ERR_PTR(err);
 }
 
 static void i915_address_space_init(struct i915_address_space *vm,
@@ -2173,26 +2177,28 @@ int i915_ppgtt_init_hw(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
+static struct i915_hw_ppgtt *
+__hw_ppgtt_create(struct drm_i915_private *i915)
+{
+	if (INTEL_GEN(i915) < 8)
+		return gen6_ppgtt_create(i915);
+	else
+		return gen8_ppgtt_create(i915);
+}
+
 struct i915_hw_ppgtt *
-i915_ppgtt_create(struct drm_i915_private *dev_priv,
+i915_ppgtt_create(struct drm_i915_private *i915,
 		  struct drm_i915_file_private *fpriv,
 		  const char *name)
 {
 	struct i915_hw_ppgtt *ppgtt;
-	int ret;
 
-	ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
-	if (!ppgtt)
-		return ERR_PTR(-ENOMEM);
-
-	ret = __hw_ppgtt_init(ppgtt, dev_priv);
-	if (ret) {
-		kfree(ppgtt);
-		return ERR_PTR(ret);
-	}
+	ppgtt = __hw_ppgtt_create(i915);
+	if (IS_ERR(ppgtt))
+		return ppgtt;
 
 	kref_init(&ppgtt->ref);
-	i915_address_space_init(&ppgtt->vm, dev_priv, name);
+	i915_address_space_init(&ppgtt->vm, i915, name);
 	ppgtt->vm.file = fpriv;
 
 	trace_i915_ppgtt_create(&ppgtt->vm);
