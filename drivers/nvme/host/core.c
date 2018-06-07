@@ -3245,7 +3245,7 @@ static void nvme_scan_work(struct work_struct *work)
 
 	WARN_ON_ONCE(!ctrl->tagset);
 
-	if (test_and_clear_bit(EVENT_NS_CHANGED, &ctrl->events)) {
+	if (test_and_clear_bit(NVME_AER_NOTICE_NS_CHANGED, &ctrl->events)) {
 		if (nvme_scan_changed_ns_log(ctrl))
 			goto out_sort_namespaces;
 		dev_info(ctrl->device, "rescanning namespaces.\n");
@@ -3386,7 +3386,7 @@ static void nvme_handle_aen_notice(struct nvme_ctrl *ctrl, u32 result)
 {
 	switch ((result & 0xff00) >> 8) {
 	case NVME_AER_NOTICE_NS_CHANGED:
-		set_bit(EVENT_NS_CHANGED, &ctrl->events);
+		set_bit(NVME_AER_NOTICE_NS_CHANGED, &ctrl->events);
 		nvme_queue_scan(ctrl);
 		break;
 	case NVME_AER_NOTICE_FW_ACT_STARTING:

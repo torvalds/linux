@@ -194,7 +194,6 @@ struct nvme_ctrl {
 	struct delayed_work ka_work;
 	struct nvme_command ka_cmd;
 	struct work_struct fw_act_work;
-#define EVENT_NS_CHANGED		(1 << 0)
 	unsigned long events;
 
 	/* Power saving configuration */
