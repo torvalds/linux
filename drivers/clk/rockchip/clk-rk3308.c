@@ -195,7 +195,7 @@ static struct rockchip_pll_clock rk3308_pll_clks[] __initdata = {
 		     RK3308_MODE_CON, 0, 0, 0, rk3308_pll_rates),
 	[dpll] = PLL(pll_rk3328, PLL_DPLL, "dpll", mux_pll_p,
 		     0, RK3308_PLL_CON(8),
-		     RK3308_MODE_CON, 2, 1, 0, NULL),
+		     RK3308_MODE_CON, 2, 1, 0, rk3308_pll_rates),
 	[vpll0] = PLL(pll_rk3328, PLL_VPLL0, "vpll0", mux_pll_p,
 		     0, RK3308_PLL_CON(16),
 		     RK3308_MODE_CON, 4, 2, 0, rk3308_pll_rates),
