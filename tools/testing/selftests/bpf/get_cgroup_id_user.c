@@ -50,13 +50,13 @@ int main(int argc, char **argv)
 	const char *probe_name = "syscalls/sys_enter_nanosleep";
 	const char *file = "get_cgroup_id_kern.o";
 	int err, bytes, efd, prog_fd, pmu_fd;
+	int cgroup_fd, cgidmap_fd, pidmap_fd;
 	struct perf_event_attr attr = {};
-	int cgroup_fd, cgidmap_fd;
 	struct bpf_object *obj;
 	__u64 kcgid = 0, ucgid;
+	__u32 key = 0, pid;
 	int exit_code = 1;
 	char buf[256];
-	__u32 key = 0;
 
 	err = setup_cgroup_environment();
 	if (CHECK(err, "setup_cgroup_environment", "err %d errno %d\n", err,
@@ -80,6 +80,14 @@ int main(int argc, char **argv)
 	if (CHECK(cgidmap_fd < 0, "bpf_find_map", "err %d errno %d\n",
 		  cgidmap_fd, errno))
 		goto close_prog;
+
+	pidmap_fd = bpf_find_map(__func__, obj, "pidmap");
+	if (CHECK(pidmap_fd < 0, "bpf_find_map", "err %d errno %d\n",
+		  pidmap_fd, errno))
+		goto close_prog;
+
+	pid = getpid();
+	bpf_map_update_elem(pidmap_fd, &key, &pid, 0);
 
 	snprintf(buf, sizeof(buf),
 		 "/sys/kernel/debug/tracing/events/%s/id", probe_name);

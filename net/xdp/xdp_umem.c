@@ -132,8 +132,10 @@ static void xdp_umem_unpin_pages(struct xdp_umem *umem)
 
 static void xdp_umem_unaccount_pages(struct xdp_umem *umem)
 {
-	atomic_long_sub(umem->npgs, &umem->user->locked_vm);
-	free_uid(umem->user);
+	if (umem->user) {
+		atomic_long_sub(umem->npgs, &umem->user->locked_vm);
+		free_uid(umem->user);
+	}
 }
 
 static void xdp_umem_release(struct xdp_umem *umem)
