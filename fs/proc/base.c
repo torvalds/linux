@@ -401,7 +401,6 @@ static int proc_pid_stack(struct seq_file *m, struct pid_namespace *ns,
 	struct stack_trace trace;
 	unsigned long *entries;
 	int err;
-	int i;
 
 	entries = kmalloc(MAX_STACK_TRACE_DEPTH * sizeof(*entries), GFP_KERNEL);
 	if (!entries)
@@ -414,6 +413,8 @@ static int proc_pid_stack(struct seq_file *m, struct pid_namespace *ns,
 
 	err = lock_trace(task);
 	if (!err) {
+		unsigned int i;
+
 		save_stack_trace_tsk(task, &trace);
 
 		for (i = 0; i < trace.nr_entries; i++) {
