@@ -404,4 +404,3 @@ type is also given we are looking for a particular autofs mount and if
 a match isn't found a fail is returned. If the the located path is the
 root of a mount 1 is returned along with the super magic of the mount
 or 0 otherwise.
-
