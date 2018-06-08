@@ -19,7 +19,7 @@
 #define DRM_HDCP_RI_LEN				2
 #define DRM_HDCP_V_PRIME_PART_LEN		4
 #define DRM_HDCP_V_PRIME_NUM_PARTS		5
-#define DRM_HDCP_NUM_DOWNSTREAM(x)		(x & 0x3f)
+#define DRM_HDCP_NUM_DOWNSTREAM(x)		(x & 0x7f)
 #define DRM_HDCP_MAX_CASCADE_EXCEEDED(x)	(x & BIT(3))
 #define DRM_HDCP_MAX_DEVICE_EXCEEDED(x)		(x & BIT(7))
 

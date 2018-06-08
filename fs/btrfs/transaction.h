@@ -199,6 +199,20 @@ int btrfs_clean_one_deleted_snapshot(struct btrfs_root *root);
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans);
 int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans,
 				   int wait_for_unblock);
+
+/*
+ * Try to commit transaction asynchronously, so this is safe to call
+ * even holding a spinlock.
+ *
+ * It's done by informing transaction_kthread to commit transaction without
+ * waiting for commit interval.
+ */
+static inline void btrfs_commit_transaction_locksafe(
+		struct btrfs_fs_info *fs_info)
+{
+	set_bit(BTRFS_FS_NEED_ASYNC_COMMIT, &fs_info->flags);
+	wake_up_process(fs_info->transaction_kthread);
+}
 int btrfs_end_transaction_throttle(struct btrfs_trans_handle *trans);
 int btrfs_should_end_transaction(struct btrfs_trans_handle *trans);
 void btrfs_throttle(struct btrfs_fs_info *fs_info);

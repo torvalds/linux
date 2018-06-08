@@ -1499,14 +1499,14 @@ static int process_preds(struct trace_event_call *call,
 		return ret;
 	}
 
-	if (!nr_preds) {
-		prog = NULL;
-	} else {
-		prog = predicate_parse(filter_string, nr_parens, nr_preds,
+	if (!nr_preds)
+		return -EINVAL;
+
+	prog = predicate_parse(filter_string, nr_parens, nr_preds,
 			       parse_pred, call, pe);
-		if (IS_ERR(prog))
-			return PTR_ERR(prog);
-	}
+	if (IS_ERR(prog))
+		return PTR_ERR(prog);
+
 	rcu_assign_pointer(filter->prog, prog);
 	return 0;
 }

@@ -18,6 +18,7 @@
 #include <linux/arm-smccc.h>
 #include <linux/preempt.h>
 #include <linux/kvm_host.h>
+#include <linux/uaccess.h>
 #include <linux/wait.h>
 
 #include <asm/cputype.h>
@@ -426,4 +427,63 @@ int kvm_hvc_call_handler(struct kvm_vcpu *vcpu)
 
 	smccc_set_retval(vcpu, val, 0, 0, 0);
 	return 1;
+}
+
+int kvm_arm_get_fw_num_regs(struct kvm_vcpu *vcpu)
+{
+	return 1;		/* PSCI version */
+}
+
+int kvm_arm_copy_fw_reg_indices(struct kvm_vcpu *vcpu, u64 __user *uindices)
+{
+	if (put_user(KVM_REG_ARM_PSCI_VERSION, uindices))
+		return -EFAULT;
+
+	return 0;
+}
+
+int kvm_arm_get_fw_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
+{
+	if (reg->id == KVM_REG_ARM_PSCI_VERSION) {
+		void __user *uaddr = (void __user *)(long)reg->addr;
+		u64 val;
+
+		val = kvm_psci_version(vcpu, vcpu->kvm);
+		if (copy_to_user(uaddr, &val, KVM_REG_SIZE(reg->id)))
+			return -EFAULT;
+
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+int kvm_arm_set_fw_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
+{
+	if (reg->id == KVM_REG_ARM_PSCI_VERSION) {
+		void __user *uaddr = (void __user *)(long)reg->addr;
+		bool wants_02;
+		u64 val;
+
+		if (copy_from_user(&val, uaddr, KVM_REG_SIZE(reg->id)))
+			return -EFAULT;
+
+		wants_02 = test_bit(KVM_ARM_VCPU_PSCI_0_2, vcpu->arch.features);
+
+		switch (val) {
+		case KVM_ARM_PSCI_0_1:
+			if (wants_02)
+				return -EINVAL;
+			vcpu->kvm->arch.psci_version = val;
+			return 0;
+		case KVM_ARM_PSCI_0_2:
+		case KVM_ARM_PSCI_1_0:
+			if (!wants_02)
+				return -EINVAL;
+			vcpu->kvm->arch.psci_version = val;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
 }

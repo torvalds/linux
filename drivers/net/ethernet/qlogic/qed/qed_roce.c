@@ -848,7 +848,7 @@ int qed_roce_query_qp(struct qed_hwfn *p_hwfn,
 
 	if (!(qp->resp_offloaded)) {
 		DP_NOTICE(p_hwfn,
-			  "The responder's qp should be offloded before requester's\n");
+			  "The responder's qp should be offloaded before requester's\n");
 		return -EINVAL;
 	}
 

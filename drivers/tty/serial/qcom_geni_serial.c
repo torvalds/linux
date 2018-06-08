@@ -1022,6 +1022,7 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 	struct qcom_geni_serial_port *port;
 	struct uart_port *uport;
 	struct resource *res;
+	int irq;
 
 	if (pdev->dev.of_node)
 		line = of_alias_get_id(pdev->dev.of_node, "serial");
@@ -1061,11 +1062,12 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 	port->rx_fifo_depth = DEF_FIFO_DEPTH_WORDS;
 	port->tx_fifo_width = DEF_FIFO_WIDTH_BITS;
 
-	uport->irq = platform_get_irq(pdev, 0);
-	if (uport->irq < 0) {
-		dev_err(&pdev->dev, "Failed to get IRQ %d\n", uport->irq);
-		return uport->irq;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		dev_err(&pdev->dev, "Failed to get IRQ %d\n", irq);
+		return irq;
 	}
+	uport->irq = irq;
 
 	uport->private_data = &qcom_geni_console_driver;
 	platform_set_drvdata(pdev, port);

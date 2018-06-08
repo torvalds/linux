@@ -15,6 +15,7 @@
 #include <bpf/libbpf.h>
 
 #include "cgroup_helpers.h"
+#include "bpf_rlimit.h"
 
 #define CG_PATH	"/foo"
 #define CONNECT4_PROG_PATH	"./connect4_prog.o"

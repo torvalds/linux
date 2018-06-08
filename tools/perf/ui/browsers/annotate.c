@@ -692,6 +692,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 		"J             Toggle showing number of jump sources on targets\n"
 		"n             Search next string\n"
 		"o             Toggle disassembler output/simplified view\n"
+		"O             Bump offset level (jump targets -> +call -> all -> cycle thru)\n"
 		"s             Toggle source code view\n"
 		"t             Circulate percent, total period, samples view\n"
 		"/             Search string\n"
@@ -718,6 +719,10 @@ static int annotate_browser__run(struct annotate_browser *browser,
 		case 'o':
 			notes->options->use_offset = !notes->options->use_offset;
 			annotation__update_column_widths(notes);
+			continue;
+		case 'O':
+			if (++notes->options->offset_level > ANNOTATION__MAX_OFFSET_LEVEL)
+				notes->options->offset_level = ANNOTATION__MIN_OFFSET_LEVEL;
 			continue;
 		case 'j':
 			notes->options->jump_arrows = !notes->options->jump_arrows;

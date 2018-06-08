@@ -708,6 +708,7 @@ static void mdp5_crtc_atomic_flush(struct drm_crtc *crtc,
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 	mdp5_crtc->event = crtc->state->event;
+	crtc->state->event = NULL;
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	/*

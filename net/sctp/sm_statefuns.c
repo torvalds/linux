@@ -1794,6 +1794,9 @@ static enum sctp_disposition sctp_sf_do_dupcook_a(
 			       GFP_ATOMIC))
 		goto nomem;
 
+	if (sctp_auth_asoc_init_active_key(new_asoc, GFP_ATOMIC))
+		goto nomem;
+
 	/* Make sure no new addresses are being added during the
 	 * restart.  Though this is a pretty complicated attack
 	 * since you'd have to get inside the cookie.
@@ -1904,6 +1907,9 @@ static enum sctp_disposition sctp_sf_do_dupcook_b(
 	peer_init = &chunk->subh.cookie_hdr->c.peer_init[0];
 	if (!sctp_process_init(new_asoc, chunk, sctp_source(chunk), peer_init,
 			       GFP_ATOMIC))
+		goto nomem;
+
+	if (sctp_auth_asoc_init_active_key(new_asoc, GFP_ATOMIC))
 		goto nomem;
 
 	/* Update the content of current association.  */
@@ -2050,7 +2056,7 @@ static enum sctp_disposition sctp_sf_do_dupcook_d(
 		}
 	}
 
-	repl = sctp_make_cookie_ack(new_asoc, chunk);
+	repl = sctp_make_cookie_ack(asoc, chunk);
 	if (!repl)
 		goto nomem;
 

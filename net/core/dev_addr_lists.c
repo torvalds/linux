@@ -839,7 +839,7 @@ void dev_mc_flush(struct net_device *dev)
 EXPORT_SYMBOL(dev_mc_flush);
 
 /**
- *	dev_mc_flush - Init multicast address list
+ *	dev_mc_init - Init multicast address list
  *	@dev: device
  *
  *	Init multicast address list.

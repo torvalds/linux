@@ -1278,7 +1278,7 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dlen)
 	struct tipc_msg *hdr = &tsk->phdr;
 	struct tipc_name_seq *seq;
 	struct sk_buff_head pkts;
-	u32 dnode, dport;
+	u32 dport, dnode = 0;
 	u32 type, inst;
 	int mtu, rc;
 
@@ -1348,6 +1348,8 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dlen)
 		msg_set_destnode(hdr, dnode);
 		msg_set_destport(hdr, dest->addr.id.ref);
 		msg_set_hdr_sz(hdr, BASIC_H_SIZE);
+	} else {
+		return -EINVAL;
 	}
 
 	/* Block or return if destination link is congested */

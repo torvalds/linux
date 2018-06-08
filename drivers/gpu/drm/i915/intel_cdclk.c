@@ -2140,10 +2140,22 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 		}
 	}
 
-	/* According to BSpec, "The CD clock frequency must be at least twice
+	/*
+	 * According to BSpec, "The CD clock frequency must be at least twice
 	 * the frequency of the Azalia BCLK." and BCLK is 96 MHz by default.
+	 *
+	 * FIXME: Check the actual, not default, BCLK being used.
+	 *
+	 * FIXME: This does not depend on ->has_audio because the higher CDCLK
+	 * is required for audio probe, also when there are no audio capable
+	 * displays connected at probe time. This leads to unnecessarily high
+	 * CDCLK when audio is not required.
+	 *
+	 * FIXME: This limit is only applied when there are displays connected
+	 * at probe time. If we probe without displays, we'll still end up using
+	 * the platform minimum CDCLK, failing audio probe.
 	 */
-	if (crtc_state->has_audio && INTEL_GEN(dev_priv) >= 9)
+	if (INTEL_GEN(dev_priv) >= 9)
 		min_cdclk = max(2 * 96000, min_cdclk);
 
 	/*

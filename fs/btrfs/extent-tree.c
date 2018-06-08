@@ -2601,13 +2601,19 @@ static int cleanup_ref_head(struct btrfs_trans_handle *trans,
 	trace_run_delayed_ref_head(fs_info, head, 0);
 
 	if (head->total_ref_mod < 0) {
-		struct btrfs_block_group_cache *cache;
+		struct btrfs_space_info *space_info;
+		u64 flags;
 
-		cache = btrfs_lookup_block_group(fs_info, head->bytenr);
-		ASSERT(cache);
-		percpu_counter_add(&cache->space_info->total_bytes_pinned,
+		if (head->is_data)
+			flags = BTRFS_BLOCK_GROUP_DATA;
+		else if (head->is_system)
+			flags = BTRFS_BLOCK_GROUP_SYSTEM;
+		else
+			flags = BTRFS_BLOCK_GROUP_METADATA;
+		space_info = __find_space_info(fs_info, flags);
+		ASSERT(space_info);
+		percpu_counter_add(&space_info->total_bytes_pinned,
 				   -head->num_bytes);
-		btrfs_put_block_group(cache);
 
 		if (head->is_data) {
 			spin_lock(&delayed_refs->lock);
@@ -3136,7 +3142,11 @@ static noinline int check_delayed_ref(struct btrfs_root *root,
 	struct rb_node *node;
 	int ret = 0;
 
+	spin_lock(&root->fs_info->trans_lock);
 	cur_trans = root->fs_info->running_transaction;
+	if (cur_trans)
+		refcount_inc(&cur_trans->use_count);
+	spin_unlock(&root->fs_info->trans_lock);
 	if (!cur_trans)
 		return 0;
 
@@ -3145,6 +3155,7 @@ static noinline int check_delayed_ref(struct btrfs_root *root,
 	head = btrfs_find_delayed_ref_head(delayed_refs, bytenr);
 	if (!head) {
 		spin_unlock(&delayed_refs->lock);
+		btrfs_put_transaction(cur_trans);
 		return 0;
 	}
 
@@ -3161,6 +3172,7 @@ static noinline int check_delayed_ref(struct btrfs_root *root,
 		mutex_lock(&head->mutex);
 		mutex_unlock(&head->mutex);
 		btrfs_put_delayed_ref_head(head);
+		btrfs_put_transaction(cur_trans);
 		return -EAGAIN;
 	}
 	spin_unlock(&delayed_refs->lock);
@@ -3193,6 +3205,7 @@ static noinline int check_delayed_ref(struct btrfs_root *root,
 	}
 	spin_unlock(&head->lock);
 	mutex_unlock(&head->mutex);
+	btrfs_put_transaction(cur_trans);
 	return ret;
 }
 
@@ -5559,14 +5572,18 @@ again:
 
 static u64 block_rsv_release_bytes(struct btrfs_fs_info *fs_info,
 				    struct btrfs_block_rsv *block_rsv,
-				    struct btrfs_block_rsv *dest, u64 num_bytes)
+				    struct btrfs_block_rsv *dest, u64 num_bytes,
+				    u64 *qgroup_to_release_ret)
 {
 	struct btrfs_space_info *space_info = block_rsv->space_info;
+	u64 qgroup_to_release = 0;
 	u64 ret;
 
 	spin_lock(&block_rsv->lock);
-	if (num_bytes == (u64)-1)
+	if (num_bytes == (u64)-1) {
 		num_bytes = block_rsv->size;
+		qgroup_to_release = block_rsv->qgroup_rsv_size;
+	}
 	block_rsv->size -= num_bytes;
 	if (block_rsv->reserved >= block_rsv->size) {
 		num_bytes = block_rsv->reserved - block_rsv->size;
@@ -5574,6 +5591,13 @@ static u64 block_rsv_release_bytes(struct btrfs_fs_info *fs_info,
 		block_rsv->full = 1;
 	} else {
 		num_bytes = 0;
+	}
+	if (block_rsv->qgroup_rsv_reserved >= block_rsv->qgroup_rsv_size) {
+		qgroup_to_release = block_rsv->qgroup_rsv_reserved -
+				    block_rsv->qgroup_rsv_size;
+		block_rsv->qgroup_rsv_reserved = block_rsv->qgroup_rsv_size;
+	} else {
+		qgroup_to_release = 0;
 	}
 	spin_unlock(&block_rsv->lock);
 
@@ -5597,6 +5621,8 @@ static u64 block_rsv_release_bytes(struct btrfs_fs_info *fs_info,
 			space_info_add_old_bytes(fs_info, space_info,
 						 num_bytes);
 	}
+	if (qgroup_to_release_ret)
+		*qgroup_to_release_ret = qgroup_to_release;
 	return ret;
 }
 
@@ -5738,17 +5764,21 @@ static int btrfs_inode_rsv_refill(struct btrfs_inode *inode,
 	struct btrfs_root *root = inode->root;
 	struct btrfs_block_rsv *block_rsv = &inode->block_rsv;
 	u64 num_bytes = 0;
+	u64 qgroup_num_bytes = 0;
 	int ret = -ENOSPC;
 
 	spin_lock(&block_rsv->lock);
 	if (block_rsv->reserved < block_rsv->size)
 		num_bytes = block_rsv->size - block_rsv->reserved;
+	if (block_rsv->qgroup_rsv_reserved < block_rsv->qgroup_rsv_size)
+		qgroup_num_bytes = block_rsv->qgroup_rsv_size -
+				   block_rsv->qgroup_rsv_reserved;
 	spin_unlock(&block_rsv->lock);
 
 	if (num_bytes == 0)
 		return 0;
 
-	ret = btrfs_qgroup_reserve_meta_prealloc(root, num_bytes, true);
+	ret = btrfs_qgroup_reserve_meta_prealloc(root, qgroup_num_bytes, true);
 	if (ret)
 		return ret;
 	ret = reserve_metadata_bytes(root, block_rsv, num_bytes, flush);
@@ -5756,7 +5786,13 @@ static int btrfs_inode_rsv_refill(struct btrfs_inode *inode,
 		block_rsv_add_bytes(block_rsv, num_bytes, 0);
 		trace_btrfs_space_reservation(root->fs_info, "delalloc",
 					      btrfs_ino(inode), num_bytes, 1);
-	}
+
+		/* Don't forget to increase qgroup_rsv_reserved */
+		spin_lock(&block_rsv->lock);
+		block_rsv->qgroup_rsv_reserved += qgroup_num_bytes;
+		spin_unlock(&block_rsv->lock);
+	} else
+		btrfs_qgroup_free_meta_prealloc(root, qgroup_num_bytes);
 	return ret;
 }
 
@@ -5777,20 +5813,23 @@ static void btrfs_inode_rsv_release(struct btrfs_inode *inode, bool qgroup_free)
 	struct btrfs_block_rsv *global_rsv = &fs_info->global_block_rsv;
 	struct btrfs_block_rsv *block_rsv = &inode->block_rsv;
 	u64 released = 0;
+	u64 qgroup_to_release = 0;
 
 	/*
 	 * Since we statically set the block_rsv->size we just want to say we
 	 * are releasing 0 bytes, and then we'll just get the reservation over
 	 * the size free'd.
 	 */
-	released = block_rsv_release_bytes(fs_info, block_rsv, global_rsv, 0);
+	released = block_rsv_release_bytes(fs_info, block_rsv, global_rsv, 0,
+					   &qgroup_to_release);
 	if (released > 0)
 		trace_btrfs_space_reservation(fs_info, "delalloc",
 					      btrfs_ino(inode), released, 0);
 	if (qgroup_free)
-		btrfs_qgroup_free_meta_prealloc(inode->root, released);
+		btrfs_qgroup_free_meta_prealloc(inode->root, qgroup_to_release);
 	else
-		btrfs_qgroup_convert_reserved_meta(inode->root, released);
+		btrfs_qgroup_convert_reserved_meta(inode->root,
+						   qgroup_to_release);
 }
 
 void btrfs_block_rsv_release(struct btrfs_fs_info *fs_info,
@@ -5802,7 +5841,7 @@ void btrfs_block_rsv_release(struct btrfs_fs_info *fs_info,
 	if (global_rsv == block_rsv ||
 	    block_rsv->space_info != global_rsv->space_info)
 		global_rsv = NULL;
-	block_rsv_release_bytes(fs_info, block_rsv, global_rsv, num_bytes);
+	block_rsv_release_bytes(fs_info, block_rsv, global_rsv, num_bytes, NULL);
 }
 
 static void update_global_block_rsv(struct btrfs_fs_info *fs_info)
@@ -5882,7 +5921,7 @@ static void init_global_block_rsv(struct btrfs_fs_info *fs_info)
 static void release_global_block_rsv(struct btrfs_fs_info *fs_info)
 {
 	block_rsv_release_bytes(fs_info, &fs_info->global_block_rsv, NULL,
-				(u64)-1);
+				(u64)-1, NULL);
 	WARN_ON(fs_info->trans_block_rsv.size > 0);
 	WARN_ON(fs_info->trans_block_rsv.reserved > 0);
 	WARN_ON(fs_info->chunk_block_rsv.size > 0);
@@ -5906,7 +5945,7 @@ void btrfs_trans_release_chunk_metadata(struct btrfs_trans_handle *trans)
 	WARN_ON_ONCE(!list_empty(&trans->new_bgs));
 
 	block_rsv_release_bytes(fs_info, &fs_info->chunk_block_rsv, NULL,
-				trans->chunk_bytes_reserved);
+				trans->chunk_bytes_reserved, NULL);
 	trans->chunk_bytes_reserved = 0;
 }
 
@@ -6011,6 +6050,7 @@ static void btrfs_calculate_inode_block_rsv_size(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_block_rsv *block_rsv = &inode->block_rsv;
 	u64 reserve_size = 0;
+	u64 qgroup_rsv_size = 0;
 	u64 csum_leaves;
 	unsigned outstanding_extents;
 
@@ -6023,9 +6063,17 @@ static void btrfs_calculate_inode_block_rsv_size(struct btrfs_fs_info *fs_info,
 						 inode->csum_bytes);
 	reserve_size += btrfs_calc_trans_metadata_size(fs_info,
 						       csum_leaves);
+	/*
+	 * For qgroup rsv, the calculation is very simple:
+	 * account one nodesize for each outstanding extent
+	 *
+	 * This is overestimating in most cases.
+	 */
+	qgroup_rsv_size = outstanding_extents * fs_info->nodesize;
 
 	spin_lock(&block_rsv->lock);
 	block_rsv->size = reserve_size;
+	block_rsv->qgroup_rsv_size = qgroup_rsv_size;
 	spin_unlock(&block_rsv->lock);
 }
 
@@ -8403,7 +8451,7 @@ static void unuse_block_rsv(struct btrfs_fs_info *fs_info,
 			    struct btrfs_block_rsv *block_rsv, u32 blocksize)
 {
 	block_rsv_add_bytes(block_rsv, blocksize, 0);
-	block_rsv_release_bytes(fs_info, block_rsv, NULL, 0);
+	block_rsv_release_bytes(fs_info, block_rsv, NULL, 0, NULL);
 }
 
 /*

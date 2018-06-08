@@ -320,9 +320,11 @@ int xhci_dbc_tty_register_driver(struct xhci_hcd *xhci)
 
 void xhci_dbc_tty_unregister_driver(void)
 {
-	tty_unregister_driver(dbc_tty_driver);
-	put_tty_driver(dbc_tty_driver);
-	dbc_tty_driver = NULL;
+	if (dbc_tty_driver) {
+		tty_unregister_driver(dbc_tty_driver);
+		put_tty_driver(dbc_tty_driver);
+		dbc_tty_driver = NULL;
+	}
 }
 
 static void dbc_rx_push(unsigned long _port)

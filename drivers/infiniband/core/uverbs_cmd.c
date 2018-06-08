@@ -691,6 +691,7 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 
 	mr->device  = pd->device;
 	mr->pd      = pd;
+	mr->dm	    = NULL;
 	mr->uobject = uobj;
 	atomic_inc(&pd->usecnt);
 	mr->res.type = RDMA_RESTRACK_MR;
@@ -764,6 +765,11 @@ ssize_t ib_uverbs_rereg_mr(struct ib_uverbs_file *file,
 		return PTR_ERR(uobj);
 
 	mr = uobj->object;
+
+	if (mr->dm) {
+		ret = -EINVAL;
+		goto put_uobjs;
+	}
 
 	if (cmd.flags & IB_MR_REREG_ACCESS) {
 		ret = ib_check_mr_access(cmd.access_flags);

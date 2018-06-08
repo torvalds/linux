@@ -1390,7 +1390,7 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 	}
 
 	if (hif_drv->usr_conn_req.ies) {
-		conn_info.req_ies = kmemdup(conn_info.req_ies,
+		conn_info.req_ies = kmemdup(hif_drv->usr_conn_req.ies,
 					    hif_drv->usr_conn_req.ies_len,
 					    GFP_KERNEL);
 		if (conn_info.req_ies)

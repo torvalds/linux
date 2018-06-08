@@ -1383,6 +1383,8 @@ static void hdmi_pcm_setup_pin(struct hdmi_spec *spec,
 		pcm = get_pcm_rec(spec, per_pin->pcm_idx);
 	else
 		return;
+	if (!pcm->pcm)
+		return;
 	if (!test_bit(per_pin->pcm_idx, &spec->pcm_in_use))
 		return;
 
@@ -2151,8 +2153,13 @@ static int generic_hdmi_build_controls(struct hda_codec *codec)
 	int dev, err;
 	int pin_idx, pcm_idx;
 
-
 	for (pcm_idx = 0; pcm_idx < spec->pcm_used; pcm_idx++) {
+		if (!get_pcm_rec(spec, pcm_idx)->pcm) {
+			/* no PCM: mark this for skipping permanently */
+			set_bit(pcm_idx, &spec->pcm_bitmap);
+			continue;
+		}
+
 		err = generic_hdmi_build_jack(codec, pcm_idx);
 		if (err < 0)
 			return err;

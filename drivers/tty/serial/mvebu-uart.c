@@ -495,7 +495,6 @@ static void mvebu_uart_set_termios(struct uart_port *port,
 		termios->c_iflag |= old->c_iflag & ~(INPCK | IGNPAR);
 		termios->c_cflag &= CREAD | CBAUD;
 		termios->c_cflag |= old->c_cflag & ~(CREAD | CBAUD);
-		termios->c_lflag = old->c_lflag;
 	}
 
 	spin_unlock_irqrestore(&port->lock, flags);
