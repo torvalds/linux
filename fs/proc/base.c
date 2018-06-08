@@ -215,8 +215,9 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
 	unsigned long arg_start, arg_end, env_start, env_end;
 	unsigned long len1, len2, len;
 	unsigned long p;
+	char __user *buf0 = buf;
 	char c;
-	ssize_t rv;
+	int rv;
 
 	BUG_ON(*pos < 0);
 
@@ -253,25 +254,20 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
 	len2 = env_end - env_start;
 
 	/* Empty ARGV. */
-	if (len1 == 0) {
-		rv = 0;
-		goto out_free_page;
-	}
+	if (len1 == 0)
+		goto end;
+
 	/*
 	 * Inherently racy -- command line shares address space
 	 * with code and data.
 	 */
-	if (access_remote_vm(mm, arg_end - 1, &c, 1, FOLL_ANON) != 1) {
-		rv = 0;
-		goto out_free_page;
-	}
-
-	rv = 0;
+	if (access_remote_vm(mm, arg_end - 1, &c, 1, FOLL_ANON) != 1)
+		goto end;
 
 	if (c == '\0') {
 		/* Command line (set of strings) occupies whole ARGV. */
 		if (len1 <= *pos)
-			goto out_free_page;
+			goto end;
 
 		p = arg_start + *pos;
 		len = len1 - *pos;
@@ -281,7 +277,7 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
 			nr_read = min3(count, len, PAGE_SIZE);
 			nr_read = access_remote_vm(mm, p, page, nr_read, FOLL_ANON);
 			if (nr_read == 0)
-				goto out_free_page;
+				goto end;
 
 			if (copy_to_user(buf, page, nr_read)) {
 				rv = -EFAULT;
@@ -292,7 +288,6 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
 			len	-= nr_read;
 			buf	+= nr_read;
 			count	-= nr_read;
-			rv	+= nr_read;
 		}
 	} else {
 		/*
@@ -323,7 +318,7 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
 				nr_read = min3(count, len, PAGE_SIZE);
 				nr_read = access_remote_vm(mm, p, page, nr_read, FOLL_ANON);
 				if (nr_read == 0)
-					goto out_free_page;
+					goto end;
 
 				/*
 				 * Command line can be shorter than whole ARGV
@@ -340,10 +335,9 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
 				len	-= nr_write;
 				buf	+= nr_write;
 				count	-= nr_write;
-				rv	+= nr_write;
 
 				if (nr_write < nr_read)
-					goto out_free_page;
+					goto end;
 			}
 
 			/* Only first chunk can be read partially. */
@@ -352,12 +346,13 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
 		}
 	}
 
+end:
+	*pos += buf - buf0;
+	rv = buf - buf0;
 out_free_page:
 	free_page((unsigned long)page);
 out_mmput:
 	mmput(mm);
-	if (rv > 0)
-		*pos += rv;
 	return rv;
 }
 
