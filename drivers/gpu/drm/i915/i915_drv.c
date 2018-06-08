@@ -284,13 +284,12 @@ static void intel_detect_pch(struct drm_i915_private *dev_priv)
 		} else if (intel_is_virt_pch(id, pch->subsystem_vendor,
 					 pch->subsystem_device)) {
 			id = intel_virt_detect_pch(dev_priv);
-			if (id) {
-				pch_type = intel_pch_type(dev_priv, id);
-				if (WARN_ON(pch_type == PCH_NONE))
-					pch_type = PCH_NOP;
-			} else {
-				pch_type = PCH_NONE;
-			}
+			pch_type = intel_pch_type(dev_priv, id);
+
+			/* Sanity check virtual PCH id */
+			if (WARN_ON(id && pch_type == PCH_NONE))
+				id = 0;
+
 			dev_priv->pch_type = pch_type;
 			dev_priv->pch_id = id;
 			break;
