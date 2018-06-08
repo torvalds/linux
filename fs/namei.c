@@ -3400,8 +3400,7 @@ finish_open_created:
 	if (error)
 		goto out;
 opened:
-	error = ima_file_check(file, op->acc_mode,
-				file->f_mode & FMODE_CREATED ? FILE_CREATED : 0);
+	error = ima_file_check(file, op->acc_mode);
 	if (!error && will_truncate)
 		error = handle_truncate(file);
 out:
