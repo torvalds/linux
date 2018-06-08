@@ -139,7 +139,7 @@ struct page {
 			unsigned long _pt_pad_1;	/* compound_head */
 			pgtable_t pmd_huge_pte; /* protected by page->ptl */
 			unsigned long _pt_pad_2;	/* mapping */
-			unsigned long _pt_pad_3;
+			struct mm_struct *pt_mm;	/* x86 pgds only */
 #if ALLOC_SPLIT_PTLOCKS
 			spinlock_t *ptl;
 #else
