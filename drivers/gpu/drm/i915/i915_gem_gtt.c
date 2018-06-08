@@ -1718,28 +1718,6 @@ static inline u32 get_pd_offset(struct i915_hw_ppgtt *ppgtt)
 	return ppgtt->pd.base.ggtt_offset << 10;
 }
 
-static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
-			 struct i915_request *rq)
-{
-	struct intel_engine_cs *engine = rq->engine;
-	u32 *cs;
-
-	/* NB: TLBs must be flushed and invalidated before a switch */
-	cs = intel_ring_begin(rq, 6);
-	if (IS_ERR(cs))
-		return PTR_ERR(cs);
-
-	*cs++ = MI_LOAD_REGISTER_IMM(2);
-	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_DCLV(engine));
-	*cs++ = PP_DIR_DCLV_2G;
-	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_BASE(engine));
-	*cs++ = get_pd_offset(ppgtt);
-	*cs++ = MI_NOOP;
-	intel_ring_advance(rq, cs);
-
-	return 0;
-}
-
 static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
 			  struct i915_request *rq)
 {
@@ -2048,8 +2026,6 @@ static struct i915_hw_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 	ppgtt->vm.pte_encode = ggtt->vm.pte_encode;
 	if (intel_vgpu_active(i915) || IS_GEN6(i915))
 		ppgtt->switch_mm = gen6_mm_switch;
-	else if (IS_HASWELL(i915))
-		ppgtt->switch_mm = hsw_mm_switch;
 	else if (IS_GEN7(i915))
 		ppgtt->switch_mm = gen7_mm_switch;
 	else
