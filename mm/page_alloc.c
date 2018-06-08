@@ -4336,8 +4336,7 @@ static inline bool prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
 }
 
 /* Determine whether to spread dirty pages and what the first usable zone */
-static inline void finalise_ac(gfp_t gfp_mask,
-		unsigned int order, struct alloc_context *ac)
+static inline void finalise_ac(gfp_t gfp_mask, struct alloc_context *ac)
 {
 	/* Dirty zone balancing only done in the fast path */
 	ac->spread_dirty_pages = (gfp_mask & __GFP_WRITE);
@@ -4368,7 +4367,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
 	if (!prepare_alloc_pages(gfp_mask, order, preferred_nid, nodemask, &ac, &alloc_mask, &alloc_flags))
 		return NULL;
 
-	finalise_ac(gfp_mask, order, &ac);
+	finalise_ac(gfp_mask, &ac);
 
 	/* First allocation attempt */
 	page = get_page_from_freelist(alloc_mask, order, alloc_flags, &ac);
