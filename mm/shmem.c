@@ -2620,12 +2620,13 @@ static loff_t shmem_file_llseek(struct file *file, loff_t offset, int whence)
 
 /*
  * We need a tag: a new tag would expand every radix_tree_node by 8 bytes,
- * so reuse a tag which we firmly believe is never set or cleared on shmem.
+ * so reuse a tag which we firmly believe is never set or cleared on tmpfs
+ * or hugetlbfs because they are memory only filesystems.
  */
-#define SHMEM_TAG_PINNED        PAGECACHE_TAG_TOWRITE
+#define MEMFD_TAG_PINNED        PAGECACHE_TAG_TOWRITE
 #define LAST_SCAN               4       /* about 150ms max */
 
-static void shmem_tag_pins(struct address_space *mapping)
+static void memfd_tag_pins(struct address_space *mapping)
 {
 	struct radix_tree_iter iter;
 	void __rcu **slot;
@@ -2646,7 +2647,7 @@ static void shmem_tag_pins(struct address_space *mapping)
 		} else if (page_count(page) - page_mapcount(page) > 1) {
 			xa_lock_irq(&mapping->i_pages);
 			radix_tree_tag_set(&mapping->i_pages, iter.index,
-					   SHMEM_TAG_PINNED);
+					   MEMFD_TAG_PINNED);
 			xa_unlock_irq(&mapping->i_pages);
 		}
 
@@ -2667,7 +2668,7 @@ static void shmem_tag_pins(struct address_space *mapping)
  * The caller must guarantee that no new user will acquire writable references
  * to those pages to avoid races.
  */
-static int shmem_wait_for_pins(struct address_space *mapping)
+static int memfd_wait_for_pins(struct address_space *mapping)
 {
 	struct radix_tree_iter iter;
 	void __rcu **slot;
@@ -2675,11 +2676,11 @@ static int shmem_wait_for_pins(struct address_space *mapping)
 	struct page *page;
 	int error, scan;
 
-	shmem_tag_pins(mapping);
+	memfd_tag_pins(mapping);
 
 	error = 0;
 	for (scan = 0; scan <= LAST_SCAN; scan++) {
-		if (!radix_tree_tagged(&mapping->i_pages, SHMEM_TAG_PINNED))
+		if (!radix_tree_tagged(&mapping->i_pages, MEMFD_TAG_PINNED))
 			break;
 
 		if (!scan)
@@ -2690,7 +2691,7 @@ static int shmem_wait_for_pins(struct address_space *mapping)
 		start = 0;
 		rcu_read_lock();
 		radix_tree_for_each_tagged(slot, &mapping->i_pages, &iter,
-					   start, SHMEM_TAG_PINNED) {
+					   start, MEMFD_TAG_PINNED) {
 
 			page = radix_tree_deref_slot(slot);
 			if (radix_tree_exception(page)) {
@@ -2717,7 +2718,7 @@ static int shmem_wait_for_pins(struct address_space *mapping)
 
 			xa_lock_irq(&mapping->i_pages);
 			radix_tree_tag_clear(&mapping->i_pages,
-					     iter.index, SHMEM_TAG_PINNED);
+					     iter.index, MEMFD_TAG_PINNED);
 			xa_unlock_irq(&mapping->i_pages);
 continue_resched:
 			if (need_resched()) {
@@ -2733,11 +2734,11 @@ continue_resched:
 
 static unsigned int *memfd_file_seals_ptr(struct file *file)
 {
-	if (file->f_op == &shmem_file_operations)
+	if (shmem_file(file))
 		return &SHMEM_I(file_inode(file))->seals;
 
 #ifdef CONFIG_HUGETLBFS
-	if (file->f_op == &hugetlbfs_file_operations)
+	if (is_file_hugepages(file))
 		return &HUGETLBFS_I(file_inode(file))->seals;
 #endif
 
@@ -2757,16 +2758,17 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
 
 	/*
 	 * SEALING
-	 * Sealing allows multiple parties to share a shmem-file but restrict
-	 * access to a specific subset of file operations. Seals can only be
-	 * added, but never removed. This way, mutually untrusted parties can
-	 * share common memory regions with a well-defined policy. A malicious
-	 * peer can thus never perform unwanted operations on a shared object.
+	 * Sealing allows multiple parties to share a tmpfs or hugetlbfs file
+	 * but restrict access to a specific subset of file operations. Seals
+	 * can only be added, but never removed. This way, mutually untrusted
+	 * parties can share common memory regions with a well-defined policy.
+	 * A malicious peer can thus never perform unwanted operations on a
+	 * shared object.
 	 *
-	 * Seals are only supported on special shmem-files and always affect
-	 * the whole underlying inode. Once a seal is set, it may prevent some
-	 * kinds of access to the file. Currently, the following seals are
-	 * defined:
+	 * Seals are only supported on special tmpfs or hugetlbfs files and
+	 * always affect the whole underlying inode. Once a seal is set, it
+	 * may prevent some kinds of access to the file. Currently, the
+	 * following seals are defined:
 	 *   SEAL_SEAL: Prevent further seals from being set on this file
 	 *   SEAL_SHRINK: Prevent the file from shrinking
 	 *   SEAL_GROW: Prevent the file from growing
@@ -2780,9 +2782,9 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
 	 * added.
 	 *
 	 * Semantics of sealing are only defined on volatile files. Only
-	 * anonymous shmem files support sealing. More importantly, seals are
-	 * never written to disk. Therefore, there's no plan to support it on
-	 * other file types.
+	 * anonymous tmpfs and hugetlbfs files support sealing. More
+	 * importantly, seals are never written to disk. Therefore, there's
+	 * no plan to support it on other file types.
 	 */
 
 	if (!(file->f_mode & FMODE_WRITE))
@@ -2808,7 +2810,7 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
 		if (error)
 			goto unlock;
 
-		error = shmem_wait_for_pins(file->f_mapping);
+		error = memfd_wait_for_pins(file->f_mapping);
 		if (error) {
 			mapping_allow_writable(file->f_mapping);
 			goto unlock;
