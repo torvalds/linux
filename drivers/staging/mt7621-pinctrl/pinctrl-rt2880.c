@@ -379,10 +379,8 @@ static int rt2880_pinmux_pins(struct rt2880_priv *p)
 		/* strlen("ioXY") + 1 = 5 */
 		char *name = devm_kzalloc(p->dev, 5, GFP_KERNEL);
 
-		if (!name) {
-			dev_err(p->dev, "Failed to allocate pad name\n");
+		if (!name)
 			return -ENOMEM;
-		}
 		snprintf(name, 5, "io%d", i);
 		p->pads[i].number = i;
 		p->pads[i].name = name;
