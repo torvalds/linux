@@ -2492,6 +2492,12 @@ void set_node_data(void)
 		if (pni[pkg].count > topo.nodes_per_pkg)
 			topo.nodes_per_pkg = pni[0].count;
 
+	/* Fake 1 node per pkg for machines that don't
+	 * expose nodes and thus avoid -nan results
+	 */
+	if (topo.nodes_per_pkg == 0)
+		topo.nodes_per_pkg = 1;
+
 	for (cpu = 0; cpu < topo.num_cpus; cpu++) {
 		pkg = cpus[cpu].physical_package_id;
 		node = cpus[cpu].physical_node_id;
@@ -4903,6 +4909,13 @@ void init_counter(struct thread_data *thread_base, struct core_data *core_base,
 	struct thread_data *t;
 	struct core_data *c;
 	struct pkg_data *p;
+
+
+	/* Workaround for systems where physical_node_id==-1
+	 * and logical_node_id==(-1 - topo.num_cpus)
+	 */
+	if (node_id < 0)
+		node_id = 0;
 
 	t = GET_THREAD(thread_base, thread_id, core_id, node_id, pkg_id);
 	c = GET_CORE(core_base, core_id, node_id, pkg_id);
