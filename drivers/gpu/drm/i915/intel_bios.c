@@ -1719,7 +1719,7 @@ void intel_bios_init(struct drm_i915_private *dev_priv)
 	const struct bdb_header *bdb;
 	u8 __iomem *bios = NULL;
 
-	if (HAS_PCH_NOP(dev_priv)) {
+	if (INTEL_INFO(dev_priv)->num_pipes == 0) {
 		DRM_DEBUG_KMS("Skipping VBT init due to disabled display.\n");
 		return;
 	}
