@@ -327,36 +327,6 @@ struct rk817_charger {
 	int plugout_irq;
 };
 
-static const struct regmap_range rk817_charge_readonly_reg_ranges[] = {
-	regmap_reg_range(0xEB, 0xEB),
-};
-
-static const struct regmap_access_table rk817_charge_writeable_regs = {
-	.no_ranges = rk817_charge_readonly_reg_ranges,
-	.n_no_ranges = ARRAY_SIZE(rk817_charge_readonly_reg_ranges),
-};
-
-static const struct regmap_range rk817_charge_volatile_reg_ranges[] = {
-	regmap_reg_range(0xB4, 0xB4),
-	regmap_reg_range(0xE4, 0xEA),
-	regmap_reg_range(0xEC, 0xEC),
-};
-
-static const struct regmap_access_table rk817_charge_volatile_regs = {
-	.yes_ranges = rk817_charge_volatile_reg_ranges,
-	.n_yes_ranges = ARRAY_SIZE(rk817_charge_volatile_reg_ranges),
-};
-
-static const struct regmap_config rk817_charge_regmap_config = {
-	.reg_bits = 8,
-	.val_bits = 8,
-
-	.max_register = 0xFF,
-	.cache_type = REGCACHE_RBTREE,
-	.wr_table = &rk817_charge_writeable_regs,
-	.volatile_table = &rk817_charge_volatile_regs,
-};
-
 static enum power_supply_property rk817_ac_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_STATUS,
@@ -1552,8 +1522,7 @@ static int rk817_charge_probe(struct platform_device *pdev)
 	charge->client = client;
 	platform_set_drvdata(pdev, charge);
 
-	charge->regmap = devm_regmap_init_i2c(client,
-					      &rk817_charge_regmap_config);
+	charge->regmap = rk817->regmap;
 	if (IS_ERR(charge->regmap)) {
 		dev_err(charge->dev, "Failed to initialize regmap\n");
 		return -EINVAL;
@@ -1580,6 +1549,12 @@ static int rk817_charge_probe(struct platform_device *pdev)
 
 	rk817_charge_pre_init(charge);
 
+	ret = rk817_charge_init_power_supply(charge);
+	if (ret) {
+		dev_err(charge->dev, "init power supply fail!\n");
+		return ret;
+	}
+
 	ret = rk817_charge_init_dc(charge);
 	if (ret) {
 		dev_err(charge->dev, "init dc failed!\n");
@@ -1589,11 +1564,6 @@ static int rk817_charge_probe(struct platform_device *pdev)
 	ret = rk817_charge_usb_init(charge);
 	if (ret) {
 		dev_err(charge->dev, "init usb failed!\n");
-		return ret;
-	}
-	ret = rk817_charge_init_power_supply(charge);
-	if (ret) {
-		dev_err(charge->dev, "init power supply fail!\n");
 		return ret;
 	}
 
