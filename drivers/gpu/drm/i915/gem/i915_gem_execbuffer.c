@@ -2421,6 +2421,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 		       struct drm_i915_gem_exec_object2 *exec,
 		       struct drm_syncobj **fences)
 {
+	struct drm_i915_private *i915 = to_i915(dev);
 	struct i915_execbuffer eb;
 	struct dma_fence *in_fence = NULL;
 	struct dma_fence *exec_fence = NULL;
@@ -2432,7 +2433,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	BUILD_BUG_ON(__EXEC_OBJECT_INTERNAL_FLAGS &
 		     ~__EXEC_OBJECT_UNKNOWN_FLAGS);
 
-	eb.i915 = to_i915(dev);
+	eb.i915 = i915;
 	eb.file = file;
 	eb.args = args;
 	if (DBG_FORCE_RELOC || !(args->flags & I915_EXEC_NO_RELOC))
@@ -2452,8 +2453,15 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 
 	eb.batch_flags = 0;
 	if (args->flags & I915_EXEC_SECURE) {
+		if (INTEL_GEN(i915) >= 11)
+			return -ENODEV;
+
+		/* Return -EPERM to trigger fallback code on old binaries. */
+		if (!HAS_SECURE_BATCHES(i915))
+			return -EPERM;
+
 		if (!drm_is_current_master(file) || !capable(CAP_SYS_ADMIN))
-		    return -EPERM;
+			return -EPERM;
 
 		eb.batch_flags |= I915_DISPATCH_SECURE;
 	}
