@@ -18,7 +18,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 
 #define GPIO_GROUP_NUM 2
 #define GPIO_NUM_PER_GROUP 8
