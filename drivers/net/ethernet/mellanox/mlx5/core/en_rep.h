@@ -138,6 +138,8 @@ struct mlx5e_neigh_hash_entry {
 	 * 'used' value and avoid neigh deleting by the kernel.
 	 */
 	unsigned long reported_lastuse;
+
+	struct rcu_head rcu;
 };
 
 enum {

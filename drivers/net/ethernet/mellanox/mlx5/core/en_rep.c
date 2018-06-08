@@ -535,8 +535,40 @@ static void mlx5e_rep_neigh_entry_release(struct mlx5e_neigh_hash_entry *nhe)
 {
 	if (refcount_dec_and_test(&nhe->refcnt)) {
 		mlx5e_rep_neigh_entry_remove(nhe);
-		kfree(nhe);
+		kfree_rcu(nhe, rcu);
 	}
+}
+
+static struct mlx5e_neigh_hash_entry *
+mlx5e_get_next_nhe(struct mlx5e_rep_priv *rpriv,
+		   struct mlx5e_neigh_hash_entry *nhe)
+{
+	struct mlx5e_neigh_hash_entry *next = NULL;
+
+	rcu_read_lock();
+
+	for (next = nhe ?
+		     list_next_or_null_rcu(&rpriv->neigh_update.neigh_list,
+					   &nhe->neigh_list,
+					   struct mlx5e_neigh_hash_entry,
+					   neigh_list) :
+		     list_first_or_null_rcu(&rpriv->neigh_update.neigh_list,
+					    struct mlx5e_neigh_hash_entry,
+					    neigh_list);
+	     next;
+	     next = list_next_or_null_rcu(&rpriv->neigh_update.neigh_list,
+					  &next->neigh_list,
+					  struct mlx5e_neigh_hash_entry,
+					  neigh_list))
+		if (mlx5e_rep_neigh_entry_hold(next))
+			break;
+
+	rcu_read_unlock();
+
+	if (nhe)
+		mlx5e_rep_neigh_entry_release(nhe);
+
+	return next;
 }
 
 static void mlx5e_rep_neigh_stats_work(struct work_struct *work)
@@ -545,18 +577,14 @@ static void mlx5e_rep_neigh_stats_work(struct work_struct *work)
 						    neigh_update.neigh_stats_work.work);
 	struct net_device *netdev = rpriv->netdev;
 	struct mlx5e_priv *priv = netdev_priv(netdev);
-	struct mlx5e_neigh_hash_entry *nhe;
+	struct mlx5e_neigh_hash_entry *nhe = NULL;
 
 	rtnl_lock();
 	if (!list_empty(&rpriv->neigh_update.neigh_list))
 		mlx5e_rep_queue_neigh_stats_work(priv);
 
-	list_for_each_entry(nhe, &rpriv->neigh_update.neigh_list, neigh_list) {
-		if (mlx5e_rep_neigh_entry_hold(nhe)) {
-			mlx5e_tc_update_neigh_used_value(nhe);
-			mlx5e_rep_neigh_entry_release(nhe);
-		}
-	}
+	while ((nhe = mlx5e_get_next_nhe(rpriv, nhe)) != NULL)
+		mlx5e_tc_update_neigh_used_value(nhe);
 
 	rtnl_unlock();
 }
@@ -883,13 +911,9 @@ static int mlx5e_rep_netevent_event(struct notifier_block *nb,
 		m_neigh.family = n->ops->family;
 		memcpy(&m_neigh.dst_ip, n->primary_key, n->tbl->key_len);
 
-		/* We are in atomic context and can't take RTNL mutex, so use
-		 * spin_lock_bh to lookup the neigh table. bh is used since
-		 * netevent can be called from a softirq context.
-		 */
-		spin_lock_bh(&neigh_update->encap_lock);
+		rcu_read_lock();
 		nhe = mlx5e_rep_neigh_entry_lookup(priv, &m_neigh);
-		spin_unlock_bh(&neigh_update->encap_lock);
+		rcu_read_unlock();
 		if (!nhe)
 			return NOTIFY_DONE;
 
@@ -910,19 +934,15 @@ static int mlx5e_rep_netevent_event(struct notifier_block *nb,
 #endif
 			return NOTIFY_DONE;
 
-		/* We are in atomic context and can't take RTNL mutex,
-		 * so use spin_lock_bh to walk the neigh list and look for
-		 * the relevant device. bh is used since netevent can be
-		 * called from a softirq context.
-		 */
-		spin_lock_bh(&neigh_update->encap_lock);
-		list_for_each_entry(nhe, &neigh_update->neigh_list, neigh_list) {
+		rcu_read_lock();
+		list_for_each_entry_rcu(nhe, &neigh_update->neigh_list,
+					neigh_list) {
 			if (p->dev == nhe->m_neigh.dev) {
 				found = true;
 				break;
 			}
 		}
-		spin_unlock_bh(&neigh_update->encap_lock);
+		rcu_read_unlock();
 		if (!found)
 			return NOTIFY_DONE;
 
@@ -995,7 +1015,7 @@ static int mlx5e_rep_neigh_entry_insert(struct mlx5e_priv *priv,
 	if (err)
 		return err;
 
-	list_add(&nhe->neigh_list, &rpriv->neigh_update.neigh_list);
+	list_add_rcu(&nhe->neigh_list, &rpriv->neigh_update.neigh_list);
 
 	return err;
 }
@@ -1006,7 +1026,7 @@ static void mlx5e_rep_neigh_entry_remove(struct mlx5e_neigh_hash_entry *nhe)
 
 	spin_lock_bh(&rpriv->neigh_update.encap_lock);
 
-	list_del(&nhe->neigh_list);
+	list_del_rcu(&nhe->neigh_list);
 
 	rhashtable_remove_fast(&rpriv->neigh_update.neigh_ht,
 			       &nhe->rhash_node,
