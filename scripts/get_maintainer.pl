@@ -1,4 +1,6 @@
 #!/usr/bin/env perl
+# SPDX-License-Identifier: GPL-2.0
+#
 # (c) 2007, Joe Perches <joe@perches.com>
 #           created from checkpatch.pl
 #
@@ -7,8 +9,6 @@
 #
 # usage: perl scripts/get_maintainer.pl [OPTIONS] <patch>
 #        perl scripts/get_maintainer.pl [OPTIONS] -f <file>
-#
-# Licensed under the terms of the GNU GPL License version 2
 
 use warnings;
 use strict;
