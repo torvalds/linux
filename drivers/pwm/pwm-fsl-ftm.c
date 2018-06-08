@@ -562,8 +562,13 @@ static const struct fsl_ftm_soc vf610_ftm_pwm = {
 	.has_enable_bits = false,
 };
 
+static const struct fsl_ftm_soc imx8qm_ftm_pwm = {
+	.has_enable_bits = true,
+};
+
 static const struct of_device_id fsl_pwm_dt_ids[] = {
 	{ .compatible = "fsl,vf610-ftm-pwm", .data = &vf610_ftm_pwm },
+	{ .compatible = "fsl,imx8qm-ftm-pwm", .data = &imx8qm_ftm_pwm },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, fsl_pwm_dt_ids);
