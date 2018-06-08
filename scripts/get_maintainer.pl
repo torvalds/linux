@@ -542,7 +542,18 @@ foreach my $file (@ARGV) {
 
 	while (<$patch>) {
 	    my $patch_line = $_;
-	    if (m/^\+\+\+\s+(\S+)/ or m/^---\s+(\S+)/) {
+	    if (m/^ mode change [0-7]+ => [0-7]+ (\S+)\s*$/) {
+		my $filename = $1;
+		push(@files, $filename);
+	    } elsif (m/^rename (?:from|to) (\S+)\s*$/) {
+		my $filename = $1;
+		push(@files, $filename);
+	    } elsif (m/^diff --git a\/(\S+) b\/(\S+)\s*$/) {
+		my $filename1 = $1;
+		my $filename2 = $2;
+		push(@files, $filename1);
+		push(@files, $filename2);
+	    } elsif (m/^\+\+\+\s+(\S+)/ or m/^---\s+(\S+)/) {
 		my $filename = $1;
 		$filename =~ s@^[^/]*/@@;
 		$filename =~ s@\n@@;
