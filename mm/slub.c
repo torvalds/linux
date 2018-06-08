@@ -2444,6 +2444,8 @@ static inline void *new_slab_objects(struct kmem_cache *s, gfp_t flags,
 	struct kmem_cache_cpu *c = *pc;
 	struct page *page;
 
+	WARN_ON_ONCE(s->ctor && (flags & __GFP_ZERO));
+
 	freelist = get_partial(s, flags, node, c);
 
 	if (freelist)
