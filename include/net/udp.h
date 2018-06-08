@@ -244,6 +244,11 @@ static inline __be16 udp_flow_src_port(struct net *net, struct sk_buff *skb,
 	return htons((((u64) hash * (max - min)) >> 32) + min);
 }
 
+static inline int udp_rqueue_get(struct sock *sk)
+{
+	return sk_rmem_alloc_get(sk) - READ_ONCE(udp_sk(sk)->forward_deficit);
+}
+
 /* net/ipv4/udp.c */
 void udp_destruct_sock(struct sock *sk);
 void skb_consume_udp(struct sock *sk, struct sk_buff *skb, int len);

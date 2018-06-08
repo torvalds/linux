@@ -1503,7 +1503,8 @@ int udp6_seq_show(struct seq_file *seq, void *v)
 		struct inet_sock *inet = inet_sk(v);
 		__u16 srcp = ntohs(inet->inet_sport);
 		__u16 destp = ntohs(inet->inet_dport);
-		ip6_dgram_sock_seq_show(seq, v, srcp, destp, bucket);
+		__ip6_dgram_sock_seq_show(seq, v, srcp, destp,
+					  udp_rqueue_get(v), bucket);
 	}
 	return 0;
 }
