@@ -378,7 +378,7 @@ void soc15_program_register_sequence(struct amdgpu_device *adev,
 		} else {
 			tmp = RREG32(reg);
 			tmp &= ~(entry->and_mask);
-			tmp |= entry->or_mask;
+			tmp |= (entry->or_mask & entry->and_mask);
 		}
 
 		if (reg == SOC15_REG_OFFSET(GC, 0, mmPA_SC_BINNER_EVENT_CNTL_3) ||
