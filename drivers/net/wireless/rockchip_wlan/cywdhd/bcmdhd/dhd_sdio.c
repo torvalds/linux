@@ -1542,7 +1542,7 @@ dhdsdio_bussleep(dhd_bus_t *bus, bool sleep)
 
 		/* Change state */
 		bus->sleeping = TRUE;
-#if defined(SUPPORT_P2P_GO_PS)
+#if defined(SUPPORT_P2P_GO_PS)  || defined(SUSPEND16)
 		wake_up(&bus->bus_sleep);
 #endif /* LINUX && SUPPORT_P2P_GO_PS */
 	} else {
@@ -7171,7 +7171,7 @@ dhdsdio_probe(uint16 venid, uint16 devid, uint16 bus_no, uint16 slot,
 	bus->tx_seq = SDPCM_SEQUENCE_WRAP - 1;
 	bus->usebufpool = FALSE; /* Use bufpool if allocated, else use locally malloced rxbuf */
 
-#if defined(SUPPORT_P2P_GO_PS)
+#if defined(SUPPORT_P2P_GO_PS) || defined(SUSPEND16)
 	init_waitqueue_head(&bus->bus_sleep);
 #endif /* LINUX && SUPPORT_P2P_GO_PS */
 
@@ -7808,7 +7808,7 @@ dhdsdio_suspend(void *context)
 #endif /* SUPPORT_P2P_GO_PS */
 	ret = dhd_os_check_wakelock(bus->dhd);
 #if defined(SUPPORT_P2P_GO_PS) || defined(SUSPEND16)
-	if ((ret) && (bus->dhd->up) && (bus->dhd->op_mode != DHD_FLAG_HOSTAP_MODE)) {
+	if (SLPAUTO_ENAB(bus) && (!ret) && (bus->dhd->up) && (bus->dhd->op_mode != DHD_FLAG_HOSTAP_MODE)) {
 		if (wait_event_timeout(bus->bus_sleep, bus->sleeping, wait_time) == 0) {
 			if (!bus->sleeping) {
 				return 1;
