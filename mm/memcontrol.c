@@ -2610,6 +2610,9 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg)
 
 	/* we call try-to-free pages for make this cgroup empty */
 	lru_add_drain_all();
+
+	drain_all_stock(memcg);
+
 	/* try to free all pages in this cgroup */
 	while (nr_retries && page_counter_read(&memcg->memory)) {
 		int progress;
