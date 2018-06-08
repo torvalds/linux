@@ -65,15 +65,9 @@ struct hmm;
  */
 #ifdef CONFIG_HAVE_ALIGNED_STRUCT_PAGE
 #define _struct_page_alignment	__aligned(2 * sizeof(unsigned long))
-#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE)
-#define _slub_counter_t		unsigned long
 #else
-#define _slub_counter_t		unsigned int
-#endif
-#else /* !CONFIG_HAVE_ALIGNED_STRUCT_PAGE */
 #define _struct_page_alignment
-#define _slub_counter_t		unsigned int
-#endif /* !CONFIG_HAVE_ALIGNED_STRUCT_PAGE */
+#endif
 
 struct page {
 	/* First double word block */
@@ -97,6 +91,30 @@ struct page {
 
 	union {
 		/*
+		 * Mapping-private opaque data:
+		 * Usually used for buffer_heads if PagePrivate
+		 * Used for swp_entry_t if PageSwapCache
+		 * Indicates order in the buddy system if PageBuddy
+		 */
+		unsigned long private;
+#if USE_SPLIT_PTE_PTLOCKS
+#if ALLOC_SPLIT_PTLOCKS
+		spinlock_t *ptl;
+#else
+		spinlock_t ptl;
+#endif
+#endif
+		void *s_mem;			/* slab first object */
+		unsigned long counters;		/* SLUB */
+		struct {			/* SLUB */
+			unsigned inuse:16;
+			unsigned objects:15;
+			unsigned frozen:1;
+		};
+	};
+
+	union {
+		/*
 		 * If the page is neither PageSlab nor mappable to userspace,
 		 * the value stored here may help determine what this page
 		 * is used for.  See page-flags.h for a list of page types
@@ -104,13 +122,7 @@ struct page {
 		 */
 		unsigned int page_type;
 
-		_slub_counter_t counters;
 		unsigned int active;		/* SLAB */
-		struct {			/* SLUB */
-			unsigned inuse:16;
-			unsigned objects:15;
-			unsigned frozen:1;
-		};
 		int units;			/* SLOB */
 
 		struct {			/* Page cache */
@@ -177,24 +189,6 @@ struct page {
 			pgtable_t pmd_huge_pte; /* protected by page->ptl */
 		};
 #endif
-	};
-
-	union {
-		/*
-		 * Mapping-private opaque data:
-		 * Usually used for buffer_heads if PagePrivate
-		 * Used for swp_entry_t if PageSwapCache
-		 * Indicates order in the buddy system if PageBuddy
-		 */
-		unsigned long private;
-#if USE_SPLIT_PTE_PTLOCKS
-#if ALLOC_SPLIT_PTLOCKS
-		spinlock_t *ptl;
-#else
-		spinlock_t ptl;
-#endif
-#endif
-		void *s_mem;			/* slab first object */
 	};
 
 #ifdef CONFIG_MEMCG
