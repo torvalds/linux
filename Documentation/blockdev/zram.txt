@@ -218,6 +218,7 @@ line of text and contains the following stats separated by whitespace:
  same_pages       the number of same element filled pages written to this disk.
                   No memory is allocated for such pages.
  pages_compacted  the number of pages freed during compaction
+ huge_pages	  the number of incompressible pages
 
 9) Deactivate:
 	swapoff /dev/zram0
