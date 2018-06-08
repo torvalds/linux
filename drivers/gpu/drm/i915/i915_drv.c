@@ -289,7 +289,7 @@ static void intel_detect_pch(struct drm_i915_private *dev_priv)
 				if (WARN_ON(pch_type == PCH_NONE))
 					pch_type = PCH_NOP;
 			} else {
-				pch_type = PCH_NOP;
+				pch_type = PCH_NONE;
 			}
 			dev_priv->pch_type = pch_type;
 			dev_priv->pch_id = id;
