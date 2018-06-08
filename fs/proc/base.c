@@ -318,8 +318,7 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
 			p = cmdline[i].p + pos1;
 			len = cmdline[i].len - pos1;
 			while (count > 0 && len > 0) {
-				unsigned int nr_read, l;
-				bool final;
+				unsigned int nr_read, nr_write;
 
 				nr_read = min3(count, len, PAGE_SIZE);
 				nr_read = access_remote_vm(mm, p, page, nr_read, FOLL_ANON);
@@ -330,25 +329,20 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
 				 * Command line can be shorter than whole ARGV
 				 * even if last "marker" byte says it is not.
 				 */
-				final = false;
-				l = strnlen(page, nr_read);
-				if (l < nr_read) {
-					nr_read = l;
-					final = true;
-				}
+				nr_write = strnlen(page, nr_read);
 
-				if (copy_to_user(buf, page, nr_read)) {
+				if (copy_to_user(buf, page, nr_write)) {
 					rv = -EFAULT;
 					goto out_free_page;
 				}
 
-				p	+= nr_read;
-				len	-= nr_read;
-				buf	+= nr_read;
-				count	-= nr_read;
-				rv	+= nr_read;
+				p	+= nr_write;
+				len	-= nr_write;
+				buf	+= nr_write;
+				count	-= nr_write;
+				rv	+= nr_write;
 
-				if (final)
+				if (nr_write < nr_read)
 					goto out_free_page;
 			}
 
