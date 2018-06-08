@@ -1,19 +1,13 @@
-/*
- * drivers/dma/imx-dma.c
- *
- * This file contains a driver for the Freescale i.MX DMA engine
- * found on i.MX1/21/27
- *
- * Copyright 2010 Sascha Hauer, Pengutronix <s.hauer@pengutronix.de>
- * Copyright 2012 Javier Martin, Vista Silicon <javier.martin@vista-silicon.com>
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// drivers/dma/imx-dma.c
+//
+// This file contains a driver for the Freescale i.MX DMA engine
+// found on i.MX1/21/27
+//
+// Copyright 2010 Sascha Hauer, Pengutronix <s.hauer@pengutronix.de>
+// Copyright 2012 Javier Martin, Vista Silicon <javier.martin@vista-silicon.com>
+
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/types.h>
