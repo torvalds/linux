@@ -184,7 +184,7 @@ struct mbo {
 	u16 buffer_length;
 	u16 processed_length;
 	enum mbo_status_flags status;
-	void (*complete)(struct mbo *);
+	void (*complete)(struct mbo *mbo);
 };
 
 /**

@@ -30,6 +30,7 @@
 #include "x86.h"
 #include "tss.h"
 #include "mmu.h"
+#include "pmu.h"
 
 /*
  * Operand types
@@ -2887,6 +2888,9 @@ static bool emulator_bad_iopl(struct x86_emulate_ctxt *ctxt)
 	return ctxt->ops->cpl(ctxt) > iopl;
 }
 
+#define VMWARE_PORT_VMPORT	(0x5658)
+#define VMWARE_PORT_VMRPC	(0x5659)
+
 static bool emulator_io_port_access_allowed(struct x86_emulate_ctxt *ctxt,
 					    u16 port, u16 len)
 {
@@ -2897,6 +2901,14 @@ static bool emulator_io_port_access_allowed(struct x86_emulate_ctxt *ctxt,
 	u16 tr, io_bitmap_ptr, perm, bit_idx = port & 0x7;
 	unsigned mask = (1 << len) - 1;
 	unsigned long base;
+
+	/*
+	 * VMware allows access to these ports even if denied
+	 * by TSS I/O permission bitmap. Mimic behavior.
+	 */
+	if (enable_vmware_backdoor &&
+	    ((port == VMWARE_PORT_VMPORT) || (port == VMWARE_PORT_VMRPC)))
+		return true;
 
 	ops->get_segment(ctxt, &tr, &tr_seg, &base3, VCPU_SREG_TR);
 	if (!tr_seg.p)
@@ -4282,6 +4294,13 @@ static int check_rdpmc(struct x86_emulate_ctxt *ctxt)
 	u64 cr4 = ctxt->ops->get_cr(ctxt, 4);
 	u64 rcx = reg_read(ctxt, VCPU_REGS_RCX);
 
+	/*
+	 * VMware allows access to these Pseduo-PMCs even when read via RDPMC
+	 * in Ring3 when CR4.PCE=0.
+	 */
+	if (enable_vmware_backdoor && is_vmware_backdoor_pmc(rcx))
+		return X86EMUL_CONTINUE;
+
 	if ((!(cr4 & X86_CR4_PCE) && ctxt->ops->cpl(ctxt)) ||
 	    ctxt->ops->check_pmc(ctxt, rcx))
 		return emulate_gp(ctxt, 0);
@@ -4498,6 +4517,10 @@ static const struct gprefix pfx_0f_2b = {
 	ID(0, &instr_dual_0f_2b), ID(0, &instr_dual_0f_2b), N, N,
 };
 
+static const struct gprefix pfx_0f_10_0f_11 = {
+	I(Unaligned, em_mov), I(Unaligned, em_mov), N, N,
+};
+
 static const struct gprefix pfx_0f_28_0f_29 = {
 	I(Aligned, em_mov), I(Aligned, em_mov), N, N,
 };
@@ -4709,7 +4732,9 @@ static const struct opcode twobyte_table[256] = {
 	DI(ImplicitOps | Priv, invd), DI(ImplicitOps | Priv, wbinvd), N, N,
 	N, D(ImplicitOps | ModRM | SrcMem | NoAccess), N, N,
 	/* 0x10 - 0x1F */
-	N, N, N, N, N, N, N, N,
+	GP(ModRM | DstReg | SrcMem | Mov | Sse, &pfx_0f_10_0f_11),
+	GP(ModRM | DstMem | SrcReg | Mov | Sse, &pfx_0f_10_0f_11),
+	N, N, N, N, N, N,
 	D(ImplicitOps | ModRM | SrcMem | NoAccess),
 	N, N, N, N, N, N, D(ImplicitOps | ModRM | SrcMem | NoAccess),
 	/* 0x20 - 0x2F */

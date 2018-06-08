@@ -307,7 +307,7 @@ void osc_page_submit(const struct lu_env *env, struct osc_page *opg,
 	oap->oap_count = opg->ops_to - opg->ops_from;
 	oap->oap_brw_flags = brw_flags | OBD_BRW_SYNC;
 
-	if (capable(CFS_CAP_SYS_RESOURCE)) {
+	if (capable(CAP_SYS_RESOURCE)) {
 		oap->oap_brw_flags |= OBD_BRW_NOQUOTA;
 		oap->oap_cmd |= OBD_BRW_NOQUOTA;
 	}
@@ -759,7 +759,6 @@ out:
 static int osc_lru_alloc(const struct lu_env *env, struct client_obd *cli,
 			 struct osc_page *opg)
 {
-	struct l_wait_info lwi = LWI_INTR(LWI_ON_SIGNAL_NOOP, NULL);
 	struct osc_io *oio = osc_env_io(env);
 	int rc = 0;
 
@@ -782,9 +781,8 @@ static int osc_lru_alloc(const struct lu_env *env, struct client_obd *cli,
 
 		cond_resched();
 
-		rc = l_wait_event(osc_lru_waitq,
-				  atomic_long_read(cli->cl_lru_left) > 0,
-				  &lwi);
+		rc = l_wait_event_abortable(osc_lru_waitq,
+					    atomic_long_read(cli->cl_lru_left) > 0);
 
 		if (rc < 0)
 			break;

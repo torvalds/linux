@@ -152,8 +152,8 @@ static struct tcf_proto *tcf_proto_create(const char *kind, u32 protocol,
 			NL_SET_ERR_MSG(extack, "TC classifier not found");
 			err = -ENOENT;
 		}
-		goto errout;
 #endif
+		goto errout;
 	}
 	tp->classify = tp->ops->classify;
 	tp->protocol = protocol;
@@ -1433,11 +1433,12 @@ int tcf_exts_validate(struct net *net, struct tcf_proto *tp, struct nlattr **tb,
 #ifdef CONFIG_NET_CLS_ACT
 	{
 		struct tc_action *act;
+		size_t attr_size = 0;
 
 		if (exts->police && tb[exts->police]) {
 			act = tcf_action_init_1(net, tp, tb[exts->police],
 						rate_tlv, "police", ovr,
-						TCA_ACT_BIND);
+						TCA_ACT_BIND, extack);
 			if (IS_ERR(act))
 				return PTR_ERR(act);
 
@@ -1450,7 +1451,7 @@ int tcf_exts_validate(struct net *net, struct tcf_proto *tp, struct nlattr **tb,
 
 			err = tcf_action_init(net, tp, tb[exts->action],
 					      rate_tlv, NULL, ovr, TCA_ACT_BIND,
-					      &actions);
+					      &actions, &attr_size, extack);
 			if (err)
 				return err;
 			list_for_each_entry(act, &actions, list)
@@ -1587,7 +1588,7 @@ int tc_setup_cb_call(struct tcf_block *block, struct tcf_exts *exts,
 		return ret;
 	ok_count = ret;
 
-	if (!exts)
+	if (!exts || ok_count)
 		return ok_count;
 	ret = tc_exts_setup_cb_egdev_call(exts, type, type_data, err_stop);
 	if (ret < 0)

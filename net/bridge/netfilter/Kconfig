@@ -5,7 +5,7 @@
 menuconfig NF_TABLES_BRIDGE
 	depends on BRIDGE && NETFILTER && NF_TABLES
 	select NETFILTER_FAMILY_BRIDGE
-	tristate "Ethernet Bridge nf_tables support"
+	bool "Ethernet Bridge nf_tables support"
 
 if NF_TABLES_BRIDGE
 

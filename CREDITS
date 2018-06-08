@@ -1564,6 +1564,11 @@ W: http://www.carumba.com/
 D: bug toaster (A1 sauce makes all the difference)
 D: Random linux hacker
 
+N: James Hogan
+E: jhogan@kernel.org
+D: Metag architecture maintainer
+D: TZ1090 SoC maintainer
+
 N: Tim Hockin
 E: thockin@hockin.org
 W: http://www.hockin.org/~thockin

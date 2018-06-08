@@ -95,7 +95,7 @@ int smu7_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t *speed)
 	if (tach_period == 0)
 		return -EINVAL;
 
-	crystal_clock_freq = smu7_get_xclk(hwmgr);
+	crystal_clock_freq = amdgpu_asic_get_xclk((struct amdgpu_device *)hwmgr->adev);
 
 	*speed = 60 * crystal_clock_freq * 10000 / tach_period;
 
@@ -267,7 +267,7 @@ int smu7_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t speed)
 	if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
 		smu7_fan_ctrl_stop_smc_fan_control(hwmgr);
 
-	crystal_clock_freq = smu7_get_xclk(hwmgr);
+	crystal_clock_freq = amdgpu_asic_get_xclk((struct amdgpu_device *)hwmgr->adev);
 
 	tach_period = 60 * crystal_clock_freq * 10000 / (8 * speed);
 
@@ -308,11 +308,11 @@ int smu7_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 * @exception PP_Result_BadInput if the input data is not valid.
 */
 static int smu7_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
-		uint32_t low_temp, uint32_t high_temp)
+		int low_temp, int high_temp)
 {
-	uint32_t low = SMU7_THERMAL_MINIMUM_ALERT_TEMP *
+	int low = SMU7_THERMAL_MINIMUM_ALERT_TEMP *
 			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	uint32_t high = SMU7_THERMAL_MAXIMUM_ALERT_TEMP *
+	int high = SMU7_THERMAL_MAXIMUM_ALERT_TEMP *
 			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
 
 	if (low < low_temp)

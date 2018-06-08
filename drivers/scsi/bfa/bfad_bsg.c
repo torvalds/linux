@@ -891,7 +891,7 @@ bfad_iocmd_fabric_get_lports(struct bfad_s *bfad, void *cmd,
 
 	if (bfad_chk_iocmd_sz(payload_len,
 		sizeof(struct bfa_bsg_fabric_get_lports_s),
-		sizeof(wwn_t[iocmd->nports])) != BFA_STATUS_OK) {
+		sizeof(wwn_t) * iocmd->nports) != BFA_STATUS_OK) {
 		iocmd->status = BFA_STATUS_VERSION_FAIL;
 		goto out;
 	}

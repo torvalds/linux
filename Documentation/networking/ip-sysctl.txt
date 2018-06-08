@@ -133,14 +133,11 @@ min_adv_mss - INTEGER
 
 IP Fragmentation:
 
-ipfrag_high_thresh - INTEGER
-	Maximum memory used to reassemble IP fragments. When
-	ipfrag_high_thresh bytes of memory is allocated for this purpose,
-	the fragment handler will toss packets until ipfrag_low_thresh
-	is reached. This also serves as a maximum limit to namespaces
-	different from the initial one.
+ipfrag_high_thresh - LONG INTEGER
+	Maximum memory used to reassemble IP fragments.
 
-ipfrag_low_thresh - INTEGER
+ipfrag_low_thresh - LONG INTEGER
+	(Obsolete since linux-4.17)
 	Maximum memory used to reassemble IP fragments before the kernel
 	begins to remove incomplete fragment queues to free up resources.
 	The kernel still accepts new fragments for defragmentation.
@@ -755,13 +752,13 @@ udp_rmem_min - INTEGER
 	Minimal size of receive buffer used by UDP sockets in moderation.
 	Each UDP socket is able to use the size for receiving data, even if
 	total pages of UDP sockets exceed udp_mem pressure. The unit is byte.
-	Default: 1 page
+	Default: 4K
 
 udp_wmem_min - INTEGER
 	Minimal size of send buffer used by UDP sockets in moderation.
 	Each UDP socket is able to use the size for sending data, even if
 	total pages of UDP sockets exceed udp_mem pressure. The unit is byte.
-	Default: 1 page
+	Default: 4K
 
 CIPSOv4 Variables:
 
@@ -1363,6 +1360,13 @@ flowlabel_reflect - BOOLEAN
 	FALSE: disabled
 	Default: FALSE
 
+fib_multipath_hash_policy - INTEGER
+	Controls which hash policy to use for multipath routes.
+	Default: 0 (Layer 3)
+	Possible values:
+	0 - Layer 3 (source and destination addresses plus flow label)
+	1 - Layer 4 (standard 5-tuple)
+
 anycast_src_echo_reply - BOOLEAN
 	Controls the use of anycast addresses as source addresses for ICMPv6
 	echo reply
@@ -1386,26 +1390,26 @@ mld_qrv - INTEGER
 	Default: 2 (as specified by RFC3810 9.1)
 	Minimum: 1 (as specified by RFC6636 4.5)
 
-max_dst_opts_cnt - INTEGER
+max_dst_opts_number - INTEGER
 	Maximum number of non-padding TLVs allowed in a Destination
 	options extension header. If this value is less than zero
 	then unknown options are disallowed and the number of known
 	TLVs allowed is the absolute value of this number.
 	Default: 8
 
-max_hbh_opts_cnt - INTEGER
+max_hbh_opts_number - INTEGER
 	Maximum number of non-padding TLVs allowed in a Hop-by-Hop
 	options extension header. If this value is less than zero
 	then unknown options are disallowed and the number of known
 	TLVs allowed is the absolute value of this number.
 	Default: 8
 
-max dst_opts_len - INTEGER
+max_dst_opts_length - INTEGER
 	Maximum length allowed for a Destination options extension
 	header.
 	Default: INT_MAX (unlimited)
 
-max hbh_opts_len - INTEGER
+max_hbh_length - INTEGER
 	Maximum length allowed for a Hop-by-Hop options extension
 	header.
 	Default: INT_MAX (unlimited)
@@ -1696,7 +1700,9 @@ disable_ipv6 - BOOLEAN
 	interface and start Duplicate Address Detection, if necessary.
 
 	When this value is changed from 0 to 1 (IPv6 is being disabled),
-	it will dynamically delete all address on the given interface.
+	it will dynamically delete all addresses and routes on the given
+	interface. From now on it will not possible to add addresses/routes
+	to the selected interface.
 
 accept_dad - INTEGER
 	Whether to accept DAD (Duplicate Address Detection).
@@ -2094,7 +2100,7 @@ sctp_rmem - vector of 3 INTEGERs: min, default, max
 	It is guaranteed to each SCTP socket (but not association) even
 	under moderate memory pressure.
 
-	Default: 1 page
+	Default: 4K
 
 sctp_wmem  - vector of 3 INTEGERs: min, default, max
 	Currently this tunable has no effect.
@@ -2120,18 +2126,3 @@ max_dgram_qlen - INTEGER
 
 	Default: 10
 
-
-UNDOCUMENTED:
-
-/proc/sys/net/irda/*
-	fast_poll_increase FIXME
-	warn_noreply_time FIXME
-	discovery_slots FIXME
-	slot_timeout FIXME
-	max_baud_rate FIXME
-	discovery_timeout FIXME
-	lap_keepalive_time FIXME
-	max_noreply_time FIXME
-	max_tx_data_size FIXME
-	max_tx_window FIXME
-	min_tx_turn_time FIXME

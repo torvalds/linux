@@ -272,10 +272,10 @@ xfs_bmbt_alloc_block(
 		cur->bc_private.b.dfops->dop_low = true;
 	}
 	if (WARN_ON_ONCE(args.fsbno == NULLFSBLOCK)) {
-		XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 		*stat = 0;
 		return 0;
 	}
+
 	ASSERT(args.len == 1);
 	cur->bc_private.b.firstblock = args.fsbno;
 	cur->bc_private.b.allocated++;
@@ -286,12 +286,10 @@ xfs_bmbt_alloc_block(
 
 	new->l = cpu_to_be64(args.fsbno);
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	*stat = 1;
 	return 0;
 
  error0:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
 	return error;
 }
 

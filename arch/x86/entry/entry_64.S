@@ -233,7 +233,8 @@ GLOBAL(entry_SYSCALL_64_after_hwframe)
 	TRACE_IRQS_OFF
 
 	/* IRQs are off. */
-	movq	%rsp, %rdi
+	movq	%rax, %rdi
+	movq	%rsp, %rsi
 	call	do_syscall_64		/* returns with IRQs disabled */
 
 	TRACE_IRQS_IRETQ		/* we're about to change IF */
@@ -260,8 +261,13 @@ GLOBAL(entry_SYSCALL_64_after_hwframe)
 	 * Change top bits to match most significant bit (47th or 56th bit
 	 * depending on paging mode) in the address.
 	 */
+#ifdef CONFIG_X86_5LEVEL
+	ALTERNATIVE "shl $(64 - 48), %rcx; sar $(64 - 48), %rcx", \
+		"shl $(64 - 57), %rcx; sar $(64 - 57), %rcx", X86_FEATURE_LA57
+#else
 	shl	$(64 - (__VIRTUAL_MASK_SHIFT+1)), %rcx
 	sar	$(64 - (__VIRTUAL_MASK_SHIFT+1)), %rcx
+#endif
 
 	/* If this changed %rcx, it was not canonical */
 	cmpq	%rcx, %r11
@@ -908,7 +914,7 @@ ENTRY(\sym)
 	pushq	$-1				/* ORIG_RAX: no syscall to restart */
 	.endif
 
-	.if \paranoid < 2
+	.if \paranoid == 1
 	testb	$3, CS-ORIG_RAX(%rsp)		/* If coming from userspace, switch stacks */
 	jnz	.Lfrom_usermode_switch_stack_\@
 	.endif
@@ -955,7 +961,7 @@ ENTRY(\sym)
 	jmp	error_exit
 	.endif
 
-	.if \paranoid < 2
+	.if \paranoid == 1
 	/*
 	 * Entry from userspace.  Switch stacks and treat it
 	 * as a normal entry.  This means that paranoid handlers
@@ -1135,6 +1141,9 @@ apicinterrupt3 HYPERVISOR_CALLBACK_VECTOR \
 
 apicinterrupt3 HYPERV_REENLIGHTENMENT_VECTOR \
 	hyperv_reenlightenment_vector hyperv_reenlightenment_intr
+
+apicinterrupt3 HYPERV_STIMER0_VECTOR \
+	hv_stimer0_callback_vector hv_stimer0_vector_handler
 #endif /* CONFIG_HYPERV */
 
 idtentry debug			do_debug		has_error_code=0	paranoid=1 shift_ist=DEBUG_STACK

@@ -117,8 +117,9 @@ static int nft_objref_map_init(const struct nft_ctx *ctx,
 	struct nft_set *set;
 	int err;
 
-	set = nft_set_lookup(ctx->net, ctx->table, tb[NFTA_OBJREF_SET_NAME],
-			     tb[NFTA_OBJREF_SET_ID], genmask);
+	set = nft_set_lookup_global(ctx->net, ctx->table,
+				    tb[NFTA_OBJREF_SET_NAME],
+				    tb[NFTA_OBJREF_SET_ID], genmask);
 	if (IS_ERR(set))
 		return PTR_ERR(set);
 

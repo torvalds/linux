@@ -309,18 +309,6 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 }
 
 /**
- * erase_callback - MTD erasure call-back.
- * @ei: MTD erase information object.
- *
- * Note, even though MTD erase interface is asynchronous, all the current
- * implementations are synchronous anyway.
- */
-static void erase_callback(struct erase_info *ei)
-{
-	wake_up_interruptible((wait_queue_head_t *)ei->priv);
-}
-
-/**
  * do_sync_erase - synchronously erase a physical eraseblock.
  * @ubi: UBI device description object
  * @pnum: the physical eraseblock number to erase
@@ -333,7 +321,6 @@ static int do_sync_erase(struct ubi_device *ubi, int pnum)
 {
 	int err, retries = 0;
 	struct erase_info ei;
-	wait_queue_head_t wq;
 
 	dbg_io("erase PEB %d", pnum);
 	ubi_assert(pnum >= 0 && pnum < ubi->peb_count);
@@ -344,14 +331,10 @@ static int do_sync_erase(struct ubi_device *ubi, int pnum)
 	}
 
 retry:
-	init_waitqueue_head(&wq);
 	memset(&ei, 0, sizeof(struct erase_info));
 
-	ei.mtd      = ubi->mtd;
 	ei.addr     = (loff_t)pnum * ubi->peb_size;
 	ei.len      = ubi->peb_size;
-	ei.callback = erase_callback;
-	ei.priv     = (unsigned long)&wq;
 
 	err = mtd_erase(ubi->mtd, &ei);
 	if (err) {
@@ -364,25 +347,6 @@ retry:
 		ubi_err(ubi, "cannot erase PEB %d, error %d", pnum, err);
 		dump_stack();
 		return err;
-	}
-
-	err = wait_event_interruptible(wq, ei.state == MTD_ERASE_DONE ||
-					   ei.state == MTD_ERASE_FAILED);
-	if (err) {
-		ubi_err(ubi, "interrupted PEB %d erasure", pnum);
-		return -EINTR;
-	}
-
-	if (ei.state == MTD_ERASE_FAILED) {
-		if (retries++ < UBI_IO_RETRIES) {
-			ubi_warn(ubi, "error while erasing PEB %d, retry",
-				 pnum);
-			yield();
-			goto retry;
-		}
-		ubi_err(ubi, "cannot erase PEB %d", pnum);
-		dump_stack();
-		return -EIO;
 	}
 
 	err = ubi_self_check_all_ff(ubi, pnum, 0, ubi->peb_size);

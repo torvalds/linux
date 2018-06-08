@@ -141,6 +141,7 @@ config DVB_CORE
 	tristate
 	depends on MEDIA_SUPPORT
 	depends on MEDIA_DIGITAL_TV_SUPPORT
+	depends on (I2C || I2C=n)
 	default y
 	select CRC32
 

@@ -419,7 +419,7 @@ int mtd_wunit_to_pairing_info(struct mtd_info *mtd, int wunit,
 EXPORT_SYMBOL_GPL(mtd_wunit_to_pairing_info);
 
 /**
- * mtd_wunit_to_pairing_info - get wunit from pairing information
+ * mtd_pairing_info_to_wunit - get wunit from pairing information
  * @mtd: pointer to new MTD device info structure
  * @info: pairing information struct
  *
@@ -641,29 +641,6 @@ out_error:
 	return ret;
 }
 
-static int mtd_add_device_partitions(struct mtd_info *mtd,
-				     struct mtd_partitions *parts)
-{
-	const struct mtd_partition *real_parts = parts->parts;
-	int nbparts = parts->nr_parts;
-	int ret;
-
-	if (nbparts == 0 || IS_ENABLED(CONFIG_MTD_PARTITIONED_MASTER)) {
-		ret = add_mtd_device(mtd);
-		if (ret)
-			return ret;
-	}
-
-	if (nbparts > 0) {
-		ret = add_mtd_partitions(mtd, real_parts, nbparts);
-		if (ret && IS_ENABLED(CONFIG_MTD_PARTITIONED_MASTER))
-			del_mtd_device(mtd);
-		return ret;
-	}
-
-	return 0;
-}
-
 /*
  * Set a few defaults based on the parent devices, if not provided by the
  * driver
@@ -696,14 +673,13 @@ static void mtd_set_dev_defaults(struct mtd_info *mtd)
  * 'parse_mtd_partitions()') and MTD device and partitions registering. It
  * basically follows the most common pattern found in many MTD drivers:
  *
- * * It first tries to probe partitions on MTD device @mtd using parsers
+ * * If the MTD_PARTITIONED_MASTER option is set, then the device as a whole is
+ *   registered first.
+ * * Then It tries to probe partitions on MTD device @mtd using parsers
  *   specified in @types (if @types is %NULL, then the default list of parsers
  *   is used, see 'parse_mtd_partitions()' for more information). If none are
  *   found this functions tries to fallback to information specified in
  *   @parts/@nr_parts.
- * * If any partitioning info was found, this function registers the found
- *   partitions. If the MTD_PARTITIONED_MASTER option is set, then the device
- *   as a whole is registered first.
  * * If no partitions were found this function just registers the MTD device
  *   @mtd and exits.
  *
@@ -714,29 +690,31 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 			      const struct mtd_partition *parts,
 			      int nr_parts)
 {
-	struct mtd_partitions parsed;
+	struct mtd_partitions parsed = { };
 	int ret;
 
 	mtd_set_dev_defaults(mtd);
 
-	memset(&parsed, 0, sizeof(parsed));
-
-	ret = parse_mtd_partitions(mtd, types, &parsed, parser_data);
-	if ((ret < 0 || parsed.nr_parts == 0) && parts && nr_parts) {
-		/* Fall back to driver-provided partitions */
-		parsed = (struct mtd_partitions){
-			.parts		= parts,
-			.nr_parts	= nr_parts,
-		};
-	} else if (ret < 0) {
-		/* Didn't come up with parsed OR fallback partitions */
-		pr_info("mtd: failed to find partitions; one or more parsers reports errors (%d)\n",
-			ret);
-		/* Don't abort on errors; we can still use unpartitioned MTD */
-		memset(&parsed, 0, sizeof(parsed));
+	if (IS_ENABLED(CONFIG_MTD_PARTITIONED_MASTER)) {
+		ret = add_mtd_device(mtd);
+		if (ret)
+			return ret;
 	}
 
-	ret = mtd_add_device_partitions(mtd, &parsed);
+	/* Prefer parsed partitions over driver-provided fallback */
+	ret = parse_mtd_partitions(mtd, types, &parsed, parser_data);
+	if (!ret && parsed.nr_parts) {
+		parts = parsed.parts;
+		nr_parts = parsed.nr_parts;
+	}
+
+	if (nr_parts)
+		ret = add_mtd_partitions(mtd, parts, nr_parts);
+	else if (!device_is_registered(&mtd->dev))
+		ret = add_mtd_device(mtd);
+	else
+		ret = 0;
+
 	if (ret)
 		goto out;
 
@@ -758,6 +736,9 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 out:
 	/* Cleanup any parsed partitions */
 	mtd_part_parser_cleanup(&parsed);
+	if (ret && device_is_registered(&mtd->dev))
+		del_mtd_device(mtd);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mtd_device_parse_register);
@@ -963,24 +944,25 @@ void __put_mtd_device(struct mtd_info *mtd)
 EXPORT_SYMBOL_GPL(__put_mtd_device);
 
 /*
- * Erase is an asynchronous operation.  Device drivers are supposed
- * to call instr->callback() whenever the operation completes, even
- * if it completes with a failure.
- * Callers are supposed to pass a callback function and wait for it
- * to be called before writing to the block.
+ * Erase is an synchronous operation. Device drivers are epected to return a
+ * negative error code if the operation failed and update instr->fail_addr
+ * to point the portion that was not properly erased.
  */
 int mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
+	instr->fail_addr = MTD_FAIL_ADDR_UNKNOWN;
+
+	if (!mtd->erasesize || !mtd->_erase)
+		return -ENOTSUPP;
+
 	if (instr->addr >= mtd->size || instr->len > mtd->size - instr->addr)
 		return -EINVAL;
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
-	instr->fail_addr = MTD_FAIL_ADDR_UNKNOWN;
-	if (!instr->len) {
-		instr->state = MTD_ERASE_DONE;
-		mtd_erase_callback(instr);
+
+	if (!instr->len)
 		return 0;
-	}
+
 	ledtrig_mtd_activity();
 	return mtd->_erase(mtd, instr);
 }
@@ -1525,9 +1507,9 @@ int mtd_ooblayout_get_databytes(struct mtd_info *mtd, u8 *databuf,
 EXPORT_SYMBOL_GPL(mtd_ooblayout_get_databytes);
 
 /**
- * mtd_ooblayout_get_eccbytes - set data bytes into the oob buffer
+ * mtd_ooblayout_set_databytes - set data bytes into the oob buffer
  * @mtd: mtd info structure
- * @eccbuf: source buffer to get data bytes from
+ * @databuf: source buffer to get data bytes from
  * @oobbuf: OOB buffer
  * @start: first ECC byte to set
  * @nbytes: number of ECC bytes to set
@@ -1559,7 +1541,7 @@ int mtd_ooblayout_count_freebytes(struct mtd_info *mtd)
 EXPORT_SYMBOL_GPL(mtd_ooblayout_count_freebytes);
 
 /**
- * mtd_ooblayout_count_freebytes - count the number of ECC bytes in OOB
+ * mtd_ooblayout_count_eccbytes - count the number of ECC bytes in OOB
  * @mtd: mtd info structure
  *
  * Works like mtd_ooblayout_count_bytes(), except it count ECC bytes.

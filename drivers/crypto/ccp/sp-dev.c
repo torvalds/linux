@@ -252,12 +252,12 @@ struct sp_device *sp_get_psp_master_device(void)
 		goto unlock;
 
 	list_for_each_entry(i, &sp_units, entry) {
-		if (i->psp_data)
+		if (i->psp_data && i->get_psp_master_device) {
+			ret = i->get_psp_master_device();
 			break;
+		}
 	}
 
-	if (i->get_psp_master_device)
-		ret = i->get_psp_master_device();
 unlock:
 	write_unlock_irqrestore(&sp_unit_lock, flags);
 	return ret;

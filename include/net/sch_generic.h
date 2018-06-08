@@ -541,7 +541,7 @@ static inline bool skb_skip_tc_classify(struct sk_buff *skb)
 	return false;
 }
 
-/* Reset all TX qdiscs greater then index of a device.  */
+/* Reset all TX qdiscs greater than index of a device.  */
 static inline void qdisc_reset_all_tx_gt(struct net_device *dev, unsigned int i)
 {
 	struct Qdisc *qdisc;

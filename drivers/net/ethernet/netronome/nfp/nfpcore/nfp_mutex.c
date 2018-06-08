@@ -211,8 +211,11 @@ int nfp_cpp_mutex_lock(struct nfp_cpp_mutex *mutex)
 			break;
 
 		err = msleep_interruptible(timeout_ms);
-		if (err != 0)
+		if (err != 0) {
+			nfp_info(mutex->cpp,
+				 "interrupted waiting for NFP mutex\n");
 			return -ERESTARTSYS;
+		}
 
 		if (time_is_before_eq_jiffies(warn_at)) {
 			warn_at = jiffies + NFP_MUTEX_WAIT_NEXT_WARN * HZ;

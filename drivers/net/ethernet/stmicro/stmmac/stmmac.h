@@ -58,6 +58,7 @@ struct stmmac_tx_queue {
 	unsigned int dirty_tx;
 	dma_addr_t dma_tx_phy;
 	u32 tx_tail_addr;
+	u32 mss;
 };
 
 struct stmmac_rx_queue {
@@ -113,6 +114,7 @@ struct stmmac_priv {
 	int mii_irq[PHY_MAX_ADDR];
 
 	struct stmmac_extra_stats xstats ____cacheline_aligned_in_smp;
+	struct stmmac_safety_stats sstats;
 	struct plat_stmmacenet_data *plat;
 	struct dma_features dma_cap;
 	struct stmmac_counters mmc;
@@ -138,13 +140,23 @@ struct stmmac_priv {
 	spinlock_t ptp_lock;
 	void __iomem *mmcaddr;
 	void __iomem *ptpaddr;
-	u32 mss;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dbgfs_dir;
 	struct dentry *dbgfs_rings_status;
 	struct dentry *dbgfs_dma_cap;
 #endif
+
+	unsigned long state;
+	struct workqueue_struct *wq;
+	struct work_struct service_task;
+};
+
+enum stmmac_state {
+	STMMAC_DOWN,
+	STMMAC_RESET_REQUESTED,
+	STMMAC_RESETING,
+	STMMAC_SERVICE_SCHED,
 };
 
 int stmmac_mdio_unregister(struct net_device *ndev);

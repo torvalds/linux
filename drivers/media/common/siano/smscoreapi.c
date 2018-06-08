@@ -631,7 +631,8 @@ smscore_buffer_t *smscore_createbuffer(u8 *buffer, void *common_buffer,
 
 	cb->p = buffer;
 	cb->offset_in_common = buffer - (u8 *) common_buffer;
-	cb->phys = common_buffer_phys + cb->offset_in_common;
+	if (common_buffer_phys)
+		cb->phys = common_buffer_phys + cb->offset_in_common;
 
 	return cb;
 }
@@ -690,17 +691,21 @@ int smscore_register_device(struct smsdevice_params_t *params,
 
 	/* alloc common buffer */
 	dev->common_buffer_size = params->buffer_size * params->num_buffers;
-	dev->common_buffer = dma_alloc_coherent(NULL, dev->common_buffer_size,
-						&dev->common_buffer_phys,
-						GFP_KERNEL | GFP_DMA);
-	if (!dev->common_buffer) {
+	if (params->usb_device)
+		buffer = kzalloc(dev->common_buffer_size, GFP_KERNEL);
+	else
+		buffer = dma_alloc_coherent(params->device,
+					    dev->common_buffer_size,
+					    &dev->common_buffer_phys,
+					    GFP_KERNEL | GFP_DMA);
+	if (!buffer) {
 		smscore_unregister_device(dev);
 		return -ENOMEM;
 	}
+	dev->common_buffer = buffer;
 
 	/* prepare dma buffers */
-	for (buffer = dev->common_buffer;
-	     dev->num_buffers < params->num_buffers;
+	for (; dev->num_buffers < params->num_buffers;
 	     dev->num_buffers++, buffer += params->buffer_size) {
 		struct smscore_buffer_t *cb;
 
@@ -720,6 +725,7 @@ int smscore_register_device(struct smsdevice_params_t *params,
 	dev->board_id = SMS_BOARD_UNKNOWN;
 	dev->context = params->context;
 	dev->device = params->device;
+	dev->usb_device = params->usb_device;
 	dev->setmode_handler = params->setmode_handler;
 	dev->detectmode_handler = params->detectmode_handler;
 	dev->sendrequest_handler = params->sendrequest_handler;
@@ -1231,10 +1237,15 @@ void smscore_unregister_device(struct smscore_device_t *coredev)
 
 	pr_debug("freed %d buffers\n", num_buffers);
 
-	if (coredev->common_buffer)
-		dma_free_coherent(NULL, coredev->common_buffer_size,
-			coredev->common_buffer, coredev->common_buffer_phys);
-
+	if (coredev->common_buffer) {
+		if (coredev->usb_device)
+			kfree(coredev->common_buffer);
+		else
+			dma_free_coherent(coredev->device,
+					  coredev->common_buffer_size,
+					  coredev->common_buffer,
+					  coredev->common_buffer_phys);
+	}
 	kfree(coredev->fw_buf);
 
 	list_del(&coredev->entry);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -70,7 +70,7 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 	u8 mux_id;
 
 	if (RMNET_MAP_GET_CD_BIT(skb)) {
-		if (port->data_format & RMNET_INGRESS_FORMAT_MAP_COMMANDS)
+		if (port->data_format & RMNET_FLAGS_INGRESS_MAP_COMMANDS)
 			return rmnet_map_command(skb, port);
 
 		goto free_skb;
@@ -93,7 +93,7 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 	skb_pull(skb, sizeof(struct rmnet_map_header));
 	rmnet_set_skb_proto(skb);
 
-	if (port->data_format & RMNET_INGRESS_FORMAT_MAP_CKSUMV4) {
+	if (port->data_format & RMNET_FLAGS_INGRESS_MAP_CKSUMV4) {
 		if (!rmnet_map_checksum_downlink_packet(skb, len + pad))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
@@ -121,7 +121,7 @@ rmnet_map_ingress_handler(struct sk_buff *skb,
 		skb_push(skb, ETH_HLEN);
 	}
 
-	if (port->data_format & RMNET_INGRESS_FORMAT_DEAGGREGATION) {
+	if (port->data_format & RMNET_FLAGS_INGRESS_DEAGGREGATION) {
 		while ((skbn = rmnet_map_deaggregate(skb, port)) != NULL)
 			__rmnet_map_ingress_handler(skbn, port);
 
@@ -141,7 +141,7 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
 	additional_header_len = 0;
 	required_headroom = sizeof(struct rmnet_map_header);
 
-	if (port->data_format & RMNET_EGRESS_FORMAT_MAP_CKSUMV4) {
+	if (port->data_format & RMNET_FLAGS_EGRESS_MAP_CKSUMV4) {
 		additional_header_len = sizeof(struct rmnet_map_ul_csum_header);
 		required_headroom += additional_header_len;
 	}
@@ -151,7 +151,7 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
 			goto fail;
 	}
 
-	if (port->data_format & RMNET_EGRESS_FORMAT_MAP_CKSUMV4)
+	if (port->data_format & RMNET_FLAGS_EGRESS_MAP_CKSUMV4)
 		rmnet_map_checksum_uplink_packet(skb, orig_dev);
 
 	map_header = rmnet_map_add_map_header(skb, additional_header_len, 0);

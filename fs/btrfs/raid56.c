@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2012 Fusion-io  All rights reserved.
  * Copyright (C) 2012 Intel Corp. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
+
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/bio.h>
@@ -1987,7 +1975,13 @@ cleanup:
 	kfree(pointers);
 
 cleanup_io:
-	if (rbio->operation == BTRFS_RBIO_READ_REBUILD) {
+	/*
+	 * Similar to READ_REBUILD, REBUILD_MISSING at this point also has a
+	 * valid rbio which is consistent with ondisk content, thus such a
+	 * valid rbio can be cached to avoid further disk reads.
+	 */
+	if (rbio->operation == BTRFS_RBIO_READ_REBUILD ||
+	    rbio->operation == BTRFS_RBIO_REBUILD_MISSING) {
 		/*
 		 * - In case of two failures, where rbio->failb != -1:
 		 *
@@ -2008,8 +2002,6 @@ cleanup_io:
 		else
 			clear_bit(RBIO_CACHE_READY_BIT, &rbio->flags);
 
-		rbio_orig_end_io(rbio, err);
-	} else if (rbio->operation == BTRFS_RBIO_REBUILD_MISSING) {
 		rbio_orig_end_io(rbio, err);
 	} else if (err == BLK_STS_OK) {
 		rbio->faila = -1;
@@ -2768,24 +2760,8 @@ raid56_alloc_missing_rbio(struct btrfs_fs_info *fs_info, struct bio *bio,
 	return rbio;
 }
 
-static void missing_raid56_work(struct btrfs_work *work)
-{
-	struct btrfs_raid_bio *rbio;
-
-	rbio = container_of(work, struct btrfs_raid_bio, work);
-	__raid56_parity_recover(rbio);
-}
-
-static void async_missing_raid56(struct btrfs_raid_bio *rbio)
-{
-	btrfs_init_work(&rbio->work, btrfs_rmw_helper,
-			missing_raid56_work, NULL, NULL);
-
-	btrfs_queue_work(rbio->fs_info->rmw_workers, &rbio->work);
-}
-
 void raid56_submit_missing_rbio(struct btrfs_raid_bio *rbio)
 {
 	if (!lock_stripe_add(rbio))
-		async_missing_raid56(rbio);
+		async_read_rebuild(rbio);
 }

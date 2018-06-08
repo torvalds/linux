@@ -775,8 +775,10 @@ static int ping_v4_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	ipc.addr = faddr = daddr;
 
 	if (ipc.opt && ipc.opt->opt.srr) {
-		if (!daddr)
-			return -EINVAL;
+		if (!daddr) {
+			err = -EINVAL;
+			goto out_free;
+		}
 		faddr = ipc.opt->opt.faddr;
 	}
 	tos = get_rttos(&ipc, inet);
@@ -842,6 +844,7 @@ back_from_confirm:
 
 out:
 	ip_rt_put(rt);
+out_free:
 	if (free)
 		kfree(ipc.opt);
 	if (!err) {
@@ -1177,7 +1180,7 @@ static struct ping_seq_afinfo ping_v4_seq_afinfo = {
 int ping_proc_register(struct net *net, struct ping_seq_afinfo *afinfo)
 {
 	struct proc_dir_entry *p;
-	p = proc_create_data(afinfo->name, S_IRUGO, net->proc_net,
+	p = proc_create_data(afinfo->name, 0444, net->proc_net,
 			     afinfo->seq_fops, afinfo);
 	if (!p)
 		return -ENOMEM;

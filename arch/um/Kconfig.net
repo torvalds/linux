@@ -109,6 +109,17 @@ config UML_NET_DAEMON
         more than one without conflict.  If you don't need UML networking,
         say N.
 
+config UML_NET_VECTOR
+	bool "Vector I/O high performance network devices"
+	depends on UML_NET
+	help
+	This User-Mode Linux network driver uses multi-message send
+	and receive functions. The host running the UML guest must have
+	a linux kernel version above 3.0 and a libc version > 2.13.
+	This driver provides tap, raw, gre and l2tpv3 network transports
+	with up to 4 times higher network throughput than the UML network
+	drivers.
+
 config UML_NET_VDE
 	bool "VDE transport"
 	depends on UML_NET

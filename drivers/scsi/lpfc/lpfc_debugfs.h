@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
+ * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
  * Copyright (C) 2007-2011 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -126,12 +126,13 @@
 #define LPFC_DRB_ACC_WR_CMD_ARG 2
 #define LPFC_DRB_ACC_BUF_SIZE 256
 
-#define LPFC_DRB_EQCQ 1
-#define LPFC_DRB_MQ   2
-#define LPFC_DRB_WQ   3
-#define LPFC_DRB_RQ   4
+#define LPFC_DRB_EQ   1
+#define LPFC_DRB_CQ   2
+#define LPFC_DRB_MQ   3
+#define LPFC_DRB_WQ   4
+#define LPFC_DRB_RQ   5
 
-#define LPFC_DRB_MAX  4
+#define LPFC_DRB_MAX  5
 
 #define IDIAG_DRBACC_REGID_INDX 0
 #define IDIAG_DRBACC_VALUE_INDX 1

@@ -30,6 +30,7 @@
 #define    DEFAULT_PAUSE_TIME			0xFFFF
 
 #define	   BGX_ID_MASK				0x3
+#define	   LMAC_ID_MASK				0x3
 
 #define    MAX_DMAC_PER_LMAC_TNS_BYPASS_MODE	2
 
@@ -57,7 +58,7 @@
 #define BGX_CMRX_RX_FIFO_LEN		0x108
 #define BGX_CMR_RX_DMACX_CAM		0x200
 #define  RX_DMACX_CAM_EN			BIT_ULL(48)
-#define  RX_DMACX_CAM_LMACID(x)			(x << 49)
+#define  RX_DMACX_CAM_LMACID(x)			(((u64)x) << 49)
 #define  RX_DMAC_COUNT				32
 #define BGX_CMR_RX_STREERING		0x300
 #define  RX_TRAFFIC_STEER_RULE_COUNT		8
@@ -205,17 +206,13 @@
 #define LMAC_INTR_LINK_UP	BIT(0)
 #define LMAC_INTR_LINK_DOWN	BIT(1)
 
-/*  RX_DMAC_CTL configuration*/
-enum MCAST_MODE {
-		MCAST_MODE_REJECT,
-		MCAST_MODE_ACCEPT,
-		MCAST_MODE_CAM_FILTER,
-		RSVD
-};
+#define BGX_XCAST_BCAST_ACCEPT  BIT(0)
+#define BGX_XCAST_MCAST_ACCEPT  BIT(1)
+#define BGX_XCAST_MCAST_FILTER  BIT(2)
 
-#define BCAST_ACCEPT	1
-#define CAM_ACCEPT	1
-
+void bgx_set_dmac_cam_filter(int node, int bgx_idx, int lmacid, u64 mac, u8 vf);
+void bgx_reset_xcast_mode(int node, int bgx_idx, int lmacid, u8 vf);
+void bgx_set_xcast_mode(int node, int bgx_idx, int lmacid, u8 mode);
 void octeon_mdiobus_force_mod_depencency(void);
 void bgx_lmac_rx_tx_enable(int node, int bgx_idx, int lmacid, bool enable);
 void bgx_add_dmac_addr(u64 dmac, int node, int bgx_idx, int lmac);

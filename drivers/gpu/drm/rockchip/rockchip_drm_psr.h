@@ -18,8 +18,8 @@
 void rockchip_drm_psr_flush_all(struct drm_device *dev);
 int rockchip_drm_psr_flush(struct drm_crtc *crtc);
 
-int rockchip_drm_psr_activate(struct drm_crtc *crtc);
-int rockchip_drm_psr_deactivate(struct drm_crtc *crtc);
+int rockchip_drm_psr_activate(struct drm_encoder *encoder);
+int rockchip_drm_psr_deactivate(struct drm_encoder *encoder);
 
 int rockchip_drm_psr_register(struct drm_encoder *encoder,
 			void (*psr_set)(struct drm_encoder *, bool enable));

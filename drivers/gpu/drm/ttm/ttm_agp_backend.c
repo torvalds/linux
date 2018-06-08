@@ -50,6 +50,7 @@ struct ttm_agp_backend {
 static int ttm_agp_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
 {
 	struct ttm_agp_backend *agp_be = container_of(ttm, struct ttm_agp_backend, ttm);
+	struct page *dummy_read_page = ttm->bdev->glob->dummy_read_page;
 	struct drm_mm_node *node = bo_mem->mm_node;
 	struct agp_memory *mem;
 	int ret, cached = (bo_mem->placement & TTM_PL_FLAG_CACHED);
@@ -64,7 +65,7 @@ static int ttm_agp_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
 		struct page *page = ttm->pages[i];
 
 		if (!page)
-			page = ttm->dummy_read_page;
+			page = dummy_read_page;
 
 		mem->pages[mem->page_count++] = page;
 	}
@@ -109,10 +110,9 @@ static struct ttm_backend_func ttm_agp_func = {
 	.destroy = ttm_agp_destroy,
 };
 
-struct ttm_tt *ttm_agp_tt_create(struct ttm_bo_device *bdev,
+struct ttm_tt *ttm_agp_tt_create(struct ttm_buffer_object *bo,
 				 struct agp_bridge_data *bridge,
-				 unsigned long size, uint32_t page_flags,
-				 struct page *dummy_read_page)
+				 uint32_t page_flags)
 {
 	struct ttm_agp_backend *agp_be;
 
@@ -124,7 +124,7 @@ struct ttm_tt *ttm_agp_tt_create(struct ttm_bo_device *bdev,
 	agp_be->bridge = bridge;
 	agp_be->ttm.func = &ttm_agp_func;
 
-	if (ttm_tt_init(&agp_be->ttm, bdev, size, page_flags, dummy_read_page)) {
+	if (ttm_tt_init(&agp_be->ttm, bo, page_flags)) {
 		kfree(agp_be);
 		return NULL;
 	}

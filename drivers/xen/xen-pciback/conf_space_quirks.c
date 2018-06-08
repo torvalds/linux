@@ -95,7 +95,7 @@ int xen_pcibk_config_quirks_init(struct pci_dev *dev)
 	struct xen_pcibk_config_quirk *quirk;
 	int ret = 0;
 
-	quirk = kzalloc(sizeof(*quirk), GFP_ATOMIC);
+	quirk = kzalloc(sizeof(*quirk), GFP_KERNEL);
 	if (!quirk) {
 		ret = -ENOMEM;
 		goto out;

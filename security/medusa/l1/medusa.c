@@ -638,8 +638,9 @@ static int medusa_l1_task_wait(struct task_struct *p)
 }
 */
 
+/* TODO TODO TODO: add support of 'cred' in medusa_sendsig() */
 static int medusa_l1_task_kill(struct task_struct *p, struct siginfo *info,
-			 int sig, u32 secid)
+			 int sig, const struct cred *cred)
 {
 	if(medusa_sendsig(sig, info, p) == MED_NO)
 		return -EPERM;
@@ -719,31 +720,31 @@ static void medusa_l1_msg_msg_free_security(struct msg_msg *msg)
 	}
 }
 
-static int medusa_l1_msg_queue_alloc_security(struct msg_queue *msq)
+static int medusa_l1_msg_queue_alloc_security(struct kern_ipc_perm *msq)
 {
 	return medusa_l1_ipc_alloc_security(&msq->q_perm, MED_IPC_MSG);
 }
 
-static void medusa_l1_msg_queue_free_security(struct msg_queue *msq)
+static void medusa_l1_msg_queue_free_security(struct kern_ipc_perm *msq)
 {
 	medusa_l1_ipc_free_security(&msq->q_perm);
 }
 
-static int medusa_l1_msg_queue_associate(struct msg_queue *msq, int msqflg)
+static int medusa_l1_msg_queue_associate(struct kern_ipc_perm *msq, int msqflg)
 {
 	if(medusa_ipc_associate(&msq->q_perm, msqflg) == MED_NO)
 		return -EPERM;	
 	return 0;
 }
 
-static int medusa_l1_msg_queue_msgctl(struct msg_queue *msq, int cmd)
+static int medusa_l1_msg_queue_msgctl(struct kern_ipc_perm *msq, int cmd)
 {
 	if(medusa_ipc_ctl(&msq->q_perm, cmd) == MED_NO)
 		return -EPERM;	
 	return 0;
 }
 
-static int medusa_l1_msg_queue_msgsnd(struct msg_queue *msq, struct msg_msg *msg,
+static int medusa_l1_msg_queue_msgsnd(struct kern_ipc_perm *msq, struct msg_msg *msg,
 				int msgflg)
 {
 	if(medusa_ipc_msgsnd(&msq->q_perm, msg, msgflg) == MED_NO)
@@ -751,7 +752,7 @@ static int medusa_l1_msg_queue_msgsnd(struct msg_queue *msq, struct msg_msg *msg
 	return 0;
 }
 
-static int medusa_l1_msg_queue_msgrcv(struct msg_queue *msq, struct msg_msg *msg,
+static int medusa_l1_msg_queue_msgrcv(struct kern_ipc_perm *msq, struct msg_msg *msg,
 				struct task_struct *target, long type, int mode)
 {
 	if(medusa_ipc_msgrcv(&msq->q_perm, msg, target, type, mode) == MED_NO)
@@ -760,31 +761,31 @@ static int medusa_l1_msg_queue_msgrcv(struct msg_queue *msq, struct msg_msg *msg
 }
 
 //shared memory
-static int medusa_l1_shm_alloc_security(struct shmid_kernel *shp)
+static int medusa_l1_shm_alloc_security(struct kern_ipc_perm *shp)
 {
 	return medusa_l1_ipc_alloc_security(&shp->shm_perm, MED_IPC_SHM);
 }
 
-static void medusa_l1_shm_free_security(struct shmid_kernel *shp)
+static void medusa_l1_shm_free_security(struct kern_ipc_perm *shp)
 {
 	return medusa_l1_ipc_free_security(&shp->shm_perm);	
 }
 
-static int medusa_l1_shm_associate(struct shmid_kernel *shp, int shmflg)
+static int medusa_l1_shm_associate(struct kern_ipc_perm *shp, int shmflg)
 {
 	if(medusa_ipc_associate(&shp->shm_perm, shmflg) == MED_NO)
 		return -EPERM;	
 	return 0;
 }
 
-static int medusa_l1_shm_shmctl(struct shmid_kernel *shp, int cmd)
+static int medusa_l1_shm_shmctl(struct kern_ipc_perm *shp, int cmd)
 {
 	if(medusa_ipc_ctl(&shp->shm_perm, cmd) == MED_NO)
 		return -EPERM;	
 	return 0;
 }
 
-static int medusa_l1_shm_shmat(struct shmid_kernel *shp, char __user *shmaddr,
+static int medusa_l1_shm_shmat(struct kern_ipc_perm *shp, char __user *shmaddr,
 			 int shmflg)
 {
 	if(medusa_ipc_shmat(&shp->shm_perm, shmaddr, shmflg) == MED_NO)
@@ -793,31 +794,31 @@ static int medusa_l1_shm_shmat(struct shmid_kernel *shp, char __user *shmaddr,
 }
 
 //Semaphores
-static int medusa_l1_sem_alloc_security(struct sem_array *sma)
+static int medusa_l1_sem_alloc_security(struct kern_ipc_perm *sma)
 {
 	return medusa_l1_ipc_alloc_security(&sma->sem_perm, MED_IPC_SEM);
 }
 
-static void medusa_l1_sem_free_security(struct sem_array *sma)
+static void medusa_l1_sem_free_security(struct kern_ipc_perm *sma)
 {
 	return medusa_l1_ipc_free_security(&sma->sem_perm);
 }
 
-static int medusa_l1_sem_associate(struct sem_array *sma, int semflg)
+static int medusa_l1_sem_associate(struct kern_ipc_perm *sma, int semflg)
 {
 	if(medusa_ipc_associate(&sma->sem_perm, semflg) == MED_NO)
 		return -EPERM;	
 	return 0;
 }
 
-static int medusa_l1_sem_semctl(struct sem_array *sma, int cmd)
+static int medusa_l1_sem_semctl(struct kern_ipc_perm *sma, int cmd)
 {
 	if(medusa_ipc_ctl(&sma->sem_perm, cmd) == MED_NO)
 		return -EPERM;	
 	return 0;
 }
 
-static int medusa_l1_sem_semop(struct sem_array *sma, struct sembuf *sops,
+static int medusa_l1_sem_semop(struct kern_ipc_perm *sma, struct sembuf *sops,
 			 unsigned nsops, int alter)
 {
 	if(medusa_ipc_semop(&sma->sem_perm, sops, nsops, alter) == MED_NO)
@@ -1632,7 +1633,7 @@ void security_replace_hooks(struct security_hook_list *old_hooks, struct securit
 {
 	int i;
 	for (i = 0; i < count; i++)
-		list_replace_rcu(&old_hooks[i].list, &new_hooks[i].list);
+		hlist_replace_rcu(&old_hooks[i].list, &new_hooks[i].list);
 }
 
 static int __init medusa_l1_init(void)

@@ -252,7 +252,7 @@ static int ocelot_gpio_set_direction(struct pinctrl_dev *pctldev,
 	struct ocelot_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 
 	regmap_update_bits(info->map, OCELOT_GPIO_OE, BIT(pin),
-			   input ? BIT(pin) : 0);
+			   input ? 0 : BIT(pin));
 
 	return 0;
 }
@@ -462,7 +462,7 @@ static const struct of_device_id ocelot_pinctrl_of_match[] = {
 	{},
 };
 
-int ocelot_pinctrl_probe(struct platform_device *pdev)
+static int ocelot_pinctrl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ocelot_pinctrl *info;

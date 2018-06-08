@@ -84,7 +84,7 @@ static const struct dce110_timing_generator_offsets reg_offsets[] = {
 #define DCP_REG(reg) (reg + tg110->offsets.dcp)
 #define DMIF_REG(reg) (reg + tg110->offsets.dmif)
 
-void program_pix_dur(struct timing_generator *tg, uint32_t pix_clk_khz)
+static void program_pix_dur(struct timing_generator *tg, uint32_t pix_clk_khz)
 {
 	uint64_t pix_dur;
 	uint32_t addr = mmDMIF_PG0_DPG_PIPE_ARBITRATION_CONTROL1
@@ -115,68 +115,7 @@ static void program_timing(struct timing_generator *tg,
 	dce110_tg_program_timing(tg, timing, use_vbios);
 }
 
-static const struct timing_generator_funcs dce80_tg_funcs = {
-		.validate_timing = dce110_tg_validate_timing,
-		.program_timing = program_timing,
-		.enable_crtc = dce110_timing_generator_enable_crtc,
-		.disable_crtc = dce110_timing_generator_disable_crtc,
-		.is_counter_moving = dce110_timing_generator_is_counter_moving,
-		.get_position = dce110_timing_generator_get_position,
-		.get_frame_count = dce110_timing_generator_get_vblank_counter,
-		.get_scanoutpos = dce110_timing_generator_get_crtc_scanoutpos,
-		.set_early_control = dce110_timing_generator_set_early_control,
-		.wait_for_state = dce110_tg_wait_for_state,
-		.set_blank = dce110_tg_set_blank,
-		.is_blanked = dce110_tg_is_blanked,
-		.set_colors = dce110_tg_set_colors,
-		.set_overscan_blank_color =
-				dce110_timing_generator_set_overscan_color_black,
-		.set_blank_color = dce110_timing_generator_program_blank_color,
-		.disable_vga = dce110_timing_generator_disable_vga,
-		.did_triggered_reset_occur =
-				dce110_timing_generator_did_triggered_reset_occur,
-		.setup_global_swap_lock =
-				dce110_timing_generator_setup_global_swap_lock,
-		.enable_reset_trigger = dce110_timing_generator_enable_reset_trigger,
-		.disable_reset_trigger = dce110_timing_generator_disable_reset_trigger,
-		.tear_down_global_swap_lock =
-				dce110_timing_generator_tear_down_global_swap_lock,
-		.set_drr = dce110_timing_generator_set_drr,
-		.set_static_screen_control =
-			dce110_timing_generator_set_static_screen_control,
-		.set_test_pattern = dce110_timing_generator_set_test_pattern,
-		.arm_vert_intr = dce110_arm_vert_intr,
-
-		/* DCE8.0 overrides */
-		.enable_advanced_request =
-				dce80_timing_generator_enable_advanced_request,
-};
-
-void dce80_timing_generator_construct(
-	struct dce110_timing_generator *tg110,
-	struct dc_context *ctx,
-	uint32_t instance,
-	const struct dce110_timing_generator_offsets *offsets)
-{
-	tg110->controller_id = CONTROLLER_ID_D0 + instance;
-	tg110->base.inst = instance;
-	tg110->offsets = *offsets;
-	tg110->derived_offsets = reg_offsets[instance];
-
-	tg110->base.funcs = &dce80_tg_funcs;
-
-	tg110->base.ctx = ctx;
-	tg110->base.bp = ctx->dc_bios;
-
-	tg110->max_h_total = CRTC_H_TOTAL__CRTC_H_TOTAL_MASK + 1;
-	tg110->max_v_total = CRTC_V_TOTAL__CRTC_V_TOTAL_MASK + 1;
-
-	tg110->min_h_blank = 56;
-	tg110->min_h_front_porch = 4;
-	tg110->min_h_back_porch = 4;
-}
-
-void dce80_timing_generator_enable_advanced_request(
+static void dce80_timing_generator_enable_advanced_request(
 	struct timing_generator *tg,
 	bool enable,
 	const struct dc_crtc_timing *timing)
@@ -237,3 +176,67 @@ void dce80_timing_generator_enable_advanced_request(
 
 	dm_write_reg(tg->ctx, addr, value);
 }
+
+static const struct timing_generator_funcs dce80_tg_funcs = {
+		.validate_timing = dce110_tg_validate_timing,
+		.program_timing = program_timing,
+		.enable_crtc = dce110_timing_generator_enable_crtc,
+		.disable_crtc = dce110_timing_generator_disable_crtc,
+		.is_counter_moving = dce110_timing_generator_is_counter_moving,
+		.get_position = dce110_timing_generator_get_position,
+		.get_frame_count = dce110_timing_generator_get_vblank_counter,
+		.get_scanoutpos = dce110_timing_generator_get_crtc_scanoutpos,
+		.set_early_control = dce110_timing_generator_set_early_control,
+		.wait_for_state = dce110_tg_wait_for_state,
+		.set_blank = dce110_tg_set_blank,
+		.is_blanked = dce110_tg_is_blanked,
+		.set_colors = dce110_tg_set_colors,
+		.set_overscan_blank_color =
+				dce110_timing_generator_set_overscan_color_black,
+		.set_blank_color = dce110_timing_generator_program_blank_color,
+		.disable_vga = dce110_timing_generator_disable_vga,
+		.did_triggered_reset_occur =
+				dce110_timing_generator_did_triggered_reset_occur,
+		.setup_global_swap_lock =
+				dce110_timing_generator_setup_global_swap_lock,
+		.enable_reset_trigger = dce110_timing_generator_enable_reset_trigger,
+		.disable_reset_trigger = dce110_timing_generator_disable_reset_trigger,
+		.tear_down_global_swap_lock =
+				dce110_timing_generator_tear_down_global_swap_lock,
+		.set_drr = dce110_timing_generator_set_drr,
+		.set_static_screen_control =
+			dce110_timing_generator_set_static_screen_control,
+		.set_test_pattern = dce110_timing_generator_set_test_pattern,
+		.arm_vert_intr = dce110_arm_vert_intr,
+
+		/* DCE8.0 overrides */
+		.enable_advanced_request =
+				dce80_timing_generator_enable_advanced_request,
+		.configure_crc = dce110_configure_crc,
+		.get_crc = dce110_get_crc,
+};
+
+void dce80_timing_generator_construct(
+	struct dce110_timing_generator *tg110,
+	struct dc_context *ctx,
+	uint32_t instance,
+	const struct dce110_timing_generator_offsets *offsets)
+{
+	tg110->controller_id = CONTROLLER_ID_D0 + instance;
+	tg110->base.inst = instance;
+	tg110->offsets = *offsets;
+	tg110->derived_offsets = reg_offsets[instance];
+
+	tg110->base.funcs = &dce80_tg_funcs;
+
+	tg110->base.ctx = ctx;
+	tg110->base.bp = ctx->dc_bios;
+
+	tg110->max_h_total = CRTC_H_TOTAL__CRTC_H_TOTAL_MASK + 1;
+	tg110->max_v_total = CRTC_V_TOTAL__CRTC_V_TOTAL_MASK + 1;
+
+	tg110->min_h_blank = 56;
+	tg110->min_h_front_porch = 4;
+	tg110->min_h_back_porch = 4;
+}
+

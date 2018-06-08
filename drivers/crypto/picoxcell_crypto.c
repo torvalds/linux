@@ -499,10 +499,12 @@ static int spacc_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 	memcpy(ctx->hash_ctx, keys.authkey, keys.authkeylen);
 	ctx->hash_key_len = keys.authkeylen;
 
+	memzero_explicit(&keys, sizeof(keys));
 	return 0;
 
 badkey:
 	crypto_aead_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	memzero_explicit(&keys, sizeof(keys));
 	return -EINVAL;
 }
 

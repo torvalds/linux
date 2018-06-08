@@ -92,7 +92,7 @@
 		clocks = <&arm_periph_clk>;
 	};
 
-	l2: cache-controller {
+	l2: cache-controller@8762000 {
 		compatible = "arm,pl310-cache";
 		reg = <0x08762000 0x1000>;
 		arm,data-latency = <3 3 3>;
@@ -125,24 +125,28 @@
 		ranges;
 		compatible = "simple-bus";
 
-		restart {
+		restart: restart-controller@0 {
 			compatible = "st,stih407-restart";
+			reg = <0 0>;
 			st,syscfg = <&syscfg_sbc_reg>;
 			status = "okay";
 		};
 
-		powerdown: powerdown-controller {
+		powerdown: powerdown-controller@0 {
 			compatible = "st,stih407-powerdown";
+			reg = <0 0>;
 			#reset-cells = <1>;
 		};
 
-		softreset: softreset-controller {
+		softreset: softreset-controller@0 {
 			compatible = "st,stih407-softreset";
+			reg = <0 0>;
 			#reset-cells = <1>;
 		};
 
-		picophyreset: picophyreset-controller {
+		picophyreset: picophyreset-controller@0 {
 			compatible = "st,stih407-picophyreset";
+			reg = <0 0>;
 			#reset-cells = <1>;
 		};
 
@@ -174,6 +178,13 @@
 		syscfg_core: core-syscfg@92b0000 {
 			compatible = "st,stih407-core-syscfg", "syscon";
 			reg = <0x92b0000 0x1000>;
+
+			sti_sasg_codec: sti-sasg-codec {
+				compatible = "st,stih407-sas-codec";
+				#sound-dai-cells = <1>;
+				status = "disabled";
+				st,syscfg = <&syscfg_core>;
+			};
 		};
 
 		syscfg_lpm: lpm-syscfg@94b5100 {
@@ -181,8 +192,9 @@
 			reg = <0x94b5100 0x1000>;
 		};
 
-		irq-syscfg {
+		irq-syscfg@0 {
 			compatible    = "st,stih407-irq-syscfg";
+			reg = <0 0>;
 			st,syscfg     = <&syscfg_core>;
 			st,irq-device = <ST_IRQ_SYSCFG_PMU_0>,
 					<ST_IRQ_SYSCFG_PMU_1>;
@@ -380,8 +392,9 @@
 			status = "disabled";
 		};
 
-		usb2_picophy0: phy1 {
+		usb2_picophy0: phy1@0 {
 			compatible = "st,stih407-usb2-phy";
+			reg = <0 0>;
 			#phy-cells = <0>;
 			st,syscfg = <&syscfg_core 0x100 0xf4>;
 			resets = <&softreset STIH407_PICOPHY_SOFTRESET>,
@@ -389,12 +402,13 @@
 			reset-names = "global", "port";
 		};
 
-		miphy28lp_phy: miphy28lp@9b22000 {
+		miphy28lp_phy: miphy28lp@0 {
 			compatible = "st,miphy28lp-phy";
 			st,syscfg = <&syscfg_core>;
 			#address-cells	= <1>;
 			#size-cells	= <1>;
 			ranges;
+			reg = <0 0>;
 
 			phy_port0: port@9b22000 {
 				reg = <0x9b22000 0xff>,
@@ -805,6 +819,7 @@
 
 		st231_gp0: st231-gp0@0 {
 			compatible	= "st,st231-rproc";
+			reg		= <0 0>;
 			memory-region	= <&gp0_reserved>;
 			resets		= <&softreset STIH407_ST231_GP0_SOFTRESET>;
 			reset-names	= "sw_reset";
@@ -818,6 +833,7 @@
 
 		st231_delta: st231-delta@0 {
 			compatible	= "st,st231-rproc";
+			reg		= <0 0>;
 			memory-region	= <&delta_reserved>;
 			resets		= <&softreset STIH407_ST231_DMU_SOFTRESET>;
 			reset-names	= "sw_reset";
@@ -883,13 +899,6 @@
 				<&clk_s_c0_flexgen CLK_EXT2F_A9>;
 
 			status = "disabled";
-		};
-
-		sti_sasg_codec: sti-sasg-codec {
-			compatible = "st,stih407-sas-codec";
-			#sound-dai-cells = <1>;
-			status = "disabled";
-			st,syscfg = <&syscfg_core>;
 		};
 
 		sti_uni_player0: sti-uni-player@8d80000 {
@@ -980,8 +989,9 @@
 			status = "disabled";
 		};
 
-		delta0 {
+		delta0@0 {
 			compatible = "st,st-delta";
+			reg = <0 0>;
 			clock-names = "delta",
 				      "delta-st231",
 				      "delta-flash-promip";

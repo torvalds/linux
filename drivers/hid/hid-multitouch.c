@@ -74,6 +74,7 @@ MODULE_LICENSE("GPL");
 #define MT_QUIRK_TOUCH_SIZE_SCALING	BIT(15)
 #define MT_QUIRK_STICKY_FINGERS		BIT(16)
 #define MT_QUIRK_ASUS_CUSTOM_UP		BIT(17)
+#define MT_QUIRK_WIN8_PTP_BUTTONS	BIT(18)
 
 #define MT_INPUTMODE_TOUCHSCREEN	0x02
 #define MT_INPUTMODE_TOUCHPAD		0x03
@@ -126,7 +127,6 @@ struct mt_device {
 	int left_button_state;	/* left button state */
 	unsigned last_slot_field;	/* the last field of a slot */
 	unsigned mt_report_id;	/* the report ID of the multitouch device */
-	unsigned long initial_quirks;	/* initial quirks state */
 	__s16 inputmode;	/* InputMode HID feature, -1 if non-existent */
 	__s16 inputmode_index;	/* InputMode HID feature index in the report */
 	__s16 maxcontact_report_id;	/* Maximum Contact Number HID feature,
@@ -183,6 +183,7 @@ static void mt_post_parse(struct mt_device *td);
 #define MT_CLS_ASUS				0x010b
 #define MT_CLS_VTL				0x0110
 #define MT_CLS_GOOGLE				0x0111
+#define MT_CLS_RAZER_BLADE_STEALTH		0x0112
 
 #define MT_DEFAULT_MAXCONTACT	10
 #define MT_MAX_MAXCONTACT	250
@@ -241,7 +242,8 @@ static struct mt_class mt_classes[] = {
 			MT_QUIRK_IGNORE_DUPLICATES |
 			MT_QUIRK_HOVERING |
 			MT_QUIRK_CONTACT_CNT_ACCURATE |
-			MT_QUIRK_STICKY_FINGERS },
+			MT_QUIRK_STICKY_FINGERS |
+			MT_QUIRK_WIN8_PTP_BUTTONS },
 	{ .name = MT_CLS_EXPORT_ALL_INPUTS,
 		.quirks = MT_QUIRK_ALWAYS_VALID |
 			MT_QUIRK_CONTACT_CNT_ACCURATE,
@@ -250,7 +252,8 @@ static struct mt_class mt_classes[] = {
 		.quirks = MT_QUIRK_ALWAYS_VALID |
 			MT_QUIRK_IGNORE_DUPLICATES |
 			MT_QUIRK_HOVERING |
-			MT_QUIRK_CONTACT_CNT_ACCURATE,
+			MT_QUIRK_CONTACT_CNT_ACCURATE |
+			MT_QUIRK_WIN8_PTP_BUTTONS,
 		.export_all_inputs = true },
 
 	/*
@@ -323,6 +326,13 @@ static struct mt_class mt_classes[] = {
 			MT_QUIRK_SLOT_IS_CONTACTID |
 			MT_QUIRK_HOVERING
 	},
+	{ .name = MT_CLS_RAZER_BLADE_STEALTH,
+		.quirks = MT_QUIRK_ALWAYS_VALID |
+			MT_QUIRK_IGNORE_DUPLICATES |
+			MT_QUIRK_HOVERING |
+			MT_QUIRK_CONTACT_CNT_ACCURATE |
+			MT_QUIRK_WIN8_PTP_BUTTONS,
+	},
 	{ }
 };
 
@@ -369,15 +379,15 @@ static const struct attribute_group mt_attribute_group = {
 
 static void mt_get_feature(struct hid_device *hdev, struct hid_report *report)
 {
-	struct mt_device *td = hid_get_drvdata(hdev);
-	int ret, size = hid_report_len(report);
+	int ret;
+	u32 size = hid_report_len(report);
 	u8 *buf;
 
 	/*
 	 * Do not fetch the feature report if the device has been explicitly
 	 * marked as non-capable.
 	 */
-	if (td->initial_quirks & HID_QUIRK_NO_INIT_REPORTS)
+	if (hdev->quirks & HID_QUIRK_NO_INIT_REPORTS)
 		return;
 
 	buf = hid_alloc_report_buf(report, GFP_KERNEL);
@@ -659,8 +669,7 @@ static int mt_touch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		 * MS PTP spec says that external buttons left and right have
 		 * usages 2 and 3.
 		 */
-		if ((cls->name == MT_CLS_WIN_8 ||
-			cls->name == MT_CLS_WIN_8_DUAL) &&
+		if ((cls->quirks & MT_QUIRK_WIN8_PTP_BUTTONS) &&
 		    field->application == HID_DG_TOUCHPAD &&
 		    (usage->hid & HID_USAGE) > 1)
 			code--;
@@ -722,7 +731,7 @@ static void mt_complete_slot(struct mt_device *td, struct input_dev *input)
 		}
 
 		if (!(td->mtclass.quirks & MT_QUIRK_CONFIDENCE))
-			s->confidence_state = 1;
+			s->confidence_state = true;
 		active = (s->touch_state || s->inrange_state) &&
 							s->confidence_state;
 
@@ -772,9 +781,7 @@ static void mt_complete_slot(struct mt_device *td, struct input_dev *input)
  */
 static void mt_sync_frame(struct mt_device *td, struct input_dev *input)
 {
-	__s32 cls = td->mtclass.name;
-
-	if (cls == MT_CLS_WIN_8 || cls == MT_CLS_WIN_8_DUAL)
+	if (td->mtclass.quirks & MT_QUIRK_WIN8_PTP_BUTTONS)
 		input_event(input, EV_KEY, BTN_LEFT, td->left_button_state);
 
 	input_mt_sync_frame(input);
@@ -826,7 +833,6 @@ static void mt_process_mt_event(struct hid_device *hid, struct hid_field *field,
 				bool first_packet)
 {
 	struct mt_device *td = hid_get_drvdata(hid);
-	__s32 cls = td->mtclass.name;
 	__s32 quirks = td->mtclass.quirks;
 	struct input_dev *input = field->hidinput->input;
 
@@ -904,7 +910,7 @@ static void mt_process_mt_event(struct hid_device *hid, struct hid_field *field,
 			 * non finger/touch events in the first_packet of
 			 * a (possible) multi-packet frame.
 			 */
-			if ((cls == MT_CLS_WIN_8 || cls == MT_CLS_WIN_8_DUAL) &&
+			if ((quirks & MT_QUIRK_WIN8_PTP_BUTTONS) &&
 			    !first_packet)
 				return;
 
@@ -915,7 +921,7 @@ static void mt_process_mt_event(struct hid_device *hid, struct hid_field *field,
 			 * BTN_LEFT if either is pressed, so we or all values
 			 * together and report the result in mt_sync_frame().
 			 */
-			if ((cls == MT_CLS_WIN_8 || cls == MT_CLS_WIN_8_DUAL) &&
+			if ((quirks & MT_QUIRK_WIN8_PTP_BUTTONS) &&
 			    usage->type == EV_KEY && usage->code == BTN_LEFT) {
 				td->left_button_state |= value;
 				return;
@@ -939,7 +945,6 @@ static void mt_process_mt_event(struct hid_device *hid, struct hid_field *field,
 static void mt_touch_report(struct hid_device *hid, struct hid_report *report)
 {
 	struct mt_device *td = hid_get_drvdata(hid);
-	__s32 cls = td->mtclass.name;
 	struct hid_field *field;
 	bool first_packet;
 	unsigned count;
@@ -968,7 +973,7 @@ static void mt_touch_report(struct hid_device *hid, struct hid_report *report)
 		 * of a possible multi-packet frame be checking that the
 		 * timestamp has changed.
 		 */
-		if ((cls == MT_CLS_WIN_8 || cls == MT_CLS_WIN_8_DUAL) &&
+		if ((td->mtclass.quirks & MT_QUIRK_WIN8_PTP_BUTTONS) &&
 		    td->num_received == 0 && td->prev_scantime != scantime)
 			td->num_expected = value;
 		/* A non 0 contact count always indicates a first packet */
@@ -1183,7 +1188,7 @@ static void mt_set_input_mode(struct hid_device *hdev)
 	struct hid_report_enum *re;
 	struct mt_class *cls = &td->mtclass;
 	char *buf;
-	int report_len;
+	u32 report_len;
 
 	if (td->inputmode < 0)
 		return;
@@ -1447,11 +1452,6 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (id->vendor == HID_ANY_ID && id->product == HID_ANY_ID)
 		td->serial_maybe = true;
 
-	/*
-	 * Store the initial quirk state
-	 */
-	td->initial_quirks = hdev->quirks;
-
 	/* This allows the driver to correctly support devices
 	 * that emit events over several HID messages.
 	 */
@@ -1463,22 +1463,6 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	 * device.
 	 */
 	hdev->quirks |= HID_QUIRK_MULTI_INPUT;
-	hdev->quirks |= HID_QUIRK_NO_EMPTY_INPUT;
-
-	/*
-	 * Some multitouch screens do not like to be polled for input
-	 * reports. Fortunately, the Win8 spec says that all touches
-	 * should be sent during each report, making the initialization
-	 * of input reports unnecessary. For Win7 devices, well, let's hope
-	 * they will still be happy (this is only be a problem if a touch
-	 * was already there while probing the device).
-	 *
-	 * In addition some touchpads do not behave well if we read
-	 * all feature reports from them. Instead we prevent
-	 * initial report fetching and then selectively fetch each
-	 * report we are interested in.
-	 */
-	hdev->quirks |= HID_QUIRK_NO_INIT_REPORTS;
 
 	timer_setup(&td->release_timer, mt_expired_timeout, 0);
 
@@ -1537,7 +1521,6 @@ static void mt_remove(struct hid_device *hdev)
 
 	sysfs_remove_group(&hdev->dev.kobj, &mt_attribute_group);
 	hid_hw_stop(hdev);
-	hdev->quirks = td->initial_quirks;
 }
 
 /*
@@ -1792,6 +1775,11 @@ static const struct hid_device_id mt_devices[] = {
 	{ .driver_data = MT_CLS_CONFIDENCE_CONTACT_ID,
 		MT_USB_DEVICE(USB_VENDOR_ID_QUANTA,
 			USB_DEVICE_ID_QUANTA_OPTICAL_TOUCH_3001) },
+
+	/* Razer touchpads */
+	{ .driver_data = MT_CLS_RAZER_BLADE_STEALTH,
+		HID_DEVICE(BUS_I2C, HID_GROUP_MULTITOUCH_WIN_8,
+			USB_VENDOR_ID_SYNAPTICS, 0x8323) },
 
 	/* Stantum panels */
 	{ .driver_data = MT_CLS_CONFIDENCE,

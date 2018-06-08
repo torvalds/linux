@@ -192,15 +192,16 @@ static __net_init int proc_net_ns_init(struct net *net)
 	int err;
 
 	err = -ENOMEM;
-	netd = kzalloc(sizeof(*netd) + 4, GFP_KERNEL);
+	netd = kmem_cache_zalloc(proc_dir_entry_cache, GFP_KERNEL);
 	if (!netd)
 		goto out;
 
-	netd->subdir = RB_ROOT_CACHED;
+	netd->subdir = RB_ROOT;
 	netd->data = net;
 	netd->nlink = 2;
 	netd->namelen = 3;
 	netd->parent = &proc_root;
+	netd->name = netd->inline_name;
 	memcpy(netd->name, "net", 4);
 
 	uid = make_kuid(net->user_ns, 0);
@@ -223,7 +224,7 @@ static __net_init int proc_net_ns_init(struct net *net)
 	return 0;
 
 free_net:
-	kfree(netd);
+	pde_free(netd);
 out:
 	return err;
 }
@@ -231,7 +232,7 @@ out:
 static __net_exit void proc_net_ns_exit(struct net *net)
 {
 	remove_proc_entry("stat", net->proc_net);
-	kfree(net->proc_net);
+	pde_free(net->proc_net);
 }
 
 static struct pernet_operations __net_initdata proc_net_ns_ops = {

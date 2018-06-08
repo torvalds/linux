@@ -1,5 +1,5 @@
 perf-sched(1)
-==============
+=============
 
 NAME
 ----
@@ -104,8 +104,8 @@ OPTIONS for 'perf sched timehist'
     kallsyms pathname
 
 -g::
---no-call-graph::
-	Do not display call chains if present.
+--call-graph::
+	Display call chains if present (default on).
 
 --max-stack::
 	Maximum number of functions to display in backtrace, default 5.

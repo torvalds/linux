@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -197,6 +198,9 @@ enum wmi_service {
 	WMI_SERVICE_TDLS_EXPLICIT_MODE_ONLY,
 	WMI_SERVICE_MGMT_TX_WMI,
 	WMI_SERVICE_TDLS_WIDER_BANDWIDTH,
+	WMI_SERVICE_HTT_MGMT_TX_COMP_VALID_FLAGS,
+	WMI_SERVICE_HOST_DFS_CHECK_SUPPORT,
+	WMI_SERVICE_TPC_STATS_FINAL,
 
 	/* keep last */
 	WMI_SERVICE_MAX,
@@ -339,6 +343,9 @@ enum wmi_10_4_service {
 	WMI_10_4_SERVICE_TDLS_CONN_TRACKER_IN_HOST_MODE,
 	WMI_10_4_SERVICE_TDLS_EXPLICIT_MODE_ONLY,
 	WMI_10_4_SERVICE_TDLS_WIDER_BANDWIDTH,
+	WMI_10_4_SERVICE_HTT_MGMT_TX_COMP_VALID_FLAGS,
+	WMI_10_4_SERVICE_HOST_DFS_CHECK_SUPPORT,
+	WMI_10_4_SERVICE_TPC_STATS_FINAL,
 };
 
 static inline char *wmi_service_name(int service_id)
@@ -448,6 +455,9 @@ static inline char *wmi_service_name(int service_id)
 	SVCSTR(WMI_SERVICE_TDLS_CONN_TRACKER_IN_HOST_MODE);
 	SVCSTR(WMI_SERVICE_TDLS_EXPLICIT_MODE_ONLY);
 	SVCSTR(WMI_SERVICE_TDLS_WIDER_BANDWIDTH);
+	SVCSTR(WMI_SERVICE_HTT_MGMT_TX_COMP_VALID_FLAGS);
+	SVCSTR(WMI_SERVICE_HOST_DFS_CHECK_SUPPORT);
+	SVCSTR(WMI_SERVICE_TPC_STATS_FINAL);
 	default:
 		return NULL;
 	}
@@ -746,6 +756,12 @@ static inline void wmi_10_4_svc_map(const __le32 *in, unsigned long *out,
 	       WMI_SERVICE_TDLS_EXPLICIT_MODE_ONLY, len);
 	SVCMAP(WMI_10_4_SERVICE_TDLS_WIDER_BANDWIDTH,
 	       WMI_SERVICE_TDLS_WIDER_BANDWIDTH, len);
+	SVCMAP(WMI_10_4_SERVICE_HTT_MGMT_TX_COMP_VALID_FLAGS,
+	       WMI_SERVICE_HTT_MGMT_TX_COMP_VALID_FLAGS, len);
+	SVCMAP(WMI_10_4_SERVICE_HOST_DFS_CHECK_SUPPORT,
+	       WMI_SERVICE_HOST_DFS_CHECK_SUPPORT, len);
+	SVCMAP(WMI_10_4_SERVICE_TPC_STATS_FINAL,
+	       WMI_SERVICE_TPC_STATS_FINAL, len);
 }
 
 #undef SVCMAP
@@ -3993,10 +4009,12 @@ struct wmi_pdev_get_tpc_config_cmd {
 
 #define WMI_TPC_CONFIG_PARAM		1
 #define WMI_TPC_RATE_MAX		160
+#define WMI_TPC_FINAL_RATE_MAX		240
 #define WMI_TPC_TX_N_CHAIN		4
 #define WMI_TPC_PREAM_TABLE_MAX		10
 #define WMI_TPC_FLAG			3
 #define WMI_TPC_BUF_SIZE		10
+#define WMI_TPC_BEAMFORMING		2
 
 enum wmi_tpc_table_type {
 	WMI_TPC_TABLE_TYPE_CDD = 0,
@@ -4037,6 +4055,51 @@ enum wmi_tp_scale {
 	WMI_TP_SCALE_12     = 3,	/* 12% of max (-9 dBm) */
 	WMI_TP_SCALE_MIN    = 4,	/* min, but still on   */
 	WMI_TP_SCALE_SIZE   = 5,	/* max num of enum     */
+};
+
+struct wmi_pdev_tpc_final_table_event {
+	__le32 reg_domain;
+	__le32 chan_freq;
+	__le32 phy_mode;
+	__le32 twice_antenna_reduction;
+	__le32 twice_max_rd_power;
+	a_sle32 twice_antenna_gain;
+	__le32 power_limit;
+	__le32 rate_max;
+	__le32 num_tx_chain;
+	__le32 ctl;
+	__le32 flags;
+	s8 max_reg_allow_pow[WMI_TPC_TX_N_CHAIN];
+	s8 max_reg_allow_pow_agcdd[WMI_TPC_TX_N_CHAIN][WMI_TPC_TX_N_CHAIN];
+	s8 max_reg_allow_pow_agstbc[WMI_TPC_TX_N_CHAIN][WMI_TPC_TX_N_CHAIN];
+	s8 max_reg_allow_pow_agtxbf[WMI_TPC_TX_N_CHAIN][WMI_TPC_TX_N_CHAIN];
+	u8 rates_array[WMI_TPC_FINAL_RATE_MAX];
+	u8 ctl_power_table[WMI_TPC_BEAMFORMING][WMI_TPC_TX_N_CHAIN]
+	   [WMI_TPC_TX_N_CHAIN];
+} __packed;
+
+struct wmi_pdev_get_tpc_table_cmd {
+	__le32 param;
+} __packed;
+
+enum wmi_tpc_pream_2ghz {
+	WMI_TPC_PREAM_2GHZ_CCK = 0,
+	WMI_TPC_PREAM_2GHZ_OFDM,
+	WMI_TPC_PREAM_2GHZ_HT20,
+	WMI_TPC_PREAM_2GHZ_HT40,
+	WMI_TPC_PREAM_2GHZ_VHT20,
+	WMI_TPC_PREAM_2GHZ_VHT40,
+	WMI_TPC_PREAM_2GHZ_VHT80,
+};
+
+enum wmi_tpc_pream_5ghz {
+	WMI_TPC_PREAM_5GHZ_OFDM = 1,
+	WMI_TPC_PREAM_5GHZ_HT20,
+	WMI_TPC_PREAM_5GHZ_HT40,
+	WMI_TPC_PREAM_5GHZ_VHT20,
+	WMI_TPC_PREAM_5GHZ_VHT40,
+	WMI_TPC_PREAM_5GHZ_VHT80,
+	WMI_TPC_PREAM_5GHZ_HTCUP,
 };
 
 struct wmi_pdev_chanlist_update_event {
@@ -4350,6 +4413,7 @@ enum wmi_10_4_stats_id {
 	WMI_10_4_STAT_AP		= BIT(1),
 	WMI_10_4_STAT_INST		= BIT(2),
 	WMI_10_4_STAT_PEER_EXTD		= BIT(3),
+	WMI_10_4_STAT_VDEV_EXTD		= BIT(4),
 };
 
 struct wlan_inst_rssi_args {
@@ -4489,10 +4553,34 @@ struct wmi_10_4_pdev_stats {
 
 /*
  * VDEV statistics
- * TODO: add all VDEV stats here
  */
+
+#define WMI_VDEV_STATS_FTM_COUNT_VALID	BIT(31)
+#define WMI_VDEV_STATS_FTM_COUNT_LSB	0
+#define WMI_VDEV_STATS_FTM_COUNT_MASK	0x7fffffff
+
 struct wmi_vdev_stats {
 	__le32 vdev_id;
+} __packed;
+
+struct wmi_vdev_stats_extd {
+	__le32 vdev_id;
+	__le32 ppdu_aggr_cnt;
+	__le32 ppdu_noack;
+	__le32 mpdu_queued;
+	__le32 ppdu_nonaggr_cnt;
+	__le32 mpdu_sw_requeued;
+	__le32 mpdu_suc_retry;
+	__le32 mpdu_suc_multitry;
+	__le32 mpdu_fail_retry;
+	__le32 tx_ftm_suc;
+	__le32 tx_ftm_suc_retry;
+	__le32 tx_ftm_fail;
+	__le32 rx_ftmr_cnt;
+	__le32 rx_ftmr_dup_cnt;
+	__le32 rx_iftmr_cnt;
+	__le32 rx_iftmr_dup_cnt;
+	__le32 reserved[6];
 } __packed;
 
 /*
@@ -6729,6 +6817,7 @@ enum wmi_tdls_state {
 	WMI_TDLS_DISABLE,
 	WMI_TDLS_ENABLE_PASSIVE,
 	WMI_TDLS_ENABLE_ACTIVE,
+	WMI_TDLS_ENABLE_ACTIVE_EXTERNAL_CONTROL,
 };
 
 enum wmi_tdls_peer_state {
@@ -6979,5 +7068,8 @@ void ath10k_wmi_10_4_op_fw_stats_fill(struct ath10k *ar,
 int ath10k_wmi_op_get_vdev_subtype(struct ath10k *ar,
 				   enum wmi_vdev_subtype subtype);
 int ath10k_wmi_barrier(struct ath10k *ar);
+void ath10k_wmi_tpc_config_get_rate_code(u8 *rate_code, u16 *pream_table,
+					 u32 num_tx_chain);
+void ath10k_wmi_event_tpc_final_table(struct ath10k *ar, struct sk_buff *skb);
 
 #endif /* _WMI_H_ */

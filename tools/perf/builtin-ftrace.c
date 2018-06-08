@@ -72,6 +72,7 @@ static int __write_tracing_file(const char *name, const char *val, bool append)
 	ssize_t size = strlen(val);
 	int flags = O_WRONLY;
 	char errbuf[512];
+	char *val_copy;
 
 	file = get_tracing_file(name);
 	if (!file) {
@@ -91,12 +92,23 @@ static int __write_tracing_file(const char *name, const char *val, bool append)
 		goto out;
 	}
 
-	if (write(fd, val, size) == size)
+	/*
+	 * Copy the original value and append a '\n'. Without this,
+	 * the kernel can hide possible errors.
+	 */
+	val_copy = strdup(val);
+	if (!val_copy)
+		goto out_close;
+	val_copy[size] = '\n';
+
+	if (write(fd, val_copy, size + 1) == size + 1)
 		ret = 0;
 	else
 		pr_debug("write '%s' to tracing/%s failed: %s\n",
 			 val, name, str_error_r(errno, errbuf, sizeof(errbuf)));
 
+	free(val_copy);
+out_close:
 	close(fd);
 out:
 	put_tracing_file(file);
@@ -280,8 +292,10 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace, int argc, const char **argv)
 	signal(SIGCHLD, sig_handler);
 	signal(SIGPIPE, sig_handler);
 
-	if (reset_tracing_files(ftrace) < 0)
+	if (reset_tracing_files(ftrace) < 0) {
+		pr_err("failed to reset ftrace\n");
 		goto out;
+	}
 
 	/* reset ftrace buffer */
 	if (write_tracing_file("trace", "0") < 0)

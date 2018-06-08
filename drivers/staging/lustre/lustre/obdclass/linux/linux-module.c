@@ -180,7 +180,7 @@ int obd_ioctl_getdata(char **buf, int *len, void __user *arg)
 	 * obdfilter-survey is an example, which relies on ioctl. So we'd
 	 * better avoid vmalloc on ioctl path. LU-66
 	 */
-	*buf = libcfs_kvzalloc(hdr.ioc_len, GFP_NOFS);
+	*buf = kvzalloc(hdr.ioc_len, GFP_KERNEL);
 	if (!*buf) {
 		CERROR("Cannot allocate control buffer of len %d\n",
 		       hdr.ioc_len);
@@ -251,7 +251,7 @@ static long obd_class_ioctl(struct file *filp, unsigned int cmd,
 	int err = 0;
 
 	/* Allow non-root access for OBD_IOC_PING_TARGET - used by lfs check */
-	if (!capable(CFS_CAP_SYS_ADMIN) && (cmd != OBD_IOC_PING_TARGET))
+	if (!capable(CAP_SYS_ADMIN) && (cmd != OBD_IOC_PING_TARGET))
 		return err = -EACCES;
 	if ((cmd & 0xffffff00) == ((int)'T') << 8) /* ignore all tty ioctls */
 		return err = -ENOTTY;

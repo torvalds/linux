@@ -276,7 +276,7 @@ static void rpc_set_active(struct rpc_task *task)
 {
 	rpc_task_set_debuginfo(task);
 	set_bit(RPC_TASK_ACTIVE, &task->tk_runstate);
-	trace_rpc_task_begin(task->tk_client, task, NULL);
+	trace_rpc_task_begin(task, NULL);
 }
 
 /*
@@ -291,7 +291,7 @@ static int rpc_complete_task(struct rpc_task *task)
 	unsigned long flags;
 	int ret;
 
-	trace_rpc_task_complete(task->tk_client, task, NULL);
+	trace_rpc_task_complete(task, NULL);
 
 	spin_lock_irqsave(&wq->lock, flags);
 	clear_bit(RPC_TASK_ACTIVE, &task->tk_runstate);
@@ -358,7 +358,7 @@ static void __rpc_sleep_on_priority(struct rpc_wait_queue *q,
 	dprintk("RPC: %5u sleep_on(queue \"%s\" time %lu)\n",
 			task->tk_pid, rpc_qname(q), jiffies);
 
-	trace_rpc_task_sleep(task->tk_client, task, q);
+	trace_rpc_task_sleep(task, q);
 
 	__rpc_add_wait_queue(q, task, queue_priority);
 
@@ -428,7 +428,7 @@ static void __rpc_do_wake_up_task_on_wq(struct workqueue_struct *wq,
 		return;
 	}
 
-	trace_rpc_task_wakeup(task->tk_client, task, queue);
+	trace_rpc_task_wakeup(task, queue);
 
 	__rpc_remove_wait_queue(queue, task);
 
@@ -780,7 +780,7 @@ static void __rpc_execute(struct rpc_task *task)
 		}
 		if (!do_action)
 			break;
-		trace_rpc_task_run_action(task->tk_client, task, do_action);
+		trace_rpc_task_run_action(task, do_action);
 		do_action(task);
 
 		/*

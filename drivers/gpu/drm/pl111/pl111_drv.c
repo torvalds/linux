@@ -58,6 +58,8 @@
 #include <linux/dma-buf.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/of.h>
+#include <linux/of_graph.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
@@ -85,9 +87,13 @@ static int pl111_modeset_init(struct drm_device *dev)
 {
 	struct drm_mode_config *mode_config;
 	struct pl111_drm_dev_private *priv = dev->dev_private;
-	struct drm_panel *panel;
-	struct drm_bridge *bridge;
+	struct device_node *np = dev->dev->of_node;
+	struct device_node *remote;
+	struct drm_panel *panel = NULL;
+	struct drm_bridge *bridge = NULL;
+	bool defer = false;
 	int ret = 0;
+	int i;
 
 	drm_mode_config_init(dev);
 	mode_config = &dev->mode_config;
@@ -97,10 +103,54 @@ static int pl111_modeset_init(struct drm_device *dev)
 	mode_config->min_height = 1;
 	mode_config->max_height = 768;
 
-	ret = drm_of_find_panel_or_bridge(dev->dev->of_node,
-					  0, 0, &panel, &bridge);
-	if (ret && ret != -ENODEV)
-		return ret;
+	i = 0;
+	for_each_endpoint_of_node(np, remote) {
+		struct drm_panel *tmp_panel;
+		struct drm_bridge *tmp_bridge;
+
+		dev_dbg(dev->dev, "checking endpoint %d\n", i);
+
+		ret = drm_of_find_panel_or_bridge(dev->dev->of_node,
+						  0, i,
+						  &tmp_panel,
+						  &tmp_bridge);
+		if (ret) {
+			if (ret == -EPROBE_DEFER) {
+				/*
+				 * Something deferred, but that is often just
+				 * another way of saying -ENODEV, but let's
+				 * cast a vote for later deferral.
+				 */
+				defer = true;
+			} else if (ret != -ENODEV) {
+				/* Continue, maybe something else is working */
+				dev_err(dev->dev,
+					"endpoint %d returns %d\n", i, ret);
+			}
+		}
+
+		if (tmp_panel) {
+			dev_info(dev->dev,
+				 "found panel on endpoint %d\n", i);
+			panel = tmp_panel;
+		}
+		if (tmp_bridge) {
+			dev_info(dev->dev,
+				 "found bridge on endpoint %d\n", i);
+			bridge = tmp_bridge;
+		}
+
+		i++;
+	}
+
+	/*
+	 * If we can't find neither panel nor bridge on any of the
+	 * endpoints, and any of them retured -EPROBE_DEFER, then
+	 * let's defer this driver too.
+	 */
+	if ((!panel && !bridge) && defer)
+		return -EPROBE_DEFER;
+
 	if (panel) {
 		bridge = drm_panel_bridge_add(panel,
 					      DRM_MODE_CONNECTOR_Unknown);
@@ -108,11 +158,17 @@ static int pl111_modeset_init(struct drm_device *dev)
 			ret = PTR_ERR(bridge);
 			goto out_config;
 		}
-		/*
-		 * TODO: when we are using a different bridge than a panel
-		 * (such as a dumb VGA connector) we need to devise a different
-		 * method to get the connector out of the bridge.
-		 */
+	} else if (bridge) {
+		dev_info(dev->dev, "Using non-panel bridge\n");
+	} else {
+		dev_err(dev->dev, "No bridge, exiting\n");
+		return -ENODEV;
+	}
+
+	priv->bridge = bridge;
+	if (panel) {
+		priv->panel = panel;
+		priv->connector = panel->connector;
 	}
 
 	ret = pl111_display_init(dev);
@@ -126,19 +182,17 @@ static int pl111_modeset_init(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	priv->bridge = bridge;
-	priv->panel = panel;
-	priv->connector = panel->connector;
-
-	ret = drm_vblank_init(dev, 1);
-	if (ret != 0) {
-		dev_err(dev->dev, "Failed to init vblank\n");
-		goto out_bridge;
+	if (!priv->variant->broken_vblank) {
+		ret = drm_vblank_init(dev, 1);
+		if (ret != 0) {
+			dev_err(dev->dev, "Failed to init vblank\n");
+			goto out_bridge;
+		}
 	}
 
 	drm_mode_config_reset(dev);
 
-	drm_fb_cma_fbdev_init(dev, 32, 0);
+	drm_fb_cma_fbdev_init(dev, priv->variant->fb_bpp, 0);
 
 	drm_kms_helper_poll_init(dev);
 
@@ -170,10 +224,6 @@ static struct drm_driver pl111_drm_driver = {
 	.dumb_create = drm_gem_cma_dumb_create,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
-
-	.enable_vblank = pl111_enable_vblank,
-	.disable_vblank = pl111_disable_vblank,
-
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import = drm_gem_prime_import,
@@ -191,7 +241,7 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 {
 	struct device *dev = &amba_dev->dev;
 	struct pl111_drm_dev_private *priv;
-	struct pl111_variant_data *variant = id->data;
+	const struct pl111_variant_data *variant = id->data;
 	struct drm_device *drm;
 	int ret;
 
@@ -207,27 +257,16 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 	drm->dev_private = priv;
 	priv->variant = variant;
 
-	/*
-	 * The PL110 and PL111 variants have two registers
-	 * swapped: interrupt enable and control. For this reason
-	 * we use offsets that we can change per variant.
-	 */
+	if (of_property_read_u32(dev->of_node, "max-memory-bandwidth",
+				 &priv->memory_bw)) {
+		dev_info(dev, "no max memory bandwidth specified, assume unlimited\n");
+		priv->memory_bw = 0;
+	}
+
+	/* The two variants swap this register */
 	if (variant->is_pl110) {
-		/*
-		 * The ARM Versatile boards are even more special:
-		 * their PrimeCell ID say they are PL110 but the
-		 * control and interrupt enable registers are anyway
-		 * swapped to the PL111 order so they are not following
-		 * the PL110 datasheet.
-		 */
-		if (of_machine_is_compatible("arm,versatile-ab") ||
-		    of_machine_is_compatible("arm,versatile-pb")) {
-			priv->ienb = CLCD_PL111_IENB;
-			priv->ctrl = CLCD_PL111_CNTL;
-		} else {
-			priv->ienb = CLCD_PL110_IENB;
-			priv->ctrl = CLCD_PL110_CNTL;
-		}
+		priv->ienb = CLCD_PL110_IENB;
+		priv->ctrl = CLCD_PL110_CNTL;
 	} else {
 		priv->ienb = CLCD_PL111_IENB;
 		priv->ctrl = CLCD_PL111_CNTL;
@@ -239,6 +278,11 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 		return PTR_ERR(priv->regs);
 	}
 
+	/* This may override some variant settings */
+	ret = pl111_versatile_init(dev, priv);
+	if (ret)
+		goto dev_unref;
+
 	/* turn off interrupts before requesting the irq */
 	writel(0, priv->regs + priv->ienb);
 
@@ -248,10 +292,6 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 		dev_err(dev, "%s failed irq %d\n", __func__, ret);
 		return ret;
 	}
-
-	ret = pl111_versatile_init(dev, priv);
-	if (ret)
-		goto dev_unref;
 
 	ret = pl111_modeset_init(drm);
 	if (ret != 0)
@@ -284,8 +324,7 @@ static int pl111_amba_remove(struct amba_device *amba_dev)
 }
 
 /*
- * This variant exist in early versions like the ARM Integrator
- * and this version lacks the 565 and 444 pixel formats.
+ * This early variant lacks the 565 and 444 pixel formats.
  */
 static const u32 pl110_pixel_formats[] = {
 	DRM_FORMAT_ABGR8888,
@@ -303,6 +342,7 @@ static const struct pl111_variant_data pl110_variant = {
 	.is_pl110 = true,
 	.formats = pl110_pixel_formats,
 	.nformats = ARRAY_SIZE(pl110_pixel_formats),
+	.fb_bpp = 16,
 };
 
 /* RealView, Versatile Express etc use this modern variant */
@@ -327,6 +367,7 @@ static const struct pl111_variant_data pl111_variant = {
 	.name = "PL111",
 	.formats = pl111_pixel_formats,
 	.nformats = ARRAY_SIZE(pl111_pixel_formats),
+	.fb_bpp = 32,
 };
 
 static const struct amba_id pl111_id_table[] = {

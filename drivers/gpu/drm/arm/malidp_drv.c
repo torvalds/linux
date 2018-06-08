@@ -185,25 +185,29 @@ static int malidp_set_and_wait_config_valid(struct drm_device *drm)
 
 static void malidp_atomic_commit_hw_done(struct drm_atomic_state *state)
 {
-	struct drm_pending_vblank_event *event;
 	struct drm_device *drm = state->dev;
 	struct malidp_drm *malidp = drm->dev_private;
 
-	if (malidp->crtc.enabled) {
+	malidp->event = malidp->crtc.state->event;
+	malidp->crtc.state->event = NULL;
+
+	if (malidp->crtc.state->active) {
+		/*
+		 * if we have an event to deliver to userspace, make sure
+		 * the vblank is enabled as we are sending it from the IRQ
+		 * handler.
+		 */
+		if (malidp->event)
+			drm_crtc_vblank_get(&malidp->crtc);
+
 		/* only set config_valid if the CRTC is enabled */
-		if (malidp_set_and_wait_config_valid(drm))
+		if (malidp_set_and_wait_config_valid(drm) < 0)
 			DRM_DEBUG_DRIVER("timed out waiting for updated configuration\n");
-	}
-
-	event = malidp->crtc.state->event;
-	if (event) {
-		malidp->crtc.state->event = NULL;
-
+	} else if (malidp->event) {
+		/* CRTC inactive means vblank IRQ is disabled, send event directly */
 		spin_lock_irq(&drm->event_lock);
-		if (drm_crtc_vblank_get(&malidp->crtc) == 0)
-			drm_crtc_arm_vblank_event(&malidp->crtc, event);
-		else
-			drm_crtc_send_vblank_event(&malidp->crtc, event);
+		drm_crtc_send_vblank_event(&malidp->crtc, malidp->event);
+		malidp->event = NULL;
 		spin_unlock_irq(&drm->event_lock);
 	}
 	drm_atomic_helper_commit_hw_done(state);
@@ -231,8 +235,6 @@ static void malidp_atomic_commit_tail(struct drm_atomic_state *state)
 	drm_atomic_helper_commit_modeset_enables(drm, state);
 
 	malidp_atomic_commit_hw_done(state);
-
-	drm_atomic_helper_wait_for_vblanks(drm, state);
 
 	pm_runtime_put(drm->dev);
 
@@ -276,7 +278,7 @@ static int malidp_init(struct drm_device *drm)
 
 static void malidp_fini(struct drm_device *drm)
 {
-	malidp_de_planes_destroy(drm);
+	drm_atomic_helper_shutdown(drm);
 	drm_mode_config_cleanup(drm);
 }
 
@@ -312,13 +314,26 @@ static int malidp_irq_init(struct platform_device *pdev)
 
 DEFINE_DRM_GEM_CMA_FOPS(fops);
 
+static int malidp_dumb_create(struct drm_file *file_priv,
+			      struct drm_device *drm,
+			      struct drm_mode_create_dumb *args)
+{
+	struct malidp_drm *malidp = drm->dev_private;
+	/* allocate for the worst case scenario, i.e. rotated buffers */
+	u8 alignment = malidp_hw_get_pitch_align(malidp->dev, 1);
+
+	args->pitch = ALIGN(DIV_ROUND_UP(args->width * args->bpp, 8), alignment);
+
+	return drm_gem_cma_dumb_create_internal(file_priv, drm, args);
+}
+
 static struct drm_driver malidp_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC |
 			   DRIVER_PRIME,
 	.lastclose = drm_fb_helper_lastclose,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
-	.dumb_create = drm_gem_cma_dumb_create,
+	.dumb_create = malidp_dumb_create,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export = drm_gem_prime_export,
@@ -662,8 +677,10 @@ static void malidp_unbind(struct device *dev)
 	drm_fb_cma_fbdev_fini(drm);
 	drm_kms_helper_poll_fini(drm);
 	pm_runtime_get_sync(dev);
+	drm_crtc_vblank_off(&malidp->crtc);
 	malidp_se_irq_fini(drm);
 	malidp_de_irq_fini(drm);
+	drm->irq_enabled = false;
 	component_unbind_all(dev, drm);
 	of_node_put(malidp->crtc.port);
 	malidp->crtc.port = NULL;

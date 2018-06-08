@@ -395,8 +395,8 @@ typedef struct {
 	u32 attributes;
 	u32 get_bar_attributes;
 	u32 set_bar_attributes;
-	uint64_t romsize;
-	void *romimage;
+	u64 romsize;
+	u32 romimage;
 } efi_pci_io_protocol_32;
 
 typedef struct {
@@ -415,8 +415,8 @@ typedef struct {
 	u64 attributes;
 	u64 get_bar_attributes;
 	u64 set_bar_attributes;
-	uint64_t romsize;
-	void *romimage;
+	u64 romsize;
+	u64 romimage;
 } efi_pci_io_protocol_64;
 
 typedef struct {
@@ -965,6 +965,8 @@ extern struct efi {
 	struct efi_memory_map memmap;
 	unsigned long flags;
 } efi;
+
+extern struct mm_struct efi_mm;
 
 static inline int
 efi_guidcmp (efi_guid_t left, efi_guid_t right)

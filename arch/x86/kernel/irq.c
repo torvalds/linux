@@ -150,6 +150,13 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 				   irq_stats(j)->irq_hv_reenlightenment_count);
 		seq_puts(p, "  Hyper-V reenlightenment interrupts\n");
 	}
+	if (test_bit(HYPERV_STIMER0_VECTOR, system_vectors)) {
+		seq_printf(p, "%*s: ", prec, "HVS");
+		for_each_online_cpu(j)
+			seq_printf(p, "%10u ",
+				   irq_stats(j)->hyperv_stimer0_count);
+		seq_puts(p, "  Hyper-V stimer0 interrupts\n");
+	}
 #endif
 	seq_printf(p, "%*s: %10u\n", prec, "ERR", atomic_read(&irq_err_count));
 #if defined(CONFIG_X86_IO_APIC)

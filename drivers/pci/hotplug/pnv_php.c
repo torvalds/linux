@@ -919,8 +919,8 @@ static void pnv_php_unregister_one(struct device_node *dn)
 		return;
 
 	php_slot->state = PNV_PHP_STATE_OFFLINE;
-	pnv_php_put_slot(php_slot);
 	pci_hp_deregister(&php_slot->slot);
+	pnv_php_put_slot(php_slot);
 }
 
 static void pnv_php_unregister(struct device_node *dn)

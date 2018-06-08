@@ -26,7 +26,6 @@
 #define _HYPERV_H
 
 #include <uapi/linux/hyperv.h>
-#include <uapi/asm/hyperv.h>
 
 #include <linux/types.h>
 #include <linux/scatterlist.h>
@@ -844,7 +843,7 @@ struct vmbus_channel {
 
 	/*
 	 * NUMA distribution policy:
-	 * We support teo policies:
+	 * We support two policies:
 	 * 1) Balanced: Here all performance critical channels are
 	 *    distributed evenly amongst all the NUMA nodes.
 	 *    This policy will be the default policy.

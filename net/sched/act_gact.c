@@ -56,7 +56,7 @@ static const struct nla_policy gact_policy[TCA_GACT_MAX + 1] = {
 
 static int tcf_gact_init(struct net *net, struct nlattr *nla,
 			 struct nlattr *est, struct tc_action **a,
-			 int ovr, int bind)
+			 int ovr, int bind, struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, gact_net_id);
 	struct nlattr *tb[TCA_GACT_MAX + 1];
@@ -201,18 +201,33 @@ nla_put_failure:
 
 static int tcf_gact_walker(struct net *net, struct sk_buff *skb,
 			   struct netlink_callback *cb, int type,
-			   const struct tc_action_ops *ops)
+			   const struct tc_action_ops *ops,
+			   struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, gact_net_id);
 
-	return tcf_generic_walker(tn, skb, cb, type, ops);
+	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static int tcf_gact_search(struct net *net, struct tc_action **a, u32 index)
+static int tcf_gact_search(struct net *net, struct tc_action **a, u32 index,
+			   struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, gact_net_id);
 
 	return tcf_idr_search(tn, a, index);
+}
+
+static size_t tcf_gact_get_fill_size(const struct tc_action *act)
+{
+	size_t sz = nla_total_size(sizeof(struct tc_gact)); /* TCA_GACT_PARMS */
+
+#ifdef CONFIG_GACT_PROB
+	if (to_gact(act)->tcfg_ptype)
+		/* TCA_GACT_PROB */
+		sz += nla_total_size(sizeof(struct tc_gact_p));
+#endif
+
+	return sz;
 }
 
 static struct tc_action_ops act_gact_ops = {
@@ -225,6 +240,7 @@ static struct tc_action_ops act_gact_ops = {
 	.init		=	tcf_gact_init,
 	.walk		=	tcf_gact_walker,
 	.lookup		=	tcf_gact_search,
+	.get_fill_size	=	tcf_gact_get_fill_size,
 	.size		=	sizeof(struct tcf_gact),
 };
 

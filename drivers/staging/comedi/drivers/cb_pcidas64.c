@@ -1488,11 +1488,10 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 	for (i = 0; i < AO_DMA_RING_COUNT; i++) {
 		if (ao_cmd_is_supported(board)) {
 			devpriv->ao_buffer[i] =
-				dma_alloc_coherent(&pcidev->dev,
-						   DMA_BUFFER_SIZE,
-						   &devpriv->
-						   ao_buffer_bus_addr[i],
-						   GFP_KERNEL);
+			    dma_alloc_coherent(&pcidev->dev,
+					       DMA_BUFFER_SIZE,
+					       &devpriv->ao_buffer_bus_addr[i],
+					       GFP_KERNEL);
 			if (!devpriv->ao_buffer[i])
 				return -ENOMEM;
 		}
@@ -1701,7 +1700,7 @@ static void i2c_write(struct comedi_device *dev, unsigned int address,
 	 * eeprom and i2c bus
 	 */
 
-	/* make sure we dont send anything to eeprom */
+	/* make sure we don't send anything to eeprom */
 	devpriv->plx_control_bits &= ~PLX_CNTRL_EECS;
 
 	i2c_stop(dev);
@@ -2463,20 +2462,21 @@ static int setup_channel_queue(struct comedi_device *dev,
 			writew(0, devpriv->main_iobase + ADC_QUEUE_CLEAR_REG);
 			/* load external queue */
 			for (i = 0; i < cmd->chanlist_len; i++) {
+				unsigned int chanspec = cmd->chanlist[i];
+				int use_differential;
+
 				bits = 0;
 				/* set channel */
-				bits |= adc_chan_bits(CR_CHAN(cmd->
-							      chanlist[i]));
+				bits |= adc_chan_bits(CR_CHAN(chanspec));
 				/* set gain */
 				bits |= ai_range_bits_6xxx(dev,
-							   CR_RANGE(cmd->
-								    chanlist
-								    [i]));
+							   CR_RANGE(chanspec));
 				/* set single-ended / differential */
-				bits |= se_diff_bit_6xxx(dev,
-							 CR_AREF(cmd->
-								 chanlist[i]) ==
-							 AREF_DIFF);
+				use_differential = 0;
+				if (CR_AREF(chanspec) == AREF_DIFF)
+					use_differential = 1;
+				bits |= se_diff_bit_6xxx(dev, use_differential);
+
 				if (CR_AREF(cmd->chanlist[i]) == AREF_COMMON)
 					bits |= ADC_COMMON_BIT;
 				/* mark end of queue */
@@ -3248,17 +3248,15 @@ static int prep_ao_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 	return 0;
 }
 
-static inline int external_ai_queue_in_use(struct comedi_device *dev,
-					   struct comedi_subdevice *s,
-					   struct comedi_cmd *cmd)
+static inline int external_ai_queue_in_use(struct comedi_device *dev)
 {
 	const struct pcidas64_board *board = dev->board_ptr;
 
-	if (s->busy)
+	if (!dev->read_subdev->busy)
 		return 0;
 	if (board->layout == LAYOUT_4020)
 		return 0;
-	else if (use_internal_queue_6xxx(cmd))
+	else if (use_internal_queue_6xxx(&dev->read_subdev->async->cmd))
 		return 0;
 	return 1;
 }
@@ -3292,7 +3290,7 @@ static int ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct pcidas64_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	if (external_ai_queue_in_use(dev, s, cmd)) {
+	if (external_ai_queue_in_use(dev)) {
 		warn_external_queue(dev);
 		return -EBUSY;
 	}

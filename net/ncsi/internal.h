@@ -276,6 +276,8 @@ struct ncsi_dev_priv {
 	unsigned int        package_num;     /* Number of packages         */
 	struct list_head    packages;        /* List of packages           */
 	struct ncsi_channel *hot_channel;    /* Channel was ever active    */
+	struct ncsi_package *force_package;  /* Force a specific package   */
+	struct ncsi_channel *force_channel;  /* Force a specific channel   */
 	struct ncsi_request requests[256];   /* Request table              */
 	unsigned int        request_id;      /* Last used request ID       */
 #define NCSI_REQ_START_IDX	1
@@ -318,6 +320,7 @@ extern spinlock_t ncsi_dev_lock;
 	list_for_each_entry_rcu(nc, &np->channels, node)
 
 /* Resources */
+u32 *ncsi_get_filter(struct ncsi_channel *nc, int table, int index);
 int ncsi_find_filter(struct ncsi_channel *nc, int table, void *data);
 int ncsi_add_filter(struct ncsi_channel *nc, int table, void *data);
 int ncsi_remove_filter(struct ncsi_channel *nc, int table, int index);

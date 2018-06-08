@@ -19,6 +19,21 @@
 #include "lapic.h"
 #include "pmu.h"
 
+enum pmu_type {
+	PMU_TYPE_COUNTER = 0,
+	PMU_TYPE_EVNTSEL,
+};
+
+enum index {
+	INDEX_ZERO = 0,
+	INDEX_ONE,
+	INDEX_TWO,
+	INDEX_THREE,
+	INDEX_FOUR,
+	INDEX_FIVE,
+	INDEX_ERROR,
+};
+
 /* duplicated from amd_perfmon_event_map, K7 and above should work. */
 static struct kvm_event_hw_type_mapping amd_event_mapping[] = {
 	[0] = { 0x76, 0x00, PERF_COUNT_HW_CPU_CYCLES },
@@ -30,6 +45,88 @@ static struct kvm_event_hw_type_mapping amd_event_mapping[] = {
 	[6] = { 0xd0, 0x00, PERF_COUNT_HW_STALLED_CYCLES_FRONTEND },
 	[7] = { 0xd1, 0x00, PERF_COUNT_HW_STALLED_CYCLES_BACKEND },
 };
+
+static unsigned int get_msr_base(struct kvm_pmu *pmu, enum pmu_type type)
+{
+	struct kvm_vcpu *vcpu = pmu_to_vcpu(pmu);
+
+	if (guest_cpuid_has(vcpu, X86_FEATURE_PERFCTR_CORE)) {
+		if (type == PMU_TYPE_COUNTER)
+			return MSR_F15H_PERF_CTR;
+		else
+			return MSR_F15H_PERF_CTL;
+	} else {
+		if (type == PMU_TYPE_COUNTER)
+			return MSR_K7_PERFCTR0;
+		else
+			return MSR_K7_EVNTSEL0;
+	}
+}
+
+static enum index msr_to_index(u32 msr)
+{
+	switch (msr) {
+	case MSR_F15H_PERF_CTL0:
+	case MSR_F15H_PERF_CTR0:
+	case MSR_K7_EVNTSEL0:
+	case MSR_K7_PERFCTR0:
+		return INDEX_ZERO;
+	case MSR_F15H_PERF_CTL1:
+	case MSR_F15H_PERF_CTR1:
+	case MSR_K7_EVNTSEL1:
+	case MSR_K7_PERFCTR1:
+		return INDEX_ONE;
+	case MSR_F15H_PERF_CTL2:
+	case MSR_F15H_PERF_CTR2:
+	case MSR_K7_EVNTSEL2:
+	case MSR_K7_PERFCTR2:
+		return INDEX_TWO;
+	case MSR_F15H_PERF_CTL3:
+	case MSR_F15H_PERF_CTR3:
+	case MSR_K7_EVNTSEL3:
+	case MSR_K7_PERFCTR3:
+		return INDEX_THREE;
+	case MSR_F15H_PERF_CTL4:
+	case MSR_F15H_PERF_CTR4:
+		return INDEX_FOUR;
+	case MSR_F15H_PERF_CTL5:
+	case MSR_F15H_PERF_CTR5:
+		return INDEX_FIVE;
+	default:
+		return INDEX_ERROR;
+	}
+}
+
+static inline struct kvm_pmc *get_gp_pmc_amd(struct kvm_pmu *pmu, u32 msr,
+					     enum pmu_type type)
+{
+	switch (msr) {
+	case MSR_F15H_PERF_CTL0:
+	case MSR_F15H_PERF_CTL1:
+	case MSR_F15H_PERF_CTL2:
+	case MSR_F15H_PERF_CTL3:
+	case MSR_F15H_PERF_CTL4:
+	case MSR_F15H_PERF_CTL5:
+	case MSR_K7_EVNTSEL0 ... MSR_K7_EVNTSEL3:
+		if (type != PMU_TYPE_EVNTSEL)
+			return NULL;
+		break;
+	case MSR_F15H_PERF_CTR0:
+	case MSR_F15H_PERF_CTR1:
+	case MSR_F15H_PERF_CTR2:
+	case MSR_F15H_PERF_CTR3:
+	case MSR_F15H_PERF_CTR4:
+	case MSR_F15H_PERF_CTR5:
+	case MSR_K7_PERFCTR0 ... MSR_K7_PERFCTR3:
+		if (type != PMU_TYPE_COUNTER)
+			return NULL;
+		break;
+	default:
+		return NULL;
+	}
+
+	return &pmu->gp_counters[msr_to_index(msr)];
+}
 
 static unsigned amd_find_arch_event(struct kvm_pmu *pmu,
 				    u8 event_select,
@@ -64,7 +161,18 @@ static bool amd_pmc_is_enabled(struct kvm_pmc *pmc)
 
 static struct kvm_pmc *amd_pmc_idx_to_pmc(struct kvm_pmu *pmu, int pmc_idx)
 {
-	return get_gp_pmc(pmu, MSR_K7_EVNTSEL0 + pmc_idx, MSR_K7_EVNTSEL0);
+	unsigned int base = get_msr_base(pmu, PMU_TYPE_COUNTER);
+	struct kvm_vcpu *vcpu = pmu_to_vcpu(pmu);
+
+	if (guest_cpuid_has(vcpu, X86_FEATURE_PERFCTR_CORE)) {
+		/*
+		 * The idx is contiguous. The MSRs are not. The counter MSRs
+		 * are interleaved with the event select MSRs.
+		 */
+		pmc_idx *= 2;
+	}
+
+	return get_gp_pmc_amd(pmu, base + pmc_idx, PMU_TYPE_COUNTER);
 }
 
 /* returns 0 if idx's corresponding MSR exists; otherwise returns 1. */
@@ -96,8 +204,8 @@ static bool amd_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	int ret = false;
 
-	ret = get_gp_pmc(pmu, msr, MSR_K7_PERFCTR0) ||
-		get_gp_pmc(pmu, msr, MSR_K7_EVNTSEL0);
+	ret = get_gp_pmc_amd(pmu, msr, PMU_TYPE_COUNTER) ||
+		get_gp_pmc_amd(pmu, msr, PMU_TYPE_EVNTSEL);
 
 	return ret;
 }
@@ -107,14 +215,14 @@ static int amd_pmu_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *data)
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	struct kvm_pmc *pmc;
 
-	/* MSR_K7_PERFCTRn */
-	pmc = get_gp_pmc(pmu, msr, MSR_K7_PERFCTR0);
+	/* MSR_PERFCTRn */
+	pmc = get_gp_pmc_amd(pmu, msr, PMU_TYPE_COUNTER);
 	if (pmc) {
 		*data = pmc_read_counter(pmc);
 		return 0;
 	}
-	/* MSR_K7_EVNTSELn */
-	pmc = get_gp_pmc(pmu, msr, MSR_K7_EVNTSEL0);
+	/* MSR_EVNTSELn */
+	pmc = get_gp_pmc_amd(pmu, msr, PMU_TYPE_EVNTSEL);
 	if (pmc) {
 		*data = pmc->eventsel;
 		return 0;
@@ -130,14 +238,14 @@ static int amd_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	u32 msr = msr_info->index;
 	u64 data = msr_info->data;
 
-	/* MSR_K7_PERFCTRn */
-	pmc = get_gp_pmc(pmu, msr, MSR_K7_PERFCTR0);
+	/* MSR_PERFCTRn */
+	pmc = get_gp_pmc_amd(pmu, msr, PMU_TYPE_COUNTER);
 	if (pmc) {
 		pmc->counter += data - pmc_read_counter(pmc);
 		return 0;
 	}
-	/* MSR_K7_EVNTSELn */
-	pmc = get_gp_pmc(pmu, msr, MSR_K7_EVNTSEL0);
+	/* MSR_EVNTSELn */
+	pmc = get_gp_pmc_amd(pmu, msr, PMU_TYPE_EVNTSEL);
 	if (pmc) {
 		if (data == pmc->eventsel)
 			return 0;
@@ -154,7 +262,11 @@ static void amd_pmu_refresh(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 
-	pmu->nr_arch_gp_counters = AMD64_NUM_COUNTERS;
+	if (guest_cpuid_has(vcpu, X86_FEATURE_PERFCTR_CORE))
+		pmu->nr_arch_gp_counters = AMD64_NUM_COUNTERS_CORE;
+	else
+		pmu->nr_arch_gp_counters = AMD64_NUM_COUNTERS;
+
 	pmu->counter_bitmask[KVM_PMC_GP] = ((u64)1 << 48) - 1;
 	pmu->reserved_bits = 0xffffffff00200000ull;
 	/* not applicable to AMD; but clean them to prevent any fall out */
@@ -169,7 +281,9 @@ static void amd_pmu_init(struct kvm_vcpu *vcpu)
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	int i;
 
-	for (i = 0; i < AMD64_NUM_COUNTERS ; i++) {
+	BUILD_BUG_ON(AMD64_NUM_COUNTERS_CORE > INTEL_PMC_MAX_GENERIC);
+
+	for (i = 0; i < AMD64_NUM_COUNTERS_CORE ; i++) {
 		pmu->gp_counters[i].type = KVM_PMC_GP;
 		pmu->gp_counters[i].vcpu = vcpu;
 		pmu->gp_counters[i].idx = i;
@@ -181,7 +295,7 @@ static void amd_pmu_reset(struct kvm_vcpu *vcpu)
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	int i;
 
-	for (i = 0; i < AMD64_NUM_COUNTERS; i++) {
+	for (i = 0; i < AMD64_NUM_COUNTERS_CORE; i++) {
 		struct kvm_pmc *pmc = &pmu->gp_counters[i];
 
 		pmc_stop_counter(pmc);

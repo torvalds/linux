@@ -218,15 +218,15 @@ nfp_bpf_cmsg_communicate(struct nfp_app_bpf *bpf, struct sk_buff *skb,
 		return skb;
 
 	hdr = (struct cmsg_hdr *)skb->data;
-	/* 0 reply_size means caller will do the validation */
-	if (reply_size && skb->len != reply_size) {
-		cmsg_warn(bpf, "cmsg drop - wrong size %d != %d!\n",
-			  skb->len, reply_size);
-		goto err_free;
-	}
 	if (hdr->type != __CMSG_REPLY(type)) {
 		cmsg_warn(bpf, "cmsg drop - wrong type 0x%02x != 0x%02lx!\n",
 			  hdr->type, __CMSG_REPLY(type));
+		goto err_free;
+	}
+	/* 0 reply_size means caller will do the validation */
+	if (reply_size && skb->len != reply_size) {
+		cmsg_warn(bpf, "cmsg drop - type 0x%02x wrong size %d != %d!\n",
+			  type, skb->len, reply_size);
 		goto err_free;
 	}
 

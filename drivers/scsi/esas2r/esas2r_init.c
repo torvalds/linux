@@ -661,27 +661,6 @@ void esas2r_kill_adapter(int i)
 	}
 }
 
-int esas2r_cleanup(struct Scsi_Host *host)
-{
-	struct esas2r_adapter *a;
-	int index;
-
-	if (host == NULL) {
-		int i;
-
-		esas2r_debug("esas2r_cleanup everything");
-		for (i = 0; i < MAX_ADAPTERS; i++)
-			esas2r_kill_adapter(i);
-		return -1;
-	}
-
-	esas2r_debug("esas2r_cleanup called for host %p", host);
-	a = (struct esas2r_adapter *)host->hostdata;
-	index = a->index;
-	esas2r_kill_adapter(index);
-	return index;
-}
-
 int esas2r_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct Scsi_Host *host = pci_get_drvdata(pdev);

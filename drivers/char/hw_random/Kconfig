@@ -452,3 +452,10 @@ config UML_RANDOM
 	  (check your distro, or download from
 	  http://sourceforge.net/projects/gkernel/).  rngd periodically reads
 	  /dev/hwrng and injects the entropy into /dev/random.
+
+config HW_RANDOM_KEYSTONE
+	depends on ARCH_KEYSTONE
+	default HW_RANDOM
+	tristate "TI Keystone NETCP SA Hardware random number generator"
+	help
+	  This option enables Keystone's hardware random generator.

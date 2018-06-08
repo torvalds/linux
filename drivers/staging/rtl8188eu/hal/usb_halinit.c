@@ -1516,8 +1516,8 @@ void rtw_hal_set_hwreg(struct adapter *Adapter, u8 variable, u8 *val)
 	case HW_VAR_CAM_WRITE:
 		{
 			u32 cmd;
-
 			u32 *cam_val = (u32 *)val;
+
 			usb_write32(Adapter, WCAMI, cam_val[0]);
 
 			cmd = CAM_POLLINIG | CAM_WRITE | cam_val[1];

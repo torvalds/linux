@@ -337,6 +337,14 @@ void mlx5_unregister_interface(struct mlx5_interface *intf)
 }
 EXPORT_SYMBOL(mlx5_unregister_interface);
 
+void mlx5_reload_interface(struct mlx5_core_dev *mdev, int protocol)
+{
+	mutex_lock(&mlx5_intf_mutex);
+	mlx5_remove_dev_by_protocol(mdev, protocol);
+	mlx5_add_dev_by_protocol(mdev, protocol);
+	mutex_unlock(&mlx5_intf_mutex);
+}
+
 void *mlx5_get_protocol_dev(struct mlx5_core_dev *mdev, int protocol)
 {
 	struct mlx5_priv *priv = &mdev->priv;

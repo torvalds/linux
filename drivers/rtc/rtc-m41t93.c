@@ -159,7 +159,7 @@ static int m41t93_get_time(struct device *dev, struct rtc_time *tm)
 		tm->tm_hour, tm->tm_mday,
 		tm->tm_mon, tm->tm_year, tm->tm_wday);
 
-	return ret < 0 ? ret : rtc_valid_tm(tm);
+	return ret;
 }
 
 

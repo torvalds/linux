@@ -90,8 +90,8 @@ static enum usb_port_connect_type usb_acpi_get_connect_type(acpi_handle handle,
 	acpi_status status;
 
 	/*
-	 * According to ACPI Spec 9.13. PLD indicates whether usb port is
-	 * user visible and _UPC indicates whether it is connectable. If
+	 * According to 9.14 in ACPI Spec 6.2. _PLD indicates whether usb port
+	 * is user visible and _UPC indicates whether it is connectable. If
 	 * the port was visible and connectable, it could be freely connected
 	 * and disconnected with USB devices. If no visible and connectable,
 	 * a usb device is directly hard-wired to the port. If no visible and

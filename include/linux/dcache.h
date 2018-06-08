@@ -56,9 +56,7 @@ struct qstr {
 
 #define QSTR_INIT(n,l) { { { .len = l } }, .name = n }
 
-extern const char empty_string[];
 extern const struct qstr empty_name;
-extern const char slash_string[];
 extern const struct qstr slash_name;
 
 struct dentry_stat_t {
@@ -226,6 +224,7 @@ extern seqlock_t rename_lock;
  * These are the low-level FS interfaces to the dcache..
  */
 extern void d_instantiate(struct dentry *, struct inode *);
+extern void d_instantiate_new(struct dentry *, struct inode *);
 extern struct dentry * d_instantiate_unique(struct dentry *, struct inode *);
 extern struct dentry * d_instantiate_anon(struct dentry *, struct inode *);
 extern int d_instantiate_no_diralias(struct dentry *, struct inode *);
@@ -361,7 +360,7 @@ static inline void dont_mount(struct dentry *dentry)
 
 extern void __d_lookup_done(struct dentry *);
 
-static inline int d_in_lookup(struct dentry *dentry)
+static inline int d_in_lookup(const struct dentry *dentry)
 {
 	return dentry->d_flags & DCACHE_PAR_LOOKUP;
 }
@@ -489,7 +488,7 @@ static inline bool d_really_is_positive(const struct dentry *dentry)
 	return dentry->d_inode != NULL;
 }
 
-static inline int simple_positive(struct dentry *dentry)
+static inline int simple_positive(const struct dentry *dentry)
 {
 	return d_really_is_positive(dentry) && !d_unhashed(dentry);
 }

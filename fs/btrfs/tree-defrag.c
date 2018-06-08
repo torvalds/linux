@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2007 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/sched.h>
@@ -39,7 +26,6 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	int level;
 	int next_key_ret = 0;
 	u64 last_ret = 0;
-	u64 min_trans = 0;
 
 	if (root->fs_info->extent_root == root) {
 		/*
@@ -81,7 +67,7 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 
 	path->keep_locks = 1;
 
-	ret = btrfs_search_forward(root, &key, path, min_trans);
+	ret = btrfs_search_forward(root, &key, path, BTRFS_OLDEST_GENERATION);
 	if (ret < 0)
 		goto out;
 	if (ret > 0) {
@@ -130,7 +116,7 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	 */
 	path->slots[1] = btrfs_header_nritems(path->nodes[1]);
 	next_key_ret = btrfs_find_next_key(root, path, &key, 1,
-					   min_trans);
+					   BTRFS_OLDEST_GENERATION);
 	if (next_key_ret == 0) {
 		memcpy(&root->defrag_progress, &key, sizeof(key));
 		ret = -EAGAIN;

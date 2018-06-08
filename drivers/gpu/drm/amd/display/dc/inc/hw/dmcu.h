@@ -32,13 +32,6 @@ enum dmcu_state {
 	DMCU_RUNNING = 1
 };
 
-struct dmcu_version {
-	unsigned int day;
-	unsigned int month;
-	unsigned int year;
-	unsigned int interface_version;
-};
-
 struct dmcu {
 	struct dc_context *ctx;
 	const struct dmcu_funcs *funcs;

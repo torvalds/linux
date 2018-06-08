@@ -1450,8 +1450,8 @@ static ssize_t write_flush(struct file *file, const char __user *buf,
 			   struct cache_detail *cd)
 {
 	char tbuf[20];
-	char *bp, *ep;
-	time_t then, now;
+	char *ep;
+	time_t now;
 
 	if (*ppos || count > sizeof(tbuf)-1)
 		return -EINVAL;
@@ -1461,24 +1461,24 @@ static ssize_t write_flush(struct file *file, const char __user *buf,
 	simple_strtoul(tbuf, &ep, 0);
 	if (*ep && *ep != '\n')
 		return -EINVAL;
-
-	bp = tbuf;
-	then = get_expiry(&bp);
-	now = seconds_since_boot();
-	cd->nextcheck = now;
-	/* Can only set flush_time to 1 second beyond "now", or
-	 * possibly 1 second beyond flushtime.  This is because
-	 * flush_time never goes backwards so it mustn't get too far
-	 * ahead of time.
+	/* Note that while we check that 'buf' holds a valid number,
+	 * we always ignore the value and just flush everything.
+	 * Making use of the number leads to races.
 	 */
-	if (then >= now) {
-		/* Want to flush everything, so behave like cache_purge() */
-		if (cd->flush_time >= now)
-			now = cd->flush_time + 1;
-		then = now;
-	}
 
-	cd->flush_time = then;
+	now = seconds_since_boot();
+	/* Always flush everything, so behave like cache_purge()
+	 * Do this by advancing flush_time to the current time,
+	 * or by one second if it has already reached the current time.
+	 * Newly added cache entries will always have ->last_refresh greater
+	 * that ->flush_time, so they don't get flushed prematurely.
+	 */
+
+	if (cd->flush_time >= now)
+		now = cd->flush_time + 1;
+
+	cd->flush_time = now;
+	cd->nextcheck = now;
 	cache_flush();
 
 	*ppos += count;
@@ -1621,20 +1621,20 @@ static int create_cache_proc_entries(struct cache_detail *cd, struct net *net)
 	if (cd->procfs == NULL)
 		goto out_nomem;
 
-	p = proc_create_data("flush", S_IFREG|S_IRUSR|S_IWUSR,
+	p = proc_create_data("flush", S_IFREG | 0600,
 			     cd->procfs, &cache_flush_operations_procfs, cd);
 	if (p == NULL)
 		goto out_nomem;
 
 	if (cd->cache_request || cd->cache_parse) {
-		p = proc_create_data("channel", S_IFREG|S_IRUSR|S_IWUSR,
-				cd->procfs, &cache_file_operations_procfs, cd);
+		p = proc_create_data("channel", S_IFREG | 0600, cd->procfs,
+				     &cache_file_operations_procfs, cd);
 		if (p == NULL)
 			goto out_nomem;
 	}
 	if (cd->cache_show) {
-		p = proc_create_data("content", S_IFREG|S_IRUSR,
-				cd->procfs, &content_file_operations_procfs, cd);
+		p = proc_create_data("content", S_IFREG | 0400, cd->procfs,
+				     &content_file_operations_procfs, cd);
 		if (p == NULL)
 			goto out_nomem;
 	}

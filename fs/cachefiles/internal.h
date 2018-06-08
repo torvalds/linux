@@ -124,6 +124,8 @@ struct cachefiles_xattr {
 	uint8_t				data[];
 };
 
+#include <trace/events/cachefiles.h>
+
 /*
  * note change of state for daemon
  */

@@ -176,7 +176,7 @@ struct security_class_mapping secclass_map[] = {
 	  { COMMON_CAP2_PERMS, NULL } },
 	{ "sctp_socket",
 	  { COMMON_SOCK_PERMS,
-	    "node_bind", NULL } },
+	    "node_bind", "name_connect", "association", NULL } },
 	{ "icmp_socket",
 	  { COMMON_SOCK_PERMS,
 	    "node_bind", NULL } },

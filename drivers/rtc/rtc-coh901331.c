@@ -82,7 +82,7 @@ static int coh901331_read_time(struct device *dev, struct rtc_time *tm)
 	if (readl(rtap->virtbase + COH901331_VALID)) {
 		rtc_time_to_tm(readl(rtap->virtbase + COH901331_CUR_TIME), tm);
 		clk_disable(rtap->clk);
-		return rtc_valid_tm(tm);
+		return 0;
 	}
 	clk_disable(rtap->clk);
 	return -EINVAL;

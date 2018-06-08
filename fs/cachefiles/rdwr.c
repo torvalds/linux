@@ -952,6 +952,7 @@ error:
  * - cache withdrawal is prevented by the caller
  */
 void cachefiles_uncache_page(struct fscache_object *_object, struct page *page)
+	__releases(&object->fscache.cookie->lock)
 {
 	struct cachefiles_object *object;
 	struct cachefiles_cache *cache;

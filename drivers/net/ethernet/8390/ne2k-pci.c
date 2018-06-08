@@ -76,7 +76,7 @@ MODULE_AUTHOR("Donald Becker / Paul Gortmaker");
 MODULE_DESCRIPTION("PCI NE2000 clone driver");
 MODULE_LICENSE("GPL");
 
-module_param_named(msg_enable, ne2k_msg_enable, uint, (S_IRUSR|S_IRGRP|S_IROTH));
+module_param_named(msg_enable, ne2k_msg_enable, uint, 0444);
 module_param_array(options, int, NULL, 0);
 module_param_array(full_duplex, int, NULL, 0);
 MODULE_PARM_DESC(msg_enable, "Debug message level (see linux/netdevice.h for bitmap)");

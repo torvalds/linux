@@ -2099,7 +2099,8 @@ void __init page_writeback_init(void)
  * so that it can tag pages faster than a dirtying process can create them).
  */
 /*
- * We tag pages in batches of WRITEBACK_TAG_BATCH to reduce tree_lock latency.
+ * We tag pages in batches of WRITEBACK_TAG_BATCH to reduce the i_pages lock
+ * latency.
  */
 void tag_pages_for_writeback(struct address_space *mapping,
 			     pgoff_t start, pgoff_t end)
@@ -2109,22 +2110,22 @@ void tag_pages_for_writeback(struct address_space *mapping,
 	struct radix_tree_iter iter;
 	void **slot;
 
-	spin_lock_irq(&mapping->tree_lock);
-	radix_tree_for_each_tagged(slot, &mapping->page_tree, &iter, start,
+	xa_lock_irq(&mapping->i_pages);
+	radix_tree_for_each_tagged(slot, &mapping->i_pages, &iter, start,
 							PAGECACHE_TAG_DIRTY) {
 		if (iter.index > end)
 			break;
-		radix_tree_iter_tag_set(&mapping->page_tree, &iter,
+		radix_tree_iter_tag_set(&mapping->i_pages, &iter,
 							PAGECACHE_TAG_TOWRITE);
 		tagged++;
 		if ((tagged % WRITEBACK_TAG_BATCH) != 0)
 			continue;
 		slot = radix_tree_iter_resume(slot, &iter);
-		spin_unlock_irq(&mapping->tree_lock);
+		xa_unlock_irq(&mapping->i_pages);
 		cond_resched();
-		spin_lock_irq(&mapping->tree_lock);
+		xa_lock_irq(&mapping->i_pages);
 	}
-	spin_unlock_irq(&mapping->tree_lock);
+	xa_unlock_irq(&mapping->i_pages);
 }
 EXPORT_SYMBOL(tag_pages_for_writeback);
 
@@ -2467,13 +2468,13 @@ int __set_page_dirty_nobuffers(struct page *page)
 			return 1;
 		}
 
-		spin_lock_irqsave(&mapping->tree_lock, flags);
+		xa_lock_irqsave(&mapping->i_pages, flags);
 		BUG_ON(page_mapping(page) != mapping);
 		WARN_ON_ONCE(!PagePrivate(page) && !PageUptodate(page));
 		account_page_dirtied(page, mapping);
-		radix_tree_tag_set(&mapping->page_tree, page_index(page),
+		radix_tree_tag_set(&mapping->i_pages, page_index(page),
 				   PAGECACHE_TAG_DIRTY);
-		spin_unlock_irqrestore(&mapping->tree_lock, flags);
+		xa_unlock_irqrestore(&mapping->i_pages, flags);
 		unlock_page_memcg(page);
 
 		if (mapping->host) {
@@ -2501,13 +2502,13 @@ void account_page_redirty(struct page *page)
 	if (mapping && mapping_cap_account_dirty(mapping)) {
 		struct inode *inode = mapping->host;
 		struct bdi_writeback *wb;
-		bool locked;
+		struct wb_lock_cookie cookie = {};
 
-		wb = unlocked_inode_to_wb_begin(inode, &locked);
+		wb = unlocked_inode_to_wb_begin(inode, &cookie);
 		current->nr_dirtied--;
 		dec_node_page_state(page, NR_DIRTIED);
 		dec_wb_stat(wb, WB_DIRTIED);
-		unlocked_inode_to_wb_end(inode, locked);
+		unlocked_inode_to_wb_end(inode, &cookie);
 	}
 }
 EXPORT_SYMBOL(account_page_redirty);
@@ -2613,15 +2614,15 @@ void __cancel_dirty_page(struct page *page)
 	if (mapping_cap_account_dirty(mapping)) {
 		struct inode *inode = mapping->host;
 		struct bdi_writeback *wb;
-		bool locked;
+		struct wb_lock_cookie cookie = {};
 
 		lock_page_memcg(page);
-		wb = unlocked_inode_to_wb_begin(inode, &locked);
+		wb = unlocked_inode_to_wb_begin(inode, &cookie);
 
 		if (TestClearPageDirty(page))
 			account_page_cleaned(page, mapping, wb);
 
-		unlocked_inode_to_wb_end(inode, locked);
+		unlocked_inode_to_wb_end(inode, &cookie);
 		unlock_page_memcg(page);
 	} else {
 		ClearPageDirty(page);
@@ -2653,7 +2654,7 @@ int clear_page_dirty_for_io(struct page *page)
 	if (mapping && mapping_cap_account_dirty(mapping)) {
 		struct inode *inode = mapping->host;
 		struct bdi_writeback *wb;
-		bool locked;
+		struct wb_lock_cookie cookie = {};
 
 		/*
 		 * Yes, Virginia, this is indeed insane.
@@ -2690,14 +2691,14 @@ int clear_page_dirty_for_io(struct page *page)
 		 * always locked coming in here, so we get the desired
 		 * exclusion.
 		 */
-		wb = unlocked_inode_to_wb_begin(inode, &locked);
+		wb = unlocked_inode_to_wb_begin(inode, &cookie);
 		if (TestClearPageDirty(page)) {
 			dec_lruvec_page_state(page, NR_FILE_DIRTY);
 			dec_zone_page_state(page, NR_ZONE_WRITE_PENDING);
 			dec_wb_stat(wb, WB_RECLAIMABLE);
 			ret = 1;
 		}
-		unlocked_inode_to_wb_end(inode, locked);
+		unlocked_inode_to_wb_end(inode, &cookie);
 		return ret;
 	}
 	return TestClearPageDirty(page);
@@ -2718,11 +2719,10 @@ int test_clear_page_writeback(struct page *page)
 		struct backing_dev_info *bdi = inode_to_bdi(inode);
 		unsigned long flags;
 
-		spin_lock_irqsave(&mapping->tree_lock, flags);
+		xa_lock_irqsave(&mapping->i_pages, flags);
 		ret = TestClearPageWriteback(page);
 		if (ret) {
-			radix_tree_tag_clear(&mapping->page_tree,
-						page_index(page),
+			radix_tree_tag_clear(&mapping->i_pages, page_index(page),
 						PAGECACHE_TAG_WRITEBACK);
 			if (bdi_cap_account_writeback(bdi)) {
 				struct bdi_writeback *wb = inode_to_wb(inode);
@@ -2736,7 +2736,7 @@ int test_clear_page_writeback(struct page *page)
 						     PAGECACHE_TAG_WRITEBACK))
 			sb_clear_inode_writeback(mapping->host);
 
-		spin_unlock_irqrestore(&mapping->tree_lock, flags);
+		xa_unlock_irqrestore(&mapping->i_pages, flags);
 	} else {
 		ret = TestClearPageWriteback(page);
 	}
@@ -2766,7 +2766,7 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
 		struct backing_dev_info *bdi = inode_to_bdi(inode);
 		unsigned long flags;
 
-		spin_lock_irqsave(&mapping->tree_lock, flags);
+		xa_lock_irqsave(&mapping->i_pages, flags);
 		ret = TestSetPageWriteback(page);
 		if (!ret) {
 			bool on_wblist;
@@ -2774,8 +2774,7 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
 			on_wblist = mapping_tagged(mapping,
 						   PAGECACHE_TAG_WRITEBACK);
 
-			radix_tree_tag_set(&mapping->page_tree,
-						page_index(page),
+			radix_tree_tag_set(&mapping->i_pages, page_index(page),
 						PAGECACHE_TAG_WRITEBACK);
 			if (bdi_cap_account_writeback(bdi))
 				inc_wb_stat(inode_to_wb(inode), WB_WRITEBACK);
@@ -2789,14 +2788,12 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
 				sb_mark_inode_writeback(mapping->host);
 		}
 		if (!PageDirty(page))
-			radix_tree_tag_clear(&mapping->page_tree,
-						page_index(page),
+			radix_tree_tag_clear(&mapping->i_pages, page_index(page),
 						PAGECACHE_TAG_DIRTY);
 		if (!keep_write)
-			radix_tree_tag_clear(&mapping->page_tree,
-						page_index(page),
+			radix_tree_tag_clear(&mapping->i_pages, page_index(page),
 						PAGECACHE_TAG_TOWRITE);
-		spin_unlock_irqrestore(&mapping->tree_lock, flags);
+		xa_unlock_irqrestore(&mapping->i_pages, flags);
 	} else {
 		ret = TestSetPageWriteback(page);
 	}
@@ -2816,7 +2813,7 @@ EXPORT_SYMBOL(__test_set_page_writeback);
  */
 int mapping_tagged(struct address_space *mapping, int tag)
 {
-	return radix_tree_tagged(&mapping->page_tree, tag);
+	return radix_tree_tagged(&mapping->i_pages, tag);
 }
 EXPORT_SYMBOL(mapping_tagged);
 

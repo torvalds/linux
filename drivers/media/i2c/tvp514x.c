@@ -747,60 +747,47 @@ static int tvp514x_s_ctrl(struct v4l2_ctrl *ctrl)
 }
 
 /**
- * tvp514x_g_parm() - V4L2 decoder interface handler for g_parm
+ * tvp514x_g_frame_interval() - V4L2 decoder interface handler
  * @sd: pointer to standard V4L2 sub-device structure
- * @a: pointer to standard V4L2 VIDIOC_G_PARM ioctl structure
+ * @ival: pointer to a v4l2_subdev_frame_interval structure
  *
  * Returns the decoder's video CAPTURE parameters.
  */
 static int
-tvp514x_g_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *a)
+tvp514x_g_frame_interval(struct v4l2_subdev *sd,
+			 struct v4l2_subdev_frame_interval *ival)
 {
 	struct tvp514x_decoder *decoder = to_decoder(sd);
-	struct v4l2_captureparm *cparm;
 	enum tvp514x_std current_std;
 
-	if (a == NULL)
-		return -EINVAL;
-
-	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		/* only capture is supported */
-		return -EINVAL;
 
 	/* get the current standard */
 	current_std = decoder->current_std;
 
-	cparm = &a->parm.capture;
-	cparm->capability = V4L2_CAP_TIMEPERFRAME;
-	cparm->timeperframe =
+	ival->interval =
 		decoder->std_list[current_std].standard.frameperiod;
 
 	return 0;
 }
 
 /**
- * tvp514x_s_parm() - V4L2 decoder interface handler for s_parm
+ * tvp514x_s_frame_interval() - V4L2 decoder interface handler
  * @sd: pointer to standard V4L2 sub-device structure
- * @a: pointer to standard V4L2 VIDIOC_S_PARM ioctl structure
+ * @ival: pointer to a v4l2_subdev_frame_interval structure
  *
  * Configures the decoder to use the input parameters, if possible. If
  * not possible, returns the appropriate error code.
  */
 static int
-tvp514x_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *a)
+tvp514x_s_frame_interval(struct v4l2_subdev *sd,
+			 struct v4l2_subdev_frame_interval *ival)
 {
 	struct tvp514x_decoder *decoder = to_decoder(sd);
 	struct v4l2_fract *timeperframe;
 	enum tvp514x_std current_std;
 
-	if (a == NULL)
-		return -EINVAL;
 
-	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		/* only capture is supported */
-		return -EINVAL;
-
-	timeperframe = &a->parm.capture.timeperframe;
+	timeperframe = &ival->interval;
 
 	/* get the current standard */
 	current_std = decoder->current_std;
@@ -961,8 +948,8 @@ static const struct v4l2_subdev_video_ops tvp514x_video_ops = {
 	.s_std = tvp514x_s_std,
 	.s_routing = tvp514x_s_routing,
 	.querystd = tvp514x_querystd,
-	.g_parm = tvp514x_g_parm,
-	.s_parm = tvp514x_s_parm,
+	.g_frame_interval = tvp514x_g_frame_interval,
+	.s_frame_interval = tvp514x_s_frame_interval,
 	.s_stream = tvp514x_s_stream,
 };
 

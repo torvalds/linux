@@ -234,7 +234,7 @@ int sas_try_ata_reset(struct asd_sas_phy *asd_phy)
 	return -ENODEV;
 }
 
-/**
+/*
  * transport_sas_phy_reset - reset a phy and permit libata to manage the link
  *
  * phy reset request via sysfs in host workqueue context so we know we

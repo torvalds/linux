@@ -510,37 +510,6 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 	return 0;
 }
 
-#define PCI_CLASS_MULTIMEDIA_HD_AUDIO 0x0403
-
-static void
-nouveau_get_hdmi_dev(struct nouveau_drm *drm)
-{
-	struct pci_dev *pdev = drm->dev->pdev;
-
-	if (!pdev) {
-		NV_DEBUG(drm, "not a PCI device; no HDMI\n");
-		drm->hdmi_device = NULL;
-		return;
-	}
-
-	/* subfunction one is a hdmi audio device? */
-	drm->hdmi_device = pci_get_domain_bus_and_slot(pci_domain_nr(pdev->bus),
-						(unsigned int)pdev->bus->number,
-						PCI_DEVFN(PCI_SLOT(pdev->devfn), 1));
-
-	if (!drm->hdmi_device) {
-		NV_DEBUG(drm, "hdmi device not found %d %d %d\n", pdev->bus->number, PCI_SLOT(pdev->devfn), 1);
-		return;
-	}
-
-	if ((drm->hdmi_device->class >> 8) != PCI_CLASS_MULTIMEDIA_HD_AUDIO) {
-		NV_DEBUG(drm, "possible hdmi device not audio %d\n", drm->hdmi_device->class);
-		pci_dev_put(drm->hdmi_device);
-		drm->hdmi_device = NULL;
-		return;
-	}
-}
-
 static int
 nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 {
@@ -567,8 +536,6 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 
 	INIT_LIST_HEAD(&drm->clients);
 	spin_lock_init(&drm->tile.lock);
-
-	nouveau_get_hdmi_dev(drm);
 
 	/* workaround an odd issue on nvc1 by disabling the device's
 	 * nosnoop capability.  hopefully won't cause issues until a
@@ -655,8 +622,6 @@ nouveau_drm_unload(struct drm_device *dev)
 	nouveau_ttm_fini(drm);
 	nouveau_vga_fini(drm);
 
-	if (drm->hdmi_device)
-		pci_dev_put(drm->hdmi_device);
 	nouveau_cli_fini(&drm->client);
 	nouveau_cli_fini(&drm->master);
 	kfree(drm);
@@ -856,7 +821,6 @@ nouveau_pmops_runtime_suspend(struct device *dev)
 	}
 
 	drm_kms_helper_poll_disable(drm_dev);
-	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_OFF);
 	nouveau_switcheroo_optimus_dsm();
 	ret = nouveau_do_suspend(drm_dev, true);
 	pci_save_state(pdev);
@@ -891,7 +855,6 @@ nouveau_pmops_runtime_resume(struct device *dev)
 
 	/* do magic */
 	nvif_mask(&device->object, 0x088488, (1 << 25), (1 << 25));
-	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_ON);
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_ON;
 
 	/* Monitors may have been connected / disconnected during suspend */
@@ -911,15 +874,6 @@ nouveau_pmops_runtime_idle(struct device *dev)
 	if (!nouveau_pmops_runtime()) {
 		pm_runtime_forbid(dev);
 		return -EBUSY;
-	}
-
-	/* if we have a hdmi audio device - make sure it has a driver loaded */
-	if (drm->hdmi_device) {
-		if (!drm->hdmi_device->driver) {
-			DRM_DEBUG_DRIVER("failing to power off - no HDMI audio driver loaded\n");
-			pm_runtime_mark_last_busy(dev);
-			return -EBUSY;
-		}
 	}
 
 	list_for_each_entry(crtc, &drm->dev->mode_config.crtc_list, head) {

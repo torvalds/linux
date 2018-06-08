@@ -932,10 +932,51 @@ xfs_dir2_data_make_free(
 	*needscanp = needscan;
 }
 
+/* Check our free data for obvious signs of corruption. */
+static inline xfs_failaddr_t
+xfs_dir2_data_check_free(
+	struct xfs_dir2_data_hdr	*hdr,
+	struct xfs_dir2_data_unused	*dup,
+	xfs_dir2_data_aoff_t		offset,
+	xfs_dir2_data_aoff_t		len)
+{
+	if (hdr->magic != cpu_to_be32(XFS_DIR2_DATA_MAGIC) &&
+	    hdr->magic != cpu_to_be32(XFS_DIR3_DATA_MAGIC) &&
+	    hdr->magic != cpu_to_be32(XFS_DIR2_BLOCK_MAGIC) &&
+	    hdr->magic != cpu_to_be32(XFS_DIR3_BLOCK_MAGIC))
+		return __this_address;
+	if (be16_to_cpu(dup->freetag) != XFS_DIR2_DATA_FREE_TAG)
+		return __this_address;
+	if (offset < (char *)dup - (char *)hdr)
+		return __this_address;
+	if (offset + len > (char *)dup + be16_to_cpu(dup->length) - (char *)hdr)
+		return __this_address;
+	if ((char *)dup - (char *)hdr !=
+			be16_to_cpu(*xfs_dir2_data_unused_tag_p(dup)))
+		return __this_address;
+	return NULL;
+}
+
+/* Sanity-check a new bestfree entry. */
+static inline xfs_failaddr_t
+xfs_dir2_data_check_new_free(
+	struct xfs_dir2_data_hdr	*hdr,
+	struct xfs_dir2_data_free	*dfp,
+	struct xfs_dir2_data_unused	*newdup)
+{
+	if (dfp == NULL)
+		return __this_address;
+	if (dfp->length != newdup->length)
+		return __this_address;
+	if (be16_to_cpu(dfp->offset) != (char *)newdup - (char *)hdr)
+		return __this_address;
+	return NULL;
+}
+
 /*
  * Take a byte range out of an existing unused space and make it un-free.
  */
-void
+int
 xfs_dir2_data_use_free(
 	struct xfs_da_args	*args,
 	struct xfs_buf		*bp,
@@ -947,23 +988,19 @@ xfs_dir2_data_use_free(
 {
 	xfs_dir2_data_hdr_t	*hdr;		/* data block header */
 	xfs_dir2_data_free_t	*dfp;		/* bestfree pointer */
+	xfs_dir2_data_unused_t	*newdup;	/* new unused entry */
+	xfs_dir2_data_unused_t	*newdup2;	/* another new unused entry */
+	struct xfs_dir2_data_free *bf;
+	xfs_failaddr_t		fa;
 	int			matchback;	/* matches end of freespace */
 	int			matchfront;	/* matches start of freespace */
 	int			needscan;	/* need to regen bestfree */
-	xfs_dir2_data_unused_t	*newdup;	/* new unused entry */
-	xfs_dir2_data_unused_t	*newdup2;	/* another new unused entry */
 	int			oldlen;		/* old unused entry's length */
-	struct xfs_dir2_data_free *bf;
 
 	hdr = bp->b_addr;
-	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
-	       hdr->magic == cpu_to_be32(XFS_DIR3_DATA_MAGIC) ||
-	       hdr->magic == cpu_to_be32(XFS_DIR2_BLOCK_MAGIC) ||
-	       hdr->magic == cpu_to_be32(XFS_DIR3_BLOCK_MAGIC));
-	ASSERT(be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG);
-	ASSERT(offset >= (char *)dup - (char *)hdr);
-	ASSERT(offset + len <= (char *)dup + be16_to_cpu(dup->length) - (char *)hdr);
-	ASSERT((char *)dup - (char *)hdr == be16_to_cpu(*xfs_dir2_data_unused_tag_p(dup)));
+	fa = xfs_dir2_data_check_free(hdr, dup, offset, len);
+	if (fa)
+		goto corrupt;
 	/*
 	 * Look up the entry in the bestfree table.
 	 */
@@ -1008,9 +1045,9 @@ xfs_dir2_data_use_free(
 			xfs_dir2_data_freeremove(hdr, bf, dfp, needlogp);
 			dfp = xfs_dir2_data_freeinsert(hdr, bf, newdup,
 						       needlogp);
-			ASSERT(dfp != NULL);
-			ASSERT(dfp->length == newdup->length);
-			ASSERT(be16_to_cpu(dfp->offset) == (char *)newdup - (char *)hdr);
+			fa = xfs_dir2_data_check_new_free(hdr, dfp, newdup);
+			if (fa)
+				goto corrupt;
 			/*
 			 * If we got inserted at the last slot,
 			 * that means we don't know if there was a better
@@ -1036,9 +1073,9 @@ xfs_dir2_data_use_free(
 			xfs_dir2_data_freeremove(hdr, bf, dfp, needlogp);
 			dfp = xfs_dir2_data_freeinsert(hdr, bf, newdup,
 						       needlogp);
-			ASSERT(dfp != NULL);
-			ASSERT(dfp->length == newdup->length);
-			ASSERT(be16_to_cpu(dfp->offset) == (char *)newdup - (char *)hdr);
+			fa = xfs_dir2_data_check_new_free(hdr, dfp, newdup);
+			if (fa)
+				goto corrupt;
 			/*
 			 * If we got inserted at the last slot,
 			 * that means we don't know if there was a better
@@ -1084,6 +1121,11 @@ xfs_dir2_data_use_free(
 		}
 	}
 	*needscanp = needscan;
+	return 0;
+corrupt:
+	xfs_corruption_error(__func__, XFS_ERRLEVEL_LOW, args->dp->i_mount,
+			hdr, __FILE__, __LINE__, fa);
+	return -EFSCORRUPTED;
 }
 
 /* Find the end of the entry data in a data/block format dir block. */

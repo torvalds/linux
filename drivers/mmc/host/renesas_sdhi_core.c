@@ -38,7 +38,7 @@
 #include "renesas_sdhi.h"
 #include "tmio_mmc.h"
 
-#define EXT_ACC           0xe4
+#define HOST_MODE		0xe4
 
 #define SDHI_VER_GEN2_SDR50	0x490c
 #define SDHI_VER_RZ_A1		0x820b
@@ -76,7 +76,7 @@ static void renesas_sdhi_sdbuf_width(struct tmio_mmc_host *host, int width)
 		return;
 	}
 
-	sd_ctrl_write16(host, EXT_ACC, val);
+	sd_ctrl_write16(host, HOST_MODE, val);
 }
 
 static int renesas_sdhi_clk_enable(struct tmio_mmc_host *host)
@@ -417,7 +417,7 @@ static int renesas_sdhi_write16_hook(struct tmio_mmc_host *host, int addr)
 	case CTL_SD_MEM_CARD_OPT:
 	case CTL_TRANSACTION_CTL:
 	case CTL_DMA_ENABLE:
-	case EXT_ACC:
+	case HOST_MODE:
 		if (host->pdata->flags & TMIO_MMC_HAVE_CBSY)
 			bit = TMIO_STAT_CMD_BUSY;
 		/* fallthrough */

@@ -59,8 +59,6 @@ enum bnxt_nvm_directory_type {
 #define BNX_DIR_ATTR_NO_CHKSUM			(1 << 0)
 #define BNX_DIR_ATTR_PROP_STREAM		(1 << 1)
 
-#define BNX_PKG_LOG_MAX_LENGTH			4096
-
 enum bnxnvm_pkglog_field_index {
 	BNX_PKG_LOG_FIELD_IDX_INSTALLED_TIMESTAMP	= 0,
 	BNX_PKG_LOG_FIELD_IDX_PKG_DESCRIPTION		= 1,

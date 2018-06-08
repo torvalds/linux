@@ -24,7 +24,6 @@
 #include <linux/spinlock.h>
 #include <crypto/aead.h>
 #include <crypto/aes.h>
-#include <crypto/authenc.h>
 #include <crypto/engine.h>
 
 
@@ -107,8 +106,7 @@ struct virtio_crypto *virtcrypto_get_dev_node(int node);
 int virtcrypto_dev_start(struct virtio_crypto *vcrypto);
 void virtcrypto_dev_stop(struct virtio_crypto *vcrypto);
 int virtio_crypto_ablkcipher_crypt_req(
-	struct crypto_engine *engine,
-	struct ablkcipher_request *req);
+	struct crypto_engine *engine, void *vreq);
 
 void
 virtcrypto_clear_request(struct virtio_crypto_request *vc_req);

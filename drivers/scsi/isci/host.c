@@ -2766,7 +2766,7 @@ static int sci_write_gpio_tx_gp(struct isci_host *ihost, u8 reg_index, u8 reg_co
 		int i;
 
 		for (i = 0; i < 3; i++) {
-			int bit = (i << 2) + 2;
+			int bit;
 
 			bit = try_test_sas_gpio_gp_bit(to_sas_gpio_od(d, i),
 						       write_data, reg_index,

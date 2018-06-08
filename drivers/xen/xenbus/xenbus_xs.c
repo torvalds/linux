@@ -140,7 +140,9 @@ void xs_request_exit(struct xb_req_data *req)
 	spin_lock(&xs_state_lock);
 	xs_state_users--;
 	if ((req->type == XS_TRANSACTION_START && req->msg.type == XS_ERROR) ||
-	    req->type == XS_TRANSACTION_END)
+	    (req->type == XS_TRANSACTION_END &&
+	     !WARN_ON_ONCE(req->msg.type == XS_ERROR &&
+			   !strcmp(req->body, "ENOENT"))))
 		xs_state_users--;
 	spin_unlock(&xs_state_lock);
 

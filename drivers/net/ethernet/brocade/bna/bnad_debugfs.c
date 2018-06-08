@@ -486,11 +486,11 @@ struct bnad_debugfs_entry {
 };
 
 static const struct bnad_debugfs_entry bnad_debugfs_files[] = {
-	{ "fwtrc",  S_IFREG|S_IRUGO, &bnad_debugfs_op_fwtrc, },
-	{ "fwsave", S_IFREG|S_IRUGO, &bnad_debugfs_op_fwsave, },
-	{ "regrd",  S_IFREG|S_IRUGO|S_IWUSR, &bnad_debugfs_op_regrd, },
-	{ "regwr",  S_IFREG|S_IWUSR, &bnad_debugfs_op_regwr, },
-	{ "drvinfo", S_IFREG|S_IRUGO, &bnad_debugfs_op_drvinfo, },
+	{ "fwtrc",  S_IFREG | 0444, &bnad_debugfs_op_fwtrc, },
+	{ "fwsave", S_IFREG | 0444, &bnad_debugfs_op_fwsave, },
+	{ "regrd",  S_IFREG | 0644, &bnad_debugfs_op_regrd, },
+	{ "regwr",  S_IFREG | 0200, &bnad_debugfs_op_regwr, },
+	{ "drvinfo", S_IFREG | 0444, &bnad_debugfs_op_drvinfo, },
 };
 
 static struct dentry *bna_debugfs_root;

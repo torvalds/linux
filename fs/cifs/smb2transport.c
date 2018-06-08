@@ -43,77 +43,62 @@
 static int
 smb2_crypto_shash_allocate(struct TCP_Server_Info *server)
 {
-	int rc;
-	unsigned int size;
-
-	if (server->secmech.sdeschmacsha256 != NULL)
-		return 0; /* already allocated */
-
-	server->secmech.hmacsha256 = crypto_alloc_shash("hmac(sha256)", 0, 0);
-	if (IS_ERR(server->secmech.hmacsha256)) {
-		cifs_dbg(VFS, "could not allocate crypto hmacsha256\n");
-		rc = PTR_ERR(server->secmech.hmacsha256);
-		server->secmech.hmacsha256 = NULL;
-		return rc;
-	}
-
-	size = sizeof(struct shash_desc) +
-			crypto_shash_descsize(server->secmech.hmacsha256);
-	server->secmech.sdeschmacsha256 = kmalloc(size, GFP_KERNEL);
-	if (!server->secmech.sdeschmacsha256) {
-		crypto_free_shash(server->secmech.hmacsha256);
-		server->secmech.hmacsha256 = NULL;
-		return -ENOMEM;
-	}
-	server->secmech.sdeschmacsha256->shash.tfm = server->secmech.hmacsha256;
-	server->secmech.sdeschmacsha256->shash.flags = 0x0;
-
-	return 0;
+	return cifs_alloc_hash("hmac(sha256)",
+			       &server->secmech.hmacsha256,
+			       &server->secmech.sdeschmacsha256);
 }
 
 static int
 smb3_crypto_shash_allocate(struct TCP_Server_Info *server)
 {
-	unsigned int size;
+	struct cifs_secmech *p = &server->secmech;
 	int rc;
 
-	if (server->secmech.sdesccmacaes != NULL)
-		return 0;  /* already allocated */
+	rc = cifs_alloc_hash("hmac(sha256)",
+			     &p->hmacsha256,
+			     &p->sdeschmacsha256);
+	if (rc)
+		goto err;
 
-	rc = smb2_crypto_shash_allocate(server);
+	rc = cifs_alloc_hash("cmac(aes)", &p->cmacaes, &p->sdesccmacaes);
+	if (rc)
+		goto err;
+
+	return 0;
+err:
+	cifs_free_hash(&p->hmacsha256, &p->sdeschmacsha256);
+	return rc;
+}
+
+#ifdef CONFIG_CIFS_SMB311
+int
+smb311_crypto_shash_allocate(struct TCP_Server_Info *server)
+{
+	struct cifs_secmech *p = &server->secmech;
+	int rc = 0;
+
+	rc = cifs_alloc_hash("hmac(sha256)",
+			     &p->hmacsha256,
+			     &p->sdeschmacsha256);
 	if (rc)
 		return rc;
 
-	server->secmech.cmacaes = crypto_alloc_shash("cmac(aes)", 0, 0);
-	if (IS_ERR(server->secmech.cmacaes)) {
-		cifs_dbg(VFS, "could not allocate crypto cmac-aes");
-		kfree(server->secmech.sdeschmacsha256);
-		server->secmech.sdeschmacsha256 = NULL;
-		crypto_free_shash(server->secmech.hmacsha256);
-		server->secmech.hmacsha256 = NULL;
-		rc = PTR_ERR(server->secmech.cmacaes);
-		server->secmech.cmacaes = NULL;
-		return rc;
-	}
+	rc = cifs_alloc_hash("cmac(aes)", &p->cmacaes, &p->sdesccmacaes);
+	if (rc)
+		goto err;
 
-	size = sizeof(struct shash_desc) +
-			crypto_shash_descsize(server->secmech.cmacaes);
-	server->secmech.sdesccmacaes = kmalloc(size, GFP_KERNEL);
-	if (!server->secmech.sdesccmacaes) {
-		cifs_dbg(VFS, "%s: Can't alloc cmacaes\n", __func__);
-		kfree(server->secmech.sdeschmacsha256);
-		server->secmech.sdeschmacsha256 = NULL;
-		crypto_free_shash(server->secmech.hmacsha256);
-		crypto_free_shash(server->secmech.cmacaes);
-		server->secmech.hmacsha256 = NULL;
-		server->secmech.cmacaes = NULL;
-		return -ENOMEM;
-	}
-	server->secmech.sdesccmacaes->shash.tfm = server->secmech.cmacaes;
-	server->secmech.sdesccmacaes->shash.flags = 0x0;
+	rc = cifs_alloc_hash("sha512", &p->sha512, &p->sdescsha512);
+	if (rc)
+		goto err;
 
 	return 0;
+
+err:
+	cifs_free_hash(&p->cmacaes, &p->sdesccmacaes);
+	cifs_free_hash(&p->hmacsha256, &p->sdeschmacsha256);
+	return rc;
 }
+#endif
 
 static struct cifs_ses *
 smb2_find_smb_ses_unlocked(struct TCP_Server_Info *server, __u64 ses_id)
@@ -457,7 +442,7 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 		cifs_dbg(VFS, "%s: Could not init cmac aes\n", __func__);
 		return rc;
 	}
-	
+
 	rc = __cifs_calc_signature(rqst, server, sigptr,
 				   &server->secmech.sdesccmacaes->shash);
 
@@ -619,7 +604,7 @@ int
 smb2_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 		   bool log_error)
 {
-	unsigned int len = get_rfc1002_length(mid->resp_buf);
+	unsigned int len = mid->resp_buf_size;
 	struct kvec iov[2];
 	struct smb_rqst rqst = { .rq_iov = iov,
 				 .rq_nvec = 2 };

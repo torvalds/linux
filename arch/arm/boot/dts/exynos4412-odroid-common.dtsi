@@ -61,12 +61,6 @@
 		reset-gpios = <&gpk1 2 GPIO_ACTIVE_LOW>;
 	};
 
-	camera {
-		status = "okay";
-		pinctrl-names = "default";
-		pinctrl-0 = <>;
-	};
-
 	fixed-rate-clocks {
 		xxti {
 			compatible = "samsung,clock-xxti";
@@ -140,6 +134,12 @@
 &bus_mfc {
 	devfreq = <&bus_leftbus>;
 	status = "okay";
+};
+
+&camera {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <>;
 };
 
 &clock_audss {

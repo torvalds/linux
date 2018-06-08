@@ -192,13 +192,18 @@ static inline ktime_t next_intr_time(struct pps_generator_pp *dev)
 
 static void parport_attach(struct parport *port)
 {
+	struct pardev_cb pps_cb;
+
 	if (attached) {
 		/* we already have a port */
 		return;
 	}
 
-	device.pardev = parport_register_device(port, KBUILD_MODNAME,
-			NULL, NULL, NULL, PARPORT_FLAG_EXCL, &device);
+	memset(&pps_cb, 0, sizeof(pps_cb));
+	pps_cb.private = &device;
+	pps_cb.flags = PARPORT_FLAG_EXCL;
+	device.pardev = parport_register_dev_model(port, KBUILD_MODNAME,
+						   &pps_cb, 0);
 	if (!device.pardev) {
 		pr_err("couldn't register with %s\n", port->name);
 		return;
@@ -236,8 +241,9 @@ static void parport_detach(struct parport *port)
 
 static struct parport_driver pps_gen_parport_driver = {
 	.name = KBUILD_MODNAME,
-	.attach = parport_attach,
+	.match_port = parport_attach,
 	.detach = parport_detach,
+	.devmodel = true,
 };
 
 /* module staff */

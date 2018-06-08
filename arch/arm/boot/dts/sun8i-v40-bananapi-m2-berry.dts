@@ -150,8 +150,7 @@
 &mmc0 {
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <4>;
-	cd-gpios = <&pio 7 13 GPIO_ACTIVE_HIGH>; /* PH13 */
-	cd-inverted;
+	cd-gpios = <&pio 7 13 GPIO_ACTIVE_LOW>; /* PH13 */
 	status = "okay";
 };
 
