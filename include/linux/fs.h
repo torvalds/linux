@@ -2441,8 +2441,7 @@ enum {
 	FILE_OPENED = 2
 };
 extern int finish_open(struct file *file, struct dentry *dentry,
-			int (*open)(struct inode *, struct file *),
-			int *opened);
+			int (*open)(struct inode *, struct file *));
 extern int finish_no_open(struct file *file, struct dentry *dentry);
 
 /* fs/ioctl.c */

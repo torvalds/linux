@@ -509,7 +509,7 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 			ceph_init_inode_acls(d_inode(dentry), &acls);
 			file->f_mode |= FMODE_CREATED;
 		}
-		err = finish_open(file, dentry, ceph_open, opened);
+		err = finish_open(file, dentry, ceph_open);
 	}
 out_req:
 	if (!req->r_err && req->r_target_inode)

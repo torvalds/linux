@@ -541,7 +541,7 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 	if ((oflags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL))
 		file->f_mode |= FMODE_CREATED;
 
-	rc = finish_open(file, direntry, generic_file_open, opened);
+	rc = finish_open(file, direntry, generic_file_open);
 	if (rc) {
 		if (server->ops->close)
 			server->ops->close(xid, tcon, &fid);

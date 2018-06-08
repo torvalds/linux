@@ -352,7 +352,7 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 	}
 	mutex_unlock(&v9inode->v_mutex);
 	/* Since we are opening a file, assign the open fid to the file */
-	err = finish_open(file, dentry, generic_file_open, opened);
+	err = finish_open(file, dentry, generic_file_open);
 	if (err)
 		goto err_clunk_old_fid;
 	file->private_data = ofid;

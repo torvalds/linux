@@ -843,8 +843,7 @@ cleanup_file:
  * Returns zero on success or -errno if the open failed.
  */
 int finish_open(struct file *file, struct dentry *dentry,
-		int (*open)(struct inode *, struct file *),
-		int *opened)
+		int (*open)(struct inode *, struct file *))
 {
 	BUG_ON(file->f_mode & FMODE_OPENED); /* once it's opened, it's opened */
 

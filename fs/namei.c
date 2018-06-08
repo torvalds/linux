@@ -3475,7 +3475,7 @@ static int do_tmpfile(struct nameidata *nd, unsigned flags,
 	if (error)
 		goto out2;
 	file->f_path.mnt = path.mnt;
-	error = finish_open(file, child, NULL, opened);
+	error = finish_open(file, child, NULL);
 out2:
 	mnt_drop_write(path.mnt);
 out:

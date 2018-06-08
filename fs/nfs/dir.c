@@ -1439,7 +1439,7 @@ static int nfs_finish_open(struct nfs_open_context *ctx,
 {
 	int err;
 
-	err = finish_open(file, dentry, do_open, opened);
+	err = finish_open(file, dentry, do_open);
 	if (err)
 		goto out;
 	if (S_ISREG(file->f_path.dentry->d_inode->i_mode))

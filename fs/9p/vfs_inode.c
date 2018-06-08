@@ -917,7 +917,7 @@ v9fs_vfs_atomic_open(struct inode *dir, struct dentry *dentry,
 		v9inode->writeback_fid = (void *) inode_fid;
 	}
 	mutex_unlock(&v9inode->v_mutex);
-	err = finish_open(file, dentry, generic_file_open, opened);
+	err = finish_open(file, dentry, generic_file_open);
 	if (err)
 		goto error;
 
