@@ -3562,11 +3562,6 @@ static int mem_cgroup_oom_control_write(struct cgroup_subsys_state *css,
 
 #ifdef CONFIG_CGROUP_WRITEBACK
 
-struct list_head *mem_cgroup_cgwb_list(struct mem_cgroup *memcg)
-{
-	return &memcg->cgwb_list;
-}
-
 static int memcg_wb_domain_init(struct mem_cgroup *memcg, gfp_t gfp)
 {
 	return wb_domain_init(&memcg->cgwb_domain, gfp);
