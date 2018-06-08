@@ -261,9 +261,10 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
 	 * Inherently racy -- command line shares address space
 	 * with code and data.
 	 */
-	rv = access_remote_vm(mm, arg_end - 1, &c, 1, FOLL_ANON);
-	if (rv <= 0)
+	if (access_remote_vm(mm, arg_end - 1, &c, 1, FOLL_ANON) != 1) {
+		rv = 0;
 		goto out_free_page;
+	}
 
 	rv = 0;
 
@@ -275,14 +276,11 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
 		p = arg_start + *pos;
 		len = len1 - *pos;
 		while (count > 0 && len > 0) {
-			unsigned int _count;
-			int nr_read;
+			unsigned int nr_read;
 
-			_count = min3(count, len, PAGE_SIZE);
-			nr_read = access_remote_vm(mm, p, page, _count, FOLL_ANON);
-			if (nr_read < 0)
-				rv = nr_read;
-			if (nr_read <= 0)
+			nr_read = min3(count, len, PAGE_SIZE);
+			nr_read = access_remote_vm(mm, p, page, nr_read, FOLL_ANON);
+			if (nr_read == 0)
 				goto out_free_page;
 
 			if (copy_to_user(buf, page, nr_read)) {
@@ -320,15 +318,12 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
 			p = cmdline[i].p + pos1;
 			len = cmdline[i].len - pos1;
 			while (count > 0 && len > 0) {
-				unsigned int _count, l;
-				int nr_read;
+				unsigned int nr_read, l;
 				bool final;
 
-				_count = min3(count, len, PAGE_SIZE);
-				nr_read = access_remote_vm(mm, p, page, _count, FOLL_ANON);
-				if (nr_read < 0)
-					rv = nr_read;
-				if (nr_read <= 0)
+				nr_read = min3(count, len, PAGE_SIZE);
+				nr_read = access_remote_vm(mm, p, page, nr_read, FOLL_ANON);
+				if (nr_read == 0)
 					goto out_free_page;
 
 				/*
