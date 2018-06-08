@@ -31,22 +31,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-static inline bool streq(const char *s1, const char *s2)
-{
-	return strcmp(s1, s2) == 0;
-}
-
-static struct dirent *xreaddir(DIR *d)
-{
-	struct dirent *de;
-
-	errno = 0;
-	de = readdir(d);
-	if (!de && errno != 0) {
-		exit(1);
-	}
-	return de;
-}
+#include "proc.h"
 
 static void f_reg(DIR *d, const char *filename)
 {

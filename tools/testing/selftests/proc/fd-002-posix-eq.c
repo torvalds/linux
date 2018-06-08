@@ -13,48 +13,45 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+// Test that open(/proc/*/fd/*) opens the same file.
 #undef NDEBUG
 #include <assert.h>
-#include <errno.h>
-#include <string.h>
-#include <stdlib.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 
-#include "proc.h"
-
-static void proc_uptime(int fd, uint64_t *uptime, uint64_t *idle)
+int main(void)
 {
-	uint64_t val1, val2;
-	char buf[64], *p;
-	ssize_t rv;
+	int fd0, fd1, fd2;
+	struct stat st0, st1, st2;
+	char buf[64];
+	int rv;
 
-	/* save "p < end" checks */
-	memset(buf, 0, sizeof(buf));
-	rv = pread(fd, buf, sizeof(buf), 0);
-	assert(0 <= rv && rv <= sizeof(buf));
-	buf[sizeof(buf) - 1] = '\0';
+	fd0 = open("/", O_DIRECTORY|O_RDONLY);
+	assert(fd0 >= 0);
 
-	p = buf;
+	snprintf(buf, sizeof(buf), "/proc/self/fd/%u", fd0);
+	fd1 = open(buf, O_RDONLY);
+	assert(fd1 >= 0);
 
-	val1 = xstrtoull(p, &p);
-	assert(p[0] == '.');
-	assert('0' <= p[1] && p[1] <= '9');
-	assert('0' <= p[2] && p[2] <= '9');
-	assert(p[3] == ' ');
+	snprintf(buf, sizeof(buf), "/proc/thread-self/fd/%u", fd0);
+	fd2 = open(buf, O_RDONLY);
+	assert(fd2 >= 0);
 
-	val2 = (p[1] - '0') * 10 + p[2] - '0';
-	*uptime = val1 * 100 + val2;
+	rv = fstat(fd0, &st0);
+	assert(rv == 0);
+	rv = fstat(fd1, &st1);
+	assert(rv == 0);
+	rv = fstat(fd2, &st2);
+	assert(rv == 0);
 
-	p += 4;
+	assert(st0.st_dev == st1.st_dev);
+	assert(st0.st_ino == st1.st_ino);
 
-	val1 = xstrtoull(p, &p);
-	assert(p[0] == '.');
-	assert('0' <= p[1] && p[1] <= '9');
-	assert('0' <= p[2] && p[2] <= '9');
-	assert(p[3] == '\n');
+	assert(st0.st_dev == st2.st_dev);
+	assert(st0.st_ino == st2.st_ino);
 
-	val2 = (p[1] - '0') * 10 + p[2] - '0';
-	*idle = val1 * 100 + val2;
-
-	assert(p + 4 == buf + rv);
+	return 0;
 }
