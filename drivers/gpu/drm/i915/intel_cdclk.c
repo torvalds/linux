@@ -991,6 +991,16 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv,
 	u32 freq_select, cdclk_ctl;
 	int ret;
 
+	/*
+	 * Based on WA#1183 CDCLK rates 308 and 617MHz CDCLK rates are
+	 * unsupported on SKL. In theory this should never happen since only
+	 * the eDP1.4 2.16 and 4.32Gbps rates require it, but eDP1.4 is not
+	 * supported on SKL either, see the above WA. WARN whenever trying to
+	 * use the corresponding VCO freq as that always leads to using the
+	 * minimum 308MHz CDCLK.
+	 */
+	WARN_ON_ONCE(IS_SKYLAKE(dev_priv) && vco == 8640000);
+
 	mutex_lock(&dev_priv->pcu_lock);
 	ret = skl_pcode_request(dev_priv, SKL_PCODE_CDCLK_CONTROL,
 				SKL_CDCLK_PREPARE_FOR_CHANGE,
