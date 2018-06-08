@@ -179,7 +179,7 @@ static void autofs_notify_daemon(struct autofs_sb_info *sbi,
 }
 
 static int autofs_getpath(struct autofs_sb_info *sbi,
-			  struct dentry *dentry, char **name)
+			  struct dentry *dentry, char *name)
 {
 	struct dentry *root = sbi->sb->s_root;
 	struct dentry *tmp;
@@ -189,7 +189,7 @@ static int autofs_getpath(struct autofs_sb_info *sbi,
 	unsigned seq;
 
 rename_retry:
-	buf = *name;
+	buf = name;
 	len = 0;
 
 	seq = read_seqbegin(&rename_lock);
@@ -395,7 +395,7 @@ int autofs_wait(struct autofs_sb_info *sbi,
 	if (IS_ROOT(dentry) && autofs_type_trigger(sbi->type))
 		qstr.len = sprintf(name, "%p", dentry);
 	else {
-		qstr.len = autofs_getpath(sbi, dentry, &name);
+		qstr.len = autofs_getpath(sbi, dentry, name);
 		if (!qstr.len) {
 			kfree(name);
 			return -ENOENT;
