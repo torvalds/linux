@@ -163,7 +163,7 @@ extern loff_t mem_lseek(struct file *, loff_t, int);
 /* Lookups */
 typedef struct dentry *instantiate_t(struct dentry *,
 				     struct task_struct *, const void *);
-extern bool proc_fill_cache(struct file *, struct dir_context *, const char *, int,
+bool proc_fill_cache(struct file *, struct dir_context *, const char *, unsigned int,
 			   instantiate_t, struct task_struct *, const void *);
 
 /*
