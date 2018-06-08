@@ -3401,9 +3401,7 @@ finish_open_created:
 		goto out;
 	*opened |= FILE_OPENED;
 opened:
-	error = open_check_o_direct(file);
-	if (!error)
-		error = ima_file_check(file, op->acc_mode, *opened);
+	error = ima_file_check(file, op->acc_mode, *opened);
 	if (!error && will_truncate)
 		error = handle_truncate(file);
 out:
@@ -3479,9 +3477,6 @@ static int do_tmpfile(struct nameidata *nd, unsigned flags,
 		goto out2;
 	file->f_path.mnt = path.mnt;
 	error = finish_open(file, child, NULL, opened);
-	if (error)
-		goto out2;
-	error = open_check_o_direct(file);
 out2:
 	mnt_drop_write(path.mnt);
 out:

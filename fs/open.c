@@ -724,16 +724,6 @@ SYSCALL_DEFINE3(fchown, unsigned int, fd, uid_t, user, gid_t, group)
 	return ksys_fchown(fd, user, group);
 }
 
-int open_check_o_direct(struct file *f)
-{
-	/* NB: we're sure to have correct a_ops only after f_op->open */
-	if (f->f_flags & O_DIRECT) {
-		if (!f->f_mapping->a_ops || !f->f_mapping->a_ops->direct_IO)
-			return -EINVAL;
-	}
-	return 0;
-}
-
 static int do_dentry_open(struct file *f,
 			  struct inode *inode,
 			  int (*open)(struct inode *, struct file *))
@@ -808,6 +798,11 @@ static int do_dentry_open(struct file *f,
 
 	file_ra_state_init(&f->f_ra, f->f_mapping->host->i_mapping);
 
+	/* NB: we're sure to have correct a_ops only after f_op->open */
+	if (f->f_flags & O_DIRECT) {
+		if (!f->f_mapping->a_ops || !f->f_mapping->a_ops->direct_IO)
+			return -EINVAL;
+	}
 	return 0;
 
 cleanup_all:
@@ -921,8 +916,6 @@ struct file *dentry_open(const struct path *path, int flags,
 	f = alloc_empty_file(flags, cred);
 	if (!IS_ERR(f)) {
 		error = vfs_open(path, f);
-		if (!error)
-			error = open_check_o_direct(f);
 		if (error) {
 			fput(f);
 			f = ERR_PTR(error);
