@@ -343,7 +343,7 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
  *       0x1    => DMA or NORMAL
  *       0x2    => HIGHMEM or NORMAL
  *       0x3    => BAD (DMA+HIGHMEM)
- *       0x4    => DMA32 or DMA or NORMAL
+ *       0x4    => DMA32 or NORMAL
  *       0x5    => BAD (DMA+DMA32)
  *       0x6    => BAD (HIGHMEM+DMA32)
  *       0x7    => BAD (HIGHMEM+DMA32+DMA)
@@ -351,7 +351,7 @@ static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
  *       0x9    => DMA or NORMAL (MOVABLE+DMA)
  *       0xa    => MOVABLE (Movable is valid only if HIGHMEM is set too)
  *       0xb    => BAD (MOVABLE+HIGHMEM+DMA)
- *       0xc    => DMA32 (MOVABLE+DMA32)
+ *       0xc    => DMA32 or NORMAL (MOVABLE+DMA32)
  *       0xd    => BAD (MOVABLE+DMA32+DMA)
  *       0xe    => BAD (MOVABLE+DMA32+HIGHMEM)
  *       0xf    => BAD (MOVABLE+DMA32+HIGHMEM+DMA)
