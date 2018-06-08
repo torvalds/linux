@@ -390,12 +390,11 @@ int vmpressure_register_event(struct mem_cgroup *memcg,
 	char *token;
 	int ret = 0;
 
-	spec_orig = spec = kzalloc(MAX_VMPRESSURE_ARGS_LEN + 1, GFP_KERNEL);
+	spec_orig = spec = kstrndup(args, MAX_VMPRESSURE_ARGS_LEN, GFP_KERNEL);
 	if (!spec) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	strncpy(spec, args, MAX_VMPRESSURE_ARGS_LEN);
 
 	/* Find required level */
 	token = strsep(&spec, ",");
