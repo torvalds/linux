@@ -1005,10 +1005,17 @@ PAGE_SIZE multiple when read back.
 	A read-write single value file which exists on non-root
 	cgroups.  The default is "0".
 
-	Best-effort memory protection.  If the memory usages of a
-	cgroup and all its ancestors are below their low boundaries,
-	the cgroup's memory won't be reclaimed unless memory can be
-	reclaimed from unprotected cgroups.
+	Best-effort memory protection.  If the memory usage of a
+	cgroup is within its effective low boundary, the cgroup's
+	memory won't be reclaimed unless memory can be reclaimed
+	from unprotected cgroups.
+
+	Effective low boundary is limited by memory.low values of
+	all ancestor cgroups. If there is memory.low overcommitment
+	(child cgroup or cgroups are requiring more protected memory,
+	than parent will allow), then each child cgroup will get
+	the part of parent's protection proportional to the its
+	actual memory usage below memory.low.
 
 	Putting more memory than generally available under this
 	protection is discouraged.
@@ -1950,17 +1957,8 @@ system performance due to overreclaim, to the point where the feature
 becomes self-defeating.
 
 The memory.low boundary on the other hand is a top-down allocated
-reserve.  A cgroup enjoys reclaim protection when it and all its
-ancestors are below their low boundaries, which makes delegation of
-subtrees possible.  Secondly, new cgroups have no reserve per default
-and in the common case most cgroups are eligible for the preferred
-reclaim pass.  This allows the new low boundary to be efficiently
-implemented with just a minor addition to the generic reclaim code,
-without the need for out-of-band data structures and reclaim passes.
-Because the generic reclaim code considers all cgroups except for the
-ones running low in the preferred first reclaim pass, overreclaim of
-individual groups is eliminated as well, resulting in much better
-overall workload performance.
+reserve.  A cgroup enjoys reclaim protection when it's within its low,
+which makes delegation of subtrees possible.
 
 The original high boundary, the hard limit, is defined as a strict
 limit that can not budge, even if the OOM killer has to be called.
