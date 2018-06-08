@@ -586,6 +586,9 @@ config ARCH_HAS_PMEM_API
 config ARCH_HAS_UACCESS_FLUSHCACHE
 	bool
 
+config ARCH_HAS_UACCESS_MCSAFE
+	bool
+
 config STACKDEPOT
 	bool
 	select STACKTRACE
