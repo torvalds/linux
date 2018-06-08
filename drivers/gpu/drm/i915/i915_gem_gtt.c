@@ -1931,7 +1931,7 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 	return 0;
 
 unwind_out:
-	gen6_ppgtt_clear_range(vm, from, start);
+	gen6_ppgtt_clear_range(vm, from, start - from);
 	return -ENOMEM;
 }
 
