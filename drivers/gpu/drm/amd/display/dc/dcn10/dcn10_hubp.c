@@ -152,16 +152,14 @@ void hubp1_program_tiling(
 			PIPE_ALIGNED, info->gfx9.pipe_aligned);
 }
 
-void hubp1_program_size_and_rotation(
+void hubp1_program_size(
 	struct hubp *hubp,
-	enum dc_rotation_angle rotation,
 	enum surface_pixel_format format,
 	const union plane_size *plane_size,
-	struct dc_plane_dcc_param *dcc,
-	bool horizontal_mirror)
+	struct dc_plane_dcc_param *dcc)
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
-	uint32_t pitch, meta_pitch, pitch_c, meta_pitch_c, mirror;
+	uint32_t pitch, meta_pitch, pitch_c, meta_pitch_c;
 
 	/* Program data and meta surface pitch (calculation from addrlib)
 	 * 444 or 420 luma
@@ -192,12 +190,21 @@ void hubp1_program_size_and_rotation(
 	if (format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
 		REG_UPDATE_2(DCSURF_SURFACE_PITCH_C,
 			PITCH_C, pitch_c, META_PITCH_C, meta_pitch_c);
+}
+
+void hubp1_program_rotation(
+	struct hubp *hubp,
+	enum dc_rotation_angle rotation,
+	bool horizontal_mirror)
+{
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
+	uint32_t mirror;
+
 
 	if (horizontal_mirror)
 		mirror = 1;
 	else
 		mirror = 0;
-
 
 	/* Program rotation angle and horz mirror - no mirror */
 	if (rotation == ROTATION_ANGLE_0)
@@ -481,8 +488,8 @@ void hubp1_program_surface_config(
 {
 	hubp1_dcc_control(hubp, dcc->enable, dcc->grph.independent_64b_blks);
 	hubp1_program_tiling(hubp, tiling_info, format);
-	hubp1_program_size_and_rotation(
-			hubp, rotation, format, plane_size, dcc, horizontal_mirror);
+	hubp1_program_size(hubp, format, plane_size, dcc);
+	hubp1_program_rotation(hubp, rotation, horizontal_mirror);
 	hubp1_program_pixel_format(hubp, format);
 }
 
