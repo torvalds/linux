@@ -7,16 +7,12 @@
  * option, any later version, incorporated herein by reference.
  */
 
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/file.h>
 #include <linux/seq_file.h>
 #include <linux/pagemap.h>
 #include <linux/parser.h>
-#include <linux/bitops.h>
 #include <linux/magic.h>
+
 #include "autofs_i.h"
-#include <linux/module.h>
 
 struct autofs_info *autofs_new_ino(struct autofs_sb_info *sbi)
 {

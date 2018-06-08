@@ -7,23 +7,10 @@
  * option, any later version, incorporated herein by reference.
  */
 
-#include <linux/module.h>
-#include <linux/vmalloc.h>
 #include <linux/miscdevice.h>
-#include <linux/init.h>
-#include <linux/wait.h>
-#include <linux/namei.h>
-#include <linux/fcntl.h>
-#include <linux/file.h>
-#include <linux/fdtable.h>
-#include <linux/sched.h>
-#include <linux/cred.h>
 #include <linux/compat.h>
 #include <linux/syscalls.h>
 #include <linux/magic.h>
-#include <linux/dcache.h>
-#include <linux/uaccess.h>
-#include <linux/slab.h>
 
 #include "autofs_i.h"
 

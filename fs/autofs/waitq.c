@@ -7,11 +7,7 @@
  * option, any later version, incorporated herein by reference.
  */
 
-#include <linux/slab.h>
-#include <linux/time.h>
-#include <linux/signal.h>
 #include <linux/sched/signal.h>
-#include <linux/file.h>
 #include "autofs_i.h"
 
 /* We make this a static variable rather than a part of the superblock; it
