@@ -361,8 +361,6 @@ static int dpi_set_mode(struct dpi_data *dpi)
 	if (r)
 		return r;
 
-	dss_mgr_set_timings(&dpi->output, vm);
-
 	return 0;
 }
 
@@ -478,6 +476,8 @@ static void dpi_set_timings(struct omap_dss_device *dssdev,
 	mutex_lock(&dpi->lock);
 
 	dpi->vm = *vm;
+
+	dss_mgr_set_timings(&dpi->output, vm);
 
 	mutex_unlock(&dpi->lock);
 }

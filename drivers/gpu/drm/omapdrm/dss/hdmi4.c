@@ -207,9 +207,6 @@ static int hdmi_power_on_full(struct omap_hdmi *hdmi)
 
 	hdmi4_configure(&hdmi->core, &hdmi->wp, &hdmi->cfg);
 
-	/* tv size */
-	dss_mgr_set_timings(&hdmi->output, vm);
-
 	r = dss_mgr_enable(&hdmi->output);
 	if (r)
 		goto err_mgr_enable;
@@ -261,6 +258,8 @@ static void hdmi_display_set_timings(struct omap_dss_device *dssdev,
 	hdmi->cfg.vm = *vm;
 
 	dispc_set_tv_pclk(hdmi->dss->dispc, vm->pixelclock);
+
+	dss_mgr_set_timings(&hdmi->output, vm);
 
 	mutex_unlock(&hdmi->lock);
 }

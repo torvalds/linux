@@ -491,8 +491,6 @@ static int venc_power_on(struct venc_device *venc)
 
 	venc_write_reg(venc, VENC_OUTPUT_CONTROL, l);
 
-	dss_mgr_set_timings(&venc->output, &venc->vm);
-
 	r = regulator_enable(venc->vdda_dac_reg);
 	if (r)
 		goto err1;
@@ -594,6 +592,8 @@ static void venc_set_timings(struct omap_dss_device *dssdev,
 	venc->vm = *vm;
 
 	dispc_set_tv_pclk(venc->dss->dispc, 13500000);
+
+	dss_mgr_set_timings(&venc->output, vm);
 
 	mutex_unlock(&venc->venc_lock);
 }

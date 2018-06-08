@@ -155,8 +155,6 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 
 	sdi->mgr_config.clock_info = dispc_cinfo;
 
-	dss_mgr_set_timings(&sdi->output, &sdi->vm);
-
 	r = dss_set_fck_rate(sdi->dss, fck);
 	if (r)
 		goto err_set_dss_clock_div;
@@ -220,6 +218,8 @@ static void sdi_set_timings(struct omap_dss_device *dssdev,
 	struct sdi_device *sdi = dssdev_to_sdi(dssdev);
 
 	sdi->vm = *vm;
+
+	dss_mgr_set_timings(&sdi->output, vm);
 }
 
 static int sdi_check_timings(struct omap_dss_device *dssdev,

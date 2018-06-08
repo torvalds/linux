@@ -3901,8 +3901,6 @@ static void dsi_update_screen_dispc(struct dsi_data *dsi)
 		msecs_to_jiffies(250));
 	BUG_ON(r == 0);
 
-	dss_mgr_set_timings(&dsi->output, &dsi->vm);
-
 	dss_mgr_start_update(&dsi->output);
 
 	if (dsi->te_enabled) {
@@ -4043,8 +4041,6 @@ static int dsi_display_init_dispc(struct dsi_data *dsi)
 		dsi->mgr_config.stallmode = false;
 		dsi->mgr_config.fifohandcheck = false;
 	}
-
-	dss_mgr_set_timings(&dsi->output, &dsi->vm);
 
 	r = dsi_configure_dispc_clocks(dsi);
 	if (r)
@@ -4755,6 +4751,8 @@ static int dsi_set_config(struct omap_dss_device *dssdev,
 	dsi->vm.flags |= DISPLAY_FLAGS_HSYNC_HIGH;
 	dsi->vm.flags &= ~DISPLAY_FLAGS_VSYNC_LOW;
 	dsi->vm.flags |= DISPLAY_FLAGS_VSYNC_HIGH;
+
+	dss_mgr_set_timings(&dsi->output, &dsi->vm);
 
 	dsi->vm_timings = ctx.dsi_vm;
 
