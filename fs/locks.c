@@ -2074,6 +2074,13 @@ static pid_t locks_translate_pid(struct file_lock *fl, struct pid_namespace *ns)
 		return -1;
 	if (IS_REMOTELCK(fl))
 		return fl->fl_pid;
+	/*
+	 * If the flock owner process is dead and its pid has been already
+	 * freed, the translation below won't work, but we still want to show
+	 * flock owner pid number in init pidns.
+	 */
+	if (ns == &init_pid_ns)
+		return (pid_t)fl->fl_pid;
 
 	rcu_read_lock();
 	pid = find_pid_ns(fl->fl_pid, &init_pid_ns);
