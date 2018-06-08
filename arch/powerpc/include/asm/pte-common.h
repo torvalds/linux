@@ -208,9 +208,6 @@ static inline bool pte_user(pte_t pte)
 #define PAGE_AGP		(PAGE_KERNEL_NC)
 #define HAVE_PAGE_AGP
 
-/* Advertise support for _PAGE_SPECIAL */
-#define __HAVE_ARCH_PTE_SPECIAL
-
 #ifndef _PAGE_READ
 /* if not defined, we should not find _PAGE_WRITE too */
 #define _PAGE_READ 0
