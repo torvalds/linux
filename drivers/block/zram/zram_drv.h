@@ -61,6 +61,7 @@ struct zram_table_entry {
 		unsigned long element;
 	};
 	unsigned long value;
+	u64 ac_time;
 };
 
 struct zram_stats {
