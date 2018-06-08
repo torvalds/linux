@@ -268,7 +268,7 @@ static inline void task_sig(struct seq_file *m, struct task_struct *p)
 	unsigned long flags;
 	sigset_t pending, shpending, blocked, ignored, caught;
 	int num_threads = 0;
-	unsigned long qsize = 0;
+	unsigned int qsize = 0;
 	unsigned long qlim = 0;
 
 	sigemptyset(&pending);
