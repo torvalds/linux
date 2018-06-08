@@ -274,7 +274,7 @@ static inline unsigned int twl4030reg_map_mode(unsigned int mode)
 	case RES_STATE_SLEEP:
 		return REGULATOR_MODE_STANDBY;
 	default:
-		return -EINVAL;
+		return REGULATOR_MODE_INVALID;
 	}
 }
 

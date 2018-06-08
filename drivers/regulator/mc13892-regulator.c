@@ -1,14 +1,10 @@
-/*
- * Regulator Driver for Freescale MC13892 PMIC
- *
- * Copyright 2010 Yong Shen <yong.shen@linaro.org>
- *
- * Based on draft driver from Arnaud Patard <arnaud.patard@rtp-net.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Regulator Driver for Freescale MC13892 PMIC
+//
+// Copyright 2010 Yong Shen <yong.shen@linaro.org>
+//
+// Based on draft driver from Arnaud Patard <arnaud.patard@rtp-net.org>
 
 #include <linux/mfd/mc13892.h>
 #include <linux/regulator/machine.h>
