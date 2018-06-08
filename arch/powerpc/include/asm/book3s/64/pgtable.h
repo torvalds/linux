@@ -335,9 +335,6 @@ extern unsigned long pci_io_base;
 /* Advertise special mapping type for AGP */
 #define HAVE_PAGE_AGP
 
-/* Advertise support for _PAGE_SPECIAL */
-#define __HAVE_ARCH_PTE_SPECIAL
-
 #ifndef __ASSEMBLY__
 
 /*

@@ -7723,11 +7723,11 @@ W:	https://linuxtv.org
 S:	Maintained
 F:	drivers/media/radio/radio-keene*
 
-KERNEL AUTOMOUNTER v4 (AUTOFS4)
+KERNEL AUTOMOUNTER
 M:	Ian Kent <raven@themaw.net>
 L:	autofs@vger.kernel.org
 S:	Maintained
-F:	fs/autofs4/
+F:	fs/autofs/
 
 KERNEL BUILD + files below scripts/ (unless maintained elsewhere)
 M:	Masahiro Yamada <yamada.masahiro@socionext.com>

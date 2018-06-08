@@ -30,15 +30,15 @@ key advantages:
 Context
 -------
 
-The "autofs4" filesystem module is only one part of an autofs system.
+The "autofs" filesystem module is only one part of an autofs system.
 There also needs to be a user-space program which looks up names
 and mounts filesystems.  This will often be the "automount" program,
-though other tools including "systemd" can make use of "autofs4".
+though other tools including "systemd" can make use of "autofs".
 This document describes only the kernel module and the interactions
 required with any user-space program.  Subsequent text refers to this
 as the "automount daemon" or simply "the daemon".
 
-"autofs4" is a Linux kernel module with provides the "autofs"
+"autofs" is a Linux kernel module with provides the "autofs"
 filesystem type.  Several "autofs" filesystems can be mounted and they
 can each be managed separately, or all managed by the same daemon.
 
@@ -215,7 +215,7 @@ of expiry.
 The VFS also supports "expiry" of mounts using the MNT_EXPIRE flag to
 the `umount` system call.  Unmounting with MNT_EXPIRE will fail unless
 a previous attempt had been made, and the filesystem has been inactive
-and untouched since that previous attempt.  autofs4 does not depend on
+and untouched since that previous attempt.  autofs does not depend on
 this but has its own internal tracking of whether filesystems were
 recently used.  This allows individual names in the autofs directory
 to expire separately.
@@ -415,7 +415,7 @@ which can be used to communicate directly with the autofs filesystem.
 It requires CAP_SYS_ADMIN for access.
 
 The `ioctl`s that can be used on this device are described in a separate
-document `autofs4-mount-control.txt`, and are summarized briefly here.
+document `autofs-mount-control.txt`, and are summarized briefly here.
 Each ioctl is passed a pointer to an `autofs_dev_ioctl` structure:
 
         struct autofs_dev_ioctl {

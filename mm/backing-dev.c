@@ -557,7 +557,7 @@ static int cgwb_create(struct backing_dev_info *bdi,
 	memcg = mem_cgroup_from_css(memcg_css);
 	blkcg_css = cgroup_get_e_css(memcg_css->cgroup, &io_cgrp_subsys);
 	blkcg = css_to_blkcg(blkcg_css);
-	memcg_cgwb_list = mem_cgroup_cgwb_list(memcg);
+	memcg_cgwb_list = &memcg->cgwb_list;
 	blkcg_cgwb_list = &blkcg->cgwb_list;
 
 	/* look up again under lock and discard on blkcg mismatch */
@@ -736,7 +736,7 @@ static void cgwb_bdi_unregister(struct backing_dev_info *bdi)
  */
 void wb_memcg_offline(struct mem_cgroup *memcg)
 {
-	struct list_head *memcg_cgwb_list = mem_cgroup_cgwb_list(memcg);
+	struct list_head *memcg_cgwb_list = &memcg->cgwb_list;
 	struct bdi_writeback *wb, *next;
 
 	spin_lock_irq(&cgwb_lock);

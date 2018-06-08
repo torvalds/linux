@@ -248,7 +248,7 @@ static int proc_readfd_common(struct file *file, struct dir_context *ctx,
 		struct file *f;
 		struct fd_data data;
 		char name[10 + 1];
-		int len;
+		unsigned int len;
 
 		f = fcheck_files(files, fd);
 		if (!f)

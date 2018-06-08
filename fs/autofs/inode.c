@@ -7,18 +7,14 @@
  * option, any later version, incorporated herein by reference.
  */
 
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/file.h>
 #include <linux/seq_file.h>
 #include <linux/pagemap.h>
 #include <linux/parser.h>
-#include <linux/bitops.h>
 #include <linux/magic.h>
-#include "autofs_i.h"
-#include <linux/module.h>
 
-struct autofs_info *autofs4_new_ino(struct autofs_sb_info *sbi)
+#include "autofs_i.h"
+
+struct autofs_info *autofs_new_ino(struct autofs_sb_info *sbi)
 {
 	struct autofs_info *ino;
 
@@ -32,21 +28,21 @@ struct autofs_info *autofs4_new_ino(struct autofs_sb_info *sbi)
 	return ino;
 }
 
-void autofs4_clean_ino(struct autofs_info *ino)
+void autofs_clean_ino(struct autofs_info *ino)
 {
 	ino->uid = GLOBAL_ROOT_UID;
 	ino->gid = GLOBAL_ROOT_GID;
 	ino->last_used = jiffies;
 }
 
-void autofs4_free_ino(struct autofs_info *ino)
+void autofs_free_ino(struct autofs_info *ino)
 {
 	kfree(ino);
 }
 
-void autofs4_kill_sb(struct super_block *sb)
+void autofs_kill_sb(struct super_block *sb)
 {
-	struct autofs_sb_info *sbi = autofs4_sbi(sb);
+	struct autofs_sb_info *sbi = autofs_sbi(sb);
 
 	/*
 	 * In the event of a failure in get_sb_nodev the superblock
@@ -56,7 +52,7 @@ void autofs4_kill_sb(struct super_block *sb)
 	 */
 	if (sbi) {
 		/* Free wait queues, close pipe */
-		autofs4_catatonic_mode(sbi);
+		autofs_catatonic_mode(sbi);
 		put_pid(sbi->oz_pgrp);
 	}
 
@@ -66,9 +62,9 @@ void autofs4_kill_sb(struct super_block *sb)
 		kfree_rcu(sbi, rcu);
 }
 
-static int autofs4_show_options(struct seq_file *m, struct dentry *root)
+static int autofs_show_options(struct seq_file *m, struct dentry *root)
 {
-	struct autofs_sb_info *sbi = autofs4_sbi(root->d_sb);
+	struct autofs_sb_info *sbi = autofs_sbi(root->d_sb);
 	struct inode *root_inode = d_inode(root->d_sb->s_root);
 
 	if (!sbi)
@@ -101,16 +97,16 @@ static int autofs4_show_options(struct seq_file *m, struct dentry *root)
 	return 0;
 }
 
-static void autofs4_evict_inode(struct inode *inode)
+static void autofs_evict_inode(struct inode *inode)
 {
 	clear_inode(inode);
 	kfree(inode->i_private);
 }
 
-static const struct super_operations autofs4_sops = {
+static const struct super_operations autofs_sops = {
 	.statfs		= simple_statfs,
-	.show_options	= autofs4_show_options,
-	.evict_inode	= autofs4_evict_inode,
+	.show_options	= autofs_show_options,
+	.evict_inode	= autofs_evict_inode,
 };
 
 enum {Opt_err, Opt_fd, Opt_uid, Opt_gid, Opt_pgrp, Opt_minproto, Opt_maxproto,
@@ -206,7 +202,7 @@ static int parse_options(char *options, int *pipefd, kuid_t *uid, kgid_t *gid,
 	return (*pipefd < 0);
 }
 
-int autofs4_fill_super(struct super_block *s, void *data, int silent)
+int autofs_fill_super(struct super_block *s, void *data, int silent)
 {
 	struct inode *root_inode;
 	struct dentry *root;
@@ -246,19 +242,19 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	s->s_blocksize = 1024;
 	s->s_blocksize_bits = 10;
 	s->s_magic = AUTOFS_SUPER_MAGIC;
-	s->s_op = &autofs4_sops;
-	s->s_d_op = &autofs4_dentry_operations;
+	s->s_op = &autofs_sops;
+	s->s_d_op = &autofs_dentry_operations;
 	s->s_time_gran = 1;
 
 	/*
 	 * Get the root inode and dentry, but defer checking for errors.
 	 */
-	ino = autofs4_new_ino(sbi);
+	ino = autofs_new_ino(sbi);
 	if (!ino) {
 		ret = -ENOMEM;
 		goto fail_free;
 	}
-	root_inode = autofs4_get_inode(s, S_IFDIR | 0755);
+	root_inode = autofs_get_inode(s, S_IFDIR | 0755);
 	root = d_make_root(root_inode);
 	if (!root)
 		goto fail_ino;
@@ -305,8 +301,8 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	if (autofs_type_trigger(sbi->type))
 		__managed_dentry_set_managed(root);
 
-	root_inode->i_fop = &autofs4_root_operations;
-	root_inode->i_op = &autofs4_dir_inode_operations;
+	root_inode->i_fop = &autofs_root_operations;
+	root_inode->i_op = &autofs_dir_inode_operations;
 
 	pr_debug("pipe fd = %d, pgrp = %u\n", pipefd, pid_nr(sbi->oz_pgrp));
 	pipe = fget(pipefd);
@@ -340,14 +336,14 @@ fail_dput:
 	dput(root);
 	goto fail_free;
 fail_ino:
-	autofs4_free_ino(ino);
+	autofs_free_ino(ino);
 fail_free:
 	kfree(sbi);
 	s->s_fs_info = NULL;
 	return ret;
 }
 
-struct inode *autofs4_get_inode(struct super_block *sb, umode_t mode)
+struct inode *autofs_get_inode(struct super_block *sb, umode_t mode)
 {
 	struct inode *inode = new_inode(sb);
 
@@ -364,10 +360,10 @@ struct inode *autofs4_get_inode(struct super_block *sb, umode_t mode)
 
 	if (S_ISDIR(mode)) {
 		set_nlink(inode, 2);
-		inode->i_op = &autofs4_dir_inode_operations;
-		inode->i_fop = &autofs4_dir_operations;
+		inode->i_op = &autofs_dir_inode_operations;
+		inode->i_fop = &autofs_dir_operations;
 	} else if (S_ISLNK(mode)) {
-		inode->i_op = &autofs4_symlink_inode_operations;
+		inode->i_op = &autofs_symlink_inode_operations;
 	} else
 		WARN_ON(1);
 
