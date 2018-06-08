@@ -1196,16 +1196,16 @@ config INTEL_TURBO_MAX_3
 	  This driver is only required when the system is not using Hardware
 	  P-States (HWP). In HWP mode, priority can be read from ACPI tables.
 
-config SILEAD_DMI
-	bool "Tablets with Silead touchscreens"
+config TOUCHSCREEN_DMI
+	bool "DMI based touchscreen configuration info"
 	depends on ACPI && DMI && I2C=y && TOUCHSCREEN_SILEAD
 	---help---
-	  Certain ACPI based tablets with Silead touchscreens do not have
-	  enough data in ACPI tables for the touchscreen driver to handle
-	  the touchscreen properly, as OEMs expected the data to be baked
-	  into the tablet model specific version of the driver shipped
-	  with the OS-image for the device. This option supplies the missing
-	  information. Enable this for x86 tablets with Silead touchscreens.
+	  Certain ACPI based tablets with e.g. Silead or Chipone touchscreens
+	  do not have enough data in ACPI tables for the touchscreen driver to
+	  handle the touchscreen properly, as OEMs expect the data to be baked
+	  into the tablet model specific version of the driver shipped with the
+	  the OS-image for the device. This option supplies the missing info.
+	  Enable this for x86 tablets with Silead or Chipone touchscreens.
 
 config INTEL_CHTDC_TI_PWRBTN
 	tristate "Intel Cherry Trail Dollar Cove TI power button driver"
