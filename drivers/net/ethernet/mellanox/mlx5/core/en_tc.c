@@ -119,6 +119,7 @@ struct mlx5e_tc_flow {
 	struct encap_flow_item encaps[MLX5_MAX_FLOW_FWD_VPORTS];
 	struct mlx5e_tc_flow    *peer_flow;
 	struct list_head	mod_hdr; /* flows sharing the same mod hdr ID */
+	struct mlx5e_hairpin_entry *hpe; /* attached hairpin instance */
 	struct list_head	hairpin; /* flows sharing the same hairpin */
 	struct list_head	peer;    /* flows with peer flow */
 	struct list_head	unready; /* flows not ready to be offloaded (e.g due to missing route) */
@@ -167,6 +168,7 @@ struct mlx5e_hairpin_entry {
 	u16 peer_vhca_id;
 	u8 prio;
 	struct mlx5e_hairpin *hp;
+	refcount_t refcnt;
 };
 
 struct mod_hdr_key {
@@ -635,11 +637,29 @@ static struct mlx5e_hairpin_entry *mlx5e_hairpin_get(struct mlx5e_priv *priv,
 
 	hash_for_each_possible(priv->fs.tc.hairpin_tbl, hpe,
 			       hairpin_hlist, hash_key) {
-		if (hpe->peer_vhca_id == peer_vhca_id && hpe->prio == prio)
+		if (hpe->peer_vhca_id == peer_vhca_id && hpe->prio == prio) {
+			refcount_inc(&hpe->refcnt);
 			return hpe;
+		}
 	}
 
 	return NULL;
+}
+
+static void mlx5e_hairpin_put(struct mlx5e_priv *priv,
+			      struct mlx5e_hairpin_entry *hpe)
+{
+	/* no more hairpin flows for us, release the hairpin pair */
+	if (!refcount_dec_and_test(&hpe->refcnt))
+		return;
+
+	netdev_dbg(priv->netdev, "del hairpin: peer %s\n",
+		   dev_name(hpe->hp->pair->peer_mdev->device));
+
+	WARN_ON(!list_empty(&hpe->flows));
+	mlx5e_hairpin_destroy(hpe->hp);
+	hash_del(&hpe->hairpin_hlist);
+	kfree(hpe);
 }
 
 #define UNKNOWN_MATCH_PRIO 8
@@ -718,6 +738,7 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 	INIT_LIST_HEAD(&hpe->flows);
 	hpe->peer_vhca_id = peer_id;
 	hpe->prio = match_prio;
+	refcount_set(&hpe->refcnt, 1);
 
 	params.log_data_size = 15;
 	params.log_data_size = min_t(u8, params.log_data_size,
@@ -760,6 +781,7 @@ attach_flow:
 	} else {
 		flow->nic_attr->hairpin_tirn = hpe->hp->tirn;
 	}
+	flow->hpe = hpe;
 	list_add(&flow->hairpin, &hpe->flows);
 
 	return 0;
@@ -772,27 +794,13 @@ create_hairpin_err:
 static void mlx5e_hairpin_flow_del(struct mlx5e_priv *priv,
 				   struct mlx5e_tc_flow *flow)
 {
-	struct list_head *next = flow->hairpin.next;
-
 	/* flow wasn't fully initialized */
-	if (list_empty(&flow->hairpin))
+	if (!flow->hpe)
 		return;
 
 	list_del(&flow->hairpin);
-
-	/* no more hairpin flows for us, release the hairpin pair */
-	if (list_empty(next)) {
-		struct mlx5e_hairpin_entry *hpe;
-
-		hpe = list_entry(next, struct mlx5e_hairpin_entry, flows);
-
-		netdev_dbg(priv->netdev, "del hairpin: peer %s\n",
-			   dev_name(hpe->hp->pair->peer_mdev->device));
-
-		mlx5e_hairpin_destroy(hpe->hp);
-		hash_del(&hpe->hairpin_hlist);
-		kfree(hpe);
-	}
+	mlx5e_hairpin_put(priv, flow->hpe);
+	flow->hpe = NULL;
 }
 
 static int
