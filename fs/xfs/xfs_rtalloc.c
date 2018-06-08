@@ -301,8 +301,12 @@ xfs_rtallocate_extent_block(
 		/*
 		 * If size should be a multiple of prod, make that so.
 		 */
-		if (prod > 1 && (p = do_mod(bestlen, prod)))
-			bestlen -= p;
+		if (prod > 1) {
+			div_u64_rem(bestlen, prod, &p);
+			if (p)
+				bestlen -= p;
+		}
+
 		/*
 		 * Allocate besti for bestlen & return that.
 		 */
@@ -1263,7 +1267,7 @@ xfs_rtpick_extent(
 		b = (mp->m_sb.sb_rextents * ((resid << 1) + 1ULL)) >>
 		    (log2 + 1);
 		if (b >= mp->m_sb.sb_rextents)
-			b = do_mod(b, mp->m_sb.sb_rextents);
+			div64_u64_rem(b, mp->m_sb.sb_rextents, &b);
 		if (b + len > mp->m_sb.sb_rextents)
 			b = mp->m_sb.sb_rextents - len;
 	}

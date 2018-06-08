@@ -1236,6 +1236,25 @@ xlog_verify_head(
 }
 
 /*
+ * We need to make sure we handle log wrapping properly, so we can't use the
+ * calculated logbno directly. Make sure it wraps to the correct bno inside the
+ * log.
+ *
+ * The log is limited to 32 bit sizes, so we use the appropriate modulus
+ * operation here and cast it back to a 64 bit daddr on return.
+ */
+static inline xfs_daddr_t
+xlog_wrap_logbno(
+	struct xlog		*log,
+	xfs_daddr_t		bno)
+{
+	int			mod;
+
+	div_s64_rem(bno, log->l_logBBsize, &mod);
+	return mod;
+}
+
+/*
  * Check whether the head of the log points to an unmount record. In other
  * words, determine whether the log is clean. If so, update the in-core state
  * appropriately.
@@ -1283,12 +1302,13 @@ xlog_check_unmount_rec(
 	} else {
 		hblks = 1;
 	}
-	after_umount_blk = rhead_blk + hblks + BTOBB(be32_to_cpu(rhead->h_len));
-	after_umount_blk = do_mod(after_umount_blk, log->l_logBBsize);
+
+	after_umount_blk = xlog_wrap_logbno(log,
+			rhead_blk + hblks + BTOBB(be32_to_cpu(rhead->h_len)));
+
 	if (*head_blk == after_umount_blk &&
 	    be32_to_cpu(rhead->h_num_logops) == 1) {
-		umount_data_blk = rhead_blk + hblks;
-		umount_data_blk = do_mod(umount_data_blk, log->l_logBBsize);
+		umount_data_blk = xlog_wrap_logbno(log, rhead_blk + hblks);
 		error = xlog_bread(log, umount_data_blk, 1, bp, &offset);
 		if (error)
 			return error;
@@ -5459,9 +5479,7 @@ xlog_do_recovery_pass(
 			 */
 			if (blk_no + bblks <= log->l_logBBsize ||
 			    blk_no >= log->l_logBBsize) {
-				/* mod blk_no in case the header wrapped and
-				 * pushed it beyond the end of the log */
-				rblk_no = do_mod(blk_no, log->l_logBBsize);
+				rblk_no = xlog_wrap_logbno(log, blk_no);
 				error = xlog_bread(log, rblk_no, bblks, dbp,
 						   &offset);
 				if (error)

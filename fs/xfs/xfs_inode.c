@@ -2258,7 +2258,7 @@ xfs_ifree_cluster(
 		 */
 		ioffset = inum - xic->first_ino;
 		if ((xic->alloc & XFS_INOBT_MASK(ioffset)) == 0) {
-			ASSERT(do_mod(ioffset, inodes_per_cluster) == 0);
+			ASSERT(ioffset % inodes_per_cluster == 0);
 			continue;
 		}
 

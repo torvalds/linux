@@ -30,10 +30,10 @@ xfs_aligned_fsb_count(
 	if (extsz) {
 		xfs_extlen_t	align;
 
-		align = do_mod(offset_fsb, extsz);
+		div_u64_rem(offset_fsb, extsz, &align);
 		if (align)
 			count_fsb += align;
-		align = do_mod(count_fsb, extsz);
+		div_u64_rem(count_fsb, extsz, &align);
 		if (align)
 			count_fsb += extsz - align;
 	}
