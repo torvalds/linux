@@ -1889,7 +1889,7 @@ alloc_path_with_tree_prefix(__le16 **out_path, int *out_size, int *out_len,
 int
 SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 	  __u8 *oplock, struct smb2_file_all_info *buf,
-	  struct kvec *err_iov)
+	  struct kvec *err_iov, int *buftype)
 {
 	struct smb2_create_req *req;
 	struct smb2_create_rsp *rsp;
@@ -2052,6 +2052,7 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 		cifs_stats_fail_inc(tcon, SMB2_CREATE_HE);
 		if (err_iov && rsp) {
 			*err_iov = rsp_iov;
+			*buftype = resp_buftype;
 			resp_buftype = CIFS_NO_BUFFER;
 			rsp = NULL;
 		}
