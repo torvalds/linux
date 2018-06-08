@@ -243,5 +243,29 @@ to backing storage rather than keeping it in memory.
 User should set up backing device via /sys/block/zramX/backing_dev
 before disksize setting.
 
+= memory tracking
+
+With CONFIG_ZRAM_MEMORY_TRACKING, user can know information of the
+zram block. It could be useful to catch cold or incompressible
+pages of the process with*pagemap.
+If you enable the feature, you could see block state via
+/sys/kernel/debug/zram/zram0/block_state". The output is as follows,
+
+	  300    75.033841 .wh
+	  301    63.806904 s..
+	  302    63.806919 ..h
+
+First column is zram's block index.
+Second column is access time since the system was booted
+Third column is state of the block.
+(s: same page
+w: written page to backing store
+h: huge page)
+
+First line of above example says 300th block is accessed at 75.033841sec
+and the block's state is huge so it is written back to the backing
+storage. It's a debugging feature so anyone shouldn't rely on it to work
+properly.
+
 Nitin Gupta
 ngupta@vflare.org
