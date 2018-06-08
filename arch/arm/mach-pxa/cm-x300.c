@@ -404,7 +404,7 @@ static void __init cm_x300_init_ac97(void)
 static inline void cm_x300_init_ac97(void) {}
 #endif
 
-#if defined(CONFIG_MTD_NAND_PXA3xx) || defined(CONFIG_MTD_NAND_PXA3xx_MODULE)
+#if IS_ENABLED(CONFIG_MTD_NAND_MARVELL)
 static struct mtd_partition cm_x300_nand_partitions[] = {
 	[0] = {
 		.name        = "OBM",
@@ -442,11 +442,9 @@ static struct mtd_partition cm_x300_nand_partitions[] = {
 };
 
 static struct pxa3xx_nand_platform_data cm_x300_nand_info = {
-	.enable_arbiter	= 1,
 	.keep_config	= 1,
-	.num_cs		= 1,
-	.parts[0]	= cm_x300_nand_partitions,
-	.nr_parts[0]	= ARRAY_SIZE(cm_x300_nand_partitions),
+	.parts		= cm_x300_nand_partitions,
+	.nr_parts	= ARRAY_SIZE(cm_x300_nand_partitions),
 };
 
 static void __init cm_x300_init_nand(void)
@@ -522,7 +520,7 @@ static int cm_x300_ulpi_phy_reset(void)
 	return 0;
 }
 
-static inline int cm_x300_u2d_init(struct device *dev)
+static int cm_x300_u2d_init(struct device *dev)
 {
 	int err = 0;
 
@@ -534,7 +532,7 @@ static inline int cm_x300_u2d_init(struct device *dev)
 			pr_err("failed to get CLK_POUT: %d\n", err);
 			return err;
 		}
-		clk_enable(pout_clk);
+		clk_prepare_enable(pout_clk);
 
 		err = cm_x300_ulpi_phy_reset();
 		if (err) {
@@ -549,7 +547,7 @@ static inline int cm_x300_u2d_init(struct device *dev)
 static void cm_x300_u2d_exit(struct device *dev)
 {
 	if (cpu_is_pxa310()) {
-		clk_disable(pout_clk);
+		clk_disable_unprepare(pout_clk);
 		clk_put(pout_clk);
 	}
 }

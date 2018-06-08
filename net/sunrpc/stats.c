@@ -24,6 +24,8 @@
 #include <linux/sunrpc/metrics.h>
 #include <linux/rcupdate.h>
 
+#include <trace/events/sunrpc.h>
+
 #include "netns.h"
 
 #define RPCDBG_FACILITY	RPCDBG_MISC
@@ -148,7 +150,7 @@ void rpc_count_iostats_metrics(const struct rpc_task *task,
 			       struct rpc_iostats *op_metrics)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
-	ktime_t delta, now;
+	ktime_t backlog, execute, now;
 
 	if (!op_metrics || !req)
 		return;
@@ -164,16 +166,20 @@ void rpc_count_iostats_metrics(const struct rpc_task *task,
 	op_metrics->om_bytes_sent += req->rq_xmit_bytes_sent;
 	op_metrics->om_bytes_recv += req->rq_reply_bytes_recvd;
 
+	backlog = 0;
 	if (ktime_to_ns(req->rq_xtime)) {
-		delta = ktime_sub(req->rq_xtime, task->tk_start);
-		op_metrics->om_queue = ktime_add(op_metrics->om_queue, delta);
+		backlog = ktime_sub(req->rq_xtime, task->tk_start);
+		op_metrics->om_queue = ktime_add(op_metrics->om_queue, backlog);
 	}
+
 	op_metrics->om_rtt = ktime_add(op_metrics->om_rtt, req->rq_rtt);
 
-	delta = ktime_sub(now, task->tk_start);
-	op_metrics->om_execute = ktime_add(op_metrics->om_execute, delta);
+	execute = ktime_sub(now, task->tk_start);
+	op_metrics->om_execute = ktime_add(op_metrics->om_execute, execute);
 
 	spin_unlock(&op_metrics->om_lock);
+
+	trace_rpc_stats_latency(req->rq_task, backlog, req->rq_rtt, execute);
 }
 EXPORT_SYMBOL_GPL(rpc_count_iostats_metrics);
 

@@ -617,7 +617,7 @@ static int snd_pcm_hw_params_choose(struct snd_pcm_substream *pcm,
 			changed = snd_pcm_hw_param_first(pcm, params, *v, NULL);
 		else
 			changed = snd_pcm_hw_param_last(pcm, params, *v, NULL);
-		if (snd_BUG_ON(changed < 0))
+		if (changed < 0)
 			return changed;
 		if (changed == 0)
 			continue;

@@ -1887,7 +1887,7 @@ call_connect_status(struct rpc_task *task)
 
 	dprint_status(task);
 
-	trace_rpc_connect_status(task, status);
+	trace_rpc_connect_status(task);
 	task->tk_status = 0;
 	switch (status) {
 	case -ECONNREFUSED:
@@ -2014,6 +2014,9 @@ call_transmit_status(struct rpc_task *task)
 	case -EPERM:
 		if (RPC_IS_SOFTCONN(task)) {
 			xprt_end_transmit(task);
+			if (!task->tk_msg.rpc_proc->p_proc)
+				trace_xprt_ping(task->tk_xprt,
+						task->tk_status);
 			rpc_exit(task, task->tk_status);
 			break;
 		}
@@ -2111,6 +2114,9 @@ call_status(struct rpc_task *task)
 	struct rpc_clnt	*clnt = task->tk_client;
 	struct rpc_rqst	*req = task->tk_rqstp;
 	int		status;
+
+	if (!task->tk_msg.rpc_proc->p_proc)
+		trace_xprt_ping(task->tk_xprt, task->tk_status);
 
 	if (req->rq_reply_bytes_recvd > 0 && !req->rq_bytes_sent)
 		task->tk_status = req->rq_reply_bytes_recvd;

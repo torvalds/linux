@@ -1053,6 +1053,11 @@ config FB_I810_I2C
 	bool "Enable DDC Support"
 	depends on FB_I810 && FB_I810_GTF
 	select FB_DDC
+	help
+	  Add DDC/I2C support for i810fb.  This will allow the driver to get
+	  display information, especially for monitors with fickle timings.
+
+	  If unsure, say Y.
 
 config FB_LE80578
 	tristate "Intel LE80578 (Vermilion) support"
@@ -1917,8 +1922,7 @@ config FB_TMIO_ACCELL
 
 config FB_S3C
 	tristate "Samsung S3C framebuffer support"
-	depends on FB && (CPU_S3C2416 || ARCH_S3C64XX || \
-		ARCH_S5PV210 || ARCH_EXYNOS)
+	depends on FB && (CPU_S3C2416 || ARCH_S3C64XX)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT

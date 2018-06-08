@@ -24,13 +24,15 @@ static int h3600_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
 	int err;
 
+	skt->stat[SOC_STAT_CD].name = skt->nr ? "pcmcia1-detect" : "pcmcia0-detect";
+	skt->stat[SOC_STAT_RDY].name = skt->nr ? "pcmcia1-ready" : "pcmcia0-ready";
+
+	err = soc_pcmcia_request_gpiods(skt);
+	if (err)
+		return err;
+
 	switch (skt->nr) {
 	case 0:
-		skt->stat[SOC_STAT_CD].gpio = H3XXX_GPIO_PCMCIA_CD0;
-		skt->stat[SOC_STAT_CD].name = "PCMCIA CD0";
-		skt->stat[SOC_STAT_RDY].gpio = H3XXX_GPIO_PCMCIA_IRQ0;
-		skt->stat[SOC_STAT_RDY].name = "PCMCIA IRQ0";
-
 		err = gpio_request(H3XXX_EGPIO_OPT_NVRAM_ON, "OPT NVRAM ON");
 		if (err)
 			goto err01;
@@ -57,10 +59,6 @@ static int h3600_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 			goto err06;
 		break;
 	case 1:
-		skt->stat[SOC_STAT_CD].gpio = H3XXX_GPIO_PCMCIA_CD1;
-		skt->stat[SOC_STAT_CD].name = "PCMCIA CD1";
-		skt->stat[SOC_STAT_RDY].gpio = H3XXX_GPIO_PCMCIA_IRQ1;
-		skt->stat[SOC_STAT_RDY].name = "PCMCIA IRQ1";
 		break;
 	}
 	return 0;

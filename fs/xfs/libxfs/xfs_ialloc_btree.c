@@ -556,7 +556,7 @@ xfs_inobt_max_size(
 	if (mp->m_inobt_mxr[0] == 0)
 		return 0;
 
-	return xfs_btree_calc_size(mp, mp->m_inobt_mnr,
+	return xfs_btree_calc_size(mp->m_inobt_mnr,
 		(uint64_t)mp->m_sb.sb_agblocks * mp->m_sb.sb_inopblock /
 				XFS_INODES_PER_CHUNK);
 }

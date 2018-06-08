@@ -112,6 +112,9 @@ static struct scsi_device_handler *scsi_dh_lookup(const char *name)
 {
 	struct scsi_device_handler *dh;
 
+	if (!name || strlen(name) == 0)
+		return NULL;
+
 	dh = __scsi_dh_lookup(name);
 	if (!dh) {
 		request_module("scsi_dh_%s", name);

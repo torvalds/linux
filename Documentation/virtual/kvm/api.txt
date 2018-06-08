@@ -3480,7 +3480,7 @@ encrypted VMs.
 
 Currently, this ioctl is used for issuing Secure Encrypted Virtualization
 (SEV) commands on AMD Processors. The SEV commands are defined in
-Documentation/virtual/kvm/amd-memory-encryption.txt.
+Documentation/virtual/kvm/amd-memory-encryption.rst.
 
 4.111 KVM_MEMORY_ENCRYPT_REG_REGION
 
@@ -3515,6 +3515,38 @@ Returns: 0 on success; -1 on error
 
 This ioctl can be used to unregister the guest memory region registered
 with KVM_MEMORY_ENCRYPT_REG_REGION ioctl above.
+
+4.113 KVM_HYPERV_EVENTFD
+
+Capability: KVM_CAP_HYPERV_EVENTFD
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_hyperv_eventfd (in)
+
+This ioctl (un)registers an eventfd to receive notifications from the guest on
+the specified Hyper-V connection id through the SIGNAL_EVENT hypercall, without
+causing a user exit.  SIGNAL_EVENT hypercall with non-zero event flag number
+(bits 24-31) still triggers a KVM_EXIT_HYPERV_HCALL user exit.
+
+struct kvm_hyperv_eventfd {
+	__u32 conn_id;
+	__s32 fd;
+	__u32 flags;
+	__u32 padding[3];
+};
+
+The conn_id field should fit within 24 bits:
+
+#define KVM_HYPERV_CONN_ID_MASK		0x00ffffff
+
+The acceptable values for the flags field are:
+
+#define KVM_HYPERV_EVENTFD_DEASSIGN	(1 << 0)
+
+Returns: 0 on success,
+	-EINVAL if conn_id or flags is outside the allowed range
+	-ENOENT on deassign if the conn_id isn't registered
+	-EEXIST on assign if the conn_id is already registered
 
 
 5. The kvm_run structure
@@ -3873,7 +3905,7 @@ in userspace.
 	__u64 kvm_dirty_regs;
 	union {
 		struct kvm_sync_regs regs;
-		char padding[1024];
+		char padding[SYNC_REGS_SIZE_BYTES];
 	} s;
 
 If KVM_CAP_SYNC_REGS is defined, these fields allow userspace to access
@@ -4077,6 +4109,46 @@ It allows the Config3.MSAP bit to be set to enable the use of MSA by the guest.
 Once this is done the KVM_REG_MIPS_VEC_* and KVM_REG_MIPS_MSA_* registers can be
 accessed, and the Config5.MSAEn bit is accessible via the KVM API and also from
 the guest.
+
+6.74 KVM_CAP_SYNC_REGS
+Architectures: s390, x86
+Target: s390: always enabled, x86: vcpu
+Parameters: none
+Returns: x86: KVM_CHECK_EXTENSION returns a bit-array indicating which register
+sets are supported (bitfields defined in arch/x86/include/uapi/asm/kvm.h).
+
+As described above in the kvm_sync_regs struct info in section 5 (kvm_run):
+KVM_CAP_SYNC_REGS "allow[s] userspace to access certain guest registers
+without having to call SET/GET_*REGS". This reduces overhead by eliminating
+repeated ioctl calls for setting and/or getting register values. This is
+particularly important when userspace is making synchronous guest state
+modifications, e.g. when emulating and/or intercepting instructions in
+userspace.
+
+For s390 specifics, please refer to the source code.
+
+For x86:
+- the register sets to be copied out to kvm_run are selectable
+  by userspace (rather that all sets being copied out for every exit).
+- vcpu_events are available in addition to regs and sregs.
+
+For x86, the 'kvm_valid_regs' field of struct kvm_run is overloaded to
+function as an input bit-array field set by userspace to indicate the
+specific register sets to be copied out on the next exit.
+
+To indicate when userspace has modified values that should be copied into
+the vCPU, the all architecture bitarray field, 'kvm_dirty_regs' must be set.
+This is done using the same bitflags as for the 'kvm_valid_regs' field.
+If the dirty bit is not set, then the register set values will not be copied
+into the vCPU even if they've been modified.
+
+Unused bitfields in the bitarrays must be set to zero.
+
+struct kvm_sync_regs {
+        struct kvm_regs regs;
+        struct kvm_sregs sregs;
+        struct kvm_vcpu_events events;
+};
 
 7. Capabilities that can be enabled on VMs
 ------------------------------------------
@@ -4286,6 +4358,26 @@ enables QEMU to build error log and branch to guest kernel registered
 machine check handling routine. Without this capability KVM will
 branch to guests' 0x200 interrupt vector.
 
+7.13 KVM_CAP_X86_DISABLE_EXITS
+
+Architectures: x86
+Parameters: args[0] defines which exits are disabled
+Returns: 0 on success, -EINVAL when args[0] contains invalid exits
+
+Valid bits in args[0] are
+
+#define KVM_X86_DISABLE_EXITS_MWAIT            (1 << 0)
+#define KVM_X86_DISABLE_EXITS_HLT              (1 << 1)
+
+Enabling this capability on a VM provides userspace with a way to no
+longer intercept some instructions for improved latency in some
+workloads, and is suggested when vCPUs are associated to dedicated
+physical CPUs.  More bits can be added in the future; userspace can
+just pass the KVM_CHECK_EXTENSION result to KVM_ENABLE_CAP to disable
+all such vmexits.
+
+Do not enable KVM_FEATURE_PV_UNHALT if you disable HLT exits.
+
 8. Other capabilities.
 ----------------------
 
@@ -4398,15 +4490,6 @@ reserved.
     Both registers and addresses are 64-bits wide.
     It will be possible to run 64-bit or 32-bit guest code.
 
-8.8 KVM_CAP_X86_GUEST_MWAIT
-
-Architectures: x86
-
-This capability indicates that guest using memory monotoring instructions
-(MWAIT/MWAITX) to stop the virtual CPU will not cause a VM exit.  As such time
-spent while virtual CPU is halted in this way will then be accounted for as
-guest running time on the host (as opposed to e.g. HLT).
-
 8.9 KVM_CAP_ARM_USER_IRQ
 
 Architectures: arm, arm64
@@ -4483,3 +4566,33 @@ Parameters: none
 This capability indicates if the flic device will be able to get/set the
 AIS states for migration via the KVM_DEV_FLIC_AISM_ALL attribute and allows
 to discover this without having to create a flic device.
+
+8.14 KVM_CAP_S390_PSW
+
+Architectures: s390
+
+This capability indicates that the PSW is exposed via the kvm_run structure.
+
+8.15 KVM_CAP_S390_GMAP
+
+Architectures: s390
+
+This capability indicates that the user space memory used as guest mapping can
+be anywhere in the user memory address space, as long as the memory slots are
+aligned and sized to a segment (1MB) boundary.
+
+8.16 KVM_CAP_S390_COW
+
+Architectures: s390
+
+This capability indicates that the user space memory used as guest mapping can
+use copy-on-write semantics as well as dirty pages tracking via read-only page
+tables.
+
+8.17 KVM_CAP_S390_BPB
+
+Architectures: s390
+
+This capability indicates that kvm will implement the interfaces to handle
+reset, migration and nested KVM for branch prediction blocking. The stfle
+facility 82 should not be provided to the guest without this capability.

@@ -208,9 +208,9 @@ static int append_vbios_pptable(struct pp_hwmgr *hwmgr, PPTable_t *ppsmc_pptable
 	ppsmc_pptable->LedPin1 = smc_dpm_table.ledpin1;
 	ppsmc_pptable->LedPin2 = smc_dpm_table.ledpin2;
 
-	ppsmc_pptable->GfxclkSpreadEnabled = smc_dpm_table.gfxclkspreadenabled;
-	ppsmc_pptable->GfxclkSpreadPercent = smc_dpm_table.gfxclkspreadpercent;
-	ppsmc_pptable->GfxclkSpreadFreq = smc_dpm_table.gfxclkspreadfreq;
+	ppsmc_pptable->PllGfxclkSpreadEnabled = smc_dpm_table.pllgfxclkspreadenabled;
+	ppsmc_pptable->PllGfxclkSpreadPercent = smc_dpm_table.pllgfxclkspreadpercent;
+	ppsmc_pptable->PllGfxclkSpreadFreq = smc_dpm_table.pllgfxclkspreadfreq;
 
 	ppsmc_pptable->UclkSpreadEnabled = 0;
 	ppsmc_pptable->UclkSpreadPercent = smc_dpm_table.uclkspreadpercent;
@@ -219,6 +219,11 @@ static int append_vbios_pptable(struct pp_hwmgr *hwmgr, PPTable_t *ppsmc_pptable
 	ppsmc_pptable->SocclkSpreadEnabled = 0;
 	ppsmc_pptable->SocclkSpreadPercent = smc_dpm_table.socclkspreadpercent;
 	ppsmc_pptable->SocclkSpreadFreq = smc_dpm_table.socclkspreadfreq;
+
+	ppsmc_pptable->AcgGfxclkSpreadEnabled = smc_dpm_table.acggfxclkspreadenabled;
+	ppsmc_pptable->AcgGfxclkSpreadPercent = smc_dpm_table.acggfxclkspreadpercent;
+	ppsmc_pptable->AcgGfxclkSpreadFreq = smc_dpm_table.acggfxclkspreadfreq;
+
 
 	return 0;
 }

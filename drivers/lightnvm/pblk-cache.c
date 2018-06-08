@@ -63,6 +63,8 @@ retry:
 		bio_advance(bio, PBLK_EXPOSED_PAGE_SIZE);
 	}
 
+	atomic64_add(nr_entries, &pblk->user_wa);
+
 #ifdef CONFIG_NVM_DEBUG
 	atomic_long_add(nr_entries, &pblk->inflight_writes);
 	atomic_long_add(nr_entries, &pblk->req_writes);
@@ -116,6 +118,8 @@ retry:
 
 	WARN_ONCE(gc_rq->secs_to_gc != valid_entries,
 					"pblk: inconsistent GC write\n");
+
+	atomic64_add(valid_entries, &pblk->gc_wa);
 
 #ifdef CONFIG_NVM_DEBUG
 	atomic_long_add(valid_entries, &pblk->inflight_writes);

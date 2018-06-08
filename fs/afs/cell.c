@@ -18,7 +18,7 @@
 #include <keys/rxrpc-type.h>
 #include "internal.h"
 
-unsigned __read_mostly afs_cell_gc_delay = 10;
+static unsigned __read_mostly afs_cell_gc_delay = 10;
 
 static void afs_manage_cell(struct work_struct *);
 
@@ -75,7 +75,7 @@ struct afs_cell *afs_lookup_cell_rcu(struct afs_net *net,
 			cell = rcu_dereference_raw(net->ws_cell);
 			if (cell) {
 				afs_get_cell(cell);
-				continue;
+				break;
 			}
 			ret = -EDESTADDRREQ;
 			continue;
@@ -130,6 +130,8 @@ static struct afs_cell *afs_alloc_cell(struct afs_net *net,
 		_leave(" = -ENAMETOOLONG");
 		return ERR_PTR(-ENAMETOOLONG);
 	}
+	if (namelen == 5 && memcmp(name, "@cell", 5) == 0)
+		return ERR_PTR(-EINVAL);
 
 	_enter("%*.*s,%s", namelen, namelen, name, vllist);
 
@@ -334,8 +336,8 @@ int afs_cell_init(struct afs_net *net, const char *rootcell)
 		return PTR_ERR(new_root);
 	}
 
-	set_bit(AFS_CELL_FL_NO_GC, &new_root->flags);
-	afs_get_cell(new_root);
+	if (!test_and_set_bit(AFS_CELL_FL_NO_GC, &new_root->flags))
+		afs_get_cell(new_root);
 
 	/* install the new cell */
 	write_seqlock(&net->cells_lock);
@@ -411,7 +413,7 @@ static void afs_cell_destroy(struct rcu_head *rcu)
 
 	ASSERTCMP(atomic_read(&cell->usage), ==, 0);
 
-	afs_put_addrlist(cell->vl_addrs);
+	afs_put_addrlist(rcu_access_pointer(cell->vl_addrs));
 	key_put(cell->anonymous_key);
 	kfree(cell);
 
@@ -522,7 +524,9 @@ static int afs_activate_cell(struct afs_net *net, struct afs_cell *cell)
 #ifdef CONFIG_AFS_FSCACHE
 	cell->cache = fscache_acquire_cookie(afs_cache_netfs.primary_index,
 					     &afs_cell_cache_index_def,
-					     cell, true);
+					     cell->name, strlen(cell->name),
+					     NULL, 0,
+					     cell, 0, true);
 #endif
 	ret = afs_proc_cell_setup(net, cell);
 	if (ret < 0)
@@ -547,7 +551,7 @@ static void afs_deactivate_cell(struct afs_net *net, struct afs_cell *cell)
 	spin_unlock(&net->proc_cells_lock);
 
 #ifdef CONFIG_AFS_FSCACHE
-	fscache_relinquish_cookie(cell->cache, 0);
+	fscache_relinquish_cookie(cell->cache, NULL, false);
 	cell->cache = NULL;
 #endif
 

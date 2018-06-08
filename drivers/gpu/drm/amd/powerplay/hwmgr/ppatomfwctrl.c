@@ -616,9 +616,9 @@ int pp_atomfwctrl_get_smc_dpm_information(struct pp_hwmgr *hwmgr,
 	param->ledpin1 = info->ledpin1;
 	param->ledpin2 = info->ledpin2;
 
-	param->gfxclkspreadenabled = info->gfxclkspreadenabled;
-	param->gfxclkspreadpercent = info->gfxclkspreadpercent;
-	param->gfxclkspreadfreq = info->gfxclkspreadfreq;
+	param->pllgfxclkspreadenabled = info->pllgfxclkspreadenabled;
+	param->pllgfxclkspreadpercent = info->pllgfxclkspreadpercent;
+	param->pllgfxclkspreadfreq = info->pllgfxclkspreadfreq;
 
 	param->uclkspreadenabled = info->uclkspreadenabled;
 	param->uclkspreadpercent = info->uclkspreadpercent;
@@ -627,6 +627,10 @@ int pp_atomfwctrl_get_smc_dpm_information(struct pp_hwmgr *hwmgr,
 	param->socclkspreadenabled = info->socclkspreadenabled;
 	param->socclkspreadpercent = info->socclkspreadpercent;
 	param->socclkspreadfreq = info->socclkspreadfreq;
+
+	param->acggfxclkspreadenabled = info->acggfxclkspreadenabled;
+	param->acggfxclkspreadpercent = info->acggfxclkspreadpercent;
+	param->acggfxclkspreadfreq = info->acggfxclkspreadfreq;
 
 	return 0;
 }

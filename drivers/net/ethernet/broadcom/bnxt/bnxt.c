@@ -6090,7 +6090,7 @@ static void bnxt_free_irq(struct bnxt *bp)
 	free_irq_cpu_rmap(bp->dev->rx_cpu_rmap);
 	bp->dev->rx_cpu_rmap = NULL;
 #endif
-	if (!bp->irq_tbl)
+	if (!bp->irq_tbl || !bp->bnapi)
 		return;
 
 	for (i = 0; i < bp->cp_nr_rings; i++) {
@@ -7686,6 +7686,8 @@ int bnxt_check_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
 		rx_rings <<= 1;
 	cp = sh ? max_t(int, tx_rings_needed, rx) : tx_rings_needed + rx;
+	if (bp->flags & BNXT_FLAG_NEW_RM)
+		cp += bnxt_get_ulp_msix_num(bp);
 	return bnxt_hwrm_check_rings(bp, tx_rings_needed, rx_rings, rx, cp,
 				     vnics);
 }

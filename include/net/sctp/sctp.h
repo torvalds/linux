@@ -432,9 +432,11 @@ static inline int sctp_list_single_entry(struct list_head *head)
 static inline int sctp_frag_point(const struct sctp_association *asoc, int pmtu)
 {
 	struct sctp_sock *sp = sctp_sk(asoc->base.sk);
+	struct sctp_af *af = sp->pf->af;
 	int frag = pmtu;
 
-	frag -= sp->pf->af->net_header_len;
+	frag -= af->ip_options_len(asoc->base.sk);
+	frag -= af->net_header_len;
 	frag -= sizeof(struct sctphdr) + sctp_datachk_len(&asoc->stream);
 
 	if (asoc->user_frag)

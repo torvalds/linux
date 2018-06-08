@@ -1754,7 +1754,6 @@ xfs_buftarg_shrink_count(
 
 void
 xfs_free_buftarg(
-	struct xfs_mount	*mp,
 	struct xfs_buftarg	*btp)
 {
 	unregister_shrinker(&btp->bt_shrinker);

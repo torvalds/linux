@@ -94,6 +94,9 @@ typedef struct siginfo {
 			unsigned int _flags;	/* see ia64 si_flags */
 			unsigned long _isr;	/* isr */
 #endif
+
+#define __ADDR_BND_PKEY_PAD  (__alignof__(void *) < sizeof(short) ? \
+			      sizeof(short) : __alignof__(void *))
 			union {
 				/*
 				 * used when si_code=BUS_MCEERR_AR or
@@ -102,13 +105,13 @@ typedef struct siginfo {
 				short _addr_lsb; /* LSB of the reported address */
 				/* used when si_code=SEGV_BNDERR */
 				struct {
-					void *_dummy_bnd;
+					char _dummy_bnd[__ADDR_BND_PKEY_PAD];
 					void __user *_lower;
 					void __user *_upper;
 				} _addr_bnd;
 				/* used when si_code=SEGV_PKUERR */
 				struct {
-					void *_dummy_pkey;
+					char _dummy_pkey[__ADDR_BND_PKEY_PAD];
 					__u32 _pkey;
 				} _addr_pkey;
 			};
@@ -208,7 +211,8 @@ typedef struct siginfo {
 #define __FPE_INVASC	12	/* invalid ASCII digit */
 #define __FPE_INVDEC	13	/* invalid decimal digit */
 #define FPE_FLTUNK	14	/* undiagnosed floating-point exception */
-#define NSIGFPE		14
+#define FPE_CONDTRAP	15	/* trap on condition */
+#define NSIGFPE		15
 
 /*
  * SIGSEGV si_codes

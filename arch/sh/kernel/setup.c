@@ -330,6 +330,14 @@ void __init setup_arch(char **cmdline_p)
 	/* Let earlyprintk output early console messages */
 	early_platform_driver_probe("earlyprintk", 1, 1);
 
+#ifdef CONFIG_OF_FLATTREE
+#ifdef CONFIG_USE_BUILTIN_DTB
+	unflatten_and_copy_device_tree();
+#else
+	unflatten_device_tree();
+#endif
+#endif
+
 	paging_init();
 
 #ifdef CONFIG_DUMMY_CONSOLE

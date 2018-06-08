@@ -1369,7 +1369,7 @@ static void qeth_set_multiple_write_queues(struct qeth_card *card)
 static void qeth_update_from_chp_desc(struct qeth_card *card)
 {
 	struct ccw_device *ccwdev;
-	struct channel_path_desc *chp_dsc;
+	struct channel_path_desc_fmt0 *chp_dsc;
 
 	QETH_DBF_TEXT(SETUP, 2, "chp_desc");
 

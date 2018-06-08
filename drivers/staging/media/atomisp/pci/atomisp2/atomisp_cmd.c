@@ -437,7 +437,7 @@ static void atomisp_reset_event(struct atomisp_sub_device *asd)
 }
 
 
-static void print_csi_rx_errors(enum ia_css_csi2_port port,
+static void print_csi_rx_errors(enum mipi_port_id port,
 				struct atomisp_device *isp)
 {
 	u32 infos = 0;
@@ -481,7 +481,7 @@ static void clear_irq_reg(struct atomisp_device *isp)
 }
 
 static struct atomisp_sub_device *
-__get_asd_from_port(struct atomisp_device *isp, mipi_port_ID_t port)
+__get_asd_from_port(struct atomisp_device *isp, enum mipi_port_id port)
 {
 	int i;
 
@@ -515,7 +515,7 @@ irqreturn_t atomisp_isr(int irq, void *dev)
 
 	spin_lock_irqsave(&isp->lock, flags);
 	if (isp->sw_contex.power_state != ATOM_ISP_POWER_UP ||
-	    isp->css_initialized == false) {
+	    !isp->css_initialized) {
 		spin_unlock_irqrestore(&isp->lock, flags);
 		return IRQ_HANDLED;
 	}
@@ -570,9 +570,9 @@ irqreturn_t atomisp_isr(int irq, void *dev)
 	    (irq_infos & CSS_IRQ_INFO_IF_ERROR)) {
 		/* handle mipi receiver error */
 		u32 rx_infos;
-		enum ia_css_csi2_port port;
+		enum mipi_port_id port;
 
-		for (port = IA_CSS_CSI2_PORT0; port <= IA_CSS_CSI2_PORT2;
+		for (port = MIPI_PORT0_ID; port <= MIPI_PORT2_ID;
 		     port++) {
 			print_csi_rx_errors(port, isp);
 			atomisp_css_rx_get_irq_info(port, &rx_infos);
@@ -4603,7 +4603,7 @@ int atomisp_fixed_pattern(struct atomisp_sub_device *asd, int flag,
 	}
 
 	if (*value == 0) {
-		asd->params.fpn_en = 0;
+		asd->params.fpn_en = false;
 		return 0;
 	}
 
@@ -5028,7 +5028,7 @@ atomisp_try_fmt_file(struct atomisp_device *isp, struct v4l2_format *f)
 	return 0;
 }
 
-mipi_port_ID_t __get_mipi_port(struct atomisp_device *isp,
+enum mipi_port_id __get_mipi_port(struct atomisp_device *isp,
 				enum atomisp_camera_port port)
 {
 	switch (port) {
@@ -5162,22 +5162,22 @@ static int __enable_continuous_mode(struct atomisp_sub_device *asd,
 	return atomisp_update_run_mode(asd);
 }
 
-int configure_pp_input_nop(struct atomisp_sub_device *asd,
-			   unsigned int width, unsigned int height)
+static int configure_pp_input_nop(struct atomisp_sub_device *asd,
+				  unsigned int width, unsigned int height)
 {
 	return 0;
 }
 
-int configure_output_nop(struct atomisp_sub_device *asd,
-			 unsigned int width, unsigned int height,
-			 unsigned int min_width,
-			 enum atomisp_css_frame_format sh_fmt)
+static int configure_output_nop(struct atomisp_sub_device *asd,
+				unsigned int width, unsigned int height,
+				unsigned int min_width,
+				enum atomisp_css_frame_format sh_fmt)
 {
 	return 0;
 }
 
-int get_frame_info_nop(struct atomisp_sub_device *asd,
-		       struct atomisp_css_frame_info *finfo)
+static int get_frame_info_nop(struct atomisp_sub_device *asd,
+			      struct atomisp_css_frame_info *finfo)
 {
 	return 0;
 }
@@ -5524,7 +5524,7 @@ static void atomisp_get_dis_envelop(struct atomisp_sub_device *asd,
 
 	/* if subdev type is SOC camera,we do not need to set DVS */
 	if (isp->inputs[asd->input_curr].type == SOC_CAMERA)
-		asd->params.video_dis_en = 0;
+		asd->params.video_dis_en = false;
 
 	if (asd->params.video_dis_en &&
 	    asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO) {
@@ -5624,7 +5624,7 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev,
 			ffmt = req_ffmt;
 			dev_warn(isp->dev,
 			  "can not enable video dis due to sensor limitation.");
-			asd->params.video_dis_en = 0;
+			asd->params.video_dis_en = false;
 		}
 	}
 	dev_dbg(isp->dev, "sensor width: %d, height: %d\n",
@@ -5649,7 +5649,7 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev,
 	    (ffmt->width < req_ffmt->width || ffmt->height < req_ffmt->height)) {
 		dev_warn(isp->dev,
 			 "can not enable video dis due to sensor limitation.");
-		asd->params.video_dis_en = 0;
+		asd->params.video_dis_en = false;
 	}
 
 	atomisp_subdev_set_ffmt(&asd->subdev, fh.pad,
@@ -6152,7 +6152,7 @@ int atomisp_set_shading_table(struct atomisp_sub_device *asd,
 
 	if (!user_shading_table->enable) {
 		atomisp_css_set_shading_table(asd, NULL);
-		asd->params.sc_en = 0;
+		asd->params.sc_en = false;
 		return 0;
 	}
 
@@ -6190,7 +6190,7 @@ int atomisp_set_shading_table(struct atomisp_sub_device *asd,
 	free_table = asd->params.css_param.shading_table;
 	asd->params.css_param.shading_table = shading_table;
 	atomisp_css_set_shading_table(asd, shading_table);
-	asd->params.sc_en = 1;
+	asd->params.sc_en = true;
 
 out:
 	if (free_table != NULL)
@@ -6627,7 +6627,7 @@ int atomisp_inject_a_fake_event(struct atomisp_sub_device *asd, int *event)
 	return 0;
 }
 
-int atomisp_get_pipe_id(struct atomisp_video_pipe *pipe)
+static int atomisp_get_pipe_id(struct atomisp_video_pipe *pipe)
 {
 	struct atomisp_sub_device *asd = pipe->asd;
 

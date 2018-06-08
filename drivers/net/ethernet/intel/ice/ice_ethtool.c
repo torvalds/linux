@@ -156,7 +156,7 @@ ice_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 
 static int ice_get_regs_len(struct net_device __always_unused *netdev)
 {
-	return ARRAY_SIZE(ice_regs_dump_list);
+	return sizeof(ice_regs_dump_list);
 }
 
 static void
@@ -170,7 +170,7 @@ ice_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *p)
 
 	regs->version = 1;
 
-	for (i = 0; i < ARRAY_SIZE(ice_regs_dump_list) / sizeof(u32); ++i)
+	for (i = 0; i < ARRAY_SIZE(ice_regs_dump_list); ++i)
 		regs_buf[i] = rd32(hw, ice_regs_dump_list[i]);
 }
 

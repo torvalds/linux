@@ -128,7 +128,7 @@ void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
 			goto no_cache_flush;
 
 		/* A real file page? */
-		mapping = page_mapping(page);
+		mapping = page_mapping_file(page);
 		if (!mapping)
 			goto no_cache_flush;
 

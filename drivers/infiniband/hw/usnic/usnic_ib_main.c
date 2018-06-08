@@ -415,6 +415,7 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	us_ibdev->ib_dev.get_dev_fw_str     = usnic_get_dev_fw_str;
 
 
+	us_ibdev->ib_dev.driver_id = RDMA_DRIVER_USNIC;
 	if (ib_register_device(&us_ibdev->ib_dev, NULL))
 		goto err_fwd_dealloc;
 

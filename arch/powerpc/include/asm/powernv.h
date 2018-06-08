@@ -40,6 +40,7 @@ static inline int pnv_npu2_handle_fault(struct npu_context *context,
 }
 
 static inline void pnv_tm_init(void) { }
+static inline void pnv_power9_force_smt4(void) { }
 #endif
 
 #endif /* _ASM_POWERNV_H */

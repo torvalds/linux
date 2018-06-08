@@ -59,6 +59,10 @@ struct mlx4_ib_alloc_ucontext_resp_v3 {
 	__u16	bf_regs_per_page;
 };
 
+enum {
+	MLX4_USER_DEV_CAP_LARGE_CQE	= 1L << 0,
+};
+
 struct mlx4_ib_alloc_ucontext_resp {
 	__u32	dev_caps;
 	__u32	qp_tab_size;
@@ -73,8 +77,8 @@ struct mlx4_ib_alloc_pd_resp {
 };
 
 struct mlx4_ib_create_cq {
-	__u64	buf_addr;
-	__u64	db_addr;
+	__aligned_u64 buf_addr;
+	__aligned_u64 db_addr;
 };
 
 struct mlx4_ib_create_cq_resp {
@@ -83,12 +87,12 @@ struct mlx4_ib_create_cq_resp {
 };
 
 struct mlx4_ib_resize_cq {
-	__u64	buf_addr;
+	__aligned_u64 buf_addr;
 };
 
 struct mlx4_ib_create_srq {
-	__u64	buf_addr;
-	__u64	db_addr;
+	__aligned_u64 buf_addr;
+	__aligned_u64 db_addr;
 };
 
 struct mlx4_ib_create_srq_resp {
@@ -97,7 +101,7 @@ struct mlx4_ib_create_srq_resp {
 };
 
 struct mlx4_ib_create_qp_rss {
-	__u64   rx_hash_fields_mask; /* Use  enum mlx4_ib_rx_hash_fields */
+	__aligned_u64 rx_hash_fields_mask; /* Use  enum mlx4_ib_rx_hash_fields */
 	__u8    rx_hash_function; /* Use enum mlx4_ib_rx_hash_function_flags */
 	__u8    reserved[7];
 	__u8    rx_hash_key[40];
@@ -106,8 +110,8 @@ struct mlx4_ib_create_qp_rss {
 };
 
 struct mlx4_ib_create_qp {
-	__u64	buf_addr;
-	__u64	db_addr;
+	__aligned_u64 buf_addr;
+	__aligned_u64 db_addr;
 	__u8	log_sq_bb_count;
 	__u8	log_sq_stride;
 	__u8	sq_no_prefetch;
@@ -116,8 +120,8 @@ struct mlx4_ib_create_qp {
 };
 
 struct mlx4_ib_create_wq {
-	__u64	buf_addr;
-	__u64	db_addr;
+	__aligned_u64 buf_addr;
+	__aligned_u64 db_addr;
 	__u8	log_range_size;
 	__u8	reserved[3];
 	__u32   comp_mask;
@@ -154,6 +158,34 @@ enum mlx4_ib_rx_hash_fields {
 	MLX4_IB_RX_HASH_SRC_PORT_UDP	= 1 << 6,
 	MLX4_IB_RX_HASH_DST_PORT_UDP	= 1 << 7,
 	MLX4_IB_RX_HASH_INNER		= 1ULL << 31,
+};
+
+struct mlx4_ib_rss_caps {
+	__aligned_u64 rx_hash_fields_mask; /* enum mlx4_ib_rx_hash_fields */
+	__u8 rx_hash_function; /* enum mlx4_ib_rx_hash_function_flags */
+	__u8 reserved[7];
+};
+
+enum query_device_resp_mask {
+	MLX4_IB_QUERY_DEV_RESP_MASK_CORE_CLOCK_OFFSET = 1UL << 0,
+};
+
+struct mlx4_ib_tso_caps {
+	__u32 max_tso; /* Maximum tso payload size in bytes */
+	/* Corresponding bit will be set if qp type from
+	 * 'enum ib_qp_type' is supported.
+	 */
+	__u32 supported_qpts;
+};
+
+struct mlx4_uverbs_ex_query_device_resp {
+	__u32			comp_mask;
+	__u32			response_length;
+	__aligned_u64		hca_core_clock_offset;
+	__u32			max_inl_recv_sz;
+	__u32			reserved;
+	struct mlx4_ib_rss_caps	rss_caps;
+	struct mlx4_ib_tso_caps tso_caps;
 };
 
 #endif /* MLX4_ABI_USER_H */

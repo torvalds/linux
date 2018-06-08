@@ -196,7 +196,7 @@ struct notifier_block module_trace_bprintk_format_nb = {
 };
 
 int __trace_bprintk(unsigned long ip, const char *fmt, ...)
- {
+{
 	int ret;
 	va_list ap;
 
@@ -214,7 +214,7 @@ int __trace_bprintk(unsigned long ip, const char *fmt, ...)
 EXPORT_SYMBOL_GPL(__trace_bprintk);
 
 int __ftrace_vbprintk(unsigned long ip, const char *fmt, va_list ap)
- {
+{
 	if (unlikely(!fmt))
 		return 0;
 

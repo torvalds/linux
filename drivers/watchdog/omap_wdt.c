@@ -253,10 +253,10 @@ static int omap_wdt_probe(struct platform_device *pdev)
 	wdev->wdog.ops = &omap_wdt_ops;
 	wdev->wdog.min_timeout = TIMER_MARGIN_MIN;
 	wdev->wdog.max_timeout = TIMER_MARGIN_MAX;
+	wdev->wdog.timeout = TIMER_MARGIN_DEFAULT;
 	wdev->wdog.parent = &pdev->dev;
 
-	if (watchdog_init_timeout(&wdev->wdog, timer_margin, &pdev->dev) < 0)
-		wdev->wdog.timeout = TIMER_MARGIN_DEFAULT;
+	watchdog_init_timeout(&wdev->wdog, timer_margin, &pdev->dev);
 
 	watchdog_set_nowayout(&wdev->wdog, nowayout);
 

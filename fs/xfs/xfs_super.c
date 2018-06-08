@@ -722,7 +722,7 @@ xfs_close_devices(
 		struct block_device *logdev = mp->m_logdev_targp->bt_bdev;
 		struct dax_device *dax_logdev = mp->m_logdev_targp->bt_daxdev;
 
-		xfs_free_buftarg(mp, mp->m_logdev_targp);
+		xfs_free_buftarg(mp->m_logdev_targp);
 		xfs_blkdev_put(logdev);
 		fs_put_dax(dax_logdev);
 	}
@@ -730,11 +730,11 @@ xfs_close_devices(
 		struct block_device *rtdev = mp->m_rtdev_targp->bt_bdev;
 		struct dax_device *dax_rtdev = mp->m_rtdev_targp->bt_daxdev;
 
-		xfs_free_buftarg(mp, mp->m_rtdev_targp);
+		xfs_free_buftarg(mp->m_rtdev_targp);
 		xfs_blkdev_put(rtdev);
 		fs_put_dax(dax_rtdev);
 	}
-	xfs_free_buftarg(mp, mp->m_ddev_targp);
+	xfs_free_buftarg(mp->m_ddev_targp);
 	fs_put_dax(dax_ddev);
 }
 
@@ -808,9 +808,9 @@ xfs_open_devices(
 
  out_free_rtdev_targ:
 	if (mp->m_rtdev_targp)
-		xfs_free_buftarg(mp, mp->m_rtdev_targp);
+		xfs_free_buftarg(mp->m_rtdev_targp);
  out_free_ddev_targ:
-	xfs_free_buftarg(mp, mp->m_ddev_targp);
+	xfs_free_buftarg(mp->m_ddev_targp);
  out_close_rtdev:
 	xfs_blkdev_put(rtdev);
 	fs_put_dax(dax_rtdev);
@@ -1247,7 +1247,6 @@ xfs_quiesce_attr(
 STATIC int
 xfs_test_remount_options(
 	struct super_block	*sb,
-	struct xfs_mount	*mp,
 	char			*options)
 {
 	int			error = 0;
@@ -1278,7 +1277,7 @@ xfs_fs_remount(
 	int			error;
 
 	/* First, check for complete junk; i.e. invalid options */
-	error = xfs_test_remount_options(sb, mp, options);
+	error = xfs_test_remount_options(sb, options);
 	if (error)
 		return error;
 

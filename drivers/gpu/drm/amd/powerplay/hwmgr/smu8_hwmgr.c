@@ -319,13 +319,13 @@ static int smu8_get_system_info_data(struct pp_hwmgr *hwmgr)
 			GetIndexIntoMasterTable(DATA, IntegratedSystemInfo),
 			&size, &frev, &crev);
 
-	if (crev != 9) {
-		pr_err("Unsupported IGP table: %d %d\n", frev, crev);
+	if (info == NULL) {
+		pr_err("Could not retrieve the Integrated System Info Table!\n");
 		return -EINVAL;
 	}
 
-	if (info == NULL) {
-		pr_err("Could not retrieve the Integrated System Info Table!\n");
+	if (crev != 9) {
+		pr_err("Unsupported IGP table: %d %d\n", frev, crev);
 		return -EINVAL;
 	}
 

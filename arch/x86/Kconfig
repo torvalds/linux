@@ -29,6 +29,7 @@ config X86_64
 	select HAVE_ARCH_SOFT_DIRTY
 	select MODULES_USE_ELF_RELA
 	select X86_DEV_DMA_OPS
+	select ARCH_HAS_SYSCALL_WRAPPER
 
 #
 # Arch settings
@@ -1296,7 +1297,7 @@ config MICROCODE
 	  the Linux kernel.
 
 	  The preferred method to load microcode from a detached initrd is described
-	  in Documentation/x86/early-microcode.txt. For that you need to enable
+	  in Documentation/x86/microcode.txt. For that you need to enable
 	  CONFIG_BLK_DEV_INITRD in order for the loader to be able to scan the
 	  initrd for microcode blobs.
 
@@ -2007,6 +2008,9 @@ config KEXEC_FILE
 	  file based and takes file descriptors as system call argument
 	  for kernel and initramfs as opposed to list of segments as
 	  accepted by previous system call.
+
+config ARCH_HAS_KEXEC_PURGATORY
+	def_bool KEXEC_FILE
 
 config KEXEC_VERIFY_SIG
 	bool "Verify kernel signature during kexec_file_load() syscall"
@@ -2760,11 +2764,9 @@ config OLPC_XO1_RTC
 
 config OLPC_XO1_SCI
 	bool "OLPC XO-1 SCI extras"
-	depends on OLPC && OLPC_XO1_PM
+	depends on OLPC && OLPC_XO1_PM && GPIO_CS5535=y
 	depends on INPUT=y
 	select POWER_SUPPLY
-	select GPIO_CS5535
-	select MFD_CORE
 	---help---
 	  Add support for SCI-based features of the OLPC XO-1 laptop:
 	   - EC-driven system wakeups

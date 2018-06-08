@@ -71,7 +71,7 @@ static DEFINE_MUTEX(nvme_loop_ctrl_mutex);
 static void nvme_loop_queue_response(struct nvmet_req *nvme_req);
 static void nvme_loop_delete_ctrl(struct nvmet_ctrl *ctrl);
 
-static struct nvmet_fabrics_ops nvme_loop_ops;
+static const struct nvmet_fabrics_ops nvme_loop_ops;
 
 static inline int nvme_loop_queue_idx(struct nvme_loop_queue *queue)
 {
@@ -149,14 +149,6 @@ nvme_loop_timeout(struct request *rq, bool reserved)
 	return BLK_EH_HANDLED;
 }
 
-static inline blk_status_t nvme_loop_is_ready(struct nvme_loop_queue *queue,
-		struct request *rq)
-{
-	if (unlikely(!test_bit(NVME_LOOP_Q_LIVE, &queue->flags)))
-		return nvmf_check_init_req(&queue->ctrl->ctrl, rq);
-	return BLK_STS_OK;
-}
-
 static blk_status_t nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 		const struct blk_mq_queue_data *bd)
 {
@@ -166,7 +158,8 @@ static blk_status_t nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct nvme_loop_iod *iod = blk_mq_rq_to_pdu(req);
 	blk_status_t ret;
 
-	ret = nvme_loop_is_ready(queue, req);
+	ret = nvmf_check_if_ready(&queue->ctrl->ctrl, req,
+		test_bit(NVME_LOOP_Q_LIVE, &queue->flags), true);
 	if (unlikely(ret))
 		return ret;
 
@@ -174,15 +167,12 @@ static blk_status_t nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (ret)
 		return ret;
 
+	blk_mq_start_request(req);
 	iod->cmd.common.flags |= NVME_CMD_SGL_METABUF;
 	iod->req.port = nvmet_loop_port;
 	if (!nvmet_req_init(&iod->req, &queue->nvme_cq,
-			&queue->nvme_sq, &nvme_loop_ops)) {
-		nvme_cleanup_cmd(req);
-		blk_mq_start_request(req);
-		nvme_loop_queue_response(&iod->req);
+			&queue->nvme_sq, &nvme_loop_ops))
 		return BLK_STS_OK;
-	}
 
 	if (blk_rq_payload_bytes(req)) {
 		iod->sg_table.sgl = iod->first_sgl;
@@ -195,8 +185,6 @@ static blk_status_t nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 		iod->req.sg_cnt = blk_rq_map_sg(req->q, req, iod->sg_table.sgl);
 		iod->req.transfer_len = blk_rq_payload_bytes(req);
 	}
-
-	blk_mq_start_request(req);
 
 	schedule_work(&iod->work);
 	return BLK_STS_OK;
@@ -675,7 +663,7 @@ static void nvme_loop_remove_port(struct nvmet_port *port)
 		nvmet_loop_port = NULL;
 }
 
-static struct nvmet_fabrics_ops nvme_loop_ops = {
+static const struct nvmet_fabrics_ops nvme_loop_ops = {
 	.owner		= THIS_MODULE,
 	.type		= NVMF_TRTYPE_LOOP,
 	.add_port	= nvme_loop_add_port,

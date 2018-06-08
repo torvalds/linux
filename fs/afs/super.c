@@ -154,7 +154,7 @@ static int afs_show_devname(struct seq_file *m, struct dentry *root)
 		seq_puts(m, "none");
 		return 0;
 	}
-	
+
 	switch (volume->type) {
 	case AFSVL_RWVOL:
 		break;
@@ -269,7 +269,7 @@ static int afs_parse_device_name(struct afs_mount_params *params,
 	int cellnamesz;
 
 	_enter(",%s", name);
-	
+
 	if (!name) {
 		printk(KERN_ERR "kAFS: no volume name specified\n");
 		return -EINVAL;
@@ -418,7 +418,10 @@ static int afs_fill_super(struct super_block *sb,
 	if (!sb->s_root)
 		goto error;
 
-	sb->s_d_op = &afs_fs_dentry_operations;
+	if (params->dyn_root)
+		sb->s_d_op = &afs_dynroot_dentry_operations;
+	else
+		sb->s_d_op = &afs_fs_dentry_operations;
 
 	_leave(" = 0");
 	return 0;
@@ -676,7 +679,7 @@ static int afs_statfs(struct dentry *dentry, struct kstatfs *buf)
 		buf->f_bfree	= 0;
 		return 0;
 	}
-	
+
 	key = afs_request_key(vnode->volume->cell);
 	if (IS_ERR(key))
 		return PTR_ERR(key);

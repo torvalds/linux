@@ -70,12 +70,18 @@ static inline unsigned long COLOR_ALIGN(unsigned long addr,
  * Top of mmap area (just below the process stack).
  */
 
-static unsigned long mmap_upper_limit(void)
+/*
+ * When called from arch_get_unmapped_area(), rlim_stack will be NULL,
+ * indicating that "current" should be used instead of a passed-in
+ * value from the exec bprm as done with arch_pick_mmap_layout().
+ */
+static unsigned long mmap_upper_limit(struct rlimit *rlim_stack)
 {
 	unsigned long stack_base;
 
 	/* Limit stack size - see setup_arg_pages() in fs/exec.c */
-	stack_base = rlimit_max(RLIMIT_STACK);
+	stack_base = rlim_stack ? rlim_stack->rlim_max
+				: rlimit_max(RLIMIT_STACK);
 	if (stack_base > STACK_SIZE_MAX)
 		stack_base = STACK_SIZE_MAX;
 
@@ -127,7 +133,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	info.flags = 0;
 	info.length = len;
 	info.low_limit = mm->mmap_legacy_base;
-	info.high_limit = mmap_upper_limit();
+	info.high_limit = mmap_upper_limit(NULL);
 	info.align_mask = last_mmap ? (PAGE_MASK & (SHM_COLOUR - 1)) : 0;
 	info.align_offset = shared_align_offset(last_mmap, pgoff);
 	addr = vm_unmapped_area(&info);
@@ -250,10 +256,10 @@ static unsigned long mmap_legacy_base(void)
  * This function, called very early during the creation of a new
  * process VM image, sets up which VM layout function to use:
  */
-void arch_pick_mmap_layout(struct mm_struct *mm)
+void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
 {
 	mm->mmap_legacy_base = mmap_legacy_base();
-	mm->mmap_base = mmap_upper_limit();
+	mm->mmap_base = mmap_upper_limit(rlim_stack);
 
 	if (mmap_is_legacy()) {
 		mm->mmap_base = mm->mmap_legacy_base;

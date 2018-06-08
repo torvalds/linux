@@ -21,6 +21,8 @@ enum rcar_gen3_clk_types {
 	CLK_TYPE_GEN3_SD,
 	CLK_TYPE_GEN3_R,
 	CLK_TYPE_GEN3_PE,
+	CLK_TYPE_GEN3_Z,
+	CLK_TYPE_GEN3_Z2,
 };
 
 #define DEF_GEN3_SD(_name, _id, _parent, _offset)	\

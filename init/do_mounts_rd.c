@@ -255,7 +255,7 @@ int __init rd_load_image(char *from)
 		nblocks, ((nblocks-1)/devblocks)+1, nblocks>devblocks ? "s" : "");
 	for (i = 0, disk = 1; i < nblocks; i++) {
 		if (i && (i % devblocks == 0)) {
-			printk("done disk #%d.\n", disk++);
+			pr_cont("done disk #%d.\n", disk++);
 			rotate = 0;
 			if (ksys_close(in_fd)) {
 				printk("Error closing the disk.\n");
@@ -278,7 +278,7 @@ int __init rd_load_image(char *from)
 		}
 #endif
 	}
-	printk("done.\n");
+	pr_cont("done.\n");
 
 successful_load:
 	res = 1;

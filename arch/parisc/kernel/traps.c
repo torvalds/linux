@@ -627,9 +627,10 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 		   on condition  */
 		if(user_mode(regs)){
 			si.si_signo = SIGFPE;
-			/* Set to zero, and let the userspace app figure it out from
-			   the insn pointed to by si_addr */
-			si.si_code = FPE_FIXME;
+			/* Let userspace app figure it out from the insn pointed
+			 * to by si_addr.
+			 */
+			si.si_code = FPE_CONDTRAP;
 			si.si_addr = (void __user *) regs->iaoq[0];
 			force_sig_info(SIGFPE, &si, current);
 			return;

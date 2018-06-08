@@ -22,7 +22,7 @@
 #include <linux/kexec.h>
 #include <asm/processor.h>
 #include <asm/hypervisor.h>
-#include <asm/hyperv.h>
+#include <asm/hyperv-tlfs.h>
 #include <asm/mshyperv.h>
 #include <asm/desc.h>
 #include <asm/irq_regs.h>
@@ -216,8 +216,8 @@ static void __init ms_hyperv_init_platform(void)
 	pr_info("Hyper-V: features 0x%x, hints 0x%x\n",
 		ms_hyperv.features, ms_hyperv.hints);
 
-	ms_hyperv.max_vp_index = cpuid_eax(HVCPUID_IMPLEMENTATION_LIMITS);
-	ms_hyperv.max_lp_index = cpuid_ebx(HVCPUID_IMPLEMENTATION_LIMITS);
+	ms_hyperv.max_vp_index = cpuid_eax(HYPERV_CPUID_IMPLEMENT_LIMITS);
+	ms_hyperv.max_lp_index = cpuid_ebx(HYPERV_CPUID_IMPLEMENT_LIMITS);
 
 	pr_debug("Hyper-V: max %u virtual processors, %u logical processors\n",
 		 ms_hyperv.max_vp_index, ms_hyperv.max_lp_index);
@@ -225,11 +225,12 @@ static void __init ms_hyperv_init_platform(void)
 	/*
 	 * Extract host information.
 	 */
-	if (cpuid_eax(HVCPUID_VENDOR_MAXFUNCTION) >= HVCPUID_VERSION) {
-		hv_host_info_eax = cpuid_eax(HVCPUID_VERSION);
-		hv_host_info_ebx = cpuid_ebx(HVCPUID_VERSION);
-		hv_host_info_ecx = cpuid_ecx(HVCPUID_VERSION);
-		hv_host_info_edx = cpuid_edx(HVCPUID_VERSION);
+	if (cpuid_eax(HYPERV_CPUID_VENDOR_AND_MAX_FUNCTIONS) >=
+	    HYPERV_CPUID_VERSION) {
+		hv_host_info_eax = cpuid_eax(HYPERV_CPUID_VERSION);
+		hv_host_info_ebx = cpuid_ebx(HYPERV_CPUID_VERSION);
+		hv_host_info_ecx = cpuid_ecx(HYPERV_CPUID_VERSION);
+		hv_host_info_edx = cpuid_edx(HYPERV_CPUID_VERSION);
 
 		pr_info("Hyper-V Host Build:%d-%d.%d-%d-%d.%d\n",
 			hv_host_info_eax, hv_host_info_ebx >> 16,
@@ -241,6 +242,11 @@ static void __init ms_hyperv_init_platform(void)
 	    ms_hyperv.misc_features & HV_FEATURE_FREQUENCY_MSRS_AVAILABLE) {
 		x86_platform.calibrate_tsc = hv_get_tsc_khz;
 		x86_platform.calibrate_cpu = hv_get_tsc_khz;
+	}
+
+	if (ms_hyperv.hints & HV_X64_ENLIGHTENED_VMCS_RECOMMENDED) {
+		ms_hyperv.nested_features =
+			cpuid_eax(HYPERV_CPUID_NESTED_FEATURES);
 	}
 
 #ifdef CONFIG_X86_LOCAL_APIC

@@ -250,11 +250,11 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		wait_for_completion(&ia->ri_remove_done);
 
 		ia->ri_id = NULL;
-		ia->ri_pd = NULL;
 		ia->ri_device = NULL;
 		/* Return 1 to ensure the core destroys the id. */
 		return 1;
 	case RDMA_CM_EVENT_ESTABLISHED:
+		++xprt->rx_xprt.connect_cookie;
 		connstate = 1;
 		rpcrdma_update_connect_private(xprt, &event->param.conn);
 		goto connected;
@@ -273,6 +273,7 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 			connstate = -EAGAIN;
 		goto connected;
 	case RDMA_CM_EVENT_DISCONNECTED:
+		++xprt->rx_xprt.connect_cookie;
 		connstate = -ECONNABORTED;
 connected:
 		xprt->rx_buf.rb_credits = 1;
@@ -445,7 +446,9 @@ rpcrdma_ia_remove(struct rpcrdma_ia *ia)
 		ia->ri_id->qp = NULL;
 	}
 	ib_free_cq(ep->rep_attr.recv_cq);
+	ep->rep_attr.recv_cq = NULL;
 	ib_free_cq(ep->rep_attr.send_cq);
+	ep->rep_attr.send_cq = NULL;
 
 	/* The ULP is responsible for ensuring all DMA
 	 * mappings and MRs are gone.
@@ -458,6 +461,8 @@ rpcrdma_ia_remove(struct rpcrdma_ia *ia)
 		rpcrdma_dma_unmap_regbuf(req->rl_recvbuf);
 	}
 	rpcrdma_mrs_destroy(buf);
+	ib_dealloc_pd(ia->ri_pd);
+	ia->ri_pd = NULL;
 
 	/* Allow waiters to continue */
 	complete(&ia->ri_remove_done);
@@ -589,11 +594,8 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 
 	/* Client offers RDMA Read but does not initiate */
 	ep->rep_remote_cma.initiator_depth = 0;
-	if (ia->ri_device->attrs.max_qp_rd_atom > 32)	/* arbitrary but <= 255 */
-		ep->rep_remote_cma.responder_resources = 32;
-	else
-		ep->rep_remote_cma.responder_resources =
-						ia->ri_device->attrs.max_qp_rd_atom;
+	ep->rep_remote_cma.responder_resources =
+		min_t(int, U8_MAX, ia->ri_device->attrs.max_qp_rd_atom);
 
 	/* Limit transport retries so client can detect server
 	 * GID changes quickly. RPC layer handles re-establishing
@@ -628,14 +630,16 @@ rpcrdma_ep_destroy(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 {
 	cancel_delayed_work_sync(&ep->rep_connect_worker);
 
-	if (ia->ri_id->qp) {
+	if (ia->ri_id && ia->ri_id->qp) {
 		rpcrdma_ep_disconnect(ep, ia);
 		rdma_destroy_qp(ia->ri_id);
 		ia->ri_id->qp = NULL;
 	}
 
-	ib_free_cq(ep->rep_attr.recv_cq);
-	ib_free_cq(ep->rep_attr.send_cq);
+	if (ep->rep_attr.recv_cq)
+		ib_free_cq(ep->rep_attr.recv_cq);
+	if (ep->rep_attr.send_cq)
+		ib_free_cq(ep->rep_attr.send_cq);
 }
 
 /* Re-establish a connection after a device removal event.
@@ -1024,7 +1028,7 @@ rpcrdma_mrs_create(struct rpcrdma_xprt *r_xprt)
 	LIST_HEAD(free);
 	LIST_HEAD(all);
 
-	for (count = 0; count < 32; count++) {
+	for (count = 0; count < 3; count++) {
 		struct rpcrdma_mr *mr;
 		int rc;
 
@@ -1049,8 +1053,9 @@ rpcrdma_mrs_create(struct rpcrdma_xprt *r_xprt)
 	list_splice(&all, &buf->rb_all);
 	r_xprt->rx_stats.mrs_allocated += count;
 	spin_unlock(&buf->rb_mrlock);
-
 	trace_xprtrdma_createmrs(r_xprt, count);
+
+	xprt_write_space(&r_xprt->rx_xprt);
 }
 
 static void
@@ -1068,17 +1073,27 @@ struct rpcrdma_req *
 rpcrdma_create_req(struct rpcrdma_xprt *r_xprt)
 {
 	struct rpcrdma_buffer *buffer = &r_xprt->rx_buf;
+	struct rpcrdma_regbuf *rb;
 	struct rpcrdma_req *req;
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (req == NULL)
 		return ERR_PTR(-ENOMEM);
 
+	rb = rpcrdma_alloc_regbuf(RPCRDMA_HDRBUF_SIZE,
+				  DMA_TO_DEVICE, GFP_KERNEL);
+	if (IS_ERR(rb)) {
+		kfree(req);
+		return ERR_PTR(-ENOMEM);
+	}
+	req->rl_rdmabuf = rb;
+	xdr_buf_init(&req->rl_hdrbuf, rb->rg_base, rdmab_length(rb));
+	req->rl_buffer = buffer;
+	INIT_LIST_HEAD(&req->rl_registered);
+
 	spin_lock(&buffer->rb_reqslock);
 	list_add(&req->rl_all, &buffer->rb_allreqs);
 	spin_unlock(&buffer->rb_reqslock);
-	req->rl_buffer = &r_xprt->rx_buf;
-	INIT_LIST_HEAD(&req->rl_registered);
 	return req;
 }
 
@@ -1535,7 +1550,6 @@ rpcrdma_ep_post(struct rpcrdma_ia *ia,
 		struct rpcrdma_req *req)
 {
 	struct ib_send_wr *send_wr = &req->rl_sendctx->sc_wr;
-	struct ib_send_wr *send_wr_fail;
 	int rc;
 
 	if (req->rl_reply) {
@@ -1554,7 +1568,7 @@ rpcrdma_ep_post(struct rpcrdma_ia *ia,
 		--ep->rep_send_count;
 	}
 
-	rc = ib_post_send(ia->ri_id->qp, send_wr, &send_wr_fail);
+	rc = ia->ri_ops->ro_send(ia, req);
 	trace_xprtrdma_post_send(req, rc);
 	if (rc)
 		return -ENOTCONN;

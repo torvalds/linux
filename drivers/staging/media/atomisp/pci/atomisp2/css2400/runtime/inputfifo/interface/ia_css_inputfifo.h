@@ -42,12 +42,12 @@ void ia_css_inputfifo_send_input_frame(
 	unsigned int	width,
 	unsigned int	height,
 	unsigned int	ch_id,
-	enum ia_css_stream_format	input_format,
+	enum atomisp_input_format	input_format,
 	bool			two_ppc);
 
 void ia_css_inputfifo_start_frame(
 	unsigned int	ch_id,
-	enum ia_css_stream_format	input_format,
+	enum atomisp_input_format	input_format,
 	bool			two_ppc);
 
 void ia_css_inputfifo_send_line(
@@ -59,7 +59,7 @@ void ia_css_inputfifo_send_line(
 
 void ia_css_inputfifo_send_embedded_line(
 	unsigned int	ch_id,
-	enum ia_css_stream_format	data_type,
+	enum atomisp_input_format	data_type,
 	const unsigned short	*data,
 	unsigned int	width);
 

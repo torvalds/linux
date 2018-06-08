@@ -1894,7 +1894,7 @@ megasas_is_prp_possible(struct megasas_instance *instance,
  * then sending IOs with holes.
  *
  * Though driver can request block layer to disable IO merging by calling-
- * queue_flag_set_unlocked(QUEUE_FLAG_NOMERGES, sdev->request_queue) but
+ * blk_queue_flag_set(QUEUE_FLAG_NOMERGES, sdev->request_queue) but
  * user may tune sysfs parameter- nomerges again to 0 or 1.
  *
  * If in future IO scheduling is enabled with SCSI BLK MQ,

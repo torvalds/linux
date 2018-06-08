@@ -23,8 +23,8 @@ This function queries the presence of KVM cpuid leafs.
 
 
 function: define KVM_CPUID_FEATURES (0x40000001)
-returns : ebx, ecx, edx = 0
-          eax = and OR'ed group of (1 << flag), where each flags is:
+returns : ebx, ecx
+          eax = an OR'ed group of (1 << flag), where each flags is:
 
 
 flag                               || value || meaning
@@ -66,3 +66,14 @@ KVM_FEATURE_CLOCKSOURCE_STABLE_BIT ||    24 || host will warn if no guest-side
                                    ||       || per-cpu warps are expected in
                                    ||       || kvmclock.
 ------------------------------------------------------------------------------
+
+          edx = an OR'ed group of (1 << flag), where each flags is:
+
+
+flag                               || value || meaning
+==================================================================================
+KVM_HINTS_DEDICATED                ||     0 || guest checks this feature bit to
+                                   ||       || determine if there is vCPU pinning
+                                   ||       || and there is no vCPU over-commitment,
+                                   ||       || allowing optimizations
+----------------------------------------------------------------------------------

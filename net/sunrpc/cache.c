@@ -1450,8 +1450,8 @@ static ssize_t write_flush(struct file *file, const char __user *buf,
 			   struct cache_detail *cd)
 {
 	char tbuf[20];
-	char *bp, *ep;
-	time_t then, now;
+	char *ep;
+	time_t now;
 
 	if (*ppos || count > sizeof(tbuf)-1)
 		return -EINVAL;
@@ -1461,24 +1461,24 @@ static ssize_t write_flush(struct file *file, const char __user *buf,
 	simple_strtoul(tbuf, &ep, 0);
 	if (*ep && *ep != '\n')
 		return -EINVAL;
-
-	bp = tbuf;
-	then = get_expiry(&bp);
-	now = seconds_since_boot();
-	cd->nextcheck = now;
-	/* Can only set flush_time to 1 second beyond "now", or
-	 * possibly 1 second beyond flushtime.  This is because
-	 * flush_time never goes backwards so it mustn't get too far
-	 * ahead of time.
+	/* Note that while we check that 'buf' holds a valid number,
+	 * we always ignore the value and just flush everything.
+	 * Making use of the number leads to races.
 	 */
-	if (then >= now) {
-		/* Want to flush everything, so behave like cache_purge() */
-		if (cd->flush_time >= now)
-			now = cd->flush_time + 1;
-		then = now;
-	}
 
-	cd->flush_time = then;
+	now = seconds_since_boot();
+	/* Always flush everything, so behave like cache_purge()
+	 * Do this by advancing flush_time to the current time,
+	 * or by one second if it has already reached the current time.
+	 * Newly added cache entries will always have ->last_refresh greater
+	 * that ->flush_time, so they don't get flushed prematurely.
+	 */
+
+	if (cd->flush_time >= now)
+		now = cd->flush_time + 1;
+
+	cd->flush_time = now;
+	cd->nextcheck = now;
 	cache_flush();
 
 	*ppos += count;

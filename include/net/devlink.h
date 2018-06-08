@@ -232,14 +232,6 @@ struct devlink_dpipe_headers {
 };
 
 /**
- * struct devlink_resource_ops - resource ops
- * @occ_get: get the occupied size
- */
-struct devlink_resource_ops {
-	u64 (*occ_get)(struct devlink *devlink);
-};
-
-/**
  * struct devlink_resource_size_params - resource's size parameters
  * @size_min: minimum size which can be set
  * @size_max: maximum size which can be set
@@ -265,6 +257,8 @@ devlink_resource_size_params_init(struct devlink_resource_size_params *size_para
 	size_params->unit = unit;
 }
 
+typedef u64 devlink_resource_occ_get_t(void *priv);
+
 /**
  * struct devlink_resource - devlink resource
  * @name: name of the resource
@@ -277,7 +271,6 @@ devlink_resource_size_params_init(struct devlink_resource_size_params *size_para
  * @size_params: size parameters
  * @list: parent list
  * @resource_list: list of child resources
- * @resource_ops: resource ops
  */
 struct devlink_resource {
 	const char *name;
@@ -289,7 +282,8 @@ struct devlink_resource {
 	struct devlink_resource_size_params size_params;
 	struct list_head list;
 	struct list_head resource_list;
-	const struct devlink_resource_ops *resource_ops;
+	devlink_resource_occ_get_t *occ_get;
+	void *occ_get_priv;
 };
 
 #define DEVLINK_RESOURCE_ID_PARENT_TOP 0
@@ -409,8 +403,7 @@ int devlink_resource_register(struct devlink *devlink,
 			      u64 resource_size,
 			      u64 resource_id,
 			      u64 parent_resource_id,
-			      const struct devlink_resource_size_params *size_params,
-			      const struct devlink_resource_ops *resource_ops);
+			      const struct devlink_resource_size_params *size_params);
 void devlink_resources_unregister(struct devlink *devlink,
 				  struct devlink_resource *resource);
 int devlink_resource_size_get(struct devlink *devlink,
@@ -419,6 +412,12 @@ int devlink_resource_size_get(struct devlink *devlink,
 int devlink_dpipe_table_resource_set(struct devlink *devlink,
 				     const char *table_name, u64 resource_id,
 				     u64 resource_units);
+void devlink_resource_occ_get_register(struct devlink *devlink,
+				       u64 resource_id,
+				       devlink_resource_occ_get_t *occ_get,
+				       void *occ_get_priv);
+void devlink_resource_occ_get_unregister(struct devlink *devlink,
+					 u64 resource_id);
 
 #else
 
@@ -562,8 +561,7 @@ devlink_resource_register(struct devlink *devlink,
 			  u64 resource_size,
 			  u64 resource_id,
 			  u64 parent_resource_id,
-			  const struct devlink_resource_size_params *size_params,
-			  const struct devlink_resource_ops *resource_ops)
+			  const struct devlink_resource_size_params *size_params)
 {
 	return 0;
 }
@@ -587,6 +585,20 @@ devlink_dpipe_table_resource_set(struct devlink *devlink,
 				 u64 resource_units)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline void
+devlink_resource_occ_get_register(struct devlink *devlink,
+				  u64 resource_id,
+				  devlink_resource_occ_get_t *occ_get,
+				  void *occ_get_priv)
+{
+}
+
+static inline void
+devlink_resource_occ_get_unregister(struct devlink *devlink,
+				    u64 resource_id)
+{
 }
 
 #endif

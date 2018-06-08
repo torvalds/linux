@@ -346,11 +346,9 @@ static struct mtd_partition raumfeld_nand_partitions[] = {
 };
 
 static struct pxa3xx_nand_platform_data raumfeld_nand_info = {
-	.enable_arbiter	= 1,
 	.keep_config	= 1,
-	.num_cs		= 1,
-	.parts[0]	= raumfeld_nand_partitions,
-	.nr_parts[0]	= ARRAY_SIZE(raumfeld_nand_partitions),
+	.parts		= raumfeld_nand_partitions,
+	.nr_parts	= ARRAY_SIZE(raumfeld_nand_partitions),
 };
 
 /**
@@ -378,9 +376,9 @@ static struct gpiod_lookup_table raumfeld_rotary_gpios_table = {
 };
 
 static const struct property_entry raumfeld_rotary_properties[] __initconst = {
-	PROPERTY_ENTRY_INTEGER("rotary-encoder,steps-per-period", u32, 24),
-	PROPERTY_ENTRY_INTEGER("linux,axis",			  u32, REL_X),
-	PROPERTY_ENTRY_INTEGER("rotary-encoder,relative_axis",	  u32, 1),
+	PROPERTY_ENTRY_U32("rotary-encoder,steps-per-period", 24),
+	PROPERTY_ENTRY_U32("linux,axis",		      REL_X),
+	PROPERTY_ENTRY_U32("rotary-encoder,relative_axis",    1),
 	{ },
 };
 

@@ -138,9 +138,6 @@ static int __init itmt_legacy_init(void)
 	if (!id)
 		return -ENODEV;
 
-	if (boot_cpu_has(X86_FEATURE_HWP))
-		return -ENODEV;
-
 	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
 				"platform/x86/turbo_max_3:online",
 				itmt_legacy_cpu_online,	NULL);
