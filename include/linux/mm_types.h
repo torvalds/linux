@@ -146,15 +146,15 @@ struct page {
 			spinlock_t ptl;
 #endif
 		};
+		struct {	/* ZONE_DEVICE pages */
+			/** @pgmap: Points to the hosting device page map. */
+			struct dev_pagemap *pgmap;
+			unsigned long hmm_data;
+			unsigned long _zd_pad_1;	/* uses mapping */
+		};
 
 		/** @rcu_head: You can use this to free a page by RCU. */
 		struct rcu_head rcu_head;
-
-		/**
-		 * @pgmap: For ZONE_DEVICE pages, this points to the hosting
-		 * device page map.
-		 */
-		struct dev_pagemap *pgmap;
 	};
 
 	union {		/* This union is 4 bytes in size. */
