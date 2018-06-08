@@ -9,7 +9,7 @@
 
 /* Internal header file for autofs */
 
-#include <linux/auto_fs4.h>
+#include <linux/auto_fs.h>
 #include <linux/auto_dev-ioctl.h>
 
 #include <linux/kernel.h>
