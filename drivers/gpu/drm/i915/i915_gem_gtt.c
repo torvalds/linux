@@ -2024,7 +2024,7 @@ static struct i915_hw_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 	ppgtt->vm.dma = &i915->drm.pdev->dev;
 
 	ppgtt->vm.pte_encode = ggtt->vm.pte_encode;
-	if (intel_vgpu_active(i915) || IS_GEN6(i915))
+	if (IS_GEN6(i915))
 		ppgtt->switch_mm = gen6_mm_switch;
 	else if (IS_GEN7(i915))
 		ppgtt->switch_mm = gen7_mm_switch;
