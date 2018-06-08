@@ -3052,8 +3052,7 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 	file->f_path.dentry = DENTRY_NOT_SET;
 	file->f_path.mnt = nd->path.mnt;
 	error = dir->i_op->atomic_open(dir, dentry, file,
-				       open_to_namei_flags(open_flag),
-				       mode, opened);
+				       open_to_namei_flags(open_flag), mode);
 	d_lookup_done(dentry);
 	if (!error) {
 		/*

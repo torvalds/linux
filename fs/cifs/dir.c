@@ -465,8 +465,7 @@ out_err:
 
 int
 cifs_atomic_open(struct inode *inode, struct dentry *direntry,
-		 struct file *file, unsigned oflags, umode_t mode,
-		 int *opened)
+		 struct file *file, unsigned oflags, umode_t mode)
 {
 	int rc;
 	unsigned int xid;

@@ -241,8 +241,7 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 
 static int
 v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
-			  struct file *file, unsigned flags, umode_t omode,
-			  int *opened)
+			  struct file *file, unsigned flags, umode_t omode)
 {
 	int err = 0;
 	kgid_t gid;

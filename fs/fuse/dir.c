@@ -489,7 +489,7 @@ out_err:
 static int fuse_mknod(struct inode *, struct dentry *, umode_t, dev_t);
 static int fuse_atomic_open(struct inode *dir, struct dentry *entry,
 			    struct file *file, unsigned flags,
-			    umode_t mode, int *opened)
+			    umode_t mode)
 {
 	int err;
 	struct fuse_conn *fc = get_fuse_conn(dir);

@@ -1228,14 +1228,13 @@ static int gfs2_mknod(struct inode *dir, struct dentry *dentry, umode_t mode,
  * @file: The proposed new struct file
  * @flags: open flags
  * @mode: File mode
- * @opened: Flag to say whether the file has been opened or not
  *
  * Returns: error code or 0 for success
  */
 
 static int gfs2_atomic_open(struct inode *dir, struct dentry *dentry,
 			    struct file *file, unsigned flags,
-			    umode_t mode, int *opened)
+			    umode_t mode)
 {
 	struct dentry *d;
 	bool excl = !!(flags & O_EXCL);

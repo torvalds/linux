@@ -258,7 +258,7 @@ extern const struct dentry_operations nfs4_dentry_operations;
 
 /* dir.c */
 int nfs_atomic_open(struct inode *, struct dentry *, struct file *,
-		    unsigned, umode_t, int *);
+		    unsigned, umode_t);
 
 /* super.c */
 extern struct file_system_type nfs4_fs_type;

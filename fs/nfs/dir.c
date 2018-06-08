@@ -1451,7 +1451,7 @@ out:
 
 int nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 		    struct file *file, unsigned open_flags,
-		    umode_t mode, int *opened)
+		    umode_t mode)
 {
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
 	struct nfs_open_context *ctx;

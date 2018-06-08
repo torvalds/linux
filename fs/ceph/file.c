@@ -429,8 +429,7 @@ out:
  * file or symlink, return 1 so the VFS can retry.
  */
 int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
-		     struct file *file, unsigned flags, umode_t mode,
-		     int *opened)
+		     struct file *file, unsigned flags, umode_t mode)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_client(dir->i_sb);
 	struct ceph_mds_client *mdsc = fsc->mdsc;

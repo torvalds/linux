@@ -1781,7 +1781,7 @@ struct inode_operations {
 	int (*update_time)(struct inode *, struct timespec64 *, int);
 	int (*atomic_open)(struct inode *, struct dentry *,
 			   struct file *, unsigned open_flag,
-			   umode_t create_mode, int *opened);
+			   umode_t create_mode);
 	int (*tmpfile) (struct inode *, struct dentry *, umode_t);
 	int (*set_acl)(struct inode *, struct posix_acl *, int);
 } ____cacheline_aligned;

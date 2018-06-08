@@ -859,8 +859,7 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 
 static int
 v9fs_vfs_atomic_open(struct inode *dir, struct dentry *dentry,
-		     struct file *file, unsigned flags, umode_t mode,
-		     int *opened)
+		     struct file *file, unsigned flags, umode_t mode)
 {
 	int err;
 	u32 perm;
