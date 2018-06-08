@@ -508,14 +508,9 @@ tegra_gem_prime_map_dma_buf(struct dma_buf_attachment *attach,
 		return NULL;
 
 	if (bo->pages) {
-		struct scatterlist *sg;
-		unsigned int i;
-
-		if (sg_alloc_table(sgt, bo->num_pages, GFP_KERNEL))
+		if (sg_alloc_table_from_pages(sgt, bo->pages, bo->num_pages,
+					      0, gem->size, GFP_KERNEL) < 0)
 			goto free;
-
-		for_each_sg(sgt->sgl, sg, bo->num_pages, i)
-			sg_set_page(sg, bo->pages[i], PAGE_SIZE, 0);
 	} else {
 		if (dma_get_sgtable(attach->dev, sgt, bo->vaddr, bo->iova,
 				    gem->size) < 0)
