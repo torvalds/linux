@@ -63,7 +63,7 @@ static inline void xen_destroy_contiguous_region(phys_addr_t pstart,
 struct vm_area_struct;
 
 /*
- * xen_remap_domain_gfn_array() - map an array of foreign frames
+ * xen_remap_domain_gfn_array() - map an array of foreign frames by gfn
  * @vma:     VMA to map the pages into
  * @addr:    Address at which to map the pages
  * @gfn:     Array of GFNs to map
@@ -85,6 +85,28 @@ int xen_remap_domain_gfn_array(struct vm_area_struct *vma,
 			       int *err_ptr, pgprot_t prot,
 			       unsigned domid,
 			       struct page **pages);
+
+/*
+ * xen_remap_domain_mfn_array() - map an array of foreign frames by mfn
+ * @vma:     VMA to map the pages into
+ * @addr:    Address at which to map the pages
+ * @mfn:     Array of MFNs to map
+ * @nr:      Number entries in the MFN array
+ * @err_ptr: Returns per-MFN error status.
+ * @prot:    page protection mask
+ * @domid:   Domain owning the pages
+ * @pages:   Array of pages if this domain has an auto-translated physmap
+ *
+ * @mfn and @err_ptr may point to the same buffer, the MFNs will be
+ * overwritten by the error codes after they are mapped.
+ *
+ * Returns the number of successfully mapped frames, or a -ve error
+ * code.
+ */
+int xen_remap_domain_mfn_array(struct vm_area_struct *vma,
+			       unsigned long addr, xen_pfn_t *mfn, int nr,
+			       int *err_ptr, pgprot_t prot,
+			       unsigned int domid, struct page **pages);
 
 /* xen_remap_domain_gfn_range() - map a range of foreign frames
  * @vma:     VMA to map the pages into
