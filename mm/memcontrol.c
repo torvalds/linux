@@ -6280,11 +6280,7 @@ static ssize_t swap_max_write(struct kernfs_open_file *of,
 	if (err)
 		return err;
 
-	mutex_lock(&memcg_max_mutex);
-	err = page_counter_set_max(&memcg->swap, max);
-	mutex_unlock(&memcg_max_mutex);
-	if (err)
-		return err;
+	xchg(&memcg->swap.max, max);
 
 	return nbytes;
 }

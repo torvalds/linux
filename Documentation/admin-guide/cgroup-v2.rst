@@ -1245,6 +1245,11 @@ PAGE_SIZE multiple when read back.
 		because of running out of swap system-wide or max
 		limit.
 
+	When reduced under the current usage, the existing swap
+	entries are reclaimed gradually and the swap usage may stay
+	higher than the limit for an extended period of time.  This
+	reduces the impact on the workload and memory management.
+
 
 Usage Guidelines
 ~~~~~~~~~~~~~~~~
