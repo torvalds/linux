@@ -327,7 +327,7 @@ static int shmem_radix_tree_replace(struct address_space *mapping,
 			pgoff_t index, void *expected, void *replacement)
 {
 	struct radix_tree_node *node;
-	void **pslot;
+	void __rcu **pslot;
 	void *item;
 
 	VM_BUG_ON(!expected);
@@ -395,7 +395,7 @@ static bool shmem_confirm_swap(struct address_space *mapping,
 #ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
 /* ifdef here to avoid bloating shmem.o when not necessary */
 
-int shmem_huge __read_mostly;
+static int shmem_huge __read_mostly;
 
 #if defined(CONFIG_SYSFS) || defined(CONFIG_TMPFS)
 static int shmem_parse_huge(const char *str)
@@ -682,7 +682,7 @@ unsigned long shmem_partial_swap_usage(struct address_space *mapping,
 						pgoff_t start, pgoff_t end)
 {
 	struct radix_tree_iter iter;
-	void **slot;
+	void __rcu **slot;
 	struct page *page;
 	unsigned long swapped = 0;
 
@@ -1098,13 +1098,19 @@ static void shmem_evict_inode(struct inode *inode)
 static unsigned long find_swap_entry(struct radix_tree_root *root, void *item)
 {
 	struct radix_tree_iter iter;
-	void **slot;
+	void __rcu **slot;
 	unsigned long found = -1;
 	unsigned int checked = 0;
 
 	rcu_read_lock();
 	radix_tree_for_each_slot(slot, root, &iter, 0) {
-		if (*slot == item) {
+		void *entry = radix_tree_deref_slot(slot);
+
+		if (radix_tree_deref_retry(entry)) {
+			slot = radix_tree_iter_retry(&iter);
+			continue;
+		}
+		if (entry == item) {
 			found = iter.index;
 			break;
 		}
@@ -2622,7 +2628,7 @@ static loff_t shmem_file_llseek(struct file *file, loff_t offset, int whence)
 static void shmem_tag_pins(struct address_space *mapping)
 {
 	struct radix_tree_iter iter;
-	void **slot;
+	void __rcu **slot;
 	pgoff_t start;
 	struct page *page;
 
@@ -2664,7 +2670,7 @@ static void shmem_tag_pins(struct address_space *mapping)
 static int shmem_wait_for_pins(struct address_space *mapping)
 {
 	struct radix_tree_iter iter;
-	void **slot;
+	void __rcu **slot;
 	pgoff_t start;
 	struct page *page;
 	int error, scan;
