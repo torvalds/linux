@@ -31,7 +31,6 @@
 #include <linux/percpu.h>
 #include <linux/prctl.h>
 #include <linux/preempt.h>
-#include <linux/prctl.h>
 #include <linux/ptrace.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/task_stack.h>
@@ -129,7 +128,7 @@ static int sve_default_vl = -1;
 #ifdef CONFIG_ARM64_SVE
 
 /* Maximum supported vector length across all CPUs (initially poisoned) */
-int __ro_after_init sve_max_vl = -1;
+int __ro_after_init sve_max_vl = SVE_VL_MIN;
 /* Set of available vector lengths, as vq_to_bit(vq): */
 static __ro_after_init DECLARE_BITMAP(sve_vq_map, SVE_VQ_MAX);
 static void __percpu *efi_sve_state;
@@ -360,22 +359,13 @@ static int sve_proc_do_default_vl(struct ctl_table *table, int write,
 		return ret;
 
 	/* Writing -1 has the special meaning "set to max": */
-	if (vl == -1) {
-		/* Fail safe if sve_max_vl wasn't initialised */
-		if (WARN_ON(!sve_vl_valid(sve_max_vl)))
-			vl = SVE_VL_MIN;
-		else
-			vl = sve_max_vl;
-
-		goto chosen;
-	}
+	if (vl == -1)
+		vl = sve_max_vl;
 
 	if (!sve_vl_valid(vl))
 		return -EINVAL;
 
-	vl = find_supported_vector_length(vl);
-chosen:
-	sve_default_vl = vl;
+	sve_default_vl = find_supported_vector_length(vl);
 	return 0;
 }
 

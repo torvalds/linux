@@ -405,7 +405,7 @@ static int kvm_psci_call(struct kvm_vcpu *vcpu)
 int kvm_hvc_call_handler(struct kvm_vcpu *vcpu)
 {
 	u32 func_id = smccc_get_function(vcpu);
-	u32 val = PSCI_RET_NOT_SUPPORTED;
+	u32 val = SMCCC_RET_NOT_SUPPORTED;
 	u32 feature;
 
 	switch (func_id) {
@@ -417,7 +417,21 @@ int kvm_hvc_call_handler(struct kvm_vcpu *vcpu)
 		switch(feature) {
 		case ARM_SMCCC_ARCH_WORKAROUND_1:
 			if (kvm_arm_harden_branch_predictor())
-				val = 0;
+				val = SMCCC_RET_SUCCESS;
+			break;
+		case ARM_SMCCC_ARCH_WORKAROUND_2:
+			switch (kvm_arm_have_ssbd()) {
+			case KVM_SSBD_FORCE_DISABLE:
+			case KVM_SSBD_UNKNOWN:
+				break;
+			case KVM_SSBD_KERNEL:
+				val = SMCCC_RET_SUCCESS;
+				break;
+			case KVM_SSBD_FORCE_ENABLE:
+			case KVM_SSBD_MITIGATED:
+				val = SMCCC_RET_NOT_REQUIRED;
+				break;
+			}
 			break;
 		}
 		break;

@@ -35,6 +35,8 @@
 #ifdef __KERNEL__
 
 #include <linux/build_bug.h>
+#include <linux/cache.h>
+#include <linux/init.h>
 #include <linux/stddef.h>
 #include <linux/string.h>
 
@@ -243,6 +245,9 @@ static inline void spin_lock_prefetch(const void *ptr)
 void cpu_enable_pan(const struct arm64_cpu_capabilities *__unused);
 void cpu_enable_cache_maint_trap(const struct arm64_cpu_capabilities *__unused);
 void cpu_clear_disr(const struct arm64_cpu_capabilities *__unused);
+
+extern unsigned long __ro_after_init signal_minsigstksz; /* sigframe size */
+extern void __init minsigstksz_setup(void);
 
 /* Userspace interface for PR_SVE_{SET,GET}_VL prctl()s: */
 #define SVE_SET_VL(arg)	sve_set_current_vl(arg)

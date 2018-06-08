@@ -356,6 +356,11 @@ static inline int kvm_map_vectors(void)
 	return 0;
 }
 
+static inline int hyp_map_aux_data(void)
+{
+	return 0;
+}
+
 #define kvm_phys_to_vttbr(addr)		(addr)
 
 #endif	/* !__ASSEMBLY__ */
