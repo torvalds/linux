@@ -22,7 +22,7 @@
 #include <linux/stddef.h>
 #include <linux/device.h>
 
-#include "../portdrv.h"
+#include "portdrv.h"
 
 /* Override the existing corrected and uncorrected error masks */
 static bool aer_mask_override;

@@ -27,8 +27,8 @@
 #include <acpi/apei.h>
 #include <ras/ras_event.h>
 
-#include "../../pci.h"
-#include "../portdrv.h"
+#include "../pci.h"
+#include "portdrv.h"
 
 #define AER_ERROR_SOURCES_MAX		100
 #define AER_MAX_MULTI_ERR_DEVICES	5	/* Not likely to have more */
