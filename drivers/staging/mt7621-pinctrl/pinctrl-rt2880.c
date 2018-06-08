@@ -398,7 +398,7 @@ static int rt2880_pinmux_probe(struct platform_device *pdev)
 	struct device_node *np;
 
 	if (!rt2880_pinmux_data)
-		return -ENOSYS;
+		return -ENOTSUPP;
 
 	/* setup the private data */
 	p = devm_kzalloc(&pdev->dev, sizeof(struct rt2880_priv), GFP_KERNEL);
