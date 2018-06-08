@@ -575,6 +575,13 @@ config HID_MAYFLASH
 	Say Y here if you have HJZ Mayflash PS3 game controller adapters
 	and want to enable force feedback support.
 
+config HID_REDRAGON
+	tristate "Redragon keyboards"
+	depends on HID
+	default !EXPERT
+	---help---
+    Support for Redragon keyboards that need fix-ups to work properly.
+
 config HID_MICROSOFT
 	tristate "Microsoft non-fully HID-compliant devices"
 	depends on HID
@@ -837,6 +844,15 @@ config HID_SPEEDLINK
 	depends on HID
 	---help---
 	Support for Speedlink Vicious and Divine Cezanne mouse.
+
+config HID_STEAM
+	tristate "Steam Controller support"
+	depends on HID
+	select POWER_SUPPLY
+	---help---
+	Say Y here if you have a Steam Controller if you want to use it
+	without running the Steam Client. It supports both the wired and
+	the wireless adaptor.
 
 config HID_STEELSERIES
 	tristate "Steelseries SRW-S1 steering wheel support"
