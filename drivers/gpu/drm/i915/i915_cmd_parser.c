@@ -51,13 +51,11 @@
  * granting userspace undue privileges. There are three categories of privilege.
  *
  * First, commands which are explicitly defined as privileged or which should
- * only be used by the kernel driver. The parser generally rejects such
- * commands, though it may allow some from the drm master process.
+ * only be used by the kernel driver. The parser rejects such commands
  *
  * Second, commands which access registers. To support correct/enhanced
  * userspace functionality, particularly certain OpenGL extensions, the parser
- * provides a whitelist of registers which userspace may safely access (for both
- * normal and drm master processes).
+ * provides a whitelist of registers which userspace may safely access
  *
  * Third, commands which access privileged memory (i.e. GGTT, HWS page, etc).
  * The parser always rejects such commands.
@@ -82,9 +80,9 @@
  * in the per-engine command tables.
  *
  * Other command table entries map fairly directly to high level categories
- * mentioned above: rejected, master-only, register whitelist. The parser
- * implements a number of checks, including the privileged memory checks, via a
- * general bitmasking mechanism.
+ * mentioned above: rejected, register whitelist. The parser implements a number
+ * of checks, including the privileged memory checks, via a general bitmasking
+ * mechanism.
  */
 
 /*
@@ -102,8 +100,6 @@ struct drm_i915_cmd_descriptor {
 	 * CMD_DESC_REJECT: The command is never allowed
 	 * CMD_DESC_REGISTER: The command should be checked against the
 	 *                    register whitelist for the appropriate ring
-	 * CMD_DESC_MASTER: The command is allowed if the submitting process
-	 *                  is the DRM master
 	 */
 	u32 flags;
 #define CMD_DESC_FIXED    (1<<0)
@@ -111,7 +107,6 @@ struct drm_i915_cmd_descriptor {
 #define CMD_DESC_REJECT   (1<<2)
 #define CMD_DESC_REGISTER (1<<3)
 #define CMD_DESC_BITMASK  (1<<4)
-#define CMD_DESC_MASTER   (1<<5)
 
 	/*
 	 * The command's unique identification bits and the bitmask to get them.
@@ -207,14 +202,13 @@ struct drm_i915_cmd_table {
 #define R CMD_DESC_REJECT
 #define W CMD_DESC_REGISTER
 #define B CMD_DESC_BITMASK
-#define M CMD_DESC_MASTER
 
 /*            Command                          Mask   Fixed Len   Action
 	      ---------------------------------------------------------- */
 static const struct drm_i915_cmd_descriptor gen7_common_cmds[] = {
 	CMD(  MI_NOOP,                          SMI,    F,  1,      S  ),
 	CMD(  MI_USER_INTERRUPT,                SMI,    F,  1,      R  ),
-	CMD(  MI_WAIT_FOR_EVENT,                SMI,    F,  1,      M  ),
+	CMD(  MI_WAIT_FOR_EVENT,                SMI,    F,  1,      R  ),
 	CMD(  MI_ARB_CHECK,                     SMI,    F,  1,      S  ),
 	CMD(  MI_REPORT_HEAD,                   SMI,    F,  1,      S  ),
 	CMD(  MI_SUSPEND_FLUSH,                 SMI,    F,  1,      S  ),
@@ -311,7 +305,7 @@ static const struct drm_i915_cmd_descriptor hsw_render_cmds[] = {
 	CMD(  MI_URB_ATOMIC_ALLOC,              SMI,    F,  1,      S  ),
 	CMD(  MI_SET_APPID,                     SMI,    F,  1,      S  ),
 	CMD(  MI_RS_CONTEXT,                    SMI,    F,  1,      S  ),
-	CMD(  MI_LOAD_SCAN_LINES_INCL,          SMI,   !F,  0x3F,   M  ),
+	CMD(  MI_LOAD_SCAN_LINES_INCL,          SMI,   !F,  0x3F,   R  ),
 	CMD(  MI_LOAD_SCAN_LINES_EXCL,          SMI,   !F,  0x3F,   R  ),
 	CMD(  MI_LOAD_REGISTER_REG,             SMI,   !F,  0xFF,   W,
 	      .reg = { .offset = 1, .mask = 0x007FFFFC, .step = 1 }    ),
@@ -444,7 +438,7 @@ static const struct drm_i915_cmd_descriptor gen7_blt_cmds[] = {
 };
 
 static const struct drm_i915_cmd_descriptor hsw_blt_cmds[] = {
-	CMD(  MI_LOAD_SCAN_LINES_INCL,          SMI,   !F,  0x3F,   M  ),
+	CMD(  MI_LOAD_SCAN_LINES_INCL,          SMI,   !F,  0x3F,   R  ),
 	CMD(  MI_LOAD_SCAN_LINES_EXCL,          SMI,   !F,  0x3F,   R  ),
 };
 
@@ -461,7 +455,6 @@ static const struct drm_i915_cmd_descriptor noop_desc =
 #undef R
 #undef W
 #undef B
-#undef M
 
 static const struct drm_i915_cmd_table gen7_render_cmd_table[] = {
 	{ gen7_common_cmds, ARRAY_SIZE(gen7_common_cmds) },
@@ -610,47 +603,29 @@ static const struct drm_i915_reg_descriptor gen7_blt_regs[] = {
 	REG64_IDX(RING_TIMESTAMP, BLT_RING_BASE),
 };
 
-static const struct drm_i915_reg_descriptor ivb_master_regs[] = {
-	REG32(FORCEWAKE_MT),
-	REG32(DERRMR),
-	REG32(GEN7_PIPE_DE_LOAD_SL(PIPE_A)),
-	REG32(GEN7_PIPE_DE_LOAD_SL(PIPE_B)),
-	REG32(GEN7_PIPE_DE_LOAD_SL(PIPE_C)),
-};
-
-static const struct drm_i915_reg_descriptor hsw_master_regs[] = {
-	REG32(FORCEWAKE_MT),
-	REG32(DERRMR),
-};
-
 #undef REG64
 #undef REG32
 
 struct drm_i915_reg_table {
 	const struct drm_i915_reg_descriptor *regs;
 	int num_regs;
-	bool master;
 };
 
 static const struct drm_i915_reg_table ivb_render_reg_tables[] = {
-	{ gen7_render_regs, ARRAY_SIZE(gen7_render_regs), false },
-	{ ivb_master_regs, ARRAY_SIZE(ivb_master_regs), true },
+	{ gen7_render_regs, ARRAY_SIZE(gen7_render_regs) },
 };
 
 static const struct drm_i915_reg_table ivb_blt_reg_tables[] = {
-	{ gen7_blt_regs, ARRAY_SIZE(gen7_blt_regs), false },
-	{ ivb_master_regs, ARRAY_SIZE(ivb_master_regs), true },
+	{ gen7_blt_regs, ARRAY_SIZE(gen7_blt_regs) },
 };
 
 static const struct drm_i915_reg_table hsw_render_reg_tables[] = {
-	{ gen7_render_regs, ARRAY_SIZE(gen7_render_regs), false },
-	{ hsw_render_regs, ARRAY_SIZE(hsw_render_regs), false },
-	{ hsw_master_regs, ARRAY_SIZE(hsw_master_regs), true },
+	{ gen7_render_regs, ARRAY_SIZE(gen7_render_regs) },
+	{ hsw_render_regs, ARRAY_SIZE(hsw_render_regs) },
 };
 
 static const struct drm_i915_reg_table hsw_blt_reg_tables[] = {
-	{ gen7_blt_regs, ARRAY_SIZE(gen7_blt_regs), false },
-	{ hsw_master_regs, ARRAY_SIZE(hsw_master_regs), true },
+	{ gen7_blt_regs, ARRAY_SIZE(gen7_blt_regs) },
 };
 
 static u32 gen7_render_get_cmd_length_mask(u32 cmd_header)
@@ -1027,22 +1002,16 @@ __find_reg(const struct drm_i915_reg_descriptor *table, int count, u32 addr)
 }
 
 static const struct drm_i915_reg_descriptor *
-find_reg(const struct intel_engine_cs *engine, bool is_master, u32 addr)
+find_reg(const struct intel_engine_cs *engine, u32 addr)
 {
 	const struct drm_i915_reg_table *table = engine->reg_tables;
+	const struct drm_i915_reg_descriptor *reg = NULL;
 	int count = engine->reg_table_count;
 
-	for (; count > 0; ++table, --count) {
-		if (!table->master || is_master) {
-			const struct drm_i915_reg_descriptor *reg;
+	for (; !reg && (count > 0); ++table, --count)
+		reg = __find_reg(table->regs, table->num_regs, addr);
 
-			reg = __find_reg(table->regs, table->num_regs, addr);
-			if (reg != NULL)
-				return reg;
-		}
-	}
-
-	return NULL;
+	return reg;
 }
 
 /* Returns a vmap'd pointer to dst_obj, which the caller must unmap */
@@ -1127,20 +1096,13 @@ unpin_src:
 
 static bool check_cmd(const struct intel_engine_cs *engine,
 		      const struct drm_i915_cmd_descriptor *desc,
-		      const u32 *cmd, u32 length,
-		      const bool is_master)
+		      const u32 *cmd, u32 length)
 {
 	if (desc->flags & CMD_DESC_SKIP)
 		return true;
 
 	if (desc->flags & CMD_DESC_REJECT) {
 		DRM_DEBUG_DRIVER("CMD: Rejected command: 0x%08X\n", *cmd);
-		return false;
-	}
-
-	if ((desc->flags & CMD_DESC_MASTER) && !is_master) {
-		DRM_DEBUG_DRIVER("CMD: Rejected master-only command: 0x%08X\n",
-				 *cmd);
 		return false;
 	}
 
@@ -1157,7 +1119,7 @@ static bool check_cmd(const struct intel_engine_cs *engine,
 		     offset += step) {
 			const u32 reg_addr = cmd[offset] & desc->reg.mask;
 			const struct drm_i915_reg_descriptor *reg =
-				find_reg(engine, is_master, reg_addr);
+				find_reg(engine, reg_addr);
 
 			if (!reg) {
 				DRM_DEBUG_DRIVER("CMD: Rejected register 0x%08X in command: 0x%08X (%s)\n",
@@ -1244,7 +1206,6 @@ static bool check_cmd(const struct intel_engine_cs *engine,
  * @shadow_batch_obj: copy of the batch buffer in question
  * @batch_start_offset: byte offset in the batch at which execution starts
  * @batch_len: length of the commands in batch_obj
- * @is_master: is the submitting process the drm master?
  *
  * Parses the specified batch buffer looking for privilege violations as
  * described in the overview.
@@ -1256,8 +1217,7 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 			    struct drm_i915_gem_object *batch_obj,
 			    struct drm_i915_gem_object *shadow_batch_obj,
 			    u32 batch_start_offset,
-			    u32 batch_len,
-			    bool is_master)
+			    u32 batch_len)
 {
 	u32 *cmd, *batch_end;
 	struct drm_i915_cmd_descriptor default_desc = noop_desc;
@@ -1323,7 +1283,7 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 			break;
 		}
 
-		if (!check_cmd(engine, desc, cmd, length, is_master)) {
+		if (!check_cmd(engine, desc, cmd, length)) {
 			ret = -EACCES;
 			break;
 		}
