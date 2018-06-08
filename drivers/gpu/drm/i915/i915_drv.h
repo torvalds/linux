@@ -632,7 +632,7 @@ enum intel_pch {
 	PCH_KBP,        /* Kaby Lake PCH */
 	PCH_CNP,        /* Cannon Lake PCH */
 	PCH_ICP,	/* Ice Lake PCH */
-	PCH_NOP,
+	PCH_NOP,	/* PCH without south display */
 };
 
 enum intel_sbi_destination {
