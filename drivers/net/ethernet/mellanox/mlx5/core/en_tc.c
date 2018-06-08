@@ -189,6 +189,8 @@ struct mlx5e_mod_hdr_entry {
 	/* a node of a hash table which keeps all the mod_hdr entries */
 	struct hlist_node mod_hdr_hlist;
 
+	/* protects flows list */
+	spinlock_t flows_lock;
 	/* flows sharing the same mod_hdr entry */
 	struct list_head flows;
 
@@ -358,6 +360,7 @@ static int mlx5e_attach_mod_hdr(struct mlx5e_priv *priv,
 	mh->key.actions = (void *)mh + sizeof(*mh);
 	memcpy(mh->key.actions, key.actions, actions_size);
 	mh->key.num_actions = num_actions;
+	spin_lock_init(&mh->flows_lock);
 	INIT_LIST_HEAD(&mh->flows);
 	refcount_set(&mh->refcnt, 1);
 
@@ -372,7 +375,9 @@ static int mlx5e_attach_mod_hdr(struct mlx5e_priv *priv,
 
 attach_flow:
 	flow->mh = mh;
+	spin_lock(&mh->flows_lock);
 	list_add(&flow->mod_hdr, &mh->flows);
+	spin_unlock(&mh->flows_lock);
 	if (is_eswitch_flow)
 		flow->esw_attr->mod_hdr_id = mh->mod_hdr_id;
 	else
@@ -392,7 +397,9 @@ static void mlx5e_detach_mod_hdr(struct mlx5e_priv *priv,
 	if (!flow->mh)
 		return;
 
+	spin_lock(&flow->mh->flows_lock);
 	list_del(&flow->mod_hdr);
+	spin_unlock(&flow->mh->flows_lock);
 
 	mlx5e_mod_hdr_put(priv, flow->mh);
 	flow->mh = NULL;
