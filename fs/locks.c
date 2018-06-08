@@ -2633,12 +2633,10 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 
 	fl_pid = locks_translate_pid(fl, proc_pidns);
 	/*
-	 * If there isn't a fl_pid don't display who is waiting on
-	 * the lock if we are called from locks_show, or if we are
-	 * called from __show_fd_info - skip lock entirely
+	 * If lock owner is dead (and pid is freed) or not visible in current
+	 * pidns, zero is shown as a pid value. Check lock info from
+	 * init_pid_ns to get saved lock pid value.
 	 */
-	if (fl_pid == 0)
-		return;
 
 	if (fl->fl_file != NULL)
 		inode = locks_inode(fl->fl_file);
