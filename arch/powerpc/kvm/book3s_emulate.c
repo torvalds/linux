@@ -212,9 +212,11 @@ void kvmppc_emulate_tabort(struct kvm_vcpu *vcpu, int ra_val)
 	 * present.
 	 */
 	unsigned long guest_msr = kvmppc_get_msr(vcpu);
+	uint64_t org_texasr;
 
 	preempt_disable();
 	tm_enable();
+	org_texasr = mfspr(SPRN_TEXASR);
 	tm_abort(ra_val);
 
 	/* CR0 = 0 | MSR[TS] | 0 */
@@ -227,7 +229,7 @@ void kvmppc_emulate_tabort(struct kvm_vcpu *vcpu, int ra_val)
 	 * and tabort will be treated as nops in non-transactional
 	 * state.
 	 */
-	if (!(vcpu->arch.texasr & TEXASR_FS) &&
+	if (!(org_texasr & TEXASR_FS) &&
 			MSR_TM_ACTIVE(guest_msr)) {
 		vcpu->arch.texasr &= ~(TEXASR_PR | TEXASR_HV);
 		if (guest_msr & MSR_PR)
@@ -237,8 +239,6 @@ void kvmppc_emulate_tabort(struct kvm_vcpu *vcpu, int ra_val)
 			vcpu->arch.texasr |= TEXASR_HV;
 
 		vcpu->arch.tfiar = kvmppc_get_pc(vcpu);
-		mtspr(SPRN_TEXASR, vcpu->arch.texasr);
-		mtspr(SPRN_TFIAR, vcpu->arch.tfiar);
 	}
 	tm_disable();
 	preempt_enable();
