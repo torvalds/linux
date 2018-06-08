@@ -163,7 +163,7 @@ static int udp_diag_dump_one(struct sk_buff *in_skb, const struct nlmsghdr *nlh,
 static void udp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 		void *info)
 {
-	r->idiag_rqueue = sk_rmem_alloc_get(sk);
+	r->idiag_rqueue = udp_rqueue_get(sk);
 	r->idiag_wqueue = sk_wmem_alloc_get(sk);
 }
 
