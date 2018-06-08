@@ -3407,8 +3407,6 @@ opened:
 	if (!error && will_truncate)
 		error = handle_truncate(file);
 out:
-	if (unlikely(error) && (*opened & FILE_OPENED))
-		fput(file);
 	if (unlikely(error > 0)) {
 		WARN_ON(1);
 		error = -EINVAL;
@@ -3484,8 +3482,6 @@ static int do_tmpfile(struct nameidata *nd, unsigned flags,
 	if (error)
 		goto out2;
 	error = open_check_o_direct(file);
-	if (error)
-		fput(file);
 out2:
 	mnt_drop_write(path.mnt);
 out:
@@ -3545,20 +3541,20 @@ static struct file *path_openat(struct nameidata *nd,
 	}
 	terminate_walk(nd);
 out2:
-	if (!(opened & FILE_OPENED)) {
-		BUG_ON(!error);
-		fput(file);
+	if (likely(!error)) {
+		if (likely(opened & FILE_OPENED))
+			return file;
+		WARN_ON(1);
+		error = -EINVAL;
 	}
-	if (unlikely(error)) {
-		if (error == -EOPENSTALE) {
-			if (flags & LOOKUP_RCU)
-				error = -ECHILD;
-			else
-				error = -ESTALE;
-		}
-		file = ERR_PTR(error);
+	fput(file);
+	if (error == -EOPENSTALE) {
+		if (flags & LOOKUP_RCU)
+			error = -ECHILD;
+		else
+			error = -ESTALE;
 	}
-	return file;
+	return ERR_PTR(error);
 }
 
 struct file *do_filp_open(int dfd, struct filename *pathname,
