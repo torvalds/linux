@@ -20,7 +20,7 @@
 
 #include "pblk.h"
 
-unsigned int write_buffer_size;
+static unsigned int write_buffer_size;
 
 module_param(write_buffer_size, uint, 0644);
 MODULE_PARM_DESC(write_buffer_size, "number of entries in a write buffer");

@@ -952,6 +952,7 @@ nvmf_create_ctrl(struct device *dev, const char *buf, size_t count)
 		ret = -EBUSY;
 		goto out_unlock;
 	}
+	up_read(&nvmf_transports_rwsem);
 
 	ret = nvmf_check_required_opts(opts, ops->required_opts);
 	if (ret)
@@ -968,11 +969,11 @@ nvmf_create_ctrl(struct device *dev, const char *buf, size_t count)
 	}
 
 	module_put(ops->module);
-	up_read(&nvmf_transports_rwsem);
 	return ctrl;
 
 out_module_put:
 	module_put(ops->module);
+	goto out_free_opts;
 out_unlock:
 	up_read(&nvmf_transports_rwsem);
 out_free_opts:
