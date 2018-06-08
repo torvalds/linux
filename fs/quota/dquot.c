@@ -716,7 +716,7 @@ dqcache_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 	unsigned long freed = 0;
 
 	spin_lock(&dq_list_lock);
-	head = free_dquots.prev;
+	head = free_dquots.next;
 	while (head != &free_dquots && sc->nr_to_scan) {
 		dquot = list_entry(head, struct dquot, dq_free);
 		remove_dquot_hash(dquot);
@@ -725,7 +725,7 @@ dqcache_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 		do_destroy_dquot(dquot);
 		sc->nr_to_scan--;
 		freed++;
-		head = free_dquots.prev;
+		head = free_dquots.next;
 	}
 	spin_unlock(&dq_list_lock);
 	return freed;
