@@ -1199,6 +1199,22 @@ PAGE_SIZE multiple when read back.
 	Swap usage hard limit.  If a cgroup's swap usage reaches this
 	limit, anonymous memory of the cgroup will not be swapped out.
 
+  memory.swap.events
+	A read-only flat-keyed file which exists on non-root cgroups.
+	The following entries are defined.  Unless specified
+	otherwise, a value change in this file generates a file
+	modified event.
+
+	  max
+		The number of times the cgroup's swap usage was about
+		to go over the max boundary and swap allocation
+		failed.
+
+	  fail
+		The number of times swap allocation failed either
+		because of running out of swap system-wide or max
+		limit.
+
 
 Usage Guidelines
 ~~~~~~~~~~~~~~~~
