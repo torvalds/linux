@@ -516,14 +516,14 @@ tegra_gem_prime_map_dma_buf(struct dma_buf_attachment *attach,
 
 		for_each_sg(sgt->sgl, sg, bo->num_pages, i)
 			sg_set_page(sg, bo->pages[i], PAGE_SIZE, 0);
-
-		if (dma_map_sg(attach->dev, sgt->sgl, sgt->nents, dir) == 0)
-			goto free;
 	} else {
 		if (dma_get_sgtable(attach->dev, sgt, bo->vaddr, bo->iova,
 				    gem->size) < 0)
 			goto free;
 	}
+
+	if (dma_map_sg(attach->dev, sgt->sgl, sgt->nents, dir) == 0)
+		goto free;
 
 	return sgt;
 
