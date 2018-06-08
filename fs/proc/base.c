@@ -213,9 +213,12 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
 	char *page;
 	unsigned long count = _count;
 	unsigned long arg_start, arg_end, env_start, env_end;
-	unsigned long len1, len2, len;
-	unsigned long p;
+	unsigned long len1, len2;
 	char __user *buf0 = buf;
+	struct {
+		unsigned long p;
+		unsigned long len;
+	} cmdline[2];
 	char c;
 	int rv;
 
@@ -264,43 +267,21 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
 	if (access_remote_vm(mm, arg_end - 1, &c, 1, FOLL_ANON) != 1)
 		goto end;
 
+	cmdline[0].p = arg_start;
+	cmdline[0].len = len1;
 	if (c == '\0') {
 		/* Command line (set of strings) occupies whole ARGV. */
-		if (len1 <= *pos)
-			goto end;
-
-		p = arg_start + *pos;
-		len = len1 - *pos;
-		while (count > 0 && len > 0) {
-			unsigned int nr_read;
-
-			nr_read = min3(count, len, PAGE_SIZE);
-			nr_read = access_remote_vm(mm, p, page, nr_read, FOLL_ANON);
-			if (nr_read == 0)
-				goto end;
-
-			if (copy_to_user(buf, page, nr_read)) {
-				rv = -EFAULT;
-				goto out_free_page;
-			}
-
-			p	+= nr_read;
-			len	-= nr_read;
-			buf	+= nr_read;
-			count	-= nr_read;
-		}
+		cmdline[1].len = 0;
 	} else {
 		/*
 		 * Command line (1 string) occupies ARGV and
 		 * extends into ENVP.
 		 */
-		struct {
-			unsigned long p;
-			unsigned long len;
-		} cmdline[2] = {
-			{ .p = arg_start, .len = len1 },
-			{ .p = env_start, .len = len2 },
-		};
+		cmdline[1].p = env_start;
+		cmdline[1].len = len2;
+	}
+
+	{
 		loff_t pos1 = *pos;
 		unsigned int i;
 
@@ -310,6 +291,9 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
 			i++;
 		}
 		while (i < 2) {
+			unsigned long p;
+			unsigned long len;
+
 			p = cmdline[i].p + pos1;
 			len = cmdline[i].len - pos1;
 			while (count > 0 && len > 0) {
@@ -324,7 +308,10 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
 				 * Command line can be shorter than whole ARGV
 				 * even if last "marker" byte says it is not.
 				 */
-				nr_write = strnlen(page, nr_read);
+				if (c == '\0')
+					nr_write = nr_read;
+				else
+					nr_write = strnlen(page, nr_read);
 
 				if (copy_to_user(buf, page, nr_write)) {
 					rv = -EFAULT;
