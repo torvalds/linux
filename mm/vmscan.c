@@ -3318,11 +3318,15 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
 		.may_unmap = 1,
 		.may_swap = 1,
 	};
+
+	__fs_reclaim_acquire();
+
 	count_vm_event(PAGEOUTRUN);
 
 	do {
 		unsigned long nr_reclaimed = sc.nr_reclaimed;
 		bool raise_priority = true;
+		bool ret;
 
 		sc.reclaim_idx = classzone_idx;
 
@@ -3395,7 +3399,10 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
 			wake_up_all(&pgdat->pfmemalloc_wait);
 
 		/* Check if kswapd should be suspending */
-		if (try_to_freeze() || kthread_should_stop())
+		__fs_reclaim_release();
+		ret = try_to_freeze();
+		__fs_reclaim_acquire();
+		if (ret || kthread_should_stop())
 			break;
 
 		/*
@@ -3412,6 +3419,7 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
 
 out:
 	snapshot_refaults(NULL, pgdat);
+	__fs_reclaim_release();
 	/*
 	 * Return the order kswapd stopped reclaiming at as
 	 * prepare_kswapd_sleep() takes it into account. If another caller
@@ -3600,9 +3608,7 @@ kswapd_try_sleep:
 		 */
 		trace_mm_vmscan_kswapd_wake(pgdat->node_id, classzone_idx,
 						alloc_order);
-		fs_reclaim_acquire(GFP_KERNEL);
 		reclaim_order = balance_pgdat(pgdat, alloc_order, classzone_idx);
-		fs_reclaim_release(GFP_KERNEL);
 		if (reclaim_order < alloc_order)
 			goto kswapd_try_sleep;
 	}
@@ -3684,16 +3690,16 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
 	unsigned long nr_reclaimed;
 	unsigned int noreclaim_flag;
 
-	noreclaim_flag = memalloc_noreclaim_save();
 	fs_reclaim_acquire(sc.gfp_mask);
+	noreclaim_flag = memalloc_noreclaim_save();
 	reclaim_state.reclaimed_slab = 0;
 	p->reclaim_state = &reclaim_state;
 
 	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
 
 	p->reclaim_state = NULL;
-	fs_reclaim_release(sc.gfp_mask);
 	memalloc_noreclaim_restore(noreclaim_flag);
+	fs_reclaim_release(sc.gfp_mask);
 
 	return nr_reclaimed;
 }
@@ -3870,6 +3876,7 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
 	};
 
 	cond_resched();
+	fs_reclaim_acquire(sc.gfp_mask);
 	/*
 	 * We need to be able to allocate from the reserves for RECLAIM_UNMAP
 	 * and we also need to be able to write out pages for RECLAIM_WRITE
@@ -3877,7 +3884,6 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
 	 */
 	noreclaim_flag = memalloc_noreclaim_save();
 	p->flags |= PF_SWAPWRITE;
-	fs_reclaim_acquire(sc.gfp_mask);
 	reclaim_state.reclaimed_slab = 0;
 	p->reclaim_state = &reclaim_state;
 
@@ -3892,9 +3898,9 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
 	}
 
 	p->reclaim_state = NULL;
-	fs_reclaim_release(gfp_mask);
 	current->flags &= ~PF_SWAPWRITE;
 	memalloc_noreclaim_restore(noreclaim_flag);
+	fs_reclaim_release(sc.gfp_mask);
 	return sc.nr_reclaimed >= nr_pages;
 }
 

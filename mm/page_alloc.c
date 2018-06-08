@@ -3701,7 +3701,7 @@ should_compact_retry(struct alloc_context *ac, unsigned int order, int alloc_fla
 #endif /* CONFIG_COMPACTION */
 
 #ifdef CONFIG_LOCKDEP
-struct lockdep_map __fs_reclaim_map =
+static struct lockdep_map __fs_reclaim_map =
 	STATIC_LOCKDEP_MAP_INIT("fs_reclaim", &__fs_reclaim_map);
 
 static bool __need_fs_reclaim(gfp_t gfp_mask)
@@ -3726,17 +3726,27 @@ static bool __need_fs_reclaim(gfp_t gfp_mask)
 	return true;
 }
 
+void __fs_reclaim_acquire(void)
+{
+	lock_map_acquire(&__fs_reclaim_map);
+}
+
+void __fs_reclaim_release(void)
+{
+	lock_map_release(&__fs_reclaim_map);
+}
+
 void fs_reclaim_acquire(gfp_t gfp_mask)
 {
 	if (__need_fs_reclaim(gfp_mask))
-		lock_map_acquire(&__fs_reclaim_map);
+		__fs_reclaim_acquire();
 }
 EXPORT_SYMBOL_GPL(fs_reclaim_acquire);
 
 void fs_reclaim_release(gfp_t gfp_mask)
 {
 	if (__need_fs_reclaim(gfp_mask))
-		lock_map_release(&__fs_reclaim_map);
+		__fs_reclaim_release();
 }
 EXPORT_SYMBOL_GPL(fs_reclaim_release);
 #endif
@@ -3754,8 +3764,8 @@ __perform_reclaim(gfp_t gfp_mask, unsigned int order,
 
 	/* We now go into synchronous reclaim */
 	cpuset_memory_pressure_bump();
-	noreclaim_flag = memalloc_noreclaim_save();
 	fs_reclaim_acquire(gfp_mask);
+	noreclaim_flag = memalloc_noreclaim_save();
 	reclaim_state.reclaimed_slab = 0;
 	current->reclaim_state = &reclaim_state;
 
@@ -3763,8 +3773,8 @@ __perform_reclaim(gfp_t gfp_mask, unsigned int order,
 								ac->nodemask);
 
 	current->reclaim_state = NULL;
-	fs_reclaim_release(gfp_mask);
 	memalloc_noreclaim_restore(noreclaim_flag);
+	fs_reclaim_release(gfp_mask);
 
 	cond_resched();
 
