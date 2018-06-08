@@ -23,22 +23,6 @@
 #include "aerdrv.h"
 #include "../../pci.h"
 
-static int aer_probe(struct pcie_device *dev);
-static void aer_remove(struct pcie_device *dev);
-static void aer_error_resume(struct pci_dev *dev);
-static pci_ers_result_t aer_root_reset(struct pci_dev *dev);
-
-static struct pcie_port_service_driver aerdriver = {
-	.name		= "aer",
-	.port_type	= PCI_EXP_TYPE_ROOT_PORT,
-	.service	= PCIE_PORT_SERVICE_AER,
-
-	.probe		= aer_probe,
-	.remove		= aer_remove,
-	.error_resume	= aer_error_resume,
-	.reset_link	= aer_root_reset,
-};
-
 static int pcie_aer_disable;
 
 void pci_no_aer(void)
@@ -356,6 +340,17 @@ static void aer_error_resume(struct pci_dev *dev)
 	status &= ~mask; /* Clear corresponding nonfatal bits */
 	pci_write_config_dword(dev, pos + PCI_ERR_UNCOR_STATUS, status);
 }
+
+static struct pcie_port_service_driver aerdriver = {
+	.name		= "aer",
+	.port_type	= PCI_EXP_TYPE_ROOT_PORT,
+	.service	= PCIE_PORT_SERVICE_AER,
+
+	.probe		= aer_probe,
+	.remove		= aer_remove,
+	.error_resume	= aer_error_resume,
+	.reset_link	= aer_root_reset,
+};
 
 /**
  * aer_service_init - register AER root service driver
