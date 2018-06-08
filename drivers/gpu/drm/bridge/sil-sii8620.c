@@ -971,8 +971,17 @@ static int sii8620_hw_on(struct sii8620 *ctx)
 	ret = regulator_bulk_enable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
 	if (ret)
 		return ret;
+
 	usleep_range(10000, 20000);
-	return clk_prepare_enable(ctx->clk_xtal);
+	ret = clk_prepare_enable(ctx->clk_xtal);
+	if (ret)
+		return ret;
+
+	msleep(100);
+	gpiod_set_value(ctx->gpio_reset, 0);
+	msleep(100);
+
+	return 0;
 }
 
 static int sii8620_hw_off(struct sii8620 *ctx)
@@ -980,17 +989,6 @@ static int sii8620_hw_off(struct sii8620 *ctx)
 	clk_disable_unprepare(ctx->clk_xtal);
 	gpiod_set_value(ctx->gpio_reset, 1);
 	return regulator_bulk_disable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
-}
-
-static void sii8620_hw_reset(struct sii8620 *ctx)
-{
-	usleep_range(10000, 20000);
-	gpiod_set_value(ctx->gpio_reset, 0);
-	usleep_range(5000, 20000);
-	gpiod_set_value(ctx->gpio_reset, 1);
-	usleep_range(10000, 20000);
-	gpiod_set_value(ctx->gpio_reset, 0);
-	msleep(300);
 }
 
 static void sii8620_cbus_reset(struct sii8620 *ctx)
@@ -2112,7 +2110,6 @@ static void sii8620_cable_in(struct sii8620 *ctx)
 		dev_err(dev, "Error powering on, %d.\n", ret);
 		return;
 	}
-	sii8620_hw_reset(ctx);
 
 	sii8620_read_buf(ctx, REG_VND_IDL, ver, ARRAY_SIZE(ver));
 	ret = sii8620_clear_error(ctx);
