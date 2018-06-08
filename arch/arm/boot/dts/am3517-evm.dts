@@ -220,10 +220,6 @@
 	cd-gpios = <&gpio4 31 GPIO_ACTIVE_HIGH>; /* gpio_127 */
 };
 
-&mmc2 {
-      status = "disabled";
-};
-
 &mmc3 {
       status = "disabled";
 };
