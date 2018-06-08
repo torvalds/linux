@@ -5081,6 +5081,7 @@ static const struct hc_driver xhci_hc_driver = {
 	.hub_status_data =	xhci_hub_status_data,
 	.bus_suspend =		xhci_bus_suspend,
 	.bus_resume =		xhci_bus_resume,
+	.get_resuming_ports =	xhci_get_resuming_ports,
 
 	/*
 	 * call back when device connected and addressed

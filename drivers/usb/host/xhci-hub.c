@@ -1684,4 +1684,15 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 	return 0;
 }
 
+unsigned long xhci_get_resuming_ports(struct usb_hcd *hcd)
+{
+	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+	struct xhci_bus_state *bus_state;
+
+	bus_state = &xhci->bus_state[hcd_index(hcd)];
+
+	/* USB3 port wakeups are reported via usb_wakeup_notification() */
+	return bus_state->resuming_ports;	/* USB2 ports only */
+}
+
 #endif	/* CONFIG_PM */
