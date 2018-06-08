@@ -31,6 +31,8 @@
 
 #include "resource.h"
 #include "dcn10/dcn10_resource.h"
+#include "dcn10/dcn10_hubbub.h"
+
 #include "dcn_calc_math.h"
 
 #define DC_LOGGER \
@@ -889,7 +891,26 @@ bool dcn_validate_bandwidth(
 				ASSERT(pipe->plane_res.scl_data.ratios.vert.value != dc_fixpt_one.value
 					|| v->scaler_rec_out_width[input_idx] == v->viewport_height[input_idx]);
 			}
-			v->dcc_enable[input_idx] = pipe->plane_state->dcc.enable ? dcn_bw_yes : dcn_bw_no;
+
+			if (dc->debug.optimized_watermark) {
+				/*
+				 * this method requires us to always re-calculate watermark when dcc change
+				 * between flip.
+				 */
+				v->dcc_enable[input_idx] = pipe->plane_state->dcc.enable ? dcn_bw_yes : dcn_bw_no;
+			} else {
+				/*
+				 * allow us to disable dcc on the fly without re-calculating WM
+				 *
+				 * extra overhead for DCC is quite small.  for 1080p WM without
+				 * DCC is only 0.417us lower (urgent goes from 6.979us to 6.562us)
+				 */
+				unsigned int bpe;
+
+				v->dcc_enable[input_idx] = dc->res_pool->hubbub->funcs->dcc_support_pixel_format(
+						pipe->plane_state->format, &bpe) ? dcn_bw_yes : dcn_bw_no;
+			}
+
 			v->source_pixel_format[input_idx] = tl_pixel_format_to_bw_defs(
 					pipe->plane_state->format);
 			v->source_surface_mode[input_idx] = tl_sw_mode_to_bw_defs(
