@@ -153,7 +153,7 @@ static void hdmi_power_off_core(struct omap_hdmi *hdmi)
 static int hdmi_power_on_full(struct omap_hdmi *hdmi)
 {
 	int r;
-	struct videomode *vm;
+	const struct videomode *vm;
 	struct dss_pll_clock_info hdmi_cinfo = { 0 };
 	unsigned int pc;
 
