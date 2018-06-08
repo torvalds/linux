@@ -166,7 +166,7 @@ static struct autofs_sb_info *autofs_dev_ioctl_sbi(struct file *f)
 
 	if (f) {
 		inode = file_inode(f);
-		sbi = autofs4_sbi(inode->i_sb);
+		sbi = autofs_sbi(inode->i_sb);
 	}
 	return sbi;
 }
@@ -236,7 +236,7 @@ static int test_by_dev(const struct path *path, void *p)
 
 static int test_by_type(const struct path *path, void *p)
 {
-	struct autofs_info *ino = autofs4_dentry_ino(path->dentry);
+	struct autofs_info *ino = autofs_dentry_ino(path->dentry);
 
 	return ino && ino->sbi->type & *(unsigned *)p;
 }
@@ -324,7 +324,7 @@ static int autofs_dev_ioctl_ready(struct file *fp,
 	autofs_wqt_t token;
 
 	token = (autofs_wqt_t) param->ready.token;
-	return autofs4_wait_release(sbi, token, 0);
+	return autofs_wait_release(sbi, token, 0);
 }
 
 /*
@@ -340,7 +340,7 @@ static int autofs_dev_ioctl_fail(struct file *fp,
 
 	token = (autofs_wqt_t) param->fail.token;
 	status = param->fail.status < 0 ? param->fail.status : -ENOENT;
-	return autofs4_wait_release(sbi, token, status);
+	return autofs_wait_release(sbi, token, status);
 }
 
 /*
@@ -412,7 +412,7 @@ static int autofs_dev_ioctl_catatonic(struct file *fp,
 				      struct autofs_sb_info *sbi,
 				      struct autofs_dev_ioctl *param)
 {
-	autofs4_catatonic_mode(sbi);
+	autofs_catatonic_mode(sbi);
 	return 0;
 }
 
@@ -459,10 +459,10 @@ static int autofs_dev_ioctl_requester(struct file *fp,
 	if (err)
 		goto out;
 
-	ino = autofs4_dentry_ino(path.dentry);
+	ino = autofs_dentry_ino(path.dentry);
 	if (ino) {
 		err = 0;
-		autofs4_expire_wait(&path, 0);
+		autofs_expire_wait(&path, 0);
 		spin_lock(&sbi->fs_lock);
 		param->requester.uid =
 			from_kuid_munged(current_user_ns(), ino->uid);
@@ -489,7 +489,7 @@ static int autofs_dev_ioctl_expire(struct file *fp,
 	how = param->expire.how;
 	mnt = fp->f_path.mnt;
 
-	return autofs4_do_expire_multi(sbi->sb, mnt, sbi, how);
+	return autofs_do_expire_multi(sbi->sb, mnt, sbi, how);
 }
 
 /* Check if autofs mount point is in use */
@@ -686,7 +686,7 @@ static int _autofs_dev_ioctl(unsigned int command,
 		 * Admin needs to be able to set the mount catatonic in
 		 * order to be able to perform the re-open.
 		 */
-		if (!autofs4_oz_mode(sbi) &&
+		if (!autofs_oz_mode(sbi) &&
 		    cmd != AUTOFS_DEV_IOCTL_CATATONIC_CMD) {
 			err = -EACCES;
 			fput(fp);

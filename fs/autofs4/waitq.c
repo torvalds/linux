@@ -17,9 +17,9 @@
 /* We make this a static variable rather than a part of the superblock; it
  * is better if we don't reassign numbers easily even across filesystems
  */
-static autofs_wqt_t autofs4_next_wait_queue = 1;
+static autofs_wqt_t autofs_next_wait_queue = 1;
 
-void autofs4_catatonic_mode(struct autofs_sb_info *sbi)
+void autofs_catatonic_mode(struct autofs_sb_info *sbi)
 {
 	struct autofs_wait_queue *wq, *nwq;
 
@@ -49,8 +49,8 @@ void autofs4_catatonic_mode(struct autofs_sb_info *sbi)
 	mutex_unlock(&sbi->wq_mutex);
 }
 
-static int autofs4_write(struct autofs_sb_info *sbi,
-			 struct file *file, const void *addr, int bytes)
+static int autofs_write(struct autofs_sb_info *sbi,
+			struct file *file, const void *addr, int bytes)
 {
 	unsigned long sigpipe, flags;
 	const char *data = (const char *)addr;
@@ -82,7 +82,7 @@ static int autofs4_write(struct autofs_sb_info *sbi,
 	return bytes == 0 ? 0 : wr < 0 ? wr : -EIO;
 }
 
-static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
+static void autofs_notify_daemon(struct autofs_sb_info *sbi,
 				 struct autofs_wait_queue *wq,
 				 int type)
 {
@@ -167,23 +167,23 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 
 	mutex_unlock(&sbi->wq_mutex);
 
-	switch (ret = autofs4_write(sbi, pipe, &pkt, pktsz)) {
+	switch (ret = autofs_write(sbi, pipe, &pkt, pktsz)) {
 	case 0:
 		break;
 	case -ENOMEM:
 	case -ERESTARTSYS:
 		/* Just fail this one */
-		autofs4_wait_release(sbi, wq->wait_queue_token, ret);
+		autofs_wait_release(sbi, wq->wait_queue_token, ret);
 		break;
 	default:
-		autofs4_catatonic_mode(sbi);
+		autofs_catatonic_mode(sbi);
 		break;
 	}
 	fput(pipe);
 }
 
-static int autofs4_getpath(struct autofs_sb_info *sbi,
-			   struct dentry *dentry, char **name)
+static int autofs_getpath(struct autofs_sb_info *sbi,
+			  struct dentry *dentry, char **name)
 {
 	struct dentry *root = sbi->sb->s_root;
 	struct dentry *tmp;
@@ -228,7 +228,7 @@ rename_retry:
 }
 
 static struct autofs_wait_queue *
-autofs4_find_wait(struct autofs_sb_info *sbi, const struct qstr *qstr)
+autofs_find_wait(struct autofs_sb_info *sbi, const struct qstr *qstr)
 {
 	struct autofs_wait_queue *wq;
 
@@ -263,7 +263,7 @@ static int validate_request(struct autofs_wait_queue **wait,
 		return -ENOENT;
 
 	/* Wait in progress, continue; */
-	wq = autofs4_find_wait(sbi, qstr);
+	wq = autofs_find_wait(sbi, qstr);
 	if (wq) {
 		*wait = wq;
 		return 1;
@@ -272,7 +272,7 @@ static int validate_request(struct autofs_wait_queue **wait,
 	*wait = NULL;
 
 	/* If we don't yet have any info this is a new request */
-	ino = autofs4_dentry_ino(dentry);
+	ino = autofs_dentry_ino(dentry);
 	if (!ino)
 		return 1;
 
@@ -297,7 +297,7 @@ static int validate_request(struct autofs_wait_queue **wait,
 			if (sbi->catatonic)
 				return -ENOENT;
 
-			wq = autofs4_find_wait(sbi, qstr);
+			wq = autofs_find_wait(sbi, qstr);
 			if (wq) {
 				*wait = wq;
 				return 1;
@@ -351,7 +351,7 @@ static int validate_request(struct autofs_wait_queue **wait,
 	return 1;
 }
 
-int autofs4_wait(struct autofs_sb_info *sbi,
+int autofs_wait(struct autofs_sb_info *sbi,
 		 const struct path *path, enum autofs_notify notify)
 {
 	struct dentry *dentry = path->dentry;
@@ -399,7 +399,7 @@ int autofs4_wait(struct autofs_sb_info *sbi,
 	if (IS_ROOT(dentry) && autofs_type_trigger(sbi->type))
 		qstr.len = sprintf(name, "%p", dentry);
 	else {
-		qstr.len = autofs4_getpath(sbi, dentry, &name);
+		qstr.len = autofs_getpath(sbi, dentry, &name);
 		if (!qstr.len) {
 			kfree(name);
 			return -ENOENT;
@@ -430,15 +430,15 @@ int autofs4_wait(struct autofs_sb_info *sbi,
 			return -ENOMEM;
 		}
 
-		wq->wait_queue_token = autofs4_next_wait_queue;
-		if (++autofs4_next_wait_queue == 0)
-			autofs4_next_wait_queue = 1;
+		wq->wait_queue_token = autofs_next_wait_queue;
+		if (++autofs_next_wait_queue == 0)
+			autofs_next_wait_queue = 1;
 		wq->next = sbi->queues;
 		sbi->queues = wq;
 		init_waitqueue_head(&wq->queue);
 		memcpy(&wq->name, &qstr, sizeof(struct qstr));
-		wq->dev = autofs4_get_dev(sbi);
-		wq->ino = autofs4_get_ino(sbi);
+		wq->dev = autofs_get_dev(sbi);
+		wq->ino = autofs_get_ino(sbi);
 		wq->uid = current_uid();
 		wq->gid = current_gid();
 		wq->pid = pid;
@@ -467,9 +467,9 @@ int autofs4_wait(struct autofs_sb_info *sbi,
 			 wq->name.name, notify);
 
 		/*
-		 * autofs4_notify_daemon() may block; it will unlock ->wq_mutex
+		 * autofs_notify_daemon() may block; it will unlock ->wq_mutex
 		 */
-		autofs4_notify_daemon(sbi, wq, type);
+		autofs_notify_daemon(sbi, wq, type);
 	} else {
 		wq->wait_ctr++;
 		pr_debug("existing wait id = 0x%08lx, name = %.*s, nfy=%d\n",
@@ -500,12 +500,12 @@ int autofs4_wait(struct autofs_sb_info *sbi,
 		struct dentry *de = NULL;
 
 		/* direct mount or browsable map */
-		ino = autofs4_dentry_ino(dentry);
+		ino = autofs_dentry_ino(dentry);
 		if (!ino) {
 			/* If not lookup actual dentry used */
 			de = d_lookup(dentry->d_parent, &dentry->d_name);
 			if (de)
-				ino = autofs4_dentry_ino(de);
+				ino = autofs_dentry_ino(de);
 		}
 
 		/* Set mount requester */
@@ -530,7 +530,8 @@ int autofs4_wait(struct autofs_sb_info *sbi,
 }
 
 
-int autofs4_wait_release(struct autofs_sb_info *sbi, autofs_wqt_t wait_queue_token, int status)
+int autofs_wait_release(struct autofs_sb_info *sbi,
+			autofs_wqt_t wait_queue_token, int status)
 {
 	struct autofs_wait_queue *wq, **wql;
 
