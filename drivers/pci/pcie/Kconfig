@@ -24,7 +24,7 @@ config HOTPLUG_PCI_PCIE
 	  When in doubt, say N.
 
 config PCIEAER
-	bool "Root Port Advanced Error Reporting support"
+	bool "PCI Express Advanced Error Reporting support"
 	depends on PCIEPORTBUS
 	select RAS
 	default y
@@ -34,15 +34,15 @@ config PCIEAER
 	  Port will be handled by PCI Express AER driver.
 
 config PCIEAER_INJECT
-	tristate "PCIe AER error injector support"
+	tristate "PCI Express error injection support"
 	depends on PCIEAER
 	default n
 	help
 	  This enables PCI Express Root Port Advanced Error Reporting
 	  (AER) software error injector.
 
-	  Debugging PCIe AER code is quite difficult because it is hard
-	  to trigger various real hardware errors. Software based
+	  Debugging AER code is quite difficult because it is hard
+	  to trigger various real hardware errors. Software-based
 	  error injection can fake almost all kinds of errors with the
 	  help of a user space helper tool aer-inject, which can be
 	  gotten from:
@@ -127,7 +127,7 @@ config PCIE_PME
 	depends on PCIEPORTBUS && PM
 
 config PCIE_DPC
-	bool "PCIe Downstream Port Containment support"
+	bool "PCI Express Downstream Port Containment support"
 	depends on PCIEPORTBUS && PCIEAER
 	default n
 	help
@@ -138,7 +138,7 @@ config PCIE_DPC
 	  it is safe to answer N.
 
 config PCIE_PTM
-	bool "PCIe Precision Time Measurement support"
+	bool "PCI Express Precision Time Measurement support"
 	default n
 	depends on PCIEPORTBUS
 	help
