@@ -1891,19 +1891,19 @@ bool proc_fill_cache(struct file *file, struct dir_context *ctx,
 			struct dentry *res;
 			res = instantiate(child, task, ptr);
 			d_lookup_done(child);
-			if (IS_ERR(res))
-				goto end_instantiate;
 			if (unlikely(res)) {
 				dput(child);
 				child = res;
+				if (IS_ERR(child))
+					goto end_instantiate;
 			}
 		}
 	}
 	inode = d_inode(child);
 	ino = inode->i_ino;
 	type = inode->i_mode >> 12;
-end_instantiate:
 	dput(child);
+end_instantiate:
 	return dir_emit(ctx, name, len, ino, type);
 }
 
