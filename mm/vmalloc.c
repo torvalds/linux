@@ -1128,15 +1128,16 @@ void vm_unmap_ram(const void *mem, unsigned int count)
 	BUG_ON(addr > VMALLOC_END);
 	BUG_ON(!PAGE_ALIGNED(addr));
 
-	debug_check_no_locks_freed(mem, size);
-
 	if (likely(count <= VMAP_MAX_ALLOC)) {
+		debug_check_no_locks_freed(mem, size);
 		vb_free(mem, size);
 		return;
 	}
 
 	va = find_vmap_area(addr);
 	BUG_ON(!va);
+	debug_check_no_locks_freed((void *)va->va_start,
+				    (va->va_end - va->va_start));
 	free_unmap_vmap_area(va);
 }
 EXPORT_SYMBOL(vm_unmap_ram);
@@ -1511,8 +1512,8 @@ static void __vunmap(const void *addr, int deallocate_pages)
 		return;
 	}
 
-	debug_check_no_locks_freed(addr, get_vm_area_size(area));
-	debug_check_no_obj_freed(addr, get_vm_area_size(area));
+	debug_check_no_locks_freed(area->addr, get_vm_area_size(area));
+	debug_check_no_obj_freed(area->addr, get_vm_area_size(area));
 
 	remove_vm_area(addr);
 	if (deallocate_pages) {
