@@ -846,15 +846,10 @@ int finish_open(struct file *file, struct dentry *dentry,
 		int (*open)(struct inode *, struct file *),
 		int *opened)
 {
-	int error;
-	BUG_ON(*opened & FILE_OPENED); /* once it's opened, it's opened */
+	BUG_ON(file->f_mode & FMODE_OPENED); /* once it's opened, it's opened */
 
 	file->f_path.dentry = dentry;
-	error = do_dentry_open(file, d_backing_inode(dentry), open);
-	if (!error)
-		*opened |= FILE_OPENED;
-
-	return error;
+	return do_dentry_open(file, d_backing_inode(dentry), open);
 }
 EXPORT_SYMBOL(finish_open);
 

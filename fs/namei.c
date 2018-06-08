@@ -3395,11 +3395,10 @@ finish_open_created:
 	error = may_open(&nd->path, acc_mode, open_flag);
 	if (error)
 		goto out;
-	BUG_ON(*opened & FILE_OPENED); /* once it's opened, it's opened */
+	BUG_ON(file->f_mode & FMODE_OPENED); /* once it's opened, it's opened */
 	error = vfs_open(&nd->path, file);
 	if (error)
 		goto out;
-	*opened |= FILE_OPENED;
 opened:
 	error = ima_file_check(file, op->acc_mode, *opened);
 	if (!error && will_truncate)
@@ -3515,8 +3514,6 @@ static struct file *path_openat(struct nameidata *nd,
 
 	if (unlikely(file->f_flags & O_PATH)) {
 		error = do_o_path(nd, flags, file);
-		if (!error)
-			opened |= FILE_OPENED;
 		goto out2;
 	}
 
@@ -3537,7 +3534,7 @@ static struct file *path_openat(struct nameidata *nd,
 	terminate_walk(nd);
 out2:
 	if (likely(!error)) {
-		if (likely(opened & FILE_OPENED))
+		if (likely(file->f_mode & FMODE_OPENED))
 			return file;
 		WARN_ON(1);
 		error = -EINVAL;
