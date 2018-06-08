@@ -3265,7 +3265,7 @@ static void dsi_config_vp_num_line_buffers(struct dsi_data *dsi)
 
 	if (dsi->mode == OMAP_DSS_DSI_VIDEO_MODE) {
 		int bpp = dsi_get_pixel_size(dsi->pix_fmt);
-		struct videomode *vm = &dsi->vm;
+		const struct videomode *vm = &dsi->vm;
 		/*
 		 * Don't use line buffers if width is greater than the video
 		 * port's line buffer size
@@ -3394,7 +3394,7 @@ static void dsi_config_cmd_mode_interleaving(struct dsi_data *dsi)
 	int ddr_clk_pre, ddr_clk_post, enter_hs_mode_lat, exit_hs_mode_lat;
 	int tclk_trail, ths_exit, exiths_clk;
 	bool ddr_alwon;
-	struct videomode *vm = &dsi->vm;
+	const struct videomode *vm = &dsi->vm;
 	int bpp = dsi_get_pixel_size(dsi->pix_fmt);
 	int ndl = dsi->num_lanes_used - 1;
 	int dsi_fclk_hsdiv = dsi->user_dsi_cinfo.mX[HSDIV_DSI] + 1;
@@ -3644,7 +3644,7 @@ static void dsi_proto_timings(struct dsi_data *dsi)
 		int vbp = dsi->vm_timings.vbp;
 		int window_sync = dsi->vm_timings.window_sync;
 		bool hsync_end;
-		struct videomode *vm = &dsi->vm;
+		const struct videomode *vm = &dsi->vm;
 		int bpp = dsi_get_pixel_size(dsi->pix_fmt);
 		int tl, t_he, width_bytes;
 
@@ -4043,16 +4043,6 @@ static int dsi_display_init_dispc(struct dsi_data *dsi)
 		dsi->mgr_config.stallmode = false;
 		dsi->mgr_config.fifohandcheck = false;
 	}
-
-	/*
-	 * override interlace, logic level and edge related parameters in
-	 * videomode with default values
-	 */
-	dsi->vm.flags &= ~DISPLAY_FLAGS_INTERLACED;
-	dsi->vm.flags &= ~DISPLAY_FLAGS_HSYNC_LOW;
-	dsi->vm.flags |= DISPLAY_FLAGS_HSYNC_HIGH;
-	dsi->vm.flags &= ~DISPLAY_FLAGS_VSYNC_LOW;
-	dsi->vm.flags |= DISPLAY_FLAGS_VSYNC_HIGH;
 
 	dss_mgr_set_timings(&dsi->output, &dsi->vm);
 
@@ -4755,6 +4745,17 @@ static int dsi_set_config(struct omap_dss_device *dssdev,
 	dsi->user_dispc_cinfo = ctx.dispc_cinfo;
 
 	dsi->vm = ctx.vm;
+
+	/*
+	 * override interlace, logic level and edge related parameters in
+	 * videomode with default values
+	 */
+	dsi->vm.flags &= ~DISPLAY_FLAGS_INTERLACED;
+	dsi->vm.flags &= ~DISPLAY_FLAGS_HSYNC_LOW;
+	dsi->vm.flags |= DISPLAY_FLAGS_HSYNC_HIGH;
+	dsi->vm.flags &= ~DISPLAY_FLAGS_VSYNC_LOW;
+	dsi->vm.flags |= DISPLAY_FLAGS_VSYNC_HIGH;
+
 	dsi->vm_timings = ctx.dsi_vm;
 
 	mutex_unlock(&dsi->lock);
