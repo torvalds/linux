@@ -37,17 +37,6 @@ static inline void ksm_exit(struct mm_struct *mm)
 		__ksm_exit(mm);
 }
 
-static inline struct stable_node *page_stable_node(struct page *page)
-{
-	return PageKsm(page) ? page_rmapping(page) : NULL;
-}
-
-static inline void set_page_stable_node(struct page *page,
-					struct stable_node *stable_node)
-{
-	page->mapping = (void *)((unsigned long)stable_node | PAGE_MAPPING_KSM);
-}
-
 /*
  * When do_swap_page() first faults in from swap what used to be a KSM page,
  * no problem, it will be assigned to this vma's anon_vma; but thereafter,
