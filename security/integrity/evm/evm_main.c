@@ -25,6 +25,7 @@
 #include <linux/magic.h>
 
 #include <crypto/hash.h>
+#include <crypto/hash_info.h>
 #include <crypto/algapi.h>
 #include "evm.h"
 
@@ -134,8 +135,9 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 					     struct integrity_iint_cache *iint)
 {
 	struct evm_ima_xattr_data *xattr_data = NULL;
-	struct evm_ima_xattr_data calc;
+	struct signature_v2_hdr *hdr;
 	enum integrity_status evm_status = INTEGRITY_PASS;
+	struct evm_digest digest;
 	struct inode *inode;
 	int rc, xattr_len;
 
@@ -171,25 +173,28 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 			evm_status = INTEGRITY_FAIL;
 			goto out;
 		}
+
+		digest.hdr.algo = HASH_ALGO_SHA1;
 		rc = evm_calc_hmac(dentry, xattr_name, xattr_value,
-				   xattr_value_len, calc.digest);
+				   xattr_value_len, &digest);
 		if (rc)
 			break;
-		rc = crypto_memneq(xattr_data->digest, calc.digest,
-			    sizeof(calc.digest));
+		rc = crypto_memneq(xattr_data->digest, digest.digest,
+				   SHA1_DIGEST_SIZE);
 		if (rc)
 			rc = -EINVAL;
 		break;
 	case EVM_IMA_XATTR_DIGSIG:
 	case EVM_XATTR_PORTABLE_DIGSIG:
+		hdr = (struct signature_v2_hdr *)xattr_data;
+		digest.hdr.algo = hdr->hash_algo;
 		rc = evm_calc_hash(dentry, xattr_name, xattr_value,
-				   xattr_value_len, xattr_data->type,
-				   calc.digest);
+				   xattr_value_len, xattr_data->type, &digest);
 		if (rc)
 			break;
 		rc = integrity_digsig_verify(INTEGRITY_KEYRING_EVM,
 					(const char *)xattr_data, xattr_len,
-					calc.digest, sizeof(calc.digest));
+					digest.digest, digest.hdr.length);
 		if (!rc) {
 			inode = d_backing_inode(dentry);
 
