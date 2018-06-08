@@ -7,62 +7,38 @@
 #include <linux/medusa/l3/constants.h>
 #include <linux/medusa/l1/ipc.h>
 
-/**
- * ipc_sem_kobject - kobject for System V sempahores 
+#define ipc_security(ipc) ((struct medusa_l1_ipc_s*)ipcp->security)
+
+/*
+ * medusa_ipc_perm - struct holding relevant entries from 'kern_ipc_perm' (see linux/ipc.h)
  */
-struct ipc_sem_kobject {	
-	unsigned int ipc_class;
-	int sem_nsems;
-	MEDUSA_IPC_VARS;
-	MEDUSA_OBJECT_VARS;
+struct medusa_ipc_perm {
+	bool        deleted;
+	int     id;
+	key_t       key;
+	kuid_t      uid;
+ 	kgid_t      gid;
+	kuid_t      cuid;
+	kgid_t      cgid;
+	umode_t     mode;
+	unsigned long   seq;
 };
-extern MED_DECLARE_KCLASSOF(ipc_sem_kobject);
 
 /**
- * ipc_shm_kobject - kobject for System V shared memory 
- */
-struct ipc_shm_kobject {	
-	unsigned int ipc_class;
-	MEDUSA_IPC_VARS;
-	MEDUSA_OBJECT_VARS;
-};
-extern MED_DECLARE_KCLASSOF(ipc_shm_kobject);
-
-/**
- * ipc_msg_kobject - kobject for System V message queues 
- */
-struct ipc_msg_kobject {	
-	unsigned int ipc_class;
-	MEDUSA_IPC_VARS;
-	MEDUSA_OBJECT_VARS;
-};
-extern MED_DECLARE_KCLASSOF(ipc_msg_kobject);
-
-#define max_simple(max1, max2) ((max1 > max2) ? (max1) : (max2))
-
-/**
- * ipc_kobject - kobject structure used for 
- * semaphores, message queues and shared memory kobject defined above
- * DON'T have update/fetch function
- * for simplicity authorization server can update/fetch just concrete kobjects
- * @data - byte array used to store data of concrete kobject
- * e.g. ipc_sem_kobject defined in kobject_ipc_sem.h
+ * ipc_kobject - kobject structure for System V IPC: sem, msg, shm
+ *
+ * @ipc_class - type of System V IPC (sem, or msg, or shm)
+ * @
  */
 struct ipc_kobject {	
-	unsigned char data[max_simple(max_simple(sizeof(struct ipc_sem_kobject), sizeof(struct ipc_shm_kobject)), sizeof(struct ipc_msg_kobject))];	
+	unsigned int ipc_class;
+	struct medusa_ipc_perm ipc_perm;
 	MEDUSA_OBJECT_VARS;
 };
 extern MED_DECLARE_KCLASSOF(ipc_kobject);
 
-int ipc_kern2kobj(struct ipc_kobject * ipck, struct kern_ipc_perm * ipcp);
+struct ipc_kobject * ipc_kern2kobj(struct ipc_kobject *, struct kern_ipc_perm *);
+medusa_answer_t ipc_kobj2kern(struct ipc_kobject *, struct kern_ipc_perm *);
 
-void * ipc_sem_kern2kobj(struct kern_ipc_perm * ipcp);
-void * ipc_msg_kern2kobj(struct kern_ipc_perm * ipcp);
-void * ipc_shm_kern2kobj(struct kern_ipc_perm * ipcp);
-
-medusa_answer_t ipc_shm_kobj2kern(struct medusa_kobject_s * ipck, struct kern_ipc_perm * ipcp);
-medusa_answer_t ipc_msg_kobj2kern(struct medusa_kobject_s * ipck, struct kern_ipc_perm * ipcp);
-medusa_answer_t ipc_sem_kobj2kern(struct medusa_kobject_s * ipck, struct kern_ipc_perm * ipcp);
-
-void * ipc_fetch(unsigned int id, unsigned int ipc_class, void * (*ipc_kern2kobj)(struct kern_ipc_perm *));
-medusa_answer_t ipc_update(unsigned int id, unsigned int ipc_class, struct medusa_kobject_s * kobj, int (*ipc_kobj2kern)(struct medusa_kobject_s *, struct kern_ipc_perm *));
+struct medusa_kobject_s * ipc_fetch(struct medusa_kobject_s *);
+medusa_answer_t ipc_update(struct medusa_kobject_s * kobj);
