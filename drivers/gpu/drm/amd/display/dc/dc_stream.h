@@ -129,6 +129,7 @@ struct dc_stream_update {
 	unsigned long long *periodic_fn_vsync_delta;
 	struct dc_crtc_timing_adjust *adjust;
 	struct dc_info_packet *vrr_infopacket;
+	struct dc_info_packet *vsc_infopacket;
 
 	bool *dpms_off;
 };
