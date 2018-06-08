@@ -1,5 +1,5 @@
 
-Miscellaneous Device control operations for the autofs4 kernel module
+Miscellaneous Device control operations for the autofs kernel module
 ====================================================================
 
 The problem
@@ -164,7 +164,7 @@ possibility for future development due to the requirements of the
 message bus architecture.
 
 
-autofs4 Miscellaneous Device mount control interface
+autofs Miscellaneous Device mount control interface
 ====================================================
 
 The control interface is opening a device node, typically /dev/autofs.
@@ -244,7 +244,7 @@ The device node ioctl operations implemented by this interface are:
 AUTOFS_DEV_IOCTL_VERSION
 ------------------------
 
-Get the major and minor version of the autofs4 device ioctl kernel module
+Get the major and minor version of the autofs device ioctl kernel module
 implementation. It requires an initialized struct autofs_dev_ioctl as an
 input parameter and sets the version information in the passed in structure.
 It returns 0 on success or the error -EINVAL if a version mismatch is
@@ -254,7 +254,7 @@ detected.
 AUTOFS_DEV_IOCTL_PROTOVER_CMD and AUTOFS_DEV_IOCTL_PROTOSUBVER_CMD
 ------------------------------------------------------------------
 
-Get the major and minor version of the autofs4 protocol version understood
+Get the major and minor version of the autofs protocol version understood
 by loaded module. This call requires an initialized struct autofs_dev_ioctl
 with the ioctlfd field set to a valid autofs mount point descriptor
 and sets the requested version number in version field of struct args_protover
