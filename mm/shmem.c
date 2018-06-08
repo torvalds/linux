@@ -3209,6 +3209,15 @@ static int shmem_match(struct inode *ino, void *vfh)
 	return ino->i_ino == inum && fh[0] == ino->i_generation;
 }
 
+/* Find any alias of inode, but prefer a hashed alias */
+static struct dentry *shmem_find_alias(struct inode *inode)
+{
+	struct dentry *alias = d_find_alias(inode);
+
+	return alias ?: d_find_any_alias(inode);
+}
+
+
 static struct dentry *shmem_fh_to_dentry(struct super_block *sb,
 		struct fid *fid, int fh_len, int fh_type)
 {
@@ -3225,7 +3234,7 @@ static struct dentry *shmem_fh_to_dentry(struct super_block *sb,
 	inode = ilookup5(sb, (unsigned long)(inum + fid->raw[0]),
 			shmem_match, fid->raw);
 	if (inode) {
-		dentry = d_find_alias(inode);
+		dentry = shmem_find_alias(inode);
 		iput(inode);
 	}
 
