@@ -29,6 +29,12 @@ config AUTOFS4_FS
 	    and the module name are the same as the file system name there
 	    is no need to manually load module.
 	  - any "alias autofs autofs4" will need to be removed.
+	  - due to the autofs4 module directory name not being the same as
+	    its file system name autoloading didn't work properly. Because
+	    of this kernel configurations would often build the module into
+	    the kernel. This may have resulted in selinux policies that will
+	    prevent the autofs module from autoloading and will need to be
+	    updated.
 
 	  Please configure AUTOFS_FS instead of AUTOFS4_FS from now on.
 
