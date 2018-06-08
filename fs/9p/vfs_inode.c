@@ -925,7 +925,7 @@ v9fs_vfs_atomic_open(struct inode *dir, struct dentry *dentry,
 	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE)
 		v9fs_cache_inode_set_cookie(d_inode(dentry), file);
 
-	*opened |= FILE_CREATED;
+	file->f_mode |= FMODE_CREATED;
 out:
 	dput(res);
 	return err;

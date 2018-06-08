@@ -3061,7 +3061,7 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 		 * permission here.
 		 */
 		int acc_mode = op->acc_mode;
-		if (*opened & FILE_CREATED) {
+		if (file->f_mode & FMODE_CREATED) {
 			WARN_ON(!(open_flag & O_CREAT));
 			fsnotify_create(dir, dentry);
 			acc_mode = 0;
@@ -3077,7 +3077,7 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 				dput(dentry);
 				dentry = file->f_path.dentry;
 			}
-			if (*opened & FILE_CREATED)
+			if (file->f_mode & FMODE_CREATED)
 				fsnotify_create(dir, dentry);
 			if (unlikely(d_is_negative(dentry))) {
 				error = -ENOENT;
@@ -3126,7 +3126,7 @@ static int lookup_open(struct nameidata *nd, struct path *path,
 	if (unlikely(IS_DEADDIR(dir_inode)))
 		return -ENOENT;
 
-	*opened &= ~FILE_CREATED;
+	file->f_mode &= ~FMODE_CREATED;
 	dentry = d_lookup(dir, &nd->last);
 	for (;;) {
 		if (!dentry) {
@@ -3211,7 +3211,7 @@ no_open:
 
 	/* Negative dentry, just create the file */
 	if (!dentry->d_inode && (open_flag & O_CREAT)) {
-		*opened |= FILE_CREATED;
+		file->f_mode |= FMODE_CREATED;
 		audit_inode_child(dir_inode, dentry, AUDIT_TYPE_CHILD_CREATE);
 		if (!dir_inode->i_op->create) {
 			error = -EACCES;
@@ -3318,7 +3318,7 @@ static int do_last(struct nameidata *nd,
 		if (error)
 			goto out;
 
-		if ((*opened & FILE_CREATED) ||
+		if ((file->f_mode & FMODE_CREATED) ||
 		    !S_ISREG(file_inode(file)->i_mode))
 			will_truncate = false;
 
@@ -3326,7 +3326,7 @@ static int do_last(struct nameidata *nd,
 		goto opened;
 	}
 
-	if (*opened & FILE_CREATED) {
+	if (file->f_mode & FMODE_CREATED) {
 		/* Don't check for write permission, don't truncate */
 		open_flag &= ~O_TRUNC;
 		will_truncate = false;
@@ -3400,7 +3400,8 @@ finish_open_created:
 	if (error)
 		goto out;
 opened:
-	error = ima_file_check(file, op->acc_mode, *opened);
+	error = ima_file_check(file, op->acc_mode,
+				file->f_mode & FMODE_CREATED ? FILE_CREATED : 0);
 	if (!error && will_truncate)
 		error = handle_truncate(file);
 out:

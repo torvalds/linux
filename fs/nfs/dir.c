@@ -1461,6 +1461,7 @@ int nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 	struct inode *inode;
 	unsigned int lookup_flags = 0;
 	bool switched = false;
+	int created = 0;
 	int err;
 
 	/* Expect a negative dentry */
@@ -1521,7 +1522,9 @@ int nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 		goto out;
 
 	trace_nfs_atomic_open_enter(dir, ctx, open_flags);
-	inode = NFS_PROTO(dir)->open_context(dir, ctx, open_flags, &attr, opened);
+	inode = NFS_PROTO(dir)->open_context(dir, ctx, open_flags, &attr, &created);
+	if (created)
+		file->f_mode |= FMODE_CREATED;
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		trace_nfs_atomic_open_exit(dir, ctx, open_flags, err);

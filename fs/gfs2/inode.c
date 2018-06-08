@@ -767,7 +767,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	mark_inode_dirty(inode);
 	d_instantiate(dentry, inode);
 	if (file) {
-		*opened |= FILE_CREATED;
+		file->f_mode |= FMODE_CREATED;
 		error = finish_open(file, dentry, gfs2_open_common, opened);
 	}
 	gfs2_glock_dq_uninit(ghs);
