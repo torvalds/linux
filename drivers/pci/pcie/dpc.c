@@ -13,7 +13,6 @@
 
 #include "portdrv.h"
 #include "../pci.h"
-#include "aer/aerdrv.h"
 
 struct dpc_dev {
 	struct pcie_device	*dev;
