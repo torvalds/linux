@@ -110,6 +110,7 @@ struct mlx5e_neigh {
 struct mlx5e_neigh_hash_entry {
 	struct rhash_head rhash_node;
 	struct mlx5e_neigh m_neigh;
+	struct mlx5e_priv *priv;
 
 	/* Save the neigh hash entry in a list on the representor in
 	 * addition to the hash table. In order to iterate easily over the
@@ -145,6 +146,8 @@ enum {
 };
 
 struct mlx5e_encap_entry {
+	/* attached neigh hash entry */
+	struct mlx5e_neigh_hash_entry *nhe;
 	/* neigh hash entry list of encaps sharing the same neigh */
 	struct list_head encap_list;
 	struct mlx5e_neigh m_neigh;

@@ -524,6 +524,21 @@ void mlx5e_rep_queue_neigh_stats_work(struct mlx5e_priv *priv)
 				 neigh_update->min_interval);
 }
 
+static bool mlx5e_rep_neigh_entry_hold(struct mlx5e_neigh_hash_entry *nhe)
+{
+	return refcount_inc_not_zero(&nhe->refcnt);
+}
+
+static void mlx5e_rep_neigh_entry_remove(struct mlx5e_neigh_hash_entry *nhe);
+
+static void mlx5e_rep_neigh_entry_release(struct mlx5e_neigh_hash_entry *nhe)
+{
+	if (refcount_dec_and_test(&nhe->refcnt)) {
+		mlx5e_rep_neigh_entry_remove(nhe);
+		kfree(nhe);
+	}
+}
+
 static void mlx5e_rep_neigh_stats_work(struct work_struct *work)
 {
 	struct mlx5e_rep_priv *rpriv = container_of(work, struct mlx5e_rep_priv,
@@ -536,21 +551,14 @@ static void mlx5e_rep_neigh_stats_work(struct work_struct *work)
 	if (!list_empty(&rpriv->neigh_update.neigh_list))
 		mlx5e_rep_queue_neigh_stats_work(priv);
 
-	list_for_each_entry(nhe, &rpriv->neigh_update.neigh_list, neigh_list)
-		mlx5e_tc_update_neigh_used_value(nhe);
+	list_for_each_entry(nhe, &rpriv->neigh_update.neigh_list, neigh_list) {
+		if (mlx5e_rep_neigh_entry_hold(nhe)) {
+			mlx5e_tc_update_neigh_used_value(nhe);
+			mlx5e_rep_neigh_entry_release(nhe);
+		}
+	}
 
 	rtnl_unlock();
-}
-
-static void mlx5e_rep_neigh_entry_hold(struct mlx5e_neigh_hash_entry *nhe)
-{
-	refcount_inc(&nhe->refcnt);
-}
-
-static void mlx5e_rep_neigh_entry_release(struct mlx5e_neigh_hash_entry *nhe)
-{
-	if (refcount_dec_and_test(&nhe->refcnt))
-		kfree(nhe);
 }
 
 static void mlx5e_rep_update_flows(struct mlx5e_priv *priv,
@@ -881,14 +889,11 @@ static int mlx5e_rep_netevent_event(struct notifier_block *nb,
 		 */
 		spin_lock_bh(&neigh_update->encap_lock);
 		nhe = mlx5e_rep_neigh_entry_lookup(priv, &m_neigh);
-		if (!nhe) {
-			spin_unlock_bh(&neigh_update->encap_lock);
-			return NOTIFY_DONE;
-		}
-
-		mlx5e_rep_neigh_entry_hold(nhe);
-		mlx5e_rep_queue_neigh_update_work(priv, nhe, n);
 		spin_unlock_bh(&neigh_update->encap_lock);
+		if (!nhe)
+			return NOTIFY_DONE;
+
+		mlx5e_rep_queue_neigh_update_work(priv, nhe, n);
 		break;
 
 	case NETEVENT_DELAY_PROBE_TIME_UPDATE:
@@ -995,10 +1000,9 @@ static int mlx5e_rep_neigh_entry_insert(struct mlx5e_priv *priv,
 	return err;
 }
 
-static void mlx5e_rep_neigh_entry_remove(struct mlx5e_priv *priv,
-					 struct mlx5e_neigh_hash_entry *nhe)
+static void mlx5e_rep_neigh_entry_remove(struct mlx5e_neigh_hash_entry *nhe)
 {
-	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+	struct mlx5e_rep_priv *rpriv = nhe->priv->ppriv;
 
 	spin_lock_bh(&rpriv->neigh_update.encap_lock);
 
@@ -1019,9 +1023,11 @@ mlx5e_rep_neigh_entry_lookup(struct mlx5e_priv *priv,
 {
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5e_neigh_update_table *neigh_update = &rpriv->neigh_update;
+	struct mlx5e_neigh_hash_entry *nhe;
 
-	return rhashtable_lookup_fast(&neigh_update->neigh_ht, m_neigh,
-				      mlx5e_neigh_ht_params);
+	nhe = rhashtable_lookup_fast(&neigh_update->neigh_ht, m_neigh,
+				     mlx5e_neigh_ht_params);
+	return nhe && mlx5e_rep_neigh_entry_hold(nhe) ? nhe : NULL;
 }
 
 static int mlx5e_rep_neigh_entry_create(struct mlx5e_priv *priv,
@@ -1034,6 +1040,7 @@ static int mlx5e_rep_neigh_entry_create(struct mlx5e_priv *priv,
 	if (!*nhe)
 		return -ENOMEM;
 
+	(*nhe)->priv = priv;
 	memcpy(&(*nhe)->m_neigh, &e->m_neigh, sizeof(e->m_neigh));
 	INIT_WORK(&(*nhe)->neigh_update_work, mlx5e_rep_neigh_update);
 	INIT_LIST_HEAD(&(*nhe)->encap_list);
@@ -1047,19 +1054,6 @@ static int mlx5e_rep_neigh_entry_create(struct mlx5e_priv *priv,
 out_free:
 	kfree(*nhe);
 	return err;
-}
-
-static void mlx5e_rep_neigh_entry_destroy(struct mlx5e_priv *priv,
-					  struct mlx5e_neigh_hash_entry *nhe)
-{
-	/* The neigh hash entry must be removed from the hash table regardless
-	 * of the reference count value, so it won't be found by the next
-	 * neigh notification call. The neigh hash entry reference count is
-	 * incremented only during creation and neigh notification calls and
-	 * protects from freeing the nhe struct.
-	 */
-	mlx5e_rep_neigh_entry_remove(priv, nhe);
-	mlx5e_rep_neigh_entry_release(nhe);
 }
 
 int mlx5e_rep_encap_entry_attach(struct mlx5e_priv *priv,
@@ -1083,6 +1077,7 @@ int mlx5e_rep_encap_entry_attach(struct mlx5e_priv *priv,
 			return err;
 		}
 	}
+	e->nhe = nhe;
 	list_add(&e->encap_list, &nhe->encap_list);
 	return 0;
 }
@@ -1093,13 +1088,14 @@ void mlx5e_rep_encap_entry_detach(struct mlx5e_priv *priv,
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5_rep_uplink_priv *uplink_priv = &rpriv->uplink_priv;
 	struct mlx5_tun_entropy *tun_entropy = &uplink_priv->tun_entropy;
-	struct mlx5e_neigh_hash_entry *nhe;
+
+	if (!e->nhe)
+		return;
 
 	list_del(&e->encap_list);
-	nhe = mlx5e_rep_neigh_entry_lookup(priv, &e->m_neigh);
 
-	if (list_empty(&nhe->encap_list))
-		mlx5e_rep_neigh_entry_destroy(priv, nhe);
+	mlx5e_rep_neigh_entry_release(e->nhe);
+	e->nhe = NULL;
 	mlx5_tun_entropy_refcount_dec(tun_entropy, e->reformat_type);
 }
 
