@@ -12,7 +12,7 @@ config ZRAM
 	  It has several use cases, for example: /tmp storage, use as swap
 	  disks and maybe many more.
 
-	  See zram.txt for more information.
+	  See Documentation/blockdev/zram.txt for more information.
 
 config ZRAM_WRITEBACK
        bool "Write back incompressible page to backing device"
@@ -24,4 +24,14 @@ config ZRAM_WRITEBACK
 	 For this feature, admin should set up backing device via
 	 /sys/block/zramX/backing_dev.
 
-	 See zram.txt for more infomration.
+	 See Documentation/blockdev/zram.txt for more information.
+
+config ZRAM_MEMORY_TRACKING
+	bool "Track zRam block status"
+	depends on ZRAM && DEBUG_FS
+	help
+	  With this feature, admin can track the state of allocated blocks
+	  of zRAM. Admin could see the information via
+	  /sys/kernel/debug/zram/zramX/block_state.
+
+	  See Documentation/blockdev/zram.txt for more information.
