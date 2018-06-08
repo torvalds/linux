@@ -16,7 +16,6 @@ obj-y += kobject_printk.o
 obj-y += kobject_fuck.o
 obj-y += ipc_utils.o
 obj-y += kobject_ipc_common.o
-obj-y += kobject_ipc_sem.o kobject_ipc_msg.o kobject_ipc_shm.o
 #obj-$(CONFIG_MEDUSA_FORCE) += kobject_force.o
 #obj-$(CONFIG_MEDUSA_MEMKOBJECT) += kobject_memory.o kobject_cstrmem.o
 #obj-y += kobject_force.o

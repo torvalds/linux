@@ -6,10 +6,10 @@
 #include <linux/msg.h>
 #include <linux/ipc_namespace.h>
 #include <linux/medusa/l1/ipc.h>
-#include "../../../ipc/util.h" //TODO
+#include "../../../ipc/util.h" //FIXME TODO
 #include "ipc_utils.h"
 
-//from shm.c,sem.c,msg.c not present in header files
+// from shm.c,sem.c,msg.c not present in header files
 #define shm_ids(ns)	((ns)->ids[IPC_SHM_IDS])
 #define sem_ids(ns)	((ns)->ids[IPC_SEM_IDS])
 #define msg_ids(ns)	((ns)->ids[IPC_MSG_IDS])
@@ -23,6 +23,10 @@ struct ipc_ids * medusa_get_ipc_ids(unsigned int ipc_class)
 {
 	struct ipc_namespace *ns;
 	struct ipc_ids *ids;
+
+	/* TODO: get_ipc_ns(current->...)
+	   see: ipc/util.c sysvipc_proc_open line 880
+	*/
 	ns = current->nsproxy->ipc_ns;
 
 	switch(ipc_class){
@@ -48,28 +52,29 @@ struct ipc_ids * medusa_get_ipc_ids(unsigned int ipc_class)
 
 void ipc_rcu_free(struct rcu_head *head)
 {
-	struct kern_ipc_perm *p = container_of(head, struct kern_ipc_perm, rcu);
+	struct kern_ipc_perm *ipcp = container_of(head, struct kern_ipc_perm, rcu);
 	struct medusa_l1_ipc_s* security_s;
 	unsigned int ipc_class;
 
-	security_s = ipc_security(p);
+	security_s = (struct medusa_l1_ipc_s*)ipcp->security;
 	ipc_class = security_s->ipc_class;
-	
+
+	/*
 	switch(ipc_class){
 		case MED_IPC_SEM: {
-			struct sem_array *sem = container_of(p, struct sem_array, sem_perm);
+			struct sem_array *sem = container_of(ipcp, struct sem_array, sem_perm);
 			security_sem_free(sem);
 			kvfree(sem);
 			break;
 		}
 		case MED_IPC_MSG: {
-			struct msg_queue *msq = container_of(p, struct msg_queue, q_perm);
+			struct msg_queue *msq = container_of(ipcp, struct msg_queue, q_perm);
 			security_msg_queue_free(msq);
 			kvfree(msq);
 			break;
 		}
 		case MED_IPC_SHM: {
-			struct shmid_kernel *shm = container_of(p, struct shmid_kernel, shm_perm);
+			struct shmid_kernel *shm = container_of(ipcp, struct shmid_kernel, shm_perm);
 			security_shm_free(shm);
 			kvfree(shm);
 			break;
@@ -78,5 +83,5 @@ void ipc_rcu_free(struct rcu_head *head)
 			printk("Unkown ipc_class\n");
 		}
 	}
-	return;
+	*/
 }

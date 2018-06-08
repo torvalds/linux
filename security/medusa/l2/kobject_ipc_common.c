@@ -3,125 +3,156 @@
 #include "ipc_utils.h"
 #include "kobject_ipc_common.h"
 
+static struct ipc_kobject storage;
+
+#define COPY_WRITE_IPC_VARS(from, to) \
+	do { \
+		(to)->uid = (from)->uid; \
+		(to)->gid = (from)->gid; \
+		(to)->mode = (from)->mode; \
+	} while(0);
+
+#define COPY_READ_IPC_VARS(from, to) \
+	do { \
+		(to)->deleted = (from)->deleted; \
+		(to)->id = (from)->id; \
+		(to)->key = (from)->key; \
+		(to)->cuid = (from)->cuid; \
+		(to)->cgid = (from)->cgid; \
+		(to)->seq = (from)->seq; \
+	} while(0);
+
 MED_ATTRS(ipc_kobject) {
-	MED_ATTR		(ipc_kobject, data, "data", MED_BYTES),
+	MED_ATTR_RO	(ipc_kobject, ipc_class, "ipc_class", MED_UNSIGNED),
+	MED_ATTR_RO	(ipc_kobject, ipc_perm.deleted, "deleted", MED_UNSIGNED),
+	MED_ATTR_RO	(ipc_kobject, ipc_perm.id, "id", MED_SIGNED),
+	MED_ATTR_RO	(ipc_kobject, ipc_perm.key, "key", MED_SIGNED),
+	MED_ATTR	(ipc_kobject, ipc_perm.uid, "uid", MED_UNSIGNED),
+	MED_ATTR	(ipc_kobject, ipc_perm.gid, "gid", MED_UNSIGNED),
+	MED_ATTR_RO	(ipc_kobject, ipc_perm.cuid, "cuid", MED_UNSIGNED),
+	MED_ATTR_RO	(ipc_kobject, ipc_perm.cgid, "cgid", MED_UNSIGNED),
+	MED_ATTR	(ipc_kobject, ipc_perm.mode, "mode", MED_UNSIGNED),
+	MED_ATTR_RO	(ipc_kobject, ipc_perm.seq, "seq", MED_UNSIGNED),
+	MED_ATTR_OBJECT (ipc_kobject),
 	MED_ATTR_END
 };
 
-
 /**
  * ipc_kern2kobj - convert function from kernel structure to kobject
- * @ipck - pointer to ipc_kobject where data will be stored 
+ * @ipc_kobj - pointer to ipc_kobject where data will be stored 
  * @ipcp - pointer to kernel structure used to get data
- * Return: 0 on success, -1 on error
+ * Return: int status, 0 if conversion succeeded, -1 otherwise 
  */
-int ipc_kern2kobj(struct ipc_kobject * ipck, struct kern_ipc_perm * ipcp)
+int ipc_kern2kobj(struct ipc_kobject * ipc_kobj, struct kern_ipc_perm * ipcp)
 {
 	struct medusa_l1_ipc_s* security_s;
-	unsigned int ipc_class;
 
-	security_s = ipc_security(ipcp);
-	ipc_class = security_s->ipc_class;
-	switch(ipc_class){
-		case MED_IPC_SEM: {
-			struct ipc_sem_kobject *new_kobj;
-			new_kobj = (struct ipc_sem_kobject *)ipc_sem_kern2kobj(ipcp);
-			memcpy(ipck->data, (unsigned char *)new_kobj, sizeof(struct ipc_sem_kobject));
-			break;
-		}
-		case MED_IPC_MSG:{
-			struct ipc_msg_kobject *new_kobj;
-			new_kobj = (struct ipc_msg_kobject *)ipc_msg_kern2kobj(ipcp);
-			memcpy(ipck->data, (unsigned char *)new_kobj, sizeof(struct ipc_msg_kobject));
-			break;
-		}
-		case MED_IPC_SHM:{
-			struct ipc_shm_kobject *new_kobj;
-			new_kobj = (struct ipc_shm_kobject *)ipc_shm_kern2kobj(ipcp);
-			memcpy(ipck->data, (unsigned char *)new_kobj, sizeof(struct ipc_shm_kobject));
-			break;
-		}
-		default:
-			printk("Unkown ipc_class\n");
-			return -1;		
-	}
+	security_s = (struct medusa_l1_ipc_s*)ipcp->security;
+	if (!security_s)
+		return -1;
+
+	memset(ipc_kobj, '\0', sizeof(struct ipc_kobject));
+	ipc_kobj->ipc_class = security_s->ipc_class;
+
+	COPY_WRITE_IPC_VARS(&(ipc_kobj->ipc_perm), ipcp);
+	COPY_READ_IPC_VARS(&(ipc_kobj->ipc_perm), ipcp);
+	COPY_MEDUSA_OBJECT_VARS(ipc_kobj, security_s);
+
 	return 0;
 }
 
 /**
- * ipc_fetch - common logic for fetching data from kernel
- * used by concrete fetch methods for example ipc_sem_fetch 
- * @id - id of ipc mechanism
- * @ipc_class - type of ipc mechanism define in l1/ipc.h
- * @ipc_concrete_kern2kobj - pointer to suitable convert function
- * Return: void pointer to memory area where kobject is stored or NULL on error
+ * TODO TODO TODO
  */
-void * ipc_fetch(unsigned int id, unsigned int ipc_class, void * (*ipc_concrete_kern2kobj)(struct kern_ipc_perm *))
+medusa_answer_t ipc_kobj2kern(struct ipc_kobject *ipc_obj, struct kern_ipc_perm *ipcp)
 {
+	struct medusa_l1_ipc_s* security_s;
+
+	security_s = (struct medusa_l1_ipc_s*)ipcp->security;
+	if (!security_s)
+		return MED_ERR;
+
+	COPY_WRITE_IPC_VARS(ipcp, &(ipc_obj->ipc_perm));
+	COPY_MEDUSA_OBJECT_VARS(security_s, ipc_obj);
+	MED_MAGIC_VALIDATE(security_s);
+	
+	return MED_OK;
+}
+
+/**
+ * ipc_fetch - common logic for fetching data from kernel
+ * TODO TODO TODO
+ */
+struct medusa_kobject_s * ipc_fetch(struct medusa_kobject_s *kobj)
+{
+	struct ipc_kobject *ipc_kobj;
+	struct ipc_kobject *new_kobj = NULL;
 	struct kern_ipc_perm *ipcp;
 	struct ipc_ids *ids;
-	void *new_kobj = NULL;
 
-	ids = medusa_get_ipc_ids(ipc_class);
+	ipc_kobj = (struct ipc_kobject*)kobj;
+	if (!ipc_kobj)
+		goto out_err;
+
+	ids = medusa_get_ipc_ids(ipc_kobj->ipc_class);
 	if(!ids)
 		goto out_err;
 
 	rcu_read_lock();
 
-	ipcp = ipc_obtain_object_check(ids, id);
+	ipcp = ipc_obtain_object_check(ids, ipc_kobj->ipc_perm.id);
 	if(IS_ERR(ipcp) || !ipcp)
-		goto out_unlock0;
+		goto out_rcu_unlock;
 
-	new_kobj = ipc_concrete_kern2kobj(ipcp);
-out_unlock0:
+	if(ipc_kern2kobj(&storage, ipcp) == 0)
+		new_kobj = &storage;
+
+out_rcu_unlock:
 	rcu_read_unlock();
 out_err:
-	return new_kobj;
+	return (struct medusa_kobject_s *)new_kobj;
 }
 
 /**
  * ipc_update - common logic for updating data in kernel by kobject data
- * used by concrete update methods for example ipc_sem_update 
- * @id - id of ipc mechanism
- * @ipc_class - type of ipc mechanism define in l1/ipc.h
- * @kobj - kobject which defines data to update
- * @ipc_concrete_kern2kobj - pointer to suitable convert function
+ * TODO TODO TODO
  * Return: void pointer to memory area where kobject is stored or NULL on error
  */
-medusa_answer_t ipc_update(unsigned int id, unsigned int ipc_class, struct medusa_kobject_s * kobj, int (*ipc_kobj2kern)(struct medusa_kobject_s *, struct kern_ipc_perm *))
+medusa_answer_t ipc_update(struct medusa_kobject_s * kobj)
 {
-	struct medusa_l1_ipc_s* security_s;
+	struct ipc_kobject *ipc_kobj;
 	struct kern_ipc_perm *ipcp;
 	struct ipc_ids *ids;
-	int retval = MED_ERR;
-	
-	ids = medusa_get_ipc_ids(ipc_class);
+	medusa_answer_t retval = MED_ERR;
+
+	ipc_kobj = (struct ipc_kobject *)kobj;
+	if (!ipc_kobj)
+		goto out_err;
+
+	ids = medusa_get_ipc_ids(ipc_kobj->ipc_class);
 	if(!ids)
 		goto out_err;
 	
-	
 	rcu_read_lock();
 
-	//Call inside RCU critical section
-	//Object is not locked on exit
-	ipcp = ipc_obtain_object_check(ids, id);
+	// Call inside RCU critical section
+	// Object is not locked on exit
+	ipcp = ipc_obtain_object_check(ids, ipc_kobj->ipc_perm.id);
 	if(IS_ERR(ipcp) || !ipcp)
-		goto out_unlock0;
+		goto out_rcu_unlock;
 
-	if (!ipc_rcu_getref(ipcp)) {
-		goto out_unlock0;
-	}
-
-	security_s = ipc_security(ipcp);
-
+	// TODO TODO TODO FIXME 
+	//if (!ipc_rcu_getref(ipcp))
+	//	goto out_rcu_unlock;
 	ipc_lock_object(ipcp);
+	printk("MEdusa update before kobj2kern\n");
+	// update kernel structure	
+	retval = ipc_kobj2kern(ipc_kobj, ipcp);
 
-	//this update kernel structure	
-	retval = ipc_kobj2kern(kobj, ipcp);
-
+	printk("MEdusa update after kobj2kern %d\n", retval);
 	ipc_unlock_object(ipcp);
-	ipc_rcu_putref(ipcp, ipc_rcu_free);	
-out_unlock0:
+	//ipc_rcu_putref(ipcp, ipc_rcu_free);	
+out_rcu_unlock:
 	rcu_read_unlock();
 out_err:
 	return retval;
@@ -132,8 +163,8 @@ MED_KCLASS(ipc_kobject) {
 	"ipc",
 	NULL,		/* init kclass */
 	NULL,		/* destroy kclass */
-	NULL,
-	NULL,
+	ipc_fetch,
+	ipc_update,
 	NULL,		/* unmonitor */
 };
 
