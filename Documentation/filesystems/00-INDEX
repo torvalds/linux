@@ -89,8 +89,6 @@ locks.txt
 	- info on file locking implementations, flock() vs. fcntl(), etc.
 mandatory-locking.txt
 	- info on the Linux implementation of Sys V mandatory file locking.
-ncpfs.txt
-	- info on Novell Netware(tm) filesystem using NCP protocol.
 nfs/
 	- nfs-related documentation.
 nilfs2.txt

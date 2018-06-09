@@ -132,7 +132,7 @@ struct nvec_msg {
  */
 struct nvec_chip {
 	struct device *dev;
-	int gpio;
+	struct gpio_desc *gpiod;
 	int irq;
 	u32 i2c_addr;
 	void __iomem *base;

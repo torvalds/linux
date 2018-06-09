@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2013 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #define _HAL_INIT_C_
@@ -433,29 +425,29 @@ s32 rtl8723b_FirmwareDownload(struct adapter *padapter, bool  bUsedWoWLANFw)
 		goto exit;
 	}
 
-	pFirmware->szFwBuffer = kmemdup(fw->data, fw->size, GFP_KERNEL);
-	if (!pFirmware->szFwBuffer) {
+	pFirmware->fw_buffer_sz = kmemdup(fw->data, fw->size, GFP_KERNEL);
+	if (!pFirmware->fw_buffer_sz) {
 		rtStatus = _FAIL;
 		goto exit;
 	}
 
-	pFirmware->ulFwLength = fw->size;
+	pFirmware->fw_length = fw->size;
 	release_firmware(fw);
-	if (pFirmware->ulFwLength > FW_8723B_SIZE) {
+	if (pFirmware->fw_length > FW_8723B_SIZE) {
 		rtStatus = _FAIL;
-		DBG_871X_LEVEL(_drv_emerg_, "Firmware size:%u exceed %u\n", pFirmware->ulFwLength, FW_8723B_SIZE);
+		DBG_871X_LEVEL(_drv_emerg_, "Firmware size:%u exceed %u\n", pFirmware->fw_length, FW_8723B_SIZE);
 		goto release_fw1;
 	}
 
-	pFirmwareBuf = pFirmware->szFwBuffer;
-	FirmwareLen = pFirmware->ulFwLength;
+	pFirmwareBuf = pFirmware->fw_buffer_sz;
+	FirmwareLen = pFirmware->fw_length;
 
 	/*  To Check Fw header. Added by tynli. 2009.12.04. */
 	pFwHdr = (struct rt_firmware_hdr *)pFirmwareBuf;
 
-	pHalData->FirmwareVersion =  le16_to_cpu(pFwHdr->Version);
-	pHalData->FirmwareSubVersion = le16_to_cpu(pFwHdr->Subversion);
-	pHalData->FirmwareSignature = le16_to_cpu(pFwHdr->Signature);
+	pHalData->FirmwareVersion =  le16_to_cpu(pFwHdr->version);
+	pHalData->FirmwareSubVersion = le16_to_cpu(pFwHdr->subversion);
+	pHalData->FirmwareSignature = le16_to_cpu(pFwHdr->signature);
 
 	DBG_871X(
 		"%s: fw_ver =%x fw_subver =%04x sig = 0x%x, Month =%02x, Date =%02x, Hour =%02x, Minute =%02x\n",
@@ -463,10 +455,10 @@ s32 rtl8723b_FirmwareDownload(struct adapter *padapter, bool  bUsedWoWLANFw)
 		pHalData->FirmwareVersion,
 		pHalData->FirmwareSubVersion,
 		pHalData->FirmwareSignature,
-		pFwHdr->Month,
-		pFwHdr->Date,
-		pFwHdr->Hour,
-		pFwHdr->Minute
+		pFwHdr->month,
+		pFwHdr->date,
+		pFwHdr->hour,
+		pFwHdr->minute
 	);
 
 	if (IS_FW_HEADER_EXIST_8723B(pFwHdr)) {
@@ -518,7 +510,7 @@ fwdl_stat:
 	);
 
 exit:
-	kfree(pFirmware->szFwBuffer);
+	kfree(pFirmware->fw_buffer_sz);
 	kfree(pFirmware);
 release_fw1:
 	kfree(pBTFirmware);
