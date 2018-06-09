@@ -255,9 +255,11 @@ static void r10buf_pool_free(void *__r10_bio, void *data)
 	for (j = conf->copies; j--; ) {
 		struct bio *bio = r10bio->devs[j].bio;
 
-		rp = get_resync_pages(bio);
-		resync_free_pages(rp);
-		bio_put(bio);
+		if (bio) {
+			rp = get_resync_pages(bio);
+			resync_free_pages(rp);
+			bio_put(bio);
+		}
 
 		bio = r10bio->devs[j].repl_bio;
 		if (bio)
@@ -2362,7 +2364,7 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 {
 	int sect = 0; /* Offset from r10_bio->sector */
 	int sectors = r10_bio->sectors;
-	struct md_rdev*rdev;
+	struct md_rdev *rdev;
 	int max_read_errors = atomic_read(&mddev->max_corr_read_errors);
 	int d = r10_bio->devs[r10_bio->read_slot].devnum;
 
