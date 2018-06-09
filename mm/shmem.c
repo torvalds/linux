@@ -3918,40 +3918,37 @@ static struct file *__shmem_file_setup(struct vfsmount *mnt, const char *name, l
 	if (shmem_acct_size(flags, size))
 		return ERR_PTR(-ENOMEM);
 
-	res = ERR_PTR(-ENOMEM);
-	this.name = name;
-	this.len = strlen(name);
-	this.hash = 0; /* will go */
 	sb = mnt->mnt_sb;
-	path.mnt = mntget(mnt);
-	path.dentry = d_alloc_pseudo(sb, &this);
-	if (!path.dentry)
-		goto put_memory;
-	d_set_d_op(path.dentry, &anon_ops);
-
-	res = ERR_PTR(-ENOSPC);
-	inode = shmem_get_inode(sb, NULL, S_IFREG | 0777, 0, flags);
-	if (!inode)
-		goto put_memory;
-
+	inode = shmem_get_inode(sb, NULL, S_IFREG | S_IRWXUGO, 0, flags);
+	if (unlikely(!inode)) {
+		shmem_unacct_size(flags, size);
+		return ERR_PTR(-ENOSPC);
+	}
 	inode->i_flags |= i_flags;
-	d_instantiate(path.dentry, inode);
 	inode->i_size = size;
 	clear_nlink(inode);	/* It is unlinked */
 	res = ERR_PTR(ramfs_nommu_expand_for_mapping(inode, size));
-	if (IS_ERR(res))
-		goto put_path;
+	if (IS_ERR(res)) {
+		iput(inode);
+		return res;
+	}
+
+	this.name = name;
+	this.len = strlen(name);
+	this.hash = 0; /* will go */
+	path.mnt = mntget(mnt);
+	path.dentry = d_alloc_pseudo(sb, &this);
+	if (!path.dentry) {
+		iput(inode);
+		return ERR_PTR(-ENOMEM);
+	}
+	d_set_d_op(path.dentry, &anon_ops);
+
+	d_instantiate(path.dentry, inode);
 
 	res = alloc_file(&path, O_RDWR, &shmem_file_operations);
 	if (IS_ERR(res))
-		goto put_path;
-
-	return res;
-
-put_memory:
-	shmem_unacct_size(flags, size);
-put_path:
-	path_put(&path);
+		path_put(&path);
 	return res;
 }
 
