@@ -158,7 +158,20 @@ static inline bool rcu_seq_new_gp(unsigned long old, unsigned long new)
  */
 static inline unsigned long rcu_seq_diff(unsigned long new, unsigned long old)
 {
-	return (new - old) >> RCU_SEQ_CTR_SHIFT;
+	unsigned long rnd_diff;
+
+	if (old == new)
+		return 0;
+	/*
+	 * Compute the number of grace periods (still shifted up), plus
+	 * one if either of new and old is not an exact grace period.
+	 */
+	rnd_diff = (new & ~RCU_SEQ_STATE_MASK) -
+		   ((old + RCU_SEQ_STATE_MASK) & ~RCU_SEQ_STATE_MASK) +
+		   ((new & RCU_SEQ_STATE_MASK) || (old & RCU_SEQ_STATE_MASK));
+	if (ULONG_CMP_GE(RCU_SEQ_STATE_MASK, rnd_diff))
+		return 1; /* Definitely no grace period has elapsed. */
+	return ((rnd_diff - RCU_SEQ_STATE_MASK - 1) >> RCU_SEQ_CTR_SHIFT) + 2;
 }
 
 /*
