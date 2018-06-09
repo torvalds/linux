@@ -55,7 +55,6 @@ static const struct cpg_core_clk r8a7794_core_clks[] __initconst = {
 	DEF_FIXED(".pll1_div2", CLK_PLL1_DIV2, CLK_PLL1, 2, 1),
 
 	/* Core Clock Outputs */
-	DEF_BASE("lb",   R8A7794_CLK_LB,   CLK_TYPE_GEN2_LB,   CLK_PLL1),
 	DEF_BASE("adsp", R8A7794_CLK_ADSP, CLK_TYPE_GEN2_ADSP, CLK_PLL1),
 	DEF_BASE("sdh",  R8A7794_CLK_SDH,  CLK_TYPE_GEN2_SDH,  CLK_PLL1),
 	DEF_BASE("sd0",  R8A7794_CLK_SD0,  CLK_TYPE_GEN2_SD0,  CLK_PLL1),
@@ -69,6 +68,7 @@ static const struct cpg_core_clk r8a7794_core_clks[] __initconst = {
 	DEF_FIXED("hp",     R8A7794_CLK_HP,    CLK_PLL1,         12, 1),
 	DEF_FIXED("i",      R8A7794_CLK_I,     CLK_PLL1,          2, 1),
 	DEF_FIXED("b",      R8A7794_CLK_B,     CLK_PLL1,         12, 1),
+	DEF_FIXED("lb",     R8A7794_CLK_LB,    CLK_PLL1,         24, 1),
 	DEF_FIXED("p",      R8A7794_CLK_P,     CLK_PLL1,         24, 1),
 	DEF_FIXED("cl",     R8A7794_CLK_CL,    CLK_PLL1,         48, 1),
 	DEF_FIXED("cp",     R8A7794_CLK_CP,    CLK_PLL1,         48, 1),

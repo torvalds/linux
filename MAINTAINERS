@@ -3587,6 +3587,7 @@ F:	drivers/clk/
 X:	drivers/clk/clkdev.c
 F:	include/linux/clk-pr*
 F:	include/linux/clk/
+F:	include/linux/of_clk.h
 
 COMMON INTERNET FILE SYSTEM (CIFS)
 M:	Steve French <sfrench@samba.org>
