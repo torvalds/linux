@@ -3,6 +3,7 @@
 #include "dc.h"
 #include "dc_link_dp.h"
 #include "dm_helpers.h"
+#include "opp.h"
 
 #include "inc/core_types.h"
 #include "link_hwss.h"
@@ -2511,8 +2512,8 @@ static void set_crtc_test_pattern(struct dc_link *link,
 		pipe_ctx->stream->bit_depth_params = params;
 		pipe_ctx->stream_res.opp->funcs->
 			opp_program_bit_depth_reduction(pipe_ctx->stream_res.opp, &params);
-
-		pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
+		if (pipe_ctx->stream_res.tg->funcs->set_test_pattern)
+			pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
 				controller_test_pattern, color_depth);
 	}
 	break;
@@ -2524,8 +2525,8 @@ static void set_crtc_test_pattern(struct dc_link *link,
 		pipe_ctx->stream->bit_depth_params = params;
 		pipe_ctx->stream_res.opp->funcs->
 			opp_program_bit_depth_reduction(pipe_ctx->stream_res.opp, &params);
-
-		pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
+		if (pipe_ctx->stream_res.tg->funcs->set_test_pattern)
+			pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
 				CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
 				color_depth);
 	}

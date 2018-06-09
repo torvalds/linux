@@ -415,6 +415,8 @@ static void dpp_pg_control(
 
 	if (hws->ctx->dc->debug.disable_dpp_power_gate)
 		return;
+	if (REG(DOMAIN1_PG_CONFIG) == 0)
+		return;
 
 	switch (dpp_inst) {
 	case 0: /* DPP0 */
@@ -464,6 +466,8 @@ static void hubp_pg_control(
 	uint32_t pwr_status = power_on ? 0 : 2;
 
 	if (hws->ctx->dc->debug.disable_hubp_power_gate)
+		return;
+	if (REG(DOMAIN0_PG_CONFIG) == 0)
 		return;
 
 	switch (hubp_inst) {
@@ -865,7 +869,8 @@ void hwss1_plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 		return;
 
 	mpc->funcs->remove_mpcc(mpc, mpc_tree_params, mpcc_to_remove);
-	opp->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
+	if (opp != NULL)
+		opp->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
 
 	dc->optimized_required = true;
 
@@ -1343,10 +1348,11 @@ static void dcn10_enable_per_frame_crtc_position_reset(
 
 	DC_SYNC_INFO("Setting up\n");
 	for (i = 0; i < group_size; i++)
-		grouped_pipes[i]->stream_res.tg->funcs->enable_crtc_reset(
-				grouped_pipes[i]->stream_res.tg,
-				grouped_pipes[i]->stream->triggered_crtc_reset.event_source->status.primary_otg_inst,
-				&grouped_pipes[i]->stream->triggered_crtc_reset);
+		if (grouped_pipes[i]->stream_res.tg->funcs->enable_crtc_reset)
+			grouped_pipes[i]->stream_res.tg->funcs->enable_crtc_reset(
+					grouped_pipes[i]->stream_res.tg,
+					grouped_pipes[i]->stream->triggered_crtc_reset.event_source->status.primary_otg_inst,
+					&grouped_pipes[i]->stream->triggered_crtc_reset);
 
 	DC_SYNC_INFO("Waiting for trigger\n");
 
@@ -2496,8 +2502,14 @@ static void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
 
 static void dcn10_update_dchub(struct dce_hwseq *hws, struct dchub_init_data *dh_data)
 {
-	if (hws->ctx->dc->res_pool->hubbub != NULL)
-		hubbub1_update_dchub(hws->ctx->dc->res_pool->hubbub, dh_data);
+	if (hws->ctx->dc->res_pool->hubbub != NULL) {
+		struct hubp *hubp = hws->ctx->dc->res_pool->hubps[0];
+
+		if (hubp->funcs->hubp_update_dchub)
+			hubp->funcs->hubp_update_dchub(hubp, dh_data);
+		else
+			hubbub1_update_dchub(hws->ctx->dc->res_pool->hubbub, dh_data);
+	}
 }
 
 static void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)

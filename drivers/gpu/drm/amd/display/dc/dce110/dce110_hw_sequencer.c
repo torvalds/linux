@@ -1475,7 +1475,7 @@ static void power_down_controllers(struct dc *dc)
 {
 	int i;
 
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+	for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
 		dc->res_pool->timing_generators[i]->funcs->disable_crtc(
 				dc->res_pool->timing_generators[i]);
 	}
@@ -1515,12 +1515,13 @@ static void disable_vga_and_power_gate_all_controllers(
 	struct timing_generator *tg;
 	struct dc_context *ctx = dc->ctx;
 
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+	for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
 		tg = dc->res_pool->timing_generators[i];
 
 		if (tg->funcs->disable_vga)
 			tg->funcs->disable_vga(tg);
-
+	}
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		/* Enable CLOCK gating for each pipe BEFORE controller
 		 * powergating. */
 		enable_display_pipe_clock_gating(ctx,

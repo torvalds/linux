@@ -483,6 +483,11 @@ void hubbub1_update_dchub(
 	struct hubbub *hubbub,
 	struct dchub_init_data *dh_data)
 {
+	if (REG(DCHUBBUB_SDPIF_FB_TOP) == 0) {
+		ASSERT(false);
+		/*should not come here*/
+		return;
+	}
 	/* TODO: port code from dal2 */
 	switch (dh_data->fb_mode) {
 	case FRAME_BUFFER_MODE_ZFB_ONLY:
