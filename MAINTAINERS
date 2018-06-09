@@ -8052,6 +8052,13 @@ S:	Maintained
 F:	Documentation/misc-devices/eeprom
 F:	drivers/misc/eeprom/eeprom.c
 
+LEGO MINDSTORMS EV3
+R:	David Lechner <david@lechnology.com>
+S:	Maintained
+F:	arch/arm/boot/dts/da850-lego-ev3.dts
+F:	Documentation/devicetree/bindings/power/supply/lego_ev3_battery.txt
+F:	drivers/power/supply/lego_ev3_battery.c
+
 LEGO USB Tower driver
 M:	Juergen Stuber <starblue@users.sourceforge.net>
 L:	legousb-devel@lists.sourceforge.net

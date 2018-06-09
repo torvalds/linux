@@ -248,8 +248,6 @@ enum bup_vch_sel {
 #define BAT_CTRL_20U_ENA		0x02
 #define BAT_CTRL_18U_ENA		0x01
 #define BAT_CTRL_16U_ENA		0x02
-#define BAT_CTRL_60U_ENA		0x01
-#define BAT_CTRL_120U_ENA		0x02
 #define BAT_CTRL_CMP_ENA		0x04
 #define FORCE_BAT_CTRL_CMP_HIGH		0x08
 #define BAT_CTRL_PULL_UP_ENA		0x10

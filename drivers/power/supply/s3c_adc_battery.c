@@ -293,6 +293,7 @@ static int s3c_adc_bat_probe(struct platform_device *pdev)
 {
 	struct s3c_adc_client	*client;
 	struct s3c_adc_bat_pdata *pdata = pdev->dev.platform_data;
+	struct power_supply_config psy_cfg = {};
 	int ret;
 
 	client = s3c_adc_register(pdev, NULL, NULL, 0);
@@ -309,14 +310,15 @@ static int s3c_adc_bat_probe(struct platform_device *pdev)
 	main_bat.cur_value = -1;
 	main_bat.cable_plugged = 0;
 	main_bat.status = POWER_SUPPLY_STATUS_DISCHARGING;
+	psy_cfg.drv_data = &main_bat;
 
-	main_bat.psy = power_supply_register(&pdev->dev, &main_bat_desc, NULL);
+	main_bat.psy = power_supply_register(&pdev->dev, &main_bat_desc, &psy_cfg);
 	if (IS_ERR(main_bat.psy)) {
 		ret = PTR_ERR(main_bat.psy);
 		goto err_reg_main;
 	}
 	if (pdata->backup_volt_mult) {
-		const struct power_supply_config psy_cfg
+		const struct power_supply_config backup_psy_cfg
 						= { .drv_data = &backup_bat, };
 
 		backup_bat.client = client;
@@ -324,7 +326,7 @@ static int s3c_adc_bat_probe(struct platform_device *pdev)
 		backup_bat.volt_value = -1;
 		backup_bat.psy = power_supply_register(&pdev->dev,
 						       &backup_bat_desc,
-						       &psy_cfg);
+						       &backup_psy_cfg);
 		if (IS_ERR(backup_bat.psy)) {
 			ret = PTR_ERR(backup_bat.psy);
 			goto err_reg_backup;
