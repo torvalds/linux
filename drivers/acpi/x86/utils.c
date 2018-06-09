@@ -62,14 +62,20 @@ static const struct always_present_id always_present_ids[] = {
 	 */
 	ENTRY("INT0002", "1", ICPU(INTEL_FAM6_ATOM_AIRMONT), {}),
 	/*
-	 * On the Dell Venue 11 Pro 7130 the DSDT hides the touchscreen ACPI
-	 * device until a certain time after _SB.PCI0.GFX0.LCD.LCD1._ON gets
-	 * called has passed *and* _STA has been called at least 3 times since.
+	 * On the Dell Venue 11 Pro 7130 and 7139, the DSDT hides
+	 * the touchscreen ACPI device until a certain time
+	 * after _SB.PCI0.GFX0.LCD.LCD1._ON gets called has passed
+	 * *and* _STA has been called at least 3 times since.
 	 */
 	ENTRY("SYNA7500", "1", ICPU(INTEL_FAM6_HASWELL_ULT), {
 		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 		DMI_MATCH(DMI_PRODUCT_NAME, "Venue 11 Pro 7130"),
 	      }),
+	ENTRY("SYNA7500", "1", ICPU(INTEL_FAM6_HASWELL_ULT), {
+		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Venue 11 Pro 7139"),
+	      }),
+
 	/*
 	 * The GPD win BIOS dated 20170221 has disabled the accelerometer, the
 	 * drivers sometimes cause crashes under Windows and this is how the
