@@ -37,7 +37,6 @@
 #include "xfs_da_btree.h"
 #include "xfs_dir2.h"
 #include "xfs_trans_space.h"
-#include "xfs_pnfs.h"
 #include "xfs_iomap.h"
 
 #include <linux/capability.h>
@@ -1030,14 +1029,19 @@ xfs_vn_setattr(
 	int			error;
 
 	if (iattr->ia_valid & ATTR_SIZE) {
-		struct xfs_inode	*ip = XFS_I(d_inode(dentry));
-		uint			iolock = XFS_IOLOCK_EXCL;
-
-		error = xfs_break_layouts(d_inode(dentry), &iolock);
-		if (error)
-			return error;
+		struct inode		*inode = d_inode(dentry);
+		struct xfs_inode	*ip = XFS_I(inode);
+		uint			iolock;
 
 		xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
+		iolock = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
+
+		error = xfs_break_layouts(inode, &iolock, BREAK_UNMAP);
+		if (error) {
+			xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
+			return error;
+		}
+
 		error = xfs_vn_setattr_size(dentry, iattr);
 		xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
 	} else {
