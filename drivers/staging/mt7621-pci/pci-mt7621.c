@@ -181,7 +181,7 @@ static int pcie_link_status = 0;
 #define PCI_ACCESS_WRITE_4 5
 
 static int config_access(unsigned char access_type, struct pci_bus *bus,
-			unsigned int devfn, unsigned int where, u32 * data)
+			unsigned int devfn, unsigned int where, u32 *data)
 {
 	unsigned int slot = PCI_SLOT(devfn);
 	u8 func = PCI_FUNC(devfn);
@@ -222,19 +222,19 @@ static int config_access(unsigned char access_type, struct pci_bus *bus,
 }
 
 static int
-read_config_byte(struct pci_bus *bus, unsigned int devfn, int where, u8 * val)
+read_config_byte(struct pci_bus *bus, unsigned int devfn, int where, u8 *val)
 {
 	return config_access(PCI_ACCESS_READ_1, bus, devfn, (unsigned int)where, (u32 *)val);
 }
 
 static int
-read_config_word(struct pci_bus *bus, unsigned int devfn, int where, u16 * val)
+read_config_word(struct pci_bus *bus, unsigned int devfn, int where, u16 *val)
 {
 	return config_access(PCI_ACCESS_READ_2, bus, devfn, (unsigned int)where, (u32 *)val);
 }
 
 static int
-read_config_dword(struct pci_bus *bus, unsigned int devfn, int where, u32 * val)
+read_config_dword(struct pci_bus *bus, unsigned int devfn, int where, u32 *val)
 {
 	return config_access(PCI_ACCESS_READ_4, bus, devfn, (unsigned int)where, (u32 *)val);
 }
@@ -267,7 +267,7 @@ write_config_dword(struct pci_bus *bus, unsigned int devfn, int where, u32 val)
 }
 
 static int
-pci_config_read(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 * val)
+pci_config_read(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 *val)
 {
 	switch (size) {
 	case 1:
