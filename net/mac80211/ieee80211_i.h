@@ -365,6 +365,7 @@ enum ieee80211_sta_flags {
 	IEEE80211_STA_DISABLE_160MHZ	= BIT(13),
 	IEEE80211_STA_DISABLE_WMM	= BIT(14),
 	IEEE80211_STA_ENABLE_RRM	= BIT(15),
+	IEEE80211_STA_DISABLE_HE	= BIT(16),
 };
 
 struct ieee80211_mgd_auth_data {
@@ -1454,6 +1455,10 @@ struct ieee802_11_elems {
 	const struct ieee80211_vht_cap *vht_cap_elem;
 	const struct ieee80211_vht_operation *vht_operation;
 	const struct ieee80211_meshconf_ie *mesh_config;
+	const u8 *he_cap;
+	const struct ieee80211_he_operation *he_operation;
+	const struct ieee80211_mu_edca_param_set *mu_edca_param_set;
+	const u8 *uora_element;
 	const u8 *mesh_id;
 	const u8 *peering;
 	const __le16 *awake_window;
@@ -1483,6 +1488,7 @@ struct ieee802_11_elems {
 	u8 ext_supp_rates_len;
 	u8 wmm_info_len;
 	u8 wmm_param_len;
+	u8 he_cap_len;
 	u8 mesh_id_len;
 	u8 peering_len;
 	u8 preq_len;
@@ -1825,6 +1831,13 @@ void ieee80211_get_vht_mask_from_cap(__le16 vht_cap,
 enum nl80211_chan_width
 ieee80211_sta_rx_bw_to_chan_width(struct sta_info *sta);
 
+/* HE */
+void
+ieee80211_he_cap_ie_to_sta_he_cap(struct ieee80211_sub_if_data *sdata,
+				  struct ieee80211_supported_band *sband,
+				  const u8 *he_cap_ie, u8 he_cap_len,
+				  struct sta_info *sta);
+
 /* Spectrum management */
 void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
 				       struct ieee80211_mgmt *mgmt,
@@ -2076,6 +2089,9 @@ u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 			       u32 cap);
 u8 *ieee80211_ie_build_vht_oper(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 				const struct cfg80211_chan_def *chandef);
+u8 *ieee80211_ie_build_he_cap(u8 *pos,
+			      const struct ieee80211_sta_he_cap *he_cap,
+			      u8 *end);
 int ieee80211_parse_bitrates(struct cfg80211_chan_def *chandef,
 			     const struct ieee80211_supported_band *sband,
 			     const u8 *srates, int srates_len, u32 *rates);

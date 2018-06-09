@@ -12,6 +12,7 @@ mac80211-y := \
 	scan.o offchannel.o \
 	ht.o agg-tx.o agg-rx.o \
 	vht.o \
+	he.o \
 	ibss.o \
 	iface.o \
 	rate.o \

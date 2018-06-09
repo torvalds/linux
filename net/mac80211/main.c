@@ -3,6 +3,7 @@
  * Copyright 2005-2006, Devicescape Software, Inc.
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
+ * Copyright (C) 2017     Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -825,7 +826,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	int result, i;
 	enum nl80211_band band;
 	int channels, max_bitrates;
-	bool supp_ht, supp_vht;
+	bool supp_ht, supp_vht, supp_he;
 	netdev_features_t feature_whitelist;
 	struct cfg80211_chan_def dflt_chandef = {};
 
@@ -905,6 +906,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	max_bitrates = 0;
 	supp_ht = false;
 	supp_vht = false;
+	supp_he = false;
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		struct ieee80211_supported_band *sband;
 
@@ -930,6 +932,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 			max_bitrates = sband->n_bitrates;
 		supp_ht = supp_ht || sband->ht_cap.ht_supported;
 		supp_vht = supp_vht || sband->vht_cap.vht_supported;
+
+		if (!supp_he)
+			supp_he = !!ieee80211_get_he_sta_cap(sband);
 
 		if (!sband->ht_cap.ht_supported)
 			continue;
@@ -1019,6 +1024,18 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (supp_vht)
 		local->scan_ies_len +=
 			2 + sizeof(struct ieee80211_vht_cap);
+
+	/* HE cap element is variable in size - set len to allow max size */
+	/*
+	 * TODO: 1 is added at the end of the calculation to accommodate for
+	 *	the temporary placing of the HE capabilities IE under EXT.
+	 *	Remove it once it is placed in the final place.
+	 */
+	if (supp_he)
+		local->scan_ies_len +=
+			2 + sizeof(struct ieee80211_he_cap_elem) +
+			sizeof(struct ieee80211_he_mcs_nss_supp) +
+			IEEE80211_HE_PPE_THRES_MAX_LEN + 1;
 
 	if (!local->ops->hw_scan) {
 		/* For hw_scan, driver needs to set these up. */
