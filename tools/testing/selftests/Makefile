@@ -33,6 +33,7 @@ TARGETS += rtc
 TARGETS += seccomp
 TARGETS += sigaltstack
 TARGETS += size
+TARGETS += sparc64
 TARGETS += splice
 TARGETS += static_keys
 TARGETS += sync
