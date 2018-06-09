@@ -2870,15 +2870,11 @@ void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv)
 	ggtt->vm.closed = true;
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
+	i915_gem_fini_aliasing_ppgtt(dev_priv);
+
 	GEM_BUG_ON(!list_empty(&ggtt->vm.active_list));
 	list_for_each_entry_safe(vma, vn, &ggtt->vm.inactive_list, vm_link)
 		WARN_ON(i915_vma_unbind(vma));
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-
-	i915_gem_cleanup_stolen(&dev_priv->drm);
-
-	mutex_lock(&dev_priv->drm.struct_mutex);
-	i915_gem_fini_aliasing_ppgtt(dev_priv);
 
 	if (drm_mm_node_allocated(&ggtt->error_capture))
 		drm_mm_remove_node(&ggtt->error_capture);
@@ -2900,6 +2896,8 @@ void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv)
 
 	arch_phys_wc_del(ggtt->mtrr);
 	io_mapping_fini(&ggtt->iomap);
+
+	i915_gem_cleanup_stolen(&dev_priv->drm);
 }
 
 static unsigned int gen6_get_total_gtt_size(u16 snb_gmch_ctl)
