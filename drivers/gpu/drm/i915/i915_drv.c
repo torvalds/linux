@@ -73,6 +73,12 @@ bool __i915_inject_load_failure(const char *func, int line)
 
 	return false;
 }
+
+bool i915_error_injected(void)
+{
+	return i915_load_fail_count && !i915_modparams.inject_load_failure;
+}
+
 #endif
 
 #define FDO_BUG_URL "https://bugs.freedesktop.org/enter_bug.cgi?product=DRI"
@@ -114,20 +120,6 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 
 	va_end(args);
 }
-
-static bool i915_error_injected(struct drm_i915_private *dev_priv)
-{
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
-	return i915_load_fail_count && !i915_modparams.inject_load_failure;
-#else
-	return false;
-#endif
-}
-
-#define i915_load_error(i915, fmt, ...)					 \
-	__i915_printk(i915,						 \
-		      i915_error_injected(i915) ? KERN_DEBUG : KERN_ERR, \
-		      fmt, ##__VA_ARGS__)
 
 /* Map PCH device id to PCH type, or PCH_NONE if unknown. */
 static enum intel_pch

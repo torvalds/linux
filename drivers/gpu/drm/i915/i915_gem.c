@@ -5491,8 +5491,6 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	}
 
 	if (i915_inject_load_failure()) {
-		DRM_DEBUG_DRIVER("Marking the driver as wedged\n");
-		i915_gem_set_wedged(dev_priv);  /* Fail silently! */
 		ret = -EIO;
 		goto err_init_hw;
 	}
@@ -5543,7 +5541,8 @@ err_unlock:
 		 * for all other failure, such as an allocation failure, bail.
 		 */
 		if (!i915_terminally_wedged(&dev_priv->gpu_error)) {
-			DRM_ERROR("Failed to initialize GPU, declaring it wedged\n");
+			i915_load_error(dev_priv,
+					"Failed to initialize GPU, declaring it wedged!\n");
 			i915_gem_set_wedged(dev_priv);
 		}
 		ret = 0;
