@@ -1694,6 +1694,13 @@ EXPORT_SYMBOL(tcp_peek_len);
 /* Make sure sk_rcvbuf is big enough to satisfy SO_RCVLOWAT hint */
 int tcp_set_rcvlowat(struct sock *sk, int val)
 {
+	int cap;
+
+	if (sk->sk_userlocks & SOCK_RCVBUF_LOCK)
+		cap = sk->sk_rcvbuf >> 1;
+	else
+		cap = sock_net(sk)->ipv4.sysctl_tcp_rmem[2] >> 1;
+	val = min(val, cap);
 	sk->sk_rcvlowat = val ? : 1;
 
 	/* Check if we need to signal EPOLLIN right now */
@@ -1702,12 +1709,7 @@ int tcp_set_rcvlowat(struct sock *sk, int val)
 	if (sk->sk_userlocks & SOCK_RCVBUF_LOCK)
 		return 0;
 
-	/* val comes from user space and might be close to INT_MAX */
 	val <<= 1;
-	if (val < 0)
-		val = INT_MAX;
-
-	val = min(val, sock_net(sk)->ipv4.sysctl_tcp_rmem[2]);
 	if (val > sk->sk_rcvbuf) {
 		sk->sk_rcvbuf = val;
 		tcp_sk(sk)->window_clamp = tcp_win_from_space(sk, val);
