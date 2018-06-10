@@ -17,35 +17,6 @@
 #include "fsi-master.h"
 
 #define	FSI_GPIO_STD_DLY	1	/* Standard pin delay in nS */
-#define	FSI_ECHO_DELAY_CLOCKS	16	/* Number clocks for echo delay */
-#define	FSI_SEND_DELAY_CLOCKS	16	/* Number clocks for send delay */
-#define	FSI_PRE_BREAK_CLOCKS	50	/* Number clocks to prep for break */
-#define	FSI_BREAK_CLOCKS	256	/* Number of clocks to issue break */
-#define	FSI_POST_BREAK_CLOCKS	16000	/* Number clocks to set up cfam */
-#define	FSI_INIT_CLOCKS		5000	/* Clock out any old data */
-#define	FSI_MASTER_DPOLL_CLOCKS	50      /* < 21 will cause slave to hang */
-#define	FSI_MASTER_EPOLL_CLOCKS	50      /* Number of clocks for E_POLL retry */
-
-#define FSI_CRC_ERR_RETRIES	10
-
-#define	FSI_CMD_DPOLL		0x2
-#define	FSI_CMD_EPOLL		0x3
-#define	FSI_CMD_TERM		0x3f
-#define FSI_CMD_ABS_AR		0x4
-#define FSI_CMD_REL_AR		0x5
-#define FSI_CMD_SAME_AR		0x3	/* but only a 2-bit opcode... */
-
-/* Slave responses */
-#define	FSI_RESP_ACK		0	/* Success */
-#define	FSI_RESP_BUSY		1	/* Slave busy */
-#define	FSI_RESP_ERRA		2	/* Any (misc) Error */
-#define	FSI_RESP_ERRC		3	/* Slave reports master CRC error */
-
-#define	FSI_MASTER_MAX_BUSY	200
-
-#define	FSI_MASTER_MTOE_COUNT	1000
-#define	FSI_CRC_SIZE		4
-
 #define LAST_ADDR_INVALID		0x1
 
 struct fsi_master_gpio {
