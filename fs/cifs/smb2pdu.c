@@ -1889,7 +1889,7 @@ alloc_path_with_tree_prefix(__le16 **out_path, int *out_size, int *out_len,
 int
 SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 	  __u8 *oplock, struct smb2_file_all_info *buf,
-	  struct kvec *err_iov)
+	  struct kvec *err_iov, int *buftype)
 {
 	struct smb2_create_req *req;
 	struct smb2_create_rsp *rsp;
@@ -2052,6 +2052,7 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 		cifs_stats_fail_inc(tcon, SMB2_CREATE_HE);
 		if (err_iov && rsp) {
 			*err_iov = rsp_iov;
+			*buftype = resp_buftype;
 			resp_buftype = CIFS_NO_BUFFER;
 			rsp = NULL;
 		}
@@ -2492,8 +2493,7 @@ SMB2_query_acl(const unsigned int xid, struct cifs_tcon *tcon,
 
 	return query_info(xid, tcon, persistent_fid, volatile_fid,
 			  0, SMB2_O_INFO_SECURITY, additional_info,
-			  SMB2_MAX_BUFFER_SIZE,
-			  sizeof(struct smb2_file_all_info), data, plen);
+			  SMB2_MAX_BUFFER_SIZE, MIN_SEC_DESC_LEN, data, plen);
 }
 
 int
@@ -2721,8 +2721,8 @@ smb2_new_read_req(void **buf, unsigned int *total_len,
 
 		rdata->mr = smbd_register_mr(
 				server->smbd_conn, rdata->pages,
-				rdata->nr_pages, rdata->tailsz,
-				true, need_invalidate);
+				rdata->nr_pages, rdata->page_offset,
+				rdata->tailsz, true, need_invalidate);
 		if (!rdata->mr)
 			return -ENOBUFS;
 
@@ -3108,16 +3108,22 @@ smb2_async_writev(struct cifs_writedata *wdata,
 
 		wdata->mr = smbd_register_mr(
 				server->smbd_conn, wdata->pages,
-				wdata->nr_pages, wdata->tailsz,
-				false, need_invalidate);
+				wdata->nr_pages, wdata->page_offset,
+				wdata->tailsz, false, need_invalidate);
 		if (!wdata->mr) {
 			rc = -ENOBUFS;
 			goto async_writev_out;
 		}
 		req->Length = 0;
 		req->DataOffset = 0;
-		req->RemainingBytes =
-			cpu_to_le32((wdata->nr_pages-1)*PAGE_SIZE + wdata->tailsz);
+		if (wdata->nr_pages > 1)
+			req->RemainingBytes =
+				cpu_to_le32(
+					(wdata->nr_pages - 1) * wdata->pagesz -
+					wdata->page_offset + wdata->tailsz
+				);
+		else
+			req->RemainingBytes = cpu_to_le32(wdata->tailsz);
 		req->Channel = SMB2_CHANNEL_RDMA_V1_INVALIDATE;
 		if (need_invalidate)
 			req->Channel = SMB2_CHANNEL_RDMA_V1;

@@ -71,7 +71,8 @@ smb2_open_op_close(const unsigned int xid, struct cifs_tcon *tcon,
 		oparms.fid = &fid;
 		oparms.reconnect = false;
 
-		rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL);
+		rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL,
+			       NULL);
 		if (rc) {
 			kfree(utf16_path);
 			return rc;

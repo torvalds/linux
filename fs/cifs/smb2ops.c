@@ -348,7 +348,7 @@ int open_shroot(unsigned int xid, struct cifs_tcon *tcon, struct cifs_fid *pfid)
 	oparams.fid = pfid;
 	oparams.reconnect = false;
 
-	rc = SMB2_open(xid, &oparams, &srch_path, &oplock, NULL, NULL);
+	rc = SMB2_open(xid, &oparams, &srch_path, &oplock, NULL, NULL, NULL);
 	if (rc == 0) {
 		memcpy(tcon->prfid, pfid, sizeof(struct cifs_fid));
 		tcon->valid_root_fid = true;
@@ -375,7 +375,8 @@ smb3_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon)
 	oparms.reconnect = false;
 
 	if (no_cached_open)
-		rc = SMB2_open(xid, &oparms, &srch_path, &oplock, NULL, NULL);
+		rc = SMB2_open(xid, &oparms, &srch_path, &oplock, NULL, NULL,
+			       NULL);
 	else
 		rc = open_shroot(xid, tcon, &fid);
 
@@ -413,7 +414,7 @@ smb2_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon)
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
-	rc = SMB2_open(xid, &oparms, &srch_path, &oplock, NULL, NULL);
+	rc = SMB2_open(xid, &oparms, &srch_path, &oplock, NULL, NULL, NULL);
 	if (rc)
 		return;
 
@@ -449,7 +450,7 @@ smb2_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
-	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL);
+	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL, NULL);
 	if (rc) {
 		kfree(utf16_path);
 		return rc;
@@ -598,7 +599,7 @@ smb2_query_eas(const unsigned int xid, struct cifs_tcon *tcon,
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
-	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL);
+	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL, NULL);
 	kfree(utf16_path);
 	if (rc) {
 		cifs_dbg(FYI, "open failed rc=%d\n", rc);
@@ -677,7 +678,7 @@ smb2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
-	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL);
+	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL, NULL);
 	kfree(utf16_path);
 	if (rc) {
 		cifs_dbg(FYI, "open failed rc=%d\n", rc);
@@ -1261,7 +1262,7 @@ smb2_query_dir_first(const unsigned int xid, struct cifs_tcon *tcon,
 	oparms.fid = fid;
 	oparms.reconnect = false;
 
-	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL);
+	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL, NULL);
 	kfree(utf16_path);
 	if (rc) {
 		cifs_dbg(FYI, "open dir failed rc=%d\n", rc);
@@ -1361,7 +1362,7 @@ smb2_queryfs(const unsigned int xid, struct cifs_tcon *tcon,
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
-	rc = SMB2_open(xid, &oparms, &srch_path, &oplock, NULL, NULL);
+	rc = SMB2_open(xid, &oparms, &srch_path, &oplock, NULL, NULL, NULL);
 	if (rc)
 		return rc;
 	buf->f_type = SMB2_MAGIC_NUMBER;
@@ -1515,7 +1516,8 @@ smb2_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 	struct cifs_open_parms oparms;
 	struct cifs_fid fid;
 	struct kvec err_iov = {NULL, 0};
-	struct smb2_err_rsp *err_buf;
+	struct smb2_err_rsp *err_buf = NULL;
+	int resp_buftype;
 	struct smb2_symlink_err_rsp *symlink;
 	unsigned int sub_len;
 	unsigned int sub_offset;
@@ -1535,18 +1537,18 @@ smb2_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
-	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, &err_iov);
-
+	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, &err_iov,
+		       &resp_buftype);
 	if (!rc || !err_iov.iov_base) {
-		kfree(utf16_path);
-		return -ENOENT;
+		rc = -ENOENT;
+		goto querty_exit;
 	}
 
 	err_buf = err_iov.iov_base;
 	if (le32_to_cpu(err_buf->ByteCount) < sizeof(struct smb2_symlink_err_rsp) ||
 	    err_iov.iov_len < SMB2_SYMLINK_STRUCT_SIZE) {
-		kfree(utf16_path);
-		return -ENOENT;
+		rc = -ENOENT;
+		goto querty_exit;
 	}
 
 	/* open must fail on symlink - reset rc */
@@ -1558,25 +1560,28 @@ smb2_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 	print_offset = le16_to_cpu(symlink->PrintNameOffset);
 
 	if (err_iov.iov_len < SMB2_SYMLINK_STRUCT_SIZE + sub_offset + sub_len) {
-		kfree(utf16_path);
-		return -ENOENT;
+		rc = -ENOENT;
+		goto querty_exit;
 	}
 
 	if (err_iov.iov_len <
 	    SMB2_SYMLINK_STRUCT_SIZE + print_offset + print_len) {
-		kfree(utf16_path);
-		return -ENOENT;
+		rc = -ENOENT;
+		goto querty_exit;
 	}
 
 	*target_path = cifs_strndup_from_utf16(
 				(char *)symlink->PathBuffer + sub_offset,
 				sub_len, true, cifs_sb->local_nls);
 	if (!(*target_path)) {
-		kfree(utf16_path);
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto querty_exit;
 	}
 	convert_delimiter(*target_path, '/');
 	cifs_dbg(FYI, "%s: target path: %s\n", __func__, *target_path);
+
+ querty_exit:
+	free_rsp_buf(resp_buftype, err_buf);
 	kfree(utf16_path);
 	return rc;
 }
@@ -1649,7 +1654,7 @@ get_smb2_acl_by_path(struct cifs_sb_info *cifs_sb,
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
-	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL);
+	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL, NULL);
 	kfree(utf16_path);
 	if (!rc) {
 		rc = SMB2_query_acl(xid, tlink_tcon(tlink), fid.persistent_fid,
@@ -1712,7 +1717,7 @@ set_smb2_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
-	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL);
+	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL, NULL);
 	kfree(utf16_path);
 	if (!rc) {
 		rc = SMB2_set_acl(xid, tlink_tcon(tlink), fid.persistent_fid,
@@ -2189,9 +2194,10 @@ init_sg(struct smb_rqst *rqst, u8 *sign)
 		smb2_sg_set_buf(&sg[i], rqst->rq_iov[i+1].iov_base,
 						rqst->rq_iov[i+1].iov_len);
 	for (j = 0; i < sg_len - 1; i++, j++) {
-		unsigned int len = (j < rqst->rq_npages - 1) ? rqst->rq_pagesz
-							: rqst->rq_tailsz;
-		sg_set_page(&sg[i], rqst->rq_pages[j], len, 0);
+		unsigned int len, offset;
+
+		rqst_page_get_length(rqst, j, &len, &offset);
+		sg_set_page(&sg[i], rqst->rq_pages[j], len, offset);
 	}
 	smb2_sg_set_buf(&sg[sg_len - 1], sign, SMB2_SIGNATURE_SIZE);
 	return sg;
@@ -2229,7 +2235,7 @@ static int
 crypt_message(struct TCP_Server_Info *server, struct smb_rqst *rqst, int enc)
 {
 	struct smb2_transform_hdr *tr_hdr =
-			(struct smb2_transform_hdr *)rqst->rq_iov[0].iov_base;
+			(struct smb2_transform_hdr *)rqst->rq_iov[1].iov_base;
 	unsigned int assoc_data_len = sizeof(struct smb2_transform_hdr) - 20;
 	int rc = 0;
 	struct scatterlist *sg;
@@ -2338,6 +2344,7 @@ smb3_init_transform_rq(struct TCP_Server_Info *server, struct smb_rqst *new_rq,
 		return rc;
 
 	new_rq->rq_pages = pages;
+	new_rq->rq_offset = old_rq->rq_offset;
 	new_rq->rq_npages = old_rq->rq_npages;
 	new_rq->rq_pagesz = old_rq->rq_pagesz;
 	new_rq->rq_tailsz = old_rq->rq_tailsz;
@@ -2379,10 +2386,14 @@ smb3_init_transform_rq(struct TCP_Server_Info *server, struct smb_rqst *new_rq,
 
 	/* copy pages form the old */
 	for (i = 0; i < npages; i++) {
-		char *dst = kmap(new_rq->rq_pages[i]);
-		char *src = kmap(old_rq->rq_pages[i]);
-		unsigned int len = (i < npages - 1) ? new_rq->rq_pagesz :
-							new_rq->rq_tailsz;
+		char *dst, *src;
+		unsigned int offset, len;
+
+		rqst_page_get_length(new_rq, i, &len, &offset);
+
+		dst = (char *) kmap(new_rq->rq_pages[i]) + offset;
+		src = (char *) kmap(old_rq->rq_pages[i]) + offset;
+
 		memcpy(dst, src, len);
 		kunmap(new_rq->rq_pages[i]);
 		kunmap(old_rq->rq_pages[i]);

@@ -37,6 +37,7 @@
 #include <crypto/aead.h>
 
 int __cifs_calc_signature(struct smb_rqst *rqst,
+			int start,
 			struct TCP_Server_Info *server, char *signature,
 			struct shash_desc *shash)
 {
@@ -45,10 +46,7 @@ int __cifs_calc_signature(struct smb_rqst *rqst,
 	struct kvec *iov = rqst->rq_iov;
 	int n_vec = rqst->rq_nvec;
 
-	if (n_vec < 2 || iov[0].iov_len != 4)
-		return -EIO;
-
-	for (i = 1; i < n_vec; i++) {
+	for (i = start; i < n_vec; i++) {
 		if (iov[i].iov_len == 0)
 			continue;
 		if (iov[i].iov_base == NULL) {
@@ -68,11 +66,12 @@ int __cifs_calc_signature(struct smb_rqst *rqst,
 
 	/* now hash over the rq_pages array */
 	for (i = 0; i < rqst->rq_npages; i++) {
-		void *kaddr = kmap(rqst->rq_pages[i]);
-		size_t len = rqst->rq_pagesz;
+		void *kaddr;
+		unsigned int len, offset;
 
-		if (i == rqst->rq_npages - 1)
-			len = rqst->rq_tailsz;
+		rqst_page_get_length(rqst, i, &len, &offset);
+
+		kaddr = (char *) kmap(rqst->rq_pages[i]) + offset;
 
 		crypto_shash_update(shash, kaddr, len);
 
@@ -119,7 +118,7 @@ static int cifs_calc_signature(struct smb_rqst *rqst,
 		return rc;
 	}
 
-	return __cifs_calc_signature(rqst, server, signature,
+	return __cifs_calc_signature(rqst, 1, server, signature,
 				     &server->secmech.sdescmd5->shash);
 }
 
