@@ -433,9 +433,6 @@ static enum sci_status sci_user_parameters_set(struct isci_host *ihost,
 		      (u->max_speed_generation > SCIC_SDS_PARM_NO_SPEED)))
 			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 
-		if (u->in_connection_align_insertion_frequency < 3)
-			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
-
 		if ((u->in_connection_align_insertion_frequency < 3) ||
 		    (u->align_insertion_frequency == 0) ||
 		    (u->notify_enable_spin_up_insertion_frequency == 0))

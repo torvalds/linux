@@ -151,7 +151,7 @@ Code  Seq#(hex)	Include File		Comments
 'J'	00-1F	drivers/scsi/gdth_ioctl.h
 'K'	all	linux/kd.h
 'L'	00-1F	linux/loop.h		conflict!
-'L'	10-1F	drivers/scsi/mpt2sas/mpt2sas_ctl.h	conflict!
+'L'	10-1F	drivers/scsi/mpt3sas/mpt3sas_ctl.h	conflict!
 'L'	20-2F	linux/lightnvm.h
 'L'	E0-FF	linux/ppdd.h		encrypted disk device driver
 					<http://linux01.gwdg.de/~alatham/ppdd.html>

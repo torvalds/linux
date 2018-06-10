@@ -5063,6 +5063,10 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 			break;
 		case QLA_EVT_SP_RETRY:
 			qla_sp_retry(vha, e);
+			break;
+		case QLA_EVT_IIDMA:
+			qla_do_iidma_work(vha, e->u.fcport.fcport);
+			break;
 		}
 		if (e->flags & QLA_EVT_FLAG_FREE)
 			kfree(e);

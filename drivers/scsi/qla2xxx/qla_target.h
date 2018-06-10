@@ -682,7 +682,7 @@ struct qla_tgt_cmd;
  * target module (tcm_qla2xxx).
  */
 struct qla_tgt_func_tmpl {
-
+	struct qla_tgt_cmd *(*find_cmd_by_tag)(struct fc_port *, uint64_t);
 	int (*handle_cmd)(struct scsi_qla_host *, struct qla_tgt_cmd *,
 			unsigned char *, uint32_t, int, int, int);
 	void (*handle_data)(struct qla_tgt_cmd *);
@@ -966,6 +966,8 @@ struct qla_tgt_mgmt_cmd {
 	unsigned int flags;
 	uint32_t reset_count;
 #define QLA24XX_MGMT_SEND_NACK	1
+	struct work_struct work;
+	uint64_t unpacked_lun;
 	union {
 		struct atio_from_isp atio;
 		struct imm_ntfy_from_isp imm_ntfy;

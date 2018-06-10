@@ -7,7 +7,7 @@
  *         Title:  MPI IOC, Port, Event, FW Download, and FW Upload messages
  * Creation Date:  October 11, 2006
  *
- * mpi2_ioc.h Version:  02.00.32
+ * mpi2_ioc.h Version:  02.00.34
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -167,6 +167,10 @@
  * 02-02-17   02.00.32 Added MPI2_FW_DOWNLOAD_ITYPE_CBB_BACKUP.
  *                     Added MPI25_EVENT_DATA_ACTIVE_CABLE_EXCEPT and related
  *                     defines for the ReasonCode field.
+ * 06-13-17   02.00.33 Added MPI2_FW_DOWNLOAD_ITYPE_CPLD.
+ * 09-29-17   02.00.34 Added MPI26_EVENT_PCIDEV_STAT_RC_PCIE_HOT_RESET_FAILED
+ *                     to the ReasonCode field in PCIe Device Status Change
+ *                     Event Data.
  * --------------------------------------------------------------------------
  */
 
@@ -1182,6 +1186,7 @@ typedef struct _MPI26_EVENT_DATA_PCIE_DEVICE_STATUS_CHANGE {
 #define MPI26_EVENT_PCIDEV_STAT_RC_CMP_INTERNAL_DEV_RESET               (0x0E)
 #define MPI26_EVENT_PCIDEV_STAT_RC_CMP_TASK_ABORT_INTERNAL              (0x0F)
 #define MPI26_EVENT_PCIDEV_STAT_RC_DEV_INIT_FAILURE                     (0x10)
+#define MPI26_EVENT_PCIDEV_STAT_RC_PCIE_HOT_RESET_FAILED                (0x11)
 
 
 /*PCIe Enumeration Event data (MPI v2.6 and later) */

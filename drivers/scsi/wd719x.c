@@ -978,18 +978,7 @@ static struct pci_driver wd719x_pci_driver = {
 	.remove =	wd719x_pci_remove,
 };
 
-static int __init wd719x_init(void)
-{
-	return pci_register_driver(&wd719x_pci_driver);
-}
-
-static void __exit wd719x_exit(void)
-{
-	pci_unregister_driver(&wd719x_pci_driver);
-}
-
-module_init(wd719x_init);
-module_exit(wd719x_exit);
+module_pci_driver(wd719x_pci_driver);
 
 MODULE_DESCRIPTION("Western Digital WD7193/7197/7296 SCSI driver");
 MODULE_AUTHOR("Ondrej Zary, Aaron Dewell, Juergen Gaertner");
