@@ -117,6 +117,8 @@ static int sensor_set_power(struct camif_dev *camif, int on)
 
 	if (camif->sensor.power_count == !on)
 		err = v4l2_subdev_call(sensor->sd, core, s_power, on);
+	if (err == -ENOIOCTLCMD)
+		err = 0;
 	if (!err)
 		sensor->power_count += on ? 1 : -1;
 
