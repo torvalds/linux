@@ -48,8 +48,7 @@ static void bq4802_write_mem(struct bq4802 *p, int off, u8 val)
 
 static int bq4802_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct bq4802 *p = platform_get_drvdata(pdev);
+	struct bq4802 *p = dev_get_drvdata(dev);
 	unsigned long flags;
 	unsigned int century;
 	u8 val;
@@ -91,8 +90,7 @@ static int bq4802_read_time(struct device *dev, struct rtc_time *tm)
 
 static int bq4802_set_time(struct device *dev, struct rtc_time *tm)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct bq4802 *p = platform_get_drvdata(pdev);
+	struct bq4802 *p = dev_get_drvdata(dev);
 	u8 sec, min, hrs, day, mon, yrs, century, val;
 	unsigned long flags;
 	unsigned int year;
