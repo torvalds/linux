@@ -39,6 +39,10 @@
 #define PCI_INTEL_BXT_STATE_D0		0
 #define PCI_INTEL_BXT_STATE_D3		3
 
+#define GP_RWBAR			1
+#define GP_RWREG1			0xa0
+#define GP_RWREG1_ULPI_REFCLK_DISABLE	(1 << 17)
+
 /**
  * struct dwc3_pci - Driver private structure
  * @dwc3: child dwc3 platform_device
@@ -73,6 +77,28 @@ static struct gpiod_lookup_table platform_bytcr_gpios = {
 		{}
 	},
 };
+
+static int dwc3_byt_enable_ulpi_refclock(struct pci_dev *pci)
+{
+	void __iomem	*reg;
+	u32		value;
+
+	reg = pcim_iomap(pci, GP_RWBAR, 0);
+	if (IS_ERR(reg))
+		return PTR_ERR(reg);
+
+	value = readl(reg + GP_RWREG1);
+	if (!(value & GP_RWREG1_ULPI_REFCLK_DISABLE))
+		goto unmap; /* ULPI refclk already enabled */
+
+	value &= ~GP_RWREG1_ULPI_REFCLK_DISABLE;
+	writel(value, reg + GP_RWREG1);
+	/* This comes from the Intel Android x86 tree w/o any explanation */
+	msleep(100);
+unmap:
+	pcim_iounmap(pci, reg);
+	return 0;
+}
 
 static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 {
@@ -128,6 +154,11 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 
 		if (pdev->device == PCI_DEVICE_ID_INTEL_BYT) {
 			struct gpio_desc *gpio;
+
+			/* On BYT the FW does not always enable the refclock */
+			ret = dwc3_byt_enable_ulpi_refclock(pdev);
+			if (ret)
+				return ret;
 
 			ret = devm_acpi_dev_add_driver_gpios(&pdev->dev,
 					acpi_dwc3_byt_gpios);
