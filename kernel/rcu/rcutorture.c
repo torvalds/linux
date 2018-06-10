@@ -69,6 +69,7 @@ MODULE_AUTHOR("Paul E. McKenney <paulmck@us.ibm.com> and Josh Triplett <josh@jos
 #define RCUTORTURE_RDR_IRQ	 0x2	/*  ... disabling interrupts. */
 #define RCUTORTURE_RDR_PREEMPT	 0x4	/*  ... disabling preemption. */
 #define RCUTORTURE_RDR_RCU	 0x8	/*  ... entering another RCU reader. */
+#define RCUTORTURE_RDR_NBITS	 4	/* Number of bits defined above. */
 #define RCUTORTURE_MAX_EXTEND	 (RCUTORTURE_RDR_BH | RCUTORTURE_RDR_IRQ | \
 				  RCUTORTURE_RDR_PREEMPT)
 #define RCUTORTURE_RDR_MAX_LOOPS 0x7	/* Maximum reader extensions. */
@@ -1198,9 +1199,15 @@ static int
 rcutorture_extend_mask(int oldmask, struct torture_random_state *trsp)
 {
 	int mask = rcutorture_extend_mask_max();
+	unsigned long randmask1 = torture_random(trsp) >> 8;
+	unsigned long randmask2 = randmask1 >> 1;
 
 	WARN_ON_ONCE(mask >> RCUTORTURE_RDR_SHIFT);
-	mask = mask & (torture_random(trsp) >> RCUTORTURE_RDR_SHIFT);
+	/* Half the time lots of bits, half the time only one bit. */
+	if (randmask1 & 0x1)
+		mask = mask & randmask2;
+	else
+		mask = mask & (1 << (randmask2 % RCUTORTURE_RDR_NBITS));
 	if ((mask & RCUTORTURE_RDR_IRQ) &&
 	    !(mask & RCUTORTURE_RDR_BH) &&
 	    (oldmask & RCUTORTURE_RDR_BH))
