@@ -169,9 +169,11 @@ static bool blk_flush_complete_seq(struct request *rq,
 	struct request_queue *q = rq->q;
 	struct list_head *pending = &fq->flush_queue[fq->flush_pending_idx];
 	bool queued = false, kicked;
+	unsigned int cmd_flags;
 
 	BUG_ON(rq->flush.seq & seq);
 	rq->flush.seq |= seq;
+	cmd_flags = rq->cmd_flags;
 
 	if (likely(!error))
 		seq = blk_flush_cur_seq(rq);
@@ -212,7 +214,7 @@ static bool blk_flush_complete_seq(struct request *rq,
 		BUG();
 	}
 
-	kicked = blk_kick_flush(q, fq, rq->cmd_flags);
+	kicked = blk_kick_flush(q, fq, cmd_flags);
 	return kicked | queued;
 }
 
