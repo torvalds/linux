@@ -509,7 +509,7 @@ static u8	CCKSwingTable_Ch14[CCK_Table_length][8] = {
 static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	bool						bHighpowerstate, viviflag = false;
+	bool						viviflag = false;
 	DCMD_TXCMD_T			tx_cmd;
 	u8						powerlevelOFDM24G;
 	int						i = 0, j = 0, k = 0;
@@ -524,7 +524,6 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 	write_nic_byte(dev, 0x1ba, 0);
 
 	priv->ieee80211->bdynamic_txpower_enable = false;
-	bHighpowerstate = priv->bDynamicTxHighPower;
 
 	powerlevelOFDM24G = (u8)(priv->Pwr_Track>>24);
 	RF_Type = priv->rf_type;
