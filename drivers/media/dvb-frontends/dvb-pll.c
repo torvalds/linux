@@ -884,6 +884,17 @@ dvb_pll_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (!dvb_pll_attach(fe, client->addr, client->adapter, desc_id))
 		return -ENOMEM;
 
+	/*
+	 * Unset tuner_ops.release (== dvb_pll_release)
+	 * which has been just set in the above dvb_pll_attach(),
+	 * because if tuner_ops.release was left defined,
+	 * this module would be 'put' twice on exit:
+	 * once by dvb_frontend_detach() and another by dvb_module_release().
+	 *
+	 * dvb_pll_release is instead executed in the i2c driver's .remove(),
+	 * keeping dvb_pll_attach untouched for legacy (dvb_attach) drivers.
+	 */
+	fe->ops.tuner_ops.release = NULL;
 	dev_info(&client->dev, "DVB Simple Tuner attached.\n");
 	return 0;
 }
