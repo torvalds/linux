@@ -5066,6 +5066,18 @@ T:	git git://linuxtv.org/anttip/media_tree.git
 S:	Maintained
 F:	drivers/media/tuners/e4000*
 
+EARTH_PT1 MEDIA DRIVER
+M:	Akihiro Tsukada <tskd08@gmail.com>
+L:	linux-media@vger.kernel.org
+S:	Odd Fixes
+F:	drivers/media/pci/pt1/
+
+EARTH_PT3 MEDIA DRIVER
+M:	Akihiro Tsukada <tskd08@gmail.com>
+L:	linux-media@vger.kernel.org
+S:	Odd Fixes
+F:	drivers/media/pci/pt3/
+
 EC100 MEDIA DRIVER
 M:	Antti Palosaari <crope@iki.fi>
 L:	linux-media@vger.kernel.org
@@ -9711,6 +9723,12 @@ L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	drivers/usb/musb/
 
+MXL301RF MEDIA DRIVER
+M:	Akihiro Tsukada <tskd08@gmail.com>
+L:	linux-media@vger.kernel.org
+S:	Odd Fixes
+F:	drivers/media/tuners/mxl301rf*
+
 MXL5007T MEDIA DRIVER
 M:	Michael Krufky <mkrufky@linuxtv.org>
 L:	linux-media@vger.kernel.org
@@ -11791,6 +11809,18 @@ M:	Dept-GELinuxNICDev@cavium.com
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/qlogic/qlge/
+
+QM1D1B0004 MEDIA DRIVER
+M:	Akihiro Tsukada <tskd08@gmail.com>
+L:	linux-media@vger.kernel.org
+S:	Odd Fixes
+F:	drivers/media/tuners/qm1d1b0004*
+
+QM1D1C0042 MEDIA DRIVER
+M:	Akihiro Tsukada <tskd08@gmail.com>
+L:	linux-media@vger.kernel.org
+S:	Odd Fixes
+F:	drivers/media/tuners/qm1d1c0042*
 
 QNX4 FILESYSTEM
 M:	Anders Larsen <al@alarsen.net>
@@ -13895,6 +13925,12 @@ F:	include/uapi/linux/pkt_sched.h
 F:	include/uapi/linux/tc_act/
 F:	include/uapi/linux/tc_ematch/
 F:	net/sched/
+
+TC90522 MEDIA DRIVER
+M:	Akihiro Tsukada <tskd08@gmail.com>
+L:	linux-media@vger.kernel.org
+S:	Odd Fixes
+F:	drivers/media/dvb-frontends/tc90522*
 
 TCP LOW PRIORITY MODULE
 M:	"Wong Hoi Sing, Edison" <hswong3i@gmail.com>
