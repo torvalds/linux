@@ -12134,6 +12134,18 @@ F:	include/dt-bindings/reset/
 F:	include/linux/reset.h
 F:	include/linux/reset-controller.h
 
+RESTARTABLE SEQUENCES SUPPORT
+M:	Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+M:	Peter Zijlstra <peterz@infradead.org>
+M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+M:	Boqun Feng <boqun.feng@gmail.com>
+L:	linux-kernel@vger.kernel.org
+S:	Supported
+F:	kernel/rseq.c
+F:	include/uapi/linux/rseq.h
+F:	include/trace/events/rseq.h
+F:	tools/testing/selftests/rseq/
+
 RFKILL
 M:	Johannes Berg <johannes@sipsolutions.net>
 L:	linux-wireless@vger.kernel.org
