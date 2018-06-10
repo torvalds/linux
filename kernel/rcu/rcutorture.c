@@ -799,6 +799,18 @@ static void rcu_torture_enable_rt_throttle(void)
 	old_rt_runtime = -1;
 }
 
+static bool rcu_torture_boost_failed(unsigned long start, unsigned long end)
+{
+	if (end - start > test_boost_duration * HZ - HZ / 2) {
+		VERBOSE_TOROUT_STRING("rcu_torture_boost boosting failed");
+		n_rcu_torture_boost_failure++;
+
+		return true; /* failed */
+	}
+
+	return false; /* passed */
+}
+
 static int rcu_torture_boost(void *arg)
 {
 	unsigned long call_rcu_time;
@@ -819,6 +831,21 @@ static int rcu_torture_boost(void *arg)
 	init_rcu_head_on_stack(&rbi.rcu);
 	/* Each pass through the following loop does one boost-test cycle. */
 	do {
+		/* Track if the test failed already in this test interval? */
+		bool failed = false;
+
+		/* Increment n_rcu_torture_boosts once per boost-test */
+		while (!kthread_should_stop()) {
+			if (mutex_trylock(&boost_mutex)) {
+				n_rcu_torture_boosts++;
+				mutex_unlock(&boost_mutex);
+				break;
+			}
+			schedule_timeout_uninterruptible(1);
+		}
+		if (kthread_should_stop())
+			goto checkwait;
+
 		/* Wait for the next test interval. */
 		oldstarttime = boost_starttime;
 		while (ULONG_CMP_LT(jiffies, oldstarttime)) {
@@ -837,17 +864,24 @@ static int rcu_torture_boost(void *arg)
 				/* RCU core before ->inflight = 1. */
 				smp_store_release(&rbi.inflight, 1);
 				call_rcu(&rbi.rcu, rcu_torture_boost_cb);
-				if (jiffies - call_rcu_time >
-					 test_boost_duration * HZ - HZ / 2) {
-					VERBOSE_TOROUT_STRING("rcu_torture_boost boosting failed");
-					n_rcu_torture_boost_failure++;
-				}
+				/* Check if the boost test failed */
+				failed = failed ||
+					 rcu_torture_boost_failed(call_rcu_time,
+								 jiffies);
 				call_rcu_time = jiffies;
 			}
 			stutter_wait("rcu_torture_boost");
 			if (torture_must_stop())
 				goto checkwait;
 		}
+
+		/*
+		 * If boost never happened, then inflight will always be 1, in
+		 * this case the boost check would never happen in the above
+		 * loop so do another one here.
+		 */
+		if (!failed && smp_load_acquire(&rbi.inflight))
+			rcu_torture_boost_failed(call_rcu_time, jiffies);
 
 		/*
 		 * Set the start time of the next test interval.
@@ -861,7 +895,6 @@ static int rcu_torture_boost(void *arg)
 			if (mutex_trylock(&boost_mutex)) {
 				boost_starttime = jiffies +
 						  test_boost_interval * HZ;
-				n_rcu_torture_boosts++;
 				mutex_unlock(&boost_mutex);
 				break;
 			}
