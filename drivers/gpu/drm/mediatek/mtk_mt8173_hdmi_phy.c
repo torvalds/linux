@@ -21,6 +21,7 @@
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
+#include "mtk_hdmi.h"
 
 #define HDMI_CON0		0x00
 #define RG_HDMITX_PLL_EN		BIT(31)
@@ -122,20 +123,6 @@
 #define RGS_HDMITX_5T1_LEV		(0xf << 8)
 #define RGS_HDMITX_5T1_EDG		(0xf << 4)
 #define RGS_HDMITX_PLUG_TST		BIT(0)
-
-struct mtk_hdmi_phy {
-	void __iomem *regs;
-	struct device *dev;
-	struct clk *pll;
-	struct clk_hw pll_hw;
-	unsigned long pll_rate;
-	u8 drv_imp_clk;
-	u8 drv_imp_d2;
-	u8 drv_imp_d1;
-	u8 drv_imp_d0;
-	u32 ibias;
-	u32 ibias_up;
-};
 
 static const u8 PREDIV[3][4] = {
 	{0x0, 0x0, 0x0, 0x0},	/* 27Mhz */
@@ -367,7 +354,7 @@ static unsigned long mtk_hdmi_pll_recalc_rate(struct clk_hw *hw,
 	return hdmi_phy->pll_rate;
 }
 
-static const struct clk_ops mtk_hdmi_pll_ops = {
+static const struct clk_ops mtk_hdmi_phy_pll_ops = {
 	.prepare = mtk_hdmi_pll_prepare,
 	.unprepare = mtk_hdmi_pll_unprepare,
 	.set_rate = mtk_hdmi_pll_set_rate,
@@ -414,118 +401,16 @@ static int mtk_hdmi_phy_power_off(struct phy *phy)
 	return 0;
 }
 
-static const struct phy_ops mtk_hdmi_phy_ops = {
+static const struct phy_ops mtk_hdmi_phy_dev_ops = {
 	.power_on = mtk_hdmi_phy_power_on,
 	.power_off = mtk_hdmi_phy_power_off,
 	.owner = THIS_MODULE,
 };
 
-static int mtk_hdmi_phy_probe(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct mtk_hdmi_phy *hdmi_phy;
-	struct resource *mem;
-	struct clk *ref_clk;
-	const char *ref_clk_name;
-	struct clk_init_data clk_init = {
-		.ops = &mtk_hdmi_pll_ops,
-		.num_parents = 1,
-		.parent_names = (const char * const *)&ref_clk_name,
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE,
-	};
-	struct phy *phy;
-	struct phy_provider *phy_provider;
-	int ret;
-
-	hdmi_phy = devm_kzalloc(dev, sizeof(*hdmi_phy), GFP_KERNEL);
-	if (!hdmi_phy)
-		return -ENOMEM;
-
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hdmi_phy->regs = devm_ioremap_resource(dev, mem);
-	if (IS_ERR(hdmi_phy->regs)) {
-		ret = PTR_ERR(hdmi_phy->regs);
-		dev_err(dev, "Failed to get memory resource: %d\n", ret);
-		return ret;
-	}
-
-	ref_clk = devm_clk_get(dev, "pll_ref");
-	if (IS_ERR(ref_clk)) {
-		ret = PTR_ERR(ref_clk);
-		dev_err(&pdev->dev, "Failed to get PLL reference clock: %d\n",
-			ret);
-		return ret;
-	}
-	ref_clk_name = __clk_get_name(ref_clk);
-
-	ret = of_property_read_string(dev->of_node, "clock-output-names",
-				      &clk_init.name);
-	if (ret < 0) {
-		dev_err(dev, "Failed to read clock-output-names: %d\n", ret);
-		return ret;
-	}
-
-	hdmi_phy->pll_hw.init = &clk_init;
-	hdmi_phy->pll = devm_clk_register(dev, &hdmi_phy->pll_hw);
-	if (IS_ERR(hdmi_phy->pll)) {
-		ret = PTR_ERR(hdmi_phy->pll);
-		dev_err(dev, "Failed to register PLL: %d\n", ret);
-		return ret;
-	}
-
-	ret = of_property_read_u32(dev->of_node, "mediatek,ibias",
-				   &hdmi_phy->ibias);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to get ibias: %d\n", ret);
-		return ret;
-	}
-
-	ret = of_property_read_u32(dev->of_node, "mediatek,ibias_up",
-				   &hdmi_phy->ibias_up);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to get ibias up: %d\n", ret);
-		return ret;
-	}
-
-	dev_info(dev, "Using default TX DRV impedance: 4.2k/36\n");
-	hdmi_phy->drv_imp_clk = 0x30;
-	hdmi_phy->drv_imp_d2 = 0x30;
-	hdmi_phy->drv_imp_d1 = 0x30;
-	hdmi_phy->drv_imp_d0 = 0x30;
-
-	phy = devm_phy_create(dev, NULL, &mtk_hdmi_phy_ops);
-	if (IS_ERR(phy)) {
-		dev_err(dev, "Failed to create HDMI PHY\n");
-		return PTR_ERR(phy);
-	}
-	phy_set_drvdata(phy, hdmi_phy);
-
-	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
-	if (IS_ERR(phy_provider))
-		return PTR_ERR(phy_provider);
-
-	hdmi_phy->dev = dev;
-	return of_clk_add_provider(dev->of_node, of_clk_src_simple_get,
-				   hdmi_phy->pll);
-}
-
-static int mtk_hdmi_phy_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
-static const struct of_device_id mtk_hdmi_phy_match[] = {
-	{ .compatible = "mediatek,mt8173-hdmi-phy", },
-	{},
-};
-
-struct platform_driver mtk_hdmi_phy_driver = {
-	.probe = mtk_hdmi_phy_probe,
-	.remove = mtk_hdmi_phy_remove,
-	.driver = {
-		.name = "mediatek-hdmi-phy",
-		.of_match_table = mtk_hdmi_phy_match,
-	},
+struct mtk_hdmi_phy_conf mtk_hdmi_phy_8173_conf = {
+	.tz_enabled = true,
+	.hdmi_phy_clk_ops = &mtk_hdmi_phy_pll_ops,
+	.hdmi_phy_dev_ops = &mtk_hdmi_phy_dev_ops,
 };
 
 MODULE_AUTHOR("Jie Qiu <jie.qiu@mediatek.com>");

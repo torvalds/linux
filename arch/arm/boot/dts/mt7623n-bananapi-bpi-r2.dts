@@ -123,6 +123,15 @@
 	};
 };
 
+&bls {
+	status = "okay";
+	port {
+		bls_out: endpoint {
+			remote-endpoint = <&dpi0_in>;
+		};
+	};
+};
+
 &cir {
 	pinctrl-names = "default";
 	pinctrl-0 = <&cir_pins_a>;
@@ -208,12 +217,47 @@
 	};
 };
 
-&hdmi0 {
+&cec {
 	status = "okay";
 };
 
 &hdmi_phy {
+	mediatek,ibias = <0xa>;
+	mediatek,ibias_up = <0x1c>;
 	status = "okay";
+};
+
+&hdmiddc0 {
+	status = "okay";
+};
+
+&dpi0 {
+	status = "okay";
+	port {
+		dpi0_out: endpoint {
+			remote-endpoint = <&hdmi0_in>;
+		};
+
+		dpi0_in: endpoint@1 {
+			remote-endpoint = <&bls_out>;
+		};
+	};
+};
+
+&hdmi0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmi_pin>;
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			hdmi0_in: endpoint {
+				remote-endpoint = <&dpi0_out>;
+			};
+		};
+	};
 };
 
 &i2c0 {
@@ -225,11 +269,6 @@
 &i2c1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pins_a>;
-	status = "okay";
-};
-
-&mali {
-	vdd_g3d-supply = <&vdd_fixed_vgpu_reg>;
 	status = "okay";
 };
 
@@ -289,6 +328,14 @@
 		};
 	};
 
+	hdmi_pin: htplg {
+		pins1 {
+			pinmux = <MT7623_PIN_123_HTPLG_FUNC_HTPLG>;
+			input-enable;
+			bias-pull-down;
+		};
+	};
+
 	i2c0_pins_a: i2c@0 {
 		pins_i2c0 {
 			pinmux = <MT7623_PIN_75_SDA0_FUNC_SDA0>,
@@ -342,6 +389,22 @@
 			pinmux = <MT7623_PIN_239_EXT_SDIO0_FUNC_GPIO239>,
 				 <MT7623_PIN_240_EXT_XCS_FUNC_GPIO240>,
 				 <MT7623_PIN_241_EXT_SCK_FUNC_GPIO241>;
+		};
+	};
+
+
+	mipi_dsi_pin: mipi_dsi_pin {
+		pins_cmd_dat {
+			pinmux = <MT7623_PIN_100_MIPI_TDP0_FUNC_TDP0>,
+				 <MT7623_PIN_99_MIPI_TDN0_FUNC_TDN0>,
+				 <MT7623_PIN_98_MIPI_TDP1_FUNC_TDP1>,
+				 <MT7623_PIN_97_MIPI_TDN1_FUNC_TDN1>,
+				 <MT7623_PIN_96_MIPI_TCP_FUNC_TCP>,
+				 <MT7623_PIN_95_MIPI_TCN_FUNC_TCN>,
+				 <MT7623_PIN_94_MIPI_TDP2_FUNC_TDP2>,
+				 <MT7623_PIN_93_MIPI_TDN2_FUNC_TDN2>,
+				 <MT7623_PIN_92_MIPI_TDP3_FUNC_TDP3>,
+				 <MT7623_PIN_91_MIPI_TDN3_FUNC_TDN3>;
 		};
 	};
 
@@ -448,6 +511,12 @@
 		};
 	};
 
+	pwm_bls_gpio: pwm_bls_gpio {
+		pins_cmd_dat {
+			pinmux = <MT7623_PIN_203_PWM0_FUNC_DISP_PWM>;
+		};
+	};
+
 	pcie_default: pcie_pin_default {
 		pins_cmd_dat {
 			pinmux = <MT7623_PIN_208_AUD_EXT_CK1_FUNC_PCIE0_PERST_N>,
@@ -515,17 +584,6 @@
 		};
 	};
 
-	mipi_dsi_pin: mipi_dsi_pin {
-                pins_cmd_dat {
-                      pinmux = <MT7623_PIN_100_MIPI_TDP0_FUNC_TDP0>,
-                               <MT7623_PIN_99_MIPI_TDN0_FUNC_TDN0>,
-                               <MT7623_PIN_98_MIPI_TDP1_FUNC_TDP1>,
-                               <MT7623_PIN_97_MIPI_TDN1_FUNC_TDN1>,
-                               <MT7623_PIN_96_MIPI_TCP_FUNC_TCP>,
-                               <MT7623_PIN_95_MIPI_TCN_FUNC_TCN>;
-               };
-
-	};
 };
 
 &pwm {
@@ -857,8 +915,3 @@
 	status = "okay";
 };
 
-&mipi_tx0 {
-        pinctrl-names = "default";
-        pinctrl-0 = <&mipi_dsi_pin>;
-        status = "okay";
-};

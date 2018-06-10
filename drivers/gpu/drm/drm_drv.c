@@ -724,7 +724,7 @@ static int create_compat_control_link(struct drm_device *dev)
 	 * Old controlD chardev have been allocated in the range
 	 * 64-127.
 	 */
-	name = kasprintf(GFP_KERNEL, "controlD%d", minor->index + 64);
+	name = kasprintf(GFP_KERNEL, "controlD%d", minor->index);
 	if (!name)
 		return -ENOMEM;
 
