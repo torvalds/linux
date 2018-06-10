@@ -55,6 +55,7 @@
 #include <linux/torture.h>
 #include <linux/vmalloc.h>
 #include <linux/sched/debug.h>
+#include <linux/sched/sysctl.h>
 
 #include "rcu.h"
 
@@ -770,6 +771,32 @@ static void rcu_torture_boost_cb(struct rcu_head *head)
 
 	/* Ensure RCU-core accesses precede clearing ->inflight */
 	smp_store_release(&rbip->inflight, 0);
+}
+
+static int old_rt_runtime = -1;
+
+static void rcu_torture_disable_rt_throttle(void)
+{
+	/*
+	 * Disable RT throttling so that rcutorture's boost threads don't get
+	 * throttled. Only possible if rcutorture is built-in otherwise the
+	 * user should manually do this by setting the sched_rt_period_us and
+	 * sched_rt_runtime sysctls.
+	 */
+	if (!IS_BUILTIN(CONFIG_RCU_TORTURE_TEST) || old_rt_runtime != -1)
+		return;
+
+	old_rt_runtime = sysctl_sched_rt_runtime;
+	sysctl_sched_rt_runtime = -1;
+}
+
+static void rcu_torture_enable_rt_throttle(void)
+{
+	if (!IS_BUILTIN(CONFIG_RCU_TORTURE_TEST) || old_rt_runtime == -1)
+		return;
+
+	sysctl_sched_rt_runtime = old_rt_runtime;
+	old_rt_runtime = -1;
 }
 
 static int rcu_torture_boost(void *arg)
@@ -1511,6 +1538,7 @@ static int rcutorture_booster_cleanup(unsigned int cpu)
 	mutex_lock(&boost_mutex);
 	t = boost_tasks[cpu];
 	boost_tasks[cpu] = NULL;
+	rcu_torture_enable_rt_throttle();
 	mutex_unlock(&boost_mutex);
 
 	/* This must be outside of the mutex, otherwise deadlock! */
@@ -1527,6 +1555,7 @@ static int rcutorture_booster_init(unsigned int cpu)
 
 	/* Don't allow time recalculation while creating a new task. */
 	mutex_lock(&boost_mutex);
+	rcu_torture_disable_rt_throttle();
 	VERBOSE_TOROUT_STRING("Creating rcu_torture_boost task");
 	boost_tasks[cpu] = kthread_create_on_node(rcu_torture_boost, NULL,
 						  cpu_to_node(cpu),
