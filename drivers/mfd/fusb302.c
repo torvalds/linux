@@ -1103,11 +1103,12 @@ static void process_vdm_msg(struct fusb30x_chip *chip)
 				 * store mode config,
 				 * enter first mode default
 				 */
-				if (!((chip->rec_load[1] >> 8) & 0x3f)) {
+				tmp = chip->rec_load[1];
+				if ((!((tmp >> 8) & 0x3f)) &&
+				    (!((tmp >> 16) & 0x3f))) {
 					chip->val_tmp |= 1;
 					break;
 				}
-				tmp = chip->rec_load[1];
 				chip->notify.pin_assignment_def = 0;
 				chip->notify.pin_assignment_support =
 					VDM_DP_GET_RECEPTACLE(tmp) ?
