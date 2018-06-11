@@ -11,10 +11,10 @@
 #include <linux/sched.h>
 #include <linux/sched/loadavg.h>
 #include <linux/io.h>
+#include <linux/of.h>
 
 #include <asm/setup.h>
 #include <asm/page.h>
-#include <asm/prom.h>
 
 static unsigned int base_addr;
 
