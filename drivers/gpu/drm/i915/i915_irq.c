@@ -4387,11 +4387,13 @@ static int i8xx_irq_postinstall(struct drm_device *dev)
 	/* Unmask the interrupts that we always want on. */
 	dev_priv->irq_mask =
 		~(I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
-		  I915_DISPLAY_PIPE_B_EVENT_INTERRUPT);
+		  I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
+		  I915_MASTER_ERROR_INTERRUPT);
 
 	enable_mask =
 		I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
 		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
+		I915_MASTER_ERROR_INTERRUPT |
 		I915_USER_INTERRUPT;
 
 	GEN2_IRQ_INIT(, dev_priv->irq_mask, enable_mask);
@@ -4555,12 +4557,14 @@ static int i915_irq_postinstall(struct drm_device *dev)
 	dev_priv->irq_mask =
 		~(I915_ASLE_INTERRUPT |
 		  I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
-		  I915_DISPLAY_PIPE_B_EVENT_INTERRUPT);
+		  I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
+		  I915_MASTER_ERROR_INTERRUPT);
 
 	enable_mask =
 		I915_ASLE_INTERRUPT |
 		I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
 		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
+		I915_MASTER_ERROR_INTERRUPT |
 		I915_USER_INTERRUPT;
 
 	if (I915_HAS_HOTPLUG(dev_priv)) {
