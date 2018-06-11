@@ -2256,13 +2256,8 @@ int intel_gvt_init_gtt(struct intel_gvt *gvt)
 
 	gvt_dbg_core("init gtt\n");
 
-	if (IS_BROADWELL(gvt->dev_priv) || IS_SKYLAKE(gvt->dev_priv)
-		|| IS_KABYLAKE(gvt->dev_priv)) {
-		gvt->gtt.pte_ops = &gen8_gtt_pte_ops;
-		gvt->gtt.gma_ops = &gen8_gtt_gma_ops;
-	} else {
-		return -ENODEV;
-	}
+	gvt->gtt.pte_ops = &gen8_gtt_pte_ops;
+	gvt->gtt.gma_ops = &gen8_gtt_gma_ops;
 
 	page = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!page) {
