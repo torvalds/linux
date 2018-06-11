@@ -699,5 +699,7 @@ int pp_atomfwctrl_get_smc_dpm_information(struct pp_hwmgr *hwmgr,
 	param->acggfxclkspreadpercent = info->acggfxclkspreadpercent;
 	param->acggfxclkspreadfreq = info->acggfxclkspreadfreq;
 
+	param->Vr2_I2C_address = info->Vr2_I2C_address;
+
 	return 0;
 }
