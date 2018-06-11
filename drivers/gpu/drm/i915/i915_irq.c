@@ -1893,9 +1893,17 @@ static void i9xx_pipestat_irq_ack(struct drm_i915_private *dev_priv,
 
 		/*
 		 * Clear the PIPE*STAT regs before the IIR
+		 *
+		 * Toggle the enable bits to make sure we get an
+		 * edge in the ISR pipe event bit if we don't clear
+		 * all the enabled status bits. Otherwise the edge
+		 * triggered IIR on i965/g4x wouldn't notice that
+		 * an interrupt is still pending.
 		 */
-		if (pipe_stats[pipe])
-			I915_WRITE(reg, enable_mask | pipe_stats[pipe]);
+		if (pipe_stats[pipe]) {
+			I915_WRITE(reg, pipe_stats[pipe]);
+			I915_WRITE(reg, enable_mask);
+		}
 	}
 	spin_unlock(&dev_priv->irq_lock);
 }
