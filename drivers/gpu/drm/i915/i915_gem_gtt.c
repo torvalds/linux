@@ -1693,8 +1693,8 @@ static inline void gen6_write_pde(const struct i915_hw_ppgtt *ppgtt,
 				  const struct i915_page_table *pt)
 {
 	/* Caller needs to make sure the write completes if necessary */
-	writel_relaxed(GEN6_PDE_ADDR_ENCODE(px_dma(pt)) | GEN6_PDE_VALID,
-		       ppgtt->pd_addr + pde);
+	iowrite32(GEN6_PDE_ADDR_ENCODE(px_dma(pt)) | GEN6_PDE_VALID,
+		  ppgtt->pd_addr + pde);
 }
 
 /* Write all the page tables found in the ppgtt structure to incrementing page
@@ -1709,7 +1709,7 @@ static void gen6_write_page_range(struct i915_hw_ppgtt *ppgtt,
 		gen6_write_pde(ppgtt, pde, pt);
 
 	mark_tlbs_dirty(ppgtt);
-	wmb();
+	gen6_ggtt_invalidate(ppgtt->vm.i915);
 }
 
 static void gen8_ppgtt_enable(struct drm_i915_private *dev_priv)
@@ -1864,7 +1864,7 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 
 	if (flush) {
 		mark_tlbs_dirty(ppgtt);
-		wmb();
+		gen6_ggtt_invalidate(ppgtt->vm.i915);
 	}
 
 	return 0;
