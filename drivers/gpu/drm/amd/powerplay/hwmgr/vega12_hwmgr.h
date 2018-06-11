@@ -443,6 +443,8 @@ struct vega12_hwmgr {
 #define VEGA12_UMD_PSTATE_GFXCLK_LEVEL         0x3
 #define VEGA12_UMD_PSTATE_SOCCLK_LEVEL         0x3
 #define VEGA12_UMD_PSTATE_MCLK_LEVEL           0x2
+#define VEGA12_UMD_PSTATE_UVDCLK_LEVEL         0x3
+#define VEGA12_UMD_PSTATE_VCEMCLK_LEVEL        0x3
 
 int vega12_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable);
 

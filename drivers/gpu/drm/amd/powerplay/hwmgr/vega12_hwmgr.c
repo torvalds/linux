@@ -1950,6 +1950,166 @@ static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 	return size;
 }
 
+static int vega12_apply_clocks_adjust_rules(struct pp_hwmgr *hwmgr)
+{
+	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
+	struct vega12_single_dpm_table *dpm_table;
+	bool vblank_too_short = false;
+	bool disable_mclk_switching;
+	uint32_t i, latency;
+
+	disable_mclk_switching = ((1 < hwmgr->display_config->num_display) &&
+			          !hwmgr->display_config->multi_monitor_in_sync) ||
+			          vblank_too_short;
+	latency = hwmgr->display_config->dce_tolerable_mclk_in_active_latency;
+
+	/* gfxclk */
+	dpm_table = &(data->dpm_table.gfx_table);
+	dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
+	dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[0].value;
+	dpm_table->dpm_state.hard_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+
+	if (PP_CAP(PHM_PlatformCaps_UMDPState)) {
+		if (VEGA12_UMD_PSTATE_GFXCLK_LEVEL < dpm_table->count) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[VEGA12_UMD_PSTATE_GFXCLK_LEVEL].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[VEGA12_UMD_PSTATE_GFXCLK_LEVEL].value;
+		}
+
+		if (hwmgr->dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[0].value;
+		}
+
+		if (hwmgr->dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+		}
+	}
+
+	/* memclk */
+	dpm_table = &(data->dpm_table.mem_table);
+	dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
+	dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[0].value;
+	dpm_table->dpm_state.hard_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+
+	if (PP_CAP(PHM_PlatformCaps_UMDPState)) {
+		if (VEGA12_UMD_PSTATE_MCLK_LEVEL < dpm_table->count) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[VEGA12_UMD_PSTATE_MCLK_LEVEL].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[VEGA12_UMD_PSTATE_MCLK_LEVEL].value;
+		}
+
+		if (hwmgr->dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[0].value;
+		}
+
+		if (hwmgr->dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+		}
+	}
+
+	/* honour DAL's UCLK Hardmin */
+	if (dpm_table->dpm_state.hard_min_level < (hwmgr->display_config->min_mem_set_clock / 100))
+		dpm_table->dpm_state.hard_min_level = hwmgr->display_config->min_mem_set_clock / 100;
+
+	/* Hardmin is dependent on displayconfig */
+	if (disable_mclk_switching) {
+		dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+		for (i = 0; i < data->mclk_latency_table.count - 1; i++) {
+			if (data->mclk_latency_table.entries[i].latency <= latency) {
+				if (dpm_table->dpm_levels[i].value >= (hwmgr->display_config->min_mem_set_clock / 100)) {
+					dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[i].value;
+					break;
+				}
+			}
+		}
+	}
+
+	if (hwmgr->display_config->nb_pstate_switch_disable)
+		dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+
+	/* vclk */
+	dpm_table = &(data->dpm_table.vclk_table);
+	dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
+	dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[0].value;
+	dpm_table->dpm_state.hard_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+
+	if (PP_CAP(PHM_PlatformCaps_UMDPState)) {
+		if (VEGA12_UMD_PSTATE_UVDCLK_LEVEL < dpm_table->count) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[VEGA12_UMD_PSTATE_UVDCLK_LEVEL].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[VEGA12_UMD_PSTATE_UVDCLK_LEVEL].value;
+		}
+
+		if (hwmgr->dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+		}
+	}
+
+	/* dclk */
+	dpm_table = &(data->dpm_table.dclk_table);
+	dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
+	dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[0].value;
+	dpm_table->dpm_state.hard_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+
+	if (PP_CAP(PHM_PlatformCaps_UMDPState)) {
+		if (VEGA12_UMD_PSTATE_UVDCLK_LEVEL < dpm_table->count) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[VEGA12_UMD_PSTATE_UVDCLK_LEVEL].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[VEGA12_UMD_PSTATE_UVDCLK_LEVEL].value;
+		}
+
+		if (hwmgr->dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+		}
+	}
+
+	/* socclk */
+	dpm_table = &(data->dpm_table.soc_table);
+	dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
+	dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[0].value;
+	dpm_table->dpm_state.hard_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+
+	if (PP_CAP(PHM_PlatformCaps_UMDPState)) {
+		if (VEGA12_UMD_PSTATE_SOCCLK_LEVEL < dpm_table->count) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[VEGA12_UMD_PSTATE_SOCCLK_LEVEL].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[VEGA12_UMD_PSTATE_SOCCLK_LEVEL].value;
+		}
+
+		if (hwmgr->dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+		}
+	}
+
+	/* eclk */
+	dpm_table = &(data->dpm_table.eclk_table);
+	dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
+	dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[0].value;
+	dpm_table->dpm_state.hard_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+
+	if (PP_CAP(PHM_PlatformCaps_UMDPState)) {
+		if (VEGA12_UMD_PSTATE_VCEMCLK_LEVEL < dpm_table->count) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[VEGA12_UMD_PSTATE_VCEMCLK_LEVEL].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[VEGA12_UMD_PSTATE_VCEMCLK_LEVEL].value;
+		}
+
+		if (hwmgr->dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
+			dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+			dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+		}
+	}
+
+	return 0;
+}
+
 static int vega12_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 {
 	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
@@ -2202,6 +2362,8 @@ static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 	.display_clock_voltage_request = vega12_display_clock_voltage_request,
 	.force_clock_level = vega12_force_clock_level,
 	.print_clock_levels = vega12_print_clock_levels,
+	.apply_clocks_adjust_rules =
+		vega12_apply_clocks_adjust_rules,
 	.display_config_changed = vega12_display_configuration_changed_task,
 	.powergate_uvd = vega12_power_gate_uvd,
 	.powergate_vce = vega12_power_gate_vce,
