@@ -1632,6 +1632,16 @@ static int imx274_probe(struct i2c_client *client,
 
 	mutex_init(&imx274->lock);
 
+	/* initialize format */
+	imx274->mode_index = IMX274_MODE_3840X2160;
+	imx274->format.width = imx274_formats[0].size.width;
+	imx274->format.height = imx274_formats[0].size.height;
+	imx274->format.field = V4L2_FIELD_NONE;
+	imx274->format.code = MEDIA_BUS_FMT_SRGGB10_1X10;
+	imx274->format.colorspace = V4L2_COLORSPACE_SRGB;
+	imx274->frame_interval.numerator = 1;
+	imx274->frame_interval.denominator = IMX274_DEF_FRAME_RATE;
+
 	/* initialize regmap */
 	imx274->regmap = devm_regmap_init_i2c(client, &imx274_regmap_config);
 	if (IS_ERR(imx274->regmap)) {
@@ -1719,16 +1729,6 @@ static int imx274_probe(struct i2c_client *client,
 			"Error %d setup default controls\n", ret);
 		goto err_ctrls;
 	}
-
-	/* initialize format */
-	imx274->mode_index = IMX274_MODE_3840X2160;
-	imx274->format.width = imx274_formats[0].size.width;
-	imx274->format.height = imx274_formats[0].size.height;
-	imx274->format.field = V4L2_FIELD_NONE;
-	imx274->format.code = MEDIA_BUS_FMT_SRGGB10_1X10;
-	imx274->format.colorspace = V4L2_COLORSPACE_SRGB;
-	imx274->frame_interval.numerator = 1;
-	imx274->frame_interval.denominator = IMX274_DEF_FRAME_RATE;
 
 	/* load default control values */
 	ret = imx274_load_default(imx274);
