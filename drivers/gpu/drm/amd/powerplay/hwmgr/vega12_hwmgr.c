@@ -81,6 +81,7 @@ static void vega12_set_default_registry_data(struct pp_hwmgr *hwmgr)
 
 	data->registry_data.disallowed_features = 0x0;
 	data->registry_data.od_state_in_dc_support = 0;
+	data->registry_data.thermal_support = 1;
 	data->registry_data.skip_baco_hardware = 0;
 
 	data->registry_data.log_avfs_param = 0;
