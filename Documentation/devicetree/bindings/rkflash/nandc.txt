@@ -1,9 +1,10 @@
 Rockchip NANDC Controller for SOC
 
 Required properties:
-- compatible : "rockchip,nandc".
+- compatible : "rockchip,rk-nandc".
 - reg : shall contain registers location and length for data and reg.
 - interrupts : shall define the nandc controller interrupt.
+- nandc_id : shall reference the number of nandc controllers;
 - clocks : shall reference nandc controller clocks.
 - clock-names : nandc controller internal clock names. Shall contain :
     * "clk_nandc" : nand controller clock
@@ -12,9 +13,10 @@ Required properties:
 
 Examples:
 nandc: nandc@30100000 {
-	compatible = "rockchip,nandc";
-	reg = <0x30100000 0x1000>;
+	compatible = "rockchip,rk-nandc";
+	reg = <0x0 0xff4b0000 0x0 0x4000>;
 	interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+	nandc_id = <0>;
 	clocks = <&clk_nandc>, <&clk_gates15 3>, <&clk_gates5 3>;
 	clock-names = "clk_nandc", "hclk_nandc", "g_clk_nandc";
 	status = "disabled";
