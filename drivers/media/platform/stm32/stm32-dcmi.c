@@ -84,6 +84,7 @@
 
 enum state {
 	STOPPED = 0,
+	WAIT_FOR_BUFFER,
 	RUNNING,
 	STOPPING,
 };
@@ -229,6 +230,7 @@ static int dcmi_restart_capture(struct stm32_dcmi *dcmi)
 	if (list_empty(&dcmi->buffers)) {
 		dev_dbg(dcmi->dev, "Capture restart is deferred to next buffer queueing\n");
 		dcmi->active = NULL;
+		dcmi->state = WAIT_FOR_BUFFER;
 		spin_unlock_irq(&dcmi->irqlock);
 		return 0;
 	}
@@ -547,8 +549,10 @@ static void dcmi_buf_queue(struct vb2_buffer *vb)
 
 	spin_lock_irq(&dcmi->irqlock);
 
-	if (dcmi->state == RUNNING && !dcmi->active) {
 		dcmi->active = buf;
+
+	if (dcmi->state == WAIT_FOR_BUFFER) {
+		dcmi->state = RUNNING;
 
 		dev_dbg(dcmi->dev, "Starting capture on buffer[%d] queued\n",
 			buf->vb.vb2_buf.index);
@@ -629,8 +633,6 @@ static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 	/* Enable dcmi */
 	reg_set(dcmi->regs, DCMI_CR, CR_ENABLE);
 
-	dcmi->state = RUNNING;
-
 	dcmi->sequence = 0;
 	dcmi->errors_count = 0;
 	dcmi->overrun_count = 0;
@@ -643,6 +645,7 @@ static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 	 */
 	if (list_empty(&dcmi->buffers)) {
 		dev_dbg(dcmi->dev, "Start streaming is deferred to next buffer queueing\n");
+		dcmi->state = WAIT_FOR_BUFFER;
 		spin_unlock_irq(&dcmi->irqlock);
 		return 0;
 	}
@@ -651,6 +654,8 @@ static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 	list_del_init(&dcmi->active->list);
 
 	dev_dbg(dcmi->dev, "Start streaming, starting capture\n");
+
+	dcmi->state = RUNNING;
 
 	spin_unlock_irq(&dcmi->irqlock);
 	ret = dcmi_start_capture(dcmi);
