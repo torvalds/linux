@@ -777,6 +777,21 @@ static int vega12_set_allowed_featuresmask(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static void vega12_init_powergate_state(struct pp_hwmgr *hwmgr)
+{
+	struct vega12_hwmgr *data =
+			(struct vega12_hwmgr *)(hwmgr->backend);
+
+	data->uvd_power_gated = true;
+	data->vce_power_gated = true;
+
+	if (data->smu_features[GNLD_DPM_UVD].enabled)
+		data->uvd_power_gated = false;
+
+	if (data->smu_features[GNLD_DPM_VCE].enabled)
+		data->vce_power_gated = false;
+}
+
 static int vega12_enable_all_smu_features(struct pp_hwmgr *hwmgr)
 {
 	struct vega12_hwmgr *data =
@@ -800,6 +815,8 @@ static int vega12_enable_all_smu_features(struct pp_hwmgr *hwmgr)
 				"[EnableAllSMUFeatures] Enabled feature is different from allowed, expected disabled!");
 		}
 	}
+
+	vega12_init_powergate_state(hwmgr);
 
 	return 0;
 }
@@ -1985,6 +2002,9 @@ static void vega12_power_gate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 {
 	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
 
+	if (data->vce_power_gated == bgate)
+		return;
+
 	data->vce_power_gated = bgate;
 	vega12_enable_disable_vce_dpm(hwmgr, !bgate);
 }
@@ -1992,6 +2012,9 @@ static void vega12_power_gate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 static void vega12_power_gate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 {
 	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
+
+	if (data->uvd_power_gated == bgate)
+		return;
 
 	data->uvd_power_gated = bgate;
 	vega12_enable_disable_uvd_dpm(hwmgr, !bgate);
