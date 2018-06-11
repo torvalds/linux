@@ -87,7 +87,7 @@ static int apr_callback(struct rpmsg_device *rpdev, void *buf,
 	}
 
 	if (hdr->pkt_size < APR_HDR_SIZE || hdr->pkt_size != len) {
-		dev_err(apr->dev, "APR: Wrong paket size\n");
+		dev_err(apr->dev, "APR: Wrong packet size\n");
 		return -EINVAL;
 	}
 
