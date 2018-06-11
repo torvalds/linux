@@ -34,7 +34,7 @@
 #define VAD_SRAM_BUFFER_END	0xfffbfff8
 
 static unsigned int voice_inactive_frames;
-module_param(voice_inactive_frames, uint, 0444);
+module_param(voice_inactive_frames, uint, 0644);
 MODULE_PARM_DESC(voice_inactive_frames, "voice inactive frame count");
 
 struct vad_buf {
