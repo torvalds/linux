@@ -880,23 +880,6 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 	return rc;
 }
 
-/* Like SendReceive2 but iov[0] does not contain an rfc1002 header */
-int
-smb2_send_recv(const unsigned int xid, struct cifs_ses *ses,
-	       struct kvec *iov, int n_vec, int *resp_buf_type /* ret */,
-	       const int flags, struct kvec *resp_iov)
-{
-	struct smb_rqst rqst;
-	int rc;
-
-	memset(&rqst, 0, sizeof(struct smb_rqst));
-	rqst.rq_iov = iov;
-	rqst.rq_nvec = n_vec;
-
-	rc = cifs_send_recv(xid, ses, &rqst, resp_buf_type, flags, resp_iov);
-	return rc;
-}
-
 int
 SendReceive(const unsigned int xid, struct cifs_ses *ses,
 	    struct smb_hdr *in_buf, struct smb_hdr *out_buf,
