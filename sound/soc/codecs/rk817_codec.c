@@ -843,7 +843,7 @@ static struct snd_soc_dai_driver rk817_dai[] = {
 		.capture = {
 			.stream_name = "HiFi Capture",
 			.channels_min = 2,
-			.channels_max = 2,
+			.channels_max = 8,
 			.rates = RK817_CAPTURE_RATES,
 			.formats = RK817_FORMATS,
 		},
