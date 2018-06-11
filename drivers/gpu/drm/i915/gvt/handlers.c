@@ -55,6 +55,8 @@ unsigned long intel_gvt_get_device_type(struct intel_gvt *gvt)
 		return D_SKL;
 	else if (IS_KABYLAKE(gvt->dev_priv))
 		return D_KBL;
+	else if (IS_BROXTON(gvt->dev_priv))
+		return D_BXT;
 
 	return 0;
 }
