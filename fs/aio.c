@@ -1661,7 +1661,7 @@ static int aio_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 	if (mask && !(mask & req->events))
 		return 0;
 
-	mask = file->f_op->poll_mask(file, req->events);
+	mask = file->f_op->poll_mask(file, req->events) & req->events;
 	if (!mask)
 		return 0;
 
@@ -1719,7 +1719,7 @@ static ssize_t aio_poll(struct aio_kiocb *aiocb, struct iocb *iocb)
 
 	spin_lock_irq(&ctx->ctx_lock);
 	spin_lock(&req->head->lock);
-	mask = req->file->f_op->poll_mask(req->file, req->events);
+	mask = req->file->f_op->poll_mask(req->file, req->events) & req->events;
 	if (!mask) {
 		__add_wait_queue(req->head, &req->wait);
 		list_add_tail(&aiocb->ki_list, &ctx->active_reqs);
