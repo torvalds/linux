@@ -439,6 +439,9 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 		goto fail;
 	}
 
+	/* Enable normalization of plane zpos */
+	ddev->mode_config.normalize_zpos = true;
+
 	if (kms) {
 		ret = kms->funcs->hw_init(kms);
 		if (ret) {
