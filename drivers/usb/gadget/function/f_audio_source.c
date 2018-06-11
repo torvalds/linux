@@ -674,7 +674,8 @@ static void audio_data_complete(struct usb_ep *ep, struct usb_request *req)
 		snd_pcm_period_elapsed(audio->substream);
 		audio->period_offset = 0;
 	}
-	audio_send(audio);
+	if (audio->alt)
+		audio_send(audio);
 }
 
 static int audio_set_endpoint_req(struct usb_function *f,
@@ -913,6 +914,9 @@ static void audio_disable(struct usb_function *f)
 {
 	struct audio_dev	*audio = func_to_audio(f);
 
+	audio->alt = 0;
+	schedule_work(&audio->work);
+
 	pr_debug("audio_disable\n");
 	usb_ep_disable(audio->in_ep);
 }
@@ -1064,9 +1068,11 @@ audio_unbind(struct usb_configuration *c, struct usb_function *f)
 
 static void audio_pcm_playback_start(struct audio_dev *audio)
 {
-	audio->start_time = ktime_get();
-	audio->frames_sent = 0;
-	audio_send(audio);
+	if (audio->alt) {
+		audio->start_time = ktime_get();
+		audio->frames_sent = 0;
+		audio_send(audio);
+	}
 }
 
 static void audio_pcm_playback_stop(struct audio_dev *audio)
