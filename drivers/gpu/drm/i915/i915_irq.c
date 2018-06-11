@@ -3279,7 +3279,7 @@ static void i915_clear_error_registers(struct drm_i915_private *dev_priv)
 		 */
 		DRM_DEBUG_DRIVER("EIR stuck: 0x%08x, masking\n", eir);
 		I915_WRITE(EMR, I915_READ(EMR) | eir);
-		I915_WRITE(IIR, I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT);
+		I915_WRITE(IIR, I915_MASTER_ERROR_INTERRUPT);
 	}
 }
 
@@ -4406,6 +4406,81 @@ static int i8xx_irq_postinstall(struct drm_device *dev)
 	return 0;
 }
 
+static void i8xx_error_irq_ack(struct drm_i915_private *dev_priv,
+			       u16 *eir, u16 *eir_stuck)
+{
+	u16 emr;
+
+	*eir = I915_READ16(EIR);
+
+	if (*eir)
+		I915_WRITE16(EIR, *eir);
+
+	*eir_stuck = I915_READ16(EIR);
+	if (*eir_stuck == 0)
+		return;
+
+	/*
+	 * Toggle all EMR bits to make sure we get an edge
+	 * in the ISR master error bit if we don't clear
+	 * all the EIR bits. Otherwise the edge triggered
+	 * IIR on i965/g4x wouldn't notice that an interrupt
+	 * is still pending. Also some EIR bits can't be
+	 * cleared except by handling the underlying error
+	 * (or by a GPU reset) so we mask any bit that
+	 * remains set.
+	 */
+	emr = I915_READ16(EMR);
+	I915_WRITE16(EMR, 0xffff);
+	I915_WRITE16(EMR, emr | *eir_stuck);
+}
+
+static void i8xx_error_irq_handler(struct drm_i915_private *dev_priv,
+				   u16 eir, u16 eir_stuck)
+{
+	DRM_DEBUG("Master Error: EIR 0x%04x\n", eir);
+
+	if (eir_stuck)
+		DRM_DEBUG_DRIVER("EIR stuck: 0x%04x, masked\n", eir_stuck);
+}
+
+static void i9xx_error_irq_ack(struct drm_i915_private *dev_priv,
+			       u32 *eir, u32 *eir_stuck)
+{
+	u32 emr;
+
+	*eir = I915_READ(EIR);
+
+	I915_WRITE(EIR, *eir);
+
+	*eir_stuck = I915_READ(EIR);
+	if (*eir_stuck == 0)
+		return;
+
+	/*
+	 * Toggle all EMR bits to make sure we get an edge
+	 * in the ISR master error bit if we don't clear
+	 * all the EIR bits. Otherwise the edge triggered
+	 * IIR on i965/g4x wouldn't notice that an interrupt
+	 * is still pending. Also some EIR bits can't be
+	 * cleared except by handling the underlying error
+	 * (or by a GPU reset) so we mask any bit that
+	 * remains set.
+	 */
+	emr = I915_READ(EMR);
+	I915_WRITE(EMR, 0xffffffff);
+	I915_WRITE(EMR, emr | *eir_stuck);
+}
+
+static void i9xx_error_irq_handler(struct drm_i915_private *dev_priv,
+				   u32 eir, u32 eir_stuck)
+{
+	DRM_DEBUG("Master Error, EIR 0x%08x\n", eir);
+
+	if (eir_stuck)
+		DRM_DEBUG_DRIVER("EIR stuck: 0x%08x, masked\n", eir_stuck);
+}
+
 static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
@@ -4420,6 +4495,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 
 	do {
 		u32 pipe_stats[I915_MAX_PIPES] = {};
+		u16 eir = 0, eir_stuck = 0;
 		u16 iir;
 
 		iir = I915_READ16(IIR);
@@ -4432,13 +4508,16 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 		 * signalled in iir */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
 
+		if (iir & I915_MASTER_ERROR_INTERRUPT)
+			i8xx_error_irq_ack(dev_priv, &eir, &eir_stuck);
+
 		I915_WRITE16(IIR, iir);
 
 		if (iir & I915_USER_INTERRUPT)
 			notify_ring(dev_priv->engine[RCS]);
 
-		if (iir & I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
-			DRM_DEBUG("Command parser error, iir 0x%08x\n", iir);
+		if (iir & I915_MASTER_ERROR_INTERRUPT)
+			i8xx_error_irq_handler(dev_priv, eir, eir_stuck);
 
 		i8xx_pipestat_irq_handler(dev_priv, iir, pipe_stats);
 	} while (0);
@@ -4519,6 +4598,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 
 	do {
 		u32 pipe_stats[I915_MAX_PIPES] = {};
+		u32 eir = 0, eir_stuck = 0;
 		u32 hotplug_status = 0;
 		u32 iir;
 
@@ -4536,13 +4616,16 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 		 * signalled in iir */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
 
+		if (iir & I915_MASTER_ERROR_INTERRUPT)
+			i9xx_error_irq_ack(dev_priv, &eir, &eir_stuck);
+
 		I915_WRITE(IIR, iir);
 
 		if (iir & I915_USER_INTERRUPT)
 			notify_ring(dev_priv->engine[RCS]);
 
-		if (iir & I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
-			DRM_DEBUG("Command parser error, iir 0x%08x\n", iir);
+		if (iir & I915_MASTER_ERROR_INTERRUPT)
+			i9xx_error_irq_handler(dev_priv, eir, eir_stuck);
 
 		if (hotplug_status)
 			i9xx_hpd_irq_handler(dev_priv, hotplug_status);
@@ -4596,14 +4679,14 @@ static int i965_irq_postinstall(struct drm_device *dev)
 		  I915_DISPLAY_PORT_INTERRUPT |
 		  I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
 		  I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
-		  I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT);
+		  I915_MASTER_ERROR_INTERRUPT);
 
 	enable_mask =
 		I915_ASLE_INTERRUPT |
 		I915_DISPLAY_PORT_INTERRUPT |
 		I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
 		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
-		I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT |
+		I915_MASTER_ERROR_INTERRUPT |
 		I915_USER_INTERRUPT;
 
 	if (IS_G4X(dev_priv))
@@ -4663,6 +4746,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 
 	do {
 		u32 pipe_stats[I915_MAX_PIPES] = {};
+		u32 eir = 0, eir_stuck = 0;
 		u32 hotplug_status = 0;
 		u32 iir;
 
@@ -4679,6 +4763,9 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		 * signalled in iir */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
 
+		if (iir & I915_MASTER_ERROR_INTERRUPT)
+			i9xx_error_irq_ack(dev_priv, &eir, &eir_stuck);
+
 		I915_WRITE(IIR, iir);
 
 		if (iir & I915_USER_INTERRUPT)
@@ -4687,8 +4774,8 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		if (iir & I915_BSD_USER_INTERRUPT)
 			notify_ring(dev_priv->engine[VCS]);
 
-		if (iir & I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
-			DRM_DEBUG("Command parser error, iir 0x%08x\n", iir);
+		if (iir & I915_MASTER_ERROR_INTERRUPT)
+			i9xx_error_irq_handler(dev_priv, eir, eir_stuck);
 
 		if (hotplug_status)
 			i9xx_hpd_irq_handler(dev_priv, hotplug_status);
