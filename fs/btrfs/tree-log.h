@@ -71,8 +71,16 @@ void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,
 			     int for_rename);
 void btrfs_record_snapshot_destroy(struct btrfs_trans_handle *trans,
 				   struct btrfs_inode *dir);
+/* Return values for btrfs_log_new_name() */
+enum {
+	BTRFS_DONT_NEED_TRANS_COMMIT,
+	BTRFS_NEED_TRANS_COMMIT,
+	BTRFS_DONT_NEED_LOG_SYNC,
+	BTRFS_NEED_LOG_SYNC,
+};
 int btrfs_log_new_name(struct btrfs_trans_handle *trans,
 			struct btrfs_inode *inode, struct btrfs_inode *old_dir,
-			struct dentry *parent);
+			struct dentry *parent,
+			bool sync_log, struct btrfs_log_ctx *ctx);
 
 #endif

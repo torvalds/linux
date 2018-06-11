@@ -6025,14 +6025,25 @@ void btrfs_record_snapshot_destroy(struct btrfs_trans_handle *trans,
  * Call this after adding a new name for a file and it will properly
  * update the log to reflect the new name.
  *
- * It will return zero if all goes well, and it will return 1 if a
- * full transaction commit is required.
+ * @ctx can not be NULL when @sync_log is false, and should be NULL when it's
+ * true (because it's not used).
+ *
+ * Return value depends on whether @sync_log is true or false.
+ * When true: returns BTRFS_NEED_TRANS_COMMIT if the transaction needs to be
+ *            committed by the caller, and BTRFS_DONT_NEED_TRANS_COMMIT
+ *            otherwise.
+ * When false: returns BTRFS_DONT_NEED_LOG_SYNC if the caller does not need to
+ *             to sync the log, BTRFS_NEED_LOG_SYNC if it needs to sync the log,
+ *             or BTRFS_NEED_TRANS_COMMIT if the transaction needs to be
+ *             committed (without attempting to sync the log).
  */
 int btrfs_log_new_name(struct btrfs_trans_handle *trans,
 			struct btrfs_inode *inode, struct btrfs_inode *old_dir,
-			struct dentry *parent)
+			struct dentry *parent,
+			bool sync_log, struct btrfs_log_ctx *ctx)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
+	int ret;
 
 	/*
 	 * this will force the logging code to walk the dentry chain
@@ -6047,9 +6058,34 @@ int btrfs_log_new_name(struct btrfs_trans_handle *trans,
 	 */
 	if (inode->logged_trans <= fs_info->last_trans_committed &&
 	    (!old_dir || old_dir->logged_trans <= fs_info->last_trans_committed))
-		return 0;
+		return sync_log ? BTRFS_DONT_NEED_TRANS_COMMIT :
+			BTRFS_DONT_NEED_LOG_SYNC;
 
-	return btrfs_log_inode_parent(trans, inode, parent, 0, LLONG_MAX,
-				      LOG_INODE_EXISTS, NULL);
+	if (sync_log) {
+		struct btrfs_log_ctx ctx2;
+
+		btrfs_init_log_ctx(&ctx2, &inode->vfs_inode);
+		ret = btrfs_log_inode_parent(trans, inode, parent, 0, LLONG_MAX,
+					     LOG_INODE_EXISTS, &ctx2);
+		if (ret == BTRFS_NO_LOG_SYNC)
+			return BTRFS_DONT_NEED_TRANS_COMMIT;
+		else if (ret)
+			return BTRFS_NEED_TRANS_COMMIT;
+
+		ret = btrfs_sync_log(trans, inode->root, &ctx2);
+		if (ret)
+			return BTRFS_NEED_TRANS_COMMIT;
+		return BTRFS_DONT_NEED_TRANS_COMMIT;
+	}
+
+	ASSERT(ctx);
+	ret = btrfs_log_inode_parent(trans, inode, parent, 0, LLONG_MAX,
+				     LOG_INODE_EXISTS, ctx);
+	if (ret == BTRFS_NO_LOG_SYNC)
+		return BTRFS_DONT_NEED_LOG_SYNC;
+	else if (ret)
+		return BTRFS_NEED_TRANS_COMMIT;
+
+	return BTRFS_NEED_LOG_SYNC;
 }
 
