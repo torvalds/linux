@@ -44,3 +44,12 @@ MMU Notifier
 
 .. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
    :internal:
+
+AMDGPU Virtual Memory
+---------------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c
+   :doc: GPUVM
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c
+   :internal:
