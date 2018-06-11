@@ -2771,10 +2771,8 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 	context_size += LRC_HEADER_PAGES * PAGE_SIZE;
 
 	ctx_obj = i915_gem_object_create(ctx->i915, context_size);
-	if (IS_ERR(ctx_obj)) {
-		ret = PTR_ERR(ctx_obj);
-		goto error_deref_obj;
-	}
+	if (IS_ERR(ctx_obj))
+		return PTR_ERR(ctx_obj);
 
 	vma = i915_vma_instance(ctx_obj, &ctx->i915->ggtt.vm, NULL);
 	if (IS_ERR(vma)) {
