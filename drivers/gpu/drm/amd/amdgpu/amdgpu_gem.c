@@ -612,7 +612,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 			return -ENOENT;
 		abo = gem_to_amdgpu_bo(gobj);
 		tv.bo = &abo->tbo;
-		tv.shared = false;
+		tv.shared = !!(abo->flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID);
 		list_add(&tv.head, &list);
 	} else {
 		gobj = NULL;
