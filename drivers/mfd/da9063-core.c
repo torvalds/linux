@@ -238,7 +238,6 @@ int da9063_device_init(struct da9063 *da9063, unsigned int irq)
 void da9063_device_exit(struct da9063 *da9063)
 {
 	mfd_remove_devices(da9063->dev);
-	da9063_irq_exit(da9063);
 }
 
 MODULE_DESCRIPTION("PMIC driver for Dialog DA9063");

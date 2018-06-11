@@ -170,7 +170,8 @@ int da9063_irq_init(struct da9063 *da9063)
 		return -EINVAL;
 	}
 
-	ret = regmap_add_irq_chip(da9063->regmap, da9063->chip_irq,
+	ret = devm_regmap_add_irq_chip(da9063->dev, da9063->regmap,
+			da9063->chip_irq,
 			IRQF_TRIGGER_LOW | IRQF_ONESHOT | IRQF_SHARED,
 			da9063->irq_base, &da9063_irq_chip,
 			&da9063->regmap_irq);
@@ -181,9 +182,4 @@ int da9063_irq_init(struct da9063 *da9063)
 	}
 
 	return 0;
-}
-
-void da9063_irq_exit(struct da9063 *da9063)
-{
-	regmap_del_irq_chip(da9063->chip_irq, da9063->regmap_irq);
 }
