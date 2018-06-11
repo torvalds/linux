@@ -146,7 +146,7 @@ static const struct of_device_id da9063_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, da9063_dt_ids);
 static int da9063_i2c_probe(struct i2c_client *i2c,
-	const struct i2c_device_id *id)
+			    const struct i2c_device_id *id)
 {
 	struct da9063 *da9063;
 	int ret;
@@ -158,6 +158,7 @@ static int da9063_i2c_probe(struct i2c_client *i2c,
 	i2c_set_clientdata(i2c, da9063);
 	da9063->dev = &i2c->dev;
 	da9063->chip_irq = i2c->irq;
+	da9063->type = id->driver_data;
 
 	if (da9063->variant_code == PMIC_DA9063_AD) {
 		da9063_regmap_config.rd_table = &da9063_ad_readable_table;
@@ -181,7 +182,7 @@ static int da9063_i2c_probe(struct i2c_client *i2c,
 }
 
 static const struct i2c_device_id da9063_i2c_id[] = {
-	{ "da9063", PMIC_CHIP_ID_DA9063 },
+	{ "da9063", PMIC_TYPE_DA9063 },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, da9063_i2c_id);

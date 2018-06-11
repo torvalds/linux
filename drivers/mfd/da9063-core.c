@@ -215,7 +215,6 @@ int da9063_device_init(struct da9063 *da9063, unsigned int irq)
 		return -ENODEV;
 	}
 
-	da9063->model = model;
 	da9063->variant_code = variant_code;
 
 	ret = da9063_irq_init(da9063);

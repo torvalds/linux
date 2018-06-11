@@ -98,7 +98,7 @@ struct da9063_regulator_info {
 struct da9063_dev_model {
 	const struct da9063_regulator_info	*regulator_info;
 	unsigned				n_regulators;
-	unsigned				dev_model;
+	enum da9063_type			type;
 };
 
 /* Single regulator settings */
@@ -585,7 +585,7 @@ static struct da9063_dev_model regulators_models[] = {
 	{
 		.regulator_info = da9063_regulator_info,
 		.n_regulators = ARRAY_SIZE(da9063_regulator_info),
-		.dev_model = PMIC_CHIP_ID_DA9063,
+		.type = PMIC_TYPE_DA9063,
 	},
 	{ }
 };
@@ -741,12 +741,12 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 
 	/* Find regulators set for particular device model */
 	for (model = regulators_models; model->regulator_info; model++) {
-		if (model->dev_model == da9063->model)
+		if (model->type == da9063->type)
 			break;
 	}
 	if (!model->regulator_info) {
 		dev_err(&pdev->dev, "Chip model not recognised (%u)\n",
-			da9063->model);
+			da9063->type);
 		return -ENODEV;
 	}
 
