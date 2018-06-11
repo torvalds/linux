@@ -4905,21 +4905,22 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 				else
 					ls = 2;
 
-				if (*(ptr+1) == 'F' || *(ptr+1) == 'f' ||
-				    *(ptr+1) == 'S' || *(ptr+1) == 's') {
+				if (isalnum(ptr[1]))
 					ptr++;
+
+				if (*ptr == 'F' || *ptr == 'f' ||
+				    *ptr == 'S' || *ptr == 's') {
 					show_func = *ptr;
-				} else if (*(ptr+1) == 'M' || *(ptr+1) == 'm') {
-					print_mac_arg(s, *(ptr+1), data, size, event, arg);
-					ptr++;
+				} else if (*ptr == 'M' || *ptr == 'm') {
+					print_mac_arg(s, *ptr, data, size, event, arg);
 					arg = arg->next;
 					break;
-				} else if (*(ptr+1) == 'I' || *(ptr+1) == 'i') {
+				} else if (*ptr == 'I' || *ptr == 'i') {
 					int n;
 
-					n = print_ip_arg(s, ptr+1, data, size, event, arg);
+					n = print_ip_arg(s, ptr, data, size, event, arg);
 					if (n > 0) {
-						ptr += n;
+						ptr += n - 1;
 						arg = arg->next;
 						break;
 					}

@@ -2319,6 +2319,8 @@ static void vmx_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 		return;
 	}
 
+	WARN_ON_ONCE(vmx->emulation_required);
+
 	if (kvm_exception_is_soft(nr)) {
 		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN,
 			     vmx->vcpu.arch.event_exit_inst_len);
@@ -6037,12 +6039,12 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 			goto out;
 		}
 
-		if (err != EMULATE_DONE) {
-			vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-			vcpu->run->internal.suberror = KVM_INTERNAL_ERROR_EMULATION;
-			vcpu->run->internal.ndata = 0;
-			return 0;
-		}
+		if (err != EMULATE_DONE)
+			goto emulation_error;
+
+		if (vmx->emulation_required && !vmx->rmode.vm86_active &&
+		    vcpu->arch.exception.pending)
+			goto emulation_error;
 
 		if (vcpu->arch.halt_request) {
 			vcpu->arch.halt_request = 0;
@@ -6058,6 +6060,12 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 
 out:
 	return ret;
+
+emulation_error:
+	vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+	vcpu->run->internal.suberror = KVM_INTERNAL_ERROR_EMULATION;
+	vcpu->run->internal.ndata = 0;
+	return 0;
 }
 
 static int __grow_ple_window(int val)

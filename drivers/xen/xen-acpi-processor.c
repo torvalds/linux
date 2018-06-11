@@ -362,9 +362,9 @@ read_acpi_id(acpi_handle handle, u32 lvl, void *context, void **rv)
 	}
 	/* There are more ACPI Processor objects than in x2APIC or MADT.
 	 * This can happen with incorrect ACPI SSDT declerations. */
-	if (acpi_id > nr_acpi_bits) {
-		pr_debug("We only have %u, trying to set %u\n",
-			 nr_acpi_bits, acpi_id);
+	if (acpi_id >= nr_acpi_bits) {
+		pr_debug("max acpi id %u, trying to set %u\n",
+			 nr_acpi_bits - 1, acpi_id);
 		return AE_OK;
 	}
 	/* OK, There is a ACPI Processor object */

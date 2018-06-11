@@ -123,8 +123,8 @@ static inline int arch_spin_trylock(arch_spinlock_t *lock)
 	"	cbnz	%w1, 1f\n"
 	"	add	%w1, %w0, %3\n"
 	"	casa	%w0, %w1, %2\n"
-	"	and	%w1, %w1, #0xffff\n"
-	"	eor	%w1, %w1, %w0, lsr #16\n"
+	"	sub	%w1, %w1, %3\n"
+	"	eor	%w1, %w1, %w0\n"
 	"1:")
 	: "=&r" (lockval), "=&r" (tmp), "+Q" (*lock)
 	: "I" (1 << TICKET_SHIFT)

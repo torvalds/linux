@@ -822,6 +822,7 @@ ccw_device_online_timeout(struct ccw_device *cdev, enum dev_event dev_event)
 
 	ccw_device_set_timeout(cdev, 0);
 	cdev->private->iretry = 255;
+	cdev->private->async_kill_io_rc = -ETIMEDOUT;
 	ret = ccw_device_cancel_halt_clear(cdev);
 	if (ret == -EBUSY) {
 		ccw_device_set_timeout(cdev, 3*HZ);
@@ -898,7 +899,7 @@ ccw_device_killing_irq(struct ccw_device *cdev, enum dev_event dev_event)
 	/* OK, i/o is dead now. Call interrupt handler. */
 	if (cdev->handler)
 		cdev->handler(cdev, cdev->private->intparm,
-			      ERR_PTR(-EIO));
+			      ERR_PTR(cdev->private->async_kill_io_rc));
 }
 
 static void
@@ -915,14 +916,16 @@ ccw_device_killing_timeout(struct ccw_device *cdev, enum dev_event dev_event)
 	ccw_device_online_verify(cdev, 0);
 	if (cdev->handler)
 		cdev->handler(cdev, cdev->private->intparm,
-			      ERR_PTR(-EIO));
+			      ERR_PTR(cdev->private->async_kill_io_rc));
 }
 
 void ccw_device_kill_io(struct ccw_device *cdev)
 {
 	int ret;
 
+	ccw_device_set_timeout(cdev, 0);
 	cdev->private->iretry = 255;
+	cdev->private->async_kill_io_rc = -EIO;
 	ret = ccw_device_cancel_halt_clear(cdev);
 	if (ret == -EBUSY) {
 		ccw_device_set_timeout(cdev, 3*HZ);

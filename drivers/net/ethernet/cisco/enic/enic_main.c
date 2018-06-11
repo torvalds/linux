@@ -1726,6 +1726,8 @@ static int enic_open(struct net_device *netdev)
 	}
 
 	for (i = 0; i < enic->rq_count; i++) {
+		/* enable rq before updating rq desc */
+		vnic_rq_enable(&enic->rq[i]);
 		vnic_rq_fill(&enic->rq[i], enic_rq_alloc_buf);
 		/* Need at least one buffer on ring to get going */
 		if (vnic_rq_desc_used(&enic->rq[i]) == 0) {
@@ -1737,8 +1739,6 @@ static int enic_open(struct net_device *netdev)
 
 	for (i = 0; i < enic->wq_count; i++)
 		vnic_wq_enable(&enic->wq[i]);
-	for (i = 0; i < enic->rq_count; i++)
-		vnic_rq_enable(&enic->rq[i]);
 
 	if (!enic_is_dynamic(enic) && !enic_is_sriov_vf(enic))
 		enic_dev_add_station_addr(enic);
@@ -1765,8 +1765,12 @@ static int enic_open(struct net_device *netdev)
 	return 0;
 
 err_out_free_rq:
-	for (i = 0; i < enic->rq_count; i++)
+	for (i = 0; i < enic->rq_count; i++) {
+		err = vnic_rq_disable(&enic->rq[i]);
+		if (err)
+			return err;
 		vnic_rq_clean(&enic->rq[i], enic_free_rq_buf);
+	}
 	enic_dev_notify_unset(enic);
 err_out_free_intr:
 	enic_unset_affinity_hint(enic);

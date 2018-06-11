@@ -1031,17 +1031,17 @@ static int clk_debugfs_register_one(struct clk *c)
 		return -ENOMEM;
 	c->dent = d;
 
-	d = debugfs_create_u8("usecount", S_IRUGO, c->dent, (u8 *)&c->usecount);
+	d = debugfs_create_u8("usecount", S_IRUGO, c->dent, &c->usecount);
 	if (!d) {
 		err = -ENOMEM;
 		goto err_out;
 	}
-	d = debugfs_create_u32("rate", S_IRUGO, c->dent, (u32 *)&c->rate);
+	d = debugfs_create_ulong("rate", S_IRUGO, c->dent, &c->rate);
 	if (!d) {
 		err = -ENOMEM;
 		goto err_out;
 	}
-	d = debugfs_create_x32("flags", S_IRUGO, c->dent, (u32 *)&c->flags);
+	d = debugfs_create_x8("flags", S_IRUGO, c->dent, &c->flags);
 	if (!d) {
 		err = -ENOMEM;
 		goto err_out;

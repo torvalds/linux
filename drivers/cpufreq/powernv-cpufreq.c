@@ -592,7 +592,7 @@ static int __init powernv_cpufreq_init(void)
 	int rc = 0;
 
 	/* Don't probe on pseries (guest) platforms */
-	if (!firmware_has_feature(FW_FEATURE_OPALv3))
+	if (!firmware_has_feature(FW_FEATURE_OPAL))
 		return -ENODEV;
 
 	/* Discover pstates from device tree and init */
