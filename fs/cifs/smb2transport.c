@@ -171,9 +171,7 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	unsigned char smb2_signature[SMB2_HMACSHA256_SIZE];
 	unsigned char *sigptr = smb2_signature;
 	struct kvec *iov = rqst->rq_iov;
-	int iov_hdr_index = rqst->rq_nvec > 1 ? 1 : 0;
-	struct smb2_sync_hdr *shdr =
-		(struct smb2_sync_hdr *)iov[iov_hdr_index].iov_base;
+	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)iov[0].iov_base;
 	struct cifs_ses *ses;
 
 	ses = smb2_find_smb_ses(server, shdr->SessionId);
@@ -204,7 +202,7 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 		return rc;
 	}
 
-	rc = __cifs_calc_signature(rqst, iov_hdr_index,  server, sigptr,
+	rc = __cifs_calc_signature(rqst, server, sigptr,
 		&server->secmech.sdeschmacsha256->shash);
 
 	if (!rc)
@@ -414,9 +412,7 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	unsigned char smb3_signature[SMB2_CMACAES_SIZE];
 	unsigned char *sigptr = smb3_signature;
 	struct kvec *iov = rqst->rq_iov;
-	int iov_hdr_index = rqst->rq_nvec > 1 ? 1 : 0;
-	struct smb2_sync_hdr *shdr =
-		(struct smb2_sync_hdr *)iov[iov_hdr_index].iov_base;
+	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)iov[0].iov_base;
 	struct cifs_ses *ses;
 
 	ses = smb2_find_smb_ses(server, shdr->SessionId);
@@ -447,7 +443,7 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 		return rc;
 	}
 
-	rc = __cifs_calc_signature(rqst, iov_hdr_index, server, sigptr,
+	rc = __cifs_calc_signature(rqst, server, sigptr,
 				   &server->secmech.sdesccmacaes->shash);
 
 	if (!rc)
@@ -462,7 +458,7 @@ smb2_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 {
 	int rc = 0;
 	struct smb2_sync_hdr *shdr =
-			(struct smb2_sync_hdr *)rqst->rq_iov[1].iov_base;
+			(struct smb2_sync_hdr *)rqst->rq_iov[0].iov_base;
 
 	if (!(shdr->Flags & SMB2_FLAGS_SIGNED) ||
 	    server->tcpStatus == CifsNeedNegotiate)
@@ -635,7 +631,7 @@ smb2_setup_request(struct cifs_ses *ses, struct smb_rqst *rqst)
 {
 	int rc;
 	struct smb2_sync_hdr *shdr =
-			(struct smb2_sync_hdr *)rqst->rq_iov[1].iov_base;
+			(struct smb2_sync_hdr *)rqst->rq_iov[0].iov_base;
 	struct mid_q_entry *mid;
 
 	smb2_seq_num_into_buf(ses->server, shdr);
@@ -656,7 +652,7 @@ smb2_setup_async_request(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 {
 	int rc;
 	struct smb2_sync_hdr *shdr =
-			(struct smb2_sync_hdr *)rqst->rq_iov[1].iov_base;
+			(struct smb2_sync_hdr *)rqst->rq_iov[0].iov_base;
 	struct mid_q_entry *mid;
 
 	smb2_seq_num_into_buf(server, shdr);
