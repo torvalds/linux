@@ -2519,11 +2519,10 @@ static ssize_t ab8500_subscribe_write(struct file *file,
 	if (!dev_attr[irq_index])
 		return -ENOMEM;
 
-	event_name[irq_index] = kmalloc(count, GFP_KERNEL);
+	event_name[irq_index] = kasprintf(GFP_KERNEL, "%lu", user_val);
 	if (!event_name[irq_index])
 		return -ENOMEM;
 
-	sprintf(event_name[irq_index], "%lu", user_val);
 	dev_attr[irq_index]->show = show_irq;
 	dev_attr[irq_index]->store = NULL;
 	dev_attr[irq_index]->attr.name = event_name[irq_index];

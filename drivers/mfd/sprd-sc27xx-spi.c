@@ -111,6 +111,9 @@ static const struct mfd_cell sprd_pmic_devs[] = {
 	}, {
 		.name = "sc27xx-poweroff",
 		.of_compatible = "sprd,sc27xx-poweroff",
+	}, {
+		.name = "sc27xx-syscon",
+		.of_compatible = "sprd,sc27xx-syscon",
 	},
 };
 

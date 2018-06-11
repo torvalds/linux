@@ -183,10 +183,8 @@ static int cmodio_pci_probe(struct pci_dev *dev,
 	int ret;
 
 	priv = devm_kzalloc(&dev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(&dev->dev, "unable to allocate private data\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	pci_set_drvdata(dev, priv);
 	priv->pdev = dev;

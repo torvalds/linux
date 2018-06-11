@@ -13562,6 +13562,16 @@ T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/usb/stk1160/
 
+STM32 TIMER/LPTIMER DRIVERS
+M:	Fabrice Gasnier <fabrice.gasnier@st.com>
+S:	Maintained
+F:	drivers/*/stm32-*timer*
+F:	drivers/pwm/pwm-stm32*
+F:	include/linux/*/stm32-*tim*
+F:	Documentation/ABI/testing/*timer-stm32
+F:	Documentation/devicetree/bindings/*/stm32-*timer
+F:	Documentation/devicetree/bindings/pwm/pwm-stm32*
+
 STMMAC ETHERNET DRIVER
 M:	Giuseppe Cavallaro <peppe.cavallaro@st.com>
 M:	Alexandre Torgue <alexandre.torgue@st.com>
