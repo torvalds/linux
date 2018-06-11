@@ -1257,7 +1257,7 @@ static const char * const drm_mode_status_names[] = {
 
 #undef MODE_STATUS
 
-static const char *drm_get_mode_status_name(enum drm_mode_status status)
+const char *drm_get_mode_status_name(enum drm_mode_status status)
 {
 	int index = status + 3;
 

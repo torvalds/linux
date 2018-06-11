@@ -649,7 +649,9 @@ retry:
 
 		ret = drm_mode_convert_umode(dev, mode, &crtc_req->mode);
 		if (ret) {
-			DRM_DEBUG_KMS("Invalid mode\n");
+			DRM_DEBUG_KMS("Invalid mode (ret=%d, status=%s)\n",
+				      ret, drm_get_mode_status_name(mode->status));
+			drm_mode_debug_printmodeline(mode);
 			goto out;
 		}
 

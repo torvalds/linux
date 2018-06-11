@@ -56,6 +56,9 @@ int drm_mode_setcrtc(struct drm_device *dev,
 int drm_modeset_register_all(struct drm_device *dev);
 void drm_modeset_unregister_all(struct drm_device *dev);
 
+/* drm_modes.c */
+const char *drm_get_mode_status_name(enum drm_mode_status status);
+
 /* IOCTLs */
 int drm_mode_getresources(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv);
