@@ -94,7 +94,8 @@ static void dmaengine_mpcm_dma_complete(void *arg)
 #ifdef CONFIG_SND_SOC_ROCKCHIP_VAD
 	struct dmaengine_mpcm_runtime_data *prtd = substream_to_prtd(substream);
 
-	if (snd_pcm_vad_attached(substream)) {
+	if (snd_pcm_vad_attached(substream) &&
+	    substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		void *buf = substream->runtime->dma_area + prtd->pos;
 
 		snd_pcm_vad_preprocess(substream, buf,
