@@ -1414,6 +1414,7 @@ __execlists_context_pin(struct intel_engine_cs *engine,
 	ce->lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
 	ce->lrc_reg_state[CTX_RING_BUFFER_START+1] =
 		i915_ggtt_offset(ce->ring->vma);
+	GEM_BUG_ON(!intel_ring_offset_valid(ce->ring, ce->ring->head));
 	ce->lrc_reg_state[CTX_RING_HEAD+1] = ce->ring->head;
 
 	ce->state->obj->pin_global++;
@@ -2002,9 +2003,10 @@ static void execlists_reset(struct intel_engine_cs *engine,
 
 	/* Move the RING_HEAD onto the breadcrumb, past the hanging batch */
 	regs[CTX_RING_BUFFER_START + 1] = i915_ggtt_offset(request->ring->vma);
-	regs[CTX_RING_HEAD + 1] = request->postfix;
 
-	request->ring->head = request->postfix;
+	request->ring->head = intel_ring_wrap(request->ring, request->postfix);
+	regs[CTX_RING_HEAD + 1] = request->ring->head;
+
 	intel_ring_update_space(request->ring);
 
 	/* Reset WaIdleLiteRestore:bdw,skl as well */

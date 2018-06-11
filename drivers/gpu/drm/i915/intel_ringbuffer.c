@@ -496,6 +496,10 @@ static int init_ring_common(struct intel_engine_cs *engine)
 		DRM_DEBUG_DRIVER("%s initialization failed [head=%08x], fudging\n",
 				 engine->name, I915_READ_HEAD(engine));
 
+	/* Check that the ring offsets point within the ring! */
+	GEM_BUG_ON(!intel_ring_offset_valid(ring, ring->head));
+	GEM_BUG_ON(!intel_ring_offset_valid(ring, ring->tail));
+
 	intel_ring_update_space(ring);
 	I915_WRITE_HEAD(engine, ring->head);
 	I915_WRITE_TAIL(engine, ring->tail);
@@ -1062,6 +1066,8 @@ err:
 
 void intel_ring_reset(struct intel_ring *ring, u32 tail)
 {
+	GEM_BUG_ON(!intel_ring_offset_valid(ring, tail));
+
 	ring->tail = tail;
 	ring->head = tail;
 	ring->emit = tail;
