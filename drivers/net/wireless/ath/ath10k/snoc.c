@@ -14,18 +14,19 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/module.h>
+#include <linux/clk.h>
 #include <linux/kernel.h>
-#include "debug.h"
-#include "hif.h"
-#include "htc.h"
-#include "ce.h"
-#include "snoc.h"
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
-#include <linux/clk.h>
+
+#include "ce.h"
+#include "debug.h"
+#include "hif.h"
+#include "htc.h"
+#include "snoc.h"
 
 #define ATH10K_SNOC_RX_POST_RETRY_MS 50
 #define CE_POLL_PIPE 4
