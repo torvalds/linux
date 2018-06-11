@@ -17,7 +17,7 @@
 		compatible = "rockchip,multi-dais";
 		dais = <&pdm_8ch>, <&i2s_8ch_2>;
 		capture,channel-mapping = <6 2>;
-		playback,channel-mapping = <0 0>;
+		playback,channel-mapping = <0 2>;
 	};
 
 	pdm-mic-array {
