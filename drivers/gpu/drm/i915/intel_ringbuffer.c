@@ -1361,8 +1361,9 @@ intel_ring_context_pin(struct intel_engine_cs *engine,
 
 static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 {
-	struct intel_ring *ring;
 	struct i915_timeline *timeline;
+	struct intel_ring *ring;
+	unsigned int size;
 	int err;
 
 	intel_engine_setup_common(engine);
@@ -1388,12 +1389,21 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 	GEM_BUG_ON(engine->buffer);
 	engine->buffer = ring;
 
-	err = intel_engine_init_common(engine);
+	size = PAGE_SIZE;
+	if (HAS_BROKEN_CS_TLB(engine->i915))
+		size = I830_WA_SIZE;
+	err = intel_engine_create_scratch(engine, size);
 	if (err)
 		goto err_unpin;
 
+	err = intel_engine_init_common(engine);
+	if (err)
+		goto err_scratch;
+
 	return 0;
 
+err_scratch:
+	intel_engine_cleanup_scratch(engine);
 err_unpin:
 	intel_ring_unpin(ring);
 err_ring:
@@ -1452,6 +1462,25 @@ static int load_pd_dir(struct i915_request *rq,
 
 	intel_ring_advance(rq, cs);
 
+	return 0;
+}
+
+static int flush_pd_dir(struct i915_request *rq)
+{
+	const struct intel_engine_cs * const engine = rq->engine;
+	u32 *cs;
+
+	cs = intel_ring_begin(rq, 4);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
+
+	/* Stall until the page table load is complete */
+	*cs++ = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
+	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_BASE(engine));
+	*cs++ = i915_ggtt_offset(engine->scratch);
+	*cs++ = MI_NOOP;
+
+	intel_ring_advance(rq, cs);
 	return 0;
 }
 
@@ -1634,6 +1663,12 @@ static int switch_context(struct i915_request *rq)
 			hw_flags = MI_RESTORE_INHIBIT;
 
 		ret = mi_set_context(rq, hw_flags);
+		if (ret)
+			goto err_mm;
+	}
+
+	if (ppgtt) {
+		ret = flush_pd_dir(rq);
 		if (ret)
 			goto err_mm;
 	}
@@ -2157,16 +2192,6 @@ int intel_init_render_ring_buffer(struct intel_engine_cs *engine)
 	ret = intel_init_ring_buffer(engine);
 	if (ret)
 		return ret;
-
-	if (INTEL_GEN(dev_priv) >= 6) {
-		ret = intel_engine_create_scratch(engine, PAGE_SIZE);
-		if (ret)
-			return ret;
-	} else if (HAS_BROKEN_CS_TLB(dev_priv)) {
-		ret = intel_engine_create_scratch(engine, I830_WA_SIZE);
-		if (ret)
-			return ret;
-	}
 
 	return 0;
 }
