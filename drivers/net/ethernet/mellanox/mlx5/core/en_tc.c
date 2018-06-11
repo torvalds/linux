@@ -1412,11 +1412,56 @@ static struct mlx5_fc *mlx5e_tc_get_counter(struct mlx5e_tc_flow *flow)
 		return flow->nic_attr->counter;
 }
 
+static struct mlx5e_encap_entry *
+mlx5e_get_next_valid_encap(struct mlx5e_neigh_hash_entry *nhe,
+			   struct mlx5e_encap_entry *e)
+{
+	struct mlx5e_encap_entry *next = NULL;
+
+retry:
+	rcu_read_lock();
+
+	/* find encap with non-zero reference counter value */
+	for (next = e ?
+		     list_next_or_null_rcu(&nhe->encap_list,
+					   &e->encap_list,
+					   struct mlx5e_encap_entry,
+					   encap_list) :
+		     list_first_or_null_rcu(&nhe->encap_list,
+					    struct mlx5e_encap_entry,
+					    encap_list);
+	     next;
+	     next = list_next_or_null_rcu(&nhe->encap_list,
+					  &next->encap_list,
+					  struct mlx5e_encap_entry,
+					  encap_list))
+		if (mlx5e_encap_take(next))
+			break;
+
+	rcu_read_unlock();
+
+	/* release starting encap */
+	if (e)
+		mlx5e_encap_put(netdev_priv(e->out_dev), e);
+	if (!next)
+		return next;
+
+	/* wait for encap to be fully initialized */
+	wait_for_completion(&next->res_ready);
+	/* continue searching if encap entry is not in valid state after completion */
+	if (!(next->flags & MLX5_ENCAP_ENTRY_VALID)) {
+		e = next;
+		goto retry;
+	}
+
+	return next;
+}
+
 void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 {
 	struct mlx5e_neigh *m_neigh = &nhe->m_neigh;
+	struct mlx5e_encap_entry *e = NULL;
 	struct mlx5e_tc_flow *flow;
-	struct mlx5e_encap_entry *e;
 	struct mlx5_fc *counter;
 	struct neigh_table *tbl;
 	bool neigh_used = false;
@@ -1432,12 +1477,11 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 	else
 		return;
 
-	list_for_each_entry(e, &nhe->encap_list, encap_list) {
+	/* mlx5e_get_next_valid_encap() releases previous encap before returning
+	 * next one.
+	 */
+	while ((e = mlx5e_get_next_valid_encap(nhe, e)) != NULL) {
 		struct encap_flow_item *efi, *tmp;
-
-		if (!(e->flags & MLX5_ENCAP_ENTRY_VALID) ||
-		    !mlx5e_encap_take(e))
-			continue;
 
 		list_for_each_entry_safe(efi, tmp, &e->flows, list) {
 			flow = container_of(efi, struct mlx5e_tc_flow,
@@ -1458,9 +1502,11 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 			mlx5e_flow_put(netdev_priv(e->out_dev), flow);
 		}
 
-		mlx5e_encap_put(netdev_priv(e->out_dev), e);
-		if (neigh_used)
+		if (neigh_used) {
+			/* release current encap before breaking the loop */
+			mlx5e_encap_put(netdev_priv(e->out_dev), e);
 			break;
+		}
 	}
 
 	if (neigh_used) {
@@ -1490,7 +1536,7 @@ static void mlx5e_encap_dealloc(struct mlx5e_priv *priv, struct mlx5e_encap_entr
 	}
 
 	kfree(e->encap_header);
-	kfree(e);
+	kfree_rcu(e, rcu);
 }
 
 void mlx5e_encap_put(struct mlx5e_priv *priv, struct mlx5e_encap_entry *e)

@@ -1064,6 +1064,7 @@ static int mlx5e_rep_neigh_entry_create(struct mlx5e_priv *priv,
 	(*nhe)->priv = priv;
 	memcpy(&(*nhe)->m_neigh, &e->m_neigh, sizeof(e->m_neigh));
 	INIT_WORK(&(*nhe)->neigh_update_work, mlx5e_rep_neigh_update);
+	spin_lock_init(&(*nhe)->encap_list_lock);
 	INIT_LIST_HEAD(&(*nhe)->encap_list);
 	refcount_set(&(*nhe)->refcnt, 1);
 
@@ -1103,7 +1104,10 @@ int mlx5e_rep_encap_entry_attach(struct mlx5e_priv *priv,
 	}
 
 	e->nhe = nhe;
-	list_add(&e->encap_list, &nhe->encap_list);
+	spin_lock(&nhe->encap_list_lock);
+	list_add_rcu(&e->encap_list, &nhe->encap_list);
+	spin_unlock(&nhe->encap_list_lock);
+
 	mutex_unlock(&rpriv->neigh_update.encap_lock);
 
 	return 0;
@@ -1119,7 +1123,9 @@ void mlx5e_rep_encap_entry_detach(struct mlx5e_priv *priv,
 	if (!e->nhe)
 		return;
 
-	list_del(&e->encap_list);
+	spin_lock(&e->nhe->encap_list_lock);
+	list_del_rcu(&e->encap_list);
+	spin_unlock(&e->nhe->encap_list_lock);
 
 	mlx5e_rep_neigh_entry_release(e->nhe);
 	e->nhe = NULL;
