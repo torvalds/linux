@@ -182,13 +182,15 @@ whint_mode=%s          Control which write hints are passed down to block
                        passes down hints with its policy.
 alloc_mode=%s          Adjust block allocation policy, which supports "reuse"
                        and "default".
-fsync_mode=%s          Control the policy of fsync. Currently supports "posix"
-                       and "strict". In "posix" mode, which is default, fsync
-                       will follow POSIX semantics and does a light operation
-                       to improve the filesystem performance. In "strict" mode,
-                       fsync will be heavy and behaves in line with xfs, ext4
-                       and btrfs, where xfstest generic/342 will pass, but the
-                       performance will regress.
+fsync_mode=%s          Control the policy of fsync. Currently supports "posix",
+                       "strict", and "nobarrier". In "posix" mode, which is
+                       default, fsync will follow POSIX semantics and does a
+                       light operation to improve the filesystem performance.
+                       In "strict" mode, fsync will be heavy and behaves in line
+                       with xfs, ext4 and btrfs, where xfstest generic/342 will
+                       pass, but the performance will regress. "nobarrier" is
+                       based on "posix", but doesn't issue flush command for
+                       non-atomic files likewise "nobarrier" mount option.
 test_dummy_encryption  Enable dummy encryption, which provides a fake fscrypt
                        context. The fake fscrypt context is used by xfstests.
 
