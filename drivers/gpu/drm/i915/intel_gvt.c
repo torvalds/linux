@@ -47,6 +47,8 @@ static bool is_supported_device(struct drm_i915_private *dev_priv)
 		return true;
 	if (IS_KABYLAKE(dev_priv))
 		return true;
+	if (IS_BROXTON(dev_priv))
+		return true;
 	return false;
 }
 
