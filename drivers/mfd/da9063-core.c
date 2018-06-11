@@ -76,7 +76,7 @@ static struct resource da9063_hwmon_resources[] = {
 };
 
 
-static const struct mfd_cell da9063_devs[] = {
+static const struct mfd_cell da9063_common_devs[] = {
 	{
 		.name		= DA9063_DRVNAME_REGULATORS,
 		.num_resources	= ARRAY_SIZE(da9063_regulators_resources),
@@ -101,13 +101,17 @@ static const struct mfd_cell da9063_devs[] = {
 		.of_compatible = "dlg,da9063-onkey",
 	},
 	{
+		.name		= DA9063_DRVNAME_VIBRATION,
+	},
+};
+
+/* Only present on DA9063 , not on DA9063L */
+static const struct mfd_cell da9063_devs[] = {
+	{
 		.name		= DA9063_DRVNAME_RTC,
 		.num_resources	= ARRAY_SIZE(da9063_rtc_resources),
 		.resources	= da9063_rtc_resources,
 		.of_compatible	= "dlg,da9063-rtc",
-	},
-	{
-		.name		= DA9063_DRVNAME_VIBRATION,
 	},
 };
 
@@ -226,10 +230,23 @@ int da9063_device_init(struct da9063 *da9063, unsigned int irq)
 	da9063->irq_base = regmap_irq_chip_get_base(da9063->regmap_irq);
 
 	ret = devm_mfd_add_devices(da9063->dev, PLATFORM_DEVID_NONE,
-				   da9063_devs, ARRAY_SIZE(da9063_devs),
+				   da9063_common_devs,
+				   ARRAY_SIZE(da9063_common_devs),
 				   NULL, da9063->irq_base, NULL);
-	if (ret)
-		dev_err(da9063->dev, "Cannot add MFD cells\n");
+	if (ret) {
+		dev_err(da9063->dev, "Failed to add child devices\n");
+		return ret;
+	}
+
+	if (da9063->type == PMIC_TYPE_DA9063) {
+		ret = devm_mfd_add_devices(da9063->dev, PLATFORM_DEVID_NONE,
+					   da9063_devs, ARRAY_SIZE(da9063_devs),
+					   NULL, da9063->irq_base, NULL);
+		if (ret) {
+			dev_err(da9063->dev, "Failed to add child devices\n");
+			return ret;
+		}
+	}
 
 	return ret;
 }
