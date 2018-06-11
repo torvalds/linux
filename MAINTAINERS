@@ -2606,6 +2606,7 @@ BACKLIGHT CLASS/SUBSYSTEM
 M:	Lee Jones <lee.jones@linaro.org>
 M:	Daniel Thompson <daniel.thompson@linaro.org>
 M:	Jingoo Han <jingoohan1@gmail.com>
+L:	dri-devel@lists.freedesktop.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lee/backlight.git
 S:	Maintained
 F:	drivers/video/backlight/
