@@ -79,7 +79,8 @@ static struct sk_buff *trailer_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (unlikely(ds->cpu_port_mask & BIT(source_port)))
 		return NULL;
 
-	pskb_trim_rcsum(skb, skb->len - 4);
+	if (pskb_trim_rcsum(skb, skb->len - 4))
+		return NULL;
 
 	skb->dev = ds->ports[source_port].netdev;
 
