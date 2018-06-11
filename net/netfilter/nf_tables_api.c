@@ -5837,18 +5837,23 @@ static int nf_tables_flowtable_event(struct notifier_block *this,
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct nft_flowtable *flowtable;
 	struct nft_table *table;
+	struct net *net;
 
 	if (event != NETDEV_UNREGISTER)
 		return 0;
 
+	net = maybe_get_net(dev_net(dev));
+	if (!net)
+		return 0;
+
 	nfnl_lock(NFNL_SUBSYS_NFTABLES);
-	list_for_each_entry(table, &dev_net(dev)->nft.tables, list) {
+	list_for_each_entry(table, &net->nft.tables, list) {
 		list_for_each_entry(flowtable, &table->flowtables, list) {
 			nft_flowtable_event(event, dev, flowtable);
 		}
 	}
 	nfnl_unlock(NFNL_SUBSYS_NFTABLES);
-
+	put_net(net);
 	return NOTIFY_DONE;
 }
 
@@ -7154,9 +7159,11 @@ static int __net_init nf_tables_init_net(struct net *net)
 
 static void __net_exit nf_tables_exit_net(struct net *net)
 {
+	nfnl_lock(NFNL_SUBSYS_NFTABLES);
 	if (!list_empty(&net->nft.commit_list))
 		__nf_tables_abort(net);
 	__nft_release_tables(net);
+	nfnl_unlock(NFNL_SUBSYS_NFTABLES);
 	WARN_ON_ONCE(!list_empty(&net->nft.tables));
 }
 
@@ -7201,11 +7208,11 @@ static void __exit nf_tables_module_exit(void)
 {
 	nfnetlink_subsys_unregister(&nf_tables_subsys);
 	unregister_netdevice_notifier(&nf_tables_flowtable_notifier);
+	nft_chain_filter_fini();
 	unregister_pernet_subsys(&nf_tables_net_ops);
 	rcu_barrier();
 	nf_tables_core_module_exit();
 	kfree(info);
-	nft_chain_filter_fini();
 }
 
 module_init(nf_tables_module_init);
