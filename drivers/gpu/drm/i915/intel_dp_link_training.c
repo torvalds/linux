@@ -219,14 +219,30 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 }
 
 /*
- * Pick training pattern for channel equalization. Training Pattern 3 for HBR2
+ * Pick training pattern for channel equalization. Training pattern 4 for HBR3
+ * or for 1.4 devices that support it, training Pattern 3 for HBR2
  * or 1.2 devices that support it, Training Pattern 2 otherwise.
  */
 static u32 intel_dp_training_pattern(struct intel_dp *intel_dp)
 {
-	u32 training_pattern = DP_TRAINING_PATTERN_2;
-	bool source_tps3, sink_tps3;
+	bool source_tps3, sink_tps3, source_tps4, sink_tps4;
 
+	/*
+	 * Intel platforms that support HBR3 also support TPS4. It is mandatory
+	 * for all downstream devices that support HBR3. There are no known eDP
+	 * panels that support TPS4 as of Feb 2018 as per VESA eDP_v1.4b_E1
+	 * specification.
+	 */
+	source_tps4 = intel_dp_source_supports_hbr3(intel_dp);
+	sink_tps4 = drm_dp_tps4_supported(intel_dp->dpcd);
+	if (source_tps4 && sink_tps4) {
+		return DP_TRAINING_PATTERN_4;
+	} else if (intel_dp->link_rate == 810000) {
+		if (!source_tps4)
+			DRM_DEBUG_KMS("8.1 Gbps link rate without source HBR3/TPS4 support\n");
+		if (!sink_tps4)
+			DRM_DEBUG_KMS("8.1 Gbps link rate without sink TPS4 support\n");
+	}
 	/*
 	 * Intel platforms that support HBR2 also support TPS3. TPS3 support is
 	 * also mandatory for downstream devices that support HBR2. However, not
@@ -234,17 +250,16 @@ static u32 intel_dp_training_pattern(struct intel_dp *intel_dp)
 	 */
 	source_tps3 = intel_dp_source_supports_hbr2(intel_dp);
 	sink_tps3 = drm_dp_tps3_supported(intel_dp->dpcd);
-
 	if (source_tps3 && sink_tps3) {
-		training_pattern = DP_TRAINING_PATTERN_3;
-	} else if (intel_dp->link_rate == 540000) {
+		return  DP_TRAINING_PATTERN_3;
+	} else if (intel_dp->link_rate >= 540000) {
 		if (!source_tps3)
-			DRM_DEBUG_KMS("5.4 Gbps link rate without source HBR2/TPS3 support\n");
+			DRM_DEBUG_KMS(">=5.4/6.48 Gbps link rate without source HBR2/TPS3 support\n");
 		if (!sink_tps3)
-			DRM_DEBUG_KMS("5.4 Gbps link rate without sink TPS3 support\n");
+			DRM_DEBUG_KMS(">=5.4/6.48 Gbps link rate without sink TPS3 support\n");
 	}
 
-	return training_pattern;
+	return DP_TRAINING_PATTERN_2;
 }
 
 static bool
@@ -256,11 +271,13 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 	bool channel_eq = false;
 
 	training_pattern = intel_dp_training_pattern(intel_dp);
+	/* Scrambling is disabled for TPS2/3 and enabled for TPS4 */
+	if (training_pattern != DP_TRAINING_PATTERN_4)
+		training_pattern |= DP_LINK_SCRAMBLING_DISABLE;
 
 	/* channel equalization */
 	if (!intel_dp_set_link_train(intel_dp,
-				     training_pattern |
-				     DP_LINK_SCRAMBLING_DISABLE)) {
+				     training_pattern)) {
 		DRM_ERROR("failed to start channel equalization\n");
 		return false;
 	}

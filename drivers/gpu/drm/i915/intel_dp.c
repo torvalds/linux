@@ -1565,6 +1565,13 @@ bool intel_dp_source_supports_hbr2(struct intel_dp *intel_dp)
 	return max_rate >= 540000;
 }
 
+bool intel_dp_source_supports_hbr3(struct intel_dp *intel_dp)
+{
+	int max_rate = intel_dp->source_rates[intel_dp->num_source_rates - 1];
+
+	return max_rate >= 810000;
+}
+
 static void
 intel_dp_set_clock(struct intel_encoder *encoder,
 		   struct intel_crtc_state *pipe_config)
@@ -2889,10 +2896,11 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	enum port port = intel_dig_port->base.port;
+	uint8_t train_pat_mask = drm_dp_training_pattern_mask(intel_dp->dpcd);
 
-	if (dp_train_pat & DP_TRAINING_PATTERN_MASK)
+	if (dp_train_pat & train_pat_mask)
 		DRM_DEBUG_KMS("Using DP training pattern TPS%d\n",
-			      dp_train_pat & DP_TRAINING_PATTERN_MASK);
+			      dp_train_pat & train_pat_mask);
 
 	if (HAS_DDI(dev_priv)) {
 		uint32_t temp = I915_READ(DP_TP_CTL(port));
@@ -2903,7 +2911,7 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 			temp &= ~DP_TP_CTL_SCRAMBLE_DISABLE;
 
 		temp &= ~DP_TP_CTL_LINK_TRAIN_MASK;
-		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
+		switch (dp_train_pat & train_pat_mask) {
 		case DP_TRAINING_PATTERN_DISABLE:
 			temp |= DP_TP_CTL_LINK_TRAIN_NORMAL;
 
@@ -2916,6 +2924,9 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 			break;
 		case DP_TRAINING_PATTERN_3:
 			temp |= DP_TP_CTL_LINK_TRAIN_PAT3;
+			break;
+		case DP_TRAINING_PATTERN_4:
+			temp |= DP_TP_CTL_LINK_TRAIN_PAT4;
 			break;
 		}
 		I915_WRITE(DP_TP_CTL(port), temp);

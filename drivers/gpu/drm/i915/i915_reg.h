@@ -8703,6 +8703,7 @@ enum skl_power_gate {
 #define  DP_TP_CTL_LINK_TRAIN_PAT1		(0<<8)
 #define  DP_TP_CTL_LINK_TRAIN_PAT2		(1<<8)
 #define  DP_TP_CTL_LINK_TRAIN_PAT3		(4<<8)
+#define  DP_TP_CTL_LINK_TRAIN_PAT4		(5<<8)
 #define  DP_TP_CTL_LINK_TRAIN_IDLE		(2<<8)
 #define  DP_TP_CTL_LINK_TRAIN_NORMAL		(3<<8)
 #define  DP_TP_CTL_SCRAMBLE_DISABLE		(1<<7)
