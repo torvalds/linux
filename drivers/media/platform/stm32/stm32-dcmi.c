@@ -86,7 +86,6 @@ enum state {
 	STOPPED = 0,
 	WAIT_FOR_BUFFER,
 	RUNNING,
-	STOPPING,
 };
 
 #define MIN_WIDTH	16U
@@ -431,18 +430,6 @@ static irqreturn_t dcmi_irq_thread(int irq, void *arg)
 
 	spin_lock_irq(&dcmi->irqlock);
 
-	/* Stop capture is required */
-	if (dcmi->state == STOPPING) {
-		reg_clear(dcmi->regs, DCMI_IER, IT_FRAME | IT_OVR | IT_ERR);
-
-		dcmi->state = STOPPED;
-
-		complete(&dcmi->complete);
-
-		spin_unlock_irq(&dcmi->irqlock);
-		return IRQ_HANDLED;
-	}
-
 	if ((dcmi->misr & IT_OVR) || (dcmi->misr & IT_ERR)) {
 		dcmi->errors_count++;
 		if (dcmi->misr & IT_OVR)
@@ -700,8 +687,6 @@ static void dcmi_stop_streaming(struct vb2_queue *vq)
 {
 	struct stm32_dcmi *dcmi = vb2_get_drv_priv(vq);
 	struct dcmi_buf *buf, *node;
-	unsigned long time_ms = msecs_to_jiffies(TIMEOUT_MS);
-	long timeout;
 	int ret;
 
 	/* Disable stream on the sub device */
@@ -711,25 +696,12 @@ static void dcmi_stop_streaming(struct vb2_queue *vq)
 			__func__, ret);
 
 	spin_lock_irq(&dcmi->irqlock);
-	dcmi->state = STOPPING;
-	spin_unlock_irq(&dcmi->irqlock);
-
-	timeout = wait_for_completion_interruptible_timeout(&dcmi->complete,
-							    time_ms);
-
-	spin_lock_irq(&dcmi->irqlock);
 
 	/* Disable interruptions */
 	reg_clear(dcmi->regs, DCMI_IER, IT_FRAME | IT_OVR | IT_ERR);
 
 	/* Disable DCMI */
 	reg_clear(dcmi->regs, DCMI_CR, CR_ENABLE);
-
-	if (!timeout) {
-		dev_err(dcmi->dev, "%s: Timeout during stop streaming\n",
-			__func__);
-		dcmi->state = STOPPED;
-	}
 
 	/* Return all queued buffers to vb2 in ERROR state */
 	list_for_each_entry_safe(buf, node, &dcmi->buffers, list) {
@@ -738,6 +710,7 @@ static void dcmi_stop_streaming(struct vb2_queue *vq)
 	}
 
 	dcmi->active = NULL;
+	dcmi->state = STOPPED;
 
 	spin_unlock_irq(&dcmi->irqlock);
 
