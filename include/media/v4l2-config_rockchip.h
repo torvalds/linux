@@ -56,6 +56,8 @@ struct isp_supplemental_sensor_mode_data {
 	unsigned char exposure_valid_frame[2];
 	int exp_time;
 	unsigned short gain;
+	unsigned char max_exp_gain_h;
+	unsigned char max_exp_gain_l;
 };
 
 struct camera_module_info_s {

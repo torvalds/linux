@@ -34,8 +34,8 @@
 #define TC_CAMERA_MOUDLE_REG_VALUE_LEN_16BIT	2
 #define TC_CAMERA_MOUDLE_REG_VALUE_LEN_32BIT	4
 #define tc_camera_module_csi_config
-#define TC_FLIP_BIT_MASK					0x2
-#define TC_MIRROR_BIT_MASK					0x1
+#define TC_FLIP_BIT_MASK					(1 << PLTFRM_CAMERA_MODULE_FLIP_BIT)
+#define TC_MIRROR_BIT_MASK					(1 << PLTFRM_CAMERA_MODULE_MIRROR_BIT)
 
 #define TC_CAMERA_MODULE_CTRL_UPDT_GAIN				0x01
 #define TC_CAMERA_MODULE_CTRL_UPDT_EXP_TIME			0x02
@@ -101,7 +101,8 @@ struct tc_camera_module_config {
 	struct tc_camera_module_timings timings;
 	bool soft_reset;
 	bool ignore_measurement_check;
-
+	u8 max_exp_gain_h;
+	u8 max_exp_gain_l;
 	struct pltfrm_cam_itf itf_cfg;
 };
 
@@ -165,7 +166,8 @@ struct tc_camera_module_custom_config {
 	int (*g_ctrl)(struct tc_camera_module *cam_mod, u32 ctrl_id);
 	int (*g_timings)(struct tc_camera_module *cam_mod,
 		struct tc_camera_module_timings *timings);
-	int (*g_exposure_valid_frame)(struct tc_camera_module *cam_mod);
+	int (*s_vts)(struct tc_camera_module *cam_mod,
+		u32 vts);
 	int (*s_ext_ctrls)(struct tc_camera_module *cam_mod,
 		struct tc_camera_module_ext_ctrls *ctrls);
 	int (*set_flip)(
@@ -179,6 +181,7 @@ struct tc_camera_module_custom_config {
 	struct tc_camera_module_config *configs;
 	u32 num_configs;
 	u32 power_up_delays_ms[3];
+	unsigned short exposure_valid_frame[2];
 	void *priv;
 };
 
@@ -210,9 +213,11 @@ struct tc_camera_module {
 	bool frm_intrvl_valid;
 	bool hflip;
 	bool vflip;
+	bool flip_flg;
 	u32 rotation;
 	void *pltfm_data;
 	bool inited;
+	struct mutex lock;
 };
 
 struct tc35x_priv {
@@ -283,6 +288,10 @@ int tc_camera_module_g_fmt(struct v4l2_subdev *sd,
 	struct v4l2_subdev_format *format);
 
 int tc_camera_module_s_frame_interval(
+	struct v4l2_subdev *sd,
+	struct v4l2_subdev_frame_interval *interval);
+
+int tc_camera_module_g_frame_interval(
 	struct v4l2_subdev *sd,
 	struct v4l2_subdev_frame_interval *interval);
 

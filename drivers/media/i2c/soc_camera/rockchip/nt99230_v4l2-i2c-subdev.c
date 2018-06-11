@@ -570,6 +570,8 @@ static struct ov_camera_module_config NT99230_configs[] = {
 			sizeof(NT99230_init_tab_1920_1080_30fps_raw) /
 			sizeof(NT99230_init_tab_1920_1080_30fps_raw[0]),
 		.v_blanking_time_us = 4052,
+		.max_exp_gain_h = 16,
+		.max_exp_gain_l = 0,
 		.ignore_measurement_check = 1,
 		PLTFRM_CAM_ITF_MIPI_CFG(0, 2, 450, 24000000)
 	}
@@ -650,6 +652,7 @@ static int NT99230_write_aec(struct ov_camera_module *cam_mod)
 		u32 a_gain = cam_mod->exp_config.gain;
 		u32 exp_time = cam_mod->exp_config.exp_time;
 
+		mutex_lock(&cam_mod->lock);
 		if (!IS_ERR_VALUE(ret) && cam_mod->auto_adjust_fps)
 			ret = NT99230_auto_adjust_fps(cam_mod, cam_mod->exp_config.exp_time);
 
@@ -659,6 +662,7 @@ static int NT99230_write_aec(struct ov_camera_module *cam_mod)
 
 		if (cam_mod->state == OV_CAMERA_MODULE_STREAMING)
 			ret = ov_camera_module_write_reg(cam_mod, NT99230_AEC_UPDATE_ADDRESS, NT99230_AEC_UPDATE_DATA);
+		mutex_unlock(&cam_mod->lock);
 	}
 
 	if (IS_ERR_VALUE(ret))
@@ -866,14 +870,8 @@ static int NT99230_s_ext_ctrls(struct ov_camera_module *cam_mod,
 {
 	int ret = 0;
 
-	/* Handles only exposure and gain together special case. */
-	if (ctrls->count == 1)
-		ret = NT99230_s_ctrl(cam_mod, ctrls->ctrls[0].id);
-	else if (ctrls->count == 2 &&
-				((ctrls->ctrls[0].id == V4L2_CID_GAIN &&
-				ctrls->ctrls[1].id == V4L2_CID_EXPOSURE) ||
-				(ctrls->ctrls[1].id == V4L2_CID_GAIN &&
-				ctrls->ctrls[0].id == V4L2_CID_EXPOSURE)))
+	if ((ctrls->ctrls[0].id == V4L2_CID_GAIN ||
+		ctrls->ctrls[0].id == V4L2_CID_EXPOSURE))
 		ret = NT99230_write_aec(cam_mod);
 	else
 		ret = -EINVAL;
@@ -897,7 +895,9 @@ static int NT99230_start_streaming(struct ov_camera_module *cam_mod)
 	if (IS_ERR_VALUE(ret))
 		goto err;
 
+	mutex_lock(&cam_mod->lock);
 	ret = ov_camera_module_write_reg(cam_mod, 0x3021, 0x02);
+	mutex_unlock(&cam_mod->lock);
 	if (IS_ERR_VALUE(ret))
 		goto err;
 	msleep(25);
@@ -916,7 +916,9 @@ static int NT99230_stop_streaming(struct ov_camera_module *cam_mod)
 
 	ov_camera_module_pr_info(cam_mod, "\n");
 
+	mutex_lock(&cam_mod->lock);
 	ret = ov_camera_module_write_reg(cam_mod, 0x3021, 0x00);;
+	mutex_unlock(&cam_mod->lock);
 	if (IS_ERR_VALUE(ret))
 		goto err;
 
@@ -976,6 +978,7 @@ static struct v4l2_subdev_core_ops NT99230_camera_module_core_ops = {
 
 static struct v4l2_subdev_video_ops NT99230_camera_module_video_ops = {
 	.s_frame_interval = ov_camera_module_s_frame_interval,
+	.g_frame_interval = ov_camera_module_g_frame_interval,
 	.s_stream = ov_camera_module_s_stream
 };
 
@@ -1003,7 +1006,13 @@ static struct ov_camera_module_custom_config NT99230_custom_config = {
 	.check_camera_id = NT99230_check_camera_id,
 	.configs = NT99230_configs,
 	.num_configs = sizeof(NT99230_configs) / sizeof(NT99230_configs[0]),
-	.power_up_delays_ms = {5, 30, 0}
+	.power_up_delays_ms = {5, 30, 0},
+	/*
+	*0: Exposure time valid fileds;
+	*1: Exposure gain valid fileds;
+	*(2 fileds == 1 frames)
+	*/
+	.exposure_valid_frame = {4, 4}
 };
 
 static int NT99230_probe(
@@ -1025,6 +1034,7 @@ static int NT99230_probe(
 
 	tmp_NT99230->custom = NT99230_custom_config;
 	num_cameras++;
+	mutex_init(&tmp_NT99230->lock);
 	dev_info(&client->dev, "probing successful\n");
 	return 0;
 }
@@ -1041,6 +1051,7 @@ static int NT99230_remove(
 	if (!client->adapter)
 		return -ENODEV;	/* our client isn't attached */
 
+	mutex_destroy(&cam_mod->lock);
 	ov_camera_module_release(cam_mod);
 
 	dev_info(&client->dev, "removed\n");

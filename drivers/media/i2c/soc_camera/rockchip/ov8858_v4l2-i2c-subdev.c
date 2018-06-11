@@ -1122,6 +1122,8 @@ static struct ov_camera_module_config ov8858_configs[] = {
 		.reg_diff_table = NULL,
 		.reg_diff_table_num_entries = 0,
 		.v_blanking_time_us = 7251,
+		.max_exp_gain_h = 16,
+		.max_exp_gain_l = 0,
 		PLTFRM_CAM_ITF_MIPI_CFG(0, 4, 481, 24000000)
 	}
 };
@@ -1148,6 +1150,8 @@ static struct ov_camera_module_config ov8858_configs_R1A[] = {
 			sizeof(ov8858_init_tab_1632_1224_30fps_R1A) /
 			sizeof(ov8858_init_tab_1632_1224_30fps_R1A[0]),
 		.v_blanking_time_us = 6579,
+		.max_exp_gain_h = 16,
+		.max_exp_gain_l = 0,
 		PLTFRM_CAM_ITF_MIPI_CFG(0, 2, 720, 24000000)
 	},
 	{
@@ -1171,6 +1175,8 @@ static struct ov_camera_module_config ov8858_configs_R1A[] = {
 			sizeof(ov8858_init_tab_3264_2448_15fps_R1A) /
 			sizeof(ov8858_init_tab_3264_2448_15fps_R1A[0]),
 		.v_blanking_time_us = 6579,
+		.max_exp_gain_h = 16,
+		.max_exp_gain_l = 0,
 		PLTFRM_CAM_ITF_MIPI_CFG(0, 2, 720, 24000000)
 	}
 };
@@ -1214,10 +1220,9 @@ static int ov8858_auto_adjust_fps(struct ov_camera_module *cam_mod,
 	int ret;
 	u32 vts;
 
-	if ((cam_mod->exp_config.exp_time + ov8858_COARSE_INTG_TIME_MAX_MARGIN)
+	if ((exp_time + ov8858_COARSE_INTG_TIME_MAX_MARGIN)
 		> cam_mod->vts_min)
-		vts = cam_mod->exp_config.exp_time +
-			ov8858_COARSE_INTG_TIME_MAX_MARGIN;
+		vts = exp_time + ov8858_COARSE_INTG_TIME_MAX_MARGIN;
 	else
 		vts = cam_mod->vts_min;
 	ret = ov_camera_module_write_reg(cam_mod,
@@ -1231,7 +1236,7 @@ static int ov8858_auto_adjust_fps(struct ov_camera_module *cam_mod,
 		ov_camera_module_pr_err(cam_mod,
 			"failed with error (%d)\n", ret);
 	} else {
-		ov_camera_module_pr_debug(cam_mod,
+		ov_camera_module_pr_info(cam_mod,
 			"updated vts = %d,vts_min=%d\n", vts, cam_mod->vts_min);
 		cam_mod->vts_cur = vts;
 	}
@@ -1290,6 +1295,8 @@ static int ov8858_write_aec(struct ov_camera_module *cam_mod)
 		a_gain = a_gain > 0x7ff ? 0x7ff : a_gain;
 		a_gain = a_gain * cam_mod->exp_config.gain_percent / 100;
 		exp_time = cam_mod->exp_config.exp_time << 4;
+
+		mutex_lock(&cam_mod->lock);
 		if (cam_mod->state == OV_CAMERA_MODULE_STREAMING)
 			ret = ov_camera_module_write_reg(cam_mod,
 			ov8858_AEC_GROUP_UPDATE_ADDRESS,
@@ -1322,6 +1329,7 @@ static int ov8858_write_aec(struct ov_camera_module *cam_mod)
 				ov8858_AEC_GROUP_UPDATE_ADDRESS,
 				ov8858_AEC_GROUP_UPDATE_END_LAUNCH);
 		}
+		mutex_unlock(&cam_mod->lock);
 	}
 
 	if (IS_ERR_VALUE(ret))
@@ -1543,6 +1551,8 @@ static int ov8858_g_timings(struct ov_camera_module *cam_mod,
 		cam_mod->active_config->frm_intrvl.interval.denominator *
 		vts * timings->line_length_pck;
 
+	timings->frame_length_lines = vts;
+
 	return ret;
 err:
 	ov_camera_module_pr_err(cam_mod,
@@ -1584,14 +1594,8 @@ static int ov8858_s_ext_ctrls(struct ov_camera_module *cam_mod,
 {
 	int ret = 0;
 
-	/* Handles only exposure and gain together special case. */
-	if (ctrls->count == 1)
-		ret = ov8858_s_ctrl(cam_mod, ctrls->ctrls[0].id);
-	else if ((ctrls->count >= 3) &&
-		 ((ctrls->ctrls[0].id == V4L2_CID_GAIN &&
-		   ctrls->ctrls[1].id == V4L2_CID_EXPOSURE) ||
-		  (ctrls->ctrls[1].id == V4L2_CID_GAIN &&
-		   ctrls->ctrls[0].id == V4L2_CID_EXPOSURE)))
+	if ((ctrls->ctrls[0].id == V4L2_CID_GAIN ||
+		ctrls->ctrls[0].id == V4L2_CID_EXPOSURE))
 		ret = ov8858_write_aec(cam_mod);
 	else
 		ret = -EINVAL;
@@ -1685,7 +1689,10 @@ static int ov8858_start_streaming(struct ov_camera_module *cam_mod)
 	if (IS_ERR_VALUE(ret))
 		goto err;
 
-	if (IS_ERR_VALUE(ov_camera_module_write_reg(cam_mod, 0x0100, 1)))
+	mutex_lock(&cam_mod->lock);
+	ret = ov_camera_module_write_reg(cam_mod, 0x0100, 1);
+	mutex_unlock(&cam_mod->lock);
+	if (IS_ERR_VALUE(ret))
 		goto err;
 
 	msleep(25);
@@ -1705,7 +1712,9 @@ static int ov8858_stop_streaming(struct ov_camera_module *cam_mod)
 
 	ov_camera_module_pr_debug(cam_mod, "\n");
 
+	mutex_lock(&cam_mod->lock);
 	ret = ov_camera_module_write_reg(cam_mod, 0x0100, 0);
+	mutex_unlock(&cam_mod->lock);
 	if (IS_ERR_VALUE(ret))
 		goto err;
 
@@ -2095,11 +2104,6 @@ err:
 	return ret;
 }
 
-static int ov8858_g_exposure_valid_frame(struct ov_camera_module *cam_mod)
-{
-	return ov8858_EXP_VALID_FRAMES;
-}
-
 /* ======================================================================== */
 /* This part is platform dependent */
 /* ======================================================================== */
@@ -2114,6 +2118,7 @@ static struct v4l2_subdev_core_ops ov8858_camera_module_core_ops = {
 
 static struct v4l2_subdev_video_ops ov8858_camera_module_video_ops = {
 	.s_frame_interval = ov_camera_module_s_frame_interval,
+	.g_frame_interval = ov_camera_module_g_frame_interval,
 	.s_stream = ov_camera_module_s_stream
 };
 
@@ -2137,11 +2142,17 @@ static struct ov_camera_module_custom_config ov8858_custom_config = {
 	.g_ctrl = ov8858_g_ctrl,
 	.g_timings = ov8858_g_timings,
 	.check_camera_id = ov8858_check_camera_id,
-	.g_exposure_valid_frame = ov8858_g_exposure_valid_frame,
+	.s_vts = ov8858_auto_adjust_fps,
 	.read_otp = ov8858_otp_read,
 	.configs = ov8858_configs,
 	.num_configs = ARRAY_SIZE(ov8858_configs),
-	.power_up_delays_ms = {5, 20, 0}
+	.power_up_delays_ms = {5, 20, 0},
+	/*
+	*0: Exposure time valid fileds;
+	*1: Exposure gain valid fileds;
+	*(2 fileds == 1 frames)
+	*/
+	.exposure_valid_frame = {4, 4}
 };
 
 static int ov8858_probe(
@@ -2151,8 +2162,10 @@ static int ov8858_probe(
 	dev_info(&client->dev, "probing...\n");
 	ov8858_filltimings(&ov8858_custom_config);
 	v4l2_i2c_subdev_init(&ov8858.sd, client, &ov8858_camera_module_ops);
+	ov8858.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	ov8858.custom = ov8858_custom_config;
 
+	mutex_init(&ov8858.lock);
 	dev_info(&client->dev, "probing successful\n");
 
 	return 0;
@@ -2167,6 +2180,7 @@ static int ov8858_remove(struct i2c_client *client)
 	if (!client->adapter)
 		return -ENODEV;	/* our client isn't attached */
 
+	mutex_destroy(&cam_mod->lock);
 	ov_camera_module_release(cam_mod);
 
 	kfree(otp_ptr);

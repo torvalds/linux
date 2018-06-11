@@ -31,8 +31,8 @@
 				PLTFRM_CAMERA_MODULE_REG_TYPE_TIMEOUT
 #define aptina_camera_module_csi_config
 #define aptina_camera_module_reg pltfrm_camera_module_reg
-#define APTINA_FLIP_BIT_MASK 0x2
-#define APTINA_MIRROR_BIT_MASK 0x1
+#define APTINA_FLIP_BIT_MASK (1 << PLTFRM_CAMERA_MODULE_FLIP_BIT)
+#define APTINA_MIRROR_BIT_MASK (1 << PLTFRM_CAMERA_MODULE_MIRROR_BIT)
 
 #define APTINA_CAMERA_MODULE_CTRL_UPDT_GAIN 0x01
 #define APTINA_CAMERA_MODULE_CTRL_UPDT_EXP_TIME 0x02
@@ -88,6 +88,8 @@ struct aptina_camera_module_config {
 	struct aptina_camera_module_timings timings;
 	bool soft_reset;
 	bool ignore_measurement_check;
+	u8 max_exp_gain_h;
+	u8 max_exp_gain_l;
 	struct pltfrm_cam_itf itf_cfg;
 };
 
@@ -153,14 +155,19 @@ struct aptina_camera_module_custom_config {
 	int (*g_ctrl)(struct aptina_camera_module *cam_mod, u32 ctrl_id);
 	int (*g_timings)(struct aptina_camera_module *cam_mod,
 		struct aptina_camera_module_timings *timings);
+	int (*s_vts)(struct aptina_camera_module *cam_mod,
+		u32 vts);
 	int (*s_ext_ctrls)(struct aptina_camera_module *cam_mod,
 		struct aptina_camera_module_ext_ctrls *ctrls);
-	int (*set_flip)(struct aptina_camera_module *cam_mod);
+	int (*set_flip)(struct aptina_camera_module *cam_mod,
+		struct pltfrm_camera_module_reg reglist[],
+		int len);
 	struct aptina_camera_module_config *configs;
 	int (*init_common)(struct aptina_camera_module *cam_mod);
 	int (*g_exposure_valid_frame)(struct aptina_camera_module *cam_mod);
 	u32 num_configs;
 	u32 power_up_delays_ms[3];
+	unsigned short exposure_valid_frame[2];
 	void *priv;
 	struct aptina_camera_module_timings timings;
 };
@@ -178,6 +185,7 @@ struct aptina_camera_module {
 	enum aptina_camera_module_state state_before_suspend;
 	struct aptina_camera_module_config *active_config;
 	u32 ctrl_updt;
+	u32 vts_cur;
 	u32 vts_min;
 	bool auto_adjust_fps;
 	bool update_config;
@@ -185,9 +193,11 @@ struct aptina_camera_module {
 	bool frm_intrvl_valid;
 	bool hflip;
 	bool vflip;
+	bool flip_flg;
 	u32 rotation;
 	void *pltfm_data;
 	bool inited;
+	struct mutex lock;
 };
 
 #define aptina_camera_module_pr_info(cam_mod, fmt, arg...) \
@@ -235,6 +245,10 @@ int aptina_camera_module_g_fmt(
 	struct v4l2_subdev_format *format);
 
 int aptina_camera_module_s_frame_interval(
+	struct v4l2_subdev *sd,
+	struct v4l2_subdev_frame_interval *interval);
+
+int aptina_camera_module_g_frame_interval(
 	struct v4l2_subdev *sd,
 	struct v4l2_subdev_frame_interval *interval);
 

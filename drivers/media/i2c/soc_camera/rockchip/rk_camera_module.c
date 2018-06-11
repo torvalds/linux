@@ -80,6 +80,20 @@ const char *PLTFRM_CAMERA_MODULE_PIN_RESET = OF_OV_GPIO_RESET;
 #define I2C_M_WR 0
 #define I2C_MSG_MAX 300
 #define I2C_DATA_MAX (I2C_MSG_MAX * 3)
+#define CSI2_DT_YUV420_8b      (0x18)
+#define CSI2_DT_YUV420_10b     (0x19)
+#define CSI2_DT_YUV422_8b      (0x1E)
+#define CSI2_DT_YUV422_10b     (0x1F)
+#define CSI2_DT_RGB444         (0x20)
+#define CSI2_DT_RGB555         (0x21)
+#define CSI2_DT_RGB565         (0x22)
+#define CSI2_DT_RGB666         (0x23)
+#define CSI2_DT_RGB888         (0x24)
+#define CSI2_DT_RAW6           (0x28)
+#define CSI2_DT_RAW7           (0x29)
+#define CSI2_DT_RAW8           (0x2A)
+#define CSI2_DT_RAW10          (0x2B)
+#define CSI2_DT_RAW12          (0x2C)
 
 struct pltfrm_camera_module_gpio {
 	int pltfrm_gpio;
@@ -885,10 +899,9 @@ static int pltfrm_camera_module_write_reglist_node(
 		}
 
 		reg_table_num_entries /= 12;
-		reg_table = (struct pltfrm_camera_module_reg *)
-			kmalloc(reg_table_num_entries *
-				sizeof(struct pltfrm_camera_module_reg),
-				GFP_KERNEL);
+		reg_table = kmalloc_array(reg_table_num_entries,
+			sizeof(struct pltfrm_camera_module_reg),
+			GFP_KERNEL);
 		if (IS_ERR_OR_NULL(reg_table)) {
 			pltfrm_camera_module_pr_err(sd,
 				"memory allocation failed\n");
@@ -1662,7 +1675,6 @@ int pltfrm_camera_module_init(
 	void **pldata)
 {
 	int ret = 0;
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct pltfrm_camera_module_data *pdata;
 
 	pltfrm_camera_module_pr_debug(sd, "\n");
@@ -1675,13 +1687,11 @@ int pltfrm_camera_module_init(
 	}
 
 	ret = pltfrm_camera_module_init_gpio(sd);
-	if (ret) {
+	if (ret)
 		pltfrm_camera_module_pr_err(sd,
 			"GPIO initialization failed (%d)\n", ret);
-		devm_kfree(&client->dev, pdata);
-	} else {
+	else
 		*(struct pltfrm_camera_module_data **)pldata = pdata;
-	}
 
 	return ret;
 }
@@ -1710,8 +1720,18 @@ void pltfrm_camera_module_release(
 			devm_regulator_put(
 				pdata->regulators.regulator[i].regulator);
 	}
+
+	if (!IS_ERR_OR_NULL(pdata->regulators.regulator)) {
+		devm_kfree(&client->dev,
+			pdata->regulators.regulator);
+		pdata->regulators.regulator = NULL;
+	}
 	if (pdata->pinctrl)
 		devm_pinctrl_put(pdata->pinctrl);
+	if (!IS_ERR_OR_NULL(pdata)) {
+		devm_kfree(&client->dev, pdata);
+		pdata = NULL;
+	}
 }
 
 /* ======================================================================== */
@@ -1840,5 +1860,134 @@ int pltfrm_camera_module_get_flip_mirror(
 
 	return mode;
 }
+
+int pltfrm_camera_module_pix_fmt2csi2_dt(int src_pix_fmt)
+{
+	int ret = 0;
+
+	switch (src_pix_fmt) {
+	case MEDIA_BUS_FMT_RGB444_1X12:
+	case MEDIA_BUS_FMT_RGB444_2X8_PADHI_BE:
+	case MEDIA_BUS_FMT_RGB444_2X8_PADHI_LE:
+		ret = CSI2_DT_RGB444;
+		break;
+	case MEDIA_BUS_FMT_RGB555_2X8_PADHI_BE:
+	case MEDIA_BUS_FMT_RGB555_2X8_PADHI_LE:
+		ret = CSI2_DT_RGB555;
+		break;
+	case MEDIA_BUS_FMT_RGB565_1X16:
+	case MEDIA_BUS_FMT_BGR565_2X8_BE:
+	case MEDIA_BUS_FMT_BGR565_2X8_LE:
+	case MEDIA_BUS_FMT_RGB565_2X8_BE:
+	case MEDIA_BUS_FMT_RGB565_2X8_LE:
+		ret = CSI2_DT_RGB565;
+		break;
+	case MEDIA_BUS_FMT_RGB666_1X18:
+	case MEDIA_BUS_FMT_RGB666_1X24_CPADHI:
+	case MEDIA_BUS_FMT_RGB666_1X7X3_SPWG:
+		ret = CSI2_DT_RGB666;
+		break;
+	case MEDIA_BUS_FMT_RBG888_1X24:
+	case MEDIA_BUS_FMT_BGR888_1X24:
+	case MEDIA_BUS_FMT_GBR888_1X24:
+	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_RGB888_2X12_BE:
+	case MEDIA_BUS_FMT_RGB888_2X12_LE:
+	case MEDIA_BUS_FMT_RGB888_1X7X4_SPWG:
+	case MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA:
+	case MEDIA_BUS_FMT_ARGB8888_1X32:
+	case MEDIA_BUS_FMT_RGB888_1X32_PADHI:
+	case MEDIA_BUS_FMT_RGB101010_1X30:
+	case MEDIA_BUS_FMT_RGB121212_1X36:
+	case MEDIA_BUS_FMT_RGB161616_1X48:
+		ret = CSI2_DT_RGB888;
+		break;
+	case MEDIA_BUS_FMT_Y8_1X8:
+	case MEDIA_BUS_FMT_UV8_1X8:
+	case MEDIA_BUS_FMT_UYVY8_1_5X8:
+	case MEDIA_BUS_FMT_VYUY8_1_5X8:
+	case MEDIA_BUS_FMT_YUYV8_1_5X8:
+	case MEDIA_BUS_FMT_YVYU8_1_5X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_VYUY8_2X8:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YVYU8_2X8:
+		ret = CSI2_DT_YUV420_8b;
+		break;
+	case MEDIA_BUS_FMT_Y10_1X10:
+	case MEDIA_BUS_FMT_UYVY10_2X10:
+	case MEDIA_BUS_FMT_VYUY10_2X10:
+	case MEDIA_BUS_FMT_YUYV10_2X10:
+	case MEDIA_BUS_FMT_YVYU10_2X10:
+		ret = CSI2_DT_YUV420_10b;
+		break;
+	case MEDIA_BUS_FMT_Y12_1X12:
+	case MEDIA_BUS_FMT_UYVY12_2X12:
+	case MEDIA_BUS_FMT_VYUY12_2X12:
+	case MEDIA_BUS_FMT_YUYV12_2X12:
+	case MEDIA_BUS_FMT_YVYU12_2X12:
+	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_VYUY8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_YVYU8_1X16:
+	case MEDIA_BUS_FMT_YDYUYDYV8_1X16:
+		ret = CSI2_DT_YUV422_8b;
+		break;
+	case MEDIA_BUS_FMT_UYVY10_1X20:
+	case MEDIA_BUS_FMT_VYUY10_1X20:
+	case MEDIA_BUS_FMT_YUYV10_1X20:
+	case MEDIA_BUS_FMT_YVYU10_1X20:
+	case MEDIA_BUS_FMT_VUY8_1X24:
+	case MEDIA_BUS_FMT_YUV8_1X24:
+	case MEDIA_BUS_FMT_UYYVYY8_0_5X24:
+	case MEDIA_BUS_FMT_UYVY12_1X24:
+	case MEDIA_BUS_FMT_VYUY12_1X24:
+	case MEDIA_BUS_FMT_YUYV12_1X24:
+	case MEDIA_BUS_FMT_YVYU12_1X24:
+	case MEDIA_BUS_FMT_YUV10_1X30:
+	case MEDIA_BUS_FMT_UYYVYY10_0_5X30:
+	case MEDIA_BUS_FMT_AYUV8_1X32:
+	case MEDIA_BUS_FMT_UYYVYY12_0_5X36:
+	case MEDIA_BUS_FMT_YUV12_1X36:
+	case MEDIA_BUS_FMT_YUV16_1X48:
+	case MEDIA_BUS_FMT_UYYVYY16_0_5X48:
+		ret = CSI2_DT_YUV422_10b;
+		break;
+	case MEDIA_BUS_FMT_SBGGR8_1X8:
+	case MEDIA_BUS_FMT_SGBRG8_1X8:
+	case MEDIA_BUS_FMT_SGRBG8_1X8:
+	case MEDIA_BUS_FMT_SRGGB8_1X8:
+		ret = CSI2_DT_RAW8;
+		break;
+	case MEDIA_BUS_FMT_SBGGR10_ALAW8_1X8:
+	case MEDIA_BUS_FMT_SGBRG10_ALAW8_1X8:
+	case MEDIA_BUS_FMT_SGRBG10_ALAW8_1X8:
+	case MEDIA_BUS_FMT_SRGGB10_ALAW8_1X8:
+	case MEDIA_BUS_FMT_SBGGR10_DPCM8_1X8:
+	case MEDIA_BUS_FMT_SGBRG10_DPCM8_1X8:
+	case MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8:
+	case MEDIA_BUS_FMT_SRGGB10_DPCM8_1X8:
+	case MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_BE:
+	case MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE:
+	case MEDIA_BUS_FMT_SBGGR10_2X8_PADLO_BE:
+	case MEDIA_BUS_FMT_SBGGR10_2X8_PADLO_LE:
+	case MEDIA_BUS_FMT_SBGGR10_1X10:
+	case MEDIA_BUS_FMT_SGBRG10_1X10:
+	case MEDIA_BUS_FMT_SGRBG10_1X10:
+	case MEDIA_BUS_FMT_SRGGB10_1X10:
+		ret = CSI2_DT_RAW10;
+		break;
+	case MEDIA_BUS_FMT_SBGGR12_1X12:
+	case MEDIA_BUS_FMT_SGBRG12_1X12:
+	case MEDIA_BUS_FMT_SGRBG12_1X12:
+	case MEDIA_BUS_FMT_SRGGB12_1X12:
+		ret = CSI2_DT_RAW12;
+		break;
+	default:
+		break;
+	}
+	return ret;
+}
+
 #endif
 

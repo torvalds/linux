@@ -124,6 +124,8 @@ static struct imx_camera_module_config imx323_configs[] = {
 			sizeof(imx323_init_tab_1920_1080_30fps) /
 			sizeof(imx323_init_tab_1920_1080_30fps[0]),
 		.v_blanking_time_us = 5000,
+		.max_exp_gain_h = 16,
+		.max_exp_gain_l = 0,
 		PLTFRM_CAM_ITF_DVP_CFG(
 			PLTFRM_CAM_ITF_BT601_12,
 			PLTFRM_CAM_SIGNAL_HIGH_LEVEL,
@@ -170,10 +172,9 @@ static int imx323_auto_adjust_fps(struct imx_camera_module *cam_mod,
 	int ret;
 	u32 vts;
 
-	if ((cam_mod->exp_config.exp_time + IMX323_COARSE_INTG_TIME_MAX_MARGIN)
+	if ((exp_time + IMX323_COARSE_INTG_TIME_MAX_MARGIN)
 		> cam_mod->vts_min)
-		vts = cam_mod->exp_config.exp_time +
-					IMX323_COARSE_INTG_TIME_MAX_MARGIN;
+		vts = exp_time + IMX323_COARSE_INTG_TIME_MAX_MARGIN;
 	else
 		vts = cam_mod->vts_min;
 	ret = imx_camera_module_write_reg(cam_mod,
@@ -181,12 +182,14 @@ static int imx323_auto_adjust_fps(struct imx_camera_module *cam_mod,
 	ret |= imx_camera_module_write_reg(cam_mod,
 				IMX323_TIMING_VTS_HIGH_REG, (vts >> 8) & 0xFF);
 
-	if (IS_ERR_VALUE(ret))
+	if (IS_ERR_VALUE(ret)) {
 		imx_camera_module_pr_err(cam_mod,
 			"failed with error (%d)\n", ret);
-	else
-		imx_camera_module_pr_debug(cam_mod,
+	} else {
+		imx_camera_module_pr_info(cam_mod,
 			"updated vts = %d,vts_min=%d\n", vts, cam_mod->vts_min);
+		cam_mod->vts_cur = vts;
+	}
 
 	return ret;
 }
@@ -240,6 +243,7 @@ static int imx323_write_aec(struct imx_camera_module *cam_mod)
 
 		a_gain = a_gain * cam_mod->exp_config.gain_percent / 100;
 
+		mutex_lock(&cam_mod->lock);
 		if (!IS_ERR_VALUE(ret) && cam_mod->auto_adjust_fps)
 			ret = imx323_auto_adjust_fps(cam_mod,
 					cam_mod->exp_config.exp_time);
@@ -258,6 +262,7 @@ static int imx323_write_aec(struct imx_camera_module *cam_mod)
 
 		if (!cam_mod->auto_adjust_fps)
 			ret |= imx323_set_vts(cam_mod, cam_mod->exp_config.vts_value);
+		mutex_unlock(&cam_mod->lock);
 	}
 
 	if (IS_ERR_VALUE(ret))
@@ -373,6 +378,8 @@ static int imx323_g_timings(struct imx_camera_module *cam_mod,
 			* vts
 			* timings->line_length_pck;
 
+	timings->frame_length_lines = vts;
+
 	return ret;
 err:
 	imx_camera_module_pr_err(cam_mod, "failed with error (%d)\n", ret);
@@ -381,9 +388,12 @@ err:
 
 /*--------------------------------------------------------------------------*/
 
-static int imx323_set_flip(struct imx_camera_module *cam_mod)
+static int imx323_set_flip(
+	struct imx_camera_module *cam_mod,
+	struct pltfrm_camera_module_reg reglist[],
+	int len)
 {
-	int mode = 0;
+	int i, mode = 0;
 	u16 orientation = 0;
 
 	mode = imx_camera_module_get_flip_mirror(cam_mod);
@@ -394,15 +404,14 @@ static int imx323_set_flip(struct imx_camera_module *cam_mod)
 	}
 
 	if (!IS_ERR_OR_NULL(cam_mod->active_config)) {
-		if (mode == IMX_FLIP_BIT_MASK)
-			orientation = IMX323_ORIENTATION_V;
-		else if (mode == IMX_MIRROR_BIT_MASK)
-			orientation = IMX323_ORIENTATION_H;
-		else if (mode == (IMX_MIRROR_BIT_MASK | IMX_FLIP_BIT_MASK))
-			orientation = IMX323_ORIENTATION_H |
-					IMX323_ORIENTATION_V;
-		else
-			orientation = 0;
+		if (PLTFRM_CAMERA_MODULE_IS_MIRROR(mode))
+			orientation |= 0x01;
+		if (PLTFRM_CAMERA_MODULE_IS_FLIP(mode))
+			orientation |= 0x02;
+		for (i = 0; i < len; i++) {
+			if (reglist[i].reg == IMX323_ORIENTATION_REG)
+				reglist[i].val = orientation;
+		}
 	}
 
 	return 0;
@@ -443,14 +452,8 @@ static int imx323_s_ext_ctrls(struct imx_camera_module *cam_mod,
 {
 	int ret = 0;
 
-	/* Handles only exposure and gain together special case. */
-	if (ctrls->count == 1)
-		ret = imx323_s_ctrl(cam_mod, ctrls->ctrls[0].id);
-	else if ((ctrls->count >= 3) &&
-		 ((ctrls->ctrls[0].id == V4L2_CID_GAIN &&
-		   ctrls->ctrls[1].id == V4L2_CID_EXPOSURE) ||
-		  (ctrls->ctrls[1].id == V4L2_CID_GAIN &&
-		   ctrls->ctrls[0].id == V4L2_CID_EXPOSURE)))
+	if ((ctrls->ctrls[0].id == V4L2_CID_GAIN ||
+		ctrls->ctrls[0].id == V4L2_CID_EXPOSURE))
 		ret = imx323_write_aec(cam_mod);
 	else
 		ret = -EINVAL;
@@ -474,7 +477,10 @@ static int imx323_start_streaming(struct imx_camera_module *cam_mod)
 	if (IS_ERR_VALUE(ret))
 		goto err;
 
-	if (IS_ERR_VALUE(imx_camera_module_write_reg(cam_mod, 0x0100, 1)))
+	mutex_lock(&cam_mod->lock);
+	ret = imx_camera_module_write_reg(cam_mod, 0x0100, 1);
+	mutex_unlock(&cam_mod->lock);
+	if (IS_ERR_VALUE(ret))
 		goto err;
 
 	msleep(25);
@@ -494,7 +500,9 @@ static int imx323_stop_streaming(struct imx_camera_module *cam_mod)
 
 	imx_camera_module_pr_debug(cam_mod, "\n");
 
+	mutex_lock(&cam_mod->lock);
 	ret = imx_camera_module_write_reg(cam_mod, 0x0100, 0);
+	mutex_unlock(&cam_mod->lock);
 	if (IS_ERR_VALUE(ret))
 		goto err;
 
@@ -553,6 +561,7 @@ static struct v4l2_subdev_core_ops imx323_camera_module_core_ops = {
 
 static struct v4l2_subdev_video_ops imx323_camera_module_video_ops = {
 	.s_frame_interval = imx_camera_module_s_frame_interval,
+	.g_frame_interval = imx_camera_module_g_frame_interval,
 	.s_stream = imx_camera_module_s_stream
 };
 
@@ -577,9 +586,16 @@ static struct imx_camera_module_custom_config imx323_custom_config = {
 	.g_timings = imx323_g_timings,
 	.check_camera_id = imx323_check_camera_id,
 	.set_flip = imx323_set_flip,
+	.s_vts = imx323_auto_adjust_fps,
 	.configs = imx323_configs,
 	.num_configs =  ARRAY_SIZE(imx323_configs),
-	.power_up_delays_ms = {5, 20, 0}
+	.power_up_delays_ms = {5, 20, 0},
+	/*
+	*0: Exposure time valid fileds;
+	*1: Exposure gain valid fileds;
+	*(2 fileds == 1 frames)
+	*/
+	.exposure_valid_frame = {4, 4}
 };
 
 static int imx323_probe(
@@ -590,8 +606,10 @@ static int imx323_probe(
 
 	imx323_filltimings(&imx323_custom_config);
 	v4l2_i2c_subdev_init(&imx323.sd, client, &imx323_camera_module_ops);
+	imx323.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	imx323.custom = imx323_custom_config;
 
+	mutex_init(&imx323.lock);
 	dev_info(&client->dev, "probing successful\n");
 	return 0;
 }
@@ -605,6 +623,7 @@ static int imx323_remove(struct i2c_client *client)
 	if (!client->adapter)
 		return -ENODEV;	/* our client isn't attached */
 
+	mutex_destroy(&cam_mod->lock);
 	imx_camera_module_release(cam_mod);
 
 	dev_info(&client->dev, "removed\n");

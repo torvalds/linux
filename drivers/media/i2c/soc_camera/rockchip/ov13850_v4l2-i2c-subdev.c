@@ -1308,6 +1308,8 @@ static struct ov_camera_module_config ov13850_configs[] = {
 			sizeof(ov13850_regs_2112_1568_30fps_twolane_r2a) /
 			sizeof(ov13850_regs_2112_1568_30fps_twolane_r2a[0]),
 		.v_blanking_time_us = 5000,
+		.max_exp_gain_h = 16,
+		.max_exp_gain_l = 0,
 		PLTFRM_CAM_ITF_MIPI_CFG(0, 2, 600, ov13850_EXT_CLK)
 	},
 
@@ -1332,6 +1334,8 @@ static struct ov_camera_module_config ov13850_configs[] = {
 			sizeof(ov13850_regs_4224_3136_7fps_twolane_r2a) /
 			sizeof(ov13850_regs_4224_3136_7fps_twolane_r2a[0]),
 		.v_blanking_time_us = 5000,
+		.max_exp_gain_h = 16,
+		.max_exp_gain_l = 0,
 		PLTFRM_CAM_ITF_MIPI_CFG(0, 2, 600, ov13850_EXT_CLK)
 	}
 };
@@ -1358,6 +1362,8 @@ static struct ov_camera_module_config ov13850_onelane_configs[] = {
 			sizeof(ov13850_init_tab_2112_1568_15fps) /
 			sizeof(ov13850_init_tab_2112_1568_15fps[0]),
 		.v_blanking_time_us = 5000,
+		.max_exp_gain_h = 16,
+		.max_exp_gain_l = 0,
 		PLTFRM_CAM_ITF_MIPI_CFG(0, 1, 640, ov13850_EXT_CLK)
 	}
 };
@@ -1394,11 +1400,9 @@ static int ov13850_auto_adjust_fps(struct ov_camera_module *cam_mod,
 	int ret;
 	u32 vts;
 
-	if ((cam_mod->exp_config.exp_time +
-	ov13850_COARSE_INTG_TIME_MAX_MARGIN)
-	> cam_mod->vts_min)
-		vts = cam_mod->exp_config.exp_time +
-			ov13850_COARSE_INTG_TIME_MAX_MARGIN;
+	if ((exp_time + ov13850_COARSE_INTG_TIME_MAX_MARGIN)
+		> cam_mod->vts_min)
+		vts = exp_time + ov13850_COARSE_INTG_TIME_MAX_MARGIN;
 	else
 		vts = cam_mod->vts_min;
 	ret = ov_camera_module_write_reg(cam_mod,
@@ -1407,13 +1411,15 @@ static int ov13850_auto_adjust_fps(struct ov_camera_module *cam_mod,
 		ov13850_TIMING_VTS_HIGH_REG,
 		(vts >> 8) & 0xFF);
 
-	if (IS_ERR_VALUE(ret))
+	if (IS_ERR_VALUE(ret)) {
 		ov_camera_module_pr_err(cam_mod,
 			"failed with error (%d)\n", ret);
-	else
-		ov_camera_module_pr_debug(cam_mod,
+	} else {
+		ov_camera_module_pr_info(cam_mod,
 			"updated vts = %d,vts_min=%d\n",
 			vts, cam_mod->vts_min);
+		cam_mod->vts_cur = vts;
+	}
 
 	return ret;
 }
@@ -1468,6 +1474,7 @@ static int ov13850_write_aec(struct ov_camera_module *cam_mod)
 
 		a_gain = a_gain * cam_mod->exp_config.gain_percent / 100;
 
+		mutex_lock(&cam_mod->lock);
 		if (cam_mod->state == OV_CAMERA_MODULE_STREAMING)
 			ret = ov_camera_module_write_reg(cam_mod,
 				ov13850_AEC_GROUP_UPDATE_ADDRESS,
@@ -1500,6 +1507,7 @@ static int ov13850_write_aec(struct ov_camera_module *cam_mod)
 				ov13850_AEC_GROUP_UPDATE_ADDRESS,
 				ov13850_AEC_GROUP_UPDATE_END_LAUNCH);
 		}
+		mutex_unlock(&cam_mod->lock);
 	}
 
 	if (IS_ERR_VALUE(ret))
@@ -1648,23 +1656,28 @@ static int ov13850_g_timings(struct ov_camera_module *cam_mod,
 	struct ov_camera_module_timings *timings)
 {
 	int ret = 0;
+	unsigned int vts;
 
 	if (IS_ERR_OR_NULL(cam_mod->active_config))
 		goto err;
 
 	*timings = cam_mod->active_config->timings;
 
+	vts = (!cam_mod->vts_cur) ?
+		timings->frame_length_lines :
+		cam_mod->vts_cur;
 	if (cam_mod->frm_intrvl_valid)
 		timings->vt_pix_clk_freq_hz =
 			cam_mod->frm_intrvl.interval.denominator
-			* timings->frame_length_lines
+			* vts
 			* timings->line_length_pck;
 	else
 		timings->vt_pix_clk_freq_hz =
 			cam_mod->active_config->frm_intrvl.interval.denominator
-			* timings->frame_length_lines
+			* vts
 			* timings->line_length_pck;
 
+	timings->frame_length_lines = vts;
 	return ret;
 err:
 	ov_camera_module_pr_err(cam_mod, "failed with error (%d)\n", ret);
@@ -1771,13 +1784,8 @@ static int ov13850_s_ext_ctrls(struct ov_camera_module *cam_mod,
 	int ret = 0;
 
 	/* Handles only exposure and gain together special case. */
-	if (ctrls->count == 1)
-		ret = ov13850_s_ctrl(cam_mod, ctrls->ctrls[0].id);
-	else if ((ctrls->count >= 3) &&
-		 ((ctrls->ctrls[0].id == V4L2_CID_GAIN &&
-		   ctrls->ctrls[1].id == V4L2_CID_EXPOSURE) ||
-		  (ctrls->ctrls[1].id == V4L2_CID_GAIN &&
-		   ctrls->ctrls[0].id == V4L2_CID_EXPOSURE)))
+	if ((ctrls->ctrls[0].id == V4L2_CID_GAIN ||
+		ctrls->ctrls[0].id == V4L2_CID_EXPOSURE))
 		ret = ov13850_write_aec(cam_mod);
 	else
 		ret = -EINVAL;
@@ -1801,7 +1809,10 @@ static int ov13850_start_streaming(struct ov_camera_module *cam_mod)
 	if (IS_ERR_VALUE(ret))
 		goto err;
 
-	if (IS_ERR_VALUE(ov_camera_module_write_reg(cam_mod, 0x0100, 1)))
+	mutex_lock(&cam_mod->lock);
+	ret = ov_camera_module_write_reg(cam_mod, 0x0100, 1);
+	mutex_unlock(&cam_mod->lock);
+	if (IS_ERR_VALUE(ret))
 		goto err;
 
 	msleep(25);
@@ -1821,7 +1832,9 @@ static int ov13850_stop_streaming(struct ov_camera_module *cam_mod)
 
 	ov_camera_module_pr_debug(cam_mod, "\n");
 
+	mutex_lock(&cam_mod->lock);
 	ret = ov_camera_module_write_reg(cam_mod, 0x0100, 0);
+	mutex_unlock(&cam_mod->lock);
 	if (IS_ERR_VALUE(ret))
 		goto err;
 
@@ -1881,6 +1894,7 @@ static struct v4l2_subdev_core_ops ov13850_camera_module_core_ops = {
 
 static struct v4l2_subdev_video_ops ov13850_camera_module_video_ops = {
 	.s_frame_interval = ov_camera_module_s_frame_interval,
+	.g_frame_interval = ov_camera_module_g_frame_interval,
 	.s_stream = ov_camera_module_s_stream
 };
 
@@ -1904,6 +1918,7 @@ static struct ov_camera_module_custom_config ov13850_custom_config = {
 	.g_ctrl = ov13850_g_ctrl,
 	.g_timings = ov13850_g_timings,
 	.check_camera_id = ov13850_check_camera_id,
+	.s_vts = ov13850_auto_adjust_fps,
 	.set_flip = ov13850_set_flip,
 #ifdef OV13850_ONE_LANE
 	.configs = ov13850_onelane_configs,
@@ -1913,7 +1928,13 @@ static struct ov_camera_module_custom_config ov13850_custom_config = {
 	.configs = ov13850_configs,
 	.num_configs = ARRAY_SIZE(ov13850_configs),
 #endif
-	.power_up_delays_ms = {5, 20, 0}
+	.power_up_delays_ms = {5, 20, 0},
+	/*
+	*0: Exposure time valid fileds;
+	*1: Exposure gain valid fileds;
+	*(2 fileds == 1 frames)
+	*/
+	.exposure_valid_frame = {4, 4}
 };
 
 static int ov13850_probe(struct i2c_client *client,
@@ -1923,9 +1944,10 @@ static int ov13850_probe(struct i2c_client *client,
 
 	ov13850_filltimings(&ov13850_custom_config);
 	v4l2_i2c_subdev_init(&ov13850.sd, client, &ov13850_camera_module_ops);
-
+	ov13850.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	ov13850.custom = ov13850_custom_config;
 
+	mutex_init(&ov13850.lock);
 	dev_info(&client->dev, "probing successful\n");
 	return 0;
 }
@@ -1939,6 +1961,7 @@ static int ov13850_remove(struct i2c_client *client)
 	if (!client->adapter)
 		return -ENODEV;	/* our client isn't attached */
 
+	mutex_destroy(&cam_mod->lock);
 	ov_camera_module_release(cam_mod);
 
 	dev_info(&client->dev, "removed\n");

@@ -285,6 +285,8 @@ static struct ov_camera_module_config ov7675_configs[] = {
 			sizeof(ov7675_init_tab_640_480_30fps) /
 			sizeof(ov7675_init_tab_640_480_30fps[0]),
 		.v_blanking_time_us = 1000,
+		.max_exp_gain_h = 16,
+		.max_exp_gain_l = 0,
 		PLTFRM_CAM_ITF_DVP_CFG(
 			PLTFRM_CAM_ITF_BT601_8,
 			PLTFRM_CAM_SIGNAL_HIGH_LEVEL,
@@ -371,14 +373,8 @@ static int ov7675_s_ext_ctrls(struct ov_camera_module *cam_mod,
 
 	ov_camera_module_pr_info(cam_mod, "\n");
 
-	/* Handles only exposure and gain together special case. */
-	if (ctrls->count == 1)
-		ret = ov7675_s_ctrl(cam_mod, ctrls->ctrls[0].id);
-	else if ((ctrls->count >= 3) &&
-		 ((ctrls->ctrls[0].id == V4L2_CID_GAIN &&
-		   ctrls->ctrls[1].id == V4L2_CID_EXPOSURE) ||
-		  (ctrls->ctrls[1].id == V4L2_CID_GAIN &&
-		   ctrls->ctrls[0].id == V4L2_CID_EXPOSURE)))
+	if ((ctrls->ctrls[0].id == V4L2_CID_GAIN ||
+		ctrls->ctrls[0].id == V4L2_CID_EXPOSURE))
 		ret = ov7675_write_aec(cam_mod);
 	else
 		ret = -EINVAL;
@@ -483,6 +479,7 @@ static struct v4l2_subdev_core_ops ov7675_camera_module_core_ops = {
 
 static struct v4l2_subdev_video_ops ov7675_camera_module_video_ops = {
 	.s_frame_interval = ov_camera_module_s_frame_interval,
+	.g_frame_interval = ov_camera_module_g_frame_interval,
 	.s_stream = ov_camera_module_s_stream
 };
 
@@ -509,7 +506,13 @@ static struct ov_camera_module_custom_config ov7675_custom_config = {
 	.set_flip = ov7675_set_flip,
 	.configs = ov7675_configs,
 	.num_configs = ARRAY_SIZE(ov7675_configs),
-	.power_up_delays_ms = {20, 20, 0}
+	.power_up_delays_ms = {20, 20, 0},
+	/*
+	*0: Exposure time valid fileds;
+	*1: Exposure gain valid fileds;
+	*(2 fileds == 1 frames)
+	*/
+	.exposure_valid_frame = {4, 4}
 };
 
 static int ov7675_probe(

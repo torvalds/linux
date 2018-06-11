@@ -448,6 +448,8 @@ static struct tc_camera_module_config tc358749xbg_configs[] = {
 			sizeof(tc358749xbg_init_tab_1920_1080_60fps) /
 			sizeof(tc358749xbg_init_tab_1920_1080_60fps[0]),
 		.v_blanking_time_us = 3078,
+		.max_exp_gain_h = 16,
+		.max_exp_gain_l = 0,
 		.ignore_measurement_check = 1,
 		PLTFRM_CAM_ITF_MIPI_CFG(0, 4, 800, 24000000)
 	}
@@ -649,6 +651,8 @@ static int tc358749xbg_g_timings(
 		cam_mod->active_config->frm_intrvl.interval.denominator *
 		vts * timings->line_length_pck;
 
+	timings->frame_length_lines = vts;
+
 	return ret;
 err:
 	tc_camera_module_pr_err(cam_mod,
@@ -704,14 +708,8 @@ static int tc358749xbg_s_ext_ctrls(
 {
 	int ret = 0;
 
-	/* Handles only exposure and gain together special case. */
-	if (ctrls->count == 1)
-		ret = tc358749xbg_s_ctrl(cam_mod, ctrls->ctrls[0].id);
-	else if ((ctrls->count >= 3) &&
-		 (ctrls->ctrls[0].id == V4L2_CID_GAIN ||
-		  ctrls->ctrls[0].id == V4L2_CID_EXPOSURE ||
-		  ctrls->ctrls[1].id == V4L2_CID_GAIN ||
-		  ctrls->ctrls[1].id == V4L2_CID_EXPOSURE))
+	if ((ctrls->ctrls[0].id == V4L2_CID_GAIN ||
+		ctrls->ctrls[0].id == V4L2_CID_EXPOSURE))
 		ret = tc358749xbg_write_aec(cam_mod);
 	else
 		ret = -EINVAL;
@@ -798,6 +796,7 @@ static struct v4l2_subdev_core_ops tc358749xbg_camera_module_core_ops = {
 
 static struct v4l2_subdev_video_ops tc358749xbg_camera_module_video_ops = {
 	.s_frame_interval = tc_camera_module_s_frame_interval,
+	.g_frame_interval = tc_camera_module_g_frame_interval,
 	.s_stream = tc_camera_module_s_stream
 };
 
@@ -826,7 +825,13 @@ static struct tc_camera_module_custom_config tc358749xbg_custom_config = {
 	.s_power = tc358749xbg_s_power,
 	.configs = tc358749xbg_configs,
 	.num_configs = ARRAY_SIZE(tc358749xbg_configs),
-	.power_up_delays_ms = {5, 30, 30}
+	.power_up_delays_ms = {5, 30, 30},
+	/*
+	*0: Exposure time valid fileds;
+	*1: Exposure gain valid fileds;
+	*(2 fileds == 1 frames)
+	*/
+	.exposure_valid_frame = {4, 4}
 };
 
 static int test_parse_dts(

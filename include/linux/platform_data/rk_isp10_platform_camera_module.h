@@ -46,6 +46,13 @@
 #define PLTFRM_CAMERA_MODULE_REG_TYPE_TIMEOUT 0x01
 #define PLTFRM_CAMERA_MODULE_REG_TYPE_DATA_SINGLE 0x1100
 
+#define PLTFRM_CAMERA_MODULE_MIRROR_BIT 0
+#define PLTFRM_CAMERA_MODULE_FLIP_BIT 1
+#define PLTFRM_CAMERA_MODULE_IS_MIRROR(a) \
+	((a & PLTFRM_CAMERA_MODULE_MIRROR_BIT) == PLTFRM_CAMERA_MODULE_MIRROR_BIT)
+#define PLTFRM_CAMERA_MODULE_IS_FLIP(a) \
+	((a & PLTFRM_CAMERA_MODULE_FLIP_BIT) == PLTFRM_CAMERA_MODULE_FLIP_BIT)
+
 extern const char *PLTFRM_CAMERA_MODULE_PIN_PD;
 extern const char *PLTFRM_CAMERA_MODULE_PIN_PWR;
 extern const char *PLTFRM_CAMERA_MODULE_PIN_FLASH;
@@ -142,6 +149,8 @@ const char *pltfrm_dev_string(struct v4l2_subdev *sd);
 
 int pltfrm_camera_module_get_flip_mirror(
 	struct v4l2_subdev *sd);
+
+int pltfrm_camera_module_pix_fmt2csi2_dt(int src_pix_fmt);
 
 #define pltfrm_camera_module_pr_debug(dev, fmt, arg...) \
 	pr_debug("%s.%s: " fmt, \

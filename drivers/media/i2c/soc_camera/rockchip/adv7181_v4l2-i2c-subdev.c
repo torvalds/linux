@@ -132,6 +132,8 @@ static struct adv_camera_module_config adv7181_configs[] = {
 			/
 			sizeof(adv7180_cvbs_30fps[0]),
 		.v_blanking_time_us		= 0,
+		.max_exp_gain_h = 16,
+		.max_exp_gain_l = 0,
 		.ignore_measurement_check = 1,
 		PLTFRM_CAM_ITF_DVP_CFG(
 			PLTFRM_CAM_ITF_BT656_8I,
@@ -160,6 +162,8 @@ static struct adv_camera_module_config adv7181_configs[] = {
 			/
 			sizeof(adv7180_cvbs_30fps[0]),
 		.v_blanking_time_us		= 0,
+		.max_exp_gain_h = 16,
+		.max_exp_gain_l = 0,
 		.ignore_measurement_check = 1,
 		PLTFRM_CAM_ITF_DVP_CFG(
 			PLTFRM_CAM_ITF_BT656_8I,
@@ -227,6 +231,8 @@ static int adv7181_g_timings(struct adv_camera_module *cam_mod,
 		timings->vt_pix_clk_freq_hz =
 		cam_mod->active_config->frm_intrvl.interval.denominator *
 		vts * timings->line_length_pck;
+
+	timings->frame_length_lines = vts;
 
 	return ret;
 err:
@@ -397,6 +403,7 @@ static struct v4l2_subdev_core_ops adv7181_camera_module_core_ops = {
 
 static struct v4l2_subdev_video_ops adv7181_camera_module_video_ops = {
 	.s_frame_interval = adv_camera_module_s_frame_interval,
+	.g_frame_interval = adv_camera_module_g_frame_interval,
 	.s_stream = adv_camera_module_s_stream
 };
 
@@ -425,7 +432,13 @@ static struct adv_camera_module_custom_config adv7181_custom_config = {
 	.check_camera_id = adv7181_check_camera_id,
 	.configs = adv7181_configs,
 	.num_configs = ARRAY_SIZE(adv7181_configs),
-	.power_up_delays_ms = {5, 30, 30}
+	.power_up_delays_ms = {5, 30, 30},
+	/*
+	*0: Exposure time valid fileds;
+	*1: Exposure gain valid fileds;
+	*(2 fileds == 1 frames)
+	*/
+	.exposure_valid_frame = {4, 4}
 };
 
 static ssize_t adv7181_debugfs_reg_write(
