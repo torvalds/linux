@@ -1215,6 +1215,7 @@ static struct snd_pcm_ops audio_playback_ops = {
 	.pointer	= audio_pcm_pointer,
 };
 
+#ifndef CONFIG_USB_CONFIGFS
 int audio_source_bind_config(struct usb_configuration *c,
 		struct audio_source_config *config)
 {
@@ -1253,6 +1254,7 @@ add_fail:
 	snd_card_free(audio->card);
 	return err;
 }
+#endif
 
 static int snd_card_setup(struct usb_configuration *c,
 		struct audio_source_config *config)
