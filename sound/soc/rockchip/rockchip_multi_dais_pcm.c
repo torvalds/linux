@@ -491,10 +491,13 @@ int snd_dmaengine_mpcm_register(struct rk_mdais_dev *mdais)
 	struct device *child;
 	struct dmaengine_mpcm *pcm;
 	struct dma_chan *chan;
+	unsigned int *tx_maps, *rx_maps;
 	int ret, i, num;
 
 	dev = mdais->dev;
 	num = mdais->num_dais;
+	tx_maps = mdais->playback_channel_maps;
+	rx_maps = mdais->capture_channel_maps;
 	pcm = kzalloc(sizeof(*pcm), GFP_KERNEL);
 	if (!pcm)
 		return -ENOMEM;
@@ -502,15 +505,19 @@ int snd_dmaengine_mpcm_register(struct rk_mdais_dev *mdais)
 	pcm->mdais = mdais;
 	for (i = 0; i < num; i++) {
 		child = mdais->dais[i].dev;
-		chan = dma_request_slave_channel_reason(child, "tx");
-		if (IS_ERR(chan))
-			chan = NULL;
-		pcm->tx_chans[i] = chan;
+		if (tx_maps[i]) {
+			chan = dma_request_slave_channel_reason(child, "tx");
+			if (IS_ERR(chan))
+				chan = NULL;
+			pcm->tx_chans[i] = chan;
+		}
 
-		chan = dma_request_slave_channel_reason(child, "rx");
-		if (IS_ERR(chan))
-			chan = NULL;
-		pcm->rx_chans[i] = chan;
+		if (rx_maps[i]) {
+			chan = dma_request_slave_channel_reason(child, "rx");
+			if (IS_ERR(chan))
+				chan = NULL;
+			pcm->rx_chans[i] = chan;
+		}
 	}
 
 	ret = snd_soc_add_platform(dev, &pcm->platform,
