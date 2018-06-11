@@ -181,7 +181,7 @@ static int da9063_i2c_probe(struct i2c_client *i2c,
 }
 
 static const struct i2c_device_id da9063_i2c_id[] = {
-	{"da9063", PMIC_DA9063},
+	{ "da9063", PMIC_CHIP_ID_DA9063 },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, da9063_i2c_id);

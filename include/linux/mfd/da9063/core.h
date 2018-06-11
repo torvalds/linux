@@ -29,9 +29,7 @@
 #define DA9063_DRVNAME_RTC		"da9063-rtc"
 #define DA9063_DRVNAME_VIBRATION	"da9063-vibration"
 
-enum da9063_models {
-	PMIC_DA9063 = 0x61,
-};
+#define PMIC_CHIP_ID_DA9063		0x61
 
 enum da9063_variant_codes {
 	PMIC_DA9063_AD = 0x3,
