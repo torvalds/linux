@@ -261,6 +261,9 @@ static void dcmi_dma_callback(void *param)
 		break;
 	case DMA_ERROR:
 		dev_err(dcmi->dev, "%s: Received DMA_ERROR\n", __func__);
+
+		/* Return buffer to V4L2 in error state */
+		dcmi_buffer_done(dcmi, buf, 0, -EIO);
 		break;
 	case DMA_COMPLETE:
 		dev_dbg(dcmi->dev, "%s: Received DMA_COMPLETE\n", __func__);
