@@ -190,7 +190,7 @@ static inline void reg_clear(void __iomem *base, u32 reg, u32 mask)
 	reg_write(base, reg, reg_read(base, reg) & ~mask);
 }
 
-static int dcmi_start_capture(struct stm32_dcmi *dcmi);
+static int dcmi_start_capture(struct stm32_dcmi *dcmi, struct dcmi_buf *buf);
 
 static void dcmi_buffer_done(struct stm32_dcmi *dcmi,
 			     struct dcmi_buf *buf,
@@ -201,6 +201,8 @@ static void dcmi_buffer_done(struct stm32_dcmi *dcmi,
 
 	if (!buf)
 		return;
+
+	list_del_init(&buf->list);
 
 	vbuf = &buf->vb;
 
@@ -219,6 +221,8 @@ static void dcmi_buffer_done(struct stm32_dcmi *dcmi,
 
 static int dcmi_restart_capture(struct stm32_dcmi *dcmi)
 {
+	struct dcmi_buf *buf;
+
 	spin_lock_irq(&dcmi->irqlock);
 
 	if (dcmi->state != RUNNING) {
@@ -229,19 +233,16 @@ static int dcmi_restart_capture(struct stm32_dcmi *dcmi)
 	/* Restart a new DMA transfer with next buffer */
 	if (list_empty(&dcmi->buffers)) {
 		dev_dbg(dcmi->dev, "Capture restart is deferred to next buffer queueing\n");
-		dcmi->active = NULL;
 		dcmi->state = WAIT_FOR_BUFFER;
 		spin_unlock_irq(&dcmi->irqlock);
 		return 0;
 	}
-
-	dcmi->active = list_entry(dcmi->buffers.next,
-				  struct dcmi_buf, list);
-	list_del_init(&dcmi->active->list);
+	buf = list_entry(dcmi->buffers.next, struct dcmi_buf, list);
+	dcmi->active = buf;
 
 	spin_unlock_irq(&dcmi->irqlock);
 
-	return dcmi_start_capture(dcmi);
+	return dcmi_start_capture(dcmi, buf);
 }
 
 static void dcmi_dma_callback(void *param)
@@ -250,6 +251,8 @@ static void dcmi_dma_callback(void *param)
 	struct dma_tx_state state;
 	enum dma_status status;
 	struct dcmi_buf *buf = dcmi->active;
+
+	spin_lock_irq(&dcmi->irqlock);
 
 	/* Check DMA status */
 	status = dmaengine_tx_status(dcmi->dma_chan, dcmi->dma_cookie, &state);
@@ -273,15 +276,19 @@ static void dcmi_dma_callback(void *param)
 		/* Return buffer to V4L2 */
 		dcmi_buffer_done(dcmi, buf, buf->size, 0);
 
+		spin_unlock_irq(&dcmi->irqlock);
+
 		/* Restart capture */
 		if (dcmi_restart_capture(dcmi))
 			dev_err(dcmi->dev, "%s: Cannot restart capture on DMA complete\n",
 				__func__);
-		break;
+		return;
 	default:
 		dev_err(dcmi->dev, "%s: Received unknown status\n", __func__);
 		break;
 	}
+
+	spin_unlock_irq(&dcmi->irqlock);
 }
 
 static int dcmi_start_dma(struct stm32_dcmi *dcmi,
@@ -333,10 +340,9 @@ static int dcmi_start_dma(struct stm32_dcmi *dcmi,
 	return 0;
 }
 
-static int dcmi_start_capture(struct stm32_dcmi *dcmi)
+static int dcmi_start_capture(struct stm32_dcmi *dcmi, struct dcmi_buf *buf)
 {
 	int ret;
-	struct dcmi_buf *buf = dcmi->active;
 
 	if (!buf)
 		return -EINVAL;
@@ -490,8 +496,6 @@ static int dcmi_queue_setup(struct vb2_queue *vq,
 	*nplanes = 1;
 	sizes[0] = size;
 
-	dcmi->active = NULL;
-
 	dev_dbg(dcmi->dev, "Setup queue, count=%d, size=%d\n",
 		*nbuffers, size);
 
@@ -549,23 +553,24 @@ static void dcmi_buf_queue(struct vb2_buffer *vb)
 
 	spin_lock_irq(&dcmi->irqlock);
 
-		dcmi->active = buf;
+	/* Enqueue to video buffers list */
+	list_add_tail(&buf->list, &dcmi->buffers);
 
 	if (dcmi->state == WAIT_FOR_BUFFER) {
 		dcmi->state = RUNNING;
+		dcmi->active = buf;
 
 		dev_dbg(dcmi->dev, "Starting capture on buffer[%d] queued\n",
 			buf->vb.vb2_buf.index);
 
 		spin_unlock_irq(&dcmi->irqlock);
-		if (dcmi_start_capture(dcmi))
+		if (dcmi_start_capture(dcmi, buf))
 			dev_err(dcmi->dev, "%s: Cannot restart capture on overflow or error\n",
 				__func__);
-	} else {
-		/* Enqueue to video buffers list */
-		list_add_tail(&buf->list, &dcmi->buffers);
-		spin_unlock_irq(&dcmi->irqlock);
+		return;
 	}
+
+	spin_unlock_irq(&dcmi->irqlock);
 }
 
 static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
@@ -637,7 +642,6 @@ static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 	dcmi->errors_count = 0;
 	dcmi->overrun_count = 0;
 	dcmi->buffers_count = 0;
-	dcmi->active = NULL;
 
 	/*
 	 * Start transfer if at least one buffer has been queued,
@@ -650,15 +654,15 @@ static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 		return 0;
 	}
 
-	dcmi->active = list_entry(dcmi->buffers.next, struct dcmi_buf, list);
-	list_del_init(&dcmi->active->list);
-
-	dev_dbg(dcmi->dev, "Start streaming, starting capture\n");
+	buf = list_entry(dcmi->buffers.next, struct dcmi_buf, list);
+	dcmi->active = buf;
 
 	dcmi->state = RUNNING;
 
+	dev_dbg(dcmi->dev, "Start streaming, starting capture\n");
+
 	spin_unlock_irq(&dcmi->irqlock);
-	ret = dcmi_start_capture(dcmi);
+	ret = dcmi_start_capture(dcmi, buf);
 	if (ret) {
 		dev_err(dcmi->dev, "%s: Start streaming failed, cannot start capture\n",
 			__func__);
@@ -682,15 +686,11 @@ err_release_buffers:
 	 * Return all buffers to vb2 in QUEUED state.
 	 * This will give ownership back to userspace
 	 */
-	if (dcmi->active) {
-		buf = dcmi->active;
-		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_QUEUED);
-		dcmi->active = NULL;
-	}
 	list_for_each_entry_safe(buf, node, &dcmi->buffers, list) {
 		list_del_init(&buf->list);
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_QUEUED);
 	}
+	dcmi->active = NULL;
 	spin_unlock_irq(&dcmi->irqlock);
 
 	return ret;
@@ -732,15 +732,12 @@ static void dcmi_stop_streaming(struct vb2_queue *vq)
 	}
 
 	/* Return all queued buffers to vb2 in ERROR state */
-	if (dcmi->active) {
-		buf = dcmi->active;
-		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
-		dcmi->active = NULL;
-	}
 	list_for_each_entry_safe(buf, node, &dcmi->buffers, list) {
 		list_del_init(&buf->list);
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
+
+	dcmi->active = NULL;
 
 	spin_unlock_irq(&dcmi->irqlock);
 
