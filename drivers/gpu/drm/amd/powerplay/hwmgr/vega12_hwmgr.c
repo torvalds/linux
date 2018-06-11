@@ -811,9 +811,6 @@ static int vega12_enable_all_smu_features(struct pp_hwmgr *hwmgr)
 			enabled = (features_enabled & data->smu_features[i].smu_feature_bitmap) ? true : false;
 			data->smu_features[i].enabled = enabled;
 			data->smu_features[i].supported = enabled;
-			PP_ASSERT(
-				!data->smu_features[i].allowed || enabled,
-				"[EnableAllSMUFeatures] Enabled feature is different from allowed, expected disabled!");
 		}
 	}
 
@@ -1230,8 +1227,8 @@ static int vega12_get_current_gfx_clk_freq(struct pp_hwmgr *hwmgr, uint32_t *gfx
 
 	*gfx_freq = 0;
 
-	PP_ASSERT_WITH_CODE(
-			smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetDpmClockFreq, (PPCLK_GFXCLK << 16)) == 0,
+	PP_ASSERT_WITH_CODE(smum_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_GetDpmClockFreq, (PPCLK_GFXCLK << 16)) == 0,
 			"[GetCurrentGfxClkFreq] Attempt to get Current GFXCLK Frequency Failed!",
 			return -1);
 	PP_ASSERT_WITH_CODE(
@@ -1790,7 +1787,6 @@ static int vega12_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
 {
 	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
 	Watermarks_t *table = &(data->smc_state_table.water_marks_table);
-	int result = 0;
 	uint32_t i;
 
 	if (!data->registry_data.disable_water_mark &&
@@ -1841,7 +1837,7 @@ static int vega12_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
 		data->water_marks_bitmap &= ~WaterMarksLoaded;
 	}
 
-	return result;
+	return 0;
 }
 
 static int vega12_force_clock_level(struct pp_hwmgr *hwmgr,

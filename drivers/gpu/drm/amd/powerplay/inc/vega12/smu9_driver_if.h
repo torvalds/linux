@@ -412,10 +412,10 @@ typedef struct {
   QuadraticInt_t    ReservedEquation2;
   QuadraticInt_t    ReservedEquation3;
 
-	uint16_t     MinVoltageUlvGfx;
-	uint16_t     MinVoltageUlvSoc;
+  uint16_t     MinVoltageUlvGfx;
+  uint16_t     MinVoltageUlvSoc;
 
-	uint32_t     Reserved[14];
+  uint32_t     Reserved[14];
 
 
 
@@ -483,9 +483,9 @@ typedef struct {
   uint8_t      padding8_4;
 
 
-	uint8_t      PllGfxclkSpreadEnabled;
-	uint8_t      PllGfxclkSpreadPercent;
-	uint16_t     PllGfxclkSpreadFreq;
+  uint8_t      PllGfxclkSpreadEnabled;
+  uint8_t      PllGfxclkSpreadPercent;
+  uint16_t     PllGfxclkSpreadFreq;
 
   uint8_t      UclkSpreadEnabled;
   uint8_t      UclkSpreadPercent;
@@ -495,9 +495,9 @@ typedef struct {
   uint8_t      SocclkSpreadPercent;
   uint16_t     SocclkSpreadFreq;
 
-	uint8_t      AcgGfxclkSpreadEnabled;
-	uint8_t      AcgGfxclkSpreadPercent;
-	uint16_t     AcgGfxclkSpreadFreq;
+  uint8_t      AcgGfxclkSpreadEnabled;
+  uint8_t      AcgGfxclkSpreadPercent;
+  uint16_t     AcgGfxclkSpreadFreq;
 
   uint8_t      Vr2_I2C_address;
   uint8_t      padding_vr2[3];
