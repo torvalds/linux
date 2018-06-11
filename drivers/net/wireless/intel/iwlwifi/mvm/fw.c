@@ -1026,7 +1026,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 
 	mvm->fwrt.dump.conf = FW_DBG_INVALID;
 	/* if we have a destination, assume EARLY START */
-	if (mvm->fw->dbg_dest_tlv)
+	if (mvm->fw->dbg.dest_tlv)
 		mvm->fwrt.dump.conf = FW_DBG_START_FROM_ALIVE;
 	iwl_fw_start_dbg_conf(&mvm->fwrt, FW_DBG_START_FROM_ALIVE);
 

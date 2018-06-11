@@ -118,14 +118,14 @@ int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
 int iwl_fw_start_dbg_conf(struct iwl_fw_runtime *fwrt, u8 id);
 
 #define iwl_fw_dbg_trigger_enabled(fw, id) ({			\
-	void *__dbg_trigger = (fw)->dbg_trigger_tlv[(id)];	\
+	void *__dbg_trigger = (fw)->dbg.trigger_tlv[(id)];	\
 	unlikely(__dbg_trigger);				\
 })
 
 static inline struct iwl_fw_dbg_trigger_tlv*
 _iwl_fw_dbg_get_trigger(const struct iwl_fw *fw, enum iwl_fw_dbg_trigger id)
 {
-	return fw->dbg_trigger_tlv[id];
+	return fw->dbg.trigger_tlv[id];
 }
 
 #define iwl_fw_dbg_get_trigger(fw, id) ({			\
@@ -293,7 +293,7 @@ static inline bool iwl_fw_dbg_is_d3_debug_enabled(struct iwl_fw_runtime *fwrt)
 	return fw_has_capa(&fwrt->fw->ucode_capa,
 			   IWL_UCODE_TLV_CAPA_D3_DEBUG) &&
 		fwrt->trans->cfg->d3_debug_data_length &&
-		fwrt->fw->dbg_dump_mask & BIT(IWL_FW_ERROR_DUMP_D3_DEBUG_DATA);
+		fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_D3_DEBUG_DATA);
 }
 
 void iwl_fw_dbg_read_d3_debug_data(struct iwl_fw_runtime *fwrt);
