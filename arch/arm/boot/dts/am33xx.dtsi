@@ -29,8 +29,8 @@
 		serial3 = &uart3;
 		serial4 = &uart4;
 		serial5 = &uart5;
-		d_can0 = &dcan0;
-		d_can1 = &dcan1;
+		d-can0 = &dcan0;
+		d-can1 = &dcan1;
 		usb0 = &usb0;
 		usb1 = &usb1;
 		phy0 = &usb0_phy;
