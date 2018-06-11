@@ -635,6 +635,54 @@ static void iwl_fw_dump_mem(struct iwl_fw_runtime *fwrt,
 	}
 }
 
+#define ADD_LEN(len, item_len, const_len) \
+	do {size_t item = item_len; len += (!!item) * const_len + item; } \
+	while (0)
+
+static int iwl_fw_fifo_len(struct iwl_fw_runtime *fwrt,
+			   struct iwl_fwrt_shared_mem_cfg *mem_cfg)
+{
+	size_t hdr_len = sizeof(struct iwl_fw_error_dump_data) +
+			 sizeof(struct iwl_fw_error_dump_fifo);
+	u32 fifo_len = 0;
+	int i;
+
+	if (!(fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_RXF)))
+		goto dump_txf;
+
+	/* Count RXF2 size */
+	ADD_LEN(fifo_len, mem_cfg->rxfifo2_size, hdr_len);
+
+	/* Count RXF1 sizes */
+	for (i = 0; i < mem_cfg->num_lmacs; i++)
+		ADD_LEN(fifo_len, mem_cfg->lmac[i].rxfifo1_size, hdr_len);
+
+dump_txf:
+	if (!(fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_TXF)))
+		goto dump_internal_txf;
+
+	/* Count TXF sizes */
+	for (i = 0; i < mem_cfg->num_lmacs; i++) {
+		int j;
+
+		for (j = 0; j < mem_cfg->num_txfifo_entries; j++)
+			ADD_LEN(fifo_len, mem_cfg->lmac[i].txfifo_size[j],
+				hdr_len);
+	}
+
+dump_internal_txf:
+	if (!((fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_INTERNAL_TXF)) &&
+	      fw_has_capa(&fwrt->fw->ucode_capa,
+			  IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)))
+		goto out;
+
+	for (i = 0; i < ARRAY_SIZE(mem_cfg->internal_txfifo_size); i++)
+		ADD_LEN(fifo_len, mem_cfg->internal_txfifo_size[i], hdr_len);
+
+out:
+	return fifo_len;
+}
+
 void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 {
 	struct iwl_fw_error_dump_file *dump_file;
@@ -645,9 +693,9 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 	struct iwl_fw_dump_ptrs *fw_error_dump;
 	struct scatterlist *sg_dump_data;
 	u32 sram_len, sram_ofs;
-	const struct iwl_fw_dbg_mem_seg_tlv *fw_dbg_mem = fwrt->fw->dbg.mem_tlv;
+	const struct iwl_fw_dbg_mem_seg_tlv *fw_mem = fwrt->fw->dbg.mem_tlv;
 	struct iwl_fwrt_shared_mem_cfg *mem_cfg = &fwrt->smem_cfg;
-	u32 file_len, fifo_data_len = 0, prph_len = 0, radio_len = 0;
+	u32 file_len, fifo_len = 0, prph_len = 0, radio_len = 0;
 	u32 smem_len = fwrt->fw->dbg.n_mem_tlv ? 0 : fwrt->trans->cfg->smem_len;
 	u32 sram2_len = fwrt->fw->dbg.n_mem_tlv ?
 				0 : fwrt->trans->cfg->dccm2_len;
@@ -684,70 +732,7 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 
 	/* reading RXF/TXF sizes */
 	if (test_bit(STATUS_FW_ERROR, &fwrt->trans->status)) {
-		fifo_data_len = 0;
-
-		if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_RXF)) {
-
-			/* Count RXF2 size */
-			if (mem_cfg->rxfifo2_size) {
-				/* Add header info */
-				fifo_data_len +=
-					mem_cfg->rxfifo2_size +
-					sizeof(*dump_data) +
-					sizeof(struct iwl_fw_error_dump_fifo);
-			}
-
-			/* Count RXF1 sizes */
-			for (i = 0; i < mem_cfg->num_lmacs; i++) {
-				if (!mem_cfg->lmac[i].rxfifo1_size)
-					continue;
-
-				/* Add header info */
-				fifo_data_len +=
-					mem_cfg->lmac[i].rxfifo1_size +
-					sizeof(*dump_data) +
-					sizeof(struct iwl_fw_error_dump_fifo);
-			}
-		}
-
-		if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_TXF)) {
-			size_t fifo_const_len = sizeof(*dump_data) +
-				sizeof(struct iwl_fw_error_dump_fifo);
-
-			/* Count TXF sizes */
-			for (i = 0; i < mem_cfg->num_lmacs; i++) {
-				int j;
-
-				for (j = 0; j < mem_cfg->num_txfifo_entries;
-				     j++) {
-					if (!mem_cfg->lmac[i].txfifo_size[j])
-						continue;
-
-					/* Add header info */
-					fifo_data_len +=
-						fifo_const_len +
-						mem_cfg->lmac[i].txfifo_size[j];
-				}
-			}
-		}
-
-		if ((fwrt->fw->dbg.dump_mask &
-		    BIT(IWL_FW_ERROR_DUMP_INTERNAL_TXF)) &&
-		    fw_has_capa(&fwrt->fw->ucode_capa,
-				IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)) {
-			for (i = 0;
-			     i < ARRAY_SIZE(mem_cfg->internal_txfifo_size);
-			     i++) {
-				if (!mem_cfg->internal_txfifo_size[i])
-					continue;
-
-				/* Add header info */
-				fifo_data_len +=
-					mem_cfg->internal_txfifo_size[i] +
-					sizeof(*dump_data) +
-					sizeof(struct iwl_fw_error_dump_fifo);
-			}
-		}
+		fifo_len = iwl_fw_fifo_len(fwrt, mem_cfg);
 
 		/* Make room for PRPH registers */
 		if (!fwrt->trans->cfg->gen2 &&
@@ -759,10 +744,7 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 			radio_len = sizeof(*dump_data) + RADIO_REG_MAX_READ;
 	}
 
-	file_len = sizeof(*dump_file) +
-		   fifo_data_len +
-		   prph_len +
-		   radio_len;
+	file_len = sizeof(*dump_file) + fifo_len + prph_len + radio_len;
 
 	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_DEV_FW_INFO))
 		file_len += sizeof(*dump_data) + sizeof(*dump_info);
@@ -770,22 +752,19 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 		file_len += sizeof(*dump_data) + sizeof(*dump_smem_cfg);
 
 	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_MEM)) {
-		/* Make room for the SMEM, if it exists */
-		if (smem_len)
-			file_len += sizeof(*dump_data) + smem_len +
-				sizeof(struct iwl_fw_error_dump_mem);
+		size_t hdr_len = sizeof(*dump_data) +
+				 sizeof(struct iwl_fw_error_dump_mem);
 
-		/* Make room for the secondary SRAM, if it exists */
-		if (sram2_len)
-			file_len += sizeof(*dump_data) + sram2_len +
-				sizeof(struct iwl_fw_error_dump_mem);
+		/* Dump SRAM only if no mem_tlvs */
+		if (!fwrt->fw->dbg.n_mem_tlv)
+			ADD_LEN(file_len, sram_len, hdr_len);
 
-		/* Make room for MEM segments */
-		for (i = 0; i < fwrt->fw->dbg.n_mem_tlv; i++) {
-			file_len += sizeof(*dump_data) +
-				le32_to_cpu(fw_dbg_mem[i].len) +
-				sizeof(struct iwl_fw_error_dump_mem);
-		}
+		/* Make room for all mem types that exist */
+		ADD_LEN(file_len, smem_len, hdr_len);
+		ADD_LEN(file_len, sram2_len, hdr_len);
+
+		for (i = 0; i < fwrt->fw->dbg.n_mem_tlv; i++)
+			ADD_LEN(file_len, le32_to_cpu(fw_mem[i].len), hdr_len);
 	}
 
 	/* Make room for fw's virtual image pages, if it exists */
@@ -813,11 +792,6 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 	    fwrt->dump.desc)
 		file_len += sizeof(*dump_data) + sizeof(*dump_trig) +
 			    fwrt->dump.desc->len;
-
-	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_MEM) &&
-	    !fwrt->fw->dbg.n_mem_tlv)
-		file_len += sizeof(*dump_data) + sram_len +
-			sizeof(struct iwl_fw_error_dump_mem);
 
 	dump_file = vzalloc(file_len);
 	if (!dump_file) {
@@ -882,7 +856,7 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 	}
 
 	/* We only dump the FIFOs if the FW is in error state */
-	if (fifo_data_len) {
+	if (fifo_len) {
 		iwl_fw_dump_fifos(fwrt, &dump_data);
 		if (radio_len)
 			iwl_read_radio_regs(fwrt, &dump_data);
