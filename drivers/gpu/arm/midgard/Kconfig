@@ -237,6 +237,7 @@ config MALI_GPU_MMU_AARCH64
 
 config MALI_PWRSOFT_765
 	bool "PWRSOFT-765 ticket"
+	depends on MALI_MIDGARD && MALI_EXPERT
 	default n
 	help
 	  PWRSOFT-765 fixes devfreq cooling devices issues. However, they are
