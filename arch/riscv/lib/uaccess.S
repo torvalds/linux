@@ -13,7 +13,8 @@ _epc:
 	.previous
 	.endm
 
-ENTRY(__copy_user)
+ENTRY(__asm_copy_to_user)
+ENTRY(__asm_copy_from_user)
 
 	/* Enable access to user memory */
 	li t6, SR_SUM
@@ -63,7 +64,8 @@ ENTRY(__copy_user)
 	addi a0, a0, 1
 	bltu a1, a3, 5b
 	j 3b
-ENDPROC(__copy_user)
+ENDPROC(__asm_copy_to_user)
+ENDPROC(__asm_copy_from_user)
 
 
 ENTRY(__clear_user)
