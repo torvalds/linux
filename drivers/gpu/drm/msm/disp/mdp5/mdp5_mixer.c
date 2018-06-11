@@ -52,14 +52,14 @@ int mdp5_mixer_assign(struct drm_atomic_state *s, struct drm_crtc *crtc,
 {
 	struct msm_drm_private *priv = s->dev->dev_private;
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(priv->kms));
-	struct mdp5_state *state = mdp5_get_state(s);
+	struct mdp5_global_state *global_state = mdp5_get_global_state(s);
 	struct mdp5_hw_mixer_state *new_state;
 	int i;
 
-	if (IS_ERR(state))
-		return PTR_ERR(state);
+	if (IS_ERR(global_state))
+		return PTR_ERR(global_state);
 
-	new_state = &state->hwmixer;
+	new_state = &global_state->hwmixer;
 
 	for (i = 0; i < mdp5_kms->num_hwmixers; i++) {
 		struct mdp5_hw_mixer *cur = mdp5_kms->hwmixers[i];
@@ -129,8 +129,8 @@ int mdp5_mixer_assign(struct drm_atomic_state *s, struct drm_crtc *crtc,
 
 void mdp5_mixer_release(struct drm_atomic_state *s, struct mdp5_hw_mixer *mixer)
 {
-	struct mdp5_state *state = mdp5_get_state(s);
-	struct mdp5_hw_mixer_state *new_state = &state->hwmixer;
+	struct mdp5_global_state *global_state = mdp5_get_global_state(s);
+	struct mdp5_hw_mixer_state *new_state = &global_state->hwmixer;
 
 	if (!mixer)
 		return;
