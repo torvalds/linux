@@ -2266,14 +2266,13 @@ nvme_fc_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct nvme_fc_cmd_iu *cmdiu = &op->cmd_iu;
 	struct nvme_command *sqe = &cmdiu->sqe;
 	enum nvmefc_fcp_datadir	io_dir;
+	bool queue_ready = test_bit(NVME_FC_Q_LIVE, &queue->flags);
 	u32 data_len;
 	blk_status_t ret;
 
-	ret = nvmf_check_if_ready(&queue->ctrl->ctrl, rq,
-		test_bit(NVME_FC_Q_LIVE, &queue->flags),
-		ctrl->rport->remoteport.port_state == FC_OBJSTATE_ONLINE);
-	if (unlikely(ret))
-		return ret;
+	if (ctrl->rport->remoteport.port_state != FC_OBJSTATE_ONLINE ||
+	    !nvmf_check_ready(&queue->ctrl->ctrl, rq, queue_ready))
+		return nvmf_fail_nonready_command(rq);
 
 	ret = nvme_setup_cmd(ns, rq, sqe);
 	if (ret)
