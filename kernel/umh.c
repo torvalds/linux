@@ -99,6 +99,7 @@ static int call_usermodehelper_exec_async(void *data)
 
 	commit_creds(new);
 
+	sub_info->pid = task_pid_nr(current);
 	if (sub_info->file)
 		retval = do_execve_file(sub_info->file,
 					sub_info->argv, sub_info->envp);
@@ -191,8 +192,6 @@ static void call_usermodehelper_exec_work(struct work_struct *work)
 		if (pid < 0) {
 			sub_info->retval = pid;
 			umh_complete(sub_info);
-		} else {
-			sub_info->pid = pid;
 		}
 	}
 }
