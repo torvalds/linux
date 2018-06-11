@@ -544,7 +544,7 @@ struct imx274_ctrls {
 /*
  * struct stim274 - imx274 device structure
  * @sd: V4L2 subdevice structure
- * @pd: Media pad structure
+ * @pad: Media pad structure
  * @client: Pointer to I2C client
  * @ctrls: imx274 control structure
  * @format: V4L2 media bus frame format structure
