@@ -107,7 +107,7 @@ static void __copy_hyp_vect_bpi(int slot, const char *hyp_vecs_start,
 	for (i = 0; i < SZ_2K; i += 0x80)
 		memcpy(dst + i, hyp_vecs_start, hyp_vecs_end - hyp_vecs_start);
 
-	flush_icache_range((uintptr_t)dst, (uintptr_t)dst + SZ_2K);
+	__flush_icache_range((uintptr_t)dst, (uintptr_t)dst + SZ_2K);
 }
 
 static void __install_bp_hardening_cb(bp_hardening_cb_t fn,

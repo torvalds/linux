@@ -216,8 +216,8 @@ int __kprobes aarch64_insn_patch_text_nosync(void *addr, u32 insn)
 
 	ret = aarch64_insn_write(tp, insn);
 	if (ret == 0)
-		flush_icache_range((uintptr_t)tp,
-				   (uintptr_t)tp + AARCH64_INSN_SIZE);
+		__flush_icache_range((uintptr_t)tp,
+				     (uintptr_t)tp + AARCH64_INSN_SIZE);
 
 	return ret;
 }
@@ -283,18 +283,8 @@ int __kprobes aarch64_insn_patch_text(void *addrs[], u32 insns[], int cnt)
 		if (ret)
 			return ret;
 
-		if (aarch64_insn_hotpatch_safe(insn, insns[0])) {
-			/*
-			 * ARMv8 architecture doesn't guarantee all CPUs see
-			 * the new instruction after returning from function
-			 * aarch64_insn_patch_text_nosync(). So send IPIs to
-			 * all other CPUs to achieve instruction
-			 * synchronization.
-			 */
-			ret = aarch64_insn_patch_text_nosync(addrs[0], insns[0]);
-			kick_all_cpus_sync();
-			return ret;
-		}
+		if (aarch64_insn_hotpatch_safe(insn, insns[0]))
+			return aarch64_insn_patch_text_nosync(addrs[0], insns[0]);
 	}
 
 	return aarch64_insn_patch_text_sync(addrs, insns, cnt);
