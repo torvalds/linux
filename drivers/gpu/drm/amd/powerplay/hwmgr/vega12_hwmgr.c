@@ -856,6 +856,48 @@ static int vega12_power_control_set_level(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
+static int vega12_get_all_clock_ranges_helper(struct pp_hwmgr *hwmgr,
+		PPCLK_e clkid, struct vega12_clock_range *clock)
+{
+	/* AC Max */
+	PP_ASSERT_WITH_CODE(
+		smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetMaxDpmFreq, (clkid << 16)) == 0,
+		"[GetClockRanges] Failed to get max ac clock from SMC!",
+		return -EINVAL);
+	vega12_read_arg_from_smc(hwmgr, &(clock->ACMax));
+
+	/* AC Min */
+	PP_ASSERT_WITH_CODE(
+		smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetMinDpmFreq, (clkid << 16)) == 0,
+		"[GetClockRanges] Failed to get min ac clock from SMC!",
+		return -EINVAL);
+	vega12_read_arg_from_smc(hwmgr, &(clock->ACMin));
+
+	/* DC Max */
+	PP_ASSERT_WITH_CODE(
+		smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetDcModeMaxDpmFreq, (clkid << 16)) == 0,
+		"[GetClockRanges] Failed to get max dc clock from SMC!",
+		return -EINVAL);
+	vega12_read_arg_from_smc(hwmgr, &(clock->DCMax));
+
+	return 0;
+}
+
+static int vega12_get_all_clock_ranges(struct pp_hwmgr *hwmgr)
+{
+	struct vega12_hwmgr *data =
+			(struct vega12_hwmgr *)(hwmgr->backend);
+	uint32_t i;
+
+	for (i = 0; i < PPCLK_COUNT; i++)
+		PP_ASSERT_WITH_CODE(!vega12_get_all_clock_ranges_helper(hwmgr,
+					i, &(data->clk_range[i])),
+				"Failed to get clk range from SMC!",
+				return -EINVAL);
+
+	return 0;
+}
+
 static int vega12_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
 	int tmp_result, result = 0;
@@ -882,6 +924,11 @@ static int vega12_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE(!tmp_result,
 			"Failed to power control set level!",
 			result = tmp_result);
+
+	result = vega12_get_all_clock_ranges(hwmgr);
+	PP_ASSERT_WITH_CODE(!result,
+			"Failed to get all clock ranges!",
+			return result);
 
 	result = vega12_odn_initialize_default_settings(hwmgr);
 	PP_ASSERT_WITH_CODE(!result,
@@ -1472,24 +1519,14 @@ static int vega12_get_clock_ranges(struct pp_hwmgr *hwmgr,
 		PPCLK_e clock_select,
 		bool max)
 {
-	int result;
-	*clock = 0;
+	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
 
-	if (max) {
-		 PP_ASSERT_WITH_CODE(
-			smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetMaxDpmFreq, (clock_select << 16)) == 0,
-			"[GetClockRanges] Failed to get max clock from SMC!",
-			return -1);
-		result = vega12_read_arg_from_smc(hwmgr, clock);
-	} else {
-		PP_ASSERT_WITH_CODE(
-			smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetMinDpmFreq, (clock_select << 16)) == 0,
-			"[GetClockRanges] Failed to get min clock from SMC!",
-			return -1);
-		result = vega12_read_arg_from_smc(hwmgr, clock);
-	}
+	if (max)
+		*clock = data->clk_range[clock_select].ACMax;
+	else
+		*clock = data->clk_range[clock_select].ACMin;
 
-	return result;
+	return 0;
 }
 
 static int vega12_get_sclks(struct pp_hwmgr *hwmgr,

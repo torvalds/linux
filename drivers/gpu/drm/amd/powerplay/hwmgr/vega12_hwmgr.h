@@ -304,6 +304,12 @@ struct vega12_odn_fan_table {
 	bool		force_fan_pwm;
 };
 
+struct vega12_clock_range {
+	uint32_t	ACMax;
+	uint32_t	ACMin;
+	uint32_t	DCMax;
+};
+
 struct vega12_hwmgr {
 	struct vega12_dpm_table          dpm_table;
 	struct vega12_dpm_table          golden_dpm_table;
@@ -385,6 +391,8 @@ struct vega12_hwmgr {
 	uint32_t                       smu_version;
 	struct smu_features            smu_features[GNLD_FEATURES_MAX];
 	struct vega12_smc_state_table  smc_state_table;
+
+	struct vega12_clock_range      clk_range[PPCLK_COUNT];
 };
 
 #define VEGA12_DPM2_NEAR_TDP_DEC                      10
