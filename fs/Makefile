@@ -103,7 +103,6 @@ obj-$(CONFIG_ROMFS_FS)		+= romfs/
 obj-$(CONFIG_QNX4FS_FS)		+= qnx4/
 obj-$(CONFIG_QNX6FS_FS)		+= qnx6/
 obj-$(CONFIG_AUTOFS_FS)		+= autofs/
-obj-$(CONFIG_AUTOFS4_FS)	+= autofs4/
 obj-$(CONFIG_ADFS_FS)		+= adfs/
 obj-$(CONFIG_FUSE_FS)		+= fuse/
 obj-$(CONFIG_OVERLAY_FS)	+= overlayfs/
