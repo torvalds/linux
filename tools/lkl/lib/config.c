@@ -1,9 +1,9 @@
-#include <stdio.h>
 #include <stdlib.h>
+#define _HAVE_STRING_ARCH_strtok_r
 #include <string.h>
 #include <lkl_host.h>
+#include <lkl_config.h>
 
-#include "config.h"
 #include "../../perf/pmu-events/jsmn.h"
 
 static int jsoneq(const char *json, jsmntok_t *tok, const char *s)
@@ -52,6 +52,7 @@ static int parse_ifarr(struct lkl_config *cfg,
 {
 	int ifidx, pos, posend, ret;
 	char **cfgptr;
+	struct lkl_config_iface *iface, *prev = NULL;
 
 	if (!cfg || !toks || !jstr)
 		return -1;
@@ -61,52 +62,60 @@ static int parse_ifarr(struct lkl_config *cfg,
 		lkl_printf("unexpected json type, json array expected\n");
 		return -1;
 	}
+
 	cfg->ifnum = toks[pos].size;
-	if (cfg->ifnum >= LKL_IF_MAX) {
-		lkl_printf("exceeded max number of interface (%d)\n",
-				LKL_IF_MAX);
-		return -1;
-	}
 	pos++;
+	iface = cfg->ifaces;
+
 	for (ifidx = 0; ifidx < cfg->ifnum; ifidx++) {
 		if (toks[pos].type != JSMN_OBJECT) {
 			lkl_printf("object json type expected\n");
 			return -1;
 		}
+
 		posend = pos + toks[pos].size;
 		pos++;
+		iface = malloc(sizeof(struct lkl_config_iface));
+		memset(iface, 0, sizeof(struct lkl_config_iface));
+
+		if (prev)
+			prev->next = iface;
+		else
+			cfg->ifaces = iface;
+		prev = iface;
+
 		for (; pos < posend; pos += 2) {
 			if (toks[pos].type != JSMN_STRING) {
 				lkl_printf("object json type expected\n");
 				return -1;
 			}
 			if (jsoneq(jstr, &toks[pos], "type") == 0) {
-				cfgptr = &cfg->iftype[ifidx];
+				cfgptr = &iface->iftype;
 			} else if (jsoneq(jstr, &toks[pos], "param") == 0) {
-				cfgptr = &cfg->ifparams[ifidx];
+				cfgptr = &iface->ifparams;
 			} else if (jsoneq(jstr, &toks[pos], "mtu") == 0) {
-				cfgptr = &cfg->ifmtu_str[ifidx];
+				cfgptr = &iface->ifmtu_str;
 			} else if (jsoneq(jstr, &toks[pos], "ip") == 0) {
-				cfgptr = &cfg->ifip[ifidx];
+				cfgptr = &iface->ifip;
 			} else if (jsoneq(jstr, &toks[pos], "ipv6") == 0) {
-				cfgptr = &cfg->ifipv6[ifidx];
+				cfgptr = &iface->ifipv6;
 			} else if (jsoneq(jstr, &toks[pos], "ifgateway") == 0) {
-				cfgptr = &cfg->ifgateway[ifidx];
+				cfgptr = &iface->ifgateway;
 			} else if (jsoneq(jstr, &toks[pos],
 							"ifgateway6") == 0) {
-				cfgptr = &cfg->ifgateway6[ifidx];
+				cfgptr = &iface->ifgateway6;
 			} else if (jsoneq(jstr, &toks[pos], "mac") == 0) {
-				cfgptr = &cfg->ifmac_str[ifidx];
+				cfgptr = &iface->ifmac_str;
 			} else if (jsoneq(jstr, &toks[pos], "masklen") == 0) {
-				cfgptr = &cfg->ifnetmask_len[ifidx];
+				cfgptr = &iface->ifnetmask_len;
 			} else if (jsoneq(jstr, &toks[pos], "masklen6") == 0) {
-				cfgptr = &cfg->ifnetmask6_len[ifidx];
+				cfgptr = &iface->ifnetmask6_len;
 			} else if (jsoneq(jstr, &toks[pos], "neigh") == 0) {
-				cfgptr = &cfg->ifneigh_entries[ifidx];
+				cfgptr = &iface->ifneigh_entries;
 			} else if (jsoneq(jstr, &toks[pos], "qdisc") == 0) {
-				cfgptr = &cfg->ifqdisc_entries[ifidx];
+				cfgptr = &iface->ifqdisc_entries;
 			} else if (jsoneq(jstr, &toks[pos], "offload") == 0) {
-				cfgptr = &cfg->ifoffload_str[ifidx];
+				cfgptr = &iface->ifoffload_str;
 			} else {
 				lkl_printf("unexpected key: %.*s\n",
 						toks[pos].end-toks[pos].start,
@@ -124,7 +133,7 @@ static int parse_ifarr(struct lkl_config *cfg,
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
-int load_config_json(struct lkl_config *cfg, char *jstr)
+int lkl_load_config_json(struct lkl_config *cfg, char *jstr)
 {
 	int pos, ret;
 	char **cfgptr;
@@ -189,9 +198,10 @@ int load_config_json(struct lkl_config *cfg, char *jstr)
 	return 0;
 }
 
-void show_config(struct lkl_config *cfg)
+void lkl_show_config(struct lkl_config *cfg)
 {
-	int i;
+	struct lkl_config_iface *iface;
+	int i = 0;
 
 	if (!cfg)
 		return;
@@ -204,24 +214,25 @@ void show_config(struct lkl_config *cfg)
 	lkl_printf("cmdline: %s\n", cfg->boot_cmdline);
 	lkl_printf("dump: %s\n", cfg->dump);
 	lkl_printf("delay: %s\n", cfg->delay_main);
-	for (i = 0; i < cfg->ifnum; i++) {
-		lkl_printf("ifmac[%d] = %s\n", i, cfg->ifmac_str[i]);
-		lkl_printf("ifmtu[%d] = %s\n", i, cfg->ifmtu_str[i]);
-		lkl_printf("iftype[%d] = %s\n", i, cfg->iftype[i]);
-		lkl_printf("ifparam[%d] = %s\n", i, cfg->ifparams[i]);
-		lkl_printf("ifip[%d] = %s\n", i, cfg->ifip[i]);
-		lkl_printf("ifmasklen[%d] = %s\n", i, cfg->ifnetmask_len[i]);
-		lkl_printf("ifgateway[%d] = %s\n", i, cfg->ifgateway[i]);
-		lkl_printf("ifip6[%d] = %s\n", i, cfg->ifipv6[i]);
-		lkl_printf("ifmasklen6[%d] = %s\n", i, cfg->ifnetmask6_len[i]);
-		lkl_printf("ifgateway6[%d] = %s\n", i, cfg->ifgateway6[i]);
-		lkl_printf("ifoffload[%d] = %s\n", i, cfg->ifoffload_str[i]);
-		lkl_printf("ifneigh[%d] = %s\n", i, cfg->ifneigh_entries[i]);
-		lkl_printf("ifqdisk[%d] = %s\n", i, cfg->ifqdisc_entries[i]);
+
+	for (iface = cfg->ifaces; iface; iface = iface->next, i++) {
+		lkl_printf("ifmac[%d] = %s\n", i, iface->ifmac_str);
+		lkl_printf("ifmtu[%d] = %s\n", i, iface->ifmtu_str);
+		lkl_printf("iftype[%d] = %s\n", i, iface->iftype);
+		lkl_printf("ifparam[%d] = %s\n", i, iface->ifparams);
+		lkl_printf("ifip[%d] = %s\n", i, iface->ifip);
+		lkl_printf("ifmasklen[%d] = %s\n", i, iface->ifnetmask_len);
+		lkl_printf("ifgateway[%d] = %s\n", i, iface->ifgateway);
+		lkl_printf("ifip6[%d] = %s\n", i, iface->ifipv6);
+		lkl_printf("ifmasklen6[%d] = %s\n", i, iface->ifnetmask6_len);
+		lkl_printf("ifgateway6[%d] = %s\n", i, iface->ifgateway6);
+		lkl_printf("ifoffload[%d] = %s\n", i, iface->ifoffload_str);
+		lkl_printf("ifneigh[%d] = %s\n", i, iface->ifneigh_entries);
+		lkl_printf("ifqdisk[%d] = %s\n", i, iface->ifqdisc_entries);
 	}
 }
 
-int load_config_env(struct lkl_config *cfg)
+int lkl_load_config_env(struct lkl_config *cfg)
 {
 	int ret;
 	char *envtap = getenv("LKL_HIJACK_NET_TAP");
@@ -246,51 +257,56 @@ int load_config_env(struct lkl_config *cfg)
 	char *envsysctls = getenv("LKL_HIJACK_SYSCTL");
 	char *envboot_cmdline = getenv("LKL_HIJACK_BOOT_CMDLINE") ? : "";
 	char *envdump = getenv("LKL_HIJACK_DUMP");
+	struct lkl_config_iface *iface;
 
 	if (!cfg)
 		return -1;
 	if (envtap || enviftype)
 		cfg->ifnum = 1;
-	ret = cfgcpy(&cfg->iftap[0], envtap);
+
+	iface = malloc(sizeof(struct lkl_config_iface));
+	memset(iface, 0, sizeof(struct lkl_config_iface));
+
+	ret = cfgcpy(&iface->iftap, envtap);
 	if (ret < 0)
 		return ret;
-	ret = cfgcpy(&cfg->iftype[0], enviftype);
+	ret = cfgcpy(&iface->iftype, enviftype);
 	if (ret < 0)
 		return ret;
-	ret = cfgcpy(&cfg->ifparams[0], envifparams);
+	ret = cfgcpy(&iface->ifparams, envifparams);
 	if (ret < 0)
 		return ret;
-	ret = cfgcpy(&cfg->ifmtu_str[0], envmtu_str);
+	ret = cfgcpy(&iface->ifmtu_str, envmtu_str);
 	if (ret < 0)
 		return ret;
-	ret = cfgcpy(&cfg->ifip[0], envip);
+	ret = cfgcpy(&iface->ifip, envip);
 	if (ret < 0)
 		return ret;
-	ret = cfgcpy(&cfg->ifipv6[0], envipv6);
+	ret = cfgcpy(&iface->ifipv6, envipv6);
 	if (ret < 0)
 		return ret;
-	ret = cfgcpy(&cfg->ifgateway[0], envifgateway);
+	ret = cfgcpy(&iface->ifgateway, envifgateway);
 	if (ret < 0)
 		return ret;
-	ret = cfgcpy(&cfg->ifgateway6[0], envifgateway6);
+	ret = cfgcpy(&iface->ifgateway6, envifgateway6);
 	if (ret < 0)
 		return ret;
-	ret = cfgcpy(&cfg->ifmac_str[0], envmac_str);
+	ret = cfgcpy(&iface->ifmac_str, envmac_str);
 	if (ret < 0)
 		return ret;
-	ret = cfgcpy(&cfg->ifnetmask_len[0], envnetmask_len);
+	ret = cfgcpy(&iface->ifnetmask_len, envnetmask_len);
 	if (ret < 0)
 		return ret;
-	ret = cfgcpy(&cfg->ifnetmask6_len[0], envnetmask6_len);
+	ret = cfgcpy(&iface->ifnetmask6_len, envnetmask6_len);
 	if (ret < 0)
 		return ret;
-	ret = cfgcpy(&cfg->ifoffload_str[0], envoffload_str);
+	ret = cfgcpy(&iface->ifoffload_str, envoffload_str);
 	if (ret < 0)
 		return ret;
-	ret = cfgcpy(&cfg->ifneigh_entries[0], envneigh_entries);
+	ret = cfgcpy(&iface->ifneigh_entries, envneigh_entries);
 	if (ret < 0)
 		return ret;
-	ret = cfgcpy(&cfg->ifqdisc_entries[0], envqdisc_entries);
+	ret = cfgcpy(&iface->ifqdisc_entries, envqdisc_entries);
 	if (ret < 0)
 		return ret;
 	ret = cfgcpy(&cfg->gateway, envgateway);
@@ -320,12 +336,306 @@ int load_config_env(struct lkl_config *cfg)
 	return 0;
 }
 
-int init_config(struct lkl_config *cfg)
+static int parse_mac_str(char *mac_str, __lkl__u8 mac[LKL_ETH_ALEN])
 {
-	if (!cfg)
-		return -1;
+	char delim[] = ":";
+	char *saveptr = NULL, *token = NULL;
+	int i = 0;
 
-	memset(cfg, 0, sizeof(struct lkl_config));
+	if (!mac_str)
+		return 0;
+
+	for (token = strtok_r(mac_str, delim, &saveptr);
+	     i < LKL_ETH_ALEN; i++) {
+		if (!token) {
+			/* The address is too short */
+			return -1;
+		}
+
+		mac[i] = (__lkl__u8) strtol(token, NULL, 16);
+		token = strtok_r(NULL, delim, &saveptr);
+	}
+
+	if (strtok_r(NULL, delim, &saveptr)) {
+		/* The address is too long */
+		return -1;
+	}
+
+	return 1;
+}
+
+/* Add permanent neighbor entries in the form of "ip|mac;ip|mac;..." */
+static void add_neighbor(int ifindex, char *entries)
+{
+	char *saveptr = NULL, *token = NULL;
+	char *ip = NULL, *mac_str = NULL;
+	int ret = 0;
+	__lkl__u8 mac[LKL_ETH_ALEN];
+	char ip_addr[16];
+	int af;
+
+	for (token = strtok_r(entries, ";", &saveptr); token;
+	     token = strtok_r(NULL, ";", &saveptr)) {
+		ip = strtok(token, "|");
+		mac_str = strtok(NULL, "|");
+		if (ip == NULL || mac_str == NULL || strtok(NULL, "|") != NULL)
+			return;
+
+		af = LKL_AF_INET;
+		ret = inet_pton(LKL_AF_INET, ip, ip_addr);
+		if (ret == 0) {
+			ret = inet_pton(LKL_AF_INET6, ip, ip_addr);
+			af = LKL_AF_INET6;
+		}
+		if (ret != 1) {
+			lkl_printf("Bad ip address: %s\n", ip);
+			return;
+		}
+
+		ret = parse_mac_str(mac_str, mac);
+		if (ret != 1) {
+			lkl_printf("Failed to parse mac: %s\n", mac_str);
+			return;
+		}
+		ret = lkl_add_neighbor(ifindex, af, ip_addr, mac);
+		if (ret) {
+			lkl_printf("Failed to add neighbor entry: %s\n",
+				   lkl_strerror(ret));
+			return;
+		}
+	}
+}
+
+/* We don't have an easy way to make FILE*s out of our fds, so we
+ * can't use e.g. fgets
+ */
+static int dump_file(char *path)
+{
+	int ret = -1, bytes_read = 0;
+	char str[1024] = { 0 };
+	int fd;
+
+	fd = lkl_sys_open(path, LKL_O_RDONLY, 0);
+
+	if (fd < 0) {
+		lkl_printf("%s lkl_sys_open %s: %s\n",
+			   __func__, path, lkl_strerror(fd));
+		return -1;
+	}
+
+	/* Need to print this out in order to make sense of the output */
+	lkl_printf("Reading from %s:\n==========\n", path);
+	while ((ret = lkl_sys_read(fd, str, sizeof(str) - 1)) > 0)
+		bytes_read += lkl_printf("%s", str);
+	lkl_printf("==========\n");
+
+	if (ret) {
+		lkl_printf("%s lkl_sys_read %s: %s\n",
+			   __func__, path, lkl_strerror(ret));
+		return -1;
+	}
+
+	return 0;
+}
+
+static void mount_cmds_exec(char *_cmds, int (*callback)(char *))
+{
+	char *saveptr = NULL, *token;
+	int ret = 0;
+	char *cmds = strdup(_cmds);
+
+	token = strtok_r(cmds, ",", &saveptr);
+
+	while (token && ret >= 0) {
+		ret = callback(token);
+		token = strtok_r(NULL, ",", &saveptr);
+	}
+
+	if (ret < 0)
+		lkl_printf("%s: failed parsing %s\n", __func__, _cmds);
+
+	free(cmds);
+}
+
+static int lkl_config_netdev_create(struct lkl_config *cfg,
+				    struct lkl_config_iface *iface)
+{
+	int ret, offload = 0;
+	struct lkl_netdev_args nd_args;
+	__lkl__u8 mac[LKL_ETH_ALEN] = {0};
+	struct lkl_netdev *nd = NULL;
+
+	if (iface->ifoffload_str)
+		offload = strtol(iface->ifoffload_str, NULL, 0);
+	memset(&nd_args, 0, sizeof(struct lkl_netdev_args));
+
+	if (iface->iftap) {
+		lkl_printf("WARN: LKL_HIJACK_NET_TAP is now obsoleted.\n");
+		lkl_printf("use LKL_HIJACK_NET_IFTYPE and PARAMS\n");
+		nd = lkl_netdev_tap_create(iface->iftap, offload);
+	}
+
+	if (!nd && iface->iftype && iface->ifparams) {
+		if ((strcmp(iface->iftype, "tap") == 0)) {
+			nd = lkl_netdev_tap_create(iface->ifparams, offload);
+		} else if ((strcmp(iface->iftype, "macvtap") == 0)) {
+			nd = lkl_netdev_macvtap_create(iface->ifparams,
+						       offload);
+		} else if ((strcmp(iface->iftype, "dpdk") == 0)) {
+			nd = lkl_netdev_dpdk_create(iface->ifparams, offload,
+						    mac);
+		} else if ((strcmp(iface->iftype, "pipe") == 0)) {
+			nd = lkl_netdev_pipe_create(iface->ifparams, offload);
+		} else {
+			if (offload) {
+				lkl_printf("WARN: %s isn't supported on %s\n",
+					   "LKL_HIJACK_OFFLOAD",
+					   iface->iftype);
+				lkl_printf(
+					"WARN: Disabling offload features.\n");
+			}
+			offload = 0;
+		}
+		if (strcmp(iface->iftype, "vde") == 0)
+			nd = lkl_netdev_vde_create(iface->ifparams);
+		if (strcmp(iface->iftype, "raw") == 0)
+			nd = lkl_netdev_raw_create(iface->ifparams);
+	}
+
+	if (nd) {
+		if ((mac[0] != 0) || (mac[1] != 0) ||
+				(mac[2] != 0) || (mac[3] != 0) ||
+				(mac[4] != 0) || (mac[5] != 0)) {
+			nd_args.mac = mac;
+		} else {
+			ret = parse_mac_str(iface->ifmac_str, mac);
+
+			if (ret < 0) {
+				lkl_printf("failed to parse mac\n");
+				return -1;
+			} else if (ret > 0) {
+				nd_args.mac = mac;
+			} else {
+				nd_args.mac = NULL;
+			}
+		}
+
+		nd_args.offload = offload;
+		ret = lkl_netdev_add(nd, &nd_args);
+		if (ret < 0) {
+			lkl_printf("failed to add netdev: %s\n",
+				   lkl_strerror(ret));
+			return -1;
+		}
+		nd->id = ret;
+		iface->nd = nd;
+	}
+	return 0;
+}
+
+static int lkl_config_netdev_configure(struct lkl_config *cfg,
+				       struct lkl_config_iface *iface)
+{
+	int ret, nd_ifindex = -1;
+	struct lkl_netdev *nd = iface->nd;
+
+	if (!nd) {
+		lkl_printf("no netdev available %s\n", iface ? iface->ifparams
+			   : "(null)");
+		return -1;
+	}
+
+	if (nd->id >= 0) {
+		nd_ifindex = lkl_netdev_get_ifindex(nd->id);
+		if (nd_ifindex > 0)
+			lkl_if_up(nd_ifindex);
+		else
+			lkl_printf(
+				"failed to get ifindex for netdev id %d: %s\n",
+				nd->id, lkl_strerror(nd_ifindex));
+	}
+
+	if (nd_ifindex >= 0 && iface->ifmtu_str) {
+		int mtu = atoi(iface->ifmtu_str);
+
+		ret = lkl_if_set_mtu(nd_ifindex, mtu);
+		if (ret < 0)
+			lkl_printf("failed to set MTU: %s\n",
+				   lkl_strerror(ret));
+	}
+
+	if (nd_ifindex >= 0 && iface->ifip && iface->ifnetmask_len) {
+		unsigned int addr;
+
+		if (inet_pton(LKL_AF_INET, iface->ifip,
+			      (struct lkl_in_addr *)&addr) != 1)
+			lkl_printf("Invalid ipv4 address: %s\n", iface->ifip);
+
+		int nmlen = atoi(iface->ifnetmask_len);
+
+		if (addr != LKL_INADDR_NONE && nmlen > 0 && nmlen < 32) {
+			ret = lkl_if_set_ipv4(nd_ifindex, addr, nmlen);
+			if (ret < 0)
+				lkl_printf("failed to set IPv4 address: %s\n",
+					   lkl_strerror(ret));
+		}
+		if (iface->ifgateway) {
+			unsigned int gwaddr;
+
+			if (inet_pton(LKL_AF_INET, iface->ifgateway,
+				      (struct lkl_in_addr *)&gwaddr) != 1)
+				lkl_printf("Invalid ipv4 gateway: %s\n",
+					   iface->ifgateway);
+
+			if (gwaddr != LKL_INADDR_NONE) {
+				ret = lkl_if_set_ipv4_gateway(nd_ifindex,
+						addr, nmlen, gwaddr);
+				if (ret < 0)
+					lkl_printf(
+						"failed to set v4 if gw: %s\n",
+						lkl_strerror(ret));
+			}
+		}
+	}
+
+	if (nd_ifindex >= 0 && iface->ifipv6 &&
+			iface->ifnetmask6_len) {
+		struct lkl_in6_addr addr;
+		unsigned int pflen = atoi(iface->ifnetmask6_len);
+
+		if (inet_pton(LKL_AF_INET6, iface->ifipv6,
+			      (struct lkl_in6_addr *)&addr) != 1) {
+			lkl_printf("Invalid ipv6 addr: %s\n",
+				   iface->ifipv6);
+		}  else {
+			ret = lkl_if_set_ipv6(nd_ifindex, &addr, pflen);
+			if (ret < 0)
+				lkl_printf("failed to set IPv6 address: %s\n",
+					   lkl_strerror(ret));
+		}
+		if (iface->ifgateway6) {
+			char gwaddr[16];
+
+			if (inet_pton(LKL_AF_INET6, iface->ifgateway6,
+								gwaddr) != 1) {
+				lkl_printf("Invalid ipv6 gateway: %s\n",
+					   iface->ifgateway6);
+			} else {
+				ret = lkl_if_set_ipv6_gateway(nd_ifindex,
+						&addr, pflen, gwaddr);
+				if (ret < 0)
+					lkl_printf(
+						"failed to set v6 if gw: %s\n",
+						lkl_strerror(ret));
+			}
+		}
+	}
+
+	if (nd_ifindex >= 0 && iface->ifneigh_entries)
+		add_neighbor(nd_ifindex, iface->ifneigh_entries);
+
+	if (nd_ifindex >= 0 && iface->ifqdisc_entries)
+		lkl_qdisc_parse_add(nd_ifindex, iface->ifqdisc_entries);
 
 	return 0;
 }
@@ -336,27 +646,28 @@ static void free_cfgparam(char *cfgparam)
 		free(cfgparam);
 }
 
-int clean_config(struct lkl_config *cfg)
+static int lkl_clean_config(struct lkl_config *cfg)
 {
-	int i;
+	struct lkl_config_iface *iface;
 
 	if (!cfg)
 		return -1;
-	for (i = 0; i < LKL_IF_MAX; i++) {
-		free_cfgparam(cfg->iftap[i]);
-		free_cfgparam(cfg->iftype[i]);
-		free_cfgparam(cfg->ifparams[i]);
-		free_cfgparam(cfg->ifmtu_str[i]);
-		free_cfgparam(cfg->ifip[i]);
-		free_cfgparam(cfg->ifipv6[i]);
-		free_cfgparam(cfg->ifgateway[i]);
-		free_cfgparam(cfg->ifgateway6[i]);
-		free_cfgparam(cfg->ifmac_str[i]);
-		free_cfgparam(cfg->ifnetmask_len[i]);
-		free_cfgparam(cfg->ifnetmask6_len[i]);
-		free_cfgparam(cfg->ifoffload_str[i]);
-		free_cfgparam(cfg->ifneigh_entries[i]);
-		free_cfgparam(cfg->ifqdisc_entries[i]);
+
+	for (iface = cfg->ifaces; iface; iface = iface->next) {
+		free_cfgparam(iface->iftap);
+		free_cfgparam(iface->iftype);
+		free_cfgparam(iface->ifparams);
+		free_cfgparam(iface->ifmtu_str);
+		free_cfgparam(iface->ifip);
+		free_cfgparam(iface->ifipv6);
+		free_cfgparam(iface->ifgateway);
+		free_cfgparam(iface->ifgateway6);
+		free_cfgparam(iface->ifmac_str);
+		free_cfgparam(iface->ifnetmask_len);
+		free_cfgparam(iface->ifnetmask6_len);
+		free_cfgparam(iface->ifoffload_str);
+		free_cfgparam(iface->ifneigh_entries);
+		free_cfgparam(iface->ifqdisc_entries);
 	}
 	free_cfgparam(cfg->gateway);
 	free_cfgparam(cfg->gateway6);
@@ -367,5 +678,116 @@ int clean_config(struct lkl_config *cfg)
 	free_cfgparam(cfg->boot_cmdline);
 	free_cfgparam(cfg->dump);
 	free_cfgparam(cfg->delay_main);
+	return 0;
+}
+
+
+int lkl_load_config_pre(struct lkl_config *cfg)
+{
+	int lkl_debug, ret;
+	struct lkl_config_iface *iface;
+
+	if (!cfg)
+		return 0;
+
+	if (cfg->debug)
+		lkl_debug = strtol(cfg->debug, NULL, 0);
+
+	if (!cfg->debug || (lkl_debug == 0))
+		lkl_host_ops.print = NULL;
+
+	for (iface = cfg->ifaces; iface; iface = iface->next) {
+		ret = lkl_config_netdev_create(cfg, iface);
+		if (ret < 0)
+			return -1;
+	}
+
+	return 0;
+}
+
+int lkl_load_config_post(struct lkl_config *cfg)
+{
+	int ret;
+	struct lkl_config_iface *iface;
+
+	if (!cfg)
+		return 0;
+
+	if (cfg->mount)
+		mount_cmds_exec(cfg->mount, lkl_mount_fs);
+
+	for (iface = cfg->ifaces; iface; iface = iface->next) {
+		ret = lkl_config_netdev_configure(cfg, iface);
+		if (ret < 0)
+			break;
+	}
+
+	if (cfg->gateway) {
+		unsigned int gwaddr;
+
+		if (inet_pton(LKL_AF_INET, cfg->gateway,
+			      (struct lkl_in_addr *)&gwaddr) != 1)
+			lkl_printf("Invalid ipv4 gateway: %s\n", cfg->gateway);
+
+		if (gwaddr != LKL_INADDR_NONE) {
+			ret = lkl_set_ipv4_gateway(gwaddr);
+			if (ret < 0)
+				lkl_printf("failed to set IPv4 gateway: %s\n",
+					   lkl_strerror(ret));
+		}
+	}
+
+	if (cfg->gateway6) {
+		char gw[16];
+
+		if (inet_pton(LKL_AF_INET6, cfg->gateway6, gw) != 1) {
+			lkl_printf("Invalid ipv6 gateway: %s\n", cfg->gateway6);
+		} else {
+			ret = lkl_set_ipv6_gateway(gw);
+			if (ret < 0)
+				lkl_printf("failed to set IPv6 gateway: %s\n",
+					   lkl_strerror(ret));
+		}
+	}
+
+	if (cfg->sysctls)
+		lkl_sysctl_parse_write(cfg->sysctls);
+
+	/* put a delay before calling main() */
+	if (cfg->delay_main) {
+		unsigned long delay = strtoul(cfg->delay_main, NULL, 10);
+
+		if (delay == ~0UL)
+			lkl_printf("got invalid delay_main value (%s)\n",
+				   cfg->delay_main);
+		else {
+			lkl_printf("sleeping %lu usec\n", delay);
+			usleep(delay);
+		}
+	}
+
+	return 0;
+}
+
+int lkl_unload_config(struct lkl_config *cfg)
+{
+	struct lkl_config_iface *iface;
+
+	if (cfg) {
+		if (cfg->dump)
+			mount_cmds_exec(cfg->dump, dump_file);
+
+		for (iface = cfg->ifaces; iface; iface = iface->next) {
+			if (iface->nd) {
+				if (iface->nd->id >= 0)
+					lkl_netdev_remove(iface->nd->id);
+				lkl_netdev_free(iface->nd);
+			}
+		}
+
+		lkl_clean_config(cfg);
+		free(cfg);
+	}
+
 	return 0;
 }
