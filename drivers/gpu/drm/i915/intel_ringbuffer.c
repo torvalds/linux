@@ -1456,6 +1456,7 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 		(HAS_LEGACY_SEMAPHORES(i915) && IS_GEN7(i915)) ?
 		INTEL_INFO(i915)->num_rings - 1 :
 		0;
+	bool force_restore = false;
 	int len;
 	u32 *cs;
 
@@ -1469,6 +1470,12 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 	len = 4;
 	if (IS_GEN7(i915))
 		len += 2 + (num_rings ? 4*num_rings + 6 : 0);
+	if (flags & MI_FORCE_RESTORE) {
+		GEM_BUG_ON(flags & MI_RESTORE_INHIBIT);
+		flags &= ~MI_FORCE_RESTORE;
+		force_restore = true;
+		len += 2;
+	}
 
 	cs = intel_ring_begin(rq, len);
 	if (IS_ERR(cs))
@@ -1491,6 +1498,26 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 						GEN6_PSMI_SLEEP_MSG_DISABLE);
 			}
 		}
+	}
+
+	if (force_restore) {
+		/*
+		 * The HW doesn't handle being told to restore the current
+		 * context very well. Quite often it likes goes to go off and
+		 * sulk, especially when it is meant to be reloading PP_DIR.
+		 * A very simple fix to force the reload is to simply switch
+		 * away from the current context and back again.
+		 *
+		 * Note that the kernel_context will contain random state
+		 * following the INHIBIT_RESTORE. We accept this since we
+		 * never use the kernel_context state; it is merely a
+		 * placeholder we use to flush other contexts.
+		 */
+		*cs++ = MI_SET_CONTEXT;
+		*cs++ = i915_ggtt_offset(to_intel_context(i915->kernel_context,
+							  engine)->state) |
+			MI_MM_SPACE_GTT |
+			MI_RESTORE_INHIBIT;
 	}
 
 	*cs++ = MI_NOOP;
