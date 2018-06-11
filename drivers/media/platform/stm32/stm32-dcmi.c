@@ -227,13 +227,10 @@ static int dcmi_restart_capture(struct stm32_dcmi *dcmi)
 
 	/* Restart a new DMA transfer with next buffer */
 	if (list_empty(&dcmi->buffers)) {
-		dev_err(dcmi->dev, "%s: No more buffer queued, cannot capture buffer\n",
-			__func__);
-		dcmi->errors_count++;
+		dev_dbg(dcmi->dev, "Capture restart is deferred to next buffer queueing\n");
 		dcmi->active = NULL;
-
 		spin_unlock_irq(&dcmi->irqlock);
-		return -EINVAL;
+		return 0;
 	}
 
 	dcmi->active = list_entry(dcmi->buffers.next,
