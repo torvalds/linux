@@ -1928,6 +1928,7 @@ static int netvsc_register_vf(struct net_device *vf_netdev)
 	struct net_device *ndev;
 	struct net_device_context *net_device_ctx;
 	struct netvsc_device *netvsc_dev;
+	int ret;
 
 	if (vf_netdev->addr_len != ETH_ALEN)
 		return NOTIFY_DONE;
@@ -1946,10 +1947,28 @@ static int netvsc_register_vf(struct net_device *vf_netdev)
 	if (!netvsc_dev || rtnl_dereference(net_device_ctx->vf_netdev))
 		return NOTIFY_DONE;
 
-	if (netvsc_vf_join(vf_netdev, ndev) != 0)
+	/* if syntihetic interface is a different namespace,
+	 * then move the VF to that namespace; join will be
+	 * done again in that context.
+	 */
+	if (!net_eq(dev_net(ndev), dev_net(vf_netdev))) {
+		ret = dev_change_net_namespace(vf_netdev,
+					       dev_net(ndev), "eth%d");
+		if (ret)
+			netdev_err(vf_netdev,
+				   "could not move to same namespace as %s: %d\n",
+				   ndev->name, ret);
+		else
+			netdev_info(vf_netdev,
+				    "VF moved to namespace with: %s\n",
+				    ndev->name);
 		return NOTIFY_DONE;
+	}
 
 	netdev_info(ndev, "VF registering: %s\n", vf_netdev->name);
+
+	if (netvsc_vf_join(vf_netdev, ndev) != 0)
+		return NOTIFY_DONE;
 
 	dev_hold(vf_netdev);
 	rcu_assign_pointer(net_device_ctx->vf_netdev, vf_netdev);
