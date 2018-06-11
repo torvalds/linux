@@ -129,7 +129,7 @@ boot		:= arch/s390/boot
 syscalls	:= arch/s390/kernel/syscalls
 tools		:= arch/s390/tools
 
-all: image bzImage
+all: bzImage
 
 #KBUILD_IMAGE is necessary for packaging targets like rpm-pkg, deb-pkg...
 KBUILD_IMAGE	:= $(boot)/bzImage
@@ -137,7 +137,7 @@ KBUILD_IMAGE	:= $(boot)/bzImage
 install: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $@
 
-image bzImage: vmlinux
+bzImage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 zfcpdump:
@@ -160,8 +160,7 @@ archprepare:
 
 # Don't use tabs in echo arguments
 define archhelp
-  echo  '* image           - Kernel image for IPL ($(boot)/image)'
-  echo	'* bzImage         - Compressed kernel image for IPL ($(boot)/bzImage)'
+  echo	'* bzImage         - Kernel image for IPL ($(boot)/bzImage)'
   echo	'  install         - Install kernel using'
   echo	'                    (your) ~/bin/$(INSTALLKERNEL) or'
   echo	'                    (distribution) /sbin/$(INSTALLKERNEL) or'

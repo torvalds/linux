@@ -3,12 +3,8 @@
 # Makefile for the linux s390-specific parts of the memory manager.
 #
 
-targets := image
-targets += bzImage
+targets := bzImage
 subdir- := compressed
-
-$(obj)/image: vmlinux FORCE
-	$(call if_changed,objcopy)
 
 $(obj)/bzImage: $(obj)/compressed/vmlinux FORCE
 	$(call if_changed,objcopy)
