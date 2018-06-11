@@ -7,6 +7,9 @@
 #define KCOV_INIT_TRACE			_IOR('c', 1, unsigned long)
 #define KCOV_ENABLE			_IO('c', 100)
 #define KCOV_DISABLE			_IO('c', 101)
+#define KCOV_REMOTE_ENABLE		_IOW('c', 102, unsigned long)
+#define KCOV_REMOTE_TRACK		_IOW('c', 103, u64)
+#define KCOV_REMOTE_DISABLE		_IO('c', 104)
 
 enum {
 	/*
@@ -31,5 +34,12 @@ enum {
 #define KCOV_CMP_CONST          (1 << 0)
 #define KCOV_CMP_SIZE(n)        ((n) << 1)
 #define KCOV_CMP_MASK           KCOV_CMP_SIZE(3)
+
+#define KCOV_REMOTE_HANDLE_USB  0x4242424200000000ul
+
+static inline u64 kcov_remote_handle_usb(int bus)
+{
+	return KCOV_REMOTE_HANDLE_USB + (u64)bus;
+}
 
 #endif /* _LINUX_KCOV_IOCTLS_H */

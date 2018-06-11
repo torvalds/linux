@@ -9,6 +9,7 @@
 #include <linux/types.h>
 #include <linux/file.h>
 #include <linux/fs.h>
+#include <linux/hashtable.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/preempt.h>
@@ -54,7 +55,52 @@ struct kcov {
 	void			*area;
 	/* Task for which we collect coverage, or NULL. */
 	struct task_struct	*t;
+	/* Collecting coverage from remote threads. */
+	bool			remote;
 };
+
+struct kcov_remote_area {
+	struct list_head	list;
+};
+
+struct kcov_remote {
+	u64			handle;
+	struct kcov		*kcov;
+	struct hlist_node	hnode;
+};
+
+DEFINE_SPINLOCK(kcov_remote_lock);
+DEFINE_HASHTABLE(kcov_remote_map, 4);
+struct list_head kcov_remote_areas = LIST_HEAD_INIT(kcov_remote_areas);
+
+static struct kcov_remote *kcov_remote_find(u64 handle)
+{
+	struct kcov_remote *remote;
+
+	hash_for_each_possible(kcov_remote_map, remote, hnode, handle) {
+		if (remote->handle == handle)
+			return remote;
+	}
+	return NULL;
+}
+
+static struct kcov_remote_area *kcov_remote_area_get(void)
+{
+	struct kcov_remote_area *area;
+
+	if (list_empty(&kcov_remote_areas))
+		return NULL;
+	area = list_first_entry(&kcov_remote_areas,
+			struct kcov_remote_area, list);
+	list_del(&area->list);
+	return area;
+}
+
+static void kcov_remote_area_put(struct kcov_remote_area *area)
+{
+	INIT_LIST_HEAD(&area->list);
+	list_add(&area->list, &kcov_remote_areas);
+}
 
 static bool check_kcov_mode(enum kcov_mode needed_mode, struct task_struct *t)
 {
@@ -72,7 +118,7 @@ static bool check_kcov_mode(enum kcov_mode needed_mode, struct task_struct *t)
 	 * in_interrupt() returns false (e.g. preempt_schedule_irq()).
 	 * READ_ONCE()/barrier() effectively provides load-acquire wrt
 	 * interrupts, there are paired barrier()/WRITE_ONCE() in
-	 * kcov_ioctl_locked().
+	 * kcov_enable().
 	 */
 	barrier();
 	return mode == needed_mode;
@@ -239,11 +285,28 @@ static void kcov_put(struct kcov *kcov)
 	}
 }
 
-void kcov_task_init(struct task_struct *t)
+static void kcov_start(struct task_struct *t, unsigned size,
+			void *area, enum kcov_mode mode)
 {
-	t->kcov_mode = KCOV_MODE_DISABLED;
+	/* Cache in task struct for performance. */
+	t->kcov_size = size;
+	t->kcov_area = area;
+	/* See comment in check_kcov_mode(). */
+	barrier();
+	WRITE_ONCE(t->kcov_mode, mode);
+}
+
+static void kcov_stop(struct task_struct *t)
+{
+	WRITE_ONCE(t->kcov_mode, KCOV_MODE_DISABLED);
+	barrier();
 	t->kcov_size = 0;
 	t->kcov_area = NULL;
+}
+
+void kcov_task_init(struct task_struct *t)
+{
+	kcov_stop(t);
 	t->kcov = NULL;
 }
 
@@ -255,14 +318,24 @@ void kcov_task_exit(struct task_struct *t)
 	if (kcov == NULL)
 		return;
 	spin_lock(&kcov->lock);
-	if (WARN_ON(kcov->t != t)) {
-		spin_unlock(&kcov->lock);
-		return;
+	if (!kcov->remote) {
+		if (WARN_ON(kcov->t != t)) {
+			spin_unlock(&kcov->lock);
+			return;
+		}
+		/* Just to not leave dangling references behind. */
+		kcov->t = NULL;
+		kcov->mode = KCOV_MODE_INIT;
+	} else if (kcov->t != t) {
+		/*
+		 * We are in a remote thread between
+		 * kcov_remote_start() and kcov_remote_stop().
+		 */
+		spin_lock(&kcov_remote_lock);
+		kcov_remote_area_put(t->kcov_area);
+		spin_unlock(&kcov_remote_lock);
 	}
-	/* Just to not leave dangling references behind. */
 	kcov_task_init(t);
-	kcov->t = NULL;
-	kcov->mode = KCOV_MODE_INIT;
 	spin_unlock(&kcov->lock);
 	kcov_put(kcov);
 }
@@ -319,8 +392,46 @@ static int kcov_open(struct inode *inode, struct file *filep)
 
 static int kcov_close(struct inode *inode, struct file *filep)
 {
-	kcov_put(filep->private_data);
+	struct kcov *kcov = (struct kcov *)filep->private_data;
+	struct task_struct *t;
+	int bkt;
+	struct kcov_remote *remote;
+	struct hlist_node *tmp;
+
+	spin_lock(&kcov->lock);
+	if (kcov->remote) {
+		spin_lock(&kcov_remote_lock);
+		hash_for_each_safe(kcov_remote_map, bkt, tmp, remote, hnode) {
+			if (remote->kcov == kcov)
+				hash_del(&remote->hnode);
+		}
+		spin_unlock(&kcov_remote_lock);
+		t = current;
+		if (WARN_ON(kcov->t != t))
+			return -EINVAL;
+		kcov_task_init(t);
+		kcov->t = NULL;
+		kcov->mode = KCOV_MODE_INIT;
+		kcov->remote = false;
+	}
+	spin_unlock(&kcov->lock);
+	kcov_put(kcov);
 	return 0;
+}
+
+static int kcov_get_mode(unsigned long arg)
+{
+	if (arg == KCOV_TRACE_PC)
+		return KCOV_MODE_TRACE_PC;
+	else if (arg == KCOV_TRACE_CMP)
+#ifdef CONFIG_KCOV_ENABLE_COMPARISONS
+		return KCOV_MODE_TRACE_CMP;
+#else
+		return -ENOTSUPP;
+#endif
+	else
+		return -EINVAL;
+
 }
 
 static int kcov_ioctl_locked(struct kcov *kcov, unsigned int cmd,
@@ -328,6 +439,10 @@ static int kcov_ioctl_locked(struct kcov *kcov, unsigned int cmd,
 {
 	struct task_struct *t;
 	unsigned long size, unused;
+	int mode, bkt;
+	u64 handle;
+	struct kcov_remote *remote;
+	struct hlist_node *tmp;
 
 	switch (cmd) {
 	case KCOV_INIT_TRACE:
@@ -361,22 +476,11 @@ static int kcov_ioctl_locked(struct kcov *kcov, unsigned int cmd,
 		t = current;
 		if (kcov->t != NULL || t->kcov != NULL)
 			return -EBUSY;
-		if (arg == KCOV_TRACE_PC)
-			kcov->mode = KCOV_MODE_TRACE_PC;
-		else if (arg == KCOV_TRACE_CMP)
-#ifdef CONFIG_KCOV_ENABLE_COMPARISONS
-			kcov->mode = KCOV_MODE_TRACE_CMP;
-#else
-		return -ENOTSUPP;
-#endif
-		else
-			return -EINVAL;
-		/* Cache in task struct for performance. */
-		t->kcov_size = kcov->size;
-		t->kcov_area = kcov->area;
-		/* See comment in check_kcov_mode(). */
-		barrier();
-		WRITE_ONCE(t->kcov_mode, kcov->mode);
+		mode = kcov_get_mode(arg);
+		if (mode < 0)
+			return mode;
+		kcov->mode = mode;
+		kcov_start(t, kcov->size, kcov->area, kcov->mode);
 		t->kcov = kcov;
 		kcov->t = t;
 		/* This is put either in kcov_task_exit() or in KCOV_DISABLE. */
@@ -395,6 +499,57 @@ static int kcov_ioctl_locked(struct kcov *kcov, unsigned int cmd,
 		kcov->mode = KCOV_MODE_INIT;
 		kcov_put(kcov);
 		return 0;
+	case KCOV_REMOTE_ENABLE:
+		if (kcov->mode != KCOV_MODE_INIT || !kcov->area)
+			return -EINVAL;
+		t = current;
+		if (kcov->t != NULL || t->kcov != NULL)
+			return -EBUSY;
+		mode = kcov_get_mode(arg);
+		if (mode < 0)
+			return mode;
+		kcov->mode = mode;
+		t->kcov = kcov;
+		kcov->t = t;
+		kcov->remote = true;
+		/* Put either in kcov_task_exit() or in KCOV_REMOTE_DISABLE. */
+		kcov_get(kcov);
+		return 0;
+	case KCOV_REMOTE_TRACK:
+		if (!kcov->remote)
+			return -EINVAL;
+		handle = *(u64 *)arg;
+		spin_lock(&kcov_remote_lock);
+		if (kcov_remote_find(handle)) {
+			spin_unlock(&kcov_remote_lock);
+			return -EINVAL;
+		}
+		remote = kmalloc(sizeof(*remote), GFP_ATOMIC);
+		if (!remote)
+			return -ENOMEM;
+		remote->handle = handle;
+		remote->kcov = kcov;
+		hash_add(kcov_remote_map, &remote->hnode, handle);
+		spin_unlock(&kcov_remote_lock);
+		return 0;
+	case KCOV_REMOTE_DISABLE:
+		if (!kcov->remote)
+			return -EINVAL;
+		spin_lock(&kcov_remote_lock);
+		hash_for_each_safe(kcov_remote_map, bkt, tmp, remote, hnode) {
+			if (remote->kcov == kcov)
+				hash_del(&remote->hnode);
+		}
+		spin_unlock(&kcov_remote_lock);
+		t = current;
+		if (WARN_ON(kcov->t != t))
+			return -EINVAL;
+		kcov_task_init(t);
+		kcov->t = NULL;
+		kcov->mode = KCOV_MODE_INIT;
+		kcov->remote = false;
+		kcov_put(kcov);
+		return 0;
 	default:
 		return -ENOTTY;
 	}
@@ -404,6 +559,13 @@ static long kcov_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
 	struct kcov *kcov;
 	int res;
+	u64 handle;
+
+	if (cmd == KCOV_REMOTE_TRACK) {
+		if (copy_from_user(&handle, (void *)arg, sizeof(handle)))
+			return -EINVAL;
+		arg = (unsigned long)&handle;
+	}
 
 	kcov = filep->private_data;
 	spin_lock(&kcov->lock);
@@ -419,6 +581,103 @@ static const struct file_operations kcov_fops = {
 	.mmap		= kcov_mmap,
 	.release        = kcov_close,
 };
+
+void kcov_remote_start(u64 handle)
+{
+	struct kcov_remote *remote;
+	void *area;
+	struct task_struct *t = current;
+
+	/* Assert kcov_remote_start is not called twice. */
+	BUG_ON(t->kcov);
+
+	spin_lock(&kcov_remote_lock);
+	remote = kcov_remote_find(handle);
+	if (!remote) {
+		spin_unlock(&kcov_remote_lock);
+		return;
+	}
+	area = kcov_remote_area_get();
+	/* Put either in kcov_remote_stop() or in kcov_task_exit(). */
+	kcov_get(remote->kcov);
+	t->kcov = remote->kcov;
+	spin_unlock(&kcov_remote_lock);
+
+	if (!area) {
+		area = vmalloc(KCOV_PER_THREAD_AREA_SIZE);
+		if (!area)
+			return;
+	}
+
+	/* Reset coverage size. */
+	*(u64 *)area = 0;
+
+	kcov_start(t, KCOV_PER_THREAD_AREA_SIZE / sizeof(unsigned long),
+			area, remote->kcov->mode);
+}
+
+static void kcov_move_area(enum kcov_mode mode, void *dst_area,
+				unsigned dst_area_size, void *src_area)
+{
+	if (mode == KCOV_MODE_TRACE_PC) {
+		unsigned long *dst = (unsigned long *)dst_area;
+		unsigned long *src = (unsigned long *)src_area;
+		unsigned long pos;
+
+		// TODO: use one memcpy
+		for (pos = 0; pos < src[0]; pos++) {
+			if (dst[0] + pos > dst_area_size)
+				break;
+			dst[1 + dst[0] + pos] = src[1 + pos];
+		}
+		dst[0] += pos;
+		src[0] = 0;
+	} else {
+		u64 *dst = (u64 *)dst_area;
+		u64 *src = (u64 *)src_area;
+		u64 pos;
+
+		// TODO: use one memcpy
+		for (pos = 0; pos < src[0]; pos++) {
+			if ((dst[0] + pos) * KCOV_WORDS_PER_CMP * sizeof(u64) >
+			    dst_area_size * sizeof(unsigned long))
+				break;
+			memcpy(&dst[1 + (dst[0] + pos) * KCOV_WORDS_PER_CMP],
+			       &src[1 + pos * KCOV_WORDS_PER_CMP],
+			       sizeof(u64) * KCOV_WORDS_PER_CMP);
+		}
+		dst[0] += pos;
+		src[0] = 0;
+	}
+}
+
+void kcov_remote_stop()
+{
+	struct task_struct *t;
+	struct kcov *kcov;
+	void *area;
+
+	t = current;
+
+	if (!t->kcov)
+		return;
+
+	kcov = t->kcov;
+	area = t->kcov_area;
+	kcov_stop(t);
+	t->kcov = NULL;
+
+	spin_lock(&kcov->lock);
+	if (kcov->remote)
+		kcov_move_area(kcov->mode, kcov->area, kcov->size, area);
+	spin_unlock(&kcov->lock);
+
+	kcov_put(kcov);
+
+	spin_lock(&kcov_remote_lock);
+	kcov_remote_area_put(area);
+	spin_unlock(&kcov_remote_lock);
+}
 
 static int __init kcov_init(void)
 {
