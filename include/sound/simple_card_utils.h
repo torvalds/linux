@@ -12,6 +12,11 @@
 
 #include <sound/soc.h>
 
+#define asoc_simple_card_init_hp(card, sjack, prefix) \
+	asoc_simple_card_init_jack(card, sjack, 1, prefix)
+#define asoc_simple_card_init_mic(card, sjack, prefix) \
+	asoc_simple_card_init_jack(card, sjack, 0, prefix)
+
 struct asoc_simple_dai {
 	const char *name;
 	unsigned int sysclk;
@@ -26,6 +31,12 @@ struct asoc_simple_dai {
 struct asoc_simple_card_data {
 	u32 convert_rate;
 	u32 convert_channels;
+};
+
+struct asoc_simple_jack {
+	struct snd_soc_jack jack;
+	struct snd_soc_jack_pin pin;
+	struct snd_soc_jack_gpio gpio;
 };
 
 int asoc_simple_card_parse_daifmt(struct device *dev,
@@ -106,5 +117,9 @@ int asoc_simple_card_of_parse_routing(struct snd_soc_card *card,
 				      int optional);
 int asoc_simple_card_of_parse_widgets(struct snd_soc_card *card,
 				      char *prefix);
+
+int asoc_simple_card_init_jack(struct snd_soc_card *card,
+			       struct asoc_simple_jack *sjack,
+			       int is_hp, char *prefix);
 
 #endif /* __SIMPLE_CARD_UTILS_H */
