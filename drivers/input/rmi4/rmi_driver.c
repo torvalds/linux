@@ -1043,7 +1043,7 @@ int rmi_probe_interrupts(struct rmi_driver_data *data)
 						   data);
 	if (!data->irqdomain) {
 		dev_err(&rmi_dev->dev, "Failed to create IRQ domain\n");
-		return PTR_ERR(data->irqdomain);
+		return -ENOMEM;
 	}
 
 	data->irq_count = irq_count;
