@@ -597,20 +597,18 @@ static inline struct stimx274 *to_imx274(struct v4l2_subdev *sd)
 }
 
 /*
- * imx274_regmap_util_write_table_8 - Function for writing register table
- * @regmap: Pointer to device reg map structure
- * @table: Table containing register values
- * @wait_ms_addr: Flag for performing delay
- * @end_addr: Flag for incating end of table
+ * Writing a register table
+ *
+ * @priv: Pointer to device
+ * @table: Table containing register values (with optional delays)
  *
  * This is used to write register table into sensor's reg map.
  *
  * Return: 0 on success, errors otherwise
  */
-static int imx274_regmap_util_write_table_8(struct regmap *regmap,
-					    const struct reg_8 table[],
-					    u16 wait_ms_addr, u16 end_addr)
+static int imx274_write_table(struct stimx274 *priv, const struct reg_8 table[])
 {
+	struct regmap *regmap = priv->regmap;
 	int err = 0;
 	const struct reg_8 *next;
 	u8 val;
@@ -622,8 +620,8 @@ static int imx274_regmap_util_write_table_8(struct regmap *regmap,
 
 	for (next = table;; next++) {
 		if ((next->addr != range_start + range_count) ||
-		    (next->addr == end_addr) ||
-		    (next->addr == wait_ms_addr) ||
+		    (next->addr == IMX274_TABLE_END) ||
+		    (next->addr == IMX274_TABLE_WAIT_MS) ||
 		    (range_count == max_range_vals)) {
 			if (range_count == 1)
 				err = regmap_write(regmap,
@@ -642,10 +640,10 @@ static int imx274_regmap_util_write_table_8(struct regmap *regmap,
 			range_count = 0;
 
 			/* Handle special address values */
-			if (next->addr == end_addr)
+			if (next->addr == IMX274_TABLE_END)
 				break;
 
-			if (next->addr == wait_ms_addr) {
+			if (next->addr == IMX274_TABLE_WAIT_MS) {
 				msleep_range(next->val);
 				continue;
 			}
@@ -690,12 +688,6 @@ static inline int imx274_write_reg(struct stimx274 *priv, u16 addr, u8 val)
 			"%s : addr 0x%x, val=0x%x\n", __func__,
 			addr, val);
 	return err;
-}
-
-static int imx274_write_table(struct stimx274 *priv, const struct reg_8 table[])
-{
-	return imx274_regmap_util_write_table_8(priv->regmap,
-		table, IMX274_TABLE_WAIT_MS, IMX274_TABLE_END);
 }
 
 /*
