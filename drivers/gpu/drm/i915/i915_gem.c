@@ -2401,29 +2401,15 @@ static void __i915_gem_object_reset_page_iter(struct drm_i915_gem_object *obj)
 	rcu_read_unlock();
 }
 
-void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
-				 enum i915_mm_subclass subclass)
+static struct sg_table *
+__i915_gem_object_unset_pages(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct sg_table *pages;
 
-	if (i915_gem_object_has_pinned_pages(obj))
-		return;
-
-	GEM_BUG_ON(obj->bind_count);
-	if (!i915_gem_object_has_pages(obj))
-		return;
-
-	/* May be called by shrinker from within get_pages() (on another bo) */
-	mutex_lock_nested(&obj->mm.lock, subclass);
-	if (unlikely(atomic_read(&obj->mm.pages_pin_count)))
-		goto unlock;
-
-	/* ->put_pages might need to allocate memory for the bit17 swizzle
-	 * array, hence protect them from being reaped by removing them from gtt
-	 * lists early. */
 	pages = fetch_and_zero(&obj->mm.pages);
-	GEM_BUG_ON(!pages);
+	if (!pages)
+		return NULL;
 
 	spin_lock(&i915->mm.obj_lock);
 	list_del(&obj->mm.link);
@@ -2442,11 +2428,36 @@ void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
 	}
 
 	__i915_gem_object_reset_page_iter(obj);
+	obj->mm.page_sizes.phys = obj->mm.page_sizes.sg = 0;
 
+	return pages;
+}
+
+void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
+				 enum i915_mm_subclass subclass)
+{
+	struct sg_table *pages;
+
+	if (i915_gem_object_has_pinned_pages(obj))
+		return;
+
+	GEM_BUG_ON(obj->bind_count);
+	if (!i915_gem_object_has_pages(obj))
+		return;
+
+	/* May be called by shrinker from within get_pages() (on another bo) */
+	mutex_lock_nested(&obj->mm.lock, subclass);
+	if (unlikely(atomic_read(&obj->mm.pages_pin_count)))
+		goto unlock;
+
+	/*
+	 * ->put_pages might need to allocate memory for the bit17 swizzle
+	 * array, hence protect them from being reaped by removing them from gtt
+	 * lists early.
+	 */
+	pages = __i915_gem_object_unset_pages(obj);
 	if (!IS_ERR(pages))
 		obj->ops->put_pages(obj, pages);
-
-	obj->mm.page_sizes.phys = obj->mm.page_sizes.sg = 0;
 
 unlock:
 	mutex_unlock(&obj->mm.lock);
@@ -6089,16 +6100,7 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
 		goto err_unlock;
 	}
 
-	pages = fetch_and_zero(&obj->mm.pages);
-	if (pages) {
-		struct drm_i915_private *i915 = to_i915(obj->base.dev);
-
-		__i915_gem_object_reset_page_iter(obj);
-
-		spin_lock(&i915->mm.obj_lock);
-		list_del(&obj->mm.link);
-		spin_unlock(&i915->mm.obj_lock);
-	}
+	pages = __i915_gem_object_unset_pages(obj);
 
 	obj->ops = &i915_gem_phys_ops;
 
@@ -6116,7 +6118,11 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
 
 err_xfer:
 	obj->ops = &i915_gem_object_ops;
-	obj->mm.pages = pages;
+	if (!IS_ERR_OR_NULL(pages)) {
+		unsigned int sg_page_sizes = i915_sg_page_sizes(pages->sgl);
+
+		__i915_gem_object_set_pages(obj, pages, sg_page_sizes);
+	}
 err_unlock:
 	mutex_unlock(&obj->mm.lock);
 	return err;
