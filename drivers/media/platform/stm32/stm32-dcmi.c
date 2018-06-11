@@ -89,14 +89,9 @@ enum state {
 };
 
 #define MIN_WIDTH	16U
-#define MAX_WIDTH	2048U
+#define MAX_WIDTH	2592U
 #define MIN_HEIGHT	16U
-#define MAX_HEIGHT	2048U
-
-#define MIN_JPEG_WIDTH	16U
-#define MAX_JPEG_WIDTH	2592U
-#define MIN_JPEG_HEIGHT	16U
-#define MAX_JPEG_HEIGHT	2592U
+#define MAX_HEIGHT	2592U
 
 #define TIMEOUT_MS	1000
 
@@ -843,14 +838,8 @@ static int dcmi_try_fmt(struct stm32_dcmi *dcmi, struct v4l2_format *f,
 	}
 
 	/* Limit to hardware capabilities */
-	if (pix->pixelformat == V4L2_PIX_FMT_JPEG) {
-		pix->width = clamp(pix->width, MIN_JPEG_WIDTH, MAX_JPEG_WIDTH);
-		pix->height =
-			clamp(pix->height, MIN_JPEG_HEIGHT, MAX_JPEG_HEIGHT);
-	} else {
-		pix->width = clamp(pix->width, MIN_WIDTH, MAX_WIDTH);
-		pix->height = clamp(pix->height, MIN_HEIGHT, MAX_HEIGHT);
-	}
+	pix->width = clamp(pix->width, MIN_WIDTH, MAX_WIDTH);
+	pix->height = clamp(pix->height, MIN_HEIGHT, MAX_HEIGHT);
 
 	/* No crop if JPEG is requested */
 	do_crop = dcmi->do_crop && (pix->pixelformat != V4L2_PIX_FMT_JPEG);
