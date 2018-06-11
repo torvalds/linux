@@ -152,7 +152,7 @@ static int exynos_drm_suspend(struct device *dev)
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 	struct exynos_drm_private *private;
 
-	if (pm_runtime_suspended(dev) || !drm_dev)
+	if (!drm_dev)
 		return 0;
 
 	private = drm_dev->dev_private;
@@ -174,7 +174,7 @@ static int exynos_drm_resume(struct device *dev)
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 	struct exynos_drm_private *private;
 
-	if (pm_runtime_suspended(dev) || !drm_dev)
+	if (!drm_dev)
 		return 0;
 
 	private = drm_dev->dev_private;
