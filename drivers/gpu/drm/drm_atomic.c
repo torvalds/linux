@@ -331,6 +331,7 @@ static s32 __user *get_out_fence_for_crtc(struct drm_atomic_state *state,
 int drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
 				 const struct drm_display_mode *mode)
 {
+	struct drm_crtc *crtc = state->crtc;
 	struct drm_mode_modeinfo umode;
 
 	/* Early return for no change. */
@@ -351,13 +352,13 @@ int drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
 
 		drm_mode_copy(&state->mode, mode);
 		state->enable = true;
-		DRM_DEBUG_ATOMIC("Set [MODE:%s] for CRTC state %p\n",
-				 mode->name, state);
+		DRM_DEBUG_ATOMIC("Set [MODE:%s] for [CRTC:%d:%s] state %p\n",
+				 mode->name, crtc->base.id, crtc->name, state);
 	} else {
 		memset(&state->mode, 0, sizeof(state->mode));
 		state->enable = false;
-		DRM_DEBUG_ATOMIC("Set [NOMODE] for CRTC state %p\n",
-				 state);
+		DRM_DEBUG_ATOMIC("Set [NOMODE] for [CRTC:%d:%s] state %p\n",
+				 crtc->base.id, crtc->name, state);
 	}
 
 	return 0;
@@ -380,6 +381,8 @@ EXPORT_SYMBOL(drm_atomic_set_mode_for_crtc);
 int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
                                       struct drm_property_blob *blob)
 {
+	struct drm_crtc *crtc = state->crtc;
+
 	if (blob == state->mode_blob)
 		return 0;
 
@@ -396,12 +399,13 @@ int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
 
 		state->mode_blob = drm_property_blob_get(blob);
 		state->enable = true;
-		DRM_DEBUG_ATOMIC("Set [MODE:%s] for CRTC state %p\n",
-				 state->mode.name, state);
+		DRM_DEBUG_ATOMIC("Set [MODE:%s] for [CRTC:%d:%s] state %p\n",
+				 state->mode.name, crtc->base.id, crtc->name,
+				 state);
 	} else {
 		state->enable = false;
-		DRM_DEBUG_ATOMIC("Set [NOMODE] for CRTC state %p\n",
-				 state);
+		DRM_DEBUG_ATOMIC("Set [NOMODE] for [CRTC:%d:%s] state %p\n",
+				 crtc->base.id, crtc->name, state);
 	}
 
 	return 0;
@@ -531,10 +535,14 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 			return -EFAULT;
 
 		set_out_fence_for_crtc(state->state, crtc, fence_ptr);
-	} else if (crtc->funcs->atomic_set_property)
+	} else if (crtc->funcs->atomic_set_property) {
 		return crtc->funcs->atomic_set_property(crtc, state, property, val);
-	else
+	} else {
+		DRM_DEBUG_ATOMIC("[CRTC:%d:%s] unknown property [PROP:%d:%s]]\n",
+				 crtc->base.id, crtc->name,
+				 property->base.id, property->name);
 		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -791,8 +799,11 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
 	} else if (property == plane->alpha_property) {
 		state->alpha = val;
 	} else if (property == plane->rotation_property) {
-		if (!is_power_of_2(val & DRM_MODE_ROTATE_MASK))
+		if (!is_power_of_2(val & DRM_MODE_ROTATE_MASK)) {
+			DRM_DEBUG_ATOMIC("[PLANE:%d:%s] bad rotation bitmask: 0x%llx\n",
+					 plane->base.id, plane->name, val);
 			return -EINVAL;
+		}
 		state->rotation = val;
 	} else if (property == plane->zpos_property) {
 		state->zpos = val;
@@ -804,6 +815,9 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
 		return plane->funcs->atomic_set_property(plane, state,
 				property, val);
 	} else {
+		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] unknown property [PROP:%d:%s]]\n",
+				 plane->base.id, plane->name,
+				 property->base.id, property->name);
 		return -EINVAL;
 	}
 
@@ -911,10 +925,12 @@ static int drm_atomic_plane_check(struct drm_plane *plane,
 
 	/* either *both* CRTC and FB must be set, or neither */
 	if (state->crtc && !state->fb) {
-		DRM_DEBUG_ATOMIC("CRTC set but no FB\n");
+		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] CRTC set but no FB\n",
+				 plane->base.id, plane->name);
 		return -EINVAL;
 	} else if (state->fb && !state->crtc) {
-		DRM_DEBUG_ATOMIC("FB set but no CRTC\n");
+		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] FB set but no CRTC\n",
+				 plane->base.id, plane->name);
 		return -EINVAL;
 	}
 
@@ -924,7 +940,9 @@ static int drm_atomic_plane_check(struct drm_plane *plane,
 
 	/* Check whether this plane is usable on this CRTC */
 	if (!(plane->possible_crtcs & drm_crtc_mask(state->crtc))) {
-		DRM_DEBUG_ATOMIC("Invalid crtc for plane\n");
+		DRM_DEBUG_ATOMIC("Invalid [CRTC:%d:%s] for [PLANE:%d:%s]\n",
+				 state->crtc->base.id, state->crtc->name,
+				 plane->base.id, plane->name);
 		return -EINVAL;
 	}
 
@@ -933,7 +951,8 @@ static int drm_atomic_plane_check(struct drm_plane *plane,
 					   state->fb->modifier);
 	if (ret) {
 		struct drm_format_name_buf format_name;
-		DRM_DEBUG_ATOMIC("Invalid pixel format %s, modifier 0x%llx\n",
+		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] invalid pixel format %s, modifier 0x%llx\n",
+				 plane->base.id, plane->name,
 				 drm_get_format_name(state->fb->format->format,
 						     &format_name),
 				 state->fb->modifier);
@@ -945,7 +964,8 @@ static int drm_atomic_plane_check(struct drm_plane *plane,
 	    state->crtc_x > INT_MAX - (int32_t) state->crtc_w ||
 	    state->crtc_h > INT_MAX ||
 	    state->crtc_y > INT_MAX - (int32_t) state->crtc_h) {
-		DRM_DEBUG_ATOMIC("Invalid CRTC coordinates %ux%u+%d+%d\n",
+		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] invalid CRTC coordinates %ux%u+%d+%d\n",
+				 plane->base.id, plane->name,
 				 state->crtc_w, state->crtc_h,
 				 state->crtc_x, state->crtc_y);
 		return -ERANGE;
@@ -959,8 +979,9 @@ static int drm_atomic_plane_check(struct drm_plane *plane,
 	    state->src_x > fb_width - state->src_w ||
 	    state->src_h > fb_height ||
 	    state->src_y > fb_height - state->src_h) {
-		DRM_DEBUG_ATOMIC("Invalid source coordinates "
+		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] invalid source coordinates "
 				 "%u.%06ux%u.%06u+%u.%06u+%u.%06u (fb %ux%u)\n",
+				 plane->base.id, plane->name,
 				 state->src_w >> 16, ((state->src_w & 0xffff) * 15625) >> 10,
 				 state->src_h >> 16, ((state->src_h & 0xffff) * 15625) >> 10,
 				 state->src_x >> 16, ((state->src_x & 0xffff) * 15625) >> 10,
@@ -1289,6 +1310,9 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 		return connector->funcs->atomic_set_property(connector,
 				state, property, val);
 	} else {
+		DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] unknown property [PROP:%d:%s]]\n",
+				 connector->base.id, connector->name,
+				 property->base.id, property->name);
 		return -EINVAL;
 	}
 
@@ -1457,11 +1481,12 @@ drm_atomic_set_crtc_for_plane(struct drm_plane_state *plane_state,
 	}
 
 	if (crtc)
-		DRM_DEBUG_ATOMIC("Link plane state %p to [CRTC:%d:%s]\n",
-				 plane_state, crtc->base.id, crtc->name);
+		DRM_DEBUG_ATOMIC("Link [PLANE:%d:%s] state %p to [CRTC:%d:%s]\n",
+				 plane->base.id, plane->name, plane_state,
+				 crtc->base.id, crtc->name);
 	else
-		DRM_DEBUG_ATOMIC("Link plane state %p to [NOCRTC]\n",
-				 plane_state);
+		DRM_DEBUG_ATOMIC("Link [PLANE:%d:%s] state %p to [NOCRTC]\n",
+				 plane->base.id, plane->name, plane_state);
 
 	return 0;
 }
@@ -1481,12 +1506,15 @@ void
 drm_atomic_set_fb_for_plane(struct drm_plane_state *plane_state,
 			    struct drm_framebuffer *fb)
 {
+	struct drm_plane *plane = plane_state->plane;
+
 	if (fb)
-		DRM_DEBUG_ATOMIC("Set [FB:%d] for plane state %p\n",
-				 fb->base.id, plane_state);
-	else
-		DRM_DEBUG_ATOMIC("Set [NOFB] for plane state %p\n",
+		DRM_DEBUG_ATOMIC("Set [FB:%d] for [PLANE:%d:%s] state %p\n",
+				 fb->base.id, plane->base.id, plane->name,
 				 plane_state);
+	else
+		DRM_DEBUG_ATOMIC("Set [NOFB] for [PLANE:%d:%s] state %p\n",
+				 plane->base.id, plane->name, plane_state);
 
 	drm_framebuffer_assign(&plane_state->fb, fb);
 }
@@ -1547,6 +1575,7 @@ int
 drm_atomic_set_crtc_for_connector(struct drm_connector_state *conn_state,
 				  struct drm_crtc *crtc)
 {
+	struct drm_connector *connector = conn_state->connector;
 	struct drm_crtc_state *crtc_state;
 
 	if (conn_state->crtc == crtc)
@@ -1574,10 +1603,12 @@ drm_atomic_set_crtc_for_connector(struct drm_connector_state *conn_state,
 		drm_connector_get(conn_state->connector);
 		conn_state->crtc = crtc;
 
-		DRM_DEBUG_ATOMIC("Link connector state %p to [CRTC:%d:%s]\n",
+		DRM_DEBUG_ATOMIC("Link [CONNECTOR:%d:%s] state %p to [CRTC:%d:%s]\n",
+				 connector->base.id, connector->name,
 				 conn_state, crtc->base.id, crtc->name);
 	} else {
-		DRM_DEBUG_ATOMIC("Link connector state %p to [NOCRTC]\n",
+		DRM_DEBUG_ATOMIC("Link [CONNECTOR:%d:%s] state %p to [NOCRTC]\n",
+				 connector->base.id, connector->name,
 				 conn_state);
 	}
 
@@ -1672,6 +1703,9 @@ drm_atomic_add_affected_planes(struct drm_atomic_state *state,
 	struct drm_plane *plane;
 
 	WARN_ON(!drm_atomic_get_new_crtc_state(state, crtc));
+
+	DRM_DEBUG_ATOMIC("Adding all current planes for [CRTC:%d:%s] to %p\n",
+			 crtc->base.id, crtc->name, state);
 
 	drm_for_each_plane_mask(plane, state->dev, crtc->state->plane_mask) {
 		struct drm_plane_state *plane_state =
