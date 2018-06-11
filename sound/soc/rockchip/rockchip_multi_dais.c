@@ -163,33 +163,6 @@ static const struct snd_soc_dai_ops rockchip_mdais_dai_ops = {
 	.trigger = rockchip_mdais_trigger,
 };
 
-static struct snd_soc_dai_driver rockchip_mdais_dai = {
-	.probe = rockchip_mdais_dai_probe,
-	.playback = {
-		.stream_name = "Playback",
-		.channels_min = 2,
-		.channels_max = 32,
-		.rates = SNDRV_PCM_RATE_8000_192000,
-		.formats = (SNDRV_PCM_FMTBIT_S8 |
-			    SNDRV_PCM_FMTBIT_S16_LE |
-			    SNDRV_PCM_FMTBIT_S20_3LE |
-			    SNDRV_PCM_FMTBIT_S24_LE |
-			    SNDRV_PCM_FMTBIT_S32_LE),
-	},
-	.capture = {
-		.stream_name = "Capture",
-		.channels_min = 2,
-		.channels_max = 32,
-		.rates = SNDRV_PCM_RATE_8000_192000,
-		.formats = (SNDRV_PCM_FMTBIT_S8 |
-			    SNDRV_PCM_FMTBIT_S16_LE |
-			    SNDRV_PCM_FMTBIT_S20_3LE |
-			    SNDRV_PCM_FMTBIT_S24_LE |
-			    SNDRV_PCM_FMTBIT_S32_LE),
-	},
-	.ops = &rockchip_mdais_dai_ops,
-};
-
 static const struct snd_soc_component_driver rockchip_mdais_component = {
 	.name = DAIS_DRV_NAME,
 };
@@ -313,16 +286,80 @@ static void mdais_parse_daifmt(struct device_node *node, struct rk_dai *dais,
 	}
 }
 
+static int rockchip_mdais_dai_prepare(struct platform_device *pdev,
+				      struct snd_soc_dai_driver **soc_dai)
+{
+	struct snd_soc_dai_driver rockchip_mdais_dai = {
+		.probe = rockchip_mdais_dai_probe,
+		.playback = {
+			.stream_name = "Playback",
+			.channels_min = 2,
+			.channels_max = 32,
+			.rates = SNDRV_PCM_RATE_8000_192000,
+			.formats = (SNDRV_PCM_FMTBIT_S8 |
+				    SNDRV_PCM_FMTBIT_S16_LE |
+				    SNDRV_PCM_FMTBIT_S20_3LE |
+				    SNDRV_PCM_FMTBIT_S24_LE |
+				    SNDRV_PCM_FMTBIT_S32_LE),
+		},
+		.capture = {
+			.stream_name = "Capture",
+			.channels_min = 2,
+			.channels_max = 32,
+			.rates = SNDRV_PCM_RATE_8000_192000,
+			.formats = (SNDRV_PCM_FMTBIT_S8 |
+				    SNDRV_PCM_FMTBIT_S16_LE |
+				    SNDRV_PCM_FMTBIT_S20_3LE |
+				    SNDRV_PCM_FMTBIT_S24_LE |
+				    SNDRV_PCM_FMTBIT_S32_LE),
+		},
+		.ops = &rockchip_mdais_dai_ops,
+	};
+
+	*soc_dai = devm_kmemdup(&pdev->dev, &rockchip_mdais_dai,
+				sizeof(rockchip_mdais_dai), GFP_KERNEL);
+	if (!(*soc_dai))
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void mdais_fixup_dai(struct snd_soc_dai_driver *soc_dai,
+			    struct rk_mdais_dev *mdais)
+{
+	int i, tch, rch;
+	unsigned int *tx_maps, *rx_maps;
+
+	tch = 0;
+	rch = 0;
+	tx_maps = mdais->playback_channel_maps;
+	rx_maps = mdais->capture_channel_maps;
+	for (i = 0; i < mdais->num_dais; i++) {
+		tch += tx_maps[i];
+		rch += rx_maps[i];
+	}
+
+	soc_dai->playback.channels_min = tch;
+	soc_dai->playback.channels_max = tch;
+	soc_dai->capture.channels_min = rch;
+	soc_dai->capture.channels_max = rch;
+}
+
 static int rockchip_mdais_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct platform_device  *sub_pdev;
 	struct rk_mdais_dev *mdais;
 	struct device_node *node;
+	struct snd_soc_dai_driver *soc_dai;
 	struct rk_dai *dais;
 	unsigned int *map;
 	int count, mp_count;
 	int ret = 0, i = 0;
+
+	ret = rockchip_mdais_dai_prepare(pdev, &soc_dai);
+	if (ret < 0)
+		return ret;
 
 	mdais = devm_kzalloc(&pdev->dev, sizeof(*mdais), GFP_KERNEL);
 	if (!mdais)
@@ -379,6 +416,7 @@ static int rockchip_mdais_probe(struct platform_device *pdev)
 	}
 
 	mdais_parse_daifmt(np, dais, count);
+	mdais_fixup_dai(soc_dai, mdais);
 
 	mdais->dais = dais;
 	mdais->dev = &pdev->dev;
@@ -393,7 +431,7 @@ static int rockchip_mdais_probe(struct platform_device *pdev)
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &rockchip_mdais_component,
-					      &rockchip_mdais_dai, 1);
+					      soc_dai, 1);
 
 	if (ret) {
 		dev_err(&pdev->dev, "could not register dai: %d\n", ret);
