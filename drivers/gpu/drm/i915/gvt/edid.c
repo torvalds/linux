@@ -77,6 +77,20 @@ static unsigned char edid_get_byte(struct intel_vgpu *vgpu)
 	return chr;
 }
 
+static inline int bxt_get_port_from_gmbus0(u32 gmbus0)
+{
+	int port_select = gmbus0 & _GMBUS_PIN_SEL_MASK;
+	int port = -EINVAL;
+
+	if (port_select == 1)
+		port = PORT_B;
+	else if (port_select == 2)
+		port = PORT_C;
+	else if (port_select == 3)
+		port = PORT_D;
+	return port;
+}
+
 static inline int get_port_from_gmbus0(u32 gmbus0)
 {
 	int port_select = gmbus0 & _GMBUS_PIN_SEL_MASK;
@@ -105,6 +119,7 @@ static void reset_gmbus_controller(struct intel_vgpu *vgpu)
 static int gmbus0_mmio_write(struct intel_vgpu *vgpu,
 			unsigned int offset, void *p_data, unsigned int bytes)
 {
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	int port, pin_select;
 
 	memcpy(&vgpu_vreg(vgpu, offset), p_data, bytes);
@@ -116,7 +131,10 @@ static int gmbus0_mmio_write(struct intel_vgpu *vgpu,
 	if (pin_select == 0)
 		return 0;
 
-	port = get_port_from_gmbus0(pin_select);
+	if (IS_BROXTON(dev_priv))
+		port = bxt_get_port_from_gmbus0(pin_select);
+	else
+		port = get_port_from_gmbus0(pin_select);
 	if (WARN_ON(port < 0))
 		return 0;
 

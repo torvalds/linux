@@ -171,6 +171,29 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	int pipe;
 
+	if (IS_BROXTON(dev_priv)) {
+		vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) &= ~(BXT_DE_PORT_HP_DDIA |
+			BXT_DE_PORT_HP_DDIB |
+			BXT_DE_PORT_HP_DDIC);
+
+		if (intel_vgpu_has_monitor_on_port(vgpu, PORT_A)) {
+			vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) |=
+				BXT_DE_PORT_HP_DDIA;
+		}
+
+		if (intel_vgpu_has_monitor_on_port(vgpu, PORT_B)) {
+			vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) |=
+				BXT_DE_PORT_HP_DDIB;
+		}
+
+		if (intel_vgpu_has_monitor_on_port(vgpu, PORT_C)) {
+			vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) |=
+				BXT_DE_PORT_HP_DDIC;
+		}
+
+		return;
+	}
+
 	vgpu_vreg_t(vgpu, SDEISR) &= ~(SDE_PORTB_HOTPLUG_CPT |
 			SDE_PORTC_HOTPLUG_CPT |
 			SDE_PORTD_HOTPLUG_CPT);
