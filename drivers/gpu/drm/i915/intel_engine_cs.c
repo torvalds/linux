@@ -1168,9 +1168,6 @@ void intel_engine_lost_context(struct intel_engine_cs *engine)
 
 	lockdep_assert_held(&engine->i915->drm.struct_mutex);
 
-	engine->legacy_active_context = NULL;
-	engine->legacy_active_ppgtt = NULL;
-
 	ce = fetch_and_zero(&engine->last_retired_context);
 	if (ce)
 		intel_context_unpin(ce);

@@ -1712,45 +1712,6 @@ static void gen6_write_page_range(struct i915_hw_ppgtt *ppgtt,
 	wmb();
 }
 
-static inline u32 get_pd_offset(struct i915_hw_ppgtt *ppgtt)
-{
-	GEM_BUG_ON(ppgtt->pd.base.ggtt_offset & 0x3f);
-	return ppgtt->pd.base.ggtt_offset << 10;
-}
-
-static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
-			  struct i915_request *rq)
-{
-	struct intel_engine_cs *engine = rq->engine;
-	u32 *cs;
-
-	/* NB: TLBs must be flushed and invalidated before a switch */
-	cs = intel_ring_begin(rq, 6);
-	if (IS_ERR(cs))
-		return PTR_ERR(cs);
-
-	*cs++ = MI_LOAD_REGISTER_IMM(2);
-	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_DCLV(engine));
-	*cs++ = PP_DIR_DCLV_2G;
-	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_BASE(engine));
-	*cs++ = get_pd_offset(ppgtt);
-	*cs++ = MI_NOOP;
-	intel_ring_advance(rq, cs);
-
-	return 0;
-}
-
-static int gen6_mm_switch(struct i915_hw_ppgtt *ppgtt,
-			  struct i915_request *rq)
-{
-	struct intel_engine_cs *engine = rq->engine;
-	struct drm_i915_private *dev_priv = rq->i915;
-
-	I915_WRITE(RING_PP_DIR_DCLV(engine), PP_DIR_DCLV_2G);
-	I915_WRITE(RING_PP_DIR_BASE(engine), get_pd_offset(ppgtt));
-	return 0;
-}
-
 static void gen8_ppgtt_enable(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
@@ -2024,12 +1985,6 @@ static struct i915_hw_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 	ppgtt->vm.dma = &i915->drm.pdev->dev;
 
 	ppgtt->vm.pte_encode = ggtt->vm.pte_encode;
-	if (IS_GEN6(i915))
-		ppgtt->switch_mm = gen6_mm_switch;
-	else if (IS_GEN7(i915))
-		ppgtt->switch_mm = gen7_mm_switch;
-	else
-		BUG();
 
 	err = gen6_ppgtt_alloc(ppgtt);
 	if (err)

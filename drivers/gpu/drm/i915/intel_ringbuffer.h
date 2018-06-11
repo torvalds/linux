@@ -557,15 +557,6 @@ struct intel_engine_cs {
 	 */
 	struct intel_context *last_retired_context;
 
-	/* We track the current MI_SET_CONTEXT in order to eliminate
-	 * redudant context switches. This presumes that requests are not
-	 * reordered! Or when they are the tracking is updated along with
-	 * the emission of individual requests into the legacy command
-	 * stream (ring).
-	 */
-	struct i915_gem_context *legacy_active_context;
-	struct i915_hw_ppgtt *legacy_active_ppgtt;
-
 	/* status_notifier: list of callbacks for context-switch changes */
 	struct atomic_notifier_head context_status_notifier;
 

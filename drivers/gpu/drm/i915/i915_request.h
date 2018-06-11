@@ -134,6 +134,9 @@ struct i915_request {
 	/** Position in the ring of the start of the request */
 	u32 head;
 
+	/** Position in the ring of the start of the user packets */
+	u32 infix;
+
 	/**
 	 * Position in the ring of the start of the postfix.
 	 * This is required to calculate the maximum available ring space

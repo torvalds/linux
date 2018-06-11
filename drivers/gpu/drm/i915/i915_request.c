@@ -817,6 +817,8 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	/* Keep a second pin for the dual retirement along engine and ring */
 	__intel_context_pin(ce);
 
+	rq->infix = rq->ring->emit; /* end of header; start of user payload */
+
 	/* Check that we didn't interrupt ourselves with a new request */
 	GEM_BUG_ON(rq->timeline->seqno != rq->fence.seqno);
 	return rq;

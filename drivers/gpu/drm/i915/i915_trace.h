@@ -973,39 +973,6 @@ DEFINE_EVENT(i915_context, i915_context_free,
 	TP_ARGS(ctx)
 );
 
-/**
- * DOC: switch_mm tracepoint
- *
- * This tracepoint allows tracking of the mm switch, which is an important point
- * in the lifetime of the vm in the legacy submission path. This tracepoint is
- * called only if full ppgtt is enabled.
- */
-TRACE_EVENT(switch_mm,
-	TP_PROTO(struct intel_engine_cs *engine, struct i915_gem_context *to),
-
-	TP_ARGS(engine, to),
-
-	TP_STRUCT__entry(
-			__field(u16, class)
-			__field(u16, instance)
-			__field(struct i915_gem_context *, to)
-			__field(struct i915_address_space *, vm)
-			__field(u32, dev)
-	),
-
-	TP_fast_assign(
-			__entry->class = engine->uabi_class;
-			__entry->instance = engine->instance;
-			__entry->to = to;
-			__entry->vm = to->ppgtt ? &to->ppgtt->vm : NULL;
-			__entry->dev = engine->i915->drm.primary->index;
-	),
-
-	TP_printk("dev=%u, engine=%u:%u, ctx=%p, ctx_vm=%p",
-		  __entry->dev, __entry->class, __entry->instance, __entry->to,
-		  __entry->vm)
-);
-
 #endif /* _I915_TRACE_H_ */
 
 /* This part must be outside protection */

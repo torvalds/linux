@@ -541,11 +541,23 @@ static struct i915_request *reset_prepare(struct intel_engine_cs *engine)
 	return i915_gem_find_active_request(engine);
 }
 
-static void reset_ring(struct intel_engine_cs *engine,
-		       struct i915_request *request)
+static void skip_request(struct i915_request *rq)
 {
-	GEM_TRACE("%s seqno=%x\n",
-		  engine->name, request ? request->global_seqno : 0);
+	void *vaddr = rq->ring->vaddr;
+	u32 head;
+
+	head = rq->infix;
+	if (rq->postfix < head) {
+		memset32(vaddr + head, MI_NOOP,
+			 (rq->ring->size - head) / sizeof(u32));
+		head = 0;
+	}
+	memset32(vaddr + head, MI_NOOP, (rq->postfix - head) / sizeof(u32));
+}
+
+static void reset_ring(struct intel_engine_cs *engine, struct i915_request *rq)
+{
+	GEM_TRACE("%s seqno=%x\n", engine->name, rq ? rq->global_seqno : 0);
 
 	/*
 	 * RC6 must be prevented until the reset is complete and the engine
@@ -569,43 +581,11 @@ static void reset_ring(struct intel_engine_cs *engine,
 	 * If the request was innocent, we try to replay the request with
 	 * the restored context.
 	 */
-	if (request) {
-		struct drm_i915_private *dev_priv = request->i915;
-		struct intel_context *ce = request->hw_context;
-		struct i915_hw_ppgtt *ppgtt;
-
-		if (ce->state) {
-			I915_WRITE(CCID,
-				   i915_ggtt_offset(ce->state) |
-				   BIT(8) /* must be set! */ |
-				   CCID_EXTENDED_STATE_SAVE |
-				   CCID_EXTENDED_STATE_RESTORE |
-				   CCID_EN);
-		}
-
-		ppgtt = request->gem_context->ppgtt ?: engine->i915->mm.aliasing_ppgtt;
-		if (ppgtt) {
-			u32 pd_offset = ppgtt->pd.base.ggtt_offset << 10;
-
-			I915_WRITE(RING_PP_DIR_DCLV(engine), PP_DIR_DCLV_2G);
-			I915_WRITE(RING_PP_DIR_BASE(engine), pd_offset);
-
-			/* Wait for the PD reload to complete */
-			if (intel_wait_for_register(dev_priv,
-						    RING_PP_DIR_BASE(engine),
-						    BIT(0), 0,
-						    10))
-				DRM_ERROR("Wait for reload of ppgtt page-directory timed out\n");
-
-			ppgtt->pd_dirty_rings &= ~intel_engine_flag(engine);
-		}
-
+	if (rq) {
 		/* If the rq hung, jump to its breadcrumb and skip the batch */
-		if (request->fence.error == -EIO)
-			request->ring->head = request->postfix;
-	} else {
-		engine->legacy_active_context = NULL;
-		engine->legacy_active_ppgtt = NULL;
+		rq->ring->head = intel_ring_wrap(rq->ring, rq->head);
+		if (rq->fence.error == -EIO)
+			skip_request(rq);
 	}
 }
 
@@ -1446,6 +1426,29 @@ void intel_legacy_submission_resume(struct drm_i915_private *dev_priv)
 		intel_ring_reset(engine->buffer, 0);
 }
 
+static int load_pd_dir(struct i915_request *rq,
+		       const struct i915_hw_ppgtt *ppgtt)
+{
+	const struct intel_engine_cs * const engine = rq->engine;
+	u32 *cs;
+
+	cs = intel_ring_begin(rq, 6);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
+
+	*cs++ = MI_LOAD_REGISTER_IMM(1);
+	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_DCLV(engine));
+	*cs++ = PP_DIR_DCLV_2G;
+
+	*cs++ = MI_LOAD_REGISTER_IMM(1);
+	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_BASE(engine));
+	*cs++ = ppgtt->pd.base.ggtt_offset << 10;
+
+	intel_ring_advance(rq, cs);
+
+	return 0;
+}
+
 static inline int mi_set_context(struct i915_request *rq, u32 flags)
 {
 	struct drm_i915_private *i915 = rq->i915;
@@ -1590,31 +1593,28 @@ static int remap_l3(struct i915_request *rq, int slice)
 static int switch_context(struct i915_request *rq)
 {
 	struct intel_engine_cs *engine = rq->engine;
-	struct i915_gem_context *to_ctx = rq->gem_context;
-	struct i915_hw_ppgtt *to_mm =
-		to_ctx->ppgtt ?: rq->i915->mm.aliasing_ppgtt;
-	struct i915_gem_context *from_ctx = engine->legacy_active_context;
-	struct i915_hw_ppgtt *from_mm = engine->legacy_active_ppgtt;
+	struct i915_gem_context *ctx = rq->gem_context;
+	struct i915_hw_ppgtt *ppgtt = ctx->ppgtt ?: rq->i915->mm.aliasing_ppgtt;
+	unsigned int unwind_mm = 0;
 	u32 hw_flags = 0;
 	int ret, i;
 
 	lockdep_assert_held(&rq->i915->drm.struct_mutex);
 	GEM_BUG_ON(HAS_EXECLISTS(rq->i915));
 
-	if (to_mm != from_mm ||
-	    (to_mm && intel_engine_flag(engine) & to_mm->pd_dirty_rings)) {
-		trace_switch_mm(engine, to_ctx);
-		ret = to_mm->switch_mm(to_mm, rq);
+	if (ppgtt) {
+		ret = load_pd_dir(rq, ppgtt);
 		if (ret)
 			goto err;
 
-		to_mm->pd_dirty_rings &= ~intel_engine_flag(engine);
-		engine->legacy_active_ppgtt = to_mm;
-		hw_flags = MI_FORCE_RESTORE;
+		if (intel_engine_flag(engine) & ppgtt->pd_dirty_rings) {
+			unwind_mm = intel_engine_flag(engine);
+			ppgtt->pd_dirty_rings &= ~unwind_mm;
+			hw_flags = MI_FORCE_RESTORE;
+		}
 	}
 
-	if (rq->hw_context->state &&
-	    (to_ctx != from_ctx || hw_flags & MI_FORCE_RESTORE)) {
+	if (rq->hw_context->state) {
 		GEM_BUG_ON(engine->id != RCS);
 
 		/*
@@ -1624,35 +1624,32 @@ static int switch_context(struct i915_request *rq)
 		 * as nothing actually executes using the kernel context; it
 		 * is purely used for flushing user contexts.
 		 */
-		if (i915_gem_context_is_kernel(to_ctx))
+		if (i915_gem_context_is_kernel(ctx))
 			hw_flags = MI_RESTORE_INHIBIT;
 
 		ret = mi_set_context(rq, hw_flags);
 		if (ret)
 			goto err_mm;
-
-		engine->legacy_active_context = to_ctx;
 	}
 
-	if (to_ctx->remap_slice) {
+	if (ctx->remap_slice) {
 		for (i = 0; i < MAX_L3_SLICES; i++) {
-			if (!(to_ctx->remap_slice & BIT(i)))
+			if (!(ctx->remap_slice & BIT(i)))
 				continue;
 
 			ret = remap_l3(rq, i);
 			if (ret)
-				goto err_ctx;
+				goto err_mm;
 		}
 
-		to_ctx->remap_slice = 0;
+		ctx->remap_slice = 0;
 	}
 
 	return 0;
 
-err_ctx:
-	engine->legacy_active_context = from_ctx;
 err_mm:
-	engine->legacy_active_ppgtt = from_mm;
+	if (unwind_mm)
+		ppgtt->pd_dirty_rings |= unwind_mm;
 err:
 	return ret;
 }
