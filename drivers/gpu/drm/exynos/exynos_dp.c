@@ -16,6 +16,7 @@
 #include <linux/clk.h>
 #include <linux/of_graph.h>
 #include <linux/component.h>
+#include <linux/pm_runtime.h>
 #include <video/of_display_timing.h>
 #include <video/of_videomode.h>
 #include <video/videomode.h>
@@ -278,6 +279,8 @@ static int exynos_dp_resume(struct device *dev)
 
 static const struct dev_pm_ops exynos_dp_pm_ops = {
 	SET_RUNTIME_PM_OPS(exynos_dp_suspend, exynos_dp_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 };
 
 static const struct of_device_id exynos_dp_match[] = {

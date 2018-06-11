@@ -1271,6 +1271,8 @@ static int __maybe_unused exynos_mixer_resume(struct device *dev)
 
 static const struct dev_pm_ops exynos_mixer_pm_ops = {
 	SET_RUNTIME_PM_OPS(exynos_mixer_suspend, exynos_mixer_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 };
 
 struct platform_driver mixer_driver = {
