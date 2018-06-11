@@ -16,11 +16,10 @@ else
 $(error Unrecognized platform: $(OUTPUT_FORMAT))
 endif
 
-ifeq ($(shell test ".$(OUTPUT_FORMAT)" = .elf64-x86-64-freebsd -a \
-                   ".$(CROSS_COMPILE)" = . &&  printf "true"), true)
-NPROC=$(shell sysctl -n hw.ncpu)
-else
+ifeq ($(shell uname -s), Linux)
 NPROC=$(shell nproc)
+else # e.g., FreeBSD
+NPROC=$(shell sysctl -n hw.ncpu)
 endif
 
 LDFLAGS_vmlinux += -r
