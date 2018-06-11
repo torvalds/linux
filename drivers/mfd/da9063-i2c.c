@@ -270,15 +270,6 @@ static int da9063_i2c_probe(struct i2c_client *i2c,
 	return da9063_device_init(da9063, i2c->irq);
 }
 
-static int da9063_i2c_remove(struct i2c_client *i2c)
-{
-	struct da9063 *da9063 = i2c_get_clientdata(i2c);
-
-	da9063_device_exit(da9063);
-
-	return 0;
-}
-
 static const struct i2c_device_id da9063_i2c_id[] = {
 	{"da9063", PMIC_DA9063},
 	{},
@@ -291,7 +282,6 @@ static struct i2c_driver da9063_i2c_driver = {
 		.of_match_table = of_match_ptr(da9063_dt_ids),
 	},
 	.probe    = da9063_i2c_probe,
-	.remove   = da9063_i2c_remove,
 	.id_table = da9063_i2c_id,
 };
 

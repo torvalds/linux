@@ -226,18 +226,13 @@ int da9063_device_init(struct da9063 *da9063, unsigned int irq)
 
 	da9063->irq_base = regmap_irq_chip_get_base(da9063->regmap_irq);
 
-	ret = mfd_add_devices(da9063->dev, -1, da9063_devs,
-			      ARRAY_SIZE(da9063_devs), NULL, da9063->irq_base,
-			      NULL);
+	ret = devm_mfd_add_devices(da9063->dev, -1, da9063_devs,
+				   ARRAY_SIZE(da9063_devs), NULL,
+				   da9063->irq_base, NULL);
 	if (ret)
 		dev_err(da9063->dev, "Cannot add MFD cells\n");
 
 	return ret;
-}
-
-void da9063_device_exit(struct da9063 *da9063)
-{
-	mfd_remove_devices(da9063->dev);
 }
 
 MODULE_DESCRIPTION("PMIC driver for Dialog DA9063");
