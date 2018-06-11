@@ -6,10 +6,10 @@ menuconfig RK_FLASH
 	tristate "Rockchip Flash Devices Support"
 	default n
 	help
-	  Enable rockchip flash devices support.
+	  This enables support for Rockchip Flash Devices including Nandc Slc
+	  Nand, SFC Spi Nand and SFC Spi Nor.
 
-	  rkflash driver support 3-type flash devices: NANDC NAND, SFC_NOR
-	  and SFC_NAND.
+	  They're block interface.
 
 	  Say Y when you have a board with one of them.
 
@@ -18,45 +18,48 @@ if RK_FLASH
 comment "Rockchip Flash Devices"
 
 config RK_NANDC_NAND
-	tristate "RK NANDC NAND Device Support"
+	tristate "Rockchip NANDC Slc Nand Devices support"
 	default n
-	depends on (BLOCK_RKNAND != y && RK_NAND != y)
+	depends on RK_NAND != y
 	help
-	  Enable NANDC_NAND device support.
+	  This enables support for NANDC Slc Nand Devices.
 
-	  It's block interface. only effective for some kinds of slc nand
-          flash, and it's compatible with spi nand flash drivers.
+	  It's block interface, 512Kb/sector.
 
-	  Say Y when you have a board with nand flash supported by rockchip.
-	  nandc controller.
-
-config RK_SFC_NOR
-	tristate "RK SFC NOR Device Support"
-	default n
-	help
-	  Enable SFC_NOR device support.
-	  It's block interface.
-	  Say Y when you have a board with nor flash supported by rockchip
-	  sfc controller.
+	  Say Y when you have a board with Slc Nand Flash supported by Rockchip
+	  Nandc controller.
 
 config RK_SFC_NAND
-	tristate "RK SFC NAND Device Support"
+	tristate "Rockchip SFC Spi Nand Devices support"
+	default n
+	depends on RK_NAND != y
+	help
+	  This enables support for Rockchip SFC Spi Nand Devices.
+
+	  It's block interface, 512Kb/sector.
+
+	  Say Y when you have a board with Spi Nand Flash supported by Rockchip
+	  Serial Flash Controller(SFC).
+
+config RK_SFC_NOR
+	tristate "Rockchip SFC Spi Nor Devices Support"
 	default n
 	help
-	  Enable SFC_NAND device support.
-	  It's block interface
-	  Say Y when you have a board with nand flash supported by rockchip
-	  sfc controller.
+	  This enables support for Rockchip SFC Spi Nor Devices.
+
+	  It's block interface,512Kb/sector.
+
+	  Say Y when you have a board with Spi Nor Flash supported by Rockchip
+	  Serial Flash Controller(SFC).
 
 config RK_SFC_NOR_MTD
 	bool "RK SFC NOR mtd Interface Support"
-	depends on RK_SFC_NOR
 	default n
+	depends on RK_SFC_NOR
 	help
 	  Enable mtd interface for SFC_NOR device.
-	  It's mtd block interface.
-	  Say Y when you have a board with mtd interface nor flash supported
-	  by rockchip sfc controller.
+
+	  Say Y when you wanna use mtd interface for SFC_NOR flash.
 
 endif # RK_FLASH
 

@@ -3,6 +3,8 @@
 /* Copyright (c) 2018 Rockchip Electronics Co. Ltd. */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
+
 #include "flash_com.h"
 
 struct nand_phy_info	g_nand_phy_info;
@@ -11,6 +13,16 @@ struct nand_ops		g_nand_ops;
 static u32 check_buf[MAX_FLASH_PAGE_SIZE / 4];
 static u32 check_spare_buf[MAX_FLASH_PAGE_SIZE / 8 / 4];
 static u32 pg_buf0[MAX_FLASH_PAGE_SIZE / 4];
+
+void *ftl_malloc(int size)
+{
+	return kmalloc(size, GFP_KERNEL | GFP_DMA);
+}
+
+void ftl_free(void *buf)
+{
+	kfree(buf);
+}
 
 static u32 l2p_addr_tran(struct nand_req *req, u32 *addr, u32 *p_die)
 {

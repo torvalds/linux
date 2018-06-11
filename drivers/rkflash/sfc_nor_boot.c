@@ -7,7 +7,7 @@
 
 #include "sfc.h"
 #include "sfc_nor.h"
-#include "sfc_nor_boot.h"
+#include "rkflash_api.h"
 #include "typedef.h"
 
 #define VENDOR_PART_NUM			4
@@ -18,6 +18,8 @@
 #define	FLASH_VENDOR_PART_END		\
 	(FLASH_VENDOR_PART_START +\
 	FLASH_VENDOR_PART_SIZE * VENDOR_PART_NUM - 1)
+
+struct SFNOR_DEV sfnor_dev;
 
 /* SFNOR_DEV sfnor_dev is in the sfc_nor.h */
 int spi_flash_init(void __iomem	*reg_addr)

@@ -35,7 +35,7 @@ void *ftl_memset(void *s, int c, unsigned int n);
 void *ftl_memcpy(void *pv_to,
 		 const void *pv_from,
 		 unsigned int size);
-void ftl_free(void *p, int size);
+void ftl_free(void *p);
 void rknand_print_hex(char *s, void *buf, int width, int len);
 
 #endif  /*__TYPEDEF_H */

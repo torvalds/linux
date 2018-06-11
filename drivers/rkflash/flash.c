@@ -8,6 +8,7 @@
 #include "flash.h"
 #include "flash_com.h"
 #include "nandc.h"
+#include "rkflash_debug.h"
 
 #define FLASH_STRESS_TEST_EN		0
 
@@ -69,9 +70,9 @@ static void flash_read_id_raw(u8 cs, u8 *buf)
 
 	nandc_flash_de_cs(cs);
 	if (ptr[0] != 0xFF && ptr[0] && ptr[1] != 0xFF)
-		PRINT_E("No.%d FLASH ID:%x %x %x %x %x %x\n",
-			cs + 1, ptr[0], ptr[1], ptr[2],
-			ptr[3], ptr[4], ptr[5]);
+		PRINT_NANDC_E("No.%d FLASH ID:%x %x %x %x %x %x\n",
+			      cs + 1, ptr[0], ptr[1], ptr[2],
+			      ptr[3], ptr[4], ptr[5]);
 }
 
 static void flash_bch_sel(u8 bits)
@@ -152,12 +153,12 @@ static u32 flash_read_page_raw(u8 cs, u32 page_addr, u32 *p_data, u32 *p_spare)
 	error_ecc_bits = nandc_xfer_data(cs, NANDC_READ, sec_per_page,
 					 p_data, p_spare);
 	if (error_ecc_bits > 2) {
-		PRINT_E("FlashReadRawPage %x %x error_ecc_bits %d\n",
-			cs, page_addr, error_ecc_bits);
+		PRINT_NANDC_E("FlashReadRawPage %x %x error_ecc_bits %d\n",
+			      cs, page_addr, error_ecc_bits);
 		if (p_data)
-			rknand_print_hex("data:", p_data, 4, 8);
+			PRINT_NANDC_HEX("data:", p_data, 4, 8);
 		if (p_spare)
-			rknand_print_hex("spare:", p_spare, 4, 2);
+			PRINT_NANDC_HEX("spare:", p_spare, 4, 2);
 	}
 	nandc_flash_de_cs(cs);
 
@@ -196,10 +197,10 @@ static u32 flash_prog_page(u8 cs, u32 page_addr, u32 *p_data, u32 *p_spare)
 	status = flash_read_status(cs, page_addr);
 	nandc_flash_de_cs(cs);
 	status &= 0x01;
-	if (status)
-		PRINT_I("%s addr=%x status=%x\n", __func__,
-			page_addr, status);
-
+	if (status) {
+		PRINT_NANDC_I("%s addr=%x status=%x\n",
+			      __func__, page_addr, status);
+	}
 	return status;
 }
 
@@ -214,10 +215,10 @@ static u32 flash_erase_block(u8 cs, u32 page_addr)
 	status = flash_read_status(cs, page_addr);
 	nandc_flash_de_cs(cs);
 	status &= 0x01;
-	if (status)
-		PRINT_I("%s addr=%x status=%x\n", __func__,
-			page_addr, status);
-
+	if (status) {
+		PRINT_NANDC_I("%s pageadd=%x status=%x\n",
+			      __func__, page_addr, status);
+	}
 	return status;
 }
 
@@ -266,7 +267,7 @@ static s32 get_bad_blk_list(u16 *table, u32 die)
 		    bad_flag1 != 0xFF ||
 		    bad_flag2 != 0xFF) {
 			table[bad_cnt++] = blk;
-			PRINT_E("die[%d], bad_blk[%d]\n", die, blk);
+			PRINT_NANDC_E("die[%d], bad_blk[%d]\n", die, blk);
 		}
 	}
 	return bad_cnt;
@@ -293,8 +294,7 @@ static void flash_test(void)
 	u32 blk_addr = 64;
 	u32 is_bad_blk = 0;
 
-	PRINT_E("%s\n", __func__);
-
+	PRINT_NANDC_E("%s\n", __func__);
 	bad_blk_num = 0;
 	bad_page_num = 0;
 	bad_cnt	= get_bad_blk_list(bad_blk_list, 0);
@@ -307,7 +307,7 @@ static void flash_test(void)
 		if (i < bad_cnt)
 			continue;
 		is_bad_blk = 0;
-		PRINT_E("Flash prog block: %x\n", blk);
+		PRINT_NANDC_E("Flash prog block: %x\n", blk);
 		flash_erase_block(0, blk * blk_addr);
 		for (page = 0; page < pages_num; page++) {
 			page_addr = blk * blk_addr + page;
@@ -336,19 +336,21 @@ static void flash_test(void)
 			}
 			if (is_bad_blk) {
 				bad_page_num++;
-				PRINT_E("ERR:page%x, ret=%x\n", page_addr, ret);
-				rknand_print_hex("data:", pread, 4, 8);
-				rknand_print_hex("spare:", pspare_read, 4, 2);
+				PRINT_NANDC_E("ERR:page %x, ret= %x\n",
+					      page_addr,
+					      ret);
+				PRINT_NANDC_HEX("data:", pread, 4, 8);
+				PRINT_NANDC_HEX("spare:", pspare_read, 4, 2);
 			}
 		}
 		flash_erase_block(0, blk * blk_addr);
 		if (is_bad_blk)
 			bad_blk_num++;
 	}
-	PRINT_E("bad_blk_num = %d, bad_page_num = %d\n",
-		bad_blk_num, bad_page_num);
+	PRINT_NANDC_E("bad_blk_num = %d, bad_page_num = %d\n",
+		      bad_blk_num, bad_page_num);
 
-	PRINT_E("Flash Test Finish!!!\n");
+	PRINT_NANDC_E("Flash Test Finish!!!\n");
 	while (1)
 		;
 }
@@ -369,57 +371,58 @@ static void flash_die_info_init(void)
 			nand_para.blk_per_plane;
 }
 
-static void flash_print_info(void)
+static void nandc_flash_print_info(void)
 {
-	PRINT_I("No.0 FLASH ID: %x %x %x %x %x %x\n",
-		nand_para.nand_id[0],
-		nand_para.nand_id[1],
-		nand_para.nand_id[2],
-		nand_para.nand_id[3],
-		nand_para.nand_id[4],
-		nand_para.nand_id[5]);
-	PRINT_I("die_per_chip: %x\n", nand_para.die_per_chip);
-	PRINT_I("sec_per_page: %x\n", nand_para.sec_per_page);
-	PRINT_I("page_per_blk: %x\n", nand_para.page_per_blk);
-	PRINT_I("cell: %x\n", nand_para.cell);
-	PRINT_I("plane_per_die: %x\n", nand_para.plane_per_die);
-	PRINT_I("blk_per_plane: %x\n", nand_para.blk_per_plane);
-	PRINT_I("TotleBlock: %x\n", g_totle_block);
-	PRINT_I("die gap: %x\n", nand_para.die_gap);
-	PRINT_I("lsb_mode: %x\n", nand_para.lsb_mode);
-	PRINT_I("read_retry_mode: %x\n", nand_para.read_retry_mode);
-	PRINT_I("ecc_bits: %x\n", nand_para.ecc_bits);
-	PRINT_I("Use ecc_bits: %x\n", g_nand_flash_ecc_bits);
-	PRINT_I("access_freq: %x\n", nand_para.access_freq);
-	PRINT_I("opt_mode: %x\n", nand_para.opt_mode);
+	PRINT_NANDC_I("No.0 FLASH ID: %x %x %x %x %x %x\n",
+		      nand_para.nand_id[0],
+		      nand_para.nand_id[1],
+		      nand_para.nand_id[2],
+		      nand_para.nand_id[3],
+		      nand_para.nand_id[4],
+		      nand_para.nand_id[5]);
+	PRINT_NANDC_I("die_per_chip: %x\n", nand_para.die_per_chip);
+	PRINT_NANDC_I("sec_per_page: %x\n", nand_para.sec_per_page);
+	PRINT_NANDC_I("page_per_blk: %x\n", nand_para.page_per_blk);
+	PRINT_NANDC_I("cell: %x\n", nand_para.cell);
+	PRINT_NANDC_I("plane_per_die: %x\n", nand_para.plane_per_die);
+	PRINT_NANDC_I("blk_per_plane: %x\n", nand_para.blk_per_plane);
+	PRINT_NANDC_I("TotleBlock: %x\n", g_totle_block);
+	PRINT_NANDC_I("die gap: %x\n", nand_para.die_gap);
+	PRINT_NANDC_I("lsb_mode: %x\n", nand_para.lsb_mode);
+	PRINT_NANDC_I("read_retry_mode: %x\n", nand_para.read_retry_mode);
+	PRINT_NANDC_I("ecc_bits: %x\n", nand_para.ecc_bits);
+	PRINT_NANDC_I("Use ecc_bits: %x\n", g_nand_flash_ecc_bits);
+	PRINT_NANDC_I("access_freq: %x\n", nand_para.access_freq);
+	PRINT_NANDC_I("opt_mode: %x\n", nand_para.opt_mode);
 
-	PRINT_I("Cache read enable: %x\n",
-		nand_para.operation_opt & NAND_CACHE_READ_EN ? 1 : 0);
-	PRINT_I("Cache random read enable: %x\n",
-		nand_para.operation_opt & NAND_CACHE_RANDOM_READ_EN ? 1 : 0);
-	PRINT_I("Cache prog enable: %x\n",
-		nand_para.operation_opt & NAND_CACHE_PROG_EN ? 1 : 0);
-	PRINT_I("multi read enable: %x\n",
-		nand_para.operation_opt & NAND_MULTI_READ_EN ? 1 : 0);
+	PRINT_NANDC_I("Cache read enable: %x\n",
+		      nand_para.operation_opt & NAND_CACHE_READ_EN ? 1 : 0);
+	PRINT_NANDC_I("Cache random read enable: %x\n",
+		      nand_para.operation_opt &
+			NAND_CACHE_RANDOM_READ_EN ? 1 : 0);
+	PRINT_NANDC_I("Cache prog enable: %x\n",
+		      nand_para.operation_opt & NAND_CACHE_PROG_EN ? 1 : 0);
+	PRINT_NANDC_I("multi read enable: %x\n",
+		      nand_para.operation_opt & NAND_MULTI_READ_EN ? 1 : 0);
 
-	PRINT_I("multi prog enable: %x\n",
-		nand_para.operation_opt & NAND_MULTI_PROG_EN ? 1 : 0);
-	PRINT_I("interleave enable: %x\n",
-		nand_para.operation_opt & NAND_INTERLEAVE_EN ? 1 : 0);
+	PRINT_NANDC_I("multi prog enable: %x\n",
+		      nand_para.operation_opt & NAND_MULTI_PROG_EN ? 1 : 0);
+	PRINT_NANDC_I("interleave enable: %x\n",
+		      nand_para.operation_opt & NAND_INTERLEAVE_EN ? 1 : 0);
 
-	PRINT_I("read retry enable: %x\n",
-		nand_para.operation_opt & NAND_READ_RETRY_EN ? 1 : 0);
-	PRINT_I("randomizer enable: %x\n",
-		nand_para.operation_opt & NAND_RANDOMIZER_EN ? 1 : 0);
+	PRINT_NANDC_I("read retry enable: %x\n",
+		      nand_para.operation_opt & NAND_READ_RETRY_EN ? 1 : 0);
+	PRINT_NANDC_I("randomizer enable: %x\n",
+		      nand_para.operation_opt & NAND_RANDOMIZER_EN ? 1 : 0);
 
-	PRINT_I("SDR enable: %x\n",
-		nand_para.operation_opt & NAND_SDR_EN ? 1 : 0);
-	PRINT_I("ONFI enable: %x\n",
-		nand_para.operation_opt & NAND_ONFI_EN ? 1 : 0);
-	PRINT_I("TOGGLE enable: %x\n",
-		nand_para.operation_opt & NAND_TOGGLE_EN ? 1 : 0);
+	PRINT_NANDC_I("SDR enable: %x\n",
+		      nand_para.operation_opt & NAND_SDR_EN ? 1 : 0);
+	PRINT_NANDC_I("ONFI enable: %x\n",
+		      nand_para.operation_opt & NAND_ONFI_EN ? 1 : 0);
+	PRINT_NANDC_I("TOGGLE enable: %x\n",
+		      nand_para.operation_opt & NAND_TOGGLE_EN ? 1 : 0);
 
-	PRINT_I("g_nand_idb_res_blk_num: %x\n", g_nand_idb_res_blk_num);
+	PRINT_NANDC_I("g_nand_idb_res_blk_num: %x\n", g_nand_idb_res_blk_num);
 }
 
 static void ftl_flash_init(void)
@@ -452,7 +455,7 @@ u32 nandc_flash_init(void __iomem *nandc_addr)
 {
 	u32 cs;
 
-	/* PRINT_I("...%s enter...\n", __func__); */
+	PRINT_NANDC_I("...%s enter...\n", __func__);
 	g_nand_idb_res_blk_num = MAX_IDB_RESERVED_BLOCK;
 
 	nandc_init(nandc_addr);
@@ -467,7 +470,9 @@ u32 nandc_flash_init(void __iomem *nandc_addr)
 			if (id_byte[0][1] != 0xF1 &&
 			    id_byte[0][1] != 0xDA &&
 			    id_byte[0][1] != 0xD1 &&
-			    id_byte[0][1] != 0x95)
+			    id_byte[0][1] != 0x95 &&
+			    id_byte[0][1] != 0xDC)
+
 				return FTL_UNSUPPORTED_FLASH;
 		}
 	}
@@ -475,10 +480,19 @@ u32 nandc_flash_init(void __iomem *nandc_addr)
 	if (id_byte[0][1] == 0xDA) {
 		nand_para.plane_per_die = 2;
 		nand_para.nand_id[1] = 0xDA;
+	} else if (id_byte[0][1] == 0xDC) {
+		nand_para.nand_id[1] = 0xDC;
+		if (id_byte[0][0] == 0x2C && id_byte[0][3] == 0xA6) {
+			nand_para.plane_per_die = 2;
+			nand_para.sec_per_page = 8;
+		} else {
+			nand_para.plane_per_die = 2;
+			nand_para.blk_per_plane = 2048;
+		}
 	}
 	flash_die_info_init();
 	flash_bch_sel(nand_para.ecc_bits);
-	flash_print_info();
+	nandc_flash_print_info();
 	/* flash_print_info(); */
 	ftl_flash_init();
 

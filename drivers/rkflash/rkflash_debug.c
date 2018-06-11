@@ -6,8 +6,9 @@
 
 #include "rkflash_debug.h"
 #include "sfc_nor.h"
+#include "typedef.h"
 
-void rkflash_print_hex(char *s, void *buf, u32 width, u32 len)
+void rknand_print_hex(char *s, void *buf, int width, int len)
 {
 	print_hex_dump(KERN_WARNING, s, DUMP_PREFIX_OFFSET,
 		       16, width, buf, len * width, 0);

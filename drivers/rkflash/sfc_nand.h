@@ -5,7 +5,24 @@
 #ifndef __SFC_NAND_H
 #define __SFC_NAND_H
 
-/* Manufactory ID */
+#define SFC_NAND_STRESS_TEST_EN		0
+
+#define SFC_NAND_PROG_ERASE_ERROR	-2
+#define SFC_NAND_HW_ERROR		-1
+#define SFC_NAND_ECC_ERROR		NAND_ERROR
+#define SFC_NAND_ECC_REFRESH		NAND_STS_REFRESH
+#define SFC_NAND_ECC_OK			NAND_STS_OK
+
+#define SFC_NAND_PAGE_MAX_SIZE		2112
+
+#define FEA_READ_STATUE_MASK    (0x3 << 0)
+#define FEA_STATUE_MODE1        0
+#define FEA_STATUE_MODE2        1
+#define FEA_4BIT_READ           BIT(2)
+#define FEA_4BIT_PROG           BIT(3)
+#define FEA_4BYTE_ADDR          BIT(4)
+#define FEA_4BYTE_ADDR_MODE	BIT(5)
+
 #define MID_WINBOND             0xEF
 #define MID_GIGADEV             0xC8
 #define MID_MICRON              0x2C
@@ -58,7 +75,46 @@
 #define CMD_ENABLE_RESER	(0x66)
 #define CMD_RESET_DEVICE	(0x99)
 
-u32 sfc_nand_init(void __iomem *sfc_addr);
+struct SFNAND_DEV {
+	u32 capacity;
+	u32 block_size;
+	u16 page_size;
+	u8 manufacturer;
+	u8 mem_type;
+	u8 read_lines;
+	u8 prog_lines;
+	u8 page_read_cmd;
+	u8 page_prog_cmd;
+};
+
+struct nand_info {
+	u32 id;
+
+	u16 sec_per_page;
+	u16 page_per_blk;
+	u16 plane_per_die;
+	u16 blk_per_plane;
+
+	u8 page_read_cmd;
+	u8 page_prog_cmd;
+	u8 read_cache_cmd_1;
+	u8 prog_cache_cmd_1;
+
+	u8 read_cache_cmd_4;
+	u8 prog_cache_cmd_4;
+	u8 block_erase_cmd;
+	u8 feature;
+
+	u8 density;  /* (1 << density) sectors*/
+	u8 max_ecc_bits;
+	u8 QE_address;
+	u8 QE_bits;
+
+	u8 spare_offs_1;
+	u8 spare_offs_2;
+};
+
+u32 sfc_nand_init(void);
 void sfc_nand_deinit(void);
 int sfc_nand_read_id(u8 *buf);
 

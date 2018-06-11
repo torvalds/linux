@@ -122,8 +122,10 @@ static int rknandc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "%s get clk error\n", __func__);
 		return -1;
 	}
-	clk_prepare_enable(g_nandc_info.g_clk);
 	clk_prepare_enable(g_nandc_info.ahb_clk);
+	if (!(IS_ERR(g_nandc_info.g_clk)))
+		clk_prepare_enable(g_nandc_info.g_clk);
+
 	clk_set_rate(g_nandc_info.clk, RKNANDC_CLK_SET_RATE);
 	g_nandc_info.clk_rate = clk_get_rate(g_nandc_info.clk);
 	clk_prepare_enable(g_nandc_info.clk);
@@ -154,6 +156,7 @@ static void rknandc_shutdown(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id of_rknandc_match[] = {
+	{.compatible = "rockchip,rk-nandc"},
 	{.compatible = "rockchip,nandc"},
 	{}
 };

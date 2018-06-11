@@ -6,15 +6,36 @@
 #define __RK_FLASH_API_H
 
 #ifdef CONFIG_RK_NANDC_NAND
-#include "nand_boot.h"
+int sftl_flash_init(void __iomem *reg_addr);
+void sftl_flash_read_id(u8 chip_sel, void *buf);
+int sftl_flash_read(unsigned int sec, unsigned int n_sec, void *p_data);
+int sftl_flash_write(unsigned int sec, unsigned int n_sec, void *p_data);
+unsigned int sftl_flash_get_capacity(void);
+void sftl_flash_deinit(void);
+int sftl_flash_resume(void __iomem *reg_addr);
+void sftl_flash_clean_irq(void);
 #endif
 
 #ifdef CONFIG_RK_SFC_NOR
-#include "sfc_nor_boot.h"
+int spi_flash_init(void __iomem *reg_addr);
+void spi_flash_read_id(u8 chip_sel, void *buf);
+int snor_read_lba(unsigned int sec, unsigned int n_sec, void *p_data);
+int snor_write_lba(unsigned int sec, unsigned int n_sec, void *p_data);
+unsigned int snor_capacity(void);
+void snor_deinit(void);
+int snor_resume(void __iomem *reg_addr);
+int snor_vendor_read(unsigned int sec, unsigned int n_sec, void *p_data);
+int snor_vendor_write(unsigned int sec, unsigned int n_sec, void *p_data);
 #endif
 
 #ifdef CONFIG_RK_SFC_NAND
-#include "sfc_nand_boot.h"
+int snand_init(void __iomem *reg_addr);
+int snand_read(unsigned int sec, unsigned int n_sec, void *p_data);
+int snand_write(unsigned int sec, unsigned int n_sec, void *p_data);
+unsigned int snand_get_capacity(void);
+void snand_deinit(void);
+int snand_resume(void __iomem *reg_addr);
+void sfc_clean_irq(void);
 #endif
 
 #endif

@@ -6,15 +6,17 @@
 #include <linux/mutex.h>
 
 #include "rk_sftl.h"
+#include "rkflash_api.h"
+#include "sfc.h"
 #include "sfc_nand.h"
-#include "sfc_nand_boot.h"
 #include "typedef.h"
 
 int snand_init(void __iomem *reg_addr)
 {
 	int ret;
 
-	ret = sfc_nand_init(reg_addr);
+	sfc_init(reg_addr);
+	ret = sfc_nand_init();
 	if (ret == 0)
 		ret = sftl_init();
 
@@ -45,5 +47,6 @@ void snand_deinit(void)
 
 int snand_resume(void __iomem *reg_addr)
 {
-	return sfc_nand_init(reg_addr);
+	sfc_init(reg_addr);
+	return sfc_nand_init();
 }

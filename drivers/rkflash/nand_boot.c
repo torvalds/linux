@@ -6,7 +6,7 @@
 #include <linux/mutex.h>
 
 #include "flash.h"
-#include "nand_boot.h"
+#include "rkflash_api.h"
 #include "rk_sftl.h"
 #include "typedef.h"
 
