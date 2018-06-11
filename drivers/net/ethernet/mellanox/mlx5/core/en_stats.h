@@ -79,6 +79,7 @@ struct mlx5e_sw_stats {
 	u64 tx_xmit_more;
 	u64 tx_recover;
 	u64 tx_queue_wake;
+	u64 tx_udp_seg_rem;
 	u64 tx_cqe_err;
 	u64 rx_wqe_err;
 	u64 rx_mpwqe_filler;
@@ -196,6 +197,7 @@ struct mlx5e_sq_stats {
 	u64 csum_partial_inner;
 	u64 added_vlan_packets;
 	u64 nop;
+	u64 udp_seg_rem;
 #ifdef CONFIG_MLX5_EN_TLS
 	u64 tls_ooo;
 	u64 tls_resync_bytes;

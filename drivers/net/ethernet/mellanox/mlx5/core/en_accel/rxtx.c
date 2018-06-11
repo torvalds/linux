@@ -92,6 +92,7 @@ struct sk_buff *mlx5e_udp_gso_handle_tx_skb(struct net_device *netdev,
 	if (!remaining)
 		return skb;
 
+	sq->stats->udp_seg_rem++;
 	nskb = alloc_skb(max_t(int, headlen, headlen + remaining - skb->data_len), GFP_ATOMIC);
 	if (unlikely(!nskb)) {
 		sq->stats->dropped++;
