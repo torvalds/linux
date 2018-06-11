@@ -6439,7 +6439,7 @@ static void nf_tables_abort_release(struct nft_trans *trans)
 	kfree(trans);
 }
 
-static int nf_tables_abort(struct net *net, struct sk_buff *skb)
+static int __nf_tables_abort(struct net *net)
 {
 	struct nft_trans *trans, *next;
 	struct nft_trans_elem *te;
@@ -6553,6 +6553,11 @@ static int nf_tables_abort(struct net *net, struct sk_buff *skb)
 static void nf_tables_cleanup(struct net *net)
 {
 	nft_validate_state_update(net, NFT_VALIDATE_SKIP);
+}
+
+static int nf_tables_abort(struct net *net, struct sk_buff *skb)
+{
+	return __nf_tables_abort(net);
 }
 
 static bool nf_tables_valid_genid(struct net *net, u32 genid)
@@ -7149,9 +7154,10 @@ static int __net_init nf_tables_init_net(struct net *net)
 
 static void __net_exit nf_tables_exit_net(struct net *net)
 {
+	if (!list_empty(&net->nft.commit_list))
+		__nf_tables_abort(net);
 	__nft_release_tables(net);
 	WARN_ON_ONCE(!list_empty(&net->nft.tables));
-	WARN_ON_ONCE(!list_empty(&net->nft.commit_list));
 }
 
 static struct pernet_operations nf_tables_net_ops = {
@@ -7193,9 +7199,9 @@ err1:
 
 static void __exit nf_tables_module_exit(void)
 {
-	unregister_pernet_subsys(&nf_tables_net_ops);
 	nfnetlink_subsys_unregister(&nf_tables_subsys);
 	unregister_netdevice_notifier(&nf_tables_flowtable_notifier);
+	unregister_pernet_subsys(&nf_tables_net_ops);
 	rcu_barrier();
 	nf_tables_core_module_exit();
 	kfree(info);
