@@ -403,7 +403,7 @@ static int fw_realloc_pages(struct fw_sysfs *fw_sysfs, int min_size)
 					 fw_priv->page_array_size * 2);
 		struct page **new_pages;
 
-		new_pages = vmalloc(new_array_size * sizeof(void *));
+		new_pages = vmalloc(array_size(new_array_size, sizeof(void *)));
 		if (!new_pages) {
 			fw_load_abort(fw_sysfs);
 			return -ENOMEM;

@@ -579,7 +579,7 @@ static int __igt_insert(unsigned int count, u64 size, bool replace)
 	DRM_MM_BUG_ON(!size);
 
 	ret = -ENOMEM;
-	nodes = vmalloc(count * sizeof(*nodes));
+	nodes = vmalloc(array_size(count, sizeof(*nodes)));
 	if (!nodes)
 		goto err;
 

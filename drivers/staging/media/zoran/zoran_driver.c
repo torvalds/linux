@@ -1220,7 +1220,8 @@ static int setup_window(struct zoran_fh *fh,
 		}
 	} else if (clipcount) {
 		/* write our own bitmap from the clips */
-		vcp = vmalloc(sizeof(struct v4l2_clip) * (clipcount + 4));
+		vcp = vmalloc(array_size(sizeof(struct v4l2_clip),
+					 clipcount + 4));
 		if (vcp == NULL) {
 			dprintk(1,
 				KERN_ERR

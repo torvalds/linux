@@ -1488,7 +1488,7 @@ static int osst_read_back_buffer_and_rewrite(struct osst_tape * STp, struct osst
 	int			dbg              = debugging;
 #endif
 
-	if ((buffer = vmalloc((nframes + 1) * OS_DATA_SIZE)) == NULL)
+	if ((buffer = vmalloc(array_size((nframes + 1), OS_DATA_SIZE))) == NULL)
 		return (-EIO);
 
 	printk(KERN_INFO "%s:I: Reading back %d frames from drive buffer%s\n",

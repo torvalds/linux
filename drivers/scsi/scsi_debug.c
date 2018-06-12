@@ -5439,7 +5439,8 @@ static int __init scsi_debug_init(void)
 		}
 
 		map_size = lba_to_map_index(sdebug_store_sectors - 1) + 1;
-		map_storep = vmalloc(BITS_TO_LONGS(map_size) * sizeof(long));
+		map_storep = vmalloc(array_size(sizeof(long),
+						BITS_TO_LONGS(map_size)));
 
 		pr_info("%lu provisioning blocks\n", map_size);
 

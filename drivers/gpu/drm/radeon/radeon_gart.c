@@ -352,8 +352,8 @@ int radeon_gart_init(struct radeon_device *rdev)
 		radeon_gart_fini(rdev);
 		return -ENOMEM;
 	}
-	rdev->gart.pages_entry = vmalloc(sizeof(uint64_t) *
-					 rdev->gart.num_gpu_pages);
+	rdev->gart.pages_entry = vmalloc(array_size(sizeof(uint64_t),
+						    rdev->gart.num_gpu_pages));
 	if (rdev->gart.pages_entry == NULL) {
 		radeon_gart_fini(rdev);
 		return -ENOMEM;

@@ -240,8 +240,9 @@ struct dsp_spos_instance *cs46xx_dsp_spos_create (struct snd_cs46xx * chip)
 		return NULL;
 
 	/* better to use vmalloc for this big table */
-	ins->symbol_table.symbols = vmalloc(sizeof(struct dsp_symbol_entry) *
-					    DSP_MAX_SYMBOLS);
+	ins->symbol_table.symbols =
+		vmalloc(array_size(DSP_MAX_SYMBOLS,
+				   sizeof(struct dsp_symbol_entry)));
 	ins->code.data = kmalloc(DSP_CODE_BYTE_SIZE, GFP_KERNEL);
 	ins->modules = kmalloc_array(DSP_MAX_MODULES,
 				     sizeof(struct dsp_module_desc),

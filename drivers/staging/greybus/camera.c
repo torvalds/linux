@@ -1175,8 +1175,9 @@ static int gb_camera_debugfs_init(struct gb_camera *gcam)
 
 	gcam->debugfs.root = debugfs_create_dir(dirname, gb_debugfs_get());
 
-	gcam->debugfs.buffers = vmalloc(sizeof(*gcam->debugfs.buffers) *
-					GB_CAMERA_DEBUGFS_BUFFER_MAX);
+	gcam->debugfs.buffers =
+		vmalloc(array_size(GB_CAMERA_DEBUGFS_BUFFER_MAX,
+				   sizeof(*gcam->debugfs.buffers)));
 	if (!gcam->debugfs.buffers)
 		return -ENOMEM;
 

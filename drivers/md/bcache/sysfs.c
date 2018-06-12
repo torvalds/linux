@@ -881,7 +881,8 @@ SHOW(__bch_cache)
 		uint16_t q[31], *p, *cached;
 		ssize_t ret;
 
-		cached = p = vmalloc(ca->sb.nbuckets * sizeof(uint16_t));
+		cached = p = vmalloc(array_size(sizeof(uint16_t),
+						ca->sb.nbuckets));
 		if (!p)
 			return -ENOMEM;
 

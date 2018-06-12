@@ -2939,7 +2939,9 @@ static struct pool *pool_create(struct mapped_device *pool_md,
 		goto bad_mapping_pool;
 	}
 
-	pool->cell_sort_array = vmalloc(sizeof(*pool->cell_sort_array) * CELL_SORT_ARRAY_SIZE);
+	pool->cell_sort_array =
+		vmalloc(array_size(CELL_SORT_ARRAY_SIZE,
+				   sizeof(*pool->cell_sort_array)));
 	if (!pool->cell_sort_array) {
 		*error = "Error allocating cell sort array";
 		err_p = ERR_PTR(-ENOMEM);

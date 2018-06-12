@@ -108,7 +108,7 @@ int kvmppc_allocate_hpt(struct kvm_hpt_info *info, u32 order)
 	npte = 1ul << (order - 4);
 
 	/* Allocate reverse map array */
-	rev = vmalloc(sizeof(struct revmap_entry) * npte);
+	rev = vmalloc(array_size(npte, sizeof(struct revmap_entry)));
 	if (!rev) {
 		if (cma)
 			kvm_free_hpt_cma(page, 1 << (order - PAGE_SHIFT));

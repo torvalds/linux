@@ -4331,9 +4331,11 @@ static int ipr_alloc_dump(struct ipr_ioa_cfg *ioa_cfg)
 	}
 
 	if (ioa_cfg->sis64)
-		ioa_data = vmalloc(IPR_FMT3_MAX_NUM_DUMP_PAGES * sizeof(__be32 *));
+		ioa_data = vmalloc(array_size(IPR_FMT3_MAX_NUM_DUMP_PAGES,
+					      sizeof(__be32 *)));
 	else
-		ioa_data = vmalloc(IPR_FMT2_MAX_NUM_DUMP_PAGES * sizeof(__be32 *));
+		ioa_data = vmalloc(array_size(IPR_FMT2_MAX_NUM_DUMP_PAGES,
+					      sizeof(__be32 *)));
 
 	if (!ioa_data) {
 		ipr_err("Dump memory allocation failed\n");

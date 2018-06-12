@@ -2692,7 +2692,7 @@ int snd_emu10k1_efx_alloc_pm_buffer(struct snd_emu10k1 *emu)
 	if (! emu->tram_val_saved || ! emu->tram_addr_saved)
 		return -ENOMEM;
 	len = emu->audigy ? 2 * 1024 : 2 * 512;
-	emu->saved_icode = vmalloc(len * 4);
+	emu->saved_icode = vmalloc(array_size(len, 4));
 	if (! emu->saved_icode)
 		return -ENOMEM;
 	return 0;
