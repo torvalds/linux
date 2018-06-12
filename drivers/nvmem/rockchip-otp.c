@@ -218,6 +218,10 @@ static const struct of_device_id rockchip_otp_match[] = {
 		.compatible = "rockchip,px30-otp",
 		.data = (void *)&px30_data,
 	},
+	{
+		.compatible = "rockchip,rk3308-otp",
+		.data = (void *)&px30_data,
+	},
 	{ /* sentinel */},
 };
 MODULE_DEVICE_TABLE(of, rockchip_otp_match);

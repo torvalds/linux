@@ -1,7 +1,9 @@
 Rockchip internal OTP (One Time Programmable) memory device tree bindings
 
 Required properties:
-  - compatible: Should be "rockchip,px30-otp"
+- compatible: Should be one of the following.
+  - "rockchip,px30-otp" - for PX30 SoCs.
+  - "rockchip,rk3308-otp" - for RK3308 SoCs.
   - reg: Must contain an entry with the physical base address and length
     for each entry in reg-names.
   - address-cells: must be set to 1.
