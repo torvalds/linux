@@ -882,7 +882,6 @@ static int rga_probe(struct platform_device *pdev)
 	vfd->v4l2_dev = &rga->v4l2_dev;
 
 	video_set_drvdata(vfd, rga);
-	snprintf(vfd->name, sizeof(vfd->name), "%s", rga_videodev.name);
 	rga->vfd = vfd;
 
 	platform_set_drvdata(pdev, rga);
