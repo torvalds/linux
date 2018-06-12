@@ -166,7 +166,7 @@ struct xfrm_state {
 		int		header_len;
 		int		trailer_len;
 		u32		extra_flags;
-		u32		output_mark;
+		struct xfrm_mark	smark;
 	} props;
 
 	struct xfrm_lifetime_cfg lft;
@@ -2010,6 +2010,13 @@ static inline int xfrm_mark_put(struct sk_buff *skb, const struct xfrm_mark *m)
 	if (m->m | m->v)
 		ret = nla_put(skb, XFRMA_MARK, sizeof(struct xfrm_mark), m);
 	return ret;
+}
+
+static inline __u32 xfrm_smark_get(__u32 mark, struct xfrm_state *x)
+{
+	struct xfrm_mark *m = &x->props.smark;
+
+	return (m->v & m->m) | (mark & ~m->m);
 }
 
 static inline int xfrm_tunnel_check(struct sk_buff *skb, struct xfrm_state *x,
