@@ -2756,8 +2756,6 @@ static void dwc2_gadget_handle_out_token_ep_disabled(struct dwc2_hsotg_ep *ep)
 	 */
 	tmp = dwc2_hsotg_read_frameno(hsotg);
 
-	dwc2_hsotg_complete_request(hsotg, ep, get_ep_head(ep), 0);
-
 	if (using_desc_dma(hsotg)) {
 		if (ep->target_frame == TARGET_FRAME_INITIAL) {
 			/* Start first ISO Out */
