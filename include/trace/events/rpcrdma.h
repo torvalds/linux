@@ -530,24 +530,54 @@ TRACE_EVENT(xprtrdma_post_send,
 
 TRACE_EVENT(xprtrdma_post_recv,
 	TP_PROTO(
-		const struct rpcrdma_rep *rep,
-		int status
+		const struct ib_cqe *cqe
 	),
 
-	TP_ARGS(rep, status),
+	TP_ARGS(cqe),
 
 	TP_STRUCT__entry(
-		__field(const void *, rep)
-		__field(int, status)
+		__field(const void *, cqe)
 	),
 
 	TP_fast_assign(
-		__entry->rep = rep;
-		__entry->status = status;
+		__entry->cqe = cqe;
 	),
 
-	TP_printk("rep=%p status=%d",
-		__entry->rep, __entry->status
+	TP_printk("cqe=%p",
+		__entry->cqe
+	)
+);
+
+TRACE_EVENT(xprtrdma_post_recvs,
+	TP_PROTO(
+		const struct rpcrdma_xprt *r_xprt,
+		unsigned int count,
+		int status
+	),
+
+	TP_ARGS(r_xprt, count, status),
+
+	TP_STRUCT__entry(
+		__field(const void *, r_xprt)
+		__field(unsigned int, count)
+		__field(int, status)
+		__field(int, posted)
+		__string(addr, rpcrdma_addrstr(r_xprt))
+		__string(port, rpcrdma_portstr(r_xprt))
+	),
+
+	TP_fast_assign(
+		__entry->r_xprt = r_xprt;
+		__entry->count = count;
+		__entry->status = status;
+		__entry->posted = r_xprt->rx_buf.rb_posted_receives;
+		__assign_str(addr, rpcrdma_addrstr(r_xprt));
+		__assign_str(port, rpcrdma_portstr(r_xprt));
+	),
+
+	TP_printk("peer=[%s]:%s r_xprt=%p: %u new recvs, %d active (rc %d)",
+		__get_str(addr), __get_str(port), __entry->r_xprt,
+		__entry->count, __entry->posted, __entry->status
 	)
 );
 
@@ -586,28 +616,32 @@ TRACE_EVENT(xprtrdma_wc_send,
 
 TRACE_EVENT(xprtrdma_wc_receive,
 	TP_PROTO(
-		const struct rpcrdma_rep *rep,
 		const struct ib_wc *wc
 	),
 
-	TP_ARGS(rep, wc),
+	TP_ARGS(wc),
 
 	TP_STRUCT__entry(
-		__field(const void *, rep)
-		__field(unsigned int, byte_len)
+		__field(const void *, cqe)
+		__field(u32, byte_len)
 		__field(unsigned int, status)
-		__field(unsigned int, vendor_err)
+		__field(u32, vendor_err)
 	),
 
 	TP_fast_assign(
-		__entry->rep = rep;
-		__entry->byte_len = wc->byte_len;
+		__entry->cqe = wc->wr_cqe;
 		__entry->status = wc->status;
-		__entry->vendor_err = __entry->status ? wc->vendor_err : 0;
+		if (wc->status) {
+			__entry->byte_len = 0;
+			__entry->vendor_err = wc->vendor_err;
+		} else {
+			__entry->byte_len = wc->byte_len;
+			__entry->vendor_err = 0;
+		}
 	),
 
-	TP_printk("rep=%p, %u bytes: %s (%u/0x%x)",
-		__entry->rep, __entry->byte_len,
+	TP_printk("cqe=%p %u bytes: %s (%u/0x%x)",
+		__entry->cqe, __entry->byte_len,
 		rdma_show_wc_status(__entry->status),
 		__entry->status, __entry->vendor_err
 	)
@@ -618,6 +652,7 @@ DEFINE_FRWR_DONE_EVENT(xprtrdma_wc_li);
 DEFINE_FRWR_DONE_EVENT(xprtrdma_wc_li_wake);
 
 DEFINE_MR_EVENT(xprtrdma_localinv);
+DEFINE_MR_EVENT(xprtrdma_dma_map);
 DEFINE_MR_EVENT(xprtrdma_dma_unmap);
 DEFINE_MR_EVENT(xprtrdma_remoteinv);
 DEFINE_MR_EVENT(xprtrdma_recover_mr);
@@ -801,7 +836,6 @@ TRACE_EVENT(xprtrdma_allocate,
 		__field(unsigned int, task_id)
 		__field(unsigned int, client_id)
 		__field(const void *, req)
-		__field(const void *, rep)
 		__field(size_t, callsize)
 		__field(size_t, rcvsize)
 	),
@@ -810,15 +844,13 @@ TRACE_EVENT(xprtrdma_allocate,
 		__entry->task_id = task->tk_pid;
 		__entry->client_id = task->tk_client->cl_clid;
 		__entry->req = req;
-		__entry->rep = req ? req->rl_reply : NULL;
 		__entry->callsize = task->tk_rqstp->rq_callsize;
 		__entry->rcvsize = task->tk_rqstp->rq_rcvsize;
 	),
 
-	TP_printk("task:%u@%u req=%p rep=%p (%zu, %zu)",
+	TP_printk("task:%u@%u req=%p (%zu, %zu)",
 		__entry->task_id, __entry->client_id,
-		__entry->req, __entry->rep,
-		__entry->callsize, __entry->rcvsize
+		__entry->req, __entry->callsize, __entry->rcvsize
 	)
 );
 
@@ -849,8 +881,6 @@ TRACE_EVENT(xprtrdma_rpc_done,
 		__entry->req, __entry->rep
 	)
 );
-
-DEFINE_RXPRT_EVENT(xprtrdma_noreps);
 
 /**
  ** Callback events
