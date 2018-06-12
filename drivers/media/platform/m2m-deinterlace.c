@@ -1040,7 +1040,6 @@ static int deinterlace_probe(struct platform_device *pdev)
 	}
 
 	video_set_drvdata(vfd, pcdev);
-	snprintf(vfd->name, sizeof(vfd->name), "%s", deinterlace_videodev.name);
 	v4l2_info(&pcdev->v4l2_dev, MEM2MEM_TEST_MODULE_NAME
 			" Device registered as /dev/video%d\n", vfd->num);
 
