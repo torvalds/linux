@@ -438,7 +438,7 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 		int gpio;
 		bool dvoinit;
 		enum pipe pipe;
-		uint32_t dpll[I915_MAX_PIPES];
+		u32 dpll[I915_MAX_PIPES];
 		enum port port;
 
 		/*
