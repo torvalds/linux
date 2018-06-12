@@ -24,7 +24,7 @@ LDFLAGS_vmlinux := --oformat $(LD_BFD) -e startup -T
 $(obj)/vmlinux: $(obj)/vmlinux.lds $(OBJECTS)
 	$(call if_changed,ld)
 
-TRIM_HEAD_SIZE := 0x11000
+TRIM_HEAD_SIZE := 0x100000
 
 sed-sizes := -e 's/^\([0-9a-fA-F]*\) . \(__bss_start\|_end\)$$/\#define SZ\2 (0x\1 - $(TRIM_HEAD_SIZE))/p'
 
