@@ -211,6 +211,17 @@
 		BT,wake_host_irq = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
+
+	vcc18_lcd_n: vcc18-lcd-n {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc18_lcd_n";
+		regulator-boot-on;
+		gpio = <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
+	};
 };
 
 &bus_apll {
@@ -233,7 +244,7 @@
 		compatible = "sitronix,st7703", "simple-panel-dsi";
 		reg = <0>;
 		backlight = <&backlight>;
-		enable-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
+		power-supply = <&vcc18_lcd_n>;
 		prepare-delay-ms = <2>;
 		reset-delay-ms = <1>;
 		init-delay-ms = <20>;
@@ -680,10 +691,11 @@
 	};
 
 	gt1x: gt1x@14 {
-	      compatible = "goodix,gt1x";
-	      reg = <0x14>;
-	      goodix,rst-gpio = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
-	      goodix,irq-gpio = <&gpio0 RK_PA5 IRQ_TYPE_LEVEL_LOW>;
+		compatible = "goodix,gt1x";
+		reg = <0x14>;
+		power-supply = <&vcc18_lcd_n>;
+		goodix,rst-gpio = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
+		goodix,irq-gpio = <&gpio0 RK_PA5 IRQ_TYPE_LEVEL_LOW>;
 	};
 
 	sensor@4c {
