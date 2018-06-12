@@ -51,8 +51,8 @@ static DEFINE_IDA(scom_ida);
 static int put_scom(struct scom_device *scom_dev, uint64_t value,
 		    uint32_t addr)
 {
+	__be32 data;
 	int rc;
-	uint32_t data;
 
 	mutex_lock(&scom_dev->lock);
 
@@ -79,7 +79,7 @@ static int put_scom(struct scom_device *scom_dev, uint64_t value,
 static int get_scom(struct scom_device *scom_dev, uint64_t *value,
 		    uint32_t addr)
 {
-	uint32_t result, data;
+	__be32 result, data;
 	int rc;
 
 
@@ -96,14 +96,13 @@ static int get_scom(struct scom_device *scom_dev, uint64_t *value,
 	if (rc)
 		goto bail;
 
-	*value |= (uint64_t)cpu_to_be32(result) << 32;
+	*value |= (uint64_t)be32_to_cpu(result) << 32;
 	rc = fsi_device_read(scom_dev->fsi_dev, SCOM_DATA1_REG, &result,
 				sizeof(uint32_t));
 	if (rc)
 		goto bail;
 
-	*value |= cpu_to_be32(result);
-
+	*value |= be32_to_cpu(result);
  bail:
 	mutex_unlock(&scom_dev->lock);
 	return rc;
