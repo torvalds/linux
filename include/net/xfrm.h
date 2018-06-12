@@ -23,6 +23,7 @@
 #include <net/ipv6.h>
 #include <net/ip6_fib.h>
 #include <net/flow.h>
+#include <net/gro_cells.h>
 
 #include <linux/interrupt.h>
 
@@ -292,6 +293,13 @@ struct xfrm_replay {
 	void	(*notify)(struct xfrm_state *x, int event);
 	int	(*overflow)(struct xfrm_state *x, struct sk_buff *skb);
 };
+
+struct xfrm_if_cb {
+	struct xfrm_if	*(*decode_session)(struct sk_buff *skb);
+};
+
+void xfrm_if_register_cb(const struct xfrm_if_cb *ifcb);
+void xfrm_if_unregister_cb(void);
 
 struct net_device;
 struct xfrm_type;
@@ -1038,6 +1046,22 @@ static inline void xfrm_dst_destroy(struct xfrm_dst *xdst)
 #endif
 
 void xfrm_dst_ifdown(struct dst_entry *dst, struct net_device *dev);
+
+struct xfrm_if_parms {
+	char name[IFNAMSIZ];	/* name of XFRM device */
+	int link;		/* ifindex of underlying L2 interface */
+	u32 if_id;		/* interface identifyer */
+};
+
+struct xfrm_if {
+	struct xfrm_if __rcu *next;	/* next interface in list */
+	struct net_device *dev;		/* virtual device associated with interface */
+	struct net_device *phydev;	/* physical device */
+	struct net *net;		/* netns for packet i/o */
+	struct xfrm_if_parms p;		/* interface parms */
+
+	struct gro_cells gro_cells;
+};
 
 struct xfrm_offload {
 	/* Output sequence number for replay protection on offloading. */

@@ -47,6 +47,9 @@ struct xfrm_flo {
 
 static DEFINE_PER_CPU(struct xfrm_dst *, xfrm_last_dst);
 static struct work_struct *xfrm_pcpu_work __read_mostly;
+static DEFINE_SPINLOCK(xfrm_if_cb_lock);
+static struct xfrm_if_cb const __rcu *xfrm_if_cb __read_mostly;
+
 static DEFINE_SPINLOCK(xfrm_policy_afinfo_lock);
 static struct xfrm_policy_afinfo const __rcu *xfrm_policy_afinfo[AF_INET6 + 1]
 						__read_mostly;
@@ -117,6 +120,12 @@ static const struct xfrm_policy_afinfo *xfrm_policy_get_afinfo(unsigned short fa
 	if (unlikely(!afinfo))
 		rcu_read_unlock();
 	return afinfo;
+}
+
+/* Called with rcu_read_lock(). */
+static const struct xfrm_if_cb *xfrm_if_get_cb(void)
+{
+	return rcu_dereference(xfrm_if_cb);
 }
 
 struct dst_entry *__xfrm_dst_lookup(struct net *net, int tos, int oif,
@@ -2083,6 +2092,11 @@ xfrm_bundle_lookup(struct net *net, const struct flowi *fl, u16 family, u8 dir, 
 
 	if (IS_ERR(xdst)) {
 		err = PTR_ERR(xdst);
+		if (err == -EREMOTE) {
+			xfrm_pols_put(pols, num_pols);
+			return NULL;
+		}
+
 		if (err != -EAGAIN)
 			goto error;
 		goto make_dummy_bundle;
@@ -2176,6 +2190,9 @@ struct dst_entry *xfrm_lookup(struct net *net, struct dst_entry *dst_orig,
 			if (IS_ERR(xdst)) {
 				xfrm_pols_put(pols, num_pols);
 				err = PTR_ERR(xdst);
+				if (err == -EREMOTE)
+					goto nopol;
+
 				goto dropdst;
 			} else if (xdst == NULL) {
 				num_xfrms = 0;
@@ -2368,12 +2385,20 @@ int __xfrm_decode_session(struct sk_buff *skb, struct flowi *fl,
 			  unsigned int family, int reverse)
 {
 	const struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
+	const struct xfrm_if_cb *ifcb = xfrm_if_get_cb();
+	struct xfrm_if *xi;
 	int err;
 
 	if (unlikely(afinfo == NULL))
 		return -EAFNOSUPPORT;
 
 	afinfo->decode_session(skb, fl, reverse);
+	if (ifcb) {
+		xi = ifcb->decode_session(skb);
+		if (xi)
+			fl->flowi_xfrm.if_id = xi->p.if_id;
+	}
+
 	err = security_xfrm_decode_session(skb, &fl->flowi_secid);
 	rcu_read_unlock();
 	return err;
@@ -2828,6 +2853,21 @@ void xfrm_policy_unregister_afinfo(const struct xfrm_policy_afinfo *afinfo)
 }
 EXPORT_SYMBOL(xfrm_policy_unregister_afinfo);
 
+void xfrm_if_register_cb(const struct xfrm_if_cb *ifcb)
+{
+	spin_lock(&xfrm_if_cb_lock);
+	rcu_assign_pointer(xfrm_if_cb, ifcb);
+	spin_unlock(&xfrm_if_cb_lock);
+}
+EXPORT_SYMBOL(xfrm_if_register_cb);
+
+void xfrm_if_unregister_cb(void)
+{
+	RCU_INIT_POINTER(xfrm_if_cb, NULL);
+	synchronize_rcu();
+}
+EXPORT_SYMBOL(xfrm_if_unregister_cb);
+
 #ifdef CONFIG_XFRM_STATISTICS
 static int __net_init xfrm_statistics_init(struct net *net)
 {
@@ -3008,6 +3048,9 @@ void __init xfrm_init(void)
 	xfrm_dev_init();
 	seqcount_init(&xfrm_policy_hash_generation);
 	xfrm_input_init();
+
+	RCU_INIT_POINTER(xfrm_if_cb, NULL);
+	synchronize_rcu();
 }
 
 #ifdef CONFIG_AUDITSYSCALL
