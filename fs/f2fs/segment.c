@@ -3635,7 +3635,8 @@ static int build_curseg(struct f2fs_sb_info *sbi)
 	struct curseg_info *array;
 	int i;
 
-	array = f2fs_kzalloc(sbi, sizeof(*array) * NR_CURSEG_TYPE, GFP_KERNEL);
+	array = f2fs_kzalloc(sbi, array_size(NR_CURSEG_TYPE, sizeof(*array)),
+			     GFP_KERNEL);
 	if (!array)
 		return -ENOMEM;
 
