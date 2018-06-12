@@ -3286,7 +3286,7 @@ nfp_net_get_phys_port_name(struct net_device *netdev, char *name, size_t len)
 	if (nn->port)
 		return nfp_port_get_phys_port_name(netdev, name, len);
 
-	if (nn->dp.is_vf)
+	if (nn->dp.is_vf || nn->vnic_no_name)
 		return -EOPNOTSUPP;
 
 	n = snprintf(name, len, "n%d", nn->id);
