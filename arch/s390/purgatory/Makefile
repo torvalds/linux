@@ -21,7 +21,7 @@ LDFLAGS_purgatory.ro += -z nodefaultlib
 KBUILD_CFLAGS := -fno-strict-aliasing -Wall -Wstrict-prototypes
 KBUILD_CFLAGS += -Wno-pointer-sign -Wno-sign-compare
 KBUILD_CFLAGS += -fno-zero-initialized-in-bss -fno-builtin -ffreestanding
-KBUILD_CFLAGS += -c -MD -Os -m64
+KBUILD_CFLAGS += -c -MD -Os -m64 -msoft-float
 KBUILD_CFLAGS += $(call cc-option,-fno-PIE)
 
 $(obj)/purgatory.ro: $(PURGATORY_OBJS) FORCE

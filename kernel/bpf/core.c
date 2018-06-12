@@ -218,47 +218,84 @@ int bpf_prog_calc_tag(struct bpf_prog *fp)
 	return 0;
 }
 
-static void bpf_adj_branches(struct bpf_prog *prog, u32 pos, u32 delta)
+static int bpf_adj_delta_to_imm(struct bpf_insn *insn, u32 pos, u32 delta,
+				u32 curr, const bool probe_pass)
 {
+	const s64 imm_min = S32_MIN, imm_max = S32_MAX;
+	s64 imm = insn->imm;
+
+	if (curr < pos && curr + imm + 1 > pos)
+		imm += delta;
+	else if (curr > pos + delta && curr + imm + 1 <= pos + delta)
+		imm -= delta;
+	if (imm < imm_min || imm > imm_max)
+		return -ERANGE;
+	if (!probe_pass)
+		insn->imm = imm;
+	return 0;
+}
+
+static int bpf_adj_delta_to_off(struct bpf_insn *insn, u32 pos, u32 delta,
+				u32 curr, const bool probe_pass)
+{
+	const s32 off_min = S16_MIN, off_max = S16_MAX;
+	s32 off = insn->off;
+
+	if (curr < pos && curr + off + 1 > pos)
+		off += delta;
+	else if (curr > pos + delta && curr + off + 1 <= pos + delta)
+		off -= delta;
+	if (off < off_min || off > off_max)
+		return -ERANGE;
+	if (!probe_pass)
+		insn->off = off;
+	return 0;
+}
+
+static int bpf_adj_branches(struct bpf_prog *prog, u32 pos, u32 delta,
+			    const bool probe_pass)
+{
+	u32 i, insn_cnt = prog->len + (probe_pass ? delta : 0);
 	struct bpf_insn *insn = prog->insnsi;
-	u32 i, insn_cnt = prog->len;
-	bool pseudo_call;
-	u8 code;
-	int off;
+	int ret = 0;
 
 	for (i = 0; i < insn_cnt; i++, insn++) {
-		code = insn->code;
-		if (BPF_CLASS(code) != BPF_JMP)
-			continue;
-		if (BPF_OP(code) == BPF_EXIT)
-			continue;
-		if (BPF_OP(code) == BPF_CALL) {
-			if (insn->src_reg == BPF_PSEUDO_CALL)
-				pseudo_call = true;
-			else
-				continue;
-		} else {
-			pseudo_call = false;
+		u8 code;
+
+		/* In the probing pass we still operate on the original,
+		 * unpatched image in order to check overflows before we
+		 * do any other adjustments. Therefore skip the patchlet.
+		 */
+		if (probe_pass && i == pos) {
+			i += delta + 1;
+			insn++;
 		}
-		off = pseudo_call ? insn->imm : insn->off;
-
-		/* Adjust offset of jmps if we cross boundaries. */
-		if (i < pos && i + off + 1 > pos)
-			off += delta;
-		else if (i > pos + delta && i + off + 1 <= pos + delta)
-			off -= delta;
-
-		if (pseudo_call)
-			insn->imm = off;
-		else
-			insn->off = off;
+		code = insn->code;
+		if (BPF_CLASS(code) != BPF_JMP ||
+		    BPF_OP(code) == BPF_EXIT)
+			continue;
+		/* Adjust offset of jmps if we cross patch boundaries. */
+		if (BPF_OP(code) == BPF_CALL) {
+			if (insn->src_reg != BPF_PSEUDO_CALL)
+				continue;
+			ret = bpf_adj_delta_to_imm(insn, pos, delta, i,
+						   probe_pass);
+		} else {
+			ret = bpf_adj_delta_to_off(insn, pos, delta, i,
+						   probe_pass);
+		}
+		if (ret)
+			break;
 	}
+
+	return ret;
 }
 
 struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 				       const struct bpf_insn *patch, u32 len)
 {
 	u32 insn_adj_cnt, insn_rest, insn_delta = len - 1;
+	const u32 cnt_max = S16_MAX;
 	struct bpf_prog *prog_adj;
 
 	/* Since our patchlet doesn't expand the image, we're done. */
@@ -268,6 +305,15 @@ struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 	}
 
 	insn_adj_cnt = prog->len + insn_delta;
+
+	/* Reject anything that would potentially let the insn->off
+	 * target overflow when we have excessive program expansions.
+	 * We need to probe here before we do any reallocation where
+	 * we afterwards may not fail anymore.
+	 */
+	if (insn_adj_cnt > cnt_max &&
+	    bpf_adj_branches(prog, off, insn_delta, true))
+		return NULL;
 
 	/* Several new instructions need to be inserted. Make room
 	 * for them. Likely, there's no need for a new allocation as
@@ -294,7 +340,11 @@ struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 		sizeof(*patch) * insn_rest);
 	memcpy(prog_adj->insnsi + off, patch, sizeof(*patch) * len);
 
-	bpf_adj_branches(prog_adj, off, insn_delta);
+	/* We are guaranteed to not fail at this point, otherwise
+	 * the ship has sailed to reverse to the original state. An
+	 * overflow cannot happen at this point.
+	 */
+	BUG_ON(bpf_adj_branches(prog_adj, off, insn_delta, false));
 
 	return prog_adj;
 }

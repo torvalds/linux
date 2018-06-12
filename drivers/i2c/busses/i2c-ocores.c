@@ -1,6 +1,6 @@
 /*
  * i2c-ocores.c: I2C bus driver for OpenCores I2C controller
- * (http://www.opencores.org/projects.cgi/web/i2c/overview).
+ * (https://opencores.org/project/i2c/overview)
  *
  * Peter Korsgaard <jacmet@sunsite.dk>
  *

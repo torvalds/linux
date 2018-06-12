@@ -916,6 +916,9 @@ int reg_query_regdb_wmm(char *alpha2, int freq, u32 *dbptr,
 	const struct fwdb_header *hdr = regdb;
 	const struct fwdb_country *country;
 
+	if (!regdb)
+		return -ENODATA;
+
 	if (IS_ERR(regdb))
 		return PTR_ERR(regdb);
 
