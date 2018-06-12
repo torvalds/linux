@@ -1016,6 +1016,7 @@ enum modeset_restore {
 #define DP_AUX_B 0x10
 #define DP_AUX_C 0x20
 #define DP_AUX_D 0x30
+#define DP_AUX_E 0x50
 #define DP_AUX_F 0x60
 
 #define DDC_PIN_B  0x05

@@ -5315,6 +5315,13 @@ enum {
 #define _DPD_AUX_CH_DATA4	(dev_priv->info.display_mmio_offset + 0x64320)
 #define _DPD_AUX_CH_DATA5	(dev_priv->info.display_mmio_offset + 0x64324)
 
+#define _DPE_AUX_CH_CTL		(dev_priv->info.display_mmio_offset + 0x64410)
+#define _DPE_AUX_CH_DATA1	(dev_priv->info.display_mmio_offset + 0x64414)
+#define _DPE_AUX_CH_DATA2	(dev_priv->info.display_mmio_offset + 0x64418)
+#define _DPE_AUX_CH_DATA3	(dev_priv->info.display_mmio_offset + 0x6441c)
+#define _DPE_AUX_CH_DATA4	(dev_priv->info.display_mmio_offset + 0x64420)
+#define _DPE_AUX_CH_DATA5	(dev_priv->info.display_mmio_offset + 0x64424)
+
 #define _DPF_AUX_CH_CTL		(dev_priv->info.display_mmio_offset + 0x64510)
 #define _DPF_AUX_CH_DATA1	(dev_priv->info.display_mmio_offset + 0x64514)
 #define _DPF_AUX_CH_DATA2	(dev_priv->info.display_mmio_offset + 0x64518)
@@ -7019,6 +7026,7 @@ enum {
 #define GEN8_DE_PORT_IMR _MMIO(0x44444)
 #define GEN8_DE_PORT_IIR _MMIO(0x44448)
 #define GEN8_DE_PORT_IER _MMIO(0x4444c)
+#define  ICL_AUX_CHANNEL_E		(1 << 29)
 #define  CNL_AUX_CHANNEL_F		(1 << 28)
 #define  GEN9_AUX_CHANNEL_D		(1 << 27)
 #define  GEN9_AUX_CHANNEL_C		(1 << 26)
