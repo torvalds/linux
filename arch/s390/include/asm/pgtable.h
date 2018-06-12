@@ -506,10 +506,10 @@ static inline int mm_alloc_pgste(struct mm_struct *mm)
  * faults should no longer be backed by zero pages
  */
 #define mm_forbids_zeropage mm_has_pgste
-static inline int mm_use_skey(struct mm_struct *mm)
+static inline int mm_uses_skeys(struct mm_struct *mm)
 {
 #ifdef CONFIG_PGSTE
-	if (mm->context.use_skey)
+	if (mm->context.uses_skeys)
 		return 1;
 #endif
 	return 0;

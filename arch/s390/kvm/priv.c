@@ -204,24 +204,28 @@ static int handle_store_cpu_address(struct kvm_vcpu *vcpu)
 
 int kvm_s390_skey_check_enable(struct kvm_vcpu *vcpu)
 {
-	int rc = 0;
+	int rc;
 	struct kvm_s390_sie_block *sie_block = vcpu->arch.sie_block;
 
 	trace_kvm_s390_skey_related_inst(vcpu);
-	if (!(sie_block->ictl & (ICTL_ISKE | ICTL_SSKE | ICTL_RRBE)) &&
+	/* Already enabled? */
+	if (vcpu->kvm->arch.use_skf &&
+	    !(sie_block->ictl & (ICTL_ISKE | ICTL_SSKE | ICTL_RRBE)) &&
 	    !kvm_s390_test_cpuflags(vcpu, CPUSTAT_KSS))
-		return rc;
+		return 0;
 
 	rc = s390_enable_skey();
 	VCPU_EVENT(vcpu, 3, "enabling storage keys for guest: %d", rc);
-	if (!rc) {
-		if (kvm_s390_test_cpuflags(vcpu, CPUSTAT_KSS))
-			kvm_s390_clear_cpuflags(vcpu, CPUSTAT_KSS);
-		else
-			sie_block->ictl &= ~(ICTL_ISKE | ICTL_SSKE |
-					     ICTL_RRBE);
-	}
-	return rc;
+	if (rc)
+		return rc;
+
+	if (kvm_s390_test_cpuflags(vcpu, CPUSTAT_KSS))
+		kvm_s390_clear_cpuflags(vcpu, CPUSTAT_KSS);
+	if (!vcpu->kvm->arch.use_skf)
+		sie_block->ictl |= ICTL_ISKE | ICTL_SSKE | ICTL_RRBE;
+	else
+		sie_block->ictl &= ~(ICTL_ISKE | ICTL_SSKE | ICTL_RRBE);
+	return 0;
 }
 
 static int try_handle_skey(struct kvm_vcpu *vcpu)
@@ -231,7 +235,7 @@ static int try_handle_skey(struct kvm_vcpu *vcpu)
 	rc = kvm_s390_skey_check_enable(vcpu);
 	if (rc)
 		return rc;
-	if (sclp.has_skey) {
+	if (vcpu->kvm->arch.use_skf) {
 		/* with storage-key facility, SIE interprets it for us */
 		kvm_s390_retry_instr(vcpu);
 		VCPU_EVENT(vcpu, 4, "%s", "retrying storage key operation");
