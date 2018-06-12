@@ -37,6 +37,7 @@ struct scom_device {
 	struct list_head link;
 	struct fsi_device *fsi_dev;
 	struct miscdevice mdev;
+	struct mutex lock;
 	char	name[32];
 	int idx;
 };
@@ -53,21 +54,26 @@ static int put_scom(struct scom_device *scom_dev, uint64_t value,
 	int rc;
 	uint32_t data;
 
+	mutex_lock(&scom_dev->lock);
+
 	data = cpu_to_be32((value >> 32) & 0xffffffff);
 	rc = fsi_device_write(scom_dev->fsi_dev, SCOM_DATA0_REG, &data,
 				sizeof(uint32_t));
 	if (rc)
-		return rc;
+		goto bail;
 
 	data = cpu_to_be32(value & 0xffffffff);
 	rc = fsi_device_write(scom_dev->fsi_dev, SCOM_DATA1_REG, &data,
 				sizeof(uint32_t));
 	if (rc)
-		return rc;
+		goto bail;
 
 	data = cpu_to_be32(SCOM_WRITE_CMD | addr);
-	return fsi_device_write(scom_dev->fsi_dev, SCOM_CMD_REG, &data,
+	rc = fsi_device_write(scom_dev->fsi_dev, SCOM_CMD_REG, &data,
 				sizeof(uint32_t));
+ bail:
+	mutex_unlock(&scom_dev->lock);
+	return rc;
 }
 
 static int get_scom(struct scom_device *scom_dev, uint64_t *value,
@@ -76,27 +82,31 @@ static int get_scom(struct scom_device *scom_dev, uint64_t *value,
 	uint32_t result, data;
 	int rc;
 
+
+	mutex_lock(&scom_dev->lock);
 	*value = 0ULL;
 	data = cpu_to_be32(addr);
 	rc = fsi_device_write(scom_dev->fsi_dev, SCOM_CMD_REG, &data,
 				sizeof(uint32_t));
 	if (rc)
-		return rc;
+		goto bail;
 
 	rc = fsi_device_read(scom_dev->fsi_dev, SCOM_DATA0_REG, &result,
 				sizeof(uint32_t));
 	if (rc)
-		return rc;
+		goto bail;
 
 	*value |= (uint64_t)cpu_to_be32(result) << 32;
 	rc = fsi_device_read(scom_dev->fsi_dev, SCOM_DATA1_REG, &result,
 				sizeof(uint32_t));
 	if (rc)
-		return rc;
+		goto bail;
 
 	*value |= cpu_to_be32(result);
 
-	return 0;
+ bail:
+	mutex_unlock(&scom_dev->lock);
+	return rc;
 }
 
 static ssize_t scom_read(struct file *filep, char __user *buf, size_t len,
@@ -183,6 +193,7 @@ static int scom_probe(struct device *dev)
 	if (!scom)
 		return -ENOMEM;
 
+	mutex_init(&scom->lock);
 	scom->idx = ida_simple_get(&scom_ida, 1, INT_MAX, GFP_KERNEL);
 	snprintf(scom->name, sizeof(scom->name), "scom%d", scom->idx);
 	scom->fsi_dev = fsi_dev;
