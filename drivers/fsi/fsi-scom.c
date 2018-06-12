@@ -30,8 +30,25 @@
 #define SCOM_DATA0_REG		0x00
 #define SCOM_DATA1_REG		0x04
 #define SCOM_CMD_REG		0x08
+#define SCOM_FSI2PIB_RESET_REG	0x18
+#define SCOM_STATUS_REG		0x1C /* Read */
+#define SCOM_PIB_RESET_REG	0x1C /* Write */
 
+/* Command register */
 #define SCOM_WRITE_CMD		0x80000000
+#define SCOM_READ_CMD		0x00000000
+
+/* Status register bits */
+#define SCOM_STATUS_ERR_SUMMARY		0x80000000
+#define SCOM_STATUS_PROTECTION		0x01000000
+#define SCOM_STATUS_PIB_ABORT		0x00100000
+#define SCOM_STATUS_PIB_RESP_MASK	0x00007000
+#define SCOM_STATUS_PIB_RESP_SHIFT	12
+
+#define SCOM_STATUS_ANY_ERR		(SCOM_STATUS_ERR_SUMMARY | \
+					 SCOM_STATUS_PROTECTION | \
+					 SCOM_STATUS_PIB_ABORT | \
+					 SCOM_STATUS_PIB_RESP_MASK)
 
 struct scom_device {
 	struct list_head link;
@@ -85,7 +102,7 @@ static int get_scom(struct scom_device *scom_dev, uint64_t *value,
 
 	mutex_lock(&scom_dev->lock);
 	*value = 0ULL;
-	data = cpu_to_be32(addr);
+	data = cpu_to_be32(SCOM_READ_CMD | addr);
 	rc = fsi_device_write(scom_dev->fsi_dev, SCOM_CMD_REG, &data,
 				sizeof(uint32_t));
 	if (rc)
