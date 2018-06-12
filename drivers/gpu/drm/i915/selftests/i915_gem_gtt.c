@@ -135,16 +135,12 @@ static int igt_ppgtt_alloc(void *arg)
 	struct drm_i915_private *dev_priv = arg;
 	struct i915_hw_ppgtt *ppgtt;
 	u64 size, last;
-	int err;
+	int err = 0;
 
 	/* Allocate a ppggt and try to fill the entire range */
 
 	if (!USES_PPGTT(dev_priv))
 		return 0;
-
-	ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
-	if (!ppgtt)
-		return -ENOMEM;
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	ppgtt = __hw_ppgtt_create(dev_priv);
@@ -153,10 +149,8 @@ static int igt_ppgtt_alloc(void *arg)
 		goto err_unlock;
 	}
 
-	if (!ppgtt->vm.allocate_va_range) {
-		err = 0;
+	if (!ppgtt->vm.allocate_va_range)
 		goto err_ppgtt_cleanup;
-	}
 
 	/* Check we can allocate the entire range */
 	for (size = 4096;

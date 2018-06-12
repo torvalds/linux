@@ -396,7 +396,7 @@ struct i915_ggtt {
 struct i915_hw_ppgtt {
 	struct i915_address_space vm;
 	struct kref ref;
-	struct drm_mm_node node;
+
 	unsigned long pd_dirty_rings;
 	union {
 		struct i915_pml4 pml4;		/* GEN8+ & 48b PPGTT */
@@ -404,10 +404,23 @@ struct i915_hw_ppgtt {
 		struct i915_page_directory pd;		/* GEN6-7 */
 	};
 
-	gen6_pte_t __iomem *pd_addr;
-
 	void (*debug_dump)(struct i915_hw_ppgtt *ppgtt, struct seq_file *m);
 };
+
+struct gen6_hw_ppgtt {
+	struct i915_hw_ppgtt base;
+
+	struct drm_mm_node node;
+	gen6_pte_t __iomem *pd_addr;
+};
+
+#define __to_gen6_ppgtt(base) container_of(base, struct gen6_hw_ppgtt, base)
+
+static inline struct gen6_hw_ppgtt *to_gen6_ppgtt(struct i915_hw_ppgtt *base)
+{
+	BUILD_BUG_ON(offsetof(struct gen6_hw_ppgtt, base));
+	return __to_gen6_ppgtt(base);
+}
 
 /*
  * gen6_for_each_pde() iterates over every pde from start until start+length.
