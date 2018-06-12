@@ -263,14 +263,14 @@ static int apply_r_riscv_align_rela(struct module *me, u32 *location,
 static int apply_r_riscv_add32_rela(struct module *me, u32 *location,
 				    Elf_Addr v)
 {
-	*(u32 *)location += (*(u32 *)v);
+	*(u32 *)location += (u32)v;
 	return 0;
 }
 
 static int apply_r_riscv_sub32_rela(struct module *me, u32 *location,
 				    Elf_Addr v)
 {
-	*(u32 *)location -= (*(u32 *)v);
+	*(u32 *)location -= (u32)v;
 	return 0;
 }
 
