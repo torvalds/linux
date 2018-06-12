@@ -12,7 +12,7 @@ UBSAN_SANITIZE := n
 obj-y	:= head.o misc.o piggy.o
 targets	:= vmlinux.lds vmlinux vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2
 targets += vmlinux.bin.xz vmlinux.bin.lzma vmlinux.bin.lzo vmlinux.bin.lz4
-targets += sizes.h $(obj-y)
+targets += vmlinux.scr.lds sizes.h $(obj-y)
 
 KBUILD_AFLAGS := $(KBUILD_AFLAGS_DECOMPRESSOR)
 KBUILD_CFLAGS := $(KBUILD_CFLAGS_DECOMPRESSOR)
@@ -72,7 +72,7 @@ $(obj)/vmlinux.bin.xz: $(vmlinux.bin.all-y)
 	$(call if_changed,xzkern)
 
 LDFLAGS_piggy.o := -r --format binary --oformat $(LD_BFD) -T
-$(obj)/piggy.o: $(obj)/vmlinux.scr $(obj)/vmlinux.bin.$(suffix-y)
+$(obj)/piggy.o: $(obj)/vmlinux.scr.lds $(obj)/vmlinux.bin.$(suffix-y)
 	$(call if_changed,ld)
 
 chkbss := $(filter-out $(obj)/misc.o $(obj)/piggy.o,$(OBJECTS))
