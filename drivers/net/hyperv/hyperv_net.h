@@ -901,6 +901,8 @@ struct net_device_context {
 	struct hv_device *device_ctx;
 	/* netvsc_device */
 	struct netvsc_device __rcu *nvdev;
+	/* list of netvsc net_devices */
+	struct list_head list;
 	/* reconfigure work */
 	struct delayed_work dwork;
 	/* last reconfig time */
@@ -931,8 +933,6 @@ struct net_device_context {
 	u32 vf_alloc;
 	/* Serial number of the VF to team with */
 	u32 vf_serial;
-
-	struct failover *failover;
 };
 
 /* Per channel data */
