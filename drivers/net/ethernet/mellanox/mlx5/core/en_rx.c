@@ -396,7 +396,7 @@ mlx5e_copy_skb_header_mpwqe(struct device *pdev,
 	}
 }
 
-void mlx5e_free_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi)
+static void mlx5e_free_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi)
 {
 	const bool no_xdp_xmit =
 		bitmap_empty(wi->xdp_xmit_bitmap, MLX5_MPWRQ_PAGES_PER_WQE);

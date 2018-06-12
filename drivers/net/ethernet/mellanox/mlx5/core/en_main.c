@@ -877,7 +877,7 @@ static void mlx5e_free_rx_descs(struct mlx5e_rq *rq)
 
 		/* UMR WQE (if in progress) is always at wq->head */
 		if (rq->mpwqe.umr_in_progress)
-			mlx5e_free_rx_mpwqe(rq, &rq->mpwqe.info[wq->head]);
+			rq->dealloc_wqe(rq, wq->head);
 
 		while (!mlx5_wq_ll_is_empty(wq)) {
 			struct mlx5e_rx_wqe_ll *wqe;
