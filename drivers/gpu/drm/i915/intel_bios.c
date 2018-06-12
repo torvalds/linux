@@ -652,7 +652,7 @@ parse_edp(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 	}
 
 	if (bdb->version >= 173) {
-		uint8_t vswing;
+		u8 vswing;
 
 		/* Don't read from VBT if module parameter has valid value*/
 		if (i915_modparams.edp_vswing) {
@@ -964,7 +964,7 @@ static int goto_next_sequence_v3(const u8 *data, int index, int total)
 	 * includes MIPI_SEQ_ELEM_END byte, excludes the final MIPI_SEQ_END
 	 * byte.
 	 */
-	size_of_sequence = *((const uint32_t *)(data + index));
+	size_of_sequence = *((const u32 *)(data + index));
 	index += 4;
 
 	seq_end = index + size_of_sequence;
