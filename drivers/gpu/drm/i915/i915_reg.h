@@ -1142,11 +1142,11 @@ enum i915_power_well_id {
 #define   FB_FMAX_VMIN_FREQ_LO_SHIFT		27
 #define   FB_FMAX_VMIN_FREQ_LO_MASK		0xf8000000
 
-#define VLV_TURBO_SOC_OVERRIDE	0x04
-#define 	VLV_OVERRIDE_EN	1
-#define 	VLV_SOC_TDP_EN	(1 << 1)
-#define 	VLV_BIAS_CPU_125_SOC_875 (6 << 2)
-#define 	CHV_BIAS_CPU_50_SOC_50 (3 << 2)
+#define VLV_TURBO_SOC_OVERRIDE		0x04
+#define   VLV_OVERRIDE_EN		1
+#define   VLV_SOC_TDP_EN		(1 << 1)
+#define   VLV_BIAS_CPU_125_SOC_875	(6 << 2)
+#define   CHV_BIAS_CPU_50_SOC_50	(3 << 2)
 
 /* vlv2 north clock has */
 #define CCK_FUSE_REG				0x8
@@ -2413,7 +2413,7 @@ enum i915_power_well_id {
 #define   DERRMR_PIPEA_SPR_FLIP_DONE	(1 << 2)
 #define   DERRMR_PIPEA_VBLANK		(1 << 3)
 #define   DERRMR_PIPEA_HBLANK		(1 << 5)
-#define   DERRMR_PIPEB_SCANLINE 	(1 << 8)
+#define   DERRMR_PIPEB_SCANLINE		(1 << 8)
 #define   DERRMR_PIPEB_PRI_FLIP_DONE	(1 << 9)
 #define   DERRMR_PIPEB_SPR_FLIP_DONE	(1 << 10)
 #define   DERRMR_PIPEB_VBLANK		(1 << 11)
@@ -7573,7 +7573,7 @@ enum {
 #define  TRANS_VBLANK_END_SHIFT		16
 #define  TRANS_VBLANK_START_SHIFT	0
 #define _PCH_TRANS_VSYNC_A		0xe0014
-#define  TRANS_VSYNC_END_SHIFT	 	16
+#define  TRANS_VSYNC_END_SHIFT		16
 #define  TRANS_VSYNC_START_SHIFT	0
 #define _PCH_TRANS_VSYNCSHIFT_A		0xe0028
 
