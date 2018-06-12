@@ -571,6 +571,7 @@ static int rvin_parallel_graph_init(struct rvin_dev *vin)
 	ret = v4l2_async_notifier_register(&vin->v4l2_dev, &vin->notifier);
 	if (ret < 0) {
 		vin_err(vin, "Notifier registration failed\n");
+		v4l2_async_notifier_cleanup(&vin->group->notifier);
 		return ret;
 	}
 
@@ -773,6 +774,7 @@ static int rvin_mc_parse_of_graph(struct rvin_dev *vin)
 					   &vin->group->notifier);
 	if (ret < 0) {
 		vin_err(vin, "Notifier registration failed\n");
+		v4l2_async_notifier_cleanup(&vin->group->notifier);
 		return ret;
 	}
 
