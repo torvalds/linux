@@ -77,12 +77,12 @@ static const struct gmbus_pin gmbus_pins_cnp[] = {
 };
 
 static const struct gmbus_pin gmbus_pins_icp[] = {
-	[GMBUS_PIN_1_BXT] = { "dpa", GPIOA },
-	[GMBUS_PIN_2_BXT] = { "dpb", GPIOB },
-	[GMBUS_PIN_9_TC1_ICP] = { "tc1", GPIOC },
-	[GMBUS_PIN_10_TC2_ICP] = { "tc2", GPIOD },
-	[GMBUS_PIN_11_TC3_ICP] = { "tc3", GPIOE },
-	[GMBUS_PIN_12_TC4_ICP] = { "tc4", GPIOF },
+	[GMBUS_PIN_1_BXT] = { "dpa", GPIOB },
+	[GMBUS_PIN_2_BXT] = { "dpb", GPIOC },
+	[GMBUS_PIN_9_TC1_ICP] = { "tc1", GPIOJ },
+	[GMBUS_PIN_10_TC2_ICP] = { "tc2", GPIOK },
+	[GMBUS_PIN_11_TC3_ICP] = { "tc3", GPIOL },
+	[GMBUS_PIN_12_TC4_ICP] = { "tc4", GPIOM },
 };
 
 /* pin is expected to be valid */
