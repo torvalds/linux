@@ -281,9 +281,8 @@ int octeon_init_droq(struct octeon_device *oct,
 		droq->max_count);
 
 	droq->recv_buf_list = (struct octeon_recv_buffer *)
-			      vzalloc_node(droq->max_count *
-						OCT_DROQ_RECVBUF_SIZE,
-						numa_node);
+	      vzalloc_node(array_size(droq->max_count, OCT_DROQ_RECVBUF_SIZE),
+			   numa_node);
 	if (!droq->recv_buf_list)
 		droq->recv_buf_list = (struct octeon_recv_buffer *)
 		      vzalloc(array_size(droq->max_count,
