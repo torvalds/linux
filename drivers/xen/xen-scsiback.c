@@ -654,9 +654,9 @@ static struct vscsibk_pend *scsiback_get_pend_req(struct vscsiif_back_ring *ring
 	struct scsiback_nexus *nexus = tpg->tpg_nexus;
 	struct se_session *se_sess = nexus->tvn_se_sess;
 	struct vscsibk_pend *req;
-	int tag, i;
+	int tag, cpu, i;
 
-	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, TASK_RUNNING);
+	tag = sbitmap_queue_get(&se_sess->sess_tag_pool, &cpu);
 	if (tag < 0) {
 		pr_err("Unable to obtain tag for vscsiif_request\n");
 		return ERR_PTR(-ENOMEM);
@@ -665,6 +665,7 @@ static struct vscsibk_pend *scsiback_get_pend_req(struct vscsiif_back_ring *ring
 	req = &((struct vscsibk_pend *)se_sess->sess_cmd_map)[tag];
 	memset(req, 0, sizeof(*req));
 	req->se_cmd.map_tag = tag;
+	req->se_cmd.map_cpu = cpu;
 
 	for (i = 0; i < VSCSI_MAX_GRANTS; i++)
 		req->grant_handles[i] = SCSIBACK_INVALID_HANDLE;

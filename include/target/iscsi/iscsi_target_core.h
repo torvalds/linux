@@ -4,6 +4,7 @@
 
 #include <linux/dma-direction.h>     /* enum dma_data_direction */
 #include <linux/list.h>              /* struct list_head */
+#include <linux/sched.h>
 #include <linux/socket.h>            /* struct sockaddr_storage */
 #include <linux/types.h>             /* u8 */
 #include <scsi/iscsi_proto.h>        /* itt_t */

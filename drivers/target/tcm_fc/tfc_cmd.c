@@ -28,7 +28,6 @@
 #include <linux/configfs.h>
 #include <linux/ctype.h>
 #include <linux/hash.h>
-#include <linux/percpu_ida.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/libfc.h>
@@ -448,9 +447,9 @@ static void ft_recv_cmd(struct ft_sess *sess, struct fc_frame *fp)
 	struct ft_cmd *cmd;
 	struct fc_lport *lport = sess->tport->lport;
 	struct se_session *se_sess = sess->se_sess;
-	int tag;
+	int tag, cpu;
 
-	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, TASK_RUNNING);
+	tag = sbitmap_queue_get(&se_sess->sess_tag_pool, &cpu);
 	if (tag < 0)
 		goto busy;
 
@@ -458,6 +457,7 @@ static void ft_recv_cmd(struct ft_sess *sess, struct fc_frame *fp)
 	memset(cmd, 0, sizeof(struct ft_cmd));
 
 	cmd->se_cmd.map_tag = tag;
+	cmd->se_cmd.map_cpu = cpu;
 	cmd->sess = sess;
 	cmd->seq = fc_seq_assign(lport, fp);
 	if (!cmd->seq) {

@@ -4,7 +4,7 @@
 
 #include <linux/configfs.h>      /* struct config_group */
 #include <linux/dma-direction.h> /* enum dma_data_direction */
-#include <linux/percpu_ida.h>    /* struct percpu_ida */
+#include <linux/sbitmap.h>
 #include <linux/percpu-refcount.h>
 #include <linux/semaphore.h>     /* struct semaphore */
 #include <linux/completion.h>
@@ -455,6 +455,7 @@ struct se_cmd {
 	int			sam_task_attr;
 	/* Used for se_sess->sess_tag_pool */
 	unsigned int		map_tag;
+	int			map_cpu;
 	/* Transport protocol dependent state, see transport_state_table */
 	enum transport_state_table t_state;
 	/* See se_cmd_flags_table */
@@ -608,7 +609,7 @@ struct se_session {
 	struct list_head	sess_wait_list;
 	spinlock_t		sess_cmd_lock;
 	void			*sess_cmd_map;
-	struct percpu_ida	sess_tag_pool;
+	struct sbitmap_queue	sess_tag_pool;
 };
 
 struct se_device;
@@ -936,7 +937,7 @@ static inline void atomic_dec_mb(atomic_t *v)
 
 static inline void target_free_tag(struct se_session *sess, struct se_cmd *cmd)
 {
-	percpu_ida_free(&sess->sess_tag_pool, cmd->map_tag);
+	sbitmap_queue_clear(&sess->sess_tag_pool, cmd->map_tag, cmd->map_cpu);
 }
 
 #endif /* TARGET_CORE_BASE_H */
