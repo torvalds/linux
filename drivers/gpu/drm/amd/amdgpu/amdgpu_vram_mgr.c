@@ -97,6 +97,22 @@ static u64 amdgpu_vram_mgr_vis_size(struct amdgpu_device *adev,
 }
 
 /**
+ * amdgpu_vram_mgr_bo_invisible_size - CPU invisible BO size
+ *
+ * @bo: &amdgpu_bo buffer object (must be in VRAM)
+ *
+ * Returns:
+ * How much of the given &amdgpu_bo buffer object lies in CPU invisible VRAM.
+ */
+u64 amdgpu_vram_mgr_bo_invisible_size(struct amdgpu_bo *bo)
+{
+	if (bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
+		return amdgpu_bo_size(bo);
+
+	return 0;
+}
+
+/**
  * amdgpu_vram_mgr_new - allocate new ranges
  *
  * @man: TTM memory type manager
