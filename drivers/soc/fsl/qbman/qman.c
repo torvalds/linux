@@ -1021,7 +1021,8 @@ int qman_alloc_fq_table(u32 _num_fqids)
 {
 	num_fqids = _num_fqids;
 
-	fq_table = vzalloc(num_fqids * 2 * sizeof(struct qman_fq *));
+	fq_table = vzalloc(array3_size(sizeof(struct qman_fq *),
+				       num_fqids, 2));
 	if (!fq_table)
 		return -ENOMEM;
 

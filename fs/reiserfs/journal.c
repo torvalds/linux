@@ -350,7 +350,8 @@ static struct reiserfs_journal_cnode *allocate_cnodes(int num_cnodes)
 	if (num_cnodes <= 0) {
 		return NULL;
 	}
-	head = vzalloc(num_cnodes * sizeof(struct reiserfs_journal_cnode));
+	head = vzalloc(array_size(num_cnodes,
+				  sizeof(struct reiserfs_journal_cnode)));
 	if (!head) {
 		return NULL;
 	}

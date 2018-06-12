@@ -2435,7 +2435,7 @@ static int qed_update_vport(struct qed_dev *cdev,
 	if (!cdev)
 		return -ENODEV;
 
-	rss = vzalloc(sizeof(*rss) * cdev->num_hwfns);
+	rss = vzalloc(array_size(sizeof(*rss), cdev->num_hwfns));
 	if (!rss)
 		return -ENOMEM;
 

@@ -187,7 +187,7 @@ static int pblk_rwb_init(struct pblk *pblk)
 
 	nr_entries = pblk_rb_calculate_size(buffer_size);
 
-	entries = vzalloc(nr_entries * sizeof(struct pblk_rb_entry));
+	entries = vzalloc(array_size(nr_entries, sizeof(struct pblk_rb_entry)));
 	if (!entries)
 		return -ENOMEM;
 

@@ -177,7 +177,8 @@ int nfsd_reply_cache_init(void)
 
 	drc_hashtbl = kcalloc(hashsize, sizeof(*drc_hashtbl), GFP_KERNEL);
 	if (!drc_hashtbl) {
-		drc_hashtbl = vzalloc(hashsize * sizeof(*drc_hashtbl));
+		drc_hashtbl = vzalloc(array_size(hashsize,
+						 sizeof(*drc_hashtbl)));
 		if (!drc_hashtbl)
 			goto out_nomem;
 	}

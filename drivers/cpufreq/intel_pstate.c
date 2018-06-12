@@ -2339,7 +2339,7 @@ hwp_cpu_matched:
 
 	pr_info("Intel P-state driver initializing\n");
 
-	all_cpu_data = vzalloc(sizeof(void *) * num_possible_cpus());
+	all_cpu_data = vzalloc(array_size(sizeof(void *), num_possible_cpus()));
 	if (!all_cpu_data)
 		return -ENOMEM;
 

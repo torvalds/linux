@@ -785,7 +785,8 @@ int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
 		return -EINVAL;
 
 	r = -ENOMEM;
-	cpuid_entries = vzalloc(sizeof(struct kvm_cpuid_entry2) * cpuid->nent);
+	cpuid_entries = vzalloc(array_size(sizeof(struct kvm_cpuid_entry2),
+					   cpuid->nent));
 	if (!cpuid_entries)
 		goto out;
 

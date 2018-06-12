@@ -369,11 +369,13 @@ static void init_shadow_tids(struct qib_devdata *dd)
 	struct page **pages;
 	dma_addr_t *addrs;
 
-	pages = vzalloc(dd->cfgctxts * dd->rcvtidcnt * sizeof(struct page *));
+	pages = vzalloc(array_size(sizeof(struct page *),
+				   dd->cfgctxts * dd->rcvtidcnt));
 	if (!pages)
 		goto bail;
 
-	addrs = vzalloc(dd->cfgctxts * dd->rcvtidcnt * sizeof(dma_addr_t));
+	addrs = vzalloc(array_size(sizeof(dma_addr_t),
+				   dd->cfgctxts * dd->rcvtidcnt));
 	if (!addrs)
 		goto bail_free;
 

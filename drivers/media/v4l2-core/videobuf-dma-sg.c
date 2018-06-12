@@ -69,7 +69,7 @@ static struct scatterlist *videobuf_vmalloc_to_sg(unsigned char *virt,
 	struct page *pg;
 	int i;
 
-	sglist = vzalloc(nr_pages * sizeof(*sglist));
+	sglist = vzalloc(array_size(nr_pages, sizeof(*sglist)));
 	if (NULL == sglist)
 		return NULL;
 	sg_init_table(sglist, nr_pages);
