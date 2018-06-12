@@ -2555,10 +2555,10 @@ static int virtnet_find_vqs(struct virtnet_info *vi)
 	vqs = kzalloc(total_vqs * sizeof(*vqs), GFP_KERNEL);
 	if (!vqs)
 		goto err_vq;
-	callbacks = kmalloc(total_vqs * sizeof(*callbacks), GFP_KERNEL);
+	callbacks = kmalloc_array(total_vqs, sizeof(*callbacks), GFP_KERNEL);
 	if (!callbacks)
 		goto err_callback;
-	names = kmalloc(total_vqs * sizeof(*names), GFP_KERNEL);
+	names = kmalloc_array(total_vqs, sizeof(*names), GFP_KERNEL);
 	if (!names)
 		goto err_names;
 	if (!vi->big_packets || vi->mergeable_rx_bufs) {

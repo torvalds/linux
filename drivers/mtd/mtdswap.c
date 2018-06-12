@@ -1340,7 +1340,7 @@ static int mtdswap_init(struct mtdswap_dev *d, unsigned int eblocks,
 	if (!d->page_buf)
 		goto page_buf_fail;
 
-	d->oob_buf = kmalloc(2 * mtd->oobavail, GFP_KERNEL);
+	d->oob_buf = kmalloc_array(2, mtd->oobavail, GFP_KERNEL);
 	if (!d->oob_buf)
 		goto oob_buf_fail;
 

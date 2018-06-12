@@ -2636,9 +2636,9 @@ int mlx4_cmd_use_events(struct mlx4_dev *dev)
 	int i;
 	int err = 0;
 
-	priv->cmd.context = kmalloc(priv->cmd.max_cmds *
-				   sizeof(struct mlx4_cmd_context),
-				   GFP_KERNEL);
+	priv->cmd.context = kmalloc_array(priv->cmd.max_cmds,
+					  sizeof(struct mlx4_cmd_context),
+					  GFP_KERNEL);
 	if (!priv->cmd.context)
 		return -ENOMEM;
 

@@ -2743,7 +2743,8 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 					r = -ENOMEM;
 					goto bad;
 				}
-				section_req->iv = kmalloc(ivsize * 2, GFP_KERNEL);
+				section_req->iv = kmalloc_array(ivsize, 2,
+								GFP_KERNEL);
 				if (!section_req->iv) {
 					skcipher_request_free(section_req);
 					*error = "Unable to allocate iv";

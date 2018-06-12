@@ -537,12 +537,12 @@ static int __nd_alloc_stack(struct nameidata *nd)
 	struct saved *p;
 
 	if (nd->flags & LOOKUP_RCU) {
-		p= kmalloc(MAXSYMLINKS * sizeof(struct saved),
+		p= kmalloc_array(MAXSYMLINKS, sizeof(struct saved),
 				  GFP_ATOMIC);
 		if (unlikely(!p))
 			return -ECHILD;
 	} else {
-		p= kmalloc(MAXSYMLINKS * sizeof(struct saved),
+		p= kmalloc_array(MAXSYMLINKS, sizeof(struct saved),
 				  GFP_KERNEL);
 		if (unlikely(!p))
 			return -ENOMEM;

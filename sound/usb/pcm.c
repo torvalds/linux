@@ -1123,7 +1123,7 @@ static int snd_usb_pcm_check_knot(struct snd_pcm_runtime *runtime,
 		return 0;
 
 	subs->rate_list.list = rate_list =
-		kmalloc(sizeof(int) * count, GFP_KERNEL);
+		kmalloc_array(count, sizeof(int), GFP_KERNEL);
 	if (!subs->rate_list.list)
 		return -ENOMEM;
 	subs->rate_list.count = count;

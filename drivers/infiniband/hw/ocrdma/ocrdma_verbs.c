@@ -1873,7 +1873,8 @@ struct ib_srq *ocrdma_create_srq(struct ib_pd *ibpd,
 		srq->bit_fields_len = (srq->rq.max_cnt / 32) +
 		    (srq->rq.max_cnt % 32 ? 1 : 0);
 		srq->idx_bit_fields =
-		    kmalloc(srq->bit_fields_len * sizeof(u32), GFP_KERNEL);
+		    kmalloc_array(srq->bit_fields_len, sizeof(u32),
+				  GFP_KERNEL);
 		if (srq->idx_bit_fields == NULL)
 			goto arm_err;
 		memset(srq->idx_bit_fields, 0xff,

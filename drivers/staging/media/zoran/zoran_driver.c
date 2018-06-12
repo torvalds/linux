@@ -941,7 +941,7 @@ static int zoran_open(struct file *file)
 	/* used to be BUZ_MAX_WIDTH/HEIGHT, but that gives overflows
 	 * on norm-change! */
 	fh->overlay_mask =
-	    kmalloc(((768 + 31) / 32) * 576 * 4, GFP_KERNEL);
+	    kmalloc(array3_size((768 + 31) / 32, 576, 4), GFP_KERNEL);
 	if (!fh->overlay_mask) {
 		dprintk(1,
 			KERN_ERR

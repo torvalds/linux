@@ -175,7 +175,7 @@ static void * r10buf_pool_alloc(gfp_t gfp_flags, void *data)
 		nalloc_rp = nalloc;
 	else
 		nalloc_rp = nalloc * 2;
-	rps = kmalloc(sizeof(struct resync_pages) * nalloc_rp, gfp_flags);
+	rps = kmalloc_array(nalloc_rp, sizeof(struct resync_pages), gfp_flags);
 	if (!rps)
 		goto out_free_r10bio;
 

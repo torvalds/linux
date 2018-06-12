@@ -750,7 +750,7 @@ static int sm_init_zone(struct sm_ftl *ftl, int zone_num)
 	dbg("initializing zone %d", zone_num);
 
 	/* Allocate memory for FTL table */
-	zone->lba_to_phys_table = kmalloc(ftl->max_lba * 2, GFP_KERNEL);
+	zone->lba_to_phys_table = kmalloc_array(ftl->max_lba, 2, GFP_KERNEL);
 
 	if (!zone->lba_to_phys_table)
 		return -ENOMEM;

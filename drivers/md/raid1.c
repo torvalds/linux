@@ -126,8 +126,8 @@ static void * r1buf_pool_alloc(gfp_t gfp_flags, void *data)
 	if (!r1_bio)
 		return NULL;
 
-	rps = kmalloc(sizeof(struct resync_pages) * pi->raid_disks,
-		      gfp_flags);
+	rps = kmalloc_array(pi->raid_disks, sizeof(struct resync_pages),
+			    gfp_flags);
 	if (!rps)
 		goto out_free_r1bio;
 

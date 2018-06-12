@@ -64,9 +64,12 @@ static struct fuse_req *__fuse_request_alloc(unsigned npages, gfp_t flags)
 			pages = req->inline_pages;
 			page_descs = req->inline_page_descs;
 		} else {
-			pages = kmalloc(sizeof(struct page *) * npages, flags);
-			page_descs = kmalloc(sizeof(struct fuse_page_desc) *
-					     npages, flags);
+			pages = kmalloc_array(npages, sizeof(struct page *),
+					      flags);
+			page_descs =
+				kmalloc_array(npages,
+					      sizeof(struct fuse_page_desc),
+					      flags);
 		}
 
 		if (!pages || !page_descs) {
@@ -1359,7 +1362,8 @@ static ssize_t fuse_dev_splice_read(struct file *in, loff_t *ppos,
 	if (!fud)
 		return -EPERM;
 
-	bufs = kmalloc(pipe->buffers * sizeof(struct pipe_buffer), GFP_KERNEL);
+	bufs = kmalloc_array(pipe->buffers, sizeof(struct pipe_buffer),
+			     GFP_KERNEL);
 	if (!bufs)
 		return -ENOMEM;
 
@@ -1940,7 +1944,8 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 	if (!fud)
 		return -EPERM;
 
-	bufs = kmalloc(pipe->buffers * sizeof(struct pipe_buffer), GFP_KERNEL);
+	bufs = kmalloc_array(pipe->buffers, sizeof(struct pipe_buffer),
+			     GFP_KERNEL);
 	if (!bufs)
 		return -ENOMEM;
 

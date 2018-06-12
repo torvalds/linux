@@ -1317,7 +1317,7 @@ minstrel_ht_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp)
 	if (!msp->ratelist)
 		goto error;
 
-	msp->sample_table = kmalloc(SAMPLE_COLUMNS * max_rates, gfp);
+	msp->sample_table = kmalloc_array(max_rates, SAMPLE_COLUMNS, gfp);
 	if (!msp->sample_table)
 		goto error1;
 

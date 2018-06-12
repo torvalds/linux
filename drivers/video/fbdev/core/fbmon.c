@@ -671,7 +671,7 @@ static struct fb_videomode *fb_create_modedb(unsigned char *edid, int *dbsize,
 	}
 
 	*dbsize = num;
-	m = kmalloc(num * sizeof(struct fb_videomode), GFP_KERNEL);
+	m = kmalloc_array(num, sizeof(struct fb_videomode), GFP_KERNEL);
 	if (!m)
 		return mode;
 	memmove(m, mode, num * sizeof(struct fb_videomode));

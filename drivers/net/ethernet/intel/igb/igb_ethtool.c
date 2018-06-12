@@ -736,8 +736,8 @@ static int igb_get_eeprom(struct net_device *netdev,
 	first_word = eeprom->offset >> 1;
 	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
 
-	eeprom_buff = kmalloc(sizeof(u16) *
-			(last_word - first_word + 1), GFP_KERNEL);
+	eeprom_buff = kmalloc_array(last_word - first_word + 1, sizeof(u16),
+				    GFP_KERNEL);
 	if (!eeprom_buff)
 		return -ENOMEM;
 
@@ -3245,8 +3245,8 @@ static int igb_get_module_eeprom(struct net_device *netdev,
 	first_word = ee->offset >> 1;
 	last_word = (ee->offset + ee->len - 1) >> 1;
 
-	dataword = kmalloc(sizeof(u16) * (last_word - first_word + 1),
-			   GFP_KERNEL);
+	dataword = kmalloc_array(last_word - first_word + 1, sizeof(u16),
+				 GFP_KERNEL);
 	if (!dataword)
 		return -ENOMEM;
 

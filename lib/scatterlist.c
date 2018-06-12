@@ -170,7 +170,8 @@ static struct scatterlist *sg_kmalloc(unsigned int nents, gfp_t gfp_mask)
 		kmemleak_alloc(ptr, PAGE_SIZE, 1, gfp_mask);
 		return ptr;
 	} else
-		return kmalloc(nents * sizeof(struct scatterlist), gfp_mask);
+		return kmalloc_array(nents, sizeof(struct scatterlist),
+				     gfp_mask);
 }
 
 static void sg_kfree(struct scatterlist *sg, unsigned int nents)

@@ -729,8 +729,8 @@ static int kdb_defcmd(int argc, const char **argv)
 		kdb_printf("Command only available during kdb_init()\n");
 		return KDB_NOTIMP;
 	}
-	defcmd_set = kmalloc((defcmd_set_count + 1) * sizeof(*defcmd_set),
-			     GFP_KDB);
+	defcmd_set = kmalloc_array(defcmd_set_count + 1, sizeof(*defcmd_set),
+				   GFP_KDB);
 	if (!defcmd_set)
 		goto fail_defcmd;
 	memcpy(defcmd_set, save_defcmd_set,
@@ -2706,8 +2706,11 @@ int kdb_register_flags(char *cmd,
 	}
 
 	if (i >= kdb_max_commands) {
-		kdbtab_t *new = kmalloc((kdb_max_commands - KDB_BASE_CMD_MAX +
-			 kdb_command_extend) * sizeof(*new), GFP_KDB);
+		kdbtab_t *new = kmalloc_array(kdb_max_commands -
+						KDB_BASE_CMD_MAX +
+						kdb_command_extend,
+					      sizeof(*new),
+					      GFP_KDB);
 		if (!new) {
 			kdb_printf("Could not allocate new kdb_command "
 				   "table\n");

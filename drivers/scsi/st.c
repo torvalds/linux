@@ -4915,7 +4915,8 @@ static int sgl_map_user_pages(struct st_buffer *STbp,
 	if (count == 0)
 		return 0;
 
-	if ((pages = kmalloc(max_pages * sizeof(*pages), GFP_KERNEL)) == NULL)
+	pages = kmalloc_array(max_pages, sizeof(*pages), GFP_KERNEL);
+	if (pages == NULL)
 		return -ENOMEM;
 
         /* Try to fault in all of the necessary pages */

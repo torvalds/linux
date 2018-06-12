@@ -789,8 +789,8 @@ static int bitmap_storage_alloc(struct bitmap_storage *store,
 	num_pages = DIV_ROUND_UP(bytes, PAGE_SIZE);
 	offset = slot_number * num_pages;
 
-	store->filemap = kmalloc(sizeof(struct page *)
-				 * num_pages, GFP_KERNEL);
+	store->filemap = kmalloc_array(num_pages, sizeof(struct page *),
+				       GFP_KERNEL);
 	if (!store->filemap)
 		return -ENOMEM;
 

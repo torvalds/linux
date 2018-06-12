@@ -1055,7 +1055,7 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 	/* Change the pointers.
 	   Don't bother distinguishing stuffed from non-stuffed.
 	   This code is complicated enough already. */
-	lp = kmalloc(half_len * sizeof(__be64), GFP_NOFS);
+	lp = kmalloc_array(half_len, sizeof(__be64), GFP_NOFS);
 	if (!lp) {
 		error = -ENOMEM;
 		goto fail_brelse;
@@ -1169,7 +1169,7 @@ static int dir_double_exhash(struct gfs2_inode *dip)
 	if (IS_ERR(hc))
 		return PTR_ERR(hc);
 
-	hc2 = kmalloc(hsize_bytes * 2, GFP_NOFS | __GFP_NOWARN);
+	hc2 = kmalloc_array(hsize_bytes, 2, GFP_NOFS | __GFP_NOWARN);
 	if (hc2 == NULL)
 		hc2 = __vmalloc(hsize_bytes * 2, GFP_NOFS, PAGE_KERNEL);
 
@@ -1596,7 +1596,7 @@ int gfs2_dir_read(struct inode *inode, struct dir_context *ctx,
 
 	error = -ENOMEM;
 	/* 96 is max number of dirents which can be stuffed into an inode */
-	darr = kmalloc(96 * sizeof(struct gfs2_dirent *), GFP_NOFS);
+	darr = kmalloc_array(96, sizeof(struct gfs2_dirent *), GFP_NOFS);
 	if (darr) {
 		g.pdent = (const struct gfs2_dirent **)darr;
 		g.offset = 0;

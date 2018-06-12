@@ -175,7 +175,8 @@ static int videobuf_dma_init_user_locked(struct videobuf_dmabuf *dma,
 	dma->offset = data & ~PAGE_MASK;
 	dma->size = size;
 	dma->nr_pages = last-first+1;
-	dma->pages = kmalloc(dma->nr_pages * sizeof(struct page *), GFP_KERNEL);
+	dma->pages = kmalloc_array(dma->nr_pages, sizeof(struct page *),
+				   GFP_KERNEL);
 	if (NULL == dma->pages)
 		return -ENOMEM;
 

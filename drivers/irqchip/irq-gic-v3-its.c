@@ -3567,8 +3567,8 @@ static void __init acpi_table_parse_srat_its(void)
 	if (count <= 0)
 		return;
 
-	its_srat_maps = kmalloc(count * sizeof(struct its_srat_map),
-				GFP_KERNEL);
+	its_srat_maps = kmalloc_array(count, sizeof(struct its_srat_map),
+				      GFP_KERNEL);
 	if (!its_srat_maps) {
 		pr_warn("SRAT: Failed to allocate memory for its_srat_maps!\n");
 		return;

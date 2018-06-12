@@ -2666,7 +2666,7 @@ bnx2_alloc_bad_rbuf(struct bnx2 *bp)
 	u32 good_mbuf_cnt;
 	u32 val;
 
-	good_mbuf = kmalloc(512 * sizeof(u16), GFP_KERNEL);
+	good_mbuf = kmalloc_array(512, sizeof(u16), GFP_KERNEL);
 	if (!good_mbuf)
 		return -ENOMEM;
 

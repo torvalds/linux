@@ -628,7 +628,7 @@ int ubifs_create_dflt_lpt(struct ubifs_info *c, int *main_lebs, int lpt_first,
 	/* Needed by 'ubifs_pack_lsave()' */
 	c->main_first = c->leb_cnt - *main_lebs;
 
-	lsave = kmalloc(sizeof(int) * c->lsave_cnt, GFP_KERNEL);
+	lsave = kmalloc_array(c->lsave_cnt, sizeof(int), GFP_KERNEL);
 	pnode = kzalloc(sizeof(struct ubifs_pnode), GFP_KERNEL);
 	nnode = kzalloc(sizeof(struct ubifs_nnode), GFP_KERNEL);
 	buf = vmalloc(c->leb_size);
@@ -1636,15 +1636,17 @@ static int lpt_init_rd(struct ubifs_info *c)
 		return -ENOMEM;
 
 	for (i = 0; i < LPROPS_HEAP_CNT; i++) {
-		c->lpt_heap[i].arr = kmalloc(sizeof(void *) * LPT_HEAP_SZ,
-					     GFP_KERNEL);
+		c->lpt_heap[i].arr = kmalloc_array(LPT_HEAP_SZ,
+						   sizeof(void *),
+						   GFP_KERNEL);
 		if (!c->lpt_heap[i].arr)
 			return -ENOMEM;
 		c->lpt_heap[i].cnt = 0;
 		c->lpt_heap[i].max_cnt = LPT_HEAP_SZ;
 	}
 
-	c->dirty_idx.arr = kmalloc(sizeof(void *) * LPT_HEAP_SZ, GFP_KERNEL);
+	c->dirty_idx.arr = kmalloc_array(LPT_HEAP_SZ, sizeof(void *),
+					 GFP_KERNEL);
 	if (!c->dirty_idx.arr)
 		return -ENOMEM;
 	c->dirty_idx.cnt = 0;
@@ -1697,7 +1699,7 @@ static int lpt_init_wr(struct ubifs_info *c)
 		return -ENOMEM;
 
 	if (c->big_lpt) {
-		c->lsave = kmalloc(sizeof(int) * c->lsave_cnt, GFP_NOFS);
+		c->lsave = kmalloc_array(c->lsave_cnt, sizeof(int), GFP_NOFS);
 		if (!c->lsave)
 			return -ENOMEM;
 		err = read_lsave(c);
@@ -1939,8 +1941,8 @@ int ubifs_lpt_scan_nolock(struct ubifs_info *c, int start_lnum, int end_lnum,
 			return err;
 	}
 
-	path = kmalloc(sizeof(struct lpt_scan_node) * (c->lpt_hght + 1),
-		       GFP_NOFS);
+	path = kmalloc_array(c->lpt_hght + 1, sizeof(struct lpt_scan_node),
+			     GFP_NOFS);
 	if (!path)
 		return -ENOMEM;
 

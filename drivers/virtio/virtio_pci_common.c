@@ -113,8 +113,9 @@ static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,
 
 	vp_dev->msix_vectors = nvectors;
 
-	vp_dev->msix_names = kmalloc(nvectors * sizeof *vp_dev->msix_names,
-				     GFP_KERNEL);
+	vp_dev->msix_names = kmalloc_array(nvectors,
+					   sizeof(*vp_dev->msix_names),
+					   GFP_KERNEL);
 	if (!vp_dev->msix_names)
 		goto error;
 	vp_dev->msix_affinity_masks

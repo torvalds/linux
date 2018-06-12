@@ -791,7 +791,8 @@ static int team_queue_override_init(struct team *team)
 
 	if (!queue_cnt)
 		return 0;
-	listarr = kmalloc(sizeof(struct list_head) * queue_cnt, GFP_KERNEL);
+	listarr = kmalloc_array(queue_cnt, sizeof(struct list_head),
+				GFP_KERNEL);
 	if (!listarr)
 		return -ENOMEM;
 	team->qom_lists = listarr;

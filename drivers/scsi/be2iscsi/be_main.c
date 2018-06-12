@@ -2483,8 +2483,9 @@ static int beiscsi_alloc_mem(struct beiscsi_hba *phba)
 		return -ENOMEM;
 	}
 
-	mem_arr_orig = kmalloc(sizeof(*mem_arr_orig) * BEISCSI_MAX_FRAGS_INIT,
-			       GFP_KERNEL);
+	mem_arr_orig = kmalloc_array(BEISCSI_MAX_FRAGS_INIT,
+				     sizeof(*mem_arr_orig),
+				     GFP_KERNEL);
 	if (!mem_arr_orig) {
 		kfree(phba->init_mem);
 		kfree(phwi_ctrlr->wrb_context);
@@ -2533,8 +2534,8 @@ static int beiscsi_alloc_mem(struct beiscsi_hba *phba)
 		} while (alloc_size);
 		mem_descr->num_elements = j;
 		mem_descr->size_in_bytes = phba->mem_req[i];
-		mem_descr->mem_array = kmalloc(sizeof(*mem_arr) * j,
-					       GFP_KERNEL);
+		mem_descr->mem_array = kmalloc_array(j, sizeof(*mem_arr),
+						     GFP_KERNEL);
 		if (!mem_descr->mem_array)
 			goto free_mem;
 
@@ -3353,8 +3354,9 @@ beiscsi_create_wrb_rings(struct beiscsi_hba *phba,
 	idx = 0;
 	mem_descr = phba->init_mem;
 	mem_descr += HWI_MEM_WRB;
-	pwrb_arr = kmalloc(sizeof(*pwrb_arr) * phba->params.cxns_per_ctrl,
-			   GFP_KERNEL);
+	pwrb_arr = kmalloc_array(phba->params.cxns_per_ctrl,
+				 sizeof(*pwrb_arr),
+				 GFP_KERNEL);
 	if (!pwrb_arr) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
 			    "BM_%d : Memory alloc failed in create wrb ring.\n");

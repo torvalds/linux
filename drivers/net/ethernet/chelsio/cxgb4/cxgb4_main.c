@@ -713,7 +713,7 @@ int cxgb4_write_rss(const struct port_info *pi, const u16 *queues)
 	const struct sge_eth_rxq *rxq;
 
 	rxq = &adapter->sge.ethrxq[pi->first_qset];
-	rss = kmalloc(pi->rss_size * sizeof(u16), GFP_KERNEL);
+	rss = kmalloc_array(pi->rss_size, sizeof(u16), GFP_KERNEL);
 	if (!rss)
 		return -ENOMEM;
 
@@ -4972,8 +4972,8 @@ static int enable_msix(struct adapter *adap)
 		max_ingq += (MAX_OFLD_QSETS * adap->num_uld);
 	if (is_offload(adap))
 		max_ingq += (MAX_OFLD_QSETS * adap->num_ofld_uld);
-	entries = kmalloc(sizeof(*entries) * (max_ingq + 1),
-			  GFP_KERNEL);
+	entries = kmalloc_array(max_ingq + 1, sizeof(*entries),
+				GFP_KERNEL);
 	if (!entries)
 		return -ENOMEM;
 

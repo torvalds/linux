@@ -3146,7 +3146,8 @@ int __init ip_rt_init(void)
 {
 	int cpu;
 
-	ip_idents = kmalloc(IP_IDENTS_SZ * sizeof(*ip_idents), GFP_KERNEL);
+	ip_idents = kmalloc_array(IP_IDENTS_SZ, sizeof(*ip_idents),
+				  GFP_KERNEL);
 	if (!ip_idents)
 		panic("IP: failed to allocate ip_idents\n");
 

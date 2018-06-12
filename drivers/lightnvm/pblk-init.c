@@ -833,8 +833,8 @@ static int pblk_alloc_line_meta(struct pblk *pblk, struct pblk_line *line)
 		goto free_blk_bitmap;
 
 
-	line->chks = kmalloc(lm->blk_per_line * sizeof(struct nvm_chk_meta),
-								GFP_KERNEL);
+	line->chks = kmalloc_array(lm->blk_per_line,
+				   sizeof(struct nvm_chk_meta), GFP_KERNEL);
 	if (!line->chks)
 		goto free_erase_bitmap;
 

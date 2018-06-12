@@ -685,7 +685,7 @@ void hid_dump_report(struct hid_device *hid, int type, u8 *data,
 	char *buf;
 	unsigned int i;
 
-	buf = kmalloc(sizeof(char) * HID_DEBUG_BUFSIZE, GFP_ATOMIC);
+	buf = kmalloc(HID_DEBUG_BUFSIZE, GFP_ATOMIC);
 
 	if (!buf)
 		return;

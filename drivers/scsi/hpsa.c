@@ -2177,8 +2177,9 @@ static int hpsa_allocate_ioaccel2_sg_chain_blocks(struct ctlr_info *h)
 		return -ENOMEM;
 	for (i = 0; i < h->nr_cmds; i++) {
 		h->ioaccel2_cmd_sg_list[i] =
-			kmalloc(sizeof(*h->ioaccel2_cmd_sg_list[i]) *
-					h->maxsgentries, GFP_KERNEL);
+			kmalloc_array(h->maxsgentries,
+				      sizeof(*h->ioaccel2_cmd_sg_list[i]),
+				      GFP_KERNEL);
 		if (!h->ioaccel2_cmd_sg_list[i])
 			goto clean;
 	}
@@ -2216,8 +2217,9 @@ static int hpsa_alloc_sg_chain_blocks(struct ctlr_info *h)
 		return -ENOMEM;
 
 	for (i = 0; i < h->nr_cmds; i++) {
-		h->cmd_sg_list[i] = kmalloc(sizeof(*h->cmd_sg_list[i]) *
-						h->chainsize, GFP_KERNEL);
+		h->cmd_sg_list[i] = kmalloc_array(h->chainsize,
+						  sizeof(*h->cmd_sg_list[i]),
+						  GFP_KERNEL);
 		if (!h->cmd_sg_list[i])
 			goto clean;
 
@@ -6407,7 +6409,7 @@ static int hpsa_big_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 		status = -ENOMEM;
 		goto cleanup1;
 	}
-	buff_size = kmalloc(SG_ENTRIES_IN_CMD * sizeof(int), GFP_KERNEL);
+	buff_size = kmalloc_array(SG_ENTRIES_IN_CMD, sizeof(int), GFP_KERNEL);
 	if (!buff_size) {
 		status = -ENOMEM;
 		goto cleanup1;
@@ -7151,7 +7153,7 @@ static int controller_reset_failed(struct CfgTable __iomem *cfgtable)
 	char *driver_ver, *old_driver_ver;
 	int rc, size = sizeof(cfgtable->driver_version);
 
-	old_driver_ver = kmalloc(2 * size, GFP_KERNEL);
+	old_driver_ver = kmalloc_array(2, size, GFP_KERNEL);
 	if (!old_driver_ver)
 		return -ENOMEM;
 	driver_ver = old_driver_ver + size;

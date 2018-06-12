@@ -966,8 +966,8 @@ int __init hpet_enable(void)
 #endif
 
 	cfg = hpet_readl(HPET_CFG);
-	hpet_boot_cfg = kmalloc((last + 2) * sizeof(*hpet_boot_cfg),
-				GFP_KERNEL);
+	hpet_boot_cfg = kmalloc_array(last + 2, sizeof(*hpet_boot_cfg),
+				      GFP_KERNEL);
 	if (hpet_boot_cfg)
 		*hpet_boot_cfg = cfg;
 	else

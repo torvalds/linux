@@ -1387,7 +1387,7 @@ wlc_lcnphy_rx_iq_cal(struct brcms_phy *pi,
 	s16 *ptr;
 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
 
-	ptr = kmalloc(sizeof(s16) * 131, GFP_ATOMIC);
+	ptr = kmalloc_array(131, sizeof(s16), GFP_ATOMIC);
 	if (NULL == ptr)
 		return false;
 	if (module == 2) {
@@ -2670,7 +2670,7 @@ wlc_lcnphy_tx_iqlo_cal(struct brcms_phy *pi,
 	u16 *values_to_save;
 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
 
-	values_to_save = kmalloc(sizeof(u16) * 20, GFP_ATOMIC);
+	values_to_save = kmalloc_array(20, sizeof(u16), GFP_ATOMIC);
 	if (NULL == values_to_save)
 		return;
 
@@ -3678,11 +3678,11 @@ wlc_lcnphy_a1(struct brcms_phy *pi, int cal_type, int num_levels,
 	u16 *phy_c32;
 	phy_c21 = 0;
 	phy_c10 = phy_c13 = phy_c14 = phy_c8 = 0;
-	ptr = kmalloc(sizeof(s16) * 131, GFP_ATOMIC);
+	ptr = kmalloc_array(131, sizeof(s16), GFP_ATOMIC);
 	if (NULL == ptr)
 		return;
 
-	phy_c32 = kmalloc(sizeof(u16) * 20, GFP_ATOMIC);
+	phy_c32 = kmalloc_array(20, sizeof(u16), GFP_ATOMIC);
 	if (NULL == phy_c32) {
 		kfree(ptr);
 		return;

@@ -859,8 +859,9 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	/* create a string array containing the names of all the preset timings */
 	while (v4l2_dv_timings_presets[dev->query_dv_timings_size].bt.width)
 		dev->query_dv_timings_size++;
-	dev->query_dv_timings_qmenu = kmalloc(dev->query_dv_timings_size *
-					   (sizeof(void *) + 32), GFP_KERNEL);
+	dev->query_dv_timings_qmenu = kmalloc_array(dev->query_dv_timings_size,
+						    (sizeof(void *) + 32),
+						    GFP_KERNEL);
 	if (dev->query_dv_timings_qmenu == NULL)
 		goto free_dev;
 	for (i = 0; i < dev->query_dv_timings_size; i++) {
