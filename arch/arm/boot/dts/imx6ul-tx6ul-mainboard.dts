@@ -48,7 +48,7 @@
 	compatible = "karo,imx6ul-tx6ul", "fsl,imx6ul";
 
 	aliases {
-		lcdif_24bit_pins_a = &pinctrl_disp0_3;
+		lcdif-24bit-pins-a = &pinctrl_disp0_3;
 		mmc0 = &usdhc1;
 		/delete-property/ mmc1;
 		serial2 = &uart3;

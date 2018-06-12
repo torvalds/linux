@@ -12,6 +12,9 @@ Required properties:
 - clock-names: Must include the following entries:
   - mc: the module's clock input
 - interrupts: The interrupt outputs from the controller.
+- #reset-cells : Should be 1. This cell represents memory client module ID.
+  The assignments may be found in header file <dt-bindings/memory/tegra30-mc.h>
+  or in the TRM documentation.
 
 Required properties for Tegra30, Tegra114, Tegra124, Tegra132 and Tegra210:
 - #iommu-cells: Should be 1. The single cell of the IOMMU specifier defines
@@ -72,12 +75,14 @@ Example SoC include file:
 		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
 
 		#iommu-cells = <1>;
+		#reset-cells = <1>;
 	};
 
 	sdhci@700b0000 {
 		compatible = "nvidia,tegra124-sdhci";
 		...
 		iommus = <&mc TEGRA_SWGROUP_SDMMC1A>;
+		resets = <&mc TEGRA124_MC_RESET_SDMMC1>;
 	};
 };
 

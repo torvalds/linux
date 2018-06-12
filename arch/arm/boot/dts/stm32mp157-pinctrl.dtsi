@@ -7,7 +7,7 @@
 
 / {
 	soc {
-		pinctrl: pin-controller {
+		pinctrl: pin-controller@50002000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "st,stm32mp157-pinctrl";
@@ -22,7 +22,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x0 0x400>;
-				clocks = <&clk_pll3_p>;
+				clocks = <&rcc GPIOA>;
 				st,bank-name = "GPIOA";
 				ngpios = <16>;
 				gpio-ranges = <&pinctrl 0 0 16>;
@@ -34,7 +34,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x1000 0x400>;
-				clocks = <&clk_pll3_p>;
+				clocks = <&rcc GPIOB>;
 				st,bank-name = "GPIOB";
 				ngpios = <16>;
 				gpio-ranges = <&pinctrl 0 16 16>;
@@ -46,7 +46,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x2000 0x400>;
-				clocks = <&clk_pll3_p>;
+				clocks = <&rcc GPIOC>;
 				st,bank-name = "GPIOC";
 				ngpios = <16>;
 				gpio-ranges = <&pinctrl 0 32 16>;
@@ -58,7 +58,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x3000 0x400>;
-				clocks = <&clk_pll3_p>;
+				clocks = <&rcc GPIOD>;
 				st,bank-name = "GPIOD";
 				ngpios = <16>;
 				gpio-ranges = <&pinctrl 0 48 16>;
@@ -70,7 +70,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x4000 0x400>;
-				clocks = <&clk_pll3_p>;
+				clocks = <&rcc GPIOE>;
 				st,bank-name = "GPIOE";
 				ngpios = <16>;
 				gpio-ranges = <&pinctrl 0 64 16>;
@@ -82,7 +82,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x5000 0x400>;
-				clocks = <&clk_pll3_p>;
+				clocks = <&rcc GPIOF>;
 				st,bank-name = "GPIOF";
 				ngpios = <16>;
 				gpio-ranges = <&pinctrl 0 80 16>;
@@ -94,7 +94,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x6000 0x400>;
-				clocks = <&clk_pll3_p>;
+				clocks = <&rcc GPIOG>;
 				st,bank-name = "GPIOG";
 				ngpios = <16>;
 				gpio-ranges = <&pinctrl 0 96 16>;
@@ -106,7 +106,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x7000 0x400>;
-				clocks = <&clk_pll3_p>;
+				clocks = <&rcc GPIOH>;
 				st,bank-name = "GPIOH";
 				ngpios = <16>;
 				gpio-ranges = <&pinctrl 0 112 16>;
@@ -118,7 +118,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x8000 0x400>;
-				clocks = <&clk_pll3_p>;
+				clocks = <&rcc GPIOI>;
 				st,bank-name = "GPIOI";
 				ngpios = <16>;
 				gpio-ranges = <&pinctrl 0 128 16>;
@@ -130,7 +130,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x9000 0x400>;
-				clocks = <&clk_pll3_p>;
+				clocks = <&rcc GPIOJ>;
 				st,bank-name = "GPIOJ";
 				ngpios = <16>;
 				gpio-ranges = <&pinctrl 0 144 16>;
@@ -142,13 +142,124 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0xa000 0x400>;
-				clocks = <&clk_pll3_p>;
+				clocks = <&rcc GPIOK>;
 				st,bank-name = "GPIOK";
 				ngpios = <8>;
 				gpio-ranges = <&pinctrl 0 160 8>;
 			};
 
-			uart4_pins_a: uart4@0 {
+			cec_pins_a: cec-0 {
+				pins {
+					pinmux = <STM32_PINMUX('A', 15, AF4)>;
+					bias-disable;
+					drive-open-drain;
+					slew-rate = <0>;
+				};
+			};
+
+			i2c1_pins_a: i2c1-0 {
+				pins {
+					pinmux = <STM32_PINMUX('D', 12, AF5)>, /* I2C1_SCL */
+						 <STM32_PINMUX('F', 15, AF5)>; /* I2C1_SDA */
+					bias-disable;
+					drive-open-drain;
+					slew-rate = <0>;
+				};
+			};
+
+			i2c2_pins_a: i2c2-0 {
+				pins {
+					pinmux = <STM32_PINMUX('H', 4, AF4)>, /* I2C2_SCL */
+						 <STM32_PINMUX('H', 5, AF4)>; /* I2C2_SDA */
+					bias-disable;
+					drive-open-drain;
+					slew-rate = <0>;
+				};
+			};
+
+			i2c5_pins_a: i2c5-0 {
+				pins {
+					pinmux = <STM32_PINMUX('A', 11, AF4)>, /* I2C5_SCL */
+						 <STM32_PINMUX('A', 12, AF4)>; /* I2C5_SDA */
+					bias-disable;
+					drive-open-drain;
+					slew-rate = <0>;
+				};
+			};
+
+			pwm2_pins_a: pwm2-0 {
+				pins {
+					pinmux = <STM32_PINMUX('A', 3, AF1)>; /* TIM2_CH4 */
+					bias-pull-down;
+					drive-push-pull;
+					slew-rate = <0>;
+				};
+			};
+
+			pwm8_pins_a: pwm8-0 {
+				pins {
+					pinmux = <STM32_PINMUX('I', 2, AF3)>; /* TIM8_CH4 */
+					bias-pull-down;
+					drive-push-pull;
+					slew-rate = <0>;
+				};
+			};
+
+			pwm12_pins_a: pwm12-0 {
+				pins {
+					pinmux = <STM32_PINMUX('H', 6, AF2)>; /* TIM12_CH1 */
+					bias-pull-down;
+					drive-push-pull;
+					slew-rate = <0>;
+				};
+			};
+
+			qspi_clk_pins_a: qspi-clk-0 {
+				pins {
+					pinmux = <STM32_PINMUX('F', 10, AF9)>; /* QSPI_CLK */
+					bias-disable;
+					drive-push-pull;
+					slew-rate = <3>;
+				};
+			};
+
+			qspi_bk1_pins_a: qspi-bk1-0 {
+				pins1 {
+					pinmux = <STM32_PINMUX('F', 8, AF10)>, /* QSPI_BK1_IO0 */
+						 <STM32_PINMUX('F', 9, AF10)>, /* QSPI_BK1_IO1 */
+						 <STM32_PINMUX('F', 7, AF9)>, /* QSPI_BK1_IO2 */
+						 <STM32_PINMUX('F', 6, AF9)>; /* QSPI_BK1_IO3 */
+					bias-disable;
+					drive-push-pull;
+					slew-rate = <3>;
+				};
+				pins2 {
+					pinmux = <STM32_PINMUX('B', 6, AF10)>; /* QSPI_BK1_NCS */
+					bias-pull-up;
+					drive-push-pull;
+					slew-rate = <3>;
+				};
+			};
+
+			qspi_bk2_pins_a: qspi-bk2-0 {
+				pins1 {
+					pinmux = <STM32_PINMUX('H', 2, AF9)>, /* QSPI_BK2_IO0 */
+						 <STM32_PINMUX('H', 3, AF9)>, /* QSPI_BK2_IO1 */
+						 <STM32_PINMUX('G', 10, AF11)>, /* QSPI_BK2_IO2 */
+						 <STM32_PINMUX('G', 7, AF11)>; /* QSPI_BK2_IO3 */
+					bias-disable;
+					drive-push-pull;
+					slew-rate = <3>;
+				};
+				pins2 {
+					pinmux = <STM32_PINMUX('C', 0, AF10)>; /* QSPI_BK2_NCS */
+					bias-pull-up;
+					drive-push-pull;
+					slew-rate = <3>;
+				};
+			};
+
+			uart4_pins_a: uart4-0 {
 				pins1 {
 					pinmux = <STM32_PINMUX('G', 11, AF6)>; /* UART4_TX */
 					bias-disable;
@@ -162,7 +273,7 @@
 			};
 		};
 
-		pinctrl_z: pin-controller-z {
+		pinctrl_z: pin-controller-z@54004000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "st,stm32mp157-z-pinctrl";
@@ -178,11 +289,21 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0 0x400>;
-				clocks = <&clk_pll2_p>;
+				clocks = <&rcc GPIOZ>;
 				st,bank-name = "GPIOZ";
 				st,bank-ioport = <11>;
 				ngpios = <8>;
 				gpio-ranges = <&pinctrl_z 0 400 8>;
+			};
+
+			i2c4_pins_a: i2c4-0 {
+				pins {
+					pinmux = <STM32_PINMUX('Z', 4, AF6)>, /* I2C4_SCL */
+						 <STM32_PINMUX('Z', 5, AF6)>; /* I2C4_SDA */
+					bias-disable;
+					drive-open-drain;
+					slew-rate = <0>;
+				};
 			};
 		};
 	};
