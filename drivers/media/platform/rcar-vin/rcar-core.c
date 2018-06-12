@@ -46,6 +46,8 @@
  */
 #define rvin_group_id_to_master(vin) ((vin) < 4 ? 0 : 4)
 
+#define v4l2_dev_to_vin(d)	container_of(d, struct rvin_dev, v4l2_dev)
+
 /* -----------------------------------------------------------------------------
  * Media Controller link notification
  */
@@ -359,8 +361,6 @@ out:
  * Async notifier
  */
 
-#define notifier_to_vin(n) container_of(n, struct rvin_dev, notifier)
-
 static int rvin_find_pad(struct v4l2_subdev *sd, int direction)
 {
 	unsigned int pad;
@@ -466,7 +466,7 @@ static void rvin_parallel_subdevice_detach(struct rvin_dev *vin)
 
 static int rvin_parallel_notify_complete(struct v4l2_async_notifier *notifier)
 {
-	struct rvin_dev *vin = notifier_to_vin(notifier);
+	struct rvin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
 	int ret;
 
 	ret = v4l2_device_register_subdev_nodes(&vin->v4l2_dev);
@@ -482,7 +482,7 @@ static void rvin_parallel_notify_unbind(struct v4l2_async_notifier *notifier,
 					struct v4l2_subdev *subdev,
 					struct v4l2_async_subdev *asd)
 {
-	struct rvin_dev *vin = notifier_to_vin(notifier);
+	struct rvin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
 
 	vin_dbg(vin, "unbind parallel subdev %s\n", subdev->name);
 
@@ -495,7 +495,7 @@ static int rvin_parallel_notify_bound(struct v4l2_async_notifier *notifier,
 				      struct v4l2_subdev *subdev,
 				      struct v4l2_async_subdev *asd)
 {
-	struct rvin_dev *vin = notifier_to_vin(notifier);
+	struct rvin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
 	int ret;
 
 	mutex_lock(&vin->lock);
@@ -583,7 +583,7 @@ static int rvin_parallel_graph_init(struct rvin_dev *vin)
 
 static int rvin_group_notify_complete(struct v4l2_async_notifier *notifier)
 {
-	struct rvin_dev *vin = notifier_to_vin(notifier);
+	struct rvin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
 	const struct rvin_group_route *route;
 	unsigned int i;
 	int ret;
@@ -649,7 +649,7 @@ static void rvin_group_notify_unbind(struct v4l2_async_notifier *notifier,
 				     struct v4l2_subdev *subdev,
 				     struct v4l2_async_subdev *asd)
 {
-	struct rvin_dev *vin = notifier_to_vin(notifier);
+	struct rvin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
 	unsigned int i;
 
 	for (i = 0; i < RCAR_VIN_NUM; i++)
@@ -673,7 +673,7 @@ static int rvin_group_notify_bound(struct v4l2_async_notifier *notifier,
 				   struct v4l2_subdev *subdev,
 				   struct v4l2_async_subdev *asd)
 {
-	struct rvin_dev *vin = notifier_to_vin(notifier);
+	struct rvin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
 	unsigned int i;
 
 	mutex_lock(&vin->group->lock);
@@ -734,12 +734,6 @@ static int rvin_mc_parse_of_graph(struct rvin_dev *vin)
 
 	mutex_lock(&vin->group->lock);
 
-	/* If there already is a notifier something has gone wrong, bail out. */
-	if (WARN_ON(vin->group->notifier)) {
-		mutex_unlock(&vin->group->lock);
-		return -EINVAL;
-	}
-
 	/* If not all VIN's are registered don't register the notifier. */
 	for (i = 0; i < RCAR_VIN_NUM; i++)
 		if (vin->group->vin[i])
@@ -751,19 +745,16 @@ static int rvin_mc_parse_of_graph(struct rvin_dev *vin)
 	}
 
 	/*
-	 * Have all VIN's look for subdevices. Some subdevices will overlap
-	 * but the parser function can handle it, so each subdevice will
-	 * only be registered once with the notifier.
+	 * Have all VIN's look for CSI-2 subdevices. Some subdevices will
+	 * overlap but the parser function can handle it, so each subdevice
+	 * will only be registered once with the group notifier.
 	 */
-
-	vin->group->notifier = &vin->notifier;
-
 	for (i = 0; i < RCAR_VIN_NUM; i++) {
 		if (!vin->group->vin[i])
 			continue;
 
 		ret = v4l2_async_notifier_parse_fwnode_endpoints_by_port(
-				vin->group->vin[i]->dev, vin->group->notifier,
+				vin->group->vin[i]->dev, &vin->group->notifier,
 				sizeof(struct v4l2_async_subdev), 1,
 				rvin_mc_parse_of_endpoint);
 		if (ret) {
@@ -774,9 +765,12 @@ static int rvin_mc_parse_of_graph(struct rvin_dev *vin)
 
 	mutex_unlock(&vin->group->lock);
 
-	vin->group->notifier->ops = &rvin_group_notify_ops;
+	if (!vin->group->notifier.num_subdevs)
+		return 0;
 
-	ret = v4l2_async_notifier_register(&vin->v4l2_dev, &vin->notifier);
+	vin->group->notifier.ops = &rvin_group_notify_ops;
+	ret = v4l2_async_notifier_register(&vin->v4l2_dev,
+					   &vin->group->notifier);
 	if (ret < 0) {
 		vin_err(vin, "Notifier registration failed\n");
 		return ret;
@@ -1162,8 +1156,10 @@ static int rcar_vin_remove(struct platform_device *pdev)
 
 	if (vin->info->use_mc) {
 		mutex_lock(&vin->group->lock);
-		if (vin->group->notifier == &vin->notifier)
-			vin->group->notifier = NULL;
+		if (&vin->v4l2_dev == vin->group->notifier.v4l2_dev) {
+			v4l2_async_notifier_unregister(&vin->group->notifier);
+			v4l2_async_notifier_cleanup(&vin->group->notifier);
+		}
 		mutex_unlock(&vin->group->lock);
 		rvin_group_put(vin);
 	} else {
