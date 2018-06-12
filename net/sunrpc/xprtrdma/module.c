@@ -13,8 +13,10 @@
 
 #include <asm/swab.h>
 
-#define CREATE_TRACE_POINTS
 #include "xprt_rdma.h"
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/rpcrdma.h>
 
 MODULE_AUTHOR("Open Grid Computing and Network Appliance, Inc.");
 MODULE_DESCRIPTION("RPC/RDMA Transport");

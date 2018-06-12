@@ -298,9 +298,11 @@ int gssp_accept_sec_context_upcall(struct net *net,
 	if (res.context_handle) {
 		data->out_handle = rctxh.exported_context_token;
 		data->mech_oid.len = rctxh.mech.len;
-		if (rctxh.mech.data)
+		if (rctxh.mech.data) {
 			memcpy(data->mech_oid.data, rctxh.mech.data,
 						data->mech_oid.len);
+			kfree(rctxh.mech.data);
+		}
 		client_name = rctxh.src_name.display_name;
 	}
 
