@@ -1080,6 +1080,11 @@ static int __init channel_subsystem_init(void)
 	if (ret)
 		goto out_wq;
 
+	/* Register subchannels which are already in use. */
+	cio_register_early_subchannels();
+	/* Start initial subchannel evaluation. */
+	css_schedule_eval_all();
+
 	return ret;
 out_wq:
 	destroy_workqueue(cio_work_q);
@@ -1119,10 +1124,6 @@ int css_complete_work(void)
  */
 static int __init channel_subsystem_init_sync(void)
 {
-	/* Register subchannels which are already in use. */
-	cio_register_early_subchannels();
-	/* Start initial subchannel evaluation. */
-	css_schedule_eval_all();
 	css_complete_work();
 	return 0;
 }
