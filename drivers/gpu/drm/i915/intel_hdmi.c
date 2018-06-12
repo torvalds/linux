@@ -51,7 +51,7 @@ assert_hdmi_port_disabled(struct intel_hdmi *intel_hdmi)
 {
 	struct drm_device *dev = intel_hdmi_to_dev(intel_hdmi);
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	uint32_t enabled_bits;
+	u32 enabled_bits;
 
 	enabled_bits = HAS_DDI(dev_priv) ? DDI_BUF_CTL_ENABLE : SDVO_ENABLE;
 
@@ -153,7 +153,7 @@ static void g4x_write_infoframe(struct drm_encoder *encoder,
 				unsigned int type,
 				const void *frame, ssize_t len)
 {
-	const uint32_t *data = frame;
+	const u32 *data = frame;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 val = I915_READ(VIDEO_DIP_CTL);
@@ -208,7 +208,7 @@ static void ibx_write_infoframe(struct drm_encoder *encoder,
 				unsigned int type,
 				const void *frame, ssize_t len)
 {
-	const uint32_t *data = frame;
+	const u32 *data = frame;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
@@ -268,7 +268,7 @@ static void cpt_write_infoframe(struct drm_encoder *encoder,
 				unsigned int type,
 				const void *frame, ssize_t len)
 {
-	const uint32_t *data = frame;
+	const u32 *data = frame;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
@@ -326,7 +326,7 @@ static void vlv_write_infoframe(struct drm_encoder *encoder,
 				unsigned int type,
 				const void *frame, ssize_t len)
 {
-	const uint32_t *data = frame;
+	const u32 *data = frame;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
@@ -385,7 +385,7 @@ static void hsw_write_infoframe(struct drm_encoder *encoder,
 				unsigned int type,
 				const void *frame, ssize_t len)
 {
-	const uint32_t *data = frame;
+	const u32 *data = frame;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
@@ -448,7 +448,7 @@ static void intel_write_infoframe(struct drm_encoder *encoder,
 				  union hdmi_infoframe *frame)
 {
 	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
-	uint8_t buffer[VIDEO_DIP_DATA_SIZE];
+	u8 buffer[VIDEO_DIP_DATA_SIZE];
 	ssize_t len;
 
 	/* see comment above for the reason for this offset */
