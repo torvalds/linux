@@ -938,6 +938,7 @@ s32 gt1x_get_chip_type(void)
  */
 static s32 gt1x_enter_sleep(void)
 {
+	int ret;
 #if GTP_POWER_CTRL_SLEEP
 	gt1x_power_switch(SWITCH_OFF);
 	return 0;
@@ -952,6 +953,9 @@ static s32 gt1x_enter_sleep(void)
 		while (retry++ < 3) {
 			if (!gt1x_send_cmd(GTP_CMD_SLEEP, 0)) {
 				GTP_INFO("Enter sleep mode!");
+				ret = regulator_disable(gt1x_supply);
+				if (ret < 0)
+					GTP_ERROR("disable power-supply error %d\n", ret);
 				return 0;
 			}
 			msleep(10);
@@ -978,6 +982,9 @@ static s32 gt1x_wakeup_sleep(void)
 
 	GTP_DEBUG("Wake up begin.");
 	gt1x_irq_disable();
+	ret = regulator_enable(gt1x_supply);
+	if (ret < 0)
+		GTP_ERROR("enable power-supply error: %d\n", ret);
 
 #if GTP_POWER_CTRL_SLEEP	/* power manager unit control the procedure */
 	gt1x_power_reset();

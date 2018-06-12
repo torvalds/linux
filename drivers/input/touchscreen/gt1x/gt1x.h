@@ -39,6 +39,7 @@
 #ifdef GTP_CONFIG_OF
 extern int gt1x_rst_gpio;
 extern int gt1x_int_gpio;
+extern struct regulator *gt1x_supply;
 #define GTP_RST_PORT gt1x_rst_gpio
 #define GTP_INT_PORT gt1x_int_gpio
 #else
