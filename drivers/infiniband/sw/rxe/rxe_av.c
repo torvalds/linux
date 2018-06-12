@@ -55,16 +55,29 @@ int rxe_av_chk_attr(struct rxe_dev *rxe, struct rdma_ah_attr *attr)
 void rxe_av_from_attr(u8 port_num, struct rxe_av *av,
 		     struct rdma_ah_attr *attr)
 {
+	const struct ib_global_route *grh = rdma_ah_read_grh(attr);
+
 	memset(av, 0, sizeof(*av));
-	memcpy(&av->grh, rdma_ah_read_grh(attr),
-	       sizeof(*rdma_ah_read_grh(attr)));
+	memcpy(av->grh.dgid.raw, grh->dgid.raw, sizeof(grh->dgid.raw));
+	av->grh.flow_label = grh->flow_label;
+	av->grh.sgid_index = grh->sgid_index;
+	av->grh.hop_limit = grh->hop_limit;
+	av->grh.traffic_class = grh->traffic_class;
 	av->port_num = port_num;
 }
 
 void rxe_av_to_attr(struct rxe_av *av, struct rdma_ah_attr *attr)
 {
+	struct ib_global_route *grh = rdma_ah_retrieve_grh(attr);
+
 	attr->type = RDMA_AH_ATTR_TYPE_ROCE;
-	memcpy(rdma_ah_retrieve_grh(attr), &av->grh, sizeof(av->grh));
+
+	memcpy(grh->dgid.raw, av->grh.dgid.raw, sizeof(av->grh.dgid.raw));
+	grh->flow_label = av->grh.flow_label;
+	grh->sgid_index = av->grh.sgid_index;
+	grh->hop_limit = av->grh.hop_limit;
+	grh->traffic_class = av->grh.traffic_class;
+
 	rdma_ah_set_ah_flags(attr, IB_AH_GRH);
 	rdma_ah_set_port_num(attr, av->port_num);
 }
