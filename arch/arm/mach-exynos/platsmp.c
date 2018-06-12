@@ -163,6 +163,26 @@ int exynos_cluster_power_state(int cluster)
 		S5P_CORE_LOCAL_PWR_EN);
 }
 
+/**
+ * exynos_scu_enable : enables SCU for Cortex-A9 based system
+ */
+void exynos_scu_enable(void)
+{
+	struct device_node *np;
+	static void __iomem *scu_base;
+
+	if (!scu_base) {
+		np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-scu");
+		if (np) {
+			scu_base = of_iomap(np, 0);
+			of_node_put(np);
+		} else {
+			scu_base = ioremap(scu_a9_get_base(), SZ_4K);
+		}
+	}
+	scu_enable(scu_base);
+}
+
 static void __iomem *cpu_boot_reg_base(void)
 {
 	if (soc_is_exynos4210() && samsung_rev() == EXYNOS4210_REV_1_1)
@@ -217,11 +237,6 @@ static void write_pen_release(int val)
 	pen_release = val;
 	smp_wmb();
 	sync_cache_w(&pen_release);
-}
-
-static void __iomem *scu_base_addr(void)
-{
-	return (void __iomem *)(S5P_VA_SCU);
 }
 
 static DEFINE_SPINLOCK(boot_lock);
@@ -389,7 +404,7 @@ static void __init exynos_smp_prepare_cpus(unsigned int max_cpus)
 	exynos_set_delayed_reset_assertion(true);
 
 	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9)
-		scu_enable(scu_base_addr());
+		exynos_scu_enable();
 
 	/*
 	 * Write the address of secondary startup into the

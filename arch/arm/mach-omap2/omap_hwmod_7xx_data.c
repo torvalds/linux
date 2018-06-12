@@ -1070,6 +1070,7 @@ static struct omap_hwmod dra7xx_hdq1w_hwmod = {
  */
 
 static struct omap_hwmod_class_sysconfig dra7xx_i2c_sysc = {
+	.rev_offs	= 0,
 	.sysc_offs	= 0x0010,
 	.syss_offs	= 0x0090,
 	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_CLOCKACTIVITY |
@@ -1440,6 +1441,7 @@ static struct omap_hwmod dra7xx_mcspi4_hwmod = {
  *
  */
 static struct omap_hwmod_class_sysconfig dra7xx_mcasp_sysc = {
+	.rev_offs	= 0,
 	.sysc_offs	= 0x0004,
 	.sysc_flags	= SYSC_HAS_SIDLEMODE,
 	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
@@ -1898,6 +1900,7 @@ static struct omap_hwmod dra7xx_pciess2_hwmod = {
  */
 
 static struct omap_hwmod_class_sysconfig dra7xx_qspi_sysc = {
+	.rev_offs	= 0,
 	.sysc_offs	= 0x0010,
 	.sysc_flags	= SYSC_HAS_SIDLEMODE,
 	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
@@ -1930,6 +1933,7 @@ static struct omap_hwmod dra7xx_qspi_hwmod = {
  *
  */
 static struct omap_hwmod_class_sysconfig dra7xx_rtcss_sysc = {
+	.rev_offs	= 0x0074,
 	.sysc_offs	= 0x0078,
 	.sysc_flags	= SYSC_HAS_SIDLEMODE,
 	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
@@ -1965,6 +1969,7 @@ static struct omap_hwmod dra7xx_rtcss_hwmod = {
  */
 
 static struct omap_hwmod_class_sysconfig dra7xx_sata_sysc = {
+	.rev_offs	= 0x00fc,
 	.sysc_offs	= 0x0000,
 	.sysc_flags	= (SYSC_HAS_MIDLEMODE | SYSC_HAS_SIDLEMODE),
 	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
@@ -2003,6 +2008,7 @@ static struct omap_hwmod dra7xx_sata_hwmod = {
 
 /* The IP is not compliant to type1 / type2 scheme */
 static struct omap_hwmod_class_sysconfig dra7xx_smartreflex_sysc = {
+	.rev_offs	= -ENODEV,
 	.sysc_offs	= 0x0038,
 	.sysc_flags	= (SYSC_HAS_ENAWAKEUP | SYSC_HAS_SIDLEMODE),
 	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |

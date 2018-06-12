@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 
 #include <asm/mach/arch.h>
+#include <asm/secure_cntvoff.h>
 
 static const char * const sunxi_board_dt_compat[] = {
 	"allwinner,sun4i-a10",
@@ -62,7 +63,6 @@ MACHINE_END
 static const char * const sun8i_board_dt_compat[] = {
 	"allwinner,sun8i-a23",
 	"allwinner,sun8i-a33",
-	"allwinner,sun8i-a83t",
 	"allwinner,sun8i-h2-plus",
 	"allwinner,sun8i-h3",
 	"allwinner,sun8i-r40",
@@ -73,6 +73,24 @@ static const char * const sun8i_board_dt_compat[] = {
 DT_MACHINE_START(SUN8I_DT, "Allwinner sun8i Family")
 	.init_time	= sun6i_timer_init,
 	.dt_compat	= sun8i_board_dt_compat,
+MACHINE_END
+
+static void __init sun8i_a83t_cntvoff_init(void)
+{
+#ifdef CONFIG_SMP
+	secure_cntvoff_init();
+#endif
+}
+
+static const char * const sun8i_a83t_cntvoff_board_dt_compat[] = {
+	"allwinner,sun8i-a83t",
+	NULL,
+};
+
+DT_MACHINE_START(SUN8I_A83T_CNTVOFF_DT, "Allwinner A83t board")
+	.init_early	= sun8i_a83t_cntvoff_init,
+	.init_time	= sun6i_timer_init,
+	.dt_compat	= sun8i_a83t_cntvoff_board_dt_compat,
 MACHINE_END
 
 static const char * const sun9i_board_dt_compat[] = {

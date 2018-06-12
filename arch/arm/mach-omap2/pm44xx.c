@@ -131,6 +131,19 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 		return 0;
 	}
 
+	/*
+	 * Bootloader or kexec boot may have LOGICRETSTATE cleared
+	 * for some domains. This is the case when kexec booting from
+	 * Android kernels that support off mode for example.
+	 * Make sure it's set at least for core and per, otherwise
+	 * we currently will see lost GPIO interrupts for wlcore and
+	 * smsc911x at least if per hits retention during idle.
+	 */
+	if (!strncmp(pwrdm->name, "core", 4) ||
+	    !strncmp(pwrdm->name, "l4per", 5) ||
+	    !strncmp(pwrdm->name, "wkup", 4))
+		pwrdm_set_logic_retst(pwrdm, PWRDM_POWER_RET);
+
 	pwrst = kmalloc(sizeof(struct power_state), GFP_ATOMIC);
 	if (!pwrst)
 		return -ENOMEM;
