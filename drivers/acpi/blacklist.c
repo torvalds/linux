@@ -91,6 +91,7 @@ static int __init dmi_enable_rev_override(const struct dmi_system_id *d)
 
 static const struct dmi_system_id acpi_rev_dmi_table[] __initconst = {
 #ifdef CONFIG_ACPI_REV_OVERRIDE_POSSIBLE
+#if !IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL)
 	/*
 	 * DELL XPS 13 (2015) switches sound between HDA and I2S
 	 * depending on the ACPI _REV callback. If userspace supports
@@ -105,6 +106,7 @@ static const struct dmi_system_id acpi_rev_dmi_table[] __initconst = {
 		      DMI_MATCH(DMI_PRODUCT_NAME, "XPS 13 9343"),
 		},
 	},
+#endif
 	{
 	 .callback = dmi_enable_rev_override,
 	 .ident = "DELL Precision 5520",
