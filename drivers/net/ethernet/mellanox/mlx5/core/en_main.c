@@ -448,7 +448,7 @@ static int mlx5e_init_di_list(struct mlx5e_rq *rq,
 {
 	int len = wq_sz << rq->wqe.info.log_num_frags;
 
-	rq->wqe.di = kvzalloc_node(len * sizeof(*rq->wqe.di),
+	rq->wqe.di = kvzalloc_node(array_size(len, sizeof(*rq->wqe.di)),
 				   GFP_KERNEL, cpu_to_node(cpu));
 	if (!rq->wqe.di)
 		return -ENOMEM;
@@ -563,8 +563,8 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 
 		rq->wqe.info = rqp->frags_info;
 		rq->wqe.frags =
-			kvzalloc_node((wq_sz << rq->wqe.info.log_num_frags) *
-				      sizeof(*rq->wqe.frags),
+			kvzalloc_node(array_size(sizeof(*rq->wqe.frags),
+					(wq_sz << rq->wqe.info.log_num_frags)),
 				      GFP_KERNEL, cpu_to_node(c->cpu));
 		if (!rq->wqe.frags) {
 			err = -ENOMEM;
