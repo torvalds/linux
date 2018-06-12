@@ -374,9 +374,10 @@ static int qeth_alloc_cq(struct qeth_card *card)
 		}
 		card->qdio.no_in_queues = 2;
 		card->qdio.out_bufstates =
-			kzalloc(card->qdio.no_out_queues *
-				QDIO_MAX_BUFFERS_PER_Q *
-				sizeof(struct qdio_outbuf_state), GFP_KERNEL);
+			kcalloc(card->qdio.no_out_queues *
+					QDIO_MAX_BUFFERS_PER_Q,
+				sizeof(struct qdio_outbuf_state),
+				GFP_KERNEL);
 		outbuf_states = card->qdio.out_bufstates;
 		if (outbuf_states == NULL) {
 			rc = -1;
@@ -2538,8 +2539,9 @@ static int qeth_alloc_qdio_buffers(struct qeth_card *card)
 
 	/* outbound */
 	card->qdio.out_qs =
-		kzalloc(card->qdio.no_out_queues *
-			sizeof(struct qeth_qdio_out_q *), GFP_KERNEL);
+		kcalloc(card->qdio.no_out_queues,
+			sizeof(struct qeth_qdio_out_q *),
+			GFP_KERNEL);
 	if (!card->qdio.out_qs)
 		goto out_freepool;
 	for (i = 0; i < card->qdio.no_out_queues; ++i) {
@@ -4963,8 +4965,8 @@ static int qeth_qdio_establish(struct qeth_card *card)
 
 	QETH_DBF_TEXT(SETUP, 2, "qdioest");
 
-	qib_param_field = kzalloc(QDIO_MAX_BUFFERS_PER_Q * sizeof(char),
-			      GFP_KERNEL);
+	qib_param_field = kzalloc(QDIO_MAX_BUFFERS_PER_Q,
+				  GFP_KERNEL);
 	if (!qib_param_field) {
 		rc =  -ENOMEM;
 		goto out_free_nothing;
@@ -4973,8 +4975,8 @@ static int qeth_qdio_establish(struct qeth_card *card)
 	qeth_create_qib_param_field(card, qib_param_field);
 	qeth_create_qib_param_field_blkt(card, qib_param_field);
 
-	in_sbal_ptrs = kzalloc(card->qdio.no_in_queues *
-			       QDIO_MAX_BUFFERS_PER_Q * sizeof(void *),
+	in_sbal_ptrs = kcalloc(card->qdio.no_in_queues * QDIO_MAX_BUFFERS_PER_Q,
+			       sizeof(void *),
 			       GFP_KERNEL);
 	if (!in_sbal_ptrs) {
 		rc = -ENOMEM;
@@ -4985,7 +4987,7 @@ static int qeth_qdio_establish(struct qeth_card *card)
 			virt_to_phys(card->qdio.in_q->bufs[i].buffer);
 	}
 
-	queue_start_poll = kzalloc(sizeof(void *) * card->qdio.no_in_queues,
+	queue_start_poll = kcalloc(card->qdio.no_in_queues, sizeof(void *),
 				   GFP_KERNEL);
 	if (!queue_start_poll) {
 		rc = -ENOMEM;
@@ -4997,8 +4999,9 @@ static int qeth_qdio_establish(struct qeth_card *card)
 	qeth_qdio_establish_cq(card, in_sbal_ptrs, queue_start_poll);
 
 	out_sbal_ptrs =
-		kzalloc(card->qdio.no_out_queues * QDIO_MAX_BUFFERS_PER_Q *
-			sizeof(void *), GFP_KERNEL);
+		kcalloc(card->qdio.no_out_queues * QDIO_MAX_BUFFERS_PER_Q,
+			sizeof(void *),
+			GFP_KERNEL);
 	if (!out_sbal_ptrs) {
 		rc = -ENOMEM;
 		goto out_free_queue_start_poll;

@@ -143,7 +143,7 @@ static int rt2880_pinctrl_dt_node_to_map(struct pinctrl_dev *pctrldev,
 	if (!max_maps)
 		return max_maps;
 
-	*map = kzalloc(max_maps * sizeof(struct pinctrl_map), GFP_KERNEL);
+	*map = kcalloc(max_maps, sizeof(struct pinctrl_map), GFP_KERNEL);
 	if (!*map)
 		return -ENOMEM;
 

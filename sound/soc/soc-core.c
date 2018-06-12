@@ -373,8 +373,8 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	if (!rtd->dai_link->ops)
 		rtd->dai_link->ops = &null_snd_soc_ops;
 
-	rtd->codec_dais = kzalloc(sizeof(struct snd_soc_dai *) *
-					dai_link->num_codecs,
+	rtd->codec_dais = kcalloc(dai_link->num_codecs,
+					sizeof(struct snd_soc_dai *),
 					GFP_KERNEL);
 	if (!rtd->codec_dais) {
 		kfree(rtd);

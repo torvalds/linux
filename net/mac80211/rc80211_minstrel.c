@@ -592,7 +592,7 @@ minstrel_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp)
 			max_rates = sband->n_bitrates;
 	}
 
-	mi->r = kzalloc(sizeof(struct minstrel_rate) * max_rates, gfp);
+	mi->r = kcalloc(max_rates, sizeof(struct minstrel_rate), gfp);
 	if (!mi->r)
 		goto error;
 

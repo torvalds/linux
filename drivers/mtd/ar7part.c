@@ -55,7 +55,7 @@ static int create_mtd_partitions(struct mtd_info *master,
 	int retries = 10;
 	struct mtd_partition *ar7_parts;
 
-	ar7_parts = kzalloc(sizeof(*ar7_parts) * AR7_PARTS, GFP_KERNEL);
+	ar7_parts = kcalloc(AR7_PARTS, sizeof(*ar7_parts), GFP_KERNEL);
 	if (!ar7_parts)
 		return -ENOMEM;
 	ar7_parts[0].name = "loader";

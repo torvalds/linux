@@ -989,7 +989,8 @@ static int __init lock_torture_init(void)
 	}
 
 	if (nwriters_stress) {
-		writer_tasks = kzalloc(cxt.nrealwriters_stress * sizeof(writer_tasks[0]),
+		writer_tasks = kcalloc(cxt.nrealwriters_stress,
+				       sizeof(writer_tasks[0]),
 				       GFP_KERNEL);
 		if (writer_tasks == NULL) {
 			VERBOSE_TOROUT_ERRSTRING("writer_tasks: Out of memory");
@@ -999,7 +1000,8 @@ static int __init lock_torture_init(void)
 	}
 
 	if (cxt.cur_ops->readlock) {
-		reader_tasks = kzalloc(cxt.nrealreaders_stress * sizeof(reader_tasks[0]),
+		reader_tasks = kcalloc(cxt.nrealreaders_stress,
+				       sizeof(reader_tasks[0]),
 				       GFP_KERNEL);
 		if (reader_tasks == NULL) {
 			VERBOSE_TOROUT_ERRSTRING("reader_tasks: Out of memory");

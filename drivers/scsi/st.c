@@ -3888,7 +3888,7 @@ static struct st_buffer *new_tape_buffer(int need_dma, int max_sg)
 	tb->dma = need_dma;
 	tb->buffer_size = 0;
 
-	tb->reserved_pages = kzalloc(max_sg * sizeof(struct page *),
+	tb->reserved_pages = kcalloc(max_sg, sizeof(struct page *),
 				     GFP_KERNEL);
 	if (!tb->reserved_pages) {
 		kfree(tb);

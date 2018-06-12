@@ -487,7 +487,7 @@ int mlx4_init_resource_tracker(struct mlx4_dev *dev)
 	int max_vfs_guarantee_counter = get_max_gauranteed_vfs_counter(dev);
 
 	priv->mfunc.master.res_tracker.slave_list =
-		kzalloc(dev->num_slaves * sizeof(struct slave_list),
+		kcalloc(dev->num_slaves, sizeof(struct slave_list),
 			GFP_KERNEL);
 	if (!priv->mfunc.master.res_tracker.slave_list)
 		return -ENOMEM;
@@ -514,14 +514,14 @@ int mlx4_init_resource_tracker(struct mlx4_dev *dev)
 						      sizeof(int),
 						      GFP_KERNEL);
 		if (i == RES_MAC || i == RES_VLAN)
-			res_alloc->allocated = kzalloc(MLX4_MAX_PORTS *
-						       (dev->persist->num_vfs
-						       + 1) *
-						       sizeof(int), GFP_KERNEL);
+			res_alloc->allocated =
+				kcalloc(MLX4_MAX_PORTS *
+						(dev->persist->num_vfs + 1),
+					sizeof(int), GFP_KERNEL);
 		else
-			res_alloc->allocated = kzalloc((dev->persist->
-							num_vfs + 1) *
-						       sizeof(int), GFP_KERNEL);
+			res_alloc->allocated =
+				kcalloc(dev->persist->num_vfs + 1,
+					sizeof(int), GFP_KERNEL);
 		/* Reduce the sink counter */
 		if (i == RES_COUNTER)
 			res_alloc->res_free = dev->caps.max_counters - 1;

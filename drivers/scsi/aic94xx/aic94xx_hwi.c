@@ -220,8 +220,9 @@ static int asd_init_scbs(struct asd_ha_struct *asd_ha)
 
 	/* allocate the index array and bitmap */
 	asd_ha->seq.tc_index_bitmap_bits = asd_ha->hw_prof.max_scbs;
-	asd_ha->seq.tc_index_array = kzalloc(asd_ha->seq.tc_index_bitmap_bits*
-					     sizeof(void *), GFP_KERNEL);
+	asd_ha->seq.tc_index_array = kcalloc(asd_ha->seq.tc_index_bitmap_bits,
+					     sizeof(void *),
+					     GFP_KERNEL);
 	if (!asd_ha->seq.tc_index_array)
 		return -ENOMEM;
 

@@ -1413,13 +1413,15 @@ bool calculate_user_regamma_ramp(struct dc_transfer_func *output_tf,
 
 	output_tf->type = TF_TYPE_DISTRIBUTED_POINTS;
 
-	rgb_user = kzalloc(sizeof(*rgb_user) * (GAMMA_RGB_256_ENTRIES + _EXTRA_POINTS),
-			GFP_KERNEL);
+	rgb_user = kcalloc(GAMMA_RGB_256_ENTRIES + _EXTRA_POINTS,
+			   sizeof(*rgb_user),
+			   GFP_KERNEL);
 	if (!rgb_user)
 		goto rgb_user_alloc_fail;
 
-	rgb_regamma = kzalloc(sizeof(*rgb_regamma) * (MAX_HW_POINTS + _EXTRA_POINTS),
-			GFP_KERNEL);
+	rgb_regamma = kcalloc(MAX_HW_POINTS + _EXTRA_POINTS,
+			      sizeof(*rgb_regamma),
+			      GFP_KERNEL);
 	if (!rgb_regamma)
 		goto rgb_regamma_alloc_fail;
 

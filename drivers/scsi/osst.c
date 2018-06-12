@@ -381,7 +381,7 @@ static int osst_execute(struct osst_request *SRpnt, const unsigned char *cmd,
 		struct scatterlist *sg, *sgl = (struct scatterlist *)buffer;
 		int i;
 
-		pages = kzalloc(use_sg * sizeof(struct page *), GFP_KERNEL);
+		pages = kcalloc(use_sg, sizeof(struct page *), GFP_KERNEL);
 		if (!pages)
 			goto free_req;
 

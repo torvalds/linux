@@ -99,12 +99,12 @@ init_tag_map(struct request_queue *q, struct blk_queue_tag *tags, int depth)
 		       __func__, depth);
 	}
 
-	tag_index = kzalloc(depth * sizeof(struct request *), GFP_ATOMIC);
+	tag_index = kcalloc(depth, sizeof(struct request *), GFP_ATOMIC);
 	if (!tag_index)
 		goto fail;
 
 	nr_ulongs = ALIGN(depth, BITS_PER_LONG) / BITS_PER_LONG;
-	tag_map = kzalloc(nr_ulongs * sizeof(unsigned long), GFP_ATOMIC);
+	tag_map = kcalloc(nr_ulongs, sizeof(unsigned long), GFP_ATOMIC);
 	if (!tag_map)
 		goto fail;
 

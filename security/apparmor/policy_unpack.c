@@ -475,7 +475,7 @@ static bool unpack_trans_table(struct aa_ext *e, struct aa_profile *profile)
 		/* currently 4 exec bits and entries 0-3 are reserved iupcx */
 		if (size > 16 - 4)
 			goto fail;
-		profile->file.trans.table = kzalloc(sizeof(char *) * size,
+		profile->file.trans.table = kcalloc(size, sizeof(char *),
 						    GFP_KERNEL);
 		if (!profile->file.trans.table)
 			goto fail;

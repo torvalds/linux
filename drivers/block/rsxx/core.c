@@ -873,7 +873,8 @@ static int rsxx_pci_probe(struct pci_dev *dev,
 		dev_info(CARD_TO_DEV(card),
 			"Failed reading the number of DMA targets\n");
 
-	card->ctrl = kzalloc(card->n_targets * sizeof(*card->ctrl), GFP_KERNEL);
+	card->ctrl = kcalloc(card->n_targets, sizeof(*card->ctrl),
+			     GFP_KERNEL);
 	if (!card->ctrl) {
 		st = -ENOMEM;
 		goto failed_dma_setup;

@@ -379,7 +379,7 @@ static int pblk_core_init(struct pblk *pblk)
 		return -EINVAL;
 	}
 
-	pblk->pad_dist = kzalloc((pblk->min_write_pgs - 1) * sizeof(atomic64_t),
+	pblk->pad_dist = kcalloc(pblk->min_write_pgs - 1, sizeof(atomic64_t),
 								GFP_KERNEL);
 	if (!pblk->pad_dist)
 		return -ENOMEM;

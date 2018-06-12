@@ -608,8 +608,9 @@ static struct mtd_info *cfi_intelext_setup(struct mtd_info *mtd)
 	mtd->size = devsize * cfi->numchips;
 
 	mtd->numeraseregions = cfi->cfiq->NumEraseRegions * cfi->numchips;
-	mtd->eraseregions = kzalloc(sizeof(struct mtd_erase_region_info)
-			* mtd->numeraseregions, GFP_KERNEL);
+	mtd->eraseregions = kcalloc(mtd->numeraseregions,
+				    sizeof(struct mtd_erase_region_info),
+				    GFP_KERNEL);
 	if (!mtd->eraseregions)
 		goto setup_err;
 

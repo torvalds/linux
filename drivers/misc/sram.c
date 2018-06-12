@@ -185,7 +185,7 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 	 * after the reserved blocks from the dt are processed.
 	 */
 	nblocks = (np) ? of_get_available_child_count(np) + 1 : 1;
-	rblocks = kzalloc((nblocks) * sizeof(*rblocks), GFP_KERNEL);
+	rblocks = kcalloc(nblocks, sizeof(*rblocks), GFP_KERNEL);
 	if (!rblocks)
 		return -ENOMEM;
 

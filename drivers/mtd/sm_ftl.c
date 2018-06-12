@@ -82,7 +82,7 @@ static struct attribute_group *sm_create_sysfs_attributes(struct sm_ftl *ftl)
 
 
 	/* Create array of pointers to the attributes */
-	attributes = kzalloc(sizeof(struct attribute *) * (NUM_ATTRIBUTES + 1),
+	attributes = kcalloc(NUM_ATTRIBUTES + 1, sizeof(struct attribute *),
 								GFP_KERNEL);
 	if (!attributes)
 		goto error3;
@@ -1137,7 +1137,7 @@ static void sm_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 		goto error2;
 
 	/* Allocate zone array, it will be initialized on demand */
-	ftl->zones = kzalloc(sizeof(struct ftl_zone) * ftl->zone_count,
+	ftl->zones = kcalloc(ftl->zone_count, sizeof(struct ftl_zone),
 								GFP_KERNEL);
 	if (!ftl->zones)
 		goto error3;

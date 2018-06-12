@@ -1370,7 +1370,7 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 	cmsg->adr.adrPLCI |= (bcs->channel + 1) << 8;
 
 	/* build command table */
-	commands = kzalloc(AT_NUM * (sizeof *commands), GFP_KERNEL);
+	commands = kcalloc(AT_NUM, sizeof(*commands), GFP_KERNEL);
 	if (!commands)
 		goto oom;
 

@@ -507,7 +507,7 @@ static struct urb *usbtv_setup_iso_transfer(struct usbtv *usbtv)
 	ip->pipe = usb_rcvisocpipe(usbtv->udev, USBTV_VIDEO_ENDP);
 	ip->interval = 1;
 	ip->transfer_flags = URB_ISO_ASAP;
-	ip->transfer_buffer = kzalloc(size * USBTV_ISOC_PACKETS,
+	ip->transfer_buffer = kcalloc(USBTV_ISOC_PACKETS, size,
 						GFP_KERNEL);
 	if (!ip->transfer_buffer) {
 		usb_free_urb(ip);

@@ -5303,7 +5303,7 @@ static int nf_tables_flowtable_parse_hook(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
-	ops = kzalloc(sizeof(struct nf_hook_ops) * n, GFP_KERNEL);
+	ops = kcalloc(n, sizeof(struct nf_hook_ops), GFP_KERNEL);
 	if (!ops)
 		return -ENOMEM;
 

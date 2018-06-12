@@ -610,7 +610,7 @@ static void hpet_msi_capability_lookup(unsigned int start_timer)
 	if (!hpet_domain)
 		return;
 
-	hpet_devs = kzalloc(sizeof(struct hpet_dev) * num_timers, GFP_KERNEL);
+	hpet_devs = kcalloc(num_timers, sizeof(struct hpet_dev), GFP_KERNEL);
 	if (!hpet_devs)
 		return;
 

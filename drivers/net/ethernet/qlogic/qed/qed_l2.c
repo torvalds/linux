@@ -98,7 +98,7 @@ int qed_l2_alloc(struct qed_hwfn *p_hwfn)
 		p_l2_info->queues = max_t(u8, rx, tx);
 	}
 
-	pp_qids = kzalloc(sizeof(unsigned long *) * p_l2_info->queues,
+	pp_qids = kcalloc(p_l2_info->queues, sizeof(unsigned long *),
 			  GFP_KERNEL);
 	if (!pp_qids)
 		return -ENOMEM;

@@ -878,7 +878,8 @@ int nes_init_mgt_qp(struct nes_device *nesdev, struct net_device *netdev, struct
 	int ret;
 
 	/* Allocate space the all mgt QPs once */
-	mgtvnic = kzalloc(NES_MGT_QP_COUNT * sizeof(struct nes_vnic_mgt), GFP_KERNEL);
+	mgtvnic = kcalloc(NES_MGT_QP_COUNT, sizeof(struct nes_vnic_mgt),
+			  GFP_KERNEL);
 	if (!mgtvnic)
 		return -ENOMEM;
 

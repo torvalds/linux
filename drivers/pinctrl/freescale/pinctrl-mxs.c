@@ -89,7 +89,7 @@ static int mxs_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (!purecfg && config)
 		new_num = 2;
 
-	new_map = kzalloc(sizeof(*new_map) * new_num, GFP_KERNEL);
+	new_map = kcalloc(new_num, sizeof(*new_map), GFP_KERNEL);
 	if (!new_map)
 		return -ENOMEM;
 

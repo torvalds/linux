@@ -781,7 +781,7 @@ static int mv_chan_memcpy_self_test(struct mv_xor_chan *mv_chan)
 	if (!src)
 		return -ENOMEM;
 
-	dest = kzalloc(sizeof(u8) * PAGE_SIZE, GFP_KERNEL);
+	dest = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!dest) {
 		kfree(src);
 		return -ENOMEM;

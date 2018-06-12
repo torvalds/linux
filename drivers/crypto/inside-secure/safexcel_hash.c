@@ -922,7 +922,7 @@ int safexcel_hmac_setkey(const char *alg, const u8 *key, unsigned int keylen,
 	crypto_ahash_clear_flags(tfm, ~0);
 	blocksize = crypto_tfm_alg_blocksize(crypto_ahash_tfm(tfm));
 
-	ipad = kzalloc(2 * blocksize, GFP_KERNEL);
+	ipad = kcalloc(2, blocksize, GFP_KERNEL);
 	if (!ipad) {
 		ret = -ENOMEM;
 		goto free_request;

@@ -1261,7 +1261,7 @@ static int __init s3c_init_intc_of(struct device_node *np,
 			return -ENOMEM;
 
 		intc->domain = domain;
-		intc->irqs = kzalloc(sizeof(struct s3c_irq_data) * 32,
+		intc->irqs = kcalloc(32, sizeof(struct s3c_irq_data),
 				     GFP_KERNEL);
 		if (!intc->irqs) {
 			kfree(intc);

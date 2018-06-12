@@ -2220,22 +2220,22 @@ __vxge_hw_channel_allocate(struct __vxge_hw_vpath_handle *vph,
 	channel->length = length;
 	channel->vp_id = vp_id;
 
-	channel->work_arr = kzalloc(sizeof(void *)*length, GFP_KERNEL);
+	channel->work_arr = kcalloc(length, sizeof(void *), GFP_KERNEL);
 	if (channel->work_arr == NULL)
 		goto exit1;
 
-	channel->free_arr = kzalloc(sizeof(void *)*length, GFP_KERNEL);
+	channel->free_arr = kcalloc(length, sizeof(void *), GFP_KERNEL);
 	if (channel->free_arr == NULL)
 		goto exit1;
 	channel->free_ptr = length;
 
-	channel->reserve_arr = kzalloc(sizeof(void *)*length, GFP_KERNEL);
+	channel->reserve_arr = kcalloc(length, sizeof(void *), GFP_KERNEL);
 	if (channel->reserve_arr == NULL)
 		goto exit1;
 	channel->reserve_ptr = length;
 	channel->reserve_top = 0;
 
-	channel->orig_arr = kzalloc(sizeof(void *)*length, GFP_KERNEL);
+	channel->orig_arr = kcalloc(length, sizeof(void *), GFP_KERNEL);
 	if (channel->orig_arr == NULL)
 		goto exit1;
 

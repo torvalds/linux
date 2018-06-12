@@ -238,9 +238,9 @@ dcssblk_is_continuous(struct dcssblk_dev_info *dev_info)
 	if (dev_info->num_of_segments <= 1)
 		return 0;
 
-	sort_list = kzalloc(
-			sizeof(struct segment_info) * dev_info->num_of_segments,
-			GFP_KERNEL);
+	sort_list = kcalloc(dev_info->num_of_segments,
+			    sizeof(struct segment_info),
+			    GFP_KERNEL);
 	if (sort_list == NULL)
 		return -ENOMEM;
 	i = 0;

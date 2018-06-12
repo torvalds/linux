@@ -5079,13 +5079,14 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg)
 	dev_dbg(hsotg->dev, "hcfg=%08x\n", hcfg);
 
 #ifdef CONFIG_USB_DWC2_TRACK_MISSED_SOFS
-	hsotg->frame_num_array = kzalloc(sizeof(*hsotg->frame_num_array) *
-					 FRAME_NUM_ARRAY_SIZE, GFP_KERNEL);
+	hsotg->frame_num_array = kcalloc(FRAME_NUM_ARRAY_SIZE,
+					 sizeof(*hsotg->frame_num_array),
+					 GFP_KERNEL);
 	if (!hsotg->frame_num_array)
 		goto error1;
-	hsotg->last_frame_num_array = kzalloc(
-			sizeof(*hsotg->last_frame_num_array) *
-			FRAME_NUM_ARRAY_SIZE, GFP_KERNEL);
+	hsotg->last_frame_num_array =
+		kcalloc(FRAME_NUM_ARRAY_SIZE,
+			sizeof(*hsotg->last_frame_num_array), GFP_KERNEL);
 	if (!hsotg->last_frame_num_array)
 		goto error1;
 #endif

@@ -1585,7 +1585,7 @@ static struct udf_vds_record *handle_partition_descriptor(
 		struct udf_vds_record *new_loc;
 		unsigned int new_size = ALIGN(partnum, PART_DESC_ALLOC_STEP);
 
-		new_loc = kzalloc(sizeof(*new_loc) * new_size, GFP_KERNEL);
+		new_loc = kcalloc(new_size, sizeof(*new_loc), GFP_KERNEL);
 		if (!new_loc)
 			return ERR_PTR(-ENOMEM);
 		memcpy(new_loc, data->part_descs_loc,
@@ -1644,8 +1644,9 @@ static noinline int udf_process_sequence(
 
 	memset(data.vds, 0, sizeof(struct udf_vds_record) * VDS_POS_LENGTH);
 	data.size_part_descs = PART_DESC_ALLOC_STEP;
-	data.part_descs_loc = kzalloc(sizeof(*data.part_descs_loc) *
-					data.size_part_descs, GFP_KERNEL);
+	data.part_descs_loc = kcalloc(data.size_part_descs,
+				      sizeof(*data.part_descs_loc),
+				      GFP_KERNEL);
 	if (!data.part_descs_loc)
 		return -ENOMEM;
 
