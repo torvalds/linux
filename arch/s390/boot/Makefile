@@ -15,14 +15,18 @@ KBUILD_CFLAGS := $(KBUILD_CFLAGS_DECOMPRESSOR)
 # message if the kernel is started on a machine which is too old
 #
 ifneq ($(CC_FLAGS_MARCH),-march=z900)
-AFLAGS_REMOVE_head.o	+= $(CC_FLAGS_MARCH)
-AFLAGS_head.o		+= -march=z900
-CFLAGS_REMOVE_als.o	+= $(CC_FLAGS_MARCH)
-CFLAGS_als.o		+= -march=z900
+AFLAGS_REMOVE_head.o		+= $(CC_FLAGS_MARCH)
+AFLAGS_head.o			+= -march=z900
+CFLAGS_REMOVE_als.o		+= $(CC_FLAGS_MARCH)
+CFLAGS_als.o			+= -march=z900
+CFLAGS_REMOVE_sclp_early_core.o	+= $(CC_FLAGS_MARCH)
+CFLAGS_sclp_early_core.o	+= -march=z900
 endif
 
-obj-y	:= head.o als.o
-targets	:= bzImage startup.a $(obj-y)
+CFLAGS_sclp_early_core.o += -I$(srctree)/drivers/s390/char
+
+obj-y	:= head.o als.o ebcdic.o sclp_early_core.o
+targets	:= bzImage setup.a $(obj-y)
 subdir-	:= compressed
 
 OBJECTS := $(addprefix $(obj)/,$(obj-y))

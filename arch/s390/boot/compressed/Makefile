@@ -16,9 +16,7 @@ targets += misc.o piggy.o sizes.h head.o
 KBUILD_AFLAGS := $(KBUILD_AFLAGS_DECOMPRESSOR)
 KBUILD_CFLAGS := $(KBUILD_CFLAGS_DECOMPRESSOR)
 
-OBJECTS := $(objtree)/arch/s390/kernel/ebcdic.o
-OBJECTS += $(objtree)/drivers/s390/char/sclp_early_core.o
-OBJECTS += $(obj)/head.o $(obj)/misc.o $(obj)/piggy.o
+OBJECTS := $(obj)/head.o $(obj)/misc.o $(obj)/piggy.o
 
 LDFLAGS_vmlinux := --oformat $(LD_BFD) -e startup -T
 $(obj)/vmlinux: $(obj)/vmlinux.lds $(objtree)/arch/s390/boot/startup.a $(OBJECTS)
