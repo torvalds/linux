@@ -125,10 +125,13 @@ config HAVE_KERNEL_LZO
 config HAVE_KERNEL_LZ4
 	bool
 
+config HAVE_KERNEL_UNCOMPRESSED
+	bool
+
 choice
 	prompt "Kernel compression mode"
 	default KERNEL_GZIP
-	depends on HAVE_KERNEL_GZIP || HAVE_KERNEL_BZIP2 || HAVE_KERNEL_LZMA || HAVE_KERNEL_XZ || HAVE_KERNEL_LZO || HAVE_KERNEL_LZ4
+	depends on HAVE_KERNEL_GZIP || HAVE_KERNEL_BZIP2 || HAVE_KERNEL_LZMA || HAVE_KERNEL_XZ || HAVE_KERNEL_LZO || HAVE_KERNEL_LZ4 || HAVE_KERNEL_UNCOMPRESSED
 	help
 	  The linux kernel is a kind of self-extracting executable.
 	  Several compression algorithms are available, which differ
@@ -206,6 +209,16 @@ config KERNEL_LZ4
 	  Its compression ratio is worse than LZO. The size of the kernel
 	  is about 8% bigger than LZO. But the decompression speed is
 	  faster than LZO.
+
+config KERNEL_UNCOMPRESSED
+	bool "None"
+	depends on HAVE_KERNEL_UNCOMPRESSED
+	help
+	  Produce uncompressed kernel image. This option is usually not what
+	  you want. It is useful for debugging the kernel in slow simulation
+	  environments, where decompressing and moving the kernel is awfully
+	  slow. This option allows early boot code to skip the decompressor
+	  and jump right at uncompressed kernel image.
 
 endchoice
 
