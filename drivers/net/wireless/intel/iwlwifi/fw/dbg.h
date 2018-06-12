@@ -188,6 +188,30 @@ iwl_fw_dbg_trigger_check_stop(struct iwl_fw_runtime *fwrt,
 	return iwl_fw_dbg_trigger_stop_conf_match(fwrt, trig);
 }
 
+static inline struct iwl_fw_dbg_trigger_tlv*
+_iwl_fw_dbg_trigger_on(struct iwl_fw_runtime *fwrt,
+		       struct wireless_dev *wdev,
+		       const enum iwl_fw_dbg_trigger id)
+{
+	struct iwl_fw_dbg_trigger_tlv *trig;
+
+	if (!iwl_fw_dbg_trigger_enabled(fwrt->fw, id))
+		return NULL;
+
+	trig = _iwl_fw_dbg_get_trigger(fwrt->fw, id);
+
+	if (!iwl_fw_dbg_trigger_check_stop(fwrt, wdev, trig))
+		return NULL;
+
+	return trig;
+}
+
+#define iwl_fw_dbg_trigger_on(fwrt, wdev, id) ({		\
+	BUILD_BUG_ON(!__builtin_constant_p(id));		\
+	BUILD_BUG_ON((id) >= FW_DBG_TRIGGER_MAX);		\
+	_iwl_fw_dbg_trigger_on((fwrt), (wdev), (id));		\
+})
+
 static inline void
 _iwl_fw_dbg_trigger_simple_stop(struct iwl_fw_runtime *fwrt,
 				struct wireless_dev *wdev,
