@@ -134,6 +134,7 @@ struct amdgpu_gfx_config {
 	/* gfx10 specific config */
 	uint32_t num_sc_per_sh;
 	uint32_t num_packer_per_sc;
+	uint32_t pa_sc_tile_steering_override;
 };
 
 struct amdgpu_cu_info {
