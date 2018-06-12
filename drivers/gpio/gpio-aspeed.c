@@ -897,8 +897,8 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 
 	/* Allocate a cache of the output registers */
 	banks = gpio->config->nr_gpios >> 5;
-	gpio->dcache = devm_kzalloc(&pdev->dev,
-				    sizeof(u32) * banks, GFP_KERNEL);
+	gpio->dcache = devm_kcalloc(&pdev->dev,
+				    banks, sizeof(u32), GFP_KERNEL);
 	if (!gpio->dcache)
 		return -ENOMEM;
 

@@ -639,11 +639,11 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 		return phy_count;
 	}
 
-	phy = devm_kzalloc(dev, sizeof(*phy) * phy_count, GFP_KERNEL);
+	phy = devm_kcalloc(dev, phy_count, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
 		return -ENOMEM;
 
-	link = devm_kzalloc(dev, sizeof(*link) * phy_count, GFP_KERNEL);
+	link = devm_kcalloc(dev, phy_count, sizeof(*link), GFP_KERNEL);
 	if (!link)
 		return -ENOMEM;
 

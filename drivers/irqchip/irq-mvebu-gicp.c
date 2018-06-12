@@ -191,8 +191,8 @@ static int mvebu_gicp_probe(struct platform_device *pdev)
 	gicp->spi_ranges_cnt = ret / 2;
 
 	gicp->spi_ranges =
-		devm_kzalloc(&pdev->dev,
-			     gicp->spi_ranges_cnt *
+		devm_kcalloc(&pdev->dev,
+			     gicp->spi_ranges_cnt,
 			     sizeof(struct mvebu_gicp_spi_range),
 			     GFP_KERNEL);
 	if (!gicp->spi_ranges)
@@ -210,8 +210,8 @@ static int mvebu_gicp_probe(struct platform_device *pdev)
 		gicp->spi_cnt += gicp->spi_ranges[i].count;
 	}
 
-	gicp->spi_bitmap = devm_kzalloc(&pdev->dev,
-				BITS_TO_LONGS(gicp->spi_cnt) * sizeof(long),
+	gicp->spi_bitmap = devm_kcalloc(&pdev->dev,
+				BITS_TO_LONGS(gicp->spi_cnt), sizeof(long),
 				GFP_KERNEL);
 	if (!gicp->spi_bitmap)
 		return -ENOMEM;

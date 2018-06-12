@@ -2846,8 +2846,10 @@ static int hns3_get_ring_config(struct hns3_nic_priv *priv)
 	struct pci_dev *pdev = h->pdev;
 	int i, ret;
 
-	priv->ring_data =  devm_kzalloc(&pdev->dev, h->kinfo.num_tqps *
-					sizeof(*priv->ring_data) * 2,
+	priv->ring_data =  devm_kzalloc(&pdev->dev,
+					array3_size(h->kinfo.num_tqps,
+						    sizeof(*priv->ring_data),
+						    2),
 					GFP_KERNEL);
 	if (!priv->ring_data)
 		return -ENOMEM;

@@ -890,7 +890,7 @@ static int scpi_alloc_xfer_list(struct device *dev, struct scpi_chan *ch)
 	int i;
 	struct scpi_xfer *xfers;
 
-	xfers = devm_kzalloc(dev, MAX_SCPI_XFERS * sizeof(*xfers), GFP_KERNEL);
+	xfers = devm_kcalloc(dev, MAX_SCPI_XFERS, sizeof(*xfers), GFP_KERNEL);
 	if (!xfers)
 		return -ENOMEM;
 

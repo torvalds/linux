@@ -845,7 +845,7 @@ int msm_csid_subdev_init(struct csid_device *csid,
 	while (res->clock[csid->nclocks])
 		csid->nclocks++;
 
-	csid->clock = devm_kzalloc(dev, csid->nclocks * sizeof(*csid->clock),
+	csid->clock = devm_kcalloc(dev, csid->nclocks, sizeof(*csid->clock),
 				    GFP_KERNEL);
 	if (!csid->clock)
 		return -ENOMEM;
@@ -868,8 +868,10 @@ int msm_csid_subdev_init(struct csid_device *csid,
 			continue;
 		}
 
-		clock->freq = devm_kzalloc(dev, clock->nfreqs *
-					   sizeof(*clock->freq), GFP_KERNEL);
+		clock->freq = devm_kcalloc(dev,
+					   clock->nfreqs,
+					   sizeof(*clock->freq),
+					   GFP_KERNEL);
 		if (!clock->freq)
 			return -ENOMEM;
 

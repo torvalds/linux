@@ -1343,8 +1343,8 @@ static int tegra_soctherm_probe(struct platform_device *pdev)
 		return PTR_ERR(tegra->clock_soctherm);
 	}
 
-	tegra->calib = devm_kzalloc(&pdev->dev,
-				    sizeof(u32) * soc->num_tsensors,
+	tegra->calib = devm_kcalloc(&pdev->dev,
+				    soc->num_tsensors, sizeof(u32),
 				    GFP_KERNEL);
 	if (!tegra->calib)
 		return -ENOMEM;
@@ -1363,8 +1363,8 @@ static int tegra_soctherm_probe(struct platform_device *pdev)
 			return err;
 	}
 
-	tegra->thermctl_tzs = devm_kzalloc(&pdev->dev,
-					   sizeof(*z) * soc->num_ttgs,
+	tegra->thermctl_tzs = devm_kcalloc(&pdev->dev,
+					   soc->num_ttgs, sizeof(*z),
 					   GFP_KERNEL);
 	if (!tegra->thermctl_tzs)
 		return -ENOMEM;

@@ -264,8 +264,8 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 	list_sort(NULL, &reserve_list, sram_reserve_cmp);
 
 	if (exports) {
-		sram->partition = devm_kzalloc(sram->dev,
-				       exports * sizeof(*sram->partition),
+		sram->partition = devm_kcalloc(sram->dev,
+				       exports, sizeof(*sram->partition),
 				       GFP_KERNEL);
 		if (!sram->partition) {
 			ret = -ENOMEM;

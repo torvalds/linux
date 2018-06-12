@@ -3298,8 +3298,8 @@ static void wm8994_handle_pdata(struct wm8994_priv *wm8994)
 		};
 
 		/* We need an array of texts for the enum API */
-		wm8994->drc_texts = devm_kzalloc(wm8994->hubs.component->dev,
-			    sizeof(char *) * pdata->num_drc_cfgs, GFP_KERNEL);
+		wm8994->drc_texts = devm_kcalloc(wm8994->hubs.component->dev,
+			    pdata->num_drc_cfgs, sizeof(char *), GFP_KERNEL);
 		if (!wm8994->drc_texts)
 			return;
 

@@ -467,7 +467,8 @@ static int cdns_pcie_ep_probe(struct platform_device *pdev)
 		dev_err(dev, "missing \"cdns,max-outbound-regions\"\n");
 		return ret;
 	}
-	ep->ob_addr = devm_kzalloc(dev, ep->max_regions * sizeof(*ep->ob_addr),
+	ep->ob_addr = devm_kcalloc(dev,
+				   ep->max_regions, sizeof(*ep->ob_addr),
 				   GFP_KERNEL);
 	if (!ep->ob_addr)
 		return -ENOMEM;

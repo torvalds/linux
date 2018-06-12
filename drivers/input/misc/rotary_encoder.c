@@ -283,8 +283,8 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 	}
 
 	encoder->irq =
-		devm_kzalloc(dev,
-			     sizeof(*encoder->irq) * encoder->gpios->ndescs,
+		devm_kcalloc(dev,
+			     encoder->gpios->ndescs, sizeof(*encoder->irq),
 			     GFP_KERNEL);
 	if (!encoder->irq)
 		return -ENOMEM;
