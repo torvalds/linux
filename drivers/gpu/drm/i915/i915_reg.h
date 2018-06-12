@@ -1780,7 +1780,7 @@ enum i915_power_well_id {
 #define CNL_PORT_TX_DW4_GRP(port)	_MMIO(_CNL_PORT_TX_DW_GRP((port), 4))
 #define CNL_PORT_TX_DW4_LN0(port)	_MMIO(_CNL_PORT_TX_DW_LN0((port), 4))
 #define CNL_PORT_TX_DW4_LN(port, ln)   _MMIO(_CNL_PORT_TX_DW_LN0((port), 4) + \
-					     (ln * (_CNL_PORT_TX_DW4_LN1_AE - \
+					   ((ln) * (_CNL_PORT_TX_DW4_LN1_AE - \
 						    _CNL_PORT_TX_DW4_LN0_AE)))
 #define _ICL_PORT_TX_DW4_GRP_A		0x162690
 #define _ICL_PORT_TX_DW4_GRP_B		0x6C690
@@ -1793,8 +1793,8 @@ enum i915_power_well_id {
 #define ICL_PORT_TX_DW4_LN(port, ln)	_MMIO(_PORT(port, \
 						   _ICL_PORT_TX_DW4_LN0_A, \
 						   _ICL_PORT_TX_DW4_LN0_B) + \
-					      (ln * (_ICL_PORT_TX_DW4_LN1_A - \
-						     _ICL_PORT_TX_DW4_LN0_A)))
+					     ((ln) * (_ICL_PORT_TX_DW4_LN1_A - \
+						      _ICL_PORT_TX_DW4_LN0_A)))
 #define   LOADGEN_SELECT		(1 << 31)
 #define   POST_CURSOR_1(x)		((x) << 12)
 #define   POST_CURSOR_1_MASK		(0x3F << 12)
@@ -6076,8 +6076,8 @@ enum {
 
 /* Display/Sprite base address macros */
 #define DISP_BASEADDR_MASK	(0xfffff000)
-#define I915_LO_DISPBASE(val)	(val & ~DISP_BASEADDR_MASK)
-#define I915_HI_DISPBASE(val)	(val & DISP_BASEADDR_MASK)
+#define I915_LO_DISPBASE(val)	((val) & ~DISP_BASEADDR_MASK)
+#define I915_HI_DISPBASE(val)	((val) & DISP_BASEADDR_MASK)
 
 /*
  * VBIOS flags
@@ -7091,7 +7091,7 @@ enum {
 #define  GEN11_VECS(x)			(31 - (x))
 #define  GEN11_VCS(x)			(x)
 
-#define GEN11_GT_INTR_DW(x)		_MMIO(0x190018 + (x * 4))
+#define GEN11_GT_INTR_DW(x)		_MMIO(0x190018 + ((x) * 4))
 
 #define GEN11_INTR_IDENTITY_REG0	_MMIO(0x190060)
 #define GEN11_INTR_IDENTITY_REG1	_MMIO(0x190064)
@@ -7100,12 +7100,12 @@ enum {
 #define  GEN11_INTR_ENGINE_INSTANCE(x)	(((x) & GENMASK(25, 20)) >> 20)
 #define  GEN11_INTR_ENGINE_INTR(x)	((x) & 0xffff)
 
-#define GEN11_INTR_IDENTITY_REG(x)	_MMIO(0x190060 + (x * 4))
+#define GEN11_INTR_IDENTITY_REG(x)	_MMIO(0x190060 + ((x) * 4))
 
 #define GEN11_IIR_REG0_SELECTOR		_MMIO(0x190070)
 #define GEN11_IIR_REG1_SELECTOR		_MMIO(0x190074)
 
-#define GEN11_IIR_REG_SELECTOR(x)	_MMIO(0x190070 + (x * 4))
+#define GEN11_IIR_REG_SELECTOR(x)	_MMIO(0x190070 + ((x) * 4))
 
 #define GEN11_RENDER_COPY_INTR_ENABLE	_MMIO(0x190030)
 #define GEN11_VCS_VECS_INTR_ENABLE	_MMIO(0x190034)
@@ -7497,15 +7497,15 @@ enum {
 
 #define _PCH_DPLL_A              0xc6014
 #define _PCH_DPLL_B              0xc6018
-#define PCH_DPLL(pll) _MMIO(pll == 0 ? _PCH_DPLL_A : _PCH_DPLL_B)
+#define PCH_DPLL(pll) _MMIO((pll) == 0 ? _PCH_DPLL_A : _PCH_DPLL_B)
 
 #define _PCH_FPA0                0xc6040
 #define  FP_CB_TUNE		(0x3 << 22)
 #define _PCH_FPA1                0xc6044
 #define _PCH_FPB0                0xc6048
 #define _PCH_FPB1                0xc604c
-#define PCH_FP0(pll) _MMIO(pll == 0 ? _PCH_FPA0 : _PCH_FPB0)
-#define PCH_FP1(pll) _MMIO(pll == 0 ? _PCH_FPA1 : _PCH_FPB1)
+#define PCH_FP0(pll) _MMIO((pll) == 0 ? _PCH_FPA0 : _PCH_FPB0)
+#define PCH_FP1(pll) _MMIO((pll) == 0 ? _PCH_FPA1 : _PCH_FPB1)
 
 #define PCH_DPLL_TEST           _MMIO(0xc606c)
 
@@ -8337,11 +8337,11 @@ enum {
 #define   GEN7_L3CDERRST1_BANK_MASK	(3 << 11)
 #define   GEN7_L3CDERRST1_SUBBANK_MASK	(7 << 8)
 #define GEN7_PARITY_ERROR_ROW(reg) \
-		((reg & GEN7_L3CDERRST1_ROW_MASK) >> 14)
+		(((reg) & GEN7_L3CDERRST1_ROW_MASK) >> 14)
 #define GEN7_PARITY_ERROR_BANK(reg) \
-		((reg & GEN7_L3CDERRST1_BANK_MASK) >> 11)
+		(((reg) & GEN7_L3CDERRST1_BANK_MASK) >> 11)
 #define GEN7_PARITY_ERROR_SUBBANK(reg) \
-		((reg & GEN7_L3CDERRST1_SUBBANK_MASK) >> 8)
+		(((reg) & GEN7_L3CDERRST1_SUBBANK_MASK) >> 8)
 #define   GEN7_L3CDERRST1_ENABLE	(1 << 7)
 
 #define GEN7_L3LOG(slice, i)		_MMIO(0xB070 + (slice) * 0x200 + (i) * 4)
@@ -8614,7 +8614,7 @@ enum skl_power_gate {
 #define HDCP_SHA_V_PRIME_H2		_MMIO(0x66d0C)
 #define HDCP_SHA_V_PRIME_H3		_MMIO(0x66d10)
 #define HDCP_SHA_V_PRIME_H4		_MMIO(0x66d14)
-#define HDCP_SHA_V_PRIME(h)		_MMIO((0x66d04 + h * 4))
+#define HDCP_SHA_V_PRIME(h)		_MMIO((0x66d04 + (h) * 4))
 #define HDCP_SHA_TEXT			_MMIO(0x66d18)
 
 /* HDCP Auth Registers */
@@ -8630,7 +8630,7 @@ enum skl_power_gate {
 					  _PORTC_HDCP_AUTHENC, \
 					  _PORTD_HDCP_AUTHENC, \
 					  _PORTE_HDCP_AUTHENC, \
-					  _PORTF_HDCP_AUTHENC) + x)
+					  _PORTF_HDCP_AUTHENC) + (x))
 #define PORT_HDCP_CONF(port)		_PORT_HDCP_AUTHENC(port, 0x0)
 #define  HDCP_CONF_CAPTURE_AN		BIT(0)
 #define  HDCP_CONF_AUTH_AND_ENC		(BIT(1) | BIT(0))
@@ -8651,7 +8651,7 @@ enum skl_power_gate {
 #define  HDCP_STATUS_R0_READY		BIT(18)
 #define  HDCP_STATUS_AN_READY		BIT(17)
 #define  HDCP_STATUS_CIPHER		BIT(16)
-#define  HDCP_STATUS_FRAME_CNT(x)	((x >> 8) & 0xff)
+#define  HDCP_STATUS_FRAME_CNT(x)	(((x) >> 8) & 0xff)
 
 /* Per-pipe DDI Function Control */
 #define _TRANS_DDI_FUNC_CTL_A		0x60400
@@ -9402,7 +9402,7 @@ enum skl_power_gate {
 			_MIPI_PORT(port, BXT_MIPI1_TX_ESCLK_FIXDIV_MASK, \
 					BXT_MIPI2_TX_ESCLK_FIXDIV_MASK)
 #define  BXT_MIPI_TX_ESCLK_DIVIDER(port, val)	\
-		((val & 0x3F) << BXT_MIPI_TX_ESCLK_SHIFT(port))
+		(((val) & 0x3F) << BXT_MIPI_TX_ESCLK_SHIFT(port))
 /* RX upper control divider to select actual RX clock output from 8x */
 #define  BXT_MIPI1_RX_ESCLK_UPPER_SHIFT		21
 #define  BXT_MIPI2_RX_ESCLK_UPPER_SHIFT		5
@@ -9415,7 +9415,7 @@ enum skl_power_gate {
 			_MIPI_PORT(port, BXT_MIPI1_RX_ESCLK_UPPER_FIXDIV_MASK, \
 					BXT_MIPI2_RX_ESCLK_UPPER_FIXDIV_MASK)
 #define  BXT_MIPI_RX_ESCLK_UPPER_DIVIDER(port, val)	\
-		((val & 3) << BXT_MIPI_RX_ESCLK_UPPER_SHIFT(port))
+		(((val) & 3) << BXT_MIPI_RX_ESCLK_UPPER_SHIFT(port))
 /* 8/3X divider to select the actual 8/3X clock output from 8x */
 #define  BXT_MIPI1_8X_BY3_SHIFT                19
 #define  BXT_MIPI2_8X_BY3_SHIFT                3
@@ -9428,7 +9428,7 @@ enum skl_power_gate {
 			_MIPI_PORT(port, BXT_MIPI1_8X_BY3_DIVIDER_MASK, \
 						BXT_MIPI2_8X_BY3_DIVIDER_MASK)
 #define  BXT_MIPI_8X_BY3_DIVIDER(port, val)    \
-			((val & 3) << BXT_MIPI_8X_BY3_SHIFT(port))
+			(((val) & 3) << BXT_MIPI_8X_BY3_SHIFT(port))
 /* RX lower control divider to select actual RX clock output from 8x */
 #define  BXT_MIPI1_RX_ESCLK_LOWER_SHIFT		16
 #define  BXT_MIPI2_RX_ESCLK_LOWER_SHIFT		0
@@ -9441,7 +9441,7 @@ enum skl_power_gate {
 			_MIPI_PORT(port, BXT_MIPI1_RX_ESCLK_LOWER_FIXDIV_MASK, \
 					BXT_MIPI2_RX_ESCLK_LOWER_FIXDIV_MASK)
 #define  BXT_MIPI_RX_ESCLK_LOWER_DIVIDER(port, val)	\
-		((val & 3) << BXT_MIPI_RX_ESCLK_LOWER_SHIFT(port))
+		(((val) & 3) << BXT_MIPI_RX_ESCLK_LOWER_SHIFT(port))
 
 #define RX_DIVIDER_BIT_1_2                     0x3
 #define RX_DIVIDER_BIT_3_4                     0xC
