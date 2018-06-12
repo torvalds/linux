@@ -494,7 +494,7 @@ out_free:
 static inline unsigned long *
 sd_zbc_alloc_zone_bitmap(u32 nr_zones, int numa_node)
 {
-	return kzalloc_node(BITS_TO_LONGS(nr_zones) * sizeof(unsigned long),
+	return kcalloc_node(BITS_TO_LONGS(nr_zones), sizeof(unsigned long),
 			    GFP_KERNEL, numa_node);
 }
 

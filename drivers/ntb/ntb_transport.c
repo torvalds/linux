@@ -1102,7 +1102,7 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 	max_mw_count_for_spads = (spad_count - MW0_SZ_HIGH) / 2;
 	nt->mw_count = min(mw_count, max_mw_count_for_spads);
 
-	nt->mw_vec = kzalloc_node(mw_count * sizeof(*nt->mw_vec),
+	nt->mw_vec = kcalloc_node(mw_count, sizeof(*nt->mw_vec),
 				  GFP_KERNEL, node);
 	if (!nt->mw_vec) {
 		rc = -ENOMEM;
@@ -1143,7 +1143,7 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 	nt->qp_bitmap = qp_bitmap;
 	nt->qp_bitmap_free = qp_bitmap;
 
-	nt->qp_vec = kzalloc_node(qp_count * sizeof(*nt->qp_vec),
+	nt->qp_vec = kcalloc_node(qp_count, sizeof(*nt->qp_vec),
 				  GFP_KERNEL, node);
 	if (!nt->qp_vec) {
 		rc = -ENOMEM;
