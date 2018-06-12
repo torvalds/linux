@@ -103,7 +103,7 @@ headers_install: $(TARGETS)
 	      $(DESTDIR)$(PREFIX)/include ; \
 	    cp -r $(OUTPUT)include/lkl $(DESTDIR)$(PREFIX)/include
 
-libraries_install: $(libs-y:%=$(OUTPUT)%$(SOSUF))
+libraries_install: $(libs-y:%=$(OUTPUT)%$(SOSUF)) $(OUTPUT)liblkl.a
 	$(call QUIET_INSTALL, libraries) \
 	    install -d $(DESTDIR)$(PREFIX)/lib ; \
 	    install -m 644 $^ $(DESTDIR)$(PREFIX)/lib
