@@ -67,21 +67,21 @@ struct intel_uncore_funcs {
 	void (*force_wake_put)(struct drm_i915_private *dev_priv,
 			       enum forcewake_domains domains);
 
-	uint8_t  (*mmio_readb)(struct drm_i915_private *dev_priv,
-			       i915_reg_t r, bool trace);
-	uint16_t (*mmio_readw)(struct drm_i915_private *dev_priv,
-			       i915_reg_t r, bool trace);
-	uint32_t (*mmio_readl)(struct drm_i915_private *dev_priv,
-			       i915_reg_t r, bool trace);
-	uint64_t (*mmio_readq)(struct drm_i915_private *dev_priv,
-			       i915_reg_t r, bool trace);
+	u8 (*mmio_readb)(struct drm_i915_private *dev_priv,
+			 i915_reg_t r, bool trace);
+	u16 (*mmio_readw)(struct drm_i915_private *dev_priv,
+			  i915_reg_t r, bool trace);
+	u32 (*mmio_readl)(struct drm_i915_private *dev_priv,
+			  i915_reg_t r, bool trace);
+	u64 (*mmio_readq)(struct drm_i915_private *dev_priv,
+			  i915_reg_t r, bool trace);
 
 	void (*mmio_writeb)(struct drm_i915_private *dev_priv,
-			    i915_reg_t r, uint8_t val, bool trace);
+			    i915_reg_t r, u8 val, bool trace);
 	void (*mmio_writew)(struct drm_i915_private *dev_priv,
-			    i915_reg_t r, uint16_t val, bool trace);
+			    i915_reg_t r, u16 val, bool trace);
 	void (*mmio_writel)(struct drm_i915_private *dev_priv,
-			    i915_reg_t r, uint32_t val, bool trace);
+			    i915_reg_t r, u32 val, bool trace);
 };
 
 struct intel_forcewake_range {
