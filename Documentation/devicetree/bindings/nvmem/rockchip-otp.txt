@@ -8,6 +8,9 @@ Required properties:
   - size-cells: must be set to 1.
   - clocks: Must contain an entry for each entry in clock-names.
   - clock-names: Should be "clk_opt", "pclk_otp" and "pclk_otp_phy".
+  - resets: Must contain an entry for each entry in reset-names.
+    See ../../reset/reset.txt for details.
+  - reset-names: Should be "otp_phy".
 
 See nvmem.txt for more information.
 

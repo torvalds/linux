@@ -21,6 +21,7 @@
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/nvmem-provider.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -67,11 +68,33 @@ struct rockchip_otp {
 	struct clk *clk;
 	struct clk *pclk;
 	struct clk *pclk_phy;
+	struct reset_control *rst;
 };
 
 struct rockchip_data {
 	int size;
 };
+
+static int rockchip_otp_reset(struct rockchip_otp *otp)
+{
+	int ret;
+
+	ret = reset_control_assert(otp->rst);
+	if (ret) {
+		dev_err(otp->dev, "failed to assert otp phy %d\n", ret);
+		return ret;
+	}
+
+	udelay(2);
+
+	ret = reset_control_deassert(otp->rst);
+	if (ret) {
+		dev_err(otp->dev, "failed to deassert otp phy %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
 
 static int rockchip_otp_wait_status(struct rockchip_otp *otp, u32 flag)
 {
@@ -136,6 +159,12 @@ static int rockchip_otp_read(void *context, unsigned int offset,
 	if (ret < 0) {
 		dev_err(otp->dev, "failed to prepare/enable otp pclk phy\n");
 		goto opt_pclk;
+	}
+
+	ret = rockchip_otp_reset(otp);
+	if (ret) {
+		dev_err(otp->dev, "failed to reset otp phy\n");
+		goto opt_pclk_phy;
 	}
 
 	ret = rockchip_otp_ecc_enable(otp, false);
@@ -231,6 +260,10 @@ static int __init rockchip_otp_probe(struct platform_device *pdev)
 	otp->pclk_phy = devm_clk_get(&pdev->dev, "pclk_otp_phy");
 	if (IS_ERR(otp->pclk_phy))
 		return PTR_ERR(otp->pclk_phy);
+
+	otp->rst = devm_reset_control_get(dev, "otp_phy");
+	if (IS_ERR(otp->rst))
+		return PTR_ERR(otp->rst);
 
 	otp_config.size = data->size;
 	otp_config.priv = otp;
