@@ -1388,7 +1388,11 @@ int iomap_swapfile_activate(struct swap_info_struct *sis,
 	loff_t len = ALIGN_DOWN(i_size_read(inode), PAGE_SIZE);
 	loff_t ret;
 
-	ret = filemap_write_and_wait(inode->i_mapping);
+	/*
+	 * Persist all file mapping metadata so that we won't have any
+	 * IOMAP_F_DIRTY iomaps.
+	 */
+	ret = vfs_fsync(swap_file, 1);
 	if (ret)
 		return ret;
 

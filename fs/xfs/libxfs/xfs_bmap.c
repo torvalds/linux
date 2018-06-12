@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -1248,7 +1236,6 @@ xfs_iread_extents(
 
 		num_recs = xfs_btree_get_numrecs(block);
 		if (unlikely(i + num_recs > nextents)) {
-			ASSERT(i + num_recs <= nextents);
 			xfs_warn(ip->i_mount,
 				"corrupt dinode %Lu, (btree extents).",
 				(unsigned long long) ip->i_ino);
@@ -2936,7 +2923,7 @@ xfs_bmap_extsize_align(
 	 * perform this alignment, or if a truncate shot us in the
 	 * foot.
 	 */
-	temp = do_mod(orig_off, extsz);
+	div_u64_rem(orig_off, extsz, &temp);
 	if (temp) {
 		align_alen += temp;
 		align_off -= temp;
@@ -3480,7 +3467,7 @@ xfs_bmap_btalloc(
 	xfs_rmap_skip_owner_update(&args.oinfo);
 
 	/* Trim the allocation back to the maximum an AG can fit. */
-	args.maxlen = MIN(ap->length, mp->m_ag_max_usable);
+	args.maxlen = min(ap->length, mp->m_ag_max_usable);
 	args.firstblock = *ap->firstblock;
 	blen = 0;
 	if (nullfb) {
@@ -3510,15 +3497,17 @@ xfs_bmap_btalloc(
 	/* apply extent size hints if obtained earlier */
 	if (align) {
 		args.prod = align;
-		if ((args.mod = (xfs_extlen_t)do_mod(ap->offset, args.prod)))
-			args.mod = (xfs_extlen_t)(args.prod - args.mod);
+		div_u64_rem(ap->offset, args.prod, &args.mod);
+		if (args.mod)
+			args.mod = args.prod - args.mod;
 	} else if (mp->m_sb.sb_blocksize >= PAGE_SIZE) {
 		args.prod = 1;
 		args.mod = 0;
 	} else {
 		args.prod = PAGE_SIZE >> mp->m_sb.sb_blocklog;
-		if ((args.mod = (xfs_extlen_t)(do_mod(ap->offset, args.prod))))
-			args.mod = (xfs_extlen_t)(args.prod - args.mod);
+		div_u64_rem(ap->offset, args.prod, &args.mod);
+		if (args.mod)
+			args.mod = args.prod - args.mod;
 	}
 	/*
 	 * If we are not low on available data blocks, and the
@@ -4966,13 +4955,15 @@ xfs_bmap_del_extent_real(
 	if (whichfork == XFS_DATA_FORK && XFS_IS_REALTIME_INODE(ip)) {
 		xfs_fsblock_t	bno;
 		xfs_filblks_t	len;
+		xfs_extlen_t	mod;
 
-		ASSERT(do_mod(del->br_blockcount, mp->m_sb.sb_rextsize) == 0);
-		ASSERT(do_mod(del->br_startblock, mp->m_sb.sb_rextsize) == 0);
-		bno = del->br_startblock;
-		len = del->br_blockcount;
-		do_div(bno, mp->m_sb.sb_rextsize);
-		do_div(len, mp->m_sb.sb_rextsize);
+		bno = div_u64_rem(del->br_startblock, mp->m_sb.sb_rextsize,
+				  &mod);
+		ASSERT(mod == 0);
+		len = div_u64_rem(del->br_blockcount, mp->m_sb.sb_rextsize,
+				  &mod);
+		ASSERT(mod == 0);
+
 		error = xfs_rtfree_extent(tp, bno, (xfs_extlen_t)len);
 		if (error)
 			goto done;
@@ -5309,9 +5300,12 @@ __xfs_bunmapi(
 			del.br_blockcount = max_len;
 		}
 
+		if (!isrt)
+			goto delete;
+
 		sum = del.br_startblock + del.br_blockcount;
-		if (isrt &&
-		    (mod = do_mod(sum, mp->m_sb.sb_rextsize))) {
+		div_u64_rem(sum, mp->m_sb.sb_rextsize, &mod);
+		if (mod) {
 			/*
 			 * Realtime extent not lined up at the end.
 			 * The extent could have been split into written
@@ -5358,7 +5352,8 @@ __xfs_bunmapi(
 				goto error0;
 			goto nodelete;
 		}
-		if (isrt && (mod = do_mod(del.br_startblock, mp->m_sb.sb_rextsize))) {
+		div_u64_rem(del.br_startblock, mp->m_sb.sb_rextsize, &mod);
+		if (mod) {
 			/*
 			 * Realtime extent is lined up at the end but not
 			 * at the front.  We'll get rid of full extents if
@@ -5427,6 +5422,7 @@ __xfs_bunmapi(
 			}
 		}
 
+delete:
 		if (wasdel) {
 			error = xfs_bmap_del_extent_delay(ip, whichfork, &icur,
 					&got, &del);
