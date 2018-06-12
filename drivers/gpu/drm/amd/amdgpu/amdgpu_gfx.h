@@ -131,6 +131,9 @@ struct amdgpu_gfx_config {
 	uint32_t double_offchip_lds_buf;
 	/* cached value of DB_DEBUG2 */
 	uint32_t db_debug2;
+	/* gfx10 specific config */
+	uint32_t num_sc_per_sh;
+	uint32_t num_packer_per_sc;
 };
 
 struct amdgpu_cu_info {
