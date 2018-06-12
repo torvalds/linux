@@ -19,9 +19,6 @@
 #include <linux/acpi.h>
 #include <linux/delay.h>
 
-#define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3		0xabcd
-#define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3_AXI	0xabce
-#define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB31	0xabcf
 #define PCI_DEVICE_ID_INTEL_BYT			0x0f37
 #define PCI_DEVICE_ID_INTEL_MRFLD		0x119e
 #define PCI_DEVICE_ID_INTEL_BSW			0x22b7
@@ -151,21 +148,6 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 		}
 	}
 
-	if (pdev->vendor == PCI_VENDOR_ID_SYNOPSYS &&
-	    (pdev->device == PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3 ||
-	     pdev->device == PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3_AXI ||
-	     pdev->device == PCI_DEVICE_ID_SYNOPSYS_HAPSUSB31)) {
-		struct property_entry properties[] = {
-			PROPERTY_ENTRY_BOOL("snps,usb3_lpm_capable"),
-			PROPERTY_ENTRY_BOOL("snps,has-lpm-erratum"),
-			PROPERTY_ENTRY_BOOL("snps,dis_enblslpm_quirk"),
-			PROPERTY_ENTRY_BOOL("linux,sysdev_is_parent"),
-			{ },
-		};
-
-		return platform_device_add_properties(dwc3, properties);
-	}
-
 	return 0;
 }
 
@@ -266,18 +248,6 @@ static void dwc3_pci_remove(struct pci_dev *pci)
 }
 
 static const struct pci_device_id dwc3_pci_id_table[] = {
-	{
-		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS,
-				PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3),
-	},
-	{
-		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS,
-				PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3_AXI),
-	},
-	{
-		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS,
-				PCI_DEVICE_ID_SYNOPSYS_HAPSUSB31),
-	},
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BSW), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BYT), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_MRFLD), },
