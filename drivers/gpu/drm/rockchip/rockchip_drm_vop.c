@@ -486,6 +486,31 @@ static void vop_line_flag_irq_disable(struct vop *vop)
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
 }
 
+static int vop_core_clks_enable(struct vop *vop)
+{
+	int ret;
+
+	ret = clk_enable(vop->hclk);
+	if (ret < 0)
+		return ret;
+
+	ret = clk_enable(vop->aclk);
+	if (ret < 0)
+		goto err_disable_hclk;
+
+	return 0;
+
+err_disable_hclk:
+	clk_disable(vop->hclk);
+	return ret;
+}
+
+static void vop_core_clks_disable(struct vop *vop)
+{
+	clk_disable(vop->aclk);
+	clk_disable(vop->hclk);
+}
+
 static int vop_enable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
@@ -497,17 +522,13 @@ static int vop_enable(struct drm_crtc *crtc)
 		return ret;
 	}
 
-	ret = clk_enable(vop->hclk);
+	ret = vop_core_clks_enable(vop);
 	if (WARN_ON(ret < 0))
 		goto err_put_pm_runtime;
 
 	ret = clk_enable(vop->dclk);
 	if (WARN_ON(ret < 0))
-		goto err_disable_hclk;
-
-	ret = clk_enable(vop->aclk);
-	if (WARN_ON(ret < 0))
-		goto err_disable_dclk;
+		goto err_disable_core;
 
 	/*
 	 * Slave iommu shares power, irq and clock with vop.  It was associated
@@ -519,7 +540,7 @@ static int vop_enable(struct drm_crtc *crtc)
 	if (ret) {
 		DRM_DEV_ERROR(vop->dev,
 			      "failed to attach dma mapping, %d\n", ret);
-		goto err_disable_aclk;
+		goto err_disable_dclk;
 	}
 
 	spin_lock(&vop->reg_lock);
@@ -558,12 +579,10 @@ static int vop_enable(struct drm_crtc *crtc)
 
 	return 0;
 
-err_disable_aclk:
-	clk_disable(vop->aclk);
 err_disable_dclk:
 	clk_disable(vop->dclk);
-err_disable_hclk:
-	clk_disable(vop->hclk);
+err_disable_core:
+	vop_core_clks_disable(vop);
 err_put_pm_runtime:
 	pm_runtime_put_sync(vop->dev);
 	return ret;
@@ -609,8 +628,7 @@ static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
 	rockchip_drm_dma_detach_device(vop->drm_dev, vop->dev);
 
 	clk_disable(vop->dclk);
-	clk_disable(vop->aclk);
-	clk_disable(vop->hclk);
+	vop_core_clks_disable(vop);
 	pm_runtime_put(vop->dev);
 	mutex_unlock(&vop->vop_lock);
 
