@@ -700,14 +700,7 @@ int i915_gem_switch_to_kernel_context(struct drm_i915_private *i915)
 			i915_timeline_sync_set(rq->timeline, &prev->fence);
 		}
 
-		/*
-		 * Force a flush after the switch to ensure that all rendering
-		 * and operations prior to switching to the kernel context hits
-		 * memory. This should be guaranteed by the previous request,
-		 * but an extra layer of paranoia before we declare the system
-		 * idle (on suspend etc) is advisable!
-		 */
-		__i915_request_add(rq, true);
+		i915_request_add(rq);
 	}
 
 	return 0;

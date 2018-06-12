@@ -3213,7 +3213,7 @@ void i915_gem_reset(struct drm_i915_private *dev_priv,
 			rq = i915_request_alloc(engine,
 						dev_priv->kernel_context);
 			if (!IS_ERR(rq))
-				__i915_request_add(rq, false);
+				i915_request_add(rq);
 		}
 	}
 
@@ -5332,7 +5332,7 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 		if (engine->init_context)
 			err = engine->init_context(rq);
 
-		__i915_request_add(rq, true);
+		i915_request_add(rq);
 		if (err)
 			goto err_active;
 	}

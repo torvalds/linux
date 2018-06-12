@@ -466,7 +466,7 @@ empty_request(struct intel_engine_cs *engine,
 		goto out_request;
 
 out_request:
-	__i915_request_add(request, err == 0);
+	i915_request_add(request);
 	return err ? ERR_PTR(err) : request;
 }
 

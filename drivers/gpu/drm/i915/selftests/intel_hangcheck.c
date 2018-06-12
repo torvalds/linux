@@ -245,7 +245,7 @@ hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 
 	err = emit_recurse_batch(h, rq);
 	if (err) {
-		__i915_request_add(rq, false);
+		i915_request_add(rq);
 		return ERR_PTR(err);
 	}
 
@@ -318,7 +318,7 @@ static int igt_hang_sanitycheck(void *arg)
 		*h.batch = MI_BATCH_BUFFER_END;
 		i915_gem_chipset_flush(i915);
 
-		__i915_request_add(rq, true);
+		i915_request_add(rq);
 
 		timeout = i915_request_wait(rq,
 					    I915_WAIT_LOCKED,
@@ -464,7 +464,7 @@ static int __igt_reset_engine(struct drm_i915_private *i915, bool active)
 				}
 
 				i915_request_get(rq);
-				__i915_request_add(rq, true);
+				i915_request_add(rq);
 				mutex_unlock(&i915->drm.struct_mutex);
 
 				if (!wait_until_running(&h, rq)) {
@@ -742,7 +742,7 @@ static int __igt_reset_engines(struct drm_i915_private *i915,
 				}
 
 				i915_request_get(rq);
-				__i915_request_add(rq, true);
+				i915_request_add(rq);
 				mutex_unlock(&i915->drm.struct_mutex);
 
 				if (!wait_until_running(&h, rq)) {
@@ -942,7 +942,7 @@ static int igt_wait_reset(void *arg)
 	}
 
 	i915_request_get(rq);
-	__i915_request_add(rq, true);
+	i915_request_add(rq);
 
 	if (!wait_until_running(&h, rq)) {
 		struct drm_printer p = drm_info_printer(i915->drm.dev);
@@ -1037,7 +1037,7 @@ static int igt_reset_queue(void *arg)
 		}
 
 		i915_request_get(prev);
-		__i915_request_add(prev, true);
+		i915_request_add(prev);
 
 		count = 0;
 		do {
@@ -1051,7 +1051,7 @@ static int igt_reset_queue(void *arg)
 			}
 
 			i915_request_get(rq);
-			__i915_request_add(rq, true);
+			i915_request_add(rq);
 
 			/*
 			 * XXX We don't handle resetting the kernel context
@@ -1184,7 +1184,7 @@ static int igt_handle_error(void *arg)
 	}
 
 	i915_request_get(rq);
-	__i915_request_add(rq, true);
+	i915_request_add(rq);
 
 	if (!wait_until_running(&h, rq)) {
 		struct drm_printer p = drm_info_printer(i915->drm.dev);
