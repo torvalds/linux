@@ -2818,9 +2818,6 @@ static void dwc2_gadget_handle_nak(struct dwc2_hsotg_ep *hs_ep)
 
 		tmp = dwc2_hsotg_read_frameno(hsotg);
 		if (using_desc_dma(hsotg)) {
-			dwc2_hsotg_complete_request(hsotg, hs_ep,
-						    get_ep_head(hs_ep), 0);
-
 			hs_ep->target_frame = tmp;
 			dwc2_gadget_incr_frame_num(hs_ep);
 			dwc2_gadget_start_isoc_ddma(hs_ep);
