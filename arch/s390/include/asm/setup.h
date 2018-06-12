@@ -11,6 +11,7 @@
 
 
 #define PARMAREA		0x10400
+#define PARMAREA_END		0x11000
 
 /*
  * Machine features detected in early.c
