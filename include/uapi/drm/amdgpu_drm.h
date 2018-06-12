@@ -992,6 +992,8 @@ struct drm_amdgpu_info_device {
 	__u64 high_va_offset;
 	/** The maximum high virtual address */
 	__u64 high_va_max;
+	/* gfx10 pa_sc_tile_steering_override */
+	__u32 pa_sc_tile_steering_override;
 };
 
 struct drm_amdgpu_info_hw_ip {
