@@ -198,13 +198,13 @@ static int audio_config_hdmi_get_n(const struct intel_crtc_state *crtc_state,
 }
 
 static bool intel_eld_uptodate(struct drm_connector *connector,
-			       i915_reg_t reg_eldv, uint32_t bits_eldv,
-			       i915_reg_t reg_elda, uint32_t bits_elda,
+			       i915_reg_t reg_eldv, u32 bits_eldv,
+			       i915_reg_t reg_elda, u32 bits_elda,
 			       i915_reg_t reg_edid)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
-	uint8_t *eld = connector->eld;
-	uint32_t tmp;
+	u8 *eld = connector->eld;
+	u32 tmp;
 	int i;
 
 	tmp = I915_READ(reg_eldv);
@@ -218,7 +218,7 @@ static bool intel_eld_uptodate(struct drm_connector *connector,
 	I915_WRITE(reg_elda, tmp);
 
 	for (i = 0; i < drm_eld_size(eld) / 4; i++)
-		if (I915_READ(reg_edid) != *((uint32_t *)eld + i))
+		if (I915_READ(reg_edid) != *((u32 *)eld + i))
 			return false;
 
 	return true;
@@ -229,7 +229,7 @@ static void g4x_audio_codec_disable(struct intel_encoder *encoder,
 				    const struct drm_connector_state *old_conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	uint32_t eldv, tmp;
+	u32 eldv, tmp;
 
 	DRM_DEBUG_KMS("Disable audio codec\n");
 
@@ -251,9 +251,9 @@ static void g4x_audio_codec_enable(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct drm_connector *connector = conn_state->connector;
-	uint8_t *eld = connector->eld;
-	uint32_t eldv;
-	uint32_t tmp;
+	u8 *eld = connector->eld;
+	u32 eldv;
+	u32 tmp;
 	int len, i;
 
 	DRM_DEBUG_KMS("Enable audio codec, %u bytes ELD\n", eld[2]);
@@ -278,7 +278,7 @@ static void g4x_audio_codec_enable(struct intel_encoder *encoder,
 	len = min(drm_eld_size(eld) / 4, len);
 	DRM_DEBUG_DRIVER("ELD size %d\n", len);
 	for (i = 0; i < len; i++)
-		I915_WRITE(G4X_HDMIW_HDMIEDID, *((uint32_t *)eld + i));
+		I915_WRITE(G4X_HDMIW_HDMIEDID, *((u32 *)eld + i));
 
 	tmp = I915_READ(G4X_AUD_CNTL_ST);
 	tmp |= eldv;
@@ -393,7 +393,7 @@ static void hsw_audio_codec_disable(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
 	enum pipe pipe = crtc->pipe;
-	uint32_t tmp;
+	u32 tmp;
 
 	DRM_DEBUG_KMS("Disable audio codec on pipe %c\n", pipe_name(pipe));
 
@@ -426,8 +426,8 @@ static void hsw_audio_codec_enable(struct intel_encoder *encoder,
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_connector *connector = conn_state->connector;
 	enum pipe pipe = crtc->pipe;
-	const uint8_t *eld = connector->eld;
-	uint32_t tmp;
+	const u8 *eld = connector->eld;
+	u32 tmp;
 	int len, i;
 
 	DRM_DEBUG_KMS("Enable audio codec on pipe %c, %u bytes ELD\n",
@@ -456,7 +456,7 @@ static void hsw_audio_codec_enable(struct intel_encoder *encoder,
 	/* Up to 84 bytes of hw ELD buffer */
 	len = min(drm_eld_size(eld), 84);
 	for (i = 0; i < len / 4; i++)
-		I915_WRITE(HSW_AUD_EDID_DATA(pipe), *((uint32_t *)eld + i));
+		I915_WRITE(HSW_AUD_EDID_DATA(pipe), *((u32 *)eld + i));
 
 	/* ELD valid */
 	tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
@@ -477,7 +477,7 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder,
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
 	enum pipe pipe = crtc->pipe;
 	enum port port = encoder->port;
-	uint32_t tmp, eldv;
+	u32 tmp, eldv;
 	i915_reg_t aud_config, aud_cntrl_st2;
 
 	DRM_DEBUG_KMS("Disable audio codec on port %c, pipe %c\n",
@@ -524,8 +524,8 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 	struct drm_connector *connector = conn_state->connector;
 	enum pipe pipe = crtc->pipe;
 	enum port port = encoder->port;
-	uint8_t *eld = connector->eld;
-	uint32_t tmp, eldv;
+	u8 *eld = connector->eld;
+	u32 tmp, eldv;
 	int len, i;
 	i915_reg_t hdmiw_hdmiedid, aud_config, aud_cntl_st, aud_cntrl_st2;
 
@@ -575,7 +575,7 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 	/* Up to 84 bytes of hw ELD buffer */
 	len = min(drm_eld_size(eld), 84);
 	for (i = 0; i < len / 4; i++)
-		I915_WRITE(hdmiw_hdmiedid, *((uint32_t *)eld + i));
+		I915_WRITE(hdmiw_hdmiedid, *((u32 *)eld + i));
 
 	/* ELD valid */
 	tmp = I915_READ(aud_cntrl_st2);
