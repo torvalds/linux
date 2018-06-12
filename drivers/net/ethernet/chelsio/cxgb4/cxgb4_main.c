@@ -5646,8 +5646,8 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		adapter->params.offload = 0;
 	}
 
-	adapter->mps_encap = kvzalloc(sizeof(struct mps_encap_entry) *
-					  adapter->params.arch.mps_tcam_size,
+	adapter->mps_encap = kvcalloc(adapter->params.arch.mps_tcam_size,
+				      sizeof(struct mps_encap_entry),
 				      GFP_KERNEL);
 	if (!adapter->mps_encap)
 		dev_warn(&pdev->dev, "could not allocate MPS Encap entries, continuing\n");
