@@ -23,13 +23,10 @@ SECTIONS
 		*(.text.*)
 		_etext = . ;
 	}
-	.rodata.compressed : {
-		*(.rodata.compressed)
-	}
 	.rodata : {
 		_rodata = . ;
 		*(.rodata)	 /* read-only data */
-		*(.rodata.*)
+		EXCLUDE_FILE (*piggy.o) *(.rodata.*)
 		_erodata = . ;
 	}
 	.data :	{
@@ -37,6 +34,13 @@ SECTIONS
 		*(.data)
 		*(.data.*)
 		_edata = . ;
+	}
+	startup_continue = 0x100000;
+#ifdef CONFIG_KERNEL_UNCOMPRESSED
+	. = 0x100000;
+#endif
+	.rodata.compressed : {
+		*(.rodata.compressed)
 	}
 	. = ALIGN(256);
 	.bss : {
