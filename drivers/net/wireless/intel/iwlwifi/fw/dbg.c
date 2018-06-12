@@ -573,66 +573,22 @@ static int iwl_fw_get_prph_len(struct iwl_fw_runtime *fwrt)
 
 static void iwl_fw_dump_mem(struct iwl_fw_runtime *fwrt,
 			    struct iwl_fw_error_dump_data **dump_data,
-			    u32 sram_len, u32 sram_ofs, u32 smem_len,
-			    u32 sram2_len)
+			    u32 len, u32 ofs, u32 type)
 {
-	const struct iwl_fw_dbg_mem_seg_tlv *fw_dbg_mem = fwrt->fw->dbg.mem_tlv;
 	struct iwl_fw_error_dump_mem *dump_mem;
-	int i;
 
-	if (!fwrt->fw->dbg.n_mem_tlv) {
-		(*dump_data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
-		(*dump_data)->len = cpu_to_le32(sram_len + sizeof(*dump_mem));
-		dump_mem = (void *)(*dump_data)->data;
-		dump_mem->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM_SRAM);
-		dump_mem->offset = cpu_to_le32(sram_ofs);
-		iwl_trans_read_mem_bytes(fwrt->trans, sram_ofs, dump_mem->data,
-					 sram_len);
-		*dump_data = iwl_fw_error_next_data(*dump_data);
-	}
+	if (!len)
+		return;
 
-	for (i = 0; i < fwrt->fw->dbg.n_mem_tlv; i++) {
-		u32 len = le32_to_cpu(fw_dbg_mem[i].len);
-		u32 ofs = le32_to_cpu(fw_dbg_mem[i].ofs);
+	(*dump_data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
+	(*dump_data)->len = cpu_to_le32(len + sizeof(*dump_mem));
+	dump_mem = (void *)(*dump_data)->data;
+	dump_mem->type = cpu_to_le32(type);
+	dump_mem->offset = cpu_to_le32(ofs);
+	iwl_trans_read_mem_bytes(fwrt->trans, ofs, dump_mem->data, len);
+	*dump_data = iwl_fw_error_next_data(*dump_data);
 
-		(*dump_data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
-		(*dump_data)->len = cpu_to_le32(len + sizeof(*dump_mem));
-		dump_mem = (void *)(*dump_data)->data;
-		dump_mem->type = fw_dbg_mem[i].data_type;
-		dump_mem->offset = cpu_to_le32(ofs);
-
-		IWL_DEBUG_INFO(fwrt, "WRT memory dump. Type=%u\n",
-			       dump_mem->type);
-
-		iwl_trans_read_mem_bytes(fwrt->trans, ofs, dump_mem->data, len);
-		*dump_data = iwl_fw_error_next_data(*dump_data);
-	}
-
-	if (smem_len) {
-		IWL_DEBUG_INFO(fwrt, "WRT SMEM dump\n");
-		(*dump_data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
-		(*dump_data)->len = cpu_to_le32(smem_len + sizeof(*dump_mem));
-		dump_mem = (void *)(*dump_data)->data;
-		dump_mem->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM_SMEM);
-		dump_mem->offset = cpu_to_le32(fwrt->trans->cfg->smem_offset);
-		iwl_trans_read_mem_bytes(fwrt->trans,
-					 fwrt->trans->cfg->smem_offset,
-					 dump_mem->data, smem_len);
-		*dump_data = iwl_fw_error_next_data(*dump_data);
-	}
-
-	if (sram2_len) {
-		IWL_DEBUG_INFO(fwrt, "WRT SRAM dump\n");
-		(*dump_data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
-		(*dump_data)->len = cpu_to_le32(sram2_len + sizeof(*dump_mem));
-		dump_mem = (void *)(*dump_data)->data;
-		dump_mem->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM_SRAM);
-		dump_mem->offset = cpu_to_le32(fwrt->trans->cfg->dccm2_offset);
-		iwl_trans_read_mem_bytes(fwrt->trans,
-					 fwrt->trans->cfg->dccm2_offset,
-					 dump_mem->data, sram2_len);
-		*dump_data = iwl_fw_error_next_data(*dump_data);
-	}
+	IWL_DEBUG_INFO(fwrt, "WRT memory dump. Type=%u\n", dump_mem->type);
 }
 
 #define ADD_LEN(len, item_len, const_len) \
@@ -864,10 +820,30 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 	if (monitor_dump_only)
 		goto out;
 
-	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_MEM))
-		iwl_fw_dump_mem(fwrt, &dump_data, sram_len, sram_ofs, smem_len,
-				sram2_len);
+	if (fwrt->fw->dbg.dump_mask & BIT(IWL_FW_ERROR_DUMP_MEM)) {
+		const struct iwl_fw_dbg_mem_seg_tlv *fw_dbg_mem =
+			fwrt->fw->dbg.mem_tlv;
 
+		if (!fwrt->fw->dbg.n_mem_tlv)
+			iwl_fw_dump_mem(fwrt, &dump_data, sram_len, sram_ofs,
+					IWL_FW_ERROR_DUMP_MEM_SRAM);
+
+		for (i = 0; i < fwrt->fw->dbg.n_mem_tlv; i++) {
+			u32 len = le32_to_cpu(fw_dbg_mem[i].len);
+			u32 ofs = le32_to_cpu(fw_dbg_mem[i].ofs);
+
+			iwl_fw_dump_mem(fwrt, &dump_data, len, ofs,
+					le32_to_cpu(fw_dbg_mem[i].data_type));
+		}
+
+		iwl_fw_dump_mem(fwrt, &dump_data, smem_len,
+				fwrt->trans->cfg->smem_offset,
+				IWL_FW_ERROR_DUMP_MEM_SMEM);
+
+		iwl_fw_dump_mem(fwrt, &dump_data, sram2_len,
+				fwrt->trans->cfg->dccm2_offset,
+				IWL_FW_ERROR_DUMP_MEM_SRAM);
+	}
 
 	if (iwl_fw_dbg_is_d3_debug_enabled(fwrt) && fwrt->dump.d3_debug_data) {
 		u32 addr = fwrt->trans->cfg->d3_debug_data_base_addr;
