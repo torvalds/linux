@@ -463,7 +463,7 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 	if (unlikely(r != 0))
 		return r;
 
-	if (adev->gmc.visible_vram_size < adev->gmc.real_vram_size &&
+	if (!amdgpu_gmc_vram_full_visible(&adev->gmc) &&
 	    bo->tbo.mem.mem_type == TTM_PL_VRAM &&
 	    bo->tbo.mem.start < adev->gmc.visible_vram_size >> PAGE_SHIFT)
 		amdgpu_cs_report_moved_bytes(adev, ctx.bytes_moved,

@@ -33,6 +33,7 @@
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 #include "amdgpu_amdkfd.h"
+#include "amdgpu_gmc.h"
 
 /**
  * DOC: GPUVM
@@ -666,19 +667,6 @@ bool amdgpu_vm_need_pipeline_sync(struct amdgpu_ring *ring,
 		return true;
 
 	return vm_flush_needed || gds_switch_needed;
-}
-
-/**
- * amdgpu_vm_is_large_bar - Check if BAR is large enough
- *
- * @adev: amdgpu_device pointer
- *
- * Returns:
- * True if BAR is large enough.
- */
-static bool amdgpu_vm_is_large_bar(struct amdgpu_device *adev)
-{
-	return (adev->gmc.real_vram_size == adev->gmc.visible_vram_size);
 }
 
 /**
@@ -2579,7 +2567,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	}
 	DRM_DEBUG_DRIVER("VM update mode is %s\n",
 			 vm->use_cpu_for_update ? "CPU" : "SDMA");
-	WARN_ONCE((vm->use_cpu_for_update & !amdgpu_vm_is_large_bar(adev)),
+	WARN_ONCE((vm->use_cpu_for_update & !amdgpu_gmc_vram_full_visible(&adev->gmc)),
 		  "CPU update of VM recommended only for large BAR system\n");
 	vm->last_update = NULL;
 
@@ -2699,7 +2687,7 @@ int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	vm->pte_support_ats = pte_support_ats;
 	DRM_DEBUG_DRIVER("VM update mode is %s\n",
 			 vm->use_cpu_for_update ? "CPU" : "SDMA");
-	WARN_ONCE((vm->use_cpu_for_update & !amdgpu_vm_is_large_bar(adev)),
+	WARN_ONCE((vm->use_cpu_for_update & !amdgpu_gmc_vram_full_visible(&adev->gmc)),
 		  "CPU update of VM recommended only for large BAR system\n");
 
 	if (vm->pasid) {
@@ -2877,7 +2865,7 @@ void amdgpu_vm_manager_init(struct amdgpu_device *adev)
 	 */
 #ifdef CONFIG_X86_64
 	if (amdgpu_vm_update_mode == -1) {
-		if (amdgpu_vm_is_large_bar(adev))
+		if (amdgpu_gmc_vram_full_visible(&adev->gmc))
 			adev->vm_manager.vm_update_mode =
 				AMDGPU_VM_USE_CPU_FOR_COMPUTE;
 		else
