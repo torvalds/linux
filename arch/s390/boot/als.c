@@ -8,7 +8,6 @@
 #include <asm/facility.h>
 #include <asm/lowcore.h>
 #include <asm/sclp.h>
-#include "entry.h"
 
 /*
  * The code within this file will be called very early. It may _not_

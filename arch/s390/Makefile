@@ -113,8 +113,7 @@ export KBUILD_CFLAGS_DECOMPRESSOR
 
 OBJCOPYFLAGS	:= -O binary
 
-head-y		:= arch/s390/kernel/head.o
-head-y		+= arch/s390/kernel/head64.o
+head-y		:= arch/s390/kernel/head64.o
 
 # See arch/s390/Kbuild for content of core part of the kernel
 core-y		+= arch/s390/
