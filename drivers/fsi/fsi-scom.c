@@ -49,7 +49,7 @@ static struct list_head scom_devices;
 static DEFINE_IDA(scom_ida);
 
 static int put_scom(struct scom_device *scom_dev, uint64_t value,
-			uint32_t addr)
+		    uint32_t addr)
 {
 	int rc;
 	uint32_t data;
@@ -77,7 +77,7 @@ static int put_scom(struct scom_device *scom_dev, uint64_t value,
 }
 
 static int get_scom(struct scom_device *scom_dev, uint64_t *value,
-			uint32_t addr)
+		    uint32_t addr)
 {
 	uint32_t result, data;
 	int rc;
@@ -110,7 +110,7 @@ static int get_scom(struct scom_device *scom_dev, uint64_t *value,
 }
 
 static ssize_t scom_read(struct file *filep, char __user *buf, size_t len,
-			loff_t *offset)
+			 loff_t *offset)
 {
 	int rc;
 	struct miscdevice *mdev =
@@ -136,7 +136,7 @@ static ssize_t scom_read(struct file *filep, char __user *buf, size_t len,
 }
 
 static ssize_t scom_write(struct file *filep, const char __user *buf,
-			size_t len, loff_t *offset)
+			  size_t len, loff_t *offset)
 {
 	int rc;
 	struct miscdevice *mdev = filep->private_data;
