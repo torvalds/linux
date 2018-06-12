@@ -2,6 +2,19 @@
 # SPDX-License-Identifier: GPL-2.0
 # Runs static keys kernel module tests
 
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
+if ! /sbin/modprobe -q -n test_static_key_base; then
+	echo "static_key: module test_static_key_base is not found [SKIP]"
+	exit $ksft_skip
+fi
+
+if ! /sbin/modprobe -q -n test_static_keys; then
+	echo "static_key: module test_static_keys is not found [SKIP]"
+	exit $ksft_skip
+fi
+
 if /sbin/modprobe -q test_static_key_base; then
 	if /sbin/modprobe -q test_static_keys; then
 		echo "static_key: ok"
