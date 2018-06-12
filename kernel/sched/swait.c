@@ -32,7 +32,7 @@ void swake_up_locked(struct swait_queue_head *q)
 }
 EXPORT_SYMBOL(swake_up_locked);
 
-void swake_up(struct swait_queue_head *q)
+void swake_up_one(struct swait_queue_head *q)
 {
 	unsigned long flags;
 
@@ -40,7 +40,7 @@ void swake_up(struct swait_queue_head *q)
 	swake_up_locked(q);
 	raw_spin_unlock_irqrestore(&q->lock, flags);
 }
-EXPORT_SYMBOL(swake_up);
+EXPORT_SYMBOL(swake_up_one);
 
 /*
  * Does not allow usage from IRQ disabled, since we must be able to
@@ -76,7 +76,7 @@ static void __prepare_to_swait(struct swait_queue_head *q, struct swait_queue *w
 		list_add_tail(&wait->task_list, &q->task_list);
 }
 
-void prepare_to_swait(struct swait_queue_head *q, struct swait_queue *wait, int state)
+void prepare_to_swait_exclusive(struct swait_queue_head *q, struct swait_queue *wait, int state)
 {
 	unsigned long flags;
 
@@ -85,7 +85,7 @@ void prepare_to_swait(struct swait_queue_head *q, struct swait_queue *wait, int 
 	set_current_state(state);
 	raw_spin_unlock_irqrestore(&q->lock, flags);
 }
-EXPORT_SYMBOL(prepare_to_swait);
+EXPORT_SYMBOL(prepare_to_swait_exclusive);
 
 long prepare_to_swait_event(struct swait_queue_head *q, struct swait_queue *wait, int state)
 {
@@ -95,7 +95,7 @@ long prepare_to_swait_event(struct swait_queue_head *q, struct swait_queue *wait
 	raw_spin_lock_irqsave(&q->lock, flags);
 	if (unlikely(signal_pending_state(state, current))) {
 		/*
-		 * See prepare_to_wait_event(). TL;DR, subsequent swake_up()
+		 * See prepare_to_wait_event(). TL;DR, subsequent swake_up_one()
 		 * must not see us.
 		 */
 		list_del_init(&wait->task_list);

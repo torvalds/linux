@@ -155,7 +155,7 @@ static unsigned long kvm_psci_vcpu_on(struct kvm_vcpu *source_vcpu)
 	smp_mb();		/* Make sure the above is visible */
 
 	wq = kvm_arch_vcpu_wq(vcpu);
-	swake_up(wq);
+	swake_up_one(wq);
 
 	return PSCI_RET_SUCCESS;
 }

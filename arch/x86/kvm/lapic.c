@@ -1379,7 +1379,7 @@ static void apic_timer_expired(struct kvm_lapic *apic)
 	 * using swait_active() is safe.
 	 */
 	if (swait_active(q))
-		swake_up(q);
+		swake_up_one(q);
 
 	if (apic_lvtt_tscdeadline(apic))
 		ktimer->expired_tscdeadline = ktimer->tscdeadline;

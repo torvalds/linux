@@ -92,7 +92,7 @@ static void s2idle_enter(void)
 	/* Push all the CPUs into the idle loop. */
 	wake_up_all_idle_cpus();
 	/* Make the current CPU wait so it can enter the idle loop too. */
-	swait_event(s2idle_wait_head,
+	swait_event_exclusive(s2idle_wait_head,
 		    s2idle_state == S2IDLE_STATE_WAKE);
 
 	cpuidle_pause();
@@ -160,7 +160,7 @@ void s2idle_wake(void)
 	raw_spin_lock_irqsave(&s2idle_lock, flags);
 	if (s2idle_state > S2IDLE_STATE_NONE) {
 		s2idle_state = S2IDLE_STATE_WAKE;
-		swake_up(&s2idle_wait_head);
+		swake_up_one(&s2idle_wait_head);
 	}
 	raw_spin_unlock_irqrestore(&s2idle_lock, flags);
 }

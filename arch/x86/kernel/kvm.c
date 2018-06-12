@@ -154,7 +154,7 @@ void kvm_async_pf_task_wait(u32 token, int interrupt_kernel)
 
 	for (;;) {
 		if (!n.halted)
-			prepare_to_swait(&n.wq, &wait, TASK_UNINTERRUPTIBLE);
+			prepare_to_swait_exclusive(&n.wq, &wait, TASK_UNINTERRUPTIBLE);
 		if (hlist_unhashed(&n.link))
 			break;
 
@@ -188,7 +188,7 @@ static void apf_task_wake_one(struct kvm_task_sleep_node *n)
 	if (n->halted)
 		smp_send_reschedule(n->cpu);
 	else if (swq_has_sleeper(&n->wq))
-		swake_up(&n->wq);
+		swake_up_one(&n->wq);
 }
 
 static void apf_task_wake_all(void)

@@ -16,7 +16,7 @@
  * wait-queues, but the semantics are actually completely different, and
  * every single user we have ever had has been buggy (or pointless).
  *
- * A "swake_up()" only wakes up _one_ waiter, which is not at all what
+ * A "swake_up_one()" only wakes up _one_ waiter, which is not at all what
  * "wake_up()" does, and has led to problems. In other cases, it has
  * been fine, because there's only ever one waiter (kvm), but in that
  * case gthe whole "simple" wait-queue is just pointless to begin with,
@@ -115,7 +115,7 @@ extern void __init_swait_queue_head(struct swait_queue_head *q, const char *name
  *      CPU0 - waker                    CPU1 - waiter
  *
  *                                      for (;;) {
- *      @cond = true;                     prepare_to_swait(&wq_head, &wait, state);
+ *      @cond = true;                     prepare_to_swait_exclusive(&wq_head, &wait, state);
  *      smp_mb();                         // smp_mb() from set_current_state()
  *      if (swait_active(wq_head))        if (@cond)
  *        wake_up(wq_head);                      break;
@@ -157,11 +157,11 @@ static inline bool swq_has_sleeper(struct swait_queue_head *wq)
 	return swait_active(wq);
 }
 
-extern void swake_up(struct swait_queue_head *q);
+extern void swake_up_one(struct swait_queue_head *q);
 extern void swake_up_all(struct swait_queue_head *q);
 extern void swake_up_locked(struct swait_queue_head *q);
 
-extern void prepare_to_swait(struct swait_queue_head *q, struct swait_queue *wait, int state);
+extern void prepare_to_swait_exclusive(struct swait_queue_head *q, struct swait_queue *wait, int state);
 extern long prepare_to_swait_event(struct swait_queue_head *q, struct swait_queue *wait, int state);
 
 extern void __finish_swait(struct swait_queue_head *q, struct swait_queue *wait);
@@ -196,7 +196,7 @@ __out:	__ret;								\
 	(void)___swait_event(wq, condition, TASK_UNINTERRUPTIBLE, 0,	\
 			    schedule())
 
-#define swait_event(wq, condition)					\
+#define swait_event_exclusive(wq, condition)				\
 do {									\
 	if (condition)							\
 		break;							\
@@ -208,7 +208,7 @@ do {									\
 		      TASK_UNINTERRUPTIBLE, timeout,			\
 		      __ret = schedule_timeout(__ret))
 
-#define swait_event_timeout(wq, condition, timeout)			\
+#define swait_event_timeout_exclusive(wq, condition, timeout)		\
 ({									\
 	long __ret = timeout;						\
 	if (!___wait_cond_timeout(condition))				\
@@ -220,7 +220,7 @@ do {									\
 	___swait_event(wq, condition, TASK_INTERRUPTIBLE, 0,		\
 		      schedule())
 
-#define swait_event_interruptible(wq, condition)			\
+#define swait_event_interruptible_exclusive(wq, condition)		\
 ({									\
 	int __ret = 0;							\
 	if (!(condition))						\
@@ -233,7 +233,7 @@ do {									\
 		      TASK_INTERRUPTIBLE, timeout,			\
 		      __ret = schedule_timeout(__ret))
 
-#define swait_event_interruptible_timeout(wq, condition, timeout)	\
+#define swait_event_interruptible_timeout_exclusive(wq, condition, timeout)\
 ({									\
 	long __ret = timeout;						\
 	if (!___wait_cond_timeout(condition))				\
@@ -246,7 +246,7 @@ do {									\
 	(void)___swait_event(wq, condition, TASK_IDLE, 0, schedule())
 
 /**
- * swait_event_idle - wait without system load contribution
+ * swait_event_idle_exclusive - wait without system load contribution
  * @wq: the waitqueue to wait on
  * @condition: a C expression for the event to wait for
  *
@@ -257,7 +257,7 @@ do {									\
  * condition and doesn't want to contribute to system load. Signals are
  * ignored.
  */
-#define swait_event_idle(wq, condition)					\
+#define swait_event_idle_exclusive(wq, condition)			\
 do {									\
 	if (condition)							\
 		break;							\
@@ -270,7 +270,7 @@ do {									\
 		       __ret = schedule_timeout(__ret))
 
 /**
- * swait_event_idle_timeout - wait up to timeout without load contribution
+ * swait_event_idle_timeout_exclusive - wait up to timeout without load contribution
  * @wq: the waitqueue to wait on
  * @condition: a C expression for the event to wait for
  * @timeout: timeout at which we'll give up in jiffies
@@ -288,7 +288,7 @@ do {									\
  * or the remaining jiffies (at least 1) if the @condition evaluated
  * to %true before the @timeout elapsed.
  */
-#define swait_event_idle_timeout(wq, condition, timeout)		\
+#define swait_event_idle_timeout_exclusive(wq, condition, timeout)	\
 ({									\
 	long __ret = timeout;						\
 	if (!___wait_cond_timeout(condition))				\
