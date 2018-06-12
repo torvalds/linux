@@ -339,7 +339,6 @@ void v4l2_m2m_job_finish(struct v4l2_m2m_dev *m2m_dev,
 	 * allow more than one job on the job_queue per instance, each has
 	 * to be scheduled separately after the previous one finishes. */
 	v4l2_m2m_try_schedule(m2m_ctx);
-	v4l2_m2m_try_run(m2m_dev);
 }
 EXPORT_SYMBOL(v4l2_m2m_job_finish);
 
