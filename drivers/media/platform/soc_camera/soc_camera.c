@@ -1045,7 +1045,6 @@ static int soc_camera_streamoff(struct file *file, void *priv,
 		return -EBUSY;
 
 	/* ddl@rock-chips.com: v0.1.1 */
-	v4l2_subdev_call(sd, video, s_stream, 0);
 	if (ici->ops->s_stream)
 		ici->ops->s_stream(icd, 0);
 
