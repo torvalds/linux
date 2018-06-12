@@ -1377,9 +1377,7 @@ static int scsiback_check_stop_free(struct se_cmd *se_cmd)
 
 static void scsiback_release_cmd(struct se_cmd *se_cmd)
 {
-	struct se_session *se_sess = se_cmd->se_sess;
-
-	percpu_ida_free(&se_sess->sess_tag_pool, se_cmd->map_tag);
+	target_free_tag(se_cmd->se_sess, se_cmd);
 }
 
 static u32 scsiback_sess_get_index(struct se_session *se_sess)

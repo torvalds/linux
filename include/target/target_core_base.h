@@ -934,4 +934,9 @@ static inline void atomic_dec_mb(atomic_t *v)
 	smp_mb__after_atomic();
 }
 
+static inline void target_free_tag(struct se_session *sess, struct se_cmd *cmd)
+{
+	percpu_ida_free(&sess->sess_tag_pool, cmd->map_tag);
+}
+
 #endif /* TARGET_CORE_BASE_H */

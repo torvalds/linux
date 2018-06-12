@@ -711,7 +711,7 @@ void iscsit_release_cmd(struct iscsi_cmd *cmd)
 	kfree(cmd->iov_data);
 	kfree(cmd->text_in_ptr);
 
-	percpu_ida_free(&sess->se_sess->sess_tag_pool, se_cmd->map_tag);
+	target_free_tag(sess->se_sess, se_cmd);
 }
 EXPORT_SYMBOL(iscsit_release_cmd);
 

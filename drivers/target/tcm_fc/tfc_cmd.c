@@ -92,7 +92,7 @@ static void ft_free_cmd(struct ft_cmd *cmd)
 	if (fr_seq(fp))
 		fc_seq_release(fr_seq(fp));
 	fc_frame_free(fp);
-	percpu_ida_free(&sess->se_sess->sess_tag_pool, cmd->se_cmd.map_tag);
+	target_free_tag(sess->se_sess, &cmd->se_cmd);
 	ft_sess_put(sess);	/* undo get from lookup at recv */
 }
 
@@ -461,7 +461,7 @@ static void ft_recv_cmd(struct ft_sess *sess, struct fc_frame *fp)
 	cmd->sess = sess;
 	cmd->seq = fc_seq_assign(lport, fp);
 	if (!cmd->seq) {
-		percpu_ida_free(&se_sess->sess_tag_pool, tag);
+		target_free_tag(se_sess, &cmd->se_cmd);
 		goto busy;
 	}
 	cmd->req_frame = fp;		/* hold frame during cmd */
