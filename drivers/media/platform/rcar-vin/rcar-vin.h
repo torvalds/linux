@@ -75,15 +75,21 @@ struct rvin_video_format {
 };
 
 /**
- * struct rvin_graph_entity - Video endpoint from async framework
+ * struct rvin_parallel_entity - Parallel video input endpoint descriptor
  * @asd:	sub-device descriptor for async framework
  * @subdev:	subdevice matched using async framework
+ * @mbus_type:	media bus type
+ * @mbus_flags:	media bus configuration flags
  * @source_pad:	source pad of remote subdevice
  * @sink_pad:	sink pad of remote subdevice
+ *
  */
-struct rvin_graph_entity {
+struct rvin_parallel_entity {
 	struct v4l2_async_subdev asd;
 	struct v4l2_subdev *subdev;
+
+	enum v4l2_mbus_type mbus_type;
+	unsigned int mbus_flags;
 
 	unsigned int source_pad;
 	unsigned int sink_pad;
@@ -148,7 +154,8 @@ struct rvin_info {
  * @v4l2_dev:		V4L2 device
  * @ctrl_handler:	V4L2 control handler
  * @notifier:		V4L2 asynchronous subdevs notifier
- * @parallel:		entity in the DT for local parallel subdevice
+ *
+ * @parallel:		parallel input subdevice descriptor
  *
  * @group:		Gen3 CSI group
  * @id:			Gen3 group id for this VIN
@@ -166,7 +173,8 @@ struct rvin_info {
  * @sequence:		V4L2 buffers sequence number
  * @state:		keeps track of operation state
  *
- * @mbus_cfg:		media bus configuration from DT
+ * @is_csi:		flag to mark the VIN as using a CSI-2 subdevice
+ *
  * @mbus_code:		media bus format code
  * @format:		active V4L2 pixel format
  *
@@ -184,7 +192,8 @@ struct rvin_dev {
 	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_async_notifier notifier;
-	struct rvin_graph_entity *parallel;
+
+	struct rvin_parallel_entity *parallel;
 
 	struct rvin_group *group;
 	unsigned int id;
@@ -201,7 +210,8 @@ struct rvin_dev {
 	unsigned int sequence;
 	enum rvin_dma_state state;
 
-	struct v4l2_mbus_config mbus_cfg;
+	bool is_csi;
+
 	u32 mbus_code;
 	struct v4l2_pix_format format;
 

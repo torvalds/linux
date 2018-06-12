@@ -524,29 +524,28 @@ static int rvin_parallel_parse_v4l2(struct device *dev,
 				    struct v4l2_async_subdev *asd)
 {
 	struct rvin_dev *vin = dev_get_drvdata(dev);
-	struct rvin_graph_entity *rvge =
-		container_of(asd, struct rvin_graph_entity, asd);
+	struct rvin_parallel_entity *rvpe =
+		container_of(asd, struct rvin_parallel_entity, asd);
 
 	if (vep->base.port || vep->base.id)
 		return -ENOTCONN;
 
-	vin->mbus_cfg.type = vep->bus_type;
+	vin->parallel = rvpe;
+	vin->parallel->mbus_type = vep->bus_type;
 
-	switch (vin->mbus_cfg.type) {
+	switch (vin->parallel->mbus_type) {
 	case V4L2_MBUS_PARALLEL:
 		vin_dbg(vin, "Found PARALLEL media bus\n");
-		vin->mbus_cfg.flags = vep->bus.parallel.flags;
+		vin->parallel->mbus_flags = vep->bus.parallel.flags;
 		break;
 	case V4L2_MBUS_BT656:
 		vin_dbg(vin, "Found BT656 media bus\n");
-		vin->mbus_cfg.flags = 0;
+		vin->parallel->mbus_flags = 0;
 		break;
 	default:
 		vin_err(vin, "Unknown media bus type\n");
 		return -EINVAL;
 	}
-
-	vin->parallel = rvge;
 
 	return 0;
 }
@@ -557,7 +556,7 @@ static int rvin_parallel_graph_init(struct rvin_dev *vin)
 
 	ret = v4l2_async_notifier_parse_fwnode_endpoints(
 		vin->dev, &vin->notifier,
-		sizeof(struct rvin_graph_entity), rvin_parallel_parse_v4l2);
+		sizeof(struct rvin_parallel_entity), rvin_parallel_parse_v4l2);
 	if (ret)
 		return ret;
 
@@ -784,10 +783,6 @@ static int rvin_mc_parse_of_graph(struct rvin_dev *vin)
 static int rvin_mc_init(struct rvin_dev *vin)
 {
 	int ret;
-
-	/* All our sources are CSI-2 */
-	vin->mbus_cfg.type = V4L2_MBUS_CSI2;
-	vin->mbus_cfg.flags = 0;
 
 	vin->pad.flags = MEDIA_PAD_FL_SINK;
 	ret = media_entity_pads_init(&vin->vdev.entity, 1, &vin->pad);

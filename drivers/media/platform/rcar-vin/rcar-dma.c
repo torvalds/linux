@@ -659,8 +659,12 @@ static int rvin_setup(struct rvin_dev *vin)
 		break;
 	case MEDIA_BUS_FMT_UYVY8_2X8:
 		/* BT.656 8bit YCbCr422 or BT.601 8bit YCbCr422 */
-		vnmc |= vin->mbus_cfg.type == V4L2_MBUS_BT656 ?
-			VNMC_INF_YUV8_BT656 : VNMC_INF_YUV8_BT601;
+		if (!vin->is_csi &&
+		    vin->parallel->mbus_type == V4L2_MBUS_BT656)
+			vnmc |= VNMC_INF_YUV8_BT656;
+		else
+			vnmc |= VNMC_INF_YUV8_BT601;
+
 		input_is_yuv = true;
 		break;
 	case MEDIA_BUS_FMT_RGB888_1X24:
@@ -668,8 +672,12 @@ static int rvin_setup(struct rvin_dev *vin)
 		break;
 	case MEDIA_BUS_FMT_UYVY10_2X10:
 		/* BT.656 10bit YCbCr422 or BT.601 10bit YCbCr422 */
-		vnmc |= vin->mbus_cfg.type == V4L2_MBUS_BT656 ?
-			VNMC_INF_YUV10_BT656 : VNMC_INF_YUV10_BT601;
+		if (!vin->is_csi &&
+		    vin->parallel->mbus_type == V4L2_MBUS_BT656)
+			vnmc |= VNMC_INF_YUV10_BT656;
+		else
+			vnmc |= VNMC_INF_YUV10_BT601;
+
 		input_is_yuv = true;
 		break;
 	default:
@@ -682,13 +690,15 @@ static int rvin_setup(struct rvin_dev *vin)
 	else
 		dmr2 = VNDMR2_FTEV | VNDMR2_VLV(1);
 
-	/* Hsync Signal Polarity Select */
-	if (!(vin->mbus_cfg.flags & V4L2_MBUS_HSYNC_ACTIVE_LOW))
-		dmr2 |= VNDMR2_HPS;
+	if (!vin->is_csi) {
+		/* Hsync Signal Polarity Select */
+		if (!(vin->parallel->mbus_flags & V4L2_MBUS_HSYNC_ACTIVE_LOW))
+			dmr2 |= VNDMR2_HPS;
 
-	/* Vsync Signal Polarity Select */
-	if (!(vin->mbus_cfg.flags & V4L2_MBUS_VSYNC_ACTIVE_LOW))
-		dmr2 |= VNDMR2_VPS;
+		/* Vsync Signal Polarity Select */
+		if (!(vin->parallel->mbus_flags & V4L2_MBUS_VSYNC_ACTIVE_LOW))
+			dmr2 |= VNDMR2_VPS;
+	}
 
 	/*
 	 * Output format
@@ -734,7 +744,7 @@ static int rvin_setup(struct rvin_dev *vin)
 
 	if (vin->info->model == RCAR_GEN3) {
 		/* Select between CSI-2 and parallel input */
-		if (vin->mbus_cfg.type == V4L2_MBUS_CSI2)
+		if (vin->is_csi)
 			vnmc &= ~VNMC_DPINE;
 		else
 			vnmc |= VNMC_DPINE;
