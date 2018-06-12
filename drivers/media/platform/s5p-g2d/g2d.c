@@ -702,7 +702,6 @@ static int g2d_probe(struct platform_device *pdev)
 		goto rel_vdev;
 	}
 	video_set_drvdata(vfd, dev);
-	snprintf(vfd->name, sizeof(vfd->name), "%s", g2d_videodev.name);
 	dev->vfd = vfd;
 	v4l2_info(&dev->v4l2_dev, "device registered as /dev/video%d\n",
 								vfd->num);
