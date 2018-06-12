@@ -148,7 +148,7 @@ struct rvin_info {
  * @v4l2_dev:		V4L2 device
  * @ctrl_handler:	V4L2 control handler
  * @notifier:		V4L2 asynchronous subdevs notifier
- * @digital:		entity in the DT for local digital subdevice
+ * @parallel:		entity in the DT for local parallel subdevice
  *
  * @group:		Gen3 CSI group
  * @id:			Gen3 group id for this VIN
@@ -184,7 +184,7 @@ struct rvin_dev {
 	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_async_notifier notifier;
-	struct rvin_graph_entity *digital;
+	struct rvin_graph_entity *parallel;
 
 	struct rvin_group *group;
 	unsigned int id;
@@ -211,7 +211,7 @@ struct rvin_dev {
 	v4l2_std_id std;
 };
 
-#define vin_to_source(vin)		((vin)->digital->subdev)
+#define vin_to_source(vin)		((vin)->parallel->subdev)
 
 /* Debug */
 #define vin_dbg(d, fmt, arg...)		dev_dbg(d->dev, fmt, ##arg)

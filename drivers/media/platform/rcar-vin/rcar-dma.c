@@ -733,7 +733,7 @@ static int rvin_setup(struct rvin_dev *vin)
 		vnmc |= VNMC_BPS;
 
 	if (vin->info->model == RCAR_GEN3) {
-		/* Select between CSI-2 and Digital input */
+		/* Select between CSI-2 and parallel input */
 		if (vin->mbus_cfg.type == V4L2_MBUS_CSI2)
 			vnmc &= ~VNMC_DPINE;
 		else
@@ -1088,7 +1088,7 @@ static int rvin_set_stream(struct rvin_dev *vin, int on)
 
 	/* No media controller used, simply pass operation to subdevice. */
 	if (!vin->info->use_mc) {
-		ret = v4l2_subdev_call(vin->digital->subdev, video, s_stream,
+		ret = v4l2_subdev_call(vin->parallel->subdev, video, s_stream,
 				       on);
 
 		return ret == -ENOIOCTLCMD ? 0 : ret;

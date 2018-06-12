@@ -376,12 +376,12 @@ static int rvin_find_pad(struct v4l2_subdev *sd, int direction)
 }
 
 /* -----------------------------------------------------------------------------
- * Digital async notifier
+ * Parallel async notifier
  */
 
 /* The vin lock should be held when calling the subdevice attach and detach */
-static int rvin_digital_subdevice_attach(struct rvin_dev *vin,
-					 struct v4l2_subdev *subdev)
+static int rvin_parallel_subdevice_attach(struct rvin_dev *vin,
+					  struct v4l2_subdev *subdev)
 {
 	struct v4l2_subdev_mbus_code_enum code = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
@@ -392,15 +392,15 @@ static int rvin_digital_subdevice_attach(struct rvin_dev *vin,
 	ret = rvin_find_pad(subdev, MEDIA_PAD_FL_SOURCE);
 	if (ret < 0)
 		return ret;
-	vin->digital->source_pad = ret;
+	vin->parallel->source_pad = ret;
 
 	ret = rvin_find_pad(subdev, MEDIA_PAD_FL_SINK);
-	vin->digital->sink_pad = ret < 0 ? 0 : ret;
+	vin->parallel->sink_pad = ret < 0 ? 0 : ret;
 
 	/* Find compatible subdevices mbus format */
 	vin->mbus_code = 0;
 	code.index = 0;
-	code.pad = vin->digital->source_pad;
+	code.pad = vin->parallel->source_pad;
 	while (!vin->mbus_code &&
 	       !v4l2_subdev_call(subdev, pad, enum_mbus_code, NULL, &code)) {
 		code.index++;
@@ -450,21 +450,21 @@ static int rvin_digital_subdevice_attach(struct rvin_dev *vin,
 
 	vin->vdev.ctrl_handler = &vin->ctrl_handler;
 
-	vin->digital->subdev = subdev;
+	vin->parallel->subdev = subdev;
 
 	return 0;
 }
 
-static void rvin_digital_subdevice_detach(struct rvin_dev *vin)
+static void rvin_parallel_subdevice_detach(struct rvin_dev *vin)
 {
 	rvin_v4l2_unregister(vin);
 	v4l2_ctrl_handler_free(&vin->ctrl_handler);
 
 	vin->vdev.ctrl_handler = NULL;
-	vin->digital->subdev = NULL;
+	vin->parallel->subdev = NULL;
 }
 
-static int rvin_digital_notify_complete(struct v4l2_async_notifier *notifier)
+static int rvin_parallel_notify_complete(struct v4l2_async_notifier *notifier)
 {
 	struct rvin_dev *vin = notifier_to_vin(notifier);
 	int ret;
@@ -478,28 +478,28 @@ static int rvin_digital_notify_complete(struct v4l2_async_notifier *notifier)
 	return rvin_v4l2_register(vin);
 }
 
-static void rvin_digital_notify_unbind(struct v4l2_async_notifier *notifier,
-				       struct v4l2_subdev *subdev,
-				       struct v4l2_async_subdev *asd)
+static void rvin_parallel_notify_unbind(struct v4l2_async_notifier *notifier,
+					struct v4l2_subdev *subdev,
+					struct v4l2_async_subdev *asd)
 {
 	struct rvin_dev *vin = notifier_to_vin(notifier);
 
-	vin_dbg(vin, "unbind digital subdev %s\n", subdev->name);
+	vin_dbg(vin, "unbind parallel subdev %s\n", subdev->name);
 
 	mutex_lock(&vin->lock);
-	rvin_digital_subdevice_detach(vin);
+	rvin_parallel_subdevice_detach(vin);
 	mutex_unlock(&vin->lock);
 }
 
-static int rvin_digital_notify_bound(struct v4l2_async_notifier *notifier,
-				     struct v4l2_subdev *subdev,
-				     struct v4l2_async_subdev *asd)
+static int rvin_parallel_notify_bound(struct v4l2_async_notifier *notifier,
+				      struct v4l2_subdev *subdev,
+				      struct v4l2_async_subdev *asd)
 {
 	struct rvin_dev *vin = notifier_to_vin(notifier);
 	int ret;
 
 	mutex_lock(&vin->lock);
-	ret = rvin_digital_subdevice_attach(vin, subdev);
+	ret = rvin_parallel_subdevice_attach(vin, subdev);
 	mutex_unlock(&vin->lock);
 	if (ret)
 		return ret;
@@ -507,21 +507,21 @@ static int rvin_digital_notify_bound(struct v4l2_async_notifier *notifier,
 	v4l2_set_subdev_hostdata(subdev, vin);
 
 	vin_dbg(vin, "bound subdev %s source pad: %u sink pad: %u\n",
-		subdev->name, vin->digital->source_pad,
-		vin->digital->sink_pad);
+		subdev->name, vin->parallel->source_pad,
+		vin->parallel->sink_pad);
 
 	return 0;
 }
 
-static const struct v4l2_async_notifier_operations rvin_digital_notify_ops = {
-	.bound = rvin_digital_notify_bound,
-	.unbind = rvin_digital_notify_unbind,
-	.complete = rvin_digital_notify_complete,
+static const struct v4l2_async_notifier_operations rvin_parallel_notify_ops = {
+	.bound = rvin_parallel_notify_bound,
+	.unbind = rvin_parallel_notify_unbind,
+	.complete = rvin_parallel_notify_complete,
 };
 
-static int rvin_digital_parse_v4l2(struct device *dev,
-				   struct v4l2_fwnode_endpoint *vep,
-				   struct v4l2_async_subdev *asd)
+static int rvin_parallel_parse_v4l2(struct device *dev,
+				    struct v4l2_fwnode_endpoint *vep,
+				    struct v4l2_async_subdev *asd)
 {
 	struct rvin_dev *vin = dev_get_drvdata(dev);
 	struct rvin_graph_entity *rvge =
@@ -546,28 +546,28 @@ static int rvin_digital_parse_v4l2(struct device *dev,
 		return -EINVAL;
 	}
 
-	vin->digital = rvge;
+	vin->parallel = rvge;
 
 	return 0;
 }
 
-static int rvin_digital_graph_init(struct rvin_dev *vin)
+static int rvin_parallel_graph_init(struct rvin_dev *vin)
 {
 	int ret;
 
 	ret = v4l2_async_notifier_parse_fwnode_endpoints(
 		vin->dev, &vin->notifier,
-		sizeof(struct rvin_graph_entity), rvin_digital_parse_v4l2);
+		sizeof(struct rvin_graph_entity), rvin_parallel_parse_v4l2);
 	if (ret)
 		return ret;
 
-	if (!vin->digital)
+	if (!vin->parallel)
 		return -ENODEV;
 
-	vin_dbg(vin, "Found digital subdevice %pOF\n",
-		to_of_node(vin->digital->asd.match.fwnode));
+	vin_dbg(vin, "Found parallel subdevice %pOF\n",
+		to_of_node(vin->parallel->asd.match.fwnode));
 
-	vin->notifier.ops = &rvin_digital_notify_ops;
+	vin->notifier.ops = &rvin_parallel_notify_ops;
 	ret = v4l2_async_notifier_register(&vin->v4l2_dev, &vin->notifier);
 	if (ret < 0) {
 		vin_err(vin, "Notifier registration failed\n");
@@ -1136,7 +1136,7 @@ static int rcar_vin_probe(struct platform_device *pdev)
 	if (vin->info->use_mc)
 		ret = rvin_mc_init(vin);
 	else
-		ret = rvin_digital_graph_init(vin);
+		ret = rvin_parallel_graph_init(vin);
 	if (ret < 0)
 		goto error;
 
