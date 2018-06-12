@@ -650,7 +650,7 @@ int lkl_set_fd_limit(unsigned int fd_limit);
  * @root - the name of root class (e.g., "root");
  * @type - the type of qdisc (e.g., "fq")
  */
-int lkl_qdisc_add(int ifindex, char *root, char *type);
+int lkl_qdisc_add(int ifindex, const char *root, const char *type);
 
 /**
  * lkl_qdisc_parse_add - Add a qdisc entry for an interface with strings
@@ -659,7 +659,7 @@ int lkl_qdisc_add(int ifindex, char *root, char *type);
  * @entries - strings of qdisc configurations in the form of
  *            "root|type;root|type;..."
  */
-void lkl_qdisc_parse_add(int ifindex, char *entries);
+void lkl_qdisc_parse_add(int ifindex, const char *entries);
 
 /**
  * lkl_sysctl - write a sysctl value

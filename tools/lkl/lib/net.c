@@ -713,12 +713,12 @@ int lkl_if_add_rule_from_saddr(int ifindex, int af, void *saddr)
 }
 
 static int qdisc_add(int cmd, int flags, int ifindex,
-		     char *root, char *type)
+		     const char *root, const char *type)
 {
 	struct {
 		struct lkl_nlmsghdr n;
 		struct lkl_tcmsg tc;
-		char buf[64*1024];
+		char buf[2*1024];
 	} req = {
 		.n.nlmsg_len = LKL_NLMSG_LENGTH(sizeof(struct lkl_tcmsg)),
 		.n.nlmsg_flags = LKL_NLM_F_REQUEST|flags,
@@ -741,14 +741,14 @@ static int qdisc_add(int cmd, int flags, int ifindex,
 		return fd;
 
 	// create the qdisc attribute
-	addattr_l(&req.n, sizeof(req), LKL_TCA_KIND, type, 2);
+	addattr_l(&req.n, sizeof(req), LKL_TCA_KIND, type, strlen(type)+1);
 
 	err = rtnl_talk(fd, &req.n);
 	lkl_sys_close(fd);
 	return err;
 }
 
-int lkl_qdisc_add(int ifindex, char *root, char *type)
+int lkl_qdisc_add(int ifindex, const char *root, const char *type)
 {
 	return qdisc_add(LKL_RTM_NEWQDISC, LKL_NLM_F_CREATE | LKL_NLM_F_EXCL,
 			 ifindex, root, type);
@@ -757,13 +757,16 @@ int lkl_qdisc_add(int ifindex, char *root, char *type)
 /* Add a qdisc entry for an interface in the form of
  * "root|type;root|type;..."
  */
-void lkl_qdisc_parse_add(int ifindex, char *entries)
+void lkl_qdisc_parse_add(int ifindex, const char *entries)
 {
 	char *saveptr = NULL, *token = NULL;
 	char *root = NULL, *type = NULL;
+	char strings[256];
 	int ret = 0;
 
-	for (token = strtok_r(entries, ";", &saveptr); token;
+	strcpy(strings, entries);
+
+	for (token = strtok_r(strings, ";", &saveptr); token;
 	     token = strtok_r(NULL, ";", &saveptr)) {
 		root = strtok(token, "|");
 		type = strtok(NULL, "|");
