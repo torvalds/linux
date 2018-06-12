@@ -683,6 +683,6 @@ static struct platform_driver cros_ec_keyb_driver = {
 
 module_platform_driver(cros_ec_keyb_driver);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("ChromeOS EC keyboard driver");
 MODULE_ALIAS("platform:cros-ec-keyb");
