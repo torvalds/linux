@@ -314,7 +314,8 @@ static u32 imx_uart_readl(struct imx_port *sport, u32 offset)
 		/*
 		 * UCR2_SRST is the only bit in the cached registers that might
 		 * differ from the value that was last written. As it only
-		 * clears after being set, reread conditionally.
+		 * automatically becomes one after being cleared, reread
+		 * conditionally.
 		 */
 		if (!(sport->ucr2 & UCR2_SRST))
 			sport->ucr2 = readl(sport->port.membase + offset);
