@@ -54,6 +54,7 @@ struct i915_vma {
 	struct reservation_object *resv; /** Alias of obj->resv */
 	struct sg_table *pages;
 	void __iomem *iomap;
+	void *private; /* owned by creator */
 	u64 size;
 	u64 display_alignment;
 	struct i915_page_sizes page_sizes;
@@ -338,6 +339,12 @@ static inline void i915_vma_unpin(struct i915_vma *vma)
 	GEM_BUG_ON(!i915_vma_is_pinned(vma));
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 	__i915_vma_unpin(vma);
+}
+
+static inline bool i915_vma_is_bound(const struct i915_vma *vma,
+				     unsigned int where)
+{
+	return vma->flags & where;
 }
 
 /**
