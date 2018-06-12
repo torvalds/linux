@@ -64,8 +64,11 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 		sample_width = fmt->bBitResolution;
 		sample_bytes = fmt->bSubslotSize;
 
-		if (format & UAC2_FORMAT_TYPE_I_RAW_DATA)
+		if (format & UAC2_FORMAT_TYPE_I_RAW_DATA) {
 			pcm_formats |= SNDRV_PCM_FMTBIT_SPECIAL;
+			/* flag potentially raw DSD capable altsettings */
+			fp->dsd_raw = true;
+		}
 
 		format <<= 1;
 		break;
