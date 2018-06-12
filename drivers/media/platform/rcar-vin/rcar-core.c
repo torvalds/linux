@@ -474,6 +474,8 @@ static void rvin_parallel_subdevice_detach(struct rvin_dev *vin)
 static int rvin_parallel_notify_complete(struct v4l2_async_notifier *notifier)
 {
 	struct rvin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
+	struct media_entity *source;
+	struct media_entity *sink;
 	int ret;
 
 	ret = v4l2_device_register_subdev_nodes(&vin->v4l2_dev);
@@ -482,7 +484,26 @@ static int rvin_parallel_notify_complete(struct v4l2_async_notifier *notifier)
 		return ret;
 	}
 
-	return rvin_v4l2_register(vin);
+	if (!video_is_registered(&vin->vdev)) {
+		ret = rvin_v4l2_register(vin);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (!vin->info->use_mc)
+		return 0;
+
+	/* If we're running with media-controller, link the subdevs. */
+	source = &vin->parallel->subdev->entity;
+	sink = &vin->vdev.entity;
+
+	ret = media_create_pad_link(source, vin->parallel->source_pad,
+				    sink, vin->parallel->sink_pad, 0);
+	if (ret)
+		vin_err(vin, "Error adding link from %s to %s: %d\n",
+			source->name, sink->name, ret);
+
+	return ret;
 }
 
 static void rvin_parallel_notify_unbind(struct v4l2_async_notifier *notifier,
@@ -604,7 +625,8 @@ static int rvin_group_notify_complete(struct v4l2_async_notifier *notifier)
 
 	/* Register all video nodes for the group. */
 	for (i = 0; i < RCAR_VIN_NUM; i++) {
-		if (vin->group->vin[i]) {
+		if (vin->group->vin[i] &&
+		    !video_is_registered(&vin->group->vin[i]->vdev)) {
 			ret = rvin_v4l2_register(vin->group->vin[i]);
 			if (ret)
 				return ret;
