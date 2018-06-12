@@ -362,6 +362,8 @@ dtb-$(CONFIG_SOC_IMX51) += \
 dtb-$(CONFIG_SOC_IMX53) += \
 	imx53-ard.dtb \
 	imx53-cx9020.dtb \
+	imx53-kp-ddc.dtb \
+	imx53-kp-hsc.dtb \
 	imx53-m53evk.dtb \
 	imx53-mba53.dtb \
 	imx53-ppd.dtb \
