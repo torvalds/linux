@@ -406,11 +406,11 @@ intel_panel_detect(struct drm_i915_private *dev_priv)
  * Return @source_val in range [@source_min..@source_max] scaled to range
  * [@target_min..@target_max].
  */
-static uint32_t scale(uint32_t source_val,
-		      uint32_t source_min, uint32_t source_max,
-		      uint32_t target_min, uint32_t target_max)
+static u32 scale(u32 source_val,
+		 u32 source_min, u32 source_max,
+		 u32 target_min, u32 target_max)
 {
-	uint64_t target_val;
+	u64 target_val;
 
 	WARN_ON(source_min > source_max);
 	WARN_ON(target_min > target_max);
