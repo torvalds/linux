@@ -1567,23 +1567,21 @@ static int dcmi_graph_parse(struct stm32_dcmi *dcmi, struct device_node *node)
 	struct device_node *ep = NULL;
 	struct device_node *remote;
 
-	while (1) {
-		ep = of_graph_get_next_endpoint(node, ep);
-		if (!ep)
-			return -EINVAL;
+	ep = of_graph_get_next_endpoint(node, ep);
+	if (!ep)
+		return -EINVAL;
 
-		remote = of_graph_get_remote_port_parent(ep);
-		if (!remote) {
-			of_node_put(ep);
-			return -EINVAL;
-		}
-
-		/* Remote node to connect */
-		dcmi->entity.node = remote;
-		dcmi->entity.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-		dcmi->entity.asd.match.fwnode = of_fwnode_handle(remote);
-		return 0;
+	remote = of_graph_get_remote_port_parent(ep);
+	if (!remote) {
+		of_node_put(ep);
+		return -EINVAL;
 	}
+
+	/* Remote node to connect */
+	dcmi->entity.node = remote;
+	dcmi->entity.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
+	dcmi->entity.asd.match.fwnode = of_fwnode_handle(remote);
+	return 0;
 }
 
 static int dcmi_graph_init(struct stm32_dcmi *dcmi)
