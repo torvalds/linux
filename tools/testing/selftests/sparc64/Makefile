@@ -1,6 +1,16 @@
+uname_M := $(shell uname -m 2>/dev/null || echo not)
+ARCH ?= $(shell echo $(uname_M) | sed -e s/x86_64/x86/)
+
+ifneq ($(ARCH),sparc64)
+nothing:
+.PHONY: all clean run_tests install
+.SILENT:
+else
+
 SUBDIRS := drivers
 
 TEST_PROGS := run.sh
+
 
 .PHONY: all clean
 
@@ -44,3 +54,4 @@ override define CLEAN
 		make OUTPUT=$$BUILD_TARGET -C $$DIR $@;\
 	done
 endef
+endif
