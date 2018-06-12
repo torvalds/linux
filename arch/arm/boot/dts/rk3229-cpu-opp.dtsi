@@ -50,8 +50,8 @@
 		clocks = <&cru PLL_APLL>;
 		rockchip,max-volt = <1350000>;
 		rockchip,leakage-voltage-sel = <
-			1   4     0
-			5   254   1
+			1   8     0
+			9   254   1
 		>;
 		nvmem-cells = <&cpu_leakage>;
 		nvmem-cell-names = "cpu_leakage";
@@ -96,8 +96,8 @@
 		};
 		opp-1392000000 {
 			opp-hz = /bits/ 64 <1392000000>;
-			opp-microvolt = <1375000 1375000 1400000>;
-			opp-microvolt-L0 = <1375000 1375000 1400000>;
+			opp-microvolt = <1350000 1350000 1400000>;
+			opp-microvolt-L0 = <1350000 1350000 1400000>;
 			opp-microvolt-L1 = <1325000 1325000 1400000>;
 		};
 		opp-1464000000 {

@@ -109,8 +109,8 @@
 		clocks = <&cru PLL_APLL>;
 		rockchip,max-volt = <1350000>;
 		rockchip,leakage-voltage-sel = <
-			1   4     0
-			5   254   1
+			1   8     0
+			9   254   1
 		>;
 		nvmem-cells = <&cpu_leakage>;
 		nvmem-cell-names = "cpu_leakage";
