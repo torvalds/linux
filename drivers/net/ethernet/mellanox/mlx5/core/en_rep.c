@@ -973,7 +973,7 @@ static int mlx5e_rep_neigh_init(struct mlx5e_rep_priv *rpriv)
 		return err;
 
 	INIT_LIST_HEAD(&neigh_update->neigh_list);
-	spin_lock_init(&neigh_update->encap_lock);
+	mutex_init(&neigh_update->encap_lock);
 	INIT_DELAYED_WORK(&neigh_update->neigh_stats_work,
 			  mlx5e_rep_neigh_stats_work);
 	mlx5e_rep_neigh_update_init_interval(rpriv);
@@ -1000,6 +1000,7 @@ static void mlx5e_rep_neigh_cleanup(struct mlx5e_rep_priv *rpriv)
 
 	cancel_delayed_work_sync(&rpriv->neigh_update.neigh_stats_work);
 
+	mutex_destroy(&neigh_update->encap_lock);
 	rhashtable_destroy(&neigh_update->neigh_ht);
 }
 
@@ -1024,18 +1025,18 @@ static void mlx5e_rep_neigh_entry_remove(struct mlx5e_neigh_hash_entry *nhe)
 {
 	struct mlx5e_rep_priv *rpriv = nhe->priv->ppriv;
 
-	spin_lock_bh(&rpriv->neigh_update.encap_lock);
+	mutex_lock(&rpriv->neigh_update.encap_lock);
 
 	list_del_rcu(&nhe->neigh_list);
 
 	rhashtable_remove_fast(&rpriv->neigh_update.neigh_ht,
 			       &nhe->rhash_node,
 			       mlx5e_neigh_ht_params);
-	spin_unlock_bh(&rpriv->neigh_update.encap_lock);
+	mutex_unlock(&rpriv->neigh_update.encap_lock);
 }
 
-/* This function must only be called under RTNL lock or under the
- * representor's encap_lock in case RTNL mutex can't be held.
+/* This function must only be called under the representor's encap_lock or
+ * inside rcu read lock section.
  */
 static struct mlx5e_neigh_hash_entry *
 mlx5e_rep_neigh_entry_lookup(struct mlx5e_priv *priv,
@@ -1088,17 +1089,23 @@ int mlx5e_rep_encap_entry_attach(struct mlx5e_priv *priv,
 	err = mlx5_tun_entropy_refcount_inc(tun_entropy, e->reformat_type);
 	if (err)
 		return err;
+
+	mutex_lock(&rpriv->neigh_update.encap_lock);
 	nhe = mlx5e_rep_neigh_entry_lookup(priv, &e->m_neigh);
 	if (!nhe) {
 		err = mlx5e_rep_neigh_entry_create(priv, e, &nhe);
 		if (err) {
+			mutex_unlock(&rpriv->neigh_update.encap_lock);
 			mlx5_tun_entropy_refcount_dec(tun_entropy,
 						      e->reformat_type);
 			return err;
 		}
 	}
+
 	e->nhe = nhe;
 	list_add(&e->encap_list, &nhe->encap_list);
+	mutex_unlock(&rpriv->neigh_update.encap_lock);
+
 	return 0;
 }
 

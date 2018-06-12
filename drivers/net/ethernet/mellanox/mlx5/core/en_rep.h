@@ -35,6 +35,7 @@
 
 #include <net/ip_tunnels.h>
 #include <linux/rhashtable.h>
+#include <linux/mutex.h>
 #include "eswitch.h"
 #include "en.h"
 #include "lib/port_tun.h"
@@ -48,7 +49,7 @@ struct mlx5e_neigh_update_table {
 	 */
 	struct list_head	neigh_list;
 	/* protect lookup/remove operations */
-	spinlock_t              encap_lock;
+	struct mutex		encap_lock;
 	struct notifier_block   netevent_nb;
 	struct delayed_work     neigh_stats_work;
 	unsigned long           min_interval; /* jiffies */
