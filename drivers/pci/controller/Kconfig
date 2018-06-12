@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-menu "PCI host controller drivers"
+menu "PCI controller drivers"
 	depends on PCI
 
 config PCI_MVEBU
@@ -19,6 +19,34 @@ config PCI_AARDVARK
 	 Add support for Aardvark 64bit PCIe Host Controller. This
 	 controller is part of the South Bridge of the Marvel Armada
 	 3700 SoC.
+
+menu "Cadence PCIe controllers support"
+
+config PCIE_CADENCE
+	bool
+
+config PCIE_CADENCE_HOST
+	bool "Cadence PCIe host controller"
+	depends on OF
+	depends on PCI
+	select IRQ_DOMAIN
+	select PCIE_CADENCE
+	help
+	  Say Y here if you want to support the Cadence PCIe controller in host
+	  mode. This PCIe controller may be embedded into many different vendors
+	  SoCs.
+
+config PCIE_CADENCE_EP
+	bool "Cadence PCIe endpoint controller"
+	depends on OF
+	depends on PCI_ENDPOINT
+	select PCIE_CADENCE
+	help
+	  Say Y here if you want to support the Cadence PCIe  controller in
+	  endpoint mode. This PCIe controller may be embedded into many
+	  different vendors SoCs.
+
+endmenu
 
 config PCIE_XILINX_NWL
 	bool "NWL PCIe Core"
@@ -243,4 +271,5 @@ config VMD
 	  To compile this driver as a module, choose M here: the
 	  module will be called vmd.
 
+source "drivers/pci/controller/dwc/Kconfig"
 endmenu
