@@ -24,6 +24,15 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_cnl_machines[] = {
 		.sof_tplg_filename = "intel/sof-cnl-rt274.tplg",
 		.asoc_plat_name = "0000:00:1f.3",
 	},
+	{
+		.id = "MX98373",
+		.drv_name = "cnl_max98373",
+		.fw_filename = "intel/dsp_fw_cnl.bin",
+		.pdata = &cnl_pdata,
+		.sof_fw_filename = "intel/sof-cnl.ri",
+		.sof_tplg_filename = "intel/sof-cnl.tplg",
+		.asoc_plat_name = "0000:00:0e.0",
+	},
 	{},
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_cnl_machines);
