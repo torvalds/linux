@@ -60,7 +60,7 @@ struct comedi_file {
 	struct comedi_subdevice *read_subdev;
 	struct comedi_subdevice *write_subdev;
 	unsigned int last_detach_count;
-	bool last_attached:1;
+	unsigned int last_attached:1;
 };
 
 #define COMEDI_NUM_MINORS 0x100
