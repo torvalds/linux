@@ -26,6 +26,7 @@
 #include <linux/quotaops.h>
 #include <crypto/hash.h>
 #include <linux/writeback.h>
+#include <linux/overflow.h>
 
 #define __FS_HAS_ENCRYPTION IS_ENABLED(CONFIG_F2FS_FS_ENCRYPTION)
 #include <linux/fscrypt.h>
