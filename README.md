@@ -31,31 +31,31 @@ update-alternatives --config arm-linux-gnueabihf-gcc
 Kernel upstream + BPI-R2
 * 4.14-main
 * 4.9-main
-* 4.16-main (internal wifi driver currently only in wlan-branch)
+* 4.16-main
 
 ## Kernel version
 
 Kernel breakdown features by version
 
-|          | 4.4 | 4.9 | 4.14 | 4.16 |
-|----------| --- | --- | --- | --- |
-| PCIe     |  Y  |  Y  |  Y  |  Y  |
-| SATA     |  Y  |  Y  |  Y  |  Y?  |
-| 2 GMAC   |  Y  |  Y  |  N  |  N  |
-| DSA      |  N  |  Y  |  Y  |  Y?  |
-| USB      |  Y  |  Y  |  Y  |  Y?  |
-| VLAN     |     |     |  Y  |     |
-| HW NAT   |     |  Y  |  Y? |     |
-| HW QOS   |     |  Y  |  Y? |     |
-| Crypto   |  Y  |  Y  |  Y  |  Y?  |
-| WIFI     |     |     |  Y  |  (Y) |
-| BT       |     |     |     |     |
-| VIDEO    |  Y  |  N  |  N  |  (Y)  |
-| AUDIO    |  Y  |  N  |  N  |  N  |
-||| other Options |||
-| OpenVPN  |  ?  |  Y  |  Y  |  ?  |
-| iptables |  ?  |  ?  |  Y  |  ?  |
-| LXC / Docker |  ?  |  ?  |  Y  |  ?  |
+|          | 4.4 | 4.9 | 4.14 | 4.16 | 4.17 |
+|----------| --- | --- | --- | --- | --- |
+| PCIe     |  Y  |  Y  |  Y  |  Y  |     |
+| SATA     |  Y  |  Y  |  Y  |  Y?  |     |
+| 2 GMAC   |  Y  |  Y  |  N  |  N  |     |
+| DSA      |  N  |  Y  |  Y  |  Y  |  Y  |
+| USB      |  Y  |  Y  |  Y  |  Y?  |     |
+| VLAN     |     |     |  Y  |     |     |
+| HW NAT   |     |  Y  |  N |     |     |
+| HW QOS   |     |  Y  |  N |     |     |
+| Crypto   |  Y  |  Y  |  Y  |  Y?  |     |
+| WIFI     |     |     |  Y  |  Y |     |
+| BT       |     |     |     |     |     |
+| VIDEO    |  Y  |  N  |  Y  |  Y  |     |
+| AUDIO    |  Y  |  N  |  N  |  N  |     |
+||| other Options ||||
+| OpenVPN  |  ?  |  Y  |  Y  |  ?  |     |
+| iptables |  ?  |  ?  |  Y  |  ?  |     |
+| LXC / Docker |  ?  |  ?  |  Y  |  ?  |     |
 
 ? = unsure
 
