@@ -1875,7 +1875,7 @@ unwind_out:
 	return -ENOMEM;
 }
 
-static int gen6_init_scratch(struct i915_address_space *vm)
+static int gen6_ppgtt_init_scratch(struct i915_address_space *vm)
 {
 	int ret;
 
@@ -1894,33 +1894,37 @@ static int gen6_init_scratch(struct i915_address_space *vm)
 	return 0;
 }
 
-static void gen6_free_scratch(struct i915_address_space *vm)
+static void gen6_ppgtt_free_scratch(struct i915_address_space *vm)
 {
 	free_pt(vm, vm->scratch_pt);
 	cleanup_scratch_page(vm);
 }
 
-static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
+static void gen6_ppgtt_free_pd(struct gen6_hw_ppgtt *ppgtt)
 {
-	struct gen6_hw_ppgtt *ppgtt = to_gen6_ppgtt(i915_vm_to_ppgtt(vm));
 	struct i915_page_table *pt;
 	u32 pde;
 
+	gen6_for_all_pdes(pt, &ppgtt->base.pd, pde)
+		if (pt != ppgtt->base.vm.scratch_pt)
+			free_pt(&ppgtt->base.vm, pt);
+}
+
+static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
+{
+	struct gen6_hw_ppgtt *ppgtt = to_gen6_ppgtt(i915_vm_to_ppgtt(vm));
+
 	drm_mm_remove_node(&ppgtt->node);
 
-	gen6_for_all_pdes(pt, &ppgtt->base.pd, pde)
-		if (pt != vm->scratch_pt)
-			free_pt(vm, pt);
-
-	gen6_free_scratch(vm);
+	gen6_ppgtt_free_pd(ppgtt);
+	gen6_ppgtt_free_scratch(vm);
 }
 
 static int gen6_ppgtt_allocate_page_directories(struct gen6_hw_ppgtt *ppgtt)
 {
-	struct i915_address_space *vm = &ppgtt->base.vm;
 	struct drm_i915_private *dev_priv = ppgtt->base.vm.i915;
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	int ret;
+	int err;
 
 	/* PPGTT PDEs reside in the GGTT and consists of 512 entries. The
 	 * allocator works in address space sizes, so it's multiplied by page
@@ -1928,17 +1932,13 @@ static int gen6_ppgtt_allocate_page_directories(struct gen6_hw_ppgtt *ppgtt)
 	 */
 	BUG_ON(!drm_mm_initialized(&ggtt->vm.mm));
 
-	ret = gen6_init_scratch(vm);
-	if (ret)
-		return ret;
-
-	ret = i915_gem_gtt_insert(&ggtt->vm, &ppgtt->node,
+	err = i915_gem_gtt_insert(&ggtt->vm, &ppgtt->node,
 				  GEN6_PD_SIZE, GEN6_PD_ALIGN,
 				  I915_COLOR_UNEVICTABLE,
 				  0, ggtt->vm.total,
 				  PIN_HIGH);
-	if (ret)
-		goto err_out;
+	if (err)
+		return err;
 
 	if (ppgtt->node.start < ggtt->mappable_end)
 		DRM_DEBUG("Forced to use aperture for PDEs\n");
@@ -1950,15 +1950,6 @@ static int gen6_ppgtt_allocate_page_directories(struct gen6_hw_ppgtt *ppgtt)
 		ppgtt->base.pd.base.ggtt_offset / sizeof(gen6_pte_t);
 
 	return 0;
-
-err_out:
-	gen6_free_scratch(vm);
-	return ret;
-}
-
-static int gen6_ppgtt_alloc(struct gen6_hw_ppgtt *ppgtt)
-{
-	return gen6_ppgtt_allocate_page_directories(ppgtt);
 }
 
 static void gen6_scratch_va_range(struct gen6_hw_ppgtt *ppgtt,
@@ -1984,20 +1975,7 @@ static struct i915_hw_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 	ppgtt->base.vm.i915 = i915;
 	ppgtt->base.vm.dma = &i915->drm.pdev->dev;
 
-	ppgtt->base.vm.pte_encode = ggtt->vm.pte_encode;
-
-	err = gen6_ppgtt_alloc(ppgtt);
-	if (err)
-		goto err_free;
-
 	ppgtt->base.vm.total = I915_PDES * GEN6_PTES * PAGE_SIZE;
-
-	gen6_scratch_va_range(ppgtt, 0, ppgtt->base.vm.total);
-	gen6_write_page_range(&ppgtt->base, 0, ppgtt->base.vm.total);
-
-	err = gen6_alloc_va_range(&ppgtt->base.vm, 0, ppgtt->base.vm.total);
-	if (err)
-		goto err_cleanup;
 
 	ppgtt->base.vm.clear_range = gen6_ppgtt_clear_range;
 	ppgtt->base.vm.insert_entries = gen6_ppgtt_insert_entries;
@@ -2009,6 +1987,23 @@ static struct i915_hw_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 	ppgtt->base.vm.vma_ops.set_pages   = ppgtt_set_pages;
 	ppgtt->base.vm.vma_ops.clear_pages = clear_pages;
 
+	ppgtt->base.vm.pte_encode = ggtt->vm.pte_encode;
+
+	err = gen6_ppgtt_init_scratch(&ppgtt->base.vm);
+	if (err)
+		goto err_free;
+
+	err = gen6_ppgtt_allocate_page_directories(ppgtt);
+	if (err)
+		goto err_scratch;
+
+	gen6_scratch_va_range(ppgtt, 0, ppgtt->base.vm.total);
+	gen6_write_page_range(&ppgtt->base, 0, ppgtt->base.vm.total);
+
+	err = gen6_alloc_va_range(&ppgtt->base.vm, 0, ppgtt->base.vm.total);
+	if (err)
+		goto err_pd;
+
 	DRM_DEBUG_DRIVER("Allocated pde space (%lldM) at GTT entry: %llx\n",
 			 ppgtt->node.size >> 20,
 			 ppgtt->node.start / PAGE_SIZE);
@@ -2018,8 +2013,10 @@ static struct i915_hw_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 
 	return &ppgtt->base;
 
-err_cleanup:
-	gen6_ppgtt_cleanup(&ppgtt->base.vm);
+err_pd:
+	gen6_ppgtt_free_pd(ppgtt);
+err_scratch:
+	gen6_ppgtt_free_scratch(&ppgtt->base.vm);
 err_free:
 	kfree(ppgtt);
 	return ERR_PTR(err);
