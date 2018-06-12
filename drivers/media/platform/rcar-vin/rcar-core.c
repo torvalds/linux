@@ -171,9 +171,37 @@ static int rvin_group_link_notify(struct media_link *link, u32 flags,
 
 	/* Add the new link to the existing mask and check if it works. */
 	csi_id = rvin_group_entity_to_csi_id(group, link->source->entity);
+
+	if (csi_id == -ENODEV) {
+		struct v4l2_subdev *sd;
+		unsigned int i;
+
+		/*
+		 * Make sure the source entity subdevice is registered as
+		 * a parallel input of one of the enabled VINs if it is not
+		 * one of the CSI-2 subdevices.
+		 *
+		 * No hardware configuration required for parallel inputs,
+		 * we can return here.
+		 */
+		sd = media_entity_to_v4l2_subdev(link->source->entity);
+		for (i = 0; i < RCAR_VIN_NUM; i++) {
+			if (group->vin[i] && group->vin[i]->parallel &&
+			    group->vin[i]->parallel->subdev == sd) {
+				group->vin[i]->is_csi = false;
+				ret = 0;
+				goto out;
+			}
+		}
+
+		vin_err(vin, "Subdevice %s not registered to any VIN\n",
+			link->source->entity->name);
+		ret = -ENODEV;
+		goto out;
+	}
+
 	channel = rvin_group_csi_pad_to_channel(link->source->index);
 	mask_new = mask & rvin_group_get_mask(vin, csi_id, channel);
-
 	vin_dbg(vin, "Try link change mask: 0x%x new: 0x%x\n", mask, mask_new);
 
 	if (!mask_new) {
@@ -183,6 +211,11 @@ static int rvin_group_link_notify(struct media_link *link, u32 flags,
 
 	/* New valid CHSEL found, set the new value. */
 	ret = rvin_set_channel_routing(group->vin[master_id], __ffs(mask_new));
+	if (ret)
+		goto out;
+
+	vin->is_csi = true;
+
 out:
 	mutex_unlock(&group->lock);
 
