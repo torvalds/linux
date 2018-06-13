@@ -192,6 +192,9 @@ _iwl_fw_dbg_trigger_on(struct iwl_fw_runtime *fwrt,
 {
 	struct iwl_fw_dbg_trigger_tlv *trig;
 
+	if (fwrt->trans->ini_valid)
+		return NULL;
+
 	if (!iwl_fw_dbg_trigger_enabled(fwrt->fw, id))
 		return NULL;
 

@@ -149,6 +149,8 @@ void iwl_alloc_dbg_tlv(struct iwl_trans *trans, size_t len, const u8 *data,
 			trans->apply_points[i].data = mem;
 			trans->apply_points[i].size = size[i];
 		}
+
+		trans->ini_valid = true;
 	}
 }
 
