@@ -39,6 +39,15 @@
 #define RK1808_GRF_PD_VO_CON1		0x0444
 #define RK1808_RGB_DATA_SYNC_BYPASS(v)	HIWORD_UPDATE(v, 3, 3)
 
+#define RK3288_GRF_SOC_CON6		0x025c
+#define RK3288_LVDS_LCDC_SEL(x)		HIWORD_UPDATE(x,  3,  3)
+#define RK3288_GRF_SOC_CON7		0x0260
+#define RK3288_LVDS_PWRDWN(x)		HIWORD_UPDATE(x, 15, 15)
+#define RK3288_LVDS_CON_ENABLE_2(x)	HIWORD_UPDATE(x, 12, 12)
+#define RK3288_LVDS_CON_ENABLE_1(x)	HIWORD_UPDATE(x, 11, 11)
+#define RK3288_LVDS_CON_CLKINV(x)	HIWORD_UPDATE(x,  8,  8)
+#define RK3288_LVDS_CON_TTL_EN(x)	HIWORD_UPDATE(x,  6,  6)
+
 struct rockchip_rgb;
 
 struct rockchip_rgb_funcs {
@@ -355,11 +364,36 @@ static const struct rockchip_rgb_funcs rk1808_rgb_funcs = {
 	.enable = rk1808_rgb_enable,
 };
 
+static void rk3288_rgb_enable(struct rockchip_rgb *rgb)
+{
+	int pipe = drm_of_encoder_active_endpoint_id(rgb->dev->of_node,
+						     &rgb->encoder);
+
+	regmap_write(rgb->grf, RK3288_GRF_SOC_CON6, RK3288_LVDS_LCDC_SEL(pipe));
+	regmap_write(rgb->grf, RK3288_GRF_SOC_CON7,
+		     RK3288_LVDS_PWRDWN(0) | RK3288_LVDS_CON_ENABLE_2(1) |
+		     RK3288_LVDS_CON_ENABLE_1(1) | RK3288_LVDS_CON_CLKINV(0) |
+		     RK3288_LVDS_CON_TTL_EN(1));
+}
+
+static void rk3288_rgb_disable(struct rockchip_rgb *rgb)
+{
+	regmap_write(rgb->grf, RK3288_GRF_SOC_CON7,
+		     RK3288_LVDS_PWRDWN(1) | RK3288_LVDS_CON_ENABLE_2(0) |
+		     RK3288_LVDS_CON_ENABLE_1(0) | RK3288_LVDS_CON_TTL_EN(0));
+}
+
+static const struct rockchip_rgb_funcs rk3288_rgb_funcs = {
+	.enable = rk3288_rgb_enable,
+	.disable = rk3288_rgb_disable,
+};
+
 static const struct of_device_id rockchip_rgb_dt_ids[] = {
 	{ .compatible = "rockchip,px30-rgb", .data = &px30_rgb_funcs },
 	{ .compatible = "rockchip,rk1808-rgb", .data = &rk1808_rgb_funcs },
 	{ .compatible = "rockchip,rk3066-rgb", },
 	{ .compatible = "rockchip,rk3128-rgb", },
+	{ .compatible = "rockchip,rk3288-rgb", .data = &rk3288_rgb_funcs },
 	{ .compatible = "rockchip,rk3308-rgb", },
 	{ .compatible = "rockchip,rk3368-rgb", },
 	{ .compatible = "rockchip,rv1108-rgb", },
