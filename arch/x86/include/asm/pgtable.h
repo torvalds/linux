@@ -942,6 +942,14 @@ static inline pte_t pte_swp_clear_soft_dirty(pte_t pte)
 }
 #endif
 
+#define __HAVE_ARCH_PFN_MODIFY_ALLOWED 1
+extern bool pfn_modify_allowed(unsigned long pfn, pgprot_t prot);
+
+static inline bool arch_has_pfn_modify_check(void)
+{
+	return boot_cpu_has_bug(X86_BUG_L1TF);
+}
+
 #include <asm-generic/pgtable.h>
 #endif	/* __ASSEMBLY__ */
 
