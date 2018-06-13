@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+
+#include "rk3308-voice-module-v10-aarch32.dtsi"
+#include "rk3308-voice-module-mainboard-v10-aarch32.dtsi"
+
+/ {
+	model = "Rockchip RK3308 Voice Module AMIC Main Board V10 (AArch32)";
+	compatible = "rockchip,rk3308-voice-module-amic-mainboard-v10-aarch32", "rockchip,rk3308";
+};
+
+&is31fl3236 {
+	reg = <0x3f>;
+};
