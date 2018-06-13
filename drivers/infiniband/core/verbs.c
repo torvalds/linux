@@ -1455,13 +1455,19 @@ bool ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
 }
 EXPORT_SYMBOL(ib_modify_qp_is_ok);
 
+/**
+ * ib_resolve_eth_dmac - Resolve destination mac address
+ * @device:		Device to consider
+ * @ah_attr:		address handle attribute which describes the
+ *			source and destination parameters
+ * ib_resolve_eth_dmac() resolves destination mac address and L3 hop limit It
+ * returns 0 on success or appropriate error code. It initializes the
+ * necessary ah_attr fields when call is successful.
+ */
 static int ib_resolve_eth_dmac(struct ib_device *device,
 			       struct rdma_ah_attr *ah_attr)
 {
-	int           ret = 0;
-	struct ib_global_route *grh;
-
-	grh = rdma_ah_retrieve_grh(ah_attr);
+	int ret = 0;
 
 	if (rdma_is_multicast_addr((struct in6_addr *)ah_attr->grh.dgid.raw)) {
 		if (ipv6_addr_v4mapped((struct in6_addr *)ah_attr->grh.dgid.raw)) {
