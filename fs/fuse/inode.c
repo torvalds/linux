@@ -64,23 +64,6 @@ MODULE_PARM_DESC(max_user_congthresh,
 static struct file_system_type fuseblk_fs_type;
 #endif
 
-struct fuse_fs_context {
-	const char	*subtype;
-	bool		is_bdev;
-	int fd;
-	unsigned rootmode;
-	kuid_t user_id;
-	kgid_t group_id;
-	unsigned fd_present:1;
-	unsigned rootmode_present:1;
-	unsigned user_id_present:1;
-	unsigned group_id_present:1;
-	unsigned default_permissions:1;
-	unsigned allow_other:1;
-	unsigned max_read;
-	unsigned blksize;
-};
-
 struct fuse_forget_link *fuse_alloc_forget(void)
 {
 	return kzalloc(sizeof(struct fuse_forget_link), GFP_KERNEL);
@@ -1100,16 +1083,13 @@ void fuse_dev_free(struct fuse_dev *fud)
 }
 EXPORT_SYMBOL_GPL(fuse_dev_free);
 
-static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
+int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 {
-	struct fuse_fs_context *ctx = fsc->fs_private;
 	struct fuse_dev *fud;
-	struct fuse_conn *fc;
+	struct fuse_conn *fc = get_fuse_conn_super(sb);
 	struct inode *root;
-	struct file *file;
 	struct dentry *root_dentry;
 	int err;
-	int is_bdev = sb->s_bdev != NULL;
 
 	err = -EINVAL;
 	if (sb->s_flags & SB_MANDLOCK)
@@ -1117,7 +1097,7 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 
 	sb->s_flags &= ~(SB_NOSEC | SB_I_VERSION);
 
-	if (is_bdev) {
+	if (ctx->is_bdev) {
 #ifdef CONFIG_BLOCK
 		err = -EINVAL;
 		if (!sb_set_blocksize(sb, ctx->blksize))
@@ -1140,19 +1120,6 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 	if (sb->s_user_ns != &init_user_ns)
 		sb->s_iflags |= SB_I_UNTRUSTED_MOUNTER;
 
-	file = fget(ctx->fd);
-	err = -EINVAL;
-	if (!file)
-		goto err;
-
-	/*
-	 * Require mount to happen from the same user namespace which
-	 * opened /dev/fuse to prevent potential attacks.
-	 */
-	if (file->f_op != &fuse_dev_operations ||
-	    file->f_cred->user_ns != sb->s_user_ns)
-		goto err_fput;
-
 	/*
 	 * If we are not in the initial user namespace posix
 	 * acls must be translated.
@@ -1160,17 +1127,9 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 	if (sb->s_user_ns != &init_user_ns)
 		sb->s_xattr = fuse_no_acl_xattr_handlers;
 
-	fc = kmalloc(sizeof(*fc), GFP_KERNEL);
-	err = -ENOMEM;
-	if (!fc)
-		goto err_fput;
-
-	fuse_conn_init(fc, sb->s_user_ns);
-	fc->release = fuse_free_conn;
-
 	fud = fuse_dev_alloc(fc);
 	if (!fud)
-		goto err_put_conn;
+		goto err;
 
 	fc->dev = sb->s_dev;
 	fc->sb = sb;
@@ -1188,10 +1147,7 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 	fc->user_id = ctx->user_id;
 	fc->group_id = ctx->group_id;
 	fc->max_read = max_t(unsigned, 4096, ctx->max_read);
-	fc->destroy = is_bdev;
-
-	/* Used by get_root_inode() */
-	sb->s_fs_info = fc;
+	fc->destroy = ctx->is_bdev;
 
 	err = -ENOMEM;
 	root = fuse_get_root_inode(sb, ctx->rootmode);
@@ -1204,7 +1160,7 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 
 	mutex_lock(&fuse_mutex);
 	err = -EINVAL;
-	if (file->private_data)
+	if (*ctx->fudptr)
 		goto err_unlock;
 
 	err = fuse_ctl_add_conn(fc);
@@ -1213,17 +1169,8 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 
 	list_add_tail(&fc->entry, &fuse_conn_list);
 	sb->s_root = root_dentry;
-	file->private_data = fud;
+	*ctx->fudptr = fud;
 	mutex_unlock(&fuse_mutex);
-	/*
-	 * atomic_dec_and_test() in fput() provides the necessary
-	 * memory barrier for file->private_data to be visible on all
-	 * CPUs after this
-	 */
-	fput(file);
-
-	fuse_send_init(fc);
-
 	return 0;
 
  err_unlock:
@@ -1231,6 +1178,53 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 	dput(root_dentry);
  err_dev_free:
 	fuse_dev_free(fud);
+ err:
+	return err;
+}
+EXPORT_SYMBOL_GPL(fuse_fill_super_common);
+
+static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
+{
+	struct fuse_fs_context *ctx = fsc->fs_private;
+	struct file *file;
+	int err;
+	struct fuse_conn *fc;
+
+	err = -EINVAL;
+	file = fget(ctx->fd);
+	if (!file)
+		goto err;
+
+	/*
+	 * Require mount to happen from the same user namespace which
+	 * opened /dev/fuse to prevent potential attacks.
+	 */
+	if ((file->f_op != &fuse_dev_operations) ||
+	    (file->f_cred->user_ns != sb->s_user_ns))
+		goto err_fput;
+	ctx->fudptr = &file->private_data;
+
+	fc = kmalloc(sizeof(*fc), GFP_KERNEL);
+	err = -ENOMEM;
+	if (!fc)
+		goto err_fput;
+
+	fuse_conn_init(fc, sb->s_user_ns);
+	fc->release = fuse_free_conn;
+	sb->s_fs_info = fc;
+
+	err = fuse_fill_super_common(sb, ctx);
+	if (err)
+		goto err_put_conn;
+	/*
+	 * atomic_dec_and_test() in fput() provides the necessary
+	 * memory barrier for file->private_data to be visible on all
+	 * CPUs after this
+	 */
+	fput(file);
+	fuse_send_init(get_fuse_conn_super(sb));
+	return 0;
+
  err_put_conn:
 	fuse_conn_put(fc);
 	sb->s_fs_info = NULL;

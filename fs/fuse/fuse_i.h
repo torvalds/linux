@@ -416,6 +416,26 @@ struct fuse_dev {
 	struct list_head entry;
 };
 
+struct fuse_fs_context {
+	int fd;
+	unsigned int rootmode;
+	kuid_t user_id;
+	kgid_t group_id;
+	bool is_bdev:1;
+	bool fd_present:1;
+	bool rootmode_present:1;
+	bool user_id_present:1;
+	bool group_id_present:1;
+	bool default_permissions:1;
+	bool allow_other:1;
+	unsigned int max_read;
+	unsigned int blksize;
+	const char *subtype;
+
+	/* fuse_dev pointer to fill in, should contain NULL on entry */
+	void **fudptr;
+};
+
 /**
  * A Fuse connection.
  *
@@ -872,6 +892,13 @@ void fuse_conn_put(struct fuse_conn *fc);
 struct fuse_dev *fuse_dev_alloc(struct fuse_conn *fc);
 void fuse_dev_free(struct fuse_dev *fud);
 void fuse_send_init(struct fuse_conn *fc);
+
+/**
+ * Fill in superblock and initialize fuse connection
+ * @sb: partially-initialized superblock to fill in
+ * @ctx: mount context
+ */
+int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx);
 
 /**
  * Add connection to control filesystem
