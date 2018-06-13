@@ -3169,12 +3169,8 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_ud_wr *wr,
 					to_mdev(ib_dev)->sriov.demux[sqp->qp.port - 1].
 						       guid_cache[ah->av.ib.gid_index];
 			} else {
-				err = rdma_query_gid(ib_dev,
-					be32_to_cpu(ah->av.ib.port_pd) >> 24,
-					ah->av.ib.gid_index,
-					&sqp->ud_header.grh.source_gid);
-				if (err)
-					return err;
+				sqp->ud_header.grh.source_gid =
+					ah->ibah.sgid_attr->gid;
 			}
 		}
 		memcpy(sqp->ud_header.grh.destination_gid.raw,

@@ -1879,15 +1879,13 @@ static int bnxt_re_build_qp1_send_v2(struct bnxt_re_qp *qp,
 				     struct bnxt_qplib_swqe *wqe,
 				     int payload_size)
 {
-	struct ib_device *ibdev = &qp->rdev->ibdev;
 	struct bnxt_re_ah *ah = container_of(ud_wr(wr)->ah, struct bnxt_re_ah,
 					     ib_ah);
 	struct bnxt_qplib_ah *qplib_ah = &ah->qplib_ah;
+	const struct ib_gid_attr *sgid_attr = ah->ib_ah.sgid_attr;
 	struct bnxt_qplib_sge sge;
-	union ib_gid sgid;
 	u8 nw_type;
 	u16 ether_type;
-	struct ib_gid_attr sgid_attr;
 	union ib_gid dgid;
 	bool is_eth = false;
 	bool is_vlan = false;
@@ -1900,22 +1898,10 @@ static int bnxt_re_build_qp1_send_v2(struct bnxt_re_qp *qp,
 
 	memset(&qp->qp1_hdr, 0, sizeof(qp->qp1_hdr));
 
-	rc = ib_get_cached_gid(ibdev, 1,
-			       qplib_ah->host_sgid_index, &sgid,
-			       &sgid_attr);
-	if (rc) {
-		dev_err(rdev_to_dev(qp->rdev),
-			"Failed to query gid at index %d",
-			qplib_ah->host_sgid_index);
-		return rc;
-	}
-	if (sgid_attr.ndev) {
-		if (is_vlan_dev(sgid_attr.ndev))
-			vlan_id = vlan_dev_vlan_id(sgid_attr.ndev);
-		dev_put(sgid_attr.ndev);
-	}
+	if (is_vlan_dev(sgid_attr->ndev))
+		vlan_id = vlan_dev_vlan_id(sgid_attr->ndev);
 	/* Get network header type for this GID */
-	nw_type = rdma_gid_attr_network_type(&sgid_attr);
+	nw_type = rdma_gid_attr_network_type(sgid_attr);
 	switch (nw_type) {
 	case RDMA_NETWORK_IPV4:
 		nw_type = BNXT_RE_ROCEV2_IPV4_PACKET;
@@ -1928,9 +1914,9 @@ static int bnxt_re_build_qp1_send_v2(struct bnxt_re_qp *qp,
 		break;
 	}
 	memcpy(&dgid.raw, &qplib_ah->dgid, 16);
-	is_udp = sgid_attr.gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP;
+	is_udp = sgid_attr->gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP;
 	if (is_udp) {
-		if (ipv6_addr_v4mapped((struct in6_addr *)&sgid)) {
+		if (ipv6_addr_v4mapped((struct in6_addr *)&sgid_attr->gid)) {
 			ip_version = 4;
 			ether_type = ETH_P_IP;
 		} else {
@@ -1963,9 +1949,10 @@ static int bnxt_re_build_qp1_send_v2(struct bnxt_re_qp *qp,
 	}
 
 	if (is_grh || (ip_version == 6)) {
-		memcpy(qp->qp1_hdr.grh.source_gid.raw, sgid.raw, sizeof(sgid));
+		memcpy(qp->qp1_hdr.grh.source_gid.raw, sgid_attr->gid.raw,
+		       sizeof(sgid_attr->gid));
 		memcpy(qp->qp1_hdr.grh.destination_gid.raw, qplib_ah->dgid.data,
-		       sizeof(sgid));
+		       sizeof(sgid_attr->gid));
 		qp->qp1_hdr.grh.hop_limit     = qplib_ah->hop_limit;
 	}
 
@@ -1975,7 +1962,7 @@ static int bnxt_re_build_qp1_send_v2(struct bnxt_re_qp *qp,
 		qp->qp1_hdr.ip4.frag_off = htons(IP_DF);
 		qp->qp1_hdr.ip4.ttl = qplib_ah->hop_limit;
 
-		memcpy(&qp->qp1_hdr.ip4.saddr, sgid.raw + 12, 4);
+		memcpy(&qp->qp1_hdr.ip4.saddr, sgid_attr->gid.raw + 12, 4);
 		memcpy(&qp->qp1_hdr.ip4.daddr, qplib_ah->dgid.data + 12, 4);
 		qp->qp1_hdr.ip4.check = ib_ud_ip4_csum(&qp->qp1_hdr);
 	}
