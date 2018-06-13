@@ -2171,6 +2171,15 @@ struct generic_pm_domain *of_genpd_remove_last(struct device_node *np)
 }
 EXPORT_SYMBOL_GPL(of_genpd_remove_last);
 
+static void genpd_release_dev(struct device *dev)
+{
+	kfree(dev);
+}
+
+static struct bus_type genpd_bus_type = {
+	.name		= "genpd",
+};
+
 /**
  * genpd_dev_pm_detach - Detach a device from its PM domain.
  * @dev: Device to detach.
@@ -2208,6 +2217,10 @@ static void genpd_dev_pm_detach(struct device *dev, bool power_off)
 
 	/* Check if PM domain can be powered off after removing this device. */
 	genpd_queue_power_off_work(pd);
+
+	/* Unregister the device if it was created by genpd. */
+	if (dev->bus == &genpd_bus_type)
+		device_unregister(dev);
 }
 
 static void genpd_dev_pm_sync(struct device *dev)
@@ -2221,32 +2234,17 @@ static void genpd_dev_pm_sync(struct device *dev)
 	genpd_queue_power_off_work(pd);
 }
 
-/**
- * genpd_dev_pm_attach - Attach a device to its PM domain using DT.
- * @dev: Device to attach.
- *
- * Parse device's OF node to find a PM domain specifier. If such is found,
- * attaches the device to retrieved pm_domain ops.
- *
- * Returns 1 on successfully attached PM domain, 0 when the device don't need a
- * PM domain or a negative error code in case of failures. Note that if a
- * power-domain exists for the device, but it cannot be found or turned on,
- * then return -EPROBE_DEFER to ensure that the device is not probed and to
- * re-try again later.
- */
-int genpd_dev_pm_attach(struct device *dev)
+static int __genpd_dev_pm_attach(struct device *dev, struct device_node *np,
+				 unsigned int index)
 {
 	struct of_phandle_args pd_args;
 	struct generic_pm_domain *pd;
 	int ret;
 
-	if (!dev->of_node)
-		return 0;
-
-	ret = of_parse_phandle_with_args(dev->of_node, "power-domains",
-					"#power-domain-cells", 0, &pd_args);
+	ret = of_parse_phandle_with_args(np, "power-domains",
+				"#power-domain-cells", index, &pd_args);
 	if (ret < 0)
-		return 0;
+		return ret;
 
 	mutex_lock(&gpd_list_lock);
 	pd = genpd_get_from_provider(&pd_args);
@@ -2282,7 +2280,97 @@ int genpd_dev_pm_attach(struct device *dev)
 
 	return ret ? -EPROBE_DEFER : 1;
 }
+
+/**
+ * genpd_dev_pm_attach - Attach a device to its PM domain using DT.
+ * @dev: Device to attach.
+ *
+ * Parse device's OF node to find a PM domain specifier. If such is found,
+ * attaches the device to retrieved pm_domain ops.
+ *
+ * Returns 1 on successfully attached PM domain, 0 when the device don't need a
+ * PM domain or when multiple power-domains exists for it, else a negative error
+ * code. Note that if a power-domain exists for the device, but it cannot be
+ * found or turned on, then return -EPROBE_DEFER to ensure that the device is
+ * not probed and to re-try again later.
+ */
+int genpd_dev_pm_attach(struct device *dev)
+{
+	if (!dev->of_node)
+		return 0;
+
+	/*
+	 * Devices with multiple PM domains must be attached separately, as we
+	 * can only attach one PM domain per device.
+	 */
+	if (of_count_phandle_with_args(dev->of_node, "power-domains",
+				       "#power-domain-cells") != 1)
+		return 0;
+
+	return __genpd_dev_pm_attach(dev, dev->of_node, 0);
+}
 EXPORT_SYMBOL_GPL(genpd_dev_pm_attach);
+
+/**
+ * genpd_dev_pm_attach_by_id - Associate a device with one of its PM domains.
+ * @dev: The device used to lookup the PM domain.
+ * @index: The index of the PM domain.
+ *
+ * Parse device's OF node to find a PM domain specifier at the provided @index.
+ * If such is found, creates a virtual device and attaches it to the retrieved
+ * pm_domain ops. To deal with detaching of the virtual device, the ->detach()
+ * callback in the struct dev_pm_domain are assigned to genpd_dev_pm_detach().
+ *
+ * Returns the created virtual device if successfully attached PM domain, NULL
+ * when the device don't need a PM domain, else an ERR_PTR() in case of
+ * failures. If a power-domain exists for the device, but cannot be found or
+ * turned on, then ERR_PTR(-EPROBE_DEFER) is returned to ensure that the device
+ * is not probed and to re-try again later.
+ */
+struct device *genpd_dev_pm_attach_by_id(struct device *dev,
+					 unsigned int index)
+{
+	struct device *genpd_dev;
+	int num_domains;
+	int ret;
+
+	if (!dev->of_node)
+		return NULL;
+
+	/* Deal only with devices using multiple PM domains. */
+	num_domains = of_count_phandle_with_args(dev->of_node, "power-domains",
+						 "#power-domain-cells");
+	if (num_domains < 2 || index >= num_domains)
+		return NULL;
+
+	/* Allocate and register device on the genpd bus. */
+	genpd_dev = kzalloc(sizeof(*genpd_dev), GFP_KERNEL);
+	if (!genpd_dev)
+		return ERR_PTR(-ENOMEM);
+
+	dev_set_name(genpd_dev, "genpd:%u:%s", index, dev_name(dev));
+	genpd_dev->bus = &genpd_bus_type;
+	genpd_dev->release = genpd_release_dev;
+
+	ret = device_register(genpd_dev);
+	if (ret) {
+		kfree(genpd_dev);
+		return ERR_PTR(ret);
+	}
+
+	/* Try to attach the device to the PM domain at the specified index. */
+	ret = __genpd_dev_pm_attach(genpd_dev, dev->of_node, index);
+	if (ret < 1) {
+		device_unregister(genpd_dev);
+		return ret ? ERR_PTR(ret) : NULL;
+	}
+
+	pm_runtime_set_active(genpd_dev);
+	pm_runtime_enable(genpd_dev);
+
+	return genpd_dev;
+}
+EXPORT_SYMBOL_GPL(genpd_dev_pm_attach_by_id);
 
 static const struct of_device_id idle_state_match[] = {
 	{ .compatible = "domain-idle-state", },
@@ -2442,6 +2530,12 @@ unlock:
 	return state;
 }
 EXPORT_SYMBOL_GPL(of_genpd_opp_to_performance_state);
+
+static int __init genpd_bus_init(void)
+{
+	return bus_register(&genpd_bus_type);
+}
+core_initcall(genpd_bus_init);
 
 #endif /* CONFIG_PM_GENERIC_DOMAINS_OF */
 
