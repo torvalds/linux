@@ -15,7 +15,7 @@
 #include "sizes.h"
 
 __HEAD
-ENTRY(startup_continue)
+ENTRY(startup_decompressor)
 	basr	%r13,0			# get base
 .LPG1:
 	# setup stack
