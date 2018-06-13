@@ -258,6 +258,8 @@ int of_genpd_add_subdomain(struct of_phandle_args *parent,
 struct generic_pm_domain *of_genpd_remove_last(struct device_node *np);
 int of_genpd_parse_idle_states(struct device_node *dn,
 			       struct genpd_power_state **states, int *n);
+unsigned int pm_genpd_opp_to_performance_state(struct device *genpd_dev,
+					       struct dev_pm_opp *opp);
 unsigned int of_genpd_opp_to_performance_state(struct device *dev,
 				struct device_node *np);
 
@@ -297,6 +299,13 @@ static inline int of_genpd_parse_idle_states(struct device_node *dn,
 			struct genpd_power_state **states, int *n)
 {
 	return -ENODEV;
+}
+
+static inline unsigned int
+pm_genpd_opp_to_performance_state(struct device *genpd_dev,
+				  struct dev_pm_opp *opp)
+{
+	return 0;
 }
 
 static inline unsigned int
