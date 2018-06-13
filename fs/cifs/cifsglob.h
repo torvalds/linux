@@ -883,6 +883,14 @@ cap_unix(struct cifs_ses *ses)
 	return ses->server->vals->cap_unix & ses->capabilities;
 }
 
+struct cached_fid {
+	bool is_valid:1;	/* Do we have a useable root fid */
+	struct cifs_fid *fid;
+	struct mutex fid_mutex;
+	struct cifs_tcon *tcon;
+	struct work_struct lease_break;
+};
+
 /*
  * there is one of these for each connection to a resource on a particular
  * session
@@ -987,9 +995,7 @@ struct cifs_tcon {
 	struct fscache_cookie *fscache;	/* cookie for share */
 #endif
 	struct list_head pending_opens;	/* list of incomplete opens */
-	bool valid_root_fid:1;	/* Do we have a useable root fid */
-	struct mutex prfid_mutex; /* prevents reopen race after dead ses*/
-	struct cifs_fid *prfid;	/* handle to the directory at top of share */
+	struct cached_fid crfid; /* Cached root fid */
 	/* BB add field for back pointer to sb struct(s)? */
 };
 

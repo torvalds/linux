@@ -323,6 +323,21 @@ SMB3_request_interfaces(const unsigned int xid, struct cifs_tcon *tcon)
 }
 #endif /* STATS2 */
 
+void
+smb2_cached_lease_break(struct work_struct *work)
+{
+	struct cached_fid *cfid = container_of(work,
+				struct cached_fid, lease_break);
+	mutex_lock(&cfid->fid_mutex);
+	if (cfid->is_valid) {
+		cifs_dbg(FYI, "clear cached root file handle\n");
+		SMB2_close(0, cfid->tcon, cfid->fid->persistent_fid,
+			   cfid->fid->volatile_fid);
+		cfid->is_valid = false;
+	}
+	mutex_unlock(&cfid->fid_mutex);
+}
+
 /*
  * Open the directory at the root of a share
  */
@@ -331,13 +346,13 @@ int open_shroot(unsigned int xid, struct cifs_tcon *tcon, struct cifs_fid *pfid)
 	struct cifs_open_parms oparams;
 	int rc;
 	__le16 srch_path = 0; /* Null - since an open of top of share */
-	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	u8 oplock = SMB2_OPLOCK_LEVEL_II;
 
-	mutex_lock(&tcon->prfid_mutex);
-	if (tcon->valid_root_fid) {
+	mutex_lock(&tcon->crfid.fid_mutex);
+	if (tcon->crfid.is_valid) {
 		cifs_dbg(FYI, "found a cached root file handle\n");
-		memcpy(pfid, tcon->prfid, sizeof(struct cifs_fid));
-		mutex_unlock(&tcon->prfid_mutex);
+		memcpy(pfid, tcon->crfid.fid, sizeof(struct cifs_fid));
+		mutex_unlock(&tcon->crfid.fid_mutex);
 		return 0;
 	}
 
@@ -350,10 +365,11 @@ int open_shroot(unsigned int xid, struct cifs_tcon *tcon, struct cifs_fid *pfid)
 
 	rc = SMB2_open(xid, &oparams, &srch_path, &oplock, NULL, NULL, NULL);
 	if (rc == 0) {
-		memcpy(tcon->prfid, pfid, sizeof(struct cifs_fid));
-		tcon->valid_root_fid = true;
+		memcpy(tcon->crfid.fid, pfid, sizeof(struct cifs_fid));
+		tcon->crfid.tcon = tcon;
+		tcon->crfid.is_valid = true;
 	}
-	mutex_unlock(&tcon->prfid_mutex);
+	mutex_unlock(&tcon->crfid.fid_mutex);
 	return rc;
 }
 
@@ -436,7 +452,7 @@ smb2_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 	struct cifs_open_parms oparms;
 	struct cifs_fid fid;
 
-	if ((*full_path == 0) && tcon->valid_root_fid)
+	if ((*full_path == 0) && tcon->crfid.is_valid)
 		return 0;
 
 	utf16_path = cifs_convert_path_to_utf16(full_path, cifs_sb);
