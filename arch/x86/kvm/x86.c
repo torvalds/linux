@@ -29,6 +29,7 @@
 #include "pmu.h"
 #include "hyperv.h"
 #include "lapic.h"
+#include "xen.h"
 
 #include <linux/clocksource.h>
 #include <linux/interrupt.h>
@@ -2870,34 +2871,6 @@ static int set_msr_mce(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	return 0;
 }
 
-static int xen_hvm_config(struct kvm_vcpu *vcpu, u64 data)
-{
-	struct kvm *kvm = vcpu->kvm;
-	int lm = is_long_mode(vcpu);
-	u64 blob_addr = lm ? kvm->arch.xen_hvm_config.blob_addr_64
-		: kvm->arch.xen_hvm_config.blob_addr_32;
-	u8 blob_size = lm ? kvm->arch.xen_hvm_config.blob_size_64
-		: kvm->arch.xen_hvm_config.blob_size_32;
-	u32 page_num = data & ~PAGE_MASK;
-	u64 page_addr = data & PAGE_MASK;
-	u8 *page;
-
-	if (page_num >= blob_size)
-		return 1;
-
-	blob_addr += page_num * PAGE_SIZE;
-
-	page = memdup_user((u8 __user *)blob_addr, PAGE_SIZE);
-	if (IS_ERR(page))
-		return PTR_ERR(page);
-
-	if (kvm_vcpu_write_guest(vcpu, page_addr, page, PAGE_SIZE)) {
-		kfree(page);
-		return 1;
-	}
-	return 0;
-}
-
 static inline bool kvm_pv_async_pf_enabled(struct kvm_vcpu *vcpu)
 {
 	u64 mask = KVM_ASYNC_PF_ENABLED | KVM_ASYNC_PF_DELIVERY_AS_INT;
@@ -3032,7 +3005,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	u64 data = msr_info->data;
 
 	if (msr && msr == vcpu->kvm->arch.xen_hvm_config.msr)
-		return xen_hvm_config(vcpu, data);
+		return kvm_xen_write_hypercall_page(vcpu, data);
 
 	switch (msr) {
 	case MSR_AMD64_NB_CFG:
@@ -3741,7 +3714,6 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_PIT2:
 	case KVM_CAP_PIT_STATE2:
 	case KVM_CAP_SET_IDENTITY_MAP_ADDR:
-	case KVM_CAP_XEN_HVM:
 	case KVM_CAP_VCPU_EVENTS:
 	case KVM_CAP_HYPERV:
 	case KVM_CAP_HYPERV_VAPIC:
@@ -3780,6 +3752,10 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_X86_MSR_FILTER:
 	case KVM_CAP_ENFORCE_PV_FEATURE_CPUID:
 		r = 1;
+		break;
+	case KVM_CAP_XEN_HVM:
+		r = KVM_XEN_HVM_CONFIG_HYPERCALL_MSR |
+		    KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL;
 		break;
 	case KVM_CAP_SYNC_REGS:
 		r = KVM_SYNC_X86_VALID_FIELDS;
@@ -5652,7 +5628,15 @@ set_pit2_out:
 		if (copy_from_user(&xhc, argp, sizeof(xhc)))
 			goto out;
 		r = -EINVAL;
-		if (xhc.flags)
+		if (xhc.flags & ~KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL)
+			goto out;
+		/*
+		 * With hypercall interception the kernel generates its own
+		 * hypercall page so it must not be provided.
+		 */
+		if ((xhc.flags & KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL) &&
+		    (xhc.blob_addr_32 || xhc.blob_addr_64 ||
+		     xhc.blob_size_32 || xhc.blob_size_64))
 			goto out;
 		memcpy(&kvm->arch.xen_hvm_config, &xhc, sizeof(xhc));
 		r = 0;
@@ -8142,6 +8126,9 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 {
 	unsigned long nr, a0, a1, a2, a3, ret;
 	int op_64_bit;
+
+	if (kvm_xen_hypercall_enabled(vcpu->kvm))
+		return kvm_xen_hypercall(vcpu);
 
 	if (kvm_hv_hypercall_enabled(vcpu->kvm))
 		return kvm_hv_hypercall(vcpu);
