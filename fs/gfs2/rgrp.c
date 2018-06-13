@@ -607,8 +607,10 @@ int gfs2_rsqa_alloc(struct gfs2_inode *ip)
 
 static void dump_rs(struct seq_file *seq, const struct gfs2_blkreserv *rs)
 {
+	struct gfs2_inode *ip = container_of(rs, struct gfs2_inode, i_res);
+
 	gfs2_print_dbg(seq, "  B: n:%llu s:%llu b:%u f:%u\n",
-		       (unsigned long long)rs->rs_inum,
+		       (unsigned long long)ip->i_no_addr,
 		       (unsigned long long)gfs2_rbm_to_block(&rs->rs_rbm),
 		       rs->rs_rbm.offset, rs->rs_free);
 }
@@ -1528,7 +1530,6 @@ static void rg_mblk_search(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip,
 	if (ret == 0) {
 		rs->rs_rbm = rbm;
 		rs->rs_free = extlen;
-		rs->rs_inum = ip->i_no_addr;
 		rs_insert(ip);
 	} else {
 		if (goal == rgd->rd_last_alloc + rgd->rd_data0)
