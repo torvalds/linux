@@ -15,7 +15,7 @@ config ANDROID_VERSION
 
 config ROCKCHIP_CPUINFO
 	bool "Rockchip cpuinfo support"
-	depends on ROCKCHIP_EFUSE && (ARM64 || ARM)
+	depends on (ROCKCHIP_EFUSE || ROCKCHIP_OTP) && (ARM64 || ARM)
 	default y
 	help
 	  Say y here to enable Rockchip cpuinfo support.
