@@ -39,6 +39,8 @@ Optional properties:
   - rockchip,adc-grps-route = <3 0 2 1>;
 
 - rockchip,loopback-grp: It points out the ADC group which is the loopback used.
+- rockchip,no-deep-low-power: The codec will not enter deep low power mode
+  during suspend.
 - hp-ctl-gpios: The gpio of head phone controller.
 - spk-ctl-gpios: The gpio of speak controller.
 
