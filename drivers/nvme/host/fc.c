@@ -1471,21 +1471,6 @@ nvme_fc_xmt_disconnect_assoc(struct nvme_fc_ctrl *ctrl)
 
 static void nvme_fc_error_recovery(struct nvme_fc_ctrl *ctrl, char *errmsg);
 
-static int
-nvme_fc_reinit_request(void *data, struct request *rq)
-{
-	struct nvme_fc_fcp_op *op = blk_mq_rq_to_pdu(rq);
-	struct nvme_fc_cmd_iu *cmdiu = &op->cmd_iu;
-
-	memset(cmdiu, 0, sizeof(*cmdiu));
-	cmdiu->scsi_id = NVME_CMD_SCSI_ID;
-	cmdiu->fc_id = NVME_CMD_FC_ID;
-	cmdiu->iu_len = cpu_to_be16(sizeof(*cmdiu) / sizeof(u32));
-	memset(&op->rsp_iu, 0, sizeof(op->rsp_iu));
-
-	return 0;
-}
-
 static void
 __nvme_fc_exit_request(struct nvme_fc_ctrl *ctrl,
 		struct nvme_fc_fcp_op *op)
@@ -2505,10 +2490,6 @@ nvme_fc_reinit_io_queues(struct nvme_fc_ctrl *ctrl)
 
 	nvme_fc_init_io_queues(ctrl);
 
-	ret = nvme_reinit_tagset(&ctrl->ctrl, ctrl->ctrl.tagset);
-	if (ret)
-		goto out_free_io_queues;
-
 	ret = nvme_fc_create_hw_io_queues(ctrl, ctrl->ctrl.sqsize + 1);
 	if (ret)
 		goto out_free_io_queues;
@@ -2918,7 +2899,6 @@ static const struct nvme_ctrl_ops nvme_fc_ctrl_ops = {
 	.submit_async_event	= nvme_fc_submit_async_event,
 	.delete_ctrl		= nvme_fc_delete_ctrl,
 	.get_address		= nvmf_get_address,
-	.reinit_request		= nvme_fc_reinit_request,
 };
 
 static void
