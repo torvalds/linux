@@ -734,6 +734,12 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	session = l2tp_session_get(sock_net(sk), tunnel, session_id);
 	if (session) {
 		drop_refcnt = true;
+
+		if (session->pwtype != L2TP_PWTYPE_PPP) {
+			error = -EPROTOTYPE;
+			goto end;
+		}
+
 		ps = l2tp_session_priv(session);
 
 		/* Using a pre-existing session is fine as long as it hasn't
