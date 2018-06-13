@@ -2660,8 +2660,6 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	seq_printf(m, "Enabled: %s\n", yesno((bool)dev_priv->psr.enabled));
 	seq_printf(m, "Busy frontbuffer bits: 0x%03x\n",
 		   dev_priv->psr.busy_frontbuffer_bits);
-	seq_printf(m, "Re-enable work scheduled: %s\n",
-		   yesno(work_busy(&dev_priv->psr.work.work)));
 
 	if (dev_priv->psr.psr2_enabled)
 		enabled = I915_READ(EDP_PSR2_CTL) & EDP_PSR2_ENABLE;

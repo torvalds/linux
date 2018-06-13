@@ -613,7 +613,7 @@ struct i915_psr {
 	bool sink_support;
 	struct intel_dp *enabled;
 	bool active;
-	struct delayed_work work;
+	struct work_struct work;
 	unsigned busy_frontbuffer_bits;
 	bool sink_psr2_support;
 	bool link_standby;

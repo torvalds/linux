@@ -671,21 +671,7 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 	dev_priv->psr.enable_source(intel_dp, crtc_state);
 	dev_priv->psr.enabled = intel_dp;
 
-	if (INTEL_GEN(dev_priv) >= 9) {
-		intel_psr_activate(intel_dp);
-	} else {
-		/*
-		 * FIXME: Activation should happen immediately since this
-		 * function is just called after pipe is fully trained and
-		 * enabled.
-		 * However on some platforms we face issues when first
-		 * activation follows a modeset so quickly.
-		 *     - On HSW/BDW we get a recoverable frozen screen until
-		 *       next exit-activate sequence.
-		 */
-		schedule_delayed_work(&dev_priv->psr.work,
-				      msecs_to_jiffies(intel_dp->panel_power_cycle_delay * 5));
-	}
+	intel_psr_activate(intel_dp);
 
 unlock:
 	mutex_unlock(&dev_priv->psr.lock);
@@ -768,8 +754,6 @@ void intel_psr_disable(struct intel_dp *intel_dp,
 
 	dev_priv->psr.enabled = NULL;
 	mutex_unlock(&dev_priv->psr.lock);
-
-	cancel_delayed_work_sync(&dev_priv->psr.work);
 }
 
 static bool psr_wait_for_idle(struct drm_i915_private *dev_priv)
@@ -805,9 +789,12 @@ static bool psr_wait_for_idle(struct drm_i915_private *dev_priv)
 static void intel_psr_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
-		container_of(work, typeof(*dev_priv), psr.work.work);
+		container_of(work, typeof(*dev_priv), psr.work);
 
 	mutex_lock(&dev_priv->psr.lock);
+
+	if (!dev_priv->psr.enabled)
+		goto unlock;
 
 	/*
 	 * We have to make sure PSR is ready for re-enable
@@ -949,9 +936,7 @@ void intel_psr_flush(struct drm_i915_private *dev_priv,
 	}
 
 	if (!dev_priv->psr.active && !dev_priv->psr.busy_frontbuffer_bits)
-		if (!work_busy(&dev_priv->psr.work.work))
-			schedule_delayed_work(&dev_priv->psr.work,
-					      msecs_to_jiffies(100));
+		schedule_work(&dev_priv->psr.work);
 	mutex_unlock(&dev_priv->psr.lock);
 }
 
@@ -998,7 +983,7 @@ void intel_psr_init(struct drm_i915_private *dev_priv)
 		dev_priv->psr.link_standby = false;
 	}
 
-	INIT_DELAYED_WORK(&dev_priv->psr.work, intel_psr_work);
+	INIT_WORK(&dev_priv->psr.work, intel_psr_work);
 	mutex_init(&dev_priv->psr.lock);
 
 	dev_priv->psr.enable_source = hsw_psr_enable_source;
