@@ -751,6 +751,7 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 		/* Default MTU must allow space for UDP/L2TP/PPP headers */
 		cfg.mtu = 1500 - PPPOL2TP_HEADER_OVERHEAD;
 		cfg.mru = cfg.mtu;
+		cfg.pw_type = L2TP_PWTYPE_PPP;
 
 		session = l2tp_session_create(sizeof(struct pppol2tp_session),
 					      tunnel, session_id,
