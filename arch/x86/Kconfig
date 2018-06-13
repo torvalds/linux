@@ -130,7 +130,7 @@ config X86
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD if X86_64
 	select HAVE_ARCH_VMAP_STACK		if X86_64
 	select HAVE_ARCH_WITHIN_STACK_FRAMES
-	select HAVE_CC_STACKPROTECTOR
+	select HAVE_CC_STACKPROTECTOR		if CC_HAS_SANE_STACKPROTECTOR
 	select HAVE_CMPXCHG_DOUBLE
 	select HAVE_CMPXCHG_LOCAL
 	select HAVE_CONTEXT_TRACKING		if X86_64
@@ -346,6 +346,15 @@ config PGTABLE_LEVELS
 	default 2
 
 source "init/Kconfig"
+
+config CC_HAS_SANE_STACKPROTECTOR
+	bool
+	default $(success,$(srctree)/scripts/gcc-x86_64-has-stack-protector.sh $(CC)) if 64BIT
+	default $(success,$(srctree)/scripts/gcc-x86_32-has-stack-protector.sh $(CC))
+	help
+	   We have to make sure stack protector is unconditionally disabled if
+	   the compiler produces broken code.
+
 source "kernel/Kconfig.freezer"
 
 menu "Processor type and features"
