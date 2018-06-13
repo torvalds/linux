@@ -821,6 +821,28 @@ static int mlx5e_nic_rep_netdevice_event(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+static void
+mlx5e_rep_queue_neigh_update_work(struct mlx5e_priv *priv,
+				  struct mlx5e_neigh_hash_entry *nhe,
+				  struct neighbour *n)
+{
+	/* Take a reference to ensure the neighbour and mlx5 encap
+	 * entry won't be destructed until we drop the reference in
+	 * delayed work.
+	 */
+	neigh_hold(n);
+
+	/* This assignment is valid as long as the the neigh reference
+	 * is taken
+	 */
+	nhe->n = n;
+
+	if (!queue_work(priv->wq, &nhe->neigh_update_work)) {
+		mlx5e_rep_neigh_entry_release(nhe);
+		neigh_release(n);
+	}
+}
+
 static struct mlx5e_neigh_hash_entry *
 mlx5e_rep_neigh_entry_lookup(struct mlx5e_priv *priv,
 			     struct mlx5e_neigh *m_neigh);
@@ -864,22 +886,8 @@ static int mlx5e_rep_netevent_event(struct notifier_block *nb,
 			return NOTIFY_DONE;
 		}
 
-		/* This assignment is valid as long as the the neigh reference
-		 * is taken
-		 */
-		nhe->n = n;
-
-		/* Take a reference to ensure the neighbour and mlx5 encap
-		 * entry won't be destructed until we drop the reference in
-		 * delayed work.
-		 */
-		neigh_hold(n);
 		mlx5e_rep_neigh_entry_hold(nhe);
-
-		if (!queue_work(priv->wq, &nhe->neigh_update_work)) {
-			mlx5e_rep_neigh_entry_release(nhe);
-			neigh_release(n);
-		}
+		mlx5e_rep_queue_neigh_update_work(priv, nhe, n);
 		spin_unlock_bh(&neigh_update->encap_lock);
 		break;
 
