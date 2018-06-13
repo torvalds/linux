@@ -2176,6 +2176,7 @@ static int __mlx4_ib_modify_qp(void *src, enum mlx4_ib_source_type src_type,
 {
 	struct ib_uobject *ibuobject;
 	struct ib_srq  *ibsrq;
+	const struct ib_gid_attr *gid_attr = NULL;
 	struct ib_rwq_ind_table *rwq_ind_tbl;
 	enum ib_qp_type qp_type;
 	struct mlx4_ib_dev *dev;
@@ -2356,29 +2357,17 @@ static int __mlx4_ib_modify_qp(void *src, enum mlx4_ib_source_type src_type,
 	if (attr_mask & IB_QP_AV) {
 		u8 port_num = mlx4_is_bonded(dev->dev) ? 1 :
 			attr_mask & IB_QP_PORT ? attr->port_num : qp->port;
-		union ib_gid gid;
-		struct ib_gid_attr gid_attr = {.gid_type = IB_GID_TYPE_IB};
 		u16 vlan = 0xffff;
 		u8 smac[ETH_ALEN];
-		int status = 0;
 		int is_eth =
 			rdma_cap_eth_ah(&dev->ib_dev, port_num) &&
 			rdma_ah_get_ah_flags(&attr->ah_attr) & IB_AH_GRH;
 
 		if (is_eth) {
-			int index =
-				rdma_ah_read_grh(&attr->ah_attr)->sgid_index;
-
-			status = ib_get_cached_gid(&dev->ib_dev, port_num,
-						   index, &gid, &gid_attr);
-			if (!status) {
-				vlan = rdma_vlan_dev_vlan_id(gid_attr.ndev);
-				memcpy(smac, gid_attr.ndev->dev_addr, ETH_ALEN);
-				dev_put(gid_attr.ndev);
-			}
+			gid_attr = attr->ah_attr.grh.sgid_attr;
+			vlan = rdma_vlan_dev_vlan_id(gid_attr->ndev);
+			memcpy(smac, gid_attr->ndev->dev_addr, ETH_ALEN);
 		}
-		if (status)
-			goto out;
 
 		if (mlx4_set_path(dev, attr, attr_mask, qp, &context->pri_path,
 				  port_num, vlan, smac))
@@ -2389,7 +2378,7 @@ static int __mlx4_ib_modify_qp(void *src, enum mlx4_ib_source_type src_type,
 
 		if (is_eth &&
 		    (cur_state == IB_QPS_INIT && new_state == IB_QPS_RTR)) {
-			u8 qpc_roce_mode = gid_type_to_qpc(gid_attr.gid_type);
+			u8 qpc_roce_mode = gid_type_to_qpc(gid_attr->gid_type);
 
 			if (qpc_roce_mode == MLX4_QPC_ROCE_MODE_UNDEFINED) {
 				err = -EINVAL;
@@ -3181,10 +3170,12 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_ud_wr *wr,
 					to_mdev(ib_dev)->sriov.demux[sqp->qp.port - 1].
 						       guid_cache[ah->av.ib.gid_index];
 			} else {
-				ib_get_cached_gid(ib_dev,
-						  be32_to_cpu(ah->av.ib.port_pd) >> 24,
-						  ah->av.ib.gid_index,
-						  &sqp->ud_header.grh.source_gid, NULL);
+				err = rdma_query_gid(ib_dev,
+					be32_to_cpu(ah->av.ib.port_pd) >> 24,
+					ah->av.ib.gid_index,
+					&sqp->ud_header.grh.source_gid);
+				if (err)
+					return err;
 			}
 		}
 		memcpy(sqp->ud_header.grh.destination_gid.raw,
