@@ -786,32 +786,44 @@ static ssize_t external_mode_store(struct device *dev,
 static DEVICE_ATTR(external_mode, 0664,
 		external_mode_show, external_mode_store);
 
+static void fsi_master_gpio_release(struct device *dev)
+{
+	struct fsi_master_gpio *master = to_fsi_master_gpio(dev_to_fsi_master(dev));
+
+	of_node_put(dev_of_node(master->dev));
+
+	kfree(master);
+}
+
 static int fsi_master_gpio_probe(struct platform_device *pdev)
 {
 	struct fsi_master_gpio *master;
 	struct gpio_desc *gpio;
 	int rc;
 
-	master = devm_kzalloc(&pdev->dev, sizeof(*master), GFP_KERNEL);
+	master = kzalloc(sizeof(*master), GFP_KERNEL);
 	if (!master)
 		return -ENOMEM;
 
 	master->dev = &pdev->dev;
 	master->master.dev.parent = master->dev;
 	master->master.dev.of_node = of_node_get(dev_of_node(master->dev));
+	master->master.dev.release = fsi_master_gpio_release;
 	master->last_addr = LAST_ADDR_INVALID;
 
 	gpio = devm_gpiod_get(&pdev->dev, "clock", 0);
 	if (IS_ERR(gpio)) {
 		dev_err(&pdev->dev, "failed to get clock gpio\n");
-		return PTR_ERR(gpio);
+		rc = PTR_ERR(gpio);
+		goto err_free;
 	}
 	master->gpio_clk = gpio;
 
 	gpio = devm_gpiod_get(&pdev->dev, "data", 0);
 	if (IS_ERR(gpio)) {
 		dev_err(&pdev->dev, "failed to get data gpio\n");
-		return PTR_ERR(gpio);
+		rc = PTR_ERR(gpio);
+		goto err_free;
 	}
 	master->gpio_data = gpio;
 
@@ -819,21 +831,24 @@ static int fsi_master_gpio_probe(struct platform_device *pdev)
 	gpio = devm_gpiod_get_optional(&pdev->dev, "trans", 0);
 	if (IS_ERR(gpio)) {
 		dev_err(&pdev->dev, "failed to get trans gpio\n");
-		return PTR_ERR(gpio);
+		rc = PTR_ERR(gpio);
+		goto err_free;
 	}
 	master->gpio_trans = gpio;
 
 	gpio = devm_gpiod_get_optional(&pdev->dev, "enable", 0);
 	if (IS_ERR(gpio)) {
 		dev_err(&pdev->dev, "failed to get enable gpio\n");
-		return PTR_ERR(gpio);
+		rc = PTR_ERR(gpio);
+		goto err_free;
 	}
 	master->gpio_enable = gpio;
 
 	gpio = devm_gpiod_get_optional(&pdev->dev, "mux", 0);
 	if (IS_ERR(gpio)) {
 		dev_err(&pdev->dev, "failed to get mux gpio\n");
-		return PTR_ERR(gpio);
+		rc = PTR_ERR(gpio);
+		goto err_free;
 	}
 	master->gpio_mux = gpio;
 
@@ -863,27 +878,29 @@ static int fsi_master_gpio_probe(struct platform_device *pdev)
 
 	rc = device_create_file(&pdev->dev, &dev_attr_external_mode);
 	if (rc)
-		return rc;
+		goto err_free;
 
-	return fsi_master_register(&master->master);
+	rc = fsi_master_register(&master->master);
+	if (rc) {
+		device_remove_file(&pdev->dev, &dev_attr_external_mode);
+		put_device(&master->master.dev);
+		return rc;
+	}
+	return 0;
+ err_free:
+	kfree(master);
+	return rc;
 }
+
 
 
 static int fsi_master_gpio_remove(struct platform_device *pdev)
 {
 	struct fsi_master_gpio *master = platform_get_drvdata(pdev);
 
-	devm_gpiod_put(&pdev->dev, master->gpio_clk);
-	devm_gpiod_put(&pdev->dev, master->gpio_data);
-	if (master->gpio_trans)
-		devm_gpiod_put(&pdev->dev, master->gpio_trans);
-	if (master->gpio_enable)
-		devm_gpiod_put(&pdev->dev, master->gpio_enable);
-	if (master->gpio_mux)
-		devm_gpiod_put(&pdev->dev, master->gpio_mux);
-	fsi_master_unregister(&master->master);
+	device_remove_file(&pdev->dev, &dev_attr_external_mode);
 
-	of_node_put(master->master.dev.of_node);
+	fsi_master_unregister(&master->master);
 
 	return 0;
 }
