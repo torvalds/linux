@@ -405,6 +405,9 @@ static void ext4_journal_commit_callback(journal_t *journal, transaction_t *txn)
 
 static void ext4_handle_error(struct super_block *sb)
 {
+	if (test_opt(sb, WARN_ON_ERROR))
+		WARN_ON_ONCE(1);
+
 	if (sb_rdonly(sb))
 		return;
 
@@ -739,6 +742,9 @@ __acquires(bitlock)
 		printk(KERN_CONT "%pV\n", &vaf);
 		va_end(args);
 	}
+
+	if (test_opt(sb, WARN_ON_ERROR))
+		WARN_ON_ONCE(1);
 
 	if (test_opt(sb, ERRORS_CONT)) {
 		ext4_commit_super(sb, 0);
@@ -1377,7 +1383,8 @@ enum {
 	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0, Opt_jqfmt_vfsv1, Opt_quota,
 	Opt_noquota, Opt_barrier, Opt_nobarrier, Opt_err,
 	Opt_usrquota, Opt_grpquota, Opt_prjquota, Opt_i_version, Opt_dax,
-	Opt_stripe, Opt_delalloc, Opt_nodelalloc, Opt_mblk_io_submit,
+	Opt_stripe, Opt_delalloc, Opt_nodelalloc, Opt_warn_on_error,
+	Opt_nowarn_on_error, Opt_mblk_io_submit,
 	Opt_lazytime, Opt_nolazytime, Opt_debug_want_extra_isize,
 	Opt_nomblk_io_submit, Opt_block_validity, Opt_noblock_validity,
 	Opt_inode_readahead_blks, Opt_journal_ioprio,
@@ -1444,6 +1451,8 @@ static const match_table_t tokens = {
 	{Opt_dax, "dax"},
 	{Opt_stripe, "stripe=%u"},
 	{Opt_delalloc, "delalloc"},
+	{Opt_warn_on_error, "warn_on_error"},
+	{Opt_nowarn_on_error, "nowarn_on_error"},
 	{Opt_lazytime, "lazytime"},
 	{Opt_nolazytime, "nolazytime"},
 	{Opt_debug_want_extra_isize, "debug_want_extra_isize=%u"},
@@ -1608,6 +1617,8 @@ static const struct mount_opts {
 	 MOPT_EXT4_ONLY | MOPT_SET | MOPT_EXPLICIT},
 	{Opt_nodelalloc, EXT4_MOUNT_DELALLOC,
 	 MOPT_EXT4_ONLY | MOPT_CLEAR},
+	{Opt_warn_on_error, EXT4_MOUNT_WARN_ON_ERROR, MOPT_SET},
+	{Opt_nowarn_on_error, EXT4_MOUNT_WARN_ON_ERROR, MOPT_CLEAR},
 	{Opt_nojournal_checksum, EXT4_MOUNT_JOURNAL_CHECKSUM,
 	 MOPT_EXT4_ONLY | MOPT_CLEAR},
 	{Opt_journal_checksum, EXT4_MOUNT_JOURNAL_CHECKSUM,
