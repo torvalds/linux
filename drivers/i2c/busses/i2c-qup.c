@@ -1691,8 +1691,8 @@ static int qup_i2c_probe(struct platform_device *pdev)
 
 		qup->max_xfer_sg_len = (MX_BLOCKS << 1);
 		blocks = (MX_DMA_BLOCKS << 1) + 1;
-		qup->btx.sg = devm_kzalloc(&pdev->dev,
-					   sizeof(*qup->btx.sg) * blocks,
+		qup->btx.sg = devm_kcalloc(&pdev->dev,
+					   blocks, sizeof(*qup->btx.sg),
 					   GFP_KERNEL);
 		if (!qup->btx.sg) {
 			ret = -ENOMEM;
@@ -1700,8 +1700,8 @@ static int qup_i2c_probe(struct platform_device *pdev)
 		}
 		sg_init_table(qup->btx.sg, blocks);
 
-		qup->brx.sg = devm_kzalloc(&pdev->dev,
-					   sizeof(*qup->brx.sg) * blocks,
+		qup->brx.sg = devm_kcalloc(&pdev->dev,
+					   blocks, sizeof(*qup->brx.sg),
 					   GFP_KERNEL);
 		if (!qup->brx.sg) {
 			ret = -ENOMEM;

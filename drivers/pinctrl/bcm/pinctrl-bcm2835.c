@@ -771,8 +771,8 @@ static int bcm2835_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 		maps_per_pin++;
 	if (num_pulls)
 		maps_per_pin++;
-	cur_map = maps = kzalloc(num_pins * maps_per_pin * sizeof(*maps),
-				GFP_KERNEL);
+	cur_map = maps = kcalloc(num_pins * maps_per_pin, sizeof(*maps),
+				 GFP_KERNEL);
 	if (!maps)
 		return -ENOMEM;
 

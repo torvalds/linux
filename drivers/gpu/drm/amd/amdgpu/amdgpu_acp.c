@@ -310,20 +310,20 @@ static int acp_hw_init(void *handle)
 		pm_genpd_init(&adev->acp.acp_genpd->gpd, NULL, false);
 	}
 
-	adev->acp.acp_cell = kzalloc(sizeof(struct mfd_cell) * ACP_DEVS,
+	adev->acp.acp_cell = kcalloc(ACP_DEVS, sizeof(struct mfd_cell),
 							GFP_KERNEL);
 
 	if (adev->acp.acp_cell == NULL)
 		return -ENOMEM;
 
-	adev->acp.acp_res = kzalloc(sizeof(struct resource) * 4, GFP_KERNEL);
+	adev->acp.acp_res = kcalloc(4, sizeof(struct resource), GFP_KERNEL);
 
 	if (adev->acp.acp_res == NULL) {
 		kfree(adev->acp.acp_cell);
 		return -ENOMEM;
 	}
 
-	i2s_pdata = kzalloc(sizeof(struct i2s_platform_data) * 2, GFP_KERNEL);
+	i2s_pdata = kcalloc(2, sizeof(struct i2s_platform_data), GFP_KERNEL);
 	if (i2s_pdata == NULL) {
 		kfree(adev->acp.acp_res);
 		kfree(adev->acp.acp_cell);

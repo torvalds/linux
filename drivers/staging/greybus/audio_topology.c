@@ -144,7 +144,7 @@ static const char **gb_generate_enum_strings(struct gbaudio_module_info *gb,
 	__u8 *data;
 
 	items = le32_to_cpu(gbenum->items);
-	strings = devm_kzalloc(gb->dev, sizeof(char *) * items, GFP_KERNEL);
+	strings = devm_kcalloc(gb->dev, items, sizeof(char *), GFP_KERNEL);
 	data = gbenum->names;
 
 	for (i = 0; i < items; i++) {

@@ -217,7 +217,8 @@ static int mlxreg_hotplug_attr_init(struct mlxreg_hotplug_priv_data *priv)
 		}
 	}
 
-	priv->group.attrs = devm_kzalloc(&priv->pdev->dev, num_attrs *
+	priv->group.attrs = devm_kcalloc(&priv->pdev->dev,
+					 num_attrs,
 					 sizeof(struct attribute *),
 					 GFP_KERNEL);
 	if (!priv->group.attrs)

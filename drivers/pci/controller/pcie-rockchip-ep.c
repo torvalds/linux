@@ -593,7 +593,7 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 			    PCIE_CLIENT_CONFIG);
 
 	max_regions = ep->max_regions;
-	ep->ob_addr = devm_kzalloc(dev, max_regions * sizeof(*ep->ob_addr),
+	ep->ob_addr = devm_kcalloc(dev, max_regions, sizeof(*ep->ob_addr),
 				   GFP_KERNEL);
 
 	if (!ep->ob_addr) {

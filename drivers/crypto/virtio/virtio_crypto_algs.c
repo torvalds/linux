@@ -371,7 +371,7 @@ __virtio_crypto_ablkcipher_do_req(struct virtio_crypto_sym_request *vc_sym_req,
 
 	/* Why 3?  outhdr + iv + inhdr */
 	sg_total = src_nents + dst_nents + 3;
-	sgs = kzalloc_node(sg_total * sizeof(*sgs), GFP_ATOMIC,
+	sgs = kcalloc_node(sg_total, sizeof(*sgs), GFP_ATOMIC,
 				dev_to_node(&vcrypto->vdev->dev));
 	if (!sgs)
 		return -ENOMEM;

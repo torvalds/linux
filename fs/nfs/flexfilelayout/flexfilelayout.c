@@ -461,7 +461,7 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 		fh_count = be32_to_cpup(p);
 
 		fls->mirror_array[i]->fh_versions =
-			kzalloc(fh_count * sizeof(struct nfs_fh),
+			kcalloc(fh_count, sizeof(struct nfs_fh),
 				gfp_flags);
 		if (fls->mirror_array[i]->fh_versions == NULL) {
 			rc = -ENOMEM;

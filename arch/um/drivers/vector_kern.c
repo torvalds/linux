@@ -527,14 +527,14 @@ static struct vector_queue *create_queue(
 	result->max_iov_frags = num_extra_frags;
 	for (i = 0; i < max_size; i++) {
 		if (vp->header_size > 0)
-			iov = kmalloc(
-				sizeof(struct iovec) * (3 + num_extra_frags),
-				GFP_KERNEL
+			iov = kmalloc_array(3 + num_extra_frags,
+					    sizeof(struct iovec),
+					    GFP_KERNEL
 			);
 		else
-			iov = kmalloc(
-				sizeof(struct iovec) * (2 + num_extra_frags),
-				GFP_KERNEL
+			iov = kmalloc_array(2 + num_extra_frags,
+					    sizeof(struct iovec),
+					    GFP_KERNEL
 			);
 		if (iov == NULL)
 			goto out_fail;

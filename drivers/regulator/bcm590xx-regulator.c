@@ -383,8 +383,10 @@ static int bcm590xx_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pmu);
 
-	pmu->desc = devm_kzalloc(&pdev->dev, BCM590XX_NUM_REGS *
-			sizeof(struct regulator_desc), GFP_KERNEL);
+	pmu->desc = devm_kcalloc(&pdev->dev,
+				 BCM590XX_NUM_REGS,
+				 sizeof(struct regulator_desc),
+				 GFP_KERNEL);
 	if (!pmu->desc)
 		return -ENOMEM;
 

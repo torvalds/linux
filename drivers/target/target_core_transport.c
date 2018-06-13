@@ -250,10 +250,10 @@ int transport_alloc_session_tags(struct se_session *se_sess,
 {
 	int rc;
 
-	se_sess->sess_cmd_map = kzalloc(tag_num * tag_size,
+	se_sess->sess_cmd_map = kcalloc(tag_size, tag_num,
 					GFP_KERNEL | __GFP_NOWARN | __GFP_RETRY_MAYFAIL);
 	if (!se_sess->sess_cmd_map) {
-		se_sess->sess_cmd_map = vzalloc(tag_num * tag_size);
+		se_sess->sess_cmd_map = vzalloc(array_size(tag_size, tag_num));
 		if (!se_sess->sess_cmd_map) {
 			pr_err("Unable to allocate se_sess->sess_cmd_map\n");
 			return -ENOMEM;

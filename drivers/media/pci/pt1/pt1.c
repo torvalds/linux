@@ -615,7 +615,7 @@ static int pt1_init_tables(struct pt1 *pt1)
 	if (!pt1_nr_tables)
 		return 0;
 
-	tables = vmalloc(sizeof(struct pt1_table) * pt1_nr_tables);
+	tables = vmalloc(array_size(pt1_nr_tables, sizeof(struct pt1_table)));
 	if (tables == NULL)
 		return -ENOMEM;
 

@@ -373,7 +373,7 @@ static int s5k5baf_fw_parse(struct device *dev, struct s5k5baf_fw **fw,
 	data += S5K5BAG_FW_TAG_LEN;
 	count -= S5K5BAG_FW_TAG_LEN;
 
-	d = devm_kzalloc(dev, count * sizeof(u16), GFP_KERNEL);
+	d = devm_kcalloc(dev, count, sizeof(u16), GFP_KERNEL);
 	if (!d)
 		return -ENOMEM;
 

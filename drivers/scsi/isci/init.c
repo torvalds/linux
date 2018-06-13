@@ -232,14 +232,14 @@ static int isci_register_sas_ha(struct isci_host *isci_host)
 	struct asd_sas_phy **sas_phys;
 	struct asd_sas_port **sas_ports;
 
-	sas_phys = devm_kzalloc(&isci_host->pdev->dev,
-				SCI_MAX_PHYS * sizeof(void *),
+	sas_phys = devm_kcalloc(&isci_host->pdev->dev,
+				SCI_MAX_PHYS, sizeof(void *),
 				GFP_KERNEL);
 	if (!sas_phys)
 		return -ENOMEM;
 
-	sas_ports = devm_kzalloc(&isci_host->pdev->dev,
-				 SCI_MAX_PORTS * sizeof(void *),
+	sas_ports = devm_kcalloc(&isci_host->pdev->dev,
+				 SCI_MAX_PORTS, sizeof(void *),
 				 GFP_KERNEL);
 	if (!sas_ports)
 		return -ENOMEM;

@@ -1299,8 +1299,9 @@ static int set_primary_affinity(struct ceph_osdmap *map, int osd, u32 aff)
 	if (!map->osd_primary_affinity) {
 		int i;
 
-		map->osd_primary_affinity = kmalloc(map->max_osd*sizeof(u32),
-						    GFP_NOFS);
+		map->osd_primary_affinity = kmalloc_array(map->max_osd,
+							  sizeof(u32),
+							  GFP_NOFS);
 		if (!map->osd_primary_affinity)
 			return -ENOMEM;
 

@@ -2810,7 +2810,8 @@ static int ql_alloc_tx_resources(struct ql_adapter *qdev,
 		goto pci_alloc_err;
 
 	tx_ring->q =
-	    kmalloc(tx_ring->wq_len * sizeof(struct tx_ring_desc), GFP_KERNEL);
+	    kmalloc_array(tx_ring->wq_len, sizeof(struct tx_ring_desc),
+			  GFP_KERNEL);
 	if (tx_ring->q == NULL)
 		goto err;
 

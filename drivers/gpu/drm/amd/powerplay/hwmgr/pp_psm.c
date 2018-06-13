@@ -50,7 +50,7 @@ int psm_init_power_state_table(struct pp_hwmgr *hwmgr)
 		return 0;
 	}
 
-	hwmgr->ps = kzalloc(size * table_entries, GFP_KERNEL);
+	hwmgr->ps = kcalloc(table_entries, size, GFP_KERNEL);
 	if (hwmgr->ps == NULL)
 		return -ENOMEM;
 

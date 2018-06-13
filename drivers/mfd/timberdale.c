@@ -707,8 +707,8 @@ static int timb_probe(struct pci_dev *dev,
 		goto err_config;
 	}
 
-	msix_entries = kzalloc(TIMBERDALE_NR_IRQS * sizeof(*msix_entries),
-		GFP_KERNEL);
+	msix_entries = kcalloc(TIMBERDALE_NR_IRQS, sizeof(*msix_entries),
+			       GFP_KERNEL);
 	if (!msix_entries)
 		goto err_config;
 

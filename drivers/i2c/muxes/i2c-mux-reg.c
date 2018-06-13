@@ -124,8 +124,8 @@ static int i2c_mux_reg_probe_dt(struct regmux *mux,
 	}
 	mux->data.write_only = of_property_read_bool(np, "write-only");
 
-	values = devm_kzalloc(&pdev->dev,
-			      sizeof(*mux->data.values) * mux->data.n_values,
+	values = devm_kcalloc(&pdev->dev,
+			      mux->data.n_values, sizeof(*mux->data.values),
 			      GFP_KERNEL);
 	if (!values) {
 		dev_err(&pdev->dev, "Cannot allocate values array");

@@ -778,7 +778,7 @@ bnx2_alloc_rx_mem(struct bnx2 *bp)
 		int j;
 
 		rxr->rx_buf_ring =
-			vzalloc(SW_RXBD_RING_SIZE * bp->rx_max_ring);
+			vzalloc(array_size(SW_RXBD_RING_SIZE, bp->rx_max_ring));
 		if (!rxr->rx_buf_ring)
 			return -ENOMEM;
 
@@ -794,8 +794,9 @@ bnx2_alloc_rx_mem(struct bnx2 *bp)
 		}
 
 		if (bp->rx_pg_ring_size) {
-			rxr->rx_pg_ring = vzalloc(SW_RXPG_RING_SIZE *
-						  bp->rx_max_pg_ring);
+			rxr->rx_pg_ring =
+				vzalloc(array_size(SW_RXPG_RING_SIZE,
+						   bp->rx_max_pg_ring));
 			if (!rxr->rx_pg_ring)
 				return -ENOMEM;
 
@@ -2666,7 +2667,7 @@ bnx2_alloc_bad_rbuf(struct bnx2 *bp)
 	u32 good_mbuf_cnt;
 	u32 val;
 
-	good_mbuf = kmalloc(512 * sizeof(u16), GFP_KERNEL);
+	good_mbuf = kmalloc_array(512, sizeof(u16), GFP_KERNEL);
 	if (!good_mbuf)
 		return -ENOMEM;
 

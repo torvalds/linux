@@ -121,8 +121,8 @@ static int msg_empty_list_init(struct sst_generic_ipc *ipc)
 {
 	int i;
 
-	ipc->msg = kzalloc(sizeof(struct ipc_message) *
-		IPC_EMPTY_LIST_SIZE, GFP_KERNEL);
+	ipc->msg = kcalloc(IPC_EMPTY_LIST_SIZE, sizeof(struct ipc_message),
+			   GFP_KERNEL);
 	if (ipc->msg == NULL)
 		return -ENOMEM;
 

@@ -5303,7 +5303,7 @@ static int nf_tables_flowtable_parse_hook(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
-	ops = kzalloc(sizeof(struct nf_hook_ops) * n, GFP_KERNEL);
+	ops = kcalloc(n, sizeof(struct nf_hook_ops), GFP_KERNEL);
 	if (!ops)
 		return -ENOMEM;
 
@@ -7164,8 +7164,8 @@ static int __init nf_tables_module_init(void)
 
 	nft_chain_filter_init();
 
-	info = kmalloc(sizeof(struct nft_expr_info) * NFT_RULE_MAXEXPRS,
-		       GFP_KERNEL);
+	info = kmalloc_array(NFT_RULE_MAXEXPRS, sizeof(struct nft_expr_info),
+			     GFP_KERNEL);
 	if (info == NULL) {
 		err = -ENOMEM;
 		goto err1;

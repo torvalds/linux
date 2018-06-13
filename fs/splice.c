@@ -259,8 +259,9 @@ int splice_grow_spd(const struct pipe_inode_info *pipe, struct splice_pipe_desc 
 	if (buffers <= PIPE_DEF_BUFFERS)
 		return 0;
 
-	spd->pages = kmalloc(buffers * sizeof(struct page *), GFP_KERNEL);
-	spd->partial = kmalloc(buffers * sizeof(struct partial_page), GFP_KERNEL);
+	spd->pages = kmalloc_array(buffers, sizeof(struct page *), GFP_KERNEL);
+	spd->partial = kmalloc_array(buffers, sizeof(struct partial_page),
+				     GFP_KERNEL);
 
 	if (spd->pages && spd->partial)
 		return 0;
@@ -395,7 +396,7 @@ static ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 
 	vec = __vec;
 	if (nr_pages > PIPE_DEF_BUFFERS) {
-		vec = kmalloc(nr_pages * sizeof(struct kvec), GFP_KERNEL);
+		vec = kmalloc_array(nr_pages, sizeof(struct kvec), GFP_KERNEL);
 		if (unlikely(!vec)) {
 			res = -ENOMEM;
 			goto out;

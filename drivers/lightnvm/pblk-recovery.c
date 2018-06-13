@@ -260,7 +260,7 @@ static int pblk_recov_pad_oob(struct pblk *pblk, struct pblk_line *line,
 	if (!pad_rq)
 		return -ENOMEM;
 
-	data = vzalloc(pblk->max_write_pgs * geo->csecs);
+	data = vzalloc(array_size(pblk->max_write_pgs, geo->csecs));
 	if (!data) {
 		ret = -ENOMEM;
 		goto free_rq;

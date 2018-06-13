@@ -501,7 +501,7 @@ static int au1100fb_drv_probe(struct platform_device *dev)
 	fbdev->info.fix = au1100fb_fix;
 
 	fbdev->info.pseudo_palette =
-		devm_kzalloc(&dev->dev, sizeof(u32) * 16, GFP_KERNEL);
+		devm_kcalloc(&dev->dev, 16, sizeof(u32), GFP_KERNEL);
 	if (!fbdev->info.pseudo_palette)
 		return -ENOMEM;
 

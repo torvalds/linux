@@ -740,7 +740,8 @@ int mlxsw_sp_tc_qdisc_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	mlxsw_sp_port->root_qdisc->prio_bitmap = 0xff;
 	mlxsw_sp_port->root_qdisc->tclass_num = MLXSW_SP_PORT_DEFAULT_TCLASS;
 
-	mlxsw_sp_qdisc = kzalloc(sizeof(*mlxsw_sp_qdisc) * IEEE_8021QAZ_MAX_TCS,
+	mlxsw_sp_qdisc = kcalloc(IEEE_8021QAZ_MAX_TCS,
+				 sizeof(*mlxsw_sp_qdisc),
 				 GFP_KERNEL);
 	if (!mlxsw_sp_qdisc)
 		goto err_tclass_qdiscs_init;

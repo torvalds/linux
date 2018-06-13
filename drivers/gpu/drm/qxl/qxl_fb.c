@@ -241,7 +241,7 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 	DRM_DEBUG_DRIVER("%dx%d %d\n", mode_cmd.width,
 			 mode_cmd.height, mode_cmd.pitches[0]);
 
-	shadow = vmalloc(mode_cmd.pitches[0] * mode_cmd.height);
+	shadow = vmalloc(array_size(mode_cmd.pitches[0], mode_cmd.height));
 	/* TODO: what's the usual response to memory allocation errors? */
 	BUG_ON(!shadow);
 	DRM_DEBUG_DRIVER("surface0 at gpu offset %lld, mmap_offset %lld (virt %p, shadow %p)\n",

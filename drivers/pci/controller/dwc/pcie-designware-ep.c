@@ -366,19 +366,21 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 		return -EINVAL;
 	}
 
-	ep->ib_window_map = devm_kzalloc(dev, sizeof(long) *
+	ep->ib_window_map = devm_kcalloc(dev,
 					 BITS_TO_LONGS(ep->num_ib_windows),
+					 sizeof(long),
 					 GFP_KERNEL);
 	if (!ep->ib_window_map)
 		return -ENOMEM;
 
-	ep->ob_window_map = devm_kzalloc(dev, sizeof(long) *
+	ep->ob_window_map = devm_kcalloc(dev,
 					 BITS_TO_LONGS(ep->num_ob_windows),
+					 sizeof(long),
 					 GFP_KERNEL);
 	if (!ep->ob_window_map)
 		return -ENOMEM;
 
-	addr = devm_kzalloc(dev, sizeof(phys_addr_t) * ep->num_ob_windows,
+	addr = devm_kcalloc(dev, ep->num_ob_windows, sizeof(phys_addr_t),
 			    GFP_KERNEL);
 	if (!addr)
 		return -ENOMEM;

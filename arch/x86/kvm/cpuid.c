@@ -203,8 +203,9 @@ int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
 		goto out;
 	r = -ENOMEM;
 	if (cpuid->nent) {
-		cpuid_entries = vmalloc(sizeof(struct kvm_cpuid_entry) *
-					cpuid->nent);
+		cpuid_entries =
+			vmalloc(array_size(sizeof(struct kvm_cpuid_entry),
+					   cpuid->nent));
 		if (!cpuid_entries)
 			goto out;
 		r = -EFAULT;
@@ -785,7 +786,8 @@ int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
 		return -EINVAL;
 
 	r = -ENOMEM;
-	cpuid_entries = vzalloc(sizeof(struct kvm_cpuid_entry2) * cpuid->nent);
+	cpuid_entries = vzalloc(array_size(sizeof(struct kvm_cpuid_entry2),
+					   cpuid->nent));
 	if (!cpuid_entries)
 		goto out;
 

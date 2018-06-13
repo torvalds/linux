@@ -369,7 +369,8 @@ int amdgpu_gart_init(struct amdgpu_device *adev)
 
 #ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
 	/* Allocate pages table */
-	adev->gart.pages = vzalloc(sizeof(void *) * adev->gart.num_cpu_pages);
+	adev->gart.pages = vzalloc(array_size(sizeof(void *),
+					      adev->gart.num_cpu_pages));
 	if (adev->gart.pages == NULL)
 		return -ENOMEM;
 #endif

@@ -2268,7 +2268,8 @@ static int capidrv_addcontr(u16 contr, struct capi_profile *profp)
 	strcpy(card->name, id);
 	card->contrnr = contr;
 	card->nbchan = profp->nbchannel;
-	card->bchans = kmalloc(sizeof(capidrv_bchan) * card->nbchan, GFP_ATOMIC);
+	card->bchans = kmalloc_array(card->nbchan, sizeof(capidrv_bchan),
+				     GFP_ATOMIC);
 	if (!card->bchans) {
 		printk(KERN_WARNING
 		       "capidrv: (%s) Could not allocate bchan-structs.\n", id);

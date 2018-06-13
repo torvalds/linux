@@ -1536,11 +1536,11 @@ int self_check_eba(struct ubi_device *ubi, struct ubi_attach_info *ai_fastmap,
 
 	num_volumes = ubi->vtbl_slots + UBI_INT_VOL_COUNT;
 
-	scan_eba = kmalloc(sizeof(*scan_eba) * num_volumes, GFP_KERNEL);
+	scan_eba = kmalloc_array(num_volumes, sizeof(*scan_eba), GFP_KERNEL);
 	if (!scan_eba)
 		return -ENOMEM;
 
-	fm_eba = kmalloc(sizeof(*fm_eba) * num_volumes, GFP_KERNEL);
+	fm_eba = kmalloc_array(num_volumes, sizeof(*fm_eba), GFP_KERNEL);
 	if (!fm_eba) {
 		kfree(scan_eba);
 		return -ENOMEM;
@@ -1551,15 +1551,17 @@ int self_check_eba(struct ubi_device *ubi, struct ubi_attach_info *ai_fastmap,
 		if (!vol)
 			continue;
 
-		scan_eba[i] = kmalloc(vol->reserved_pebs * sizeof(**scan_eba),
-				      GFP_KERNEL);
+		scan_eba[i] = kmalloc_array(vol->reserved_pebs,
+					    sizeof(**scan_eba),
+					    GFP_KERNEL);
 		if (!scan_eba[i]) {
 			ret = -ENOMEM;
 			goto out_free;
 		}
 
-		fm_eba[i] = kmalloc(vol->reserved_pebs * sizeof(**fm_eba),
-				    GFP_KERNEL);
+		fm_eba[i] = kmalloc_array(vol->reserved_pebs,
+					  sizeof(**fm_eba),
+					  GFP_KERNEL);
 		if (!fm_eba[i]) {
 			ret = -ENOMEM;
 			goto out_free;
