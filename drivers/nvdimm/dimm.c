@@ -34,6 +34,9 @@ static int nvdimm_probe(struct device *dev)
 		return rc;
 	}
 
+	/* reset locked, to be validated below... */
+	nvdimm_clear_locked(dev);
+
 	ndd = kzalloc(sizeof(*ndd), GFP_KERNEL);
 	if (!ndd)
 		return -ENOMEM;
@@ -48,12 +51,30 @@ static int nvdimm_probe(struct device *dev)
 	get_device(dev);
 	kref_init(&ndd->kref);
 
+	/*
+	 * EACCES failures reading the namespace label-area-properties
+	 * are interpreted as the DIMM capacity being locked but the
+	 * namespace labels themselves being accessible.
+	 */
 	rc = nvdimm_init_nsarea(ndd);
-	if (rc == -EACCES)
+	if (rc == -EACCES) {
+		/*
+		 * See nvdimm_namespace_common_probe() where we fail to
+		 * allow namespaces to probe while the DIMM is locked,
+		 * but we do allow for namespace enumeration.
+		 */
 		nvdimm_set_locked(dev);
+		rc = 0;
+	}
 	if (rc)
 		goto err;
 
+	/*
+	 * EACCES failures reading the namespace label-data are
+	 * interpreted as the label area being locked in addition to the
+	 * DIMM capacity. We fail the dimm probe to prevent regions from
+	 * attempting to parse the label area.
+	 */
 	rc = nvdimm_init_config_data(ndd);
 	if (rc == -EACCES)
 		nvdimm_set_locked(dev);
@@ -72,7 +93,6 @@ static int nvdimm_probe(struct device *dev)
 		if (rc == 0)
 			nvdimm_set_aliasing(dev);
 	}
-	nvdimm_clear_locked(dev);
 	nvdimm_bus_unlock(dev);
 
 	if (rc)
