@@ -459,6 +459,19 @@ static void rdma_unfill_sgid_attr(struct rdma_ah_attr *ah_attr,
 	rdma_destroy_ah_attr(ah_attr);
 }
 
+static const struct ib_gid_attr *
+rdma_update_sgid_attr(struct rdma_ah_attr *ah_attr,
+		      const struct ib_gid_attr *old_attr)
+{
+	if (old_attr)
+		rdma_put_gid_attr(old_attr);
+	if (ah_attr->ah_flags & IB_AH_GRH) {
+		rdma_hold_gid_attr(ah_attr->grh.sgid_attr);
+		return ah_attr->grh.sgid_attr;
+	}
+	return NULL;
+}
+
 static struct ib_ah *_rdma_create_ah(struct ib_pd *pd,
 				     struct rdma_ah_attr *ah_attr,
 				     struct ib_udata *udata)
@@ -472,6 +485,8 @@ static struct ib_ah *_rdma_create_ah(struct ib_pd *pd,
 		ah->pd      = pd;
 		ah->uobject = NULL;
 		ah->type    = ah_attr->type;
+		ah->sgid_attr = rdma_update_sgid_attr(ah_attr, NULL);
+
 		atomic_inc(&pd->usecnt);
 	}
 
@@ -871,6 +886,7 @@ int rdma_modify_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr)
 		ah->device->modify_ah(ah, ah_attr) :
 		-EOPNOTSUPP;
 
+	ah->sgid_attr = rdma_update_sgid_attr(ah_attr, ah->sgid_attr);
 	rdma_unfill_sgid_attr(ah_attr, old_sgid_attr);
 	return ret;
 }
@@ -888,13 +904,17 @@ EXPORT_SYMBOL(rdma_query_ah);
 
 int rdma_destroy_ah(struct ib_ah *ah)
 {
+	const struct ib_gid_attr *sgid_attr = ah->sgid_attr;
 	struct ib_pd *pd;
 	int ret;
 
 	pd = ah->pd;
 	ret = ah->device->destroy_ah(ah);
-	if (!ret)
+	if (!ret) {
 		atomic_dec(&pd->usecnt);
+		if (sgid_attr)
+			rdma_put_gid_attr(sgid_attr);
+	}
 
 	return ret;
 }
@@ -1573,6 +1593,13 @@ static int _ib_modify_qp(struct ib_qp *qp, struct ib_qp_attr *attr,
 			return ret;
 	}
 	if (attr_mask & IB_QP_ALT_PATH) {
+		/*
+		 * FIXME: This does not track the migration state, so if the
+		 * user loads a new alternate path after the HW has migrated
+		 * from primary->alternate we will keep the wrong
+		 * references. This is OK for IB because the reference
+		 * counting does not serve any functional purpose.
+		 */
 		ret = rdma_fill_sgid_attr(qp->device, &attr->alt_ah_attr,
 					  &old_sgid_attr_alt_av);
 		if (ret)
@@ -1606,8 +1633,17 @@ static int _ib_modify_qp(struct ib_qp *qp, struct ib_qp_attr *attr,
 	}
 
 	ret = ib_security_modify_qp(qp, attr, attr_mask, udata);
-	if (!ret && (attr_mask & IB_QP_PORT))
+	if (ret)
+		goto out;
+
+	if (attr_mask & IB_QP_PORT)
 		qp->port = attr->port_num;
+	if (attr_mask & IB_QP_AV)
+		qp->av_sgid_attr =
+			rdma_update_sgid_attr(&attr->ah_attr, qp->av_sgid_attr);
+	if (attr_mask & IB_QP_ALT_PATH)
+		qp->alt_path_sgid_attr = rdma_update_sgid_attr(
+			&attr->alt_ah_attr, qp->alt_path_sgid_attr);
 
 out:
 	if (attr_mask & IB_QP_ALT_PATH)
@@ -1765,6 +1801,8 @@ static int __ib_destroy_shared_qp(struct ib_qp *qp)
 
 int ib_destroy_qp(struct ib_qp *qp)
 {
+	const struct ib_gid_attr *alt_path_sgid_attr = qp->alt_path_sgid_attr;
+	const struct ib_gid_attr *av_sgid_attr = qp->av_sgid_attr;
 	struct ib_pd *pd;
 	struct ib_cq *scq, *rcq;
 	struct ib_srq *srq;
@@ -1795,6 +1833,10 @@ int ib_destroy_qp(struct ib_qp *qp)
 	rdma_restrack_del(&qp->res);
 	ret = qp->device->destroy_qp(qp);
 	if (!ret) {
+		if (alt_path_sgid_attr)
+			rdma_put_gid_attr(alt_path_sgid_attr);
+		if (av_sgid_attr)
+			rdma_put_gid_attr(av_sgid_attr);
 		if (pd)
 			atomic_dec(&pd->usecnt);
 		if (scq)

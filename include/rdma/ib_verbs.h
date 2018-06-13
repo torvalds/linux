@@ -1580,6 +1580,7 @@ struct ib_ah {
 	struct ib_device	*device;
 	struct ib_pd		*pd;
 	struct ib_uobject	*uobject;
+	const struct ib_gid_attr *sgid_attr;
 	enum rdma_ah_attr_type	type;
 };
 
@@ -1778,6 +1779,9 @@ struct ib_qp {
 	struct ib_uobject      *uobject;
 	void                  (*event_handler)(struct ib_event *, void *);
 	void		       *qp_context;
+	/* sgid_attrs associated with the AV's */
+	const struct ib_gid_attr *av_sgid_attr;
+	const struct ib_gid_attr *alt_path_sgid_attr;
 	u32			qp_num;
 	u32			max_write_sge;
 	u32			max_read_sge;
