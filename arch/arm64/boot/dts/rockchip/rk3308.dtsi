@@ -1018,6 +1018,15 @@
 		status = "disabled";
 	};
 
+	sfc: sfc@ff4c0000 {
+		compatible = "rockchip,sfc";
+		reg = <0x0 0xff4c0000 0x0 0x4000>;
+		interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_SFC>, <&cru HCLK_SFC>;
+		clock-names = "clk_sfc", "hclk_sfc";
+		status = "disabled";
+	};
+
 	mac: ethernet@ff4e0000 {
 		compatible = "rockchip,rk3308-mac";
 		reg = <0x0 0xff4e0000 0x0 0x10000>;
