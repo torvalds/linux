@@ -236,6 +236,11 @@ int hwmgr_hw_init(struct pp_hwmgr *hwmgr)
 	ret = hwmgr->hwmgr_func->backend_init(hwmgr);
 	if (ret)
 		goto err1;
+ /* make sure dc limits are valid */
+	if ((hwmgr->dyn_state.max_clock_voltage_on_dc.sclk == 0) ||
+			(hwmgr->dyn_state.max_clock_voltage_on_dc.mclk == 0))
+			hwmgr->dyn_state.max_clock_voltage_on_dc =
+					hwmgr->dyn_state.max_clock_voltage_on_ac;
 
 	ret = psm_init_power_state_table(hwmgr);
 	if (ret)
