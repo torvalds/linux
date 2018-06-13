@@ -390,13 +390,10 @@ static void hsw_write_infoframe(struct drm_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	i915_reg_t ctl_reg = HSW_TVIDEO_DIP_CTL(cpu_transcoder);
-	i915_reg_t data_reg;
 	int data_size = type == DP_SDP_VSC ?
 		VIDEO_DIP_VSC_DATA_SIZE : VIDEO_DIP_DATA_SIZE;
 	int i;
 	u32 val = I915_READ(ctl_reg);
-
-	data_reg = hsw_dip_data_reg(dev_priv, cpu_transcoder, type, 0);
 
 	val &= ~hsw_infoframe_enable(type);
 	I915_WRITE(ctl_reg, val);
