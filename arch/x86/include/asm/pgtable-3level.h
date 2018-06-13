@@ -295,4 +295,6 @@ static inline pte_t gup_get_pte(pte_t *ptep)
 	return pte;
 }
 
+#include <asm/pgtable-invert.h>
+
 #endif /* _ASM_X86_PGTABLE_3LEVEL_H */

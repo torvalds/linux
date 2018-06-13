@@ -357,5 +357,7 @@ static inline bool gup_fast_permitted(unsigned long start, int nr_pages,
 	return true;
 }
 
+#include <asm/pgtable-invert.h>
+
 #endif /* !__ASSEMBLY__ */
 #endif /* _ASM_X86_PGTABLE_64_H */
