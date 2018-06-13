@@ -431,15 +431,15 @@ static const struct hwmon_channel_info nct7904_in = {
 };
 
 static const u32 nct7904_fan_config[] = {
-            HWMON_F_INPUT,
-            HWMON_F_INPUT,
-            HWMON_F_INPUT,
-            HWMON_F_INPUT,
-            HWMON_F_INPUT,
-            HWMON_F_INPUT,
-            HWMON_F_INPUT,
-            HWMON_F_INPUT,
-	    0
+	HWMON_F_INPUT,
+	HWMON_F_INPUT,
+	HWMON_F_INPUT,
+	HWMON_F_INPUT,
+	HWMON_F_INPUT,
+	HWMON_F_INPUT,
+	HWMON_F_INPUT,
+	HWMON_F_INPUT,
+	0
 };
 
 static const struct hwmon_channel_info nct7904_fan = {
@@ -448,11 +448,11 @@ static const struct hwmon_channel_info nct7904_fan = {
 };
 
 static const u32 nct7904_pwm_config[] = {
-            HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
-            HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
-            HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
-            HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
-	    0
+	HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
+	HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
+	HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
+	HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
+	0
 };
 
 static const struct hwmon_channel_info nct7904_pwm = {
@@ -461,16 +461,16 @@ static const struct hwmon_channel_info nct7904_pwm = {
 };
 
 static const u32 nct7904_temp_config[] = {
-            HWMON_T_INPUT,
-            HWMON_T_INPUT,
-            HWMON_T_INPUT,
-            HWMON_T_INPUT,
-            HWMON_T_INPUT,
-            HWMON_T_INPUT,
-            HWMON_T_INPUT,
-            HWMON_T_INPUT,
-            HWMON_T_INPUT,
-	    0
+	HWMON_T_INPUT,
+	HWMON_T_INPUT,
+	HWMON_T_INPUT,
+	HWMON_T_INPUT,
+	HWMON_T_INPUT,
+	HWMON_T_INPUT,
+	HWMON_T_INPUT,
+	HWMON_T_INPUT,
+	HWMON_T_INPUT,
+	0
 };
 
 static const struct hwmon_channel_info nct7904_temp = {
