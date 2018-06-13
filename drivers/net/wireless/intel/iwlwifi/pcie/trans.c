@@ -924,6 +924,20 @@ void iwl_pcie_apply_destination(struct iwl_trans *trans)
 	const struct iwl_fw_dbg_dest_tlv_v1 *dest = trans->dbg_dest_tlv;
 	int i;
 
+	if (trans->ini_valid) {
+		if (!trans->num_blocks)
+			return;
+
+		iwl_write_prph(trans, MON_BUFF_BASE_ADDR_VER2,
+			       trans->fw_mon[0].physical >>
+			       MON_BUFF_SHIFT_VER2);
+		iwl_write_prph(trans, MON_BUFF_END_ADDR_VER2,
+			       (trans->fw_mon[0].physical +
+				trans->fw_mon[0].size - 256) >>
+			       MON_BUFF_SHIFT_VER2);
+		return;
+	}
+
 	IWL_INFO(trans, "Applying debug destination %s\n",
 		 get_fw_dbg_mode_string(dest->monitor_mode));
 
@@ -1026,7 +1040,7 @@ static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 				       (trans->fw_mon[0].physical +
 					trans->fw_mon[0].size) >> 4);
 		}
-	} else if (trans->dbg_dest_tlv) {
+	} else if (iwl_pcie_dbg_on(trans)) {
 		iwl_pcie_apply_destination(trans);
 	}
 
@@ -1047,7 +1061,7 @@ static int iwl_pcie_load_given_ucode_8000(struct iwl_trans *trans,
 	IWL_DEBUG_FW(trans, "working with %s CPU\n",
 		     image->is_dual_cpus ? "Dual" : "Single");
 
-	if (trans->dbg_dest_tlv)
+	if (iwl_pcie_dbg_on(trans))
 		iwl_pcie_apply_destination(trans);
 
 	IWL_DEBUG_POWER(trans, "Original WFPM value = 0x%08X\n",
@@ -3015,6 +3029,34 @@ iwl_trans_pci_dump_marbh_monitor(struct iwl_trans *trans,
 	return monitor_len;
 }
 
+static void
+iwl_trans_pcie_dump_pointers(struct iwl_trans *trans,
+			     struct iwl_fw_error_dump_fw_mon *fw_mon_data)
+{
+	u32 base, write_ptr, wrap_cnt;
+
+	/* If there was a dest TLV - use the values from there */
+	if (trans->ini_valid) {
+		base = MON_BUFF_BASE_ADDR_VER2;
+		write_ptr = MON_BUFF_WRPTR_VER2;
+		wrap_cnt = MON_BUFF_CYCLE_CNT_VER2;
+	} else if (trans->dbg_dest_tlv) {
+		write_ptr = le32_to_cpu(trans->dbg_dest_tlv->write_ptr_reg);
+		wrap_cnt = le32_to_cpu(trans->dbg_dest_tlv->wrap_count);
+		base = le32_to_cpu(trans->dbg_dest_tlv->base_reg);
+	} else {
+		base = MON_BUFF_BASE_ADDR;
+		write_ptr = MON_BUFF_WRPTR;
+		wrap_cnt = MON_BUFF_CYCLE_CNT;
+	}
+	fw_mon_data->fw_mon_wr_ptr =
+		cpu_to_le32(iwl_read_prph(trans, write_ptr));
+	fw_mon_data->fw_mon_cycle_cnt =
+		cpu_to_le32(iwl_read_prph(trans, wrap_cnt));
+	fw_mon_data->fw_mon_base_ptr =
+		cpu_to_le32(iwl_read_prph(trans, base));
+}
+
 static u32
 iwl_trans_pcie_dump_monitor(struct iwl_trans *trans,
 			    struct iwl_fw_error_dump_data **data,
@@ -3024,30 +3066,14 @@ iwl_trans_pcie_dump_monitor(struct iwl_trans *trans,
 
 	if ((trans->num_blocks &&
 	     trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) ||
-	    trans->dbg_dest_tlv) {
+	     (trans->dbg_dest_tlv && !trans->ini_valid) ||
+	     (trans->ini_valid && trans->num_blocks)) {
 		struct iwl_fw_error_dump_fw_mon *fw_mon_data;
-		u32 base, write_ptr, wrap_cnt;
-
-		/* If there was a dest TLV - use the values from there */
-		if (trans->dbg_dest_tlv) {
-			write_ptr =
-				le32_to_cpu(trans->dbg_dest_tlv->write_ptr_reg);
-			wrap_cnt = le32_to_cpu(trans->dbg_dest_tlv->wrap_count);
-			base = le32_to_cpu(trans->dbg_dest_tlv->base_reg);
-		} else {
-			base = MON_BUFF_BASE_ADDR;
-			write_ptr = MON_BUFF_WRPTR;
-			wrap_cnt = MON_BUFF_CYCLE_CNT;
-		}
 
 		(*data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_FW_MONITOR);
 		fw_mon_data = (void *)(*data)->data;
-		fw_mon_data->fw_mon_wr_ptr =
-			cpu_to_le32(iwl_read_prph(trans, write_ptr));
-		fw_mon_data->fw_mon_cycle_cnt =
-			cpu_to_le32(iwl_read_prph(trans, wrap_cnt));
-		fw_mon_data->fw_mon_base_ptr =
-			cpu_to_le32(iwl_read_prph(trans, base));
+
+		iwl_trans_pcie_dump_pointers(trans, fw_mon_data);
 
 		len += sizeof(**data) + sizeof(*fw_mon_data);
 		if (trans->num_blocks) {
@@ -3057,6 +3083,7 @@ iwl_trans_pcie_dump_monitor(struct iwl_trans *trans,
 
 			monitor_len = trans->fw_mon[0].size;
 		} else if (trans->dbg_dest_tlv->monitor_mode == SMEM_MODE) {
+			u32 base = le32_to_cpu(fw_mon_data->fw_mon_base_ptr);
 			/*
 			 * Update pointers to reflect actual values after
 			 * shifting

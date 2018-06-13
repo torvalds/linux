@@ -1009,6 +1009,11 @@ static inline void __iwl_trans_pcie_set_bit(struct iwl_trans *trans,
 	__iwl_trans_pcie_set_bits_mask(trans, reg, mask, mask);
 }
 
+static inline bool iwl_pcie_dbg_on(struct iwl_trans *trans)
+{
+	return (trans->dbg_dest_tlv || trans->ini_valid);
+}
+
 void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state);
 void iwl_trans_pcie_dump_regs(struct iwl_trans *trans);
 
