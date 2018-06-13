@@ -347,6 +347,7 @@ bool amdgpu_vm_ready(struct amdgpu_vm *vm)
  * @vm: VM to clear BO from
  * @bo: BO to clear
  * @level: level this BO is at
+ * @pte_support_ats: indicate ATS support from PTE
  *
  * Root PD needs to be reserved when calling this.
  *
@@ -673,6 +674,7 @@ bool amdgpu_vm_need_pipeline_sync(struct amdgpu_ring *ring,
  * amdgpu_vm_flush - hardware flush the vm
  *
  * @ring: ring to use for flush
+ * @job:  related job
  * @need_pipe_sync: is pipe sync needed
  *
  * Emit a VM flush when it is necessary.
@@ -1763,6 +1765,7 @@ static void amdgpu_vm_prt_put(struct amdgpu_device *adev)
  * amdgpu_vm_prt_cb - callback for updating the PRT status
  *
  * @fence: fence for the callback
+ * @_cb: the callback function
  */
 static void amdgpu_vm_prt_cb(struct dma_fence *fence, struct dma_fence_cb *_cb)
 {
@@ -2041,6 +2044,7 @@ static void amdgpu_vm_bo_insert_map(struct amdgpu_device *adev,
  * @bo_va: bo_va to store the address
  * @saddr: where to map the BO
  * @offset: requested offset in the BO
+ * @size: BO size in bytes
  * @flags: attributes of pages (read/write/valid/etc.)
  *
  * Add a mapping of the BO at the specefied addr into the VM.
@@ -2104,6 +2108,7 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
  * @bo_va: bo_va to store the address
  * @saddr: where to map the BO
  * @offset: requested offset in the BO
+ * @size: BO size in bytes
  * @flags: attributes of pages (read/write/valid/etc.)
  *
  * Add a mapping of the BO at the specefied addr into the VM. Replace existing
@@ -2322,6 +2327,7 @@ int amdgpu_vm_bo_clear_mappings(struct amdgpu_device *adev,
  * amdgpu_vm_bo_lookup_mapping - find mapping by address
  *
  * @vm: the requested VM
+ * @addr: the address
  *
  * Find a mapping by it's address.
  *
@@ -2380,6 +2386,7 @@ void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
  *
  * @adev: amdgpu_device pointer
  * @bo: amdgpu buffer object
+ * @evicted: is the BO evicted
  *
  * Mark @bo as invalid.
  */
@@ -2445,6 +2452,10 @@ static uint32_t amdgpu_vm_get_block_size(uint64_t vm_size)
  *
  * @adev: amdgpu_device pointer
  * @vm_size: the default vm size if it's set auto
+ * @fragment_size_default: Default PTE fragment size
+ * @max_level: max VMPT level
+ * @max_bits: max address space size in bits
+ *
  */
 void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t vm_size,
 			   uint32_t fragment_size_default, unsigned max_level,
@@ -2512,6 +2523,7 @@ void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t vm_size,
  * @adev: amdgpu_device pointer
  * @vm: requested vm
  * @vm_context: Indicates if it GFX or Compute context
+ * @pasid: Process address space identifier
  *
  * Init @vm fields.
  *
