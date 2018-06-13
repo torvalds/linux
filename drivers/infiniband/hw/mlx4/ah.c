@@ -105,9 +105,7 @@ static struct ib_ah *create_iboe_ah(struct ib_pd *pd,
 		vlan_tag |= (rdma_ah_get_sl(ah_attr) & 7) << 13;
 	ah->av.eth.port_pd = cpu_to_be32(to_mpd(pd)->pdn |
 					 (rdma_ah_get_port_num(ah_attr) << 24));
-	ret = mlx4_ib_gid_index_to_real_index(ibdev,
-					      rdma_ah_get_port_num(ah_attr),
-					      grh->sgid_index);
+	ret = mlx4_ib_gid_index_to_real_index(ibdev, gid_attr);
 	if (ret < 0)
 		return ERR_PTR(ret);
 	ah->av.eth.gid_index = ret;

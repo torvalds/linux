@@ -1859,8 +1859,7 @@ static int _mlx4_set_path(struct mlx4_ib_dev *dev,
 	if (rdma_ah_get_ah_flags(ah) & IB_AH_GRH) {
 		const struct ib_global_route *grh = rdma_ah_read_grh(ah);
 		int real_sgid_index =
-			mlx4_ib_gid_index_to_real_index(dev, port,
-							grh->sgid_index);
+			mlx4_ib_gid_index_to_real_index(dev, grh->sgid_attr);
 
 		if (real_sgid_index < 0)
 			return real_sgid_index;

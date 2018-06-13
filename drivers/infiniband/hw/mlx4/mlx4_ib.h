@@ -900,7 +900,7 @@ int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
 			  int mr_access_flags, struct ib_pd *pd,
 			  struct ib_udata *udata);
 int mlx4_ib_gid_index_to_real_index(struct mlx4_ib_dev *ibdev,
-				    u8 port_num, int index);
+				    const struct ib_gid_attr *attr);
 
 void mlx4_sched_ib_sl2vl_update_work(struct mlx4_ib_dev *ibdev,
 				     int port);
