@@ -141,9 +141,9 @@ gm200_vmm_16 = {
 int
 gm200_vmm_new_(const struct nvkm_vmm_func *func_16,
 	       const struct nvkm_vmm_func *func_17,
-	       struct nvkm_mmu *mmu, u64 addr, u64 size, void *argv, u32 argc,
-	       struct lock_class_key *key, const char *name,
-	       struct nvkm_vmm **pvmm)
+	       struct nvkm_mmu *mmu, bool managed, u64 addr, u64 size,
+	       void *argv, u32 argc, struct lock_class_key *key,
+	       const char *name, struct nvkm_vmm **pvmm)
 {
 	const struct nvkm_vmm_func *func;
 	union {
@@ -165,23 +165,23 @@ gm200_vmm_new_(const struct nvkm_vmm_func *func_16,
 	} else
 		return ret;
 
-	return nvkm_vmm_new_(func, mmu, 0, addr, size, key, name, pvmm);
+	return nvkm_vmm_new_(func, mmu, 0, managed, addr, size, key, name, pvmm);
 }
 
 int
-gm200_vmm_new(struct nvkm_mmu *mmu, u64 addr, u64 size, void *argv, u32 argc,
-	      struct lock_class_key *key, const char *name,
-	      struct nvkm_vmm **pvmm)
+gm200_vmm_new(struct nvkm_mmu *mmu, bool managed, u64 addr, u64 size,
+	      void *argv, u32 argc, struct lock_class_key *key,
+	      const char *name, struct nvkm_vmm **pvmm)
 {
-	return gm200_vmm_new_(&gm200_vmm_16, &gm200_vmm_17, mmu, addr,
+	return gm200_vmm_new_(&gm200_vmm_16, &gm200_vmm_17, mmu, managed, addr,
 			      size, argv, argc, key, name, pvmm);
 }
 
 int
-gm200_vmm_new_fixed(struct nvkm_mmu *mmu, u64 addr, u64 size,
+gm200_vmm_new_fixed(struct nvkm_mmu *mmu, bool managed, u64 addr, u64 size,
 		    void *argv, u32 argc, struct lock_class_key *key,
 		    const char *name, struct nvkm_vmm **pvmm)
 {
-	return gf100_vmm_new_(&gm200_vmm_16, &gm200_vmm_17, mmu, addr,
+	return gf100_vmm_new_(&gm200_vmm_16, &gm200_vmm_17, mmu, managed, addr,
 			      size, argv, argc, key, name, pvmm);
 }

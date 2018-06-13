@@ -400,14 +400,14 @@ gf100_vmm_16 = {
 int
 gf100_vmm_new_(const struct nvkm_vmm_func *func_16,
 	       const struct nvkm_vmm_func *func_17,
-	       struct nvkm_mmu *mmu, u64 addr, u64 size, void *argv, u32 argc,
-	       struct lock_class_key *key, const char *name,
-	       struct nvkm_vmm **pvmm)
+	       struct nvkm_mmu *mmu, bool managed, u64 addr, u64 size,
+	       void *argv, u32 argc, struct lock_class_key *key,
+	       const char *name, struct nvkm_vmm **pvmm)
 {
 	switch (mmu->subdev.device->fb->page) {
-	case 16: return nv04_vmm_new_(func_16, mmu, 0, addr, size,
+	case 16: return nv04_vmm_new_(func_16, mmu, 0, managed, addr, size,
 				      argv, argc, key, name, pvmm);
-	case 17: return nv04_vmm_new_(func_17, mmu, 0, addr, size,
+	case 17: return nv04_vmm_new_(func_17, mmu, 0, managed, addr, size,
 				      argv, argc, key, name, pvmm);
 	default:
 		WARN_ON(1);
@@ -416,10 +416,10 @@ gf100_vmm_new_(const struct nvkm_vmm_func *func_16,
 }
 
 int
-gf100_vmm_new(struct nvkm_mmu *mmu, u64 addr, u64 size, void *argv, u32 argc,
-	      struct lock_class_key *key, const char *name,
-	      struct nvkm_vmm **pvmm)
+gf100_vmm_new(struct nvkm_mmu *mmu, bool managed, u64 addr, u64 size,
+	      void *argv, u32 argc, struct lock_class_key *key,
+	      const char *name, struct nvkm_vmm **pvmm)
 {
-	return gf100_vmm_new_(&gf100_vmm_16, &gf100_vmm_17, mmu, addr,
+	return gf100_vmm_new_(&gf100_vmm_16, &gf100_vmm_17, mmu, managed, addr,
 			      size, argv, argc, key, name, pvmm);
 }

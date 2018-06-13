@@ -41,10 +41,10 @@ gp10b_vmm = {
 };
 
 int
-gp10b_vmm_new(struct nvkm_mmu *mmu, u64 addr, u64 size, void *argv, u32 argc,
-	      struct lock_class_key *key, const char *name,
-	      struct nvkm_vmm **pvmm)
+gp10b_vmm_new(struct nvkm_mmu *mmu, bool managed, u64 addr, u64 size,
+	      void *argv, u32 argc, struct lock_class_key *key,
+	      const char *name, struct nvkm_vmm **pvmm)
 {
-	return nv04_vmm_new_(&gp10b_vmm, mmu, 0, addr, size,
+	return nv04_vmm_new_(&gp10b_vmm, mmu, 0, managed, addr, size,
 			     argv, argc, key, name, pvmm);
 }

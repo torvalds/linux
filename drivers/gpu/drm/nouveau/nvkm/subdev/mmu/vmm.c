@@ -972,16 +972,32 @@ nvkm_vmm_dtor(struct nvkm_vmm *vmm)
 	}
 }
 
+static int
+nvkm_vmm_ctor_managed(struct nvkm_vmm *vmm, u64 addr, u64 size)
+{
+	struct nvkm_vma *vma;
+	if (!(vma = nvkm_vma_new(addr, size)))
+		return -ENOMEM;
+	vma->mapref = true;
+	vma->sparse = false;
+	vma->used = true;
+	vma->user = true;
+	nvkm_vmm_node_insert(vmm, vma);
+	list_add_tail(&vma->head, &vmm->list);
+	return 0;
+}
+
 int
 nvkm_vmm_ctor(const struct nvkm_vmm_func *func, struct nvkm_mmu *mmu,
-	      u32 pd_header, u64 addr, u64 size, struct lock_class_key *key,
-	      const char *name, struct nvkm_vmm *vmm)
+	      u32 pd_header, bool managed, u64 addr, u64 size,
+	      struct lock_class_key *key, const char *name,
+	      struct nvkm_vmm *vmm)
 {
 	static struct lock_class_key _key;
 	const struct nvkm_vmm_page *page = func->page;
 	const struct nvkm_vmm_desc *desc;
 	struct nvkm_vma *vma;
-	int levels, bits = 0;
+	int levels, bits = 0, ret;
 
 	vmm->func = func;
 	vmm->mmu = mmu;
@@ -1009,11 +1025,6 @@ nvkm_vmm_ctor(const struct nvkm_vmm_func *func, struct nvkm_mmu *mmu,
 	if (WARN_ON(levels > NVKM_VMM_LEVELS_MAX))
 		return -EINVAL;
 
-	vmm->start = addr;
-	vmm->limit = size ? (addr + size) : (1ULL << bits);
-	if (vmm->start > vmm->limit || vmm->limit > (1ULL << bits))
-		return -EINVAL;
-
 	/* Allocate top-level page table. */
 	vmm->pd = nvkm_vmm_pt_new(desc, false, NULL);
 	if (!vmm->pd)
@@ -1036,22 +1047,61 @@ nvkm_vmm_ctor(const struct nvkm_vmm_func *func, struct nvkm_mmu *mmu,
 	vmm->free = RB_ROOT;
 	vmm->root = RB_ROOT;
 
-	if (!(vma = nvkm_vma_new(vmm->start, vmm->limit - vmm->start)))
-		return -ENOMEM;
+	if (managed) {
+		/* Address-space will be managed by the client for the most
+		 * part, except for a specified area where NVKM allocations
+		 * are allowed to be placed.
+		 */
+		vmm->start = 0;
+		vmm->limit = 1ULL << bits;
+		if (addr + size < addr || addr + size > vmm->limit)
+			return -EINVAL;
 
-	nvkm_vmm_free_insert(vmm, vma);
-	list_add(&vma->head, &vmm->list);
+		/* Client-managed area before the NVKM-managed area. */
+		if (addr && (ret = nvkm_vmm_ctor_managed(vmm, 0, addr)))
+			return ret;
+
+		/* NVKM-managed area. */
+		if (size) {
+			if (!(vma = nvkm_vma_new(addr, size)))
+				return -ENOMEM;
+			nvkm_vmm_free_insert(vmm, vma);
+			list_add_tail(&vma->head, &vmm->list);
+		}
+
+		/* Client-managed area after the NVKM-managed area. */
+		addr = addr + size;
+		size = vmm->limit - addr;
+		if (size && (ret = nvkm_vmm_ctor_managed(vmm, addr, size)))
+			return ret;
+	} else {
+		/* Address-space fully managed by NVKM, requiring calls to
+		 * nvkm_vmm_get()/nvkm_vmm_put() to allocate address-space.
+		 */
+		vmm->start = addr;
+		vmm->limit = size ? (addr + size) : (1ULL << bits);
+		if (vmm->start > vmm->limit || vmm->limit > (1ULL << bits))
+			return -EINVAL;
+
+		if (!(vma = nvkm_vma_new(vmm->start, vmm->limit - vmm->start)))
+			return -ENOMEM;
+
+		nvkm_vmm_free_insert(vmm, vma);
+		list_add(&vma->head, &vmm->list);
+	}
+
 	return 0;
 }
 
 int
 nvkm_vmm_new_(const struct nvkm_vmm_func *func, struct nvkm_mmu *mmu,
-	      u32 hdr, u64 addr, u64 size, struct lock_class_key *key,
-	      const char *name, struct nvkm_vmm **pvmm)
+	      u32 hdr, bool managed, u64 addr, u64 size,
+	      struct lock_class_key *key, const char *name,
+	      struct nvkm_vmm **pvmm)
 {
 	if (!(*pvmm = kzalloc(sizeof(**pvmm), GFP_KERNEL)))
 		return -ENOMEM;
-	return nvkm_vmm_ctor(func, mmu, hdr, addr, size, key, name, *pvmm);
+	return nvkm_vmm_ctor(func, mmu, hdr, managed, addr, size, key, name, *pvmm);
 }
 
 void
@@ -1584,7 +1634,8 @@ nvkm_vmm_new(struct nvkm_device *device, u64 addr, u64 size, void *argv,
 	struct nvkm_mmu *mmu = device->mmu;
 	struct nvkm_vmm *vmm = NULL;
 	int ret;
-	ret = mmu->func->vmm.ctor(mmu, addr, size, argv, argc, key, name, &vmm);
+	ret = mmu->func->vmm.ctor(mmu, false, addr, size, argv, argc,
+				  key, name, &vmm);
 	if (ret)
 		nvkm_vmm_unref(&vmm);
 	*pvmm = vmm;

@@ -3,7 +3,8 @@
 struct nvif_vmm_v0 {
 	__u8  version;
 	__u8  page_nr;
-	__u8  pad02[6];
+	__u8  managed;
+	__u8  pad03[5];
 	__u64 addr;
 	__u64 size;
 	__u8  data[];

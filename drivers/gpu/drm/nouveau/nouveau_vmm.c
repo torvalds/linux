@@ -126,7 +126,7 @@ nouveau_vmm_fini(struct nouveau_vmm *vmm)
 int
 nouveau_vmm_init(struct nouveau_cli *cli, s32 oclass, struct nouveau_vmm *vmm)
 {
-	int ret = nvif_vmm_init(&cli->mmu, oclass, PAGE_SIZE, 0, NULL, 0,
+	int ret = nvif_vmm_init(&cli->mmu, oclass, false, PAGE_SIZE, 0, NULL, 0,
 				&vmm->vmm);
 	if (ret)
 		return ret;

@@ -95,10 +95,10 @@ gk104_vmm_16 = {
 };
 
 int
-gk104_vmm_new(struct nvkm_mmu *mmu, u64 addr, u64 size, void *argv, u32 argc,
-	      struct lock_class_key *key, const char *name,
-	      struct nvkm_vmm **pvmm)
+gk104_vmm_new(struct nvkm_mmu *mmu, bool managed, u64 addr, u64 size,
+	      void *argv, u32 argc, struct lock_class_key *key,
+	      const char *name, struct nvkm_vmm **pvmm)
 {
-	return gf100_vmm_new_(&gk104_vmm_16, &gk104_vmm_17, mmu, addr,
+	return gf100_vmm_new_(&gk104_vmm_16, &gk104_vmm_17, mmu, managed, addr,
 			      size, argv, argc, key, name, pvmm);
 }

@@ -304,8 +304,10 @@ nvkm_uvmm_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	struct nvkm_uvmm *uvmm;
 	int ret = -ENOSYS;
 	u64 addr, size;
+	bool managed;
 
 	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, more))) {
+		managed = args->v0.managed != 0;
 		addr = args->v0.addr;
 		size = args->v0.size;
 	} else
@@ -317,7 +319,7 @@ nvkm_uvmm_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	*pobject = &uvmm->object;
 
 	if (!mmu->vmm) {
-		ret = mmu->func->vmm.ctor(mmu, addr, size, argv, argc,
+		ret = mmu->func->vmm.ctor(mmu, managed, addr, size, argv, argc,
 					  NULL, "user", &uvmm->vmm);
 		if (ret)
 			return ret;
