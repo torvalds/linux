@@ -63,27 +63,28 @@ struct dm_region_hash {
 
 	/* hash table */
 	rwlock_t hash_lock;
-	mempool_t region_pool;
 	unsigned mask;
 	unsigned nr_buckets;
 	unsigned prime;
 	unsigned shift;
 	struct list_head *buckets;
 
-	unsigned max_recovery; /* Max # of regions to recover in parallel */
-
-	spinlock_t region_lock;
-	atomic_t recovery_in_flight;
-	struct semaphore recovery_count;
-	struct list_head clean_regions;
-	struct list_head quiesced_regions;
-	struct list_head recovered_regions;
-	struct list_head failed_recovered_regions;
-
 	/*
 	 * If there was a flush failure no regions can be marked clean.
 	 */
 	int flush_failure;
+
+	unsigned max_recovery; /* Max # of regions to recover in parallel */
+
+	spinlock_t region_lock;
+	atomic_t recovery_in_flight;
+	struct list_head clean_regions;
+	struct list_head quiesced_regions;
+	struct list_head recovered_regions;
+	struct list_head failed_recovered_regions;
+	struct semaphore recovery_count;
+
+	mempool_t region_pool;
 
 	void *context;
 	sector_t target_begin;

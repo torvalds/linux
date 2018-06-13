@@ -371,7 +371,13 @@ struct cache_stats {
 
 struct cache {
 	struct dm_target *ti;
-	struct dm_target_callbacks callbacks;
+	spinlock_t lock;
+
+	/*
+	 * Fields for converting from sectors to blocks.
+	 */
+	int sectors_per_block_shift;
+	sector_t sectors_per_block;
 
 	struct dm_cache_metadata *cmd;
 
@@ -402,13 +408,11 @@ struct cache {
 	dm_cblock_t cache_size;
 
 	/*
-	 * Fields for converting from sectors to blocks.
+	 * Invalidation fields.
 	 */
-	sector_t sectors_per_block;
-	int sectors_per_block_shift;
+	spinlock_t invalidation_lock;
+	struct list_head invalidation_requests;
 
-	spinlock_t lock;
-	struct bio_list deferred_bios;
 	sector_t migration_threshold;
 	wait_queue_head_t migration_wait;
 	atomic_t nr_allocated_migrations;
@@ -419,13 +423,11 @@ struct cache {
 	 */
 	atomic_t nr_io_migrations;
 
+	struct bio_list deferred_bios;
+
 	struct rw_semaphore quiesce_lock;
 
-	/*
-	 * cache_size entries, dirty if set
-	 */
-	atomic_t nr_dirty;
-	unsigned long *dirty_bitset;
+	struct dm_target_callbacks callbacks;
 
 	/*
 	 * origin_blocks entries, discarded if set.
@@ -442,24 +444,20 @@ struct cache {
 	const char **ctr_args;
 
 	struct dm_kcopyd_client *copier;
-	struct workqueue_struct *wq;
 	struct work_struct deferred_bio_worker;
 	struct work_struct migration_worker;
+	struct workqueue_struct *wq;
 	struct delayed_work waker;
 	struct dm_bio_prison_v2 *prison;
-	struct bio_set bs;
 
-	mempool_t migration_pool;
+	/*
+	 * cache_size entries, dirty if set
+	 */
+	unsigned long *dirty_bitset;
+	atomic_t nr_dirty;
 
-	struct dm_cache_policy *policy;
 	unsigned policy_nr_args;
-
-	bool need_tick_bio:1;
-	bool sized:1;
-	bool invalidate:1;
-	bool commit_requested:1;
-	bool loaded_mappings:1;
-	bool loaded_discards:1;
+	struct dm_cache_policy *policy;
 
 	/*
 	 * Cache features such as write-through.
@@ -468,18 +466,23 @@ struct cache {
 
 	struct cache_stats stats;
 
-	/*
-	 * Invalidation fields.
-	 */
-	spinlock_t invalidation_lock;
-	struct list_head invalidation_requests;
+	bool need_tick_bio:1;
+	bool sized:1;
+	bool invalidate:1;
+	bool commit_requested:1;
+	bool loaded_mappings:1;
+	bool loaded_discards:1;
+
+	struct rw_semaphore background_work_lock;
+
+	struct batcher committer;
+	struct work_struct commit_ws;
 
 	struct io_tracker tracker;
 
-	struct work_struct commit_ws;
-	struct batcher committer;
+	mempool_t migration_pool;
 
-	struct rw_semaphore background_work_lock;
+	struct bio_set bs;
 };
 
 struct per_bio_data {
