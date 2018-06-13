@@ -2671,11 +2671,11 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 	if (IS_GEN9_BC(dev_priv))
 		skl_ddi_set_iboost(encoder, level, INTEL_OUTPUT_HDMI);
 
+	intel_ddi_enable_pipe_clock(crtc_state);
+
 	intel_dig_port->set_infoframes(&encoder->base,
 				       crtc_state->has_infoframe,
 				       crtc_state, conn_state);
-
-	intel_ddi_enable_pipe_clock(crtc_state);
 }
 
 static void intel_ddi_pre_enable(struct intel_encoder *encoder,
@@ -2769,12 +2769,12 @@ static void intel_ddi_post_disable_hdmi(struct intel_encoder *encoder,
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
 	struct intel_hdmi *intel_hdmi = &dig_port->hdmi;
 
+	dig_port->set_infoframes(&encoder->base, false,
+				 old_crtc_state, old_conn_state);
+
 	intel_ddi_disable_pipe_clock(old_crtc_state);
 
 	intel_disable_ddi_buf(encoder);
-
-	dig_port->set_infoframes(&encoder->base, false,
-				 old_crtc_state, old_conn_state);
 
 	intel_display_power_put(dev_priv, dig_port->ddi_io_power_domain);
 
