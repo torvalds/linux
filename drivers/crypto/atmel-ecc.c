@@ -567,10 +567,6 @@ static int atmel_ecdh_init_tfm(struct crypto_kpp *tfm)
 	}
 
 	crypto_kpp_set_flags(fallback, crypto_kpp_get_flags(tfm));
-
-	dev_info(&ctx->client->dev, "Using '%s' as fallback implementation.\n",
-		 crypto_tfm_alg_driver_name(crypto_kpp_tfm(fallback)));
-
 	ctx->fallback = fallback;
 
 	return 0;
