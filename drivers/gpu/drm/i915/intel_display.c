@@ -5814,7 +5814,7 @@ static void haswell_crtc_disable(struct intel_crtc_state *old_crtc_state,
 	struct drm_crtc *crtc = old_crtc_state->base.crtc;
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum transcoder cpu_transcoder = intel_crtc->config->cpu_transcoder;
+	enum transcoder cpu_transcoder = old_crtc_state->cpu_transcoder;
 
 	intel_encoders_disable(crtc, old_crtc_state, old_state);
 
@@ -5825,8 +5825,8 @@ static void haswell_crtc_disable(struct intel_crtc_state *old_crtc_state,
 	if (!transcoder_is_dsi(cpu_transcoder))
 		intel_disable_pipe(old_crtc_state);
 
-	if (intel_crtc_has_type(intel_crtc->config, INTEL_OUTPUT_DP_MST))
-		intel_ddi_set_vc_payload_alloc(intel_crtc->config, false);
+	if (intel_crtc_has_type(old_crtc_state, INTEL_OUTPUT_DP_MST))
+		intel_ddi_set_vc_payload_alloc(old_crtc_state, false);
 
 	if (!transcoder_is_dsi(cpu_transcoder))
 		intel_ddi_disable_transcoder_func(dev_priv, cpu_transcoder);
@@ -5837,7 +5837,7 @@ static void haswell_crtc_disable(struct intel_crtc_state *old_crtc_state,
 		ironlake_pfit_disable(intel_crtc, false);
 
 	if (!transcoder_is_dsi(cpu_transcoder))
-		intel_ddi_disable_pipe_clock(intel_crtc->config);
+		intel_ddi_disable_pipe_clock(old_crtc_state);
 
 	intel_encoders_post_disable(crtc, old_crtc_state, old_state);
 
