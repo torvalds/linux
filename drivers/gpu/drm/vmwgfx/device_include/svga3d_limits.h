@@ -62,7 +62,9 @@
  * Maximum size in dwords of shader text the SVGA device will allow.
  * Currently 8 MB.
  */
-#define SVGA3D_MAX_SHADER_MEMORY  (8 * 1024 * 1024 / sizeof(uint32))
+#define SVGA3D_MAX_SHADER_MEMORY_BYTES (8 * 1024 * 1024)
+#define SVGA3D_MAX_SHADER_MEMORY  (SVGA3D_MAX_SHADER_MEMORY_BYTES / \
+                                   sizeof(uint32))
 
 #define SVGA3D_MAX_CLIP_PLANES    6
 

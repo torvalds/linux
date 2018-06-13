@@ -884,7 +884,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	if (dev_priv->has_mob) {
 		spin_lock(&dev_priv->cap_lock);
-		vmw_write(dev_priv, SVGA_REG_DEV_CAP, SVGA3D_DEVCAP_DX);
+		vmw_write(dev_priv, SVGA_REG_DEV_CAP, SVGA3D_DEVCAP_DXCONTEXT);
 		dev_priv->has_dx = !!vmw_read(dev_priv, SVGA_REG_DEV_CAP);
 		spin_unlock(&dev_priv->cap_lock);
 	}
