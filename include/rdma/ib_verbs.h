@@ -690,6 +690,7 @@ struct ib_event_handler {
 	} while (0)
 
 struct ib_global_route {
+	const struct ib_gid_attr *sgid_attr;
 	union ib_gid	dgid;
 	u32		flow_label;
 	u8		sgid_index;
@@ -4026,7 +4027,13 @@ static inline void rdma_ah_set_grh(struct rdma_ah_attr *attr,
 	grh->sgid_index = sgid_index;
 	grh->hop_limit = hop_limit;
 	grh->traffic_class = traffic_class;
+	grh->sgid_attr = NULL;
 }
+
+void rdma_destroy_ah_attr(struct rdma_ah_attr *ah_attr);
+void rdma_move_grh_sgid_attr(struct rdma_ah_attr *attr, union ib_gid *dgid,
+			     u32 flow_label, u8 hop_limit, u8 traffic_class,
+			     const struct ib_gid_attr *sgid_attr);
 
 /**
  * rdma_ah_find_type - Return address handle type.
