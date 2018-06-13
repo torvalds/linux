@@ -232,6 +232,8 @@ static void hsw_post_disable_crt(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
+	intel_ddi_disable_pipe_clock(old_crtc_state);
+
 	pch_post_disable_crt(encoder, old_crtc_state, old_conn_state);
 
 	lpt_disable_pch_transcoder(dev_priv);
@@ -268,6 +270,8 @@ static void hsw_pre_enable_crt(struct intel_encoder *encoder,
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
 
 	dev_priv->display.fdi_link_train(crtc, crtc_state);
+
+	intel_ddi_enable_pipe_clock(crtc_state);
 }
 
 static void hsw_enable_crt(struct intel_encoder *encoder,
