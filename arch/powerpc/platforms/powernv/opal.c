@@ -1090,3 +1090,5 @@ EXPORT_SYMBOL_GPL(opal_write_oppanel_async);
 EXPORT_SYMBOL_GPL(opal_int_set_mfrr);
 EXPORT_SYMBOL_GPL(opal_int_eoi);
 EXPORT_SYMBOL_GPL(opal_error_code);
+/* Export the below symbol for NX compression */
+EXPORT_SYMBOL(opal_nx_coproc_init);
