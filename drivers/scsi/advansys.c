@@ -8466,7 +8466,7 @@ static int AdvExeScsiQueue(ADV_DVC_VAR *asc_dvc, adv_req_t *reqp)
 }
 
 /*
- * Execute a single 'Scsi_Cmnd'.
+ * Execute a single 'struct scsi_cmnd'.
  */
 static int asc_execute_scsi_cmnd(struct scsi_cmnd *scp)
 {
