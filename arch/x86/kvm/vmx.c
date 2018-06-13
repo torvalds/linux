@@ -4429,6 +4429,7 @@ static int alloc_loaded_vmcs(struct loaded_vmcs *loaded_vmcs)
 			goto out_vmcs;
 		memset(loaded_vmcs->msr_bitmap, 0xff, PAGE_SIZE);
 
+#if IS_ENABLED(CONFIG_HYPERV)
 		if (static_branch_unlikely(&enable_evmcs) &&
 		    (ms_hyperv.nested_features & HV_X64_NESTED_MSR_BITMAP)) {
 			struct hv_enlightened_vmcs *evmcs =
@@ -4436,6 +4437,8 @@ static int alloc_loaded_vmcs(struct loaded_vmcs *loaded_vmcs)
 
 			evmcs->hv_enlightenments_control.msr_bitmap = 1;
 		}
+#endif
+
 	}
 	return 0;
 
