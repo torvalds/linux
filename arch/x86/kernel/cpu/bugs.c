@@ -26,9 +26,11 @@
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>
 #include <asm/intel-family.h>
+#include <asm/e820.h>
 
 static void __init spectre_v2_select_mitigation(void);
 static void __init ssb_select_mitigation(void);
+static void __init l1tf_select_mitigation(void);
 
 /*
  * Our boot-time value of the SPEC_CTRL MSR. We read it once so that any
@@ -79,6 +81,8 @@ void __init check_bugs(void)
 	 * Bypass vulnerability.
 	 */
 	ssb_select_mitigation();
+
+	l1tf_select_mitigation();
 
 #ifdef CONFIG_X86_32
 	/*
@@ -201,6 +205,32 @@ static void x86_amd_ssb_disable(void)
 		wrmsrl(MSR_AMD64_VIRT_SPEC_CTRL, SPEC_CTRL_SSBD);
 	else if (boot_cpu_has(X86_FEATURE_LS_CFG_SSBD))
 		wrmsrl(MSR_AMD64_LS_CFG, msrval);
+}
+
+static void __init l1tf_select_mitigation(void)
+{
+	u64 half_pa;
+
+	if (!boot_cpu_has_bug(X86_BUG_L1TF))
+		return;
+
+#if CONFIG_PGTABLE_LEVELS == 2
+	pr_warn("Kernel not compiled for PAE. No mitigation for L1TF\n");
+	return;
+#endif
+
+	/*
+	 * This is extremely unlikely to happen because almost all
+	 * systems have far more MAX_PA/2 than RAM can be fit into
+	 * DIMM slots.
+	 */
+	half_pa = (u64)l1tf_pfn_limit() << PAGE_SHIFT;
+	if (e820_any_mapped(half_pa, ULLONG_MAX - half_pa, E820_RAM)) {
+		pr_warn("System has more than MAX_PA/2 memory. L1TF mitigation not effective.\n");
+		return;
+	}
+
+	setup_force_cpu_cap(X86_FEATURE_L1TF_PTEINV);
 }
 
 #ifdef RETPOLINE
@@ -655,6 +685,11 @@ static ssize_t cpu_show_common(struct device *dev, struct device_attribute *attr
 	case X86_BUG_SPEC_STORE_BYPASS:
 		return sprintf(buf, "%s\n", ssb_strings[ssb_mode]);
 
+	case X86_BUG_L1TF:
+		if (boot_cpu_has(X86_FEATURE_L1TF_PTEINV))
+			return sprintf(buf, "Mitigation: Page Table Inversion\n");
+		break;
+
 	default:
 		break;
 	}
@@ -680,5 +715,10 @@ ssize_t cpu_show_spectre_v2(struct device *dev, struct device_attribute *attr, c
 ssize_t cpu_show_spec_store_bypass(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return cpu_show_common(dev, attr, buf, X86_BUG_SPEC_STORE_BYPASS);
+}
+
+ssize_t cpu_show_l1tf(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return cpu_show_common(dev, attr, buf, X86_BUG_L1TF);
 }
 #endif
