@@ -863,13 +863,13 @@ static int xemaclite_mdio_setup(struct net_local *lp, struct device *dev)
 	bus->write = xemaclite_mdio_write;
 	bus->parent = dev;
 
-	lp->mii_bus = bus;
-
 	rc = of_mdiobus_register(bus, np);
 	if (rc) {
 		dev_err(dev, "Failed to register mdio bus.\n");
 		goto err_register;
 	}
+
+	lp->mii_bus = bus;
 
 	return 0;
 
