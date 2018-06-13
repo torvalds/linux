@@ -1446,7 +1446,8 @@ ctnetlink_parse_nat_setup(struct nf_conn *ct,
 		}
 		nfnl_lock(NFNL_SUBSYS_CTNETLINK);
 		rcu_read_lock();
-		if (nat_hook->parse_nat_setup)
+		nat_hook = rcu_dereference(nf_nat_hook);
+		if (nat_hook)
 			return -EAGAIN;
 #endif
 		return -EOPNOTSUPP;
