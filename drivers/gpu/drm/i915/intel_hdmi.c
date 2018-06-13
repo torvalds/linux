@@ -59,6 +59,15 @@ assert_hdmi_port_disabled(struct intel_hdmi *intel_hdmi)
 	     "HDMI port enabled, expecting disabled\n");
 }
 
+static void
+assert_hdmi_transcoder_func_disabled(struct drm_i915_private *dev_priv,
+				     enum transcoder cpu_transcoder)
+{
+	WARN(I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder)) &
+	     TRANS_DDI_FUNC_ENABLE,
+	     "HDMI transcoder function enabled, expecting disabled\n");
+}
+
 struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder)
 {
 	struct intel_digital_port *intel_dig_port =
@@ -834,11 +843,11 @@ static void hsw_set_infoframes(struct drm_encoder *encoder,
 			       const struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
-	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	i915_reg_t reg = HSW_TVIDEO_DIP_CTL(crtc_state->cpu_transcoder);
 	u32 val = I915_READ(reg);
 
-	assert_hdmi_port_disabled(intel_hdmi);
+	assert_hdmi_transcoder_func_disabled(dev_priv,
+					     crtc_state->cpu_transcoder);
 
 	val &= ~(VIDEO_DIP_ENABLE_VSC_HSW | VIDEO_DIP_ENABLE_AVI_HSW |
 		 VIDEO_DIP_ENABLE_GCP_HSW | VIDEO_DIP_ENABLE_VS_HSW |
