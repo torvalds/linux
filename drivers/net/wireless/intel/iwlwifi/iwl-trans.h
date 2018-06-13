@@ -680,7 +680,6 @@ enum iwl_plat_pm_mode {
  * enter/exit (in msecs).
  */
 #define IWL_TRANS_IDLE_TIMEOUT 2000
-#define IWL_MAX_DEBUG_ALLOCATIONS	1
 
 /**
  * struct iwl_dram_data
@@ -786,7 +785,7 @@ struct iwl_trans {
 	struct iwl_fw_dbg_trigger_tlv * const *dbg_trigger_tlv;
 	u8 dbg_n_dest_reg;
 	int num_blocks;
-	struct iwl_dram_data fw_mon[IWL_MAX_DEBUG_ALLOCATIONS];
+	struct iwl_dram_data fw_mon[IWL_FW_INI_APPLY_NUM];
 
 	enum iwl_plat_pm_mode system_pm_mode;
 	enum iwl_plat_pm_mode runtime_pm_mode;
