@@ -1256,11 +1256,6 @@ F:	arch/arm/mach-aspeed/
 F:	arch/arm/boot/dts/aspeed-*
 N:	aspeed
 
-ARM/ATMEL AT91 Clock Support
-M:	Boris Brezillon <boris.brezillon@bootlin.com>
-S:	Maintained
-F:	drivers/clk/at91
-
 ARM/CALXEDA HIGHBANK ARCHITECTURE
 M:	Rob Herring <robh@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
