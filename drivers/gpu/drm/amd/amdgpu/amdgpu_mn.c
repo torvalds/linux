@@ -59,7 +59,7 @@
  * @adev: amdgpu device pointer
  * @mm: process address space
  * @mn: MMU notifier structur
- * @work: destrution work item
+ * @work: destruction work item
  * @node: hash table node to find structure by adev and mn
  * @lock: rw semaphore protecting the notifier nodes
  * @objects: interval tree containing amdgpu_mn_nodes
