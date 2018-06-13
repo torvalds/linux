@@ -1879,6 +1879,7 @@ nvme_fc_free_queue(struct nvme_fc_queue *queue)
 	 */
 
 	queue->connection_id = 0;
+	atomic_set(&queue->csn, 1);
 }
 
 static void
@@ -2468,7 +2469,7 @@ out_free_tag_set:
 }
 
 static int
-nvme_fc_reinit_io_queues(struct nvme_fc_ctrl *ctrl)
+nvme_fc_recreate_io_queues(struct nvme_fc_ctrl *ctrl)
 {
 	struct nvmf_ctrl_options *opts = ctrl->ctrl.opts;
 	unsigned int nr_io_queues;
@@ -2487,8 +2488,6 @@ nvme_fc_reinit_io_queues(struct nvme_fc_ctrl *ctrl)
 	/* check for io queues existing */
 	if (ctrl->ctrl.queue_count == 1)
 		return 0;
-
-	nvme_fc_init_io_queues(ctrl);
 
 	ret = nvme_fc_create_hw_io_queues(ctrl, ctrl->ctrl.sqsize + 1);
 	if (ret)
@@ -2587,8 +2586,6 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 	 * Create the admin queue
 	 */
 
-	nvme_fc_init_queue(ctrl, 0);
-
 	ret = __nvme_fc_create_hw_queue(ctrl, &ctrl->queues[0], 0,
 				NVME_AQ_DEPTH);
 	if (ret)
@@ -2675,7 +2672,7 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 		if (!ctrl->ioq_live)
 			ret = nvme_fc_create_io_queues(ctrl);
 		else
-			ret = nvme_fc_reinit_io_queues(ctrl);
+			ret = nvme_fc_recreate_io_queues(ctrl);
 		if (ret)
 			goto out_term_aen_ops;
 	}
@@ -3022,6 +3019,8 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 				sizeof(struct nvme_fc_queue), GFP_KERNEL);
 	if (!ctrl->queues)
 		goto out_free_ida;
+
+	nvme_fc_init_queue(ctrl, 0);
 
 	memset(&ctrl->admin_tag_set, 0, sizeof(ctrl->admin_tag_set));
 	ctrl->admin_tag_set.ops = &nvme_fc_admin_mq_ops;
