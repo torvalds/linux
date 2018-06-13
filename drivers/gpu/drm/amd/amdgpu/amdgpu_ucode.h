@@ -161,6 +161,12 @@ struct gpu_info_firmware_v1_0 {
 	uint32_t gc_lds_size;
 };
 
+struct gpu_info_firmware_v1_1 {
+	struct gpu_info_firmware_v1_0 v1_0;
+	uint32_t num_sc_per_sh;
+	uint32_t num_packer_per_sc;
+};
+
 /* version_major=1, version_minor=0 */
 struct gpu_info_firmware_header_v1_0 {
 	struct common_firmware_header header;
