@@ -5,12 +5,9 @@ obj-$(CONFIG_RK_SFC_NAND) += rkflash_blk.o rksfc_base.o rkflash_debug.o sfc_nand
 obj-$(CONFIG_RK_SFC_NOR) += rkflash_blk.o rksfc_base.o rkflash_debug.o sfc_nor_boot.o sfc_nor.o sfc.o
 obj-$(CONFIG_RK_SFC_NOR_MTD) += sfc_nor_mtd.o
 
-ifneq (, $(CONFIG_RK_NANDC_NAND)$(CONFIG_RK_SFC_NAND))
-
-ifdef CONFIG_ARM64
-obj-y += rk_sftl_arm_v8.o
+ifdef CONFIG_THUMB2_KERNEL
+obj-$(CONFIG_THUMB2_KERNEL) += rk_sftl_arm_v7_thumb.o
 else
-obj-y += rk_sftl_arm_v7.o
-endif
-
+obj-$(CONFIG_ARM64) += rk_sftl_arm_v8.o
+obj-$(CONFIG_ARM) += rk_sftl_arm_v7.o
 endif

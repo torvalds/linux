@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-/* Copyright (c) 2018 Rockchip Electronics Co. Ltd. */
+/*
+ * Copyright (c) 2018 Rockchip Electronics Co. Ltd.
+ * date: 2018-06-13
+ */
 	.arch armv7-a
 	.eabi_attribute 20, 1
 	.eabi_attribute 21, 1
