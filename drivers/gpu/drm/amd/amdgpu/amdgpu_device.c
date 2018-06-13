@@ -1428,6 +1428,15 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 		adev->gfx.cu_info.max_scratch_slots_per_cu =
 			le32_to_cpu(gpu_info_fw->gc_max_scratch_slots_per_cu);
 		adev->gfx.cu_info.lds_size = le32_to_cpu(gpu_info_fw->gc_lds_size);
+		if (hdr->version_minor == 1) {
+			const struct gpu_info_firmware_v1_1 *gpu_info_fw =
+				(const struct gpu_info_firmware_v1_1 *)(adev->firmware.gpu_info_fw->data +
+									le32_to_cpu(hdr->header.ucode_array_offset_bytes));
+			adev->gfx.config.num_sc_per_sh =
+				le32_to_cpu(gpu_info_fw->num_sc_per_sh);
+			adev->gfx.config.num_packer_per_sc =
+				le32_to_cpu(gpu_info_fw->num_packer_per_sc);
+		}
 		break;
 	}
 	default:
