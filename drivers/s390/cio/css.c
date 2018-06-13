@@ -244,8 +244,7 @@ static void ssd_register_chpids(struct chsc_ssd_info *ssd)
 	for (i = 0; i < 8; i++) {
 		mask = 0x80 >> i;
 		if (ssd->path_mask & mask)
-			if (!chp_is_registered(ssd->chpid[i]))
-				chp_new(ssd->chpid[i]);
+			chp_new(ssd->chpid[i]);
 	}
 }
 
