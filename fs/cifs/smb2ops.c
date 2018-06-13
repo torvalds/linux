@@ -2187,7 +2187,7 @@ static inline void smb2_sg_set_buf(struct scatterlist *sg, const void *buf,
 }
 
 /* Assumes:
- * rqst->rq_iov[0]  is tranform header
+ * rqst->rq_iov[0]  is transform header
  * rqst->rq_iov[1+] data to be encrypted/decrypted
  */
 static struct scatterlist *
@@ -2249,7 +2249,7 @@ static int
 crypt_message(struct TCP_Server_Info *server, struct smb_rqst *rqst, int enc)
 {
 	struct smb2_transform_hdr *tr_hdr =
-			(struct smb2_transform_hdr *)rqst->rq_iov[1].iov_base;
+			(struct smb2_transform_hdr *)rqst->rq_iov[0].iov_base;
 	unsigned int assoc_data_len = sizeof(struct smb2_transform_hdr) - 20;
 	int rc = 0;
 	struct scatterlist *sg;
