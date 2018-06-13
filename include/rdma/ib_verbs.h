@@ -4034,6 +4034,11 @@ void rdma_destroy_ah_attr(struct rdma_ah_attr *ah_attr);
 void rdma_move_grh_sgid_attr(struct rdma_ah_attr *attr, union ib_gid *dgid,
 			     u32 flow_label, u8 hop_limit, u8 traffic_class,
 			     const struct ib_gid_attr *sgid_attr);
+void rdma_copy_ah_attr(struct rdma_ah_attr *dest,
+		       const struct rdma_ah_attr *src);
+void rdma_replace_ah_attr(struct rdma_ah_attr *old,
+			  const struct rdma_ah_attr *new);
+void rdma_move_ah_attr(struct rdma_ah_attr *dest, struct rdma_ah_attr *src);
 
 /**
  * rdma_ah_find_type - Return address handle type.

@@ -2302,7 +2302,7 @@ struct ib_ah *qedr_create_ah(struct ib_pd *ibpd, struct rdma_ah_attr *attr,
 	if (!ah)
 		return ERR_PTR(-ENOMEM);
 
-	ah->attr = *attr;
+	rdma_copy_ah_attr(&ah->attr, attr);
 
 	return &ah->ibah;
 }
@@ -2311,6 +2311,7 @@ int qedr_destroy_ah(struct ib_ah *ibah)
 {
 	struct qedr_ah *ah = get_qedr_ah(ibah);
 
+	rdma_destroy_ah_attr(&ah->attr);
 	kfree(ah);
 	return 0;
 }

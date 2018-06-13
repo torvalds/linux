@@ -326,6 +326,60 @@ EXPORT_SYMBOL(ib_dealloc_pd);
 
 /* Address handles */
 
+/**
+ * rdma_copy_ah_attr - Copy rdma ah attribute from source to destination.
+ * @dest:       Pointer to destination ah_attr. Contents of the destination
+ *              pointer is assumed to be invalid and attribute are overwritten.
+ * @src:        Pointer to source ah_attr.
+ */
+void rdma_copy_ah_attr(struct rdma_ah_attr *dest,
+		       const struct rdma_ah_attr *src)
+{
+	*dest = *src;
+	if (dest->grh.sgid_attr)
+		rdma_hold_gid_attr(dest->grh.sgid_attr);
+}
+EXPORT_SYMBOL(rdma_copy_ah_attr);
+
+/**
+ * rdma_replace_ah_attr - Replace valid ah_attr with new new one.
+ * @old:        Pointer to existing ah_attr which needs to be replaced.
+ *              old is assumed to be valid or zero'd
+ * @new:        Pointer to the new ah_attr.
+ *
+ * rdma_replace_ah_attr() first releases any reference in the old ah_attr if
+ * old the ah_attr is valid; after that it copies the new attribute and holds
+ * the reference to the replaced ah_attr.
+ */
+void rdma_replace_ah_attr(struct rdma_ah_attr *old,
+			  const struct rdma_ah_attr *new)
+{
+	rdma_destroy_ah_attr(old);
+	*old = *new;
+	if (old->grh.sgid_attr)
+		rdma_hold_gid_attr(old->grh.sgid_attr);
+}
+EXPORT_SYMBOL(rdma_replace_ah_attr);
+
+/**
+ * rdma_move_ah_attr - Move ah_attr pointed by source to destination.
+ * @dest:       Pointer to destination ah_attr to copy to.
+ *              dest is assumed to be valid or zero'd
+ * @src:        Pointer to the new ah_attr.
+ *
+ * rdma_move_ah_attr() first releases any reference in the destination ah_attr
+ * if it is valid. This also transfers ownership of internal references from
+ * src to dest, making src invalid in the process. No new reference of the src
+ * ah_attr is taken.
+ */
+void rdma_move_ah_attr(struct rdma_ah_attr *dest, struct rdma_ah_attr *src)
+{
+	rdma_destroy_ah_attr(dest);
+	*dest = *src;
+	src->grh.sgid_attr = NULL;
+}
+EXPORT_SYMBOL(rdma_move_ah_attr);
+
 /*
  * Validate that the rdma_ah_attr is valid for the device before passing it
  * off to the driver.

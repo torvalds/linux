@@ -474,7 +474,7 @@ static int cm_init_av_for_lap(struct cm_port *port, struct ib_wc *wc,
 	if (ret)
 		return ret;
 
-	memcpy(&av->ah_attr, &new_ah_attr, sizeof(new_ah_attr));
+	rdma_move_ah_attr(&av->ah_attr, &new_ah_attr);
 	return 0;
 }
 
@@ -569,7 +569,7 @@ static int cm_init_av_by_path(struct sa_path_rec *path, struct cm_av *av,
 	ret = add_cm_id_to_port_list(cm_id_priv, av, port);
 	if (ret)
 		return ret;
-	memcpy(&av->ah_attr, &new_ah_attr, sizeof(new_ah_attr));
+	rdma_move_ah_attr(&av->ah_attr, &new_ah_attr);
 	return 0;
 }
 
