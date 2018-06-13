@@ -1730,12 +1730,34 @@ static int amdgpu_device_ip_late_set_cg_state(struct amdgpu_device *adev)
 		}
 	}
 
-	if (adev->powerplay.pp_feature & PP_GFXOFF_MASK)
-		/* enable gfx powergating */
-		amdgpu_device_ip_set_powergating_state(adev,
-						       AMD_IP_BLOCK_TYPE_GFX,
-						       AMD_PG_STATE_GATE);
+	return 0;
+}
 
+static int amdgpu_device_ip_late_set_pg_state(struct amdgpu_device *adev)
+{
+	int i = 0, r;
+
+	if (amdgpu_emu_mode == 1)
+		return 0;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (!adev->ip_blocks[i].status.valid)
+			continue;
+		/* skip CG for VCE/UVD, it's handled specially */
+		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_UVD &&
+		    adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_VCE &&
+		    adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_VCN &&
+		    adev->ip_blocks[i].version->funcs->set_powergating_state) {
+			/* enable powergating to save power */
+			r = adev->ip_blocks[i].version->funcs->set_powergating_state((void *)adev,
+										     AMD_PG_STATE_GATE);
+			if (r) {
+				DRM_ERROR("set_powergating_state(gate) of IP block <%s> failed %d\n",
+					  adev->ip_blocks[i].version->funcs->name, r);
+				return r;
+			}
+		}
+	}
 	return 0;
 }
 
@@ -1898,6 +1920,7 @@ static void amdgpu_device_ip_late_init_func_handler(struct work_struct *work)
 	struct amdgpu_device *adev =
 		container_of(work, struct amdgpu_device, late_init_work.work);
 	amdgpu_device_ip_late_set_cg_state(adev);
+	amdgpu_device_ip_late_set_pg_state(adev);
 }
 
 /**

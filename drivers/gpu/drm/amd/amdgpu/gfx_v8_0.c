@@ -5596,10 +5596,6 @@ static int gfx_v8_0_late_init(void *handle)
 		return r;
 	}
 
-	amdgpu_device_ip_set_powergating_state(adev,
-					       AMD_IP_BLOCK_TYPE_GFX,
-					       AMD_PG_STATE_GATE);
-
 	return 0;
 }
 
