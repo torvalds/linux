@@ -51,12 +51,12 @@ $(obj)/vmlinux.bin: $(obj)/vmlinux.bin.full
 
 vmlinux.bin.all-y := $(obj)/vmlinux.bin
 
-suffix-$(CONFIG_KERNEL_GZIP)  := gz
-suffix-$(CONFIG_KERNEL_BZIP2) := bz2
-suffix-$(CONFIG_KERNEL_LZ4)  := lz4
-suffix-$(CONFIG_KERNEL_LZMA)  := lzma
-suffix-$(CONFIG_KERNEL_LZO)  := lzo
-suffix-$(CONFIG_KERNEL_XZ)  := xz
+suffix-$(CONFIG_KERNEL_GZIP)  := .gz
+suffix-$(CONFIG_KERNEL_BZIP2) := .bz2
+suffix-$(CONFIG_KERNEL_LZ4)  := .lz4
+suffix-$(CONFIG_KERNEL_LZMA)  := .lzma
+suffix-$(CONFIG_KERNEL_LZO)  := .lzo
+suffix-$(CONFIG_KERNEL_XZ)  := .xz
 
 $(obj)/vmlinux.bin.gz: $(vmlinux.bin.all-y)
 	$(call if_changed,gzip)
@@ -72,7 +72,7 @@ $(obj)/vmlinux.bin.xz: $(vmlinux.bin.all-y)
 	$(call if_changed,xzkern)
 
 LDFLAGS_piggy.o := -r --format binary --oformat $(LD_BFD) -T
-$(obj)/piggy.o: $(obj)/vmlinux.scr.lds $(obj)/vmlinux.bin.$(suffix-y)
+$(obj)/piggy.o: $(obj)/vmlinux.scr.lds $(obj)/vmlinux.bin$(suffix-y)
 	$(call if_changed,ld)
 
 chkbss := $(filter-out $(obj)/misc.o $(obj)/piggy.o,$(OBJECTS))
