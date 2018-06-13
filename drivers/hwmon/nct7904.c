@@ -77,7 +77,7 @@ struct nct7904_data {
 };
 
 /* Access functions */
-static int nct7904_bank_lock(struct nct7904_data *data, unsigned bank)
+static int nct7904_bank_lock(struct nct7904_data *data, unsigned int bank)
 {
 	int ret;
 
@@ -99,7 +99,7 @@ static inline void nct7904_bank_release(struct nct7904_data *data)
 
 /* Read 1-byte register. Returns unsigned reg or -ERRNO on error. */
 static int nct7904_read_reg(struct nct7904_data *data,
-			    unsigned bank, unsigned reg)
+			    unsigned int bank, unsigned int reg)
 {
 	struct i2c_client *client = data->client;
 	int ret;
@@ -117,7 +117,7 @@ static int nct7904_read_reg(struct nct7904_data *data,
  * -ERRNO on error.
  */
 static int nct7904_read_reg16(struct nct7904_data *data,
-			      unsigned bank, unsigned reg)
+			      unsigned int bank, unsigned int reg)
 {
 	struct i2c_client *client = data->client;
 	int ret, hi;
@@ -139,7 +139,7 @@ static int nct7904_read_reg16(struct nct7904_data *data,
 
 /* Write 1-byte register. Returns 0 or -ERRNO on error. */
 static int nct7904_write_reg(struct nct7904_data *data,
-			     unsigned bank, unsigned reg, u8 val)
+			     unsigned int bank, unsigned int reg, u8 val)
 {
 	struct i2c_client *client = data->client;
 	int ret;
