@@ -118,7 +118,7 @@ static int parse_options(char *options, struct exofs_mountopt *opts)
 					  EXOFS_MIN_PID);
 				return -EINVAL;
 			}
-			s_pid = 1;
+			s_pid = true;
 			break;
 		case Opt_to:
 			if (match_int(&args[0], &option))
