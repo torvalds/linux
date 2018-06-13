@@ -23,6 +23,7 @@
 #include "ioapic.h"
 #include "cpuid.h"
 #include "hyperv.h"
+#include "xen.h"
 
 #include <linux/cpu.h>
 #include <linux/kvm_host.h>
@@ -1139,9 +1140,9 @@ static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 			hv->hv_hypercall &= ~HV_X64_MSR_HYPERCALL_ENABLE;
 		break;
 	case HV_X64_MSR_HYPERCALL: {
-		u64 gfn;
-		unsigned long addr;
-		u8 instructions[4];
+		u8 instructions[9];
+		int i = 0;
+		u64 addr;
 
 		/* if guest os id is not set hypercall should remain disabled */
 		if (!hv->hv_guest_os_id)
@@ -1150,16 +1151,33 @@ static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 			hv->hv_hypercall = data;
 			break;
 		}
-		gfn = data >> HV_X64_MSR_HYPERCALL_PAGE_ADDRESS_SHIFT;
-		addr = gfn_to_hva(kvm, gfn);
-		if (kvm_is_error_hva(addr))
-			return 1;
-		static_call(kvm_x86_patch_hypercall)(vcpu, instructions);
-		((unsigned char *)instructions)[3] = 0xc3; /* ret */
-		if (__copy_to_user((void __user *)addr, instructions, 4))
+
+		/*
+		 * If Xen and Hyper-V hypercalls are both enabled, disambiguate
+		 * the same way Xen itself does, by setting the bit 31 of EAX
+		 * which is RsvdZ in the 32-bit Hyper-V hypercall ABI and just
+		 * going to be clobbered on 64-bit.
+		 */
+		if (kvm_xen_hypercall_enabled(kvm)) {
+			/* orl $0x80000000, %eax */
+			instructions[i++] = 0x0d;
+			instructions[i++] = 0x00;
+			instructions[i++] = 0x00;
+			instructions[i++] = 0x00;
+			instructions[i++] = 0x80;
+		}
+
+		/* vmcall/vmmcall */
+		static_call(kvm_x86_patch_hypercall)(vcpu, instructions + i);
+		i += 3;
+
+		/* ret */
+		((unsigned char *)instructions)[i++] = 0xc3;
+
+		addr = data & HV_X64_MSR_HYPERCALL_PAGE_ADDRESS_MASK;
+		if (kvm_vcpu_write_guest(vcpu, addr, instructions, i))
 			return 1;
 		hv->hv_hypercall = data;
-		mark_page_dirty(kvm, gfn);
 		break;
 	}
 	case HV_X64_MSR_REFERENCE_TSC:

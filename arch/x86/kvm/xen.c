@@ -8,6 +8,7 @@
 
 #include "x86.h"
 #include "xen.h"
+#include "hyperv.h"
 
 #include <linux/kvm_host.h>
 
@@ -100,6 +101,11 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 	u64 input, params[6];
 
 	input = (u64)kvm_register_read(vcpu, VCPU_REGS_RAX);
+
+	/* Hyper-V hypercalls get bit 31 set in EAX */
+	if ((input & 0x80000000) &&
+	    kvm_hv_hypercall_enabled(vcpu->kvm))
+		return kvm_hv_hypercall(vcpu);
 
 	longmode = is_64_bit_mode(vcpu);
 	if (!longmode) {
