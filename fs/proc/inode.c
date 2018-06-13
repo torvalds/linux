@@ -105,9 +105,8 @@ void __init proc_init_kmemcache(void)
 		kmem_cache_create("pde_opener", sizeof(struct pde_opener), 0,
 				  SLAB_ACCOUNT|SLAB_PANIC, NULL);
 	proc_dir_entry_cache = kmem_cache_create_usercopy(
-		"proc_dir_entry", sizeof(struct proc_dir_entry), 0, SLAB_PANIC,
-		offsetof(struct proc_dir_entry, inline_name),
-		sizeof_field(struct proc_dir_entry, inline_name), NULL);
+		"proc_dir_entry", SIZEOF_PDE_SLOT, 0, SLAB_PANIC,
+		OFFSETOF_PDE_NAME, SIZEOF_PDE_INLINE_NAME, NULL);
 }
 
 static int proc_show_options(struct seq_file *seq, struct dentry *root)
