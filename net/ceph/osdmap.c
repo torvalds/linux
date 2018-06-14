@@ -2146,10 +2146,10 @@ bool ceph_osds_changed(const struct ceph_osds *old_acting,
  * Should only be called with target_oid and target_oloc (as opposed to
  * base_oid and base_oloc), since tiering isn't taken into account.
  */
-int __ceph_object_locator_to_pg(struct ceph_pg_pool_info *pi,
-				const struct ceph_object_id *oid,
-				const struct ceph_object_locator *oloc,
-				struct ceph_pg *raw_pgid)
+void __ceph_object_locator_to_pg(struct ceph_pg_pool_info *pi,
+				 const struct ceph_object_id *oid,
+				 const struct ceph_object_locator *oloc,
+				 struct ceph_pg *raw_pgid)
 {
 	WARN_ON(pi->id != oloc->pool);
 
@@ -2165,11 +2165,8 @@ int __ceph_object_locator_to_pg(struct ceph_pg_pool_info *pi,
 		int nsl = oloc->pool_ns->len;
 		size_t total = nsl + 1 + oid->name_len;
 
-		if (total > sizeof(stack_buf)) {
-			buf = kmalloc(total, GFP_NOIO);
-			if (!buf)
-				return -ENOMEM;
-		}
+		if (total > sizeof(stack_buf))
+			buf = kmalloc(total, GFP_NOIO | __GFP_NOFAIL);
 		memcpy(buf, oloc->pool_ns->str, nsl);
 		buf[nsl] = '\037';
 		memcpy(buf + nsl + 1, oid->name, oid->name_len);
@@ -2181,7 +2178,6 @@ int __ceph_object_locator_to_pg(struct ceph_pg_pool_info *pi,
 		     oid->name, nsl, oloc->pool_ns->str,
 		     raw_pgid->pool, raw_pgid->seed);
 	}
-	return 0;
 }
 
 int ceph_object_locator_to_pg(struct ceph_osdmap *osdmap,
@@ -2195,7 +2191,8 @@ int ceph_object_locator_to_pg(struct ceph_osdmap *osdmap,
 	if (!pi)
 		return -ENOENT;
 
-	return __ceph_object_locator_to_pg(pi, oid, oloc, raw_pgid);
+	__ceph_object_locator_to_pg(pi, oid, oloc, raw_pgid);
+	return 0;
 }
 EXPORT_SYMBOL(ceph_object_locator_to_pg);
 
