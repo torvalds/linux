@@ -933,9 +933,8 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 	u64 he_phy_data = HE_PHY_DATA_INVAL;
 	struct ieee80211_radiotap_he *he = NULL;
 	struct ieee80211_radiotap_he_mu *he_mu = NULL;
-	u32 he_type = 0xffffffff;
+	u32 he_type = rate_n_flags & RATE_MCS_HE_TYPE_MSK;
 	u8 stbc, ltf;
-
 	static const struct ieee80211_radiotap_he known = {
 		.data1 = cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_DATA_MCS_KNOWN |
 				     IEEE80211_RADIOTAP_HE_DATA1_DATA_DCM_KNOWN |
@@ -959,18 +958,14 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 	radiotap_len += sizeof(known);
 	rx_status->flag |= RX_FLAG_RADIOTAP_HE;
 
-	he_type = rate_n_flags & RATE_MCS_HE_TYPE_MSK;
-
 	if (phy_info & IWL_RX_MPDU_PHY_TSF_OVERLOAD) {
-		if (mvm->trans->cfg->device_family >=
-				IWL_DEVICE_FAMILY_22560)
+		if (mvm->trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560)
 			he_phy_data = le64_to_cpu(desc->v3.he_phy_data);
 		else
 			he_phy_data = le64_to_cpu(desc->v1.he_phy_data);
 
 		if (he_type == RATE_MCS_HE_TYPE_MU) {
-			he_mu = skb_put_data(skb, &mu_known,
-					     sizeof(mu_known));
+			he_mu = skb_put_data(skb, &mu_known, sizeof(mu_known));
 			radiotap_len += sizeof(mu_known);
 			rx_status->flag |= RX_FLAG_RADIOTAP_HE_MU;
 		}
