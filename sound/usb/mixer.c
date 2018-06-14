@@ -2918,6 +2918,23 @@ static int snd_usb_mixer_controls_badd(struct usb_mixer_interface *mixer,
 				       UAC3_BADD_FU_ID7, map->map);
 	}
 
+	/* Insertion Control */
+	if (f->subclass == UAC3_FUNCTION_SUBCLASS_HEADSET_ADAPTER) {
+		struct usb_audio_term iterm, oterm;
+
+		/* Input Term - Insertion control */
+		memset(&iterm, 0, sizeof(iterm));
+		iterm.id = UAC3_BADD_IT_ID4;
+		iterm.type = UAC_BIDIR_TERMINAL_HEADSET;
+		build_connector_control(mixer, &iterm, true);
+
+		/* Output Term - Insertion control */
+		memset(&oterm, 0, sizeof(oterm));
+		oterm.id = UAC3_BADD_OT_ID3;
+		oterm.type = UAC_BIDIR_TERMINAL_HEADSET;
+		build_connector_control(mixer, &oterm, false);
+	}
+
 	return 0;
 }
 
