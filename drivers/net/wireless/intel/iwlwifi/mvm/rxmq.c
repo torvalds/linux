@@ -923,6 +923,60 @@ static void iwl_mvm_decode_he_sigb(struct iwl_mvm *mvm,
 	}
 }
 
+static void iwl_mvm_decode_he_phy_data(struct iwl_mvm *mvm,
+				       struct iwl_rx_mpdu_desc *desc,
+				       struct ieee80211_radiotap_he *he,
+				       struct ieee80211_radiotap_he_mu *he_mu,
+				       u64 he_phy_data, u32 rate_n_flags,
+				       int queue)
+{
+	u32 he_type = rate_n_flags & RATE_MCS_HE_TYPE_MSK;
+
+	he->data1 |= cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_BSS_COLOR_KNOWN);
+	he->data3 |= le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_BSS_COLOR_MASK,
+						he_phy_data),
+				      IEEE80211_RADIOTAP_HE_DATA3_BSS_COLOR);
+
+	if (he_mu) {
+		bool sigb_data;
+
+		he_mu->flags1 |=
+			le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_MU_SIGB_DCM,
+						   he_phy_data),
+					 IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_DCM);
+		he_mu->flags1 |=
+			le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_MU_SIGB_MCS_MASK,
+						   he_phy_data),
+					 IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_MCS);
+		he_mu->flags2 |=
+			le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_MU_SIBG_SYM_OR_USER_NUM_MASK,
+						  he_phy_data),
+					IEEE80211_RADIOTAP_HE_MU_FLAGS2_SIG_B_SYMS_USERS);
+		he_mu->flags2 |=
+			le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_MU_SIGB_COMPRESSION,
+						   he_phy_data),
+					 IEEE80211_RADIOTAP_HE_MU_FLAGS2_SIG_B_COMP);
+		he_mu->flags2 |=
+			le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_MU_PREAMBLE_PUNC_TYPE_MASK,
+						   he_phy_data),
+					 IEEE80211_RADIOTAP_HE_MU_FLAGS2_PUNC_FROM_SIG_A_BW);
+
+		sigb_data = FIELD_GET(IWL_RX_HE_PHY_INFO_TYPE_MASK,
+				      he_phy_data) ==
+				IWL_RX_HE_PHY_INFO_TYPE_MU_EXT_INFO;
+		if (sigb_data)
+			iwl_mvm_decode_he_sigb(mvm, desc, rate_n_flags, he_mu);
+	}
+
+	if (he_type != RATE_MCS_HE_TYPE_TRIG) {
+		he->data1 |=
+			cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_UL_DL_KNOWN);
+		if (FIELD_GET(IWL_RX_HE_PHY_UPLINK, he_phy_data))
+			he->data3 |=
+				cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA3_UL_DL);
+	}
+}
+
 static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 			  struct iwl_rx_mpdu_desc *desc,
 			  u32 rate_n_flags, u16 phy_info, int queue)
@@ -952,7 +1006,6 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 				      IEEE80211_RADIOTAP_HE_MU_FLAGS2_BW_FROM_SIG_A_BW_KNOWN),
 	};
 	unsigned int radiotap_len = 0;
-	bool sigb_data = false;
 
 	he = skb_put_data(skb, &known, sizeof(known));
 	radiotap_len += sizeof(known);
@@ -976,58 +1029,18 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	if (he_phy_data != HE_PHY_DATA_INVAL &&
 	    he_type == RATE_MCS_HE_TYPE_SU) {
-		he->data1 |=
-			cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_UL_DL_KNOWN);
-		if (FIELD_GET(IWL_RX_HE_PHY_UPLINK, he_phy_data))
-			he->data3 |=
-				cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA3_UL_DL);
-
+		/* report the AMPDU-EOF bit on single frames */
 		if (!queue && !(phy_info & IWL_RX_MPDU_PHY_AMPDU)) {
 			rx_status->flag |= RX_FLAG_AMPDU_DETAILS;
 			rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT_KNOWN;
 			if (FIELD_GET(IWL_RX_HE_PHY_DELIM_EOF, he_phy_data))
 				rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT;
 		}
-	} else if (he_phy_data != HE_PHY_DATA_INVAL && he_mu) {
-		he_mu->flags1 |=
-			le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_MU_SIGB_DCM,
-						   he_phy_data),
-					 IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_DCM);
-		he_mu->flags1 |=
-			le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_MU_SIGB_MCS_MASK,
-						   he_phy_data),
-					 IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_MCS);
-		he_mu->flags2 |=
-			le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_MU_SIBG_SYM_OR_USER_NUM_MASK,
-						   he_phy_data),
-					 IEEE80211_RADIOTAP_HE_MU_FLAGS2_SIG_B_SYMS_USERS);
-		he_mu->flags2 |=
-			le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_MU_SIGB_COMPRESSION,
-						   he_phy_data),
-					 IEEE80211_RADIOTAP_HE_MU_FLAGS2_SIG_B_COMP);
-		he_mu->flags2 |=
-			le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_MU_PREAMBLE_PUNC_TYPE_MASK,
-						   he_phy_data),
-					 IEEE80211_RADIOTAP_HE_MU_FLAGS2_PUNC_FROM_SIG_A_BW);
-
-		sigb_data = FIELD_GET(IWL_RX_HE_PHY_INFO_TYPE_MASK,
-				      he_phy_data) ==
-				IWL_RX_HE_PHY_INFO_TYPE_MU_EXT_INFO;
-		if (sigb_data)
-			iwl_mvm_decode_he_sigb(mvm, desc, rate_n_flags, he_mu);
 	}
-	if (he_phy_data != HE_PHY_DATA_INVAL &&
-	    (he_type == RATE_MCS_HE_TYPE_SU ||
-	     he_type == RATE_MCS_HE_TYPE_MU)) {
-		u8 bss_color = FIELD_GET(IWL_RX_HE_PHY_BSS_COLOR_MASK,
-					 he_phy_data);
 
-		if (bss_color) {
-			he->data1 |=
-				cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_BSS_COLOR_KNOWN);
-			he->data3 |= cpu_to_le16(bss_color);
-		}
-	}
+	if (he_phy_data != HE_PHY_DATA_INVAL)
+		iwl_mvm_decode_he_phy_data(mvm, desc, he, he_mu, he_phy_data,
+					   rate_n_flags, queue);
 
 	/* update aggregation data for monitor sake on default queue */
 	if (!queue && (phy_info & IWL_RX_MPDU_PHY_AMPDU)) {
