@@ -884,6 +884,16 @@ static int nd_intel_test_cmd_set_lss_status(struct nfit_test *t,
 	return 0;
 }
 
+static int override_return_code(int dimm, unsigned int func, int rc)
+{
+	if ((1 << func) & dimm_fail_cmd_flags[dimm]) {
+		if (dimm_fail_cmd_code[dimm])
+			return dimm_fail_cmd_code[dimm];
+		return -EIO;
+	}
+	return rc;
+}
+
 static int get_dimm(struct nfit_mem *nfit_mem, unsigned int func)
 {
 	int i;
@@ -894,13 +904,6 @@ static int get_dimm(struct nfit_mem *nfit_mem, unsigned int func)
 			break;
 	if (i >= ARRAY_SIZE(handle))
 		return -ENXIO;
-
-	if ((1 << func) & dimm_fail_cmd_flags[i]) {
-		if (dimm_fail_cmd_code[i])
-			return dimm_fail_cmd_code[i];
-		return -EIO;
-	}
-
 	return i;
 }
 
@@ -939,48 +942,59 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 
 			switch (func) {
 			case ND_INTEL_ENABLE_LSS_STATUS:
-				return nd_intel_test_cmd_set_lss_status(t,
+				rc = nd_intel_test_cmd_set_lss_status(t,
 						buf, buf_len);
+				break;
 			case ND_INTEL_FW_GET_INFO:
-				return nd_intel_test_get_fw_info(t, buf,
+				rc = nd_intel_test_get_fw_info(t, buf,
 						buf_len, i - t->dcr_idx);
+				break;
 			case ND_INTEL_FW_START_UPDATE:
-				return nd_intel_test_start_update(t, buf,
+				rc = nd_intel_test_start_update(t, buf,
 						buf_len, i - t->dcr_idx);
+				break;
 			case ND_INTEL_FW_SEND_DATA:
-				return nd_intel_test_send_data(t, buf,
+				rc = nd_intel_test_send_data(t, buf,
 						buf_len, i - t->dcr_idx);
+				break;
 			case ND_INTEL_FW_FINISH_UPDATE:
-				return nd_intel_test_finish_fw(t, buf,
+				rc = nd_intel_test_finish_fw(t, buf,
 						buf_len, i - t->dcr_idx);
+				break;
 			case ND_INTEL_FW_FINISH_QUERY:
-				return nd_intel_test_finish_query(t, buf,
+				rc = nd_intel_test_finish_query(t, buf,
 						buf_len, i - t->dcr_idx);
+				break;
 			case ND_INTEL_SMART:
-				return nfit_test_cmd_smart(buf, buf_len,
+				rc = nfit_test_cmd_smart(buf, buf_len,
 						&t->smart[i - t->dcr_idx]);
+				break;
 			case ND_INTEL_SMART_THRESHOLD:
-				return nfit_test_cmd_smart_threshold(buf,
+				rc = nfit_test_cmd_smart_threshold(buf,
 						buf_len,
 						&t->smart_threshold[i -
 							t->dcr_idx]);
+				break;
 			case ND_INTEL_SMART_SET_THRESHOLD:
-				return nfit_test_cmd_smart_set_threshold(buf,
+				rc = nfit_test_cmd_smart_set_threshold(buf,
 						buf_len,
 						&t->smart_threshold[i -
 							t->dcr_idx],
 						&t->smart[i - t->dcr_idx],
 						&t->pdev.dev, t->dimm_dev[i]);
+				break;
 			case ND_INTEL_SMART_INJECT:
-				return nfit_test_cmd_smart_inject(buf,
+				rc = nfit_test_cmd_smart_inject(buf,
 						buf_len,
 						&t->smart_threshold[i -
 							t->dcr_idx],
 						&t->smart[i - t->dcr_idx],
 						&t->pdev.dev, t->dimm_dev[i]);
+				break;
 			default:
 				return -ENOTTY;
 			}
+			return override_return_code(i, func, rc);
 		}
 
 		if (!test_bit(cmd, &cmd_mask)
@@ -1006,6 +1020,7 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 		default:
 			return -ENOTTY;
 		}
+		return override_return_code(i, func, rc);
 	} else {
 		struct ars_state *ars_state = &t->ars_state;
 		struct nd_cmd_pkg *call_pkg = buf;
