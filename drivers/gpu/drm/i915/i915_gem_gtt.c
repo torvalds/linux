@@ -2792,7 +2792,7 @@ int i915_gem_init_aliasing_ppgtt(struct drm_i915_private *i915)
 	if (IS_ERR(ppgtt))
 		return PTR_ERR(ppgtt);
 
-	if (WARN_ON(ppgtt->vm.total < ggtt->vm.total)) {
+	if (GEM_WARN_ON(ppgtt->vm.total < ggtt->vm.total)) {
 		err = -ENODEV;
 		goto err_ppgtt;
 	}

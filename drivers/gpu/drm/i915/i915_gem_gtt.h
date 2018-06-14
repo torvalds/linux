@@ -464,8 +464,8 @@ static inline u32 i915_pte_count(u64 addr, u64 length, unsigned int pde_shift)
 	const u64 mask = ~((1ULL << pde_shift) - 1);
 	u64 end;
 
-	WARN_ON(length == 0);
-	WARN_ON(offset_in_page(addr|length));
+	GEM_BUG_ON(length == 0);
+	GEM_BUG_ON(offset_in_page(addr | length));
 
 	end = addr + length;
 
