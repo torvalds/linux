@@ -281,7 +281,7 @@ void __aa_labelset_update_subtree(struct aa_ns *ns);
 
 void aa_label_free(struct aa_label *label);
 void aa_label_kref(struct kref *kref);
-bool aa_label_init(struct aa_label *label, int size);
+bool aa_label_init(struct aa_label *label, int size, gfp_t gfp);
 struct aa_label *aa_label_alloc(int size, struct aa_proxy *proxy, gfp_t gfp);
 
 bool aa_label_is_subset(struct aa_label *set, struct aa_label *sub);
