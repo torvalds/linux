@@ -1010,6 +1010,11 @@ static void iwl_mvm_decode_he_phy_data(struct iwl_mvm *mvm,
 						he_phy_data),
 				      IEEE80211_RADIOTAP_HE_DATA3_BSS_COLOR);
 
+	he->data2 |= cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_TXOP_KNOWN);
+	he->data6 |= le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_TXOP_DUR_MASK,
+						he_phy_data),
+				      IEEE80211_RADIOTAP_HE_DATA6_TXOP);
+
 	if (he_mu) {
 		bool sigb_data;
 
