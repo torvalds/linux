@@ -64,7 +64,7 @@ while (<IN>) {
 		next if (grep -e, glob("$ref $fulref"));
 
 		if ($fix) {
-			if (!($ref =~ m/(devicetree|scripts|Kconfig|Kbuild)/)) {
+			if (!($ref =~ m/(scripts|Kconfig|Kbuild)/)) {
 				$broken_ref{$ref}++;
 			}
 		} else {
@@ -84,15 +84,29 @@ foreach my $ref (keys %broken_ref) {
 	# get just the basename
 	$new =~ s,.*/,,;
 
-	# Seek for the same name on another place, as it may have been moved
 	my $f="";
 
-	$f = qx(find . -iname $new) if ($new);
+	# usual reason for breakage: DT file moved around
+	if ($ref =~ /devicetree/) {
+		my $search = $new;
+		$search =~ s,^.*/,,;
+		$f = qx(find Documentation/devicetree/ -iname "*$search*") if ($search);
+		if (!$f) {
+			# Manufacturer name may have changed
+			$search =~ s/^.*,//;
+			$f = qx(find Documentation/devicetree/ -iname "*$search*") if ($search);
+		}
+	}
 
 	# usual reason for breakage: file renamed to .rst
 	if (!$f) {
 		$new =~ s/\.txt$/.rst/;
 		$f=qx(find . -iname $new) if ($new);
+	}
+
+	# Wild guess: seek for the same name on another place
+	if (!$f) {
+		$f = qx(find . -iname $new) if ($new);
 	}
 
 	my @find = split /\s+/, $f;
