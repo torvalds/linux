@@ -2318,36 +2318,21 @@ static int sony_battery_probe(struct sony_sc *sc, int append_dev_id)
 	sc->battery_desc.get_property = sony_battery_get_property;
 	sc->battery_desc.type = POWER_SUPPLY_TYPE_BATTERY;
 	sc->battery_desc.use_for_apm = 0;
-	sc->battery_desc.name = kasprintf(GFP_KERNEL, battery_str_fmt,
-					  sc->mac_address, sc->device_id);
+	sc->battery_desc.name = devm_kasprintf(&hdev->dev, GFP_KERNEL,
+					  battery_str_fmt, sc->mac_address, sc->device_id);
 	if (!sc->battery_desc.name)
 		return -ENOMEM;
 
-	sc->battery = power_supply_register(&hdev->dev, &sc->battery_desc,
+	sc->battery = devm_power_supply_register(&hdev->dev, &sc->battery_desc,
 					    &psy_cfg);
 	if (IS_ERR(sc->battery)) {
 		ret = PTR_ERR(sc->battery);
 		hid_err(hdev, "Unable to register battery device\n");
-		goto err_free;
+		return ret;
 	}
 
 	power_supply_powers(sc->battery, &hdev->dev);
 	return 0;
-
-err_free:
-	kfree(sc->battery_desc.name);
-	sc->battery_desc.name = NULL;
-	return ret;
-}
-
-static void sony_battery_remove(struct sony_sc *sc)
-{
-	if (!sc->battery_desc.name)
-		return;
-
-	power_supply_unregister(sc->battery);
-	kfree(sc->battery_desc.name);
-	sc->battery_desc.name = NULL;
 }
 
 /*
@@ -2805,8 +2790,6 @@ err_stop:
 		device_remove_file(&sc->hdev->dev, &dev_attr_firmware_version);
 	if (sc->hw_version)
 		device_remove_file(&sc->hdev->dev, &dev_attr_hardware_version);
-	if (sc->quirks & SONY_BATTERY_SUPPORT)
-		sony_battery_remove(sc);
 	sony_cancel_work_sync(sc);
 	kfree(sc->output_report_dmabuf);
 	sony_remove_dev_list(sc);
@@ -2884,9 +2867,6 @@ static void sony_remove(struct hid_device *hdev)
 	struct sony_sc *sc = hid_get_drvdata(hdev);
 
 	hid_hw_close(hdev);
-
-	if (sc->quirks & SONY_BATTERY_SUPPORT)
-		sony_battery_remove(sc);
 
 	if (sc->quirks & DUALSHOCK4_CONTROLLER_BT)
 		device_remove_file(&sc->hdev->dev, &dev_attr_bt_poll_interval);
