@@ -174,7 +174,7 @@
 };
 
 &cluster1_opp {
-	rockchip,avs-enable = <1>;
+	rockchip,avs = <1>;
 };
 
 &display_subsystem {

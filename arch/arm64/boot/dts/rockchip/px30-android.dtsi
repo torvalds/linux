@@ -72,7 +72,7 @@
 };
 
 &cpu0_opp_table {
-	rockchip,avs-enable = <1>;
+	rockchip,avs = <1>;
 };
 
 &display_subsystem {

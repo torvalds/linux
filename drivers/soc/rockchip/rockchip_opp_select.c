@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-2.0+
  */
 #include <linux/clk.h>
+#include <linux/cpufreq.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
@@ -677,7 +678,7 @@ int rockchip_adjust_power_scale(struct device *dev, int scale)
 	struct device_node *np;
 	struct clk *clk;
 	int irdrop_scale = 0, opp_scale = 0;
-	u32 target_scale, avs_enable = 0, avs_scale = 0;
+	u32 target_scale, avs = 0, avs_scale = 0;
 	long scale_rate = 0;
 	int ret = 0;
 
@@ -686,14 +687,15 @@ int rockchip_adjust_power_scale(struct device *dev, int scale)
 		dev_warn(dev, "OPP-v2 not supported\n");
 		return -ENOENT;
 	}
-	of_property_read_u32(np, "rockchip,avs-enable", &avs_enable);
+	of_property_read_u32(np, "rockchip,avs-enable", &avs);
+	of_property_read_u32(np, "rockchip,avs", &avs);
 	of_property_read_u32(np, "rockchip,avs-scale", &avs_scale);
 
 	rockchip_adjust_opp_by_irdrop(dev, np, &irdrop_scale, &opp_scale);
 	target_scale = max(irdrop_scale, scale);
 	if (target_scale <= 0)
 		return 0;
-	dev_info(dev, "target-scale=%d\n", target_scale);
+	dev_info(dev, "avs=%d, target-scale=%d\n", avs, target_scale);
 
 	clk = of_clk_get_by_name(np, NULL);
 	if (IS_ERR(clk)) {
@@ -701,7 +703,7 @@ int rockchip_adjust_power_scale(struct device *dev, int scale)
 		goto np_err;
 	}
 
-	if (avs_enable) {
+	if (avs == 1) {
 		ret = rockchip_pll_clk_adaptive_scaling(clk, target_scale);
 		if (ret)
 			dev_err(dev, "Failed to adaptive scaling\n");
@@ -731,9 +733,15 @@ int rockchip_adjust_power_scale(struct device *dev, int scale)
 			goto clk_err;
 		}
 		dev_info(dev, "scale_rate=%lu\n", scale_rate);
-		ret = rockchip_adjust_opp_table(dev, scale_rate);
-		if (ret)
-			dev_err(dev, "Failed to adjust opp table\n");
+		if (avs == 2) {
+			ret = rockchip_cpufreq_set_scale_rate(dev, scale_rate);
+			if (ret)
+				dev_err(dev, "Failed to set cpu scale rate\n");
+		} else {
+			ret = rockchip_adjust_opp_table(dev, scale_rate);
+			if (ret)
+				dev_err(dev, "Failed to adjust opp table\n");
+		}
 	}
 
 clk_err:

@@ -41,6 +41,7 @@ struct cluster_info {
 	cpumask_t cpus;
 	unsigned int reboot_freq;
 	unsigned int threshold_freq;
+	unsigned int scale_rate;
 	int volt_sel;
 	int scale;
 	int process;
@@ -127,6 +128,25 @@ static struct cluster_info *rockchip_cluster_info_lookup(int cpu)
 	return NULL;
 }
 
+static struct cluster_info *rockchip_cluster_lookup_by_dev(struct device *dev)
+{
+	struct cluster_info *cluster;
+	struct device *cpu_dev;
+	int cpu;
+
+	list_for_each_entry(cluster, &cluster_info_list, list_head) {
+		for_each_cpu(cpu, &cluster->cpus) {
+			cpu_dev = get_cpu_device(cpu);
+			if (!cpu_dev)
+				continue;
+			if (cpu_dev == dev)
+				return cluster;
+		}
+	}
+
+	return NULL;
+}
+
 int rockchip_cpufreq_get_scale(int cpu)
 {
 	struct cluster_info *cluster;
@@ -138,6 +158,19 @@ int rockchip_cpufreq_get_scale(int cpu)
 		return cluster->scale;
 }
 EXPORT_SYMBOL_GPL(rockchip_cpufreq_get_scale);
+
+int rockchip_cpufreq_set_scale_rate(struct device *dev, unsigned long rate)
+{
+	struct cluster_info *cluster;
+
+	cluster = rockchip_cluster_lookup_by_dev(dev);
+	if (!cluster)
+		return -EINVAL;
+	cluster->scale_rate = rate / 1000;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rockchip_cpufreq_set_scale_rate);
 
 static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 {
@@ -272,6 +305,11 @@ static int rockchip_cpufreq_policy_notifier(struct notifier_block *nb,
 			policy->cpu, cluster->reboot_freq,
 			policy->min, policy->max);
 		return NOTIFY_OK;
+	}
+
+	if (cluster->scale_rate) {
+		if (cluster->scale_rate < policy->max)
+			policy->max = cluster->scale_rate;
 	}
 
 	return NOTIFY_OK;
