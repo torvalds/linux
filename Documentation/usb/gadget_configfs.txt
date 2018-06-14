@@ -226,7 +226,7 @@ $ rm configs/<config name>.<number>/<function>
 where <config name>.<number> specify the configuration and <function> is
 a symlink to a function being removed from the configuration, e.g.:
 
-$ rm configfs/c.1/ncm.usb0
+$ rm configs/c.1/ncm.usb0
 
 ...
 ...
