@@ -1940,25 +1940,6 @@ static int sony_led_blink_set(struct led_classdev *led, unsigned long *delay_on,
 	return 0;
 }
 
-static void sony_leds_remove(struct sony_sc *sc)
-{
-	struct led_classdev *led;
-	int n;
-
-	BUG_ON(!(sc->quirks & SONY_LED_SUPPORT));
-
-	for (n = 0; n < sc->led_count; n++) {
-		led = sc->leds[n];
-		sc->leds[n] = NULL;
-		if (!led)
-			continue;
-		led_classdev_unregister(led);
-		kfree(led);
-	}
-
-	sc->led_count = 0;
-}
-
 static int sony_leds_init(struct sony_sc *sc)
 {
 	struct hid_device *hdev = sc->hdev;
@@ -2031,11 +2012,10 @@ static int sony_leds_init(struct sony_sc *sc)
 		if (use_ds4_names)
 			name_sz = strlen(dev_name(&hdev->dev)) + strlen(ds4_name_str[n]) + 2;
 
-		led = kzalloc(sizeof(struct led_classdev) + name_sz, GFP_KERNEL);
+		led = devm_kzalloc(&hdev->dev, sizeof(struct led_classdev) + name_sz, GFP_KERNEL);
 		if (!led) {
 			hid_err(hdev, "Couldn't allocate memory for LED %d\n", n);
-			ret = -ENOMEM;
-			goto error_leds;
+			return -ENOMEM;
 		}
 
 		name = (void *)(&led[1]);
@@ -2056,21 +2036,14 @@ static int sony_leds_init(struct sony_sc *sc)
 
 		sc->leds[n] = led;
 
-		ret = led_classdev_register(&hdev->dev, led);
+		ret = devm_led_classdev_register(&hdev->dev, led);
 		if (ret) {
 			hid_err(hdev, "Failed to register LED %d\n", n);
-			sc->leds[n] = NULL;
-			kfree(led);
-			goto error_leds;
+			return ret;
 		}
 	}
 
-	return ret;
-
-error_leds:
-	sony_leds_remove(sc);
-
-	return ret;
+	return 0;
 }
 
 static void sixaxis_send_output_report(struct sony_sc *sc)
@@ -2832,8 +2805,6 @@ err_stop:
 		device_remove_file(&sc->hdev->dev, &dev_attr_firmware_version);
 	if (sc->hw_version)
 		device_remove_file(&sc->hdev->dev, &dev_attr_hardware_version);
-	if (sc->quirks & SONY_LED_SUPPORT)
-		sony_leds_remove(sc);
 	if (sc->quirks & SONY_BATTERY_SUPPORT)
 		sony_battery_remove(sc);
 	sony_cancel_work_sync(sc);
@@ -2913,9 +2884,6 @@ static void sony_remove(struct hid_device *hdev)
 	struct sony_sc *sc = hid_get_drvdata(hdev);
 
 	hid_hw_close(hdev);
-
-	if (sc->quirks & SONY_LED_SUPPORT)
-		sony_leds_remove(sc);
 
 	if (sc->quirks & SONY_BATTERY_SUPPORT)
 		sony_battery_remove(sc);
