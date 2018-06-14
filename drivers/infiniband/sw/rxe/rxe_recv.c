@@ -256,8 +256,7 @@ static int hdr_check(struct rxe_pkt_info *pkt)
 	return 0;
 
 err2:
-	if (qp)
-		rxe_drop_ref(qp);
+	rxe_drop_ref(qp);
 err1:
 	return -EINVAL;
 }
