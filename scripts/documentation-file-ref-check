@@ -38,16 +38,31 @@ while (<IN>) {
 	my $f = $1;
 	my $ln = $2;
 
-	# Makefiles contain nasty expressions to parse docs
-	next if ($f =~ m/Makefile/);
+	# Makefiles and scripts contain nasty expressions to parse docs
+	next if ($f =~ m/Makefile/ || $f =~ m/\.sh$/);
+
 	# Skip this script
 	next if ($f eq $scriptname);
 
-	if ($ln =~ m,\b(\S*)(Documentation/[A-Za-z0-9\_\.\,\~/\*\[\]\?+-]*),) {
+	if ($ln =~ m,\b(\S*)(Documentation/[A-Za-z0-9\_\.\,\~/\*\[\]\?+-]*)(.*),) {
 		my $prefix = $1;
 		my $ref = $2;
 		my $base = $2;
+		my $extra = $3;
 
+		# some file references are like:
+		# /usr/src/linux/Documentation/DMA-{API,mapping}.txt
+		# For now, ignore them
+		next if ($extra =~ m/^{/);
+
+		# Remove footnotes at the end like:
+		# Documentation/devicetree/dt-object-internal.txt[1]
+		$ref =~ s/(txt|rst)\[\d+]$/$1/;
+
+		# Remove ending ']' without any '['
+		$ref =~ s/\].*// if (!($ref =~ m/\[/));
+
+		# Remove puntuation marks at the end
 		$ref =~ s/[\,\.]+$//;
 
 		my $fulref = "$prefix$ref";
