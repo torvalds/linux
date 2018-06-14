@@ -1912,7 +1912,6 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 {
 	struct gen6_hw_ppgtt *ppgtt = to_gen6_ppgtt(i915_vm_to_ppgtt(vm));
 
-	i915_vma_unpin(ppgtt->vma);
 	i915_vma_destroy(ppgtt->vma);
 
 	gen6_ppgtt_free_pd(ppgtt);
@@ -1998,9 +1997,18 @@ static struct i915_vma *pd_vma_create(struct gen6_hw_ppgtt *ppgtt, int size)
 	return vma;
 }
 
-static int gen6_ppgtt_pin(struct i915_hw_ppgtt *base)
+int gen6_ppgtt_pin(struct i915_hw_ppgtt *base)
 {
 	struct gen6_hw_ppgtt *ppgtt = to_gen6_ppgtt(base);
+
+	/*
+	 * Workaround the limited maximum vma->pin_count and the aliasing_ppgtt
+	 * which will be pinned into every active context.
+	 * (When vma->pin_count becomes atomic, I expect we will naturally
+	 * need a larger, unpacked, type and kill this redundancy.)
+	 */
+	if (ppgtt->pin_count++)
+		return 0;
 
 	/*
 	 * PPGTT PDEs reside in the GGTT and consists of 512 entries. The
@@ -2010,6 +2018,17 @@ static int gen6_ppgtt_pin(struct i915_hw_ppgtt *base)
 	return i915_vma_pin(ppgtt->vma,
 			    0, GEN6_PD_ALIGN,
 			    PIN_GLOBAL | PIN_HIGH);
+}
+
+void gen6_ppgtt_unpin(struct i915_hw_ppgtt *base)
+{
+	struct gen6_hw_ppgtt *ppgtt = to_gen6_ppgtt(base);
+
+	GEM_BUG_ON(!ppgtt->pin_count);
+	if (--ppgtt->pin_count)
+		return;
+
+	i915_vma_unpin(ppgtt->vma);
 }
 
 static struct i915_hw_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
@@ -2053,21 +2072,8 @@ static struct i915_hw_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 	if (err)
 		goto err_vma;
 
-	err = gen6_ppgtt_pin(&ppgtt->base);
-	if (err)
-		goto err_pd;
-
-	DRM_DEBUG_DRIVER("Allocated pde space (%lldM) at GTT entry: %llx\n",
-			 ppgtt->vma->node.size >> 20,
-			 ppgtt->vma->node.start / PAGE_SIZE);
-
-	DRM_DEBUG_DRIVER("Adding PPGTT at offset %x\n",
-			 ppgtt->base.pd.base.ggtt_offset << 10);
-
 	return &ppgtt->base;
 
-err_pd:
-	gen6_ppgtt_free_pd(ppgtt);
 err_vma:
 	i915_vma_destroy(ppgtt->vma);
 err_scratch:

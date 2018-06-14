@@ -412,6 +412,8 @@ struct gen6_hw_ppgtt {
 
 	struct i915_vma *vma;
 	gen6_pte_t __iomem *pd_addr;
+
+	unsigned int pin_count;
 };
 
 #define __to_gen6_ppgtt(base) container_of(base, struct gen6_hw_ppgtt, base)
@@ -624,6 +626,9 @@ static inline void i915_ppgtt_put(struct i915_hw_ppgtt *ppgtt)
 	if (ppgtt)
 		kref_put(&ppgtt->ref, i915_ppgtt_release);
 }
+
+int gen6_ppgtt_pin(struct i915_hw_ppgtt *base);
+void gen6_ppgtt_unpin(struct i915_hw_ppgtt *base);
 
 void i915_check_and_clear_faults(struct drm_i915_private *dev_priv);
 void i915_gem_suspend_gtt_mappings(struct drm_i915_private *dev_priv);

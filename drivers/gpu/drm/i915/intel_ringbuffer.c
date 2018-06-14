@@ -1179,6 +1179,27 @@ static void intel_ring_context_destroy(struct intel_context *ce)
 		__i915_gem_object_release_unless_active(ce->state->obj);
 }
 
+static int __context_pin_ppgtt(struct i915_gem_context *ctx)
+{
+	struct i915_hw_ppgtt *ppgtt;
+	int err = 0;
+
+	ppgtt = ctx->ppgtt ?: ctx->i915->mm.aliasing_ppgtt;
+	if (ppgtt)
+		err = gen6_ppgtt_pin(ppgtt);
+
+	return err;
+}
+
+static void __context_unpin_ppgtt(struct i915_gem_context *ctx)
+{
+	struct i915_hw_ppgtt *ppgtt;
+
+	ppgtt = ctx->ppgtt ?: ctx->i915->mm.aliasing_ppgtt;
+	if (ppgtt)
+		gen6_ppgtt_unpin(ppgtt);
+}
+
 static int __context_pin(struct intel_context *ce)
 {
 	struct i915_vma *vma;
@@ -1227,6 +1248,7 @@ static void __context_unpin(struct intel_context *ce)
 
 static void intel_ring_context_unpin(struct intel_context *ce)
 {
+	__context_unpin_ppgtt(ce->gem_context);
 	__context_unpin(ce);
 
 	i915_gem_context_put(ce->gem_context);
@@ -1324,6 +1346,10 @@ __ring_context_pin(struct intel_engine_cs *engine,
 	if (err)
 		goto err;
 
+	err = __context_pin_ppgtt(ce->gem_context);
+	if (err)
+		goto err_unpin;
+
 	i915_gem_context_get(ctx);
 
 	/* One ringbuffer to rule them all */
@@ -1332,6 +1358,8 @@ __ring_context_pin(struct intel_engine_cs *engine,
 
 	return ce;
 
+err_unpin:
+	__context_unpin(ce);
 err:
 	ce->pin_count = 0;
 	return ERR_PTR(err);
