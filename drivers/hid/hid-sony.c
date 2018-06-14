@@ -1353,7 +1353,7 @@ static int sony_register_touchpad(struct sony_sc *sc, int touch_count,
 	char *name;
 	int ret;
 
-	sc->touchpad = input_allocate_device();
+	sc->touchpad = devm_input_allocate_device(&sc->hdev->dev);
 	if (!sc->touchpad)
 		return -ENOMEM;
 
@@ -1370,11 +1370,9 @@ static int sony_register_touchpad(struct sony_sc *sc, int touch_count,
 	 * DS4 compatible non-Sony devices with different names.
 	 */
 	name_sz = strlen(sc->hdev->name) + sizeof(DS4_TOUCHPAD_SUFFIX);
-	name = kzalloc(name_sz, GFP_KERNEL);
-	if (!name) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	name = devm_kzalloc(&sc->hdev->dev, name_sz, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
 	snprintf(name, name_sz, "%s" DS4_TOUCHPAD_SUFFIX, sc->hdev->name);
 	sc->touchpad->name = name;
 
@@ -1403,34 +1401,13 @@ static int sony_register_touchpad(struct sony_sc *sc, int touch_count,
 
 	ret = input_mt_init_slots(sc->touchpad, touch_count, INPUT_MT_POINTER);
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	ret = input_register_device(sc->touchpad);
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	return 0;
-
-err:
-	kfree(sc->touchpad->name);
-	sc->touchpad->name = NULL;
-
-	input_free_device(sc->touchpad);
-	sc->touchpad = NULL;
-
-	return ret;
-}
-
-static void sony_unregister_touchpad(struct sony_sc *sc)
-{
-	if (!sc->touchpad)
-		return;
-
-	kfree(sc->touchpad->name);
-	sc->touchpad->name = NULL;
-
-	input_unregister_device(sc->touchpad);
-	sc->touchpad = NULL;
 }
 
 static int sony_register_sensors(struct sony_sc *sc)
@@ -2883,8 +2860,6 @@ err_stop:
 		sony_leds_remove(sc);
 	if (sc->quirks & SONY_BATTERY_SUPPORT)
 		sony_battery_remove(sc);
-	if (sc->touchpad)
-		sony_unregister_touchpad(sc);
 	if (sc->sensor_dev)
 		sony_unregister_sensors(sc);
 	sony_cancel_work_sync(sc);
@@ -2970,9 +2945,6 @@ static void sony_remove(struct hid_device *hdev)
 
 	if (sc->quirks & SONY_BATTERY_SUPPORT)
 		sony_battery_remove(sc);
-
-	if (sc->touchpad)
-		sony_unregister_touchpad(sc);
 
 	if (sc->sensor_dev)
 		sony_unregister_sensors(sc);
