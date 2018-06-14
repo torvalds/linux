@@ -106,10 +106,26 @@ static u64 amdgpu_vram_mgr_vis_size(struct amdgpu_device *adev,
  */
 u64 amdgpu_vram_mgr_bo_invisible_size(struct amdgpu_bo *bo)
 {
-	if (bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
+	struct ttm_mem_reg *mem = &bo->tbo.mem;
+	struct drm_mm_node *nodes = mem->mm_node;
+	unsigned pages = mem->num_pages;
+	u64 usage = 0;
+
+	if (adev->gmc.visible_vram_size == adev->gmc.real_vram_size)
+		return 0;
+
+	if (mem->start >= adev->gmc.visible_vram_size >> PAGE_SHIFT)
 		return amdgpu_bo_size(bo);
 
-	return 0;
+	while (nodes && pages) {
+		usage += nodes->size << PAGE_SHIFT;
+		usage -= amdgpu_vram_mgr_vis_size(adev, nodes);
+		pages -= nodes->size;
+		++nodes;
+	}
+
+	return usage;
 }
 
 /**
