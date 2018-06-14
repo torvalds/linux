@@ -953,7 +953,6 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 				      IEEE80211_RADIOTAP_HE_MU_FLAGS2_BW_FROM_SIG_A_BW_KNOWN),
 	};
 	unsigned int radiotap_len = 0;
-	bool overload = phy_info & IWL_RX_MPDU_PHY_TSF_OVERLOAD;
 	bool sigb_data = false;
 
 	he = skb_put_data(skb, &known, sizeof(known));
@@ -980,7 +979,8 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 	/* temporarily hide the radiotap data */
 	__skb_pull(skb, radiotap_len);
 
-	if (overload && he_type == RATE_MCS_HE_TYPE_SU) {
+	if (he_phy_data != HE_PHY_DATA_INVAL &&
+	    he_type == RATE_MCS_HE_TYPE_SU) {
 		he->data1 |=
 			cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_UL_DL_KNOWN);
 		if (FIELD_GET(IWL_RX_HE_PHY_UPLINK, he_phy_data))
@@ -993,7 +993,7 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 			if (FIELD_GET(IWL_RX_HE_PHY_DELIM_EOF, he_phy_data))
 				rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT;
 		}
-	} else if (overload && he_mu && he_phy_data != HE_PHY_DATA_INVAL) {
+	} else if (he_phy_data != HE_PHY_DATA_INVAL && he_mu) {
 		he_mu->flags1 |=
 			le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_MU_SIBG_SYM_OR_USER_NUM_MASK,
 						   he_phy_data),
