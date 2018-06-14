@@ -3204,7 +3204,7 @@ static ssize_t kbase_show_gpuinfo(struct device *dev,
 		}
 	}
 
-	return scnprintf(buf, PAGE_SIZE, "%s %d cores r%dp%d 0x%04X\n",
+	return scnprintf(buf, PAGE_SIZE, "%s %d cores 2EE r%dp%d 0x%04X\n",
 		product_name, kbdev->gpu_props.num_cores,
 		(gpu_id & GPU_ID_VERSION_MAJOR) >> GPU_ID_VERSION_MAJOR_SHIFT,
 		(gpu_id & GPU_ID_VERSION_MINOR) >> GPU_ID_VERSION_MINOR_SHIFT,
