@@ -236,7 +236,7 @@ static void ds_dump_status(struct ds_device *dev, unsigned char *buf, int count)
 	int i;
 
 	pr_info("0x%x: count=%d, status: ", dev->ep[EP_STATUS], count);
-	for (i=0; i<count; ++i)
+	for (i = 0; i < count; ++i)
 		pr_info("%02x ", buf[i]);
 	pr_info("\n");
 
@@ -358,7 +358,7 @@ static int ds_recv_data(struct ds_device *dev, unsigned char *buf, int size)
 		int i;
 
 		printk("%s: count=%d: ", __func__, count);
-		for (i=0; i<count; ++i)
+		for (i = 0; i < count; ++i)
 			printk("%02x ", buf[i]);
 		printk("\n");
 	}
@@ -404,7 +404,7 @@ int ds_stop_pulse(struct ds_device *dev, int limit)
 			if (err)
 				break;
 		}
-	} while(++count < limit);
+	} while (++count < limit);
 
 	return err;
 }
@@ -447,7 +447,7 @@ static int ds_wait_status(struct ds_device *dev, struct ds_status *st)
 		if (err >= 0) {
 			int i;
 			printk("0x%x: count=%d, status: ", dev->ep[EP_STATUS], err);
-			for (i=0; i<err; ++i)
+			for (i = 0; i < err; ++i)
 				printk("%02x ", dev->st_buf[i]);
 			printk("\n");
 		}
