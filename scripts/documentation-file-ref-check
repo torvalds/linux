@@ -43,7 +43,7 @@ while (<IN>) {
 	# Skip this script
 	next if ($f eq $scriptname);
 
-	if ($ln =~ m,\b(\S*)(Documentation/[A-Za-z0-9\_\.\,\~/\*+-]*),) {
+	if ($ln =~ m,\b(\S*)(Documentation/[A-Za-z0-9\_\.\,\~/\*\[\]\?+-]*),) {
 		my $prefix = $1;
 		my $ref = $2;
 		my $base = $2;
