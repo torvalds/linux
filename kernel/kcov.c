@@ -58,7 +58,7 @@ struct kcov {
 
 static bool check_kcov_mode(enum kcov_mode needed_mode, struct task_struct *t)
 {
-	enum kcov_mode mode;
+	unsigned int mode;
 
 	/*
 	 * We are interested in code coverage as a function of a syscall inputs,
