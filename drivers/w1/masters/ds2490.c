@@ -613,7 +613,7 @@ static int ds_read_byte(struct ds_device *dev, u8 *byte)
 	int err;
 	struct ds_status st;
 
-	err = ds_send_control(dev, COMM_BYTE_IO | COMM_IM , 0xff);
+	err = ds_send_control(dev, COMM_BYTE_IO | COMM_IM, 0xff);
 	if (err)
 		return err;
 
