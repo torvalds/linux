@@ -490,6 +490,7 @@ struct dc_cursor_attributes {
 	uint32_t height;
 
 	enum dc_cursor_color_format color_format;
+	uint32_t sdr_white_level; // for boosting (SDR) cursor in HDR mode
 
 	/* In case we support HW Cursor rotation in the future */
 	enum dc_rotation_angle rotation_angle;
