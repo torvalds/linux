@@ -512,8 +512,9 @@ int skl_pcm_host_dma_prepare(struct device *dev,
 int skl_pcm_link_dma_prepare(struct device *dev,
 			struct skl_pipe_params *params);
 
-int skl_dai_load(struct snd_soc_component *cmp,
-		 struct snd_soc_dai_driver *pcm_dai);
+int skl_dai_load(struct snd_soc_component *cmp, int index,
+		struct snd_soc_dai_driver *dai_drv,
+		struct snd_soc_tplg_pcm *pcm, struct snd_soc_dai *dai);
 void skl_tplg_add_moduleid_in_bind_params(struct skl *skl,
 				struct snd_soc_dapm_widget *w);
 #endif
