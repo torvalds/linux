@@ -517,7 +517,7 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 	 * to get a reliable result.
 	 */
 
-	if (IS_G4X(dev_priv) && !IS_GM45(dev_priv))
+	if (IS_G45(dev_priv))
 		tries = 2;
 	else
 		tries = 1;
