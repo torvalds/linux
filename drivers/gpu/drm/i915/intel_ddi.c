@@ -3078,6 +3078,8 @@ void intel_ddi_compute_min_voltage_level(struct drm_i915_private *dev_priv,
 {
 	if (IS_CANNONLAKE(dev_priv) && crtc_state->port_clock > 594000)
 		crtc_state->min_voltage_level = 2;
+	else if (IS_ICELAKE(dev_priv) && crtc_state->port_clock > 594000)
+		crtc_state->min_voltage_level = 1;
 }
 
 void intel_ddi_get_config(struct intel_encoder *encoder,
