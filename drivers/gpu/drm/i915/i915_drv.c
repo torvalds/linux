@@ -1698,6 +1698,8 @@ static int i915_drm_resume(struct drm_device *dev)
 	disable_rpm_wakeref_asserts(dev_priv);
 	intel_sanitize_gt_powersave(dev_priv);
 
+	i915_gem_sanitize(dev_priv);
+
 	ret = i915_ggtt_enable_hw(dev_priv);
 	if (ret)
 		DRM_ERROR("failed to re-enable GGTT\n");
@@ -1838,8 +1840,6 @@ static int i915_drm_resume_early(struct drm_device *dev)
 		intel_power_domains_init_hw(dev_priv, true);
 	else
 		intel_display_set_init_power(dev_priv, true);
-
-	i915_gem_sanitize(dev_priv);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 
