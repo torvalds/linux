@@ -480,7 +480,7 @@ There are several features that need compiler support. The recommended way
 to describe the dependency on the compiler feature is to use "depends on"
 followed by a test macro.
 
-config CC_STACKPROTECTOR
+config STACKPROTECTOR
 	bool "Stack Protector buffer overflow detection"
 	depends on $(cc-option,-fstack-protector)
 	...

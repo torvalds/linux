@@ -558,7 +558,7 @@ config HAVE_CC_STACKPROTECTOR
 config CC_HAS_STACKPROTECTOR_NONE
 	def_bool $(cc-option,-fno-stack-protector)
 
-config CC_STACKPROTECTOR
+config STACKPROTECTOR
 	bool "Stack Protector buffer overflow detection"
 	depends on HAVE_CC_STACKPROTECTOR
 	depends on $(cc-option,-fstack-protector)
@@ -582,9 +582,9 @@ config CC_STACKPROTECTOR
 	  about 3% of all kernel functions, which increases kernel code size
 	  by about 0.3%.
 
-config CC_STACKPROTECTOR_STRONG
+config STACKPROTECTOR_STRONG
 	bool "Strong Stack Protector"
-	depends on CC_STACKPROTECTOR
+	depends on STACKPROTECTOR
 	depends on $(cc-option,-fstack-protector-strong)
 	default y
 	help
