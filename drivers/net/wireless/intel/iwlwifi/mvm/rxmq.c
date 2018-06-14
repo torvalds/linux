@@ -1054,11 +1054,17 @@ static void iwl_mvm_decode_he_phy_data(struct iwl_mvm *mvm,
 	}
 
 	if (he_type != RATE_MCS_HE_TYPE_TRIG) {
-		he->data1 |=
-			cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_UL_DL_KNOWN);
-		if (FIELD_GET(IWL_RX_HE_PHY_UPLINK, he_phy_data))
-			he->data3 |=
-				cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA3_UL_DL);
+		u16 d1known = IEEE80211_RADIOTAP_HE_DATA1_LDPC_XSYMSEG_KNOWN |
+			      IEEE80211_RADIOTAP_HE_DATA1_UL_DL_KNOWN;
+
+		he->data1 |= cpu_to_le16(d1known);
+
+		he->data3 |= le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_UPLINK,
+							he_phy_data),
+					      IEEE80211_RADIOTAP_HE_DATA3_UL_DL);
+		he->data3 |= le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_LDPC_EXT_SYM,
+							he_phy_data),
+					      IEEE80211_RADIOTAP_HE_DATA3_LDPC_XSYMSEG);
 	}
 
 	switch (FIELD_GET(IWL_RX_HE_PHY_INFO_TYPE_MASK, he_phy_data)) {
