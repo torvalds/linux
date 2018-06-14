@@ -104,6 +104,12 @@ foreach my $ref (keys %broken_ref) {
 		$f=qx(find . -iname $new) if ($new);
 	}
 
+	# usual reason for breakage: use dash or underline
+	if (!$f) {
+		$new =~ s/[-_]/[-_]/g;
+		$f=qx(find . -iname $new) if ($new);
+	}
+
 	# Wild guess: seek for the same name on another place
 	if (!$f) {
 		$f = qx(find . -iname $new) if ($new);
