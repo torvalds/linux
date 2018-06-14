@@ -717,10 +717,6 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	client->adapter = adap;
 
 	client->dev.platform_data = info->platform_data;
-
-	if (info->archdata)
-		client->dev.archdata = *info->archdata;
-
 	client->flags = info->flags;
 	client->addr = info->addr;
 
@@ -746,7 +742,7 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	client->dev.parent = &client->adapter->dev;
 	client->dev.bus = &i2c_bus_type;
 	client->dev.type = &i2c_client_type;
-	client->dev.of_node = info->of_node;
+	client->dev.of_node = of_node_get(info->of_node);
 	client->dev.fwnode = info->fwnode;
 
 	i2c_dev_set_name(adap, client, info);
@@ -757,7 +753,7 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 			dev_err(&adap->dev,
 				"Failed to add properties to client %s: %d\n",
 				client->name, status);
-			goto out_err;
+			goto out_err_put_of_node;
 		}
 	}
 
@@ -773,6 +769,8 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 out_free_props:
 	if (info->properties)
 		device_remove_properties(&client->dev);
+out_err_put_of_node:
+	of_node_put(info->of_node);
 out_err:
 	dev_err(&adap->dev,
 		"Failed to register i2c client %s at 0x%02x (%d)\n",

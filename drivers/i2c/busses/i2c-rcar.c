@@ -329,7 +329,7 @@ static void rcar_i2c_prepare_msg(struct rcar_i2c_priv *priv)
 	if (priv->msgs_left == 1)
 		priv->flags |= ID_LAST_MSG;
 
-	rcar_i2c_write(priv, ICMAR, (priv->msg->addr << 1) | read);
+	rcar_i2c_write(priv, ICMAR, i2c_8bit_addr_from_msg(priv->msg));
 	/*
 	 * We don't have a test case but the HW engineers say that the write order
 	 * of ICMSR and ICMCR depends on whether we issue START or REP_START. Since
@@ -542,6 +542,8 @@ static void rcar_i2c_irq_recv(struct rcar_i2c_priv *priv, u32 msr)
 	 * If next received data is the _LAST_, go to STOP phase. Might be
 	 * overwritten by REP START when setting up a new msg. Not elegant
 	 * but the only stable sequence for REP START I have found so far.
+	 * If you want to change this code, make sure sending one transfer with
+	 * four messages (WR-RD-WR-RD) works!
 	 */
 	if (priv->pos + 1 >= msg->len)
 		rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_STOP);

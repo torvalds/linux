@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/i2c-omap.h>
+#include <linux/platform_data/i2c-omap.h>
 
 #include "omap_hwmod.h"
 #include "omap_hwmod_common_data.h"
