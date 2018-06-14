@@ -21,7 +21,7 @@ GetOptions(
 );
 
 if ($help != 0) {
-    print "$scriptname [--help] [--fix-rst]\n";
+    print "$scriptname [--help] [--fix]\n";
     exit -1;
 }
 
