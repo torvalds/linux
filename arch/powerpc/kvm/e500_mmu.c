@@ -513,7 +513,7 @@ void kvmppc_mmu_itlb_miss(struct kvm_vcpu *vcpu)
 {
 	unsigned int as = !!(vcpu->arch.shared->msr & MSR_IS);
 
-	kvmppc_e500_deliver_tlb_miss(vcpu, vcpu->arch.pc, as);
+	kvmppc_e500_deliver_tlb_miss(vcpu, vcpu->arch.regs.nip, as);
 }
 
 void kvmppc_mmu_dtlb_miss(struct kvm_vcpu *vcpu)
