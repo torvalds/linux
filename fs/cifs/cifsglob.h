@@ -841,6 +841,13 @@ static inline void cifs_set_net_ns(struct TCP_Server_Info *srv, struct net *net)
 
 #endif
 
+struct cifs_server_iface {
+	size_t speed;
+	unsigned int rdma_capable : 1;
+	unsigned int rss_capable : 1;
+	struct sockaddr_storage sockaddr;
+};
+
 /*
  * Session structure.  One of these for each uid session with a particular host
  */
@@ -878,6 +885,20 @@ struct cifs_ses {
 #ifdef CONFIG_CIFS_SMB311
 	__u8 preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
 #endif /* 3.1.1 */
+
+	/*
+	 * Network interfaces available on the server this session is
+	 * connected to.
+	 *
+	 * Other channels can be opened by connecting and binding this
+	 * session to interfaces from this list.
+	 *
+	 * iface_lock should be taken when accessing any of these fields
+	 */
+	spinlock_t iface_lock;
+	struct cifs_server_iface *iface_list;
+	size_t iface_count;
+	unsigned long iface_last_update; /* jiffies */
 };
 
 static inline bool

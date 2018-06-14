@@ -82,6 +82,7 @@ sesInfoAlloc(void)
 		INIT_LIST_HEAD(&ret_buf->smb_ses_list);
 		INIT_LIST_HEAD(&ret_buf->tcon_list);
 		mutex_init(&ret_buf->session_mutex);
+		spin_lock_init(&ret_buf->iface_lock);
 	}
 	return ret_buf;
 }
@@ -102,6 +103,7 @@ sesInfoFree(struct cifs_ses *buf_to_free)
 	kfree(buf_to_free->user_name);
 	kfree(buf_to_free->domainName);
 	kzfree(buf_to_free->auth_key.response);
+	kfree(buf_to_free->iface_list);
 	kzfree(buf_to_free);
 }
 
