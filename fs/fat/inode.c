@@ -502,6 +502,7 @@ static int fat_validate_dir(struct inode *dir)
 /* doesn't deal with root inode */
 int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 {
+	struct timespec ts;
 	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
 	int error;
 
@@ -552,11 +553,14 @@ int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 	inode->i_blocks = ((inode->i_size + (sbi->cluster_size - 1))
 			   & ~((loff_t)sbi->cluster_size - 1)) >> 9;
 
-	fat_time_fat2unix(sbi, &inode->i_mtime, de->time, de->date, 0);
+	fat_time_fat2unix(sbi, &ts, de->time, de->date, 0);
+	inode->i_mtime = timespec_to_timespec64(ts);
 	if (sbi->options.isvfat) {
-		fat_time_fat2unix(sbi, &inode->i_ctime, de->ctime,
+		fat_time_fat2unix(sbi, &ts, de->ctime,
 				  de->cdate, de->ctime_cs);
-		fat_time_fat2unix(sbi, &inode->i_atime, 0, de->adate, 0);
+		inode->i_ctime = timespec_to_timespec64(ts);
+		fat_time_fat2unix(sbi, &ts, 0, de->adate, 0);
+		inode->i_atime = timespec_to_timespec64(ts);
 	} else
 		inode->i_ctime = inode->i_atime = inode->i_mtime;
 
@@ -825,6 +829,7 @@ static int fat_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 static int __fat_write_inode(struct inode *inode, int wait)
 {
+	struct timespec ts;
 	struct super_block *sb = inode->i_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 	struct buffer_head *bh;
@@ -862,13 +867,16 @@ retry:
 		raw_entry->size = cpu_to_le32(inode->i_size);
 	raw_entry->attr = fat_make_attrs(inode);
 	fat_set_start(raw_entry, MSDOS_I(inode)->i_logstart);
-	fat_time_unix2fat(sbi, &inode->i_mtime, &raw_entry->time,
+	ts = timespec64_to_timespec(inode->i_mtime);
+	fat_time_unix2fat(sbi, &ts, &raw_entry->time,
 			  &raw_entry->date, NULL);
 	if (sbi->options.isvfat) {
 		__le16 atime;
-		fat_time_unix2fat(sbi, &inode->i_ctime, &raw_entry->ctime,
+		ts = timespec64_to_timespec(inode->i_ctime);
+		fat_time_unix2fat(sbi, &ts, &raw_entry->ctime,
 				  &raw_entry->cdate, &raw_entry->ctime_cs);
-		fat_time_unix2fat(sbi, &inode->i_atime, &atime,
+		ts = timespec64_to_timespec(inode->i_atime);
+		fat_time_unix2fat(sbi, &ts, &atime,
 				  &raw_entry->adate, NULL);
 	}
 	spin_unlock(&sbi->inode_hash_lock);

@@ -3031,11 +3031,12 @@ static int lmv_merge_attr(struct obd_export *exp,
 	for (i = 0; i < lsm->lsm_md_stripe_count; i++) {
 		struct inode *inode = lsm->lsm_md_oinfo[i].lmo_root;
 
-		CDEBUG(D_INFO, "" DFID " size %llu, blocks %llu nlink %u, atime %lu ctime %lu, mtime %lu.\n",
+		CDEBUG(D_INFO, "" DFID " size %llu, blocks %llu nlink %u, atime %llu ctime %llu, mtime %llu.\n",
 		       PFID(&lsm->lsm_md_oinfo[i].lmo_fid),
 		       i_size_read(inode), (unsigned long long)inode->i_blocks,
-		       inode->i_nlink, LTIME_S(inode->i_atime),
-		       LTIME_S(inode->i_ctime), LTIME_S(inode->i_mtime));
+		       inode->i_nlink, (unsigned long long)LTIME_S(inode->i_atime),
+		       (unsigned long long)LTIME_S(inode->i_ctime),
+		       (unsigned long long)LTIME_S(inode->i_mtime));
 
 		/* for slave stripe, it needs to subtract nlink for . and .. */
 		if (i)
