@@ -46,7 +46,7 @@ is required:
 	Following properties are require if pin control setting is required
 	at boot.
 	- pinctrl-names: A pinctrl state named "default" be defined, using the
-		bindings in pinctrl/pinctrl-binding.txt.
+		bindings in pinctrl/pinctrl-bindings.txt.
 	- pinctrl[0...n]: Properties to contain the phandle that refer to
 		different nodes of pin control settings. These nodes represents
 		the pin control setting of state 0 to state n. Each of these
