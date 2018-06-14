@@ -3170,6 +3170,8 @@ static ssize_t kbase_show_gpuinfo(struct device *dev,
 		  .name = "Mali-G72" },
 		{ .id = GPU_ID2_PRODUCT_TSIX >> GPU_ID_VERSION_PRODUCT_ID_SHIFT,
 		  .name = "Mali-G51" },
+		{ .id = GPU_ID2_PRODUCT_TDVX >> GPU_ID_VERSION_PRODUCT_ID_SHIFT,
+		  .name = "Mali-G31" },
 	};
 	const char *product_name = "(Unknown Mali GPU)";
 	struct kbase_device *kbdev;
