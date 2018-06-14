@@ -640,11 +640,10 @@ static void gen8_initialize_pt(struct i915_address_space *vm,
 		gen8_pte_encode(vm->scratch_page.daddr, I915_CACHE_LLC));
 }
 
-static void gen6_initialize_pt(struct i915_address_space *vm,
+static void gen6_initialize_pt(struct gen6_hw_ppgtt *ppgtt,
 			       struct i915_page_table *pt)
 {
-	fill32_px(vm, pt,
-		  vm->pte_encode(vm->scratch_page.daddr, I915_CACHE_LLC, 0));
+	fill32_px(&ppgtt->base.vm, pt, ppgtt->scratch_pte);
 }
 
 static struct i915_page_directory *alloc_pd(struct i915_address_space *vm)
@@ -1631,9 +1630,7 @@ err_free:
 static void gen6_dump_ppgtt(struct i915_hw_ppgtt *base, struct seq_file *m)
 {
 	struct gen6_hw_ppgtt *ppgtt = to_gen6_ppgtt(base);
-	struct i915_address_space *vm = &base->vm;
-	const gen6_pte_t scratch_pte =
-		vm->pte_encode(vm->scratch_page.daddr, I915_CACHE_LLC, 0);
+	const gen6_pte_t scratch_pte = ppgtt->scratch_pte;
 	struct i915_page_table *pt;
 	u32 pte, pde;
 
@@ -1758,8 +1755,7 @@ static void gen6_ppgtt_clear_range(struct i915_address_space *vm,
 	unsigned int pde = first_entry / GEN6_PTES;
 	unsigned int pte = first_entry % GEN6_PTES;
 	unsigned int num_entries = length >> PAGE_SHIFT;
-	const gen6_pte_t scratch_pte =
-		vm->pte_encode(vm->scratch_page.daddr, I915_CACHE_LLC, 0);
+	const gen6_pte_t scratch_pte = ppgtt->scratch_pte;
 
 	while (num_entries) {
 		struct i915_page_table *pt = ppgtt->base.pd.page_table[pde++];
@@ -1850,7 +1846,7 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 			if (IS_ERR(pt))
 				goto unwind_out;
 
-			gen6_initialize_pt(vm, pt);
+			gen6_initialize_pt(ppgtt, pt);
 			ppgtt->base.pd.page_table[pde] = pt;
 
 			if (i915_vma_is_bound(ppgtt->vma,
@@ -1888,13 +1884,17 @@ static int gen6_ppgtt_init_scratch(struct gen6_hw_ppgtt *ppgtt)
 	if (ret)
 		return ret;
 
+	ppgtt->scratch_pte =
+		vm->pte_encode(vm->scratch_page.daddr,
+			       I915_CACHE_NONE, PTE_READ_ONLY);
+
 	vm->scratch_pt = alloc_pt(vm);
 	if (IS_ERR(vm->scratch_pt)) {
 		cleanup_scratch_page(vm);
 		return PTR_ERR(vm->scratch_pt);
 	}
 
-	gen6_initialize_pt(vm, vm->scratch_pt);
+	gen6_initialize_pt(ppgtt, vm->scratch_pt);
 	gen6_for_all_pdes(unused, &ppgtt->base.pd, pde)
 		ppgtt->base.pd.page_table[pde] = vm->scratch_pt;
 

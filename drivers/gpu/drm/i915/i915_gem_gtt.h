@@ -412,6 +412,7 @@ struct gen6_hw_ppgtt {
 
 	struct i915_vma *vma;
 	gen6_pte_t __iomem *pd_addr;
+	gen6_pte_t scratch_pte;
 
 	unsigned int pin_count;
 	bool scan_for_unused_pt;
