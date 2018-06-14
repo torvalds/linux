@@ -127,7 +127,7 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	unsigned long bo_size;
 	const char *fw_name;
 	const struct common_firmware_header *hdr;
-	unsigned version_major, version_minor, family_id;
+	unsigned family_id;
 	int i, j, r;
 
 	INIT_DELAYED_WORK(&adev->uvd.inst->idle_work, amdgpu_uvd_idle_work_handler);
@@ -210,10 +210,31 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	family_id = le32_to_cpu(hdr->ucode_version) & 0xff;
 
 	if (adev->asic_type < CHIP_VEGA20) {
+		unsigned version_major, version_minor;
+
 		version_major = (le32_to_cpu(hdr->ucode_version) >> 24) & 0xff;
 		version_minor = (le32_to_cpu(hdr->ucode_version) >> 8) & 0xff;
 		DRM_INFO("Found UVD firmware Version: %hu.%hu Family ID: %hu\n",
 			version_major, version_minor, family_id);
+
+		/*
+		 * Limit the number of UVD handles depending on microcode major
+		 * and minor versions. The firmware version which has 40 UVD
+		 * instances support is 1.80. So all subsequent versions should
+		 * also have the same support.
+		 */
+		if ((version_major > 0x01) ||
+		    ((version_major == 0x01) && (version_minor >= 0x50)))
+			adev->uvd.max_handles = AMDGPU_MAX_UVD_HANDLES;
+
+		adev->uvd.fw_version = ((version_major << 24) | (version_minor << 16) |
+					(family_id << 8));
+
+		if ((adev->asic_type == CHIP_POLARIS10 ||
+		     adev->asic_type == CHIP_POLARIS11) &&
+		    (adev->uvd.fw_version < FW_1_66_16))
+			DRM_ERROR("POLARIS10/11 UVD firmware version %hu.%hu is too old.\n",
+				  version_major, version_minor);
 	} else {
 		unsigned int enc_major, enc_minor, dec_minor;
 
@@ -222,26 +243,11 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 		enc_major = (le32_to_cpu(hdr->ucode_version) >> 30) & 0x3;
 		DRM_INFO("Found UVD firmware ENC: %hu.%hu DEC: .%hu Family ID: %hu\n",
 			enc_major, enc_minor, dec_minor, family_id);
-	}
 
-	/*
-	 * Limit the number of UVD handles depending on microcode major
-	 * and minor versions. The firmware version which has 40 UVD
-	 * instances support is 1.80. So all subsequent versions should
-	 * also have the same support.
-	 */
-	if (adev->asic_type >= CHIP_VEGA20 || (version_major > 0x01) ||
-	    ((version_major == 0x01) && (version_minor >= 0x50)))
 		adev->uvd.max_handles = AMDGPU_MAX_UVD_HANDLES;
 
-	adev->uvd.fw_version = ((version_major << 24) | (version_minor << 16) |
-				(family_id << 8));
-
-	if ((adev->asic_type == CHIP_POLARIS10 ||
-	     adev->asic_type == CHIP_POLARIS11) &&
-	    (adev->uvd.fw_version < FW_1_66_16))
-		DRM_ERROR("POLARIS10/11 UVD firmware version %hu.%hu is too old.\n",
-			  version_major, version_minor);
+		adev->uvd.fw_version = le32_to_cpu(hdr->ucode_version);
+	}
 
 	bo_size = AMDGPU_UVD_STACK_SIZE + AMDGPU_UVD_HEAP_SIZE
 		  +  AMDGPU_UVD_SESSION_SIZE * adev->uvd.max_handles;
