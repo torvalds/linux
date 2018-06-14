@@ -99,8 +99,29 @@
 		_ret;                                                   \
 	})
 
-#define ufshcd_hex_dump(prefix_str, buf, len) \
-print_hex_dump(KERN_ERR, prefix_str, DUMP_PREFIX_OFFSET, 16, 4, buf, len, false)
+#define ufshcd_hex_dump(prefix_str, buf, len) do {                       \
+	size_t __len = (len);                                            \
+	print_hex_dump(KERN_ERR, prefix_str,                             \
+		       __len > 4 ? DUMP_PREFIX_OFFSET : DUMP_PREFIX_NONE,\
+		       16, 4, buf, __len, false);                        \
+} while (0)
+
+int ufshcd_dump_regs(struct ufs_hba *hba, size_t offset, size_t len,
+		     const char *prefix)
+{
+	u8 *regs;
+
+	regs = kzalloc(len, GFP_KERNEL);
+	if (!regs)
+		return -ENOMEM;
+
+	memcpy_fromio(regs, hba->mmio_base + offset, len);
+	ufshcd_hex_dump(prefix, regs, len);
+	kfree(regs);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ufshcd_dump_regs);
 
 enum {
 	UFSHCD_MAX_CHANNEL	= 0,
@@ -386,15 +407,7 @@ static void ufshcd_print_uic_err_hist(struct ufs_hba *hba,
 
 static void ufshcd_print_host_regs(struct ufs_hba *hba)
 {
-	/*
-	 * hex_dump reads its data without the readl macro. This might
-	 * cause inconsistency issues on some platform, as the printed
-	 * values may be from cache and not the most recent value.
-	 * To know whether you are looking at an un-cached version verify
-	 * that IORESOURCE_MEM flag is on when xxx_get_resource() is invoked
-	 * during platform/pci probe function.
-	 */
-	ufshcd_hex_dump("host regs: ", hba->mmio_base, UFSHCI_REG_SPACE_SIZE);
+	ufshcd_dump_regs(hba, 0, UFSHCI_REG_SPACE_SIZE, "host_regs: ");
 	dev_err(hba->dev, "hba->ufs_version = 0x%x, hba->capabilities = 0x%x\n",
 		hba->ufs_version, hba->capabilities);
 	dev_err(hba->dev,
