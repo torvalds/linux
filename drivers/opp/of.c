@@ -595,11 +595,12 @@ static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
 	if (!of_property_read_u32(np, "clock-latency-ns", &val))
 		new_opp->clock_latency_ns = val;
 
-	new_opp->pstate = of_genpd_opp_to_performance_state(dev, np);
-
 	ret = opp_parse_supplies(new_opp, dev, opp_table);
 	if (ret)
 		goto free_required_opps;
+
+	if (opp_table->is_genpd)
+		new_opp->pstate = pm_genpd_opp_to_performance_state(dev, new_opp);
 
 	ret = _opp_add(dev, new_opp, opp_table, rate_not_available);
 	if (ret) {
