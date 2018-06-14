@@ -629,7 +629,7 @@ static void sbefifo_collect_async_ffdc(struct sbefifo *sbefifo)
 		return;
 	}
         ffdc_iov.iov_base = ffdc;
-	ffdc_iov.iov_len = SBEFIFO_MAX_FFDC_SIZE;;
+	ffdc_iov.iov_len = SBEFIFO_MAX_FFDC_SIZE;
         iov_iter_kvec(&ffdc_iter, WRITE | ITER_KVEC, &ffdc_iov, 1, SBEFIFO_MAX_FFDC_SIZE);
 	cmd[0] = cpu_to_be32(2);
 	cmd[1] = cpu_to_be32(SBEFIFO_CMD_GET_SBE_FFDC);
