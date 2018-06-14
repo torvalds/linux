@@ -1302,6 +1302,14 @@ static int wcn36xx_probe(struct platform_device *pdev)
 	void *wcnss;
 	int ret;
 	const u8 *addr;
+#ifdef	CONFIG_WCN36XX_SNAPDRAGON_HACKS
+	int status;
+	const struct firmware *addr_file = NULL;
+	u8 tmp[18], _addr[ETH_ALEN];
+	static const u8 qcom_oui[3] = {0x00, 0x0A, 0xF5};
+	static const char *files = {"wlan/macaddr0"};
+#endif
+
 
 	wcn36xx_dbg(WCN36XX_DBG_MAC, "platform probe\n");
 
@@ -1342,7 +1350,35 @@ static int wcn36xx_probe(struct platform_device *pdev)
 		wcn36xx_err("invalid local-mac-address\n");
 		ret = -EINVAL;
 		goto out_wq;
-	} else if (addr) {
+	}
+#ifdef	CONFIG_WCN36XX_SNAPDRAGON_HACKS
+	else if (addr == NULL) {
+		addr = _addr;
+		status = request_firmware(&addr_file, files, &pdev->dev);
+
+		if (status < 0) {
+			/* Assign a random mac with Qualcomm oui */
+			dev_err(&pdev->dev, "Failed (%d) to read macaddress"
+			"file %s, using a random address instead", status, files);
+			memcpy(addr, qcom_oui, 3);
+			get_random_bytes(addr + 3, 3);
+		} else {
+			memset(tmp, 0, sizeof(tmp));
+			memcpy(tmp, addr_file->data, sizeof(tmp) - 1);
+			sscanf(tmp, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+			&addr[0],
+			&addr[1],
+			&addr[2],
+			&addr[3],
+			&addr[4],
+			&addr[5]);
+
+			release_firmware(addr_file);
+		}
+	}
+#endif
+
+	if (addr) {
 		wcn36xx_info("mac address: %pM\n", addr);
 		SET_IEEE80211_PERM_ADDR(wcn->hw, addr);
 	}

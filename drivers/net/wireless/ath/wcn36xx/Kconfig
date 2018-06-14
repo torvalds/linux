@@ -16,3 +16,12 @@ config WCN36XX_DEBUGFS
 	  Enabled debugfs support
 
 	  If unsure, say Y to make it easier to debug problems.
+
+config WCN36XX_SNAPDRAGON_HACKS
+	bool "Dragonboard 410c WCN36XX MAC address generation hacks"
+	default n
+	depends on WCN36XX
+	---help---
+	  Upon probe, WCN36XX will try to read its MAC address from
+	  a file located at /lib/firmware/wlan/macaddr0. If the file
+	  is not present, it will randomly generate a new MAC address.
