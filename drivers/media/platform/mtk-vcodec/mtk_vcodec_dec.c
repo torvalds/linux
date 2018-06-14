@@ -1411,28 +1411,10 @@ int mtk_vcodec_dec_ctrls_setup(struct mtk_vcodec_ctx *ctx)
 	return 0;
 }
 
-static void m2mops_vdec_lock(void *m2m_priv)
-{
-	struct mtk_vcodec_ctx *ctx = m2m_priv;
-
-	mtk_v4l2_debug(3, "[%d]", ctx->id);
-	mutex_lock(&ctx->dev->dev_mutex);
-}
-
-static void m2mops_vdec_unlock(void *m2m_priv)
-{
-	struct mtk_vcodec_ctx *ctx = m2m_priv;
-
-	mtk_v4l2_debug(3, "[%d]", ctx->id);
-	mutex_unlock(&ctx->dev->dev_mutex);
-}
-
 const struct v4l2_m2m_ops mtk_vdec_m2m_ops = {
 	.device_run	= m2mops_vdec_device_run,
 	.job_ready	= m2mops_vdec_job_ready,
 	.job_abort	= m2mops_vdec_job_abort,
-	.lock		= m2mops_vdec_lock,
-	.unlock		= m2mops_vdec_unlock,
 };
 
 static const struct vb2_ops mtk_vdec_vb2_ops = {

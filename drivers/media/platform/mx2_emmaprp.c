@@ -250,20 +250,6 @@ static void emmaprp_job_abort(void *priv)
 	v4l2_m2m_job_finish(pcdev->m2m_dev, ctx->m2m_ctx);
 }
 
-static void emmaprp_lock(void *priv)
-{
-	struct emmaprp_ctx *ctx = priv;
-	struct emmaprp_dev *pcdev = ctx->dev;
-	mutex_lock(&pcdev->dev_mutex);
-}
-
-static void emmaprp_unlock(void *priv)
-{
-	struct emmaprp_ctx *ctx = priv;
-	struct emmaprp_dev *pcdev = ctx->dev;
-	mutex_unlock(&pcdev->dev_mutex);
-}
-
 static inline void emmaprp_dump_regs(struct emmaprp_dev *pcdev)
 {
 	dprintk(pcdev,
@@ -885,8 +871,6 @@ static const struct video_device emmaprp_videodev = {
 static const struct v4l2_m2m_ops m2m_ops = {
 	.device_run	= emmaprp_device_run,
 	.job_abort	= emmaprp_job_abort,
-	.lock		= emmaprp_lock,
-	.unlock		= emmaprp_unlock,
 };
 
 static int emmaprp_probe(struct platform_device *pdev)

@@ -40,17 +40,11 @@
  *		v4l2_m2m_job_finish() (as if the transaction ended normally).
  *		This function does not have to (and will usually not) wait
  *		until the device enters a state when it can be stopped.
- * @lock:	optional. Define a driver's own lock callback, instead of using
- *		&v4l2_m2m_ctx->q_lock.
- * @unlock:	optional. Define a driver's own unlock callback, instead of
- *		using &v4l2_m2m_ctx->q_lock.
  */
 struct v4l2_m2m_ops {
 	void (*device_run)(void *priv);
 	int (*job_ready)(void *priv);
 	void (*job_abort)(void *priv);
-	void (*lock)(void *priv);
-	void (*unlock)(void *priv);
 };
 
 struct v4l2_m2m_dev;

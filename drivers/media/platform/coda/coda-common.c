@@ -1297,28 +1297,10 @@ static void coda_job_abort(void *priv)
 		 "Aborting task\n");
 }
 
-static void coda_lock(void *m2m_priv)
-{
-	struct coda_ctx *ctx = m2m_priv;
-	struct coda_dev *pcdev = ctx->dev;
-
-	mutex_lock(&pcdev->dev_mutex);
-}
-
-static void coda_unlock(void *m2m_priv)
-{
-	struct coda_ctx *ctx = m2m_priv;
-	struct coda_dev *pcdev = ctx->dev;
-
-	mutex_unlock(&pcdev->dev_mutex);
-}
-
 static const struct v4l2_m2m_ops coda_m2m_ops = {
 	.device_run	= coda_device_run,
 	.job_ready	= coda_job_ready,
 	.job_abort	= coda_job_abort,
-	.lock		= coda_lock,
-	.unlock		= coda_unlock,
 };
 
 static void set_default_params(struct coda_ctx *ctx)
@@ -2092,9 +2074,9 @@ static int coda_open(struct file *file)
 	INIT_LIST_HEAD(&ctx->buffer_meta_list);
 	spin_lock_init(&ctx->buffer_meta_lock);
 
-	coda_lock(ctx);
+	mutex_lock(&dev->dev_mutex);
 	list_add(&ctx->list, &dev->instances);
-	coda_unlock(ctx);
+	mutex_unlock(&dev->dev_mutex);
 
 	v4l2_dbg(1, coda_debug, &dev->v4l2_dev, "Created instance %d (%p)\n",
 		 ctx->idx, ctx);
@@ -2142,9 +2124,9 @@ static int coda_release(struct file *file)
 		flush_work(&ctx->seq_end_work);
 	}
 
-	coda_lock(ctx);
+	mutex_lock(&dev->dev_mutex);
 	list_del(&ctx->list);
-	coda_unlock(ctx);
+	mutex_unlock(&dev->dev_mutex);
 
 	if (ctx->dev->devtype->product == CODA_DX6)
 		coda_free_aux_buf(dev, &ctx->workbuf);

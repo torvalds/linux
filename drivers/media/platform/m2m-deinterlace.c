@@ -181,20 +181,6 @@ static void deinterlace_job_abort(void *priv)
 	v4l2_m2m_job_finish(pcdev->m2m_dev, ctx->m2m_ctx);
 }
 
-static void deinterlace_lock(void *priv)
-{
-	struct deinterlace_ctx *ctx = priv;
-	struct deinterlace_dev *pcdev = ctx->dev;
-	mutex_lock(&pcdev->dev_mutex);
-}
-
-static void deinterlace_unlock(void *priv)
-{
-	struct deinterlace_ctx *ctx = priv;
-	struct deinterlace_dev *pcdev = ctx->dev;
-	mutex_unlock(&pcdev->dev_mutex);
-}
-
 static void dma_callback(void *data)
 {
 	struct deinterlace_ctx *curr_ctx = data;
@@ -956,9 +942,9 @@ static __poll_t deinterlace_poll(struct file *file,
 	struct deinterlace_ctx *ctx = file->private_data;
 	__poll_t ret;
 
-	deinterlace_lock(ctx);
+	mutex_lock(&ctx->dev->dev_mutex);
 	ret = v4l2_m2m_poll(file, ctx->m2m_ctx, wait);
-	deinterlace_unlock(ctx);
+	mutex_unlock(&ctx->dev->dev_mutex);
 
 	return ret;
 }
@@ -992,8 +978,6 @@ static const struct v4l2_m2m_ops m2m_ops = {
 	.device_run	= deinterlace_device_run,
 	.job_ready	= deinterlace_job_ready,
 	.job_abort	= deinterlace_job_abort,
-	.lock		= deinterlace_lock,
-	.unlock		= deinterlace_unlock,
 };
 
 static int deinterlace_probe(struct platform_device *pdev)
