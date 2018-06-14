@@ -647,7 +647,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	len -= sizeof(*ucode);
 
 	if (iwlwifi_mod_params.enable_ini)
-		iwl_alloc_dbg_tlv(drv->trans, len, data);
+		iwl_alloc_dbg_tlv(drv->trans, len, data, false);
 
 	while (len >= sizeof(*tlv)) {
 		len -= sizeof(*tlv);
@@ -1096,7 +1096,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		case IWL_UCODE_TLV_TYPE_TRIGGERS:
 		case IWL_UCODE_TLV_TYPE_DEBUG_FLOW:
 			if (iwlwifi_mod_params.enable_ini)
-				iwl_fw_dbg_copy_tlv(drv->trans, tlv);
+				iwl_fw_dbg_copy_tlv(drv->trans, tlv, false);
 		default:
 			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);
 			break;
@@ -1576,7 +1576,7 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans)
 	if (!drv->dbgfs_drv) {
 		IWL_ERR(drv, "failed to create debugfs directory\n");
 		ret = -ENOMEM;
-		goto err_free_drv;
+		goto err_free_tlv;
 	}
 
 	/* Create transport layer debugfs dir */
@@ -1601,7 +1601,8 @@ err_fw:
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 err_free_dbgfs:
 	debugfs_remove_recursive(drv->dbgfs_drv);
-err_free_drv:
+err_free_tlv:
+	iwl_fw_dbg_free(drv->trans);
 #endif
 	kfree(drv);
 err:

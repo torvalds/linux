@@ -77,8 +77,11 @@ struct iwl_apply_point_data {
 };
 
 struct iwl_trans;
+void iwl_load_fw_dbg_tlv(struct device *dev, struct iwl_trans *trans);
 void iwl_fw_dbg_free(struct iwl_trans *trans);
-void iwl_fw_dbg_copy_tlv(struct iwl_trans *trans, struct iwl_ucode_tlv *tlv);
-void iwl_alloc_dbg_tlv(struct iwl_trans *trans, size_t len, const u8 *data);
+void iwl_fw_dbg_copy_tlv(struct iwl_trans *trans, struct iwl_ucode_tlv *tlv,
+			 bool ext);
+void iwl_alloc_dbg_tlv(struct iwl_trans *trans, size_t len, const u8 *data,
+		       bool ext);
 
 #endif /* __iwl_dbg_tlv_h__*/

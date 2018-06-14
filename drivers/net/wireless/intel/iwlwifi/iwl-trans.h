@@ -776,6 +776,9 @@ struct iwl_trans {
 #endif
 
 	struct iwl_apply_point_data apply_points[IWL_FW_INI_APPLY_NUM];
+	struct iwl_apply_point_data apply_points_ext[IWL_FW_INI_APPLY_NUM];
+
+	bool external_ini_loaded;
 
 	const struct iwl_fw_dbg_dest_tlv_v1 *dbg_dest_tlv;
 	const struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_CONF_MAX];
