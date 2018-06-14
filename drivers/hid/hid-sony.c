@@ -1417,7 +1417,7 @@ static int sony_register_sensors(struct sony_sc *sc)
 	int ret;
 	int range;
 
-	sc->sensor_dev = input_allocate_device();
+	sc->sensor_dev = devm_input_allocate_device(&sc->hdev->dev);
 	if (!sc->sensor_dev)
 		return -ENOMEM;
 
@@ -1434,11 +1434,9 @@ static int sony_register_sensors(struct sony_sc *sc)
 	 * DS4 compatible non-Sony devices with different names.
 	 */
 	name_sz = strlen(sc->hdev->name) + sizeof(SENSOR_SUFFIX);
-	name = kzalloc(name_sz, GFP_KERNEL);
-	if (!name) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	name = devm_kzalloc(&sc->hdev->dev, name_sz, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
 	snprintf(name, name_sz, "%s" SENSOR_SUFFIX, sc->hdev->name);
 	sc->sensor_dev->name = name;
 
@@ -1480,32 +1478,10 @@ static int sony_register_sensors(struct sony_sc *sc)
 
 	ret = input_register_device(sc->sensor_dev);
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	return 0;
-
-err:
-	kfree(sc->sensor_dev->name);
-	sc->sensor_dev->name = NULL;
-
-	input_free_device(sc->sensor_dev);
-	sc->sensor_dev = NULL;
-
-	return ret;
 }
-
-static void sony_unregister_sensors(struct sony_sc *sc)
-{
-	if (!sc->sensor_dev)
-		return;
-
-	kfree(sc->sensor_dev->name);
-	sc->sensor_dev->name = NULL;
-
-	input_unregister_device(sc->sensor_dev);
-	sc->sensor_dev = NULL;
-}
-
 
 /*
  * Sending HID_REQ_GET_REPORT changes the operation mode of the ps3 controller
@@ -2860,8 +2836,6 @@ err_stop:
 		sony_leds_remove(sc);
 	if (sc->quirks & SONY_BATTERY_SUPPORT)
 		sony_battery_remove(sc);
-	if (sc->sensor_dev)
-		sony_unregister_sensors(sc);
 	sony_cancel_work_sync(sc);
 	kfree(sc->output_report_dmabuf);
 	sony_remove_dev_list(sc);
@@ -2945,9 +2919,6 @@ static void sony_remove(struct hid_device *hdev)
 
 	if (sc->quirks & SONY_BATTERY_SUPPORT)
 		sony_battery_remove(sc);
-
-	if (sc->sensor_dev)
-		sony_unregister_sensors(sc);
 
 	if (sc->quirks & DUALSHOCK4_CONTROLLER_BT)
 		device_remove_file(&sc->hdev->dev, &dev_attr_bt_poll_interval);
