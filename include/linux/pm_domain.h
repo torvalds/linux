@@ -276,7 +276,7 @@ static inline unsigned int
 of_genpd_opp_to_performance_state(struct device *dev,
 				  struct device_node *opp_node)
 {
-	return -ENODEV;
+	return 0;
 }
 
 static inline int genpd_dev_pm_attach(struct device *dev)
