@@ -1494,11 +1494,6 @@ static void jpu_device_run(void *priv)
 	spin_unlock_irqrestore(&ctx->jpu->lock, flags);
 }
 
-static int jpu_job_ready(void *priv)
-{
-	return 1;
-}
-
 static void jpu_job_abort(void *priv)
 {
 	struct jpu_ctx *ctx = priv;
@@ -1510,7 +1505,6 @@ static void jpu_job_abort(void *priv)
 
 static const struct v4l2_m2m_ops jpu_m2m_ops = {
 	.device_run	= jpu_device_run,
-	.job_ready	= jpu_job_ready,
 	.job_abort	= jpu_job_abort,
 };
 
