@@ -190,11 +190,19 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 	return 1;
 }
 
-static int gen6_ppgtt_bind_vma(struct i915_vma *vma,
-			       enum i915_cache_level cache_level,
-			       u32 unused)
+static int ppgtt_bind_vma(struct i915_vma *vma,
+			  enum i915_cache_level cache_level,
+			  u32 unused)
 {
 	u32 pte_flags;
+	int err;
+
+	if (!(vma->flags & I915_VMA_LOCAL_BIND)) {
+		err = vma->vm->allocate_va_range(vma->vm,
+						 vma->node.start, vma->size);
+		if (err)
+			return err;
+	}
 
 	/* Currently applicable only to VLV */
 	pte_flags = 0;
@@ -204,22 +212,6 @@ static int gen6_ppgtt_bind_vma(struct i915_vma *vma,
 	vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
 
 	return 0;
-}
-
-static int gen8_ppgtt_bind_vma(struct i915_vma *vma,
-			       enum i915_cache_level cache_level,
-			       u32 unused)
-{
-	int ret;
-
-	if (!(vma->flags & I915_VMA_LOCAL_BIND)) {
-		ret = vma->vm->allocate_va_range(vma->vm,
-						 vma->node.start, vma->size);
-		if (ret)
-			return ret;
-	}
-
-	return gen6_ppgtt_bind_vma(vma, cache_level, unused);
 }
 
 static void ppgtt_unbind_vma(struct i915_vma *vma)
@@ -1622,7 +1614,7 @@ static struct i915_hw_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 	ppgtt->vm.cleanup = gen8_ppgtt_cleanup;
 	ppgtt->debug_dump = gen8_dump_ppgtt;
 
-	ppgtt->vm.vma_ops.bind_vma    = gen8_ppgtt_bind_vma;
+	ppgtt->vm.vma_ops.bind_vma    = ppgtt_bind_vma;
 	ppgtt->vm.vma_ops.unbind_vma  = ppgtt_unbind_vma;
 	ppgtt->vm.vma_ops.set_pages   = ppgtt_set_pages;
 	ppgtt->vm.vma_ops.clear_pages = clear_pages;
@@ -1776,7 +1768,8 @@ static void gen6_ppgtt_clear_range(struct i915_address_space *vm,
 
 		num_entries -= end - pte;
 
-		/* Note that the hw doesn't support removing PDE on the fly
+		/*
+		 * Note that the hw doesn't support removing PDE on the fly
 		 * (they are cached inside the context with no means to
 		 * invalidate the cache), so we can only reset the PTE
 		 * entries back to scratch.
@@ -2046,12 +2039,13 @@ static struct i915_hw_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 
 	ppgtt->base.vm.total = I915_PDES * GEN6_PTES * PAGE_SIZE;
 
+	ppgtt->base.vm.allocate_va_range = gen6_alloc_va_range;
 	ppgtt->base.vm.clear_range = gen6_ppgtt_clear_range;
 	ppgtt->base.vm.insert_entries = gen6_ppgtt_insert_entries;
 	ppgtt->base.vm.cleanup = gen6_ppgtt_cleanup;
 	ppgtt->base.debug_dump = gen6_dump_ppgtt;
 
-	ppgtt->base.vm.vma_ops.bind_vma    = gen6_ppgtt_bind_vma;
+	ppgtt->base.vm.vma_ops.bind_vma    = ppgtt_bind_vma;
 	ppgtt->base.vm.vma_ops.unbind_vma  = ppgtt_unbind_vma;
 	ppgtt->base.vm.vma_ops.set_pages   = ppgtt_set_pages;
 	ppgtt->base.vm.vma_ops.clear_pages = clear_pages;
@@ -2068,14 +2062,8 @@ static struct i915_hw_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 		goto err_scratch;
 	}
 
-	err = gen6_alloc_va_range(&ppgtt->base.vm, 0, ppgtt->base.vm.total);
-	if (err)
-		goto err_vma;
-
 	return &ppgtt->base;
 
-err_vma:
-	i915_vma_destroy(ppgtt->vma);
 err_scratch:
 	gen6_ppgtt_free_scratch(&ppgtt->base.vm);
 err_free:
@@ -2671,8 +2659,7 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 	if (flags & I915_VMA_LOCAL_BIND) {
 		struct i915_hw_ppgtt *appgtt = i915->mm.aliasing_ppgtt;
 
-		if (!(vma->flags & I915_VMA_LOCAL_BIND) &&
-		    appgtt->vm.allocate_va_range) {
+		if (!(vma->flags & I915_VMA_LOCAL_BIND)) {
 			ret = appgtt->vm.allocate_va_range(&appgtt->vm,
 							   vma->node.start,
 							   vma->size);
@@ -2776,17 +2763,15 @@ int i915_gem_init_aliasing_ppgtt(struct drm_i915_private *i915)
 		goto err_ppgtt;
 	}
 
-	if (ppgtt->vm.allocate_va_range) {
-		/* Note we only pre-allocate as far as the end of the global
-		 * GTT. On 48b / 4-level page-tables, the difference is very,
-		 * very significant! We have to preallocate as GVT/vgpu does
-		 * not like the page directory disappearing.
-		 */
-		err = ppgtt->vm.allocate_va_range(&ppgtt->vm,
-						  0, ggtt->vm.total);
-		if (err)
-			goto err_ppgtt;
-	}
+	/*
+	 * Note we only pre-allocate as far as the end of the global
+	 * GTT. On 48b / 4-level page-tables, the difference is very,
+	 * very significant! We have to preallocate as GVT/vgpu does
+	 * not like the page directory disappearing.
+	 */
+	err = ppgtt->vm.allocate_va_range(&ppgtt->vm, 0, ggtt->vm.total);
+	if (err)
+		goto err_ppgtt;
 
 	i915->mm.aliasing_ppgtt = ppgtt;
 
