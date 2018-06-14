@@ -254,8 +254,12 @@ static void qlogic_release(struct pcmcia_device *link)
 static int qlogic_resume(struct pcmcia_device *link)
 {
 	scsi_info_t *info = link->priv;
+	int ret;
 
-	pcmcia_enable_device(link);
+	ret = pcmcia_enable_device(link);
+	if (ret)
+		return ret;
+
 	if ((info->manf_id == MANFID_MACNICA) ||
 	    (info->manf_id == MANFID_PIONEER) ||
 	    (info->manf_id == 0x0098)) {
