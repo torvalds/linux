@@ -923,10 +923,83 @@ static void iwl_mvm_decode_he_sigb(struct iwl_mvm *mvm,
 	}
 }
 
+static void
+iwl_mvm_decode_he_phy_ru_alloc(u64 he_phy_data, u32 rate_n_flags,
+			       struct ieee80211_radiotap_he *he,
+			       struct ieee80211_radiotap_he_mu *he_mu,
+			       struct ieee80211_rx_status *rx_status)
+{
+	/*
+	 * Unfortunately, we have to leave the mac80211 data
+	 * incorrect for the case that we receive an HE-MU
+	 * transmission and *don't* have the HE phy data (due
+	 * to the bits being used for TSF). This shouldn't
+	 * happen though as management frames where we need
+	 * the TSF/timers are not be transmitted in HE-MU.
+	 */
+	u8 ru = FIELD_GET(IWL_RX_HE_PHY_RU_ALLOC_MASK, he_phy_data);
+	u8 offs = 0;
+
+	rx_status->bw = RATE_INFO_BW_HE_RU;
+
+	he->data1 |= cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_BW_RU_ALLOC_KNOWN);
+
+	switch (ru) {
+	case 0 ... 36:
+		rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_26;
+		offs = ru;
+		break;
+	case 37 ... 52:
+		rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_52;
+		offs = ru - 37;
+		break;
+	case 53 ... 60:
+		rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_106;
+		offs = ru - 53;
+		break;
+	case 61 ... 64:
+		rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_242;
+		offs = ru - 61;
+		break;
+	case 65 ... 66:
+		rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_484;
+		offs = ru - 65;
+		break;
+	case 67:
+		rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_996;
+		break;
+	case 68:
+		rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_2x996;
+		break;
+	}
+	he->data2 |= le16_encode_bits(offs,
+				      IEEE80211_RADIOTAP_HE_DATA2_RU_OFFSET);
+	he->data2 |= cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_PRISEC_80_KNOWN |
+				 IEEE80211_RADIOTAP_HE_DATA2_RU_OFFSET_KNOWN);
+	if (he_phy_data & IWL_RX_HE_PHY_RU_ALLOC_SEC80)
+		he->data2 |=
+			cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_PRISEC_80_SEC);
+
+	if (he_mu) {
+#define CHECK_BW(bw) \
+	BUILD_BUG_ON(IEEE80211_RADIOTAP_HE_MU_FLAGS2_BW_FROM_SIG_A_BW_ ## bw ## MHZ != \
+		     RATE_MCS_CHAN_WIDTH_##bw >> RATE_MCS_CHAN_WIDTH_POS)
+		CHECK_BW(20);
+		CHECK_BW(40);
+		CHECK_BW(80);
+		CHECK_BW(160);
+		he_mu->flags2 |=
+			le16_encode_bits(FIELD_GET(RATE_MCS_CHAN_WIDTH_MSK,
+						   rate_n_flags),
+					 IEEE80211_RADIOTAP_HE_MU_FLAGS2_BW_FROM_SIG_A_BW);
+	}
+}
+
 static void iwl_mvm_decode_he_phy_data(struct iwl_mvm *mvm,
 				       struct iwl_rx_mpdu_desc *desc,
 				       struct ieee80211_radiotap_he *he,
 				       struct ieee80211_radiotap_he_mu *he_mu,
+				       struct ieee80211_rx_status *rx_status,
 				       u64 he_phy_data, u32 rate_n_flags,
 				       int queue)
 {
@@ -974,6 +1047,17 @@ static void iwl_mvm_decode_he_phy_data(struct iwl_mvm *mvm,
 		if (FIELD_GET(IWL_RX_HE_PHY_UPLINK, he_phy_data))
 			he->data3 |=
 				cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA3_UL_DL);
+	}
+
+	switch (FIELD_GET(IWL_RX_HE_PHY_INFO_TYPE_MASK, he_phy_data)) {
+	case IWL_RX_HE_PHY_INFO_TYPE_MU_EXT_INFO:
+	case IWL_RX_HE_PHY_INFO_TYPE_TB_EXT_INFO:
+		iwl_mvm_decode_he_phy_ru_alloc(he_phy_data, rate_n_flags,
+					       he, he_mu, rx_status);
+		break;
+	default:
+		/* nothing */
+		break;
 	}
 }
 
@@ -1039,8 +1123,8 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 	}
 
 	if (he_phy_data != HE_PHY_DATA_INVAL)
-		iwl_mvm_decode_he_phy_data(mvm, desc, he, he_mu, he_phy_data,
-					   rate_n_flags, queue);
+		iwl_mvm_decode_he_phy_data(mvm, desc, he, he_mu, rx_status,
+					   he_phy_data, rate_n_flags, queue);
 
 	/* update aggregation data for monitor sake on default queue */
 	if (!queue && (phy_info & IWL_RX_MPDU_PHY_AMPDU)) {
@@ -1064,83 +1148,11 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 		rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_106;
 	}
 
-	if (he_phy_data != HE_PHY_DATA_INVAL &&
-	    (FIELD_GET(IWL_RX_HE_PHY_INFO_TYPE_MASK, he_phy_data) ==
-			IWL_RX_HE_PHY_INFO_TYPE_MU_EXT_INFO ||
-	     FIELD_GET(IWL_RX_HE_PHY_INFO_TYPE_MASK, he_phy_data) ==
-			IWL_RX_HE_PHY_INFO_TYPE_TB_EXT_INFO)) {
-		/*
-		 * Unfortunately, we have to leave the mac80211 data
-		 * incorrect for the case that we receive an HE-MU
-		 * transmission and *don't* have the HE phy data (due
-		 * to the bits being used for TSF). This shouldn't
-		 * happen though as management frames where we need
-		 * the TSF/timers are not be transmitted in HE-MU.
-		 */
-		u8 ru = FIELD_GET(IWL_RX_HE_PHY_RU_ALLOC_MASK, he_phy_data);
-		u8 offs = 0;
-
-		rx_status->bw = RATE_INFO_BW_HE_RU;
-
+	/* actually data is filled in mac80211 */
+	if (he_type == RATE_MCS_HE_TYPE_SU ||
+	    he_type == RATE_MCS_HE_TYPE_EXT_SU)
 		he->data1 |=
 			cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_BW_RU_ALLOC_KNOWN);
-
-		switch (ru) {
-		case 0 ... 36:
-			rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_26;
-			offs = ru;
-			break;
-		case 37 ... 52:
-			rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_52;
-			offs = ru - 37;
-			break;
-		case 53 ... 60:
-			rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_106;
-			offs = ru - 53;
-			break;
-		case 61 ... 64:
-			rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_242;
-			offs = ru - 61;
-			break;
-		case 65 ... 66:
-			rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_484;
-			offs = ru - 65;
-			break;
-		case 67:
-			rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_996;
-			break;
-		case 68:
-			rx_status->he_ru = NL80211_RATE_INFO_HE_RU_ALLOC_2x996;
-			break;
-		}
-		he->data2 |=
-			le16_encode_bits(offs,
-					 IEEE80211_RADIOTAP_HE_DATA2_RU_OFFSET);
-		he->data2 |=
-			cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_PRISEC_80_KNOWN |
-				    IEEE80211_RADIOTAP_HE_DATA2_RU_OFFSET_KNOWN);
-		if (he_phy_data & IWL_RX_HE_PHY_RU_ALLOC_SEC80)
-			he->data2 |=
-				cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_PRISEC_80_SEC);
-
-		if (he_mu) {
-#define CHECK_BW(bw) \
-	BUILD_BUG_ON(IEEE80211_RADIOTAP_HE_MU_FLAGS2_BW_FROM_SIG_A_BW_ ## bw ## MHZ != \
-		     RATE_MCS_CHAN_WIDTH_##bw >> RATE_MCS_CHAN_WIDTH_POS)
-			CHECK_BW(20);
-			CHECK_BW(40);
-			CHECK_BW(80);
-			CHECK_BW(160);
-			he->data2 |=
-				le16_encode_bits(FIELD_GET(RATE_MCS_CHAN_WIDTH_MSK,
-							   rate_n_flags),
-						 IEEE80211_RADIOTAP_HE_MU_FLAGS2_BW_FROM_SIG_A_BW);
-		}
-	} else if (he_type == RATE_MCS_HE_TYPE_SU ||
-		   he_type == RATE_MCS_HE_TYPE_EXT_SU) {
-		he->data1 |=
-			cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_BW_RU_ALLOC_KNOWN);
-	}
 
 	stbc = (rate_n_flags & RATE_MCS_STBC_MSK) >> RATE_MCS_STBC_POS;
 	rx_status->nss =
