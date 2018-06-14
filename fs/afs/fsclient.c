@@ -72,7 +72,7 @@ void afs_update_inode_from_status(struct afs_vnode *vnode,
 				  const afs_dataversion_t *expected_version,
 				  u8 flags)
 {
-	struct timespec t;
+	struct timespec64 t;
 	umode_t mode;
 
 	t.tv_sec = status->mtime_client;

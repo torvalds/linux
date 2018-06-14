@@ -867,8 +867,13 @@ static ssize_t tty_read(struct file *file, char __user *buf, size_t count,
 		i = -EIO;
 	tty_ldisc_deref(ld);
 
-	if (i > 0)
-		tty_update_time(&inode->i_atime);
+	if (i > 0) {
+		struct timespec ts;
+
+		ts = timespec64_to_timespec(inode->i_atime);
+		tty_update_time(&ts);
+		inode->i_atime = timespec_to_timespec64(ts);
+	}
 
 	return i;
 }
@@ -969,7 +974,11 @@ static inline ssize_t do_tty_write(
 		cond_resched();
 	}
 	if (written) {
-		tty_update_time(&file_inode(file)->i_mtime);
+		struct timespec ts;
+
+		ts = timespec64_to_timespec(file_inode(file)->i_mtime);
+		tty_update_time(&ts);
+		file_inode(file)->i_mtime = timespec_to_timespec64(ts);
 		ret = written;
 	}
 out:
