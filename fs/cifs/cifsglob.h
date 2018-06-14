@@ -33,6 +33,9 @@
 
 #define CIFS_MAGIC_NUMBER 0xFF534D42      /* the first four bytes of SMB PDUs */
 
+#define CIFS_PORT 445
+#define RFC1001_PORT 139
+
 /*
  * The sizes of various internal tables and strings
  */

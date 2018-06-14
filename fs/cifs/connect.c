@@ -57,9 +57,6 @@
 #include "smb2proto.h"
 #include "smbdirect.h"
 
-#define CIFS_PORT 445
-#define RFC1001_PORT 139
-
 extern mempool_t *cifs_req_poolp;
 extern bool disable_legacy_dialects;
 
