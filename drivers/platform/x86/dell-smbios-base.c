@@ -555,11 +555,10 @@ static void free_group(struct platform_device *pdev)
 
 static int __init dell_smbios_init(void)
 {
-	const struct dmi_device *valid;
 	int ret, wmi, smm;
 
-	valid = dmi_find_device(DMI_DEV_TYPE_OEM_STRING, "Dell System", NULL);
-	if (!valid) {
+	if (!dmi_find_device(DMI_DEV_TYPE_OEM_STRING, "Dell System", NULL) &&
+	    !dmi_find_device(DMI_DEV_TYPE_OEM_STRING, "www.dell.com", NULL)) {
 		pr_err("Unable to run on non-Dell system\n");
 		return -ENODEV;
 	}
