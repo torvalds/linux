@@ -249,6 +249,7 @@ struct dc_debug {
 	bool always_use_regamma;
 	bool p010_mpo_support;
 	bool recovery_enabled;
+	bool avoid_vbios_exec_table;
 
 };
 struct dc_state;
