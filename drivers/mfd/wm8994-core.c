@@ -513,14 +513,15 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		break;
 	default:
 		dev_err(wm8994->dev, "Unknown device type %d\n", wm8994->type);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_enable;
 	}
 
 	ret = regmap_reinit_cache(wm8994->regmap, regmap_config);
 	if (ret != 0) {
 		dev_err(wm8994->dev, "Failed to reinit register cache: %d\n",
 			ret);
-		return ret;
+		goto err_enable;
 	}
 
 	/* Explicitly put the device into reset in case regulators
@@ -531,7 +532,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 			       wm8994_reg_read(wm8994, WM8994_SOFTWARE_RESET));
 	if (ret != 0) {
 		dev_err(wm8994->dev, "Failed to reset device: %d\n", ret);
-		return ret;
+		goto err_enable;
 	}
 
 	if (regmap_patch) {
@@ -540,7 +541,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		if (ret != 0) {
 			dev_err(wm8994->dev, "Failed to register patch: %d\n",
 				ret);
-			goto err;
+			goto err_enable;
 		}
 	}
 
