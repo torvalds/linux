@@ -1039,6 +1039,13 @@ static void iwl_mvm_decode_he_phy_data(struct iwl_mvm *mvm,
 				IWL_RX_HE_PHY_INFO_TYPE_MU_EXT_INFO;
 		if (sigb_data)
 			iwl_mvm_decode_he_sigb(mvm, desc, rate_n_flags, he_mu);
+
+		he->data2 |=
+			cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_NUM_LTF_SYMS_KNOWN);
+		he->data5 |=
+			le16_encode_bits(FIELD_GET(IWL_RX_HE_PHY_HE_LTF_NUM_MASK,
+						   he_phy_data),
+					 IEEE80211_RADIOTAP_HE_DATA5_NUM_LTF_SYMS);
 	}
 
 	if (he_type != RATE_MCS_HE_TYPE_TRIG) {
@@ -1222,9 +1229,8 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	he->data5 |= le16_encode_bits(ltf, IEEE80211_RADIOTAP_HE_DATA5_LTF_SIZE);
 
-	switch (he_type) {
-	case RATE_MCS_HE_TYPE_SU:
-	case RATE_MCS_HE_TYPE_EXT_SU: {
+	if (he_type == RATE_MCS_HE_TYPE_SU ||
+	    he_type == RATE_MCS_HE_TYPE_EXT_SU) {
 		u16 val;
 
 		/* LTF syms correspond to streams */
@@ -1254,31 +1260,10 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 				  rx_status->nss);
 			val = 0;
 		}
+
 		he->data5 |=
 			le16_encode_bits(val,
 					 IEEE80211_RADIOTAP_HE_DATA5_NUM_LTF_SYMS);
-		}
-		break;
-	case RATE_MCS_HE_TYPE_MU: {
-		u16 val;
-
-		if (he_phy_data == HE_PHY_DATA_INVAL)
-			break;
-
-		val = FIELD_GET(IWL_RX_HE_PHY_HE_LTF_NUM_MASK,
-				he_phy_data);
-
-		he->data2 |=
-			cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_NUM_LTF_SYMS_KNOWN);
-		he->data5 |=
-			cpu_to_le16(FIELD_PREP(
-				IEEE80211_RADIOTAP_HE_DATA5_NUM_LTF_SYMS,
-				val));
-		}
-		break;
-	case RATE_MCS_HE_TYPE_TRIG:
-		/* not supported */
-		break;
 	}
 }
 
