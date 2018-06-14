@@ -1753,20 +1753,28 @@ static void gen6_ppgtt_enable(struct drm_i915_private *dev_priv)
 static void gen6_ppgtt_clear_range(struct i915_address_space *vm,
 				   u64 start, u64 length)
 {
-	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
+	struct gen6_hw_ppgtt *ppgtt = to_gen6_ppgtt(i915_vm_to_ppgtt(vm));
 	unsigned int first_entry = start >> PAGE_SHIFT;
 	unsigned int pde = first_entry / GEN6_PTES;
 	unsigned int pte = first_entry % GEN6_PTES;
 	unsigned int num_entries = length >> PAGE_SHIFT;
-	gen6_pte_t scratch_pte =
+	const gen6_pte_t scratch_pte =
 		vm->pte_encode(vm->scratch_page.daddr, I915_CACHE_LLC, 0);
 
 	while (num_entries) {
-		struct i915_page_table *pt = ppgtt->pd.page_table[pde++];
-		unsigned int end = min(pte + num_entries, GEN6_PTES);
+		struct i915_page_table *pt = ppgtt->base.pd.page_table[pde++];
+		const unsigned int end = min(pte + num_entries, GEN6_PTES);
+		const unsigned int count = end - pte;
 		gen6_pte_t *vaddr;
 
-		num_entries -= end - pte;
+		GEM_BUG_ON(pt == vm->scratch_pt);
+
+		num_entries -= count;
+
+		GEM_BUG_ON(count > pt->used_ptes);
+		pt->used_ptes -= count;
+		if (!pt->used_ptes)
+			ppgtt->scan_for_unused_pt = true;
 
 		/*
 		 * Note that the hw doesn't support removing PDE on the fly
@@ -1797,6 +1805,8 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 	const u32 pte_encode = vm->pte_encode(0, cache_level, flags);
 	struct sgt_dma iter = sgt_dma(vma);
 	gen6_pte_t *vaddr;
+
+	GEM_BUG_ON(ppgtt->pd.page_table[act_pt] == vm->scratch_pt);
 
 	vaddr = kmap_atomic_px(ppgtt->pd.page_table[act_pt]);
 	do {
@@ -1833,6 +1843,8 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 	bool flush = false;
 
 	gen6_for_each_pde(pt, &ppgtt->base.pd, start, length, pde) {
+		const unsigned int count = gen6_pte_count(start, length);
+
 		if (pt == vm->scratch_pt) {
 			pt = alloc_pt(vm);
 			if (IS_ERR(pt))
@@ -1846,7 +1858,11 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 				gen6_write_pde(ppgtt, pde, pt);
 				flush = true;
 			}
+
+			GEM_BUG_ON(pt->used_ptes);
 		}
+
+		pt->used_ptes += count;
 	}
 
 	if (flush) {
@@ -1948,6 +1964,24 @@ static int pd_vma_bind(struct i915_vma *vma,
 
 static void pd_vma_unbind(struct i915_vma *vma)
 {
+	struct gen6_hw_ppgtt *ppgtt = vma->private;
+	struct i915_page_table * const scratch_pt = ppgtt->base.vm.scratch_pt;
+	struct i915_page_table *pt;
+	unsigned int pde;
+
+	if (!ppgtt->scan_for_unused_pt)
+		return;
+
+	/* Free all no longer used page tables */
+	gen6_for_all_pdes(pt, &ppgtt->base.pd, pde) {
+		if (pt->used_ptes || pt == scratch_pt)
+			continue;
+
+		free_pt(&ppgtt->base.vm, pt);
+		ppgtt->base.pd.page_table[pde] = scratch_pt;
+	}
+
+	ppgtt->scan_for_unused_pt = false;
 }
 
 static const struct i915_vma_ops pd_vma_ops = {

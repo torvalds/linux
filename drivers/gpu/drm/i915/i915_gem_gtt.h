@@ -414,6 +414,7 @@ struct gen6_hw_ppgtt {
 	gen6_pte_t __iomem *pd_addr;
 
 	unsigned int pin_count;
+	bool scan_for_unused_pt;
 };
 
 #define __to_gen6_ppgtt(base) container_of(base, struct gen6_hw_ppgtt, base)
