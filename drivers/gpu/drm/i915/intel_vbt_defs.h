@@ -420,7 +420,9 @@ struct child_device_config {
 	u16 extended_type;
 	u8 dvo_function;
 	u8 dp_usb_type_c:1;					/* 195 */
-	u8 flags2_reserved:7;					/* 195 */
+	u8 tbt:1;						/* 209 */
+	u8 flags2_reserved:2;					/* 195 */
+	u8 dp_port_trace_length:4;				/* 209 */
 	u8 dp_gpio_index;					/* 195 */
 	u16 dp_gpio_pin_num;					/* 195 */
 	u8 dp_iboost_level:4;					/* 196 */
