@@ -281,17 +281,17 @@ __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 		send_length += 4;
 	}
 
+	cifs_dbg(FYI, "Sending smb: smb_len=%u\n", send_length);
+
 	for (j = 0; j < num_rqst; j++) {
 		iov = rqst[j].rq_iov;
 		n_vec = rqst[j].rq_nvec;
 
-		cifs_dbg(FYI, "Sending smb: smb_len=%u\n", send_length);
-		dump_smb(iov[0].iov_base, iov[0].iov_len);
-		dump_smb(iov[1].iov_base, iov[1].iov_len);
-
 		size = 0;
-		for (i = 0; i < n_vec; i++)
+		for (i = 0; i < n_vec; i++) {
+			dump_smb(iov[i].iov_base, iov[i].iov_len);
 			size += iov[i].iov_len;
+		}
 
 		iov_iter_kvec(&smb_msg.msg_iter, WRITE | ITER_KVEC,
 			      iov, n_vec, size);
