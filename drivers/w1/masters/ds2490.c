@@ -134,8 +134,7 @@
 #define EP_DATA_OUT			2
 #define EP_DATA_IN			3
 
-struct ds_device
-{
+struct ds_device {
 	struct list_head	ds_entry;
 
 	struct usb_device	*udev;
@@ -158,8 +157,7 @@ struct ds_device
 	struct w1_bus_master	master;
 };
 
-struct ds_status
-{
+struct ds_status {
 	u8			enable;
 	u8			speed;
 	u8			pullup_dur;
