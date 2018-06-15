@@ -1362,16 +1362,12 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 	case USB_ID(0x1511, 0x0037): /* AURALiC VEGA */
 	case USB_ID(0x20b1, 0x0002): /* Wyred 4 Sound DAC-2 DSD */
 	case USB_ID(0x20b1, 0x2004): /* Matrix Audio X-SPDIF 2 */
-	case USB_ID(0x20b1, 0x3008): /* iFi Audio micro/nano iDSD */
 	case USB_ID(0x20b1, 0x2008): /* Matrix Audio X-Sabre */
 	case USB_ID(0x20b1, 0x300a): /* Matrix Audio Mini-i Pro */
 	case USB_ID(0x22d9, 0x0416): /* OPPO HA-1 */
 	case USB_ID(0x22d9, 0x0436): /* OPPO Sonica */
 	case USB_ID(0x22d9, 0x0461): /* OPPO UDP-205 */
 	case USB_ID(0x2522, 0x0012): /* LH Labs VI DAC Infinity */
-	case USB_ID(0x25ce, 0x001f): /* Mytek Brooklyn DAC */
-	case USB_ID(0x25ce, 0x0021): /* Mytek Manhattan DAC */
-	case USB_ID(0x25ce, 0x8025): /* Mytek Brooklyn DAC+ */
 	case USB_ID(0x2772, 0x0230): /* Pro-Ject Pre Box S2 Digital */
 		if (fp->altsetting == 2)
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
@@ -1389,7 +1385,6 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 	case USB_ID(0x20b1, 0x3021): /* Eastern El. MiniMax Tube DAC Supreme */
 	case USB_ID(0x20b1, 0x3023): /* Aune X1S 32BIT/384 DSD DAC */
 	case USB_ID(0x20b1, 0x302d): /* Unison Research Unico CD Due */
-	case USB_ID(0x20b1, 0x3036): /* Holo Springs Level 3 R2R DAC */
 	case USB_ID(0x20b1, 0x307b): /* CH Precision C1 DAC */
 	case USB_ID(0x20b1, 0x3086): /* Singxer F-1 converter board */
 	case USB_ID(0x22d9, 0x0426): /* OPPO HA-2 */
@@ -1441,6 +1436,20 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 		 */
 		if (fp->altsetting == iface->num_altsetting - 1)
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
+	}
+
+	/* Mostly generic method to detect many DSD-capable implementations -
+	 * from XMOS/Thesycon
+	 */
+	switch (USB_ID_VENDOR(chip->usb_id)) {
+	case 0x20b1:  /* XMOS based devices */
+	case 0x25ce:  /* Mytek devices */
+		if (fp->dsd_raw)
+			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
+		break;
+	default:
+		break;
+
 	}
 
 	return 0;
