@@ -266,7 +266,7 @@ static void mdais_parse_daifmt(struct device_node *node, struct rk_dai *dais,
 			break;
 		}
 
-		switch ((cmst[i] << 4) + fmst[i]) {
+		switch ((!cmst[i] << 4) + !fmst[i]) {
 		case 0x11:
 			format |= SND_SOC_DAIFMT_CBM_CFM;
 			break;
