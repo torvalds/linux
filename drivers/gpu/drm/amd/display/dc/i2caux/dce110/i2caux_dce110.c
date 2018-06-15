@@ -199,6 +199,7 @@ static const struct dce110_i2c_hw_engine_mask i2c_mask = {
 void dal_i2caux_dce110_construct(
 	struct i2caux_dce110 *i2caux_dce110,
 	struct dc_context *ctx,
+	unsigned int num_i2caux_inst,
 	const struct dce110_aux_registers aux_regs[],
 	const struct dce110_i2c_hw_engine_registers i2c_hw_engine_regs[],
 	const struct dce110_i2c_hw_engine_shift *i2c_shift,
@@ -251,7 +252,7 @@ void dal_i2caux_dce110_construct(
 			dal_i2c_hw_engine_dce110_create(&hw_arg_dce110);
 
 		++i;
-	} while (i < ARRAY_SIZE(hw_ddc_lines));
+	} while (i < num_i2caux_inst);
 
 	/* Create AUX engines for all lines which has assisted HW AUX
 	 * 'i' (loop counter) used as DDC/AUX engine_id */
@@ -272,7 +273,7 @@ void dal_i2caux_dce110_construct(
 			dal_aux_engine_dce110_create(&aux_init_data);
 
 		++i;
-	} while (i < ARRAY_SIZE(hw_aux_lines));
+	} while (i < num_i2caux_inst);
 
 	/*TODO Generic I2C SW and HW*/
 }
@@ -303,6 +304,7 @@ struct i2caux *dal_i2caux_dce110_create(
 
 	dal_i2caux_dce110_construct(i2caux_dce110,
 				    ctx,
+				    ARRAY_SIZE(dce110_aux_regs),
 				    dce110_aux_regs,
 				    i2c_hw_engine_regs,
 				    &i2c_shift,
