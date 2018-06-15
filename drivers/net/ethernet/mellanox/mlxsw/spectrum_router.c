@@ -4756,12 +4756,6 @@ static void mlxsw_sp_rt6_destroy(struct mlxsw_sp_rt6 *mlxsw_sp_rt6)
 	kfree(mlxsw_sp_rt6);
 }
 
-static bool mlxsw_sp_fib6_rt_can_mp(const struct fib6_info *rt)
-{
-	/* RTF_CACHE routes are ignored */
-	return (rt->fib6_flags & (RTF_GATEWAY | RTF_ADDRCONF)) == RTF_GATEWAY;
-}
-
 static struct fib6_info *
 mlxsw_sp_fib6_entry_rt(const struct mlxsw_sp_fib6_entry *fib6_entry)
 {
@@ -5169,7 +5163,7 @@ static struct mlxsw_sp_fib6_entry *
 mlxsw_sp_fib6_node_entry_find(const struct mlxsw_sp_fib_node *fib_node,
 			      const struct fib6_info *nrt, bool replace)
 {
-	struct mlxsw_sp_fib6_entry *fib6_entry, *fallback = NULL;
+	struct mlxsw_sp_fib6_entry *fib6_entry;
 
 	list_for_each_entry(fib6_entry, &fib_node->entry_list, common.list) {
 		struct fib6_info *rt = mlxsw_sp_fib6_entry_rt(fib6_entry);
@@ -5178,18 +5172,13 @@ mlxsw_sp_fib6_node_entry_find(const struct mlxsw_sp_fib_node *fib_node,
 			continue;
 		if (rt->fib6_table->tb6_id != nrt->fib6_table->tb6_id)
 			break;
-		if (replace && rt->fib6_metric == nrt->fib6_metric) {
-			if (mlxsw_sp_fib6_rt_can_mp(rt) ==
-			    mlxsw_sp_fib6_rt_can_mp(nrt))
-				return fib6_entry;
-			if (mlxsw_sp_fib6_rt_can_mp(nrt))
-				fallback = fallback ?: fib6_entry;
-		}
+		if (replace && rt->fib6_metric == nrt->fib6_metric)
+			return fib6_entry;
 		if (rt->fib6_metric > nrt->fib6_metric)
-			return fallback ?: fib6_entry;
+			return fib6_entry;
 	}
 
-	return fallback;
+	return NULL;
 }
 
 static int
