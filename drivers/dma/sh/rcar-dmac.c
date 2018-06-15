@@ -431,7 +431,8 @@ static void rcar_dmac_chan_start_xfer(struct rcar_dmac_chan *chan)
 		chcr |= RCAR_DMACHCR_DPM_DISABLED | RCAR_DMACHCR_IE;
 	}
 
-	rcar_dmac_chan_write(chan, RCAR_DMACHCR, chcr | RCAR_DMACHCR_DE);
+	rcar_dmac_chan_write(chan, RCAR_DMACHCR,
+			     chcr | RCAR_DMACHCR_DE | RCAR_DMACHCR_CAIE);
 }
 
 static int rcar_dmac_init(struct rcar_dmac *dmac)
@@ -783,7 +784,8 @@ static void rcar_dmac_chan_halt(struct rcar_dmac_chan *chan)
 	u32 chcr = rcar_dmac_chan_read(chan, RCAR_DMACHCR);
 
 	chcr &= ~(RCAR_DMACHCR_DSE | RCAR_DMACHCR_DSIE | RCAR_DMACHCR_IE |
-		  RCAR_DMACHCR_TE | RCAR_DMACHCR_DE);
+		  RCAR_DMACHCR_TE | RCAR_DMACHCR_DE |
+		  RCAR_DMACHCR_CAE | RCAR_DMACHCR_CAIE);
 	rcar_dmac_chan_write(chan, RCAR_DMACHCR, chcr);
 	rcar_dmac_chcr_de_barrier(chan);
 }
@@ -812,12 +814,7 @@ static void rcar_dmac_chan_reinit(struct rcar_dmac_chan *chan)
 	}
 }
 
-static void rcar_dmac_stop(struct rcar_dmac *dmac)
-{
-	rcar_dmac_write(dmac, RCAR_DMAOR, 0);
-}
-
-static void rcar_dmac_abort(struct rcar_dmac *dmac)
+static void rcar_dmac_stop_all_chan(struct rcar_dmac *dmac)
 {
 	unsigned int i;
 
@@ -829,10 +826,9 @@ static void rcar_dmac_abort(struct rcar_dmac *dmac)
 		spin_lock(&chan->lock);
 		rcar_dmac_chan_halt(chan);
 		spin_unlock(&chan->lock);
-
-		rcar_dmac_chan_reinit(chan);
 	}
 }
+
 
 /* -----------------------------------------------------------------------------
  * Descriptors preparation
@@ -1522,11 +1518,18 @@ static irqreturn_t rcar_dmac_isr_channel(int irq, void *dev)
 	u32 mask = RCAR_DMACHCR_DSE | RCAR_DMACHCR_TE;
 	struct rcar_dmac_chan *chan = dev;
 	irqreturn_t ret = IRQ_NONE;
+	bool reinit = false;
 	u32 chcr;
 
 	spin_lock(&chan->lock);
 
 	chcr = rcar_dmac_chan_read(chan, RCAR_DMACHCR);
+	if (chcr & RCAR_DMACHCR_CAE) {
+		rcar_dmac_chan_halt(chan);
+		reinit = true;
+		goto spin_lock_end;
+	}
+
 	if (chcr & RCAR_DMACHCR_TE)
 		mask |= RCAR_DMACHCR_DE;
 	rcar_dmac_chan_write(chan, RCAR_DMACHCR, chcr & ~mask);
@@ -1539,7 +1542,15 @@ static irqreturn_t rcar_dmac_isr_channel(int irq, void *dev)
 	if (chcr & RCAR_DMACHCR_TE)
 		ret |= rcar_dmac_isr_transfer_end(chan);
 
+spin_lock_end:
 	spin_unlock(&chan->lock);
+
+	if (reinit) {
+		dev_err(chan->chan.device->dev, "Channel Address Error\n");
+
+		rcar_dmac_chan_reinit(chan);
+		ret = IRQ_HANDLED;
+	}
 
 	return ret;
 }
@@ -1593,24 +1604,6 @@ static irqreturn_t rcar_dmac_isr_channel_thread(int irq, void *dev)
 
 	/* Recycle all acked descriptors. */
 	rcar_dmac_desc_recycle_acked(chan);
-
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t rcar_dmac_isr_error(int irq, void *data)
-{
-	struct rcar_dmac *dmac = data;
-
-	if (!(rcar_dmac_read(dmac, RCAR_DMAOR) & RCAR_DMAOR_AE))
-		return IRQ_NONE;
-
-	/*
-	 * An unrecoverable error occurred on an unknown channel. Halt the DMAC,
-	 * abort transfers on all channels, and reinitialize the DMAC.
-	 */
-	rcar_dmac_stop(dmac);
-	rcar_dmac_abort(dmac);
-	rcar_dmac_init(dmac);
 
 	return IRQ_HANDLED;
 }
@@ -1784,8 +1777,6 @@ static int rcar_dmac_probe(struct platform_device *pdev)
 	struct rcar_dmac *dmac;
 	struct resource *mem;
 	unsigned int i;
-	char *irqname;
-	int irq;
 	int ret;
 
 	dmac = devm_kzalloc(&pdev->dev, sizeof(*dmac), GFP_KERNEL);
@@ -1823,17 +1814,6 @@ static int rcar_dmac_probe(struct platform_device *pdev)
 	dmac->iomem = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(dmac->iomem))
 		return PTR_ERR(dmac->iomem);
-
-	irq = platform_get_irq_byname(pdev, "error");
-	if (irq < 0) {
-		dev_err(&pdev->dev, "no error IRQ specified\n");
-		return -ENODEV;
-	}
-
-	irqname = devm_kasprintf(dmac->dev, GFP_KERNEL, "%s:error",
-				 dev_name(dmac->dev));
-	if (!irqname)
-		return -ENOMEM;
 
 	/* Enable runtime PM and initialize the device. */
 	pm_runtime_enable(&pdev->dev);
@@ -1885,14 +1865,6 @@ static int rcar_dmac_probe(struct platform_device *pdev)
 			goto error;
 	}
 
-	ret = devm_request_irq(&pdev->dev, irq, rcar_dmac_isr_error, 0,
-			       irqname, dmac);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to request IRQ %u (%d)\n",
-			irq, ret);
-		return ret;
-	}
-
 	/* Register the DMAC as a DMA provider for DT. */
 	ret = of_dma_controller_register(pdev->dev.of_node, rcar_dmac_of_xlate,
 					 NULL);
@@ -1932,7 +1904,7 @@ static void rcar_dmac_shutdown(struct platform_device *pdev)
 {
 	struct rcar_dmac *dmac = platform_get_drvdata(pdev);
 
-	rcar_dmac_stop(dmac);
+	rcar_dmac_stop_all_chan(dmac);
 }
 
 static const struct of_device_id rcar_dmac_of_ids[] = {
