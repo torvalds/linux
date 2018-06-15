@@ -15052,11 +15052,11 @@ int intel_modeset_init(struct drm_device *dev)
 		dev->mode_config.cursor_width = IS_I845G(dev_priv) ? 64 : 512;
 		dev->mode_config.cursor_height = 1023;
 	} else if (IS_GEN2(dev_priv)) {
-		dev->mode_config.cursor_width = GEN2_CURSOR_WIDTH;
-		dev->mode_config.cursor_height = GEN2_CURSOR_HEIGHT;
+		dev->mode_config.cursor_width = 64;
+		dev->mode_config.cursor_height = 64;
 	} else {
-		dev->mode_config.cursor_width = MAX_CURSOR_WIDTH;
-		dev->mode_config.cursor_height = MAX_CURSOR_HEIGHT;
+		dev->mode_config.cursor_width = 256;
+		dev->mode_config.cursor_height = 256;
 	}
 
 	dev->mode_config.fb_base = ggtt->gmadr.start;

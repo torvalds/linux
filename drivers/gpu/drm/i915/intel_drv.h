@@ -158,12 +158,6 @@
 #define MAX_OUTPUTS 6
 /* maximum connectors per crtcs in the mode set */
 
-/* Maximum cursor sizes */
-#define GEN2_CURSOR_WIDTH 64
-#define GEN2_CURSOR_HEIGHT 64
-#define MAX_CURSOR_WIDTH 256
-#define MAX_CURSOR_HEIGHT 256
-
 #define INTEL_I2C_BUS_DVO 1
 #define INTEL_I2C_BUS_SDVO 2
 
