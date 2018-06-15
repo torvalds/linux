@@ -985,6 +985,7 @@ static s32 gt1x_wakeup_sleep(void)
 	gt1x_irq_disable();
 
 #if GTP_POWER_CTRL_SLEEP	/* power manager unit control the procedure */
+	gt1x_power_switch(SWITCH_ON);
 	gt1x_power_reset();
 	GTP_INFO("Wakeup by poweron");
 	return 0;
