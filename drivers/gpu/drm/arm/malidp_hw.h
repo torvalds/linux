@@ -152,12 +152,13 @@ struct malidp_hw {
 	bool (*in_config_mode)(struct malidp_hw_device *hwdev);
 
 	/*
-	 * Set configuration valid flag for hardware parameters that can
-	 * be changed outside the configuration mode. Hardware will use
-	 * the new settings when config valid is set after the end of the
-	 * current buffer scanout
+	 * Set/clear configuration valid flag for hardware parameters that can
+	 * be changed outside the configuration mode to the given value.
+	 * Hardware will use the new settings when config valid is set,
+	 * after the end of the current buffer scanout, and will ignore
+	 * any new values for those parameters if config valid flag is cleared
 	 */
-	void (*set_config_valid)(struct malidp_hw_device *hwdev);
+	void (*set_config_valid)(struct malidp_hw_device *hwdev, u8 value);
 
 	/*
 	 * Set a new mode in hardware. Requires the hardware to be in

@@ -27,7 +27,8 @@ enum {
 	MW_NOT_ENABLED = 0,	/* SE writeback not enabled */
 	MW_ONESHOT,		/* SE in one-shot mode for writeback */
 	MW_START,		/* SE started writeback */
-	MW_STOP,		/* SE finished writeback */
+	MW_RESTART,		/* SE will start another writeback after this one */
+	MW_STOP,		/* SE needs to stop after this writeback */
 };
 
 static const struct malidp_format_id malidp500_de_formats[] = {
@@ -231,9 +232,12 @@ static bool malidp500_in_config_mode(struct malidp_hw_device *hwdev)
 	return false;
 }
 
-static void malidp500_set_config_valid(struct malidp_hw_device *hwdev)
+static void malidp500_set_config_valid(struct malidp_hw_device *hwdev, u8 value)
 {
-	malidp_hw_setbits(hwdev, MALIDP_CFG_VALID, MALIDP500_CONFIG_VALID);
+	if (value)
+		malidp_hw_setbits(hwdev, MALIDP_CFG_VALID, MALIDP500_CONFIG_VALID);
+	else
+		malidp_hw_clearbits(hwdev, MALIDP_CFG_VALID, MALIDP500_CONFIG_VALID);
 }
 
 static void malidp500_modeset(struct malidp_hw_device *hwdev, struct videomode *mode)
@@ -386,7 +390,11 @@ static int malidp500_enable_memwrite(struct malidp_hw_device *hwdev,
 	/* enable the scaling engine block */
 	malidp_hw_setbits(hwdev, MALIDP_SCALE_ENGINE_EN, de_base + MALIDP_DE_DISPLAY_FUNC);
 
-	hwdev->mw_state = MW_START;
+	/* restart the writeback if already enabled */
+	if (hwdev->mw_state != MW_NOT_ENABLED)
+		hwdev->mw_state = MW_RESTART;
+	else
+		hwdev->mw_state = MW_START;
 
 	malidp_hw_write(hwdev, fmt_id, base + MALIDP_MW_FORMAT);
 	switch (num_planes) {
@@ -415,7 +423,7 @@ static void malidp500_disable_memwrite(struct malidp_hw_device *hwdev)
 {
 	u32 base = malidp_get_block_base(hwdev, MALIDP_DE_BLOCK);
 
-	if (hwdev->mw_state == MW_START)
+	if (hwdev->mw_state == MW_START || hwdev->mw_state == MW_RESTART)
 		hwdev->mw_state = MW_STOP;
 	malidp_hw_clearbits(hwdev, MALIDP_SE_MEMWRITE_EN, MALIDP500_SE_CONTROL);
 	malidp_hw_clearbits(hwdev, MALIDP_SCALE_ENGINE_EN, base + MALIDP_DE_DISPLAY_FUNC);
@@ -500,9 +508,12 @@ static bool malidp550_in_config_mode(struct malidp_hw_device *hwdev)
 	return false;
 }
 
-static void malidp550_set_config_valid(struct malidp_hw_device *hwdev)
+static void malidp550_set_config_valid(struct malidp_hw_device *hwdev, u8 value)
 {
-	malidp_hw_setbits(hwdev, MALIDP_CFG_VALID, MALIDP550_CONFIG_VALID);
+	if (value)
+		malidp_hw_setbits(hwdev, MALIDP_CFG_VALID, MALIDP550_CONFIG_VALID);
+	else
+		malidp_hw_clearbits(hwdev, MALIDP_CFG_VALID, MALIDP550_CONFIG_VALID);
 }
 
 static void malidp550_modeset(struct malidp_hw_device *hwdev, struct videomode *mode)
@@ -1005,15 +1016,21 @@ static irqreturn_t malidp_se_irq(int irq, void *arg)
 			/* disable writeback after stop */
 			hwdev->mw_state = MW_NOT_ENABLED;
 			break;
+		case MW_RESTART:
+			drm_writeback_signal_completion(&malidp->mw_connector, 0);
+			/* fall through to a new start */
 		case MW_START:
 			/* writeback started, need to emulate one-shot mode */
 			hw->disable_memwrite(hwdev);
 			/*
-			 * only set config_valid HW bit if there is no
-			 * other update in progress
+			 * only set config_valid HW bit if there is no other update
+			 * in progress or if we raced ahead of the DE IRQ handler
+			 * and config_valid flag will not be update until later
 			 */
-			if (atomic_read(&malidp->config_valid) != MALIDP_CONFIG_START)
-				hw->set_config_valid(hwdev);
+			status = malidp_hw_read(hwdev, hw->map.dc_base + MALIDP_REG_STATUS);
+			if ((atomic_read(&malidp->config_valid) != MALIDP_CONFIG_START) ||
+			    (status & hw->map.dc_irq_map.vsync_irq))
+				hw->set_config_valid(hwdev, 1);
 			break;
 		}
 	}

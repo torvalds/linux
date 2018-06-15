@@ -171,7 +171,7 @@ static int malidp_set_and_wait_config_valid(struct drm_device *drm)
 	struct malidp_hw_device *hwdev = malidp->dev;
 	int ret;
 
-	hwdev->hw->set_config_valid(hwdev);
+	hwdev->hw->set_config_valid(hwdev, 1);
 	/* don't wait for config_valid flag if we are in config mode */
 	if (hwdev->hw->in_config_mode(hwdev)) {
 		atomic_set(&malidp->config_valid, MALIDP_CONFIG_VALID_DONE);
@@ -230,6 +230,7 @@ static void malidp_atomic_commit_tail(struct drm_atomic_state *state)
 	 * know that we are updating registers
 	 */
 	atomic_set(&malidp->config_valid, MALIDP_CONFIG_START);
+	malidp->dev->hw->set_config_valid(malidp->dev, 0);
 
 	drm_atomic_helper_commit_modeset_disables(drm, state);
 
