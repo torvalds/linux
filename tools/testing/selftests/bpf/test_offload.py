@@ -163,6 +163,10 @@ def bpftool(args, JSON=True, ns="", fail=True):
 
 def bpftool_prog_list(expected=None, ns=""):
     _, progs = bpftool("prog show", JSON=True, ns=ns, fail=True)
+    # Remove the base progs
+    for p in base_progs:
+        if p in progs:
+            progs.remove(p)
     if expected is not None:
         if len(progs) != expected:
             fail(True, "%d BPF programs loaded, expected %d" %
@@ -171,6 +175,10 @@ def bpftool_prog_list(expected=None, ns=""):
 
 def bpftool_map_list(expected=None, ns=""):
     _, maps = bpftool("map show", JSON=True, ns=ns, fail=True)
+    # Remove the base maps
+    for m in base_maps:
+        if m in maps:
+            maps.remove(m)
     if expected is not None:
         if len(maps) != expected:
             fail(True, "%d BPF maps loaded, expected %d" %
@@ -585,8 +593,8 @@ skip(os.getuid() != 0, "test must be run as root")
 # Check tools
 ret, progs = bpftool("prog", fail=False)
 skip(ret != 0, "bpftool not installed")
-# Check no BPF programs are loaded
-skip(len(progs) != 0, "BPF programs already loaded on the system")
+base_progs = progs
+_, base_maps = bpftool("map")
 
 # Check netdevsim
 ret, out = cmd("modprobe netdevsim", fail=False)
