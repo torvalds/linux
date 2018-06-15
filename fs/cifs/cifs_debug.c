@@ -333,7 +333,9 @@ skip_rdma:
 			spin_unlock(&GlobalMid_Lock);
 
 			spin_lock(&ses->iface_lock);
-			seq_printf(m, "\n\tServer interfaces: %zu\n", ses->iface_count);
+			if (ses->iface_count)
+				seq_printf(m, "\n\tServer interfaces: %zu\n",
+					   ses->iface_count);
 			for (j = 0; j < ses->iface_count; j++) {
 				seq_printf(m, "\t%d)\n", j);
 				cifs_dump_iface(m, &ses->iface_list[j]);
