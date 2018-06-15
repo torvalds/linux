@@ -329,10 +329,10 @@ struct drm_mode_config_funcs {
 
 /**
  * struct drm_mode_config - Mode configuration control structure
- * @min_width: minimum pixel width on this device
- * @min_height: minimum pixel height on this device
- * @max_width: maximum pixel width on this device
- * @max_height: maximum pixel height on this device
+ * @min_width: minimum fb pixel width on this device
+ * @min_height: minimum fb pixel height on this device
+ * @max_width: maximum fb pixel width on this device
+ * @max_height: maximum fb pixel height on this device
  * @funcs: core driver provided mode setting functions
  * @fb_base: base address of the framebuffer
  * @poll_enabled: track polling support for this device
