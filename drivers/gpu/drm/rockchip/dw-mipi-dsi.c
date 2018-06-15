@@ -590,7 +590,6 @@ static int testif_write(void *context, unsigned int reg, unsigned int value)
 {
 	struct dw_mipi_dsi *dsi = context;
 
-	testif_testclr_deassert(dsi);
 	testif_test_code_write(dsi, reg);
 	testif_test_data_write(dsi, value);
 
@@ -605,7 +604,6 @@ static int testif_read(void *context, unsigned int reg, unsigned int *value)
 {
 	struct dw_mipi_dsi *dsi = context;
 
-	testif_testclr_deassert(dsi);
 	testif_test_code_write(dsi, reg);
 	*value = testif_get_data(dsi);
 	testif_test_data_write(dsi, *value);
@@ -1039,8 +1037,10 @@ static void mipi_dphy_init(struct dw_mipi_dsi *dsi)
 {
 	u32 map[] = {0x1, 0x3, 0x7, 0xf};
 
+	mipi_dphy_enableclk_deassert(dsi);
 	mipi_dphy_shutdownz_assert(dsi);
 	mipi_dphy_rstz_assert(dsi);
+	testif_testclr_assert(dsi);
 
 	/* Configures DPHY to work as a Master */
 	grf_field_write(dsi, MASTERSLAVEZ, 1);
@@ -1054,6 +1054,8 @@ static void mipi_dphy_init(struct dw_mipi_dsi *dsi)
 	grf_field_write(dsi, FORCETXSTOPMODE, 0);
 	grf_field_write(dsi, FORCERXMODE, 0);
 	udelay(1);
+
+	testif_testclr_deassert(dsi);
 
 	if (!dsi->dphy.phy)
 		dw_mipi_dsi_phy_init(dsi);
