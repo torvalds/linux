@@ -9,6 +9,7 @@ config CASIO_E55
 	select CEVT_R4K
 	select CSRC_R4K
 	select DMA_NONCOHERENT
+	select MIPS_DMA_DEFAULT
 	select IRQ_MIPS_CPU
 	select ISA
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -19,6 +20,7 @@ config IBM_WORKPAD
 	select CEVT_R4K
 	select CSRC_R4K
 	select DMA_NONCOHERENT
+	select MIPS_DMA_DEFAULT
 	select IRQ_MIPS_CPU
 	select ISA
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -29,6 +31,7 @@ config TANBAC_TB022X
 	select CEVT_R4K
 	select CSRC_R4K
 	select DMA_NONCOHERENT
+	select MIPS_DMA_DEFAULT
 	select IRQ_MIPS_CPU
 	select HW_HAS_PCI
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -45,6 +48,7 @@ config VICTOR_MPC30X
 	select CEVT_R4K
 	select CSRC_R4K
 	select DMA_NONCOHERENT
+	select MIPS_DMA_DEFAULT
 	select IRQ_MIPS_CPU
 	select HW_HAS_PCI
 	select PCI_VR41XX
@@ -56,6 +60,7 @@ config ZAO_CAPCELLA
 	select CEVT_R4K
 	select CSRC_R4K
 	select DMA_NONCOHERENT
+	select MIPS_DMA_DEFAULT
 	select IRQ_MIPS_CPU
 	select HW_HAS_PCI
 	select PCI_VR41XX
