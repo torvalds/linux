@@ -668,7 +668,7 @@ cleanup_exit()
 
 check()
 {
-	ip link help $1 2>&1 | grep -q "^Usage:"
+	ip link help 2>&1 | grep -q "\s$1\s"
 	if [ $? -ne 0 ];then
 		echo "SKIP $1: iproute2 not support"
 	cleanup
