@@ -143,7 +143,7 @@ static void wait_for_fbc_state_changed(
 	struct dce110_compressor *cp110,
 	bool enabled)
 {
-	uint8_t counter = 0;
+	uint16_t counter = 0;
 	uint32_t addr = mmFBC_STATUS;
 	uint32_t value;
 
