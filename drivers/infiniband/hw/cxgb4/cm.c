@@ -3444,9 +3444,6 @@ int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 	}
 	insert_handle(dev, &dev->stid_idr, ep, ep->stid);
 
-	memcpy(&ep->com.local_addr, &cm_id->m_local_addr,
-	       sizeof(ep->com.local_addr));
-
 	state_set(&ep->com, LISTEN);
 	if (ep->com.local_addr.ss_family == AF_INET)
 		err = create_server4(dev, ep);
