@@ -48,26 +48,23 @@ int __cifs_calc_signature(struct smb_rqst *rqst,
 
 	/* iov[0] is actual data and not the rfc1002 length for SMB2+ */
 	if (is_smb2) {
-		rc = crypto_shash_update(shash,
-					 iov[0].iov_base, iov[0].iov_len);
+		if (iov[0].iov_len <= 4)
+			return -EIO;
+		i = 0;
 	} else {
 		if (n_vec < 2 || iov[0].iov_len != 4)
 			return -EIO;
+		i = 1; /* skip rfc1002 length */
 	}
 
-	for (i = 1; i < n_vec; i++) {
+	for (; i < n_vec; i++) {
 		if (iov[i].iov_len == 0)
 			continue;
 		if (iov[i].iov_base == NULL) {
 			cifs_dbg(VFS, "null iovec entry\n");
 			return -EIO;
 		}
-		if (is_smb2) {
-			if (i == 0 && iov[0].iov_len <= 4)
-				break; /* nothing to sign or corrupt header */
-		} else
-			if (i == 1 && iov[1].iov_len <= 4)
-				break; /* nothing to sign or corrupt header */
+
 		rc = crypto_shash_update(shash,
 					 iov[i].iov_base, iov[i].iov_len);
 		if (rc) {
