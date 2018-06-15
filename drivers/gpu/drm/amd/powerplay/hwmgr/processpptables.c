@@ -1074,12 +1074,6 @@ static int init_overdrive_limits(struct pp_hwmgr *hwmgr,
 				powerplay_table,
 				(const ATOM_FIRMWARE_INFO_V2_1 *)fw_info);
 
-	if (hwmgr->platform_descriptor.overdriveLimit.engineClock == 0
-		&& hwmgr->platform_descriptor.overdriveLimit.memoryClock == 0) {
-		hwmgr->od_enabled = false;
-		pr_debug("OverDrive feature not support by VBIOS\n");
-	}
-
 	return result;
 }
 

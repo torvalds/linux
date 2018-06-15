@@ -565,16 +565,16 @@ static void dpp1_dscl_set_manual_ratio_init(
 	uint32_t init_int = 0;
 
 	REG_SET(SCL_HORZ_FILTER_SCALE_RATIO, 0,
-			SCL_H_SCALE_RATIO, dc_fixpt_u2d19(data->ratios.horz) << 5);
+			SCL_H_SCALE_RATIO, dc_fixpt_u3d19(data->ratios.horz) << 5);
 
 	REG_SET(SCL_VERT_FILTER_SCALE_RATIO, 0,
-			SCL_V_SCALE_RATIO, dc_fixpt_u2d19(data->ratios.vert) << 5);
+			SCL_V_SCALE_RATIO, dc_fixpt_u3d19(data->ratios.vert) << 5);
 
 	REG_SET(SCL_HORZ_FILTER_SCALE_RATIO_C, 0,
-			SCL_H_SCALE_RATIO_C, dc_fixpt_u2d19(data->ratios.horz_c) << 5);
+			SCL_H_SCALE_RATIO_C, dc_fixpt_u3d19(data->ratios.horz_c) << 5);
 
 	REG_SET(SCL_VERT_FILTER_SCALE_RATIO_C, 0,
-			SCL_V_SCALE_RATIO_C, dc_fixpt_u2d19(data->ratios.vert_c) << 5);
+			SCL_V_SCALE_RATIO_C, dc_fixpt_u3d19(data->ratios.vert_c) << 5);
 
 	/*
 	 * 0.24 format for fraction, first five bits zeroed

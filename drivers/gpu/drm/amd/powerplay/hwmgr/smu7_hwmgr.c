@@ -791,7 +791,8 @@ static int smu7_setup_dpm_tables_v1(struct pp_hwmgr *hwmgr)
 			data->dpm_table.sclk_table.count++;
 		}
 	}
-
+	if (hwmgr->platform_descriptor.overdriveLimit.engineClock == 0)
+		hwmgr->platform_descriptor.overdriveLimit.engineClock = dep_sclk_table->entries[i-1].clk;
 	/* Initialize Mclk DPM table based on allow Mclk values */
 	data->dpm_table.mclk_table.count = 0;
 	for (i = 0; i < dep_mclk_table->count; i++) {
@@ -806,6 +807,8 @@ static int smu7_setup_dpm_tables_v1(struct pp_hwmgr *hwmgr)
 		}
 	}
 
+	if (hwmgr->platform_descriptor.overdriveLimit.memoryClock == 0)
+		hwmgr->platform_descriptor.overdriveLimit.memoryClock = dep_mclk_table->entries[i-1].clk;
 	return 0;
 }
 
@@ -3752,14 +3755,17 @@ static int smu7_trim_dpm_states(struct pp_hwmgr *hwmgr,
 static int smu7_generate_dpm_level_enable_mask(
 		struct pp_hwmgr *hwmgr, const void *input)
 {
-	int result;
+	int result = 0;
 	const struct phm_set_power_state_input *states =
 			(const struct phm_set_power_state_input *)input;
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	const struct smu7_power_state *smu7_ps =
 			cast_const_phw_smu7_power_state(states->pnew_state);
 
-	result = smu7_trim_dpm_states(hwmgr, smu7_ps);
+	/*skip the trim if od is enabled*/
+	if (!hwmgr->od_enabled)
+		result = smu7_trim_dpm_states(hwmgr, smu7_ps);
+
 	if (result)
 		return result;
 
