@@ -48,29 +48,58 @@
  * - Public functions to init or apply the given workaround type.
  */
 
-static int wa_add(struct drm_i915_private *dev_priv,
-		  i915_reg_t addr,
-		  const u32 mask, const u32 val)
+static void wa_add(struct drm_i915_private *i915,
+		   i915_reg_t reg, const u32 mask, const u32 val)
 {
-	const unsigned int idx = dev_priv->workarounds.count;
+	struct i915_workarounds *wa = &i915->workarounds;
+	unsigned int start = 0, end = wa->count;
+	unsigned int addr = i915_mmio_reg_offset(reg);
+	struct i915_wa_reg *r;
 
-	if (WARN_ON(idx >= I915_MAX_WA_REGS))
-		return -ENOSPC;
+	while (start < end) {
+		unsigned int mid = start + (end - start) / 2;
 
-	dev_priv->workarounds.reg[idx].addr = addr;
-	dev_priv->workarounds.reg[idx].value = val;
-	dev_priv->workarounds.reg[idx].mask = mask;
+		if (wa->reg[mid].addr < addr) {
+			start = mid + 1;
+		} else if (wa->reg[mid].addr > addr) {
+			end = mid;
+		} else {
+			r = &wa->reg[mid];
 
-	dev_priv->workarounds.count++;
+			if ((mask & ~r->mask) == 0) {
+				DRM_ERROR("Discarding overwritten w/a for reg %04x (mask: %08x, value: %08x)\n",
+					  addr, r->mask, r->value);
 
-	return 0;
+				r->value &= ~mask;
+			}
+
+			r->value |= val;
+			r->mask  |= mask;
+			return;
+		}
+	}
+
+	if (WARN_ON_ONCE(wa->count >= I915_MAX_WA_REGS)) {
+		DRM_ERROR("Dropping w/a for reg %04x (mask: %08x, value: %08x)\n",
+			  addr, mask, val);
+		return;
+	}
+
+	r = &wa->reg[wa->count++];
+	r->addr  = addr;
+	r->value = val;
+	r->mask  = mask;
+
+	while (r-- > wa->reg) {
+		GEM_BUG_ON(r[0].addr == r[1].addr);
+		if (r[1].addr > r[0].addr)
+			break;
+
+		swap(r[1], r[0]);
+	}
 }
 
-#define WA_REG(addr, mask, val) do { \
-		const int r = wa_add(dev_priv, (addr), (mask), (val)); \
-		if (r) \
-			return r; \
-	} while (0)
+#define WA_REG(addr, mask, val) wa_add(dev_priv, (addr), (mask), (val))
 
 #define WA_SET_BIT_MASKED(addr, mask) \
 	WA_REG(addr, (mask), _MASKED_BIT_ENABLE(mask))
@@ -540,7 +569,7 @@ int intel_ctx_workarounds_emit(struct i915_request *rq)
 
 	*cs++ = MI_LOAD_REGISTER_IMM(w->count);
 	for (i = 0; i < w->count; i++) {
-		*cs++ = i915_mmio_reg_offset(w->reg[i].addr);
+		*cs++ = w->reg[i].addr;
 		*cs++ = w->reg[i].value;
 	}
 	*cs++ = MI_NOOP;

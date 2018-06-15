@@ -3378,28 +3378,13 @@ static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 
 static int i915_wa_registers(struct seq_file *m, void *unused)
 {
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct i915_workarounds *workarounds = &dev_priv->workarounds;
+	struct i915_workarounds *wa = &node_to_i915(m->private)->workarounds;
 	int i;
 
-	intel_runtime_pm_get(dev_priv);
-
-	seq_printf(m, "Workarounds applied: %d\n", workarounds->count);
-	for (i = 0; i < workarounds->count; ++i) {
-		i915_reg_t addr;
-		u32 mask, value, read;
-		bool ok;
-
-		addr = workarounds->reg[i].addr;
-		mask = workarounds->reg[i].mask;
-		value = workarounds->reg[i].value;
-		read = I915_READ(addr);
-		ok = (value & mask) == (read & mask);
-		seq_printf(m, "0x%X: 0x%08X, mask: 0x%08X, read: 0x%08x, status: %s\n",
-			   i915_mmio_reg_offset(addr), value, mask, read, ok ? "OK" : "FAIL");
-	}
-
-	intel_runtime_pm_put(dev_priv);
+	seq_printf(m, "Workarounds applied: %d\n", wa->count);
+	for (i = 0; i < wa->count; ++i)
+		seq_printf(m, "0x%X: 0x%08X, mask: 0x%08X\n",
+			   wa->reg[i].addr, wa->reg[i].value, wa->reg[i].mask);
 
 	return 0;
 }

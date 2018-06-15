@@ -1305,7 +1305,7 @@ struct i915_frontbuffer_tracking {
 };
 
 struct i915_wa_reg {
-	i915_reg_t addr;
+	u32 addr;
 	u32 value;
 	/* bitmask representing WA bits */
 	u32 mask;
