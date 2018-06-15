@@ -177,6 +177,10 @@ config BLK_DEBUG_FS
 	Unless you are building a kernel for a tiny system, you should
 	say Y here.
 
+config BLK_DEBUG_FS_ZONED
+       bool
+       default BLK_DEBUG_FS && BLK_DEV_ZONED
+
 config BLK_SED_OPAL
 	bool "Logic for interfacing with Opal enabled SEDs"
 	---help---
