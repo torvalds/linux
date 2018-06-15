@@ -20,6 +20,7 @@
  *
  */
 
+#include <linux/freezer.h>
 #include <uapi/linux/thermal.h>
 #include <linux/thermal.h>
 #ifdef CONFIG_DEVFREQ_THERMAL
@@ -154,6 +155,8 @@ static int poll_temperature(void *data)
 	int temp;
 #endif
 
+	set_freezable();
+
 	while (!kthread_should_stop()) {
 		struct thermal_zone_device *tz = READ_ONCE(model_data->gpu_tz);
 
@@ -173,6 +176,8 @@ static int poll_temperature(void *data)
 		WRITE_ONCE(model_data->current_temperature, temp);
 
 		msleep_interruptible(READ_ONCE(model_data->temperature_poll_interval_ms));
+
+		try_to_freeze();
 	}
 
 	return 0;
