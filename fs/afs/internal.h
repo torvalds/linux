@@ -407,16 +407,27 @@ struct afs_server {
 	rwlock_t		fs_lock;	/* access lock */
 
 	/* callback promise management */
-	struct list_head	cb_interests;	/* List of superblocks using this server */
+	struct hlist_head	cb_volumes;	/* List of volume interests on this server */
 	unsigned		cb_s_break;	/* Break-everything counter. */
 	rwlock_t		cb_break_lock;	/* Volume finding lock */
+};
+
+/*
+ * Volume collation in the server's callback interest list.
+ */
+struct afs_vol_interest {
+	struct hlist_node	srv_link;	/* Link in server->cb_volumes */
+	struct hlist_head	cb_interests;	/* List of callback interests on the server */
+	afs_volid_t		vid;		/* Volume ID to match */
+	unsigned int		usage;
 };
 
 /*
  * Interest by a superblock on a server.
  */
 struct afs_cb_interest {
-	struct list_head	cb_link;	/* Link in server->cb_interests */
+	struct hlist_node	cb_vlink;	/* Link in vol_interest->cb_interests */
+	struct afs_vol_interest	*vol_interest;
 	struct afs_server	*server;	/* Server on which this interest resides */
 	struct super_block	*sb;		/* Superblock on which inodes reside */
 	afs_volid_t		vid;		/* Volume ID to match */
