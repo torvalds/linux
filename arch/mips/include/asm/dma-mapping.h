@@ -2,14 +2,6 @@
 #ifndef _ASM_DMA_MAPPING_H
 #define _ASM_DMA_MAPPING_H
 
-#include <linux/scatterlist.h>
-#include <asm/dma-coherence.h>
-#include <asm/cache.h>
-
-#ifndef CONFIG_SGI_IP27 /* Kludge to fix 2.6.39 build for IP27 */
-#include <dma-coherence.h>
-#endif
-
 extern const struct dma_map_ops jazz_dma_ops;
 extern const struct dma_map_ops mips_swiotlb_ops;
 

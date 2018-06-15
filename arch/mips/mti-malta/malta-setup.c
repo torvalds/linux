@@ -26,6 +26,7 @@
 #include <linux/screen_info.h>
 #include <linux/time.h>
 
+#include <asm/dma-coherence.h>
 #include <asm/fw/fw.h>
 #include <asm/mach-malta/malta-dtshim.h>
 #include <asm/mips-cps.h>
