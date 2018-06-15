@@ -357,11 +357,6 @@ static void gt1x_remove_gpio_and_power(void)
 	if (gpio_is_valid(gt1x_rst_gpio))
 		gpio_free(gt1x_rst_gpio);
 
-#ifdef GTP_CONFIG_OF
-	if (vdd_ana)
-		regulator_put(vdd_ana);
-#endif
-
 	if (gt1x_i2c_client && gt1x_i2c_client->irq)
 		free_irq(gt1x_i2c_client->irq, gt1x_i2c_client);
 }
