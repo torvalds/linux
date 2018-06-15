@@ -10,12 +10,15 @@
 #include <dma-coherence.h>
 #endif
 
+extern const struct dma_map_ops jazz_dma_ops;
 extern const struct dma_map_ops mips_default_dma_map_ops;
 extern const struct dma_map_ops mips_swiotlb_ops;
 
 static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 {
-#ifdef CONFIG_SWIOTLB
+#if defined(CONFIG_MACH_JAZZ)
+	return &jazz_dma_ops;
+#elif defined(CONFIG_SWIOTLB)
 	return &mips_swiotlb_ops;
 #elif defined(CONFIG_MIPS_DMA_DEFAULT)
 	return &mips_default_dma_map_ops;
