@@ -32,10 +32,10 @@ the oldest task) wins, and the one with the higher reservation id (i.e. the
 younger task) unlocks all of the buffers that it has already locked, and then
 tries again.
 
-In the RDBMS literature this deadlock handling approach is called wait/wound:
+In the RDBMS literature this deadlock handling approach is called wait/die:
 The older tasks waits until it can acquire the contended lock. The younger tasks
 needs to back off and drop all the locks it is currently holding, i.e. the
-younger task is wounded.
+younger task dies.
 
 Concepts
 --------
@@ -56,9 +56,9 @@ Furthermore there are three different class of w/w lock acquire functions:
 
 * Normal lock acquisition with a context, using ww_mutex_lock.
 
-* Slowpath lock acquisition on the contending lock, used by the wounded task
-  after having dropped all already acquired locks. These functions have the
-  _slow postfix.
+* Slowpath lock acquisition on the contending lock, used by the task that just
+  killed its transaction after having dropped all already acquired locks.
+  These functions have the _slow postfix.
 
   From a simple semantics point-of-view the _slow functions are not strictly
   required, since simply calling the normal ww_mutex_lock functions on the
@@ -220,7 +220,7 @@ mutexes are a natural fit for such a case for two reasons:
 
 Note that this approach differs in two important ways from the above methods:
 - Since the list of objects is dynamically constructed (and might very well be
-  different when retrying due to hitting the -EDEADLK wound condition) there's
+  different when retrying due to hitting the -EDEADLK die condition) there's
   no need to keep any object on a persistent list when it's not locked. We can
   therefore move the list_head into the object itself.
 - On the other hand the dynamic object list construction also means that the -EALREADY return
