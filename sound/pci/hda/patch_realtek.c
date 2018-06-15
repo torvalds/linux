@@ -4906,7 +4906,7 @@ static void alc_no_shutup(struct hda_codec *codec)
 static void alc_fixup_no_shutup(struct hda_codec *codec,
 				const struct hda_fixup *fix, int action)
 {
-	if (action == HDA_FIXUP_ACT_PROBE) {
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		struct alc_spec *spec = codec->spec;
 		spec->shutup = alc_no_shutup;
 	}
@@ -4988,10 +4988,9 @@ static void alc_fixup_dell_xps13(struct hda_codec *codec,
 		 * it causes a click noise at start up
 		 */
 		snd_hda_codec_set_pin_target(codec, 0x19, PIN_VREFHIZ);
+		spec->shutup = alc_shutup_dell_xps13;
 		break;
 	case HDA_FIXUP_ACT_PROBE:
-		spec->shutup = alc_shutup_dell_xps13;
-
 		/* Make the internal mic the default input source. */
 		for (i = 0; i < imux->num_items; i++) {
 			if (spec->gen.imux_pins[i] == 0x12) {
@@ -7037,18 +7036,6 @@ static int patch_alc269(struct hda_codec *codec)
 	spec->shutup = alc_default_shutup;
 	spec->init_hook = alc_default_init;
 
-	snd_hda_pick_fixup(codec, alc269_fixup_models,
-		       alc269_fixup_tbl, alc269_fixups);
-	snd_hda_pick_pin_fixup(codec, alc269_pin_fixup_tbl, alc269_fixups);
-	snd_hda_pick_fixup(codec, NULL,	alc269_fixup_vendor_tbl,
-			   alc269_fixups);
-	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
-
-	alc_auto_parse_customize_define(codec);
-
-	if (has_cdefine_beep(codec))
-		spec->gen.beep_nid = 0x01;
-
 	switch (codec->core.vendor_id) {
 	case 0x10ec0269:
 		spec->codec_variant = ALC269_TYPE_ALC269VA;
@@ -7167,6 +7154,18 @@ static int patch_alc269(struct hda_codec *codec)
 		spec->has_alc5505_dsp = 1;
 		spec->init_hook = alc5505_dsp_init;
 	}
+
+	snd_hda_pick_fixup(codec, alc269_fixup_models,
+		       alc269_fixup_tbl, alc269_fixups);
+	snd_hda_pick_pin_fixup(codec, alc269_pin_fixup_tbl, alc269_fixups);
+	snd_hda_pick_fixup(codec, NULL,	alc269_fixup_vendor_tbl,
+			   alc269_fixups);
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
+
+	alc_auto_parse_customize_define(codec);
+
+	if (has_cdefine_beep(codec))
+		spec->gen.beep_nid = 0x01;
 
 	/* automatic parse from the BIOS config */
 	err = alc269_parse_auto_config(codec);
