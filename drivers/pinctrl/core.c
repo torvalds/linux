@@ -21,7 +21,6 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/list.h>
-#include <linux/sysfs.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/pinctrl/consumer.h>

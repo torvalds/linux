@@ -22,7 +22,6 @@
 #include <linux/err.h>
 #include <linux/list.h>
 #include <linux/string.h>
-#include <linux/sysfs.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/pinctrl/machine.h>
