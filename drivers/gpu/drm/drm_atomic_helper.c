@@ -645,7 +645,7 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 		if (ret)
 			return ret;
 
-		connectors_mask += BIT(i);
+		connectors_mask |= BIT(i);
 	}
 
 	/*
