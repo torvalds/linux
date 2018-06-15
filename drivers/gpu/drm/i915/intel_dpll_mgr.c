@@ -2812,24 +2812,30 @@ static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
 				MG_PLL_SSC_FLLEN |
 				MG_PLL_SSC_STEPSIZE(ssc_stepsize);
 
-	pll_state->mg_pll_tdc_coldst_bias = MG_PLL_TDC_COLDST_COLDSTART;
+	pll_state->mg_pll_tdc_coldst_bias = MG_PLL_TDC_COLDST_COLDSTART |
+					    MG_PLL_TDC_COLDST_IREFINT_EN |
+					    MG_PLL_TDC_COLDST_REFBIAS_START_PULSE_W(iref_pulse_w) |
+					    MG_PLL_TDC_TDCOVCCORR_EN |
+					    MG_PLL_TDC_TDCSEL(3);
 
-	if (refclk_khz != 38400) {
-		pll_state->mg_pll_tdc_coldst_bias |=
-			MG_PLL_TDC_COLDST_IREFINT_EN |
-			MG_PLL_TDC_COLDST_REFBIAS_START_PULSE_W(iref_pulse_w) |
-			MG_PLL_TDC_COLDST_COLDSTART |
-			MG_PLL_TDC_TDCOVCCORR_EN |
-			MG_PLL_TDC_TDCSEL(3);
+	pll_state->mg_pll_bias = MG_PLL_BIAS_BIAS_GB_SEL(3) |
+				 MG_PLL_BIAS_INIT_DCOAMP(0x3F) |
+				 MG_PLL_BIAS_BIAS_BONUS(10) |
+				 MG_PLL_BIAS_BIASCAL_EN |
+				 MG_PLL_BIAS_CTRIM(12) |
+				 MG_PLL_BIAS_VREF_RDAC(4) |
+				 MG_PLL_BIAS_IREFTRIM(iref_trim);
 
-		pll_state->mg_pll_bias = MG_PLL_BIAS_BIAS_GB_SEL(3) |
-					 MG_PLL_BIAS_INIT_DCOAMP(0x3F) |
-					 MG_PLL_BIAS_BIAS_BONUS(10) |
-					 MG_PLL_BIAS_BIASCAL_EN |
-					 MG_PLL_BIAS_CTRIM(12) |
-					 MG_PLL_BIAS_VREF_RDAC(4) |
-					 MG_PLL_BIAS_IREFTRIM(iref_trim);
+	if (refclk_khz == 38400) {
+		pll_state->mg_pll_tdc_coldst_bias_mask = MG_PLL_TDC_COLDST_COLDSTART;
+		pll_state->mg_pll_bias_mask = 0;
+	} else {
+		pll_state->mg_pll_tdc_coldst_bias_mask = -1U;
+		pll_state->mg_pll_bias_mask = -1U;
 	}
+
+	pll_state->mg_pll_tdc_coldst_bias &= pll_state->mg_pll_tdc_coldst_bias_mask;
+	pll_state->mg_pll_bias &= pll_state->mg_pll_bias_mask;
 
 	return true;
 }
@@ -2948,9 +2954,21 @@ static bool icl_pll_get_hw_state(struct drm_i915_private *dev_priv,
 		hw_state->mg_pll_lf = I915_READ(MG_PLL_LF(port));
 		hw_state->mg_pll_frac_lock = I915_READ(MG_PLL_FRAC_LOCK(port));
 		hw_state->mg_pll_ssc = I915_READ(MG_PLL_SSC(port));
+
 		hw_state->mg_pll_bias = I915_READ(MG_PLL_BIAS(port));
 		hw_state->mg_pll_tdc_coldst_bias =
 			I915_READ(MG_PLL_TDC_COLDST_BIAS(port));
+
+		if (dev_priv->cdclk.hw.ref == 38400) {
+			hw_state->mg_pll_tdc_coldst_bias_mask = MG_PLL_TDC_COLDST_COLDSTART;
+			hw_state->mg_pll_bias_mask = 0;
+		} else {
+			hw_state->mg_pll_tdc_coldst_bias_mask = -1U;
+			hw_state->mg_pll_bias_mask = -1U;
+		}
+
+		hw_state->mg_pll_tdc_coldst_bias &= hw_state->mg_pll_tdc_coldst_bias_mask;
+		hw_state->mg_pll_bias &= hw_state->mg_pll_bias_mask;
 		break;
 	default:
 		MISSING_CASE(id);
@@ -2978,6 +2996,7 @@ static void icl_mg_pll_write(struct drm_i915_private *dev_priv,
 {
 	struct intel_dpll_hw_state *hw_state = &pll->state.hw_state;
 	enum port port = icl_mg_pll_id_to_port(pll->info->id);
+	u32 val;
 
 	I915_WRITE(MG_REFCLKIN_CTL(port), hw_state->mg_refclkin_ctl);
 	I915_WRITE(MG_CLKTOP2_CORECLKCTL1(port),
@@ -2988,9 +3007,17 @@ static void icl_mg_pll_write(struct drm_i915_private *dev_priv,
 	I915_WRITE(MG_PLL_LF(port), hw_state->mg_pll_lf);
 	I915_WRITE(MG_PLL_FRAC_LOCK(port), hw_state->mg_pll_frac_lock);
 	I915_WRITE(MG_PLL_SSC(port), hw_state->mg_pll_ssc);
-	I915_WRITE(MG_PLL_BIAS(port), hw_state->mg_pll_bias);
-	I915_WRITE(MG_PLL_TDC_COLDST_BIAS(port),
-		   hw_state->mg_pll_tdc_coldst_bias);
+
+	val = I915_READ(MG_PLL_BIAS(port));
+	val &= ~hw_state->mg_pll_bias_mask;
+	val |= hw_state->mg_pll_bias;
+	I915_WRITE(MG_PLL_BIAS(port), val);
+
+	val = I915_READ(MG_PLL_TDC_COLDST_BIAS(port));
+	val &= ~hw_state->mg_pll_tdc_coldst_bias_mask;
+	val |= hw_state->mg_pll_tdc_coldst_bias;
+	I915_WRITE(MG_PLL_TDC_COLDST_BIAS(port), val);
+
 	POSTING_READ(MG_PLL_TDC_COLDST_BIAS(port));
 }
 

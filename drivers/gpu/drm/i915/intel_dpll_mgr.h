@@ -180,6 +180,8 @@ struct intel_dpll_hw_state {
 	uint32_t mg_pll_ssc;
 	uint32_t mg_pll_bias;
 	uint32_t mg_pll_tdc_coldst_bias;
+	uint32_t mg_pll_bias_mask;
+	uint32_t mg_pll_tdc_coldst_bias_mask;
 };
 
 /**
