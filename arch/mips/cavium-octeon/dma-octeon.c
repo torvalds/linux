@@ -13,7 +13,6 @@
 #include <linux/dma-direct.h>
 #include <linux/scatterlist.h>
 #include <linux/bootmem.h>
-#include <linux/export.h>
 #include <linux/swiotlb.h>
 #include <linux/types.h>
 #include <linux/init.h>
@@ -190,7 +189,6 @@ dma_addr_t __phys_to_dma(struct device *dev, phys_addr_t paddr)
 
 	return ops->phys_to_dma(dev, paddr);
 }
-EXPORT_SYMBOL(__phys_to_dma);
 
 phys_addr_t __dma_to_phys(struct device *dev, dma_addr_t daddr)
 {
@@ -200,7 +198,6 @@ phys_addr_t __dma_to_phys(struct device *dev, dma_addr_t daddr)
 
 	return ops->dma_to_phys(dev, daddr);
 }
-EXPORT_SYMBOL(__dma_to_phys);
 
 static struct octeon_dma_map_ops octeon_linear_dma_map_ops = {
 	.dma_map_ops = {
