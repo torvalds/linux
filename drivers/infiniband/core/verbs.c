@@ -1562,11 +1562,12 @@ EXPORT_SYMBOL(ib_destroy_qp);
 
 /* Completion queues */
 
-struct ib_cq *ib_create_cq(struct ib_device *device,
-			   ib_comp_handler comp_handler,
-			   void (*event_handler)(struct ib_event *, void *),
-			   void *cq_context,
-			   const struct ib_cq_init_attr *cq_attr)
+struct ib_cq *__ib_create_cq(struct ib_device *device,
+			     ib_comp_handler comp_handler,
+			     void (*event_handler)(struct ib_event *, void *),
+			     void *cq_context,
+			     const struct ib_cq_init_attr *cq_attr,
+			     const char *caller)
 {
 	struct ib_cq *cq;
 
@@ -1580,12 +1581,13 @@ struct ib_cq *ib_create_cq(struct ib_device *device,
 		cq->cq_context    = cq_context;
 		atomic_set(&cq->usecnt, 0);
 		cq->res.type = RDMA_RESTRACK_CQ;
+		cq->res.kern_name = caller;
 		rdma_restrack_add(&cq->res);
 	}
 
 	return cq;
 }
-EXPORT_SYMBOL(ib_create_cq);
+EXPORT_SYMBOL(__ib_create_cq);
 
 int rdma_set_cq_moderation(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 {
