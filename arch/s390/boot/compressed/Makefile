@@ -6,20 +6,15 @@
 #
 
 KCOV_INSTRUMENT := n
+GCOV_PROFILE := n
+UBSAN_SANITIZE := n
 
 targets	:= vmlinux.lds vmlinux vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2
 targets += vmlinux.bin.xz vmlinux.bin.lzma vmlinux.bin.lzo vmlinux.bin.lz4
 targets += misc.o piggy.o sizes.h head.o
 
-KBUILD_CFLAGS := -m64 -D__KERNEL__ -O2
-KBUILD_CFLAGS += -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY
-KBUILD_CFLAGS += $(cflags-y) -fno-delete-null-pointer-checks -msoft-float
-KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
-KBUILD_CFLAGS += $(call cc-option,-mpacked-stack)
-KBUILD_CFLAGS += $(call cc-option,-ffreestanding)
-
-GCOV_PROFILE := n
-UBSAN_SANITIZE := n
+KBUILD_AFLAGS := $(KBUILD_AFLAGS_DECOMPRESSOR)
+KBUILD_CFLAGS := $(KBUILD_CFLAGS_DECOMPRESSOR)
 
 OBJECTS := $(addprefix $(objtree)/arch/s390/kernel/, head.o ebcdic.o als.o)
 OBJECTS += $(objtree)/drivers/s390/char/sclp_early_core.o

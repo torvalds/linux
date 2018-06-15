@@ -14,8 +14,14 @@ LD_BFD		:= elf64-s390
 LDFLAGS		:= -m elf64_s390
 KBUILD_AFLAGS_MODULE += -fPIC
 KBUILD_CFLAGS_MODULE += -fPIC
-KBUILD_CFLAGS	+= -m64
 KBUILD_AFLAGS	+= -m64
+KBUILD_CFLAGS	+= -m64
+KBUILD_AFLAGS_DECOMPRESSOR := -m64 -D__ASSEMBLY__
+KBUILD_CFLAGS_DECOMPRESSOR := -m64 -O2
+KBUILD_CFLAGS_DECOMPRESSOR += -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY
+KBUILD_CFLAGS_DECOMPRESSOR += -fno-delete-null-pointer-checks -msoft-float
+KBUILD_CFLAGS_DECOMPRESSOR += -fno-asynchronous-unwind-tables
+KBUILD_CFLAGS_DECOMPRESSOR += $(call cc-option,-ffreestanding)
 UTS_MACHINE	:= s390x
 STACK_SIZE	:= 16384
 CHECKFLAGS	+= -D__s390__ -D__s390x__
@@ -57,6 +63,9 @@ cflags-$(CONFIG_PACK_STACK)  += -mpacked-stack -D__PACK_STACK
 aflags-$(CONFIG_PACK_STACK)  += -D__PACK_STACK
 endif
 
+KBUILD_AFLAGS_DECOMPRESSOR += $(aflags-y)
+KBUILD_CFLAGS_DECOMPRESSOR += $(cflags-y)
+
 ifeq ($(call cc-option-yn,-mstack-size=8192 -mstack-guard=128),y)
 cflags-$(CONFIG_CHECK_STACK) += -mstack-size=$(STACK_SIZE)
 ifneq ($(call cc-option-yn,-mstack-size=8192),y)
@@ -64,8 +73,11 @@ cflags-$(CONFIG_CHECK_STACK) += -mstack-guard=$(CONFIG_STACK_GUARD)
 endif
 endif
 
-ifeq ($(call cc-option-yn,-mwarn-dynamicstack),y)
-cflags-$(CONFIG_WARN_DYNAMIC_STACK) += -mwarn-dynamicstack
+ifdef CONFIG_WARN_DYNAMIC_STACK
+  ifeq ($(call cc-option-yn,-mwarn-dynamicstack),y)
+    KBUILD_CFLAGS += -mwarn-dynamicstack
+    KBUILD_CFLAGS_DECOMPRESSOR += -mwarn-dynamicstack
+  endif
 endif
 
 ifdef CONFIG_EXPOLINE
@@ -96,6 +108,8 @@ KBUILD_CFLAGS	+= -mbackchain -msoft-float $(cflags-y)
 KBUILD_CFLAGS	+= -pipe -fno-strength-reduce -Wno-sign-compare
 KBUILD_CFLAGS	+= -fno-asynchronous-unwind-tables $(cfi)
 KBUILD_AFLAGS	+= $(aflags-y) $(cfi)
+export KBUILD_AFLAGS_DECOMPRESSOR
+export KBUILD_CFLAGS_DECOMPRESSOR
 
 OBJCOPYFLAGS	:= -O binary
 
