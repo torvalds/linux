@@ -26,7 +26,6 @@
 #include <linux/debugfs.h>
 
 #include "dc.h"
-
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_debugfs.h"
@@ -46,7 +45,7 @@
  *
  * --- to get dp configuration
  *
- * xxd -l 300 phy_settings
+ * cat link_settings
  *
  * It will list current, verified, reported, preferred dp configuration.
  * current -- for current video mode
@@ -56,7 +55,7 @@
  *
  * --- set (or force) dp configuration
  *
- * echo <lane_count>  <link_rate>
+ * echo <lane_count>  <link_rate> > link_settings
  *
  * for example, to force to  2 lane, 2.7GHz,
  * echo 4 0xa > link_settings
@@ -67,7 +66,7 @@
  * done. please check link settings after force operation to see if HW get
  * programming.
  *
- * xxd -l 300 link_settings
+ * cat link_settings
  *
  * check current and preferred settings.
  *
@@ -79,13 +78,13 @@ static ssize_t dp_link_settings_read(struct file *f, char __user *buf,
 	struct dc_link *link = connector->dc_link;
 	char *rd_buf = NULL;
 	char *rd_buf_ptr = NULL;
-	uint32_t rd_buf_size = 320;
-	int bytes_to_user;
+	const uint32_t rd_buf_size = 100;
+	uint32_t result = 0;
 	uint8_t str_len = 0;
 	int r;
 
-	if (size == 0)
-		return 0;
+	if (*pos & 3 || size & 3)
+		return -EINVAL;
 
 	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
 	if (!rd_buf)
@@ -98,39 +97,44 @@ static ssize_t dp_link_settings_read(struct file *f, char __user *buf,
 			link->cur_link_settings.lane_count,
 			link->cur_link_settings.link_rate,
 			link->cur_link_settings.link_spread);
-	rd_buf_ptr = rd_buf_ptr + str_len;
+	rd_buf_ptr += str_len;
 
 	str_len = strlen("Verified:  %d  %d  %d  ");
 	snprintf(rd_buf_ptr, str_len, "Verified:  %d  %d  %d  ",
 			link->verified_link_cap.lane_count,
 			link->verified_link_cap.link_rate,
 			link->verified_link_cap.link_spread);
-	rd_buf_ptr = rd_buf_ptr + str_len;
+	rd_buf_ptr += str_len;
 
 	str_len = strlen("Reported:  %d  %d  %d  ");
 	snprintf(rd_buf_ptr, str_len, "Reported:  %d  %d  %d  ",
 			link->reported_link_cap.lane_count,
 			link->reported_link_cap.link_rate,
 			link->reported_link_cap.link_spread);
-	rd_buf_ptr = rd_buf_ptr + str_len;
+	rd_buf_ptr += str_len;
 
 	str_len = strlen("Preferred:  %d  %d  %d  ");
-	snprintf(rd_buf_ptr, str_len, "Preferred:  %d  %d  %d  ",
+	snprintf(rd_buf_ptr, str_len, "Preferred:  %d  %d  %d\n",
 			link->preferred_link_setting.lane_count,
 			link->preferred_link_setting.link_rate,
 			link->preferred_link_setting.link_spread);
 
-	r = copy_to_user(buf, rd_buf, rd_buf_size);
+	while (size) {
+		if (*pos >= rd_buf_size)
+			break;
 
-	bytes_to_user = rd_buf_size - r;
+		r = put_user(*(rd_buf + result), buf);
+		if (r)
+			return r; /* r = -EFAULT */
 
-	if (r > rd_buf_size) {
-		bytes_to_user = 0;
-		DRM_DEBUG_DRIVER("data not copy to user");
+		buf += 1;
+		size -= 1;
+		*pos += 1;
+		result += 1;
 	}
 
 	kfree(rd_buf);
-	return bytes_to_user;
+	return result;
 }
 
 static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
@@ -142,7 +146,7 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	struct dc_link_settings prefer_link_settings;
 	char *wr_buf = NULL;
 	char *wr_buf_ptr = NULL;
-	uint32_t wr_buf_size = 40;
+	const uint32_t wr_buf_size = 40;
 	int r;
 	int bytes_from_user;
 	char *sub_str;
@@ -153,11 +157,11 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	bool valid_input = false;
 
 	if (size == 0)
-		return 0;
+		return -EINVAL;
 
 	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
 	if (!wr_buf)
-		return 0;
+		return -EINVAL;
 	wr_buf_ptr = wr_buf;
 
 	r = copy_from_user(wr_buf_ptr, buf, wr_buf_size);
@@ -166,7 +170,7 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	if (r >= wr_buf_size) {
 		kfree(wr_buf);
 		DRM_DEBUG_DRIVER("user data not read\n");
-		return 0;
+		return -EINVAL;
 	}
 
 	bytes_from_user = wr_buf_size - r;
@@ -181,15 +185,12 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 		r = kstrtol(sub_str, 16, &param[param_index]);
 
 		if (r)
-			DRM_DEBUG_DRIVER(" -EINVAL convert error happens!\n");
+			DRM_DEBUG_DRIVER("string to int convert error code: %d\n", r);
 
 		param_index++;
 		while (isspace(*wr_buf_ptr))
 			wr_buf_ptr++;
 	}
-
-	DRM_DEBUG_DRIVER("Lane_count:  %lx\n", param[0]);
-	DRM_DEBUG_DRIVER("link_rate:  %lx\n", param[1]);
 
 	switch (param[0]) {
 	case LANE_COUNT_ONE:
@@ -213,9 +214,10 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 		break;
 	}
 
-	if (!valid_input) {
+	if (!valid_input || (param[0] > link->reported_link_cap.lane_count) ||
+			(param[1] > link->reported_link_cap.link_rate)) {
 		kfree(wr_buf);
-		DRM_DEBUG_DRIVER("Invalid Input value  exceed  No HW will be programmed\n");
+		DRM_DEBUG_DRIVER("Invalid Input value No HW will be programmed\n");
 		return bytes_from_user;
 	}
 
@@ -229,36 +231,190 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	dc_link_set_preferred_link_settings(dc, &prefer_link_settings, link);
 
 	kfree(wr_buf);
-
 	return bytes_from_user;
 }
 
-static ssize_t dp_voltage_swing_debugfs_read(struct file *f, char __user *buf,
+/* function: get current DP PHY settings: voltage swing, pre-emphasis,
+ * post-cursor2 (defined by VESA DP specification)
+ *
+ * valid values
+ * voltage swing: 0,1,2,3
+ * pre-emphasis : 0,1,2,3
+ * post cursor2 : 0,1,2,3
+ *
+ *
+ * how to use this debugfs
+ *
+ * debugfs is located at /sys/kernel/debug/dri/0/DP-x
+ *
+ * there will be directories, like DP-1, DP-2,DP-3, etc. for DP display
+ *
+ * To figure out which DP-x is the display for DP to be check,
+ * cd DP-x
+ * ls -ll
+ * There should be debugfs file, like link_settings, phy_settings.
+ * cat link_settings
+ * from lane_count, link_rate to figure which DP-x is for display to be worked
+ * on
+ *
+ * To get current DP PHY settings,
+ * cat phy_settings
+ *
+ * To change DP PHY settings,
+ * echo <voltage_swing> <pre-emphasis> <post_cursor2> > phy_settings
+ * for examle, to change voltage swing to 2, pre-emphasis to 3, post_cursor2 to
+ * 0,
+ * echo 2 3 0 > phy_settings
+ *
+ * To check if change be applied, get current phy settings by
+ * cat phy_settings
+ *
+ * In case invalid values are set by user, like
+ * echo 1 4 0 > phy_settings
+ *
+ * HW will NOT be programmed by these settings.
+ * cat phy_settings will show the previous valid settings.
+ */
+static ssize_t dp_phy_settings_read(struct file *f, char __user *buf,
 				 size_t size, loff_t *pos)
 {
-	/* TODO: create method to read voltage swing */
-	return 1;
+	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct dc_link *link = connector->dc_link;
+	char *rd_buf = NULL;
+	const uint32_t rd_buf_size = 20;
+	uint32_t result = 0;
+	int r;
+
+	if (*pos & 3 || size & 3)
+		return -EINVAL;
+
+	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
+	if (!rd_buf)
+		return -EINVAL;
+
+	snprintf(rd_buf, rd_buf_size, "  %d  %d  %d  ",
+			link->cur_lane_setting.VOLTAGE_SWING,
+			link->cur_lane_setting.PRE_EMPHASIS,
+			link->cur_lane_setting.POST_CURSOR2);
+
+	while (size) {
+		if (*pos >= rd_buf_size)
+			break;
+
+		r = put_user((*(rd_buf + result)), buf);
+		if (r)
+			return r; /* r = -EFAULT */
+
+		buf += 1;
+		size -= 1;
+		*pos += 1;
+		result += 1;
+	}
+
+	kfree(rd_buf);
+	return result;
 }
 
-static ssize_t dp_voltage_swing_debugfs_write(struct file *f, const char __user *buf,
+static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
 				 size_t size, loff_t *pos)
 {
-	/* TODO: create method to write voltage swing */
-	return 1;
-}
+	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct dc_link *link = connector->dc_link;
+	struct dc *dc = (struct dc *)link->dc;
+	char *wr_buf = NULL;
+	char *wr_buf_ptr = NULL;
+	uint32_t wr_buf_size = 40;
+	int r;
+	int bytes_from_user;
+	char *sub_str;
+	uint8_t param_index = 0;
+	long param[3];
+	const char delimiter[3] = {' ', '\n', '\0'};
+	bool use_prefer_link_setting;
+	struct link_training_settings link_lane_settings;
 
-static ssize_t dp_pre_emphasis_debugfs_read(struct file *f, char __user *buf,
-				 size_t size, loff_t *pos)
-{
-	/* TODO: create method to read pre-emphasis */
-	return 1;
-}
+	if (size == 0)
+		return 0;
 
-static ssize_t dp_pre_emphasis_debugfs_write(struct file *f, const char __user *buf,
-				 size_t size, loff_t *pos)
-{
-	/* TODO: create method to write pre-emphasis */
-	return 1;
+	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
+	if (!wr_buf)
+		return 0;
+	wr_buf_ptr = wr_buf;
+
+	r = copy_from_user(wr_buf_ptr, buf, wr_buf_size);
+
+	/* r is bytes not be copied */
+	if (r >= wr_buf_size) {
+		kfree(wr_buf);
+		DRM_DEBUG_DRIVER("user data not be read\n");
+		return 0;
+	}
+
+	bytes_from_user = wr_buf_size - r;
+
+	while (isspace(*wr_buf_ptr))
+		wr_buf_ptr++;
+
+	while ((*wr_buf_ptr != '\0') && (param_index < 3)) {
+
+		sub_str = strsep(&wr_buf_ptr, delimiter);
+
+		r = kstrtol(sub_str, 16, &param[param_index]);
+
+		if (r)
+			DRM_DEBUG_DRIVER("string to int convert error code: %d\n", r);
+
+		param_index++;
+		while (isspace(*wr_buf_ptr))
+			wr_buf_ptr++;
+	}
+
+	if ((param[0] > VOLTAGE_SWING_MAX_LEVEL) ||
+			(param[1] > PRE_EMPHASIS_MAX_LEVEL) ||
+			(param[2] > POST_CURSOR2_MAX_LEVEL)) {
+		kfree(wr_buf);
+		DRM_DEBUG_DRIVER("Invalid Input No HW will be programmed\n");
+		return bytes_from_user;
+	}
+
+	/* get link settings: lane count, link rate */
+	use_prefer_link_setting =
+		((link->preferred_link_setting.link_rate != LINK_RATE_UNKNOWN) &&
+		(link->test_pattern_enabled));
+
+	memset(&link_lane_settings, 0, sizeof(link_lane_settings));
+
+	if (use_prefer_link_setting) {
+		link_lane_settings.link_settings.lane_count =
+				link->preferred_link_setting.lane_count;
+		link_lane_settings.link_settings.link_rate =
+				link->preferred_link_setting.link_rate;
+		link_lane_settings.link_settings.link_spread =
+				link->preferred_link_setting.link_spread;
+	} else {
+		link_lane_settings.link_settings.lane_count =
+				link->cur_link_settings.lane_count;
+		link_lane_settings.link_settings.link_rate =
+				link->cur_link_settings.link_rate;
+		link_lane_settings.link_settings.link_spread =
+				link->cur_link_settings.link_spread;
+	}
+
+	/* apply phy settings from user */
+	for (r = 0; r < link_lane_settings.link_settings.lane_count; r++) {
+		link_lane_settings.lane_settings[r].VOLTAGE_SWING =
+				(enum dc_voltage_swing) (param[0]);
+		link_lane_settings.lane_settings[r].PRE_EMPHASIS =
+				(enum dc_pre_emphasis) (param[1]);
+		link_lane_settings.lane_settings[r].POST_CURSOR2 =
+				(enum dc_post_cursor2) (param[2]);
+	}
+
+	/* program ASIC registers and DPCD registers */
+	dc_link_set_drive_settings(dc, &link_lane_settings, link);
+
+	kfree(wr_buf);
+	return bytes_from_user;
 }
 
 /* function description
@@ -483,17 +639,10 @@ static const struct file_operations dp_link_settings_debugfs_fops = {
 	.llseek = default_llseek
 };
 
-static const struct file_operations dp_voltage_swing_fops = {
+static const struct file_operations dp_phy_settings_debugfs_fop = {
 	.owner = THIS_MODULE,
-	.read = dp_voltage_swing_debugfs_read,
-	.write = dp_voltage_swing_debugfs_write,
-	.llseek = default_llseek
-};
-
-static const struct file_operations dp_pre_emphasis_fops = {
-	.owner = THIS_MODULE,
-	.read = dp_pre_emphasis_debugfs_read,
-	.write = dp_pre_emphasis_debugfs_write,
+	.read = dp_phy_settings_read,
+	.write = dp_phy_settings_write,
 	.llseek = default_llseek
 };
 
@@ -508,8 +657,7 @@ static const struct {
 	const struct file_operations *fops;
 } dp_debugfs_entries[] = {
 		{"link_settings", &dp_link_settings_debugfs_fops},
-		{"voltage_swing", &dp_voltage_swing_fops},
-		{"pre_emphasis", &dp_pre_emphasis_fops},
+		{"phy_settings", &dp_phy_settings_debugfs_fop},
 		{"test_pattern", &dp_phy_test_pattern_fops}
 };
 
