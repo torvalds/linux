@@ -1012,6 +1012,7 @@ void cfg80211_unregister_wdev(struct wireless_dev *wdev)
 	nl80211_notify_iface(rdev, wdev, NL80211_CMD_DEL_INTERFACE);
 
 	list_del_rcu(&wdev->list);
+	synchronize_rcu();
 	rdev->devlist_generation++;
 
 	switch (wdev->iftype) {
