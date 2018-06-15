@@ -52,7 +52,8 @@
 #define ARM64_MISMATCHED_CACHE_TYPE		31
 #define ARM64_HAS_STAGE2_FWB			32
 #define ARM64_HAS_CRC32				33
+#define ARM64_SSBS				34
 
-#define ARM64_NCAPS				34
+#define ARM64_NCAPS				35
 
 #endif /* __ASM_CPUCAPS_H */
