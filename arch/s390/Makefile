@@ -52,13 +52,6 @@ cflags-y += -Wa,-I$(srctree)/arch/$(ARCH)/include
 #
 cflags-$(CONFIG_FRAME_POINTER) += -fno-optimize-sibling-calls
 
-# old style option for packed stacks
-ifeq ($(call cc-option-yn,-mkernel-backchain),y)
-cflags-$(CONFIG_PACK_STACK)  += -mkernel-backchain -D__PACK_STACK
-aflags-$(CONFIG_PACK_STACK)  += -D__PACK_STACK
-endif
-
-# new style option for packed stacks
 ifeq ($(call cc-option-yn,-mpacked-stack),y)
 cflags-$(CONFIG_PACK_STACK)  += -mpacked-stack -D__PACK_STACK
 aflags-$(CONFIG_PACK_STACK)  += -D__PACK_STACK
