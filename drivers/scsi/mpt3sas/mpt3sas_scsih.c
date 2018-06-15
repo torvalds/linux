@@ -1653,7 +1653,6 @@ scsih_target_destroy(struct scsi_target *starget)
 	struct _raid_device *raid_device;
 	struct _pcie_device *pcie_device;
 	unsigned long flags;
-	struct sas_rphy *rphy;
 
 	sas_target_priv_data = starget->hostdata;
 	if (!sas_target_priv_data)
@@ -1693,7 +1692,6 @@ scsih_target_destroy(struct scsi_target *starget)
 	}
 
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
-	rphy = dev_to_rphy(starget->dev.parent);
 	sas_device = __mpt3sas_get_sdev_from_target(ioc, sas_target_priv_data);
 	if (sas_device && (sas_device->starget == starget) &&
 	    (sas_device->id == starget->id) &&
@@ -6872,7 +6870,6 @@ _scsih_pcie_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 	Mpi2ConfigReply_t mpi_reply;
 	struct _pcie_device *pcie_device;
 	struct _enclosure_node *enclosure_dev;
-	u32 pcie_device_type;
 	u32 ioc_status;
 	u64 wwid;
 
@@ -6934,8 +6931,6 @@ _scsih_pcie_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 	pcie_device->port_num = pcie_device_pg0.PortNum;
 	pcie_device->fast_path = (le32_to_cpu(pcie_device_pg0.Flags) &
 	    MPI26_PCIEDEV0_FLAGS_FAST_PATH_CAPABLE) ? 1 : 0;
-	pcie_device_type = pcie_device->device_info &
-	    MPI26_PCIE_DEVINFO_MASK_DEVICE_TYPE;
 
 	pcie_device->enclosure_handle =
 	    le16_to_cpu(pcie_device_pg0.EnclosureHandle);

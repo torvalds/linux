@@ -2155,11 +2155,9 @@ base_is_prp_possible(struct MPT3SAS_ADAPTER *ioc,
 	struct _pcie_device *pcie_device, struct scsi_cmnd *scmd, int sge_count)
 {
 	u32 data_length = 0;
-	struct scatterlist *sg_scmd;
 	bool build_prp = true;
 
 	data_length = scsi_bufflen(scmd);
-	sg_scmd = scsi_sglist(scmd);
 
 	/* If Datalenth is <= 16K and number of SGE’s entries are <= 2
 	 * we built IEEE SGL
@@ -2190,11 +2188,9 @@ _base_check_pcie_native_sgl(struct MPT3SAS_ADAPTER *ioc,
 	Mpi25SCSIIORequest_t *mpi_request, u16 smid, struct scsi_cmnd *scmd,
 	struct _pcie_device *pcie_device)
 {
-	struct scatterlist *sg_scmd;
 	int sges_left;
 
 	/* Get the SG list pointer and info. */
-	sg_scmd = scsi_sglist(scmd);
 	sges_left = scsi_dma_map(scmd);
 	if (sges_left < 0) {
 		sdev_printk(KERN_ERR, scmd->device,
@@ -3498,11 +3494,8 @@ mpt3sas_base_put_smid_hi_priority(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	u64 *request;
 
 	if (ioc->is_mcpu_endpoint) {
-		MPI2RequestHeader_t *request_hdr;
-
 		__le32 *mfp = (__le32 *)mpt3sas_base_get_msg_frame(ioc, smid);
 
-		request_hdr = (MPI2RequestHeader_t *)mfp;
 		/* TBD 256 is offset within sys register. */
 		mpi_req_iomem = (void __force *)ioc->chip
 					+ MPI_FRAME_START_OFFSET
@@ -3565,12 +3558,9 @@ mpt3sas_base_put_smid_default(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 	Mpi2RequestDescriptorUnion_t descriptor;
 	void *mpi_req_iomem;
 	u64 *request;
-	MPI2RequestHeader_t *request_hdr;
 
 	if (ioc->is_mcpu_endpoint) {
 		__le32 *mfp = (__le32 *)mpt3sas_base_get_msg_frame(ioc, smid);
-
-		request_hdr = (MPI2RequestHeader_t *)mfp;
 
 		_clone_sg_entries(ioc, (void *) mfp, smid);
 		/* TBD 256 is offset within sys register */
