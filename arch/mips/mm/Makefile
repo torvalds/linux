@@ -17,7 +17,6 @@ obj-$(CONFIG_32BIT)		+= ioremap.o pgtable-32.o
 obj-$(CONFIG_64BIT)		+= pgtable-64.o
 obj-$(CONFIG_HIGHMEM)		+= highmem.o
 obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
-obj-$(CONFIG_MIPS_DMA_DEFAULT)	+= dma-default.o
 obj-$(CONFIG_DMA_NONCOHERENT)	+= dma-noncoherent.o
 obj-$(CONFIG_SWIOTLB)		+= dma-swiotlb.o
 
