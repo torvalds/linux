@@ -652,7 +652,7 @@ int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv)
 
 static bool client_is_banned(struct drm_i915_file_private *file_priv)
 {
-	return atomic_read(&file_priv->context_bans) > I915_MAX_CLIENT_CONTEXT_BANS;
+	return atomic_read(&file_priv->ban_score) >= I915_CLIENT_SCORE_BANNED;
 }
 
 int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
