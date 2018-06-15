@@ -375,8 +375,10 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 	data->rate = clk_get_rate(data->dmc_clk);
 
 	opp = devfreq_recommended_opp(dev, &data->rate, 0);
-	if (IS_ERR(opp))
-		return PTR_ERR(opp);
+	if (IS_ERR(opp)) {
+		ret = PTR_ERR(opp);
+		goto err_free_opp;
+	}
 
 	data->rate = dev_pm_opp_get_freq(opp);
 	data->volt = dev_pm_opp_get_voltage(opp);
@@ -388,12 +390,32 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 					   &rk3399_devfreq_dmc_profile,
 					   DEVFREQ_GOV_SIMPLE_ONDEMAND,
 					   &data->ondemand_data);
-	if (IS_ERR(data->devfreq))
-		return PTR_ERR(data->devfreq);
+	if (IS_ERR(data->devfreq)) {
+		ret = PTR_ERR(data->devfreq);
+		goto err_free_opp;
+	}
+
 	devm_devfreq_register_opp_notifier(dev, data->devfreq);
 
 	data->dev = dev;
 	platform_set_drvdata(pdev, data);
+
+	return 0;
+
+err_free_opp:
+	dev_pm_opp_of_remove_table(&pdev->dev);
+	return ret;
+}
+
+static int rk3399_dmcfreq_remove(struct platform_device *pdev)
+{
+	struct rk3399_dmcfreq *dmcfreq = dev_get_drvdata(&pdev->dev);
+
+	/*
+	 * Before remove the opp table we need to unregister the opp notifier.
+	 */
+	devm_devfreq_unregister_opp_notifier(dmcfreq->dev, dmcfreq->devfreq);
+	dev_pm_opp_of_remove_table(dmcfreq->dev);
 
 	return 0;
 }
@@ -406,6 +428,7 @@ MODULE_DEVICE_TABLE(of, rk3399dmc_devfreq_of_match);
 
 static struct platform_driver rk3399_dmcfreq_driver = {
 	.probe	= rk3399_dmcfreq_probe,
+	.remove = rk3399_dmcfreq_remove,
 	.driver = {
 		.name	= "rk3399-dmc-freq",
 		.pm	= &rk3399_dmcfreq_pm,
