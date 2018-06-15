@@ -82,7 +82,7 @@
 #define GTP_WITH_STYLUS       0 /* pen support */
 #define GTP_HAVE_STYLUS_KEY   0
 
-#define GTP_POWER_CTRL_SLEEP  0	/* turn off power on suspend */
+#define GTP_POWER_CTRL_SLEEP  1	/* turn off power on suspend */
 #define GTP_ICS_SLOT_REPORT   0
 #define GTP_CREATE_WR_NODE    0	/* create the interface to support gtp_tools */
 #define GTP_DEBUG_NODE        0

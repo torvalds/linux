@@ -439,6 +439,7 @@ s32 _do_i2c_write(struct i2c_msg *msg, u16 addr, u8 *buffer, s32 len)
 	return 0;
 }
 
+#if !GTP_POWER_CTRL_SLEEP
 #if !GTP_ESD_PROTECT
 static s32 gt1x_i2c_test(void)
 {
@@ -461,6 +462,7 @@ static s32 gt1x_i2c_test(void)
 
 	return ERROR_RETRY;
 }
+#endif
 #endif
 
 /**
@@ -938,12 +940,12 @@ s32 gt1x_get_chip_type(void)
  */
 static s32 gt1x_enter_sleep(void)
 {
-	int ret;
 #if GTP_POWER_CTRL_SLEEP
 	gt1x_power_switch(SWITCH_OFF);
 	return 0;
 #else
 	{
+		int ret;
 		s32 retry = 0;
 		if (gt1x_wakeup_level == 1) {	/* high level wakeup */
 			GTP_GPIO_OUTPUT(GTP_INT_PORT, 0);
@@ -979,7 +981,7 @@ static s32 gt1x_wakeup_sleep(void)
 	s32 ret = -1;
 	int flag = 0;
 #endif
-
+	s32 ret = -1;
 	GTP_DEBUG("Wake up begin.");
 	gt1x_irq_disable();
 	ret = regulator_enable(gt1x_supply);
