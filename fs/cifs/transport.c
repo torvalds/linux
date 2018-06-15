@@ -201,15 +201,24 @@ smb_send_kvec(struct TCP_Server_Info *server, struct msghdr *smb_msg,
 	return 0;
 }
 
-static unsigned long
-smb2_rqst_len(struct smb_rqst *rqst)
+unsigned long
+smb2_rqst_len(struct smb_rqst *rqst, bool skip_rfc1002_marker)
 {
 	unsigned int i;
-	struct kvec *iov = rqst->rq_iov;
+	struct kvec *iov;
+	int nvec;
 	unsigned long buflen = 0;
 
+	if (skip_rfc1002_marker && rqst->rq_iov[0].iov_len == 4) {
+		iov = &rqst->rq_iov[1];
+		nvec = rqst->rq_nvec - 1;
+	} else {
+		iov = rqst->rq_iov;
+		nvec = rqst->rq_nvec;
+	}
+
 	/* total up iov array first */
-	for (i = 0; i < rqst->rq_nvec; i++)
+	for (i = 0; i < nvec; i++)
 		buflen += iov[i].iov_len;
 
 	/*
@@ -262,7 +271,7 @@ __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 				(char *)&val, sizeof(val));
 
 	for (j = 0; j < num_rqst; j++)
-		send_length += smb2_rqst_len(&rqst[j]);
+		send_length += smb2_rqst_len(&rqst[j], true);
 	rfc1002_marker = cpu_to_be32(send_length);
 
 	/* Generate a rfc1002 marker for SMB2+ */

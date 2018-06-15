@@ -2485,7 +2485,7 @@ smb3_init_transform_rq(struct TCP_Server_Info *server, struct smb_rqst *new_rq,
 	struct page **pages;
 	struct smb2_transform_hdr *tr_hdr;
 	unsigned int npages = old_rq->rq_npages;
-	unsigned int orig_len = 0;
+	unsigned int orig_len;
 	int i;
 	int rc = -ENOMEM;
 
@@ -2498,9 +2498,6 @@ smb3_init_transform_rq(struct TCP_Server_Info *server, struct smb_rqst *new_rq,
 	new_rq->rq_npages = old_rq->rq_npages;
 	new_rq->rq_pagesz = old_rq->rq_pagesz;
 	new_rq->rq_tailsz = old_rq->rq_tailsz;
-
-	for (i = 0; i < old_rq->rq_nvec; i++)
-		orig_len += old_rq->rq_iov[i].iov_len;
 
 	for (i = 0; i < npages; i++) {
 		pages[i] = alloc_page(GFP_KERNEL|__GFP_HIGHMEM);
@@ -2523,6 +2520,8 @@ smb3_init_transform_rq(struct TCP_Server_Info *server, struct smb_rqst *new_rq,
 	tr_hdr = kmalloc(sizeof(struct smb2_transform_hdr), GFP_KERNEL);
 	if (!tr_hdr)
 		goto err_free_iov;
+
+	orig_len = smb2_rqst_len(old_rq, false);
 
 	/* fill the 2nd iov with a transform header */
 	fill_transform_hdr(tr_hdr, orig_len, old_rq);
