@@ -337,6 +337,10 @@ intel_crt_mode_valid(struct drm_connector *connector,
 	    (ironlake_get_lanes_required(mode->clock, 270000, 24) > 2))
 		return MODE_CLOCK_HIGH;
 
+	/* HSW/BDW FDI limited to 4k */
+	if (mode->hdisplay > 4096)
+		return MODE_H_ILLEGAL;
+
 	return MODE_OK;
 }
 
@@ -377,6 +381,11 @@ static bool hsw_crt_compute_config(struct intel_encoder *encoder,
 		&pipe_config->base.adjusted_mode;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return false;
+
+	/* HSW/BDW FDI limited to 4k */
+	if (adjusted_mode->crtc_hdisplay > 4096 ||
+	    adjusted_mode->crtc_hblank_start > 4096)
 		return false;
 
 	pipe_config->has_pch_encoder = true;
