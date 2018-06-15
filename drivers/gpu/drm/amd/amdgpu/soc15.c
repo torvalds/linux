@@ -479,6 +479,11 @@ static const struct amdgpu_ip_block_version vega10_common_ip_block =
 	.funcs = &soc15_common_ip_funcs,
 };
 
+static uint32_t soc15_get_rev_id(struct amdgpu_device *adev)
+{
+	return adev->nbio_funcs->get_rev_id(adev);
+}
+
 int soc15_set_ip_blocks(struct amdgpu_device *adev)
 {
 	/* Set IP register base before any HW register access */
@@ -507,6 +512,8 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		adev->df_funcs = &df_v3_6_funcs;
 	else
 		adev->df_funcs = &df_v1_7_funcs;
+
+	adev->rev_id = soc15_get_rev_id(adev);
 	adev->nbio_funcs->detect_hw_virt(adev);
 
 	if (amdgpu_sriov_vf(adev))
@@ -581,11 +588,6 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 	return 0;
 }
 
-static uint32_t soc15_get_rev_id(struct amdgpu_device *adev)
-{
-	return adev->nbio_funcs->get_rev_id(adev);
-}
-
 static void soc15_flush_hdp(struct amdgpu_device *adev, struct amdgpu_ring *ring)
 {
 	adev->nbio_funcs->hdp_flush(adev, ring);
@@ -642,7 +644,6 @@ static int soc15_common_early_init(void *handle)
 
 	adev->asic_funcs = &soc15_asic_funcs;
 
-	adev->rev_id = soc15_get_rev_id(adev);
 	adev->external_rev_id = 0xFF;
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
