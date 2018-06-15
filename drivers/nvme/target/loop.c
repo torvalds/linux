@@ -158,12 +158,11 @@ static blk_status_t nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct nvme_loop_queue *queue = hctx->driver_data;
 	struct request *req = bd->rq;
 	struct nvme_loop_iod *iod = blk_mq_rq_to_pdu(req);
+	bool queue_ready = test_bit(NVME_LOOP_Q_LIVE, &queue->flags);
 	blk_status_t ret;
 
-	ret = nvmf_check_if_ready(&queue->ctrl->ctrl, req,
-		test_bit(NVME_LOOP_Q_LIVE, &queue->flags), true);
-	if (unlikely(ret))
-		return ret;
+	if (!nvmf_check_ready(&queue->ctrl->ctrl, req, queue_ready))
+		return nvmf_fail_nonready_command(req);
 
 	ret = nvme_setup_cmd(ns, req, &iod->cmd);
 	if (ret)
