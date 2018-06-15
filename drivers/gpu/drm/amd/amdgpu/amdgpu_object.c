@@ -790,15 +790,6 @@ int amdgpu_bo_unpin(struct amdgpu_bo *bo)
 	bo->pin_count--;
 	if (bo->pin_count)
 		return 0;
-	for (i = 0; i < bo->placement.num_placement; i++) {
-		bo->placements[i].lpfn = 0;
-		bo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
-	}
-	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
-	if (unlikely(r)) {
-		dev_err(adev->dev, "%p validate failed for unpin\n", bo);
-		goto error;
-	}
 
 	if (bo->tbo.mem.mem_type == TTM_PL_VRAM) {
 		adev->vram_pin_size -= amdgpu_bo_size(bo);
@@ -808,7 +799,14 @@ int amdgpu_bo_unpin(struct amdgpu_bo *bo)
 		adev->gart_pin_size -= amdgpu_bo_size(bo);
 	}
 
-error:
+	for (i = 0; i < bo->placement.num_placement; i++) {
+		bo->placements[i].lpfn = 0;
+		bo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
+	}
+	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
+	if (unlikely(r))
+		dev_err(adev->dev, "%p validate failed for unpin\n", bo);
+
 	return r;
 }
 
