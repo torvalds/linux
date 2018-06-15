@@ -19,6 +19,8 @@ static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 	return &mips_swiotlb_ops;
 #elif defined(CONFIG_MIPS_DMA_DEFAULT)
 	return &mips_default_dma_map_ops;
+#elif defined(CONFIG_DMA_NONCOHERENT_OPS)
+	return &dma_noncoherent_ops;
 #else
 	return &dma_direct_ops;
 #endif
