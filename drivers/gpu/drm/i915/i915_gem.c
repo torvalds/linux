@@ -3166,15 +3166,17 @@ i915_gem_reset_request(struct intel_engine_cs *engine,
 		 */
 		request = i915_gem_find_active_request(engine);
 		if (request) {
+			unsigned long flags;
+
 			i915_gem_context_mark_innocent(request->gem_context);
 			dma_fence_set_error(&request->fence, -EAGAIN);
 
 			/* Rewind the engine to replay the incomplete rq */
-			spin_lock_irq(&engine->timeline.lock);
+			spin_lock_irqsave(&engine->timeline.lock, flags);
 			request = list_prev_entry(request, link);
 			if (&request->link == &engine->timeline.requests)
 				request = NULL;
-			spin_unlock_irq(&engine->timeline.lock);
+			spin_unlock_irqrestore(&engine->timeline.lock, flags);
 		}
 	}
 
