@@ -215,6 +215,8 @@ config ATH79
 
 config BMIPS_GENERIC
 	bool "Broadcom Generic BMIPS kernel"
+	select ARCH_HAS_SYNC_DMA_FOR_CPU_ALL
+	select ARCH_HAS_PHYS_TO_DMA
 	select BOOT_RAW
 	select NO_EXCEPT_FILL
 	select USE_OF
@@ -227,7 +229,6 @@ config BMIPS_GENERIC
 	select BCM7120_L2_IRQ
 	select BRCMSTB_L2_IRQ
 	select IRQ_MIPS_CPU
-	select MIPS_DMA_DEFAULT
 	select DMA_NONCOHERENT
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
