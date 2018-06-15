@@ -11,10 +11,15 @@
 #endif
 
 extern const struct dma_map_ops *mips_dma_map_ops;
+extern const struct dma_map_ops mips_swiotlb_ops;
 
 static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 {
+#ifdef CONFIG_SWIOTLB
+	return &mips_swiotlb_ops;
+#else
 	return mips_dma_map_ops;
+#endif
 }
 
 #define arch_setup_dma_ops arch_setup_dma_ops
