@@ -680,10 +680,10 @@
 	};
 
 	gt1x: gt1x@14 {
-	      compatible = "goodix,gt1x";
-	      reg = <0x14>;
-	      goodix,rst-gpio = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
-	      goodix,irq-gpio = <&gpio0 RK_PA5 IRQ_TYPE_LEVEL_LOW>;
+		compatible = "goodix,gt1x";
+		reg = <0x14>;
+		goodix,rst-gpio = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
+		goodix,irq-gpio = <&gpio0 RK_PA5 IRQ_TYPE_LEVEL_LOW>;
 	};
 
 	sensor@4c {
