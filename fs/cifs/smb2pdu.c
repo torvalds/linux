@@ -1911,6 +1911,159 @@ alloc_path_with_tree_prefix(__le16 **out_path, int *out_size, int *out_len,
 	return 0;
 }
 
+#ifdef CONFIG_CIFS_SMB311
+int smb311_posix_mkdir(const unsigned int xid, struct inode *inode,
+			       umode_t mode, struct cifs_tcon *tcon,
+			       const char *full_path,
+			       struct cifs_sb_info *cifs_sb)
+{
+	struct smb_rqst rqst;
+	struct smb2_create_req *req;
+	struct smb2_create_rsp *rsp;
+	struct TCP_Server_Info *server;
+	struct cifs_ses *ses = tcon->ses;
+	struct kvec iov[3]; /* make sure at least one for each open context */
+	struct kvec rsp_iov = {NULL, 0};
+	int resp_buftype;
+	int uni_path_len;
+	__le16 *copy_path = NULL;
+	int copy_size;
+	int rc = 0;
+	unsigned int n_iov = 2;
+	__u32 file_attributes = 0;
+	char *pc_buf = NULL;
+	int flags = 0;
+	unsigned int total_len;
+	__le16 *path = cifs_convert_path_to_utf16(full_path, cifs_sb);
+
+	if (!path)
+		return -ENOMEM;
+
+	cifs_dbg(FYI, "mkdir\n");
+
+	if (ses && (ses->server))
+		server = ses->server;
+	else
+		return -EIO;
+
+	rc = smb2_plain_req_init(SMB2_CREATE, tcon, (void **) &req, &total_len);
+
+	if (rc)
+		return rc;
+
+	if (smb3_encryption_required(tcon))
+		flags |= CIFS_TRANSFORM_REQ;
+
+
+	req->ImpersonationLevel = IL_IMPERSONATION;
+	req->DesiredAccess = cpu_to_le32(FILE_WRITE_ATTRIBUTES);
+	/* File attributes ignored on open (used in create though) */
+	req->FileAttributes = cpu_to_le32(file_attributes);
+	req->ShareAccess = FILE_SHARE_ALL_LE;
+	req->CreateDisposition = cpu_to_le32(FILE_CREATE);
+	req->CreateOptions = cpu_to_le32(CREATE_NOT_FILE);
+
+	iov[0].iov_base = (char *)req;
+	/* -1 since last byte is buf[0] which is sent below (path) */
+	iov[0].iov_len = total_len - 1;
+
+	req->NameOffset = cpu_to_le16(sizeof(struct smb2_create_req));
+
+	/* [MS-SMB2] 2.2.13 NameOffset:
+	 * If SMB2_FLAGS_DFS_OPERATIONS is set in the Flags field of
+	 * the SMB2 header, the file name includes a prefix that will
+	 * be processed during DFS name normalization as specified in
+	 * section 3.3.5.9. Otherwise, the file name is relative to
+	 * the share that is identified by the TreeId in the SMB2
+	 * header.
+	 */
+	if (tcon->share_flags & SHI1005_FLAGS_DFS) {
+		int name_len;
+
+		req->sync_hdr.Flags |= SMB2_FLAGS_DFS_OPERATIONS;
+		rc = alloc_path_with_tree_prefix(&copy_path, &copy_size,
+						 &name_len,
+						 tcon->treeName, path);
+		if (rc) {
+			cifs_small_buf_release(req);
+			return rc;
+		}
+		req->NameLength = cpu_to_le16(name_len * 2);
+		uni_path_len = copy_size;
+		path = copy_path;
+	} else {
+		uni_path_len = (2 * UniStrnlen((wchar_t *)path, PATH_MAX)) + 2;
+		/* MUST set path len (NameLength) to 0 opening root of share */
+		req->NameLength = cpu_to_le16(uni_path_len - 2);
+		if (uni_path_len % 8 != 0) {
+			copy_size = roundup(uni_path_len, 8);
+			copy_path = kzalloc(copy_size, GFP_KERNEL);
+			if (!copy_path) {
+				cifs_small_buf_release(req);
+				return -ENOMEM;
+			}
+			memcpy((char *)copy_path, (const char *)path,
+			       uni_path_len);
+			uni_path_len = copy_size;
+			path = copy_path;
+		}
+	}
+
+	iov[1].iov_len = uni_path_len;
+	iov[1].iov_base = path;
+	req->RequestedOplockLevel = SMB2_OPLOCK_LEVEL_NONE;
+
+	if (tcon->posix_extensions) {
+		if (n_iov > 2) {
+			struct create_context *ccontext =
+			    (struct create_context *)iov[n_iov-1].iov_base;
+			ccontext->Next =
+				cpu_to_le32(iov[n_iov-1].iov_len);
+		}
+
+		rc = add_posix_context(iov, &n_iov, mode);
+		if (rc) {
+			cifs_small_buf_release(req);
+			kfree(copy_path);
+			return rc;
+		}
+		pc_buf = iov[n_iov-1].iov_base;
+	}
+
+
+	memset(&rqst, 0, sizeof(struct smb_rqst));
+	rqst.rq_iov = iov;
+	rqst.rq_nvec = n_iov;
+
+	rc = cifs_send_recv(xid, ses, &rqst, &resp_buftype, flags,
+			    &rsp_iov);
+
+	cifs_small_buf_release(req);
+	rsp = (struct smb2_create_rsp *)rsp_iov.iov_base;
+
+	if (rc != 0) {
+		cifs_stats_fail_inc(tcon, SMB2_CREATE_HE);
+		trace_smb3_posix_mkdir_err(xid, tcon->tid, ses->Suid,
+				    CREATE_NOT_FILE, FILE_WRITE_ATTRIBUTES, rc);
+		goto smb311_mkdir_exit;
+	} else
+		trace_smb3_posix_mkdir_done(xid, rsp->PersistentFileId, tcon->tid,
+				     ses->Suid, CREATE_NOT_FILE,
+				     FILE_WRITE_ATTRIBUTES);
+
+	SMB2_close(xid, tcon, rsp->PersistentFileId, rsp->VolatileFileId);
+
+	/* Eventually save off posix specific response info and timestaps */
+
+smb311_mkdir_exit:
+	kfree(copy_path);
+	kfree(pc_buf);
+	free_rsp_buf(resp_buftype, rsp);
+	return rc;
+
+}
+#endif /* SMB311 */
+
 int
 SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 	  __u8 *oplock, struct smb2_file_all_info *buf,

@@ -3313,6 +3313,7 @@ struct smb_version_operations smb311_operations = {
 	.set_compression = smb2_set_compression,
 	.mkdir = smb2_mkdir,
 	.mkdir_setinfo = smb2_mkdir_setinfo,
+	.posix_mkdir = smb311_posix_mkdir,
 	.rmdir = smb2_rmdir,
 	.unlink = smb2_unlink,
 	.rename = smb2_rename_path,

@@ -315,6 +315,10 @@ struct smb_version_operations {
 	/* send echo request */
 	int (*echo)(struct TCP_Server_Info *);
 	/* create directory */
+	int (*posix_mkdir)(const unsigned int xid, struct inode *inode,
+			umode_t mode, struct cifs_tcon *tcon,
+			const char *full_path,
+			struct cifs_sb_info *cifs_sb);
 	int (*mkdir)(const unsigned int, struct cifs_tcon *, const char *,
 		     struct cifs_sb_info *);
 	/* set info on created directory */
