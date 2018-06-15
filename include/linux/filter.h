@@ -961,6 +961,9 @@ static inline void bpf_prog_kallsyms_del(struct bpf_prog *fp)
 }
 #endif /* CONFIG_BPF_JIT */
 
+void bpf_prog_kallsyms_del_subprogs(struct bpf_prog *fp);
+void bpf_prog_kallsyms_del_all(struct bpf_prog *fp);
+
 #define BPF_ANC		BIT(15)
 
 static inline bool bpf_needs_clear_a(const struct sock_filter *first)
