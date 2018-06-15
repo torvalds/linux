@@ -174,6 +174,21 @@ static inline bool __mutex_waiter_is_first(struct mutex *lock, struct mutex_wait
 }
 
 /*
+ * Add @waiter to a given location in the lock wait_list and set the
+ * FLAG_WAITERS flag if it's the first waiter.
+ */
+static void __sched
+__mutex_add_waiter(struct mutex *lock, struct mutex_waiter *waiter,
+		   struct list_head *list)
+{
+	debug_mutex_add_waiter(lock, waiter, current);
+
+	list_add_tail(&waiter->list, list);
+	if (__mutex_waiter_is_first(lock, waiter))
+		__mutex_set_flag(lock, MUTEX_FLAG_WAITERS);
+}
+
+/*
  * Give up ownership to a specific task, when @task = NULL, this is equivalent
  * to a regular unlock. Sets PICKUP on a handoff, clears HANDOF, preserves
  * WAITERS. Provides RELEASE semantics like a regular unlock, the
@@ -249,6 +264,11 @@ EXPORT_SYMBOL(mutex_lock);
  *   The newer transactions are killed when:
  *     It (the new transaction) makes a request for a lock being held
  *     by an older transaction.
+ *
+ * Wound-Wait:
+ *   The newer transactions are wounded when:
+ *     An older transaction makes a request for a lock being held by
+ *     the newer transaction.
  */
 
 /*
@@ -320,6 +340,9 @@ static bool __sched
 __ww_mutex_die(struct mutex *lock, struct mutex_waiter *waiter,
 	       struct ww_acquire_ctx *ww_ctx)
 {
+	if (!ww_ctx->is_wait_die)
+		return false;
+
 	if (waiter->ww_ctx->acquired > 0 &&
 			__ww_ctx_stamp_after(waiter->ww_ctx, ww_ctx)) {
 		debug_mutex_wake_waiter(lock, waiter);
@@ -330,11 +353,63 @@ __ww_mutex_die(struct mutex *lock, struct mutex_waiter *waiter,
 }
 
 /*
+ * Wound-Wait; wound a younger @hold_ctx if it holds the lock.
+ *
+ * Wound the lock holder if there are waiters with older transactions than
+ * the lock holders. Even if multiple waiters may wound the lock holder,
+ * it's sufficient that only one does.
+ */
+static bool __ww_mutex_wound(struct mutex *lock,
+			     struct ww_acquire_ctx *ww_ctx,
+			     struct ww_acquire_ctx *hold_ctx)
+{
+	struct task_struct *owner = __mutex_owner(lock);
+
+	lockdep_assert_held(&lock->wait_lock);
+
+	/*
+	 * Possible through __ww_mutex_add_waiter() when we race with
+	 * ww_mutex_set_context_fastpath(). In that case we'll get here again
+	 * through __ww_mutex_check_waiters().
+	 */
+	if (!hold_ctx)
+		return false;
+
+	/*
+	 * Can have !owner because of __mutex_unlock_slowpath(), but if owner,
+	 * it cannot go away because we'll have FLAG_WAITERS set and hold
+	 * wait_lock.
+	 */
+	if (!owner)
+		return false;
+
+	if (ww_ctx->acquired > 0 && __ww_ctx_stamp_after(hold_ctx, ww_ctx)) {
+		hold_ctx->wounded = 1;
+
+		/*
+		 * wake_up_process() paired with set_current_state()
+		 * inserts sufficient barriers to make sure @owner either sees
+		 * it's wounded in __ww_mutex_lock_check_stamp() or has a
+		 * wakeup pending to re-read the wounded state.
+		 */
+		if (owner != current)
+			wake_up_process(owner);
+
+		return true;
+	}
+
+	return false;
+}
+
+/*
  * We just acquired @lock under @ww_ctx, if there are later contexts waiting
- * behind us on the wait-list, check if they need to die.
+ * behind us on the wait-list, check if they need to die, or wound us.
  *
  * See __ww_mutex_add_waiter() for the list-order construction; basically the
  * list is ordered by stamp, smallest (oldest) first.
+ *
+ * This relies on never mixing wait-die/wound-wait on the same wait-list;
+ * which is currently ensured by that being a ww_class property.
  *
  * The current task must not be on the wait list.
  */
@@ -349,7 +424,8 @@ __ww_mutex_check_waiters(struct mutex *lock, struct ww_acquire_ctx *ww_ctx)
 		if (!cur->ww_ctx)
 			continue;
 
-		if (__ww_mutex_die(lock, cur, ww_ctx))
+		if (__ww_mutex_die(lock, cur, ww_ctx) ||
+		    __ww_mutex_wound(lock, cur->ww_ctx, ww_ctx))
 			break;
 	}
 }
@@ -370,17 +446,23 @@ ww_mutex_set_context_fastpath(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 	 * and keep spinning, or it will acquire wait_lock, add itself
 	 * to waiter list and sleep.
 	 */
-	smp_mb(); /* ^^^ */
+	smp_mb(); /* See comments above and below. */
 
 	/*
-	 * Check if lock is contended, if not there is nobody to wake up
+	 * [W] ww->ctx = ctx	    [W] MUTEX_FLAG_WAITERS
+	 *     MB		        MB
+	 * [R] MUTEX_FLAG_WAITERS   [R] ww->ctx
+	 *
+	 * The memory barrier above pairs with the memory barrier in
+	 * __ww_mutex_add_waiter() and makes sure we either observe ww->ctx
+	 * and/or !empty list.
 	 */
 	if (likely(!(atomic_long_read(&lock->base.owner) & MUTEX_FLAG_WAITERS)))
 		return;
 
 	/*
 	 * Uh oh, we raced in fastpath, check if any of the waiters need to
-	 * die.
+	 * die or wound us.
 	 */
 	spin_lock(&lock->base.wait_lock);
 	__ww_mutex_check_waiters(&lock->base, ctx);
@@ -682,7 +764,9 @@ __ww_mutex_kill(struct mutex *lock, struct ww_acquire_ctx *ww_ctx)
 
 
 /*
- * Check whether we need to kill the transaction for the current lock acquire.
+ * Check the wound condition for the current lock acquire.
+ *
+ * Wound-Wait: If we're wounded, kill ourself.
  *
  * Wait-Die: If we're trying to acquire a lock already held by an older
  *           context, kill ourselves.
@@ -700,6 +784,13 @@ __ww_mutex_check_kill(struct mutex *lock, struct mutex_waiter *waiter,
 
 	if (ctx->acquired == 0)
 		return 0;
+
+	if (!ctx->is_wait_die) {
+		if (ctx->wounded)
+			return __ww_mutex_kill(lock, ctx);
+
+		return 0;
+	}
 
 	if (hold_ctx && __ww_ctx_stamp_after(ctx, hold_ctx))
 		return __ww_mutex_kill(lock, ctx);
@@ -727,7 +818,8 @@ __ww_mutex_check_kill(struct mutex *lock, struct mutex_waiter *waiter,
  * Waiters without context are interspersed in FIFO order.
  *
  * Furthermore, for Wait-Die kill ourself immediately when possible (there are
- * older contexts already waiting) to avoid unnecessary waiting.
+ * older contexts already waiting) to avoid unnecessary waiting and for
+ * Wound-Wait ensure we wound the owning context when it is younger.
  */
 static inline int __sched
 __ww_mutex_add_waiter(struct mutex_waiter *waiter,
@@ -736,16 +828,21 @@ __ww_mutex_add_waiter(struct mutex_waiter *waiter,
 {
 	struct mutex_waiter *cur;
 	struct list_head *pos;
+	bool is_wait_die;
 
 	if (!ww_ctx) {
-		list_add_tail(&waiter->list, &lock->wait_list);
+		__mutex_add_waiter(lock, waiter, &lock->wait_list);
 		return 0;
 	}
+
+	is_wait_die = ww_ctx->is_wait_die;
 
 	/*
 	 * Add the waiter before the first waiter with a higher stamp.
 	 * Waiters without a context are skipped to avoid starving
-	 * them. Wait-Die waiters may die here.
+	 * them. Wait-Die waiters may die here. Wound-Wait waiters
+	 * never die here, but they are sorted in stamp order and
+	 * may wound the lock holder.
 	 */
 	pos = &lock->wait_list;
 	list_for_each_entry_reverse(cur, &lock->wait_list, list) {
@@ -758,10 +855,12 @@ __ww_mutex_add_waiter(struct mutex_waiter *waiter,
 			 * is no point in queueing behind it, as we'd have to
 			 * die the moment it would acquire the lock.
 			 */
-			int ret = __ww_mutex_kill(lock, ww_ctx);
+			if (is_wait_die) {
+				int ret = __ww_mutex_kill(lock, ww_ctx);
 
-			if (ret)
-				return ret;
+				if (ret)
+					return ret;
+			}
 
 			break;
 		}
@@ -772,7 +871,23 @@ __ww_mutex_add_waiter(struct mutex_waiter *waiter,
 		__ww_mutex_die(lock, cur, ww_ctx);
 	}
 
-	list_add_tail(&waiter->list, pos);
+	__mutex_add_waiter(lock, waiter, pos);
+
+	/*
+	 * Wound-Wait: if we're blocking on a mutex owned by a younger context,
+	 * wound that such that we might proceed.
+	 */
+	if (!is_wait_die) {
+		struct ww_mutex *ww = container_of(lock, struct ww_mutex, base);
+
+		/*
+		 * See ww_mutex_set_context_fastpath(). Orders setting
+		 * MUTEX_FLAG_WAITERS vs the ww->ctx load,
+		 * such that either we or the fastpath will wound @ww->ctx.
+		 */
+		smp_mb();
+		__ww_mutex_wound(lock, ww_ctx, ww->ctx);
+	}
 
 	return 0;
 }
@@ -796,6 +911,14 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 	if (use_ww_ctx && ww_ctx) {
 		if (unlikely(ww_ctx == READ_ONCE(ww->ctx)))
 			return -EALREADY;
+
+		/*
+		 * Reset the wounded flag after a kill. No other process can
+		 * race and wound us here since they can't have a valid owner
+		 * pointer if we don't have any locks held.
+		 */
+		if (ww_ctx->acquired == 0)
+			ww_ctx->wounded = 0;
 	}
 
 	preempt_disable();
@@ -829,7 +952,8 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 
 	if (!use_ww_ctx) {
 		/* add waiting tasks to the end of the waitqueue (FIFO): */
-		list_add_tail(&waiter.list, &lock->wait_list);
+		__mutex_add_waiter(lock, &waiter, &lock->wait_list);
+
 
 #ifdef CONFIG_DEBUG_MUTEXES
 		waiter.ww_ctx = MUTEX_POISON_WW_CTX;
@@ -847,9 +971,6 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 	}
 
 	waiter.task = current;
-
-	if (__mutex_waiter_is_first(lock, &waiter))
-		__mutex_set_flag(lock, MUTEX_FLAG_WAITERS);
 
 	set_current_state(state);
 	for (;;) {
@@ -906,6 +1027,16 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 	spin_lock(&lock->wait_lock);
 acquired:
 	__set_current_state(TASK_RUNNING);
+
+	if (use_ww_ctx && ww_ctx) {
+		/*
+		 * Wound-Wait; we stole the lock (!first_waiter), check the
+		 * waiters as anyone might want to wound us.
+		 */
+		if (!ww_ctx->is_wait_die &&
+		    !__mutex_waiter_is_first(lock, &waiter))
+			__ww_mutex_check_waiters(lock, ww_ctx);
+	}
 
 	mutex_remove_waiter(lock, &waiter, current);
 	if (likely(list_empty(&lock->wait_list)))
