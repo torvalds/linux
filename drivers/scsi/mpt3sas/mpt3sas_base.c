@@ -6959,14 +6959,7 @@ mpt3sas_base_hard_reset_handler(struct MPT3SAS_ADAPTER *ioc,
 		mpt3sas_halt_firmware(ioc);
 
 	/* wait for an active reset in progress to complete */
-	if (!mutex_trylock(&ioc->reset_in_progress_mutex)) {
-		do {
-			ssleep(1);
-		} while (ioc->shost_recovery == 1);
-		dtmprintk(ioc, pr_info(MPT3SAS_FMT "%s: exit\n", ioc->name,
-		    __func__));
-		return ioc->ioc_reset_in_progress_status;
-	}
+	mutex_lock(&ioc->reset_in_progress_mutex);
 
 	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
 	ioc->shost_recovery = 1;
@@ -7015,7 +7008,6 @@ mpt3sas_base_hard_reset_handler(struct MPT3SAS_ADAPTER *ioc,
 	    ioc->name, __func__, ((r == 0) ? "SUCCESS" : "FAILED")));
 
 	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
-	ioc->ioc_reset_in_progress_status = r;
 	ioc->shost_recovery = 0;
 	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
 	ioc->ioc_reset_count++;

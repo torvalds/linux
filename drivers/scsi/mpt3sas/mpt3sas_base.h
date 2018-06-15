@@ -1166,7 +1166,6 @@ struct MPT3SAS_ADAPTER {
 	struct mutex	reset_in_progress_mutex;
 	spinlock_t	ioc_reset_in_progress_lock;
 	u8		ioc_link_reset_in_progress;
-	u8		ioc_reset_in_progress_status;
 
 	u8		ignore_loginfos;
 	u8		remove_host;
