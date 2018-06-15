@@ -742,7 +742,10 @@ static int soc15_common_early_init(void *handle)
 				AMD_PG_SUPPORT_CP |
 				AMD_PG_SUPPORT_RLC_SMU_HS;
 
-		adev->external_rev_id = 0x1;
+		if (adev->rev_id >= 0x8)
+			adev->external_rev_id = adev->rev_id + 0x81;
+		else
+			adev->external_rev_id = 0x1;
 		break;
 	case CHIP_PICASSO:
 		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGLS |
