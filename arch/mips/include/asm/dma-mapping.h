@@ -10,7 +10,7 @@
 #include <dma-coherence.h>
 #endif
 
-extern const struct dma_map_ops *mips_dma_map_ops;
+extern const struct dma_map_ops mips_default_dma_map_ops;
 extern const struct dma_map_ops mips_swiotlb_ops;
 
 static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
@@ -18,7 +18,7 @@ static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 #ifdef CONFIG_SWIOTLB
 	return &mips_swiotlb_ops;
 #else
-	return mips_dma_map_ops;
+	return &mips_default_dma_map_ops;
 #endif
 }
 
