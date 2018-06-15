@@ -1013,6 +1013,16 @@
 	cpu_boost: cpu-boost@ff2b8000 {
 		compatible = "syscon";
 		reg = <0x0 0xff2b8000 0x0 0x1000>;
+		rockchip,boost-low-con0 = <0x1032>;
+		rockchip,boost-low-con1 = <0x1441>;
+		rockchip,boost-high-con0 = <0x1036>;
+		rockchip,boost-high-con1 = <0x1441>;
+		rockchip,boost-backup-pll = <1>;
+		rockchip,boost-backup-pll-usage = <0>;
+		rockchip,boost-switch-threshold = <0x249f00>;
+		rockchip,boost-statis-threshold = <0x100>;
+		rockchip,boost-statis-enable = <0>;
+		rockchip,boost-enable = <0>;
 	};
 
 	pmucru: pmu-clock-controller@ff2bc000 {
