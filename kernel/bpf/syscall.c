@@ -1353,9 +1353,7 @@ static int bpf_prog_load(union bpf_attr *attr)
 	if (err < 0)
 		goto free_used_maps;
 
-	/* eBPF program is ready to be JITed */
-	if (!prog->bpf_func)
-		prog = bpf_prog_select_runtime(prog, &err);
+	prog = bpf_prog_select_runtime(prog, &err);
 	if (err < 0)
 		goto free_used_maps;
 
