@@ -12,6 +12,7 @@ config SOC_AR2315
 config PCI_AR2315
 	bool "Atheros AR2315 PCI controller support"
 	depends on SOC_AR2315
+	select ARCH_HAS_PHYS_TO_DMA
 	select HW_HAS_PCI
 	select PCI
 	default y
