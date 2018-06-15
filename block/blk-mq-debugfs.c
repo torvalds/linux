@@ -214,7 +214,7 @@ static int queue_zone_wlock_show(void *data, struct seq_file *m)
 	if (!q->seq_zones_wlock)
 		return 0;
 
-	for (i = 0; i < blk_queue_nr_zones(q); i++)
+	for (i = 0; i < q->nr_zones; i++)
 		if (test_bit(i, q->seq_zones_wlock))
 			seq_printf(m, "%u\n", i);
 

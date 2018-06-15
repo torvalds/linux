@@ -800,11 +800,6 @@ static inline unsigned int blk_queue_zone_sectors(struct request_queue *q)
 	return blk_queue_is_zoned(q) ? q->limits.chunk_sectors : 0;
 }
 
-static inline unsigned int blk_queue_nr_zones(struct request_queue *q)
-{
-	return q->nr_zones;
-}
-
 static inline unsigned int blk_queue_zone_no(struct request_queue *q,
 					     sector_t sector)
 {
