@@ -1312,6 +1312,8 @@ static const struct vb2_ops video_qops = {
 	.stop_streaming		= vpfe_stop_streaming,
 	.buf_cleanup		= vpfe_buf_cleanup,
 	.buf_queue		= vpfe_buffer_queue,
+	.wait_prepare		= vb2_ops_wait_prepare,
+	.wait_finish		= vb2_ops_wait_finish,
 };
 
 /*
@@ -1357,6 +1359,7 @@ static int vpfe_reqbufs(struct file *file, void *priv,
 	q->buf_struct_size = sizeof(struct vpfe_cap_buffer);
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->dev = vpfe_dev->pdev;
+	q->lock = &video->lock;
 
 	ret = vb2_queue_init(q);
 	if (ret) {
@@ -1598,17 +1601,18 @@ int vpfe_video_init(struct vpfe_video_device *video, const char *name)
 		return -EINVAL;
 	}
 	/* Initialize field of video device */
+	mutex_init(&video->lock);
 	video->video_dev.release = video_device_release;
 	video->video_dev.fops = &vpfe_fops;
 	video->video_dev.ioctl_ops = &vpfe_ioctl_ops;
 	video->video_dev.minor = -1;
 	video->video_dev.tvnorms = 0;
+	video->video_dev.lock = &video->lock;
 	snprintf(video->video_dev.name, sizeof(video->video_dev.name),
 		 "DAVINCI VIDEO %s %s", name, direction);
 
 	spin_lock_init(&video->irqlock);
 	spin_lock_init(&video->dma_queue_lock);
-	mutex_init(&video->lock);
 	ret = media_entity_pads_init(&video->video_dev.entity,
 				1, &video->pad);
 	if (ret < 0)
