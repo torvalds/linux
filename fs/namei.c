@@ -2464,6 +2464,35 @@ static int lookup_one_len_common(const char *name, struct dentry *base,
 }
 
 /**
+ * try_lookup_one_len - filesystem helper to lookup single pathname component
+ * @name:	pathname component to lookup
+ * @base:	base directory to lookup from
+ * @len:	maximum length @len should be interpreted to
+ *
+ * Look up a dentry by name in the dcache, returning NULL if it does not
+ * currently exist.  The function does not try to create a dentry.
+ *
+ * Note that this routine is purely a helper for filesystem usage and should
+ * not be called by generic code.
+ *
+ * The caller must hold base->i_mutex.
+ */
+struct dentry *try_lookup_one_len(const char *name, struct dentry *base, int len)
+{
+	struct qstr this;
+	int err;
+
+	WARN_ON_ONCE(!inode_is_locked(base->d_inode));
+
+	err = lookup_one_len_common(name, base, len, &this);
+	if (err)
+		return ERR_PTR(err);
+
+	return lookup_dcache(&this, base, 0);
+}
+EXPORT_SYMBOL(try_lookup_one_len);
+
+/**
  * lookup_one_len - filesystem helper to lookup single pathname component
  * @name:	pathname component to lookup
  * @base:	base directory to lookup from

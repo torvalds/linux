@@ -15,6 +15,7 @@
 #include <linux/dns_resolver.h>
 #include <linux/sched.h>
 #include <linux/inet.h>
+#include <linux/namei.h>
 #include <keys/rxrpc-type.h>
 #include "internal.h"
 
@@ -531,9 +532,11 @@ static int afs_activate_cell(struct afs_net *net, struct afs_cell *cell)
 	ret = afs_proc_cell_setup(cell);
 	if (ret < 0)
 		return ret;
-	spin_lock(&net->proc_cells_lock);
+
+	mutex_lock(&net->proc_cells_lock);
 	list_add_tail(&cell->proc_link, &net->proc_cells);
-	spin_unlock(&net->proc_cells_lock);
+	afs_dynroot_mkdir(net, cell);
+	mutex_unlock(&net->proc_cells_lock);
 	return 0;
 }
 
@@ -546,9 +549,10 @@ static void afs_deactivate_cell(struct afs_net *net, struct afs_cell *cell)
 
 	afs_proc_cell_remove(cell);
 
-	spin_lock(&net->proc_cells_lock);
+	mutex_lock(&net->proc_cells_lock);
 	list_del_init(&cell->proc_link);
-	spin_unlock(&net->proc_cells_lock);
+	afs_dynroot_rmdir(net, cell);
+	mutex_unlock(&net->proc_cells_lock);
 
 #ifdef CONFIG_AFS_FSCACHE
 	fscache_relinquish_cookie(cell->cache, NULL, false);

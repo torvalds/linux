@@ -355,12 +355,17 @@ static int afs_test_super(struct super_block *sb, void *data)
 
 	return (as->net_ns == as1->net_ns &&
 		as->volume &&
-		as->volume->vid == as1->volume->vid);
+		as->volume->vid == as1->volume->vid &&
+		!as->dyn_root);
 }
 
 static int afs_dynroot_test_super(struct super_block *sb, void *data)
 {
-	return false;
+	struct afs_super_info *as1 = data;
+	struct afs_super_info *as = AFS_FS_S(sb);
+
+	return (as->net_ns == as1->net_ns &&
+		as->dyn_root);
 }
 
 static int afs_set_super(struct super_block *sb, void *data)
@@ -420,10 +425,14 @@ static int afs_fill_super(struct super_block *sb,
 	if (!sb->s_root)
 		goto error;
 
-	if (params->dyn_root)
+	if (as->dyn_root) {
 		sb->s_d_op = &afs_dynroot_dentry_operations;
-	else
+		ret = afs_dynroot_populate(sb);
+		if (ret < 0)
+			goto error;
+	} else {
 		sb->s_d_op = &afs_fs_dentry_operations;
+	}
 
 	_leave(" = 0");
 	return 0;
@@ -456,6 +465,25 @@ static void afs_destroy_sbi(struct afs_super_info *as)
 		put_net(as->net_ns);
 		kfree(as);
 	}
+}
+
+static void afs_kill_super(struct super_block *sb)
+{
+	struct afs_super_info *as = AFS_FS_S(sb);
+	struct afs_net *net = afs_net(as->net_ns);
+
+	if (as->dyn_root)
+		afs_dynroot_depopulate(sb);
+	
+	/* Clear the callback interests (which will do ilookup5) before
+	 * deactivating the superblock.
+	 */
+	if (as->volume)
+		afs_clear_callback_interests(net, as->volume->servers);
+	kill_anon_super(sb);
+	if (as->volume)
+		afs_deactivate_volume(as->volume);
+	afs_destroy_sbi(as);
 }
 
 /*
@@ -564,22 +592,6 @@ error:
 	afs_put_cell(params.net, params.cell);
 	_leave(" = %d", ret);
 	return ERR_PTR(ret);
-}
-
-static void afs_kill_super(struct super_block *sb)
-{
-	struct afs_super_info *as = AFS_FS_S(sb);
-
-	/* Clear the callback interests (which will do ilookup5) before
-	 * deactivating the superblock.
-	 */
-	if (as->volume)
-		afs_clear_callback_interests(afs_net(as->net_ns),
-					     as->volume->servers);
-	kill_anon_super(sb);
-	if (as->volume)
-		afs_deactivate_volume(as->volume);
-	afs_destroy_sbi(as);
 }
 
 /*
