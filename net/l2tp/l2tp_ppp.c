@@ -1201,7 +1201,7 @@ static int pppol2tp_tunnel_ioctl(struct l2tp_tunnel *tunnel,
 				l2tp_session_get(sock_net(sk), tunnel,
 						 stats.session_id);
 
-			if (session) {
+			if (session && session->pwtype == L2TP_PWTYPE_PPP) {
 				err = pppol2tp_session_ioctl(session, cmd,
 							     arg);
 				l2tp_session_dec_refcount(session);
