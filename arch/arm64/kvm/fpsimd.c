@@ -12,6 +12,7 @@
 #include <asm/kvm_asm.h>
 #include <asm/kvm_host.h>
 #include <asm/kvm_mmu.h>
+#include <asm/sysreg.h>
 
 /*
  * Called on entry to KVM_RUN unless this vcpu previously ran at least
@@ -61,10 +62,16 @@ void kvm_arch_vcpu_load_fp(struct kvm_vcpu *vcpu)
 {
 	BUG_ON(!current->mm);
 
-	vcpu->arch.flags &= ~(KVM_ARM64_FP_ENABLED | KVM_ARM64_HOST_SVE_IN_USE);
+	vcpu->arch.flags &= ~(KVM_ARM64_FP_ENABLED |
+			      KVM_ARM64_HOST_SVE_IN_USE |
+			      KVM_ARM64_HOST_SVE_ENABLED);
 	vcpu->arch.flags |= KVM_ARM64_FP_HOST;
+
 	if (test_thread_flag(TIF_SVE))
 		vcpu->arch.flags |= KVM_ARM64_HOST_SVE_IN_USE;
+
+	if (read_sysreg(cpacr_el1) & CPACR_EL1_ZEN_EL0EN)
+		vcpu->arch.flags |= KVM_ARM64_HOST_SVE_ENABLED;
 }
 
 /*
@@ -103,9 +110,18 @@ void kvm_arch_vcpu_put_fp(struct kvm_vcpu *vcpu)
 		/* Clean guest FP state to memory and invalidate cpu view */
 		fpsimd_save();
 		fpsimd_flush_cpu_state();
-	} else if (!test_thread_flag(TIF_FOREIGN_FPSTATE)) {
-		/* Ensure user trap controls are correctly restored */
-		fpsimd_bind_task_to_cpu();
+	} else if (system_supports_sve()) {
+		/*
+		 * The FPSIMD/SVE state in the CPU has not been touched, and we
+		 * have SVE (and VHE): CPACR_EL1 (alias CPTR_EL2) has been
+		 * reset to CPACR_EL1_DEFAULT by the Hyp code, disabling SVE
+		 * for EL0.  To avoid spurious traps, restore the trap state
+		 * seen by kvm_arch_vcpu_load_fp():
+		 */
+		if (vcpu->arch.flags & KVM_ARM64_HOST_SVE_ENABLED)
+			sysreg_clear_set(CPACR_EL1, 0, CPACR_EL1_ZEN_EL0EN);
+		else
+			sysreg_clear_set(CPACR_EL1, CPACR_EL1_ZEN_EL0EN, 0);
 	}
 
 	local_irq_restore(flags);
