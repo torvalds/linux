@@ -200,7 +200,7 @@ int blkdev_report_zones(struct block_device *bdev,
 		/* Get header in the first page */
 		ofst = 0;
 		if (!nr_rep) {
-			hdr = (struct blk_zone_report_hdr *) addr;
+			hdr = addr;
 			nr_rep = hdr->nr_zones;
 			ofst = sizeof(struct blk_zone_report_hdr);
 		}
