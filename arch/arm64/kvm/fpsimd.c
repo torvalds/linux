@@ -5,7 +5,7 @@
  * Copyright 2018 Arm Limited
  * Author: Dave Martin <Dave.Martin@arm.com>
  */
-#include <linux/bottom_half.h>
+#include <linux/irqflags.h>
 #include <linux/sched.h>
 #include <linux/thread_info.h>
 #include <linux/kvm_host.h>
@@ -92,7 +92,9 @@ void kvm_arch_vcpu_ctxsync_fp(struct kvm_vcpu *vcpu)
  */
 void kvm_arch_vcpu_put_fp(struct kvm_vcpu *vcpu)
 {
-	local_bh_disable();
+	unsigned long flags;
+
+	local_irq_save(flags);
 
 	update_thread_flag(TIF_SVE,
 			   vcpu->arch.flags & KVM_ARM64_HOST_SVE_IN_USE);
@@ -106,5 +108,5 @@ void kvm_arch_vcpu_put_fp(struct kvm_vcpu *vcpu)
 		fpsimd_bind_task_to_cpu();
 	}
 
-	local_bh_enable();
+	local_irq_restore(flags);
 }
