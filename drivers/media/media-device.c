@@ -16,9 +16,6 @@
  * GNU General Public License for more details.
  */
 
-/* We need to access legacy defines from linux/media.h */
-#define __NEED_MEDIA_LEGACY_API
-
 #include <linux/compat.h>
 #include <linux/export.h>
 #include <linux/idr.h>
@@ -34,6 +31,16 @@
 #include <media/media-entity.h>
 
 #ifdef CONFIG_MEDIA_CONTROLLER
+
+/*
+ * Legacy defines from linux/media.h. This is the only place we need this
+ * so we just define it here. The media.h header doesn't expose it to the
+ * kernel to prevent it from being used by drivers, but here (and only here!)
+ * we need it to handle the legacy behavior.
+ */
+#define MEDIA_ENT_SUBTYPE_MASK			0x0000ffff
+#define MEDIA_ENT_T_DEVNODE_UNKNOWN		(MEDIA_ENT_F_OLD_BASE | \
+						 MEDIA_ENT_SUBTYPE_MASK)
 
 /* -----------------------------------------------------------------------------
  * Userspace API

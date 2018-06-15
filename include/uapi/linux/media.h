@@ -348,7 +348,7 @@ struct media_v2_topology {
 #define MEDIA_IOC_SETUP_LINK	_IOWR('|', 0x03, struct media_link_desc)
 #define MEDIA_IOC_G_TOPOLOGY	_IOWR('|', 0x04, struct media_v2_topology)
 
-#if !defined(__KERNEL__) || defined(__NEED_MEDIA_LEGACY_API)
+#ifndef __KERNEL__
 
 /*
  * Legacy symbols used to avoid userspace compilation breakages.
