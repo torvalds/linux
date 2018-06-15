@@ -214,6 +214,23 @@ void dc_link_enable_hpd_filter(struct dc_link *link, bool enable);
  * DPCD access interfaces
  */
 
+void dc_link_set_drive_settings(struct dc *dc,
+				struct link_training_settings *lt_settings,
+				const struct dc_link *link);
+void dc_link_perform_link_training(struct dc *dc,
+				   struct dc_link_settings *link_setting,
+				   bool skip_video_pattern);
+void dc_link_set_preferred_link_settings(struct dc *dc,
+					 struct dc_link_settings *link_setting,
+					 struct dc_link *link);
+void dc_link_enable_hpd(const struct dc_link *link);
+void dc_link_disable_hpd(const struct dc_link *link);
+void dc_link_set_test_pattern(struct dc_link *link,
+			enum dp_test_pattern test_pattern,
+			const struct link_training_settings *p_link_settings,
+			const unsigned char *p_custom_pattern,
+			unsigned int cust_pattern_size);
+
 bool dc_submit_i2c(
 		struct dc *dc,
 		uint32_t link_index,
