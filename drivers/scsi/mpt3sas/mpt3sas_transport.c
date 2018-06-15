@@ -563,7 +563,7 @@ _transport_add_phy_to_an_existing_port(struct MPT3SAS_ADAPTER *ioc,
 				return;
 		}
 		_transport_add_phy(ioc, mpt3sas_port, mpt3sas_phy);
-			return;
+		return;
 	}
 
 }

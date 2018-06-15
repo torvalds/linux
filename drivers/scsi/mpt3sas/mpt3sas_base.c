@@ -661,7 +661,7 @@ mpt3sas_base_start_watchdog(struct MPT3SAS_ADAPTER *ioc)
 	if (!ioc->fault_reset_work_q) {
 		pr_err(MPT3SAS_FMT "%s: failed (line=%d)\n",
 		    ioc->name, __func__, __LINE__);
-			return;
+		return;
 	}
 	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
 	if (ioc->fault_reset_work_q)
