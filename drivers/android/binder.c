@@ -462,8 +462,9 @@ struct binder_ref {
 };
 
 enum binder_deferred_state {
-	BINDER_DEFERRED_FLUSH        = 0x01,
-	BINDER_DEFERRED_RELEASE      = 0x02,
+	BINDER_DEFERRED_PUT_FILES    = 0x01,
+	BINDER_DEFERRED_FLUSH        = 0x02,
+	BINDER_DEFERRED_RELEASE      = 0x04,
 };
 
 /**
@@ -499,6 +500,8 @@ struct binder_priority {
  * @pid                   PID of group_leader of process
  *                        (invariant after initialized)
  * @tsk                   task_struct for group_leader of process
+ *                        (invariant after initialized)
+ * @files                 files_struct for process
  *                        (invariant after initialized)
  * @deferred_work_node:   element for binder_deferred_list
  *                        (protected by binder_deferred_lock)
@@ -544,6 +547,7 @@ struct binder_proc {
 	struct list_head waiting_threads;
 	int pid;
 	struct task_struct *tsk;
+	struct files_struct *files;
 	struct hlist_node deferred_work_node;
 	int deferred_work;
 	bool is_dead;
@@ -938,34 +942,22 @@ static void binder_free_thread(struct binder_thread *thread);
 static void binder_free_proc(struct binder_proc *proc);
 static void binder_inc_node_tmpref_ilocked(struct binder_node *node);
 
-struct files_struct *binder_get_files_struct(struct binder_proc *proc)
-{
-	return get_files_struct(proc->tsk);
-}
-
 static int task_get_unused_fd_flags(struct binder_proc *proc, int flags)
 {
-	struct files_struct *files;
+	struct files_struct *files = proc->files;
 	unsigned long rlim_cur;
 	unsigned long irqs;
-	int ret;
 
-	files = binder_get_files_struct(proc);
 	if (files == NULL)
 		return -ESRCH;
 
-	if (!lock_task_sighand(proc->tsk, &irqs)) {
-		ret = -EMFILE;
-		goto err;
-	}
+	if (!lock_task_sighand(proc->tsk, &irqs))
+		return -EMFILE;
 
 	rlim_cur = task_rlimit(proc->tsk, RLIMIT_NOFILE);
 	unlock_task_sighand(proc->tsk, &irqs);
 
-	ret = __alloc_fd(files, 0, rlim_cur, flags);
-err:
-	put_files_struct(files);
-	return ret;
+	return __alloc_fd(files, 0, rlim_cur, flags);
 }
 
 /*
@@ -974,12 +966,8 @@ err:
 static void task_fd_install(
 	struct binder_proc *proc, unsigned int fd, struct file *file)
 {
-	struct files_struct *files = binder_get_files_struct(proc);
-
-	if (files) {
-		__fd_install(files, fd, file);
-		put_files_struct(files);
-	}
+	if (proc->files)
+		__fd_install(proc->files, fd, file);
 }
 
 /*
@@ -987,20 +975,18 @@ static void task_fd_install(
  */
 static long task_close_fd(struct binder_proc *proc, unsigned int fd)
 {
-	struct files_struct *files = binder_get_files_struct(proc);
 	int retval;
 
-	if (files == NULL)
+	if (proc->files == NULL)
 		return -ESRCH;
 
-	retval = __close_fd(files, fd);
+	retval = __close_fd(proc->files, fd);
 	/* can't restart close syscall because file table entry was cleared */
 	if (unlikely(retval == -ERESTARTSYS ||
 		     retval == -ERESTARTNOINTR ||
 		     retval == -ERESTARTNOHAND ||
 		     retval == -ERESTART_RESTARTBLOCK))
 		retval = -EINTR;
-	put_files_struct(files);
 
 	return retval;
 }
@@ -4863,6 +4849,7 @@ static void binder_vma_close(struct vm_area_struct *vma)
 		     (vma->vm_end - vma->vm_start) / SZ_1K, vma->vm_flags,
 		     (unsigned long)pgprot_val(vma->vm_page_prot));
 	binder_alloc_vma_close(&proc->alloc);
+	binder_defer_work(proc, BINDER_DEFERRED_PUT_FILES);
 }
 
 static int binder_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
@@ -4906,8 +4893,10 @@ static int binder_mmap(struct file *filp, struct vm_area_struct *vma)
 	vma->vm_private_data = proc;
 
 	ret = binder_alloc_mmap_handler(&proc->alloc, vma);
-
-	return ret;
+	if (ret)
+		return ret;
+	proc->files = get_files_struct(current);
+	return 0;
 
 err_bad_arg:
 	pr_err("%s: %d %lx-%lx %s failed %d\n", __func__,
@@ -5086,6 +5075,8 @@ static void binder_deferred_release(struct binder_proc *proc)
 	struct rb_node *n;
 	int threads, nodes, incoming_refs, outgoing_refs, active_transactions;
 
+	BUG_ON(proc->files);
+
 	mutex_lock(&binder_procs_lock);
 	hlist_del(&proc->proc_node);
 	mutex_unlock(&binder_procs_lock);
@@ -5167,6 +5158,8 @@ static void binder_deferred_release(struct binder_proc *proc)
 static void binder_deferred_func(struct work_struct *work)
 {
 	struct binder_proc *proc;
+	struct files_struct *files;
+
 	int defer;
 
 	do {
@@ -5183,11 +5176,21 @@ static void binder_deferred_func(struct work_struct *work)
 		}
 		mutex_unlock(&binder_deferred_lock);
 
+		files = NULL;
+		if (defer & BINDER_DEFERRED_PUT_FILES) {
+			files = proc->files;
+			if (files)
+				proc->files = NULL;
+		}
+
 		if (defer & BINDER_DEFERRED_FLUSH)
 			binder_deferred_flush(proc);
 
 		if (defer & BINDER_DEFERRED_RELEASE)
 			binder_deferred_release(proc); /* frees proc */
+
+		if (files)
+			put_files_struct(files);
 	} while (proc);
 }
 static DECLARE_WORK(binder_deferred_work, binder_deferred_func);
