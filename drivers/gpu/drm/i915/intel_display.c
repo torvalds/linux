@@ -14570,6 +14570,10 @@ static enum drm_mode_status
 intel_mode_valid(struct drm_device *dev,
 		 const struct drm_display_mode *mode)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	int hdisplay_max, htotal_max;
+	int vdisplay_max, vtotal_max;
+
 	/*
 	 * Can't reject DBLSCAN here because Xorg ddxen can add piles
 	 * of DBLSCAN modes to the output's mode list when they detect
@@ -14598,6 +14602,36 @@ intel_mode_valid(struct drm_device *dev,
 			   DRM_MODE_FLAG_PIXMUX |
 			   DRM_MODE_FLAG_CLKDIV2))
 		return MODE_BAD;
+
+	if (INTEL_GEN(dev_priv) >= 9 ||
+	    IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv)) {
+		hdisplay_max = 8192; /* FDI max 4096 handled elsewhere */
+		vdisplay_max = 4096;
+		htotal_max = 8192;
+		vtotal_max = 8192;
+	} else if (INTEL_GEN(dev_priv) >= 3) {
+		hdisplay_max = 4096;
+		vdisplay_max = 4096;
+		htotal_max = 8192;
+		vtotal_max = 8192;
+	} else {
+		hdisplay_max = 2048;
+		vdisplay_max = 2048;
+		htotal_max = 4096;
+		vtotal_max = 4096;
+	}
+
+	if (mode->hdisplay > hdisplay_max ||
+	    mode->hsync_start > htotal_max ||
+	    mode->hsync_end > htotal_max ||
+	    mode->htotal > htotal_max)
+		return MODE_H_ILLEGAL;
+
+	if (mode->vdisplay > vdisplay_max ||
+	    mode->vsync_start > vtotal_max ||
+	    mode->vsync_end > vtotal_max ||
+	    mode->vtotal > vtotal_max)
+		return MODE_V_ILLEGAL;
 
 	return MODE_OK;
 }
@@ -15037,6 +15071,7 @@ int intel_modeset_init(struct drm_device *dev)
 		}
 	}
 
+	/* maximum framebuffer dimensions */
 	if (IS_GEN2(dev_priv)) {
 		dev->mode_config.max_width = 2048;
 		dev->mode_config.max_height = 2048;
