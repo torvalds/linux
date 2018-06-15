@@ -472,6 +472,7 @@ retry_ipi:
 static void sync_rcu_exp_select_cpus(struct rcu_state *rsp,
 				     smp_call_func_t func)
 {
+	int cpu;
 	struct rcu_node *rnp;
 
 	trace_rcu_exp_grace_period(rsp->name, rcu_exp_gp_seq_endval(rsp), TPS("reset"));
@@ -493,7 +494,13 @@ static void sync_rcu_exp_select_cpus(struct rcu_state *rsp,
 			continue;
 		}
 		INIT_WORK(&rnp->rew.rew_work, sync_rcu_exp_select_node_cpus);
-		queue_work_on(rnp->grplo, rcu_par_gp_wq, &rnp->rew.rew_work);
+		preempt_disable();
+		cpu = cpumask_next(rnp->grplo - 1, cpu_online_mask);
+		/* If all offline, queue the work on an unbound CPU. */
+		if (unlikely(cpu > rnp->grphi))
+			cpu = WORK_CPU_UNBOUND;
+		queue_work_on(cpu, rcu_par_gp_wq, &rnp->rew.rew_work);
+		preempt_enable();
 		rnp->exp_need_flush = true;
 	}
 
