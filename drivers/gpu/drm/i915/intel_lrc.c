@@ -971,21 +971,18 @@ static void process_csb(struct intel_engine_cs *engine)
 			&engine->status_page.page_addr[I915_HWS_CSB_BUF0_INDEX];
 		unsigned int head, tail;
 
-		if (unlikely(execlists->csb_use_mmio)) {
-			buf = (u32 * __force)
-				(i915->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_BUF_LO(engine, 0)));
-			execlists->csb_head = -1; /* force mmio read of CSB */
-		}
-
 		/* Clear before reading to catch new interrupts */
 		clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
 		smp_mb__after_atomic();
 
-		if (unlikely(execlists->csb_head == -1)) { /* after a reset */
+		if (unlikely(execlists->csb_use_mmio)) {
 			if (!fw) {
 				intel_uncore_forcewake_get(i915, execlists->fw_domains);
 				fw = true;
 			}
+
+			buf = (u32 * __force)
+				(i915->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_BUF_LO(engine, 0)));
 
 			head = readl(i915->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine)));
 			tail = GEN8_CSB_WRITE_PTR(head);
@@ -1961,7 +1958,7 @@ static void execlists_reset(struct intel_engine_cs *engine,
 	spin_unlock(&engine->timeline.lock);
 
 	/* Following the reset, we need to reload the CSB read/write pointers */
-	engine->execlists.csb_head = -1;
+	engine->execlists.csb_head = GEN8_CSB_ENTRIES - 1;
 
 	local_irq_restore(flags);
 
@@ -2469,7 +2466,7 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 			upper_32_bits(ce->lrc_desc);
 	}
 
-	engine->execlists.csb_head = -1;
+	engine->execlists.csb_head = GEN8_CSB_ENTRIES - 1;
 
 	return 0;
 
