@@ -1864,6 +1864,8 @@ _base_build_nvme_prp(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	u32		offset, entry_len;
 	u32		page_mask_result, page_mask;
 	size_t		length;
+	struct mpt3sas_nvme_cmd *nvme_cmd =
+		(void *)nvme_encap_request->NVMe_Command;
 
 	/*
 	 * Not all commands require a data transfer. If no data, just return
@@ -1871,15 +1873,8 @@ _base_build_nvme_prp(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	 */
 	if (!data_in_sz && !data_out_sz)
 		return;
-	/*
-	 * Set pointers to PRP1 and PRP2, which are in the NVMe command.
-	 * PRP1 is located at a 24 byte offset from the start of the NVMe
-	 * command.  Then set the current PRP entry pointer to PRP1.
-	 */
-	prp1_entry = (__le64 *)(nvme_encap_request->NVMe_Command +
-	    NVME_CMD_PRP1_OFFSET);
-	prp2_entry = (__le64 *)(nvme_encap_request->NVMe_Command +
-	    NVME_CMD_PRP2_OFFSET);
+	prp1_entry = &nvme_cmd->prp1;
+	prp2_entry = &nvme_cmd->prp2;
 	prp_entry = prp1_entry;
 	/*
 	 * For the PRP entries, use the specially allocated buffer of

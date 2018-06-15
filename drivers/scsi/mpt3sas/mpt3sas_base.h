@@ -143,14 +143,17 @@
  * NVMe defines
  */
 #define	NVME_PRP_SIZE			8	/* PRP size */
-#define	NVME_CMD_PRP1_OFFSET		24	/* PRP1 offset in NVMe cmd */
-#define	NVME_CMD_PRP2_OFFSET		32	/* PRP2 offset in NVMe cmd */
 #define	NVME_ERROR_RESPONSE_SIZE	16	/* Max NVME Error Response */
 #define NVME_TASK_ABORT_MIN_TIMEOUT	6
 #define NVME_TASK_ABORT_MAX_TIMEOUT	60
 #define NVME_TASK_MNGT_CUSTOM_MASK	(0x0010)
 #define	NVME_PRP_PAGE_SIZE		4096	/* Page size */
 
+struct mpt3sas_nvme_cmd {
+	u8	rsvd[24];
+	__le64	prp1;
+	__le64	prp2;
+};
 
 /*
  * reset phases
