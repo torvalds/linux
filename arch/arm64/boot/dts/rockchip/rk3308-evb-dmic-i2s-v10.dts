@@ -12,6 +12,17 @@
 	model = "Rockchip RK3308 evb digital-i2s mic board";
 	compatible = "rockchip,rk3308-evb-dmic-i2s-v10", "rockchip,rk3308";
 
+	i2s_16ch_dais: i2s-16ch-dais {
+		status = "disabled";
+		compatible = "rockchip,rk3308-multi-dais", "rockchip,multi-dais";
+		dais = <&i2s_8ch_0>, <&i2s_8ch_1>;
+		capture,channel-mapping = <8 8>;
+		playback,channel-mapping = <0 0>;
+		bitclock-master = <1 0>;
+		frame-master = <1 0>;
+		rockchip,grf = <&grf>;
+	};
+
 	i2s-dmic-array {
 		status = "okay";
 		compatible = "simple-audio-card";
@@ -43,6 +54,18 @@
 &i2s_8ch_0 {
 	status = "okay";
 	#sound-dai-cells = <0>;
+};
+
+&i2s_8ch_1 {
+	status = "disabled";
+	#sound-dai-cells = <0>;
+	rockchip,no-dmaengine;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2s_8ch_1_m0_sdo0
+		     &i2s_8ch_1_m0_sdo1_sdi3
+		     &i2s_8ch_1_m0_sdo2_sdi2
+		     &i2s_8ch_1_m0_sdo3_sdi1
+		     &i2s_8ch_1_m0_sdi0>;
 };
 
 &vad {
