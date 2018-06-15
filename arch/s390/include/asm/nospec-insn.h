@@ -8,7 +8,7 @@
 
 #ifdef __ASSEMBLY__
 
-#ifdef CONFIG_EXPOLINE
+#ifdef CC_USING_EXPOLINE
 
 _LC_BR_R1 = __LC_BR_R1
 
@@ -189,7 +189,7 @@ _LC_BR_R1 = __LC_BR_R1
 	.macro BASR_EX rsave,rtarget,ruse=%r1
 	basr	\rsave,\rtarget
 	.endm
-#endif
+#endif /* CC_USING_EXPOLINE */
 
 #endif /* __ASSEMBLY__ */
 

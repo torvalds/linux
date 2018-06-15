@@ -82,6 +82,7 @@ ifdef CONFIG_EXPOLINE
     CC_FLAGS_EXPOLINE += -mindirect-branch-table
     export CC_FLAGS_EXPOLINE
     cflags-y += $(CC_FLAGS_EXPOLINE) -DCC_USING_EXPOLINE
+    aflags-y += -DCC_USING_EXPOLINE
   endif
 endif
 
