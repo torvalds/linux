@@ -3294,6 +3294,7 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 	struct nfs4_closedata *calldata = data;
 	struct nfs4_state *state = calldata->state;
 	struct inode *inode = calldata->inode;
+	struct pnfs_layout_hdr *lo;
 	bool is_rdonly, is_wronly, is_rdwr;
 	int call_close = 0;
 
@@ -3335,6 +3336,12 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 	if (!calldata->lr.roc && nfs4_wait_on_layoutreturn(inode, task)) {
 		nfs_release_seqid(calldata->arg.seqid);
 		goto out_wait;
+	}
+
+	lo = calldata->arg.lr_args ? calldata->arg.lr_args->layout : NULL;
+	if (lo && !pnfs_layout_is_valid(lo)) {
+		calldata->arg.lr_args = NULL;
+		calldata->res.lr_res = NULL;
 	}
 
 	if (calldata->arg.fmode == 0)
@@ -5972,11 +5979,18 @@ static void nfs4_delegreturn_release(void *calldata)
 static void nfs4_delegreturn_prepare(struct rpc_task *task, void *data)
 {
 	struct nfs4_delegreturndata *d_data;
+	struct pnfs_layout_hdr *lo;
 
 	d_data = (struct nfs4_delegreturndata *)data;
 
 	if (!d_data->lr.roc && nfs4_wait_on_layoutreturn(d_data->inode, task))
 		return;
+
+	lo = d_data->args.lr_args ? d_data->args.lr_args->layout : NULL;
+	if (lo && !pnfs_layout_is_valid(lo)) {
+		d_data->args.lr_args = NULL;
+		d_data->res.lr_res = NULL;
+	}
 
 	nfs4_setup_sequence(d_data->res.server->nfs_client,
 			&d_data->args.seq_args,
@@ -8820,6 +8834,8 @@ nfs4_layoutreturn_prepare(struct rpc_task *task, void *calldata)
 			&lrp->args.seq_args,
 			&lrp->res.seq_res,
 			task);
+	if (!pnfs_layout_is_valid(lrp->args.layout))
+		rpc_exit(task, 0);
 }
 
 static void nfs4_layoutreturn_done(struct rpc_task *task, void *calldata)
