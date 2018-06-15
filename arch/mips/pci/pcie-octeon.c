@@ -94,8 +94,6 @@ union cvmx_pcie_address {
 
 static int cvmx_pcie_rc_initialize(int pcie_port);
 
-#include <dma-coherence.h>
-
 /**
  * Return the Core virtual base address for PCIe IO access. IOs are
  * read/written as an offset from this address.

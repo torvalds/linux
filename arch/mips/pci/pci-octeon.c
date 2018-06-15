@@ -21,8 +21,6 @@
 #include <asm/octeon/cvmx-pci-defs.h>
 #include <asm/octeon/pci-octeon.h>
 
-#include <dma-coherence.h>
-
 #define USE_OCTEON_INTERNAL_ARBITER
 
 /*
