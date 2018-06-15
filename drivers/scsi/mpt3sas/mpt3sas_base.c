@@ -131,7 +131,10 @@ mpt3sas_base_check_cmd_timeout(struct MPT3SAS_ADAPTER *ioc,
 
 /**
  * _scsih_set_fwfault_debug - global setting of ioc->fwfault_debug.
+ * @val: ?
+ * @kp: ?
  *
+ * Return: ?
  */
 static int
 _scsih_set_fwfault_debug(const char *val, const struct kernel_param *kp)
@@ -160,8 +163,6 @@ module_param_call(mpt3sas_fwfault_debug, _scsih_set_fwfault_debug,
  * @ioc: per adapter object
  * @reply: reply message frame(lower 32bit addr)
  * @index: System request message index.
- *
- * @Returns - Nothing
  */
 static void
 _base_clone_reply_to_sys_mem(struct MPT3SAS_ADAPTER *ioc, u32 reply,
@@ -184,7 +185,7 @@ _base_clone_reply_to_sys_mem(struct MPT3SAS_ADAPTER *ioc, u32 reply,
  * _base_clone_mpi_to_sys_mem - Writes/copies MPI frames
  *				to system/BAR0 region.
  *
- * @dst_iomem: Pointer to the destinaltion location in BAR0 space.
+ * @dst_iomem: Pointer to the destination location in BAR0 space.
  * @src: Pointer to the Source data.
  * @size: Size of data to be copied.
  */
@@ -225,7 +226,7 @@ _base_clone_to_sys_mem(void __iomem *dst_iomem, void *src, u32 size)
  * @smid: system request message index
  * @sge_chain_count: Scatter gather chain count.
  *
- * @Return: chain address.
+ * Return: the chain address.
  */
 static inline void __iomem*
 _base_get_chain(struct MPT3SAS_ADAPTER *ioc, u16 smid,
@@ -251,7 +252,7 @@ _base_get_chain(struct MPT3SAS_ADAPTER *ioc, u16 smid,
  * @smid: system request message index
  * @sge_chain_count: Scatter gather chain count.
  *
- * @Return - Physical chain address.
+ * Return: Physical chain address.
  */
 static inline phys_addr_t
 _base_get_chain_phys(struct MPT3SAS_ADAPTER *ioc, u16 smid,
@@ -276,7 +277,7 @@ _base_get_chain_phys(struct MPT3SAS_ADAPTER *ioc, u16 smid,
  * @ioc: per adapter object
  * @smid: system request message index
  *
- * @Returns - Pointer to buffer location in BAR0.
+ * Return: Pointer to buffer location in BAR0.
  */
 
 static void __iomem *
@@ -298,7 +299,7 @@ _base_get_buffer_bar0(struct MPT3SAS_ADAPTER *ioc, u16 smid)
  * @ioc: per adapter object
  * @smid: system request message index
  *
- * @Returns - Pointer to buffer location in BAR0.
+ * Return: Pointer to buffer location in BAR0.
  */
 static phys_addr_t
 _base_get_buffer_phys_bar0(struct MPT3SAS_ADAPTER *ioc, u16 smid)
@@ -319,7 +320,7 @@ _base_get_buffer_phys_bar0(struct MPT3SAS_ADAPTER *ioc, u16 smid)
  * @ioc: per adapter object
  * @chain_buffer_dma: Chain buffer dma address.
  *
- * @Returns - Pointer to chain buffer. Or Null on Failure.
+ * Return: Pointer to chain buffer. Or Null on Failure.
  */
 static void *
 _base_get_chain_buffer_dma_to_chain_buffer(struct MPT3SAS_ADAPTER *ioc,
@@ -350,8 +351,6 @@ _base_get_chain_buffer_dma_to_chain_buffer(struct MPT3SAS_ADAPTER *ioc,
  * @ioc: per adapter object.
  * @mpi_request: mf request pointer.
  * @smid: system request message index.
- *
- * @Returns: Nothing.
  */
 static void _clone_sg_entries(struct MPT3SAS_ADAPTER *ioc,
 		void *mpi_request, u16 smid)
@@ -524,8 +523,9 @@ eob_clone_chain:
  *  mpt3sas_remove_dead_ioc_func - kthread context to remove dead ioc
  * @arg: input argument, used to derive ioc
  *
- * Return 0 if controller is removed from pci subsystem.
- * Return -1 for other case.
+ * Return:
+ * 0 if controller is removed from pci subsystem.
+ * -1 for other case.
  */
 static int mpt3sas_remove_dead_ioc_func(void *arg)
 {
@@ -545,9 +545,8 @@ static int mpt3sas_remove_dead_ioc_func(void *arg)
 /**
  * _base_fault_reset_work - workq handling ioc fault conditions
  * @work: input argument, used to derive ioc
- * Context: sleep.
  *
- * Return nothing.
+ * Context: sleep.
  */
 static void
 _base_fault_reset_work(struct work_struct *work)
@@ -638,9 +637,8 @@ _base_fault_reset_work(struct work_struct *work)
 /**
  * mpt3sas_base_start_watchdog - start the fault_reset_work_q
  * @ioc: per adapter object
- * Context: sleep.
  *
- * Return nothing.
+ * Context: sleep.
  */
 void
 mpt3sas_base_start_watchdog(struct MPT3SAS_ADAPTER *ioc)
@@ -674,9 +672,8 @@ mpt3sas_base_start_watchdog(struct MPT3SAS_ADAPTER *ioc)
 /**
  * mpt3sas_base_stop_watchdog - stop the fault_reset_work_q
  * @ioc: per adapter object
- * Context: sleep.
  *
- * Return nothing.
+ * Context: sleep.
  */
 void
 mpt3sas_base_stop_watchdog(struct MPT3SAS_ADAPTER *ioc)
@@ -699,8 +696,6 @@ mpt3sas_base_stop_watchdog(struct MPT3SAS_ADAPTER *ioc)
  * mpt3sas_base_fault_info - verbose translation of firmware FAULT code
  * @ioc: per adapter object
  * @fault_code: fault code
- *
- * Return nothing.
  */
 void
 mpt3sas_base_fault_info(struct MPT3SAS_ADAPTER *ioc , u16 fault_code)
@@ -749,8 +744,6 @@ mpt3sas_halt_firmware(struct MPT3SAS_ADAPTER *ioc)
  * @ioc: per adapter object
  * @mpi_reply: reply mf payload returned from firmware
  * @request_hdr: request mf
- *
- * Return nothing.
  */
 static void
 _base_sas_ioc_info(struct MPT3SAS_ADAPTER *ioc, MPI2DefaultReply_t *mpi_reply,
@@ -973,8 +966,6 @@ _base_sas_ioc_info(struct MPT3SAS_ADAPTER *ioc, MPI2DefaultReply_t *mpi_reply,
  * _base_display_event_data - verbose translation of firmware asyn events
  * @ioc: per adapter object
  * @mpi_reply: reply mf payload returned from firmware
- *
- * Return nothing.
  */
 static void
 _base_display_event_data(struct MPT3SAS_ADAPTER *ioc,
@@ -1093,8 +1084,6 @@ _base_display_event_data(struct MPT3SAS_ADAPTER *ioc,
  * _base_sas_log_info - verbose translation of firmware log info
  * @ioc: per adapter object
  * @log_info: log info
- *
- * Return nothing.
  */
 static void
 _base_sas_log_info(struct MPT3SAS_ADAPTER *ioc , u32 log_info)
@@ -1152,8 +1141,6 @@ _base_sas_log_info(struct MPT3SAS_ADAPTER *ioc , u32 log_info)
  * @smid: system request message index
  * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
- *
- * Return nothing.
  */
 static void
 _base_display_reply_info(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
@@ -1195,8 +1182,9 @@ _base_display_reply_info(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
  * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
  *
- * Return 1 meaning mf should be freed from _base_interrupt
- *        0 means the mf is freed from this function.
+ * Return:
+ * 1 meaning mf should be freed from _base_interrupt
+ * 0 means the mf is freed from this function.
  */
 u8
 mpt3sas_base_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
@@ -1228,8 +1216,9 @@ mpt3sas_base_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
  * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
  *
- * Return 1 meaning mf should be freed from _base_interrupt
- *        0 means the mf is freed from this function.
+ * Return:
+ * 1 meaning mf should be freed from _base_interrupt
+ * 0 means the mf is freed from this function.
  */
 static u8
 _base_async_event(struct MPT3SAS_ADAPTER *ioc, u8 msix_index, u32 reply)
@@ -1307,7 +1296,7 @@ _get_st_from_smid(struct MPT3SAS_ADAPTER *ioc, u16 smid)
  * @ioc: per adapter object
  * @smid: system request message index
  *
- * Return callback index.
+ * Return: callback index.
  */
 static u8
 _base_get_cb_idx(struct MPT3SAS_ADAPTER *ioc, u16 smid)
@@ -1340,8 +1329,6 @@ _base_get_cb_idx(struct MPT3SAS_ADAPTER *ioc, u16 smid)
  * @ioc: per adapter object
  *
  * Disabling ResetIRQ, Reply and Doorbell Interrupts
- *
- * Return nothing.
  */
 static void
 _base_mask_interrupts(struct MPT3SAS_ADAPTER *ioc)
@@ -1360,8 +1347,6 @@ _base_mask_interrupts(struct MPT3SAS_ADAPTER *ioc)
  * @ioc: per adapter object
  *
  * Enabling only Reply Interrupts
- *
- * Return nothing.
  */
 static void
 _base_unmask_interrupts(struct MPT3SAS_ADAPTER *ioc)
@@ -1386,9 +1371,8 @@ union reply_descriptor {
  * _base_interrupt - MPT adapter (IOC) specific interrupt handler.
  * @irq: irq number (not used)
  * @bus_id: bus identifier cookie == pointer to MPT_ADAPTER structure
- * @r: pt_regs pointer (not used)
  *
- * Return IRQ_HANDLE if processed, else IRQ_NONE.
+ * Return: IRQ_HANDLED if processed, else IRQ_NONE.
  */
 static irqreturn_t
 _base_interrupt(int irq, void *bus_id)
@@ -1563,6 +1547,7 @@ _base_interrupt(int irq, void *bus_id)
  * _base_is_controller_msix_enabled - is controller support muli-reply queues
  * @ioc: per adapter object
  *
+ * Return: Whether or not MSI/X is enabled.
  */
 static inline int
 _base_is_controller_msix_enabled(struct MPT3SAS_ADAPTER *ioc)
@@ -1577,8 +1562,6 @@ _base_is_controller_msix_enabled(struct MPT3SAS_ADAPTER *ioc)
  * Context: non ISR conext
  *
  * Called when a Task Management request has completed.
- *
- * Return nothing.
  */
 void
 mpt3sas_base_sync_reply_irqs(struct MPT3SAS_ADAPTER *ioc)
@@ -1605,8 +1588,6 @@ mpt3sas_base_sync_reply_irqs(struct MPT3SAS_ADAPTER *ioc)
 /**
  * mpt3sas_base_release_callback_handler - clear interrupt callback handler
  * @cb_idx: callback index
- *
- * Return nothing.
  */
 void
 mpt3sas_base_release_callback_handler(u8 cb_idx)
@@ -1618,7 +1599,7 @@ mpt3sas_base_release_callback_handler(u8 cb_idx)
  * mpt3sas_base_register_callback_handler - obtain index for the interrupt callback handler
  * @cb_func: callback function
  *
- * Returns cb_func.
+ * Return: Index of @cb_func.
  */
 u8
 mpt3sas_base_register_callback_handler(MPT_CALLBACK cb_func)
@@ -1635,8 +1616,6 @@ mpt3sas_base_register_callback_handler(MPT_CALLBACK cb_func)
 
 /**
  * mpt3sas_base_initialize_callback_handler - initialize the interrupt callback handler
- *
- * Return nothing.
  */
 void
 mpt3sas_base_initialize_callback_handler(void)
@@ -1656,8 +1635,6 @@ mpt3sas_base_initialize_callback_handler(void)
  * Create a zero length scatter gather entry to insure the IOCs hardware has
  * something to use if the target device goes brain dead and tries
  * to send data even when none is asked for.
- *
- * Return nothing.
  */
 static void
 _base_build_zero_len_sge(struct MPT3SAS_ADAPTER *ioc, void *paddr)
@@ -1674,8 +1651,6 @@ _base_build_zero_len_sge(struct MPT3SAS_ADAPTER *ioc, void *paddr)
  * @paddr: virtual address for SGE
  * @flags_length: SGE flags and data transfer length
  * @dma_addr: Physical address
- *
- * Return nothing.
  */
 static void
 _base_add_sg_single_32(void *paddr, u32 flags_length, dma_addr_t dma_addr)
@@ -1694,8 +1669,6 @@ _base_add_sg_single_32(void *paddr, u32 flags_length, dma_addr_t dma_addr)
  * @paddr: virtual address for SGE
  * @flags_length: SGE flags and data transfer length
  * @dma_addr: Physical address
- *
- * Return nothing.
  */
 static void
 _base_add_sg_single_64(void *paddr, u32 flags_length, dma_addr_t dma_addr)
@@ -1713,7 +1686,7 @@ _base_add_sg_single_64(void *paddr, u32 flags_length, dma_addr_t dma_addr)
  * @ioc: per adapter object
  * @scmd: SCSI commands of the IO request
  *
- * Returns chain tracker from chain_lookup table using key as
+ * Return: chain tracker from chain_lookup table using key as
  * smid and smid's chain_offset.
  */
 static struct chain_tracker *
@@ -1743,8 +1716,6 @@ _base_get_chain_buffer_tracker(struct MPT3SAS_ADAPTER *ioc,
  * @data_out_sz: data xfer size for WRITES
  * @data_in_dma: physical address for READS
  * @data_in_sz: data xfer size for READS
- *
- * Return nothing.
  */
 static void
 _base_build_sg(struct MPT3SAS_ADAPTER *ioc, void *psge,
@@ -1805,7 +1776,7 @@ _base_build_sg(struct MPT3SAS_ADAPTER *ioc, void *psge,
  * describes the first data memory segment, and PRP2 contains a pointer to a PRP
  * list located elsewhere in memory to describe the remaining data memory
  * segments.  The PRP list will be contiguous.
-
+ *
  * The native SGL for NVMe devices is a Physical Region Page (PRP).  A PRP
  * consists of a list of PRP entries to describe a number of noncontigous
  * physical memory segments as a single memory buffer, just as a SGL does.  Note
@@ -1848,8 +1819,6 @@ _base_build_sg(struct MPT3SAS_ADAPTER *ioc, void *psge,
  * @data_out_sz: data xfer size for WRITES
  * @data_in_dma: physical address for READS
  * @data_in_sz: data xfer size for READS
- *
- * Returns nothing.
  */
 static void
 _base_build_nvme_prp(struct MPT3SAS_ADAPTER *ioc, u16 smid,
@@ -2015,7 +1984,7 @@ _base_build_nvme_prp(struct MPT3SAS_ADAPTER *ioc, u16 smid,
  * @smid:		msg Index
  * @sge_count:		scatter gather element count.
  *
- * Returns:		true: PRPs are built
+ * Return:		true: PRPs are built
  *			false: IEEE SGLs needs to be built
  */
 static void
@@ -2176,7 +2145,7 @@ base_is_prp_possible(struct MPT3SAS_ADAPTER *ioc,
  * @scmd: scsi command
  * @pcie_device: points to the PCIe device's info
  *
- * Returns 0 if native SGL was built, 1 if no SGL was built
+ * Return: 0 if native SGL was built, 1 if no SGL was built
  */
 static int
 _base_check_pcie_native_sgl(struct MPT3SAS_ADAPTER *ioc,
@@ -2220,8 +2189,6 @@ out:
  * @chain_offset: number of 128 byte elements from start of segment
  * @length: data transfer length
  * @dma_addr: Physical address
- *
- * Return nothing.
  */
 static void
 _base_add_sg_single_ieee(void *paddr, u8 flags, u8 chain_offset, u32 length,
@@ -2243,8 +2210,6 @@ _base_add_sg_single_ieee(void *paddr, u8 flags, u8 chain_offset, u32 length,
  * Create a zero length scatter gather entry to insure the IOCs hardware has
  * something to use if the target device goes brain dead and tries
  * to send data even when none is asked for.
- *
- * Return nothing.
  */
 static void
 _base_build_zero_len_sge_ieee(struct MPT3SAS_ADAPTER *ioc, void *paddr)
@@ -2268,7 +2233,7 @@ _base_build_zero_len_sge_ieee(struct MPT3SAS_ADAPTER *ioc, void *paddr)
  * The main routine that builds scatter gather table from a given
  * scsi request sent via the .queuecommand main handler.
  *
- * Returns 0 success, anything else error
+ * Return: 0 success, anything else error
  */
 static int
 _base_build_sg_scmd(struct MPT3SAS_ADAPTER *ioc,
@@ -2413,7 +2378,7 @@ _base_build_sg_scmd(struct MPT3SAS_ADAPTER *ioc,
  * The main routine that builds scatter gather table from a given
  * scsi request sent via the .queuecommand main handler.
  *
- * Returns 0 success, anything else error
+ * Return: 0 success, anything else error
  */
 static int
 _base_build_sg_scmd_ieee(struct MPT3SAS_ADAPTER *ioc,
@@ -2544,8 +2509,6 @@ _base_build_sg_scmd_ieee(struct MPT3SAS_ADAPTER *ioc,
  * @data_out_sz: data xfer size for WRITES
  * @data_in_dma: physical address for READS
  * @data_in_sz: data xfer size for READS
- *
- * Return nothing.
  */
 static void
 _base_build_sg_ieee(struct MPT3SAS_ADAPTER *ioc, void *psge,
@@ -2595,7 +2558,7 @@ _base_build_sg_ieee(struct MPT3SAS_ADAPTER *ioc, void *psge,
  * @ioc: per adapter object
  * @pdev: PCI device struct
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 static int
 _base_config_dma_addressing(struct MPT3SAS_ADAPTER *ioc, struct pci_dev *pdev)
@@ -2963,7 +2926,7 @@ mpt3sas_base_unmap_resources(struct MPT3SAS_ADAPTER *ioc)
  * mpt3sas_base_map_resources - map in controller resources (io/irq/memap)
  * @ioc: per adapter object
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 int
 mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
@@ -3114,7 +3077,7 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
  * @ioc: per adapter object
  * @smid: system request message index(smid zero is invalid)
  *
- * Returns virt pointer to message frame.
+ * Return: virt pointer to message frame.
  */
 void *
 mpt3sas_base_get_msg_frame(struct MPT3SAS_ADAPTER *ioc, u16 smid)
@@ -3127,7 +3090,7 @@ mpt3sas_base_get_msg_frame(struct MPT3SAS_ADAPTER *ioc, u16 smid)
  * @ioc: per adapter object
  * @smid: system request message index
  *
- * Returns virt pointer to sense buffer.
+ * Return: virt pointer to sense buffer.
  */
 void *
 mpt3sas_base_get_sense_buffer(struct MPT3SAS_ADAPTER *ioc, u16 smid)
@@ -3140,7 +3103,7 @@ mpt3sas_base_get_sense_buffer(struct MPT3SAS_ADAPTER *ioc, u16 smid)
  * @ioc: per adapter object
  * @smid: system request message index
  *
- * Returns phys pointer to the low 32bit address of the sense buffer.
+ * Return: phys pointer to the low 32bit address of the sense buffer.
  */
 __le32
 mpt3sas_base_get_sense_buffer_dma(struct MPT3SAS_ADAPTER *ioc, u16 smid)
@@ -3154,7 +3117,7 @@ mpt3sas_base_get_sense_buffer_dma(struct MPT3SAS_ADAPTER *ioc, u16 smid)
  * @ioc: per adapter object
  * @smid: system request message index
  *
- * Returns virt pointer to a PCIe SGL.
+ * Return: virt pointer to a PCIe SGL.
  */
 void *
 mpt3sas_base_get_pcie_sgl(struct MPT3SAS_ADAPTER *ioc, u16 smid)
@@ -3167,7 +3130,7 @@ mpt3sas_base_get_pcie_sgl(struct MPT3SAS_ADAPTER *ioc, u16 smid)
  * @ioc: per adapter object
  * @smid: system request message index
  *
- * Returns phys pointer to the address of the PCIe buffer.
+ * Return: phys pointer to the address of the PCIe buffer.
  */
 dma_addr_t
 mpt3sas_base_get_pcie_sgl_dma(struct MPT3SAS_ADAPTER *ioc, u16 smid)
@@ -3201,7 +3164,7 @@ _base_get_msix_index(struct MPT3SAS_ADAPTER *ioc)
  * @ioc: per adapter object
  * @cb_idx: callback index
  *
- * Returns smid (zero is invalid)
+ * Return: smid (zero is invalid)
  */
 u16
 mpt3sas_base_get_smid(struct MPT3SAS_ADAPTER *ioc, u8 cb_idx)
@@ -3233,7 +3196,7 @@ mpt3sas_base_get_smid(struct MPT3SAS_ADAPTER *ioc, u8 cb_idx)
  * @cb_idx: callback index
  * @scmd: pointer to scsi command object
  *
- * Returns smid (zero is invalid)
+ * Return: smid (zero is invalid)
  */
 u16
 mpt3sas_base_get_smid_scsiio(struct MPT3SAS_ADAPTER *ioc, u8 cb_idx,
@@ -3256,7 +3219,7 @@ mpt3sas_base_get_smid_scsiio(struct MPT3SAS_ADAPTER *ioc, u8 cb_idx,
  * @ioc: per adapter object
  * @cb_idx: callback index
  *
- * Returns smid (zero is invalid)
+ * Return: smid (zero is invalid)
  */
 u16
 mpt3sas_base_get_smid_hpr(struct MPT3SAS_ADAPTER *ioc, u8 cb_idx)
@@ -3307,8 +3270,6 @@ void mpt3sas_base_clear_st(struct MPT3SAS_ADAPTER *ioc,
  * mpt3sas_base_free_smid - put smid back on free_list
  * @ioc: per adapter object
  * @smid: system request message index
- *
- * Return nothing.
  */
 void
 mpt3sas_base_free_smid(struct MPT3SAS_ADAPTER *ioc, u16 smid)
@@ -3371,7 +3332,6 @@ _base_mpi_ep_writeq(__u64 b, volatile void __iomem *addr,
 
 /**
  * _base_writeq - 64 bit write to MMIO
- * @ioc: per adapter object
  * @b: data payload
  * @addr: address in MMIO space
  * @writeq_lock: spin lock
@@ -3399,8 +3359,6 @@ _base_writeq(__u64 b, volatile void __iomem *addr, spinlock_t *writeq_lock)
  * @ioc: per adapter object
  * @smid: system request message index
  * @handle: device handle
- *
- * Return nothing.
  */
 static void
 _base_put_smid_mpi_ep_scsi_io(struct MPT3SAS_ADAPTER *ioc, u16 smid, u16 handle)
@@ -3429,8 +3387,6 @@ _base_put_smid_mpi_ep_scsi_io(struct MPT3SAS_ADAPTER *ioc, u16 smid, u16 handle)
  * @ioc: per adapter object
  * @smid: system request message index
  * @handle: device handle
- *
- * Return nothing.
  */
 static void
 _base_put_smid_scsi_io(struct MPT3SAS_ADAPTER *ioc, u16 smid, u16 handle)
@@ -3453,8 +3409,6 @@ _base_put_smid_scsi_io(struct MPT3SAS_ADAPTER *ioc, u16 smid, u16 handle)
  * @ioc: per adapter object
  * @smid: system request message index
  * @handle: device handle
- *
- * Return nothing.
  */
 void
 mpt3sas_base_put_smid_fast_path(struct MPT3SAS_ADAPTER *ioc, u16 smid,
@@ -3478,7 +3432,6 @@ mpt3sas_base_put_smid_fast_path(struct MPT3SAS_ADAPTER *ioc, u16 smid,
  * @ioc: per adapter object
  * @smid: system request message index
  * @msix_task: msix_task will be same as msix of IO incase of task abort else 0.
- * Return nothing.
  */
 void
 mpt3sas_base_put_smid_hi_priority(struct MPT3SAS_ADAPTER *ioc, u16 smid,
@@ -3521,8 +3474,6 @@ mpt3sas_base_put_smid_hi_priority(struct MPT3SAS_ADAPTER *ioc, u16 smid,
  *  firmware
  * @ioc: per adapter object
  * @smid: system request message index
- *
- * Return nothing.
  */
 void
 mpt3sas_base_put_smid_nvme_encap(struct MPT3SAS_ADAPTER *ioc, u16 smid)
@@ -3544,8 +3495,6 @@ mpt3sas_base_put_smid_nvme_encap(struct MPT3SAS_ADAPTER *ioc, u16 smid)
  * mpt3sas_base_put_smid_default - Default, primarily used for config pages
  * @ioc: per adapter object
  * @smid: system request message index
- *
- * Return nothing.
  */
 void
 mpt3sas_base_put_smid_default(struct MPT3SAS_ADAPTER *ioc, u16 smid)
@@ -3582,8 +3531,6 @@ mpt3sas_base_put_smid_default(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 /**
  * _base_display_OEMs_branding - Display branding string
  * @ioc: per adapter object
- *
- * Return nothing.
  */
 static void
 _base_display_OEMs_branding(struct MPT3SAS_ADAPTER *ioc)
@@ -3844,7 +3791,7 @@ _base_display_OEMs_branding(struct MPT3SAS_ADAPTER *ioc)
  *				version from FW Image Header.
  * @ioc: per adapter object
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 	static int
 _base_display_fwpkg_version(struct MPT3SAS_ADAPTER *ioc)
@@ -3941,8 +3888,6 @@ out:
 /**
  * _base_display_ioc_capabilities - Disply IOC's capabilities.
  * @ioc: per adapter object
- *
- * Return nothing.
  */
 static void
 _base_display_ioc_capabilities(struct MPT3SAS_ADAPTER *ioc)
@@ -4058,8 +4003,6 @@ _base_display_ioc_capabilities(struct MPT3SAS_ADAPTER *ioc)
  * @device_missing_delay: amount of time till device is reported missing
  * @io_missing_delay: interval IO is returned when there is a missing device
  *
- * Return nothing.
- *
  * Passed on the command line, this function will modify the device missing
  * delay, as well as the io missing delay. This should be called at driver
  * load time.
@@ -4142,11 +4085,10 @@ mpt3sas_base_update_missing_delay(struct MPT3SAS_ADAPTER *ioc,
 out:
 	kfree(sas_iounit_pg1);
 }
+
 /**
  * _base_static_config_pages - static start of day config pages
  * @ioc: per adapter object
- *
- * Return nothing.
  */
 static void
 _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
@@ -4218,8 +4160,6 @@ _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
  * @ioc: per adapter object
  *
  * Free memory allocated during encloure add.
- *
- * Return nothing.
  */
 void
 mpt3sas_free_enclosure_list(struct MPT3SAS_ADAPTER *ioc)
@@ -4239,8 +4179,6 @@ mpt3sas_free_enclosure_list(struct MPT3SAS_ADAPTER *ioc)
  * @ioc: per adapter object
  *
  * Free memory allocated from _base_allocate_memory_pools.
- *
- * Return nothing.
  */
 static void
 _base_release_memory_pools(struct MPT3SAS_ADAPTER *ioc)
@@ -4361,9 +4299,8 @@ _base_release_memory_pools(struct MPT3SAS_ADAPTER *ioc)
  * @reply_pool_start_address: Base address of a reply queue set
  * @pool_sz: Size of single Reply Descriptor Post Queues pool size
  *
- * Returns 1 if reply queues in a set have a same upper 32bits
- * in their base memory address,
- * else 0
+ * Return: 1 if reply queues in a set have a same upper 32bits in their base
+ * memory address, else 0.
  */
 
 static int
@@ -4384,7 +4321,7 @@ is_MSB_are_same(long reply_pool_start_address, u32 pool_sz)
  * _base_allocate_memory_pools - allocate start of day memory pools
  * @ioc: per adapter object
  *
- * Returns 0 success, anything else error
+ * Return: 0 success, anything else error.
  */
 static int
 _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
@@ -4986,7 +4923,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
  * @ioc: Pointer to MPT_ADAPTER structure
  * @cooked: Request raw or cooked IOC state
  *
- * Returns all IOC Doorbell register bits if cooked==0, else just the
+ * Return: all IOC Doorbell register bits if cooked==0, else just the
  * Doorbell bits in MPI_IOC_STATE_MASK.
  */
 u32
@@ -5001,10 +4938,11 @@ mpt3sas_base_get_iocstate(struct MPT3SAS_ADAPTER *ioc, int cooked)
 
 /**
  * _base_wait_on_iocstate - waiting on a particular ioc state
+ * @ioc: ?
  * @ioc_state: controller state { READY, OPERATIONAL, or RESET }
  * @timeout: timeout in second
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 static int
 _base_wait_on_iocstate(struct MPT3SAS_ADAPTER *ioc, u32 ioc_state, int timeout)
@@ -5032,9 +4970,8 @@ _base_wait_on_iocstate(struct MPT3SAS_ADAPTER *ioc, u32 ioc_state, int timeout)
  * _base_wait_for_doorbell_int - waiting for controller interrupt(generated by
  * a write to the doorbell)
  * @ioc: per adapter object
- * @timeout: timeout in second
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  *
  * Notes: MPI2_HIS_IOC2SYS_DB_STATUS - set to one when IOC writes to doorbell.
  */
@@ -5101,7 +5038,7 @@ _base_spin_on_doorbell_int(struct MPT3SAS_ADAPTER *ioc, int timeout)
  * @ioc: per adapter object
  * @timeout: timeout in second
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  *
  * Notes: MPI2_HIS_SYS2IOC_DB_STATUS - set to one when host writes to
  * doorbell.
@@ -5148,8 +5085,7 @@ _base_wait_for_doorbell_ack(struct MPT3SAS_ADAPTER *ioc, int timeout)
  * @ioc: per adapter object
  * @timeout: timeout in second
  *
- * Returns 0 for success, non-zero for failure.
- *
+ * Return: 0 for success, non-zero for failure.
  */
 static int
 _base_wait_for_doorbell_not_used(struct MPT3SAS_ADAPTER *ioc, int timeout)
@@ -5184,7 +5120,7 @@ _base_wait_for_doorbell_not_used(struct MPT3SAS_ADAPTER *ioc, int timeout)
  * @reset_type: currently only supports: MPI2_FUNCTION_IOC_MESSAGE_UNIT_RESET
  * @timeout: timeout in second
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 static int
 _base_send_ioc_reset(struct MPT3SAS_ADAPTER *ioc, u8 reset_type, int timeout)
@@ -5233,7 +5169,7 @@ _base_send_ioc_reset(struct MPT3SAS_ADAPTER *ioc, u8 reset_type, int timeout)
  * @reply: pointer to reply payload
  * @timeout: timeout in second
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 static int
 _base_handshake_req_reply_wait(struct MPT3SAS_ADAPTER *ioc, int request_bytes,
@@ -5357,7 +5293,7 @@ _base_handshake_req_reply_wait(struct MPT3SAS_ADAPTER *ioc, int request_bytes,
  * identifying information about the device, in addition allows the host to
  * remove IOC resources associated with the device.
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 int
 mpt3sas_base_sas_iounit_control(struct MPT3SAS_ADAPTER *ioc,
@@ -5458,7 +5394,7 @@ mpt3sas_base_sas_iounit_control(struct MPT3SAS_ADAPTER *ioc,
  * The SCSI Enclosure Processor request message causes the IOC to
  * communicate with SES devices to control LED status signals.
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 int
 mpt3sas_base_scsi_enclosure_processor(struct MPT3SAS_ADAPTER *ioc,
@@ -5546,8 +5482,9 @@ mpt3sas_base_scsi_enclosure_processor(struct MPT3SAS_ADAPTER *ioc,
 /**
  * _base_get_port_facts - obtain port facts reply and save in ioc
  * @ioc: per adapter object
+ * @port: ?
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 static int
 _base_get_port_facts(struct MPT3SAS_ADAPTER *ioc, int port)
@@ -5590,7 +5527,7 @@ _base_get_port_facts(struct MPT3SAS_ADAPTER *ioc, int port)
  * @ioc: per adapter object
  * @timeout:
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 static int
 _base_wait_for_iocstate(struct MPT3SAS_ADAPTER *ioc, int timeout)
@@ -5644,7 +5581,7 @@ _base_wait_for_iocstate(struct MPT3SAS_ADAPTER *ioc, int timeout)
  * _base_get_ioc_facts - obtain ioc facts reply and save in ioc
  * @ioc: per adapter object
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 static int
 _base_get_ioc_facts(struct MPT3SAS_ADAPTER *ioc)
@@ -5746,7 +5683,7 @@ _base_get_ioc_facts(struct MPT3SAS_ADAPTER *ioc)
  * _base_send_ioc_init - send ioc_init to firmware
  * @ioc: per adapter object
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 static int
 _base_send_ioc_init(struct MPT3SAS_ADAPTER *ioc)
@@ -5847,8 +5784,8 @@ _base_send_ioc_init(struct MPT3SAS_ADAPTER *ioc)
  * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
  *
- * Return 1 meaning mf should be freed from _base_interrupt
- *        0 means the mf is freed from this function.
+ * Return: 1 meaning mf should be freed from _base_interrupt
+ *          0 means the mf is freed from this function.
  */
 u8
 mpt3sas_port_enable_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
@@ -5893,7 +5830,7 @@ mpt3sas_port_enable_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
  * _base_send_port_enable - send port_enable(discovery stuff) to firmware
  * @ioc: per adapter object
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 static int
 _base_send_port_enable(struct MPT3SAS_ADAPTER *ioc)
@@ -5960,7 +5897,7 @@ _base_send_port_enable(struct MPT3SAS_ADAPTER *ioc)
  * mpt3sas_port_enable - initiate firmware discovery (don't wait for reply)
  * @ioc: per adapter object
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 int
 mpt3sas_port_enable(struct MPT3SAS_ADAPTER *ioc)
@@ -6000,7 +5937,7 @@ mpt3sas_port_enable(struct MPT3SAS_ADAPTER *ioc)
  * Decide whether to wait on discovery to complete. Used to either
  * locate boot device, or report volumes ahead of physical devices.
  *
- * Returns 1 for wait, 0 for don't wait
+ * Return: 1 for wait, 0 for don't wait.
  */
 static int
 _base_determine_wait_on_discovery(struct MPT3SAS_ADAPTER *ioc)
@@ -6072,7 +6009,7 @@ _base_unmask_events(struct MPT3SAS_ADAPTER *ioc, u16 event)
  * _base_event_notification - send event notification
  * @ioc: per adapter object
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 static int
 _base_event_notification(struct MPT3SAS_ADAPTER *ioc)
@@ -6129,7 +6066,7 @@ _base_event_notification(struct MPT3SAS_ADAPTER *ioc)
 /**
  * mpt3sas_base_validate_event_type - validating event types
  * @ioc: per adapter object
- * @event: firmware event
+ * @event_type: firmware event
  *
  * This will turn on firmware event notification when application
  * ask for that event. We don't mask events that are already enabled.
@@ -6167,7 +6104,7 @@ mpt3sas_base_validate_event_type(struct MPT3SAS_ADAPTER *ioc, u32 *event_type)
  * _base_diag_reset - the "big hammer" start of day reset
  * @ioc: per adapter object
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 static int
 _base_diag_reset(struct MPT3SAS_ADAPTER *ioc)
@@ -6281,7 +6218,7 @@ _base_diag_reset(struct MPT3SAS_ADAPTER *ioc)
  * @ioc: per adapter object
  * @type: FORCE_BIG_HAMMER or SOFT_RESET
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 static int
 _base_make_ioc_ready(struct MPT3SAS_ADAPTER *ioc, enum reset_type type)
@@ -6350,7 +6287,7 @@ _base_make_ioc_ready(struct MPT3SAS_ADAPTER *ioc, enum reset_type type)
  * _base_make_ioc_operational - put controller in OPERATIONAL state
  * @ioc: per adapter object
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 static int
 _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc)
@@ -6523,8 +6460,6 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc)
 /**
  * mpt3sas_base_free_resources - free resources controller resources
  * @ioc: per adapter object
- *
- * Return nothing.
  */
 void
 mpt3sas_base_free_resources(struct MPT3SAS_ADAPTER *ioc)
@@ -6550,7 +6485,7 @@ mpt3sas_base_free_resources(struct MPT3SAS_ADAPTER *ioc)
  * mpt3sas_base_attach - attach controller instance
  * @ioc: per adapter object
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 int
 mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
@@ -6807,8 +6742,6 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 /**
  * mpt3sas_base_detach - remove controller instance
  * @ioc: per adapter object
- *
- * Return nothing.
  */
 void
 mpt3sas_base_detach(struct MPT3SAS_ADAPTER *ioc)
@@ -6938,7 +6871,7 @@ mpt3sas_wait_for_commands_to_complete(struct MPT3SAS_ADAPTER *ioc)
  * @ioc: Pointer to MPT_ADAPTER structure
  * @type: FORCE_BIG_HAMMER or SOFT_RESET
  *
- * Returns 0 for success, non-zero for failure.
+ * Return: 0 for success, non-zero for failure.
  */
 int
 mpt3sas_base_hard_reset_handler(struct MPT3SAS_ADAPTER *ioc,
