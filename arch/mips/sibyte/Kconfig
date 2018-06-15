@@ -70,7 +70,6 @@ config SIBYTE_BCM1x55
 
 config SIBYTE_SB1xxx_SOC
 	bool
-	select DMA_COHERENT
 	select IRQ_MIPS_CPU
 	select SWAP_IO_SPACE
 	select SYS_SUPPORTS_32BIT_KERNEL

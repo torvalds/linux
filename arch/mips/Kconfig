@@ -666,7 +666,6 @@ config SGI_IP27
 	select FW_ARC64
 	select BOOT_ELF64
 	select DEFAULT_SGI_PARTITION
-	select DMA_COHERENT
 	select SYS_HAS_EARLY_PRINTK
 	select HW_HAS_PCI
 	select NR_CPUS_DEFAULT_64
@@ -743,7 +742,6 @@ config SGI_IP32
 config SIBYTE_CRHINE
 	bool "Sibyte BCM91120C-CRhine"
 	select BOOT_ELF32
-	select DMA_COHERENT
 	select SIBYTE_BCM1120
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_SB1
@@ -753,7 +751,6 @@ config SIBYTE_CRHINE
 config SIBYTE_CARMEL
 	bool "Sibyte BCM91120x-Carmel"
 	select BOOT_ELF32
-	select DMA_COHERENT
 	select SIBYTE_BCM1120
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_SB1
@@ -763,7 +760,6 @@ config SIBYTE_CARMEL
 config SIBYTE_CRHONE
 	bool "Sibyte BCM91125C-CRhone"
 	select BOOT_ELF32
-	select DMA_COHERENT
 	select SIBYTE_BCM1125
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_SB1
@@ -774,7 +770,6 @@ config SIBYTE_CRHONE
 config SIBYTE_RHONE
 	bool "Sibyte BCM91125E-Rhone"
 	select BOOT_ELF32
-	select DMA_COHERENT
 	select SIBYTE_BCM1125H
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_SB1
@@ -784,7 +779,6 @@ config SIBYTE_RHONE
 config SIBYTE_SWARM
 	bool "Sibyte BCM91250A-SWARM"
 	select BOOT_ELF32
-	select DMA_COHERENT
 	select HAVE_PATA_PLATFORM
 	select SIBYTE_SB1250
 	select SWAP_IO_SPACE
@@ -797,7 +791,6 @@ config SIBYTE_SWARM
 config SIBYTE_LITTLESUR
 	bool "Sibyte BCM91250C2-LittleSur"
 	select BOOT_ELF32
-	select DMA_COHERENT
 	select HAVE_PATA_PLATFORM
 	select SIBYTE_SB1250
 	select SWAP_IO_SPACE
@@ -809,7 +802,6 @@ config SIBYTE_LITTLESUR
 config SIBYTE_SENTOSA
 	bool "Sibyte BCM91250E-Sentosa"
 	select BOOT_ELF32
-	select DMA_COHERENT
 	select SIBYTE_SB1250
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_SB1
@@ -819,7 +811,6 @@ config SIBYTE_SENTOSA
 config SIBYTE_BIGSUR
 	bool "Sibyte BCM91480B-BigSur"
 	select BOOT_ELF32
-	select DMA_COHERENT
 	select NR_CPUS_DEFAULT_4
 	select SIBYTE_BCM1x80
 	select SWAP_IO_SPACE
@@ -896,7 +887,6 @@ config CAVIUM_OCTEON_SOC
 	select CEVT_R4K
 	select ARCH_HAS_PHYS_TO_DMA
 	select PHYS_ADDR_T_64BIT
-	select DMA_COHERENT
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select EDAC_SUPPORT
@@ -945,7 +935,6 @@ config NLM_XLR_BOARD
 	select PHYS_ADDR_T_64BIT
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
-	select DMA_COHERENT
 	select NR_CPUS_DEFAULT_32
 	select CEVT_R4K
 	select CSRC_R4K
@@ -973,7 +962,6 @@ config NLM_XLP_BOARD
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
-	select DMA_COHERENT
 	select NR_CPUS_DEFAULT_32
 	select CEVT_R4K
 	select CSRC_R4K
@@ -992,7 +980,6 @@ config MIPS_PARAVIRT
 	bool "Para-Virtualized guest system"
 	select CEVT_R4K
 	select CSRC_R4K
-	select DMA_COHERENT
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
@@ -1117,9 +1104,6 @@ config DMA_MAYBE_COHERENT
 config DMA_PERDEV_COHERENT
 	bool
 	select DMA_MAYBE_COHERENT
-
-config DMA_COHERENT
-	bool
 
 config DMA_NONCOHERENT
 	bool

@@ -227,7 +227,7 @@ static void __init bonito_quirks_setup(void)
 	} else
 		BONITO_BONGENCFG &= ~BONITO_BONGENCFG_DEBUGMODE;
 
-#ifdef CONFIG_DMA_COHERENT
+#ifndef CONFIG_DMA_NONCOHERENT
 	if (BONITO_PCICACHECTRL & BONITO_PCICACHECTRL_CPUCOH_PRES) {
 		BONITO_PCICACHECTRL |= BONITO_PCICACHECTRL_CPUCOH_EN;
 		pr_info("Enabled Bonito CPU coherency\n");
@@ -279,7 +279,7 @@ void __init plat_mem_setup(void)
 	 */
 	enable_dma(4);
 
-#ifdef CONFIG_DMA_COHERENT
+#ifndef CONFIG_DMA_NONCOHERENT
 	if (mips_revision_sconid != MIPS_REVISION_SCON_BONITO)
 		panic("Hardware DMA cache coherency not supported");
 #endif
