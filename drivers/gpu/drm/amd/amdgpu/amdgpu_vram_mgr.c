@@ -112,7 +112,7 @@ u64 amdgpu_vram_mgr_bo_invisible_size(struct amdgpu_bo *bo)
 	unsigned pages = mem->num_pages;
 	u64 usage = 0;
 
-	if (adev->gmc.visible_vram_size == adev->gmc.real_vram_size)
+	if (amdgpu_gmc_vram_full_visible(&adev->gmc))
 		return 0;
 
 	if (mem->start >= adev->gmc.visible_vram_size >> PAGE_SHIFT)
