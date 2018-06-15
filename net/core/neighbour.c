@@ -119,13 +119,14 @@ unsigned long neigh_rand_reach_time(unsigned long base)
 EXPORT_SYMBOL(neigh_rand_reach_time);
 
 
-static bool neigh_del(struct neighbour *n, __u8 state,
+static bool neigh_del(struct neighbour *n, __u8 state, __u8 flags,
 		      struct neighbour __rcu **np, struct neigh_table *tbl)
 {
 	bool retval = false;
 
 	write_lock(&n->lock);
-	if (refcount_read(&n->refcnt) == 1 && !(n->nud_state & state)) {
+	if (refcount_read(&n->refcnt) == 1 && !(n->nud_state & state) &&
+	    !(n->flags & flags)) {
 		struct neighbour *neigh;
 
 		neigh = rcu_dereference_protected(n->next,
@@ -157,7 +158,7 @@ bool neigh_remove_one(struct neighbour *ndel, struct neigh_table *tbl)
 	while ((n = rcu_dereference_protected(*np,
 					      lockdep_is_held(&tbl->lock)))) {
 		if (n == ndel)
-			return neigh_del(n, 0, np, tbl);
+			return neigh_del(n, 0, 0, np, tbl);
 		np = &n->next;
 	}
 	return false;
@@ -185,7 +186,8 @@ static int neigh_forced_gc(struct neigh_table *tbl)
 			 * - nobody refers to it.
 			 * - it is not permanent
 			 */
-			if (neigh_del(n, NUD_PERMANENT, np, tbl)) {
+			if (neigh_del(n, NUD_PERMANENT, NTF_EXT_LEARNED, np,
+				      tbl)) {
 				shrunk = 1;
 				continue;
 			}

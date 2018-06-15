@@ -612,6 +612,8 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	u32 session_id, peer_session_id;
 	bool drop_refcnt = false;
 	bool drop_tunnel = false;
+	bool new_session = false;
+	bool new_tunnel = false;
 	int ver = 2;
 	int fd;
 
@@ -701,6 +703,15 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 				.encap = L2TP_ENCAPTYPE_UDP,
 				.debug = 0,
 			};
+
+			/* Prevent l2tp_tunnel_register() from trying to set up
+			 * a kernel socket.
+			 */
+			if (fd < 0) {
+				error = -EBADF;
+				goto end;
+			}
+
 			error = l2tp_tunnel_create(sock_net(sk), fd, ver, tunnel_id, peer_tunnel_id, &tcfg, &tunnel);
 			if (error < 0)
 				goto end;
@@ -713,6 +724,7 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 				goto end;
 			}
 			drop_tunnel = true;
+			new_tunnel = true;
 		}
 	} else {
 		/* Error if we can't find the tunnel */
@@ -734,6 +746,12 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	session = l2tp_session_get(sock_net(sk), tunnel, session_id);
 	if (session) {
 		drop_refcnt = true;
+
+		if (session->pwtype != L2TP_PWTYPE_PPP) {
+			error = -EPROTOTYPE;
+			goto end;
+		}
+
 		ps = l2tp_session_priv(session);
 
 		/* Using a pre-existing session is fine as long as it hasn't
@@ -751,6 +769,7 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 		/* Default MTU must allow space for UDP/L2TP/PPP headers */
 		cfg.mtu = 1500 - PPPOL2TP_HEADER_OVERHEAD;
 		cfg.mru = cfg.mtu;
+		cfg.pw_type = L2TP_PWTYPE_PPP;
 
 		session = l2tp_session_create(sizeof(struct pppol2tp_session),
 					      tunnel, session_id,
@@ -772,6 +791,7 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 			goto end;
 		}
 		drop_refcnt = true;
+		new_session = true;
 	}
 
 	/* Special case: if source & dest session_id == 0x0000, this
@@ -818,6 +838,12 @@ out_no_ppp:
 		  session->name);
 
 end:
+	if (error) {
+		if (new_session)
+			l2tp_session_delete(session);
+		if (new_tunnel)
+			l2tp_tunnel_delete(tunnel);
+	}
 	if (drop_refcnt)
 		l2tp_session_dec_refcount(session);
 	if (drop_tunnel)
@@ -1175,7 +1201,7 @@ static int pppol2tp_tunnel_ioctl(struct l2tp_tunnel *tunnel,
 				l2tp_session_get(sock_net(sk), tunnel,
 						 stats.session_id);
 
-			if (session) {
+			if (session && session->pwtype == L2TP_PWTYPE_PPP) {
 				err = pppol2tp_session_ioctl(session, cmd,
 							     arg);
 				l2tp_session_dec_refcount(session);

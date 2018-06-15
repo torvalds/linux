@@ -590,6 +590,8 @@ struct nfp_net_dp {
  * @vnic_list:		Entry on device vNIC list
  * @pdev:		Backpointer to PCI device
  * @app:		APP handle if available
+ * @vnic_no_name:	For non-port PF vNIC make ndo_get_phys_port_name return
+ *			-EOPNOTSUPP to keep backwards compatibility (set by app)
  * @port:		Pointer to nfp_port structure if vNIC is a port
  * @app_priv:		APP private data for this vNIC
  */
@@ -662,6 +664,8 @@ struct nfp_net {
 
 	struct pci_dev *pdev;
 	struct nfp_app *app;
+
+	bool vnic_no_name;
 
 	struct nfp_port *port;
 
