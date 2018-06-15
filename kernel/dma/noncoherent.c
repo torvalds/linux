@@ -49,11 +49,13 @@ static int dma_noncoherent_map_sg(struct device *dev, struct scatterlist *sgl,
 	return nents;
 }
 
-#ifdef CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU
+#if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU) || \
+    defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU_ALL)
 static void dma_noncoherent_sync_single_for_cpu(struct device *dev,
 		dma_addr_t addr, size_t size, enum dma_data_direction dir)
 {
 	arch_sync_dma_for_cpu(dev, dma_to_phys(dev, addr), size, dir);
+	arch_sync_dma_for_cpu_all(dev);
 }
 
 static void dma_noncoherent_sync_sg_for_cpu(struct device *dev,
@@ -64,6 +66,7 @@ static void dma_noncoherent_sync_sg_for_cpu(struct device *dev,
 
 	for_each_sg(sgl, sg, nents, i)
 		arch_sync_dma_for_cpu(dev, sg_phys(sg), sg->length, dir);
+	arch_sync_dma_for_cpu_all(dev);
 }
 
 static void dma_noncoherent_unmap_page(struct device *dev, dma_addr_t addr,
@@ -89,7 +92,8 @@ const struct dma_map_ops dma_noncoherent_ops = {
 	.sync_sg_for_device	= dma_noncoherent_sync_sg_for_device,
 	.map_page		= dma_noncoherent_map_page,
 	.map_sg			= dma_noncoherent_map_sg,
-#ifdef CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU
+#if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU) || \
+    defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU_ALL)
 	.sync_single_for_cpu	= dma_noncoherent_sync_single_for_cpu,
 	.sync_sg_for_cpu	= dma_noncoherent_sync_sg_for_cpu,
 	.unmap_page		= dma_noncoherent_unmap_page,
