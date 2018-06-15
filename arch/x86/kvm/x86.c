@@ -8567,7 +8567,7 @@ int kvm_arch_hardware_setup(void)
 		/*
 		 * Make sure the user can only configure tsc_khz values that
 		 * fit into a signed integer.
-		 * A min value is not calculated needed because it will always
+		 * A min value is not calculated because it will always
 		 * be 1 on all machines.
 		 */
 		u64 max = min(0x7fffffffULL,
