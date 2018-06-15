@@ -40,6 +40,10 @@
 #include "tee_tz_priv.h"
 #include "handle.h"
 
+#ifdef CONFIG_ARM
+#include <asm/psci.h>
+#endif
+
 #ifdef CONFIG_OUTER_CACHE
 #undef CONFIG_OUTER_CACHE
 #endif
@@ -1430,6 +1434,13 @@ static struct platform_device tz_0_plt_device = {
 static int __init tee_tz_init(void)
 {
 	int rc;
+
+#ifdef CONFIG_ARM
+	if (!psci_smp_available()) {
+		pr_info("tee: kernel is running in secure mode, tee service unavailable.\n");
+		return -EACCES;
+	}
+#endif
 
 	pr_info("TEE armv7 Driver initialization\n");
 
