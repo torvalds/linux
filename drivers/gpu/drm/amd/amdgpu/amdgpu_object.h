@@ -289,7 +289,8 @@ int amdgpu_bo_restore_from_shadow(struct amdgpu_device *adev,
 				  struct reservation_object *resv,
 				  struct dma_fence **fence,
 				  bool direct);
-
+uint32_t amdgpu_bo_get_preferred_pin_domain(struct amdgpu_device *adev,
+					    uint32_t domain);
 
 /*
  * sub allocation

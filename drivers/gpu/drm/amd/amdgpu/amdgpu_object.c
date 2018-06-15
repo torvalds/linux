@@ -703,11 +703,7 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 	/* This assumes only APU display buffers are pinned with (VRAM|GTT).
 	 * See function amdgpu_display_supported_domains()
 	 */
-	if (domain == (AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT)) {
-		domain = AMDGPU_GEM_DOMAIN_VRAM;
-		if (adev->gmc.real_vram_size <= AMDGPU_SG_THRESHOLD)
-			domain = AMDGPU_GEM_DOMAIN_GTT;
-	}
+	domain = amdgpu_bo_get_preferred_pin_domain(adev, domain);
 
 	if (bo->pin_count) {
 		uint32_t mem_type = bo->tbo.mem.mem_type;
@@ -1065,4 +1061,15 @@ u64 amdgpu_bo_gpu_offset(struct amdgpu_bo *bo)
 		     !(bo->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS));
 
 	return bo->tbo.offset;
+}
+
+uint32_t amdgpu_bo_get_preferred_pin_domain(struct amdgpu_device *adev,
+					    uint32_t domain)
+{
+	if (domain == (AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT)) {
+		domain = AMDGPU_GEM_DOMAIN_VRAM;
+		if (adev->gmc.real_vram_size <= AMDGPU_SG_THRESHOLD)
+			domain = AMDGPU_GEM_DOMAIN_GTT;
+	}
+	return domain;
 }
