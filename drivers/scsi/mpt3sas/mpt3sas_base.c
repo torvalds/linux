@@ -6840,65 +6840,69 @@ mpt3sas_base_detach(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
- * _base_reset_handler - reset callback handler (for base)
+ * _base_pre_reset_handler - pre reset handler
  * @ioc: per adapter object
- * @reset_phase: phase
- *
- * The handler for doing any required cleanup or initialization.
- *
- * The reset phase can be MPT3_IOC_PRE_RESET, MPT3_IOC_AFTER_RESET,
- * MPT3_IOC_DONE_RESET
- *
- * Return nothing.
  */
-static void
-_base_reset_handler(struct MPT3SAS_ADAPTER *ioc, int reset_phase)
+static void _base_pre_reset_handler(struct MPT3SAS_ADAPTER *ioc)
 {
-	mpt3sas_scsih_reset_handler(ioc, reset_phase);
-	mpt3sas_ctl_reset_handler(ioc, reset_phase);
-	switch (reset_phase) {
-	case MPT3_IOC_PRE_RESET:
-		dtmprintk(ioc, pr_info(MPT3SAS_FMT
-		"%s: MPT3_IOC_PRE_RESET\n", ioc->name, __func__));
-		break;
-	case MPT3_IOC_AFTER_RESET:
-		dtmprintk(ioc, pr_info(MPT3SAS_FMT
-		"%s: MPT3_IOC_AFTER_RESET\n", ioc->name, __func__));
-		if (ioc->transport_cmds.status & MPT3_CMD_PENDING) {
-			ioc->transport_cmds.status |= MPT3_CMD_RESET;
-			mpt3sas_base_free_smid(ioc, ioc->transport_cmds.smid);
-			complete(&ioc->transport_cmds.done);
-		}
-		if (ioc->base_cmds.status & MPT3_CMD_PENDING) {
-			ioc->base_cmds.status |= MPT3_CMD_RESET;
-			mpt3sas_base_free_smid(ioc, ioc->base_cmds.smid);
-			complete(&ioc->base_cmds.done);
-		}
-		if (ioc->port_enable_cmds.status & MPT3_CMD_PENDING) {
-			ioc->port_enable_failed = 1;
-			ioc->port_enable_cmds.status |= MPT3_CMD_RESET;
-			mpt3sas_base_free_smid(ioc, ioc->port_enable_cmds.smid);
-			if (ioc->is_driver_loading) {
-				ioc->start_scan_failed =
-				    MPI2_IOCSTATUS_INTERNAL_ERROR;
-				ioc->start_scan = 0;
-				ioc->port_enable_cmds.status =
-				    MPT3_CMD_NOT_USED;
-			} else
-				complete(&ioc->port_enable_cmds.done);
-		}
-		if (ioc->config_cmds.status & MPT3_CMD_PENDING) {
-			ioc->config_cmds.status |= MPT3_CMD_RESET;
-			mpt3sas_base_free_smid(ioc, ioc->config_cmds.smid);
-			ioc->config_cmds.smid = USHRT_MAX;
-			complete(&ioc->config_cmds.done);
-		}
-		break;
-	case MPT3_IOC_DONE_RESET:
-		dtmprintk(ioc, pr_info(MPT3SAS_FMT
-			"%s: MPT3_IOC_DONE_RESET\n", ioc->name, __func__));
-		break;
+	mpt3sas_scsih_pre_reset_handler(ioc);
+	mpt3sas_ctl_pre_reset_handler(ioc);
+	dtmprintk(ioc, pr_info(MPT3SAS_FMT
+			"%s: MPT3_IOC_PRE_RESET\n", ioc->name, __func__));
+}
+
+/**
+ * _base_after_reset_handler - after reset handler
+ * @ioc: per adapter object
+ */
+static void _base_after_reset_handler(struct MPT3SAS_ADAPTER *ioc)
+{
+	mpt3sas_scsih_after_reset_handler(ioc);
+	mpt3sas_ctl_after_reset_handler(ioc);
+	dtmprintk(ioc, pr_info(MPT3SAS_FMT
+			"%s: MPT3_IOC_AFTER_RESET\n", ioc->name, __func__));
+	if (ioc->transport_cmds.status & MPT3_CMD_PENDING) {
+		ioc->transport_cmds.status |= MPT3_CMD_RESET;
+		mpt3sas_base_free_smid(ioc, ioc->transport_cmds.smid);
+		complete(&ioc->transport_cmds.done);
 	}
+	if (ioc->base_cmds.status & MPT3_CMD_PENDING) {
+		ioc->base_cmds.status |= MPT3_CMD_RESET;
+		mpt3sas_base_free_smid(ioc, ioc->base_cmds.smid);
+		complete(&ioc->base_cmds.done);
+	}
+	if (ioc->port_enable_cmds.status & MPT3_CMD_PENDING) {
+		ioc->port_enable_failed = 1;
+		ioc->port_enable_cmds.status |= MPT3_CMD_RESET;
+		mpt3sas_base_free_smid(ioc, ioc->port_enable_cmds.smid);
+		if (ioc->is_driver_loading) {
+			ioc->start_scan_failed =
+				MPI2_IOCSTATUS_INTERNAL_ERROR;
+			ioc->start_scan = 0;
+			ioc->port_enable_cmds.status =
+				MPT3_CMD_NOT_USED;
+		} else {
+			complete(&ioc->port_enable_cmds.done);
+		}
+	}
+	if (ioc->config_cmds.status & MPT3_CMD_PENDING) {
+		ioc->config_cmds.status |= MPT3_CMD_RESET;
+		mpt3sas_base_free_smid(ioc, ioc->config_cmds.smid);
+		ioc->config_cmds.smid = USHRT_MAX;
+		complete(&ioc->config_cmds.done);
+	}
+}
+
+/**
+ * _base_reset_done_handler - reset done handler
+ * @ioc: per adapter object
+ */
+static void _base_reset_done_handler(struct MPT3SAS_ADAPTER *ioc)
+{
+	mpt3sas_scsih_reset_done_handler(ioc);
+	mpt3sas_ctl_reset_done_handler(ioc);
+	dtmprintk(ioc, pr_info(MPT3SAS_FMT
+			"%s: MPT3_IOC_DONE_RESET\n", ioc->name, __func__));
 }
 
 /**
@@ -6974,13 +6978,13 @@ mpt3sas_base_hard_reset_handler(struct MPT3SAS_ADAPTER *ioc,
 		if ((ioc_state & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_FAULT)
 			is_fault = 1;
 	}
-	_base_reset_handler(ioc, MPT3_IOC_PRE_RESET);
+	_base_pre_reset_handler(ioc);
 	mpt3sas_wait_for_commands_to_complete(ioc);
 	_base_mask_interrupts(ioc);
 	r = _base_make_ioc_ready(ioc, type);
 	if (r)
 		goto out;
-	_base_reset_handler(ioc, MPT3_IOC_AFTER_RESET);
+	_base_after_reset_handler(ioc);
 
 	/* If this hard reset is called while port enable is active, then
 	 * there is no reason to call make_ioc_operational
@@ -7001,7 +7005,7 @@ mpt3sas_base_hard_reset_handler(struct MPT3SAS_ADAPTER *ioc,
 
 	r = _base_make_ioc_operational(ioc);
 	if (!r)
-		_base_reset_handler(ioc, MPT3_IOC_DONE_RESET);
+		_base_reset_done_handler(ioc);
 
  out:
 	dtmprintk(ioc, pr_info(MPT3SAS_FMT "%s: %s\n",

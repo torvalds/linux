@@ -9422,60 +9422,68 @@ _scsih_scan_for_devices_after_reset(struct MPT3SAS_ADAPTER *ioc)
 		ioc->name);
 	pr_info(MPT3SAS_FMT "scan devices: complete\n", ioc->name);
 }
+
 /**
  * mpt3sas_scsih_reset_handler - reset callback handler (for scsih)
  * @ioc: per adapter object
- * @reset_phase: phase
  *
  * The handler for doing any required cleanup or initialization.
+ */
+void mpt3sas_scsih_pre_reset_handler(struct MPT3SAS_ADAPTER *ioc)
+{
+	dtmprintk(ioc, pr_info(MPT3SAS_FMT
+			"%s: MPT3_IOC_PRE_RESET\n", ioc->name, __func__));
+}
+
+/**
+ * mpt3sas_scsih_after_reset_handler - reset callback handler (for scsih)
+ * @ioc: per adapter object
  *
- * The reset phase can be MPT3_IOC_PRE_RESET, MPT3_IOC_AFTER_RESET,
- * MPT3_IOC_DONE_RESET
- *
- * Return nothing.
+ * The handler for doing any required cleanup or initialization.
  */
 void
-mpt3sas_scsih_reset_handler(struct MPT3SAS_ADAPTER *ioc, int reset_phase)
+mpt3sas_scsih_after_reset_handler(struct MPT3SAS_ADAPTER *ioc)
 {
-	switch (reset_phase) {
-	case MPT3_IOC_PRE_RESET:
-		dtmprintk(ioc, pr_info(MPT3SAS_FMT
-			"%s: MPT3_IOC_PRE_RESET\n", ioc->name, __func__));
-		break;
-	case MPT3_IOC_AFTER_RESET:
-		dtmprintk(ioc, pr_info(MPT3SAS_FMT
+	dtmprintk(ioc, pr_info(MPT3SAS_FMT
 			"%s: MPT3_IOC_AFTER_RESET\n", ioc->name, __func__));
-		if (ioc->scsih_cmds.status & MPT3_CMD_PENDING) {
-			ioc->scsih_cmds.status |= MPT3_CMD_RESET;
-			mpt3sas_base_free_smid(ioc, ioc->scsih_cmds.smid);
-			complete(&ioc->scsih_cmds.done);
-		}
-		if (ioc->tm_cmds.status & MPT3_CMD_PENDING) {
-			ioc->tm_cmds.status |= MPT3_CMD_RESET;
-			mpt3sas_base_free_smid(ioc, ioc->tm_cmds.smid);
-			complete(&ioc->tm_cmds.done);
-		}
+	if (ioc->scsih_cmds.status & MPT3_CMD_PENDING) {
+		ioc->scsih_cmds.status |= MPT3_CMD_RESET;
+		mpt3sas_base_free_smid(ioc, ioc->scsih_cmds.smid);
+		complete(&ioc->scsih_cmds.done);
+	}
+	if (ioc->tm_cmds.status & MPT3_CMD_PENDING) {
+		ioc->tm_cmds.status |= MPT3_CMD_RESET;
+		mpt3sas_base_free_smid(ioc, ioc->tm_cmds.smid);
+		complete(&ioc->tm_cmds.done);
+	}
 
-		memset(ioc->pend_os_device_add, 0, ioc->pend_os_device_add_sz);
-		memset(ioc->device_remove_in_progress, 0,
-		       ioc->device_remove_in_progress_sz);
-		_scsih_fw_event_cleanup_queue(ioc);
-		_scsih_flush_running_cmds(ioc);
-		break;
-	case MPT3_IOC_DONE_RESET:
-		dtmprintk(ioc, pr_info(MPT3SAS_FMT
+	memset(ioc->pend_os_device_add, 0, ioc->pend_os_device_add_sz);
+	memset(ioc->device_remove_in_progress, 0,
+	       ioc->device_remove_in_progress_sz);
+	_scsih_fw_event_cleanup_queue(ioc);
+	_scsih_flush_running_cmds(ioc);
+}
+
+/**
+ * mpt3sas_scsih_reset_handler - reset callback handler (for scsih)
+ * @ioc: per adapter object
+ *
+ * The handler for doing any required cleanup or initialization.
+ */
+void
+mpt3sas_scsih_reset_done_handler(struct MPT3SAS_ADAPTER *ioc)
+{
+	dtmprintk(ioc, pr_info(MPT3SAS_FMT
 			"%s: MPT3_IOC_DONE_RESET\n", ioc->name, __func__));
-		if ((!ioc->is_driver_loading) && !(disable_discovery > 0 &&
-		    !ioc->sas_hba.num_phys)) {
-			_scsih_prep_device_scan(ioc);
-			_scsih_create_enclosure_list_after_reset(ioc);
-			_scsih_search_responding_sas_devices(ioc);
-			_scsih_search_responding_pcie_devices(ioc);
-			_scsih_search_responding_raid_devices(ioc);
-			_scsih_search_responding_expanders(ioc);
-			_scsih_error_recovery_delete_devices(ioc);
-		}
-		break;
+	if ((!ioc->is_driver_loading) && !(disable_discovery > 0 &&
+					   !ioc->sas_hba.num_phys)) {
+		_scsih_prep_device_scan(ioc);
+		_scsih_create_enclosure_list_after_reset(ioc);
+		_scsih_search_responding_sas_devices(ioc);
+		_scsih_search_responding_pcie_devices(ioc);
+		_scsih_search_responding_raid_devices(ioc);
+		_scsih_search_responding_expanders(ioc);
+		_scsih_error_recovery_delete_devices(ioc);
 	}
 }
 
