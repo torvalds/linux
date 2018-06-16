@@ -91,22 +91,26 @@
 
 &cpu0 {
 	cpu0-supply = <&vdd_cpu>;
-	operating-points = <
-		/* KHz    uV */
-		1800000 1400000
-		1704000 1350000
-		1608000 1300000
-		1512000 1250000
-		1416000 1200000
-		1200000 1100000
-		1008000 1050000
-		 816000 1000000
-		 696000  950000
-		 600000  900000
-		 408000  900000
-		 216000  900000
-		 126000  900000
-	>;
+};
+
+/* rk3288-c used in Veyron Chrome-devices has slightly changed OPPs */
+&cpu_opp_table {
+	/delete-node/ opp-312000000;
+
+	opp-1512000000 {
+		opp-microvolt = <1250000>;
+	};
+	opp-1608000000 {
+		opp-microvolt = <1300000>;
+	};
+	opp-1704000000 {
+		opp-hz = /bits/ 64 <1704000000>;
+		opp-microvolt = <1350000>;
+	};
+	opp-1800000000 {
+		opp-hz = /bits/ 64 <1800000000>;
+		opp-microvolt = <1400000>;
+	};
 };
 
 &emmc {
