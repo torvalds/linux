@@ -886,12 +886,9 @@ static unsigned int msdc_command_resp(struct msdc_host   *host,
 	void __iomem *base = host->base;
 	u32 opcode = cmd->opcode;
 	//u32 rawcmd;
-	u32 resp;
 	u32 wints = MSDC_INT_CMDRDY  | MSDC_INT_RSPCRCERR  | MSDC_INT_CMDTMO  |
 		    MSDC_INT_ACMDRDY | MSDC_INT_ACMDCRCERR | MSDC_INT_ACMDTMO |
 		    MSDC_INT_ACMD19_DONE;
-
-	resp = host->cmd_rsp;
 
 	BUG_ON(in_interrupt());
 	//init_completion(&host->cmd_done);
