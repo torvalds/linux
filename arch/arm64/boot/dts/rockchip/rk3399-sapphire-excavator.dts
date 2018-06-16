@@ -149,7 +149,6 @@
 &i2s0 {
 	rockchip,playback-channels = <8>;
 	rockchip,capture-channels = <8>;
-	#sound-dai-cells = <0>;
 	status = "okay";
 };
 
@@ -198,6 +197,5 @@
 &spdif {
 	i2c-scl-rising-time-ns = <450>;
 	i2c-scl-falling-time-ns = <15>;
-	#sound-dai-cells = <0>;
 	status = "okay";
 };
