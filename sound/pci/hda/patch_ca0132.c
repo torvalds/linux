@@ -7462,7 +7462,7 @@ static void ca0132_config(struct hda_codec *codec)
 static int ca0132_prepare_verbs(struct hda_codec *codec)
 {
 /* Verbs + terminator (an empty element) */
-#define NUM_SPEC_VERBS 4
+#define NUM_SPEC_VERBS 2
 	struct ca0132_spec *spec = codec->spec;
 
 	spec->chip_init_verbs = ca0132_init_verbs0;
@@ -7474,34 +7474,24 @@ static int ca0132_prepare_verbs(struct hda_codec *codec)
 	if (!spec->spec_init_verbs)
 		return -ENOMEM;
 
-	/* HP jack autodetection */
-	spec->spec_init_verbs[0].nid = spec->unsol_tag_hp;
-	spec->spec_init_verbs[0].param = AC_VERB_SET_UNSOLICITED_ENABLE;
-	spec->spec_init_verbs[0].verb = AC_USRSP_EN | spec->unsol_tag_hp;
-
-	/* MIC1 jack autodetection */
-	spec->spec_init_verbs[1].nid = spec->unsol_tag_amic1;
-	spec->spec_init_verbs[1].param = AC_VERB_SET_UNSOLICITED_ENABLE;
-	spec->spec_init_verbs[1].verb = AC_USRSP_EN | spec->unsol_tag_amic1;
-
 	/* config EAPD */
-	spec->spec_init_verbs[2].nid = 0x0b;
-	spec->spec_init_verbs[2].param = 0x78D;
-	spec->spec_init_verbs[2].verb = 0x00;
+	spec->spec_init_verbs[0].nid = 0x0b;
+	spec->spec_init_verbs[0].param = 0x78D;
+	spec->spec_init_verbs[0].verb = 0x00;
 
 	/* Previously commented configuration */
 	/*
-	spec->spec_init_verbs[3].nid = 0x0b;
-	spec->spec_init_verbs[3].param = AC_VERB_SET_EAPD_BTLENABLE;
+	spec->spec_init_verbs[2].nid = 0x0b;
+	spec->spec_init_verbs[2].param = AC_VERB_SET_EAPD_BTLENABLE;
+	spec->spec_init_verbs[2].verb = 0x02;
+
+	spec->spec_init_verbs[3].nid = 0x10;
+	spec->spec_init_verbs[3].param = 0x78D;
 	spec->spec_init_verbs[3].verb = 0x02;
 
 	spec->spec_init_verbs[4].nid = 0x10;
-	spec->spec_init_verbs[4].param = 0x78D;
+	spec->spec_init_verbs[4].param = AC_VERB_SET_EAPD_BTLENABLE;
 	spec->spec_init_verbs[4].verb = 0x02;
-
-	spec->spec_init_verbs[5].nid = 0x10;
-	spec->spec_init_verbs[5].param = AC_VERB_SET_EAPD_BTLENABLE;
-	spec->spec_init_verbs[5].verb = 0x02;
 	*/
 
 	/* Terminator: spec->spec_init_verbs[NUM_SPEC_VERBS-1] */
