@@ -13,25 +13,49 @@
 #include <linux/kvm_host.h>
 
 #include <trace/events/kvm.h>
+#include <xen/interface/xen.h>
 
 #include "trace.h"
 
 DEFINE_STATIC_KEY_DEFERRED_FALSE(kvm_xen_enabled, HZ);
 
+static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
+{
+	int ret;
+	int idx = srcu_read_lock(&kvm->srcu);
+
+	ret = kvm_gfn_to_hva_cache_init(kvm, &kvm->arch.xen.shinfo_cache,
+					gfn_to_gpa(gfn), PAGE_SIZE);
+	if (!ret) {
+		kvm->arch.xen.shinfo_set = true;
+	}
+
+	srcu_read_unlock(&kvm->srcu, idx);
+	return ret;
+}
+
 int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 {
 	int r = -ENOENT;
+
+	mutex_lock(&kvm->lock);
 
 	mutex_unlock(&kvm->lock);
 
 	switch (data->type) {
 	case KVM_XEN_ATTR_TYPE_LONG_MODE:
-		if (!IS_ENABLED(CONFIG_64BIT) && data->u.long_mode)
-			return -EINVAL;
-
-		kvm->arch.xen.long_mode = !!data->u.long_mode;
-		r = 0;
+		if (!IS_ENABLED(CONFIG_64BIT) && data->u.long_mode) {
+			r = -EINVAL;
+		} else {
+			kvm->arch.xen.long_mode = !!data->u.long_mode;
+			r = 0;
+		}
 		break;
+
+	case KVM_XEN_ATTR_TYPE_SHARED_INFO:
+		r = kvm_xen_shared_info_init(kvm, data->u.shared_info.gfn);
+		break;
+
 	default:
 		break;
 	}
@@ -51,6 +75,14 @@ int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		data->u.long_mode = kvm->arch.xen.long_mode;
 		r = 0;
 		break;
+
+	case KVM_XEN_ATTR_TYPE_SHARED_INFO:
+		if (kvm->arch.xen.shinfo_set) {
+			data->u.shared_info.gfn = gpa_to_gfn(kvm->arch.xen.shinfo_cache.gpa);
+			r = 0;
+		}
+		break;
+
 	default:
 		break;
 	}
