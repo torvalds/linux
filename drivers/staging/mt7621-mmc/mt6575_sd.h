@@ -479,8 +479,6 @@ struct bd {
 };
 
 struct msdc_dma {
-	u32 sglen;                   /* size of scatter list */
-
 	struct gpd *gpd;                  /* pointer to gpd array */
 	struct bd  *bd;                   /* pointer to bd array */
 	dma_addr_t gpd_addr;         /* the physical address of gpd array */
