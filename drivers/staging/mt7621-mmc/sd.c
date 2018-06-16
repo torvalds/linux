@@ -1037,15 +1037,14 @@ static void msdc_dma_setup(struct msdc_host *host, struct msdc_dma *dma,
 	struct scatterlist *sg;
 	struct gpd *gpd;
 	struct bd *bd;
-	u32 j, num;
+	u32 j;
 
 	BUG_ON(sglen > MAX_BD_NUM); /* not support currently */
 
 	N_MSG(DMA, "DMA sglen<%d> xfersz<%d>", sglen, host->xfer_size);
 
 	/* calculate the required number of gpd */
-	num = (sglen + MAX_BD_PER_GPD - 1) / MAX_BD_PER_GPD;
-	BUG_ON(num != 1);
+	BUG_ON(((sglen + MAX_BD_PER_GPD - 1) / MAX_BD_PER_GPD) != 1);
 
 	gpd = dma->gpd;
 	bd  = dma->bd;
