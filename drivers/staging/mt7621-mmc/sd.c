@@ -218,10 +218,6 @@ static u32 hclks[] = {50000000}; /* +/- by chhung */
 		writel((cmd), host->base + SDC_CMD);	\
 	} while (0)
 
-// can modify to read h/w register.
-//#define is_card_present(h)   ((readl(MSDC_PS) & MSDC_PS_CDSTS) ? 0 : 1);
-#define is_card_present(h)     (((struct msdc_host *)(h))->card_inserted)
-
 /* +++ by chhung */
 #ifndef __ASSEMBLY__
 #define PHYSADDR(a)             (((unsigned long)(a)) & 0x1fffffff)
