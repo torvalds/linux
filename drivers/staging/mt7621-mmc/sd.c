@@ -174,7 +174,7 @@ static void msdc_reset_hw(struct msdc_host *host)
 #define msdc_clr_int() \
 	do {							\
 		volatile u32 val = sdr_read32(MSDC_INT);	\
-		sdr_write32(MSDC_INT, val);			\
+		writel(val, MSDC_INT);			\
 	} while (0)
 
 #define msdc_clr_fifo() \
@@ -235,8 +235,8 @@ static u32 hclks[] = {50000000}; /* +/- by chhung */
 
 #define sdc_send_cmd(cmd, arg) \
 	do {					\
-		sdr_write32(SDC_ARG, (arg));	\
-		sdr_write32(SDC_CMD, (cmd));	\
+		writel((arg), SDC_ARG);	\
+		writel((cmd), SDC_CMD);	\
 	} while (0)
 
 // can modify to read h/w register.
@@ -476,7 +476,7 @@ static void msdc_select_clksrc(struct msdc_host *host, unsigned char clksrc)
 	} else {
 		val &= ~0x3; val |= clksrc;
 	}
-	sdr_write32(MSDC_CLKSRC_REG, val);
+	writel(val, MSDC_CLKSRC_REG);
 
 	host->hclk = hclks[clksrc];
 	host->hw->clk_src = clksrc;
@@ -1044,14 +1044,14 @@ static void msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
 	case MSDC_MODE_DMA_BASIC:
 		BUG_ON(host->xfer_size > 65535);
 		BUG_ON(dma->sglen != 1);
-		sdr_write32(MSDC_DMA_SA, PHYSADDR(sg_dma_address(sg)));
+		writel(PHYSADDR(sg_dma_address(sg)), MSDC_DMA_SA);
 		sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_LASTBUF, 1);
 //#if defined (CONFIG_RALINK_MT7620)
 		if (ralink_soc == MT762X_SOC_MT7620A)
 			sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_XFERSZ, sg_dma_len(sg));
 //#elif defined (CONFIG_RALINK_MT7621) || defined (CONFIG_RALINK_MT7628)
 		else
-			sdr_write32((void __iomem *)(RALINK_MSDC_BASE + 0xa8), sg_dma_len(sg));
+			writel(sg_dma_len(sg), (void __iomem *)(RALINK_MSDC_BASE + 0xa8));
 //#endif
 		sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_BRUSTSZ,
 			      MSDC_BRUST_64B);
@@ -1094,7 +1094,7 @@ static void msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
 			      MSDC_BRUST_64B);
 		sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_MODE, 1);
 
-		sdr_write32(MSDC_DMA_SA, PHYSADDR((u32)dma->gpd_addr));
+		writel(PHYSADDR((u32)dma->gpd_addr), MSDC_DMA_SA);
 		break;
 
 	default:
@@ -1172,7 +1172,7 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			}
 		}
 
-		sdr_write32(SDC_BLK_NUM, data->blocks);
+		writel(data->blocks, SDC_BLK_NUM);
 		//msdc_clr_fifo();  /* no need */
 
 		msdc_dma_on();  /* enable DMA mode first!! */
@@ -1465,8 +1465,8 @@ static int msdc_tune_bread(struct mmc_host *mmc, struct mmc_request *mrq)
 		cur_rxdly0 = (cur_dat0 << 24) | (cur_dat1 << 16) | (cur_dat2 << 8) | (cur_dat3 << 0);
 		cur_rxdly1 = (cur_dat4 << 24) | (cur_dat5 << 16) | (cur_dat6 << 8) | (cur_dat7 << 0);
 
-		sdr_write32(MSDC_DAT_RDDLY0, cur_rxdly0);
-		sdr_write32(MSDC_DAT_RDDLY1, cur_rxdly1);
+		writel(cur_rxdly0, MSDC_DAT_RDDLY0);
+		writel(cur_rxdly1, MSDC_DAT_RDDLY1);
 
 	} while (++rxdly < 32);
 
@@ -1555,7 +1555,7 @@ static int msdc_tune_bwrite(struct mmc_host *mmc, struct mmc_request *mrq)
 		cur_dat3 = orig_dat3;
 
 		cur_rxdly0 = (cur_dat0 << 24) | (cur_dat1 << 16) | (cur_dat2 << 8) | (cur_dat3 << 0);
-		sdr_write32(MSDC_DAT_RDDLY0, cur_rxdly0);
+		writel(cur_rxdly0, MSDC_DAT_RDDLY0);
 	} while (++rxdly < 32);
 
 done:
@@ -1726,7 +1726,7 @@ static void msdc_set_buswidth(struct msdc_host *host, u32 width)
 		break;
 	}
 
-	sdr_write32(SDC_CFG, val);
+	writel(val, SDC_CFG);
 
 	N_MSG(CFG, "Bus Width = %d", width);
 }
@@ -1787,12 +1787,12 @@ static void msdc_ops_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 				      MSDC_SMPL_FALLING);
 			//} /* for tuning debug */
 		} else { /* default value */
-			sdr_write32(MSDC_IOCON,      0x00000000);
-			// sdr_write32(MSDC_DAT_RDDLY0, 0x00000000);
-			sdr_write32(MSDC_DAT_RDDLY0, 0x10101010);		// for MT7620 E2 and afterward
-			sdr_write32(MSDC_DAT_RDDLY1, 0x00000000);
-			// sdr_write32(MSDC_PAD_TUNE,   0x00000000);
-			sdr_write32(MSDC_PAD_TUNE,   0x84101010);		// for MT7620 E2 and afterward
+			writel(0x00000000, MSDC_IOCON);
+			// writel(0x00000000, MSDC_DAT_RDDLY0);
+			writel(0x10101010, MSDC_DAT_RDDLY0);		// for MT7620 E2 and afterward
+			writel(0x00000000, MSDC_DAT_RDDLY1);
+			// writel(0x00000000, MSDC_PAD_TUNE);
+			writel(0x84101010, MSDC_PAD_TUNE);		// for MT7620 E2 and afterward
 		}
 		msdc_set_mclk(host, ddr, ios->clock);
 	}
@@ -1882,7 +1882,7 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 	u32 intsts = sdr_read32(MSDC_INT);
 	u32 inten  = sdr_read32(MSDC_INTEN); inten &= intsts;
 
-	sdr_write32(MSDC_INT, intsts);  /* clear interrupts */
+	writel(intsts, MSDC_INT);  /* clear interrupts */
 	/* MSG will cause fatal error */
 
 	/* card change interrupt */
@@ -2078,21 +2078,21 @@ static void msdc_init_hw(struct msdc_host *host)
 
 	/* Disable and clear all interrupts */
 	sdr_clr_bits(MSDC_INTEN, sdr_read32(MSDC_INTEN));
-	sdr_write32(MSDC_INT, sdr_read32(MSDC_INT));
+	writel(sdr_read32(MSDC_INT), MSDC_INT);
 
 #if 1
 	/* reset tuning parameter */
-	sdr_write32(MSDC_PAD_CTL0,   0x00090000);
-	sdr_write32(MSDC_PAD_CTL1,   0x000A0000);
-	sdr_write32(MSDC_PAD_CTL2,   0x000A0000);
-	// sdr_write32(MSDC_PAD_TUNE,   0x00000000);
-	sdr_write32(MSDC_PAD_TUNE,   0x84101010);		// for MT7620 E2 and afterward
-	// sdr_write32(MSDC_DAT_RDDLY0, 0x00000000);
-	sdr_write32(MSDC_DAT_RDDLY0, 0x10101010);		// for MT7620 E2 and afterward
-	sdr_write32(MSDC_DAT_RDDLY1, 0x00000000);
-	sdr_write32(MSDC_IOCON,      0x00000000);
+	writel(0x00090000, MSDC_PAD_CTL0);
+	writel(0x000A0000, MSDC_PAD_CTL1);
+	writel(0x000A0000, MSDC_PAD_CTL2);
+	// writel(  0x00000000, MSDC_PAD_TUNE);
+	writel(0x84101010, MSDC_PAD_TUNE);		// for MT7620 E2 and afterward
+	// writel(0x00000000, MSDC_DAT_RDDLY0);
+	writel(0x10101010, MSDC_DAT_RDDLY0);		// for MT7620 E2 and afterward
+	writel(0x00000000, MSDC_DAT_RDDLY1);
+	writel(0x00000000, MSDC_IOCON);
 #if 0 // use MT7620 default value: 0x403c004f
-	sdr_write32(MSDC_PATCH_BIT0, 0x003C000F); /* bit0 modified: Rx Data Clock Source: 1 -> 2.0*/
+	writel(0x003C000F, MSDC_PATCH_BIT0); /* bit0 modified: Rx Data Clock Source: 1 -> 2.0*/
 #endif
 
 	if (sdr_read32(MSDC_ECO_VER) >= 4) {
@@ -2157,7 +2157,7 @@ static void msdc_deinit_hw(struct msdc_host *host)
 
 	/* Disable and clear all interrupts */
 	sdr_clr_bits(MSDC_INTEN, sdr_read32(MSDC_INTEN));
-	sdr_write32(MSDC_INT, sdr_read32(MSDC_INT));
+	writel(sdr_read32(MSDC_INT), MSDC_INT);
 
 	/* Disable card detection */
 	msdc_enable_cd_irq(host, 0);
@@ -2420,7 +2420,7 @@ static int __init mt_msdc_init(void)
 	// Set the pins for sdxc to sdxc mode
 	//FIXME: this should be done by pinctl and not by the sd driver
 	reg = sdr_read32((void __iomem *)(RALINK_SYSCTL_BASE + 0x60)) & ~(0x3 << 18);
-	sdr_write32((void __iomem *)(RALINK_SYSCTL_BASE + 0x60), reg);
+	writel(reg, (void __iomem *)(RALINK_SYSCTL_BASE + 0x60));
 
 	ret = platform_driver_register(&mt_msdc_driver);
 	if (ret) {
