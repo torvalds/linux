@@ -147,7 +147,6 @@ static int msdc_rsp[] = {
 	7,  /* RESP_R1b */
 };
 
-#define msdc_txfifocnt()   ((sdr_read32(MSDC_FIFOCS) & MSDC_FIFOCS_TXCNT) >> 16)
 #define msdc_rxfifocnt()   ((sdr_read32(MSDC_FIFOCS) & MSDC_FIFOCS_RXCNT) >> 0)
 
 #define msdc_dma_on()        sdr_clr_bits(MSDC_CFG, MSDC_CFG_PIO)
