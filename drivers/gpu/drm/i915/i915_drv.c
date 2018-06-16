@@ -1841,6 +1841,8 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	else
 		intel_display_set_init_power(dev_priv, true);
 
+	intel_engines_sanitize(dev_priv);
+
 	enable_rpm_wakeref_asserts(dev_priv);
 
 out:

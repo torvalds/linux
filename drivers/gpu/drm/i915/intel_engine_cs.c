@@ -1078,6 +1078,28 @@ void intel_engines_reset_default_submission(struct drm_i915_private *i915)
 }
 
 /**
+ * intel_engines_sanitize: called after the GPU has lost power
+ * @i915: the i915 device
+ *
+ * Anytime we reset the GPU, either with an explicit GPU reset or through a
+ * PCI power cycle, the GPU loses state and we must reset our state tracking
+ * to match. Note that calling intel_engines_sanitize() if the GPU has not
+ * been reset results in much confusion!
+ */
+void intel_engines_sanitize(struct drm_i915_private *i915)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	GEM_TRACE("\n");
+
+	for_each_engine(engine, i915, id) {
+		if (engine->reset.reset)
+			engine->reset.reset(engine, NULL);
+	}
+}
+
+/**
  * intel_engines_park: called when the GT is transitioning from busy->idle
  * @i915: the i915 device
  *
