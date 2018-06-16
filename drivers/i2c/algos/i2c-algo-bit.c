@@ -647,6 +647,11 @@ static int __i2c_bit_add_bus(struct i2c_adapter *adap,
 	if (bit_adap->getscl == NULL)
 		adap->quirks = &i2c_bit_quirk_no_clk_stretch;
 
+	/*
+	 * We tried forcing SCL/SDA to an initial state here. But that caused a
+	 * regression, sadly. Check Bugzilla #200045 for details.
+	 */
+
 	ret = add_adapter(adap);
 	if (ret < 0)
 		return ret;
