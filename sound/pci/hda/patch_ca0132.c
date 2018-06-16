@@ -7237,8 +7237,9 @@ static int ca0132_init(struct hda_codec *codec)
 	case QUIRK_R3DI:
 		r3di_setup_defaults(codec);
 		break;
-	case QUIRK_NONE:
-	case QUIRK_ALIENWARE:
+	case QUIRK_SBZ:
+		break;
+	default:
 		ca0132_setup_defaults(codec);
 		ca0132_init_analog_mic2(codec);
 		ca0132_init_dmic(codec);
