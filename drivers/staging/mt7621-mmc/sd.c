@@ -705,25 +705,11 @@ static void msdc_pm(pm_message_t state, void *data)
 }
 #endif
 
-/*--------------------------------------------------------------------------*/
-/* mmc_host_ops members                                                      */
-/*--------------------------------------------------------------------------*/
-static unsigned int msdc_command_start(struct msdc_host   *host,
-				       struct mmc_command *cmd,
-				       unsigned long       timeout)
+static inline u32 msdc_cmd_find_resp(struct mmc_command *cmd)
 {
 	u32 opcode = cmd->opcode;
-	u32 rawcmd;
-	u32 wints = MSDC_INT_CMDRDY  | MSDC_INT_RSPCRCERR  | MSDC_INT_CMDTMO  |
-		    MSDC_INT_ACMDRDY | MSDC_INT_ACMDCRCERR | MSDC_INT_ACMDTMO |
-		    MSDC_INT_ACMD19_DONE;
-
 	u32 resp;
-	unsigned long tmo;
 
-	/* Protocol layer does not provide response type, but our hardware needs
-	 * to know exact type, not just size!
-	 */
 	if (opcode == MMC_SEND_OP_COND || opcode == SD_APP_OP_COND) {
 		resp = RESP_R3;
 	} else if (opcode == MMC_SET_RELATIVE_ADDR) {
@@ -758,6 +744,30 @@ static unsigned int msdc_command_start(struct msdc_host   *host,
 			break;
 		}
 	}
+
+	return resp;
+}
+
+/*--------------------------------------------------------------------------*/
+/* mmc_host_ops members                                                      */
+/*--------------------------------------------------------------------------*/
+static unsigned int msdc_command_start(struct msdc_host   *host,
+				       struct mmc_command *cmd,
+				       unsigned long       timeout)
+{
+	u32 opcode = cmd->opcode;
+	u32 rawcmd;
+	u32 wints = MSDC_INT_CMDRDY  | MSDC_INT_RSPCRCERR  | MSDC_INT_CMDTMO  |
+		    MSDC_INT_ACMDRDY | MSDC_INT_ACMDCRCERR | MSDC_INT_ACMDTMO |
+		    MSDC_INT_ACMD19_DONE;
+
+	u32 resp;
+	unsigned long tmo;
+
+	/* Protocol layer does not provide response type, but our hardware needs
+	 * to know exact type, not just size!
+	 */
+	resp = msdc_cmd_find_resp(cmd);
 
 	cmd->error = 0;
 	/* rawcmd :
