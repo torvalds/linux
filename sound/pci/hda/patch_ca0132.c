@@ -5966,7 +5966,7 @@ static int ca0132_build_pcms(struct hda_codec *codec)
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[0];
 
 	/* With the DSP enabled, desktops don't use this ADC. */
-	if (spec->use_alt_functions) {
+	if (!spec->use_alt_functions) {
 		info = snd_hda_codec_pcm_new(codec, "CA0132 Analog Mic-In2");
 		if (!info)
 			return -ENOMEM;
