@@ -710,7 +710,7 @@ static inline u32 msdc_cmd_find_resp(struct mmc_command *cmd)
 	u32 opcode = cmd->opcode;
 	u32 resp;
 
-	if (opcode == MMC_SEND_OP_COND || opcode == SD_APP_OP_COND) {
+	if (opcode == SD_APP_OP_COND) {
 		resp = RESP_R3;
 	} else if (opcode == MMC_SET_RELATIVE_ADDR) {
 		resp = (mmc_cmd_type(cmd) == MMC_CMD_BCR) ? RESP_R6 : RESP_R1;
