@@ -53,10 +53,8 @@
 //#define IRQ_SDC 14	//MT7620 /*FIXME*/
 #ifdef CONFIG_SOC_MT7621
 #define RALINK_SYSCTL_BASE		0xbe000000
-#define RALINK_MSDC_BASE		0xbe130000
 #else
 #define RALINK_SYSCTL_BASE		0xb0000000
-#define RALINK_MSDC_BASE		0xb0130000
 #endif
 #define IRQ_SDC			22	/*FIXME*/
 
