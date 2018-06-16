@@ -1040,66 +1040,42 @@ static void msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
 	struct gpd *gpd;
 	struct bd *bd;
 
-	switch (dma->mode) {
-	case MSDC_MODE_DMA_BASIC:
-		BUG_ON(host->xfer_size > 65535);
-		BUG_ON(dma->sglen != 1);
-		writel(PHYSADDR(sg_dma_address(sg)), MSDC_DMA_SA);
-		sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_LASTBUF, 1);
-//#if defined (CONFIG_RALINK_MT7620)
-		if (ralink_soc == MT762X_SOC_MT7620A)
-			sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_XFERSZ, sg_dma_len(sg));
-//#elif defined (CONFIG_RALINK_MT7621) || defined (CONFIG_RALINK_MT7628)
+	/* calculate the required number of gpd */
+	num = (dma->sglen + MAX_BD_PER_GPD - 1) / MAX_BD_PER_GPD;
+	BUG_ON(num != 1);
+
+	gpd = dma->gpd;
+	bd  = dma->bd;
+
+	/* modify gpd*/
+	//gpd->intr = 0;
+	gpd->hwo = 1;  /* hw will clear it */
+	gpd->bdp = 1;
+	gpd->chksum = 0;  /* need to clear first. */
+	gpd->chksum = msdc_dma_calcs((u8 *)gpd, 16);
+
+	/* modify bd*/
+	for_each_sg(dma->sg, sg, dma->sglen, j) {
+		bd[j].blkpad = 0;
+		bd[j].dwpad = 0;
+		bd[j].ptr = (void *)sg_dma_address(sg);
+		bd[j].buflen = sg_dma_len(sg);
+
+		if (j == dma->sglen - 1)
+			bd[j].eol = 1;	/* the last bd */
 		else
-			writel(sg_dma_len(sg), (void __iomem *)(RALINK_MSDC_BASE + 0xa8));
-//#endif
-		sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_BRUSTSZ,
-			      MSDC_BRUST_64B);
-		sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_MODE, 0);
-		break;
-	case MSDC_MODE_DMA_DESC:
+			bd[j].eol = 0;
 
-		/* calculate the required number of gpd */
-		num = (dma->sglen + MAX_BD_PER_GPD - 1) / MAX_BD_PER_GPD;
-		BUG_ON(num != 1);
-
-		gpd = dma->gpd;
-		bd  = dma->bd;
-
-		/* modify gpd*/
-		//gpd->intr = 0;
-		gpd->hwo = 1;  /* hw will clear it */
-		gpd->bdp = 1;
-		gpd->chksum = 0;  /* need to clear first. */
-		gpd->chksum = msdc_dma_calcs((u8 *)gpd, 16);
-
-		/* modify bd*/
-		for_each_sg(dma->sg, sg, dma->sglen, j) {
-			bd[j].blkpad = 0;
-			bd[j].dwpad = 0;
-			bd[j].ptr = (void *)sg_dma_address(sg);
-			bd[j].buflen = sg_dma_len(sg);
-
-			if (j == dma->sglen - 1)
-				bd[j].eol = 1;	/* the last bd */
-			else
-				bd[j].eol = 0;
-
-			bd[j].chksum = 0; /* checksume need to clear first */
-			bd[j].chksum = msdc_dma_calcs((u8 *)(&bd[j]), 16);
-		}
-
-		sdr_set_field(MSDC_DMA_CFG, MSDC_DMA_CFG_DECSEN, 1);
-		sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_BRUSTSZ,
-			      MSDC_BRUST_64B);
-		sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_MODE, 1);
-
-		writel(PHYSADDR((u32)dma->gpd_addr), MSDC_DMA_SA);
-		break;
-
-	default:
-		break;
+		bd[j].chksum = 0; /* checksume need to clear first */
+		bd[j].chksum = msdc_dma_calcs((u8 *)(&bd[j]), 16);
 	}
+
+	sdr_set_field(MSDC_DMA_CFG, MSDC_DMA_CFG_DECSEN, 1);
+	sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_BRUSTSZ,
+		      MSDC_BRUST_64B);
+	sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_MODE, 1);
+
+	writel(PHYSADDR((u32)dma->gpd_addr), MSDC_DMA_SA);
 
 	N_MSG(DMA, "DMA_CTRL = 0x%x", readl(MSDC_DMA_CTRL));
 	N_MSG(DMA, "DMA_CFG  = 0x%x", readl(MSDC_DMA_CFG));
