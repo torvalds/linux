@@ -35,7 +35,7 @@ config RADIO_SI476X
 	  In order to control your radio card, you will need to use programs
 	  that are compatible with the Video For Linux 2 API.  Information on
 	  this API and pointers to "v4l2" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
+	  <file:Documentation/media/media_uapi.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-si476x.
@@ -75,7 +75,7 @@ config RADIO_MAXIRADIO
 	  In order to control your radio card, you will need to use programs
 	  that are compatible with the Video For Linux API.  Information on
 	  this API and pointers to "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
+	  <file:Documentation/media/media_uapi.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-maxiradio.
@@ -93,7 +93,7 @@ config RADIO_SHARK
 	  In order to control your radio card, you will need to use programs
 	  that are compatible with the Video For Linux API.  Information on
 	  this API and pointers to "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
+	  <file:Documentation/media/media_uapi.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-shark.
@@ -110,7 +110,7 @@ config RADIO_SHARK2
 	  In order to control your radio card, you will need to use programs
 	  that are compatible with the Video For Linux API.  Information on
 	  this API and pointers to "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
+	  <file:Documentation/media/media_uapi.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-shark2.
@@ -217,7 +217,7 @@ config RADIO_WL1273
 	  In order to control your radio card, you will need to use programs
 	  that are compatible with the Video For Linux 2 API.  Information on
 	  this API and pointers to "v4l2" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
+	  <file:Documentation/media/media_uapi.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-wl1273.
@@ -272,7 +272,7 @@ config RADIO_RTRACK
 	  been reported to be used by these cards.
 
 	  More information is contained in the file
-	  <file:Documentation/video4linux/radiotrack.txt>.
+	  <file:Documentation/media/v4l-drivers/radiotrack.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-aimslab.

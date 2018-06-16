@@ -194,7 +194,7 @@ struct ingenic_cgu {
 
 /**
  * struct ingenic_clk - private data for a clock
- * @hw: see Documentation/clk.txt
+ * @hw: see Documentation/driver-api/clk.rst
  * @cgu: a pointer to the CGU data
  * @idx: the index of this clock in cgu->clock_info
  */

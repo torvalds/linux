@@ -1291,7 +1291,7 @@ restore_params:
  *
  * @stream: Soundwire stream
  *
- * Documentation/soundwire/stream.txt explains this API in detail
+ * Documentation/driver-api/soundwire/stream.rst explains this API in detail
  */
 int sdw_prepare_stream(struct sdw_stream_runtime *stream)
 {
@@ -1348,7 +1348,7 @@ static int _sdw_enable_stream(struct sdw_stream_runtime *stream)
  *
  * @stream: Soundwire stream
  *
- * Documentation/soundwire/stream.txt explains this API in detail
+ * Documentation/driver-api/soundwire/stream.rst explains this API in detail
  */
 int sdw_enable_stream(struct sdw_stream_runtime *stream)
 {
@@ -1400,7 +1400,7 @@ static int _sdw_disable_stream(struct sdw_stream_runtime *stream)
  *
  * @stream: Soundwire stream
  *
- * Documentation/soundwire/stream.txt explains this API in detail
+ * Documentation/driver-api/soundwire/stream.rst explains this API in detail
  */
 int sdw_disable_stream(struct sdw_stream_runtime *stream)
 {
@@ -1456,7 +1456,7 @@ static int _sdw_deprepare_stream(struct sdw_stream_runtime *stream)
  *
  * @stream: Soundwire stream
  *
- * Documentation/soundwire/stream.txt explains this API in detail
+ * Documentation/driver-api/soundwire/stream.rst explains this API in detail
  */
 int sdw_deprepare_stream(struct sdw_stream_runtime *stream)
 {

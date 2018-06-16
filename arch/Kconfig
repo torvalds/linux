@@ -403,7 +403,7 @@ config SECCOMP_FILTER
 	  in terms of Berkeley Packet Filter programs which implement
 	  task-defined system call filtering polices.
 
-	  See Documentation/prctl/seccomp_filter.txt for details.
+	  See Documentation/userspace-api/seccomp_filter.rst for details.
 
 preferred-plugin-hostcc := $(if-success,[ $(gcc-version) -ge 40800 ],$(HOSTCXX),$(HOSTCC))
 
