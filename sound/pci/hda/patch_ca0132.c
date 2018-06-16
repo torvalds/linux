@@ -7223,7 +7223,7 @@ static int ca0132_init(struct hda_codec *codec)
 
 	snd_hda_sequence_write(codec, spec->base_init_verbs);
 
-	if (spec->quirk != QUIRK_NONE)
+	if (spec->use_alt_functions)
 		ca0132_alt_init(codec);
 
 	ca0132_download_dsp(codec);
