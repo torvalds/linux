@@ -25,7 +25,6 @@
 #include <linux/stat.h>
 #include <linux/via-core.h>
 #include <linux/via_i2c.h>
-#include <asm/olpc.h>
 
 #define _MASTER_FILE
 #include "global.h"
