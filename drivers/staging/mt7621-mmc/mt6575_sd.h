@@ -42,11 +42,6 @@
 // #include <mach/mt6575_reg_base.h> /* --- by chhung */
 
 /*--------------------------------------------------------------------------*/
-/* Common Macro                                                             */
-/*--------------------------------------------------------------------------*/
-#define REG_ADDR(x)                 (base + OFFSET_##x)
-
-/*--------------------------------------------------------------------------*/
 /* Common Definition                                                        */
 /*--------------------------------------------------------------------------*/
 #define MSDC_FIFO_SZ            (128)
@@ -95,117 +90,51 @@ enum {
 /*--------------------------------------------------------------------------*/
 /* Register Offset                                                          */
 /*--------------------------------------------------------------------------*/
-#define OFFSET_MSDC_CFG         (0x0)
-#define OFFSET_MSDC_IOCON       (0x04)
-#define OFFSET_MSDC_PS          (0x08)
-#define OFFSET_MSDC_INT         (0x0c)
-#define OFFSET_MSDC_INTEN       (0x10)
-#define OFFSET_MSDC_FIFOCS      (0x14)
-#define OFFSET_MSDC_TXDATA      (0x18)
-#define OFFSET_MSDC_RXDATA      (0x1c)
-#define OFFSET_SDC_CFG          (0x30)
-#define OFFSET_SDC_CMD          (0x34)
-#define OFFSET_SDC_ARG          (0x38)
-#define OFFSET_SDC_STS          (0x3c)
-#define OFFSET_SDC_RESP0        (0x40)
-#define OFFSET_SDC_RESP1        (0x44)
-#define OFFSET_SDC_RESP2        (0x48)
-#define OFFSET_SDC_RESP3        (0x4c)
-#define OFFSET_SDC_BLK_NUM      (0x50)
-#define OFFSET_SDC_CSTS         (0x58)
-#define OFFSET_SDC_CSTS_EN      (0x5c)
-#define OFFSET_SDC_DCRC_STS     (0x60)
-#define OFFSET_EMMC_CFG0        (0x70)
-#define OFFSET_EMMC_CFG1        (0x74)
-#define OFFSET_EMMC_STS         (0x78)
-#define OFFSET_EMMC_IOCON       (0x7c)
-#define OFFSET_SDC_ACMD_RESP    (0x80)
-#define OFFSET_SDC_ACMD19_TRG   (0x84)
-#define OFFSET_SDC_ACMD19_STS   (0x88)
-#define OFFSET_MSDC_DMA_SA      (0x90)
-#define OFFSET_MSDC_DMA_CA      (0x94)
-#define OFFSET_MSDC_DMA_CTRL    (0x98)
-#define OFFSET_MSDC_DMA_CFG     (0x9c)
-#define OFFSET_MSDC_DBG_SEL     (0xa0)
-#define OFFSET_MSDC_DBG_OUT     (0xa4)
-#define OFFSET_MSDC_PATCH_BIT   (0xb0)
-#define OFFSET_MSDC_PATCH_BIT1  (0xb4)
-#define OFFSET_MSDC_PAD_CTL0    (0xe0)
-#define OFFSET_MSDC_PAD_CTL1    (0xe4)
-#define OFFSET_MSDC_PAD_CTL2    (0xe8)
-#define OFFSET_MSDC_PAD_TUNE    (0xec)
-#define OFFSET_MSDC_DAT_RDDLY0  (0xf0)
-#define OFFSET_MSDC_DAT_RDDLY1  (0xf4)
-#define OFFSET_MSDC_HW_DBG      (0xf8)
-#define OFFSET_MSDC_VERSION     (0x100)
-#define OFFSET_MSDC_ECO_VER     (0x104)
-
-/*--------------------------------------------------------------------------*/
-/* Register Address                                                         */
-/*--------------------------------------------------------------------------*/
-
-/* common register */
-#define MSDC_CFG                REG_ADDR(MSDC_CFG)
-#define MSDC_IOCON              REG_ADDR(MSDC_IOCON)
-#define MSDC_PS                 REG_ADDR(MSDC_PS)
-#define MSDC_INT                REG_ADDR(MSDC_INT)
-#define MSDC_INTEN              REG_ADDR(MSDC_INTEN)
-#define MSDC_FIFOCS             REG_ADDR(MSDC_FIFOCS)
-#define MSDC_TXDATA             REG_ADDR(MSDC_TXDATA)
-#define MSDC_RXDATA             REG_ADDR(MSDC_RXDATA)
-#define MSDC_PATCH_BIT0         REG_ADDR(MSDC_PATCH_BIT)
-
-/* sdmmc register */
-#define SDC_CFG                 REG_ADDR(SDC_CFG)
-#define SDC_CMD                 REG_ADDR(SDC_CMD)
-#define SDC_ARG                 REG_ADDR(SDC_ARG)
-#define SDC_STS                 REG_ADDR(SDC_STS)
-#define SDC_RESP0               REG_ADDR(SDC_RESP0)
-#define SDC_RESP1               REG_ADDR(SDC_RESP1)
-#define SDC_RESP2               REG_ADDR(SDC_RESP2)
-#define SDC_RESP3               REG_ADDR(SDC_RESP3)
-#define SDC_BLK_NUM             REG_ADDR(SDC_BLK_NUM)
-#define SDC_CSTS                REG_ADDR(SDC_CSTS)
-#define SDC_CSTS_EN             REG_ADDR(SDC_CSTS_EN)
-#define SDC_DCRC_STS            REG_ADDR(SDC_DCRC_STS)
-
-/* emmc register*/
-#define EMMC_CFG0               REG_ADDR(EMMC_CFG0)
-#define EMMC_CFG1               REG_ADDR(EMMC_CFG1)
-#define EMMC_STS                REG_ADDR(EMMC_STS)
-#define EMMC_IOCON              REG_ADDR(EMMC_IOCON)
-
-/* auto command register */
-#define SDC_ACMD_RESP           REG_ADDR(SDC_ACMD_RESP)
-#define SDC_ACMD19_TRG          REG_ADDR(SDC_ACMD19_TRG)
-#define SDC_ACMD19_STS          REG_ADDR(SDC_ACMD19_STS)
-
-/* dma register */
-#define MSDC_DMA_SA             REG_ADDR(MSDC_DMA_SA)
-#define MSDC_DMA_CA             REG_ADDR(MSDC_DMA_CA)
-#define MSDC_DMA_CTRL           REG_ADDR(MSDC_DMA_CTRL)
-#define MSDC_DMA_CFG            REG_ADDR(MSDC_DMA_CFG)
-
-/* pad ctrl register */
-#define MSDC_PAD_CTL0           REG_ADDR(MSDC_PAD_CTL0)
-#define MSDC_PAD_CTL1           REG_ADDR(MSDC_PAD_CTL1)
-#define MSDC_PAD_CTL2           REG_ADDR(MSDC_PAD_CTL2)
-
-/* data read delay */
-#define MSDC_DAT_RDDLY0         REG_ADDR(MSDC_DAT_RDDLY0)
-#define MSDC_DAT_RDDLY1         REG_ADDR(MSDC_DAT_RDDLY1)
-
-/* debug register */
-#define MSDC_DBG_SEL            REG_ADDR(MSDC_DBG_SEL)
-#define MSDC_DBG_OUT            REG_ADDR(MSDC_DBG_OUT)
-
-/* misc register */
-#define MSDC_PATCH_BIT          REG_ADDR(MSDC_PATCH_BIT)
-#define MSDC_PATCH_BIT1         REG_ADDR(MSDC_PATCH_BIT1)
-#define MSDC_PAD_TUNE           REG_ADDR(MSDC_PAD_TUNE)
-#define MSDC_HW_DBG             REG_ADDR(MSDC_HW_DBG)
-#define MSDC_VERSION            REG_ADDR(MSDC_VERSION)
-#define MSDC_ECO_VER            REG_ADDR(MSDC_ECO_VER) /* ECO Version */
+#define MSDC_CFG         (0x0)
+#define MSDC_IOCON       (0x04)
+#define MSDC_PS          (0x08)
+#define MSDC_INT         (0x0c)
+#define MSDC_INTEN       (0x10)
+#define MSDC_FIFOCS      (0x14)
+#define MSDC_TXDATA      (0x18)
+#define MSDC_RXDATA      (0x1c)
+#define SDC_CFG          (0x30)
+#define SDC_CMD          (0x34)
+#define SDC_ARG          (0x38)
+#define SDC_STS          (0x3c)
+#define SDC_RESP0        (0x40)
+#define SDC_RESP1        (0x44)
+#define SDC_RESP2        (0x48)
+#define SDC_RESP3        (0x4c)
+#define SDC_BLK_NUM      (0x50)
+#define SDC_CSTS         (0x58)
+#define SDC_CSTS_EN      (0x5c)
+#define SDC_DCRC_STS     (0x60)
+#define EMMC_CFG0        (0x70)
+#define EMMC_CFG1        (0x74)
+#define EMMC_STS         (0x78)
+#define EMMC_IOCON       (0x7c)
+#define SDC_ACMD_RESP    (0x80)
+#define SDC_ACMD19_TRG   (0x84)
+#define SDC_ACMD19_STS   (0x88)
+#define MSDC_DMA_SA      (0x90)
+#define MSDC_DMA_CA      (0x94)
+#define MSDC_DMA_CTRL    (0x98)
+#define MSDC_DMA_CFG     (0x9c)
+#define MSDC_DBG_SEL     (0xa0)
+#define MSDC_DBG_OUT     (0xa4)
+#define MSDC_PATCH_BIT   (0xb0)
+#define MSDC_PATCH_BIT0  MSDC_PATCH_BIT
+#define MSDC_PATCH_BIT1  (0xb4)
+#define MSDC_PAD_CTL0    (0xe0)
+#define MSDC_PAD_CTL1    (0xe4)
+#define MSDC_PAD_CTL2    (0xe8)
+#define MSDC_PAD_TUNE    (0xec)
+#define MSDC_DAT_RDDLY0  (0xf0)
+#define MSDC_DAT_RDDLY1  (0xf4)
+#define MSDC_HW_DBG      (0xf8)
+#define MSDC_VERSION     (0x100)
+#define MSDC_ECO_VER     (0x104)
 
 /*--------------------------------------------------------------------------*/
 /* Register Mask                                                            */
