@@ -947,7 +947,6 @@ struct msdc_host {
 	u32                         app_cmd_arg;
 };
 
-#define sdr_read8(reg)            readb(reg)
 #define sdr_write8(reg, val)      writeb(val, reg)
 
 static inline void sdr_set_bits(void __iomem *reg, u32 bs)
