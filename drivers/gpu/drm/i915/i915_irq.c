@@ -2954,11 +2954,44 @@ gen11_gt_irq_handler(struct drm_i915_private * const i915,
 	spin_unlock(&i915->irq_lock);
 }
 
+static void
+gen11_gu_misc_irq_ack(struct drm_i915_private *dev_priv, const u32 master_ctl,
+		      u32 *iir)
+{
+	void __iomem * const regs = dev_priv->regs;
+
+	if (!(master_ctl & GEN11_GU_MISC_IRQ))
+		return;
+
+	*iir = raw_reg_read(regs, GEN11_GU_MISC_IIR);
+	if (likely(*iir))
+		raw_reg_write(regs, GEN11_GU_MISC_IIR, *iir);
+}
+
+static void
+gen11_gu_misc_irq_handler(struct drm_i915_private *dev_priv,
+			  const u32 master_ctl, const u32 iir)
+{
+	if (!(master_ctl & GEN11_GU_MISC_IRQ))
+		return;
+
+	if (unlikely(!iir)) {
+		DRM_ERROR("GU_MISC iir blank!\n");
+		return;
+	}
+
+	if (iir & GEN11_GU_MISC_GSE)
+		intel_opregion_asle_intr(dev_priv);
+	else
+		DRM_ERROR("Unexpected GU_MISC interrupt 0x%x\n", iir);
+}
+
 static irqreturn_t gen11_irq_handler(int irq, void *arg)
 {
 	struct drm_i915_private * const i915 = to_i915(arg);
 	void __iomem * const regs = i915->regs;
 	u32 master_ctl;
+	u32 gu_misc_iir;
 
 	if (!intel_irqs_enabled(i915))
 		return IRQ_NONE;
@@ -2987,8 +3020,12 @@ static irqreturn_t gen11_irq_handler(int irq, void *arg)
 		enable_rpm_wakeref_asserts(i915);
 	}
 
+	gen11_gu_misc_irq_ack(i915, master_ctl, &gu_misc_iir);
+
 	/* Acknowledge and enable interrupts. */
 	raw_reg_write(regs, GEN11_GFX_MSTR_IRQ, GEN11_MASTER_IRQ | master_ctl);
+
+	gen11_gu_misc_irq_handler(i915, master_ctl, gu_misc_iir);
 
 	return IRQ_HANDLED;
 }
@@ -3476,6 +3513,7 @@ static void gen11_irq_reset(struct drm_device *dev)
 
 	GEN3_IRQ_RESET(GEN8_DE_PORT_);
 	GEN3_IRQ_RESET(GEN8_DE_MISC_);
+	GEN3_IRQ_RESET(GEN11_GU_MISC_);
 	GEN3_IRQ_RESET(GEN8_PCU_);
 }
 
@@ -3919,8 +3957,11 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	uint32_t de_pipe_enables;
 	u32 de_port_masked = GEN8_AUX_CHANNEL_A;
 	u32 de_port_enables;
-	u32 de_misc_masked = GEN8_DE_MISC_GSE | GEN8_DE_EDP_PSR;
+	u32 de_misc_masked = GEN8_DE_EDP_PSR;
 	enum pipe pipe;
+
+	if (INTEL_GEN(dev_priv) <= 10)
+		de_misc_masked |= GEN8_DE_MISC_GSE;
 
 	if (INTEL_GEN(dev_priv) >= 9) {
 		de_pipe_masked |= GEN9_DE_PIPE_IRQ_FAULT_ERRORS;
@@ -4018,9 +4059,12 @@ static void gen11_gt_irq_postinstall(struct drm_i915_private *dev_priv)
 static int gen11_irq_postinstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 gu_misc_masked = GEN11_GU_MISC_GSE;
 
 	gen11_gt_irq_postinstall(dev_priv);
 	gen8_de_irq_postinstall(dev_priv);
+
+	GEN3_IRQ_INIT(GEN11_GU_MISC_, ~gu_misc_masked, gu_misc_masked);
 
 	I915_WRITE(GEN11_DISPLAY_INT_CTL, GEN11_DISPLAY_IRQ_ENABLE);
 
