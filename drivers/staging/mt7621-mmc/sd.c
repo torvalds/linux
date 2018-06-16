@@ -1030,18 +1030,24 @@ static u8 msdc_dma_calcs(u8 *buf, u32 len)
 	return 0xFF - (u8)sum;
 }
 
-/* gpd bd setup + dma registers */
-static void msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
+static void msdc_dma_setup(struct msdc_host *host, struct msdc_dma *dma,
+			   struct scatterlist *sg_cmd, unsigned int sglen)
 {
 	void __iomem *base = host->base;
-	//u32 i, j, num, bdlen, arg, xfersz;
-	u32 j, num;
 	struct scatterlist *sg;
 	struct gpd *gpd;
 	struct bd *bd;
+	u32 j, num;
+
+	BUG_ON(sglen > MAX_BD_NUM); /* not support currently */
+
+	dma->sg = sg_cmd;
+	dma->sglen = sglen;
+
+	N_MSG(DMA, "DMA sglen<%d> xfersz<%d>", sglen, host->xfer_size);
 
 	/* calculate the required number of gpd */
-	num = (dma->sglen + MAX_BD_PER_GPD - 1) / MAX_BD_PER_GPD;
+	num = (sglen + MAX_BD_PER_GPD - 1) / MAX_BD_PER_GPD;
 	BUG_ON(num != 1);
 
 	gpd = dma->gpd;
@@ -1055,13 +1061,13 @@ static void msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
 	gpd->chksum = msdc_dma_calcs((u8 *)gpd, 16);
 
 	/* modify bd*/
-	for_each_sg(dma->sg, sg, dma->sglen, j) {
+	for_each_sg(sg_cmd, sg, sglen, j) {
 		bd[j].blkpad = 0;
 		bd[j].dwpad = 0;
 		bd[j].ptr = (void *)sg_dma_address(sg);
 		bd[j].buflen = sg_dma_len(sg);
 
-		if (j == dma->sglen - 1)
+		if (j == sglen - 1)
 			bd[j].eol = 1;	/* the last bd */
 		else
 			bd[j].eol = 0;
@@ -1080,20 +1086,6 @@ static void msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
 	N_MSG(DMA, "DMA_CTRL = 0x%x", readl(MSDC_DMA_CTRL));
 	N_MSG(DMA, "DMA_CFG  = 0x%x", readl(MSDC_DMA_CFG));
 	N_MSG(DMA, "DMA_SA   = 0x%x", readl(MSDC_DMA_SA));
-
-}
-
-static void msdc_dma_setup(struct msdc_host *host, struct msdc_dma *dma,
-			   struct scatterlist *sg, unsigned int sglen)
-{
-	BUG_ON(sglen > MAX_BD_NUM); /* not support currently */
-
-	dma->sg = sg;
-	dma->sglen = sglen;
-
-	N_MSG(DMA, "DMA sglen<%d> xfersz<%d>", dma->sglen, host->xfer_size);
-
-	msdc_dma_config(host, dma);
 }
 
 static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
