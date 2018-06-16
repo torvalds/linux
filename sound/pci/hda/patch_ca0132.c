@@ -7343,7 +7343,6 @@ static const struct hda_codec_ops ca0132_patch_ops = {
 static void ca0132_config(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
-	struct auto_pin_cfg *cfg = &spec->autocfg;
 
 	spec->dacs[0] = 0x2;
 	spec->dacs[1] = 0x3;
@@ -7405,12 +7404,7 @@ static void ca0132_config(struct hda_codec *codec)
 		/* SPDIF I/O */
 		spec->dig_out = 0x05;
 		spec->multiout.dig_out_nid = spec->dig_out;
-		cfg->dig_out_pins[0] = 0x0c;
-		cfg->dig_outs = 1;
-		cfg->dig_out_type[0] = HDA_PCM_TYPE_SPDIF;
 		spec->dig_in = 0x09;
-		cfg->dig_in_pin = 0x0e;
-		cfg->dig_in_type = HDA_PCM_TYPE_SPDIF;
 		break;
 	case QUIRK_R3DI:
 		codec_dbg(codec, "%s: QUIRK_R3DI applied.\n", __func__);
@@ -7438,9 +7432,6 @@ static void ca0132_config(struct hda_codec *codec)
 		/* SPDIF I/O */
 		spec->dig_out = 0x05;
 		spec->multiout.dig_out_nid = spec->dig_out;
-		cfg->dig_out_pins[0] = 0x0c;
-		cfg->dig_outs = 1;
-		cfg->dig_out_type[0] = HDA_PCM_TYPE_SPDIF;
 		break;
 	default:
 		spec->num_outputs = 2;
@@ -7463,12 +7454,7 @@ static void ca0132_config(struct hda_codec *codec)
 		/* SPDIF I/O */
 		spec->dig_out = 0x05;
 		spec->multiout.dig_out_nid = spec->dig_out;
-		cfg->dig_out_pins[0] = 0x0c;
-		cfg->dig_outs = 1;
-		cfg->dig_out_type[0] = HDA_PCM_TYPE_SPDIF;
 		spec->dig_in = 0x09;
-		cfg->dig_in_pin = 0x0e;
-		cfg->dig_in_type = HDA_PCM_TYPE_SPDIF;
 		break;
 	}
 }
