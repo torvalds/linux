@@ -3337,7 +3337,7 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 		int ret;
 
 		if (vop->mode_update)
-			vop_disable_all_planes(vop);
+			VOP_CTRL_SET(vop, dma_stop, 1);
 
 		need_wait_vblank = !vop_is_allwin_disabled(vop);
 		if (vop->mode_update && need_wait_vblank)
