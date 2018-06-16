@@ -56,13 +56,6 @@
 #define MSDC_MS                 (0)
 #define MSDC_SDMMC              (1)
 
-#define MSDC_MODE_UNKNOWN       (0)
-#define MSDC_MODE_PIO           (1)
-#define MSDC_MODE_DMA_BASIC     (2)
-#define MSDC_MODE_DMA_DESC      (3)
-#define MSDC_MODE_DMA_ENHANCED  (4)
-#define MSDC_MODE_MMC_STREAM    (5)
-
 #define MSDC_BUS_1BITS          (0)
 #define MSDC_BUS_4BITS          (1)
 #define MSDC_BUS_8BITS          (2)
