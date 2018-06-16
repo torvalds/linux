@@ -150,7 +150,6 @@ static int msdc_rsp[] = {
 #define msdc_txfifocnt()   ((sdr_read32(MSDC_FIFOCS) & MSDC_FIFOCS_TXCNT) >> 16)
 #define msdc_rxfifocnt()   ((sdr_read32(MSDC_FIFOCS) & MSDC_FIFOCS_RXCNT) >> 0)
 #define msdc_fifo_write32(v)   sdr_write32(MSDC_TXDATA, (v))
-#define msdc_fifo_write8(v)    sdr_write8(MSDC_TXDATA, (v))
 #define msdc_fifo_read32()   sdr_read32(MSDC_RXDATA)
 #define msdc_fifo_read8()    sdr_read8(MSDC_RXDATA)
 
