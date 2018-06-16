@@ -4,7 +4,7 @@
 /*
  * eXtensible Arrays
  * Copyright (c) 2017 Microsoft Corporation
- * Author: Matthew Wilcox <mawilcox@microsoft.com>
+ * Author: Matthew Wilcox <willy@infradead.org>
  */
 
 #include <linux/spinlock.h>
