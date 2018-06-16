@@ -115,6 +115,13 @@ static const u32 hpd_bxt[HPD_NUM_PINS] = {
 	[HPD_PORT_C] = BXT_DE_PORT_HP_DDIC
 };
 
+static const u32 hpd_tc_gen11[HPD_NUM_PINS] = {
+	[HPD_PORT_C] = GEN11_TC1_HOTPLUG,
+	[HPD_PORT_D] = GEN11_TC2_HOTPLUG,
+	[HPD_PORT_E] = GEN11_TC3_HOTPLUG,
+	[HPD_PORT_F] = GEN11_TC4_HOTPLUG
+};
+
 /* IIR can theoretically queue up two events. Be paranoid. */
 #define GEN8_IRQ_RESET_NDX(type, which) do { \
 	I915_WRITE(GEN8_##type##_IMR(which), 0xffffffff); \
@@ -1549,6 +1556,22 @@ static void gen8_gt_irq_handler(struct drm_i915_private *i915,
 	}
 }
 
+static bool gen11_port_hotplug_long_detect(enum port port, u32 val)
+{
+	switch (port) {
+	case PORT_C:
+		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(PORT_TC1);
+	case PORT_D:
+		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(PORT_TC2);
+	case PORT_E:
+		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(PORT_TC3);
+	case PORT_F:
+		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(PORT_TC4);
+	default:
+		return false;
+	}
+}
+
 static bool bxt_port_hotplug_long_detect(enum port port, u32 val)
 {
 	switch (port) {
@@ -2598,6 +2621,25 @@ static void bxt_hpd_irq_handler(struct drm_i915_private *dev_priv,
 	intel_hpd_irq_handler(dev_priv, pin_mask, long_mask);
 }
 
+static void gen11_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 iir)
+{
+	u32 pin_mask = 0, long_mask = 0;
+	u32 trigger_tc, dig_hotplug_reg;
+
+	trigger_tc = iir & GEN11_DE_TC_HOTPLUG_MASK;
+	if (trigger_tc) {
+		dig_hotplug_reg = I915_READ(GEN11_TC_HOTPLUG_CTL);
+		I915_WRITE(GEN11_TC_HOTPLUG_CTL, dig_hotplug_reg);
+
+		intel_get_hpd_pins(dev_priv, &pin_mask, &long_mask, trigger_tc,
+				   dig_hotplug_reg, hpd_tc_gen11,
+				   gen11_port_hotplug_long_detect);
+		intel_hpd_irq_handler(dev_priv, pin_mask, long_mask);
+	} else {
+		DRM_ERROR("Unexpected DE HPD interrupt 0x%08x\n", iir);
+	}
+}
+
 static irqreturn_t
 gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 {
@@ -2631,6 +2673,17 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 		}
 		else
 			DRM_ERROR("The master control interrupt lied (DE MISC)!\n");
+	}
+
+	if (INTEL_GEN(dev_priv) >= 11 && (master_ctl & GEN11_DE_HPD_IRQ)) {
+		iir = I915_READ(GEN11_DE_HPD_IIR);
+		if (iir) {
+			I915_WRITE(GEN11_DE_HPD_IIR, iir);
+			ret = IRQ_HANDLED;
+			gen11_hpd_irq_handler(dev_priv, iir);
+		} else {
+			DRM_ERROR("The master control interrupt lied, (DE HPD)!\n");
+		}
 	}
 
 	if (master_ctl & GEN8_DE_PORT_IRQ) {
@@ -3513,6 +3566,7 @@ static void gen11_irq_reset(struct drm_device *dev)
 
 	GEN3_IRQ_RESET(GEN8_DE_PORT_);
 	GEN3_IRQ_RESET(GEN8_DE_MISC_);
+	GEN3_IRQ_RESET(GEN11_DE_HPD_);
 	GEN3_IRQ_RESET(GEN11_GU_MISC_);
 	GEN3_IRQ_RESET(GEN8_PCU_);
 }
@@ -3629,6 +3683,34 @@ static void ibx_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	ibx_display_interrupt_update(dev_priv, hotplug_irqs, enabled_irqs);
 
 	ibx_hpd_detection_setup(dev_priv);
+}
+
+static void gen11_hpd_detection_setup(struct drm_i915_private *dev_priv)
+{
+	u32 hotplug;
+
+	hotplug = I915_READ(GEN11_TC_HOTPLUG_CTL);
+	hotplug |= GEN11_HOTPLUG_CTL_ENABLE(PORT_TC1) |
+		   GEN11_HOTPLUG_CTL_ENABLE(PORT_TC2) |
+		   GEN11_HOTPLUG_CTL_ENABLE(PORT_TC3) |
+		   GEN11_HOTPLUG_CTL_ENABLE(PORT_TC4);
+	I915_WRITE(GEN11_TC_HOTPLUG_CTL, hotplug);
+}
+
+static void gen11_hpd_irq_setup(struct drm_i915_private *dev_priv)
+{
+	u32 hotplug_irqs, enabled_irqs;
+	u32 val;
+
+	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, hpd_tc_gen11);
+	hotplug_irqs = GEN11_DE_TC_HOTPLUG_MASK;
+
+	val = I915_READ(GEN11_DE_HPD_IMR);
+	val &= ~hotplug_irqs;
+	I915_WRITE(GEN11_DE_HPD_IMR, val);
+	POSTING_READ(GEN11_DE_HPD_IMR);
+
+	gen11_hpd_detection_setup(dev_priv);
 }
 
 static void spt_hpd_detection_setup(struct drm_i915_private *dev_priv)
@@ -4004,10 +4086,17 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	GEN3_IRQ_INIT(GEN8_DE_PORT_, ~de_port_masked, de_port_enables);
 	GEN3_IRQ_INIT(GEN8_DE_MISC_, ~de_misc_masked, de_misc_masked);
 
-	if (IS_GEN9_LP(dev_priv))
+	if (INTEL_GEN(dev_priv) >= 11) {
+		u32 de_hpd_masked = 0;
+		u32 de_hpd_enables = GEN11_DE_TC_HOTPLUG_MASK;
+
+		GEN3_IRQ_INIT(GEN11_DE_HPD_, ~de_hpd_masked, de_hpd_enables);
+		gen11_hpd_detection_setup(dev_priv);
+	} else if (IS_GEN9_LP(dev_priv)) {
 		bxt_hpd_detection_setup(dev_priv);
-	else if (IS_BROADWELL(dev_priv))
+	} else if (IS_BROADWELL(dev_priv)) {
 		ilk_hpd_detection_setup(dev_priv);
+	}
 }
 
 static int gen8_irq_postinstall(struct drm_device *dev)
@@ -4529,7 +4618,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev->driver->irq_uninstall = gen11_irq_reset;
 		dev->driver->enable_vblank = gen8_enable_vblank;
 		dev->driver->disable_vblank = gen8_disable_vblank;
-		dev_priv->display.hpd_irq_setup = spt_hpd_irq_setup;
+		dev_priv->display.hpd_irq_setup = gen11_hpd_irq_setup;
 	} else if (INTEL_GEN(dev_priv) >= 8) {
 		dev->driver->irq_handler = gen8_irq_handler;
 		dev->driver->irq_preinstall = gen8_irq_reset;

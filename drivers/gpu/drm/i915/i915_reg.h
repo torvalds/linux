@@ -7079,10 +7079,30 @@ enum {
 #define  GEN11_AUDIO_CODEC_IRQ		(1 << 24)
 #define  GEN11_DE_PCH_IRQ		(1 << 23)
 #define  GEN11_DE_MISC_IRQ		(1 << 22)
+#define  GEN11_DE_HPD_IRQ		(1 << 21)
 #define  GEN11_DE_PORT_IRQ		(1 << 20)
 #define  GEN11_DE_PIPE_C		(1 << 18)
 #define  GEN11_DE_PIPE_B		(1 << 17)
 #define  GEN11_DE_PIPE_A		(1 << 16)
+
+#define GEN11_DE_HPD_ISR		_MMIO(0x44470)
+#define GEN11_DE_HPD_IMR		_MMIO(0x44474)
+#define GEN11_DE_HPD_IIR		_MMIO(0x44478)
+#define GEN11_DE_HPD_IER		_MMIO(0x4447c)
+#define  GEN11_TC4_HOTPLUG			(1 << 19)
+#define  GEN11_TC3_HOTPLUG			(1 << 18)
+#define  GEN11_TC2_HOTPLUG			(1 << 17)
+#define  GEN11_TC1_HOTPLUG			(1 << 16)
+#define  GEN11_DE_TC_HOTPLUG_MASK		(GEN11_TC4_HOTPLUG | \
+						 GEN11_TC3_HOTPLUG | \
+						 GEN11_TC2_HOTPLUG | \
+						 GEN11_TC1_HOTPLUG)
+
+#define GEN11_TC_HOTPLUG_CTL				_MMIO(0x44038)
+#define  GEN11_HOTPLUG_CTL_ENABLE(tc_port)		(8 << (tc_port) * 4)
+#define  GEN11_HOTPLUG_CTL_LONG_DETECT(tc_port)		(2 << (tc_port) * 4)
+#define  GEN11_HOTPLUG_CTL_SHORT_DETECT(tc_port)	(1 << (tc_port) * 4)
+#define  GEN11_HOTPLUG_CTL_NO_DETECT(tc_port)		(0 << (tc_port) * 4)
 
 #define GEN11_GT_INTR_DW0		_MMIO(0x190018)
 #define  GEN11_CSME			(31)
