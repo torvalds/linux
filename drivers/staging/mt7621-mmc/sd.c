@@ -89,7 +89,6 @@
 #define MAX_BD_NUM          (1024)
 
 #define MAX_HW_SGMTS        (MAX_BD_NUM)
-#define MAX_PHY_SGMTS       (MAX_BD_NUM)
 #define MAX_SGMT_SZ         (MAX_DMA_CNT)
 #define MAX_REQ_SZ          (MAX_SGMT_SZ * 8)
 
