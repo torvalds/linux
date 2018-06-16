@@ -177,12 +177,14 @@ static void msdc_reset_hw(struct msdc_host *host)
 		writel(val, MSDC_INT);			\
 	} while (0)
 
-#define msdc_clr_fifo() \
-	do {								\
-		int retry = 3, cnt = 1000;				\
-		sdr_set_bits(MSDC_FIFOCS, MSDC_FIFOCS_CLR);		\
-		msdc_retry(readl(MSDC_FIFOCS) & MSDC_FIFOCS_CLR, retry, cnt); \
-	} while (0)
+static void msdc_clr_fifo(struct msdc_host *host)
+{
+	void __iomem *base = host->base;
+
+	sdr_set_bits(MSDC_FIFOCS, MSDC_FIFOCS_CLR);
+	while (readl(MSDC_FIFOCS) & MSDC_FIFOCS_CLR)
+		cpu_relax();
+}
 
 #define msdc_irq_save(val) \
 	do {					\
@@ -554,7 +556,7 @@ static void msdc_abort_data(struct msdc_host *host)
 	ERR_MSG("Need to Abort.");
 
 	msdc_reset_hw(host);
-	msdc_clr_fifo();
+	msdc_clr_fifo(host);
 	msdc_clr_int();
 
 	// need to check FIFO count 0 ?
@@ -945,7 +947,7 @@ static unsigned int msdc_command_resp(struct msdc_host   *host,
 		} else {
 			/* do basic: reset*/
 			msdc_reset_hw(host);
-			msdc_clr_fifo();
+			msdc_clr_fifo(host);
 			msdc_clr_int();
 		}
 		cmd->error = msdc_tune_cmdrsp(host, cmd);
@@ -1131,7 +1133,7 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		}
 
 		writel(data->blocks, SDC_BLK_NUM);
-		//msdc_clr_fifo();  /* no need */
+		//msdc_clr_fifo(host);  /* no need */
 
 		msdc_dma_on();  /* enable DMA mode first!! */
 		init_completion(&host->xfer_done);
@@ -1165,7 +1167,7 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			data->error = -ETIMEDOUT;
 
 			msdc_reset_hw(host);
-			msdc_clr_fifo();
+			msdc_clr_fifo(host);
 			msdc_clr_int();
 		}
 		spin_lock(&host->lock);
@@ -1868,7 +1870,7 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 		if (intsts & datsts) {
 			/* do basic reset, or stop command will sdc_busy */
 			msdc_reset_hw(host);
-			msdc_clr_fifo();
+			msdc_clr_fifo(host);
 			msdc_clr_int();
 
 			if (intsts & MSDC_INT_DATTMO) {
@@ -1917,7 +1919,7 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 				IRQ_MSG("XXX CMD<%d> MSDC_INT_CMDTMO", cmd->opcode);
 			cmd->error = -ETIMEDOUT;
 			msdc_reset_hw(host);
-			msdc_clr_fifo();
+			msdc_clr_fifo(host);
 			msdc_clr_int();
 		}
 		complete(&host->cmd_done);
@@ -2029,7 +2031,7 @@ static void msdc_init_hw(struct msdc_host *host)
 
 	/* Reset */
 	msdc_reset_hw(host);
-	msdc_clr_fifo();
+	msdc_clr_fifo(host);
 
 	/* Disable card detection */
 	sdr_clr_bits(MSDC_PS, MSDC_PS_CDEN);
