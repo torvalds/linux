@@ -2208,7 +2208,7 @@ static int nvme_init_subsystem(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
 		 * Verify that the subsystem actually supports multiple
 		 * controllers, else bail out.
 		 */
-		if (!ctrl->opts->discovery_nqn &&
+		if (!(ctrl->opts && ctrl->opts->discovery_nqn) &&
 		    nvme_active_ctrls(found) && !(id->cmic & (1 << 1))) {
 			dev_err(ctrl->device,
 				"ignoring ctrl due to duplicate subnqn (%s).\n",
@@ -3197,40 +3197,28 @@ static void nvme_scan_ns_sequential(struct nvme_ctrl *ctrl, unsigned nn)
 	nvme_remove_invalid_namespaces(ctrl, nn);
 }
 
-static bool nvme_scan_changed_ns_log(struct nvme_ctrl *ctrl)
+static void nvme_clear_changed_ns_log(struct nvme_ctrl *ctrl)
 {
 	size_t log_size = NVME_MAX_CHANGED_NAMESPACES * sizeof(__le32);
 	__le32 *log;
-	int error, i;
-	bool ret = false;
+	int error;
 
 	log = kzalloc(log_size, GFP_KERNEL);
 	if (!log)
-		return false;
+		return;
 
+	/*
+	 * We need to read the log to clear the AEN, but we don't want to rely
+	 * on it for the changed namespace information as userspace could have
+	 * raced with us in reading the log page, which could cause us to miss
+	 * updates.
+	 */
 	error = nvme_get_log(ctrl, NVME_LOG_CHANGED_NS, log, log_size);
-	if (error) {
+	if (error)
 		dev_warn(ctrl->device,
 			"reading changed ns log failed: %d\n", error);
-		goto out_free_log;
-	}
 
-	if (log[0] == cpu_to_le32(0xffffffff))
-		goto out_free_log;
-
-	for (i = 0; i < NVME_MAX_CHANGED_NAMESPACES; i++) {
-		u32 nsid = le32_to_cpu(log[i]);
-
-		if (nsid == 0)
-			break;
-		dev_info(ctrl->device, "rescanning namespace %d.\n", nsid);
-		nvme_validate_ns(ctrl, nsid);
-	}
-	ret = true;
-
-out_free_log:
 	kfree(log);
-	return ret;
 }
 
 static void nvme_scan_work(struct work_struct *work)
@@ -3246,9 +3234,8 @@ static void nvme_scan_work(struct work_struct *work)
 	WARN_ON_ONCE(!ctrl->tagset);
 
 	if (test_and_clear_bit(NVME_AER_NOTICE_NS_CHANGED, &ctrl->events)) {
-		if (nvme_scan_changed_ns_log(ctrl))
-			goto out_sort_namespaces;
 		dev_info(ctrl->device, "rescanning namespaces.\n");
+		nvme_clear_changed_ns_log(ctrl);
 	}
 
 	if (nvme_identify_ctrl(ctrl, &id))
@@ -3263,7 +3250,6 @@ static void nvme_scan_work(struct work_struct *work)
 	nvme_scan_ns_sequential(ctrl, nn);
 out_free_id:
 	kfree(id);
-out_sort_namespaces:
 	down_write(&ctrl->namespaces_rwsem);
 	list_sort(NULL, &ctrl->namespaces, ns_cmp);
 	up_write(&ctrl->namespaces_rwsem);
@@ -3640,16 +3626,6 @@ void nvme_start_queues(struct nvme_ctrl *ctrl)
 	up_read(&ctrl->namespaces_rwsem);
 }
 EXPORT_SYMBOL_GPL(nvme_start_queues);
-
-int nvme_reinit_tagset(struct nvme_ctrl *ctrl, struct blk_mq_tag_set *set)
-{
-	if (!ctrl->ops->reinit_request)
-		return 0;
-
-	return blk_mq_tagset_iter(set, set->driver_data,
-			ctrl->ops->reinit_request);
-}
-EXPORT_SYMBOL_GPL(nvme_reinit_tagset);
 
 int __init nvme_core_init(void)
 {

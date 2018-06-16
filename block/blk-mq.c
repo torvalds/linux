@@ -671,6 +671,7 @@ static void __blk_mq_requeue_request(struct request *rq)
 
 	if (blk_mq_request_started(rq)) {
 		WRITE_ONCE(rq->state, MQ_RQ_IDLE);
+		rq->rq_flags &= ~RQF_TIMED_OUT;
 		if (q->dma_drain_size && blk_rq_bytes(rq))
 			rq->nr_phys_segments--;
 	}
@@ -770,6 +771,7 @@ EXPORT_SYMBOL(blk_mq_tag_to_rq);
 
 static void blk_mq_rq_timed_out(struct request *req, bool reserved)
 {
+	req->rq_flags |= RQF_TIMED_OUT;
 	if (req->q->mq_ops->timeout) {
 		enum blk_eh_timer_return ret;
 
@@ -779,6 +781,7 @@ static void blk_mq_rq_timed_out(struct request *req, bool reserved)
 		WARN_ON_ONCE(ret != BLK_EH_RESET_TIMER);
 	}
 
+	req->rq_flags &= ~RQF_TIMED_OUT;
 	blk_add_timer(req);
 }
 
@@ -787,6 +790,8 @@ static bool blk_mq_req_expired(struct request *rq, unsigned long *next)
 	unsigned long deadline;
 
 	if (blk_mq_rq_state(rq) != MQ_RQ_IN_FLIGHT)
+		return false;
+	if (rq->rq_flags & RQF_TIMED_OUT)
 		return false;
 
 	deadline = blk_rq_deadline(rq);
@@ -2349,7 +2354,6 @@ static void blk_mq_del_queue_tag_set(struct request_queue *q)
 
 	mutex_lock(&set->tag_list_lock);
 	list_del_rcu(&q->tag_set_list);
-	INIT_LIST_HEAD(&q->tag_set_list);
 	if (list_is_singular(&set->tag_list)) {
 		/* just transitioned to unshared */
 		set->flags &= ~BLK_MQ_F_TAG_SHARED;
@@ -2357,8 +2361,8 @@ static void blk_mq_del_queue_tag_set(struct request_queue *q)
 		blk_mq_update_tag_set_depth(set, false);
 	}
 	mutex_unlock(&set->tag_list_lock);
-
 	synchronize_rcu();
+	INIT_LIST_HEAD(&q->tag_set_list);
 }
 
 static void blk_mq_add_queue_tag_set(struct blk_mq_tag_set *set,
