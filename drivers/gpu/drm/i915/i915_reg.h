@@ -7097,7 +7097,16 @@ enum {
 						 GEN11_TC3_HOTPLUG | \
 						 GEN11_TC2_HOTPLUG | \
 						 GEN11_TC1_HOTPLUG)
+#define  GEN11_TBT4_HOTPLUG			(1 << 3)
+#define  GEN11_TBT3_HOTPLUG			(1 << 2)
+#define  GEN11_TBT2_HOTPLUG			(1 << 1)
+#define  GEN11_TBT1_HOTPLUG			(1 << 0)
+#define  GEN11_DE_TBT_HOTPLUG_MASK		(GEN11_TBT4_HOTPLUG | \
+						 GEN11_TBT3_HOTPLUG | \
+						 GEN11_TBT2_HOTPLUG | \
+						 GEN11_TBT1_HOTPLUG)
 
+#define GEN11_TBT_HOTPLUG_CTL				_MMIO(0x44030)
 #define GEN11_TC_HOTPLUG_CTL				_MMIO(0x44038)
 #define  GEN11_HOTPLUG_CTL_ENABLE(tc_port)		(8 << (tc_port) * 4)
 #define  GEN11_HOTPLUG_CTL_LONG_DETECT(tc_port)		(2 << (tc_port) * 4)

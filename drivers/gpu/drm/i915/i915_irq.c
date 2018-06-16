@@ -115,11 +115,11 @@ static const u32 hpd_bxt[HPD_NUM_PINS] = {
 	[HPD_PORT_C] = BXT_DE_PORT_HP_DDIC
 };
 
-static const u32 hpd_tc_gen11[HPD_NUM_PINS] = {
-	[HPD_PORT_C] = GEN11_TC1_HOTPLUG,
-	[HPD_PORT_D] = GEN11_TC2_HOTPLUG,
-	[HPD_PORT_E] = GEN11_TC3_HOTPLUG,
-	[HPD_PORT_F] = GEN11_TC4_HOTPLUG
+static const u32 hpd_gen11[HPD_NUM_PINS] = {
+	[HPD_PORT_C] = GEN11_TC1_HOTPLUG | GEN11_TBT1_HOTPLUG,
+	[HPD_PORT_D] = GEN11_TC2_HOTPLUG | GEN11_TBT2_HOTPLUG,
+	[HPD_PORT_E] = GEN11_TC3_HOTPLUG | GEN11_TBT3_HOTPLUG,
+	[HPD_PORT_F] = GEN11_TC4_HOTPLUG | GEN11_TBT4_HOTPLUG
 };
 
 /* IIR can theoretically queue up two events. Be paranoid. */
@@ -2624,20 +2624,35 @@ static void bxt_hpd_irq_handler(struct drm_i915_private *dev_priv,
 static void gen11_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 iir)
 {
 	u32 pin_mask = 0, long_mask = 0;
-	u32 trigger_tc, dig_hotplug_reg;
+	u32 trigger_tc = iir & GEN11_DE_TC_HOTPLUG_MASK;
+	u32 trigger_tbt = iir & GEN11_DE_TBT_HOTPLUG_MASK;
 
-	trigger_tc = iir & GEN11_DE_TC_HOTPLUG_MASK;
 	if (trigger_tc) {
+		u32 dig_hotplug_reg;
+
 		dig_hotplug_reg = I915_READ(GEN11_TC_HOTPLUG_CTL);
 		I915_WRITE(GEN11_TC_HOTPLUG_CTL, dig_hotplug_reg);
 
 		intel_get_hpd_pins(dev_priv, &pin_mask, &long_mask, trigger_tc,
-				   dig_hotplug_reg, hpd_tc_gen11,
+				   dig_hotplug_reg, hpd_gen11,
 				   gen11_port_hotplug_long_detect);
-		intel_hpd_irq_handler(dev_priv, pin_mask, long_mask);
-	} else {
-		DRM_ERROR("Unexpected DE HPD interrupt 0x%08x\n", iir);
 	}
+
+	if (trigger_tbt) {
+		u32 dig_hotplug_reg;
+
+		dig_hotplug_reg = I915_READ(GEN11_TBT_HOTPLUG_CTL);
+		I915_WRITE(GEN11_TBT_HOTPLUG_CTL, dig_hotplug_reg);
+
+		intel_get_hpd_pins(dev_priv, &pin_mask, &long_mask, trigger_tbt,
+				   dig_hotplug_reg, hpd_gen11,
+				   gen11_port_hotplug_long_detect);
+	}
+
+	if (pin_mask)
+		intel_hpd_irq_handler(dev_priv, pin_mask, long_mask);
+	else
+		DRM_ERROR("Unexpected DE HPD interrupt 0x%08x\n", iir);
 }
 
 static irqreturn_t
@@ -3695,6 +3710,13 @@ static void gen11_hpd_detection_setup(struct drm_i915_private *dev_priv)
 		   GEN11_HOTPLUG_CTL_ENABLE(PORT_TC3) |
 		   GEN11_HOTPLUG_CTL_ENABLE(PORT_TC4);
 	I915_WRITE(GEN11_TC_HOTPLUG_CTL, hotplug);
+
+	hotplug = I915_READ(GEN11_TBT_HOTPLUG_CTL);
+	hotplug |= GEN11_HOTPLUG_CTL_ENABLE(PORT_TC1) |
+		   GEN11_HOTPLUG_CTL_ENABLE(PORT_TC2) |
+		   GEN11_HOTPLUG_CTL_ENABLE(PORT_TC3) |
+		   GEN11_HOTPLUG_CTL_ENABLE(PORT_TC4);
+	I915_WRITE(GEN11_TBT_HOTPLUG_CTL, hotplug);
 }
 
 static void gen11_hpd_irq_setup(struct drm_i915_private *dev_priv)
@@ -3702,8 +3724,8 @@ static void gen11_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	u32 hotplug_irqs, enabled_irqs;
 	u32 val;
 
-	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, hpd_tc_gen11);
-	hotplug_irqs = GEN11_DE_TC_HOTPLUG_MASK;
+	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, hpd_gen11);
+	hotplug_irqs = GEN11_DE_TC_HOTPLUG_MASK | GEN11_DE_TBT_HOTPLUG_MASK;
 
 	val = I915_READ(GEN11_DE_HPD_IMR);
 	val &= ~hotplug_irqs;
@@ -4088,7 +4110,8 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	if (INTEL_GEN(dev_priv) >= 11) {
 		u32 de_hpd_masked = 0;
-		u32 de_hpd_enables = GEN11_DE_TC_HOTPLUG_MASK;
+		u32 de_hpd_enables = GEN11_DE_TC_HOTPLUG_MASK |
+				     GEN11_DE_TBT_HOTPLUG_MASK;
 
 		GEN3_IRQ_INIT(GEN11_DE_HPD_, ~de_hpd_masked, de_hpd_enables);
 		gen11_hpd_detection_setup(dev_priv);
