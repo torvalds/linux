@@ -174,7 +174,7 @@
 			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			edp_out_panel: endpoint {
+			edp_out_panel: endpoint@0 {
 				reg = <0>;
 				remote-endpoint = <&panel_in_edp>;
 			};
