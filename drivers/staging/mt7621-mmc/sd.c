@@ -1043,9 +1043,6 @@ static void msdc_dma_setup(struct msdc_host *host, struct msdc_dma *dma,
 
 	N_MSG(DMA, "DMA sglen<%d> xfersz<%d>", sglen, host->xfer_size);
 
-	/* calculate the required number of gpd */
-	BUG_ON(((sglen + MAX_BD_PER_GPD - 1) / MAX_BD_PER_GPD) != 1);
-
 	gpd = dma->gpd;
 	bd  = dma->bd;
 
