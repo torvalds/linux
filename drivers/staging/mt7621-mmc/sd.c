@@ -1556,12 +1556,10 @@ static int msdc_check_busy(struct mmc_host *mmc, struct msdc_host *host)
 static int msdc_tune_request(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct msdc_host *host = mmc_priv(mmc);
-	struct mmc_command *cmd;
 	struct mmc_data *data;
 	//u32 base = host->base;
 	int ret = 0, read;
 
-	cmd  = mrq->cmd;
 	data = mrq->cmd->data;
 
 	read = data->flags & MMC_DATA_READ ? 1 : 0;
