@@ -96,6 +96,14 @@ struct caam_rsa_ctx {
 };
 
 /**
+ * caam_rsa_req_ctx - per request context.
+ * @src: input scatterlist (stripped of leading zeros)
+ */
+struct caam_rsa_req_ctx {
+	struct scatterlist src[2];
+};
+
+/**
  * rsa_edesc - s/w-extended rsa descriptor
  * @src_nents     : number of segments in input scatterlist
  * @dst_nents     : number of segments in output scatterlist

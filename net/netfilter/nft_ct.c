@@ -875,21 +875,25 @@ static int nft_ct_helper_obj_dump(struct sk_buff *skb,
 				  struct nft_object *obj, bool reset)
 {
 	const struct nft_ct_helper_obj *priv = nft_obj_data(obj);
-	const struct nf_conntrack_helper *helper = priv->helper4;
+	const struct nf_conntrack_helper *helper;
 	u16 family;
+
+	if (priv->helper4 && priv->helper6) {
+		family = NFPROTO_INET;
+		helper = priv->helper4;
+	} else if (priv->helper6) {
+		family = NFPROTO_IPV6;
+		helper = priv->helper6;
+	} else {
+		family = NFPROTO_IPV4;
+		helper = priv->helper4;
+	}
 
 	if (nla_put_string(skb, NFTA_CT_HELPER_NAME, helper->name))
 		return -1;
 
 	if (nla_put_u8(skb, NFTA_CT_HELPER_L4PROTO, priv->l4proto))
 		return -1;
-
-	if (priv->helper4 && priv->helper6)
-		family = NFPROTO_INET;
-	else if (priv->helper6)
-		family = NFPROTO_IPV6;
-	else
-		family = NFPROTO_IPV4;
 
 	if (nla_put_be16(skb, NFTA_CT_HELPER_L3PROTO, htons(family)))
 		return -1;
