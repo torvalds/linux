@@ -1091,10 +1091,7 @@ static void msdc_dma_setup(struct msdc_host *host, struct msdc_dma *dma,
 	dma->sg = sg;
 	dma->sglen = sglen;
 
-	dma->mode = MSDC_MODE_DMA_DESC;
-
-	N_MSG(DMA, "DMA mode<%d> sglen<%d> xfersz<%d>", dma->mode, dma->sglen,
-	      host->xfer_size);
+	N_MSG(DMA, "DMA sglen<%d> xfersz<%d>", dma->sglen, host->xfer_size);
 
 	msdc_dma_config(host, dma);
 }

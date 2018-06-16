@@ -481,7 +481,6 @@ struct bd {
 struct msdc_dma {
 	u32 sglen;                   /* size of scatter list */
 	struct scatterlist *sg;      /* I/O scatter list */
-	u8  mode;                    /* dma mode        */
 
 	struct gpd *gpd;                  /* pointer to gpd array */
 	struct bd  *bd;                   /* pointer to bd array */
