@@ -50,13 +50,11 @@
 #include "dbg.h"
 #include "mt6575_sd.h"
 
-//#define IRQ_SDC 14	//MT7620 /*FIXME*/
 #ifdef CONFIG_SOC_MT7621
 #define RALINK_SYSCTL_BASE		0xbe000000
 #else
 #define RALINK_SYSCTL_BASE		0xb0000000
 #endif
-#define IRQ_SDC			22	/*FIXME*/
 
 #define DRV_NAME            "mtk-sd"
 
