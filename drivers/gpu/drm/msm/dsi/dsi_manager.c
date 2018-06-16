@@ -773,6 +773,7 @@ void msm_dsi_manager_attach_dsi_device(int id, u32 device_flags)
 	struct msm_drm_private *priv;
 	struct msm_kms *kms;
 	struct drm_encoder *encoder;
+	bool cmd_mode;
 
 	/*
 	 * drm_device pointer is assigned to msm_dsi only in the modeset_init
@@ -787,10 +788,11 @@ void msm_dsi_manager_attach_dsi_device(int id, u32 device_flags)
 	priv = dev->dev_private;
 	kms = priv->kms;
 	encoder = msm_dsi_get_encoder(msm_dsi);
+	cmd_mode = !(device_flags &
+				 MIPI_DSI_MODE_VIDEO);
 
 	if (encoder && kms->funcs->set_encoder_mode)
-		if (!(device_flags & MIPI_DSI_MODE_VIDEO))
-			kms->funcs->set_encoder_mode(kms, encoder, true);
+		kms->funcs->set_encoder_mode(kms, encoder, cmd_mode);
 }
 
 int msm_dsi_manager_register(struct msm_dsi *msm_dsi)
