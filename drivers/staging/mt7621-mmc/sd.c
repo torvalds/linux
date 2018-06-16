@@ -710,7 +710,6 @@ static void msdc_pm(pm_message_t state, void *data)
 /*--------------------------------------------------------------------------*/
 static unsigned int msdc_command_start(struct msdc_host   *host,
 				       struct mmc_command *cmd,
-				       int                 tune,   /* not used */
 				       unsigned long       timeout)
 {
 	u32 opcode = cmd->opcode;
@@ -932,7 +931,7 @@ static unsigned int msdc_do_command(struct msdc_host   *host,
 				    int                 tune,
 				    unsigned long       timeout)
 {
-	if (msdc_command_start(host, cmd, tune, timeout))
+	if (msdc_command_start(host, cmd, timeout))
 		goto end;
 
 	if (msdc_command_resp(host, cmd, tune, timeout))
@@ -1098,7 +1097,7 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		init_completion(&host->xfer_done);
 
 		/* start the command first*/
-		if (msdc_command_start(host, cmd, 1, CMD_TIMEOUT) != 0)
+		if (msdc_command_start(host, cmd, CMD_TIMEOUT) != 0)
 			goto done;
 
 		data->sg_count = dma_map_sg(mmc_dev(mmc), data->sg,
