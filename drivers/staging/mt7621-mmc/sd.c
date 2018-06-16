@@ -149,19 +149,6 @@ static int msdc_rsp[] = {
 
 #define msdc_dma_on()        sdr_clr_bits(MSDC_CFG, MSDC_CFG_PIO)
 
-#define msdc_retry(expr, retry, cnt) \
-	do {								\
-		int backup = cnt;					\
-		while (retry) {						\
-			if (!(expr))					\
-				break;					\
-			if (cnt-- == 0) {				\
-				retry--; mdelay(1); cnt = backup;	\
-			}						\
-		}							\
-		WARN_ON(retry == 0);					\
-	} while (0)
-
 static void msdc_reset_hw(struct msdc_host *host)
 {
 	void __iomem *base = host->base;
