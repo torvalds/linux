@@ -82,6 +82,7 @@ enum {
 
 enum {
 	MLX5_OBJ_TYPE_UCTX = 0x0004,
+	MLX5_OBJ_TYPE_UMEM = 0x0005,
 };
 
 enum {

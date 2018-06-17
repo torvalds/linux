@@ -89,9 +89,27 @@ enum mlx5_ib_devx_obj_methods {
 	MLX5_IB_METHOD_DEVX_OBJ_QUERY,
 };
 
+enum mlx5_ib_devx_umem_reg_attrs {
+	MLX5_IB_ATTR_DEVX_UMEM_REG_HANDLE = (1U << UVERBS_ID_NS_SHIFT),
+	MLX5_IB_ATTR_DEVX_UMEM_REG_ADDR,
+	MLX5_IB_ATTR_DEVX_UMEM_REG_LEN,
+	MLX5_IB_ATTR_DEVX_UMEM_REG_ACCESS,
+	MLX5_IB_ATTR_DEVX_UMEM_REG_OUT_ID,
+};
+
+enum mlx5_ib_devx_umem_dereg_attrs {
+	MLX5_IB_ATTR_DEVX_UMEM_DEREG_HANDLE = (1U << UVERBS_ID_NS_SHIFT),
+};
+
+enum mlx5_ib_devx_umem_methods {
+	MLX5_IB_METHOD_DEVX_UMEM_REG = (1U << UVERBS_ID_NS_SHIFT),
+	MLX5_IB_METHOD_DEVX_UMEM_DEREG,
+};
+
 enum mlx5_ib_devx_objects {
 	MLX5_IB_OBJECT_DEVX = (1U << UVERBS_ID_NS_SHIFT),
 	MLX5_IB_OBJECT_DEVX_OBJ,
+	MLX5_IB_OBJECT_DEVX_UMEM,
 };
 
 #endif
