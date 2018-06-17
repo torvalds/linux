@@ -889,7 +889,7 @@ static int atmel_hlcdc_plane_init_properties(struct atmel_hlcdc_plane *plane,
 		drm_object_attach_property(&plane->base.base,
 					   props->alpha, 255);
 
-	if (desc->layout.xstride && desc->layout.pstride) {
+	if (desc->layout.xstride[0] && desc->layout.pstride[0]) {
 		int ret;
 
 		ret = drm_plane_create_rotation_property(&plane->base,
