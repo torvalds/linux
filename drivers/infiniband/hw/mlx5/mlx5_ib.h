@@ -143,6 +143,7 @@ struct mlx5_ib_ucontext {
 
 	u64			lib_caps;
 	DECLARE_BITMAP(dm_pages, MLX5_MAX_MEMIC_PAGES);
+	u16			devx_uid;
 };
 
 static inline struct mlx5_ib_ucontext *to_mucontext(struct ib_ucontext *ibucontext)
@@ -1215,6 +1216,18 @@ struct mlx5_core_dev *mlx5_ib_get_native_port_mdev(struct mlx5_ib_dev *dev,
 void mlx5_ib_put_native_port_mdev(struct mlx5_ib_dev *dev,
 				  u8 port_num);
 
+#if IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS)
+int mlx5_ib_devx_create(struct mlx5_ib_dev *dev,
+			struct mlx5_ib_ucontext *context);
+void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev,
+			  struct mlx5_ib_ucontext *context);
+#else
+static inline int
+mlx5_ib_devx_create(struct mlx5_ib_dev *dev,
+		    struct mlx5_ib_ucontext *context) { return -EOPNOTSUPP; };
+static inline void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev,
+					struct mlx5_ib_ucontext *context) {}
+#endif
 static inline void init_query_mad(struct ib_smp *mad)
 {
 	mad->base_version  = 1;

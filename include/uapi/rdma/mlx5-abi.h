@@ -76,6 +76,9 @@ enum mlx5_lib_caps {
 	MLX5_LIB_CAP_4K_UAR	= (__u64)1 << 0,
 };
 
+enum mlx5_ib_alloc_uctx_v2_flags {
+	MLX5_IB_ALLOC_UCTX_DEVX	= 1 << 0,
+};
 struct mlx5_ib_alloc_ucontext_req_v2 {
 	__u32	total_num_bfregs;
 	__u32	num_low_latency_bfregs;
