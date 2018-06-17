@@ -641,9 +641,9 @@ static void mlx5_ib_lock_cqs(struct mlx5_ib_cq *send_cq,
 static void mlx5_ib_unlock_cqs(struct mlx5_ib_cq *send_cq,
 			       struct mlx5_ib_cq *recv_cq);
 
-static int bfregn_to_uar_index(struct mlx5_ib_dev *dev,
-			       struct mlx5_bfreg_info *bfregi, int bfregn,
-			       bool dyn_bfreg)
+int bfregn_to_uar_index(struct mlx5_ib_dev *dev,
+			struct mlx5_bfreg_info *bfregi, int bfregn,
+			bool dyn_bfreg)
 {
 	int bfregs_per_sys_page;
 	int index_of_sys_page;
@@ -652,6 +652,9 @@ static int bfregn_to_uar_index(struct mlx5_ib_dev *dev,
 	bfregs_per_sys_page = get_uars_per_sys_page(dev, bfregi->lib_uar_4k) *
 				MLX5_NON_FP_BFREGS_PER_UAR;
 	index_of_sys_page = bfregn / bfregs_per_sys_page;
+
+	if (index_of_sys_page >= bfregi->num_sys_pages)
+		return -EINVAL;
 
 	if (dyn_bfreg) {
 		index_of_sys_page += bfregi->num_static_sys_pages;

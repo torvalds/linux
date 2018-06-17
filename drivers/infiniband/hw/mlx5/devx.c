@@ -373,6 +373,50 @@ static bool devx_is_general_cmd(void *in)
 	}
 }
 
+/*
+ *Security note:
+ * The hardware protection mechanism works like this: Each device object that
+ * is subject to UAR doorbells (QP/SQ/CQ) gets a UAR ID (called uar_page in
+ * the device specification manual) upon its creation. Then upon doorbell,
+ * hardware fetches the object context for which the doorbell was rang, and
+ * validates that the UAR through which the DB was rang matches the UAR ID
+ * of the object.
+ * If no match the doorbell is silently ignored by the hardware. Of course,
+ * the user cannot ring a doorbell on a UAR that was not mapped to it.
+ * Now in devx, as the devx kernel does not manipulate the QP/SQ/CQ command
+ * mailboxes (except tagging them with UID), we expose to the user its UAR
+ * ID, so it can embed it in these objects in the expected specification
+ * format. So the only thing the user can do is hurt itself by creating a
+ * QP/SQ/CQ with a UAR ID other than his, and then in this case other users
+ * may ring a doorbell on its objects.
+ * The consequence of that will be that another user can schedule a QP/SQ
+ * of the buggy user for execution (just insert it to the hardware schedule
+ * queue or arm its CQ for event generation), no further harm is expected.
+ */
+static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_QUERY_UAR)(struct ib_device *ib_dev,
+				  struct ib_uverbs_file *file,
+				  struct uverbs_attr_bundle *attrs)
+{
+	struct mlx5_ib_ucontext *c = devx_ufile2uctx(file);
+	u32 user_idx;
+	s32 dev_idx;
+
+	if (uverbs_copy_from(&user_idx, attrs,
+			     MLX5_IB_ATTR_DEVX_QUERY_UAR_USER_IDX))
+		return -EFAULT;
+
+	dev_idx = bfregn_to_uar_index(to_mdev(ib_dev),
+				      &c->bfregi, user_idx, true);
+	if (dev_idx < 0)
+		return dev_idx;
+
+	if (uverbs_copy_to(attrs, MLX5_IB_ATTR_DEVX_QUERY_UAR_DEV_IDX,
+			   &dev_idx, sizeof(dev_idx)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OTHER)(struct ib_device *ib_dev,
 				  struct ib_uverbs_file *file,
 				  struct uverbs_attr_bundle *attrs)
@@ -744,6 +788,12 @@ other_cmd_free:
 	return err;
 }
 
+static DECLARE_UVERBS_NAMED_METHOD(MLX5_IB_METHOD_DEVX_QUERY_UAR,
+	&UVERBS_ATTR_PTR_IN(MLX5_IB_ATTR_DEVX_QUERY_UAR_USER_IDX, UVERBS_ATTR_TYPE(u32),
+			    UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)),
+	&UVERBS_ATTR_PTR_OUT(MLX5_IB_ATTR_DEVX_QUERY_UAR_DEV_IDX, UVERBS_ATTR_TYPE(u32),
+			     UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)));
+
 static DECLARE_UVERBS_NAMED_METHOD(MLX5_IB_METHOD_DEVX_OTHER,
 	&UVERBS_ATTR_PTR_IN_SZ(MLX5_IB_ATTR_DEVX_OTHER_CMD_IN,
 			       UVERBS_ATTR_MIN_SIZE(MLX5_ST_SZ_BYTES(general_obj_in_cmd_hdr)),
@@ -808,7 +858,8 @@ static DECLARE_UVERBS_NAMED_METHOD(MLX5_IB_METHOD_DEVX_OBJ_QUERY,
 					 UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO)));
 
 static DECLARE_UVERBS_GLOBAL_METHODS(MLX5_IB_OBJECT_DEVX,
-	&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_OTHER));
+	&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_OTHER),
+	&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_QUERY_UAR));
 
 static DECLARE_UVERBS_NAMED_OBJECT(MLX5_IB_OBJECT_DEVX_OBJ,
 	&UVERBS_TYPE_ALLOC_IDR(0, devx_obj_cleanup),
