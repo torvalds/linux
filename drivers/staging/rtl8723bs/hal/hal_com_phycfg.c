@@ -1612,6 +1612,52 @@ static s8 phy_GetChannelIndexOfTxPowerLimit(u8 Band, u8 Channel)
 	return channelIndex;
 }
 
+static s16 get_rate_sctn_idx(const u8 rate)
+{
+	switch (rate) {
+	case MGN_1M: case MGN_2M: case MGN_5_5M: case MGN_11M:
+		return 0;
+	case MGN_6M: case MGN_9M: case MGN_12M: case MGN_18M:
+	case MGN_24M: case MGN_36M: case MGN_48M: case MGN_54M:
+		return 1;
+	case MGN_MCS0: case MGN_MCS1: case MGN_MCS2: case MGN_MCS3:
+	case MGN_MCS4: case MGN_MCS5: case MGN_MCS6: case MGN_MCS7:
+		return 2;
+	case MGN_MCS8: case MGN_MCS9: case MGN_MCS10: case MGN_MCS11:
+	case MGN_MCS12: case MGN_MCS13: case MGN_MCS14: case MGN_MCS15:
+		return 3;
+	case MGN_MCS16: case MGN_MCS17: case MGN_MCS18: case MGN_MCS19:
+	case MGN_MCS20: case MGN_MCS21: case MGN_MCS22: case MGN_MCS23:
+		return 4;
+	case MGN_MCS24: case MGN_MCS25: case MGN_MCS26: case MGN_MCS27:
+	case MGN_MCS28: case MGN_MCS29: case MGN_MCS30: case MGN_MCS31:
+		return 5;
+	case MGN_VHT1SS_MCS0: case MGN_VHT1SS_MCS1: case MGN_VHT1SS_MCS2:
+	case MGN_VHT1SS_MCS3: case MGN_VHT1SS_MCS4: case MGN_VHT1SS_MCS5:
+	case MGN_VHT1SS_MCS6: case MGN_VHT1SS_MCS7: case MGN_VHT1SS_MCS8:
+	case MGN_VHT1SS_MCS9:
+		return 6;
+	case MGN_VHT2SS_MCS0: case MGN_VHT2SS_MCS1: case MGN_VHT2SS_MCS2:
+	case MGN_VHT2SS_MCS3: case MGN_VHT2SS_MCS4: case MGN_VHT2SS_MCS5:
+	case MGN_VHT2SS_MCS6: case MGN_VHT2SS_MCS7: case MGN_VHT2SS_MCS8:
+	case MGN_VHT2SS_MCS9:
+		return 7;
+	case MGN_VHT3SS_MCS0: case MGN_VHT3SS_MCS1: case MGN_VHT3SS_MCS2:
+	case MGN_VHT3SS_MCS3: case MGN_VHT3SS_MCS4: case MGN_VHT3SS_MCS5:
+	case MGN_VHT3SS_MCS6: case MGN_VHT3SS_MCS7: case MGN_VHT3SS_MCS8:
+	case MGN_VHT3SS_MCS9:
+		return 8;
+	case MGN_VHT4SS_MCS0: case MGN_VHT4SS_MCS1: case MGN_VHT4SS_MCS2:
+	case MGN_VHT4SS_MCS3: case MGN_VHT4SS_MCS4: case MGN_VHT4SS_MCS5:
+	case MGN_VHT4SS_MCS6: case MGN_VHT4SS_MCS7: case MGN_VHT4SS_MCS8:
+	case MGN_VHT4SS_MCS9:
+		return 9;
+	default:
+		DBG_871X("Wrong rate 0x%x\n", rate);
+		return -1;
+	}
+}
+
 s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 reg_pwr_tbl_sel,
 		      enum BAND_TYPE band_type, enum CHANNEL_WIDTH bandwidth,
 		      u8 rf_path, u8 data_rate, u8 channel)
@@ -1666,68 +1712,7 @@ s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 reg_pwr_tbl_sel,
 	else if (bandwidth == CHANNEL_WIDTH_160)
 		idx_bandwidth = 3;
 
-	switch (data_rate) {
-	case MGN_1M: case MGN_2M: case MGN_5_5M: case MGN_11M:
-		idx_rate_sctn = 0;
-		break;
-
-	case MGN_6M: case MGN_9M: case MGN_12M: case MGN_18M:
-	case MGN_24M: case MGN_36M: case MGN_48M: case MGN_54M:
-		idx_rate_sctn = 1;
-		break;
-
-	case MGN_MCS0: case MGN_MCS1: case MGN_MCS2: case MGN_MCS3:
-	case MGN_MCS4: case MGN_MCS5: case MGN_MCS6: case MGN_MCS7:
-		idx_rate_sctn = 2;
-		break;
-
-	case MGN_MCS8: case MGN_MCS9: case MGN_MCS10: case MGN_MCS11:
-	case MGN_MCS12: case MGN_MCS13: case MGN_MCS14: case MGN_MCS15:
-		idx_rate_sctn = 3;
-		break;
-
-	case MGN_MCS16: case MGN_MCS17: case MGN_MCS18: case MGN_MCS19:
-	case MGN_MCS20: case MGN_MCS21: case MGN_MCS22: case MGN_MCS23:
-		idx_rate_sctn = 4;
-		break;
-
-	case MGN_MCS24: case MGN_MCS25: case MGN_MCS26: case MGN_MCS27:
-	case MGN_MCS28: case MGN_MCS29: case MGN_MCS30: case MGN_MCS31:
-		idx_rate_sctn = 5;
-		break;
-
-	case MGN_VHT1SS_MCS0: case MGN_VHT1SS_MCS1: case MGN_VHT1SS_MCS2:
-	case MGN_VHT1SS_MCS3: case MGN_VHT1SS_MCS4: case MGN_VHT1SS_MCS5:
-	case MGN_VHT1SS_MCS6: case MGN_VHT1SS_MCS7: case MGN_VHT1SS_MCS8:
-	case MGN_VHT1SS_MCS9:
-		idx_rate_sctn = 6;
-		break;
-
-	case MGN_VHT2SS_MCS0: case MGN_VHT2SS_MCS1: case MGN_VHT2SS_MCS2:
-	case MGN_VHT2SS_MCS3: case MGN_VHT2SS_MCS4: case MGN_VHT2SS_MCS5:
-	case MGN_VHT2SS_MCS6: case MGN_VHT2SS_MCS7: case MGN_VHT2SS_MCS8:
-	case MGN_VHT2SS_MCS9:
-		idx_rate_sctn = 7;
-		break;
-
-	case MGN_VHT3SS_MCS0: case MGN_VHT3SS_MCS1: case MGN_VHT3SS_MCS2:
-	case MGN_VHT3SS_MCS3: case MGN_VHT3SS_MCS4: case MGN_VHT3SS_MCS5:
-	case MGN_VHT3SS_MCS6: case MGN_VHT3SS_MCS7: case MGN_VHT3SS_MCS8:
-	case MGN_VHT3SS_MCS9:
-		idx_rate_sctn = 8;
-		break;
-
-	case MGN_VHT4SS_MCS0: case MGN_VHT4SS_MCS1: case MGN_VHT4SS_MCS2:
-	case MGN_VHT4SS_MCS3: case MGN_VHT4SS_MCS4: case MGN_VHT4SS_MCS5:
-	case MGN_VHT4SS_MCS6: case MGN_VHT4SS_MCS7: case MGN_VHT4SS_MCS8:
-	case MGN_VHT4SS_MCS9:
-		idx_rate_sctn = 9;
-		break;
-
-	default:
-		DBG_871X("Wrong rate 0x%x\n", data_rate);
-		break;
-	}
+	idx_rate_sctn = get_rate_sctn_idx(data_rate);
 
 	if (band_type == BAND_ON_5G && idx_rate_sctn == 0)
                 DBG_871X("Wrong rate 0x%x: No CCK in 5G Band\n", DataRate);
