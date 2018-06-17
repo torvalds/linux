@@ -54,8 +54,24 @@ enum  mlx5_ib_devx_other_attrs {
 	MLX5_IB_ATTR_DEVX_OTHER_CMD_OUT,
 };
 
+enum mlx5_ib_devx_obj_create_attrs {
+	MLX5_IB_ATTR_DEVX_OBJ_CREATE_HANDLE = (1U << UVERBS_ID_NS_SHIFT),
+	MLX5_IB_ATTR_DEVX_OBJ_CREATE_CMD_IN,
+	MLX5_IB_ATTR_DEVX_OBJ_CREATE_CMD_OUT,
+};
+
+enum mlx5_ib_devx_obj_destroy_attrs {
+	MLX5_IB_ATTR_DEVX_OBJ_DESTROY_HANDLE = (1U << UVERBS_ID_NS_SHIFT),
+};
+
+enum mlx5_ib_devx_obj_methods {
+	MLX5_IB_METHOD_DEVX_OBJ_CREATE = (1U << UVERBS_ID_NS_SHIFT),
+	MLX5_IB_METHOD_DEVX_OBJ_DESTROY,
+};
+
 enum mlx5_ib_devx_objects {
 	MLX5_IB_OBJECT_DEVX = (1U << UVERBS_ID_NS_SHIFT),
+	MLX5_IB_OBJECT_DEVX_OBJ,
 };
 
 #endif
