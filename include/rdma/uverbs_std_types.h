@@ -37,8 +37,6 @@
 #include <rdma/uverbs_ioctl.h>
 #include <rdma/ib_user_ioctl_verbs.h>
 
-#define UVERBS_OBJECT(id)	uverbs_object_##id
-
 #if IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS)
 const struct uverbs_object_tree_def *uverbs_default_get_objects(void);
 #else
