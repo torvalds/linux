@@ -2000,7 +2000,7 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 {
 	union hpd_irq_data hpd_irq_dpcd_data = {{{{0}}}};
 	union device_service_irq device_service_clear = { { 0 } };
-	enum dc_status result = DDC_RESULT_UNKNOWN;
+	enum dc_status result;
 	bool status = false;
 	/* For use cases related to down stream connection status change,
 	 * PSR and device auto test, refer to function handle_sst_hpd_irq
