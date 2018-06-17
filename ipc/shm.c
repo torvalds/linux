@@ -1354,14 +1354,13 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
 	struct shmid_kernel *shp;
 	unsigned long addr = (unsigned long)shmaddr;
 	unsigned long size;
-	struct file *file;
+	struct file *file, *base;
 	int    err;
 	unsigned long flags = MAP_SHARED;
 	unsigned long prot;
 	int acc_mode;
 	struct ipc_namespace *ns;
 	struct shm_file_data *sfd;
-	struct path path;
 	int f_flags;
 	unsigned long populate = 0;
 
@@ -1435,35 +1434,6 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
 		goto out_unlock;
 	}
 
-	path = shp->shm_file->f_path;
-	path_get(&path);
-	shp->shm_nattch++;
-	size = i_size_read(d_inode(path.dentry));
-	ipc_unlock_object(&shp->shm_perm);
-	rcu_read_unlock();
-
-	err = -ENOMEM;
-	sfd = kzalloc(sizeof(*sfd), GFP_KERNEL);
-	if (!sfd) {
-		path_put(&path);
-		goto out_nattch;
-	}
-
-	file = alloc_file(&path, f_flags,
-			  is_file_hugepages(shp->shm_file) ?
-				&shm_file_operations_huge :
-				&shm_file_operations);
-	err = PTR_ERR(file);
-	if (IS_ERR(file)) {
-		kfree(sfd);
-		path_put(&path);
-		goto out_nattch;
-	}
-
-	file->private_data = sfd;
-	file->f_mapping = shp->shm_file->f_mapping;
-	sfd->id = shp->shm_perm.id;
-	sfd->ns = get_ipc_ns(ns);
 	/*
 	 * We need to take a reference to the real shm file to prevent the
 	 * pointer from becoming stale in cases where the lifetime of the outer
@@ -1473,8 +1443,35 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
 	 * We'll deny the ->mmap() if the shm segment was since removed, but to
 	 * detect shm ID reuse we need to compare the file pointers.
 	 */
-	sfd->file = get_file(shp->shm_file);
+	base = get_file(shp->shm_file);
+	shp->shm_nattch++;
+	size = i_size_read(file_inode(base));
+	ipc_unlock_object(&shp->shm_perm);
+	rcu_read_unlock();
+
+	err = -ENOMEM;
+	sfd = kzalloc(sizeof(*sfd), GFP_KERNEL);
+	if (!sfd) {
+		fput(base);
+		goto out_nattch;
+	}
+
+	file = alloc_file_clone(base, f_flags,
+			  is_file_hugepages(base) ?
+				&shm_file_operations_huge :
+				&shm_file_operations);
+	err = PTR_ERR(file);
+	if (IS_ERR(file)) {
+		kfree(sfd);
+		fput(base);
+		goto out_nattch;
+	}
+
+	sfd->id = shp->shm_perm.id;
+	sfd->ns = get_ipc_ns(ns);
+	sfd->file = base;
 	sfd->vm_ops = NULL;
+	file->private_data = sfd;
 
 	err = security_mmap_file(file, prot, flags);
 	if (err)
