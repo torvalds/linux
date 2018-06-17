@@ -167,6 +167,45 @@ static int uverbs_process_attr(struct ib_device *ibdev,
 	return 0;
 }
 
+static int uverbs_finalize_attrs(struct uverbs_attr_bundle *attrs_bundle,
+				 struct uverbs_attr_spec_hash *const *spec_hash,
+				 size_t num, bool commit)
+{
+	unsigned int i;
+	int ret = 0;
+
+	for (i = 0; i < num; i++) {
+		struct uverbs_attr_bundle_hash *curr_bundle =
+			&attrs_bundle->hash[i];
+		const struct uverbs_attr_spec_hash *curr_spec_bucket =
+			spec_hash[i];
+		unsigned int j;
+
+		for (j = 0; j < curr_bundle->num_attrs; j++) {
+			struct uverbs_attr *attr;
+			const struct uverbs_attr_spec *spec;
+
+			if (!uverbs_attr_is_valid_in_hash(curr_bundle, j))
+				continue;
+
+			attr = &curr_bundle->attrs[j];
+			spec = &curr_spec_bucket->attrs[j];
+
+			if (spec->type == UVERBS_ATTR_TYPE_IDR ||
+			    spec->type == UVERBS_ATTR_TYPE_FD) {
+				int current_ret;
+
+				current_ret = uverbs_finalize_object(
+					attr->obj_attr.uobject,
+					spec->obj.access, commit);
+				if (!ret)
+					ret = current_ret;
+			}
+		}
+	}
+	return ret;
+}
+
 static int uverbs_uattrs_process(struct ib_device *ibdev,
 				 struct ib_ucontext *ucontext,
 				 const struct ib_uverbs_attr *uattrs,
@@ -187,10 +226,10 @@ static int uverbs_uattrs_process(struct ib_device *ibdev,
 		ret = uverbs_ns_idx(&attr_id, method->num_buckets);
 		if (ret < 0) {
 			if (uattr->flags & UVERBS_ATTR_F_MANDATORY) {
-				uverbs_finalize_objects(attr_bundle,
-							method->attr_buckets,
-							num_given_buckets,
-							false);
+				uverbs_finalize_attrs(attr_bundle,
+						      method->attr_buckets,
+						      num_given_buckets,
+						      false);
 				return ret;
 			}
 			continue;
@@ -208,10 +247,10 @@ static int uverbs_uattrs_process(struct ib_device *ibdev,
 					  attr_spec_bucket, &attr_bundle->hash[ret],
 					  uattr_ptr++);
 		if (ret) {
-			uverbs_finalize_objects(attr_bundle,
-						method->attr_buckets,
-						num_given_buckets,
-						false);
+			uverbs_finalize_attrs(attr_bundle,
+					      method->attr_buckets,
+					      num_given_buckets,
+					      false);
 			return ret;
 		}
 	}
@@ -271,10 +310,10 @@ static int uverbs_handle_method(struct ib_uverbs_attr __user *uattr_ptr,
 
 	ret = method_spec->handler(ibdev, ufile, attr_bundle);
 cleanup:
-	finalize_ret = uverbs_finalize_objects(attr_bundle,
-					       method_spec->attr_buckets,
-					       attr_bundle->num_buckets,
-					       !ret);
+	finalize_ret = uverbs_finalize_attrs(attr_bundle,
+					     method_spec->attr_buckets,
+					     attr_bundle->num_buckets,
+					     !ret);
 
 	return ret ? ret : finalize_ret;
 }
