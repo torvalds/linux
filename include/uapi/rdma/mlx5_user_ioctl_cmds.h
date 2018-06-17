@@ -45,4 +45,17 @@ enum mlx5_ib_alloc_dm_attrs {
 	MLX5_IB_ATTR_ALLOC_DM_RESP_PAGE_INDEX,
 };
 
+enum mlx5_ib_devx_methods {
+	MLX5_IB_METHOD_DEVX_OTHER  = (1U << UVERBS_ID_NS_SHIFT),
+};
+
+enum  mlx5_ib_devx_other_attrs {
+	MLX5_IB_ATTR_DEVX_OTHER_CMD_IN = (1U << UVERBS_ID_NS_SHIFT),
+	MLX5_IB_ATTR_DEVX_OTHER_CMD_OUT,
+};
+
+enum mlx5_ib_devx_objects {
+	MLX5_IB_OBJECT_DEVX = (1U << UVERBS_ID_NS_SHIFT),
+};
+
 #endif
