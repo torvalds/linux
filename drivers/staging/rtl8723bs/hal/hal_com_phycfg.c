@@ -1751,9 +1751,6 @@ s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 reg_pwr_tbl_sel,
 	else if (band_type == BAND_ON_5G)
 		channel = phy_GetChannelIndexOfTxPowerLimit(BAND_ON_5G,
 							    channel);
-	else if (band_type == BAND_ON_BOTH) {
-		/*  BAND_ON_BOTH don't care temporarily */
-	}
 
 	if (idx_band == -1 || idx_regulation == -1 || idx_bandwidth == -1 ||
 	    idx_rate_sctn == -1 || idx_channel == -1) {
