@@ -73,6 +73,161 @@ void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev,
 	mlx5_cmd_exec(dev->mdev, in, sizeof(in), out, sizeof(out));
 }
 
+static int devx_is_valid_obj_id(struct devx_obj *obj, const void *in)
+{
+	u16 opcode = MLX5_GET(general_obj_in_cmd_hdr, in, opcode);
+	u32 obj_id;
+
+	switch (opcode) {
+	case MLX5_CMD_OP_MODIFY_GENERAL_OBJECT:
+	case MLX5_CMD_OP_QUERY_GENERAL_OBJECT:
+		obj_id = MLX5_GET(general_obj_in_cmd_hdr, in, obj_id);
+		break;
+	case MLX5_CMD_OP_QUERY_MKEY:
+		obj_id = MLX5_GET(query_mkey_in, in, mkey_index);
+		break;
+	case MLX5_CMD_OP_QUERY_CQ:
+		obj_id = MLX5_GET(query_cq_in, in, cqn);
+		break;
+	case MLX5_CMD_OP_MODIFY_CQ:
+		obj_id = MLX5_GET(modify_cq_in, in, cqn);
+		break;
+	case MLX5_CMD_OP_QUERY_SQ:
+		obj_id = MLX5_GET(query_sq_in, in, sqn);
+		break;
+	case MLX5_CMD_OP_MODIFY_SQ:
+		obj_id = MLX5_GET(modify_sq_in, in, sqn);
+		break;
+	case MLX5_CMD_OP_QUERY_RQ:
+		obj_id = MLX5_GET(query_rq_in, in, rqn);
+		break;
+	case MLX5_CMD_OP_MODIFY_RQ:
+		obj_id = MLX5_GET(modify_rq_in, in, rqn);
+		break;
+	case MLX5_CMD_OP_QUERY_RMP:
+		obj_id = MLX5_GET(query_rmp_in, in, rmpn);
+		break;
+	case MLX5_CMD_OP_MODIFY_RMP:
+		obj_id = MLX5_GET(modify_rmp_in, in, rmpn);
+		break;
+	case MLX5_CMD_OP_QUERY_RQT:
+		obj_id = MLX5_GET(query_rqt_in, in, rqtn);
+		break;
+	case MLX5_CMD_OP_MODIFY_RQT:
+		obj_id = MLX5_GET(modify_rqt_in, in, rqtn);
+		break;
+	case MLX5_CMD_OP_QUERY_TIR:
+		obj_id = MLX5_GET(query_tir_in, in, tirn);
+		break;
+	case MLX5_CMD_OP_MODIFY_TIR:
+		obj_id = MLX5_GET(modify_tir_in, in, tirn);
+		break;
+	case MLX5_CMD_OP_QUERY_TIS:
+		obj_id = MLX5_GET(query_tis_in, in, tisn);
+		break;
+	case MLX5_CMD_OP_MODIFY_TIS:
+		obj_id = MLX5_GET(modify_tis_in, in, tisn);
+		break;
+	case MLX5_CMD_OP_QUERY_FLOW_TABLE:
+		obj_id = MLX5_GET(query_flow_table_in, in, table_id);
+		break;
+	case MLX5_CMD_OP_MODIFY_FLOW_TABLE:
+		obj_id = MLX5_GET(modify_flow_table_in, in, table_id);
+		break;
+	case MLX5_CMD_OP_QUERY_FLOW_GROUP:
+		obj_id = MLX5_GET(query_flow_group_in, in, group_id);
+		break;
+	case MLX5_CMD_OP_QUERY_FLOW_TABLE_ENTRY:
+		obj_id = MLX5_GET(query_fte_in, in, flow_index);
+		break;
+	case MLX5_CMD_OP_SET_FLOW_TABLE_ENTRY:
+		obj_id = MLX5_GET(set_fte_in, in, flow_index);
+		break;
+	case MLX5_CMD_OP_QUERY_Q_COUNTER:
+		obj_id = MLX5_GET(query_q_counter_in, in, counter_set_id);
+		break;
+	case MLX5_CMD_OP_QUERY_FLOW_COUNTER:
+		obj_id = MLX5_GET(query_flow_counter_in, in, flow_counter_id);
+		break;
+	case MLX5_CMD_OP_QUERY_MODIFY_HEADER_CONTEXT:
+		obj_id = MLX5_GET(general_obj_in_cmd_hdr, in, obj_id);
+		break;
+	case MLX5_CMD_OP_QUERY_SCHEDULING_ELEMENT:
+		obj_id = MLX5_GET(query_scheduling_element_in, in,
+				  scheduling_element_id);
+		break;
+	case MLX5_CMD_OP_MODIFY_SCHEDULING_ELEMENT:
+		obj_id = MLX5_GET(modify_scheduling_element_in, in,
+				  scheduling_element_id);
+		break;
+	case MLX5_CMD_OP_ADD_VXLAN_UDP_DPORT:
+		obj_id = MLX5_GET(add_vxlan_udp_dport_in, in, vxlan_udp_port);
+		break;
+	case MLX5_CMD_OP_QUERY_L2_TABLE_ENTRY:
+		obj_id = MLX5_GET(query_l2_table_entry_in, in, table_index);
+		break;
+	case MLX5_CMD_OP_SET_L2_TABLE_ENTRY:
+		obj_id = MLX5_GET(set_l2_table_entry_in, in, table_index);
+		break;
+	case MLX5_CMD_OP_QUERY_QP:
+		obj_id = MLX5_GET(query_qp_in, in, qpn);
+		break;
+	case MLX5_CMD_OP_RST2INIT_QP:
+		obj_id = MLX5_GET(rst2init_qp_in, in, qpn);
+		break;
+	case MLX5_CMD_OP_INIT2RTR_QP:
+		obj_id = MLX5_GET(init2rtr_qp_in, in, qpn);
+		break;
+	case MLX5_CMD_OP_RTR2RTS_QP:
+		obj_id = MLX5_GET(rtr2rts_qp_in, in, qpn);
+		break;
+	case MLX5_CMD_OP_RTS2RTS_QP:
+		obj_id = MLX5_GET(rts2rts_qp_in, in, qpn);
+		break;
+	case MLX5_CMD_OP_SQERR2RTS_QP:
+		obj_id = MLX5_GET(sqerr2rts_qp_in, in, qpn);
+		break;
+	case MLX5_CMD_OP_2ERR_QP:
+		obj_id = MLX5_GET(qp_2err_in, in, qpn);
+		break;
+	case MLX5_CMD_OP_2RST_QP:
+		obj_id = MLX5_GET(qp_2rst_in, in, qpn);
+		break;
+	case MLX5_CMD_OP_QUERY_DCT:
+		obj_id = MLX5_GET(query_dct_in, in, dctn);
+		break;
+	case MLX5_CMD_OP_QUERY_XRQ:
+		obj_id = MLX5_GET(query_xrq_in, in, xrqn);
+		break;
+	case MLX5_CMD_OP_QUERY_XRC_SRQ:
+		obj_id = MLX5_GET(query_xrc_srq_in, in, xrc_srqn);
+		break;
+	case MLX5_CMD_OP_ARM_XRC_SRQ:
+		obj_id = MLX5_GET(arm_xrc_srq_in, in, xrc_srqn);
+		break;
+	case MLX5_CMD_OP_QUERY_SRQ:
+		obj_id = MLX5_GET(query_srq_in, in, srqn);
+		break;
+	case MLX5_CMD_OP_ARM_RQ:
+		obj_id = MLX5_GET(arm_rq_in, in, srq_number);
+		break;
+	case MLX5_CMD_OP_DRAIN_DCT:
+	case MLX5_CMD_OP_ARM_DCT_FOR_KEY_VIOLATION:
+		obj_id = MLX5_GET(drain_dct_in, in, dctn);
+		break;
+	case MLX5_CMD_OP_ARM_XRQ:
+		obj_id = MLX5_GET(arm_xrq_in, in, xrqn);
+		break;
+	default:
+		return false;
+	}
+
+	if (obj_id == obj->obj_id)
+		return true;
+
+	return false;
+}
+
 static bool devx_is_obj_create_cmd(const void *in)
 {
 	u16 opcode = MLX5_GET(general_obj_in_cmd_hdr, in, opcode);
@@ -118,7 +273,83 @@ static bool devx_is_obj_create_cmd(const void *in)
 	}
 }
 
-static bool devx_is_general_cmd(const void *in)
+static bool devx_is_obj_modify_cmd(const void *in)
+{
+	u16 opcode = MLX5_GET(general_obj_in_cmd_hdr, in, opcode);
+
+	switch (opcode) {
+	case MLX5_CMD_OP_MODIFY_GENERAL_OBJECT:
+	case MLX5_CMD_OP_MODIFY_CQ:
+	case MLX5_CMD_OP_MODIFY_RMP:
+	case MLX5_CMD_OP_MODIFY_SQ:
+	case MLX5_CMD_OP_MODIFY_RQ:
+	case MLX5_CMD_OP_MODIFY_RQT:
+	case MLX5_CMD_OP_MODIFY_TIR:
+	case MLX5_CMD_OP_MODIFY_TIS:
+	case MLX5_CMD_OP_MODIFY_FLOW_TABLE:
+	case MLX5_CMD_OP_MODIFY_SCHEDULING_ELEMENT:
+	case MLX5_CMD_OP_ADD_VXLAN_UDP_DPORT:
+	case MLX5_CMD_OP_SET_L2_TABLE_ENTRY:
+	case MLX5_CMD_OP_RST2INIT_QP:
+	case MLX5_CMD_OP_INIT2RTR_QP:
+	case MLX5_CMD_OP_RTR2RTS_QP:
+	case MLX5_CMD_OP_RTS2RTS_QP:
+	case MLX5_CMD_OP_SQERR2RTS_QP:
+	case MLX5_CMD_OP_2ERR_QP:
+	case MLX5_CMD_OP_2RST_QP:
+	case MLX5_CMD_OP_ARM_XRC_SRQ:
+	case MLX5_CMD_OP_ARM_RQ:
+	case MLX5_CMD_OP_DRAIN_DCT:
+	case MLX5_CMD_OP_ARM_DCT_FOR_KEY_VIOLATION:
+	case MLX5_CMD_OP_ARM_XRQ:
+		return true;
+	case MLX5_CMD_OP_SET_FLOW_TABLE_ENTRY:
+	{
+		u16 op_mod = MLX5_GET(set_fte_in, in, op_mod);
+
+		if (op_mod == 1)
+			return true;
+		return false;
+	}
+	default:
+		return false;
+	}
+}
+
+static bool devx_is_obj_query_cmd(const void *in)
+{
+	u16 opcode = MLX5_GET(general_obj_in_cmd_hdr, in, opcode);
+
+	switch (opcode) {
+	case MLX5_CMD_OP_QUERY_GENERAL_OBJECT:
+	case MLX5_CMD_OP_QUERY_MKEY:
+	case MLX5_CMD_OP_QUERY_CQ:
+	case MLX5_CMD_OP_QUERY_RMP:
+	case MLX5_CMD_OP_QUERY_SQ:
+	case MLX5_CMD_OP_QUERY_RQ:
+	case MLX5_CMD_OP_QUERY_RQT:
+	case MLX5_CMD_OP_QUERY_TIR:
+	case MLX5_CMD_OP_QUERY_TIS:
+	case MLX5_CMD_OP_QUERY_Q_COUNTER:
+	case MLX5_CMD_OP_QUERY_FLOW_TABLE:
+	case MLX5_CMD_OP_QUERY_FLOW_GROUP:
+	case MLX5_CMD_OP_QUERY_FLOW_TABLE_ENTRY:
+	case MLX5_CMD_OP_QUERY_FLOW_COUNTER:
+	case MLX5_CMD_OP_QUERY_MODIFY_HEADER_CONTEXT:
+	case MLX5_CMD_OP_QUERY_SCHEDULING_ELEMENT:
+	case MLX5_CMD_OP_QUERY_L2_TABLE_ENTRY:
+	case MLX5_CMD_OP_QUERY_QP:
+	case MLX5_CMD_OP_QUERY_SRQ:
+	case MLX5_CMD_OP_QUERY_XRC_SRQ:
+	case MLX5_CMD_OP_QUERY_DCT:
+	case MLX5_CMD_OP_QUERY_XRQ:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool devx_is_general_cmd(void *in)
 {
 	u16 opcode = MLX5_GET(general_obj_in_cmd_hdr, in, opcode);
 
@@ -430,6 +661,89 @@ obj_free:
 	return err;
 }
 
+static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_MODIFY)(struct ib_device *ib_dev,
+				   struct ib_uverbs_file *file,
+				   struct uverbs_attr_bundle *attrs)
+{
+	struct mlx5_ib_ucontext *c = devx_ufile2uctx(file);
+	struct mlx5_ib_dev *dev = to_mdev(ib_dev);
+	void *cmd_in = uverbs_attr_get_alloced_ptr(attrs, MLX5_IB_ATTR_DEVX_OBJ_MODIFY_CMD_IN);
+	int cmd_out_len = uverbs_attr_get_len(attrs,
+					MLX5_IB_ATTR_DEVX_OBJ_MODIFY_CMD_OUT);
+	struct ib_uobject *uobj = uverbs_attr_get_uobject(attrs,
+							  MLX5_IB_ATTR_DEVX_OBJ_MODIFY_HANDLE);
+	void *cmd_out;
+	int err;
+
+	if (!c->devx_uid)
+		return -EPERM;
+
+	if (!devx_is_obj_modify_cmd(cmd_in))
+		return -EINVAL;
+
+	if (!devx_is_valid_obj_id(uobj->object, cmd_in))
+		return -EINVAL;
+
+	cmd_out = kvzalloc(cmd_out_len, GFP_KERNEL);
+	if (!cmd_out)
+		return -ENOMEM;
+
+	MLX5_SET(general_obj_in_cmd_hdr, cmd_in, uid, c->devx_uid);
+	err = mlx5_cmd_exec(dev->mdev, cmd_in,
+			    uverbs_attr_get_len(attrs, MLX5_IB_ATTR_DEVX_OBJ_MODIFY_CMD_IN),
+			    cmd_out, cmd_out_len);
+	if (err)
+		goto other_cmd_free;
+
+	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_DEVX_OBJ_MODIFY_CMD_OUT,
+			     cmd_out, cmd_out_len);
+
+other_cmd_free:
+	kvfree(cmd_out);
+	return err;
+}
+
+static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_QUERY)(struct ib_device *ib_dev,
+				   struct ib_uverbs_file *file,
+				   struct uverbs_attr_bundle *attrs)
+{
+	struct mlx5_ib_ucontext *c = devx_ufile2uctx(file);
+	struct mlx5_ib_dev *dev = to_mdev(ib_dev);
+	void *cmd_in = uverbs_attr_get_alloced_ptr(attrs, MLX5_IB_ATTR_DEVX_OBJ_QUERY_CMD_IN);
+	int cmd_out_len = uverbs_attr_get_len(attrs,
+					      MLX5_IB_ATTR_DEVX_OBJ_QUERY_CMD_OUT);
+	struct ib_uobject *uobj = uverbs_attr_get_uobject(attrs,
+							  MLX5_IB_ATTR_DEVX_OBJ_QUERY_HANDLE);
+	void *cmd_out;
+	int err;
+
+	if (!c->devx_uid)
+		return -EPERM;
+
+	if (!devx_is_obj_query_cmd(cmd_in))
+		return -EINVAL;
+
+	if (!devx_is_valid_obj_id(uobj->object, cmd_in))
+		return -EINVAL;
+
+	cmd_out = kvzalloc(cmd_out_len, GFP_KERNEL);
+	if (!cmd_out)
+		return -ENOMEM;
+
+	MLX5_SET(general_obj_in_cmd_hdr, cmd_in, uid, c->devx_uid);
+	err = mlx5_cmd_exec(dev->mdev, cmd_in,
+			    uverbs_attr_get_len(attrs, MLX5_IB_ATTR_DEVX_OBJ_QUERY_CMD_IN),
+			    cmd_out, cmd_out_len);
+	if (err)
+		goto other_cmd_free;
+
+	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_DEVX_OBJ_QUERY_CMD_OUT, cmd_out, cmd_out_len);
+
+other_cmd_free:
+	kvfree(cmd_out);
+	return err;
+}
+
 static DECLARE_UVERBS_NAMED_METHOD(MLX5_IB_METHOD_DEVX_OTHER,
 	&UVERBS_ATTR_PTR_IN_SZ(MLX5_IB_ATTR_DEVX_OTHER_CMD_IN,
 			       UVERBS_ATTR_MIN_SIZE(MLX5_ST_SZ_BYTES(general_obj_in_cmd_hdr)),
@@ -463,13 +777,45 @@ static DECLARE_UVERBS_NAMED_METHOD(MLX5_IB_METHOD_DEVX_OBJ_DESTROY,
 			 UVERBS_ACCESS_DESTROY,
 			 UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)));
 
+static DECLARE_UVERBS_NAMED_METHOD(MLX5_IB_METHOD_DEVX_OBJ_MODIFY,
+	&UVERBS_ATTR_IDR(MLX5_IB_ATTR_DEVX_OBJ_MODIFY_HANDLE,
+			 MLX5_IB_OBJECT_DEVX_OBJ,
+			 UVERBS_ACCESS_WRITE,
+			 UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)),
+	&UVERBS_ATTR_PTR_IN_SZ(MLX5_IB_ATTR_DEVX_OBJ_MODIFY_CMD_IN,
+			       UVERBS_ATTR_MIN_SIZE(MLX5_ST_SZ_BYTES(general_obj_in_cmd_hdr)),
+			       UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY |
+					UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO |
+					UVERBS_ATTR_SPEC_F_ALLOC_AND_COPY)),
+	&UVERBS_ATTR_PTR_OUT_SZ(MLX5_IB_ATTR_DEVX_OBJ_MODIFY_CMD_OUT,
+				UVERBS_ATTR_MIN_SIZE(MLX5_ST_SZ_BYTES(general_obj_out_cmd_hdr)),
+				UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY |
+					 UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO)));
+
+static DECLARE_UVERBS_NAMED_METHOD(MLX5_IB_METHOD_DEVX_OBJ_QUERY,
+	&UVERBS_ATTR_IDR(MLX5_IB_ATTR_DEVX_OBJ_QUERY_HANDLE,
+			 MLX5_IB_OBJECT_DEVX_OBJ,
+			 UVERBS_ACCESS_READ,
+			 UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)),
+	&UVERBS_ATTR_PTR_IN_SZ(MLX5_IB_ATTR_DEVX_OBJ_QUERY_CMD_IN,
+			       UVERBS_ATTR_MIN_SIZE(MLX5_ST_SZ_BYTES(general_obj_in_cmd_hdr)),
+			       UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY |
+					UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO |
+					UVERBS_ATTR_SPEC_F_ALLOC_AND_COPY)),
+	&UVERBS_ATTR_PTR_OUT_SZ(MLX5_IB_ATTR_DEVX_OBJ_QUERY_CMD_OUT,
+				UVERBS_ATTR_MIN_SIZE(MLX5_ST_SZ_BYTES(general_obj_out_cmd_hdr)),
+				UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY |
+					 UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO)));
+
 static DECLARE_UVERBS_GLOBAL_METHODS(MLX5_IB_OBJECT_DEVX,
 	&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_OTHER));
 
 static DECLARE_UVERBS_NAMED_OBJECT(MLX5_IB_OBJECT_DEVX_OBJ,
 	&UVERBS_TYPE_ALLOC_IDR(0, devx_obj_cleanup),
 		&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_OBJ_CREATE),
-		&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_OBJ_DESTROY));
+		&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_OBJ_DESTROY),
+		&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_OBJ_MODIFY),
+		&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_OBJ_QUERY));
 
 static DECLARE_UVERBS_OBJECT_TREE(devx_objects,
 	&UVERBS_OBJECT(MLX5_IB_OBJECT_DEVX),
