@@ -1780,8 +1780,9 @@ s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 reg_pwr_tbl_sel,
 					       [idx_rate_sctn]
 					       [idx_channel]
 					       [rf_path];
-	} else
+	} else {
 		DBG_871X("No power limit table of the specified band\n");
+	}
 
 	/*  combine 5G VHT & HT rate */
 	/*  5G 20M and 40M HT and VHT can cross reference */
