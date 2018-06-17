@@ -1638,7 +1638,7 @@ static struct irqaction *__free_irq(struct irq_desc *desc, void *dev_id)
 	 * is so by doing an extra call to the handler ....
 	 *
 	 * ( We do this after actually deregistering it, to make sure that a
-	 *   'real' IRQ doesn't run in * parallel with our fake. )
+	 *   'real' IRQ doesn't run in parallel with our fake. )
 	 */
 	if (action->flags & IRQF_SHARED) {
 		local_irq_save(flags);
