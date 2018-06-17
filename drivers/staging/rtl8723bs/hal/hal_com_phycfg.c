@@ -1612,46 +1612,45 @@ static s8 phy_GetChannelIndexOfTxPowerLimit(u8 Band, u8 Channel)
 	return channelIndex;
 }
 
-s8 PHY_GetTxPowerLimit(
-	struct adapter *Adapter,
-	u32 RegPwrTblSel,
-	enum BAND_TYPE Band,
-	enum CHANNEL_WIDTH Bandwidth,
-	u8 RfPath,
-	u8 DataRate,
-	u8 Channel
-)
+s8 PHY_GetTxPowerLimit(struct adapter *Adapter, u32 RegPwrTblSel,
+		       enum BAND_TYPE Band, enum CHANNEL_WIDTH Bandwidth,
+		       u8 RfPath, u8 DataRate, u8 Channel)
 {
-	struct hal_com_data	*pHalData = GET_HAL_DATA(Adapter);
-	s16	band = -1, regulation = -1, bandwidth = -1, rateSection = -1, channel = -1;
+	s16 band        = -1;
+	s16 regulation  = -1;
+	s16 bandwidth   = -1;
+	s16 rateSection = -1;
+	s16 channel     = -1;
 	s8 powerLimit = MAX_POWER_INDEX;
+	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
 
-	if ((Adapter->registrypriv.RegEnableTxPowerLimit == 2 && pHalData->EEPROMRegulatory != 1) ||
-		   Adapter->registrypriv.RegEnableTxPowerLimit == 0)
+	if (((Adapter->registrypriv.RegEnableTxPowerLimit == 2) &&
+	     (pHalData->EEPROMRegulatory != 1)) ||
+	    (Adapter->registrypriv.RegEnableTxPowerLimit == 0))
 		return MAX_POWER_INDEX;
 
 	switch (Adapter->registrypriv.RegPwrTblSel) {
 	case 1:
-			regulation = TXPWR_LMT_ETSI;
-			break;
+		regulation = TXPWR_LMT_ETSI;
+		break;
 	case 2:
-			regulation = TXPWR_LMT_MKK;
-			break;
+		regulation = TXPWR_LMT_MKK;
+		break;
 	case 3:
-			regulation = TXPWR_LMT_FCC;
-			break;
-
+		regulation = TXPWR_LMT_FCC;
+		break;
 	case 4:
-			regulation = TXPWR_LMT_WW;
-			break;
-
+		regulation = TXPWR_LMT_WW;
+		break;
 	default:
-			regulation = (Band == BAND_ON_2_4G) ? pHalData->Regulation2_4G : pHalData->Regulation5G;
-			break;
+		regulation = (Band == BAND_ON_2_4G) ?
+			pHalData->Regulation2_4G :
+			pHalData->Regulation5G;
+		break;
 	}
 
-	/* DBG_871X("pMgntInfo->RegPwrTblSel %d, final regulation %d\n", Adapter->registrypriv.RegPwrTblSel, regulation); */
-
+	/* DBG_871X("pMgntInfo->RegPwrTblSel %d, final regulation %d\n", */
+	/*         Adapter->registrypriv.RegPwrTblSel, regulation); */
 
 	if (Band == BAND_ON_2_4G)
 		band = 0;
@@ -1730,8 +1729,8 @@ s8 PHY_GetTxPowerLimit(
 		break;
 	}
 
-	if (Band == BAND_ON_5G  && rateSection == 0)
-			DBG_871X("Wrong rate 0x%x: No CCK in 5G Band\n", DataRate);
+	if (Band == BAND_ON_5G && rateSection == 0)
+                DBG_871X("Wrong rate 0x%x: No CCK in 5G Band\n", DataRate);
 
 	/*  workaround for wrong index combination to obtain tx power limit, */
 	/*  OFDM only exists in BW 20M */
@@ -1745,22 +1744,26 @@ s8 PHY_GetTxPowerLimit(
 
 	/*  workaround for wrong indxe combination to obtain tx power limit, */
 	/*  HT on 80M will reference to HT on 40M */
-	if ((rateSection == 2 || rateSection == 3) && Band == BAND_ON_5G && bandwidth == 2) {
+	if ((rateSection == 2 || rateSection == 3) &&
+	    Band == BAND_ON_5G && bandwidth == 2) {
 		bandwidth = 1;
 	}
 
 	if (Band == BAND_ON_2_4G)
-		channel = phy_GetChannelIndexOfTxPowerLimit(BAND_ON_2_4G, Channel);
+		channel = phy_GetChannelIndexOfTxPowerLimit(BAND_ON_2_4G,
+							    Channel);
 	else if (Band == BAND_ON_5G)
-		channel = phy_GetChannelIndexOfTxPowerLimit(BAND_ON_5G, Channel);
+		channel = phy_GetChannelIndexOfTxPowerLimit(BAND_ON_5G,
+							    Channel);
 	else if (Band == BAND_ON_BOTH) {
 		/*  BAND_ON_BOTH don't care temporarily */
 	}
 
 	if (band == -1 || regulation == -1 || bandwidth == -1 ||
-	     rateSection == -1 || channel == -1) {
+	    rateSection == -1 || channel == -1) {
 		/* DBG_871X("Wrong index value to access power limit table [band %d][regulation %d][bandwidth %d][rf_path %d][rate_section %d][chnlGroup %d]\n", */
-		/*	  band, regulation, bandwidth, RfPath, rateSection, channelGroup); */
+		/*         band, regulation, bandwidth, RfPath, */
+		/*         rateSection, channelGroup); */
 
 		return MAX_POWER_INDEX;
 	}
@@ -1768,18 +1771,26 @@ s8 PHY_GetTxPowerLimit(
 	if (Band == BAND_ON_2_4G) {
 		s8 limits[10] = {0}; u8 i = 0;
 		for (i = 0; i < MAX_REGULATION_NUM; i++)
-			limits[i] = pHalData->TxPwrLimit_2_4G[i][bandwidth][rateSection][channel][RfPath];
+			limits[i] = pHalData->TxPwrLimit_2_4G[i][bandwidth]
+							     [rateSection]
+							     [channel][RfPath];
 
-		powerLimit = (regulation == TXPWR_LMT_WW) ? phy_GetWorldWideLimit(limits) :
-			pHalData->TxPwrLimit_2_4G[regulation][bandwidth][rateSection][channel][RfPath];
+		powerLimit = (regulation == TXPWR_LMT_WW) ?
+			phy_GetWorldWideLimit(limits) :
+			pHalData->TxPwrLimit_2_4G[regulation][bandwidth]
+						 [rateSection][channel][RfPath];
 
 	} else if (Band == BAND_ON_5G) {
 		s8 limits[10] = {0}; u8 i = 0;
 		for (i = 0; i < MAX_REGULATION_NUM; ++i)
-			limits[i] = pHalData->TxPwrLimit_5G[i][bandwidth][rateSection][channel][RfPath];
+			limits[i] = pHalData->TxPwrLimit_5G[i][bandwidth]
+							   [rateSection]
+							   [channel][RfPath];
 
-		powerLimit = (regulation == TXPWR_LMT_WW) ? phy_GetWorldWideLimit(limits) :
-			pHalData->TxPwrLimit_5G[regulation][bandwidth][rateSection][channel][RfPath];
+		powerLimit = (regulation == TXPWR_LMT_WW) ?
+			phy_GetWorldWideLimit(limits) :
+			pHalData->TxPwrLimit_5G[regulation][bandwidth]
+					       [rateSection][channel][RfPath];
 	} else
 		DBG_871X("No power limit table of the specified band\n");
 
@@ -1789,22 +1800,20 @@ s8 PHY_GetTxPowerLimit(
 	if (Band == BAND_ON_5G && powerLimit == MAX_POWER_INDEX) {
 		if (bandwidth == 0 || bandwidth == 1) {
 			RT_TRACE(COMP_INIT, DBG_LOUD, ("No power limit table of the specified band %d, bandwidth %d, ratesection %d, rf path %d\n",
-					  band, bandwidth, rateSection, RfPath));
+				 band, bandwidth,
+				 rateSection, RfPath));
 			if (rateSection == 2)
-				powerLimit = pHalData->TxPwrLimit_5G[regulation]
-										[bandwidth][4][channelGroup][RfPath];
+				powerLimit = pHalData->TxPwrLimit_5G[regulation][bandwidth][4][channelGroup][RfPath];
 			else if (rateSection == 4)
-				powerLimit = pHalData->TxPwrLimit_5G[regulation]
-										[bandwidth][2][channelGroup][RfPath];
+				powerLimit = pHalData->TxPwrLimit_5G[regulation][bandwidth][2][channelGroup][RfPath];
 			else if (rateSection == 3)
-				powerLimit = pHalData->TxPwrLimit_5G[regulation]
-										[bandwidth][5][channelGroup][RfPath];
+				powerLimit = pHalData->TxPwrLimit_5G[regulation][bandwidth][5][channelGroup][RfPath];
 			else if (rateSection == 5)
-				powerLimit = pHalData->TxPwrLimit_5G[regulation]
-										[bandwidth][3][channelGroup][RfPath];
+				powerLimit = pHalData->TxPwrLimit_5G[regulation][bandwidth][3][channelGroup][RfPath];
 		}
 	}
 	*/
+
 	/* DBG_871X("TxPwrLmt[Regulation %d][Band %d][BW %d][RFPath %d][Rate 0x%x][Chnl %d] = %d\n", */
 	/*		regulation, pHalData->CurrentBandType, Bandwidth, RfPath, DataRate, Channel, powerLimit); */
 	return powerLimit;
@@ -3294,4 +3303,3 @@ void phy_free_filebuf(struct adapter *padapter)
 		vfree(pHalData->rf_tx_pwr_lmt);
 
 }
-
