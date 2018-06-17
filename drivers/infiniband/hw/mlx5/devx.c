@@ -1100,3 +1100,8 @@ static DECLARE_UVERBS_OBJECT_TREE(devx_objects,
 	&UVERBS_OBJECT(MLX5_IB_OBJECT_DEVX),
 	&UVERBS_OBJECT(MLX5_IB_OBJECT_DEVX_OBJ),
 	&UVERBS_OBJECT(MLX5_IB_OBJECT_DEVX_UMEM));
+
+const struct uverbs_object_tree_def *mlx5_ib_get_devx_tree(void)
+{
+	return &devx_objects;
+}

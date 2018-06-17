@@ -5264,7 +5264,7 @@ ADD_UVERBS_ATTRIBUTES_SIMPLE(mlx5_ib_flow_action, UVERBS_OBJECT_FLOW_ACTION,
 						 UVERBS_ATTR_TYPE(u64),
 						 UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)));
 
-#define NUM_TREES	2
+#define NUM_TREES	3
 static int populate_specs_root(struct mlx5_ib_dev *dev)
 {
 	const struct uverbs_object_tree_def *default_root[NUM_TREES + 1] = {
@@ -5278,6 +5278,11 @@ static int populate_specs_root(struct mlx5_ib_dev *dev)
 	if (MLX5_CAP_DEV_MEM(dev->mdev, memic) &&
 	    !WARN_ON(num_trees >= ARRAY_SIZE(default_root)))
 		default_root[num_trees++] = &mlx5_ib_dm;
+
+	if (MLX5_CAP_GEN_64(dev->mdev, general_obj_types) &
+			    MLX5_GENERAL_OBJ_TYPES_CAP_UCTX &&
+	    !WARN_ON(num_trees >= ARRAY_SIZE(default_root)))
+		default_root[num_trees++] = mlx5_ib_get_devx_tree();
 
 	dev->ib_dev.specs_root =
 		uverbs_alloc_spec_tree(num_trees, default_root);

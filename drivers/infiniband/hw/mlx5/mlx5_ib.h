@@ -1221,12 +1221,15 @@ int mlx5_ib_devx_create(struct mlx5_ib_dev *dev,
 			struct mlx5_ib_ucontext *context);
 void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev,
 			  struct mlx5_ib_ucontext *context);
+const struct uverbs_object_tree_def *mlx5_ib_get_devx_tree(void);
 #else
 static inline int
 mlx5_ib_devx_create(struct mlx5_ib_dev *dev,
 		    struct mlx5_ib_ucontext *context) { return -EOPNOTSUPP; };
 static inline void mlx5_ib_devx_destroy(struct mlx5_ib_dev *dev,
 					struct mlx5_ib_ucontext *context) {}
+static inline const struct uverbs_object_tree_def *
+mlx5_ib_get_devx_tree(void) { return NULL; }
 #endif
 static inline void init_query_mad(struct ib_smp *mad)
 {
