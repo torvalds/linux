@@ -4,6 +4,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/dmaengine.h>
 #include <linux/spi/pxa2xx_spi.h>
 #include <linux/platform_data/i2c-pxa.h>
 
@@ -1202,11 +1203,6 @@ void __init pxa2xx_set_spi_info(unsigned id, struct pxa2xx_spi_master *info)
 	platform_device_add(pd);
 }
 
-static struct mmp_dma_platdata pxa_dma_pdata = {
-	.dma_channels	= 0,
-	.nb_requestors	= 0,
-};
-
 static struct resource pxa_dma_resource[] = {
 	[0] = {
 		.start	= 0x40000000,
@@ -1233,9 +1229,7 @@ static struct platform_device pxa2xx_pxa_dma = {
 	.resource	= pxa_dma_resource,
 };
 
-void __init pxa2xx_set_dmac_info(int nb_channels, int nb_requestors)
+void __init pxa2xx_set_dmac_info(struct mmp_dma_platdata *dma_pdata)
 {
-	pxa_dma_pdata.dma_channels = nb_channels;
-	pxa_dma_pdata.nb_requestors = nb_requestors;
-	pxa_register_device(&pxa2xx_pxa_dma, &pxa_dma_pdata);
+	pxa_register_device(&pxa2xx_pxa_dma, dma_pdata);
 }
