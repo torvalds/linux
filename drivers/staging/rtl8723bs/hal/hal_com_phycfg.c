@@ -1612,9 +1612,9 @@ static s8 phy_GetChannelIndexOfTxPowerLimit(u8 Band, u8 Channel)
 	return channelIndex;
 }
 
-s8 PHY_GetTxPowerLimit(struct adapter *Adapter, u32 RegPwrTblSel,
-		       enum BAND_TYPE Band, enum CHANNEL_WIDTH Bandwidth,
-		       u8 RfPath, u8 DataRate, u8 Channel)
+s8 phy_get_tx_pwr_lmt(struct adapter *Adapter, u32 RegPwrTblSel,
+		      enum BAND_TYPE Band, enum CHANNEL_WIDTH Bandwidth,
+		      u8 RfPath, u8 DataRate, u8 Channel)
 {
 	s16 band        = -1;
 	s16 regulation  = -1;
