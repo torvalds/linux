@@ -213,7 +213,7 @@ static const s16 log_table[] = {
 	30498,
 	31267,
 	32024,
-	32768
+	32767
 };
 
 #define LOG_TABLE_SIZE 32       /* log_table size */
