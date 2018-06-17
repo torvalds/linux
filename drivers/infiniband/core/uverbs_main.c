@@ -138,6 +138,12 @@ static int (*uverbs_ex_cmd_table[])(struct ib_uverbs_file *file,
 static void ib_uverbs_add_one(struct ib_device *device);
 static void ib_uverbs_remove_one(struct ib_device *device, void *client_data);
 
+struct ib_ucontext *ib_uverbs_get_ucontext(struct ib_uverbs_file *ufile)
+{
+	return ufile->ucontext;
+}
+EXPORT_SYMBOL(ib_uverbs_get_ucontext);
+
 int uverbs_dealloc_mw(struct ib_mw *mw)
 {
 	struct ib_pd *pd = mw->pd;
