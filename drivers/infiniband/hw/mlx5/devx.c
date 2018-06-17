@@ -389,6 +389,31 @@ static bool devx_is_general_cmd(void *in)
 	}
 }
 
+static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_QUERY_EQN)(struct ib_device *ib_dev,
+				  struct ib_uverbs_file *file,
+				  struct uverbs_attr_bundle *attrs)
+{
+	struct mlx5_ib_dev *dev = to_mdev(ib_dev);
+	int user_vector;
+	int dev_eqn;
+	unsigned int irqn;
+	int err;
+
+	if (uverbs_copy_from(&user_vector, attrs,
+			     MLX5_IB_ATTR_DEVX_QUERY_EQN_USER_VEC))
+		return -EFAULT;
+
+	err = mlx5_vector2eqn(dev->mdev, user_vector, &dev_eqn, &irqn);
+	if (err < 0)
+		return err;
+
+	if (uverbs_copy_to(attrs, MLX5_IB_ATTR_DEVX_QUERY_EQN_DEV_EQN,
+			   &dev_eqn, sizeof(dev_eqn)))
+		return -EFAULT;
+
+	return 0;
+}
+
 /*
  *Security note:
  * The hardware protection mechanism works like this: Each device object that
@@ -979,6 +1004,12 @@ static DECLARE_UVERBS_NAMED_METHOD(MLX5_IB_METHOD_DEVX_UMEM_DEREG,
 			 UVERBS_ACCESS_DESTROY,
 			 UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)));
 
+static DECLARE_UVERBS_NAMED_METHOD(MLX5_IB_METHOD_DEVX_QUERY_EQN,
+	&UVERBS_ATTR_PTR_IN(MLX5_IB_ATTR_DEVX_QUERY_EQN_USER_VEC, UVERBS_ATTR_TYPE(u32),
+			    UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)),
+	&UVERBS_ATTR_PTR_OUT(MLX5_IB_ATTR_DEVX_QUERY_EQN_DEV_EQN, UVERBS_ATTR_TYPE(u32),
+			     UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)));
+
 static DECLARE_UVERBS_NAMED_METHOD(MLX5_IB_METHOD_DEVX_QUERY_UAR,
 	&UVERBS_ATTR_PTR_IN(MLX5_IB_ATTR_DEVX_QUERY_UAR_USER_IDX, UVERBS_ATTR_TYPE(u32),
 			    UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)),
@@ -1050,7 +1081,8 @@ static DECLARE_UVERBS_NAMED_METHOD(MLX5_IB_METHOD_DEVX_OBJ_QUERY,
 
 static DECLARE_UVERBS_GLOBAL_METHODS(MLX5_IB_OBJECT_DEVX,
 	&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_OTHER),
-	&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_QUERY_UAR));
+	&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_QUERY_UAR),
+	&UVERBS_METHOD(MLX5_IB_METHOD_DEVX_QUERY_EQN));
 
 static DECLARE_UVERBS_NAMED_OBJECT(MLX5_IB_OBJECT_DEVX_OBJ,
 	&UVERBS_TYPE_ALLOC_IDR(0, devx_obj_cleanup),
