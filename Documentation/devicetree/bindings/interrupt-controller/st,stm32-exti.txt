@@ -12,7 +12,7 @@ Required properties:
   specifier, shall be 2
 - interrupts: interrupts references to primary interrupt controller
   (only needed for exti controller with multiple exti under
-  same parent interrupt: st,stm32-exti and st,stm32h7-exti")
+  same parent interrupt: st,stm32-exti and st,stm32h7-exti)
 
 Example:
 
