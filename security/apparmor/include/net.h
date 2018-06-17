@@ -72,6 +72,16 @@ struct aa_sk_ctx {
 	DEFINE_AUDIT_NET(NAME, OP, SK, (SK)->sk_family, (SK)->sk_type,	\
 			 (SK)->sk_protocol)
 
+/* struct aa_net - network confinement data
+ * @allow: basic network families permissions
+ * @audit: which network permissions to force audit
+ * @quiet: which network permissions to quiet rejects
+ */
+struct aa_net_compat {
+	u16 allow[AF_MAX];
+	u16 audit[AF_MAX];
+	u16 quiet[AF_MAX];
+};
 
 #define af_select(FAMILY, FN, DEF_FN)		\
 ({						\
@@ -91,6 +101,7 @@ struct aa_secmark {
 };
 
 extern struct aa_sfs_entry aa_sfs_entry_network[];
+extern struct aa_sfs_entry aa_sfs_entry_network_compat[];
 
 void audit_net_cb(struct audit_buffer *ab, void *va);
 int aa_profile_af_perm(struct aa_profile *profile, struct common_audit_data *sa,

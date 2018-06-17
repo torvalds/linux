@@ -28,6 +28,11 @@ struct aa_sfs_entry aa_sfs_entry_network[] = {
 	{ }
 };
 
+struct aa_sfs_entry aa_sfs_entry_network_compat[] = {
+	AA_SFS_FILE_STRING("af_mask",	AA_SFS_AF_MASK),
+	{ }
+};
+
 static const char * const net_mask_names[] = {
 	"unknown",
 	"send",
@@ -120,14 +125,26 @@ int aa_profile_af_perm(struct aa_profile *profile, struct common_audit_data *sa,
 	if (profile_unconfined(profile))
 		return 0;
 	state = PROFILE_MEDIATES(profile, AA_CLASS_NET);
-	if (!state)
-		return 0;
+	if (state) {
+		if (!state)
+			return 0;
+		buffer[0] = cpu_to_be16(family);
+		buffer[1] = cpu_to_be16((u16) type);
+		state = aa_dfa_match_len(profile->policy.dfa, state,
+					 (char *) &buffer, 4);
+		aa_compute_perms(profile->policy.dfa, state, &perms);
+	} else if (profile->net_compat) {
+		/* 2.x socket mediation compat */
+		perms.allow = (profile->net_compat->allow[family] & (1 << type)) ?
+			ALL_PERMS_MASK : 0;
+		perms.audit = (profile->net_compat->audit[family] & (1 << type)) ?
+			ALL_PERMS_MASK : 0;
+		perms.quiet = (profile->net_compat->quiet[family] & (1 << type)) ?
+			ALL_PERMS_MASK : 0;
 
-	buffer[0] = cpu_to_be16(family);
-	buffer[1] = cpu_to_be16((u16) type);
-	state = aa_dfa_match_len(profile->policy.dfa, state, (char *) &buffer,
-				 4);
-	aa_compute_perms(profile->policy.dfa, state, &perms);
+	} else {
+		return 0;
+	}
 	aa_apply_modes_to_perms(profile, &perms);
 
 	return aa_check_perms(profile, &perms, request, sa, audit_net_cb);
