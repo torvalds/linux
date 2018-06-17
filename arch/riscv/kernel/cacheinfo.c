@@ -20,7 +20,6 @@ static void ci_leaf_init(struct cacheinfo *this_leaf,
 			 struct device_node *node,
 			 enum cache_type type, unsigned int level)
 {
-	this_leaf->of_node = node;
 	this_leaf->level = level;
 	this_leaf->type = type;
 	/* not a sector cache */

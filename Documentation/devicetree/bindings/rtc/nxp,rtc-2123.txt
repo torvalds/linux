@@ -9,7 +9,7 @@ Optional properties:
 
 Example:
 
-rtc: nxp,rtc-pcf2123@3 {
+pcf2123: rtc@3 {
 	compatible = "nxp,rtc-pcf2123"
 	reg = <3>
 	spi-cs-high;

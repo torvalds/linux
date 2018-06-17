@@ -4132,7 +4132,7 @@ static int aac_convert_sgraw2(struct aac_raw_io2 *rio2, int pages, int nseg, int
 	if (aac_convert_sgl == 0)
 		return 0;
 
-	sge = kmalloc(nseg_new * sizeof(struct sge_ieee1212), GFP_ATOMIC);
+	sge = kmalloc_array(nseg_new, sizeof(struct sge_ieee1212), GFP_ATOMIC);
 	if (sge == NULL)
 		return -ENOMEM;
 

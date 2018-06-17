@@ -2268,14 +2268,14 @@ static inline unsigned int dma_transfer_size(struct comedi_device *dev)
 }
 
 static u32 ai_convert_counter_6xxx(const struct comedi_device *dev,
-					const struct comedi_cmd *cmd)
+				   const struct comedi_cmd *cmd)
 {
 	/* supposed to load counter with desired divisor minus 3 */
 	return cmd->convert_arg / TIMER_BASE - 3;
 }
 
 static u32 ai_scan_counter_6xxx(struct comedi_device *dev,
-				     struct comedi_cmd *cmd)
+				struct comedi_cmd *cmd)
 {
 	u32 count;
 
@@ -2296,7 +2296,7 @@ static u32 ai_scan_counter_6xxx(struct comedi_device *dev,
 }
 
 static u32 ai_convert_counter_4020(struct comedi_device *dev,
-					struct comedi_cmd *cmd)
+				   struct comedi_cmd *cmd)
 {
 	struct pcidas64_private *devpriv = dev->private;
 	unsigned int divisor;

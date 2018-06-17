@@ -1,6 +1,6 @@
 /*
  *  QLogic FCoE Offload Driver
- *  Copyright (c) 2016 Cavium Inc.
+ *  Copyright (c) 2016-2018 Cavium Inc.
  *
  *  This software is available under the terms of the GNU General Public License
  *  (GPL) Version 2, available from the file COPYING in the main directory of
@@ -147,7 +147,7 @@ qedf_get_grc_dump(struct qed_dev *cdev, const struct qed_common_ops *common,
 	if (!*buf)
 		return -EINVAL;
 
-	return common->dbg_grc(cdev, *buf, grcsize);
+	return common->dbg_all_data(cdev, *buf);
 }
 
 void

@@ -187,8 +187,13 @@ static int stm32_rng_runtime_resume(struct device *dev)
 }
 #endif
 
-static UNIVERSAL_DEV_PM_OPS(stm32_rng_pm_ops, stm32_rng_runtime_suspend,
-			    stm32_rng_runtime_resume, NULL);
+static const struct dev_pm_ops stm32_rng_pm_ops = {
+	SET_RUNTIME_PM_OPS(stm32_rng_runtime_suspend,
+			   stm32_rng_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
+};
+
 
 static const struct of_device_id stm32_rng_match[] = {
 	{

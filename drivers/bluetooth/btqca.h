@@ -61,6 +61,13 @@ enum qca_bardrate {
 	QCA_BAUDRATE_RESERVED
 };
 
+enum rome_tlv_dnld_mode {
+	ROME_SKIP_EVT_NONE,
+	ROME_SKIP_EVT_VSE,
+	ROME_SKIP_EVT_CC,
+	ROME_SKIP_EVT_VSE_CC
+};
+
 enum rome_tlv_type {
 	TLV_TYPE_PATCH = 1,
 	TLV_TYPE_NVM
@@ -70,6 +77,7 @@ struct rome_config {
 	u8 type;
 	char fwname[64];
 	uint8_t user_baud_rate;
+	enum rome_tlv_dnld_mode dnld_mode;
 };
 
 struct edl_event_hdr {
@@ -94,7 +102,8 @@ struct tlv_type_patch {
 	__le32 data_length;
 	__u8   format_version;
 	__u8   signature;
-	__le16 reserved1;
+	__u8   download_mode;
+	__u8   reserved1;
 	__le16 product_id;
 	__le16 rom_build;
 	__le16 patch_version;

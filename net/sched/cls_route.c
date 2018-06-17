@@ -57,10 +57,7 @@ struct route4_filter {
 	u32			handle;
 	struct route4_bucket	*bkt;
 	struct tcf_proto	*tp;
-	union {
-		struct work_struct	work;
-		struct rcu_head		rcu;
-	};
+	struct rcu_work		rwork;
 };
 
 #define ROUTE4_FAILURE ((struct route4_filter *)(-1L))
@@ -266,19 +263,17 @@ static void __route4_delete_filter(struct route4_filter *f)
 
 static void route4_delete_filter_work(struct work_struct *work)
 {
-	struct route4_filter *f = container_of(work, struct route4_filter, work);
-
+	struct route4_filter *f = container_of(to_rcu_work(work),
+					       struct route4_filter,
+					       rwork);
 	rtnl_lock();
 	__route4_delete_filter(f);
 	rtnl_unlock();
 }
 
-static void route4_delete_filter(struct rcu_head *head)
+static void route4_queue_work(struct route4_filter *f)
 {
-	struct route4_filter *f = container_of(head, struct route4_filter, rcu);
-
-	INIT_WORK(&f->work, route4_delete_filter_work);
-	tcf_queue_work(&f->work);
+	tcf_queue_work(&f->rwork, route4_delete_filter_work);
 }
 
 static void route4_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
@@ -304,7 +299,7 @@ static void route4_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
 					RCU_INIT_POINTER(b->ht[h2], next);
 					tcf_unbind_filter(tp, &f->res);
 					if (tcf_exts_get_net(&f->exts))
-						call_rcu(&f->rcu, route4_delete_filter);
+						route4_queue_work(f);
 					else
 						__route4_delete_filter(f);
 				}
@@ -349,7 +344,7 @@ static int route4_delete(struct tcf_proto *tp, void *arg, bool *last,
 			/* Delete it */
 			tcf_unbind_filter(tp, &f->res);
 			tcf_exts_get_net(&f->exts);
-			call_rcu(&f->rcu, route4_delete_filter);
+			tcf_queue_work(&f->rwork, route4_delete_filter_work);
 
 			/* Strip RTNL protected tree */
 			for (i = 0; i <= 32; i++) {
@@ -554,7 +549,7 @@ static int route4_change(struct net *net, struct sk_buff *in_skb,
 	if (fold) {
 		tcf_unbind_filter(tp, &fold->res);
 		tcf_exts_get_net(&fold->exts);
-		call_rcu(&fold->rcu, route4_delete_filter);
+		tcf_queue_work(&fold->rwork, route4_delete_filter_work);
 	}
 	return 0;
 

@@ -34,6 +34,7 @@ int compat_get_timex(struct timex *txc, const struct compat_timex __user *utp)
 {
 	struct compat_timex tx32;
 
+	memset(txc, 0, sizeof(struct timex));
 	if (copy_from_user(&tx32, utp, sizeof(struct compat_timex)))
 		return -EFAULT;
 
@@ -119,50 +120,6 @@ static int __compat_put_timespec(const struct timespec *ts, struct compat_timesp
 			__put_user(ts->tv_sec, &cts->tv_sec) ||
 			__put_user(ts->tv_nsec, &cts->tv_nsec)) ? -EFAULT : 0;
 }
-
-static int __compat_get_timespec64(struct timespec64 *ts64,
-				   const struct compat_timespec __user *cts)
-{
-	struct compat_timespec ts;
-	int ret;
-
-	ret = copy_from_user(&ts, cts, sizeof(ts));
-	if (ret)
-		return -EFAULT;
-
-	ts64->tv_sec = ts.tv_sec;
-	ts64->tv_nsec = ts.tv_nsec;
-
-	return 0;
-}
-
-static int __compat_put_timespec64(const struct timespec64 *ts64,
-				   struct compat_timespec __user *cts)
-{
-	struct compat_timespec ts = {
-		.tv_sec = ts64->tv_sec,
-		.tv_nsec = ts64->tv_nsec
-	};
-	return copy_to_user(cts, &ts, sizeof(ts)) ? -EFAULT : 0;
-}
-
-int compat_get_timespec64(struct timespec64 *ts, const void __user *uts)
-{
-	if (COMPAT_USE_64BIT_TIME)
-		return copy_from_user(ts, uts, sizeof(*ts)) ? -EFAULT : 0;
-	else
-		return __compat_get_timespec64(ts, uts);
-}
-EXPORT_SYMBOL_GPL(compat_get_timespec64);
-
-int compat_put_timespec64(const struct timespec64 *ts, void __user *uts)
-{
-	if (COMPAT_USE_64BIT_TIME)
-		return copy_to_user(uts, ts, sizeof(*ts)) ? -EFAULT : 0;
-	else
-		return __compat_put_timespec64(ts, uts);
-}
-EXPORT_SYMBOL_GPL(compat_put_timespec64);
 
 int compat_get_timeval(struct timeval *tv, const void __user *utv)
 {
@@ -366,6 +323,14 @@ COMPAT_SYSCALL_DEFINE3(sched_getaffinity, compat_pid_t,  pid, unsigned int, len,
 
 	return ret;
 }
+
+/* Todo: Delete these extern declarations when get/put_compat_itimerspec64()
+ * are moved to kernel/time/time.c .
+ */
+extern int __compat_get_timespec64(struct timespec64 *ts64,
+				   const struct compat_timespec __user *cts);
+extern int __compat_put_timespec64(const struct timespec64 *ts64,
+				   struct compat_timespec __user *cts);
 
 int get_compat_itimerspec64(struct itimerspec64 *its,
 			const struct compat_itimerspec __user *uits)

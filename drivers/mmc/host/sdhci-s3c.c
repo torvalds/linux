@@ -655,10 +655,8 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 		goto err_req_regs;
 
 	ret = sdhci_add_host(host);
-	if (ret) {
-		dev_err(dev, "sdhci_add_host() failed\n");
+	if (ret)
 		goto err_req_regs;
-	}
 
 #ifdef CONFIG_PM
 	if (pdata->cd_type != S3C_SDHCI_CD_INTERNAL)

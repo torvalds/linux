@@ -6,7 +6,7 @@
  *	under the terms of the GNU General Public License as published by the Free
  *	Software Foundation, version 2.
  *
- * see Documentation/dvb/README.dvb-usb for more information
+ * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
  */
 #ifndef _DVB_USB_DIBUSB_H_
 #define _DVB_USB_DIBUSB_H_

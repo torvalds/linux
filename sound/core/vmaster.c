@@ -259,8 +259,8 @@ int _snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave,
 	struct link_master *master_link = snd_kcontrol_chip(master);
 	struct link_slave *srec;
 
-	srec = kzalloc(sizeof(*srec) +
-		       slave->count * sizeof(*slave->vd), GFP_KERNEL);
+	srec = kzalloc(struct_size(srec, slave.vd, slave->count),
+		       GFP_KERNEL);
 	if (!srec)
 		return -ENOMEM;
 	srec->kctl = slave;

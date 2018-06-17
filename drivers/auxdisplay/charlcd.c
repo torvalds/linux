@@ -1,16 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Character LCD driver for Linux
  *
  * Copyright (C) 2000-2008, Willy Tarreau <w@1wt.eu>
  * Copyright (C) 2016-2017 Glider bvba
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/atomic.h>
+#include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
@@ -192,10 +189,11 @@ static void charlcd_print(struct charlcd *lcd, char c)
 			c = lcd->char_conv[(unsigned char)c];
 		lcd->ops->write_data(lcd, c);
 		priv->addr.x++;
+
+		/* prevents the cursor from wrapping onto the next line */
+		if (priv->addr.x == lcd->bwidth)
+			charlcd_gotoxy(lcd);
 	}
-	/* prevents the cursor from wrapping onto the next line */
-	if (priv->addr.x == lcd->bwidth)
-		charlcd_gotoxy(lcd);
 }
 
 static void charlcd_clear_fast(struct charlcd *lcd)
@@ -293,6 +291,79 @@ static int charlcd_init_display(struct charlcd *lcd)
 }
 
 /*
+ * Parses an unsigned integer from a string, until a non-digit character
+ * is found. The empty string is not accepted. No overflow checks are done.
+ *
+ * Returns whether the parsing was successful. Only in that case
+ * the output parameters are written to.
+ *
+ * TODO: If the kernel adds an inplace version of kstrtoul(), this function
+ * could be easily replaced by that.
+ */
+static bool parse_n(const char *s, unsigned long *res, const char **next_s)
+{
+	if (!isdigit(*s))
+		return false;
+
+	*res = 0;
+	while (isdigit(*s)) {
+		*res = *res * 10 + (*s - '0');
+		++s;
+	}
+
+	*next_s = s;
+	return true;
+}
+
+/*
+ * Parses a movement command of the form "(.*);", where the group can be
+ * any number of subcommands of the form "(x|y)[0-9]+".
+ *
+ * Returns whether the command is valid. The position arguments are
+ * only written if the parsing was successful.
+ *
+ * For instance:
+ *   - ";"          returns (<original x>, <original y>).
+ *   - "x1;"        returns (1, <original y>).
+ *   - "y2x1;"      returns (1, 2).
+ *   - "x12y34x56;" returns (56, 34).
+ *   - ""           fails.
+ *   - "x"          fails.
+ *   - "x;"         fails.
+ *   - "x1"         fails.
+ *   - "xy12;"      fails.
+ *   - "x12yy12;"   fails.
+ *   - "xx"         fails.
+ */
+static bool parse_xy(const char *s, unsigned long *x, unsigned long *y)
+{
+	unsigned long new_x = *x;
+	unsigned long new_y = *y;
+
+	for (;;) {
+		if (!*s)
+			return false;
+
+		if (*s == ';')
+			break;
+
+		if (*s == 'x') {
+			if (!parse_n(s + 1, &new_x, &s))
+				return false;
+		} else if (*s == 'y') {
+			if (!parse_n(s + 1, &new_y, &s))
+				return false;
+		} else {
+			return false;
+		}
+	}
+
+	*x = new_x;
+	*y = new_y;
+	return true;
+}
+
+/*
  * These are the file operation function for user access to /dev/lcd
  * This function can also be called from inside the kernel, by
  * setting file and ppos to NULL.
@@ -362,6 +433,7 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 		break;
 	case 'N':	/* Two Lines */
 		priv->flags |= LCD_FLAG_N;
+		processed = 1;
 		break;
 	case 'l':	/* Shift Cursor Left */
 		if (priv->addr.x > 0) {
@@ -441,9 +513,9 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 			shift ^= 4;
 			if (*esc >= '0' && *esc <= '9') {
 				value |= (*esc - '0') << shift;
-			} else if (*esc >= 'A' && *esc <= 'Z') {
+			} else if (*esc >= 'A' && *esc <= 'F') {
 				value |= (*esc - 'A' + 10) << shift;
-			} else if (*esc >= 'a' && *esc <= 'z') {
+			} else if (*esc >= 'a' && *esc <= 'f') {
 				value |= (*esc - 'a' + 10) << shift;
 			} else {
 				esc++;
@@ -469,24 +541,11 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 	}
 	case 'x':	/* gotoxy : LxXXX[yYYY]; */
 	case 'y':	/* gotoxy : LyYYY[xXXX]; */
-		if (!strchr(esc, ';'))
-			break;
+		/* If the command is valid, move to the new address */
+		if (parse_xy(esc, &priv->addr.x, &priv->addr.y))
+			charlcd_gotoxy(lcd);
 
-		while (*esc) {
-			if (*esc == 'x') {
-				esc++;
-				if (kstrtoul(esc, 10, &priv->addr.x) < 0)
-					break;
-			} else if (*esc == 'y') {
-				esc++;
-				if (kstrtoul(esc, 10, &priv->addr.y) < 0)
-					break;
-			} else {
-				break;
-			}
-		}
-
-		charlcd_gotoxy(lcd);
+		/* Regardless of its validity, mark as processed */
 		processed = 1;
 		break;
 	}
@@ -527,7 +586,7 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 	if ((c != '\n') && priv->esc_seq.len >= 0) {
 		/* yes, let's add this char to the buffer */
 		priv->esc_seq.buf[priv->esc_seq.len++] = c;
-		priv->esc_seq.buf[priv->esc_seq.len] = 0;
+		priv->esc_seq.buf[priv->esc_seq.len] = '\0';
 	} else {
 		/* aborts any previous escape sequence */
 		priv->esc_seq.len = -1;
@@ -536,7 +595,7 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 		case LCD_ESCAPE_CHAR:
 			/* start of an escape sequence */
 			priv->esc_seq.len = 0;
-			priv->esc_seq.buf[priv->esc_seq.len] = 0;
+			priv->esc_seq.buf[priv->esc_seq.len] = '\0';
 			break;
 		case '\b':
 			/* go back one char and clear it */
@@ -555,7 +614,7 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 			/* back one char again */
 			lcd->ops->write_cmd(lcd, LCD_CMD_SHIFT);
 			break;
-		case '\014':
+		case '\f':
 			/* quickly clear the display */
 			charlcd_clear_fast(lcd);
 			break;

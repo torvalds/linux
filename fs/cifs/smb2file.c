@@ -64,7 +64,8 @@ smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 	if (oparms->tcon->ses->server->capabilities & SMB2_GLOBAL_CAP_LEASING)
 		memcpy(smb2_oplock + 1, fid->lease_key, SMB2_LEASE_KEY_SIZE);
 
-	rc = SMB2_open(xid, oparms, smb2_path, smb2_oplock, smb2_data, NULL);
+	rc = SMB2_open(xid, oparms, smb2_path, smb2_oplock, smb2_data, NULL,
+		       NULL);
 	if (rc)
 		goto out;
 

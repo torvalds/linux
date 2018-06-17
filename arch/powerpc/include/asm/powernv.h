@@ -15,7 +15,7 @@
 extern void powernv_set_nmmu_ptcr(unsigned long ptcr);
 extern struct npu_context *pnv_npu2_init_context(struct pci_dev *gpdev,
 			unsigned long flags,
-			struct npu_context *(*cb)(struct npu_context *, void *),
+			void (*cb)(struct npu_context *, void *),
 			void *priv);
 extern void pnv_npu2_destroy_context(struct npu_context *context,
 				struct pci_dev *gpdev);

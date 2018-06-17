@@ -797,8 +797,9 @@ static int verity_alloc_most_once(struct dm_verity *v)
 		return -E2BIG;
 	}
 
-	v->validated_blocks = kvzalloc(BITS_TO_LONGS(v->data_blocks) *
-				       sizeof(unsigned long), GFP_KERNEL);
+	v->validated_blocks = kvcalloc(BITS_TO_LONGS(v->data_blocks),
+				       sizeof(unsigned long),
+				       GFP_KERNEL);
 	if (!v->validated_blocks) {
 		ti->error = "failed to allocate bitset for check_at_most_once";
 		return -ENOMEM;

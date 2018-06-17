@@ -518,6 +518,7 @@ static noinline int merge_extent_mapping(struct extent_map_tree *em_tree,
 
 /**
  * btrfs_add_extent_mapping - add extent mapping into em_tree
+ * @fs_info - used for tracepoint
  * @em_tree - the extent tree into which we want to insert the extent mapping
  * @em_in   - extent we are inserting
  * @start   - start of the logical range btrfs_get_extent() is requesting
@@ -535,7 +536,8 @@ static noinline int merge_extent_mapping(struct extent_map_tree *em_tree,
  * Return 0 on success, otherwise -EEXIST.
  *
  */
-int btrfs_add_extent_mapping(struct extent_map_tree *em_tree,
+int btrfs_add_extent_mapping(struct btrfs_fs_info *fs_info,
+			     struct extent_map_tree *em_tree,
 			     struct extent_map **em_in, u64 start, u64 len)
 {
 	int ret;
@@ -553,7 +555,7 @@ int btrfs_add_extent_mapping(struct extent_map_tree *em_tree,
 
 		existing = search_extent_mapping(em_tree, start, len);
 
-		trace_btrfs_handle_em_exist(existing, em, start, len);
+		trace_btrfs_handle_em_exist(fs_info, existing, em, start, len);
 
 		/*
 		 * existing will always be non-NULL, since there must be

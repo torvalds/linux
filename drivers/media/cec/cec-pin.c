@@ -119,7 +119,7 @@ static void cec_pin_update(struct cec_pin *pin, bool v, bool force)
 
 		if (pin->work_pin_events_dropped) {
 			pin->work_pin_events_dropped = false;
-			v |= CEC_PIN_EVENT_FL_DROPPED;
+			ev |= CEC_PIN_EVENT_FL_DROPPED;
 		}
 		pin->work_pin_events[pin->work_pin_events_wr] = ev;
 		pin->work_pin_ts[pin->work_pin_events_wr] = ktime_get();

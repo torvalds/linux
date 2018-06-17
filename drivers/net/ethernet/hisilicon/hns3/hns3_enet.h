@@ -14,6 +14,8 @@
 
 #include "hnae3.h"
 
+#define HNS3_MOD_VERSION "1.0"
+
 extern const char hns3_driver_version[];
 
 enum hns3_nic_state {
@@ -102,6 +104,9 @@ enum hns3_nic_state {
 #define HNS3_RXD_L4ID_S				8
 #define HNS3_RXD_L4ID_M				(0xf << HNS3_RXD_L4ID_S)
 #define HNS3_RXD_FRAG_B				12
+#define HNS3_RXD_STRP_TAGP_S			13
+#define HNS3_RXD_STRP_TAGP_M			(0x3 << HNS3_RXD_STRP_TAGP_S)
+
 #define HNS3_RXD_L2E_B				16
 #define HNS3_RXD_L3E_B				17
 #define HNS3_RXD_L4E_B				18
@@ -620,6 +625,7 @@ int hns3_set_channels(struct net_device *netdev,
 bool hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget);
 int hns3_init_all_ring(struct hns3_nic_priv *priv);
 int hns3_uninit_all_ring(struct hns3_nic_priv *priv);
+int hns3_nic_reset_all_ring(struct hnae3_handle *h);
 netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev);
 int hns3_clean_rx_ring(
 		struct hns3_enet_ring *ring, int budget,

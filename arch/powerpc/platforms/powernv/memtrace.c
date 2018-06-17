@@ -82,19 +82,6 @@ static const struct file_operations memtrace_fops = {
 	.open	= simple_open,
 };
 
-static void flush_memory_region(u64 base, u64 size)
-{
-	unsigned long line_size = ppc64_caches.l1d.size;
-	u64 end = base + size;
-	u64 addr;
-
-	base = round_down(base, line_size);
-	end = round_up(end, line_size);
-
-	for (addr = base; addr < end; addr += line_size)
-		asm volatile("dcbf 0,%0" : "=r" (addr) :: "memory");
-}
-
 static int check_memblock_online(struct memory_block *mem, void *arg)
 {
 	if (mem->state != MEM_ONLINE)
@@ -132,10 +119,6 @@ static bool memtrace_offline_pages(u32 nid, u64 start_pfn, u64 nr_pages)
 	walk_memory_range(start_pfn, end_pfn, (void *)MEM_OFFLINE,
 			  change_memblock_state);
 
-	/* RCU grace period? */
-	flush_memory_region((u64)__va(start_pfn << PAGE_SHIFT),
-			    nr_pages << PAGE_SHIFT);
-
 	lock_device_hotplug();
 	remove_memory(nid, start_pfn << PAGE_SHIFT, nr_pages << PAGE_SHIFT);
 	unlock_device_hotplug();
@@ -148,7 +131,7 @@ static u64 memtrace_alloc_node(u32 nid, u64 size)
 	u64 start_pfn, end_pfn, nr_pages;
 	u64 base_pfn;
 
-	if (!NODE_DATA(nid) || !node_spanned_pages(nid))
+	if (!node_spanned_pages(nid))
 		return 0;
 
 	start_pfn = node_start_pfn(nid);

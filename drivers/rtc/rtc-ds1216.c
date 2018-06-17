@@ -76,8 +76,7 @@ static void ds1216_switch_ds_to_clock(u8 __iomem *ioaddr)
 
 static int ds1216_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ds1216_priv *priv = platform_get_drvdata(pdev);
+	struct ds1216_priv *priv = dev_get_drvdata(dev);
 	struct ds1216_regs regs;
 
 	ds1216_switch_ds_to_clock(priv->ioaddr);
@@ -104,8 +103,7 @@ static int ds1216_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 static int ds1216_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ds1216_priv *priv = platform_get_drvdata(pdev);
+	struct ds1216_priv *priv = dev_get_drvdata(dev);
 	struct ds1216_regs regs;
 
 	ds1216_switch_ds_to_clock(priv->ioaddr);

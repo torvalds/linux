@@ -42,6 +42,17 @@ config EVM_EXTRA_SMACK_XATTRS
 	  additional info to the calculation, requires existing EVM
 	  labeled file systems to be relabeled.
 
+config EVM_ADD_XATTRS
+	bool "Add additional EVM extended attributes at runtime"
+	depends on EVM
+	default n
+	help
+	  Allow userland to provide additional xattrs for HMAC calculation.
+
+	  When this option is enabled, root can add additional xattrs to the
+	  list used by EVM by writing them into
+	  /sys/kernel/security/integrity/evm/evm_xattrs.
+
 config EVM_LOAD_X509
 	bool "Load an X509 certificate onto the '.evm' trusted keyring"
 	depends on EVM && INTEGRITY_TRUSTED_KEYRING

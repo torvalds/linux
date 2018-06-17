@@ -61,7 +61,7 @@
 int main(void)
 {
   DEFINE(TSK_ACTIVE_MM,		offsetof(struct task_struct, active_mm));
-#ifdef CONFIG_CC_STACKPROTECTOR
+#ifdef CONFIG_STACKPROTECTOR
   DEFINE(TSK_STACK_CANARY,	offsetof(struct task_struct, stack_canary));
 #endif
   BLANK();
@@ -194,9 +194,11 @@ int main(void)
   DEFINE(MPU_RNG_INFO_USED,	offsetof(struct mpu_rgn_info, used));
 
   DEFINE(MPU_RNG_SIZE,		sizeof(struct mpu_rgn));
-  DEFINE(MPU_RGN_DRBAR,		offsetof(struct mpu_rgn, drbar));
-  DEFINE(MPU_RGN_DRSR,		offsetof(struct mpu_rgn, drsr));
-  DEFINE(MPU_RGN_DRACR,		offsetof(struct mpu_rgn, dracr));
+  DEFINE(MPU_RGN_DRBAR,	offsetof(struct mpu_rgn, drbar));
+  DEFINE(MPU_RGN_DRSR,	offsetof(struct mpu_rgn, drsr));
+  DEFINE(MPU_RGN_DRACR,	offsetof(struct mpu_rgn, dracr));
+  DEFINE(MPU_RGN_PRBAR,	offsetof(struct mpu_rgn, prbar));
+  DEFINE(MPU_RGN_PRLAR,	offsetof(struct mpu_rgn, prlar));
 #endif
   return 0; 
 }

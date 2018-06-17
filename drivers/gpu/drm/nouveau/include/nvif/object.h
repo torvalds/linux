@@ -99,6 +99,22 @@ struct nvif_mclass {
 	ret;                                                                   \
 })
 
+#define nvif_sclass(o,m,u) ({                                                  \
+	const typeof(m[0]) *_mclass = (m);                                     \
+	s32 _oclass = (u);                                                     \
+	int _cid;                                                              \
+	if (_oclass) {                                                         \
+		for (_cid = 0; _mclass[_cid].oclass; _cid++) {                 \
+			if (_mclass[_cid].oclass == _oclass)                   \
+				break;                                         \
+		}                                                              \
+		_cid = _mclass[_cid].oclass ? _cid : -ENOSYS;                  \
+	} else {                                                               \
+		_cid = nvif_mclass((o), _mclass);                              \
+	}                                                                      \
+	_cid;                                                                  \
+})
+
 /*XXX*/
 #include <core/object.h>
 #define nvxx_object(a) ({                                                      \

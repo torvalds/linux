@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,6 +20,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -92,7 +94,8 @@ static int iwl_pcie_gen2_apm_init(struct iwl_trans *trans)
 	 * Set "initialization complete" bit to move adapter from
 	 * D0U* --> D0A* (powered-up active) state.
 	 */
-	iwl_set_bit(trans, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+	iwl_set_bit(trans, CSR_GP_CNTRL,
+		    BIT(trans->cfg->csr->flag_init_done));
 
 	/*
 	 * Wait for clock stabilization; once stabilized, access to
@@ -100,8 +103,9 @@ static int iwl_pcie_gen2_apm_init(struct iwl_trans *trans)
 	 * and accesses to uCode SRAM.
 	 */
 	ret = iwl_poll_bit(trans, CSR_GP_CNTRL,
-			   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
-			   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
+			   BIT(trans->cfg->csr->flag_mac_clock_ready),
+			   BIT(trans->cfg->csr->flag_mac_clock_ready),
+			   25000);
 	if (ret < 0) {
 		IWL_DEBUG_INFO(trans, "Failed to init the card\n");
 		return ret;
@@ -143,7 +147,8 @@ static void iwl_pcie_gen2_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 	 * Clear "initialization complete" bit to move adapter from
 	 * D0A* (powered-up Active) --> D0U* (Uninitialized) state.
 	 */
-	iwl_clear_bit(trans, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+	iwl_clear_bit(trans, CSR_GP_CNTRL,
+		      BIT(trans->cfg->csr->flag_init_done));
 }
 
 void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans, bool low_power)
@@ -187,7 +192,7 @@ void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans, bool low_power)
 
 	/* Make sure (redundant) we've released our request to stay awake */
 	iwl_clear_bit(trans, CSR_GP_CNTRL,
-		      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+		      BIT(trans->cfg->csr->flag_mac_access_req));
 
 	/* Stop the device, and put it in low power state */
 	iwl_pcie_gen2_apm_stop(trans, false);

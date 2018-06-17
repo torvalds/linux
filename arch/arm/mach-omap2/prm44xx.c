@@ -12,6 +12,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/cpu_pm.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
@@ -30,6 +31,7 @@
 #include "prcm44xx.h"
 #include "prminst44xx.h"
 #include "powerdomain.h"
+#include "pm.h"
 
 /* Static data */
 
@@ -56,6 +58,13 @@ static struct omap_prcm_irq_setup omap4_prcm_irq_setup = {
 	.restore_irqen		= &omap44xx_prm_restore_irqen,
 	.reconfigure_io_chain	= &omap44xx_prm_reconfigure_io_chain,
 };
+
+struct omap_prm_irq_context {
+	unsigned long irq_enable;
+	unsigned long pm_ctrl;
+};
+
+static struct omap_prm_irq_context omap_prm_context;
 
 /*
  * omap44xx_prm_reset_src_map - map from bits in the PRM_RSTST
@@ -667,6 +676,54 @@ static int omap4_check_vcvp(void)
 	return 0;
 }
 
+/**
+ * omap4_pwrdm_save_context - Saves the powerdomain state
+ * @pwrdm: pointer to individual powerdomain
+ *
+ * The function saves the powerdomain state control information.
+ * This is needed in rtc+ddr modes where we lose powerdomain context.
+ */
+static void omap4_pwrdm_save_context(struct powerdomain *pwrdm)
+{
+	pwrdm->context = omap4_prminst_read_inst_reg(pwrdm->prcm_partition,
+						     pwrdm->prcm_offs,
+						     pwrdm->pwrstctrl_offs);
+
+	/*
+	 * Do not save LOWPOWERSTATECHANGE, writing a 1 indicates a request,
+	 * reading back a 1 indicates a request in progress.
+	 */
+	pwrdm->context &= ~OMAP4430_LOWPOWERSTATECHANGE_MASK;
+}
+
+/**
+ * omap4_pwrdm_restore_context - Restores the powerdomain state
+ * @pwrdm: pointer to individual powerdomain
+ *
+ * The function restores the powerdomain state control information.
+ * This is needed in rtc+ddr modes where we lose powerdomain context.
+ */
+static void omap4_pwrdm_restore_context(struct powerdomain *pwrdm)
+{
+	int st, ctrl;
+
+	st = omap4_prminst_read_inst_reg(pwrdm->prcm_partition,
+					 pwrdm->prcm_offs,
+					 pwrdm->pwrstctrl_offs);
+
+	omap4_prminst_write_inst_reg(pwrdm->context,
+				     pwrdm->prcm_partition,
+				     pwrdm->prcm_offs,
+				     pwrdm->pwrstctrl_offs);
+
+	/* Make sure we only wait for a transition if there is one */
+	st &= OMAP_POWERSTATEST_MASK;
+	ctrl = OMAP_POWERSTATEST_MASK & pwrdm->context;
+
+	if (st != ctrl)
+		omap4_pwrdm_wait_transition(pwrdm);
+}
+
 struct pwrdm_ops omap4_pwrdm_operations = {
 	.pwrdm_set_next_pwrst	= omap4_pwrdm_set_next_pwrst,
 	.pwrdm_read_next_pwrst	= omap4_pwrdm_read_next_pwrst,
@@ -685,9 +742,49 @@ struct pwrdm_ops omap4_pwrdm_operations = {
 	.pwrdm_set_mem_retst	= omap4_pwrdm_set_mem_retst,
 	.pwrdm_wait_transition	= omap4_pwrdm_wait_transition,
 	.pwrdm_has_voltdm	= omap4_check_vcvp,
+	.pwrdm_save_context	= omap4_pwrdm_save_context,
+	.pwrdm_restore_context	= omap4_pwrdm_restore_context,
 };
 
 static int omap44xx_prm_late_init(void);
+
+void prm_save_context(void)
+{
+	omap_prm_context.irq_enable =
+			omap4_prm_read_inst_reg(AM43XX_PRM_OCP_SOCKET_INST,
+						omap4_prcm_irq_setup.mask);
+
+	omap_prm_context.pm_ctrl =
+			omap4_prm_read_inst_reg(AM43XX_PRM_DEVICE_INST,
+						omap4_prcm_irq_setup.pm_ctrl);
+}
+
+void prm_restore_context(void)
+{
+	omap4_prm_write_inst_reg(omap_prm_context.irq_enable,
+				 OMAP4430_PRM_OCP_SOCKET_INST,
+				 omap4_prcm_irq_setup.mask);
+
+	omap4_prm_write_inst_reg(omap_prm_context.pm_ctrl,
+				 AM43XX_PRM_DEVICE_INST,
+				 omap4_prcm_irq_setup.pm_ctrl);
+}
+
+static int cpu_notifier(struct notifier_block *nb, unsigned long cmd, void *v)
+{
+	switch (cmd) {
+	case CPU_CLUSTER_PM_ENTER:
+		if (enable_off_mode)
+			prm_save_context();
+		break;
+	case CPU_CLUSTER_PM_EXIT:
+		if (enable_off_mode)
+			prm_restore_context();
+		break;
+	}
+
+	return NOTIFY_OK;
+}
 
 /*
  * XXX document
@@ -709,6 +806,7 @@ static const struct omap_prcm_init_data *prm_init_data;
 
 int __init omap44xx_prm_init(const struct omap_prcm_init_data *data)
 {
+	static struct notifier_block nb;
 	omap_prm_base_init();
 
 	prm_init_data = data;
@@ -728,6 +826,12 @@ int __init omap44xx_prm_init(const struct omap_prcm_init_data *data)
 		omap4_prcm_irq_setup.pm_ctrl = AM43XX_PRM_IO_PMCTRL_OFFSET;
 		omap4_prcm_irq_setup.ack = AM43XX_PRM_IRQSTATUS_MPU_OFFSET;
 		omap4_prcm_irq_setup.mask = AM43XX_PRM_IRQENABLE_MPU_OFFSET;
+	}
+
+	/* Only AM43XX can lose prm context during rtc-ddr suspend */
+	if (soc_is_am43xx()) {
+		nb.notifier_call = cpu_notifier;
+		cpu_pm_register_notifier(&nb);
 	}
 
 	return prm_register(&omap44xx_prm_ll_data);

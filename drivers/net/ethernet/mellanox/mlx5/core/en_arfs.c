@@ -213,7 +213,7 @@ out:
 }
 
 #define MLX5E_ARFS_NUM_GROUPS	2
-#define MLX5E_ARFS_GROUP1_SIZE	BIT(12)
+#define MLX5E_ARFS_GROUP1_SIZE	(BIT(16) - 1)
 #define MLX5E_ARFS_GROUP2_SIZE	BIT(0)
 #define MLX5E_ARFS_TABLE_SIZE	(MLX5E_ARFS_GROUP1_SIZE +\
 				 MLX5E_ARFS_GROUP2_SIZE)
@@ -565,7 +565,7 @@ static void arfs_modify_rule_rq(struct mlx5e_priv *priv,
 	err =  mlx5_modify_rule_destination(rule, &dst, NULL);
 	if (err)
 		netdev_warn(priv->netdev,
-			    "Failed to modfiy aRFS rule destination to rq=%d\n", rxq);
+			    "Failed to modify aRFS rule destination to rq=%d\n", rxq);
 }
 
 static void arfs_handle_work(struct work_struct *work)

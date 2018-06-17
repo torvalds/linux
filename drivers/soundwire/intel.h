@@ -10,6 +10,8 @@
  * @shim: Audio shim pointer
  * @alh: ALH (Audio Link Hub) pointer
  * @irq: Interrupt line
+ * @ops: Shim callback ops
+ * @arg: Shim callback ops argument
  *
  * This is set as pdata for each link instance.
  */
@@ -18,6 +20,8 @@ struct sdw_intel_link_res {
 	void __iomem *shim;
 	void __iomem *alh;
 	int irq;
+	const struct sdw_intel_ops *ops;
+	void *arg;
 };
 
 #endif /* __SDW_INTEL_LOCAL_H */

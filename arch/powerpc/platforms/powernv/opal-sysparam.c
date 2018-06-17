@@ -198,21 +198,21 @@ void __init opal_sys_param_init(void)
 		goto out_param_buf;
 	}
 
-	id = kzalloc(sizeof(*id) * count, GFP_KERNEL);
+	id = kcalloc(count, sizeof(*id), GFP_KERNEL);
 	if (!id) {
 		pr_err("SYSPARAM: Failed to allocate memory to read parameter "
 				"id\n");
 		goto out_param_buf;
 	}
 
-	size = kzalloc(sizeof(*size) * count, GFP_KERNEL);
+	size = kcalloc(count, sizeof(*size), GFP_KERNEL);
 	if (!size) {
 		pr_err("SYSPARAM: Failed to allocate memory to read parameter "
 				"size\n");
 		goto out_free_id;
 	}
 
-	perm = kzalloc(sizeof(*perm) * count, GFP_KERNEL);
+	perm = kcalloc(count, sizeof(*perm), GFP_KERNEL);
 	if (!perm) {
 		pr_err("SYSPARAM: Failed to allocate memory to read supported "
 				"action on the parameter");
@@ -235,7 +235,7 @@ void __init opal_sys_param_init(void)
 		goto out_free_perm;
 	}
 
-	attr = kzalloc(sizeof(*attr) * count, GFP_KERNEL);
+	attr = kcalloc(count, sizeof(*attr), GFP_KERNEL);
 	if (!attr) {
 		pr_err("SYSPARAM: Failed to allocate memory for parameter "
 				"attributes\n");

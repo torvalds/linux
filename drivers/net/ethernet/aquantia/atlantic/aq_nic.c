@@ -95,6 +95,7 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 	/*rss rings */
 	cfg->vecs = min(cfg->aq_hw_caps->vecs, AQ_CFG_VECS_DEF);
 	cfg->vecs = min(cfg->vecs, num_online_cpus());
+	cfg->vecs = min(cfg->vecs, self->irqvecs);
 	/* cfg->vecs should be power of 2 for RSS */
 	if (cfg->vecs >= 8U)
 		cfg->vecs = 8U;
@@ -246,6 +247,8 @@ void aq_nic_ndev_init(struct aq_nic_s *self)
 
 	self->ndev->hw_features |= aq_hw_caps->hw_features;
 	self->ndev->features = aq_hw_caps->hw_features;
+	self->ndev->vlan_features |= NETIF_F_HW_CSUM | NETIF_F_RXCSUM |
+				     NETIF_F_RXHASH | NETIF_F_SG | NETIF_F_LRO;
 	self->ndev->priv_flags = aq_hw_caps->hw_priv_flags;
 	self->ndev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 

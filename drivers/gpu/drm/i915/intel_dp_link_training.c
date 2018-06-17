@@ -139,6 +139,11 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 	intel_dp_compute_rate(intel_dp, intel_dp->link_rate,
 			      &link_bw, &rate_select);
 
+	if (link_bw)
+		DRM_DEBUG_KMS("Using LINK_BW_SET value %02x\n", link_bw);
+	else
+		DRM_DEBUG_KMS("Using LINK_RATE_SET value %02x\n", rate_select);
+
 	/* Write the link configuration data */
 	link_config[0] = link_bw;
 	link_config[1] = intel_dp->lane_count;

@@ -1054,8 +1054,8 @@ static int mthca_alloc_wqe_buf(struct mthca_dev *dev,
 	size = PAGE_ALIGN(qp->send_wqe_offset +
 			  (qp->sq.max << qp->sq.wqe_shift));
 
-	qp->wrid = kmalloc((qp->rq.max + qp->sq.max) * sizeof (u64),
-			   GFP_KERNEL);
+	qp->wrid = kmalloc_array(qp->rq.max + qp->sq.max, sizeof(u64),
+				 GFP_KERNEL);
 	if (!qp->wrid)
 		goto err_out;
 

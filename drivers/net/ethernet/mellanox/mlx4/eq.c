@@ -1211,8 +1211,9 @@ int mlx4_init_eq_table(struct mlx4_dev *dev)
 	}
 
 	priv->eq_table.irq_names =
-		kmalloc(MLX4_IRQNAME_SIZE * (dev->caps.num_comp_vectors + 1),
-			GFP_KERNEL);
+		kmalloc_array(MLX4_IRQNAME_SIZE,
+			      (dev->caps.num_comp_vectors + 1),
+			      GFP_KERNEL);
 	if (!priv->eq_table.irq_names) {
 		err = -ENOMEM;
 		goto err_out_clr_int;

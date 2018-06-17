@@ -565,8 +565,9 @@ static int __init alloc_device(struct nandsim *ns)
 			err = -EINVAL;
 			goto err_close;
 		}
-		ns->pages_written = vzalloc(BITS_TO_LONGS(ns->geom.pgnum) *
-					    sizeof(unsigned long));
+		ns->pages_written =
+			vzalloc(array_size(sizeof(unsigned long),
+					   BITS_TO_LONGS(ns->geom.pgnum)));
 		if (!ns->pages_written) {
 			NS_ERR("alloc_device: unable to allocate pages written array\n");
 			err = -ENOMEM;
@@ -582,7 +583,7 @@ static int __init alloc_device(struct nandsim *ns)
 		return 0;
 	}
 
-	ns->pages = vmalloc(ns->geom.pgnum * sizeof(union ns_mem));
+	ns->pages = vmalloc(array_size(sizeof(union ns_mem), ns->geom.pgnum));
 	if (!ns->pages) {
 		NS_ERR("alloc_device: unable to allocate page array\n");
 		return -ENOMEM;

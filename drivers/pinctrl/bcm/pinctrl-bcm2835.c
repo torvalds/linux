@@ -36,11 +36,13 @@
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
+#include <linux/pinctrl/pinconf-generic.h>
 #include <linux/platform_device.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+#include <dt-bindings/pinctrl/bcm2835.h>
 
 #define MODULE_NAME "pinctrl-bcm2835"
 #define BCM2835_NUM_GPIOS 54
@@ -72,12 +74,8 @@
 
 enum bcm2835_pinconf_param {
 	/* argument: bcm2835_pinconf_pull */
-	BCM2835_PINCONF_PARAM_PULL,
+	BCM2835_PINCONF_PARAM_PULL = (PIN_CONFIG_END + 1),
 };
-
-#define BCM2835_PINCONF_PACK(_param_, _arg_) ((_param_) << 16 | (_arg_))
-#define BCM2835_PINCONF_UNPACK_PARAM(_conf_) ((_conf_) >> 16)
-#define BCM2835_PINCONF_UNPACK_ARG(_conf_) ((_conf_) & 0xffff)
 
 struct bcm2835_pinctrl {
 	struct device *dev;
@@ -213,14 +211,6 @@ static const char * const bcm2835_gpio_groups[] = {
 };
 
 enum bcm2835_fsel {
-	BCM2835_FSEL_GPIO_IN = 0,
-	BCM2835_FSEL_GPIO_OUT = 1,
-	BCM2835_FSEL_ALT0 = 4,
-	BCM2835_FSEL_ALT1 = 5,
-	BCM2835_FSEL_ALT2 = 6,
-	BCM2835_FSEL_ALT3 = 7,
-	BCM2835_FSEL_ALT4 = 3,
-	BCM2835_FSEL_ALT5 = 2,
 	BCM2835_FSEL_COUNT = 8,
 	BCM2835_FSEL_MASK = 0x7,
 };
@@ -714,7 +704,7 @@ static int bcm2835_pctl_dt_node_to_map_pull(struct bcm2835_pinctrl *pc,
 	configs = kzalloc(sizeof(*configs), GFP_KERNEL);
 	if (!configs)
 		return -ENOMEM;
-	configs[0] = BCM2835_PINCONF_PACK(BCM2835_PINCONF_PARAM_PULL, pull);
+	configs[0] = pinconf_to_config_packed(BCM2835_PINCONF_PARAM_PULL, pull);
 
 	map->type = PIN_MAP_TYPE_CONFIGS_PIN;
 	map->data.configs.group_or_pin = bcm2835_gpio_pins[pin].name;
@@ -727,7 +717,7 @@ static int bcm2835_pctl_dt_node_to_map_pull(struct bcm2835_pinctrl *pc,
 
 static int bcm2835_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 		struct device_node *np,
-		struct pinctrl_map **map, unsigned *num_maps)
+		struct pinctrl_map **map, unsigned int *num_maps)
 {
 	struct bcm2835_pinctrl *pc = pinctrl_dev_get_drvdata(pctldev);
 	struct property *pins, *funcs, *pulls;
@@ -736,6 +726,12 @@ static int bcm2835_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	int i, err;
 	u32 pin, func, pull;
 
+	/* Check for generic binding in this node */
+	err = pinconf_generic_dt_node_to_map_all(pctldev, np, map, num_maps);
+	if (err || *num_maps)
+		return err;
+
+	/* Generic binding did not find anything continue with legacy parse */
 	pins = of_find_property(np, "brcm,pins", NULL);
 	if (!pins) {
 		dev_err(pc->dev, "%pOF: missing brcm,pins property\n", np);
@@ -775,8 +771,8 @@ static int bcm2835_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 		maps_per_pin++;
 	if (num_pulls)
 		maps_per_pin++;
-	cur_map = maps = kzalloc(num_pins * maps_per_pin * sizeof(*maps),
-				GFP_KERNEL);
+	cur_map = maps = kcalloc(num_pins * maps_per_pin, sizeof(*maps),
+				 GFP_KERNEL);
 	if (!maps)
 		return -ENOMEM;
 
@@ -917,37 +913,67 @@ static int bcm2835_pinconf_get(struct pinctrl_dev *pctldev,
 	return -ENOTSUPP;
 }
 
+static void bcm2835_pull_config_set(struct bcm2835_pinctrl *pc,
+		unsigned int pin, unsigned int arg)
+{
+	u32 off, bit;
+
+	off = GPIO_REG_OFFSET(pin);
+	bit = GPIO_REG_SHIFT(pin);
+
+	bcm2835_gpio_wr(pc, GPPUD, arg & 3);
+	/*
+	 * BCM2835 datasheet say to wait 150 cycles, but not of what.
+	 * But the VideoCore firmware delay for this operation
+	 * based nearly on the same amount of VPU cycles and this clock
+	 * runs at 250 MHz.
+	 */
+	udelay(1);
+	bcm2835_gpio_wr(pc, GPPUDCLK0 + (off * 4), BIT(bit));
+	udelay(1);
+	bcm2835_gpio_wr(pc, GPPUDCLK0 + (off * 4), 0);
+}
+
 static int bcm2835_pinconf_set(struct pinctrl_dev *pctldev,
-			unsigned pin, unsigned long *configs,
-			unsigned num_configs)
+			unsigned int pin, unsigned long *configs,
+			unsigned int num_configs)
 {
 	struct bcm2835_pinctrl *pc = pinctrl_dev_get_drvdata(pctldev);
-	enum bcm2835_pinconf_param param;
-	u16 arg;
-	u32 off, bit;
+	u32 param, arg;
 	int i;
 
 	for (i = 0; i < num_configs; i++) {
-		param = BCM2835_PINCONF_UNPACK_PARAM(configs[i]);
-		arg = BCM2835_PINCONF_UNPACK_ARG(configs[i]);
+		param = pinconf_to_config_param(configs[i]);
+		arg = pinconf_to_config_argument(configs[i]);
 
-		if (param != BCM2835_PINCONF_PARAM_PULL)
+		switch (param) {
+		/* Set legacy brcm,pull */
+		case BCM2835_PINCONF_PARAM_PULL:
+			bcm2835_pull_config_set(pc, pin, arg);
+			break;
+
+		/* Set pull generic bindings */
+		case PIN_CONFIG_BIAS_DISABLE:
+			bcm2835_pull_config_set(pc, pin, BCM2835_PUD_OFF);
+			break;
+
+		case PIN_CONFIG_BIAS_PULL_DOWN:
+			bcm2835_pull_config_set(pc, pin, BCM2835_PUD_DOWN);
+			break;
+
+		case PIN_CONFIG_BIAS_PULL_UP:
+			bcm2835_pull_config_set(pc, pin, BCM2835_PUD_UP);
+			break;
+
+		/* Set output-high or output-low */
+		case PIN_CONFIG_OUTPUT:
+			bcm2835_gpio_set_bit(pc, arg ? GPSET0 : GPCLR0, pin);
+			break;
+
+		default:
 			return -EINVAL;
 
-		off = GPIO_REG_OFFSET(pin);
-		bit = GPIO_REG_SHIFT(pin);
-
-		bcm2835_gpio_wr(pc, GPPUD, arg & 3);
-		/*
-		 * BCM2835 datasheet say to wait 150 cycles, but not of what.
-		 * But the VideoCore firmware delay for this operation
-		 * based nearly on the same amount of VPU cycles and this clock
-		 * runs at 250 MHz.
-		 */
-		udelay(1);
-		bcm2835_gpio_wr(pc, GPPUDCLK0 + (off * 4), BIT(bit));
-		udelay(1);
-		bcm2835_gpio_wr(pc, GPPUDCLK0 + (off * 4), 0);
+		} /* switch param type */
 	} /* for each config */
 
 	return 0;

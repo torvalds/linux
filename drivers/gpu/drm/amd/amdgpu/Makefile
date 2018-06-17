@@ -56,13 +56,18 @@ amdgpu-y += amdgpu_device.o amdgpu_kms.o \
 
 # add asic specific block
 amdgpu-$(CONFIG_DRM_AMDGPU_CIK)+= cik.o cik_ih.o kv_smc.o kv_dpm.o \
-	ci_smc.o ci_dpm.o dce_v8_0.o gfx_v7_0.o cik_sdma.o uvd_v4_2.o vce_v2_0.o \
-	amdgpu_amdkfd_gfx_v7.o
+	ci_smc.o ci_dpm.o dce_v8_0.o gfx_v7_0.o cik_sdma.o uvd_v4_2.o vce_v2_0.o
 
 amdgpu-$(CONFIG_DRM_AMDGPU_SI)+= si.o gmc_v6_0.o gfx_v6_0.o si_ih.o si_dma.o dce_v6_0.o si_dpm.o si_smc.o
 
 amdgpu-y += \
-	vi.o mxgpu_vi.o nbio_v6_1.o soc15.o emu_soc.o mxgpu_ai.o nbio_v7_0.o vega10_reg_init.o
+	vi.o mxgpu_vi.o nbio_v6_1.o soc15.o emu_soc.o mxgpu_ai.o nbio_v7_0.o vega10_reg_init.o \
+	vega20_reg_init.o
+
+# add DF block
+amdgpu-y += \
+	df_v1_7.o \
+	df_v3_6.o
 
 # add GMC block
 amdgpu-y += \
@@ -126,11 +131,20 @@ amdgpu-y += \
 	vcn_v1_0.o
 
 # add amdkfd interfaces
+amdgpu-y += amdgpu_amdkfd.o
+
+ifneq ($(CONFIG_HSA_AMD),)
 amdgpu-y += \
-	 amdgpu_amdkfd.o \
 	 amdgpu_amdkfd_fence.o \
 	 amdgpu_amdkfd_gpuvm.o \
-	 amdgpu_amdkfd_gfx_v8.o
+	 amdgpu_amdkfd_gfx_v8.o \
+	 amdgpu_amdkfd_gfx_v9.o
+
+ifneq ($(CONFIG_DRM_AMDGPU_CIK),)
+amdgpu-y += amdgpu_amdkfd_gfx_v7.o
+endif
+
+endif
 
 # add cgs
 amdgpu-y += amdgpu_cgs.o

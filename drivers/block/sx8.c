@@ -567,7 +567,7 @@ static struct carm_request *carm_get_special(struct carm_host *host)
 	if (!crq)
 		return NULL;
 
-	rq = blk_get_request(host->oob_q, REQ_OP_DRV_OUT, GFP_KERNEL);
+	rq = blk_get_request(host->oob_q, REQ_OP_DRV_OUT, 0);
 	if (IS_ERR(rq)) {
 		spin_lock_irqsave(&host->lock, flags);
 		carm_put_request(host, crq);

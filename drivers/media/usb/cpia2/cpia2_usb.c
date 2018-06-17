@@ -663,7 +663,8 @@ static int submit_urbs(struct camera_data *cam)
 		if (cam->sbuf[i].data)
 			continue;
 		cam->sbuf[i].data =
-		    kmalloc(FRAMES_PER_DESC * FRAME_SIZE_PER_DESC, GFP_KERNEL);
+		    kmalloc_array(FRAME_SIZE_PER_DESC, FRAMES_PER_DESC,
+				  GFP_KERNEL);
 		if (!cam->sbuf[i].data) {
 			while (--i >= 0) {
 				kfree(cam->sbuf[i].data);

@@ -342,7 +342,7 @@ enum {
  * that may be 32 bit!
  */
 struct ORANGEFS_dev_map_desc {
-	void *ptr;
+	void __user *ptr;
 	__s32 total_size;
 	__s32 size;
 	__s32 count;

@@ -348,8 +348,9 @@ static int ttm_page_pool_free(struct ttm_page_pool *pool, unsigned nr_free,
 	if (use_static)
 		pages_to_free = static_buf;
 	else
-		pages_to_free = kmalloc(npages_to_free * sizeof(struct page *),
-					GFP_KERNEL);
+		pages_to_free = kmalloc_array(npages_to_free,
+					      sizeof(struct page *),
+					      GFP_KERNEL);
 	if (!pages_to_free) {
 		pr_debug("Failed to allocate memory for pool free operation\n");
 		return 0;
@@ -547,7 +548,8 @@ static int ttm_alloc_new_pages(struct list_head *pages, gfp_t gfp_flags,
 	unsigned max_cpages = min(count << order, (unsigned)NUM_PAGES_TO_ALLOC);
 
 	/* allocate array for page caching change */
-	caching_array = kmalloc(max_cpages*sizeof(struct page *), GFP_KERNEL);
+	caching_array = kmalloc_array(max_cpages, sizeof(struct page *),
+				      GFP_KERNEL);
 
 	if (!caching_array) {
 		pr_debug("Unable to allocate table for new pages\n");
@@ -910,7 +912,8 @@ static int ttm_get_pages(struct page **pages, unsigned npages, int flags,
 			while (npages >= HPAGE_PMD_NR) {
 				gfp_t huge_flags = gfp_flags;
 
-				huge_flags |= GFP_TRANSHUGE;
+				huge_flags |= GFP_TRANSHUGE_LIGHT | __GFP_NORETRY |
+					__GFP_KSWAPD_RECLAIM;
 				huge_flags &= ~__GFP_MOVABLE;
 				huge_flags &= ~__GFP_COMP;
 				p = alloc_pages(huge_flags, HPAGE_PMD_ORDER);
@@ -1027,11 +1030,15 @@ int ttm_page_alloc_init(struct ttm_mem_global *glob, unsigned max_pages)
 				  GFP_USER | GFP_DMA32, "uc dma", 0);
 
 	ttm_page_pool_init_locked(&_manager->wc_pool_huge,
-				  GFP_TRANSHUGE	& ~(__GFP_MOVABLE | __GFP_COMP),
+				  (GFP_TRANSHUGE_LIGHT | __GFP_NORETRY |
+				   __GFP_KSWAPD_RECLAIM) &
+				  ~(__GFP_MOVABLE | __GFP_COMP),
 				  "wc huge", order);
 
 	ttm_page_pool_init_locked(&_manager->uc_pool_huge,
-				  GFP_TRANSHUGE	& ~(__GFP_MOVABLE | __GFP_COMP)
+				  (GFP_TRANSHUGE_LIGHT | __GFP_NORETRY |
+				   __GFP_KSWAPD_RECLAIM) &
+				  ~(__GFP_MOVABLE | __GFP_COMP)
 				  , "uc huge", order);
 
 	_manager->options.max_size = max_pages;

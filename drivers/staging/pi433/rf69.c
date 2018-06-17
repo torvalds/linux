@@ -97,7 +97,8 @@ static int rf69_clear_bit(struct spi_device *spi, u8 reg, u8 mask)
 	return rf69_write_reg(spi, reg, tmp);
 }
 
-static inline int rf69_read_mod_write(struct spi_device *spi, u8 reg, u8 mask, u8 value)
+static inline int rf69_read_mod_write(struct spi_device *spi, u8 reg,
+				      u8 mask, u8 value)
 {
 	u8 tmp;
 
@@ -112,15 +113,20 @@ int rf69_set_mode(struct spi_device *spi, enum mode mode)
 {
 	switch (mode) {
 	case transmit:
-		return rf69_read_mod_write(spi, REG_OPMODE, MASK_OPMODE_MODE, OPMODE_MODE_TRANSMIT);
+		return rf69_read_mod_write(spi, REG_OPMODE, MASK_OPMODE_MODE,
+					   OPMODE_MODE_TRANSMIT);
 	case receive:
-		return rf69_read_mod_write(spi, REG_OPMODE, MASK_OPMODE_MODE, OPMODE_MODE_RECEIVE);
+		return rf69_read_mod_write(spi, REG_OPMODE, MASK_OPMODE_MODE,
+					   OPMODE_MODE_RECEIVE);
 	case synthesizer:
-		return rf69_read_mod_write(spi, REG_OPMODE, MASK_OPMODE_MODE, OPMODE_MODE_SYNTHESIZER);
+		return rf69_read_mod_write(spi, REG_OPMODE, MASK_OPMODE_MODE,
+					   OPMODE_MODE_SYNTHESIZER);
 	case standby:
-		return rf69_read_mod_write(spi, REG_OPMODE, MASK_OPMODE_MODE, OPMODE_MODE_STANDBY);
+		return rf69_read_mod_write(spi, REG_OPMODE, MASK_OPMODE_MODE,
+					   OPMODE_MODE_STANDBY);
 	case mode_sleep:
-		return rf69_read_mod_write(spi, REG_OPMODE, MASK_OPMODE_MODE, OPMODE_MODE_SLEEP);
+		return rf69_read_mod_write(spi, REG_OPMODE, MASK_OPMODE_MODE,
+					   OPMODE_MODE_SLEEP);
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");
 		return -EINVAL;
@@ -133,16 +139,21 @@ int rf69_set_mode(struct spi_device *spi, enum mode mode)
 
 int rf69_set_data_mode(struct spi_device *spi, u8 data_mode)
 {
-	return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODE, data_mode);
+	return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODE,
+				   data_mode);
 }
 
 int rf69_set_modulation(struct spi_device *spi, enum modulation modulation)
 {
 	switch (modulation) {
 	case OOK:
-		return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_TYPE, DATAMODUL_MODULATION_TYPE_OOK);
+		return rf69_read_mod_write(spi, REG_DATAMODUL,
+					   MASK_DATAMODUL_MODULATION_TYPE,
+					   DATAMODUL_MODULATION_TYPE_OOK);
 	case FSK:
-		return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_TYPE, DATAMODUL_MODULATION_TYPE_FSK);
+		return rf69_read_mod_write(spi, REG_DATAMODUL,
+					   MASK_DATAMODUL_MODULATION_TYPE,
+					   DATAMODUL_MODULATION_TYPE_FSK);
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");
 		return -EINVAL;
@@ -172,13 +183,21 @@ int rf69_set_modulation_shaping(struct spi_device *spi,
 	case FSK:
 		switch (mod_shaping) {
 		case SHAPING_OFF:
-			return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_NONE);
+			return rf69_read_mod_write(spi, REG_DATAMODUL,
+						   MASK_DATAMODUL_MODULATION_SHAPE,
+						   DATAMODUL_MODULATION_SHAPE_NONE);
 		case SHAPING_1_0:
-			return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_1_0);
+			return rf69_read_mod_write(spi, REG_DATAMODUL,
+						   MASK_DATAMODUL_MODULATION_SHAPE,
+						   DATAMODUL_MODULATION_SHAPE_1_0);
 		case SHAPING_0_5:
-			return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_0_5);
+			return rf69_read_mod_write(spi, REG_DATAMODUL,
+						   MASK_DATAMODUL_MODULATION_SHAPE,
+						   DATAMODUL_MODULATION_SHAPE_0_5);
 		case SHAPING_0_3:
-			return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_0_3);
+			return rf69_read_mod_write(spi, REG_DATAMODUL,
+						   MASK_DATAMODUL_MODULATION_SHAPE,
+						   DATAMODUL_MODULATION_SHAPE_0_3);
 		default:
 			dev_dbg(&spi->dev, "set: illegal input param");
 			return -EINVAL;
@@ -186,11 +205,17 @@ int rf69_set_modulation_shaping(struct spi_device *spi,
 	case OOK:
 		switch (mod_shaping) {
 		case SHAPING_OFF:
-			return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_NONE);
+			return rf69_read_mod_write(spi, REG_DATAMODUL,
+						   MASK_DATAMODUL_MODULATION_SHAPE,
+						   DATAMODUL_MODULATION_SHAPE_NONE);
 		case SHAPING_BR:
-			return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_BR);
+			return rf69_read_mod_write(spi, REG_DATAMODUL,
+						   MASK_DATAMODUL_MODULATION_SHAPE,
+						   DATAMODUL_MODULATION_SHAPE_BR);
 		case SHAPING_2BR:
-			return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_2BR);
+			return rf69_read_mod_write(spi, REG_DATAMODUL,
+						   MASK_DATAMODUL_MODULATION_SHAPE,
+						   DATAMODUL_MODULATION_SHAPE_2BR);
 		default:
 			dev_dbg(&spi->dev, "set: illegal input param");
 			return -EINVAL;
@@ -342,7 +367,8 @@ int rf69_set_output_power_level(struct spi_device *spi, u8 power_level)
 	}
 
 	// write value
-	return rf69_read_mod_write(spi, REG_PALEVEL, MASK_PALEVEL_OUTPUT_POWER, power_level);
+	return rf69_read_mod_write(spi, REG_PALEVEL, MASK_PALEVEL_OUTPUT_POWER,
+				   power_level);
 }
 
 int rf69_set_pa_ramp(struct spi_device *spi, enum pa_ramp pa_ramp)
@@ -386,7 +412,8 @@ int rf69_set_pa_ramp(struct spi_device *spi, enum pa_ramp pa_ramp)
 	}
 }
 
-int rf69_set_antenna_impedance(struct spi_device *spi, enum antenna_impedance antenna_impedance)
+int rf69_set_antenna_impedance(struct spi_device *spi,
+			       enum antenna_impedance antenna_impedance)
 {
 	switch (antenna_impedance) {
 	case fifty_ohm:
@@ -403,19 +430,26 @@ int rf69_set_lna_gain(struct spi_device *spi, enum lna_gain lna_gain)
 {
 	switch (lna_gain) {
 	case automatic:
-		return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN, LNA_GAIN_AUTO);
+		return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN,
+					   LNA_GAIN_AUTO);
 	case max:
-		return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN, LNA_GAIN_MAX);
+		return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN,
+					   LNA_GAIN_MAX);
 	case max_minus_6:
-		return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN, LNA_GAIN_MAX_MINUS_6);
+		return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN,
+					   LNA_GAIN_MAX_MINUS_6);
 	case max_minus_12:
-		return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN, LNA_GAIN_MAX_MINUS_12);
+		return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN,
+					   LNA_GAIN_MAX_MINUS_12);
 	case max_minus_24:
-		return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN, LNA_GAIN_MAX_MINUS_24);
+		return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN,
+					   LNA_GAIN_MAX_MINUS_24);
 	case max_minus_36:
-		return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN, LNA_GAIN_MAX_MINUS_36);
+		return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN,
+					   LNA_GAIN_MAX_MINUS_36);
 	case max_minus_48:
-		return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN, LNA_GAIN_MAX_MINUS_48);
+		return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN,
+					   LNA_GAIN_MAX_MINUS_48);
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");
 		return -EINVAL;
@@ -466,35 +500,55 @@ static int rf69_set_bandwidth_intern(struct spi_device *spi, u8 reg,
 	return rf69_write_reg(spi, reg, bandwidth);
 }
 
-int rf69_set_bandwidth(struct spi_device *spi, enum mantisse mantisse, u8 exponent)
+int rf69_set_bandwidth(struct spi_device *spi, enum mantisse mantisse,
+		       u8 exponent)
 {
 	return rf69_set_bandwidth_intern(spi, REG_RXBW, mantisse, exponent);
 }
 
-int rf69_set_bandwidth_during_afc(struct spi_device *spi, enum mantisse mantisse, u8 exponent)
+int rf69_set_bandwidth_during_afc(struct spi_device *spi,
+				  enum mantisse mantisse,
+				  u8 exponent)
 {
 	return rf69_set_bandwidth_intern(spi, REG_AFCBW, mantisse, exponent);
 }
 
-int rf69_set_ook_threshold_dec(struct spi_device *spi, enum threshold_decrement threshold_decrement)
+int rf69_set_ook_threshold_dec(struct spi_device *spi,
+			       enum threshold_decrement threshold_decrement)
 {
 	switch (threshold_decrement) {
 	case dec_every8th:
-		return rf69_read_mod_write(spi, REG_OOKPEAK, MASK_OOKPEAK_THRESDEC, OOKPEAK_THRESHDEC_EVERY_8TH);
+		return rf69_read_mod_write(spi, REG_OOKPEAK,
+					   MASK_OOKPEAK_THRESDEC,
+					   OOKPEAK_THRESHDEC_EVERY_8TH);
 	case dec_every4th:
-		return rf69_read_mod_write(spi, REG_OOKPEAK, MASK_OOKPEAK_THRESDEC, OOKPEAK_THRESHDEC_EVERY_4TH);
+		return rf69_read_mod_write(spi, REG_OOKPEAK,
+					   MASK_OOKPEAK_THRESDEC,
+					   OOKPEAK_THRESHDEC_EVERY_4TH);
 	case dec_every2nd:
-		return rf69_read_mod_write(spi, REG_OOKPEAK, MASK_OOKPEAK_THRESDEC, OOKPEAK_THRESHDEC_EVERY_2ND);
+		return rf69_read_mod_write(spi, REG_OOKPEAK,
+					   MASK_OOKPEAK_THRESDEC,
+					   OOKPEAK_THRESHDEC_EVERY_2ND);
 	case dec_once:
-		return rf69_read_mod_write(spi, REG_OOKPEAK, MASK_OOKPEAK_THRESDEC, OOKPEAK_THRESHDEC_ONCE);
+		return rf69_read_mod_write(spi, REG_OOKPEAK,
+					   MASK_OOKPEAK_THRESDEC,
+					   OOKPEAK_THRESHDEC_ONCE);
 	case dec_twice:
-		return rf69_read_mod_write(spi, REG_OOKPEAK, MASK_OOKPEAK_THRESDEC, OOKPEAK_THRESHDEC_TWICE);
+		return rf69_read_mod_write(spi, REG_OOKPEAK,
+					   MASK_OOKPEAK_THRESDEC,
+					   OOKPEAK_THRESHDEC_TWICE);
 	case dec_4times:
-		return rf69_read_mod_write(spi, REG_OOKPEAK, MASK_OOKPEAK_THRESDEC, OOKPEAK_THRESHDEC_4_TIMES);
+		return rf69_read_mod_write(spi, REG_OOKPEAK,
+					   MASK_OOKPEAK_THRESDEC,
+					   OOKPEAK_THRESHDEC_4_TIMES);
 	case dec_8times:
-		return rf69_read_mod_write(spi, REG_OOKPEAK, MASK_OOKPEAK_THRESDEC, OOKPEAK_THRESHDEC_8_TIMES);
+		return rf69_read_mod_write(spi, REG_OOKPEAK,
+					   MASK_OOKPEAK_THRESDEC,
+					   OOKPEAK_THRESHDEC_8_TIMES);
 	case dec_16times:
-		return rf69_read_mod_write(spi, REG_OOKPEAK, MASK_OOKPEAK_THRESDEC, OOKPEAK_THRESHDEC_16_TIMES);
+		return rf69_read_mod_write(spi, REG_OOKPEAK,
+					   MASK_OOKPEAK_THRESDEC,
+					   OOKPEAK_THRESHDEC_16_TIMES);
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");
 		return -EINVAL;
@@ -620,13 +674,16 @@ int rf69_disable_sync(struct spi_device *spi)
 	return rf69_clear_bit(spi, REG_SYNC_CONFIG, MASK_SYNC_CONFIG_SYNC_ON);
 }
 
-int rf69_set_fifo_fill_condition(struct spi_device *spi, enum fifo_fill_condition fifo_fill_condition)
+int rf69_set_fifo_fill_condition(struct spi_device *spi,
+				 enum fifo_fill_condition fifo_fill_condition)
 {
 	switch (fifo_fill_condition) {
 	case always:
-		return rf69_set_bit(spi, REG_SYNC_CONFIG, MASK_SYNC_CONFIG_FIFO_FILL_CONDITION);
+		return rf69_set_bit(spi, REG_SYNC_CONFIG,
+				    MASK_SYNC_CONFIG_FIFO_FILL_CONDITION);
 	case after_sync_interrupt:
-		return rf69_clear_bit(spi, REG_SYNC_CONFIG, MASK_SYNC_CONFIG_FIFO_FILL_CONDITION);
+		return rf69_clear_bit(spi, REG_SYNC_CONFIG,
+				      MASK_SYNC_CONFIG_FIFO_FILL_CONDITION);
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");
 		return -EINVAL;
@@ -642,7 +699,9 @@ int rf69_set_sync_size(struct spi_device *spi, u8 sync_size)
 	}
 
 	// write value
-	return rf69_read_mod_write(spi, REG_SYNC_CONFIG, MASK_SYNC_CONFIG_SYNC_SIZE, (sync_size << 3));
+	return rf69_read_mod_write(spi, REG_SYNC_CONFIG,
+				   MASK_SYNC_CONFIG_SYNC_SIZE,
+				   (sync_size << 3));
 }
 
 int rf69_set_sync_values(struct spi_device *spi, u8 sync_values[8])
@@ -661,13 +720,16 @@ int rf69_set_sync_values(struct spi_device *spi, u8 sync_values[8])
 	return retval;
 }
 
-int rf69_set_packet_format(struct spi_device *spi, enum packet_format packet_format)
+int rf69_set_packet_format(struct spi_device *spi,
+			   enum packet_format packet_format)
 {
 	switch (packet_format) {
 	case packet_length_var:
-		return rf69_set_bit(spi, REG_PACKETCONFIG1, MASK_PACKETCONFIG1_PAKET_FORMAT_VARIABLE);
+		return rf69_set_bit(spi, REG_PACKETCONFIG1,
+				    MASK_PACKETCONFIG1_PAKET_FORMAT_VARIABLE);
 	case packet_length_fix:
-		return rf69_clear_bit(spi, REG_PACKETCONFIG1, MASK_PACKETCONFIG1_PAKET_FORMAT_VARIABLE);
+		return rf69_clear_bit(spi, REG_PACKETCONFIG1,
+				      MASK_PACKETCONFIG1_PAKET_FORMAT_VARIABLE);
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");
 		return -EINVAL;
@@ -684,15 +746,22 @@ int rf69_disable_crc(struct spi_device *spi)
 	return rf69_clear_bit(spi, REG_PACKETCONFIG1, MASK_PACKETCONFIG1_CRC_ON);
 }
 
-int rf69_set_address_filtering(struct spi_device *spi, enum address_filtering address_filtering)
+int rf69_set_address_filtering(struct spi_device *spi,
+			       enum address_filtering address_filtering)
 {
 	switch (address_filtering) {
 	case filtering_off:
-		return rf69_read_mod_write(spi, REG_PACKETCONFIG1, MASK_PACKETCONFIG1_ADDRESSFILTERING, PACKETCONFIG1_ADDRESSFILTERING_OFF);
+		return rf69_read_mod_write(spi, REG_PACKETCONFIG1,
+					   MASK_PACKETCONFIG1_ADDRESSFILTERING,
+					   PACKETCONFIG1_ADDRESSFILTERING_OFF);
 	case node_address:
-		return rf69_read_mod_write(spi, REG_PACKETCONFIG1, MASK_PACKETCONFIG1_ADDRESSFILTERING, PACKETCONFIG1_ADDRESSFILTERING_NODE);
+		return rf69_read_mod_write(spi, REG_PACKETCONFIG1,
+					   MASK_PACKETCONFIG1_ADDRESSFILTERING,
+					   PACKETCONFIG1_ADDRESSFILTERING_NODE);
 	case node_or_broadcast_address:
-		return rf69_read_mod_write(spi, REG_PACKETCONFIG1, MASK_PACKETCONFIG1_ADDRESSFILTERING, PACKETCONFIG1_ADDRESSFILTERING_NODEBROADCAST);
+		return rf69_read_mod_write(spi, REG_PACKETCONFIG1,
+					   MASK_PACKETCONFIG1_ADDRESSFILTERING,
+					   PACKETCONFIG1_ADDRESSFILTERING_NODEBROADCAST);
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");
 		return -EINVAL;
@@ -714,13 +783,16 @@ int rf69_set_broadcast_address(struct spi_device *spi, u8 broadcast_address)
 	return rf69_write_reg(spi, REG_BROADCASTADRS, broadcast_address);
 }
 
-int rf69_set_tx_start_condition(struct spi_device *spi, enum tx_start_condition tx_start_condition)
+int rf69_set_tx_start_condition(struct spi_device *spi,
+				enum tx_start_condition tx_start_condition)
 {
 	switch (tx_start_condition) {
 	case fifo_level:
-		return rf69_clear_bit(spi, REG_FIFO_THRESH, MASK_FIFO_THRESH_TXSTART);
+		return rf69_clear_bit(spi, REG_FIFO_THRESH,
+				      MASK_FIFO_THRESH_TXSTART);
 	case fifo_not_empty:
-		return rf69_set_bit(spi, REG_FIFO_THRESH, MASK_FIFO_THRESH_TXSTART);
+		return rf69_set_bit(spi, REG_FIFO_THRESH,
+				    MASK_FIFO_THRESH_TXSTART);
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");
 		return -EINVAL;
@@ -738,7 +810,9 @@ int rf69_set_fifo_threshold(struct spi_device *spi, u8 threshold)
 	}
 
 	/* write value */
-	retval = rf69_read_mod_write(spi, REG_FIFO_THRESH, MASK_FIFO_THRESH_VALUE, threshold);
+	retval = rf69_read_mod_write(spi, REG_FIFO_THRESH,
+				     MASK_FIFO_THRESH_VALUE,
+				     threshold);
 	if (retval)
 		return retval;
 
@@ -775,7 +849,8 @@ int rf69_read_fifo(struct spi_device *spi, u8 *buffer, unsigned int size)
 	int retval;
 
 	if (size > FIFO_SIZE) {
-		dev_dbg(&spi->dev, "read fifo: passed in buffer bigger then internal buffer\n");
+		dev_dbg(&spi->dev,
+			"read fifo: passed in buffer bigger then internal buffer\n");
 		return -EMSGSIZE;
 	}
 
@@ -807,7 +882,8 @@ int rf69_write_fifo(struct spi_device *spi, u8 *buffer, unsigned int size)
 	u8 local_buffer[FIFO_SIZE + 1];
 
 	if (size > FIFO_SIZE) {
-		dev_dbg(&spi->dev, "read fifo: passed in buffer bigger then internal buffer\n");
+		dev_dbg(&spi->dev,
+			"read fifo: passed in buffer bigger then internal buffer\n");
 		return -EMSGSIZE;
 	}
 

@@ -812,6 +812,7 @@ struct kvm_arch{
 	int use_irqchip;
 	int use_cmma;
 	int use_pfmfi;
+	int use_skf;
 	int user_cpu_state_ctrl;
 	int user_sigp;
 	int user_stsi;

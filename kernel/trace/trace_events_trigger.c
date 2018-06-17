@@ -97,7 +97,6 @@ EXPORT_SYMBOL_GPL(event_triggers_call);
  * event_triggers_post_call - Call 'post_triggers' for a trace event
  * @file: The trace_event_file associated with the event
  * @tt: enum event_trigger_type containing a set bit for each trigger to invoke
- * @rec: The trace entry for the event
  *
  * For each trigger associated with an event, invoke the trigger
  * function registered with the associated trigger command, if the
@@ -108,8 +107,7 @@ EXPORT_SYMBOL_GPL(event_triggers_call);
  */
 void
 event_triggers_post_call(struct trace_event_file *file,
-			 enum event_trigger_type tt,
-			 void *rec, struct ring_buffer_event *event)
+			 enum event_trigger_type tt)
 {
 	struct event_trigger_data *data;
 
@@ -117,7 +115,7 @@ event_triggers_post_call(struct trace_event_file *file,
 		if (data->paused)
 			continue;
 		if (data->cmd_ops->trigger_type & tt)
-			data->ops->func(data, rec, event);
+			data->ops->func(data, NULL, NULL);
 	}
 }
 EXPORT_SYMBOL_GPL(event_triggers_post_call);
@@ -483,9 +481,10 @@ clear_event_triggers(struct trace_array *tr)
 	struct trace_event_file *file;
 
 	list_for_each_entry(file, &tr->events, list) {
-		struct event_trigger_data *data;
-		list_for_each_entry_rcu(data, &file->triggers, list) {
+		struct event_trigger_data *data, *n;
+		list_for_each_entry_safe(data, n, &file->triggers, list) {
 			trace_event_trigger_enable_disable(file, 0);
+			list_del_rcu(&data->list);
 			if (data->ops->free)
 				data->ops->free(data->ops, data);
 		}
@@ -642,6 +641,7 @@ event_trigger_callback(struct event_command *cmd_ops,
 	trigger_data->count = -1;
 	trigger_data->ops = trigger_ops;
 	trigger_data->cmd_ops = cmd_ops;
+	trigger_data->private_data = file;
 	INIT_LIST_HEAD(&trigger_data->list);
 	INIT_LIST_HEAD(&trigger_data->named_list);
 
@@ -1053,7 +1053,12 @@ static void
 snapshot_trigger(struct event_trigger_data *data, void *rec,
 		 struct ring_buffer_event *event)
 {
-	tracing_snapshot();
+	struct trace_event_file *file = data->private_data;
+
+	if (file)
+		tracing_snapshot_instance(file->tr);
+	else
+		tracing_snapshot();
 }
 
 static void
@@ -1076,7 +1081,7 @@ register_snapshot_trigger(char *glob, struct event_trigger_ops *ops,
 {
 	int ret = register_trigger(glob, ops, data, file);
 
-	if (ret > 0 && tracing_alloc_snapshot() != 0) {
+	if (ret > 0 && tracing_alloc_snapshot_instance(file->tr) != 0) {
 		unregister_trigger(glob, ops, data, file);
 		ret = 0;
 	}

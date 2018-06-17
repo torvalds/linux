@@ -2642,7 +2642,7 @@ static void rtl8821ae_dm_edca_choose_traffic_idx(
 		if (cur_tx_bytes > (cur_rx_bytes*4)) {
 			*pb_is_cur_rdl_state = false;
 			RT_TRACE(rtlpriv, COMP_TURBO, DBG_LOUD,
-				 "Uplink Traffic\n ");
+				 "Uplink Traffic\n");
 		} else {
 			*pb_is_cur_rdl_state = true;
 			RT_TRACE(rtlpriv, COMP_TURBO, DBG_LOUD,

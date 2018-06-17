@@ -63,7 +63,7 @@ static int scmi_power_attributes_get(const struct scmi_handle *handle,
 	struct scmi_xfer *t;
 	struct scmi_msg_resp_power_attributes *attr;
 
-	ret = scmi_one_xfer_init(handle, PROTOCOL_ATTRIBUTES,
+	ret = scmi_xfer_get_init(handle, PROTOCOL_ATTRIBUTES,
 				 SCMI_PROTOCOL_POWER, 0, sizeof(*attr), &t);
 	if (ret)
 		return ret;
@@ -78,7 +78,7 @@ static int scmi_power_attributes_get(const struct scmi_handle *handle,
 		pi->stats_size = le32_to_cpu(attr->stats_size);
 	}
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 	return ret;
 }
 
@@ -90,7 +90,7 @@ scmi_power_domain_attributes_get(const struct scmi_handle *handle, u32 domain,
 	struct scmi_xfer *t;
 	struct scmi_msg_resp_power_domain_attributes *attr;
 
-	ret = scmi_one_xfer_init(handle, POWER_DOMAIN_ATTRIBUTES,
+	ret = scmi_xfer_get_init(handle, POWER_DOMAIN_ATTRIBUTES,
 				 SCMI_PROTOCOL_POWER, sizeof(domain),
 				 sizeof(*attr), &t);
 	if (ret)
@@ -109,7 +109,7 @@ scmi_power_domain_attributes_get(const struct scmi_handle *handle, u32 domain,
 		memcpy(dom_info->name, attr->name, SCMI_MAX_STR_SIZE);
 	}
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 	return ret;
 }
 
@@ -120,7 +120,7 @@ scmi_power_state_set(const struct scmi_handle *handle, u32 domain, u32 state)
 	struct scmi_xfer *t;
 	struct scmi_power_set_state *st;
 
-	ret = scmi_one_xfer_init(handle, POWER_STATE_SET, SCMI_PROTOCOL_POWER,
+	ret = scmi_xfer_get_init(handle, POWER_STATE_SET, SCMI_PROTOCOL_POWER,
 				 sizeof(*st), 0, &t);
 	if (ret)
 		return ret;
@@ -132,7 +132,7 @@ scmi_power_state_set(const struct scmi_handle *handle, u32 domain, u32 state)
 
 	ret = scmi_do_xfer(handle, t);
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 	return ret;
 }
 
@@ -142,7 +142,7 @@ scmi_power_state_get(const struct scmi_handle *handle, u32 domain, u32 *state)
 	int ret;
 	struct scmi_xfer *t;
 
-	ret = scmi_one_xfer_init(handle, POWER_STATE_GET, SCMI_PROTOCOL_POWER,
+	ret = scmi_xfer_get_init(handle, POWER_STATE_GET, SCMI_PROTOCOL_POWER,
 				 sizeof(u32), sizeof(u32), &t);
 	if (ret)
 		return ret;
@@ -153,7 +153,7 @@ scmi_power_state_get(const struct scmi_handle *handle, u32 domain, u32 *state)
 	if (!ret)
 		*state = le32_to_cpu(*(__le32 *)t->rx.buf);
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 	return ret;
 }
 

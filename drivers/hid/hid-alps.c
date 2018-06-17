@@ -171,7 +171,7 @@ static int t4_read_write_register(struct hid_device *hdev, u32 address,
 	int ret;
 	u16 check_sum;
 	u8 *input;
-	u8 *readbuf;
+	u8 *readbuf = NULL;
 
 	input = kzalloc(T4_FEATURE_REPORT_LEN, GFP_KERNEL);
 	if (!input)
@@ -204,8 +204,8 @@ static int t4_read_write_register(struct hid_device *hdev, u32 address,
 		goto exit;
 	}
 
-	readbuf = kzalloc(T4_FEATURE_REPORT_LEN, GFP_KERNEL);
 	if (read_flag) {
+		readbuf = kzalloc(T4_FEATURE_REPORT_LEN, GFP_KERNEL);
 		if (!readbuf) {
 			ret = -ENOMEM;
 			goto exit;
@@ -219,22 +219,24 @@ static int t4_read_write_register(struct hid_device *hdev, u32 address,
 			goto exit_readbuf;
 		}
 
+		ret = -EINVAL;
+
 		if (*(u32 *)&readbuf[6] != address) {
 			dev_err(&hdev->dev, "read register address error (%x,%x)\n",
-			*(u32 *)&readbuf[6], address);
+				*(u32 *)&readbuf[6], address);
 			goto exit_readbuf;
 		}
 
 		if (*(u16 *)&readbuf[10] != 1) {
 			dev_err(&hdev->dev, "read register size error (%x)\n",
-			*(u16 *)&readbuf[10]);
+				*(u16 *)&readbuf[10]);
 			goto exit_readbuf;
 		}
 
 		check_sum = t4_calc_check_sum(readbuf, 6, 7);
 		if (*(u16 *)&readbuf[13] != check_sum) {
 			dev_err(&hdev->dev, "read register checksum error (%x,%x)\n",
-			*(u16 *)&readbuf[13], check_sum);
+				*(u16 *)&readbuf[13], check_sum);
 			goto exit_readbuf;
 		}
 
@@ -458,17 +460,35 @@ static int __maybe_unused alps_post_reset(struct hid_device *hdev)
 	case T4:
 		ret = t4_read_write_register(hdev, T4_PRM_FEED_CONFIG_1,
 			NULL, T4_I2C_ABS, false);
+		if (ret < 0) {
+			dev_err(&hdev->dev, "failed T4_PRM_FEED_CONFIG_1 (%d)\n",
+				ret);
+			goto exit;
+		}
+
 		ret = t4_read_write_register(hdev, T4_PRM_FEED_CONFIG_4,
 			NULL, T4_FEEDCFG4_ADVANCED_ABS_ENABLE, false);
+		if (ret < 0) {
+			dev_err(&hdev->dev, "failed T4_PRM_FEED_CONFIG_4 (%d)\n",
+				ret);
+			goto exit;
+		}
 		break;
 	case U1:
 		ret = u1_read_write_register(hdev,
 			ADDRESS_U1_DEV_CTRL_1, NULL,
 			U1_TP_ABS_MODE | U1_SP_ABS_MODE, false);
+		if (ret < 0) {
+			dev_err(&hdev->dev, "failed to change TP mode (%d)\n",
+				ret);
+			goto exit;
+		}
 		break;
 	default:
 		break;
 	}
+
+exit:
 	return ret;
 }
 

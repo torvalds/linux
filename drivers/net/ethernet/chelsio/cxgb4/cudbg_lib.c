@@ -1339,16 +1339,39 @@ int cudbg_collect_tp_indirect(struct cudbg_init *pdbg_init,
 	return cudbg_write_and_release_buff(pdbg_init, &temp_buff, dbg_buff);
 }
 
+static void cudbg_read_sge_qbase_indirect_reg(struct adapter *padap,
+					      struct sge_qbase_reg_field *qbase,
+					      u32 func, bool is_pf)
+{
+	u32 *buff, i;
+
+	if (is_pf) {
+		buff = qbase->pf_data_value[func];
+	} else {
+		buff = qbase->vf_data_value[func];
+		/* In SGE_QBASE_INDEX,
+		 * Entries 0->7 are PF0->7, Entries 8->263 are VFID0->256.
+		 */
+		func += 8;
+	}
+
+	t4_write_reg(padap, qbase->reg_addr, func);
+	for (i = 0; i < SGE_QBASE_DATA_REG_NUM; i++, buff++)
+		*buff = t4_read_reg(padap, qbase->reg_data[i]);
+}
+
 int cudbg_collect_sge_indirect(struct cudbg_init *pdbg_init,
 			       struct cudbg_buffer *dbg_buff,
 			       struct cudbg_error *cudbg_err)
 {
 	struct adapter *padap = pdbg_init->adap;
 	struct cudbg_buffer temp_buff = { 0 };
+	struct sge_qbase_reg_field *sge_qbase;
 	struct ireg_buf *ch_sge_dbg;
 	int i, rc;
 
-	rc = cudbg_get_buff(pdbg_init, dbg_buff, sizeof(*ch_sge_dbg) * 2,
+	rc = cudbg_get_buff(pdbg_init, dbg_buff,
+			    sizeof(*ch_sge_dbg) * 2 + sizeof(*sge_qbase),
 			    &temp_buff);
 	if (rc)
 		return rc;
@@ -1370,6 +1393,28 @@ int cudbg_collect_sge_indirect(struct cudbg_init *pdbg_init,
 				 sge_pio->ireg_local_offset);
 		ch_sge_dbg++;
 	}
+
+	if (CHELSIO_CHIP_VERSION(padap->params.chip) > CHELSIO_T5) {
+		sge_qbase = (struct sge_qbase_reg_field *)ch_sge_dbg;
+		/* 1 addr reg SGE_QBASE_INDEX and 4 data reg
+		 * SGE_QBASE_MAP[0-3]
+		 */
+		sge_qbase->reg_addr = t6_sge_qbase_index_array[0];
+		for (i = 0; i < SGE_QBASE_DATA_REG_NUM; i++)
+			sge_qbase->reg_data[i] =
+				t6_sge_qbase_index_array[i + 1];
+
+		for (i = 0; i <= PCIE_FW_MASTER_M; i++)
+			cudbg_read_sge_qbase_indirect_reg(padap, sge_qbase,
+							  i, true);
+
+		for (i = 0; i < padap->params.arch.vfcount; i++)
+			cudbg_read_sge_qbase_indirect_reg(padap, sge_qbase,
+							  i, false);
+
+		sge_qbase->vfcount = padap->params.arch.vfcount;
+	}
+
 	return cudbg_write_and_release_buff(pdbg_init, &temp_buff, dbg_buff);
 }
 
@@ -2366,8 +2411,11 @@ void cudbg_fill_le_tcam_info(struct adapter *padap,
 	value = t4_read_reg(padap, LE_DB_ROUTING_TABLE_INDEX_A);
 	tcam_region->routing_start = value;
 
-	/*Get clip table index */
-	value = t4_read_reg(padap, LE_DB_CLIP_TABLE_INDEX_A);
+	/* Get clip table index. For T6 there is separate CLIP TCAM */
+	if (is_t6(padap->params.chip))
+		value = t4_read_reg(padap, LE_DB_CLCAM_TID_BASE_A);
+	else
+		value = t4_read_reg(padap, LE_DB_CLIP_TABLE_INDEX_A);
 	tcam_region->clip_start = value;
 
 	/* Get filter table index */
@@ -2392,8 +2440,16 @@ void cudbg_fill_le_tcam_info(struct adapter *padap,
 					       tcam_region->tid_hash_base;
 		}
 	} else { /* hash not enabled */
-		tcam_region->max_tid = CUDBG_MAX_TCAM_TID;
+		if (is_t6(padap->params.chip))
+			tcam_region->max_tid = (value & ASLIPCOMPEN_F) ?
+					       CUDBG_MAX_TID_COMP_EN :
+					       CUDBG_MAX_TID_COMP_DIS;
+		else
+			tcam_region->max_tid = CUDBG_MAX_TCAM_TID;
 	}
+
+	if (is_t6(padap->params.chip))
+		tcam_region->max_tid += CUDBG_T6_CLIP;
 }
 
 int cudbg_collect_le_tcam(struct cudbg_init *pdbg_init,
@@ -2423,18 +2479,31 @@ int cudbg_collect_le_tcam(struct cudbg_init *pdbg_init,
 	for (i = 0; i < tcam_region.max_tid; ) {
 		rc = cudbg_read_tid(pdbg_init, i, tid_data);
 		if (rc) {
-			cudbg_err->sys_err = rc;
-			cudbg_put_buff(pdbg_init, &temp_buff);
-			return rc;
+			cudbg_err->sys_warn = CUDBG_STATUS_PARTIAL_DATA;
+			/* Update tcam header and exit */
+			tcam_region.max_tid = i;
+			memcpy(temp_buff.data, &tcam_region,
+			       sizeof(struct cudbg_tcam));
+			goto out;
 		}
 
-		/* ipv6 takes two tids */
-		cudbg_is_ipv6_entry(tid_data, tcam_region) ? i += 2 : i++;
+		if (cudbg_is_ipv6_entry(tid_data, tcam_region)) {
+			/* T6 CLIP TCAM: ipv6 takes 4 entries */
+			if (is_t6(padap->params.chip) &&
+			    i >= tcam_region.clip_start &&
+			    i < tcam_region.clip_start + CUDBG_T6_CLIP)
+				i += 4;
+			else /* Main TCAM: ipv6 takes two tids */
+				i += 2;
+		} else {
+			i++;
+		}
 
 		tid_data++;
 		bytes += sizeof(struct cudbg_tid_data);
 	}
 
+out:
 	return cudbg_write_and_release_buff(pdbg_init, &temp_buff, dbg_buff);
 }
 

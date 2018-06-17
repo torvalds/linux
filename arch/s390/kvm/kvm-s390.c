@@ -791,11 +791,21 @@ static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 
 static void kvm_s390_vcpu_crypto_setup(struct kvm_vcpu *vcpu);
 
-static int kvm_s390_vm_set_crypto(struct kvm *kvm, struct kvm_device_attr *attr)
+void kvm_s390_vcpu_crypto_reset_all(struct kvm *kvm)
 {
 	struct kvm_vcpu *vcpu;
 	int i;
 
+	kvm_s390_vcpu_block_all(kvm);
+
+	kvm_for_each_vcpu(i, vcpu, kvm)
+		kvm_s390_vcpu_crypto_setup(vcpu);
+
+	kvm_s390_vcpu_unblock_all(kvm);
+}
+
+static int kvm_s390_vm_set_crypto(struct kvm *kvm, struct kvm_device_attr *attr)
+{
 	if (!test_kvm_facility(kvm, 76))
 		return -EINVAL;
 
@@ -832,10 +842,7 @@ static int kvm_s390_vm_set_crypto(struct kvm *kvm, struct kvm_device_attr *attr)
 		return -ENXIO;
 	}
 
-	kvm_for_each_vcpu(i, vcpu, kvm) {
-		kvm_s390_vcpu_crypto_setup(vcpu);
-		exit_sie(vcpu);
-	}
+	kvm_s390_vcpu_crypto_reset_all(kvm);
 	mutex_unlock(&kvm->lock);
 	return 0;
 }
@@ -1033,8 +1040,8 @@ static int kvm_s390_set_tod(struct kvm *kvm, struct kvm_device_attr *attr)
 	return ret;
 }
 
-static void kvm_s390_get_tod_clock_ext(struct kvm *kvm,
-					struct kvm_s390_vm_tod_clock *gtod)
+static void kvm_s390_get_tod_clock(struct kvm *kvm,
+				   struct kvm_s390_vm_tod_clock *gtod)
 {
 	struct kvm_s390_tod_clock_ext htod;
 
@@ -1043,10 +1050,12 @@ static void kvm_s390_get_tod_clock_ext(struct kvm *kvm,
 	get_tod_clock_ext((char *)&htod);
 
 	gtod->tod = htod.tod + kvm->arch.epoch;
-	gtod->epoch_idx = htod.epoch_idx + kvm->arch.epdx;
-
-	if (gtod->tod < htod.tod)
-		gtod->epoch_idx += 1;
+	gtod->epoch_idx = 0;
+	if (test_kvm_facility(kvm, 139)) {
+		gtod->epoch_idx = htod.epoch_idx + kvm->arch.epdx;
+		if (gtod->tod < htod.tod)
+			gtod->epoch_idx += 1;
+	}
 
 	preempt_enable();
 }
@@ -1056,12 +1065,7 @@ static int kvm_s390_get_tod_ext(struct kvm *kvm, struct kvm_device_attr *attr)
 	struct kvm_s390_vm_tod_clock gtod;
 
 	memset(&gtod, 0, sizeof(gtod));
-
-	if (test_kvm_facility(kvm, 139))
-		kvm_s390_get_tod_clock_ext(kvm, &gtod);
-	else
-		gtod.tod = kvm_s390_get_tod_clock_fast(kvm);
-
+	kvm_s390_get_tod_clock(kvm, &gtod);
 	if (copy_to_user((void __user *)attr->addr, &gtod, sizeof(gtod)))
 		return -EFAULT;
 
@@ -1493,7 +1497,7 @@ static long kvm_s390_get_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 		return -EINVAL;
 
 	/* Is this guest using storage keys? */
-	if (!mm_use_skey(current->mm))
+	if (!mm_uses_skeys(current->mm))
 		return KVM_S390_GET_SKEYS_NONE;
 
 	/* Enforce sane limit on memory allocation */
@@ -1725,7 +1729,7 @@ static int kvm_s390_set_cmma_bits(struct kvm *kvm,
 	if (args->count == 0)
 		return 0;
 
-	bits = vmalloc(sizeof(*bits) * args->count);
+	bits = vmalloc(array_size(sizeof(*bits), args->count));
 	if (!bits)
 		return -ENOMEM;
 
@@ -1982,10 +1986,10 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	rc = -ENOMEM;
 
-	kvm->arch.use_esca = 0; /* start with basic SCA */
 	if (!sclp.has_64bscao)
 		alloc_flags |= GFP_DMA;
 	rwlock_init(&kvm->arch.sca_lock);
+	/* start with basic SCA */
 	kvm->arch.sca = (struct bsca_block *) get_zeroed_page(alloc_flags);
 	if (!kvm->arch.sca)
 		goto out_err;
@@ -2036,8 +2040,6 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	kvm_s390_crypto_init(kvm);
 
 	mutex_init(&kvm->arch.float_int.ais_lock);
-	kvm->arch.float_int.simm = 0;
-	kvm->arch.float_int.nimm = 0;
 	spin_lock_init(&kvm->arch.float_int.lock);
 	for (i = 0; i < FIRQ_LIST_COUNT; i++)
 		INIT_LIST_HEAD(&kvm->arch.float_int.lists[i]);
@@ -2063,11 +2065,8 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 		kvm->arch.gmap->pfault_enabled = 0;
 	}
 
-	kvm->arch.css_support = 0;
-	kvm->arch.use_irqchip = 0;
 	kvm->arch.use_pfmfi = sclp.has_pfmfi;
-	kvm->arch.epoch = 0;
-
+	kvm->arch.use_skf = sclp.has_skey;
 	spin_lock_init(&kvm->arch.start_stop_lock);
 	kvm_s390_vsie_init(kvm);
 	kvm_s390_gisa_init(kvm);
@@ -2433,8 +2432,12 @@ static void kvm_s390_vcpu_initial_reset(struct kvm_vcpu *vcpu)
 	vcpu->arch.sie_block->ckc       = 0UL;
 	vcpu->arch.sie_block->todpr     = 0;
 	memset(vcpu->arch.sie_block->gcr, 0, 16 * sizeof(__u64));
-	vcpu->arch.sie_block->gcr[0]  = 0xE0UL;
-	vcpu->arch.sie_block->gcr[14] = 0xC2000000UL;
+	vcpu->arch.sie_block->gcr[0]  = CR0_UNUSED_56 |
+					CR0_INTERRUPT_KEY_SUBMASK |
+					CR0_MEASUREMENT_ALERT_SUBMASK;
+	vcpu->arch.sie_block->gcr[14] = CR14_UNUSED_32 |
+					CR14_UNUSED_33 |
+					CR14_EXTERNAL_DAMAGE_SUBMASK;
 	/* make sure the new fpc will be lazily loaded */
 	save_fpu_regs();
 	current->thread.fpu.fpc = 0;
@@ -3192,7 +3195,7 @@ static int kvm_arch_setup_async_pf(struct kvm_vcpu *vcpu)
 		return 0;
 	if (kvm_s390_vcpu_has_irq(vcpu, 0))
 		return 0;
-	if (!(vcpu->arch.sie_block->gcr[0] & 0x200ul))
+	if (!(vcpu->arch.sie_block->gcr[0] & CR0_SERVICE_SIGNAL_SUBMASK))
 		return 0;
 	if (!vcpu->arch.gmap->pfault_enabled)
 		return 0;
@@ -3990,7 +3993,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	return r;
 }
 
-int kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
+vm_fault_t kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
 {
 #ifdef CONFIG_KVM_S390_UCONTROL
 	if ((vmf->pgoff == KVM_S390_SIE_PAGE_OFFSET)

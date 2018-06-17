@@ -23,6 +23,7 @@
 	aliases {
 		serial0 = &blsp2_uart1;
 		serial1 = &blsp2_uart2;
+		serial2 = &blsp1_uart1;
 		i2c0	= &blsp1_i2c2;
 		i2c1	= &blsp2_i2c1;
 		i2c2	= &blsp2_i2c0;
@@ -34,7 +35,36 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	clocks {
+		divclk4: divclk4 {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+			clock-output-names = "divclk4";
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&divclk4_pin_a>;
+		};
+	};
+
 	soc {
+		serial@7570000 {
+			label = "BT-UART";
+			status = "okay";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp1_uart1_default>;
+			pinctrl-1 = <&blsp1_uart1_sleep>;
+
+			bluetooth {
+				compatible = "qcom,qca6174-bt";
+
+				/* bt_disable_n gpio */
+				enable-gpios = <&pm8994_gpios 19 GPIO_ACTIVE_HIGH>;
+
+				clocks = <&divclk4>;
+			};
+		};
+
 		serial@75b0000 {
 			label = "LS-UART1";
 			status = "okay";
@@ -87,6 +117,16 @@
 			pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;
 			pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
 			cd-gpios = <&msmgpio 38 0x1>;
+			vmmc-supply = <&pm8994_l21>;
+			vqmmc-supply = <&pm8994_l13>;
+			status = "okay";
+		};
+
+		phy@627000 {
+			status = "okay";
+		};
+
+		ufshc@624000 {
 			status = "okay";
 		};
 
@@ -139,17 +179,34 @@
 			pinctrl-0 = <&usb2_vbus_det_gpio>;
 		};
 
+		wlan_en: wlan-en-1-8v {
+			pinctrl-names = "default";
+			pinctrl-0 = <&wlan_en_gpios>;
+			compatible = "regulator-fixed";
+			regulator-name = "wlan-en-regulator";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+
+			gpio = <&pm8994_gpios 8 0>;
+
+			/* WLAN card specific delay */
+			startup-delay-us = <70000>;
+			enable-active-high;
+		};
+
 		agnoc@0 {
-			qcom,pcie@600000 {
+			pcie@600000 {
+				status = "okay";
 				perst-gpio = <&msmgpio 35 GPIO_ACTIVE_LOW>;
+				vddpe-3v3-supply = <&wlan_en>;
 			};
 
-			qcom,pcie@608000 {
+			pcie@608000 {
 				status = "okay";
 				perst-gpio = <&msmgpio 130 GPIO_ACTIVE_LOW>;
 			};
 
-			qcom,pcie@610000 {
+			pcie@610000 {
 				status = "okay";
 				perst-gpio = <&msmgpio 114 GPIO_ACTIVE_LOW>;
 			};

@@ -24,7 +24,7 @@
 #include <poll.h>
 #include <ctype.h>
 #include <assert.h>
-#include "libbpf.h"
+#include <bpf/bpf.h>
 #include "bpf_load.h"
 #include "perf-sys.h"
 
@@ -145,6 +145,9 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	}
 
 	if (is_kprobe || is_kretprobe) {
+		bool need_normal_check = true;
+		const char *event_prefix = "";
+
 		if (is_kprobe)
 			event += 7;
 		else
@@ -158,18 +161,33 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 		if (isdigit(*event))
 			return populate_prog_array(event, fd);
 
-		snprintf(buf, sizeof(buf),
-			 "echo '%c:%s %s' >> /sys/kernel/debug/tracing/kprobe_events",
-			 is_kprobe ? 'p' : 'r', event, event);
-		err = system(buf);
-		if (err < 0) {
-			printf("failed to create kprobe '%s' error '%s'\n",
-			       event, strerror(errno));
-			return -1;
+#ifdef __x86_64__
+		if (strncmp(event, "sys_", 4) == 0) {
+			snprintf(buf, sizeof(buf),
+				 "echo '%c:__x64_%s __x64_%s' >> /sys/kernel/debug/tracing/kprobe_events",
+				 is_kprobe ? 'p' : 'r', event, event);
+			err = system(buf);
+			if (err >= 0) {
+				need_normal_check = false;
+				event_prefix = "__x64_";
+			}
+		}
+#endif
+		if (need_normal_check) {
+			snprintf(buf, sizeof(buf),
+				 "echo '%c:%s %s' >> /sys/kernel/debug/tracing/kprobe_events",
+				 is_kprobe ? 'p' : 'r', event, event);
+			err = system(buf);
+			if (err < 0) {
+				printf("failed to create kprobe '%s' error '%s'\n",
+				       event, strerror(errno));
+				return -1;
+			}
 		}
 
 		strcpy(buf, DEBUGFS);
 		strcat(buf, "events/kprobes/");
+		strcat(buf, event_prefix);
 		strcat(buf, event);
 		strcat(buf, "/id");
 	} else if (is_tracepoint) {
@@ -402,7 +420,7 @@ static int load_elf_maps_section(struct bpf_map_data *maps, int maps_shndx,
 
 	/* Keeping compatible with ELF maps section changes
 	 * ------------------------------------------------
-	 * The program size of struct bpf_map_def is known by loader
+	 * The program size of struct bpf_load_map_def is known by loader
 	 * code, but struct stored in ELF file can be different.
 	 *
 	 * Unfortunately sym[i].st_size is zero.  To calculate the
@@ -411,7 +429,7 @@ static int load_elf_maps_section(struct bpf_map_data *maps, int maps_shndx,
 	 * symbols.
 	 */
 	map_sz_elf = data_maps->d_size / nr_maps;
-	map_sz_copy = sizeof(struct bpf_map_def);
+	map_sz_copy = sizeof(struct bpf_load_map_def);
 	if (map_sz_elf < map_sz_copy) {
 		/*
 		 * Backward compat, loading older ELF file with
@@ -430,8 +448,8 @@ static int load_elf_maps_section(struct bpf_map_data *maps, int maps_shndx,
 
 	/* Memcpy relevant part of ELF maps data to loader maps */
 	for (i = 0; i < nr_maps; i++) {
+		struct bpf_load_map_def *def;
 		unsigned char *addr, *end;
-		struct bpf_map_def *def;
 		const char *map_name;
 		size_t offset;
 
@@ -446,9 +464,9 @@ static int load_elf_maps_section(struct bpf_map_data *maps, int maps_shndx,
 
 		/* Symbol value is offset into ELF maps section data area */
 		offset = sym[i].st_value;
-		def = (struct bpf_map_def *)(data_maps->d_buf + offset);
+		def = (struct bpf_load_map_def *)(data_maps->d_buf + offset);
 		maps[i].elf_offset = offset;
-		memset(&maps[i].def, 0, sizeof(struct bpf_map_def));
+		memset(&maps[i].def, 0, sizeof(struct bpf_load_map_def));
 		memcpy(&maps[i].def, def, map_sz_copy);
 
 		/* Verify no newer features were requested */
@@ -549,7 +567,6 @@ static int do_load_bpf_file(const char *path, fixup_map_cb fixup_map)
 		if (nr_maps < 0) {
 			printf("Error: Failed loading ELF maps (errno:%d):%s\n",
 			       nr_maps, strerror(-nr_maps));
-			ret = 1;
 			goto done;
 		}
 		if (load_maps(map_data, nr_maps, fixup_map))
@@ -615,7 +632,6 @@ static int do_load_bpf_file(const char *path, fixup_map_cb fixup_map)
 		}
 	}
 
-	ret = 0;
 done:
 	close(fd);
 	return ret;
@@ -650,66 +666,3 @@ void read_trace_pipe(void)
 		}
 	}
 }
-
-#define MAX_SYMS 300000
-static struct ksym syms[MAX_SYMS];
-static int sym_cnt;
-
-static int ksym_cmp(const void *p1, const void *p2)
-{
-	return ((struct ksym *)p1)->addr - ((struct ksym *)p2)->addr;
-}
-
-int load_kallsyms(void)
-{
-	FILE *f = fopen("/proc/kallsyms", "r");
-	char func[256], buf[256];
-	char symbol;
-	void *addr;
-	int i = 0;
-
-	if (!f)
-		return -ENOENT;
-
-	while (!feof(f)) {
-		if (!fgets(buf, sizeof(buf), f))
-			break;
-		if (sscanf(buf, "%p %c %s", &addr, &symbol, func) != 3)
-			break;
-		if (!addr)
-			continue;
-		syms[i].addr = (long) addr;
-		syms[i].name = strdup(func);
-		i++;
-	}
-	sym_cnt = i;
-	qsort(syms, sym_cnt, sizeof(struct ksym), ksym_cmp);
-	return 0;
-}
-
-struct ksym *ksym_search(long key)
-{
-	int start = 0, end = sym_cnt;
-	int result;
-
-	while (start < end) {
-		size_t mid = start + (end - start) / 2;
-
-		result = key - syms[mid].addr;
-		if (result < 0)
-			end = mid;
-		else if (result > 0)
-			start = mid + 1;
-		else
-			return &syms[mid];
-	}
-
-	if (start >= 1 && syms[start - 1].addr < key &&
-	    key < syms[start].addr)
-		/* valid ksym */
-		return &syms[start - 1];
-
-	/* out of range. return _stext */
-	return &syms[0];
-}
-

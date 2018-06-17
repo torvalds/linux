@@ -47,11 +47,6 @@ static void uv_program_mmr(struct irq_cfg *cfg, struct uv_irq_2_mmr_pnode *info)
 
 static void uv_noop(struct irq_data *data) { }
 
-static void uv_ack_apic(struct irq_data *data)
-{
-	ack_APIC_irq();
-}
-
 static int
 uv_set_irq_affinity(struct irq_data *data, const struct cpumask *mask,
 		    bool force)
@@ -73,7 +68,7 @@ static struct irq_chip uv_irq_chip = {
 	.name			= "UV-CORE",
 	.irq_mask		= uv_noop,
 	.irq_unmask		= uv_noop,
-	.irq_eoi		= uv_ack_apic,
+	.irq_eoi		= apic_ack_irq,
 	.irq_set_affinity	= uv_set_irq_affinity,
 };
 

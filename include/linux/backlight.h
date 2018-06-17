@@ -84,10 +84,6 @@ struct backlight_properties {
 
 #define BL_CORE_SUSPENDED	(1 << 0)	/* backlight is suspended */
 #define BL_CORE_FBBLANK		(1 << 1)	/* backlight is under an fb blank event */
-#define BL_CORE_DRIVER4		(1 << 28)	/* reserved for driver specific use */
-#define BL_CORE_DRIVER3		(1 << 29)	/* reserved for driver specific use */
-#define BL_CORE_DRIVER2		(1 << 30)	/* reserved for driver specific use */
-#define BL_CORE_DRIVER1		(1 << 31)	/* reserved for driver specific use */
 
 };
 

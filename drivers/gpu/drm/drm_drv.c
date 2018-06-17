@@ -32,6 +32,7 @@
 #include <linux/moduleparam.h>
 #include <linux/mount.h>
 #include <linux/slab.h>
+#include <linux/srcu.h>
 
 #include <drm/drm_drv.h>
 #include <drm/drmP.h>
@@ -75,6 +76,8 @@ static bool drm_core_init_complete = false;
 
 static struct dentry *drm_debugfs_root;
 
+DEFINE_STATIC_SRCU(drm_unplug_srcu);
+
 /*
  * DRM Minors
  * A DRM device can provide several char-dev interfaces on the DRM-Major. Each
@@ -96,8 +99,6 @@ static struct drm_minor **drm_minor_get_slot(struct drm_device *dev,
 		return &dev->primary;
 	case DRM_MINOR_RENDER:
 		return &dev->render;
-	case DRM_MINOR_CONTROL:
-		return &dev->control;
 	default:
 		BUG();
 	}
@@ -318,18 +319,51 @@ void drm_put_dev(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_put_dev);
 
-static void drm_device_set_unplugged(struct drm_device *dev)
+/**
+ * drm_dev_enter - Enter device critical section
+ * @dev: DRM device
+ * @idx: Pointer to index that will be passed to the matching drm_dev_exit()
+ *
+ * This function marks and protects the beginning of a section that should not
+ * be entered after the device has been unplugged. The section end is marked
+ * with drm_dev_exit(). Calls to this function can be nested.
+ *
+ * Returns:
+ * True if it is OK to enter the section, false otherwise.
+ */
+bool drm_dev_enter(struct drm_device *dev, int *idx)
 {
-	smp_wmb();
-	atomic_set(&dev->unplugged, 1);
+	*idx = srcu_read_lock(&drm_unplug_srcu);
+
+	if (dev->unplugged) {
+		srcu_read_unlock(&drm_unplug_srcu, *idx);
+		return false;
+	}
+
+	return true;
 }
+EXPORT_SYMBOL(drm_dev_enter);
+
+/**
+ * drm_dev_exit - Exit device critical section
+ * @idx: index returned from drm_dev_enter()
+ *
+ * This function marks the end of a section that should not be entered after
+ * the device has been unplugged.
+ */
+void drm_dev_exit(int idx)
+{
+	srcu_read_unlock(&drm_unplug_srcu, idx);
+}
+EXPORT_SYMBOL(drm_dev_exit);
 
 /**
  * drm_dev_unplug - unplug a DRM device
  * @dev: DRM device
  *
  * This unplugs a hotpluggable DRM device, which makes it inaccessible to
- * userspace operations. Entry-points can use drm_dev_is_unplugged(). This
+ * userspace operations. Entry-points can use drm_dev_enter() and
+ * drm_dev_exit() to protect device resources in a race free manner. This
  * essentially unregisters the device like drm_dev_unregister(), but can be
  * called while there are still open users of @dev.
  */
@@ -338,10 +372,18 @@ void drm_dev_unplug(struct drm_device *dev)
 	drm_dev_unregister(dev);
 
 	mutex_lock(&drm_global_mutex);
-	drm_device_set_unplugged(dev);
 	if (dev->open_count == 0)
 		drm_dev_put(dev);
 	mutex_unlock(&drm_global_mutex);
+
+	/*
+	 * After synchronizing any critical read section is guaranteed to see
+	 * the new value of ->unplugged, and any critical section which might
+	 * still have seen the old value of ->unplugged is guaranteed to have
+	 * finished.
+	 */
+	dev->unplugged = true;
+	synchronize_srcu(&drm_unplug_srcu);
 }
 EXPORT_SYMBOL(drm_dev_unplug);
 
@@ -523,7 +565,6 @@ err_ctxbitmap:
 err_minors:
 	drm_minor_free(dev, DRM_MINOR_PRIMARY);
 	drm_minor_free(dev, DRM_MINOR_RENDER);
-	drm_minor_free(dev, DRM_MINOR_CONTROL);
 	drm_fs_inode_free(dev->anon_inode);
 err_free:
 	mutex_destroy(&dev->master_mutex);
@@ -559,7 +600,6 @@ void drm_dev_fini(struct drm_device *dev)
 
 	drm_minor_free(dev, DRM_MINOR_PRIMARY);
 	drm_minor_free(dev, DRM_MINOR_RENDER);
-	drm_minor_free(dev, DRM_MINOR_CONTROL);
 
 	mutex_destroy(&dev->master_mutex);
 	mutex_destroy(&dev->ctxlist_mutex);
@@ -716,7 +756,7 @@ static void remove_compat_control_link(struct drm_device *dev)
 	if (!minor)
 		return;
 
-	name = kasprintf(GFP_KERNEL, "controlD%d", minor->index);
+	name = kasprintf(GFP_KERNEL, "controlD%d", minor->index + 64);
 	if (!name)
 		return;
 
@@ -751,10 +791,6 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 	int ret;
 
 	mutex_lock(&drm_global_mutex);
-
-	ret = drm_minor_register(dev, DRM_MINOR_CONTROL);
-	if (ret)
-		goto err_minors;
 
 	ret = drm_minor_register(dev, DRM_MINOR_RENDER);
 	if (ret)
@@ -793,7 +829,6 @@ err_minors:
 	remove_compat_control_link(dev);
 	drm_minor_unregister(dev, DRM_MINOR_PRIMARY);
 	drm_minor_unregister(dev, DRM_MINOR_RENDER);
-	drm_minor_unregister(dev, DRM_MINOR_CONTROL);
 out_unlock:
 	mutex_unlock(&drm_global_mutex);
 	return ret;
@@ -838,7 +873,6 @@ void drm_dev_unregister(struct drm_device *dev)
 	remove_compat_control_link(dev);
 	drm_minor_unregister(dev, DRM_MINOR_PRIMARY);
 	drm_minor_unregister(dev, DRM_MINOR_RENDER);
-	drm_minor_unregister(dev, DRM_MINOR_CONTROL);
 }
 EXPORT_SYMBOL(drm_dev_unregister);
 

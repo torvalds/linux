@@ -19,5 +19,9 @@ CFLAGS_atomic_ll_sc.o	:= -fcall-used-x0 -ffixed-x1 -ffixed-x2		\
 		   -fcall-saved-x13 -fcall-saved-x14 -fcall-saved-x15	\
 		   -fcall-saved-x18 -fomit-frame-pointer
 CFLAGS_REMOVE_atomic_ll_sc.o := -pg
+GCOV_PROFILE_atomic_ll_sc.o	:= n
+KASAN_SANITIZE_atomic_ll_sc.o	:= n
+KCOV_INSTRUMENT_atomic_ll_sc.o	:= n
+UBSAN_SANITIZE_atomic_ll_sc.o	:= n
 
 lib-$(CONFIG_ARCH_HAS_UACCESS_FLUSHCACHE) += uaccess_flushcache.o

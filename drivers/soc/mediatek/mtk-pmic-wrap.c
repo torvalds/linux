@@ -1458,19 +1458,12 @@ static int pwrap_probe(struct platform_device *pdev)
 	int ret, irq;
 	struct pmic_wrapper *wrp;
 	struct device_node *np = pdev->dev.of_node;
-	const struct of_device_id *of_id =
-		of_match_device(of_pwrap_match_tbl, &pdev->dev);
 	const struct of_device_id *of_slave_id = NULL;
 	struct resource *res;
 
-	if (!of_id) {
-		dev_err(&pdev->dev, "Error: No device match found\n");
-		return -ENODEV;
-	}
+	if (np->child)
+		of_slave_id = of_match_node(of_slave_match_tbl, np->child);
 
-	if (pdev->dev.of_node->child)
-		of_slave_id = of_match_node(of_slave_match_tbl,
-					    pdev->dev.of_node->child);
 	if (!of_slave_id) {
 		dev_dbg(&pdev->dev, "slave pmic should be defined in dts\n");
 		return -EINVAL;
@@ -1482,7 +1475,7 @@ static int pwrap_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, wrp);
 
-	wrp->master = of_id->data;
+	wrp->master = of_device_get_match_data(&pdev->dev);
 	wrp->slave = of_slave_id->data;
 	wrp->dev = &pdev->dev;
 

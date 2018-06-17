@@ -16,6 +16,7 @@
 #include <linux/errno.h>
 #include <linux/skbuff.h>
 #include <net/netlink.h>
+#include <net/pkt_cls.h>
 #include <net/pkt_sched.h>
 #include <net/sch_generic.h>
 
@@ -23,11 +24,43 @@ struct mq_sched {
 	struct Qdisc		**qdiscs;
 };
 
+static int mq_offload(struct Qdisc *sch, enum tc_mq_command cmd)
+{
+	struct net_device *dev = qdisc_dev(sch);
+	struct tc_mq_qopt_offload opt = {
+		.command = cmd,
+		.handle = sch->handle,
+	};
+
+	if (!tc_can_offload(dev) || !dev->netdev_ops->ndo_setup_tc)
+		return -EOPNOTSUPP;
+
+	return dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_QDISC_MQ, &opt);
+}
+
+static void mq_offload_stats(struct Qdisc *sch)
+{
+	struct net_device *dev = qdisc_dev(sch);
+	struct tc_mq_qopt_offload opt = {
+		.command = TC_MQ_STATS,
+		.handle = sch->handle,
+		.stats = {
+			.bstats = &sch->bstats,
+			.qstats = &sch->qstats,
+		},
+	};
+
+	if (tc_can_offload(dev) && dev->netdev_ops->ndo_setup_tc)
+		dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_QDISC_MQ, &opt);
+}
+
 static void mq_destroy(struct Qdisc *sch)
 {
 	struct net_device *dev = qdisc_dev(sch);
 	struct mq_sched *priv = qdisc_priv(sch);
 	unsigned int ntx;
+
+	mq_offload(sch, TC_MQ_DESTROY);
 
 	if (!priv->qdiscs)
 		return;
@@ -70,6 +103,8 @@ static int mq_init(struct Qdisc *sch, struct nlattr *opt,
 	}
 
 	sch->flags |= TCQ_F_MQROOT;
+
+	mq_offload(sch, TC_MQ_CREATE);
 	return 0;
 }
 
@@ -127,6 +162,7 @@ static int mq_dump(struct Qdisc *sch, struct sk_buff *skb)
 			sch->q.qlen		+= qdisc->q.qlen;
 			sch->bstats.bytes	+= qdisc->bstats.bytes;
 			sch->bstats.packets	+= qdisc->bstats.packets;
+			sch->qstats.qlen	+= qdisc->qstats.qlen;
 			sch->qstats.backlog	+= qdisc->qstats.backlog;
 			sch->qstats.drops	+= qdisc->qstats.drops;
 			sch->qstats.requeues	+= qdisc->qstats.requeues;
@@ -135,6 +171,7 @@ static int mq_dump(struct Qdisc *sch, struct sk_buff *skb)
 
 		spin_unlock_bh(qdisc_lock(qdisc));
 	}
+	mq_offload_stats(sch);
 
 	return 0;
 }

@@ -46,56 +46,50 @@
 		};
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	cam_io_reg: voltage-regulator-1 {
+		compatible = "regulator-fixed";
+		regulator-name = "CAM_SENSOR_A";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		enable-active-high;
+		status = "disabled";
+	};
 
-		cam_io_reg: voltage-regulator-1 {
-			compatible = "regulator-fixed";
-			regulator-name = "CAM_SENSOR_A";
-			regulator-min-microvolt = <2800000>;
-			regulator-max-microvolt = <2800000>;
-			enable-active-high;
-			status = "disabled";
-		};
+	cam_af_reg: voltage-regulator-2 {
+		compatible = "regulator-fixed";
+		regulator-name = "CAM_AF";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		enable-active-high;
+		status = "disabled";
+	};
 
-		cam_af_reg: voltage-regulator-3 {
-			compatible = "regulator-fixed";
-			regulator-name = "CAM_AF";
-			regulator-min-microvolt = <2800000>;
-			regulator-max-microvolt = <2800000>;
-			enable-active-high;
-			status = "disabled";
-		};
+	vsil12: voltage-regulator-3 {
+		compatible = "regulator-fixed";
+		regulator-name = "VSIL_1.2V";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		gpio = <&gpl0 4 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&buck7_reg>;
+	};
 
-		vsil12: voltage-regulator-6 {
-			compatible = "regulator-fixed";
-			regulator-name = "VSIL_1.2V";
-			regulator-min-microvolt = <1200000>;
-			regulator-max-microvolt = <1200000>;
-			gpio = <&gpl0 4 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-			vin-supply = <&buck7_reg>;
-		};
+	vcc33mhl: voltage-regulator-4 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_3.3_MHL";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpl0 4 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 
-		vcc33mhl: voltage-regulator-7 {
-			compatible = "regulator-fixed";
-			regulator-name = "VCC_3.3_MHL";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			gpio = <&gpl0 4 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
-
-		vcc18mhl: voltage-regulator-8 {
-			compatible = "regulator-fixed";
-			regulator-name = "VCC_1.8_MHL";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			gpio = <&gpl0 4 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
+	vcc18mhl: voltage-regulator-5 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_1.8_MHL";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpl0 4 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 
 	gpio-keys {

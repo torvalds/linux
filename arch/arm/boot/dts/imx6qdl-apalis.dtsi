@@ -331,8 +331,6 @@
 		compatible = "st,stmpe811";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_touch_int>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 		reg = <0x41>;
 		interrupts = <10 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-parent = <&gpio4>;

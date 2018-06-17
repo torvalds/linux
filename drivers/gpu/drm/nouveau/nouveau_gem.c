@@ -99,6 +99,7 @@ struct nouveau_gem_object_unmap {
 static void
 nouveau_gem_object_delete(struct nouveau_vma *vma)
 {
+	nouveau_fence_unref(&vma->fence);
 	nouveau_vma_del(&vma);
 }
 
@@ -114,25 +115,12 @@ nouveau_gem_object_delete_work(struct nouveau_cli_work *w)
 static void
 nouveau_gem_object_unmap(struct nouveau_bo *nvbo, struct nouveau_vma *vma)
 {
-	const bool mapped = nvbo->bo.mem.mem_type != TTM_PL_SYSTEM;
-	struct reservation_object *resv = nvbo->bo.resv;
-	struct reservation_object_list *fobj;
+	struct dma_fence *fence = vma->fence ? &vma->fence->base : NULL;
 	struct nouveau_gem_object_unmap *work;
-	struct dma_fence *fence = NULL;
-
-	fobj = reservation_object_get_list(resv);
 
 	list_del_init(&vma->head);
 
-	if (fobj && fobj->shared_count > 1)
-		ttm_bo_wait(&nvbo->bo, false, false);
-	else if (fobj && fobj->shared_count == 1)
-		fence = rcu_dereference_protected(fobj->shared[0],
-						reservation_object_held(resv));
-	else
-		fence = reservation_object_get_excl(nvbo->bo.resv);
-
-	if (!fence || !mapped) {
+	if (!fence) {
 		nouveau_gem_object_delete(vma);
 		return;
 	}
@@ -344,8 +332,19 @@ validate_fini_no_ticket(struct validate_op *op, struct nouveau_fence *fence,
 		nvbo = list_entry(op->list.next, struct nouveau_bo, entry);
 		b = &pbbo[nvbo->pbbo_index];
 
-		if (likely(fence))
+		if (likely(fence)) {
+			struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
+			struct nouveau_vma *vma;
+
 			nouveau_bo_fence(nvbo, fence, !!b->write_domains);
+
+			if (drm->client.vmm.vmm.object.oclass >= NVIF_CLASS_VMM_NV50) {
+				vma = (void *)(unsigned long)b->user_priv;
+				nouveau_fence_unref(&vma->fence);
+				dma_fence_get(&fence->base);
+				vma->fence = fence;
+			}
+		}
 
 		if (unlikely(nvbo->validate_mapped)) {
 			ttm_bo_kunmap(&nvbo->kmap);
@@ -432,7 +431,20 @@ retry:
 			}
 		}
 
-		b->user_priv = (uint64_t)(unsigned long)nvbo;
+		if (cli->vmm.vmm.object.oclass >= NVIF_CLASS_VMM_NV50) {
+			struct nouveau_vmm *vmm = &cli->vmm;
+			struct nouveau_vma *vma = nouveau_vma_find(nvbo, vmm);
+			if (!vma) {
+				NV_PRINTK(err, cli, "vma not found!\n");
+				ret = -EINVAL;
+				break;
+			}
+
+			b->user_priv = (uint64_t)(unsigned long)vma;
+		} else {
+			b->user_priv = (uint64_t)(unsigned long)nvbo;
+		}
+
 		nvbo->reserved_by = file_priv;
 		nvbo->pbbo_index = i;
 		if ((b->valid_domains & NOUVEAU_GEM_DOMAIN_VRAM) &&
@@ -763,10 +775,10 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 		}
 
 		for (i = 0; i < req->nr_push; i++) {
-			struct nouveau_bo *nvbo = (void *)(unsigned long)
+			struct nouveau_vma *vma = (void *)(unsigned long)
 				bo[push[i].bo_index].user_priv;
 
-			nv50_dma_push(chan, nvbo, push[i].offset,
+			nv50_dma_push(chan, vma->addr + push[i].offset,
 				      push[i].length);
 		}
 	} else

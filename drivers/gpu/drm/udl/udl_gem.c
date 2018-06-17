@@ -214,9 +214,10 @@ int udl_gem_mmap(struct drm_file *file, struct drm_device *dev,
 {
 	struct udl_gem_object *gobj;
 	struct drm_gem_object *obj;
+	struct udl_device *udl = dev->dev_private;
 	int ret = 0;
 
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&udl->gem_lock);
 	obj = drm_gem_object_lookup(file, handle);
 	if (obj == NULL) {
 		ret = -ENOENT;
@@ -236,6 +237,6 @@ int udl_gem_mmap(struct drm_file *file, struct drm_device *dev,
 out:
 	drm_gem_object_put(&gobj->base);
 unlock:
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&udl->gem_lock);
 	return ret;
 }

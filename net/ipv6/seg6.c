@@ -226,7 +226,6 @@ static int seg6_genl_get_tunsrc(struct sk_buff *skb, struct genl_info *info)
 
 nla_put_failure:
 	rcu_read_unlock();
-	genlmsg_cancel(msg, hdr);
 free_msg:
 	nlmsg_free(msg);
 	return -ENOMEM;

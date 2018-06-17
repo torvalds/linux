@@ -45,8 +45,9 @@
 #include "dce/dce_11_0_d.h"
 #include "dce/dce_11_0_enum.h"
 #include "dce/dce_11_0_sh_mask.h"
-#define DC_LOGGER \
-	dc_ctx->logger
+
+#define DC_LOGGER_INIT(logger)
+
 
 #define LINK_INFO(...) \
 	DC_LOG_HW_HOTPLUG(  \
@@ -468,6 +469,13 @@ static void link_disconnect_sink(struct dc_link *link)
 	link->dpcd_sink_count = 0;
 }
 
+static void link_disconnect_remap(struct dc_sink *prev_sink, struct dc_link *link)
+{
+	dc_sink_release(link->local_sink);
+	link->local_sink = prev_sink;
+}
+
+
 static bool detect_dp(
 	struct dc_link *link,
 	struct display_sink_capability *sink_caps,
@@ -550,6 +558,17 @@ static bool detect_dp(
 	return true;
 }
 
+static bool is_same_edid(struct dc_edid *old_edid, struct dc_edid *new_edid)
+{
+	if (old_edid->length != new_edid->length)
+		return false;
+
+	if (new_edid->length == 0)
+		return false;
+
+	return (memcmp(old_edid->raw_edid, new_edid->raw_edid, new_edid->length) == 0);
+}
+
 bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 {
 	struct dc_sink_init_data sink_init_data = { 0 };
@@ -557,11 +576,15 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 	uint8_t i;
 	bool converter_disable_audio = false;
 	struct audio_support *aud_support = &link->dc->res_pool->audio_support;
+	bool same_edid = false;
 	enum dc_edid_status edid_status;
 	struct dc_context *dc_ctx = link->ctx;
 	struct dc_sink *sink = NULL;
+	struct dc_sink *prev_sink = NULL;
+	struct dpcd_caps prev_dpcd_caps;
+	bool same_dpcd = true;
 	enum dc_connection_type new_connection_type = dc_connection_none;
-
+	DC_LOGGER_INIT(link->ctx->logger);
 	if (link->connector_signal == SIGNAL_TYPE_VIRTUAL)
 		return false;
 
@@ -574,6 +597,11 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 			link->local_sink)
 		return true;
 
+	prev_sink = link->local_sink;
+	if (prev_sink != NULL) {
+		dc_sink_retain(prev_sink);
+		memcpy(&prev_dpcd_caps, &link->dpcd_caps, sizeof(struct dpcd_caps));
+	}
 	link_disconnect_sink(link);
 
 	if (new_connection_type != dc_connection_none) {
@@ -615,14 +643,25 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 				link,
 				&sink_caps,
 				&converter_disable_audio,
-				aud_support, reason))
+				aud_support, reason)) {
+				if (prev_sink != NULL)
+					dc_sink_release(prev_sink);
 				return false;
+			}
 
+			// Check if dpcp block is the same
+			if (prev_sink != NULL) {
+				if (memcmp(&link->dpcd_caps, &prev_dpcd_caps, sizeof(struct dpcd_caps)))
+					same_dpcd = false;
+			}
 			/* Active dongle downstream unplug */
 			if (link->type == dc_connection_active_dongle
 					&& link->dpcd_caps.sink_count.
-					bits.SINK_COUNT == 0)
+					bits.SINK_COUNT == 0) {
+				if (prev_sink != NULL)
+					dc_sink_release(prev_sink);
 				return true;
+			}
 
 			if (link->type == dc_connection_mst_branch) {
 				LINK_INFO("link=%d, mst branch is now Connected\n",
@@ -630,9 +669,11 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 				/* Need to setup mst link_cap struct here
 				 * otherwise dc_link_detect() will leave mst link_cap
 				 * empty which leads to allocate_mst_payload() has "0"
-				 * pbn_per_slot value leading to exception on dal_fixed31_32_div()
+				 * pbn_per_slot value leading to exception on dc_fixpt_div()
 				 */
 				link->verified_link_cap = link->reported_link_cap;
+				if (prev_sink != NULL)
+					dc_sink_release(prev_sink);
 				return false;
 			}
 
@@ -642,6 +683,8 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		default:
 			DC_ERROR("Invalid connector type! signal:%d\n",
 				link->connector_signal);
+			if (prev_sink != NULL)
+				dc_sink_release(prev_sink);
 			return false;
 		} /* switch() */
 
@@ -664,6 +707,8 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		sink = dc_sink_create(&sink_init_data);
 		if (!sink) {
 			DC_ERROR("Failed to create sink!\n");
+			if (prev_sink != NULL)
+				dc_sink_release(prev_sink);
 			return false;
 		}
 
@@ -687,22 +732,33 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 			break;
 		}
 
-		if (link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT &&
-			sink_caps.transaction_type ==
-			DDC_TRANSACTION_TYPE_I2C_OVER_AUX) {
-			/*
-			 * TODO debug why Dell 2413 doesn't like
-			 *  two link trainings
-			 */
+		// Check if edid is the same
+		if ((prev_sink != NULL) && ((edid_status == EDID_THE_SAME) || (edid_status == EDID_OK)))
+			same_edid = is_same_edid(&prev_sink->dc_edid, &sink->dc_edid);
 
-			/* deal with non-mst cases */
-			dp_hbr_verify_link_cap(link, &link->reported_link_cap);
+		// If both edid and dpcd are the same, then discard new sink and revert back to original sink
+		if ((same_edid) && (same_dpcd)) {
+			link_disconnect_remap(prev_sink, link);
+			sink = prev_sink;
+			prev_sink = NULL;
+		} else {
+			if (link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT &&
+					sink_caps.transaction_type ==
+						DDC_TRANSACTION_TYPE_I2C_OVER_AUX) {
+				/*
+				 * TODO debug why Dell 2413 doesn't like
+				 *  two link trainings
+				 */
+
+				/* deal with non-mst cases */
+				dp_hbr_verify_link_cap(link, &link->reported_link_cap);
+			}
+
+			/* HDMI-DVI Dongle */
+			if (sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A &&
+					!sink->edid_caps.edid_hdmi)
+				sink->sink_signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
 		}
-
-		/* HDMI-DVI Dongle */
-		if (sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A &&
-				!sink->edid_caps.edid_hdmi)
-			sink->sink_signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
 
 		/* Connectivity log: detection */
 		for (i = 0; i < sink->dc_edid.length / EDID_BLOCK_SIZE; i++) {
@@ -761,10 +817,14 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		sink_caps.signal = SIGNAL_TYPE_NONE;
 	}
 
-	LINK_INFO("link=%d, dc_sink_in=%p is now %s\n",
+	LINK_INFO("link=%d, dc_sink_in=%p is now %s prev_sink=%p dpcd same=%d edid same=%d\n",
 		link->link_index, sink,
 		(sink_caps.signal == SIGNAL_TYPE_NONE ?
-			"Disconnected":"Connected"));
+			"Disconnected":"Connected"), prev_sink,
+			same_dpcd, same_edid);
+
+	if (prev_sink != NULL)
+		dc_sink_release(prev_sink);
 
 	return true;
 }
@@ -927,6 +987,7 @@ static bool construct(
 	struct integrated_info info = {{{ 0 }}};
 	struct dc_bios *bios = init_params->dc->ctx->dc_bios;
 	const struct dc_vbios_funcs *bp_funcs = bios->funcs;
+	DC_LOGGER_INIT(dc_ctx->logger);
 
 	link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
 	link->irq_source_hpd_rx = DC_IRQ_SOURCE_INVALID;
@@ -1135,7 +1196,8 @@ static void dpcd_configure_panel_mode(
 {
 	union dpcd_edp_config edp_config_set;
 	bool panel_mode_edp = false;
-	struct dc_context *dc_ctx = link->ctx;
+	DC_LOGGER_INIT(link->ctx->logger);
+
 	memset(&edp_config_set, '\0', sizeof(union dpcd_edp_config));
 
 	if (DP_PANEL_MODE_DEFAULT != panel_mode) {
@@ -1183,16 +1245,21 @@ static void enable_stream_features(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
-	union down_spread_ctrl downspread;
+	union down_spread_ctrl old_downspread;
+	union down_spread_ctrl new_downspread;
 
 	core_link_read_dpcd(link, DP_DOWNSPREAD_CTRL,
-			&downspread.raw, sizeof(downspread));
+			&old_downspread.raw, sizeof(old_downspread));
 
-	downspread.bits.IGNORE_MSA_TIMING_PARAM =
+	new_downspread.raw = old_downspread.raw;
+
+	new_downspread.bits.IGNORE_MSA_TIMING_PARAM =
 			(stream->ignore_msa_timing_param) ? 1 : 0;
 
-	core_link_write_dpcd(link, DP_DOWNSPREAD_CTRL,
-			&downspread.raw, sizeof(downspread));
+	if (new_downspread.raw != old_downspread.raw) {
+		core_link_write_dpcd(link, DP_DOWNSPREAD_CTRL,
+			&new_downspread.raw, sizeof(new_downspread));
+	}
 }
 
 static enum dc_status enable_link_dp(
@@ -1843,9 +1910,22 @@ static void disable_link(struct dc_link *link, enum signal_type signal)
 
 static bool dp_active_dongle_validate_timing(
 		const struct dc_crtc_timing *timing,
-		const struct dc_dongle_caps *dongle_caps)
+		const struct dpcd_caps *dpcd_caps)
 {
 	unsigned int required_pix_clk = timing->pix_clk_khz;
+	const struct dc_dongle_caps *dongle_caps = &dpcd_caps->dongle_caps;
+
+	switch (dpcd_caps->dongle_type) {
+	case DISPLAY_DONGLE_DP_VGA_CONVERTER:
+	case DISPLAY_DONGLE_DP_DVI_CONVERTER:
+	case DISPLAY_DONGLE_DP_DVI_DONGLE:
+		if (timing->pixel_encoding == PIXEL_ENCODING_RGB)
+			return true;
+		else
+			return false;
+	default:
+		break;
+	}
 
 	if (dongle_caps->dongle_type != DISPLAY_DONGLE_DP_HDMI_CONVERTER ||
 		dongle_caps->extendedCapValid == false)
@@ -1911,7 +1991,7 @@ enum dc_status dc_link_validate_mode_timing(
 		const struct dc_crtc_timing *timing)
 {
 	uint32_t max_pix_clk = stream->sink->dongle_max_pix_clk;
-	struct dc_dongle_caps *dongle_caps = &link->dpcd_caps.dongle_caps;
+	struct dpcd_caps *dpcd_caps = &link->dpcd_caps;
 
 	/* A hack to avoid failing any modes for EDID override feature on
 	 * topology change such as lower quality cable for DP or different dongle
@@ -1924,7 +2004,7 @@ enum dc_status dc_link_validate_mode_timing(
 		return DC_EXCEED_DONGLE_CAP;
 
 	/* Active Dongle*/
-	if (!dp_active_dongle_validate_timing(timing, dongle_caps))
+	if (!dp_active_dongle_validate_timing(timing, dpcd_caps))
 		return DC_EXCEED_DONGLE_CAP;
 
 	switch (stream->signal) {
@@ -1950,10 +2030,10 @@ bool dc_link_set_backlight_level(const struct dc_link *link, uint32_t level,
 	struct dc  *core_dc = link->ctx->dc;
 	struct abm *abm = core_dc->res_pool->abm;
 	struct dmcu *dmcu = core_dc->res_pool->dmcu;
-	struct dc_context *dc_ctx = link->ctx;
 	unsigned int controller_id = 0;
 	bool use_smooth_brightness = true;
 	int i;
+	DC_LOGGER_INIT(link->ctx->logger);
 
 	if ((dmcu == NULL) ||
 		(abm == NULL) ||
@@ -1961,7 +2041,7 @@ bool dc_link_set_backlight_level(const struct dc_link *link, uint32_t level,
 		return false;
 
 	if (stream) {
-		if (stream->bl_pwm_level == 0)
+		if (stream->bl_pwm_level == EDP_BACKLIGHT_RAMP_DISABLE_LEVEL)
 			frame_ramp = 0;
 
 		((struct dc_stream_state *)stream)->bl_pwm_level = level;
@@ -2038,10 +2118,10 @@ static struct fixed31_32 get_pbn_per_slot(struct dc_stream_state *stream)
 			&stream->sink->link->cur_link_settings;
 	uint32_t link_rate_in_mbps =
 			link_settings->link_rate * LINK_RATE_REF_FREQ_IN_MHZ;
-	struct fixed31_32 mbps = dal_fixed31_32_from_int(
+	struct fixed31_32 mbps = dc_fixpt_from_int(
 			link_rate_in_mbps * link_settings->lane_count);
 
-	return dal_fixed31_32_div_int(mbps, 54);
+	return dc_fixpt_div_int(mbps, 54);
 }
 
 static int get_color_depth(enum dc_color_depth color_depth)
@@ -2082,7 +2162,7 @@ static struct fixed31_32 get_pbn_from_timing(struct pipe_ctx *pipe_ctx)
 	numerator = 64 * PEAK_FACTOR_X1000;
 	denominator = 54 * 8 * 1000 * 1000;
 	kbps *= numerator;
-	peak_kbps = dal_fixed31_32_from_fraction(kbps, denominator);
+	peak_kbps = dc_fixpt_from_fraction(kbps, denominator);
 
 	return peak_kbps;
 }
@@ -2149,8 +2229,8 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	struct fixed31_32 avg_time_slots_per_mtp;
 	struct fixed31_32 pbn;
 	struct fixed31_32 pbn_per_slot;
-	struct dc_context *dc_ctx = link->ctx;
 	uint8_t i;
+	DC_LOGGER_INIT(link->ctx->logger);
 
 	/* enable_link_dp_mst already check link->enabled_stream_count
 	 * and stream is in link->stream[]. This is called during set mode,
@@ -2178,11 +2258,11 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 			link->mst_stream_alloc_table.stream_count);
 
 	for (i = 0; i < MAX_CONTROLLER_NUM; i++) {
-		DC_LOG_MST("stream_enc[%d]: 0x%x      "
+		DC_LOG_MST("stream_enc[%d]: %p      "
 		"stream[%d].vcp_id: %d      "
 		"stream[%d].slot_count: %d\n",
 		i,
-		link->mst_stream_alloc_table.stream_allocations[i].stream_enc,
+		(void *) link->mst_stream_alloc_table.stream_allocations[i].stream_enc,
 		i,
 		link->mst_stream_alloc_table.stream_allocations[i].vcp_id,
 		i,
@@ -2209,7 +2289,7 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	/* slot X.Y for only current stream */
 	pbn_per_slot = get_pbn_per_slot(stream);
 	pbn = get_pbn_from_timing(pipe_ctx);
-	avg_time_slots_per_mtp = dal_fixed31_32_div(pbn, pbn_per_slot);
+	avg_time_slots_per_mtp = dc_fixpt_div(pbn, pbn_per_slot);
 
 	stream_encoder->funcs->set_mst_bandwidth(
 		stream_encoder,
@@ -2226,10 +2306,10 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	struct link_encoder *link_encoder = link->link_enc;
 	struct stream_encoder *stream_encoder = pipe_ctx->stream_res.stream_enc;
 	struct dp_mst_stream_allocation_table proposed_table = {0};
-	struct fixed31_32 avg_time_slots_per_mtp = dal_fixed31_32_from_int(0);
+	struct fixed31_32 avg_time_slots_per_mtp = dc_fixpt_from_int(0);
 	uint8_t i;
 	bool mst_mode = (link->type == dc_connection_mst_branch);
-	struct dc_context *dc_ctx = link->ctx;
+	DC_LOGGER_INIT(link->ctx->logger);
 
 	/* deallocate_mst_payload is called before disable link. When mode or
 	 * disable/enable monitor, new stream is created which is not in link
@@ -2268,11 +2348,11 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 			link->mst_stream_alloc_table.stream_count);
 
 	for (i = 0; i < MAX_CONTROLLER_NUM; i++) {
-		DC_LOG_MST("stream_enc[%d]: 0x%x      "
+		DC_LOG_MST("stream_enc[%d]: %p      "
 		"stream[%d].vcp_id: %d      "
 		"stream[%d].slot_count: %d\n",
 		i,
-		link->mst_stream_alloc_table.stream_allocations[i].stream_enc,
+		(void *) link->mst_stream_alloc_table.stream_allocations[i].stream_enc,
 		i,
 		link->mst_stream_alloc_table.stream_allocations[i].vcp_id,
 		i,
@@ -2302,8 +2382,8 @@ void core_link_enable_stream(
 		struct pipe_ctx *pipe_ctx)
 {
 	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
-	struct dc_context *dc_ctx = pipe_ctx->stream->ctx;
 	enum dc_status status;
+	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
 
 	/* eDP lit up by bios already, no need to enable again. */
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP &&

@@ -19,6 +19,7 @@
 		clocks = <&tegra_car TEGRA114_CLK_HOST1X>;
 		resets = <&tegra_car 28>;
 		reset-names = "host1x";
+		iommus = <&mc TEGRA_SWGROUP_HC>;
 
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -32,6 +33,8 @@
 			clocks = <&tegra_car TEGRA114_CLK_GR2D>;
 			resets = <&tegra_car 21>;
 			reset-names = "2d";
+
+			iommus = <&mc TEGRA_SWGROUP_G2>;
 		};
 
 		gr3d@54180000 {
@@ -40,6 +43,8 @@
 			clocks = <&tegra_car TEGRA114_CLK_GR3D>;
 			resets = <&tegra_car 24>;
 			reset-names = "3d";
+
+			iommus = <&mc TEGRA_SWGROUP_NV>;
 		};
 
 		dc@54200000 {

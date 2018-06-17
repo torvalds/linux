@@ -31,8 +31,6 @@ static const struct of_device_id omap_dt_match_table[] __initconst = {
 static void __init __maybe_unused omap_generic_init(void)
 {
 	pdata_quirks_init(omap_dt_match_table);
-
-	omapdss_init_of();
 	omap_soc_device_init();
 }
 

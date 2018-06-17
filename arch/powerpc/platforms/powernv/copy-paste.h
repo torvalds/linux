@@ -7,9 +7,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 #include <asm/ppc-opcode.h>
+#include <asm/reg.h>
 
-#define CR0_SHIFT	28
-#define CR0_MASK	0xF
 /*
  * Copy/paste instructions:
  *
@@ -42,5 +41,6 @@ static inline int vas_paste(void *paste_address, int offset)
 		: "b" (offset), "b" (paste_address)
 		: "memory", "cr0");
 
-	return (cr >> CR0_SHIFT) & CR0_MASK;
+	/* We mask with 0xE to ignore SO */
+	return (cr >> CR0_SHIFT) & 0xE;
 }

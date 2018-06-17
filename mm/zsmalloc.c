@@ -661,8 +661,9 @@ static void zs_pool_stat_create(struct zs_pool *pool, const char *name)
 	}
 	pool->stat_dentry = entry;
 
-	entry = debugfs_create_file("classes", S_IFREG | S_IRUGO,
-			pool->stat_dentry, pool, &zs_stats_size_fops);
+	entry = debugfs_create_file("classes", S_IFREG | 0444,
+				    pool->stat_dentry, pool,
+				    &zs_stats_size_fops);
 	if (!entry) {
 		pr_warn("%s: debugfs file entry <%s> creation failed\n",
 				name, "classes");

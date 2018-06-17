@@ -259,6 +259,7 @@ struct trace_array {
 	struct trace_options	*topts;
 	struct list_head	systems;
 	struct list_head	events;
+	struct trace_event_file *trace_marker_file;
 	cpumask_var_t		tracing_cpumask; /* only trace on set CPUs */
 	int			ref;
 #ifdef CONFIG_FUNCTION_TRACER
@@ -1334,7 +1335,7 @@ event_trigger_unlock_commit(struct trace_event_file *file,
 		trace_buffer_unlock_commit(file->tr, buffer, event, irq_flags, pc);
 
 	if (tt)
-		event_triggers_post_call(file, tt, entry, event);
+		event_triggers_post_call(file, tt);
 }
 
 /**
@@ -1367,7 +1368,7 @@ event_trigger_unlock_commit_regs(struct trace_event_file *file,
 						irq_flags, pc, regs);
 
 	if (tt)
-		event_triggers_post_call(file, tt, entry, event);
+		event_triggers_post_call(file, tt);
 }
 
 #define FILTER_PRED_INVALID	((unsigned short)-1)
@@ -1451,9 +1452,13 @@ trace_find_event_field(struct trace_event_call *call, char *name);
 extern void trace_event_enable_cmd_record(bool enable);
 extern void trace_event_enable_tgid_record(bool enable);
 
+extern int event_trace_init(void);
 extern int event_trace_add_tracer(struct dentry *parent, struct trace_array *tr);
 extern int event_trace_del_tracer(struct trace_array *tr);
 
+extern struct trace_event_file *__find_event_file(struct trace_array *tr,
+						  const char *system,
+						  const char *event);
 extern struct trace_event_file *find_event_file(struct trace_array *tr,
 						const char *system,
 						const char *event);
@@ -1815,6 +1820,17 @@ void trace_event_eval_update(struct trace_eval_map **map, int len);
 #else
 static inline void __init trace_event_init(void) { }
 static inline void trace_event_eval_update(struct trace_eval_map **map, int len) { }
+#endif
+
+#ifdef CONFIG_TRACER_SNAPSHOT
+void tracing_snapshot_instance(struct trace_array *tr);
+int tracing_alloc_snapshot_instance(struct trace_array *tr);
+#else
+static inline void tracing_snapshot_instance(struct trace_array *tr) { }
+static inline int tracing_alloc_snapshot_instance(struct trace_array *tr)
+{
+	return 0;
+}
 #endif
 
 extern struct trace_iterator *tracepoint_print_iter;

@@ -99,6 +99,38 @@ void __init arm_mm_memblock_reserve(void)
 	memblock_reserve(0, 1);
 }
 
+static void __init adjust_lowmem_bounds_mpu(void)
+{
+	unsigned long pmsa = read_cpuid_ext(CPUID_EXT_MMFR0) & MMFR0_PMSA;
+
+	switch (pmsa) {
+	case MMFR0_PMSAv7:
+		pmsav7_adjust_lowmem_bounds();
+		break;
+	case MMFR0_PMSAv8:
+		pmsav8_adjust_lowmem_bounds();
+		break;
+	default:
+		break;
+	}
+}
+
+static void __init mpu_setup(void)
+{
+	unsigned long pmsa = read_cpuid_ext(CPUID_EXT_MMFR0) & MMFR0_PMSA;
+
+	switch (pmsa) {
+	case MMFR0_PMSAv7:
+		pmsav7_setup();
+		break;
+	case MMFR0_PMSAv8:
+		pmsav8_setup();
+		break;
+	default:
+		break;
+	}
+}
+
 void __init adjust_lowmem_bounds(void)
 {
 	phys_addr_t end;

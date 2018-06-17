@@ -23,6 +23,7 @@
  */
 
 #include "../i915_selftest.h"
+#include "igt_flush_test.h"
 
 #include "mock_drm.h"
 #include "huge_gem_object.h"
@@ -411,6 +412,8 @@ static int igt_ctx_exec(void *arg)
 	}
 
 out_unlock:
+	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+		err = -EIO;
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	mock_file_free(i915, file);

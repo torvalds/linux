@@ -1613,7 +1613,7 @@ config RTC_DRV_JZ4740
 	  If you say yes here you get support for the Ingenic JZ47xx SoCs RTC
 	  controllers.
 
-	  This driver can also be buillt as a module. If so, the module
+	  This driver can also be built as a module. If so, the module
 	  will be called rtc-jz4740.
 
 config RTC_DRV_LPC24XX

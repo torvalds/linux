@@ -157,8 +157,8 @@ int qlcnic_sriov_init(struct qlcnic_adapter *adapter, int num_vfs)
 	adapter->ahw->sriov = sriov;
 	sriov->num_vfs = num_vfs;
 	bc = &sriov->bc;
-	sriov->vf_info = kzalloc(sizeof(struct qlcnic_vf_info) *
-				 num_vfs, GFP_KERNEL);
+	sriov->vf_info = kcalloc(num_vfs, sizeof(struct qlcnic_vf_info),
+				 GFP_KERNEL);
 	if (!sriov->vf_info) {
 		err = -ENOMEM;
 		goto qlcnic_free_sriov;
@@ -450,7 +450,7 @@ static int qlcnic_sriov_set_guest_vlan_mode(struct qlcnic_adapter *adapter,
 		return 0;
 
 	num_vlans = sriov->num_allowed_vlans;
-	sriov->allowed_vlans = kzalloc(sizeof(u16) * num_vlans, GFP_KERNEL);
+	sriov->allowed_vlans = kcalloc(num_vlans, sizeof(u16), GFP_KERNEL);
 	if (!sriov->allowed_vlans)
 		return -ENOMEM;
 
@@ -706,7 +706,7 @@ static inline int qlcnic_sriov_alloc_bc_trans(struct qlcnic_bc_trans **trans)
 static inline int qlcnic_sriov_alloc_bc_msg(struct qlcnic_bc_hdr **hdr,
 					    u32 size)
 {
-	*hdr = kzalloc(sizeof(struct qlcnic_bc_hdr) * size, GFP_ATOMIC);
+	*hdr = kcalloc(size, sizeof(struct qlcnic_bc_hdr), GFP_ATOMIC);
 	if (!*hdr)
 		return -ENOMEM;
 

@@ -481,6 +481,47 @@ static u32 omap4_cminst_xlate_clkctrl(u8 part, u16 inst, u16 offset)
 	return _cm_bases[part].pa + inst + offset;
 }
 
+/**
+ * omap4_clkdm_save_context - Save the clockdomain modulemode context
+ * @clkdm: The clockdomain pointer whose context needs to be saved
+ *
+ * Save the clockdomain modulemode context.
+ */
+static int omap4_clkdm_save_context(struct clockdomain *clkdm)
+{
+	clkdm->context = omap4_cminst_read_inst_reg(clkdm->prcm_partition,
+						    clkdm->cm_inst,
+						    clkdm->clkdm_offs +
+						    OMAP4_CM_CLKSTCTRL);
+	clkdm->context &= OMAP4430_MODULEMODE_MASK;
+	return 0;
+}
+
+/**
+ * omap4_clkdm_restore_context - Restore the clockdomain modulemode context
+ * @clkdm: The clockdomain pointer whose context needs to be restored
+ *
+ * Restore the clockdomain modulemode context.
+ */
+static int omap4_clkdm_restore_context(struct clockdomain *clkdm)
+{
+	switch (clkdm->context) {
+	case OMAP34XX_CLKSTCTRL_DISABLE_AUTO:
+		omap4_clkdm_deny_idle(clkdm);
+		break;
+	case OMAP34XX_CLKSTCTRL_FORCE_SLEEP:
+		omap4_clkdm_sleep(clkdm);
+		break;
+	case OMAP34XX_CLKSTCTRL_FORCE_WAKEUP:
+		omap4_clkdm_wakeup(clkdm);
+		break;
+	case OMAP34XX_CLKSTCTRL_ENABLE_AUTO:
+		omap4_clkdm_allow_idle(clkdm);
+		break;
+	}
+	return 0;
+}
+
 struct clkdm_ops omap4_clkdm_operations = {
 	.clkdm_add_wkdep	= omap4_clkdm_add_wkup_sleep_dep,
 	.clkdm_del_wkdep	= omap4_clkdm_del_wkup_sleep_dep,
@@ -496,6 +537,8 @@ struct clkdm_ops omap4_clkdm_operations = {
 	.clkdm_deny_idle	= omap4_clkdm_deny_idle,
 	.clkdm_clk_enable	= omap4_clkdm_clk_enable,
 	.clkdm_clk_disable	= omap4_clkdm_clk_disable,
+	.clkdm_save_context	= omap4_clkdm_save_context,
+	.clkdm_restore_context	= omap4_clkdm_restore_context,
 };
 
 struct clkdm_ops am43xx_clkdm_operations = {

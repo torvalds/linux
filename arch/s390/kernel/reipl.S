@@ -7,7 +7,10 @@
 
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
+#include <asm/nospec-insn.h>
 #include <asm/sigp.h>
+
+	GEN_BR_THUNK %r9
 
 #
 # Issue "store status" for the current CPU to its prefix page
@@ -67,9 +70,9 @@ ENTRY(store_status)
 	st	%r4,0(%r1)
 	st	%r5,4(%r1)
 	stg	%r2,8(%r1)
-	lgr	%r1,%r2
+	lgr	%r9,%r2
 	lgr	%r2,%r3
-	br	%r1
+	BR_EX	%r9
 
 	.section .bss
 	.align	8

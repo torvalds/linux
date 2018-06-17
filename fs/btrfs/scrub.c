@@ -2799,7 +2799,7 @@ static int scrub_extent(struct scrub_ctx *sctx, struct map_lookup *map,
 			have_csum = scrub_find_csum(sctx, logical, csum);
 			if (have_csum == 0)
 				++sctx->stat.no_csum;
-			if (sctx->is_dev_replace && !have_csum) {
+			if (0 && sctx->is_dev_replace && !have_csum) {
 				ret = copy_nocow_pages(sctx, logical, l,
 						       mirror_num,
 						      physical_for_dev_replace);
@@ -3984,6 +3984,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			spin_lock(&fs_info->unused_bgs_lock);
 			if (list_empty(&cache->bg_list)) {
 				btrfs_get_block_group(cache);
+				trace_btrfs_add_unused_block_group(cache);
 				list_add_tail(&cache->bg_list,
 					      &fs_info->unused_bgs);
 			}

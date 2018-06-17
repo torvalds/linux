@@ -21,6 +21,7 @@
 #include <linux/of_pci.h>
 #include <linux/of_platform.h>
 #include <linux/spinlock.h>
+#include <linux/dma-iommu.h>
 
 #define MSI_IRQS_PER_MSIR	32
 #define MSI_MSIR_OFFSET		4
@@ -94,6 +95,8 @@ static void ls_scfg_msi_compose_msg(struct irq_data *data, struct msi_msg *msg)
 
 	if (msi_affinity_flag)
 		msg->data |= cpumask_first(data->common->affinity);
+
+	iommu_dma_map_msi_msg(data->irq, msg);
 }
 
 static int ls_scfg_msi_set_affinity(struct irq_data *irq_data,

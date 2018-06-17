@@ -2,6 +2,7 @@
 #ifndef _LINUX_IOMMU_HELPER_H
 #define _LINUX_IOMMU_HELPER_H
 
+#include <linux/bug.h>
 #include <linux/kernel.h>
 
 static inline unsigned long iommu_device_max_index(unsigned long size,
@@ -14,9 +15,15 @@ static inline unsigned long iommu_device_max_index(unsigned long size,
 		return size;
 }
 
-extern int iommu_is_span_boundary(unsigned int index, unsigned int nr,
-				  unsigned long shift,
-				  unsigned long boundary_size);
+static inline int iommu_is_span_boundary(unsigned int index, unsigned int nr,
+		unsigned long shift, unsigned long boundary_size)
+{
+	BUG_ON(!is_power_of_2(boundary_size));
+
+	shift = (shift + index) & (boundary_size - 1);
+	return shift + nr > boundary_size;
+}
+
 extern unsigned long iommu_area_alloc(unsigned long *map, unsigned long size,
 				      unsigned long start, unsigned int nr,
 				      unsigned long shift,

@@ -67,11 +67,6 @@ enum {
 	CPL_RET_UNKNOWN_TID = 4    /* unexpected unknown TID */
 };
 
-#define TLS_RCV_ST_READ_HEADER		0xF0
-#define TLS_RCV_ST_READ_BODY		0xF1
-#define TLS_RCV_ST_READ_DONE		0xF2
-#define TLS_RCV_ST_READ_NB		0xF3
-
 #define LISTEN_INFO_HASH_SIZE 32
 #define RSPQ_HASH_BITS 5
 struct listen_info {
@@ -149,6 +144,7 @@ struct chtls_dev {
 	struct list_head rcu_node;
 	struct list_head na_node;
 	unsigned int send_page_order;
+	int max_host_sndbuf;
 	struct key_map kmap;
 };
 
@@ -278,6 +274,7 @@ struct tlsrx_cmp_hdr {
 #define TLSRX_HDR_PKT_MAC_ERROR_F        TLSRX_HDR_PKT_MAC_ERROR_V(1U)
 
 #define TLSRX_HDR_PKT_ERROR_M           0x1F
+#define CONTENT_TYPE_ERROR		0x7F
 
 struct ulp_mem_rw {
 	__be32 cmd;
@@ -347,8 +344,8 @@ enum {
 	ULPCB_FLAG_HOLD      = 1 << 3,	/* skb not ready for Tx yet */
 	ULPCB_FLAG_COMPL     = 1 << 4,	/* request WR completion */
 	ULPCB_FLAG_URG       = 1 << 5,	/* urgent data */
-	ULPCB_FLAG_TLS_ND    = 1 << 6, /* payload of zero length */
-	ULPCB_FLAG_NO_HDR    = 1 << 7, /* not a ofld wr */
+	ULPCB_FLAG_TLS_HDR   = 1 << 6,  /* payload with tls hdr */
+	ULPCB_FLAG_NO_HDR    = 1 << 7,  /* not a ofld wr */
 };
 
 /* The ULP mode/submode of an skbuff */

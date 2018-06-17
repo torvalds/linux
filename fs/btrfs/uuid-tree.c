@@ -79,10 +79,10 @@ out:
 	return ret;
 }
 
-int btrfs_uuid_tree_add(struct btrfs_trans_handle *trans,
-			struct btrfs_fs_info *fs_info, u8 *uuid, u8 type,
+int btrfs_uuid_tree_add(struct btrfs_trans_handle *trans, u8 *uuid, u8 type,
 			u64 subid_cpu)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_root *uuid_root = fs_info->uuid_root;
 	int ret;
 	struct btrfs_path *path = NULL;
@@ -144,10 +144,10 @@ out:
 	return ret;
 }
 
-int btrfs_uuid_tree_rem(struct btrfs_trans_handle *trans,
-			struct btrfs_fs_info *fs_info, u8 *uuid, u8 type,
+int btrfs_uuid_tree_remove(struct btrfs_trans_handle *trans, u8 *uuid, u8 type,
 			u64 subid)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_root *uuid_root = fs_info->uuid_root;
 	int ret;
 	struct btrfs_path *path = NULL;
@@ -239,7 +239,7 @@ static int btrfs_uuid_iter_rem(struct btrfs_root *uuid_root, u8 *uuid, u8 type,
 		goto out;
 	}
 
-	ret = btrfs_uuid_tree_rem(trans, uuid_root->fs_info, uuid, type, subid);
+	ret = btrfs_uuid_tree_remove(trans, uuid, type, subid);
 	btrfs_end_transaction(trans);
 
 out:

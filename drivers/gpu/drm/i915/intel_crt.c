@@ -748,6 +748,11 @@ intel_crt_detect(struct drm_connector *connector,
 		      connector->base.id, connector->name,
 		      force);
 
+	if (i915_modparams.load_detect_test) {
+		intel_display_power_get(dev_priv, intel_encoder->power_domain);
+		goto load_detect;
+	}
+
 	/* Skip machines without VGA that falsely report hotplug events */
 	if (dmi_check_system(intel_spurious_crt_detect))
 		return connector_status_disconnected;
@@ -776,11 +781,12 @@ intel_crt_detect(struct drm_connector *connector,
 	 * broken monitor (without edid) to work behind a broken kvm (that fails
 	 * to have the right resistors for HP detection) needs to fix this up.
 	 * For now just bail out. */
-	if (I915_HAS_HOTPLUG(dev_priv) && !i915_modparams.load_detect_test) {
+	if (I915_HAS_HOTPLUG(dev_priv)) {
 		status = connector_status_disconnected;
 		goto out;
 	}
 
+load_detect:
 	if (!force) {
 		status = connector->status;
 		goto out;

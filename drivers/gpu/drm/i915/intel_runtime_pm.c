@@ -542,6 +542,29 @@ void gen9_sanitize_dc_state(struct drm_i915_private *dev_priv)
 	dev_priv->csr.dc_state = val;
 }
 
+/**
+ * gen9_set_dc_state - set target display C power state
+ * @dev_priv: i915 device instance
+ * @state: target DC power state
+ * - DC_STATE_DISABLE
+ * - DC_STATE_EN_UPTO_DC5
+ * - DC_STATE_EN_UPTO_DC6
+ * - DC_STATE_EN_DC9
+ *
+ * Signal to DMC firmware/HW the target DC power state passed in @state.
+ * DMC/HW can turn off individual display clocks and power rails when entering
+ * a deeper DC power state (higher in number) and turns these back when exiting
+ * that state to a shallower power state (lower in number). The HW will decide
+ * when to actually enter a given state on an on-demand basis, for instance
+ * depending on the active state of display pipes. The state of display
+ * registers backed by affected power rails are saved/restored as needed.
+ *
+ * Based on the above enabling a deeper DC power state is asynchronous wrt.
+ * enabling it. Disabling a deeper power state is synchronous: for instance
+ * setting %DC_STATE_DISABLE won't complete until all HW resources are turned
+ * back on and register state is restored. This is guaranteed by the MMIO write
+ * to DC_STATE_EN blocking until the state is restored.
+ */
 static void gen9_set_dc_state(struct drm_i915_private *dev_priv, uint32_t state)
 {
 	uint32_t val;
@@ -635,26 +658,18 @@ static void assert_can_enable_dc6(struct drm_i915_private *dev_priv)
 	assert_csr_loaded(dev_priv);
 }
 
-void skl_enable_dc6(struct drm_i915_private *dev_priv)
+static void skl_enable_dc6(struct drm_i915_private *dev_priv)
 {
 	assert_can_enable_dc6(dev_priv);
 
 	DRM_DEBUG_KMS("Enabling DC6\n");
-
-	gen9_set_dc_state(dev_priv, DC_STATE_EN_UPTO_DC6);
-
-}
-
-void skl_disable_dc6(struct drm_i915_private *dev_priv)
-{
-	DRM_DEBUG_KMS("Disabling DC6\n");
 
 	/* Wa Display #1183: skl,kbl,cfl */
 	if (IS_GEN9_BC(dev_priv))
 		I915_WRITE(GEN8_CHICKEN_DCPR_1, I915_READ(GEN8_CHICKEN_DCPR_1) |
 			   SKL_SELECT_ALTERNATE_DC_EXIT);
 
-	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
+	gen9_set_dc_state(dev_priv, DC_STATE_EN_UPTO_DC6);
 }
 
 static void hsw_power_well_sync_hw(struct drm_i915_private *dev_priv,
@@ -2627,32 +2642,69 @@ static void intel_power_domains_sync_hw(struct drm_i915_private *dev_priv)
 	mutex_unlock(&power_domains->lock);
 }
 
-static void gen9_dbuf_enable(struct drm_i915_private *dev_priv)
+static inline
+bool intel_dbuf_slice_set(struct drm_i915_private *dev_priv,
+			  i915_reg_t reg, bool enable)
 {
-	I915_WRITE(DBUF_CTL, I915_READ(DBUF_CTL) | DBUF_POWER_REQUEST);
-	POSTING_READ(DBUF_CTL);
+	u32 val, status;
 
+	val = I915_READ(reg);
+	val = enable ? (val | DBUF_POWER_REQUEST) : (val & ~DBUF_POWER_REQUEST);
+	I915_WRITE(reg, val);
+	POSTING_READ(reg);
 	udelay(10);
 
-	if (!(I915_READ(DBUF_CTL) & DBUF_POWER_STATE))
-		DRM_ERROR("DBuf power enable timeout\n");
+	status = I915_READ(reg) & DBUF_POWER_STATE;
+	if ((enable && !status) || (!enable && status)) {
+		DRM_ERROR("DBus power %s timeout!\n",
+			  enable ? "enable" : "disable");
+		return false;
+	}
+	return true;
+}
+
+static void gen9_dbuf_enable(struct drm_i915_private *dev_priv)
+{
+	intel_dbuf_slice_set(dev_priv, DBUF_CTL, true);
 }
 
 static void gen9_dbuf_disable(struct drm_i915_private *dev_priv)
 {
-	I915_WRITE(DBUF_CTL, I915_READ(DBUF_CTL) & ~DBUF_POWER_REQUEST);
-	POSTING_READ(DBUF_CTL);
-
-	udelay(10);
-
-	if (I915_READ(DBUF_CTL) & DBUF_POWER_STATE)
-		DRM_ERROR("DBuf power disable timeout!\n");
+	intel_dbuf_slice_set(dev_priv, DBUF_CTL, false);
 }
 
-/*
- * TODO: we shouldn't always enable DBUF_CTL_S2, we should only enable it when
- * needed and keep it disabled as much as possible.
- */
+static u8 intel_dbuf_max_slices(struct drm_i915_private *dev_priv)
+{
+	if (INTEL_GEN(dev_priv) < 11)
+		return 1;
+	return 2;
+}
+
+void icl_dbuf_slices_update(struct drm_i915_private *dev_priv,
+			    u8 req_slices)
+{
+	u8 hw_enabled_slices = dev_priv->wm.skl_hw.ddb.enabled_slices;
+	u32 val;
+	bool ret;
+
+	if (req_slices > intel_dbuf_max_slices(dev_priv)) {
+		DRM_ERROR("Invalid number of dbuf slices requested\n");
+		return;
+	}
+
+	if (req_slices == hw_enabled_slices || req_slices == 0)
+		return;
+
+	val = I915_READ(DBUF_CTL_S2);
+	if (req_slices > hw_enabled_slices)
+		ret = intel_dbuf_slice_set(dev_priv, DBUF_CTL_S2, true);
+	else
+		ret = intel_dbuf_slice_set(dev_priv, DBUF_CTL_S2, false);
+
+	if (ret)
+		dev_priv->wm.skl_hw.ddb.enabled_slices = req_slices;
+}
+
 static void icl_dbuf_enable(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE(DBUF_CTL_S1, I915_READ(DBUF_CTL_S1) | DBUF_POWER_REQUEST);
@@ -2664,6 +2716,8 @@ static void icl_dbuf_enable(struct drm_i915_private *dev_priv)
 	if (!(I915_READ(DBUF_CTL_S1) & DBUF_POWER_STATE) ||
 	    !(I915_READ(DBUF_CTL_S2) & DBUF_POWER_STATE))
 		DRM_ERROR("DBuf power enable timeout\n");
+	else
+		dev_priv->wm.skl_hw.ddb.enabled_slices = 2;
 }
 
 static void icl_dbuf_disable(struct drm_i915_private *dev_priv)
@@ -2677,6 +2731,8 @@ static void icl_dbuf_disable(struct drm_i915_private *dev_priv)
 	if ((I915_READ(DBUF_CTL_S1) & DBUF_POWER_STATE) ||
 	    (I915_READ(DBUF_CTL_S2) & DBUF_POWER_STATE))
 		DRM_ERROR("DBuf power disable timeout!\n");
+	else
+		dev_priv->wm.skl_hw.ddb.enabled_slices = 0;
 }
 
 static void icl_mbus_init(struct drm_i915_private *dev_priv)

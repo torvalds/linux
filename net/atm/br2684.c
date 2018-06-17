@@ -818,18 +818,6 @@ static const struct seq_operations br2684_seq_ops = {
 	.show = br2684_seq_show,
 };
 
-static int br2684_proc_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &br2684_seq_ops);
-}
-
-static const struct file_operations br2684_proc_ops = {
-	.open = br2684_proc_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release,
-};
-
 extern struct proc_dir_entry *atm_proc_root;	/* from proc.c */
 #endif /* CONFIG_PROC_FS */
 
@@ -837,7 +825,7 @@ static int __init br2684_init(void)
 {
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *p;
-	p = proc_create("br2684", 0, atm_proc_root, &br2684_proc_ops);
+	p = proc_create_seq("br2684", 0, atm_proc_root, &br2684_seq_ops);
 	if (p == NULL)
 		return -ENOMEM;
 #endif

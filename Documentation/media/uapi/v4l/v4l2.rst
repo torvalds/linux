@@ -45,7 +45,7 @@ Authors, in alphabetical order:
 
   - Subdev selections API.
 
-- Carvalho Chehab, Mauro <m.chehab@kernel.org>
+- Carvalho Chehab, Mauro <mchehab+samsung@kernel.org>
 
   - Documented libv4l, designed and added v4l2grab example, Remote Controller chapter.
 

@@ -20,10 +20,11 @@ int diva_xdi_read(void *adapter, void *os_handle, void __user *dst,
 		  int max_length, divas_xdi_copy_to_user_fn_t cp_fn);
 
 int diva_xdi_write(void *adapter, void *os_handle, const void __user *src,
-		   int length, divas_xdi_copy_from_user_fn_t cp_fn);
+		   int length, void *msg,
+		   divas_xdi_copy_from_user_fn_t cp_fn);
 
 void *diva_xdi_open_adapter(void *os_handle, const void __user *src,
-			    int length,
+			    int length, void *msg,
 			    divas_xdi_copy_from_user_fn_t cp_fn);
 
 void diva_xdi_close_adapter(void *adapter, void *os_handle);

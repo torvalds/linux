@@ -1,5 +1,5 @@
 config DRM_I2C_ADV7511
-	tristate "AV7511 encoder"
+	tristate "ADV7511 encoder"
 	depends on OF
 	select DRM_KMS_HELPER
 	select REGMAP_I2C

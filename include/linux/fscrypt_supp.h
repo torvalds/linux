@@ -29,7 +29,7 @@ struct fscrypt_operations {
 	int (*set_context)(struct inode *, const void *, size_t, void *);
 	bool (*dummy_context)(struct inode *);
 	bool (*empty_dir)(struct inode *);
-	unsigned (*max_namelen)(struct inode *);
+	unsigned int max_namelen;
 };
 
 struct fscrypt_ctx {
@@ -59,6 +59,7 @@ static inline bool fscrypt_dummy_context_enabled(struct inode *inode)
 }
 
 /* crypto.c */
+extern void fscrypt_enqueue_decrypt_work(struct work_struct *);
 extern struct fscrypt_ctx *fscrypt_get_ctx(const struct inode *, gfp_t);
 extern void fscrypt_release_ctx(struct fscrypt_ctx *);
 extern struct page *fscrypt_encrypt_page(const struct inode *, struct page *,
@@ -73,20 +74,6 @@ static inline struct page *fscrypt_control_page(struct page *page)
 }
 
 extern void fscrypt_restore_control_page(struct page *);
-
-extern const struct dentry_operations fscrypt_d_ops;
-
-static inline void fscrypt_set_d_op(struct dentry *dentry)
-{
-	d_set_d_op(dentry, &fscrypt_d_ops);
-}
-
-static inline void fscrypt_set_encrypted_dentry(struct dentry *dentry)
-{
-	spin_lock(&dentry->d_lock);
-	dentry->d_flags |= DCACHE_ENCRYPTED_WITH_KEY;
-	spin_unlock(&dentry->d_lock);
-}
 
 /* policy.c */
 extern int fscrypt_ioctl_set_policy(struct file *, const void __user *);
@@ -188,7 +175,9 @@ static inline bool fscrypt_match_name(const struct fscrypt_name *fname,
 }
 
 /* bio.c */
-extern void fscrypt_decrypt_bio_pages(struct fscrypt_ctx *, struct bio *);
+extern void fscrypt_decrypt_bio(struct bio *);
+extern void fscrypt_enqueue_decrypt_bio(struct fscrypt_ctx *ctx,
+					struct bio *bio);
 extern void fscrypt_pullback_bio_page(struct page **, bool);
 extern int fscrypt_zeroout_range(const struct inode *, pgoff_t, sector_t,
 				 unsigned int);

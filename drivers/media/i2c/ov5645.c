@@ -600,11 +600,13 @@ static int ov5645_write_reg(struct ov5645 *ov5645, u16 reg, u8 val)
 	regbuf[2] = val;
 
 	ret = i2c_master_send(ov5645->i2c_client, regbuf, 3);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(ov5645->dev, "%s: write reg error %d: reg=%x, val=%x\n",
 			__func__, ret, reg, val);
+		return ret;
+	}
 
-	return ret;
+	return 0;
 }
 
 static int ov5645_read_reg(struct ov5645 *ov5645, u16 reg, u8 *val)

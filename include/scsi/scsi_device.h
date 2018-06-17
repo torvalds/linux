@@ -15,7 +15,7 @@ struct scsi_cmnd;
 struct scsi_lun;
 struct scsi_sense_hdr;
 
-typedef unsigned int __bitwise blist_flags_t;
+typedef __u64 __bitwise blist_flags_t;
 
 struct scsi_mode_data {
 	__u32	length;

@@ -124,22 +124,27 @@ extern void radix__mark_rodata_ro(void);
 extern void radix__mark_initmem_nx(void);
 #endif
 
+extern void radix__ptep_set_access_flags(struct vm_area_struct *vma, pte_t *ptep,
+					 pte_t entry, unsigned long address,
+					 int psize);
+
 static inline unsigned long __radix_pte_update(pte_t *ptep, unsigned long clr,
 					       unsigned long set)
 {
-	pte_t pte;
-	unsigned long old_pte, new_pte;
+	__be64 old_be, tmp_be;
 
-	do {
-		pte = READ_ONCE(*ptep);
-		old_pte = pte_val(pte);
-		new_pte = (old_pte | set) & ~clr;
+	__asm__ __volatile__(
+	"1:	ldarx	%0,0,%3		# pte_update\n"
+	"	andc	%1,%0,%5	\n"
+	"	or	%1,%1,%4	\n"
+	"	stdcx.	%1,0,%3		\n"
+	"	bne-	1b"
+	: "=&r" (old_be), "=&r" (tmp_be), "=m" (*ptep)
+	: "r" (ptep), "r" (cpu_to_be64(set)), "r" (cpu_to_be64(clr))
+	: "cc" );
 
-	} while (!pte_xchg(ptep, __pte(old_pte), __pte(new_pte)));
-
-	return old_pte;
+	return be64_to_cpu(old_be);
 }
-
 
 static inline unsigned long radix__pte_update(struct mm_struct *mm,
 					unsigned long addr,
@@ -176,46 +181,12 @@ static inline pte_t radix__ptep_get_and_clear_full(struct mm_struct *mm,
 	unsigned long old_pte;
 
 	if (full) {
-		/*
-		 * If we are trying to clear the pte, we can skip
-		 * the DD1 pte update sequence and batch the tlb flush. The
-		 * tlb flush batching is done by mmu gather code. We
-		 * still keep the cmp_xchg update to make sure we get
-		 * correct R/C bit which might be updated via Nest MMU.
-		 */
-		old_pte = __radix_pte_update(ptep, ~0ul, 0);
+		old_pte = pte_val(*ptep);
+		*ptep = __pte(0);
 	} else
 		old_pte = radix__pte_update(mm, addr, ptep, ~0ul, 0, 0);
 
 	return __pte(old_pte);
-}
-
-/*
- * Set the dirty and/or accessed bits atomically in a linux PTE, this
- * function doesn't need to invalidate tlb.
- */
-static inline void radix__ptep_set_access_flags(struct mm_struct *mm,
-						pte_t *ptep, pte_t entry,
-						unsigned long address)
-{
-
-	unsigned long set = pte_val(entry) & (_PAGE_DIRTY | _PAGE_ACCESSED |
-					      _PAGE_RW | _PAGE_EXEC);
-
-	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
-
-		unsigned long old_pte, new_pte;
-
-		old_pte = __radix_pte_update(ptep, ~0, 0);
-		/*
-		 * new value of pte
-		 */
-		new_pte = old_pte | set;
-		radix__flush_tlb_pte_p9_dd1(old_pte, mm, address);
-		__radix_pte_update(ptep, 0, new_pte);
-	} else
-		__radix_pte_update(ptep, 0, set);
-	asm volatile("ptesync" : : : "memory");
 }
 
 static inline int radix__pte_same(pte_t pte_a, pte_t pte_b)
@@ -232,7 +203,24 @@ static inline void radix__set_pte_at(struct mm_struct *mm, unsigned long addr,
 				 pte_t *ptep, pte_t pte, int percpu)
 {
 	*ptep = pte;
-	asm volatile("ptesync" : : : "memory");
+
+	/*
+	 * The architecture suggests a ptesync after setting the pte, which
+	 * orders the store that updates the pte with subsequent page table
+	 * walk accesses which may load the pte. Without this it may be
+	 * possible for a subsequent access to result in spurious fault.
+	 *
+	 * This is not necessary for correctness, because a spurious fault
+	 * is tolerated by the page fault handler, and this store will
+	 * eventually be seen. In testing, there was no noticable increase
+	 * in user faults on POWER9. Avoiding ptesync here is a significant
+	 * win for things like fork. If a future microarchitecture benefits
+	 * from ptesync, it should probably go into update_mmu_cache, rather
+	 * than set_pte_at (which is used to set ptes unrelated to faults).
+	 *
+	 * Spurious faults to vmalloc region are not tolerated, so there is
+	 * a ptesync in flush_cache_vmap.
+	 */
 }
 
 static inline int radix__pmd_bad(pmd_t pmd)

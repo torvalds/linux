@@ -394,12 +394,13 @@ static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 		for (i=0; i<8; i+=2) {
 			uint32_t tmp = cafe_readl(cafe, NAND_ECC_SYN01 + (i*2));
-			syn[i] = cafe->rs->index_of[tmp & 0xfff];
-			syn[i+1] = cafe->rs->index_of[(tmp >> 16) & 0xfff];
+
+			syn[i] = cafe->rs->codec->index_of[tmp & 0xfff];
+			syn[i+1] = cafe->rs->codec->index_of[(tmp >> 16) & 0xfff];
 		}
 
 		n = decode_rs16(cafe->rs, NULL, NULL, 1367, syn, 0, pos, 0,
-		                pat);
+				pat);
 
 		for (i = 0; i < n; i++) {
 			int p = pos[i];

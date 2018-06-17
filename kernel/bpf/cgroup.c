@@ -500,6 +500,7 @@ EXPORT_SYMBOL(__cgroup_bpf_run_filter_sk);
  * @sk: sock struct that will use sockaddr
  * @uaddr: sockaddr struct provided by user
  * @type: The type of program to be exectuted
+ * @t_ctx: Pointer to attach type specific context
  *
  * socket is expected to be of type INET or INET6.
  *
@@ -508,12 +509,15 @@ EXPORT_SYMBOL(__cgroup_bpf_run_filter_sk);
  */
 int __cgroup_bpf_run_filter_sock_addr(struct sock *sk,
 				      struct sockaddr *uaddr,
-				      enum bpf_attach_type type)
+				      enum bpf_attach_type type,
+				      void *t_ctx)
 {
 	struct bpf_sock_addr_kern ctx = {
 		.sk = sk,
 		.uaddr = uaddr,
+		.t_ctx = t_ctx,
 	};
+	struct sockaddr_storage unspec;
 	struct cgroup *cgrp;
 	int ret;
 
@@ -522,6 +526,11 @@ int __cgroup_bpf_run_filter_sock_addr(struct sock *sk,
 	 */
 	if (sk->sk_family != AF_INET && sk->sk_family != AF_INET6)
 		return 0;
+
+	if (!ctx.uaddr) {
+		memset(&unspec, 0, sizeof(unspec));
+		ctx.uaddr = (struct sockaddr *)&unspec;
+	}
 
 	cgrp = sock_cgroup_ptr(&sk->sk_cgrp_data);
 	ret = BPF_PROG_RUN_ARRAY(cgrp->bpf.effective[type], &ctx, BPF_PROG_RUN);

@@ -331,7 +331,7 @@ static inline bool vlan_hw_offload_capable(netdev_features_t features,
  * @mac_len: MAC header length including outer vlan headers
  *
  * Inserts the VLAN tag into @skb as part of the payload at offset mac_len
- * Returns error if skb_cow_head failes.
+ * Returns error if skb_cow_head fails.
  *
  * Does not change skb->protocol so this function can be used during receive.
  */
@@ -379,7 +379,7 @@ static inline int __vlan_insert_inner_tag(struct sk_buff *skb,
  * @vlan_tci: VLAN TCI to insert
  *
  * Inserts the VLAN tag into @skb as part of the payload
- * Returns error if skb_cow_head failes.
+ * Returns error if skb_cow_head fails.
  *
  * Does not change skb->protocol so this function can be used during receive.
  */

@@ -33,7 +33,7 @@ struct v4l2_ctrl_handler;
  * struct v4l2_device - main struct to for V4L2 device drivers
  *
  * @dev: pointer to struct device.
- * @mdev: pointer to struct media_device
+ * @mdev: pointer to struct media_device, may be NULL.
  * @subdevs: used to keep track of the registered subdevs
  * @lock: lock this struct; can be used by the driver as well
  *	if this struct is embedded into a larger struct.
@@ -58,9 +58,7 @@ struct v4l2_ctrl_handler;
  */
 struct v4l2_device {
 	struct device *dev;
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	struct media_device *mdev;
-#endif
 	struct list_head subdevs;
 	spinlock_t lock;
 	char name[V4L2_DEVICE_NAME_SIZE];

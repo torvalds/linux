@@ -586,7 +586,7 @@ static int adv7511_get_modes(struct adv7511 *adv7511,
 	/* Reading the EDID only works if the device is powered */
 	if (!adv7511->powered) {
 		unsigned int edid_i2c_addr =
-					(adv7511->i2c_main->addr << 1) + 4;
+					(adv7511->i2c_edid->addr << 1);
 
 		__adv7511_power_on(adv7511);
 
@@ -654,7 +654,7 @@ adv7511_detect(struct adv7511 *adv7511, struct drm_connector *connector)
 	return status;
 }
 
-static int adv7511_mode_valid(struct adv7511 *adv7511,
+static enum drm_mode_status adv7511_mode_valid(struct adv7511 *adv7511,
 			      struct drm_display_mode *mode)
 {
 	if (mode->clock > 165000)
@@ -969,10 +969,10 @@ static int adv7511_init_cec_regmap(struct adv7511 *adv)
 {
 	int ret;
 
-	adv->i2c_cec = i2c_new_dummy(adv->i2c_main->adapter,
-				     adv->i2c_main->addr - 1);
+	adv->i2c_cec = i2c_new_secondary_device(adv->i2c_main, "cec",
+						ADV7511_CEC_I2C_ADDR_DEFAULT);
 	if (!adv->i2c_cec)
-		return -ENOMEM;
+		return -EINVAL;
 	i2c_set_clientdata(adv->i2c_cec, adv);
 
 	adv->regmap_cec = devm_regmap_init_i2c(adv->i2c_cec,
@@ -1082,8 +1082,6 @@ static int adv7511_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	struct adv7511_link_config link_config;
 	struct adv7511 *adv7511;
 	struct device *dev = &i2c->dev;
-	unsigned int main_i2c_addr = i2c->addr << 1;
-	unsigned int edid_i2c_addr = main_i2c_addr + 4;
 	unsigned int val;
 	int ret;
 
@@ -1129,7 +1127,7 @@ static int adv7511_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	}
 
 	if (adv7511->gpio_pd) {
-		mdelay(5);
+		usleep_range(5000, 6000);
 		gpiod_set_value_cansleep(adv7511->gpio_pd, 0);
 	}
 
@@ -1153,23 +1151,34 @@ static int adv7511_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	if (ret)
 		goto uninit_regulators;
 
-	regmap_write(adv7511->regmap, ADV7511_REG_EDID_I2C_ADDR, edid_i2c_addr);
-	regmap_write(adv7511->regmap, ADV7511_REG_PACKET_I2C_ADDR,
-		     main_i2c_addr - 0xa);
-	regmap_write(adv7511->regmap, ADV7511_REG_CEC_I2C_ADDR,
-		     main_i2c_addr - 2);
-
 	adv7511_packet_disable(adv7511, 0xffff);
 
-	adv7511->i2c_edid = i2c_new_dummy(i2c->adapter, edid_i2c_addr >> 1);
+	adv7511->i2c_edid = i2c_new_secondary_device(i2c, "edid",
+					ADV7511_EDID_I2C_ADDR_DEFAULT);
 	if (!adv7511->i2c_edid) {
-		ret = -ENOMEM;
+		ret = -EINVAL;
 		goto uninit_regulators;
 	}
 
+	regmap_write(adv7511->regmap, ADV7511_REG_EDID_I2C_ADDR,
+		     adv7511->i2c_edid->addr << 1);
+
+	adv7511->i2c_packet = i2c_new_secondary_device(i2c, "packet",
+					ADV7511_PACKET_I2C_ADDR_DEFAULT);
+	if (!adv7511->i2c_packet) {
+		ret = -EINVAL;
+		goto err_i2c_unregister_edid;
+	}
+
+	regmap_write(adv7511->regmap, ADV7511_REG_PACKET_I2C_ADDR,
+		     adv7511->i2c_packet->addr << 1);
+
 	ret = adv7511_init_cec_regmap(adv7511);
 	if (ret)
-		goto err_i2c_unregister_edid;
+		goto err_i2c_unregister_packet;
+
+	regmap_write(adv7511->regmap, ADV7511_REG_CEC_I2C_ADDR,
+		     adv7511->i2c_cec->addr << 1);
 
 	INIT_WORK(&adv7511->hpd_work, adv7511_hpd_work);
 
@@ -1207,6 +1216,8 @@ err_unregister_cec:
 	i2c_unregister_device(adv7511->i2c_cec);
 	if (adv7511->cec_clk)
 		clk_disable_unprepare(adv7511->cec_clk);
+err_i2c_unregister_packet:
+	i2c_unregister_device(adv7511->i2c_packet);
 err_i2c_unregister_edid:
 	i2c_unregister_device(adv7511->i2c_edid);
 uninit_regulators:
@@ -1233,6 +1244,7 @@ static int adv7511_remove(struct i2c_client *i2c)
 
 	cec_unregister_adapter(adv7511->cec_adap);
 
+	i2c_unregister_device(adv7511->i2c_packet);
 	i2c_unregister_device(adv7511->i2c_edid);
 
 	return 0;

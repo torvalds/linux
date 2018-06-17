@@ -171,7 +171,9 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	unsigned char smb2_signature[SMB2_HMACSHA256_SIZE];
 	unsigned char *sigptr = smb2_signature;
 	struct kvec *iov = rqst->rq_iov;
-	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)iov[1].iov_base;
+	int iov_hdr_index = rqst->rq_nvec > 1 ? 1 : 0;
+	struct smb2_sync_hdr *shdr =
+		(struct smb2_sync_hdr *)iov[iov_hdr_index].iov_base;
 	struct cifs_ses *ses;
 
 	ses = smb2_find_smb_ses(server, shdr->SessionId);
@@ -202,7 +204,7 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 		return rc;
 	}
 
-	rc = __cifs_calc_signature(rqst, server, sigptr,
+	rc = __cifs_calc_signature(rqst, iov_hdr_index,  server, sigptr,
 		&server->secmech.sdeschmacsha256->shash);
 
 	if (!rc)
@@ -412,7 +414,9 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	unsigned char smb3_signature[SMB2_CMACAES_SIZE];
 	unsigned char *sigptr = smb3_signature;
 	struct kvec *iov = rqst->rq_iov;
-	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)iov[1].iov_base;
+	int iov_hdr_index = rqst->rq_nvec > 1 ? 1 : 0;
+	struct smb2_sync_hdr *shdr =
+		(struct smb2_sync_hdr *)iov[iov_hdr_index].iov_base;
 	struct cifs_ses *ses;
 
 	ses = smb2_find_smb_ses(server, shdr->SessionId);
@@ -443,7 +447,7 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 		return rc;
 	}
 
-	rc = __cifs_calc_signature(rqst, server, sigptr,
+	rc = __cifs_calc_signature(rqst, iov_hdr_index, server, sigptr,
 				   &server->secmech.sdesccmacaes->shash);
 
 	if (!rc)
@@ -480,7 +484,7 @@ smb2_verify_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	unsigned int rc;
 	char server_response_sig[16];
 	struct smb2_sync_hdr *shdr =
-			(struct smb2_sync_hdr *)rqst->rq_iov[1].iov_base;
+			(struct smb2_sync_hdr *)rqst->rq_iov[0].iov_base;
 
 	if ((shdr->Command == SMB2_NEGOTIATE) ||
 	    (shdr->Command == SMB2_SESSION_SETUP) ||
@@ -605,14 +609,12 @@ smb2_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 		   bool log_error)
 {
 	unsigned int len = mid->resp_buf_size;
-	struct kvec iov[2];
+	struct kvec iov[1];
 	struct smb_rqst rqst = { .rq_iov = iov,
-				 .rq_nvec = 2 };
+				 .rq_nvec = 1 };
 
 	iov[0].iov_base = (char *)mid->resp_buf;
-	iov[0].iov_len = 4;
-	iov[1].iov_base = (char *)mid->resp_buf + 4;
-	iov[1].iov_len = len;
+	iov[0].iov_len = len;
 
 	dump_smb(mid->resp_buf, min_t(u32, 80, len));
 	/* convert the length into a more usable form */

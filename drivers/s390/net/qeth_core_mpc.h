@@ -35,6 +35,18 @@ extern unsigned char IPA_PDU_HEADER[];
 #define QETH_HALT_CHANNEL_PARM	-11
 #define QETH_RCD_PARM -12
 
+static inline bool qeth_intparm_is_iob(unsigned long intparm)
+{
+	switch (intparm) {
+	case QETH_CLEAR_CHANNEL_PARM:
+	case QETH_HALT_CHANNEL_PARM:
+	case QETH_RCD_PARM:
+	case 0:
+		return false;
+	}
+	return true;
+}
+
 /*****************************************************************************/
 /* IP Assist related definitions                                             */
 /*****************************************************************************/
@@ -234,6 +246,8 @@ enum qeth_ipa_funcs {
 	IPA_QUERY_ARP_ASSIST	= 0x00040000L,
 	IPA_INBOUND_TSO         = 0x00080000L,
 	IPA_OUTBOUND_TSO        = 0x00100000L,
+	IPA_INBOUND_CHECKSUM_V6 = 0x00400000L,
+	IPA_OUTBOUND_CHECKSUM_V6 = 0x00800000L,
 };
 
 /* SETIP/DELIP IPA Command: ***************************************************/

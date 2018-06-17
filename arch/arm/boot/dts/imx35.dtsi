@@ -1,12 +1,8 @@
-/*
- * Copyright 2012 Steffen Trumtrar, Pengutronix
- *
- * based on imx27.dtsi
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License version 2 as published by the
- * Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright 2012 Steffen Trumtrar, Pengutronix
+//
+// based on imx27.dtsi
 
 #include "imx35-pinfunc.h"
 
@@ -303,7 +299,7 @@
 			};
 
 			can1: can@53fe4000 {
-				compatible = "fsl,imx35-flexcan";
+				compatible = "fsl,imx35-flexcan", "fsl,imx25-flexcan";
 				reg = <0x53fe4000 0x1000>;
 				clocks = <&clks 33>, <&clks 33>;
 				clock-names = "ipg", "per";
@@ -312,7 +308,7 @@
 			};
 
 			can2: can@53fe8000 {
-				compatible = "fsl,imx35-flexcan";
+				compatible = "fsl,imx35-flexcan", "fsl,imx25-flexcan";
 				reg = <0x53fe8000 0x1000>;
 				clocks = <&clks 34>, <&clks 34>;
 				clock-names = "ipg", "per";

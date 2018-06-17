@@ -12,8 +12,13 @@
 
 #define UNCORE_FIXED_EVENT		0xff
 #define UNCORE_PMC_IDX_MAX_GENERIC	8
+#define UNCORE_PMC_IDX_MAX_FIXED	1
+#define UNCORE_PMC_IDX_MAX_FREERUNNING	1
 #define UNCORE_PMC_IDX_FIXED		UNCORE_PMC_IDX_MAX_GENERIC
-#define UNCORE_PMC_IDX_MAX		(UNCORE_PMC_IDX_FIXED + 1)
+#define UNCORE_PMC_IDX_FREERUNNING	(UNCORE_PMC_IDX_FIXED + \
+					UNCORE_PMC_IDX_MAX_FIXED)
+#define UNCORE_PMC_IDX_MAX		(UNCORE_PMC_IDX_FREERUNNING + \
+					UNCORE_PMC_IDX_MAX_FREERUNNING)
 
 #define UNCORE_PCI_DEV_FULL_DATA(dev, func, type, idx)	\
 		((dev << 24) | (func << 16) | (type << 8) | idx)
@@ -35,6 +40,7 @@ struct intel_uncore_ops;
 struct intel_uncore_pmu;
 struct intel_uncore_box;
 struct uncore_event_desc;
+struct freerunning_counters;
 
 struct intel_uncore_type {
 	const char *name;
@@ -42,6 +48,7 @@ struct intel_uncore_type {
 	int num_boxes;
 	int perf_ctr_bits;
 	int fixed_ctr_bits;
+	int num_freerunning_types;
 	unsigned perf_ctr;
 	unsigned event_ctl;
 	unsigned event_mask;
@@ -59,6 +66,7 @@ struct intel_uncore_type {
 	struct intel_uncore_pmu *pmus;
 	struct intel_uncore_ops *ops;
 	struct uncore_event_desc *event_descs;
+	struct freerunning_counters *freerunning;
 	const struct attribute_group *attr_groups[4];
 	struct pmu *pmu; /* for custom pmu ops */
 };
@@ -129,6 +137,14 @@ struct uncore_event_desc {
 	const char *config;
 };
 
+struct freerunning_counters {
+	unsigned int counter_base;
+	unsigned int counter_offset;
+	unsigned int box_offset;
+	unsigned int num_counters;
+	unsigned int bits;
+};
+
 struct pci2phy_map {
 	struct list_head list;
 	int segment;
@@ -156,6 +172,16 @@ static ssize_t __uncore_##_var##_show(struct kobject *kobj,		\
 }									\
 static struct kobj_attribute format_attr_##_var =			\
 	__ATTR(_name, 0444, __uncore_##_var##_show, NULL)
+
+static inline bool uncore_pmc_fixed(int idx)
+{
+	return idx == UNCORE_PMC_IDX_FIXED;
+}
+
+static inline bool uncore_pmc_freerunning(int idx)
+{
+	return idx == UNCORE_PMC_IDX_FREERUNNING;
+}
 
 static inline unsigned uncore_pci_box_ctl(struct intel_uncore_box *box)
 {
@@ -212,6 +238,60 @@ static inline unsigned uncore_msr_fixed_ctl(struct intel_uncore_box *box)
 static inline unsigned uncore_msr_fixed_ctr(struct intel_uncore_box *box)
 {
 	return box->pmu->type->fixed_ctr + uncore_msr_box_offset(box);
+}
+
+
+/*
+ * In the uncore document, there is no event-code assigned to free running
+ * counters. Some events need to be defined to indicate the free running
+ * counters. The events are encoded as event-code + umask-code.
+ *
+ * The event-code for all free running counters is 0xff, which is the same as
+ * the fixed counters.
+ *
+ * The umask-code is used to distinguish a fixed counter and a free running
+ * counter, and different types of free running counters.
+ * - For fixed counters, the umask-code is 0x0X.
+ *   X indicates the index of the fixed counter, which starts from 0.
+ * - For free running counters, the umask-code uses the rest of the space.
+ *   It would bare the format of 0xXY.
+ *   X stands for the type of free running counters, which starts from 1.
+ *   Y stands for the index of free running counters of same type, which
+ *   starts from 0.
+ *
+ * For example, there are three types of IIO free running counters on Skylake
+ * server, IO CLOCKS counters, BANDWIDTH counters and UTILIZATION counters.
+ * The event-code for all the free running counters is 0xff.
+ * 'ioclk' is the first counter of IO CLOCKS. IO CLOCKS is the first type,
+ * which umask-code starts from 0x10.
+ * So 'ioclk' is encoded as event=0xff,umask=0x10
+ * 'bw_in_port2' is the third counter of BANDWIDTH counters. BANDWIDTH is
+ * the second type, which umask-code starts from 0x20.
+ * So 'bw_in_port2' is encoded as event=0xff,umask=0x22
+ */
+static inline unsigned int uncore_freerunning_idx(u64 config)
+{
+	return ((config >> 8) & 0xf);
+}
+
+#define UNCORE_FREERUNNING_UMASK_START		0x10
+
+static inline unsigned int uncore_freerunning_type(u64 config)
+{
+	return ((((config >> 8) - UNCORE_FREERUNNING_UMASK_START) >> 4) & 0xf);
+}
+
+static inline
+unsigned int uncore_freerunning_counter(struct intel_uncore_box *box,
+					struct perf_event *event)
+{
+	unsigned int type = uncore_freerunning_type(event->attr.config);
+	unsigned int idx = uncore_freerunning_idx(event->attr.config);
+	struct intel_uncore_pmu *pmu = box->pmu;
+
+	return pmu->type->freerunning[type].counter_base +
+	       pmu->type->freerunning[type].counter_offset * idx +
+	       pmu->type->freerunning[type].box_offset * pmu->pmu_idx;
 }
 
 static inline
@@ -276,9 +356,50 @@ static inline int uncore_fixed_ctr_bits(struct intel_uncore_box *box)
 	return box->pmu->type->fixed_ctr_bits;
 }
 
+static inline
+unsigned int uncore_freerunning_bits(struct intel_uncore_box *box,
+				     struct perf_event *event)
+{
+	unsigned int type = uncore_freerunning_type(event->attr.config);
+
+	return box->pmu->type->freerunning[type].bits;
+}
+
+static inline int uncore_num_freerunning(struct intel_uncore_box *box,
+					 struct perf_event *event)
+{
+	unsigned int type = uncore_freerunning_type(event->attr.config);
+
+	return box->pmu->type->freerunning[type].num_counters;
+}
+
+static inline int uncore_num_freerunning_types(struct intel_uncore_box *box,
+					       struct perf_event *event)
+{
+	return box->pmu->type->num_freerunning_types;
+}
+
+static inline bool check_valid_freerunning_event(struct intel_uncore_box *box,
+						 struct perf_event *event)
+{
+	unsigned int type = uncore_freerunning_type(event->attr.config);
+	unsigned int idx = uncore_freerunning_idx(event->attr.config);
+
+	return (type < uncore_num_freerunning_types(box, event)) &&
+	       (idx < uncore_num_freerunning(box, event));
+}
+
 static inline int uncore_num_counters(struct intel_uncore_box *box)
 {
 	return box->pmu->type->num_counters;
+}
+
+static inline bool is_freerunning_event(struct perf_event *event)
+{
+	u64 cfg = event->attr.config;
+
+	return ((cfg & UNCORE_FIXED_EVENT) == UNCORE_FIXED_EVENT) &&
+	       (((cfg >> 8) & 0xff) >= UNCORE_FREERUNNING_UMASK_START);
 }
 
 static inline void uncore_disable_box(struct intel_uncore_box *box)
@@ -346,6 +467,10 @@ struct intel_uncore_box *uncore_pmu_to_box(struct intel_uncore_pmu *pmu, int cpu
 u64 uncore_msr_read_counter(struct intel_uncore_box *box, struct perf_event *event);
 void uncore_pmu_start_hrtimer(struct intel_uncore_box *box);
 void uncore_pmu_cancel_hrtimer(struct intel_uncore_box *box);
+void uncore_pmu_event_start(struct perf_event *event, int flags);
+void uncore_pmu_event_stop(struct perf_event *event, int flags);
+int uncore_pmu_event_add(struct perf_event *event, int flags);
+void uncore_pmu_event_del(struct perf_event *event, int flags);
 void uncore_pmu_event_read(struct perf_event *event);
 void uncore_perf_event_update(struct intel_uncore_box *box, struct perf_event *event);
 struct event_constraint *

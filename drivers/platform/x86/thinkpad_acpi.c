@@ -212,7 +212,12 @@ enum tpacpi_hkey_event_t {
 	TP_HKEY_EV_ALARM_BAT_XHOT	= 0x6012, /* battery critically hot */
 	TP_HKEY_EV_ALARM_SENSOR_HOT	= 0x6021, /* sensor too hot */
 	TP_HKEY_EV_ALARM_SENSOR_XHOT	= 0x6022, /* sensor critically hot */
-	TP_HKEY_EV_THM_TABLE_CHANGED	= 0x6030, /* thermal table changed */
+	TP_HKEY_EV_THM_TABLE_CHANGED	= 0x6030, /* windows; thermal table changed */
+	TP_HKEY_EV_THM_CSM_COMPLETED    = 0x6032, /* windows; thermal control set
+						   * command completed. Related to
+						   * AML DYTC */
+	TP_HKEY_EV_THM_TRANSFM_CHANGED  = 0x60F0, /* windows; thermal transformation
+						   * changed. Related to AML GMTS */
 
 	/* AC-related events */
 	TP_HKEY_EV_AC_CHANGED		= 0x6040, /* AC status changed */
@@ -4034,15 +4039,23 @@ static bool hotkey_notify_6xxx(const u32 hkey,
 				 bool *send_acpi_ev,
 				 bool *ignore_acpi_ev)
 {
-	bool known = true;
-
 	/* 0x6000-0x6FFF: thermal alarms/notices and keyboard events */
 	*send_acpi_ev = true;
 	*ignore_acpi_ev = false;
 
 	switch (hkey) {
 	case TP_HKEY_EV_THM_TABLE_CHANGED:
-		pr_info("EC reports that Thermal Table has changed\n");
+		pr_debug("EC reports: Thermal Table has changed\n");
+		/* recommended action: do nothing, we don't have
+		 * Lenovo ATM information */
+		return true;
+	case TP_HKEY_EV_THM_CSM_COMPLETED:
+		pr_debug("EC reports: Thermal Control Command set completed (DYTC)\n");
+		/* recommended action: do nothing, we don't have
+		 * Lenovo ATM information */
+		return true;
+	case TP_HKEY_EV_THM_TRANSFM_CHANGED:
+		pr_debug("EC reports: Thermal Transformation changed (GMTS)\n");
 		/* recommended action: do nothing, we don't have
 		 * Lenovo ATM information */
 		return true;
@@ -4083,7 +4096,7 @@ static bool hotkey_notify_6xxx(const u32 hkey,
 		tpacpi_input_send_tabletsw();
 		hotkey_tablet_mode_notify_change();
 		*send_acpi_ev = false;
-		break;
+		return true;
 
 	case TP_HKEY_EV_PALM_DETECTED:
 	case TP_HKEY_EV_PALM_UNDETECTED:
@@ -4092,13 +4105,12 @@ static bool hotkey_notify_6xxx(const u32 hkey,
 		return true;
 
 	default:
-		pr_warn("unknown possible thermal alarm or keyboard event received\n");
-		known = false;
+		/* report simply as unknown, no sensor dump */
+		return false;
 	}
 
 	thermal_dump_all_sensors();
-
-	return known;
+	return true;
 }
 
 static void hotkey_notify(struct ibm_struct *ibm, u32 event)
@@ -6006,7 +6018,7 @@ static int __init led_init(struct ibm_init_struct *iibm)
 	if (led_supported == TPACPI_LED_NONE)
 		return 1;
 
-	tpacpi_leds = kzalloc(sizeof(*tpacpi_leds) * TPACPI_LED_NUMLEDS,
+	tpacpi_leds = kcalloc(TPACPI_LED_NUMLEDS, sizeof(*tpacpi_leds),
 			      GFP_KERNEL);
 	if (!tpacpi_leds) {
 		pr_err("Out of memory for LED data\n");

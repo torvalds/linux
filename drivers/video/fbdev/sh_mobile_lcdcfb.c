@@ -29,7 +29,6 @@
 #include <linux/vmalloc.h>
 
 #include <video/sh_mobile_lcdc.h>
-#include <video/sh_mobile_meram.h>
 
 #include "sh_mobile_lcdcfb.h"
 
@@ -217,7 +216,6 @@ struct sh_mobile_lcdc_priv {
 	struct notifier_block notifier;
 	int started;
 	int forced_fourcc; /* 2 channel LCDC must share fourcc setting */
-	struct sh_mobile_meram_info *meram_dev;
 };
 
 /* -----------------------------------------------------------------------------
@@ -346,16 +344,12 @@ static void sh_mobile_lcdc_clk_on(struct sh_mobile_lcdc_priv *priv)
 		if (priv->dot_clk)
 			clk_prepare_enable(priv->dot_clk);
 		pm_runtime_get_sync(priv->dev);
-		if (priv->meram_dev && priv->meram_dev->pdev)
-			pm_runtime_get_sync(&priv->meram_dev->pdev->dev);
 	}
 }
 
 static void sh_mobile_lcdc_clk_off(struct sh_mobile_lcdc_priv *priv)
 {
 	if (atomic_sub_return(1, &priv->hw_usecnt) == -1) {
-		if (priv->meram_dev && priv->meram_dev->pdev)
-			pm_runtime_put_sync(&priv->meram_dev->pdev->dev);
 		pm_runtime_put(priv->dev);
 		if (priv->dot_clk)
 			clk_disable_unprepare(priv->dot_clk);
@@ -1073,7 +1067,6 @@ static void __sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 
 static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 {
-	struct sh_mobile_meram_info *mdev = priv->meram_dev;
 	struct sh_mobile_lcdc_chan *ch;
 	unsigned long tmp;
 	int ret;
@@ -1106,9 +1099,6 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 
 	/* Compute frame buffer base address and pitch for each channel. */
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
-		int pixelformat;
-		void *cache;
-
 		ch = &priv->ch[k];
 		if (!ch->enabled)
 			continue;
@@ -1117,45 +1107,6 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 		ch->base_addr_c = ch->dma_handle
 				+ ch->xres_virtual * ch->yres_virtual;
 		ch->line_size = ch->pitch;
-
-		/* Enable MERAM if possible. */
-		if (mdev == NULL || ch->cfg->meram_cfg == NULL)
-			continue;
-
-		/* Free the allocated MERAM cache. */
-		if (ch->cache) {
-			sh_mobile_meram_cache_free(mdev, ch->cache);
-			ch->cache = NULL;
-		}
-
-		switch (ch->format->fourcc) {
-		case V4L2_PIX_FMT_NV12:
-		case V4L2_PIX_FMT_NV21:
-		case V4L2_PIX_FMT_NV16:
-		case V4L2_PIX_FMT_NV61:
-			pixelformat = SH_MOBILE_MERAM_PF_NV;
-			break;
-		case V4L2_PIX_FMT_NV24:
-		case V4L2_PIX_FMT_NV42:
-			pixelformat = SH_MOBILE_MERAM_PF_NV24;
-			break;
-		case V4L2_PIX_FMT_RGB565:
-		case V4L2_PIX_FMT_BGR24:
-		case V4L2_PIX_FMT_BGR32:
-		default:
-			pixelformat = SH_MOBILE_MERAM_PF_RGB;
-			break;
-		}
-
-		cache = sh_mobile_meram_cache_alloc(mdev, ch->cfg->meram_cfg,
-					ch->pitch, ch->yres, pixelformat,
-					&ch->line_size);
-		if (!IS_ERR(cache)) {
-			sh_mobile_meram_cache_update(mdev, cache,
-					ch->base_addr_y, ch->base_addr_c,
-					&ch->base_addr_y, &ch->base_addr_c);
-			ch->cache = cache;
-		}
 	}
 
 	for (k = 0; k < ARRAY_SIZE(priv->overlays); ++k) {
@@ -1223,13 +1174,6 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 		}
 
 		sh_mobile_lcdc_display_off(ch);
-
-		/* Free the MERAM cache. */
-		if (ch->cache) {
-			sh_mobile_meram_cache_free(priv->meram_dev, ch->cache);
-			ch->cache = NULL;
-		}
-
 	}
 
 	/* stop the lcdc */
@@ -1851,11 +1795,6 @@ static int sh_mobile_lcdc_pan(struct fb_var_screeninfo *var,
 	base_addr_c = ch->dma_handle + ch->xres_virtual * ch->yres_virtual
 		    + c_offset;
 
-	if (ch->cache)
-		sh_mobile_meram_cache_update(priv->meram_dev, ch->cache,
-					     base_addr_y, base_addr_c,
-					     &base_addr_y, &base_addr_c);
-
 	ch->base_addr_y = base_addr_y;
 	ch->base_addr_c = base_addr_c;
 	ch->pan_y_offset = y_offset;
@@ -2149,10 +2088,8 @@ sh_mobile_lcdc_channel_fb_register(struct sh_mobile_lcdc_chan *ch)
 	if (info->fbdefio) {
 		ch->sglist = vmalloc(sizeof(struct scatterlist) *
 				     ch->fb_size >> PAGE_SHIFT);
-		if (!ch->sglist) {
-			dev_err(ch->lcdc->dev, "cannot allocate sglist\n");
+		if (!ch->sglist)
 			return -ENOMEM;
-		}
 	}
 
 	info->bl_dev = ch->bl;
@@ -2354,8 +2291,7 @@ static int sh_mobile_lcdc_resume(struct device *dev)
 
 static int sh_mobile_lcdc_runtime_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct sh_mobile_lcdc_priv *priv = platform_get_drvdata(pdev);
+	struct sh_mobile_lcdc_priv *priv = dev_get_drvdata(dev);
 
 	/* turn off LCDC hardware */
 	lcdc_write(priv, _LDCNT1R, 0);
@@ -2365,8 +2301,7 @@ static int sh_mobile_lcdc_runtime_suspend(struct device *dev)
 
 static int sh_mobile_lcdc_runtime_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct sh_mobile_lcdc_priv *priv = platform_get_drvdata(pdev);
+	struct sh_mobile_lcdc_priv *priv = dev_get_drvdata(dev);
 
 	__sh_mobile_lcdc_start(priv);
 
@@ -2718,13 +2653,11 @@ static int sh_mobile_lcdc_probe(struct platform_device *pdev)
 	}
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(&pdev->dev, "cannot allocate device data\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	priv->dev = &pdev->dev;
-	priv->meram_dev = pdata->meram_dev;
+
 	for (i = 0; i < ARRAY_SIZE(priv->ch); i++)
 		mutex_init(&priv->ch[i].open_lock);
 	platform_set_drvdata(pdev, priv);

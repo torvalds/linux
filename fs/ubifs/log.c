@@ -167,10 +167,10 @@ void ubifs_add_bud(struct ubifs_info *c, struct ubifs_bud *bud)
  * @lnum: LEB number of the bud
  * @offs: starting offset of the bud
  *
- * This function writes reference node for the new bud LEB @lnum it to the log,
- * and adds it to the buds tress. It also makes sure that log size does not
+ * This function writes a reference node for the new bud LEB @lnum to the log,
+ * and adds it to the buds trees. It also makes sure that log size does not
  * exceed the 'c->max_bud_bytes' limit. Returns zero in case of success,
- * %-EAGAIN if commit is required, and a negative error codes in case of
+ * %-EAGAIN if commit is required, and a negative error code in case of
  * failure.
  */
 int ubifs_add_bud_to_log(struct ubifs_info *c, int jhead, int lnum, int offs)

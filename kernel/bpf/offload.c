@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Netronome Systems, Inc.
+ * Copyright (C) 2017-2018 Netronome Systems, Inc.
  *
  * This software is licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -474,8 +474,10 @@ bool bpf_offload_dev_match(struct bpf_prog *prog, struct bpf_map *map)
 	struct bpf_prog_offload *offload;
 	bool ret;
 
-	if (!bpf_prog_is_dev_bound(prog->aux) || !bpf_map_is_dev_bound(map))
+	if (!bpf_prog_is_dev_bound(prog->aux))
 		return false;
+	if (!bpf_map_is_dev_bound(map))
+		return bpf_map_offload_neutral(map);
 
 	down_read(&bpf_devs_lock);
 	offload = prog->aux->offload;

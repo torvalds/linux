@@ -54,6 +54,7 @@ enum {
 
 enum {
 	MLX5_IB_SQ_STRIDE	= 6,
+	MLX5_IB_SQ_UMR_INLINE_THRESHOLD = 64,
 };
 
 static const u32 mlx5_ib_opcode[] = {
@@ -259,7 +260,11 @@ static int set_rq_size(struct mlx5_ib_dev *dev, struct ib_qp_cap *cap,
 	} else {
 		if (ucmd) {
 			qp->rq.wqe_cnt = ucmd->rq_wqe_count;
+			if (ucmd->rq_wqe_shift > BITS_PER_BYTE * sizeof(ucmd->rq_wqe_shift))
+				return -EINVAL;
 			qp->rq.wqe_shift = ucmd->rq_wqe_shift;
+			if ((1 << qp->rq.wqe_shift) / sizeof(struct mlx5_wqe_data_seg) < qp->wq_sig)
+				return -EINVAL;
 			qp->rq.max_gs = (1 << qp->rq.wqe_shift) / sizeof(struct mlx5_wqe_data_seg) - qp->wq_sig;
 			qp->rq.max_post = qp->rq.wqe_cnt;
 		} else {
@@ -298,7 +303,9 @@ static int sq_overhead(struct ib_qp_init_attr *attr)
 			max(sizeof(struct mlx5_wqe_atomic_seg) +
 			    sizeof(struct mlx5_wqe_raddr_seg),
 			    sizeof(struct mlx5_wqe_umr_ctrl_seg) +
-			    sizeof(struct mlx5_mkey_seg));
+			    sizeof(struct mlx5_mkey_seg) +
+			    MLX5_IB_SQ_UMR_INLINE_THRESHOLD /
+			    MLX5_IB_UMR_OCTOWORD);
 		break;
 
 	case IB_QPT_XRC_TGT:
@@ -480,11 +487,6 @@ static int qp_has_rq(struct ib_qp_init_attr *attr)
 	return 1;
 }
 
-static int first_med_bfreg(void)
-{
-	return 1;
-}
-
 enum {
 	/* this is the first blue flame register in the array of bfregs assigned
 	 * to a processes. Since we do not use it for blue flame but rather
@@ -508,6 +510,12 @@ static int num_med_bfreg(struct mlx5_ib_dev *dev,
 	    NUM_NON_BLUE_FLAME_BFREGS;
 
 	return n >= 0 ? n : 0;
+}
+
+static int first_med_bfreg(struct mlx5_ib_dev *dev,
+			   struct mlx5_bfreg_info *bfregi)
+{
+	return num_med_bfreg(dev, bfregi) ? 1 : -ENOMEM;
 }
 
 static int first_hi_bfreg(struct mlx5_ib_dev *dev,
@@ -537,10 +545,13 @@ static int alloc_high_class_bfreg(struct mlx5_ib_dev *dev,
 static int alloc_med_class_bfreg(struct mlx5_ib_dev *dev,
 				 struct mlx5_bfreg_info *bfregi)
 {
-	int minidx = first_med_bfreg();
+	int minidx = first_med_bfreg(dev, bfregi);
 	int i;
 
-	for (i = first_med_bfreg(); i < first_hi_bfreg(dev, bfregi); i++) {
+	if (minidx < 0)
+		return minidx;
+
+	for (i = minidx; i < first_hi_bfreg(dev, bfregi); i++) {
 		if (bfregi->count[i] < bfregi->count[minidx])
 			minidx = i;
 		if (!bfregi->count[minidx])
@@ -2451,18 +2462,18 @@ enum {
 
 static int ib_rate_to_mlx5(struct mlx5_ib_dev *dev, u8 rate)
 {
-	if (rate == IB_RATE_PORT_CURRENT) {
+	if (rate == IB_RATE_PORT_CURRENT)
 		return 0;
-	} else if (rate < IB_RATE_2_5_GBPS || rate > IB_RATE_300_GBPS) {
-		return -EINVAL;
-	} else {
-		while (rate != IB_RATE_2_5_GBPS &&
-		       !(1 << (rate + MLX5_STAT_RATE_OFFSET) &
-			 MLX5_CAP_GEN(dev->mdev, stat_rate_support)))
-			--rate;
-	}
 
-	return rate + MLX5_STAT_RATE_OFFSET;
+	if (rate < IB_RATE_2_5_GBPS || rate > IB_RATE_300_GBPS)
+		return -EINVAL;
+
+	while (rate != IB_RATE_PORT_CURRENT &&
+	       !(1 << (rate + MLX5_STAT_RATE_OFFSET) &
+		 MLX5_CAP_GEN(dev->mdev, stat_rate_support)))
+		--rate;
+
+	return rate ? rate + MLX5_STAT_RATE_OFFSET : rate;
 }
 
 static int modify_raw_packet_eth_prio(struct mlx5_core_dev *dev,
@@ -3633,13 +3644,15 @@ static __be64 sig_mkey_mask(void)
 }
 
 static void set_reg_umr_seg(struct mlx5_wqe_umr_ctrl_seg *umr,
-			    struct mlx5_ib_mr *mr)
+			    struct mlx5_ib_mr *mr, bool umr_inline)
 {
 	int size = mr->ndescs * mr->desc_size;
 
 	memset(umr, 0, sizeof(*umr));
 
 	umr->flags = MLX5_UMR_CHECK_NOT_FREE;
+	if (umr_inline)
+		umr->flags |= MLX5_UMR_INLINE;
 	umr->xlt_octowords = cpu_to_be16(get_xlt_octo(size));
 	umr->mkey_mask = frwr_mkey_mask();
 }
@@ -3821,6 +3834,24 @@ static void set_reg_data_seg(struct mlx5_wqe_data_seg *dseg,
 	dseg->addr = cpu_to_be64(mr->desc_map);
 	dseg->byte_count = cpu_to_be32(ALIGN(bcount, 64));
 	dseg->lkey = cpu_to_be32(pd->ibpd.local_dma_lkey);
+}
+
+static void set_reg_umr_inline_seg(void *seg, struct mlx5_ib_qp *qp,
+				   struct mlx5_ib_mr *mr, int mr_list_size)
+{
+	void *qend = qp->sq.qend;
+	void *addr = mr->descs;
+	int copy;
+
+	if (unlikely(seg + mr_list_size > qend)) {
+		copy = qend - seg;
+		memcpy(seg, addr, copy);
+		addr += copy;
+		mr_list_size -= copy;
+		seg = mlx5_get_send_wqe(qp, 0);
+	}
+	memcpy(seg, addr, mr_list_size);
+	seg += mr_list_size;
 }
 
 static __be32 send_ieth(struct ib_send_wr *wr)
@@ -4217,6 +4248,8 @@ static int set_reg_wr(struct mlx5_ib_qp *qp,
 {
 	struct mlx5_ib_mr *mr = to_mmr(wr->mr);
 	struct mlx5_ib_pd *pd = to_mpd(qp->ibqp.pd);
+	int mr_list_size = mr->ndescs * mr->desc_size;
+	bool umr_inline = mr_list_size <= MLX5_IB_SQ_UMR_INLINE_THRESHOLD;
 
 	if (unlikely(wr->wr.send_flags & IB_SEND_INLINE)) {
 		mlx5_ib_warn(to_mdev(qp->ibqp.device),
@@ -4224,7 +4257,7 @@ static int set_reg_wr(struct mlx5_ib_qp *qp,
 		return -EINVAL;
 	}
 
-	set_reg_umr_seg(*seg, mr);
+	set_reg_umr_seg(*seg, mr, umr_inline);
 	*seg += sizeof(struct mlx5_wqe_umr_ctrl_seg);
 	*size += sizeof(struct mlx5_wqe_umr_ctrl_seg) / 16;
 	if (unlikely((*seg == qp->sq.qend)))
@@ -4236,10 +4269,14 @@ static int set_reg_wr(struct mlx5_ib_qp *qp,
 	if (unlikely((*seg == qp->sq.qend)))
 		*seg = mlx5_get_send_wqe(qp, 0);
 
-	set_reg_data_seg(*seg, mr, pd);
-	*seg += sizeof(struct mlx5_wqe_data_seg);
-	*size += (sizeof(struct mlx5_wqe_data_seg) / 16);
-
+	if (umr_inline) {
+		set_reg_umr_inline_seg(*seg, qp, mr, mr_list_size);
+		*size += get_xlt_octo(mr_list_size);
+	} else {
+		set_reg_data_seg(*seg, mr, pd);
+		*seg += sizeof(struct mlx5_wqe_data_seg);
+		*size += (sizeof(struct mlx5_wqe_data_seg) / 16);
+	}
 	return 0;
 }
 

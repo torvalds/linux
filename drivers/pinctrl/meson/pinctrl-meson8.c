@@ -1,5 +1,5 @@
 /*
- * Pin controller and GPIO driver for Amlogic Meson8.
+ * Pin controller and GPIO driver for Amlogic Meson8 and Meson8m2.
  *
  * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
  *
@@ -299,6 +299,10 @@ static const unsigned int spi_mosi_1_pins[]	= { GPIOZ_12 };
 static const unsigned int spi_miso_1_pins[]	= { GPIOZ_13 };
 static const unsigned int spi_ss2_1_pins[]	= { GPIOZ_14 };
 
+static const unsigned int eth_txd3_pins[]	= { GPIOZ_0 };
+static const unsigned int eth_txd2_pins[]	= { GPIOZ_1 };
+static const unsigned int eth_rxd3_pins[]	= { GPIOZ_2 };
+static const unsigned int eth_rxd2_pins[]	= { GPIOZ_3 };
 static const unsigned int eth_tx_clk_50m_pins[]	= { GPIOZ_4 };
 static const unsigned int eth_tx_en_pins[]	= { GPIOZ_5 };
 static const unsigned int eth_txd1_pins[]	= { GPIOZ_6 };
@@ -650,6 +654,12 @@ static struct meson_pmx_group meson8_cbus_groups[] = {
 	GROUP(eth_mdio,		6,	6),
 	GROUP(eth_mdc,		6,	5),
 
+	/* NOTE: the following four groups are only available on Meson8m2: */
+	GROUP(eth_rxd2,		6,	3),
+	GROUP(eth_rxd3,		6,	2),
+	GROUP(eth_txd2,		6,	1),
+	GROUP(eth_txd3,		6,	0),
+
 	GROUP(i2c_sda_a0,	5,	31),
 	GROUP(i2c_sck_a0,	5,	30),
 
@@ -877,7 +887,8 @@ static const char * const spi_groups[] = {
 static const char * const ethernet_groups[] = {
 	"eth_tx_clk_50m", "eth_tx_en", "eth_txd1",
 	"eth_txd0", "eth_rx_clk_in", "eth_rx_dv",
-	"eth_rxd1", "eth_rxd0", "eth_mdio", "eth_mdc"
+	"eth_rxd1", "eth_rxd0", "eth_mdio", "eth_mdc", "eth_rxd2",
+	"eth_rxd3", "eth_txd2", "eth_txd3"
 };
 
 static const char * const i2c_a_groups[] = {
@@ -1078,6 +1089,14 @@ static const struct of_device_id meson8_pinctrl_dt_match[] = {
 	},
 	{
 		.compatible = "amlogic,meson8-aobus-pinctrl",
+		.data = &meson8_aobus_pinctrl_data,
+	},
+	{
+		.compatible = "amlogic,meson8m2-cbus-pinctrl",
+		.data = &meson8_cbus_pinctrl_data,
+	},
+	{
+		.compatible = "amlogic,meson8m2-aobus-pinctrl",
 		.data = &meson8_aobus_pinctrl_data,
 	},
 	{ },

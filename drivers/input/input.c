@@ -1943,8 +1943,7 @@ void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int
 		break;
 
 	default:
-		pr_err("input_set_capability: unknown type %u (code %u)\n",
-		       type, code);
+		pr_err("%s: unknown type %u (code %u)\n", __func__, type, code);
 		dump_stack();
 		return;
 	}

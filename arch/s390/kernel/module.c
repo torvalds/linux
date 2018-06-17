@@ -123,8 +123,8 @@ int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 
 	/* Allocate one syminfo structure per symbol. */
 	me->arch.nsyms = symtab->sh_size / sizeof(Elf_Sym);
-	me->arch.syminfo = vmalloc(me->arch.nsyms *
-				   sizeof(struct mod_arch_syminfo));
+	me->arch.syminfo = vmalloc(array_size(sizeof(struct mod_arch_syminfo),
+					      me->arch.nsyms));
 	if (!me->arch.syminfo)
 		return -ENOMEM;
 	symbols = (void *) hdr + symtab->sh_offset;
@@ -465,11 +465,11 @@ int module_finalize(const Elf_Ehdr *hdr,
 			apply_alternatives(aseg, aseg + s->sh_size);
 
 		if (IS_ENABLED(CONFIG_EXPOLINE) &&
-		    (!strcmp(".nospec_call_table", secname)))
+		    (!strncmp(".s390_indirect", secname, 14)))
 			nospec_revert(aseg, aseg + s->sh_size);
 
 		if (IS_ENABLED(CONFIG_EXPOLINE) &&
-		    (!strcmp(".nospec_return_table", secname)))
+		    (!strncmp(".s390_return", secname, 12)))
 			nospec_revert(aseg, aseg + s->sh_size);
 	}
 

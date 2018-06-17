@@ -1,13 +1,6 @@
-/*
- * Copyright 2004-2008 Freescale Semiconductor, Inc. All Rights Reserved.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2004-2008 Freescale Semiconductor, Inc. All Rights Reserved.
 
 #include <linux/io.h>
 #include <linux/rtc.h>
@@ -109,8 +102,7 @@ static inline int is_imx1_rtc(struct rtc_plat_data *data)
  */
 static time64_t get_alarm_or_time(struct device *dev, int time_alarm)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
+	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
 	void __iomem *ioaddr = pdata->ioaddr;
 	u32 day = 0, hr = 0, min = 0, sec = 0, hr_min = 0;
 
@@ -139,8 +131,7 @@ static time64_t get_alarm_or_time(struct device *dev, int time_alarm)
 static void set_alarm_or_time(struct device *dev, int time_alarm, time64_t time)
 {
 	u32 tod, day, hr, min, sec, temp;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
+	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
 	void __iomem *ioaddr = pdata->ioaddr;
 
 	day = div_s64_rem(time, 86400, &tod);
@@ -176,8 +167,7 @@ static void set_alarm_or_time(struct device *dev, int time_alarm, time64_t time)
 static void rtc_update_alarm(struct device *dev, struct rtc_time *alrm)
 {
 	time64_t time;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
+	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
 	void __iomem *ioaddr = pdata->ioaddr;
 
 	time = rtc_tm_to_time64(alrm);
@@ -190,8 +180,7 @@ static void rtc_update_alarm(struct device *dev, struct rtc_time *alrm)
 static void mxc_rtc_irq_enable(struct device *dev, unsigned int bit,
 				unsigned int enabled)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
+	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
 	void __iomem *ioaddr = pdata->ioaddr;
 	u32 reg;
 
@@ -266,8 +255,7 @@ static int mxc_rtc_read_time(struct device *dev, struct rtc_time *tm)
  */
 static int mxc_rtc_set_mmss(struct device *dev, time64_t time)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
+	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
 
 	/*
 	 * TTC_DAYR register is 9-bit in MX1 SoC, save time and day of year only
@@ -295,8 +283,7 @@ static int mxc_rtc_set_mmss(struct device *dev, time64_t time)
  */
 static int mxc_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
+	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
 	void __iomem *ioaddr = pdata->ioaddr;
 
 	rtc_time64_to_tm(get_alarm_or_time(dev, MXC_RTC_ALARM), &alrm->time);
@@ -310,8 +297,7 @@ static int mxc_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
  */
 static int mxc_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
+	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
 
 	rtc_update_alarm(dev, &alrm->time);
 

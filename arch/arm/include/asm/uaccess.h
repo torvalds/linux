@@ -152,7 +152,7 @@ extern int __get_user_64t_4(void *);
 #define __get_user_check(x, p)						\
 	({								\
 		unsigned long __limit = current_thread_info()->addr_limit - 1; \
-		register const typeof(*(p)) __user *__p asm("r0") = (p);\
+		register typeof(*(p)) __user *__p asm("r0") = (p);	\
 		register typeof(x) __r2 asm("r2");			\
 		register unsigned long __l asm("r1") = __limit;		\
 		register int __e asm("r0");				\

@@ -115,6 +115,7 @@ static int bdi_debug_register(struct backing_dev_info *bdi, const char *name)
 					       bdi, &bdi_debug_stats_fops);
 	if (!bdi->debug_stats) {
 		debugfs_remove(bdi->debug_dir);
+		bdi->debug_dir = NULL;
 		return -ENOMEM;
 	}
 
@@ -383,7 +384,7 @@ static void wb_shutdown(struct bdi_writeback *wb)
 	 * the barrier provided by test_and_clear_bit() above.
 	 */
 	smp_wmb();
-	clear_bit(WB_shutting_down, &wb->state);
+	clear_and_wake_up_bit(WB_shutting_down, &wb->state);
 }
 
 static void wb_exit(struct bdi_writeback *wb)
@@ -411,6 +412,7 @@ static void wb_exit(struct bdi_writeback *wb)
  * protected.
  */
 static DEFINE_SPINLOCK(cgwb_lock);
+static struct workqueue_struct *cgwb_release_wq;
 
 /**
  * wb_congested_get_create - get or create a wb_congested
@@ -521,7 +523,7 @@ static void cgwb_release(struct percpu_ref *refcnt)
 {
 	struct bdi_writeback *wb = container_of(refcnt, struct bdi_writeback,
 						refcnt);
-	schedule_work(&wb->release_work);
+	queue_work(cgwb_release_wq, &wb->release_work);
 }
 
 static void cgwb_kill(struct bdi_writeback *wb)
@@ -555,7 +557,7 @@ static int cgwb_create(struct backing_dev_info *bdi,
 	memcg = mem_cgroup_from_css(memcg_css);
 	blkcg_css = cgroup_get_e_css(memcg_css->cgroup, &io_cgrp_subsys);
 	blkcg = css_to_blkcg(blkcg_css);
-	memcg_cgwb_list = mem_cgroup_cgwb_list(memcg);
+	memcg_cgwb_list = &memcg->cgwb_list;
 	blkcg_cgwb_list = &blkcg->cgwb_list;
 
 	/* look up again under lock and discard on blkcg mismatch */
@@ -734,7 +736,7 @@ static void cgwb_bdi_unregister(struct backing_dev_info *bdi)
  */
 void wb_memcg_offline(struct mem_cgroup *memcg)
 {
-	struct list_head *memcg_cgwb_list = mem_cgroup_cgwb_list(memcg);
+	struct list_head *memcg_cgwb_list = &memcg->cgwb_list;
 	struct bdi_writeback *wb, *next;
 
 	spin_lock_irq(&cgwb_lock);
@@ -782,6 +784,21 @@ static void cgwb_bdi_register(struct backing_dev_info *bdi)
 	list_add_tail_rcu(&bdi->wb.bdi_node, &bdi->wb_list);
 	spin_unlock_irq(&cgwb_lock);
 }
+
+static int __init cgwb_init(void)
+{
+	/*
+	 * There can be many concurrent release work items overwhelming
+	 * system_wq.  Put them in a separate wq and limit concurrency.
+	 * There's no point in executing many of these in parallel.
+	 */
+	cgwb_release_wq = alloc_workqueue("cgwb_release", 0, 1);
+	if (!cgwb_release_wq)
+		return -ENOMEM;
+
+	return 0;
+}
+subsys_initcall(cgwb_init);
 
 #else	/* CONFIG_CGROUP_WRITEBACK */
 

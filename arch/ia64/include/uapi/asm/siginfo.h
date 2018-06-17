@@ -27,11 +27,4 @@
 #define __ISR_VALID_BIT	0
 #define __ISR_VALID	(1 << __ISR_VALID_BIT)
 
-/*
- * SIGFPE si_codes
- */
-#ifdef __KERNEL__
-#define FPE_FIXME	0	/* Broken dup of SI_USER */
-#endif /* __KERNEL__ */
-
 #endif /* _UAPI_ASM_IA64_SIGINFO_H */

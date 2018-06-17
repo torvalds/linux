@@ -199,76 +199,46 @@ static void elevator_release(struct kobject *kobj)
 	kfree(e);
 }
 
-int elevator_init(struct request_queue *q, char *name)
+/*
+ * Use the default elevator specified by config boot param for non-mq devices,
+ * or by config option.  Don't try to load modules as we could be running off
+ * async and request_module() isn't allowed from async.
+ */
+int elevator_init(struct request_queue *q)
 {
 	struct elevator_type *e = NULL;
-	int err;
+	int err = 0;
 
 	/*
 	 * q->sysfs_lock must be held to provide mutual exclusion between
 	 * elevator_switch() and here.
 	 */
-	lockdep_assert_held(&q->sysfs_lock);
-
+	mutex_lock(&q->sysfs_lock);
 	if (unlikely(q->elevator))
-		return 0;
+		goto out_unlock;
 
-	INIT_LIST_HEAD(&q->queue_head);
-	q->last_merge = NULL;
-	q->end_sector = 0;
-	q->boundary_rq = NULL;
-
-	if (name) {
-		e = elevator_get(q, name, true);
-		if (!e)
-			return -EINVAL;
-	}
-
-	/*
-	 * Use the default elevator specified by config boot param for
-	 * non-mq devices, or by config option. Don't try to load modules
-	 * as we could be running off async and request_module() isn't
-	 * allowed from async.
-	 */
-	if (!e && !q->mq_ops && *chosen_elevator) {
+	if (*chosen_elevator) {
 		e = elevator_get(q, chosen_elevator, false);
 		if (!e)
 			printk(KERN_ERR "I/O scheduler %s not found\n",
 							chosen_elevator);
 	}
 
+	if (!e)
+		e = elevator_get(q, CONFIG_DEFAULT_IOSCHED, false);
 	if (!e) {
-		/*
-		 * For blk-mq devices, we default to using mq-deadline,
-		 * if available, for single queue devices. If deadline
-		 * isn't available OR we have multiple queues, default
-		 * to "none".
-		 */
-		if (q->mq_ops) {
-			if (q->nr_hw_queues == 1)
-				e = elevator_get(q, "mq-deadline", false);
-			if (!e)
-				return 0;
-		} else
-			e = elevator_get(q, CONFIG_DEFAULT_IOSCHED, false);
-
-		if (!e) {
-			printk(KERN_ERR
-				"Default I/O scheduler not found. " \
-				"Using noop.\n");
-			e = elevator_get(q, "noop", false);
-		}
+		printk(KERN_ERR
+			"Default I/O scheduler not found. Using noop.\n");
+		e = elevator_get(q, "noop", false);
 	}
 
-	if (e->uses_mq)
-		err = blk_mq_init_sched(q, e);
-	else
-		err = e->ops.sq.elevator_init_fn(q, e);
+	err = e->ops.sq.elevator_init_fn(q, e);
 	if (err)
 		elevator_put(e);
+out_unlock:
+	mutex_unlock(&q->sysfs_lock);
 	return err;
 }
-EXPORT_SYMBOL(elevator_init);
 
 void elevator_exit(struct request_queue *q, struct elevator_queue *e)
 {
@@ -281,7 +251,6 @@ void elevator_exit(struct request_queue *q, struct elevator_queue *e)
 
 	kobject_put(&e->kobj);
 }
-EXPORT_SYMBOL(elevator_exit);
 
 static inline void __elv_rqhash_del(struct request *rq)
 {
@@ -1003,6 +972,40 @@ out:
 	blk_mq_unfreeze_queue(q);
 	return ret;
 }
+
+/*
+ * For blk-mq devices, we default to using mq-deadline, if available, for single
+ * queue devices.  If deadline isn't available OR we have multiple queues,
+ * default to "none".
+ */
+int elevator_init_mq(struct request_queue *q)
+{
+	struct elevator_type *e;
+	int err = 0;
+
+	if (q->nr_hw_queues != 1)
+		return 0;
+
+	/*
+	 * q->sysfs_lock must be held to provide mutual exclusion between
+	 * elevator_switch() and here.
+	 */
+	mutex_lock(&q->sysfs_lock);
+	if (unlikely(q->elevator))
+		goto out_unlock;
+
+	e = elevator_get(q, "mq-deadline", false);
+	if (!e)
+		goto out_unlock;
+
+	err = blk_mq_init_sched(q, e);
+	if (err)
+		elevator_put(e);
+out_unlock:
+	mutex_unlock(&q->sysfs_lock);
+	return err;
+}
+
 
 /*
  * switch to new_e io scheduler. be careful not to introduce deadlocks -

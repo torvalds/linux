@@ -25,6 +25,7 @@
 #include <linux/sched/signal.h>
 #include <linux/sched/task_stack.h>
 #include <linux/mm.h>
+#include <linux/nospec.h>
 #include <linux/smp.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
@@ -43,6 +44,7 @@
 #include <asm/compat.h>
 #include <asm/cpufeature.h>
 #include <asm/debug-monitors.h>
+#include <asm/fpsimd.h>
 #include <asm/pgtable.h>
 #include <asm/stacktrace.h>
 #include <asm/syscall.h>
@@ -249,15 +251,20 @@ static struct perf_event *ptrace_hbp_get_event(unsigned int note_type,
 
 	switch (note_type) {
 	case NT_ARM_HW_BREAK:
-		if (idx < ARM_MAX_BRP)
-			bp = tsk->thread.debug.hbp_break[idx];
+		if (idx >= ARM_MAX_BRP)
+			goto out;
+		idx = array_index_nospec(idx, ARM_MAX_BRP);
+		bp = tsk->thread.debug.hbp_break[idx];
 		break;
 	case NT_ARM_HW_WATCH:
-		if (idx < ARM_MAX_WRP)
-			bp = tsk->thread.debug.hbp_watch[idx];
+		if (idx >= ARM_MAX_WRP)
+			goto out;
+		idx = array_index_nospec(idx, ARM_MAX_WRP);
+		bp = tsk->thread.debug.hbp_watch[idx];
 		break;
 	}
 
+out:
 	return bp;
 }
 
@@ -760,9 +767,6 @@ static void sve_init_header_from_task(struct user_sve_header *header,
 	vq = sve_vq_from_vl(header->vl);
 
 	header->max_vl = sve_max_vl;
-	if (WARN_ON(!sve_vl_valid(sve_max_vl)))
-		header->max_vl = header->vl;
-
 	header->size = SVE_PT_SIZE(vq, header->flags);
 	header->max_size = SVE_PT_SIZE(sve_vq_from_vl(header->max_vl),
 				      SVE_PT_REGS_SVE);
@@ -1040,8 +1044,6 @@ static const struct user_regset_view user_aarch64_view = {
 };
 
 #ifdef CONFIG_COMPAT
-#include <linux/compat.h>
-
 enum compat_regset {
 	REGSET_COMPAT_GPR,
 	REGSET_COMPAT_VFP,
@@ -1458,9 +1460,7 @@ static int compat_ptrace_gethbpregs(struct task_struct *tsk, compat_long_t num,
 {
 	int ret;
 	u32 kdata;
-	mm_segment_t old_fs = get_fs();
 
-	set_fs(KERNEL_DS);
 	/* Watchpoint */
 	if (num < 0) {
 		ret = compat_ptrace_hbp_get(NT_ARM_HW_WATCH, tsk, num, &kdata);
@@ -1471,7 +1471,6 @@ static int compat_ptrace_gethbpregs(struct task_struct *tsk, compat_long_t num,
 	} else {
 		ret = compat_ptrace_hbp_get(NT_ARM_HW_BREAK, tsk, num, &kdata);
 	}
-	set_fs(old_fs);
 
 	if (!ret)
 		ret = put_user(kdata, data);
@@ -1484,7 +1483,6 @@ static int compat_ptrace_sethbpregs(struct task_struct *tsk, compat_long_t num,
 {
 	int ret;
 	u32 kdata = 0;
-	mm_segment_t old_fs = get_fs();
 
 	if (num == 0)
 		return 0;
@@ -1493,12 +1491,10 @@ static int compat_ptrace_sethbpregs(struct task_struct *tsk, compat_long_t num,
 	if (ret)
 		return ret;
 
-	set_fs(KERNEL_DS);
 	if (num < 0)
 		ret = compat_ptrace_hbp_set(NT_ARM_HW_WATCH, tsk, num, &kdata);
 	else
 		ret = compat_ptrace_hbp_set(NT_ARM_HW_BREAK, tsk, num, &kdata);
-	set_fs(old_fs);
 
 	return ret;
 }

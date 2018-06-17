@@ -201,7 +201,7 @@ static ssize_t page_idle_bitmap_write(struct file *file, struct kobject *kobj,
 }
 
 static struct bin_attribute page_idle_bitmap_attr =
-		__BIN_ATTR(bitmap, S_IRUSR | S_IWUSR,
+		__BIN_ATTR(bitmap, 0600,
 			   page_idle_bitmap_read, page_idle_bitmap_write, 0);
 
 static struct bin_attribute *page_idle_bin_attrs[] = {

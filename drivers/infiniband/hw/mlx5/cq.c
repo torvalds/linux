@@ -637,7 +637,7 @@ repoll:
 }
 
 static int poll_soft_wc(struct mlx5_ib_cq *cq, int num_entries,
-			struct ib_wc *wc)
+			struct ib_wc *wc, bool is_fatal_err)
 {
 	struct mlx5_ib_dev *dev = to_mdev(cq->ibcq.device);
 	struct mlx5_ib_wc *soft_wc, *next;
@@ -650,6 +650,10 @@ static int poll_soft_wc(struct mlx5_ib_cq *cq, int num_entries,
 		mlx5_ib_dbg(dev, "polled software generated completion on CQ 0x%x\n",
 			    cq->mcq.cqn);
 
+		if (unlikely(is_fatal_err)) {
+			soft_wc->wc.status = IB_WC_WR_FLUSH_ERR;
+			soft_wc->wc.vendor_err = MLX5_CQE_SYNDROME_WR_FLUSH_ERR;
+		}
 		wc[npolled++] = soft_wc->wc;
 		list_del(&soft_wc->list);
 		kfree(soft_wc);
@@ -670,12 +674,17 @@ int mlx5_ib_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 
 	spin_lock_irqsave(&cq->lock, flags);
 	if (mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
-		mlx5_ib_poll_sw_comp(cq, num_entries, wc, &npolled);
+		/* make sure no soft wqe's are waiting */
+		if (unlikely(!list_empty(&cq->wc_list)))
+			soft_polled = poll_soft_wc(cq, num_entries, wc, true);
+
+		mlx5_ib_poll_sw_comp(cq, num_entries - soft_polled,
+				     wc + soft_polled, &npolled);
 		goto out;
 	}
 
 	if (unlikely(!list_empty(&cq->wc_list)))
-		soft_polled = poll_soft_wc(cq, num_entries, wc);
+		soft_polled = poll_soft_wc(cq, num_entries, wc, false);
 
 	for (npolled = 0; npolled < num_entries - soft_polled; npolled++) {
 		if (mlx5_poll_one(cq, &cur_qp, wc + soft_polled + npolled))
@@ -740,6 +749,28 @@ static int alloc_cq_frag_buf(struct mlx5_ib_dev *dev,
 	buf->nent = nent;
 
 	return 0;
+}
+
+enum {
+	MLX5_CQE_RES_FORMAT_HASH = 0,
+	MLX5_CQE_RES_FORMAT_CSUM = 1,
+	MLX5_CQE_RES_FORMAT_CSUM_STRIDX = 3,
+};
+
+static int mini_cqe_res_format_to_hw(struct mlx5_ib_dev *dev, u8 format)
+{
+	switch (format) {
+	case MLX5_IB_CQE_RES_FORMAT_HASH:
+		return MLX5_CQE_RES_FORMAT_HASH;
+	case MLX5_IB_CQE_RES_FORMAT_CSUM:
+		return MLX5_CQE_RES_FORMAT_CSUM;
+	case MLX5_IB_CQE_RES_FORMAT_CSUM_STRIDX:
+		if (MLX5_CAP_GEN(dev->mdev, mini_cqe_resp_stride_index))
+			return MLX5_CQE_RES_FORMAT_CSUM_STRIDX;
+		return -EOPNOTSUPP;
+	default:
+		return -EINVAL;
+	}
 }
 
 static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
@@ -807,6 +838,8 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 	*index = to_mucontext(context)->bfregi.sys_pages[0];
 
 	if (ucmd.cqe_comp_en == 1) {
+		int mini_cqe_format;
+
 		if (!((*cqe_size == 128 &&
 		       MLX5_CAP_GEN(dev->mdev, cqe_compression_128)) ||
 		      (*cqe_size == 64  &&
@@ -817,20 +850,18 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 			goto err_cqb;
 		}
 
-		if (unlikely(!ucmd.cqe_comp_res_format ||
-			     !(ucmd.cqe_comp_res_format <
-			       MLX5_IB_CQE_RES_RESERVED) ||
-			     (ucmd.cqe_comp_res_format &
-			      (ucmd.cqe_comp_res_format - 1)))) {
-			err = -EOPNOTSUPP;
-			mlx5_ib_warn(dev, "CQE compression res format %d is not supported!\n",
-				     ucmd.cqe_comp_res_format);
+		mini_cqe_format =
+			mini_cqe_res_format_to_hw(dev,
+						  ucmd.cqe_comp_res_format);
+		if (mini_cqe_format < 0) {
+			err = mini_cqe_format;
+			mlx5_ib_dbg(dev, "CQE compression res format %d error: %d\n",
+				    ucmd.cqe_comp_res_format, err);
 			goto err_cqb;
 		}
 
 		MLX5_SET(cqc, cqc, cqe_comp_en, 1);
-		MLX5_SET(cqc, cqc, mini_cqe_res_format,
-			 ilog2(ucmd.cqe_comp_res_format));
+		MLX5_SET(cqc, cqc, mini_cqe_res_format, mini_cqe_format);
 	}
 
 	if (ucmd.flags & MLX5_IB_CREATE_CQ_FLAGS_CQE_128B_PAD) {
@@ -849,7 +880,7 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 	return 0;
 
 err_cqb:
-	kfree(*cqb);
+	kvfree(*cqb);
 
 err_db:
 	mlx5_ib_db_unmap_user(to_mucontext(context), &cq->db);

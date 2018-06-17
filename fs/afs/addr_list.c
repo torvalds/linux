@@ -43,8 +43,7 @@ struct afs_addr_list *afs_alloc_addrlist(unsigned int nr,
 
 	_enter("%u,%u,%u", nr, service, port);
 
-	alist = kzalloc(sizeof(*alist) + sizeof(alist->addrs[0]) * nr,
-			GFP_KERNEL);
+	alist = kzalloc(struct_size(alist, addrs, nr), GFP_KERNEL);
 	if (!alist)
 		return NULL;
 
@@ -121,7 +120,7 @@ struct afs_addr_list *afs_parse_text_addrs(const char *text, size_t len,
 	p = text;
 	do {
 		struct sockaddr_rxrpc *srx = &alist->addrs[alist->nr_addrs];
-		char tdelim = delim;
+		const char *q, *stop;
 
 		if (*p == delim) {
 			p++;
@@ -130,28 +129,33 @@ struct afs_addr_list *afs_parse_text_addrs(const char *text, size_t len,
 
 		if (*p == '[') {
 			p++;
-			tdelim = ']';
+			q = memchr(p, ']', end - p);
+		} else {
+			for (q = p; q < end; q++)
+				if (*q == '+' || *q == delim)
+					break;
 		}
 
-		if (in4_pton(p, end - p,
+		if (in4_pton(p, q - p,
 			     (u8 *)&srx->transport.sin6.sin6_addr.s6_addr32[3],
-			     tdelim, &p)) {
+			     -1, &stop)) {
 			srx->transport.sin6.sin6_addr.s6_addr32[0] = 0;
 			srx->transport.sin6.sin6_addr.s6_addr32[1] = 0;
 			srx->transport.sin6.sin6_addr.s6_addr32[2] = htonl(0xffff);
-		} else if (in6_pton(p, end - p,
+		} else if (in6_pton(p, q - p,
 				    srx->transport.sin6.sin6_addr.s6_addr,
-				    tdelim, &p)) {
+				    -1, &stop)) {
 			/* Nothing to do */
 		} else {
 			goto bad_address;
 		}
 
-		if (tdelim == ']') {
-			if (p == end || *p != ']')
-				goto bad_address;
+		if (stop != q)
+			goto bad_address;
+
+		p = q;
+		if (q < end && *q == ']')
 			p++;
-		}
 
 		if (p < end) {
 			if (*p == '+') {
@@ -211,7 +215,7 @@ struct afs_addr_list *afs_dns_query(struct afs_cell *cell, time64_t *_expiry)
 	_enter("%s", cell->name);
 
 	ret = dns_query("afsdb", cell->name, cell->name_len,
-			"ipv4", &vllist, _expiry);
+			"", &vllist, _expiry);
 	if (ret < 0)
 		return ERR_PTR(ret);
 

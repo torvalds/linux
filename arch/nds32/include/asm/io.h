@@ -4,6 +4,8 @@
 #ifndef __ASM_NDS32_IO_H
 #define __ASM_NDS32_IO_H
 
+#include <linux/types.h>
+
 extern void iounmap(volatile void __iomem *addr);
 #define __raw_writeb __raw_writeb
 static inline void __raw_writeb(u8 val, volatile void __iomem *addr)

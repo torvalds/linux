@@ -155,7 +155,7 @@ static int mthca_alloc_srq_buf(struct mthca_dev *dev, struct mthca_pd *pd,
 	if (pd->ibpd.uobject)
 		return 0;
 
-	srq->wrid = kmalloc(srq->max * sizeof (u64), GFP_KERNEL);
+	srq->wrid = kmalloc_array(srq->max, sizeof(u64), GFP_KERNEL);
 	if (!srq->wrid)
 		return -ENOMEM;
 

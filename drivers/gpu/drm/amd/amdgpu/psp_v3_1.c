@@ -41,8 +41,13 @@ MODULE_FIRMWARE("amdgpu/vega10_sos.bin");
 MODULE_FIRMWARE("amdgpu/vega10_asd.bin");
 MODULE_FIRMWARE("amdgpu/vega12_sos.bin");
 MODULE_FIRMWARE("amdgpu/vega12_asd.bin");
+MODULE_FIRMWARE("amdgpu/vega20_sos.bin");
+MODULE_FIRMWARE("amdgpu/vega20_asd.bin");
+
 
 #define smnMP1_FIRMWARE_FLAGS 0x3010028
+
+static uint32_t sos_old_versions[] = {1517616, 1510592, 1448594, 1446554};
 
 static int
 psp_v3_1_get_fw_type(struct amdgpu_firmware_info *ucode, enum psp_gfx_fw_type *type)
@@ -207,12 +212,31 @@ static int psp_v3_1_bootloader_load_sysdrv(struct psp_context *psp)
 	return ret;
 }
 
+static bool psp_v3_1_match_version(struct amdgpu_device *adev, uint32_t ver)
+{
+	int i;
+
+	if (ver == adev->psp.sos_fw_version)
+		return true;
+
+	/*
+	 * Double check if the latest four legacy versions.
+	 * If yes, it is still the right version.
+	 */
+	for (i = 0; i < sizeof(sos_old_versions) / sizeof(uint32_t); i++) {
+		if (sos_old_versions[i] == adev->psp.sos_fw_version)
+			return true;
+	}
+
+	return false;
+}
+
 static int psp_v3_1_bootloader_load_sos(struct psp_context *psp)
 {
 	int ret;
 	unsigned int psp_gfxdrv_command_reg = 0;
 	struct amdgpu_device *adev = psp->adev;
-	uint32_t sol_reg;
+	uint32_t sol_reg, ver;
 
 	/* Check sOS sign of life register to confirm sys driver and sOS
 	 * are already been loaded.
@@ -244,6 +268,10 @@ static int psp_v3_1_bootloader_load_sos(struct psp_context *psp)
 	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_81),
 			   RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_81),
 			   0, true);
+
+	ver = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_58);
+	if (!psp_v3_1_match_version(adev, ver))
+		DRM_WARN("SOS version doesn't match\n");
 
 	return ret;
 }

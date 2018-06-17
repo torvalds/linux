@@ -501,6 +501,7 @@ config SOC_IMX6SL
 
 config SOC_IMX6SLL
 	bool "i.MX6 SoloLiteLite support"
+	select PINCTRL_IMX6SLL
 	select SOC_IMX6
 
 	help

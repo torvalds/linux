@@ -224,6 +224,7 @@ static struct ir_raw_handler sony_handler = {
 	.decode		= ir_sony_decode,
 	.encode		= ir_sony_encode,
 	.carrier	= 40000,
+	.min_timeout	= SONY_TRAILER_SPACE,
 };
 
 static int __init ir_sony_decode_init(void)

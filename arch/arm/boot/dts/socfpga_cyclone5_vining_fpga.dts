@@ -161,7 +161,7 @@
 	};
 
 	at24@50 {
-		compatible = "at24,24c01";
+		compatible = "atmel,24c01";
 		pagesize = <8>;
 		reg = <0x50>;
 	};
@@ -213,7 +213,7 @@
 			#size-cells = <0>;
 			reg = <6>;
 			eeprom@51 {
-				compatible = "at,24c01";
+				compatible = "atmel,24c01";
 				pagesize = <8>;
 				reg = <0x51>;
 			};
@@ -224,7 +224,7 @@
 			#size-cells = <0>;
 			reg = <7>;
 			eeprom@51 {
-				compatible = "at,24c01";
+				compatible = "atmel,24c01";
 				pagesize = <8>;
 				reg = <0x51>;
 			};

@@ -425,9 +425,9 @@ unsigned int exynos3250_jpeg_get_int_status(void __iomem *regs)
 }
 
 void exynos3250_jpeg_clear_int_status(void __iomem *regs,
-						unsigned int value)
+				      unsigned int value)
 {
-	return writel(value, regs + EXYNOS3250_JPGINTST);
+	writel(value, regs + EXYNOS3250_JPGINTST);
 }
 
 unsigned int exynos3250_jpeg_operating(void __iomem *regs)

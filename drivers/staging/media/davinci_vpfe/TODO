@@ -20,6 +20,7 @@ TODO (general):
 - While replacing the older driver in media folder, provide a compatibility
   layer and compatibility tests that warrants (using the libv4l's LD_PRELOAD
   approach) there is no regression for the users using the older driver.
+- make it independent of arch-specific APIs (mach/mux.h).
 
 Building of uImage and Applications:
 ==================================

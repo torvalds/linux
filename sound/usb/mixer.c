@@ -2515,7 +2515,7 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid,
 		cval->control = (desc->bDescriptorSubtype == UAC2_CLOCK_SELECTOR) ?
 			UAC2_CX_CLOCK_SELECTOR : UAC2_SU_SELECTOR;
 
-	namelist = kmalloc(sizeof(char *) * desc->bNrInPins, GFP_KERNEL);
+	namelist = kmalloc_array(desc->bNrInPins, sizeof(char *), GFP_KERNEL);
 	if (!namelist) {
 		kfree(cval);
 		return -ENOMEM;

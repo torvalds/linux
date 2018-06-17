@@ -49,9 +49,7 @@ static int stmmac_adjust_freq(struct ptp_clock_info *ptp, s32 ppb)
 	addend = neg_adj ? (addend - diff) : (addend + diff);
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
-
-	priv->hw->ptp->config_addend(priv->ptpaddr, addend);
-
+	stmmac_config_addend(priv, priv->ptpaddr, addend);
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	return 0;
@@ -84,10 +82,8 @@ static int stmmac_adjust_time(struct ptp_clock_info *ptp, s64 delta)
 	nsec = reminder;
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
-
-	priv->hw->ptp->adjust_systime(priv->ptpaddr, sec, nsec, neg_adj,
-				      priv->plat->has_gmac4);
-
+	stmmac_adjust_systime(priv, priv->ptpaddr, sec, nsec, neg_adj,
+			priv->plat->has_gmac4);
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	return 0;
@@ -110,9 +106,7 @@ static int stmmac_get_time(struct ptp_clock_info *ptp, struct timespec64 *ts)
 	u64 ns;
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
-
-	ns = priv->hw->ptp->get_systime(priv->ptpaddr);
-
+	stmmac_get_systime(priv, priv->ptpaddr, &ns);
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	*ts = ns_to_timespec64(ns);
@@ -137,9 +131,7 @@ static int stmmac_set_time(struct ptp_clock_info *ptp,
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
-
-	priv->hw->ptp->init_systime(priv->ptpaddr, ts->tv_sec, ts->tv_nsec);
-
+	stmmac_init_systime(priv, priv->ptpaddr, ts->tv_sec, ts->tv_nsec);
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	return 0;
@@ -148,17 +140,43 @@ static int stmmac_set_time(struct ptp_clock_info *ptp,
 static int stmmac_enable(struct ptp_clock_info *ptp,
 			 struct ptp_clock_request *rq, int on)
 {
-	return -EOPNOTSUPP;
+	struct stmmac_priv *priv =
+	    container_of(ptp, struct stmmac_priv, ptp_clock_ops);
+	struct stmmac_pps_cfg *cfg;
+	int ret = -EOPNOTSUPP;
+	unsigned long flags;
+
+	switch (rq->type) {
+	case PTP_CLK_REQ_PEROUT:
+		cfg = &priv->pps[rq->perout.index];
+
+		cfg->start.tv_sec = rq->perout.start.sec;
+		cfg->start.tv_nsec = rq->perout.start.nsec;
+		cfg->period.tv_sec = rq->perout.period.sec;
+		cfg->period.tv_nsec = rq->perout.period.nsec;
+
+		spin_lock_irqsave(&priv->ptp_lock, flags);
+		ret = stmmac_flex_pps_config(priv, priv->ioaddr,
+					     rq->perout.index, cfg, on,
+					     priv->sub_second_inc,
+					     priv->systime_flags);
+		spin_unlock_irqrestore(&priv->ptp_lock, flags);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
 }
 
 /* structure describing a PTP hardware clock */
-static const struct ptp_clock_info stmmac_ptp_clock_ops = {
+static struct ptp_clock_info stmmac_ptp_clock_ops = {
 	.owner = THIS_MODULE,
 	.name = "stmmac_ptp_clock",
 	.max_adj = 62500000,
 	.n_alarm = 0,
 	.n_ext_ts = 0,
-	.n_per_out = 0,
+	.n_per_out = 0, /* will be overwritten in stmmac_ptp_register */
 	.n_pins = 0,
 	.pps = 0,
 	.adjfreq = stmmac_adjust_freq,
@@ -176,6 +194,16 @@ static const struct ptp_clock_info stmmac_ptp_clock_ops = {
  */
 void stmmac_ptp_register(struct stmmac_priv *priv)
 {
+	int i;
+
+	for (i = 0; i < priv->dma_cap.pps_out_num; i++) {
+		if (i >= STMMAC_PPS_MAX)
+			break;
+		priv->pps[i].available = true;
+	}
+
+	stmmac_ptp_clock_ops.n_per_out = priv->dma_cap.pps_out_num;
+
 	spin_lock_init(&priv->ptp_lock);
 	priv->ptp_clock_ops = stmmac_ptp_clock_ops;
 

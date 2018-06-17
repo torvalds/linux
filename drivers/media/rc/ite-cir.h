@@ -154,13 +154,6 @@ struct ite_dev {
 /* default carrier freq for when demodulator is off (Hz) */
 #define ITE_DEFAULT_CARRIER_FREQ	38000
 
-/* default idling timeout in ns (0.2 seconds) */
-#define ITE_IDLE_TIMEOUT		200000000UL
-
-/* limit timeout values */
-#define ITE_MIN_IDLE_TIMEOUT		100000000UL
-#define ITE_MAX_IDLE_TIMEOUT		1000000000UL
-
 /* convert bits to us */
 #define ITE_BITS_TO_NS(bits, sample_period) \
 ((u32) ((bits) * ITE_BAUDRATE_DIVISOR * sample_period))

@@ -109,8 +109,8 @@
 #define MAX_NUM_LL2_TX_STATS_COUNTERS	48
 
 #define FW_MAJOR_VERSION	8
-#define FW_MINOR_VERSION	33
-#define FW_REVISION_VERSION     11
+#define FW_MINOR_VERSION        37
+#define FW_REVISION_VERSION     2
 #define FW_ENGINEERING_VERSION	0
 
 /***********************/

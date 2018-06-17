@@ -307,16 +307,6 @@ static inline void vif_device_init(struct vif_device *v,
 {
 }
 
-static inline void *
-mr_table_alloc(struct net *net, u32 id,
-	       struct mr_table_ops *ops,
-	       void (*expire_func)(struct timer_list *t),
-	       void (*table_set)(struct mr_table *mrt,
-				 struct net *net))
-{
-	return NULL;
-}
-
 static inline void *mr_mfc_find_parent(struct mr_table *mrt,
 				       void *hasharg, int parent)
 {

@@ -490,7 +490,8 @@ int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
 	return 0;
 }
 
-int link_mem_sections(int nid, unsigned long start_pfn, unsigned long nr_pages)
+int link_mem_sections(int nid, unsigned long start_pfn, unsigned long nr_pages,
+		      bool check_nid)
 {
 	unsigned long end_pfn = start_pfn + nr_pages;
 	unsigned long pfn;
@@ -514,7 +515,7 @@ int link_mem_sections(int nid, unsigned long start_pfn, unsigned long nr_pages)
 
 		mem_blk = find_memory_block_hinted(mem_sect, mem_blk);
 
-		ret = register_mem_sect_under_node(mem_blk, nid, true);
+		ret = register_mem_sect_under_node(mem_blk, nid, check_nid);
 		if (!err)
 			err = ret;
 

@@ -340,8 +340,8 @@ static int asoc_simple_card_parse_aux_devs(struct device_node *node,
 	if (n <= 0)
 		return -EINVAL;
 
-	card->aux_dev = devm_kzalloc(dev,
-			n * sizeof(*card->aux_dev), GFP_KERNEL);
+	card->aux_dev = devm_kcalloc(dev,
+			n, sizeof(*card->aux_dev), GFP_KERNEL);
 	if (!card->aux_dev)
 		return -ENOMEM;
 
@@ -435,8 +435,8 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	dai_props = devm_kzalloc(dev, sizeof(*dai_props) * num, GFP_KERNEL);
-	dai_link  = devm_kzalloc(dev, sizeof(*dai_link)  * num, GFP_KERNEL);
+	dai_props = devm_kcalloc(dev, num, sizeof(*dai_props), GFP_KERNEL);
+	dai_link  = devm_kcalloc(dev, num, sizeof(*dai_link), GFP_KERNEL);
 	if (!dai_props || !dai_link)
 		return -ENOMEM;
 

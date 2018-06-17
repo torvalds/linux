@@ -640,18 +640,10 @@ static const char *const cio2_port_errs[] = {
 	"PKT2LONG",
 };
 
-static irqreturn_t cio2_irq(int irq, void *cio2_ptr)
+static void cio2_irq_handle_once(struct cio2_device *cio2, u32 int_status)
 {
-	struct cio2_device *cio2 = cio2_ptr;
 	void __iomem *const base = cio2->base;
 	struct device *dev = &cio2->pci_dev->dev;
-	u32 int_status, int_clear;
-
-	int_status = readl(base + CIO2_REG_INT_STS);
-	int_clear = int_status;
-
-	if (!int_status)
-		return IRQ_NONE;
 
 	if (int_status & CIO2_INT_IOOE) {
 		/*
@@ -770,9 +762,29 @@ static irqreturn_t cio2_irq(int irq, void *cio2_ptr)
 		int_status &= ~(CIO2_INT_IOIE | CIO2_INT_IOIRQ);
 	}
 
-	writel(int_clear, base + CIO2_REG_INT_STS);
 	if (int_status)
 		dev_warn(dev, "unknown interrupt 0x%x on INT\n", int_status);
+}
+
+static irqreturn_t cio2_irq(int irq, void *cio2_ptr)
+{
+	struct cio2_device *cio2 = cio2_ptr;
+	void __iomem *const base = cio2->base;
+	struct device *dev = &cio2->pci_dev->dev;
+	u32 int_status;
+
+	int_status = readl(base + CIO2_REG_INT_STS);
+	dev_dbg(dev, "isr enter - interrupt status 0x%x\n", int_status);
+	if (!int_status)
+		return IRQ_NONE;
+
+	do {
+		writel(int_status, base + CIO2_REG_INT_STS);
+		cio2_irq_handle_once(cio2, int_status);
+		int_status = readl(base + CIO2_REG_INT_STS);
+		if (int_status)
+			dev_dbg(dev, "pending status 0x%x\n", int_status);
+	} while (int_status);
 
 	return IRQ_HANDLED;
 }

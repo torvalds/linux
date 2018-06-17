@@ -4,6 +4,7 @@
 all:
 
 TEST_PROGS := fw_run_tests.sh
+TEST_FILES := fw_fallback.sh fw_filesystem.sh fw_lib.sh
 
 include ../lib.mk
 
