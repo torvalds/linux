@@ -678,7 +678,7 @@ static enum bp_result bios_parser_get_gpio_pin_info(
 		return BP_RESULT_BADBIOSTABLE;
 
 	if (sizeof(struct atom_common_table_header) +
-			sizeof(struct atom_gpio_pin_lut_v2_1)
+			sizeof(struct atom_gpio_pin_assignment)
 			> le16_to_cpu(header->table_header.structuresize))
 		return BP_RESULT_BADBIOSTABLE;
 
