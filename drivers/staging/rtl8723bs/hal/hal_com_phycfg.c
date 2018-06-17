@@ -1728,15 +1728,12 @@ s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 reg_pwr_tbl_sel,
 	/*  workaround for wrong index combination to obtain tx power limit, */
 	/*  OFDM only exists in BW 20M */
 	/*  CCK table will only be given in BW 20M */
+	/*  HT on 80M will reference to HT on 40M */
 	if (idx_rate_sctn == 0 || idx_rate_sctn == 1)
 		idx_bandwidth = 0;
-
-	/*  workaround for wrong index combination to obtain tx power limit, */
-	/*  HT on 80M will reference to HT on 40M */
-	if ((idx_rate_sctn == 2 || idx_rate_sctn == 3) &&
-	    band_type == BAND_ON_5G && idx_bandwidth == 2) {
+	else if ((idx_rate_sctn == 2 || idx_rate_sctn == 3) &&
+		 (band_type == BAND_ON_5G) && (idx_bandwidth == 2))
 		idx_bandwidth = 1;
-	}
 
 	if (band_type == BAND_ON_2_4G || band_type == BAND_ON_5G)
 		channel = phy_GetChannelIndexOfTxPowerLimit(band_type, channel);
