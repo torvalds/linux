@@ -1612,6 +1612,22 @@ static s8 phy_GetChannelIndexOfTxPowerLimit(u8 Band, u8 Channel)
 	return channelIndex;
 }
 
+static s16 get_bandwidth_idx(const enum CHANNEL_WIDTH bandwidth)
+{
+	switch (bandwidth) {
+	case CHANNEL_WIDTH_20:
+		return 0;
+	case CHANNEL_WIDTH_40:
+		return 1;
+	case CHANNEL_WIDTH_80:
+		return 2;
+	case CHANNEL_WIDTH_160:
+		return 3;
+	default:
+		return -1;
+	}
+}
+
 static s16 get_rate_sctn_idx(const u8 rate)
 {
 	switch (rate) {
@@ -1703,15 +1719,7 @@ s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 reg_pwr_tbl_sel,
 	else if (band_type == BAND_ON_5G)
 		idx_band = 1;
 
-	if (bandwidth == CHANNEL_WIDTH_20)
-		idx_bandwidth = 0;
-	else if (bandwidth == CHANNEL_WIDTH_40)
-		idx_bandwidth = 1;
-	else if (bandwidth == CHANNEL_WIDTH_80)
-		idx_bandwidth = 2;
-	else if (bandwidth == CHANNEL_WIDTH_160)
-		idx_bandwidth = 3;
-
+	idx_bandwidth = get_bandwidth_idx(bandwidth);
 	idx_rate_sctn = get_rate_sctn_idx(data_rate);
 
 	if (band_type == BAND_ON_5G && idx_rate_sctn == 0)
