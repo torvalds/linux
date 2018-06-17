@@ -157,7 +157,7 @@ over:
  * @flags: O_... flags with which the new file will be opened
  * @fop: the 'struct file_operations' for the new file
  */
-struct file *alloc_file(const struct path *path, int flags,
+static struct file *alloc_file(const struct path *path, int flags,
 		const struct file_operations *fop)
 {
 	struct file *file;
@@ -182,7 +182,6 @@ struct file *alloc_file(const struct path *path, int flags,
 		i_readcount_inc(path->dentry->d_inode);
 	return file;
 }
-EXPORT_SYMBOL(alloc_file);
 
 struct file *alloc_file_pseudo(struct inode *inode, struct vfsmount *mnt,
 				const char *name, int flags,
