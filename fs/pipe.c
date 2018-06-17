@@ -761,15 +761,13 @@ int create_pipe_files(struct file **res, int flags)
 
 	f->private_data = inode->i_pipe;
 
-	res[0] = alloc_file(&f->f_path, O_RDONLY | (flags & O_NONBLOCK),
-			&pipefifo_fops);
+	res[0] = alloc_file_clone(f, O_RDONLY | (flags & O_NONBLOCK),
+				  &pipefifo_fops);
 	if (IS_ERR(res[0])) {
 		put_pipe_info(inode, inode->i_pipe);
 		fput(f);
 		return PTR_ERR(res[0]);
 	}
-
-	path_get(&f->f_path);
 	res[0]->private_data = inode->i_pipe;
 	res[1] = f;
 	return 0;
