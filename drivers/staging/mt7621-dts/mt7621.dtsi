@@ -447,31 +447,28 @@
 		clocks = <&clkctrl 24 &clkctrl 25 &clkctrl 26>;
 		clock-names = "pcie0", "pcie1", "pcie2";
 
-		pcie0 {
+		pcie@0,0 {
 			reg = <0x0000 0 0 0 0>;
-
 			#address-cells = <3>;
 			#size-cells = <2>;
-
-			device_type = "pci";
+			ranges;
+			bus-range = <0x00 0xff>;
 		};
 
-		pcie1 {
+		pcie@1,0 {
 			reg = <0x0800 0 0 0 0>;
-
 			#address-cells = <3>;
 			#size-cells = <2>;
-
-			device_type = "pci";
+			ranges;
+			bus-range = <0x00 0xff>;
 		};
 
-		pcie2 {
+		pcie@2,0 {
 			reg = <0x1000 0 0 0 0>;
-
 			#address-cells = <3>;
 			#size-cells = <2>;
-
-			device_type = "pci";
+			ranges;
+			bus-range = <0x00 0xff>;
 		};
 	};
 };
