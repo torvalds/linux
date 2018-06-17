@@ -215,6 +215,8 @@ struct uverbs_object_tree_def {
 	.min_len = ((uintptr_t)(&((_type *)0)->_last + 1)), .len = sizeof(_type)
 #define UVERBS_ATTR_SIZE(_min_len, _len)			\
 	.min_len = _min_len, .len = _len
+#define UVERBS_ATTR_MIN_SIZE(_min_len)				\
+	UVERBS_ATTR_SIZE(_min_len, USHRT_MAX)
 
 /*
  * In new compiler, UVERBS_ATTR could be simplified by declaring it as
