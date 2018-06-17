@@ -19,7 +19,7 @@
 static void ActivateBAEntry(struct ieee80211_device *ieee, PBA_RECORD pBA, u16 Time)
 {
 	pBA->bValid = true;
-	if(Time != 0)
+	if (Time != 0)
 		mod_timer(&pBA->Timer, jiffies + msecs_to_jiffies(Time));
 }
 
@@ -117,13 +117,13 @@ static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, P
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "pBA is NULL\n");
 		return NULL;
 	}
-	skb = dev_alloc_skb(len + sizeof( struct rtl_80211_hdr_3addr)); //need to add something others? FIXME
+	skb = dev_alloc_skb(len + sizeof(struct rtl_80211_hdr_3addr)); //need to add something others? FIXME
 	if (!skb) {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't alloc skb for ADDBA_REQ\n");
 		return NULL;
 	}
 
-	memset(skb->data, 0, sizeof( struct rtl_80211_hdr_3addr));	//I wonder whether it's necessary. Apparently kernel will not do it when alloc a skb.
+	memset(skb->data, 0, sizeof(struct rtl_80211_hdr_3addr));	//I wonder whether it's necessary. Apparently kernel will not do it when alloc a skb.
 	skb_reserve(skb, ieee->tx_headroom);
 
 	BAReq = skb_put(skb, sizeof(struct rtl_80211_hdr_3addr));
@@ -137,10 +137,10 @@ static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, P
 
 	//tag += sizeof( struct rtl_80211_hdr_3addr); //move to action field
 	tag = skb_put(skb, 9);
-	*tag ++= ACT_CAT_BA;
-	*tag ++= type;
+	*tag++ = ACT_CAT_BA;
+	*tag++ = type;
 	// Dialog Token
-	*tag ++= pBA->DialogToken;
+	*tag++ = pBA->DialogToken;
 
 	if (ACT_ADDBARSP == type) {
 		// Status Code
@@ -201,10 +201,10 @@ static struct sk_buff *ieee80211_DELBA(
 
 	memset(&DelbaParamSet, 0, 2);
 
-	DelbaParamSet.field.Initiator	= (TxRxSelect==TX_DIR)?1:0;
+	DelbaParamSet.field.Initiator	= (TxRxSelect == TX_DIR) ? 1 : 0;
 	DelbaParamSet.field.TID	= pBA->BaParamSet.field.TID;
 
-	skb = dev_alloc_skb(len + sizeof( struct rtl_80211_hdr_3addr)); //need to add something others? FIXME
+	skb = dev_alloc_skb(len + sizeof(struct rtl_80211_hdr_3addr)); //need to add something others? FIXME
 	if (!skb) {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't alloc skb for ADDBA_REQ\n");
 		return NULL;
@@ -221,8 +221,8 @@ static struct sk_buff *ieee80211_DELBA(
 
 	tag = skb_put(skb, 6);
 
-	*tag ++= ACT_CAT_BA;
-	*tag ++= ACT_DELBA;
+	*tag++ = ACT_CAT_BA;
+	*tag++ = ACT_DELBA;
 
 	// DELBA Parameter Set
 
@@ -258,8 +258,7 @@ static void ieee80211_send_ADDBAReq(struct ieee80211_device *ieee,
 		//add statistic needed here.
 		//and skb will be freed in softmac_mgmt_xmit(), so omit all dev_kfree_skb_any() outside softmac_mgmt_xmit()
 		//WB
-	}
-	else {
+	} else {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "alloc skb error in function %s()\n", __func__);
 	}
 }
@@ -280,8 +279,7 @@ static void ieee80211_send_ADDBARsp(struct ieee80211_device *ieee, u8 *dst,
 	if (skb) {
 		softmac_mgmt_xmit(skb, ieee);
 		//same above
-	}
-	else {
+	} else {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "alloc skb error in function %s()\n", __func__);
 	}
 
@@ -307,8 +305,7 @@ static void ieee80211_send_DELBA(struct ieee80211_device *ieee, u8 *dst,
 	if (skb) {
 		softmac_mgmt_xmit(skb, ieee);
 		//same above
-	}
-	else {
+	} else {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "alloc skb error in function %s()\n", __func__);
 	}
 }
@@ -367,7 +364,7 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 			dst,
 			(u8)(pBaParamSet->field.TID),
 			RX_DIR,
-			true)	) {
+			true)) {
 		rc = ADDBA_STATUS_REFUSED;
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't get TS in %s()\n", __func__);
 		goto OnADDBAReq_Fail;
@@ -450,7 +447,7 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 	if (ieee->current_network.qos_data.active == 0  ||
 	    !ieee->pHTInfo->bCurrentHTSupport ||
 	    !ieee->pHTInfo->bCurrentAMPDUEnable) {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, "reject to ADDBA_RSP as some capability is not ready(%d, %d, %d)\n",ieee->current_network.qos_data.active, ieee->pHTInfo->bCurrentHTSupport, ieee->pHTInfo->bCurrentAMPDUEnable);
+		IEEE80211_DEBUG(IEEE80211_DL_ERR, "reject to ADDBA_RSP as some capability is not ready(%d, %d, %d)\n", ieee->current_network.qos_data.active, ieee->pHTInfo->bCurrentHTSupport, ieee->pHTInfo->bCurrentAMPDUEnable);
 		ReasonCode = DELBA_REASON_UNKNOWN_BA;
 		goto OnADDBARsp_Reject;
 	}
@@ -466,7 +463,7 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 			dst,
 			(u8)(pBaParamSet->field.TID),
 			TX_DIR,
-			false)	) {
+			false)) {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't get TS in %s()\n", __func__);
 		ReasonCode = DELBA_REASON_UNKNOWN_BA;
 		goto OnADDBARsp_Reject;
@@ -485,19 +482,17 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 		// Since BA is already setup, we ignore all other ADDBA Response.
 		IEEE80211_DEBUG(IEEE80211_DL_BA, "OnADDBARsp(): Recv ADDBA Rsp. Drop because already admit it! \n");
 		return -1;
-	}
-	else if((!pPendingBA->bValid) ||(*pDialogToken != pPendingBA->DialogToken)) {
+	} else if ((!pPendingBA->bValid) || (*pDialogToken != pPendingBA->DialogToken)) {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR,  "OnADDBARsp(): Recv ADDBA Rsp. BA invalid, DELBA! \n");
 		ReasonCode = DELBA_REASON_UNKNOWN_BA;
 		goto OnADDBARsp_Reject;
-	}
-	else {
+	} else {
 		IEEE80211_DEBUG(IEEE80211_DL_BA, "OnADDBARsp(): Recv ADDBA Rsp. BA is admitted! Status code:%X\n", *pStatusCode);
 		DeActivateBAEntry(ieee, pPendingBA);
 	}
 
 
-	if(*pStatusCode == ADDBA_STATUS_SUCCESS) {
+	if (*pStatusCode == ADDBA_STATUS_SUCCESS) {
 		//
 		// Determine ADDBA Rsp content here.
 		// We can compare the value of BA parameter set that Peer returned and Self sent.
@@ -521,8 +516,7 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 		pAdmittedBA->BaParamSet = *pBaParamSet;
 		DeActivateBAEntry(ieee, pAdmittedBA);
 		ActivateBAEntry(ieee, pAdmittedBA, *pBaTimeoutVal);
-	}
-	else {
+	} else {
 		// Delay next ADDBA process.
 		pTS->bAddBaReqDelayed = true;
 	}
@@ -562,7 +556,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 
 	if (ieee->current_network.qos_data.active == 0 ||
 	    !ieee->pHTInfo->bCurrentHTSupport) {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, "received DELBA while QOS or HT is not supported(%d, %d)\n",ieee->current_network.qos_data.active, ieee->pHTInfo->bCurrentHTSupport);
+		IEEE80211_DEBUG(IEEE80211_DL_ERR, "received DELBA while QOS or HT is not supported(%d, %d)\n", ieee->current_network.qos_data.active, ieee->pHTInfo->bCurrentHTSupport);
 		return -1;
 	}
 
@@ -571,7 +565,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 	dst = &delba->addr2[0];
 	pDelBaParamSet = (PDELBA_PARAM_SET)&delba->payload[2];
 
-	if(pDelBaParamSet->field.Initiator == 1) {
+	if (pDelBaParamSet->field.Initiator == 1) {
 		PRX_TS_RECORD	pRxTs;
 
 		if (!GetTs(
@@ -580,14 +574,13 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 				dst,
 				(u8)pDelBaParamSet->field.TID,
 				RX_DIR,
-				false)	) {
+				false)) {
 			IEEE80211_DEBUG(IEEE80211_DL_ERR,  "can't get TS for RXTS in %s()\n", __func__);
 			return -1;
 		}
 
 		RxTsDeleteBA(ieee, pRxTs);
-	}
-	else {
+	} else {
 		PTX_TS_RECORD	pTxTs;
 
 		if (!GetTs(
@@ -596,7 +589,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 			dst,
 			(u8)pDelBaParamSet->field.TID,
 			TX_DIR,
-			false)	) {
+			false)) {
 			IEEE80211_DEBUG(IEEE80211_DL_ERR,  "can't get TS for TXTS in %s()\n", __func__);
 			return -1;
 		}
@@ -645,29 +638,27 @@ TsInitAddBA(
 }
 
 void
-TsInitDelBA( struct ieee80211_device *ieee, PTS_COMMON_INFO pTsCommonInfo, TR_SELECT TxRxSelect)
+TsInitDelBA(struct ieee80211_device *ieee, PTS_COMMON_INFO pTsCommonInfo, TR_SELECT TxRxSelect)
 {
-
-	if(TxRxSelect == TX_DIR) {
+	if (TxRxSelect == TX_DIR) {
 		PTX_TS_RECORD	pTxTs = (PTX_TS_RECORD)pTsCommonInfo;
 
-		if(TxTsDeleteBA(ieee, pTxTs))
+		if (TxTsDeleteBA(ieee, pTxTs))
 			ieee80211_send_DELBA(
 				ieee,
 				pTsCommonInfo->Addr,
 				(pTxTs->TxAdmittedBARecord.bValid)?(&pTxTs->TxAdmittedBARecord):(&pTxTs->TxPendingBARecord),
 				TxRxSelect,
 				DELBA_REASON_END_BA);
-	}
-	else if(TxRxSelect == RX_DIR) {
+	} else if (TxRxSelect == RX_DIR) {
 		PRX_TS_RECORD	pRxTs = (PRX_TS_RECORD)pTsCommonInfo;
-		if(RxTsDeleteBA(ieee, pRxTs))
+		if (RxTsDeleteBA(ieee, pRxTs))
 			ieee80211_send_DELBA(
 				ieee,
 				pTsCommonInfo->Addr,
 				&pRxTs->RxAdmittedBARecord,
 				TxRxSelect,
-				DELBA_REASON_END_BA	);
+				DELBA_REASON_END_BA);
 	}
 }
 /********************************************************************************************************************
