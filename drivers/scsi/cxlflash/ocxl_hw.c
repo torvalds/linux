@@ -134,15 +134,14 @@ static struct file *ocxlflash_getfile(struct device *dev, const char *name,
 		rc = PTR_ERR(file);
 		dev_err(dev, "%s: alloc_file failed rc=%d\n",
 			__func__, rc);
-		goto err5;
+		path_put(&path);
+		goto err3;
 	}
 
 	file->f_flags = flags & (O_ACCMODE | O_NONBLOCK);
 	file->private_data = priv;
 out:
 	return file;
-err5:
-	path_put(&path);
 err4:
 	iput(inode);
 err3:
