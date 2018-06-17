@@ -302,14 +302,14 @@ int wil_cid_fill_sinfo(struct wil6210_vif *vif, int cid,
 
 	sinfo->generation = wil->sinfo_gen;
 
-	sinfo->filled = BIT(NL80211_STA_INFO_RX_BYTES) |
-			BIT(NL80211_STA_INFO_TX_BYTES) |
-			BIT(NL80211_STA_INFO_RX_PACKETS) |
-			BIT(NL80211_STA_INFO_TX_PACKETS) |
-			BIT(NL80211_STA_INFO_RX_BITRATE) |
-			BIT(NL80211_STA_INFO_TX_BITRATE) |
-			BIT(NL80211_STA_INFO_RX_DROP_MISC) |
-			BIT(NL80211_STA_INFO_TX_FAILED);
+	sinfo->filled = BIT_ULL(NL80211_STA_INFO_RX_BYTES) |
+			BIT_ULL(NL80211_STA_INFO_TX_BYTES) |
+			BIT_ULL(NL80211_STA_INFO_RX_PACKETS) |
+			BIT_ULL(NL80211_STA_INFO_TX_PACKETS) |
+			BIT_ULL(NL80211_STA_INFO_RX_BITRATE) |
+			BIT_ULL(NL80211_STA_INFO_TX_BITRATE) |
+			BIT_ULL(NL80211_STA_INFO_RX_DROP_MISC) |
+			BIT_ULL(NL80211_STA_INFO_TX_FAILED);
 
 	sinfo->txrate.flags = RATE_INFO_FLAGS_60G;
 	sinfo->txrate.mcs = le16_to_cpu(reply.evt.bf_mcs);
@@ -322,7 +322,7 @@ int wil_cid_fill_sinfo(struct wil6210_vif *vif, int cid,
 	sinfo->tx_failed = stats->tx_errors;
 
 	if (test_bit(wil_vif_fwconnected, vif->status)) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL);
 		if (test_bit(WMI_FW_CAPABILITY_RSSI_REPORTING,
 			     wil->fw_capabilities))
 			sinfo->signal = reply.evt.rssi;
