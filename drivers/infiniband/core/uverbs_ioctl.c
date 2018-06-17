@@ -114,9 +114,27 @@ static int uverbs_process_attr(struct ib_device *ibdev,
 		    uattr->attr_data.reserved)
 			return -EINVAL;
 
-		e->ptr_attr.data = uattr->data;
 		e->ptr_attr.len = uattr->len;
 		e->ptr_attr.flags = uattr->flags;
+
+		if (val_spec->flags & UVERBS_ATTR_SPEC_F_ALLOC_AND_COPY &&
+		    !uverbs_attr_ptr_is_inline(e)) {
+			void *p;
+
+			p = kvmalloc(uattr->len, GFP_KERNEL);
+			if (!p)
+				return -ENOMEM;
+
+			e->ptr_attr.ptr = p;
+
+			if (copy_from_user(p, u64_to_user_ptr(uattr->data),
+					   uattr->len)) {
+				kvfree(p);
+				return -EFAULT;
+			}
+		} else {
+			e->ptr_attr.data = uattr->data;
+		}
 		break;
 
 	case UVERBS_ATTR_TYPE_IDR:
@@ -200,6 +218,11 @@ static int uverbs_finalize_attrs(struct uverbs_attr_bundle *attrs_bundle,
 					spec->obj.access, commit);
 				if (!ret)
 					ret = current_ret;
+			} else if (spec->type == UVERBS_ATTR_TYPE_PTR_IN &&
+				   spec->flags &
+					   UVERBS_ATTR_SPEC_F_ALLOC_AND_COPY &&
+				   !uverbs_attr_ptr_is_inline(attr)) {
+				kvfree(attr->ptr_attr.ptr);
 			}
 		}
 	}

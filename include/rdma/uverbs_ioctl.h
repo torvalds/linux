@@ -65,6 +65,10 @@ enum {
 	UVERBS_ATTR_SPEC_F_MANDATORY	= 1U << 0,
 	/* Support extending attributes by length, validate all unknown size == zero  */
 	UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO = 1U << 1,
+	/*
+	 * Valid only for PTR_IN. Allocate and copy the data inside the parser
+	 */
+	UVERBS_ATTR_SPEC_F_ALLOC_AND_COPY = 1U << 2,
 };
 
 /* Specification of a single attribute inside the ioctl message */
@@ -323,7 +327,14 @@ struct uverbs_object_tree_def {
  */
 
 struct uverbs_ptr_attr {
-	u64		data;
+	/*
+	 * If UVERBS_ATTR_SPEC_F_ALLOC_AND_COPY is set then the 'ptr' is
+	 * used.
+	 */
+	union {
+		void *ptr;
+		u64 data;
+	};
 	u16		len;
 	/* Combination of bits from enum UVERBS_ATTR_F_XXXX */
 	u16		flags;
@@ -431,6 +442,17 @@ static inline struct ib_uobject *uverbs_attr_get_uobject(const struct uverbs_att
 	return attr->obj_attr.uobject;
 }
 
+static inline int
+uverbs_attr_get_len(const struct uverbs_attr_bundle *attrs_bundle, u16 idx)
+{
+	const struct uverbs_attr *attr = uverbs_attr_get(attrs_bundle, idx);
+
+	if (IS_ERR(attr))
+		return PTR_ERR(attr);
+
+	return attr->ptr_attr.len;
+}
+
 static inline int uverbs_copy_to(const struct uverbs_attr_bundle *attrs_bundle,
 				 size_t idx, const void *from, size_t size)
 {
@@ -455,6 +477,18 @@ static inline int uverbs_copy_to(const struct uverbs_attr_bundle *attrs_bundle,
 static inline bool uverbs_attr_ptr_is_inline(const struct uverbs_attr *attr)
 {
 	return attr->ptr_attr.len <= sizeof(attr->ptr_attr.data);
+}
+
+static inline void *uverbs_attr_get_alloced_ptr(
+	const struct uverbs_attr_bundle *attrs_bundle, u16 idx)
+{
+	const struct uverbs_attr *attr = uverbs_attr_get(attrs_bundle, idx);
+
+	if (IS_ERR(attr))
+		return (void *)attr;
+
+	return uverbs_attr_ptr_is_inline(attr) ? (void *)&attr->ptr_attr.data :
+						 attr->ptr_attr.ptr;
 }
 
 static inline int _uverbs_copy_from(void *to,
