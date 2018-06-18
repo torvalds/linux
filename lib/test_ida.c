@@ -26,6 +26,58 @@ void ida_dump(struct ida *ida) { }
 } while (0)
 
 /*
+ * Straightforward checks that allocating and freeing IDs work.
+ */
+static void ida_check_alloc(struct ida *ida)
+{
+	int i, id;
+
+	for (i = 0; i < 10000; i++)
+		IDA_BUG_ON(ida, ida_alloc(ida, GFP_KERNEL) != i);
+
+	ida_free(ida, 20);
+	ida_free(ida, 21);
+	for (i = 0; i < 3; i++) {
+		id = ida_alloc(ida, GFP_KERNEL);
+		IDA_BUG_ON(ida, id < 0);
+		if (i == 2)
+			IDA_BUG_ON(ida, id != 10000);
+	}
+
+	for (i = 0; i < 5000; i++)
+		ida_free(ida, i);
+
+	IDA_BUG_ON(ida, ida_alloc_min(ida, 5000, GFP_KERNEL) != 10001);
+	ida_destroy(ida);
+
+	IDA_BUG_ON(ida, !ida_is_empty(ida));
+}
+
+/* Destroy an IDA with a single entry at @base */
+static void ida_check_destroy_1(struct ida *ida, unsigned int base)
+{
+	IDA_BUG_ON(ida, ida_alloc_min(ida, base, GFP_KERNEL) != base);
+	IDA_BUG_ON(ida, ida_is_empty(ida));
+	ida_destroy(ida);
+	IDA_BUG_ON(ida, !ida_is_empty(ida));
+}
+
+/* Check that ida_destroy and ida_is_empty work */
+static void ida_check_destroy(struct ida *ida)
+{
+	/* Destroy an already-empty IDA */
+	IDA_BUG_ON(ida, !ida_is_empty(ida));
+	ida_destroy(ida);
+	IDA_BUG_ON(ida, !ida_is_empty(ida));
+
+	ida_check_destroy_1(ida, 0);
+	ida_check_destroy_1(ida, 1);
+	ida_check_destroy_1(ida, 1023);
+	ida_check_destroy_1(ida, 1024);
+	ida_check_destroy_1(ida, 12345678);
+}
+
+/*
  * Check what happens when we fill a leaf and then delete it.  This may
  * discover mishandling of IDR_FREE.
  */
@@ -103,6 +155,8 @@ static int ida_checks(void)
 	DEFINE_IDA(ida);
 
 	IDA_BUG_ON(&ida, !ida_is_empty(&ida));
+	ida_check_alloc(&ida);
+	ida_check_destroy(&ida);
 	ida_check_leaf(&ida, 0);
 	ida_check_leaf(&ida, 1024);
 	ida_check_leaf(&ida, 1024 * 64);

@@ -364,7 +364,6 @@ void ida_check_random(void)
 {
 	DEFINE_IDA(ida);
 	DECLARE_BITMAP(bitmap, 2048);
-	int id, err;
 	unsigned int i;
 	time_t s = time(NULL);
 
@@ -375,15 +374,11 @@ void ida_check_random(void)
 		int bit = i & 2047;
 		if (test_bit(bit, bitmap)) {
 			__clear_bit(bit, bitmap);
-			ida_remove(&ida, bit);
+			ida_free(&ida, bit);
 		} else {
 			__set_bit(bit, bitmap);
-			do {
-				ida_pre_get(&ida, GFP_KERNEL);
-				err = ida_get_new_above(&ida, bit, &id);
-			} while (err == -EAGAIN);
-			assert(!err);
-			assert(id == bit);
+			IDA_BUG_ON(&ida, ida_alloc_min(&ida, bit, GFP_KERNEL)
+					!= bit);
 		}
 	}
 	ida_destroy(&ida);
@@ -411,66 +406,9 @@ void ida_simple_get_remove_test(void)
 
 void user_ida_checks(void)
 {
-	DEFINE_IDA(ida);
-	int id;
-	unsigned long i;
-
 	radix_tree_cpu_dead(1);
+
 	ida_check_nomem();
-
-	for (i = 0; i < 10000; i++) {
-		assert(ida_pre_get(&ida, GFP_KERNEL));
-		assert(!ida_get_new(&ida, &id));
-		assert(id == i);
-	}
-
-	ida_remove(&ida, 20);
-	ida_remove(&ida, 21);
-	for (i = 0; i < 3; i++) {
-		assert(ida_pre_get(&ida, GFP_KERNEL));
-		assert(!ida_get_new(&ida, &id));
-		if (i == 2)
-			assert(id == 10000);
-	}
-
-	for (i = 0; i < 5000; i++)
-		ida_remove(&ida, i);
-
-	assert(ida_pre_get(&ida, GFP_KERNEL));
-	assert(!ida_get_new_above(&ida, 5000, &id));
-	assert(id == 10001);
-
-	ida_destroy(&ida);
-
-	assert(ida_is_empty(&ida));
-
-	assert(ida_pre_get(&ida, GFP_KERNEL));
-	assert(!ida_get_new_above(&ida, 1, &id));
-	assert(id == 1);
-
-	ida_remove(&ida, id);
-	assert(ida_is_empty(&ida));
-	ida_destroy(&ida);
-	assert(ida_is_empty(&ida));
-
-	assert(ida_pre_get(&ida, GFP_KERNEL));
-	assert(!ida_get_new_above(&ida, 1, &id));
-	ida_destroy(&ida);
-	assert(ida_is_empty(&ida));
-
-	assert(ida_pre_get(&ida, GFP_KERNEL));
-	assert(!ida_get_new_above(&ida, 1, &id));
-	assert(id == 1);
-	assert(ida_pre_get(&ida, GFP_KERNEL));
-	assert(!ida_get_new_above(&ida, 1025, &id));
-	assert(id == 1025);
-	assert(ida_pre_get(&ida, GFP_KERNEL));
-	assert(!ida_get_new_above(&ida, 10000, &id));
-	assert(id == 10000);
-	ida_remove(&ida, 1025);
-	ida_destroy(&ida);
-	assert(ida_is_empty(&ida));
-
 	ida_check_conv_user();
 	ida_check_random();
 	ida_simple_get_remove_test();
