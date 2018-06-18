@@ -345,7 +345,7 @@ __attribute__((nonnull))
 static inline void
 i915_gem_object_put(struct drm_i915_gem_object *obj)
 {
-	__drm_gem_object_unreference(&obj->base);
+	__drm_gem_object_put(&obj->base);
 }
 
 __deprecated
