@@ -312,4 +312,4 @@ static struct platform_driver mediatek_gpio_driver = {
 	},
 };
 
-module_platform_driver(mediatek_gpio_driver);
+builtin_platform_driver(mediatek_gpio_driver);
