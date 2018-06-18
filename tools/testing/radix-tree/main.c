@@ -324,7 +324,7 @@ static void single_thread_tests(bool long_run)
 	printv(2, "after dynamic_height_check: %d allocated, preempt %d\n",
 		nr_allocated, preempt_count);
 	idr_checks();
-	ida_checks();
+	ida_tests();
 	rcu_barrier();
 	printv(2, "after idr_checks: %d allocated, preempt %d\n",
 		nr_allocated, preempt_count);
@@ -371,7 +371,6 @@ int main(int argc, char **argv)
 	iteration_test(0, 10 + 90 * long_run);
 	iteration_test(7, 10 + 90 * long_run);
 	single_thread_tests(long_run);
-	ida_thread_tests();
 
 	/* Free any remaining preallocated nodes */
 	radix_tree_cpu_dead(0);
