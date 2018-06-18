@@ -4047,6 +4047,7 @@ void ath10k_mac_tx_push_pending(struct ath10k *ar)
 	rcu_read_unlock();
 	spin_unlock_bh(&ar->txqs_lock);
 }
+EXPORT_SYMBOL(ath10k_mac_tx_push_pending);
 
 /************/
 /* Scanning */
