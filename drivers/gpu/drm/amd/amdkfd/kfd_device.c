@@ -247,7 +247,7 @@ static const struct kfd_device_info vega20_device_info = {
 	.mqd_size_aligned = MQD_SIZE_ALIGNED,
 	.supports_cwsr = true,
 	.needs_iommu_device = false,
-	.needs_pci_atomics = true,
+	.needs_pci_atomics = false,
 	.num_sdma_engines = 2,
 	.num_sdma_queues_per_engine = 8,
 };
