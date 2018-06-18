@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
+#include <soc/qcom/cmd-db.h>
 #include <soc/qcom/tcs.h>
 #include <dt-bindings/soc/qcom,rpmh-rsc.h>
 
@@ -620,6 +621,18 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 	struct device_node *dn = pdev->dev.of_node;
 	struct rsc_drv *drv;
 	int ret, irq;
+
+	/*
+	 * Even though RPMh doesn't directly use cmd-db, all of its children
+	 * do. To avoid adding this check to our children we'll do it now.
+	 */
+	ret = cmd_db_ready();
+	if (ret) {
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "Command DB not available (%d)\n",
+									ret);
+		return ret;
+	}
 
 	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
