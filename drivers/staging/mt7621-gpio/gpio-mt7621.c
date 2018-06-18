@@ -29,16 +29,6 @@
 #define GPIO_REG_STAT	0x90
 #define GPIO_REG_EDGE	0xA0
 
-/**
- * struct mtk_gc - data for a single gpio-chip
- * @chip: gpio chip instance
- * @lock: spinlock to protect the chip
- * @bank: gpio bank number for the chip
- * @rising: mask for rising irqs
- * @falling: mask for falling irqs
- * @hlevel: mask for high level irqs
- * @llevel: mask for low level irqs
- */
 struct mtk_gc {
 	struct gpio_chip chip;
 	spinlock_t lock;
@@ -51,8 +41,9 @@ struct mtk_gc {
 
 /**
  * struct mtk_data - state container for
- * data of the platform driver. It is a
- * single irq-chip but 3 separate gpio-chip.
+ * data of the platform driver. It is 3
+ * separate gpio-chip each one with its
+ * own irq_chip.
  * @dev: device instance
  * @gpio_membase: memory base address
  * @gpio_irq: irq number from the device tree
