@@ -30,6 +30,7 @@
 #include "debug.h"
 #include "hif.h"
 #include "htc.h"
+#include "mac.h"
 #include "targaddrs.h"
 #include "trace.h"
 #include "sdio.h"
@@ -1345,6 +1346,8 @@ static void ath10k_sdio_irq_handler(struct sdio_func *func)
 		if (ret)
 			break;
 	} while (time_before(jiffies, timeout) && !done);
+
+	ath10k_mac_tx_push_pending(ar);
 
 	sdio_claim_host(ar_sdio->func);
 
