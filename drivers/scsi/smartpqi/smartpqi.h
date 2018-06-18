@@ -583,8 +583,8 @@ struct pqi_admin_queues_aligned {
 struct pqi_admin_queues {
 	void		*iq_element_array;
 	void		*oq_element_array;
-	volatile pqi_index_t *iq_ci;
-	volatile pqi_index_t *oq_pi;
+	pqi_index_t	*iq_ci;
+	pqi_index_t __iomem *oq_pi;
 	dma_addr_t	iq_element_array_bus_addr;
 	dma_addr_t	oq_element_array_bus_addr;
 	dma_addr_t	iq_ci_bus_addr;
@@ -608,8 +608,8 @@ struct pqi_queue_group {
 	dma_addr_t	oq_element_array_bus_addr;
 	__le32 __iomem	*iq_pi[2];
 	pqi_index_t	iq_pi_copy[2];
-	volatile pqi_index_t *iq_ci[2];
-	volatile pqi_index_t *oq_pi;
+	pqi_index_t __iomem	*iq_ci[2];
+	pqi_index_t __iomem	*oq_pi;
 	dma_addr_t	iq_ci_bus_addr[2];
 	dma_addr_t	oq_pi_bus_addr;
 	__le32 __iomem	*oq_ci;
@@ -622,7 +622,7 @@ struct pqi_event_queue {
 	u16		oq_id;
 	u16		int_msg_num;
 	void		*oq_element_array;
-	volatile pqi_index_t *oq_pi;
+	pqi_index_t __iomem	*oq_pi;
 	dma_addr_t	oq_element_array_bus_addr;
 	dma_addr_t	oq_pi_bus_addr;
 	__le32 __iomem	*oq_ci;

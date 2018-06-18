@@ -2703,7 +2703,7 @@ static unsigned int pqi_process_io_intr(struct pqi_ctrl_info *ctrl_info,
 	oq_ci = queue_group->oq_ci_copy;
 
 	while (1) {
-		oq_pi = *queue_group->oq_pi;
+		oq_pi = readl(queue_group->oq_pi);
 		if (oq_pi == oq_ci)
 			break;
 
@@ -2794,7 +2794,7 @@ static void pqi_send_event_ack(struct pqi_ctrl_info *ctrl_info,
 		spin_lock_irqsave(&queue_group->submit_lock[RAID_PATH], flags);
 
 		iq_pi = queue_group->iq_pi_copy[RAID_PATH];
-		iq_ci = *queue_group->iq_ci[RAID_PATH];
+		iq_ci = readl(queue_group->iq_ci[RAID_PATH]);
 
 		if (pqi_num_elements_free(iq_pi, iq_ci,
 			ctrl_info->num_elements_per_iq))
@@ -2953,7 +2953,7 @@ static unsigned int pqi_process_event_intr(struct pqi_ctrl_info *ctrl_info)
 	oq_ci = event_queue->oq_ci_copy;
 
 	while (1) {
-		oq_pi = *event_queue->oq_pi;
+		oq_pi = readl(event_queue->oq_pi);
 		if (oq_pi == oq_ci)
 			break;
 
@@ -3177,7 +3177,7 @@ static int pqi_alloc_operational_queues(struct pqi_ctrl_info *ctrl_info)
 	size_t element_array_length_per_iq;
 	size_t element_array_length_per_oq;
 	void *element_array;
-	void *next_queue_index;
+	void __iomem *next_queue_index;
 	void *aligned_pointer;
 	unsigned int num_inbound_queues;
 	unsigned int num_outbound_queues;
@@ -3273,7 +3273,7 @@ static int pqi_alloc_operational_queues(struct pqi_ctrl_info *ctrl_info)
 	element_array += PQI_NUM_EVENT_QUEUE_ELEMENTS *
 		PQI_EVENT_OQ_ELEMENT_LENGTH;
 
-	next_queue_index = PTR_ALIGN(element_array,
+	next_queue_index = (void __iomem *)PTR_ALIGN(element_array,
 		PQI_OPERATIONAL_INDEX_ALIGNMENT);
 
 	for (i = 0; i < ctrl_info->num_queue_groups; i++) {
@@ -3281,21 +3281,24 @@ static int pqi_alloc_operational_queues(struct pqi_ctrl_info *ctrl_info)
 		queue_group->iq_ci[RAID_PATH] = next_queue_index;
 		queue_group->iq_ci_bus_addr[RAID_PATH] =
 			ctrl_info->queue_memory_base_dma_handle +
-			(next_queue_index - ctrl_info->queue_memory_base);
+			(next_queue_index -
+			(void __iomem *)ctrl_info->queue_memory_base);
 		next_queue_index += sizeof(pqi_index_t);
 		next_queue_index = PTR_ALIGN(next_queue_index,
 			PQI_OPERATIONAL_INDEX_ALIGNMENT);
 		queue_group->iq_ci[AIO_PATH] = next_queue_index;
 		queue_group->iq_ci_bus_addr[AIO_PATH] =
 			ctrl_info->queue_memory_base_dma_handle +
-			(next_queue_index - ctrl_info->queue_memory_base);
+			(next_queue_index -
+			(void __iomem *)ctrl_info->queue_memory_base);
 		next_queue_index += sizeof(pqi_index_t);
 		next_queue_index = PTR_ALIGN(next_queue_index,
 			PQI_OPERATIONAL_INDEX_ALIGNMENT);
 		queue_group->oq_pi = next_queue_index;
 		queue_group->oq_pi_bus_addr =
 			ctrl_info->queue_memory_base_dma_handle +
-			(next_queue_index - ctrl_info->queue_memory_base);
+			(next_queue_index -
+			(void __iomem *)ctrl_info->queue_memory_base);
 		next_queue_index += sizeof(pqi_index_t);
 		next_queue_index = PTR_ALIGN(next_queue_index,
 			PQI_OPERATIONAL_INDEX_ALIGNMENT);
@@ -3304,7 +3307,8 @@ static int pqi_alloc_operational_queues(struct pqi_ctrl_info *ctrl_info)
 	ctrl_info->event_queue.oq_pi = next_queue_index;
 	ctrl_info->event_queue.oq_pi_bus_addr =
 		ctrl_info->queue_memory_base_dma_handle +
-		(next_queue_index - ctrl_info->queue_memory_base);
+		(next_queue_index -
+		(void __iomem *)ctrl_info->queue_memory_base);
 
 	return 0;
 }
@@ -3378,7 +3382,8 @@ static int pqi_alloc_admin_queues(struct pqi_ctrl_info *ctrl_info)
 	admin_queues->oq_element_array =
 		&admin_queues_aligned->oq_element_array;
 	admin_queues->iq_ci = &admin_queues_aligned->iq_ci;
-	admin_queues->oq_pi = &admin_queues_aligned->oq_pi;
+	admin_queues->oq_pi =
+		(pqi_index_t __iomem *)&admin_queues_aligned->oq_pi;
 
 	admin_queues->iq_element_array_bus_addr =
 		ctrl_info->admin_queue_memory_base_dma_handle +
@@ -3394,8 +3399,8 @@ static int pqi_alloc_admin_queues(struct pqi_ctrl_info *ctrl_info)
 		ctrl_info->admin_queue_memory_base);
 	admin_queues->oq_pi_bus_addr =
 		ctrl_info->admin_queue_memory_base_dma_handle +
-		((void *)admin_queues->oq_pi -
-		ctrl_info->admin_queue_memory_base);
+		((void __iomem *)admin_queues->oq_pi -
+		(void __iomem *)ctrl_info->admin_queue_memory_base);
 
 	return 0;
 }
@@ -3496,7 +3501,7 @@ static int pqi_poll_for_admin_response(struct pqi_ctrl_info *ctrl_info,
 	timeout = (PQI_ADMIN_REQUEST_TIMEOUT_SECS * HZ) + jiffies;
 
 	while (1) {
-		oq_pi = *admin_queues->oq_pi;
+		oq_pi = readl(admin_queues->oq_pi);
 		if (oq_pi != oq_ci)
 			break;
 		if (time_after(jiffies, timeout)) {
@@ -3555,7 +3560,7 @@ static void pqi_start_io(struct pqi_ctrl_info *ctrl_info,
 			DIV_ROUND_UP(iu_length,
 				PQI_OPERATIONAL_IQ_ELEMENT_LENGTH);
 
-		iq_ci = *queue_group->iq_ci[path];
+		iq_ci = readl(queue_group->iq_ci[path]);
 
 		if (num_elements_needed > pqi_num_elements_free(iq_pi, iq_ci,
 			ctrl_info->num_elements_per_iq))
@@ -5054,7 +5059,7 @@ static int pqi_wait_until_inbound_queues_empty(struct pqi_ctrl_info *ctrl_info)
 			iq_pi = queue_group->iq_pi_copy[path];
 
 			while (1) {
-				iq_ci = *queue_group->iq_ci[path];
+				iq_ci = readl(queue_group->iq_ci[path]);
 				if (iq_ci == iq_pi)
 					break;
 				pqi_check_ctrl_health(ctrl_info);
@@ -6243,20 +6248,20 @@ static void pqi_reinit_queues(struct pqi_ctrl_info *ctrl_info)
 	admin_queues = &ctrl_info->admin_queues;
 	admin_queues->iq_pi_copy = 0;
 	admin_queues->oq_ci_copy = 0;
-	*admin_queues->oq_pi = 0;
+	writel(0, admin_queues->oq_pi);
 
 	for (i = 0; i < ctrl_info->num_queue_groups; i++) {
 		ctrl_info->queue_groups[i].iq_pi_copy[RAID_PATH] = 0;
 		ctrl_info->queue_groups[i].iq_pi_copy[AIO_PATH] = 0;
 		ctrl_info->queue_groups[i].oq_ci_copy = 0;
 
-		*ctrl_info->queue_groups[i].iq_ci[RAID_PATH] = 0;
-		*ctrl_info->queue_groups[i].iq_ci[AIO_PATH] = 0;
-		*ctrl_info->queue_groups[i].oq_pi = 0;
+		writel(0, ctrl_info->queue_groups[i].iq_ci[RAID_PATH]);
+		writel(0, ctrl_info->queue_groups[i].iq_ci[AIO_PATH]);
+		writel(0, ctrl_info->queue_groups[i].oq_pi);
 	}
 
 	event_queue = &ctrl_info->event_queue;
-	*event_queue->oq_pi = 0;
+	writel(0, event_queue->oq_pi);
 	event_queue->oq_ci_copy = 0;
 }
 
