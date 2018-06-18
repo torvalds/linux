@@ -378,7 +378,7 @@ DEFINE_EVENT(smb3_open_err_class, smb3_##name,    \
 	TP_ARGS(xid, tid, sesid, create_options, desired_access, rc))
 
 DEFINE_SMB3_OPEN_ERR_EVENT(open_err);
-
+DEFINE_SMB3_OPEN_ERR_EVENT(posix_mkdir_err);
 
 DECLARE_EVENT_CLASS(smb3_open_done_class,
 	TP_PROTO(unsigned int xid,
@@ -420,6 +420,7 @@ DEFINE_EVENT(smb3_open_done_class, smb3_##name,  \
 	TP_ARGS(xid, fid, tid, sesid, create_options, desired_access))
 
 DEFINE_SMB3_OPEN_DONE_EVENT(open_done);
+DEFINE_SMB3_OPEN_DONE_EVENT(posix_mkdir_done);
 
 #endif /* _CIFS_TRACE_H */
 

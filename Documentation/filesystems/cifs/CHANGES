@@ -1,3 +1,6 @@
+See https://wiki.samba.org/index.php/LinuxCIFSKernel for
+more current information.
+
 Version 1.62
 ------------
 Add sockopt=TCP_NODELAY mount option. EA (xattr) routines hardened

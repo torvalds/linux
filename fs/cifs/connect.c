@@ -57,9 +57,6 @@
 #include "smb2proto.h"
 #include "smbdirect.h"
 
-#define CIFS_PORT 445
-#define RFC1001_PORT 139
-
 extern mempool_t *cifs_req_poolp;
 extern bool disable_legacy_dialects;
 
@@ -3029,8 +3026,11 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 
 #ifdef CONFIG_CIFS_SMB311
 	if ((volume_info->linux_ext) && (ses->server->posix_ext_supported)) {
-		if (ses->server->vals->protocol_id == SMB311_PROT_ID)
+		if (ses->server->vals->protocol_id == SMB311_PROT_ID) {
 			tcon->posix_extensions = true;
+			printk_once(KERN_WARNING
+				"SMB3.11 POSIX Extensions are experimental\n");
+		}
 	}
 #endif /* 311 */
 

@@ -126,6 +126,25 @@ static void cifs_debug_tcon(struct seq_file *m, struct cifs_tcon *tcon)
 	seq_putc(m, '\n');
 }
 
+static void
+cifs_dump_iface(struct seq_file *m, struct cifs_server_iface *iface)
+{
+	struct sockaddr_in *ipv4 = (struct sockaddr_in *)&iface->sockaddr;
+	struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)&iface->sockaddr;
+
+	seq_printf(m, "\t\tSpeed: %zu bps\n", iface->speed);
+	seq_puts(m, "\t\tCapabilities: ");
+	if (iface->rdma_capable)
+		seq_puts(m, "rdma ");
+	if (iface->rss_capable)
+		seq_puts(m, "rss ");
+	seq_putc(m, '\n');
+	if (iface->sockaddr.ss_family == AF_INET)
+		seq_printf(m, "\t\tIPv4: %pI4\n", &ipv4->sin_addr);
+	else if (iface->sockaddr.ss_family == AF_INET6)
+		seq_printf(m, "\t\tIPv6: %pI6\n", &ipv6->sin6_addr);
+}
+
 static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 {
 	struct list_head *tmp1, *tmp2, *tmp3;
@@ -312,6 +331,16 @@ skip_rdma:
 					      mid_entry->mid);
 			}
 			spin_unlock(&GlobalMid_Lock);
+
+			spin_lock(&ses->iface_lock);
+			if (ses->iface_count)
+				seq_printf(m, "\n\tServer interfaces: %zu\n",
+					   ses->iface_count);
+			for (j = 0; j < ses->iface_count; j++) {
+				seq_printf(m, "\t%d)\n", j);
+				cifs_dump_iface(m, &ses->iface_list[j]);
+			}
+			spin_unlock(&ses->iface_lock);
 		}
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
