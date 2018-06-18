@@ -26,48 +26,16 @@
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
 
-static DEFINE_SPINLOCK(mmu_context_lock);
 static DEFINE_IDA(mmu_context_ida);
 
 static int alloc_context_id(int min_id, int max_id)
 {
-	int index, err;
-
-again:
-	if (!ida_pre_get(&mmu_context_ida, GFP_KERNEL))
-		return -ENOMEM;
-
-	spin_lock(&mmu_context_lock);
-	err = ida_get_new_above(&mmu_context_ida, min_id, &index);
-	spin_unlock(&mmu_context_lock);
-
-	if (err == -EAGAIN)
-		goto again;
-	else if (err)
-		return err;
-
-	if (index > max_id) {
-		spin_lock(&mmu_context_lock);
-		ida_remove(&mmu_context_ida, index);
-		spin_unlock(&mmu_context_lock);
-		return -ENOMEM;
-	}
-
-	return index;
+	return ida_alloc_range(&mmu_context_ida, min_id, max_id, GFP_KERNEL);
 }
 
 void hash__reserve_context_id(int id)
 {
-	int rc, result = 0;
-
-	do {
-		if (!ida_pre_get(&mmu_context_ida, GFP_KERNEL))
-			break;
-
-		spin_lock(&mmu_context_lock);
-		rc = ida_get_new_above(&mmu_context_ida, id, &result);
-		spin_unlock(&mmu_context_lock);
-	} while (rc == -EAGAIN);
+	int result = ida_alloc_range(&mmu_context_ida, id, id, GFP_KERNEL);
 
 	WARN(result != id, "mmu: Failed to reserve context id %d (rc %d)\n", id, result);
 }
@@ -172,9 +140,7 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 
 void __destroy_context(int context_id)
 {
-	spin_lock(&mmu_context_lock);
-	ida_remove(&mmu_context_ida, context_id);
-	spin_unlock(&mmu_context_lock);
+	ida_free(&mmu_context_ida, context_id);
 }
 EXPORT_SYMBOL_GPL(__destroy_context);
 
@@ -182,13 +148,11 @@ static void destroy_contexts(mm_context_t *ctx)
 {
 	int index, context_id;
 
-	spin_lock(&mmu_context_lock);
 	for (index = 0; index < ARRAY_SIZE(ctx->extended_id); index++) {
 		context_id = ctx->extended_id[index];
 		if (context_id)
-			ida_remove(&mmu_context_ida, context_id);
+			ida_free(&mmu_context_ida, context_id);
 	}
-	spin_unlock(&mmu_context_lock);
 }
 
 static void pte_frag_destroy(void *pte_frag)
