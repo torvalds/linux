@@ -215,6 +215,7 @@ struct ov5640_dev {
 	struct regulator_bulk_data supplies[OV5640_NUM_SUPPLIES];
 	struct gpio_desc *reset_gpio;
 	struct gpio_desc *pwdn_gpio;
+	bool   upside_down;
 
 	/* lock to protect all members below */
 	struct mutex lock;
@@ -2222,6 +2223,8 @@ static int ov5640_set_ctrl_light_freq(struct ov5640_dev *sensor, int value)
 static int ov5640_set_ctrl_hflip(struct ov5640_dev *sensor, int value)
 {
 	/*
+	 * If sensor is mounted upside down, mirror logic is inversed.
+	 *
 	 * Sensor is a BSI (Back Side Illuminated) one,
 	 * so image captured is physically mirrored.
 	 * This is why mirror logic is inversed in
@@ -2235,11 +2238,14 @@ static int ov5640_set_ctrl_hflip(struct ov5640_dev *sensor, int value)
 	 */
 	return ov5640_mod_reg(sensor, OV5640_REG_TIMING_TC_REG21,
 			      BIT(2) | BIT(1),
-			      (!value) ? (BIT(2) | BIT(1)) : 0);
+			      (!(value ^ sensor->upside_down)) ?
+			      (BIT(2) | BIT(1)) : 0);
 }
 
 static int ov5640_set_ctrl_vflip(struct ov5640_dev *sensor, int value)
 {
+	/* If sensor is mounted upside down, flip logic is inversed */
+
 	/*
 	 * TIMING TC REG20:
 	 * - [2]:	ISP vflip
@@ -2247,7 +2253,8 @@ static int ov5640_set_ctrl_vflip(struct ov5640_dev *sensor, int value)
 	 */
 	return ov5640_mod_reg(sensor, OV5640_REG_TIMING_TC_REG20,
 			      BIT(2) | BIT(1),
-			      value ? (BIT(2) | BIT(1)) : 0);
+			      (value ^ sensor->upside_down) ?
+			      (BIT(2) | BIT(1)) : 0);
 }
 
 static int ov5640_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
@@ -2625,6 +2632,7 @@ static int ov5640_probe(struct i2c_client *client,
 	struct fwnode_handle *endpoint;
 	struct ov5640_dev *sensor;
 	struct v4l2_mbus_framefmt *fmt;
+	u32 rotation;
 	int ret;
 
 	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
@@ -2649,6 +2657,22 @@ static int ov5640_probe(struct i2c_client *client,
 	sensor->pending_mode_change = true;
 
 	sensor->ae_target = 52;
+
+	/* optional indication of physical rotation of sensor */
+	ret = fwnode_property_read_u32(dev_fwnode(&client->dev), "rotation",
+				       &rotation);
+	if (!ret) {
+		switch (rotation) {
+		case 180:
+			sensor->upside_down = true;
+			/* fall through */
+		case 0:
+			break;
+		default:
+			dev_warn(dev, "%u degrees rotation is not supported, ignoring...\n",
+				 rotation);
+		}
+	}
 
 	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(&client->dev),
 						  NULL);
