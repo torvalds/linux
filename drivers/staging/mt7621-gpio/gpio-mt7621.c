@@ -40,6 +40,7 @@ struct mtk_gc {
 };
 
 struct mtk_data {
+	struct device *dev;
 	void __iomem *gpio_membase;
 	int gpio_irq;
 	struct irq_domain *gpio_irq_domain;
@@ -231,12 +232,42 @@ mediatek_gpio_irq_type(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
+static int mediatek_irq_reqres(struct irq_data *d)
+{
+	struct mtk_data *gpio_data = irq_data_get_irq_chip_data(d);
+	int bank = irqd_to_hwirq(d) / MTK_BANK_WIDTH;
+	struct mtk_gc *rg = &gpio_data->gc_map[bank];
+	struct gpio_chip *gc = &rg->chip;
+	int ret;
+
+	ret = gpiochip_lock_as_irq(gc, irqd_to_hwirq(d));
+	if (ret) {
+		dev_err(gpio_data->dev, "unable to lock HW IRQ %lu for IRQ\n",
+			irqd_to_hwirq(d));
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void mediatek_irq_relres(struct irq_data *d)
+{
+	struct mtk_data *gpio_data = irq_data_get_irq_chip_data(d);
+	int bank = irqd_to_hwirq(d) / MTK_BANK_WIDTH;
+	struct mtk_gc *rg = &gpio_data->gc_map[bank];
+	struct gpio_chip *gc = &rg->chip;
+
+	gpiochip_unlock_as_irq(gc, irqd_to_hwirq(d));
+}
+
 static struct irq_chip mediatek_gpio_irq_chip = {
-	.name		= "GPIO",
-	.irq_unmask	= mediatek_gpio_irq_unmask,
-	.irq_mask	= mediatek_gpio_irq_mask,
-	.irq_mask_ack	= mediatek_gpio_irq_mask,
-	.irq_set_type	= mediatek_gpio_irq_type,
+	.name			= "GPIO",
+	.irq_unmask		= mediatek_gpio_irq_unmask,
+	.irq_mask		= mediatek_gpio_irq_mask,
+	.irq_mask_ack		= mediatek_gpio_irq_mask,
+	.irq_set_type		= mediatek_gpio_irq_type,
+	.irq_request_resources	= mediatek_irq_reqres,
+	.irq_release_resources	= mediatek_irq_relres,
 };
 
 static int
@@ -284,6 +315,7 @@ mediatek_gpio_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "irq_domain_add_linear failed\n");
 	}
 
+	gpio_data->dev = &pdev->dev;
 	platform_set_drvdata(pdev, gpio_data);
 
 	for_each_child_of_node(np, bank)
