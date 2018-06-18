@@ -1,6 +1,7 @@
 config GPIO_MT7621
 	bool "Mediatek GPIO Support"
 	depends on SOC_MT7620 || SOC_MT7621
+	select GPIO_GENERIC
 	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Say yes here to support the Mediatek SoC GPIO device
