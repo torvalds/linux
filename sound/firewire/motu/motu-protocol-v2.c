@@ -173,12 +173,9 @@ static void calculate_fixed_part(struct snd_motu_packet_format *formats,
 	pcm_chunks[0] += 2;
 	pcm_chunks[1] += 2;
 
-	/* This part should be multiples of 4. */
-	formats->fixed_part_pcm_chunks[0] = round_up(2 + pcm_chunks[0], 4) - 2;
-	formats->fixed_part_pcm_chunks[1] = round_up(2 + pcm_chunks[1], 4) - 2;
-	if (flags & SND_MOTU_SPEC_SUPPORT_CLOCK_X4)
-		formats->fixed_part_pcm_chunks[2] =
-					round_up(2 + pcm_chunks[2], 4) - 2;
+	formats->fixed_part_pcm_chunks[0] = pcm_chunks[0];
+	formats->fixed_part_pcm_chunks[1] = pcm_chunks[1];
+	formats->fixed_part_pcm_chunks[2] = pcm_chunks[2];
 }
 
 static void calculate_differed_part(struct snd_motu_packet_format *formats,
