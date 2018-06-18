@@ -2207,6 +2207,40 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
+/*
+ * __btrfs_inc_extent_ref - insert backreference for a given extent
+ *
+ * @trans:	    Handle of transaction
+ *
+ * @node:	    The delayed ref node used to get the bytenr/length for
+ *		    extent whose references are incremented.
+ *
+ * @parent:	    If this is a shared extent (BTRFS_SHARED_DATA_REF_KEY/
+ *		    BTRFS_SHARED_BLOCK_REF_KEY) then it holds the logical
+ *		    bytenr of the parent block. Since new extents are always
+ *		    created with indirect references, this will only be the case
+ *		    when relocating a shared extent. In that case, root_objectid
+ *		    will be BTRFS_TREE_RELOC_OBJECTID. Otheriwse, parent must
+ *		    be 0
+ *
+ * @root_objectid:  The id of the root where this modification has originated,
+ *		    this can be either one of the well-known metadata trees or
+ *		    the subvolume id which references this extent.
+ *
+ * @owner:	    For data extents it is the inode number of the owning file.
+ *		    For metadata extents this parameter holds the level in the
+ *		    tree of the extent.
+ *
+ * @offset:	    For metadata extents the offset is ignored and is currently
+ *		    always passed as 0. For data extents it is the fileoffset
+ *		    this extent belongs to.
+ *
+ * @refs_to_add     Number of references to add
+ *
+ * @extent_op       Pointer to a structure, holding information necessary when
+ *                  updating a tree block's flags
+ *
+ */
 static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 				  struct btrfs_fs_info *fs_info,
 				  struct btrfs_delayed_ref_node *node,
