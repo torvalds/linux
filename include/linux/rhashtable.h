@@ -595,7 +595,7 @@ static inline void *__rhashtable_insert_fast(
 	lock = rht_bucket_lock(tbl, hash);
 	spin_lock_bh(lock);
 
-	if (unlikely(rht_dereference_bucket(tbl->future_tbl, tbl, hash))) {
+	if (unlikely(rcu_access_pointer(tbl->future_tbl))) {
 slow_path:
 		spin_unlock_bh(lock);
 		rcu_read_unlock();

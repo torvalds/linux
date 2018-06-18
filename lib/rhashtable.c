@@ -226,8 +226,7 @@ static struct bucket_table *rhashtable_last_table(struct rhashtable *ht,
 static int rhashtable_rehash_one(struct rhashtable *ht, unsigned int old_hash)
 {
 	struct bucket_table *old_tbl = rht_dereference(ht->tbl, ht);
-	struct bucket_table *new_tbl = rhashtable_last_table(ht,
-		rht_dereference_rcu(old_tbl->future_tbl, ht));
+	struct bucket_table *new_tbl = rhashtable_last_table(ht, old_tbl);
 	struct rhash_head __rcu **pprev = rht_bucket_var(old_tbl, old_hash);
 	int err = -EAGAIN;
 	struct rhash_head *head, *next, *entry;
@@ -467,7 +466,7 @@ static int rhashtable_insert_rehash(struct rhashtable *ht,
 
 fail:
 	/* Do not fail the insert if someone else did a rehash. */
-	if (likely(rcu_dereference_raw(tbl->future_tbl)))
+	if (likely(rcu_access_pointer(tbl->future_tbl)))
 		return 0;
 
 	/* Schedule async rehash to retry allocation in process context. */
@@ -540,7 +539,7 @@ static struct bucket_table *rhashtable_insert_one(struct rhashtable *ht,
 	if (PTR_ERR(data) != -EAGAIN && PTR_ERR(data) != -ENOENT)
 		return ERR_CAST(data);
 
-	new_tbl = rcu_dereference(tbl->future_tbl);
+	new_tbl = rht_dereference_rcu(tbl->future_tbl, ht);
 	if (new_tbl)
 		return new_tbl;
 
@@ -599,7 +598,7 @@ static void *rhashtable_try_insert(struct rhashtable *ht, const void *key,
 			break;
 
 		spin_unlock_bh(lock);
-		tbl = rcu_dereference(tbl->future_tbl);
+		tbl = rht_dereference_rcu(tbl->future_tbl, ht);
 	}
 
 	data = rhashtable_lookup_one(ht, tbl, hash, key, obj);
