@@ -275,6 +275,8 @@ struct dce_hwseq_registers {
 	uint32_t MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB;
 	uint32_t MC_VM_SYSTEM_APERTURE_LOW_ADDR;
 	uint32_t MC_VM_SYSTEM_APERTURE_HIGH_ADDR;
+	uint32_t AZALIA_AUDIO_DTO;
+	uint32_t AZALIA_CONTROLLER_CLOCK_GATING;
 };
  /* set field name */
 #define HWS_SF(blk_name, reg_name, field_name, post_fix)\
@@ -500,7 +502,8 @@ struct dce_hwseq_registers {
 	type D1VGA_MODE_ENABLE; \
 	type D2VGA_MODE_ENABLE; \
 	type D3VGA_MODE_ENABLE; \
-	type D4VGA_MODE_ENABLE;
+	type D4VGA_MODE_ENABLE; \
+	type AZALIA_AUDIO_DTO_MODULE;
 
 struct dce_hwseq_shift {
 	HWSEQ_REG_FIELD_LIST(uint8_t)
