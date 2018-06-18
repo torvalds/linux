@@ -3621,43 +3621,16 @@ static void pqi_raid_synchronous_complete(struct pqi_io_request *io_request,
 	complete(waiting);
 }
 
-static int pqi_submit_raid_request_synchronous_with_io_request(
-	struct pqi_ctrl_info *ctrl_info, struct pqi_io_request *io_request,
-	unsigned long timeout_msecs)
-{
-	int rc = 0;
-	DECLARE_COMPLETION_ONSTACK(wait);
-
-	io_request->io_complete_callback = pqi_raid_synchronous_complete;
-	io_request->context = &wait;
-
-	pqi_start_io(ctrl_info,
-		&ctrl_info->queue_groups[PQI_DEFAULT_QUEUE_GROUP], RAID_PATH,
-		io_request);
-
-	if (timeout_msecs == NO_TIMEOUT) {
-		pqi_wait_for_completion_io(ctrl_info, &wait);
-	} else {
-		if (!wait_for_completion_io_timeout(&wait,
-			msecs_to_jiffies(timeout_msecs))) {
-			dev_warn(&ctrl_info->pci_dev->dev,
-				"command timed out\n");
-			rc = -ETIMEDOUT;
-		}
-	}
-
-	return rc;
-}
-
 static int pqi_submit_raid_request_synchronous(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_iu_header *request, unsigned int flags,
 	struct pqi_raid_error_info *error_info, unsigned long timeout_msecs)
 {
-	int rc;
+	int rc = 0;
 	struct pqi_io_request *io_request;
 	unsigned long start_jiffies;
 	unsigned long msecs_blocked;
 	size_t iu_length;
+	DECLARE_COMPLETION_ONSTACK(wait);
 
 	/*
 	 * Note that specifying PQI_SYNC_FLAGS_INTERRUPTABLE and a timeout value
@@ -3686,11 +3659,13 @@ static int pqi_submit_raid_request_synchronous(struct pqi_ctrl_info *ctrl_info,
 	pqi_ctrl_busy(ctrl_info);
 	timeout_msecs = pqi_wait_if_ctrl_blocked(ctrl_info, timeout_msecs);
 	if (timeout_msecs == 0) {
+		pqi_ctrl_unbusy(ctrl_info);
 		rc = -ETIMEDOUT;
 		goto out;
 	}
 
 	if (pqi_ctrl_offline(ctrl_info)) {
+		pqi_ctrl_unbusy(ctrl_info);
 		rc = -ENXIO;
 		goto out;
 	}
@@ -3708,8 +3683,25 @@ static int pqi_submit_raid_request_synchronous(struct pqi_ctrl_info *ctrl_info,
 		PQI_REQUEST_HEADER_LENGTH;
 	memcpy(io_request->iu, request, iu_length);
 
-	rc = pqi_submit_raid_request_synchronous_with_io_request(ctrl_info,
-		io_request, timeout_msecs);
+	io_request->io_complete_callback = pqi_raid_synchronous_complete;
+	io_request->context = &wait;
+
+	pqi_start_io(ctrl_info,
+		&ctrl_info->queue_groups[PQI_DEFAULT_QUEUE_GROUP], RAID_PATH,
+		io_request);
+
+	pqi_ctrl_unbusy(ctrl_info);
+
+	if (timeout_msecs == NO_TIMEOUT) {
+		pqi_wait_for_completion_io(ctrl_info, &wait);
+	} else {
+		if (!wait_for_completion_io_timeout(&wait,
+			msecs_to_jiffies(timeout_msecs))) {
+			dev_warn(&ctrl_info->pci_dev->dev,
+				"command timed out\n");
+			rc = -ETIMEDOUT;
+		}
+	}
 
 	if (error_info) {
 		if (io_request->error_info)
@@ -3736,7 +3728,6 @@ static int pqi_submit_raid_request_synchronous(struct pqi_ctrl_info *ctrl_info,
 	pqi_free_io_request(io_request);
 
 out:
-	pqi_ctrl_unbusy(ctrl_info);
 	up(&ctrl_info->sync_request_sem);
 
 	return rc;
