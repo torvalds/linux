@@ -274,7 +274,7 @@ ath10k_htc_process_lookahead_bundle(struct ath10k_htc *htc,
 	struct ath10k *ar = htc->ar;
 	int bundle_cnt = len / sizeof(*report);
 
-	if (!bundle_cnt || (bundle_cnt > HTC_HOST_MAX_MSG_PER_BUNDLE)) {
+	if (!bundle_cnt || (bundle_cnt > HTC_HOST_MAX_MSG_PER_RX_BUNDLE)) {
 		ath10k_warn(ar, "Invalid lookahead bundle count: %d\n",
 			    bundle_cnt);
 		return -EINVAL;
@@ -655,7 +655,7 @@ int ath10k_htc_wait_target(struct ath10k_htc *htc)
 	    sizeof(msg->hdr) + sizeof(msg->ready_ext)) {
 		htc->max_msgs_per_htc_bundle =
 			min_t(u8, msg->ready_ext.max_msgs_per_htc_bundle,
-			      HTC_HOST_MAX_MSG_PER_BUNDLE);
+			      HTC_HOST_MAX_MSG_PER_RX_BUNDLE);
 		ath10k_dbg(ar, ATH10K_DBG_HTC,
 			   "Extended ready message. RX bundle size: %d\n",
 			   htc->max_msgs_per_htc_bundle);
