@@ -918,13 +918,13 @@ static void remove_cpu_bpts(void)
 static void
 show_uptime(void)
 {
-	struct timespec uptime;
+	struct timespec64 uptime;
 
 	if (setjmp(bus_error_jmp) == 0) {
 		catch_memory_errors = 1;
 		sync();
 
-		get_monotonic_boottime(&uptime);
+		ktime_get_coarse_boottime_ts64(&uptime);
 		printf("Uptime: %lu.%.2lu seconds\n", (unsigned long)uptime.tv_sec,
 			((unsigned long)uptime.tv_nsec / (NSEC_PER_SEC/100)));
 
