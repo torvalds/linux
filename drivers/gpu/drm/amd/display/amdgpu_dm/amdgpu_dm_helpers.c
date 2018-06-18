@@ -514,8 +514,8 @@ enum dc_edid_status dm_helpers_read_local_edid(
 				edid_status,
 				aconnector->base.name);
 	if (link->aux_mode) {
-		union test_request test_request = {0};
-		union test_response test_response = {0};
+		union test_request test_request = { {0} };
+		union test_response test_response = { {0} };
 
 		dm_helpers_dp_read_dpcd(ctx,
 					link,
