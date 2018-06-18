@@ -29,5 +29,10 @@ extern struct snd_soc_acpi_mach snd_soc_acpi_intel_broadwell_machines[];
 extern struct snd_soc_acpi_mach snd_soc_acpi_intel_baytrail_legacy_machines[];
 extern struct snd_soc_acpi_mach snd_soc_acpi_intel_baytrail_machines[];
 extern struct snd_soc_acpi_mach snd_soc_acpi_intel_cherrytrail_machines[];
+extern struct snd_soc_acpi_mach snd_soc_acpi_intel_skl_machines[];
+extern struct snd_soc_acpi_mach snd_soc_acpi_intel_kbl_machines[];
+extern struct snd_soc_acpi_mach snd_soc_acpi_intel_bxt_machines[];
+extern struct snd_soc_acpi_mach snd_soc_acpi_intel_glk_machines[];
+extern struct snd_soc_acpi_mach snd_soc_acpi_intel_cnl_machines[];
 
 #endif
