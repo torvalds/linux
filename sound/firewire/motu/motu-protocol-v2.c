@@ -13,6 +13,8 @@
 #define  V2_CLOCK_RATE_SHIFT			3
 #define  V2_CLOCK_SRC_MASK			0x00000007
 #define  V2_CLOCK_SRC_SHIFT			0
+#define  V2_CLOCK_TRAVELER_FETCH_DISABLE	0x04000000
+#define  V2_CLOCK_TRAVELER_FETCH_ENABLE		0x03000000
 
 #define V2_IN_OUT_CONF_OFFSET			0x0c04
 #define  V2_OPT_OUT_IFACE_MASK			0x00000c00
@@ -65,6 +67,11 @@ static int v2_set_clock_rate(struct snd_motu *motu, unsigned int rate)
 
 	data &= ~V2_CLOCK_RATE_MASK;
 	data |= i << V2_CLOCK_RATE_SHIFT;
+
+	if (motu->spec == &snd_motu_spec_traveler) {
+		data &= ~V2_CLOCK_TRAVELER_FETCH_ENABLE;
+		data |= V2_CLOCK_TRAVELER_FETCH_DISABLE;
+	}
 
 	reg = cpu_to_be32(data);
 	return snd_motu_transaction_write(motu, V2_CLOCK_STATUS_OFFSET, &reg,
@@ -121,8 +128,31 @@ static int v2_get_clock_source(struct snd_motu *motu,
 
 static int v2_switch_fetching_mode(struct snd_motu *motu, bool enable)
 {
-	/* V2 protocol doesn't have this feature. */
-	return 0;
+	__be32 reg;
+	u32 data;
+	int err = 0;
+
+	if (motu->spec == &snd_motu_spec_traveler) {
+		err = snd_motu_transaction_read(motu, V2_CLOCK_STATUS_OFFSET,
+						&reg, sizeof(reg));
+		if (err < 0)
+			return err;
+		data = be32_to_cpu(reg);
+
+		data &= ~(V2_CLOCK_TRAVELER_FETCH_DISABLE |
+			  V2_CLOCK_TRAVELER_FETCH_ENABLE);
+
+		if (enable)
+			data |= V2_CLOCK_TRAVELER_FETCH_ENABLE;
+		else
+			data |= V2_CLOCK_TRAVELER_FETCH_DISABLE;
+
+		reg = cpu_to_be32(data);
+		err = snd_motu_transaction_write(motu, V2_CLOCK_STATUS_OFFSET,
+						 &reg, sizeof(reg));
+	}
+
+	return err;
 }
 
 static void calculate_fixed_part(struct snd_motu_packet_format *formats,

@@ -209,6 +209,21 @@ static const struct snd_motu_spec motu_828mk2 = {
 	.analog_out_ports = 8,
 };
 
+const struct snd_motu_spec snd_motu_spec_traveler = {
+	.name = "Traveler",
+	.protocol = &snd_motu_protocol_v2,
+	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
+		 SND_MOTU_SPEC_SUPPORT_CLOCK_X4 |
+		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
+		 SND_MOTU_SPEC_HAS_AESEBU_IFACE |
+		 SND_MOTU_SPEC_HAS_OPT_IFACE_A |
+		 SND_MOTU_SPEC_RX_MIDI_2ND_Q |
+		 SND_MOTU_SPEC_TX_MIDI_2ND_Q,
+
+	.analog_in_ports = 8,
+	.analog_out_ports = 8,
+};
+
 static const struct snd_motu_spec motu_828mk3 = {
 	.name = "828mk3",
 	.protocol = &snd_motu_protocol_v3,
@@ -253,6 +268,7 @@ static const struct snd_motu_spec motu_audio_express = {
 
 static const struct ieee1394_device_id motu_id_table[] = {
 	SND_MOTU_DEV_ENTRY(0x101800, &motu_828mk2),
+	SND_MOTU_DEV_ENTRY(0x107800, &snd_motu_spec_traveler),
 	SND_MOTU_DEV_ENTRY(0x106800, &motu_828mk3),	/* FireWire only. */
 	SND_MOTU_DEV_ENTRY(0x100800, &motu_828mk3),	/* Hybrid. */
 	SND_MOTU_DEV_ENTRY(0x104800, &motu_audio_express),
