@@ -13,8 +13,8 @@
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 
-#define MTK_BANK_CNT		3
-#define MTK_BANK_WIDTH		32
+#define MTK_BANK_CNT	3
+#define MTK_BANK_WIDTH	32
 
 #define GPIO_BANK_WIDE	0x04
 #define GPIO_REG_CTRL	0x00
