@@ -83,7 +83,7 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 	netdev_dbg(ieee->dev, "%s(): frame(%d) sentd to: %pM, ieee->dev:%p\n",
 		   __func__, type, Dst, ieee->dev);
 
-	if (pBA == NULL) {
+	if (!pBA) {
 		netdev_warn(ieee->dev, "pBA is NULL\n");
 		return NULL;
 	}
