@@ -365,7 +365,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	pAdmittedBA = &pTS->TxAdmittedBARecord;
 
 
-	if (pAdmittedBA->bValid == true) {
+	if (pAdmittedBA->bValid) {
 		netdev_dbg(ieee->dev, "%s(): ADDBA response already admitted\n",
 			   __func__);
 		return -1;
@@ -485,7 +485,7 @@ void TsInitAddBA(struct rtllib_device *ieee, struct tx_ts_record *pTS,
 {
 	struct ba_record *pBA = &pTS->TxPendingBARecord;
 
-	if (pBA->bValid == true && bOverwritePending == false)
+	if (pBA->bValid && !bOverwritePending)
 		return;
 
 	DeActivateBAEntry(ieee, pBA);
