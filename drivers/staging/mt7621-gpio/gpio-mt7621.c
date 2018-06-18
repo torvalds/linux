@@ -93,14 +93,12 @@ mediatek_gpio_irq_handler(int irq, void *data)
 
 	pending = mtk_gpio_r32(rg, GPIO_REG_STAT);
 
-	if (pending) {
-		for_each_set_bit(bit, &pending, MTK_BANK_WIDTH) {
-			u32 map = irq_find_mapping(gc->irq.domain, bit);
+	for_each_set_bit(bit, &pending, MTK_BANK_WIDTH) {
+		u32 map = irq_find_mapping(gc->irq.domain, bit);
 
-			generic_handle_irq(map);
-			mtk_gpio_w32(rg, GPIO_REG_STAT, BIT(bit));
-			ret |= IRQ_HANDLED;
-		}
+		generic_handle_irq(map);
+		mtk_gpio_w32(rg, GPIO_REG_STAT, BIT(bit));
+		ret |= IRQ_HANDLED;
 	}
 
 	return ret;
