@@ -105,7 +105,8 @@ static int __init arm_idle_init_cpu(int cpu)
 
 	ret = cpuidle_register_driver(drv);
 	if (ret) {
-		pr_err("Failed to register cpuidle driver\n");
+		if (ret != -EBUSY)
+			pr_err("Failed to register cpuidle driver\n");
 		goto out_kfree_drv;
 	}
 
