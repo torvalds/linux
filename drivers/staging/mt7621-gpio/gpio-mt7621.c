@@ -237,29 +237,31 @@ mediatek_gpio_bank_probe(struct platform_device *pdev, struct device_node *bank)
 		return ret;
 	}
 
-	/*
-	 * Manually request the irq here instead of passing a flow-handler
-	 * to gpiochip_set_chained_irqchip, because the irq is shared.
-	 */
-	ret = devm_request_irq(&pdev->dev, gpio->gpio_irq,
-			       mediatek_gpio_irq_handler, IRQF_SHARED,
-			       "mt7621", &rg->chip);
+	if (gpio->gpio_irq) {
+		/*
+		 * Manually request the irq here instead of passing a flow-handler
+		 * to gpiochip_set_chained_irqchip, because the irq is shared.
+		 */
+		ret = devm_request_irq(&pdev->dev, gpio->gpio_irq,
+				       mediatek_gpio_irq_handler, IRQF_SHARED,
+				       "mt7621", &rg->chip);
 
-	if (ret) {
-		dev_err(&pdev->dev, "Error requesting IRQ %d: %d\n",
-			gpio->gpio_irq, ret);
-		return ret;
+		if (ret) {
+			dev_err(&pdev->dev, "Error requesting IRQ %d: %d\n",
+				gpio->gpio_irq, ret);
+			return ret;
+		}
+
+		ret = gpiochip_irqchip_add(&rg->chip, &mediatek_gpio_irq_chip,
+					   0, handle_simple_irq, IRQ_TYPE_NONE);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to add gpiochip_irqchip\n");
+			return ret;
+		}
+
+		gpiochip_set_chained_irqchip(&rg->chip, &mediatek_gpio_irq_chip,
+					     gpio->gpio_irq, NULL);
 	}
-
-	ret = gpiochip_irqchip_add(&rg->chip, &mediatek_gpio_irq_chip,
-				   0, handle_simple_irq, IRQ_TYPE_NONE);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to add gpiochip_irqchip\n");
-		return ret;
-	}
-
-	gpiochip_set_chained_irqchip(&rg->chip, &mediatek_gpio_irq_chip,
-				     gpio->gpio_irq, NULL);
 
 	/* set polarity to low for all gpios */
 	mtk_gpio_w32(rg, GPIO_REG_POL, 0);
