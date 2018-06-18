@@ -1243,17 +1243,18 @@ static int ff_layout_read_done_cb(struct rpc_task *task,
 					   hdr->ds_clp, hdr->lseg,
 					   hdr->pgio_mirror_idx);
 
+	clear_bit(NFS_IOHDR_RESEND_PNFS, &hdr->flags);
+	clear_bit(NFS_IOHDR_RESEND_MDS, &hdr->flags);
 	switch (err) {
 	case -NFS4ERR_RESET_TO_PNFS:
 		if (ff_layout_choose_best_ds_for_read(hdr->lseg,
 					hdr->pgio_mirror_idx + 1,
 					&hdr->pgio_mirror_idx))
 			goto out_eagain;
-		ff_layout_read_record_layoutstats_done(task, hdr);
-		pnfs_read_resend_pnfs(hdr);
+		set_bit(NFS_IOHDR_RESEND_PNFS, &hdr->flags);
 		return task->tk_status;
 	case -NFS4ERR_RESET_TO_MDS:
-		ff_layout_reset_read(hdr);
+		set_bit(NFS_IOHDR_RESEND_MDS, &hdr->flags);
 		return task->tk_status;
 	case -EAGAIN:
 		goto out_eagain;
@@ -1403,6 +1404,10 @@ static void ff_layout_read_release(void *data)
 	struct nfs_pgio_header *hdr = data;
 
 	ff_layout_read_record_layoutstats_done(&hdr->task, hdr);
+	if (test_bit(NFS_IOHDR_RESEND_PNFS, &hdr->flags))
+		pnfs_read_resend_pnfs(hdr);
+	else if (test_bit(NFS_IOHDR_RESEND_MDS, &hdr->flags))
+		ff_layout_reset_read(hdr);
 	pnfs_generic_rw_release(data);
 }
 
