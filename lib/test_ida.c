@@ -47,6 +47,28 @@ static void ida_check_leaf(struct ida *ida, unsigned int base)
 	IDA_BUG_ON(ida, !ida_is_empty(ida));
 }
 
+/*
+ * Check allocations up to and slightly above the maximum allowed (2^31-1) ID.
+ * Allocating up to 2^31-1 should succeed, and then allocating the next one
+ * should fail.
+ */
+static void ida_check_max(struct ida *ida)
+{
+	unsigned long i, j;
+
+	for (j = 1; j < 65537; j *= 2) {
+		unsigned long base = (1UL << 31) - j;
+		for (i = 0; i < j; i++) {
+			IDA_BUG_ON(ida, ida_alloc_min(ida, base, GFP_KERNEL) !=
+					base + i);
+		}
+		IDA_BUG_ON(ida, ida_alloc_min(ida, base, GFP_KERNEL) !=
+				-ENOSPC);
+		ida_destroy(ida);
+		IDA_BUG_ON(ida, !ida_is_empty(ida));
+	}
+}
+
 static int ida_checks(void)
 {
 	DEFINE_IDA(ida);
@@ -55,6 +77,7 @@ static int ida_checks(void)
 	ida_check_leaf(&ida, 0);
 	ida_check_leaf(&ida, 1024);
 	ida_check_leaf(&ida, 1024 * 64);
+	ida_check_max(&ida);
 
 	printk("IDA: %u of %u tests passed\n", tests_passed, tests_run);
 	return (tests_run != tests_passed) ? 0 : -EINVAL;

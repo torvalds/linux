@@ -396,33 +396,6 @@ void ida_check_conv(void)
 	ida_destroy(&ida);
 }
 
-/*
- * Check allocations up to and slightly above the maximum allowed (2^31-1) ID.
- * Allocating up to 2^31-1 should succeed, and then allocating the next one
- * should fail.
- */
-void ida_check_max(void)
-{
-	DEFINE_IDA(ida);
-	int id, err;
-	unsigned long i, j;
-
-	for (j = 1; j < 65537; j *= 2) {
-		unsigned long base = (1UL << 31) - j;
-		for (i = 0; i < j; i++) {
-			assert(ida_pre_get(&ida, GFP_KERNEL));
-			assert(!ida_get_new_above(&ida, base, &id));
-			assert(id == base + i);
-		}
-		assert(ida_pre_get(&ida, GFP_KERNEL));
-		err = ida_get_new_above(&ida, base, &id);
-		assert(err == -ENOSPC);
-		ida_destroy(&ida);
-		assert(ida_is_empty(&ida));
-		rcu_barrier();
-	}
-}
-
 void ida_check_random(void)
 {
 	DEFINE_IDA(ida);
@@ -534,7 +507,6 @@ void user_ida_checks(void)
 	ida_destroy(&ida);
 	assert(ida_is_empty(&ida));
 
-	ida_check_max();
 	ida_check_conv();
 	ida_check_random();
 	ida_simple_get_remove_test();
