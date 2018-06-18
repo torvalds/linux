@@ -116,7 +116,7 @@ static void bucket_table_free_rcu(struct rcu_head *head)
 
 static union nested_table *nested_table_alloc(struct rhashtable *ht,
 					      union nested_table __rcu **prev,
-					      unsigned int shifted)
+					      bool leaf)
 {
 	union nested_table *ntbl;
 	int i;
@@ -127,8 +127,8 @@ static union nested_table *nested_table_alloc(struct rhashtable *ht,
 
 	ntbl = kzalloc(PAGE_SIZE, GFP_ATOMIC);
 
-	if (ntbl && shifted) {
-		for (i = 0; i < PAGE_SIZE / sizeof(ntbl[0].bucket); i++)
+	if (ntbl && leaf) {
+		for (i = 0; i < PAGE_SIZE / sizeof(ntbl[0]); i++)
 			INIT_RHT_NULLS_HEAD(ntbl[i].bucket);
 	}
 
@@ -155,7 +155,7 @@ static struct bucket_table *nested_bucket_table_alloc(struct rhashtable *ht,
 		return NULL;
 
 	if (!nested_table_alloc(ht, (union nested_table __rcu **)tbl->buckets,
-				0)) {
+				false)) {
 		kfree(tbl);
 		return NULL;
 	}
@@ -1207,24 +1207,18 @@ struct rhash_head __rcu **rht_bucket_nested_insert(struct rhashtable *ht,
 	unsigned int index = hash & ((1 << tbl->nest) - 1);
 	unsigned int size = tbl->size >> tbl->nest;
 	union nested_table *ntbl;
-	unsigned int shifted;
-	unsigned int nhash;
 
 	ntbl = (union nested_table *)rcu_dereference_raw(tbl->buckets[0]);
 	hash >>= tbl->nest;
-	nhash = index;
-	shifted = tbl->nest;
 	ntbl = nested_table_alloc(ht, &ntbl[index].table,
-				  size <= (1 << shift) ? shifted : 0);
+				  size <= (1 << shift));
 
 	while (ntbl && size > (1 << shift)) {
 		index = hash & ((1 << shift) - 1);
 		size >>= shift;
 		hash >>= shift;
-		nhash |= index << shifted;
-		shifted += shift;
 		ntbl = nested_table_alloc(ht, &ntbl[index].table,
-					  size <= (1 << shift) ? shifted : 0);
+					  size <= (1 << shift));
 	}
 
 	if (!ntbl)
