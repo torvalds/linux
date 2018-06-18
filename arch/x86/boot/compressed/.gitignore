@@ -1,6 +1,0 @@
-relocs
-vmlinux.bin.all
-vmlinux.relocs
-vmlinux.lds
-mkpiggy
-piggy.S

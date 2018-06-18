@@ -1,7 +1,0 @@
-#
-# KERNFS should be selected by its users
-#
-
-config KERNFS
-	bool
-	default n

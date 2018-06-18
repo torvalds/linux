@@ -1,8 +1,0 @@
-config MACH_ASM9260
-	bool "Alphascale ASM9260"
-	depends on ARCH_MULTI_V5
-	select CPU_ARM926T
-	select ASM9260_TIMER
-	select GENERIC_CLOCKEVENTS
-	help
-	  Support for Alphascale ASM9260 based platform.

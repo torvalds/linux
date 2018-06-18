@@ -1,9 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0
-menu "Kernel hacking"
-
-source "lib/Kconfig.debug"
-
-config TRACE_IRQFLAGS_SUPPORT
-	def_bool y
-
-endmenu

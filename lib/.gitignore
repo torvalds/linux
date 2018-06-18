@@ -1,6 +1,0 @@
-#
-# Generated files
-#
-gen_crc32table
-crc32table.h
-oid_registry_data.c
