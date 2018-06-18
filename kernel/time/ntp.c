@@ -502,7 +502,7 @@ static void sched_sync_hw_clock(struct timespec64 now,
 {
 	struct timespec64 next;
 
-	getnstimeofday64(&next);
+	ktime_get_real_ts64(&next);
 	if (!fail)
 		next.tv_sec = 659;
 	else {
@@ -537,7 +537,7 @@ static void sync_rtc_clock(void)
 	if (!IS_ENABLED(CONFIG_RTC_SYSTOHC))
 		return;
 
-	getnstimeofday64(&now);
+	ktime_get_real_ts64(&now);
 
 	adjust = now;
 	if (persistent_clock_is_local)
@@ -591,7 +591,7 @@ static bool sync_cmos_clock(void)
 	 * Architectures are strongly encouraged to use rtclib and not
 	 * implement this legacy API.
 	 */
-	getnstimeofday64(&now);
+	ktime_get_real_ts64(&now);
 	if (rtc_tv_nsec_ok(-1 * target_nsec, &adjust, &now)) {
 		if (persistent_clock_is_local)
 			adjust.tv_sec -= (sys_tz.tz_minuteswest * 60);
