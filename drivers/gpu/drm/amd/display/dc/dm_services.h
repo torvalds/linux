@@ -339,7 +339,10 @@ bool dm_dmcu_set_pipe(struct dc_context *ctx, unsigned int controller_id);
 #define dm_log_to_buffer(buffer, size, fmt, args)\
 	vsnprintf(buffer, size, fmt, args)
 
-unsigned long long dm_get_timestamp(struct dc_context *ctx);
+static inline unsigned long long dm_get_timestamp(struct dc_context *ctx)
+{
+	return ktime_get_raw_ns();
+}
 
 unsigned long long dm_get_elapse_time_in_ns(struct dc_context *ctx,
 		unsigned long long current_time_stamp,
