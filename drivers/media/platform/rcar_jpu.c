@@ -198,7 +198,6 @@
  * @vfd_decoder: video device node for decoder mem2mem mode
  * @m2m_dev: v4l2 mem2mem device data
  * @curr: pointer to current context
- * @irq_queue:	interrupt handler waitqueue
  * @regs: JPEG IP registers mapping
  * @irq: JPEG IP irq
  * @clk: JPEG IP clock
@@ -213,7 +212,6 @@ struct jpu {
 	struct video_device	vfd_decoder;
 	struct v4l2_m2m_dev	*m2m_dev;
 	struct jpu_ctx		*curr;
-	wait_queue_head_t	irq_queue;
 
 	void __iomem		*regs;
 	unsigned int		irq;
@@ -1496,11 +1494,6 @@ static void jpu_device_run(void *priv)
 
 static void jpu_job_abort(void *priv)
 {
-	struct jpu_ctx *ctx = priv;
-
-	if (!wait_event_timeout(ctx->jpu->irq_queue, !ctx->jpu->curr,
-				msecs_to_jiffies(JPU_JOB_TIMEOUT)))
-		jpu_cleanup(ctx, true);
 }
 
 static const struct v4l2_m2m_ops jpu_m2m_ops = {
@@ -1586,9 +1579,6 @@ static irqreturn_t jpu_irq_handler(int irq, void *dev_id)
 
 	v4l2_m2m_job_finish(jpu->m2m_dev, curr_ctx->fh.m2m_ctx);
 
-	/* ...wakeup abort routine if needed */
-	wake_up(&jpu->irq_queue);
-
 	return IRQ_HANDLED;
 
 handled:
@@ -1622,7 +1612,6 @@ static int jpu_probe(struct platform_device *pdev)
 	if (!jpu)
 		return -ENOMEM;
 
-	init_waitqueue_head(&jpu->irq_queue);
 	mutex_init(&jpu->mutex);
 	spin_lock_init(&jpu->lock);
 	jpu->dev = &pdev->dev;
