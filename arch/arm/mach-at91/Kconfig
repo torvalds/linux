@@ -27,6 +27,7 @@ config SOC_SAMA5D2
 	select HAVE_AT91_H32MX
 	select HAVE_AT91_GENERATED_CLK
 	select HAVE_AT91_AUDIO_PLL
+	select HAVE_AT91_I2S_MUX_CLK
 	select PINCTRL_AT91PIO4
 	help
 	  Select this if ou are using one of Microchip's SAMA5D2 family SoC.
@@ -127,6 +128,9 @@ config HAVE_AT91_GENERATED_CLK
 	bool
 
 config HAVE_AT91_AUDIO_PLL
+	bool
+
+config HAVE_AT91_I2S_MUX_CLK
 	bool
 
 config SOC_SAM_V4_V5
