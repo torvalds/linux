@@ -259,7 +259,7 @@ static int persistent_memory_claim(struct dm_writecache *wc)
 	if (da != p) {
 		long i;
 		wc->memory_map = NULL;
-		pages = kvmalloc(p * sizeof(struct page *), GFP_KERNEL);
+		pages = kvmalloc_array(p, sizeof(struct page *), GFP_KERNEL);
 		if (!pages) {
 			r = -ENOMEM;
 			goto err2;
@@ -859,7 +859,7 @@ static int writecache_alloc_entries(struct dm_writecache *wc)
 
 	if (wc->entries)
 		return 0;
-	wc->entries = vmalloc(sizeof(struct wc_entry) * wc->n_blocks);
+	wc->entries = vmalloc(array_size(sizeof(struct wc_entry), wc->n_blocks));
 	if (!wc->entries)
 		return -ENOMEM;
 	for (b = 0; b < wc->n_blocks; b++) {
@@ -1481,9 +1481,9 @@ static void __writecache_writeback_pmem(struct dm_writecache *wc, struct writeba
 		wb->bio.bi_iter.bi_sector = read_original_sector(wc, e);
 		wb->page_offset = PAGE_SIZE;
 		if (max_pages <= WB_LIST_INLINE ||
-		    unlikely(!(wb->wc_list = kmalloc(max_pages * sizeof(struct wc_entry *),
-						     GFP_NOIO | __GFP_NORETRY |
-						     __GFP_NOMEMALLOC | __GFP_NOWARN)))) {
+		    unlikely(!(wb->wc_list = kmalloc_array(max_pages, sizeof(struct wc_entry *),
+							   GFP_NOIO | __GFP_NORETRY |
+							   __GFP_NOMEMALLOC | __GFP_NOWARN)))) {
 			wb->wc_list = wb->wc_list_inline;
 			max_pages = WB_LIST_INLINE;
 		}
