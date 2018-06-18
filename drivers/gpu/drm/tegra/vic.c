@@ -198,7 +198,7 @@ static int vic_init(struct host1x_client *client)
 		vic->domain = tegra->domain;
 	}
 
-	vic->channel = host1x_channel_request(client->dev);
+	vic->channel = host1x_channel_request(client);
 	if (!vic->channel) {
 		err = -ENOMEM;
 		goto detach;

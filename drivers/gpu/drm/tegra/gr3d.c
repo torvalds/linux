@@ -49,7 +49,7 @@ static int gr3d_init(struct host1x_client *client)
 	struct gr3d *gr3d = to_gr3d(drm);
 	int err;
 
-	gr3d->channel = host1x_channel_request(client->dev);
+	gr3d->channel = host1x_channel_request(client);
 	if (!gr3d->channel)
 		return -ENOMEM;
 

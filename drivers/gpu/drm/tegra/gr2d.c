@@ -40,7 +40,7 @@ static int gr2d_init(struct host1x_client *client)
 	struct gr2d *gr2d = to_gr2d(drm);
 	int err;
 
-	gr2d->channel = host1x_channel_request(client->dev);
+	gr2d->channel = host1x_channel_request(client);
 	if (!gr2d->channel)
 		return -ENOMEM;
 

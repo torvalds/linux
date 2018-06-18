@@ -158,7 +158,7 @@ u32 host1x_syncpt_base_id(struct host1x_syncpt_base *base);
 struct host1x_channel;
 struct host1x_job;
 
-struct host1x_channel *host1x_channel_request(struct device *dev);
+struct host1x_channel *host1x_channel_request(struct host1x_client *client);
 struct host1x_channel *host1x_channel_get(struct host1x_channel *channel);
 void host1x_channel_put(struct host1x_channel *channel);
 int host1x_job_submit(struct host1x_job *job);
