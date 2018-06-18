@@ -271,6 +271,10 @@ void dcn10_link_encoder_setup(
 	struct link_encoder *enc,
 	enum signal_type signal);
 
+void configure_encoder(
+	struct dcn10_link_encoder *enc10,
+	const struct dc_link_settings *link_settings);
+
 /* enables TMDS PHY output */
 /* TODO: still need depth or just pass in adjusted pixel clock? */
 void dcn10_link_encoder_enable_tmds_output(

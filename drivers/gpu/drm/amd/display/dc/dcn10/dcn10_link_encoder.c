@@ -445,12 +445,11 @@ static uint8_t get_frontend_source(
 	}
 }
 
-static void configure_encoder(
+void configure_encoder(
 	struct dcn10_link_encoder *enc10,
 	const struct dc_link_settings *link_settings)
 {
 	/* set number of lanes */
-
 	REG_SET(DP_CONFIG, 0,
 			DP_UDI_LANES, link_settings->lane_count - LANE_COUNT_ONE);
 
