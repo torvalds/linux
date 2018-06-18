@@ -3358,17 +3358,7 @@ static noinline int insert_new_root(struct btrfs_trans_handle *trans,
 
 	root_add_used(root, fs_info->nodesize);
 
-	memzero_extent_buffer(c, 0, sizeof(struct btrfs_header));
 	btrfs_set_header_nritems(c, 1);
-	btrfs_set_header_level(c, level);
-	btrfs_set_header_bytenr(c, c->start);
-	btrfs_set_header_generation(c, trans->transid);
-	btrfs_set_header_backref_rev(c, BTRFS_MIXED_BACKREF_REV);
-	btrfs_set_header_owner(c, root->root_key.objectid);
-
-	write_extent_buffer_fsid(c, fs_info->fsid);
-	write_extent_buffer_chunk_tree_uuid(c, fs_info->chunk_tree_uuid);
-
 	btrfs_set_node_key(c, &lower_key, 0);
 	btrfs_set_node_blockptr(c, 0, lower->start);
 	lower_gen = btrfs_header_generation(lower);
@@ -3497,15 +3487,7 @@ static noinline int split_node(struct btrfs_trans_handle *trans,
 		return PTR_ERR(split);
 
 	root_add_used(root, fs_info->nodesize);
-
-	memzero_extent_buffer(split, 0, sizeof(struct btrfs_header));
-	btrfs_set_header_level(split, btrfs_header_level(c));
-	btrfs_set_header_bytenr(split, split->start);
-	btrfs_set_header_generation(split, trans->transid);
-	btrfs_set_header_backref_rev(split, BTRFS_MIXED_BACKREF_REV);
-	btrfs_set_header_owner(split, root->root_key.objectid);
-	write_extent_buffer_fsid(split, fs_info->fsid);
-	write_extent_buffer_chunk_tree_uuid(split, fs_info->chunk_tree_uuid);
+	ASSERT(btrfs_header_level(c) == level);
 
 	ret = tree_mod_log_eb_copy(fs_info, split, c, 0, mid, c_nritems - mid);
 	if (ret) {
@@ -4290,15 +4272,6 @@ again:
 		return PTR_ERR(right);
 
 	root_add_used(root, fs_info->nodesize);
-
-	memzero_extent_buffer(right, 0, sizeof(struct btrfs_header));
-	btrfs_set_header_bytenr(right, right->start);
-	btrfs_set_header_generation(right, trans->transid);
-	btrfs_set_header_backref_rev(right, BTRFS_MIXED_BACKREF_REV);
-	btrfs_set_header_owner(right, root->root_key.objectid);
-	btrfs_set_header_level(right, 0);
-	write_extent_buffer_fsid(right, fs_info->fsid);
-	write_extent_buffer_chunk_tree_uuid(right, fs_info->chunk_tree_uuid);
 
 	if (split == 0) {
 		if (mid <= slot) {

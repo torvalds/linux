@@ -8302,7 +8302,7 @@ int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
 
 static struct extent_buffer *
 btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
-		      u64 bytenr, int level)
+		      u64 bytenr, int level, u64 owner)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct extent_buffer *buf;
@@ -8311,7 +8311,6 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	if (IS_ERR(buf))
 		return buf;
 
-	btrfs_set_header_generation(buf, trans->transid);
 	btrfs_set_buffer_lockdep_class(root->root_key.objectid, buf, level);
 	btrfs_tree_lock(buf);
 	clean_tree_block(fs_info, buf);
@@ -8320,6 +8319,14 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	btrfs_set_lock_blocking(buf);
 	set_extent_buffer_uptodate(buf);
 
+	memzero_extent_buffer(buf, 0, sizeof(struct btrfs_header));
+	btrfs_set_header_level(buf, level);
+	btrfs_set_header_bytenr(buf, buf->start);
+	btrfs_set_header_generation(buf, trans->transid);
+	btrfs_set_header_backref_rev(buf, BTRFS_MIXED_BACKREF_REV);
+	btrfs_set_header_owner(buf, owner);
+	write_extent_buffer_fsid(buf, fs_info->fsid);
+	write_extent_buffer_chunk_tree_uuid(buf, fs_info->chunk_tree_uuid);
 	if (root->root_key.objectid == BTRFS_TREE_LOG_OBJECTID) {
 		buf->log_index = root->log_transid % 2;
 		/*
@@ -8428,7 +8435,7 @@ struct extent_buffer *btrfs_alloc_tree_block(struct btrfs_trans_handle *trans,
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 	if (btrfs_is_testing(fs_info)) {
 		buf = btrfs_init_new_buffer(trans, root, root->alloc_bytenr,
-					    level);
+					    level, root_objectid);
 		if (!IS_ERR(buf))
 			root->alloc_bytenr += blocksize;
 		return buf;
@@ -8444,7 +8451,8 @@ struct extent_buffer *btrfs_alloc_tree_block(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto out_unuse;
 
-	buf = btrfs_init_new_buffer(trans, root, ins.objectid, level);
+	buf = btrfs_init_new_buffer(trans, root, ins.objectid, level,
+				    root_objectid);
 	if (IS_ERR(buf)) {
 		ret = PTR_ERR(buf);
 		goto out_free_reserved;

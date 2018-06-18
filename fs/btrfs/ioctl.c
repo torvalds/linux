@@ -616,14 +616,6 @@ static noinline int create_subvol(struct inode *dir,
 		goto fail;
 	}
 
-	memzero_extent_buffer(leaf, 0, sizeof(struct btrfs_header));
-	btrfs_set_header_bytenr(leaf, leaf->start);
-	btrfs_set_header_generation(leaf, trans->transid);
-	btrfs_set_header_backref_rev(leaf, BTRFS_MIXED_BACKREF_REV);
-	btrfs_set_header_owner(leaf, objectid);
-
-	write_extent_buffer_fsid(leaf, fs_info->fsid);
-	write_extent_buffer_chunk_tree_uuid(leaf, fs_info->chunk_tree_uuid);
 	btrfs_mark_buffer_dirty(leaf);
 
 	inode_item = &root_item->inode;
