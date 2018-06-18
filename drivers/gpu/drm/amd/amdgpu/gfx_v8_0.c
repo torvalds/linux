@@ -6961,10 +6961,11 @@ static int gfx_v8_0_sq_irq(struct amdgpu_device *adev,
 {
 	u8 enc, se_id;
 	char type[20];
+	unsigned ih_data = entry->src_data[0];
 
-	/* Parse all fields according to SQ_INTERRUPT* registers */
-	enc = (entry->src_data[0] >> 26) & 0x3;
-	se_id = (entry->src_data[0] >> 24) & 0x3;
+
+	enc = REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_CMN, ENCODING);
+	se_id = REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_CMN, SE_ID);
 
 	switch (enc) {
 		case 0:
@@ -6974,14 +6975,14 @@ static int gfx_v8_0_sq_irq(struct amdgpu_device *adev,
 					"reg_timestamp %d, thread_trace_buff_full %d,"
 					"wlt %d, thread_trace %d.\n",
 					se_id,
-					(entry->src_data[0] >> 7) & 0x1,
-					(entry->src_data[0] >> 6) & 0x1,
-					(entry->src_data[0] >> 5) & 0x1,
-					(entry->src_data[0] >> 4) & 0x1,
-					(entry->src_data[0] >> 3) & 0x1,
-					(entry->src_data[0] >> 2) & 0x1,
-					(entry->src_data[0] >> 1) & 0x1,
-					entry->src_data[0] & 0x1
+					REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_AUTO, IMMED_OVERFLOW),
+					REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_AUTO, HOST_REG_OVERFLOW),
+					REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_AUTO, HOST_CMD_OVERFLOW),
+					REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_AUTO, CMD_TIMESTAMP),
+					REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_AUTO, REG_TIMESTAMP),
+					REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_AUTO, THREAD_TRACE_BUF_FULL),
+					REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_AUTO, WLT),
+					REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_AUTO, THREAD_TRACE)
 					);
 			break;
 		case 1:
@@ -6994,12 +6995,15 @@ static int gfx_v8_0_sq_irq(struct amdgpu_device *adev,
 
 			DRM_INFO(
 				"SQ %s detected: "
-					"se_id %d, cu_id %d, simd_id %d, wave_id %d, vm_id %d\n",
+					"se_id %d, cu_id %d, simd_id %d, wave_id %d, vm_id %d\n"
+					"trap %s, sh_id %d. ",
 					type, se_id,
-					(entry->src_data[0] >> 20) & 0xf,
-					(entry->src_data[0] >> 18) & 0x3,
-					(entry->src_data[0] >> 14) & 0xf,
-					(entry->src_data[0] >> 10) & 0xf
+					REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_WAVE, CU_ID),
+					REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_WAVE, SIMD_ID),
+					REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_WAVE, WAVE_ID),
+					REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_WAVE, VM_ID),
+					REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_WAVE, PRIV) ? "true" : "false",
+					REG_GET_FIELD(ih_data, SQ_INTERRUPT_WORD_WAVE, SH_ID)
 					);
 			break;
 		default:
