@@ -4705,6 +4705,161 @@ static const struct hash_testvec aes_vmac128_tv_template[] = {
 	},
 };
 
+static const char vmac64_string1[144] = {
+	'\0',     '\0',   '\0',   '\0',   '\0',   '\0',   '\0',   '\0',
+	'\0',     '\0',   '\0',   '\0',   '\0',   '\0',   '\0',   '\0',
+	'\x01', '\x01', '\x01', '\x01', '\x02', '\x03', '\x02', '\x02',
+	'\x02', '\x04', '\x01', '\x07', '\x04', '\x01', '\x04', '\x03',
+};
+
+static const char vmac64_string2[144] = {
+	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
+	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
+	 'a',  'b',  'c',
+};
+
+static const char vmac64_string3[144] = {
+	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
+	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
+	 'a',  'b',  'c',  'a',  'b',  'c',  'a',  'b',
+	 'c',  'a',  'b',  'c',  'a',  'b',  'c',  'a',
+	 'b',  'c',  'a',  'b',  'c',  'a',  'b',  'c',
+	 'a',  'b',  'c',  'a',  'b',  'c',  'a',  'b',
+	 'c',  'a',  'b',  'c',  'a',  'b',  'c',  'a',
+	 'b',  'c',  'a',  'b',  'c',  'a',  'b',  'c',
+};
+
+static const char vmac64_string4[33] = {
+	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
+	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
+	'b',   'c',  'e',  'f',  'i',  'j',  'l',  'm',
+	'o',   'p',  'r',  's',  't',  'u',  'w',  'x',
+	'z',
+};
+
+static const char vmac64_string5[143] = {
+	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
+	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
+	 'r',  'm',  'b',  't',  'c',  'o',  'l',  'k',
+	 ']',  '%',  '9',  '2',  '7',  '!',  'A',
+};
+
+static const char vmac64_string6[145] = {
+	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
+	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
+	 'p',  't',  '*',  '7',  'l',  'i',  '!',  '#',
+	 'w',  '0',  'z',  '/',  '4',  'A',  'n',
+};
+
+static const struct hash_testvec vmac64_aes_tv_template[] = {
+	{ /* draft-krovetz-vmac-01 test vector 1 */
+		.key	= "abcdefghijklmnop",
+		.ksize	= 16,
+		.plaintext = "\0\0\0\0\0\0\0\0bcdefghi",
+		.psize	= 16,
+		.digest	= "\x25\x76\xbe\x1c\x56\xd8\xb8\x1b",
+	}, { /* draft-krovetz-vmac-01 test vector 2 */
+		.key	= "abcdefghijklmnop",
+		.ksize	= 16,
+		.plaintext = "\0\0\0\0\0\0\0\0bcdefghiabc",
+		.psize	= 19,
+		.digest	= "\x2d\x37\x6c\xf5\xb1\x81\x3c\xe5",
+	}, { /* draft-krovetz-vmac-01 test vector 3 */
+		.key	= "abcdefghijklmnop",
+		.ksize	= 16,
+		.plaintext = "\0\0\0\0\0\0\0\0bcdefghi"
+			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc",
+		.psize	= 64,
+		.digest	= "\xe8\x42\x1f\x61\xd5\x73\xd2\x98",
+	}, { /* draft-krovetz-vmac-01 test vector 4 */
+		.key	= "abcdefghijklmnop",
+		.ksize	= 16,
+		.plaintext = "\0\0\0\0\0\0\0\0bcdefghi"
+			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc"
+			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc"
+			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc"
+			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc"
+			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc"
+			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabc",
+		.psize	= 316,
+		.digest	= "\x44\x92\xdf\x6c\x5c\xac\x1b\xbe",
+		.tap	= { 1, 100, 200, 15 },
+		.np	= 4,
+	}, {
+		.key	= "\x00\x01\x02\x03\x04\x05\x06\x07"
+			  "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
+		.ksize	= 16,
+		.plaintext = "\x00\x00\x00\x00\x00\x00\x00\x00"
+			  "\x00\x00\x00\x00\x00\x00\x00\x00",
+		.psize	= 16,
+		.digest	= "\x54\x7b\xa4\x77\x35\x80\x58\x07",
+	}, {
+		.key	= "\x00\x01\x02\x03\x04\x05\x06\x07"
+			  "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
+		.ksize	= 16,
+		.plaintext = vmac64_string1,
+		.psize	= sizeof(vmac64_string1),
+		.digest	= "\xa1\x8c\x68\xae\xd3\x3c\xf5\xce",
+	}, {
+		.key	= "\x00\x01\x02\x03\x04\x05\x06\x07"
+			  "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
+		.ksize	= 16,
+		.plaintext = vmac64_string2,
+		.psize	= sizeof(vmac64_string2),
+		.digest	= "\x2d\x14\xbd\x81\x73\xb0\x27\xc9",
+	}, {
+		.key	= "\x00\x01\x02\x03\x04\x05\x06\x07"
+			  "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
+		.ksize	= 16,
+		.plaintext = vmac64_string3,
+		.psize	= sizeof(vmac64_string3),
+		.digest	= "\x19\x0b\x47\x98\x8c\x95\x1a\x8d",
+	}, {
+		.key	= "abcdefghijklmnop",
+		.ksize	= 16,
+		.plaintext = "\x00\x00\x00\x00\x00\x00\x00\x00"
+			  "\x00\x00\x00\x00\x00\x00\x00\x00",
+		.psize	= 16,
+		.digest	= "\x84\x8f\x55\x9e\x26\xa1\x89\x3b",
+	}, {
+		.key	= "abcdefghijklmnop",
+		.ksize	= 16,
+		.plaintext = vmac64_string1,
+		.psize	= sizeof(vmac64_string1),
+		.digest	= "\xc2\x74\x8d\xf6\xb0\xab\x5e\xab",
+	}, {
+		.key	= "abcdefghijklmnop",
+		.ksize	= 16,
+		.plaintext = vmac64_string2,
+		.psize	= sizeof(vmac64_string2),
+		.digest	= "\xdf\x09\x7b\x3d\x42\x68\x15\x11",
+	}, {
+		.key	= "abcdefghijklmnop",
+		.ksize	= 16,
+		.plaintext = vmac64_string3,
+		.psize	= sizeof(vmac64_string3),
+		.digest	= "\xd4\xfa\x8f\xed\xe1\x8f\x32\x8b",
+	}, {
+		.key	= "a09b5cd!f#07K\x00\x00\x00",
+		.ksize	= 16,
+		.plaintext = vmac64_string4,
+		.psize	= sizeof(vmac64_string4),
+		.digest	= "\x5f\xa1\x4e\x42\xea\x0f\xa5\xab",
+	}, {
+		.key	= "a09b5cd!f#07K\x00\x00\x00",
+		.ksize	= 16,
+		.plaintext = vmac64_string5,
+		.psize	= sizeof(vmac64_string5),
+		.digest	= "\x60\x67\xe8\x1d\xbc\x98\x31\x25",
+	}, {
+		.key	= "a09b5cd!f#07K\x00\x00\x00",
+		.ksize	= 16,
+		.plaintext = vmac64_string6,
+		.psize	= sizeof(vmac64_string6),
+		.digest	= "\x41\xeb\x65\x95\x47\x9b\xae\xc4",
+	},
+};
+
 /*
  * SHA384 HMAC test vectors from RFC4231
  */
