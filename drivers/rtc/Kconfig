@@ -1027,18 +1027,6 @@ config RTC_DS1685_PROC_REGS
 
 	  Unless you are debugging this driver, choose N.
 
-config RTC_DS1685_SYSFS_REGS
-	bool "SysFS access to RTC register bits"
-	depends on RTC_DRV_DS1685_FAMILY && SYSFS
-	help
-	  Enable this to provide access to the RTC control register bits
-	  in /sys.  Some of the bits are read-write, others are read-only.
-
-	  Keep in mind that reading Control C's bits automatically clears
-	  all pending IRQ flags - this can cause lost interrupts.
-
-	  If you know that you need access to these bits, choose Y, Else N.
-
 config RTC_DRV_DS1742
 	tristate "Maxim/Dallas DS1742/1743"
 	depends on HAS_IOMEM
