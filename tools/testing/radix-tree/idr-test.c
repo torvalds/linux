@@ -320,19 +320,20 @@ void ida_dump(struct ida *);
 
 /*
  * Check that we get the correct error when we run out of memory doing
- * allocations.  To ensure we run out of memory, just "forget" to preload.
+ * allocations.  In userspace, GFP_NOWAIT will always fail an allocation.
  * The first test is for not having a bitmap available, and the second test
  * is for not being able to allocate a level of the radix tree.
  */
 void ida_check_nomem(void)
 {
 	DEFINE_IDA(ida);
-	int id, err;
+	int id;
 
-	err = ida_get_new_above(&ida, 256, &id);
-	assert(err == -EAGAIN);
-	err = ida_get_new_above(&ida, 1UL << 30, &id);
-	assert(err == -EAGAIN);
+	id = ida_alloc_min(&ida, 256, GFP_NOWAIT);
+	IDA_BUG_ON(&ida, id != -ENOMEM);
+	id = ida_alloc_min(&ida, 1UL << 30, GFP_NOWAIT);
+	IDA_BUG_ON(&ida, id != -ENOMEM);
+	IDA_BUG_ON(&ida, !ida_is_empty(&ida));
 }
 
 /*
