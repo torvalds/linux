@@ -13,6 +13,10 @@ Optional Properties:
 	       This is an active low signal to the OV5640.
 - powerdown-gpios: reference to the GPIO connected to the powerdown pin,
 		   if any. This is an active high signal to the OV5640.
+- rotation: as defined in
+	    Documentation/devicetree/bindings/media/video-interfaces.txt,
+	    valid values are 0 (sensor mounted upright) and 180 (sensor
+	    mounted upside down).
 
 The device node must contain one 'port' child node for its digital output
 video port, in accordance with the video interface bindings defined in
@@ -51,6 +55,7 @@ Examples:
 		DVDD-supply = <&vgen2_reg>;  /* 1.5v */
 		powerdown-gpios = <&gpio1 19 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio1 20 GPIO_ACTIVE_LOW>;
+		rotation = <180>;
 
 		port {
 			/* MIPI CSI-2 bus endpoint */
