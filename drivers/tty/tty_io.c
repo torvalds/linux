@@ -814,9 +814,9 @@ void start_tty(struct tty_struct *tty)
 }
 EXPORT_SYMBOL(start_tty);
 
-static void tty_update_time(struct timespec *time)
+static void tty_update_time(struct timespec64 *time)
 {
-	unsigned long sec = get_seconds();
+	time64_t sec = ktime_get_real_seconds();
 
 	/*
 	 * We only care if the two values differ in anything other than the
@@ -867,13 +867,8 @@ static ssize_t tty_read(struct file *file, char __user *buf, size_t count,
 		i = -EIO;
 	tty_ldisc_deref(ld);
 
-	if (i > 0) {
-		struct timespec ts;
-
-		ts = timespec64_to_timespec(inode->i_atime);
-		tty_update_time(&ts);
-		inode->i_atime = timespec_to_timespec64(ts);
-	}
+	if (i > 0)
+		tty_update_time(&inode->i_atime);
 
 	return i;
 }
@@ -974,11 +969,7 @@ static inline ssize_t do_tty_write(
 		cond_resched();
 	}
 	if (written) {
-		struct timespec ts;
-
-		ts = timespec64_to_timespec(file_inode(file)->i_mtime);
-		tty_update_time(&ts);
-		file_inode(file)->i_mtime = timespec_to_timespec64(ts);
+		tty_update_time(&file_inode(file)->i_mtime);
 		ret = written;
 	}
 out:
