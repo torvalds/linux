@@ -206,23 +206,20 @@ static inline const char * const mediatek_gpio_bank_name(int bank)
 }
 
 static int
-mediatek_gpio_bank_probe(struct platform_device *pdev, struct device_node *bank)
+mediatek_gpio_bank_probe(struct platform_device *pdev,
+			 struct device_node *node, int bank)
 {
 	struct mtk_data *gpio = dev_get_drvdata(&pdev->dev);
-	const __be32 *id = of_get_property(bank, "reg", NULL);
 	struct mtk_gc *rg;
 	void __iomem *dat, *set, *ctrl, *diro;
 	int ret;
 
-	if (!id || be32_to_cpu(*id) >= MTK_BANK_CNT)
-		return -EINVAL;
-
-	rg = &gpio->gc_map[be32_to_cpu(*id)];
+	rg = &gpio->gc_map[bank];
 	memset(rg, 0, sizeof(*rg));
 
 	spin_lock_init(&rg->lock);
-	rg->chip.of_node = bank;
-	rg->bank = be32_to_cpu(*id);
+	rg->chip.of_node = node;
+	rg->bank = bank;
 	rg->chip.label = mediatek_gpio_bank_name(rg->bank);
 
 	dat = gpio->gpio_membase + GPIO_REG_DATA + (rg->bank * GPIO_BANK_WIDE);
@@ -283,9 +280,10 @@ mediatek_gpio_bank_probe(struct platform_device *pdev, struct device_node *bank)
 static int
 mediatek_gpio_probe(struct platform_device *pdev)
 {
-	struct device_node *bank, *np = pdev->dev.of_node;
+	struct device_node *np = pdev->dev.of_node;
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct mtk_data *gpio_data;
+	int i;
 
 	gpio_data = devm_kzalloc(&pdev->dev, sizeof(*gpio_data), GFP_KERNEL);
 	if (!gpio_data)
@@ -299,9 +297,8 @@ mediatek_gpio_probe(struct platform_device *pdev)
 	gpio_data->dev = &pdev->dev;
 	platform_set_drvdata(pdev, gpio_data);
 
-	for_each_child_of_node(np, bank)
-		if (of_device_is_compatible(bank, "mediatek,mt7621-gpio-bank"))
-			mediatek_gpio_bank_probe(pdev, bank);
+	for (i = 0; i < MTK_BANK_CNT; i++)
+		mediatek_gpio_bank_probe(pdev, np, i);
 
 	return 0;
 }

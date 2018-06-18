@@ -29,7 +29,7 @@
 
 		reset {
 			label = "reset";
-			gpios = <&gpio0 18 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio 18 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_RESTART>;
 		};
 	};
@@ -39,22 +39,22 @@
 
 		system {
 			label = "gb-pc1:green:system";
-			gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio 6 GPIO_ACTIVE_LOW>;
 		};
 
 		status {
 			label = "gb-pc1:green:status";
-			gpios = <&gpio0 8 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio 8 GPIO_ACTIVE_LOW>;
 		};
 
 		lan1 {
 			label = "gb-pc1:green:lan1";
-			gpios = <&gpio0 24 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio 24 GPIO_ACTIVE_LOW>;
 		};
 
 		lan2 {
 			label = "gb-pc1:green:lan2";
-			gpios = <&gpio0 25 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio 25 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
