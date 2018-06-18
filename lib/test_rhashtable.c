@@ -501,6 +501,8 @@ static unsigned int __init print_ht(struct rhltable *rhlt)
 	unsigned int i, cnt = 0;
 
 	ht = &rhlt->ht;
+	/* Take the mutex to avoid RCU warning */
+	mutex_lock(&ht->mutex);
 	tbl = rht_dereference(ht->tbl, ht);
 	for (i = 0; i < tbl->size; i++) {
 		struct rhash_head *pos, *next;
@@ -534,6 +536,7 @@ static unsigned int __init print_ht(struct rhltable *rhlt)
 		}
 	}
 	printk(KERN_ERR "\n---- ht: ----%s\n-------------\n", buff);
+	mutex_unlock(&ht->mutex);
 
 	return cnt;
 }
