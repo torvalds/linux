@@ -1724,7 +1724,7 @@ out_unlock:
 
 	i915_modparams.enable_ppgtt = saved_ppgtt;
 
-	drm_dev_unref(&dev_priv->drm);
+	drm_dev_put(&dev_priv->drm);
 
 	return err;
 }
