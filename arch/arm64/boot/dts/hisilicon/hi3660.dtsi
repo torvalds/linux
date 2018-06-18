@@ -1009,7 +1009,6 @@
 			bus-width = <0x4>;
 			disable-wp;
 			cap-sd-highspeed;
-			supports-highspeed;
 			card-detect-delay = <200>;
 			reg = <0x0 0xff37f000 0x0 0x1000>;
 			interrupts = <GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;
@@ -1030,12 +1029,6 @@
 			sd-uhs-sdr50;
 			sd-uhs-sdr104;
 			status = "disabled";
-
-			slot@0 {
-				reg = <0x0>;
-				bus-width = <4>;
-				disable-wp;
-			};
 		};
 
 		/* SDIO */
@@ -1049,7 +1042,6 @@
 			resets = <&crg_rst 0x94 20>;
 			reset-names = "reset";
 			card-detect-delay = <200>;
-			supports-highspeed;
 			keep-power-in-suspend;
 			pinctrl-names = "default";
 			pinctrl-0 = <&sdio_pmx_func

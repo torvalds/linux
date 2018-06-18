@@ -583,7 +583,6 @@
 	broken-cd;
 	/* WL_EN */
 	vmmc-supply = <&wlan_en>;
-	ti,non-removable;
 	non-removable;
 	cap-power-off-card;
 	keep-power-in-suspend;
