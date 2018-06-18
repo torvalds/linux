@@ -2976,16 +2976,16 @@ static void i915_gem_context_mark_guilty(struct i915_gem_context *ctx)
 	score = atomic_add_return(CONTEXT_SCORE_GUILTY, &ctx->ban_score);
 	banned = score >= CONTEXT_SCORE_BAN_THRESHOLD;
 
-	DRM_DEBUG_DRIVER("context %s: guilty %d, score %u, ban %s\n",
-			 ctx->name, atomic_read(&ctx->guilty_count),
-			 score, yesno(banned && bannable));
-
 	/* Cool contexts don't accumulate client ban score */
 	if (!bannable)
 		return;
 
-	if (banned)
+	if (banned) {
+		DRM_DEBUG_DRIVER("context %s: guilty %d, score %u, banned\n",
+				 ctx->name, atomic_read(&ctx->guilty_count),
+				 score);
 		i915_gem_context_set_banned(ctx);
+	}
 
 	if (!IS_ERR_OR_NULL(ctx->file_priv))
 		i915_gem_client_mark_guilty(ctx->file_priv, ctx);
