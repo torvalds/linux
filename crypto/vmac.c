@@ -490,16 +490,6 @@ static int vmac_init(struct shash_desc *desc)
 	return 0;
 }
 
-static int vmac_init_with_hardcoded_nonce(struct shash_desc *desc)
-{
-	struct vmac_desc_ctx *dctx = shash_desc_ctx(desc);
-
-	vmac_init(desc);
-	memset(&dctx->nonce, 0, VMAC_NONCEBYTES);
-	dctx->nonce_size = VMAC_NONCEBYTES;
-	return 0;
-}
-
 static int vmac_update(struct shash_desc *desc, const u8 *p, unsigned int len)
 {
 	const struct vmac_tfm_ctx *tctx = crypto_shash_ctx(desc->tfm);
@@ -570,7 +560,7 @@ static u64 vhash_final(const struct vmac_tfm_ctx *tctx,
 	return l3hash(ch, cl, tctx->l3key[0], tctx->l3key[1], partial * 8);
 }
 
-static int __vmac_final(struct shash_desc *desc, u64 *mac)
+static int vmac_final(struct shash_desc *desc, u8 *out)
 {
 	const struct vmac_tfm_ctx *tctx = crypto_shash_ctx(desc->tfm);
 	struct vmac_desc_ctx *dctx = shash_desc_ctx(desc);
@@ -601,31 +591,7 @@ static int __vmac_final(struct shash_desc *desc, u64 *mac)
 	pad = be64_to_cpu(dctx->nonce.pads[index]);
 
 	/* The VMAC is the sum of VHASH and the pseudorandom pad */
-	*mac = hash + pad;
-	return 0;
-}
-
-static int vmac_final_le(struct shash_desc *desc, u8 *out)
-{
-	u64 mac;
-	int err;
-
-	err = __vmac_final(desc, &mac);
-	if (err)
-		return err;
-	put_unaligned_le64(mac, out);
-	return 0;
-}
-
-static int vmac_final_be(struct shash_desc *desc, u8 *out)
-{
-	u64 mac;
-	int err;
-
-	err = __vmac_final(desc, &mac);
-	if (err)
-		return err;
-	put_unaligned_be64(mac, out);
+	put_unaligned_be64(hash + pad, out);
 	return 0;
 }
 
@@ -651,8 +617,7 @@ static void vmac_exit_tfm(struct crypto_tfm *tfm)
 	crypto_free_cipher(tctx->cipher);
 }
 
-static int vmac_create_common(struct crypto_template *tmpl, struct rtattr **tb,
-			      bool vmac64)
+static int vmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 {
 	struct shash_instance *inst;
 	struct crypto_alg *alg;
@@ -692,15 +657,9 @@ static int vmac_create_common(struct crypto_template *tmpl, struct rtattr **tb,
 
 	inst->alg.descsize = sizeof(struct vmac_desc_ctx);
 	inst->alg.digestsize = VMAC_TAG_LEN / 8;
-	if (vmac64) {
-		inst->alg.init = vmac_init;
-		inst->alg.final = vmac_final_be;
-	} else {
-		pr_warn("vmac: using insecure hardcoded nonce\n");
-		inst->alg.init = vmac_init_with_hardcoded_nonce;
-		inst->alg.final = vmac_final_le;
-	}
+	inst->alg.init = vmac_init;
 	inst->alg.update = vmac_update;
+	inst->alg.final = vmac_final;
 	inst->alg.setkey = vmac_setkey;
 
 	err = shash_register_instance(tmpl, inst);
@@ -714,48 +673,20 @@ out_put_alg:
 	return err;
 }
 
-static int vmac_create(struct crypto_template *tmpl, struct rtattr **tb)
-{
-	return vmac_create_common(tmpl, tb, false);
-}
-
-static int vmac64_create(struct crypto_template *tmpl, struct rtattr **tb)
-{
-	return vmac_create_common(tmpl, tb, true);
-}
-
-static struct crypto_template vmac_tmpl = {
-	.name = "vmac",
-	.create = vmac_create,
-	.free = shash_free_instance,
-	.module = THIS_MODULE,
-};
-
 static struct crypto_template vmac64_tmpl = {
 	.name = "vmac64",
-	.create = vmac64_create,
+	.create = vmac_create,
 	.free = shash_free_instance,
 	.module = THIS_MODULE,
 };
 
 static int __init vmac_module_init(void)
 {
-	int err;
-
-	err = crypto_register_template(&vmac_tmpl);
-	if (err)
-		return err;
-
-	err = crypto_register_template(&vmac64_tmpl);
-	if (err)
-		crypto_unregister_template(&vmac_tmpl);
-
-	return err;
+	return crypto_register_template(&vmac64_tmpl);
 }
 
 static void __exit vmac_module_exit(void)
 {
-	crypto_unregister_template(&vmac_tmpl);
 	crypto_unregister_template(&vmac64_tmpl);
 }
 
@@ -764,5 +695,4 @@ module_exit(vmac_module_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("VMAC hash algorithm");
-MODULE_ALIAS_CRYPTO("vmac");
 MODULE_ALIAS_CRYPTO("vmac64");

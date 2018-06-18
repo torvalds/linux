@@ -3478,12 +3478,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.hash = __VECS(tgr192_tv_template)
 		}
 	}, {
-		.alg = "vmac(aes)",
-		.test = alg_test_hash,
-		.suite = {
-			.hash = __VECS(aes_vmac128_tv_template)
-		}
-	}, {
 		.alg = "vmac64(aes)",
 		.test = alg_test_hash,
 		.suite = {

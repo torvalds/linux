@@ -1939,7 +1939,7 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		break;
 
 	case 109:
-		ret += tcrypt_test("vmac(aes)");
+		ret += tcrypt_test("vmac64(aes)");
 		break;
 
 	case 111:
