@@ -4458,11 +4458,13 @@ ieee80211_verify_sta_he_mcs_support(struct ieee80211_supported_band *sband,
 {
 	const struct ieee80211_sta_he_cap *sta_he_cap =
 		ieee80211_get_he_sta_cap(sband);
-	u16 ap_min_req_set = le16_to_cpu(he_op->he_mcs_nss_set);
+	u16 ap_min_req_set;
 	int i;
 
 	if (!sta_he_cap || !he_op)
 		return false;
+
+	ap_min_req_set = le16_to_cpu(he_op->he_mcs_nss_set);
 
 	/* Need to go over for 80MHz, 160MHz and for 80+80 */
 	for (i = 0; i < 3; i++) {
