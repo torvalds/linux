@@ -500,10 +500,12 @@ static int skl_find_machine(struct skl *skl, void *driver_data)
 
 	skl->mach = mach;
 	skl->fw_name = mach->fw_filename;
-	pdata = skl->mach->pdata;
+	pdata = mach->pdata;
 
-	if (mach->pdata)
+	if (pdata) {
 		skl->use_tplg_pcm = pdata->use_tplg_pcm;
+		pdata->dmic_num = skl_get_dmic_geo(skl);
+	}
 
 	return 0;
 }
@@ -929,8 +931,6 @@ static int skl_probe(struct pci_dev *pci,
 	skl_nhlt_update_topology_bin(skl);
 
 	pci_set_drvdata(skl->pci, ebus);
-
-	skl_dmic_data.dmic_num = skl_get_dmic_geo(skl);
 
 	/* check if dsp is there */
 	if (bus->ppcap) {
