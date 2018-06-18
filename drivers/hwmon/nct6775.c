@@ -1050,8 +1050,8 @@ struct nct6775_data {
 	u64 beeps;
 
 	u8 pwm_num;	/* number of pwm */
-	u8 pwm_mode[NUM_FAN];	/* 1->DC variable voltage,
-				 * 0->PWM variable duty cycle
+	u8 pwm_mode[NUM_FAN];	/* 0->DC variable voltage,
+				 * 1->PWM variable duty cycle
 				 */
 	enum pwm_enable pwm_enable[NUM_FAN];
 			/* 0->off
