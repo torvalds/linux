@@ -320,16 +320,9 @@ EXPORT_SYMBOL(idr_replace);
  * ida_alloc(), ida_alloc_min(), ida_alloc_max() or ida_alloc_range().
  * To free an ID, call ida_free().
  *
- * If you have more complex locking requirements, use a loop around
- * ida_pre_get() and ida_get_new() to allocate a new ID.  Then use
- * ida_remove() to free an ID.  You must make sure that ida_get_new() and
- * ida_remove() cannot be called at the same time as each other for the
- * same IDA.
- *
- * You can also use ida_get_new_above() if you need an ID to be allocated
- * above a particular number.  ida_destroy() can be used to dispose of an
- * IDA without needing to free the individual IDs in it.  You can use
- * ida_is_empty() to find out whether the IDA has any IDs currently allocated.
+ * ida_destroy() can be used to dispose of an IDA without needing to
+ * free the individual IDs in it.  You can use ida_is_empty() to find
+ * out whether the IDA has any IDs currently allocated.
  *
  * IDs are currently limited to the range [0-INT_MAX].  If this is an awkward
  * limitation, it should be quite straightforward to raise the maximum.
@@ -370,25 +363,7 @@ EXPORT_SYMBOL(idr_replace);
 
 #define IDA_MAX (0x80000000U / IDA_BITMAP_BITS - 1)
 
-/**
- * ida_get_new_above - allocate new ID above or equal to a start id
- * @ida: ida handle
- * @start: id to start search at
- * @id: pointer to the allocated handle
- *
- * Allocate new ID above or equal to @start.  It should be called
- * with any required locks to ensure that concurrent calls to
- * ida_get_new_above() / ida_get_new() / ida_remove() are not allowed.
- * Consider using ida_alloc_range() if you do not have complex locking
- * requirements.
- *
- * If memory is required, it will return %-EAGAIN, you should unlock
- * and go back to the ida_pre_get() call.  If the ida is full, it will
- * return %-ENOSPC.  On success, it will return 0.
- *
- * @id returns a value in the range @start ... %0x7fffffff.
- */
-int ida_get_new_above(struct ida *ida, int start, int *id)
+static int ida_get_new_above(struct ida *ida, int start, int *id)
 {
 	struct radix_tree_root *root = &ida->ida_rt;
 	void __rcu **slot;
@@ -473,16 +448,8 @@ int ida_get_new_above(struct ida *ida, int start, int *id)
 		return 0;
 	}
 }
-EXPORT_SYMBOL(ida_get_new_above);
 
-/**
- * ida_remove - Free the given ID
- * @ida: ida handle
- * @id: ID to free
- *
- * This function should not be called at the same time as ida_get_new_above().
- */
-void ida_remove(struct ida *ida, int id)
+static void ida_remove(struct ida *ida, int id)
 {
 	unsigned long index = id / IDA_BITMAP_BITS;
 	unsigned offset = id % IDA_BITMAP_BITS;
@@ -519,9 +486,8 @@ void ida_remove(struct ida *ida, int id)
 	}
 	return;
  err:
-	WARN(1, "ida_remove called for id=%d which is not allocated.\n", id);
+	WARN(1, "ida_free called for id=%d which is not allocated.\n", id);
 }
-EXPORT_SYMBOL(ida_remove);
 
 /**
  * ida_destroy() - Free all IDs.
@@ -568,7 +534,7 @@ EXPORT_SYMBOL(ida_destroy);
 int ida_alloc_range(struct ida *ida, unsigned int min, unsigned int max,
 			gfp_t gfp)
 {
-	int ret, id;
+	int ret, id = 0;
 	unsigned long flags;
 
 	if ((int)min < 0)
