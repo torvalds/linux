@@ -190,12 +190,20 @@ mediatek_gpio_irq_type(struct irq_data *d, unsigned int type)
 }
 
 static struct irq_chip mediatek_gpio_irq_chip = {
-	.name			= "GPIO",
 	.irq_unmask		= mediatek_gpio_irq_unmask,
 	.irq_mask		= mediatek_gpio_irq_mask,
 	.irq_mask_ack		= mediatek_gpio_irq_mask,
 	.irq_set_type		= mediatek_gpio_irq_type,
 };
+
+static inline const char * const mediatek_gpio_bank_name(int bank)
+{
+	static const char * const bank_names[] = {
+		"mt7621-bank0", "mt7621-bank1", "mt7621-bank2",
+	};
+
+	return bank_names[bank];
+}
 
 static int
 mediatek_gpio_bank_probe(struct platform_device *pdev, struct device_node *bank)
@@ -215,6 +223,7 @@ mediatek_gpio_bank_probe(struct platform_device *pdev, struct device_node *bank)
 	spin_lock_init(&rg->lock);
 	rg->chip.of_node = bank;
 	rg->bank = be32_to_cpu(*id);
+	rg->chip.label = mediatek_gpio_bank_name(rg->bank);
 
 	dat = gpio->gpio_membase + GPIO_REG_DATA + (rg->bank * GPIO_BANK_WIDE);
 	set = gpio->gpio_membase + GPIO_REG_DSET + (rg->bank * GPIO_BANK_WIDE);
@@ -242,7 +251,7 @@ mediatek_gpio_bank_probe(struct platform_device *pdev, struct device_node *bank)
 		 */
 		ret = devm_request_irq(&pdev->dev, gpio->gpio_irq,
 				       mediatek_gpio_irq_handler, IRQF_SHARED,
-				       "mt7621", &rg->chip);
+				       rg->chip.label, &rg->chip);
 
 		if (ret) {
 			dev_err(&pdev->dev, "Error requesting IRQ %d: %d\n",
@@ -250,6 +259,7 @@ mediatek_gpio_bank_probe(struct platform_device *pdev, struct device_node *bank)
 			return ret;
 		}
 
+		mediatek_gpio_irq_chip.name = rg->chip.label;
 		ret = gpiochip_irqchip_add(&rg->chip, &mediatek_gpio_irq_chip,
 					   0, handle_simple_irq, IRQ_TYPE_NONE);
 		if (ret) {
