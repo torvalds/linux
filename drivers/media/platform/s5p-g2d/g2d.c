@@ -485,15 +485,6 @@ static int vidioc_s_crop(struct file *file, void *prv, const struct v4l2_crop *c
 
 static void job_abort(void *prv)
 {
-	struct g2d_ctx *ctx = prv;
-	struct g2d_dev *dev = ctx->dev;
-
-	if (dev->curr == NULL) /* No job currently running */
-		return;
-
-	wait_event_timeout(dev->irq_queue,
-			   dev->curr == NULL,
-			   msecs_to_jiffies(G2D_TIMEOUT));
 }
 
 static void device_run(void *prv)
@@ -565,7 +556,6 @@ static irqreturn_t g2d_isr(int irq, void *prv)
 	v4l2_m2m_job_finish(dev->m2m_dev, ctx->fh.m2m_ctx);
 
 	dev->curr = NULL;
-	wake_up(&dev->irq_queue);
 	return IRQ_HANDLED;
 }
 
@@ -635,7 +625,6 @@ static int g2d_probe(struct platform_device *pdev)
 	spin_lock_init(&dev->ctrl_lock);
 	mutex_init(&dev->mutex);
 	atomic_set(&dev->num_inst, 0);
-	init_waitqueue_head(&dev->irq_queue);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
