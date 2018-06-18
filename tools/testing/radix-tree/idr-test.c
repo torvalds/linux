@@ -337,32 +337,6 @@ void ida_check_nomem(void)
 }
 
 /*
- * Check what happens when we fill a leaf and then delete it.  This may
- * discover mishandling of IDR_FREE.
- */
-void ida_check_leaf(void)
-{
-	DEFINE_IDA(ida);
-	int id;
-	unsigned long i;
-
-	for (i = 0; i < IDA_BITMAP_BITS; i++) {
-		assert(ida_pre_get(&ida, GFP_KERNEL));
-		assert(!ida_get_new(&ida, &id));
-		assert(id == i);
-	}
-
-	ida_destroy(&ida);
-	assert(ida_is_empty(&ida));
-
-	assert(ida_pre_get(&ida, GFP_KERNEL));
-	assert(!ida_get_new(&ida, &id));
-	assert(id == 0);
-	ida_destroy(&ida);
-	assert(ida_is_empty(&ida));
-}
-
-/*
  * Check handling of conversions between exceptional entries and full bitmaps.
  */
 void ida_check_conv(void)
@@ -560,7 +534,6 @@ void user_ida_checks(void)
 	ida_destroy(&ida);
 	assert(ida_is_empty(&ida));
 
-	ida_check_leaf();
 	ida_check_max();
 	ida_check_conv();
 	ida_check_random();

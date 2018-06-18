@@ -25,11 +25,36 @@ void ida_dump(struct ida *ida) { }
 	}								\
 } while (0)
 
+/*
+ * Check what happens when we fill a leaf and then delete it.  This may
+ * discover mishandling of IDR_FREE.
+ */
+static void ida_check_leaf(struct ida *ida, unsigned int base)
+{
+	unsigned long i;
+
+	for (i = 0; i < IDA_BITMAP_BITS; i++) {
+		IDA_BUG_ON(ida, ida_alloc_min(ida, base, GFP_KERNEL) !=
+				base + i);
+	}
+
+	ida_destroy(ida);
+	IDA_BUG_ON(ida, !ida_is_empty(ida));
+
+	IDA_BUG_ON(ida, ida_alloc(ida, GFP_KERNEL) != 0);
+	IDA_BUG_ON(ida, ida_is_empty(ida));
+	ida_free(ida, 0);
+	IDA_BUG_ON(ida, !ida_is_empty(ida));
+}
+
 static int ida_checks(void)
 {
 	DEFINE_IDA(ida);
 
 	IDA_BUG_ON(&ida, !ida_is_empty(&ida));
+	ida_check_leaf(&ida, 0);
+	ida_check_leaf(&ida, 1024);
+	ida_check_leaf(&ida, 1024 * 64);
 
 	printk("IDA: %u of %u tests passed\n", tests_passed, tests_run);
 	return (tests_run != tests_passed) ? 0 : -EINVAL;
