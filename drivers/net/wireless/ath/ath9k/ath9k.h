@@ -342,7 +342,7 @@ struct ath_chanctx {
 
 	struct ath_beacon_config beacon;
 	struct ath9k_hw_cal_data caldata;
-	struct timespec tsf_ts;
+	struct timespec64 tsf_ts;
 	u64 tsf_val;
 	u32 last_beacon;
 
@@ -1021,7 +1021,7 @@ struct ath_softc {
 	struct ath_offchannel offchannel;
 	struct ath_chanctx *next_chan;
 	struct completion go_beacon;
-	struct timespec last_event_time;
+	struct timespec64 last_event_time;
 #endif
 
 	unsigned long driver_data;
