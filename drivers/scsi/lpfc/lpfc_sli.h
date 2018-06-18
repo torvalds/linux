@@ -339,7 +339,7 @@ struct lpfc_sli {
 	struct lpfc_iocbq ** iocbq_lookup; /* array to lookup IOCB by IOTAG */
 	size_t iocbq_lookup_len;           /* current lengs of the array */
 	uint16_t  last_iotag;              /* last allocated IOTAG */
-	unsigned long  stats_start;        /* in seconds */
+	time64_t  stats_start;		   /* in seconds */
 	struct lpfc_lnk_stat lnk_stat_offsets;
 };
 
