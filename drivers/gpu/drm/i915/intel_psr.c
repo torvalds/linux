@@ -754,6 +754,7 @@ void intel_psr_disable(struct intel_dp *intel_dp,
 
 	dev_priv->psr.enabled = NULL;
 	mutex_unlock(&dev_priv->psr.lock);
+	cancel_work_sync(&dev_priv->psr.work);
 }
 
 static bool psr_wait_for_idle(struct drm_i915_private *dev_priv)
