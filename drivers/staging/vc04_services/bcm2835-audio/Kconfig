@@ -1,8 +1,0 @@
-config SND_BCM2835
-        tristate "BCM2835 Audio"
-        depends on ARCH_BCM2835 && SND
-        select SND_PCM
-        select BCM2835_VCHIQ
-        help
-          Say Y or M if you want to support BCM2835 built in audio
-

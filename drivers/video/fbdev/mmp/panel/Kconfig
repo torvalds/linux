@@ -1,7 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0
-config MMP_PANEL_TPOHVGA
-	bool "tpohvga panel TJ032MD01BW support"
-	depends on SPI_MASTER
-	default n
-	help
-		tpohvga panel support

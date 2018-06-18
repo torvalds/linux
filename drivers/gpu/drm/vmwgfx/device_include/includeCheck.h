@@ -1,3 +1,0 @@
-/*
- * Intentionally empty file.
- */
