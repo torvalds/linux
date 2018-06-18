@@ -206,6 +206,13 @@ Types and flags used to represent the media graph elements
 	  and output it in some digital video standard, with appropriate
 	  timing signals.
 
+    *  -  ``MEDIA_ENT_F_DV_ENCODER``
+       -  Digital video encoder. The basic function of the video encoder is
+	  to accept digital video from some digital video standard with
+	  appropriate timing signals (usually a parallel video bus with sync
+	  signals) and output this to a digital video output connector such
+	  as HDMI or DisplayPort.
+
 ..  tabularcolumns:: |p{5.5cm}|p{12.0cm}|
 
 .. _media-entity-flag:
