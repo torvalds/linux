@@ -21,9 +21,9 @@
 		#size-cells = <1>;
 		ranges;
 
-		vga_memory: framebuffer@bf000000 {
+		vga_memory: framebuffer@9f000000 {
 			no-map;
-			reg = <0xbf000000 0x01000000>; /* 16M */
+			reg = <0x9f000000 0x01000000>; /* 16M */
 		};
 
 		flash_memory: region@98000000 {
