@@ -15,7 +15,6 @@
 
 #define MTK_BANK_CNT		3
 #define MTK_BANK_WIDTH		32
-#define PIN_MASK(nr)		(1UL << ((nr % MTK_BANK_WIDTH)))
 
 #define GPIO_BANK_WIDE	0x04
 #define GPIO_REG_CTRL	0x00
@@ -133,10 +132,10 @@ mediatek_gpio_irq_unmask(struct irq_data *d)
 	fall = mtk_gpio_r32(rg, GPIO_REG_FEDGE);
 	high = mtk_gpio_r32(rg, GPIO_REG_HLVL);
 	low = mtk_gpio_r32(rg, GPIO_REG_LLVL);
-	mtk_gpio_w32(rg, GPIO_REG_REDGE, rise | (PIN_MASK(pin) & rg->rising));
-	mtk_gpio_w32(rg, GPIO_REG_FEDGE, fall | (PIN_MASK(pin) & rg->falling));
-	mtk_gpio_w32(rg, GPIO_REG_HLVL, high | (PIN_MASK(pin) & rg->hlevel));
-	mtk_gpio_w32(rg, GPIO_REG_LLVL, low | (PIN_MASK(pin) & rg->llevel));
+	mtk_gpio_w32(rg, GPIO_REG_REDGE, rise | (BIT(pin) & rg->rising));
+	mtk_gpio_w32(rg, GPIO_REG_FEDGE, fall | (BIT(pin) & rg->falling));
+	mtk_gpio_w32(rg, GPIO_REG_HLVL, high | (BIT(pin) & rg->hlevel));
+	mtk_gpio_w32(rg, GPIO_REG_LLVL, low | (BIT(pin) & rg->llevel));
 	spin_unlock_irqrestore(&rg->lock, flags);
 }
 
@@ -157,10 +156,10 @@ mediatek_gpio_irq_mask(struct irq_data *d)
 	fall = mtk_gpio_r32(rg, GPIO_REG_FEDGE);
 	high = mtk_gpio_r32(rg, GPIO_REG_HLVL);
 	low = mtk_gpio_r32(rg, GPIO_REG_LLVL);
-	mtk_gpio_w32(rg, GPIO_REG_FEDGE, fall & ~PIN_MASK(pin));
-	mtk_gpio_w32(rg, GPIO_REG_REDGE, rise & ~PIN_MASK(pin));
-	mtk_gpio_w32(rg, GPIO_REG_HLVL, high & ~PIN_MASK(pin));
-	mtk_gpio_w32(rg, GPIO_REG_LLVL, low & ~PIN_MASK(pin));
+	mtk_gpio_w32(rg, GPIO_REG_FEDGE, fall & ~BIT(pin));
+	mtk_gpio_w32(rg, GPIO_REG_REDGE, rise & ~BIT(pin));
+	mtk_gpio_w32(rg, GPIO_REG_HLVL, high & ~BIT(pin));
+	mtk_gpio_w32(rg, GPIO_REG_LLVL, low & ~BIT(pin));
 	spin_unlock_irqrestore(&rg->lock, flags);
 }
 
@@ -170,7 +169,7 @@ mediatek_gpio_irq_type(struct irq_data *d, unsigned int type)
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct mtk_gc *rg = to_mediatek_gpio(gc);
 	int pin = d->hwirq;
-	u32 mask = PIN_MASK(pin);
+	u32 mask = BIT(pin);
 
 	if (!rg)
 		return -1;
