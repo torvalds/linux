@@ -995,7 +995,6 @@ static u32 rhashtable_jhash2(const void *key, u32 length, u32 seed)
  *	.key_offset = offsetof(struct test_obj, key),
  *	.key_len = sizeof(int),
  *	.hashfn = jhash,
- *	.nulls_base = (1U << RHT_BASE_SHIFT),
  * };
  *
  * Configuration Example 2: Variable length keys
@@ -1027,9 +1026,6 @@ int rhashtable_init(struct rhashtable *ht,
 
 	if ((!params->key_len && !params->obj_hashfn) ||
 	    (params->obj_hashfn && !params->obj_cmpfn))
-		return -EINVAL;
-
-	if (params->nulls_base && params->nulls_base < (1U << RHT_BASE_SHIFT))
 		return -EINVAL;
 
 	memset(ht, 0, sizeof(*ht));
@@ -1095,10 +1091,6 @@ EXPORT_SYMBOL_GPL(rhashtable_init);
 int rhltable_init(struct rhltable *hlt, const struct rhashtable_params *params)
 {
 	int err;
-
-	/* No rhlist NULLs marking for now. */
-	if (params->nulls_base)
-		return -EINVAL;
 
 	err = rhashtable_init(&hlt->ht, params);
 	hlt->ht.rhlist = true;
