@@ -441,10 +441,6 @@ static void mtk_mdp_m2m_stop_streaming(struct vb2_queue *q)
 	pm_runtime_put(&ctx->mdp_dev->pdev->dev);
 }
 
-static void mtk_mdp_m2m_job_abort(void *priv)
-{
-}
-
 /* The color format (num_planes) must be already configured. */
 static void mtk_mdp_prepare_addr(struct mtk_mdp_ctx *ctx,
 				 struct vb2_buffer *vb,
@@ -1215,7 +1211,6 @@ static const struct v4l2_file_operations mtk_mdp_m2m_fops = {
 
 static const struct v4l2_m2m_ops mtk_mdp_m2m_ops = {
 	.device_run	= mtk_mdp_m2m_device_run,
-	.job_abort	= mtk_mdp_m2m_job_abort,
 };
 
 int mtk_mdp_register_m2m_device(struct mtk_mdp_dev *mdp)

@@ -483,10 +483,6 @@ static int vidioc_s_crop(struct file *file, void *prv, const struct v4l2_crop *c
 	return 0;
 }
 
-static void job_abort(void *prv)
-{
-}
-
 static void device_run(void *prv)
 {
 	struct g2d_ctx *ctx = prv;
@@ -605,7 +601,6 @@ static const struct video_device g2d_videodev = {
 
 static const struct v4l2_m2m_ops g2d_m2m_ops = {
 	.device_run	= device_run,
-	.job_abort	= job_abort,
 };
 
 static const struct of_device_id exynos_g2d_match[];

@@ -39,11 +39,6 @@
 static int debug;
 module_param(debug, int, 0644);
 
-static void job_abort(void *prv)
-{
-	/* Can't do anything rational here */
-}
-
 static void device_run(void *prv)
 {
 	struct rga_ctx *ctx = prv;
@@ -104,7 +99,6 @@ static irqreturn_t rga_isr(int irq, void *prv)
 
 static struct v4l2_m2m_ops rga_m2m_ops = {
 	.device_run = device_run,
-	.job_abort = job_abort,
 };
 
 static int
