@@ -41,10 +41,8 @@ static bool uart_print;
 static bool skip_otp;
 static bool rawmode;
 
-/* Enable ATH10K_FW_CRASH_DUMP_REGISTERS and ATH10K_FW_CRASH_DUMP_CE_DATA
- * by default.
- */
-unsigned long ath10k_coredump_mask = 0x3;
+unsigned long ath10k_coredump_mask = BIT(ATH10K_FW_CRASH_DUMP_REGISTERS) |
+				     BIT(ATH10K_FW_CRASH_DUMP_CE_DATA);
 
 /* FIXME: most of these should be readonly */
 module_param_named(debug_mask, ath10k_debug_mask, uint, 0644);
@@ -82,6 +80,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.spectral_bin_offset = 0,
 		.vht160_mcs_rx_highest = 0,
 		.vht160_mcs_tx_highest = 0,
 		.n_cipher_suites = 8,
@@ -113,6 +112,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.spectral_bin_offset = 0,
 		.vht160_mcs_rx_highest = 0,
 		.vht160_mcs_tx_highest = 0,
 		.n_cipher_suites = 8,
@@ -145,6 +145,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.spectral_bin_offset = 0,
 		.vht160_mcs_rx_highest = 0,
 		.vht160_mcs_tx_highest = 0,
 		.n_cipher_suites = 8,
@@ -176,6 +177,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.spectral_bin_offset = 0,
 		.vht160_mcs_rx_highest = 0,
 		.vht160_mcs_tx_highest = 0,
 		.n_cipher_suites = 8,
@@ -207,6 +209,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.spectral_bin_offset = 0,
 		.vht160_mcs_rx_highest = 0,
 		.vht160_mcs_tx_highest = 0,
 		.n_cipher_suites = 8,
@@ -238,6 +241,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.spectral_bin_offset = 0,
 		.vht160_mcs_rx_highest = 0,
 		.vht160_mcs_tx_highest = 0,
 		.n_cipher_suites = 8,
@@ -272,6 +276,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.target_cpu_freq = 176000000,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.spectral_bin_offset = 0,
 		.vht160_mcs_rx_highest = 0,
 		.vht160_mcs_tx_highest = 0,
 		.n_cipher_suites = 8,
@@ -309,6 +314,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca99x0_ops,
 		.decap_align_bytes = 1,
 		.spectral_bin_discard = 4,
+		.spectral_bin_offset = 0,
 		.vht160_mcs_rx_highest = 0,
 		.vht160_mcs_tx_highest = 0,
 		.n_cipher_suites = 11,
@@ -347,6 +353,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca99x0_ops,
 		.decap_align_bytes = 1,
 		.spectral_bin_discard = 12,
+		.spectral_bin_offset = 8,
 
 		/* Can do only 2x2 VHT160 or 80+80. 1560Mbps is 4x4 80Mhz
 		 * or 2x2 160Mhz, long-guard-interval.
@@ -388,6 +395,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca99x0_ops,
 		.decap_align_bytes = 1,
 		.spectral_bin_discard = 12,
+		.spectral_bin_offset = 8,
 
 		/* Can do only 1x1 VHT160 or 80+80. 780Mbps is 2x2 80Mhz or
 		 * 1x1 160Mhz, long-guard-interval.
@@ -423,6 +431,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.spectral_bin_offset = 0,
 		.vht160_mcs_rx_highest = 0,
 		.vht160_mcs_tx_highest = 0,
 		.n_cipher_suites = 8,
@@ -456,6 +465,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.target_cpu_freq = 176000000,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.spectral_bin_offset = 0,
 		.vht160_mcs_rx_highest = 0,
 		.vht160_mcs_tx_highest = 0,
 		.n_cipher_suites = 8,
@@ -494,6 +504,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca99x0_ops,
 		.decap_align_bytes = 1,
 		.spectral_bin_discard = 4,
+		.spectral_bin_offset = 0,
 		.vht160_mcs_rx_highest = 0,
 		.vht160_mcs_tx_highest = 0,
 		.n_cipher_suites = 11,
