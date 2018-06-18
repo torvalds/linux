@@ -1645,7 +1645,7 @@ static int vega12_get_sclks(struct pp_hwmgr *hwmgr,
 
 	for (i = 0; i < ucount; i++) {
 		clocks->data[i].clocks_in_khz =
-			dpm_table->dpm_levels[i].value * 100;
+			dpm_table->dpm_levels[i].value * 1000;
 
 		clocks->data[i].latency_in_us = 0;
 	}
@@ -1676,10 +1676,8 @@ static int vega12_get_memclocks(struct pp_hwmgr *hwmgr,
 		MAX_NUM_CLOCKS : dpm_table->count;
 
 	for (i = 0; i < ucount; i++) {
-		clocks->data[i].clocks_in_khz =
-			data->mclk_latency_table.entries[i].frequency =
-			dpm_table->dpm_levels[i].value * 100;
-
+		clocks->data[i].clocks_in_khz = dpm_table->dpm_levels[i].value * 1000;
+		data->mclk_latency_table.entries[i].frequency = dpm_table->dpm_levels[i].value * 100;
 		clocks->data[i].latency_in_us =
 			data->mclk_latency_table.entries[i].latency =
 			vega12_get_mem_latency(hwmgr, dpm_table->dpm_levels[i].value);
@@ -1708,7 +1706,7 @@ static int vega12_get_dcefclocks(struct pp_hwmgr *hwmgr,
 
 	for (i = 0; i < ucount; i++) {
 		clocks->data[i].clocks_in_khz =
-			dpm_table->dpm_levels[i].value * 100;
+			dpm_table->dpm_levels[i].value * 1000;
 
 		clocks->data[i].latency_in_us = 0;
 	}
@@ -1736,7 +1734,7 @@ static int vega12_get_socclocks(struct pp_hwmgr *hwmgr,
 
 	for (i = 0; i < ucount; i++) {
 		clocks->data[i].clocks_in_khz =
-			dpm_table->dpm_levels[i].value * 100;
+			dpm_table->dpm_levels[i].value * 1000;
 
 		clocks->data[i].latency_in_us = 0;
 	}
@@ -1918,8 +1916,8 @@ static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 				return -1);
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
-				i, clocks.data[i].clocks_in_khz / 100,
-				(clocks.data[i].clocks_in_khz == now) ? "*" : "");
+				i, clocks.data[i].clocks_in_khz / 1000,
+				(clocks.data[i].clocks_in_khz / 1000 == now) ? "*" : "");
 		break;
 
 	case PP_MCLK:
@@ -1934,8 +1932,8 @@ static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 				return -1);
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
-				i, clocks.data[i].clocks_in_khz / 100,
-				(clocks.data[i].clocks_in_khz == now) ? "*" : "");
+				i, clocks.data[i].clocks_in_khz / 1000,
+				(clocks.data[i].clocks_in_khz / 1000 == now) ? "*" : "");
 		break;
 
 	case PP_PCIE:
