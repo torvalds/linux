@@ -588,8 +588,7 @@ static int topology_ctl_handler(struct ctl_table *ctl, int write,
 		return 0;
 	}
 	if (!write) {
-		strncpy(buf, topology_is_enabled() ? "1\n" : "0\n",
-			ARRAY_SIZE(buf));
+		memcpy(buf, topology_is_enabled() ? "1\n" : "0\n", ARRAY_SIZE(buf));
 		len = strnlen(buf, ARRAY_SIZE(buf));
 		if (len > *lenp)
 			len = *lenp;

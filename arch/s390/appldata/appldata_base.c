@@ -214,8 +214,7 @@ appldata_timer_handler(struct ctl_table *ctl, int write,
 		return 0;
 	}
 	if (!write) {
-		strncpy(buf, appldata_timer_active ? "1\n" : "0\n",
-			ARRAY_SIZE(buf));
+		memcpy(buf, appldata_timer_active ? "1\n" : "0\n", ARRAY_SIZE(buf));
 		len = strnlen(buf, ARRAY_SIZE(buf));
 		if (len > *lenp)
 			len = *lenp;
@@ -323,7 +322,7 @@ appldata_generic_handler(struct ctl_table *ctl, int write,
 		return 0;
 	}
 	if (!write) {
-		strncpy(buf, ops->active ? "1\n" : "0\n", ARRAY_SIZE(buf));
+		memcpy(buf, ops->active ? "1\n" : "0\n", ARRAY_SIZE(buf));
 		len = strnlen(buf, ARRAY_SIZE(buf));
 		if (len > *lenp)
 			len = *lenp;
