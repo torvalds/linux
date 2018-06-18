@@ -257,8 +257,8 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	pBaStartSeqCtrl = (union sequence_control *)(req + 7);
 
 	RT_TRACE(COMP_DBG, "====>rx ADDBAREQ from : %pM\n", dst);
-	if (ieee->current_network.qos_data.active == 0  ||
-	    (ieee->pHTInfo->bCurrentHTSupport == false) ||
+	if (!ieee->current_network.qos_data.active ||
+	    !ieee->pHTInfo->bCurrentHTSupport ||
 	    (ieee->pHTInfo->IOTAction & HT_IOT_ACT_REJECT_ADDBA_REQ)) {
 		rc = ADDBA_STATUS_REFUSED;
 		netdev_warn(ieee->dev,
@@ -340,9 +340,9 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	pBaTimeoutVal = (u16 *)(tag + 7);
 
 	RT_TRACE(COMP_DBG, "====>rx ADDBARSP from : %pM\n", dst);
-	if (ieee->current_network.qos_data.active == 0  ||
-	    ieee->pHTInfo->bCurrentHTSupport == false ||
-	    ieee->pHTInfo->bCurrentAMPDUEnable == false) {
+	if (!ieee->current_network.qos_data.active ||
+	    !ieee->pHTInfo->bCurrentHTSupport ||
+	    !ieee->pHTInfo->bCurrentAMPDUEnable) {
 		netdev_warn(ieee->dev,
 			    "reject to ADDBA_RSP as some capability is not ready(%d, %d, %d)\n",
 			    ieee->current_network.qos_data.active,
@@ -369,7 +369,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 		netdev_dbg(ieee->dev, "%s(): ADDBA response already admitted\n",
 			   __func__);
 		return -1;
-	} else if ((pPendingBA->bValid == false) ||
+	} else if (!pPendingBA->bValid ||
 		   (*pDialogToken != pPendingBA->DialogToken)) {
 		netdev_warn(ieee->dev,
 			    "%s(): ADDBA Rsp. BA invalid, DELBA!\n",
@@ -431,8 +431,8 @@ int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb)
 		return -1;
 	}
 
-	if (ieee->current_network.qos_data.active == 0  ||
-		ieee->pHTInfo->bCurrentHTSupport == false) {
+	if (!ieee->current_network.qos_data.active ||
+		!ieee->pHTInfo->bCurrentHTSupport) {
 		netdev_warn(ieee->dev,
 			    "received DELBA while QOS or HT is not supported(%d, %d)\n",
 			    ieee->current_network. qos_data.active,
