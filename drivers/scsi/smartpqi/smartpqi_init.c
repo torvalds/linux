@@ -1197,20 +1197,30 @@ no_buffer:
 	device->volume_offline = volume_offline;
 }
 
+#define PQI_INQUIRY_PAGE0_RETRIES	3
+
 static int pqi_get_device_info(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_scsi_dev *device)
 {
 	int rc;
 	u8 *buffer;
+	unsigned int retries;
 
 	buffer = kmalloc(64, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
 	/* Send an inquiry to the device to see what it is. */
-	rc = pqi_scsi_inquiry(ctrl_info, device->scsi3addr, 0, buffer, 64);
-	if (rc)
-		goto out;
+	for (retries = 0;;) {
+		rc = pqi_scsi_inquiry(ctrl_info, device->scsi3addr, 0,
+			buffer, 64);
+		if (rc == 0)
+			break;
+		if (pqi_is_logical_device(device) ||
+			rc != PQI_CMD_STATUS_ABORTED ||
+			++retries > PQI_INQUIRY_PAGE0_RETRIES)
+			goto out;
+	}
 
 	scsi_sanitize_inquiry_string(&buffer[8], 8);
 	scsi_sanitize_inquiry_string(&buffer[16], 16);
@@ -3621,6 +3631,29 @@ static void pqi_raid_synchronous_complete(struct pqi_io_request *io_request,
 	complete(waiting);
 }
 
+static int pqi_process_raid_io_error_synchronous(struct pqi_raid_error_info
+						*error_info)
+{
+	int rc = -EIO;
+
+	switch (error_info->data_out_result) {
+	case PQI_DATA_IN_OUT_GOOD:
+		if (error_info->status == SAM_STAT_GOOD)
+			rc = 0;
+		break;
+	case PQI_DATA_IN_OUT_UNDERFLOW:
+		if (error_info->status == SAM_STAT_GOOD ||
+			error_info->status == SAM_STAT_CHECK_CONDITION)
+			rc = 0;
+		break;
+	case PQI_DATA_IN_OUT_ABORTED:
+		rc = PQI_CMD_STATUS_ABORTED;
+		break;
+	}
+
+	return rc;
+}
+
 static int pqi_submit_raid_request_synchronous(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_iu_header *request, unsigned int flags,
 	struct pqi_raid_error_info *error_info, unsigned long timeout_msecs)
@@ -3710,19 +3743,8 @@ static int pqi_submit_raid_request_synchronous(struct pqi_ctrl_info *ctrl_info,
 		else
 			memset(error_info, 0, sizeof(*error_info));
 	} else if (rc == 0 && io_request->error_info) {
-		u8 scsi_status;
-		struct pqi_raid_error_info *raid_error_info;
-
-		raid_error_info = io_request->error_info;
-		scsi_status = raid_error_info->status;
-
-		if (scsi_status == SAM_STAT_CHECK_CONDITION &&
-			raid_error_info->data_out_result ==
-			PQI_DATA_IN_OUT_UNDERFLOW)
-			scsi_status = SAM_STAT_GOOD;
-
-		if (scsi_status != SAM_STAT_GOOD)
-			rc = -EIO;
+		rc = pqi_process_raid_io_error_synchronous(
+			io_request->error_info);
 	}
 
 	pqi_free_io_request(io_request);

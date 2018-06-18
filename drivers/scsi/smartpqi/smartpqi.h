@@ -483,6 +483,8 @@ struct pqi_raid_error_info {
 #define CISS_CMD_STATUS_TMF			0xd
 #define CISS_CMD_STATUS_AIO_DISABLED		0xe
 
+#define PQI_CMD_STATUS_ABORTED	CISS_CMD_STATUS_ABORTED
+
 #define PQI_NUM_EVENT_QUEUE_ELEMENTS	32
 #define PQI_EVENT_OQ_ELEMENT_LENGTH	sizeof(struct pqi_event_response)
 
