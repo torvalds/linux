@@ -1093,7 +1093,7 @@ static struct snd_soc_acpi_mach sst_bxtp_devdata[] = {
 	},
 	{
 		.id = "DLGS7219",
-		.drv_name = "bxt_da7219_max98357a_i2s",
+		.drv_name = "bxt_da7219_max98357a",
 		.fw_filename = "intel/dsp_fw_bxtn.bin",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &bxt_codecs,
