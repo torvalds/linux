@@ -436,7 +436,8 @@ static int nes_query_device(struct ib_device *ibdev, struct ib_device_attr *prop
 	props->max_mr_size = 0x80000000;
 	props->max_qp = nesibdev->max_qp;
 	props->max_qp_wr = nesdev->nesadapter->max_qp_wr - 2;
-	props->max_sge = nesdev->nesadapter->max_sge;
+	props->max_send_sge = nesdev->nesadapter->max_sge;
+	props->max_recv_sge = nesdev->nesadapter->max_sge;
 	props->max_cq = nesibdev->max_cq;
 	props->max_cqe = nesdev->nesadapter->max_cqe;
 	props->max_mr = nesibdev->max_mr;

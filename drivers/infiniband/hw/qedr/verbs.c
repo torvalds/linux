@@ -112,7 +112,8 @@ int qedr_query_device(struct ib_device *ibdev,
 	    IB_DEVICE_RC_RNR_NAK_GEN |
 	    IB_DEVICE_LOCAL_DMA_LKEY | IB_DEVICE_MEM_MGT_EXTENSIONS;
 
-	attr->max_sge = qattr->max_sge;
+	attr->max_send_sge = qattr->max_sge;
+	attr->max_recv_sge = qattr->max_sge;
 	attr->max_sge_rd = qattr->max_sge;
 	attr->max_cq = qattr->max_cq;
 	attr->max_cqe = qattr->max_cqe;

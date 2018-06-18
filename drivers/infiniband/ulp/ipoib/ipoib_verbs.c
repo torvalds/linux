@@ -147,7 +147,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 		.cap = {
 			.max_send_wr  = ipoib_sendq_size,
 			.max_recv_wr  = ipoib_recvq_size,
-			.max_send_sge = min_t(u32, priv->ca->attrs.max_sge,
+			.max_send_sge = min_t(u32, priv->ca->attrs.max_send_sge,
 					      MAX_SKB_FRAGS + 1),
 			.max_recv_sge = IPOIB_UD_RX_SG
 		},

@@ -1103,7 +1103,8 @@ static int iwch_query_device(struct ib_device *ibdev, struct ib_device_attr *pro
 	props->max_mr_size = dev->attr.max_mr_size;
 	props->max_qp = dev->attr.max_qps;
 	props->max_qp_wr = dev->attr.max_wrs;
-	props->max_sge = dev->attr.max_sge_per_wr;
+	props->max_send_sge = dev->attr.max_sge_per_wr;
+	props->max_recv_sge = dev->attr.max_sge_per_wr;
 	props->max_sge_rd = 1;
 	props->max_qp_rd_atom = dev->attr.max_rdma_reads_per_qp;
 	props->max_qp_init_rd_atom = dev->attr.max_rdma_reads_per_qp;

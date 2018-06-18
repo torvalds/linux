@@ -1068,8 +1068,8 @@ static struct ib_qp *ipoib_cm_create_tx_qp(struct net_device *dev, struct ipoib_
 	struct ib_qp *tx_qp;
 
 	if (dev->features & NETIF_F_SG)
-		attr.cap.max_send_sge =
-			min_t(u32, priv->ca->attrs.max_sge, MAX_SKB_FRAGS + 1);
+		attr.cap.max_send_sge = min_t(u32, priv->ca->attrs.max_send_sge,
+					      MAX_SKB_FRAGS + 1);
 
 	tx_qp = ib_create_qp(priv->pd, &attr);
 	tx->max_send_sge = attr.cap.max_send_sge;

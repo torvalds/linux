@@ -343,7 +343,8 @@ static int c4iw_query_device(struct ib_device *ibdev, struct ib_device_attr *pro
 	props->max_mr_size = T4_MAX_MR_SIZE;
 	props->max_qp = dev->rdev.lldi.vr->qp.size / 2;
 	props->max_qp_wr = dev->rdev.hw_queue.t4_max_qp_depth;
-	props->max_sge = T4_MAX_RECV_SGE;
+	props->max_send_sge = min(T4_MAX_SEND_SGE, T4_MAX_WRITE_SGE);
+	props->max_recv_sge = T4_MAX_RECV_SGE;
 	props->max_sge_rd = 1;
 	props->max_res_rd_atom = dev->rdev.lldi.max_ird_adapter;
 	props->max_qp_rd_atom = min(dev->rdev.lldi.max_ordird_qp,

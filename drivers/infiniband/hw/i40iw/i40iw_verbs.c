@@ -71,7 +71,8 @@ static int i40iw_query_device(struct ib_device *ibdev,
 	props->max_mr_size = I40IW_MAX_OUTBOUND_MESSAGE_SIZE;
 	props->max_qp = iwdev->max_qp - iwdev->used_qps;
 	props->max_qp_wr = I40IW_MAX_QP_WRS;
-	props->max_sge = I40IW_MAX_WQ_FRAGMENT_COUNT;
+	props->max_send_sge = I40IW_MAX_WQ_FRAGMENT_COUNT;
+	props->max_recv_sge = I40IW_MAX_WQ_FRAGMENT_COUNT;
 	props->max_cq = iwdev->max_cq - iwdev->used_cqs;
 	props->max_cqe = iwdev->max_cqe;
 	props->max_mr = iwdev->max_mr - iwdev->used_mrs;

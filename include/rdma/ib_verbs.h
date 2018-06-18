@@ -345,7 +345,8 @@ struct ib_device_attr {
 	int			max_qp;
 	int			max_qp_wr;
 	u64			device_cap_flags;
-	int			max_sge;
+	int			max_send_sge;
+	int			max_recv_sge;
 	int			max_sge_rd;
 	int			max_cq;
 	int			max_cqe;

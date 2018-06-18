@@ -1489,7 +1489,8 @@ static void qib_fill_device_attr(struct qib_devdata *dd)
 	rdi->dparms.props.max_mr_size = ~0ULL;
 	rdi->dparms.props.max_qp = ib_qib_max_qps;
 	rdi->dparms.props.max_qp_wr = ib_qib_max_qp_wrs;
-	rdi->dparms.props.max_sge = ib_qib_max_sges;
+	rdi->dparms.props.max_send_sge = ib_qib_max_sges;
+	rdi->dparms.props.max_recv_sge = ib_qib_max_sges;
 	rdi->dparms.props.max_sge_rd = ib_qib_max_sges;
 	rdi->dparms.props.max_cq = ib_qib_max_cqs;
 	rdi->dparms.props.max_cqe = ib_qib_max_cqes;

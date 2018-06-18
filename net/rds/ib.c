@@ -143,7 +143,7 @@ static void rds_ib_add_one(struct ib_device *device)
 	INIT_WORK(&rds_ibdev->free_work, rds_ib_dev_free);
 
 	rds_ibdev->max_wrs = device->attrs.max_qp_wr;
-	rds_ibdev->max_sge = min(device->attrs.max_sge, RDS_IB_MAX_SGE);
+	rds_ibdev->max_sge = min(device->attrs.max_send_sge, RDS_IB_MAX_SGE);
 
 	has_fr = (device->attrs.device_cap_flags &
 		  IB_DEVICE_MEM_MGT_EXTENSIONS);

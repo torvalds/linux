@@ -49,9 +49,9 @@ static int rxe_qp_chk_cap(struct rxe_dev *rxe, struct ib_qp_cap *cap,
 		goto err1;
 	}
 
-	if (cap->max_send_sge > rxe->attr.max_sge) {
+	if (cap->max_send_sge > rxe->attr.max_send_sge) {
 		pr_warn("invalid send sge = %d > %d\n",
-			cap->max_send_sge, rxe->attr.max_sge);
+			cap->max_send_sge, rxe->attr.max_send_sge);
 		goto err1;
 	}
 
@@ -62,9 +62,9 @@ static int rxe_qp_chk_cap(struct rxe_dev *rxe, struct ib_qp_cap *cap,
 			goto err1;
 		}
 
-		if (cap->max_recv_sge > rxe->attr.max_sge) {
+		if (cap->max_recv_sge > rxe->attr.max_recv_sge) {
 			pr_warn("invalid recv sge = %d > %d\n",
-				cap->max_recv_sge, rxe->attr.max_sge);
+				cap->max_recv_sge, rxe->attr.max_recv_sge);
 			goto err1;
 		}
 	}

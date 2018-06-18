@@ -1753,13 +1753,15 @@ retry:
 	 */
 	qp_init->cap.max_send_wr = min(sq_size / 2, attrs->max_qp_wr);
 	qp_init->cap.max_rdma_ctxs = sq_size / 2;
-	qp_init->cap.max_send_sge = min(attrs->max_sge, SRPT_MAX_SG_PER_WQE);
+	qp_init->cap.max_send_sge = min(attrs->max_send_sge,
+					SRPT_MAX_SG_PER_WQE);
 	qp_init->port_num = ch->sport->port;
 	if (sdev->use_srq) {
 		qp_init->srq = sdev->srq;
 	} else {
 		qp_init->cap.max_recv_wr = ch->rq_size;
-		qp_init->cap.max_recv_sge = qp_init->cap.max_send_sge;
+		qp_init->cap.max_recv_sge = min(attrs->max_recv_sge,
+						SRPT_MAX_SG_PER_WQE);
 	}
 
 	if (ch->using_rdma_cm) {

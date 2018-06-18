@@ -476,7 +476,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 
 	/* Qualify the transport resource defaults with the
 	 * capabilities of this particular device */
-	newxprt->sc_max_send_sges = dev->attrs.max_sge;
+	newxprt->sc_max_send_sges = dev->attrs.max_send_sge;
 	/* transport hdr, head iovec, one page list entry, tail iovec */
 	if (newxprt->sc_max_send_sges < 4) {
 		pr_err("svcrdma: too few Send SGEs available (%d)\n",

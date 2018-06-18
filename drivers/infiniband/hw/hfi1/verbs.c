@@ -1410,7 +1410,8 @@ static void hfi1_fill_device_attr(struct hfi1_devdata *dd)
 	rdi->dparms.props.max_fast_reg_page_list_len = UINT_MAX;
 	rdi->dparms.props.max_qp = hfi1_max_qps;
 	rdi->dparms.props.max_qp_wr = hfi1_max_qp_wrs;
-	rdi->dparms.props.max_sge = hfi1_max_sges;
+	rdi->dparms.props.max_send_sge = hfi1_max_sges;
+	rdi->dparms.props.max_recv_sge = hfi1_max_sges;
 	rdi->dparms.props.max_sge_rd = hfi1_max_sges;
 	rdi->dparms.props.max_cq = hfi1_max_cqs;
 	rdi->dparms.props.max_ah = hfi1_max_ahs;

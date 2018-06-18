@@ -166,7 +166,8 @@ int bnxt_re_query_device(struct ib_device *ibdev,
 				    | IB_DEVICE_MEM_WINDOW
 				    | IB_DEVICE_MEM_WINDOW_TYPE_2B
 				    | IB_DEVICE_MEM_MGT_EXTENSIONS;
-	ib_attr->max_sge = dev_attr->max_qp_sges;
+	ib_attr->max_send_sge = dev_attr->max_qp_sges;
+	ib_attr->max_recv_sge = dev_attr->max_qp_sges;
 	ib_attr->max_sge_rd = dev_attr->max_qp_sges;
 	ib_attr->max_cq = dev_attr->max_cq;
 	ib_attr->max_cqe = dev_attr->max_cq_wqes;
