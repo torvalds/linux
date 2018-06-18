@@ -45,7 +45,7 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_broadwell_machines[] = {
 		.drv_name = "bdw-rt5677",
 		.fw_filename =  "intel/IntcSST2.bin",
 		.sof_fw_filename = "intel/reef-bdw.ri",
-		.sof_tplg_filename = "intel/reef-bdw-rt286.tplg",
+		.sof_tplg_filename = "intel/reef-bdw-rt5677.tplg",
 		.asoc_plat_name = "haswell-pcm-audio",
 	},
 	{
