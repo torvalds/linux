@@ -3900,6 +3900,146 @@ static int parse_mic_boost(struct hda_codec *codec)
 }
 
 /*
+ * mic mute LED hook helpers
+ */
+enum {
+	MICMUTE_LED_ON,
+	MICMUTE_LED_OFF,
+	MICMUTE_LED_FOLLOW_CAPTURE,
+	MICMUTE_LED_FOLLOW_MUTE,
+};
+
+static void call_micmute_led_update(struct hda_codec *codec)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	unsigned int val;
+
+	switch (spec->micmute_led.led_mode) {
+	case MICMUTE_LED_ON:
+		val = 1;
+		break;
+	case MICMUTE_LED_OFF:
+		val = 0;
+		break;
+	case MICMUTE_LED_FOLLOW_CAPTURE:
+		val = spec->micmute_led.capture;
+		break;
+	case MICMUTE_LED_FOLLOW_MUTE:
+	default:
+		val = !spec->micmute_led.capture;
+		break;
+	}
+
+	if (val == spec->micmute_led.led_value)
+		return;
+	spec->micmute_led.led_value = val;
+	if (spec->micmute_led.update)
+		spec->micmute_led.update(codec);
+}
+
+static void update_micmute_led(struct hda_codec *codec,
+			       struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_gen_spec *spec = codec->spec;
+
+	if (spec->micmute_led.old_hook)
+		spec->micmute_led.old_hook(codec, kcontrol, ucontrol);
+
+	if (!ucontrol)
+		return;
+	if (!strcmp("Capture Switch", ucontrol->id.name) &&
+	    !ucontrol->id.index) {
+		/* TODO: How do I verify if it's a mono or stereo here? */
+		spec->micmute_led.capture = (ucontrol->value.integer.value[0] ||
+					     ucontrol->value.integer.value[1]);
+		call_micmute_led_update(codec);
+	}
+}
+
+static int micmute_led_mode_info(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_info *uinfo)
+{
+	static const char * const texts[] = {
+		"On", "Off", "Follow Capture", "Follow Mute",
+	};
+
+	return snd_ctl_enum_info(uinfo, 1, ARRAY_SIZE(texts), texts);
+}
+
+static int micmute_led_mode_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct hda_gen_spec *spec = codec->spec;
+
+	ucontrol->value.enumerated.item[0] = spec->micmute_led.led_mode;
+	return 0;
+}
+
+static int micmute_led_mode_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct hda_gen_spec *spec = codec->spec;
+	unsigned int mode;
+
+	mode = ucontrol->value.enumerated.item[0];
+	if (mode > MICMUTE_LED_FOLLOW_MUTE)
+		mode = MICMUTE_LED_FOLLOW_MUTE;
+	if (mode == spec->micmute_led.led_mode)
+		return 0;
+	spec->micmute_led.led_mode = mode;
+	call_micmute_led_update(codec);
+	return 1;
+}
+
+static const struct snd_kcontrol_new micmute_led_mode_ctl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Mic Mute-LED Mode",
+	.info = micmute_led_mode_info,
+	.get = micmute_led_mode_get,
+	.put = micmute_led_mode_put,
+};
+
+/**
+ * snd_hda_gen_add_micmute_led - helper for setting up mic mute LED hook
+ * @codec: the HDA codec
+ * @hook: the callback for updating LED
+ *
+ * Called from the codec drivers for offering the mic mute LED controls.
+ * Only valid for a single ADC (or a single input).  When established, it
+ * sets up cap_sync_hook and triggers the callback at each time when the
+ * capture mixer switch changes.  The callback is supposed to update the LED
+ * accordingly.
+ *
+ * Returns 1 if the hook is established, 0 if skipped (no valid config), or
+ * a negative error code.
+ */
+int snd_hda_gen_add_micmute_led(struct hda_codec *codec,
+				void (*hook)(struct hda_codec *))
+{
+	struct hda_gen_spec *spec = codec->spec;
+
+	if (spec->num_adc_nids > 1 && !spec->dyn_adc_switch) {
+		codec_dbg(codec,
+			  "Skipping micmute LED control due to several ADCs");
+		return 0;
+	}
+
+	spec->micmute_led.led_mode = MICMUTE_LED_FOLLOW_MUTE;
+	spec->micmute_led.capture = 0;
+	spec->micmute_led.led_value = 0;
+	spec->micmute_led.old_hook = spec->cap_sync_hook;
+	spec->micmute_led.update = hook;
+	spec->cap_sync_hook = update_micmute_led;
+	if (!snd_hda_gen_add_kctl(spec, NULL, &micmute_led_mode_ctl))
+		return -ENOMEM;
+	return 1;
+}
+EXPORT_SYMBOL_GPL(snd_hda_gen_add_micmute_led);
+
+/*
  * parse digital I/Os and set up NIDs in BIOS auto-parse mode
  */
 static void parse_digital(struct hda_codec *codec)
