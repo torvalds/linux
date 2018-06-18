@@ -69,6 +69,35 @@ static void ida_check_max(struct ida *ida)
 	}
 }
 
+/*
+ * Check handling of conversions between exceptional entries and full bitmaps.
+ */
+static void ida_check_conv(struct ida *ida)
+{
+	unsigned long i;
+
+	for (i = 0; i < IDA_BITMAP_BITS * 2; i += IDA_BITMAP_BITS) {
+		IDA_BUG_ON(ida, ida_alloc_min(ida, i + 1, GFP_KERNEL) != i + 1);
+		IDA_BUG_ON(ida, ida_alloc_min(ida, i + BITS_PER_LONG,
+					GFP_KERNEL) != i + BITS_PER_LONG);
+		ida_free(ida, i + 1);
+		ida_free(ida, i + BITS_PER_LONG);
+		IDA_BUG_ON(ida, !ida_is_empty(ida));
+	}
+
+	for (i = 0; i < IDA_BITMAP_BITS * 2; i++)
+		IDA_BUG_ON(ida, ida_alloc(ida, GFP_KERNEL) != i);
+	for (i = IDA_BITMAP_BITS * 2; i > 0; i--)
+		ida_free(ida, i - 1);
+	IDA_BUG_ON(ida, !ida_is_empty(ida));
+
+	for (i = 0; i < IDA_BITMAP_BITS + BITS_PER_LONG - 4; i++)
+		IDA_BUG_ON(ida, ida_alloc(ida, GFP_KERNEL) != i);
+	for (i = IDA_BITMAP_BITS + BITS_PER_LONG - 4; i > 0; i--)
+		ida_free(ida, i - 1);
+	IDA_BUG_ON(ida, !ida_is_empty(ida));
+}
+
 static int ida_checks(void)
 {
 	DEFINE_IDA(ida);
@@ -78,6 +107,7 @@ static int ida_checks(void)
 	ida_check_leaf(&ida, 1024);
 	ida_check_leaf(&ida, 1024 * 64);
 	ida_check_max(&ida);
+	ida_check_conv(&ida);
 
 	printk("IDA: %u of %u tests passed\n", tests_passed, tests_run);
 	return (tests_run != tests_passed) ? 0 : -EINVAL;
