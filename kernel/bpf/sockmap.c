@@ -1915,6 +1915,24 @@ int sock_map_prog(struct bpf_map *map, struct bpf_prog *prog, u32 type)
 	return 0;
 }
 
+int sockmap_get_from_fd(const union bpf_attr *attr, int type,
+			struct bpf_prog *prog)
+{
+	int ufd = attr->target_fd;
+	struct bpf_map *map;
+	struct fd f;
+	int err;
+
+	f = fdget(ufd);
+	map = __bpf_map_get(f);
+	if (IS_ERR(map))
+		return PTR_ERR(map);
+
+	err = sock_map_prog(map, prog, attr->attach_type);
+	fdput(f);
+	return err;
+}
+
 static void *sock_map_lookup(struct bpf_map *map, void *key)
 {
 	return NULL;
