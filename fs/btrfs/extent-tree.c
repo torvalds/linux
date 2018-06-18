@@ -1635,8 +1635,8 @@ int lookup_inline_extent_backref(struct btrfs_trans_handle *trans,
 		extra_size = -1;
 
 	/*
-	 * Owner is our parent level, so we can just add one to get the level
-	 * for the block we are interested in.
+	 * Owner is our level, so we can just add one to get the level for the
+	 * block we are interested in.
 	 */
 	if (skinny_metadata && owner < BTRFS_FIRST_FREE_OBJECTID) {
 		key.type = BTRFS_METADATA_ITEM_KEY;
