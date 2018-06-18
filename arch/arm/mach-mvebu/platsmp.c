@@ -35,6 +35,8 @@
 #define AXP_BOOTROM_BASE 0xfff00000
 #define AXP_BOOTROM_SIZE 0x100000
 
+static struct clk *boot_cpu_clk;
+
 static struct clk *get_cpu_clk(int cpu)
 {
 	struct clk *cpu_clk;
@@ -48,30 +50,6 @@ static struct clk *get_cpu_clk(int cpu)
 	return cpu_clk;
 }
 
-static void set_secondary_cpu_clock(unsigned int cpu)
-{
-	int thiscpu;
-	unsigned long rate;
-	struct clk *cpu_clk;
-
-	thiscpu = get_cpu();
-
-	cpu_clk = get_cpu_clk(thiscpu);
-	if (!cpu_clk)
-		goto out;
-	clk_prepare_enable(cpu_clk);
-	rate = clk_get_rate(cpu_clk);
-
-	cpu_clk = get_cpu_clk(cpu);
-	if (!cpu_clk)
-		goto out;
-	clk_set_rate(cpu_clk, rate);
-	clk_prepare_enable(cpu_clk);
-
-out:
-	put_cpu();
-}
-
 static int armada_xp_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	int ret, hw_cpu;
@@ -79,7 +57,6 @@ static int armada_xp_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	pr_info("Booting CPU %d\n", cpu);
 
 	hw_cpu = cpu_logical_map(cpu);
-	set_secondary_cpu_clock(hw_cpu);
 	mvebu_pmsu_set_cpu_boot_addr(hw_cpu, armada_xp_secondary_startup);
 
 	/*
@@ -122,6 +99,19 @@ static void __init armada_xp_smp_init_cpus(void)
 		panic("Invalid number of CPUs in DT\n");
 }
 
+static int armada_xp_sync_secondary_clk(unsigned int cpu)
+{
+	struct clk *cpu_clk = get_cpu_clk(cpu);
+
+	if (!cpu_clk || !boot_cpu_clk)
+		return 0;
+
+	clk_prepare_enable(cpu_clk);
+	clk_set_rate(cpu_clk, clk_get_rate(boot_cpu_clk));
+
+	return 0;
+}
+
 static void __init armada_xp_smp_prepare_cpus(unsigned int max_cpus)
 {
 	struct device_node *node;
@@ -130,6 +120,14 @@ static void __init armada_xp_smp_prepare_cpus(unsigned int max_cpus)
 
 	flush_cache_all();
 	set_cpu_coherent();
+
+	boot_cpu_clk = get_cpu_clk(smp_processor_id());
+	if (boot_cpu_clk) {
+		clk_prepare_enable(boot_cpu_clk);
+		cpuhp_setup_state_nocalls(CPUHP_AP_ARM_MVEBU_SYNC_CLOCKS,
+					  "arm/mvebu/sync_clocks:online",
+					  armada_xp_sync_secondary_clk, NULL);
+	}
 
 	/*
 	 * In order to boot the secondary CPUs we need to ensure
@@ -223,7 +221,6 @@ static int mv98dx3236_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	int ret, hw_cpu;
 
 	hw_cpu = cpu_logical_map(cpu);
-	set_secondary_cpu_clock(hw_cpu);
 	mv98dx3236_resume_set_cpu_boot_addr(hw_cpu,
 					    armada_xp_secondary_startup);
 
