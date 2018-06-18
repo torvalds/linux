@@ -190,7 +190,7 @@ static int fsi_slave_calc_addr(struct fsi_slave *slave, uint32_t *addrp,
 static int fsi_slave_report_and_clear_errors(struct fsi_slave *slave)
 {
 	struct fsi_master *master = slave->master;
-	uint32_t irq, stat;
+	__be32 irq, stat;
 	int rc, link;
 	uint8_t id;
 
@@ -390,7 +390,6 @@ static struct device_node *fsi_device_find_of_node(struct fsi_device *dev)
 static int fsi_slave_scan(struct fsi_slave *slave)
 {
 	uint32_t engine_addr;
-	uint32_t conf;
 	int rc, i;
 
 	/*
@@ -404,15 +403,17 @@ static int fsi_slave_scan(struct fsi_slave *slave)
 	for (i = 2; i < engine_page_size / sizeof(uint32_t); i++) {
 		uint8_t slots, version, type, crc;
 		struct fsi_device *dev;
+		uint32_t conf;
+		__be32 data;
 
-		rc = fsi_slave_read(slave, (i + 1) * sizeof(conf),
-				&conf, sizeof(conf));
+		rc = fsi_slave_read(slave, (i + 1) * sizeof(data),
+				&data, sizeof(data));
 		if (rc) {
 			dev_warn(&slave->dev,
 				"error reading slave registers\n");
 			return -1;
 		}
-		conf = be32_to_cpu(conf);
+		conf = be32_to_cpu(data);
 
 		crc = crc4(0, conf, 32);
 		if (crc) {
@@ -597,15 +598,16 @@ static uint32_t fsi_slave_smode(int id)
 static int fsi_slave_set_smode(struct fsi_master *master, int link, int id)
 {
 	uint32_t smode;
+	__be32 data;
 
 	/* set our smode register with the slave ID field to 0; this enables
 	 * extended slave addressing
 	 */
 	smode = fsi_slave_smode(id);
-	smode = cpu_to_be32(smode);
+	data = cpu_to_be32(smode);
 
 	return fsi_master_write(master, link, id, FSI_SLAVE_BASE + FSI_SMODE,
-			&smode, sizeof(smode));
+			&data, sizeof(data));
 }
 
 static void fsi_slave_release(struct device *dev)
@@ -661,9 +663,10 @@ static struct device_node *fsi_slave_find_of_node(struct fsi_master *master,
 
 static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 {
-	uint32_t chip_id, llmode;
+	uint32_t chip_id;
 	struct fsi_slave *slave;
 	uint8_t crc;
+	__be32 data, llmode;
 	int rc;
 
 	/* Currently, we only support single slaves on a link, and use the
@@ -672,13 +675,13 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 	if (id != 0)
 		return -EINVAL;
 
-	rc = fsi_master_read(master, link, id, 0, &chip_id, sizeof(chip_id));
+	rc = fsi_master_read(master, link, id, 0, &data, sizeof(data));
 	if (rc) {
 		dev_dbg(&master->dev, "can't read slave %02x:%02x %d\n",
 				link, id, rc);
 		return -ENODEV;
 	}
-	chip_id = be32_to_cpu(chip_id);
+	chip_id = be32_to_cpu(data);
 
 	crc = crc4(0, chip_id, 32);
 	if (crc) {
