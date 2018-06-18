@@ -176,7 +176,7 @@ static void calculate_differed_part(struct snd_motu_packet_format *formats,
 				    enum snd_motu_spec_flags flags,
 				    u32 data, u32 mask, u32 shift)
 {
-	unsigned char pcm_chunks[3] = {0, 0};
+	unsigned char pcm_chunks[2] = {0, 0};
 
 	/*
 	 * When optical interfaces are configured for S/PDIF (TOSLINK),
