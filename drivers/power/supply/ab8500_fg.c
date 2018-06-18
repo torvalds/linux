@@ -379,15 +379,13 @@ static int ab8500_fg_is_low_curr(struct ab8500_fg *di, int curr)
  */
 static int ab8500_fg_add_cap_sample(struct ab8500_fg *di, int sample)
 {
-	struct timespec64 ts64;
+	time64_t now = ktime_get_boottime_seconds();
 	struct ab8500_fg_avg_cap *avg = &di->avg_cap;
-
-	getnstimeofday64(&ts64);
 
 	do {
 		avg->sum += sample - avg->samples[avg->pos];
 		avg->samples[avg->pos] = sample;
-		avg->time_stamps[avg->pos] = ts64.tv_sec;
+		avg->time_stamps[avg->pos] = now;
 		avg->pos++;
 
 		if (avg->pos == NBR_AVG_SAMPLES)
@@ -400,7 +398,7 @@ static int ab8500_fg_add_cap_sample(struct ab8500_fg *di, int sample)
 		 * Check the time stamp for each sample. If too old,
 		 * replace with latest sample
 		 */
-	} while (ts64.tv_sec - VALID_CAPACITY_SEC > avg->time_stamps[avg->pos]);
+	} while (now - VALID_CAPACITY_SEC > avg->time_stamps[avg->pos]);
 
 	avg->avg = avg->sum / avg->nbr_samples;
 
@@ -439,14 +437,14 @@ static void ab8500_fg_clear_cap_samples(struct ab8500_fg *di)
 static void ab8500_fg_fill_cap_sample(struct ab8500_fg *di, int sample)
 {
 	int i;
-	struct timespec64 ts64;
+	time64_t now;
 	struct ab8500_fg_avg_cap *avg = &di->avg_cap;
 
-	getnstimeofday64(&ts64);
+	now = ktime_get_boottime_seconds();
 
 	for (i = 0; i < NBR_AVG_SAMPLES; i++) {
 		avg->samples[i] = sample;
-		avg->time_stamps[i] = ts64.tv_sec;
+		avg->time_stamps[i] = now;
 	}
 
 	avg->pos = 0;
