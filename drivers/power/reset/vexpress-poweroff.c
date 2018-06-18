@@ -35,6 +35,7 @@ static void vexpress_reset_do(struct device *dev, const char *what)
 }
 
 static struct device *vexpress_power_off_device;
+static atomic_t vexpress_restart_nb_refcnt = ATOMIC_INIT(0);
 
 static void vexpress_power_off(void)
 {
@@ -99,10 +100,13 @@ static int _vexpress_register_restart_handler(struct device *dev)
 	int err;
 
 	vexpress_restart_device = dev;
-	err = register_restart_handler(&vexpress_restart_nb);
-	if (err) {
-		dev_err(dev, "cannot register restart handler (err=%d)\n", err);
-		return err;
+	if (atomic_inc_return(&vexpress_restart_nb_refcnt) == 1) {
+		err = register_restart_handler(&vexpress_restart_nb);
+		if (err) {
+			dev_err(dev, "cannot register restart handler (err=%d)\n", err);
+			atomic_dec(&vexpress_restart_nb_refcnt);
+			return err;
+		}
 	}
 	device_create_file(dev, &dev_attr_active);
 
