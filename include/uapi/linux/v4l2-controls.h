@@ -597,6 +597,13 @@ enum v4l2_mpeg_video_vp8_profile {
 };
 /* Deprecated alias for compatibility reasons. */
 #define V4L2_CID_MPEG_VIDEO_VPX_PROFILE	V4L2_CID_MPEG_VIDEO_VP8_PROFILE
+#define V4L2_CID_MPEG_VIDEO_VP9_PROFILE			(V4L2_CID_MPEG_BASE+512)
+enum v4l2_mpeg_video_vp9_profile {
+	V4L2_MPEG_VIDEO_VP9_PROFILE_0				= 0,
+	V4L2_MPEG_VIDEO_VP9_PROFILE_1				= 1,
+	V4L2_MPEG_VIDEO_VP9_PROFILE_2				= 2,
+	V4L2_MPEG_VIDEO_VP9_PROFILE_3				= 3,
+};
 
 /* CIDs for HEVC encoding. */
 
