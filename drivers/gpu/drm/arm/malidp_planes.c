@@ -236,8 +236,8 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	if (state->rotation & MALIDP_ROTATED_MASK) {
 		int val;
 
-		val = mp->hwdev->hw->rotmem_required(mp->hwdev, state->crtc_h,
-						     state->crtc_w,
+		val = mp->hwdev->hw->rotmem_required(mp->hwdev, state->crtc_w,
+						     state->crtc_h,
 						     fb->format->format);
 		if (val < 0)
 			return val;
