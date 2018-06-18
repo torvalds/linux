@@ -269,7 +269,7 @@ void debug_timestamp(char *msg)
 {
 	struct timespec64 t;
 
-	getnstimeofday64(&t);
+	ktime_get_ts64(&t);
 	pr_debug("**%s: %lld.%9.9ld\n", msg, (long long) t.tv_sec, t.tv_nsec);
 }
 #else
@@ -961,12 +961,12 @@ static inline int ipmi_thread_busy_wait(enum si_sm_result smi_result,
 	if (max_busy_us == 0 || smi_result != SI_SM_CALL_WITH_DELAY)
 		ipmi_si_set_not_busy(busy_until);
 	else if (!ipmi_si_is_busy(busy_until)) {
-		getnstimeofday64(busy_until);
+		ktime_get_ts64(busy_until);
 		timespec64_add_ns(busy_until, max_busy_us*NSEC_PER_USEC);
 	} else {
 		struct timespec64 now;
 
-		getnstimeofday64(&now);
+		ktime_get_ts64(&now);
 		if (unlikely(timespec64_compare(&now, busy_until) > 0)) {
 			ipmi_si_set_not_busy(busy_until);
 			return 0;
