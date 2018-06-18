@@ -56,6 +56,9 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 	case DRM_VMW_PARAM_HW_CAPS:
 		param->value = dev_priv->capabilities;
 		break;
+	case DRM_VMW_PARAM_HW_CAPS2:
+		param->value = dev_priv->capabilities2;
+		break;
 	case DRM_VMW_PARAM_FIFO_CAPS:
 		param->value = dev_priv->fifo.capabilities;
 		break;

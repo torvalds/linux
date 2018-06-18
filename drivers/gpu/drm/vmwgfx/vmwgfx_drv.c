@@ -258,6 +258,15 @@ MODULE_PARM_DESC(assume_16bpp, "Assume 16-bpp when filtering modes");
 module_param_named(assume_16bpp, vmw_assume_16bpp, int, 0600);
 
 
+static void vmw_print_capabilities2(uint32_t capabilities2)
+{
+	DRM_INFO("Capabilities2:\n");
+	if (capabilities2 & SVGA_CAP2_GROW_OTABLE)
+		DRM_INFO("  Grow oTable.\n");
+	if (capabilities2 & SVGA_CAP2_INTRA_SURFACE_COPY)
+		DRM_INFO("  IntraSurface copy.\n");
+}
+
 static void vmw_print_capabilities(uint32_t capabilities)
 {
 	DRM_INFO("Capabilities:\n");
@@ -684,6 +693,12 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	}
 
 	dev_priv->capabilities = vmw_read(dev_priv, SVGA_REG_CAPABILITIES);
+
+	if (dev_priv->capabilities & SVGA_CAP_CAP2_REGISTER) {
+		dev_priv->capabilities2 = vmw_read(dev_priv, SVGA_REG_CAP2);
+	}
+
+
 	ret = vmw_dma_select_mode(dev_priv);
 	if (unlikely(ret != 0)) {
 		DRM_INFO("Restricting capabilities due to IOMMU setup.\n");
@@ -752,6 +767,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	}
 
 	vmw_print_capabilities(dev_priv->capabilities);
+	if (dev_priv->capabilities & SVGA_CAP_CAP2_REGISTER)
+		vmw_print_capabilities2(dev_priv->capabilities2);
 
 	ret = vmw_dma_masks(dev_priv);
 	if (unlikely(ret != 0))

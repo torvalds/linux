@@ -95,6 +95,7 @@ extern "C" {
 #define DRM_VMW_PARAM_MAX_MOB_SIZE     10
 #define DRM_VMW_PARAM_SCREEN_TARGET    11
 #define DRM_VMW_PARAM_DX               12
+#define DRM_VMW_PARAM_HW_CAPS2         13
 
 /**
  * enum drm_vmw_handle_type - handle type for ref ioctls
