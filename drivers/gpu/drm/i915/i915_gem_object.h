@@ -348,9 +348,6 @@ i915_gem_object_put(struct drm_i915_gem_object *obj)
 	__drm_gem_object_put(&obj->base);
 }
 
-__deprecated
-extern void drm_gem_object_unreference_unlocked(struct drm_gem_object *);
-
 static inline void i915_gem_object_lock(struct drm_i915_gem_object *obj)
 {
 	reservation_object_lock(obj->resv, NULL);
