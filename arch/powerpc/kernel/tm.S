@@ -96,9 +96,9 @@ EXPORT_SYMBOL_GPL(tm_abort);
  *		   uint8_t cause)
  *
  *	- Performs a full reclaim.  This destroys outstanding
- *	  transactions and updates thread->regs.tm_ckpt_* with the
- *	  original checkpointed state.  Note that thread->regs is
- *	  unchanged.
+ *	  transactions and updates thread.ckpt_regs, thread.ckfp_state and
+ *	  thread.ckvr_state with the original checkpointed state.  Note that
+ *	  thread->regs is unchanged.
  *
  * Purpose is to both abort transactions of, and preserve the state of,
  * a transactions at a context switch. We preserve/restore both sets of process
@@ -261,7 +261,7 @@ _GLOBAL(tm_reclaim)
 
 	/* Altivec (VEC/VMX/VR)*/
 	addi	r7, r3, THREAD_CKVRSTATE
-	SAVE_32VRS(0, r6, r7)	/* r6 scratch, r7 transact vr state */
+	SAVE_32VRS(0, r6, r7)	/* r6 scratch, r7 ckvr_state */
 	mfvscr	v0
 	li	r6, VRSTATE_VSCR
 	stvx	v0, r7, r6
@@ -272,7 +272,7 @@ _GLOBAL(tm_reclaim)
 
 	/* Floating Point (FP) */
 	addi	r7, r3, THREAD_CKFPSTATE
-	SAVE_32FPRS_VSRS(0, R6, R7)	/* r6 scratch, r7 transact fp state */
+	SAVE_32FPRS_VSRS(0, R6, R7)	/* r6 scratch, r7 ckfp_state */
 	mffs    fr0
 	stfd    fr0,FPSTATE_FPSCR(r7)
 

@@ -1750,16 +1750,20 @@ void fp_unavailable_tm(struct pt_regs *regs)
          * checkpointed FP registers need to be loaded.
 	 */
 	tm_reclaim_current(TM_CAUSE_FAC_UNAV);
-	/* Reclaim didn't save out any FPRs to transact_fprs. */
+
+	/*
+	 * Reclaim initially saved out bogus (lazy) FPRs to ckfp_state, and
+	 * then it was overwrite by the thr->fp_state by tm_reclaim_thread().
+	 *
+	 * At this point, ck{fp,vr}_state contains the exact values we want to
+	 * recheckpoint.
+	 */
 
 	/* Enable FP for the task: */
 	current->thread.load_fp = 1;
 
-	/* This loads and recheckpoints the FP registers from
-	 * thread.fpr[].  They will remain in registers after the
-	 * checkpoint so we don't need to reload them after.
-	 * If VMX is in use, the VRs now hold checkpointed values,
-	 * so we don't want to load the VRs from the thread_struct.
+	/*
+	 * Recheckpoint all the checkpointed ckpt, ck{fp, vr}_state registers.
 	 */
 	tm_recheckpoint(&current->thread);
 }
