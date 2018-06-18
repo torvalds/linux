@@ -156,6 +156,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define _PHY3(phy, ...) _PICK(phy, __VA_ARGS__)
 #define _MMIO_PHY3(phy, a, b, c) _MMIO(_PHY3(phy, a, b, c))
 
+#define __MASKED_FIELD(mask, value) ((mask) << 16 | (value))
 #define _MASKED_FIELD(mask, value) ({					   \
 	if (__builtin_constant_p(mask))					   \
 		BUILD_BUG_ON_MSG(((mask) & 0xffff0000), "Incorrect mask"); \
@@ -164,7 +165,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 	if (__builtin_constant_p(mask) && __builtin_constant_p(value))	   \
 		BUILD_BUG_ON_MSG((value) & ~(mask),			   \
 				 "Incorrect value for mask");		   \
-	(mask) << 16 | (value); })
+	__MASKED_FIELD(mask, value); })
 #define _MASKED_BIT_ENABLE(a)	({ typeof(a) _a = (a); _MASKED_FIELD(_a, _a); })
 #define _MASKED_BIT_DISABLE(a)	(_MASKED_FIELD((a), 0))
 

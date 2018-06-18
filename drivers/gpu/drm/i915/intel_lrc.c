@@ -1566,29 +1566,56 @@ static u32 *gen8_init_indirectctx_bb(struct intel_engine_cs *engine, u32 *batch)
 	return batch;
 }
 
+struct lri {
+	i915_reg_t reg;
+	u32 value;
+};
+
+static u32 *emit_lri(u32 *batch, const struct lri *lri, unsigned int count)
+{
+	GEM_BUG_ON(!count || count > 63);
+
+	*batch++ = MI_LOAD_REGISTER_IMM(count);
+	do {
+		*batch++ = i915_mmio_reg_offset(lri->reg);
+		*batch++ = lri->value;
+	} while (lri++, --count);
+	*batch++ = MI_NOOP;
+
+	return batch;
+}
+
 static u32 *gen9_init_indirectctx_bb(struct intel_engine_cs *engine, u32 *batch)
 {
+	static const struct lri lri[] = {
+		/* WaDisableGatherAtSetShaderCommonSlice:skl,bxt,kbl,glk */
+		{
+			COMMON_SLICE_CHICKEN2,
+			__MASKED_FIELD(GEN9_DISABLE_GATHER_AT_SET_SHADER_COMMON_SLICE,
+				       0),
+		},
+
+		/* BSpec: 11391 */
+		{
+			FF_SLICE_CHICKEN,
+			__MASKED_FIELD(FF_SLICE_CHICKEN_CL_PROVOKING_VERTEX_FIX,
+				       FF_SLICE_CHICKEN_CL_PROVOKING_VERTEX_FIX),
+		},
+
+		/* BSpec: 11299 */
+		{
+			_3D_CHICKEN3,
+			__MASKED_FIELD(_3D_CHICKEN_SF_PROVOKING_VERTEX_FIX,
+				       _3D_CHICKEN_SF_PROVOKING_VERTEX_FIX),
+		}
+	};
+
 	*batch++ = MI_ARB_ON_OFF | MI_ARB_DISABLE;
 
 	/* WaFlushCoherentL3CacheLinesAtContextSwitch:skl,bxt,glk */
 	batch = gen8_emit_flush_coherentl3_wa(engine, batch);
 
-	*batch++ = MI_LOAD_REGISTER_IMM(3);
-
-	/* WaDisableGatherAtSetShaderCommonSlice:skl,bxt,kbl,glk */
-	*batch++ = i915_mmio_reg_offset(COMMON_SLICE_CHICKEN2);
-	*batch++ = _MASKED_BIT_DISABLE(
-			GEN9_DISABLE_GATHER_AT_SET_SHADER_COMMON_SLICE);
-
-	/* BSpec: 11391 */
-	*batch++ = i915_mmio_reg_offset(FF_SLICE_CHICKEN);
-	*batch++ = _MASKED_BIT_ENABLE(FF_SLICE_CHICKEN_CL_PROVOKING_VERTEX_FIX);
-
-	/* BSpec: 11299 */
-	*batch++ = i915_mmio_reg_offset(_3D_CHICKEN3);
-	*batch++ = _MASKED_BIT_ENABLE(_3D_CHICKEN_SF_PROVOKING_VERTEX_FIX);
-
-	*batch++ = MI_NOOP;
+	batch = emit_lri(batch, lri, ARRAY_SIZE(lri));
 
 	/* WaClearSlmSpaceAtContextSwitch:kbl */
 	/* Actual scratch location is at 128 bytes offset */
