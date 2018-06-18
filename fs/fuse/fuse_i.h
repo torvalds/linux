@@ -355,6 +355,39 @@ struct fuse_req {
 
 };
 
+struct fuse_iqueue;
+
+/**
+ * Input queue callbacks
+ *
+ * Input queue signalling is device-specific.  For example, the /dev/fuse file
+ * uses fiq->waitq and fasync to wake processes that are waiting on queue
+ * readiness.  These callbacks allow other device types to respond to input
+ * queue activity.
+ */
+struct fuse_iqueue_ops {
+	/**
+	 * Signal that a forget has been queued
+	 */
+	void (*wake_forget_and_unlock)(struct fuse_iqueue *fiq)
+		__releases(fiq->lock);
+
+	/**
+	 * Signal that an INTERRUPT request has been queued
+	 */
+	void (*wake_interrupt_and_unlock)(struct fuse_iqueue *fiq)
+		__releases(fiq->lock);
+
+	/**
+	 * Signal that a request has been queued
+	 */
+	void (*wake_pending_and_unlock)(struct fuse_iqueue *fiq)
+		__releases(fiq->lock);
+};
+
+/** /dev/fuse input queue operations */
+extern const struct fuse_iqueue_ops fuse_dev_fiq_ops;
+
 struct fuse_iqueue {
 	/** Connection established */
 	unsigned connected;
@@ -383,6 +416,12 @@ struct fuse_iqueue {
 
 	/** O_ASYNC requests */
 	struct fasync_struct *fasync;
+
+	/** Device-specific callbacks */
+	const struct fuse_iqueue_ops *ops;
+
+	/** Device-specific state */
+	void *priv;
 };
 
 #define FUSE_PQ_HASH_BITS 8
@@ -882,7 +921,8 @@ struct fuse_conn *fuse_conn_get(struct fuse_conn *fc);
 /**
  * Initialize fuse_conn
  */
-void fuse_conn_init(struct fuse_conn *fc, struct user_namespace *user_ns);
+void fuse_conn_init(struct fuse_conn *fc, struct user_namespace *user_ns,
+		    const struct fuse_iqueue_ops *fiq_ops, void *fiq_priv);
 
 /**
  * Release reference to fuse_conn
