@@ -655,6 +655,10 @@ static int vmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 	if (IS_ERR(alg))
 		return PTR_ERR(alg);
 
+	err = -EINVAL;
+	if (alg->cra_blocksize != 16)
+		goto out_put_alg;
+
 	inst = shash_alloc_instance("vmac", alg);
 	err = PTR_ERR(inst);
 	if (IS_ERR(inst))
