@@ -659,10 +659,12 @@ EXPORT_SYMBOL_GPL(drm_display_mode_to_videomode);
  * drm_bus_flags_from_videomode - extract information about pixelclk and
  * DE polarity from videomode and store it in a separate variable
  * @vm: videomode structure to use
- * @bus_flags: information about pixelclk and DE polarity will be stored here
+ * @bus_flags: information about pixelclk, sync and DE polarity will be stored
+ * here
  *
- * Sets DRM_BUS_FLAG_DE_(LOW|HIGH) and DRM_BUS_FLAG_PIXDATA_(POS|NEG)EDGE
- * in @bus_flags according to DISPLAY_FLAGS found in @vm
+ * Sets DRM_BUS_FLAG_DE_(LOW|HIGH),  DRM_BUS_FLAG_PIXDATA_(POS|NEG)EDGE and
+ * DISPLAY_FLAGS_SYNC_(POS|NEG)EDGE in @bus_flags according to DISPLAY_FLAGS
+ * found in @vm
  */
 void drm_bus_flags_from_videomode(const struct videomode *vm, u32 *bus_flags)
 {
@@ -671,6 +673,11 @@ void drm_bus_flags_from_videomode(const struct videomode *vm, u32 *bus_flags)
 		*bus_flags |= DRM_BUS_FLAG_PIXDATA_POSEDGE;
 	if (vm->flags & DISPLAY_FLAGS_PIXDATA_NEGEDGE)
 		*bus_flags |= DRM_BUS_FLAG_PIXDATA_NEGEDGE;
+
+	if (vm->flags & DISPLAY_FLAGS_SYNC_POSEDGE)
+		*bus_flags |= DRM_BUS_FLAG_SYNC_POSEDGE;
+	if (vm->flags & DISPLAY_FLAGS_SYNC_NEGEDGE)
+		*bus_flags |= DRM_BUS_FLAG_SYNC_NEGEDGE;
 
 	if (vm->flags & DISPLAY_FLAGS_DE_LOW)
 		*bus_flags |= DRM_BUS_FLAG_DE_LOW;
@@ -684,7 +691,7 @@ EXPORT_SYMBOL_GPL(drm_bus_flags_from_videomode);
  * of_get_drm_display_mode - get a drm_display_mode from devicetree
  * @np: device_node with the timing specification
  * @dmode: will be set to the return value
- * @bus_flags: information about pixelclk and DE polarity
+ * @bus_flags: information about pixelclk, sync and DE polarity
  * @index: index into the list of display timings in devicetree
  *
  * This function is expensive and should only be used, if only one mode is to be

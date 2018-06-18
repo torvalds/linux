@@ -290,6 +290,10 @@ struct drm_display_info {
 #define DRM_BUS_FLAG_DATA_MSB_TO_LSB	(1<<4)
 /* data is transmitted LSB to MSB on the bus */
 #define DRM_BUS_FLAG_DATA_LSB_TO_MSB	(1<<5)
+/* drive sync on pos. edge */
+#define DRM_BUS_FLAG_SYNC_POSEDGE	(1<<6)
+/* drive sync on neg. edge */
+#define DRM_BUS_FLAG_SYNC_NEGEDGE	(1<<7)
 
 	/**
 	 * @bus_flags: Additional information (like pixel signal polarity) for
