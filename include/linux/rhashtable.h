@@ -75,7 +75,7 @@ struct bucket_table {
 	struct rhash_head __rcu *buckets[] ____cacheline_aligned_in_smp;
 };
 
-#define INIT_RHT_NULLS_HEAD(ptr, ht, hash) \
+#define INIT_RHT_NULLS_HEAD(ptr)	\
 	((ptr) = (typeof(ptr)) NULLS_MARKER(0))
 
 static inline bool rht_is_a_nulls(const struct rhash_head *ptr)
