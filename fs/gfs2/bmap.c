@@ -2154,11 +2154,11 @@ int __gfs2_punch_hole(struct file *file, loff_t offset, loff_t length)
 		if (error)
 			goto out;
 	} else {
-		unsigned int start_off, end_off, blocksize;
+		unsigned int start_off, end_len, blocksize;
 
 		blocksize = i_blocksize(inode);
 		start_off = offset & (blocksize - 1);
-		end_off = (offset + length) & (blocksize - 1);
+		end_len = (offset + length) & (blocksize - 1);
 		if (start_off) {
 			unsigned int len = length;
 			if (length > blocksize - start_off)
@@ -2167,11 +2167,11 @@ int __gfs2_punch_hole(struct file *file, loff_t offset, loff_t length)
 			if (error)
 				goto out;
 			if (start_off + length < blocksize)
-				end_off = 0;
+				end_len = 0;
 		}
-		if (end_off) {
+		if (end_len) {
 			error = gfs2_block_zero_range(inode,
-				offset + length - end_off, end_off);
+				offset + length - end_len, end_len);
 			if (error)
 				goto out;
 		}
