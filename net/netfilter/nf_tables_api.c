@@ -14,6 +14,7 @@
 #include <linux/skbuff.h>
 #include <linux/netlink.h>
 #include <linux/vmalloc.h>
+#include <linux/rhashtable.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nf_tables.h>

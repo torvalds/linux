@@ -86,6 +86,7 @@
 #include <linux/ipc_namespace.h>
 #include <linux/sched/wake_q.h>
 #include <linux/nospec.h>
+#include <linux/rhashtable.h>
 
 #include <linux/uaccess.h>
 #include "util.h"

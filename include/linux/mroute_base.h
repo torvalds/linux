@@ -2,7 +2,7 @@
 #define __LINUX_MROUTE_BASE_H
 
 #include <linux/netdevice.h>
-#include <linux/rhashtable.h>
+#include <linux/rhashtable-types.h>
 #include <linux/spinlock.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>

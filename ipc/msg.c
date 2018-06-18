@@ -38,6 +38,7 @@
 #include <linux/rwsem.h>
 #include <linux/nsproxy.h>
 #include <linux/ipc_namespace.h>
+#include <linux/rhashtable.h>
 
 #include <asm/current.h>
 #include <linux/uaccess.h>
