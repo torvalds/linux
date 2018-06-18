@@ -160,6 +160,11 @@ static void calculate_fixed_part(struct snd_motu_packet_format *formats,
 		pcm_chunks[1] += 2;
 	}
 
+	if (flags & SND_MOTU_SPEC_HAS_AESEBU_IFACE) {
+		pcm_chunks[0] += 2;
+		pcm_chunks[1] += 2;
+	}
+
 	/*
 	 * All of v2 models have a pair of coaxial interfaces for digital in/out
 	 * port. At 44.1/48.0/88.2/96.0 kHz, packets includes PCM from these
