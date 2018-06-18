@@ -30,6 +30,27 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_bxt_machines[] = {
 		.sof_tplg_filename = "intel/sof-apl-da7219.tplg",
 		.asoc_plat_name = "0000:00:0e.0",
 	},
+	{
+		.id = "104C5122",
+		.drv_name = "bxt-pcm512x",
+		.sof_fw_filename = "intel/sof-apl.ri",
+		.sof_tplg_filename = "intel/sof-apl-pcm512x.tplg",
+		.asoc_plat_name = "0000:00:0e.0",
+	},
+	{
+		.id = "1AEC8804",
+		.drv_name = "bxt-wm8804",
+		.sof_fw_filename = "intel/sof-apl.ri",
+		.sof_tplg_filename = "intel/sof-apl-wm8804.tplg",
+		.asoc_plat_name = "0000:00:0e.0",
+	},
+	{
+		.id = "INT34C3",
+		.drv_name = "bxt_tdf8532",
+		.sof_fw_filename = "intel/sof-apl.ri",
+		.sof_tplg_filename = "intel/sof-apl-tdf8532.tplg",
+		.asoc_plat_name = "0000:00:0e.0",
+	},
 	{},
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_bxt_machines);
