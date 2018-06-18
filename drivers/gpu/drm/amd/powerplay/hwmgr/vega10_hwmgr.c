@@ -55,12 +55,6 @@
 
 static const uint32_t channel_number[] = {1, 2, 0, 4, 0, 8, 0, 16, 2};
 
-#define MEM_FREQ_LOW_LATENCY        25000
-#define MEM_FREQ_HIGH_LATENCY       80000
-#define MEM_LATENCY_HIGH            245
-#define MEM_LATENCY_LOW             35
-#define MEM_LATENCY_ERR             0xFFFF
-
 #define mmDF_CS_AON0_DramBaseAddress0                                                                  0x0044
 #define mmDF_CS_AON0_DramBaseAddress0_BASE_IDX                                                         0
 
@@ -4075,18 +4069,6 @@ static void vega10_get_sclks(struct pp_hwmgr *hwmgr,
 
 }
 
-static uint32_t vega10_get_mem_latency(struct pp_hwmgr *hwmgr,
-		uint32_t clock)
-{
-	if (clock >= MEM_FREQ_LOW_LATENCY &&
-			clock < MEM_FREQ_HIGH_LATENCY)
-		return MEM_LATENCY_HIGH;
-	else if (clock >= MEM_FREQ_HIGH_LATENCY)
-		return MEM_LATENCY_LOW;
-	else
-		return MEM_LATENCY_ERR;
-}
-
 static void vega10_get_memclocks(struct pp_hwmgr *hwmgr,
 		struct pp_clock_levels_with_latency *clocks)
 {
@@ -4100,14 +4082,13 @@ static void vega10_get_memclocks(struct pp_hwmgr *hwmgr,
 
 	for (i = 0; i < dep_table->count; i++) {
 		if (dep_table->entries[i].clk) {
+
 			clocks->data[j].clocks_in_khz =
 						dep_table->entries[i].clk * 10;
 			data->mclk_latency_table.entries[j].frequency =
 							dep_table->entries[i].clk;
 			clocks->data[j].latency_in_us =
-				data->mclk_latency_table.entries[j].latency =
-						vega10_get_mem_latency(hwmgr,
-							dep_table->entries[i].clk);
+				data->mclk_latency_table.entries[j].latency = 25;
 			j++;
 		}
 	}
