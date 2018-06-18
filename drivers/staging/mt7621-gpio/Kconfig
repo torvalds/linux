@@ -1,6 +1,6 @@
 config GPIO_MT7621
 	bool "Mediatek GPIO Support"
-	depends on SOC_MT7620 || SOC_MT7621
+	depends on SOC_MT7620 || SOC_MT7621 || COMPILE_TEST
 	select GPIO_GENERIC
 	select ARCH_REQUIRE_GPIOLIB
 	help
