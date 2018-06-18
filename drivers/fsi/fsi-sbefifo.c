@@ -519,9 +519,10 @@ static int sbefifo_send_command(struct sbefifo *sbefifo,
 static int sbefifo_read_response(struct sbefifo *sbefifo, struct iov_iter *response)
 {
 	struct device *dev = &sbefifo->fsi_dev->dev;
-	u32 data, status, eot_set;
+	u32 status, eot_set;
 	unsigned long timeout;
 	bool overflow = false;
+	__be32 data;
 	size_t len;
 	int rc;
 
@@ -619,7 +620,7 @@ static void sbefifo_collect_async_ffdc(struct sbefifo *sbefifo)
         struct kvec ffdc_iov;
 	__be32 *ffdc;
 	size_t ffdc_sz;
-	u32 cmd[2];
+	__be32 cmd[2];
 	int rc;
 
 	sbefifo->async_ffdc = false;
