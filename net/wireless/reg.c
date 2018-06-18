@@ -452,8 +452,7 @@ reg_copy_regd(const struct ieee80211_regdomain *src_regd)
 			continue;
 
 		regd->reg_rules[i].wmm_rule = d_wmm +
-			(src_regd->reg_rules[i].wmm_rule - s_wmm) /
-			sizeof(struct ieee80211_wmm_rule);
+			(src_regd->reg_rules[i].wmm_rule - s_wmm);
 	}
 	return regd;
 }
