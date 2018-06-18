@@ -820,11 +820,13 @@ RCU list traversal:
 	list_next_rcu
 	list_for_each_entry_rcu
 	list_for_each_entry_continue_rcu
+	list_for_each_entry_from_rcu
 	hlist_first_rcu
 	hlist_next_rcu
 	hlist_pprev_rcu
 	hlist_for_each_entry_rcu
 	hlist_for_each_entry_rcu_bh
+	hlist_for_each_entry_from_rcu
 	hlist_for_each_entry_continue_rcu
 	hlist_for_each_entry_continue_rcu_bh
 	hlist_nulls_first_rcu
