@@ -1433,11 +1433,13 @@ struct ieee80211_ht_operation {
 #define IEEE80211_DELBA_PARAM_INITIATOR_MASK 0x0800
 
 /*
- * A-PMDU buffer sizes
- * According to IEEE802.11n spec size varies from 8K to 64K (in powers of 2)
+ * A-MPDU buffer sizes
+ * According to HT size varies from 8 to 64 frames
+ * HE adds the ability to have up to 256 frames.
  */
-#define IEEE80211_MIN_AMPDU_BUF 0x8
-#define IEEE80211_MAX_AMPDU_BUF 0x40
+#define IEEE80211_MIN_AMPDU_BUF		0x8
+#define IEEE80211_MAX_AMPDU_BUF_HT	0x40
+#define IEEE80211_MAX_AMPDU_BUF		0x100
 
 
 /* Spatial Multiplexing Power Save Modes (for capability) */

@@ -514,7 +514,7 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 	/* send AddBA request */
 	ieee80211_send_addba_request(sdata, sta->sta.addr, tid,
 				     tid_tx->dialog_token, params.ssn,
-				     IEEE80211_MAX_AMPDU_BUF,
+				     IEEE80211_MAX_AMPDU_BUF_HT,
 				     tid_tx->timeout);
 }
 
