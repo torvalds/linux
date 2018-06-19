@@ -9047,6 +9047,7 @@ enum skl_power_gate {
 #define _MG_REFCLKIN_CTL_PORT3				0x16A92C
 #define _MG_REFCLKIN_CTL_PORT4				0x16B92C
 #define   MG_REFCLKIN_CTL_OD_2_MUX(x)			((x) << 8)
+#define   MG_REFCLKIN_CTL_OD_2_MUX_MASK			(0x7 << 8)
 #define MG_REFCLKIN_CTL(port) _MMIO_PORT((port) - PORT_C, \
 					 _MG_REFCLKIN_CTL_PORT1, \
 					 _MG_REFCLKIN_CTL_PORT2)
@@ -9056,7 +9057,9 @@ enum skl_power_gate {
 #define _MG_CLKTOP2_CORECLKCTL1_PORT3			0x16A8D8
 #define _MG_CLKTOP2_CORECLKCTL1_PORT4			0x16B8D8
 #define   MG_CLKTOP2_CORECLKCTL1_B_DIVRATIO(x)		((x) << 16)
+#define   MG_CLKTOP2_CORECLKCTL1_B_DIVRATIO_MASK	(0xff << 16)
 #define   MG_CLKTOP2_CORECLKCTL1_A_DIVRATIO(x)		((x) << 8)
+#define   MG_CLKTOP2_CORECLKCTL1_A_DIVRATIO_MASK	(0xff << 8)
 #define MG_CLKTOP2_CORECLKCTL1(port) _MMIO_PORT((port) - PORT_C, \
 						_MG_CLKTOP2_CORECLKCTL1_PORT1, \
 						_MG_CLKTOP2_CORECLKCTL1_PORT2)
@@ -9066,9 +9069,13 @@ enum skl_power_gate {
 #define _MG_CLKTOP2_HSCLKCTL_PORT3			0x16A8D4
 #define _MG_CLKTOP2_HSCLKCTL_PORT4			0x16B8D4
 #define   MG_CLKTOP2_HSCLKCTL_CORE_INPUTSEL(x)		((x) << 16)
+#define   MG_CLKTOP2_HSCLKCTL_CORE_INPUTSEL_MASK	(0x1 << 16)
 #define   MG_CLKTOP2_HSCLKCTL_TLINEDRV_CLKSEL(x)	((x) << 14)
+#define   MG_CLKTOP2_HSCLKCTL_TLINEDRV_CLKSEL_MASK	(0x3 << 14)
 #define   MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO(x)		((x) << 12)
+#define   MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_MASK		(0x3 << 12)
 #define   MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO(x)		((x) << 8)
+#define   MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO_MASK		(0xf << 8)
 #define MG_CLKTOP2_HSCLKCTL(port) _MMIO_PORT((port) - PORT_C, \
 					     _MG_CLKTOP2_HSCLKCTL_PORT1, \
 					     _MG_CLKTOP2_HSCLKCTL_PORT2)
@@ -9142,12 +9149,18 @@ enum skl_power_gate {
 #define _MG_PLL_BIAS_PORT3				0x16AA14
 #define _MG_PLL_BIAS_PORT4				0x16BA14
 #define   MG_PLL_BIAS_BIAS_GB_SEL(x)			((x) << 30)
+#define   MG_PLL_BIAS_BIAS_GB_SEL_MASK			(0x3 << 30)
 #define   MG_PLL_BIAS_INIT_DCOAMP(x)			((x) << 24)
+#define   MG_PLL_BIAS_INIT_DCOAMP_MASK			(0x3f << 24)
 #define   MG_PLL_BIAS_BIAS_BONUS(x)			((x) << 16)
+#define   MG_PLL_BIAS_BIAS_BONUS_MASK			(0xff << 16)
 #define   MG_PLL_BIAS_BIASCAL_EN			(1 << 15)
 #define   MG_PLL_BIAS_CTRIM(x)				((x) << 8)
+#define   MG_PLL_BIAS_CTRIM_MASK			(0x1f << 8)
 #define   MG_PLL_BIAS_VREF_RDAC(x)			((x) << 5)
+#define   MG_PLL_BIAS_VREF_RDAC_MASK			(0x7 << 5)
 #define   MG_PLL_BIAS_IREFTRIM(x)			((x) << 0)
+#define   MG_PLL_BIAS_IREFTRIM_MASK			(0x1f << 0)
 #define MG_PLL_BIAS(port) _MMIO_PORT((port) - PORT_C, _MG_PLL_BIAS_PORT1, \
 				     _MG_PLL_BIAS_PORT2)
 

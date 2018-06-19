@@ -2945,10 +2945,21 @@ static bool icl_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	case DPLL_ID_ICL_MGPLL4:
 		port = icl_mg_pll_id_to_port(id);
 		hw_state->mg_refclkin_ctl = I915_READ(MG_REFCLKIN_CTL(port));
+		hw_state->mg_refclkin_ctl &= MG_REFCLKIN_CTL_OD_2_MUX_MASK;
+
 		hw_state->mg_clktop2_coreclkctl1 =
 			I915_READ(MG_CLKTOP2_CORECLKCTL1(port));
+		hw_state->mg_clktop2_coreclkctl1 &=
+			MG_CLKTOP2_CORECLKCTL1_A_DIVRATIO_MASK;
+
 		hw_state->mg_clktop2_hsclkctl =
 			I915_READ(MG_CLKTOP2_HSCLKCTL(port));
+		hw_state->mg_clktop2_hsclkctl &=
+			MG_CLKTOP2_HSCLKCTL_TLINEDRV_CLKSEL_MASK |
+			MG_CLKTOP2_HSCLKCTL_CORE_INPUTSEL_MASK |
+			MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_MASK |
+			MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO_MASK;
+
 		hw_state->mg_pll_div0 = I915_READ(MG_PLL_DIV0(port));
 		hw_state->mg_pll_div1 = I915_READ(MG_PLL_DIV1(port));
 		hw_state->mg_pll_lf = I915_READ(MG_PLL_LF(port));
@@ -2998,10 +3009,30 @@ static void icl_mg_pll_write(struct drm_i915_private *dev_priv,
 	enum port port = icl_mg_pll_id_to_port(pll->info->id);
 	u32 val;
 
-	I915_WRITE(MG_REFCLKIN_CTL(port), hw_state->mg_refclkin_ctl);
-	I915_WRITE(MG_CLKTOP2_CORECLKCTL1(port),
-		   hw_state->mg_clktop2_coreclkctl1);
-	I915_WRITE(MG_CLKTOP2_HSCLKCTL(port), hw_state->mg_clktop2_hsclkctl);
+	/*
+	 * Some of the following registers have reserved fields, so program
+	 * these with RMW based on a mask. The mask can be fixed or generated
+	 * during the calc/readout phase if the mask depends on some other HW
+	 * state like refclk, see icl_calc_mg_pll_state().
+	 */
+	val = I915_READ(MG_REFCLKIN_CTL(port));
+	val &= ~MG_REFCLKIN_CTL_OD_2_MUX_MASK;
+	val |= hw_state->mg_refclkin_ctl;
+	I915_WRITE(MG_REFCLKIN_CTL(port), val);
+
+	val = I915_READ(MG_CLKTOP2_CORECLKCTL1(port));
+	val &= ~MG_CLKTOP2_CORECLKCTL1_A_DIVRATIO_MASK;
+	val |= hw_state->mg_clktop2_coreclkctl1;
+	I915_WRITE(MG_CLKTOP2_CORECLKCTL1(port), val);
+
+	val = I915_READ(MG_CLKTOP2_HSCLKCTL(port));
+	val &= ~(MG_CLKTOP2_HSCLKCTL_TLINEDRV_CLKSEL_MASK |
+		 MG_CLKTOP2_HSCLKCTL_CORE_INPUTSEL_MASK |
+		 MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_MASK |
+		 MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO_MASK);
+	val |= hw_state->mg_clktop2_hsclkctl;
+	I915_WRITE(MG_CLKTOP2_HSCLKCTL(port), val);
+
 	I915_WRITE(MG_PLL_DIV0(port), hw_state->mg_pll_div0);
 	I915_WRITE(MG_PLL_DIV1(port), hw_state->mg_pll_div1);
 	I915_WRITE(MG_PLL_LF(port), hw_state->mg_pll_lf);
