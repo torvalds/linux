@@ -445,10 +445,10 @@ void dpp1_set_cursor_position(
 		uint32_t width)
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
-	int src_x_offset = pos->x - pos->x_hotspot - param->viewport_x_start;
+	int src_x_offset = pos->x - pos->x_hotspot - param->viewport.x;
 	uint32_t cur_en = pos->enable ? 1 : 0;
 
-	if (src_x_offset >= (int)param->viewport_width)
+	if (src_x_offset >= (int)param->viewport.width)
 		cur_en = 0;  /* not visible beyond right edge*/
 
 	if (src_x_offset + (int)width <= 0)

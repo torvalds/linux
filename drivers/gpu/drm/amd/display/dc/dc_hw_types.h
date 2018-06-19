@@ -404,9 +404,10 @@ struct dc_cursor_position {
 struct dc_cursor_mi_param {
 	unsigned int pixel_clk_khz;
 	unsigned int ref_clk_khz;
-	unsigned int viewport_x_start;
-	unsigned int viewport_width;
+	struct rect viewport;
 	struct fixed31_32 h_scale_ratio;
+	struct fixed31_32 v_scale_ratio;
+	enum dc_rotation_angle rotation;
 };
 
 /* IPP related types */

@@ -1083,7 +1083,7 @@ void hubp1_cursor_set_position(
 		const struct dc_cursor_mi_param *param)
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
-	int src_x_offset = pos->x - pos->x_hotspot - param->viewport_x_start;
+	int src_x_offset = pos->x - pos->x_hotspot - param->viewport.x;
 	uint32_t cur_en = pos->enable ? 1 : 0;
 	uint32_t dst_x_offset = (src_x_offset >= 0) ? src_x_offset : 0;
 
@@ -1107,7 +1107,7 @@ void hubp1_cursor_set_position(
 				dc_fixpt_from_int(dst_x_offset),
 				param->h_scale_ratio));
 
-	if (src_x_offset >= (int)param->viewport_width)
+	if (src_x_offset >= (int)param->viewport.width)
 		cur_en = 0;  /* not visible beyond right edge*/
 
 	if (src_x_offset + (int)hubp->curs_attr.width <= 0)
