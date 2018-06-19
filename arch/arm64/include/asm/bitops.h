@@ -17,21 +17,10 @@
 #define __ASM_BITOPS_H
 
 #include <linux/compiler.h>
-#include <asm/barrier.h>
 
 #ifndef _LINUX_BITOPS_H
 #error only <linux/bitops.h> can be included directly
 #endif
-
-/*
- * Little endian assembly atomic bitops.
- */
-extern void set_bit(int nr, volatile unsigned long *p);
-extern void clear_bit(int nr, volatile unsigned long *p);
-extern void change_bit(int nr, volatile unsigned long *p);
-extern int test_and_set_bit(int nr, volatile unsigned long *p);
-extern int test_and_clear_bit(int nr, volatile unsigned long *p);
-extern int test_and_change_bit(int nr, volatile unsigned long *p);
 
 #include <asm-generic/bitops/builtin-__ffs.h>
 #include <asm-generic/bitops/builtin-ffs.h>
@@ -44,8 +33,9 @@ extern int test_and_change_bit(int nr, volatile unsigned long *p);
 
 #include <asm-generic/bitops/sched.h>
 #include <asm-generic/bitops/hweight.h>
-#include <asm-generic/bitops/lock.h>
 
+#include <asm-generic/bitops/atomic.h>
+#include <asm-generic/bitops/lock.h>
 #include <asm-generic/bitops/non-atomic.h>
 #include <asm-generic/bitops/le.h>
 
