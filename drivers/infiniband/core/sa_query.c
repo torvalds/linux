@@ -1301,21 +1301,20 @@ static int init_ah_attr_grh_fields(struct ib_device *device, u8 port_num,
 {
 	enum ib_gid_type type = sa_conv_pathrec_to_gid_type(rec);
 	struct net_device *ndev;
-	u16 gid_index;
-	int ret;
+	const struct ib_gid_attr *gid_attr;
 
 	ndev = ib_get_ndev_from_path(rec);
-	ret = ib_find_cached_gid_by_port(device, &rec->sgid, type,
-					 port_num, ndev, &gid_index);
+	gid_attr =
+		rdma_find_gid_by_port(device, &rec->sgid, type, port_num, ndev);
 	if (ndev)
 		dev_put(ndev);
-	if (ret)
-		return ret;
+	if (IS_ERR(gid_attr))
+		return PTR_ERR(gid_attr);
 
-	rdma_ah_set_grh(ah_attr, &rec->dgid,
-			be32_to_cpu(rec->flow_label),
-			gid_index, rec->hop_limit,
-			rec->traffic_class);
+	rdma_move_grh_sgid_attr(ah_attr, &rec->dgid,
+				be32_to_cpu(rec->flow_label),
+				rec->hop_limit,	rec->traffic_class,
+				gid_attr);
 	return 0;
 }
 

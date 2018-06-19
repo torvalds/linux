@@ -3508,6 +3508,8 @@ static int cma_sidr_rep_handler(struct ib_cm_id *cm_id,
 	}
 
 	ret = id_priv->id.event_handler(&id_priv->id, &event);
+
+	rdma_destroy_ah_attr(&event.param.ud.ah_attr);
 	if (ret) {
 		/* Destroy the CM ID by returning a non-zero value. */
 		id_priv->cm_id.ib = NULL;

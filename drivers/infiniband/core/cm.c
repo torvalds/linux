@@ -554,10 +554,12 @@ static int cm_init_av_by_path(struct sa_path_rec *path, struct cm_av *av,
 
 	/*
 	 * av->ah_attr might be initialized based on wc or during
-	 * request processing time. So initialize a new ah_attr on stack.
+	 * request processing time which might have reference to sgid_attr.
+	 * So initialize a new ah_attr on stack.
 	 * If initialization fails, old ah_attr is used for sending any
 	 * responses. If initialization is successful, than new ah_attr
-	 * is used by overwriting the old one.
+	 * is used by overwriting the old one. So that right ah_attr
+	 * can be used to return an error response.
 	 */
 	ret = ib_init_ah_attr_from_path(cm_dev->ib_device, port->port_num, path,
 					&new_ah_attr);
@@ -567,8 +569,10 @@ static int cm_init_av_by_path(struct sa_path_rec *path, struct cm_av *av,
 	av->timeout = path->packet_life_time + 1;
 
 	ret = add_cm_id_to_port_list(cm_id_priv, av, port);
-	if (ret)
+	if (ret) {
+		rdma_destroy_ah_attr(&new_ah_attr);
 		return ret;
+	}
 	rdma_move_ah_attr(&av->ah_attr, &new_ah_attr);
 	return 0;
 }
