@@ -48,7 +48,6 @@ struct kprobe_ctlblk {
 	unsigned long saved_irqflag;
 	struct prev_kprobe prev_kprobe;
 	struct kprobe_step_ctx ss_ctx;
-	struct pt_regs jprobe_saved_regs;
 };
 
 void arch_remove_kprobe(struct kprobe *);
