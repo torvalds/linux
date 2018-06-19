@@ -47,6 +47,91 @@ static void i2c_dw_configure_fifo_master(struct dw_i2c_dev *dev)
 
 static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 {
+	u32 ic_clk = i2c_dw_clk_rate(dev);
+	const char *fp_str = "";
+	u32 comp_param1;
+	u32 sda_falling_time, scl_falling_time;
+	int ret;
+
+	ret = i2c_dw_acquire_lock(dev);
+	if (ret)
+		return ret;
+	comp_param1 = dw_readl(dev, DW_IC_COMP_PARAM_1);
+	i2c_dw_release_lock(dev);
+
+	/* Set standard and fast speed dividers for high/low periods */
+	sda_falling_time = dev->sda_falling_time ?: 300; /* ns */
+	scl_falling_time = dev->scl_falling_time ?: 300; /* ns */
+
+	/* Calculate SCL timing parameters for standard mode if not set */
+	if (!dev->ss_hcnt || !dev->ss_lcnt) {
+		dev->ss_hcnt =
+			i2c_dw_scl_hcnt(ic_clk,
+					4000,	/* tHD;STA = tHIGH = 4.0 us */
+					sda_falling_time,
+					0,	/* 0: DW default, 1: Ideal */
+					0);	/* No offset */
+		dev->ss_lcnt =
+			i2c_dw_scl_lcnt(ic_clk,
+					4700,	/* tLOW = 4.7 us */
+					scl_falling_time,
+					0);	/* No offset */
+	}
+	dev_dbg(dev->dev, "Standard Mode HCNT:LCNT = %d:%d\n",
+		dev->ss_hcnt, dev->ss_lcnt);
+
+	/*
+	 * Set SCL timing parameters for fast mode or fast mode plus. Only
+	 * difference is the timing parameter values since the registers are
+	 * the same.
+	 */
+	if (dev->clk_freq == 1000000) {
+		/*
+		 * Check are fast mode plus parameters available and use
+		 * fast mode if not.
+		 */
+		if (dev->fp_hcnt && dev->fp_lcnt) {
+			dev->fs_hcnt = dev->fp_hcnt;
+			dev->fs_lcnt = dev->fp_lcnt;
+			fp_str = " Plus";
+		}
+	}
+	/*
+	 * Calculate SCL timing parameters for fast mode if not set. They are
+	 * needed also in high speed mode.
+	 */
+	if (!dev->fs_hcnt || !dev->fs_lcnt) {
+		dev->fs_hcnt =
+			i2c_dw_scl_hcnt(ic_clk,
+					600,	/* tHD;STA = tHIGH = 0.6 us */
+					sda_falling_time,
+					0,	/* 0: DW default, 1: Ideal */
+					0);	/* No offset */
+		dev->fs_lcnt =
+			i2c_dw_scl_lcnt(ic_clk,
+					1300,	/* tLOW = 1.3 us */
+					scl_falling_time,
+					0);	/* No offset */
+	}
+	dev_dbg(dev->dev, "Fast Mode%s HCNT:LCNT = %d:%d\n",
+		fp_str, dev->fs_hcnt, dev->fs_lcnt);
+
+	/* Check is high speed possible and fall back to fast mode if not */
+	if ((dev->master_cfg & DW_IC_CON_SPEED_MASK) ==
+		DW_IC_CON_SPEED_HIGH) {
+		if ((comp_param1 & DW_IC_COMP_PARAM_1_SPEED_MODE_MASK)
+			!= DW_IC_COMP_PARAM_1_SPEED_MODE_HIGH) {
+			dev_err(dev->dev, "High Speed not supported!\n");
+			dev->master_cfg &= ~DW_IC_CON_SPEED_MASK;
+			dev->master_cfg |= DW_IC_CON_SPEED_FAST;
+			dev->hs_hcnt = 0;
+			dev->hs_lcnt = 0;
+		} else if (dev->hs_hcnt && dev->hs_lcnt) {
+			dev_dbg(dev->dev, "High Speed Mode HCNT:LCNT = %d:%d\n",
+				dev->hs_hcnt, dev->hs_lcnt);
+		}
+	}
+
 	return i2c_dw_set_sda_hold(dev);
 }
 
@@ -60,82 +145,27 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
  */
 static int i2c_dw_init_master(struct dw_i2c_dev *dev)
 {
-	u32 ic_clk = i2c_dw_clk_rate(dev);
-	u32 hcnt, lcnt;
-	u32 comp_param1;
-	u32 sda_falling_time, scl_falling_time;
 	int ret;
 
 	ret = i2c_dw_acquire_lock(dev);
 	if (ret)
 		return ret;
 
-	comp_param1 = dw_readl(dev, DW_IC_COMP_PARAM_1);
-
 	/* Disable the adapter */
 	__i2c_dw_disable(dev);
 
-	/* Set standard and fast speed deviders for high/low periods */
+	/* Write standard speed timing parameters */
+	dw_writel(dev, dev->ss_hcnt, DW_IC_SS_SCL_HCNT);
+	dw_writel(dev, dev->ss_lcnt, DW_IC_SS_SCL_LCNT);
 
-	sda_falling_time = dev->sda_falling_time ?: 300; /* ns */
-	scl_falling_time = dev->scl_falling_time ?: 300; /* ns */
+	/* Write fast mode/fast mode plus timing parameters */
+	dw_writel(dev, dev->fs_hcnt, DW_IC_FS_SCL_HCNT);
+	dw_writel(dev, dev->fs_lcnt, DW_IC_FS_SCL_LCNT);
 
-	/* Set SCL timing parameters for standard-mode */
-	if (dev->ss_hcnt && dev->ss_lcnt) {
-		hcnt = dev->ss_hcnt;
-		lcnt = dev->ss_lcnt;
-	} else {
-		hcnt = i2c_dw_scl_hcnt(ic_clk,
-					4000,	/* tHD;STA = tHIGH = 4.0 us */
-					sda_falling_time,
-					0,	/* 0: DW default, 1: Ideal */
-					0);	/* No offset */
-		lcnt = i2c_dw_scl_lcnt(ic_clk,
-					4700,	/* tLOW = 4.7 us */
-					scl_falling_time,
-					0);	/* No offset */
-	}
-	dw_writel(dev, hcnt, DW_IC_SS_SCL_HCNT);
-	dw_writel(dev, lcnt, DW_IC_SS_SCL_LCNT);
-	dev_dbg(dev->dev, "Standard-mode HCNT:LCNT = %d:%d\n", hcnt, lcnt);
-
-	/* Set SCL timing parameters for fast-mode or fast-mode plus */
-	if ((dev->clk_freq == 1000000) && dev->fp_hcnt && dev->fp_lcnt) {
-		hcnt = dev->fp_hcnt;
-		lcnt = dev->fp_lcnt;
-	} else if (dev->fs_hcnt && dev->fs_lcnt) {
-		hcnt = dev->fs_hcnt;
-		lcnt = dev->fs_lcnt;
-	} else {
-		hcnt = i2c_dw_scl_hcnt(ic_clk,
-					600,	/* tHD;STA = tHIGH = 0.6 us */
-					sda_falling_time,
-					0,	/* 0: DW default, 1: Ideal */
-					0);	/* No offset */
-		lcnt = i2c_dw_scl_lcnt(ic_clk,
-					1300,	/* tLOW = 1.3 us */
-					scl_falling_time,
-					0);	/* No offset */
-	}
-	dw_writel(dev, hcnt, DW_IC_FS_SCL_HCNT);
-	dw_writel(dev, lcnt, DW_IC_FS_SCL_LCNT);
-	dev_dbg(dev->dev, "Fast-mode HCNT:LCNT = %d:%d\n", hcnt, lcnt);
-
-	if ((dev->master_cfg & DW_IC_CON_SPEED_MASK) ==
-		DW_IC_CON_SPEED_HIGH) {
-		if ((comp_param1 & DW_IC_COMP_PARAM_1_SPEED_MODE_MASK)
-			!= DW_IC_COMP_PARAM_1_SPEED_MODE_HIGH) {
-			dev_err(dev->dev, "High Speed not supported!\n");
-			dev->master_cfg &= ~DW_IC_CON_SPEED_MASK;
-			dev->master_cfg |= DW_IC_CON_SPEED_FAST;
-		} else if (dev->hs_hcnt && dev->hs_lcnt) {
-			hcnt = dev->hs_hcnt;
-			lcnt = dev->hs_lcnt;
-			dw_writel(dev, hcnt, DW_IC_HS_SCL_HCNT);
-			dw_writel(dev, lcnt, DW_IC_HS_SCL_LCNT);
-			dev_dbg(dev->dev, "HighSpeed-mode HCNT:LCNT = %d:%d\n",
-				hcnt, lcnt);
-		}
+	/* Write high speed timing parameters if supported */
+	if (dev->hs_hcnt && dev->hs_lcnt) {
+		dw_writel(dev, dev->hs_hcnt, DW_IC_HS_SCL_HCNT);
+		dw_writel(dev, dev->hs_lcnt, DW_IC_HS_SCL_LCNT);
 	}
 
 	/* Write SDA hold time if supported */
