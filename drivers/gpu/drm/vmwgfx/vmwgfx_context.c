@@ -424,7 +424,7 @@ static int vmw_gb_context_unbind(struct vmw_resource *res,
 	(void) vmw_execbuf_fence_commands(NULL, dev_priv,
 					  &fence, NULL);
 
-	vmw_fence_single_bo(bo, fence);
+	vmw_bo_fence_single(bo, fence);
 
 	if (likely(fence != NULL))
 		vmw_fence_obj_unreference(&fence);
@@ -648,7 +648,7 @@ static int vmw_dx_context_unbind(struct vmw_resource *res,
 	(void) vmw_execbuf_fence_commands(NULL, dev_priv,
 					  &fence, NULL);
 
-	vmw_fence_single_bo(bo, fence);
+	vmw_bo_fence_single(bo, fence);
 
 	if (likely(fence != NULL))
 		vmw_fence_obj_unreference(&fence);

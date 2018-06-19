@@ -197,7 +197,7 @@ static void vmw_fb_dirty_flush(struct work_struct *work)
 
 	(void) ttm_read_lock(&vmw_priv->reservation_sem, false);
 	(void) ttm_bo_reserve(&vbo->base, false, false, NULL);
-	virtual = vmw_buffer_object_map_and_cache(vbo);
+	virtual = vmw_bo_map_and_cache(vbo);
 	if (!virtual)
 		goto out_unreserve;
 

@@ -630,6 +630,46 @@ extern int vmw_user_resource_lookup_handle(
 	uint32_t handle,
 	const struct vmw_user_resource_conv *converter,
 	struct vmw_resource **p_res);
+extern int vmw_stream_claim_ioctl(struct drm_device *dev, void *data,
+				  struct drm_file *file_priv);
+extern int vmw_stream_unref_ioctl(struct drm_device *dev, void *data,
+				  struct drm_file *file_priv);
+extern int vmw_user_stream_lookup(struct vmw_private *dev_priv,
+				  struct ttm_object_file *tfile,
+				  uint32_t *inout_id,
+				  struct vmw_resource **out);
+extern void vmw_resource_unreserve(struct vmw_resource *res,
+				   bool switch_backup,
+				   struct vmw_buffer_object *new_backup,
+				   unsigned long new_backup_offset);
+extern void vmw_query_move_notify(struct ttm_buffer_object *bo,
+				  struct ttm_mem_reg *mem);
+extern int vmw_query_readback_all(struct vmw_buffer_object *dx_query_mob);
+extern void vmw_resource_evict_all(struct vmw_private *dev_priv);
+extern void vmw_resource_unbind_list(struct vmw_buffer_object *vbo);
+
+/**
+ * Buffer object helper functions - vmwgfx_bo.c
+ */
+extern int vmw_bo_pin_in_placement(struct vmw_private *vmw_priv,
+				   struct vmw_buffer_object *bo,
+				   struct ttm_placement *placement,
+				   bool interruptible);
+extern int vmw_bo_pin_in_vram(struct vmw_private *dev_priv,
+			      struct vmw_buffer_object *buf,
+			      bool interruptible);
+extern int vmw_bo_pin_in_vram_or_gmr(struct vmw_private *dev_priv,
+				     struct vmw_buffer_object *buf,
+				     bool interruptible);
+extern int vmw_bo_pin_in_start_of_vram(struct vmw_private *vmw_priv,
+				       struct vmw_buffer_object *bo,
+				       bool interruptible);
+extern int vmw_bo_unpin(struct vmw_private *vmw_priv,
+			struct vmw_buffer_object *bo,
+			bool interruptible);
+extern void vmw_bo_get_guest_ptr(const struct ttm_buffer_object *buf,
+				 SVGAGuestPtr *ptr);
+extern void vmw_bo_pin_reserved(struct vmw_buffer_object *bo, bool pin);
 extern void vmw_bo_bo_free(struct ttm_buffer_object *bo);
 extern int vmw_bo_init(struct vmw_private *dev_priv,
 		       struct vmw_buffer_object *vmw_bo,
@@ -654,59 +694,16 @@ extern int vmw_bo_unref_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
 extern int vmw_user_bo_synccpu_ioctl(struct drm_device *dev, void *data,
 				     struct drm_file *file_priv);
-extern uint32_t vmw_bo_validate_node(struct ttm_buffer_object *bo,
-				     uint32_t cur_validate_node);
-extern void vmw_bo_validate_clear(struct ttm_buffer_object *bo);
 extern int vmw_user_bo_lookup(struct ttm_object_file *tfile,
 			      uint32_t id, struct vmw_buffer_object **out,
 			      struct ttm_base_object **base);
-extern int vmw_stream_claim_ioctl(struct drm_device *dev, void *data,
-				  struct drm_file *file_priv);
-extern int vmw_stream_unref_ioctl(struct drm_device *dev, void *data,
-				  struct drm_file *file_priv);
-extern int vmw_user_stream_lookup(struct vmw_private *dev_priv,
-				  struct ttm_object_file *tfile,
-				  uint32_t *inout_id,
-				  struct vmw_resource **out);
-extern void vmw_resource_unreserve(struct vmw_resource *res,
-				   bool switch_backup,
-				   struct vmw_buffer_object *new_backup,
-				   unsigned long new_backup_offset);
-extern void vmw_resource_move_notify(struct ttm_buffer_object *bo,
-				     struct ttm_mem_reg *mem);
-extern void vmw_query_move_notify(struct ttm_buffer_object *bo,
-				  struct ttm_mem_reg *mem);
-extern void vmw_resource_swap_notify(struct ttm_buffer_object *bo);
-extern int vmw_query_readback_all(struct vmw_buffer_object *dx_query_mob);
-extern void vmw_fence_single_bo(struct ttm_buffer_object *bo,
+extern void vmw_bo_fence_single(struct ttm_buffer_object *bo,
 				struct vmw_fence_obj *fence);
-extern void vmw_resource_evict_all(struct vmw_private *dev_priv);
-
-
-/**
- * Buffer object helper functions - vmwgfx_bo.c
- */
-extern int vmw_bo_pin_in_placement(struct vmw_private *vmw_priv,
-				   struct vmw_buffer_object *bo,
-				   struct ttm_placement *placement,
-				   bool interruptible);
-extern int vmw_bo_pin_in_vram(struct vmw_private *dev_priv,
-			      struct vmw_buffer_object *buf,
-			      bool interruptible);
-extern int vmw_bo_pin_in_vram_or_gmr(struct vmw_private *dev_priv,
-				     struct vmw_buffer_object *buf,
-				     bool interruptible);
-extern int vmw_bo_pin_in_start_of_vram(struct vmw_private *vmw_priv,
-				       struct vmw_buffer_object *bo,
-				       bool interruptible);
-extern int vmw_bo_unpin(struct vmw_private *vmw_priv,
-			struct vmw_buffer_object *bo,
-			bool interruptible);
-extern void vmw_bo_get_guest_ptr(const struct ttm_buffer_object *buf,
-				 SVGAGuestPtr *ptr);
-extern void vmw_bo_pin_reserved(struct vmw_buffer_object *bo, bool pin);
-extern void *vmw_buffer_object_map_and_cache(struct vmw_buffer_object *vbo);
-extern void vmw_buffer_object_unmap(struct vmw_buffer_object *vbo);
+extern void *vmw_bo_map_and_cache(struct vmw_buffer_object *vbo);
+extern void vmw_bo_unmap(struct vmw_buffer_object *vbo);
+extern void vmw_bo_move_notify(struct ttm_buffer_object *bo,
+			       struct ttm_mem_reg *mem);
+extern void vmw_bo_swap_notify(struct ttm_buffer_object *bo);
 
 /**
  * Misc Ioctl functionality - vmwgfx_ioctl.c

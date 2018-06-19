@@ -852,7 +852,7 @@ static void vmw_move_notify(struct ttm_buffer_object *bo,
 			    bool evict,
 			    struct ttm_mem_reg *mem)
 {
-	vmw_resource_move_notify(bo, mem);
+	vmw_bo_move_notify(bo, mem);
 	vmw_query_move_notify(bo, mem);
 }
 
@@ -864,7 +864,7 @@ static void vmw_move_notify(struct ttm_buffer_object *bo,
  */
 static void vmw_swap_notify(struct ttm_buffer_object *bo)
 {
-	vmw_resource_swap_notify(bo);
+	vmw_bo_swap_notify(bo);
 	(void) ttm_bo_wait(bo, false, false);
 }
 

@@ -2493,7 +2493,7 @@ void vmw_kms_helper_buffer_finish(struct vmw_private *dev_priv,
 	ret = vmw_execbuf_fence_commands(file_priv, dev_priv, &fence,
 					 file_priv ? &handle : NULL);
 	if (buf)
-		vmw_fence_single_bo(&buf->base, fence);
+		vmw_bo_fence_single(&buf->base, fence);
 	if (file_priv)
 		vmw_execbuf_copy_fence_user(dev_priv, vmw_fpriv(file_priv),
 					    ret, user_fence_rep, fence,

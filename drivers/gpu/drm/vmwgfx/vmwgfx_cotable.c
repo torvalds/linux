@@ -324,7 +324,7 @@ static int vmw_cotable_unbind(struct vmw_resource *res,
 		vmw_dx_context_scrub_cotables(vcotbl->ctx, readback);
 	mutex_unlock(&dev_priv->binding_mutex);
 	(void) vmw_execbuf_fence_commands(NULL, dev_priv, &fence, NULL);
-	vmw_fence_single_bo(bo, fence);
+	vmw_bo_fence_single(bo, fence);
 	if (likely(fence != NULL))
 		vmw_fence_obj_unreference(&fence);
 
@@ -367,7 +367,7 @@ static int vmw_cotable_readback(struct vmw_resource *res)
 	}
 
 	(void) vmw_execbuf_fence_commands(NULL, dev_priv, &fence, NULL);
-	vmw_fence_single_bo(&res->backup->base, fence);
+	vmw_bo_fence_single(&res->backup->base, fence);
 	vmw_fence_obj_unreference(&fence);
 
 	return 0;
