@@ -37,6 +37,7 @@
 #include <linux/kernel.h>
 #include <linux/mlx5/driver.h>
 
+int mlx5_cmd_dump_fill_mkey(struct mlx5_core_dev *dev, u32 *mkey);
 int mlx5_cmd_null_mkey(struct mlx5_core_dev *dev, u32 *null_mkey);
 int mlx5_cmd_query_cong_params(struct mlx5_core_dev *dev, int cong_point,
 			       void *out, int out_size);
