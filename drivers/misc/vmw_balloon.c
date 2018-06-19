@@ -1036,29 +1036,30 @@ static void vmballoon_vmci_cleanup(struct vmballoon *b)
  */
 static int vmballoon_vmci_init(struct vmballoon *b)
 {
-	int error = 0;
+	unsigned long error, dummy;
 
-	if ((b->capabilities & VMW_BALLOON_SIGNALLED_WAKEUP_CMD) != 0) {
-		error = vmci_doorbell_create(&b->vmci_doorbell,
-				VMCI_FLAG_DELAYED_CB,
-				VMCI_PRIVILEGE_FLAG_RESTRICTED,
-				vmballoon_doorbell, b);
+	if ((b->capabilities & VMW_BALLOON_SIGNALLED_WAKEUP_CMD) == 0)
+		return 0;
 
-		if (error == VMCI_SUCCESS) {
-			VMWARE_BALLOON_CMD(VMCI_DOORBELL_SET,
-					b->vmci_doorbell.context,
-					b->vmci_doorbell.resource, error);
-			STATS_INC(b->stats.doorbell_set);
-		}
-	}
+	error = vmci_doorbell_create(&b->vmci_doorbell, VMCI_FLAG_DELAYED_CB,
+				     VMCI_PRIVILEGE_FLAG_RESTRICTED,
+				     vmballoon_doorbell, b);
 
-	if (error != 0) {
-		vmballoon_vmci_cleanup(b);
+	if (error != VMCI_SUCCESS)
+		goto fail;
 
-		return -EIO;
-	}
+	error = VMWARE_BALLOON_CMD(VMCI_DOORBELL_SET, b->vmci_doorbell.context,
+				   b->vmci_doorbell.resource, dummy);
+
+	STATS_INC(b->stats.doorbell_set);
+
+	if (error != VMW_BALLOON_SUCCESS)
+		goto fail;
 
 	return 0;
+fail:
+	vmballoon_vmci_cleanup(b);
+	return -EIO;
 }
 
 /*
