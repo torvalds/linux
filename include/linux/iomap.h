@@ -57,6 +57,7 @@ struct iomap {
 	struct block_device	*bdev;	/* block device for I/O */
 	struct dax_device	*dax_dev; /* dax_dev for dax operations */
 	void			*inline_data;
+	void			*private; /* filesystem private */
 
 	/*
 	 * Called when finished processing a page in the mapping returned in
