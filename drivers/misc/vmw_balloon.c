@@ -450,7 +450,7 @@ static int vmballoon_send_lock_page(struct vmballoon *b, unsigned long pfn,
 
 	pfn32 = (u32)pfn;
 	if (pfn32 != pfn)
-		return -1;
+		return -EINVAL;
 
 	STATS_INC(b->stats.lock[false]);
 
@@ -460,7 +460,7 @@ static int vmballoon_send_lock_page(struct vmballoon *b, unsigned long pfn,
 
 	pr_debug("%s - ppn %lx, hv returns %ld\n", __func__, pfn, status);
 	STATS_INC(b->stats.lock_fail[false]);
-	return 1;
+	return -EIO;
 }
 
 static int vmballoon_send_batched_lock(struct vmballoon *b,
@@ -597,11 +597,12 @@ static int vmballoon_lock_page(struct vmballoon *b, unsigned int num_pages,
 
 	locked = vmballoon_send_lock_page(b, page_to_pfn(page), &hv_status,
 								target);
-	if (locked > 0) {
+	if (locked) {
 		STATS_INC(b->stats.refused_alloc[false]);
 
-		if (hv_status == VMW_BALLOON_ERROR_RESET ||
-				hv_status == VMW_BALLOON_ERROR_PPN_NOTNEEDED) {
+		if (locked == -EIO &&
+		    (hv_status == VMW_BALLOON_ERROR_RESET ||
+		     hv_status == VMW_BALLOON_ERROR_PPN_NOTNEEDED)) {
 			vmballoon_free_page(page, false);
 			return -EIO;
 		}
@@ -617,7 +618,7 @@ static int vmballoon_lock_page(struct vmballoon *b, unsigned int num_pages,
 		} else {
 			vmballoon_free_page(page, false);
 		}
-		return -EIO;
+		return locked;
 	}
 
 	/* track allocated page */
