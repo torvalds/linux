@@ -40,6 +40,7 @@ extern "C" {
 
 #define DRM_VMW_GET_PARAM            0
 #define DRM_VMW_ALLOC_DMABUF         1
+#define DRM_VMW_ALLOC_BO             1
 #define DRM_VMW_UNREF_DMABUF         2
 #define DRM_VMW_HANDLE_CLOSE         2
 #define DRM_VMW_CURSOR_BYPASS        3
@@ -356,9 +357,9 @@ struct drm_vmw_fence_rep {
 
 /*************************************************************************/
 /**
- * DRM_VMW_ALLOC_DMABUF
+ * DRM_VMW_ALLOC_BO
  *
- * Allocate a DMA buffer that is visible also to the host.
+ * Allocate a buffer object that is visible also to the host.
  * NOTE: The buffer is
  * identified by a handle and an offset, which are private to the guest, but
  * useable in the command stream. The guest kernel may translate these
@@ -366,27 +367,28 @@ struct drm_vmw_fence_rep {
  * be zero at all times, or it may disappear from the interface before it is
  * fixed.
  *
- * The DMA buffer may stay user-space mapped in the guest at all times,
+ * The buffer object may stay user-space mapped in the guest at all times,
  * and is thus suitable for sub-allocation.
  *
- * DMA buffers are mapped using the mmap() syscall on the drm device.
+ * Buffer objects are mapped using the mmap() syscall on the drm device.
  */
 
 /**
- * struct drm_vmw_alloc_dmabuf_req
+ * struct drm_vmw_alloc_bo_req
  *
  * @size: Required minimum size of the buffer.
  *
- * Input data to the DRM_VMW_ALLOC_DMABUF Ioctl.
+ * Input data to the DRM_VMW_ALLOC_BO Ioctl.
  */
 
-struct drm_vmw_alloc_dmabuf_req {
+struct drm_vmw_alloc_bo_req {
 	__u32 size;
 	__u32 pad64;
 };
+#define drm_vmw_alloc_dmabuf_req drm_vmw_alloc_bo_req
 
 /**
- * struct drm_vmw_dmabuf_rep
+ * struct drm_vmw_bo_rep
  *
  * @map_handle: Offset to use in the mmap() call used to map the buffer.
  * @handle: Handle unique to this buffer. Used for unreferencing.
@@ -395,50 +397,32 @@ struct drm_vmw_alloc_dmabuf_req {
  * @cur_gmr_offset: Offset to use in the command stream when this buffer is
  * referenced. See note above.
  *
- * Output data from the DRM_VMW_ALLOC_DMABUF Ioctl.
+ * Output data from the DRM_VMW_ALLOC_BO Ioctl.
  */
 
-struct drm_vmw_dmabuf_rep {
+struct drm_vmw_bo_rep {
 	__u64 map_handle;
 	__u32 handle;
 	__u32 cur_gmr_id;
 	__u32 cur_gmr_offset;
 	__u32 pad64;
 };
+#define drm_vmw_dmabuf_rep drm_vmw_bo_rep
 
 /**
- * union drm_vmw_dmabuf_arg
+ * union drm_vmw_alloc_bo_arg
  *
  * @req: Input data as described above.
  * @rep: Output data as described above.
  *
- * Argument to the DRM_VMW_ALLOC_DMABUF Ioctl.
+ * Argument to the DRM_VMW_ALLOC_BO Ioctl.
  */
 
-union drm_vmw_alloc_dmabuf_arg {
-	struct drm_vmw_alloc_dmabuf_req req;
-	struct drm_vmw_dmabuf_rep rep;
+union drm_vmw_alloc_bo_arg {
+	struct drm_vmw_alloc_bo_req req;
+	struct drm_vmw_bo_rep rep;
 };
-
-/*************************************************************************/
-/**
- * DRM_VMW_UNREF_DMABUF - Free a DMA buffer.
- *
- */
-
-/**
- * struct drm_vmw_unref_dmabuf_arg
- *
- * @handle: Handle indicating what buffer to free. Obtained from the
- * DRM_VMW_ALLOC_DMABUF Ioctl.
- *
- * Argument to the DRM_VMW_UNREF_DMABUF Ioctl.
- */
-
-struct drm_vmw_unref_dmabuf_arg {
-	__u32 handle;
-	__u32 pad64;
-};
+#define drm_vmw_alloc_dmabuf_arg drm_vmw_alloc_bo_arg
 
 /*************************************************************************/
 /**
@@ -1103,9 +1087,8 @@ union drm_vmw_extended_context_arg {
  * DRM_VMW_HANDLE_CLOSE - Close a user-space handle and release its
  * underlying resource.
  *
- * Note that this ioctl is overlaid on the DRM_VMW_UNREF_DMABUF Ioctl.
- * The ioctl arguments therefore need to be identical in layout.
- *
+ * Note that this ioctl is overlaid on the deprecated DRM_VMW_UNREF_DMABUF
+ * Ioctl.
  */
 
 /**
@@ -1119,7 +1102,7 @@ struct drm_vmw_handle_close_arg {
 	__u32 handle;
 	__u32 pad64;
 };
-
+#define drm_vmw_unref_dmabuf_arg drm_vmw_handle_close_arg
 
 #if defined(__cplusplus)
 }

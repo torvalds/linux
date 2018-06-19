@@ -85,10 +85,10 @@ static int vmw_cursor_update_image(struct vmw_private *dev_priv,
 	return 0;
 }
 
-static int vmw_cursor_update_dmabuf(struct vmw_private *dev_priv,
-				    struct vmw_dma_buffer *dmabuf,
-				    u32 width, u32 height,
-				    u32 hotspotX, u32 hotspotY)
+static int vmw_cursor_update_bo(struct vmw_private *dev_priv,
+				struct vmw_buffer_object *bo,
+				u32 width, u32 height,
+				u32 hotspotX, u32 hotspotY)
 {
 	struct ttm_bo_kmap_obj map;
 	unsigned long kmap_offset;
@@ -100,13 +100,13 @@ static int vmw_cursor_update_dmabuf(struct vmw_private *dev_priv,
 	kmap_offset = 0;
 	kmap_num = (width*height*4 + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
-	ret = ttm_bo_reserve(&dmabuf->base, true, false, NULL);
+	ret = ttm_bo_reserve(&bo->base, true, false, NULL);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("reserve failed\n");
 		return -EINVAL;
 	}
 
-	ret = ttm_bo_kmap(&dmabuf->base, kmap_offset, kmap_num, &map);
+	ret = ttm_bo_kmap(&bo->base, kmap_offset, kmap_num, &map);
 	if (unlikely(ret != 0))
 		goto err_unreserve;
 
@@ -116,7 +116,7 @@ static int vmw_cursor_update_dmabuf(struct vmw_private *dev_priv,
 
 	ttm_bo_kunmap(&map);
 err_unreserve:
-	ttm_bo_unreserve(&dmabuf->base);
+	ttm_bo_unreserve(&bo->base);
 
 	return ret;
 }
@@ -352,13 +352,13 @@ vmw_du_cursor_plane_prepare_fb(struct drm_plane *plane,
 	if (vps->surf)
 		vmw_surface_unreference(&vps->surf);
 
-	if (vps->dmabuf)
-		vmw_dmabuf_unreference(&vps->dmabuf);
+	if (vps->bo)
+		vmw_bo_unreference(&vps->bo);
 
 	if (fb) {
-		if (vmw_framebuffer_to_vfb(fb)->dmabuf) {
-			vps->dmabuf = vmw_framebuffer_to_vfbd(fb)->buffer;
-			vmw_dmabuf_reference(vps->dmabuf);
+		if (vmw_framebuffer_to_vfb(fb)->bo) {
+			vps->bo = vmw_framebuffer_to_vfbd(fb)->buffer;
+			vmw_bo_reference(vps->bo);
 		} else {
 			vps->surf = vmw_framebuffer_to_vfbs(fb)->surface;
 			vmw_surface_reference(vps->surf);
@@ -390,7 +390,7 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 	}
 
 	du->cursor_surface = vps->surf;
-	du->cursor_dmabuf = vps->dmabuf;
+	du->cursor_bo = vps->bo;
 
 	if (vps->surf) {
 		du->cursor_age = du->cursor_surface->snooper.age;
@@ -399,11 +399,11 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 					      vps->surf->snooper.image,
 					      64, 64, hotspot_x,
 					      hotspot_y);
-	} else if (vps->dmabuf) {
-		ret = vmw_cursor_update_dmabuf(dev_priv, vps->dmabuf,
-					       plane->state->crtc_w,
-					       plane->state->crtc_h,
-					       hotspot_x, hotspot_y);
+	} else if (vps->bo) {
+		ret = vmw_cursor_update_bo(dev_priv, vps->bo,
+					   plane->state->crtc_w,
+					   plane->state->crtc_h,
+					   hotspot_x, hotspot_y);
 	} else {
 		vmw_cursor_update_position(dev_priv, false, 0, 0);
 		return;
@@ -519,7 +519,7 @@ int vmw_du_cursor_plane_atomic_check(struct drm_plane *plane,
 		ret = -EINVAL;
 	}
 
-	if (!vmw_framebuffer_to_vfb(fb)->dmabuf)
+	if (!vmw_framebuffer_to_vfb(fb)->bo)
 		surface = vmw_framebuffer_to_vfbs(fb)->surface;
 
 	if (surface && !surface->snooper.image) {
@@ -687,8 +687,8 @@ vmw_du_plane_duplicate_state(struct drm_plane *plane)
 	if (vps->surf)
 		(void) vmw_surface_reference(vps->surf);
 
-	if (vps->dmabuf)
-		(void) vmw_dmabuf_reference(vps->dmabuf);
+	if (vps->bo)
+		(void) vmw_bo_reference(vps->bo);
 
 	state = &vps->base;
 
@@ -745,8 +745,8 @@ vmw_du_plane_destroy_state(struct drm_plane *plane,
 	if (vps->surf)
 		vmw_surface_unreference(&vps->surf);
 
-	if (vps->dmabuf)
-		vmw_dmabuf_unreference(&vps->dmabuf);
+	if (vps->bo)
+		vmw_bo_unreference(&vps->bo);
 
 	drm_atomic_helper_plane_destroy_state(plane, state);
 }
@@ -902,12 +902,12 @@ static int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 
 /**
  * vmw_kms_readback - Perform a readback from the screen system to
- * a dma-buffer backed framebuffer.
+ * a buffer-object backed framebuffer.
  *
  * @dev_priv: Pointer to the device private structure.
  * @file_priv: Pointer to a struct drm_file identifying the caller.
  * Must be set to NULL if @user_fence_rep is NULL.
- * @vfb: Pointer to the dma-buffer backed framebuffer.
+ * @vfb: Pointer to the buffer-object backed framebuffer.
  * @user_fence_rep: User-space provided structure for fence information.
  * Must be set to non-NULL if @file_priv is non-NULL.
  * @vclips: Array of clip rects.
@@ -951,7 +951,7 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 					   struct vmw_framebuffer **out,
 					   const struct drm_mode_fb_cmd2
 					   *mode_cmd,
-					   bool is_dmabuf_proxy)
+					   bool is_bo_proxy)
 
 {
 	struct drm_device *dev = dev_priv->dev;
@@ -1019,7 +1019,7 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	drm_helper_mode_fill_fb_struct(dev, &vfbs->base.base, mode_cmd);
 	vfbs->surface = vmw_surface_reference(surface);
 	vfbs->base.user_handle = mode_cmd->handles[0];
-	vfbs->is_dmabuf_proxy = is_dmabuf_proxy;
+	vfbs->is_bo_proxy = is_bo_proxy;
 
 	*out = &vfbs->base;
 
@@ -1038,30 +1038,30 @@ out_err1:
 }
 
 /*
- * Dmabuf framebuffer code
+ * Buffer-object framebuffer code
  */
 
-static void vmw_framebuffer_dmabuf_destroy(struct drm_framebuffer *framebuffer)
+static void vmw_framebuffer_bo_destroy(struct drm_framebuffer *framebuffer)
 {
-	struct vmw_framebuffer_dmabuf *vfbd =
+	struct vmw_framebuffer_bo *vfbd =
 		vmw_framebuffer_to_vfbd(framebuffer);
 
 	drm_framebuffer_cleanup(framebuffer);
-	vmw_dmabuf_unreference(&vfbd->buffer);
+	vmw_bo_unreference(&vfbd->buffer);
 	if (vfbd->base.user_obj)
 		ttm_base_object_unref(&vfbd->base.user_obj);
 
 	kfree(vfbd);
 }
 
-static int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
-				 struct drm_file *file_priv,
-				 unsigned flags, unsigned color,
-				 struct drm_clip_rect *clips,
-				 unsigned num_clips)
+static int vmw_framebuffer_bo_dirty(struct drm_framebuffer *framebuffer,
+				    struct drm_file *file_priv,
+				    unsigned int flags, unsigned int color,
+				    struct drm_clip_rect *clips,
+				    unsigned int num_clips)
 {
 	struct vmw_private *dev_priv = vmw_priv(framebuffer->dev);
-	struct vmw_framebuffer_dmabuf *vfbd =
+	struct vmw_framebuffer_bo *vfbd =
 		vmw_framebuffer_to_vfbd(framebuffer);
 	struct drm_clip_rect norect;
 	int ret, increment = 1;
@@ -1092,13 +1092,13 @@ static int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 				       true, true, NULL);
 		break;
 	case vmw_du_screen_object:
-		ret = vmw_kms_sou_do_dmabuf_dirty(dev_priv, &vfbd->base,
-						  clips, NULL, num_clips,
-						  increment, true, NULL, NULL);
+		ret = vmw_kms_sou_do_bo_dirty(dev_priv, &vfbd->base,
+					      clips, NULL, num_clips,
+					      increment, true, NULL, NULL);
 		break;
 	case vmw_du_legacy:
-		ret = vmw_kms_ldu_do_dmabuf_dirty(dev_priv, &vfbd->base, 0, 0,
-						  clips, num_clips, increment);
+		ret = vmw_kms_ldu_do_bo_dirty(dev_priv, &vfbd->base, 0, 0,
+					      clips, num_clips, increment);
 		break;
 	default:
 		ret = -EINVAL;
@@ -1114,23 +1114,23 @@ static int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 	return ret;
 }
 
-static const struct drm_framebuffer_funcs vmw_framebuffer_dmabuf_funcs = {
-	.destroy = vmw_framebuffer_dmabuf_destroy,
-	.dirty = vmw_framebuffer_dmabuf_dirty,
+static const struct drm_framebuffer_funcs vmw_framebuffer_bo_funcs = {
+	.destroy = vmw_framebuffer_bo_destroy,
+	.dirty = vmw_framebuffer_bo_dirty,
 };
 
 /**
- * Pin the dmabuffer in a location suitable for access by the
+ * Pin the bofer in a location suitable for access by the
  * display system.
  */
 static int vmw_framebuffer_pin(struct vmw_framebuffer *vfb)
 {
 	struct vmw_private *dev_priv = vmw_priv(vfb->base.dev);
-	struct vmw_dma_buffer *buf;
+	struct vmw_buffer_object *buf;
 	struct ttm_placement *placement;
 	int ret;
 
-	buf = vfb->dmabuf ?  vmw_framebuffer_to_vfbd(&vfb->base)->buffer :
+	buf = vfb->bo ?  vmw_framebuffer_to_vfbd(&vfb->base)->buffer :
 		vmw_framebuffer_to_vfbs(&vfb->base)->surface->res.backup;
 
 	if (!buf)
@@ -1139,12 +1139,12 @@ static int vmw_framebuffer_pin(struct vmw_framebuffer *vfb)
 	switch (dev_priv->active_display_unit) {
 	case vmw_du_legacy:
 		vmw_overlay_pause_all(dev_priv);
-		ret = vmw_dmabuf_pin_in_start_of_vram(dev_priv, buf, false);
+		ret = vmw_bo_pin_in_start_of_vram(dev_priv, buf, false);
 		vmw_overlay_resume_all(dev_priv);
 		break;
 	case vmw_du_screen_object:
 	case vmw_du_screen_target:
-		if (vfb->dmabuf) {
+		if (vfb->bo) {
 			if (dev_priv->capabilities & SVGA_CAP_3D) {
 				/*
 				 * Use surface DMA to get content to
@@ -1160,8 +1160,7 @@ static int vmw_framebuffer_pin(struct vmw_framebuffer *vfb)
 			placement = &vmw_mob_placement;
 		}
 
-		return vmw_dmabuf_pin_in_placement(dev_priv, buf, placement,
-						   false);
+		return vmw_bo_pin_in_placement(dev_priv, buf, placement, false);
 	default:
 		return -EINVAL;
 	}
@@ -1172,36 +1171,36 @@ static int vmw_framebuffer_pin(struct vmw_framebuffer *vfb)
 static int vmw_framebuffer_unpin(struct vmw_framebuffer *vfb)
 {
 	struct vmw_private *dev_priv = vmw_priv(vfb->base.dev);
-	struct vmw_dma_buffer *buf;
+	struct vmw_buffer_object *buf;
 
-	buf = vfb->dmabuf ?  vmw_framebuffer_to_vfbd(&vfb->base)->buffer :
+	buf = vfb->bo ?  vmw_framebuffer_to_vfbd(&vfb->base)->buffer :
 		vmw_framebuffer_to_vfbs(&vfb->base)->surface->res.backup;
 
 	if (WARN_ON(!buf))
 		return 0;
 
-	return vmw_dmabuf_unpin(dev_priv, buf, false);
+	return vmw_bo_unpin(dev_priv, buf, false);
 }
 
 /**
- * vmw_create_dmabuf_proxy - create a proxy surface for the DMA buf
+ * vmw_create_bo_proxy - create a proxy surface for the buffer object
  *
  * @dev: DRM device
  * @mode_cmd: parameters for the new surface
- * @dmabuf_mob: MOB backing the DMA buf
+ * @bo_mob: MOB backing the buffer object
  * @srf_out: newly created surface
  *
- * When the content FB is a DMA buf, we create a surface as a proxy to the
+ * When the content FB is a buffer object, we create a surface as a proxy to the
  * same buffer.  This way we can do a surface copy rather than a surface DMA.
  * This is a more efficient approach
  *
  * RETURNS:
  * 0 on success, error code otherwise
  */
-static int vmw_create_dmabuf_proxy(struct drm_device *dev,
-				   const struct drm_mode_fb_cmd2 *mode_cmd,
-				   struct vmw_dma_buffer *dmabuf_mob,
-				   struct vmw_surface **srf_out)
+static int vmw_create_bo_proxy(struct drm_device *dev,
+			       const struct drm_mode_fb_cmd2 *mode_cmd,
+			       struct vmw_buffer_object *bo_mob,
+			       struct vmw_surface **srf_out)
 {
 	uint32_t format;
 	struct drm_vmw_size content_base_size = {0};
@@ -1258,8 +1257,8 @@ static int vmw_create_dmabuf_proxy(struct drm_device *dev,
 	/* Reserve and switch the backing mob. */
 	mutex_lock(&res->dev_priv->cmdbuf_mutex);
 	(void) vmw_resource_reserve(res, false, true);
-	vmw_dmabuf_unreference(&res->backup);
-	res->backup = vmw_dmabuf_reference(dmabuf_mob);
+	vmw_bo_unreference(&res->backup);
+	res->backup = vmw_bo_reference(bo_mob);
 	res->backup_offset = 0;
 	vmw_resource_unreserve(res, false, NULL, 0);
 	mutex_unlock(&res->dev_priv->cmdbuf_mutex);
@@ -1269,21 +1268,21 @@ static int vmw_create_dmabuf_proxy(struct drm_device *dev,
 
 
 
-static int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
-					  struct vmw_dma_buffer *dmabuf,
-					  struct vmw_framebuffer **out,
-					  const struct drm_mode_fb_cmd2
-					  *mode_cmd)
+static int vmw_kms_new_framebuffer_bo(struct vmw_private *dev_priv,
+				      struct vmw_buffer_object *bo,
+				      struct vmw_framebuffer **out,
+				      const struct drm_mode_fb_cmd2
+				      *mode_cmd)
 
 {
 	struct drm_device *dev = dev_priv->dev;
-	struct vmw_framebuffer_dmabuf *vfbd;
+	struct vmw_framebuffer_bo *vfbd;
 	unsigned int requested_size;
 	struct drm_format_name_buf format_name;
 	int ret;
 
 	requested_size = mode_cmd->height * mode_cmd->pitches[0];
-	if (unlikely(requested_size > dmabuf->base.num_pages * PAGE_SIZE)) {
+	if (unlikely(requested_size > bo->base.num_pages * PAGE_SIZE)) {
 		DRM_ERROR("Screen buffer object size is too small "
 			  "for requested mode.\n");
 		return -EINVAL;
@@ -1312,20 +1311,20 @@ static int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
 	}
 
 	drm_helper_mode_fill_fb_struct(dev, &vfbd->base.base, mode_cmd);
-	vfbd->base.dmabuf = true;
-	vfbd->buffer = vmw_dmabuf_reference(dmabuf);
+	vfbd->base.bo = true;
+	vfbd->buffer = vmw_bo_reference(bo);
 	vfbd->base.user_handle = mode_cmd->handles[0];
 	*out = &vfbd->base;
 
 	ret = drm_framebuffer_init(dev, &vfbd->base.base,
-				   &vmw_framebuffer_dmabuf_funcs);
+				   &vmw_framebuffer_bo_funcs);
 	if (ret)
 		goto out_err2;
 
 	return 0;
 
 out_err2:
-	vmw_dmabuf_unreference(&dmabuf);
+	vmw_bo_unreference(&bo);
 	kfree(vfbd);
 out_err1:
 	return ret;
@@ -1354,57 +1353,57 @@ vmw_kms_srf_ok(struct vmw_private *dev_priv, uint32_t width, uint32_t height)
  * vmw_kms_new_framebuffer - Create a new framebuffer.
  *
  * @dev_priv: Pointer to device private struct.
- * @dmabuf: Pointer to dma buffer to wrap the kms framebuffer around.
- * Either @dmabuf or @surface must be NULL.
+ * @bo: Pointer to buffer object to wrap the kms framebuffer around.
+ * Either @bo or @surface must be NULL.
  * @surface: Pointer to a surface to wrap the kms framebuffer around.
- * Either @dmabuf or @surface must be NULL.
- * @only_2d: No presents will occur to this dma buffer based framebuffer. This
- * Helps the code to do some important optimizations.
+ * Either @bo or @surface must be NULL.
+ * @only_2d: No presents will occur to this buffer object based framebuffer.
+ * This helps the code to do some important optimizations.
  * @mode_cmd: Frame-buffer metadata.
  */
 struct vmw_framebuffer *
 vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
-			struct vmw_dma_buffer *dmabuf,
+			struct vmw_buffer_object *bo,
 			struct vmw_surface *surface,
 			bool only_2d,
 			const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct vmw_framebuffer *vfb = NULL;
-	bool is_dmabuf_proxy = false;
+	bool is_bo_proxy = false;
 	int ret;
 
 	/*
 	 * We cannot use the SurfaceDMA command in an non-accelerated VM,
-	 * therefore, wrap the DMA buf in a surface so we can use the
+	 * therefore, wrap the buffer object in a surface so we can use the
 	 * SurfaceCopy command.
 	 */
 	if (vmw_kms_srf_ok(dev_priv, mode_cmd->width, mode_cmd->height)  &&
-	    dmabuf && only_2d &&
+	    bo && only_2d &&
 	    mode_cmd->width > 64 &&  /* Don't create a proxy for cursor */
 	    dev_priv->active_display_unit == vmw_du_screen_target) {
-		ret = vmw_create_dmabuf_proxy(dev_priv->dev, mode_cmd,
-					      dmabuf, &surface);
+		ret = vmw_create_bo_proxy(dev_priv->dev, mode_cmd,
+					  bo, &surface);
 		if (ret)
 			return ERR_PTR(ret);
 
-		is_dmabuf_proxy = true;
+		is_bo_proxy = true;
 	}
 
 	/* Create the new framebuffer depending one what we have */
 	if (surface) {
 		ret = vmw_kms_new_framebuffer_surface(dev_priv, surface, &vfb,
 						      mode_cmd,
-						      is_dmabuf_proxy);
+						      is_bo_proxy);
 
 		/*
-		 * vmw_create_dmabuf_proxy() adds a reference that is no longer
+		 * vmw_create_bo_proxy() adds a reference that is no longer
 		 * needed
 		 */
-		if (is_dmabuf_proxy)
+		if (is_bo_proxy)
 			vmw_surface_unreference(&surface);
-	} else if (dmabuf) {
-		ret = vmw_kms_new_framebuffer_dmabuf(dev_priv, dmabuf, &vfb,
-						     mode_cmd);
+	} else if (bo) {
+		ret = vmw_kms_new_framebuffer_bo(dev_priv, bo, &vfb,
+						 mode_cmd);
 	} else {
 		BUG();
 	}
@@ -1430,7 +1429,7 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
 	struct vmw_framebuffer *vfb = NULL;
 	struct vmw_surface *surface = NULL;
-	struct vmw_dma_buffer *bo = NULL;
+	struct vmw_buffer_object *bo = NULL;
 	struct ttm_base_object *user_obj;
 	int ret;
 
@@ -1466,7 +1465,7 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	 * End conditioned code.
 	 */
 
-	/* returns either a dmabuf or surface */
+	/* returns either a bo or surface */
 	ret = vmw_user_lookup_handle(dev_priv, tfile,
 				     mode_cmd->handles[0],
 				     &surface, &bo);
@@ -1494,7 +1493,7 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 err_out:
 	/* vmw_user_lookup_handle takes one ref so does new_fb */
 	if (bo)
-		vmw_dmabuf_unreference(&bo);
+		vmw_bo_unreference(&bo);
 	if (surface)
 		vmw_surface_unreference(&surface);
 
@@ -2427,7 +2426,7 @@ int vmw_kms_helper_dirty(struct vmw_private *dev_priv,
  * interrupted by a signal.
  */
 int vmw_kms_helper_buffer_prepare(struct vmw_private *dev_priv,
-				  struct vmw_dma_buffer *buf,
+				  struct vmw_buffer_object *buf,
 				  bool interruptible,
 				  bool validate_as_mob,
 				  bool for_cpu_blit)
@@ -2459,7 +2458,7 @@ int vmw_kms_helper_buffer_prepare(struct vmw_private *dev_priv,
  * Helper to be used if an error forces the caller to undo the actions of
  * vmw_kms_helper_buffer_prepare.
  */
-void vmw_kms_helper_buffer_revert(struct vmw_dma_buffer *buf)
+void vmw_kms_helper_buffer_revert(struct vmw_buffer_object *buf)
 {
 	if (buf)
 		ttm_bo_unreserve(&buf->base);
@@ -2482,7 +2481,7 @@ void vmw_kms_helper_buffer_revert(struct vmw_dma_buffer *buf)
  */
 void vmw_kms_helper_buffer_finish(struct vmw_private *dev_priv,
 				  struct drm_file *file_priv,
-				  struct vmw_dma_buffer *buf,
+				  struct vmw_buffer_object *buf,
 				  struct vmw_fence_obj **out_fence,
 				  struct drm_vmw_fence_rep __user *
 				  user_fence_rep)
@@ -2522,7 +2521,7 @@ void vmw_kms_helper_resource_revert(struct vmw_validation_ctx *ctx)
 	struct vmw_resource *res = ctx->res;
 
 	vmw_kms_helper_buffer_revert(ctx->buf);
-	vmw_dmabuf_unreference(&ctx->buf);
+	vmw_bo_unreference(&ctx->buf);
 	vmw_resource_unreserve(res, false, NULL, 0);
 	mutex_unlock(&res->dev_priv->cmdbuf_mutex);
 }
@@ -2567,7 +2566,7 @@ int vmw_kms_helper_resource_prepare(struct vmw_resource *res,
 		if (ret)
 			goto out_unreserve;
 
-		ctx->buf = vmw_dmabuf_reference(res->backup);
+		ctx->buf = vmw_bo_reference(res->backup);
 	}
 	ret = vmw_resource_validate(res);
 	if (ret)
@@ -2600,7 +2599,7 @@ void vmw_kms_helper_resource_finish(struct vmw_validation_ctx *ctx,
 		vmw_kms_helper_buffer_finish(res->dev_priv, NULL, ctx->buf,
 					     out_fence, NULL);
 
-	vmw_dmabuf_unreference(&ctx->buf);
+	vmw_bo_unreference(&ctx->buf);
 	vmw_resource_unreserve(res, false, NULL, 0);
 	mutex_unlock(&res->dev_priv->cmdbuf_mutex);
 }

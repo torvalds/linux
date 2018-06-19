@@ -390,7 +390,7 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 	struct ttm_operation_ctx ctx = { false, false };
 	struct vmw_private *dev_priv = res->dev_priv;
 	struct vmw_cotable *vcotbl = vmw_cotable(res);
-	struct vmw_dma_buffer *buf, *old_buf = res->backup;
+	struct vmw_buffer_object *buf, *old_buf = res->backup;
 	struct ttm_buffer_object *bo, *old_bo = &res->backup->base;
 	size_t old_size = res->backup_size;
 	size_t old_size_read_back = vcotbl->size_read_back;
@@ -415,8 +415,8 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 	if (!buf)
 		return -ENOMEM;
 
-	ret = vmw_dmabuf_init(dev_priv, buf, new_size, &vmw_mob_ne_placement,
-			      true, vmw_dmabuf_bo_free);
+	ret = vmw_bo_init(dev_priv, buf, new_size, &vmw_mob_ne_placement,
+			  true, vmw_bo_bo_free);
 	if (ret) {
 		DRM_ERROR("Failed initializing new cotable MOB.\n");
 		return ret;
@@ -482,7 +482,7 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 	/* Let go of the old mob. */
 	list_del(&res->mob_head);
 	list_add_tail(&res->mob_head, &buf->res_list);
-	vmw_dmabuf_unreference(&old_buf);
+	vmw_bo_unreference(&old_buf);
 	res->id = vcotbl->type;
 
 	return 0;
@@ -491,7 +491,7 @@ out_map_new:
 	ttm_bo_kunmap(&old_map);
 out_wait:
 	ttm_bo_unreserve(bo);
-	vmw_dmabuf_unreference(&buf);
+	vmw_bo_unreference(&buf);
 
 	return ret;
 }

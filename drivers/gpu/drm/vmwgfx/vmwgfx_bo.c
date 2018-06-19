@@ -32,7 +32,7 @@
 
 
 /**
- * vmw_dmabuf_pin_in_placement - Validate a buffer to placement.
+ * vmw_bo_pin_in_placement - Validate a buffer to placement.
  *
  * @dev_priv:  Driver private.
  * @buf:  DMA buffer to move.
@@ -42,10 +42,10 @@
  * Returns
  *  -ERESTARTSYS if interrupted by a signal.
  */
-int vmw_dmabuf_pin_in_placement(struct vmw_private *dev_priv,
-				struct vmw_dma_buffer *buf,
-				struct ttm_placement *placement,
-				bool interruptible)
+int vmw_bo_pin_in_placement(struct vmw_private *dev_priv,
+			    struct vmw_buffer_object *buf,
+			    struct ttm_placement *placement,
+			    bool interruptible)
 {
 	struct ttm_operation_ctx ctx = {interruptible, false };
 	struct ttm_buffer_object *bo = &buf->base;
@@ -79,7 +79,7 @@ err:
 }
 
 /**
- * vmw_dmabuf_pin_in_vram_or_gmr - Move a buffer to vram or gmr.
+ * vmw_bo_pin_in_vram_or_gmr - Move a buffer to vram or gmr.
  *
  * This function takes the reservation_sem in write mode.
  * Flushes and unpins the query bo to avoid failures.
@@ -92,9 +92,9 @@ err:
  * Returns
  * -ERESTARTSYS if interrupted by a signal.
  */
-int vmw_dmabuf_pin_in_vram_or_gmr(struct vmw_private *dev_priv,
-				  struct vmw_dma_buffer *buf,
-				  bool interruptible)
+int vmw_bo_pin_in_vram_or_gmr(struct vmw_private *dev_priv,
+			      struct vmw_buffer_object *buf,
+			      bool interruptible)
 {
 	struct ttm_operation_ctx ctx = {interruptible, false };
 	struct ttm_buffer_object *bo = &buf->base;
@@ -134,7 +134,7 @@ err:
 }
 
 /**
- * vmw_dmabuf_pin_in_vram - Move a buffer to vram.
+ * vmw_bo_pin_in_vram - Move a buffer to vram.
  *
  * This function takes the reservation_sem in write mode.
  * Flushes and unpins the query bo to avoid failures.
@@ -146,16 +146,16 @@ err:
  * Returns
  * -ERESTARTSYS if interrupted by a signal.
  */
-int vmw_dmabuf_pin_in_vram(struct vmw_private *dev_priv,
-			   struct vmw_dma_buffer *buf,
-			   bool interruptible)
+int vmw_bo_pin_in_vram(struct vmw_private *dev_priv,
+		       struct vmw_buffer_object *buf,
+		       bool interruptible)
 {
-	return vmw_dmabuf_pin_in_placement(dev_priv, buf, &vmw_vram_placement,
-					   interruptible);
+	return vmw_bo_pin_in_placement(dev_priv, buf, &vmw_vram_placement,
+				       interruptible);
 }
 
 /**
- * vmw_dmabuf_pin_in_start_of_vram - Move a buffer to start of vram.
+ * vmw_bo_pin_in_start_of_vram - Move a buffer to start of vram.
  *
  * This function takes the reservation_sem in write mode.
  * Flushes and unpins the query bo to avoid failures.
@@ -167,9 +167,9 @@ int vmw_dmabuf_pin_in_vram(struct vmw_private *dev_priv,
  * Returns
  * -ERESTARTSYS if interrupted by a signal.
  */
-int vmw_dmabuf_pin_in_start_of_vram(struct vmw_private *dev_priv,
-				    struct vmw_dma_buffer *buf,
-				    bool interruptible)
+int vmw_bo_pin_in_start_of_vram(struct vmw_private *dev_priv,
+				struct vmw_buffer_object *buf,
+				bool interruptible)
 {
 	struct ttm_operation_ctx ctx = {interruptible, false };
 	struct ttm_buffer_object *bo = &buf->base;
@@ -226,7 +226,7 @@ err_unlock:
 }
 
 /**
- * vmw_dmabuf_unpin - Unpin the buffer given buffer, does not move the buffer.
+ * vmw_bo_unpin - Unpin the buffer given buffer, does not move the buffer.
  *
  * This function takes the reservation_sem in write mode.
  *
@@ -237,9 +237,9 @@ err_unlock:
  * Returns
  * -ERESTARTSYS if interrupted by a signal.
  */
-int vmw_dmabuf_unpin(struct vmw_private *dev_priv,
-		     struct vmw_dma_buffer *buf,
-		     bool interruptible)
+int vmw_bo_unpin(struct vmw_private *dev_priv,
+		 struct vmw_buffer_object *buf,
+		 bool interruptible)
 {
 	struct ttm_buffer_object *bo = &buf->base;
 	int ret;
@@ -288,7 +288,7 @@ void vmw_bo_get_guest_ptr(const struct ttm_buffer_object *bo,
  * @pin: Whether to pin or unpin.
  *
  */
-void vmw_bo_pin_reserved(struct vmw_dma_buffer *vbo, bool pin)
+void vmw_bo_pin_reserved(struct vmw_buffer_object *vbo, bool pin)
 {
 	struct ttm_operation_ctx ctx = { false, true };
 	struct ttm_place pl;
@@ -326,14 +326,14 @@ void vmw_bo_pin_reserved(struct vmw_dma_buffer *vbo, bool pin)
 
 
 /*
- * vmw_dma_buffer_unmap - Tear down a cached buffer object map.
+ * vmw_buffer_object_unmap - Tear down a cached buffer object map.
  *
  * @vbo: The buffer object whose map we are tearing down.
  *
  * This function tears down a cached map set up using
- * vmw_dma_buffer_map_and_cache().
+ * vmw_buffer_object_map_and_cache().
  */
-void vmw_dma_buffer_unmap(struct vmw_dma_buffer *vbo)
+void vmw_buffer_object_unmap(struct vmw_buffer_object *vbo)
 {
 	if (vbo->map.bo == NULL)
 		return;
@@ -343,7 +343,7 @@ void vmw_dma_buffer_unmap(struct vmw_dma_buffer *vbo)
 
 
 /*
- * vmw_dma_buffer_map_and_cache - Map a buffer object and cache the map
+ * vmw_buffer_object_map_and_cache - Map a buffer object and cache the map
  *
  * @vbo: The buffer object to map
  * Return: A kernel virtual address or NULL if mapping failed.
@@ -357,7 +357,7 @@ void vmw_dma_buffer_unmap(struct vmw_dma_buffer *vbo)
  * 3) Buffer object destruction
  *
  */
-void *vmw_dma_buffer_map_and_cache(struct vmw_dma_buffer *vbo)
+void *vmw_buffer_object_map_and_cache(struct vmw_buffer_object *vbo)
 {
 	struct ttm_buffer_object *bo = &vbo->base;
 	bool not_used;
