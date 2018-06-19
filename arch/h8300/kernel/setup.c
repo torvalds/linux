@@ -23,7 +23,6 @@
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
-#include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include <linux/clk-provider.h>
 #include <linux/memblock.h>
@@ -167,15 +166,6 @@ const struct seq_operations cpuinfo_op = {
 	.stop	= c_stop,
 	.show	= show_cpuinfo,
 };
-
-static int __init device_probe(void)
-{
-	of_platform_populate(NULL, NULL, NULL, NULL);
-
-	return 0;
-}
-
-device_initcall(device_probe);
 
 #if defined(CONFIG_CPU_H8300H)
 #define get_wait(base, addr) ({		\
