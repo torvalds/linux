@@ -4828,6 +4828,7 @@ static void alc_probe_headset_mode(struct hda_codec *codec)
 			spec->headphone_mic_pin = cfg->inputs[i].pin;
 	}
 
+	WARN_ON(spec->gen.cap_sync_hook);
 	spec->gen.cap_sync_hook = alc_update_headset_mode_hook;
 	spec->gen.automute_hook = alc_update_headset_mode;
 	spec->gen.hp_automute_hook = alc_update_headset_jack_cb;

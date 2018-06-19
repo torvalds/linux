@@ -343,6 +343,7 @@ static void cxt_fixup_headphone_mic(struct hda_codec *codec,
 		snd_hdac_regmap_add_vendor_verb(&codec->core, 0x410);
 		break;
 	case HDA_FIXUP_ACT_PROBE:
+		WARN_ON(spec->gen.cap_sync_hook);
 		spec->gen.cap_sync_hook = cxt_update_headset_mode_hook;
 		spec->gen.automute_hook = cxt_update_headset_mode;
 		break;
