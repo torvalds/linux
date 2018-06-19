@@ -37,56 +37,17 @@
 
 #include <rdma/ib_verbs.h>
 
-/**
- * ib_get_cached_gid - Returns a cached GID table entry
- * @device: The device to query.
- * @port_num: The port number of the device to query.
- * @index: The index into the cached GID table to query.
- * @gid: The GID value found at the specified index.
- * @attr: The GID attribute found at the specified index (only in RoCE).
- *   NULL means ignore (output parameter).
- *
- * ib_get_cached_gid() fetches the specified GID table entry stored in
- * the local software cache.
- */
-int ib_get_cached_gid(struct ib_device    *device,
-		      u8                   port_num,
-		      int                  index,
-		      union ib_gid        *gid,
-		      struct ib_gid_attr  *attr);
 int rdma_query_gid(struct ib_device *device, u8 port_num, int index,
 		   union ib_gid *gid);
-
-int ib_find_cached_gid(struct ib_device *device,
-		       const union ib_gid *gid,
-		       enum ib_gid_type gid_type,
-		       struct net_device *ndev,
-		       u8               *port_num,
-		       u16              *index);
 const struct ib_gid_attr *rdma_find_gid(struct ib_device *device,
 					const union ib_gid *gid,
 					enum ib_gid_type gid_type,
 					struct net_device *ndev);
-
-int ib_find_cached_gid_by_port(struct ib_device *device,
-			       const union ib_gid *gid,
-			       enum ib_gid_type gid_type,
-			       u8               port_num,
-			       struct net_device *ndev,
-			       u16              *index);
 const struct ib_gid_attr *rdma_find_gid_by_port(struct ib_device *ib_dev,
 						const union ib_gid *gid,
 						enum ib_gid_type gid_type,
 						u8 port,
 						struct net_device *ndev);
-
-int ib_find_gid_by_filter(struct ib_device *device,
-			  const union ib_gid *gid,
-			  u8 port_num,
-			  bool (*filter)(const union ib_gid *gid,
-					 const struct ib_gid_attr *,
-					 void *),
-			  void *context, u16 *index);
 const struct ib_gid_attr *rdma_find_gid_by_filter(
 	struct ib_device *device, const union ib_gid *gid, u8 port_num,
 	bool (*filter)(const union ib_gid *gid, const struct ib_gid_attr *,
