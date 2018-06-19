@@ -796,8 +796,6 @@ void wl12xx_queue_recovery_work(struct wl1271 *wl)
 
 		wl->state = WLCORE_STATE_RESTARTING;
 		set_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags);
-		wl1271_ps_elp_wakeup(wl);
-		wlcore_disable_interrupts_nosync(wl);
 		ieee80211_queue_work(wl->hw, &wl->recovery_work);
 	}
 }
@@ -919,11 +917,17 @@ static void wl1271_recovery_work(struct work_struct *work)
 		container_of(work, struct wl1271, recovery_work);
 	struct wl12xx_vif *wlvif;
 	struct ieee80211_vif *vif;
+	int error;
 
 	mutex_lock(&wl->mutex);
 
 	if (wl->state == WLCORE_STATE_OFF || wl->plt)
 		goto out_unlock;
+
+	error = wl1271_ps_elp_wakeup(wl);
+	if (error < 0)
+		wl1271_warning("Enable for recovery failed");
+	wlcore_disable_interrupts_nosync(wl);
 
 	if (!test_bit(WL1271_FLAG_INTENDED_FW_RECOVERY, &wl->flags)) {
 		if (wl->conf.fwlog.output == WL12XX_FWLOG_OUTPUT_HOST)
@@ -966,6 +970,8 @@ static void wl1271_recovery_work(struct work_struct *work)
 	 * to restart the HW.
 	 */
 	wlcore_wake_queues(wl, WLCORE_QUEUE_STOP_REASON_FW_RESTART);
+
+	wl1271_ps_elp_sleep(wl);
 
 out_unlock:
 	wl->watchdog_recovery = false;
