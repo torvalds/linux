@@ -44,6 +44,9 @@ int gfxhub_v1_1_get_xgmi_info(struct amdgpu_device *adev)
 			REG_GET_FIELD(xgmi_lfb_cntl, MC_VM_XGMI_LFB_CNTL, PF_LFB_REGION);
 		if (adev->gmc.xgmi.physical_node_id > 3)
 			return -EINVAL;
+		adev->gmc.xgmi.node_segment_size = REG_GET_FIELD(
+			RREG32_SOC15(GC, 0, mmMC_VM_XGMI_LFB_SIZE),
+			MC_VM_XGMI_LFB_SIZE, PF_LFB_SIZE) << 24;
 	}
 
 	return 0;

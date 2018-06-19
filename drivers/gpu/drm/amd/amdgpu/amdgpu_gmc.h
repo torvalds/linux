@@ -114,6 +114,14 @@ struct amdgpu_gmc {
 	u64			gart_end;
 	u64			vram_start;
 	u64			vram_end;
+	/* FB region , it's same as local vram region in single GPU, in XGMI
+	 * configuration, this region covers all GPUs in the same hive ,
+	 * each GPU in the hive has the same view of this FB region .
+	 * GPU0's vram starts at offset (0 * segment size) ,
+	 * GPU1 starts at offset (1 * segment size), etc.
+	 */
+	u64			fb_start;
+	u64			fb_end;
 	unsigned		vram_width;
 	u64			real_vram_size;
 	int			vram_mtrr;
