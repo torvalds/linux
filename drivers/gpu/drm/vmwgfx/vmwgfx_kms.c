@@ -1526,33 +1526,45 @@ static int
 vmw_kms_atomic_check_modeset(struct drm_device *dev,
 			     struct drm_atomic_state *state)
 {
-	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_state *new_crtc_state;
+	struct drm_plane_state *new_plane_state;
+	struct drm_plane *plane;
 	struct drm_crtc *crtc;
 	struct vmw_private *dev_priv = vmw_priv(dev);
-	int i;
+	int i, ret, cpp = 0;
 
-	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
+	ret = drm_atomic_helper_check(dev, state);
+
+	/* If this is not a STDU, then no more checking is necessary */
+	if (ret || dev_priv->active_display_unit != vmw_du_screen_target)
+		return ret;
+
+	for_each_new_plane_in_state(state, plane, new_plane_state, i) {
+		if (new_plane_state->fb) {
+			int current_cpp = new_plane_state->fb->pitches[0] /
+					  new_plane_state->fb->width;
+
+			if (cpp == 0)
+				cpp = current_cpp;
+			else if (current_cpp != cpp)
+				return -EINVAL;
+		}
+	}
+
+	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
 		unsigned long requested_bb_mem = 0;
 
-		if (dev_priv->active_display_unit == vmw_du_screen_target) {
-			struct drm_plane *plane = crtc->primary;
-			struct drm_plane_state *plane_state;
-
-			plane_state = drm_atomic_get_new_plane_state(state, plane);
-
-			if (plane_state && plane_state->fb) {
-				int cpp = plane_state->fb->format->cpp[0];
-
-				requested_bb_mem += crtc->mode.hdisplay * cpp *
-						    crtc->mode.vdisplay;
-			}
+		if (drm_atomic_crtc_needs_modeset(new_crtc_state)) {
+			requested_bb_mem += new_crtc_state->mode.hdisplay *
+					    new_crtc_state->mode.vdisplay *
+					    cpp;
 
 			if (requested_bb_mem > dev_priv->prim_bb_mem)
 				return -EINVAL;
 		}
 	}
 
-	return drm_atomic_helper_check(dev, state);
+	return ret;
 }
 
 static const struct drm_mode_config_funcs vmw_kms_funcs = {
