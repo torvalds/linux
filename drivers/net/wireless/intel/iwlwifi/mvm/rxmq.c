@@ -1095,8 +1095,9 @@ static void iwl_mvm_decode_he_phy_data(struct iwl_mvm *mvm,
 	}
 
 	switch (FIELD_GET(IWL_RX_HE_PHY_INFO_TYPE_MASK, he_phy_data)) {
+	case IWL_RX_HE_PHY_INFO_TYPE_MU:
 	case IWL_RX_HE_PHY_INFO_TYPE_MU_EXT_INFO:
-	case IWL_RX_HE_PHY_INFO_TYPE_TB_EXT_INFO:
+	case IWL_RX_HE_PHY_INFO_TYPE_TB:
 		iwl_mvm_decode_he_phy_ru_alloc(he_phy_data, rate_n_flags,
 					       he, he_mu, rx_status);
 		break;
