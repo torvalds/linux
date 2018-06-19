@@ -1105,16 +1105,18 @@ void vmw_bo_move_notify(struct ttm_buffer_object *bo,
 	vbo = container_of(bo, struct vmw_buffer_object, base);
 
 	/*
-	 * Kill any cached kernel maps before move. An optimization could
-	 * be to do this iff source or destination memory type is in VRAM.
+	 * Kill any cached kernel maps before move to or from VRAM.
+	 * With other types of moves, the underlying pages stay the same,
+	 * and the map can be kept.
 	 */
-	vmw_bo_unmap(vbo);
+	if (mem->mem_type == TTM_PL_VRAM || bo->mem.mem_type == TTM_PL_VRAM)
+		vmw_bo_unmap(vbo);
 
 	/*
 	 * If we're moving a backup MOB out of MOB placement, then make sure we
 	 * read back all resource content first, and unbind the MOB from
 	 * the resource.
 	 */
-	if (mem->mem_type != VMW_PL_MOB)
+	if (mem->mem_type != VMW_PL_MOB && bo->mem.mem_type == VMW_PL_MOB)
 		vmw_resource_unbind_list(vbo);
 }
