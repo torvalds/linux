@@ -296,6 +296,12 @@ static void alc_fixup_gpio3(struct hda_codec *codec,
 	alc_fixup_gpio(codec, action, 0x03);
 }
 
+static void alc_fixup_gpio4(struct hda_codec *codec,
+			    const struct hda_fixup *fix, int action)
+{
+	alc_fixup_gpio(codec, action, 0x04);
+}
+
 /*
  * Fix hardware PLL issue
  * On some codecs, the analog PLL gating control must be off while
@@ -5172,13 +5178,6 @@ static void alc282_fixup_asus_tx300(struct hda_codec *codec,
 				    const struct hda_fixup *fix, int action)
 {
 	struct alc_spec *spec = codec->spec;
-	/* TX300 needs to set up GPIO2 for the speaker amp */
-	static const struct hda_verb gpio2_verbs[] = {
-		{ 0x01, AC_VERB_SET_GPIO_MASK, 0x04 },
-		{ 0x01, AC_VERB_SET_GPIO_DIRECTION, 0x04 },
-		{ 0x01, AC_VERB_SET_GPIO_DATA, 0x04 },
-		{}
-	};
 	static const struct hda_pintbl dock_pins[] = {
 		{ 0x1b, 0x21114000 }, /* dock speaker pin */
 		{}
@@ -5187,7 +5186,8 @@ static void alc282_fixup_asus_tx300(struct hda_codec *codec,
 	switch (action) {
 	case HDA_FIXUP_ACT_PRE_PROBE:
 		spec->init_amp = ALC_INIT_DEFAULT;
-		snd_hda_add_verbs(codec, gpio2_verbs);
+		/* TX300 needs to set up GPIO2 for the speaker amp */
+		alc_setup_gpio(codec, 0x04);
 		snd_hda_apply_pincfgs(codec, dock_pins);
 		spec->gen.auto_mute_via_amp = 1;
 		spec->gen.automute_hook = asus_tx300_automute;
@@ -5277,6 +5277,19 @@ static void alc280_fixup_hp_9480m(struct hda_codec *codec,
 		spec->gpio_mask |= 0x10;
 		spec->gpio_dir |= 0x10;
 		spec->gen.hp_automute_hook = alc280_hp_gpio4_automute_hook;
+	}
+}
+
+static void alc275_fixup_gpio4_off(struct hda_codec *codec,
+				   const struct hda_fixup *fix,
+				   int action)
+{
+	struct alc_spec *spec = codec->spec;
+
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		spec->gpio_mask |= 0x04;
+		spec->gpio_dir |= 0x04;
+		/* set data bit low */
 	}
 }
 
@@ -5468,13 +5481,8 @@ static const struct hda_fixup alc269_fixups[] = {
 		}
 	},
 	[ALC275_FIXUP_SONY_VAIO_GPIO2] = {
-		.type = HDA_FIXUP_VERBS,
-		.v.verbs = (const struct hda_verb[]) {
-			{0x01, AC_VERB_SET_GPIO_MASK, 0x04},
-			{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x04},
-			{0x01, AC_VERB_SET_GPIO_DATA, 0x00},
-			{ }
-		},
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc275_fixup_gpio4_off,
 		.chained = true,
 		.chain_id = ALC269_FIXUP_SONY_VAIO
 	},
@@ -6219,14 +6227,9 @@ static const struct hda_fixup alc269_fixups[] = {
 		.chain_id = ALC256_FIXUP_ASUS_HEADSET_MODE
 	},
 	[ALC256_FIXUP_ASUS_AIO_GPIO2] = {
-		.type = HDA_FIXUP_VERBS,
-		.v.verbs = (const struct hda_verb[]) {
-			/* Set up GPIO2 for the speaker amp */
-			{ 0x01, AC_VERB_SET_GPIO_MASK, 0x04 },
-			{ 0x01, AC_VERB_SET_GPIO_DIRECTION, 0x04 },
-			{ 0x01, AC_VERB_SET_GPIO_DATA, 0x04 },
-			{}
-		},
+		.type = HDA_FIXUP_FUNC,
+		/* Set up GPIO2 for the speaker amp */
+		.v.func = alc_fixup_gpio4,
 	},
 	[ALC233_FIXUP_ASUS_MIC_NO_PRESENCE] = {
 		.type = HDA_FIXUP_PINS,
