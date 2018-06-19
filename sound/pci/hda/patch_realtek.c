@@ -7354,16 +7354,21 @@ static void alc861vd_fixup_dallas(struct hda_codec *codec,
 	}
 }
 
+/* reset GPIO1 */
+static void alc660vd_fixup_asus_gpio1(struct hda_codec *codec,
+				      const struct hda_fixup *fix, int action)
+{
+	struct alc_spec *spec = codec->spec;
+
+	if (action == HDA_FIXUP_ACT_PRE_PROBE)
+		spec->gpio_mask |= 0x02;
+	alc_fixup_gpio(codec, action, 0x01);
+}
+
 static const struct hda_fixup alc861vd_fixups[] = {
 	[ALC660VD_FIX_ASUS_GPIO1] = {
-		.type = HDA_FIXUP_VERBS,
-		.v.verbs = (const struct hda_verb[]) {
-			/* reset GPIO1 */
-			{0x01, AC_VERB_SET_GPIO_MASK, 0x03},
-			{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x01},
-			{0x01, AC_VERB_SET_GPIO_DATA, 0x01},
-			{ }
-		}
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc660vd_fixup_asus_gpio1,
 	},
 	[ALC861VD_FIX_DALLAS] = {
 		.type = HDA_FIXUP_FUNC,
