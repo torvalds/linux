@@ -215,25 +215,25 @@ static void siox_poll(struct siox_master *smaster)
 			siox_status_clean(status,
 					  sdevice->status_written_lastcycle);
 
-		/* Check counter bits */
-		if (siox_device_counter_error(sdevice, status_clean)) {
-			bool prev_counter_error;
+		/* Check counter and type bits */
+		if (siox_device_counter_error(sdevice, status_clean) ||
+		    siox_device_type_error(sdevice, status_clean)) {
+			bool prev_error;
 
 			synced = false;
 
 			/* only report a new error if the last cycle was ok */
-			prev_counter_error =
+			prev_error =
 				siox_device_counter_error(sdevice,
-							  prev_status_clean);
-			if (!prev_counter_error) {
+							  prev_status_clean) ||
+				siox_device_type_error(sdevice,
+						       prev_status_clean);
+
+			if (!prev_error) {
 				sdevice->status_errors++;
 				sysfs_notify_dirent(sdevice->status_errors_kn);
 			}
 		}
-
-		/* Check type bits */
-		if (siox_device_type_error(sdevice, status_clean))
-			synced = false;
 
 		/* If the device is unsynced report the watchdog as active */
 		if (!synced) {
