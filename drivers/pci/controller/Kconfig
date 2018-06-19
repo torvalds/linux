@@ -96,7 +96,6 @@ config PCI_HOST_GENERIC
 	depends on OF
 	select PCI_HOST_COMMON
 	select IRQ_DOMAIN
-	select PCI_DOMAINS
 	help
 	  Say Y here if you want to support a simple generic PCI host
 	  controller, such as the one emulated by kvmtool.
@@ -138,7 +137,6 @@ config PCI_VERSATILE
 
 config PCIE_IPROC
 	tristate
-	select PCI_DOMAINS
 	help
 	  This enables the iProc PCIe core controller support for Broadcom's
 	  iProc family of SoCs. An appropriate bus interface driver needs
@@ -176,7 +174,6 @@ config PCIE_IPROC_MSI
 config PCIE_ALTERA
 	bool "Altera PCIe controller"
 	depends on ARM || NIOS2 || COMPILE_TEST
-	select PCI_DOMAINS
 	help
 	  Say Y here if you want to enable PCIe controller support on Altera
 	  FPGA.
