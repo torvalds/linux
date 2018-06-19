@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Defines for the Maxlinear MX58x family of tuners/demods
  *
