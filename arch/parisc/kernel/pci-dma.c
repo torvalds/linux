@@ -537,7 +537,7 @@ static void pa11_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
 	/* once we do combining we'll need to use phys_to_virt(sg_dma_address(sglist)) */
 
 	for_each_sg(sglist, sg, nents, i)
-		flush_kernel_vmap_range(sg_virt(sg), sg->length);
+		flush_kernel_dcache_range(sg_virt(sg), sg->length);
 }
 
 static void pa11_dma_sync_single_for_cpu(struct device *dev,
@@ -568,7 +568,7 @@ static void pa11_dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sgl
 	/* once we do combining we'll need to use phys_to_virt(sg_dma_address(sglist)) */
 
 	for_each_sg(sglist, sg, nents, i)
-		flush_kernel_vmap_range(sg_virt(sg), sg->length);
+		flush_kernel_dcache_range(sg_virt(sg), sg->length);
 }
 
 static void pa11_dma_sync_sg_for_device(struct device *dev, struct scatterlist *sglist, int nents, enum dma_data_direction direction)
@@ -579,7 +579,7 @@ static void pa11_dma_sync_sg_for_device(struct device *dev, struct scatterlist *
 	/* once we do combining we'll need to use phys_to_virt(sg_dma_address(sglist)) */
 
 	for_each_sg(sglist, sg, nents, i)
-		flush_kernel_vmap_range(sg_virt(sg), sg->length);
+		flush_kernel_dcache_range(sg_virt(sg), sg->length);
 }
 
 static void pa11_dma_cache_sync(struct device *dev, void *vaddr, size_t size,
