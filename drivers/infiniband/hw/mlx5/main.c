@@ -5601,6 +5601,8 @@ int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 	dev->ib_dev.modify_qp		= mlx5_ib_modify_qp;
 	dev->ib_dev.query_qp		= mlx5_ib_query_qp;
 	dev->ib_dev.destroy_qp		= mlx5_ib_destroy_qp;
+	dev->ib_dev.drain_sq		= mlx5_ib_drain_sq;
+	dev->ib_dev.drain_rq		= mlx5_ib_drain_rq;
 	dev->ib_dev.post_send		= mlx5_ib_post_send;
 	dev->ib_dev.post_recv		= mlx5_ib_post_recv;
 	dev->ib_dev.create_cq		= mlx5_ib_create_cq;

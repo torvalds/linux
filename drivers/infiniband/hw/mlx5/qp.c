@@ -4361,9 +4361,8 @@ static void finish_wqe(struct mlx5_ib_qp *qp,
 	qp->sq.w_list[idx].next = qp->sq.cur_post;
 }
 
-
-int mlx5_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-		      struct ib_send_wr **bad_wr)
+static int _mlx5_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
+		      struct ib_send_wr **bad_wr, bool drain)
 {
 	struct mlx5_wqe_ctrl_seg *ctrl = NULL;  /* compiler warning */
 	struct mlx5_ib_dev *dev = to_mdev(ibqp->device);
@@ -4394,7 +4393,7 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 	spin_lock_irqsave(&qp->sq.lock, flags);
 
-	if (mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
+	if (mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR && !drain) {
 		err = -EIO;
 		*bad_wr = wr;
 		nreq = 0;
@@ -4691,13 +4690,19 @@ out:
 	return err;
 }
 
+int mlx5_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
+		      struct ib_send_wr **bad_wr)
+{
+	return _mlx5_ib_post_send(ibqp, wr, bad_wr, false);
+}
+
 static void set_sig_seg(struct mlx5_rwqe_sig *sig, int size)
 {
 	sig->signature = calc_sig(sig, size);
 }
 
-int mlx5_ib_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-		      struct ib_recv_wr **bad_wr)
+static int _mlx5_ib_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
+		      struct ib_recv_wr **bad_wr, bool drain)
 {
 	struct mlx5_ib_qp *qp = to_mqp(ibqp);
 	struct mlx5_wqe_data_seg *scat;
@@ -4715,7 +4720,7 @@ int mlx5_ib_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 
 	spin_lock_irqsave(&qp->rq.lock, flags);
 
-	if (mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
+	if (mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR && !drain) {
 		err = -EIO;
 		*bad_wr = wr;
 		nreq = 0;
@@ -4775,6 +4780,12 @@ out:
 	spin_unlock_irqrestore(&qp->rq.lock, flags);
 
 	return err;
+}
+
+int mlx5_ib_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
+		      struct ib_recv_wr **bad_wr)
+{
+	return _mlx5_ib_post_recv(ibqp, wr, bad_wr, false);
 }
 
 static inline enum ib_qp_state to_ib_qp_state(enum mlx5_qp_state mlx5_state)
@@ -5697,4 +5708,132 @@ int mlx5_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 out:
 	kvfree(in);
 	return err;
+}
+
+struct mlx5_ib_drain_cqe {
+	struct ib_cqe cqe;
+	struct completion done;
+};
+
+static void mlx5_ib_drain_qp_done(struct ib_cq *cq, struct ib_wc *wc)
+{
+	struct mlx5_ib_drain_cqe *cqe = container_of(wc->wr_cqe,
+						     struct mlx5_ib_drain_cqe,
+						     cqe);
+
+	complete(&cqe->done);
+}
+
+/* This function returns only once the drained WR was completed */
+static void handle_drain_completion(struct ib_cq *cq,
+				    struct mlx5_ib_drain_cqe *sdrain,
+				    struct mlx5_ib_dev *dev)
+{
+	struct mlx5_core_dev *mdev = dev->mdev;
+
+	if (cq->poll_ctx == IB_POLL_DIRECT) {
+		while (wait_for_completion_timeout(&sdrain->done, HZ / 10) <= 0)
+			ib_process_cq_direct(cq, -1);
+		return;
+	}
+
+	if (mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
+		struct mlx5_ib_cq *mcq = to_mcq(cq);
+		bool triggered = false;
+		unsigned long flags;
+
+		spin_lock_irqsave(&dev->reset_flow_resource_lock, flags);
+		/* Make sure that the CQ handler won't run if wasn't run yet */
+		if (!mcq->mcq.reset_notify_added)
+			mcq->mcq.reset_notify_added = 1;
+		else
+			triggered = true;
+		spin_unlock_irqrestore(&dev->reset_flow_resource_lock, flags);
+
+		if (triggered) {
+			/* Wait for any scheduled/running task to be ended */
+			switch (cq->poll_ctx) {
+			case IB_POLL_SOFTIRQ:
+				irq_poll_disable(&cq->iop);
+				irq_poll_enable(&cq->iop);
+				break;
+			case IB_POLL_WORKQUEUE:
+				cancel_work_sync(&cq->work);
+				break;
+			default:
+				WARN_ON_ONCE(1);
+			}
+		}
+
+		/* Run the CQ handler - this makes sure that the drain WR will
+		 * be processed if wasn't processed yet.
+		 */
+		mcq->mcq.comp(&mcq->mcq);
+	}
+
+	wait_for_completion(&sdrain->done);
+}
+
+void mlx5_ib_drain_sq(struct ib_qp *qp)
+{
+	struct ib_cq *cq = qp->send_cq;
+	struct ib_qp_attr attr = { .qp_state = IB_QPS_ERR };
+	struct mlx5_ib_drain_cqe sdrain;
+	struct ib_send_wr *bad_swr;
+	struct ib_rdma_wr swr = {
+		.wr = {
+			.next = NULL,
+			{ .wr_cqe	= &sdrain.cqe, },
+			.opcode	= IB_WR_RDMA_WRITE,
+		},
+	};
+	int ret;
+	struct mlx5_ib_dev *dev = to_mdev(qp->device);
+	struct mlx5_core_dev *mdev = dev->mdev;
+
+	ret = ib_modify_qp(qp, &attr, IB_QP_STATE);
+	if (ret && mdev->state != MLX5_DEVICE_STATE_INTERNAL_ERROR) {
+		WARN_ONCE(ret, "failed to drain send queue: %d\n", ret);
+		return;
+	}
+
+	sdrain.cqe.done = mlx5_ib_drain_qp_done;
+	init_completion(&sdrain.done);
+
+	ret = _mlx5_ib_post_send(qp, &swr.wr, &bad_swr, true);
+	if (ret) {
+		WARN_ONCE(ret, "failed to drain send queue: %d\n", ret);
+		return;
+	}
+
+	handle_drain_completion(cq, &sdrain, dev);
+}
+
+void mlx5_ib_drain_rq(struct ib_qp *qp)
+{
+	struct ib_cq *cq = qp->recv_cq;
+	struct ib_qp_attr attr = { .qp_state = IB_QPS_ERR };
+	struct mlx5_ib_drain_cqe rdrain;
+	struct ib_recv_wr rwr = {}, *bad_rwr;
+	int ret;
+	struct mlx5_ib_dev *dev = to_mdev(qp->device);
+	struct mlx5_core_dev *mdev = dev->mdev;
+
+	ret = ib_modify_qp(qp, &attr, IB_QP_STATE);
+	if (ret && mdev->state != MLX5_DEVICE_STATE_INTERNAL_ERROR) {
+		WARN_ONCE(ret, "failed to drain recv queue: %d\n", ret);
+		return;
+	}
+
+	rwr.wr_cqe = &rdrain.cqe;
+	rdrain.cqe.done = mlx5_ib_drain_qp_done;
+	init_completion(&rdrain.done);
+
+	ret = _mlx5_ib_post_recv(qp, &rwr, &bad_rwr, true);
+	if (ret) {
+		WARN_ONCE(ret, "failed to drain recv queue: %d\n", ret);
+		return;
+	}
+
+	handle_drain_completion(cq, &rdrain, dev);
 }
