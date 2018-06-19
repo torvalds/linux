@@ -628,9 +628,14 @@ struct dpcd_caps {
 	struct dc_dongle_caps dongle_caps;
 
 	uint32_t sink_dev_id;
+	int8_t sink_dev_id_str[6];
+	int8_t sink_hw_revision;
+	int8_t sink_fw_revision[2];
+
 	uint32_t branch_dev_id;
 	int8_t branch_dev_name[6];
 	int8_t branch_hw_revision;
+	int8_t branch_fw_revision[2];
 
 	bool allow_invalid_MSA_timing_param;
 	bool panel_mode_edp;
