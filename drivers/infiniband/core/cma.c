@@ -603,46 +603,54 @@ static int cma_translate_addr(struct sockaddr *addr, struct rdma_dev_addr *dev_a
 	return ret;
 }
 
-static inline int cma_validate_port(struct ib_device *device, u8 port,
-				    enum ib_gid_type gid_type,
-				    union ib_gid *gid,
-				    struct rdma_id_private *id_priv)
+static const struct ib_gid_attr *
+cma_validate_port(struct ib_device *device, u8 port,
+		  enum ib_gid_type gid_type,
+		  union ib_gid *gid,
+		  struct rdma_id_private *id_priv)
 {
 	struct rdma_dev_addr *dev_addr = &id_priv->id.route.addr.dev_addr;
 	int bound_if_index = dev_addr->bound_dev_if;
+	const struct ib_gid_attr *sgid_attr;
 	int dev_type = dev_addr->dev_type;
 	struct net_device *ndev = NULL;
-	int ret = -ENODEV;
 
 	if ((dev_type == ARPHRD_INFINIBAND) && !rdma_protocol_ib(device, port))
-		return ret;
+		return ERR_PTR(-ENODEV);
 
 	if ((dev_type != ARPHRD_INFINIBAND) && rdma_protocol_ib(device, port))
-		return ret;
+		return ERR_PTR(-ENODEV);
 
 	if (dev_type == ARPHRD_ETHER && rdma_protocol_roce(device, port)) {
 		ndev = dev_get_by_index(dev_addr->net, bound_if_index);
 		if (!ndev)
-			return ret;
+			return ERR_PTR(-ENODEV);
 	} else {
 		gid_type = IB_GID_TYPE_IB;
 	}
 
-	ret = ib_find_cached_gid_by_port(device, gid, gid_type, port,
-					 ndev, NULL);
-
+	sgid_attr = rdma_find_gid_by_port(device, gid, gid_type, port, ndev);
 	if (ndev)
 		dev_put(ndev);
+	return sgid_attr;
+}
 
-	return ret;
+static void cma_bind_sgid_attr(struct rdma_id_private *id_priv,
+			       const struct ib_gid_attr *sgid_attr)
+{
+	WARN_ON(id_priv->id.route.addr.dev_addr.sgid_attr);
+	id_priv->id.route.addr.dev_addr.sgid_attr = sgid_attr;
 }
 
 static int cma_acquire_dev(struct rdma_id_private *id_priv,
 			   struct rdma_id_private *listen_id_priv)
 {
 	struct rdma_dev_addr *dev_addr = &id_priv->id.route.addr.dev_addr;
+	const struct ib_gid_attr *sgid_attr;
 	struct cma_device *cma_dev;
 	union ib_gid gid, iboe_gid, *gidp;
+	enum ib_gid_type gid_type;
+	enum ib_gid_type default_type;
 	int ret = -ENODEV;
 	u8 port;
 
@@ -662,14 +670,15 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv,
 		port = listen_id_priv->id.port_num;
 		gidp = rdma_protocol_roce(cma_dev->device, port) ?
 		       &iboe_gid : &gid;
-
-		ret = cma_validate_port(cma_dev->device, port,
-					rdma_protocol_ib(cma_dev->device, port) ?
-					IB_GID_TYPE_IB :
-					listen_id_priv->gid_type, gidp,
-					id_priv);
-		if (!ret) {
+		gid_type = rdma_protocol_ib(cma_dev->device, port) ?
+					    IB_GID_TYPE_IB :
+					    listen_id_priv->gid_type;
+		sgid_attr = cma_validate_port(cma_dev->device, port,
+					      gid_type, gidp, id_priv);
+		if (!IS_ERR(sgid_attr)) {
 			id_priv->id.port_num = port;
+			cma_bind_sgid_attr(id_priv, sgid_attr);
+			ret = 0;
 			goto out;
 		}
 	}
@@ -683,14 +692,16 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv,
 
 			gidp = rdma_protocol_roce(cma_dev->device, port) ?
 			       &iboe_gid : &gid;
-
-			ret = cma_validate_port(cma_dev->device, port,
-						rdma_protocol_ib(cma_dev->device, port) ?
-						IB_GID_TYPE_IB :
-						cma_dev->default_gid_type[port - 1],
-						gidp, id_priv);
-			if (!ret) {
+			default_type = cma_dev->default_gid_type[port - 1];
+			gid_type =
+				rdma_protocol_ib(cma_dev->device, port) ?
+						 IB_GID_TYPE_IB : default_type;
+			sgid_attr = cma_validate_port(cma_dev->device, port,
+						      gid_type, gidp, id_priv);
+			if (!IS_ERR(sgid_attr)) {
 				id_priv->id.port_num = port;
+				cma_bind_sgid_attr(id_priv, sgid_attr);
+				ret = 0;
 				goto out;
 			}
 		}
@@ -1706,6 +1717,10 @@ void rdma_destroy_id(struct rdma_cm_id *id)
 		cma_deref_id(id_priv->id.context);
 
 	kfree(id_priv->id.route.path_rec);
+
+	if (id_priv->id.route.addr.dev_addr.sgid_attr)
+		rdma_put_gid_attr(id_priv->id.route.addr.dev_addr.sgid_attr);
+
 	put_net(id_priv->id.route.addr.dev_addr.net);
 	kfree(id_priv);
 }

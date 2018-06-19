@@ -58,6 +58,7 @@
  * @bound_dev_if:	An optional device interface index.
  * @transport:		The transport type used.
  * @net:		Network namespace containing the bound_dev_if net_dev.
+ * @sgid_attr:		GID attribute to use for identified SGID
  */
 struct rdma_dev_addr {
 	unsigned char src_dev_addr[MAX_ADDR_LEN];
@@ -67,6 +68,7 @@ struct rdma_dev_addr {
 	int bound_dev_if;
 	enum rdma_transport_type transport;
 	struct net *net;
+	const struct ib_gid_attr *sgid_attr;
 	enum rdma_network_type network;
 	int hoplimit;
 };
