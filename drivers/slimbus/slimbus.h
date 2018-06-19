@@ -17,6 +17,8 @@
 
 /* SLIMbus message types. Related to interpretation of message code. */
 #define SLIM_MSG_MT_CORE			0x0
+#define SLIM_MSG_MT_DEST_REFERRED_USER		0x2
+#define SLIM_MSG_MT_SRC_REFERRED_USER		0x6
 
 /*
  * SLIM Broadcast header format
@@ -47,6 +49,12 @@
 #define SLIM_MSG_MC_BEGIN_RECONFIGURATION        0x40
 #define SLIM_MSG_MC_NEXT_PAUSE_CLOCK             0x4A
 #define SLIM_MSG_MC_RECONFIGURE_NOW              0x5F
+
+/*
+ * Clock pause flag to indicate that the reconfig message
+ * corresponds to clock pause sequence
+ */
+#define SLIM_MSG_CLK_PAUSE_SEQ_FLG		(1U << 8)
 
 /* Clock pause values per SLIMbus spec */
 #define SLIM_CLK_FAST				0
