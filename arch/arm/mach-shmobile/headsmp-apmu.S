@@ -8,9 +8,7 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 
-#ifdef CONFIG_SMP
 ENTRY(shmobile_boot_apmu)
 	bl	secure_cntvoff_init
 	b	secondary_startup
 ENDPROC(shmobile_boot_apmu)
-#endif
