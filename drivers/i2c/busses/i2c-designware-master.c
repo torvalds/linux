@@ -55,6 +55,7 @@ static void i2c_dw_configure_fifo_master(struct dw_i2c_dev *dev)
  */
 static int i2c_dw_init_master(struct dw_i2c_dev *dev)
 {
+	u32 ic_clk = i2c_dw_clk_rate(dev);
 	u32 hcnt, lcnt;
 	u32 reg, comp_param1;
 	u32 sda_falling_time, scl_falling_time;
@@ -79,12 +80,12 @@ static int i2c_dw_init_master(struct dw_i2c_dev *dev)
 		hcnt = dev->ss_hcnt;
 		lcnt = dev->ss_lcnt;
 	} else {
-		hcnt = i2c_dw_scl_hcnt(i2c_dw_clk_rate(dev),
+		hcnt = i2c_dw_scl_hcnt(ic_clk,
 					4000,	/* tHD;STA = tHIGH = 4.0 us */
 					sda_falling_time,
 					0,	/* 0: DW default, 1: Ideal */
 					0);	/* No offset */
-		lcnt = i2c_dw_scl_lcnt(i2c_dw_clk_rate(dev),
+		lcnt = i2c_dw_scl_lcnt(ic_clk,
 					4700,	/* tLOW = 4.7 us */
 					scl_falling_time,
 					0);	/* No offset */
@@ -101,12 +102,12 @@ static int i2c_dw_init_master(struct dw_i2c_dev *dev)
 		hcnt = dev->fs_hcnt;
 		lcnt = dev->fs_lcnt;
 	} else {
-		hcnt = i2c_dw_scl_hcnt(i2c_dw_clk_rate(dev),
+		hcnt = i2c_dw_scl_hcnt(ic_clk,
 					600,	/* tHD;STA = tHIGH = 0.6 us */
 					sda_falling_time,
 					0,	/* 0: DW default, 1: Ideal */
 					0);	/* No offset */
-		lcnt = i2c_dw_scl_lcnt(i2c_dw_clk_rate(dev),
+		lcnt = i2c_dw_scl_lcnt(ic_clk,
 					1300,	/* tLOW = 1.3 us */
 					scl_falling_time,
 					0);	/* No offset */
