@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ddbridge-hw.h: Digital Devices bridge hardware maps
  *

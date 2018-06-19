@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ddbridge-io.h: Digital Devices bridge I/O inline functions
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ddbridge-ci.c: Digital Devices bridge CI (DuoFlex, CI Bridge) support
  *

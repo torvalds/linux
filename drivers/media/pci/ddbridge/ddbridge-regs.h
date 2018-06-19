@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ddbridge-regs.h: Digital Devices PCIe bridge driver
  *

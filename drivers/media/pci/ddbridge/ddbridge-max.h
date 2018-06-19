@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ddbridge-max.h: Digital Devices bridge MAX card support
  *

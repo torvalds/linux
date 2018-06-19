@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ddbridge-i2c.c: Digital Devices bridge i2c driver
  *
