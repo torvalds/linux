@@ -452,7 +452,7 @@ find_timestamp(struct cifs_ses *ses)
 	unsigned char *blobptr;
 	unsigned char *blobend;
 	struct ntlmssp2_name *attrptr;
-	struct timespec ts;
+	struct timespec64 ts;
 
 	if (!ses->auth_key.len || !ses->auth_key.response)
 		return 0;
@@ -477,7 +477,7 @@ find_timestamp(struct cifs_ses *ses)
 		blobptr += attrsize; /* advance attr value */
 	}
 
-	ktime_get_real_ts(&ts);
+	ktime_get_real_ts64(&ts);
 	return cpu_to_le64(cifs_UnixTimeToNT(ts));
 }
 
