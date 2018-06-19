@@ -37,7 +37,6 @@ static void led_activity_function(struct timer_list *t)
 	struct activity_data *activity_data = from_timer(activity_data, t,
 							 timer);
 	struct led_classdev *led_cdev = activity_data->led_cdev;
-	struct timespec boot_time;
 	unsigned int target;
 	unsigned int usage;
 	int delay;
@@ -57,8 +56,6 @@ static void led_activity_function(struct timer_list *t)
 		return;
 	}
 
-	get_monotonic_boottime(&boot_time);
-
 	cpus = 0;
 	curr_used = 0;
 
@@ -76,7 +73,7 @@ static void led_activity_function(struct timer_list *t)
 	 * down to 16us, ensuring we won't overflow 32-bit computations below
 	 * even up to 3k CPUs, while keeping divides cheap on smaller systems.
 	 */
-	curr_boot = timespec_to_ns(&boot_time) * cpus;
+	curr_boot = ktime_get_boot_ns() * cpus;
 	diff_boot = (curr_boot - activity_data->last_boot) >> 16;
 	diff_used = (curr_used - activity_data->last_used) >> 16;
 	activity_data->last_boot = curr_boot;
