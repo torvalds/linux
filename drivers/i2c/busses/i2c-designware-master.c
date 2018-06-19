@@ -45,6 +45,11 @@ static void i2c_dw_configure_fifo_master(struct dw_i2c_dev *dev)
 	dw_writel(dev, dev->master_cfg, DW_IC_CON);
 }
 
+static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
+{
+	return i2c_dw_set_sda_hold(dev);
+}
+
 /**
  * i2c_dw_init() - Initialize the designware I2C master hardware
  * @dev: device private data
@@ -57,7 +62,7 @@ static int i2c_dw_init_master(struct dw_i2c_dev *dev)
 {
 	u32 ic_clk = i2c_dw_clk_rate(dev);
 	u32 hcnt, lcnt;
-	u32 reg, comp_param1;
+	u32 comp_param1;
 	u32 sda_falling_time, scl_falling_time;
 	int ret;
 
@@ -133,27 +138,9 @@ static int i2c_dw_init_master(struct dw_i2c_dev *dev)
 		}
 	}
 
-	/* Configure SDA Hold Time if required */
-	reg = dw_readl(dev, DW_IC_COMP_VERSION);
-	if (reg >= DW_IC_SDA_HOLD_MIN_VERS) {
-		if (!dev->sda_hold_time) {
-			/* Keep previous hold time setting if no one set it */
-			dev->sda_hold_time = dw_readl(dev, DW_IC_SDA_HOLD);
-		}
-		/*
-		 * Workaround for avoiding TX arbitration lost in case I2C
-		 * slave pulls SDA down "too quickly" after falling egde of
-		 * SCL by enabling non-zero SDA RX hold. Specification says it
-		 * extends incoming SDA low to high transition while SCL is
-		 * high but it apprears to help also above issue.
-		 */
-		if (!(dev->sda_hold_time & DW_IC_SDA_HOLD_RX_MASK))
-			dev->sda_hold_time |= 1 << DW_IC_SDA_HOLD_RX_SHIFT;
+	/* Write SDA hold time if supported */
+	if (dev->sda_hold_time)
 		dw_writel(dev, dev->sda_hold_time, DW_IC_SDA_HOLD);
-	} else if (dev->sda_hold_time) {
-		dev_warn(dev->dev,
-			"Hardware too old to adjust SDA hold time.\n");
-	}
 
 	i2c_dw_configure_fifo_master(dev);
 	i2c_dw_release_lock(dev);
@@ -669,6 +656,10 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
 	dev->disable_int = i2c_dw_disable_int;
 
 	ret = i2c_dw_set_reg_access(dev);
+	if (ret)
+		return ret;
+
+	ret = i2c_dw_set_timings_master(dev);
 	if (ret)
 		return ret;
 
