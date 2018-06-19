@@ -89,6 +89,7 @@ struct mlx5_flow_destination {
 	enum mlx5_flow_destination_type	type;
 	union {
 		u32			tir_num;
+		u32			ft_num;
 		struct mlx5_flow_table	*ft;
 		struct mlx5_fc		*counter;
 		struct {

@@ -1356,7 +1356,9 @@ static bool mlx5_flow_dests_cmp(struct mlx5_flow_destination *d1,
 		    (d1->type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE &&
 		     d1->ft == d2->ft) ||
 		    (d1->type == MLX5_FLOW_DESTINATION_TYPE_TIR &&
-		     d1->tir_num == d2->tir_num))
+		     d1->tir_num == d2->tir_num) ||
+		    (d1->type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM &&
+		     d1->ft_num == d2->ft_num))
 			return true;
 	}
 

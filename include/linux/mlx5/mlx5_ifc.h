@@ -1180,6 +1180,7 @@ enum mlx5_flow_destination_type {
 
 	MLX5_FLOW_DESTINATION_TYPE_PORT         = 0x99,
 	MLX5_FLOW_DESTINATION_TYPE_COUNTER      = 0x100,
+	MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM = 0x101,
 };
 
 struct mlx5_ifc_dest_format_struct_bits {
