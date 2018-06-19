@@ -288,7 +288,8 @@ static ssize_t radar_detection_write(struct file *file,
 	if (ret < 0)
 		count = ret;
 
-	pm_runtime_put(wl->dev);
+	pm_runtime_mark_last_busy(wl->dev);
+	pm_runtime_put_autosuspend(wl->dev);
 out:
 	mutex_unlock(&wl->mutex);
 	return count;
@@ -329,7 +330,8 @@ static ssize_t dynamic_fw_traces_write(struct file *file,
 	if (ret < 0)
 		count = ret;
 
-	pm_runtime_put(wl->dev);
+	pm_runtime_mark_last_busy(wl->dev);
+	pm_runtime_put_autosuspend(wl->dev);
 out:
 	mutex_unlock(&wl->mutex);
 	return count;
@@ -392,7 +394,8 @@ static ssize_t radar_debug_mode_write(struct file *file,
 				       wl->radar_debug_mode, 0);
 	}
 
-	pm_runtime_put(wl->dev);
+	pm_runtime_mark_last_busy(wl->dev);
+	pm_runtime_put_autosuspend(wl->dev);
 out:
 	mutex_unlock(&wl->mutex);
 	return count;

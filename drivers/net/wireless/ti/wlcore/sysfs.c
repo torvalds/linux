@@ -77,7 +77,8 @@ static ssize_t wl1271_sysfs_store_bt_coex_state(struct device *dev,
 	}
 
 	wl1271_acx_sg_enable(wl, wl->sg_enabled);
-	pm_runtime_put(wl->dev);
+	pm_runtime_mark_last_busy(wl->dev);
+	pm_runtime_put_autosuspend(wl->dev);
 
  out:
 	mutex_unlock(&wl->mutex);
